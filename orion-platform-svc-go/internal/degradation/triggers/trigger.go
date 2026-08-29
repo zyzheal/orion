@@ -33,13 +33,13 @@ type CallbackFunc func(state DegradationState, decision Decision)
 // Trigger is the automatic degradation orchestrator for a single policy.
 //
 // Architecture:
-//   1. Clients push MetricSnapshots into the sliding window via Observe().
-//   2. On each Evaluate() call (or on a background tick), the window is
-//      aggregated and passed through the Evaluator.
-//   3. When thresholds are breached the state moves NORMAL → DEGRADED,
-//      callbacks fire, and the circuit-breaker (if configured) is opened.
-//   4. Recovery requires HealthStreakRequired consecutive healthy
-//      evaluations *below* the hysteresis margin: DEGRADED → NORMAL.
+//  1. Clients push MetricSnapshots into the sliding window via Observe().
+//  2. On each Evaluate() call (or on a background tick), the window is
+//     aggregated and passed through the Evaluator.
+//  3. When thresholds are breached the state moves NORMAL → DEGRADED,
+//     callbacks fire, and the circuit-breaker (if configured) is opened.
+//  4. Recovery requires HealthStreakRequired consecutive healthy
+//     evaluations *below* the hysteresis margin: DEGRADED → NORMAL.
 type Trigger struct {
 	cfg       TriggerConfig
 	window    *SlidingWindow

@@ -5,9 +5,10 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai/vector/models"
 	"orion/platform-svc-go/internal/ai/vector/service"
-	"orion/go-common/pkg/auth"
 )
 
 type VectorHandler struct {
@@ -40,11 +41,13 @@ func (h *VectorHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // ListStores returns paginated vector stores.
 func (h *VectorHandler) ListStores(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIVectorListStores")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	stores, total, err := h.svc.QueryStores(c.Request.Context(), tenantID, limit, offset)
+	stores, total, err := h.svc.QueryStores(ctx, tenantID, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -54,6 +57,8 @@ func (h *VectorHandler) ListStores(c *gin.Context) {
 
 // CreateStore creates a new vector store.
 func (h *VectorHandler) CreateStore(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIVectorCreateStore")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req models.CreateStoreRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -61,7 +66,7 @@ func (h *VectorHandler) CreateStore(c *gin.Context) {
 		return
 	}
 
-	store, err := h.svc.CreateStore(c.Request.Context(), tenantID, &req)
+	store, err := h.svc.CreateStore(ctx, tenantID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -71,10 +76,12 @@ func (h *VectorHandler) CreateStore(c *gin.Context) {
 
 // GetStore returns a single vector store.
 func (h *VectorHandler) GetStore(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIVectorGetStore")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id := c.Param("id")
 
-	store, err := h.svc.GetStore(c.Request.Context(), tenantID, id)
+	store, err := h.svc.GetStore(ctx, tenantID, id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		return
@@ -84,10 +91,12 @@ func (h *VectorHandler) GetStore(c *gin.Context) {
 
 // DeleteStore removes a vector store.
 func (h *VectorHandler) DeleteStore(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIVectorDeleteStore")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id := c.Param("id")
 
-	if err := h.svc.DeleteStore(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteStore(ctx, tenantID, id); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		return
 	}
@@ -96,6 +105,8 @@ func (h *VectorHandler) DeleteStore(c *gin.Context) {
 
 // UpsertVector inserts or updates a vector.
 func (h *VectorHandler) UpsertVector(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIVectorUpsertVector")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	storeID := c.Param("store_id")
 	vectorID := c.Param("vector_id")
@@ -109,7 +120,7 @@ func (h *VectorHandler) UpsertVector(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.UpsertVector(c.Request.Context(), tenantID, storeID, vectorID, req.Data, req.Payload); err != nil {
+	if err := h.svc.UpsertVector(ctx, tenantID, storeID, vectorID, req.Data, req.Payload); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
 	}
@@ -118,11 +129,13 @@ func (h *VectorHandler) UpsertVector(c *gin.Context) {
 
 // DeleteVector removes a vector.
 func (h *VectorHandler) DeleteVector(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIVectorDeleteVector")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	storeID := c.Param("store_id")
 	vectorID := c.Param("vector_id")
 
-	if err := h.svc.DeleteVector(c.Request.Context(), tenantID, storeID, vectorID); err != nil {
+	if err := h.svc.DeleteVector(ctx, tenantID, storeID, vectorID); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		return
 	}
@@ -131,6 +144,8 @@ func (h *VectorHandler) DeleteVector(c *gin.Context) {
 
 // Search performs vector similarity search.
 func (h *VectorHandler) Search(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIVectorSearch")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req models.SearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -138,7 +153,7 @@ func (h *VectorHandler) Search(c *gin.Context) {
 		return
 	}
 
-	results, err := h.svc.SearchVectors(c.Request.Context(), tenantID, req.StoreID, req.Query, req.TopK)
+	results, err := h.svc.SearchVectors(ctx, tenantID, req.StoreID, req.Query, req.TopK)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return

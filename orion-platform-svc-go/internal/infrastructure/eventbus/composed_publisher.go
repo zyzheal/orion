@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"orion/platform-svc-go/internal/domain/eventstore"
 	"orion/platform-svc-go/internal/domain/events"
+	"orion/platform-svc-go/internal/domain/eventstore"
 )
 
 // ComposedEventPublisher implements events.EventPublisher by composing three
@@ -17,9 +17,9 @@ import (
 //
 // Publish flow:  Append to store → dispatch to NATS → notify local handlers
 type ComposedEventPublisher struct {
-	store    eventstore.EventStore // persistence back-end
-	nats     *NATSEventPublisher   // async NATS publisher
-	mu       sync.RWMutex          // protects handlers map
+	store    eventstore.EventStore            // persistence back-end
+	nats     *NATSEventPublisher              // async NATS publisher
+	mu       sync.RWMutex                     // protects handlers map
 	handlers map[string][]events.EventHandler // eventType → handlers
 }
 

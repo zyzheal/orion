@@ -20,9 +20,9 @@ import (
 )
 
 var (
-	ErrSecretNotFound    = errors.New("secret not found")
-	ErrInvalidName       = errors.New("invalid secret name format")
-	ErrNameTooLong       = errors.New("secret name must be 255 characters or less")
+	ErrSecretNotFound       = errors.New("secret not found")
+	ErrInvalidName          = errors.New("invalid secret name format")
+	ErrNameTooLong          = errors.New("secret name must be 255 characters or less")
 	ErrEncryptionKeyMissing = errors.New("ORION_SECRET_ENCRYPTION_KEY is required in production")
 )
 
@@ -66,13 +66,13 @@ func (s *Service) Create(ctx context.Context, tenantID string, req *models.Creat
 	}
 
 	sec := &models.Secret{
-		ID:      uuid.New().String(),
+		ID:       uuid.New().String(),
 		TenantID: tenantID,
-		Name:    req.Name,
-		Value:   encrypted,
-		Scope:   scope,
-		Version: 1,
-		Env:     req.Env,
+		Name:     req.Name,
+		Value:    encrypted,
+		Scope:    scope,
+		Version:  1,
+		Env:      req.Env,
 	}
 	if sec.Env == "" {
 		sec.Env = "production"

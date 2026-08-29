@@ -92,53 +92,53 @@ func (s *StringSlice) Scan(src interface{}) error {
 
 // RiskItem is a basic risk tracking record.
 type RiskItem struct {
-	ID          string    `db:"id" json:"id"`
-	TenantID    string    `db:"tenant_id" json:"tenant_id"`
-	Name        string    `db:"name" json:"name"`
-	RiskType    string    `db:"risk_type" json:"risk_type"`
-	Level       string    `db:"level" json:"level"`
-	Description string    `db:"description" json:"description,omitempty"`
-	Mitigation  string    `db:"mitigation" json:"mitigation,omitempty"`
-	Status      string    `db:"status" json:"status"`
-	Assignee    string    `db:"assignee" json:"assignee,omitempty"`
-	Metadata    JSONB     `db:"metadata" json:"metadata"`
+	ID          string      `db:"id" json:"id"`
+	TenantID    string      `db:"tenant_id" json:"tenant_id"`
+	Name        string      `db:"name" json:"name"`
+	RiskType    string      `db:"risk_type" json:"risk_type"`
+	Level       string      `db:"level" json:"level"`
+	Description string      `db:"description" json:"description,omitempty"`
+	Mitigation  string      `db:"mitigation" json:"mitigation,omitempty"`
+	Status      string      `db:"status" json:"status"`
+	Assignee    string      `db:"assignee" json:"assignee,omitempty"`
+	Metadata    JSONB       `db:"metadata" json:"metadata"`
 	Tags        StringSlice `db:"tags" json:"tags"`
-	DueDate     *time.Time `db:"due_date" json:"due_date,omitempty"`
-	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
-	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	DueDate     *time.Time  `db:"due_date" json:"due_date,omitempty"`
+	UpdatedAt   time.Time   `db:"updated_at" json:"updated_at"`
+	CreatedAt   time.Time   `db:"created_at" json:"created_at"`
 }
 
 // RiskAssessment stores a risk scoring engine evaluation result.
 type RiskAssessment struct {
-	ID              string      `db:"id" json:"id"`
-	TenantID        string      `db:"tenant_id" json:"tenant_id"`
-	Name            string      `db:"name" json:"name"`
-	TargetType      string      `db:"target_type" json:"target_type"`
-	TargetID        string      `db:"target_id" json:"target_id"`
-	RiskScore       float64     `db:"risk_score" json:"risk_score"`
-	RiskLevel       string      `db:"risk_level" json:"risk_level"`
-	Factors         JSONBSlice  `db:"factors" json:"factors"`
-	Recommendations JSONBSlice  `db:"recommendations" json:"recommendations"`
-	Status          string      `db:"status" json:"status"`
-	Metadata        JSONB       `db:"metadata" json:"metadata"`
-	UpdatedAt       time.Time   `db:"updated_at" json:"updated_at"`
-	CreatedAt       time.Time   `db:"created_at" json:"created_at"`
+	ID              string     `db:"id" json:"id"`
+	TenantID        string     `db:"tenant_id" json:"tenant_id"`
+	Name            string     `db:"name" json:"name"`
+	TargetType      string     `db:"target_type" json:"target_type"`
+	TargetID        string     `db:"target_id" json:"target_id"`
+	RiskScore       float64    `db:"risk_score" json:"risk_score"`
+	RiskLevel       string     `db:"risk_level" json:"risk_level"`
+	Factors         JSONBSlice `db:"factors" json:"factors"`
+	Recommendations JSONBSlice `db:"recommendations" json:"recommendations"`
+	Status          string     `db:"status" json:"status"`
+	Metadata        JSONB      `db:"metadata" json:"metadata"`
+	UpdatedAt       time.Time  `db:"updated_at" json:"updated_at"`
+	CreatedAt       time.Time  `db:"created_at" json:"created_at"`
 }
 
 // RiskReport stores a generated report from a risk assessment.
 type RiskReport struct {
-	ID                 string      `db:"id" json:"id"`
-	TenantID           string      `db:"tenant_id" json:"tenant_id"`
-	AssessmentID       string      `db:"assessment_id" json:"assessment_id"`
-	RiskScore          float64     `db:"risk_score" json:"risk_score"`
-	RiskLevel          string      `db:"risk_level" json:"risk_level"`
-	CanDeploy          bool        `db:"can_deploy" json:"can_deploy"`
-	CriticalRiskCount  int         `db:"critical_risk_count" json:"critical_risk_count"`
-	Summary            JSONB       `db:"summary" json:"summary"`
-	Details            JSONB       `db:"details" json:"details"`
-	Recommendations    JSONBSlice  `db:"recommendations" json:"recommendations"`
-	GeneratedAt        time.Time   `db:"generated_at" json:"generated_at"`
-	CreatedAt          time.Time   `db:"created_at" json:"created_at"`
+	ID                string     `db:"id" json:"id"`
+	TenantID          string     `db:"tenant_id" json:"tenant_id"`
+	AssessmentID      string     `db:"assessment_id" json:"assessment_id"`
+	RiskScore         float64    `db:"risk_score" json:"risk_score"`
+	RiskLevel         string     `db:"risk_level" json:"risk_level"`
+	CanDeploy         bool       `db:"can_deploy" json:"can_deploy"`
+	CriticalRiskCount int        `db:"critical_risk_count" json:"critical_risk_count"`
+	Summary           JSONB      `db:"summary" json:"summary"`
+	Details           JSONB      `db:"details" json:"details"`
+	Recommendations   JSONBSlice `db:"recommendations" json:"recommendations"`
+	GeneratedAt       time.Time  `db:"generated_at" json:"generated_at"`
+	CreatedAt         time.Time  `db:"created_at" json:"created_at"`
 }
 
 // RiskPrediction caches an ML-based risk prediction result.
@@ -183,11 +183,11 @@ type RiskFactor struct {
 
 // DeploymentRisk holds all input data for risk scoring.
 type DeploymentRisk struct {
-	ChangeScope   []string           `json:"changeScope"`
-	ChangeSize    ChangeSize         `json:"changeSize"`
-	TimeRisk      TimeRisk           `json:"timeRisk"`
-	DependencyRisk DependencyRisk     `json:"dependencyRisk"`
-	HistoricalRisk HistoricalRisk     `json:"historicalRisk"`
+	ChangeScope    []string       `json:"changeScope"`
+	ChangeSize     ChangeSize     `json:"changeSize"`
+	TimeRisk       TimeRisk       `json:"timeRisk"`
+	DependencyRisk DependencyRisk `json:"dependencyRisk"`
+	HistoricalRisk HistoricalRisk `json:"historicalRisk"`
 }
 
 type ChangeSize struct {
@@ -196,10 +196,10 @@ type ChangeSize struct {
 }
 
 type TimeRisk struct {
-	IsWeekend   bool `json:"isWeekend"`
+	IsWeekend    bool `json:"isWeekend"`
 	IsAfterHours bool `json:"isAfterHours"`
-	IsHoliday   bool `json:"isHoliday"`
-	IsFriday    bool `json:"isFriday"`
+	IsHoliday    bool `json:"isHoliday"`
+	IsFriday     bool `json:"isFriday"`
 }
 
 type DependencyRisk struct {
@@ -270,36 +270,36 @@ type TestResults struct {
 // ============================================================
 
 type CreateRiskItemRequest struct {
-	Name        string   `json:"name" binding:"required"`
-	RiskType    string   `json:"risk_type" binding:"required"`
-	Level       string   `json:"level" binding:"required"`
-	Description string   `json:"description"`
-	Mitigation  string   `json:"mitigation"`
-	Assignee    string   `json:"assignee"`
-	Tags        []string `json:"tags"`
+	Name        string     `json:"name" binding:"required"`
+	RiskType    string     `json:"risk_type" binding:"required"`
+	Level       string     `json:"level" binding:"required"`
+	Description string     `json:"description"`
+	Mitigation  string     `json:"mitigation"`
+	Assignee    string     `json:"assignee"`
+	Tags        []string   `json:"tags"`
 	DueDate     *time.Time `json:"due_date"`
 }
 
 type UpdateRiskItemRequest struct {
-	Name        *string   `json:"name"`
-	RiskType    *string   `json:"risk_type"`
-	Level       *string   `json:"level"`
-	Description *string   `json:"description"`
-	Mitigation  *string   `json:"mitigation"`
-	Status      *string   `json:"status"`
-	Assignee    *string   `json:"assignee"`
-	Tags        []string  `json:"tags"`
+	Name        *string  `json:"name"`
+	RiskType    *string  `json:"risk_type"`
+	Level       *string  `json:"level"`
+	Description *string  `json:"description"`
+	Mitigation  *string  `json:"mitigation"`
+	Status      *string  `json:"status"`
+	Assignee    *string  `json:"assignee"`
+	Tags        []string `json:"tags"`
 }
 
 // AssessDeploymentRequest is the HTTP body for POST /risks/assessments/deployment.
 type AssessDeploymentRequest struct {
-	DeploymentID      string         `json:"deployment_id" binding:"required"`
-	DeploymentRisk    DeploymentRisk `json:"deployment_risk" binding:"required"`
-	RunHealthChecks   bool           `json:"run_health_checks"`
-	PipelineStatus    string         `json:"pipeline_status"`
-	TestResults       *TestResults   `json:"test_results"`
-	CodeReviewStatus  string         `json:"code_review_status"`
-	Dependencies      []string       `json:"dependencies"`
+	DeploymentID     string         `json:"deployment_id" binding:"required"`
+	DeploymentRisk   DeploymentRisk `json:"deployment_risk" binding:"required"`
+	RunHealthChecks  bool           `json:"run_health_checks"`
+	PipelineStatus   string         `json:"pipeline_status"`
+	TestResults      *TestResults   `json:"test_results"`
+	CodeReviewStatus string         `json:"code_review_status"`
+	Dependencies     []string       `json:"dependencies"`
 }
 
 // AssessChangeRequest is the HTTP body for POST /risks/assessments/change.
@@ -310,27 +310,27 @@ type AssessChangeRequest struct {
 
 // CreateAssessmentRequest is the HTTP body for POST /api/risk/assessments.
 type CreateAssessmentRequest struct {
-	Name            string        `json:"name" binding:"required"`
-	TargetType      string        `json:"target_type" binding:"required"`
-	TargetID        string        `json:"target_id" binding:"required"`
-	RiskScore       float64       `json:"risk_score"`
-	RiskLevel       string        `json:"risk_level"`
-	Status          string        `json:"status"`
-	Factors         JSONBSlice    `json:"factors"`
-	Recommendations JSONBSlice    `json:"recommendations"`
-	Metadata        JSONB         `json:"metadata"`
+	Name            string     `json:"name" binding:"required"`
+	TargetType      string     `json:"target_type" binding:"required"`
+	TargetID        string     `json:"target_id" binding:"required"`
+	RiskScore       float64    `json:"risk_score"`
+	RiskLevel       string     `json:"risk_level"`
+	Status          string     `json:"status"`
+	Factors         JSONBSlice `json:"factors"`
+	Recommendations JSONBSlice `json:"recommendations"`
+	Metadata        JSONB      `json:"metadata"`
 }
 
 // UpdateAssessmentRequest is the HTTP body for PUT /api/risk/assessments/:id.
 type UpdateAssessmentRequest struct {
-	Name            *string       `json:"name"`
-	TargetType      *string       `json:"target_type"`
-	TargetID        *string       `json:"target_id"`
-	RiskScore       *float64      `json:"risk_score"`
-	RiskLevel       *string       `json:"risk_level"`
-	Status          *string       `json:"status"`
-	Factors         *JSONBSlice   `json:"factors"`
-	Recommendations *JSONBSlice   `json:"recommendations"`
+	Name            *string     `json:"name"`
+	TargetType      *string     `json:"target_type"`
+	TargetID        *string     `json:"target_id"`
+	RiskScore       *float64    `json:"risk_score"`
+	RiskLevel       *string     `json:"risk_level"`
+	Status          *string     `json:"status"`
+	Factors         *JSONBSlice `json:"factors"`
+	Recommendations *JSONBSlice `json:"recommendations"`
 }
 
 // GenerateReportRequest is the HTTP body for POST /risks/reports.
@@ -340,11 +340,11 @@ type GenerateReportRequest struct {
 
 // PreDeploymentCheckRequest is the HTTP body for POST /risks/health-checks/pre-deployment.
 type PreDeploymentCheckRequest struct {
-	TargetID        string       `json:"target_id" binding:"required"`
-	PipelineStatus  string       `json:"pipeline_status"`
-	TestResults     *TestResults `json:"test_results"`
-	CodeReviewStatus string      `json:"code_review_status"`
-	Dependencies    []string     `json:"dependencies"`
+	TargetID         string       `json:"target_id" binding:"required"`
+	PipelineStatus   string       `json:"pipeline_status"`
+	TestResults      *TestResults `json:"test_results"`
+	CodeReviewStatus string       `json:"code_review_status"`
+	Dependencies     []string     `json:"dependencies"`
 }
 
 // PaginatedRequest holds pagination parameters.
@@ -379,13 +379,13 @@ func (p *PaginatedRequest) Limit() int {
 
 // PostAssessmentRequest is the HTTP body for POST /api/risk/assessments.
 type PostAssessmentRequest struct {
-	Name            string           `json:"name"`
-	TargetType      string           `json:"target_type" binding:"required"`
-	TargetID        string           `json:"target_id" binding:"required"`
-	DeploymentRisk  *DeploymentRisk  `json:"deployment_risk"` // if provided, score is computed
-	RiskScore       *float64         `json:"risk_score"`      // if provided, used directly
-	RiskLevel       string           `json:"risk_level"`
-	Status          string           `json:"status"`
-	Factors         JSONBSlice       `json:"factors"`
-	Recommendations JSONBSlice       `json:"recommendations"`
+	Name            string          `json:"name"`
+	TargetType      string          `json:"target_type" binding:"required"`
+	TargetID        string          `json:"target_id" binding:"required"`
+	DeploymentRisk  *DeploymentRisk `json:"deployment_risk"` // if provided, score is computed
+	RiskScore       *float64        `json:"risk_score"`      // if provided, used directly
+	RiskLevel       string          `json:"risk_level"`
+	Status          string          `json:"status"`
+	Factors         JSONBSlice      `json:"factors"`
+	Recommendations JSONBSlice      `json:"recommendations"`
 }

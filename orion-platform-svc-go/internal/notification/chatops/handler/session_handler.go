@@ -1,7 +1,7 @@
 package handler
 
 import (
-
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/notification/chatops/models"
 	"orion/platform-svc-go/internal/notification/chatops/service"
 
@@ -17,13 +17,15 @@ func NewSessionHandler(svc *service.SessionService) *SessionHandler {
 }
 
 func (h *SessionHandler) GetOrCreate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsGetOrCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSessionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	session, err := h.svc.GetOrCreate(c.Request.Context(), tenantID, req.SessionKey, req.UserID, req.ChannelID)
+	session, err := h.svc.GetOrCreate(ctx, tenantID, req.SessionKey, req.UserID, req.ChannelID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -32,8 +34,10 @@ func (h *SessionHandler) GetOrCreate(c *gin.Context) {
 }
 
 func (h *SessionHandler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsGet")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	session, err := h.svc.Get(c.Request.Context(), tenantID, c.Param("key"))
+	session, err := h.svc.Get(ctx, tenantID, c.Param("key"))
 	if err != nil {
 		respondNotFound(c, "session not found")
 		return
@@ -42,6 +46,8 @@ func (h *SessionHandler) Get(c *gin.Context) {
 }
 
 func (h *SessionHandler) UpdateState(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsUpdateState")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req struct {
 		State   models.JSONB `json:"state"`
@@ -51,7 +57,7 @@ func (h *SessionHandler) UpdateState(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.UpdateState(c.Request.Context(), tenantID, c.Param("key"), req.State, req.History); err != nil {
+	if err := h.svc.UpdateState(ctx, tenantID, c.Param("key"), req.State, req.History); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -59,8 +65,10 @@ func (h *SessionHandler) UpdateState(c *gin.Context) {
 }
 
 func (h *SessionHandler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("key")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("key")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}

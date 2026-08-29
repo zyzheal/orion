@@ -29,16 +29,16 @@ type LLMOptions struct {
 
 // OpenAIClient implements LLMClient using OpenAI-compatible API.
 type OpenAIClient struct {
-	baseURL    string
-	apiKey     string
-	model      string
-	client     *httpRetryClient
+	baseURL string
+	apiKey  string
+	model   string
+	client  *httpRetryClient
 }
 
 type httpRetryClient struct {
-	maxRetries  int
-	backoff     time.Duration
-	maxBackoff  time.Duration
+	maxRetries int
+	backoff    time.Duration
+	maxBackoff time.Duration
 }
 
 func NewOpenAIClient(baseURL, apiKey, model string) *OpenAIClient {

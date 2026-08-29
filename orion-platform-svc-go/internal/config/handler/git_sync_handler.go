@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/config/models"
 	"orion/platform-svc-go/internal/config/service"
 	"orion/platform-svc-go/internal/middleware"
@@ -19,13 +20,15 @@ func NewGitSyncHandler(svc *service.GitSyncService) *GitSyncHandler {
 }
 
 func (h *GitSyncHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateGitSyncRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	g, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	g, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -34,9 +37,11 @@ func (h *GitSyncHandler) Create(c *gin.Context) {
 }
 
 func (h *GitSyncHandler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigGet")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	g, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	g, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "git sync config not found")
 		return
@@ -45,8 +50,10 @@ func (h *GitSyncHandler) Get(c *gin.Context) {
 }
 
 func (h *GitSyncHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	gs, err := h.svc.List(c.Request.Context(), tenantID)
+	gs, err := h.svc.List(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -55,9 +62,11 @@ func (h *GitSyncHandler) List(c *gin.Context) {
 }
 
 func (h *GitSyncHandler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -65,9 +74,11 @@ func (h *GitSyncHandler) Delete(c *gin.Context) {
 }
 
 func (h *GitSyncHandler) SyncNow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigSyncNow")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	result, err := h.svc.SyncNow(c.Request.Context(), tenantID, id)
+	result, err := h.svc.SyncNow(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

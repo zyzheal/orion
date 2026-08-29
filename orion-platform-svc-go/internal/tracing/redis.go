@@ -8,8 +8,8 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/attribute"
-	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/codes"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 const redisSpanPrefix = "redis."

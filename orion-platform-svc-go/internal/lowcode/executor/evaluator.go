@@ -27,13 +27,13 @@ type tokenKind int
 const (
 	kindIdent  tokenKind = iota // number, bool, $var, bare string
 	kindString                  // "quoted"
-	kindOp                       // == != > < >= <=
-	kindLAnd                     // &&
-	kindLOr                      // ||
-	kindNot                      // !
-	kindLParen                   // (
-	kindRParen                   // )
-	kindEOF                      // end
+	kindOp                      // == != > < >= <=
+	kindLAnd                    // &&
+	kindLOr                     // ||
+	kindNot                     // !
+	kindLParen                  // (
+	kindRParen                  // )
+	kindEOF                     // end
 )
 
 type token struct {

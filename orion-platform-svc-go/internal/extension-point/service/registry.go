@@ -34,8 +34,8 @@ import (
 // Implementations should be thread-safe with respect to the Initialize and
 // Shutdown calls (they may be invoked concurrently during lifecycle management).
 type ExtensionHandler interface {
-	Name() string                // Unique name, e.g. "pipeline-engine"
-	Category() string            // startup|api|handler|service|listener
+	Name() string     // Unique name, e.g. "pipeline-engine"
+	Category() string // startup|api|handler|service|listener
 	Description() string
 	Initialize(ctx context.Context) error
 	Shutdown(ctx context.Context) error
@@ -48,7 +48,7 @@ type ExtensionHandler interface {
 
 // ExtensionEvent is fired when an extension point changes state.
 type ExtensionEvent struct {
-	Type          string    `json:"type"`           // register|initialize|shutdown|error
+	Type          string    `json:"type"` // register|initialize|shutdown|error
 	ExtensionName string    `json:"extension_name"`
 	Status        string    `json:"status"`
 	Timestamp     time.Time `json:"timestamp"`
@@ -149,10 +149,10 @@ type ExtensionRegistry struct {
 	repo *repository.Repository
 	// tenant for this registry instance (multi-tenant separation)
 	tenantID string
-	bus  *EventBus
-	mu   sync.RWMutex
-	wg   sync.WaitGroup // tracks in-flight InitializeAll / ShutdownAll
-	logger *zap.Logger
+	bus      *EventBus
+	mu       sync.RWMutex
+	wg       sync.WaitGroup // tracks in-flight InitializeAll / ShutdownAll
+	logger   *zap.Logger
 }
 
 // NewRegistry creates a new ExtensionRegistry.
@@ -299,7 +299,7 @@ func (r *ExtensionRegistry) InitializeAll(ctx context.Context) error {
 				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 				defer cancel()
 				spanCtx := fmt.Sprintf("[extension=%s priority=%d]", n, p)
-				r.logger.Info(spanCtx+" initializing")
+				r.logger.Info(spanCtx + " initializing")
 				err := r.initializeOne(ctx, n)
 				if err != nil {
 					r.logger.Error(spanCtx+" failed", zap.Error(err))

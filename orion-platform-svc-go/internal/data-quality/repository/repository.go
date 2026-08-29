@@ -264,7 +264,7 @@ func (r *Repository) CreateQualityResult(ctx context.Context, result *models.Qua
 func (r *Repository) ListQualityResultsByTable(ctx context.Context, tenantID, tableName string) ([]models.QualityResult, error) {
 	var results []models.QualityResult
 	err := r.db.SelectContext(ctx, &results,
-		`SELECT * FROM quality_results WHERE tenant_id=$1 AND table_name=$2 ORDER BY executed_at DESC`, tenantID,tableName)
+		`SELECT * FROM quality_results WHERE tenant_id=$1 AND table_name=$2 ORDER BY executed_at DESC`, tenantID, tableName)
 	return results, err
 }
 

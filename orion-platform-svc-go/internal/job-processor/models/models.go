@@ -58,16 +58,16 @@ var ValidOperationStatuses = map[string]bool{
 // operation type (create/update/delete/run/pause/resume/cancel), the target
 // resource identifier, execution parameters, and the resulting status + data.
 type JobOperation struct {
-	ID        string `json:"id" db:"id"`
-	TenantID  string `json:"tenant_id" db:"tenant_id"`
-	ChainID   string `json:"chain_id" db:"chain_id"`
-	Type      string `json:"type" db:"type"`      // create|update|delete|run|pause|resume|cancel
-	Target    string `json:"target" db:"target"`  // resource identifier (e.g. job ID, action name)
-	Params    string `json:"params" db:"params"`  // JSON: operation parameters
-	Result    string `json:"result" db:"result"`  // JSON: operation result data
-	Status    string `json:"status" db:"status"`
-	Error     string `json:"error" db:"error"`
-	Order     int    `json:"order" db:"order"`    // position within a chain
+	ID        string    `json:"id" db:"id"`
+	TenantID  string    `json:"tenant_id" db:"tenant_id"`
+	ChainID   string    `json:"chain_id" db:"chain_id"`
+	Type      string    `json:"type" db:"type"`     // create|update|delete|run|pause|resume|cancel
+	Target    string    `json:"target" db:"target"` // resource identifier (e.g. job ID, action name)
+	Params    string    `json:"params" db:"params"` // JSON: operation parameters
+	Result    string    `json:"result" db:"result"` // JSON: operation result data
+	Status    string    `json:"status" db:"status"`
+	Error     string    `json:"error" db:"error"`
+	Order     int       `json:"order" db:"order"` // position within a chain
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -77,13 +77,13 @@ type JobOperation struct {
 // ---------------------------------------------------------------------------
 
 type JobOperationChain struct {
-	ID        string     `json:"id" db:"id"`
-	TenantID  string     `json:"tenant_id" db:"tenant_id"`
-	Name      string     `json:"name" db:"name"`
-	Status    string     `json:"status" db:"status"`
-	Error     string     `json:"error" db:"error"`
-	CreatedAt time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at" db:"updated_at"`
+	ID        string    `json:"id" db:"id"`
+	TenantID  string    `json:"tenant_id" db:"tenant_id"`
+	Name      string    `json:"name" db:"name"`
+	Status    string    `json:"status" db:"status"`
+	Error     string    `json:"error" db:"error"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // ---------------------------------------------------------------------------
@@ -99,8 +99,8 @@ type CreateOperationRequest struct {
 
 // CreateChainRequest is the request body for creating a batch of chained operations.
 type CreateChainRequest struct {
-	Name       string                 `json:"name" binding:"required"`
-	Operations []CreateOperationDTO   `json:"operations" binding:"required"`
+	Name       string               `json:"name" binding:"required"`
+	Operations []CreateOperationDTO `json:"operations" binding:"required"`
 }
 
 // CreateOperationDTO is a single operation inside a chain request.
@@ -117,12 +117,12 @@ type UpdateOperationStatusRequest struct {
 
 // OperationListResponse is the paginated list of operations.
 type OperationListResponse struct {
-	Total int             `json:"total"`
+	Total int            `json:"total"`
 	Data  []JobOperation `json:"data"`
 }
 
 // ChainListResponse is the paginated list of chains.
 type ChainListResponse struct {
-	Total int                    `json:"total"`
+	Total int                 `json:"total"`
 	Data  []JobOperationChain `json:"data"`
 }

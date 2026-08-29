@@ -20,13 +20,14 @@ import (
 // when the Engine's fallback option is enabled.
 //
 // Parameters:
-//   engine — the Engine to register handlers on.
-//   logger — structured logger (nil → zap.NewNop()).
-//   executor — default executor used by immediate and manual handlers.
-//   queue — queue implementation for the queued handler.
-//   scheduler — scheduler implementation for the scheduled handler.
-//   checker — confirmation checker for the manual handler.
-//   verifier — token verifier for the api-triggered handler.
+//
+//	engine — the Engine to register handlers on.
+//	logger — structured logger (nil → zap.NewNop()).
+//	executor — default executor used by immediate and manual handlers.
+//	queue — queue implementation for the queued handler.
+//	scheduler — scheduler implementation for the scheduled handler.
+//	checker — confirmation checker for the manual handler.
+//	verifier — token verifier for the api-triggered handler.
 func Defaults(
 	en *engine.Engine,
 	logger *zap.Logger,

@@ -11,9 +11,9 @@ import (
 	"orion/platform-svc-go/internal/pipeline-engine/models"
 	"orion/platform-svc-go/internal/pipeline-engine/repository"
 
-	"orion/platform-svc-go/internal/saga/service"
-	saga_models "orion/platform-svc-go/internal/saga/models"
 	"gopkg.in/yaml.v3"
+	saga_models "orion/platform-svc-go/internal/saga/models"
+	"orion/platform-svc-go/internal/saga/service"
 )
 
 var (
@@ -245,9 +245,9 @@ func (e *PipelineEngine) executeWithSaga(ctx context.Context, run *models.Pipeli
 	sagaReq := &saga_models.CreateSagaRequest{
 		SagaName: "pipeline-run",
 		Input: map[string]interface{}{
-			"run_id":    run.ID,
-			"pipeline":  run.PipelineID,
-			"stages":    len(stageMap),
+			"run_id":   run.ID,
+			"pipeline": run.PipelineID,
+			"stages":   len(stageMap),
 		},
 	}
 	_, err := e.sagaCoordinator.Start(ctx, tenantID, sagaReq)
@@ -294,8 +294,6 @@ func (c *stageCompensator) Compensate(_ context.Context, _ *saga_models.SagaStep
 		},
 	}, nil
 }
-
-
 
 // buildStageMap returns stage name -> stage ID for a run.
 func (e *PipelineEngine) buildStageMap(ctx context.Context, tenantID, runID string) (map[string]string, error) {

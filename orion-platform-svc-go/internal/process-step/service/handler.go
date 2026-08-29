@@ -173,8 +173,8 @@ func (m *ProcessStepManager) ExecuteStep(
 	})
 
 	_ = m.EmitEvent(ctx, step, models.EventTypeEnd, map[string]interface{}{
-		"status":  status,
-		"output":  result,
+		"status":      status,
+		"output":      result,
 		"duration_ms": duration,
 	})
 
@@ -190,7 +190,7 @@ func (m *ProcessStepManager) ApproveStep(ctx context.Context, stepID string, use
 		return err
 	}
 	if _, err := m.repo.UpdateStep(ctx, "", stepID, map[string]interface{}{
-		"status": models.StepStatusCompleted,
+		"status":   models.StepStatusCompleted,
 		"assignee": user,
 	}); err != nil {
 		return err
@@ -272,9 +272,9 @@ func (e *handlerNotFoundError) Error() string {
 // approvalHandler handles approval steps. Returns "pending" so the step waits for a human to call ApproveStep/RejectStep.
 type approvalHandler struct{}
 
-func newApprovalHandler() IProcessStepHandler { return &approvalHandler{} }
-func (h *approvalHandler) Name() string { return "approval" }
-func (h *approvalHandler) Type() string { return models.StepTypeApproval }
+func newApprovalHandler() IProcessStepHandler                                           { return &approvalHandler{} }
+func (h *approvalHandler) Name() string                                                 { return "approval" }
+func (h *approvalHandler) Type() string                                                 { return models.StepTypeApproval }
 func (h *approvalHandler) Validate(ctx context.Context, step *models.ProcessStep) error { return nil }
 func (h *approvalHandler) Execute(ctx context.Context, step *models.ProcessStep, input map[string]interface{}) (*StepResult, error) {
 	return &StepResult{
@@ -283,15 +283,19 @@ func (h *approvalHandler) Execute(ctx context.Context, step *models.ProcessStep,
 		NextSteps: nil, // blocking step: wait for Approve/Reject
 	}, nil
 }
-func (h *approvalHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error { return nil }
+func (h *approvalHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error {
+	return nil
+}
 
 // notificationHandler handles notification steps.
 type notificationHandler struct{}
 
 func newNotificationHandler() IProcessStepHandler { return &notificationHandler{} }
-func (h *notificationHandler) Name() string { return "notification" }
-func (h *notificationHandler) Type() string { return models.StepTypeNotification }
-func (h *notificationHandler) Validate(ctx context.Context, step *models.ProcessStep) error { return nil }
+func (h *notificationHandler) Name() string       { return "notification" }
+func (h *notificationHandler) Type() string       { return models.StepTypeNotification }
+func (h *notificationHandler) Validate(ctx context.Context, step *models.ProcessStep) error {
+	return nil
+}
 func (h *notificationHandler) Execute(ctx context.Context, step *models.ProcessStep, input map[string]interface{}) (*StepResult, error) {
 	// Parse optional recipient list from input or step config
 	recipient := ""
@@ -304,14 +308,16 @@ func (h *notificationHandler) Execute(ctx context.Context, step *models.ProcessS
 		NextSteps: nil,
 	}, nil
 }
-func (h *notificationHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error { return nil }
+func (h *notificationHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error {
+	return nil
+}
 
 // automationHandler handles automation steps.
 type automationHandler struct{}
 
-func newAutomationHandler() IProcessStepHandler { return &automationHandler{} }
-func (h *automationHandler) Name() string { return "automation" }
-func (h *automationHandler) Type() string { return models.StepTypeAutomation }
+func newAutomationHandler() IProcessStepHandler                                           { return &automationHandler{} }
+func (h *automationHandler) Name() string                                                 { return "automation" }
+func (h *automationHandler) Type() string                                                 { return models.StepTypeAutomation }
 func (h *automationHandler) Validate(ctx context.Context, step *models.ProcessStep) error { return nil }
 func (h *automationHandler) Execute(ctx context.Context, step *models.ProcessStep, input map[string]interface{}) (*StepResult, error) {
 	return &StepResult{
@@ -320,14 +326,16 @@ func (h *automationHandler) Execute(ctx context.Context, step *models.ProcessSte
 		NextSteps: nil,
 	}, nil
 }
-func (h *automationHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error { return nil }
+func (h *automationHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error {
+	return nil
+}
 
 // conditionHandler handles condition/guard steps. Evaluates a condition expression.
 type conditionHandler struct{}
 
-func newConditionHandler() IProcessStepHandler { return &conditionHandler{} }
-func (h *conditionHandler) Name() string { return "condition" }
-func (h *conditionHandler) Type() string { return models.StepTypeCondition }
+func newConditionHandler() IProcessStepHandler                                           { return &conditionHandler{} }
+func (h *conditionHandler) Name() string                                                 { return "condition" }
+func (h *conditionHandler) Type() string                                                 { return models.StepTypeCondition }
 func (h *conditionHandler) Validate(ctx context.Context, step *models.ProcessStep) error { return nil }
 func (h *conditionHandler) Execute(ctx context.Context, step *models.ProcessStep, input map[string]interface{}) (*StepResult, error) {
 	// If "evaluate" input key is provided, return it as the evaluated condition.
@@ -352,14 +360,16 @@ func (h *conditionHandler) Execute(ctx context.Context, step *models.ProcessStep
 		NextSteps: nextSteps,
 	}, nil
 }
-func (h *conditionHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error { return nil }
+func (h *conditionHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error {
+	return nil
+}
 
 // parallelHandler handles parallel/gateway steps.
 type parallelHandler struct{}
 
-func newParallelHandler() IProcessStepHandler { return &parallelHandler{} }
-func (h *parallelHandler) Name() string { return "parallel" }
-func (h *parallelHandler) Type() string { return models.StepTypeParallel }
+func newParallelHandler() IProcessStepHandler                                           { return &parallelHandler{} }
+func (h *parallelHandler) Name() string                                                 { return "parallel" }
+func (h *parallelHandler) Type() string                                                 { return models.StepTypeParallel }
 func (h *parallelHandler) Validate(ctx context.Context, step *models.ProcessStep) error { return nil }
 func (h *parallelHandler) Execute(ctx context.Context, step *models.ProcessStep, input map[string]interface{}) (*StepResult, error) {
 	branches := []string{}
@@ -372,14 +382,16 @@ func (h *parallelHandler) Execute(ctx context.Context, step *models.ProcessStep,
 		NextSteps: branches,
 	}, nil
 }
-func (h *parallelHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error { return nil }
+func (h *parallelHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error {
+	return nil
+}
 
 // timerHandler handles timer/wait/delay steps.
 type timerHandler struct{}
 
-func newTimerHandler() IProcessStepHandler { return &timerHandler{} }
-func (h *timerHandler) Name() string { return "timer" }
-func (h *timerHandler) Type() string { return models.StepTypeTimer }
+func newTimerHandler() IProcessStepHandler                                           { return &timerHandler{} }
+func (h *timerHandler) Name() string                                                 { return "timer" }
+func (h *timerHandler) Type() string                                                 { return models.StepTypeTimer }
 func (h *timerHandler) Validate(ctx context.Context, step *models.ProcessStep) error { return nil }
 func (h *timerHandler) Execute(ctx context.Context, step *models.ProcessStep, input map[string]interface{}) (*StepResult, error) {
 	delaySec := int64(step.Timeout)
@@ -394,15 +406,19 @@ func (h *timerHandler) Execute(ctx context.Context, step *models.ProcessStep, in
 		NextSteps: nil,
 	}, nil
 }
-func (h *timerHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error { return nil }
+func (h *timerHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error {
+	return nil
+}
 
 // integrationHandler handles external integration steps.
 type integrationHandler struct{}
 
 func newIntegrationHandler() IProcessStepHandler { return &integrationHandler{} }
-func (h *integrationHandler) Name() string { return "integration" }
-func (h *integrationHandler) Type() string { return models.StepTypeIntegration }
-func (h *integrationHandler) Validate(ctx context.Context, step *models.ProcessStep) error { return nil }
+func (h *integrationHandler) Name() string       { return "integration" }
+func (h *integrationHandler) Type() string       { return models.StepTypeIntegration }
+func (h *integrationHandler) Validate(ctx context.Context, step *models.ProcessStep) error {
+	return nil
+}
 func (h *integrationHandler) Execute(ctx context.Context, step *models.ProcessStep, input map[string]interface{}) (*StepResult, error) {
 	target := ""
 	if t, ok := input["target"]; ok {
@@ -414,15 +430,17 @@ func (h *integrationHandler) Execute(ctx context.Context, step *models.ProcessSt
 		NextSteps: nil,
 	}, nil
 }
-func (h *integrationHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error { return nil }
+func (h *integrationHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error {
+	return nil
+}
 
 // executionHandler handles execution (command/script) steps.
 // Dispatches an external command or script based on step config/input.
 type executionHandler struct{}
 
-func newExecutionHandler() IProcessStepHandler { return &executionHandler{} }
-func (h *executionHandler) Name() string { return "execution" }
-func (h *executionHandler) Type() string { return models.StepTypeExecution }
+func newExecutionHandler() IProcessStepHandler                                           { return &executionHandler{} }
+func (h *executionHandler) Name() string                                                 { return "execution" }
+func (h *executionHandler) Type() string                                                 { return models.StepTypeExecution }
 func (h *executionHandler) Validate(ctx context.Context, step *models.ProcessStep) error { return nil }
 func (h *executionHandler) Execute(ctx context.Context, step *models.ProcessStep, input map[string]interface{}) (*StepResult, error) {
 	command := ""
@@ -439,15 +457,17 @@ func (h *executionHandler) Execute(ctx context.Context, step *models.ProcessStep
 		NextSteps: nil,
 	}, nil
 }
-func (h *executionHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error { return nil }
+func (h *executionHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error {
+	return nil
+}
 
 // decisionHandler handles decision/routing steps. Evaluates a set of
 // condition→target mappings and routes to the matching next step.
 type decisionHandler struct{}
 
-func newDecisionHandler() IProcessStepHandler { return &decisionHandler{} }
-func (h *decisionHandler) Name() string { return "decision" }
-func (h *decisionHandler) Type() string { return models.StepTypeDecision }
+func newDecisionHandler() IProcessStepHandler                                           { return &decisionHandler{} }
+func (h *decisionHandler) Name() string                                                 { return "decision" }
+func (h *decisionHandler) Type() string                                                 { return models.StepTypeDecision }
 func (h *decisionHandler) Validate(ctx context.Context, step *models.ProcessStep) error { return nil }
 func (h *decisionHandler) Execute(ctx context.Context, step *models.ProcessStep, input map[string]interface{}) (*StepResult, error) {
 	routes := make(map[string]interface{})
@@ -469,15 +489,17 @@ func (h *decisionHandler) Execute(ctx context.Context, step *models.ProcessStep,
 		NextSteps: nextSteps,
 	}, nil
 }
-func (h *decisionHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error { return nil }
+func (h *decisionHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error {
+	return nil
+}
 
 // delayHandler handles explicit delay/pause steps. Holds execution for a
 // configurable duration before proceeding.
 type delayHandler struct{}
 
-func newDelayHandler() IProcessStepHandler { return &delayHandler{} }
-func (h *delayHandler) Name() string { return "delay" }
-func (h *delayHandler) Type() string { return models.StepTypeDelay }
+func newDelayHandler() IProcessStepHandler                                           { return &delayHandler{} }
+func (h *delayHandler) Name() string                                                 { return "delay" }
+func (h *delayHandler) Type() string                                                 { return models.StepTypeDelay }
 func (h *delayHandler) Validate(ctx context.Context, step *models.ProcessStep) error { return nil }
 func (h *delayHandler) Execute(ctx context.Context, step *models.ProcessStep, input map[string]interface{}) (*StepResult, error) {
 	delaySec := int64(step.Timeout)
@@ -492,15 +514,17 @@ func (h *delayHandler) Execute(ctx context.Context, step *models.ProcessStep, in
 		NextSteps: nil,
 	}, nil
 }
-func (h *delayHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error { return nil }
+func (h *delayHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error {
+	return nil
+}
 
 // mergeHandler handles parallel-merge/join steps. Collects outputs from
 // all preceding parallel branches and produces a combined output.
 type mergeHandler struct{}
 
-func newMergeHandler() IProcessStepHandler { return &mergeHandler{} }
-func (h *mergeHandler) Name() string { return "merge" }
-func (h *mergeHandler) Type() string { return models.StepTypeMerge }
+func newMergeHandler() IProcessStepHandler                                           { return &mergeHandler{} }
+func (h *mergeHandler) Name() string                                                 { return "merge" }
+func (h *mergeHandler) Type() string                                                 { return models.StepTypeMerge }
 func (h *mergeHandler) Validate(ctx context.Context, step *models.ProcessStep) error { return nil }
 func (h *mergeHandler) Execute(ctx context.Context, step *models.ProcessStep, input map[string]interface{}) (*StepResult, error) {
 	branches := []string{}
@@ -519,14 +543,16 @@ func (h *mergeHandler) Execute(ctx context.Context, step *models.ProcessStep, in
 		NextSteps: nil,
 	}, nil
 }
-func (h *mergeHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error { return nil }
+func (h *mergeHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error {
+	return nil
+}
 
 // customHandler handles arbitrary custom steps.
 type customHandler struct{}
 
-func newCustomHandler() IProcessStepHandler { return &customHandler{} }
-func (h *customHandler) Name() string { return "custom" }
-func (h *customHandler) Type() string { return models.StepTypeCustom }
+func newCustomHandler() IProcessStepHandler                                           { return &customHandler{} }
+func (h *customHandler) Name() string                                                 { return "custom" }
+func (h *customHandler) Type() string                                                 { return models.StepTypeCustom }
 func (h *customHandler) Validate(ctx context.Context, step *models.ProcessStep) error { return nil }
 func (h *customHandler) Execute(ctx context.Context, step *models.ProcessStep, input map[string]interface{}) (*StepResult, error) {
 	return &StepResult{
@@ -535,7 +561,9 @@ func (h *customHandler) Execute(ctx context.Context, step *models.ProcessStep, i
 		NextSteps: nil,
 	}, nil
 }
-func (h *customHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error { return nil }
+func (h *customHandler) OnEvent(ctx context.Context, step *models.ProcessStep, event models.ProcessStepEvent) error {
+	return nil
+}
 
 // ----- helper functions -----
 

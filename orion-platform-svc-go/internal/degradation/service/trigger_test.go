@@ -13,9 +13,9 @@ import (
 // mockTriggerRepo implements TriggerRepositoryInterface for testing.
 type mockTriggerRepo struct {
 	triggers map[string]*models.DegradationTrigger // tenant+policy → active trigger
-	actions  map[string]models.DegradationAction    // id → action
-	actionID string                                 // generated action ID
-	err      error                                  // injectable error
+	actions  map[string]models.DegradationAction   // id → action
+	actionID string                                // generated action ID
+	err      error                                 // injectable error
 }
 
 func (m *mockTriggerRepo) CreateTrigger(_ context.Context, t *models.DegradationTrigger) error {
@@ -85,11 +85,15 @@ func (m *mockTriggerRepo) RevertAction(_ context.Context, tenantID, actionID str
 
 type mockRepo struct{}
 
-func (m *mockRepo) Create(_ context.Context, _ *models.Degradation) error          { return nil }
-func (m *mockRepo) Delete(_ context.Context, _, _ string) (bool, error)             { return true, nil }
-func (m *mockRepo) GetByID(_ context.Context, _, _ string) (*models.Degradation, error) { return nil, sentinel.NotFound }
+func (m *mockRepo) Create(_ context.Context, _ *models.Degradation) error { return nil }
+func (m *mockRepo) Delete(_ context.Context, _, _ string) (bool, error)   { return true, nil }
+func (m *mockRepo) GetByID(_ context.Context, _, _ string) (*models.Degradation, error) {
+	return nil, sentinel.NotFound
+}
 func (m *mockRepo) List(_ context.Context, _ string) ([]models.Degradation, error) { return nil, nil }
-func (m *mockRepo) Update(_ context.Context, _, _ string, _ map[string]interface{}) (*models.Degradation, error) { return nil, sentinel.NotFound }
+func (m *mockRepo) Update(_ context.Context, _, _ string, _ map[string]interface{}) (*models.Degradation, error) {
+	return nil, sentinel.NotFound
+}
 
 var _ TriggerRepositoryInterface = (*mockTriggerRepo)(nil)
 

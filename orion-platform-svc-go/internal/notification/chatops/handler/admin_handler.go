@@ -1,9 +1,10 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/notification/chatops/models"
 	"orion/platform-svc-go/internal/notification/chatops/service"
-	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,13 +22,15 @@ func NewAdminHandler(svc *service.AdminService) *AdminHandler {
 // ==================== Capability Mappings ====================
 
 func (h *AdminHandler) CreateCapabilityMapping(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminCreateCapabilityMapping")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateCapabilityMappingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.CreateCapabilityMapping(c.Request.Context(), tenantID, req)
+	m, err := h.svc.CreateCapabilityMapping(ctx, tenantID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -36,8 +39,10 @@ func (h *AdminHandler) CreateCapabilityMapping(c *gin.Context) {
 }
 
 func (h *AdminHandler) ListCapabilityMappings(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminListCapabilityMappings")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.ListCapabilityMappings(c.Request.Context(), tenantID)
+	items, err := h.svc.ListCapabilityMappings(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -46,13 +51,15 @@ func (h *AdminHandler) ListCapabilityMappings(c *gin.Context) {
 }
 
 func (h *AdminHandler) UpdateCapabilityMapping(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminUpdateCapabilityMapping")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateCapabilityMappingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.UpdateCapabilityMapping(c.Request.Context(), tenantID, c.Param("id"), req)
+	m, err := h.svc.UpdateCapabilityMapping(ctx, tenantID, c.Param("id"), req)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -61,8 +68,10 @@ func (h *AdminHandler) UpdateCapabilityMapping(c *gin.Context) {
 }
 
 func (h *AdminHandler) DeleteCapabilityMapping(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminDeleteCapabilityMapping")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.DeleteCapabilityMapping(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.DeleteCapabilityMapping(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -72,8 +81,10 @@ func (h *AdminHandler) DeleteCapabilityMapping(c *gin.Context) {
 // ==================== Approval Configs ====================
 
 func (h *AdminHandler) GetApprovalConfigs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminGetApprovalConfigs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	configs, err := h.svc.GetApprovalConfigs(c.Request.Context(), tenantID)
+	configs, err := h.svc.GetApprovalConfigs(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -82,13 +93,15 @@ func (h *AdminHandler) GetApprovalConfigs(c *gin.Context) {
 }
 
 func (h *AdminHandler) BulkUpdateApprovalConfigs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminBulkUpdateApprovalConfigs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var reqs []models.UpdateApprovalConfigRequest
 	if err := c.ShouldBindJSON(&reqs); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	configs, err := h.svc.BulkUpdateApprovalConfigs(c.Request.Context(), tenantID, reqs)
+	configs, err := h.svc.BulkUpdateApprovalConfigs(ctx, tenantID, reqs)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -97,8 +110,10 @@ func (h *AdminHandler) BulkUpdateApprovalConfigs(c *gin.Context) {
 }
 
 func (h *AdminHandler) GetApprovalConfigByCapability(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminGetApprovalConfigByCapability")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	cfg, err := h.svc.GetApprovalConfigByCapability(c.Request.Context(), tenantID, c.Param("capability"))
+	cfg, err := h.svc.GetApprovalConfigByCapability(ctx, tenantID, c.Param("capability"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -107,13 +122,15 @@ func (h *AdminHandler) GetApprovalConfigByCapability(c *gin.Context) {
 }
 
 func (h *AdminHandler) UpdateApprovalConfigByCapability(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminUpdateApprovalConfigByCapability")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateApprovalConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	cfg, err := h.svc.UpdateApprovalConfigByCapability(c.Request.Context(), tenantID, c.Param("capability"), req)
+	cfg, err := h.svc.UpdateApprovalConfigByCapability(ctx, tenantID, c.Param("capability"), req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -124,8 +141,10 @@ func (h *AdminHandler) UpdateApprovalConfigByCapability(c *gin.Context) {
 // ==================== Approvers ====================
 
 func (h *AdminHandler) ListApprovers(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminListApprovers")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	approvers, err := h.svc.ListApprovers(c.Request.Context(), tenantID)
+	approvers, err := h.svc.ListApprovers(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -134,8 +153,10 @@ func (h *AdminHandler) ListApprovers(c *gin.Context) {
 }
 
 func (h *AdminHandler) GetApproverSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminGetApproverSchedule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	schedule, err := h.svc.GetApproverSchedule(c.Request.Context(), tenantID)
+	schedule, err := h.svc.GetApproverSchedule(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -144,13 +165,15 @@ func (h *AdminHandler) GetApproverSchedule(c *gin.Context) {
 }
 
 func (h *AdminHandler) UpdateApproverSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminUpdateApproverSchedule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var reqs []models.UpdateApproverScheduleRequest
 	if err := c.ShouldBindJSON(&reqs); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	schedule, err := h.svc.UpdateApproverSchedule(c.Request.Context(), tenantID, reqs)
+	schedule, err := h.svc.UpdateApproverSchedule(ctx, tenantID, reqs)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -161,8 +184,10 @@ func (h *AdminHandler) UpdateApproverSchedule(c *gin.Context) {
 // ==================== Approval Global Config ====================
 
 func (h *AdminHandler) GetApprovalGlobalConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminGetApprovalGlobalConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	cfg, err := h.svc.GetApprovalGlobalConfig(c.Request.Context(), tenantID)
+	cfg, err := h.svc.GetApprovalGlobalConfig(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -171,13 +196,15 @@ func (h *AdminHandler) GetApprovalGlobalConfig(c *gin.Context) {
 }
 
 func (h *AdminHandler) UpdateApprovalGlobalConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminUpdateApprovalGlobalConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateApprovalGlobalConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	cfg, err := h.svc.UpdateApprovalGlobalConfig(c.Request.Context(), tenantID, req)
+	cfg, err := h.svc.UpdateApprovalGlobalConfig(ctx, tenantID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -188,13 +215,15 @@ func (h *AdminHandler) UpdateApprovalGlobalConfig(c *gin.Context) {
 // ==================== Roles ====================
 
 func (h *AdminHandler) CreateRole(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminCreateRole")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAdminRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	role, err := h.svc.CreateRole(c.Request.Context(), tenantID, req)
+	role, err := h.svc.CreateRole(ctx, tenantID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -203,8 +232,10 @@ func (h *AdminHandler) CreateRole(c *gin.Context) {
 }
 
 func (h *AdminHandler) ListRoles(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminListRoles")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	roles, err := h.svc.ListRoles(c.Request.Context(), tenantID)
+	roles, err := h.svc.ListRoles(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -213,13 +244,15 @@ func (h *AdminHandler) ListRoles(c *gin.Context) {
 }
 
 func (h *AdminHandler) UpdateRole(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminUpdateRole")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateAdminRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	role, err := h.svc.UpdateRole(c.Request.Context(), tenantID, c.Param("id"), req)
+	role, err := h.svc.UpdateRole(ctx, tenantID, c.Param("id"), req)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -228,8 +261,10 @@ func (h *AdminHandler) UpdateRole(c *gin.Context) {
 }
 
 func (h *AdminHandler) DeleteRole(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminDeleteRole")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.DeleteRole(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.DeleteRole(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -239,13 +274,15 @@ func (h *AdminHandler) DeleteRole(c *gin.Context) {
 // ==================== Command Permissions ====================
 
 func (h *AdminHandler) CreateCommandPermission(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminCreateCommandPermission")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateCommandPermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	p, err := h.svc.CreateCommandPermission(c.Request.Context(), tenantID, req)
+	p, err := h.svc.CreateCommandPermission(ctx, tenantID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -254,8 +291,10 @@ func (h *AdminHandler) CreateCommandPermission(c *gin.Context) {
 }
 
 func (h *AdminHandler) ListCommandPermissions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminListCommandPermissions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	perms, err := h.svc.ListCommandPermissions(c.Request.Context(), tenantID)
+	perms, err := h.svc.ListCommandPermissions(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -264,13 +303,15 @@ func (h *AdminHandler) ListCommandPermissions(c *gin.Context) {
 }
 
 func (h *AdminHandler) UpdateCommandPermission(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminUpdateCommandPermission")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateCommandPermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	p, err := h.svc.UpdateCommandPermission(c.Request.Context(), tenantID, c.Param("id"), req)
+	p, err := h.svc.UpdateCommandPermission(ctx, tenantID, c.Param("id"), req)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -279,8 +320,10 @@ func (h *AdminHandler) UpdateCommandPermission(c *gin.Context) {
 }
 
 func (h *AdminHandler) DeleteCommandPermission(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminDeleteCommandPermission")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.DeleteCommandPermission(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.DeleteCommandPermission(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -290,13 +333,15 @@ func (h *AdminHandler) DeleteCommandPermission(c *gin.Context) {
 // ==================== Environment Permissions ====================
 
 func (h *AdminHandler) CreateEnvironmentPermission(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminCreateEnvironmentPermission")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateEnvironmentPermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	p, err := h.svc.CreateEnvironmentPermission(c.Request.Context(), tenantID, req)
+	p, err := h.svc.CreateEnvironmentPermission(ctx, tenantID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -305,8 +350,10 @@ func (h *AdminHandler) CreateEnvironmentPermission(c *gin.Context) {
 }
 
 func (h *AdminHandler) ListEnvironmentPermissions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminListEnvironmentPermissions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	perms, err := h.svc.ListEnvironmentPermissions(c.Request.Context(), tenantID)
+	perms, err := h.svc.ListEnvironmentPermissions(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -315,13 +362,15 @@ func (h *AdminHandler) ListEnvironmentPermissions(c *gin.Context) {
 }
 
 func (h *AdminHandler) UpdateEnvironmentPermission(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminUpdateEnvironmentPermission")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateEnvironmentPermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	p, err := h.svc.UpdateEnvironmentPermission(c.Request.Context(), tenantID, c.Param("id"), req)
+	p, err := h.svc.UpdateEnvironmentPermission(ctx, tenantID, c.Param("id"), req)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -330,8 +379,10 @@ func (h *AdminHandler) UpdateEnvironmentPermission(c *gin.Context) {
 }
 
 func (h *AdminHandler) DeleteEnvironmentPermission(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminDeleteEnvironmentPermission")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.DeleteEnvironmentPermission(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.DeleteEnvironmentPermission(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -341,8 +392,10 @@ func (h *AdminHandler) DeleteEnvironmentPermission(c *gin.Context) {
 // ==================== Command Versions ====================
 
 func (h *AdminHandler) ListCommandVersions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminListCommandVersions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	versions, err := h.svc.ListCommandVersions(c.Request.Context(), tenantID)
+	versions, err := h.svc.ListCommandVersions(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -351,8 +404,10 @@ func (h *AdminHandler) ListCommandVersions(c *gin.Context) {
 }
 
 func (h *AdminHandler) ListCommandVersionsByCommand(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminListCommandVersionsByCommand")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	versions, err := h.svc.ListCommandVersionsByCommand(c.Request.Context(), tenantID, c.Param("commandId"))
+	versions, err := h.svc.ListCommandVersionsByCommand(ctx, tenantID, c.Param("commandId"))
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -361,13 +416,15 @@ func (h *AdminHandler) ListCommandVersionsByCommand(c *gin.Context) {
 }
 
 func (h *AdminHandler) CreateCommandVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminCreateCommandVersion")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateCommandVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	ver, err := h.svc.CreateCommandVersion(c.Request.Context(), tenantID, req)
+	ver, err := h.svc.CreateCommandVersion(ctx, tenantID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -376,8 +433,10 @@ func (h *AdminHandler) CreateCommandVersion(c *gin.Context) {
 }
 
 func (h *AdminHandler) RollbackCommandVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminRollbackCommandVersion")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ver, err := h.svc.RollbackCommandVersion(c.Request.Context(), tenantID, c.Param("id"))
+	ver, err := h.svc.RollbackCommandVersion(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -386,13 +445,15 @@ func (h *AdminHandler) RollbackCommandVersion(c *gin.Context) {
 }
 
 func (h *AdminHandler) AddCommandVersionTag(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminAddCommandVersionTag")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.AddCommandVersionTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	ver, err := h.svc.AddCommandVersionTag(c.Request.Context(), tenantID, c.Param("id"), req.Tag)
+	ver, err := h.svc.AddCommandVersionTag(ctx, tenantID, c.Param("id"), req.Tag)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -401,8 +462,10 @@ func (h *AdminHandler) AddCommandVersionTag(c *gin.Context) {
 }
 
 func (h *AdminHandler) DeleteCommandVersionTag(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminDeleteCommandVersionTag")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.DeleteCommandVersionTag(c.Request.Context(), tenantID, c.Param("id"), c.Param("tag")); err != nil {
+	if err := h.svc.DeleteCommandVersionTag(ctx, tenantID, c.Param("id"), c.Param("tag")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -410,8 +473,10 @@ func (h *AdminHandler) DeleteCommandVersionTag(c *gin.Context) {
 }
 
 func (h *AdminHandler) DeleteCommandVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsAdminDeleteCommandVersion")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.DeleteCommandVersion(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.DeleteCommandVersion(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}

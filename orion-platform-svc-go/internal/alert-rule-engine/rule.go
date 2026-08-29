@@ -17,38 +17,38 @@ const (
 // Rule defines an alert rule with an expression, severity, cooldown period,
 // and metadata.
 type Rule struct {
-	ID           string            // unique rule identifier
-	Name         string            // human-readable name
-	Expression   string            // raw expression string
-	Expr         *BoolExpr         // parsed expression tree
-	Severity     Severity          // critical | warning | info
-	Cooldown     time.Duration     // minimum time between successive firings
-	Labels       map[string]string // extra labels attached to the rule
-	Annotations  map[string]string // extra annotations (e.g. description)
-	Enabled      bool              // whether the rule is active
-	Group        string            // grouping key for rules
-	Priority     int               // evaluation priority (lower = higher priority)
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID          string            // unique rule identifier
+	Name        string            // human-readable name
+	Expression  string            // raw expression string
+	Expr        *BoolExpr         // parsed expression tree
+	Severity    Severity          // critical | warning | info
+	Cooldown    time.Duration     // minimum time between successive firings
+	Labels      map[string]string // extra labels attached to the rule
+	Annotations map[string]string // extra annotations (e.g. description)
+	Enabled     bool              // whether the rule is active
+	Group       string            // grouping key for rules
+	Priority    int               // evaluation priority (lower = higher priority)
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // RuleResult is returned after evaluating a rule.
 type RuleResult struct {
-	RuleID    string
-	RuleName  string
-	Triggered bool
-	Value     float64
-	Message   string
-	Severity  Severity
-	Labels    map[string]string
+	RuleID      string
+	RuleName    string
+	Triggered   bool
+	Value       float64
+	Message     string
+	Severity    Severity
+	Labels      map[string]string
 	Annotations map[string]string
-	Error     string
+	Error       string
 }
 
 // CooldownTracker tracks the last firing time per rule ID to enforce cooldowns.
 type CooldownTracker struct {
-	lastFired   map[string]time.Time
-	globalLock  bool
+	lastFired  map[string]time.Time
+	globalLock bool
 }
 
 // NewCooldownTracker creates a new cooldown tracker.

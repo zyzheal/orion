@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/cross-domain/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/cross-domain/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeCross_domainService) Update(ctx context.Context, tenantID, id strin
 }
 
 var _ service.ServiceInterface = (*fakeCross_domainService)(nil)
-
 
 func TestHandler_CROSS_DOMAIN_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"orion/platform-svc-go/internal/ticketing/models"
 	"orion/go-common/pkg/otel"
+	"orion/platform-svc-go/internal/ticketing/models"
 	"orion/platform-svc-go/internal/ticketing/repository"
 )
 
@@ -39,14 +39,16 @@ func (s *SLAService) CreateRecordForTicket(ctx context.Context, ticketID, priori
 // GetTicketSLA returns the SLA record for a ticket
 func (s *SLAService) GetTicketSLA(ctx context.Context, ticketID string) (*models.SLARecord, error) {
 	tracking, err := s.slaRepo.GetSLATracking(ctx, ticketID, ticketID)
-	if tracking == nil { return nil, errors.New("sla record not found") }
+	if tracking == nil {
+		return nil, errors.New("sla record not found")
+	}
 	if err != nil {
 		return nil, err
 	}
 	return &models.SLARecord{
-		TicketID: ticketID,
+		TicketID:    ticketID,
 		SLATargetID: 0,
-		Priority: tracking.Priority,
+		Priority:    tracking.Priority,
 	}, nil
 }
 
@@ -67,7 +69,7 @@ func (s *SLAService) MarkResolved(ctx context.Context, ticketID string) error {
 // PauseSLA pauses SLA tracking for a ticket
 func (s *SLAService) PauseSLA(ctx context.Context, ticketID, reason string) error {
 	return s.slaRepo.UpdateSLATracking(ctx, ticketID, map[string]interface{}{
-		"paused": true,
+		"paused":        true,
 		"paused_reason": reason,
 	})
 }

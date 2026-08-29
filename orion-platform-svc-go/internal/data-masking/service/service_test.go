@@ -14,12 +14,12 @@ import (
 // --- mockRepository implements RepositoryInterface for testing ---
 
 type mockRepository struct {
-	createFn              func(ctx context.Context, rule *models.MaskingRule) error
-	getByIDFn             func(ctx context.Context, tenantID, id string) (*models.MaskingRule, error)
-	listFn                func(ctx context.Context, tenantID string) ([]models.MaskingRule, error)
-	listByResourceTypeFn  func(ctx context.Context, tenantID, resourceType string) ([]models.MaskingRule, error)
-	updateFn              func(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.MaskingRule, error)
-	deleteFn              func(ctx context.Context, tenantID, id string) (bool, error)
+	createFn             func(ctx context.Context, rule *models.MaskingRule) error
+	getByIDFn            func(ctx context.Context, tenantID, id string) (*models.MaskingRule, error)
+	listFn               func(ctx context.Context, tenantID string) ([]models.MaskingRule, error)
+	listByResourceTypeFn func(ctx context.Context, tenantID, resourceType string) ([]models.MaskingRule, error)
+	updateFn             func(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.MaskingRule, error)
+	deleteFn             func(ctx context.Context, tenantID, id string) (bool, error)
 }
 
 func (m *mockRepository) Create(ctx context.Context, rule *models.MaskingRule) error {
@@ -216,7 +216,7 @@ func TestApplyMask_FullStrategy(t *testing.T) {
 		}, nil
 	}
 	req := &models.MaskRequest{
-		Data:       map[string]interface{}{"email": "user@example.com"},
+		Data:         map[string]interface{}{"email": "user@example.com"},
 		ResourceType: "user",
 	}
 	result, err := svc.ApplyMask(context.Background(), "t1", req)
@@ -234,7 +234,7 @@ func TestApplyMask_PartialStrategy(t *testing.T) {
 		}, nil
 	}
 	req := &models.MaskRequest{
-		Data:       map[string]interface{}{"phone": "1234567890"},
+		Data:         map[string]interface{}{"phone": "1234567890"},
 		ResourceType: "user",
 	}
 	result, err := svc.ApplyMask(context.Background(), "t1", req)
@@ -254,7 +254,7 @@ func TestApplyMask_HashStrategy(t *testing.T) {
 		}, nil
 	}
 	req := &models.MaskRequest{
-		Data:       map[string]interface{}{"password": "secret123"},
+		Data:         map[string]interface{}{"password": "secret123"},
 		ResourceType: "user",
 	}
 	result, err := svc.ApplyMask(context.Background(), "t1", req)
@@ -275,7 +275,7 @@ func TestApplyMask_DisabledRuleSkipped(t *testing.T) {
 		}, nil
 	}
 	req := &models.MaskRequest{
-		Data:       map[string]interface{}{"email": "test@example.com"},
+		Data:         map[string]interface{}{"email": "test@example.com"},
 		ResourceType: "user",
 	}
 	result, err := svc.ApplyMask(context.Background(), "t1", req)
@@ -294,8 +294,8 @@ func TestApplyMask_PatternMatching(t *testing.T) {
 	}
 	req := &models.MaskRequest{
 		Data: map[string]interface{}{
-			"user_email":  "a@b.com",
-			"phone":       "111",
+			"user_email":   "a@b.com",
+			"phone":        "111",
 			"backup_email": "c@d.com",
 		},
 		ResourceType: "user",
@@ -320,7 +320,7 @@ func TestMaskValue_UnknownStrategy(t *testing.T) {
 		}, nil
 	}
 	req := &models.MaskRequest{
-		Data:       map[string]interface{}{"x": "value"},
+		Data:         map[string]interface{}{"x": "value"},
 		ResourceType: "user",
 	}
 	result, err := svc.ApplyMask(context.Background(), "t1", req)
@@ -384,7 +384,7 @@ func TestApplyMask_FullStrategyCustomReplacement(t *testing.T) {
 		}, nil
 	}
 	req := &models.MaskRequest{
-		Data:       map[string]interface{}{"token": "abc"},
+		Data:         map[string]interface{}{"token": "abc"},
 		ResourceType: "user",
 	}
 	result, err := svc.ApplyMask(context.Background(), "t1", req)
@@ -401,7 +401,7 @@ func TestApplyMask_RepoError(t *testing.T) {
 		return nil, context.DeadlineExceeded
 	}
 	req := &models.MaskRequest{
-		Data:       map[string]interface{}{"x": "1"},
+		Data:         map[string]interface{}{"x": "1"},
 		ResourceType: "user",
 	}
 	_, err := svc.ApplyMask(context.Background(), "t1", req)
@@ -419,9 +419,9 @@ func TestApplyMask_NonStringFieldSkipped(t *testing.T) {
 	}
 	req := &models.MaskRequest{
 		Data: map[string]interface{}{
-			"name":    "Alice",
-			"age":     30,
-			"active":  true,
+			"name":   "Alice",
+			"age":    30,
+			"active": true,
 		},
 		ResourceType: "user",
 	}
@@ -467,7 +467,7 @@ func TestApplyMask_PartialShortValue(t *testing.T) {
 		}, nil
 	}
 	req := &models.MaskRequest{
-		Data:       map[string]interface{}{"code": "ab"},
+		Data:         map[string]interface{}{"code": "ab"},
 		ResourceType: "user",
 	}
 	result, err := svc.ApplyMask(context.Background(), "t1", req)

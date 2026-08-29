@@ -2,12 +2,12 @@ package handler
 
 import (
 	"context"
-	"strconv"
+	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/federation/models"
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
-	"go.opentelemetry.io/otel"
+	"strconv"
 )
 
 // Service defines the interface used by Handler.

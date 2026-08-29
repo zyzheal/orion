@@ -10,10 +10,11 @@ import (
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/domain/commands"
 	"orion/platform-svc-go/internal/domain/events"
-	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/domain/service"
+	"orion/platform-svc-go/internal/middleware"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 )
 
@@ -55,6 +56,8 @@ type dispatchRequest struct {
 // DispatchCommand accepts {command_type, aggregate_id, tenant_id?, data} and
 // sends the command through the command bus.
 func (h *Handler) DispatchCommand(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DispatchCommand")
+	defer span.End()
 	var req dispatchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, "invalid command payload: "+err.Error())
@@ -78,7 +81,7 @@ func (h *Handler) DispatchCommand(c *gin.Context) {
 
 	cmd := commands.NewCommand(req.CommandType, req.AggregateID, tenantID, data)
 
-	if err := h.bus.Send(c.Request.Context(), cmd); err != nil {
+	if err := h.bus.Send(ctx, cmd); err != nil {
 		if _, ok := err.(*commands.HandlerNotFoundError); ok {
 			h.logger.Warn("command handler not found", zap.String("command_type", req.CommandType))
 			middleware.RespondNotFound(c, "no handler registered for command type: "+req.CommandType)
@@ -99,7 +102,8 @@ func (h *Handler) DispatchCommand(c *gin.Context) {
 
 // GetAggregate returns the latest event version for the given aggregate.
 func (h *Handler) GetAggregate(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAggregate")
+	defer span.End()
 	aggregateID := c.Param("aggregateID")
 	tenantID := c.GetString("tenant_id")
 	commandType := c.Query("command_type")
@@ -127,7 +131,8 @@ func (h *Handler) GetAggregate(c *gin.Context) {
 
 // GetEventHistory returns the event stream for the given aggregate.
 func (h *Handler) GetEventHistory(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEventHistory")
+	defer span.End()
 	aggregateID := c.Param("aggregateID")
 	tenantID := c.GetString("tenant_id")
 	commandType := c.Query("command_type")
@@ -173,5 +178,7 @@ func (h *Handler) GetEventHistory(c *gin.Context) {
 
 // Health returns a lightweight health indicator for the CQRS layer.
 func (h *Handler) Health(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "HealthCheck")
+	defer span.End()
 	middleware.RespondSuccess(c, gin.H{"status": "healthy"})
 }

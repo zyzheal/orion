@@ -54,16 +54,16 @@ type AdapterFactory func(logger *zap.Logger, config models.SourceConfig) IJobSou
 
 // Service manages job sources and dispatches events.
 type Service struct {
-	repo  RepositoryInterface
-	mgr   *JobSourceManager
+	repo   RepositoryInterface
+	mgr    *JobSourceManager
 	logger *zap.Logger
 }
 
 // NewService creates a new Service with the given repository and logger.
 func NewService(repo RepositoryInterface, logger *zap.Logger) *Service {
 	return &Service{
-		repo:  repo,
-		mgr:   NewJobSourceManager(repo, logger),
+		repo:   repo,
+		mgr:    NewJobSourceManager(repo, logger),
 		logger: logger,
 	}
 }
@@ -243,10 +243,12 @@ func (m *JobSourceManager) Get(stype string) (IJobSource, bool) {
 // ManualSource is triggered via explicit API call.
 type ManualSource struct{}
 
-func (s *ManualSource) Name() string      { return "manual" }
-func (s *ManualSource) Type() string      { return "manual" }
+func (s *ManualSource) Name() string                                                   { return "manual" }
+func (s *ManualSource) Type() string                                                   { return "manual" }
 func (s *ManualSource) Initialize(ctx context.Context, config map[string]string) error { return nil }
-func (s *ManualSource) StartListening(ctx context.Context, handler func(map[string]interface{})) error { return nil }
+func (s *ManualSource) StartListening(ctx context.Context, handler func(map[string]interface{})) error {
+	return nil
+}
 func (s *ManualSource) Stop() error { return nil }
 
 // ScheduleSource fires based on a cron schedule.
@@ -257,8 +259,8 @@ type ScheduleSource struct {
 	handler  func(map[string]interface{})
 }
 
-func (s *ScheduleSource) Name() string      { return "schedule" }
-func (s *ScheduleSource) Type() string      { return "schedule" }
+func (s *ScheduleSource) Name() string { return "schedule" }
+func (s *ScheduleSource) Type() string { return "schedule" }
 func (s *ScheduleSource) Initialize(ctx context.Context, config map[string]string) error {
 	s.cronExpr = config["cron_expr"]
 	if s.cronExpr == "" {
@@ -302,8 +304,8 @@ type WebhookSource struct {
 	handler func(map[string]interface{})
 }
 
-func (s *WebhookSource) Name() string      { return "webhook" }
-func (s *WebhookSource) Type() string      { return "webhook" }
+func (s *WebhookSource) Name() string { return "webhook" }
+func (s *WebhookSource) Type() string { return "webhook" }
 func (s *WebhookSource) Initialize(ctx context.Context, config map[string]string) error {
 	s.port = config["port"]
 	if s.port == "" {
@@ -332,8 +334,8 @@ type EventTriggerSource struct {
 	handler   func(map[string]interface{})
 }
 
-func (s *EventTriggerSource) Name() string      { return "event_trigger" }
-func (s *EventTriggerSource) Type() string      { return "event_trigger" }
+func (s *EventTriggerSource) Name() string { return "event_trigger" }
+func (s *EventTriggerSource) Type() string { return "event_trigger" }
 func (s *EventTriggerSource) Initialize(ctx context.Context, config map[string]string) error {
 	s.eventType = config["event_type"]
 	if s.eventType == "" {

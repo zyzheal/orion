@@ -1,19 +1,19 @@
 package aggregates
 
 import (
-	"time"
 	"orion/platform-svc-go/internal/domain/events"
+	"time"
 )
 
 // PipelineAggregate represents the Pipeline aggregate root.
 type PipelineAggregate struct {
 	BaseAggregate
-	Name       string            `json:"name"`
-	Status     string            `json:"status"` // DRAFT/ACTIVE/DEPRECATED
-	YAML       string            `json:"yaml"`
-	Metadata   map[string]string `json:"metadata"`
-	ActivatedAt *time.Time        `json:"activatedAt"`
-	DeprecatedAt *time.Time       `json:"deprecatedAt"`
+	Name         string            `json:"name"`
+	Status       string            `json:"status"` // DRAFT/ACTIVE/DEPRECATED
+	YAML         string            `json:"yaml"`
+	Metadata     map[string]string `json:"metadata"`
+	ActivatedAt  *time.Time        `json:"activatedAt"`
+	DeprecatedAt *time.Time        `json:"deprecatedAt"`
 }
 
 // ActivatePipeline creates a PipelineActivatedEvent.

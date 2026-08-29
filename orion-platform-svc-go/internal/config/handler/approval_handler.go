@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/config/models"
 	"orion/platform-svc-go/internal/config/service"
 	"orion/platform-svc-go/internal/middleware"
@@ -19,13 +20,15 @@ func NewApprovalHandler(svc *service.ApprovalService) *ApprovalHandler {
 }
 
 func (h *ApprovalHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateApprovalRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	approval, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	approval, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -34,9 +37,11 @@ func (h *ApprovalHandler) Create(c *gin.Context) {
 }
 
 func (h *ApprovalHandler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigGet")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	a, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	a, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "approval not found")
 		return
@@ -45,9 +50,11 @@ func (h *ApprovalHandler) Get(c *gin.Context) {
 }
 
 func (h *ApprovalHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	status := c.Query("status")
-	approvals, err := h.svc.List(c.Request.Context(), tenantID, status)
+	approvals, err := h.svc.List(ctx, tenantID, status)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -56,6 +63,8 @@ func (h *ApprovalHandler) List(c *gin.Context) {
 }
 
 func (h *ApprovalHandler) Review(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigReview")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.ReviewApprovalRequest
@@ -63,7 +72,7 @@ func (h *ApprovalHandler) Review(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.Review(c.Request.Context(), tenantID, id, req); err != nil {
+	if err := h.svc.Review(ctx, tenantID, id, req); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -71,9 +80,11 @@ func (h *ApprovalHandler) Review(c *gin.Context) {
 }
 
 func (h *ApprovalHandler) Apply(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigApply")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.Apply(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Apply(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}

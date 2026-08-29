@@ -1,7 +1,7 @@
 package handler
 
 import (
-
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/notification/chatops/models"
 	"orion/platform-svc-go/internal/notification/chatops/service"
 
@@ -17,13 +17,15 @@ func NewMessageHandler(svc *service.MessageService) *MessageHandler {
 }
 
 func (h *MessageHandler) SendMessage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsSendMessage")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.SendMessageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	resp, err := h.svc.SendMessage(c.Request.Context(), tenantID, req)
+	resp, err := h.svc.SendMessage(ctx, tenantID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

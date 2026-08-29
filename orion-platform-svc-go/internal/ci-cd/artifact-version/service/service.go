@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"time"
 
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/ci-cd/artifact-version/models"
 	"orion/platform-svc-go/internal/ci-cd/artifact-version/repository"
-	"go.uber.org/zap"
 )
 
 type ArtifactVersionService struct {

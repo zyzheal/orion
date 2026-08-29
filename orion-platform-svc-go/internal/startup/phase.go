@@ -2,9 +2,9 @@
 // ordered phases, dependency resolution, and lifecycle hooks.
 //
 // Architecture (three layers):
-//   1. PhaseManager (phase.go) — drives ordered phases with pre/post hooks
-//   2. StartupManager (manager.go) — IStartup module lifecycle (topological sort)
-//   3. IStartup interface (manager.go) — per-module Initialize/HealthCheck/Shutdown
+//  1. PhaseManager (phase.go) — drives ordered phases with pre/post hooks
+//  2. StartupManager (manager.go) — IStartup module lifecycle (topological sort)
+//  3. IStartup interface (manager.go) — per-module Initialize/HealthCheck/Shutdown
 package startup
 
 import (
@@ -25,12 +25,12 @@ import (
 type PhaseName string
 
 const (
-	PhaseConfig    PhaseName = "configuration" // 1: load & validate configuration
-	PhaseDatabase  PhaseName = "database"      // 2: connect & migrate databases
-	PhaseCache     PhaseName = "cache"         // 3: initialize caches (Redis, etc.)
+	PhaseConfig     PhaseName = "configuration" // 1: load & validate configuration
+	PhaseDatabase   PhaseName = "database"      // 2: connect & migrate databases
+	PhaseCache      PhaseName = "cache"         // 3: initialize caches (Redis, etc.)
 	PhaseMiddleware PhaseName = "middleware"    // 4: register HTTP/middleware
-	PhaseServices  PhaseName = "services"      // 5: start business services
-	PhaseReady     PhaseName = "ready"         // 6: mark system as serving traffic
+	PhaseServices   PhaseName = "services"      // 5: start business services
+	PhaseReady      PhaseName = "ready"         // 6: mark system as serving traffic
 )
 
 // phaseOrder defines the canonical ordered phases.
@@ -58,11 +58,11 @@ func AllPhases() []PhaseName {
 type PhaseStatus int32
 
 const (
-	PhaseStatusPending   PhaseStatus = iota // 0: not yet started
-	PhaseStatusRunning                      // 1: currently executing
-	PhaseStatusSuccess                      // 2: completed successfully
-	PhaseStatusFailed                       // 3: failed (error logged)
-	PhaseStatusSkipped                      // 4: skipped (no handlers)
+	PhaseStatusPending PhaseStatus = iota // 0: not yet started
+	PhaseStatusRunning                    // 1: currently executing
+	PhaseStatusSuccess                    // 2: completed successfully
+	PhaseStatusFailed                     // 3: failed (error logged)
+	PhaseStatusSkipped                    // 4: skipped (no handlers)
 )
 
 func (s PhaseStatus) String() string {
@@ -532,8 +532,8 @@ func (pm *PhaseManager) Progress() map[string]interface{} {
 			}
 		}
 		entry := map[string]interface{}{
-			"name":    string(name),
-			"status":  status,
+			"name":        string(name),
+			"status":      status,
 			"duration_ms": dur.Milliseconds(),
 		}
 		if errMsg != "" {

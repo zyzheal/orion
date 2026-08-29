@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/pipeline-version/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/pipeline-version/models"
 )
 
@@ -64,7 +64,6 @@ func (f *fakePipeline_versionService) SetBaseline(ctx context.Context, versionID
 }
 
 var _ service.ServiceInterface = (*fakePipeline_versionService)(nil)
-
 
 func TestHandler_PIPELINE_VERSI_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

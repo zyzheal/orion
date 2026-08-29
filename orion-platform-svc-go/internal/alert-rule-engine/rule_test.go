@@ -9,10 +9,10 @@ import (
 
 func TestParseSimpleComparison(t *testing.T) {
 	tests := []struct {
-		name      string
-		expr      string
-		wantOK    bool
-		wantErr   bool
+		name    string
+		expr    string
+		wantOK  bool
+		wantErr bool
 	}{
 		{"greater than", `cpu > 80`, true, false},
 		{"less than", `cpu < 10`, true, false},
@@ -212,9 +212,9 @@ func TestParseParenthesizedExpr(t *testing.T) {
 
 func TestParseInvalidExpr(t *testing.T) {
 	tests := []string{
-		`cpu < 80 &&`,      // trailing && without right operand
-		`cpu > && 80`,      // missing operand
-		`80 > cpu`,         // number as left operand before compare
+		`cpu < 80 &&`, // trailing && without right operand
+		`cpu > && 80`, // missing operand
+		`80 > cpu`,    // number as left operand before compare
 	}
 	for _, s := range tests {
 		_, err := ParseExpression(s)
@@ -234,9 +234,9 @@ func TestEvaluatorComparison(t *testing.T) {
 		Build()
 
 	tests := []struct {
-		name  string
-		expr  string
-		want  bool
+		name string
+		expr string
+		want bool
 	}{
 		{"greater true", `cpu > 80`, true},
 		{"greater false", `cpu > 90`, false},
@@ -324,10 +324,10 @@ func TestEvaluatorAggFunctions(t *testing.T) {
 		Build()
 
 	tests := []struct {
-		name     string
-		expr     string
-		wantVal  float64
-		wantOk   bool
+		name    string
+		expr    string
+		wantVal float64
+		wantOk  bool
 	}{
 		{"sum", `sum(cpu)`, 180.0, true},
 		{"avg", `avg(cpu)`, 60.0, true},
@@ -366,8 +366,8 @@ func TestEvaluatorTimeWindow(t *testing.T) {
 		wantVal float64
 		wantOk  bool
 	}{
-		{"last 3 points", `cpu.last(3)`, 40.0, true}, // avg of [30, 40, 50]
-		{"last 2 points", `cpu.last(2)`, 45.0, true}, // avg of [40, 50]
+		{"last 3 points", `cpu.last(3)`, 40.0, true},   // avg of [30, 40, 50]
+		{"last 2 points", `cpu.last(2)`, 45.0, true},   // avg of [40, 50]
 		{"last 5m (300s)", `cpu.last(5m)`, 30.0, true}, // avg of all 5 points (300 seconds = 300 points, takes all 5)
 	}
 	for _, tc := range tests {

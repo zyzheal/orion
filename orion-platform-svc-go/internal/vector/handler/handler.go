@@ -9,8 +9,8 @@ import (
 	"orion/platform-svc-go/internal/vector/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/go-common/pkg/errors"
 	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/errors"
 )
 
 type Handler struct {
@@ -25,11 +25,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r := rg.Group("/vector")
 	r.GET("/stores", auth.RequirePermission("vector", "read"), h.ListStores)
 	r.GET("/stores/:id", auth.RequirePermission("vector", "read"), h.GetStore)
-r.POST("/stores", auth.RequirePermission("vector", "write"), h.CreateStore)
+	r.POST("/stores", auth.RequirePermission("vector", "write"), h.CreateStore)
 	r.DELETE("/stores/:id", auth.RequirePermission("vector", "delete"), h.DeleteStore)
-r.POST("/stores/:id/vectors", auth.RequirePermission("vector", "write"), h.UpsertVectors)
+	r.POST("/stores/:id/vectors", auth.RequirePermission("vector", "write"), h.UpsertVectors)
 	r.POST("/stores/:id/search", auth.RequirePermission("vector", "read"), h.SearchVectors)
-r.DELETE("/stores/:id/vectors", auth.RequirePermission("vector", "delete"), h.DeleteVectors)
+	r.DELETE("/stores/:id/vectors", auth.RequirePermission("vector", "delete"), h.DeleteVectors)
 }
 
 func (h *Handler) CreateStore(c *gin.Context) {
@@ -98,7 +98,7 @@ func (h *Handler) ListStores(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-result, err := h.svc.ListStores(ctx, tenantID, limit, offset)
+	result, err := h.svc.ListStores(ctx, tenantID, limit, offset)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return

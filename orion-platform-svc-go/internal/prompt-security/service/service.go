@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/prompt-security/models"
 	"orion/platform-svc-go/internal/prompt-security/repository"
-	"go.uber.org/zap"
 )
 
 // PromptSecurityService scans prompts for security issues.
@@ -27,10 +27,10 @@ func NewPromptSecurityService(repo repository.RepositoryInterface, logger *zap.L
 		repo:   repo,
 		logger: logger,
 		piiPatterns: []*regexp.Regexp{
-			regexp.MustCompile(`(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b`),    // email
-			regexp.MustCompile(`\b\d{3}-\d{2}-\d{4}\b`),                              // SSN
-			regexp.MustCompile(`\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b`),         // credit card
-			regexp.MustCompile(`\b\d{3}[\s.-]?\d{3}[\s.-]?\d{4}\b`),                   // phone
+			regexp.MustCompile(`(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b`), // email
+			regexp.MustCompile(`\b\d{3}-\d{2}-\d{4}\b`),                         // SSN
+			regexp.MustCompile(`\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b`),    // credit card
+			regexp.MustCompile(`\b\d{3}[\s.-]?\d{3}[\s.-]?\d{4}\b`),             // phone
 		},
 		injectionPatterns: []*regexp.Regexp{
 			regexp.MustCompile(`(?i)(ignore|disregard|discard|forget|override|bypass)\s+(previous|prior|earlier|last|all)`),

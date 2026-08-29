@@ -9,8 +9,8 @@ import (
 
 // SVGRenderer renders a Graph into SVG format using a basic layout algorithm.
 type SVGRenderer struct {
-	graph *graph.Graph
-	width int
+	graph  *graph.Graph
+	width  int
 	height int
 }
 
@@ -62,9 +62,9 @@ func (r *SVGRenderer) Render() string {
 // RenderJSON outputs a JSON representation suitable for frontend graph libraries.
 func (r *SVGRenderer) RenderJSON() (string, error) {
 	data := map[string]interface{}{
-		"nodes": r.graph.Nodes,
-		"edges": r.graph.Links,
-		"width": r.width,
+		"nodes":  r.graph.Nodes,
+		"edges":  r.graph.Links,
+		"width":  r.width,
 		"height": r.height,
 	}
 	b, err := json.Marshal(data)

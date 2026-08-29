@@ -4,11 +4,11 @@ import "time"
 
 // Valid relation types
 const (
-	RelationDuplicate  = "duplicate"
-	RelationCausedBy   = "caused-by"
-	RelationRelated    = "related"
-	RelationBlocks     = "blocks"
-	RelationBlockedBy  = "blocked-by"
+	RelationDuplicate = "duplicate"
+	RelationCausedBy  = "caused-by"
+	RelationRelated   = "related"
+	RelationBlocks    = "blocks"
+	RelationBlockedBy = "blocked-by"
 )
 
 var ValidRelationTypes = []string{

@@ -103,17 +103,17 @@ func (r *ArtifactRegistryRepository) PushArtifact(ctx context.Context, tenantID 
 	}
 
 	return &models.ArtifactEntry{
-		ID:            id,
-		RegistryID:    req.RegistryID,
-		Name:          req.Name,
-		Version:       req.Version,
-		ContentType:   req.ContentType,
-		Size:          req.Size,
-		Checksum:      req.Checksum,
-		StoragePath:   req.StoragePath,
-		Metadata:      string(metadataJSON),
-		IsLatest:      true,
-		CreatedAt:     now,
+		ID:          id,
+		RegistryID:  req.RegistryID,
+		Name:        req.Name,
+		Version:     req.Version,
+		ContentType: req.ContentType,
+		Size:        req.Size,
+		Checksum:    req.Checksum,
+		StoragePath: req.StoragePath,
+		Metadata:    string(metadataJSON),
+		IsLatest:    true,
+		CreatedAt:   now,
 	}, nil
 }
 

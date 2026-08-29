@@ -28,8 +28,8 @@ type Volume struct {
 
 // GPUResource represents GPU device allocation.
 type GPUResource struct {
-	Devices        string   `json:"devices,omitempty"`
-	Capabilities   []string `json:"capabilities,omitempty"`
+	Devices      string   `json:"devices,omitempty"`
+	Capabilities []string `json:"capabilities,omitempty"`
 }
 
 // ResourceLimit represents container resource constraints.
@@ -41,21 +41,21 @@ type ResourceLimit struct {
 
 // ContainerSpec defines the container execution specification.
 type ContainerSpec struct {
-	Image     string          `json:"image"`
-	Workdir   *string         `json:"workdir,omitempty"`
+	Image     string            `json:"image"`
+	Workdir   *string           `json:"workdir,omitempty"`
 	Env       map[string]string `json:"env,omitempty"`
-	Resources *ResourceLimit  `json:"resources,omitempty"`
-	Volumes   []Volume        `json:"volumes,omitempty"`
-	Network   *string         `json:"network,omitempty"` // host, bridge, none
-	Command   []string        `json:"command,omitempty"`
+	Resources *ResourceLimit    `json:"resources,omitempty"`
+	Volumes   []Volume          `json:"volumes,omitempty"`
+	Network   *string           `json:"network,omitempty"` // host, bridge, none
+	Command   []string          `json:"command,omitempty"`
 }
 
 // ContainerExecutionResult holds the outcome of a container command execution.
 type ContainerExecutionResult struct {
-	ExitCode    int    `json:"exit_code"`
-	Stdout      string `json:"stdout"`
-	Stderr      string `json:"stderr"`
-	DurationMs  int64  `json:"duration_ms"`
+	ExitCode    int     `json:"exit_code"`
+	Stdout      string  `json:"stdout"`
+	Stderr      string  `json:"stderr"`
+	DurationMs  int64   `json:"duration_ms"`
 	ContainerId *string `json:"container_id,omitempty"`
 }
 

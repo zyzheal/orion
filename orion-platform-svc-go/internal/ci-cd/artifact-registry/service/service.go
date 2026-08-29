@@ -6,9 +6,9 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/ci-cd/artifact-registry/models"
 	"orion/platform-svc-go/internal/ci-cd/artifact-registry/repository"
-	"go.uber.org/zap"
 )
 
 type ArtifactRegistryService struct {

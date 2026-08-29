@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strconv"
 
 	"orion/platform-svc-go/internal/security/secret/models"
@@ -39,6 +40,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // Create creates a new secret.
 // POST /secrets
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecuritySecretCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req models.CreateSecretRequest
@@ -52,7 +55,7 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	s, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+	s, err := h.svc.Create(ctx, tenantID, &req)
 	if err != nil {
 		if err == service.ErrInvalidName || err == service.ErrNameTooLong {
 			respondBadRequest(c, err.Error())
@@ -68,6 +71,8 @@ func (h *Handler) Create(c *gin.Context) {
 // List returns secrets for a tenant (values masked).
 // GET /secrets
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecuritySecretList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -81,7 +86,7 @@ func (h *Handler) List(c *gin.Context) {
 	}
 	offset := (page - 1) * ps
 
-	items, err := h.svc.List(c.Request.Context(), tenantID, offset, ps, scope)
+	items, err := h.svc.List(ctx, tenantID, offset, ps, scope)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -99,10 +104,12 @@ func (h *Handler) List(c *gin.Context) {
 // Get returns a secret by ID (value masked).
 // GET /secrets/:id
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecuritySecretGet")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	s, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
+	s, err := h.svc.GetByID(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, "secret not found")
 		return
@@ -114,6 +121,8 @@ func (h *Handler) Get(c *gin.Context) {
 // Update updates a secret's value and/or description.
 // PUT /secrets/:id
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecuritySecretUpdate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -128,7 +137,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	s, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
+	s, err := h.svc.Update(ctx, tenantID, id, &req)
 	if err != nil {
 		if err == service.ErrSecretNotFound {
 			respondNotFound(c, "secret not found")
@@ -144,10 +153,12 @@ func (h *Handler) Update(c *gin.Context) {
 // Delete removes a secret by ID.
 // DELETE /secrets/:id
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecuritySecretDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		respondNotFound(c, "secret not found")
 		return
 	}
@@ -158,6 +169,8 @@ func (h *Handler) Delete(c *gin.Context) {
 // Resolve resolves ${secrets.XXX} references in the provided parameters.
 // POST /secrets/resolve
 func (h *Handler) Resolve(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecuritySecretResolve")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req models.ResolveRequest
@@ -171,7 +184,7 @@ func (h *Handler) Resolve(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.ResolveSecrets(c.Request.Context(), tenantID, req.Parameters)
+	result, err := h.svc.ResolveSecrets(ctx, tenantID, req.Parameters)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -183,10 +196,12 @@ func (h *Handler) Resolve(c *gin.Context) {
 // GetReferences returns information about where a secret is referenced.
 // GET /secrets/:id/references
 func (h *Handler) GetReferences(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecuritySecretGetReferences")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	s, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
+	s, err := h.svc.GetByID(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, "secret not found")
 		return
@@ -194,19 +209,21 @@ func (h *Handler) GetReferences(c *gin.Context) {
 
 	refPattern := "${secrets." + s.Name + "}"
 	respondSuccess(c, gin.H{
-			"secretName":      s.Name,
-			"referencePattern": refPattern,
-			"pipelines":       []string{},
-			"hint":            "search for \"" + refPattern + "\" in Pipeline YAML",
-		},)
+		"secretName":       s.Name,
+		"referencePattern": refPattern,
+		"pipelines":        []string{},
+		"hint":             "search for \"" + refPattern + "\" in Pipeline YAML",
+	})
 }
 
 // Count returns the total number of secrets for a tenant.
 // GET /secrets/count
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecuritySecretCount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

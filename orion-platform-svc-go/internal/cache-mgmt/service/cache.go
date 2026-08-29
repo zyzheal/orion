@@ -137,9 +137,9 @@ func (m *MethodCacheManager) Stats(configID string) *models.CacheStats {
 		return &models.CacheStats{ConfigID: configID}
 	}
 	return &models.CacheStats{
-		ConfigID: configID,
-		Hits:     s.hits,
-		Misses:   s.misses,
+		ConfigID:  configID,
+		Hits:      s.hits,
+		Misses:    s.misses,
 		Evictions: s.evictions,
 	}
 }

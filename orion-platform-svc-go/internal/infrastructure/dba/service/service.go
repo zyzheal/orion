@@ -13,9 +13,9 @@ import (
 )
 
 var (
-	ErrOrderNotFound     = errors.New("order not found")
+	ErrOrderNotFound      = errors.New("order not found")
 	ErrDataSourceNotFound = errors.New("data source not found")
-	ErrInvalidInput      = errors.New("invalid input")
+	ErrInvalidInput       = errors.New("invalid input")
 )
 
 type Service struct {
@@ -34,16 +34,16 @@ func (s *Service) CreateOrder(ctx context.Context, req *models.CreateOrderInput,
 	}
 	now := time.Now()
 	order := &models.SQLOrder{
-		ID:         uuid.New().String(),
-		TenantID:   tenantID,
-		Title:      req.Title,
+		ID:          uuid.New().String(),
+		TenantID:    tenantID,
+		Title:       req.Title,
 		Description: req.Description,
-		Database:   req.Database,
-		SQLContent: req.SQLContent,
-		Status:     "pending",
-		CreatedBy:  userID,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		Database:    req.Database,
+		SQLContent:  req.SQLContent,
+		Status:      "pending",
+		CreatedBy:   userID,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 	if err := s.repo.CreateOrder(ctx, order); err != nil {
 		return nil, fmt.Errorf("create order: %w", err)

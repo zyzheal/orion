@@ -23,10 +23,10 @@ func ToJSONRecords(out io.Writer, records []map[string]interface{}) error {
 		return fmt.Errorf("json: write: %w", err)
 	}
 	_, err = out.Write([]byte("\n"))
-		if err != nil {
-			return fmt.Errorf("json: write newline: %w", err)
-		}
-		return nil
+	if err != nil {
+		return fmt.Errorf("json: write newline: %w", err)
+	}
+	return nil
 }
 
 // ToJSONLRecords writes each record as a separate JSON object on its own line.
@@ -53,9 +53,9 @@ func ToJSONLRecords(out io.Writer, records []map[string]interface{}) error {
 // object and returns the result as a list of maps.
 //
 // Supported input shapes:
-//   • [..., ...]           → list of records
-//   • { ... }              → single record (wrapped in a list)
-//   • {"records": [...] }  → common wrapper pattern
+//   - [..., ...]           → list of records
+//   - { ... }              → single record (wrapped in a list)
+//   - {"records": [...] }  → common wrapper pattern
 func FromJSONReader(in io.Reader) ([]map[string]interface{}, error) {
 	buf := make([]byte, 0, 64*1024)
 	for {

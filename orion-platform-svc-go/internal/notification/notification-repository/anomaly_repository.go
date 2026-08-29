@@ -95,7 +95,6 @@ func (r *AnomalyRepository) ListAnomalies(ctx context.Context, tenantID string, 
 	return items, count, nil
 }
 
-
 // UpdateStatus updates the status of an anomaly.
 func (r *AnomalyRepository) UpdateStatus(ctx context.Context, tenantID, id, status string) error {
 	var resolvedAt *time.Time

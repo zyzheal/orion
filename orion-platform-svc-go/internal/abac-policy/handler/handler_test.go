@@ -10,8 +10,8 @@ import (
 	"orion/platform-svc-go/internal/abac-policy/models"
 	"orion/platform-svc-go/internal/abac-policy/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 )
 
 func makeHandler() *Handler {
@@ -41,7 +41,6 @@ func (f *fakeHandlerService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func strPtr(s string) *string {
 	return &s

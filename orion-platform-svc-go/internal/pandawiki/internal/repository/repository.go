@@ -124,7 +124,6 @@ func (r *Repository) CreateDoc(ctx context.Context, doc *models.Doc) error {
 	}
 	defer tx.Rollback()
 
-	
 	now := time.Now()
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO kb_docs (id, tenant_id, space_id, title, content, type, source, tags, status, version, author_id, created_at, updated_at)
@@ -188,8 +187,6 @@ func (r *Repository) UpdateDoc(ctx context.Context, tenantID, id string, input *
 		return nil, err
 	}
 	defer tx.Rollback()
-
-	
 
 	var d models.Doc
 	err = tx.QueryRowContext(ctx, `SELECT id, tenant_id, space_id, title, content, type, source, tags, status, version, author_id, created_at, updated_at FROM kb_docs WHERE id = $1 AND tenant_id = $2`, id, tenantID).Scan(&d.ID, &d.TenantID, &d.SpaceID, &d.Title, &d.Content, &d.Type, &d.Source, &d.Tags, &d.Status, &d.Version, &d.AuthorID, &d.CreatedAt, &d.UpdatedAt)

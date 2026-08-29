@@ -21,9 +21,9 @@ type TrackOperationRequest struct {
 
 // ArtifactStats holds aggregate counts for an artifact.
 type ArtifactStats struct {
-	ArtifactID  string `json:"artifact_id"`
-	TotalOps    int    `json:"total_ops"`
-	LastAction  string `json:"last_action"`
+	ArtifactID string `json:"artifact_id"`
+	TotalOps   int    `json:"total_ops"`
+	LastAction string `json:"last_action"`
 }
 
 // ArtifactScan represents a scan initiated for an artifact.
@@ -39,7 +39,7 @@ type ArtifactScan struct {
 }
 
 type ScanArtifactRequest struct {
-	Type  string `json:"type"` // virus, license, dependency
+	Type string `json:"type"` // virus, license, dependency
 }
 
 // ScanReport is the result of a scan.
@@ -48,7 +48,7 @@ type ScanReport struct {
 	TenantID   string    `json:"tenant_id" db:"tenant_id"`
 	ScanID     string    `json:"scan_id" db:"scan_id"`
 	ArtifactID string    `json:"artifact_id" db:"artifact_id"`
-	Status     string    `json:"status" db:"status"` // clean, warning, malicious
+	Status     string    `json:"status" db:"status"`     // clean, warning, malicious
 	Findings   string    `json:"findings" db:"findings"` // JSON blob
 	CreatedAt  time.Time `json:"created_at" db:"created_at"`
 }
@@ -59,8 +59,8 @@ type DetectMaliciousRequest struct {
 }
 
 type DetectMaliciousResult struct {
-	Malicious bool   `json:"malicious"`
-	Reason    string `json:"reason"`
+	Malicious  bool   `json:"malicious"`
+	Reason     string `json:"reason"`
 	ArtifactID string `json:"artifact_id"`
 }
 
@@ -69,7 +69,7 @@ type RetentionPolicy struct {
 	ID        string    `json:"id" db:"id"`
 	TenantID  string    `json:"tenant_id" db:"tenant_id"`
 	Name      string    `json:"name" db:"name"`
-	Rule      string    `json:"rule" db:"rule"`       // JSON blob: maxAgeDays, maxCount, conditions
+	Rule      string    `json:"rule" db:"rule"` // JSON blob: maxAgeDays, maxCount, conditions
 	Enabled   bool      `json:"enabled" db:"enabled"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
@@ -98,8 +98,8 @@ type RetentionReportRequest struct {
 }
 
 type RetentionReport struct {
-	PolicyID    string `json:"policy_id"`
-	TotalChecked int   `json:"total_checked"`
-	Expired      int   `json:"expired"`
-	Active       int   `json:"active"`
+	PolicyID     string `json:"policy_id"`
+	TotalChecked int    `json:"total_checked"`
+	Expired      int    `json:"expired"`
+	Active       int    `json:"active"`
 }

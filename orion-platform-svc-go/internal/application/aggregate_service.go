@@ -39,7 +39,7 @@ func NewAggregateServiceWithSnapshot(
 	snapshotPeriod int,
 ) *AggregateService {
 	return &AggregateService{
-		store:         store,
+		store:          store,
 		snapshotStore:  snapshotStore,
 		snapshotPeriod: snapshotPeriod,
 	}

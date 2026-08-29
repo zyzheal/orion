@@ -1,10 +1,11 @@
 package handler
 
 import (
-	"strconv"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/security/security/models"
 	"orion/platform-svc-go/internal/security/security/service"
-	"orion/go-common/pkg/auth"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -88,13 +89,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ---- Security Scans ----
 
 func (h *Handler) CreateScan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterCreateScan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateScanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+	d, err := h.svc.Create(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -103,10 +106,12 @@ func (h *Handler) CreateScan(c *gin.Context) {
 }
 
 func (h *Handler) ListScans(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterListScans")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.List(c.Request.Context(), tenantID, (page-1)*ps, ps)
+	items, err := h.svc.List(ctx, tenantID, (page-1)*ps, ps)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -115,8 +120,10 @@ func (h *Handler) ListScans(c *gin.Context) {
 }
 
 func (h *Handler) GetScan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterGetScan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	d, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
+	d, err := h.svc.GetByID(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -125,8 +132,10 @@ func (h *Handler) GetScan(c *gin.Context) {
 }
 
 func (h *Handler) DeleteScan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterDeleteScan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -134,8 +143,10 @@ func (h *Handler) DeleteScan(c *gin.Context) {
 }
 
 func (h *Handler) ScanCount(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterScanCount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -146,13 +157,15 @@ func (h *Handler) ScanCount(c *gin.Context) {
 // ---- Security Findings ----
 
 func (h *Handler) CreateFinding(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterCreateFinding")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.SecurityFinding
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.CreateFinding(c.Request.Context(), tenantID, &req); err != nil {
+	if err := h.svc.CreateFinding(ctx, tenantID, &req); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -160,11 +173,13 @@ func (h *Handler) CreateFinding(c *gin.Context) {
 }
 
 func (h *Handler) ListFindings(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterListFindings")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	severity := c.Query("severity")
-	items, err := h.svc.ListFindings(c.Request.Context(), tenantID, (page-1)*ps, ps, severity)
+	items, err := h.svc.ListFindings(ctx, tenantID, (page-1)*ps, ps, severity)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -173,8 +188,10 @@ func (h *Handler) ListFindings(c *gin.Context) {
 }
 
 func (h *Handler) GetFinding(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterGetFinding")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	d, err := h.svc.GetFinding(c.Request.Context(), tenantID, c.Param("id"))
+	d, err := h.svc.GetFinding(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -183,13 +200,15 @@ func (h *Handler) GetFinding(c *gin.Context) {
 }
 
 func (h *Handler) UpdateFinding(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterUpdateFinding")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateFindingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.UpdateFinding(c.Request.Context(), tenantID, c.Param("id"), &req)
+	d, err := h.svc.UpdateFinding(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -198,7 +217,9 @@ func (h *Handler) UpdateFinding(c *gin.Context) {
 }
 
 func (h *Handler) FindingsByScanID(c *gin.Context) {
-	items, err := h.svc.FindingsByScanID(c.Request.Context(), c.Param("scan_id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterFindingsByScanID")
+	defer span.End()
+	items, err := h.svc.FindingsByScanID(ctx, c.Param("scan_id"))
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -207,8 +228,10 @@ func (h *Handler) FindingsByScanID(c *gin.Context) {
 }
 
 func (h *Handler) FindingCount(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterFindingCount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.CountFindings(c.Request.Context(), tenantID)
+	count, err := h.svc.CountFindings(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -219,13 +242,15 @@ func (h *Handler) FindingCount(c *gin.Context) {
 // ---- Audit Plans ----
 
 func (h *Handler) CreateAuditPlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterCreateAuditPlan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAuditPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.CreateAuditPlan(c.Request.Context(), tenantID, &req)
+	d, err := h.svc.CreateAuditPlan(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -234,8 +259,10 @@ func (h *Handler) CreateAuditPlan(c *gin.Context) {
 }
 
 func (h *Handler) ListAuditPlans(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterListAuditPlans")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.ListAuditPlans(c.Request.Context(), tenantID)
+	items, err := h.svc.ListAuditPlans(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -244,8 +271,10 @@ func (h *Handler) ListAuditPlans(c *gin.Context) {
 }
 
 func (h *Handler) GetAuditPlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterGetAuditPlan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	d, err := h.svc.GetAuditPlan(c.Request.Context(), tenantID, c.Param("id"))
+	d, err := h.svc.GetAuditPlan(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -254,13 +283,15 @@ func (h *Handler) GetAuditPlan(c *gin.Context) {
 }
 
 func (h *Handler) UpdateAuditPlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterUpdateAuditPlan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateAuditPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.UpdateAuditPlan(c.Request.Context(), tenantID, c.Param("id"), &req)
+	d, err := h.svc.UpdateAuditPlan(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -269,8 +300,10 @@ func (h *Handler) UpdateAuditPlan(c *gin.Context) {
 }
 
 func (h *Handler) DeleteAuditPlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterDeleteAuditPlan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.DeleteAuditPlan(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.DeleteAuditPlan(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -280,8 +313,10 @@ func (h *Handler) DeleteAuditPlan(c *gin.Context) {
 // ---- Audit Executions ----
 
 func (h *Handler) ExecuteAudit(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterExecuteAudit")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	d, err := h.svc.ExecuteAudit(c.Request.Context(), tenantID, c.Param("plan_id"))
+	d, err := h.svc.ExecuteAudit(ctx, tenantID, c.Param("plan_id"))
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -290,7 +325,9 @@ func (h *Handler) ExecuteAudit(c *gin.Context) {
 }
 
 func (h *Handler) ListExecutions(c *gin.Context) {
-	items, err := h.svc.ListExecutions(c.Request.Context(), c.Param("plan_id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterListExecutions")
+	defer span.End()
+	items, err := h.svc.ListExecutions(ctx, c.Param("plan_id"))
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -299,7 +336,9 @@ func (h *Handler) ListExecutions(c *gin.Context) {
 }
 
 func (h *Handler) GetExecution(c *gin.Context) {
-	d, err := h.svc.GetExecution(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterGetExecution")
+	defer span.End()
+	d, err := h.svc.GetExecution(ctx, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -310,13 +349,15 @@ func (h *Handler) GetExecution(c *gin.Context) {
 // ---- Compliance Policies ----
 
 func (h *Handler) CreateCompliancePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterCreateCompliancePolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateCompliancePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.CreateCompliancePolicy(c.Request.Context(), tenantID, &req)
+	d, err := h.svc.CreateCompliancePolicy(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -325,9 +366,11 @@ func (h *Handler) CreateCompliancePolicy(c *gin.Context) {
 }
 
 func (h *Handler) ListCompliancePolicies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterListCompliancePolicies")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ft := c.Query("framework_type")
-	items, err := h.svc.ListCompliancePolicies(c.Request.Context(), tenantID, ft)
+	items, err := h.svc.ListCompliancePolicies(ctx, tenantID, ft)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -336,7 +379,9 @@ func (h *Handler) ListCompliancePolicies(c *gin.Context) {
 }
 
 func (h *Handler) GetCompliancePolicy(c *gin.Context) {
-	d, err := h.svc.GetCompliancePolicy(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterGetCompliancePolicy")
+	defer span.End()
+	d, err := h.svc.GetCompliancePolicy(ctx, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -345,7 +390,9 @@ func (h *Handler) GetCompliancePolicy(c *gin.Context) {
 }
 
 func (h *Handler) DeleteCompliancePolicy(c *gin.Context) {
-	if err := h.svc.DeleteCompliancePolicy(c.Request.Context(), c.Param("id")); err != nil {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterDeleteCompliancePolicy")
+	defer span.End()
+	if err := h.svc.DeleteCompliancePolicy(ctx, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -355,8 +402,10 @@ func (h *Handler) DeleteCompliancePolicy(c *gin.Context) {
 // ---- Compliance Evaluations ----
 
 func (h *Handler) EvaluateCompliance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterEvaluateCompliance")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	d, err := h.svc.EvaluateCompliance(c.Request.Context(), tenantID, c.Param("policy_id"))
+	d, err := h.svc.EvaluateCompliance(ctx, tenantID, c.Param("policy_id"))
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -365,7 +414,9 @@ func (h *Handler) EvaluateCompliance(c *gin.Context) {
 }
 
 func (h *Handler) GetLatestEvaluation(c *gin.Context) {
-	d, err := h.svc.GetLatestEvaluation(c.Request.Context(), c.Param("policy_id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterGetLatestEvaluation")
+	defer span.End()
+	d, err := h.svc.GetLatestEvaluation(ctx, c.Param("policy_id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -374,13 +425,15 @@ func (h *Handler) GetLatestEvaluation(c *gin.Context) {
 }
 
 func (h *Handler) GetComplianceEvaluation(c *gin.Context) {
-	_, err := h.svc.GetComplianceEvaluation(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterGetComplianceEvaluation")
+	defer span.End()
+	_, err := h.svc.GetComplianceEvaluation(ctx, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
 	// Fallback to latest evaluation for simplicity
-	d, err := h.svc.GetLatestEvaluation(c.Request.Context(), c.Param("id"))
+	d, err := h.svc.GetLatestEvaluation(ctx, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -389,8 +442,10 @@ func (h *Handler) GetComplianceEvaluation(c *gin.Context) {
 }
 
 func (h *Handler) GetComplianceScore(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterGetComplianceScore")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	s, err := h.svc.GetComplianceScore(c.Request.Context(), tenantID)
+	s, err := h.svc.GetComplianceScore(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -401,13 +456,15 @@ func (h *Handler) GetComplianceScore(c *gin.Context) {
 // ---- SBOM ----
 
 func (h *Handler) CreateSBOM(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterCreateSBOM")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSBOMRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.CreateSBOM(c.Request.Context(), tenantID, &req)
+	d, err := h.svc.CreateSBOM(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -416,10 +473,12 @@ func (h *Handler) CreateSBOM(c *gin.Context) {
 }
 
 func (h *Handler) ListSBOMs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterListSBOMs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.ListSBOMs(c.Request.Context(), tenantID, (page-1)*ps, ps)
+	items, err := h.svc.ListSBOMs(ctx, tenantID, (page-1)*ps, ps)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -428,7 +487,9 @@ func (h *Handler) ListSBOMs(c *gin.Context) {
 }
 
 func (h *Handler) GetSBOM(c *gin.Context) {
-	d, err := h.svc.GetSBOM(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterGetSBOM")
+	defer span.End()
+	d, err := h.svc.GetSBOM(ctx, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -437,8 +498,10 @@ func (h *Handler) GetSBOM(c *gin.Context) {
 }
 
 func (h *Handler) SBOMCount(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterSBOMCount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.CountSBOMs(c.Request.Context(), tenantID)
+	count, err := h.svc.CountSBOMs(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -449,13 +512,15 @@ func (h *Handler) SBOMCount(c *gin.Context) {
 // ---- Dependency Analysis ----
 
 func (h *Handler) AnalyzeDependency(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterAnalyzeDependency")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.AnalyzeDependencyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.AnalyzeDependency(c.Request.Context(), tenantID, &req)
+	d, err := h.svc.AnalyzeDependency(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -464,8 +529,10 @@ func (h *Handler) AnalyzeDependency(c *gin.Context) {
 }
 
 func (h *Handler) GetDependencyGraph(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterGetDependencyGraph")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	d, err := h.svc.GetDependencyGraph(c.Request.Context(), tenantID, c.Param("package_name"), c.Param("package_version"))
+	d, err := h.svc.GetDependencyGraph(ctx, tenantID, c.Param("package_name"), c.Param("package_version"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -474,10 +541,12 @@ func (h *Handler) GetDependencyGraph(c *gin.Context) {
 }
 
 func (h *Handler) ListDependencyGraphs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterListDependencyGraphs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.ListDependencyGraphs(c.Request.Context(), tenantID, (page-1)*ps, ps)
+	items, err := h.svc.ListDependencyGraphs(ctx, tenantID, (page-1)*ps, ps)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -488,13 +557,15 @@ func (h *Handler) ListDependencyGraphs(c *gin.Context) {
 // ---- Dependency Poisoning ----
 
 func (h *Handler) ScanPoisoning(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterScanPoisoning")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.ScanDependencyPoisoningRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.ScanDependencyPoisoning(c.Request.Context(), tenantID, &req)
+	d, err := h.svc.ScanDependencyPoisoning(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -503,10 +574,12 @@ func (h *Handler) ScanPoisoning(c *gin.Context) {
 }
 
 func (h *Handler) ListPoisoningScans(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterListPoisoningScans")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.ListDependencyPoisoningScans(c.Request.Context(), tenantID, (page-1)*ps, ps)
+	items, err := h.svc.ListDependencyPoisoningScans(ctx, tenantID, (page-1)*ps, ps)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -515,8 +588,10 @@ func (h *Handler) ListPoisoningScans(c *gin.Context) {
 }
 
 func (h *Handler) PoisoningCount(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterPoisoningCount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.CountDependencyPoisoningScans(c.Request.Context(), tenantID)
+	count, err := h.svc.CountDependencyPoisoningScans(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

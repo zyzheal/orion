@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/ai/knowledge/models"
 	"orion/platform-svc-go/internal/ai/knowledge/repository"
-	"go.uber.org/zap"
 )
 
 type KnowledgeService struct {

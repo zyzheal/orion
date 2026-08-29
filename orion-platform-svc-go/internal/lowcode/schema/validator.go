@@ -32,17 +32,17 @@ type FlowEdge struct {
 
 // ValidationError describes a single validation issue.
 type ValidationError struct {
-	Severity  string `json:"severity"` // "error" or "warning"
-	NodeID    string `json:"node_id,omitempty"`
-	EdgeID    string `json:"edge_id,omitempty"`
-	Field     string `json:"field,omitempty"`
-	Message   string `json:"message"`
+	Severity string `json:"severity"` // "error" or "warning"
+	NodeID   string `json:"node_id,omitempty"`
+	EdgeID   string `json:"edge_id,omitempty"`
+	Field    string `json:"field,omitempty"`
+	Message  string `json:"message"`
 }
 
 // ValidationResult aggregates all validation issues.
 type ValidationResult struct {
-	Valid   bool              `json:"valid"`
-	Errors  []ValidationError `json:"errors"`
+	Valid    bool              `json:"valid"`
+	Errors   []ValidationError `json:"errors"`
 	Warnings []ValidationError `json:"warnings"`
 }
 

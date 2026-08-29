@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/monitoring/internal/selfhealing/models"
 	"orion/platform-svc-go/internal/monitoring/internal/selfhealing/repository"
-	"go.uber.org/zap"
 )
 
 type SelfHealingService struct {

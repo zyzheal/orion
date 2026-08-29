@@ -10,10 +10,10 @@ import "time"
 type TimeoutAction string
 
 const (
-	TimeoutActionRemind      TimeoutAction = "remind"
-	TimeoutActionEscalate    TimeoutAction = "escalate"
+	TimeoutActionRemind       TimeoutAction = "remind"
+	TimeoutActionEscalate     TimeoutAction = "escalate"
 	TimeoutActionAutoComplete TimeoutAction = "auto_complete"
-	TimeoutActionCancel      TimeoutAction = "cancel"
+	TimeoutActionCancel       TimeoutAction = "cancel"
 )
 
 // ---------------------------------------------------------------------------
@@ -35,14 +35,14 @@ type TimeoutTask struct {
 
 // TimeoutCheckerStatus holds the health/status of the timeout checker.
 type TimeoutCheckerStatus struct {
-	IsRunning           bool          `json:"is_running"`
-	CheckIntervalMs     int64         `json:"check_interval_ms"`
-	FirstRemindHours    int           `json:"first_remind_hours"`
-	EscalateHours       int           `json:"escalate_hours"`
-	AutoCompleteHours   int           `json:"auto_complete_hours"`
+	IsRunning            bool          `json:"is_running"`
+	CheckIntervalMs      int64         `json:"check_interval_ms"`
+	FirstRemindHours     int           `json:"first_remind_hours"`
+	EscalateHours        int           `json:"escalate_hours"`
+	AutoCompleteHours    int           `json:"auto_complete_hours"`
 	DefaultTimeoutAction TimeoutAction `json:"default_timeout_action"`
-	LastCheckAt         *time.Time    `json:"last_check_at,omitempty"`
-	TotalChecked        int64         `json:"total_checked"`
+	LastCheckAt          *time.Time    `json:"last_check_at,omitempty"`
+	TotalChecked         int64         `json:"total_checked"`
 }
 
 // ---------------------------------------------------------------------------
@@ -57,16 +57,16 @@ type CheckNowRequest struct {
 
 // CheckNowResponse wraps the result of a manual check trigger.
 type CheckNowResponse struct {
-	CheckedTasks int64             `json:"checked_tasks"`
-	Tasks        []CheckNowTask    `json:"tasks"`
+	CheckedTasks int64          `json:"checked_tasks"`
+	Tasks        []CheckNowTask `json:"tasks"`
 }
 
 // CheckNowTask is a summary of a timed-out task returned from a manual check.
 type CheckNowTask struct {
-	TaskID        string        `json:"task_id"`
-	Title         string        `json:"title"`
-	OverdueHours  float64       `json:"overdue_hours"`
-	Action        TimeoutAction `json:"action"`
+	TaskID       string        `json:"task_id"`
+	Title        string        `json:"title"`
+	OverdueHours float64       `json:"overdue_hours"`
+	Action       TimeoutAction `json:"action"`
 }
 
 // TimedOutListResponse wraps the list of currently timed-out tasks.

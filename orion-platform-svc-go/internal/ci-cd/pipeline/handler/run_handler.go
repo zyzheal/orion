@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"net/http"
 	"strconv"
 
@@ -11,7 +12,7 @@ import (
 
 // RunHandler provides HTTP handlers for comprehensive run operations.
 type RunHandler struct {
-	runSvc    *service.RunService
+	runSvc     *service.RunService
 	metricsSvc *service.MetricsService
 }
 
@@ -58,9 +59,11 @@ func (h *RunHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // GetRunDetail returns a run with its stages and tasks.
 func (h *RunHandler) GetRunDetail(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineRunGetRunDetail")
+	defer span.End()
 	runID := c.Param("id")
 
-	detail, err := h.runSvc.GetRunDetail(c.Request.Context(), runID)
+	detail, err := h.runSvc.GetRunDetail(ctx, runID)
 	if err != nil {
 		if err == service.ErrRunNotFound {
 			respondNotFound(c, "run not found")
@@ -83,6 +86,8 @@ func (h *RunHandler) GetRunDetail(c *gin.Context) {
 
 // GetRunHistory returns run history aggregated by time period.
 func (h *RunHandler) GetRunHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineRunGetRunHistory")
+	defer span.End()
 	pipelineID := c.Param("id")
 	period := c.DefaultQuery("period", "day")
 
@@ -93,7 +98,7 @@ func (h *RunHandler) GetRunHistory(c *gin.Context) {
 		period = "day"
 	}
 
-	history, err := h.runSvc.GetRunHistory(c.Request.Context(), pipelineID, period)
+	history, err := h.runSvc.GetRunHistory(ctx, pipelineID, period)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -108,9 +113,11 @@ func (h *RunHandler) GetRunHistory(c *gin.Context) {
 
 // CheckRunCompletion checks if all stages in a run are done.
 func (h *RunHandler) CheckRunCompletion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineRunCheckRunCompletion")
+	defer span.End()
 	runID := c.Param("id")
 
-	result, err := h.runSvc.CheckRunCompletion(c.Request.Context(), runID)
+	result, err := h.runSvc.CheckRunCompletion(ctx, runID)
 	if err != nil {
 		if err == service.ErrRunNotFound {
 			respondNotFound(c, "run not found")
@@ -132,9 +139,11 @@ func (h *RunHandler) CheckRunCompletion(c *gin.Context) {
 
 // GetRunsByStatus returns runs filtered by status.
 func (h *RunHandler) GetRunsByStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineRunGetRunsByStatus")
+	defer span.End()
 	status := c.Param("status")
 
-	runs, err := h.runSvc.GetRunsByStatus(c.Request.Context(), status)
+	runs, err := h.runSvc.GetRunsByStatus(ctx, status)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -149,6 +158,8 @@ func (h *RunHandler) GetRunsByStatus(c *gin.Context) {
 
 // GetRecentRuns returns the most recent N runs.
 func (h *RunHandler) GetRecentRuns(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineRunGetRecentRuns")
+	defer span.End()
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	if limit <= 0 || limit > 100 {
 		limit = 20
@@ -165,6 +176,8 @@ func (h *RunHandler) GetRecentRuns(c *gin.Context) {
 
 // GetMetrics returns aggregated pipeline metrics.
 func (h *RunHandler) GetMetrics(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineRunGetMetrics")
+	defer span.End()
 	metrics, err := h.metricsSvc.GetMetricsFromDB()
 	if err != nil {
 		// Fallback to memory
@@ -176,6 +189,8 @@ func (h *RunHandler) GetMetrics(c *gin.Context) {
 
 // GetMetricsByPipeline returns metrics for a specific pipeline.
 func (h *RunHandler) GetMetricsByPipeline(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineRunGetMetricsByPipeline")
+	defer span.End()
 	pipelineID := c.Param("pipelineId")
 
 	summary := h.metricsSvc.GetMetricsByPipeline(pipelineID)
@@ -189,6 +204,8 @@ func (h *RunHandler) GetMetricsByPipeline(c *gin.Context) {
 
 // GetPrometheusMetrics exports metrics in Prometheus exposition format.
 func (h *RunHandler) GetPrometheusMetrics(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineRunGetPrometheusMetrics")
+	defer span.End()
 	c.Header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
 	c.String(http.StatusOK, h.metricsSvc.GetPrometheusMetrics())
 }

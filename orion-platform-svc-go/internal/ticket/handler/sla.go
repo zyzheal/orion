@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"net/http"
 	"time"
 
@@ -19,13 +20,15 @@ func NewSLAHandler(svc *service.SLAService) *SLAHandler {
 
 // AddSLATarget POST /api/v1/tickets/sla/targets
 func (h *SLAHandler) AddSLATarget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketAddSLATarget")
+	defer span.End()
 	var req models.CreateSLATargetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
 
-	target, err := h.svc.CreateTarget(c.Request.Context(), &req)
+	target, err := h.svc.CreateTarget(ctx, &req)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -36,7 +39,9 @@ func (h *SLAHandler) AddSLATarget(c *gin.Context) {
 
 // GetTicketSLA GET /api/v1/tickets/:id/sla
 func (h *SLAHandler) GetTicketSLA(c *gin.Context) {
-	sla, err := h.svc.GetTicketSLA(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetTicketSLA")
+	defer span.End()
+	sla, err := h.svc.GetTicketSLA(ctx, c.Param("id"))
 	if err != nil {
 		respondError(c, http.StatusNotFound, err)
 		return
@@ -46,7 +51,9 @@ func (h *SLAHandler) GetTicketSLA(c *gin.Context) {
 
 // GetSLACompliance GET /api/v1/tickets/sla/compliance
 func (h *SLAHandler) GetSLACompliance(c *gin.Context) {
-	report, err := h.svc.GetComplianceReport(c.Request.Context(), time.Time{}, time.Time{})
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetSLACompliance")
+	defer span.End()
+	report, err := h.svc.GetComplianceReport(ctx, time.Time{}, time.Time{})
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -56,7 +63,9 @@ func (h *SLAHandler) GetSLACompliance(c *gin.Context) {
 
 // CheckSLABreaches GET /api/v1/tickets/sla/breaches
 func (h *SLAHandler) CheckSLABreaches(c *gin.Context) {
-	breaches, err := h.svc.CheckBreaches(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketCheckSLABreaches")
+	defer span.End()
+	breaches, err := h.svc.CheckBreaches(ctx)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return

@@ -23,10 +23,10 @@ var runServiceTracer = otel.Tracer("orion-pipeline-svc-run")
 // RunService provides comprehensive run operations: detail view, history trends,
 // and environment variable resolution. Mirrors the Node.js PipelineRunService.
 type RunService struct {
-	db         *sqlx.DB
-	runRepo    *repository.RunRepository
-	stageRepo  *repository.StageRepository
-	taskRepo   *repository.TaskRepository
+	db        *sqlx.DB
+	runRepo   *repository.RunRepository
+	stageRepo *repository.StageRepository
+	taskRepo  *repository.TaskRepository
 }
 
 func NewRunService(db *sqlx.DB, runRepo *repository.RunRepository, stageRepo *repository.StageRepository, taskRepo *repository.TaskRepository) *RunService {
@@ -47,15 +47,15 @@ type RunDetail struct {
 
 // RunHistoryTrend represents aggregated run history for a time period.
 type RunHistoryTrend struct {
-	Period         string        `json:"period"`
-	PeriodStart    time.Time     `json:"period_start"`
-	PeriodEnd      time.Time     `json:"period_end"`
-	TotalRuns      int           `json:"total_runs"`
-	SuccessRuns    int           `json:"success_runs"`
-	FailedRuns     int           `json:"failed_runs"`
-	RunningRuns    int           `json:"running_runs"`
-	SuccessRate    float64       `json:"success_rate"`
-	AvgDurationMs  int64         `json:"avg_duration_ms"`
+	Period         string          `json:"period"`
+	PeriodStart    time.Time       `json:"period_start"`
+	PeriodEnd      time.Time       `json:"period_end"`
+	TotalRuns      int             `json:"total_runs"`
+	SuccessRuns    int             `json:"success_runs"`
+	FailedRuns     int             `json:"failed_runs"`
+	RunningRuns    int             `json:"running_runs"`
+	SuccessRate    float64         `json:"success_rate"`
+	AvgDurationMs  int64           `json:"avg_duration_ms"`
 	FailureReasons []FailureReason `json:"failure_reasons"`
 }
 
@@ -392,7 +392,7 @@ func (s *RunService) buildFilledResult(periodMap map[string]*RunHistoryTrend, pe
 
 		switch period {
 		case "week":
-			periodStart = now.AddDate(0, 0, -(i*7))
+			periodStart = now.AddDate(0, 0, -(i * 7))
 			periodStart = periodStart.Truncate(7 * 24 * time.Hour) // Sunday midnight
 		case "month":
 			periodStart = time.Date(now.Year(), now.AddDate(0, -i, 0).Month(), 1, 0, 0, 0, 0, time.UTC)

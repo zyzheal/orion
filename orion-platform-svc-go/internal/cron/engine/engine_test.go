@@ -175,10 +175,10 @@ func TestEngineExecuteCanceledBackoff(t *testing.T) {
 	e := NewExecutionEngine(p, nil)
 	j := types.NewCronJob("j-1", "t-1", "backoff-cancel", types.KindRecurring, "* * * * *", "x", "")
 	j.RetryPolicy = types.RetryPolicy{
-		MaxAttempts:   3,
-		InitialDelay:  2 * time.Second,
-		MaxDelay:      2 * time.Second,
-		Multiplier:    1,
+		MaxAttempts:  3,
+		InitialDelay: 2 * time.Second,
+		MaxDelay:     2 * time.Second,
+		Multiplier:   1,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 

@@ -10,8 +10,8 @@ import (
 
 // mockRepo implements RepositoryInterface for testing service logic without DB.
 type mockRepo struct {
-	entries  []*models.LogEntry
-	errOn    string // triggers error for: insert|batch|query|aggregation|delete|getbyid|findbytrace
+	entries []*models.LogEntry
+	errOn   string // triggers error for: insert|batch|query|aggregation|delete|getbyid|findbytrace
 }
 
 func (m *mockRepo) Insert(_ context.Context, e *models.LogEntry) error {
@@ -68,12 +68,13 @@ func (m *mockRepo) DeleteByTime(_ context.Context, _ string, _ time.Time) (int64
 var errFail = &internalError{msg: "forced fail"}
 
 type internalError struct{ msg string }
+
 func (e *internalError) Error() string { return e.msg }
 
 func mockReq() models.IngestLogRequest {
 	return models.IngestLogRequest{
 		Service: "api-svc", Level: "ERROR", Message: "timeout",
-		TraceID: "trace-123",
+		TraceID:  "trace-123",
 		Metadata: map[string]interface{}{"key": "val"},
 	}
 }

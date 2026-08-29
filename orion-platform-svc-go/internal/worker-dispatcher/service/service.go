@@ -4,8 +4,8 @@
 // policy handlers (round-robin, least-loaded, skill-match, etc.). It follows the
 // IWorkerDispatcher + IWorkerPolicyHandler patterns:
 //
-//   IWorkerDispatcher - dispatches a target to a worker according to policy.
-//   IWorkerPolicyHandler - matches and scores workers against a target.
+//	IWorkerDispatcher - dispatches a target to a worker according to policy.
+//	IWorkerPolicyHandler - matches and scores workers against a target.
 package service
 
 import (
@@ -281,10 +281,12 @@ type policyHandler struct {
 	typ  string
 }
 
-func (p *policyHandler) Name() string { return p.name }
-func (p *policyHandler) Type() string { return p.typ }
+func (p *policyHandler) Name() string                                                 { return p.name }
+func (p *policyHandler) Type() string                                                 { return p.typ }
 func (p *policyHandler) Validate(ctx context.Context, policy map[string]string) error { return nil }
-func (p *policyHandler) Dispatch(ctx context.Context, target map[string]interface{}, policy map[string]string) (string, error) { return "", nil }
+func (p *policyHandler) Dispatch(ctx context.Context, target map[string]interface{}, policy map[string]string) (string, error) {
+	return "", nil
+}
 
 func (p *policyHandler) Match(worker *models.WorkerCapability, target map[string]interface{}) bool {
 	switch p.typ {

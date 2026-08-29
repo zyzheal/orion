@@ -3,13 +3,13 @@ package handler
 import (
 	"strconv"
 
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/gateway-dynamic/models"
 	"orion/platform-svc-go/internal/gateway-dynamic/service"
-	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler exposes HTTP endpoints for gateway dynamic route management.
@@ -73,9 +73,9 @@ func (h *Handler) List(c *gin.Context) {
 	}
 
 	middleware.RespondSuccess(c, gin.H{
-		"data":     routes,
-		"total":    total,
-		"page":     page,
+		"data":      routes,
+		"total":     total,
+		"page":      page,
 		"page_size": pageSize,
 	})
 }

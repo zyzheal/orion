@@ -26,9 +26,9 @@ func (m *mockCommandBus) Dispatch(ctx context.Context, cmd any) error {
 }
 
 type mockEventStore struct {
-	appended int32
+	appended  int32
 	lastEvent atomic.Value // BusinessEvent
-	err      error
+	err       error
 }
 
 func (m *mockEventStore) Append(ctx context.Context, events ...any) error {

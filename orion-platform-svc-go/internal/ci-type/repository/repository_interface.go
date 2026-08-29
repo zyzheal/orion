@@ -5,7 +5,6 @@ import (
 	"orion/platform-svc-go/internal/ci-type/models"
 )
 
-
 // RepositoryInterface defines the data access contract for the ci-type module.
 // DO NOT MODIFY: auto-generated from repository.go
 type RepositoryInterface interface {

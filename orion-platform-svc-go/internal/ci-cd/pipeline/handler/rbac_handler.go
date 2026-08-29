@@ -1,7 +1,7 @@
 package handler
 
 import (
-
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/ci-cd/pipeline/models"
 	"orion/platform-svc-go/internal/ci-cd/pipeline/service"
 
@@ -17,6 +17,8 @@ func NewRBACHandler(svc *service.RBACService) *RBACHandler {
 }
 
 func (h *RBACHandler) Grant(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineGrant")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Param("pipelineId")
 
@@ -26,7 +28,7 @@ func (h *RBACHandler) Grant(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.Grant(c.Request.Context(), tenantID, pipelineID, req.UserID, req.Role); err != nil {
+	if err := h.svc.Grant(ctx, tenantID, pipelineID, req.UserID, req.Role); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -35,10 +37,12 @@ func (h *RBACHandler) Grant(c *gin.Context) {
 }
 
 func (h *RBACHandler) Revoke(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineRevoke")
+	defer span.End()
 	pipelineID := c.Param("pipelineId")
 	userID := c.Param("userId")
 
-	if err := h.svc.Revoke(c.Request.Context(), pipelineID, userID); err != nil {
+	if err := h.svc.Revoke(ctx, pipelineID, userID); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -47,9 +51,11 @@ func (h *RBACHandler) Revoke(c *gin.Context) {
 }
 
 func (h *RBACHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineList")
+	defer span.End()
 	pipelineID := c.Param("pipelineId")
 
-	entries, err := h.svc.List(c.Request.Context(), pipelineID)
+	entries, err := h.svc.List(ctx, pipelineID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -59,6 +65,8 @@ func (h *RBACHandler) List(c *gin.Context) {
 }
 
 func (h *RBACHandler) Check(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineCheck")
+	defer span.End()
 	pipelineID := c.Param("pipelineId")
 	userID := c.Query("user_id")
 	role := c.Query("role")
@@ -68,7 +76,7 @@ func (h *RBACHandler) Check(c *gin.Context) {
 		return
 	}
 
-	hasAccess, err := h.svc.Check(c.Request.Context(), pipelineID, userID, role)
+	hasAccess, err := h.svc.Check(ctx, pipelineID, userID, role)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -78,10 +86,12 @@ func (h *RBACHandler) Check(c *gin.Context) {
 }
 
 func (h *RBACHandler) GetUserRole(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineGetUserRole")
+	defer span.End()
 	pipelineID := c.Param("pipelineId")
 	userID := c.Param("userId")
 
-	role, err := h.svc.GetUserRole(c.Request.Context(), pipelineID, userID)
+	role, err := h.svc.GetUserRole(ctx, pipelineID, userID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

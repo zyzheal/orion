@@ -134,8 +134,8 @@ func (e *AutoExecEngine) ExecuteTask(ctx context.Context, taskID string) (*model
 		task.Error = fmt.Sprintf("plugin not registered: %s", task.Plugin)
 		task.UpdatedAt = time.Now().UTC()
 		if _, uerr := e.repo.UpdateTask(ctx, tenantID, taskID, map[string]interface{}{
-			"status":  task.Status,
-			"error":   task.Error,
+			"status":     task.Status,
+			"error":      task.Error,
 			"updated_at": task.UpdatedAt,
 		}); uerr != nil {
 			e.logger.Error("failed to persist failure", zap.Error(uerr))

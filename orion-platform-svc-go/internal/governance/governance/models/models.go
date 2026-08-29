@@ -109,13 +109,13 @@ type PolicyBundle struct {
 // ==================== Policy Evaluation ====================
 
 type PolicyEvaluation struct {
-	ID            string    `db:"id" json:"id"`
-	PolicyID      *string   `db:"policy_id" json:"policy_id,omitempty"`
-	RunID         string    `db:"run_id" json:"run_id"`
-	InputContext  JSONB     `db:"input_context" json:"input_context"`
-	Result        JSONB     `db:"result" json:"result"`
-	EvaluatedAt   time.Time `db:"evaluated_at" json:"evaluated_at"`
-	EvaluationMs  *int      `db:"evaluation_ms" json:"evaluation_ms,omitempty"`
+	ID           string    `db:"id" json:"id"`
+	PolicyID     *string   `db:"policy_id" json:"policy_id,omitempty"`
+	RunID        string    `db:"run_id" json:"run_id"`
+	InputContext JSONB     `db:"input_context" json:"input_context"`
+	Result       JSONB     `db:"result" json:"result"`
+	EvaluatedAt  time.Time `db:"evaluated_at" json:"evaluated_at"`
+	EvaluationMs *int      `db:"evaluation_ms" json:"evaluation_ms,omitempty"`
 }
 
 type EvaluatePolicyRequest struct {
@@ -165,11 +165,11 @@ type UpdateViolationRequest struct {
 }
 
 type ViolationStats struct {
-	Total        int                `json:"total"`
-	BySeverity   map[string]int     `json:"by_severity"`
-	ByStatus     map[string]int     `json:"by_status"`
-	ByPolicy     map[string]int     `json:"by_policy"`
-	RecentTrend  []TrendPoint       `json:"recent_trend"`
+	Total       int            `json:"total"`
+	BySeverity  map[string]int `json:"by_severity"`
+	ByStatus    map[string]int `json:"by_status"`
+	ByPolicy    map[string]int `json:"by_policy"`
+	RecentTrend []TrendPoint   `json:"recent_trend"`
 }
 
 type TrendPoint struct {
@@ -218,18 +218,18 @@ type UpdateOverrideRequest struct {
 // ==================== Exemption ====================
 
 type Exemption struct {
-	ID            string         `db:"id" json:"id"`
-	ViolationID   string         `db:"violation_id" json:"violation_id"`
-	PolicyID      string         `db:"policy_id" json:"policy_id"`
-	RunID         string         `db:"run_id" json:"run_id"`
-	Reason        string         `db:"reason" json:"reason"`
-	Category      string         `db:"category" json:"category"`
-	RequestedBy   string         `db:"requested_by" json:"requested_by"`
-	Status        string         `db:"status" json:"status"`
-	ExpiresAt     time.Time      `db:"expires_at" json:"expires_at"`
-	ApprovalChain JSONArray      `db:"approval_chain" json:"approval_chain"`
-	CreatedAt     time.Time      `db:"created_at" json:"created_at"`
-	UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
+	ID            string    `db:"id" json:"id"`
+	ViolationID   string    `db:"violation_id" json:"violation_id"`
+	PolicyID      string    `db:"policy_id" json:"policy_id"`
+	RunID         string    `db:"run_id" json:"run_id"`
+	Reason        string    `db:"reason" json:"reason"`
+	Category      string    `db:"category" json:"category"`
+	RequestedBy   string    `db:"requested_by" json:"requested_by"`
+	Status        string    `db:"status" json:"status"`
+	ExpiresAt     time.Time `db:"expires_at" json:"expires_at"`
+	ApprovalChain JSONArray `db:"approval_chain" json:"approval_chain"`
+	CreatedAt     time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time `db:"updated_at" json:"updated_at"`
 }
 
 type CreateExemptionRequest struct {
@@ -258,20 +258,20 @@ type ApprovalChainEntry struct {
 // ==================== API Contract ====================
 
 type APIContract struct {
-	ID             string    `db:"id" json:"id"`
-	TenantID       string    `db:"tenant_id" json:"tenant_id"`
-	ServiceName    string    `db:"service_name" json:"service_name"`
-	Name           string    `db:"name" json:"name"`
-	Description    *string   `db:"description" json:"description,omitempty"`
-	Endpoint       string    `db:"endpoint" json:"endpoint"`
-	Method         string    `db:"method" json:"method"`
-	Version        string    `db:"version" json:"version"`
-	Spec           JSONB     `db:"spec" json:"spec"`
-	Schema         JSONB     `db:"schema" json:"schema"`
-	Status         string    `db:"status" json:"status"`
+	ID             string     `db:"id" json:"id"`
+	TenantID       string     `db:"tenant_id" json:"tenant_id"`
+	ServiceName    string     `db:"service_name" json:"service_name"`
+	Name           string     `db:"name" json:"name"`
+	Description    *string    `db:"description" json:"description,omitempty"`
+	Endpoint       string     `db:"endpoint" json:"endpoint"`
+	Method         string     `db:"method" json:"method"`
+	Version        string     `db:"version" json:"version"`
+	Spec           JSONB      `db:"spec" json:"spec"`
+	Schema         JSONB      `db:"schema" json:"schema"`
+	Status         string     `db:"status" json:"status"`
 	LastVerifiedAt *time.Time `db:"last_verified_at" json:"last_verified_at,omitempty"`
-	CreatedAt      time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt      time.Time `db:"updated_at" json:"updated_at"`
+	CreatedAt      time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt      time.Time  `db:"updated_at" json:"updated_at"`
 }
 
 type CreateContractRequest struct {
@@ -307,20 +307,20 @@ type ContractViolation struct {
 }
 
 type ContractEvaluationResult struct {
-	Compliant  bool               `json:"compliant"`
-	Violations []ContractViolation `json:"violations"`
-	Score      int                `json:"score"`
-	EvaluatedAt time.Time         `json:"evaluated_at"`
+	Compliant   bool                `json:"compliant"`
+	Violations  []ContractViolation `json:"violations"`
+	Score       int                 `json:"score"`
+	EvaluatedAt time.Time           `json:"evaluated_at"`
 }
 
 type ContractVerificationResult struct {
-	ContractID  string   `json:"contract_id"`
-	Scope       string   `json:"scope"`
-	Passed      bool     `json:"passed"`
-	Total       int      `json:"total"`
-	PassedCount int      `json:"passed_count"`
-	FailedCount int      `json:"failed_count"`
-	Warnings    []string `json:"warnings"`
+	ContractID  string    `json:"contract_id"`
+	Scope       string    `json:"scope"`
+	Passed      bool      `json:"passed"`
+	Total       int       `json:"total"`
+	PassedCount int       `json:"passed_count"`
+	FailedCount int       `json:"failed_count"`
+	Warnings    []string  `json:"warnings"`
 	VerifiedAt  time.Time `json:"verified_at"`
 }
 
@@ -332,15 +332,15 @@ type BreakingChange struct {
 }
 
 type CompatibilityCheckResult struct {
-	Compatible         bool     `json:"compatible"`
+	Compatible         bool             `json:"compatible"`
 	BreakingChanges    []BreakingChange `json:"breaking_changes"`
-	NonBreakingChanges []string `json:"non_breaking_changes"`
+	NonBreakingChanges []string         `json:"non_breaking_changes"`
 }
 
 type ImpactAnalysisResult struct {
-	RiskLevel          string              `json:"risk_level"`
-	ImpactedServices   []ImpactedService   `json:"impacted_services"`
-	ImpactedClients    []ImpactedClient    `json:"impacted_clients"`
+	RiskLevel            string                `json:"risk_level"`
+	ImpactedServices     []ImpactedService     `json:"impacted_services"`
+	ImpactedClients      []ImpactedClient      `json:"impacted_clients"`
 	MigrationSuggestions []MigrationSuggestion `json:"migration_suggestions"`
 }
 
@@ -363,19 +363,19 @@ type MigrationSuggestion struct {
 // ==================== API Version ====================
 
 type APIVersion struct {
-	ID               string     `db:"id" json:"id"`
-	TenantID         string     `db:"tenant_id" json:"tenant_id"`
-	ContractID       string     `db:"contract_id" json:"contract_id"`
-	APIID            string     `db:"api_id" json:"api_id"`
-	VersionTag       string     `db:"version_tag" json:"version_tag"`
-	Version          string     `db:"version" json:"version"`
-	Definition       JSONB      `db:"definition" json:"definition"`
-	Status           string     `db:"status" json:"status"`
-	DeprecationDate  *time.Time `db:"deprecation_date" json:"deprecation_date,omitempty"`
-	RetirementDate   *time.Time `db:"retirement_date" json:"retirement_date,omitempty"`
-	ReplacementVersion *string  `db:"replacement_version" json:"replacement_version,omitempty"`
-	Changelog        *string    `db:"changelog" json:"changelog,omitempty"`
-	CreatedAt        time.Time  `db:"created_at" json:"created_at"`
+	ID                 string     `db:"id" json:"id"`
+	TenantID           string     `db:"tenant_id" json:"tenant_id"`
+	ContractID         string     `db:"contract_id" json:"contract_id"`
+	APIID              string     `db:"api_id" json:"api_id"`
+	VersionTag         string     `db:"version_tag" json:"version_tag"`
+	Version            string     `db:"version" json:"version"`
+	Definition         JSONB      `db:"definition" json:"definition"`
+	Status             string     `db:"status" json:"status"`
+	DeprecationDate    *time.Time `db:"deprecation_date" json:"deprecation_date,omitempty"`
+	RetirementDate     *time.Time `db:"retirement_date" json:"retirement_date,omitempty"`
+	ReplacementVersion *string    `db:"replacement_version" json:"replacement_version,omitempty"`
+	Changelog          *string    `db:"changelog" json:"changelog,omitempty"`
+	CreatedAt          time.Time  `db:"created_at" json:"created_at"`
 }
 
 type CreateVersionRequest struct {
@@ -386,9 +386,9 @@ type CreateVersionRequest struct {
 }
 
 type UpdateVersionStatusRequest struct {
-	Status             string     `json:"status" binding:"required,oneof=draft active deprecated retired"`
-	ReplacementVersion string     `json:"replacement_version"`
-	Changelog          string     `json:"changelog"`
+	Status             string `json:"status" binding:"required,oneof=draft active deprecated retired"`
+	ReplacementVersion string `json:"replacement_version"`
+	Changelog          string `json:"changelog"`
 }
 
 // ==================== Governance Rule ====================
@@ -430,12 +430,12 @@ type GovernanceEvaluationResult struct {
 }
 
 type GovernanceReport struct {
-	TenantID        string                      `json:"tenant_id"`
-	EvaluatedAt     time.Time                   `json:"evaluated_at"`
-	TotalRules      int                         `json:"total_rules"`
-	PassedRules     int                         `json:"passed_rules"`
-	FailedRules     int                         `json:"failed_rules"`
-	ComplianceScore int                         `json:"compliance_score"`
+	TenantID        string                       `json:"tenant_id"`
+	EvaluatedAt     time.Time                    `json:"evaluated_at"`
+	TotalRules      int                          `json:"total_rules"`
+	PassedRules     int                          `json:"passed_rules"`
+	FailedRules     int                          `json:"failed_rules"`
+	ComplianceScore int                          `json:"compliance_score"`
 	Results         []GovernanceEvaluationResult `json:"results"`
 }
 
@@ -464,11 +464,11 @@ type ViolationDistributionItem struct {
 }
 
 type TopFailingPolicy struct {
-	PolicyID        string  `json:"policy_id"`
-	PolicyName      string  `json:"policy_name"`
-	FailureCount    int     `json:"failure_count"`
-	FailureRate     float64 `json:"failure_rate"`
-	TotalEvaluations int   `json:"total_evaluations"`
+	PolicyID         string  `json:"policy_id"`
+	PolicyName       string  `json:"policy_name"`
+	FailureCount     int     `json:"failure_count"`
+	FailureRate      float64 `json:"failure_rate"`
+	TotalEvaluations int     `json:"total_evaluations"`
 }
 
 type ExemptionStats struct {

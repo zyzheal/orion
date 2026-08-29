@@ -8,12 +8,12 @@ import (
 
 // ring implements a fixed-capacity FIFO ring buffer over a generic type.
 type ring[T any] struct {
-	buf    []T
-	head   int
-	tail   int
-	count  int
-	cap    int
-	mu     sync.Mutex
+	buf   []T
+	head  int
+	tail  int
+	count int
+	cap   int
+	mu    sync.Mutex
 }
 
 func newRing[T any](cap int) *ring[T] {

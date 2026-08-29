@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/cache-cleanup/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/cache-cleanup/models"
 )
 
@@ -59,7 +59,6 @@ func (f *fakeCache_cleanupService) Update(ctx context.Context, id, tenantID stri
 }
 
 var _ service.ServiceInterface = (*fakeCache_cleanupService)(nil)
-
 
 func TestCACHE_CLEANUP_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

@@ -58,33 +58,33 @@ var DefaultModelPricing = map[string]struct {
 // ---------------------------------------------------------------------------
 
 type LLMTrace struct {
-	ID                int64   `db:"id"                  json:"-"`
-	TraceID           string  `db:"trace_id"            json:"trace_id"`
-	TenantID          string  `db:"tenant_id"           json:"tenant_id"`
-	UserID            *string `db:"user_id"             json:"user_id,omitempty"`
-	ScenarioID        *string `db:"scenario_id"         json:"scenario_id,omitempty"`
-	ProviderID        *string `db:"provider_id"         json:"provider_id,omitempty"`
-	ModelID           string  `db:"model_id"            json:"model_id"`
-	PromptContent     *string `db:"prompt_content"      json:"prompt_content,omitempty"`
-	PromptHash        *string `db:"prompt_hash"         json:"prompt_hash,omitempty"`
-	OutputContent     *string `db:"output_content"      json:"output_content,omitempty"`
-	OutputHash        *string `db:"output_hash"         json:"output_hash,omitempty"`
-	InputTokens       int64   `db:"input_tokens"        json:"input_tokens"`
-	OutputTokens      int64   `db:"output_tokens"       json:"output_tokens"`
-	TotalTokens       int64   `db:"total_tokens"        json:"total_tokens"`
-	InputCost         float64 `db:"input_cost"          json:"input_cost"`
-	OutputCost        float64 `db:"output_cost"         json:"output_cost"`
-	TotalCost         float64 `db:"total_cost"          json:"total_cost"`
-	Currency          string  `db:"currency"            json:"currency"`
-	Status            string  `db:"status"              json:"status"`
-	RequestStartedAt  time.Time `db:"request_started_at"  json:"request_started_at"`
+	ID                 int64      `db:"id"                  json:"-"`
+	TraceID            string     `db:"trace_id"            json:"trace_id"`
+	TenantID           string     `db:"tenant_id"           json:"tenant_id"`
+	UserID             *string    `db:"user_id"             json:"user_id,omitempty"`
+	ScenarioID         *string    `db:"scenario_id"         json:"scenario_id,omitempty"`
+	ProviderID         *string    `db:"provider_id"         json:"provider_id,omitempty"`
+	ModelID            string     `db:"model_id"            json:"model_id"`
+	PromptContent      *string    `db:"prompt_content"      json:"prompt_content,omitempty"`
+	PromptHash         *string    `db:"prompt_hash"         json:"prompt_hash,omitempty"`
+	OutputContent      *string    `db:"output_content"      json:"output_content,omitempty"`
+	OutputHash         *string    `db:"output_hash"         json:"output_hash,omitempty"`
+	InputTokens        int64      `db:"input_tokens"        json:"input_tokens"`
+	OutputTokens       int64      `db:"output_tokens"       json:"output_tokens"`
+	TotalTokens        int64      `db:"total_tokens"        json:"total_tokens"`
+	InputCost          float64    `db:"input_cost"          json:"input_cost"`
+	OutputCost         float64    `db:"output_cost"         json:"output_cost"`
+	TotalCost          float64    `db:"total_cost"          json:"total_cost"`
+	Currency           string     `db:"currency"            json:"currency"`
+	Status             string     `db:"status"              json:"status"`
+	RequestStartedAt   time.Time  `db:"request_started_at"  json:"request_started_at"`
 	RequestCompletedAt *time.Time `db:"request_completed_at" json:"request_completed_at,omitempty"`
-	DurationMs        *int64  `db:"duration_ms"         json:"duration_ms,omitempty"`
-	ParentTraceID     *string `db:"parent_trace_id"     json:"parent_trace_id,omitempty"`
-	ErrorMessage      *string `db:"error_message"       json:"error_message,omitempty"`
-	RequestContext    JSONB   `db:"request_context"     json:"request_context,omitempty"`
-	Metadata          JSONB   `db:"metadata"            json:"metadata,omitempty"`
-	CreatedAt         time.Time `db:"created_at"         json:"created_at"`
+	DurationMs         *int64     `db:"duration_ms"         json:"duration_ms,omitempty"`
+	ParentTraceID      *string    `db:"parent_trace_id"     json:"parent_trace_id,omitempty"`
+	ErrorMessage       *string    `db:"error_message"       json:"error_message,omitempty"`
+	RequestContext     JSONB      `db:"request_context"     json:"request_context,omitempty"`
+	Metadata           JSONB      `db:"metadata"            json:"metadata,omitempty"`
+	CreatedAt          time.Time  `db:"created_at"         json:"created_at"`
 }
 
 // ---------------------------------------------------------------------------
@@ -118,10 +118,10 @@ type DailyStats struct {
 // ---------------------------------------------------------------------------
 
 type CostBreakdown struct {
-	InputCost       float64            `json:"input_cost"`
-	OutputCost      float64            `json:"output_cost"`
-	TotalCost       float64            `json:"total_cost"`
-	Currency        string             `json:"currency"`
+	InputCost        float64            `json:"input_cost"`
+	OutputCost       float64            `json:"output_cost"`
+	TotalCost        float64            `json:"total_cost"`
+	Currency         string             `json:"currency"`
 	BreakdownByModel map[string]float64 `json:"breakdown_by_model"`
 }
 
@@ -162,10 +162,10 @@ type SavingsRequest struct {
 }
 
 type SavingsResult struct {
-	CurrentCost      float64 `json:"current_cost"`
-	AlternativeCost  float64 `json:"alternative_cost"`
-	Savings          float64 `json:"savings"`
-	SavingsPercent   float64 `json:"savings_percent"`
+	CurrentCost     float64 `json:"current_cost"`
+	AlternativeCost float64 `json:"alternative_cost"`
+	Savings         float64 `json:"savings"`
+	SavingsPercent  float64 `json:"savings_percent"`
 }
 
 // PaginatedRequest is a reusable pagination parameter struct.

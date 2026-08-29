@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/escalation/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/escalation/models"
 )
 
@@ -60,7 +60,6 @@ func (f *fakeEscalationService) UpdateRule(ctx context.Context, tenantID, id str
 }
 
 var _ service.ServiceInterface = (*fakeEscalationService)(nil)
-
 
 func TestHandler_ESCALATION_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

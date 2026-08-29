@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/resilience-score/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	CreateHistory(ctx context.Context, tenantID string, h *models.ResilienceHistory) error

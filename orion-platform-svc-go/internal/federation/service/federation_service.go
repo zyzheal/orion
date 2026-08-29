@@ -177,16 +177,16 @@ func (s *Service) RegisterExecutor(ctx context.Context, tenantID string, req *mo
 		maxJobs = 10
 	}
 	e := &models.Executor{
-		ID:                  s.generateID("exec"),
-		TenantID:            tenantID,
-		ClusterID:           req.ClusterID,
-		Name:                req.Name,
-		Region:              req.Region,
-		Status:              "online",
-		CPUCapacity:         cpuCap,
-		MemoryCapacityMB:    memCap,
-		MaxConcurrentJobs:   maxJobs,
-		Labels:              req.Labels,
+		ID:                s.generateID("exec"),
+		TenantID:          tenantID,
+		ClusterID:         req.ClusterID,
+		Name:              req.Name,
+		Region:            req.Region,
+		Status:            "online",
+		CPUCapacity:       cpuCap,
+		MemoryCapacityMB:  memCap,
+		MaxConcurrentJobs: maxJobs,
+		Labels:            req.Labels,
 	}
 	if err := s.repo.CreateExecutor(ctx, e); err != NullErr {
 		return nil, err
@@ -432,11 +432,11 @@ func round2(v float64) float64 {
 }
 
 // Sentinel nil-pointer values used when the function signature must return a pointer.
-var nullExec   = (*models.Executor)(nil)
+var nullExec = (*models.Executor)(nil)
 var nullHealth = (*models.ExecutorHealth)(nil)
-var nullDisp   = (*models.DispatchJobResult)(nil)
+var nullDisp = (*models.DispatchJobResult)(nil)
 var nullPolicy = (*models.SchedulingPolicy)(nil)
-var nullCCJob  = (*models.CrossClusterJob)(nil)
-var nullPool   = (*models.ResourcePool)(nil)
-var nullArr    models.JSONArray
-var nullReqs   *models.ResourceReqs
+var nullCCJob = (*models.CrossClusterJob)(nil)
+var nullPool = (*models.ResourcePool)(nil)
+var nullArr models.JSONArray
+var nullReqs *models.ResourceReqs

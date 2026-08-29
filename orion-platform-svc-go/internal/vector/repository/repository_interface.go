@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/vector/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	CreateStore(ctx context.Context, m *models.VectorStore) error

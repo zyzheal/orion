@@ -12,8 +12,8 @@ import (
 	"orion/platform-svc-go/internal/notification/notification/service"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/jmoiron/sqlx"
 	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 )
 

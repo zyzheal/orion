@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/user-profile/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	Create(ctx context.Context, tenantID, userID string) (*models.UserProfile, error)

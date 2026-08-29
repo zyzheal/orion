@@ -214,7 +214,7 @@ If no further action is needed, use "DONE" as the action value.`
 		result.Output = fmt.Sprintf("[dry-run] supervisor node %s", node.ID)
 		result.Success = true
 		result.Structured = map[string]interface{}{
-			"dry_run": true,
+			"dry_run":             true,
 			"supervisor_decision": "DONE",
 		}
 		execCtx.Set("supervisor_decision", "DONE")
@@ -329,9 +329,9 @@ Respond in JSON format:
 	result.Success = true
 
 	var eval struct {
-		Score      int      `json:"score"`
-		Passed     bool     `json:"passed"`
-		Feedback   string   `json:"feedback"`
+		Score       int      `json:"score"`
+		Passed      bool     `json:"passed"`
+		Feedback    string   `json:"feedback"`
 		Suggestions []string `json:"suggestions"`
 	}
 	if err := json.Unmarshal([]byte(resp.Content), &eval); err != nil {
@@ -342,10 +342,10 @@ Respond in JSON format:
 	result.CriticScore = eval.Score
 	result.CriticPassed = eval.Passed
 	result.Structured = map[string]interface{}{
-		"critic_score":    eval.Score,
-		"critic_passed":   eval.Passed,
-		"feedback":        eval.Feedback,
-		"suggestions":     eval.Suggestions,
+		"critic_score":  eval.Score,
+		"critic_passed": eval.Passed,
+		"feedback":      eval.Feedback,
+		"suggestions":   eval.Suggestions,
 	}
 
 	// If MinScore is set, override the LLM's passed verdict.
@@ -443,7 +443,7 @@ func (e *agentExecutor) buildMessages(
 		"## Static Inputs\n```json\n" + safeJSONString(node.Inputs) + "\n```",
 		"## Runtime Context\n```json\n" + safeJSONString(execCtx.Values) + "\n```",
 	}
-	prompt = fmt.Sprintf("%s\n\n%s", prompt, "\n\n---\n\n" + joinStr(inputParts))
+	prompt = fmt.Sprintf("%s\n\n%s", prompt, "\n\n---\n\n"+joinStr(inputParts))
 
 	messages = append(messages, llmprovider.Message{Role: "user", Content: prompt})
 
@@ -467,8 +467,8 @@ func (e *agentExecutor) attemptToolCalls(
 	var toolCalls []ToolCall
 	// Check for JSON tool call pattern: {"tool": "...", "args": {...}}
 	var tc struct {
-		Tool  string                 `json:"tool"`
-		Args  map[string]interface{} `json:"args"`
+		Tool string                 `json:"tool"`
+		Args map[string]interface{} `json:"args"`
 	}
 	if err := json.Unmarshal([]byte(content), &tc); err == nil && tc.Tool != "" {
 		if fn, ok := e.tools[tc.Tool]; ok {

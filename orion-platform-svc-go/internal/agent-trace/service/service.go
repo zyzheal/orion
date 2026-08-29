@@ -21,8 +21,8 @@ type RepositoryInterface interface {
 
 // InMemoryRepository provides a DB-free implementation for dev/test.
 type InMemoryRepository struct {
-	mu      sync.RWMutex
-	traces  []*models.AgentTrace
+	mu     sync.RWMutex
+	traces []*models.AgentTrace
 }
 
 func NewInMemoryRepository() *InMemoryRepository {

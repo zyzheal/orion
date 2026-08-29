@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/event-trigger/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/event-trigger/models"
 )
 
@@ -52,7 +52,6 @@ func (f *fakeEvent_triggerService) Update(ctx context.Context, tenantID, id stri
 }
 
 var _ service.ServiceInterface = (*fakeEvent_triggerService)(nil)
-
 
 func TestHandler_EVENT_TRIGGER_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

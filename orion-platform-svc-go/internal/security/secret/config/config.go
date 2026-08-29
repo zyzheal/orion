@@ -21,10 +21,10 @@ func Load() *Config {
 	port, _ := strconv.Atoi(getEnv("PORT", "8080"))
 	dbPort, _ := strconv.Atoi(getEnv("DB_PORT", "5432"))
 
-		jwtSecret := getEnv("JWT_SECRET", "change-me-in-production")
+	jwtSecret := getEnv("JWT_SECRET", "change-me-in-production")
 	redisAddr := getEnv("REDIS_ADDR", "localhost:6379")
 
-return &Config{
+	return &Config{
 		Port:       port,
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     dbPort,
@@ -32,7 +32,7 @@ return &Config{
 		DBPassword: requireEnv("DB_PASSWORD"),
 		DBName:     getEnv("DB_NAME", "orion_secret"),
 		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
-			JWTSecret:  jwtSecret,
+		JWTSecret:  jwtSecret,
 		RedisAddr:  redisAddr,
 	}
 }

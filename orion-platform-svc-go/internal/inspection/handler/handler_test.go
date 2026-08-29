@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/inspection/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/inspection/models"
 )
 
@@ -35,7 +35,7 @@ func (f *fakeHandlerService) Create(ctx context.Context, tenantID string, req mo
 	return &models.Record{}, nil
 }
 
-func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
@@ -76,7 +76,6 @@ func (f *fakeHandlerService) UpdateStatus(ctx context.Context, tenantID, id stri
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestHandler_INSPECTION_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

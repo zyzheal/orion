@@ -16,16 +16,16 @@ import (
 // It drives the workflow instance forward, one node at a time, by dispatching
 // to the appropriate StepHandler.
 type Engine struct {
-	factory *handler.StepHandlerFactory
-	slaEngine *sla.DefaultSlaCalculateHandler
+	factory    *handler.StepHandlerFactory
+	slaEngine  *sla.DefaultSlaCalculateHandler
 	slaMonitor *sla.SLAMonitor
-	logger    *zap.Logger
+	logger     *zap.Logger
 }
 
 // EngineOptions configures the execution engine.
 type EngineOptions struct {
-	Logger        *zap.Logger
-	Factory       *handler.StepHandlerFactory
+	Logger           *zap.Logger
+	Factory          *handler.StepHandlerFactory
 	SLACheckInterval time.Duration
 }
 
@@ -35,10 +35,10 @@ func NewEngine(opts EngineOptions) *Engine {
 		opts.Factory = handler.GlobalFactory
 	}
 	return &Engine{
-		factory:   opts.Factory,
-		slaEngine: &sla.DefaultSlaCalculateHandler{},
+		factory:    opts.Factory,
+		slaEngine:  &sla.DefaultSlaCalculateHandler{},
 		slaMonitor: sla.NewSLAMonitor(opts.SLACheckInterval),
-		logger:    opts.Logger,
+		logger:     opts.Logger,
 	}
 }
 
@@ -129,15 +129,15 @@ func (e *Engine) ExecuteWorkflow(ctx context.Context, instID, defID, tenantID st
 
 		// If next_node_id is nil, this step is waiting (e.g., human approval)
 		if result.NextNodeID == nil {
-            // Step is blocking — return; caller should resume later
-            if e.logger != nil {
-                e.logger.Info("workflow paused at step",
-                    zap.String("step_type", stepType),
-                    zap.String("instance_id", instID),
-                )
-            }
-            return nil
-        }
+			// Step is blocking — return; caller should resume later
+			if e.logger != nil {
+				e.logger.Info("workflow paused at step",
+					zap.String("step_type", stepType),
+					zap.String("instance_id", instID),
+				)
+			}
+			return nil
+		}
 	}
 
 	return nil
@@ -168,9 +168,9 @@ func extractNodes(def *models.WorkflowDefinition) []models.JSONB {
 	if nodes, ok := def.Nodes["nodes"].([]interface{}); ok {
 		result := make([]models.JSONB, len(nodes))
 		for i, n := range nodes {
-            if m, ok := n.(map[string]interface{}); ok {
-                result[i] = models.JSONB(m)
-            }
+			if m, ok := n.(map[string]interface{}); ok {
+				result[i] = models.JSONB(m)
+			}
 		}
 		return result
 	}

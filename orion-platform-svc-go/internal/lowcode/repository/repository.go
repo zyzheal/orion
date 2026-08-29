@@ -12,10 +12,10 @@ import (
 )
 
 var (
-	ErrFlowNotFound      = errors.New("lowcode flow not found")
-	ErrTemplateNotFound  = errors.New("lowcode template not found")
-	ErrInstanceNotFound  = errors.New("lowcode instance not found")
-	ErrVersionNotFound   = errors.New("lowcode version not found")
+	ErrFlowNotFound     = errors.New("lowcode flow not found")
+	ErrTemplateNotFound = errors.New("lowcode template not found")
+	ErrInstanceNotFound = errors.New("lowcode instance not found")
+	ErrVersionNotFound  = errors.New("lowcode version not found")
 )
 
 // Repository provides PostgreSQL-backed persistence for the lowcode module.
@@ -40,7 +40,7 @@ func (r *Repository) CreateFlow(ctx context.Context, flow *models.LowcodeFlow) e
 		flow.ID, flow.TenantID, flow.Name, flow.Description, flow.Version,
 		flow.Nodes, flow.Edges, flow.Enabled,
 		flow.CreatedBy, flow.CreatedAt, flow.UpdatedAt,
-)
+	)
 	return err
 }
 
@@ -175,7 +175,7 @@ func (r *Repository) CreateInstance(ctx context.Context, inst *models.LowcodeIns
 		inst.ID, inst.TenantID, inst.WorkflowID, inst.WorkflowDefinitionID, inst.Status,
 		inst.Variables, inst.Input, inst.Output, inst.CurrentNodeID, inst.TriggeredBy,
 		inst.StartedAt, inst.CompletedAt, inst.CreatedAt,
-)
+	)
 	return err
 }
 
@@ -204,7 +204,7 @@ func (r *Repository) CreateTemplate(ctx context.Context, tmpl *models.LowcodeTem
 		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
 		tmpl.ID, tmpl.Name, tmpl.Description, tmpl.Category, tmpl.Thumbnail,
 		tmpl.Definition, tmpl.Tags, tmpl.UsageCount, tmpl.CreatedBy, tmpl.CreatedAt,
-)
+	)
 	return err
 }
 
@@ -254,7 +254,7 @@ func (r *Repository) CreateVersionSnapshot(ctx context.Context, snap *models.Ver
 		) VALUES ($1,$2,$3,$4,$5,$6)`,
 		snap.ID, snap.WorkflowID, snap.Version, snap.Definition,
 		snap.CreatedBy, snap.CreatedAt,
-)
+	)
 	return err
 }
 

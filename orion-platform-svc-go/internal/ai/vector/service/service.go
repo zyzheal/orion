@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/ai/vector/models"
 	"orion/platform-svc-go/internal/ai/vector/repository"
-	"go.uber.org/zap"
 )
 
 type VectorService struct {

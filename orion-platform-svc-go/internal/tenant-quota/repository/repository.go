@@ -82,14 +82,14 @@ func (r *Repository) IncrementUsage(ctx context.Context, tenantID, metric string
 	if err != nil {
 		// Create new
 		u := models.QuotaUsage{
-			TenantID:    tenantID,
-			Metric:      metric,
+			TenantID:     tenantID,
+			Metric:       metric,
 			CurrentValue: amount,
-			PeakValue:   amount,
-			WindowStart: time.Now(),
-			WindowEnd:   time.Now().Add(time.Hour),
-			ResetAt:     resetAt,
-			UpdatedAt:   time.Now(),
+			PeakValue:    amount,
+			WindowStart:  time.Now(),
+			WindowEnd:    time.Now().Add(time.Hour),
+			ResetAt:      resetAt,
+			UpdatedAt:    time.Now(),
 		}
 		if err := r.createUsage(&u); err != nil {
 			return nil, err

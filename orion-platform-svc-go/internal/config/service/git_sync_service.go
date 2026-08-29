@@ -83,7 +83,7 @@ func (s *GitSyncService) SyncNow(ctx context.Context, tenantID, id string) (*mod
 	// 3. Diff against current configs
 	// 4. Apply changes (upsert configs)
 	result := &models.SyncResult{
-		Success: true,
+		Success:  true,
 		SyncedAt: time.Now(),
 	}
 

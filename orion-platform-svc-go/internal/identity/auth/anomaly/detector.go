@@ -14,18 +14,18 @@ type AnomalyReport struct {
 }
 
 const (
-	TypeNewDevice   = "new_device"
-	TypeGeoShift    = "geo_shift"
-	TypeOffHours    = "off_hours"
-	TypeRapidFail   = "rapid_failure"
-	SeverityLow     = "low"
-	SeverityMedium  = "medium"
-	SeverityHigh    = "high"
+	TypeNewDevice  = "new_device"
+	TypeGeoShift   = "geo_shift"
+	TypeOffHours   = "off_hours"
+	TypeRapidFail  = "rapid_failure"
+	SeverityLow    = "low"
+	SeverityMedium = "medium"
+	SeverityHigh   = "high"
 )
 
 const (
-	offHourStart = 2
-	offHourEnd   = 5
+	offHourStart   = 2
+	offHourEnd     = 5
 	rapidThreshold = 3
 	rapidWindow    = 5 * time.Minute
 )
@@ -38,9 +38,9 @@ type loginRecord struct {
 }
 
 type userState struct {
-	logins   []loginRecord
-	devices  map[string]time.Time // userAgent -> last seen
-	geoCache map[string]time.Time // ip prefix -> last seen
+	logins    []loginRecord
+	devices   map[string]time.Time // userAgent -> last seen
+	geoCache  map[string]time.Time // ip prefix -> last seen
 	failureMu sync.Mutex
 }
 

@@ -17,8 +17,9 @@ var errNotFound = errors.New("pipeline budget not found")
 // Repository provides PostgreSQL-backed persistence for pipeline budgets.
 //
 // Tables:
-//   pipeline_budgets       — one row per pipeline (JSONB for limits/alerts/period)
-//   pipeline_budget_history — append-only history records
+//
+//	pipeline_budgets       — one row per pipeline (JSONB for limits/alerts/period)
+//	pipeline_budget_history — append-only history records
 type Repository struct {
 	db *sqlx.DB
 }
@@ -38,7 +39,7 @@ func (r *Repository) Create(ctx context.Context, b *models.BudgetConfig) error {
 		b.ID, b.PipelineID, b.TenantID, string(b.Type),
 		b.Period, b.Limits, b.CostLimits, b.Alerts,
 		b.CreatedAt, b.UpdatedAt,
-)
+	)
 	return err
 }
 
@@ -75,7 +76,7 @@ func (r *Repository) Upsert(ctx context.Context, b *models.BudgetConfig) error {
 		b.ID, b.PipelineID, b.TenantID, string(b.Type),
 		b.Period, b.Limits, b.CostLimits, b.Alerts,
 		b.CreatedAt, b.UpdatedAt,
-)
+	)
 	return err
 }
 
@@ -97,7 +98,7 @@ func (r *Repository) AppendHistory(ctx context.Context, h *models.BudgetHistoryR
 			id, pipeline_id, tenant_id, timestamp, action, details, actor
 		) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
 		h.ID, h.PipelineID, h.TenantID, h.Timestamp, string(h.Action), h.Details, h.Actor,
-)
+	)
 	return err
 }
 
@@ -177,7 +178,8 @@ func (r *Repository) CreateTableIfNotExists(ctx context.Context) error {
 // service to compute real cost usage instead of a heuristic.
 //
 // pipeline_runs table schema (assumed):
-//   id, pipeline_id, tenant_id, status, started_at, completed_at, duration_ms
+//
+//	id, pipeline_id, tenant_id, status, started_at, completed_at, duration_ms
 func (r *Repository) QueryRunMetrics(ctx context.Context, tenantID, pipelineID string, start, end time.Time) (int64, float64, float64, error) {
 	var totalRuns sql.NullInt64
 	var totalCost float64

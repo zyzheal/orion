@@ -15,8 +15,8 @@ const PluginTypeShell = "shell"
 // ShellExecutorPlugin runs shell commands.
 type ShellExecutorPlugin struct{}
 
-func (p *ShellExecutorPlugin) Name() string                { return PluginTypeShell }
-func (p *ShellExecutorPlugin) Description() string         { return "Execute shell commands" }
+func (p *ShellExecutorPlugin) Name() string                  { return PluginTypeShell }
+func (p *ShellExecutorPlugin) Description() string           { return "Execute shell commands" }
 func (p *ShellExecutorPlugin) DefaultTimeout() time.Duration { return 5 * time.Minute }
 func (p *ShellExecutorPlugin) Validate(params map[string]interface{}) error {
 	_, ok := params["command"].(string)
@@ -49,8 +49,8 @@ const PluginTypePython = "python"
 // PythonExecutorPlugin runs Python scripts.
 type PythonExecutorPlugin struct{}
 
-func (p *PythonExecutorPlugin) Name() string                { return PluginTypePython }
-func (p *PythonExecutorPlugin) Description() string         { return "Execute Python scripts" }
+func (p *PythonExecutorPlugin) Name() string                  { return PluginTypePython }
+func (p *PythonExecutorPlugin) Description() string           { return "Execute Python scripts" }
 func (p *PythonExecutorPlugin) DefaultTimeout() time.Duration { return 10 * time.Minute }
 func (p *PythonExecutorPlugin) Validate(params map[string]interface{}) error {
 	_, ok := params["script"].(string)
@@ -82,8 +82,8 @@ const PluginTypeHTTP = "http"
 // HTTPExecutorPlugin executes HTTP requests.
 type HTTPExecutorPlugin struct{}
 
-func (p *HTTPExecutorPlugin) Name() string                { return PluginTypeHTTP }
-func (p *HTTPExecutorPlugin) Description() string         { return "Execute HTTP requests" }
+func (p *HTTPExecutorPlugin) Name() string                  { return PluginTypeHTTP }
+func (p *HTTPExecutorPlugin) Description() string           { return "Execute HTTP requests" }
 func (p *HTTPExecutorPlugin) DefaultTimeout() time.Duration { return 30 * time.Second }
 func (p *HTTPExecutorPlugin) Validate(params map[string]interface{}) error {
 	_, ok := params["url"].(string)
@@ -102,8 +102,8 @@ const PluginTypeSQL = "sql"
 // SQLEXecutorPlugin executes SQL queries.
 type SQLEXecutorPlugin struct{}
 
-func (p *SQLEXecutorPlugin) Name() string                { return PluginTypeSQL }
-func (p *SQLEXecutorPlugin) Description() string         { return "Execute SQL queries" }
+func (p *SQLEXecutorPlugin) Name() string                  { return PluginTypeSQL }
+func (p *SQLEXecutorPlugin) Description() string           { return "Execute SQL queries" }
 func (p *SQLEXecutorPlugin) DefaultTimeout() time.Duration { return 1 * time.Minute }
 func (p *SQLEXecutorPlugin) Validate(params map[string]interface{}) error {
 	_, ok := params["query"].(string)
@@ -122,8 +122,8 @@ const PluginTypeWebhook = "webhook"
 // WebhookExecutorPlugin executes webhook callbacks.
 type WebhookExecutorPlugin struct{}
 
-func (p *WebhookExecutorPlugin) Name() string                { return PluginTypeWebhook }
-func (p *WebhookExecutorPlugin) Description() string         { return "Execute webhook callbacks" }
+func (p *WebhookExecutorPlugin) Name() string                  { return PluginTypeWebhook }
+func (p *WebhookExecutorPlugin) Description() string           { return "Execute webhook callbacks" }
 func (p *WebhookExecutorPlugin) DefaultTimeout() time.Duration { return 30 * time.Second }
 func (p *WebhookExecutorPlugin) Validate(params map[string]interface{}) error {
 	_, ok := params["url"].(string)

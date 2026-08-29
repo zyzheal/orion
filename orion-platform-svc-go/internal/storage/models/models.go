@@ -27,14 +27,14 @@ type StorageConfig struct {
 
 // StorageEntry represents a persistent metadata record for an object.
 type StorageEntry struct {
-	ID         string    `db:"id" json:"id"`
-	TenantID   string    `db:"tenant_id" json:"tenantId"`
-	Bucket     string    `db:"bucket" json:"bucket"`
-	Key        string    `db:"key" json:"key"`
-	Size       int64     `db:"size" json:"size"`
-	Provider   string    `db:"provider" json:"provider"`
-	CreatedAt  time.Time `db:"created_at" json:"createdAt"`
-	UpdatedAt  time.Time `db:"updated_at" json:"updatedAt"`
+	ID        string    `db:"id" json:"id"`
+	TenantID  string    `db:"tenant_id" json:"tenantId"`
+	Bucket    string    `db:"bucket" json:"bucket"`
+	Key       string    `db:"key" json:"key"`
+	Size      int64     `db:"size" json:"size"`
+	Provider  string    `db:"provider" json:"provider"`
+	CreatedAt time.Time `db:"created_at" json:"createdAt"`
+	UpdatedAt time.Time `db:"updated_at" json:"updatedAt"`
 }
 
 // CreateStorageRequest is the request body for creating a storage entry.

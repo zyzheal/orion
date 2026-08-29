@@ -236,11 +236,13 @@ func parseOptions(f *formengine.FormField, optionsJSON string) {
 // parseDependency extracts condition expressions from dependency JSON.
 //
 // Dependency format (from service layer):
-// {
-//   "visible_when": {"field": "type", "type": "equal", "value": "external"},
-//   "required_when": {...},
-//   "disabled_when": {...}
-// }
+//
+//	{
+//	  "visible_when": {"field": "type", "type": "equal", "value": "external"},
+//	  "required_when": {...},
+//	  "disabled_when": {...}
+//	}
+//
 // Or a single condition:
 // {"field": "type", "type": "equal", "value": "external"}
 func parseDependency(f *formengine.FormField, dependencyJSON string) {
@@ -258,7 +260,7 @@ func parseDependency(f *formengine.FormField, dependencyJSON string) {
 		if dep.VisibleWhen != nil {
 			f.VisibleWhen = dep.VisibleWhen
 		}
-	if dep.RequiredWhen != nil {
+		if dep.RequiredWhen != nil {
 			f.RequiredWhen = dep.RequiredWhen
 		}
 		if dep.DisabledWhen != nil {

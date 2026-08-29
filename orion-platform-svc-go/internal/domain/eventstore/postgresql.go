@@ -123,7 +123,7 @@ func (es *PostgreSQLEventStore) GetByAggregate(ctx context.Context, tenantID, ag
 		if err := rows.StructScan(&row); err != nil {
 			return nil, fmt.Errorf("scan event row: %w", err)
 		}
-				ev := rowToStoredEvent(row)
+		ev := rowToStoredEvent(row)
 		ev.SetVersion(version)
 		events = append(events, ev)
 	}
@@ -163,7 +163,7 @@ func (es *PostgreSQLEventStore) GetByType(ctx context.Context, tenantID, eventTy
 		if err := rows.StructScan(&row); err != nil {
 			return nil, fmt.Errorf("scan event row: %w", err)
 		}
-				ev := rowToStoredEvent(row)
+		ev := rowToStoredEvent(row)
 		ev.SetVersion(version)
 		events = append(events, ev)
 	}
@@ -237,7 +237,7 @@ func (es *PostgreSQLEventStore) GetEventsAfterVersion(ctx context.Context, tenan
 		if err := rows.StructScan(&row); err != nil {
 			return nil, fmt.Errorf("scan event row: %w", err)
 		}
-				ev := rowToStoredEvent(row)
+		ev := rowToStoredEvent(row)
 		ev.SetVersion(version)
 		events = append(events, ev)
 	}

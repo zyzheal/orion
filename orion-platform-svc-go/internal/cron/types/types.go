@@ -45,10 +45,10 @@ type RetryPolicy struct {
 // DefaultRetryPolicy returns a sane default (3 attempts, exponential backoff).
 func DefaultRetryPolicy() RetryPolicy {
 	return RetryPolicy{
-		MaxAttempts:    3,
-		InitialDelay:   time.Second,
-		MaxDelay:       5 * time.Minute,
-		Multiplier:     2.0,
+		MaxAttempts:     3,
+		InitialDelay:    time.Second,
+		MaxDelay:        5 * time.Minute,
+		Multiplier:      2.0,
 		RetryableErrors: nil,
 	}
 }
@@ -115,22 +115,22 @@ type JobDependency struct {
 // models.JobDefinition) and is the canonical shape of a job as seen by the
 // execution engine and the registry.
 type CronJob struct {
-	ID          string            `json:"id"`
-	TenantID    string            `json:"tenant_id"`
-	Name        string            `json:"name"`
+	ID          string `json:"id"`
+	TenantID    string `json:"tenant_id"`
+	Name        string `json:"name"`
 	Kind        JobKind
-	Schedule    string            `json:"schedule"`    // cron expression or empty
-	RunAt       time.Time         `json:"run_at"`      // one-time target
-	Delay       time.Duration     `json:"delay"`       // delayed trigger
-	Task        string            `json:"task"`
-	Description string            `json:"description"`
-	Enabled     bool              `json:"enabled"`
-	Status      string            `json:"status"`
-	RetryPolicy RetryPolicy       `json:"retry_policy"`
-	Timeout     time.Duration     `json:"timeout"`
-	DependsOn   []JobDependency   `json:"depends_on"`
-	CreatedAt   time.Time         `json:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at"`
+	Schedule    string          `json:"schedule"` // cron expression or empty
+	RunAt       time.Time       `json:"run_at"`   // one-time target
+	Delay       time.Duration   `json:"delay"`    // delayed trigger
+	Task        string          `json:"task"`
+	Description string          `json:"description"`
+	Enabled     bool            `json:"enabled"`
+	Status      string          `json:"status"`
+	RetryPolicy RetryPolicy     `json:"retry_policy"`
+	Timeout     time.Duration   `json:"timeout"`
+	DependsOn   []JobDependency `json:"depends_on"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
 }
 
 // NewCronJob creates a CronJob with sensible defaults filled in.

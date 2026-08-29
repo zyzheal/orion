@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/observability"
+	ticket_handler "orion/platform-svc-go/internal/ticket/handler"
 
 	"go.uber.org/zap"
 )
@@ -125,6 +127,18 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if cacheCleanupH != nil {
     cacheCleanupH.RegisterRoutes(api)
   }
+  // cacheMgmtH is namespaced under /cache-mgmt: its bare /cache/configs set
+  // is already claimed by ciBuildH (build cache configs) and /cache/:id by
+  // cacheModH above, so a second registration would panic Gin.
+  if cacheMgmtH != nil {
+    cacheMgmtH.RegisterRoutes(api.Group("/cache-mgmt"))
+  }
+  // CQRS command dispatch endpoints. Constructed in setupInfra and held on
+  // infrastructure (infra.cqrsHandler); this was the only handler wired into
+  // the object graph but never mounted, so /api/v1/commands/* was unreachable.
+  if infra.cqrsHandler != nil {
+    infra.cqrsHandler.RegisterRoutes(api)
+  }
   if bi_dashboardH != nil {
     bi_dashboardH.RegisterRoutes(api)
   }
@@ -146,18 +160,16 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if capabilityH != nil {
     capabilityH.RegisterRoutes(api)
   }
-  if chanH != nil {
-    chanH.RegisterRoutes(api)
-  }
   if changeH != nil {
     changeH.RegisterRoutes(api)
   }
-  if chaosH != nil {
-    chaosH.RegisterRoutes(api)
+  if chaosEngineH != nil {
+    chaosEngineH.RegisterRoutes(api)
   }
-  if chaos_enhancedH != nil {
-    chaos_enhancedH.RegisterRoutes(api)
-  }
+  // chaosH, chaos_enhancedH and chaosGatewayH are NOT registered: chaosEngineH
+  // above is a merged facade that delegates to all three of their handlers under
+  // the same /chaos paths, so mounting them again would register every
+  // (method, path) pair twice and panic Gin.
   if chatopsH != nil {
     chatopsH.RegisterRoutes(api)
   }
@@ -211,9 +223,6 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if dbaH != nil {
     dbaH.RegisterRoutes(api)
   }
-  if ddH != nil {
-    ddH.RegisterRoutes(api)
-  }
   if decision_explanationH != nil {
     decision_explanationH.RegisterRoutes(api)
   }
@@ -233,7 +242,11 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
     deployment_triggerH.RegisterRoutes(api)
   }
   if developerportalH != nil {
-    developerportalH.RegisterRoutes(api)
+    // Namespaced under /developer-portal: this handler registers bare
+    // relative paths ("" and ":id"). At the API root those become
+    // GET/POST /api/v1 and /api/v1/:id, and the depth-1 wildcard
+    // swallows every sibling route in the API.
+    developerportalH.RegisterRoutes(api.Group("/developer-portal"))
   }
   if diagnosticH != nil {
     diagnosticH.RegisterRoutes(api)
@@ -244,8 +257,15 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if dual_engineH != nil {
     dual_engineH.RegisterRoutes(api)
   }
+  if escalationH != nil {
+    escalationH.RegisterRoutes(api)
+  }
   if efficiencyH != nil {
-    efficiencyH.RegisterRoutes(api)
+    // Namespaced under /efficiency: this handler declares its TS source paths
+    // as /api/v1/efficiency/{path}, the frontend calls /efficiency/..., and
+    // at the API root its bare /reports, /teams/:teamId and
+    // /projects/:projectId collide with report-designerH, teamH and projH.
+    efficiencyH.RegisterRoutes(api.Group("/efficiency"))
   }
   if envH != nil {
     envH.RegisterRoutes(api)
@@ -272,7 +292,12 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
     finops_v2H.RegisterRoutes(api)
   }
   if gatewaydynamicH != nil {
-    gatewaydynamicH.RegisterRoutes(api)
+    // Namespaced under /gateway: this handler registers rg.Group("/routes"),
+    // whose unnamespaced form is GET /api/v1/routes and collides with the
+    // route-discovery endpoint registered near the end of this function. Its
+    // TS source path (and the frontend's /gateway/routes client) use the
+    // /gateway prefix.
+    gatewaydynamicH.RegisterRoutes(api.Group("/gateway"))
   }
   if gdGrayH != nil {
     gdGrayH.RegisterRoutes(api)
@@ -359,7 +384,10 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
     oncallH.RegisterRoutes(api)
   }
   if pageregistryH != nil {
-    pageregistryH.RegisterRoutes(api)
+    // Namespaced under /page-registry: at the API root a depth-1
+    // ":path" wildcard shadows every other first-segment route and
+    // cannot coexist with any other root-level wildcard in Gin.
+    pageregistryH.RegisterRoutes(api.Group("/page-registry"))
   }
   if palH != nil {
     palH.RegisterRoutes(api)
@@ -530,7 +558,9 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
     slaH.RegisterRoutes(api)
   }
   if sloH != nil {
-    sloH.RegisterRoutes(api)
+    // Namespaced: at the API root SLO would own GET/POST "" and /:id,
+    // colliding with the root-level wildcard taken by page-registry.
+    sloH.RegisterRoutes(api.Group("/slo"))
   }
   if sprintH != nil {
     sprintH.RegisterRoutes(api)
@@ -548,7 +578,9 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
     supply_chainH.RegisterRoutes(api)
   }
   if teamH != nil {
-    teamH.RegisterRoutes(api)
+    // Namespaced: at the API root teams would own GET/POST "" and
+    // /:id, colliding with the root-level wildcard (see page-registry).
+    teamH.RegisterRoutes(api.Group("/teams"))
   }
   if tenantH != nil {
     tenantH.RegisterRoutes(api)
@@ -561,6 +593,17 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   }
   if ticketingH != nil {
     ticketingH.RegisterRoutes(api)
+  }
+  // internal/ticket/handler handlers with no RegisterRoutes of their own.
+  // RegisterTicketDomainRoutes only claims the paths ticketingH above does not
+  // own (PUT/DELETE /tickets/:id, /tickets/stats, :id/comments, /tickets/sla/*,
+  // :id/dispatch/{auto,manual}, the SLA queue, /tickets/dispatch/balancing/*
+  // and the transfer queue/config routes), so no (method, path) pair is
+  // registered twice. The remaining ticket handlers (workflowModH, relationH,
+  // suspendH, analyticsTicketH) are 100% covered by ticketingH and stay
+  // unmounted for the same reason.
+  if ticketH != nil || slaModH != nil || dispatchH != nil || queueH != nil || loadBalancerH != nil || transferH != nil {
+    ticket_handler.RegisterTicketDomainRoutes(api, ticketH, slaModH, dispatchH, queueH, loadBalancerH, transferH)
   }
   if topologyH != nil {
     topologyH.RegisterRoutes(api)
@@ -620,11 +663,11 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if loggingH != nil {
     loggingH.RegisterRoutes(api)
   }
+  if crossoverH != nil {
+    crossoverH.RegisterRoutes(api)
+  }
   if storageH != nil {
     storageH.RegisterRoutes(api)
-  }
-  if message_queueH != nil {
-    message_queueH.RegisterRoutes(api)
   }
   if clusterH != nil {
     clusterH.RegisterRoutes(api)
@@ -642,12 +685,10 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if ai_aicostH != nil {
     ai_aicostH.RegisterRoutes(api)
   }
-  if ai_aigatewayH != nil {
-    ai_aigatewayH.RegisterRoutes(api)
-  }
-  if ai_aireviewH != nil {
-    ai_aireviewH.RegisterRoutes(api)
-  }
+  // ai_aigatewayH is NOT registered: its entire route set is a duplicate of
+  // aiGatewayH above. Gin keeps the first registration and panics on the second.
+  // ai_aireviewH is NOT registered: identical route set to aiReviewH above.
+  // Gin keeps the first registration and panics on the second.
   if ai_aisecurityH != nil {
     ai_aisecurityH.RegisterRoutes(api)
   }
@@ -669,9 +710,6 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if networkH != nil {
     networkH.RegisterRoutes(api)
   }
-  if visorH != nil {
-    visorH.RegisterRoutes(api)
-  }
   if visorExecH != nil {
     visorExecH.RegisterRoutes(api)
   }
@@ -680,9 +718,6 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   }
   if aeH != nil {
     aeH.RegisterRoutes(api)
-  }
-  if runbookH != nil {
-    runbookH.RegisterRoutes(api)
   }
   if sagaH != nil {
     sagaH.RegisterRoutes(api)
@@ -705,12 +740,9 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if domainCqrsH != nil {
     domainCqrsH.RegisterRoutes(api)
   }
-  if pipelineAuditLogH != nil {
-    pipelineAuditLogH.RegisterRoutes(api)
-  }
-  if pipelineRunHistoryH != nil {
-    pipelineRunHistoryH.RegisterRoutes(api)
-  }
+  // pipelineAuditLogH is NOT registered: identical route set to palH above
+  // (and to ai_skillH's audit-log routes). Gin panics on a second registration.
+  // pipelineRunHistoryH is NOT registered: identical route set to phistH above.
 
 
 
@@ -718,10 +750,7 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if dndH != nil {
     dndH.RegisterRoutes(api)
   }
-  if chaosGatewayH != nil {
-    chaosGatewayH.RegisterRoutes(api)
-  }
-  if circuitBreakerH != nil {
+    if circuitBreakerH != nil {
     circuitBreakerH.RegisterRoutes(api)
   }
   if importExportH != nil {
@@ -817,14 +846,14 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if observabilityH != nil {
     observabilityH.RegisterRoutes(api)
   }
+  // Web Vitals receiver — receives frontend Core Web Vitals (LCP/CLS/INP/FID/TTFB/FCP)
+  // and exposes them as Prometheus metrics. Public endpoint, no auth required.
+  api.POST("/performance/vitals", observability.WebVitalsHandler)
   if pipelineErrorDetailH != nil {
     pipelineErrorDetailH.RegisterRoutes(api)
   }
   if releaseMgmtH != nil {
     releaseMgmtH.RegisterRoutes(api)
-  }
-  if smartDeployH != nil {
-    smartDeployH.RegisterRoutes(api)
   }
   if startupH != nil {
     startupH.RegisterRoutes(api)
@@ -862,26 +891,21 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if alertAdapterV2H != nil {
     alertAdapterV2H.RegisterRoutes(api)
   }
-  if autoRecoveryH != nil {
-    autoRecoveryH.RegisterRoutes(api)
-  }
+  // autoRecoveryH is NOT registered: identical route set to ai_autorecoveryH above.
   if capacityH != nil {
     capacityH.RegisterRoutes(api)
   }
   if middlewareOpsH != nil {
     middlewareOpsH.RegisterRoutes(api)
   }
-  if orchestrationH != nil {
-    orchestrationH.RegisterRoutes(api)
-  }
+  // orchestrationH is NOT registered: identical route set to ai_orchestrationH
+  // above, plus its own routes contain a trie conflict (`:id` vs `:orch_id`
+  // under /api/v1/orchestration) that Gin would panic on.
 
-  // ---- Wired but unregistered handlers (Wave 2 parallel execution) ----
-  if serviceControlH != nil {
-    serviceControlH.RegisterRoutes(api)
-  }
-  if automationRuleTicketH != nil {
-    automationRuleTicketH.RegisterRoutes(api)
-  }
+  // serviceControlH and automationRuleTicketH are NOT registered: their
+  // /ticketing/start|stop|health and /ticketing/automation/rules sets are
+  // already claimed by ticketingH above, and Gin panics on a second
+  // (method, path) pair.
   if cmdb_importH != nil {
     cmdb_importH.RegisterRoutes(api)
   }
@@ -892,7 +916,10 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
     cmdb_validatorH.RegisterRoutes(api)
   }
   if governanceComplianceH != nil {
-    governanceComplianceH.RegisterRoutes(api)
+    // Namespaced: this handler declares its routes as bare /reports,
+    // /schedules and /policies, which are already owned by report-designerH
+    // and policyH. Its TS package is internal/governance/compliance.
+    governanceComplianceH.RegisterRoutes(api.Group("/governance/compliance"))
   }
   if identityConfirmationH != nil {
     identityConfirmationH.RegisterRoutes(api)
@@ -900,12 +927,9 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if infraCapH != nil {
     infraCapH.RegisterRoutes(api)
   }
-  if infraServerlessH != nil {
-    infraServerlessH.RegisterRoutes(api)
-  }
-  if psH != nil {
-    psH.RegisterRoutes(api)
-  }
+  // infraServerlessH is NOT registered: identical route set to serverlessH above.
+  // psH is NOT registered: it is the same handler object as promptSecurityH
+  // (psH = promptSecurityH in wiring.go), already registered above.
   if securityBranchPolicyH != nil {
     securityBranchPolicyH.RegisterRoutes(api)
   }
@@ -942,10 +966,13 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
     ciRunnerH.RegisterRoutes(api)
   }
   if governanceH != nil {
-    governanceH.RegisterRoutes(api)
+    // Namespaced: this handler owns /policies, already taken by policyH.
+    governanceH.RegisterRoutes(api.Group("/governance"))
   }
   if governancePolicyH != nil {
-    governancePolicyH.RegisterRoutes(api)
+    // Namespaced: /policies is owned by policyH, and /governance/policies by
+    // governanceH above.
+    governancePolicyH.RegisterRoutes(api.Group("/governance/policy"))
   }
   if governanceRiskH != nil {
     governanceRiskH.RegisterRoutes(api)
@@ -953,17 +980,8 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if graphH != nil {
     graphH.RegisterRoutes(api)
   }
-  if identityApikeyH != nil {
-    identityApikeyH.RegisterRoutes(api)
-  }
-  if identitySessionH != nil {
-    identitySessionH.RegisterRoutes(api)
-  }
   if identitySsoH != nil {
     identitySsoH.RegisterRoutes(api)
-  }
-  if identityTenantH != nil {
-    identityTenantH.RegisterRoutes(api)
   }
   if infraBackupH != nil {
     infraBackupH.RegisterRoutes(api)
@@ -971,9 +989,7 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if infraChaosH != nil {
     infraChaosH.RegisterRoutes(api)
   }
-  if infraDbaH != nil {
-    infraDbaH.RegisterRoutes(api)
-  }
+  // infraDbaH is NOT registered: identical route set to dbaH above.
   if infraDegH != nil {
     infraDegH.RegisterRoutes(api)
   }
@@ -986,9 +1002,9 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if infraEEH != nil {
     infraEEH.RegisterRoutes(api)
   }
-  if infraIacH != nil {
-    infraIacH.RegisterRoutes(api)
-  }
+  // infraIacH is NOT registered: identical route set to iacH above, and its
+  // own registration contains a trie conflict (`:id` vs `:workspaceId` under
+  // /api/v1/iac/workspaces) that Gin would panic on.
   if infraMultiH != nil {
     infraMultiH.RegisterRoutes(api)
   }
@@ -1003,6 +1019,9 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   }
   if pipelineBudgetH != nil {
     pipelineBudgetH.RegisterRoutes(api)
+  }
+  if pipelineExecutorH != nil {
+    pipelineExecutorH.RegisterRoutes(api)
   }
   if pipelineTemplatesH != nil {
     pipelineTemplatesH.RegisterRoutes(api)
@@ -1022,27 +1041,23 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if sbomH != nil {
     sbomH.RegisterRoutes(api)
   }
-  if securityCrossDomainH != nil {
-    securityCrossDomainH.RegisterRoutes(api)
-  }
   if securityH != nil {
-    securityH.RegisterRoutes(api)
+    // Namespaced: this handler owns /audit/plans, already taken by
+    // security_complianceH, and /scans and /findings collide with other
+    // scan-oriented handlers. code_scanH already uses /security/code-scan.
+    securityH.RegisterRoutes(api.Group("/security"))
   }
   if securityPrivacyH != nil {
     securityPrivacyH.RegisterRoutes(api)
   }
   if securitySecretH != nil {
-    securitySecretH.RegisterRoutes(api)
+    // Namespaced: this handler's /secrets set is a full duplicate of
+    // secretH's, and Gin panics on the second registration.
+    securitySecretH.RegisterRoutes(api.Group("/security"))
   }
-  if securityUebaH != nil {
-    securityUebaH.RegisterRoutes(api)
-  }
-  if slaPolicyTicketH != nil {
-    slaPolicyTicketH.RegisterRoutes(api)
-  }
-	if ticketSourceTicketH != nil {
-    ticketSourceTicketH.RegisterRoutes(api)
-  }
+  // slaPolicyTicketH (/ticketing/sla/policies*) and ticketSourceTicketH
+  // (POST /tickets/from-alert, /tickets/from-incident) are NOT registered:
+  // ticketingH above already owns those paths.
   // P1: agents, database-devops, gateway-routes, rate-limiting, test-reports
   if agentsH != nil {
     agentsH.RegisterRoutes(api)
@@ -1074,9 +1089,8 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if alertRuleEngineH != nil {
     alertRuleEngineH.RegisterRoutes(api)
   }
-  if serviceCatalogH != nil {
-    serviceCatalogH.RegisterRoutes(api)
-  }
+  // serviceCatalogH is NOT registered: a second service-catalog handler object
+  // (wiring-service-catalog.go) whose route set duplicates service_catalogH above.
 
 	// Route discovery endpoint — returns all registered routes for DocumentationGenerator
 	api.GET("/routes", func(c *gin.Context) {

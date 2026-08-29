@@ -6,18 +6,19 @@
 // notification to its target channel.
 //
 // SPI contract: INotificationHandler
-//   Channel()  — canonical channel name
-//   Initialize(config) — configure handler from JSON config
-//   Send(template, variables) — render template and dispatch
-//   ValidateConfig(config) — pre-flight validation
+//
+//	Channel()  — canonical channel name
+//	Initialize(config) — configure handler from JSON config
+//	Send(template, variables) — render template and dispatch
+//	ValidateConfig(config) — pre-flight validation
 //
 // Flow:
-//   1. POST /api/alert-adapters/v2 → CreateAdapter validates channel, persists,
-//      looks up handler, calls ValidateConfig + Initialize
-//   2. POST /api/alert-adapters/v2/templates → CreateTemplate stores template
-//   3. POST /api/alert-adapters/v2/:id/send → SendNotification renders template
-//      with variables and dispatches via handler.Send()
-//   4. Events are recorded in the delivery audit trail
+//  1. POST /api/alert-adapters/v2 → CreateAdapter validates channel, persists,
+//     looks up handler, calls ValidateConfig + Initialize
+//  2. POST /api/alert-adapters/v2/templates → CreateTemplate stores template
+//  3. POST /api/alert-adapters/v2/:id/send → SendNotification renders template
+//     with variables and dispatches via handler.Send()
+//  4. Events are recorded in the delivery audit trail
 package service
 
 import (
@@ -66,15 +67,15 @@ type INotificationHandler interface {
 // ---------------------------------------------------------------------------
 
 var (
-	ErrInvalidChannel    = errors.New("invalid notification channel")
-	ErrInvalidStatus     = errors.New("invalid adapter status")
-	ErrInvalidConfig     = errors.New("invalid adapter config")
-	ErrNoHandler         = errors.New("no handler registered for channel")
-	ErrAdapterNotFound   = errors.New("adapter not found")
-	ErrTemplateNotFound  = errors.New("template not found")
-	ErrInitFailed        = errors.New("adapter initialization failed")
-	ErrAdapterDisabled   = errors.New("adapter is disabled")
-	ErrTenantMismatch    = errors.New("adapter belongs to another tenant")
+	ErrInvalidChannel   = errors.New("invalid notification channel")
+	ErrInvalidStatus    = errors.New("invalid adapter status")
+	ErrInvalidConfig    = errors.New("invalid adapter config")
+	ErrNoHandler        = errors.New("no handler registered for channel")
+	ErrAdapterNotFound  = errors.New("adapter not found")
+	ErrTemplateNotFound = errors.New("template not found")
+	ErrInitFailed       = errors.New("adapter initialization failed")
+	ErrAdapterDisabled  = errors.New("adapter is disabled")
+	ErrTenantMismatch   = errors.New("adapter belongs to another tenant")
 )
 
 // ---------------------------------------------------------------------------
@@ -183,21 +184,21 @@ func (f *NotificationFactory) CreateAdapter(
 	// Instantiate and validate handler
 	h, err := f.getHandler(channel)
 	if err != nil {
-_, _ = f.repo.UpdateAdapter(ctx, tenantID, a.ID, &models.UpdateAdapterRequest{
+		_, _ = f.repo.UpdateAdapter(ctx, tenantID, a.ID, &models.UpdateAdapterRequest{
 			Status: strPtr("error"),
 		})
 		return nil, fmt.Errorf("%w: %v", ErrInitFailed, err)
 	}
 
 	if err := h.ValidateConfig(ctx, cfgMap); err != nil {
-_, _ = f.repo.UpdateAdapter(ctx, tenantID, a.ID, &models.UpdateAdapterRequest{
+		_, _ = f.repo.UpdateAdapter(ctx, tenantID, a.ID, &models.UpdateAdapterRequest{
 			Status: strPtr("error"),
 		})
 		return nil, fmt.Errorf("%w: %v", ErrInitFailed, err)
 	}
 
 	if err := h.Initialize(ctx, cfgMap); err != nil {
-_, _ = f.repo.UpdateAdapter(ctx, tenantID, a.ID, &models.UpdateAdapterRequest{
+		_, _ = f.repo.UpdateAdapter(ctx, tenantID, a.ID, &models.UpdateAdapterRequest{
 			Status: strPtr("error"),
 		})
 		return nil, fmt.Errorf("%w: %v", ErrInitFailed, err)
@@ -354,7 +355,7 @@ func (f *NotificationFactory) SendNotification(
 		event.Status = "sent"
 		_ = f.repo.MarkEventSent(ctx, event.ID)
 		_ = f.repo.MarkEventFailed(ctx, event.ID, err.Error())
-_, _ = f.repo.UpdateAdapter(ctx, tenantID, a.ID, &models.UpdateAdapterRequest{
+		_, _ = f.repo.UpdateAdapter(ctx, tenantID, a.ID, &models.UpdateAdapterRequest{
 			Status: strPtr("error"),
 		})
 		f.logger.Error("notification send failed",
@@ -462,4 +463,3 @@ func buildEventPayload(adapterID, templateID, rendered string, variables map[str
 	b, _ := json.Marshal(p)
 	return string(b)
 }
-

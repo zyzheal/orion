@@ -110,7 +110,7 @@ func (m *mockPublisher) PublishBatch(_ context.Context, evs []events.DomainEvent
 	return nil
 }
 
-func (m *mockPublisher) Subscribe(eventType string, handler events.EventHandler) {}
+func (m *mockPublisher) Subscribe(eventType string, handler events.EventHandler)   {}
 func (m *mockPublisher) Unsubscribe(eventType string, handler events.EventHandler) {}
 
 // ---------------------------------------------------------------------------
@@ -126,14 +126,14 @@ type mockEvent struct {
 	version       int
 }
 
-func (e *mockEvent) AggregateType() string  { return e.aggregateType }
-func (e *mockEvent) AggregateID() string    { return e.aggregateID }
-func (e *mockEvent) TenantID() string       { return e.tenantID }
-func (e *mockEvent) EventType() string      { return e.eventType }
-func (e *mockEvent) OccurredAt() time.Time  { return e.occurredAt }
-func (e *mockEvent) Version() int           { return e.version }
-func (e *mockEvent) GetVersion() int        { return e.version }
-func (e *mockEvent) SetVersion(v int)       { e.version = v }
+func (e *mockEvent) AggregateType() string    { return e.aggregateType }
+func (e *mockEvent) AggregateID() string      { return e.aggregateID }
+func (e *mockEvent) TenantID() string         { return e.tenantID }
+func (e *mockEvent) EventType() string        { return e.eventType }
+func (e *mockEvent) OccurredAt() time.Time    { return e.occurredAt }
+func (e *mockEvent) Version() int             { return e.version }
+func (e *mockEvent) GetVersion() int          { return e.version }
+func (e *mockEvent) SetVersion(v int)         { e.version = v }
 func (e *mockEvent) SetAggregateID(id string) { e.aggregateID = id }
 func (e *mockEvent) SetTenantID(id string)    { e.tenantID = id }
 

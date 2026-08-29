@@ -30,10 +30,10 @@ func NewTransformer() *Transformer {
 
 // TransformError indicates a failed type conversion.
 type TransformError struct {
-	FromType  string `json:"from_type"`  // source type
-	ToType    string `json:"to_type"`    // target type
-	Value     interface{} `json:"value"` // original value
-	Message   string `json:"message"`
+	FromType string      `json:"from_type"` // source type
+	ToType   string      `json:"to_type"`   // target type
+	Value    interface{} `json:"value"`     // original value
+	Message  string      `json:"message"`
 }
 
 func (e *TransformError) Error() string {
@@ -166,10 +166,10 @@ type TransformInput struct {
 }
 
 type TransformOutput struct {
-	Param    string      `json:"param,omitempty"`
-	Value    interface{} `json:"value"`
-	Success  bool        `json:"success"`
-	Error    string      `json:"error,omitempty"`
+	Param   string      `json:"param,omitempty"`
+	Value   interface{} `json:"value"`
+	Success bool        `json:"success"`
+	Error   string      `json:"error,omitempty"`
 }
 
 func (t *Transformer) BatchTransform(inputs []TransformInput) []TransformOutput {

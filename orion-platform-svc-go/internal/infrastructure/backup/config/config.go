@@ -8,15 +8,15 @@ import (
 )
 
 type Config struct {
-	ServiceName   string
-	Environment   string
-	HTTPAddr      string
-	DatabaseURL   string
-	RedisAddr     string
-	RedisDB       int
-	OTelEndpoint  string
-	JWTSecret     string
-	BackupPath    string
+	ServiceName     string
+	Environment     string
+	HTTPAddr        string
+	DatabaseURL     string
+	RedisAddr       string
+	RedisDB         int
+	OTelEndpoint    string
+	JWTSecret       string
+	BackupPath      string
 	MaxStorageBytes int64
 }
 

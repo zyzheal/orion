@@ -4,17 +4,17 @@ import "time"
 
 // PipelineTemplate represents a reusable pipeline template definition.
 type PipelineTemplate struct {
-	ID             string     `db:"id" json:"id"`
-	TenantID       string     `db:"tenant_id" json:"tenantId"`
-	Name           string     `db:"name" json:"name"`
-	Description    *string    `db:"description" json:"description"`
-	YAMLDefinition string     `db:"yaml_definition" json:"yamlDefinition"`
-	Tags           string     `db:"tags" json:"tags"`
-	Category       *string    `db:"category" json:"category"`
-	Version        *string    `db:"version" json:"version"`
-	CreatedBy      *string    `db:"created_by" json:"createdBy"`
-	CreatedAt      time.Time  `db:"created_at" json:"createdAt"`
-	UpdatedAt      time.Time  `db:"updated_at" json:"updatedAt"`
+	ID             string    `db:"id" json:"id"`
+	TenantID       string    `db:"tenant_id" json:"tenantId"`
+	Name           string    `db:"name" json:"name"`
+	Description    *string   `db:"description" json:"description"`
+	YAMLDefinition string    `db:"yaml_definition" json:"yamlDefinition"`
+	Tags           string    `db:"tags" json:"tags"`
+	Category       *string   `db:"category" json:"category"`
+	Version        *string   `db:"version" json:"version"`
+	CreatedBy      *string   `db:"created_by" json:"createdBy"`
+	CreatedAt      time.Time `db:"created_at" json:"createdAt"`
+	UpdatedAt      time.Time `db:"updated_at" json:"updatedAt"`
 }
 
 // CreateTemplateRequest is the request body for creating a pipeline template.

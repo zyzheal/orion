@@ -58,18 +58,18 @@ const (
 )
 
 const (
-	EntityTypePipeline      = "pipeline"
-	EntityTypeService       = "service"
+	EntityTypePipeline       = "pipeline"
+	EntityTypeService        = "service"
 	EntityTypeInfrastructure = "infrastructure"
-	EntityTypeEnvironment   = "environment"
-	EntityTypeCluster       = "cluster"
-	EntityTypeNetwork       = "network"
-	EntityTypeApplication   = "application"
+	EntityTypeEnvironment    = "environment"
+	EntityTypeCluster        = "cluster"
+	EntityTypeNetwork        = "network"
+	EntityTypeApplication    = "application"
 )
 
 const (
-	ModelTypeStatic    = "static"
-	ModelTypeDynamic   = "dynamic"
+	ModelTypeStatic     = "static"
+	ModelTypeDynamic    = "dynamic"
 	ModelTypePredictive = "predictive"
 )
 
@@ -154,34 +154,34 @@ type DigitalTwin struct {
 }
 
 type CreateTwinRequest struct {
-	Name         string          `json:"name" binding:"required"`
-	Description  string          `json:"description"`
-	EntityType   string          `json:"entityType" binding:"required"`
-	SourceID     string          `json:"sourceId" binding:"required"`
-	Config       *JSON           `json:"config"`
-	SyncPolicy   *JSON           `json:"syncPolicy"`
-	Metadata     *JSON           `json:"metadata"`
+	Name        string `json:"name" binding:"required"`
+	Description string `json:"description"`
+	EntityType  string `json:"entityType" binding:"required"`
+	SourceID    string `json:"sourceId" binding:"required"`
+	Config      *JSON  `json:"config"`
+	SyncPolicy  *JSON  `json:"syncPolicy"`
+	Metadata    *JSON  `json:"metadata"`
 }
 
 type UpdateTwinRequest struct {
-	Name       string `json:"name"`
+	Name        string `json:"name"`
 	Description string `json:"description"`
-	Config     *JSON  `json:"config"`
-	SyncPolicy *JSON  `json:"syncPolicy"`
-	Metadata   *JSON  `json:"metadata"`
+	Config      *JSON  `json:"config"`
+	SyncPolicy  *JSON  `json:"syncPolicy"`
+	Metadata    *JSON  `json:"metadata"`
 }
 
 // --- TwinState ---
 
 type TwinState struct {
-	TwinID      string           `json:"twinId" db:"twin_id"`
-	Timestamp   int64            `json:"timestamp" db:"timestamp"`
-	Status      string           `json:"status" db:"status"`
-	Resources   JSON             `json:"resources" db:"resources"`
-	Performance JSON             `json:"performance" db:"performance"`
-	Dependencies JSON            `json:"dependencies" db:"dependencies"`
-	Events      JSON             `json:"events" db:"events"`
-	CreatedAt   int64            `json:"createdAt" db:"created_at"`
+	TwinID       string `json:"twinId" db:"twin_id"`
+	Timestamp    int64  `json:"timestamp" db:"timestamp"`
+	Status       string `json:"status" db:"status"`
+	Resources    JSON   `json:"resources" db:"resources"`
+	Performance  JSON   `json:"performance" db:"performance"`
+	Dependencies JSON   `json:"dependencies" db:"dependencies"`
+	Events       JSON   `json:"events" db:"events"`
+	CreatedAt    int64  `json:"createdAt" db:"created_at"`
 }
 
 // --- Simulation ---
@@ -203,15 +203,15 @@ type Simulation struct {
 }
 
 type SimulateRequest struct {
-	Type        string            `json:"type" binding:"required"`
-	Name        string            `json:"name" binding:"required"`
-	Description string            `json:"description"`
-	Parameters  map[string]any    `json:"parameters" binding:"required"`
-	Duration    *int64            `json:"duration"`
+	Type        string         `json:"type" binding:"required"`
+	Name        string         `json:"name" binding:"required"`
+	Description string         `json:"description"`
+	Parameters  map[string]any `json:"parameters" binding:"required"`
+	Duration    *int64         `json:"duration"`
 }
 
 type PredictRequest struct {
-	PredictionType string `json:"predictionType" binding:"required"`
-	ForecastPeriod string `json:"forecastPeriod" binding:"required"`
+	PredictionType string    `json:"predictionType" binding:"required"`
+	ForecastPeriod string    `json:"forecastPeriod" binding:"required"`
 	Metrics        *[]string `json:"metrics"`
 }

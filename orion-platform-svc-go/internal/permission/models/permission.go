@@ -4,14 +4,14 @@ import "time"
 
 // Permission represents a permission entity
 type Permission struct {
-	ID        string `json:"id" db:"id"`
-	Name      string `json:"name" db:"name"`
-	Code      string `json:"code" db:"code"`
-	Resource  string `json:"resource" db:"resource"`
-	Action    string `json:"action" db:"action"`
-	Desc      string `json:"desc" db:"desc"`
-	TenantID  string `json:"tenant_id" db:"tenant_id"`
-	UserID    string `json:"user_id" db:"user_id"`
+	ID        string    `json:"id" db:"id"`
+	Name      string    `json:"name" db:"name"`
+	Code      string    `json:"code" db:"code"`
+	Resource  string    `json:"resource" db:"resource"`
+	Action    string    `json:"action" db:"action"`
+	Desc      string    `json:"desc" db:"desc"`
+	TenantID  string    `json:"tenant_id" db:"tenant_id"`
+	UserID    string    `json:"user_id" db:"user_id"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }

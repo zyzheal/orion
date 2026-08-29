@@ -17,10 +17,10 @@ import (
 
 // NATSSubscriber subscribes to DeploymentEvent via NATS JetStream.
 type NATSSubscriber struct {
-	conn        *nats.Conn
-	js          jetstream.JetStream
-	stream      string
-	log         *zap.Logger
+	conn   *nats.Conn
+	js     jetstream.JetStream
+	stream string
+	log    *zap.Logger
 }
 
 // NewNATSSubscriber creates a new NATS subscriber.
@@ -50,10 +50,10 @@ func (s *NATSSubscriber) Start(ctx context.Context) error {
 	subject := fmt.Sprintf("%s.DeploymentEvent.>", s.stream)
 
 	_, err := s.js.CreateOrUpdateConsumer(ctx, s.stream, jetstream.ConsumerConfig{
-		Name:           "deploy-svc-consumer",
-		FilterSubjects: []string{subject},
-		AckPolicy:      jetstream.AckExplicitPolicy,
-		MaxDeliver:     3,
+		Name:              "deploy-svc-consumer",
+		FilterSubjects:    []string{subject},
+		AckPolicy:         jetstream.AckExplicitPolicy,
+		MaxDeliver:        3,
 		InactiveThreshold: 30 * time.Minute,
 	})
 	if err != nil {

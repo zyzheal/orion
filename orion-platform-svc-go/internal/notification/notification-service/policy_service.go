@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log"
 
+	"orion/go-common/pkg/otel"
 	"orion/platform-svc-go/internal/notification/notification/models"
 	"orion/platform-svc-go/internal/notification/notification/repository"
-	"orion/go-common/pkg/otel"
 
 	"go.uber.org/zap"
 )
@@ -20,8 +20,8 @@ var ErrWorkflowNotFound = fmt.Errorf("notification workflow not found")
 
 // PolicyService implements the notification policy business logic.
 type PolicyService struct {
-	repo      *repository.PolicyRepository
-	logger    *zap.Logger
+	repo   *repository.PolicyRepository
+	logger *zap.Logger
 }
 
 // NewPolicyService creates a new PolicyService.
@@ -53,15 +53,15 @@ func (s *PolicyService) CreatePolicy(ctx context.Context, tenantID, createdBy st
 	}
 
 	policy := &models.NotificationPolicyEntity{
-		TenantID:       tenantID,
-		Name:           req.Name,
-		Description:    req.Description,
-		Conditions:     req.Conditions,
-		Channels:       req.Channels,
-		Recipients:     req.Recipients,
+		TenantID:        tenantID,
+		Name:            req.Name,
+		Description:     req.Description,
+		Conditions:      req.Conditions,
+		Channels:        req.Channels,
+		Recipients:      req.Recipients,
 		ThrottleMinutes: throttleMinutes,
-		Enabled:        enabled,
-		CreatedBy:      &createdBy,
+		Enabled:         enabled,
+		CreatedBy:       &createdBy,
 	}
 
 	if err := s.repo.CreatePolicy(ctx, policy); err != nil {

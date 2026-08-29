@@ -8,14 +8,14 @@ import (
 
 // CorrelationGroup represents a group of correlated alerts.
 type CorrelationGroup struct {
-	ID          uuid.UUID `json:"id"`
-	TenantID    uuid.UUID `json:"tenant_id"`
-	RootAlertID uuid.UUID `json:"root_alert_id"`
+	ID          uuid.UUID   `json:"id"`
+	TenantID    uuid.UUID   `json:"tenant_id"`
+	RootAlertID uuid.UUID   `json:"root_alert_id"`
 	AlertIDs    []uuid.UUID `json:"alert_ids"`
-	GroupType   string    `json:"group_type"` // temporal, spatial, causal
-	Confidence  float64   `json:"confidence"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	GroupType   string      `json:"group_type"` // temporal, spatial, causal
+	Confidence  float64     `json:"confidence"`
+	CreatedAt   time.Time   `json:"created_at"`
+	UpdatedAt   time.Time   `json:"updated_at"`
 }
 
 // CorrelationRule defines a rule for correlating alerts.
@@ -39,7 +39,7 @@ type CorrelationResult struct {
 
 // CreateCorrelationGroupRequest for creating a correlation group.
 type CreateCorrelationGroupRequest struct {
-	RootAlertID uuid.UUID  `json:"root_alert_id" binding:"required"`
+	RootAlertID uuid.UUID   `json:"root_alert_id" binding:"required"`
 	AlertIDs    []uuid.UUID `json:"alert_ids" binding:"required"`
-	GroupType   string     `json:"group_type" binding:"required,oneof=temporal spatial causal"`
+	GroupType   string      `json:"group_type" binding:"required,oneof=temporal spatial causal"`
 }

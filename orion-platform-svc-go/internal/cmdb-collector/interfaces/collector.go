@@ -36,9 +36,12 @@ import (
 // Discover  — probe a Target and return a slice of newly-found Devices.
 // Collect   — gather the current attribute set from a known Device.
 // HealthCheck — lightweight probe to decide whether a target is reachable
-//   before a full Discover or Collect is launched.
+//
+//	before a full Discover or Collect is launched.
+//
 // ConfigSchema — the set of config keys this adapter requires, keyed by the
-//   config map field name.
+//
+//	config map field name.
 type Collector interface {
 	Name() string
 	Type() string

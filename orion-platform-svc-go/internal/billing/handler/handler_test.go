@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/billing/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/billing/models"
 )
 
@@ -54,15 +54,15 @@ func (f *fakeHandlerService) CreateSubscription(ctx context.Context, tenantID st
 	return &models.Subscription{}, nil
 }
 
-func (f *fakeHandlerService) DeleteAccount(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) DeleteAccount(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) DeleteInvoice(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) DeleteInvoice(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) DeleteSubscription(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) DeleteSubscription(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
@@ -111,7 +111,6 @@ func (f *fakeHandlerService) UpdateSubscription(ctx context.Context, tenantID, i
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 type fakeBillingService struct{}
 
@@ -188,7 +187,6 @@ func (f *fakeBillingService) UpdateSubscription(ctx context.Context, tenantID, i
 }
 
 var _ service.ServiceInterface = (*fakeBillingService)(nil)
-
 
 func Test_Handler_Handler_RegisterRoutes(t *testing.T) {
 }

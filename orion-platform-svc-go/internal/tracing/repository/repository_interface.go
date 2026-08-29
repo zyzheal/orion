@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/tracing/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	CreateSpan(ctx context.Context, span *models.TraceSpan) error

@@ -249,11 +249,11 @@ func (r *GraphRelationshipRepository) Neighbors(ctx context.Context, tenantID, n
 				WHERE sn.tenant_id = $1 AND (gr.start_node_id = $2 OR gr.end_node_id = $2)
 				ORDER BY gr.created_at DESC`, tenantID, nodeId)
 			if err != nil {
-                return paths, err
-            }
-            for _, e := range edges {
-                rels = append(rels, e)
-            }
+				return paths, err
+			}
+			for _, e := range edges {
+				rels = append(rels, e)
+			}
 		} else {
 			// For deeper levels, we get nodes at previous depth and find their connections
 			// Simplified: just get all direct edges at this point (full recursive CTE would be ideal)

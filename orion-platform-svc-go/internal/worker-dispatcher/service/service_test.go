@@ -16,11 +16,11 @@ import (
 // -----------------------------------------------------------------------------
 
 type fakeWorkerRepo struct {
-	mu          sync.RWMutex
-	policies    map[string]*models.WorkerPolicy // key = tenantID + ":" + id
-	nextID      int
-	lastUpdateKey   string
-	lastUpdateMap   map[string]interface{}
+	mu            sync.RWMutex
+	policies      map[string]*models.WorkerPolicy // key = tenantID + ":" + id
+	nextID        int
+	lastUpdateKey string
+	lastUpdateMap map[string]interface{}
 }
 
 func newFakeRepo() *fakeWorkerRepo {
@@ -109,7 +109,9 @@ func (r *fakeWorkerRepo) DeletePolicy(ctx context.Context, tenantID, id string) 
 	return nil
 }
 
-func (r *fakeWorkerRepo) CreateAssignment(ctx context.Context, m *models.WorkerAssignment) error    { return nil }
+func (r *fakeWorkerRepo) CreateAssignment(ctx context.Context, m *models.WorkerAssignment) error {
+	return nil
+}
 func (r *fakeWorkerRepo) GetAssignment(ctx context.Context, tenantID, targetID string) (*models.WorkerAssignment, error) {
 	return nil, nil
 }
@@ -122,7 +124,9 @@ func (r *fakeWorkerRepo) UpdateAssignmentStatus(ctx context.Context, tenantID, i
 func (r *fakeWorkerRepo) GetActiveAssignments(ctx context.Context, tenantID, workerID string) int {
 	return 0
 }
-func (r *fakeWorkerRepo) CreateCapability(ctx context.Context, m *models.WorkerCapability) error    { return nil }
+func (r *fakeWorkerRepo) CreateCapability(ctx context.Context, m *models.WorkerCapability) error {
+	return nil
+}
 func (r *fakeWorkerRepo) GetCapabilities(ctx context.Context, tenantID string) ([]models.WorkerCapability, error) {
 	return nil, nil
 }
@@ -433,7 +437,7 @@ type stubHandler struct {
 	name string
 }
 
-func (h *stubHandler) Name() string       { return h.name }
+func (h *stubHandler) Name() string { return h.name }
 func (h *stubHandler) Match(w *models.WorkerCapability, t map[string]interface{}) bool {
 	return true
 }
@@ -446,7 +450,9 @@ type failingRepo struct {
 	createErr error
 }
 
-func (r *failingRepo) CreatePolicy(ctx context.Context, m *models.WorkerPolicy) error { return r.createErr }
+func (r *failingRepo) CreatePolicy(ctx context.Context, m *models.WorkerPolicy) error {
+	return r.createErr
+}
 func (r *failingRepo) GetPolicy(ctx context.Context, tenantID, id string) (*models.WorkerPolicy, error) {
 	return nil, nil
 }
@@ -457,7 +463,9 @@ func (r *failingRepo) UpdatePolicy(ctx context.Context, tenantID, id string, upd
 	return nil
 }
 func (r *failingRepo) DeletePolicy(ctx context.Context, tenantID, id string) error { return nil }
-func (r *failingRepo) CreateAssignment(ctx context.Context, m *models.WorkerAssignment) error { return nil }
+func (r *failingRepo) CreateAssignment(ctx context.Context, m *models.WorkerAssignment) error {
+	return nil
+}
 func (r *failingRepo) GetAssignment(ctx context.Context, tenantID, targetID string) (*models.WorkerAssignment, error) {
 	return nil, nil
 }
@@ -467,15 +475,21 @@ func (r *failingRepo) GetAssignmentByID(ctx context.Context, tenantID, id string
 func (r *failingRepo) UpdateAssignmentStatus(ctx context.Context, tenantID, id, status string, completedAt interface{}) error {
 	return nil
 }
-func (r *failingRepo) GetActiveAssignments(ctx context.Context, tenantID, workerID string) int { return 0 }
-func (r *failingRepo) CreateCapability(ctx context.Context, m *models.WorkerCapability) error { return nil }
+func (r *failingRepo) GetActiveAssignments(ctx context.Context, tenantID, workerID string) int {
+	return 0
+}
+func (r *failingRepo) CreateCapability(ctx context.Context, m *models.WorkerCapability) error {
+	return nil
+}
 func (r *failingRepo) GetCapabilities(ctx context.Context, tenantID string) ([]models.WorkerCapability, error) {
 	return nil, nil
 }
 func (r *failingRepo) GetCapabilitiesByWorker(ctx context.Context, tenantID, workerID string) ([]models.WorkerCapability, error) {
 	return nil, nil
 }
-func (r *failingRepo) DeleteCapability(ctx context.Context, tenantID, workerID, skill string) error { return nil }
+func (r *failingRepo) DeleteCapability(ctx context.Context, tenantID, workerID, skill string) error {
+	return nil
+}
 func (r *failingRepo) GetEnabledPolicies(ctx context.Context, tenantID, policyType string) ([]models.WorkerPolicy, error) {
 	return nil, nil
 }

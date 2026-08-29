@@ -5,7 +5,6 @@ import (
 	"orion/platform-svc-go/internal/canary-analysis/models"
 )
 
-
 // RepositoryInterface defines the data access contract for the canary-analysis module.
 // DO NOT MODIFY: auto-generated from repository.go
 type RepositoryInterface interface {

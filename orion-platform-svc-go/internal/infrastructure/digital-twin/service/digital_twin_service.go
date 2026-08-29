@@ -15,11 +15,11 @@ import (
 )
 
 var (
-	ErrNotFound              = errors.New("not found")
-	ErrTwinNotFound          = errors.New("twin not found")
-	ErrDigitalTwinNotFound   = ErrTwinNotFound // backward compatibility alias
-	ErrNotOwner              = errors.New("twin does not belong to tenant")
-	ErrInvalidState          = errors.New("invalid state for this operation")
+	ErrNotFound            = errors.New("not found")
+	ErrTwinNotFound        = errors.New("twin not found")
+	ErrDigitalTwinNotFound = ErrTwinNotFound // backward compatibility alias
+	ErrNotOwner            = errors.New("twin does not belong to tenant")
+	ErrInvalidState        = errors.New("invalid state for this operation")
 )
 
 // Service provides business logic for all digital twin operations.
@@ -159,7 +159,7 @@ func (s *Service) Sync(ctx context.Context, tenantID, id string) (*models.SyncRe
 	serviceStates := models.JSONB{}
 	for _, svc := range services {
 		serviceStates[svc] = map[string]interface{}{
-			"status": "healthy",
+			"status":  "healthy",
 			"latency": rand.Intn(100),
 		}
 	}
@@ -225,7 +225,7 @@ func (s *Service) CreateSnapshot(ctx context.Context, tenantID string,
 	componentsJSON, _ := models.MarshalJSONBRaw(components)
 
 	topology := map[string][]string{
-		"api-gateway": {"user-service", "order-service"},
+		"api-gateway":  {"user-service", "order-service"},
 		"user-service": {"postgres", "redis"},
 	}
 	topologyJSON, _ := models.MarshalJSONBRaw(topology)
@@ -629,12 +629,12 @@ func (s *Service) StartReplay(ctx context.Context, tenantID string,
 	}
 
 	config := models.JSONB{
-		"speed_multiplier": req.SpeedMultiplier,
-		"max_concurrency":  req.MaxConcurrency,
-		"filter_paths":     req.FilterPaths,
-		"target_endpoint":  req.TargetEndpoint,
+		"speed_multiplier":  req.SpeedMultiplier,
+		"max_concurrency":   req.MaxConcurrency,
+		"filter_paths":      req.FilterPaths,
+		"target_endpoint":   req.TargetEndpoint,
 		"compare_responses": req.CompareResponses,
-		"stop_on_failure":  req.StopOnFailure,
+		"stop_on_failure":   req.StopOnFailure,
 	}
 	if req.SpeedMultiplier <= 0 {
 		config["speed_multiplier"] = 1

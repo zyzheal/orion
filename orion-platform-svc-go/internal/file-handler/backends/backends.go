@@ -515,7 +515,7 @@ func (m *minioClientWrapper) List(_ context.Context, prefix string) ([]string, e
 
 func (m *minioClientWrapper) StreamRead(ctx context.Context, key string) (service.StreamReadCloser, error) {
 	safeKey := sanitizeKey(key)
-	 dir := "/tmp/orion-minio-fallback"
+	dir := "/tmp/orion-minio-fallback"
 	info, err := os.Stat(filepath.Join(dir, safeKey))
 	if err != nil {
 		if os.IsNotExist(err) {

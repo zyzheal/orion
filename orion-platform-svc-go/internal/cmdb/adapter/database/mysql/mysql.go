@@ -27,7 +27,6 @@ import (
 	"log/slog"
 
 	"orion/platform-svc-go/internal/cmdb/collector"
-	"orion/platform-svc-go/internal/cmdb/collector"
 	"orion/platform-svc-go/internal/cmdb/transport"
 )
 
@@ -87,13 +86,13 @@ func (c *MySQLCollector) Ping(ctx context.Context, config map[string]any) (bool,
 	}
 
 	sqlConfig := &transport.SQLConfig{
-		Dialect:     transport.DBDialectMySQL,
-		Host:        host,
-		Port:        port,
-		Username:    username,
-		Password:    password,
-		Database:    database,
-		Charset:     "utf8mb4",
+		Dialect:      transport.DBDialectMySQL,
+		Host:         host,
+		Port:         port,
+		Username:     username,
+		Password:     password,
+		Database:     database,
+		Charset:      "utf8mb4",
 		QueryTimeout: 5,
 	}
 
@@ -115,13 +114,13 @@ func (c *MySQLCollector) Ping(ctx context.Context, config map[string]any) (bool,
 // Collect 执行采集
 //
 // 采集流程:
-//   1. 连接数据库 (连接池)
-//   2. 获取版本/当前库
-//   3. 获取数据库列表
-//   4. 获取表信息
-//   5. 获取用户列表
-//   6. 获取状态信息
-//   7. 组装 CIRaw
+//  1. 连接数据库 (连接池)
+//  2. 获取版本/当前库
+//  3. 获取数据库列表
+//  4. 获取表信息
+//  5. 获取用户列表
+//  6. 获取状态信息
+//  7. 组装 CIRaw
 func (c *MySQLCollector) Collect(ctx context.Context, config map[string]any) ([]collector.CIRaw, error) {
 	host := config["host"].(string)
 	port := 3306
@@ -191,10 +190,10 @@ func (c *MySQLCollector) Collect(ctx context.Context, config map[string]any) ([]
 		TypeHint: collector.CITypeDatabase,
 		Status:   collector.CIStatusActive,
 		Attributes: map[string]any{
-			"vendor": "mysql",
-			"host":   host,
-			"port":   port,
-			"version": version,
+			"vendor":    "mysql",
+			"host":      host,
+			"port":      port,
+			"version":   version,
 			"databases": dbList,
 			"connection": map[string]any{
 				"username": username,
@@ -286,14 +285,14 @@ func init() {
 type MySQLTable string
 
 const (
-	MySQLTableUser           MySQLTable = "mysql.user"
-	MySQLTableDB             MySQLTable = "mysql.db"
-	MySQLTableGlobalStatus   MySQLTable = "SHOW GLOBAL STATUS"
+	MySQLTableUser            MySQLTable = "mysql.user"
+	MySQLTableDB              MySQLTable = "mysql.db"
+	MySQLTableGlobalStatus    MySQLTable = "SHOW GLOBAL STATUS"
 	MySQLTableGlobalVariables MySQLTable = "SHOW GLOBAL VARIABLES"
-	MySQLTableProcesslist    MySQLTable = "SHOW PROCESSLIST"
-	MySQLTableInnodbStatus   MySQLTable = "SHOW ENGINE INNODB STATUS"
-	MySQLTableBinlog         MySQLTable = "SHOW BINARY LOGS"
-	MySQLTableSlaveStatus    MySQLTable = "SHOW SLAVE STATUS"
+	MySQLTableProcesslist     MySQLTable = "SHOW PROCESSLIST"
+	MySQLTableInnodbStatus    MySQLTable = "SHOW ENGINE INNODB STATUS"
+	MySQLTableBinlog          MySQLTable = "SHOW BINARY LOGS"
+	MySQLTableSlaveStatus     MySQLTable = "SHOW SLAVE STATUS"
 )
 
 // String 返回表名

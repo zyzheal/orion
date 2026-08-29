@@ -1,10 +1,10 @@
 package handler
 
 import (
-
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ci-cd/pipeline/models"
 	"orion/platform-svc-go/internal/ci-cd/pipeline/service"
-	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 )
@@ -43,6 +43,8 @@ func (h *AutonomousHandler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Error Classification ====================
 
 func (h *AutonomousHandler) CreateErrorClassification(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineAutonomousCreateErrorClassification")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 
@@ -52,7 +54,7 @@ func (h *AutonomousHandler) CreateErrorClassification(c *gin.Context) {
 		return
 	}
 
-	rule, err := h.svc.CreateErrorClassificationRule(c.Request.Context(), tenantID, userID, req)
+	rule, err := h.svc.CreateErrorClassificationRule(ctx, tenantID, userID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -62,10 +64,12 @@ func (h *AutonomousHandler) CreateErrorClassification(c *gin.Context) {
 }
 
 func (h *AutonomousHandler) ListErrorClassification(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineAutonomousListErrorClassification")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Query("pipeline_id")
 
-	rules, err := h.svc.ListErrorClassificationRules(c.Request.Context(), tenantID, pipelineID)
+	rules, err := h.svc.ListErrorClassificationRules(ctx, tenantID, pipelineID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -77,6 +81,8 @@ func (h *AutonomousHandler) ListErrorClassification(c *gin.Context) {
 // ==================== Adaptive Timeout ====================
 
 func (h *AutonomousHandler) SetAdaptiveTimeout(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineAutonomousSetAdaptiveTimeout")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 
@@ -86,7 +92,7 @@ func (h *AutonomousHandler) SetAdaptiveTimeout(c *gin.Context) {
 		return
 	}
 
-	config, err := h.svc.SetAdaptiveTimeout(c.Request.Context(), tenantID, userID, req)
+	config, err := h.svc.SetAdaptiveTimeout(ctx, tenantID, userID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -96,6 +102,8 @@ func (h *AutonomousHandler) SetAdaptiveTimeout(c *gin.Context) {
 }
 
 func (h *AutonomousHandler) GetAdaptiveTimeout(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineAutonomousGetAdaptiveTimeout")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Query("pipeline_id")
 
@@ -104,7 +112,7 @@ func (h *AutonomousHandler) GetAdaptiveTimeout(c *gin.Context) {
 		return
 	}
 
-	config, err := h.svc.GetAdaptiveTimeout(c.Request.Context(), tenantID, pipelineID)
+	config, err := h.svc.GetAdaptiveTimeout(ctx, tenantID, pipelineID)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -116,6 +124,8 @@ func (h *AutonomousHandler) GetAdaptiveTimeout(c *gin.Context) {
 // ==================== Auto Retry ====================
 
 func (h *AutonomousHandler) SetAutoRetry(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineAutonomousSetAutoRetry")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 
@@ -125,7 +135,7 @@ func (h *AutonomousHandler) SetAutoRetry(c *gin.Context) {
 		return
 	}
 
-	strategy, err := h.svc.SetAutoRetryStrategy(c.Request.Context(), tenantID, userID, req)
+	strategy, err := h.svc.SetAutoRetryStrategy(ctx, tenantID, userID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -135,6 +145,8 @@ func (h *AutonomousHandler) SetAutoRetry(c *gin.Context) {
 }
 
 func (h *AutonomousHandler) GetAutoRetry(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineAutonomousGetAutoRetry")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Query("pipeline_id")
 
@@ -143,7 +155,7 @@ func (h *AutonomousHandler) GetAutoRetry(c *gin.Context) {
 		return
 	}
 
-	strategy, err := h.svc.GetAutoRetryStrategy(c.Request.Context(), tenantID, pipelineID)
+	strategy, err := h.svc.GetAutoRetryStrategy(ctx, tenantID, pipelineID)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -155,6 +167,8 @@ func (h *AutonomousHandler) GetAutoRetry(c *gin.Context) {
 // ==================== Self Healing ====================
 
 func (h *AutonomousHandler) ExecuteSelfHealing(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineAutonomousExecuteSelfHealing")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 
@@ -164,7 +178,7 @@ func (h *AutonomousHandler) ExecuteSelfHealing(c *gin.Context) {
 		return
 	}
 
-	status, err := h.svc.ExecuteSelfHealing(c.Request.Context(), tenantID, userID, req)
+	status, err := h.svc.ExecuteSelfHealing(ctx, tenantID, userID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -174,6 +188,8 @@ func (h *AutonomousHandler) ExecuteSelfHealing(c *gin.Context) {
 }
 
 func (h *AutonomousHandler) GetSelfHealingStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineAutonomousGetSelfHealingStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	runID := c.Query("run_id")
 
@@ -182,7 +198,7 @@ func (h *AutonomousHandler) GetSelfHealingStatus(c *gin.Context) {
 		return
 	}
 
-	statuses, err := h.svc.GetSelfHealingStatus(c.Request.Context(), tenantID, runID)
+	statuses, err := h.svc.GetSelfHealingStatus(ctx, tenantID, runID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

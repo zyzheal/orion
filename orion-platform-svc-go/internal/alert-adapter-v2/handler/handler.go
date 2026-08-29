@@ -4,12 +4,13 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/alert-adapter-v2/models"
 	"orion/platform-svc-go/internal/alert-adapter-v2/service"
 )
 
-type Handler struct { factory *service.NotificationFactory }
+type Handler struct{ factory *service.NotificationFactory }
 
 func NewHandler(factory *service.NotificationFactory) *Handler { return &Handler{factory: factory} }
 
@@ -27,75 +28,138 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) CreateAdapter(c *gin.Context) {
-	var req struct { Name, Channel, Config string `json:"name,omitempty"` }
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertAdapterCreateAdapter")
+	defer span.End()
+	var req struct {
+		Name, Channel, Config string `json:"name,omitempty"`
+	}
 	_ = c.ShouldBindJSON(&req)
-	a, err := h.factory.CreateAdapter(c.Request.Context(), c.GetString("tenant_id"), req.Name, req.Channel, req.Config)
-	if err != nil { c.JSON(400, gin.H{"error": err.Error()}); return }
+	a, err := h.factory.CreateAdapter(ctx, c.GetString("tenant_id"), req.Name, req.Channel, req.Config)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(201, gin.H{"data": a})
 }
 
 func (h *Handler) ListAdapters(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertAdapterListAdapters")
+	defer span.End()
 	ch := c.Query("channel")
 	offset, _ := strconv.Atoi(c.Query("offset"))
 	limit, _ := strconv.Atoi(c.Query("limit"))
-	if limit <= 0 { limit = 20 }
-	items, err := h.factory.ListAdapters(c.Request.Context(), c.GetString("tenant_id"), ch, offset, limit)
-	if err != nil { c.JSON(500, gin.H{"error": err.Error()}); return }
+	if limit <= 0 {
+		limit = 20
+	}
+	items, err := h.factory.ListAdapters(ctx, c.GetString("tenant_id"), ch, offset, limit)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(200, gin.H{"data": items})
 }
 
 func (h *Handler) GetAdapter(c *gin.Context) {
-	a, err := h.factory.GetAdapter(c.Request.Context(), c.GetString("tenant_id"), c.Param("id"))
-	if err != nil { c.JSON(404, gin.H{"error": err.Error()}); return }
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertAdapterGetAdapter")
+	defer span.End()
+	a, err := h.factory.GetAdapter(ctx, c.GetString("tenant_id"), c.Param("id"))
+	if err != nil {
+		c.JSON(404, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(200, gin.H{"data": a})
 }
 
 func (h *Handler) UpdateAdapter(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertAdapterUpdateAdapter")
+	defer span.End()
 	var req models.UpdateAdapterRequest
-	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(400, gin.H{"error": err.Error()}); return }
-	a, err := h.factory.UpdateAdapter(c.Request.Context(), c.GetString("tenant_id"), c.Param("id"), &req)
-	if err != nil { c.JSON(500, gin.H{"error": err.Error()}); return }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	a, err := h.factory.UpdateAdapter(ctx, c.GetString("tenant_id"), c.Param("id"), &req)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(200, gin.H{"data": a})
 }
 
 func (h *Handler) DeleteAdapter(c *gin.Context) {
-	if err := h.factory.DeleteAdapter(c.Request.Context(), c.GetString("tenant_id"), c.Param("id")); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()}); return
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertAdapterDeleteAdapter")
+	defer span.End()
+	if err := h.factory.DeleteAdapter(ctx, c.GetString("tenant_id"), c.Param("id")); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
 	}
 	c.JSON(200, gin.H{"status": "deleted"})
 }
 
 func (h *Handler) CreateTemplate(c *gin.Context) {
-	var req struct { Name, Channel, Template, Variables string }
-	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(400, gin.H{"error": err.Error()}); return }
-	t, err := h.factory.CreateTemplate(c.Request.Context(), c.GetString("tenant_id"), req.Name, req.Channel, req.Template, req.Variables)
-	if err != nil { c.JSON(500, gin.H{"error": err.Error()}); return }
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertAdapterCreateTemplate")
+	defer span.End()
+	var req struct{ Name, Channel, Template, Variables string }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	t, err := h.factory.CreateTemplate(ctx, c.GetString("tenant_id"), req.Name, req.Channel, req.Template, req.Variables)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(201, gin.H{"data": t})
 }
 
 func (h *Handler) ListTemplates(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertAdapterListTemplates")
+	defer span.End()
 	ch := c.Query("channel")
 	offset, _ := strconv.Atoi(c.Query("offset"))
 	limit, _ := strconv.Atoi(c.Query("limit"))
-	if limit <= 0 { limit = 20 }
-	items, err := h.factory.ListTemplates(c.Request.Context(), c.GetString("tenant_id"), ch, offset, limit)
-	if err != nil { c.JSON(500, gin.H{"error": err.Error()}); return }
+	if limit <= 0 {
+		limit = 20
+	}
+	items, err := h.factory.ListTemplates(ctx, c.GetString("tenant_id"), ch, offset, limit)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(200, gin.H{"data": items})
 }
 
 func (h *Handler) SendNotification(c *gin.Context) {
-	var req struct { TemplateID, AlertID string; Variables map[string]string }
-	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(400, gin.H{"error": err.Error()}); return }
-	ev, err := h.factory.SendNotification(c.Request.Context(), c.GetString("tenant_id"), c.Param("id"), req.TemplateID, req.AlertID, req.Variables)
-	if err != nil { c.JSON(500, gin.H{"error": err.Error()}); return }
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertAdapterSendNotification")
+	defer span.End()
+	var req struct {
+		TemplateID, AlertID string
+		Variables           map[string]string
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	ev, err := h.factory.SendNotification(ctx, c.GetString("tenant_id"), c.Param("id"), req.TemplateID, req.AlertID, req.Variables)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(200, gin.H{"data": ev})
 }
 
 func (h *Handler) ListEvents(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertAdapterListEvents")
+	defer span.End()
 	offset, _ := strconv.Atoi(c.Query("offset"))
 	limit, _ := strconv.Atoi(c.Query("limit"))
-	if limit <= 0 { limit = 20 }
-	items, err := h.factory.ListEvents(c.Request.Context(), c.GetString("tenant_id"), c.Param("id"), c.Query("status"), offset, limit)
-	if err != nil { c.JSON(500, gin.H{"error": err.Error()}); return }
+	if limit <= 0 {
+		limit = 20
+	}
+	items, err := h.factory.ListEvents(ctx, c.GetString("tenant_id"), c.Param("id"), c.Query("status"), offset, limit)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(200, gin.H{"data": items})
 }

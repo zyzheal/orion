@@ -43,14 +43,14 @@ type EventPayload struct {
 // ---------------------------------------------------------------------------
 
 type baseAdapter struct {
-	name      string
-	typ       string
-	logger    *zap.Logger
-	config    models.SourceConfig
-	stopped   chan struct{}
-	mu        sync.Mutex
-	running   bool
-	handler   EventHandler
+	name    string
+	typ     string
+	logger  *zap.Logger
+	config  models.SourceConfig
+	stopped chan struct{}
+	mu      sync.Mutex
+	running bool
+	handler EventHandler
 }
 
 // EventHandler is called by adapters when they receive an incoming event.
@@ -132,10 +132,10 @@ type WebhookAdapter struct {
 func NewWebhookAdapter(logger *zap.Logger, config models.SourceConfig) *WebhookAdapter {
 	return &WebhookAdapter{
 		baseAdapter: &baseAdapter{
-			name:   "webhook",
-			typ:    models.TypeWebhook,
-			logger: logger.With(zap.String("adapter", "webhook")),
-			config: config,
+			name:    "webhook",
+			typ:     models.TypeWebhook,
+			logger:  logger.With(zap.String("adapter", "webhook")),
+			config:  config,
 			stopped: make(chan struct{}),
 		},
 	}
@@ -236,19 +236,19 @@ func (a *WebhookAdapter) ListenURL() string {
 
 type CronAdapter struct {
 	*baseAdapter
-	cronExpr  string
-	interval  time.Duration
-	timer     *time.Timer
-	wg        sync.WaitGroup
+	cronExpr string
+	interval time.Duration
+	timer    *time.Timer
+	wg       sync.WaitGroup
 }
 
 func NewCronAdapter(logger *zap.Logger, config models.SourceConfig) *CronAdapter {
 	return &CronAdapter{
 		baseAdapter: &baseAdapter{
-			name:   "cron",
-			typ:    models.TypeCron,
-			logger: logger.With(zap.String("adapter", "cron")),
-			config: config,
+			name:    "cron",
+			typ:     models.TypeCron,
+			logger:  logger.With(zap.String("adapter", "cron")),
+			config:  config,
 			stopped: make(chan struct{}),
 		},
 	}
@@ -356,10 +356,10 @@ type EventAdapter struct {
 func NewEventAdapter(logger *zap.Logger, config models.SourceConfig) *EventAdapter {
 	return &EventAdapter{
 		baseAdapter: &baseAdapter{
-			name:   "event_trigger",
-			typ:    models.TypeEventTrigger,
-			logger: logger.With(zap.String("adapter", "event_trigger")),
-			config: config,
+			name:    "event_trigger",
+			typ:     models.TypeEventTrigger,
+			logger:  logger.With(zap.String("adapter", "event_trigger")),
+			config:  config,
 			stopped: make(chan struct{}),
 		},
 	}
@@ -416,10 +416,10 @@ type APIAdapter struct {
 func NewAPIAdapter(logger *zap.Logger, config models.SourceConfig) *APIAdapter {
 	return &APIAdapter{
 		baseAdapter: &baseAdapter{
-			name:   "api",
-			typ:    models.TypeAPI,
-			logger: logger.With(zap.String("adapter", "api")),
-			config: config,
+			name:    "api",
+			typ:     models.TypeAPI,
+			logger:  logger.With(zap.String("adapter", "api")),
+			config:  config,
 			stopped: make(chan struct{}),
 		},
 		path: "/api/v1/job-trigger",

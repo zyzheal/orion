@@ -26,40 +26,40 @@ const (
 type IntegrationType string
 
 const (
-	IntegrationTypeWebhook   IntegrationType = "webhook"
-	IntegrationTypeRestAPI   IntegrationType = "rest_api"
-	IntegrationTypeGrpc      IntegrationType = "grpc"
-	IntegrationTypeSftp      IntegrationType = "sftp"
-	IntegrationTypeFile      IntegrationType = "file"
-	IntegrationTypeKafka     IntegrationType = "kafka"
-	IntegrationTypeRabbitmq  IntegrationType = "rabbitmq"
+	IntegrationTypeWebhook    IntegrationType = "webhook"
+	IntegrationTypeRestAPI    IntegrationType = "rest_api"
+	IntegrationTypeGrpc       IntegrationType = "grpc"
+	IntegrationTypeSftp       IntegrationType = "sftp"
+	IntegrationTypeFile       IntegrationType = "file"
+	IntegrationTypeKafka      IntegrationType = "kafka"
+	IntegrationTypeRabbitmq   IntegrationType = "rabbitmq"
 	IntegrationTypeHttpClient IntegrationType = "http_client"
 )
 
 var ValidIntegrationTypes = map[IntegrationType]bool{
-	IntegrationTypeWebhook:   true,
-	IntegrationTypeRestAPI:   true,
-	IntegrationTypeGrpc:      true,
-	IntegrationTypeSftp:      true,
-	IntegrationTypeFile:      true,
-	IntegrationTypeKafka:     true,
-	IntegrationTypeRabbitmq:  true,
+	IntegrationTypeWebhook:    true,
+	IntegrationTypeRestAPI:    true,
+	IntegrationTypeGrpc:       true,
+	IntegrationTypeSftp:       true,
+	IntegrationTypeFile:       true,
+	IntegrationTypeKafka:      true,
+	IntegrationTypeRabbitmq:   true,
 	IntegrationTypeHttpClient: true,
 }
 
 // Integration represents a configured third-party system integration.
 type Integration struct {
-	ID          string            `db:"id" json:"id"`
-	TenantID    string            `db:"tenant_id" json:"tenant_id"`
-	Name        string            `db:"name" json:"name"`
-	Type        string            `db:"type" json:"type"`          // webhook, rest_api, grpc, sftp, file, kafka, rabbitmq, http_client
-	HandlerType string            `db:"handler_type" json:"handler_type"` // handler class name
-	Config      string            `db:"config" json:"config"`      // JSON: connection settings
-	Status      string            `db:"status" json:"status"`      // enabled, disabled, error
-	Error       string            `db:"error" json:"error"`
-	Enabled     bool              `db:"enabled" json:"enabled"`
-	CreatedAt   time.Time         `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time         `db:"updated_at" json:"updated_at"`
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenant_id"`
+	Name        string    `db:"name" json:"name"`
+	Type        string    `db:"type" json:"type"`                 // webhook, rest_api, grpc, sftp, file, kafka, rabbitmq, http_client
+	HandlerType string    `db:"handler_type" json:"handler_type"` // handler class name
+	Config      string    `db:"config" json:"config"`             // JSON: connection settings
+	Status      string    `db:"status" json:"status"`             // enabled, disabled, error
+	Error       string    `db:"error" json:"error"`
+	Enabled     bool      `db:"enabled" json:"enabled"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
 }
 
 // CreateIntegrationRequest is the request body for creating an integration.
@@ -114,9 +114,9 @@ type IntegrationTask struct {
 	ID            string     `db:"id" json:"id"`
 	TenantID      string     `db:"tenant_id" json:"tenant_id"`
 	IntegrationID string     `db:"integration_id" json:"integration_id"`
-	Direction     string     `db:"direction" json:"direction"`   // inbound, outbound
-	Data          string     `db:"data" json:"data"`             // JSON payload
-	Status        string     `db:"status" json:"status"`         // pending, processing, completed, failed
+	Direction     string     `db:"direction" json:"direction"` // inbound, outbound
+	Data          string     `db:"data" json:"data"`           // JSON payload
+	Status        string     `db:"status" json:"status"`       // pending, processing, completed, failed
 	Error         string     `db:"error" json:"error"`
 	Response      string     `db:"response" json:"response"`
 	StartedAt     time.Time  `db:"started_at" json:"started_at"`
@@ -149,7 +149,7 @@ const (
 type IntegrationLog struct {
 	ID        string    `db:"id" json:"id"`
 	TaskID    string    `db:"task_id" json:"task_id"`
-	Level     string    `db:"level" json:"level"`    // info, warn, error
+	Level     string    `db:"level" json:"level"` // info, warn, error
 	Message   string    `db:"message" json:"message"`
 	Details   string    `db:"details" json:"details"` // JSON
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
@@ -171,7 +171,7 @@ func NewListOptions(page, pageSize int) ListOptions {
 		page = 1
 	}
 	if pageSize <= 0 {
-	pageSize = 20
+		pageSize = 20
 	}
 	if pageSize > 100 {
 		pageSize = 100

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"orion/platform-svc-go/internal/ai/rule-engine/models"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/ai/rule-engine/models"
 )
 
 type RuleEngineService struct {
@@ -122,8 +122,8 @@ func (s *RuleEngineService) evaluateActions(actionsStr string, data map[string]i
 		action = strings.TrimSpace(action)
 		if !strings.HasPrefix(action, "[") && !strings.HasPrefix(action, "{") {
 			actions = append(actions, map[string]string{
-				"type":     action,
-				"status":   "executed",
+				"type":      action,
+				"status":    "executed",
 				"timestamp": time.Now().Format(time.RFC3339),
 			})
 		}

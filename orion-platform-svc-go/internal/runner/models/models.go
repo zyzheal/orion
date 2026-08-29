@@ -6,11 +6,11 @@
 // execution results with full stdout/stderr capture.
 //
 // Data flow:
-//   1. Platform dispatches a task → runner receives via POST /runner/execute
-//   2. Runner creates a RunnerJob record (status=pending)
-//   3. Task executes (shell/http/pipeline/deploy) in isolated workspace
-//   4. Result written back (status=completed/failed, stdout, stderr, exitCode, duration)
-//   5. Result reported to Platform via webhook callback
+//  1. Platform dispatches a task → runner receives via POST /runner/execute
+//  2. Runner creates a RunnerJob record (status=pending)
+//  3. Task executes (shell/http/pipeline/deploy) in isolated workspace
+//  4. Result written back (status=completed/failed, stdout, stderr, exitCode, duration)
+//  5. Result reported to Platform via webhook callback
 //
 // Tables: runner_agents (agent registry), runner_jobs (job execution history)
 package models
@@ -27,11 +27,11 @@ import (
 type JobStatus string
 
 const (
-	JobStatusPending    JobStatus = "pending"
-	JobStatusRunning    JobStatus = "running"
-	JobStatusCompleted  JobStatus = "completed"
-	JobStatusFailed     JobStatus = "failed"
-	JobStatusCancelled  JobStatus = "cancelled"
+	JobStatusPending   JobStatus = "pending"
+	JobStatusRunning   JobStatus = "running"
+	JobStatusCompleted JobStatus = "completed"
+	JobStatusFailed    JobStatus = "failed"
+	JobStatusCancelled JobStatus = "cancelled"
 )
 
 // ValidJobStatuses is the set of valid transitions.
@@ -122,18 +122,18 @@ func (a *JSONArray) Scan(src interface{}) error {
 // RunnerAgent represents a CI worker node that executes jobs.
 // Translated from TS RunnerService.register() payload + RunnerStatus.
 type RunnerAgent struct {
-	ID             string    `db:"id" json:"id"`
-	AgentID        string    `db:"agent_id" json:"agent_id"` // unique external ID (e.g. "my-server-runner")
-	TenantID       string    `db:"tenant_id" json:"tenant_id"`
-	Name           string    `db:"name" json:"name"`
-	Labels         JSONArray `db:"labels" json:"labels"`         // e.g. ["linux", "nodejs"]
-	Endpoint       string    `db:"endpoint" json:"endpoint"`     // callback URL (e.g. "http://host:3028")
-	MaxConcurrent  int       `db:"max_concurrent" json:"max_concurrent"`
-	Status         string    `db:"status" json:"status"`         // online | offline | draining
-	Metadata       JSONB     `db:"metadata" json:"metadata"`     // OS info, runtime version
+	ID              string     `db:"id" json:"id"`
+	AgentID         string     `db:"agent_id" json:"agent_id"` // unique external ID (e.g. "my-server-runner")
+	TenantID        string     `db:"tenant_id" json:"tenant_id"`
+	Name            string     `db:"name" json:"name"`
+	Labels          JSONArray  `db:"labels" json:"labels"`     // e.g. ["linux", "nodejs"]
+	Endpoint        string     `db:"endpoint" json:"endpoint"` // callback URL (e.g. "http://host:3028")
+	MaxConcurrent   int        `db:"max_concurrent" json:"max_concurrent"`
+	Status          string     `db:"status" json:"status"`     // online | offline | draining
+	Metadata        JSONB      `db:"metadata" json:"metadata"` // OS info, runtime version
 	LastHeartbeatAt *time.Time `db:"last_heartbeat_at" json:"last_heartbeat_at,omitempty"`
-	CreatedAt      time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt      time.Time `db:"updated_at" json:"updated_at"`
+	CreatedAt       time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time  `db:"updated_at" json:"updated_at"`
 }
 
 // CreateAgentRequest is the request payload for registering a runner agent.
@@ -148,15 +148,15 @@ type CreateAgentRequest struct {
 
 // UpdateAgentRequest is the request payload for updating a runner agent.
 type UpdateAgentRequest struct {
-	Labels        *[]string   `json:"labels"`
-	MaxConcurrent *int        `json:"max_concurrent"`
-	Status        *string     `json:"status"`
-	Metadata      *JSONB      `json:"metadata"`
+	Labels        *[]string `json:"labels"`
+	MaxConcurrent *int      `json:"max_concurrent"`
+	Status        *string   `json:"status"`
+	Metadata      *JSONB    `json:"metadata"`
 }
 
 // HeartbeatRequest is the request payload for an agent heartbeat.
 type HeartbeatRequest struct {
-	ActiveJobs  int     `json:"active_jobs"`
+	ActiveJobs  int      `json:"active_jobs"`
 	CPUUsage    *float64 `json:"cpu_usage"`
 	MemoryUsage *float64 `json:"memory_usage"`
 	DiskUsage   *float64 `json:"disk_usage"`
@@ -180,30 +180,30 @@ type AgentInfo struct {
 // RunnerJob represents a single job execution dispatched to a runner agent.
 // Translated from TS RunnerJob interface (JobRepository.ts).
 type RunnerJob struct {
-	ID        string     `db:"id" json:"id"`
-	JobID     string     `db:"job_id" json:"job_id"`         // external job identifier (unique)
-	AgentID   string     `db:"agent_id" json:"agent_id"`     // FK → runner_agents.id
-	TenantID  string     `db:"tenant_id" json:"tenant_id"`
-	TaskType  string     `db:"task_type" json:"task_type"`   // shell | npm | test | build | http | pipeline | deploy
-	Status    JobStatus  `db:"status" json:"status"`
-	Params    JSONB      `db:"task_parameters" json:"task_parameters,omitempty"`
-	Result    JSONB      `db:"result" json:"result,omitempty"`
-	Stdout    *string    `db:"stdout" json:"stdout,omitempty"`
-	Stderr    *string    `db:"stderr" json:"stderr,omitempty"`
-	ExitCode  *int       `db:"exit_code" json:"exit_code,omitempty"`
-	DurationMs *int      `db:"duration_ms" json:"duration_ms,omitempty"`
-	ErrMsg    *string    `db:"error_message" json:"error_message,omitempty"`
-	StartedAt  *time.Time `db:"started_at" json:"started_at,omitempty"`
+	ID          string     `db:"id" json:"id"`
+	JobID       string     `db:"job_id" json:"job_id"`     // external job identifier (unique)
+	AgentID     string     `db:"agent_id" json:"agent_id"` // FK → runner_agents.id
+	TenantID    string     `db:"tenant_id" json:"tenant_id"`
+	TaskType    string     `db:"task_type" json:"task_type"` // shell | npm | test | build | http | pipeline | deploy
+	Status      JobStatus  `db:"status" json:"status"`
+	Params      JSONB      `db:"task_parameters" json:"task_parameters,omitempty"`
+	Result      JSONB      `db:"result" json:"result,omitempty"`
+	Stdout      *string    `db:"stdout" json:"stdout,omitempty"`
+	Stderr      *string    `db:"stderr" json:"stderr,omitempty"`
+	ExitCode    *int       `db:"exit_code" json:"exit_code,omitempty"`
+	DurationMs  *int       `db:"duration_ms" json:"duration_ms,omitempty"`
+	ErrMsg      *string    `db:"error_message" json:"error_message,omitempty"`
+	StartedAt   *time.Time `db:"started_at" json:"started_at,omitempty"`
 	CompletedAt *time.Time `db:"completed_at" json:"completed_at,omitempty"`
-	CreatedAt time.Time  `db:"created_at" json:"created_at"`
+	CreatedAt   time.Time  `db:"created_at" json:"created_at"`
 }
 
 // CreateJobRequest is the request payload for dispatching a task to a runner.
 // Translated from TS ExecuteBody interface (runner-routes.ts).
 type CreateJobRequest struct {
-	AgentID string              `json:"agent_id" binding:"required"`
-	Task    *TaskSpec           `json:"task" binding:"required"`
-	TenantID string             `json:"tenant_id"` // optional; defaults to agent's tenant
+	AgentID  string    `json:"agent_id" binding:"required"`
+	Task     *TaskSpec `json:"task" binding:"required"`
+	TenantID string    `json:"tenant_id"` // optional; defaults to agent's tenant
 }
 
 // TaskSpec describes a single CI task to execute.
@@ -221,13 +221,13 @@ type TaskSpec struct {
 
 // UpdateJobStatusRequest is the request payload for manually updating job status.
 type UpdateJobStatusRequest struct {
-	Status    JobStatus `json:"status" binding:"required"`
-	ErrMsg    *string   `json:"error_message"`
-	ExitCode  *int      `json:"exit_code"`
-	DurationMs *int     `json:"duration_ms"`
-	Stdout    *string   `json:"stdout"`
-	Stderr    *string   `json:"stderr"`
-	Result    *JSONB    `json:"result"`
+	Status     JobStatus `json:"status" binding:"required"`
+	ErrMsg     *string   `json:"error_message"`
+	ExitCode   *int      `json:"exit_code"`
+	DurationMs *int      `json:"duration_ms"`
+	Stdout     *string   `json:"stdout"`
+	Stderr     *string   `json:"stderr"`
+	Result     *JSONB    `json:"result"`
 }
 
 // JobResult is the task execution result reported back to the platform.
@@ -262,13 +262,13 @@ type RunnerHeartbeat struct {
 // ---------------------------------------------------------------------------
 
 var ValidTaskTypes = map[string]bool{
-	"shell":   true,
-	"npm":     true,
-	"test":    true,
-	"build":   true,
-	"http":    true,
+	"shell":    true,
+	"npm":      true,
+	"test":     true,
+	"build":    true,
+	"http":     true,
 	"pipeline": true,
-	"deploy":  true,
+	"deploy":   true,
 }
 
 // ---------------------------------------------------------------------------

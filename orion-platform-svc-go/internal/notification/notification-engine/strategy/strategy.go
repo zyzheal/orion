@@ -171,12 +171,12 @@ func (s *SingleChannelStrategy) Execute(ctx context.Context, msg *engine.NotifyM
 
 // BatchStrategy delivers to all channels in the chain in parallel.
 type BatchStrategy struct {
-	factory     *engine.NotifyHandlerFactory
-	maxWorkers  int           // max parallel workers
-	timeout     time.Duration // per-message timeout
-	backoff     time.Duration // base backoff for retry
-	maxRetries  int           // max retry attempts
-	logger      Logger
+	factory    *engine.NotifyHandlerFactory
+	maxWorkers int           // max parallel workers
+	timeout    time.Duration // per-message timeout
+	backoff    time.Duration // base backoff for retry
+	maxRetries int           // max retry attempts
+	logger     Logger
 }
 
 // Logger is the minimal logging interface used by strategies.
@@ -189,9 +189,9 @@ type Logger interface {
 // NoopLogger is a logger that discards all output.
 type NoopLogger struct{}
 
-func (NoopLogger) Info(_ string, _ ...any)   {}
-func (NoopLogger) Warn(_ string, _ ...any)   {}
-func (NoopLogger) Error(_ string, _ ...any)  {}
+func (NoopLogger) Info(_ string, _ ...any)  {}
+func (NoopLogger) Warn(_ string, _ ...any)  {}
+func (NoopLogger) Error(_ string, _ ...any) {}
 
 // BatchOptions configures BatchStrategy.
 type BatchOptions struct {
@@ -343,10 +343,10 @@ func (s *BatchStrategy) executeWithRetry(ctx context.Context, handler engine.Not
 
 // PriorityStrategy routes messages based on their priority level.
 type PriorityStrategy struct {
-	single     DeliveryStrategy
-	batch      DeliveryStrategy
+	single      DeliveryStrategy
+	batch       DeliveryStrategy
 	urgentChain []models.ChannelType // channels always notified for urgent messages
-	logger     Logger
+	logger      Logger
 }
 
 // PriorityStrategyOptions configures PriorityStrategy.

@@ -22,7 +22,7 @@ type mockHub struct {
 	publishLogFn       func(ctx context.Context, tenantID string, event *models.PublishLogRequest) error
 	publishStatusFn    func(ctx context.Context, tenantID string, event *models.PublishStatusRequest) error
 	getStatsFn         func() *models.SSEStats
-	listEventsFn  func(ctx context.Context, tenantID, pipelineID, runID string, limit int) ([]map[string]interface{}, error)
+	listEventsFn       func(ctx context.Context, tenantID, pipelineID, runID string, limit int) ([]map[string]interface{}, error)
 }
 
 func (m *mockHub) CreateConnection(pipelineID, runID, userID string, logLevels []string, includeLogs, includeStatus bool) string {

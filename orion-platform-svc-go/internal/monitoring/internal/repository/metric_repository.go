@@ -7,8 +7,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"orion/platform-svc-go/internal/monitoring/internal/models"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/monitoring/internal/models"
 )
 
 type MetricRepository struct {

@@ -9,10 +9,10 @@ import (
 
 func Test_ResolveActionKind_Explicit(t *testing.T) {
 	cases := map[models.ActionKind]string{
-		models.ActionCreateTicket:   "create_ticket",
+		models.ActionCreateTicket:    "create_ticket",
 		models.ActionTriggerPipeline: "trigger_pipeline",
-		models.ActionCreateChange:   "create_change",
-		models.ActionGenerateFlow:   "generate_flow",
+		models.ActionCreateChange:    "create_change",
+		models.ActionGenerateFlow:    "generate_flow",
 	}
 	for want, given := range cases {
 		req := &models.ActionRequest{Prompt: "x", Kind: given}

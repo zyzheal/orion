@@ -2,19 +2,20 @@
 // All endpoints are mounted under /api/v1/runner prefix via RegisterRoutes.
 //
 // API contract (translated from TS blueprint routes/runner-routes.ts):
-//   POST   /api/v1/runner/agents        - Register a runner agent
-//   GET    /api/v1/runner/agents         - List agents (paginated)
-//   GET    /api/v1/runner/agents/:id     - Get agent info
-//   PATCH  /api/v1/runner/agents/:id     - Update agent
-//   DELETE /api/v1/runner/agents/:id     - Delete agent
-//   POST   /api/v1/runner/agents/:id/heartbeat - Agent heartbeat
-//   POST   /api/v1/runner/jobs           - Dispatch a job
-//   GET    /api/v1/runner/jobs           - List jobs (paginated)
-//   GET    /api/v1/runner/jobs/:id       - Get job details
-//   PATCH  /api/v1/runner/jobs/:id       - Transition job status
-//   DELETE /api/v1/runner/jobs/:id       - Delete job
-//   POST   /api/v1/runner/jobs/:id/result - Report job result
-//   GET    /api/v1/runner/health         - Health check (no auth)
+//
+//	POST   /api/v1/runner/agents        - Register a runner agent
+//	GET    /api/v1/runner/agents         - List agents (paginated)
+//	GET    /api/v1/runner/agents/:id     - Get agent info
+//	PATCH  /api/v1/runner/agents/:id     - Update agent
+//	DELETE /api/v1/runner/agents/:id     - Delete agent
+//	POST   /api/v1/runner/agents/:id/heartbeat - Agent heartbeat
+//	POST   /api/v1/runner/jobs           - Dispatch a job
+//	GET    /api/v1/runner/jobs           - List jobs (paginated)
+//	GET    /api/v1/runner/jobs/:id       - Get job details
+//	PATCH  /api/v1/runner/jobs/:id       - Transition job status
+//	DELETE /api/v1/runner/jobs/:id       - Delete job
+//	POST   /api/v1/runner/jobs/:id/result - Report job result
+//	GET    /api/v1/runner/health         - Health check (no auth)
 package handler
 
 import (
@@ -113,10 +114,10 @@ func (h *Handler) RegisterAgent(c *gin.Context) {
 		return
 	}
 	middleware.RespondCreated(c, gin.H{
-		"agent_id":     agent.AgentID,
-		"status":       agent.Status,
+		"agent_id":       agent.AgentID,
+		"status":         agent.Status,
 		"max_concurrent": agent.MaxConcurrent,
-		"name":         agent.Name,
+		"name":           agent.Name,
 	})
 }
 
@@ -220,9 +221,9 @@ func (h *Handler) CreateJob(c *gin.Context) {
 		return
 	}
 	middleware.RespondCreated(c, gin.H{
-		"job_id":   job.JobID,
-		"agent_id": job.AgentID,
-		"status":   string(job.Status),
+		"job_id":    job.JobID,
+		"agent_id":  job.AgentID,
+		"status":    string(job.Status),
 		"task_type": job.TaskType,
 	})
 }

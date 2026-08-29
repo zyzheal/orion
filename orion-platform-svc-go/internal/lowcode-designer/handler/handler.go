@@ -1,12 +1,12 @@
 package handler
 
 import (
+	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/lowcode-designer/models"
 	"orion/platform-svc-go/internal/lowcode-designer/service"
 	"orion/platform-svc-go/internal/middleware"
-
-	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -65,9 +65,11 @@ func (h *Handler) getOperator(c *gin.Context) string {
 // Form routes
 
 func (h *Handler) ListForms(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignListForms")
+	defer span.End()
 	cat := c.Query("category")
 	st := c.Query("status")
-	forms, err := h.svc.ListForms(c.Request.Context(), h.getTenantID(c), cat, st)
+	forms, err := h.svc.ListForms(ctx, h.getTenantID(c), cat, st)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -76,12 +78,14 @@ func (h *Handler) ListForms(c *gin.Context) {
 }
 
 func (h *Handler) CreateForm(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignCreateForm")
+	defer span.End()
 	var req models.CreateFormRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	f, err := h.svc.CreateForm(c.Request.Context(), &req, h.getTenantID(c), h.getOperator(c))
+	f, err := h.svc.CreateForm(ctx, &req, h.getTenantID(c), h.getOperator(c))
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -90,7 +94,9 @@ func (h *Handler) CreateForm(c *gin.Context) {
 }
 
 func (h *Handler) GetForm(c *gin.Context) {
-	f, err := h.svc.GetForm(c.Request.Context(), c.Param("id"), h.getTenantID(c))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignGetForm")
+	defer span.End()
+	f, err := h.svc.GetForm(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -99,12 +105,14 @@ func (h *Handler) GetForm(c *gin.Context) {
 }
 
 func (h *Handler) UpdateForm(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignUpdateForm")
+	defer span.End()
 	var req models.UpdateFormRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	f, err := h.svc.UpdateForm(c.Request.Context(), c.Param("id"), h.getTenantID(c), h.getOperator(c), &req)
+	f, err := h.svc.UpdateForm(ctx, c.Param("id"), h.getTenantID(c), h.getOperator(c), &req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -113,7 +121,9 @@ func (h *Handler) UpdateForm(c *gin.Context) {
 }
 
 func (h *Handler) DeleteForm(c *gin.Context) {
-	deleted, err := h.svc.DeleteForm(c.Request.Context(), c.Param("id"), h.getTenantID(c))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignDeleteForm")
+	defer span.End()
+	deleted, err := h.svc.DeleteForm(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil || !deleted {
 		middleware.RespondNotFound(c, "form not found")
 		return
@@ -124,12 +134,14 @@ func (h *Handler) DeleteForm(c *gin.Context) {
 // Field routes
 
 func (h *Handler) CreateField(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignCreateField")
+	defer span.End()
 	var req models.CreateFieldRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	field, err := h.svc.CreateField(c.Request.Context(), c.Param("id"), h.getTenantID(c), &req)
+	field, err := h.svc.CreateField(ctx, c.Param("id"), h.getTenantID(c), &req)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -138,7 +150,9 @@ func (h *Handler) CreateField(c *gin.Context) {
 }
 
 func (h *Handler) GetFieldsByForm(c *gin.Context) {
-	fields, err := h.svc.GetFieldsByForm(c.Request.Context(), c.Param("id"), h.getTenantID(c))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignGetFieldsByForm")
+	defer span.End()
+	fields, err := h.svc.GetFieldsByForm(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -147,12 +161,14 @@ func (h *Handler) GetFieldsByForm(c *gin.Context) {
 }
 
 func (h *Handler) UpdateField(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignUpdateField")
+	defer span.End()
 	var req models.CreateFieldRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	field, err := h.svc.UpdateField(c.Request.Context(), c.Param("id"), h.getTenantID(c), &req)
+	field, err := h.svc.UpdateField(ctx, c.Param("id"), h.getTenantID(c), &req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -161,7 +177,9 @@ func (h *Handler) UpdateField(c *gin.Context) {
 }
 
 func (h *Handler) DeleteField(c *gin.Context) {
-	deleted, err := h.svc.DeleteField(c.Request.Context(), c.Param("id"), h.getTenantID(c))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignDeleteField")
+	defer span.End()
+	deleted, err := h.svc.DeleteField(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil || !deleted {
 		middleware.RespondNotFound(c, "field not found")
 		return
@@ -172,8 +190,10 @@ func (h *Handler) DeleteField(c *gin.Context) {
 // Template routes
 
 func (h *Handler) ListTemplates(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignListTemplates")
+	defer span.End()
 	cat := c.Query("category")
-	templates, err := h.svc.ListTemplates(c.Request.Context(), h.getTenantID(c), cat)
+	templates, err := h.svc.ListTemplates(ctx, h.getTenantID(c), cat)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -182,7 +202,9 @@ func (h *Handler) ListTemplates(c *gin.Context) {
 }
 
 func (h *Handler) GetTemplate(c *gin.Context) {
-	t, err := h.svc.GetTemplate(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignGetTemplate")
+	defer span.End()
+	t, err := h.svc.GetTemplate(ctx, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -191,6 +213,8 @@ func (h *Handler) GetTemplate(c *gin.Context) {
 }
 
 func (h *Handler) CreateTemplate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignCreateTemplate")
+	defer span.End()
 	var body struct {
 		Name        string                 `json:"name" binding:"required"`
 		Description string                 `json:"description"`
@@ -201,7 +225,7 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	t, err := h.svc.CreateTemplate(c.Request.Context(), h.getTenantID(c), body.Name, body.Description, body.Category, body.Schema)
+	t, err := h.svc.CreateTemplate(ctx, h.getTenantID(c), body.Name, body.Description, body.Category, body.Schema)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -212,12 +236,14 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 // Instance routes
 
 func (h *Handler) SubmitInstance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignSubmitInstance")
+	defer span.End()
 	var req models.SubmitInstanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	inst, err := h.svc.SubmitInstance(c.Request.Context(), c.Param("id"), h.getTenantID(c), &req)
+	inst, err := h.svc.SubmitInstance(ctx, c.Param("id"), h.getTenantID(c), &req)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -226,9 +252,11 @@ func (h *Handler) SubmitInstance(c *gin.Context) {
 }
 
 func (h *Handler) ListInstances(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignListInstances")
+	defer span.End()
 	formID := c.Query("formId")
 	status := c.Query("status")
-	insts, err := h.svc.ListInstances(c.Request.Context(), h.getTenantID(c), formID, status)
+	insts, err := h.svc.ListInstances(ctx, h.getTenantID(c), formID, status)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -237,7 +265,9 @@ func (h *Handler) ListInstances(c *gin.Context) {
 }
 
 func (h *Handler) GetInstance(c *gin.Context) {
-	inst, err := h.svc.GetInstance(c.Request.Context(), c.Param("id"), h.getTenantID(c))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignGetInstance")
+	defer span.End()
+	inst, err := h.svc.GetInstance(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -246,12 +276,14 @@ func (h *Handler) GetInstance(c *gin.Context) {
 }
 
 func (h *Handler) ApproveInstance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignApproveInstance")
+	defer span.End()
 	var req models.ApproveInstanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	inst, err := h.svc.ApproveInstance(c.Request.Context(), c.Param("id"), h.getTenantID(c), &req)
+	inst, err := h.svc.ApproveInstance(ctx, c.Param("id"), h.getTenantID(c), &req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -262,8 +294,10 @@ func (h *Handler) ApproveInstance(c *gin.Context) {
 // Component routes
 
 func (h *Handler) ListComponents(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignListComponents")
+	defer span.End()
 	cat := c.Query("category")
-	comps, err := h.svc.ListComponents(c.Request.Context(), h.getTenantID(c), cat)
+	comps, err := h.svc.ListComponents(ctx, h.getTenantID(c), cat)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -272,7 +306,9 @@ func (h *Handler) ListComponents(c *gin.Context) {
 }
 
 func (h *Handler) GetComponent(c *gin.Context) {
-	c2, err := h.svc.GetComponent(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignGetComponent")
+	defer span.End()
+	c2, err := h.svc.GetComponent(ctx, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -281,6 +317,8 @@ func (h *Handler) GetComponent(c *gin.Context) {
 }
 
 func (h *Handler) CreateComponent(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignCreateComponent")
+	defer span.End()
 	var body struct {
 		Name          string                 `json:"name" binding:"required"`
 		DisplayName   string                 `json:"displayName" binding:"required"`
@@ -300,7 +338,7 @@ func (h *Handler) CreateComponent(c *gin.Context) {
 	if body.Version == "" {
 		body.Version = "1.0.0"
 	}
-	c2, err := h.svc.CreateComponent(c.Request.Context(), h.getTenantID(c), body.Name, body.DisplayName, body.Category, body.Version, body.PropsSchema, body.DefaultConfig, body.Icon)
+	c2, err := h.svc.CreateComponent(ctx, h.getTenantID(c), body.Name, body.DisplayName, body.Category, body.Version, body.PropsSchema, body.DefaultConfig, body.Icon)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/notification/notification/models"
 	"orion/platform-svc-go/internal/notification/notification/service"
 
@@ -39,6 +40,8 @@ func (h *ScheduledNotificationHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Create handles POST /scheduled-notifications - create a new scheduled notification.
 func (h *ScheduledNotificationHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateScheduledNotificationInput
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -46,7 +49,7 @@ func (h *ScheduledNotificationHandler) Create(c *gin.Context) {
 		return
 	}
 
-	n, err := h.scheduledSvc.CreateScheduledNotification(c.Request.Context(), tenantID, &req)
+	n, err := h.scheduledSvc.CreateScheduledNotification(ctx, tenantID, &req)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -56,8 +59,10 @@ func (h *ScheduledNotificationHandler) Create(c *gin.Context) {
 
 // Get handles GET /scheduled-notifications/:id - get a single scheduled notification.
 func (h *ScheduledNotificationHandler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationGet")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	n, err := h.scheduledSvc.GetScheduledNotification(c.Request.Context(), tenantID, c.Param("id"))
+	n, err := h.scheduledSvc.GetScheduledNotification(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, "scheduled notification not found")
 		return
@@ -67,6 +72,8 @@ func (h *ScheduledNotificationHandler) Get(c *gin.Context) {
 
 // List handles GET /scheduled-notifications - list scheduled notifications.
 func (h *ScheduledNotificationHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var opts models.ListNotificationsQuery
 	if err := c.ShouldBindQuery(&opts); err != nil {
@@ -74,7 +81,7 @@ func (h *ScheduledNotificationHandler) List(c *gin.Context) {
 		return
 	}
 
-	items, total, err := h.scheduledSvc.ListScheduledNotifications(c.Request.Context(), tenantID, opts)
+	items, total, err := h.scheduledSvc.ListScheduledNotifications(ctx, tenantID, opts)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -84,6 +91,8 @@ func (h *ScheduledNotificationHandler) List(c *gin.Context) {
 
 // Update handles PUT /scheduled-notifications/:id - update a scheduled notification.
 func (h *ScheduledNotificationHandler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationUpdate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateScheduledNotificationInput
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -91,7 +100,7 @@ func (h *ScheduledNotificationHandler) Update(c *gin.Context) {
 		return
 	}
 
-	n, err := h.scheduledSvc.UpdateScheduledNotification(c.Request.Context(), tenantID, c.Param("id"), &req)
+	n, err := h.scheduledSvc.UpdateScheduledNotification(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		if err == service.ErrScheduledNotificationNotFound {
 			respondNotFound(c, err.Error())
@@ -105,6 +114,8 @@ func (h *ScheduledNotificationHandler) Update(c *gin.Context) {
 
 // Toggle handles PUT /scheduled-notifications/:id/toggle - toggle enabled/disabled status.
 func (h *ScheduledNotificationHandler) Toggle(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationToggle")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.ToggleScheduledNotificationInput
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -113,7 +124,7 @@ func (h *ScheduledNotificationHandler) Toggle(c *gin.Context) {
 	}
 
 	enabled := req.Enabled
-	n, err := h.scheduledSvc.UpdateScheduledNotification(c.Request.Context(), tenantID, c.Param("id"), &models.UpdateScheduledNotificationInput{
+	n, err := h.scheduledSvc.UpdateScheduledNotification(ctx, tenantID, c.Param("id"), &models.UpdateScheduledNotificationInput{
 		Enabled: enabled,
 	})
 	if err != nil {
@@ -129,8 +140,10 @@ func (h *ScheduledNotificationHandler) Toggle(c *gin.Context) {
 
 // Cancel handles POST /scheduled-notifications/:id/cancel - cancel a pending scheduled notification.
 func (h *ScheduledNotificationHandler) Cancel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationCancel")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.scheduledSvc.DeleteScheduledNotification(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.scheduledSvc.DeleteScheduledNotification(ctx, tenantID, c.Param("id")); err != nil {
 		if err == service.ErrScheduledNotificationNotFound {
 			respondNotFound(c, err.Error())
 			return
@@ -143,8 +156,10 @@ func (h *ScheduledNotificationHandler) Cancel(c *gin.Context) {
 
 // Delete handles DELETE /scheduled-notifications/:id - delete a scheduled notification.
 func (h *ScheduledNotificationHandler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.scheduledSvc.DeleteScheduledNotification(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.scheduledSvc.DeleteScheduledNotification(ctx, tenantID, c.Param("id")); err != nil {
 		if err == service.ErrScheduledNotificationNotFound {
 			respondNotFound(c, err.Error())
 			return
@@ -157,6 +172,8 @@ func (h *ScheduledNotificationHandler) Delete(c *gin.Context) {
 
 // ValidateCron handles GET /scheduled-notifications/validate-cron - validate a cron expression.
 func (h *ScheduledNotificationHandler) ValidateCron(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationValidateCron")
+	defer span.End()
 	cronExpr := c.Query("expression")
 	if cronExpr == "" {
 		respondBadRequest(c, "expression query parameter is required")

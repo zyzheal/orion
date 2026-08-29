@@ -6,11 +6,11 @@ import (
 )
 
 var (
-	ErrInvalidErrorRateThreshold  = errors.New("error rate threshold must be in [0.0, 1.0]")
-	ErrInvalidLatencyThreshold    = errors.New("latency threshold must be positive milliseconds")
-	ErrInvalidWindowSize          = errors.New("window size must be >= 2")
-	ErrInvalidMinSampleCount      = errors.New("minimum sample count must be >= 1")
-	ErrInvalidHysteresisConfig    = errors.New("hysteresis config has invalid values")
+	ErrInvalidErrorRateThreshold = errors.New("error rate threshold must be in [0.0, 1.0]")
+	ErrInvalidLatencyThreshold   = errors.New("latency threshold must be positive milliseconds")
+	ErrInvalidWindowSize         = errors.New("window size must be >= 2")
+	ErrInvalidMinSampleCount     = errors.New("minimum sample count must be >= 1")
+	ErrInvalidHysteresisConfig   = errors.New("hysteresis config has invalid values")
 )
 
 // TriggerConfig holds the configuration for an automatic degradation trigger.
@@ -74,13 +74,13 @@ type HysteresisConfig struct {
 // DefaultTriggerConfig returns a sensible default configuration.
 func DefaultTriggerConfig() TriggerConfig {
 	return TriggerConfig{
-		ErrorRateThreshold:  0.05,
-		LatencyThresholdMs:  500,
-		WindowSize:          10,
-		MinSampleCount:      10,
-		EvaluateInterval:    10 * time.Second,
+		ErrorRateThreshold: 0.05,
+		LatencyThresholdMs: 500,
+		WindowSize:         10,
+		MinSampleCount:     10,
+		EvaluateInterval:   10 * time.Second,
 		Hysteresis: HysteresisConfig{
-			Enabled:               true,
+			Enabled:                true,
 			RecoverErrorRateMargin: 0.02,
 			RecoverLatencyMarginMs: 100,
 			HealthStreakRequired:   3,

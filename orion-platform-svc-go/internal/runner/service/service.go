@@ -45,8 +45,8 @@ var (
 
 // Service provides business logic for runner agents and job execution tracking.
 type Service struct {
-	repo      *repository.Repository
-	mu        sync.RWMutex
+	repo        *repository.Repository
+	mu          sync.RWMutex
 	platformURL string
 }
 

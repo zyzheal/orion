@@ -19,9 +19,9 @@ import (
 
 // Errors.
 var (
-	ErrAdapterNotFound     = errors.New("notification adapter not found")
-	ErrEventNotFound       = errors.New("notification event not found")
-	ErrTemplateNotFound    = errors.New("notification template not found")
+	ErrAdapterNotFound  = errors.New("notification adapter not found")
+	ErrEventNotFound    = errors.New("notification event not found")
+	ErrTemplateNotFound = errors.New("notification template not found")
 )
 
 // Repository is the data access layer for notification adapters, templates, and events.
@@ -61,14 +61,14 @@ func (r *Repository) CreateAdapter(ctx context.Context, adapter *models.AlertNot
 }
 
 type createAdapterRow struct {
-	ID        string     `db:"id"`
-	TenantID  string     `db:"tenant_id"`
-	Name      string     `db:"name"`
-	Channel   string     `db:"channel"`
-	Config    string     `db:"config"`
-	Status    string     `db:"status"`
-	Error     string     `db:"error"`
-	Enabled   bool       `db:"enabled"`
+	ID        string       `db:"id"`
+	TenantID  string       `db:"tenant_id"`
+	Name      string       `db:"name"`
+	Channel   string       `db:"channel"`
+	Config    string       `db:"config"`
+	Status    string       `db:"status"`
+	Error     string       `db:"error"`
+	Enabled   bool         `db:"enabled"`
 	CreatedAt sql.NullTime `db:"created_at"`
 	UpdatedAt sql.NullTime `db:"updated_at"`
 }
@@ -199,13 +199,13 @@ func (r *Repository) CreateEvent(ctx context.Context, event *models.AlertNotific
 }
 
 type createEventRow struct {
-	ID          string      `db:"id"`
-	TenantID    string      `db:"tenant_id"`
-	AdapterID   string      `db:"adapter_id"`
-	AlertID     string      `db:"alert_id"`
-	Payload     string      `db:"payload"`
-	Status      string      `db:"status"`
-	Error       string      `db:"error"`
+	ID          string       `db:"id"`
+	TenantID    string       `db:"tenant_id"`
+	AdapterID   string       `db:"adapter_id"`
+	AlertID     string       `db:"alert_id"`
+	Payload     string       `db:"payload"`
+	Status      string       `db:"status"`
+	Error       string       `db:"error"`
 	SentAt      sql.NullTime `db:"sent_at"`
 	DeliveredAt sql.NullTime `db:"delivered_at"`
 	CreatedAt   sql.NullTime `db:"created_at"`
@@ -274,12 +274,12 @@ func (r *Repository) CreateTemplate(ctx context.Context, template *models.AlertN
 }
 
 type createTemplateRow struct {
-	ID        string      `db:"id"`
-	TenantID  string      `db:"tenant_id"`
-	Name      string      `db:"name"`
-	Channel   string      `db:"channel"`
-	Template  string      `db:"template"`
-	Variables string      `db:"variables"`
+	ID        string       `db:"id"`
+	TenantID  string       `db:"tenant_id"`
+	Name      string       `db:"name"`
+	Channel   string       `db:"channel"`
+	Template  string       `db:"template"`
+	Variables string       `db:"variables"`
 	CreatedAt sql.NullTime `db:"created_at"`
 }
 

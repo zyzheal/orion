@@ -9,24 +9,24 @@ import (
 )
 
 const (
-	PromptNameDefault       = "rag_default"
-	PromptNameSimple        = "rag_simple"
-	PromptNameComplex       = "rag_complex"
-	PromptNameFeedback      = "rag_feedback_summary"
-	PromptNameGroundTruth   = "rag_evaluator"
+	PromptNameDefault     = "rag_default"
+	PromptNameSimple      = "rag_simple"
+	PromptNameComplex     = "rag_complex"
+	PromptNameFeedback    = "rag_feedback_summary"
+	PromptNameGroundTruth = "rag_evaluator"
 )
 
 var DefaultPromptTemplates = map[string]string{
-	PromptNameDefault: `You are an AI assistant for the Orion DevOps platform. Answer based ONLY on the provided knowledge base context. If the context doesn't contain relevant information, say so explicitly. Always cite the source document IDs you reference. Respond in Chinese.`,
-	PromptNameSimple: `You are an AI assistant. Provide a concise answer based on the knowledge base context below. Keep the answer under 200 words. Cite sources.`,
-	PromptNameComplex: `You are an expert DevOps engineer answering a complex question. Analyze the knowledge base context carefully, provide step-by-step guidance, and note any caveats. Cite all source document IDs.`,
-	PromptNameFeedback: `Based on user feedback, summarize the issue and suggest improvement to the RAG answer.`,
+	PromptNameDefault:     `You are an AI assistant for the Orion DevOps platform. Answer based ONLY on the provided knowledge base context. If the context doesn't contain relevant information, say so explicitly. Always cite the source document IDs you reference. Respond in Chinese.`,
+	PromptNameSimple:      `You are an AI assistant. Provide a concise answer based on the knowledge base context below. Keep the answer under 200 words. Cite sources.`,
+	PromptNameComplex:     `You are an expert DevOps engineer answering a complex question. Analyze the knowledge base context carefully, provide step-by-step guidance, and note any caveats. Cite all source document IDs.`,
+	PromptNameFeedback:    `Based on user feedback, summarize the issue and suggest improvement to the RAG answer.`,
 	PromptNameGroundTruth: `Given this query and knowledge base context, provide the gold standard answer for evaluation purposes.`,
 }
 
 // PromptTemplateManager manages prompt templates with fallback defaults.
 type PromptTemplateManager struct {
-	repo    RAGRepositoryInterface
+	repo     RAGRepositoryInterface
 	fallback map[string]string
 }
 
@@ -112,12 +112,12 @@ func (m *PromptTemplateManager) PublishCanaryPrompt(ctx context.Context, name, c
 	}
 	_ = trafficPercent // documented in status endpoint; routing uses it below
 	return &models.PromptVersionInfo{
-		ID:       tmpl.ID,
-		Name:     name,
-		Version:  tmpl.Version,
-		IsActive: true,
-		IsCanary: true,
-		Content:  content,
+		ID:        tmpl.ID,
+		Name:      name,
+		Version:   tmpl.Version,
+		IsActive:  true,
+		IsCanary:  true,
+		Content:   content,
 		CreatedAt: tmpl.CreatedAt,
 	}, nil
 }
@@ -232,19 +232,19 @@ func fnv32a(s string) uint32 {
 
 // PromptStats tracks prompt usage.
 type PromptStats struct {
-	TemplateCount   int
-	ActiveCount     int
-	LastAccessedAt  time.Time
-	TotalChars      int
-	UsedTemplates   []string
+	TemplateCount  int
+	ActiveCount    int
+	LastAccessedAt time.Time
+	TotalChars     int
+	UsedTemplates  []string
 }
 
 func (m *PromptTemplateManager) GetStats(ctx context.Context) (*PromptStats, error) {
 	stats := &PromptStats{
-		TemplateCount: len(m.fallback),
-		ActiveCount:   len(m.fallback),
+		TemplateCount:  len(m.fallback),
+		ActiveCount:    len(m.fallback),
 		LastAccessedAt: time.Now(),
-		UsedTemplates: []string{},
+		UsedTemplates:  []string{},
 	}
 	for name := range m.fallback {
 		stats.UsedTemplates = append(stats.UsedTemplates, name)
@@ -274,11 +274,11 @@ func (m *PromptTemplateManager) GetPromptTemplateStats(ctx context.Context) map[
 		}
 	}
 	return map[string]interface{}{
-		"template_count":  stats.TemplateCount,
-		"active_count":    stats.ActiveCount,
-		"total_chars":     stats.TotalChars,
+		"template_count":   stats.TemplateCount,
+		"active_count":     stats.ActiveCount,
+		"total_chars":      stats.TotalChars,
 		"last_accessed_at": stats.LastAccessedAt.Format("2006-01-02T15:04:05Z"),
-		"templates":       stats.UsedTemplates,
+		"templates":        stats.UsedTemplates,
 	}
 }
 

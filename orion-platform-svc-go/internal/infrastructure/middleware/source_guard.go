@@ -23,11 +23,12 @@
 package middleware
 
 import (
+	"go.opentelemetry.io/otel"
 	"net/http"
 	"strings"
 
-	"orion/go-common/pkg/errors"
 	"github.com/gin-gonic/gin"
+	"orion/go-common/pkg/errors"
 )
 
 // Source represents the service that last wrote a row.
@@ -133,12 +134,16 @@ func (g *SourceGuard) BlockConflicts() gin.HandlerFunc {
 
 // rejectReadOnly sends a standard 405 response for read-only mode.
 func (g *SourceGuard) rejectReadOnly(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfrastructurerejectReadOnly")
+	defer span.End()
 	c.Header("Allow", "GET, HEAD, OPTIONS")
 	errors.WriteError(c, errors.ErrForbidden, "服务处于只读模式，写入操作被拒绝", http.StatusMethodNotAllowed)
 }
 
 // rejectConflict sends a standard 409 response for TS/Go write conflict.
 func (g *SourceGuard) rejectConflict(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfrastructurerejectConflict")
+	defer span.End()
 	errors.WriteError(c, errors.ErrConflict, "数据冲突：该行最近由 TS 服务修改，Go 服务拒绝覆盖", http.StatusConflict)
 }
 

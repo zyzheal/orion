@@ -8,8 +8,8 @@ import (
 	"orion/platform-svc-go/internal/permission-audit/models"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Service defines the methods the handler calls on the service layer.

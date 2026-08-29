@@ -4,10 +4,10 @@
 //
 // The service does not know how to talk to SNMP or SSH — it delegates to the
 // Collector SPI in the adapters package.  It is responsible for:
-//   1. Wiring a Target through the right adapter's Discover() / Collect().
-//   2. Persisting results into the PostgreSQL repository.
-//   3. Exposing RunDiscovery() / RunCollection() for ad-hoc API calls.
-//   4. Feeding a Scheduler that drives periodic sweeps.
+//  1. Wiring a Target through the right adapter's Discover() / Collect().
+//  2. Persisting results into the PostgreSQL repository.
+//  3. Exposing RunDiscovery() / RunCollection() for ad-hoc API calls.
+//  4. Feeding a Scheduler that drives periodic sweeps.
 //
 // Multi-tenancy: every query to the repository carries a tenant_id, so one
 // tenant's targets and devices are never visible to another.
@@ -28,8 +28,8 @@ import (
 
 // Service orchestrates CMDB collector operations.
 type Service struct {
-	repo     *repository.Repository
-	reg      *registry.Registry
+	repo             *repository.Repository
+	reg              *registry.Registry
 	collectorTimeout time.Duration
 }
 
@@ -42,8 +42,8 @@ type ServiceOptions struct {
 // NewService creates a new CollectorService.  Pass nil for opts to use defaults.
 func NewService(repo *repository.Repository, reg *registry.Registry, opts *ServiceOptions) *Service {
 	s := &Service{
-		repo:    repo,
-		reg:     reg,
+		repo:             repo,
+		reg:              reg,
 		collectorTimeout: 30 * time.Second,
 	}
 	if opts != nil && opts.CollectorTimeout > 0 {
@@ -55,10 +55,10 @@ func NewService(repo *repository.Repository, reg *registry.Registry, opts *Servi
 // ---------- Errors ----------
 
 var (
-	ErrCollectorNotFound = errors.New("collector adapter not found")
-	ErrMissingTarget     = errors.New("target is required")
-	ErrMissingDevice     = errors.New("device is required")
-	ErrMissingTenant     = errors.New("tenant_id is required")
+	ErrCollectorNotFound  = errors.New("collector adapter not found")
+	ErrMissingTarget      = errors.New("target is required")
+	ErrMissingDevice      = errors.New("device is required")
+	ErrMissingTenant      = errors.New("tenant_id is required")
 	ErrTargetNotReachable = errors.New("target is not reachable")
 )
 
@@ -74,12 +74,12 @@ func IsNotFound(err error) bool {
 // the DB) and the collection record.
 //
 // Flow:
-//   1. Load the target from the repository.
-//   2. Lookup the adapter from the registry.
-//   3. Optionally Init() the adapter with config overrides.
-//   4. HealthCheck the target.
-//   5. Discover() → upsert each device.
-//   6. Persist a Collection record with status=success|failed.
+//  1. Load the target from the repository.
+//  2. Lookup the adapter from the registry.
+//  3. Optionally Init() the adapter with config overrides.
+//  4. HealthCheck the target.
+//  5. Discover() → upsert each device.
+//  6. Persist a Collection record with status=success|failed.
 func (s *Service) RunDiscovery(ctx context.Context, tenantID, targetID, collectorName string, config map[string]interface{}) (*models.DiscoverResponse, error) {
 	if tenantID == "" {
 		return nil, ErrMissingTenant
@@ -127,13 +127,13 @@ func (s *Service) RunDiscovery(ctx context.Context, tenantID, targetID, collecto
 	if err != nil {
 		slog.Error("discovery failed", "collector", collectorName, "target", targetID, "error", err)
 		s.persistCollection(ctx, &models.Collection{
-			TargetID:   &targetID,
-			TenantID:   tenantID,
-			Collector:  collectorName,
-			Phase:      "discover",
-			Status:     models.CollectionFailed,
-			Error:      strPtr(err.Error()),
-			CreatedAt:  time.Now().UTC(),
+			TargetID:  &targetID,
+			TenantID:  tenantID,
+			Collector: collectorName,
+			Phase:     "discover",
+			Status:    models.CollectionFailed,
+			Error:     strPtr(err.Error()),
+			CreatedAt: time.Now().UTC(),
 		})
 		return nil, fmt.Errorf("discover: %w", err)
 	}
@@ -144,7 +144,8 @@ func (s *Service) RunDiscovery(ctx context.Context, tenantID, targetID, collecto
 		d.TargetID = &targetID
 		d.Adapter = collectorName
 		if d.LastSeenAt == nil {
-			d.LastSeenAt = new(time.Time); *d.LastSeenAt = time.Now().UTC()
+			d.LastSeenAt = new(time.Time)
+			*d.LastSeenAt = time.Now().UTC()
 		}
 		_ = s.repo.UpsertDevice(ctx, d) // best-effort: don't fail whole discovery on one device
 	}
@@ -162,10 +163,10 @@ func (s *Service) RunDiscovery(ctx context.Context, tenantID, targetID, collecto
 
 	slog.Info("discovery complete", "collector", collectorName, "target", targetID, "devices", len(devices))
 	return &models.DiscoverResponse{
-		Collector:  collectorName,
-		TargetID:   targetID,
+		Collector:   collectorName,
+		TargetID:    targetID,
 		DeviceCount: len(devices),
-		Devices:    expandDevices(devices),
+		Devices:     expandDevices(devices),
 	}, nil
 }
 
@@ -208,13 +209,13 @@ func (s *Service) RunCollection(ctx context.Context, tenantID, deviceID, collect
 	if err != nil {
 		slog.Error("collection failed", "collector", collectorName, "device", deviceID, "error", err)
 		result = &models.Collection{
-			DeviceID:     &deviceID,
-			TenantID:     tenantID,
-			Collector:    collectorName,
-			Phase:        "collect",
-			Status:       models.CollectionFailed,
-			Error:        strPtr(err.Error()),
-			CreatedAt:    time.Now().UTC(),
+			DeviceID:  &deviceID,
+			TenantID:  tenantID,
+			Collector: collectorName,
+			Phase:     "collect",
+			Status:    models.CollectionFailed,
+			Error:     strPtr(err.Error()),
+			CreatedAt: time.Now().UTC(),
 		}
 		s.persistCollection(ctx, result)
 		return nil, fmt.Errorf("collect: %w", err)
@@ -228,13 +229,13 @@ func (s *Service) RunCollection(ctx context.Context, tenantID, deviceID, collect
 
 	slog.Info("collection complete", "collector", collectorName, "device", deviceID, "attributes", len(attrs))
 	return &models.CollectResponse{
-		CollectionID:  result.CollectionID,
-		Collector:     collectorName,
-		DeviceID:      deviceID,
-		Status:        result.Status,
+		CollectionID:   result.CollectionID,
+		Collector:      collectorName,
+		DeviceID:       deviceID,
+		Status:         result.Status,
 		AttributeCount: len(attrs),
-		Attributes:    attrs,
-		DurationMs:    result.DurationMs,
+		Attributes:     attrs,
+		DurationMs:     result.DurationMs,
 	}, nil
 }
 

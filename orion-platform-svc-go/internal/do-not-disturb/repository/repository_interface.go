@@ -5,7 +5,6 @@ import (
 	"orion/platform-svc-go/internal/do-not-disturb/models"
 )
 
-
 // RepositoryInterface defines the data access contract for the do-not-disturb module.
 // DO NOT MODIFY: auto-generated from repository.go
 type RepositoryInterface interface {

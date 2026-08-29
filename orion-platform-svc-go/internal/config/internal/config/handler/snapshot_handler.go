@@ -1,11 +1,12 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strconv"
 
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/config/internal/config/models"
 	"orion/platform-svc-go/internal/config/internal/config/service"
-	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,6 +20,8 @@ func NewSnapshotHandler(svc *service.SnapshotService) *SnapshotHandler {
 }
 
 func (h *SnapshotHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	configID := c.Param("configId")
 
@@ -28,7 +31,7 @@ func (h *SnapshotHandler) Create(c *gin.Context) {
 		return
 	}
 
-	snapshot, err := h.svc.Create(c.Request.Context(), tenantID, configID, &req)
+	snapshot, err := h.svc.Create(ctx, tenantID, configID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -37,12 +40,14 @@ func (h *SnapshotHandler) Create(c *gin.Context) {
 }
 
 func (h *SnapshotHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	configID := c.Param("configId")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
-	snapshots, err := h.svc.List(c.Request.Context(), tenantID, configID, (page-1)*ps, ps)
+	snapshots, err := h.svc.List(ctx, tenantID, configID, (page-1)*ps, ps)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -51,9 +56,11 @@ func (h *SnapshotHandler) List(c *gin.Context) {
 }
 
 func (h *SnapshotHandler) GetByID(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigGetByID")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	snapshot, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("snapshotId"))
+	snapshot, err := h.svc.GetByID(ctx, tenantID, c.Param("snapshotId"))
 	if err != nil {
 		respondNotFound(c, "snapshot not found")
 		return
@@ -62,6 +69,8 @@ func (h *SnapshotHandler) GetByID(c *gin.Context) {
 }
 
 func (h *SnapshotHandler) Restore(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigRestore")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	configID := c.Param("configId")
 
@@ -71,7 +80,7 @@ func (h *SnapshotHandler) Restore(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.Restore(c.Request.Context(), tenantID, configID, c.Param("snapshotId"), req.RestoredBy)
+	result, err := h.svc.Restore(ctx, tenantID, configID, c.Param("snapshotId"), req.RestoredBy)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -80,9 +89,11 @@ func (h *SnapshotHandler) Restore(c *gin.Context) {
 }
 
 func (h *SnapshotHandler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("snapshotId")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("snapshotId")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}

@@ -5,7 +5,6 @@ import (
 	"orion/platform-svc-go/internal/developer-portal/models"
 )
 
-
 // RepositoryInterface defines the data access contract for the developer-portal module.
 // DO NOT MODIFY: auto-generated from repository.go
 type RepositoryInterface interface {

@@ -11,11 +11,11 @@ import (
 
 // mockDigitalTwinRepo is an in-memory mock implementing DigitalTwinRepo.
 type mockDigitalTwinRepo struct {
-	dbErr    error
-	twins    map[string]*models.DigitalTwin
+	dbErr     error
+	twins     map[string]*models.DigitalTwin
 	snapshots map[string]*models.Snapshot
-	records  map[string][]models.TrafficRecord // keyed by twinID
-	replays  map[string]*models.ReplaySession
+	records   map[string][]models.TrafficRecord // keyed by twinID
+	replays   map[string]*models.ReplaySession
 }
 
 func newMockRepo() *mockDigitalTwinRepo {
@@ -34,14 +34,14 @@ func (m *mockDigitalTwinRepo) CreateTwin(ctx context.Context, tenantID string, r
 	id := "twin-" + tenantID + "-" + req.Name
 	now := time.Now().UTC()
 	twin := &models.DigitalTwin{
-		ID:          id,
-		TenantID:    tenantID,
-		Name:        req.Name,
-		ServiceType: req.ServiceType,
+		ID:            id,
+		TenantID:      tenantID,
+		Name:          req.Name,
+		ServiceType:   req.ServiceType,
 		SourceService: req.SourceService,
-		Status:      "active",
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		Status:        "active",
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}
 	m.twins[tenantID+":"+id] = twin
 	return twin, nil
@@ -122,13 +122,13 @@ func (m *mockDigitalTwinRepo) CreateReplaySession(ctx context.Context, in models
 	}
 	id := "replay-" + in.TwinID
 	session := &models.ReplaySession{
-		ID:               id,
-		TwinID:           in.TwinID,
+		ID:                 id,
+		TwinID:             in.TwinID,
 		RecordingSessionID: in.RecordingSessionID,
-		SandboxEndpoint:  in.SandboxEndpoint,
-		Status:           in.Status,
-		StartedAt:        in.StartedAt,
-		TotalRequests:    100,
+		SandboxEndpoint:    in.SandboxEndpoint,
+		Status:             in.Status,
+		StartedAt:          in.StartedAt,
+		TotalRequests:      100,
 	}
 	m.replays[id] = session
 	return session, nil

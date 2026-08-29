@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/cache/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/cache/models"
 )
 
@@ -59,7 +59,6 @@ func (f *fakeCacheService) Update(ctx context.Context, id, tenantID string, req 
 }
 
 var _ service.ServiceInterface = (*fakeCacheService)(nil)
-
 
 func TestCACHE_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

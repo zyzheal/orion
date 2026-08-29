@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/pipeline-execution-control/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/pipeline-execution-control/models"
 )
 
@@ -56,7 +56,6 @@ func (f *fakePipeline_execution_controlService) Retry(ctx context.Context, runID
 }
 
 var _ service.ServiceInterface = (*fakePipeline_execution_controlService)(nil)
-
 
 func TestHandler_PIPELINE_EXECU_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

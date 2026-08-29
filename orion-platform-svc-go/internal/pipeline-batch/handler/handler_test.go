@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/pipeline-batch/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/pipeline-batch/models"
 )
 
@@ -80,7 +80,6 @@ func (f *fakePipeline_batchService) UpdatePhaseGroup(ctx context.Context, id str
 }
 
 var _ service.ServiceInterface = (*fakePipeline_batchService)(nil)
-
 
 func TestHandler_PIPELINE_BATCH_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

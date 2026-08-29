@@ -74,16 +74,16 @@ const (
 
 // ChaosTarget defines a target for the chaos experiment.
 type ChaosTarget struct {
-	Type       TargetType            `json:"type" db:"type"`
-	Selector   map[string]string     `json:"selector" db:"selector"`
-	Namespace  *string               `json:"namespace,omitempty" db:"namespace"`
-	Count      *int                  `json:"count,omitempty" db:"count"`
-	Percentage *float64              `json:"percentage,omitempty" db:"percentage"`
+	Type       TargetType        `json:"type" db:"type"`
+	Selector   map[string]string `json:"selector" db:"selector"`
+	Namespace  *string           `json:"namespace,omitempty" db:"namespace"`
+	Count      *int              `json:"count,omitempty" db:"count"`
+	Percentage *float64          `json:"percentage,omitempty" db:"percentage"`
 }
 
 // ExperimentSchedule defines the schedule for the experiment.
 type ExperimentSchedule struct {
-	Type           string  `json:"type" db:"type"`          // once|recurring|cron
+	Type           string  `json:"type" db:"type"` // once|recurring|cron
 	StartTime      int64   `json:"start_time" db:"start_time"`
 	EndTime        *int64  `json:"end_time,omitempty" db:"end_time"`
 	Interval       *int64  `json:"interval,omitempty" db:"interval"`
@@ -92,17 +92,17 @@ type ExperimentSchedule struct {
 
 // MonitoringThreshold represents a metric threshold for the monitoring config.
 type MonitoringThreshold struct {
-	Metric    string `json:"metric" db:"metric"`
+	Metric    string  `json:"metric" db:"metric"`
 	Threshold float64 `json:"threshold" db:"threshold"`
-	Action    string `json:"action" db:"action"` // alert|stop|pause
+	Action    string  `json:"action" db:"action"` // alert|stop|pause
 }
 
 // MonitoringConfig defines the monitoring configuration for the experiment.
 type MonitoringConfig struct {
-	Metrics      []string              `json:"metrics" db:"metrics"`
-	Endpoints    []string              `json:"endpoints" db:"endpoints"`
-	Thresholds   []MonitoringThreshold `json:"thresholds" db:"thresholds"`
-	CollectLogs  bool                  `json:"collect_logs" db:"collect_logs"`
+	Metrics     []string              `json:"metrics" db:"metrics"`
+	Endpoints   []string              `json:"endpoints" db:"endpoints"`
+	Thresholds  []MonitoringThreshold `json:"thresholds" db:"thresholds"`
+	CollectLogs bool                  `json:"collect_logs" db:"collect_logs"`
 }
 
 // SafeguardConfig defines a safeguard configuration.
@@ -122,43 +122,43 @@ type MetricPoint struct {
 
 // ExperimentResult stores the results of an experiment run.
 type ExperimentResult struct {
-	ID              string        `json:"id" db:"id"`
-	ExperimentID    string        `json:"experiment_id" db:"experiment_id"`
-	Status          string        `json:"status" db:"status"`
-	StartTime       *int64        `json:"start_time" db:"start_time"`
-	EndTime         *int64        `json:"end_time" db:"end_time"`
-	Duration        int64         `json:"duration" db:"duration"`
-	Metrics         string        `json:"metrics" db:"metrics"` // JSON
-	ImpactedTargets string        `json:"impacted_targets" db:"impacted_targets"` // JSON
-	RecoveryTime    int64         `json:"recovery_time" db:"recovery_time"`
-	DetectionTime   int64         `json:"detection_time" db:"detection_time"`
-	Insights        string        `json:"insights" db:"insights"` // JSON
-	Recommendations string        `json:"recommendations" db:"recommendations"` // JSON
-	TenantID        string        `json:"tenant_id" db:"tenant_id"`
-	CreatedAt       int64         `json:"created_at" db:"created_at"`
+	ID              string `json:"id" db:"id"`
+	ExperimentID    string `json:"experiment_id" db:"experiment_id"`
+	Status          string `json:"status" db:"status"`
+	StartTime       *int64 `json:"start_time" db:"start_time"`
+	EndTime         *int64 `json:"end_time" db:"end_time"`
+	Duration        int64  `json:"duration" db:"duration"`
+	Metrics         string `json:"metrics" db:"metrics"`                   // JSON
+	ImpactedTargets string `json:"impacted_targets" db:"impacted_targets"` // JSON
+	RecoveryTime    int64  `json:"recovery_time" db:"recovery_time"`
+	DetectionTime   int64  `json:"detection_time" db:"detection_time"`
+	Insights        string `json:"insights" db:"insights"`               // JSON
+	Recommendations string `json:"recommendations" db:"recommendations"` // JSON
+	TenantID        string `json:"tenant_id" db:"tenant_id"`
+	CreatedAt       int64  `json:"created_at" db:"created_at"`
 }
 
 // ExperimentLog stores a log entry of an experiment run.
 type ExperimentLog struct {
-	ID           string                 `json:"id" db:"id"`
-	ExperimentID string                 `json:"experiment_id" db:"experiment_id"`
-	Timestamp    int64                  `json:"timestamp" db:"timestamp"`
-	Level        string                 `json:"level" db:"level"`
-	Message      string                 `json:"message" db:"message"`
-	Details      string                 `json:"details" db:"details"` // JSON
-	TenantID     string                 `json:"tenant_id" db:"tenant_id"`
-	CreatedAt    int64                  `json:"created_at" db:"created_at"`
+	ID           string `json:"id" db:"id"`
+	ExperimentID string `json:"experiment_id" db:"experiment_id"`
+	Timestamp    int64  `json:"timestamp" db:"timestamp"`
+	Level        string `json:"level" db:"level"`
+	Message      string `json:"message" db:"message"`
+	Details      string `json:"details" db:"details"` // JSON
+	TenantID     string `json:"tenant_id" db:"tenant_id"`
+	CreatedAt    int64  `json:"created_at" db:"created_at"`
 }
 
 // --- Scenario definitions ---
 
 // ScenarioParameter defines a parameter for a chaos scenario.
 type ScenarioParameter struct {
-	Name         string                 `json:"name" db:"name"`
-	Type         string                 `json:"type" db:"type"`
-	Required     bool                   `json:"required" db:"required"`
-	DefaultValue *string                `json:"default_value,omitempty" db:"default_value"`
-	Description  string                 `json:"description" db:"description"`
+	Name         string  `json:"name" db:"name"`
+	Type         string  `json:"type" db:"type"`
+	Required     bool    `json:"required" db:"required"`
+	DefaultValue *string `json:"default_value,omitempty" db:"default_value"`
+	Description  string  `json:"description" db:"description"`
 }
 
 // ChaosScenario defines a built-in chaos scenario.
@@ -175,23 +175,23 @@ type ChaosScenario struct {
 
 // ChaosExperiment is the main entity representing a chaos experiment.
 type ChaosExperiment struct {
-	ID            string              `json:"id" db:"id"`
-	Name          string              `json:"name" db:"name"`
-	Description   string              `json:"description" db:"description"`
-	Status        ExperimentStatus    `json:"status" db:"status"`
-	Scenario      ChaosScenarioType   `json:"scenario" db:"scenario"`
-	Targets       string              `json:"targets" db:"targets"`          // JSONB
-	Duration      int64               `json:"duration" db:"duration"`
-	Intensity     int64               `json:"intensity" db:"intensity"`
-	Schedule      string              `json:"schedule" db:"schedule"`        // JSONB (nullable)
-	Monitoring    string              `json:"monitoring" db:"monitoring"`    // JSONB
-	Safeguards    string              `json:"safeguards" db:"safeguards"`    // JSONB
-	CreatedBy     string              `json:"created_by" db:"created_by"`
-	CreatedAt     int64               `json:"created_at" db:"created_at"`
-	UpdatedAt     int64               `json:"updated_at" db:"updated_at"`
-	StartedAt     *int64              `json:"started_at,omitempty" db:"started_at"`
-	CompletedAt   *int64              `json:"completed_at,omitempty" db:"completed_at"`
-	TenantID      string              `json:"tenant_id" db:"tenant_id"`
+	ID          string            `json:"id" db:"id"`
+	Name        string            `json:"name" db:"name"`
+	Description string            `json:"description" db:"description"`
+	Status      ExperimentStatus  `json:"status" db:"status"`
+	Scenario    ChaosScenarioType `json:"scenario" db:"scenario"`
+	Targets     string            `json:"targets" db:"targets"` // JSONB
+	Duration    int64             `json:"duration" db:"duration"`
+	Intensity   int64             `json:"intensity" db:"intensity"`
+	Schedule    string            `json:"schedule" db:"schedule"`     // JSONB (nullable)
+	Monitoring  string            `json:"monitoring" db:"monitoring"` // JSONB
+	Safeguards  string            `json:"safeguards" db:"safeguards"` // JSONB
+	CreatedBy   string            `json:"created_by" db:"created_by"`
+	CreatedAt   int64             `json:"created_at" db:"created_at"`
+	UpdatedAt   int64             `json:"updated_at" db:"updated_at"`
+	StartedAt   *int64            `json:"started_at,omitempty" db:"started_at"`
+	CompletedAt *int64            `json:"completed_at,omitempty" db:"completed_at"`
+	TenantID    string            `json:"tenant_id" db:"tenant_id"`
 }
 
 // --- JSON helpers ---

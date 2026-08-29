@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"orion/platform-svc-go/internal/ticket/models"
 	"orion/go-common/pkg/otel"
+	"orion/platform-svc-go/internal/ticket/models"
 	"orion/platform-svc-go/internal/ticket/repository"
 
 	"github.com/google/uuid"

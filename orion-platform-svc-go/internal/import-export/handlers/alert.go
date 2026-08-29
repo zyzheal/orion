@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
+	alertModels "orion/platform-svc-go/internal/alert/models"
+	"orion/platform-svc-go/internal/alert/service"
 	"orion/platform-svc-go/internal/import-export/formatters"
 	"orion/platform-svc-go/internal/import-export/interfaces"
 	"orion/platform-svc-go/internal/import-export/models"
-	alertModels "orion/platform-svc-go/internal/alert/models"
-	"orion/platform-svc-go/internal/alert/service"
 
 	"github.com/google/uuid"
 )

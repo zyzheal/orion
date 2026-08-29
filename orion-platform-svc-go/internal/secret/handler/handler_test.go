@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/secret/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/secret/models"
 )
 
@@ -31,7 +31,7 @@ func (f *fakeHandlerService) Create(ctx context.Context, tenantID, userID string
 	return &service.SecretListItem{}, nil
 }
 
-func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
@@ -60,7 +60,6 @@ func (f *fakeHandlerService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestHandler_SECRET_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

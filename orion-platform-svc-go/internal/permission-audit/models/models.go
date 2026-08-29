@@ -4,17 +4,17 @@ import "time"
 
 // PermissionAuditLog represents a permission audit log entry.
 type PermissionAuditLog struct {
-	ID          string    `db:"id" json:"id"`
-	TenantID    string    `db:"tenant_id" json:"tenant_id"`
-	UserID      string    `db:"user_id" json:"user_id"`
-	Action      string    `db:"action" json:"action"` // grant|revoke|check|deny
-	Resource    string    `db:"resource" json:"resource"`
-	Permission  string    `db:"permission" json:"permission"`
-	Result      string    `db:"result" json:"result"` // allowed|denied
-	IPAddress   string    `db:"ip_address" json:"ip_address"`
-	UserAgent   string    `db:"user_agent" json:"user_agent"`
-	Context     map[string]string `db:"context" json:"context"`
-	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	ID         string            `db:"id" json:"id"`
+	TenantID   string            `db:"tenant_id" json:"tenant_id"`
+	UserID     string            `db:"user_id" json:"user_id"`
+	Action     string            `db:"action" json:"action"` // grant|revoke|check|deny
+	Resource   string            `db:"resource" json:"resource"`
+	Permission string            `db:"permission" json:"permission"`
+	Result     string            `db:"result" json:"result"` // allowed|denied
+	IPAddress  string            `db:"ip_address" json:"ip_address"`
+	UserAgent  string            `db:"user_agent" json:"user_agent"`
+	Context    map[string]string `db:"context" json:"context"`
+	CreatedAt  time.Time         `db:"created_at" json:"created_at"`
 }
 
 // CreateAuditLogRequest is the request body for creating an audit log.

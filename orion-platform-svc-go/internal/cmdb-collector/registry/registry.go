@@ -23,8 +23,8 @@ import (
 //   - GetByType(type) — all adapters for an asset class ("network", "server", …)
 //   - List() / Count() / Names() — introspection
 type Registry struct {
-	byName sync.Map  // string -> interfaces.Adapter
-	byType sync.Map  // string -> []interfaces.Adapter
+	byName sync.Map // string -> interfaces.Adapter
+	byType sync.Map // string -> []interfaces.Adapter
 }
 
 // NewRegistry returns a fresh, empty Registry.

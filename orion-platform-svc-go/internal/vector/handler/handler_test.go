@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/vector/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/vector/models"
 )
 
@@ -56,7 +56,6 @@ func (f *fakeVectorService) UpsertVectors(ctx context.Context, tenantID, storeID
 }
 
 var _ service.ServiceInterface = (*fakeVectorService)(nil)
-
 
 func TestHandler_VECTOR_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

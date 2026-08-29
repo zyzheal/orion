@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/sprint/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/sprint/models"
 )
 
@@ -68,7 +68,6 @@ func (f *fakeSprintService) Update(ctx context.Context, tenantID, id string, req
 }
 
 var _ service.ServiceInterface = (*fakeSprintService)(nil)
-
 
 func TestHandler_SPRINT_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

@@ -350,7 +350,9 @@ func TestHandler_Cancel_ServiceError(t *testing.T) {
 func TestHandler_GetAuditTrail_Success(t *testing.T) {
 	entries := []models.AuditEntry{{ID: 1, DeploymentID: "d1", Action: "create"}}
 	h := newHandlerWithSvc(&mockSvc{
-		getAuditTrailFn: func(ctx context.Context, tenantID, deploymentID string) ([]models.AuditEntry, error) { return entries, nil },
+		getAuditTrailFn: func(ctx context.Context, tenantID, deploymentID string) ([]models.AuditEntry, error) {
+			return entries, nil
+		},
 	})
 	w := performRequest(h, h.GetAuditTrail, "GET", nil, map[string]string{"id": "d1"}, nil)
 	if w.Code != http.StatusOK {
@@ -363,7 +365,9 @@ func TestHandler_GetAuditTrail_Success(t *testing.T) {
 func TestHandler_GetReleaseNotes_Success(t *testing.T) {
 	note := &models.ReleaseNote{ID: "n1", DeploymentID: "d1", Content: "changelog"}
 	h := newHandlerWithSvc(&mockSvc{
-		getReleaseNotesFn: func(ctx context.Context, tenantID, deploymentID string) (*models.ReleaseNote, error) { return note, nil },
+		getReleaseNotesFn: func(ctx context.Context, tenantID, deploymentID string) (*models.ReleaseNote, error) {
+			return note, nil
+		},
 	})
 	w := performRequest(h, h.GetReleaseNotes, "GET", nil, map[string]string{"id": "d1"}, nil)
 	if w.Code != http.StatusOK {

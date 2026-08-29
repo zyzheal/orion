@@ -14,10 +14,10 @@ var errNotFound = errors.New("not found")
 // --- Fake Repository ---
 
 type fakeAERepo struct {
-	policies  map[string]*models.EscalationPolicy
-	triggers  []models.EscalationTrigger
-	closures  map[string]*models.AlertClosure
-	metrics   []models.AlertMetrics
+	policies map[string]*models.EscalationPolicy
+	triggers []models.EscalationTrigger
+	closures map[string]*models.AlertClosure
+	metrics  []models.AlertMetrics
 }
 
 func newFakeAERepo() *fakeAERepo {
@@ -221,7 +221,7 @@ func TestAE_EvaluatePolicy_skipsInactive(t *testing.T) {
 	svc := NewService(repo)
 
 	p, _ := svc.CreatePolicy(context.Background(), &models.CreatePolicyRequest{
-		Name: "inactive",
+		Name:  "inactive",
 		Rules: []models.EscalationRule{{Level: 1}},
 	}, "t1", "admin")
 	// Manually set inactive

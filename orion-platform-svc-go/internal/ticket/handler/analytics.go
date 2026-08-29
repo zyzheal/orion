@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"net/http"
 	"strconv"
 	"time"
@@ -19,8 +20,10 @@ func NewAnalyticsHandler(svc *service.AnalyticsService) *AnalyticsHandler {
 
 // GetStatistics GET /api/v1/tickets/stats
 func (h *AnalyticsHandler) GetStatistics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetStatistics")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	stats, err := h.svc.GetStatistics(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetStatistics(ctx, tenantID)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -30,8 +33,10 @@ func (h *AnalyticsHandler) GetStatistics(c *gin.Context) {
 
 // GetResolutionStats GET /api/v1/tickets/reports/resolution
 func (h *AnalyticsHandler) GetResolutionStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetResolutionStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	stats, err := h.svc.GetResolutionStats(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetResolutionStats(ctx, tenantID)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -41,8 +46,10 @@ func (h *AnalyticsHandler) GetResolutionStats(c *gin.Context) {
 
 // GetBacklogAnalysis GET /api/v1/tickets/reports/backlog
 func (h *AnalyticsHandler) GetBacklogAnalysis(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetBacklogAnalysis")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	analysis, err := h.svc.GetBacklogAnalysis(c.Request.Context(), tenantID)
+	analysis, err := h.svc.GetBacklogAnalysis(ctx, tenantID)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -52,11 +59,13 @@ func (h *AnalyticsHandler) GetBacklogAnalysis(c *gin.Context) {
 
 // GetTrendReport GET /api/v1/tickets/reports/trend
 func (h *AnalyticsHandler) GetTrendReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetTrendReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	days, _ := strconv.Atoi(c.Query("days"))
 	granularity := c.Query("granularity")
 
-	report, err := h.svc.GetTrendReport(c.Request.Context(), tenantID, days, granularity)
+	report, err := h.svc.GetTrendReport(ctx, tenantID, days, granularity)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -66,11 +75,13 @@ func (h *AnalyticsHandler) GetTrendReport(c *gin.Context) {
 
 // GetExecutiveDashboard GET /api/v1/tickets/bi/dashboard/executive
 func (h *AnalyticsHandler) GetExecutiveDashboard(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetExecutiveDashboard")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	start := parseTime(c.Query("periodStart"))
 	end := parseTime(c.Query("periodEnd"))
 
-	dash, err := h.svc.GetExecutiveDashboard(c.Request.Context(), tenantID, start, end)
+	dash, err := h.svc.GetExecutiveDashboard(ctx, tenantID, start, end)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -80,11 +91,13 @@ func (h *AnalyticsHandler) GetExecutiveDashboard(c *gin.Context) {
 
 // GetManagerDashboard GET /api/v1/tickets/bi/dashboard/manager
 func (h *AnalyticsHandler) GetManagerDashboard(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetManagerDashboard")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	start := parseTime(c.Query("periodStart"))
 	end := parseTime(c.Query("periodEnd"))
 
-	dash, err := h.svc.GetManagerDashboard(c.Request.Context(), tenantID, start, end)
+	dash, err := h.svc.GetManagerDashboard(ctx, tenantID, start, end)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -94,10 +107,12 @@ func (h *AnalyticsHandler) GetManagerDashboard(c *gin.Context) {
 
 // GetEngineerDashboard GET /api/v1/tickets/bi/dashboard/engineer/:engineerId
 func (h *AnalyticsHandler) GetEngineerDashboard(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetEngineerDashboard")
+	defer span.End()
 	start := parseTime(c.Query("periodStart"))
 	end := parseTime(c.Query("periodEnd"))
 
-	dash, err := h.svc.GetEngineerDashboard(c.Request.Context(), c.Param("engineerId"), start, end)
+	dash, err := h.svc.GetEngineerDashboard(ctx, c.Param("engineerId"), start, end)
 	if err != nil {
 		respondError(c, http.StatusNotFound, err)
 		return
@@ -107,10 +122,12 @@ func (h *AnalyticsHandler) GetEngineerDashboard(c *gin.Context) {
 
 // GetEfficiencyScore GET /api/v1/tickets/bi/score/:engineerId
 func (h *AnalyticsHandler) GetEfficiencyScore(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetEfficiencyScore")
+	defer span.End()
 	start := parseTime(c.Query("periodStart"))
 	end := parseTime(c.Query("periodEnd"))
 
-	score, err := h.svc.GetEfficiencyScore(c.Request.Context(), c.Param("engineerId"), start, end)
+	score, err := h.svc.GetEfficiencyScore(ctx, c.Param("engineerId"), start, end)
 	if err != nil {
 		respondError(c, http.StatusNotFound, err)
 		return
@@ -120,13 +137,15 @@ func (h *AnalyticsHandler) GetEfficiencyScore(c *gin.Context) {
 
 // ComparePeriods GET /api/v1/tickets/bi/compare
 func (h *AnalyticsHandler) ComparePeriods(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketComparePeriods")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	currentStart := parseTime(c.Query("currentStart"))
 	currentEnd := parseTime(c.Query("currentEnd"))
 	previousStart := parseTime(c.Query("previousStart"))
 	previousEnd := parseTime(c.Query("previousEnd"))
 
-	comparison, err := h.svc.ComparePeriods(c.Request.Context(), tenantID, currentStart, currentEnd, previousStart, previousEnd)
+	comparison, err := h.svc.ComparePeriods(ctx, tenantID, currentStart, currentEnd, previousStart, previousEnd)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -136,6 +155,8 @@ func (h *AnalyticsHandler) ComparePeriods(c *gin.Context) {
 
 // ExportBIData POST /api/v1/tickets/bi/export
 func (h *AnalyticsHandler) ExportBIData(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketExportBIData")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req struct {
@@ -155,7 +176,7 @@ func (h *AnalyticsHandler) ExportBIData(c *gin.Context) {
 		return
 	}
 
-	data, err := h.svc.ExportBIData(c.Request.Context(), tenantID, req.Dataset, req.Granularity,
+	data, err := h.svc.ExportBIData(ctx, tenantID, req.Dataset, req.Granularity,
 		parseTime(req.PeriodStart), parseTime(req.PeriodEnd))
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
@@ -166,6 +187,8 @@ func (h *AnalyticsHandler) ExportBIData(c *gin.Context) {
 
 // GetTimeTrend GET /api/v1/tickets/bi/trend
 func (h *AnalyticsHandler) GetTimeTrend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetTimeTrend")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	metric := c.Query("metric")
 	if metric == "" {
@@ -178,7 +201,7 @@ func (h *AnalyticsHandler) GetTimeTrend(c *gin.Context) {
 		granularity = "day"
 	}
 
-	trend, err := h.svc.GetTimeTrend(c.Request.Context(), tenantID, metric, start, end, granularity)
+	trend, err := h.svc.GetTimeTrend(ctx, tenantID, metric, start, end, granularity)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -188,6 +211,8 @@ func (h *AnalyticsHandler) GetTimeTrend(c *gin.Context) {
 
 // TransferTicket POST /api/v1/tickets/transfer/:ticketId
 func (h *AnalyticsHandler) TransferTicket(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketTransferTicket")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("ticketId")
 
@@ -201,7 +226,7 @@ func (h *AnalyticsHandler) TransferTicket(c *gin.Context) {
 		return
 	}
 
-	record, holdMs, err := h.svc.TransferTicket(c.Request.Context(), ticketID, tenantID, req.ToEngineerID, req.InitiatedBy, req.Reason)
+	record, holdMs, err := h.svc.TransferTicket(ctx, ticketID, tenantID, req.ToEngineerID, req.InitiatedBy, req.Reason)
 	if err != nil {
 		respondError(c, http.StatusBadRequest, err)
 		return
@@ -212,7 +237,9 @@ func (h *AnalyticsHandler) TransferTicket(c *gin.Context) {
 
 // GetTransferHistory GET /api/v1/tickets/transfer/:ticketId/history
 func (h *AnalyticsHandler) GetTransferHistory(c *gin.Context) {
-	history, err := h.svc.GetTransferHistory(c.Request.Context(), c.Param("ticketId"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetTransferHistory")
+	defer span.End()
+	history, err := h.svc.GetTransferHistory(ctx, c.Param("ticketId"))
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -222,10 +249,12 @@ func (h *AnalyticsHandler) GetTransferHistory(c *gin.Context) {
 
 // GetTransferStats GET /api/v1/tickets/transfer/stats
 func (h *AnalyticsHandler) GetTransferStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetTransferStats")
+	defer span.End()
 	start := parseTime(c.Query("periodStart"))
 	end := parseTime(c.Query("periodEnd"))
 
-	stats, err := h.svc.GetTransferStats(c.Request.Context(), start, end)
+	stats, err := h.svc.GetTransferStats(ctx, start, end)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return

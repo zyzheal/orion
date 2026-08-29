@@ -172,12 +172,12 @@ func (h *TicketHandler) validateRows(rows []map[string]interface{}, opts *models
 
 func (h *TicketHandler) insertTicket(ctx context.Context, tenantID string, row map[string]interface{}) error {
 	req := ticketingmodels.CreateTicketRequest{
-		Title:      getString(row, "title"),
+		Title:       getString(row, "title"),
 		Description: getString(row, "description"),
-		Type:       getString(row, "type"),
-		Priority:   getString(row, "priority"),
-		Category:   getString(row, "category"),
-		Source:     "import-export",
+		Type:        getString(row, "type"),
+		Priority:    getString(row, "priority"),
+		Category:    getString(row, "category"),
+		Source:      "import-export",
 	}
 	_, err := h.ticketingSvc.CreateTicket(ctx, tenantID, req, getString(row, "created_by"))
 	return err

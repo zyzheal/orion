@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/artifact-ops/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/artifact-ops/models"
 )
 
@@ -46,7 +46,7 @@ func (f *fakeHandlerService) DefineRetentionPolicy(ctx context.Context, tenantID
 	return &models.RetentionPolicy{}, nil
 }
 
-func (f *fakeHandlerService) DeletePolicy(ctx context.Context, tenantID, policyID string) (error) {
+func (f *fakeHandlerService) DeletePolicy(ctx context.Context, tenantID, policyID string) error {
 	return nil
 }
 
@@ -91,7 +91,6 @@ func (f *fakeHandlerService) TrackOperation(ctx context.Context, tenantID, actor
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestARTIFACT_OPS_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

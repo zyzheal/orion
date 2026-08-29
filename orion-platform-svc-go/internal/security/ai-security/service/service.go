@@ -19,19 +19,19 @@ var (
 )
 
 type Service struct {
-	repo       *repository.Repository
-	config     AISecurityConfig
-	policies   map[string]*models.SecurityPolicy
+	repo     *repository.Repository
+	config   AISecurityConfig
+	policies map[string]*models.SecurityPolicy
 }
 
 type AISecurityConfig struct {
-	EnableInputSanitization  bool
-	MaxInputLength           int
-	BlockedPatterns          []string
-	EnableSandbox            bool
-	EnableOutputValidation   bool
-	MaxOutputLength          int
-	EnableAuditLog           bool
+	EnableInputSanitization bool
+	MaxInputLength          int
+	BlockedPatterns         []string
+	EnableSandbox           bool
+	EnableOutputValidation  bool
+	MaxOutputLength         int
+	EnableAuditLog          bool
 }
 
 func NewService(repo *repository.Repository) *Service {
@@ -39,12 +39,12 @@ func NewService(repo *repository.Repository) *Service {
 		repo: repo,
 		config: AISecurityConfig{
 			EnableInputSanitization: true,
-			MaxInputLength:         10000,
-			BlockedPatterns:        []string{"DROP TABLE", "SELECT.*FROM", "rm -rf", "eval(", "exec(", "__proto__", "constructor.prototype", "document.cookie"},
-			EnableSandbox:          true,
-			EnableOutputValidation: true,
-			MaxOutputLength:        50000,
-			EnableAuditLog:         true,
+			MaxInputLength:          10000,
+			BlockedPatterns:         []string{"DROP TABLE", "SELECT.*FROM", "rm -rf", "eval(", "exec(", "__proto__", "constructor.prototype", "document.cookie"},
+			EnableSandbox:           true,
+			EnableOutputValidation:  true,
+			MaxOutputLength:         50000,
+			EnableAuditLog:          true,
 		},
 		policies: make(map[string]*models.SecurityPolicy),
 	}
@@ -140,9 +140,9 @@ func (s *Service) UpdatePolicy(id string, enabled *bool) error {
 	s.initPolicies()
 	validPolicies := map[string]bool{
 		"input-sanitization": true,
-		"execution-sandbox": true,
-		"output-validation": true,
-		"audit-logging": true,
+		"execution-sandbox":  true,
+		"output-validation":  true,
+		"audit-logging":      true,
 	}
 	if !validPolicies[id] {
 		return ErrPolicyNotFound
@@ -225,10 +225,10 @@ func (s *Service) validateInput(input string) []string {
 		// Structured induction / delimiter attacks
 		"(?i)^\\[\\[",            // double bracket
 		"(?i)^<\\/system",        // closing system tag
-		"(?i)<system>",          // opening system tag impersonation
+		"(?i)<system>",           // opening system tag impersonation
 		"(?i)^\\{\\s*\"role\"",   // JSON role manipulation
-		"(?i)^\\s*---\\s*$",     // triple-dash separator
-		"(?i)developer:|system:",// role prefix injection
+		"(?i)^\\s*---\\s*$",      // triple-dash separator
+		"(?i)developer:|system:", // role prefix injection
 	}
 	for _, pattern := range multiLangPatterns {
 		regex, err := regexp.Compile(pattern)
@@ -365,7 +365,7 @@ func base64BypassDetected(input string) bool {
 			continue
 		}
 		// Strip common wrapping: quotes, parens, trailing punctuation
-		cleaned := strings.Trim(field, `"'`+"\u0060" + "(),.")
+		cleaned := strings.Trim(field, `"'`+"\u0060"+"(),.")
 		if len(cleaned) < 20 {
 			continue
 		}

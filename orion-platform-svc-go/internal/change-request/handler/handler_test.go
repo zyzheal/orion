@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/change-request/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/change-request/models"
 	"time"
 )
@@ -88,7 +88,6 @@ func (f *fakeChange_requestService) UpdateRequest(ctx context.Context, id string
 }
 
 var _ service.ServiceInterface = (*fakeChange_requestService)(nil)
-
 
 func TestCHANGE_REQUEST_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

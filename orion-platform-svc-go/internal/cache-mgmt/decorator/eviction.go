@@ -10,10 +10,10 @@ import (
 // ---------------------------------------------------------------------------
 
 type entry struct {
-	key       string
-	value     interface{}
-	expiry    int64 // unix nanoseconds; 0 means never expires
-	freq      int   // LFU counter
+	key    string
+	value  interface{}
+	expiry int64 // unix nanoseconds; 0 means never expires
+	freq   int   // LFU counter
 }
 
 // evictor manages insertion, lookup, and eviction for a cache.
@@ -31,7 +31,7 @@ type evictor interface {
 
 type lruEvictor struct {
 	mu      sync.RWMutex
-	store   *list.List            // ordered from front (MRU) to back (LRU)
+	store   *list.List // ordered from front (MRU) to back (LRU)
 	idx     map[string]*list.Element
 	maxSize int
 }
@@ -181,7 +181,6 @@ func (e *lfuEvictor) clear() {
 	defer e.mu.Unlock()
 	e.idx = make(map[string]*entry, e.maxSize)
 }
-
 
 // ---------------------------------------------------------------------------
 // FIFO — first in, first out

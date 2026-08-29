@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/ticket-automation/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/ticket-automation/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeTicket_automationService) Update(ctx context.Context, tenantID, id 
 }
 
 var _ service.ServiceInterface = (*fakeTicket_automationService)(nil)
-
 
 func TestHandler_TICKET_AUTOMAT_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

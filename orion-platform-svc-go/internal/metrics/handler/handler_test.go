@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/metrics/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/metrics/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeMetricsService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeMetricsService)(nil)
-
 
 func TestHandler_METRICS_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

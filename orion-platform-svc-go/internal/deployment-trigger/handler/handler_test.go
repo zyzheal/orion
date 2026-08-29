@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/deployment-trigger/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/deployment-trigger/models"
 	"time"
 )
@@ -61,7 +61,6 @@ func (f *fakeDeployment_triggerService) Update(ctx context.Context, tenantID, id
 }
 
 var _ service.ServiceInterface = (*fakeDeployment_triggerService)(nil)
-
 
 func TestHandler_DEPLOYMENT_TRI_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

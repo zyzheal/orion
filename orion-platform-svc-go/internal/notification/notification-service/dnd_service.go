@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"orion/go-common/pkg/otel"
 	"orion/platform-svc-go/internal/notification/notification/models"
 	"orion/platform-svc-go/internal/notification/notification/repository"
-	"orion/go-common/pkg/otel"
 
 	"go.uber.org/zap"
 )
@@ -17,9 +17,9 @@ var ErrDNDNotFound = fmt.Errorf("DND settings not found")
 
 // DNDService implements the do-not-disturb business logic.
 type DNDService struct {
-	repo     *repository.DNDRepository
-	logger   *zap.Logger
-	timeNow  func() time.Time // overridable for testing
+	repo    *repository.DNDRepository
+	logger  *zap.Logger
+	timeNow func() time.Time // overridable for testing
 }
 
 // NewDNDService creates a new DNDService.

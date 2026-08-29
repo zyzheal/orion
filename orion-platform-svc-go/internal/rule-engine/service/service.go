@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
 	condition_models "orion/platform-svc-go/internal/condition/models"
 	condition_service "orion/platform-svc-go/internal/condition/service"
 	"orion/platform-svc-go/internal/rule-engine/models"
 	"orion/platform-svc-go/internal/rule-engine/repository"
-	"go.uber.org/zap"
 )
 
 type RuleEngineService struct {

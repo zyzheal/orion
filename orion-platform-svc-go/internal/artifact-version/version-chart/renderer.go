@@ -291,10 +291,10 @@ func (r *Renderer) buildTreeNode(entries []*VersionEntry) *TreeNode {
 		// Create a chain: the highest patch is the branch head
 		for _, e := range group {
 			child := &TreeNode{
-				ID:      e.Version,
-				Version: e.Version,
+				ID:        e.Version,
+				Version:   e.Version,
 				CreatedAt: e.CreatedAt,
-				Metadata: e.Metadata,
+				Metadata:  e.Metadata,
 			}
 			root.Children = append(root.Children, child)
 		}

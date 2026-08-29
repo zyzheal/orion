@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strconv"
 
 	"orion/platform-svc-go/internal/notification/chatops/models"
@@ -18,13 +19,15 @@ func NewCommandHandler(svc *service.CommandService) *CommandHandler {
 }
 
 func (h *CommandHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateCommandRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	cmd, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	cmd, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -33,6 +36,8 @@ func (h *CommandHandler) Create(c *gin.Context) {
 }
 
 func (h *CommandHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -42,7 +47,7 @@ func (h *CommandHandler) List(c *gin.Context) {
 	if pageSize <= 0 || pageSize > 100 {
 		pageSize = 20
 	}
-	cmds, err := h.svc.List(c.Request.Context(), tenantID, (page-1)*pageSize, pageSize)
+	cmds, err := h.svc.List(ctx, tenantID, (page-1)*pageSize, pageSize)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -51,6 +56,8 @@ func (h *CommandHandler) List(c *gin.Context) {
 }
 
 func (h *CommandHandler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsUpdate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateCommandRequest
@@ -58,7 +65,7 @@ func (h *CommandHandler) Update(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.Update(c.Request.Context(), tenantID, id, req); err != nil {
+	if err := h.svc.Update(ctx, tenantID, id, req); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -66,8 +73,10 @@ func (h *CommandHandler) Update(c *gin.Context) {
 }
 
 func (h *CommandHandler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -75,6 +84,8 @@ func (h *CommandHandler) Delete(c *gin.Context) {
 }
 
 func (h *CommandHandler) Parse(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsParse")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req struct {
 		Raw string `json:"raw" binding:"required"`
@@ -83,7 +94,7 @@ func (h *CommandHandler) Parse(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	parsed, err := h.svc.ParseCommand(c.Request.Context(), tenantID, req.Raw)
+	parsed, err := h.svc.ParseCommand(ctx, tenantID, req.Raw)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -92,6 +103,8 @@ func (h *CommandHandler) Parse(c *gin.Context) {
 }
 
 func (h *CommandHandler) Execute(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsExecute")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req struct {
 		Raw      string `json:"raw" binding:"required"`
@@ -103,7 +116,7 @@ func (h *CommandHandler) Execute(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.ExecuteCommand(c.Request.Context(), tenantID, req.UserID, req.Platform, req.Channel, req.Raw)
+	result, err := h.svc.ExecuteCommand(ctx, tenantID, req.UserID, req.Platform, req.Channel, req.Raw)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

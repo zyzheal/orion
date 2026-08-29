@@ -8,8 +8,8 @@ import (
 
 	"orion/platform-svc-go/internal/ticketing/models"
 
-	"orion/go-common/pkg/database"
 	"github.com/google/uuid"
+	"orion/go-common/pkg/database"
 )
 
 type SLAPolicyRepository struct {

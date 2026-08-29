@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/metadata/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/metadata/models"
 )
 
@@ -27,7 +27,7 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 
 type fakeHandlerService struct{}
 
-func (f *fakeHandlerService) BatchCreate(ctx context.Context, tenantID string) (error) {
+func (f *fakeHandlerService) BatchCreate(ctx context.Context, tenantID string) error {
 	return nil
 }
 
@@ -35,7 +35,7 @@ func (f *fakeHandlerService) Create(ctx context.Context, tenantID string, req mo
 	return &models.Record{}, nil
 }
 
-func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
@@ -60,7 +60,6 @@ func (f *fakeHandlerService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestHandler_METADATA_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

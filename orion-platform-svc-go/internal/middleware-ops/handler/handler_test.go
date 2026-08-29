@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/middleware-ops/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware-ops/models"
 )
 
@@ -51,7 +51,7 @@ func (f *fakeHandlerService) Create(ctx context.Context, tenantID string, req mo
 	return &models.Record{}, nil
 }
 
-func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
@@ -259,7 +259,7 @@ func (f *fakeHandlerService) UpdateConfig(ctx context.Context, tenantID string, 
 	return "", nil
 }
 
-func (f *fakeHandlerService) UpdateStatus(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) UpdateStatus(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
@@ -268,7 +268,6 @@ func (f *fakeHandlerService) ValidateBranch(ctx context.Context, tenantID string
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestHandler_MIDDLEWARE_OPS_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

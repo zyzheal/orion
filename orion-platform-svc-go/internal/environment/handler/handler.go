@@ -1,14 +1,13 @@
 package handler
 
 import (
-
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/environment/models"
 	"orion/platform-svc-go/internal/environment/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {

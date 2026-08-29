@@ -14,21 +14,21 @@ import (
 
 // mockDecisionRepo implements DecisionRepo backed by an in-memory map.
 type mockDecisionRepo struct {
-	decisions  map[string]*models.AIDecision
-	feedbacks  map[string][]*models.DecisionFeedback // keyed by decisionID
-	traces     map[string][]*models.DecisionTrace    // keyed by decisionID
-	stats      *models.DecisionStats
-	dbErr      error
-	listErr    error
-	count      int64
+	decisions map[string]*models.AIDecision
+	feedbacks map[string][]*models.DecisionFeedback // keyed by decisionID
+	traces    map[string][]*models.DecisionTrace    // keyed by decisionID
+	stats     *models.DecisionStats
+	dbErr     error
+	listErr   error
+	count     int64
 }
 
 func newMockDecisionRepo() *mockDecisionRepo {
 	return &mockDecisionRepo{
-		decisions:  make(map[string]*models.AIDecision),
-		feedbacks:  make(map[string][]*models.DecisionFeedback),
-		traces:     make(map[string][]*models.DecisionTrace),
-		stats:      &models.DecisionStats{ByStatus: make(map[models.DecisionStatus]int64), ByType: make(map[models.DecisionType]int64)},
+		decisions: make(map[string]*models.AIDecision),
+		feedbacks: make(map[string][]*models.DecisionFeedback),
+		traces:    make(map[string][]*models.DecisionTrace),
+		stats:     &models.DecisionStats{ByStatus: make(map[models.DecisionStatus]int64), ByType: make(map[models.DecisionType]int64)},
 	}
 }
 
@@ -163,17 +163,17 @@ func setupDecisionRepoAndSVC() (*mockDecisionRepo, *Service) {
 
 func sampleDecision() *models.AIDecision {
 	return &models.AIDecision{
-		ID:        "dec-1",
-		TenantID:  "t-1",
-		Type:      "scheduling",
-		Status:    models.DecisionStatusPending,
-		Input:     "{}",
-		Output:    "{}",
+		ID:         "dec-1",
+		TenantID:   "t-1",
+		Type:       "scheduling",
+		Status:     models.DecisionStatusPending,
+		Input:      "{}",
+		Output:     "{}",
 		Confidence: 0.92,
 		Reasoning:  `{"summary":"test","factors":[],"alternatives":[],"constraints":[],"assumptions":[]}`,
-		Context:   "{}",
-		CreatedBy: "u-1",
-		CreatedAt: time.Now().Unix(),
+		Context:    "{}",
+		CreatedBy:  "u-1",
+		CreatedAt:  time.Now().Unix(),
 	}
 }
 

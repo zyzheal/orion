@@ -12,15 +12,15 @@ import (
 
 func makeApprovalSagaInstance() *saga.SagaInstance {
 	return &saga.SagaInstance{
-		ID:    "approval-saga-1",
-		SagaType: "approval_workflow",
-		Status:  saga.StatusRunning,
+		ID:         "approval-saga-1",
+		SagaType:   "approval_workflow",
+		Status:     saga.StatusRunning,
 		TotalSteps: 3,
 		ContextData: map[string]interface{}{
-			"title":    "Project Budget Approval",
-			"type":     "multi_level",
-			"levels":   3,
-			"user_id":  "user-42",
+			"title":   "Project Budget Approval",
+			"type":    "multi_level",
+			"levels":  3,
+			"user_id": "user-42",
 		},
 		Steps:           make([]saga.SagaStepResult, 0),
 		CompensationLog: make([]saga.SagaCompensation, 0),

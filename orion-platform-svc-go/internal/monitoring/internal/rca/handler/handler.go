@@ -6,10 +6,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"orion/platform-svc-go/internal/monitoring/internal/response_writer"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/monitoring/internal/rca/models"
 	"orion/platform-svc-go/internal/monitoring/internal/rca/service"
-	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/monitoring/internal/response_writer"
 )
 
 type RCAHandler struct {
@@ -38,6 +39,8 @@ func (h *RCAHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Analyze triggers root cause analysis.
 func (h *RCAHandler) Analyze(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorRCAAnalyze")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req models.AnalyzeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -50,7 +53,7 @@ func (h *RCAHandler) Analyze(c *gin.Context) {
 		triggeredBy = "manual"
 	}
 
-	analysis, err := h.svc.Analyze(c.Request.Context(), tenantID, &req, triggeredBy)
+	analysis, err := h.svc.Analyze(ctx, tenantID, &req, triggeredBy)
 	if err != nil {
 		response_writer.RespondInternalError(c, err.Error())
 		return
@@ -60,12 +63,14 @@ func (h *RCAHandler) Analyze(c *gin.Context) {
 
 // ListHistory returns paginated analysis history.
 func (h *RCAHandler) ListHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorRCAListHistory")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	incidentID := c.Query("incident_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	resp, err := h.svc.QueryAnalysisHistory(c.Request.Context(), tenantID, incidentID, limit, offset)
+	resp, err := h.svc.QueryAnalysisHistory(ctx, tenantID, incidentID, limit, offset)
 	if err != nil {
 		response_writer.RespondInternalError(c, err.Error())
 		return
@@ -78,6 +83,8 @@ func (h *RCAHandler) ListHistory(c *gin.Context) {
 
 // GetAnalysis returns an analysis by ID.
 func (h *RCAHandler) GetAnalysis(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorRCAGetAnalysis")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("analysis_id"))
 	if err != nil {
@@ -85,7 +92,7 @@ func (h *RCAHandler) GetAnalysis(c *gin.Context) {
 		return
 	}
 
-	analysis, err := h.svc.GetAnalysis(c.Request.Context(), tenantID, id)
+	analysis, err := h.svc.GetAnalysis(ctx, tenantID, id)
 	if err != nil {
 		response_writer.RespondNotFound(c, err.Error())
 		return
@@ -95,10 +102,12 @@ func (h *RCAHandler) GetAnalysis(c *gin.Context) {
 
 // GetTimeline returns the timeline for an incident.
 func (h *RCAHandler) GetTimeline(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorRCAGetTimeline")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	incidentID := c.Param("incident_id")
 
-	timeline, err := h.svc.GetTimeline(c.Request.Context(), tenantID, incidentID)
+	timeline, err := h.svc.GetTimeline(ctx, tenantID, incidentID)
 	if err != nil {
 		response_writer.RespondNotFound(c, err.Error())
 		return
@@ -111,10 +120,12 @@ func (h *RCAHandler) GetTimeline(c *gin.Context) {
 
 // GetFixes returns suggested fixes for a root cause.
 func (h *RCAHandler) GetFixes(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorRCAGetFixes")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	rootCauseID := c.Param("root_cause_id")
 
-	fixes, err := h.svc.SuggestFixes(c.Request.Context(), tenantID, rootCauseID)
+	fixes, err := h.svc.SuggestFixes(ctx, tenantID, rootCauseID)
 	if err != nil {
 		response_writer.RespondInternalError(c, err.Error())
 		return

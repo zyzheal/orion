@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"orion/platform-svc-go/internal/notification/chatops/models"
 	"orion/go-common/pkg/otel"
+	"orion/platform-svc-go/internal/notification/chatops/models"
 
 	"github.com/google/uuid"
 )
@@ -161,11 +161,11 @@ func (s *AdminService) BulkUpdateApprovalConfigs(ctx context.Context, tenantID s
 	var result []models.ApprovalConfig
 	for _, req := range configs {
 		cfg := &models.ApprovalConfig{
-			ID:        uuid.New().String(),
-			TenantID:  tenantID,
-			Enabled:   true,
+			ID:           uuid.New().String(),
+			TenantID:     tenantID,
+			Enabled:      true,
 			MinApprovers: 1,
-			TimeoutSec: 3600,
+			TimeoutSec:   3600,
 		}
 		if req.Enabled != nil {
 			cfg.Enabled = *req.Enabled
@@ -223,12 +223,12 @@ func (s *AdminService) UpdateApprovalConfigByCapability(ctx context.Context, ten
 	}
 	// Create if not exists
 	cfg := &models.ApprovalConfig{
-		ID:        uuid.New().String(),
-		TenantID:  tenantID,
-		Capability: capability,
-		Enabled:   true,
+		ID:           uuid.New().String(),
+		TenantID:     tenantID,
+		Capability:   capability,
+		Enabled:      true,
 		MinApprovers: 1,
-		TimeoutSec: 3600,
+		TimeoutSec:   3600,
 	}
 	if req.Enabled != nil {
 		cfg.Enabled = *req.Enabled

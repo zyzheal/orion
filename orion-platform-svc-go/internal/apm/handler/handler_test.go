@@ -1,12 +1,12 @@
 package handler
 
 import (
-	"orion/platform-svc-go/internal/apm/models"
-	"context"
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"orion/platform-svc-go/internal/apm/models"
 	"testing"
 
 	"orion/platform-svc-go/internal/apm/service"
@@ -35,6 +35,7 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	}
 	return c, w
 }
+
 type fakeApmService struct{}
 
 func (f *fakeApmService) GetSlowTraces(ctx context.Context, tenantID string, q *models.SlowTracesQuery) (*models.SlowTracesResponse, error) {
@@ -70,7 +71,6 @@ func (f *fakeApmService) Delete(ctx context.Context, id, tenantID string) (bool,
 }
 
 var _ service.ServiceInterface = (*fakeApmService)(nil)
-
 
 func TestAPM_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

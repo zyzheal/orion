@@ -24,7 +24,7 @@ type ServiceInterface interface {
 	GetJob(ctx context.Context, tenantID, id string) (*models.CronJob, error)
 	GetJobs(ctx context.Context, tenantID string) ([]models.CronJob, error)
 	GetRunningJobs() []models.CronJob
-	GetStatus(ctx context.Context,tenantID string) (map[string]interface{}, error)
+	GetStatus(ctx context.Context, tenantID string) (map[string]interface{}, error)
 	List(ctx context.Context, tenantID string, limit, offset int) ([]models.CronJob, error)
 	RemoveJob(ctx context.Context, tenantID, id string) error
 	Update(ctx context.Context, tenantID, id string, req models.UpdateCronJobRequest) (*models.CronJob, error)

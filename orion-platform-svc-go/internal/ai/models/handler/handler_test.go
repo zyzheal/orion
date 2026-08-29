@@ -28,7 +28,9 @@ func (f *fakeModelsService) RegisterModel(ctx context.Context, tenantID string, 
 func (f *fakeModelsService) UpdateModel(ctx context.Context, tenantID string, modelID string, req models.UpdateModelRequest) (*models.AIModel, error) {
 	return &models.AIModel{ID: modelID}, nil
 }
-func (f *fakeModelsService) DeleteModel(ctx context.Context, tenantID string, modelID string) error { return nil }
+func (f *fakeModelsService) DeleteModel(ctx context.Context, tenantID string, modelID string) error {
+	return nil
+}
 func (f *fakeModelsService) ListVersions(ctx context.Context, tenantID string, modelID string, q models.ListVersionsQuery) (*models.VersionListResponse, error) {
 	return &models.VersionListResponse{}, nil
 }
@@ -53,7 +55,9 @@ func (f *fakeModelsService) ConfigureCanary(ctx context.Context, tenantID string
 func (f *fakeModelsService) GetCanaryConfig(ctx context.Context, tenantID string, modelID string) (*models.CanaryConfig, error) {
 	return &models.CanaryConfig{}, nil
 }
-func (f *fakeModelsService) StopCanary(ctx context.Context, tenantID string, modelID string) error { return nil }
+func (f *fakeModelsService) StopCanary(ctx context.Context, tenantID string, modelID string) error {
+	return nil
+}
 
 var _ service.ServiceInterface = (*fakeModelsService)(nil)
 

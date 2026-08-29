@@ -27,7 +27,6 @@ import (
 	"log/slog"
 
 	"orion/platform-svc-go/internal/cmdb/collector"
-	"orion/platform-svc-go/internal/cmdb/collector"
 	"orion/platform-svc-go/internal/cmdb/transport"
 )
 
@@ -88,12 +87,12 @@ func (c *OracleCollector) Ping(ctx context.Context, config map[string]any) (bool
 	serviceName := config["service_name"].(string)
 
 	sqlConfig := &transport.SQLConfig{
-		Dialect:     transport.DBDialectOracle,
-		Host:        host,
-		Port:        port,
-		Username:    username,
-		Password:    password,
-		Database:    serviceName, // Oracle 用 service_name
+		Dialect:      transport.DBDialectOracle,
+		Host:         host,
+		Port:         port,
+		Username:     username,
+		Password:     password,
+		Database:     serviceName, // Oracle 用 service_name
 		QueryTimeout: 5,
 	}
 
@@ -115,13 +114,13 @@ func (c *OracleCollector) Ping(ctx context.Context, config map[string]any) (bool
 // Collect 执行采集
 //
 // 采集流程:
-//   1. 连接数据库 (go-sql-driver/oracle)
-//   2. 获取版本 (V$VERSION)
-//   3. 获取数据库名 (V$DATABASE)
-//   4. 获取表空间 (DBA_TABLESPACES)
-//   5. 获取表信息 (DBA_TABLES)
-//   6. 获取系统参数 (V$SYSTEM_PARAMETER)
-//   7. 组装 CIRaw
+//  1. 连接数据库 (go-sql-driver/oracle)
+//  2. 获取版本 (V$VERSION)
+//  3. 获取数据库名 (V$DATABASE)
+//  4. 获取表空间 (DBA_TABLESPACES)
+//  5. 获取表信息 (DBA_TABLES)
+//  6. 获取系统参数 (V$SYSTEM_PARAMETER)
+//  7. 组装 CIRaw
 func (c *OracleCollector) Collect(ctx context.Context, config map[string]any) ([]collector.CIRaw, error) {
 	host := config["host"].(string)
 	port := 1521
@@ -191,11 +190,11 @@ func (c *OracleCollector) Collect(ctx context.Context, config map[string]any) ([
 	tablespaces := make([]map[string]any, 0)
 	for _, row := range tablespaceRows {
 		ts := map[string]any{
-			"tablespace_name":    row["TABLESPACE_NAME"],
-			"status":             row["STATUS"],
-			"contents":           row["CONTENTS"],
-			"extent_management":  row["EXTENT_MANAGEMENT"],
-			"allocation_type":    row["ALLOCATION_TYPE"],
+			"tablespace_name":   row["TABLESPACE_NAME"],
+			"status":            row["STATUS"],
+			"contents":          row["CONTENTS"],
+			"extent_management": row["EXTENT_MANAGEMENT"],
+			"allocation_type":   row["ALLOCATION_TYPE"],
 		}
 		tablespaces = append(tablespaces, ts)
 	}
@@ -211,10 +210,10 @@ func (c *OracleCollector) Collect(ctx context.Context, config map[string]any) ([
 	tables := make([]map[string]any, 0)
 	for _, row := range tableRows {
 		table := map[string]any{
-			"owner":        row["OWNER"],
-			"table_name":   row["TABLE_NAME"],
-			"num_rows":     row["NUM_ROWS"],
-			"blocks":       row["BLOCKS"],
+			"owner":         row["OWNER"],
+			"table_name":    row["TABLE_NAME"],
+			"num_rows":      row["NUM_ROWS"],
+			"blocks":        row["BLOCKS"],
 			"last_analyzed": row["LAST_ANALYZED"],
 		}
 		tables = append(tables, table)
@@ -228,17 +227,17 @@ func (c *OracleCollector) Collect(ctx context.Context, config map[string]any) ([
 		TypeHint: collector.CITypeDatabase,
 		Status:   collector.CIStatusActive,
 		Attributes: map[string]any{
-			"vendor":           "oracle",
-			"host":             host,
-			"port":             port,
-			"version":          version,
-			"database_name":    dbName,
-			"service_name":     serviceName,
+			"vendor":            "oracle",
+			"host":              host,
+			"port":              port,
+			"version":           version,
+			"database_name":     dbName,
+			"service_name":      serviceName,
 			"tablespaces_count": len(tablespaces),
-			"tablespaces":      tablespaces,
-			"tables_count":     len(tables),
-			"tables":           tables,
-			"connection":       map[string]any{
+			"tablespaces":       tablespaces,
+			"tables_count":      len(tables),
+			"tables":            tables,
+			"connection": map[string]any{
 				"username":     username,
 				"service_name": serviceName,
 			},

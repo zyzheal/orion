@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/workflow-webhook/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	FindByWebhookPath(ctx context.Context, webhookPath string) (*models.WebhookTrigger, error)

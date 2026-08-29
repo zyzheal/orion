@@ -3,12 +3,11 @@ package handler
 import (
 	"strconv"
 
+	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/finops/finops/models"
 	"orion/platform-svc-go/internal/finops/finops/service"
-
-	"orion/go-common/pkg/auth"
-
-	"github.com/gin-gonic/gin"
 )
 
 // Handler provides HTTP handlers for FinOps operations.
@@ -41,6 +40,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) RecordCloudCost(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinOpsRecordCloudCost")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.RecordCostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -48,7 +49,7 @@ func (h *Handler) RecordCloudCost(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.RecordCloudCost(c.Request.Context(), tenantID, &req); err != nil {
+	if err := h.svc.RecordCloudCost(ctx, tenantID, &req); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -57,6 +58,8 @@ func (h *Handler) RecordCloudCost(c *gin.Context) {
 }
 
 func (h *Handler) RecordK8sCost(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinOpsRecordK8sCost")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var cost models.K8sCost
 	if err := c.ShouldBindJSON(&cost); err != nil {
@@ -64,7 +67,7 @@ func (h *Handler) RecordK8sCost(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.RecordK8sCost(c.Request.Context(), tenantID, &cost); err != nil {
+	if err := h.svc.RecordK8sCost(ctx, tenantID, &cost); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -73,6 +76,8 @@ func (h *Handler) RecordK8sCost(c *gin.Context) {
 }
 
 func (h *Handler) RecordSaaSCost(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinOpsRecordSaaSCost")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var cost models.SaaSCost
 	if err := c.ShouldBindJSON(&cost); err != nil {
@@ -80,7 +85,7 @@ func (h *Handler) RecordSaaSCost(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.RecordSaaSCost(c.Request.Context(), tenantID, &cost); err != nil {
+	if err := h.svc.RecordSaaSCost(ctx, tenantID, &cost); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -89,11 +94,13 @@ func (h *Handler) RecordSaaSCost(c *gin.Context) {
 }
 
 func (h *Handler) GetCostSummary(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinOpsGetCostSummary")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	periodStart := c.Query("period_start")
 	periodEnd := c.Query("period_end")
 
-	summary, err := h.svc.GetCostSummary(c.Request.Context(), tenantID, periodStart, periodEnd)
+	summary, err := h.svc.GetCostSummary(ctx, tenantID, periodStart, periodEnd)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -103,6 +110,8 @@ func (h *Handler) GetCostSummary(c *gin.Context) {
 }
 
 func (h *Handler) CreateBudgetAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinOpsCreateBudgetAlert")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateBudgetAlertRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -110,7 +119,7 @@ func (h *Handler) CreateBudgetAlert(c *gin.Context) {
 		return
 	}
 
-	alert, err := h.svc.CreateBudgetAlert(c.Request.Context(), tenantID, &req)
+	alert, err := h.svc.CreateBudgetAlert(ctx, tenantID, &req)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -120,6 +129,8 @@ func (h *Handler) CreateBudgetAlert(c *gin.Context) {
 }
 
 func (h *Handler) ListBudgetAlerts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinOpsListBudgetAlerts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -130,7 +141,7 @@ func (h *Handler) ListBudgetAlerts(c *gin.Context) {
 		pageSize = 20
 	}
 
-	alerts, err := h.svc.ListBudgetAlerts(c.Request.Context(), tenantID, (page-1)*pageSize, pageSize)
+	alerts, err := h.svc.ListBudgetAlerts(ctx, tenantID, (page-1)*pageSize, pageSize)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -140,6 +151,8 @@ func (h *Handler) ListBudgetAlerts(c *gin.Context) {
 }
 
 func (h *Handler) UpdateBudgetAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinOpsUpdateBudgetAlert")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -149,7 +162,7 @@ func (h *Handler) UpdateBudgetAlert(c *gin.Context) {
 		return
 	}
 
-	alert, err := h.svc.UpdateBudgetAlert(c.Request.Context(), tenantID, id, &req)
+	alert, err := h.svc.UpdateBudgetAlert(ctx, tenantID, id, &req)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -159,8 +172,10 @@ func (h *Handler) UpdateBudgetAlert(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinOpsDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -168,8 +183,10 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinOpsCount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

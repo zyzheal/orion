@@ -14,7 +14,7 @@ type fakeProvider struct {
 	rows []models.SourceResult
 }
 
-func (f *fakeProvider) Name() string                { return f.name }
+func (f *fakeProvider) Name() string { return f.name }
 func (f *fakeProvider) Search(ctx context.Context, tenantID string, q models.QueryRequest) ([]models.SourceResult, error) {
 	return f.rows, nil
 }

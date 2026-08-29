@@ -4,16 +4,16 @@ import "time"
 
 // CronJob represents a scheduled cron task.
 type CronJob struct {
-	ID          string     `json:"id" db:"id"`
-	TenantID    string     `json:"tenant_id" db:"tenant_id"`
-	Name        string     `json:"name" db:"name"`
-	Schedule    string     `json:"schedule"`
-	Task        string     `json:"task"`
-	Description string     `json:"description"`
-	Enabled     bool       `json:"enabled"`
-	Status      string     `json:"status"`
-	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
+	ID          string    `json:"id" db:"id"`
+	TenantID    string    `json:"tenant_id" db:"tenant_id"`
+	Name        string    `json:"name" db:"name"`
+	Schedule    string    `json:"schedule"`
+	Task        string    `json:"task"`
+	Description string    `json:"description"`
+	Enabled     bool      `json:"enabled"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // CreateCronJobRequest is the request body for creating a cron job.
@@ -47,21 +47,21 @@ type CronJobExecution struct {
 
 // JobDefinition represents a scheduled job definition (scheduler_job_definitions table).
 type JobDefinition struct {
-	ID          string     `json:"id" db:"id"`
-	TenantID    string     `json:"tenant_id" db:"tenant_id"`
-	Name        string     `json:"name" db:"name"`
-	CronExpr    string     `json:"cron_expr" db:"cron_expr"`
-	JobType     string     `json:"job_type" db:"job_type"`
-	Config      string     `json:"config" db:"config"`
-	Status      string     `json:"status" db:"status"`
-	LastRunAt   *time.Time `json:"last_run_at" db:"last_run_at"`
-	NextRunAt   *time.Time `json:"next_run_at" db:"next_run_at"`
-	MaxRetries  int        `json:"max_retries" db:"max_retries"`
-	TimeoutSec  int        `json:"timeout_sec" db:"timeout_sec"`
-	Enabled     bool       `json:"enabled" db:"enabled"`
-	Error       string     `json:"error" db:"error"`
-	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
+	ID         string     `json:"id" db:"id"`
+	TenantID   string     `json:"tenant_id" db:"tenant_id"`
+	Name       string     `json:"name" db:"name"`
+	CronExpr   string     `json:"cron_expr" db:"cron_expr"`
+	JobType    string     `json:"job_type" db:"job_type"`
+	Config     string     `json:"config" db:"config"`
+	Status     string     `json:"status" db:"status"`
+	LastRunAt  *time.Time `json:"last_run_at" db:"last_run_at"`
+	NextRunAt  *time.Time `json:"next_run_at" db:"next_run_at"`
+	MaxRetries int        `json:"max_retries" db:"max_retries"`
+	TimeoutSec int        `json:"timeout_sec" db:"timeout_sec"`
+	Enabled    bool       `json:"enabled" db:"enabled"`
+	Error      string     `json:"error" db:"error"`
+	CreatedAt  time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // JobExecutionLog represents a single execution log of a job (scheduler_job_execution_logs table).

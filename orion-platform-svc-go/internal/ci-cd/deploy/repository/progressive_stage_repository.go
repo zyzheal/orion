@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"orion/platform-svc-go/internal/ci-cd/deploy/models"
 	"orion/go-common/pkg/database"
+	"orion/platform-svc-go/internal/ci-cd/deploy/models"
 )
 
 // ProgressiveStageRepository handles PostgreSQL operations for progressive deploy stages.

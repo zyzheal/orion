@@ -7,45 +7,37 @@ import (
 	notification_repo "orion/platform-svc-go/internal/notification/notification/repository"
 	notification_service "orion/platform-svc-go/internal/notification/notification/service"
 
-	notification_policy_handler "orion/platform-svc-go/internal/notification/notification-policy/handler"
-	notification_policy_repo "orion/platform-svc-go/internal/notification/notification-policy/repository"
-	notification_policy_service "orion/platform-svc-go/internal/notification/notification-policy/service"
+	notification_policy_handler "orion/platform-svc-go/internal/notification-policy/handler"
+	notification_policy_repo "orion/platform-svc-go/internal/notification-policy/repository"
+	notification_policy_service "orion/platform-svc-go/internal/notification-policy/service"
 
-	notification_template_handler "orion/platform-svc-go/internal/notification/notification-template/handler"
-	notification_template_repo "orion/platform-svc-go/internal/notification/notification-template/repository"
-	notification_template_service "orion/platform-svc-go/internal/notification/notification-template/service"
+	notification_template_handler "orion/platform-svc-go/internal/notification-template/handler"
+	notification_template_repo "orion/platform-svc-go/internal/notification-template/repository"
+	notification_template_service "orion/platform-svc-go/internal/notification-template/service"
 
-	scheduled_notification_handler "orion/platform-svc-go/internal/notification/scheduled-notification/handler"
-	scheduled_notification_repo "orion/platform-svc-go/internal/notification/scheduled-notification/repository"
-	scheduled_notification_service "orion/platform-svc-go/internal/notification/scheduled-notification/service"
+	scheduled_notification_handler "orion/platform-svc-go/internal/scheduled-notification/handler"
+	scheduled_notification_repo "orion/platform-svc-go/internal/scheduled-notification/repository"
+	scheduled_notification_service "orion/platform-svc-go/internal/scheduled-notification/service"
 
 	webhook_handler "orion/platform-svc-go/internal/webhook/handler"
 	webhook_repo "orion/platform-svc-go/internal/webhook/repository"
 	webhook_service "orion/platform-svc-go/internal/webhook/service"
 
-	dd_handler "orion/platform-svc-go/internal/notification/do-not-disturb/handler"
-	dd_repo "orion/platform-svc-go/internal/notification/do-not-disturb/repository"
-	dd_service "orion/platform-svc-go/internal/notification/do-not-disturb/service"
-
-	chan_handler "orion/platform-svc-go/internal/notification/channel/handler"
-	chan_repo "orion/platform-svc-go/internal/notification/channel/repository"
-	chan_service "orion/platform-svc-go/internal/notification/channel/service"
-
 	workflow_handler "orion/platform-svc-go/internal/workflow/workflow/handler"
 	workflow_repo "orion/platform-svc-go/internal/workflow/workflow/repository"
 	workflow_service "orion/platform-svc-go/internal/workflow/workflow/service"
 
-	workflow_trigger_handler "orion/platform-svc-go/internal/workflow/workflow-trigger/handler"
-	workflow_trigger_repo "orion/platform-svc-go/internal/workflow/workflow-trigger/repository"
-	workflow_trigger_service "orion/platform-svc-go/internal/workflow/workflow-trigger/service"
+	workflow_trigger_handler "orion/platform-svc-go/internal/workflow-trigger/handler"
+	workflow_trigger_repo "orion/platform-svc-go/internal/workflow-trigger/repository"
+	workflow_trigger_service "orion/platform-svc-go/internal/workflow-trigger/service"
 
-	workflow_task_handler "orion/platform-svc-go/internal/workflow/workflow-task/handler"
-	workflow_task_repo "orion/platform-svc-go/internal/workflow/workflow-task/repository"
-	workflow_task_service "orion/platform-svc-go/internal/workflow/workflow-task/service"
+	workflow_task_handler "orion/platform-svc-go/internal/workflow-task/handler"
+	workflow_task_repo "orion/platform-svc-go/internal/workflow-task/repository"
+	workflow_task_service "orion/platform-svc-go/internal/workflow-task/service"
 
-	workflow_dep_handler "orion/platform-svc-go/internal/workflow/workflow-dependency/handler"
-	workflow_dep_repo "orion/platform-svc-go/internal/workflow/workflow-dependency/repository"
-	workflow_dep_service "orion/platform-svc-go/internal/workflow/workflow-dependency/service"
+	workflow_dep_handler "orion/platform-svc-go/internal/workflow-dependency/handler"
+	workflow_dep_repo "orion/platform-svc-go/internal/workflow-dependency/repository"
+	workflow_dep_service "orion/platform-svc-go/internal/workflow-dependency/service"
 
 	workflow_webhook_handler "orion/platform-svc-go/internal/workflow-webhook/handler"
 	workflow_webhook_repo "orion/platform-svc-go/internal/workflow-webhook/repository"
@@ -85,8 +77,9 @@ import (
 )
 
 // wireNotificationModules wires notification-related modules: notification,
-// notification-policy, notification-template, scheduled-notification,
-// webhook, do-not-disturb, channel.
+// notification-policy, notification-template, scheduled-notification, webhook.
+// do-not-disturb and channel are wired in wiring-do-not-disturb.go /
+// wiring-channel.go to avoid registering their routes twice.
 func wireNotificationModules(db *database.DB) {
 	// notification services
 	notificationRepo := notification_repo.NewRepository(db)
@@ -112,16 +105,6 @@ func wireNotificationModules(db *database.DB) {
 	webhookRepo := webhook_repo.NewRepository(db.DB)
 	webhookSvc := webhook_service.NewService(webhookRepo)
 	webhookH = webhook_handler.NewHandler(webhookSvc)
-
-	// do-not-disturb services
-	ddRepo := dd_repo.NewRepository(db.DB)
-	ddSvc := dd_service.NewService(ddRepo)
-	ddH = dd_handler.NewHandler(ddSvc)
-
-	// channel services
-	chanRepo := chan_repo.NewRepository(db.DB)
-	chanSvc := chan_service.NewService(chanRepo)
-	chanH = chan_handler.NewHandler(chanSvc)
 }
 
 // wireWorkflowModules wires workflow orchestration modules: workflow,
@@ -202,25 +185,23 @@ func wireAuthModules(db *database.DB) {
 
 // Handler variables for notification_auth_wiring (moved from central wiring.go var block)
 var (
-	abacH               *abac_handler.Handler
-	aeH                 *ae_handler.Handler
-	amfaH               *amfa_handler.Handler
-	chanH               *chan_handler.Handler
-	ddH                 *dd_handler.Handler
-	notification_policyH *notification_policy_handler.Handler
-	notification_templateH *notification_template_handler.Handler
-	notificationH       *notification_handler.Handler
-	pauditH             *paudit_handler.Handler
-	permH               *perm_handler.Handler
+	abacH                   *abac_handler.Handler
+	aeH                     *ae_handler.Handler
+	amfaH                   *amfa_handler.Handler
+	notification_policyH    *notification_policy_handler.Handler
+	notification_templateH  *notification_template_handler.Handler
+	notificationH           *notification_handler.Handler
+	pauditH                 *paudit_handler.Handler
+	permH                   *perm_handler.Handler
 	scheduled_notificationH *scheduled_notification_handler.Handler
-	ssopH               *ssop_handler.Handler
-	ssouH               *ssou_handler.Handler
-	userH               *user_handler.Handler
-	webhookH            *webhook_handler.Handler
-	workflow_depH       *workflow_dep_handler.Handler
-	workflow_taskH      *workflow_task_handler.Handler
-	workflow_triggerH   *workflow_trigger_handler.Handler
-	workflow_webhookH   *workflow_webhook_handler.Handler
-	workflowH           *workflow_handler.Handler
-	workflowExtraH      *workflow_handler.ExtraHandler
+	ssopH                   *ssop_handler.Handler
+	ssouH                   *ssou_handler.Handler
+	userH                   *user_handler.Handler
+	webhookH                *webhook_handler.Handler
+	workflow_depH           *workflow_dep_handler.Handler
+	workflow_taskH          *workflow_task_handler.Handler
+	workflow_triggerH       *workflow_trigger_handler.Handler
+	workflow_webhookH       *workflow_webhook_handler.Handler
+	workflowH               *workflow_handler.Handler
+	workflowExtraH          *workflow_handler.ExtraHandler
 )

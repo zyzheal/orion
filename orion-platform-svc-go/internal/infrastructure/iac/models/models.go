@@ -100,9 +100,9 @@ type IaCStateVersion struct {
 
 // IaCStateDiff represents a diff between two state versions.
 type IaCStateDiff struct {
-	VersionA  int      `json:"version_a"`
-	VersionB  int      `json:"version_b"`
-	Additions []string `json:"additions"`
-	Deletions []string `json:"deletions"`
+	VersionA      int      `json:"version_a"`
+	VersionB      int      `json:"version_b"`
+	Additions     []string `json:"additions"`
+	Deletions     []string `json:"deletions"`
 	Modifications []string `json:"modifications"`
 }

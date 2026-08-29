@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"orion/platform-svc-go/internal/ci-cd/build/models"
 	"orion/go-common/pkg/database"
+	"orion/platform-svc-go/internal/ci-cd/build/models"
 )
 
 // BuilderImageRepository handles database operations for builder images.

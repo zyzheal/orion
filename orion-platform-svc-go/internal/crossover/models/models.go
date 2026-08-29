@@ -77,17 +77,17 @@ const (
 
 // CrossoverCall is the call envelope for cross-module operations.
 type CrossoverCall struct {
-	ID             string         `json:"id" db:"id"`
-	TenantID       string         `json:"tenantId" db:"tenant_id"`
-	CallType       CallType       `json:"callType" db:"call_type"`
-	SourceModule   string         `json:"sourceModule" db:"source_module"`
-	TargetModule   string         `json:"targetModule" db:"target_module"`
-	Operation      string         `json:"operation" db:"operation"`
-	Parameters     CallParameters `json:"parameters" db:"parameters"` // JSON-encoded map
-	Result         *CallResultObj `json:"result,omitempty" db:"result"`
-	Status         string         `json:"status" db:"status"`
-	CreatedAt      time.Time      `json:"createdAt" db:"created_at"`
-	UpdatedAt      time.Time      `json:"updatedAt" db:"updated_at"`
+	ID           string         `json:"id" db:"id"`
+	TenantID     string         `json:"tenantId" db:"tenant_id"`
+	CallType     CallType       `json:"callType" db:"call_type"`
+	SourceModule string         `json:"sourceModule" db:"source_module"`
+	TargetModule string         `json:"targetModule" db:"target_module"`
+	Operation    string         `json:"operation" db:"operation"`
+	Parameters   CallParameters `json:"parameters" db:"parameters"` // JSON-encoded map
+	Result       *CallResultObj `json:"result,omitempty" db:"result"`
+	Status       string         `json:"status" db:"status"`
+	CreatedAt    time.Time      `json:"createdAt" db:"created_at"`
+	UpdatedAt    time.Time      `json:"updatedAt" db:"updated_at"`
 }
 
 // CallParameters is a JSON-encoded map of operation parameters.
@@ -128,14 +128,14 @@ type InvokeCrossoverRequest struct {
 type CallOperation struct {
 	ID           string                 `json:"id" db:"id"`
 	TenantID     string                 `json:"tenant_id" db:"tenant_id"`
-	Module       string                 `json:"module" db:"module"`            // owning module (target)
-	Name         string                 `json:"name" db:"name"`               // operation name
-	CallType     CallType               `json:"callType" db:"call_type"`       // supported call pattern
-	Status       OperationStatus        `json:"status" db:"status"`            // active / disabled
+	Module       string                 `json:"module" db:"module"`      // owning module (target)
+	Name         string                 `json:"name" db:"name"`          // operation name
+	CallType     CallType               `json:"callType" db:"call_type"` // supported call pattern
+	Status       OperationStatus        `json:"status" db:"status"`      // active / disabled
 	Description  string                 `json:"description" db:"description"`
-	InputSchema  map[string]interface{} `json:"inputSchema" db:"input_schema"` // expected params shape
+	InputSchema  map[string]interface{} `json:"inputSchema" db:"input_schema"`   // expected params shape
 	OutputSchema map[string]interface{} `json:"outputSchema" db:"output_schema"` // expected result shape
-	RegisteredBy string               `json:"registeredBy" db:"registered_by"`
+	RegisteredBy string                 `json:"registeredBy" db:"registered_by"`
 	CreatedAt    time.Time              `json:"createdAt" db:"created_at"`
 	UpdatedAt    time.Time              `json:"updatedAt" db:"updated_at"`
 }
@@ -148,7 +148,7 @@ type RegisterOperationRequest struct {
 	Description  string                 `json:"description,omitempty"`
 	InputSchema  map[string]interface{} `json:"inputSchema,omitempty"`
 	OutputSchema map[string]interface{} `json:"outputSchema,omitempty"`
-	RegisteredBy string               `json:"registeredBy,omitempty"`
+	RegisteredBy string                 `json:"registeredBy,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -159,10 +159,10 @@ type RegisterOperationRequest struct {
 type CrossoverEvent struct {
 	ID          string                 `json:"id"`
 	TenantID    string                 `json:"tenantId"`
-	Type        string                 `json:"type"`                   // event type, e.g. "module.operation.completed"
-	Source      string                 `json:"source"`                 // emitting module
+	Type        string                 `json:"type"`   // event type, e.g. "module.operation.completed"
+	Source      string                 `json:"source"` // emitting module
 	Payload     map[string]interface{} `json:"payload,omitempty"`
-	Correlation string                 `json:"correlation,omitempty"`  // correlates with a call ID
+	Correlation string                 `json:"correlation,omitempty"` // correlates with a call ID
 	OccurredAt  time.Time              `json:"occurredAt"`
 }
 
@@ -202,7 +202,7 @@ type CrossoverCallStats struct {
 	Failed       int64            `json:"failed"`
 	Timeout      int64            `json:"timeout"`
 	ByModule     map[string]int64 `json:"byModule"` // per target module
-	AvgLatencyMs float64         `json:"avgLatencyMs"`
+	AvgLatencyMs float64          `json:"avgLatencyMs"`
 }
 
 // ---------------------------------------------------------------------------

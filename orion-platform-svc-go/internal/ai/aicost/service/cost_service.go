@@ -99,12 +99,12 @@ func (s *Service) GenerateAlerts(tenantID string) []models.CostAlert {
 	for _, opp := range analysis.Opportunities {
 		if opp.EstimatedMonthlySavings > 500 {
 			alerts = append(alerts, models.CostAlert{
-				Type:                   "high_savings_opportunity",
-				Category:               opp.Category,
-				ResourceName:           opp.ResourceName,
+				Type:                    "high_savings_opportunity",
+				Category:                opp.Category,
+				ResourceName:            opp.ResourceName,
 				EstimatedMonthlySavings: opp.EstimatedMonthlySavings,
-				RiskLevel:              opp.RiskLevel,
-				Description:            opp.Description,
+				RiskLevel:               opp.RiskLevel,
+				Description:             opp.Description,
 			})
 		}
 	}

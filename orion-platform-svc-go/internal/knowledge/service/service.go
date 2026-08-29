@@ -71,11 +71,11 @@ type RAGRepositoryInterface interface {
 }
 
 type Service struct {
-	repo        RepositoryInterface
-	ragRepo     RAGRepositoryInterface
-	rag         *RAGPipelineService
-	promptMgr   *PromptTemplateManager
-	safety      *SafetyFilter
+	repo      RepositoryInterface
+	ragRepo   RAGRepositoryInterface
+	rag       *RAGPipelineService
+	promptMgr *PromptTemplateManager
+	safety    *SafetyFilter
 }
 
 func NewService(repo RepositoryInterface) *Service {
@@ -98,7 +98,7 @@ func NewServiceWithConfig(repo RepositoryInterface, config PipelineConfig) *Serv
 	return s
 }
 
-func (s *Service) GetRAGPipeline() *RAGPipelineService { return s.rag }
+func (s *Service) GetRAGPipeline() *RAGPipelineService  { return s.rag }
 func (s *Service) GetRAGRepo() RAGRepositoryInterface   { return s.ragRepo }
 func (s *Service) GetPromptMgr() *PromptTemplateManager { return s.promptMgr }
 
@@ -114,8 +114,8 @@ func (s *Service) HandleFeedback(ctx context.Context, tenantID, userID string, r
 	}
 
 	fb := &models.FeedbackEvent{
-		TenantID: tenantID,
-		UserID:   userID,
+		TenantID:   tenantID,
+		UserID:     userID,
 		IsPositive: req.IsPositive,
 	}
 	if err := s.ragRepo.SaveFeedback(ctx, fb); err != nil {
@@ -232,15 +232,23 @@ func (s *Service) CountQueryAuditLogs(ctx context.Context, tenantID string) (int
 // --- Space operations ---
 
 func (s *Service) ListSpaces(ctx context.Context, tenantID string, q models.SpaceListQuery) ([]models.Space, error) {
-	if q.Limit <= 0 { q.Limit = 50 }
+	if q.Limit <= 0 {
+		q.Limit = 50
+	}
 	return s.repo.ListSpaces(ctx, tenantID, q)
 }
 
 func (s *Service) CreateSpace(ctx context.Context, tenantID string, req models.CreateSpaceRequest) (*models.Space, error) {
 	space := &models.Space{TenantID: tenantID, Name: req.Name, Type: req.Type, Description: req.Description, TeamID: req.TeamID, OwnerID: req.OwnerID}
-	if space.Type == "" { space.Type = "public" }
-	if space.OwnerID == "" { space.OwnerID = "system" }
-	if err := s.repo.CreateSpace(ctx, space); err != nil { return nil, err }
+	if space.Type == "" {
+		space.Type = "public"
+	}
+	if space.OwnerID == "" {
+		space.OwnerID = "system"
+	}
+	if err := s.repo.CreateSpace(ctx, space); err != nil {
+		return nil, err
+	}
 	return space, nil
 }
 
@@ -250,11 +258,21 @@ func (s *Service) GetSpace(ctx context.Context, id string, tenantID string) (*mo
 
 func (s *Service) UpdateSpace(ctx context.Context, id string, tenantID string, req models.UpdateSpaceRequest) (*models.Space, error) {
 	updates := make(map[string]interface{})
-	if req.Name != nil { updates["name"] = *req.Name }
-	if req.Type != nil { updates["type"] = *req.Type }
-	if req.Description != nil { updates["description"] = *req.Description }
-	if req.TeamID != nil { updates["team_id"] = *req.TeamID }
-	if err := s.repo.UpdateSpace(ctx, id, tenantID, updates); err != nil { return nil, err }
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.Type != nil {
+		updates["type"] = *req.Type
+	}
+	if req.Description != nil {
+		updates["description"] = *req.Description
+	}
+	if req.TeamID != nil {
+		updates["team_id"] = *req.TeamID
+	}
+	if err := s.repo.UpdateSpace(ctx, id, tenantID, updates); err != nil {
+		return nil, err
+	}
 	return s.repo.GetSpaceByID(ctx, id, tenantID)
 }
 
@@ -264,12 +282,16 @@ func (s *Service) DeleteSpace(ctx context.Context, id string, tenantID string) e
 }
 
 func (s *Service) ListDocs(ctx context.Context, tenantID string, q models.DocListQuery) ([]models.Document, error) {
-	if q.Limit <= 0 { q.Limit = 50 }
+	if q.Limit <= 0 {
+		q.Limit = 50
+	}
 	return s.repo.ListDocs(ctx, tenantID, q)
 }
 
 func (s *Service) ListDocsByType(ctx context.Context, tenantID string, q models.DocListQuery) ([]models.Document, error) {
-	if q.Limit <= 0 { q.Limit = 50 }
+	if q.Limit <= 0 {
+		q.Limit = 50
+	}
 	return s.repo.ListDocsByType(ctx, tenantID, q)
 }
 
@@ -278,20 +300,36 @@ func (s *Service) GetDoc(ctx context.Context, id string, tenantID string) (*mode
 }
 
 func (s *Service) CreateDoc(ctx context.Context, tenantID string, req models.CreateDocumentRequest) (*models.Document, error) {
-	if _, err := s.GetSpace(ctx, req.SpaceID, tenantID); err != nil { return nil, fmt.Errorf("space not found: %w", err) }
+	if _, err := s.GetSpace(ctx, req.SpaceID, tenantID); err != nil {
+		return nil, fmt.Errorf("space not found: %w", err)
+	}
 	doc := &models.Document{TenantID: tenantID, Title: req.Title, Content: req.Content, SpaceID: req.SpaceID, Tags: req.Tags, Status: req.Status, AuthorID: req.AuthorID}
-	if doc.Status == "" { doc.Status = "draft" }
-	if err := s.repo.CreateDoc(ctx, doc); err != nil { return nil, err }
+	if doc.Status == "" {
+		doc.Status = "draft"
+	}
+	if err := s.repo.CreateDoc(ctx, doc); err != nil {
+		return nil, err
+	}
 	return doc, nil
 }
 
 func (s *Service) UpdateDoc(ctx context.Context, id string, tenantID string, req models.UpdateDocumentRequest) (*models.Document, error) {
 	updates := make(map[string]interface{})
-	if req.Title != nil { updates["title"] = *req.Title }
-	if req.Content != nil { updates["content"] = *req.Content }
-	if req.Tags != nil { updates["tags"] = *req.Tags }
-	if req.Status != nil { updates["status"] = *req.Status }
-	if err := s.repo.UpdateDoc(ctx, id, tenantID, updates); err != nil { return nil, err }
+	if req.Title != nil {
+		updates["title"] = *req.Title
+	}
+	if req.Content != nil {
+		updates["content"] = *req.Content
+	}
+	if req.Tags != nil {
+		updates["tags"] = *req.Tags
+	}
+	if req.Status != nil {
+		updates["status"] = *req.Status
+	}
+	if err := s.repo.UpdateDoc(ctx, id, tenantID, updates); err != nil {
+		return nil, err
+	}
 	return s.repo.GetDocByID(ctx, id, tenantID)
 }
 
@@ -314,7 +352,9 @@ func (s *Service) GetDocToc(ctx context.Context, tenantID string) ([]models.Docu
 
 func (s *Service) TriggerSync(ctx context.Context, tenantID string, source string) (*models.SyncLog, error) {
 	log := &models.SyncLog{TenantID: tenantID, Source: source, Status: "running"}
-	if err := s.repo.CreateSyncLog(ctx, log); err != nil { return nil, err }
+	if err := s.repo.CreateSyncLog(ctx, log); err != nil {
+		return nil, err
+	}
 	return log, nil
 }
 
@@ -338,13 +378,13 @@ func (s *Service) IngestFromSource(ctx context.Context, tenantID string, req mod
 		}
 		tags := append([]string{req.Source, item.Status}, item.Tags...)
 		doc := &models.Document{
-			TenantID:  tenantID,
-			Title:     title,
-			Content:   item.Content,
-			SpaceID:   spaceID,
-			Tags:      tags,
-			Status:    "published",
-			AuthorID:  "system-ingest",
+			TenantID: tenantID,
+			Title:    title,
+			Content:  item.Content,
+			SpaceID:  spaceID,
+			Tags:     tags,
+			Status:   "published",
+			AuthorID: "system-ingest",
 		}
 		if err := s.repo.CreateDoc(ctx, doc); err != nil {
 			return nil, fmt.Errorf("failed to ingest %s item %q: %w", req.Source, item.Title, err)
@@ -377,7 +417,9 @@ func defaultSourceSpace(source string) string {
 
 func (s *Service) Retrieve(ctx context.Context, tenantID string, query string, req models.RetrieveRequest) ([]models.RAGRetrieveResult, error) {
 	var topK *int
-	if req.TopK != nil { topK = req.TopK }
+	if req.TopK != nil {
+		topK = req.TopK
+	}
 	return s.repo.Retrieve(ctx, tenantID, query, req.SpaceID, topK)
 }
 

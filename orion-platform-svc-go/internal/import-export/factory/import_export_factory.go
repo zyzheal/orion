@@ -11,9 +11,9 @@ import (
 // It is safe for concurrent read access. New handlers must be registered once
 // during application boot before any request is served.
 type Factory struct {
-	mu            sync.RWMutex
-	importByType  map[string]interfaces.ImportHandler
-	exportByType  map[string]interfaces.ExportHandler
+	mu           sync.RWMutex
+	importByType map[string]interfaces.ImportHandler
+	exportByType map[string]interfaces.ExportHandler
 }
 
 // NewFactory creates a fresh handler registry.

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/identity/auth/keyrotation"
 
 	"github.com/gin-gonic/gin"
@@ -19,6 +20,8 @@ func NewKeyRotationHandler(svc *keyrotation.KeyRotationService, log *zap.Logger)
 
 // ListKeys handles GET /keys.
 func (h *KeyRotationHandler) ListKeys(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthListKeys")
+	defer span.End()
 	keys, err := h.svc.ListKeys()
 	if err != nil {
 		h.log.Error("failed to list keys", zap.Error(err))
@@ -27,11 +30,13 @@ func (h *KeyRotationHandler) ListKeys(c *gin.Context) {
 	}
 
 	h.respondSuccess(c, gin.H{"keys": keys,
-		"total": len(keys),})
+		"total": len(keys)})
 }
 
 // GenerateKey handles POST /keys.
 func (h *KeyRotationHandler) GenerateKey(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthGenerateKey")
+	defer span.End()
 	key, err := h.svc.Generate()
 	if err != nil {
 		h.log.Error("failed to generate key", zap.Error(err))
@@ -40,13 +45,15 @@ func (h *KeyRotationHandler) GenerateKey(c *gin.Context) {
 	}
 
 	h.respondCreated(c, gin.H{
-		"key": key,
+		"key":     key,
 		"message": "key generated (pending activation)",
 	})
 }
 
 // RotateKey handles POST /keys/rotate.
 func (h *KeyRotationHandler) RotateKey(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthRotateKey")
+	defer span.End()
 	newKey, err := h.svc.Rotate()
 	if err != nil {
 		h.log.Error("failed to rotate key", zap.Error(err))
@@ -55,11 +62,13 @@ func (h *KeyRotationHandler) RotateKey(c *gin.Context) {
 	}
 
 	h.respondSuccess(c, gin.H{"key": newKey,
-		"message": "key rotated successfully",})
+		"message": "key rotated successfully"})
 }
 
 // EmergencyRotateKey handles POST /keys/emergency-rotate.
 func (h *KeyRotationHandler) EmergencyRotateKey(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthEmergencyRotateKey")
+	defer span.End()
 	newKey, err := h.svc.EmergencyRotate()
 	if err != nil {
 		h.log.Error("failed to emergency rotate key", zap.Error(err))
@@ -68,11 +77,13 @@ func (h *KeyRotationHandler) EmergencyRotateKey(c *gin.Context) {
 	}
 
 	h.respondSuccess(c, gin.H{"key": newKey,
-		"message": "emergency key rotation completed (previous key expired immediately)",})
+		"message": "emergency key rotation completed (previous key expired immediately)"})
 }
 
 // KeyStats handles GET /keys/stats.
 func (h *KeyRotationHandler) KeyStats(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthKeyStats")
+	defer span.End()
 	stats, err := h.svc.GetKeyStats()
 	if err != nil {
 		h.log.Error("failed to get key stats", zap.Error(err))

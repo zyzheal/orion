@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/alert-breaker/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/alert-breaker/models"
 )
 
@@ -59,7 +59,6 @@ func (f *fakeAlert_breakerService) Update(ctx context.Context, tenantID, id stri
 }
 
 var _ service.ServiceInterface = (*fakeAlert_breakerService)(nil)
-
 
 func TestALERT_BREAKER_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

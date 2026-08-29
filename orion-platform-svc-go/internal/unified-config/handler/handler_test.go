@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/unified-config/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/unified-config/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeUnified_configService) Update(ctx context.Context, tenantID, id str
 }
 
 var _ service.ServiceInterface = (*fakeUnified_configService)(nil)
-
 
 func TestHandler_UNIFIED_CONFIG_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

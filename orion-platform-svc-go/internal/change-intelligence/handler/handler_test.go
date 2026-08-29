@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/change-intelligence/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/change-intelligence/models"
 )
 
@@ -55,7 +55,6 @@ func (f *fakeChange_intelligenceService) ListReports(ctx context.Context, tenant
 }
 
 var _ service.ServiceInterface = (*fakeChange_intelligenceService)(nil)
-
 
 func TestCHANGE_INTELLIGENCE_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

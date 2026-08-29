@@ -24,15 +24,15 @@ var (
 
 // taskScriptConfig represents a task configured with an inline script.
 type taskScriptConfig struct {
-	Script     string `json:"script"`
+	Script      string `json:"script"`
 	Interpreter string `json:"interpreter"` // e.g. "bash", "sh", "python3"
-	TimeoutSec int    `json:"timeout_seconds"`
+	TimeoutSec  int    `json:"timeout_seconds"`
 }
 
 // taskCommandConfig represents a task configured with a raw shell command.
 type taskCommandConfig struct {
-	Command     string `json:"command"`
-	TimeoutSec  int    `json:"timeout_seconds"`
+	Command    string `json:"command"`
+	TimeoutSec int    `json:"timeout_seconds"`
 }
 
 // RunTask executes a single task and returns its result.

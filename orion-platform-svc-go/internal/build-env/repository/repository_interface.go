@@ -5,7 +5,6 @@ import (
 	"orion/platform-svc-go/internal/build-env/models"
 )
 
-
 // RepositoryInterface defines the data access contract for the build-env module.
 // DO NOT MODIFY: auto-generated from repository.go
 type RepositoryInterface interface {

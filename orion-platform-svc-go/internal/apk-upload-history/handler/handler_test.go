@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/apk-upload-history/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/apk-upload-history/models"
 )
 
@@ -67,7 +67,6 @@ func (f *fakeApk_upload_historyService) UpdateStatus(ctx context.Context, tenant
 }
 
 var _ service.ServiceInterface = (*fakeApk_upload_historyService)(nil)
-
 
 func TestAPK_UPLOAD_HISTORY_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

@@ -8,8 +8,27 @@ import (
 )
 
 type JSONB map[string]interface{}
-func (j JSONB) Value() (driver.Value, error) { if j == nil { return nil, nil }; return json.Marshal(j) }
-func (j *JSONB) Scan(src interface{}) error { if src == nil { *j = nil; return nil }; switch v := src.(type) { case []byte: return json.Unmarshal(v, j); case string: return json.Unmarshal([]byte(v), j); default: return fmt.Errorf("cannot scan %T into JSONB", src) } }
+
+func (j JSONB) Value() (driver.Value, error) {
+	if j == nil {
+		return nil, nil
+	}
+	return json.Marshal(j)
+}
+func (j *JSONB) Scan(src interface{}) error {
+	if src == nil {
+		*j = nil
+		return nil
+	}
+	switch v := src.(type) {
+	case []byte:
+		return json.Unmarshal(v, j)
+	case string:
+		return json.Unmarshal([]byte(v), j)
+	default:
+		return fmt.Errorf("cannot scan %T into JSONB", src)
+	}
+}
 
 // ConfigItem represents a configuration entry.
 type ConfigItem struct {
@@ -25,17 +44,17 @@ type ConfigItem struct {
 
 // ConfigVersion represents a single version snapshot of a configuration.
 type ConfigVersion struct {
-	ID             string    `db:"id" json:"id"`
-	TenantID       string    `db:"tenant_id" json:"tenant_id"`
-	ConfigID       string    `db:"config_id" json:"config_id"`
-	ConfigKey      string    `db:"config_key" json:"config_key"`
-	Environment    string    `db:"environment" json:"environment"`
-	Value          string    `db:"value" json:"value"`
-	VersionNumber  int       `db:"version_number" json:"version_number"`
-	ChangeType     string    `db:"change_type" json:"change_type"`
-	ChangedBy      string    `db:"changed_by" json:"changed_by"`
-	ChangeReason   string    `db:"change_reason" json:"change_reason"`
-	CreatedAt      time.Time `db:"created_at" json:"created_at"`
+	ID            string    `db:"id" json:"id"`
+	TenantID      string    `db:"tenant_id" json:"tenant_id"`
+	ConfigID      string    `db:"config_id" json:"config_id"`
+	ConfigKey     string    `db:"config_key" json:"config_key"`
+	Environment   string    `db:"environment" json:"environment"`
+	Value         string    `db:"value" json:"value"`
+	VersionNumber int       `db:"version_number" json:"version_number"`
+	ChangeType    string    `db:"change_type" json:"change_type"`
+	ChangedBy     string    `db:"changed_by" json:"changed_by"`
+	ChangeReason  string    `db:"change_reason" json:"change_reason"`
+	CreatedAt     time.Time `db:"created_at" json:"created_at"`
 }
 
 // ConfigDiff describes a single difference between two configurations.
@@ -49,14 +68,14 @@ type ConfigDiff struct {
 
 // DiffReport is the result of comparing two environments.
 type DiffReport struct {
-	SourceEnv   string       `json:"source_environment"`
-	TargetEnv   string       `json:"target_environment"`
-	Diffs       []ConfigDiff `json:"diffs"`
-	TotalChanges int         `json:"total_changes"`
-	Added       int          `json:"added"`
-	Removed     int          `json:"removed"`
-	Modified    int          `json:"modified"`
-	GeneratedAt time.Time    `json:"generated_at"`
+	SourceEnv    string       `json:"source_environment"`
+	TargetEnv    string       `json:"target_environment"`
+	Diffs        []ConfigDiff `json:"diffs"`
+	TotalChanges int          `json:"total_changes"`
+	Added        int          `json:"added"`
+	Removed      int          `json:"removed"`
+	Modified     int          `json:"modified"`
+	GeneratedAt  time.Time    `json:"generated_at"`
 }
 
 // VersionDiffReport compares two specific versions of a config.
@@ -73,12 +92,12 @@ type VersionDiffReport struct {
 
 // RollbackResult describes the outcome of a rollback operation.
 type RollbackResult struct {
-	Success         bool      `json:"success"`
-	NewVersionID    string    `json:"new_version_id"`
-	NewVersionNumber int      `json:"new_version_number"`
-	RolledBackTo    int       `json:"rolled_back_to"`
-	RolledBackBy    string    `json:"rolled_back_by"`
-	RolledBackAt    time.Time `json:"rolled_back_at"`
+	Success          bool      `json:"success"`
+	NewVersionID     string    `json:"new_version_id"`
+	NewVersionNumber int       `json:"new_version_number"`
+	RolledBackTo     int       `json:"rolled_back_to"`
+	RolledBackBy     string    `json:"rolled_back_by"`
+	RolledBackAt     time.Time `json:"rolled_back_at"`
 }
 
 // ExportData is a serializable snapshot of a set of configurations.
@@ -100,8 +119,8 @@ type ValidationIssue struct {
 
 // ValidationResult is the result of validating a configuration value.
 type ValidationResult struct {
-	Valid    bool               `json:"valid"`
-	Issues   []ValidationIssue  `json:"issues"`
+	Valid  bool              `json:"valid"`
+	Issues []ValidationIssue `json:"issues"`
 }
 
 // --- Request / Response DTOs ---

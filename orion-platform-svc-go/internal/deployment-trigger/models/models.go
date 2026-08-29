@@ -59,7 +59,7 @@ type DeploymentTrigger struct {
 	TenantID        string        `db:"tenant_id" json:"tenantId"`
 	Name            string        `db:"name" json:"name"`
 	TriggerType     TriggerType   `db:"trigger_type" json:"triggerType"`
-	Expression      string        `db:"expression" json:"expression"`      // cron schedule or tag/branch pattern
+	Expression      string        `db:"expression" json:"expression"` // cron schedule or tag/branch pattern
 	TargetPipeline  string        `db:"target_pipeline" json:"targetPipeline"`
 	Status          TriggerStatus `db:"status" json:"status"`
 	LastTriggeredAt *time.Time    `db:"last_triggered_at" json:"lastTriggeredAt"`
@@ -96,12 +96,12 @@ type CreateTriggerRequest struct {
 
 // UpdateTriggerRequest is the body for partial trigger updates.
 type UpdateTriggerRequest struct {
-	Name           *string     `json:"name"`
-	TriggerType    *TriggerType `json:"triggerType"`
-	Expression     *string     `json:"expression"`
-	TargetPipeline *string     `json:"targetPipeline"`
+	Name           *string        `json:"name"`
+	TriggerType    *TriggerType   `json:"triggerType"`
+	Expression     *string        `json:"expression"`
+	TargetPipeline *string        `json:"targetPipeline"`
 	Status         *TriggerStatus `json:"status"`
-	Enabled        *bool       `json:"enabled"`
+	Enabled        *bool          `json:"enabled"`
 }
 
 // TriggerExecuteRequest is the body for manual/API trigger execution.

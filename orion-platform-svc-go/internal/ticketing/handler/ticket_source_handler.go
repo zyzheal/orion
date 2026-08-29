@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
@@ -21,6 +22,8 @@ func (h *TicketSourceHandler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *TicketSourceHandler) FromAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingFromAlert")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	createdBy := GetUserID(c)
 
@@ -30,7 +33,7 @@ func (h *TicketSourceHandler) FromAlert(c *gin.Context) {
 		return
 	}
 
-	ticket, err := h.svc.FromAlert(c.Request.Context(), tenantID, alert, createdBy)
+	ticket, err := h.svc.FromAlert(ctx, tenantID, alert, createdBy)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -39,6 +42,8 @@ func (h *TicketSourceHandler) FromAlert(c *gin.Context) {
 }
 
 func (h *TicketSourceHandler) FromIncident(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingFromIncident")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	createdBy := GetUserID(c)
 
@@ -48,7 +53,7 @@ func (h *TicketSourceHandler) FromIncident(c *gin.Context) {
 		return
 	}
 
-	ticket, err := h.svc.FromIncident(c.Request.Context(), tenantID, incident, createdBy)
+	ticket, err := h.svc.FromIncident(ctx, tenantID, incident, createdBy)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

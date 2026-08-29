@@ -4,10 +4,11 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/cache-monitor/models"
 	"orion/platform-svc-go/internal/cache-monitor/service"
 	"orion/platform-svc-go/internal/middleware"
-	"orion/go-common/pkg/auth"
 )
 
 type CacheMonitorHandler struct {
@@ -18,7 +19,6 @@ func NewCacheMonitorHandler(svc *service.CacheMonitorService) *CacheMonitorHandl
 	return &CacheMonitorHandler{svc: svc}
 }
 
-// RegisterRoutes registers cache-monitor routes.
 func (h *CacheMonitorHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	cache := rg.Group("/cache-monitor")
 	cache.GET("/metrics", auth.RequirePermission("monitor", "read"), h.GetMetrics)
@@ -30,14 +30,16 @@ func (h *CacheMonitorHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	cache.DELETE("/:name", auth.RequirePermission("monitor", "delete"), h.UnregisterCache)
 }
 
-// GetMetrics returns all cache metrics.
 func (h *CacheMonitorHandler) GetMetrics(c *gin.Context) {
-	metrics := h.svc.CollectMetrics(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCacheMetrics")
+	defer span.End()
+	metrics := h.svc.CollectMetrics(ctx)
 	middleware.RespondSuccess(c, metrics)
 }
 
-// GetCacheMetrics returns metrics for a specific cache.
 func (h *CacheMonitorHandler) GetCacheMetrics(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCacheMetricByName")
+	defer span.End()
 	name := c.Param("name")
 	metrics, ok := h.svc.GetMetrics(name)
 	if !ok {
@@ -47,14 +49,16 @@ func (h *CacheMonitorHandler) GetCacheMetrics(c *gin.Context) {
 	middleware.RespondSuccess(c, metrics)
 }
 
-// GetHealth returns health status for all caches.
 func (h *CacheMonitorHandler) GetHealth(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCacheHealth")
+	defer span.End()
 	health := h.svc.GetHealth()
 	middleware.RespondSuccess(c, health)
 }
 
-// RegisterCache registers a new cache for monitoring.
 func (h *CacheMonitorHandler) RegisterCache(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RegisterCache")
+	defer span.End()
 	var req models.CacheConfig
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -68,22 +72,25 @@ func (h *CacheMonitorHandler) RegisterCache(c *gin.Context) {
 	middleware.RespondCreated(c, gin.H{"name": req.Name, "message": "registered"})
 }
 
-// EnableCache enables a cache for monitoring.
 func (h *CacheMonitorHandler) EnableCache(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EnableCache")
+	defer span.End()
 	name := c.Param("name")
 	h.svc.EnableCache(name)
 	middleware.RespondSuccess(c, gin.H{"message": "cache enabled", "name": name})
 }
 
-// DisableCache disables a cache for monitoring.
 func (h *CacheMonitorHandler) DisableCache(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DisableCache")
+	defer span.End()
 	name := c.Param("name")
 	h.svc.DisableCache(name)
 	middleware.RespondSuccess(c, gin.H{"message": "cache disabled", "name": name})
 }
 
-// UnregisterCache removes a cache from monitoring.
 func (h *CacheMonitorHandler) UnregisterCache(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UnregisterCache")
+	defer span.End()
 	name := c.Param("name")
 	h.svc.UnregisterCache(name)
 	c.JSON(http.StatusNoContent, nil)

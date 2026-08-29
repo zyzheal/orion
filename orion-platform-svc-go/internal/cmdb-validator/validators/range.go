@@ -87,7 +87,7 @@ func (v *RangeValidator) Validate(ctx context.Context, data map[string]interface
 func (v *RangeValidator) rangeError(field string, val float64, detail string) string {
 	msg := v.errorMsg
 	if msg == "" {
-		msg = field + " value "+fmt.Sprintf("%v", val)+" "+detail
+		msg = field + " value " + fmt.Sprintf("%v", val) + " " + detail
 	}
 	return msg
 }

@@ -28,9 +28,9 @@ type SagaCoordinator interface {
 
 // SagaStep defines a single step in a saga with both action and compensation.
 type SagaStep struct {
-	ID            string            `json:"id"`
-	Name          string            `json:"name"`
-	ExecuteFunc   StepExecuteFunc   `json:"-"`
+	ID             string             `json:"id"`
+	Name           string             `json:"name"`
+	ExecuteFunc    StepExecuteFunc    `json:"-"`
 	CompensateFunc StepCompensateFunc `json:"-"`
 }
 
@@ -54,32 +54,32 @@ const (
 
 // SagaInstance represents a running or completed saga.
 type SagaInstance struct {
-	ID            string            `db:"id" json:"id"`
-	SagaType      string            `db:"saga_type" json:"sagaType"`
-	TenantID      string            `db:"tenant_id" json:"tenantId"`
-	Status        SagaStatus        `db:"status" json:"status"`
-	CurrentStep   int               `db:"current_step" json:"currentStep"`
-	TotalSteps    int               `db:"total_steps" json:"totalSteps"`
-	ContextData   map[string]interface{} `db:"context" json:"context"`
-	Steps         []SagaStepResult  `db:"steps" json:"steps"`
-	CompensationLog []SagaCompensation `db:"compensation_log" json:"compensationLog"`
-	CreatedAt     time.Time         `db:"created_at" json:"createdAt"`
-	UpdatedAt     time.Time         `db:"updated_at" json:"updatedAt"`
+	ID              string                 `db:"id" json:"id"`
+	SagaType        string                 `db:"saga_type" json:"sagaType"`
+	TenantID        string                 `db:"tenant_id" json:"tenantId"`
+	Status          SagaStatus             `db:"status" json:"status"`
+	CurrentStep     int                    `db:"current_step" json:"currentStep"`
+	TotalSteps      int                    `db:"total_steps" json:"totalSteps"`
+	ContextData     map[string]interface{} `db:"context" json:"context"`
+	Steps           []SagaStepResult       `db:"steps" json:"steps"`
+	CompensationLog []SagaCompensation     `db:"compensation_log" json:"compensationLog"`
+	CreatedAt       time.Time              `db:"created_at" json:"createdAt"`
+	UpdatedAt       time.Time              `db:"updated_at" json:"updatedAt"`
 }
 
 // SagaStepResult records the outcome of a single step.
 type SagaStepResult struct {
-	StepID   string                 `db:"step_id" json:"stepId"`
-	Status   string                 `db:"status" json:"status"` // EXECUTING/COMPLETED/COMPENSATED/FAILED
-	Result   map[string]interface{} `db:"result" json:"result"`
-	Error    string                 `db:"error" json:"error"`
-	ExecutedAt *time.Time           `db:"executed_at" json:"executedAt"`
+	StepID     string                 `db:"step_id" json:"stepId"`
+	Status     string                 `db:"status" json:"status"` // EXECUTING/COMPLETED/COMPENSATED/FAILED
+	Result     map[string]interface{} `db:"result" json:"result"`
+	Error      string                 `db:"error" json:"error"`
+	ExecutedAt *time.Time             `db:"executed_at" json:"executedAt"`
 }
 
 // SagaCompensation records a compensation action.
 type SagaCompensation struct {
-	StepID    string    `db:"step_id" json:"stepId"`
-	Status    string    `db:"status" json:"status"` // RUNNING/COMPLETED/FAILED
-	Error     string    `db:"error" json:"error"`
+	StepID     string    `db:"step_id" json:"stepId"`
+	Status     string    `db:"status" json:"status"` // RUNNING/COMPLETED/FAILED
+	Error      string    `db:"error" json:"error"`
 	ExecutedAt time.Time `db:"executed_at" json:"executedAt"`
 }

@@ -1,4 +1,5 @@
 //go:build ignore
+
 // ============================================================
 // SNMP Transport — 网络设备采集底层
 // ============================================================
@@ -32,30 +33,30 @@ import (
 
 // SNMPConfig SNMP 连接配置
 type SNMPConfig struct {
-	Target     string `yaml:"target"`
-	Port       int    `yaml:"port"`          // 默认 161
-	Community  string `yaml:"community"`     // v1/v2c 共同体字符串
-	Version    int    `yaml:"version"`       // 1=SNMPv1, 2=SNMPv2c, 3=SNMPv3
-	Timeout    int    `yaml:"timeout"`       // 超时秒数，默认 5
-	Retries    int    `yaml:"retries"`       // 重试次数，默认 3
-	MaxOids    int    `yaml:"max_oids"`      // 单次查询最大 OID 数
-	RetriesDelay int `yaml:"retries_delay"`  // 重试间隔秒数
+	Target       string `yaml:"target"`
+	Port         int    `yaml:"port"`          // 默认 161
+	Community    string `yaml:"community"`     // v1/v2c 共同体字符串
+	Version      int    `yaml:"version"`       // 1=SNMPv1, 2=SNMPv2c, 3=SNMPv3
+	Timeout      int    `yaml:"timeout"`       // 超时秒数，默认 5
+	Retries      int    `yaml:"retries"`       // 重试次数，默认 3
+	MaxOids      int    `yaml:"max_oids"`      // 单次查询最大 OID 数
+	RetriesDelay int    `yaml:"retries_delay"` // 重试间隔秒数
 
 	// SNMPv3 认证
-	UserName   string `yaml:"user_name"`
-	AuthPass   string `yaml:"auth_pass"`
-	PrivPass   string `yaml:"priv_pass"`
-	AuthProto  string `yaml:"auth_proto"` // MD5/SHA
-	PrivProto  string `yaml:"priv_proto"` // DES/AES
+	UserName  string `yaml:"user_name"`
+	AuthPass  string `yaml:"auth_pass"`
+	PrivPass  string `yaml:"priv_pass"`
+	AuthProto string `yaml:"auth_proto"` // MD5/SHA
+	PrivProto string `yaml:"priv_proto"` // DES/AES
 }
 
 // DefaultSNMPConfig 默认 SNMP 配置
 func DefaultSNMPConfig() *SNMPConfig {
 	return &SNMPConfig{
-		Port:        161,
-		Version:     2, // SNMPv2c
-		Timeout:     5,
-		Retries:     3,
+		Port:         161,
+		Version:      2, // SNMPv2c
+		Timeout:      5,
+		Retries:      3,
 		RetriesDelay: 1,
 	}
 }
@@ -228,8 +229,8 @@ type OIDTable struct {
 
 // VendorOIDRegistry 厂商 OID 注册表
 type VendorOIDRegistry struct {
-	Name    string        `yaml:"name"`
-	Vendor  string        `yaml:"vendor"`
+	Name       string                `yaml:"name"`
+	Vendor     string                `yaml:"vendor"`
 	Categories map[string][]OIDTable `yaml:"categories"`
 }
 
@@ -251,33 +252,33 @@ var DefaultVendorOIDs = map[string]*VendorOIDRegistry{
 		Name:   "Cisco IOS",
 		Vendor: "cisco",
 		Categories: map[string][]OIDTable{
-            // 系统信息
+			// 系统信息
 			"system": {
-                {Name: "sysName", OID: "1.3.6.1.2.1.1.5.0", Type: "string"},
-                {Name: "sysDescr", OID: "1.3.6.1.2.1.1.1.0", Type: "string"},
-                {Name: "sysUpTime", OID: "1.3.6.1.2.1.1.3.0", Type: "int64"},
-                {Name: "sysObjectID", OID: "1.3.6.1.2.1.1.2.0", Type: "string"},
-            },
-            // 接口信息
+				{Name: "sysName", OID: "1.3.6.1.2.1.1.5.0", Type: "string"},
+				{Name: "sysDescr", OID: "1.3.6.1.2.1.1.1.0", Type: "string"},
+				{Name: "sysUpTime", OID: "1.3.6.1.2.1.1.3.0", Type: "int64"},
+				{Name: "sysObjectID", OID: "1.3.6.1.2.1.1.2.0", Type: "string"},
+			},
+			// 接口信息
 			"interface": {
-                {Name: "ifName", OID: "1.3.6.1.2.1.31.1.1.1.1", Type: "string"},
-                {Name: "ifDescr", OID: "1.3.6.1.2.1.2.2.1.2", Type: "string"},
-                {Name: "ifType", OID: "1.3.6.1.2.1.2.2.1.3", Type: "int64"},
-                {Name: "ifSpeed", OID: "1.3.6.1.2.1.2.2.1.5", Type: "int64"},
-                {Name: "ifOperStatus", OID: "1.3.6.1.2.1.2.2.1.8", Type: "int64"},
-            },
-        },
+				{Name: "ifName", OID: "1.3.6.1.2.1.31.1.1.1.1", Type: "string"},
+				{Name: "ifDescr", OID: "1.3.6.1.2.1.2.2.1.2", Type: "string"},
+				{Name: "ifType", OID: "1.3.6.1.2.1.2.2.1.3", Type: "int64"},
+				{Name: "ifSpeed", OID: "1.3.6.1.2.1.2.2.1.5", Type: "int64"},
+				{Name: "ifOperStatus", OID: "1.3.6.1.2.1.2.2.1.8", Type: "int64"},
+			},
+		},
 	},
 	"huawei": {
 		Name:   "Huawei VRP",
 		Vendor: "huawei",
 		Categories: map[string][]OIDTable{
-            "system": {
-                {Name: "sysName", OID: "1.3.6.1.2.1.1.5.0", Type: "string"},
-                {Name: "sysDescr", OID: "1.3.6.1.2.1.1.1.0", Type: "string"},
-                {Name: "sysUpTime", OID: "1.3.6.1.2.1.1.3.0", Type: "int64"},
-            },
-        },
+			"system": {
+				{Name: "sysName", OID: "1.3.6.1.2.1.1.5.0", Type: "string"},
+				{Name: "sysDescr", OID: "1.3.6.1.2.1.1.1.0", Type: "string"},
+				{Name: "sysUpTime", OID: "1.3.6.1.2.1.1.3.0", Type: "int64"},
+			},
+		},
 	},
 }
 

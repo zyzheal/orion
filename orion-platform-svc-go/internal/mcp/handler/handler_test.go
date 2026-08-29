@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/mcp/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/mcp/models"
 )
 
@@ -52,7 +52,6 @@ func (f *fakeMcpService) UpdateServer(ctx context.Context, tenantID, id string, 
 }
 
 var _ service.ServiceInterface = (*fakeMcpService)(nil)
-
 
 func TestHandler_MCP_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

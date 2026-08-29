@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
-	"orion/platform-svc-go/internal/alert-silence/models"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/alert-silence/models"
 )
 
 type AlertSilenceRepository struct {

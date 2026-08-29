@@ -25,10 +25,18 @@ func (f *fakeCostService) GetCostSummary(ctx context.Context, tenantID string, f
 func (f *fakeCostService) GetCostRecord(ctx context.Context, tenantID string, id string) (*models.CostRecord, error) {
 	return &models.CostRecord{ID: id}, nil
 }
-func (f *fakeCostService) DeleteCostRecord(ctx context.Context, tenantID string, id string) error { return nil }
-func (f *fakeCostService) RecordCost(ctx context.Context, tenantID string, record *models.CostRecord) (*models.CostRecord, error) { return record, nil }
-func (f *fakeCostService) GetDailyCosts(ctx context.Context, tenantID string, days int) ([]models.DailyCost, error) { return nil, nil }
-func (f *fakeCostService) GetTopModelsByCost(ctx context.Context, tenantID string, limit int) ([]models.ModelCost, error) { return nil, nil }
+func (f *fakeCostService) DeleteCostRecord(ctx context.Context, tenantID string, id string) error {
+	return nil
+}
+func (f *fakeCostService) RecordCost(ctx context.Context, tenantID string, record *models.CostRecord) (*models.CostRecord, error) {
+	return record, nil
+}
+func (f *fakeCostService) GetDailyCosts(ctx context.Context, tenantID string, days int) ([]models.DailyCost, error) {
+	return nil, nil
+}
+func (f *fakeCostService) GetTopModelsByCost(ctx context.Context, tenantID string, limit int) ([]models.ModelCost, error) {
+	return nil, nil
+}
 
 var _ service.ServiceInterface = (*fakeCostService)(nil)
 

@@ -64,7 +64,7 @@ func (r *DispatchRepository) UpdateEngineer(ctx context.Context, ep *models.Engi
 func (r *DispatchRepository) GetEngineer(ctx context.Context, id string) (*models.EngineerProfile, error) {
 	var ep models.EngineerProfile
 	var expertiseJSON, skillsJSON string
-	err := r.db.QueryRowContext(ctx, 
+	err := r.db.QueryRowContext(ctx,
 		`SELECT id, name, expertise, current_load, max_capacity, availability, skills, team, on_call,
 		total_resolved, avg_resolution_ms, sla_compliance, success_rate, created_at, updated_at
 		FROM dispatch_engineers WHERE id = $1`, id).Scan(

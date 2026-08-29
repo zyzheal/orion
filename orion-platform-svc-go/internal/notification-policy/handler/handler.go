@@ -42,16 +42,16 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.DELETE("/:id", auth.RequirePermission("notification-policy", "delete"), h.DeletePolicy)
 
 	// --- Workflows ---
-	// GET /notification-policies/:policyId/workflows - List workflows for a policy
-	f.GET("/:policyId/workflows", auth.RequirePermission("notification-policy", "read"), h.ListWorkflows)
-	// POST /notification-policies/:policyId/workflows - Create workflow for a policy
-	f.POST("/:policyId/workflows", auth.RequirePermission("notification-policy", "write"), h.CreateWorkflow)
-	// GET /notification-policies/:policyId/workflows/:id - Get workflow by ID
-	f.GET("/:policyId/workflows/:id", auth.RequirePermission("notification-policy", "read"), h.GetWorkflow)
-	// PUT /notification-policies/:policyId/workflows/:id - Update workflow
-	f.PUT("/:policyId/workflows/:id", auth.RequirePermission("notification-policy", "write"), h.UpdateWorkflow)
-	// DELETE /notification-policies/:policyId/workflows/:id - Delete workflow
-	f.DELETE("/:policyId/workflows/:id", auth.RequirePermission("notification-policy", "delete"), h.DeleteWorkflow)
+	// GET /notification-policies/:id/workflows - List workflows for a policy
+	f.GET("/:id/workflows", auth.RequirePermission("notification-policy", "read"), h.ListWorkflows)
+	// POST /notification-policies/:id/workflows - Create workflow for a policy
+	f.POST("/:id/workflows", auth.RequirePermission("notification-policy", "write"), h.CreateWorkflow)
+	// GET /notification-policies/:id/workflows/:id - Get workflow by ID
+	f.GET("/:id/workflows/:id", auth.RequirePermission("notification-policy", "read"), h.GetWorkflow)
+	// PUT /notification-policies/:id/workflows/:id - Update workflow
+	f.PUT("/:id/workflows/:id", auth.RequirePermission("notification-policy", "write"), h.UpdateWorkflow)
+	// DELETE /notification-policies/:id/workflows/:id - Delete workflow
+	f.DELETE("/:id/workflows/:id", auth.RequirePermission("notification-policy", "delete"), h.DeleteWorkflow)
 }
 
 // getTenantID extracts tenant_id from Gin context, falling back to a zero UUID.
@@ -231,7 +231,7 @@ func (h *Handler) EvaluatePolicies(c *gin.Context) {
 func (h *Handler) ListWorkflows(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListWorkflows")
 	defer span.End()
-	policyID := c.Param("policyId")
+	policyID := c.Param("id")
 	tenantID := h.getTenantID(c)
 	page, pageSize := h.getPagination(c)
 
@@ -251,7 +251,7 @@ func (h *Handler) ListWorkflows(c *gin.Context) {
 func (h *Handler) GetWorkflow(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetWorkflow")
 	defer span.End()
-	policyID := c.Param("policyId")
+	policyID := c.Param("id")
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 	workflow, err := h.svc.GetWorkflow(ctx, tenantID, policyID, id)
@@ -269,7 +269,7 @@ func (h *Handler) GetWorkflow(c *gin.Context) {
 func (h *Handler) CreateWorkflow(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateWorkflow")
 	defer span.End()
-	policyID := c.Param("policyId")
+	policyID := c.Param("id")
 	var req models.CreateWorkflowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -289,7 +289,7 @@ func (h *Handler) CreateWorkflow(c *gin.Context) {
 func (h *Handler) UpdateWorkflow(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateWorkflow")
 	defer span.End()
-	policyID := c.Param("policyId")
+	policyID := c.Param("id")
 	id := c.Param("id")
 	var req models.UpdateWorkflowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -312,7 +312,7 @@ func (h *Handler) UpdateWorkflow(c *gin.Context) {
 func (h *Handler) DeleteWorkflow(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteWorkflow")
 	defer span.End()
-	policyID := c.Param("policyId")
+	policyID := c.Param("id")
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.DeleteWorkflow(ctx, tenantID, policyID, id)

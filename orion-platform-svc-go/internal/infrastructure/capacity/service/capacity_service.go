@@ -60,7 +60,9 @@ func (s *Service) CreatePool(ctx context.Context, tenantID string, req *models.C
 		NodeCount:    req.NodeCount,
 		Labels:       req.Labels,
 	}
-	if err := s.poolRepo.Create(ctx, pool); err != nil { return nil, err }
+	if err := s.poolRepo.Create(ctx, pool); err != nil {
+		return nil, err
+	}
 	return pool, nil
 }
 
@@ -74,14 +76,18 @@ func (s *Service) GetPool(ctx context.Context, tenantID, id string) (*models.Res
 
 func (s *Service) UpdatePool(ctx context.Context, tenantID, id string, req *models.CreatePoolRequest) (*models.ResourcePool, error) {
 	pool, err := s.poolRepo.GetByID(ctx, tenantID, id)
-	if err != nil { return nil, ErrPoolNotFound }
+	if err != nil {
+		return nil, ErrPoolNotFound
+	}
 	pool.Name = req.Name
 	pool.ResourceType = req.ResourceType
 	pool.TotalCPU = req.TotalCPU
 	pool.TotalMemory = req.TotalMemory
 	pool.NodeCount = req.NodeCount
 	pool.Labels = req.Labels
-	if err := s.poolRepo.Update(ctx, pool); err != nil { return nil, err }
+	if err := s.poolRepo.Update(ctx, pool); err != nil {
+		return nil, err
+	}
 	return pool, nil
 }
 
@@ -102,7 +108,9 @@ func (s *Service) CreatePolicy(ctx context.Context, tenantID string, req *models
 		CooldownSec:        req.CooldownSec,
 		Enabled:            true,
 	}
-	if err := s.policyRepo.Create(ctx, policy); err != nil { return nil, err }
+	if err := s.policyRepo.Create(ctx, policy); err != nil {
+		return nil, err
+	}
 	return policy, nil
 }
 
@@ -295,15 +303,15 @@ func (s *Service) GenerateReport(ctx context.Context, tenantID, title string) (*
 	alertsJSON := make(JSONBList, len(alertList))
 	for i, a := range alertList {
 		alertsJSON[i] = models.JSONB{
-			"id":                 a.ID,
-			"resource_id":        a.ResourceID,
-			"resource_type":      a.ResourceType,
-			"metric_name":        a.MetricName,
+			"id":                  a.ID,
+			"resource_id":         a.ResourceID,
+			"resource_type":       a.ResourceType,
+			"metric_name":         a.MetricName,
 			"current_utilization": a.CurrentUtilization,
-			"threshold":          a.Threshold,
-			"severity":           a.Severity,
-			"message":            a.Message,
-			"created_at":         a.CreatedAt,
+			"threshold":           a.Threshold,
+			"severity":            a.Severity,
+			"message":             a.Message,
+			"created_at":          a.CreatedAt,
 		}
 	}
 	forecastsJSON := make(JSONBList, len(forecastList))
@@ -321,17 +329,17 @@ func (s *Service) GenerateReport(ctx context.Context, tenantID, title string) (*
 	}
 
 	report := &models.CapacityReport{
-		ID:               uuid.New().String(),
-		TenantID:         tenantID,
-		Title:            title,
-		TotalResources:   uniqueResources,
-		HealthyCount:     healthyCount,
-		WarningCount:     warningCount,
-		CriticalCount:    criticalCount,
-		OverallScore:     overallScore,
-		AlertsSnapshot:   models.JSONB{"alerts": alertsJSON},
+		ID:                uuid.New().String(),
+		TenantID:          tenantID,
+		Title:             title,
+		TotalResources:    uniqueResources,
+		HealthyCount:      healthyCount,
+		WarningCount:      warningCount,
+		CriticalCount:     criticalCount,
+		OverallScore:      overallScore,
+		AlertsSnapshot:    models.JSONB{"alerts": alertsJSON},
 		ForecastsSnapshot: models.JSONB{"forecasts": forecastsJSON},
-		GeneratedAt:      time.Now().UTC(),
+		GeneratedAt:       time.Now().UTC(),
 	}
 	if err := s.reportRepo.Create(ctx, report); err != nil {
 		return nil, err

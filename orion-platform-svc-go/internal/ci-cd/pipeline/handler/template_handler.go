@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strconv"
 
 	"orion/platform-svc-go/internal/ci-cd/pipeline/models"
@@ -18,6 +19,8 @@ func NewTemplateHandler(svc *service.TemplateService) *TemplateHandler {
 }
 
 func (h *TemplateHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req models.CreateTemplateRequest
@@ -26,7 +29,7 @@ func (h *TemplateHandler) Create(c *gin.Context) {
 		return
 	}
 
-	tmpl, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	tmpl, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -36,7 +39,9 @@ func (h *TemplateHandler) Create(c *gin.Context) {
 }
 
 func (h *TemplateHandler) GetByID(c *gin.Context) {
-	tmpl, err := h.svc.GetByID(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineGetByID")
+	defer span.End()
+	tmpl, err := h.svc.GetByID(ctx, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, "template not found")
 		return
@@ -46,6 +51,8 @@ func (h *TemplateHandler) GetByID(c *gin.Context) {
 }
 
 func (h *TemplateHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	category := c.Query("category")
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
@@ -58,7 +65,7 @@ func (h *TemplateHandler) List(c *gin.Context) {
 		offset = 0
 	}
 
-	templates, total, err := h.svc.List(c.Request.Context(), tenantID, category, offset, limit)
+	templates, total, err := h.svc.List(ctx, tenantID, category, offset, limit)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -68,9 +75,11 @@ func (h *TemplateHandler) List(c *gin.Context) {
 }
 
 func (h *TemplateHandler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}

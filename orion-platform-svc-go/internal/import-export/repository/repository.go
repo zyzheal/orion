@@ -155,4 +155,3 @@ func (r *Repository) GetErrorsForJob(ctx context.Context, tenantID, jobID string
 	`, jobID, tenantID)
 	return errs, err
 }
-

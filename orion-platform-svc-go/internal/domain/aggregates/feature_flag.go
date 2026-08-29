@@ -1,8 +1,8 @@
 package aggregates
 
 import (
-	"time"
 	"orion/platform-svc-go/internal/domain/events"
+	"time"
 )
 
 // FeatureFlagAggregate represents the FeatureFlag aggregate root.

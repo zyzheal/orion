@@ -49,17 +49,17 @@ func (r *Repository) GetModel(ctx context.Context, tenantID, id string) (*models
 
 func (r *Repository) CreateModel(ctx context.Context, tenantID string, req models.CreateModelRequest) (*models.Model, error) {
 	m := &models.Model{
-		ID:            uuid.New().String(),
-		TenantID:      tenantID,
-		Name:          req.Name,
-		Framework:     req.Framework,
-		Version:       req.Version,
-		Description:   req.Description,
-		Status:        "draft",
-		ArtifactPath:  req.ArtifactPath,
-		Metadata:      req.Metadata,
-		CreatedAt:     time.Now().UTC(),
-		UpdatedAt:     time.Now().UTC(),
+		ID:           uuid.New().String(),
+		TenantID:     tenantID,
+		Name:         req.Name,
+		Framework:    req.Framework,
+		Version:      req.Version,
+		Description:  req.Description,
+		Status:       "draft",
+		ArtifactPath: req.ArtifactPath,
+		Metadata:     req.Metadata,
+		CreatedAt:    time.Now().UTC(),
+		UpdatedAt:    time.Now().UTC(),
 	}
 	if m.Framework == "" {
 		m.Framework = "unknown"
@@ -73,17 +73,17 @@ func (r *Repository) CreateModel(ctx context.Context, tenantID string, req model
 		`INSERT INTO mlops_models (id, tenant_id, name, framework, version, description, status, artifact_path, metadata, created_at, updated_at)
 		 VALUES (:id, :tenant_id, :name, :framework, :version, :description, :status, :artifact_path, :metadata, :created_at, :updated_at)`,
 		map[string]interface{}{
-			"id":           m.ID,
-			"tenant_id":    tenantID,
-			"name":         m.Name,
-			"framework":    m.Framework,
-			"version":      m.Version,
-			"description":  m.Description,
-			"status":       m.Status,
+			"id":            m.ID,
+			"tenant_id":     tenantID,
+			"name":          m.Name,
+			"framework":     m.Framework,
+			"version":       m.Version,
+			"description":   m.Description,
+			"status":        m.Status,
 			"artifact_path": m.ArtifactPath,
-			"metadata":     string(configJSON),
-			"created_at":   m.CreatedAt,
-			"updated_at":   m.UpdatedAt,
+			"metadata":      string(configJSON),
+			"created_at":    m.CreatedAt,
+			"updated_at":    m.UpdatedAt,
 		})
 	if err != nil {
 		return nil, err
@@ -228,16 +228,16 @@ func (r *Repository) SaveExperimentResults(ctx context.Context, id string, resul
 func (r *Repository) CreateArtifact(ctx context.Context, tenantID, modelID string, req models.CreateArtifactRequest) (*models.Artifact, error) {
 	now := time.Now().UTC()
 	art := &models.Artifact{
-		ID:         uuid.New().String(),
-		ModelID:    modelID,
-		TenantID:   tenantID,
-		Name:       req.Name,
-		Type:       req.Type,
+		ID:          uuid.New().String(),
+		ModelID:     modelID,
+		TenantID:    tenantID,
+		Name:        req.Name,
+		Type:        req.Type,
 		StoragePath: req.StoragePath,
-		SizeBytes:  req.SizeBytes,
-		Checksum:   req.Checksum,
-		Metadata:   req.Metadata,
-		CreatedAt:  now,
+		SizeBytes:   req.SizeBytes,
+		Checksum:    req.Checksum,
+		Metadata:    req.Metadata,
+		CreatedAt:   now,
 	}
 	if art.Type == "" {
 		art.Type = "checkpoint"

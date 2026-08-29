@@ -1,11 +1,12 @@
 // Package models defines the domain types for the pluggable Pipeline Executor.
 //
 // Architecture (chain-of-responsibility):
-//   Pipeline — top-level container for an ordered chain of Steps.
-//   Step     — a single processing unit (filter, transform, notify, action,
-//              condition) that receives input and produces output.
-//   Executor — runs steps in priority order, passing each step's output as the
-//              next step's input; errors short-circuit the chain.
+//
+//	Pipeline — top-level container for an ordered chain of Steps.
+//	Step     — a single processing unit (filter, transform, notify, action,
+//	           condition) that receives input and produces output.
+//	Executor — runs steps in priority order, passing each step's output as the
+//	           next step's input; errors short-circuit the chain.
 //
 // Pipeline state machine: active | disabled
 // Step status:            ready | error
@@ -40,10 +41,10 @@ const (
 	StepTypeCondition = "condition"
 
 	// Pipeline categories
-	CategoryAlert       = "alert"
+	CategoryAlert        = "alert"
 	CategoryNotification = "notification"
-	CategoryWebhook     = "webhook"
-	CategoryAutomation  = "automation"
+	CategoryWebhook      = "webhook"
+	CategoryAutomation   = "automation"
 )
 
 // ---------------------------------------------------------------------------
@@ -70,8 +71,8 @@ type PipelineStep struct {
 	TenantID   string    `json:"tenant_id" db:"tenant_id"`
 	PipelineID string    `json:"pipeline_id" db:"pipeline_id"`
 	Name       string    `json:"name" db:"name"`
-	Type       string    `json:"type" db:"type"`    // "filter", "transform", "notify", "action", "condition"
-	Config     string    `json:"config" db:"config"` // JSON
+	Type       string    `json:"type" db:"type"`         // "filter", "transform", "notify", "action", "condition"
+	Config     string    `json:"config" db:"config"`     // JSON
 	Priority   int       `json:"priority" db:"priority"` // execution order
 	Enabled    bool      `json:"enabled" db:"enabled"`
 	Status     string    `json:"status" db:"status"` // "ready", "error"
@@ -88,7 +89,7 @@ type PipelineExecution struct {
 	ID          string     `json:"id" db:"id"`
 	TenantID    string     `json:"tenant_id" db:"tenant_id"`
 	PipelineID  string     `json:"pipeline_id" db:"pipeline_id"`
-	Input       string     `json:"input" db:"input"` // JSON input data
+	Input       string     `json:"input" db:"input"`   // JSON input data
 	Output      string     `json:"output" db:"output"` // JSON output data
 	Status      string     `json:"status" db:"status"` // "running", "completed", "failed"
 	StepsRun    int        `json:"steps_run" db:"steps_run"`
@@ -130,8 +131,8 @@ type CreatePipelineRequest struct {
 // AddStepRequest is the payload for adding a step to a pipeline.
 type AddStepRequest struct {
 	Name     string            `json:"name" binding:"required"`
-	Type     string            `json:"type" binding:"required"`   // "filter", "transform", "notify", "action", "condition"
-	Config   map[string]string `json:"config"`                    // JSON config
+	Type     string            `json:"type" binding:"required"`     // "filter", "transform", "notify", "action", "condition"
+	Config   map[string]string `json:"config"`                      // JSON config
 	Priority int               `json:"priority" binding:"required"` // execution order
 }
 
@@ -150,13 +151,13 @@ type UpdatePipelineRequest struct {
 
 // UpdateStepRequest is the payload for updating a step.
 type UpdateStepRequest struct {
-	Name     *string           `json:"name"`
-	Type     *string           `json:"type"`
+	Name     *string            `json:"name"`
+	Type     *string            `json:"type"`
 	Config   *map[string]string `json:"config"`
-	Priority *int              `json:"priority"`
-	Enabled  *bool             `json:"enabled"`
-	Status   *string           `json:"status"`
-	Error    *string           `json:"error"`
+	Priority *int               `json:"priority"`
+	Enabled  *bool              `json:"enabled"`
+	Status   *string            `json:"status"`
+	Error    *string            `json:"error"`
 }
 
 // PipelineListResponse wraps a paginated list of pipelines.
@@ -167,7 +168,7 @@ type PipelineListResponse struct {
 
 // StepListResponse wraps a paginated list of steps.
 type StepListResponse struct {
-	Total int64        `json:"total"`
+	Total int64          `json:"total"`
 	Data  []PipelineStep `json:"data"`
 }
 

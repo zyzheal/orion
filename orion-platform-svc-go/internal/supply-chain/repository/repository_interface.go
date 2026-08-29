@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/supply-chain/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	CreateSBOM(ctx context.Context, sbom *models.SBOM) error

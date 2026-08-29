@@ -29,10 +29,11 @@ var ErrConfirmationRequired = errors.New("manual handler: confirmation required"
 // ImmediateHandler) and uses a ConfirmationChecker to gate execution.
 //
 // Usage:
-//   handler := handlers.NewManualHandler(logger, executor, checker)
-//   engineInstance.RegisterHandler(handler)
+//
+//	handler := handlers.NewManualHandler(logger, executor, checker)
+//	engineInstance.RegisterHandler(handler)
 type ManualHandler struct {
-	logger  *zap.Logger
+	logger   *zap.Logger
 	executor Executor
 	checker  ConfirmationChecker
 	stats    *engine.HandlerStats
@@ -52,10 +53,10 @@ func NewManualHandler(logger *zap.Logger, executor Executor, checker Confirmatio
 		logger = zap.NewNop()
 	}
 	return &ManualHandler{
-		logger:  logger,
+		logger:   logger,
 		executor: executor,
 		checker:  checker,
-		stats:   &engine.HandlerStats{Name: "manual"},
+		stats:    &engine.HandlerStats{Name: "manual"},
 	}
 }
 
@@ -73,8 +74,8 @@ func (h *ManualHandler) Handle(ctx context.Context, req *engine.ExecutionRequest
 	h.stats.TotalCalls++
 
 	result := &engine.ExecutionResult{
-		RequestID: req.ID,
-		Mode:      engine.ModeManual,
+		RequestID:  req.ID,
+		Mode:       engine.ModeManual,
 		ExecutedAt: time.Now().UTC(),
 	}
 

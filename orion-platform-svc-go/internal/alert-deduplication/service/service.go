@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/alert-deduplication/models"
 	"orion/platform-svc-go/internal/alert-deduplication/repository"
-	"go.uber.org/zap"
 )
 
 // AlertDeduplicationService checks and persists duplicate alerts.

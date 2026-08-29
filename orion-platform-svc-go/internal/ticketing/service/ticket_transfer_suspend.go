@@ -3,14 +3,7 @@ package service
 import (
 	"context"
 
-
-
-
-
-
 	"orion/platform-svc-go/internal/ticketing/models"
-
-
 )
 
 func (s *Service) TransferTicket(ctx context.Context, tenantID, ticketID string, req models.TransferRequest, fromUserID string) error {
@@ -94,4 +87,3 @@ func (s *Service) GetEngineerSuspendImpact(ctx context.Context, tenantID, engine
 		AffectedTix: affected,
 	}, nil
 }
-

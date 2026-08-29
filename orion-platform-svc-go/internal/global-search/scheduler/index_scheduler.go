@@ -13,22 +13,22 @@ import (
 
 // IndexScheduler periodically triggers reindex for registered modules.
 type IndexScheduler struct {
-	registry *index.IndexerRegistry
-	logger   *zap.Logger
+	registry  *index.IndexerRegistry
+	logger    *zap.Logger
 	intervals map[string]time.Duration // module -> reindex interval
-	mu       sync.RWMutex
-	cancel   context.CancelFunc
-	ctx      context.Context
-	done     chan struct{}
+	mu        sync.RWMutex
+	cancel    context.CancelFunc
+	ctx       context.Context
+	done      chan struct{}
 }
 
 // New creates a new IndexScheduler.
 func New(registry *index.IndexerRegistry, logger *zap.Logger) *IndexScheduler {
 	return &IndexScheduler{
-		registry: registry,
-		logger:   logger,
+		registry:  registry,
+		logger:    logger,
 		intervals: make(map[string]time.Duration),
-		done:     make(chan struct{}),
+		done:      make(chan struct{}),
 	}
 }
 

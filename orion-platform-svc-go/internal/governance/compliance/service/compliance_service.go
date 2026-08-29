@@ -16,13 +16,13 @@ import (
 )
 
 var (
-	ErrReportNotFound       = errors.New("compliance report not found")
-	ErrScheduleNotFound     = errors.New("compliance schedule not found")
-	ErrInvalidStatus        = errors.New("invalid report status")
-	ErrPolicyNotFound       = errors.New("compliance policy not found")
-	ErrInvalidPolicyStatus  = errors.New("invalid policy status")
+	ErrReportNotFound        = errors.New("compliance report not found")
+	ErrScheduleNotFound      = errors.New("compliance schedule not found")
+	ErrInvalidStatus         = errors.New("invalid report status")
+	ErrPolicyNotFound        = errors.New("compliance policy not found")
+	ErrInvalidPolicyStatus   = errors.New("invalid policy status")
 	ErrInvalidPolicySeverity = errors.New("invalid policy severity")
-	ErrInvalidExpression    = errors.New("invalid policy expression")
+	ErrInvalidExpression     = errors.New("invalid policy expression")
 )
 
 // ComplianceService provides business logic for compliance reports, schedules, and policies.
@@ -523,16 +523,16 @@ func (s *ComplianceService) CreatePolicy(ctx context.Context, tenantID string, i
 		expr = b
 	}
 	policy := &models.CompliancePolicy{
-		ID:        generatePolicyID(),
-		TenantID:  tenantID,
-		Name:      input.Name,
-		Framework: input.Framework,
-		Category:  input.Category,
-		Severity:  input.Severity,
-		Status:    models.PolicyStatusDraft,
-		RuleType:  input.RuleType,
+		ID:         generatePolicyID(),
+		TenantID:   tenantID,
+		Name:       input.Name,
+		Framework:  input.Framework,
+		Category:   input.Category,
+		Severity:   input.Severity,
+		Status:     models.PolicyStatusDraft,
+		RuleType:   input.RuleType,
 		Expression: expr,
-		Action:    input.Action,
+		Action:     input.Action,
 	}
 	if input.Action == "" {
 		policy.Action = "warn"

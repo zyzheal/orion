@@ -13,12 +13,12 @@ import (
 
 // anthropicCompletionRequest mirrors the Anthropic Messages API request body.
 type anthropicCompletionRequest struct {
-	Model       string               `json:"model"`
-	Messages    []anthropicMessage   `json:"messages"`
-	Temperature float64              `json:"temperature,omitempty"`
-	MaxTokens   int                  `json:"max_tokens"`
-	System      string               `json:"system,omitempty"`
-	Stream      bool                 `json:"stream"`
+	Model       string             `json:"model"`
+	Messages    []anthropicMessage `json:"messages"`
+	Temperature float64            `json:"temperature,omitempty"`
+	MaxTokens   int                `json:"max_tokens"`
+	System      string             `json:"system,omitempty"`
+	Stream      bool               `json:"stream"`
 }
 
 type anthropicMessage struct {
@@ -27,18 +27,18 @@ type anthropicMessage struct {
 }
 
 type anthropicCompletionResponse struct {
-	ID      string                  `json:"id"`
-	Type    string                  `json:"type"`
-	Role    string                  `json:"role"`
-	Content []anthropicContentBlock `json:"content"`
-	Model   string                  `json:"model"`
-	Usage   anthropicUsage          `json:"usage"`
-	StopReason string              `json:"stop_reason"`
+	ID         string                  `json:"id"`
+	Type       string                  `json:"type"`
+	Role       string                  `json:"role"`
+	Content    []anthropicContentBlock `json:"content"`
+	Model      string                  `json:"model"`
+	Usage      anthropicUsage          `json:"usage"`
+	StopReason string                  `json:"stop_reason"`
 }
 
 type anthropicContentBlock struct {
-	Type    string `json:"type"`
-	Text    string `json:"text"`
+	Type string `json:"type"`
+	Text string `json:"text"`
 }
 
 type anthropicUsage struct {
@@ -305,10 +305,10 @@ func (c *AnthropicClient) readSSEAnthropic(body io.ReadCloser, ch chan<- *Stream
 		}
 		data := strings.TrimPrefix(trimmed, "data: ")
 		var event struct {
-			Type string `json:"type"`
+			Type  string `json:"type"`
 			Delta struct {
-				Type  string `json:"type"`
-				Text  string `json:"text"`
+				Type string `json:"type"`
+				Text string `json:"text"`
 			} `json:"delta"`
 		}
 		if err := json.Unmarshal([]byte(data), &event); err != nil {

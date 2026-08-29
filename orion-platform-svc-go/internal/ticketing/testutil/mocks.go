@@ -179,7 +179,9 @@ func (r *MockSLARepository) UpsertSLATracking(ctx context.Context, tenantID, tic
 }
 
 func (r *MockSLARepository) GetSLATracking(ctx context.Context, tenantID, ticketID string) (*repository.TicketSLATracking, error) {
-	if ticketID == "nonexistent" { return nil, errors.New("not found") }
+	if ticketID == "nonexistent" {
+		return nil, errors.New("not found")
+	}
 	return &repository.TicketSLATracking{Priority: "medium"}, nil
 }
 
@@ -403,13 +405,13 @@ func NewMockWorkflowRepository() *MockWorkflowRepository {
 
 func (r *MockWorkflowRepository) AddWorkflowHistory(ctx context.Context, tenantID, ticketID, action, fromState, toState, userID, comment string) error {
 	r.History = append(r.History, models.WorkflowHistoryEntry{
-		ID: len(r.History) + 1,
-		TicketID: ticketID,
+		ID:        len(r.History) + 1,
+		TicketID:  ticketID,
 		FromState: fromState,
-		ToState: toState,
-		Action: action,
-		UserID: userID,
-		Comment: comment,
+		ToState:   toState,
+		Action:    action,
+		UserID:    userID,
+		Comment:   comment,
 	})
 	return nil
 }

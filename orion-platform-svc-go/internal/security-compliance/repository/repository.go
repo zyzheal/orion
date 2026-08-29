@@ -114,12 +114,12 @@ func (r *Repository) UpsertScore(ctx context.Context, tenantID string, score *mo
 			VALUES (:id, :tenant_id, :overall_score, :category_scores, :trend, :last_updated)
 			ON CONFLICT (tenant_id) DO UPDATE SET overall_score=EXCLUDED.overall_score, category_scores=EXCLUDED.category_scores, trend=EXCLUDED.trend, last_updated=EXCLUDED.last_updated`,
 		map[string]interface{}{
-			"id":               uuid.New().String(),
-			"tenant_id":        tenantID,
-			"overall_score":    score.OverallScore,
-			"category_scores":  joinStringsForMap(score.CategoryScores),
-			"trend":            score.Trend,
-			"last_updated":     score.LastUpdated,
+			"id":              uuid.New().String(),
+			"tenant_id":       tenantID,
+			"overall_score":   score.OverallScore,
+			"category_scores": joinStringsForMap(score.CategoryScores),
+			"trend":           score.Trend,
+			"last_updated":    score.LastUpdated,
 		})
 	return err
 }
@@ -260,14 +260,14 @@ func (r *Repository) InsertGapAnalysis(ctx context.Context, tenantID string, res
 		`INSERT INTO gap_analysis_results (id, tenant_id, framework, total_controls, implemented, partial, not_implemented, gaps)
 			VALUES (:id, :tenant_id, :framework, :total_controls, :implemented, :partial, :not_implemented, :gaps)`,
 		map[string]interface{}{
-			"id":             uuid.New().String(),
-			"tenant_id":      tenantID,
-			"framework":      result.Framework,
-			"total_controls": result.TotalControls,
-			"implemented":    result.Implemented,
-			"partial":        result.Partial,
+			"id":              uuid.New().String(),
+			"tenant_id":       tenantID,
+			"framework":       result.Framework,
+			"total_controls":  result.TotalControls,
+			"implemented":     result.Implemented,
+			"partial":         result.Partial,
 			"not_implemented": result.NotImplemented,
-			"gaps":           joinGaps(result.Gaps),
+			"gaps":            joinGaps(result.Gaps),
 		})
 	return err
 }

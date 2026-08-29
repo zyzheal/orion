@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"time"
 
 	"orion/platform-svc-go/internal/identity/auth/loginattempt"
@@ -24,7 +25,8 @@ func NewLoginAttemptHandler(tracker *loginattempt.Tracker, repo *repository.Auth
 // List handles GET /login-attempts.
 // Returns recent login attempts with optional filtering by username.
 func (h *LoginAttemptHandler) List(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthList")
+	defer span.End()
 
 	username := c.Query("username")
 	tenantID := c.Query("tenant_id")
@@ -70,12 +72,14 @@ func (h *LoginAttemptHandler) List(c *gin.Context) {
 	}
 
 	h.respondSuccess(c, gin.H{"attempts": attempts,
-		"total":    len(attempts),})
+		"total": len(attempts)})
 }
 
 // Unlock handles POST /login-attempts/unlock/:username.
 // Admin endpoint to manually unlock a locked user account.
 func (h *LoginAttemptHandler) Unlock(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthUnlock")
+	defer span.End()
 	username := c.Param("username")
 	if username == "" {
 		h.respondBadRequest(c, "username is required")
@@ -85,15 +89,17 @@ func (h *LoginAttemptHandler) Unlock(c *gin.Context) {
 	h.tracker.Unlock(username)
 
 	// Also clear any lockout state in the database if applicable
-	_, _ = h.repo.DB().ExecContext(c.Request.Context(),
+	_, _ = h.repo.DB().ExecContext(ctx,
 		"UPDATE users SET locked_until = NULL WHERE username = $1", username)
 
 	h.respondSuccess(c, gin.H{"message": "account unlocked",
-		"username": username,})
+		"username": username})
 }
 
 // Record handles POST /login-attempts (for external callers to record attempts).
 func (h *LoginAttemptHandler) Record(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthRecord")
+	defer span.End()
 	var req struct {
 		Username  string `json:"username" binding:"required"`
 		TenantID  string `json:"tenant_id"`
@@ -112,7 +118,7 @@ func (h *LoginAttemptHandler) Record(c *gin.Context) {
 		isLocked, remaining, lockoutRemaining := h.tracker.RecordFailure(req.Username)
 		if isLocked {
 			h.respondTooManyRequests(c, gin.H{
-				"error":     loginattempt.ErrLockout.Error(),
+				"error":      loginattempt.ErrLockout.Error(),
 				"retryAfter": int(lockoutRemaining.Seconds()),
 			})
 			return
@@ -123,5 +129,5 @@ func (h *LoginAttemptHandler) Record(c *gin.Context) {
 		return
 	}
 
-	h.respondSuccess(c, gin.H{"message": "attempt recorded",})
+	h.respondSuccess(c, gin.H{"message": "attempt recorded"})
 }

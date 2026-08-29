@@ -5,10 +5,11 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/monitoring/internal/monitoring/models"
 	"orion/platform-svc-go/internal/monitoring/internal/monitoring/service"
 	"orion/platform-svc-go/internal/monitoring/internal/response_writer"
-	"orion/go-common/pkg/auth"
 )
 
 type MonitoringHandler struct {
@@ -38,6 +39,8 @@ func (h *MonitoringHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Query performs an instant query.
 func (h *MonitoringHandler) Query(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorQuery")
+	defer span.End()
 	var req models.PrometheusQueryRequest
 
 	if c.Request.Method == "GET" {
@@ -55,7 +58,7 @@ func (h *MonitoringHandler) Query(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.svc.Query(c.Request.Context(), &req)
+	resp, err := h.svc.Query(ctx, &req)
 	if err != nil {
 		response_writer.RespondInternalError(c, err.Error())
 		return
@@ -69,6 +72,8 @@ func (h *MonitoringHandler) Query(c *gin.Context) {
 
 // QueryRange performs a range query.
 func (h *MonitoringHandler) QueryRange(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorQueryRange")
+	defer span.End()
 	var req models.PrometheusRangeQueryRequest
 
 	if c.Request.Method == "GET" {
@@ -88,7 +93,7 @@ func (h *MonitoringHandler) QueryRange(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.svc.QueryRange(c.Request.Context(), &req)
+	resp, err := h.svc.QueryRange(ctx, &req)
 	if err != nil {
 		response_writer.RespondInternalError(c, err.Error())
 		return
@@ -102,7 +107,9 @@ func (h *MonitoringHandler) QueryRange(c *gin.Context) {
 
 // GetTargets returns Prometheus scrape targets.
 func (h *MonitoringHandler) GetTargets(c *gin.Context) {
-	resp, err := h.svc.GetTargets(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetTargets")
+	defer span.End()
+	resp, err := h.svc.GetTargets(ctx)
 	if err != nil {
 		response_writer.RespondInternalError(c, err.Error())
 		return
@@ -116,7 +123,9 @@ func (h *MonitoringHandler) GetTargets(c *gin.Context) {
 
 // GetAlerts returns Prometheus alerts.
 func (h *MonitoringHandler) GetAlerts(c *gin.Context) {
-	resp, err := h.svc.GetAlerts(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetAlerts")
+	defer span.End()
+	resp, err := h.svc.GetAlerts(ctx)
 	if err != nil {
 		response_writer.RespondInternalError(c, err.Error())
 		return
@@ -130,7 +139,9 @@ func (h *MonitoringHandler) GetAlerts(c *gin.Context) {
 
 // GetMetrics returns available metrics.
 func (h *MonitoringHandler) GetMetrics(c *gin.Context) {
-	resp, err := h.svc.GetMetrics(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetMetrics")
+	defer span.End()
+	resp, err := h.svc.GetMetrics(ctx)
 	if err != nil {
 		response_writer.RespondInternalError(c, err.Error())
 		return
@@ -144,6 +155,8 @@ func (h *MonitoringHandler) GetMetrics(c *gin.Context) {
 
 // GetSeries returns time series data.
 func (h *MonitoringHandler) GetSeries(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetSeries")
+	defer span.End()
 	metricName := c.Param("name")
 	limit := 100
 	offset := 0
@@ -155,7 +168,7 @@ func (h *MonitoringHandler) GetSeries(c *gin.Context) {
 		_, _ = fmt.Sscanf(o, "%d", &offset)
 	}
 
-	resp, err := h.svc.GetSeries(c.Request.Context(), metricName, limit, offset)
+	resp, err := h.svc.GetSeries(ctx, metricName, limit, offset)
 	if err != nil {
 		response_writer.RespondInternalError(c, err.Error())
 		return
@@ -169,9 +182,11 @@ func (h *MonitoringHandler) GetSeries(c *gin.Context) {
 
 // GetSummary returns metric summary statistics.
 func (h *MonitoringHandler) GetSummary(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetSummary")
+	defer span.End()
 	metricName := c.Param("name")
 
-	resp, err := h.svc.GetSummary(c.Request.Context(), metricName)
+	resp, err := h.svc.GetSummary(ctx, metricName)
 	if err != nil {
 		response_writer.RespondInternalError(c, err.Error())
 		return
@@ -185,12 +200,16 @@ func (h *MonitoringHandler) GetSummary(c *gin.Context) {
 
 // ListPredefined returns all predefined metrics.
 func (h *MonitoringHandler) ListPredefined(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorListPredefined")
+	defer span.End()
 	metrics := h.svc.ListPredefined()
 	response_writer.Respond(c, http.StatusOK, metrics)
 }
 
 // GetPredefined returns a predefined metric.
 func (h *MonitoringHandler) GetPredefined(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetPredefined")
+	defer span.End()
 	id := c.Param("id")
 
 	metric, err := h.svc.GetPredefined(id)

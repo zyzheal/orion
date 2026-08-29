@@ -48,14 +48,14 @@ type MethodCache struct {
 	backend    CacheBackend
 	gen        KeyGenerator
 	missLock   sync.Mutex // serialises calls to the underlying function
-	missLockEn bool        // when true, only one goroutine calls fn for a given miss
+	missLockEn bool       // when true, only one goroutine calls fn for a given miss
 }
 
 // NewMethodCache returns a MethodCache for the given pure function.
 //
-//  - fn must be a function value (not a method value on a non-nil receiver).
-//  - cfg holds TTL, eviction, key generation, etc.
-//  - backend stores the actual cached values (memory or Redis).
+//   - fn must be a function value (not a method value on a non-nil receiver).
+//   - cfg holds TTL, eviction, key generation, etc.
+//   - backend stores the actual cached values (memory or Redis).
 func NewMethodCache(name string, fn interface{}, cfg CacheConfig, backend CacheBackend) *MethodCache {
 	cfg = cfg.applyDefaults()
 	logger := cfg.Logger
@@ -340,7 +340,7 @@ type CacheResult[T any] struct {
 // ---------------------------------------------------------------------------
 
 var ErrNotAFunction = errf("decorator: not a function")
-var ErrNoBackend    = errf("decorator: cache backend is nil")
+var ErrNoBackend = errf("decorator: cache backend is nil")
 
 type errf string
 

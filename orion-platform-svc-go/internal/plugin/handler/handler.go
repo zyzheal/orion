@@ -40,30 +40,30 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.GET("/count", h.Count)
 
 	// Plugin management actions
-	r.POST("/:pluginId/install", auth.RequirePermission("plugin", "write"), h.Install)
-	r.POST("/:pluginId/enable", auth.RequirePermission("plugin", "write"), h.Enable)
-	r.POST("/:pluginId/disable", auth.RequirePermission("plugin", "write"), h.Disable)
+	r.POST("/:id/install", auth.RequirePermission("plugin", "write"), h.Install)
+	r.POST("/:id/enable", auth.RequirePermission("plugin", "write"), h.Enable)
+	r.POST("/:id/disable", auth.RequirePermission("plugin", "write"), h.Disable)
 
-	// Audit (note: /:runId/timeline and /:runId/debug/* must come AFTER
-	// /:pluginId/<action> so the explicit :pluginId routes match first;
-	// we split on action suffixes rather than the id).
+	// Audit, execution timeline and debug. Every action route above and every
+	// route below shares the single ":id" wildcard token, so no node of the
+	// trie ever sees two wildcard names at once.
 	r.GET("/audit", h.Audit)
 	r.GET("/audit/:taskId/trail", h.AuditTrail)
 
 	// Execution timeline + debug (uses :runId param).
-	r.GET("/:runId/timeline", h.Timeline)
-	r.POST("/:runId/debug/pause", auth.RequirePermission("plugin", "manage"), h.DebugPause)
-	r.POST("/:runId/debug/resume", auth.RequirePermission("plugin", "manage"), h.DebugResume)
-	r.POST("/:runId/debug/step", auth.RequirePermission("plugin", "manage"), h.DebugStep)
-	r.GET("/:runId/debug/state", h.DebugState)
+	r.GET("/:id/timeline", h.Timeline)
+	r.POST("/:id/debug/pause", auth.RequirePermission("plugin", "manage"), h.DebugPause)
+	r.POST("/:id/debug/resume", auth.RequirePermission("plugin", "manage"), h.DebugResume)
+	r.POST("/:id/debug/step", auth.RequirePermission("plugin", "manage"), h.DebugStep)
+	r.GET("/:id/debug/state", h.DebugState)
 
 	// AI diagnosis
 	r.POST("/ai-diagnose", auth.RequirePermission("plugin", "execute"), h.AIDiagnose)
 
 	// Quotas
-	r.PUT("/quotas/:pluginId", auth.RequirePermission("plugin", "write"), h.UpsertPluginQuota)
-	r.GET("/quotas/:pluginId", h.PluginQuota)
-	r.DELETE("/quotas/:pluginId", auth.RequirePermission("plugin", "delete"), h.DeletePluginQuota)
+	r.PUT("/quotas/:id", auth.RequirePermission("plugin", "write"), h.UpsertPluginQuota)
+	r.GET("/quotas/:id", h.PluginQuota)
+	r.DELETE("/quotas/:id", auth.RequirePermission("plugin", "delete"), h.DeletePluginQuota)
 
 	// Security events
 	r.POST("/security-events", auth.RequirePermission("plugin", "write"), h.CreateSecurityEvent)
@@ -166,7 +166,7 @@ func (h *Handler) Install(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Install")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	pluginID := c.Param("pluginId")
+	pluginID := c.Param("id")
 	var body struct {
 		Version string       `json:"version"`
 		Config  models.JSONB `json:"config"`
@@ -189,7 +189,7 @@ func (h *Handler) Enable(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Enable")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	pluginID := c.Param("pluginId")
+	pluginID := c.Param("id")
 	p, err := h.svc.Enable(ctx, tenantID, pluginID)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -202,7 +202,7 @@ func (h *Handler) Disable(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Disable")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	pluginID := c.Param("pluginId")
+	pluginID := c.Param("id")
 	p, err := h.svc.Disable(ctx, tenantID, pluginID)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -256,7 +256,7 @@ func (h *Handler) Timeline(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Timeline")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	runID := c.Param("runId")
+	runID := c.Param("id")
 	execution, err := h.svc.GetExecutionByTaskID(ctx, tenantID, runID)
 	if err != nil {
 		middleware.RespondNotFound(c, "execution not found for run: "+runID)
@@ -269,7 +269,7 @@ func (h *Handler) DebugPause(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DebugPause")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	runID := c.Param("runId")
+	runID := c.Param("id")
 	state := h.svc.Pause(ctx, tenantID, runID)
 	middleware.RespondSuccess(c, gin.H{"runId": runID, "status": "paused", "debugState": state})
 }
@@ -278,7 +278,7 @@ func (h *Handler) DebugResume(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DebugResume")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	runID := c.Param("runId")
+	runID := c.Param("id")
 	h.svc.Resume(ctx, tenantID, runID)
 	middleware.RespondSuccess(c, gin.H{"runId": runID, "status": "resumed"})
 }
@@ -287,15 +287,15 @@ func (h *Handler) DebugStep(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DebugStep")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	rnID := c.Param("runId")
+	rnID := c.Param("id")
 	state := h.svc.Step(ctx, tenantID, rnID)
 	middleware.RespondSuccess(c, gin.H{"runId": rnID, "status": "stepping", "debugState": state})
 }
 
 func (h *Handler) DebugState(c *gin.Context) {
-	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DebugState")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DebugState")
 	defer span.End()
-	runID := c.Param("runId")
+	runID := c.Param("id")
 	state := h.svc.GetDebugState(runID)
 	if state == nil {
 		middleware.RespondNotFound(c, "no debug state for run: "+runID)
@@ -338,7 +338,7 @@ func (h *Handler) AIDiagnose(c *gin.Context) {
 func (h *Handler) UpsertPluginQuota(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpsertPluginQuota")
 	defer span.End()
-	pluginID := c.Param("pluginId")
+	pluginID := c.Param("id")
 	var req models.ResourceQuota
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -354,7 +354,7 @@ func (h *Handler) UpsertPluginQuota(c *gin.Context) {
 func (h *Handler) PluginQuota(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PluginQuota")
 	defer span.End()
-	pluginID := c.Param("pluginId")
+	pluginID := c.Param("id")
 	q, err := h.svc.GetPluginQuota(ctx, pluginID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
@@ -366,7 +366,7 @@ func (h *Handler) PluginQuota(c *gin.Context) {
 func (h *Handler) DeletePluginQuota(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeletePluginQuota")
 	defer span.End()
-	pluginID := c.Param("pluginId")
+	pluginID := c.Param("id")
 	if err := h.svc.DeletePluginQuota(ctx, pluginID); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

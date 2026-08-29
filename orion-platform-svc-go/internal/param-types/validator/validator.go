@@ -16,69 +16,69 @@ import (
 
 // StringConstraints holds validation rules for string-type parameters.
 type StringConstraints struct {
-	MinLen    int    `json:"min_length,omitempty"`    // minimum character length
-	MaxLen    int    `json:"max_length,omitempty"`    // maximum character length
-	Pattern   string `json:"pattern,omitempty"`       // regex pattern
-	TrimSpace bool   `json:"trim_space,omitempty"`    // trim leading/trailing whitespace
-	NotEmpty  bool   `json:"not_empty,omitempty"`     // reject empty string
+	MinLen    int    `json:"min_length,omitempty"` // minimum character length
+	MaxLen    int    `json:"max_length,omitempty"` // maximum character length
+	Pattern   string `json:"pattern,omitempty"`    // regex pattern
+	TrimSpace bool   `json:"trim_space,omitempty"` // trim leading/trailing whitespace
+	NotEmpty  bool   `json:"not_empty,omitempty"`  // reject empty string
 }
 
 // NumberConstraints holds validation rules for number-type parameters.
 // Pointer fields distinguish "not set" (nil) from "set to zero".
 type NumberConstraints struct {
-	Min         *float64 `json:"min,omitempty"`         // minimum value (inclusive)
-	Max         *float64 `json:"max,omitempty"`         // maximum value (inclusive)
-	Step        *float64 `json:"step,omitempty"`        // allowed increment between values
-	Integer     bool     `json:"integer,omitempty"`     // reject fractional numbers
-	GreaterThan *float64 `json:"greater_than,omitempty"`// strictly greater than
-	LessThan    *float64 `json:"less_than,omitempty"`   // strictly less than
+	Min         *float64 `json:"min,omitempty"`          // minimum value (inclusive)
+	Max         *float64 `json:"max,omitempty"`          // maximum value (inclusive)
+	Step        *float64 `json:"step,omitempty"`         // allowed increment between values
+	Integer     bool     `json:"integer,omitempty"`      // reject fractional numbers
+	GreaterThan *float64 `json:"greater_than,omitempty"` // strictly greater than
+	LessThan    *float64 `json:"less_than,omitempty"`    // strictly less than
 }
 
 // ArrayConstraints holds validation rules for array-type parameters.
 type ArrayConstraints struct {
-	MinItems int   `json:"min_items,omitempty"` // minimum number of items
-	MaxItems int   `json:"max_items,omitempty"` // maximum number of items
-	Unique   bool  `json:"unique,omitempty"`    // reject duplicate items
-	EmptyOK  bool  `json:"empty_ok,omitempty"`  // allow empty array
+	MinItems int  `json:"min_items,omitempty"` // minimum number of items
+	MaxItems int  `json:"max_items,omitempty"` // maximum number of items
+	Unique   bool `json:"unique,omitempty"`    // reject duplicate items
+	EmptyOK  bool `json:"empty_ok,omitempty"`  // allow empty array
 }
 
 // ObjectConstraints holds validation rules for object-type parameters.
 type ObjectConstraints struct {
-	Required   []string           `json:"required,omitempty"`      // required field names
+	Required   []string                       `json:"required,omitempty"`   // required field names
 	Properties map[string]PropertyConstraints `json:"properties,omitempty"` // per-field rules
-	MaxFields  int                `json:"max_fields,omitempty"`    // maximum number of fields
+	MaxFields  int                            `json:"max_fields,omitempty"` // maximum number of fields
 }
 
 // PropertyConstraints holds validation rules for a single object property.
 type PropertyConstraints struct {
-	Type     string            `json:"type"`           // expected value type
-	Required bool              `json:"required"`        // field must be present
-	Enum     []interface{}     `json:"enum,omitempty"`  // allowed discrete values
-	Default  interface{}       `json:"default,omitempty"` // default if absent
+	Type     string        `json:"type"`              // expected value type
+	Required bool          `json:"required"`          // field must be present
+	Enum     []interface{} `json:"enum,omitempty"`    // allowed discrete values
+	Default  interface{}   `json:"default,omitempty"` // default if absent
 }
 
 // SelectConstraints holds validation rules for select-type parameters.
 type SelectConstraints struct {
-	Options []string `json:"options,omitempty"` // allowed option values
-	Multiple bool    `json:"multiple,omitempty"` // allow multiple selection
+	Options  []string `json:"options,omitempty"`  // allowed option values
+	Multiple bool     `json:"multiple,omitempty"` // allow multiple selection
 }
 
 // PasswordConstraints holds validation rules for password-type parameters.
 type PasswordConstraints struct {
-	MinLen     int    `json:"min_length,omitempty"`     // minimum character length
-	MaxLen     int    `json:"max_length,omitempty"`     // maximum character length
-	RequireUpper bool `json:"require_upper,omitempty"`  // must contain uppercase
-	RequireLower bool `json:"require_lower,omitempty"`  // must contain lowercase
-	RequireDigit bool `json:"require_digit,omitempty"`  // must contain digit
+	MinLen        int  `json:"min_length,omitempty"`     // minimum character length
+	MaxLen        int  `json:"max_length,omitempty"`     // maximum character length
+	RequireUpper  bool `json:"require_upper,omitempty"`  // must contain uppercase
+	RequireLower  bool `json:"require_lower,omitempty"`  // must contain lowercase
+	RequireDigit  bool `json:"require_digit,omitempty"`  // must contain digit
 	RequireSymbol bool `json:"require_symbol,omitempty"` // must contain symbol
-	Entropy      int    `json:"entropy,omitempty"`      // minimum entropy bits
+	Entropy       int  `json:"entropy,omitempty"`        // minimum entropy bits
 }
 
 // FileConstraints holds validation rules for file-type parameters.
 type FileConstraints struct {
-	MaxSize       int64    `json:"max_size,omitempty"`       // max file size in bytes
-	AllowedExt    []string `json:"allowed_ext,omitempty"`    // allowed extensions
-	AllowedMime   []string `json:"allowed_mime,omitempty"`   // allowed MIME types
+	MaxSize     int64    `json:"max_size,omitempty"`     // max file size in bytes
+	AllowedExt  []string `json:"allowed_ext,omitempty"`  // allowed extensions
+	AllowedMime []string `json:"allowed_mime,omitempty"` // allowed MIME types
 }
 
 // ---------------------------------------------------------------------------
@@ -87,12 +87,12 @@ type FileConstraints struct {
 
 // ValidationError represents a single validation failure with location info.
 type ValidationError struct {
-	ParamName string `json:"param_name"` // parameter name (for nested paths)
-	Field     string `json:"field,omitempty"` // sub-field path (e.g., "properties.color.value")
-	Type      string `json:"type"` // parameter type code
-	Constraint string `json:"constraint"` // constraint name that failed
-	Message   string `json:"message"` // human-readable message
-	Value     interface{} `json:"value,omitempty"` // the value that failed validation
+	ParamName  string      `json:"param_name"`      // parameter name (for nested paths)
+	Field      string      `json:"field,omitempty"` // sub-field path (e.g., "properties.color.value")
+	Type       string      `json:"type"`            // parameter type code
+	Constraint string      `json:"constraint"`      // constraint name that failed
+	Message    string      `json:"message"`         // human-readable message
+	Value      interface{} `json:"value,omitempty"` // the value that failed validation
 }
 
 func (e ValidationError) Error() string {
@@ -182,10 +182,10 @@ func (v *Validator) Validate(
 		return v.validatePort(paramName, rawValue)
 	default:
 		return ValidationErrors{ValidationError{
-			ParamName: paramName,
-			Type:      paramType,
+			ParamName:  paramName,
+			Type:       paramType,
 			Constraint: "type_unknown",
-			Message:   fmt.Sprintf("unknown param type: %s", paramType),
+			Message:    fmt.Sprintf("unknown param type: %s", paramType),
 		}}
 	}
 }
@@ -212,7 +212,7 @@ func (v *Validator) validateString(paramName, value string, c *StringConstraints
 		errs = append(errs, ValidationError{
 			ParamName: paramName, Type: "string", Constraint: "min_length",
 			Message: fmt.Sprintf("string length %d is less than minimum %d", len(value), c.MinLen),
-			Value: value,
+			Value:   value,
 		})
 	}
 
@@ -220,7 +220,7 @@ func (v *Validator) validateString(paramName, value string, c *StringConstraints
 		errs = append(errs, ValidationError{
 			ParamName: paramName, Type: "string", Constraint: "max_length",
 			Message: fmt.Sprintf("string length %d exceeds maximum %d", len(value), c.MaxLen),
-			Value: value,
+			Value:   value,
 		})
 	}
 
@@ -241,7 +241,7 @@ func (v *Validator) validateString(paramName, value string, c *StringConstraints
 			errs = append(errs, ValidationError{
 				ParamName: paramName, Type: "string", Constraint: "pattern",
 				Message: fmt.Sprintf("string does not match pattern %q", c.Pattern),
-				Value: value,
+				Value:   value,
 			})
 		}
 	}
@@ -334,7 +334,7 @@ func (v *Validator) validateBoolean(paramName, value string) ValidationErrors {
 		return ValidationErrors{ValidationError{
 			ParamName: paramName, Type: "boolean", Constraint: "valid_boolean",
 			Message: "invalid boolean value; expected true/false, yes/no, 1/0, on/off",
-			Value: value,
+			Value:   value,
 		}}
 	}
 	return nil
@@ -360,7 +360,7 @@ func (v *Validator) validateSelect(paramName, value string, c *SelectConstraints
 			errs = append(errs, ValidationError{
 				ParamName: paramName, Type: "select", Constraint: "option",
 				Message: fmt.Sprintf("option %q (position %d) is not in allowed list %v", opt, i, c.Options),
-				Value: opt,
+				Value:   opt,
 			})
 		}
 	}
@@ -396,7 +396,7 @@ func (v *Validator) validateArray(paramName, value string, c *ArrayConstraints) 
 		errs = append(errs, ValidationError{
 			ParamName: paramName, Type: "array", Constraint: "min_items",
 			Message: fmt.Sprintf("array has %d items, minimum is %d", len(cleanItems), c.MinItems),
-			Value: cleanItems,
+			Value:   cleanItems,
 		})
 	}
 
@@ -404,7 +404,7 @@ func (v *Validator) validateArray(paramName, value string, c *ArrayConstraints) 
 		errs = append(errs, ValidationError{
 			ParamName: paramName, Type: "array", Constraint: "max_items",
 			Message: fmt.Sprintf("array has %d items, maximum is %d", len(cleanItems), c.MaxItems),
-			Value: cleanItems,
+			Value:   cleanItems,
 		})
 	}
 
@@ -444,7 +444,7 @@ func (v *Validator) validateObject(paramName, value string, c *ObjectConstraints
 		errs = append(errs, ValidationError{
 			ParamName: paramName, Type: "object", Constraint: "max_fields",
 			Message: fmt.Sprintf("object has %d fields, maximum is %d", len(obj), c.MaxFields),
-			Value: obj,
+			Value:   obj,
 		})
 	}
 
@@ -467,9 +467,9 @@ func (v *Validator) validateObject(paramName, value string, c *ObjectConstraints
 				if actualType != constraints.Type {
 					errs = append(errs, ValidationError{
 						ParamName: paramName, Type: "object", Constraint: "field_type",
-						Field: field,
+						Field:   field,
 						Message: fmt.Sprintf("field %q has type %s, expected %s", field, actualType, constraints.Type),
-						Value: val,
+						Value:   val,
 					})
 				}
 			}
@@ -485,9 +485,9 @@ func (v *Validator) validateObject(paramName, value string, c *ObjectConstraints
 				if !found {
 					errs = append(errs, ValidationError{
 						ParamName: paramName, Type: "object", Constraint: "enum",
-						Field: field,
+						Field:   field,
 						Message: fmt.Sprintf("field %q value %v not in allowed values %v", field, val, constraints.Enum),
-						Value: val,
+						Value:   val,
 					})
 				}
 			}
@@ -495,7 +495,7 @@ func (v *Validator) validateObject(paramName, value string, c *ObjectConstraints
 			// Already handled by Required check above, but include with field context
 			errs = append(errs, ValidationError{
 				ParamName: paramName, Type: "object", Constraint: "required",
-				Field: field,
+				Field:   field,
 				Message: fmt.Sprintf("required field %q is missing", field), Value: obj,
 			})
 		}
@@ -595,7 +595,7 @@ func (v *Validator) validateFile(paramName, value string, c *FileConstraints) Va
 				errs = append(errs, ValidationError{
 					ParamName: paramName, Type: "file", Constraint: "allowed_ext",
 					Message: fmt.Sprintf("file extension %q is not allowed; allowed: %v", actualExt, c.AllowedExt),
-					Value: value,
+					Value:   value,
 				})
 			}
 		}
@@ -639,7 +639,7 @@ func (v *Validator) validateDateTime(paramName, rawValue string) ValidationError
 	errs = append(errs, ValidationError{
 		ParamName: paramName, Type: "datetime", Constraint: "format",
 		Message: fmt.Sprintf("unrecognized datetime format %q (expected RFC3339 or YYYY-MM-DD[T]HH:MM:SS)", rawValue),
-		Value: rawValue,
+		Value:   rawValue,
 	})
 	return errs
 }

@@ -38,13 +38,13 @@ type Orchestrator struct {
 
 // runState holds transient execution data for a single run.
 type runState struct {
-	ctx       context.Context
-	cancel    context.CancelFunc
-	dag       *OrchestrationDAG
-	execCtx   *ExecutionContext
-	result    *RunResult
-	done      atomic.Bool
-	created   time.Time
+	ctx     context.Context
+	cancel  context.CancelFunc
+	dag     *OrchestrationDAG
+	execCtx *ExecutionContext
+	result  *RunResult
+	done    atomic.Bool
+	created time.Time
 }
 
 // NewOrchestrator creates an orchestrator with the given LLM ProviderRegistry.
@@ -193,12 +193,12 @@ func (o *Orchestrator) Cancel(runID string) bool {
 // executeDAG walks the DAG and schedules node executions.
 //
 // Algorithm:
-//   1. Find all root nodes (no incoming edges).
-//   2. For each root, dispatch execution.
-//   3. When a node completes, enqueue its children.
-//   4. Grouping nodes (PARALLEL/SEQUENTIAL) execute their children specially.
-//   5. SUPERVISOR nodes use their decision to select the next child.
-//   6. CRITIC nodes gate downstream execution on score.
+//  1. Find all root nodes (no incoming edges).
+//  2. For each root, dispatch execution.
+//  3. When a node completes, enqueue its children.
+//  4. Grouping nodes (PARALLEL/SEQUENTIAL) execute their children specially.
+//  5. SUPERVISOR nodes use their decision to select the next child.
+//  6. CRITIC nodes gate downstream execution on score.
 func (o *Orchestrator) executeDAG(
 	ctx context.Context,
 	dag *OrchestrationDAG,
@@ -414,9 +414,9 @@ func (o *Orchestrator) executeGrouping(
 	nr.Success = groupStatus == "completed" || groupStatus == ""
 	nr.Output = fmt.Sprintf("[%s] %d/ %d children completed", node.Type, len(childResults), len(childrenNodes))
 	nr.Structured = map[string]interface{}{
-		"grouping_type": string(node.Type),
+		"grouping_type":     string(node.Type),
 		"children_executed": len(childResults),
-		"status":         groupStatus,
+		"status":            groupStatus,
 	}
 
 	if groupStatus != "" && groupStatus != "completed" {

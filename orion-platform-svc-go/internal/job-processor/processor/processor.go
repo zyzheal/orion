@@ -3,7 +3,8 @@
 // and transactional support.
 //
 // The Processor manages a lifecycle:
-//   pending → running → completed|failed
+//
+//	pending → running → completed|failed
 //
 // And supports pausing/resuming/cancelling at the operation level and chain level.
 package processor
@@ -109,7 +110,7 @@ func (p *Processor) Process(ctx context.Context, tenantID string, req *models.Cr
 			p.logger.Warn("failed to update chain status after operation",
 				zap.String("chainID", chainID),
 				zap.Error(chainErr),
-		)
+			)
 		}
 	}
 

@@ -58,8 +58,8 @@ func NewPipelinePlugin(runner PipelineRunner) *PipelineExecutorPlugin {
 	return &PipelineExecutorPlugin{runner: runner}
 }
 
-func (p *PipelineExecutorPlugin) Name() string           { return PluginTypePipeline }
-func (p *PipelineExecutorPlugin) Description() string    { return "Trigger a pipeline execution" }
+func (p *PipelineExecutorPlugin) Name() string                  { return PluginTypePipeline }
+func (p *PipelineExecutorPlugin) Description() string           { return "Trigger a pipeline execution" }
 func (p *PipelineExecutorPlugin) DefaultTimeout() time.Duration { return 5 * time.Minute }
 
 // Validate ensures the params contain a non-empty pipeline_id.

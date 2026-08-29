@@ -13,12 +13,12 @@ import (
 
 // deepseekCompletionRequest mirrors the DeepSeek (OpenAI-compatible) request body.
 type deepseekCompletionRequest struct {
-	Model       string          `json:"model"`
+	Model       string            `json:"model"`
 	Messages    []deepseekMessage `json:"messages"`
-	Temperature float64         `json:"temperature,omitempty"`
-	MaxTokens   int             `json:"max_tokens,omitempty"`
-	TopP        float64         `json:"top_p,omitempty"`
-	Stream      bool            `json:"stream"`
+	Temperature float64           `json:"temperature,omitempty"`
+	MaxTokens   int               `json:"max_tokens,omitempty"`
+	TopP        float64           `json:"top_p,omitempty"`
+	Stream      bool              `json:"stream"`
 }
 
 type deepseekMessage struct {
@@ -27,11 +27,11 @@ type deepseekMessage struct {
 }
 
 type deepseekCompletionResponse struct {
-	ID      string              `json:"id"`
-	Object  string              `json:"object"`
-	Model   string              `json:"model"`
-	Choices []deepseekChoice    `json:"choices"`
-	Usage   deepseekUsage       `json:"usage"`
+	ID      string           `json:"id"`
+	Object  string           `json:"object"`
+	Model   string           `json:"model"`
+	Choices []deepseekChoice `json:"choices"`
+	Usage   deepseekUsage    `json:"usage"`
 }
 
 type deepseekChoice struct {

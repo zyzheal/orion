@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/disaster-recovery/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/disaster-recovery/models"
 )
 
@@ -52,7 +52,6 @@ func (f *fakeDisaster_recoveryService) UpdatePlan(ctx context.Context, tenantID,
 }
 
 var _ service.ServiceInterface = (*fakeDisaster_recoveryService)(nil)
-
 
 func TestHandler_DISASTER_RECOV_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

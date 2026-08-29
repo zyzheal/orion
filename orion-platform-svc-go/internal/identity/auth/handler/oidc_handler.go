@@ -4,15 +4,16 @@ package handler
 
 import (
 	"encoding/json"
+	"go.opentelemetry.io/otel"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/identity/auth/fieldencryption"
 	"orion/platform-svc-go/internal/identity/auth/model"
 	"orion/platform-svc-go/internal/identity/auth/ssosvc"
-	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -31,6 +32,8 @@ type oidcStatePayload struct {
 // OIDCAuthorize handles GET /sso/oidc/authorize?provider=<name>.
 // Initiates the OIDC authorization flow by redirecting to the provider's auth endpoint.
 func (h *Handler) OIDCAuthorize(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthOIDCAuthorize")
+	defer span.End()
 	providerName := c.Query("provider")
 	if providerName == "" {
 		h.respondBadRequest(c, "provider query parameter required")
@@ -42,14 +45,14 @@ func (h *Handler) OIDCAuthorize(c *gin.Context) {
 		tenantID = "default"
 	}
 
-	cfg, err := h.oidcSVC.ProviderConfig(c.Request.Context(), tenantID, providerName)
+	cfg, err := h.oidcSVC.ProviderConfig(ctx, tenantID, providerName)
 	if err != nil {
 		h.log.Error("OIDC provider config failed", zap.Error(err), zap.String("provider", providerName))
 		h.respondNotFound(c, "provider not found or disabled")
 		return
 	}
 
-	disc, err := h.oidcSVC.Discover(c.Request.Context(), *cfg)
+	disc, err := h.oidcSVC.Discover(ctx, *cfg)
 	if err != nil {
 		h.log.Error("OIDC discovery failed", zap.Error(err), zap.String("provider", providerName))
 		h.respondInternalError(c, "failed to discover OIDC provider")
@@ -65,7 +68,7 @@ func (h *Handler) OIDCAuthorize(c *gin.Context) {
 
 	// Persist state payload in DB for callback validation
 	payload, _ := json.Marshal(oidcStatePayload{Nonce: state, CodeVerifier: codeVerifier})
-	err = h.oidcRepo.CreateSSOState(c.Request.Context(), &model.SSOState{
+	err = h.oidcRepo.CreateSSOState(ctx, &model.SSOState{
 		ID:           uuid.New().String(),
 		TenantID:     tenantID,
 		State:        state,
@@ -90,6 +93,8 @@ func (h *Handler) OIDCAuthorize(c *gin.Context) {
 // OIDCCallback handles GET /sso/oidc/callback?code=...&state=...
 // Completes the OAuth2 flow by exchanging the code for tokens and linking the identity.
 func (h *Handler) OIDCCallback(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthOIDCCallback")
+	defer span.End()
 	code := c.Query("code")
 	state := c.Query("state")
 	providerName := c.Query("provider")
@@ -104,7 +109,7 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 	}
 
 	// Retrieve stored state
-	ssoState, err := h.oidcRepo.GetSSOState(c.Request.Context(), tenantID, state)
+	ssoState, err := h.oidcRepo.GetSSOState(ctx, tenantID, state)
 	if ssoState == nil || err != nil {
 		h.log.Error("SSO state lookup failed", zap.Error(err), zap.String("state", state))
 		h.respondBadRequest(c, "invalid or expired SSO state")
@@ -112,7 +117,7 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 	}
 
 	// Clean up the state entry
-	_ = h.oidcRepo.DeleteSSOState(c.Request.Context(), tenantID, state)
+	_ = h.oidcRepo.DeleteSSOState(ctx, tenantID, state)
 
 	var payload oidcStatePayload
 	if err := json.Unmarshal([]byte(ssoState.Data), &payload); err != nil {
@@ -122,14 +127,14 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 	}
 
 	// Get provider config
-	cfg, err := h.oidcSVC.ProviderConfig(c.Request.Context(), tenantID, providerName)
+	cfg, err := h.oidcSVC.ProviderConfig(ctx, tenantID, providerName)
 	if err != nil {
 		h.respondNotFound(c, "provider not found")
 		return
 	}
 
 	// Discover endpoints
-	disc, err := h.oidcSVC.Discover(c.Request.Context(), *cfg)
+	disc, err := h.oidcSVC.Discover(ctx, *cfg)
 	if err != nil {
 		h.log.Error("OIDC discovery failed", zap.Error(err))
 		h.respondInternalError(c, "failed to discover OIDC provider")
@@ -137,7 +142,7 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 	}
 
 	// Exchange authorization code for tokens
-	tokens, err := h.oidcSVC.ExchangeToken(c.Request.Context(), *cfg, disc, code, payload.CodeVerifier)
+	tokens, err := h.oidcSVC.ExchangeToken(ctx, *cfg, disc, code, payload.CodeVerifier)
 	if err != nil {
 		h.log.Error("OIDC token exchange failed", zap.Error(err))
 		h.respondInternalError(c, "token exchange failed")
@@ -162,7 +167,7 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 	// Retrieve user info — prefer userinfo endpoint, fall back to ID token claims
 	var userInfo *ssosvc.OIDCUserInfo
 	if disc.UserInfoURL != "" {
-		userInfo, err = h.oidcSVC.FetchUserInfo(c.Request.Context(), disc, tokens.AccessToken)
+		userInfo, err = h.oidcSVC.FetchUserInfo(ctx, disc, tokens.AccessToken)
 	}
 	if userInfo == nil && tokens.IDToken != "" {
 		// SEC-04 FIX: Mark claims as unverified (no JWKS validation) —
@@ -185,7 +190,7 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 	}
 
 	// Resolve or link the user
-	_, existingUser, err := h.oidcSVC.ResolveOrLinkUser(c.Request.Context(), tenantID, providerName, userInfo)
+	_, existingUser, err := h.oidcSVC.ResolveOrLinkUser(ctx, tenantID, providerName, userInfo)
 	if err != nil {
 		h.log.Error("OIDC user resolution failed", zap.Error(err))
 		h.respondInternalError(c, "failed to resolve user identity")
@@ -234,7 +239,7 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 	}
 
 	// Record audit log
-	_ = h.svc.Audit(c.Request.Context(), &model.AuditLog{
+	_ = h.svc.Audit(ctx, &model.AuditLog{
 		ID:        uuid.New().String(),
 		TenantID:  existingUser.TenantID,
 		ActorID:   existingUser.ID,
@@ -244,8 +249,8 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 	})
 
 	h.respondSuccess(c, gin.H{
-		"access_token":  tokenString,
-		"expires_at":    now.Add(5 * time.Minute).Unix(),
+		"access_token":       tokenString,
+		"expires_at":         now.Add(5 * time.Minute).Unix(),
 		"needs_registration": false,
 		"user": gin.H{
 			"id":       existingUser.ID,
@@ -259,6 +264,8 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 
 // OIDCListProviders handles GET /sso/oidc/providers.
 func (h *Handler) OIDCListProviders(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthOIDCListProviders")
+	defer span.End()
 	tenantID := c.Query("tenant_id")
 	if tenantID == "" {
 		tenantID = auth.GetTenantID(c)
@@ -267,7 +274,7 @@ func (h *Handler) OIDCListProviders(c *gin.Context) {
 		}
 	}
 
-	providers, err := h.oidcSVC.ListProviders(c.Request.Context(), tenantID)
+	providers, err := h.oidcSVC.ListProviders(ctx, tenantID)
 	if err != nil {
 		h.log.Error("failed to list providers", zap.Error(err))
 		h.respondInternalError(c, "internal error")
@@ -278,16 +285,16 @@ func (h *Handler) OIDCListProviders(c *gin.Context) {
 	safe := make([]gin.H, 0, len(providers))
 	for _, p := range providers {
 		safe = append(safe, gin.H{
-			"id":            p.ID,
-			"tenant_id":     p.TenantID,
-			"name":          p.Name,
-			"display_name":  p.DisplayName,
-			"issuer_url":    p.IssuerURL,
-			"redirect_uri":  p.RedirectURI,
-			"scopes":        p.Scopes,
-			"enabled":       p.Enabled,
-			"created_at":    p.CreatedAt,
-			"updated_at":    p.UpdatedAt,
+			"id":           p.ID,
+			"tenant_id":    p.TenantID,
+			"name":         p.Name,
+			"display_name": p.DisplayName,
+			"issuer_url":   p.IssuerURL,
+			"redirect_uri": p.RedirectURI,
+			"scopes":       p.Scopes,
+			"enabled":      p.Enabled,
+			"created_at":   p.CreatedAt,
+			"updated_at":   p.UpdatedAt,
 		})
 	}
 
@@ -296,17 +303,19 @@ func (h *Handler) OIDCListProviders(c *gin.Context) {
 
 // OIDCCreateProvider handles POST /sso/oidc/providers.
 type createProviderRequest struct {
-	Name           string `json:"name" binding:"required"`
-	DisplayName    string `json:"display_name" binding:"required"`
-	IssuerURL      string `json:"issuer_url" binding:"required"`
-	ClientID       string `json:"client_id" binding:"required"`
-	ClientSecret   string `json:"client_secret" binding:"required"`
-	RedirectURI    string `json:"redirect_uri" binding:"required"`
-	Scopes         string `json:"scopes"`
-	Enabled        bool   `json:"enabled"`
+	Name         string `json:"name" binding:"required"`
+	DisplayName  string `json:"display_name" binding:"required"`
+	IssuerURL    string `json:"issuer_url" binding:"required"`
+	ClientID     string `json:"client_id" binding:"required"`
+	ClientSecret string `json:"client_secret" binding:"required"`
+	RedirectURI  string `json:"redirect_uri" binding:"required"`
+	Scopes       string `json:"scopes"`
+	Enabled      bool   `json:"enabled"`
 }
 
 func (h *Handler) OIDCCreateProvider(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthOIDCCreateProvider")
+	defer span.End()
 	var req createProviderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.respondBadRequest(c, err.Error())
@@ -351,7 +360,7 @@ func (h *Handler) OIDCCreateProvider(c *gin.Context) {
 		p.Scopes = "openid email profile"
 	}
 
-	err = h.oidcRepo.CreateProvider(c.Request.Context(), &p)
+	err = h.oidcRepo.CreateProvider(ctx, &p)
 	if err != nil {
 		h.log.Error("failed to create provider", zap.Error(err))
 		h.respondInternalError(c, "provider already exists or internal error")
@@ -359,16 +368,16 @@ func (h *Handler) OIDCCreateProvider(c *gin.Context) {
 	}
 
 	safe := gin.H{
-		"id":            p.ID,
-		"tenant_id":     p.TenantID,
-		"name":          p.Name,
-		"display_name":  p.DisplayName,
-		"issuer_url":    p.IssuerURL,
-		"redirect_uri":  p.RedirectURI,
-		"scopes":        p.Scopes,
-		"enabled":       p.Enabled,
-		"created_at":    p.CreatedAt,
-		"updated_at":    p.UpdatedAt,
+		"id":           p.ID,
+		"tenant_id":    p.TenantID,
+		"name":         p.Name,
+		"display_name": p.DisplayName,
+		"issuer_url":   p.IssuerURL,
+		"redirect_uri": p.RedirectURI,
+		"scopes":       p.Scopes,
+		"enabled":      p.Enabled,
+		"created_at":   p.CreatedAt,
+		"updated_at":   p.UpdatedAt,
 	}
 
 	h.respondCreated(c, safe)
@@ -376,16 +385,18 @@ func (h *Handler) OIDCCreateProvider(c *gin.Context) {
 
 // OIDCUpdateProvider handles PUT /sso/oidc/providers/:id.
 type updateProviderRequest struct {
-	DisplayName    string `json:"display_name"`
-	IssuerURL      string `json:"issuer_url"`
-	ClientID       string `json:"client_id"`
-	ClientSecret   string `json:"client_secret"`
-	RedirectURI    string `json:"redirect_uri"`
-	Scopes         string `json:"scopes"`
-	Enabled        *bool  `json:"enabled"` // pointer to detect null
+	DisplayName  string `json:"display_name"`
+	IssuerURL    string `json:"issuer_url"`
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+	RedirectURI  string `json:"redirect_uri"`
+	Scopes       string `json:"scopes"`
+	Enabled      *bool  `json:"enabled"` // pointer to detect null
 }
 
 func (h *Handler) OIDCUpdateProvider(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthOIDCUpdateProvider")
+	defer span.End()
 	id := c.Param("id")
 	if id == "" {
 		h.respondBadRequest(c, "provider id required")
@@ -398,7 +409,7 @@ func (h *Handler) OIDCUpdateProvider(c *gin.Context) {
 		return
 	}
 
-	p, err := h.oidcRepo.GetProviderByID(c.Request.Context(), id)
+	p, err := h.oidcRepo.GetProviderByID(ctx, id)
 	if err != nil {
 		h.log.Error("failed to get provider", zap.Error(err))
 		h.respondInternalError(c, "internal error")
@@ -444,23 +455,23 @@ func (h *Handler) OIDCUpdateProvider(c *gin.Context) {
 
 	p.UpdatedAt = time.Now()
 
-	if err := h.oidcRepo.UpdateProvider(c.Request.Context(), p); err != nil {
+	if err := h.oidcRepo.UpdateProvider(ctx, p); err != nil {
 		h.log.Error("failed to update provider", zap.Error(err))
 		h.respondInternalError(c, "internal error")
 		return
 	}
 
 	safe := gin.H{
-		"id":            p.ID,
-		"tenant_id":     p.TenantID,
-		"name":          p.Name,
-		"display_name":  p.DisplayName,
-		"issuer_url":    p.IssuerURL,
-		"redirect_uri":  p.RedirectURI,
-		"scopes":        p.Scopes,
-		"enabled":       p.Enabled,
-		"created_at":    p.CreatedAt,
-		"updated_at":    p.UpdatedAt,
+		"id":           p.ID,
+		"tenant_id":    p.TenantID,
+		"name":         p.Name,
+		"display_name": p.DisplayName,
+		"issuer_url":   p.IssuerURL,
+		"redirect_uri": p.RedirectURI,
+		"scopes":       p.Scopes,
+		"enabled":      p.Enabled,
+		"created_at":   p.CreatedAt,
+		"updated_at":   p.UpdatedAt,
 	}
 
 	h.respondSuccess(c, safe)
@@ -468,13 +479,15 @@ func (h *Handler) OIDCUpdateProvider(c *gin.Context) {
 
 // OIDCDeleteProvider handles DELETE /sso/oidc/providers/:id.
 func (h *Handler) OIDCDeleteProvider(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthOIDCDeleteProvider")
+	defer span.End()
 	id := c.Param("id")
 	if id == "" {
 		h.respondBadRequest(c, "provider id required")
 		return
 	}
 
-	p, err := h.oidcRepo.GetProviderByID(c.Request.Context(), id)
+	p, err := h.oidcRepo.GetProviderByID(ctx, id)
 	if err != nil {
 		h.respondInternalError(c, "internal error")
 		return
@@ -485,12 +498,12 @@ func (h *Handler) OIDCDeleteProvider(c *gin.Context) {
 	}
 
 	// Also clean up associated user links
-	links, _ := h.oidcRepo.GetLinkByUserID(c.Request.Context(), p.TenantID, p.ID)
+	links, _ := h.oidcRepo.GetLinkByUserID(ctx, p.TenantID, p.ID)
 	for _, l := range links {
-		_ = h.oidcRepo.DeleteLink(c.Request.Context(), l.ID)
+		_ = h.oidcRepo.DeleteLink(ctx, l.ID)
 	}
 
-	if err := h.oidcRepo.DeleteProvider(c.Request.Context(), id); err != nil {
+	if err := h.oidcRepo.DeleteProvider(ctx, id); err != nil {
 		h.log.Error("failed to delete provider", zap.Error(err))
 		h.respondInternalError(c, "internal error")
 		return
@@ -504,16 +517,18 @@ func (h *Handler) OIDCDeleteProvider(c *gin.Context) {
 // authorization, token, JWKS, and userinfo endpoints plus supported algorithms
 // and PKCE configuration.
 func (h *Handler) WellKnownOpenIDConfig(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthWellKnownOpenIDConfig")
+	defer span.End()
 	cfg := gin.H{
-		"issuer":                                  "https://orion.platform/api/auth",
-		"authorization_endpoint":                  "/api/auth/oidc/authorize",
-		"token_endpoint":                          "/api/auth/oidc/token",
-		"jwks_uri":                                "/api/auth/oidc/jwks",
-		"userinfo_endpoint":                       "/api/auth/oidc/userinfo",
-		"response_types_supported":                []string{"code"},
-		"grant_types_supported":                   []string{"authorization_code"},
-		"code_challenge_methods_supported":        []string{"S256"},
-		"id_token_signing_alg_values_supported":   []string{"RS256"},
+		"issuer":                                "https://orion.platform/api/auth",
+		"authorization_endpoint":                "/api/auth/oidc/authorize",
+		"token_endpoint":                        "/api/auth/oidc/token",
+		"jwks_uri":                              "/api/auth/oidc/jwks",
+		"userinfo_endpoint":                     "/api/auth/oidc/userinfo",
+		"response_types_supported":              []string{"code"},
+		"grant_types_supported":                 []string{"authorization_code"},
+		"code_challenge_methods_supported":      []string{"S256"},
+		"id_token_signing_alg_values_supported": []string{"RS256"},
 	}
 	c.Header("Content-Type", "application/json")
 	c.JSON(http.StatusOK, cfg)
@@ -521,13 +536,15 @@ func (h *Handler) WellKnownOpenIDConfig(c *gin.Context) {
 
 // OIDCGetProvider handles GET /sso/oidc/providers/:id.
 func (h *Handler) OIDCGetProvider(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthOIDCGetProvider")
+	defer span.End()
 	id := c.Param("id")
 	if id == "" {
 		h.respondBadRequest(c, "provider id required")
 		return
 	}
 
-	p, err := h.oidcRepo.GetProviderByID(c.Request.Context(), id)
+	p, err := h.oidcRepo.GetProviderByID(ctx, id)
 	if err != nil {
 		h.respondInternalError(c, "internal error")
 		return
@@ -538,16 +555,16 @@ func (h *Handler) OIDCGetProvider(c *gin.Context) {
 	}
 
 	safe := gin.H{
-		"id":            p.ID,
-		"tenant_id":     p.TenantID,
-		"name":          p.Name,
-		"display_name":  p.DisplayName,
-		"issuer_url":    p.IssuerURL,
-		"redirect_uri":  p.RedirectURI,
-		"scopes":        p.Scopes,
-		"enabled":       p.Enabled,
-		"created_at":    p.CreatedAt,
-		"updated_at":    p.UpdatedAt,
+		"id":           p.ID,
+		"tenant_id":    p.TenantID,
+		"name":         p.Name,
+		"display_name": p.DisplayName,
+		"issuer_url":   p.IssuerURL,
+		"redirect_uri": p.RedirectURI,
+		"scopes":       p.Scopes,
+		"enabled":      p.Enabled,
+		"created_at":   p.CreatedAt,
+		"updated_at":   p.UpdatedAt,
 	}
 
 	h.respondSuccess(c, safe)
@@ -555,6 +572,8 @@ func (h *Handler) OIDCGetProvider(c *gin.Context) {
 
 // OIDCListLinks handles GET /sso/oidc/links?user_id=<id>.
 func (h *Handler) OIDCListLinks(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthOIDCListLinks")
+	defer span.End()
 	userID := c.Query("user_id")
 	if userID == "" {
 		h.respondBadRequest(c, "user_id query parameter required")
@@ -566,7 +585,7 @@ func (h *Handler) OIDCListLinks(c *gin.Context) {
 		tenantID = "default"
 	}
 
-	links, err := h.oidcRepo.GetLinkByUserID(c.Request.Context(), tenantID, userID)
+	links, err := h.oidcRepo.GetLinkByUserID(ctx, tenantID, userID)
 	if err != nil {
 		h.log.Error("failed to list OIDC links", zap.Error(err))
 		h.respondInternalError(c, "internal error")
@@ -578,13 +597,15 @@ func (h *Handler) OIDCListLinks(c *gin.Context) {
 
 // OIDCDeleteLink handles DELETE /sso/oidc/links/:id.
 func (h *Handler) OIDCDeleteLink(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthOIDCDeleteLink")
+	defer span.End()
 	id := c.Param("id")
 	if id == "" {
 		h.respondBadRequest(c, "link id required")
 		return
 	}
 
-	if err := h.oidcRepo.DeleteLink(c.Request.Context(), id); err != nil {
+	if err := h.oidcRepo.DeleteLink(ctx, id); err != nil {
 		h.log.Error("failed to delete OIDC link", zap.Error(err))
 		h.respondInternalError(c, "internal error")
 		return

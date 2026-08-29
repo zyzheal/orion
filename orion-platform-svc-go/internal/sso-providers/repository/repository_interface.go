@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/sso-providers/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	Create(ctx context.Context, provider *models.SSOProvider) error

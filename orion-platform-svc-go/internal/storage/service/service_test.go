@@ -10,23 +10,23 @@ import (
 
 // fakeStorageRepo implements service.RepositoryInterface for unit testing.
 type fakeStorageRepo struct {
-	createErr      error
-	getByIDResult  *models.StorageEntry
-	getByIDErr     error
-	getByBKErr     error
-	getByBKResult  *models.StorageEntry
-	listResult     []models.StorageEntry
-	listErr        error
-	updateResult   *models.StorageEntry
-	updateErr      error
-	deleteResult   bool
-	deleteErr      error
-	deleteByBK     bool
-	deleteByBKErr  error
+	createErr     error
+	getByIDResult *models.StorageEntry
+	getByIDErr    error
+	getByBKErr    error
+	getByBKResult *models.StorageEntry
+	listResult    []models.StorageEntry
+	listErr       error
+	updateResult  *models.StorageEntry
+	updateErr     error
+	deleteResult  bool
+	deleteErr     error
+	deleteByBK    bool
+	deleteByBKErr error
 
-	lastCreate    *models.StorageEntry
-	lastGetID     string
-	lastGetTenant string
+	lastCreate     *models.StorageEntry
+	lastGetID      string
+	lastGetTenant  string
 	lastListTenant string
 	lastListLimit  int
 	lastListOffset int

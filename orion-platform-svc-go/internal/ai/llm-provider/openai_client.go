@@ -28,11 +28,11 @@ type openaiMessage struct {
 }
 
 type openaiCompletionResponse struct {
-	ID      string            `json:"id"`
-	Object  string            `json:"object"`
-	Model   string            `json:"model"`
-	Choices []openaiChoice    `json:"choices"`
-	Usage   openaiUsage       `json:"usage"`
+	ID      string         `json:"id"`
+	Object  string         `json:"object"`
+	Model   string         `json:"model"`
+	Choices []openaiChoice `json:"choices"`
+	Usage   openaiUsage    `json:"usage"`
 }
 
 type openaiChoice struct {

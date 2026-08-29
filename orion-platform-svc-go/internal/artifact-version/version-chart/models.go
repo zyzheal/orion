@@ -54,11 +54,11 @@ type ChartMetadata struct {
 // SemVer represents a semantic version with optional pre-release and build metadata.
 // Format: MAJOR.MINOR.PATCH[-prerelease][+build]
 type SemVer struct {
-	Major      int      `json:"major"`
-	Minor      int      `json:"minor"`
-	Patch      int      `json:"patch"`
-	PreRelease string   `json:"preRelease,omitempty"`
-	Build      string   `json:"build,omitempty"`
+	Major      int    `json:"major"`
+	Minor      int    `json:"minor"`
+	Patch      int    `json:"patch"`
+	PreRelease string `json:"preRelease,omitempty"`
+	Build      string `json:"build,omitempty"`
 	// Original is the raw string used for display.
 	Original string `json:"original"`
 }
@@ -69,19 +69,19 @@ type SemVer struct {
 
 // VersionEntry represents a single version point on the chart.
 type VersionEntry struct {
-	Version    string            `json:"version"`
-	SemVer     SemVer            `json:"semVer"`
-	CreatedAt  time.Time         `json:"createdAt"`
-	Tag        string            `json:"tag,omitempty"`
-	Status     string            `json:"status,omitempty"` // e.g. "stable", "rc", "dev"
-	ChangeSet  []ChangeItem      `json:"changeSet,omitempty"`
+	Version      string         `json:"version"`
+	SemVer       SemVer         `json:"semVer"`
+	CreatedAt    time.Time      `json:"createdAt"`
+	Tag          string         `json:"tag,omitempty"`
+	Status       string         `json:"status,omitempty"` // e.g. "stable", "rc", "dev"
+	ChangeSet    []ChangeItem   `json:"changeSet,omitempty"`
 	Dependencies []string       `json:"dependencies,omitempty"`
-	Metadata   map[string]any    `json:"metadata,omitempty"`
+	Metadata     map[string]any `json:"metadata,omitempty"`
 }
 
 // ChangeItem describes a single change within a version.
 type ChangeItem struct {
-	Type   string `json:"type"`   // "feature", "fix", "chore", "breaking"
+	Type    string `json:"type"` // "feature", "fix", "chore", "breaking"
 	Summary string `json:"summary"`
 }
 
@@ -125,11 +125,11 @@ type TreeChart struct {
 
 // TreeNode represents a node in the version tree.
 type TreeNode struct {
-	ID         string        `json:"id"`
-	Version    string        `json:"version"`
-	CreatedAt  time.Time     `json:"createdAt"`
-	Children   []*TreeNode   `json:"children,omitempty"`
-	Metadata   map[string]any `json:"metadata,omitempty"`
+	ID        string         `json:"id"`
+	Version   string         `json:"version"`
+	CreatedAt time.Time      `json:"createdAt"`
+	Children  []*TreeNode    `json:"children,omitempty"`
+	Metadata  map[string]any `json:"metadata,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -144,19 +144,19 @@ type DependencyGraph struct {
 
 // GraphNode is a node in the dependency graph.
 type GraphNode struct {
-	ID       string `json:"id"`
-	Version  string `json:"version"`
-	Label    string `json:"label"`
-	Group    string `json:"group,omitempty"`   // e.g. service name
-	Status   string `json:"status,omitempty"`
+	ID       string         `json:"id"`
+	Version  string         `json:"version"`
+	Label    string         `json:"label"`
+	Group    string         `json:"group,omitempty"` // e.g. service name
+	Status   string         `json:"status,omitempty"`
 	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
 // GraphEdge is a directed edge in the dependency graph.
 type GraphEdge struct {
-	Source  string `json:"source"`
-	Target  string `json:"target"`
-	Type    string `json:"type,omitempty"`  // "depends", "supersedes", "branch"
-	Label   string `json:"label,omitempty"`
+	Source   string         `json:"source"`
+	Target   string         `json:"target"`
+	Type     string         `json:"type,omitempty"` // "depends", "supersedes", "branch"
+	Label    string         `json:"label,omitempty"`
 	Metadata map[string]any `json:"metadata,omitempty"`
 }

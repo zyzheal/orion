@@ -26,9 +26,9 @@ var (
 )
 
 const (
-	DefaultTTL     = 10 * time.Second
-	ScriptLock     = `if redis.call("GET", KEYS[1]) == ARGV[1] then return redis.call("DEL", KEYS[1]) else return 0 end`
-	ScriptExtend   = `if redis.call("GET", KEYS[1]) == ARGV[1] then return redis.call("PEXPIRE", KEYS[1], ARGV[2]) else return 0 end`
+	DefaultTTL   = 10 * time.Second
+	ScriptLock   = `if redis.call("GET", KEYS[1]) == ARGV[1] then return redis.call("DEL", KEYS[1]) else return 0 end`
+	ScriptExtend = `if redis.call("GET", KEYS[1]) == ARGV[1] then return redis.call("PEXPIRE", KEYS[1], ARGV[2]) else return 0 end`
 )
 
 func NewDistributedLock(client *redis.Client) *DistributedLock {

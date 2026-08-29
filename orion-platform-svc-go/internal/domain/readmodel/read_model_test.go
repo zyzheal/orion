@@ -281,8 +281,8 @@ func TestInMemoryProjector_PipelineLifecycle(t *testing.T) {
 
 	// 2. Pipeline started
 	started := newMockEvent("pipeline.started", "run-1", "tenant-1", 2, map[string]string{
-		"pipeline_id":   "pipe-1",
-		"branch":        "main",
+		"pipeline_id":    "pipe-1",
+		"branch":         "main",
 		"trigger_source": "manual",
 	})
 	err = proj.Project(ctx, started)

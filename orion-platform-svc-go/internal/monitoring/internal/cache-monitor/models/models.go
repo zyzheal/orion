@@ -23,18 +23,18 @@ type CacheMetrics struct {
 
 // CacheHealthCheckResult represents a health check result.
 type CacheHealthCheckResult struct {
-	Name    string    `json:"name"`
-	Healthy bool      `json:"healthy"`
-	Message string    `json:"message"`
-	LatencyMs int     `json:"latency_ms"`
+	Name      string `json:"name"`
+	Healthy   bool   `json:"healthy"`
+	Message   string `json:"message"`
+	LatencyMs int    `json:"latency_ms"`
 }
 
 // CacheConfig defines cache monitoring settings.
 type CacheConfig struct {
-	Name              string `json:"name"`
-	Type              string `json:"type"`
-	Host              string `json:"host"`
-	Port              int    `json:"port"`
-	CollectionInterval int  `json:"collection_interval_sec"`
-	IsEnabled         bool   `json:"is_enabled"`
+	Name               string `json:"name"`
+	Type               string `json:"type"`
+	Host               string `json:"host"`
+	Port               int    `json:"port"`
+	CollectionInterval int    `json:"collection_interval_sec"`
+	IsEnabled          bool   `json:"is_enabled"`
 }

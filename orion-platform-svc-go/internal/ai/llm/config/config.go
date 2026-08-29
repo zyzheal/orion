@@ -8,17 +8,17 @@ import (
 // TODO(refactor): This config package is duplicated across ai/llm, ai/intelligence, etc.
 // Consider extracting to a shared ai/config package.
 type Config struct {
-	Port        int
-	DBHost      string
-	DBPort      int
-	DBUser      string
-	DBPassword  string
-	DBName      string
-	DBSSLMode   string
-	JWTSecret   string
-	RedisAddr   string
-	NATSAddr    string
-	NATSStream  string
+	Port       int
+	DBHost     string
+	DBPort     int
+	DBUser     string
+	DBPassword string
+	DBName     string
+	DBSSLMode  string
+	JWTSecret  string
+	RedisAddr  string
+	NATSAddr   string
+	NATSStream string
 }
 
 func Load() *Config {

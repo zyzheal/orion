@@ -2,17 +2,18 @@ package handler
 
 import (
 	"fmt"
+	"go.opentelemetry.io/otel"
 	"strings"
 	"time"
 
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/identity/auth/mfa"
 	"orion/platform-svc-go/internal/identity/auth/model"
 	"orion/platform-svc-go/internal/identity/auth/repository"
-	"orion/go-common/pkg/auth"
 
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
@@ -28,7 +29,8 @@ func NewMFAHandler(repo *repository.AuthRepository, log *zap.Logger) *MFAHandler
 
 // Setup handles POST /mfa/setup.
 func (h *MFAHandler) Setup(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthSetup")
+	defer span.End()
 	userID := auth.GetUserID(c)
 	if userID == "" {
 		h.respondForbidden(c, "not authenticated")
@@ -96,7 +98,8 @@ func (h *MFAHandler) Setup(c *gin.Context) {
 
 // Verify handles POST /mfa/verify.
 func (h *MFAHandler) Verify(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthVerify")
+	defer span.End()
 	userID := auth.GetUserID(c)
 	if userID == "" {
 		h.respondForbidden(c, "not authenticated")
@@ -140,10 +143,10 @@ func (h *MFAHandler) Verify(c *gin.Context) {
 		}
 
 		h.respondSuccess(c, gin.H{
-            "success":         true,
-            "message":         "MFA verified and enabled",
-            "remaining_codes": 10,
-        })
+			"success":         true,
+			"message":         "MFA verified and enabled",
+			"remaining_codes": 10,
+		})
 		return
 	}
 
@@ -152,7 +155,8 @@ func (h *MFAHandler) Verify(c *gin.Context) {
 
 // Disable handles DELETE /mfa.
 func (h *MFAHandler) Disable(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthDisable")
+	defer span.End()
 	userID := auth.GetUserID(c)
 	if userID == "" {
 		h.respondForbidden(c, "not authenticated")
@@ -186,7 +190,8 @@ func (h *MFAHandler) Disable(c *gin.Context) {
 
 // Status handles GET /mfa/status.
 func (h *MFAHandler) Status(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthStatus")
+	defer span.End()
 	userID := auth.GetUserID(c)
 	if userID == "" {
 		h.respondForbidden(c, "not authenticated")
@@ -202,9 +207,9 @@ func (h *MFAHandler) Status(c *gin.Context) {
 
 	if mfaConfig == nil || !mfaConfig.Enabled {
 		h.respondSuccess(c, gin.H{
-            "enabled": false,
-            "type":    nil,
-        })
+			"enabled": false,
+			"type":    nil,
+		})
 		return
 	}
 

@@ -138,9 +138,9 @@ type PipelineRunProjection struct {
 // PostgresReadModelProjector builds pipeline run projections by replaying
 // domain events from the EventStore and maintaining a materialized table.
 type PostgresReadModelProjector struct {
-	db        *sqlx.DB
+	db         *sqlx.DB
 	eventStore EventStoreReader
-	mu        sync.RWMutex
+	mu         sync.RWMutex
 }
 
 // NewPostgresReadModelProjector creates a new projector backed by PostgreSQL.

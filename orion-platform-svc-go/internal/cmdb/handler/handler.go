@@ -9,8 +9,8 @@ import (
 	"orion/platform-svc-go/internal/cmdb/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -29,14 +29,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// --- CI CRUD ---
 	// POST /cmdb/cis - Create CI
 	f.POST("/cis", auth.RequirePermission("cmdb", "write"), h.CreateCI)
-	// GET /cmdb/cis/:id - Get CI by ID
-	f.GET("/cis/:id", auth.RequirePermission("cmdb", "read"), h.GetCI)
+	// GET /cmdb/cis/:ciID - Get CI by ID
+	f.GET("/cis/:ciID", auth.RequirePermission("cmdb", "read"), h.GetCI)
 	// GET /cmdb/cis/by-id/:ciId - Get CI by CI ID
 	f.GET("/cis/by-id/:ciId", auth.RequirePermission("cmdb", "read"), h.GetCIByID)
-	// PUT /cmdb/cis/:id - Update CI
-	f.PUT("/cis/:id", auth.RequirePermission("cmdb", "write"), h.UpdateCI)
-	// DELETE /cmdb/cis/:id - Delete CI
-	f.DELETE("/cis/:id", auth.RequirePermission("cmdb", "delete"), h.DeleteCI)
+	// PUT /cmdb/cis/:ciID - Update CI
+	f.PUT("/cis/:ciID", auth.RequirePermission("cmdb", "write"), h.UpdateCI)
+	// DELETE /cmdb/cis/:ciID - Delete CI
+	f.DELETE("/cis/:ciID", auth.RequirePermission("cmdb", "delete"), h.DeleteCI)
 	// GET /cmdb/cis - List CIs
 	f.GET("/cis", auth.RequirePermission("cmdb", "read"), h.ListCIs)
 
@@ -133,7 +133,7 @@ func (h *Handler) CreateCI(c *gin.Context) {
 func (h *Handler) GetCI(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCI")
 	defer span.End()
-	id := c.Param("id")
+	id := c.Param("ciID")
 	ci, err := h.svc.Get(ctx, id)
 	if err != nil {
 		if service.IsNotFound(err) {
@@ -170,7 +170,7 @@ func (h *Handler) GetCIByID(c *gin.Context) {
 func (h *Handler) UpdateCI(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateCI")
 	defer span.End()
-	id := c.Param("id")
+	id := c.Param("ciID")
 	var req models.UpdateCIRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -187,7 +187,7 @@ func (h *Handler) UpdateCI(c *gin.Context) {
 func (h *Handler) DeleteCI(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteCI")
 	defer span.End()
-	id := c.Param("id")
+	id := c.Param("ciID")
 	deleted, err := h.svc.Delete(ctx, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -683,7 +683,7 @@ func (h *Handler) ActionRecommendation(c *gin.Context) {
 		return
 	}
 	msg := fmt.Sprintf("recommendation %s action processed", recID)
-		middleware.RespondSuccess(c, gin.H{"message": msg, "id": recID, "action": "processed"})
+	middleware.RespondSuccess(c, gin.H{"message": msg, "id": recID, "action": "processed"})
 }
 
 // --- Helpers ---
@@ -691,7 +691,7 @@ func (h *Handler) ActionRecommendation(c *gin.Context) {
 // getDefaultTenantID returns the tenant ID from the context or defaults to a zero UUID.
 func (h *Handler) getDefaultTenantID(tenantID string) string {
 	if tenantID == "" {
-			return "00000000-0000-0000-0000-000000000000"
+		return "00000000-0000-0000-0000-000000000000"
 	}
 	return tenantID
 }

@@ -1,10 +1,10 @@
 package handler
 
 import (
-	"orion/platform-svc-go/internal/multi-modal-trigger/models"
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"orion/platform-svc-go/internal/multi-modal-trigger/models"
 	"testing"
 
 	"orion/platform-svc-go/internal/multi-modal-trigger/service"
@@ -24,6 +24,7 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	c.Request = httptest.NewRequest(method, path, nil)
 	return c, w
 }
+
 type fakeMultiModalTriggerService struct{}
 
 func (f *fakeMultiModalTriggerService) ExecuteTrigger(ctx context.Context, tenantID, id string, req *models.TriggerExecuteRequest) (*models.TriggerExecution, error) {
@@ -54,12 +55,11 @@ func (f *fakeMultiModalTriggerService) Update(ctx context.Context, tenantID, id 
 	return &models.MultiModalTrigger{}, nil
 }
 
-func (f *fakeMultiModalTriggerService) Delete(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeMultiModalTriggerService) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
 var _ service.ServiceInterface = (*fakeMultiModalTriggerService)(nil)
-
 
 func TestHandler_MULTI_MODAL_TR_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

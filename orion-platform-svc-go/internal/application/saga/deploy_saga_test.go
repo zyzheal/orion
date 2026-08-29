@@ -12,9 +12,9 @@ import (
 
 func makeDeploySagaInstance() *saga.SagaInstance {
 	return &saga.SagaInstance{
-		ID:    "deploy-saga-1",
-		SagaType: "deployment",
-		Status:  saga.StatusRunning,
+		ID:         "deploy-saga-1",
+		SagaType:   "deployment",
+		Status:     saga.StatusRunning,
 		TotalSteps: 3,
 		ContextData: map[string]interface{}{
 			"app_name":    "web-api",

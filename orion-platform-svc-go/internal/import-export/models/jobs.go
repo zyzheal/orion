@@ -7,25 +7,25 @@ import "time"
 // A single job tracks the full lifecycle: creation → processing → completion/failure,
 // including progress and aggregated result counts.
 type Job struct {
-	ID           string            `json:"id" db:"id"`
-	TenantID     string            `json:"tenant_id" db:"tenant_id"`
-	UserID       string            `json:"user_id" db:"user_id"`
-	DataType     string            `json:"data_type" db:"data_type"`
-	Operation    string            `json:"operation" db:"operation"` // "import" | "export"
-	Status       string            `json:"status" db:"status"`       // pending, processing, completed, failed, cancelled
-	Format       string            `json:"format" db:"format"`       // csv, json, excel
-	SourceName   string            `json:"source_name" db:"source_name"`
-	OutputName   string            `json:"output_name" db:"output_name"`
-	ErrorCount   int               `json:"error_count" db:"error_count"`
-	SuccessCount int               `json:"success_count" db:"success_count"`
-	TotalCount   int               `json:"total_count" db:"total_count"`
-	Progress     float64           `json:"progress" db:"progress"`
-	ProgressMsg  string            `json:"progress_msg" db:"progress_msg"`
-	Message      string            `json:"message,omitempty" db:"message"`
-	Metadata     map[string]any    `json:"metadata,omitempty" db:"metadata"`
-	CreatedAt    time.Time         `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time         `json:"updated_at" db:"updated_at"`
-	FinishedAt   *time.Time        `json:"finished_at,omitempty" db:"finished_at"`
+	ID           string         `json:"id" db:"id"`
+	TenantID     string         `json:"tenant_id" db:"tenant_id"`
+	UserID       string         `json:"user_id" db:"user_id"`
+	DataType     string         `json:"data_type" db:"data_type"`
+	Operation    string         `json:"operation" db:"operation"` // "import" | "export"
+	Status       string         `json:"status" db:"status"`       // pending, processing, completed, failed, cancelled
+	Format       string         `json:"format" db:"format"`       // csv, json, excel
+	SourceName   string         `json:"source_name" db:"source_name"`
+	OutputName   string         `json:"output_name" db:"output_name"`
+	ErrorCount   int            `json:"error_count" db:"error_count"`
+	SuccessCount int            `json:"success_count" db:"success_count"`
+	TotalCount   int            `json:"total_count" db:"total_count"`
+	Progress     float64        `json:"progress" db:"progress"`
+	ProgressMsg  string         `json:"progress_msg" db:"progress_msg"`
+	Message      string         `json:"message,omitempty" db:"message"`
+	Metadata     map[string]any `json:"metadata,omitempty" db:"metadata"`
+	CreatedAt    time.Time      `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at" db:"updated_at"`
+	FinishedAt   *time.Time     `json:"finished_at,omitempty" db:"finished_at"`
 }
 
 // ValidationError records one row-level validation failure during import.
@@ -90,13 +90,13 @@ type ExportMetadata struct {
 
 // ImportResult is the value returned by ImportHandler.Import().
 type ImportResult struct {
-	JobID        string          `json:"jobId"`
-	SuccessCount int             `json:"successCount"`
-	ErrorCount   int             `json:"errorCount"`
-	TotalCount   int             `json:"totalCount"`
+	JobID        string            `json:"jobId"`
+	SuccessCount int               `json:"successCount"`
+	ErrorCount   int               `json:"errorCount"`
+	TotalCount   int               `json:"totalCount"`
 	Errors       []ValidationError `json:"errors,omitempty"`
-	Mode         string          `json:"mode"` // "sync" | "async"
-	Message      string          `json:"message"`
+	Mode         string            `json:"mode"` // "sync" | "async"
+	Message      string            `json:"message"`
 }
 
 // JobFilter controls how jobs are listed.

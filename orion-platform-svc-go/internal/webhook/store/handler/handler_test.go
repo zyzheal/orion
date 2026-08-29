@@ -10,8 +10,8 @@ import (
 	"orion/platform-svc-go/internal/webhook/store/models"
 	"orion/platform-svc-go/internal/webhook/store/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 )
 
 func newHandler() *Handler {
@@ -62,7 +62,6 @@ func (f *fakeStoreService) Delete(ctx context.Context, tenantID, id string) erro
 }
 
 var _ service.ServiceInterface = (*fakeStoreService)(nil)
-
 
 func TestHandler_WEBHOOK_STORE_NewHandler(t *testing.T) {
 	h := newHandler()

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -34,41 +33,21 @@ import (
 	ss_repo "orion/platform-svc-go/internal/security/secret/repository"
 	ss_service "orion/platform-svc-go/internal/security/secret/service"
 
-	sb_handler "orion/platform-svc-go/internal/security/branch-policy/handler"
-	sb_repo "orion/platform-svc-go/internal/security/branch-policy/repository"
-	sb_service "orion/platform-svc-go/internal/security/branch-policy/service"
+	sb_handler "orion/platform-svc-go/internal/branch-policy/handler"
+	sb_repo "orion/platform-svc-go/internal/branch-policy/repository"
+	sb_service "orion/platform-svc-go/internal/branch-policy/service"
 
-	spv_handler "orion/platform-svc-go/internal/security/privacy/handler"
-	spv_repo "orion/platform-svc-go/internal/security/privacy/repository"
-	spv_service "orion/platform-svc-go/internal/security/privacy/service"
-
-	su_handler "orion/platform-svc-go/internal/security/ueba/handler"
-	su_repo "orion/platform-svc-go/internal/security/ueba/repository"
-	su_service "orion/platform-svc-go/internal/security/ueba/service"
-
-	scd_handler "orion/platform-svc-go/internal/security/cross-domain/handler"
-	scd_repo "orion/platform-svc-go/internal/security/cross-domain/repository"
-	scd_service "orion/platform-svc-go/internal/security/cross-domain/service"
-
-	ak_handler "orion/platform-svc-go/internal/api-key/handler"
-	ak_repo "orion/platform-svc-go/internal/api-key/repository"
-	ak_service "orion/platform-svc-go/internal/api-key/service"
+	spv_handler "orion/platform-svc-go/internal/privacy/handler"
+	spv_repo "orion/platform-svc-go/internal/privacy/repository"
+	spv_service "orion/platform-svc-go/internal/privacy/service"
 
 	cf_handler "orion/platform-svc-go/internal/confirmation/handler"
 	cf_repo "orion/platform-svc-go/internal/confirmation/repository"
 	cf_service "orion/platform-svc-go/internal/confirmation/service"
 
-	se_handler "orion/platform-svc-go/internal/session/handler"
-	se_repo "orion/platform-svc-go/internal/session/repository"
-	se_service "orion/platform-svc-go/internal/session/service"
-
 	ssou_handler "orion/platform-svc-go/internal/sso/handler"
 	ssou_repo "orion/platform-svc-go/internal/sso/repository"
 	ssou_service "orion/platform-svc-go/internal/sso/service"
-
-	te_handler "orion/platform-svc-go/internal/tenant/handler"
-	te_repo "orion/platform-svc-go/internal/tenant/repository"
-	te_service "orion/platform-svc-go/internal/tenant/service"
 
 	ti_handler "orion/platform-svc-go/internal/ticket/handler"
 	ti_repo "orion/platform-svc-go/internal/ticket/repository"
@@ -138,51 +117,21 @@ func wireSecurityDomains(db *database.DB, logger *zap.Logger) {
 		svc := spv_service.NewService(repo)
 		securityPrivacyH = spv_handler.NewHandler(svc)
 	}
-	// ueba
-	{
-		repo := su_repo.NewRepository(db.DB)
-		svc := su_service.NewService(repo)
-		securityUebaH = su_handler.NewHandler(svc)
-	}
-	// cross-domain
-	{
-		repo := scd_repo.NewRepository(db.DB)
-		svc := scd_service.NewService(repo)
-		securityCrossDomainH = scd_handler.NewHandler(svc)
-	}
 }
 
 func wireIdentityDomains(db *database.DB, logger *zap.Logger) {
 	_ = logger
-	// api-key
-	{
-		repo := ak_repo.NewRepository(db.DB)
-		svc := ak_service.NewService(repo)
-		identityApikeyH = ak_handler.NewHandler(svc)
-	}
 	// confirmation
 	{
 		repo := cf_repo.NewRepository(db.DB)
 		svc := cf_service.NewService(repo)
 		identityConfirmationH = cf_handler.NewHandler(svc)
 	}
-	// session
-	{
-		repo := se_repo.NewRepository(db.DB)
-		svc := se_service.NewService(repo, 24*time.Hour)
-		identitySessionH = se_handler.NewHandler(svc)
-	}
 	// sso
 	{
 		repo := ssou_repo.NewRepository(db.DB)
 		svc := ssou_service.NewService(repo)
 		identitySsoH = ssou_handler.NewHandler(svc)
-	}
-	// tenant
-	{
-		repo := te_repo.NewRepository(db.DB)
-		svc := te_service.NewService(repo)
-		identityTenantH = te_handler.NewHandler(svc)
 	}
 }
 
@@ -234,25 +183,20 @@ func wireTicketDomain(db *database.DB, logger *zap.Logger) {
 
 var (
 	// governance
-	governanceH          *gg_handler.Handler
+	governanceH           *gg_handler.Handler
 	governanceComplianceH *gc_handler.Handler
-	governanceRiskH      *gr_handler.Handler
-	governancePolicyH    *gp_handler.Handler
+	governanceRiskH       *gr_handler.Handler
+	governancePolicyH     *gp_handler.Handler
 
 	// security
 	securityH             *s_handler.Handler
 	securitySecretH       *ss_handler.Handler
 	securityBranchPolicyH *sb_handler.Handler
 	securityPrivacyH      *spv_handler.Handler
-	securityUebaH         *su_handler.Handler
-	securityCrossDomainH  *scd_handler.Handler
 
 	// identity
-	identityApikeyH      *ak_handler.Handler
 	identityConfirmationH *cf_handler.Handler
-	identitySessionH     *se_handler.Handler
-	identitySsoH         *ssou_handler.Handler
-	identityTenantH      *te_handler.Handler
+	identitySsoH          *ssou_handler.Handler
 
 	// ticket (with RegisterRoutes)
 	analyticsTicketH      *ti_handler.AnalyticsHandler

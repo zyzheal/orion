@@ -19,14 +19,14 @@ import (
 
 // defaultStatus constants
 const (
-	StatusPending = "pending"
-	StatusActive  = "active"
+	StatusPending  = "pending"
+	StatusActive   = "active"
 	StatusExpiring = "expiring"
-	StatusExpired = "expired"
+	StatusExpired  = "expired"
 
-	RotationTypeScheduled  = "scheduled"
-	RotationTypeManual     = "manual"
-	RotationTypeEmergency  = "emergency"
+	RotationTypeScheduled = "scheduled"
+	RotationTypeManual    = "manual"
+	RotationTypeEmergency = "emergency"
 
 	KeyStrength256 = "256-bit"
 
@@ -43,8 +43,8 @@ var ErrKeyNotFound = errors.New("JWT key not found")
 // KeyRotationService manages JWT key lifecycle: generation, storage, rotation,
 // verification and statistics.
 type KeyRotationService struct {
-	repo   *repository.JwtKeyRepository
-	log    *zap.Logger
+	repo *repository.JwtKeyRepository
+	log  *zap.Logger
 
 	mu       sync.RWMutex
 	current  *KeyRecord // active key (raw secret kept only in memory)
@@ -67,8 +67,8 @@ type KeyRecord struct {
 // NewKeyRotationService constructs a new service.
 func NewKeyRotationService(repo *repository.JwtKeyRepository, log *zap.Logger) *KeyRotationService {
 	return &KeyRotationService{
-		repo:   repo,
-		log:    log,
+		repo:                 repo,
+		log:                  log,
 		rotationIntervalDays: defaultRotationIntervalDays,
 		overlapDays:          defaultOverlapDays,
 		keyStrength:          KeyStrength256,

@@ -63,7 +63,7 @@ func TestAssigneeStepHandler_Execute(t *testing.T) {
 	ctx := context.Background()
 
 	taskCtx := &WorkflowTaskContext{
-		StepConfig: JSONB{"assignee": "user-1"},
+		StepConfig:   JSONB{"assignee": "user-1"},
 		WorkflowData: models.JSONB{},
 	}
 

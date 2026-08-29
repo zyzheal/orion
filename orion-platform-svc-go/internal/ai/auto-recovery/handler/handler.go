@@ -5,9 +5,10 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai/auto-recovery/models"
 	"orion/platform-svc-go/internal/ai/auto-recovery/service"
-	"orion/go-common/pkg/auth"
 )
 
 type AutoRecoveryHandler struct {
@@ -37,11 +38,13 @@ func (h *AutoRecoveryHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // ListRules returns paginated rules.
 func (h *AutoRecoveryHandler) ListRules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIAutoRecoveryListRules")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	resp, err := h.svc.QueryRules(c.Request.Context(), tenantID, limit, offset)
+	resp, err := h.svc.QueryRules(ctx, tenantID, limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -51,6 +54,8 @@ func (h *AutoRecoveryHandler) ListRules(c *gin.Context) {
 
 // CreateRule creates a new rule.
 func (h *AutoRecoveryHandler) CreateRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIAutoRecoveryCreateRule")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req models.CreateRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -58,7 +63,7 @@ func (h *AutoRecoveryHandler) CreateRule(c *gin.Context) {
 		return
 	}
 
-	rule, err := h.svc.CreateRule(c.Request.Context(), tenantID, &req)
+	rule, err := h.svc.CreateRule(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -68,10 +73,12 @@ func (h *AutoRecoveryHandler) CreateRule(c *gin.Context) {
 
 // GetRule returns a single rule.
 func (h *AutoRecoveryHandler) GetRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIAutoRecoveryGetRule")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id := c.Param("id")
 
-	rule, err := h.svc.GetRule(c.Request.Context(), tenantID, id)
+	rule, err := h.svc.GetRule(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -81,10 +88,12 @@ func (h *AutoRecoveryHandler) GetRule(c *gin.Context) {
 
 // DeleteRule removes a rule.
 func (h *AutoRecoveryHandler) DeleteRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIAutoRecoveryDeleteRule")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id := c.Param("id")
 
-	if err := h.svc.DeleteRule(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteRule(ctx, tenantID, id); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -93,6 +102,8 @@ func (h *AutoRecoveryHandler) DeleteRule(c *gin.Context) {
 
 // ExecuteRule triggers rule execution.
 func (h *AutoRecoveryHandler) ExecuteRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIAutoRecoveryExecuteRule")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	ruleID := c.Param("id")
 
@@ -103,7 +114,7 @@ func (h *AutoRecoveryHandler) ExecuteRule(c *gin.Context) {
 		req.Metrics = map[string]float64{}
 	}
 
-	action, err := h.svc.ExecuteRule(c.Request.Context(), tenantID, ruleID, req.Metrics)
+	action, err := h.svc.ExecuteRule(ctx, tenantID, ruleID, req.Metrics)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -113,13 +124,15 @@ func (h *AutoRecoveryHandler) ExecuteRule(c *gin.Context) {
 
 // ListActions returns paginated actions.
 func (h *AutoRecoveryHandler) ListActions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIAutoRecoveryListActions")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	ruleID := c.Query("rule_id")
 	status := c.Query("status")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	resp, err := h.svc.QueryActions(c.Request.Context(), tenantID, ruleID, status, limit, offset)
+	resp, err := h.svc.QueryActions(ctx, tenantID, ruleID, status, limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

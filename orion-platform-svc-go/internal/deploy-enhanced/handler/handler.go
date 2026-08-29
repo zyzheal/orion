@@ -39,8 +39,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.GET("/windows/:id/check", auth.RequirePermission("deploy_enhanced", "read"), h.CheckWindow)
 
 	// --- Progressive Deploy ---
-	// POST /deploy/:deploymentId/progressive - Create progressive deploy
-	f.POST("/:deploymentId/progressive", auth.RequirePermission("deploy_enhanced", "write"), h.CreateProgressiveDeploy)
+	// POST /deploy/:id/progressive - Create progressive deploy
+	f.POST("/:id/progressive", auth.RequirePermission("deploy_enhanced", "write"), h.CreateProgressiveDeploy)
 	// GET /deploy/progressive/:deployId - Get progress
 	f.GET("/progressive/:deployId", auth.RequirePermission("deploy_enhanced", "read"), h.GetProgress)
 	// POST /deploy/progressive/:deployId/advance - Advance to next stage
@@ -195,7 +195,7 @@ func (h *Handler) CheckWindow(c *gin.Context) {
 func (h *Handler) CreateProgressiveDeploy(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateProgressiveDeploy")
 	defer span.End()
-	deploymentID := c.Param("deploymentId")
+	deploymentID := c.Param("id")
 	var req models.CreateProgressiveDeployRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())

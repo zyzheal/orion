@@ -4,14 +4,14 @@ import "time"
 
 // ExecutionControlLog records an execution control action on a pipeline run.
 type ExecutionControlLog struct {
-	ID        string     `db:"id" json:"id"`
-	TenantID  string     `db:"tenant_id" json:"tenantId"`
-	RunID     string     `db:"run_id" json:"runId"`
-	Action    string     `db:"action" json:"action"` // pause|resume|abort|retry|restart
-	Reason    *string    `db:"reason" json:"reason"`
-	Operator  *string    `db:"operator" json:"operator"`
-	Metadata  *string    `db:"metadata" json:"metadata"` // JSON text
-	CreatedAt time.Time  `db:"created_at" json:"createdAt"`
+	ID        string    `db:"id" json:"id"`
+	TenantID  string    `db:"tenant_id" json:"tenantId"`
+	RunID     string    `db:"run_id" json:"runId"`
+	Action    string    `db:"action" json:"action"` // pause|resume|abort|retry|restart
+	Reason    *string   `db:"reason" json:"reason"`
+	Operator  *string   `db:"operator" json:"operator"`
+	Metadata  *string   `db:"metadata" json:"metadata"` // JSON text
+	CreatedAt time.Time `db:"created_at" json:"createdAt"`
 }
 
 // Checkpoint represents a saved execution checkpoint for a pipeline run.
@@ -49,9 +49,9 @@ type ResumeRequest struct {
 }
 
 type AbortRequest struct {
-	Reason        *string `json:"reason"`
-	Operator      *string `json:"operator"`
-	TimeoutSeconds *int   `json:"timeoutSeconds"`
+	Reason         *string `json:"reason"`
+	Operator       *string `json:"operator"`
+	TimeoutSeconds *int    `json:"timeoutSeconds"`
 }
 
 type RetryRequest struct {

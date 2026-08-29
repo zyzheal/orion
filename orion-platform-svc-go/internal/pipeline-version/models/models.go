@@ -4,16 +4,16 @@ import "time"
 
 // PipelineVersion represents a versioned snapshot of a pipeline definition.
 type PipelineVersion struct {
-	ID             string     `db:"id" json:"id"`
-	TenantID       string     `db:"tenant_id" json:"tenantId"`
-	PipelineID     string     `db:"pipeline_id" json:"pipelineId"`
-	Version        string     `db:"version" json:"version"`
-	YAMLDefinition string     `db:"yaml_definition" json:"yamlDefinition"`
-	Description    *string    `db:"description" json:"description"`
-	Tags           string     `db:"tags" json:"tags"`
-	IsBaseline     bool       `db:"is_baseline" json:"isBaseline"`
-	CreatedBy      string     `db:"created_by" json:"createdBy"`
-	CreatedAt      time.Time  `db:"created_at" json:"createdAt"`
+	ID             string    `db:"id" json:"id"`
+	TenantID       string    `db:"tenant_id" json:"tenantId"`
+	PipelineID     string    `db:"pipeline_id" json:"pipelineId"`
+	Version        string    `db:"version" json:"version"`
+	YAMLDefinition string    `db:"yaml_definition" json:"yamlDefinition"`
+	Description    *string   `db:"description" json:"description"`
+	Tags           string    `db:"tags" json:"tags"`
+	IsBaseline     bool      `db:"is_baseline" json:"isBaseline"`
+	CreatedBy      string    `db:"created_by" json:"createdBy"`
+	CreatedAt      time.Time `db:"created_at" json:"createdAt"`
 }
 
 // CreateVersionRequest is the request body for creating a pipeline version.
@@ -40,16 +40,16 @@ type SetBaselineRequest struct {
 
 // DiffResult is the result of a version-to-version diff.
 type DiffResult struct {
-	FromVersion string   `json:"fromVersion"`
-	ToVersion   string   `json:"toVersion"`
+	FromVersion string      `json:"fromVersion"`
+	ToVersion   string      `json:"toVersion"`
 	Summary     DiffSummary `json:"summary"`
-	Changes     []Change `json:"changes"`
+	Changes     []Change    `json:"changes"`
 }
 
 // DiffSummary holds aggregate counts of the diff.
 type DiffSummary struct {
-	Added   int `json:"added"`
-	Removed int `json:"removed"`
+	Added    int `json:"added"`
+	Removed  int `json:"removed"`
 	Modified int `json:"modified"`
 }
 

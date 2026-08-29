@@ -16,8 +16,8 @@ func TestEvaluateRiskLevel(t *testing.T) {
 	svc := NewService(nil)
 
 	cases := []struct {
-		score    float64
-		want     string
+		score float64
+		want  string
 	}{
 		{0, "low"},
 		{10, "low"},
@@ -107,49 +107,49 @@ func TestScoreDeploymentRisk(t *testing.T) {
 		{
 			name: "low risk - small change, no issues",
 			risk: models.DeploymentRisk{
-				ChangeSize:   models.ChangeSize{FilesChanged: 3, LinesChanged: 50},
-				TimeRisk:     models.TimeRisk{},
-				HistoricalRisk: models.HistoricalRisk{RecentFailureRate: 0.02, RecentIncidents: 0, AverageMTTR: 10*60*1000},
+				ChangeSize:     models.ChangeSize{FilesChanged: 3, LinesChanged: 50},
+				TimeRisk:       models.TimeRisk{},
+				HistoricalRisk: models.HistoricalRisk{RecentFailureRate: 0.02, RecentIncidents: 0, AverageMTTR: 10 * 60 * 1000},
 			},
 			wantLow: "low",
 		},
 		{
 			name: "medium risk - moderate change, some history",
 			risk: models.DeploymentRisk{
-				ChangeSize:   models.ChangeSize{FilesChanged: 25, LinesChanged: 500},
-				ChangeScope:  []string{"svc-a", "svc-b"},
-				TimeRisk:     models.TimeRisk{IsAfterHours: true},
-				HistoricalRisk: models.HistoricalRisk{RecentFailureRate: 0.08, RecentIncidents: 1, AverageMTTR: 30*60*1000},
+				ChangeSize:     models.ChangeSize{FilesChanged: 25, LinesChanged: 500},
+				ChangeScope:    []string{"svc-a", "svc-b"},
+				TimeRisk:       models.TimeRisk{IsAfterHours: true},
+				HistoricalRisk: models.HistoricalRisk{RecentFailureRate: 0.08, RecentIncidents: 1, AverageMTTR: 30 * 60 * 1000},
 			},
 			wantLow: "medium",
 		},
 		{
 			name: "high risk - large change, many dependencies",
 			risk: models.DeploymentRisk{
-				ChangeSize:   models.ChangeSize{FilesChanged: 80, LinesChanged: 3000},
-				ChangeScope:  []string{"svc-a", "svc-b", "svc-c", "svc-d"},
-				TimeRisk:     models.TimeRisk{IsFriday: true, IsAfterHours: true},
+				ChangeSize:     models.ChangeSize{FilesChanged: 80, LinesChanged: 3000},
+				ChangeScope:    []string{"svc-a", "svc-b", "svc-c", "svc-d"},
+				TimeRisk:       models.TimeRisk{IsFriday: true, IsAfterHours: true},
 				DependencyRisk: models.DependencyRisk{TotalDependencies: 15, UnhealthyDependencies: 2, CriticalDependencies: []string{"db", "cache"}},
-				HistoricalRisk: models.HistoricalRisk{RecentFailureRate: 0.20, RecentIncidents: 3, AverageMTTR: 120*60*1000},
+				HistoricalRisk: models.HistoricalRisk{RecentFailureRate: 0.20, RecentIncidents: 3, AverageMTTR: 120 * 60 * 1000},
 			},
 			wantLow: "high",
 		},
 		{
 			name: "critical risk - massive change, holiday, high failure rate",
 			risk: models.DeploymentRisk{
-				ChangeSize:   models.ChangeSize{FilesChanged: 200, LinesChanged: 20000},
-				ChangeScope:  []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
-				TimeRisk:     models.TimeRisk{IsHoliday: true},
+				ChangeSize:     models.ChangeSize{FilesChanged: 200, LinesChanged: 20000},
+				ChangeScope:    []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
+				TimeRisk:       models.TimeRisk{IsHoliday: true},
 				DependencyRisk: models.DependencyRisk{TotalDependencies: 30, UnhealthyDependencies: 5, CriticalDependencies: []string{"db", "cache", "queue", "auth"}},
-				HistoricalRisk: models.HistoricalRisk{RecentFailureRate: 0.50, RecentIncidents: 6, AverageMTTR: 300*60*1000},
+				HistoricalRisk: models.HistoricalRisk{RecentFailureRate: 0.50, RecentIncidents: 6, AverageMTTR: 300 * 60 * 1000},
 			},
 			wantLow: "critical",
 		},
 		{
 			name: "time risk - weekend deployment",
 			risk: models.DeploymentRisk{
-				ChangeSize: models.ChangeSize{FilesChanged: 5, LinesChanged: 100},
-				TimeRisk:   models.TimeRisk{IsWeekend: true},
+				ChangeSize:     models.ChangeSize{FilesChanged: 5, LinesChanged: 100},
+				TimeRisk:       models.TimeRisk{IsWeekend: true},
 				HistoricalRisk: models.HistoricalRisk{RecentFailureRate: 0.01},
 			},
 			wantLow: "low",
@@ -157,8 +157,8 @@ func TestScoreDeploymentRisk(t *testing.T) {
 		{
 			name: "high MTTR increases risk",
 			risk: models.DeploymentRisk{
-				ChangeSize: models.ChangeSize{FilesChanged: 5, LinesChanged: 100},
-				TimeRisk:   models.TimeRisk{},
+				ChangeSize:     models.ChangeSize{FilesChanged: 5, LinesChanged: 100},
+				TimeRisk:       models.TimeRisk{},
 				HistoricalRisk: models.HistoricalRisk{AverageMTTR: 250 * 60 * 1000}, // 250 minutes
 			},
 			wantLow: "low",
@@ -213,7 +213,7 @@ func TestScoreMonotonicity(t *testing.T) {
 
 	// More files changed should generally yield higher score
 	base := models.DeploymentRisk{
-		ChangeSize:   models.ChangeSize{FilesChanged: 5, LinesChanged: 100},
+		ChangeSize:     models.ChangeSize{FilesChanged: 5, LinesChanged: 100},
 		HistoricalRisk: models.HistoricalRisk{RecentFailureRate: 0.05},
 	}
 	scoreLow, _, _, _ := svc.ScoreDeploymentRisk(base)
@@ -246,11 +246,11 @@ func TestRecommendationsGenerated(t *testing.T) {
 
 	// Critical scenario
 	crit := models.DeploymentRisk{
-		ChangeSize:   models.ChangeSize{FilesChanged: 150, LinesChanged: 10000},
-		ChangeScope:  []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
-		TimeRisk:     models.TimeRisk{IsHoliday: true},
+		ChangeSize:     models.ChangeSize{FilesChanged: 150, LinesChanged: 10000},
+		ChangeScope:    []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
+		TimeRisk:       models.TimeRisk{IsHoliday: true},
 		DependencyRisk: models.DependencyRisk{TotalDependencies: 25, UnhealthyDependencies: 3, CriticalDependencies: []string{"db", "cache", "queue"}},
-		HistoricalRisk: models.HistoricalRisk{RecentFailureRate: 0.40, RecentIncidents: 7, AverageMTTR: 200*60*1000},
+		HistoricalRisk: models.HistoricalRisk{RecentFailureRate: 0.40, RecentIncidents: 7, AverageMTTR: 200 * 60 * 1000},
 	}
 	_, level, _, recs := svc.ScoreDeploymentRisk(crit)
 
@@ -292,11 +292,11 @@ func TestFactorCategories(t *testing.T) {
 	svc := NewService(nil)
 
 	dr := models.DeploymentRisk{
-		ChangeSize:   models.ChangeSize{FilesChanged: 10, LinesChanged: 200},
-		ChangeScope:  []string{"svc-a", "svc-b"},
-		TimeRisk:     models.TimeRisk{IsFriday: true},
+		ChangeSize:     models.ChangeSize{FilesChanged: 10, LinesChanged: 200},
+		ChangeScope:    []string{"svc-a", "svc-b"},
+		TimeRisk:       models.TimeRisk{IsFriday: true},
 		DependencyRisk: models.DependencyRisk{TotalDependencies: 5, UnhealthyDependencies: 0, CriticalDependencies: []string{"db"}},
-		HistoricalRisk: models.HistoricalRisk{RecentFailureRate: 0.1, RecentIncidents: 1, AverageMTTR: 30*60*1000},
+		HistoricalRisk: models.HistoricalRisk{RecentFailureRate: 0.1, RecentIncidents: 1, AverageMTTR: 30 * 60 * 1000},
 	}
 
 	_, _, factors, _ := svc.ScoreDeploymentRisk(dr)

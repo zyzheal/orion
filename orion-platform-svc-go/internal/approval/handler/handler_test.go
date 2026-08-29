@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/approval/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/approval/models"
 )
 
@@ -46,11 +46,11 @@ func (f *fakeHandlerService) ApproveGate(ctx context.Context, tenantID, runID, s
 	return &models.ApprovalGate{}, nil
 }
 
-func (f *fakeHandlerService) ApproveRequest(ctx context.Context, tenantID, approvalID string, userID, userName string, comment string) (error) {
+func (f *fakeHandlerService) ApproveRequest(ctx context.Context, tenantID, approvalID string, userID, userName string, comment string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) CancelApproval(ctx context.Context, tenantID, approvalID string, userID, userName string, comment string) (error) {
+func (f *fakeHandlerService) CancelApproval(ctx context.Context, tenantID, approvalID string, userID, userName string, comment string) error {
 	return nil
 }
 
@@ -62,11 +62,11 @@ func (f *fakeHandlerService) CreateTemplate(ctx context.Context, tenantID string
 	return &models.ApprovalTemplate{}, nil
 }
 
-func (f *fakeHandlerService) DelegateApproval(ctx context.Context, tenantID, approvalID string, userID, userName string, req models.DelegateApprovalRequest) (error) {
+func (f *fakeHandlerService) DelegateApproval(ctx context.Context, tenantID, approvalID string, userID, userName string, req models.DelegateApprovalRequest) error {
 	return nil
 }
 
-func (f *fakeHandlerService) DeleteApprovalRequest(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) DeleteApprovalRequest(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
@@ -114,7 +114,7 @@ func (f *fakeHandlerService) ListByRun(ctx context.Context, tenantID, runID stri
 	return []models.ApprovalGate{}, nil
 }
 
-func (f *fakeHandlerService) ReassignApproval(ctx context.Context, tenantID, approvalID string, userID, userName string, req models.ReassignApprovalRequest) (error) {
+func (f *fakeHandlerService) ReassignApproval(ctx context.Context, tenantID, approvalID string, userID, userName string, req models.ReassignApprovalRequest) error {
 	return nil
 }
 
@@ -122,7 +122,7 @@ func (f *fakeHandlerService) RejectGate(ctx context.Context, tenantID, runID, st
 	return &models.ApprovalGate{}, nil
 }
 
-func (f *fakeHandlerService) RejectRequest(ctx context.Context, tenantID, approvalID string, userID, userName string, comment string) (error) {
+func (f *fakeHandlerService) RejectRequest(ctx context.Context, tenantID, approvalID string, userID, userName string, comment string) error {
 	return nil
 }
 
@@ -130,7 +130,7 @@ func (f *fakeHandlerService) RequestEmergencyApproval(ctx context.Context, tenan
 	return &models.ApprovalRequest{}, nil
 }
 
-func (f *fakeHandlerService) ReviewApproval(ctx context.Context, tenantID, approvalID string, userID, userName string, req models.ReviewApprovalRequest) (error) {
+func (f *fakeHandlerService) ReviewApproval(ctx context.Context, tenantID, approvalID string, userID, userName string, req models.ReviewApprovalRequest) error {
 	return nil
 }
 
@@ -138,12 +138,11 @@ func (f *fakeHandlerService) UpdateTemplate(ctx context.Context, tenantID, id st
 	return &models.ApprovalTemplate{}, nil
 }
 
-func (f *fakeHandlerService) WithdrawApproval(ctx context.Context, tenantID, approvalID string, userID, userName string, comment string) (error) {
+func (f *fakeHandlerService) WithdrawApproval(ctx context.Context, tenantID, approvalID string, userID, userName string, comment string) error {
 	return nil
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestAPPROVAL_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

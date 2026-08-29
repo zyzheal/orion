@@ -44,22 +44,22 @@ func (r *Repository) Create(ctx context.Context, tenantID string, req models.Cre
 	}
 
 	d := &models.Deployment{
-		ID:            uuid.New().String(),
-		TenantID:      tenantID,
-		AppName:       req.AppName,
-		Version:       req.Version,
-		Environment:   req.Environment,
-		Strategy:      strategy,
-		Status:        models.DeploymentStatusPending,
-		Image:         req.Image,
-		InitiatedBy:   req.InitiatedBy,
-		Notes:         req.Notes,
+		ID:              uuid.New().String(),
+		TenantID:        tenantID,
+		AppName:         req.AppName,
+		Version:         req.Version,
+		Environment:     req.Environment,
+		Strategy:        strategy,
+		Status:          models.DeploymentStatusPending,
+		Image:           req.Image,
+		InitiatedBy:     req.InitiatedBy,
+		Notes:           req.Notes,
 		ChangeRequestID: req.ChangeRequestID,
-		CommitSHA:     req.CommitSHA,
-		Stages:        stagesJSON,
-		CreatedAt:     now,
-		UpdatedAt:     now,
-		StartedAt:     &now,
+		CommitSHA:       req.CommitSHA,
+		Stages:          stagesJSON,
+		CreatedAt:       now,
+		UpdatedAt:       now,
+		StartedAt:       &now,
 	}
 
 	_, err := r.db.NamedExecContext(ctx, `
@@ -160,8 +160,8 @@ func (r *Repository) GetLatest(ctx context.Context, tenantID, appName, environme
 func (r *Repository) UpdateStatus(ctx context.Context, tenantID, id string, status models.DeploymentStatus) (*models.Deployment, error) {
 	now := time.Now().UTC()
 	updates := map[string]interface{}{
-		"status":      string(status),
-		"updated_at":  now,
+		"status":     string(status),
+		"updated_at": now,
 	}
 
 	if status == models.DeploymentStatusCompleted || status == models.DeploymentStatusFailed || status == models.DeploymentStatusCancelled {

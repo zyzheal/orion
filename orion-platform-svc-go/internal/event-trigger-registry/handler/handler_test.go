@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/event-trigger-registry/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/event-trigger-registry/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeEvent_trigger_registryService) UpdateTrigger(ctx context.Context, t
 }
 
 var _ service.ServiceInterface = (*fakeEvent_trigger_registryService)(nil)
-
 
 func TestHandler_EVENT_TRIGGER__RegisterRoutes(t *testing.T) {
 	_ = newHandler()

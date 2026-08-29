@@ -5,7 +5,6 @@ import (
 	"orion/platform-svc-go/internal/circuit-breaker/models"
 )
 
-
 // RepositoryInterface defines the data access contract for the circuit-breaker module.
 // DO NOT MODIFY: auto-generated from repository.go
 type RepositoryInterface interface {

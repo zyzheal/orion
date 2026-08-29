@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"orion/platform-svc-go/internal/ticket/models"
 	"orion/go-common/pkg/otel"
+	"orion/platform-svc-go/internal/ticket/models"
 	"orion/platform-svc-go/internal/ticket/repository"
 
 	"github.com/google/uuid"
@@ -109,7 +109,7 @@ func (s *SLAService) CheckBreaches(ctx context.Context) ([]models.SLARecord, err
 	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "SLAService.CheckBreaches")
 	defer span.End()
 
-	records, err := s.slaRepo.FindPendingRecords(ctx, )
+	records, err := s.slaRepo.FindPendingRecords(ctx)
 	if err != nil {
 		return nil, err
 	}

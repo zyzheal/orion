@@ -35,9 +35,9 @@ type GrafanaAdapter struct {
 	enabled     bool
 
 	// config — set during Start
-	apiURL  string
-	apiKey  string
-	client  *http.Client
+	apiURL   string
+	apiKey   string
+	client   *http.Client
 	tenantID string
 }
 

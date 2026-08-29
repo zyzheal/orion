@@ -75,7 +75,7 @@ func (r *Repository) Update(ctx context.Context, m *models.SubApp) error {
 
 func (r *Repository) UpdatePartial(ctx context.Context, tenantID, key string, updates map[string]interface{}) error {
 	updates["updated_at"] = time.Now().UTC()
-	set, args, err := sqlx.Named("SET " + buildSetClause(updates), updates)
+	set, args, err := sqlx.Named("SET "+buildSetClause(updates), updates)
 	if err != nil {
 		return err
 	}

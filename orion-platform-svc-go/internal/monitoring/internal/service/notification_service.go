@@ -7,20 +7,20 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/monitoring/internal/models"
 	"orion/platform-svc-go/internal/monitoring/internal/repository"
-	"go.uber.org/zap"
 )
 
 type NotificationService struct {
-	channelRepo    *repository.NotificationChannelRepository
-	policyRepo     *repository.EscalationPolicyRepository
-	historyRepo    *repository.NotificationHistoryRepository
-	dashboardRepo  *repository.DashboardRepository
-	metricRepo     *repository.MetricRepository
-	alertRepo      *repository.AlertRepository
-	metricRegRepo  *repository.MetricRegistrationRepository
-	logger         *zap.Logger
+	channelRepo   *repository.NotificationChannelRepository
+	policyRepo    *repository.EscalationPolicyRepository
+	historyRepo   *repository.NotificationHistoryRepository
+	dashboardRepo *repository.DashboardRepository
+	metricRepo    *repository.MetricRepository
+	alertRepo     *repository.AlertRepository
+	metricRegRepo *repository.MetricRegistrationRepository
+	logger        *zap.Logger
 }
 
 func NewNotificationService(

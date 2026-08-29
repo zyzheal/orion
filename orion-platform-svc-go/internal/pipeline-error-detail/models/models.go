@@ -24,21 +24,21 @@ const (
 
 // ErrorClassification is the classifier output.
 type ErrorClassification struct {
-	Type          string `json:"type"`
-	ShouldRetry   bool   `json:"shouldRetry"`
-	RetryStrategy string `json:"retryStrategy"`
+	Type          string  `json:"type"`
+	ShouldRetry   bool    `json:"shouldRetry"`
+	RetryStrategy string  `json:"retryStrategy"`
 	Confidence    float64 `json:"confidence"`
-	Reasoning     string `json:"reasoning"`
+	Reasoning     string  `json:"reasoning"`
 }
 
 // PipelineErrorDetail is the response for error detail endpoint.
 type PipelineErrorDetail struct {
-	ErrorType              ErrorCategory      `json:"errorType"`
-	Severity               ErrorSeverity      `json:"severity"`
-	HumanReadableMessage   string             `json:"humanReadableMessage"`
-	SuggestedFix           []string           `json:"suggestedFix"`
-	RawError               string             `json:"rawError"`
-	StageName              string             `json:"stageName"`
-	Timestamp              string             `json:"timestamp"`
-	Classification         *ErrorClassification `json:"classification,omitempty"`
+	ErrorType            ErrorCategory        `json:"errorType"`
+	Severity             ErrorSeverity        `json:"severity"`
+	HumanReadableMessage string               `json:"humanReadableMessage"`
+	SuggestedFix         []string             `json:"suggestedFix"`
+	RawError             string               `json:"rawError"`
+	StageName            string               `json:"stageName"`
+	Timestamp            string               `json:"timestamp"`
+	Classification       *ErrorClassification `json:"classification,omitempty"`
 }

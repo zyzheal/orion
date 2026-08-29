@@ -127,16 +127,16 @@ type CostBreakdownQuery struct {
 
 // UsageDashboard aggregates LLM usage across a time window.
 type UsageDashboard struct {
-	StartDate      string                  `json:"startDate"`
-	EndDate        string                  `json:"endDate"`
-	TotalRequests  int64                   `json:"totalRequests"`
-	TotalTokens    int64                   `json:"totalTokens"`
-	TotalCost      float64                 `json:"totalCost"`
-	Currency       string                  `json:"currency"`
-	ByModel        map[string]*ModelUsage  `json:"byModel,omitempty"`
-	ByDay          []DayUsage              `json:"byDay,omitempty"`
-	ByTenant       map[string]*TenantUsage `json:"byTenant,omitempty"`
-	Trend          *UsageTrend             `json:"trend,omitempty"`
+	StartDate     string                  `json:"startDate"`
+	EndDate       string                  `json:"endDate"`
+	TotalRequests int64                   `json:"totalRequests"`
+	TotalTokens   int64                   `json:"totalTokens"`
+	TotalCost     float64                 `json:"totalCost"`
+	Currency      string                  `json:"currency"`
+	ByModel       map[string]*ModelUsage  `json:"byModel,omitempty"`
+	ByDay         []DayUsage              `json:"byDay,omitempty"`
+	ByTenant      map[string]*TenantUsage `json:"byTenant,omitempty"`
+	Trend         *UsageTrend             `json:"trend,omitempty"`
 }
 
 // ModelUsage is per-model aggregated usage.

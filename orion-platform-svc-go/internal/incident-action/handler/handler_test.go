@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/incident-action/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/incident-action/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeIncident_actionService) Update(ctx context.Context, tenantID, id st
 }
 
 var _ service.ServiceInterface = (*fakeIncident_actionService)(nil)
-
 
 func TestHandler_INCIDENT_ACTIO_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

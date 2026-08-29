@@ -78,10 +78,10 @@ func (r *Repository) UpsertVector(ctx context.Context, tenantID, storeID string,
 		`INSERT INTO vector_record (id, store_id, vector, metadata, created_at)
 		VALUES (:id, :store_id, :vector, :metadata, :created_at)`,
 		map[string]interface{}{
-			"id":        uuid.New().String(),
-			"store_id":  storeID,
-			"vector":    string(vectorJSON),
-			"metadata":  string(metaJSON),
+			"id":         uuid.New().String(),
+			"store_id":   storeID,
+			"vector":     string(vectorJSON),
+			"metadata":   string(metaJSON),
 			"created_at": time.Now().UTC(),
 		})
 	return err

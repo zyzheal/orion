@@ -11,11 +11,11 @@ import (
 
 // Engine is the Form Engine bridge between service-layer models and the
 // go-common Form engine. It provides:
-//   1. Field-level validation (required, type, min/max, pattern, length)
-//   2. Conditional validation (required_when, visible_when)
-//   3. Cross-field validation (InterFieldRule: comparison, consistency)
-//   4. Enhanced rendering (JSON Schema, HTML, React, YAML)
-//   5. Conditional visibility resolution
+//  1. Field-level validation (required, type, min/max, pattern, length)
+//  2. Conditional validation (required_when, visible_when)
+//  3. Cross-field validation (InterFieldRule: comparison, consistency)
+//  4. Enhanced rendering (JSON Schema, HTML, React, YAML)
+//  5. Conditional visibility resolution
 //
 // It does NOT replace the existing FormEngine service layer — it augments it
 // with the rich engine types from orion-go-common.
@@ -44,10 +44,10 @@ func WithLogger(logger *zap.Logger) Option {
 // For service-layer models, use NewEngineFromService instead.
 func NewEngine(form *formengine.Form, opts ...Option) *Engine {
 	e := &Engine{
-		engineForm:  form,
-		validator:   formengine.NewFormValidator(form),
-		renderer:    formengine.NewFormRenderer(form),
-		logger:      zap.NewNop(),
+		engineForm: form,
+		validator:  formengine.NewFormValidator(form),
+		renderer:   formengine.NewFormRenderer(form),
+		logger:     zap.NewNop(),
 	}
 	for _, opt := range opts {
 		opt(e)
@@ -96,9 +96,9 @@ func NewEngineFromService(serviceForm FormDefinitionModel, serviceFields []FormF
 }
 
 // Validate validates submission data using the engine's full validation pipeline:
-//   1. Field-level validation (required, type, min/max, pattern, length)
-//   2. Conditional validation (required_when, visible_when)
-//   3. Cross-field validation (InterFieldRule: comparison, consistency)
+//  1. Field-level validation (required, type, min/max, pattern, length)
+//  2. Conditional validation (required_when, visible_when)
+//  3. Cross-field validation (InterFieldRule: comparison, consistency)
 //
 // Returns a *formengine.ValidatedFormData with structured errors.
 func (e *Engine) Validate(ctx context.Context, data map[string]interface{}) *formengine.ValidatedFormData {
@@ -139,7 +139,7 @@ func (e *Engine) ResolveVisibility(ctx context.Context, data map[string]interfac
 
 	for _, f := range e.engineForm.Fields {
 		state := FieldState{
-		Visible:  !f.Hidden && f.Visible,
+			Visible:  !f.Hidden && f.Visible,
 			Required: f.Required,
 			Disabled: f.Disabled,
 		}
@@ -168,8 +168,8 @@ func (e *Engine) ResolveVisibility(ctx context.Context, data map[string]interfac
 // DefaultValues produces a draft data map with sensible defaults for all fields.
 //
 // Default value resolution order:
-//   1. Field-level Default value
-//   2. Type-appropriate zero value ("" for text, 0 for number, false for boolean)
+//  1. Field-level Default value
+//  2. Type-appropriate zero value ("" for text, 0 for number, false for boolean)
 func (e *Engine) DefaultValues() map[string]interface{} {
 	draft := make(map[string]interface{})
 

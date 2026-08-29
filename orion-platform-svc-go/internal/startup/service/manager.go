@@ -111,7 +111,7 @@ func (m *StartupManager) Start(ctx context.Context) error {
 			m.logger.Error("startup failed during module init",
 				zap.String("name", name),
 				zap.Error(err),
-		)
+			)
 			// Mark all remaining modules as error so state is consistent.
 			for _, remaining := range order[sort.SearchStrings(order, name)+1:] {
 				m.running[remaining] = false
@@ -275,11 +275,11 @@ func (m *StartupManager) GetStartupProgress() map[string]interface{} {
 	})
 
 	return map[string]interface{}{
-		"total":    len(m.modules),
-		"running":  running,
-		"stopped":  stopped,
+		"total":     len(m.modules),
+		"running":   running,
+		"stopped":   stopped,
 		"startedAt": m.started,
-		"modules":  modules,
+		"modules":   modules,
 	}
 }
 

@@ -22,7 +22,7 @@ type Event interface {
 
 // MarshalJSON allows any event to be serialized through a common codec.
 type JSONEvent struct {
-	Type   string          `json:"type"`
+	Type    string          `json:"type"`
 	Payload json.RawMessage `json:"payload"`
 }
 

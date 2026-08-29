@@ -190,7 +190,7 @@ func (r *Repository) GetCorrectionsBySimilarity(ctx context.Context, tenantID, u
 
 func (r *Repository) IncrementAppliedCount(ctx context.Context, id string) error {
 	_, err := r.db.ExecContext(ctx,
-		 `UPDATE rag_user_corrections SET applied_count = applied_count + 1 WHERE id = $1`, id)
+		`UPDATE rag_user_corrections SET applied_count = applied_count + 1 WHERE id = $1`, id)
 	return err
 }
 
@@ -424,6 +424,7 @@ func scanAuditRows(rows *sql.Rows) ([]models.RAGQueryAuditLog, error) {
 	}
 	return logs, rows.Err()
 }
+
 // Eval metric repository
 // ============================================================================
 

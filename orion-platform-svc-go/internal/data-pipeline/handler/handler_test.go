@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/data-pipeline/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/data-pipeline/models"
 )
 
@@ -31,7 +31,7 @@ func (f *fakeHandlerService) Create(ctx context.Context, tenantID string, req mo
 	return &models.Pipeline{}, nil
 }
 
-func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
@@ -59,15 +59,15 @@ func (f *fakeHandlerService) ListSchemas(ctx context.Context, tenantID string) (
 	return []string{}, nil
 }
 
-func (f *fakeHandlerService) Pause(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) Pause(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) Resume(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) Resume(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) RunPipeline(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) RunPipeline(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
@@ -76,7 +76,6 @@ func (f *fakeHandlerService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestHandler_DATA_PIPELINE_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

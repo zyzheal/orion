@@ -10,20 +10,20 @@ import (
 )
 
 type ComplianceService struct {
-	frameworks      map[string]*models.ComplianceFramework
-	requirements    map[string]*models.ComplianceRequirement
-	evidence        map[string]*models.Evidence
-	gapAnalyses     map[string]*models.GapAnalysis
-	remediations    map[string]*models.RemediationPlan
+	frameworks   map[string]*models.ComplianceFramework
+	requirements map[string]*models.ComplianceRequirement
+	evidence     map[string]*models.Evidence
+	gapAnalyses  map[string]*models.GapAnalysis
+	remediations map[string]*models.RemediationPlan
 }
 
 func NewComplianceService() *ComplianceService {
 	return &ComplianceService{
-		frameworks:    make(map[string]*models.ComplianceFramework),
-		requirements:  make(map[string]*models.ComplianceRequirement),
-		evidence:      make(map[string]*models.Evidence),
-		gapAnalyses:   make(map[string]*models.GapAnalysis),
-		remediations:  make(map[string]*models.RemediationPlan),
+		frameworks:   make(map[string]*models.ComplianceFramework),
+		requirements: make(map[string]*models.ComplianceRequirement),
+		evidence:     make(map[string]*models.Evidence),
+		gapAnalyses:  make(map[string]*models.GapAnalysis),
+		remediations: make(map[string]*models.RemediationPlan),
 	}
 }
 

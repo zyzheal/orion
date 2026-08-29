@@ -20,8 +20,8 @@ import (
 // systemctl list-units).
 type linuxServer struct{}
 
-func (c linuxServer) Name() string     { return "linux-server" }
-func (c linuxServer) Type() string     { return models.TypeServer }
+func (c linuxServer) Name() string { return "linux-server" }
+func (c linuxServer) Type() string { return models.TypeServer }
 func (c linuxServer) ConfigSchema() map[string]interface{} {
 	return map[string]interface{}{
 		"host":        "string, required — server IP or hostname",
@@ -73,25 +73,25 @@ func (c linuxServer) Collect(ctx context.Context, device *models.Device) (*model
 	default:
 	}
 	attrs := map[string]interface{}{
-		"cpu.usage.percent":         35.2,
-		"memory.used.percent":       58.0,
-		"memory.used.gb":            18.6,
-		"memory.total.gb":           32.0,
-		"disk.used.percent":         44.0,
-		"disk.total.bytes":          int64(1099511627776),
-		"disk.used.bytes":           int64(483183820800),
-		"load.average.1m":           1.24,
-		"load.average.5m":           0.98,
-		"load.average.15m":          0.72,
-		"processes.total":           245,
-		"processes.running":         8,
-		"net.io.read.bytes":         int64(2147483648),
-		"net.io.write.bytes":        int64(1073741824),
-		"uptime.seconds":            int64(345600),
-		"cpu.cores":                 8,
-		"disk.filesystem.count":     5,
-		"systemd.units.active":      187,
-		"network.interfaces":        4,
+		"cpu.usage.percent":     35.2,
+		"memory.used.percent":   58.0,
+		"memory.used.gb":        18.6,
+		"memory.total.gb":       32.0,
+		"disk.used.percent":     44.0,
+		"disk.total.bytes":      int64(1099511627776),
+		"disk.used.bytes":       int64(483183820800),
+		"load.average.1m":       1.24,
+		"load.average.5m":       0.98,
+		"load.average.15m":      0.72,
+		"processes.total":       245,
+		"processes.running":     8,
+		"net.io.read.bytes":     int64(2147483648),
+		"net.io.write.bytes":    int64(1073741824),
+		"uptime.seconds":        int64(345600),
+		"cpu.cores":             8,
+		"disk.filesystem.count": 5,
+		"systemd.units.active":  187,
+		"network.interfaces":    4,
 	}
 	return &models.Collection{
 		Collector:      "linux-server",
@@ -105,9 +105,9 @@ func (c linuxServer) Collect(ctx context.Context, device *models.Device) (*model
 
 func (c linuxServer) HealthCheck(ctx context.Context, target *models.Target) error {
 	select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
 	}
 	if target.Host == "" {
 		return errors.New("linux-server: target host is empty")
@@ -119,8 +119,8 @@ type linuxServerAdapter struct {
 	collector linuxServer
 }
 
-func (a linuxServerAdapter) Name() string                 { return a.collector.Name() }
+func (a linuxServerAdapter) Name() string                        { return a.collector.Name() }
 func (a linuxServerAdapter) Init(_ map[string]interface{}) error { return nil }
-func (a linuxServerAdapter) Collector() interfaces.Collector { return a.collector }
+func (a linuxServerAdapter) Collector() interfaces.Collector     { return a.collector }
 
 func init() { registry.Default().Register(linuxServerAdapter{collector: linuxServer{}}) }

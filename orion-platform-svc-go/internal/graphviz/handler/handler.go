@@ -67,10 +67,10 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	g := &graph.Graph{
-		Name:      req.Name,
+		Name:       req.Name,
 		TemplateID: req.TemplateID,
-		Direction: req.Direction,
-		Layout:    req.Layout,
+		Direction:  req.Direction,
+		Layout:     req.Layout,
 	}
 	if g.Direction == "" {
 		g.Direction = "TB"
@@ -209,6 +209,8 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // ListTemplates returns all registered template names.
 func (h *Handler) ListTemplates(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "graphviz.ListTemplates")
+	defer span.End()
 	names := h.svc.ListTemplates()
 	errors.WriteSuccess(c, gin.H{"templates": names})
 }

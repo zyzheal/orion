@@ -27,15 +27,15 @@ type AuditTrailEntry struct {
 
 // RecordAuditRequest is the input for recording an audit log entry.
 type RecordAuditRequest struct {
-	PipelineID *string           `json:"pipeline_id,omitempty"`
-	RunID      *string           `json:"run_id,omitempty"`
-	Action     string            `json:"action" binding:"required"`
-	Actor      string            `json:"actor" binding:"required"`
-	Target     *string           `json:"target,omitempty"`
-	TargetType *string           `json:"target_type,omitempty"`
-	Details    map[string]any    `json:"details,omitempty"`
-	IPAddress  *string           `json:"ip_address,omitempty"`
-	UserAgent  *string           `json:"user_agent,omitempty"`
+	PipelineID *string        `json:"pipeline_id,omitempty"`
+	RunID      *string        `json:"run_id,omitempty"`
+	Action     string         `json:"action" binding:"required"`
+	Actor      string         `json:"actor" binding:"required"`
+	Target     *string        `json:"target,omitempty"`
+	TargetType *string        `json:"target_type,omitempty"`
+	Details    map[string]any `json:"details,omitempty"`
+	IPAddress  *string        `json:"ip_address,omitempty"`
+	UserAgent  *string        `json:"user_agent,omitempty"`
 }
 
 // AuditLogFilter filters audit log queries.

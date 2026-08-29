@@ -175,6 +175,7 @@ func (r *Repository) GetEnabledHotfixChannel(ctx context.Context, tenantID, prod
 
 // driver.Valuer interface assertion for compatibility.
 var _ driver.Valuer = nil
+
 // ==================== EnvironmentMapping CRUD ====================
 
 // CreateEnvironmentMapping persists a new branch-to-environment mapping.

@@ -13,11 +13,11 @@ var errNotFound = errors.New("not found")
 // --- Fake Repository ---
 
 type fakeDesignerRepo struct {
-	forms    map[string]*models.FormDefinition
-	fields   map[string]*models.FormField
-	tmpls    map[string]*models.FormTemplate
+	forms     map[string]*models.FormDefinition
+	fields    map[string]*models.FormField
+	tmpls     map[string]*models.FormTemplate
 	instances map[string]*models.FormInstance
-	comps    map[string]*models.ComponentRegistry
+	comps     map[string]*models.ComponentRegistry
 }
 
 func newFakeDesignerRepo() *fakeDesignerRepo {
@@ -341,7 +341,7 @@ func TestUpdateForm_updatesFields(t *testing.T) {
 	svc := NewService(repo)
 
 	fd, _ := svc.CreateForm(context.Background(), &models.CreateFormRequest{
-		Name: "old",
+		Name:   "old",
 		Fields: []models.FormField{{Key: "x", Label: "x", Type: "text"}},
 	}, "t1", "admin")
 
@@ -362,7 +362,7 @@ func TestDeleteForm(t *testing.T) {
 	svc := NewService(repo)
 
 	fd, _ := svc.CreateForm(context.Background(), &models.CreateFormRequest{
-		Name: "del",
+		Name:   "del",
 		Fields: []models.FormField{{Key: "x", Label: "x", Type: "text"}},
 	}, "t1", "admin")
 
@@ -382,7 +382,7 @@ func TestCreateField_setsSortableIndex(t *testing.T) {
 	svc := NewService(repo)
 
 	fd, _ := svc.CreateForm(context.Background(), &models.CreateFormRequest{
-		Name: "f",
+		Name:   "f",
 		Fields: []models.FormField{{Key: "x", Label: "x", Type: "text"}},
 	}, "t1", "admin")
 

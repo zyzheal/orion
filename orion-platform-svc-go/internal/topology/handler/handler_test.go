@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/topology/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/topology/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeTopologyService) Update(ctx context.Context, tenantID, id string, r
 }
 
 var _ service.ServiceInterface = (*fakeTopologyService)(nil)
-
 
 func TestHandler_TOPOLOGY_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

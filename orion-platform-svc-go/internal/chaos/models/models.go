@@ -71,11 +71,11 @@ type InjectRequest struct {
 
 // InjectConfig parses the JSON config string sent by the caller.
 type InjectConfig struct {
-	Duration   string  `json:"duration"`     // e.g. "30s", "2m"
-	Intensity  float64 `json:"intensity"`    // cpu: cores (0-1), network: ms latency
-	Percentage float64 `json:"percentage"`   // traffic percentage 0-100
-	Ports      []int   `json:"ports"`        // target ports for network/service faults
-	NodeLabels string  `json:"node_labels"`  // k8s node selector labels
+	Duration   string  `json:"duration"`    // e.g. "30s", "2m"
+	Intensity  float64 `json:"intensity"`   // cpu: cores (0-1), network: ms latency
+	Percentage float64 `json:"percentage"`  // traffic percentage 0-100
+	Ports      []int   `json:"ports"`       // target ports for network/service faults
+	NodeLabels string  `json:"node_labels"` // k8s node selector labels
 }
 
 type InjectResult struct {
@@ -132,11 +132,11 @@ type RecoveryValidation struct {
 }
 
 type RecoveryReport struct {
-	ExperimentID string           `json:"experiment_id"`
-	Report       string           `json:"report"`
-	Checklist    []RecoveryCheck  `json:"checklist"`
-	Duration     string           `json:"duration"`
-	InjectionID  string           `json:"injection_id"`
+	ExperimentID string          `json:"experiment_id"`
+	Report       string          `json:"report"`
+	Checklist    []RecoveryCheck `json:"checklist"`
+	Duration     string          `json:"duration"`
+	InjectionID  string          `json:"injection_id"`
 }
 
 // --- Pre-release Verify ---
@@ -154,9 +154,9 @@ type PreReleaseVerifyRequest struct {
 }
 
 type PreReleaseVerifyResult struct {
-	ServiceID   string             `json:"service_id"`
-	Environment string             `json:"environment"`
-	Status      string             `json:"status"` // passed|failed|skipped
-	Details     string             `json:"details"`
+	ServiceID   string            `json:"service_id"`
+	Environment string            `json:"environment"`
+	Status      string            `json:"status"` // passed|failed|skipped
+	Details     string            `json:"details"`
 	Checks      []PreReleaseCheck `json:"checks"`
 }

@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/risk/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/risk/models"
 	"time"
 )
@@ -73,7 +73,6 @@ func (f *fakeRiskService) GetCorrelatedRisks(ctx context.Context, tenantID strin
 }
 
 var _ service.ServiceInterface = (*fakeRiskService)(nil)
-
 
 func TestHandler_RISK_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

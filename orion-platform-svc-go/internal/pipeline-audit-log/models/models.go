@@ -51,25 +51,25 @@ type AuditLogBatchRequest struct {
 
 // AuditLogQuery holds filter parameters for querying audit logs.
 type AuditLogQuery struct {
-	TenantID  string    `json:"-"`
-	RunID     *string   `json:"runId"`
-	StageID   *string   `json:"stageId"`
-	TaskID    *string   `json:"taskId"`
-	Action    *string   `json:"action"`
-	Actor     *string   `json:"actor"`
-	Outcome   *string   `json:"outcome"`
+	TenantID  string     `json:"-"`
+	RunID     *string    `json:"runId"`
+	StageID   *string    `json:"stageId"`
+	TaskID    *string    `json:"taskId"`
+	Action    *string    `json:"action"`
+	Actor     *string    `json:"actor"`
+	Outcome   *string    `json:"outcome"`
 	StartTime *time.Time `json:"startTime"`
 	EndTime   *time.Time `json:"endTime"`
-	Limit     int       `json:"limit"`
-	Offset    int       `json:"offset"`
+	Limit     int        `json:"limit"`
+	Offset    int        `json:"offset"`
 }
 
 // AuditTrailResponse represents the full audit trail for a pipeline run.
 type AuditTrailResponse struct {
-	RunID     string       `json:"runId"`
-	TenantID  string       `json:"tenantId"`
-	TotalLogs int          `json:"totalLogs"`
-	Logs      []AuditLog   `json:"logs"`
+	RunID     string     `json:"runId"`
+	TenantID  string     `json:"tenantId"`
+	TotalLogs int        `json:"totalLogs"`
+	Logs      []AuditLog `json:"logs"`
 }
 
 // CleanupRequest is the request body for the cleanup endpoint.

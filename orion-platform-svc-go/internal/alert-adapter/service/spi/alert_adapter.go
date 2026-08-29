@@ -12,16 +12,16 @@
 //
 // Usage:
 //
-//   reg := spi.NewRegistry(logger)
-//   reg.Register(spi.NewPrometheusAdapter())
-//   reg.Register(spi.NewGrafanaAdapter())
-//   reg.Register(spi.NewWebhookAdapter())
+//	reg := spi.NewRegistry(logger)
+//	reg.Register(spi.NewPrometheusAdapter())
+//	reg.Register(spi.NewGrafanaAdapter())
+//	reg.Register(spi.NewWebhookAdapter())
 //
-//   adapters := reg.Discover("source")  // all source-type adapters
-//   for _, a := range adapters {
-//       status, err := a.Start(ctx, cfg)
-//       if err != nil { ... }
-//   }
+//	adapters := reg.Discover("source")  // all source-type adapters
+//	for _, a := range adapters {
+//	    status, err := a.Start(ctx, cfg)
+//	    if err != nil { ... }
+//	}
 package spi
 
 import "context"
@@ -86,11 +86,11 @@ type Alert struct {
 type AdapterStatus string
 
 const (
-	AdapterStatusNew         AdapterStatus = "new"          // registered, not started
-	AdapterStatusRunning     AdapterStatus = "running"      // actively sending/receiving alerts
-	AdapterStatusStopped     AdapterStatus = "stopped"      // explicitly stopped
-	AdapterStatusError       AdapterStatus = "error"        // failed during start/operation
-	AdapterStatusUnavailable AdapterStatus = "unavailable"  // start failed; retry required
+	AdapterStatusNew         AdapterStatus = "new"         // registered, not started
+	AdapterStatusRunning     AdapterStatus = "running"     // actively sending/receiving alerts
+	AdapterStatusStopped     AdapterStatus = "stopped"     // explicitly stopped
+	AdapterStatusError       AdapterStatus = "error"       // failed during start/operation
+	AdapterStatusUnavailable AdapterStatus = "unavailable" // start failed; retry required
 )
 
 // IsHealthy reports whether this status is considered operational.

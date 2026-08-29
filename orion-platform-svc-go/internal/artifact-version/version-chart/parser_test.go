@@ -6,13 +6,13 @@ import (
 
 func TestParseSemVer(t *testing.T) {
 	tests := []struct {
-		input    string
-		major    int
-		minor    int
-		patch    int
-		pre      string
-		build    string
-		wantErr  bool
+		input   string
+		major   int
+		minor   int
+		patch   int
+		pre     string
+		build   string
+		wantErr bool
 	}{
 		{"1.2.3", 1, 2, 3, "", "", false},
 		{"0.0.0", 0, 0, 0, "", "", false},

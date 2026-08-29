@@ -49,21 +49,21 @@ const (
 )
 
 type Pipeline struct {
-	ID             string    `db:"id" json:"id"`
-	TenantID       string    `db:"tenant_id" json:"tenant_id"`
-	Name           string    `db:"name" json:"name"`
-	Description    string    `db:"description" json:"description"`
-	RepoID         *string   `db:"repo_id" json:"repo_id,omitempty"`
-	Branch         string    `db:"branch" json:"branch"`
-	Version        string    `db:"version" json:"version"`
-	TriggerType    string    `db:"trigger_type" json:"trigger_type"`
-	CronExpression *string   `db:"cron_expression" json:"cron_expression,omitempty"`
-	Config         string    `db:"config" json:"config"`
-	YAMLConfig     string    `db:"yaml_config" json:"yaml_config"`
-	Status         string    `db:"status" json:"status"`
-	CreatedBy      string    `db:"created_by" json:"created_by"`
-	CreatedAt      time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt      time.Time `db:"updated_at" json:"updated_at"`
+	ID             string     `db:"id" json:"id"`
+	TenantID       string     `db:"tenant_id" json:"tenant_id"`
+	Name           string     `db:"name" json:"name"`
+	Description    string     `db:"description" json:"description"`
+	RepoID         *string    `db:"repo_id" json:"repo_id,omitempty"`
+	Branch         string     `db:"branch" json:"branch"`
+	Version        string     `db:"version" json:"version"`
+	TriggerType    string     `db:"trigger_type" json:"trigger_type"`
+	CronExpression *string    `db:"cron_expression" json:"cron_expression,omitempty"`
+	Config         string     `db:"config" json:"config"`
+	YAMLConfig     string     `db:"yaml_config" json:"yaml_config"`
+	Status         string     `db:"status" json:"status"`
+	CreatedBy      string     `db:"created_by" json:"created_by"`
+	CreatedAt      time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt      time.Time  `db:"updated_at" json:"updated_at"`
 	DeletedAt      *time.Time `db:"deleted_at" json:"-"`
 }
 
@@ -277,31 +277,31 @@ type ErrorClassificationRule struct {
 
 // AdaptiveTimeoutConfig defines adaptive timeout configuration.
 type AdaptiveTimeoutConfig struct {
-	ID          string    `db:"id" json:"id"`
-	TenantID    string    `db:"tenant_id" json:"tenant_id"`
-	PipelineID  string    `db:"pipeline_id" json:"pipeline_id"`
-	MinTimeout  int       `db:"min_timeout" json:"min_timeout"`
-	MaxTimeout  int       `db:"max_timeout" json:"max_timeout"`
-	Strategy    string    `db:"strategy" json:"strategy"`
-	Multiplier  float64   `db:"multiplier" json:"multiplier"`
-	Enabled     bool      `db:"enabled" json:"enabled"`
-	CreatedBy   string    `db:"created_by" json:"created_by"`
-	CreatedAt   time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+	ID         string    `db:"id" json:"id"`
+	TenantID   string    `db:"tenant_id" json:"tenant_id"`
+	PipelineID string    `db:"pipeline_id" json:"pipeline_id"`
+	MinTimeout int       `db:"min_timeout" json:"min_timeout"`
+	MaxTimeout int       `db:"max_timeout" json:"max_timeout"`
+	Strategy   string    `db:"strategy" json:"strategy"`
+	Multiplier float64   `db:"multiplier" json:"multiplier"`
+	Enabled    bool      `db:"enabled" json:"enabled"`
+	CreatedBy  string    `db:"created_by" json:"created_by"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at" json:"updated_at"`
 }
 
 // AutoRetryStrategy defines automatic retry configuration.
 type AutoRetryStrategy struct {
-	ID          string    `db:"id" json:"id"`
-	TenantID    string    `db:"tenant_id" json:"tenant_id"`
-	PipelineID  string    `db:"pipeline_id" json:"pipeline_id"`
-	MaxRetries  int       `db:"max_retries" json:"max_retries"`
-	Backoff     string    `db:"backoff" json:"backoff"`
-	Conditions  string    `db:"conditions" json:"conditions"`
-	Enabled     bool      `db:"enabled" json:"enabled"`
-	CreatedBy   string    `db:"created_by" json:"created_by"`
-	CreatedAt   time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+	ID         string    `db:"id" json:"id"`
+	TenantID   string    `db:"tenant_id" json:"tenant_id"`
+	PipelineID string    `db:"pipeline_id" json:"pipeline_id"`
+	MaxRetries int       `db:"max_retries" json:"max_retries"`
+	Backoff    string    `db:"backoff" json:"backoff"`
+	Conditions string    `db:"conditions" json:"conditions"`
+	Enabled    bool      `db:"enabled" json:"enabled"`
+	CreatedBy  string    `db:"created_by" json:"created_by"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at" json:"updated_at"`
 }
 
 // SelfHealingRequest is the input for triggering self-healing.
@@ -315,17 +315,17 @@ type SelfHealingRequest struct {
 
 // SelfHealingStatus represents the result of a self-healing operation.
 type SelfHealingStatus struct {
-	ID         string     `db:"id" json:"id"`
-	TenantID   string     `db:"tenant_id" json:"tenant_id"`
-	RunID      string     `db:"run_id" json:"run_id"`
-	PipelineID string     `db:"pipeline_id" json:"pipeline_id"`
-	Action     string     `db:"action" json:"action"`
-	Status     string     `db:"status" json:"status"`
-	Message    string     `db:"message" json:"message"`
-	StageName  string     `db:"stage_name" json:"stage_name"`
-	CreatedBy  string     `db:"created_by" json:"created_by"`
-	CreatedAt  time.Time  `db:"created_at" json:"created_at"`
-	UpdatedAt  time.Time  `db:"updated_at" json:"updated_at"`
+	ID          string     `db:"id" json:"id"`
+	TenantID    string     `db:"tenant_id" json:"tenant_id"`
+	RunID       string     `db:"run_id" json:"run_id"`
+	PipelineID  string     `db:"pipeline_id" json:"pipeline_id"`
+	Action      string     `db:"action" json:"action"`
+	Status      string     `db:"status" json:"status"`
+	Message     string     `db:"message" json:"message"`
+	StageName   string     `db:"stage_name" json:"stage_name"`
+	CreatedBy   string     `db:"created_by" json:"created_by"`
+	CreatedAt   time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time  `db:"updated_at" json:"updated_at"`
 	CompletedAt *time.Time `db:"completed_at" json:"completed_at,omitempty"`
 }
 

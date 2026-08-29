@@ -131,8 +131,8 @@ func (e *ChatExecutor) Execute(ctx context.Context, agent *models.AIAgent, input
 	e.applyModelConfig(data, decodeModelConfig(agent.ModelConfig))
 
 	return &ExecuteResult{
-		Success: true,
-		Data:    data,
+		Success:    true,
+		Data:       data,
 		TokenUsage: estimateTokenUsage(input, data),
 	}, nil
 }
@@ -191,16 +191,16 @@ func (e *CodeReviewExecutor) Execute(ctx context.Context, agent *models.AIAgent,
 	e.applyModelConfig(data, decodeModelConfig(agent.ModelConfig))
 
 	return &ExecuteResult{
-		Success: true,
-		Data:    data,
+		Success:    true,
+		Data:       data,
 		TokenUsage: estimateTokenUsage(input, data),
 	}, nil
 }
 
 func (e *CodeReviewExecutor) analyzeCode(repo, commit, file string) map[string]interface{} {
 	review := map[string]interface{}{
-		"score":      78,
-		"issues":     []string{},
+		"score":       78,
+		"issues":      []string{},
 		"suggestions": []string{},
 	}
 
@@ -265,8 +265,8 @@ func (e *DeployExecutor) Execute(ctx context.Context, agent *models.AIAgent, inp
 	e.applyModelConfig(data, decodeModelConfig(agent.ModelConfig))
 
 	return &ExecuteResult{
-		Success: true,
-		Data:    data,
+		Success:    true,
+		Data:       data,
 		TokenUsage: estimateTokenUsage(input, data),
 	}, nil
 }
@@ -310,26 +310,26 @@ func (e *DiagnosticExecutor) Execute(ctx context.Context, agent *models.AIAgent,
 	diagResult := e.runDiagnostics(probe)
 
 	data := map[string]interface{}{
-		"probe":     probe,
+		"probe":      probe,
 		"diagnostic": diagResult,
-		"scenario":  agent.Scenario,
-		"provider":  agent.Provider,
-		"timestamp": time.Now().Unix(),
+		"scenario":   agent.Scenario,
+		"provider":   agent.Provider,
+		"timestamp":  time.Now().Unix(),
 	}
 
 	e.applyModelConfig(data, decodeModelConfig(agent.ModelConfig))
 
 	return &ExecuteResult{
-		Success: true,
-		Data:    data,
+		Success:    true,
+		Data:       data,
 		TokenUsage: estimateTokenUsage(input, data),
 	}, nil
 }
 
 func (e *DiagnosticExecutor) runDiagnostics(probe string) map[string]interface{} {
 	result := map[string]interface{}{
-		"overall_health": "healthy",
-		"checks":        []string{},
+		"overall_health":  "healthy",
+		"checks":          []string{},
 		"recommendations": []string{},
 	}
 
@@ -390,19 +390,19 @@ func (e *SecurityScanExecutor) Execute(ctx context.Context, agent *models.AIAgen
 	e.applyModelConfig(data, decodeModelConfig(agent.ModelConfig))
 
 	return &ExecuteResult{
-		Success: true,
-		Data:    data,
+		Success:    true,
+		Data:       data,
 		TokenUsage: estimateTokenUsage(input, data),
 	}, nil
 }
 
 func (e *SecurityScanExecutor) runSecurityScan(target, scanType string) map[string]interface{} {
 	result := map[string]interface{}{
-		"target":      target,
-		"scan_type":   scanType,
+		"target":          target,
+		"scan_type":       scanType,
 		"vulnerabilities": []string{},
-		"compliance":  map[string]interface{}{},
-		"overall_risk": "low",
+		"compliance":      map[string]interface{}{},
+		"overall_risk":    "low",
 	}
 
 	vulns := []string{}
@@ -464,8 +464,8 @@ func (e *GenericExecutor) Execute(ctx context.Context, agent *models.AIAgent, in
 	e.applyModelConfig(data, decodeModelConfig(agent.ModelConfig))
 
 	return &ExecuteResult{
-		Success: true,
-		Data:    data,
+		Success:    true,
+		Data:       data,
 		TokenUsage: estimateTokenUsage(input, data),
 	}, nil
 }

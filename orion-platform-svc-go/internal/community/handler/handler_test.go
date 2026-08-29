@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/community/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/community/models"
 )
 
@@ -59,7 +59,6 @@ func (f *fakeCommunityService) Update(ctx context.Context, id, tenantID string, 
 }
 
 var _ service.ServiceInterface = (*fakeCommunityService)(nil)
-
 
 func TestCOMMUNITY_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

@@ -29,14 +29,14 @@ type IDispatcher interface {
 
 // Candidate is an assignee under evaluation.
 type Candidate struct {
-	ID          string     `json:"id"`
-	Name        string     `json:"name"`
-	Skills      []string   `json:"skills"`
-	CurrentLoad int        `json:"current_load"`
-	MaxLoad     int        `json:"max_load"`
-	Weight      float64    `json:"weight"`
-	IsActive    bool       `json:"is_active"`
-	IsAvailable bool       `json:"is_available"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Skills      []string `json:"skills"`
+	CurrentLoad int      `json:"current_load"`
+	MaxLoad     int      `json:"max_load"`
+	Weight      float64  `json:"weight"`
+	IsActive    bool     `json:"is_active"`
+	IsAvailable bool     `json:"is_available"`
 	// Time window
 	AvailableFrom time.Time `json:"available_from"`
 	AvailableTo   time.Time `json:"available_to"`
@@ -65,9 +65,9 @@ type WorkItem struct {
 
 // MatchResult carries the dispatcher's decision.
 type MatchResult struct {
-	Candidate    *Candidate `json:"candidate"`
-	Score        float64    `json:"score"`
-	Reason       string     `json:"reason"`
+	Candidate    *Candidate    `json:"candidate"`
+	Score        float64       `json:"score"`
+	Reason       string        `json:"reason"`
 	Alternatives []Alternative `json:"alternatives"`
 }
 
@@ -92,8 +92,8 @@ type Registry interface {
 
 // registry is the internal implementation.
 type registry struct {
-	mu       sync.RWMutex
-	types    map[string]IDispatcher
+	mu        sync.RWMutex
+	types     map[string]IDispatcher
 	singleton map[string]bool // types that share state (round_robin)
 }
 
@@ -189,12 +189,12 @@ func filterEligible(ctx context.Context, candidates []*Candidate, item *WorkItem
 // --- Round Robin ---
 
 type roundRobinDispatcher struct {
-	name    string
-	mu      sync.Mutex
+	name     string
+	mu       sync.Mutex
 	counters map[string]int
 }
 
-func (d *roundRobinDispatcher) Type() string { return d.name }
+func (d *roundRobinDispatcher) Type() string                       { return d.name }
 func (d *roundRobinDispatcher) Validate(ctx context.Context) error { return nil }
 
 func (d *roundRobinDispatcher) Match(ctx context.Context, candidates []*Candidate, item *WorkItem) (*MatchResult, error) {
@@ -231,7 +231,7 @@ type weightedDispatcher struct {
 	name string
 }
 
-func (d *weightedDispatcher) Type() string { return d.name }
+func (d *weightedDispatcher) Type() string                       { return d.name }
 func (d *weightedDispatcher) Validate(ctx context.Context) error { return nil }
 
 func (d *weightedDispatcher) Match(ctx context.Context, candidates []*Candidate, item *WorkItem) (*MatchResult, error) {
@@ -271,7 +271,7 @@ type skillBasedDispatcher struct {
 	name string
 }
 
-func (d *skillBasedDispatcher) Type() string { return d.name }
+func (d *skillBasedDispatcher) Type() string                       { return d.name }
 func (d *skillBasedDispatcher) Validate(ctx context.Context) error { return nil }
 
 func (d *skillBasedDispatcher) Match(ctx context.Context, candidates []*Candidate, item *WorkItem) (*MatchResult, error) {
@@ -329,7 +329,7 @@ type loadBalancedDispatcher struct {
 	name string
 }
 
-func (d *loadBalancedDispatcher) Type() string { return d.name }
+func (d *loadBalancedDispatcher) Type() string                       { return d.name }
 func (d *loadBalancedDispatcher) Validate(ctx context.Context) error { return nil }
 
 func (d *loadBalancedDispatcher) Match(ctx context.Context, candidates []*Candidate, item *WorkItem) (*MatchResult, error) {
@@ -368,7 +368,7 @@ type timeBasedDispatcher struct {
 	name string
 }
 
-func (d *timeBasedDispatcher) Type() string { return d.name }
+func (d *timeBasedDispatcher) Type() string                       { return d.name }
 func (d *timeBasedDispatcher) Validate(ctx context.Context) error { return nil }
 
 func (d *timeBasedDispatcher) Match(ctx context.Context, candidates []*Candidate, item *WorkItem) (*MatchResult, error) {

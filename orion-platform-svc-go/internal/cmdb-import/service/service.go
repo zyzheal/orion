@@ -32,15 +32,15 @@ import (
 )
 
 var (
-	ErrJobNotFound     = errors.New("import job not found")
-	ErrInvalidStatus   = errors.New("invalid job status")
-	ErrInvalidStatusTxn = errors.New("invalid status transition")
+	ErrJobNotFound       = errors.New("import job not found")
+	ErrInvalidStatus     = errors.New("invalid job status")
+	ErrInvalidStatusTxn  = errors.New("invalid status transition")
 	ErrInvalidSourceType = errors.New("invalid source type")
 	ErrInvalidTargetType = errors.New("invalid target type")
-	ErrInvalidMode     = errors.New("invalid import mode")
-	ErrNoHandler       = errors.New("no handler for source type")
-	ErrParseFailed     = errors.New("failed to parse source")
-	ErrValidateFailed  = errors.New("validation failed")
+	ErrInvalidMode       = errors.New("invalid import mode")
+	ErrNoHandler         = errors.New("no handler for source type")
+	ErrParseFailed       = errors.New("failed to parse source")
+	ErrValidateFailed    = errors.New("validation failed")
 )
 
 // ===========================================================================
@@ -81,7 +81,7 @@ func (h *CSVHandler) Parse(sourcePath string, config map[string]string) ([]map[s
 	// Determine delimiter
 	delimiter := ','
 	if d, ok := config["delimiter"]; ok && d != "" {
-			delimiter = rune([]rune(d)[0])
+		delimiter = rune([]rune(d)[0])
 		reader.Comma = delimiter
 	}
 

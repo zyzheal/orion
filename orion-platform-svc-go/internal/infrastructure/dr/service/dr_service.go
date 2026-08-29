@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	ErrDRPlanNotFound      = errors.New("DR plan not found")
+	ErrDRPlanNotFound       = errors.New("DR plan not found")
 	ErrFailoverTestNotFound = errors.New("failover test not found")
 	ErrBackupConfigNotFound = errors.New("backup config not found")
 	ErrPolicyNotFound       = errors.New("DR policy not found")

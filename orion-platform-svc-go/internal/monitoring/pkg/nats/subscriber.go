@@ -28,10 +28,10 @@ type EventBusEvent struct {
 
 // NATSSubscriber subscribes to MetricEvent via NATS JetStream.
 type NATSSubscriber struct {
-	conn        *nats.Conn
-	js          jetstream.JetStream
-	stream      string
-	log         *zap.Logger
+	conn   *nats.Conn
+	js     jetstream.JetStream
+	stream string
+	log    *zap.Logger
 }
 
 // NewNATSSubscriber creates a new NATS subscriber.
@@ -61,10 +61,10 @@ func (s *NATSSubscriber) Start(ctx context.Context) error {
 	subject := fmt.Sprintf("%s.MetricEvent.>", s.stream)
 
 	_, err := s.js.CreateOrUpdateConsumer(ctx, s.stream, jetstream.ConsumerConfig{
-		Name:           "monitor-svc-consumer",
-		FilterSubjects: []string{subject},
-		AckPolicy:      jetstream.AckExplicitPolicy,
-		MaxDeliver:     3,
+		Name:              "monitor-svc-consumer",
+		FilterSubjects:    []string{subject},
+		AckPolicy:         jetstream.AckExplicitPolicy,
+		MaxDeliver:        3,
 		InactiveThreshold: 30 * time.Minute,
 	})
 	if err != nil {

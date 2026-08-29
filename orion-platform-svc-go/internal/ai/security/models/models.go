@@ -137,30 +137,30 @@ type AuditLog struct {
 
 // AuditLogFilter holds query filters for audit log retrieval.
 type AuditLogFilter struct {
-	EventType  string `json:"eventType" query:"event_type"`
-	Actor      string `json:"actor" query:"actor"`
-	From       string `json:"from" query:"from"`     // RFC3339 timestamp
-	To         string `json:"to" query:"to"`         // RFC3339 timestamp
+	EventType string `json:"eventType" query:"event_type"`
+	Actor     string `json:"actor" query:"actor"`
+	From      string `json:"from" query:"from"` // RFC3339 timestamp
+	To        string `json:"to" query:"to"`     // RFC3339 timestamp
 }
 
 // BlockRecord represents an access block entry.
 type BlockRecord struct {
-	ID        string    `json:"id" db:"id"`
-	TenantID  string    `json:"tenantId" db:"tenant_id"`
-	Target    string    `json:"target" db:"target"`    // user / IP / agent identifier
-	Reason    string    `json:"reason" db:"reason"`
-	BlockedBy string    `json:"blockedBy" db:"blocked_by"`
-	Active    bool      `json:"active" db:"active"`
+	ID        string     `json:"id" db:"id"`
+	TenantID  string     `json:"tenantId" db:"tenant_id"`
+	Target    string     `json:"target" db:"target"` // user / IP / agent identifier
+	Reason    string     `json:"reason" db:"reason"`
+	BlockedBy string     `json:"blockedBy" db:"blocked_by"`
+	Active    bool       `json:"active" db:"active"`
 	ExpiresAt *time.Time `json:"expiresAt" db:"expires_at"`
-	CreatedAt time.Time `json:"createdAt" db:"created_at"`
+	CreatedAt time.Time  `json:"createdAt" db:"created_at"`
 }
 
 // BlockRequest is the input for creating a block.
 type BlockRequest struct {
 	Target    string     `json:"target" binding:"required"` // user / IP / agent
 	Reason    string     `json:"reason" binding:"required"`
-	BlockedBy string     `json:"blockedBy"`                // empty = system
-	ExpiresAt *time.Time `json:"expiresAt"`                // nil = no expiry
+	BlockedBy string     `json:"blockedBy"` // empty = system
+	ExpiresAt *time.Time `json:"expiresAt"` // nil = no expiry
 }
 
 // RiskScoreResult is the output of the risk scoring engine.

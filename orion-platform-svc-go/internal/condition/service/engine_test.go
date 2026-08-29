@@ -287,10 +287,10 @@ func TestEvaluateGroup_And(t *testing.T) {
 	vars := map[string]interface{}{"a": true, "b": true}
 
 	group := &models.ConditionGroup{
-		ID:      "g1",
-		Name:    "and-group",
-		Type:    "and",
-		Enabled: true,
+		ID:       "g1",
+		Name:     "and-group",
+		Type:     "and",
+		Enabled:  true,
 		Children: `[{"field":"a","operator":"=","value":"true","enabled":true},{"field":"b","operator":"=","value":"true","enabled":true}]`,
 	}
 
@@ -308,10 +308,10 @@ func TestEvaluateGroup_AndOneFalse(t *testing.T) {
 	vars := map[string]interface{}{"a": true, "b": false}
 
 	group := &models.ConditionGroup{
-		ID:      "g1",
-		Name:    "and-group",
-		Type:    "and",
-		Enabled: true,
+		ID:       "g1",
+		Name:     "and-group",
+		Type:     "and",
+		Enabled:  true,
 		Children: `[{"field":"a","operator":"=","value":"true","enabled":true},{"field":"b","operator":"=","value":"true","enabled":true}]`,
 	}
 
@@ -329,10 +329,10 @@ func TestEvaluateGroup_Or(t *testing.T) {
 	vars := map[string]interface{}{"a": false, "b": true}
 
 	group := &models.ConditionGroup{
-		ID:      "g1",
-		Name:    "or-group",
-		Type:    "or",
-		Enabled: true,
+		ID:       "g1",
+		Name:     "or-group",
+		Type:     "or",
+		Enabled:  true,
 		Children: `[{"field":"a","operator":"=","value":"true","enabled":true},{"field":"b","operator":"=","value":"true","enabled":true}]`,
 	}
 
@@ -350,14 +350,14 @@ func TestEvaluateGroup_OrAllFalse(t *testing.T) {
 	vars := map[string]interface{}{"a": false, "b": false}
 
 	group := &models.ConditionGroup{
-		ID:      "g1",
-		Name:    "or-group",
-		Type:    "or",
-		Enabled: true,
+		ID:       "g1",
+		Name:     "or-group",
+		Type:     "or",
+		Enabled:  true,
 		Children: `[{"field":"a","operator":"=","value":"true","enabled":true},{"field":"b","operator":"=","value":"true","enabled":true}]`,
 	}
 
-result, err := e.Evaluate(context.Background(), group, vars)
+	result, err := e.Evaluate(context.Background(), group, vars)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -371,10 +371,10 @@ func TestEvaluateGroup_Not(t *testing.T) {
 	vars := map[string]interface{}{"a": true}
 
 	group := &models.ConditionGroup{
-		ID:      "g1",
-		Name:    "not-group",
-		Type:    "not",
-		Enabled: true,
+		ID:       "g1",
+		Name:     "not-group",
+		Type:     "not",
+		Enabled:  true,
 		Children: `[{"field":"a","operator":"=","value":"false","enabled":true}]`,
 	}
 
@@ -392,10 +392,10 @@ func TestEvaluateGroup_EnabledFalse(t *testing.T) {
 	vars := map[string]interface{}{"a": true}
 
 	group := &models.ConditionGroup{
-		ID:      "g1",
-		Name:    "disabled-group",
-		Type:    "and",
-		Enabled: false,
+		ID:       "g1",
+		Name:     "disabled-group",
+		Type:     "and",
+		Enabled:  false,
 		Children: `[{"field":"a","operator":"=","value":"true","enabled":true}]`,
 	}
 
@@ -413,10 +413,10 @@ func TestEvaluateGroup_InvalidType(t *testing.T) {
 	vars := map[string]interface{}{}
 
 	group := &models.ConditionGroup{
-		ID:      "g1",
-		Name:    "bad-group",
-		Type:    "xor",
-		Enabled: true,
+		ID:       "g1",
+		Name:     "bad-group",
+		Type:     "xor",
+		Enabled:  true,
 		Children: `[]`,
 	}
 
@@ -466,8 +466,8 @@ func TestEvaluateExpression_InvalidOperator(t *testing.T) {
 
 func TestValidateGroupType(t *testing.T) {
 	tests := []struct {
-		name    string
-		valid   bool
+		name  string
+		valid bool
 	}{
 		{"and", true},
 		{"or", true},

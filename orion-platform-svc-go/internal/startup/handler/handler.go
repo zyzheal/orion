@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/startup/models"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 )
 
 // Service defines the interface used by Handler.
@@ -49,6 +50,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // CreateModule creates a new startup module configuration.
 func (h *Handler) CreateModule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartupCreateModule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req models.CreateModuleRequest
@@ -57,7 +60,7 @@ func (h *Handler) CreateModule(c *gin.Context) {
 		return
 	}
 
-	mod, err := h.svc.CreateModuleRow(c.Request.Context(), tenantID, &req)
+	mod, err := h.svc.CreateModuleRow(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -67,16 +70,20 @@ func (h *Handler) CreateModule(c *gin.Context) {
 
 // ListModules retrieves startup modules with pagination.
 func (h *Handler) ListModules(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartupListModules")
+	defer span.End()
 	_, pageSize := parsePagination(c)
 	progress := h.svc.GetStartupProgress()
 	middleware.RespondSuccess(c, gin.H{
-		"data":     progress,
+		"data":      progress,
 		"page_size": pageSize,
 	})
 }
 
 // GetModule retrieves a single startup module by id.
 func (h *Handler) GetModule(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartupGetModule")
+	defer span.End()
 	middleware.RespondSuccess(c, gin.H{
 		"id":     c.Param("id"),
 		"status": h.svc.GetModuleStatus(c.Param("id")),
@@ -85,6 +92,8 @@ func (h *Handler) GetModule(c *gin.Context) {
 
 // UpdateModule updates an existing startup module.
 func (h *Handler) UpdateModule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartupUpdateModule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req models.UpdateModuleRequest
@@ -93,7 +102,7 @@ func (h *Handler) UpdateModule(c *gin.Context) {
 		return
 	}
 
-	mod, err := h.svc.UpdateModuleRow(c.Request.Context(), tenantID, c.Param("id"), &req)
+	mod, err := h.svc.UpdateModuleRow(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -103,6 +112,8 @@ func (h *Handler) UpdateModule(c *gin.Context) {
 
 // DeleteModule removes a startup module by id.
 func (h *Handler) DeleteModule(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartupDeleteModule")
+	defer span.End()
 	_ = c.GetString("tenant_id")
 	middleware.RespondSuccess(c, gin.H{
 		"message": "deleted",
@@ -116,6 +127,8 @@ func (h *Handler) DeleteModule(c *gin.Context) {
 
 // StartAll initializes all registered modules.
 func (h *Handler) StartAll(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartupStartAll")
+	defer span.End()
 	middleware.RespondSuccess(c, gin.H{
 		"message": "all modules started",
 	})
@@ -123,6 +136,8 @@ func (h *Handler) StartAll(c *gin.Context) {
 
 // StopAll shuts down all registered modules.
 func (h *Handler) StopAll(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartupStopAll")
+	defer span.End()
 	middleware.RespondSuccess(c, gin.H{
 		"message": "all modules stopped",
 	})
@@ -130,6 +145,8 @@ func (h *Handler) StopAll(c *gin.Context) {
 
 // InitModule initializes a single module by id.
 func (h *Handler) InitModule(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartupInitModule")
+	defer span.End()
 	middleware.RespondSuccess(c, gin.H{
 		"message": "module initialized",
 		"id":      c.Param("id"),
@@ -142,12 +159,16 @@ func (h *Handler) InitModule(c *gin.Context) {
 
 // StartupProgress returns the overall startup progress.
 func (h *Handler) StartupProgress(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartupProgress")
+	defer span.End()
 	progress := h.svc.GetStartupProgress()
 	middleware.RespondSuccess(c, progress)
 }
 
 // HealthCheckModule runs health check on a single module.
 func (h *Handler) HealthCheckModule(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartupHealthCheckModule")
+	defer span.End()
 	middleware.RespondSuccess(c, gin.H{
 		"healthy": true,
 		"module":  c.Param("id"),
@@ -160,6 +181,8 @@ func (h *Handler) HealthCheckModule(c *gin.Context) {
 
 // AddDependency adds a dependency edge to a module.
 func (h *Handler) AddDependency(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartupAddDependency")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req models.CreateDependencyRequest

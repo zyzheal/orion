@@ -2,12 +2,13 @@ package handler
 
 import (
 	"fmt"
+
+	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/distributed-config/models"
 	"orion/platform-svc-go/internal/distributed-config/service"
 	"orion/platform-svc-go/internal/middleware"
-
-	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -67,8 +68,10 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 // --- Namespace ---
 
 func (h *Handler) ListNamespaces(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigListNamespaces")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	namespaces, err := h.svc.ListNamespaces(c.Request.Context(), tenantID)
+	namespaces, err := h.svc.ListNamespaces(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -77,12 +80,14 @@ func (h *Handler) ListNamespaces(c *gin.Context) {
 }
 
 func (h *Handler) CreateNamespace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigCreateNamespace")
+	defer span.End()
 	var req models.CreateNamespaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	ns, err := h.svc.CreateNamespace(c.Request.Context(), &req, h.getTenantID(c))
+	ns, err := h.svc.CreateNamespace(ctx, &req, h.getTenantID(c))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -91,7 +96,9 @@ func (h *Handler) CreateNamespace(c *gin.Context) {
 }
 
 func (h *Handler) GetNamespace(c *gin.Context) {
-	ns, err := h.svc.GetNamespace(c.Request.Context(), c.Param("id"), h.getTenantID(c))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigGetNamespace")
+	defer span.End()
+	ns, err := h.svc.GetNamespace(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -102,9 +109,11 @@ func (h *Handler) GetNamespace(c *gin.Context) {
 // --- Group ---
 
 func (h *Handler) ListGroups(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigListGroups")
+	defer span.End()
 	f := models.GetItemsFilter{}
 	c.ShouldBindQuery(&f)
-	groups, err := h.svc.ListGroups(c.Request.Context(), h.getTenantID(c), f.NamespaceID)
+	groups, err := h.svc.ListGroups(ctx, h.getTenantID(c), f.NamespaceID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -113,12 +122,14 @@ func (h *Handler) ListGroups(c *gin.Context) {
 }
 
 func (h *Handler) CreateGroup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigCreateGroup")
+	defer span.End()
 	var req models.CreateGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	g, err := h.svc.CreateGroup(c.Request.Context(), &req, h.getTenantID(c))
+	g, err := h.svc.CreateGroup(ctx, &req, h.getTenantID(c))
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -127,7 +138,9 @@ func (h *Handler) CreateGroup(c *gin.Context) {
 }
 
 func (h *Handler) GetGroup(c *gin.Context) {
-	g, err := h.svc.GetGroup(c.Request.Context(), c.Param("id"), h.getTenantID(c))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigGetGroup")
+	defer span.End()
+	g, err := h.svc.GetGroup(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -138,9 +151,11 @@ func (h *Handler) GetGroup(c *gin.Context) {
 // --- Item ---
 
 func (h *Handler) ListItems(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigListItems")
+	defer span.End()
 	f := models.GetItemsFilter{}
 	c.ShouldBindQuery(&f)
-	items, err := h.svc.ListItems(c.Request.Context(), h.getTenantID(c), &f)
+	items, err := h.svc.ListItems(ctx, h.getTenantID(c), &f)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -149,12 +164,14 @@ func (h *Handler) ListItems(c *gin.Context) {
 }
 
 func (h *Handler) CreateItem(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigCreateItem")
+	defer span.End()
 	var req models.CreateItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	item, err := h.svc.CreateItem(c.Request.Context(), &req, h.getTenantID(c))
+	item, err := h.svc.CreateItem(ctx, &req, h.getTenantID(c))
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -163,7 +180,9 @@ func (h *Handler) CreateItem(c *gin.Context) {
 }
 
 func (h *Handler) GetItem(c *gin.Context) {
-	item, err := h.svc.GetItem(c.Request.Context(), c.Param("id"), h.getTenantID(c))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigGetItem")
+	defer span.End()
+	item, err := h.svc.GetItem(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -172,6 +191,8 @@ func (h *Handler) GetItem(c *gin.Context) {
 }
 
 func (h *Handler) UpdateItem(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigUpdateItem")
+	defer span.End()
 	var req models.UpdateItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -181,7 +202,7 @@ func (h *Handler) UpdateItem(c *gin.Context) {
 	if operator == "" {
 		operator = "system"
 	}
-	item, err := h.svc.UpdateItem(c.Request.Context(), c.Param("id"), h.getTenantID(c), operator, &req)
+	item, err := h.svc.UpdateItem(ctx, c.Param("id"), h.getTenantID(c), operator, &req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -190,7 +211,9 @@ func (h *Handler) UpdateItem(c *gin.Context) {
 }
 
 func (h *Handler) DeleteItem(c *gin.Context) {
-	deleted, err := h.svc.DeleteItem(c.Request.Context(), c.Param("id"), h.getTenantID(c))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigDeleteItem")
+	defer span.End()
+	deleted, err := h.svc.DeleteItem(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -203,7 +226,9 @@ func (h *Handler) DeleteItem(c *gin.Context) {
 }
 
 func (h *Handler) GetItemHistory(c *gin.Context) {
-	history, err := h.svc.GetItemHistory(c.Request.Context(), c.Param("id"), h.getTenantID(c))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigGetItemHistory")
+	defer span.End()
+	history, err := h.svc.GetItemHistory(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -214,6 +239,8 @@ func (h *Handler) GetItemHistory(c *gin.Context) {
 // --- Snapshot ---
 
 func (h *Handler) PublishSnapshot(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigPublishSnapshot")
+	defer span.End()
 	var req models.PublishSnapshotRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -224,7 +251,7 @@ func (h *Handler) PublishSnapshot(c *gin.Context) {
 		middleware.RespondBadRequest(c, "groupId is required")
 		return
 	}
-	snap, err := h.svc.PublishSnapshot(c.Request.Context(), groupID, req.Environment, req.Operator, h.getTenantID(c))
+	snap, err := h.svc.PublishSnapshot(ctx, groupID, req.Environment, req.Operator, h.getTenantID(c))
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -233,9 +260,11 @@ func (h *Handler) PublishSnapshot(c *gin.Context) {
 }
 
 func (h *Handler) ListSnapshots(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigListSnapshots")
+	defer span.End()
 	groupID := c.Query("groupId")
 	env := c.Query("environment")
-	snaps, err := h.svc.ListSnapshots(c.Request.Context(), h.getTenantID(c), groupID, env)
+	snaps, err := h.svc.ListSnapshots(ctx, h.getTenantID(c), groupID, env)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -244,7 +273,9 @@ func (h *Handler) ListSnapshots(c *gin.Context) {
 }
 
 func (h *Handler) GetSnapshotData(c *gin.Context) {
-	data, err := h.svc.GetSnapshotData(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigGetSnapshotData")
+	defer span.End()
+	data, err := h.svc.GetSnapshotData(ctx, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -255,12 +286,14 @@ func (h *Handler) GetSnapshotData(c *gin.Context) {
 // --- Release ---
 
 func (h *Handler) PublishRelease(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigPublishRelease")
+	defer span.End()
 	var req models.PublishReleaseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	release, err := h.svc.PublishRelease(c.Request.Context(), &req, h.getTenantID(c))
+	release, err := h.svc.PublishRelease(ctx, &req, h.getTenantID(c))
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -269,12 +302,14 @@ func (h *Handler) PublishRelease(c *gin.Context) {
 }
 
 func (h *Handler) RollbackRelease(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigRollbackRelease")
+	defer span.End()
 	var req models.RollbackReleaseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	release, err := h.svc.RollbackRelease(c.Request.Context(), &req, h.getTenantID(c))
+	release, err := h.svc.RollbackRelease(ctx, &req, h.getTenantID(c))
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -283,7 +318,9 @@ func (h *Handler) RollbackRelease(c *gin.Context) {
 }
 
 func (h *Handler) GetRelease(c *gin.Context) {
-	release, err := h.svc.GetRelease(c.Request.Context(), c.Param("id"), h.getTenantID(c))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigGetRelease")
+	defer span.End()
+	release, err := h.svc.GetRelease(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -292,9 +329,11 @@ func (h *Handler) GetRelease(c *gin.Context) {
 }
 
 func (h *Handler) ListReleases(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigListReleases")
+	defer span.End()
 	f := models.GetReleasesFilter{}
 	c.ShouldBindQuery(&f)
-	releases, err := h.svc.ListReleases(c.Request.Context(), h.getTenantID(c), &f)
+	releases, err := h.svc.ListReleases(ctx, h.getTenantID(c), &f)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -303,7 +342,9 @@ func (h *Handler) ListReleases(c *gin.Context) {
 }
 
 func (h *Handler) GetReleaseHistory(c *gin.Context) {
-	history, err := h.svc.GetReleaseHistory(c.Request.Context(), c.Param("id"), h.getTenantID(c))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigGetReleaseHistory")
+	defer span.End()
+	history, err := h.svc.GetReleaseHistory(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -314,11 +355,13 @@ func (h *Handler) GetReleaseHistory(c *gin.Context) {
 // --- Audit ---
 
 func (h *Handler) ListAudit(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigListAudit")
+	defer span.End()
 	limit := 50
 	if v := c.Query("limit"); v != "" {
 		fmt.Sscanf(v, "%d", &limit)
 	}
-	audits, err := h.svc.ListAudit(c.Request.Context(), h.getTenantID(c), limit)
+	audits, err := h.svc.ListAudit(ctx, h.getTenantID(c), limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

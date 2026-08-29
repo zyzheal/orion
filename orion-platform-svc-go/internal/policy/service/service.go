@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -13,9 +14,9 @@ import (
 	"strings"
 	"time"
 
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/policy/engine"
 	"orion/platform-svc-go/internal/policy/models"
-	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -556,7 +557,6 @@ func IsNotFound(err error) bool {
 // --- Errors ---
 
 var (
-
 	ErrPolicyNotFound = fmt.Errorf("policy not found: %w", sentinel.NotFound)
 	ErrInvalidState   = errors.New("invalid state")
 	ErrValidation     = errors.New("validation error")

@@ -43,25 +43,25 @@ type UpdateProductLineRequest struct {
 
 // ReleaseTrain is a scheduled release train for a product line.
 type ReleaseTrain struct {
-	ID               string      `json:"id" db:"id"`
-	ProductLineID    string      `json:"product_line_id" db:"product_line_id"`
-	Name             string      `json:"name" db:"name"`
-	Schedule         string      `json:"schedule" db:"schedule"`
-	TargetBranch     string      `json:"target_branch" db:"target_branch"`
-	SourceBranch     string      `json:"source_branch" db:"source_branch"`
-	AutoPromote      bool        `json:"auto_promote" db:"auto_promote"`
-	ApprovalRequired bool        `json:"approval_required" db:"approval_required"`
-	Approvers        string      `json:"approvers" db:"approvers"`
-	State            string      `json:"state" db:"state"`
-	CreatedAt        time.Time   `json:"created_at" db:"created_at"`
-	UpdatedAt        time.Time   `json:"updated_at" db:"updated_at"`
+	ID               string    `json:"id" db:"id"`
+	ProductLineID    string    `json:"product_line_id" db:"product_line_id"`
+	Name             string    `json:"name" db:"name"`
+	Schedule         string    `json:"schedule" db:"schedule"`
+	TargetBranch     string    `json:"target_branch" db:"target_branch"`
+	SourceBranch     string    `json:"source_branch" db:"source_branch"`
+	AutoPromote      bool      `json:"auto_promote" db:"auto_promote"`
+	ApprovalRequired bool      `json:"approval_required" db:"approval_required"`
+	Approvers        string    `json:"approvers" db:"approvers"`
+	State            string    `json:"state" db:"state"`
+	CreatedAt        time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // ReleaseTrainStatus is the runtime status of a release train.
 type ReleaseTrainStatus struct {
-	State     string `json:"state"`
-	LastRun   string `json:"last_run,omitempty"`
-	NextRun   string `json:"next_run,omitempty"`
+	State       string `json:"state"`
+	LastRun     string `json:"last_run,omitempty"`
+	NextRun     string `json:"next_run,omitempty"`
 	LastRelease string `json:"last_release,omitempty"`
 }
 
@@ -128,14 +128,14 @@ type HotfixChannelStatus struct {
 
 // CreateHotfixChannelRequest is the request body for creating a hotfix channel.
 type CreateHotfixChannelRequest struct {
-	Name             string   `json:"name" binding:"required"`
-	Enabled          *bool    `json:"enabled"`
-	BranchPattern    string   `json:"branch_pattern"`
-	ApprovalRequired *bool    `json:"approval_required"`
-	ApprovalTimeout  *int     `json:"approval_timeout"`
-	AutoMerge        *bool    `json:"auto_merge"`
-	NotifyOnCall     *bool    `json:"notify_on_call"`
-	MaxDuration      *int     `json:"max_duration"`
+	Name             string `json:"name" binding:"required"`
+	Enabled          *bool  `json:"enabled"`
+	BranchPattern    string `json:"branch_pattern"`
+	ApprovalRequired *bool  `json:"approval_required"`
+	ApprovalTimeout  *int   `json:"approval_timeout"`
+	AutoMerge        *bool  `json:"auto_merge"`
+	NotifyOnCall     *bool  `json:"notify_on_call"`
+	MaxDuration      *int   `json:"max_duration"`
 }
 
 // (EnvironmentMapping and CreateEnvironmentMappingRequest are defined above, see EnvironmentMapping section)

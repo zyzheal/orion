@@ -90,8 +90,8 @@ type genericParameterPlugin struct {
 	description string
 }
 
-func (g *genericParameterPlugin) Name() string         { return g.name }
-func (g *genericParameterPlugin) Description() string  { return g.description }
+func (g *genericParameterPlugin) Name() string        { return g.name }
+func (g *genericParameterPlugin) Description() string { return g.description }
 
 // Validate checks whether the value has the expected Go type.
 func (g *genericParameterPlugin) Validate(value any) error {
@@ -149,17 +149,17 @@ func DefaultParameterPlugins() []ParameterPlugin {
 // =============================================================================
 
 type StringPlugin struct {
-	minLen    int
-	maxLen    int
-	required  bool
+	minLen   int
+	maxLen   int
+	required bool
 }
 
 func newStringPlugin() *StringPlugin {
 	return &StringPlugin{}
 }
 
-func (p *StringPlugin) Name() string              { return "string" }
-func (p *StringPlugin) Description() string        { return "Arbitrary string text" }
+func (p *StringPlugin) Name() string        { return "string" }
+func (p *StringPlugin) Description() string { return "Arbitrary string text" }
 func (p *StringPlugin) Validate(value any) error {
 	s, ok := value.(string)
 	if !ok {
@@ -192,8 +192,8 @@ func newIntegerPlugin() *IntegerPlugin {
 	return &IntegerPlugin{}
 }
 
-func (p *IntegerPlugin) Name() string              { return "integer" }
-func (p *IntegerPlugin) Description() string       { return "Whole number (signed 64-bit)" }
+func (p *IntegerPlugin) Name() string        { return "integer" }
+func (p *IntegerPlugin) Description() string { return "Whole number (signed 64-bit)" }
 func (p *IntegerPlugin) Validate(value any) error {
 	switch value.(type) {
 	case int, int64:
@@ -224,8 +224,8 @@ func newFloatPlugin() *FloatPlugin {
 	return &FloatPlugin{}
 }
 
-func (p *FloatPlugin) Name() string              { return "float" }
-func (p *FloatPlugin) Description() string       { return "Floating-point number (double)" }
+func (p *FloatPlugin) Name() string        { return "float" }
+func (p *FloatPlugin) Description() string { return "Floating-point number (double)" }
 func (p *FloatPlugin) Validate(value any) error {
 	switch value.(type) {
 	case float64:
@@ -254,8 +254,8 @@ func newBooleanPlugin() *BooleanPlugin {
 	return &BooleanPlugin{}
 }
 
-func (p *BooleanPlugin) Name() string              { return "boolean" }
-func (p *BooleanPlugin) Description() string       { return "True or false value" }
+func (p *BooleanPlugin) Name() string        { return "boolean" }
+func (p *BooleanPlugin) Description() string { return "True or false value" }
 func (p *BooleanPlugin) Validate(value any) error {
 	switch value.(type) {
 	case bool:
@@ -287,8 +287,8 @@ func newEnumPlugin() *EnumPlugin {
 	}
 }
 
-func (p *EnumPlugin) Name() string              { return "enum" }
-func (p *EnumPlugin) Description() string       { return "Fixed set of allowed string values" }
+func (p *EnumPlugin) Name() string        { return "enum" }
+func (p *EnumPlugin) Description() string { return "Fixed set of allowed string values" }
 func (p *EnumPlugin) Validate(value any) error {
 	s, ok := value.(string)
 	if !ok {
@@ -323,8 +323,8 @@ func newFlagPlugin() *FlagPlugin {
 	return &FlagPlugin{}
 }
 
-func (p *FlagPlugin) Name() string              { return "flag" }
-func (p *FlagPlugin) Description() string       { return "Boolean flag — present or absent" }
+func (p *FlagPlugin) Name() string        { return "flag" }
+func (p *FlagPlugin) Description() string { return "Boolean flag — present or absent" }
 func (p *FlagPlugin) Validate(value any) error {
 	switch value.(type) {
 	case bool:
@@ -361,8 +361,8 @@ func newArrayPlugin() *ArrayPlugin {
 	}
 }
 
-func (p *ArrayPlugin) Name() string              { return "array" }
-func (p *ArrayPlugin) Description() string       { return "Ordered list of items" }
+func (p *ArrayPlugin) Name() string        { return "array" }
+func (p *ArrayPlugin) Description() string { return "Ordered list of items" }
 func (p *ArrayPlugin) Validate(value any) error {
 	switch value.(type) {
 	case []any:
@@ -393,8 +393,8 @@ func newMapPlugin() *MapPlugin {
 	return &MapPlugin{}
 }
 
-func (p *MapPlugin) Name() string              { return "map" }
-func (p *MapPlugin) Description() string       { return "Key-value map (string keys)" }
+func (p *MapPlugin) Name() string        { return "map" }
+func (p *MapPlugin) Description() string { return "Key-value map (string keys)" }
 func (p *MapPlugin) Validate(value any) error {
 	switch value.(type) {
 	case map[string]any:
@@ -423,8 +423,8 @@ func newObjectPlugin() *ObjectPlugin {
 	return &ObjectPlugin{}
 }
 
-func (p *ObjectPlugin) Name() string              { return "object" }
-func (p *ObjectPlugin) Description() string       { return "JSON object / nested structure" }
+func (p *ObjectPlugin) Name() string        { return "object" }
+func (p *ObjectPlugin) Description() string { return "JSON object / nested structure" }
 func (p *ObjectPlugin) Validate(value any) error {
 	switch value.(type) {
 	case map[string]any:
@@ -453,8 +453,8 @@ func newJSONPlugin() *JSONPlugin {
 	return &JSONPlugin{}
 }
 
-func (p *JSONPlugin) Name() string              { return "json" }
-func (p *JSONPlugin) Description() string       { return "Arbitrary JSON string" }
+func (p *JSONPlugin) Name() string        { return "json" }
+func (p *JSONPlugin) Description() string { return "Arbitrary JSON string" }
 func (p *JSONPlugin) Validate(value any) error {
 	switch v := value.(type) {
 	case json.RawMessage:
@@ -485,8 +485,8 @@ func newYAMLPlugin() *YAMLPlugin {
 	return &YAMLPlugin{}
 }
 
-func (p *YAMLPlugin) Name() string              { return "yaml" }
-func (p *YAMLPlugin) Description() string       { return "Raw YAML text" }
+func (p *YAMLPlugin) Name() string        { return "yaml" }
+func (p *YAMLPlugin) Description() string { return "Raw YAML text" }
 func (p *YAMLPlugin) Validate(value any) error {
 	s, ok := value.(string)
 	if !ok {
@@ -516,8 +516,8 @@ func newURLPlugin() *URLPlugin {
 	return &URLPlugin{}
 }
 
-func (p *URLPlugin) Name() string              { return "url" }
-func (p *URLPlugin) Description() string       { return "Uniform Resource Locator (URI)" }
+func (p *URLPlugin) Name() string        { return "url" }
+func (p *URLPlugin) Description() string { return "Uniform Resource Locator (URI)" }
 func (p *URLPlugin) Validate(value any) error {
 	s, ok := value.(string)
 	if !ok {
@@ -547,8 +547,8 @@ func newIPPlugin() *IPPlugin {
 	return &IPPlugin{}
 }
 
-func (p *IPPlugin) Name() string              { return "ip" }
-func (p *IPPlugin) Description() string       { return "IPv4 or IPv6 address" }
+func (p *IPPlugin) Name() string        { return "ip" }
+func (p *IPPlugin) Description() string { return "IPv4 or IPv6 address" }
 func (p *IPPlugin) Validate(value any) error {
 	s, ok := value.(string)
 	if !ok {
@@ -581,8 +581,8 @@ func newPortPlugin() *PortPlugin {
 	return &PortPlugin{}
 }
 
-func (p *PortPlugin) Name() string              { return "port" }
-func (p *PortPlugin) Description() string       { return "TCP/UDP port number (1-65535)" }
+func (p *PortPlugin) Name() string        { return "port" }
+func (p *PortPlugin) Description() string { return "TCP/UDP port number (1-65535)" }
 func (p *PortPlugin) Validate(value any) error {
 	var n int64
 	switch v := value.(type) {
@@ -622,8 +622,8 @@ func newDurationPlugin() *DurationPlugin {
 	return &DurationPlugin{}
 }
 
-func (p *DurationPlugin) Name() string              { return "duration" }
-func (p *DurationPlugin) Description() string       { return "Go-style duration string (e.g. 5s, 1m30s)" }
+func (p *DurationPlugin) Name() string        { return "duration" }
+func (p *DurationPlugin) Description() string { return "Go-style duration string (e.g. 5s, 1m30s)" }
 func (p *DurationPlugin) Validate(value any) error {
 	switch v := value.(type) {
 	case time.Duration:
@@ -660,8 +660,8 @@ func newTimestampPlugin() *TimestampPlugin {
 	return &TimestampPlugin{}
 }
 
-func (p *TimestampPlugin) Name() string              { return "timestamp" }
-func (p *TimestampPlugin) Description() string       { return "ISO-8601 or Unix timestamp" }
+func (p *TimestampPlugin) Name() string        { return "timestamp" }
+func (p *TimestampPlugin) Description() string { return "ISO-8601 or Unix timestamp" }
 func (p *TimestampPlugin) Validate(value any) error {
 	switch v := value.(type) {
 	case time.Time:
@@ -701,8 +701,8 @@ func newPasswordPlugin() *PasswordPlugin {
 	return &PasswordPlugin{}
 }
 
-func (p *PasswordPlugin) Name() string              { return "password" }
-func (p *PasswordPlugin) Description() string       { return "Secret string (masked in logs)" }
+func (p *PasswordPlugin) Name() string        { return "password" }
+func (p *PasswordPlugin) Description() string { return "Secret string (masked in logs)" }
 func (p *PasswordPlugin) Validate(value any) error {
 	s, ok := value.(string)
 	if !ok {
@@ -732,8 +732,8 @@ func newTokenPlugin() *TokenPlugin {
 	return &TokenPlugin{}
 }
 
-func (p *TokenPlugin) Name() string              { return "token" }
-func (p *TokenPlugin) Description() string       { return "Bearer/API token (alphanumeric)" }
+func (p *TokenPlugin) Name() string        { return "token" }
+func (p *TokenPlugin) Description() string { return "Bearer/API token (alphanumeric)" }
 func (p *TokenPlugin) Validate(value any) error {
 	s, ok := value.(string)
 	if !ok {
@@ -763,8 +763,8 @@ func newKeyValPlugin() *KeyValPlugin {
 	return &KeyValPlugin{}
 }
 
-func (p *KeyValPlugin) Name() string              { return "keyval" }
-func (p *KeyValPlugin) Description() string       { return "List of key=value strings" }
+func (p *KeyValPlugin) Name() string        { return "keyval" }
+func (p *KeyValPlugin) Description() string { return "List of key=value strings" }
 func (p *KeyValPlugin) Validate(value any) error {
 	vs, ok := value.([]any)
 	if !ok {

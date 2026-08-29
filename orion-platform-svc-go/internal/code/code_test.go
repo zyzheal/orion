@@ -5,22 +5,30 @@ import (
 	"testing"
 	"time"
 
-	codecfg "orion/platform-svc-go/internal/code/config"
 	"orion/platform-svc-go/internal/code/code-repo/models"
 	"orion/platform-svc-go/internal/code/code-repo/service"
+	codecfg "orion/platform-svc-go/internal/code/config"
 )
 
 // fakeRepo implements CodeRepoRepository so the service can be exercised
 // without PostgreSQL.
 type fakeRepo struct{}
 
-func (fakeRepo) List(ctx context.Context, tenantID string) ([]models.CodeRepo, error) { return nil, nil }
-func (fakeRepo) Create(ctx context.Context, name, url, provider, token, tenantID string) (*models.CodeRepo, error) { return nil, nil }
-func (fakeRepo) Get(ctx context.Context, id string) (*models.CodeRepo, error) { return nil, nil }
+func (fakeRepo) List(ctx context.Context, tenantID string) ([]models.CodeRepo, error) {
+	return nil, nil
+}
+func (fakeRepo) Create(ctx context.Context, name, url, provider, token, tenantID string) (*models.CodeRepo, error) {
+	return nil, nil
+}
+func (fakeRepo) Get(ctx context.Context, id string) (*models.CodeRepo, error)            { return nil, nil }
 func (fakeRepo) Update(ctx context.Context, id, name, url, provider, token string) error { return nil }
-func (fakeRepo) Delete(ctx context.Context, id string) error { return nil }
-func (fakeRepo) ListBranches(ctx context.Context, repoID string) ([]models.Branch, error) { return nil, nil }
-func (fakeRepo) ListCommits(ctx context.Context, repoID string, limit int) ([]models.Commit, error) { return nil, nil }
+func (fakeRepo) Delete(ctx context.Context, id string) error                             { return nil }
+func (fakeRepo) ListBranches(ctx context.Context, repoID string) ([]models.Branch, error) {
+	return nil, nil
+}
+func (fakeRepo) ListCommits(ctx context.Context, repoID string, limit int) ([]models.Commit, error) {
+	return nil, nil
+}
 
 // TestCode_NewService_Nil verifies that a service accepts a non-nil
 // repository and returns a valid service instance.  (It also documents that

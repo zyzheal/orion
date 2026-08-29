@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strconv"
 
 	"orion/platform-svc-go/internal/finops/report-designer/models"
@@ -52,6 +53,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // ListReports handles GET /reports.
 func (h *Handler) ListReports(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsReportDesignerListReports")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	category := c.Query("category")
@@ -82,7 +85,7 @@ func (h *Handler) ListReports(c *gin.Context) {
 		filters.Keyword = &keyword
 	}
 
-	reports, total, err := h.svc.ListReports(c.Request.Context(), tenantID, filters)
+	reports, total, err := h.svc.ListReports(ctx, tenantID, filters)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -96,10 +99,12 @@ func (h *Handler) ListReports(c *gin.Context) {
 
 // GetReport handles GET /reports/:id.
 func (h *Handler) GetReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsReportDesignerGetReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	report, err := h.svc.GetReport(c.Request.Context(), tenantID, id)
+	report, err := h.svc.GetReport(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, "report not found")
 		return
@@ -110,6 +115,8 @@ func (h *Handler) GetReport(c *gin.Context) {
 
 // CreateReport handles POST /reports.
 func (h *Handler) CreateReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsReportDesignerCreateReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 
@@ -125,7 +132,7 @@ func (h *Handler) CreateReport(c *gin.Context) {
 	}
 
 	input.CreatedBy = &userID
-	report, err := h.svc.CreateReport(c.Request.Context(), tenantID, &input)
+	report, err := h.svc.CreateReport(ctx, tenantID, &input)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -136,6 +143,8 @@ func (h *Handler) CreateReport(c *gin.Context) {
 
 // UpdateReport handles PUT /reports/:id.
 func (h *Handler) UpdateReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsReportDesignerUpdateReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -145,7 +154,7 @@ func (h *Handler) UpdateReport(c *gin.Context) {
 		return
 	}
 
-	report, err := h.svc.UpdateReport(c.Request.Context(), tenantID, id, &input)
+	report, err := h.svc.UpdateReport(ctx, tenantID, id, &input)
 	if err != nil {
 		if err == service.ErrReportNotFound {
 			respondNotFound(c, "report not found")
@@ -160,10 +169,12 @@ func (h *Handler) UpdateReport(c *gin.Context) {
 
 // DeleteReport handles DELETE /reports/:id.
 func (h *Handler) DeleteReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsReportDesignerDeleteReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	err := h.svc.DeleteReport(c.Request.Context(), tenantID, id)
+	err := h.svc.DeleteReport(ctx, tenantID, id)
 	if err != nil {
 		if err == service.ErrReportNotFound {
 			respondNotFound(c, "report not found")
@@ -178,6 +189,8 @@ func (h *Handler) DeleteReport(c *gin.Context) {
 
 // PreviewReport handles POST /reports/:id/preview.
 func (h *Handler) PreviewReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsReportDesignerPreviewReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -187,7 +200,7 @@ func (h *Handler) PreviewReport(c *gin.Context) {
 		params = map[string]interface{}{}
 	}
 
-	result, err := h.svc.PreviewReport(c.Request.Context(), tenantID, id, params)
+	result, err := h.svc.PreviewReport(ctx, tenantID, id, params)
 	if err != nil {
 		respondNotFound(c, "report not found")
 		return
@@ -198,6 +211,8 @@ func (h *Handler) PreviewReport(c *gin.Context) {
 
 // ExecuteReport handles POST /reports/:id/execute.
 func (h *Handler) ExecuteReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsReportDesignerExecuteReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	id := c.Param("id")
@@ -214,7 +229,7 @@ func (h *Handler) ExecuteReport(c *gin.Context) {
 		triggeredBy = t
 	}
 
-	execution, err := h.svc.ExecuteReport(c.Request.Context(), tenantID, id, exportFormat, triggeredBy)
+	execution, err := h.svc.ExecuteReport(ctx, tenantID, id, exportFormat, triggeredBy)
 	if err != nil {
 		respondNotFound(c, "report not found")
 		return
@@ -225,6 +240,8 @@ func (h *Handler) ExecuteReport(c *gin.Context) {
 
 // GetExecutionHistory handles GET /reports/:id/executions.
 func (h *Handler) GetExecutionHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsReportDesignerGetExecutionHistory")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -233,7 +250,7 @@ func (h *Handler) GetExecutionHistory(c *gin.Context) {
 		limit = 20
 	}
 
-	executions, err := h.svc.GetExecutionHistory(c.Request.Context(), tenantID, id, limit)
+	executions, err := h.svc.GetExecutionHistory(ctx, tenantID, id, limit)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -246,9 +263,11 @@ func (h *Handler) GetExecutionHistory(c *gin.Context) {
 
 // ListDatasources handles GET /reports/datasources.
 func (h *Handler) ListDatasources(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsReportDesignerListDatasources")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	datasources, err := h.svc.ListDatasources(c.Request.Context(), tenantID)
+	datasources, err := h.svc.ListDatasources(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -259,6 +278,8 @@ func (h *Handler) ListDatasources(c *gin.Context) {
 
 // CreateDatasource handles POST /reports/datasources.
 func (h *Handler) CreateDatasource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsReportDesignerCreateDatasource")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var input models.CreateDatasourceInput
@@ -272,7 +293,7 @@ func (h *Handler) CreateDatasource(c *gin.Context) {
 		return
 	}
 
-	ds, err := h.svc.CreateDatasource(c.Request.Context(), tenantID, &input)
+	ds, err := h.svc.CreateDatasource(ctx, tenantID, &input)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -283,6 +304,8 @@ func (h *Handler) CreateDatasource(c *gin.Context) {
 
 // UpdateDatasource handles PUT /reports/datasources/:id.
 func (h *Handler) UpdateDatasource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsReportDesignerUpdateDatasource")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -292,7 +315,7 @@ func (h *Handler) UpdateDatasource(c *gin.Context) {
 		return
 	}
 
-	ds, err := h.svc.UpdateDatasource(c.Request.Context(), tenantID, id, &input)
+	ds, err := h.svc.UpdateDatasource(ctx, tenantID, id, &input)
 	if err != nil {
 		if err == service.ErrDatasourceNotFound {
 			respondNotFound(c, "datasource not found")
@@ -307,10 +330,12 @@ func (h *Handler) UpdateDatasource(c *gin.Context) {
 
 // DeleteDatasource handles DELETE /reports/datasources/:id.
 func (h *Handler) DeleteDatasource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsReportDesignerDeleteDatasource")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	err := h.svc.DeleteDatasource(c.Request.Context(), tenantID, id)
+	err := h.svc.DeleteDatasource(ctx, tenantID, id)
 	if err != nil {
 		if err == service.ErrDatasourceNotFound {
 			respondNotFound(c, "datasource not found")
@@ -327,10 +352,12 @@ func (h *Handler) DeleteDatasource(c *gin.Context) {
 
 // ListSchedules handles GET /reports/:id/schedules.
 func (h *Handler) ListSchedules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsReportDesignerListSchedules")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	reportID := c.Param("id")
 
-	schedules, err := h.svc.ListSchedules(c.Request.Context(), tenantID, reportID)
+	schedules, err := h.svc.ListSchedules(ctx, tenantID, reportID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -341,6 +368,8 @@ func (h *Handler) ListSchedules(c *gin.Context) {
 
 // CreateSchedule handles POST /reports/:id/schedules.
 func (h *Handler) CreateSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsReportDesignerCreateSchedule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	reportID := c.Param("id")
 
@@ -352,7 +381,7 @@ func (h *Handler) CreateSchedule(c *gin.Context) {
 
 	input.ReportID = reportID
 
-	schedule, err := h.svc.CreateSchedule(c.Request.Context(), tenantID, &input)
+	schedule, err := h.svc.CreateSchedule(ctx, tenantID, &input)
 	if err != nil {
 		if err == service.ErrReportNotFound {
 			respondNotFound(c, "report not found")
@@ -367,6 +396,8 @@ func (h *Handler) CreateSchedule(c *gin.Context) {
 
 // UpdateSchedule handles PUT /reports/schedules/:id.
 func (h *Handler) UpdateSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsReportDesignerUpdateSchedule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -376,7 +407,7 @@ func (h *Handler) UpdateSchedule(c *gin.Context) {
 		return
 	}
 
-	schedule, err := h.svc.UpdateSchedule(c.Request.Context(), tenantID, id, &input)
+	schedule, err := h.svc.UpdateSchedule(ctx, tenantID, id, &input)
 	if err != nil {
 		if err == service.ErrScheduleNotFound {
 			respondNotFound(c, "schedule not found")
@@ -391,10 +422,12 @@ func (h *Handler) UpdateSchedule(c *gin.Context) {
 
 // DeleteSchedule handles DELETE /reports/schedules/:id.
 func (h *Handler) DeleteSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsReportDesignerDeleteSchedule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	err := h.svc.DeleteSchedule(c.Request.Context(), tenantID, id)
+	err := h.svc.DeleteSchedule(ctx, tenantID, id)
 	if err != nil {
 		if err == service.ErrScheduleNotFound {
 			respondNotFound(c, "schedule not found")

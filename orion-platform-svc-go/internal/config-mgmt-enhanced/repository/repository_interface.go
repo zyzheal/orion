@@ -5,7 +5,6 @@ import (
 	"orion/platform-svc-go/internal/config-mgmt-enhanced/models"
 )
 
-
 // RepositoryInterface defines the data access contract for the config-mgmt-enhanced module.
 // DO NOT MODIFY: auto-generated from repository.go
 type RepositoryInterface interface {

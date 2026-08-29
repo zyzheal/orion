@@ -4,16 +4,16 @@ import "time"
 
 // ChangeAnalysis represents an AI-powered semantic blast radius analysis for a change.
 type ChangeAnalysis struct {
-	ID                string    `db:"id" json:"id"`
-	TenantID          string    `db:"tenant_id" json:"tenantId"`
-	ChangeID          string    `db:"change_id" json:"changeId"`
-	ServiceName       string    `db:"service_name" json:"serviceName"`
-	RiskScore         float64   `db:"risk_score" json:"riskScore"`
-	BlastRadius       string    `db:"blast_radius" json:"blastRadius"`
-	AffectedServices  string    `db:"affected_services" json:"affectedServices"`
-	Recommendations   string    `db:"recommendations" json:"recommendations"`
-	CreatedAt         time.Time `db:"created_at" json:"createdAt"`
-	CreatedBy         string    `db:"created_by" json:"createdBy"`
+	ID               string    `db:"id" json:"id"`
+	TenantID         string    `db:"tenant_id" json:"tenantId"`
+	ChangeID         string    `db:"change_id" json:"changeId"`
+	ServiceName      string    `db:"service_name" json:"serviceName"`
+	RiskScore        float64   `db:"risk_score" json:"riskScore"`
+	BlastRadius      string    `db:"blast_radius" json:"blastRadius"`
+	AffectedServices string    `db:"affected_services" json:"affectedServices"`
+	Recommendations  string    `db:"recommendations" json:"recommendations"`
+	CreatedAt        time.Time `db:"created_at" json:"createdAt"`
+	CreatedBy        string    `db:"created_by" json:"createdBy"`
 }
 
 // BlastRadiusItem represents a single service's impact within a blast radius analysis.
@@ -49,11 +49,11 @@ type ReportSummary struct {
 
 // BlastRadiusResponse is the full response returned for a blast radius query.
 type BlastRadiusResponse struct {
-	AnalysisID       string             `json:"analysisId"`
-	ServiceName      string             `json:"serviceName"`
-	RiskScore        float64            `json:"riskScore"`
-	AffectedServices []BlastRadiusItem  `json:"affectedServices"`
-	Recommendations  []string           `json:"recommendations"`
+	AnalysisID       string            `json:"analysisId"`
+	ServiceName      string            `json:"serviceName"`
+	RiskScore        float64           `json:"riskScore"`
+	AffectedServices []BlastRadiusItem `json:"affectedServices"`
+	Recommendations  []string          `json:"recommendations"`
 }
 
 // PaginatedResponse is a generic paginated response.

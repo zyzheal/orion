@@ -8,9 +8,9 @@ import (
 
 // TemplateRenderResult holds the output of rendering a template with variables.
 type TemplateRenderResult struct {
-	Subject        string   `json:"subject"`
-	Body           string   `json:"body"`
-	MissingVars    []string `json:"missing_vars"`
+	Subject     string   `json:"subject"`
+	Body        string   `json:"body"`
+	MissingVars []string `json:"missing_vars"`
 }
 
 // TemplatePreviewInput is the payload for previewing a template with sample variables.

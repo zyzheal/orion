@@ -269,8 +269,8 @@ func (r *Repository) GetRatingStats(ctx context.Context, skillID string) (*map[s
 	// Distribution
 	distribution := make(map[string]int)
 	var rows []struct {
-		Rating  int `db:"rating"`
-		Count   int `db:"count"`
+		Rating int `db:"rating"`
+		Count  int `db:"count"`
 	}
 	err = r.db.SelectContext(ctx, &rows,
 		`SELECT rating, COUNT(*) as count FROM skill_ratings WHERE skill_id=$1 GROUP BY rating ORDER BY rating`,

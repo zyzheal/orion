@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"net/http"
 	"time"
 
@@ -20,13 +21,15 @@ func NewDispatchHandler(svc *service.DispatchService) *DispatchHandler {
 
 // RegisterEngineer POST /api/v1/tickets/dispatch/engineers
 func (h *DispatchHandler) RegisterEngineer(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketRegisterEngineer")
+	defer span.End()
 	var req models.RegisterEngineerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
 
-	engineer, err := h.svc.RegisterEngineer(c.Request.Context(), &req)
+	engineer, err := h.svc.RegisterEngineer(ctx, &req)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -37,7 +40,9 @@ func (h *DispatchHandler) RegisterEngineer(c *gin.Context) {
 
 // ListEngineers GET /api/v1/tickets/dispatch/engineers
 func (h *DispatchHandler) ListEngineers(c *gin.Context) {
-	engineers, err := h.svc.ListEngineers(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketListEngineers")
+	defer span.End()
+	engineers, err := h.svc.ListEngineers(ctx)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -47,7 +52,9 @@ func (h *DispatchHandler) ListEngineers(c *gin.Context) {
 
 // GetEngineer GET /api/v1/tickets/dispatch/engineers/:id
 func (h *DispatchHandler) GetEngineer(c *gin.Context) {
-	engineer, err := h.svc.GetEngineer(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetEngineer")
+	defer span.End()
+	engineer, err := h.svc.GetEngineer(ctx, c.Param("id"))
 	if err != nil {
 		respondError(c, http.StatusNotFound, err)
 		return
@@ -57,6 +64,8 @@ func (h *DispatchHandler) GetEngineer(c *gin.Context) {
 
 // AutoDispatch POST /api/v1/tickets/:id/dispatch/auto
 func (h *DispatchHandler) AutoDispatch(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketAutoDispatch")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -68,7 +77,7 @@ func (h *DispatchHandler) AutoDispatch(c *gin.Context) {
 		req.AssignedBy = GetUserID(c)
 	}
 
-	record, err := h.svc.AutoDispatch(c.Request.Context(), id, tenantID, req.AssignedBy)
+	record, err := h.svc.AutoDispatch(ctx, id, tenantID, req.AssignedBy)
 	if err != nil {
 		respondError(c, http.StatusNotFound, err)
 		return
@@ -79,6 +88,8 @@ func (h *DispatchHandler) AutoDispatch(c *gin.Context) {
 
 // ManualDispatch POST /api/v1/tickets/:id/dispatch/manual
 func (h *DispatchHandler) ManualDispatch(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketManualDispatch")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -91,7 +102,7 @@ func (h *DispatchHandler) ManualDispatch(c *gin.Context) {
 		return
 	}
 
-	record, err := h.svc.ManualDispatch(c.Request.Context(), id, tenantID, req.EngineerID, GetUserID(c), req.Reason)
+	record, err := h.svc.ManualDispatch(ctx, id, tenantID, req.EngineerID, GetUserID(c), req.Reason)
 	if err != nil {
 		respondError(c, http.StatusNotFound, err)
 		return
@@ -102,6 +113,8 @@ func (h *DispatchHandler) ManualDispatch(c *gin.Context) {
 
 // CalculateDispatchScore POST /api/v1/tickets/dispatch/score
 func (h *DispatchHandler) CalculateDispatchScore(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketCalculateDispatchScore")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req struct {
@@ -113,7 +126,7 @@ func (h *DispatchHandler) CalculateDispatchScore(c *gin.Context) {
 		return
 	}
 
-	match, err := h.svc.CalculateDispatchScore(c.Request.Context(), req.TicketID, tenantID, req.EngineerID)
+	match, err := h.svc.CalculateDispatchScore(ctx, req.TicketID, tenantID, req.EngineerID)
 	if err != nil {
 		respondError(c, http.StatusNotFound, err)
 		return
@@ -124,7 +137,9 @@ func (h *DispatchHandler) CalculateDispatchScore(c *gin.Context) {
 
 // GetDispatchQueueStatus GET /api/v1/tickets/dispatch/queue/status
 func (h *DispatchHandler) GetDispatchQueueStatus(c *gin.Context) {
-	status, err := h.svc.GetQueueStatus(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetDispatchQueueStatus")
+	defer span.End()
+	status, err := h.svc.GetQueueStatus(ctx)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -134,7 +149,9 @@ func (h *DispatchHandler) GetDispatchQueueStatus(c *gin.Context) {
 
 // GetDispatchQueueEntries GET /api/v1/tickets/dispatch/queue/entries
 func (h *DispatchHandler) GetDispatchQueueEntries(c *gin.Context) {
-	entries, err := h.svc.GetQueueEntries(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetDispatchQueueEntries")
+	defer span.End()
+	entries, err := h.svc.GetQueueEntries(ctx)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -144,6 +161,8 @@ func (h *DispatchHandler) GetDispatchQueueEntries(c *gin.Context) {
 
 // AddDispatchRule POST /api/v1/tickets/dispatch/rules
 func (h *DispatchHandler) AddDispatchRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketAddDispatchRule")
+	defer span.End()
 	var req models.CreateDispatchRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
@@ -158,7 +177,7 @@ func (h *DispatchHandler) AddDispatchRule(c *gin.Context) {
 		Priority:   req.Priority,
 	}
 
-	if err := h.svc.AddRule(c.Request.Context(), rule); err != nil {
+	if err := h.svc.AddRule(ctx, rule); err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
@@ -168,7 +187,9 @@ func (h *DispatchHandler) AddDispatchRule(c *gin.Context) {
 
 // GetDispatchRules GET /api/v1/tickets/dispatch/rules
 func (h *DispatchHandler) GetDispatchRules(c *gin.Context) {
-	rules, err := h.svc.GetRules(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetDispatchRules")
+	defer span.End()
+	rules, err := h.svc.GetRules(ctx)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -178,7 +199,9 @@ func (h *DispatchHandler) GetDispatchRules(c *gin.Context) {
 
 // RemoveDispatchRule DELETE /api/v1/tickets/dispatch/rules/:ruleId
 func (h *DispatchHandler) RemoveDispatchRule(c *gin.Context) {
-	if err := h.svc.RemoveRule(c.Request.Context(), c.Param("ruleId")); err != nil {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketRemoveDispatchRule")
+	defer span.End()
+	if err := h.svc.RemoveRule(ctx, c.Param("ruleId")); err != nil {
 		respondError(c, http.StatusNotFound, err)
 		return
 	}
@@ -187,7 +210,9 @@ func (h *DispatchHandler) RemoveDispatchRule(c *gin.Context) {
 
 // GetLoadBalanceReport GET /api/v1/tickets/dispatch/load-balance
 func (h *DispatchHandler) GetLoadBalanceReport(c *gin.Context) {
-	report, err := h.svc.GetLoadBalanceReport(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetLoadBalanceReport")
+	defer span.End()
+	report, err := h.svc.GetLoadBalanceReport(ctx)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -197,6 +222,8 @@ func (h *DispatchHandler) GetLoadBalanceReport(c *gin.Context) {
 
 // UpdateDispatchWeights PUT /api/v1/tickets/dispatch/weights
 func (h *DispatchHandler) UpdateDispatchWeights(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketUpdateDispatchWeights")
+	defer span.End()
 	var w models.DispatchWeights
 	if err := c.ShouldBindJSON(&w); err != nil {
 		respondBadRequest(c, err.Error())
@@ -208,12 +235,16 @@ func (h *DispatchHandler) UpdateDispatchWeights(c *gin.Context) {
 
 // GetDispatchWeights GET /api/v1/tickets/dispatch/weights
 func (h *DispatchHandler) GetDispatchWeights(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetDispatchWeights")
+	defer span.End()
 	respondSuccess(c, h.svc.GetWeights())
 }
 
 // GetDispatchMetrics GET /api/v1/tickets/dispatch/metrics
 func (h *DispatchHandler) GetDispatchMetrics(c *gin.Context) {
-	metrics, err := h.svc.GetMetrics(c.Request.Context(), time.Time{}, time.Time{})
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetDispatchMetrics")
+	defer span.End()
+	metrics, err := h.svc.GetMetrics(ctx, time.Time{}, time.Time{})
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -223,7 +254,9 @@ func (h *DispatchHandler) GetDispatchMetrics(c *gin.Context) {
 
 // GetEngineerPerformance GET /api/v1/tickets/dispatch/performance/:engineerId
 func (h *DispatchHandler) GetEngineerPerformance(c *gin.Context) {
-	perf, err := h.svc.GetEngineerPerformance(c.Request.Context(), c.Param("engineerId"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetEngineerPerformance")
+	defer span.End()
+	perf, err := h.svc.GetEngineerPerformance(ctx, c.Param("engineerId"))
 	if err != nil {
 		respondError(c, http.StatusNotFound, err)
 		return
@@ -233,7 +266,9 @@ func (h *DispatchHandler) GetEngineerPerformance(c *gin.Context) {
 
 // GetAllEngineerPerformances GET /api/v1/tickets/dispatch/performance
 func (h *DispatchHandler) GetAllEngineerPerformances(c *gin.Context) {
-	perfs, err := h.svc.GetAllPerformances(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetAllEngineerPerformances")
+	defer span.End()
+	perfs, err := h.svc.GetAllPerformances(ctx)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -243,10 +278,12 @@ func (h *DispatchHandler) GetAllEngineerPerformances(c *gin.Context) {
 
 // GetBestMatch GET /api/v1/tickets/dispatch/best-match/:ticketId
 func (h *DispatchHandler) GetBestMatch(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetBestMatch")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("ticketId")
 
-	match, err := h.svc.GetBestMatch(c.Request.Context(), ticketID, tenantID)
+	match, err := h.svc.GetBestMatch(ctx, ticketID, tenantID)
 	if err != nil {
 		respondError(c, http.StatusNotFound, err)
 		return
@@ -256,7 +293,9 @@ func (h *DispatchHandler) GetBestMatch(c *gin.Context) {
 
 // GetSLAAlerts GET /api/v1/tickets/dispatch/sla-alerts
 func (h *DispatchHandler) GetSLAAlerts(c *gin.Context) {
-	alerts, err := h.svc.GetSLAAlerts(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetSLAAlerts")
+	defer span.End()
+	alerts, err := h.svc.GetSLAAlerts(ctx)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -266,10 +305,12 @@ func (h *DispatchHandler) GetSLAAlerts(c *gin.Context) {
 
 // GetAssignmentSuccessMetrics GET /api/v1/tickets/dispatch/reports/assignment-success
 func (h *DispatchHandler) GetAssignmentSuccessMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetAssignmentSuccessMetrics")
+	defer span.End()
 	start := parseTime(c.Query("periodStart"))
 	end := parseTime(c.Query("periodEnd"))
 
-	metrics, err := h.svc.GetAssignmentSuccessMetrics(c.Request.Context(), start, end)
+	metrics, err := h.svc.GetAssignmentSuccessMetrics(ctx, start, end)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -279,7 +320,9 @@ func (h *DispatchHandler) GetAssignmentSuccessMetrics(c *gin.Context) {
 
 // GetTimeToAssignmentStats GET /api/v1/tickets/dispatch/reports/time-to-assignment
 func (h *DispatchHandler) GetTimeToAssignmentStats(c *gin.Context) {
-	stats, err := h.svc.GetTimeToAssignmentStats(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetTimeToAssignmentStats")
+	defer span.End()
+	stats, err := h.svc.GetTimeToAssignmentStats(ctx)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -289,7 +332,9 @@ func (h *DispatchHandler) GetTimeToAssignmentStats(c *gin.Context) {
 
 // GetReassignmentSuggestions GET /api/v1/tickets/dispatch/load-balance/suggestions
 func (h *DispatchHandler) GetReassignmentSuggestions(c *gin.Context) {
-	suggestions, err := h.svc.GetReassignmentSuggestions(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetReassignmentSuggestions")
+	defer span.End()
+	suggestions, err := h.svc.GetReassignmentSuggestions(ctx)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return

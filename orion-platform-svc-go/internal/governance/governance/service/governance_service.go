@@ -3,14 +3,15 @@ package service
 import (
 	"context"
 	errors "errors"
+	"github.com/google/uuid"
 	"orion/platform-svc-go/internal/governance/governance/models"
 	"orion/platform-svc-go/internal/governance/governance/repository"
-	"github.com/google/uuid"
 )
 
 var ErrPolicyNotFound = errors.New("policy not found")
 
-type Service struct { repo *repository.Repository }
+type Service struct{ repo *repository.Repository }
+
 func NewService(repo *repository.Repository) *Service { return &Service{repo: repo} }
 
 func (s *Service) Create(ctx context.Context, tenantID string, req *models.CreatePolicyRequest) (*models.Policy, error) {

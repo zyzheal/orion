@@ -31,8 +31,8 @@ func (fn HandlerFunc) Execute(ctx context.Context) (string, error) {
 
 type JobRegistry struct {
 	mu      sync.RWMutex
-	jobs    map[string]*types.CronJob         // name -> job
-	handler map[string]types.CronJob              // name -> engine.Job handler
+	jobs    map[string]*types.CronJob // name -> job
+	handler map[string]types.CronJob  // name -> engine.Job handler
 	logger  *zap.Logger
 }
 
@@ -212,10 +212,10 @@ func FromJobDefinition(def *models.JobDefinition) *types.CronJob {
 		kind = types.KindRecurring // default for legacy definitions
 	}
 	retry := types.RetryPolicy{
-		MaxAttempts:    def.MaxRetries,
-		InitialDelay:   time.Second,
-		MaxDelay:       5 * time.Minute,
-		Multiplier:     2.0,
+		MaxAttempts:     def.MaxRetries,
+		InitialDelay:    time.Second,
+		MaxDelay:        5 * time.Minute,
+		Multiplier:      2.0,
 		RetryableErrors: nil,
 	}
 	if def.MaxRetries == 0 {
@@ -295,4 +295,3 @@ type JobRegistryManager struct {
 	Registry      *JobRegistry
 	DependencyMgr *DependencyManager
 }
-

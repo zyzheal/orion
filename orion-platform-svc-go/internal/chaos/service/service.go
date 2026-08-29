@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -10,12 +11,13 @@ import (
 	"strings"
 	"time"
 
-	"orion/platform-svc-go/internal/chaos/models"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/chaos/injector"
+	"orion/platform-svc-go/internal/chaos/models"
 )
+
 // ErrNotFound is an alias for sentinel.NotFound for test compatibility.
 var ErrNotFound = sentinel.NotFound
-
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
@@ -38,11 +40,18 @@ type RepositoryInterface interface {
 }
 
 type Service struct {
-	repo RepositoryInterface
+	repo     RepositoryInterface
+	injector *injector.Injector // optional K8s chaos injector for live cluster operations
 }
 
 func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
+}
+
+// WithInjector attaches a K8s chaos injector for live cluster fault injection.
+func (s *Service) WithInjector(inj *injector.Injector) *Service {
+	s.injector = inj
+	return s
 }
 
 // --- Experiment CRUD ---
@@ -623,28 +632,63 @@ func (s *Service) execute(ctx context.Context, faultType, target, duration strin
 			return fmt.Errorf("invalid duration %q for %s injection: %w", duration, faultType, ErrInvalidConfig)
 		}
 	}
-	// Validate intensity is within acceptable bounds.
 	if intensity < 0 {
 		return fmt.Errorf("negative intensity (%.2f) for %s injection", intensity, faultType)
 	}
-	if cfg != nil {
-		if cfg.Percentage < 0 || cfg.Percentage > 100 {
-			return fmt.Errorf("percentage (%.0f) out of range [0,100]", cfg.Percentage)
-		}
+	if cfg != nil && (cfg.Percentage < 0 || cfg.Percentage > 100) {
+		return fmt.Errorf("percentage (%.0f) out of range [0,100]", cfg.Percentage)
 	}
 
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
-		// Real executor integration point.  Currently a no-op that returns
-		// success; replace with the actual executor call.
+	}
+
+	// Build config JSON for the injector.
+	var injCfg injector.InjectConfig
+	if cfg != nil {
+		injCfg = injector.InjectConfig{
+			Duration:   cfg.Duration,
+			Intensity:  cfg.Intensity,
+			Percentage: cfg.Percentage,
+			Ports:      cfg.Ports,
+			NodeLabels: cfg.NodeLabels,
+		}
+	} else {
+		injCfg.Duration = duration
+		injCfg.Intensity = intensity
+	}
+	configJSON, _ := json.Marshal(injCfg)
+
+	if s.injector != nil {
+		var ft injector.FaultType
+		switch faultType {
+		case "cpu-spike":
+			ft = injector.FaultCpuSpike
+		case "memory-leak":
+			ft = injector.FaultMemoryLeak
+		case "network-latency":
+			ft = injector.FaultNetworkLatency
+		case "service-down":
+			ft = injector.FaultServiceDown
+		default:
+			ft = injector.FaultType(faultType)
+		}
+		result, err := s.injector.Inject(ctx, ft, target, string(configJSON))
+		if err != nil {
+			return fmt.Errorf("injector failed for %s on %s: %w", faultType, target, err)
+		}
+		if !result.Success {
+			return fmt.Errorf("injector reported failure for %s: %s", faultType, result.Message)
+		}
 		return nil
 	}
+
+	// Fallback: no injector available — log-only mode
+	return nil
 }
 
-// rollbackInjection reverses a single injection by updating its status and
-// calling the executor's recovery path.
 func (s *Service) rollbackInjection(ctx context.Context, tenantID, injectionID, faultType, target string) error {
 	if err := s.repo.UpdateInjectionStatus(ctx, tenantID, injectionID, "rolled_back"); err != nil {
 		return fmt.Errorf("failed to update injection %s status: %w", injectionID, err)
@@ -654,10 +698,32 @@ func (s *Service) rollbackInjection(ctx context.Context, tenantID, injectionID, 
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
-		// Real executor rollback integration point.  Currently a no-op that
-		// returns success; replace with the actual executor call.
-		return nil
 	}
+
+	if s.injector != nil {
+		var ft injector.FaultType
+		switch faultType {
+		case "cpu-spike":
+			ft = injector.FaultCpuSpike
+		case "memory-leak":
+			ft = injector.FaultMemoryLeak
+		case "network-latency":
+			ft = injector.FaultNetworkLatency
+		case "service-down":
+			ft = injector.FaultServiceDown
+		default:
+			ft = injector.FaultType(faultType)
+		}
+		result, err := s.injector.Recover(ctx, ft, injectionID, "")
+		if err != nil {
+			return fmt.Errorf("injector recovery failed for %s: %w", injectionID, err)
+		}
+		if !result.Success {
+			return fmt.Errorf("injector reported recovery failure for %s: %s", injectionID, result.Message)
+		}
+	}
+
+	return nil
 }
 
 // recordInjection creates a new InjectionRecord in the database.

@@ -57,13 +57,13 @@ func (s *ConfigService) GetCommandConfigs(ctx context.Context, tenantID, userID 
 
 func (s *ConfigService) UpsertCommandConfig(ctx context.Context, tenantID, userID string, input models.CommandConfigInput) (*models.ChatOpsCommandConfig, error) {
 	cfg := &models.ChatOpsCommandConfig{
-		ID:      uuid.New().String(),
+		ID:       uuid.New().String(),
 		TenantID: tenantID,
-		UserID:  userID,
-		Key:     input.Key,
-		Label:   input.Label,
-		Command: input.Command,
-		Enabled: true,
+		UserID:   userID,
+		Key:      input.Key,
+		Label:    input.Label,
+		Command:  input.Command,
+		Enabled:  true,
 	}
 	if input.Enabled != nil {
 		cfg.Enabled = *input.Enabled

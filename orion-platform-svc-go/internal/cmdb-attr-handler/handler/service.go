@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"sync"
 
-	"orion/platform-svc-go/internal/cmdb-attr-handler/valhandlers"
 	"orion/platform-svc-go/internal/cmdb-attr-handler/models"
 	"orion/platform-svc-go/internal/cmdb-attr-handler/repository"
+	"orion/platform-svc-go/internal/cmdb-attr-handler/valhandlers"
 
 	"go.uber.org/zap"
 )
@@ -283,27 +283,27 @@ func (s *Service) SerializeValue(attrType string, v interface{}) (string, error)
 
 // Built-in handler implementations (singleton values via public constructors).
 var (
-	stringValueHandler       = handlers.NewStringValueHandler()
-	numberValueHandler       = handlers.NewNumberValueHandler()
-	booleanValueHandler      = handlers.NewBooleanValueHandler()
-	datetimeValueHandler     = handlers.NewDatetimeValueHandler()
-	enumValueHandler         = handlers.NewEnumValueHandler()
-	multiselectValueHandler  = handlers.NewMultiselectValueHandler()
-	referenceValueHandler    = handlers.NewReferenceValueHandler()
-	jsonValueHandler         = handlers.NewJsonValueHandler()
-	arrayValueHandler        = handlers.NewArrayValueHandler()
-	binaryValueHandler       = handlers.NewBinaryValueHandler()
-	passwordValueHandler     = handlers.NewPasswordValueHandler()
-	ipValueHandler           = handlers.NewIpValueHandler()
-	emailValueHandler        = handlers.NewEmailValueHandler()
-	urlValueHandler          = handlers.NewUrlValueHandler()
-	percentageValueHandler   = handlers.NewPercentageValueHandler()
-	memoryValueHandler       = handlers.NewMemoryValueHandler()
-	diskValueHandler         = handlers.NewDiskValueHandler()
-	cpuValueHandler          = handlers.NewCpuValueHandler()
-	versionValueHandler      = handlers.NewVersionValueHandler()
-	macValueHandler          = handlers.NewMacValueHandler()
-	uuidValueHandler         = handlers.NewUuidValueHandler()
-	tagsValueHandler         = handlers.NewTagsValueHandler()
-	dateValueHandler         = handlers.NewDateValueHandler()
+	stringValueHandler      = handlers.NewStringValueHandler()
+	numberValueHandler      = handlers.NewNumberValueHandler()
+	booleanValueHandler     = handlers.NewBooleanValueHandler()
+	datetimeValueHandler    = handlers.NewDatetimeValueHandler()
+	enumValueHandler        = handlers.NewEnumValueHandler()
+	multiselectValueHandler = handlers.NewMultiselectValueHandler()
+	referenceValueHandler   = handlers.NewReferenceValueHandler()
+	jsonValueHandler        = handlers.NewJsonValueHandler()
+	arrayValueHandler       = handlers.NewArrayValueHandler()
+	binaryValueHandler      = handlers.NewBinaryValueHandler()
+	passwordValueHandler    = handlers.NewPasswordValueHandler()
+	ipValueHandler          = handlers.NewIpValueHandler()
+	emailValueHandler       = handlers.NewEmailValueHandler()
+	urlValueHandler         = handlers.NewUrlValueHandler()
+	percentageValueHandler  = handlers.NewPercentageValueHandler()
+	memoryValueHandler      = handlers.NewMemoryValueHandler()
+	diskValueHandler        = handlers.NewDiskValueHandler()
+	cpuValueHandler         = handlers.NewCpuValueHandler()
+	versionValueHandler     = handlers.NewVersionValueHandler()
+	macValueHandler         = handlers.NewMacValueHandler()
+	uuidValueHandler        = handlers.NewUuidValueHandler()
+	tagsValueHandler        = handlers.NewTagsValueHandler()
+	dateValueHandler        = handlers.NewDateValueHandler()
 )

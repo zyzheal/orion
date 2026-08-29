@@ -35,6 +35,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) Health(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AssistantHealth")
+	defer span.End()
 	middleware.RespondSuccess(c, gin.H{"status": "ok", "module": "assistant"})
 }
 
@@ -96,6 +98,8 @@ func (h *Handler) Action(c *gin.Context) {
 }
 
 func (h *Handler) ListSessions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AssistantListSessions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	limit := 20
@@ -104,7 +108,7 @@ func (h *Handler) ListSessions(c *gin.Context) {
 			limit = n
 		}
 	}
-	sessions, err := h.svc.ListSessions(c.Request.Context(), tenantID, userID, limit)
+	sessions, err := h.svc.ListSessions(ctx, tenantID, userID, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -116,6 +120,8 @@ func (h *Handler) ListSessions(c *gin.Context) {
 }
 
 func (h *Handler) GetSession(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AssistantGetSession")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	sessionID := c.Param("id")
@@ -123,7 +129,7 @@ func (h *Handler) GetSession(c *gin.Context) {
 		middleware.RespondBadRequest(c, "session id is required")
 		return
 	}
-	sess, err := h.svc.GetSession(c.Request.Context(), tenantID, userID, sessionID)
+	sess, err := h.svc.GetSession(ctx, tenantID, userID, sessionID)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -132,9 +138,11 @@ func (h *Handler) GetSession(c *gin.Context) {
 }
 
 func (h *Handler) DeleteSession(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AssistantDeleteSession")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	sessionID := c.Param("id")
-	if err := h.svc.DeleteSession(c.Request.Context(), tenantID, sessionID); err != nil {
+	if err := h.svc.DeleteSession(ctx, tenantID, sessionID); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}

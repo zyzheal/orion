@@ -8,15 +8,15 @@ import (
 	"orion/platform-svc-go/internal/slo/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Resource and action constants for SLO RBAC.
 const (
-	resourceSLO   = "slo"
-	actionSLORead = "read"
-	actionSLOWrite = "write"
+	resourceSLO     = "slo"
+	actionSLORead   = "read"
+	actionSLOWrite  = "write"
 	actionSLODelete = "delete"
 )
 

@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"time"
 
+	"orion/go-common/pkg/database"
 	"orion/platform-svc-go/internal/identity/auth/model"
 	"orion/platform-svc-go/internal/identity/auth/repository"
-	"orion/go-common/pkg/database"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -29,8 +29,8 @@ type Service struct {
 	repo     *WechatRepository
 	authRepo *repository.AuthRepository
 
-	log  *zap.Logger
-	cfg  *Config
+	log *zap.Logger
+	cfg *Config
 }
 
 // NewService creates a WeChat Work SSO service.
@@ -256,20 +256,20 @@ func (s *Service) buildLocalUser(profile *UserProfile, tenantID string) *model.U
 
 func (s *Service) buildAccount(profile *UserProfile, tenantID, userID string, linked bool, now *time.Time) *WeChatWorkAccount {
 	return &WeChatWorkAccount{
-		ID:             uuid.New().String(),
-		TenantID:       tenantID,
-		UserID:         userID,
-		WechatUserID:   profile.UserID,
-		Name:           mustNullString(profile.Name),
-		Email:          mustNullString(profile.Email),
-		Mobile:         mustNullString(profile.Mobile),
-		DepartmentIDs:  profile.Departments,
-		Position:       mustNullString(profile.Position),
-		Avatar:         mustNullString(profile.Avatar),
-		Linked:         linked,
-		LastSyncedAt:   now,
-		CreatedAt:      *now,
-		UpdatedAt:      *now,
+		ID:            uuid.New().String(),
+		TenantID:      tenantID,
+		UserID:        userID,
+		WechatUserID:  profile.UserID,
+		Name:          mustNullString(profile.Name),
+		Email:         mustNullString(profile.Email),
+		Mobile:        mustNullString(profile.Mobile),
+		DepartmentIDs: profile.Departments,
+		Position:      mustNullString(profile.Position),
+		Avatar:        mustNullString(profile.Avatar),
+		Linked:        linked,
+		LastSyncedAt:  now,
+		CreatedAt:     *now,
+		UpdatedAt:     *now,
 	}
 }
 

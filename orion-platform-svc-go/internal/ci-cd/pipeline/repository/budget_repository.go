@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 
 	"orion/platform-svc-go/internal/ci-cd/pipeline/models"
 )

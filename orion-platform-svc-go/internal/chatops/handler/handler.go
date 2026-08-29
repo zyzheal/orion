@@ -306,12 +306,16 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	c.POST("/admin/command-versions", auth.RequirePermission("chatops", "admin"), h.CreateCommandVersion)
 	// POST /admin/command-versions/:commandId/rollback/:version
 	c.POST("/admin/command-versions/:commandId/rollback/:version", auth.RequirePermission("chatops", "admin"), h.RollbackCommandVersion)
-	// POST /admin/command-versions/:versionId/tags
-	c.POST("/admin/command-versions/:versionId/tags", auth.RequirePermission("chatops", "admin"), h.AddVersionTag)
-	// DELETE /admin/command-versions/:versionId/tags/:tagName
-	c.DELETE("/admin/command-versions/:versionId/tags/:tagName", auth.RequirePermission("chatops", "admin"), h.RemoveVersionTag)
-	// DELETE /admin/command-versions/:id
-	c.DELETE("/admin/command-versions/:id", auth.RequirePermission("chatops", "admin"), h.DeleteCommandVersion)
+	// NOTE: every wildcard under /admin/command-versions must be named
+	// :commandId. Gin's radix trie allows only one wildcard token per tree
+	// position, so a second name (:versionId / :id) panics the process at
+	// startup with "'X' conflicts with existing wildcard". URLs are unchanged.
+	// POST /admin/command-versions/:commandId/tags
+	c.POST("/admin/command-versions/:commandId/tags", auth.RequirePermission("chatops", "admin"), h.AddVersionTag)
+	// DELETE /admin/command-versions/:commandId/tags/:tagName
+	c.DELETE("/admin/command-versions/:commandId/tags/:tagName", auth.RequirePermission("chatops", "admin"), h.RemoveVersionTag)
+	// DELETE /admin/command-versions/:commandId
+	c.DELETE("/admin/command-versions/:commandId", auth.RequirePermission("chatops", "admin"), h.DeleteCommandVersion)
 
 	// ---- Admin: Rate Limits ----
 	// GET /admin/rate-limits

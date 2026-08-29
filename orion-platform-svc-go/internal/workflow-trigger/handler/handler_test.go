@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/workflow-trigger/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/workflow-trigger/models"
 )
 
@@ -56,7 +56,6 @@ func (f *fakeWorkflow_triggerService) Update(ctx context.Context, tenantID, id s
 }
 
 var _ service.ServiceInterface = (*fakeWorkflow_triggerService)(nil)
-
 
 func TestHandler_WORKFLOW_TRIGG_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

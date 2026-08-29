@@ -15,10 +15,11 @@ var (
 // ParseSemVer parses a semantic version string into a SemVer struct.
 // It handles the format: MAJOR.MINOR.PATCH[-prerelease][+build]
 // Examples:
-//   "1.2.3"          -> SemVer{Major: 1, Minor: 2, Patch: 3, Original: "1.2.3"}
-//   "1.2.3-alpha"    -> SemVer{Major: 1, Minor: 2, Patch: 3, PreRelease: "alpha", ...}
-//   "1.2.3-beta.1"   -> SemVer{Major: 1, Minor: 2, Patch: 3, PreRelease: "beta.1", ...}
-//   "1.2.3-rc.1+build.42" -> SemVer{..., PreRelease: "rc.1", Build: "build.42", ...}
+//
+//	"1.2.3"          -> SemVer{Major: 1, Minor: 2, Patch: 3, Original: "1.2.3"}
+//	"1.2.3-alpha"    -> SemVer{Major: 1, Minor: 2, Patch: 3, PreRelease: "alpha", ...}
+//	"1.2.3-beta.1"   -> SemVer{Major: 1, Minor: 2, Patch: 3, PreRelease: "beta.1", ...}
+//	"1.2.3-rc.1+build.42" -> SemVer{..., PreRelease: "rc.1", Build: "build.42", ...}
 func ParseSemVer(version string) (*SemVer, error) {
 	version = strings.TrimSpace(version)
 	if version == "" {

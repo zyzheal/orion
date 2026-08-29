@@ -1,12 +1,13 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"net/http"
+	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/database"
 	"orion/platform-svc-go/internal/ci-cd/deploy/models"
 	"orion/platform-svc-go/internal/ci-cd/deploy/repository"
 	"orion/platform-svc-go/internal/ci-cd/deploy/service"
-	"orion/go-common/pkg/auth"
-	"orion/go-common/pkg/database"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -55,6 +56,8 @@ func (h *Handler) paginated(c *gin.Context) (offset, limit int) {
 
 // ListDeployments GET /api/v1/deployments
 func (h *Handler) ListDeployments(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIDeployListDeployments")
+	defer span.End()
 	tenantID := h.tenantID(c)
 	offset, limit := h.paginated(c)
 
@@ -64,9 +67,9 @@ func (h *Handler) ListDeployments(c *gin.Context) {
 	var deployments []models.Deployment
 	var err error
 	if environment != "" || status != "" {
-		deployments, err = h.svc.ListByFilter(c.Request.Context(), tenantID, environment, status, offset, limit)
+		deployments, err = h.svc.ListByFilter(ctx, tenantID, environment, status, offset, limit)
 	} else {
-		deployments, err = h.svc.List(c.Request.Context(), tenantID, offset, limit)
+		deployments, err = h.svc.List(ctx, tenantID, offset, limit)
 	}
 	if err != nil {
 		h.logger.Error("failed to list deployments", zap.Error(err))
@@ -78,6 +81,8 @@ func (h *Handler) ListDeployments(c *gin.Context) {
 
 // CreateDeployment POST /api/v1/deployments
 func (h *Handler) CreateDeployment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIDeployCreateDeployment")
+	defer span.End()
 	var req models.Deployment
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.err(c, http.StatusBadRequest, "invalid request: "+err.Error())
@@ -85,7 +90,7 @@ func (h *Handler) CreateDeployment(c *gin.Context) {
 	}
 	req.TenantID = h.tenantID(c)
 
-	if err := h.svc.Create(c.Request.Context(), &req); err != nil {
+	if err := h.svc.Create(ctx, &req); err != nil {
 		h.logger.Error("failed to create deployment", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
@@ -95,10 +100,12 @@ func (h *Handler) CreateDeployment(c *gin.Context) {
 
 // GetDeployment GET /api/v1/deployments/:id
 func (h *Handler) GetDeployment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIDeployGetDeployment")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
 
-	deployment, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
+	deployment, err := h.svc.GetByID(ctx, tenantID, id)
 	if err != nil {
 		h.err(c, http.StatusNotFound, "deployment not found")
 		return
@@ -108,6 +115,8 @@ func (h *Handler) GetDeployment(c *gin.Context) {
 
 // UpdateDeployment PUT /api/v1/deployments/:id
 func (h *Handler) UpdateDeployment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIDeployUpdateDeployment")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
 
@@ -119,7 +128,7 @@ func (h *Handler) UpdateDeployment(c *gin.Context) {
 	req.ID = id
 	req.TenantID = tenantID
 
-	if err := h.svc.Update(c.Request.Context(), &req); err != nil {
+	if err := h.svc.Update(ctx, &req); err != nil {
 		h.logger.Error("failed to update deployment", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
@@ -129,10 +138,12 @@ func (h *Handler) UpdateDeployment(c *gin.Context) {
 
 // DeleteDeployment DELETE /api/v1/deployments/:id
 func (h *Handler) DeleteDeployment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIDeployDeleteDeployment")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
 
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		h.logger.Error("failed to delete deployment", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
@@ -142,8 +153,10 @@ func (h *Handler) DeleteDeployment(c *gin.Context) {
 
 // Count GET /api/v1/deployments/count
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIDeployCount")
+	defer span.End()
 	tenantID := h.tenantID(c)
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		h.logger.Error("failed to count deployments", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -156,10 +169,12 @@ func (h *Handler) Count(c *gin.Context) {
 
 // StartDeployment POST /api/v1/deployments/:id/start
 func (h *Handler) StartDeployment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIDeployStartDeployment")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
 
-	deployment, err := h.svc.StartDeployment(c.Request.Context(), tenantID, id)
+	deployment, err := h.svc.StartDeployment(ctx, tenantID, id)
 	if err != nil {
 		h.logger.Error("failed to start deployment", zap.String("id", id), zap.Error(err))
 		h.err(c, http.StatusBadRequest, err.Error())
@@ -170,11 +185,13 @@ func (h *Handler) StartDeployment(c *gin.Context) {
 
 // CompleteDeployment POST /api/v1/deployments/:id/complete
 func (h *Handler) CompleteDeployment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIDeployCompleteDeployment")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
 
 	var req struct {
-		Status      string  `json:"status" binding:"required"`
+		Status       string  `json:"status" binding:"required"`
 		ErrorMessage *string `json:"error_message"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -182,7 +199,7 @@ func (h *Handler) CompleteDeployment(c *gin.Context) {
 		return
 	}
 
-	deployment, err := h.svc.CompleteDeployment(c.Request.Context(), tenantID, id, req.Status, req.ErrorMessage)
+	deployment, err := h.svc.CompleteDeployment(ctx, tenantID, id, req.Status, req.ErrorMessage)
 	if err != nil {
 		h.logger.Error("failed to complete deployment", zap.String("id", id), zap.Error(err))
 		h.err(c, http.StatusBadRequest, err.Error())
@@ -193,10 +210,12 @@ func (h *Handler) CompleteDeployment(c *gin.Context) {
 
 // CancelDeployment POST /api/v1/deployments/:id/cancel
 func (h *Handler) CancelDeployment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIDeployCancelDeployment")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
 
-	deployment, err := h.svc.CancelDeployment(c.Request.Context(), tenantID, id)
+	deployment, err := h.svc.CancelDeployment(ctx, tenantID, id)
 	if err != nil {
 		h.logger.Error("failed to cancel deployment", zap.String("id", id), zap.Error(err))
 		h.err(c, http.StatusBadRequest, err.Error())
@@ -207,10 +226,12 @@ func (h *Handler) CancelDeployment(c *gin.Context) {
 
 // Rollback POST /api/v1/deployments/:id/rollback
 func (h *Handler) Rollback(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIDeployRollback")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
 
-	deployment, err := h.svc.Rollback(c.Request.Context(), tenantID, id)
+	deployment, err := h.svc.Rollback(ctx, tenantID, id)
 	if err != nil {
 		h.logger.Error("failed to rollback deployment", zap.String("id", id), zap.Error(err))
 		h.err(c, http.StatusBadRequest, err.Error())
@@ -223,6 +244,8 @@ func (h *Handler) Rollback(c *gin.Context) {
 
 // GetLatestDeployment GET /api/v1/deployments/latest?environment=xxx
 func (h *Handler) GetLatestDeployment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIDeployGetLatestDeployment")
+	defer span.End()
 	tenantID := h.tenantID(c)
 	environment := c.Query("environment")
 	if environment == "" {
@@ -230,7 +253,7 @@ func (h *Handler) GetLatestDeployment(c *gin.Context) {
 		return
 	}
 
-	deployment, err := h.svc.GetLatestDeployment(c.Request.Context(), tenantID, environment)
+	deployment, err := h.svc.GetLatestDeployment(ctx, tenantID, environment)
 	if err != nil {
 		h.err(c, http.StatusNotFound, "no deployment found for environment")
 		return
@@ -240,10 +263,12 @@ func (h *Handler) GetLatestDeployment(c *gin.Context) {
 
 // GetDeploymentsByBuild GET /api/v1/deployments/build/:buildId
 func (h *Handler) GetDeploymentsByBuild(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIDeployGetDeploymentsByBuild")
+	defer span.End()
 	tenantID := h.tenantID(c)
 	buildID := c.Param("buildId")
 
-	deployments, err := h.svc.GetDeploymentsByBuild(c.Request.Context(), tenantID, buildID)
+	deployments, err := h.svc.GetDeploymentsByBuild(ctx, tenantID, buildID)
 	if err != nil {
 		h.logger.Error("failed to get deployments by build", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -254,9 +279,11 @@ func (h *Handler) GetDeploymentsByBuild(c *gin.Context) {
 
 // GetEnvironments GET /api/v1/deployments/environments
 func (h *Handler) GetEnvironments(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIDeployGetEnvironments")
+	defer span.End()
 	tenantID := h.tenantID(c)
 
-	envs, err := h.svc.GetEnvironments(c.Request.Context(), tenantID)
+	envs, err := h.svc.GetEnvironments(ctx, tenantID)
 	if err != nil {
 		h.logger.Error("failed to get environments", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -267,9 +294,11 @@ func (h *Handler) GetEnvironments(c *gin.Context) {
 
 // GetDeployStats GET /api/v1/deployments/stats
 func (h *Handler) GetDeployStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIDeployGetDeployStats")
+	defer span.End()
 	tenantID := h.tenantID(c)
 
-	stats, err := h.svc.GetDeployStats(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetDeployStats(ctx, tenantID)
 	if err != nil {
 		h.logger.Error("failed to get deploy stats", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -282,9 +311,11 @@ func (h *Handler) GetDeployStats(c *gin.Context) {
 
 // GetDeploymentEvents GET /api/v1/deployments/:id/events
 func (h *Handler) GetDeploymentEvents(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIDeployGetDeploymentEvents")
+	defer span.End()
 	id := c.Param("id")
 
-	events, err := h.svc.GetDeploymentEvents(c.Request.Context(), id)
+	events, err := h.svc.GetDeploymentEvents(ctx, id)
 	if err != nil {
 		h.logger.Error("failed to get deployment events", zap.String("id", id), zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -292,7 +323,6 @@ func (h *Handler) GetDeploymentEvents(c *gin.Context) {
 	}
 	h.success(c, events)
 }
-
 
 // RegisterRoutes registers all deployment-related routes on the given router group.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {

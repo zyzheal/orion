@@ -25,8 +25,9 @@ type Scheduler interface {
 // ScheduledAt field is zero, the handler rejects it as invalid.
 //
 // Usage:
-//   handler := handlers.NewScheduledHandler(logger, scheduler)
-//   engineInstance.RegisterHandler(handler)
+//
+//	handler := handlers.NewScheduledHandler(logger, scheduler)
+//	engineInstance.RegisterHandler(handler)
 type ScheduledHandler struct {
 	logger    *zap.Logger
 	scheduler Scheduler

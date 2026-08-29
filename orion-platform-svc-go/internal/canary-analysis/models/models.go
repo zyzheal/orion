@@ -60,7 +60,7 @@ type RetrainResult struct {
 
 // RunMetrics holds metrics for a canary run.
 type RunMetrics struct {
-	RunID   string            `json:"runId"`
+	RunID   string             `json:"runId"`
 	Metrics map[string]float64 `json:"metrics"`
 }
 

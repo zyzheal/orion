@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/alert-silence/fatigue"
 	"orion/platform-svc-go/internal/alert-silence/models"
 	"orion/platform-svc-go/internal/alert-silence/repository"
-	"go.uber.org/zap"
 )
 
 // FatigueInterface abstracts the fatigue analyzer for dependency injection.
@@ -25,8 +25,8 @@ type FatigueInterface interface {
 var _ FatigueInterface = (*fatigue.Analyzer)(nil)
 
 type AlertSilenceService struct {
-	repo   *repository.AlertSilenceRepository
-	logger *zap.Logger
+	repo    *repository.AlertSilenceRepository
+	logger  *zap.Logger
 	fatigue FatigueInterface
 }
 

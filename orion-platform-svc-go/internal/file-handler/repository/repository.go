@@ -7,15 +7,15 @@ import (
 	"strings"
 	"time"
 
-	"orion/platform-svc-go/internal/file-handler/models"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/file-handler/models"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
 var (
-	ErrFileNotFound       = errors.New("file not found")
+	ErrFileNotFound           = errors.New("file not found")
 	ErrStorageBackendNotFound = errors.New("storage backend not found")
 )
 

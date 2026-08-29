@@ -58,10 +58,10 @@ type CreateModuleRequest struct {
 
 // UpdateModuleRequest is the input for updating an existing startup module.
 type UpdateModuleRequest struct {
-	Type        *ModuleType  `json:"type"`
-	Priority    *int         `json:"priority"`
-	Description *string      `json:"description"`
-	Config      *string      `json:"config"`
+	Type        *ModuleType `json:"type"`
+	Priority    *int        `json:"priority"`
+	Description *string     `json:"description"`
+	Config      *string     `json:"config"`
 }
 
 // CreateDependencyRequest is the input for adding a dependency.

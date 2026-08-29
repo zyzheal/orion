@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/multi-cloud/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/multi-cloud/models"
 )
 
@@ -51,7 +51,7 @@ func (f *fakeHandlerService) GetCloudStats(ctx context.Context, tenantID string)
 	return &models.CloudStats{}, nil
 }
 
-func (f *fakeHandlerService) GetComplianceRules() ([]models.ComplianceRule) {
+func (f *fakeHandlerService) GetComplianceRules() []models.ComplianceRule {
 	return []models.ComplianceRule{}
 }
 
@@ -116,7 +116,6 @@ func (f *fakeHandlerService) UpdateCloudAccount(ctx context.Context, tenantID, i
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestHandler_MULTI_CLOUD_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

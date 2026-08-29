@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strconv"
 
 	"orion/platform-svc-go/internal/governance/compliance/models"
@@ -48,6 +49,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // CreateReport handles POST /reports.
 func (h *Handler) CreateReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceComplianceCreateReport")
+	defer span.End()
 	var req struct {
 		Name        string `json:"name" binding:"required"`
 		Description string `json:"description"`
@@ -61,7 +64,7 @@ func (h *Handler) CreateReport(c *gin.Context) {
 	}
 
 	tenantID := c.GetString("tenant_id")
-	report, err := h.svc.CreateReport(c.Request.Context(), tenantID, req.Name, req.Description, req.Framework, req.TriggeredBy, req.ScheduleID)
+	report, err := h.svc.CreateReport(ctx, tenantID, req.Name, req.Description, req.Framework, req.TriggeredBy, req.ScheduleID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -72,9 +75,11 @@ func (h *Handler) CreateReport(c *gin.Context) {
 
 // GetReport handles GET /reports/:id.
 func (h *Handler) GetReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceComplianceGetReport")
+	defer span.End()
 	id := c.Param("id")
 
-	report, err := h.svc.GetReport(c.Request.Context(), id)
+	report, err := h.svc.GetReport(ctx, id)
 	if err != nil {
 		if err == service.ErrReportNotFound {
 			respondNotFound(c, err.Error())
@@ -89,8 +94,10 @@ func (h *Handler) GetReport(c *gin.Context) {
 
 // ListReports handles GET /reports.
 func (h *Handler) ListReports(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceComplianceListReports")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-		framework := c.Query("framework")
+	framework := c.Query("framework")
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -102,7 +109,7 @@ func (h *Handler) ListReports(c *gin.Context) {
 	}
 	offset := (page - 1) * pageSize
 
-	reports, err := h.svc.ListReports(c.Request.Context(), tenantID, framework, offset, pageSize)
+	reports, err := h.svc.ListReports(ctx, tenantID, framework, offset, pageSize)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -113,6 +120,8 @@ func (h *Handler) ListReports(c *gin.Context) {
 
 // UpdateReport handles PUT /reports/:id.
 func (h *Handler) UpdateReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceComplianceUpdateReport")
+	defer span.End()
 	id := c.Param("id")
 
 	var input models.UpdateReportInput
@@ -121,7 +130,7 @@ func (h *Handler) UpdateReport(c *gin.Context) {
 		return
 	}
 
-	report, err := h.svc.UpdateReport(c.Request.Context(), id, &input)
+	report, err := h.svc.UpdateReport(ctx, id, &input)
 	if err != nil {
 		if err == service.ErrReportNotFound {
 			respondNotFound(c, err.Error())
@@ -136,9 +145,11 @@ func (h *Handler) UpdateReport(c *gin.Context) {
 
 // DeleteReport handles DELETE /reports/:id.
 func (h *Handler) DeleteReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceComplianceDeleteReport")
+	defer span.End()
 	id := c.Param("id")
 
-	if err := h.svc.DeleteReport(c.Request.Context(), id); err != nil {
+	if err := h.svc.DeleteReport(ctx, id); err != nil {
 		if err == service.ErrReportNotFound {
 			respondNotFound(c, err.Error())
 			return
@@ -154,11 +165,13 @@ func (h *Handler) DeleteReport(c *gin.Context) {
 
 // CreateSchedule handles POST /schedules.
 func (h *Handler) CreateSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceComplianceCreateSchedule")
+	defer span.End()
 	var req struct {
-		Name          string `json:"name" binding:"required"`
-		Framework     string `json:"framework" binding:"required"`
+		Name           string `json:"name" binding:"required"`
+		Framework      string `json:"framework" binding:"required"`
 		CronExpression string `json:"cron_expression" binding:"required"`
-		Enabled       *bool  `json:"enabled"`
+		Enabled        *bool  `json:"enabled"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
@@ -171,7 +184,7 @@ func (h *Handler) CreateSchedule(c *gin.Context) {
 		enabled = *req.Enabled
 	}
 
-	schedule, err := h.svc.CreateSchedule(c.Request.Context(), tenantID, req.Name, req.Framework, req.CronExpression, enabled, "")
+	schedule, err := h.svc.CreateSchedule(ctx, tenantID, req.Name, req.Framework, req.CronExpression, enabled, "")
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -182,6 +195,8 @@ func (h *Handler) CreateSchedule(c *gin.Context) {
 
 // ListSchedules handles GET /schedules.
 func (h *Handler) ListSchedules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceComplianceListSchedules")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -194,7 +209,7 @@ func (h *Handler) ListSchedules(c *gin.Context) {
 	}
 	offset := (page - 1) * pageSize
 
-	schedules, err := h.svc.ListSchedules(c.Request.Context(), tenantID, offset, pageSize)
+	schedules, err := h.svc.ListSchedules(ctx, tenantID, offset, pageSize)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -205,9 +220,11 @@ func (h *Handler) ListSchedules(c *gin.Context) {
 
 // DeleteSchedule handles DELETE /schedules/:id.
 func (h *Handler) DeleteSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceComplianceDeleteSchedule")
+	defer span.End()
 	id := c.Param("id")
 
-	if err := h.svc.DeleteSchedule(c.Request.Context(), id); err != nil {
+	if err := h.svc.DeleteSchedule(ctx, id); err != nil {
 		if err == service.ErrScheduleNotFound {
 			respondNotFound(c, err.Error())
 			return
@@ -219,87 +236,101 @@ func (h *Handler) DeleteSchedule(c *gin.Context) {
 	respondSuccess(c, gin.H{"deleted": true})
 }
 
-	// ==================== Policy Handlers ====================
+// ==================== Policy Handlers ====================
 
-	// CreatePolicy handles POST /policies.
-	func (h *Handler) CreatePolicy(c *gin.Context) {
-		var input models.CreatePolicyInput
-		if err := c.ShouldBindJSON(&input); err != nil {
-			respondBadRequest(c, err.Error())
-			return
-		}
-		tenantID := c.GetString("tenant_id")
-		policy, err := h.svc.CreatePolicy(c.Request.Context(), tenantID, &input)
-		if err != nil {
-			respondInternalError(c, err.Error())
-			return
-		}
-		respondCreated(c, policy)
+// CreatePolicy handles POST /policies.
+func (h *Handler) CreatePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceComplianceCreatePolicy")
+	defer span.End()
+	var input models.CreatePolicyInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		respondBadRequest(c, err.Error())
+		return
 	}
+	tenantID := c.GetString("tenant_id")
+	policy, err := h.svc.CreatePolicy(ctx, tenantID, &input)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondCreated(c, policy)
+}
 
-	// ListPolicies handles GET /policies.
-	func (h *Handler) ListPolicies(c *gin.Context) {
-		tenantID := c.GetString("tenant_id")
-		framework := c.Query("framework")
-		category := c.Query("category")
-		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-		pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-		if page <= 0 { page = 1 }
-		if pageSize <= 0 || pageSize > 100 { pageSize = 20 }
-		offset := (page - 1) * pageSize
-		policies, err := h.svc.ListPolicies(c.Request.Context(), tenantID, framework, category, offset, pageSize)
-		if err != nil {
-			respondInternalError(c, err.Error())
-			return
-		}
-		respondSuccess(c, policies)
+// ListPolicies handles GET /policies.
+func (h *Handler) ListPolicies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceComplianceListPolicies")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	framework := c.Query("framework")
+	category := c.Query("category")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	if page <= 0 {
+		page = 1
 	}
+	if pageSize <= 0 || pageSize > 100 {
+		pageSize = 20
+	}
+	offset := (page - 1) * pageSize
+	policies, err := h.svc.ListPolicies(ctx, tenantID, framework, category, offset, pageSize)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, policies)
+}
 
-	// GetPolicy handles GET /policies/:id.
-	func (h *Handler) GetPolicy(c *gin.Context) {
-		id := c.Param("id")
-		policy, err := h.svc.GetPolicy(c.Request.Context(), id)
-		if err != nil {
-			if err == service.ErrPolicyNotFound {
-				respondNotFound(c, err.Error())
-				return
-			}
-			respondInternalError(c, err.Error())
+// GetPolicy handles GET /policies/:id.
+func (h *Handler) GetPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceComplianceGetPolicy")
+	defer span.End()
+	id := c.Param("id")
+	policy, err := h.svc.GetPolicy(ctx, id)
+	if err != nil {
+		if err == service.ErrPolicyNotFound {
+			respondNotFound(c, err.Error())
 			return
 		}
-		respondSuccess(c, policy)
+		respondInternalError(c, err.Error())
+		return
 	}
+	respondSuccess(c, policy)
+}
 
-	// UpdatePolicy handles PUT /policies/:id.
-	func (h *Handler) UpdatePolicy(c *gin.Context) {
-		id := c.Param("id")
-		var input models.UpdatePolicyInput
-		if err := c.ShouldBindJSON(&input); err != nil {
-			respondBadRequest(c, err.Error())
-			return
-		}
-		policy, err := h.svc.UpdatePolicy(c.Request.Context(), id, &input)
-		if err != nil {
-			if err == service.ErrPolicyNotFound {
-				respondNotFound(c, err.Error())
-				return
-			}
-			respondInternalError(c, err.Error())
-			return
-		}
-		respondSuccess(c, policy)
+// UpdatePolicy handles PUT /policies/:id.
+func (h *Handler) UpdatePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceComplianceUpdatePolicy")
+	defer span.End()
+	id := c.Param("id")
+	var input models.UpdatePolicyInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		respondBadRequest(c, err.Error())
+		return
 	}
+	policy, err := h.svc.UpdatePolicy(ctx, id, &input)
+	if err != nil {
+		if err == service.ErrPolicyNotFound {
+			respondNotFound(c, err.Error())
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, policy)
+}
 
-	// DeletePolicy handles DELETE /policies/:id.
-	func (h *Handler) DeletePolicy(c *gin.Context) {
-		id := c.Param("id")
-		if err := h.svc.DeletePolicy(c.Request.Context(), id); err != nil {
-			if err == service.ErrPolicyNotFound {
-				respondNotFound(c, err.Error())
-				return
-			}
-			respondInternalError(c, err.Error())
+// DeletePolicy handles DELETE /policies/:id.
+func (h *Handler) DeletePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceComplianceDeletePolicy")
+	defer span.End()
+	id := c.Param("id")
+	if err := h.svc.DeletePolicy(ctx, id); err != nil {
+		if err == service.ErrPolicyNotFound {
+			respondNotFound(c, err.Error())
 			return
 		}
-		respondSuccess(c, gin.H{"deleted": true})
+		respondInternalError(c, err.Error())
+		return
 	}
+	respondSuccess(c, gin.H{"deleted": true})
+}

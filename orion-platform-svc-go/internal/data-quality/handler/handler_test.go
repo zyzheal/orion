@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/data-quality/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/data-quality/models"
 )
 
@@ -80,7 +80,6 @@ func (f *fakeData_qualityService) UpdateRule(ctx context.Context, tenantID, id s
 }
 
 var _ service.ServiceInterface = (*fakeData_qualityService)(nil)
-
 
 func TestHandler_DATA_QUALITY_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

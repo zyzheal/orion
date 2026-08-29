@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/self-service/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	Create(ctx context.Context, m *models.SelfService) error

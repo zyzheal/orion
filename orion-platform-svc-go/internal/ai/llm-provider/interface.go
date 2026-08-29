@@ -17,7 +17,7 @@ const (
 
 // Message represents a single message in a chat conversation.
 type Message struct {
-	Role    string `json:"role"`    // "system" | "user" | "assistant"
+	Role    string `json:"role"` // "system" | "user" | "assistant"
 	Content string `json:"content"`
 }
 
@@ -51,11 +51,11 @@ type StreamChunk struct {
 
 // Error classification helpers returned by LLMProvider methods.
 var (
-	ErrProviderNotFound = errors.New("LLM provider not registered")
-	ErrRateLimited      = errors.New("LLM request rate-limited")
-	ErrInvalidAPIKey    = errors.New("LLM invalid API key")
-	ErrInvalidModel     = errors.New("LLM invalid model")
-	ErrEmptyContent     = errors.New("LLM response returned empty content")
+	ErrProviderNotFound   = errors.New("LLM provider not registered")
+	ErrRateLimited        = errors.New("LLM request rate-limited")
+	ErrInvalidAPIKey      = errors.New("LLM invalid API key")
+	ErrInvalidModel       = errors.New("LLM invalid model")
+	ErrEmptyContent       = errors.New("LLM response returned empty content")
 	ErrTokenPoolExhausted = errors.New("LLM token pool exhausted")
 )
 

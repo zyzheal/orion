@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/privacy/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/privacy/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakePrivacyService) UpsertPrivacyConfig(ctx context.Context, tenantID s
 }
 
 var _ service.ServiceInterface = (*fakePrivacyService)(nil)
-
 
 func TestHandler_PRIVACY_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

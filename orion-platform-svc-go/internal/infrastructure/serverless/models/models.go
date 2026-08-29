@@ -86,11 +86,11 @@ type FunctionLog struct {
 
 // FunctionMetric represents a metric snapshot for a function.
 type FunctionMetric struct {
-	ID             string    `db:"id" json:"id"`
-	FunctionID     string    `db:"function_id" json:"function_id"`
-	TenantID       string    `db:"tenant_id" json:"tenant_id"`
-	Invocations    int       `db:"invocations" json:"invocations"`
-	AvgDurationMs  float64   `db:"avg_duration_ms" json:"avg_duration_ms"`
-	ErrorCount     int       `db:"error_count" json:"error_count"`
-	RecordedAt     time.Time `db:"recorded_at" json:"recorded_at"`
+	ID            string    `db:"id" json:"id"`
+	FunctionID    string    `db:"function_id" json:"function_id"`
+	TenantID      string    `db:"tenant_id" json:"tenant_id"`
+	Invocations   int       `db:"invocations" json:"invocations"`
+	AvgDurationMs float64   `db:"avg_duration_ms" json:"avg_duration_ms"`
+	ErrorCount    int       `db:"error_count" json:"error_count"`
+	RecordedAt    time.Time `db:"recorded_at" json:"recorded_at"`
 }

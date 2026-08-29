@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strconv"
 
 	"orion/platform-svc-go/internal/notification/chatops/models"
@@ -18,13 +19,15 @@ func NewWebhookHandler(svc *service.WebhookService) *WebhookHandler {
 }
 
 func (h *WebhookHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateWebhookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	wh, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	wh, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -33,8 +36,10 @@ func (h *WebhookHandler) Create(c *gin.Context) {
 }
 
 func (h *WebhookHandler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsGet")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	wh, err := h.svc.Get(c.Request.Context(), tenantID, c.Param("id"))
+	wh, err := h.svc.Get(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, "webhook not found")
 		return
@@ -43,8 +48,10 @@ func (h *WebhookHandler) Get(c *gin.Context) {
 }
 
 func (h *WebhookHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.List(c.Request.Context(), tenantID)
+	items, err := h.svc.List(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -53,13 +60,15 @@ func (h *WebhookHandler) List(c *gin.Context) {
 }
 
 func (h *WebhookHandler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsUpdate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateWebhookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	wh, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), req)
+	wh, err := h.svc.Update(ctx, tenantID, c.Param("id"), req)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -68,8 +77,10 @@ func (h *WebhookHandler) Update(c *gin.Context) {
 }
 
 func (h *WebhookHandler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -77,9 +88,11 @@ func (h *WebhookHandler) Delete(c *gin.Context) {
 }
 
 func (h *WebhookHandler) GetLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsGetLogs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	logs, err := h.svc.GetLogs(c.Request.Context(), tenantID, c.Param("id"), limit)
+	logs, err := h.svc.GetLogs(ctx, tenantID, c.Param("id"), limit)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -88,8 +101,10 @@ func (h *WebhookHandler) GetLogs(c *gin.Context) {
 }
 
 func (h *WebhookHandler) Test(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsTest")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	result, err := h.svc.Test(c.Request.Context(), tenantID, c.Param("id"))
+	result, err := h.svc.Test(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return

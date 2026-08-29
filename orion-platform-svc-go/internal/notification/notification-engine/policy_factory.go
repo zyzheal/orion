@@ -192,11 +192,11 @@ type AuditLogger interface {
 
 // ExecutorMetrics tracks executor-level statistics.
 type ExecutorMetrics struct {
-	ExecutedCount   int64 `json:"executedCount"`
-	SucceededCount  int64 `json:"succeededCount"`
-	FailedCount     int64 `json:"failedCount"`
-	HandlerCount    int64 `json:"handlerCount"`   // successful policy handler matches
-	MessageCount    int64 `json:"messageCount"`   // total messages produced
+	ExecutedCount  int64 `json:"executedCount"`
+	SucceededCount int64 `json:"succeededCount"`
+	FailedCount    int64 `json:"failedCount"`
+	HandlerCount   int64 `json:"handlerCount"` // successful policy handler matches
+	MessageCount   int64 `json:"messageCount"` // total messages produced
 }
 
 // AuditRecord is an audit entry for a notification delivery attempt.

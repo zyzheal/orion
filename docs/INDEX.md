@@ -264,6 +264,12 @@ docs/
 | [local-system-gap-analysis-2026-08-26.md](local-system-gap-analysis-2026-08-26.md) | **本地全量缺口分析** | Go 后端 3,816 文件 + 前端 679 页面全量扫描，18 项缺口 (P0×4 + P1×11 + P2×3) |
 | [deliverables/README.md](deliverables/README.md) | **合并交付索引** | 45 方案合并总索引 (873 行)：方案 01-30 增强合并 + 方案 31-45 新增缺口补充 |
 
+### 🆕 外部能力集成设计（2026-08-26）
+
+| 文档 | 主题 | 说明 |
+|------|------|------|
+| [../orion-platform-svc-go/docs/weknora-integration-design-2026-08-26.md](../orion-platform-svc-go/docs/weknora-integration-design-2026-08-26.md) | **WeKnora 知识图谱集成方案 v1.0** | 15 节设计：实体抽取 / 关系发现 / 图谱查询 / 图谱增强 RAG、Bridge 接口契约、数据模型与迁移、API 路由、4 阶段路线图、降级策略、监控指标、风险缓解（22,043 字节） |
+
 ### 🆕 v2.0 可交付级生产代码 — 全量扫描合并版（2026-08-26）
 
 > 以下代码文件为方案 1-45 的**生产级可交付实现**，包含完整 import/类型/错误处理/数据库层/单元测试，可直接编译运行。

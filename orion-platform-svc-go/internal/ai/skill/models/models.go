@@ -69,23 +69,23 @@ func (a *StringArray) Scan(src interface{}) error {
 // ---------------------------------------------------------------------------
 
 type SkillPackage struct {
-	ID              string         `db:"id"               json:"id"`
-	Name            string         `db:"name"             json:"name"`
-	Version         string         `db:"version"          json:"version"`
-	Description     string         `db:"description"      json:"description"`
-	Category        string         `db:"category"         json:"category"`
-	Tags            StringArray    `db:"tags"             json:"tags"`
-	Author          string         `db:"author"           json:"author"`
-	Status          string         `db:"status"           json:"status"`
-	Schema          JSONB          `db:"schema"           json:"schema"`
-	Capabilities    StringArray    `db:"capabilities"     json:"capabilities,omitempty"`
-	Schemas         JSONB          `db:"schemas"          json:"schemas,omitempty"`
-	IsVersionLocked bool           `db:"is_version_locked" json:"is_version_locked"`
-	InstallCount    int            `db:"install_count"    json:"install_count"`
-	Rating          float64        `db:"rating"           json:"rating"`
-	RatingCount     int            `db:"rating_count"     json:"rating_count"`
-	CreatedAt       time.Time      `db:"created_at"       json:"created_at"`
-	UpdatedAt       time.Time      `db:"updated_at"       json:"updated_at"`
+	ID              string      `db:"id"               json:"id"`
+	Name            string      `db:"name"             json:"name"`
+	Version         string      `db:"version"          json:"version"`
+	Description     string      `db:"description"      json:"description"`
+	Category        string      `db:"category"         json:"category"`
+	Tags            StringArray `db:"tags"             json:"tags"`
+	Author          string      `db:"author"           json:"author"`
+	Status          string      `db:"status"           json:"status"`
+	Schema          JSONB       `db:"schema"           json:"schema"`
+	Capabilities    StringArray `db:"capabilities"     json:"capabilities,omitempty"`
+	Schemas         JSONB       `db:"schemas"          json:"schemas,omitempty"`
+	IsVersionLocked bool        `db:"is_version_locked" json:"is_version_locked"`
+	InstallCount    int         `db:"install_count"    json:"install_count"`
+	Rating          float64     `db:"rating"           json:"rating"`
+	RatingCount     int         `db:"rating_count"     json:"rating_count"`
+	CreatedAt       time.Time   `db:"created_at"       json:"created_at"`
+	UpdatedAt       time.Time   `db:"updated_at"       json:"updated_at"`
 }
 
 // ---------------------------------------------------------------------------
@@ -132,12 +132,12 @@ type SkillInstance struct {
 // ---------------------------------------------------------------------------
 
 type SkillReview struct {
-	ID        string    `db:"id"         json:"id"`
-	SkillID   string    `db:"skill_id"   json:"skill_id"`
-	UserID    string    `db:"user_id"    json:"user_id"`
-	Rating    int       `db:"rating"     json:"rating"`
+	ID        string         `db:"id"         json:"id"`
+	SkillID   string         `db:"skill_id"   json:"skill_id"`
+	UserID    string         `db:"user_id"    json:"user_id"`
+	Rating    int            `db:"rating"     json:"rating"`
 	Comment   sql.NullString `db:"comment" json:"comment,omitempty"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	CreatedAt time.Time      `db:"created_at" json:"created_at"`
 }
 
 // ---------------------------------------------------------------------------
@@ -185,15 +185,15 @@ type SkillAuditLog struct {
 // ---------------------------------------------------------------------------
 
 type CreateSkillRequest struct {
-	Name         string      `json:"name"         binding:"required"`
-	Version      string      `json:"version"      binding:"required"`
-	Description  string      `json:"description"`
-	Category     string      `json:"category"`
-	Tags         []string    `json:"tags"`
-	Author       string      `json:"author"       binding:"required"`
-	Schema       JSONB       `json:"schema"`
-	Capabilities []string    `json:"capabilities"`
-	Schemas      JSONB       `json:"schemas"`
+	Name         string   `json:"name"         binding:"required"`
+	Version      string   `json:"version"      binding:"required"`
+	Description  string   `json:"description"`
+	Category     string   `json:"category"`
+	Tags         []string `json:"tags"`
+	Author       string   `json:"author"       binding:"required"`
+	Schema       JSONB    `json:"schema"`
+	Capabilities []string `json:"capabilities"`
+	Schemas      JSONB    `json:"schemas"`
 }
 
 type UpdateSkillRequest struct {
@@ -223,18 +223,18 @@ type CreateReviewRequest struct {
 }
 
 type CreateInstanceRequest struct {
-	SkillID   string `json:"skill_id"   binding:"required"`
-	TenantID  string `json:"tenant_id"  binding:"required"`
-	ProjectID string `json:"project_id"`
-	Name      string `json:"name"       binding:"required"`
+	SkillID     string `json:"skill_id"   binding:"required"`
+	TenantID    string `json:"tenant_id"  binding:"required"`
+	ProjectID   string `json:"project_id"`
+	Name        string `json:"name"       binding:"required"`
 	Description string `json:"description"`
-	Config    JSONB  `json:"config"`
-	Bindings  JSONB  `json:"bindings"`
-	Metadata  JSONB  `json:"metadata"`
-	IsDefault bool   `json:"is_default"`
-	Status    string `json:"status"`
-	CreatedBy string `json:"created_by"`
-	Version   string `json:"version"`
+	Config      JSONB  `json:"config"`
+	Bindings    JSONB  `json:"bindings"`
+	Metadata    JSONB  `json:"metadata"`
+	IsDefault   bool   `json:"is_default"`
+	Status      string `json:"status"`
+	CreatedBy   string `json:"created_by"`
+	Version     string `json:"version"`
 }
 
 type UpdateInstanceRequest struct {

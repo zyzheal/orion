@@ -400,8 +400,8 @@ func TestService_ExecuteFlow_emptyDAG(t *testing.T) {
 
 func Test_bumpPatchVersion(t *testing.T) {
 	tests := []struct {
-		in    string
-		want  string
+		in   string
+		want string
 	}{
 		{"1.2.3", "1.2.4"},
 		{"0.0.0", "0.0.1"},

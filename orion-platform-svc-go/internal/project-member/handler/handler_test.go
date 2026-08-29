@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/project-member/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/project-member/models"
 )
 
@@ -68,7 +68,6 @@ func (f *fakeProject_memberService) UpdateMember(ctx context.Context, tenantID, 
 }
 
 var _ service.ServiceInterface = (*fakeProject_memberService)(nil)
-
 
 func TestHandler_PROJECT_MEMBER_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

@@ -27,10 +27,10 @@ type cacheEntry struct {
 
 // Stage deduplicates alerts by fingerprint within a TTL window.
 type Stage struct {
-	mu       sync.RWMutex
-	logger   *zap.Logger
-	window   time.Duration
-	seen     map[string]*cacheEntry // fingerprint -> entry
+	mu     sync.RWMutex
+	logger *zap.Logger
+	window time.Duration
+	seen   map[string]*cacheEntry // fingerprint -> entry
 }
 
 // NewStage creates a dedup stage with the given TTL window.

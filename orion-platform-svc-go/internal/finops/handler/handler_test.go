@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/finops/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/finops/models"
 )
 
@@ -84,7 +84,6 @@ func (f *fakeFinopsService) RejectOptimization(ctx context.Context, tenantID str
 }
 
 var _ service.ServiceInterface = (*fakeFinopsService)(nil)
-
 
 func TestHandler_FINOPS_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

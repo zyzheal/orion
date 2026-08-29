@@ -44,18 +44,18 @@ type HealthStat struct {
 
 // DefaultModelProviderMap maps well-known model names to their provider type.
 var DefaultModelProviderMap = map[string]ProviderType{
-	"gpt-4":             ProviderTypeOpenAI,
-	"gpt-4o":            ProviderTypeOpenAI,
-	"gpt-4o-mini":       ProviderTypeOpenAI,
-	"gpt-4-turbo":       ProviderTypeOpenAI,
-	"gpt-3.5-turbo":     ProviderTypeOpenAI,
-	"claude-opus":       ProviderTypeAnthropic,
-	"claude-sonnet":     ProviderTypeAnthropic,
-	"claude-3-opus":     ProviderTypeAnthropic,
-	"claude-3-sonnet":   ProviderTypeAnthropic,
-	"claude-3-haiku":    ProviderTypeAnthropic,
-	"deepseek-chat":     ProviderTypeDeepSeek,
-	"deepseek-coder":    ProviderTypeDeepSeek,
+	"gpt-4":           ProviderTypeOpenAI,
+	"gpt-4o":          ProviderTypeOpenAI,
+	"gpt-4o-mini":     ProviderTypeOpenAI,
+	"gpt-4-turbo":     ProviderTypeOpenAI,
+	"gpt-3.5-turbo":   ProviderTypeOpenAI,
+	"claude-opus":     ProviderTypeAnthropic,
+	"claude-sonnet":   ProviderTypeAnthropic,
+	"claude-3-opus":   ProviderTypeAnthropic,
+	"claude-3-sonnet": ProviderTypeAnthropic,
+	"claude-3-haiku":  ProviderTypeAnthropic,
+	"deepseek-chat":   ProviderTypeDeepSeek,
+	"deepseek-coder":  ProviderTypeDeepSeek,
 }
 
 // inferProviderFromModel guesses the provider type from a model name.

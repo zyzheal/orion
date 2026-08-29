@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/notification-policy/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/notification-policy/models"
 )
 
@@ -76,7 +76,6 @@ func (f *fakeNotification_policyService) UpdateWorkflow(ctx context.Context, ten
 }
 
 var _ service.ServiceInterface = (*fakeNotification_policyService)(nil)
-
 
 func TestHandler_NOTIFICATION_P_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

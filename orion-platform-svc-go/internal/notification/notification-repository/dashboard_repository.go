@@ -82,9 +82,9 @@ func (r *DashboardRepository) GetDefaultDashboard(ctx context.Context, tenantID 
 	if err != nil {
 		// Create a default dashboard
 		d = models.Dashboard{
-			ID:       uuid.New().String(),
-			TenantID: tenantID,
-			Name:     "Default Dashboard",
+			ID:        uuid.New().String(),
+			TenantID:  tenantID,
+			Name:      "Default Dashboard",
 			IsDefault: true,
 		}
 		if err := r.CreateDashboard(ctx, &d); err != nil {

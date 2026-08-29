@@ -7,20 +7,20 @@
 //
 // Supported rule keys (case-insensitive):
 //
-//   required       — "true"/"1" means value must not be empty
-//   min            — minimum string length / minimum numeric value
-//   max            — maximum string length / maximum numeric value
-//   min_value      — minimum numeric value (distinct from min/length)
-//   max_value      — maximum numeric value (distinct from max/length)
-//   regex          — required PCRE-style regular expression to match
-//   pattern        — alias for regex
-//   allowed        — comma-separated list of allowed values (enum-like)
-//   allowed_set    — JSON array of allowed values (enum-like, superset of allowed)
-//   format         — named format: email | ip | ipv4 | ipv6 | uuid | url | date
-//   nullable       — "false" means zero-value / empty is rejected
-//   precision      — maximum total digits for numeric (e.g. "10")
-//   scale          — maximum decimal places for numeric (e.g. "2")
-//   case_insensitive — "true" makes allowed/allowed_set matching case-insensitive
+//	required       — "true"/"1" means value must not be empty
+//	min            — minimum string length / minimum numeric value
+//	max            — maximum string length / maximum numeric value
+//	min_value      — minimum numeric value (distinct from min/length)
+//	max_value      — maximum numeric value (distinct from max/length)
+//	regex          — required PCRE-style regular expression to match
+//	pattern        — alias for regex
+//	allowed        — comma-separated list of allowed values (enum-like)
+//	allowed_set    — JSON array of allowed values (enum-like, superset of allowed)
+//	format         — named format: email | ip | ipv4 | ipv6 | uuid | url | date
+//	nullable       — "false" means zero-value / empty is rejected
+//	precision      — maximum total digits for numeric (e.g. "10")
+//	scale          — maximum decimal places for numeric (e.g. "2")
+//	case_insensitive — "true" makes allowed/allowed_set matching case-insensitive
 package validator
 
 import (

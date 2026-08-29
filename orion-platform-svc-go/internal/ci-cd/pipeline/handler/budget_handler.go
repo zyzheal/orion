@@ -1,10 +1,10 @@
 package handler
 
 import (
-
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ci-cd/pipeline/models"
 	"orion/platform-svc-go/internal/ci-cd/pipeline/service"
-	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 )
@@ -31,6 +31,8 @@ func (h *BudgetHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // SetBudget creates a new budget.
 func (h *BudgetHandler) SetBudget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineSetBudget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 
@@ -40,7 +42,7 @@ func (h *BudgetHandler) SetBudget(c *gin.Context) {
 		return
 	}
 
-	budget, err := h.svc.Set(c.Request.Context(), tenantID, userID, req)
+	budget, err := h.svc.Set(ctx, tenantID, userID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -51,10 +53,12 @@ func (h *BudgetHandler) SetBudget(c *gin.Context) {
 
 // GetBudget retrieves the effective budget.
 func (h *BudgetHandler) GetBudget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineGetBudget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Query("pipeline_id")
 
-	budget, err := h.svc.Get(c.Request.Context(), tenantID, pipelineID)
+	budget, err := h.svc.Get(ctx, tenantID, pipelineID)
 	if err != nil {
 		respondNotFound(c, "budget not found")
 		return
@@ -65,6 +69,8 @@ func (h *BudgetHandler) GetBudget(c *gin.Context) {
 
 // UpdateBudget updates an existing budget.
 func (h *BudgetHandler) UpdateBudget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineUpdateBudget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var budget models.PipelineBudget
@@ -74,7 +80,7 @@ func (h *BudgetHandler) UpdateBudget(c *gin.Context) {
 	}
 
 	budget.TenantID = tenantID
-	if err := h.svc.Update(c.Request.Context(), tenantID, &budget); err != nil {
+	if err := h.svc.Update(ctx, tenantID, &budget); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -84,6 +90,8 @@ func (h *BudgetHandler) UpdateBudget(c *gin.Context) {
 
 // DeleteBudget deletes a budget.
 func (h *BudgetHandler) DeleteBudget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineDeleteBudget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Query("id")
 	if id == "" {
@@ -91,7 +99,7 @@ func (h *BudgetHandler) DeleteBudget(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -101,10 +109,12 @@ func (h *BudgetHandler) DeleteBudget(c *gin.Context) {
 
 // CheckBudget checks if the spend is within budget.
 func (h *BudgetHandler) CheckBudget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineCheckBudget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Query("pipeline_id")
 
-	result, err := h.svc.Check(c.Request.Context(), tenantID, pipelineID)
+	result, err := h.svc.Check(ctx, tenantID, pipelineID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

@@ -19,18 +19,18 @@ var ErrNoResults = errors.New("no pipeline results found")
 
 // Result is the persistent representation of a pipeline result.
 type Result struct {
-	ID         uuid.UUID   `db:"id"`
-	TenantID   string      `db:"tenant_id"`
-	ResultID   uuid.UUID   `db:"result_id"`
-	AlertID    string      `db:"alert_id"`
-	Status     string      `db:"status"`
-	StagesJSON []byte      `db:"stages"`
-	StageCount int         `db:"stage_count"`
-	ErrorsJSON []byte      `db:"errors"`
+	ID         uuid.UUID      `db:"id"`
+	TenantID   string         `db:"tenant_id"`
+	ResultID   uuid.UUID      `db:"result_id"`
+	AlertID    string         `db:"alert_id"`
+	Status     string         `db:"status"`
+	StagesJSON []byte         `db:"stages"`
+	StageCount int            `db:"stage_count"`
+	ErrorsJSON []byte         `db:"errors"`
 	Error      sql.NullString `db:"error"`
 	AlertName  sql.NullString `db:"alert_name"`
 	Severity   sql.NullString `db:"severity"`
-	CreatedAt  time.Time   `db:"created_at"`
+	CreatedAt  time.Time      `db:"created_at"`
 }
 
 // Repository persists alert pipeline results to PostgreSQL.

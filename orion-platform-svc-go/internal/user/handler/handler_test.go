@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/user/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/user/models"
 )
 
@@ -58,8 +58,6 @@ func (f *fakeHandler) ChangePassword(ctx context.Context, tenantID, userID strin
 func (f *fakeHandler) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
-
-
 
 func TestHandler_USER_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

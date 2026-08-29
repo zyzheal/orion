@@ -68,9 +68,9 @@ func (r *GrayReleaseRepository) Create(ctx context.Context, tenantID, routeID st
 func (r *GrayReleaseRepository) Get(ctx context.Context, tenantID, routeID string) (*models.GrayReleaseStatusResponse, error) {
 	var (
 		id, cfgJSON, activeSince, createdAt, updatedAt string
-		enabled bool
-		rollbackCount int
-		lastRollback *time.Time
+		enabled                                        bool
+		rollbackCount                                  int
+		lastRollback                                   *time.Time
 	)
 	err := r.db.QueryRowContext(ctx, `
 		SELECT id, config, enabled, active_since, last_rollback, rollback_count, created_at, updated_at

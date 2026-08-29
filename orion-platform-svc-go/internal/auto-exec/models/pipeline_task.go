@@ -6,7 +6,7 @@ import "time"
 // It extends the standard Job with pipeline-specific parameters such as
 // pipelineID, pipelineName, and runtime inputs forwarded to the pipeline engine.
 type PipelineTask struct {
-	Job              // embedded base job
+	Job // embedded base job
 
 	// PipelineID is the unique identifier of the pipeline to execute.
 	// This is the primary key used by the PipelineExecutor.
@@ -40,7 +40,7 @@ func NewPipelineTask(pipelineID string, inputs map[string]interface{}) *Pipeline
 		PipelineID: pipelineID,
 		Inputs:     inputs,
 		Job: Job{
-			Type:    "pipeline-trigger",
+			Type:       "pipeline-trigger",
 			TimeoutSec: 300,
 		},
 	}

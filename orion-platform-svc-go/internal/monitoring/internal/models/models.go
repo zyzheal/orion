@@ -36,17 +36,17 @@ type MetricResponse struct {
 
 // Trace represents a distributed trace span.
 type Trace struct {
-	ID             uuid.UUID       `json:"id"`
-	TenantID       uuid.UUID       `json:"tenant_id"`
-	TraceID        string          `json:"trace_id"`
-	SpanID         string          `json:"span_id"`
-	ParentSpanID   *string         `json:"parent_span_id,omitempty"`
-	ServiceName    string          `json:"service_name"`
-	OperationName  string          `json:"operation_name"`
-	Status         string          `json:"status"`
-	DurationMs     int             `json:"duration_ms"`
-	Attributes     json.RawMessage `json:"attributes,omitempty"`
-	CreatedAt      time.Time       `json:"created_at"`
+	ID            uuid.UUID       `json:"id"`
+	TenantID      uuid.UUID       `json:"tenant_id"`
+	TraceID       string          `json:"trace_id"`
+	SpanID        string          `json:"span_id"`
+	ParentSpanID  *string         `json:"parent_span_id,omitempty"`
+	ServiceName   string          `json:"service_name"`
+	OperationName string          `json:"operation_name"`
+	Status        string          `json:"status"`
+	DurationMs    int             `json:"duration_ms"`
+	Attributes    json.RawMessage `json:"attributes,omitempty"`
+	CreatedAt     time.Time       `json:"created_at"`
 }
 
 // TraceQueryRequest is the request for querying traces.
@@ -70,14 +70,14 @@ type TraceResponse struct {
 
 // ServiceOverview represents a service's APM summary.
 type ServiceOverview struct {
-	ServiceName     string  `json:"service_name"`
-	RequestCount    int64   `json:"request_count"`
-	ErrorRate       float64 `json:"error_rate"`
-	AvgDurationMs   float64 `json:"avg_duration_ms"`
-	P95DurationMs   float64 `json:"p95_duration_ms"`
-	P99DurationMs   float64 `json:"p99_duration_ms"`
-	ActiveTraces    int64   `json:"active_traces"`
-	LastSeen        time.Time `json:"last_seen"`
+	ServiceName   string    `json:"service_name"`
+	RequestCount  int64     `json:"request_count"`
+	ErrorRate     float64   `json:"error_rate"`
+	AvgDurationMs float64   `json:"avg_duration_ms"`
+	P95DurationMs float64   `json:"p95_duration_ms"`
+	P99DurationMs float64   `json:"p99_duration_ms"`
+	ActiveTraces  int64     `json:"active_traces"`
+	LastSeen      time.Time `json:"last_seen"`
 }
 
 // Alert represents an alert instance.
@@ -109,36 +109,36 @@ type AlertResponse struct {
 
 // AlertRule represents a monitoring alert rule.
 type AlertRule struct {
-	ID                  uuid.UUID `json:"id"`
-	TenantID            uuid.UUID `json:"tenant_id"`
-	Name                string    `json:"name"`
-	MetricName          string    `json:"metric_name"`
-	Operator            string    `json:"operator"`
-	Threshold           float64   `json:"threshold"`
-	EvaluationIntervalSec int     `json:"evaluation_interval_sec"`
-	IsEnabled           bool      `json:"is_enabled"`
-	CreatedAt           time.Time `json:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at"`
+	ID                    uuid.UUID `json:"id"`
+	TenantID              uuid.UUID `json:"tenant_id"`
+	Name                  string    `json:"name"`
+	MetricName            string    `json:"metric_name"`
+	Operator              string    `json:"operator"`
+	Threshold             float64   `json:"threshold"`
+	EvaluationIntervalSec int       `json:"evaluation_interval_sec"`
+	IsEnabled             bool      `json:"is_enabled"`
+	CreatedAt             time.Time `json:"created_at"`
+	UpdatedAt             time.Time `json:"updated_at"`
 }
 
 // CreateAlertRuleRequest is the request body for creating an alert rule.
 type CreateAlertRuleRequest struct {
-	Name                string  `json:"name" binding:"required"`
-	MetricName          string  `json:"metric_name" binding:"required"`
-	Operator            string  `json:"operator" binding:"required,oneof=> < >= <="`
-	Threshold           float64 `json:"threshold" binding:"required"`
-	EvaluationIntervalSec int   `json:"evaluation_interval_sec" binding:"required,min=5"`
-	IsEnabled           *bool   `json:"is_enabled"`
+	Name                  string  `json:"name" binding:"required"`
+	MetricName            string  `json:"metric_name" binding:"required"`
+	Operator              string  `json:"operator" binding:"required,oneof=> < >= <="`
+	Threshold             float64 `json:"threshold" binding:"required"`
+	EvaluationIntervalSec int     `json:"evaluation_interval_sec" binding:"required,min=5"`
+	IsEnabled             *bool   `json:"is_enabled"`
 }
 
 // UpdateAlertRuleRequest is the request body for updating an alert rule.
 type UpdateAlertRuleRequest struct {
-	Name                string  `json:"name"`
-	MetricName          string  `json:"metric_name"`
-	Operator            string  `json:"operator" binding:"omitempty,oneof=> < >= <="`
-	Threshold           float64 `json:"threshold"`
-	EvaluationIntervalSec int   `json:"evaluation_interval_sec" binding:"omitempty,min=5"`
-	IsEnabled           *bool   `json:"is_enabled"`
+	Name                  string  `json:"name"`
+	MetricName            string  `json:"metric_name"`
+	Operator              string  `json:"operator" binding:"omitempty,oneof=> < >= <="`
+	Threshold             float64 `json:"threshold"`
+	EvaluationIntervalSec int     `json:"evaluation_interval_sec" binding:"omitempty,min=5"`
+	IsEnabled             *bool   `json:"is_enabled"`
 }
 
 // AlertRuleResponse wraps alert rule query results.
@@ -168,8 +168,8 @@ type MetricAggregation struct {
 
 // MetricAggregationResult pairs a metric name with its aggregation.
 type MetricAggregationResult struct {
-	Name        string             `json:"name"`
-	Aggregation MetricAggregation  `json:"aggregation"`
+	Name        string            `json:"name"`
+	Aggregation MetricAggregation `json:"aggregation"`
 }
 
 // GetMetricAggregationRequest is the request for metric aggregation queries.
@@ -184,16 +184,16 @@ type GetMetricAggregationRequest struct {
 
 // SystemMetrics holds collected system-level metrics.
 type SystemMetrics struct {
-	CPUUsage     float64   `json:"cpu_usage"`
-	MemoryUsage  float64   `json:"memory_usage"`
-	MemoryUsed   uint64    `json:"memory_used"`
-	MemoryTotal  uint64    `json:"memory_total"`
-	LoadAvg1m    float64   `json:"load_avg_1m"`
-	LoadAvg5m    float64   `json:"load_avg_5m"`
-	LoadAvg15m   float64   `json:"load_avg_15m"`
-	Goroutines   int       `json:"goroutines"`
-	Hostname     string    `json:"hostname"`
-	CollectedAt  time.Time `json:"collected_at"`
+	CPUUsage    float64   `json:"cpu_usage"`
+	MemoryUsage float64   `json:"memory_usage"`
+	MemoryUsed  uint64    `json:"memory_used"`
+	MemoryTotal uint64    `json:"memory_total"`
+	LoadAvg1m   float64   `json:"load_avg_1m"`
+	LoadAvg5m   float64   `json:"load_avg_5m"`
+	LoadAvg15m  float64   `json:"load_avg_15m"`
+	Goroutines  int       `json:"goroutines"`
+	Hostname    string    `json:"hostname"`
+	CollectedAt time.Time `json:"collected_at"`
 }
 
 // RegisterMetricRequest is the request body for registering a custom metric.
@@ -290,11 +290,11 @@ type AnomalyResult struct {
 
 // DashboardData is the complete dashboard response.
 type DashboardData struct {
-	Widgets      []DashboardWidget   `json:"widgets"`
-	HealthScore  int                 `json:"health_score"`
-	ActiveAlerts map[string]int      `json:"active_alerts"`
-	Anomalies    []AnomalyResult     `json:"anomalies"`
-	GeneratedAt  time.Time           `json:"generated_at"`
+	Widgets      []DashboardWidget `json:"widgets"`
+	HealthScore  int               `json:"health_score"`
+	ActiveAlerts map[string]int    `json:"active_alerts"`
+	Anomalies    []AnomalyResult   `json:"anomalies"`
+	GeneratedAt  time.Time         `json:"generated_at"`
 }
 
 // ==================== Health Status ====================
@@ -314,29 +314,29 @@ type HealthStatus struct {
 
 // NotificationChannel represents a notification channel config.
 type NotificationChannel struct {
-	ID            uuid.UUID       `json:"id"`
-	TenantID      uuid.UUID       `json:"tenant_id"`
-	Name          string          `json:"name"`
-	Type          string          `json:"type"`
-	Config        json.RawMessage `json:"config"`
-	IsEnabled     bool            `json:"is_enabled"`
+	ID             uuid.UUID       `json:"id"`
+	TenantID       uuid.UUID       `json:"tenant_id"`
+	Name           string          `json:"name"`
+	Type           string          `json:"type"`
+	Config         json.RawMessage `json:"config"`
+	IsEnabled      bool            `json:"is_enabled"`
 	SeverityFilter json.RawMessage `json:"severity_filter"`
-	CreatedAt     time.Time       `json:"created_at"`
-	UpdatedAt     time.Time       `json:"updated_at"`
+	CreatedAt      time.Time       `json:"created_at"`
+	UpdatedAt      time.Time       `json:"updated_at"`
 }
 
 // CreateNotificationChannelRequest is the request body for creating a channel.
 type CreateNotificationChannelRequest struct {
-	Name          string                 `json:"name" binding:"required"`
-	Type          string                 `json:"type" binding:"required,oneof=email webhook slack"`
-	Config        map[string]interface{} `json:"config" binding:"required"`
-	IsEnabled     *bool                  `json:"is_enabled"`
+	Name           string                 `json:"name" binding:"required"`
+	Type           string                 `json:"type" binding:"required,oneof=email webhook slack"`
+	Config         map[string]interface{} `json:"config" binding:"required"`
+	IsEnabled      *bool                  `json:"is_enabled"`
 	SeverityFilter []string               `json:"severity_filter"`
 }
 
 // NotificationChannelResponse wraps notification channel query results.
 type NotificationChannelResponse struct {
-	Total int64                `json:"total"`
+	Total int64                 `json:"total"`
 	Data  []NotificationChannel `json:"data"`
 }
 
@@ -357,16 +357,16 @@ type EscalationPolicy struct {
 
 // CreateEscalationPolicyRequest is the request body for creating a policy.
 type CreateEscalationPolicyRequest struct {
-	Name        string                 `json:"name" binding:"required"`
+	Name        string                   `json:"name" binding:"required"`
 	Steps       []map[string]interface{} `json:"steps" binding:"required"`
-	RepeatCount *int                   `json:"repeat_count"`
-	IsEnabled   *bool                  `json:"is_enabled"`
-	Description *string                `json:"description"`
+	RepeatCount *int                     `json:"repeat_count"`
+	IsEnabled   *bool                    `json:"is_enabled"`
+	Description *string                  `json:"description"`
 }
 
 // EscalationPolicyResponse wraps escalation policy query results.
 type EscalationPolicyResponse struct {
-	Total int64             `json:"total"`
+	Total int64              `json:"total"`
 	Data  []EscalationPolicy `json:"data"`
 }
 
@@ -374,63 +374,63 @@ type EscalationPolicyResponse struct {
 
 // NotificationHistory represents a notification delivery record.
 type NotificationHistory struct {
-	ID            uuid.UUID `json:"id"`
-	TenantID      uuid.UUID `json:"tenant_id"`
-	AlertID       *uuid.UUID `json:"alert_id,omitempty"`
-	ChannelID     *uuid.UUID `json:"channel_id,omitempty"`
-	ChannelType   string    `json:"channel_type"`
-	Status        string    `json:"status"`
-	SentAt        time.Time `json:"sent_at"`
-	ErrorMessage  string    `json:"error_message,omitempty"`
-	ResponsePayload string  `json:"response_payload,omitempty"`
-	EscalationStep *int     `json:"escalation_step,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
+	ID              uuid.UUID  `json:"id"`
+	TenantID        uuid.UUID  `json:"tenant_id"`
+	AlertID         *uuid.UUID `json:"alert_id,omitempty"`
+	ChannelID       *uuid.UUID `json:"channel_id,omitempty"`
+	ChannelType     string     `json:"channel_type"`
+	Status          string     `json:"status"`
+	SentAt          time.Time  `json:"sent_at"`
+	ErrorMessage    string     `json:"error_message,omitempty"`
+	ResponsePayload string     `json:"response_payload,omitempty"`
+	EscalationStep  *int       `json:"escalation_step,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
 }
 
 // NotificationHistoryQueryRequest is the request for querying notification history.
 type NotificationHistoryQueryRequest struct {
-	AlertID     *uuid.UUID `json:"alert_id" binding:"omitempty,uuid"`
-	ChannelID   *uuid.UUID `json:"channel_id" binding:"omitempty,uuid"`
-	Status      string     `json:"status"`
-	StartTime   time.Time  `json:"start_time"`
-	EndTime     time.Time  `json:"end_time"`
-	Limit       int        `json:"limit"`
-	Offset      int        `json:"offset"`
+	AlertID   *uuid.UUID `json:"alert_id" binding:"omitempty,uuid"`
+	ChannelID *uuid.UUID `json:"channel_id" binding:"omitempty,uuid"`
+	Status    string     `json:"status"`
+	StartTime time.Time  `json:"start_time"`
+	EndTime   time.Time  `json:"end_time"`
+	Limit     int        `json:"limit"`
+	Offset    int        `json:"offset"`
 }
 
 // NotificationHistoryResponse wraps notification history query results.
 type NotificationHistoryResponse struct {
-	Total int64                `json:"total"`
+	Total int64                 `json:"total"`
 	Data  []NotificationHistory `json:"data"`
 }
 
 // CollectSystemMetricsRequest is the request body for collecting system metrics.
 type CollectSystemMetricsRequest struct {
-	Hostname       string   `json:"hostname" binding:"required"`
-	MetricName     string   `json:"metric_name"`
-	CPUUsage       float64  `json:"cpu_usage"`
-	MemoryUsage    float64  `json:"memory_usage"`
-	MemoryUsed     uint64   `json:"memory_used"`
-	MemoryTotal    uint64   `json:"memory_total"`
-	LoadAvg1m      float64  `json:"load_avg_1m"`
-	LoadAvg5m      float64  `json:"load_avg_5m"`
-	LoadAvg15m     float64  `json:"load_avg_15m"`
-	Goroutines     int      `json:"goroutines"`
-	DiskUsed       uint64   `json:"disk_used"`
-	DiskTotal      uint64   `json:"disk_total"`
-	NetInBytes     uint64   `json:"net_in_bytes"`
-	NetOutBytes    uint64   `json:"net_out_bytes"`
-	Tags           map[string]string `json:"tags"`
-	CollectedAt    time.Time `json:"collected_at"`
+	Hostname    string            `json:"hostname" binding:"required"`
+	MetricName  string            `json:"metric_name"`
+	CPUUsage    float64           `json:"cpu_usage"`
+	MemoryUsage float64           `json:"memory_usage"`
+	MemoryUsed  uint64            `json:"memory_used"`
+	MemoryTotal uint64            `json:"memory_total"`
+	LoadAvg1m   float64           `json:"load_avg_1m"`
+	LoadAvg5m   float64           `json:"load_avg_5m"`
+	LoadAvg15m  float64           `json:"load_avg_15m"`
+	Goroutines  int               `json:"goroutines"`
+	DiskUsed    uint64            `json:"disk_used"`
+	DiskTotal   uint64            `json:"disk_total"`
+	NetInBytes  uint64            `json:"net_in_bytes"`
+	NetOutBytes uint64            `json:"net_out_bytes"`
+	Tags        map[string]string `json:"tags"`
+	CollectedAt time.Time         `json:"collected_at"`
 }
 
 // CollectSystemMetricsResponse wraps the result of a system metrics collection.
 type CollectSystemMetricsResponse struct {
-	Success    bool              `json:"success"`
-	Message    string            `json:"message"`
-	System     SystemMetrics     `json:"system"`
-	PointCount int               `json:"point_count"`
-	Tags       json.RawMessage   `json:"tags,omitempty"`
+	Success    bool            `json:"success"`
+	Message    string          `json:"message"`
+	System     SystemMetrics   `json:"system"`
+	PointCount int             `json:"point_count"`
+	Tags       json.RawMessage `json:"tags,omitempty"`
 }
 
 // ==================== Metric Registration ====================
@@ -450,6 +450,6 @@ type MetricRegistration struct {
 
 // MetricRegistrationResponse wraps metric registration query results.
 type MetricRegistrationResponse struct {
-	Total int64               `json:"total"`
+	Total int64                `json:"total"`
 	Data  []MetricRegistration `json:"data"`
 }

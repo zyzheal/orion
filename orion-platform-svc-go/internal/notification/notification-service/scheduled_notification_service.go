@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"orion/go-common/pkg/otel"
 	"orion/platform-svc-go/internal/notification/notification/models"
 	"orion/platform-svc-go/internal/notification/notification/repository"
-	"orion/go-common/pkg/otel"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -190,9 +190,9 @@ func (s *ScheduledNotificationService) ValidateCronExpression(cronExpression str
 	nextFire := time.Now().Add(1 * time.Minute).Truncate(time.Minute)
 
 	return models.ParsedCronSchedule{
-		Expression:   cronExpression,
-		Description:  fmt.Sprintf("Runs %s", description),
-		NextRuns:     []time.Time{nextFire},
+		Expression:  cronExpression,
+		Description: fmt.Sprintf("Runs %s", description),
+		NextRuns:    []time.Time{nextFire},
 	}
 }
 

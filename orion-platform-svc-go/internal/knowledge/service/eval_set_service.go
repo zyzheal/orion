@@ -11,12 +11,12 @@ import (
 // CreateEvalSet creates a new eval set with all its cases in one call.
 func (s *Service) CreateEvalSet(ctx context.Context, tenantID string, req models.CreateEvalSetRequest, userID string) (*models.EvalSet, error) {
 	set := &models.EvalSet{
-		TenantID:  tenantID,
-		Name:      req.Name,
+		TenantID:    tenantID,
+		Name:        req.Name,
 		Description: req.Description,
-		Version:   1,
-		IsActive:  true,
-		CreatedBy: userID,
+		Version:     1,
+		IsActive:    true,
+		CreatedBy:   userID,
 	}
 	if err := s.ragRepo.CreateEvalSet(ctx, set); err != nil {
 		return nil, err
@@ -77,11 +77,11 @@ func (s *Service) RunEval(ctx context.Context, tenantID string, req models.RunEv
 	}
 
 	run := &models.EvalRun{
-		SetID:      req.SetID,
-		TenantID:   tenantID,
-		Model:      req.Model,
-		Status:     "running",
-		CreatedBy:  userID,
+		SetID:     req.SetID,
+		TenantID:  tenantID,
+		Model:     req.Model,
+		Status:    "running",
+		CreatedBy: userID,
 	}
 	if err := s.ragRepo.CreateEvalRun(ctx, run); err != nil {
 		return nil, err
@@ -120,7 +120,7 @@ func (s *Service) RunEval(ctx context.Context, tenantID string, req models.RunEv
 		if hit {
 			pass++
 		}
-		totalRecall += 1.0 // placeholder: absolute recall against 1 expected doc
+		totalRecall += 1.0                    // placeholder: absolute recall against 1 expected doc
 		totalScore += (resultsScore(results)) // similarity contributes
 	}
 
@@ -159,8 +159,8 @@ func (s *Service) CompareRuns(ctx context.Context, tenantID string, req models.C
 	headRate := safeRate(head.PassCount, head.TotalCount)
 	regression := headRate < baseRate || head.AvgScore < base.AvgScore
 	return &models.EvalRunComparison{
-		Base:  base,
-		Head:  head,
+		Base: base,
+		Head: head,
 		Delta: models.EvalRunDelta{
 			PassRateDelta:  round2(headRate - baseRate),
 			AvgRecallDelta: round2(head.AvgRecall - base.AvgRecall),

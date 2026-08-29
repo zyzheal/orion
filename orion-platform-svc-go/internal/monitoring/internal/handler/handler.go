@@ -7,10 +7,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	"go.uber.org/zap"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/monitoring/internal/models"
 	"orion/platform-svc-go/internal/monitoring/internal/service"
-	"orion/go-common/pkg/auth"
-	"go.uber.org/zap"
 )
 
 type Handler struct {
@@ -109,6 +110,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Health Check ====================
 
 func (h *Handler) HealthCheck(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorHealthCheck")
+	defer span.End()
 	respondSuccess(c, gin.H{
 		"status":  "healthy",
 		"service": "orion-monitor-svc-go",
@@ -118,6 +121,8 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 // ==================== Metrics ====================
 
 func (h *Handler) ReportMetric(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorReportMetric")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
 	var req models.MetricQueryRequest
@@ -126,7 +131,7 @@ func (h *Handler) ReportMetric(c *gin.Context) {
 		return
 	}
 
-	m, err := h.metricSvc.ReportMetric(c.Request.Context(), tenantID, req)
+	m, err := h.metricSvc.ReportMetric(ctx, tenantID, req)
 	if err != nil {
 		h.logger.Error("failed to report metric", zap.Error(err))
 		respondInternalError(c, "Failed to report metric")
@@ -137,6 +142,8 @@ func (h *Handler) ReportMetric(c *gin.Context) {
 }
 
 func (h *Handler) QueryMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorQueryMetrics")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
 	var req models.MetricQueryRequest
@@ -145,7 +152,7 @@ func (h *Handler) QueryMetrics(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.metricSvc.QueryMetrics(c.Request.Context(), tenantID, req)
+	resp, err := h.metricSvc.QueryMetrics(ctx, tenantID, req)
 	if err != nil {
 		h.logger.Error("failed to query metrics", zap.Error(err))
 		respondInternalError(c, "Failed to query metrics")
@@ -156,10 +163,10 @@ func (h *Handler) QueryMetrics(c *gin.Context) {
 }
 
 func (h *Handler) GetMetricSeries(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetMetricSeries")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	metricName := c.Param("name")
-
-	ctx := c.Request.Context()
 	series, err := h.metricSvc.GetSeries(ctx, tenantID, metricName)
 	if err != nil {
 		h.logger.Error("failed to get metric series", zap.String("metric", metricName), zap.Error(err))
@@ -171,6 +178,8 @@ func (h *Handler) GetMetricSeries(c *gin.Context) {
 }
 
 func (h *Handler) GetMetricSummary(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetMetricSummary")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	metricName := c.Param("name")
 
@@ -179,7 +188,7 @@ func (h *Handler) GetMetricSummary(c *gin.Context) {
 		windowMs = 60 * 60 * 1000 // default 1 hour
 	}
 
-	agg, err := h.metricSvc.GetAggregation(c.Request.Context(), tenantID, metricName, windowMs)
+	agg, err := h.metricSvc.GetAggregation(ctx, tenantID, metricName, windowMs)
 	if err != nil {
 		h.logger.Error("failed to get metric summary", zap.String("metric", metricName), zap.Error(err))
 		respondInternalError(c, "Failed to get metric summary")
@@ -192,6 +201,8 @@ func (h *Handler) GetMetricSummary(c *gin.Context) {
 // CollectSystemMetrics accepts a batch of system-level metrics (CPU, memory, disk, network)
 // for a host and persists them as individual metric data points.
 func (h *Handler) CollectSystemMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorCollectSystemMetrics")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
 	var req models.CollectSystemMetricsRequest
@@ -200,7 +211,7 @@ func (h *Handler) CollectSystemMetrics(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.metricSvc.CollectSystemMetrics(c.Request.Context(), tenantID, req)
+	resp, err := h.metricSvc.CollectSystemMetrics(ctx, tenantID, req)
 	if err != nil {
 		h.logger.Error("failed to collect system metrics",
 			zap.String("hostname", req.Hostname),
@@ -214,9 +225,11 @@ func (h *Handler) CollectSystemMetrics(c *gin.Context) {
 }
 
 func (h *Handler) GetRegisteredMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetRegisteredMetrics")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
-	resp, err := h.notifSvc.ListRegisteredMetrics(c.Request.Context(), tenantID)
+	resp, err := h.notifSvc.ListRegisteredMetrics(ctx, tenantID)
 	if err != nil {
 		h.logger.Error("failed to list registered metrics", zap.Error(err))
 		respondInternalError(c, "Failed to list registered metrics")
@@ -227,6 +240,8 @@ func (h *Handler) GetRegisteredMetrics(c *gin.Context) {
 }
 
 func (h *Handler) RegisterMetric(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorRegisterMetric")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
 	var req models.RegisterMetricRequest
@@ -235,7 +250,7 @@ func (h *Handler) RegisterMetric(c *gin.Context) {
 		return
 	}
 
-	reg, err := h.notifSvc.RegisterMetric(c.Request.Context(), tenantID, req.Name, req.Unit, req.DefaultTags, &req.Description)
+	reg, err := h.notifSvc.RegisterMetric(ctx, tenantID, req.Name, req.Unit, req.DefaultTags, &req.Description)
 	if err != nil {
 		h.logger.Error("failed to register metric", zap.Error(err))
 		respondInternalError(c, "Failed to register metric")
@@ -246,6 +261,8 @@ func (h *Handler) RegisterMetric(c *gin.Context) {
 }
 
 func (h *Handler) GetMetricAggregation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetMetricAggregation")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
 	var req models.GetMetricAggregationRequest
@@ -259,7 +276,7 @@ func (h *Handler) GetMetricAggregation(c *gin.Context) {
 		windowMs = 60 * 60 * 1000 // default 1 hour
 	}
 
-	agg, err := h.metricSvc.GetAggregation(c.Request.Context(), tenantID, req.MetricName, windowMs)
+	agg, err := h.metricSvc.GetAggregation(ctx, tenantID, req.MetricName, windowMs)
 	if err != nil {
 		h.logger.Error("failed to get metric aggregation", zap.Error(err))
 		respondInternalError(c, "Failed to get metric aggregation")
@@ -272,6 +289,8 @@ func (h *Handler) GetMetricAggregation(c *gin.Context) {
 // ==================== Traces ====================
 
 func (h *Handler) QueryTraces(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorQueryTraces")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
 	var req models.TraceQueryRequest
@@ -280,7 +299,7 @@ func (h *Handler) QueryTraces(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.metricSvc.GetTraces(c.Request.Context(), tenantID, req)
+	resp, err := h.metricSvc.GetTraces(ctx, tenantID, req)
 	if err != nil {
 		h.logger.Error("failed to query traces", zap.Error(err))
 		respondInternalError(c, "Failed to query traces")
@@ -291,10 +310,12 @@ func (h *Handler) QueryTraces(c *gin.Context) {
 }
 
 func (h *Handler) GetTraceDetail(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetTraceDetail")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	TRACE_ID := c.Param("trace_id")
 
-	traces, err := h.metricSvc.GetTraceDetail(c.Request.Context(), tenantID, TRACE_ID)
+	traces, err := h.metricSvc.GetTraceDetail(ctx, tenantID, TRACE_ID)
 	if err != nil {
 		h.logger.Error("failed to get trace detail", zap.String("traceId", TRACE_ID), zap.Error(err))
 		respondNotFound(c, "Trace not found")
@@ -312,9 +333,11 @@ func (h *Handler) GetTraceDetail(c *gin.Context) {
 // ==================== Services ====================
 
 func (h *Handler) GetServices(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetServices")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
-	services, err := h.metricSvc.GetServices(c.Request.Context(), tenantID)
+	services, err := h.metricSvc.GetServices(ctx, tenantID)
 	if err != nil {
 		h.logger.Error("failed to get services", zap.Error(err))
 		respondInternalError(c, "Failed to get services")
@@ -329,10 +352,12 @@ func (h *Handler) GetServices(c *gin.Context) {
 }
 
 func (h *Handler) GetServiceOverview(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetServiceOverview")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	serviceName := c.Param("service_name")
 
-	overview, err := h.metricSvc.GetServiceOverview(c.Request.Context(), tenantID, serviceName)
+	overview, err := h.metricSvc.GetServiceOverview(ctx, tenantID, serviceName)
 	if err != nil {
 		h.logger.Error("failed to get service overview", zap.String("serviceName", serviceName), zap.Error(err))
 		respondInternalError(c, "Failed to get service overview")
@@ -345,6 +370,8 @@ func (h *Handler) GetServiceOverview(c *gin.Context) {
 // ==================== Alerts ====================
 
 func (h *Handler) QueryAlerts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorQueryAlerts")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
 	var req models.AlertQueryRequest
@@ -353,7 +380,7 @@ func (h *Handler) QueryAlerts(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.alertSvc.QueryAlerts(c.Request.Context(), tenantID, req)
+	resp, err := h.alertSvc.QueryAlerts(ctx, tenantID, req)
 	if err != nil {
 		h.logger.Error("failed to query alerts", zap.Error(err))
 		respondInternalError(c, "Failed to query alerts")
@@ -364,6 +391,8 @@ func (h *Handler) QueryAlerts(c *gin.Context) {
 }
 
 func (h *Handler) GetAlertByID(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetAlertByID")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -371,7 +400,7 @@ func (h *Handler) GetAlertByID(c *gin.Context) {
 		return
 	}
 
-	alert, err := h.alertSvc.GetAlertByID(c.Request.Context(), tenantID, id)
+	alert, err := h.alertSvc.GetAlertByID(ctx, tenantID, id)
 	if err != nil {
 		h.logger.Error("failed to get alert", zap.String("id", id.String()), zap.Error(err))
 		respondNotFound(c, "Alert not found")
@@ -382,9 +411,11 @@ func (h *Handler) GetAlertByID(c *gin.Context) {
 }
 
 func (h *Handler) GetActiveAlerts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetActiveAlerts")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
-	resp, err := h.notifSvc.GetActiveAlerts(c.Request.Context(), tenantID)
+	resp, err := h.notifSvc.GetActiveAlerts(ctx, tenantID)
 	if err != nil {
 		h.logger.Error("failed to get active alerts", zap.Error(err))
 		respondInternalError(c, "Failed to get active alerts")
@@ -395,6 +426,8 @@ func (h *Handler) GetActiveAlerts(c *gin.Context) {
 }
 
 func (h *Handler) AcknowledgeAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorAcknowledgeAlert")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -402,7 +435,7 @@ func (h *Handler) AcknowledgeAlert(c *gin.Context) {
 		return
 	}
 
-	if err := h.notifSvc.AcknowledgeAlert(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.notifSvc.AcknowledgeAlert(ctx, tenantID, id); err != nil {
 		h.logger.Error("failed to acknowledge alert", zap.String("id", id.String()), zap.Error(err))
 		respondNotFound(c, err.Error())
 		return
@@ -412,6 +445,8 @@ func (h *Handler) AcknowledgeAlert(c *gin.Context) {
 }
 
 func (h *Handler) SilenceAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorSilenceAlert")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -419,7 +454,7 @@ func (h *Handler) SilenceAlert(c *gin.Context) {
 		return
 	}
 
-	if err := h.alertSvc.SilenceAlert(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.alertSvc.SilenceAlert(ctx, tenantID, id); err != nil {
 		h.logger.Error("failed to silence alert", zap.String("id", id.String()), zap.Error(err))
 		respondNotFound(c, err.Error())
 		return
@@ -429,6 +464,8 @@ func (h *Handler) SilenceAlert(c *gin.Context) {
 }
 
 func (h *Handler) ResolveAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorResolveAlert")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -436,7 +473,7 @@ func (h *Handler) ResolveAlert(c *gin.Context) {
 		return
 	}
 
-	if err := h.alertSvc.ResolveAlert(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.alertSvc.ResolveAlert(ctx, tenantID, id); err != nil {
 		h.logger.Error("failed to resolve alert", zap.String("id", id.String()), zap.Error(err))
 		respondNotFound(c, err.Error())
 		return
@@ -448,9 +485,11 @@ func (h *Handler) ResolveAlert(c *gin.Context) {
 // ==================== Alert Rules ====================
 
 func (h *Handler) QueryAlertRules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorQueryAlertRules")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
-	resp, err := h.alertSvc.QueryAlertRules(c.Request.Context(), tenantID)
+	resp, err := h.alertSvc.QueryAlertRules(ctx, tenantID)
 	if err != nil {
 		h.logger.Error("failed to query alert rules", zap.Error(err))
 		respondInternalError(c, "Failed to query alert rules")
@@ -461,6 +500,8 @@ func (h *Handler) QueryAlertRules(c *gin.Context) {
 }
 
 func (h *Handler) CreateAlertRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorCreateAlertRule")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
 	var req models.CreateAlertRuleRequest
@@ -469,7 +510,7 @@ func (h *Handler) CreateAlertRule(c *gin.Context) {
 		return
 	}
 
-	rule, err := h.alertSvc.CreateAlertRule(c.Request.Context(), tenantID, req)
+	rule, err := h.alertSvc.CreateAlertRule(ctx, tenantID, req)
 	if err != nil {
 		h.logger.Error("failed to create alert rule", zap.Error(err))
 		respondInternalError(c, "Failed to create alert rule")
@@ -480,6 +521,8 @@ func (h *Handler) CreateAlertRule(c *gin.Context) {
 }
 
 func (h *Handler) GetAlertRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetAlertRule")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -487,7 +530,7 @@ func (h *Handler) GetAlertRule(c *gin.Context) {
 		return
 	}
 
-	rule, err := h.alertSvc.GetAlertRule(c.Request.Context(), tenantID, id)
+	rule, err := h.alertSvc.GetAlertRule(ctx, tenantID, id)
 	if err != nil {
 		h.logger.Error("failed to get alert rule", zap.String("id", id.String()), zap.Error(err))
 		respondNotFound(c, "Alert rule not found")
@@ -498,6 +541,8 @@ func (h *Handler) GetAlertRule(c *gin.Context) {
 }
 
 func (h *Handler) UpdateAlertRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorUpdateAlertRule")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -511,7 +556,7 @@ func (h *Handler) UpdateAlertRule(c *gin.Context) {
 		return
 	}
 
-	if err := h.alertSvc.UpdateAlertRule(c.Request.Context(), tenantID, id, req); err != nil {
+	if err := h.alertSvc.UpdateAlertRule(ctx, tenantID, id, req); err != nil {
 		h.logger.Error("failed to update alert rule", zap.String("id", id.String()), zap.Error(err))
 		respondNotFound(c, err.Error())
 		return
@@ -521,6 +566,8 @@ func (h *Handler) UpdateAlertRule(c *gin.Context) {
 }
 
 func (h *Handler) DeleteAlertRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorDeleteAlertRule")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -528,7 +575,7 @@ func (h *Handler) DeleteAlertRule(c *gin.Context) {
 		return
 	}
 
-	if err := h.alertSvc.DeleteAlertRule(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.alertSvc.DeleteAlertRule(ctx, tenantID, id); err != nil {
 		h.logger.Error("failed to delete alert rule", zap.String("id", id.String()), zap.Error(err))
 		respondNotFound(c, err.Error())
 		return
@@ -538,6 +585,8 @@ func (h *Handler) DeleteAlertRule(c *gin.Context) {
 }
 
 func (h *Handler) ToggleAlertRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorToggleAlertRule")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -546,14 +595,14 @@ func (h *Handler) ToggleAlertRule(c *gin.Context) {
 	}
 
 	enabled, _ := strconv.ParseBool(c.Query("enabled"))
-	rule, err := h.alertSvc.GetAlertRule(c.Request.Context(), tenantID, id)
+	rule, err := h.alertSvc.GetAlertRule(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, "Alert rule not found")
 		return
 	}
 
 	rule.IsEnabled = enabled
-	if err := h.alertSvc.UpdateAlertRule(c.Request.Context(), tenantID, id, models.UpdateAlertRuleRequest{IsEnabled: &enabled}); err != nil {
+	if err := h.alertSvc.UpdateAlertRule(ctx, tenantID, id, models.UpdateAlertRuleRequest{IsEnabled: &enabled}); err != nil {
 		respondInternalError(c, "Failed to toggle rule")
 		return
 	}
@@ -562,8 +611,10 @@ func (h *Handler) ToggleAlertRule(c *gin.Context) {
 }
 
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorCount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.alertSvc.Count(c.Request.Context(), tenantID)
+	count, err := h.alertSvc.Count(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -574,6 +625,8 @@ func (h *Handler) Count(c *gin.Context) {
 // ==================== Notification Channels ====================
 
 func (h *Handler) CreateChannel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorCreateChannel")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
 	var req models.CreateNotificationChannelRequest
@@ -582,7 +635,7 @@ func (h *Handler) CreateChannel(c *gin.Context) {
 		return
 	}
 
-	channel, err := h.notifSvc.CreateChannel(c.Request.Context(), tenantID, req)
+	channel, err := h.notifSvc.CreateChannel(ctx, tenantID, req)
 	if err != nil {
 		h.logger.Error("failed to create channel", zap.Error(err))
 		respondInternalError(c, "Failed to create channel")
@@ -593,9 +646,11 @@ func (h *Handler) CreateChannel(c *gin.Context) {
 }
 
 func (h *Handler) ListChannels(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorListChannels")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
-	resp, err := h.notifSvc.ListChannels(c.Request.Context(), tenantID)
+	resp, err := h.notifSvc.ListChannels(ctx, tenantID)
 	if err != nil {
 		h.logger.Error("failed to list channels", zap.Error(err))
 		respondInternalError(c, "Failed to list channels")
@@ -606,6 +661,8 @@ func (h *Handler) ListChannels(c *gin.Context) {
 }
 
 func (h *Handler) GetChannel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetChannel")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -613,7 +670,7 @@ func (h *Handler) GetChannel(c *gin.Context) {
 		return
 	}
 
-	channel, err := h.notifSvc.GetChannel(c.Request.Context(), tenantID, id)
+	channel, err := h.notifSvc.GetChannel(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, "Channel not found")
 		return
@@ -623,6 +680,8 @@ func (h *Handler) GetChannel(c *gin.Context) {
 }
 
 func (h *Handler) ToggleChannel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorToggleChannel")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -642,7 +701,7 @@ func (h *Handler) ToggleChannel(c *gin.Context) {
 		}
 	}
 
-	channel, err := h.notifSvc.ToggleChannel(c.Request.Context(), tenantID, id, enabled)
+	channel, err := h.notifSvc.ToggleChannel(ctx, tenantID, id, enabled)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -652,6 +711,8 @@ func (h *Handler) ToggleChannel(c *gin.Context) {
 }
 
 func (h *Handler) DeleteChannel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorDeleteChannel")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -659,7 +720,7 @@ func (h *Handler) DeleteChannel(c *gin.Context) {
 		return
 	}
 
-	if err := h.notifSvc.DeleteChannel(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.notifSvc.DeleteChannel(ctx, tenantID, id); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -670,6 +731,8 @@ func (h *Handler) DeleteChannel(c *gin.Context) {
 // ==================== Escalation Policies ====================
 
 func (h *Handler) CreateEscalationPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorCreateEscalationPolicy")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
 	var req models.CreateEscalationPolicyRequest
@@ -678,7 +741,7 @@ func (h *Handler) CreateEscalationPolicy(c *gin.Context) {
 		return
 	}
 
-	policy, err := h.notifSvc.CreateEscalationPolicy(c.Request.Context(), tenantID, req)
+	policy, err := h.notifSvc.CreateEscalationPolicy(ctx, tenantID, req)
 	if err != nil {
 		h.logger.Error("failed to create escalation policy", zap.Error(err))
 		respondInternalError(c, "Failed to create escalation policy")
@@ -689,9 +752,11 @@ func (h *Handler) CreateEscalationPolicy(c *gin.Context) {
 }
 
 func (h *Handler) ListEscalationPolicies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorListEscalationPolicies")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
-	resp, err := h.notifSvc.ListEscalationPolicies(c.Request.Context(), tenantID)
+	resp, err := h.notifSvc.ListEscalationPolicies(ctx, tenantID)
 	if err != nil {
 		h.logger.Error("failed to list escalation policies", zap.Error(err))
 		respondInternalError(c, "Failed to list escalation policies")
@@ -702,6 +767,8 @@ func (h *Handler) ListEscalationPolicies(c *gin.Context) {
 }
 
 func (h *Handler) GetEscalationPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetEscalationPolicy")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -709,7 +776,7 @@ func (h *Handler) GetEscalationPolicy(c *gin.Context) {
 		return
 	}
 
-	policy, err := h.notifSvc.GetEscalationPolicy(c.Request.Context(), tenantID, id)
+	policy, err := h.notifSvc.GetEscalationPolicy(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, "Escalation policy not found")
 		return
@@ -721,6 +788,8 @@ func (h *Handler) GetEscalationPolicy(c *gin.Context) {
 // ==================== Notification History ====================
 
 func (h *Handler) ListNotificationHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorListNotificationHistory")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
 	var req models.NotificationHistoryQueryRequest
@@ -729,7 +798,7 @@ func (h *Handler) ListNotificationHistory(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.notifSvc.ListNotificationHistory(c.Request.Context(), tenantID, req)
+	resp, err := h.notifSvc.ListNotificationHistory(ctx, tenantID, req)
 	if err != nil {
 		h.logger.Error("failed to list notification history", zap.Error(err))
 		respondInternalError(c, "Failed to list notification history")
@@ -742,6 +811,8 @@ func (h *Handler) ListNotificationHistory(c *gin.Context) {
 // ==================== Dashboard ====================
 
 func (h *Handler) GetDashboard(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetDashboard")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
 	timeWindow := models.TimeWindow(c.Query("time_window"))
@@ -749,7 +820,7 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 		timeWindow = models.TimeWindow1h
 	}
 
-	data, err := h.notifSvc.GetDashboardData(c.Request.Context(), tenantID, timeWindow)
+	data, err := h.notifSvc.GetDashboardData(ctx, tenantID, timeWindow)
 	if err != nil {
 		h.logger.Error("failed to get dashboard data", zap.Error(err))
 		respondInternalError(c, "Failed to get dashboard data")
@@ -760,6 +831,8 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 }
 
 func (h *Handler) CreateWidgetConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorCreateWidgetConfig")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
 	var body gin.H
@@ -795,7 +868,7 @@ func (h *Handler) CreateWidgetConfig(c *gin.Context) {
 		timeWindow = "1h"
 	}
 
-	cfg, err := h.notifSvc.CreateWidgetConfig(c.Request.Context(), tenantID, title, metrics, timeWindow.(string))
+	cfg, err := h.notifSvc.CreateWidgetConfig(ctx, tenantID, title, metrics, timeWindow.(string))
 	if err != nil {
 		respondInternalError(c, "Failed to create widget config")
 		return
@@ -805,9 +878,11 @@ func (h *Handler) CreateWidgetConfig(c *gin.Context) {
 }
 
 func (h *Handler) ListWidgetConfigs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorListWidgetConfigs")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
-	widgets, err := h.notifSvc.ListWidgetConfigs(c.Request.Context(), tenantID)
+	widgets, err := h.notifSvc.ListWidgetConfigs(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, "Failed to list widget configs")
 		return
@@ -817,6 +892,8 @@ func (h *Handler) ListWidgetConfigs(c *gin.Context) {
 }
 
 func (h *Handler) DeleteWidgetConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorDeleteWidgetConfig")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
 	widgetIDStr := c.Param("id")
@@ -826,7 +903,7 @@ func (h *Handler) DeleteWidgetConfig(c *gin.Context) {
 		return
 	}
 
-	if err := h.notifSvc.DeleteWidgetConfig(c.Request.Context(), tenantID, widgetID); err != nil {
+	if err := h.notifSvc.DeleteWidgetConfig(ctx, tenantID, widgetID); err != nil {
 		respondInternalError(c, "Failed to delete widget config")
 		return
 	}
@@ -835,6 +912,8 @@ func (h *Handler) DeleteWidgetConfig(c *gin.Context) {
 }
 
 func (h *Handler) GetAggregatedMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetAggregatedMetrics")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
 	metricsParam := c.Query("metrics")
@@ -856,7 +935,7 @@ func (h *Handler) GetAggregatedMetrics(c *gin.Context) {
 		timeWindow = models.TimeWindow1h
 	}
 
-	aggregated, err := h.notifSvc.GetAggregatedMetrics(c.Request.Context(), tenantID, metrics, timeWindow)
+	aggregated, err := h.notifSvc.GetAggregatedMetrics(ctx, tenantID, metrics, timeWindow)
 	if err != nil {
 		respondInternalError(c, "Failed to get aggregated metrics")
 		return
@@ -868,6 +947,8 @@ func (h *Handler) GetAggregatedMetrics(c *gin.Context) {
 // ==================== Anomalies ====================
 
 func (h *Handler) DetectAnomalies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorDetectAnomalies")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
 	metricName := c.Query("metric")
@@ -888,7 +969,7 @@ func (h *Handler) DetectAnomalies(c *gin.Context) {
 		threshold = ts
 	}
 
-	anomalies, err := h.notifSvc.DetectAnomalies(c.Request.Context(), tenantID, metricName, timeWindow, threshold)
+	anomalies, err := h.notifSvc.DetectAnomalies(ctx, tenantID, metricName, timeWindow, threshold)
 	if err != nil {
 		respondInternalError(c, "Failed to detect anomalies")
 		return
@@ -898,6 +979,8 @@ func (h *Handler) DetectAnomalies(c *gin.Context) {
 }
 
 func (h *Handler) GetAnomalySummary(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetAnomalySummary")
+	defer span.End()
 	// Return an empty summary for now
 	respondSuccess(c, gin.H{"success": true, "data": gin.H{"summary": gin.H{
 		"anomaly_count": 0,
@@ -907,12 +990,14 @@ func (h *Handler) GetAnomalySummary(c *gin.Context) {
 }
 
 func (h *Handler) GetAlertStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorGetAlertStats")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
 	// Count by status
-	firingResp, _ := h.alertSvc.QueryAlerts(c.Request.Context(), tenantID, models.AlertQueryRequest{Status: "firing"})
-	ackResp, _ := h.alertSvc.QueryAlerts(c.Request.Context(), tenantID, models.AlertQueryRequest{Status: "acknowledged"})
-	silencedResp, _ := h.alertSvc.QueryAlerts(c.Request.Context(), tenantID, models.AlertQueryRequest{Status: "silenced"})
+	firingResp, _ := h.alertSvc.QueryAlerts(ctx, tenantID, models.AlertQueryRequest{Status: "firing"})
+	ackResp, _ := h.alertSvc.QueryAlerts(ctx, tenantID, models.AlertQueryRequest{Status: "acknowledged"})
+	silencedResp, _ := h.alertSvc.QueryAlerts(ctx, tenantID, models.AlertQueryRequest{Status: "silenced"})
 
 	respondSuccess(c, gin.H{"success": true, "data": gin.H{"stats": gin.H{
 		"firing":       len(firingResp.Data),

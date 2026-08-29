@@ -4,11 +4,11 @@
 //
 // The factory supports two complementary flows:
 //
-//   1. Adapter catalog management — CRUD over cmdb_adapters (tenant-scoped
-//      instances of vendor adapters with JSON config).
-//   2. Discovery orchestration — submit a discovery job, look up the adapter
-//      from the registry, run Discover(), and persist both the job record
-//      (cmdb_discovery_jobs) and the resulting assets (cmdb_assets).
+//  1. Adapter catalog management — CRUD over cmdb_adapters (tenant-scoped
+//     instances of vendor adapters with JSON config).
+//  2. Discovery orchestration — submit a discovery job, look up the adapter
+//     from the registry, run Discover(), and persist both the job record
+//     (cmdb_discovery_jobs) and the resulting assets (cmdb_assets).
 //
 // Design decisions:
 //   - The factory owns a sync.RWMutex-guarded map of *static* adapter

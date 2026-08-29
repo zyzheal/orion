@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/artifact/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/artifact/models"
 )
 
@@ -38,7 +38,7 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 
 type fakeHandlerService struct{}
 
-func (f *fakeHandlerService) AddTags(ctx context.Context, tenantID, id string, tags []string) (error) {
+func (f *fakeHandlerService) AddTags(ctx context.Context, tenantID, id string, tags []string) error {
 	return nil
 }
 
@@ -46,7 +46,7 @@ func (f *fakeHandlerService) Create(ctx context.Context, tenantID string, req mo
 	return &models.Artifact{}, nil
 }
 
-func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
@@ -103,7 +103,7 @@ func (f *fakeHandlerService) Quarantine(ctx context.Context, tenantID, id string
 	return &models.Artifact{}, nil
 }
 
-func (f *fakeHandlerService) RemoveTags(ctx context.Context, tenantID, id string, tags []string) (error) {
+func (f *fakeHandlerService) RemoveTags(ctx context.Context, tenantID, id string, tags []string) error {
 	return nil
 }
 
@@ -116,7 +116,6 @@ func (f *fakeHandlerService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestARTIFACT_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

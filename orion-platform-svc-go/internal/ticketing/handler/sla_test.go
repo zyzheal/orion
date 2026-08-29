@@ -37,10 +37,10 @@ func TestHandler_AddSLATarget(t *testing.T) {
 	r := newTestSLAHandler()
 
 	body, _ := json.Marshal(map[string]any{
-		"name":                      "High Priority SLA",
-		"priority":                  "high",
-		"response_hours":    1,
-		"resolve_hours":     24,
+		"name":           "High Priority SLA",
+		"priority":       "high",
+		"response_hours": 1,
+		"resolve_hours":  24,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/sla/targets", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")

@@ -101,7 +101,7 @@ type IndexerStatus struct {
 
 // SearchResultStats aggregates search result statistics.
 type SearchResultStats struct {
-	TotalResults int                 `json:"total_results"`
-	ModuleCounts map[string]int      `json:"module_counts"`
-	SearchTimeMs int64               `json:"search_time_ms"`
+	TotalResults int            `json:"total_results"`
+	ModuleCounts map[string]int `json:"module_counts"`
+	SearchTimeMs int64          `json:"search_time_ms"`
 }

@@ -28,11 +28,11 @@ func (s *OptimizationService) AnalyzeUtilization(ctx context.Context, tenantID s
 	analysis := &models.UtilizationAnalysis{
 		TenantID: tenantID,
 		ByCategory: map[models.OptimizationCategory]int{
-			models.OptUnusedResources:    0,
-			models.OptRightSizing:        0,
-			models.OptScheduling:         0,
-			models.OptReservedInstances:  0,
-			models.OptSpotInstances:      0,
+			models.OptUnusedResources:     0,
+			models.OptRightSizing:         0,
+			models.OptScheduling:          0,
+			models.OptReservedInstances:   0,
+			models.OptSpotInstances:       0,
 			models.OptStorageOptimization: 0,
 			models.OptNetworkOptimization: 0,
 		},
@@ -91,9 +91,9 @@ func (s *OptimizationService) ListSuggestions(ctx context.Context, tenantID stri
 			continue
 		}
 		var resourceIDs []string
-			if o.ResourceIDs != nil {
-				resourceIDs = o.ResourceIDs
-			}
+		if o.ResourceIDs != nil {
+			resourceIDs = o.ResourceIDs
+		}
 		result = append(result, models.OptimizationRecommendation{
 			ID:               o.ID,
 			TenantID:         o.TenantID,

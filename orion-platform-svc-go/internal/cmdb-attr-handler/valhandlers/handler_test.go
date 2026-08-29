@@ -67,9 +67,9 @@ func TestBooleanValueHandler(t *testing.T) {
 	h := NewBooleanValueHandler()
 
 	tests := []struct {
-		input  string
-		want   bool
-		err    bool
+		input string
+		want  bool
+		err   bool
 	}{
 		{"true", true, false},
 		{"false", false, false},
@@ -216,9 +216,9 @@ func TestUuidValueHandler(t *testing.T) {
 
 func TestPercentageHelper(t *testing.T) {
 	tests := []struct {
-		input  string
-		want   float64
-		err    bool
+		input string
+		want  float64
+		err   bool
 	}{
 		{"50%", 50, false},
 		{"0.5", 50, false},
@@ -268,11 +268,11 @@ func TestResourceSizeHelper(t *testing.T) {
 
 func TestSemanticVersionHelper(t *testing.T) {
 	tests := []struct {
-		input  string
-		major  int
-		minor  int
-		patch  int
-		err    bool
+		input string
+		major int
+		minor int
+		patch int
+		err   bool
 	}{
 		{"1.2.3", 1, 2, 3, false},
 		{"v2.0.1", 2, 0, 1, false},
@@ -297,7 +297,7 @@ func TestSemanticVersionHelper(t *testing.T) {
 
 func TestFormatHumanSize(t *testing.T) {
 	tests := []struct {
-		input uint64
+		input    uint64
 		contains string
 	}{
 		{100, "B"},

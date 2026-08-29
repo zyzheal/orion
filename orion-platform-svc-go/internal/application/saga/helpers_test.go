@@ -28,9 +28,9 @@ func TestGenerateID(t *testing.T) {
 
 func TestGetString(t *testing.T) {
 	m := map[string]interface{}{
-		"name": "Alice",
+		"name":  "Alice",
 		"empty": "",
-		"num":  42,
+		"num":   42,
 	}
 
 	t.Run("returns value when key exists and is non-empty string", func(t *testing.T) {
@@ -57,7 +57,7 @@ func TestGetString(t *testing.T) {
 
 func TestGetInt(t *testing.T) {
 	m := map[string]interface{}{
-		"count":  10,
+		"count":   10,
 		"missing": nil,
 	}
 

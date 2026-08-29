@@ -260,9 +260,9 @@ type PipelineStage struct {
 // NewSourcePipeline creates a new pipeline.
 func NewSourcePipeline(name string, logger *zap.Logger) *SourcePipeline {
 	return &SourcePipeline{
-		name:    name,
-		stages:  make([]PipelineStage, 0),
-		logger:  logger,
+		name:   name,
+		stages: make([]PipelineStage, 0),
+		logger: logger,
 	}
 }
 
@@ -339,10 +339,10 @@ func (p *SourcePipeline) SetCallback(h EventHandler) {
 // ChainExecutor is responsible for executing a chain when an upstream event arrives.
 // It traverses the chain links in order and dispatches events to downstream sources.
 type ChainExecutor struct {
-	composer  *SourceComposer
+	composer   *SourceComposer
 	dispatcher *Dispatcher
-	logger    *zap.Logger
-	mu        sync.RWMutex
+	logger     *zap.Logger
+	mu         sync.RWMutex
 }
 
 // NewChainExecutor creates a chain executor.

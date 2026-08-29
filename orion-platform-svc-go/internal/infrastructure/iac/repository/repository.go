@@ -54,25 +54,39 @@ func (r *Repository) UpdateWorkspace(ctx context.Context, tenantID, id string, r
 	idx := 1
 
 	if req.Name != nil {
-		setClauses = append(setClauses, fmt.Sprintf("name=$%d", idx)); args = append(args, *req.Name); idx++
+		setClauses = append(setClauses, fmt.Sprintf("name=$%d", idx))
+		args = append(args, *req.Name)
+		idx++
 	}
 	if req.Description != nil {
-		setClauses = append(setClauses, fmt.Sprintf("description=$%d", idx)); args = append(args, *req.Description); idx++
+		setClauses = append(setClauses, fmt.Sprintf("description=$%d", idx))
+		args = append(args, *req.Description)
+		idx++
 	}
 	if req.Provider != nil {
-		setClauses = append(setClauses, fmt.Sprintf("provider=$%d", idx)); args = append(args, *req.Provider); idx++
+		setClauses = append(setClauses, fmt.Sprintf("provider=$%d", idx))
+		args = append(args, *req.Provider)
+		idx++
 	}
 	if req.Branch != nil {
-		setClauses = append(setClauses, fmt.Sprintf("branch=$%d", idx)); args = append(args, *req.Branch); idx++
+		setClauses = append(setClauses, fmt.Sprintf("branch=$%d", idx))
+		args = append(args, *req.Branch)
+		idx++
 	}
 	if req.VCSRepo != nil {
-		setClauses = append(setClauses, fmt.Sprintf("vcs_repo=$%d", idx)); args = append(args, *req.VCSRepo); idx++
+		setClauses = append(setClauses, fmt.Sprintf("vcs_repo=$%d", idx))
+		args = append(args, *req.VCSRepo)
+		idx++
 	}
 	if req.Status != nil {
-		setClauses = append(setClauses, fmt.Sprintf("status=$%d", idx)); args = append(args, *req.Status); idx++
+		setClauses = append(setClauses, fmt.Sprintf("status=$%d", idx))
+		args = append(args, *req.Status)
+		idx++
 	}
 	if req.Variables != nil {
-		setClauses = append(setClauses, fmt.Sprintf("variables=$%d", idx)); args = append(args, *req.Variables); idx++
+		setClauses = append(setClauses, fmt.Sprintf("variables=$%d", idx))
+		args = append(args, *req.Variables)
+		idx++
 	}
 
 	if len(setClauses) == 0 {

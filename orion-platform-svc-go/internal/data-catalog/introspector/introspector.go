@@ -33,8 +33,8 @@ func New() *Introspector {
 		drivers: map[models.ConnectionType]string{
 			models.ConnectionTypePostgreSQL: "postgres",
 			models.ConnectionTypeMySQL:      "mysql",
-			"sqlite":       "sqlite3",
-			"sqlite3":      "sqlite3",
+			"sqlite":                        "sqlite3",
+			"sqlite3":                       "sqlite3",
 		},
 	}
 }

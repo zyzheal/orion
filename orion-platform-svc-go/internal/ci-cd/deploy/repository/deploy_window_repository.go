@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"fmt"
-	"orion/platform-svc-go/internal/ci-cd/deploy/models"
 	"orion/go-common/pkg/database"
+	"orion/platform-svc-go/internal/ci-cd/deploy/models"
 	"strings"
 )
 

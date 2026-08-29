@@ -164,11 +164,11 @@ func (s *Service) CreateItem(ctx context.Context, req *models.CreateItemRequest,
 	}
 
 	h := &models.ConfigItemHistory{
-		ID:       generateID("ch"),
-		TenantID: tenantID,
-		ItemID:   item.ID,
-		Version:  1,
-		NewValue: item.Value,
+		ID:        generateID("ch"),
+		TenantID:  tenantID,
+		ItemID:    item.ID,
+		Version:   1,
+		NewValue:  item.Value,
 		CreatedAt: time.Now(),
 	}
 	s.repo.CreateHistory(ctx, h)
@@ -223,12 +223,12 @@ func (s *Service) UpdateItem(ctx context.Context, id, tenantID, operator string,
 	if req.Value != nil {
 		latestVer, _ := s.repo.GetItemLatestVersion(ctx, id)
 		h := &models.ConfigItemHistory{
-			ID:       generateID("ch"),
-			TenantID: tenantID,
-			ItemID:   id,
-			Version:  latestVer + 1,
-			NewValue: *req.Value,
-			Operator: operator,
+			ID:        generateID("ch"),
+			TenantID:  tenantID,
+			ItemID:    id,
+			Version:   latestVer + 1,
+			NewValue:  *req.Value,
+			Operator:  operator,
 			CreatedAt: time.Now(),
 		}
 		s.repo.CreateHistory(ctx, h)
@@ -363,9 +363,9 @@ func (s *Service) PublishRelease(ctx context.Context, req *models.PublishRelease
 	})
 
 	s.createAudit(ctx, tenantID, "release", "group", snap.GroupID, map[string]interface{}{
-		"environment":     req.Environment,
-		"releaseVersion":  nextVer,
-		"snapshotId":      req.SnapshotID,
+		"environment":    req.Environment,
+		"releaseVersion": nextVer,
+		"snapshotId":     req.SnapshotID,
 	})
 
 	return release, nil

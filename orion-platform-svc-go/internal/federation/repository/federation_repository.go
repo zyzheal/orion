@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"orion/platform-svc-go/internal/federation/models"
 	"github.com/jmoiron/sqlx"
+	"orion/platform-svc-go/internal/federation/models"
 )
 
 type Repository struct {
@@ -232,7 +232,9 @@ func (r *Repository) List(ctx context.Context, tenantID string, offset, limit in
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.FederatedCluster, error) {
 	var d models.FederatedCluster
 	err := r.db.GetContext(ctx, &d, `SELECT * FROM federated_clusters WHERE id=$1 AND tenant_id=$2`, id, tenantID)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	return &d, nil
 }
 

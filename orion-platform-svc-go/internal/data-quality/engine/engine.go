@@ -68,8 +68,8 @@ type EngineOptions struct {
 // persists scan results, creates alerts on failure, and notifies the AlertNotifier.
 func NewEngine(repo repository.RepositoryInterface, svc ServiceInterface, notifier AlertNotifier, opts ...EngineOptions) *Engine {
 	options := EngineOptions{
-		AlertOnFail:  true,
-		NotifyOnFail: true,
+		AlertOnFail:   true,
+		NotifyOnFail:  true,
 		MaxConcurrent: 1,
 	}
 	if len(opts) > 0 {

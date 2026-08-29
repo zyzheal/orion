@@ -6,8 +6,8 @@ import (
 	"orion/platform-svc-go/internal/performance/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -26,7 +26,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.GET("/baselines/:id/evaluations", auth.RequirePermission("performance", "read"), h.GetEvaluationHistory)
 	f.POST("/evaluate", auth.RequirePermission("performance", "write"), h.EvaluatePerformance)
 	f.GET("/profile/:serviceName", auth.RequirePermission("performance", "read"), h.ProfileService)
-	f.GET("/profile/:profileId/bottlenecks", auth.RequirePermission("performance", "read"), h.GetBottlenecks)
+	f.GET("/profile/:serviceName/bottlenecks", auth.RequirePermission("performance", "read"), h.GetBottlenecks)
 	f.GET("/profile/:serviceName/suggestions", auth.RequirePermission("performance", "read"), h.GetSuggestions)
 	f.POST("/regression", auth.RequirePermission("performance", "write"), h.DetectRegression)
 	f.POST("/test-results", auth.RequirePermission("performance", "write"), h.RecordTestResult)
@@ -136,7 +136,7 @@ func (h *Handler) GetBottlenecks(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBottlenecks")
 	defer span.End()
 	tenantID := h.getTenantID(c)
-	bottlenecks, err := h.svc.GetBottlenecks(ctx, tenantID, c.Param("profileId"))
+	bottlenecks, err := h.svc.GetBottlenecks(ctx, tenantID, c.Param("serviceName"))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

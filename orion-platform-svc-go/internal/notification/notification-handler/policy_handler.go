@@ -1,11 +1,12 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strings"
 
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/notification/notification/models"
 	"orion/platform-svc-go/internal/notification/notification/service"
-	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -49,8 +50,11 @@ func (h *PolicyHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // CreatePolicy handles POST /policies - create a new notification policy.
 func (h *PolicyHandler) CreatePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationCreatePolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	_, userID := "", c.GetString("user_id"); _ = userID
+	_, userID := "", c.GetString("user_id")
+	_ = userID
 
 	var req models.CreatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -65,7 +69,7 @@ func (h *PolicyHandler) CreatePolicy(c *gin.Context) {
 		return
 	}
 
-	policy, err := h.policySvc.CreatePolicy(c.Request.Context(), tenantID, &req)
+	policy, err := h.policySvc.CreatePolicy(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -75,8 +79,10 @@ func (h *PolicyHandler) CreatePolicy(c *gin.Context) {
 
 // GetPolicy handles GET /policies/:id - get a single policy.
 func (h *PolicyHandler) GetPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationGetPolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	policy, err := h.policySvc.GetPolicy(c.Request.Context(), tenantID, c.Param("id"))
+	policy, err := h.policySvc.GetPolicy(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, "policy not found")
 		return
@@ -86,8 +92,10 @@ func (h *PolicyHandler) GetPolicy(c *gin.Context) {
 
 // ListPolicies handles GET /policies - list all policies for a tenant.
 func (h *PolicyHandler) ListPolicies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationListPolicies")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	policies, err := h.policySvc.ListPolicies(c.Request.Context(), tenantID)
+	policies, err := h.policySvc.ListPolicies(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -97,6 +105,8 @@ func (h *PolicyHandler) ListPolicies(c *gin.Context) {
 
 // UpdatePolicy handles PUT /policies/:id - update a policy.
 func (h *PolicyHandler) UpdatePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationUpdatePolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req models.UpdatePolicyRequest
@@ -105,7 +115,7 @@ func (h *PolicyHandler) UpdatePolicy(c *gin.Context) {
 		return
 	}
 
-	policy, err := h.policySvc.UpdatePolicy(c.Request.Context(), tenantID, c.Param("id"), &req)
+	policy, err := h.policySvc.UpdatePolicy(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		if err == service.ErrPolicyNotFound {
 			respondNotFound(c, "policy not found")
@@ -119,8 +129,10 @@ func (h *PolicyHandler) UpdatePolicy(c *gin.Context) {
 
 // DeletePolicy handles DELETE /policies/:id - delete a policy.
 func (h *PolicyHandler) DeletePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationDeletePolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.policySvc.DeletePolicy(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.policySvc.DeletePolicy(ctx, tenantID, c.Param("id")); err != nil {
 		if err == service.ErrPolicyNotFound {
 			respondNotFound(c, "policy not found")
 			return
@@ -133,9 +145,11 @@ func (h *PolicyHandler) DeletePolicy(c *gin.Context) {
 
 // EvaluatePolicies handles POST /notification-policies/evaluate - evaluate an event against policies.
 func (h *PolicyHandler) EvaluatePolicies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationEvaluatePolicies")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	policies, err := h.policySvc.ListPolicies(c.Request.Context(), tenantID)
+	policies, err := h.policySvc.ListPolicies(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -147,8 +161,11 @@ func (h *PolicyHandler) EvaluatePolicies(c *gin.Context) {
 
 // CreateWorkflow handles POST /workflows - create a new notification workflow.
 func (h *PolicyHandler) CreateWorkflow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationCreateWorkflow")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	_, userID := "", c.GetString("user_id"); _ = userID
+	_, userID := "", c.GetString("user_id")
+	_ = userID
 
 	var req models.CreateWorkflowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -179,7 +196,7 @@ func (h *PolicyHandler) CreateWorkflow(c *gin.Context) {
 		}
 	}
 
-	workflow, err := h.policySvc.CreateWorkflow(c.Request.Context(), tenantID, &req)
+	workflow, err := h.policySvc.CreateWorkflow(ctx, tenantID, &req)
 	if err != nil {
 		if err == service.ErrPolicyNotFound {
 			respondBadRequest(c, "policy not found: "+req.PolicyID)
@@ -193,7 +210,9 @@ func (h *PolicyHandler) CreateWorkflow(c *gin.Context) {
 
 // GetWorkflow handles GET /workflows/:id - get a single workflow.
 func (h *PolicyHandler) GetWorkflow(c *gin.Context) {
-	workflow, err := h.policySvc.GetWorkflow(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationGetWorkflow")
+	defer span.End()
+	workflow, err := h.policySvc.GetWorkflow(ctx, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, "workflow not found")
 		return
@@ -203,10 +222,12 @@ func (h *PolicyHandler) GetWorkflow(c *gin.Context) {
 
 // ListWorkflows handles GET /workflows - list workflows, optionally filtered by policyId.
 func (h *PolicyHandler) ListWorkflows(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationListWorkflows")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	policyID := c.Query("policy_id")
 
-	workflows, err := h.policySvc.ListWorkflows(c.Request.Context(), tenantID, policyID)
+	workflows, err := h.policySvc.ListWorkflows(ctx, tenantID, policyID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -216,13 +237,15 @@ func (h *PolicyHandler) ListWorkflows(c *gin.Context) {
 
 // UpdateWorkflow handles PUT /workflows/:id - update a workflow.
 func (h *PolicyHandler) UpdateWorkflow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationUpdateWorkflow")
+	defer span.End()
 	var req models.UpdateWorkflowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
 
-	workflow, err := h.policySvc.UpdateWorkflow(c.Request.Context(), c.Param("id"), &req)
+	workflow, err := h.policySvc.UpdateWorkflow(ctx, c.Param("id"), &req)
 	if err != nil {
 		if err == service.ErrWorkflowNotFound {
 			respondNotFound(c, "workflow not found")
@@ -236,7 +259,9 @@ func (h *PolicyHandler) UpdateWorkflow(c *gin.Context) {
 
 // DeleteWorkflow handles DELETE /workflows/:id - delete a workflow.
 func (h *PolicyHandler) DeleteWorkflow(c *gin.Context) {
-	if err := h.policySvc.DeleteWorkflow(c.Request.Context(), c.Param("id")); err != nil {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationDeleteWorkflow")
+	defer span.End()
+	if err := h.policySvc.DeleteWorkflow(ctx, c.Param("id")); err != nil {
 		if err == service.ErrWorkflowNotFound {
 			respondNotFound(c, "workflow not found")
 			return

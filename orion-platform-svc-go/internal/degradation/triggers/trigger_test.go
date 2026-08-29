@@ -22,8 +22,8 @@ func defaultTestConfig() TriggerConfig {
 
 func healthySnapshot() MetricSnapshot {
 	return MetricSnapshot{
-		ErrorCount:   0,
-		TotalCount:   500,
+		ErrorCount:     0,
+		TotalCount:     500,
 		LatencySamples: latencies(500, 150, 200),
 	}
 }
@@ -34,8 +34,8 @@ func snapshotWithErrorRate(rate float64, n int64) MetricSnapshot {
 		err = int(n)
 	}
 	return MetricSnapshot{
-		ErrorCount:   err,
-		TotalCount:   int(n),
+		ErrorCount:     err,
+		TotalCount:     int(n),
 		LatencySamples: latencies(n, 200, 300),
 	}
 }
@@ -110,14 +110,14 @@ func TestConfigValidate(t *testing.T) {
 
 func TestConfigHysteresis(t *testing.T) {
 	c := TriggerConfig{
-		ErrorRateThreshold:  0.10,
-		LatencyThresholdMs:  500,
-		WindowSize:          5,
-		MinSampleCount:      1,
+		ErrorRateThreshold: 0.10,
+		LatencyThresholdMs: 500,
+		WindowSize:         5,
+		MinSampleCount:     1,
 		Hysteresis: HysteresisConfig{
-			RecoverErrorRateMargin:  0.03,
-			RecoverLatencyMarginMs:  100,
-			HealthStreakRequired:    2,
+			RecoverErrorRateMargin: 0.03,
+			RecoverLatencyMarginMs: 100,
+			HealthStreakRequired:   2,
 		},
 	}
 	if r := c.RecoverErrorRate(); r != 0.07 {
@@ -132,8 +132,8 @@ func TestConfigHysteresis(t *testing.T) {
 
 func TestSnapshotP99(t *testing.T) {
 	s := MetricSnapshot{
-		ErrorCount:   0,
-		TotalCount:   100,
+		ErrorCount:     0,
+		TotalCount:     100,
 		LatencySamples: latencies(100, 100, 200),
 	}
 	p99 := s.P99Latency()
@@ -202,8 +202,8 @@ func TestEvaluator_InsufficientTraffic(t *testing.T) {
 	c.MinSampleCount = 10
 	eval := NewEvaluator(c, nil)
 	d := eval.EvaluateSnapshot(MetricSnapshot{
-		ErrorCount:   5,
-		TotalCount:   5,
+		ErrorCount:     5,
+		TotalCount:     5,
 		LatencySamples: nil,
 	})
 	if d.Trigger {
@@ -466,9 +466,9 @@ func TestSlidingWindow(t *testing.T) {
 	w := NewSlidingWindow(3)
 	for i := 0; i < 5; i++ {
 		w.Push(MetricSnapshot{
-			ErrorCount:   i,
-			TotalCount:   10,
-			Timestamp:    time.Now().Add(time.Duration(i) * time.Second),
+			ErrorCount: i,
+			TotalCount: 10,
+			Timestamp:  time.Now().Add(time.Duration(i) * time.Second),
 		})
 	}
 	if w.Count() != 3 {

@@ -12,10 +12,10 @@ import (
 
 // SSEClient represents a connected SSE client
 type SSEClient struct {
-	ID       string
-	RunID    string
-	Channel  chan []byte
-	Done     chan struct{}
+	ID      string
+	RunID   string
+	Channel chan []byte
+	Done    chan struct{}
 }
 
 // SSEService manages Server-Sent Events for real-time pipeline log streaming

@@ -354,16 +354,16 @@ func (s *Service) GetTemplate(ctx context.Context, id string) (*models.FormTempl
 func (s *Service) CreateTemplate(ctx context.Context, tenantID, name, description, category string, schema map[string]interface{}) (*models.FormTemplate, error) {
 	schemaJSON, _ := json.Marshal(schema)
 	t := &models.FormTemplate{
-		ID:           generateID("ft"),
-		TenantID:     tenantID,
-		Name:         name,
-		Description:  description,
-		Category:     category,
-		IsBuiltin:    false,
-		FormSchema:   string(schemaJSON),
-		UsageCount:   0,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		ID:             generateID("ft"),
+		TenantID:       tenantID,
+		Name:           name,
+		Description:    description,
+		Category:       category,
+		IsBuiltin:      false,
+		FormSchema:     string(schemaJSON),
+		UsageCount:     0,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 		FormSchemaData: schema,
 	}
 	if err := s.repo.CreateTemplate(ctx, t); err != nil {

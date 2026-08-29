@@ -47,13 +47,13 @@ func (s *RecoveryService) CreateRecovery(ctx context.Context, input models.Creat
 	}
 
 	record := &models.RecoveryRecord{
-		TenantID:   input.TenantID,
-		PlanID:     input.PlanID,
-		PlanName:   fmt.Sprintf("recovery-plan-%s", input.PlanID),
-		BackupID:   input.BackupID,
-		Status:     models.RecoveryStatusInitiated,
-		TargetTime: input.TargetTime,
-		RtoTargetMs: 3600000, // default 1 hour
+		TenantID:    input.TenantID,
+		PlanID:      input.PlanID,
+		PlanName:    fmt.Sprintf("recovery-plan-%s", input.PlanID),
+		BackupID:    input.BackupID,
+		Status:      models.RecoveryStatusInitiated,
+		TargetTime:  input.TargetTime,
+		RtoTargetMs: 3600000,  // default 1 hour
 		RpoTargetMs: 86400000, // default 1 day
 	}
 
@@ -120,7 +120,7 @@ func (s *RecoveryService) ExecuteRecovery(ctx context.Context, tenantID, id stri
 	}
 	rtoMet := actualRtoMs <= 3600000 // 1 hour target
 
-	actualRpoMs := int64(300000) // 5 minutes data loss window
+	actualRpoMs := int64(300000)      // 5 minutes data loss window
 	rpoMet := actualRpoMs <= 86400000 // 1 day target
 
 	err = s.repo.UpdateRecoveryStatus(ctx, tenantID, id,

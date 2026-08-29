@@ -2,8 +2,8 @@ package handler
 
 import (
 	"orion/go-common/pkg/auth"
-	"orion/platform-svc-go/internal/middleware"
 	"orion/go-common/pkg/errors"
+	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/multi-modal-trigger/models"
 	"orion/platform-svc-go/internal/multi-modal-trigger/service"
 

@@ -38,12 +38,12 @@ type ChangeEntry struct {
 
 // ReleaseMetrics holds aggregate release note metrics.
 type ReleaseMetrics struct {
-	TotalCommits   int `json:"total_commits"`
-	TotalChanges   int `json:"total_changes"`
+	TotalCommits    int `json:"total_commits"`
+	TotalChanges    int `json:"total_changes"`
 	BreakingChanges int `json:"breaking_changes"`
-	Features       int `json:"features"`
-	Fixes          int `json:"fixes"`
-	Improvements   int `json:"improvements"`
+	Features        int `json:"features"`
+	Fixes           int `json:"fixes"`
+	Improvements    int `json:"improvements"`
 }
 
 // MarshalChanges serializes changes to JSON string for storage.

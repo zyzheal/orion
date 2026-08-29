@@ -9,9 +9,9 @@ import (
 
 // SLAMonitor continuously checks for SLA breaches and triggers alerts.
 type SLAMonitor struct {
-	cache     sync.Map // key=ticketID -> *SLARecord
-	interval  time.Duration
-	mu        sync.RWMutex
+	cache    sync.Map // key=ticketID -> *SLARecord
+	interval time.Duration
+	mu       sync.RWMutex
 }
 
 // SLARecord tracks SLA state for a single task.
@@ -95,9 +95,9 @@ func (m *SLAMonitor) CheckBreaches(ctx context.Context) (*SLABreachResult, error
 			rec.Breached = true
 			rec.BreachType = "resolution"
 			breached = append(breached, SLABreachInfo{
-				Record:      *rec,
-				Reason:      fmt.Sprintf("Resolution SLA exceeded at %s", now.Format(time.RFC3339)),
-				AtRisk:      false,
+				Record:        *rec,
+				Reason:        fmt.Sprintf("Resolution SLA exceeded at %s", now.Format(time.RFC3339)),
+				AtRisk:        false,
 				UtilizedRatio: 1.0,
 			})
 			return true
@@ -108,9 +108,9 @@ func (m *SLAMonitor) CheckBreaches(ctx context.Context) (*SLABreachResult, error
 			rec.Breached = true
 			rec.BreachType = "response"
 			breached = append(breached, SLABreachInfo{
-				Record:      *rec,
-				Reason:      fmt.Sprintf("Response SLA exceeded at %s", now.Format(time.RFC3339)),
-				AtRisk:      false,
+				Record:        *rec,
+				Reason:        fmt.Sprintf("Response SLA exceeded at %s", now.Format(time.RFC3339)),
+				AtRisk:        false,
 				UtilizedRatio: 1.0,
 			})
 			return true
@@ -120,11 +120,11 @@ func (m *SLAMonitor) CheckBreaches(ctx context.Context) (*SLABreachResult, error
 		m.UpdateRatio(rec, now)
 		if rec.UtilizedRatio >= 0.75 && rec.UtilizedRatio < 1.0 {
 			atRisk = append(atRisk, SLABreachInfo{
-                Record:        *rec,
-                Reason:        fmt.Sprintf("SLA utilization %.0f%%", rec.UtilizedRatio*100),
-                AtRisk:        true,
-                UtilizedRatio: rec.UtilizedRatio,
-            })
+				Record:        *rec,
+				Reason:        fmt.Sprintf("SLA utilization %.0f%%", rec.UtilizedRatio*100),
+				AtRisk:        true,
+				UtilizedRatio: rec.UtilizedRatio,
+			})
 		}
 		return true
 	})

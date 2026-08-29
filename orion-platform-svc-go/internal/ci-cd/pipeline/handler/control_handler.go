@@ -1,11 +1,12 @@
 package handler
 
 import (
-	"orion/go-common/pkg/errors"
+	"go.opentelemetry.io/otel"
 	"net/http"
+	"orion/go-common/pkg/errors"
 
-	"orion/platform-svc-go/internal/ci-cd/pipeline/service"
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/ci-cd/pipeline/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -37,12 +38,14 @@ func (h *ControlHandler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Execution Control ====================
 
 func (h *ControlHandler) PauseRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelinePauseRun")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	pipelineID := c.Param("pipelineId")
 	runID := c.Param("runId")
 
-	if err := h.svc.PauseRun(c.Request.Context(), tenantID, pipelineID, runID, userID); err != nil {
+	if err := h.svc.PauseRun(ctx, tenantID, pipelineID, runID, userID); err != nil {
 		status := http.StatusInternalServerError
 		if err.Error() == "run is not in a pauseable state" {
 			status = http.StatusConflict
@@ -55,12 +58,14 @@ func (h *ControlHandler) PauseRun(c *gin.Context) {
 }
 
 func (h *ControlHandler) ResumeRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineResumeRun")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	pipelineID := c.Param("pipelineId")
 	runID := c.Param("runId")
 
-	if err := h.svc.ResumeRun(c.Request.Context(), tenantID, pipelineID, runID, userID); err != nil {
+	if err := h.svc.ResumeRun(ctx, tenantID, pipelineID, runID, userID); err != nil {
 		status := http.StatusInternalServerError
 		if err.Error() == "run is not in a resumable state" {
 			status = http.StatusConflict
@@ -73,12 +78,14 @@ func (h *ControlHandler) ResumeRun(c *gin.Context) {
 }
 
 func (h *ControlHandler) AbortRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineAbortRun")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	pipelineID := c.Param("pipelineId")
 	runID := c.Param("runId")
 
-	if err := h.svc.AbortRun(c.Request.Context(), tenantID, pipelineID, runID, userID); err != nil {
+	if err := h.svc.AbortRun(ctx, tenantID, pipelineID, runID, userID); err != nil {
 		status := http.StatusInternalServerError
 		if err.Error() == "run is not in an aborteable state" {
 			status = http.StatusConflict
@@ -91,12 +98,14 @@ func (h *ControlHandler) AbortRun(c *gin.Context) {
 }
 
 func (h *ControlHandler) RetryRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineRetryRun")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	pipelineID := c.Param("pipelineId")
 	runID := c.Param("runId")
 
-	run, err := h.svc.RetryRun(c.Request.Context(), tenantID, pipelineID, runID, userID)
+	run, err := h.svc.RetryRun(ctx, tenantID, pipelineID, runID, userID)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if err == service.ErrRunNotFound || err == service.ErrPipelineNotFound {
@@ -110,12 +119,14 @@ func (h *ControlHandler) RetryRun(c *gin.Context) {
 }
 
 func (h *ControlHandler) RestartRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineRestartRun")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	pipelineID := c.Param("pipelineId")
 	runID := c.Param("runId")
 
-	run, err := h.svc.RestartRun(c.Request.Context(), tenantID, pipelineID, runID, userID)
+	run, err := h.svc.RestartRun(ctx, tenantID, pipelineID, runID, userID)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if err == service.ErrRunNotFound || err == service.ErrPipelineNotFound {
@@ -129,9 +140,11 @@ func (h *ControlHandler) RestartRun(c *gin.Context) {
 }
 
 func (h *ControlHandler) ListCheckpoints(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineListCheckpoints")
+	defer span.End()
 	runID := c.Param("runId")
 
-	checkpoints, err := h.svc.ListCheckpoints(c.Request.Context(), runID)
+	checkpoints, err := h.svc.ListCheckpoints(ctx, runID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -141,9 +154,11 @@ func (h *ControlHandler) ListCheckpoints(c *gin.Context) {
 }
 
 func (h *ControlHandler) ListControlLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineListControlLogs")
+	defer span.End()
 	runID := c.Param("runId")
 
-	logs, err := h.svc.ListControlLogs(c.Request.Context(), runID)
+	logs, err := h.svc.ListControlLogs(ctx, runID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

@@ -8,11 +8,11 @@ type CMDBValidationRule struct {
 	ID           string    `db:"id" json:"id"`
 	TenantID     string    `db:"tenant_id" json:"tenant_id"`
 	Name         string    `db:"name" json:"name"`
-	Category     string    `db:"category" json:"category"`     // format, range, reference, enum, custom, relationship, uniqueness
+	Category     string    `db:"category" json:"category"`       // format, range, reference, enum, custom, relationship, uniqueness
 	TargetType   string    `db:"target_type" json:"target_type"` // CI, relation, attribute
-	Condition    string    `db:"condition" json:"condition"`    // JSON: validation condition
+	Condition    string    `db:"condition" json:"condition"`     // JSON: validation condition
 	ErrorMessage string    `db:"error_message" json:"error_message"`
-	Severity     string    `db:"severity" json:"severity"`     // error, warning, info
+	Severity     string    `db:"severity" json:"severity"` // error, warning, info
 	Enabled      bool      `db:"enabled" json:"enabled"`
 	CreatedAt    time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt    time.Time `db:"updated_at" json:"updated_at"`
@@ -24,9 +24,9 @@ type CMDBValidationResult struct {
 	TenantID  string    `db:"tenant_id" json:"tenant_id"`
 	RuleID    string    `db:"rule_id" json:"rule_id"`
 	TargetID  string    `db:"target_id" json:"target_id"`
-	Status    string    `db:"status" json:"status"`    // pass, fail, warning
+	Status    string    `db:"status" json:"status"` // pass, fail, warning
 	Message   string    `db:"message" json:"message"`
-	Details   string    `db:"details" json:"details"`  // JSON
+	Details   string    `db:"details" json:"details"` // JSON
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 }
 
@@ -70,8 +70,8 @@ type ValidateRelationshipRequest struct {
 
 // ValidationResultSummary aggregates a validation run for the handler response.
 type ValidationResultSummary struct {
-	Passed  int `json:"passed"`
-	Failed  int `json:"failed"`
-	Warning int `json:"warning"`
+	Passed  int                    `json:"passed"`
+	Failed  int                    `json:"failed"`
+	Warning int                    `json:"warning"`
 	Results []CMDBValidationResult `json:"results"`
 }

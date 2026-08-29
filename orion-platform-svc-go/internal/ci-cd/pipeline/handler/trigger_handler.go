@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"io"
 
 	"orion/platform-svc-go/internal/ci-cd/pipeline/models"
@@ -18,6 +19,8 @@ func NewTriggerHandler(svc *service.TriggerService) *TriggerHandler {
 }
 
 func (h *TriggerHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Param("pipelineId")
 
@@ -27,7 +30,7 @@ func (h *TriggerHandler) Create(c *gin.Context) {
 		return
 	}
 
-	trigger, err := h.svc.Create(c.Request.Context(), tenantID, pipelineID, req)
+	trigger, err := h.svc.Create(ctx, tenantID, pipelineID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -37,9 +40,11 @@ func (h *TriggerHandler) Create(c *gin.Context) {
 }
 
 func (h *TriggerHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineList")
+	defer span.End()
 	pipelineID := c.Param("pipelineId")
 
-	triggers, err := h.svc.List(c.Request.Context(), pipelineID)
+	triggers, err := h.svc.List(ctx, pipelineID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -49,7 +54,9 @@ func (h *TriggerHandler) List(c *gin.Context) {
 }
 
 func (h *TriggerHandler) GetByID(c *gin.Context) {
-	trigger, err := h.svc.GetByID(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineGetByID")
+	defer span.End()
+	trigger, err := h.svc.GetByID(ctx, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, "trigger not found")
 		return
@@ -59,7 +66,9 @@ func (h *TriggerHandler) GetByID(c *gin.Context) {
 }
 
 func (h *TriggerHandler) Delete(c *gin.Context) {
-	if err := h.svc.Delete(c.Request.Context(), c.Param("id")); err != nil {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineDelete")
+	defer span.End()
+	if err := h.svc.Delete(ctx, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -68,6 +77,8 @@ func (h *TriggerHandler) Delete(c *gin.Context) {
 }
 
 func (h *TriggerHandler) Toggle(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineToggle")
+	defer span.End()
 	var req struct {
 		Enabled bool `json:"enabled"`
 	}
@@ -76,7 +87,7 @@ func (h *TriggerHandler) Toggle(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.Toggle(c.Request.Context(), c.Param("id"), req.Enabled); err != nil {
+	if err := h.svc.Toggle(ctx, c.Param("id"), req.Enabled); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -85,6 +96,8 @@ func (h *TriggerHandler) Toggle(c *gin.Context) {
 }
 
 func (h *TriggerHandler) ProcessWebhook(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineProcessWebhook")
+	defer span.End()
 	triggerID := c.Param("id")
 
 	body, err := io.ReadAll(c.Request.Body)
@@ -98,7 +111,7 @@ func (h *TriggerHandler) ProcessWebhook(c *gin.Context) {
 		headers[key] = c.GetHeader(key)
 	}
 
-	run, err := h.svc.ProcessWebhook(c.Request.Context(), triggerID, body, headers)
+	run, err := h.svc.ProcessWebhook(ctx, triggerID, body, headers)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -108,13 +121,15 @@ func (h *TriggerHandler) ProcessWebhook(c *gin.Context) {
 }
 
 func (h *TriggerHandler) ProcessSCMEvent(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineProcessSCMEvent")
+	defer span.End()
 	var event models.SCMTriggerEvent
 	if err := c.ShouldBindJSON(&event); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
 
-	runs, err := h.svc.ProcessSCMEvent(c.Request.Context(), event)
+	runs, err := h.svc.ProcessSCMEvent(ctx, event)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

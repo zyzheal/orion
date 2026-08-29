@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 
+	"go.uber.org/zap"
+	"orion/go-common/pkg/otel"
 	"orion/platform-svc-go/internal/report-designer/models"
 	"orion/platform-svc-go/internal/report-designer/repository"
-	"orion/go-common/pkg/otel"
-	"go.uber.org/zap"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -99,16 +99,36 @@ func (s *Service) UpdateReport(ctx context.Context, id string, tenantID string, 
 	_, span := otel.Tracer("orion-report-designer").Start(ctx, "Service.UpdateReport")
 	defer span.End()
 	updates := map[string]interface{}{}
-	if req.Name != nil { updates["name"] = *req.Name }
-	if req.Description != nil { updates["description"] = *req.Description }
-	if req.Category != nil { updates["category"] = *req.Category }
-	if req.Layout != nil { updates["layout"] = *req.Layout }
-	if req.Components != nil { updates["components"] = *req.Components }
-	if req.DatasourceBindings != nil { updates["datasource_bindings"] = *req.DatasourceBindings }
-	if req.TemplateID != nil { updates["template_id"] = *req.TemplateID }
-	if req.Status != nil { updates["status"] = *req.Status }
-	if req.Enabled != nil { updates["enabled"] = *req.Enabled }
-	if len(updates) == 0 { return nil, errors.New("no fields to update") }
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.Description != nil {
+		updates["description"] = *req.Description
+	}
+	if req.Category != nil {
+		updates["category"] = *req.Category
+	}
+	if req.Layout != nil {
+		updates["layout"] = *req.Layout
+	}
+	if req.Components != nil {
+		updates["components"] = *req.Components
+	}
+	if req.DatasourceBindings != nil {
+		updates["datasource_bindings"] = *req.DatasourceBindings
+	}
+	if req.TemplateID != nil {
+		updates["template_id"] = *req.TemplateID
+	}
+	if req.Status != nil {
+		updates["status"] = *req.Status
+	}
+	if req.Enabled != nil {
+		updates["enabled"] = *req.Enabled
+	}
+	if len(updates) == 0 {
+		return nil, errors.New("no fields to update")
+	}
 	s.logger.Info("updating report", zap.String("id", id), zap.Any("updates", updates))
 	return s.repo.UpdateReport(ctx, id, tenantID, updates)
 }
@@ -132,7 +152,9 @@ func (s *Service) CreateDatasource(ctx context.Context, req *models.CreateDataso
 	_, span := otel.Tracer("orion-report-designer").Start(ctx, "Service.CreateDatasource")
 	defer span.End()
 	tenantID := "00000000-0000-0000-0000-000000000000"
-	if req.TenantID != nil { tenantID = *req.TenantID }
+	if req.TenantID != nil {
+		tenantID = *req.TenantID
+	}
 	ds := &models.ReportDatasource{
 		Name:            req.Name,
 		DatasourceType:  req.DatasourceType,
@@ -156,13 +178,27 @@ func (s *Service) GetDatasource(ctx context.Context, id string, tenantID string)
 
 func (s *Service) UpdateDatasource(ctx context.Context, id string, tenantID string, req *models.UpdateDatasourceRequest) (*models.ReportDatasource, error) {
 	updates := map[string]interface{}{}
-	if req.Name != nil { updates["name"] = *req.Name }
-	if req.DatasourceType != nil { updates["datasource_type"] = *req.DatasourceType }
-	if req.Config != nil { updates["config"] = *req.Config }
-	if req.RefreshInterval != nil { updates["refresh_interval"] = *req.RefreshInterval }
-	if req.ReportID != nil { updates["report_id"] = *req.ReportID }
-	if req.Status != nil { updates["status"] = *req.Status }
-	if len(updates) == 0 { return nil, errors.New("no fields to update") }
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.DatasourceType != nil {
+		updates["datasource_type"] = *req.DatasourceType
+	}
+	if req.Config != nil {
+		updates["config"] = *req.Config
+	}
+	if req.RefreshInterval != nil {
+		updates["refresh_interval"] = *req.RefreshInterval
+	}
+	if req.ReportID != nil {
+		updates["report_id"] = *req.ReportID
+	}
+	if req.Status != nil {
+		updates["status"] = *req.Status
+	}
+	if len(updates) == 0 {
+		return nil, errors.New("no fields to update")
+	}
 	s.logger.Info("updating datasource", zap.String("id", id), zap.Any("updates", updates))
 	return s.repo.UpdateDatasource(ctx, id, tenantID, updates)
 }
@@ -182,9 +218,13 @@ func (s *Service) CreateSchedule(ctx context.Context, req *models.CreateSchedule
 	_, span := otel.Tracer("orion-report-designer").Start(ctx, "Service.CreateSchedule")
 	defer span.End()
 	tenantID := "00000000-0000-0000-0000-000000000000"
-	if req.TenantID != nil { tenantID = *req.TenantID }
+	if req.TenantID != nil {
+		tenantID = *req.TenantID
+	}
 	enabled := true
-	if req.Enabled != nil { enabled = *req.Enabled }
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
 	schedule := &models.ReportSchedule{
 		ReportID:     req.ReportID,
 		CronExpr:     req.CronExpr,
@@ -194,9 +234,13 @@ func (s *Service) CreateSchedule(ctx context.Context, req *models.CreateSchedule
 		TenantID:     tenantID,
 		Timezone:     "UTC",
 	}
-	if req.Timezone != nil { schedule.Timezone = *req.Timezone }
+	if req.Timezone != nil {
+		schedule.Timezone = *req.Timezone
+	}
 	_, err := s.repo.GetReportByID(ctx, req.ReportID, tenantID)
-	if err != nil { return nil, fmt.Errorf("report not found: %w", err) }
+	if err != nil {
+		return nil, fmt.Errorf("report not found: %w", err)
+	}
 	s.logger.Info("creating schedule", zap.String("report_id", req.ReportID))
 	if err := s.repo.CreateSchedule(ctx, schedule); err != nil {
 		s.logger.Error("create schedule failed", zap.Error(err))
@@ -211,12 +255,24 @@ func (s *Service) GetSchedule(ctx context.Context, id string, tenantID string) (
 
 func (s *Service) UpdateSchedule(ctx context.Context, id string, tenantID string, req *models.UpdateScheduleRequest) (*models.ReportSchedule, error) {
 	updates := map[string]interface{}{}
-	if req.CronExpr != nil { updates["cron_expr"] = *req.CronExpr }
-	if req.ExportFormat != nil { updates["export_format"] = *req.ExportFormat }
-	if req.Recipients != nil { updates["recipients"] = *req.Recipients }
-	if req.Enabled != nil { updates["enabled"] = *req.Enabled }
-	if req.Timezone != nil { updates["timezone"] = *req.Timezone }
-	if len(updates) == 0 { return nil, errors.New("no fields to update") }
+	if req.CronExpr != nil {
+		updates["cron_expr"] = *req.CronExpr
+	}
+	if req.ExportFormat != nil {
+		updates["export_format"] = *req.ExportFormat
+	}
+	if req.Recipients != nil {
+		updates["recipients"] = *req.Recipients
+	}
+	if req.Enabled != nil {
+		updates["enabled"] = *req.Enabled
+	}
+	if req.Timezone != nil {
+		updates["timezone"] = *req.Timezone
+	}
+	if len(updates) == 0 {
+		return nil, errors.New("no fields to update")
+	}
 	return s.repo.UpdateSchedule(ctx, id, tenantID, updates)
 }
 
@@ -235,9 +291,13 @@ func (s *Service) ExecuteReport(ctx context.Context, reportID string, tenantID s
 	_, span := otel.Tracer("orion-report-designer").Start(ctx, "Service.ExecuteReport")
 	defer span.End()
 	_, err := s.repo.GetReportByID(ctx, reportID, tenantID)
-	if err != nil { return nil, fmt.Errorf("report not found: %w", err) }
+	if err != nil {
+		return nil, fmt.Errorf("report not found: %w", err)
+	}
 	user := "system"
-	if req.User != nil { user = *req.User }
+	if req.User != nil {
+		user = *req.User
+	}
 	s.logger.Info("executing report", zap.String("report_id", reportID))
 	execution := &models.ReportExecution{
 		ReportID:  reportID,
@@ -250,7 +310,9 @@ func (s *Service) ExecuteReport(ctx context.Context, reportID string, tenantID s
 		return nil, err
 	}
 	outputPath := "reports/" + reportID + "/" + execution.ID + ".pdf"
-	if req.Format != nil { outputPath = "reports/" + reportID + "/" + execution.ID + "." + *req.Format }
+	if req.Format != nil {
+		outputPath = "reports/" + reportID + "/" + execution.ID + "." + *req.Format
+	}
 	_ = s.repo.UpdateExecutionStatus(ctx, execution.ID, tenantID, "completed", &outputPath, nil)
 	return execution, nil
 }
@@ -265,7 +327,9 @@ func (s *Service) PreviewReport(ctx context.Context, reportID string, tenantID s
 	_, span := otel.Tracer("orion-report-designer").Start(ctx, "Service.PreviewReport")
 	defer span.End()
 	_, err := s.repo.GetReportByID(ctx, reportID, tenantID)
-	if err != nil { return nil, fmt.Errorf("report not found: %w", err) }
+	if err != nil {
+		return nil, fmt.Errorf("report not found: %w", err)
+	}
 	return &models.PreviewReportResult{
 		ReportID:   reportID,
 		Data:       req.Parameters,

@@ -476,8 +476,8 @@ func isNotFoundError(err error) bool {
 
 // FindDependencyNodesByConfigID queries config_dependencies to build a dependency graph.
 type configDependencyEdge struct {
-	TenantID string `db:"tenant_id"`
-	ConfigID string `db:"config_id"`
+	TenantID  string `db:"tenant_id"`
+	ConfigID  string `db:"config_id"`
 	DependsOn string `db:"depends_on"`
 }
 

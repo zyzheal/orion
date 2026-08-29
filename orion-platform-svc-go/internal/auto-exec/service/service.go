@@ -1,7 +1,8 @@
 // Package service provides the business logic layer for auto-exec.
 //
 // ARCHITECTURE (Clean Architecture):
-//   Handler → Service → Engine + Repository
+//
+//	Handler → Service → Engine + Repository
 //
 // Previously the handler directly called Engine and Repository,
 // violating the Clean Architecture layered dependency rule.

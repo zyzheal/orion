@@ -34,14 +34,14 @@ const (
 
 // TriggerConfig holds configuration for a trigger.
 type TriggerConfig struct {
-	Type       TriggerType         `json:"type"`
-	Name       string              `json:"name"`
-	Enabled    bool                `json:"enabled"`
-	TenantID   string              `json:"tenantId"`
-	Channel    models.ChannelType  `json:"channel"`
-	Recipients []string            `json:"recipients"`
-	PolicyID   string              `json:"policyId"`
-	TemplVars  map[string]any      `json:"templVars,omitempty"`
+	Type       TriggerType        `json:"type"`
+	Name       string             `json:"name"`
+	Enabled    bool               `json:"enabled"`
+	TenantID   string             `json:"tenantId"`
+	Channel    models.ChannelType `json:"channel"`
+	Recipients []string           `json:"recipients"`
+	PolicyID   string             `json:"policyId"`
+	TemplVars  map[string]any     `json:"templVars,omitempty"`
 	// CronExpr is required for scheduled triggers.
 	CronExpr string `json:"cronExpr,omitempty"`
 	// Message is used for manual triggers to carry the full payload.
@@ -209,9 +209,9 @@ type Logger interface {
 // NoopLogger discards all output.
 type NoopLogger struct{}
 
-func (NoopLogger) Info(_ string, _ ...any)   {}
-func (NoopLogger) Warn(_ string, _ ...any)   {}
-func (NoopLogger) Error(_ string, _ ...any)  {}
+func (NoopLogger) Info(_ string, _ ...any)  {}
+func (NoopLogger) Warn(_ string, _ ...any)  {}
+func (NoopLogger) Error(_ string, _ ...any) {}
 
 // EventTriggerConfig configures an EventTrigger.
 type EventTriggerConfig struct {
@@ -225,11 +225,11 @@ type EventTriggerConfig struct {
 // NewEventTrigger creates a new event trigger.
 func NewEventTrigger(cfg EventTriggerConfig) *EventTrigger {
 	t := &EventTrigger{
-		name:      cfg.Name,
-		eventType: cfg.EventType,
-		factory:   cfg.Factory,
+		name:       cfg.Name,
+		eventType:  cfg.EventType,
+		factory:    cfg.Factory,
 		policyRepo: cfg.PolicyRepo,
-		logger:    cfg.Logger,
+		logger:     cfg.Logger,
 	}
 	if t.factory == nil {
 		t.factory = engine.GlobalPolicyHandlerFactory
@@ -265,26 +265,26 @@ func (t *EventTrigger) Stop() error {
 
 // ScheduledTrigger fires at specified times based on a cron expression.
 type ScheduledTrigger struct {
-	name        string
-	cronExpr    string
-	msg         *engine.NotifyMessage
-	interval    time.Duration
-	oneShot     bool
-	stopChan    chan struct{}
-	stopOnce    sync.Once
-	execFunc    func(ctx context.Context) ([]*engine.NotifyMessage, error)
-	logger      Logger
+	name     string
+	cronExpr string
+	msg      *engine.NotifyMessage
+	interval time.Duration
+	oneShot  bool
+	stopChan chan struct{}
+	stopOnce sync.Once
+	execFunc func(ctx context.Context) ([]*engine.NotifyMessage, error)
+	logger   Logger
 }
 
 // ScheduledTriggerConfig configures a ScheduledTrigger.
 type ScheduledTriggerConfig struct {
-	Name       string
-	CronExpr   string
-	Message    *engine.NotifyMessage
-	OneShot    bool
-	Interval   time.Duration // used when CronExpr is empty (simple interval)
-	Logger     Logger
-	ExecFunc   func(ctx context.Context) ([]*engine.NotifyMessage, error)
+	Name     string
+	CronExpr string
+	Message  *engine.NotifyMessage
+	OneShot  bool
+	Interval time.Duration // used when CronExpr is empty (simple interval)
+	Logger   Logger
+	ExecFunc func(ctx context.Context) ([]*engine.NotifyMessage, error)
 }
 
 // NewScheduledTrigger creates a new scheduled trigger.
@@ -391,11 +391,11 @@ func (t *ScheduledTrigger) schedule() {
 
 // ManualTrigger fires a pre-configured message on demand.
 type ManualTrigger struct {
-	name  string
-	msg   *engine.NotifyMessage
+	name     string
+	msg      *engine.NotifyMessage
 	stopChan chan struct{}
 	stopOnce sync.Once
-	logger Logger
+	logger   Logger
 }
 
 // ManualTriggerConfig configures a ManualTrigger.
@@ -450,7 +450,7 @@ func (t *ManualTrigger) Stop() error {
 
 // TriggerBuilder provides a fluent API for constructing triggers.
 type TriggerBuilder struct {
-	cfg       map[string]any
+	cfg         map[string]any
 	triggerType TriggerType
 }
 

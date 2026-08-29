@@ -13,13 +13,14 @@ import (
 // It is the simplest handler and is suitable for short-lived, idempotent work.
 //
 // Usage:
-//   handler := handlers.NewImmediateHandler(logger, executor)
-//   engineInstance.RegisterHandler(handler)
+//
+//	handler := handlers.NewImmediateHandler(logger, executor)
+//	engineInstance.RegisterHandler(handler)
 type ImmediateHandler struct {
-	logger    *zap.Logger
-	executor  Executor
-	stats     *engine.HandlerStats
-	timeout   time.Duration
+	logger   *zap.Logger
+	executor Executor
+	stats    *engine.HandlerStats
+	timeout  time.Duration
 }
 
 // Executor abstracts the actual work to be performed. The ImmediateHandler
@@ -47,10 +48,10 @@ func NewImmediateHandler(logger *zap.Logger, executor Executor, opts ...Immediat
 		logger = zap.NewNop()
 	}
 	return &ImmediateHandler{
-		logger:  logger,
+		logger:   logger,
 		executor: executor,
-		stats:   &engine.HandlerStats{Name: "immediate"},
-		timeout: cfg.Timeout,
+		stats:    &engine.HandlerStats{Name: "immediate"},
+		timeout:  cfg.Timeout,
 	}
 }
 
@@ -84,11 +85,11 @@ func (h *ImmediateHandler) Handle(ctx context.Context, req *engine.ExecutionRequ
 
 	duration := time.Since(start)
 	result := &engine.ExecutionResult{
-		RequestID: req.ID,
-		Mode:      engine.ModeImmediate,
-		Duration:  duration,
+		RequestID:  req.ID,
+		Mode:       engine.ModeImmediate,
+		Duration:   duration,
 		ExecutedAt: time.Now().UTC(),
-		Output:    output,
+		Output:     output,
 	}
 
 	if err != nil {

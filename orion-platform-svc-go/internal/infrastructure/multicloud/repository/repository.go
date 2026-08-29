@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"orion/platform-svc-go/internal/infrastructure/multicloud/models"
 )
 
@@ -32,7 +32,9 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 }
 
 func (r *Repository) List(ctx context.Context, tenantID string, limit, offset int) ([]models.MultiCloud, error) {
-	if limit <= 0 { limit = 50 }
+	if limit <= 0 {
+		limit = 50
+	}
 	var items []models.MultiCloud
 	err := r.db.SelectContext(ctx, &items, `SELECT * FROM multicloud_providers WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, tenantID, limit, offset)
 	return items, err

@@ -33,14 +33,14 @@ type CreateExperimentRequest struct {
 
 // FaultInjection represents a single fault injection event.
 type FaultInjection struct {
-	ID         string     `db:"id" json:"id"`
-	ExperimentID string   `db:"experiment_id" json:"experimentId"`
-	TenantID   string     `db:"tenant_id" json:"tenantId"`
-	FaultType  string     `db:"fault_type" json:"faultType"`
-	FaultConfig string    `db:"fault_config" json:"faultConfig"`
-	Status     string     `db:"status" json:"status"`
-	InjectedAt time.Time  `db:"injected_at" json:"injectedAt"`
-	Result     *string    `db:"result" json:"result"`
+	ID           string    `db:"id" json:"id"`
+	ExperimentID string    `db:"experiment_id" json:"experimentId"`
+	TenantID     string    `db:"tenant_id" json:"tenantId"`
+	FaultType    string    `db:"fault_type" json:"faultType"`
+	FaultConfig  string    `db:"fault_config" json:"faultConfig"`
+	Status       string    `db:"status" json:"status"`
+	InjectedAt   time.Time `db:"injected_at" json:"injectedAt"`
+	Result       *string   `db:"result" json:"result"`
 }
 
 // PaginatedResponse is a generic paginated response.

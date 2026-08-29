@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/workflow-dependency/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	GetAllWorkflows(ctx context.Context) ([]models.WorkflowDefinitionRow, error)

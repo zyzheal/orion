@@ -5,7 +5,6 @@ import (
 	"orion/platform-svc-go/internal/code-repo/models"
 )
 
-
 // RepositoryInterface defines the data access contract for the code-repo module.
 // DO NOT MODIFY: auto-generated from repository.go
 type RepositoryInterface interface {

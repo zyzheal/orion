@@ -140,9 +140,9 @@ func TestPipelineExecutor_PackageAvailable(t *testing.T) {
 
 	// PipelineExecution struct
 	exec := models.PipelineExecution{
-		PipelineID: "test-id",
-		Status:     models.ExecStatusCompleted,
-		StepsRun:   3,
+		PipelineID:  "test-id",
+		Status:      models.ExecStatusCompleted,
+		StepsRun:    3,
 		StepsFailed: 0,
 	}
 	if exec.Status != models.ExecStatusCompleted || exec.StepsRun != 3 {

@@ -1,4 +1,5 @@
 //go:build ignore
+
 // ============================================================
 // SQL Transport — 数据库采集底层
 // ============================================================
@@ -112,9 +113,9 @@ type SQLConfig struct {
 	Charset  string    `yaml:"charset"`
 
 	// 连接池配置
-	MaxOpenConns   int `yaml:"max_open_conns"`
-	MaxIdleConns   int `yaml:"max_idle_conns"`
-	ConnMaxLifetime int `yaml:"conn_max_lifetime"` // 秒
+	MaxOpenConns    int `yaml:"max_open_conns"`
+	MaxIdleConns    int `yaml:"max_idle_conns"`
+	ConnMaxLifetime int `yaml:"conn_max_lifetime"`  // 秒
 	ConnMaxIdleTime int `yaml:"conn_max_idle_time"` // 秒
 
 	// 超时
@@ -124,12 +125,12 @@ type SQLConfig struct {
 // DefaultSQLConfig 默认 SQL 配置
 func DefaultSQLConfig() *SQLConfig {
 	return &SQLConfig{
-		Charset:          "utf8mb4",
-		MaxOpenConns:     10,
-		MaxIdleConns:     5,
-		ConnMaxLifetime:  300, // 5 分钟
-		ConnMaxIdleTime:  60,  // 1 分钟
-		QueryTimeout:     30,  // 30 秒
+		Charset:         "utf8mb4",
+		MaxOpenConns:    10,
+		MaxIdleConns:    5,
+		ConnMaxLifetime: 300, // 5 分钟
+		ConnMaxIdleTime: 60,  // 1 分钟
+		QueryTimeout:    30,  // 30 秒
 	}
 }
 
@@ -153,9 +154,9 @@ func (c *SQLConfig) Validate() error {
 
 // SQLPool 数据库连接池
 type SQLPool struct {
-	db    *sql.DB
-	dsn   *DSNBuilder
-	mu    sync.RWMutex
+	db  *sql.DB
+	dsn *DSNBuilder
+	mu  sync.RWMutex
 }
 
 // NewSQLPool 创建数据库连接池
@@ -281,20 +282,20 @@ func (p *SQLPool) QueryRow(ctx context.Context, sql string, args ...any) (map[st
 
 // DBSQLTemplates 数据库 SQL 模板集合
 type DBSQLTemplates struct {
-	Name           string `yaml:"name"`
-	Dialect        DBDialect `yaml:"dialect"`
-	SelectVersion  string   `yaml:"select_version"`
-	SelectDBName   string   `yaml:"select_db_name"`
-	SelectUser     string   `yaml:"select_user"`
-	SelectTables   string   `yaml:"select_tables"`
-	SelectStatus   string   `yaml:"select_status"`
+	Name          string    `yaml:"name"`
+	Dialect       DBDialect `yaml:"dialect"`
+	SelectVersion string    `yaml:"select_version"`
+	SelectDBName  string    `yaml:"select_db_name"`
+	SelectUser    string    `yaml:"select_user"`
+	SelectTables  string    `yaml:"select_tables"`
+	SelectStatus  string    `yaml:"select_status"`
 }
 
 // DefaultDBSQLTemplates 默认数据库 SQL 模板
 var DefaultDBSQLTemplates = map[DBDialect]*DBSQLTemplates{
 	DBDialectMySQL: {
-		Name:        "MySQL",
-		Dialect:     DBDialectMySQL,
+		Name:          "MySQL",
+		Dialect:       DBDialectMySQL,
 		SelectVersion: "SELECT VERSION() AS version",
 		SelectDBName:  "SELECT DATABASE() AS database_name",
 		SelectUser:    "SELECT USER() AS user, HOST() AS host",
@@ -302,8 +303,8 @@ var DefaultDBSQLTemplates = map[DBDialect]*DBSQLTemplates{
 		SelectStatus:  "SHOW STATUS",
 	},
 	DBDialectPostgreSQL: {
-		Name:        "PostgreSQL",
-		Dialect:     DBDialectPostgreSQL,
+		Name:          "PostgreSQL",
+		Dialect:       DBDialectPostgreSQL,
 		SelectVersion: "SELECT version() AS version",
 		SelectDBName:  "SELECT current_database() AS database_name",
 		SelectUser:    "SELECT current_user AS user, inet_server_addr() AS host",
@@ -311,8 +312,8 @@ var DefaultDBSQLTemplates = map[DBDialect]*DBSQLTemplates{
 		SelectStatus:  "SELECT name, setting, unit FROM pg_settings WHERE category LIKE 'Statistics%' AND short_desc IS NOT NULL",
 	},
 	DBDialectOracle: {
-		Name:        "Oracle",
-		Dialect:     DBDialectOracle,
+		Name:          "Oracle",
+		Dialect:       DBDialectOracle,
 		SelectVersion: "SELECT BANNER FROM V$VERSION WHERE ROWNUM = 1",
 		SelectDBName:  "SELECT NAME FROM V$DATABASE",
 		SelectUser:    "SELECT SYS_CONTEXT('USERENV', 'CURRENT_USER') AS user FROM DUAL",

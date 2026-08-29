@@ -61,17 +61,17 @@ func (a *JSONArray) Scan(src interface{}) error {
 
 // Runner represents a remote execution agent that processes pipeline tasks.
 type Runner struct {
-	ID            string    `db:"id" json:"id"`
-	TenantID      string    `db:"tenant_id" json:"tenant_id"`
-	Name          string    `db:"name" json:"name"`
-	Type          string    `db:"type" json:"type"`
-	Status        string    `db:"status" json:"status"`
-	Endpoint      string    `db:"endpoint" json:"endpoint,omitempty"`
-	Capacity      int       `db:"capacity" json:"capacity"`
-	MaxConcurrent int       `db:"max_concurrent" json:"max_concurrent"`
-	CurrentJobs   int       `db:"current_jobs" json:"current_jobs"`
-	Labels        JSONArray `db:"labels" json:"labels"`
-	Metadata      JSONB     `db:"metadata" json:"metadata,omitempty"`
+	ID            string     `db:"id" json:"id"`
+	TenantID      string     `db:"tenant_id" json:"tenant_id"`
+	Name          string     `db:"name" json:"name"`
+	Type          string     `db:"type" json:"type"`
+	Status        string     `db:"status" json:"status"`
+	Endpoint      string     `db:"endpoint" json:"endpoint,omitempty"`
+	Capacity      int        `db:"capacity" json:"capacity"`
+	MaxConcurrent int        `db:"max_concurrent" json:"max_concurrent"`
+	CurrentJobs   int        `db:"current_jobs" json:"current_jobs"`
+	Labels        JSONArray  `db:"labels" json:"labels"`
+	Metadata      JSONB      `db:"metadata" json:"metadata,omitempty"`
 	LastHeartbeat *time.Time `db:"last_heartbeat" json:"last_heartbeat,omitempty"`
 	CreatedAt     time.Time  `db:"created_at" json:"created_at"`
 	UpdatedAt     time.Time  `db:"updated_at" json:"updated_at"`
@@ -79,20 +79,20 @@ type Runner struct {
 
 // CreateRunnerRequest is the payload for registering a new runner.
 type CreateRunnerRequest struct {
-	Name          string            `json:"name" binding:"required"`
-	Type          string            `json:"type" binding:"required"`
-	Endpoint      string            `json:"endpoint"`
-	MaxConcurrent int               `json:"max_concurrent"`
-	Labels        []string          `json:"labels"`
+	Name          string                 `json:"name" binding:"required"`
+	Type          string                 `json:"type" binding:"required"`
+	Endpoint      string                 `json:"endpoint"`
+	MaxConcurrent int                    `json:"max_concurrent"`
+	Labels        []string               `json:"labels"`
 	Metadata      map[string]interface{} `json:"metadata"`
 }
 
 // UpdateRunnerRequest is the payload for updating a runner.
 type UpdateRunnerRequest struct {
-	Status        *string           `json:"status"`
-	Endpoint      *string           `json:"endpoint"`
-	MaxConcurrent *int              `json:"max_concurrent"`
-	Labels        []string          `json:"labels"`
+	Status        *string                `json:"status"`
+	Endpoint      *string                `json:"endpoint"`
+	MaxConcurrent *int                   `json:"max_concurrent"`
+	Labels        []string               `json:"labels"`
 	Metadata      map[string]interface{} `json:"metadata"`
 }
 
@@ -100,19 +100,19 @@ type UpdateRunnerRequest struct {
 
 // PipelineRun represents a single execution of a pipeline.
 type PipelineRun struct {
-	ID              string    `db:"id" json:"id"`
-	TenantID        string    `db:"tenant_id" json:"tenant_id"`
-	PipelineID      string    `db:"pipeline_id" json:"pipeline_id"`
-	TriggerType     string    `db:"trigger_type" json:"trigger_type"`
-	TriggerBy       *string   `db:"trigger_by" json:"trigger_by,omitempty"`
-	Status          string    `db:"status" json:"status"`
-	EnvironmentName *string   `db:"environment_name" json:"environment_name,omitempty"`
-	ConfigSnapshot  JSONB     `db:"config_snapshot" json:"config_snapshot,omitempty"`
-	ErrorMessage    *string   `db:"error_message" json:"error_message,omitempty"`
+	ID              string     `db:"id" json:"id"`
+	TenantID        string     `db:"tenant_id" json:"tenant_id"`
+	PipelineID      string     `db:"pipeline_id" json:"pipeline_id"`
+	TriggerType     string     `db:"trigger_type" json:"trigger_type"`
+	TriggerBy       *string    `db:"trigger_by" json:"trigger_by,omitempty"`
+	Status          string     `db:"status" json:"status"`
+	EnvironmentName *string    `db:"environment_name" json:"environment_name,omitempty"`
+	ConfigSnapshot  JSONB      `db:"config_snapshot" json:"config_snapshot,omitempty"`
+	ErrorMessage    *string    `db:"error_message" json:"error_message,omitempty"`
 	StartedAt       *time.Time `db:"started_at" json:"started_at,omitempty"`
 	CompletedAt     *time.Time `db:"completed_at" json:"completed_at,omitempty"`
-	DurationMs      *int64    `db:"duration_ms" json:"duration_ms,omitempty"`
-	CreatedAt       time.Time `db:"created_at" json:"created_at"`
+	DurationMs      *int64     `db:"duration_ms" json:"duration_ms,omitempty"`
+	CreatedAt       time.Time  `db:"created_at" json:"created_at"`
 }
 
 // CreatePipelineRunRequest is the payload for creating a pipeline run.

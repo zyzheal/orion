@@ -3,12 +3,12 @@ package handler
 import (
 	"strconv"
 
+	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/ai/skill/models"
 	"orion/platform-svc-go/internal/ai/skill/service"
 
 	"orion/go-common/pkg/auth"
-
-	"github.com/gin-gonic/gin"
 )
 
 // Handler exposes HTTP endpoints for the skill domain.
@@ -61,10 +61,6 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// ---- Instances ----
 	skills.POST("/:id/instances", auth.RequirePermission("skill", "write"), h.CreateInstance)
 	skills.GET("/:id/instances", h.ListInstances)
-	rg.GET("/instances/:iid", h.GetInstance)
-	rg.PUT("/instances/:iid", auth.RequirePermission("skill", "write"), h.UpdateInstance)
-	rg.DELETE("/instances/:iid", auth.RequirePermission("skill", "delete"), h.DeleteInstance)
-	rg.GET("/instances", h.ListInstancesByTenant)
 
 	// ---- Executions ----
 	skills.POST("/:id/execute", auth.RequirePermission("skill", "execute"), h.ExecuteSkill)
@@ -74,7 +70,6 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 	// ---- Audit Logs ----
 	skills.GET("/:id/audit-logs", h.GetAuditLog)
-	rg.GET("/audit-logs", h.GetAllAuditLogs)
 }
 
 // =====================================================================
@@ -82,12 +77,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // =====================================================================
 
 func (h *Handler) CreateSkill(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillCreateSkill")
+	defer span.End()
 	var req models.CreateSkillRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	skill, err := h.svc.CreateSkill(c.Request.Context(), &req)
+	skill, err := h.svc.CreateSkill(ctx, &req)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -96,6 +93,8 @@ func (h *Handler) CreateSkill(c *gin.Context) {
 }
 
 func (h *Handler) ListSkills(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillListSkills")
+	defer span.End()
 	opts := service.ListSkillsOptions{
 		Page:     queryInt(c, "page", 1),
 		Limit:    queryInt(c, "limit", 20),
@@ -105,7 +104,7 @@ func (h *Handler) ListSkills(c *gin.Context) {
 	if tags := c.QueryArray("tags"); len(tags) > 0 {
 		opts.Tags = tags
 	}
-	result, err := h.svc.ListSkills(c.Request.Context(), opts)
+	result, err := h.svc.ListSkills(ctx, opts)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -114,7 +113,9 @@ func (h *Handler) ListSkills(c *gin.Context) {
 }
 
 func (h *Handler) GetSkill(c *gin.Context) {
-	skill, err := h.svc.GetSkill(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillGetSkill")
+	defer span.End()
+	skill, err := h.svc.GetSkill(ctx, c.Param("id"))
 	if err != nil {
 		mapError(c, err)
 		return
@@ -123,12 +124,14 @@ func (h *Handler) GetSkill(c *gin.Context) {
 }
 
 func (h *Handler) UpdateSkill(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillUpdateSkill")
+	defer span.End()
 	var req models.UpdateSkillRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	skill, err := h.svc.UpdateSkill(c.Request.Context(), c.Param("id"), &req)
+	skill, err := h.svc.UpdateSkill(ctx, c.Param("id"), &req)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -137,7 +140,9 @@ func (h *Handler) UpdateSkill(c *gin.Context) {
 }
 
 func (h *Handler) DeleteSkill(c *gin.Context) {
-	if err := h.svc.UninstallSkill(c.Request.Context(), c.Param("id")); err != nil {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillDeleteSkill")
+	defer span.End()
+	if err := h.svc.UninstallSkill(ctx, c.Param("id")); err != nil {
 		mapError(c, err)
 		return
 	}
@@ -145,7 +150,9 @@ func (h *Handler) DeleteSkill(c *gin.Context) {
 }
 
 func (h *Handler) PublishSkill(c *gin.Context) {
-	skill, err := h.svc.PublishSkill(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillPublishSkill")
+	defer span.End()
+	skill, err := h.svc.PublishSkill(ctx, c.Param("id"))
 	if err != nil {
 		mapError(c, err)
 		return
@@ -154,7 +161,9 @@ func (h *Handler) PublishSkill(c *gin.Context) {
 }
 
 func (h *Handler) InstallSkill(c *gin.Context) {
-	if err := h.svc.InstallSkill(c.Request.Context(), c.Param("id")); err != nil {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillInstallSkill")
+	defer span.End()
+	if err := h.svc.InstallSkill(ctx, c.Param("id")); err != nil {
 		mapError(c, err)
 		return
 	}
@@ -164,7 +173,9 @@ func (h *Handler) InstallSkill(c *gin.Context) {
 // UninstallSkill decrements the install counter (POST /:id/uninstall).
 // Distinct from DELETE /:id (soft-delete of the package itself).
 func (h *Handler) UninstallSkill(c *gin.Context) {
-	if err := h.svc.UninstallSkillSoft(c.Request.Context(), c.Param("id")); err != nil {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillUninstallSkill")
+	defer span.End()
+	if err := h.svc.UninstallSkillSoft(ctx, c.Param("id")); err != nil {
 		mapError(c, err)
 		return
 	}
@@ -174,6 +185,8 @@ func (h *Handler) UninstallSkill(c *gin.Context) {
 // RateSkill is a POST /:id/rate endpoint that extracts user_id from the JWT claim.
 // It forwards to AddReview after validating the rating range.
 func (h *Handler) RateSkill(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillRateSkill")
+	defer span.End()
 	var body struct {
 		Rating  int    `json:"rating" binding:"required"`
 		Comment string `json:"comment"`
@@ -187,7 +200,7 @@ func (h *Handler) RateSkill(c *gin.Context) {
 		Rating:  body.Rating,
 		Comment: body.Comment,
 	}
-	r, err := h.svc.AddReview(c.Request.Context(), c.Param("id"), review)
+	r, err := h.svc.AddReview(ctx, c.Param("id"), review)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -197,8 +210,10 @@ func (h *Handler) RateSkill(c *gin.Context) {
 
 // UnpublishSkill toggles a published skill back to draft (disable).
 func (h *Handler) UnpublishSkill(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillUnpublishSkill")
+	defer span.End()
 	userID := c.GetString("user_id")
-	skill, err := h.svc.UnpublishSkill(c.Request.Context(), c.Param("id"), userID)
+	skill, err := h.svc.UnpublishSkill(ctx, c.Param("id"), userID)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -207,9 +222,11 @@ func (h *Handler) UnpublishSkill(c *gin.Context) {
 }
 
 func (h *Handler) SearchSkills(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillSearchSkills")
+	defer span.End()
 	query := c.Query("q")
 	limit := queryInt(c, "limit", 20)
-	skills, err := h.svc.SearchSkills(c.Request.Context(), query, limit)
+	skills, err := h.svc.SearchSkills(ctx, query, limit)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -218,7 +235,9 @@ func (h *Handler) SearchSkills(c *gin.Context) {
 }
 
 func (h *Handler) GetCategories(c *gin.Context) {
-	cats, err := h.svc.GetCategories(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillGetCategories")
+	defer span.End()
+	cats, err := h.svc.GetCategories(ctx)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -227,8 +246,10 @@ func (h *Handler) GetCategories(c *gin.Context) {
 }
 
 func (h *Handler) GetPendingReview(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillGetPendingReview")
+	defer span.End()
 	skills, total, totalPages, err := h.svc.GetPendingReview(
-		c.Request.Context(),
+		ctx,
 		queryInt(c, "page", 1),
 		queryInt(c, "limit", 20),
 		c.Query("category"),
@@ -241,7 +262,9 @@ func (h *Handler) GetPendingReview(c *gin.Context) {
 }
 
 func (h *Handler) GetFeaturedSkills(c *gin.Context) {
-	skills, err := h.svc.GetFeaturedSkills(c.Request.Context(), queryInt(c, "limit", 10))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillGetFeatured")
+	defer span.End()
+	skills, err := h.svc.GetFeaturedSkills(ctx, queryInt(c, "limit", 10))
 	if err != nil {
 		mapError(c, err)
 		return
@@ -250,7 +273,9 @@ func (h *Handler) GetFeaturedSkills(c *gin.Context) {
 }
 
 func (h *Handler) GetMarketplace(c *gin.Context) {
-	result, err := h.svc.GetMarketplace(c.Request.Context(), service.ListSkillsOptions{
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillGetMarketplace")
+	defer span.End()
+	result, err := h.svc.GetMarketplace(ctx, service.ListSkillsOptions{
 		Page:     queryInt(c, "page", 1),
 		Limit:    queryInt(c, "limit", 20),
 		Category: c.Query("category"),
@@ -267,8 +292,10 @@ func (h *Handler) GetMarketplace(c *gin.Context) {
 // =====================================================================
 
 func (h *Handler) SubmitForReview(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillSubmitForReview")
+	defer span.End()
 	userID := c.GetString("user_id")
-	skill, err := h.svc.SubmitForReview(c.Request.Context(), c.Param("id"), userID)
+	skill, err := h.svc.SubmitForReview(ctx, c.Param("id"), userID)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -277,12 +304,14 @@ func (h *Handler) SubmitForReview(c *gin.Context) {
 }
 
 func (h *Handler) ApproveSkill(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillApprove")
+	defer span.End()
 	userID := c.GetString("user_id")
 	var body struct {
 		Reason string `json:"reason"`
 	}
 	_ = c.ShouldBindJSON(&body)
-	skill, err := h.svc.ApproveSkill(c.Request.Context(), c.Param("id"), userID, body.Reason)
+	skill, err := h.svc.ApproveSkill(ctx, c.Param("id"), userID, body.Reason)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -291,6 +320,8 @@ func (h *Handler) ApproveSkill(c *gin.Context) {
 }
 
 func (h *Handler) RejectSkill(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillReject")
+	defer span.End()
 	userID := c.GetString("user_id")
 	var body struct {
 		Reason string `json:"reason" binding:"required"`
@@ -299,7 +330,7 @@ func (h *Handler) RejectSkill(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	skill, err := h.svc.RejectSkill(c.Request.Context(), c.Param("id"), userID, body.Reason)
+	skill, err := h.svc.RejectSkill(ctx, c.Param("id"), userID, body.Reason)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -308,12 +339,14 @@ func (h *Handler) RejectSkill(c *gin.Context) {
 }
 
 func (h *Handler) ArchiveSkill(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillArchive")
+	defer span.End()
 	userID := c.GetString("user_id")
 	var body struct {
 		Reason string `json:"reason"`
 	}
 	_ = c.ShouldBindJSON(&body)
-	skill, err := h.svc.ArchiveSkill(c.Request.Context(), c.Param("id"), userID, body.Reason)
+	skill, err := h.svc.ArchiveSkill(ctx, c.Param("id"), userID, body.Reason)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -326,7 +359,9 @@ func (h *Handler) ArchiveSkill(c *gin.Context) {
 // =====================================================================
 
 func (h *Handler) GetVersions(c *gin.Context) {
-	versions, err := h.svc.GetVersions(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillGetVersions")
+	defer span.End()
+	versions, err := h.svc.GetVersions(ctx, c.Param("id"))
 	if err != nil {
 		mapError(c, err)
 		return
@@ -335,7 +370,9 @@ func (h *Handler) GetVersions(c *gin.Context) {
 }
 
 func (h *Handler) GetLatestVersion(c *gin.Context) {
-	v, err := h.svc.GetLatestVersion(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillGetLatestVersion")
+	defer span.End()
+	v, err := h.svc.GetLatestVersion(ctx, c.Param("id"))
 	if err != nil {
 		mapError(c, err)
 		return
@@ -344,12 +381,14 @@ func (h *Handler) GetLatestVersion(c *gin.Context) {
 }
 
 func (h *Handler) CreateVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillCreateVersion")
+	defer span.End()
 	var req models.CreateVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	v, err := h.svc.CreateVersion(c.Request.Context(), c.Param("id"), &req)
+	v, err := h.svc.CreateVersion(ctx, c.Param("id"), &req)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -358,6 +397,8 @@ func (h *Handler) CreateVersion(c *gin.Context) {
 }
 
 func (h *Handler) RecordVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillRecordVersion")
+	defer span.End()
 	var body struct {
 		Version   string `json:"version" binding:"required"`
 		Changelog string `json:"changelog"`
@@ -366,7 +407,7 @@ func (h *Handler) RecordVersion(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	v, err := h.svc.RecordVersion(c.Request.Context(), c.Param("id"), body.Version, body.Changelog)
+	v, err := h.svc.RecordVersion(ctx, c.Param("id"), body.Version, body.Changelog)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -375,7 +416,9 @@ func (h *Handler) RecordVersion(c *gin.Context) {
 }
 
 func (h *Handler) LockVersion(c *gin.Context) {
-	v, err := h.svc.LockVersion(c.Request.Context(), c.Param("vid"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillLockVersion")
+	defer span.End()
+	v, err := h.svc.LockVersion(ctx, c.Param("vid"))
 	if err != nil {
 		mapError(c, err)
 		return
@@ -384,7 +427,9 @@ func (h *Handler) LockVersion(c *gin.Context) {
 }
 
 func (h *Handler) UnlockVersion(c *gin.Context) {
-	v, err := h.svc.UnlockVersion(c.Request.Context(), c.Param("vid"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillUnlockVersion")
+	defer span.End()
+	v, err := h.svc.UnlockVersion(ctx, c.Param("vid"))
 	if err != nil {
 		mapError(c, err)
 		return
@@ -397,7 +442,9 @@ func (h *Handler) UnlockVersion(c *gin.Context) {
 // =====================================================================
 
 func (h *Handler) GetReviews(c *gin.Context) {
-	reviews, err := h.svc.GetReviews(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillGetReviews")
+	defer span.End()
+	reviews, err := h.svc.GetReviews(ctx, c.Param("id"))
 	if err != nil {
 		mapError(c, err)
 		return
@@ -406,12 +453,14 @@ func (h *Handler) GetReviews(c *gin.Context) {
 }
 
 func (h *Handler) AddReview(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillAddReview")
+	defer span.End()
 	var req models.CreateReviewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	review, err := h.svc.AddReview(c.Request.Context(), c.Param("id"), &req)
+	review, err := h.svc.AddReview(ctx, c.Param("id"), &req)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -424,6 +473,8 @@ func (h *Handler) AddReview(c *gin.Context) {
 // =====================================================================
 
 func (h *Handler) CreateInstance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillCreateInstance")
+	defer span.End()
 	var req models.CreateInstanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
@@ -434,7 +485,7 @@ func (h *Handler) CreateInstance(c *gin.Context) {
 	if req.TenantID == "" {
 		req.TenantID = c.GetString("tenant_id")
 	}
-	inst, err := h.svc.CreateInstance(c.Request.Context(), &req)
+	inst, err := h.svc.CreateInstance(ctx, &req)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -443,8 +494,10 @@ func (h *Handler) CreateInstance(c *gin.Context) {
 }
 
 func (h *Handler) ListInstances(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillListInstances")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	instances, err := h.svc.ListInstances(c.Request.Context(), c.Param("id"), tenantID)
+	instances, err := h.svc.ListInstances(ctx, c.Param("id"), tenantID)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -453,8 +506,10 @@ func (h *Handler) ListInstances(c *gin.Context) {
 }
 
 func (h *Handler) GetInstance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillGetInstance")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	inst, err := h.svc.GetInstance(c.Request.Context(), c.Param("iid"), tenantID)
+	inst, err := h.svc.GetInstance(ctx, c.Param("id"), tenantID)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -463,13 +518,15 @@ func (h *Handler) GetInstance(c *gin.Context) {
 }
 
 func (h *Handler) UpdateInstance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillUpdateInstance")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateInstanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	inst, err := h.svc.UpdateInstance(c.Request.Context(), c.Param("iid"), tenantID, &req)
+	inst, err := h.svc.UpdateInstance(ctx, c.Param("id"), tenantID, &req)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -478,8 +535,10 @@ func (h *Handler) UpdateInstance(c *gin.Context) {
 }
 
 func (h *Handler) DeleteInstance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillDeleteInstance")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.DeleteInstance(c.Request.Context(), c.Param("iid"), tenantID); err != nil {
+	if err := h.svc.DeleteInstance(ctx, c.Param("id"), tenantID); err != nil {
 		mapError(c, err)
 		return
 	}
@@ -487,9 +546,11 @@ func (h *Handler) DeleteInstance(c *gin.Context) {
 }
 
 func (h *Handler) ListInstancesByTenant(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillListInstancesByTenant")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	instances, total, err := h.svc.ListInstancesByTenant(
-		c.Request.Context(), tenantID,
+		ctx, tenantID,
 		queryInt(c, "limit", 50),
 		queryInt(c, "offset", 0),
 	)
@@ -505,6 +566,8 @@ func (h *Handler) ListInstancesByTenant(c *gin.Context) {
 // =====================================================================
 
 func (h *Handler) ExecuteSkill(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillExecuteSkill")
+	defer span.End()
 	var req models.CreateExecutionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
@@ -514,7 +577,7 @@ func (h *Handler) ExecuteSkill(c *gin.Context) {
 	if req.TenantID == "" {
 		req.TenantID = c.GetString("tenant_id")
 	}
-	exec, err := h.svc.ExecuteSkill(c.Request.Context(), c.Param("id"), &req)
+	exec, err := h.svc.ExecuteSkill(ctx, c.Param("id"), &req)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -523,9 +586,11 @@ func (h *Handler) ExecuteSkill(c *gin.Context) {
 }
 
 func (h *Handler) GetExecutions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillGetExecutions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	execs, total, totalPages, err := h.svc.GetExecutions(
-		c.Request.Context(), c.Param("id"), tenantID,
+		ctx, c.Param("id"), tenantID,
 		queryInt(c, "page", 1),
 		queryInt(c, "limit", 20),
 	)
@@ -537,9 +602,11 @@ func (h *Handler) GetExecutions(c *gin.Context) {
 }
 
 func (h *Handler) GetAllExecutions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillGetAllExecutions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	execs, total, totalPages, err := h.svc.GetAllExecutions(
-		c.Request.Context(), tenantID,
+		ctx, tenantID,
 		queryInt(c, "page", 1),
 		queryInt(c, "limit", 20),
 		c.Query("skill_id"),
@@ -552,13 +619,15 @@ func (h *Handler) GetAllExecutions(c *gin.Context) {
 }
 
 func (h *Handler) UpdateExecution(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillUpdateExecution")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateExecutionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	exec, err := h.svc.UpdateExecution(c.Request.Context(), tenantID, c.Param("eid"), &req)
+	exec, err := h.svc.UpdateExecution(ctx, tenantID, c.Param("eid"), &req)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -571,8 +640,10 @@ func (h *Handler) UpdateExecution(c *gin.Context) {
 // =====================================================================
 
 func (h *Handler) GetAuditLog(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillGetAuditLog")
+	defer span.End()
 	logs, total, totalPages, err := h.svc.GetAuditLog(
-		c.Request.Context(), c.Param("id"),
+		ctx, c.Param("id"),
 		queryInt(c, "page", 1),
 		queryInt(c, "limit", 50),
 	)
@@ -584,8 +655,10 @@ func (h *Handler) GetAuditLog(c *gin.Context) {
 }
 
 func (h *Handler) GetAllAuditLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AISkillGetAllAuditLogs")
+	defer span.End()
 	logs, total, totalPages, err := h.svc.GetAllAuditLogs(
-		c.Request.Context(),
+		ctx,
 		queryInt(c, "page", 1),
 		queryInt(c, "limit", 50),
 		c.Query("action"),

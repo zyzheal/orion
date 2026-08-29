@@ -94,7 +94,7 @@ func (p *PrometheusSource) Execute(ctx context.Context, query string, params map
 	var promResp struct {
 		Status string `json:"status"`
 		Data   struct {
-			ResultType string                 `json:"resultType"`
+			ResultType string                   `json:"resultType"`
 			Result     []map[string]interface{} `json:"result"`
 		} `json:"data"`
 	}

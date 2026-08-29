@@ -13,19 +13,19 @@ import (
 
 // Scheduler handles cron-based backup schedule management.
 type Scheduler struct {
-	cron     *cron.Cron
-	entries  map[string]cron.EntryID
-	plans    map[string]*models.BackupPlan
-	mu       sync.RWMutex
+	cron      *cron.Cron
+	entries   map[string]cron.EntryID
+	plans     map[string]*models.BackupPlan
+	mu        sync.RWMutex
 	backupSvc *BackupService
 	logger    *zap.Logger
 }
 
 func NewScheduler(backupSvc *BackupService, logger *zap.Logger) *Scheduler {
 	return &Scheduler{
-		cron:     cron.New(cron.WithSeconds()),
-		entries:  make(map[string]cron.EntryID),
-		plans:    make(map[string]*models.BackupPlan),
+		cron:      cron.New(cron.WithSeconds()),
+		entries:   make(map[string]cron.EntryID),
+		plans:     make(map[string]*models.BackupPlan),
 		backupSvc: backupSvc,
 		logger:    logger,
 	}

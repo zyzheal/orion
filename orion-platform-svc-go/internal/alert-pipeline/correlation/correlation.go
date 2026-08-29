@@ -16,31 +16,31 @@ import (
 
 // Group records correlated alerts that share a common fingerprint.
 type Group struct {
-	GroupID       string            `json:"groupId"`
-	Fingerprint   string            `json:"fingerprint"`
-	AlertIDs      []string          `json:"alertIds"`
-	Alerts        []*event.AlertEvent `json:"alerts,omitempty"`
-	FirstSeenAt   time.Time         `json:"firstSeenAt"`
-	LastSeenAt    time.Time         `json:"lastSeenAt"`
-	CommonRoot    bool              `json:"commonRoot"`
-	Similarity    float64           `json:"similarity"`
+	GroupID     string              `json:"groupId"`
+	Fingerprint string              `json:"fingerprint"`
+	AlertIDs    []string            `json:"alertIds"`
+	Alerts      []*event.AlertEvent `json:"alerts,omitempty"`
+	FirstSeenAt time.Time           `json:"firstSeenAt"`
+	LastSeenAt  time.Time           `json:"lastSeenAt"`
+	CommonRoot  bool                `json:"commonRoot"`
+	Similarity  float64             `json:"similarity"`
 }
 
 // TimelineEntry is a single lifecycle event belonging to an alert.
 type TimelineEntry struct {
-	EventID    string    `json:"eventId"`
-	EventType  string    `json:"eventType"`
-	Timestamp  time.Time `json:"timestamp"`
-	AlertID    string    `json:"alertId"`
-	Summary    string    `json:"summary,omitempty"`
+	EventID   string    `json:"eventId"`
+	EventType string    `json:"eventType"`
+	Timestamp time.Time `json:"timestamp"`
+	AlertID   string    `json:"alertId"`
+	Summary   string    `json:"summary,omitempty"`
 }
 
 // Engine correlates alerts by fingerprint and maintains per-group timelines.
 type Engine struct {
-	mu          sync.RWMutex
-	groups      map[string]*Group       // fingerprint -> group
-	timelines   map[string][]TimelineEntry // groupID -> events
-	groupCount  int64
+	mu         sync.RWMutex
+	groups     map[string]*Group          // fingerprint -> group
+	timelines  map[string][]TimelineEntry // groupID -> events
+	groupCount int64
 }
 
 // NewEngine creates a new correlation engine.

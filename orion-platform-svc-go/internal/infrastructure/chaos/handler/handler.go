@@ -2,11 +2,12 @@ package handler
 
 import (
 	"errors"
+	"go.opentelemetry.io/otel"
 	"strconv"
 
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/infrastructure/chaos/models"
 	"orion/platform-svc-go/internal/infrastructure/chaos/service"
-	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 )
@@ -45,6 +46,8 @@ func mapError(c *gin.Context, err error) {
 }
 
 func (h *Handler) CreateExperiment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraChaosCreateExperiment")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var input models.CreateExperimentInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -52,7 +55,7 @@ func (h *Handler) CreateExperiment(c *gin.Context) {
 		return
 	}
 
-	exp, err := h.svc.CreateExperiment(c.Request.Context(), tenantID, &input)
+	exp, err := h.svc.CreateExperiment(ctx, tenantID, &input)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -62,10 +65,12 @@ func (h *Handler) CreateExperiment(c *gin.Context) {
 }
 
 func (h *Handler) GetExperiment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraChaosGetExperiment")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	exp, err := h.svc.GetExperiment(c.Request.Context(), tenantID, id)
+	exp, err := h.svc.GetExperiment(ctx, tenantID, id)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -75,11 +80,13 @@ func (h *Handler) GetExperiment(c *gin.Context) {
 }
 
 func (h *Handler) ListExperiments(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraChaosListExperiments")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
-	exps, err := h.svc.ListExperiments(c.Request.Context(), tenantID, page, pageSize)
+	exps, err := h.svc.ListExperiments(ctx, tenantID, page, pageSize)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -89,6 +96,8 @@ func (h *Handler) ListExperiments(c *gin.Context) {
 }
 
 func (h *Handler) UpdateStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraChaosUpdateStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -101,7 +110,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 	}
 
 	status := models.ExperimentStatus(req.Status)
-	if err := h.svc.UpdateStatus(c.Request.Context(), tenantID, id, status); err != nil {
+	if err := h.svc.UpdateStatus(ctx, tenantID, id, status); err != nil {
 		mapError(c, err)
 		return
 	}
@@ -110,10 +119,12 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 }
 
 func (h *Handler) DeleteExperiment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraChaosDeleteExperiment")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	if err := h.svc.DeleteExperiment(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteExperiment(ctx, tenantID, id); err != nil {
 		mapError(c, err)
 		return
 	}

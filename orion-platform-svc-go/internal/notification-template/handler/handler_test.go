@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/notification-template/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/notification-template/models"
 )
 
@@ -64,7 +64,6 @@ func (f *fakeNotification_templateService) Update(ctx context.Context, tenantID,
 }
 
 var _ service.ServiceInterface = (*fakeNotification_templateService)(nil)
-
 
 func TestHandler_NOTIFICATION_T_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

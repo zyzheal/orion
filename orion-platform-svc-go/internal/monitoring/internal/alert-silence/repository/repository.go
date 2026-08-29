@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"orion/platform-svc-go/internal/monitoring/internal/alert-silence/models"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/monitoring/internal/alert-silence/models"
 )
 
 type AlertSilenceRepository struct {

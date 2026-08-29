@@ -5,9 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/role/models"
 )
 
@@ -57,8 +56,6 @@ func (f *fakeHandler) SetPermissions(ctx context.Context, tenantID, id string, r
 func (f *fakeHandler) GetPermissions(ctx context.Context, tenantID, id string) (*models.Role, error) {
 	return &models.Role{}, nil
 }
-
-
 
 func TestHandler_ROLE_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

@@ -2,15 +2,16 @@ package handler
 
 import (
 	"net/http"
-	"orion/platform-svc-go/internal/ci-cd/build/models"
-	"orion/platform-svc-go/internal/ci-cd/build/repository"
-	"orion/platform-svc-go/internal/ci-cd/build/service"
-	"orion/go-common/pkg/auth"
-	"orion/go-common/pkg/database"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/database"
+	"orion/platform-svc-go/internal/ci-cd/build/models"
+	"orion/platform-svc-go/internal/ci-cd/build/repository"
+	"orion/platform-svc-go/internal/ci-cd/build/service"
 )
 
 type Handler struct {
@@ -63,6 +64,8 @@ func (h *Handler) paginated(c *gin.Context) (offset, limit int) {
 
 // ListBuilds GET /api/v1/builds
 func (h *Handler) ListBuilds(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildListBuilds")
+	defer span.End()
 	tenantID := h.tenantID(c)
 	offset, limit := h.paginated(c)
 
@@ -72,7 +75,7 @@ func (h *Handler) ListBuilds(c *gin.Context) {
 		Status:    c.Query("status"),
 	}
 
-	result, err := h.svc.ListPaginated(c.Request.Context(), tenantID, filter, offset, limit)
+	result, err := h.svc.ListPaginated(ctx, tenantID, filter, offset, limit)
 	if err != nil {
 		h.logger.Error("failed to list builds", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -83,6 +86,8 @@ func (h *Handler) ListBuilds(c *gin.Context) {
 
 // CreateBuild POST /api/v1/builds
 func (h *Handler) CreateBuild(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildCreateBuild")
+	defer span.End()
 	var input models.CreateBuildInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		h.err(c, http.StatusBadRequest, "invalid request: "+err.Error())
@@ -90,7 +95,7 @@ func (h *Handler) CreateBuild(c *gin.Context) {
 	}
 	input.TenantID = h.tenantID(c)
 
-	build, err := h.svc.CreateFromInput(c.Request.Context(), input)
+	build, err := h.svc.CreateFromInput(ctx, input)
 	if err != nil {
 		h.logger.Error("failed to create build", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -101,10 +106,12 @@ func (h *Handler) CreateBuild(c *gin.Context) {
 
 // GetBuild GET /api/v1/builds/:id
 func (h *Handler) GetBuild(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildGetBuild")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
 
-	build, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
+	build, err := h.svc.GetByID(ctx, tenantID, id)
 	if err != nil {
 		h.err(c, http.StatusNotFound, "build not found")
 		return
@@ -114,6 +121,8 @@ func (h *Handler) GetBuild(c *gin.Context) {
 
 // UpdateBuild PUT /api/v1/builds/:id
 func (h *Handler) UpdateBuild(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildUpdateBuild")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
 
@@ -125,7 +134,7 @@ func (h *Handler) UpdateBuild(c *gin.Context) {
 	req.ID = id
 	req.TenantID = tenantID
 
-	if err := h.svc.Update(c.Request.Context(), &req); err != nil {
+	if err := h.svc.Update(ctx, &req); err != nil {
 		h.logger.Error("failed to update build", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
@@ -135,10 +144,12 @@ func (h *Handler) UpdateBuild(c *gin.Context) {
 
 // DeleteBuild DELETE /api/v1/builds/:id
 func (h *Handler) DeleteBuild(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildDeleteBuild")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
 
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		h.logger.Error("failed to delete build", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
@@ -148,10 +159,12 @@ func (h *Handler) DeleteBuild(c *gin.Context) {
 
 // TriggerBuild POST /api/v1/builds/:id/trigger
 func (h *Handler) TriggerBuild(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildTriggerBuild")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
 
-	build, err := h.svc.TriggerBuild(c.Request.Context(), tenantID, id)
+	build, err := h.svc.TriggerBuild(ctx, tenantID, id)
 	if err != nil {
 		switch err {
 		case service.ErrBuildNotFound:
@@ -169,10 +182,12 @@ func (h *Handler) TriggerBuild(c *gin.Context) {
 
 // GetBuildStatus GET /api/v1/builds/:id/status
 func (h *Handler) GetBuildStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildGetBuildStatus")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
 
-	status, err := h.svc.GetBuildStatus(c.Request.Context(), tenantID, id)
+	status, err := h.svc.GetBuildStatus(ctx, tenantID, id)
 	if err != nil {
 		if err == service.ErrBuildNotFound {
 			h.err(c, http.StatusNotFound, err.Error())
@@ -187,10 +202,12 @@ func (h *Handler) GetBuildStatus(c *gin.Context) {
 
 // CancelBuild POST /api/v1/builds/:id/cancel
 func (h *Handler) CancelBuild(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildCancelBuild")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
 
-	build, err := h.svc.CancelBuild(c.Request.Context(), tenantID, id)
+	build, err := h.svc.CancelBuild(ctx, tenantID, id)
 	if err != nil {
 		switch err {
 		case service.ErrBuildNotFound:
@@ -208,10 +225,12 @@ func (h *Handler) CancelBuild(c *gin.Context) {
 
 // RetryBuild POST /api/v1/builds/:id/retry
 func (h *Handler) RetryBuild(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildRetryBuild")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
 
-	build, err := h.svc.RetryBuild(c.Request.Context(), tenantID, id)
+	build, err := h.svc.RetryBuild(ctx, tenantID, id)
 	if err != nil {
 		switch err {
 		case service.ErrBuildNotFound:
@@ -229,10 +248,12 @@ func (h *Handler) RetryBuild(c *gin.Context) {
 
 // GetBuildLogs GET /api/v1/builds/:id/logs
 func (h *Handler) GetBuildLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildGetBuildLogs")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
 
-	logs, err := h.svc.GetBuildLogs(c.Request.Context(), tenantID, id)
+	logs, err := h.svc.GetBuildLogs(ctx, tenantID, id)
 	if err != nil {
 		if err == service.ErrBuildNotFound {
 			h.err(c, http.StatusNotFound, err.Error())
@@ -247,10 +268,12 @@ func (h *Handler) GetBuildLogs(c *gin.Context) {
 
 // GetBuildByPipelineRun GET /api/v1/builds/pipeline-run/:runId
 func (h *Handler) GetBuildByPipelineRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildGetBuildByPipelineRun")
+	defer span.End()
 	runID := c.Param("runId")
 	tenantID := h.tenantID(c)
 
-	build, err := h.svc.GetBuildByPipelineRun(c.Request.Context(), tenantID, runID)
+	build, err := h.svc.GetBuildByPipelineRun(ctx, tenantID, runID)
 	if err != nil {
 		h.logger.Error("failed to get build by pipeline run", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -265,9 +288,11 @@ func (h *Handler) GetBuildByPipelineRun(c *gin.Context) {
 
 // GetBuildStats GET /api/v1/builds/stats
 func (h *Handler) GetBuildStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildGetBuildStats")
+	defer span.End()
 	tenantID := h.tenantID(c)
 
-	stats, err := h.svc.GetBuildStats(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetBuildStats(ctx, tenantID)
 	if err != nil {
 		h.logger.Error("failed to get build stats", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -278,8 +303,10 @@ func (h *Handler) GetBuildStats(c *gin.Context) {
 
 // Count GET /api/v1/builds/count
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildCount")
+	defer span.End()
 	tenantID := h.tenantID(c)
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		h.logger.Error("failed to count builds", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -292,9 +319,11 @@ func (h *Handler) Count(c *gin.Context) {
 
 // ListEnvironments GET /api/v1/environments
 func (h *Handler) ListEnvironments(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildListEnvironments")
+	defer span.End()
 	tenantID := h.tenantID(c)
 
-	envs, err := h.svc.ListEnvironments(c.Request.Context(), tenantID)
+	envs, err := h.svc.ListEnvironments(ctx, tenantID)
 	if err != nil {
 		h.logger.Error("failed to list environments", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -305,6 +334,8 @@ func (h *Handler) ListEnvironments(c *gin.Context) {
 
 // CreateEnvironment POST /api/v1/environments
 func (h *Handler) CreateEnvironment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildCreateEnvironment")
+	defer span.End()
 	var input models.CreateEnvironmentInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		h.err(c, http.StatusBadRequest, "invalid request: "+err.Error())
@@ -312,7 +343,7 @@ func (h *Handler) CreateEnvironment(c *gin.Context) {
 	}
 	input.TenantID = h.tenantID(c)
 
-	env, err := h.svc.CreateEnvironment(c.Request.Context(), input)
+	env, err := h.svc.CreateEnvironment(ctx, input)
 	if err != nil {
 		h.logger.Error("failed to create environment", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -323,10 +354,12 @@ func (h *Handler) CreateEnvironment(c *gin.Context) {
 
 // GetEnvironment GET /api/v1/environments/:id
 func (h *Handler) GetEnvironment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildGetEnvironment")
+	defer span.End()
 	tenantID := h.tenantID(c)
 	id := c.Param("id")
 
-	env, err := h.svc.GetEnvironment(c.Request.Context(), tenantID, id)
+	env, err := h.svc.GetEnvironment(ctx, tenantID, id)
 	if err != nil {
 		h.err(c, http.StatusNotFound, "environment not found")
 		return
@@ -336,6 +369,8 @@ func (h *Handler) GetEnvironment(c *gin.Context) {
 
 // UpdateEnvironment PUT /api/v1/environments/:id
 func (h *Handler) UpdateEnvironment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildUpdateEnvironment")
+	defer span.End()
 	tenantID := h.tenantID(c)
 	id := c.Param("id")
 
@@ -345,7 +380,7 @@ func (h *Handler) UpdateEnvironment(c *gin.Context) {
 		return
 	}
 
-	env, err := h.svc.UpdateEnvironment(c.Request.Context(), tenantID, id, input)
+	env, err := h.svc.UpdateEnvironment(ctx, tenantID, id, input)
 	if err != nil {
 		if err == service.ErrEnvNotFound {
 			h.err(c, http.StatusNotFound, err.Error())
@@ -360,10 +395,12 @@ func (h *Handler) UpdateEnvironment(c *gin.Context) {
 
 // DeleteEnvironment DELETE /api/v1/environments/:id
 func (h *Handler) DeleteEnvironment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildDeleteEnvironment")
+	defer span.End()
 	tenantID := h.tenantID(c)
 	id := c.Param("id")
 
-	if err := h.svc.DeleteEnvironment(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteEnvironment(ctx, tenantID, id); err != nil {
 		if err == service.ErrEnvNotFound {
 			h.err(c, http.StatusNotFound, err.Error())
 		} else {
@@ -379,6 +416,8 @@ func (h *Handler) DeleteEnvironment(c *gin.Context) {
 
 // ListArtifacts GET /api/v1/artifacts
 func (h *Handler) ListArtifacts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildListArtifacts")
+	defer span.End()
 	tenantID := h.tenantID(c)
 	offset, limit := h.paginated(c)
 
@@ -388,7 +427,7 @@ func (h *Handler) ListArtifacts(c *gin.Context) {
 		Type:    c.Query("type"),
 	}
 
-	artifacts, err := h.svc.ListArtifacts(c.Request.Context(), tenantID, filter, offset, limit)
+	artifacts, err := h.svc.ListArtifacts(ctx, tenantID, filter, offset, limit)
 	if err != nil {
 		h.logger.Error("failed to list artifacts", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -399,6 +438,8 @@ func (h *Handler) ListArtifacts(c *gin.Context) {
 
 // CreateArtifact POST /api/v1/artifacts
 func (h *Handler) CreateArtifact(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildCreateArtifact")
+	defer span.End()
 	var input models.CreateArtifactInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		h.err(c, http.StatusBadRequest, "invalid request: "+err.Error())
@@ -406,7 +447,7 @@ func (h *Handler) CreateArtifact(c *gin.Context) {
 	}
 	input.TenantID = h.tenantID(c)
 
-	artifact, err := h.svc.CreateArtifact(c.Request.Context(), input)
+	artifact, err := h.svc.CreateArtifact(ctx, input)
 	if err != nil {
 		h.logger.Error("failed to create artifact", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -417,10 +458,12 @@ func (h *Handler) CreateArtifact(c *gin.Context) {
 
 // GetArtifact GET /api/v1/artifacts/:id
 func (h *Handler) GetArtifact(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildGetArtifact")
+	defer span.End()
 	tenantID := h.tenantID(c)
 	id := c.Param("id")
 
-	artifact, err := h.svc.GetArtifact(c.Request.Context(), tenantID, id)
+	artifact, err := h.svc.GetArtifact(ctx, tenantID, id)
 	if err != nil {
 		h.err(c, http.StatusNotFound, "artifact not found")
 		return
@@ -430,10 +473,12 @@ func (h *Handler) GetArtifact(c *gin.Context) {
 
 // DeleteArtifact DELETE /api/v1/artifacts/:id
 func (h *Handler) DeleteArtifact(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildDeleteArtifact")
+	defer span.End()
 	tenantID := h.tenantID(c)
 	id := c.Param("id")
 
-	if err := h.svc.DeleteArtifact(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteArtifact(ctx, tenantID, id); err != nil {
 		h.logger.Error("failed to delete artifact", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
@@ -443,10 +488,12 @@ func (h *Handler) DeleteArtifact(c *gin.Context) {
 
 // RecordDownload POST /api/v1/artifacts/:id/download
 func (h *Handler) RecordDownload(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildRecordDownload")
+	defer span.End()
 	tenantID := h.tenantID(c)
 	id := c.Param("id")
 
-	if err := h.svc.RecordArtifactDownload(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.RecordArtifactDownload(ctx, tenantID, id); err != nil {
 		h.logger.Error("failed to record download", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
@@ -456,8 +503,10 @@ func (h *Handler) RecordDownload(c *gin.Context) {
 
 // CleanupExpiredArtifacts POST /api/v1/artifacts/cleanup
 func (h *Handler) CleanupExpiredArtifacts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildCleanupExpiredArtifacts")
+	defer span.End()
 	tenantID := h.tenantID(c)
-	count, err := h.svc.CleanupExpiredArtifacts(c.Request.Context(), tenantID)
+	count, err := h.svc.CleanupExpiredArtifacts(ctx, tenantID)
 	if err != nil {
 		h.logger.Error("failed to cleanup expired artifacts", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -468,10 +517,12 @@ func (h *Handler) CleanupExpiredArtifacts(c *gin.Context) {
 
 // CleanupArtifactsByRun DELETE /api/v1/artifacts/run/:runId
 func (h *Handler) CleanupArtifactsByRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildCleanupArtifactsByRun")
+	defer span.End()
 	tenantID := h.tenantID(c)
 	runID := c.Param("runId")
 
-	count, err := h.svc.CleanupArtifactsByRun(c.Request.Context(), tenantID, runID)
+	count, err := h.svc.CleanupArtifactsByRun(ctx, tenantID, runID)
 	if err != nil {
 		h.logger.Error("failed to cleanup artifacts by run", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -500,6 +551,8 @@ func parseLimitOffset(c *gin.Context) (offset, limit int) {
 
 // ListBuilderImages GET /api/v1/build-images
 func (h *Handler) ListBuilderImages(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildListBuilderImages")
+	defer span.End()
 	opts := models.BuilderImageQueryOptions{
 		Type:   models.PresetImageType(c.Query("type")),
 		Status: models.BuilderImageStatus(c.Query("status")),
@@ -513,7 +566,7 @@ func (h *Handler) ListBuilderImages(c *gin.Context) {
 	opts.Offset = offset
 	opts.Limit = limit
 
-	images, err := h.imageSvc.List(c.Request.Context(), opts)
+	images, err := h.imageSvc.List(ctx, opts)
 	if err != nil {
 		h.logger.Error("failed to list builder images", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -524,13 +577,15 @@ func (h *Handler) ListBuilderImages(c *gin.Context) {
 
 // RegisterBuilderImage POST /api/v1/build-images
 func (h *Handler) RegisterBuilderImage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildRegisterBuilderImage")
+	defer span.End()
 	var input models.CreateBuilderImageInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		h.err(c, http.StatusBadRequest, "invalid request: "+err.Error())
 		return
 	}
 
-	img, err := h.imageSvc.Register(c.Request.Context(), input)
+	img, err := h.imageSvc.Register(ctx, input)
 	switch err {
 	case nil:
 		h.success(c, img)
@@ -544,8 +599,10 @@ func (h *Handler) RegisterBuilderImage(c *gin.Context) {
 
 // GetBuilderImage GET /api/v1/build-images/:id
 func (h *Handler) GetBuilderImage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildGetBuilderImage")
+	defer span.End()
 	id := c.Param("id")
-	img, err := h.imageSvc.GetByID(c.Request.Context(), id)
+	img, err := h.imageSvc.GetByID(ctx, id)
 	if err != nil {
 		h.err(c, http.StatusNotFound, "builder image not found")
 		return
@@ -555,6 +612,8 @@ func (h *Handler) GetBuilderImage(c *gin.Context) {
 
 // UpdateBuilderImage PUT /api/v1/build-images/:id
 func (h *Handler) UpdateBuilderImage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildUpdateBuilderImage")
+	defer span.End()
 	id := c.Param("id")
 	var input models.UpdateBuilderImageInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -562,7 +621,7 @@ func (h *Handler) UpdateBuilderImage(c *gin.Context) {
 		return
 	}
 
-	img, err := h.imageSvc.Update(c.Request.Context(), id, input)
+	img, err := h.imageSvc.Update(ctx, id, input)
 	switch err {
 	case nil:
 		h.success(c, img)
@@ -576,8 +635,10 @@ func (h *Handler) UpdateBuilderImage(c *gin.Context) {
 
 // DeleteBuilderImage DELETE /api/v1/build-images/:id
 func (h *Handler) DeleteBuilderImage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildDeleteBuilderImage")
+	defer span.End()
 	id := c.Param("id")
-	err := h.imageSvc.Delete(c.Request.Context(), id)
+	err := h.imageSvc.Delete(ctx, id)
 	switch err {
 	case nil:
 		h.success(c, gin.H{"message": "builder image deleted"})
@@ -591,8 +652,10 @@ func (h *Handler) DeleteBuilderImage(c *gin.Context) {
 
 // DeprecateBuilderImage GET /api/v1/build-images/:id/deprecate
 func (h *Handler) DeprecateBuilderImage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildDeprecateBuilderImage")
+	defer span.End()
 	id := c.Param("id")
-	img, err := h.imageSvc.Deprecate(c.Request.Context(), id)
+	img, err := h.imageSvc.Deprecate(ctx, id)
 	if err != nil {
 		h.logger.Error("failed to deprecate builder image", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -603,8 +666,10 @@ func (h *Handler) DeprecateBuilderImage(c *gin.Context) {
 
 // RestoreBuilderImage GET /api/v1/build-images/:id/restore
 func (h *Handler) RestoreBuilderImage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildRestoreBuilderImage")
+	defer span.End()
 	id := c.Param("id")
-	img, err := h.imageSvc.Restore(c.Request.Context(), id)
+	img, err := h.imageSvc.Restore(ctx, id)
 	if err != nil {
 		h.logger.Error("failed to restore builder image", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -615,7 +680,9 @@ func (h *Handler) RestoreBuilderImage(c *gin.Context) {
 
 // GetBuilderImagePresets GET /api/v1/build-images/presets
 func (h *Handler) GetBuilderImagePresets(c *gin.Context) {
-	images, err := h.imageSvc.GetPresets(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildGetBuilderImagePresets")
+	defer span.End()
+	images, err := h.imageSvc.GetPresets(ctx)
 	if err != nil {
 		h.logger.Error("failed to get preset images", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -626,7 +693,9 @@ func (h *Handler) GetBuilderImagePresets(c *gin.Context) {
 
 // GetAvailableBuilderImages GET /api/v1/build-images/available
 func (h *Handler) GetAvailableBuilderImages(c *gin.Context) {
-	images, err := h.imageSvc.GetAvailable(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildGetAvailableBuilderImages")
+	defer span.End()
+	images, err := h.imageSvc.GetAvailable(ctx)
 	if err != nil {
 		h.logger.Error("failed to get available images", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -637,8 +706,10 @@ func (h *Handler) GetAvailableBuilderImages(c *gin.Context) {
 
 // GetBuilderImagesByType GET /api/v1/build-images/by-type/:type
 func (h *Handler) GetBuilderImagesByType(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildGetBuilderImagesByType")
+	defer span.End()
 	typ := c.Param("type")
-	images, err := h.imageSvc.GetByType(c.Request.Context(), typ)
+	images, err := h.imageSvc.GetByType(ctx, typ)
 	if err != nil {
 		h.logger.Error("failed to get images by type", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -651,6 +722,8 @@ func (h *Handler) GetBuilderImagesByType(c *gin.Context) {
 
 // ListCacheConfigs GET /api/v1/cache/configs
 func (h *Handler) ListCacheConfigs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildListCacheConfigs")
+	defer span.End()
 	opts := models.ListCacheConfigsOptions{
 		Level:  models.CacheLevel(c.Query("level")),
 		Status: models.CacheStatus(c.Query("status")),
@@ -659,7 +732,7 @@ func (h *Handler) ListCacheConfigs(c *gin.Context) {
 	opts.Offset = offset
 	opts.Limit = limit
 
-	cfgs, err := h.cacheSvc.ListConfigs(c.Request.Context(), opts)
+	cfgs, err := h.cacheSvc.ListConfigs(ctx, opts)
 	if err != nil {
 		h.logger.Error("failed to list cache configs", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -670,13 +743,15 @@ func (h *Handler) ListCacheConfigs(c *gin.Context) {
 
 // CreateCacheConfig POST /api/v1/cache/configs
 func (h *Handler) CreateCacheConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildCreateCacheConfig")
+	defer span.End()
 	var input models.CreateBuildCacheConfigInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		h.err(c, http.StatusBadRequest, "invalid request: "+err.Error())
 		return
 	}
 
-	cfg, err := h.cacheSvc.CreateConfig(c.Request.Context(), input)
+	cfg, err := h.cacheSvc.CreateConfig(ctx, input)
 	if err != nil {
 		h.logger.Error("failed to create cache config", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -687,6 +762,8 @@ func (h *Handler) CreateCacheConfig(c *gin.Context) {
 
 // UpdateCacheConfig PUT /api/v1/cache/configs
 func (h *Handler) UpdateCacheConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildUpdateCacheConfig")
+	defer span.End()
 	id := c.Param("id")
 	var input models.UpdateBuildCacheConfigInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -694,7 +771,7 @@ func (h *Handler) UpdateCacheConfig(c *gin.Context) {
 		return
 	}
 
-	cfg, err := h.cacheSvc.UpdateConfig(c.Request.Context(), id, input)
+	cfg, err := h.cacheSvc.UpdateConfig(ctx, id, input)
 	if err != nil {
 		if err == service.ErrCacheConfigNotFound {
 			h.err(c, http.StatusNotFound, err.Error())
@@ -709,8 +786,10 @@ func (h *Handler) UpdateCacheConfig(c *gin.Context) {
 
 // DeleteCacheConfig DELETE /api/v1/cache/configs
 func (h *Handler) DeleteCacheConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildDeleteCacheConfig")
+	defer span.End()
 	id := c.Param("id")
-	if err := h.cacheSvc.DeleteConfig(c.Request.Context(), id); err != nil {
+	if err := h.cacheSvc.DeleteConfig(ctx, id); err != nil {
 		h.logger.Error("failed to delete cache config", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
@@ -720,6 +799,8 @@ func (h *Handler) DeleteCacheConfig(c *gin.Context) {
 
 // ListCacheEntries GET /api/v1/cache/entries
 func (h *Handler) ListCacheEntries(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildListCacheEntries")
+	defer span.End()
 	opts := models.ListCacheEntriesOptions{
 		ConfigID: c.Query("config_id"),
 	}
@@ -727,7 +808,7 @@ func (h *Handler) ListCacheEntries(c *gin.Context) {
 	opts.Offset = offset
 	opts.Limit = limit
 
-	entries, err := h.cacheSvc.ListCacheEntries(c.Request.Context(), opts)
+	entries, err := h.cacheSvc.ListCacheEntries(ctx, opts)
 	if err != nil {
 		h.logger.Error("failed to list cache entries", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -738,8 +819,10 @@ func (h *Handler) ListCacheEntries(c *gin.Context) {
 
 // DeleteCacheEntry DELETE /api/v1/cache/entries
 func (h *Handler) DeleteCacheEntry(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildDeleteCacheEntry")
+	defer span.End()
 	id := c.Param("id")
-	if err := h.cacheSvc.DeleteCacheEntry(c.Request.Context(), id); err != nil {
+	if err := h.cacheSvc.DeleteCacheEntry(ctx, id); err != nil {
 		h.logger.Error("failed to delete cache entry", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
@@ -749,7 +832,9 @@ func (h *Handler) DeleteCacheEntry(c *gin.Context) {
 
 // CleanupCache POST /api/v1/cache/cleanup
 func (h *Handler) CleanupCache(c *gin.Context) {
-	count, err := h.cacheSvc.CleanupExpired(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildCleanupCache")
+	defer span.End()
+	count, err := h.cacheSvc.CleanupExpired(ctx)
 	if err != nil {
 		h.logger.Error("failed to cleanup expired cache", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -760,6 +845,8 @@ func (h *Handler) CleanupCache(c *gin.Context) {
 
 // CleanupCacheLRU POST /api/v1/cache/cleanup-lru
 func (h *Handler) CleanupCacheLRU(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BuildCleanupCacheLRU")
+	defer span.End()
 	var input struct {
 		ConfigID   string `json:"config_id" binding:"required"`
 		MaxEntries int    `json:"max_entries" binding:"required"`
@@ -769,7 +856,7 @@ func (h *Handler) CleanupCacheLRU(c *gin.Context) {
 		return
 	}
 
-	count, err := h.cacheSvc.CleanupLRU(c.Request.Context(), input.ConfigID, input.MaxEntries)
+	count, err := h.cacheSvc.CleanupLRU(ctx, input.ConfigID, input.MaxEntries)
 	if err != nil {
 		h.logger.Error("failed to cleanup cache LRU", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -796,22 +883,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	builds.POST("/:id/retry", auth.RequirePermission("build", "execute"), h.RetryBuild)
 	builds.GET("/:id/logs", h.GetBuildLogs)
 
-	// Environments
-	envs := rg.Group("/environments")
-	envs.GET("", h.ListEnvironments)
-	envs.POST("", auth.RequirePermission("build", "write"), h.CreateEnvironment)
-	envs.GET("/:id", h.GetEnvironment)
-	envs.PUT("/:id", auth.RequirePermission("build", "write"), h.UpdateEnvironment)
-	envs.DELETE("/:id", auth.RequirePermission("build", "delete"), h.DeleteEnvironment)
+	// Environments: this handler's /environments routes were removed — they
+	// duplicated environmentH's (method, path) set, and Gin keeps the first
+	// registration while panicking on the second (see cmd/server/boot_test.go).
 
 	// Artifacts
 	artifacts := rg.Group("/artifacts")
-	artifacts.GET("", h.ListArtifacts)
-	artifacts.POST("", auth.RequirePermission("build", "write"), h.CreateArtifact)
 	artifacts.POST("/cleanup", auth.RequirePermission("build", "write"), h.CleanupExpiredArtifacts)
 	artifacts.DELETE("/run/:runId", auth.RequirePermission("build", "delete"), h.CleanupArtifactsByRun)
-	artifacts.GET("/:id", h.GetArtifact)
-	artifacts.DELETE("/:id", auth.RequirePermission("build", "delete"), h.DeleteArtifact)
 	artifacts.POST("/:id/download", auth.RequirePermission("build", "write"), h.RecordDownload)
 
 	// Builder Images

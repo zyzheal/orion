@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/vectorize-rules/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/vectorize-rules/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeVectorize_rulesService) Update(ctx context.Context, tenantID, id st
 }
 
 var _ service.ServiceInterface = (*fakeVectorize_rulesService)(nil)
-
 
 func TestHandler_VECTORIZE_RULE_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

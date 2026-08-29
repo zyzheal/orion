@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strconv"
 
 	"orion/platform-svc-go/internal/ci-cd/canary/models"
@@ -72,6 +73,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Canary Deployment Handlers ====================
 
 func (h *Handler) CreateCanary(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryCreateCanary")
+	defer span.End()
 	var canary models.Canary
 	if err := c.ShouldBindJSON(&canary); err != nil {
 		respondBadRequest(c, err.Error())
@@ -79,7 +82,7 @@ func (h *Handler) CreateCanary(c *gin.Context) {
 	}
 
 	canary.TenantID = c.GetString("tenant_id")
-	if err := h.svc.Create(c.Request.Context(), &canary); err != nil {
+	if err := h.svc.Create(ctx, &canary); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -88,10 +91,12 @@ func (h *Handler) CreateCanary(c *gin.Context) {
 }
 
 func (h *Handler) GetCanary(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryGetCanary")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	canary, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
+	canary, err := h.svc.GetByID(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, "canary not found")
 		return
@@ -101,6 +106,8 @@ func (h *Handler) GetCanary(c *gin.Context) {
 }
 
 func (h *Handler) ListCanaries(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryListCanaries")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -113,7 +120,7 @@ func (h *Handler) ListCanaries(c *gin.Context) {
 	}
 	offset := (page - 1) * pageSize
 
-	canaries, err := h.svc.List(c.Request.Context(), tenantID, offset, pageSize)
+	canaries, err := h.svc.List(ctx, tenantID, offset, pageSize)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -123,10 +130,12 @@ func (h *Handler) ListCanaries(c *gin.Context) {
 }
 
 func (h *Handler) Promote(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryPromote")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	if _, err := h.svc.Promote(c.Request.Context(), tenantID, id); err != nil {
+	if _, err := h.svc.Promote(ctx, tenantID, id); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -135,10 +144,12 @@ func (h *Handler) Promote(c *gin.Context) {
 }
 
 func (h *Handler) Rollback(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryRollback")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	if _, err := h.svc.Rollback(c.Request.Context(), tenantID, id); err != nil {
+	if _, err := h.svc.Rollback(ctx, tenantID, id); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -147,6 +158,8 @@ func (h *Handler) Rollback(c *gin.Context) {
 }
 
 func (h *Handler) AddMetric(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryAddMetric")
+	defer span.End()
 	var metric models.CanaryMetric
 	if err := c.ShouldBindJSON(&metric); err != nil {
 		respondBadRequest(c, err.Error())
@@ -154,7 +167,7 @@ func (h *Handler) AddMetric(c *gin.Context) {
 	}
 
 	metric.CanaryID = c.Param("id")
-	if err := h.svc.AddMetric(c.Request.Context(), &metric); err != nil {
+	if err := h.svc.AddMetric(ctx, &metric); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -163,9 +176,11 @@ func (h *Handler) AddMetric(c *gin.Context) {
 }
 
 func (h *Handler) GetMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryGetMetrics")
+	defer span.End()
 	id := c.Param("id")
 
-	metrics, err := h.svc.GetMetrics(c.Request.Context(), id)
+	metrics, err := h.svc.GetMetrics(ctx, id)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -176,6 +191,8 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 
 // UpdateCanary updates a canary deployment's version, weight, and target weight.
 func (h *Handler) UpdateCanary(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryUpdateCanary")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -187,14 +204,14 @@ func (h *Handler) UpdateCanary(c *gin.Context) {
 
 	// Update weight if provided
 	if req.Weight > 0 {
-		err := h.svc.UpdateWeight(c.Request.Context(), tenantID, id, req.Weight)
+		err := h.svc.UpdateWeight(ctx, tenantID, id, req.Weight)
 		if err != nil {
 			respondInternalError(c, err.Error())
 			return
 		}
 	}
 
-	canary, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
+	canary, err := h.svc.GetByID(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, "canary not found")
 		return
@@ -205,12 +222,14 @@ func (h *Handler) UpdateCanary(c *gin.Context) {
 
 // ConfigureTraffic configures traffic split for a canary (Istio VirtualService or NGINX upstream).
 func (h *Handler) ConfigureTraffic(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryConfigureTraffic")
+	defer span.End()
 	id := c.Param("id")
 	var req struct {
-		Strategy       string `json:"strategy" binding:"required"`
-		CanaryPercent  int    `json:"canary_percent" binding:"min=0,max=100"`
-		Host           string `json:"host"`
-		Upstream       string `json:"upstream"`
+		Strategy      string `json:"strategy" binding:"required"`
+		CanaryPercent int    `json:"canary_percent" binding:"min=0,max=100"`
+		Host          string `json:"host"`
+		Upstream      string `json:"upstream"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
@@ -218,7 +237,7 @@ func (h *Handler) ConfigureTraffic(c *gin.Context) {
 	}
 	req.Strategy = req.Strategy // "istio" or "nginx"
 
-	result, err := h.svc.ConfigureTraffic(c.Request.Context(), id, req.Strategy, req.Host, req.Upstream, req.CanaryPercent)
+	result, err := h.svc.ConfigureTraffic(ctx, id, req.Strategy, req.Host, req.Upstream, req.CanaryPercent)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -229,9 +248,11 @@ func (h *Handler) ConfigureTraffic(c *gin.Context) {
 
 // GetTrafficConfig retrieves the current traffic split configuration for a canary.
 func (h *Handler) GetTrafficConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryGetTrafficConfig")
+	defer span.End()
 	id := c.Param("id")
 
-	config, err := h.svc.GetTrafficConfig(c.Request.Context(), id)
+	config, err := h.svc.GetTrafficConfig(ctx, id)
 	if err != nil {
 		respondNotFound(c, "traffic config not found")
 		return
@@ -241,8 +262,10 @@ func (h *Handler) GetTrafficConfig(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -250,8 +273,10 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryCount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -262,10 +287,12 @@ func (h *Handler) Count(c *gin.Context) {
 // ==================== Analysis Run Handlers ====================
 
 func (h *Handler) ListAnalysisRuns(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryListAnalysisRuns")
+	defer span.End()
 	deploymentID := c.Query("deployment_id")
 	status := c.Query("status")
 
-	runs, err := h.svc.ListRuns(c.Request.Context(), deploymentID, status)
+	runs, err := h.svc.ListRuns(ctx, deploymentID, status)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -275,6 +302,8 @@ func (h *Handler) ListAnalysisRuns(c *gin.Context) {
 }
 
 func (h *Handler) CreateAnalysisRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryCreateAnalysisRun")
+	defer span.End()
 	var req models.CanaryAnalysisRunCreateInput
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
@@ -293,23 +322,25 @@ func (h *Handler) CreateAnalysisRun(c *gin.Context) {
 		req.TrafficSplit = models.TrafficSplit{Canary: 10, Baseline: 90}
 	}
 
-	result, err := h.svc.CreateAnalysisRun(c.Request.Context(), req.DeploymentID, req.RunNumber, req.TrafficSplit)
+	result, err := h.svc.CreateAnalysisRun(ctx, req.DeploymentID, req.RunNumber, req.TrafficSplit)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
 
 	respondCreated(c, gin.H{
-		"run":         result.Run,
-		"metrics":     result.Metrics,
-		"ml_results":  result.MLResults,
+		"run":        result.Run,
+		"metrics":    result.Metrics,
+		"ml_results": result.MLResults,
 	})
 }
 
 func (h *Handler) GetAnalysisRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryGetAnalysisRun")
+	defer span.End()
 	id := c.Param("id")
 
-	run, err := h.svc.GetRunByID(c.Request.Context(), id)
+	run, err := h.svc.GetRunByID(ctx, id)
 	if err != nil {
 		respondNotFound(c, "analysis run not found")
 		return
@@ -319,9 +350,11 @@ func (h *Handler) GetAnalysisRun(c *gin.Context) {
 }
 
 func (h *Handler) GetRunMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryGetRunMetrics")
+	defer span.End()
 	runID := c.Param("id")
 
-	metrics, err := h.svc.GetMetricsForRun(c.Request.Context(), runID)
+	metrics, err := h.svc.GetMetricsForRun(ctx, runID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -331,9 +364,11 @@ func (h *Handler) GetRunMetrics(c *gin.Context) {
 }
 
 func (h *Handler) GetRunMLResults(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryGetRunMLResults")
+	defer span.End()
 	runID := c.Param("id")
 
-	results, err := h.svc.GetMLResults(c.Request.Context(), runID)
+	results, err := h.svc.GetMLResults(ctx, runID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -345,7 +380,9 @@ func (h *Handler) GetRunMLResults(c *gin.Context) {
 // ==================== Config Handlers ====================
 
 func (h *Handler) ListConfigs(c *gin.Context) {
-	configs, err := h.svc.ListConfigs(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryListConfigs")
+	defer span.End()
+	configs, err := h.svc.ListConfigs(ctx)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -355,6 +392,8 @@ func (h *Handler) ListConfigs(c *gin.Context) {
 }
 
 func (h *Handler) CreateConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryCreateConfig")
+	defer span.End()
 	var input models.CanaryAnalysisConfigCreateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		respondBadRequest(c, err.Error())
@@ -366,7 +405,7 @@ func (h *Handler) CreateConfig(c *gin.Context) {
 		return
 	}
 
-	config, err := h.svc.CreateConfig(c.Request.Context(), &input)
+	config, err := h.svc.CreateConfig(ctx, &input)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -376,10 +415,12 @@ func (h *Handler) CreateConfig(c *gin.Context) {
 }
 
 func (h *Handler) GetConfigByServiceEnv(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryGetConfigByServiceEnv")
+	defer span.End()
 	serviceName := c.Param("service")
 	environment := c.Param("env")
 
-	config, err := h.svc.GetConfigByServiceEnv(c.Request.Context(), serviceName, environment)
+	config, err := h.svc.GetConfigByServiceEnv(ctx, serviceName, environment)
 	if err != nil {
 		respondNotFound(c, "config not found")
 		return
@@ -389,6 +430,8 @@ func (h *Handler) GetConfigByServiceEnv(c *gin.Context) {
 }
 
 func (h *Handler) UpdateConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryUpdateConfig")
+	defer span.End()
 	id := c.Param("id")
 
 	var input models.CanaryAnalysisConfigUpdateInput
@@ -397,7 +440,7 @@ func (h *Handler) UpdateConfig(c *gin.Context) {
 		return
 	}
 
-	config, err := h.svc.UpdateConfig(c.Request.Context(), id, &input)
+	config, err := h.svc.UpdateConfig(ctx, id, &input)
 	if err != nil {
 		respondNotFound(c, "config not found")
 		return
@@ -407,9 +450,11 @@ func (h *Handler) UpdateConfig(c *gin.Context) {
 }
 
 func (h *Handler) DeleteConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryDeleteConfig")
+	defer span.End()
 	id := c.Param("id")
 
-	if err := h.svc.DeleteConfig(c.Request.Context(), id); err != nil {
+	if err := h.svc.DeleteConfig(ctx, id); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -420,6 +465,8 @@ func (h *Handler) DeleteConfig(c *gin.Context) {
 // ==================== Force Action Handlers ====================
 
 func (h *Handler) ForcePromote(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryForcePromote")
+	defer span.End()
 	var req struct {
 		RunID  string `json:"run_id" binding:"required"`
 		Reason string `json:"reason"`
@@ -432,7 +479,7 @@ func (h *Handler) ForcePromote(c *gin.Context) {
 		req.Reason = "Manual force promote"
 	}
 
-	run, err := h.svc.ForcePromote(c.Request.Context(), req.RunID, req.Reason)
+	run, err := h.svc.ForcePromote(ctx, req.RunID, req.Reason)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -442,6 +489,8 @@ func (h *Handler) ForcePromote(c *gin.Context) {
 }
 
 func (h *Handler) ForceRollback(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryForceRollback")
+	defer span.End()
 	var req struct {
 		RunID  string `json:"run_id" binding:"required"`
 		Reason string `json:"reason"`
@@ -454,7 +503,7 @@ func (h *Handler) ForceRollback(c *gin.Context) {
 		req.Reason = "Manual force rollback"
 	}
 
-	run, err := h.svc.ForceRollback(c.Request.Context(), req.RunID, req.Reason)
+	run, err := h.svc.ForceRollback(ctx, req.RunID, req.Reason)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -466,6 +515,8 @@ func (h *Handler) ForceRollback(c *gin.Context) {
 // ==================== Metric Discovery Handler ====================
 
 func (h *Handler) DiscoverMetrics(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryDiscoverMetrics")
+	defer span.End()
 	metrics := h.svc.DiscoverMetrics()
 	respondSuccess(c, metrics)
 }
@@ -473,6 +524,8 @@ func (h *Handler) DiscoverMetrics(c *gin.Context) {
 // ==================== Model Retrain Handler ====================
 
 func (h *Handler) RetrainModel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CICanaryRetrainModel")
+	defer span.End()
 	var req struct {
 		ModelName string `json:"model_name"`
 	}
@@ -484,7 +537,7 @@ func (h *Handler) RetrainModel(c *gin.Context) {
 		req.ModelName = "default"
 	}
 
-	job, err := h.svc.TriggerModelRetraining(c.Request.Context(), req.ModelName)
+	job, err := h.svc.TriggerModelRetraining(ctx, req.ModelName)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

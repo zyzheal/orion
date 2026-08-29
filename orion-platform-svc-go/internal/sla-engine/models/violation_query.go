@@ -11,8 +11,8 @@ type ViolationListQuery struct {
 
 // ViolationStatistics holds a count summary of violations.
 type ViolationStatistics struct {
-	TotalViolations   int `json:"total_violations"`
-	ResponseBreach    int `json:"response_breach"`
-	ResolutionBreach  int `json:"resolution_breach"`
-	Notified          int `json:"notified"`
+	TotalViolations  int `json:"total_violations"`
+	ResponseBreach   int `json:"response_breach"`
+	ResolutionBreach int `json:"resolution_breach"`
+	Notified         int `json:"notified"`
 }

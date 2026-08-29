@@ -9,8 +9,8 @@ import (
 	workflow_service "orion/platform-svc-go/internal/workflow/workflow/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // ---------------------------------------------------------------------------
@@ -31,7 +31,7 @@ func NewHandler(svc *service.Service, workflowSvc *workflow_service.Service) *Ha
 // RegisterRoutes wires up all workflow-webhook endpoints.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// Public endpoint (no auth) — receives external webhook calls.
-	rg.POST("/webhooks/:webhookPath", h.HandleWebhook)
+	rg.POST("/webhooks/:id", h.HandleWebhook)
 
 	// CRUD management endpoints (with auth — auth middleware applied by caller).
 	f := rg.Group("/workflow-webhooks")
@@ -84,13 +84,13 @@ func parsePagination(c *gin.Context) (int, int) {
 // Public webhook endpoint (no auth)
 // ---------------------------------------------------------------------------
 
-// HandleWebhook handles POST /webhooks/:webhookPath
+// HandleWebhook handles POST /webhooks/:id
 // This is a public endpoint — no auth middleware. Signature verification
 // is done via x-webhook-signature and x-webhook-timestamp headers.
 func (h *Handler) HandleWebhook(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "HandleWebhook")
 	defer span.End()
-	webhookPath := c.Param("webhookPath")
+	webhookPath := c.Param("id")
 	if webhookPath == "" {
 		middleware.RespondBadRequest(c, "webhookPath is required")
 		return

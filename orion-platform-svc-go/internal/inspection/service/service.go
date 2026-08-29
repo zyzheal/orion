@@ -89,11 +89,11 @@ func (s *Service) GetStats(ctx context.Context, tenantID string) (map[string]int
 		return nil, err
 	}
 	stats := map[string]interface{}{
-		"total":  len(records),
-		"passed": 0,
-		"failed": 0,
+		"total":    len(records),
+		"passed":   0,
+		"failed":   0,
 		"warnings": 0,
-		"running": 0,
+		"running":  0,
 	}
 	for _, r := range records {
 		switch r.Status {

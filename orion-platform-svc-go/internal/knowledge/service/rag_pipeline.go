@@ -15,12 +15,12 @@ import (
 // RAGPipelineService implements the full RAG Agent pipeline:
 // SemanticCache → QueryClassifier → Rewriter → HybridRetriever → MMR → Context → Generator → Verifier → AgenticLoop
 type RAGPipelineService struct {
-	repo       RepositoryInterface
-	ragRepo    RAGRepositoryInterface
-	config     PipelineConfig
-	configMu   sync.RWMutex
-	llm        LLMClient
-	promptMgr  *PromptTemplateManager
+	repo      RepositoryInterface
+	ragRepo   RAGRepositoryInterface
+	config    PipelineConfig
+	configMu  sync.RWMutex
+	llm       LLMClient
+	promptMgr *PromptTemplateManager
 }
 
 type PipelineConfig struct {
@@ -59,14 +59,14 @@ func (p *RAGPipelineService) GetConfig() map[string]interface{} {
 	p.configMu.RLock()
 	defer p.configMu.RUnlock()
 	return map[string]interface{}{
-		"default_top_k":        p.config.DefaultTopK,
-		"simple_budget_ms":     p.config.SimpleBudgetMs,
-		"moderate_budget_ms":   p.config.ModerateBudgetMs,
-		"complex_budget_ms":    p.config.ComplexBudgetMs,
-		"reranker_threshold":   p.config.RerankerThreshold,
-		"max_retries":          p.config.MaxRetries,
-		"max_context_chars":    p.config.MaxContextChars,
-		"mmr_lambda":           p.config.MRRLambda,
+		"default_top_k":      p.config.DefaultTopK,
+		"simple_budget_ms":   p.config.SimpleBudgetMs,
+		"moderate_budget_ms": p.config.ModerateBudgetMs,
+		"complex_budget_ms":  p.config.ComplexBudgetMs,
+		"reranker_threshold": p.config.RerankerThreshold,
+		"max_retries":        p.config.MaxRetries,
+		"max_context_chars":  p.config.MaxContextChars,
+		"mmr_lambda":         p.config.MRRLambda,
 	}
 }
 
@@ -115,7 +115,6 @@ func (p *RAGPipelineService) UpdateConfig(updates map[string]interface{}) {
 		}
 	}
 }
-
 
 type QueryComplexity string
 
@@ -282,10 +281,10 @@ func (p *RAGPipelineService) rewriteQuery(query string) string {
 
 	synonyms := map[string]string{
 		"流水线": "pipeline pipeline run",
-		"告警":   "alert notification 告警",
-		"部署":   "deploy deployment 部署",
-		"回滚":   "rollback 回滚",
-		"构建":   "build compile 构建",
+		"告警":  "alert notification 告警",
+		"部署":  "deploy deployment 部署",
+		"回滚":  "rollback 回滚",
+		"构建":  "build compile 构建",
 	}
 	expanded := query
 	for key, val := range synonyms {

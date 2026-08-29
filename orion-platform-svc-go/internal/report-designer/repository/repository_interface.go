@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/report-designer/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	CreateReport(ctx context.Context, report *models.ReportDefinition) error

@@ -53,15 +53,15 @@ func WithListQueryPaging() Option {
 // Embed it in a domain-specific handler and override/extend with domain
 // endpoints.
 type CRUDHandler struct {
-	resource        string
-	prefix          string
-	paramKey        string
-	parseListQuery  bool
-	list            func(c *gin.Context)
-	get             func(c *gin.Context)
-	create          func(c *gin.Context)
-	update          func(c *gin.Context)
-	delete          func(c *gin.Context)
+	resource       string
+	prefix         string
+	paramKey       string
+	parseListQuery bool
+	list           func(c *gin.Context)
+	get            func(c *gin.Context)
+	create         func(c *gin.Context)
+	update         func(c *gin.Context)
+	delete         func(c *gin.Context)
 }
 
 // NewCRUDHandler creates a CRUDHandler with the given service and options.
@@ -69,8 +69,8 @@ type CRUDHandler struct {
 // can access it via the closures.
 func NewCRUDHandler(svc ServiceInterface, opts ...Option) *CRUDHandler {
 	h := &CRUDHandler{
-		resource:     "",
-		paramKey:     ":id",
+		resource:       "",
+		paramKey:       ":id",
 		parseListQuery: false,
 	}
 	for _, opt := range opts {
@@ -112,26 +112,36 @@ func (h *CRUDHandler) RegisterCRUDRoutesOnGroup(rg *gin.RouterGroup) {
 
 // List handles GET /list with optional page/limit.
 func (h *CRUDHandler) List(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CRUDList")
+	defer span.End()
 	h.list(c)
 }
 
 // Get handles GET /:id.
 func (h *CRUDHandler) Get(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CRUDGet")
+	defer span.End()
 	h.get(c)
 }
 
 // Create handles POST /.
 func (h *CRUDHandler) Create(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CRUDCreate")
+	defer span.End()
 	h.create(c)
 }
 
 // Update handles PUT /:id.
 func (h *CRUDHandler) Update(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CRUDUpdate")
+	defer span.End()
 	h.update(c)
 }
 
 // Delete handles DELETE /:id.
 func (h *CRUDHandler) Delete(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CRUDDelete")
+	defer span.End()
 	h.delete(c)
 }
 

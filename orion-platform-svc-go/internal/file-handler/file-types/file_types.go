@@ -153,9 +153,9 @@ func (ZipHandler) Validate(data []byte) error {
 
 // GenericHandler accepts any file type (no validation).
 type GenericHandler struct {
-	ext string
+	ext  string
 	mime string
-	cat string
+	cat  string
 }
 
 func NewGenericHandler(ext, mime, cat string) *GenericHandler {

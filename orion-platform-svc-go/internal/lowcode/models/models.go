@@ -19,19 +19,19 @@ type LowcodeFlow struct {
 
 // LowcodeInstance represents a workflow execution instance
 type LowcodeInstance struct {
-	ID                  string     `json:"id" db:"id"`
-	TenantID            string     `json:"tenant_id" db:"tenant_id"`
-	WorkflowID          string     `json:"workflow_id" db:"workflow_id"`
-	WorkflowDefinitionID string    `json:"workflow_definition_id" db:"workflow_definition_id"`
-	Status              string     `json:"status" db:"status"`
-	Variables           string     `json:"variables" db:"variables"`
-	Input               string     `json:"input" db:"input"`
-	Output              string     `json:"output" db:"output"`
-	CurrentNodeID       string     `json:"current_node_id" db:"current_node_id"`
-	TriggeredBy         string     `json:"triggered_by" db:"triggered_by"`
-	StartedAt           *time.Time `json:"started_at" db:"started_at"`
-	CompletedAt         *time.Time `json:"completed_at" db:"completed_at"`
-	CreatedAt           time.Time  `json:"created_at" db:"created_at"`
+	ID                   string     `json:"id" db:"id"`
+	TenantID             string     `json:"tenant_id" db:"tenant_id"`
+	WorkflowID           string     `json:"workflow_id" db:"workflow_id"`
+	WorkflowDefinitionID string     `json:"workflow_definition_id" db:"workflow_definition_id"`
+	Status               string     `json:"status" db:"status"`
+	Variables            string     `json:"variables" db:"variables"`
+	Input                string     `json:"input" db:"input"`
+	Output               string     `json:"output" db:"output"`
+	CurrentNodeID        string     `json:"current_node_id" db:"current_node_id"`
+	TriggeredBy          string     `json:"triggered_by" db:"triggered_by"`
+	StartedAt            *time.Time `json:"started_at" db:"started_at"`
+	CompletedAt          *time.Time `json:"completed_at" db:"completed_at"`
+	CreatedAt            time.Time  `json:"created_at" db:"created_at"`
 }
 
 // LowcodeTemplate represents a lowcode workflow template
@@ -82,9 +82,9 @@ type UpdateFlowRequest struct {
 // FlowGenerateRequest asks the AI generator to produce a lowcode flow DAG
 // from a natural-language description (TR-10).
 type FlowGenerateRequest struct {
-	Prompt      string `json:"prompt" binding:"required"`
+	Prompt       string `json:"prompt" binding:"required"`
 	WorkflowName string `json:"name"`
-	Description string `json:"description"`
+	Description  string `json:"description"`
 }
 
 // FlowGenerateResponse is the AI-generated flow definition.
@@ -113,8 +113,8 @@ type ApplyTemplateRequest struct {
 
 // ImportWorkflowRequest for importing a workflow from JSON
 type ImportWorkflowRequest struct {
-	Name        string `json:"name" binding:"required"`
-	Description string `json:"description"`
+	Name              string `json:"name" binding:"required"`
+	Description       string `json:"description"`
 	CurrentDefinition struct {
 		Nodes string `json:"nodes"`
 		Edges string `json:"edges"`
@@ -137,10 +137,10 @@ type ExportResponse struct {
 
 // PaginatedResponse for list endpoints
 type PaginatedResponse struct {
-	Data     any   `json:"data"`
-	Total    int   `json:"total"`
-	Page     int   `json:"page"`
-	PageSize int   `json:"page_size"`
+	Data     any `json:"data"`
+	Total    int `json:"total"`
+	Page     int `json:"page"`
+	PageSize int `json:"page_size"`
 }
 
 // ListFlowFilters for filtering flow list

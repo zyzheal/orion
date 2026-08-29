@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/terminal-audit/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/terminal-audit/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeTerminal_auditService) SearchAudits(ctx context.Context, tenantID s
 }
 
 var _ service.ServiceInterface = (*fakeTerminal_auditService)(nil)
-
 
 func TestHandler_TERMINAL_AUDIT_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

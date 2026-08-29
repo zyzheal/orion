@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"orion/platform-svc-go/internal/ticketing/models"
 	"orion/go-common/pkg/otel"
+	"orion/platform-svc-go/internal/ticketing/models"
 	"orion/platform-svc-go/internal/ticketing/repository"
 
 	"github.com/google/uuid"

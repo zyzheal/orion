@@ -113,9 +113,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// ----- Change Requests -----
 	rg.POST("/change-requests", write, h.CreateChangeRequest)
 	rg.GET("/change-requests", read, h.ListChangeRequests)
-	rg.GET("/change-requests/:changeRequestId", read, h.GetChangeRequest)
-	rg.POST("/change-requests/:changeRequestId/approve", approve, h.ApproveChange)
-	rg.POST("/change-requests/:changeRequestId/reject", approve, h.RejectChange)
+	rg.GET("/change-requests/:id", read, h.GetChangeRequest)
+	rg.POST("/change-requests/:id/approve", approve, h.ApproveChange)
+	rg.POST("/change-requests/:id/reject", approve, h.RejectChange)
 
 	// ----- Templates -----
 	rg.POST("/templates", write, h.CreateTemplate)
@@ -512,7 +512,7 @@ func (h *Handler) GetChangeRequest(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetChangeRequest")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	id := c.Param("changeRequestId")
+	id := c.Param("id")
 	cr, err := h.svc.GetChangeRequest(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
@@ -526,7 +526,7 @@ func (h *Handler) ApproveChange(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
-	id := c.Param("changeRequestId")
+	id := c.Param("id")
 	cr, err := h.svc.ApproveChange(ctx, tenantID, id, userID)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -540,7 +540,7 @@ func (h *Handler) RejectChange(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
-	id := c.Param("changeRequestId")
+	id := c.Param("id")
 	var req models.ChangeApprovalRequest
 	c.ShouldBindJSON(&req)
 	cr, err := h.svc.RejectChange(ctx, tenantID, id, userID, req.Reason)

@@ -18,12 +18,12 @@ type Observation struct {
 
 // Anomaly represents a detected anomaly for a metric.
 type Anomaly struct {
-	Type        string  `json:"type"`        // zscore | iqr | threshold
-	MetricName  string  `json:"metric_name"`
-	Value       float64 `json:"value"`
-	Threshold   float64 `json:"threshold"`
-	Severity    string  `json:"severity"`     // low | medium | high | critical
-	Message     string  `json:"message"`
+	Type       string  `json:"type"` // zscore | iqr | threshold
+	MetricName string  `json:"metric_name"`
+	Value      float64 `json:"value"`
+	Threshold  float64 `json:"threshold"`
+	Severity   string  `json:"severity"` // low | medium | high | critical
+	Message    string  `json:"message"`
 }
 
 // MetricHistory holds per-tenant metric observations using a ring buffer.
@@ -71,7 +71,7 @@ func (m *MetricHistory) values() []float64 {
 // Detector provides ML-based anomaly detection for chaos experiments.
 // It keeps per-tenant, per-metric metric histories using sync.Map and ring buffers.
 type Detector struct {
-	mu           sync.RWMutex
+	mu sync.RWMutex
 	// Key format: "tenantID/metricName"
 	metrics      sync.Map
 	historyCap   int
@@ -182,12 +182,12 @@ func (d *Detector) detectZScore(metricName string, values []float64) []Anomaly {
 				threshold = mean - d.zscoreLimit*sd
 			}
 			anomalies = append(anomalies, Anomaly{
-				Type:        "zscore",
-				MetricName:  metricName,
-				Value:       v,
-				Threshold:   threshold,
-				Severity:    sev,
-				Message:     fmt.Sprintf("z-score %.2f exceeds limit %.2f on metric %s", z, d.zscoreLimit, metricName),
+				Type:       "zscore",
+				MetricName: metricName,
+				Value:      v,
+				Threshold:  threshold,
+				Severity:   sev,
+				Message:    fmt.Sprintf("z-score %.2f exceeds limit %.2f on metric %s", z, d.zscoreLimit, metricName),
 			})
 		}
 	}
@@ -222,12 +222,12 @@ func (d *Detector) detectIQR(metricName string, values []float64) []Anomaly {
 				threshold = lowBound
 			}
 			anomalies = append(anomalies, Anomaly{
-				Type:        "iqr",
-				MetricName:  metricName,
-				Value:       v,
-				Threshold:   threshold,
-				Severity:    sev,
-				Message:     fmt.Sprintf("IQR bound violation [%.2f, %.2f] on metric %s, value %.2f", lowBound, highBound, metricName, v),
+				Type:       "iqr",
+				MetricName: metricName,
+				Value:      v,
+				Threshold:  threshold,
+				Severity:   sev,
+				Message:    fmt.Sprintf("IQR bound violation [%.2f, %.2f] on metric %s, value %.2f", lowBound, highBound, metricName, v),
 			})
 		}
 	}

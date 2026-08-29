@@ -7,8 +7,8 @@ import (
 	"orion/platform-svc-go/internal/session/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler exposes HTTP endpoints for session management operations.

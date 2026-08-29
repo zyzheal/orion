@@ -43,19 +43,19 @@ type LogicalGroup struct {
 type TokenType int
 
 const (
-	TokenEOF TokenType = iota
-	TokenIdent     // field name, e.g. "user.name"
-	TokenOperator  // comparison operator, e.g. ">=", "contains", "in"
-	TokenNumber    // numeric literal, e.g. "123", "3.14"
-	TokenString    // quoted string, e.g. "hello" or 'hello'
-	TokenArray     // JSON array literal, e.g. ["a","b"]
-	TokenBool      // true, false
-	TokenNull      // null literal
+	TokenEOF      TokenType = iota
+	TokenIdent              // field name, e.g. "user.name"
+	TokenOperator           // comparison operator, e.g. ">=", "contains", "in"
+	TokenNumber             // numeric literal, e.g. "123", "3.14"
+	TokenString             // quoted string, e.g. "hello" or 'hello'
+	TokenArray              // JSON array literal, e.g. ["a","b"]
+	TokenBool               // true, false
+	TokenNull               // null literal
 	TokenAnd
 	TokenOr
 	TokenNot
-	TokenLParen    // "("
-	TokenRParen    // ")"
+	TokenLParen // "("
+	TokenRParen // ")"
 	TokenError
 )
 
@@ -259,9 +259,9 @@ func isNumber(word string) bool {
 
 // ExpressionParser builds a Condition AST from a string expression.
 type ExpressionParser struct {
-	lexer  *Lexer
+	lexer   *Lexer
 	current *Token
-	logger *zap.Logger
+	logger  *zap.Logger
 }
 
 // NewExpressionParser creates a new parser with optional structured logging.
@@ -276,7 +276,9 @@ func NewExpressionParser(logger *zap.Logger) *ExpressionParser {
 //	membership:          role IN ["admin","root"]
 //	pattern:             email matches "*.example.com"
 //	logical:             age > 18 AND role == "admin"
+//
 // negation:             NOT active == false
+//
 //	grouping:            (age > 18 AND role == "admin")
 func (p *ExpressionParser) Parse(input string) (*Condition, error) {
 	input = strings.TrimSpace(input)
@@ -537,7 +539,7 @@ func tokenName(t TokenType) string {
 		return "EOF"
 	case TokenIdent:
 		return "identifier"
-		case TokenOperator:
+	case TokenOperator:
 		return "operator"
 	case TokenNumber:
 		return "number"

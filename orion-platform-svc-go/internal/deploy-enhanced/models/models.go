@@ -23,17 +23,17 @@ type DeployWindow struct {
 // CreateDeployWindowRequest is the request body for creating a deploy window.
 type CreateDeployWindowRequest struct {
 	Name            string  `json:"name" binding:"required"`
-	CronExpression  string  `json:"cron_expression" binding:"required"`
-	EnvironmentID   string  `json:"environment_id" binding:"required"`
-	DurationMinutes *int    `json:"duration_minutes"`
+	CronExpression  string  `json:"cronExpression" binding:"required"`
+	EnvironmentID   string  `json:"environmentId" binding:"required"`
+	DurationMinutes *int    `json:"durationMinutes"`
 	Timezone        *string `json:"timezone"`
 }
 
 // UpdateDeployWindowRequest is the request body for updating a deploy window.
 type UpdateDeployWindowRequest struct {
 	Name            *string `json:"name"`
-	CronExpression  *string `json:"cron_expression"`
-	DurationMinutes *int    `json:"duration_minutes"`
+	CronExpression  *string `json:"cronExpression"`
+	DurationMinutes *int    `json:"durationMinutes"`
 	Timezone        *string `json:"timezone"`
 	Status          *string `json:"status"`
 }
@@ -79,13 +79,13 @@ type Stage struct {
 
 // AdvanceStageRequest is the request body for advancing a progressive deploy.
 type AdvanceStageRequest struct {
-	StageID          string  `json:"stage_id" binding:"required"`
+	StageID          string  `json:"stageId" binding:"required"`
 	ValidationResult *string `json:"validationResult"`
 }
 
 // RollbackStageRequest is the request body for rolling back a progressive deploy.
 type RollbackStageRequest struct {
-	StageID string `json:"stage_id" binding:"required"`
+	StageID string `json:"stageId" binding:"required"`
 	Reason  string `json:"reason" binding:"required"`
 }
 
@@ -107,19 +107,19 @@ type EmergencyDeploy struct {
 
 // CreateEmergencyDeployRequest is the request body for requesting an emergency deploy.
 type CreateEmergencyDeployRequest struct {
-	DeploymentID string `json:"deployment_id" binding:"required"`
+	DeploymentID string `json:"deploymentId" binding:"required"`
 	Reason       string `json:"reason" binding:"required"`
-	RequestedBy  string `json:"requested_by" binding:"required"`
+	RequestedBy  string `json:"requestedBy" binding:"required"`
 }
 
 // ApproveEmergencyDeployRequest is the request body for approving an emergency deploy.
 type ApproveEmergencyDeployRequest struct {
-	ApprovedBy string `json:"approved_by" binding:"required"`
+	ApprovedBy string `json:"approvedBy" binding:"required"`
 }
 
 // CompleteEmergencyDeployRequest is the request body for completing an emergency deploy.
 type CompleteEmergencyDeployRequest struct {
-	PostMortem *string `json:"post_mortem"`
+	PostMortem *string `json:"postMortem"`
 }
 
 // PaginatedResponse is a generic paginated response.

@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/process-step/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/process-step/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeProcess_stepService) Update(ctx context.Context, tenantID, id strin
 }
 
 var _ service.ServiceInterface = (*fakeProcess_stepService)(nil)
-
 
 func TestHandler_PROCESS_STEP_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

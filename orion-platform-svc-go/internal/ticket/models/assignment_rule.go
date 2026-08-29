@@ -4,13 +4,13 @@ import "time"
 
 // AssignmentRule defines automatic ticket assignment rules
 type AssignmentRule struct {
-	ID         string   `json:"id" db:"id"`
-	Name       string   `json:"name" db:"name"`
-	Categories []string `json:"categories" db:"categories"`
-	Assignee   string   `json:"assignee" db:"assignee"`
-	Priorities []string `json:"priorities,omitempty" db:"priorities"`
-	Enabled    bool     `json:"enabled" db:"enabled"`
-	Order      int      `json:"order" db:"order"`
+	ID         string    `json:"id" db:"id"`
+	Name       string    `json:"name" db:"name"`
+	Categories []string  `json:"categories" db:"categories"`
+	Assignee   string    `json:"assignee" db:"assignee"`
+	Priorities []string  `json:"priorities,omitempty" db:"priorities"`
+	Enabled    bool      `json:"enabled" db:"enabled"`
+	Order      int       `json:"order" db:"order"`
 	CreatedAt  time.Time `json:"created_at" db:"created_at"`
 }
 

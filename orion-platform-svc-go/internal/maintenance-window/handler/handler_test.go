@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/maintenance-window/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/maintenance-window/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeMaintenance_windowService) Update(ctx context.Context, tenantID, id
 }
 
 var _ service.ServiceInterface = (*fakeMaintenance_windowService)(nil)
-
 
 func TestHandler_MAINTENANCE_WI_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

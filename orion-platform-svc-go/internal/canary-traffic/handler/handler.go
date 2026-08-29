@@ -1,7 +1,6 @@
 package handler
 
 import (
-
 	"orion/go-common/pkg/auth"
 	goerr "orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/middleware"

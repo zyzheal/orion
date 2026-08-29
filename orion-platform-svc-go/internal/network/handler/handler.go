@@ -34,14 +34,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.DELETE("/vpcs/:id", auth.RequirePermission("network", "delete"), h.DeleteVPC)
 
 	// --- Subnet ---
-	r.GET("/vpcs/:vpc_id/subnets", auth.RequirePermission("network", "read"), h.ListSubnetsByVPC)
+	r.GET("/vpcs/:id/subnets", auth.RequirePermission("network", "read"), h.ListSubnetsByVPC)
 	r.POST("/subnets", auth.RequirePermission("network", "write"), h.CreateSubnet)
 	r.GET("/subnets/:id", auth.RequirePermission("network", "read"), h.GetSubnet)
 	r.PUT("/subnets/:id", auth.RequirePermission("network", "write"), h.UpdateSubnet)
 	r.DELETE("/subnets/:id", auth.RequirePermission("network", "delete"), h.DeleteSubnet)
 
 	// --- Firewall ---
-	r.GET("/vpcs/:vpc_id/firewall-rules", auth.RequirePermission("network", "read"), h.ListFirewallRulesByVPC)
+	r.GET("/vpcs/:id/firewall-rules", auth.RequirePermission("network", "read"), h.ListFirewallRulesByVPC)
 	r.POST("/firewall-rules", auth.RequirePermission("network", "write"), h.CreateFirewallRule)
 	r.GET("/firewall-rules/:id", auth.RequirePermission("network", "read"), h.GetFirewallRule)
 	r.PUT("/firewall-rules/:id", auth.RequirePermission("network", "write"), h.UpdateFirewallRule)
@@ -113,7 +113,7 @@ func (h *Handler) CreateVPC(c *gin.Context) {
 
 	var req models.CreateVPCRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-	errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 
@@ -183,7 +183,7 @@ func (h *Handler) DeleteVPC(c *gin.Context) {
 		return
 	}
 	if !deleted {
-	errors.WriteError(c, errors.ErrNotFound, "VPC not found", 404)
+		errors.WriteError(c, errors.ErrNotFound, "VPC not found", 404)
 		return
 	}
 	c.AbortWithStatus(http.StatusNoContent)
@@ -200,7 +200,7 @@ func (h *Handler) ListSubnetsByVPC(c *gin.Context) {
 		return
 	}
 
-	vpcID := c.Param("vpc_id")
+	vpcID := c.Param("id")
 	subnets, err := h.svc.ListSubnetsByVPC(ctx, tenantID, vpcID)
 	if h.handleServiceError(err, c) {
 		return
@@ -219,7 +219,7 @@ func (h *Handler) CreateSubnet(c *gin.Context) {
 
 	var req models.CreateSubnetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-	errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 
@@ -260,7 +260,7 @@ func (h *Handler) UpdateSubnet(c *gin.Context) {
 		return
 	}
 
-id := c.Param("id")
+	id := c.Param("id")
 	var req models.UpdateSubnetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
@@ -271,7 +271,7 @@ id := c.Param("id")
 	if h.handleServiceError(err, c) {
 		return
 	}
-errors.WriteSuccess(c, subnet)
+	errors.WriteSuccess(c, subnet)
 }
 
 func (h *Handler) DeleteSubnet(c *gin.Context) {
@@ -289,7 +289,7 @@ func (h *Handler) DeleteSubnet(c *gin.Context) {
 		return
 	}
 	if !deleted {
-	errors.WriteError(c, errors.ErrNotFound, "subnet not found", 404)
+		errors.WriteError(c, errors.ErrNotFound, "subnet not found", 404)
 		return
 	}
 	c.AbortWithStatus(http.StatusNoContent)
@@ -306,7 +306,7 @@ func (h *Handler) ListFirewallRulesByVPC(c *gin.Context) {
 		return
 	}
 
-	vpcID := c.Param("vpc_id")
+	vpcID := c.Param("id")
 	rules, err := h.svc.ListFirewallRulesByVPC(ctx, tenantID, vpcID)
 	if h.handleServiceError(err, c) {
 		return
@@ -354,7 +354,7 @@ func (h *Handler) GetFirewallRule(c *gin.Context) {
 		errors.WriteError(c, errors.ErrNotFound, "firewall rule not found", 404)
 		return
 	}
-errors.WriteSuccess(c, rule)
+	errors.WriteSuccess(c, rule)
 }
 
 func (h *Handler) UpdateFirewallRule(c *gin.Context) {
@@ -366,7 +366,7 @@ func (h *Handler) UpdateFirewallRule(c *gin.Context) {
 		return
 	}
 
-id := c.Param("id")
+	id := c.Param("id")
 	var req models.UpdateFirewallRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
@@ -386,7 +386,7 @@ func (h *Handler) DeleteFirewallRule(c *gin.Context) {
 
 	tenantID := h.requireTenantID(c)
 	if tenantID == "" {
-	 return
+		return
 	}
 
 	id := c.Param("id")
@@ -395,7 +395,7 @@ func (h *Handler) DeleteFirewallRule(c *gin.Context) {
 		return
 	}
 	if !deleted {
-	errors.WriteError(c, errors.ErrNotFound, "firewall rule not found", 404)
+		errors.WriteError(c, errors.ErrNotFound, "firewall rule not found", 404)
 		return
 	}
 	c.AbortWithStatus(http.StatusNoContent)
@@ -429,7 +429,7 @@ func (h *Handler) CreateLoadBalancer(c *gin.Context) {
 
 	var req models.CreateLoadBalancerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-	errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 
@@ -437,7 +437,7 @@ func (h *Handler) CreateLoadBalancer(c *gin.Context) {
 	if h.handleServiceError(err, c) {
 		return
 	}
-errors.WriteCreated(c, lb)
+	errors.WriteCreated(c, lb)
 }
 
 func (h *Handler) GetLoadBalancer(c *gin.Context) {
@@ -473,7 +473,7 @@ func (h *Handler) UpdateLoadBalancer(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateLoadBalancerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-	errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 
@@ -533,7 +533,7 @@ func (h *Handler) CreateDNSRecord(c *gin.Context) {
 
 	var req models.CreateDNSRecordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-	errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 
@@ -559,10 +559,10 @@ func (h *Handler) GetDNSRecord(c *gin.Context) {
 		return
 	}
 	if record == nil {
-	errors.WriteError(c, errors.ErrNotFound, "DNS record not found", 404)
+		errors.WriteError(c, errors.ErrNotFound, "DNS record not found", 404)
 		return
 	}
-errors.WriteSuccess(c, record)
+	errors.WriteSuccess(c, record)
 }
 
 func (h *Handler) UpdateDNSRecord(c *gin.Context) {
@@ -577,7 +577,7 @@ func (h *Handler) UpdateDNSRecord(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateDNSRecordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-	errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 
@@ -603,7 +603,7 @@ func (h *Handler) DeleteDNSRecord(c *gin.Context) {
 		return
 	}
 	if !deleted {
-	errors.WriteError(c, errors.ErrNotFound, "DNS record not found", 404)
+		errors.WriteError(c, errors.ErrNotFound, "DNS record not found", 404)
 		return
 	}
 	c.AbortWithStatus(http.StatusNoContent)

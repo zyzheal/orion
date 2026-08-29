@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/notification/notification/models"
 	"orion/platform-svc-go/internal/notification/notification/service"
 
@@ -41,13 +42,15 @@ func (h *TemplateHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Create handles POST /templates - create a new notification template.
 func (h *TemplateHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var t models.NotificationTemplate
 	if err := c.ShouldBindJSON(&t); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.templateSvc.CreateTemplate(c.Request.Context(), tenantID, &t); err != nil {
+	if err := h.templateSvc.CreateTemplate(ctx, tenantID, &t); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -56,8 +59,10 @@ func (h *TemplateHandler) Create(c *gin.Context) {
 
 // List handles GET /templates - list all templates for a tenant.
 func (h *TemplateHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.templateSvc.ListTemplates(c.Request.Context(), tenantID)
+	items, err := h.templateSvc.ListTemplates(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -67,8 +72,10 @@ func (h *TemplateHandler) List(c *gin.Context) {
 
 // Get handles GET /templates/:id - get a single template.
 func (h *TemplateHandler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationGet")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	t, err := h.templateSvc.GetTemplate(c.Request.Context(), tenantID, c.Param("id"))
+	t, err := h.templateSvc.GetTemplate(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, "template not found")
 		return
@@ -78,6 +85,8 @@ func (h *TemplateHandler) Get(c *gin.Context) {
 
 // Update handles PUT /templates/:id - update an existing template.
 func (h *TemplateHandler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationUpdate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	_ = id
@@ -88,7 +97,7 @@ func (h *TemplateHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if err := h.templateSvc.CreateTemplate(c.Request.Context(), tenantID, &t); err != nil {
+	if err := h.templateSvc.CreateTemplate(ctx, tenantID, &t); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -97,8 +106,10 @@ func (h *TemplateHandler) Update(c *gin.Context) {
 
 // Delete handles DELETE /templates/:id - remove a template.
 func (h *TemplateHandler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.templateSvc.DeleteTemplate(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.templateSvc.DeleteTemplate(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, "template not found")
 		return
 	}
@@ -107,6 +118,8 @@ func (h *TemplateHandler) Delete(c *gin.Context) {
 
 // Preview handles POST /templates/:id/preview - render a template with sample variables.
 func (h *TemplateHandler) Preview(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationPreview")
+	defer span.End()
 	_ = c.GetString("tenant_id")
 	var input models.TemplatePreviewInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -114,12 +127,14 @@ func (h *TemplateHandler) Preview(c *gin.Context) {
 		return
 	}
 
-	result := h.templateSvc.PreviewTemplate(c.Request.Context(), &input)
+	result := h.templateSvc.PreviewTemplate(ctx, &input)
 	respondSuccess(c, result)
 }
 
 // RenderVariables handles GET /templates/:id/variables - extract variable placeholders.
 func (h *TemplateHandler) RenderVariables(c *gin.Context) {
-	vars := h.templateSvc.PreviewTemplate(c.Request.Context(), nil)
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationRenderVariables")
+	defer span.End()
+	vars := h.templateSvc.PreviewTemplate(ctx, nil)
 	respondSuccess(c, vars)
 }

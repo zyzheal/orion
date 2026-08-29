@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/slo/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/slo/models"
 )
 
@@ -68,7 +68,6 @@ func (f *fakeSloService) UpdateSLO(ctx context.Context, tenantID, id string, upd
 }
 
 var _ service.ServiceInterface = (*fakeSloService)(nil)
-
 
 func TestHandler_SLO_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

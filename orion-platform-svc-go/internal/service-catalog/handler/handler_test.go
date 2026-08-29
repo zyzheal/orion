@@ -1,10 +1,10 @@
 package handler
 
 import (
-	"orion/platform-svc-go/internal/service-catalog/models"
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"orion/platform-svc-go/internal/service-catalog/models"
 	"testing"
 
 	"orion/platform-svc-go/internal/service-catalog/service"
@@ -24,6 +24,7 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	c.Request = httptest.NewRequest(method, path, nil)
 	return c, w
 }
+
 type fakeServiceCatalogService struct{}
 
 func (f *fakeServiceCatalogService) UpdateRequestStatus(ctx context.Context, tenantID, id string, req *models.StatusUpdateRequest) (*models.ServiceRequest, error) {
@@ -54,12 +55,11 @@ func (f *fakeServiceCatalogService) Update(ctx context.Context, tenantID, id str
 	return &models.ServiceCatalog{}, nil
 }
 
-func (f *fakeServiceCatalogService) Delete(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeServiceCatalogService) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
 var _ service.ServiceInterface = (*fakeServiceCatalogService)(nil)
-
 
 func TestHandler_SERVICE_CATALO_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

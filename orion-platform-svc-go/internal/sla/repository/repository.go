@@ -50,10 +50,10 @@ func (r *Repository) GetDefinitionByID(ctx context.Context, tenantID, id string)
 
 func (r *Repository) ListDefinitions(ctx context.Context, tenantID string, q models.DefinitionListQuery) ([]models.SLADefinition, int, error) {
 	if q.Limit <= 0 {
-	q.Limit = 20
+		q.Limit = 20
 	}
 	if q.Offset <= 0 {
-	q.Offset = 0
+		q.Offset = 0
 	}
 
 	whereParts := []string{"tenant_id=$1"}
@@ -62,16 +62,16 @@ func (r *Repository) ListDefinitions(ctx context.Context, tenantID string, q mod
 	if q.Type != "" {
 		whereParts = append(whereParts, fmt.Sprintf("definition_type=$%d", pos))
 		args = append(args, q.Type)
-	pos++
+		pos++
 	}
 	if q.Status != "" {
 		whereParts = append(whereParts, fmt.Sprintf("status=$%d", pos))
-	args = append(args, q.Status)
+		args = append(args, q.Status)
 		pos++
 	}
 	if q.Category != "" {
 		whereParts = append(whereParts, fmt.Sprintf("category=$%d", pos))
-	args = append(args, q.Category)
+		args = append(args, q.Category)
 		pos++
 	}
 	whereClause := "WHERE " + joinWhereParts(whereParts)
@@ -114,7 +114,7 @@ func (r *Repository) CreateTracking(ctx context.Context, t *models.SLATracking) 
 	t.ID = uuid.New().String()
 	t.Status = "tracking"
 	t.CreatedAt = time.Now().UTC()
-t.UpdatedAt = time.Now().UTC()
+	t.UpdatedAt = time.Now().UTC()
 	t.StartedAt = time.Now().UTC()
 	query := `INSERT INTO sla_tracking (id, tenant_id, sla_definition_id, entity_type, entity_id,
 		status, target_time, notes, started_at, created_at, updated_at)
@@ -136,10 +136,10 @@ func (r *Repository) GetTrackingByID(ctx context.Context, tenantID, id string) (
 
 func (r *Repository) ListTracking(ctx context.Context, tenantID string, q models.TrackingListQuery) ([]models.SLATracking, int, error) {
 	if q.Limit <= 0 {
-	q.Limit = 20
+		q.Limit = 20
 	}
 	if q.Offset <= 0 {
-	q.Offset = 0
+		q.Offset = 0
 	}
 
 	whereParts := []string{"tenant_id=$1"}

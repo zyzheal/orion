@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/user-status/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	Create(ctx context.Context, tenantID, userID string, status string, message string) (*models.UserStatus, error)

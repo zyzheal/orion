@@ -1,13 +1,13 @@
 package handler
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	"net/http"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/monitoring/internal/alert-deduplication/service"
 	"orion/platform-svc-go/internal/monitoring/internal/response_writer"
-	"orion/go-common/pkg/auth"
-	"github.com/google/uuid"
 )
 
 type AlertDeduplicationHandler struct {
@@ -33,12 +33,16 @@ func (h *AlertDeduplicationHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Stats returns deduplication statistics.
 func (h *AlertDeduplicationHandler) Stats(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorAlertDedupStats")
+	defer span.End()
 	stats := h.svc.Stats()
 	response_writer.Respond(c, http.StatusOK, stats)
 }
 
 // Configure updates deduplication configuration.
 func (h *AlertDeduplicationHandler) Configure(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorAlertDedupConfigure")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req struct {
 		IsEnabled *bool  `json:"is_enabled"`
@@ -66,13 +70,15 @@ func (h *AlertDeduplicationHandler) Configure(c *gin.Context) {
 
 // Check checks if an alert is a duplicate.
 func (h *AlertDeduplicationHandler) Check(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorAlertDedupCheck")
+	defer span.End()
 	var req map[string]string
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response_writer.RespondBadRequest(c, err.Error())
 		return
 	}
 
-	record, isDuplicate := h.svc.CheckDuplicate(c.Request.Context(), req)
+	record, isDuplicate := h.svc.CheckDuplicate(ctx, req)
 	if isDuplicate {
 		response_writer.Respond(c, http.StatusOK, gin.H{
 			"is_duplicate": true,

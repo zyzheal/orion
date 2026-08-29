@@ -4,13 +4,13 @@ import "time"
 
 // SLATarget defines response/resolution time targets for a priority
 type SLATarget struct {
-	ID                    string `json:"id" db:"id"`
-	Name                  string `json:"name" db:"name"`
-	Priority              string `json:"priority" db:"priority"`
-	TargetResponseTimeMs  int64  `json:"target_response_time_ms" db:"target_response_time_ms"`
-	TargetResolutionTimeMs int64 `json:"target_resolution_time_ms" db:"target_resolution_time_ms"`
-	Enabled               bool   `json:"enabled" db:"enabled"`
-	CreatedAt             time.Time `json:"created_at" db:"created_at"`
+	ID                     string    `json:"id" db:"id"`
+	Name                   string    `json:"name" db:"name"`
+	Priority               string    `json:"priority" db:"priority"`
+	TargetResponseTimeMs   int64     `json:"target_response_time_ms" db:"target_response_time_ms"`
+	TargetResolutionTimeMs int64     `json:"target_resolution_time_ms" db:"target_resolution_time_ms"`
+	Enabled                bool      `json:"enabled" db:"enabled"`
+	CreatedAt              time.Time `json:"created_at" db:"created_at"`
 }
 
 // SLARecord tracks SLA status for a specific ticket
@@ -34,22 +34,22 @@ type SLARecord struct {
 
 // CreateSLATargetRequest is input for creating an SLA target
 type CreateSLATargetRequest struct {
-	ID                    string `json:"id"`
-	Name                  string `json:"name" binding:"required"`
-	Priority              string `json:"priority" binding:"required"`
-	TargetResponseTimeMs  int64  `json:"target_response_time_ms"`
-	TargetResolutionTimeMs int64 `json:"target_resolution_time_ms" binding:"required"`
-	Enabled               *bool  `json:"enabled"`
+	ID                     string `json:"id"`
+	Name                   string `json:"name" binding:"required"`
+	Priority               string `json:"priority" binding:"required"`
+	TargetResponseTimeMs   int64  `json:"target_response_time_ms"`
+	TargetResolutionTimeMs int64  `json:"target_resolution_time_ms" binding:"required"`
+	Enabled                *bool  `json:"enabled"`
 }
 
 // SLAComplianceReport summarizes SLA compliance
 type SLAComplianceReport struct {
-	TotalTickets     int     `json:"total_tickets"`
-	BreachedCount    int     `json:"breached_count"`
-	ComplianceRate   float64 `json:"compliance_rate"`
-	AvgResponseMs    float64 `json:"avg_response_ms"`
-	AvgResolutionMs  float64 `json:"avg_resolution_ms"`
-	ByPriority       map[string]SLAPriorityStats `json:"by_priority"`
+	TotalTickets    int                         `json:"total_tickets"`
+	BreachedCount   int                         `json:"breached_count"`
+	ComplianceRate  float64                     `json:"compliance_rate"`
+	AvgResponseMs   float64                     `json:"avg_response_ms"`
+	AvgResolutionMs float64                     `json:"avg_resolution_ms"`
+	ByPriority      map[string]SLAPriorityStats `json:"by_priority"`
 }
 
 // SLAPriorityStats is SLA stats for a specific priority

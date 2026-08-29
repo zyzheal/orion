@@ -62,12 +62,12 @@ func Test_JoinSQL_PreservesClauseContent(t *testing.T) {
 
 func Test_TicketSLATracking_Type(t *testing.T) {
 	tr := TicketSLATracking{
-		ID:                       "test-id",
-		TicketID:                 "ticket-1",
-		Priority:                 "high",
-		TargetResolutionTimeMs:   3600000,
-		Breached:                 true,
-		ResponseBreached:         false,
+		ID:                     "test-id",
+		TicketID:               "ticket-1",
+		Priority:               "high",
+		TargetResolutionTimeMs: 3600000,
+		Breached:               true,
+		ResponseBreached:       false,
 	}
 	if tr.ID != "test-id" {
 		t.Fatalf("ID = %q", tr.ID)
@@ -85,10 +85,10 @@ func Test_TicketSLATracking_Type(t *testing.T) {
 
 func Test_TicketSLATracking_NullPointers(t *testing.T) {
 	tr := TicketSLATracking{
-		ID:        "test-id",
-		TicketID:  "ticket-1",
-		Priority:  "low",
-		Breached:  false,
+		ID:       "test-id",
+		TicketID: "ticket-1",
+		Priority: "low",
+		Breached: false,
 	}
 	if tr.ActualResolutionTimeMs != nil {
 		t.Fatal("ActualResolutionTimeMs should be nil")

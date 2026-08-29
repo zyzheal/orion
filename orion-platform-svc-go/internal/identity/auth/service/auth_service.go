@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/identity/auth/model"
 	"orion/platform-svc-go/internal/identity/auth/repository"
-	"go.uber.org/zap"
 )
 
 type AuthService struct {

@@ -34,11 +34,11 @@ func (h *AssigneeStepHandler) Execute(ctx context.Context, task *WorkflowTaskCon
 
 	return &StepResult{
 		Output: JSONB{
-            "assignee":  assignee,
-            "assignedAt": time.Now().Format(time.RFC3339),
-        },
-        Actions: []string{"assigned"},
-    }, nil
+			"assignee":   assignee,
+			"assignedAt": time.Now().Format(time.RFC3339),
+		},
+		Actions: []string{"assigned"},
+	}, nil
 }
 
 // Validate checks that an assignee is configured.

@@ -14,18 +14,18 @@ var ErrRunNotFound = errors.New("pipeline run not found")
 
 // PipelineRun is the minimal run model needed for error detail.
 type PipelineRun struct {
-	ID           uuid.UUID  `db:"id" json:"id"`
-	Status       string     `db:"status" json:"status"`
-	StartedAt    *time.Time `db:"started_at" json:"startedAt"`
-	CompletedAt  *time.Time `db:"completed_at" json:"completedAt"`
+	ID          uuid.UUID  `db:"id" json:"id"`
+	Status      string     `db:"status" json:"status"`
+	StartedAt   *time.Time `db:"started_at" json:"startedAt"`
+	CompletedAt *time.Time `db:"completed_at" json:"completedAt"`
 }
 
 // StageRecord is the minimal stage model for error collection.
 type StageRecord struct {
-	Name        string     `db:"name" json:"name"`
+	Name        string         `db:"name" json:"name"`
 	Error       sql.NullString `db:"error" json:"error"`
-	StartedAt   *time.Time `db:"started_at" json:"startedAt"`
-	CompletedAt *time.Time `db:"completed_at" json:"completedAt"`
+	StartedAt   *time.Time     `db:"started_at" json:"startedAt"`
+	CompletedAt *time.Time     `db:"completed_at" json:"completedAt"`
 }
 
 // TaskRecord is the minimal task model for error collection.

@@ -7,11 +7,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/alert-silence/fatigue"
 	"orion/platform-svc-go/internal/alert-silence/models"
 	"orion/platform-svc-go/internal/alert-silence/service"
 	"orion/platform-svc-go/internal/middleware"
-	"orion/go-common/pkg/auth"
 )
 
 // FatigueServiceInterface exposes the fatigue methods used by the handler.
@@ -58,12 +59,14 @@ func (h *AlertSilenceHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // List returns paginated silences.
 func (h *AlertSilenceHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertSilenceList")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	status := c.Query("status")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	resp, err := h.svc.QuerySilences(c.Request.Context(), tenantID, status, limit, offset)
+	resp, err := h.svc.QuerySilences(ctx, tenantID, status, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -76,6 +79,8 @@ func (h *AlertSilenceHandler) List(c *gin.Context) {
 
 // Create creates a new silence.
 func (h *AlertSilenceHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertSilenceCreate")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req models.CreateSilenceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -84,7 +89,7 @@ func (h *AlertSilenceHandler) Create(c *gin.Context) {
 	}
 
 	createdBy := c.GetString("userId")
-	silence, err := h.svc.CreateSilence(c.Request.Context(), tenantID, &req, createdBy)
+	silence, err := h.svc.CreateSilence(ctx, tenantID, &req, createdBy)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -94,6 +99,8 @@ func (h *AlertSilenceHandler) Create(c *gin.Context) {
 
 // Get returns a single silence.
 func (h *AlertSilenceHandler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertSilenceGet")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -101,7 +108,7 @@ func (h *AlertSilenceHandler) Get(c *gin.Context) {
 		return
 	}
 
-	silence, err := h.svc.GetSilence(c.Request.Context(), tenantID, id)
+	silence, err := h.svc.GetSilence(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -111,6 +118,8 @@ func (h *AlertSilenceHandler) Get(c *gin.Context) {
 
 // Delete removes a silence.
 func (h *AlertSilenceHandler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertSilenceDelete")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -118,7 +127,7 @@ func (h *AlertSilenceHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.DeleteSilence(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteSilence(ctx, tenantID, id); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -127,6 +136,8 @@ func (h *AlertSilenceHandler) Delete(c *gin.Context) {
 
 // Extend extends a silence duration.
 func (h *AlertSilenceHandler) Extend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertSilenceExtend")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -142,7 +153,7 @@ func (h *AlertSilenceHandler) Extend(c *gin.Context) {
 		return
 	}
 
-	silence, err := h.svc.ExtendSilence(c.Request.Context(), tenantID, id, req.ExtendBy)
+	silence, err := h.svc.ExtendSilence(ctx, tenantID, id, req.ExtendBy)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -152,12 +163,14 @@ func (h *AlertSilenceHandler) Extend(c *gin.Context) {
 
 // FatigueScore returns per-rule fatigue metrics for the tenant.
 func (h *AlertSilenceHandler) FatigueScore(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertSilenceFatigueScore")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	if h.fatSvc == nil {
 		middleware.RespondBadRequest(c, "fatigue analyzer not available")
 		return
 	}
-	scores, err := h.fatSvc.GetFatigueScore(c.Request.Context(), tenantID)
+	scores, err := h.fatSvc.GetFatigueScore(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -167,12 +180,14 @@ func (h *AlertSilenceHandler) FatigueScore(c *gin.Context) {
 
 // AutoSilenceRecommendations returns rules recommended for auto-silencing.
 func (h *AlertSilenceHandler) AutoSilenceRecommendations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertSilenceAutoSilenceRecommendations")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	if h.fatSvc == nil {
 		middleware.RespondBadRequest(c, "fatigue analyzer not available")
 		return
 	}
-	names, err := h.fatSvc.AutoSilenceRecommendations(c.Request.Context(), tenantID)
+	names, err := h.fatSvc.AutoSilenceRecommendations(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -182,13 +197,15 @@ func (h *AlertSilenceHandler) AutoSilenceRecommendations(c *gin.Context) {
 
 // RuleFatigue returns fatigue info for a single rule.
 func (h *AlertSilenceHandler) RuleFatigue(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertSilenceRuleFatigue")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	ruleName := c.Param("ruleName")
 	if h.fatSvc == nil {
 		middleware.RespondBadRequest(c, "fatigue analyzer not available")
 		return
 	}
-	info, err := h.fatSvc.GetRuleFatigue(c.Request.Context(), tenantID, ruleName)
+	info, err := h.fatSvc.GetRuleFatigue(ctx, tenantID, ruleName)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -198,6 +215,8 @@ func (h *AlertSilenceHandler) RuleFatigue(c *gin.Context) {
 
 // RecordAlert records a fired alert into the fatigue analyzer.
 func (h *AlertSilenceHandler) RecordAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertSilenceRecordAlert")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	if h.fatSvc == nil {
 		middleware.RespondBadRequest(c, "fatigue analyzer not available")
@@ -213,9 +232,9 @@ func (h *AlertSilenceHandler) RecordAlert(c *gin.Context) {
 		return
 	}
 	if req.Silenced {
-		h.fatSvc.RecordFatigueSilenced(c.Request.Context(), tenantID, req.RuleName, req.Severity)
+		h.fatSvc.RecordFatigueSilenced(ctx, tenantID, req.RuleName, req.Severity)
 	} else {
-		h.fatSvc.RecordFatigueAlert(c.Request.Context(), tenantID, req.RuleName, req.Severity)
+		h.fatSvc.RecordFatigueAlert(ctx, tenantID, req.RuleName, req.Severity)
 	}
 	c.Status(http.StatusAccepted)
 }

@@ -10,8 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
-	"orion/platform-svc-go/internal/alert-correlation/models"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/alert-correlation/models"
 )
 
 type AlertCorrelationRepository struct {

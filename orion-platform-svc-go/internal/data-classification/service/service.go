@@ -67,8 +67,12 @@ func NewServiceForTesting(repo RepositoryInterface) *Service {
 }
 
 func (s *Service) CreateRule(ctx context.Context, tenantID string, req *models.CreateRuleRequest) (*models.ClassificationRule, error) {
-	if req.Name == "" { return nil, fmt.Errorf("name is required") }
-	if req.Pattern == "" { return nil, fmt.Errorf("pattern is required") }
+	if req.Name == "" {
+		return nil, fmt.Errorf("name is required")
+	}
+	if req.Pattern == "" {
+		return nil, fmt.Errorf("pattern is required")
+	}
 	return s.repo.CreateRule(ctx, tenantID, req)
 }
 
@@ -122,12 +126,18 @@ func (s *Service) Classify(ctx context.Context, tenantID string, req *models.Cla
 
 func levelScore(level models.ClassificationLevel) int {
 	switch level {
-	case models.LevelPublic: return 0
-	case models.LevelInternal: return 1
-	case models.LevelConfidential: return 2
-	case models.LevelRestricted: return 3
-	case models.LevelCritical: return 4
-	default: return 0
+	case models.LevelPublic:
+		return 0
+	case models.LevelInternal:
+		return 1
+	case models.LevelConfidential:
+		return 2
+	case models.LevelRestricted:
+		return 3
+	case models.LevelCritical:
+		return 4
+	default:
+		return 0
 	}
 }
 

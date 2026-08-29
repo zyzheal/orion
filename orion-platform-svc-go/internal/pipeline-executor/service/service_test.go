@@ -6,8 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	"orion/platform-svc-go/internal/pipeline-executor/models"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/pipeline-executor/models"
 )
 
 // mockStepHandler implements StepHandler for testing.
@@ -21,8 +21,8 @@ type mockStepHandler struct {
 	output []byte
 }
 
-func (h *mockStepHandler) Name() string  { return h.name }
-func (h *mockStepHandler) Type() string  { return h.stype }
+func (h *mockStepHandler) Name() string { return h.name }
+func (h *mockStepHandler) Type() string { return h.stype }
 func (h *mockStepHandler) Process(input []byte, config map[string]string) ([]byte, error) {
 	h.called = true
 	h.input = input

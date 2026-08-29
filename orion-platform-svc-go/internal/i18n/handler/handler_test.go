@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/i18n/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/i18n/models"
 )
 
@@ -56,7 +56,6 @@ func (f *fakeI18nService) SetTranslation(ctx context.Context, tenantID, localeCo
 }
 
 var _ service.ServiceInterface = (*fakeI18nService)(nil)
-
 
 func TestHandler_I18N_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

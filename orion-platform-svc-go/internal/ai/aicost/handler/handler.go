@@ -1,11 +1,12 @@
 package handler
 
 import (
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai/aicost/models"
 	"orion/platform-svc-go/internal/ai/aicost/service"
-	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 )
 
 type Handler struct {
@@ -28,6 +29,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Optimize handles POST /ai/cost/optimize
 func (h *Handler) Optimize(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "OptimizeAICost")
+	defer span.End()
+	_ = ctx
 	tenantID := c.GetString("tenant_id")
 
 	var req models.OptimizeRequest
@@ -50,9 +54,11 @@ func (h *Handler) Optimize(c *gin.Context) {
 
 // GetHistory handles GET /ai/cost/history
 func (h *Handler) GetHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAICostHistory")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	history, err := h.svc.GetSavingsHistory(c.Request.Context(), tenantID)
+	history, err := h.svc.GetSavingsHistory(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -63,10 +69,12 @@ func (h *Handler) GetHistory(c *gin.Context) {
 
 // GetSummary handles GET /ai/cost/summary
 func (h *Handler) GetSummary(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAICostSummary")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	analysis := h.svc.AnalyzeCostSavings(tenantID)
-	totalSavings, err := h.svc.GetTotalSavings(c.Request.Context(), tenantID)
+	totalSavings, err := h.svc.GetTotalSavings(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -82,6 +90,8 @@ func (h *Handler) GetSummary(c *gin.Context) {
 
 // GetAlerts handles GET /ai/cost/alerts
 func (h *Handler) GetAlerts(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAICostAlerts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	alerts := h.svc.GenerateAlerts(tenantID)
 

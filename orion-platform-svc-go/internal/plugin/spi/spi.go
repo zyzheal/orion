@@ -158,8 +158,8 @@ func (p *PluginInstance) isInitialized() bool {
 // Registry manages the lifecycle of plugin.Plugin implementations.
 // Register → Init → Execute → Shutdown.
 type Registry struct {
-	mu       sync.RWMutex
-	plugins  map[string]*PluginInstance // keyed by ID
+	mu      sync.RWMutex
+	plugins map[string]*PluginInstance // keyed by ID
 
 	// Stats
 	initializedCount atomic.Int32
@@ -262,7 +262,7 @@ func (r *Registry) InitAll(ctx context.Context, cfgMap map[string]plugin.PluginC
 
 // ShutdownAll shuts down all plugins.
 func (r *Registry) ShutdownAll(ctx context.Context) map[string]error {
-errors := make(map[string]error)
+	errors := make(map[string]error)
 	for id, inst := range r.All() {
 		if err := inst.Shutdown(ctx); err != nil {
 			errors[id] = err

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"orion/platform-svc-go/internal/ticketing/models"
 	"orion/go-common/pkg/otel"
+	"orion/platform-svc-go/internal/ticketing/models"
 	"orion/platform-svc-go/internal/ticketing/repository"
 
 	"github.com/google/uuid"
@@ -127,11 +127,11 @@ func (s *TransferService) TransferDueToSuspend(ctx context.Context, suspendID st
 		if err == nil && backupEng.CurrentLoad < backupEng.MaxCapacity {
 			for i := 0; i < pendingCount && backupEng.CurrentLoad < backupEng.MaxCapacity; i++ {
 				transfer := &models.TransferRecord{
-					ID: uuid.New().String(),
-					TicketID: fmt.Sprintf("pending-%s-%d", suspend.EngineerID, i),
+					ID:             uuid.New().String(),
+					TicketID:       fmt.Sprintf("pending-%s-%d", suspend.EngineerID, i),
 					FromEngineerID: suspend.EngineerID, ToEngineerID: suspend.BackupEngineerID,
 					InitiatedBy: "system",
-					Reason: fmt.Sprintf("Auto-transfer due to suspension %s (%s)", suspendID, suspend.Reason),
+					Reason:      fmt.Sprintf("Auto-transfer due to suspension %s (%s)", suspendID, suspend.Reason),
 				}
 				if err := s.transferRepo.Create(ctx, transfer); err == nil {
 					results = append(results, *transfer)
@@ -148,21 +148,31 @@ func (s *TransferService) GetTransferHistory(ctx context.Context, ticketID strin
 }
 
 func (s *TransferService) GetTransferStats(ctx context.Context, start, end time.Time) (*models.TransferStats, error) {
-	if start.IsZero() { start = time.Now().AddDate(0, -1, 0) }
-	if end.IsZero() { end = time.Now() }
+	if start.IsZero() {
+		start = time.Now().AddDate(0, -1, 0)
+	}
+	if end.IsZero() {
+		end = time.Now()
+	}
 	rawStats, err := s.transferRepo.GetStats(ctx, start, end)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	stats := &models.TransferStats{TotalTransfers: 0, ActiveTransfers: 0, AvgTransfers: 0}
 	if total, ok := rawStats["total_transfers"]; ok {
 		switch v := total.(type) {
-		case int: stats.TotalTransfers = v
-		case float64: stats.TotalTransfers = int(v)
+		case int:
+			stats.TotalTransfers = v
+		case float64:
+			stats.TotalTransfers = int(v)
 		}
 	}
 	if avg, ok := rawStats["avg_hold_duration_ms"]; ok {
 		switch v := avg.(type) {
-		case float64: stats.AvgTransfers = v
-		case int: stats.AvgTransfers = float64(v)
+		case float64:
+			stats.AvgTransfers = v
+		case int:
+			stats.AvgTransfers = float64(v)
 		}
 	}
 	return stats, nil
@@ -174,17 +184,27 @@ func (s *TransferService) GetMostTransferredTickets(ctx context.Context, limit i
 
 func (s *TransferService) autoTransferTicket(ctx context.Context, ticketID, tenantID, priority, reason string) (*models.TransferRecord, error) {
 	engineers, err := s.dispatchRepo.ListEngineers(ctx, tenantID)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	var bestEngineer *models.DispatchEngineer
 	for i := range engineers {
 		eng := &engineers[i]
-		if eng.Availability == models.AvailabilityUnavailable { continue }
-		if eng.CurrentLoad >= eng.MaxCapacity { continue }
-		if bestEngineer == nil || eng.CurrentLoad < bestEngineer.CurrentLoad { bestEngineer = eng }
+		if eng.Availability == models.AvailabilityUnavailable {
+			continue
+		}
+		if eng.CurrentLoad >= eng.MaxCapacity {
+			continue
+		}
+		if bestEngineer == nil || eng.CurrentLoad < bestEngineer.CurrentLoad {
+			bestEngineer = eng
+		}
 	}
-	if bestEngineer == nil { return nil, fmt.Errorf("no available engineers for auto-transfer") }
+	if bestEngineer == nil {
+		return nil, fmt.Errorf("no available engineers for auto-transfer")
+	}
 	return s.ManualTransfer(ctx, ticketID, tenantID, bestEngineer.ID, "system", fmt.Sprintf("Auto-transfer (%s): ticket held too long", reason))
 }
 
 func (s *TransferService) UpdateConfig(config models.AutoTransferConfig) { s.config = config }
-func (s *TransferService) GetConfig() models.AutoTransferConfig { return s.config }
+func (s *TransferService) GetConfig() models.AutoTransferConfig          { return s.config }

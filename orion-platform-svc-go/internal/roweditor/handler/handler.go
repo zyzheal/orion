@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/roweditor"
 	"orion/platform-svc-go/internal/roweditor/handler/models"
@@ -9,7 +10,7 @@ import (
 )
 
 type Handler struct {
-	svc roweditor.DBOperations
+	svc  roweditor.DBOperations
 	svc2 *service.Service
 }
 
@@ -30,6 +31,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) RegisterEditor(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RegisterRowEditor")
+	defer span.End()
 	var req models.RowEditorSpecRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
@@ -39,7 +42,7 @@ func (h *Handler) RegisterEditor(c *gin.Context) {
 	if name == "" {
 		name = req.TableName
 	}
-	if err := h.svc2.RegisterEditor(c.Request.Context(), c.GetString("tenant_id"), name, &req); err != nil {
+	if err := h.svc2.RegisterEditor(ctx, c.GetString("tenant_id"), name, &req); err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
@@ -47,7 +50,9 @@ func (h *Handler) RegisterEditor(c *gin.Context) {
 }
 
 func (h *Handler) Stats(c *gin.Context) {
-	stats, err := h.svc2.Stats(c.Request.Context(), c.Param("name"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRowEditorStats")
+	defer span.End()
+	stats, err := h.svc2.Stats(ctx, c.Param("name"))
 	if err != nil {
 		c.JSON(404, gin.H{"error": err.Error()})
 		return
@@ -56,12 +61,14 @@ func (h *Handler) Stats(c *gin.Context) {
 }
 
 func (h *Handler) CreateRow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateRowEditorRow")
+	defer span.End()
 	var req models.RowCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	resp, err := h.svc2.CreateRow(c.Request.Context(), c.Param("editor"), h.svc, &req)
+	resp, err := h.svc2.CreateRow(ctx, c.Param("editor"), h.svc, &req)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
@@ -70,7 +77,9 @@ func (h *Handler) CreateRow(c *gin.Context) {
 }
 
 func (h *Handler) ReadRow(c *gin.Context) {
-	resp, err := h.svc2.ReadRow(c.Request.Context(), c.Param("editor"), h.svc, c.GetString("tenant_id"), c.Param("row_id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ReadRowEditorRow")
+	defer span.End()
+	resp, err := h.svc2.ReadRow(ctx, c.Param("editor"), h.svc, c.GetString("tenant_id"), c.Param("row_id"))
 	if err != nil {
 		c.JSON(404, gin.H{"error": err.Error()})
 		return
@@ -79,12 +88,14 @@ func (h *Handler) ReadRow(c *gin.Context) {
 }
 
 func (h *Handler) UpdateRow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateRowEditorRow")
+	defer span.End()
 	var req models.RowUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	resp, err := h.svc2.UpdateRow(c.Request.Context(), c.Param("editor"), h.svc, &req)
+	resp, err := h.svc2.UpdateRow(ctx, c.Param("editor"), h.svc, &req)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
@@ -93,7 +104,9 @@ func (h *Handler) UpdateRow(c *gin.Context) {
 }
 
 func (h *Handler) DeleteRow(c *gin.Context) {
-	resp, err := h.svc2.DeleteRow(c.Request.Context(), c.Param("editor"), h.svc, c.GetString("tenant_id"), c.Param("row_id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteRowEditorRow")
+	defer span.End()
+	resp, err := h.svc2.DeleteRow(ctx, c.Param("editor"), h.svc, c.GetString("tenant_id"), c.Param("row_id"))
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
@@ -102,12 +115,14 @@ func (h *Handler) DeleteRow(c *gin.Context) {
 }
 
 func (h *Handler) BatchCreate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BatchCreateRows")
+	defer span.End()
 	var req models.BatchCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	resp, err := h.svc2.BatchCreate(c.Request.Context(), c.Param("editor"), h.svc, &req)
+	resp, err := h.svc2.BatchCreate(ctx, c.Param("editor"), h.svc, &req)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
@@ -116,12 +131,14 @@ func (h *Handler) BatchCreate(c *gin.Context) {
 }
 
 func (h *Handler) BatchUpdate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BatchUpdateRows")
+	defer span.End()
 	var req models.BatchUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
-	resp, err := h.svc2.BatchUpdate(c.Request.Context(), c.Param("editor"), h.svc, &req)
+	resp, err := h.svc2.BatchUpdate(ctx, c.Param("editor"), h.svc, &req)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return

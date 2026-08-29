@@ -393,11 +393,11 @@ func (r *Repository) FindViolationsByStatus(ctx context.Context, status string) 
 }
 
 type ViolationFilter struct {
-	Status    string
-	Severity  string
-	PolicyID  string
-	Limit     int
-	Offset    int
+	Status   string
+	Severity string
+	PolicyID string
+	Limit    int
+	Offset   int
 }
 
 // ==================== Policy Override ====================

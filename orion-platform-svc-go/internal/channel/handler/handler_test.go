@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/channel/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/channel/models"
 )
 
@@ -63,7 +63,6 @@ func (f *fakeChannelService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeChannelService)(nil)
-
 
 func TestCHANNEL_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

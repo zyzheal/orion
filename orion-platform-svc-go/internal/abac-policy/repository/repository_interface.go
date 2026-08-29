@@ -5,7 +5,6 @@ import (
 	"orion/platform-svc-go/internal/abac-policy/models"
 )
 
-
 // RepositoryInterface defines the data access contract for the abac-policy module.
 // DO NOT MODIFY: auto-generated from repository.go
 type RepositoryInterface interface {

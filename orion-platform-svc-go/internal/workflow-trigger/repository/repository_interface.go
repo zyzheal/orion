@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/workflow-trigger/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	Create(ctx context.Context, t *models.WorkflowTrigger) error

@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"orion/platform-svc-go/internal/application/queries"
-	"orion/platform-svc-go/internal/domain/eventstore"
 	"orion/platform-svc-go/internal/domain/events"
+	"orion/platform-svc-go/internal/domain/eventstore"
 )
 
 // ============================================================================

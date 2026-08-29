@@ -39,14 +39,22 @@ func (m *mockRelationRepo) FindSimilar(ctx context.Context, ticketID string, lim
 
 type mockTicketRepo struct{}
 
-func (m *mockTicketRepo) Create(ctx context.Context, t *models.Ticket) error                       { return nil }
-func (m *mockTicketRepo) GetByID(ctx context.Context, id, tenantID string) (*models.Ticket, error) { return nil, nil }
-func (m *mockTicketRepo) List(ctx context.Context, tenantID string, q models.ListQuery) ([]models.Ticket, int, error) { return nil, 0, nil }
-func (m *mockTicketRepo) Update(ctx context.Context, t *models.Ticket) error                       { return nil }
-func (m *mockTicketRepo) Delete(ctx context.Context, id, tenantID string) error                    { return nil }
-func (m *mockTicketRepo) UpdateStatus(ctx context.Context, id, tenantID, status string) error      { return nil }
-func (m *mockTicketRepo) UpdateAssignee(ctx context.Context, id, tenantID, assignedTo string) error { return nil }
-func (m *mockTicketRepo) Count(ctx context.Context, tenantID string) (int, error)                  { return 0, nil }
+func (m *mockTicketRepo) Create(ctx context.Context, t *models.Ticket) error { return nil }
+func (m *mockTicketRepo) GetByID(ctx context.Context, id, tenantID string) (*models.Ticket, error) {
+	return nil, nil
+}
+func (m *mockTicketRepo) List(ctx context.Context, tenantID string, q models.ListQuery) ([]models.Ticket, int, error) {
+	return nil, 0, nil
+}
+func (m *mockTicketRepo) Update(ctx context.Context, t *models.Ticket) error    { return nil }
+func (m *mockTicketRepo) Delete(ctx context.Context, id, tenantID string) error { return nil }
+func (m *mockTicketRepo) UpdateStatus(ctx context.Context, id, tenantID, status string) error {
+	return nil
+}
+func (m *mockTicketRepo) UpdateAssignee(ctx context.Context, id, tenantID, assignedTo string) error {
+	return nil
+}
+func (m *mockTicketRepo) Count(ctx context.Context, tenantID string) (int, error) { return 0, nil }
 
 func makeAnalyzer(relationRepo *mockRelationRepo, ticketRepo *mockTicketRepo) *AnalyzerService {
 	return NewAnalyzerService(relationRepo, ticketRepo)
@@ -94,7 +102,7 @@ func TestAddRelationInvalidType(t *testing.T) {
 func TestAddRelationDuplicate(t *testing.T) {
 	ctx := context.Background()
 	relationRepo := &mockRelationRepo{
-		rels: make(map[string][]models.TicketRelation),
+		rels:   make(map[string][]models.TicketRelation),
 		exists: map[string]bool{"t1|t2|related": true},
 	}
 	svc := makeAnalyzer(relationRepo, &mockTicketRepo{})

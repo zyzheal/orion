@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	"orion/go-common/pkg/otel"
 	"orion/platform-svc-go/internal/config/internal/config/models"
 	"orion/platform-svc-go/internal/config/internal/config/repository"
-	"orion/go-common/pkg/otel"
 
 	"github.com/google/uuid"
 )

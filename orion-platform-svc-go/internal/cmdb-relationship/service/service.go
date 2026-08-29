@@ -26,12 +26,12 @@ import (
 )
 
 var (
-	ErrTypeNotFound       = errors.New("relationship type not found")
+	ErrTypeNotFound         = errors.New("relationship type not found")
 	ErrRelationshipNotFound = errors.New("relationship not found")
-	ErrInvalidCardinality = errors.New("invalid cardinality")
+	ErrInvalidCardinality   = errors.New("invalid cardinality")
 	ErrCardinalityExceeded  = errors.New("cardinality limit exceeded")
-	ErrInvalidStatus      = errors.New("invalid status value")
-	ErrInvalidDirection   = errors.New("invalid direction")
+	ErrInvalidStatus        = errors.New("invalid status value")
+	ErrInvalidDirection     = errors.New("invalid direction")
 )
 
 // ValidStatuses enumerates allowed relationship type statuses.

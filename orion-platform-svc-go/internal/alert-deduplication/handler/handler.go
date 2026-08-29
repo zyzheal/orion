@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/alert-deduplication/service"
@@ -23,7 +24,6 @@ func (h *AlertDeduplicationHandler) GetTenantID(c *gin.Context) uuid.UUID {
 	return tenantID
 }
 
-// RegisterRoutes registers alert-deduplication routes.
 func (h *AlertDeduplicationHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	dedup := rg.Group("/alert-deduplication")
 	dedup.GET("/stats", auth.RequirePermission("monitor", "read"), h.Stats)
@@ -31,14 +31,16 @@ func (h *AlertDeduplicationHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	dedup.POST("/check", auth.RequirePermission("monitor", "read"), h.Check)
 }
 
-// Stats returns deduplication statistics.
 func (h *AlertDeduplicationHandler) Stats(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertDedupStats")
+	defer span.End()
 	stats := h.svc.Stats()
 	errors.WriteSuccess(c, stats)
 }
 
-// Configure updates deduplication configuration.
 func (h *AlertDeduplicationHandler) Configure(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertDedupConfigure")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req struct {
 		IsEnabled *bool  `json:"is_enabled"`
@@ -64,24 +66,19 @@ func (h *AlertDeduplicationHandler) Configure(c *gin.Context) {
 	errors.WriteSuccess(c, gin.H{"message": "configuration updated"})
 }
 
-// Check checks if an alert is a duplicate.
 func (h *AlertDeduplicationHandler) Check(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertDedupCheck")
+	defer span.End()
 	var req map[string]string
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	record, isDuplicate := h.svc.CheckDuplicate(c.Request.Context(), req)
+	record, isDuplicate := h.svc.CheckDuplicate(ctx, req)
 	if isDuplicate {
-		errors.WriteSuccess(c, gin.H{
-			"is_duplicate": true,
-			"record":       record,
-		})
+		errors.WriteSuccess(c, gin.H{"is_duplicate": true, "record": record})
 		return
 	}
-	errors.WriteSuccess(c, gin.H{
-		"is_duplicate": false,
-		"record":       record,
-	})
+	errors.WriteSuccess(c, gin.H{"is_duplicate": false, "record": record})
 }

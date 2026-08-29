@@ -168,9 +168,9 @@ func TestStartSkipsEmptyPhases(t *testing.T) {
 func TestHealthCheckWithinPhase(t *testing.T) {
 	pm := NewPhaseManager(nopLogger())
 	pm.RegisterHandler(PhaseHandler{
-		Name:  "with-health",
-		Phase: PhaseCache,
-		Handler: func(context.Context) error { return nil },
+		Name:        "with-health",
+		Phase:       PhaseCache,
+		Handler:     func(context.Context) error { return nil },
 		HealthCheck: func(context.Context) error { return errors.New("unhealthy") },
 	})
 
@@ -191,8 +191,8 @@ func TestShutdownReverseOrder(t *testing.T) {
 	// Register handlers with Shutdown that records order.
 	for _, phase := range phaseOrder {
 		pm.RegisterHandler(PhaseHandler{
-			Name:  string(phase) + "-h",
-			Phase: phase,
+			Name:    string(phase) + "-h",
+			Phase:   phase,
 			Handler: func(context.Context) error { return nil },
 			Shutdown: func(context.Context) error {
 				mu.Lock()
@@ -224,9 +224,9 @@ func TestShutdownIgnoresErrors(t *testing.T) {
 	fail := errors.New("shutdown fail")
 	pm.RegisterHandler(errorHandler(PhaseConfig, "bad", nil))
 	pm.RegisterHandler(PhaseHandler{
-		Name:  "fails-on-shutdown",
-		Phase: PhaseConfig,
-		Handler: func(context.Context) error { return nil },
+		Name:     "fails-on-shutdown",
+		Phase:    PhaseConfig,
+		Handler:  func(context.Context) error { return nil },
 		Shutdown: func(context.Context) error { return fail },
 	})
 	// Database has no shutdown handler.

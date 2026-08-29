@@ -697,10 +697,10 @@ func (h *Handler) RAGAdminUpdateConfig(c *gin.Context) {
 
 // RAGEvalMetrics returns evaluation metrics summary.
 func (h *Handler) RAGEvalMetrics(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGEvalMetrics")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGEvalMetrics")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	metrics, err := h.svc.GetEvalMetrics(c.Request.Context(), tenantID)
+	metrics, err := h.svc.GetEvalMetrics(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -717,10 +717,10 @@ func (h *Handler) RAGEvalMetrics(c *gin.Context) {
 
 // RAGEvalGroundTruth returns ground truth evaluation data.
 func (h *Handler) RAGEvalGroundTruth(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGEvalGroundTruth")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGEvalGroundTruth")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.GetEvalGroundTruth(c.Request.Context(), tenantID)
+	items, err := h.svc.GetEvalGroundTruth(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -743,15 +743,15 @@ func (h *Handler) RAGEvalGroundTruth(c *gin.Context) {
 
 // RAGPromptTemplates lists all prompt templates.
 func (h *Handler) RAGPromptTemplates(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGPromptTemplates")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGPromptTemplates")
 	defer span.End()
-	stats := h.svc.GetPromptMgr().GetPromptTemplateStats(c.Request.Context())
+	stats := h.svc.GetPromptMgr().GetPromptTemplateStats(ctx)
 	middleware.RespondSuccess(c, stats)
 }
 
 // RAGPromptSave saves a new prompt template version.
 func (h *Handler) RAGPromptSave(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGPromptSave")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGPromptSave")
 	defer span.End()
 	var req struct {
 		Name    string `json:"name" binding:"required"`
@@ -768,7 +768,7 @@ func (h *Handler) RAGPromptSave(c *gin.Context) {
 		return
 	}
 	tmpl := &models.PromptTemplate{Name: req.Name, Version: req.Version, Content: req.Content, IsActive: true}
-	if err := mgr.SavePrompt(c.Request.Context(), tmpl); err != nil {
+	if err := mgr.SavePrompt(ctx, tmpl); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -777,7 +777,7 @@ func (h *Handler) RAGPromptSave(c *gin.Context) {
 
 // RAGPromptCanary publishes a new prompt version as a canary.
 func (h *Handler) RAGPromptCanary(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGPromptCanary")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGPromptCanary")
 	defer span.End()
 	var req models.PromptCanaryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -789,7 +789,7 @@ func (h *Handler) RAGPromptCanary(c *gin.Context) {
 		middleware.RespondBadRequest(c, "prompt manager not initialized")
 		return
 	}
-	info, err := mgr.PublishCanaryPrompt(c.Request.Context(), req.Name, req.Content, req.Version, req.TrafficPercent)
+	info, err := mgr.PublishCanaryPrompt(ctx, req.Name, req.Content, req.Version, req.TrafficPercent)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -799,7 +799,7 @@ func (h *Handler) RAGPromptCanary(c *gin.Context) {
 
 // RAGPromptCanaryStatus inspects the version/canary state of a prompt.
 func (h *Handler) RAGPromptCanaryStatus(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGPromptCanaryStatus")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGPromptCanaryStatus")
 	defer span.End()
 	name := c.Param("name")
 	mgr := h.svc.GetPromptMgr()
@@ -807,7 +807,7 @@ func (h *Handler) RAGPromptCanaryStatus(c *gin.Context) {
 		middleware.RespondBadRequest(c, "prompt manager not initialized")
 		return
 	}
-	status, err := mgr.PromptVersionStats(c.Request.Context(), name)
+	status, err := mgr.PromptVersionStats(ctx, name)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -817,10 +817,10 @@ func (h *Handler) RAGPromptCanaryStatus(c *gin.Context) {
 
 // RAGIndexTrigger triggers a document re-index.
 func (h *Handler) RAGIndexTrigger(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGIndexTrigger")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGIndexTrigger")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	docs, err := h.svc.ListDocs(c.Request.Context(), tenantID, models.DocListQuery{Status: "published", Limit: 1000})
+	docs, err := h.svc.ListDocs(ctx, tenantID, models.DocListQuery{Status: "published", Limit: 1000})
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -895,15 +895,17 @@ func (h *Handler) GetGraph(c *gin.Context) {
 // --- RAG Security Audit Handlers ---
 
 func (h *Handler) RAGAuditLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGAuditLogs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	logs, err := h.svc.ListQueryAuditLogs(c.Request.Context(), tenantID, limit, offset)
+	logs, err := h.svc.ListQueryAuditLogs(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	total, err := h.svc.CountQueryAuditLogs(c.Request.Context(), tenantID)
+	total, err := h.svc.CountQueryAuditLogs(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -912,10 +914,12 @@ func (h *Handler) RAGAuditLogs(c *gin.Context) {
 }
 
 func (h *Handler) RAGFlaggedQueries(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGFlaggedQueries")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	logs, err := h.svc.ListFlaggedQueryAuditLogs(c.Request.Context(), tenantID, limit, offset)
+	logs, err := h.svc.ListFlaggedQueryAuditLogs(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

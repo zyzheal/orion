@@ -6,10 +6,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/monitoring/internal/alert-silence/models"
 	"orion/platform-svc-go/internal/monitoring/internal/alert-silence/service"
 	"orion/platform-svc-go/internal/monitoring/internal/response_writer"
-	"orion/go-common/pkg/auth"
 )
 
 type AlertSilenceHandler struct {
@@ -38,12 +39,14 @@ func (h *AlertSilenceHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // List returns paginated silences.
 func (h *AlertSilenceHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorAlertSilenceList")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	status := c.Query("status")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	resp, err := h.svc.QuerySilences(c.Request.Context(), tenantID, status, limit, offset)
+	resp, err := h.svc.QuerySilences(ctx, tenantID, status, limit, offset)
 	if err != nil {
 		response_writer.RespondInternalError(c, err.Error())
 		return
@@ -56,6 +59,8 @@ func (h *AlertSilenceHandler) List(c *gin.Context) {
 
 // Create creates a new silence.
 func (h *AlertSilenceHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorAlertSilenceCreate")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req models.CreateSilenceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -64,7 +69,7 @@ func (h *AlertSilenceHandler) Create(c *gin.Context) {
 	}
 
 	createdBy := c.GetString("userId")
-	silence, err := h.svc.CreateSilence(c.Request.Context(), tenantID, &req, createdBy)
+	silence, err := h.svc.CreateSilence(ctx, tenantID, &req, createdBy)
 	if err != nil {
 		response_writer.RespondInternalError(c, err.Error())
 		return
@@ -74,6 +79,8 @@ func (h *AlertSilenceHandler) Create(c *gin.Context) {
 
 // Get returns a single silence.
 func (h *AlertSilenceHandler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorAlertSilenceGet")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -81,7 +88,7 @@ func (h *AlertSilenceHandler) Get(c *gin.Context) {
 		return
 	}
 
-	silence, err := h.svc.GetSilence(c.Request.Context(), tenantID, id)
+	silence, err := h.svc.GetSilence(ctx, tenantID, id)
 	if err != nil {
 		response_writer.RespondNotFound(c, err.Error())
 		return
@@ -91,6 +98,8 @@ func (h *AlertSilenceHandler) Get(c *gin.Context) {
 
 // Delete removes a silence.
 func (h *AlertSilenceHandler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorAlertSilenceDelete")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -98,7 +107,7 @@ func (h *AlertSilenceHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.DeleteSilence(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteSilence(ctx, tenantID, id); err != nil {
 		response_writer.RespondNotFound(c, err.Error())
 		return
 	}
@@ -107,6 +116,8 @@ func (h *AlertSilenceHandler) Delete(c *gin.Context) {
 
 // Extend extends a silence duration.
 func (h *AlertSilenceHandler) Extend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MonitorAlertSilenceExtend")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -122,7 +133,7 @@ func (h *AlertSilenceHandler) Extend(c *gin.Context) {
 		return
 	}
 
-	silence, err := h.svc.ExtendSilence(c.Request.Context(), tenantID, id, req.ExtendBy)
+	silence, err := h.svc.ExtendSilence(ctx, tenantID, id, req.ExtendBy)
 	if err != nil {
 		response_writer.RespondInternalError(c, err.Error())
 		return

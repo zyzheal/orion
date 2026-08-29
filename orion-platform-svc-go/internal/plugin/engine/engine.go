@@ -23,24 +23,25 @@ import (
 // Engine loads, executes, and manages plugin.Plugin instances.
 //
 // It wraps the SPI Registry and adds:
-//  - Plugin sandbox (timeout, resource limits, concurrency)
-//  - Hot-reload via file-system polling (no external fsnotify dependency)
-//  - Graceful degradation (per-plugin error tracking, auto-fallback)
-//  - Runtime statistics
+//   - Plugin sandbox (timeout, resource limits, concurrency)
+//   - Hot-reload via file-system polling (no external fsnotify dependency)
+//   - Graceful degradation (per-plugin error tracking, auto-fallback)
+//   - Runtime statistics
 //
 // Usage:
-//   engine := engine.NewEngine(cfg, logger)
-//   engine.RegisterBuiltin(id, name, version, impl)  // or factory
-//   engine.Start(ctx)                                 // begin hot-reload loop
-//   result, err := engine.Execute(ctx, id, pctx, input)
-//   engine.Stop(ctx)                                  // graceful shutdown
+//
+//	engine := engine.NewEngine(cfg, logger)
+//	engine.RegisterBuiltin(id, name, version, impl)  // or factory
+//	engine.Start(ctx)                                 // begin hot-reload loop
+//	result, err := engine.Execute(ctx, id, pctx, input)
+//	engine.Stop(ctx)                                  // graceful shutdown
 type Engine struct {
 	cfg    Config
 	logger *zap.Logger
 
-	registry   *spi.Registry
-	stats      map[string]*spi.PluginStats
-	statsMu    sync.RWMutex
+	registry *spi.Registry
+	stats    map[string]*spi.PluginStats
+	statsMu  sync.RWMutex
 
 	// Hot-reload
 	reloadMu     sync.Mutex
@@ -562,10 +563,10 @@ func (w *FileWatcher) Stop() {
 
 // SandboxConfig holds per-execution sandbox parameters.
 type SandboxConfig struct {
-	Timeout         time.Duration
-	MaxConcurrency  int
-	MemoryBytes     int64
-	CPUCores        int
+	Timeout        time.Duration
+	MaxConcurrency int
+	MemoryBytes    int64
+	CPUCores       int
 }
 
 // WithTimeout returns a new context that respects the given timeout.
@@ -579,9 +580,9 @@ func WithTimeout(parent context.Context, timeout time.Duration) (context.Context
 
 // SandboxError wraps a sandbox violation with the plugin ID.
 type SandboxError struct {
-	PluginID  string
-	Reason    string
-	Err       error
+	PluginID string
+	Reason   string
+	Err      error
 }
 
 func (e *SandboxError) Error() string {

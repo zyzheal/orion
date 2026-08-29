@@ -1,12 +1,12 @@
 package handler
 
 import (
-	"orion/platform-svc-go/internal/ai/degradation/models"
-	"context"
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"orion/platform-svc-go/internal/ai/degradation/models"
 	"testing"
 
 	"orion/platform-svc-go/internal/ai/degradation/service"
@@ -35,6 +35,7 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	}
 	return c, w
 }
+
 type fakeAiDegradationService struct{}
 
 func (f *fakeAiDegradationService) CreateConfig(ctx context.Context, tenantID string, req models.CreateDegradationConfigRequest) (*models.DegradationConfig, error) {
@@ -53,7 +54,7 @@ func (f *fakeAiDegradationService) UpdateConfig(ctx context.Context, tenantID, c
 	return &models.DegradationConfig{}, nil
 }
 
-func (f *fakeAiDegradationService) DeleteConfig(ctx context.Context, tenantID, configID string) (error) {
+func (f *fakeAiDegradationService) DeleteConfig(ctx context.Context, tenantID, configID string) error {
 	return nil
 }
 
@@ -82,7 +83,6 @@ func (f *fakeAiDegradationService) GetGlobalStatus(ctx context.Context, tenantID
 }
 
 var _ service.ServiceInterface = (*fakeAiDegradationService)(nil)
-
 
 func TestAI_DEGRADATION_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

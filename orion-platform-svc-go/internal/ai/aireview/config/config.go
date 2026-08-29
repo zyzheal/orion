@@ -1,6 +1,6 @@
 package config
 
-type Config struct {}
+type Config struct{}
 
 func Load() *Config {
 	return &Config{}

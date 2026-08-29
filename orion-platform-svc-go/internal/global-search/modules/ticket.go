@@ -138,10 +138,10 @@ func (t *TicketIndexer) Documents(ctx context.Context, offset, limit int) ([]*in
 	docs := make([]*interfaces.Document, 0, len(tickets))
 	for _, tk := range tickets {
 		docs = append(docs, &interfaces.Document{
-			ID:      tk.ID,
-			Type:    tk.Type,
-			Title:   tk.Title,
-			Body:    tk.Title + " " + tk.Description,
+			ID:        tk.ID,
+			Type:      tk.Type,
+			Title:     tk.Title,
+			Body:      tk.Title + " " + tk.Description,
 			CreatedAt: tk.CreatedAt,
 			UpdatedAt: tk.UpdatedAt,
 			Fields: map[string]interface{}{

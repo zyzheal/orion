@@ -53,12 +53,16 @@ func (s *Service) hasRepo() bool {
 // ==================== Model Registry ====================
 
 func (s *Service) ListModels(ctx context.Context, tenantID string) ([]models.Model, error) {
-	if !s.hasRepo() { return []models.Model{}, nil }
+	if !s.hasRepo() {
+		return []models.Model{}, nil
+	}
 	return s.repo.ListModels(ctx, tenantID)
 }
 
 func (s *Service) GetModel(ctx context.Context, tenantID, id string) (*models.Model, error) {
-	if !s.hasRepo() { return nil, nil }
+	if !s.hasRepo() {
+		return nil, nil
+	}
 	return s.repo.GetModel(ctx, tenantID, id)
 }
 
@@ -70,17 +74,23 @@ func (s *Service) RegisterModel(ctx context.Context, tenantID string, req models
 }
 
 func (s *Service) UpdateModel(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Model, error) {
-	if !s.hasRepo() { return nil, nil }
+	if !s.hasRepo() {
+		return nil, nil
+	}
 	return s.repo.UpdateModel(ctx, tenantID, id, updates)
 }
 
 func (s *Service) DeleteModel(ctx context.Context, tenantID, id string) error {
-	if !s.hasRepo() { return nil }
+	if !s.hasRepo() {
+		return nil
+	}
 	return s.repo.DeleteModel(ctx, tenantID, id)
 }
 
 func (s *Service) DeregisterModel(ctx context.Context, tenantID, id string) error {
-	if !s.hasRepo() { return nil }
+	if !s.hasRepo() {
+		return nil
+	}
 	return s.repo.DeregisterModel(ctx, tenantID, id)
 }
 
@@ -148,26 +158,34 @@ func (s *Service) GetMetrics(ctx context.Context, tenantID, modelID string) (map
 // ==================== Experiments / Artifacts ====================
 
 func (s *Service) ListExperiments(ctx context.Context, tenantID, modelID string) ([]models.Experiment, error) {
-	if !s.hasRepo() { return []models.Experiment{}, nil }
+	if !s.hasRepo() {
+		return []models.Experiment{}, nil
+	}
 	return s.repo.ListExperimentsByModel(ctx, modelID)
 }
 
 func (s *Service) ListArtifacts(ctx context.Context, tenantID, modelID string) ([]models.Artifact, error) {
-	if !s.hasRepo() { return []models.Artifact{}, nil }
+	if !s.hasRepo() {
+		return []models.Artifact{}, nil
+	}
 	return s.repo.ListArtifactsByModel(ctx, modelID)
 }
 
 // ==================== Pipelines ====================
 
 func (s *Service) ListPipelines(ctx context.Context, tenantID string) ([]models.Pipeline, error) {
-	if !s.hasRepo() { return []models.Pipeline{}, nil }
+	if !s.hasRepo() {
+		return []models.Pipeline{}, nil
+	}
 	return s.repo.ListPipelines(ctx, tenantID)
 }
 
 // ==================== Metrics recording ====================
 
 func (s *Service) RecordMetric(ctx context.Context, tenantID, modelID string, req models.RecordMetricRequest) error {
-	if !s.hasRepo() { return nil }
+	if !s.hasRepo() {
+		return nil
+	}
 	return s.repo.RecordMetric(ctx, tenantID, modelID, req)
 }
 

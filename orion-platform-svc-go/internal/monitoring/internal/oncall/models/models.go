@@ -31,12 +31,12 @@ type Rotation struct {
 
 // EscalationPath defines the order of escalation.
 type EscalationPath struct {
-	ID          uuid.UUID `json:"id"`
-	ScheduleID  uuid.UUID `json:"schedule_id"`
-	Level       int       `json:"level"`
-	UserID      string    `json:"user_id"`
-	UserName    string    `json:"user_name"`
-	IsCurrent   bool      `json:"is_current"`
+	ID         uuid.UUID `json:"id"`
+	ScheduleID uuid.UUID `json:"schedule_id"`
+	Level      int       `json:"level"`
+	UserID     string    `json:"user_id"`
+	UserName   string    `json:"user_name"`
+	IsCurrent  bool      `json:"is_current"`
 }
 
 // CreateScheduleRequest for creating a schedule.
@@ -62,11 +62,11 @@ type ScheduleResponse struct {
 
 // CurrentOnCallResponse shows who is currently on-call.
 type CurrentOnCallResponse struct {
-	ScheduleID uuid.UUID `json:"schedule_id"`
-	ScheduleName string   `json:"schedule_name"`
-	UserID     string    `json:"user_id"`
-	UserName   string    `json:"user_name"`
-	StartDate  time.Time `json:"start_date"`
-	EndDate    time.Time `json:"end_date"`
-	Level      int       `json:"level"`
+	ScheduleID   uuid.UUID `json:"schedule_id"`
+	ScheduleName string    `json:"schedule_name"`
+	UserID       string    `json:"user_id"`
+	UserName     string    `json:"user_name"`
+	StartDate    time.Time `json:"start_date"`
+	EndDate      time.Time `json:"end_date"`
+	Level        int       `json:"level"`
 }

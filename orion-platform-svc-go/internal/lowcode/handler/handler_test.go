@@ -46,8 +46,8 @@ func (m *mockSvc) GetFlow(ctx context.Context, tenantID, id string) (*models.Low
 
 func (m *mockSvc) CreateFlow(ctx context.Context, tenantID, userID string, req *models.CreateFlowRequest) (*models.LowcodeFlow, error) {
 	f := &models.LowcodeFlow{
-		ID:     "flow-" + tenantID + req.Name,
-		Name:   req.Name,
+		ID:      "flow-" + tenantID + req.Name,
+		Name:    req.Name,
 		Version: req.Version,
 	}
 	if f.Version == "" {

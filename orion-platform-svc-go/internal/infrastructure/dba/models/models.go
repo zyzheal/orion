@@ -94,15 +94,15 @@ type QueryLog struct {
 
 // QueryResult represents a direct query response.
 type QueryResult struct {
-	Success         bool                    `json:"success"`
+	Success         bool                     `json:"success"`
 	Data            []map[string]interface{} `json:"data,omitempty"`
-	Columns         []string                `json:"columns,omitempty"`
-	RowCount        int                     `json:"row_count"`
-	ExecutionRecord *QueryLog               `json:"execution_record,omitempty"`
-	Error           string                  `json:"error,omitempty"`
+	Columns         []string                 `json:"columns,omitempty"`
+	RowCount        int                      `json:"row_count"`
+	ExecutionRecord *QueryLog                `json:"execution_record,omitempty"`
+	Error           string                   `json:"error,omitempty"`
 }
 type DirectQueryInput struct {
-    DatabaseID string            `json:"database_id"`
-    Query      string            `json:"query"`
-    Params     map[string]interface{} `json:"params,omitempty"`
+	DatabaseID string                 `json:"database_id"`
+	Query      string                 `json:"query"`
+	Params     map[string]interface{} `json:"params,omitempty"`
 }

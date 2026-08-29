@@ -19,22 +19,22 @@ type Graph struct {
 
 // CreateGraphRequest is the input for creating a new graph.
 type CreateGraphRequest struct {
-	Name        string                 `json:"name" binding:"required"`
-	Description string                 `json:"description"`
-	TemplateID  string                 `json:"template_id"`
-	Direction   string                 `json:"direction"`
-	Layout      string                 `json:"layout"`
-	Nodes       []GraphNodeRequest     `json:"nodes"`
-	Links       []GraphLinkRequest     `json:"links"`
+	Name        string             `json:"name" binding:"required"`
+	Description string             `json:"description"`
+	TemplateID  string             `json:"template_id"`
+	Direction   string             `json:"direction"`
+	Layout      string             `json:"layout"`
+	Nodes       []GraphNodeRequest `json:"nodes"`
+	Links       []GraphLinkRequest `json:"links"`
 }
 
 // UpdateGraphRequest is the input for updating an existing graph.
 type UpdateGraphRequest struct {
-	Name        *string                `json:"name"`
-	Description *string                `json:"description"`
-	Direction   *string                `json:"direction"`
-	Nodes       []GraphNodeRequest     `json:"nodes"`
-	Links       []GraphLinkRequest     `json:"links"`
+	Name        *string            `json:"name"`
+	Description *string            `json:"description"`
+	Direction   *string            `json:"direction"`
+	Nodes       []GraphNodeRequest `json:"nodes"`
+	Links       []GraphLinkRequest `json:"links"`
 }
 
 // GraphNodeRequest carries node data for create/update.
@@ -71,10 +71,10 @@ type GraphPoint struct {
 
 // BuildRequest carries parameters for building a graph from a template.
 type BuildRequest struct {
-	TemplateID string                  `json:"template_id" binding:"required"`
-	Name       string                  `json:"name"`
+	TemplateID string                   `json:"template_id" binding:"required"`
+	Name       string                   `json:"name"`
 	Nodes      map[string]GraphNodeData `json:"nodes"`
-	Edges      []GraphEdgeData         `json:"edges"`
+	Edges      []GraphEdgeData          `json:"edges"`
 }
 
 // GraphNodeData is simplified node data for template building.

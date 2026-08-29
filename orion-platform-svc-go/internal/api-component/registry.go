@@ -21,7 +21,7 @@ import (
 
 // Registry is a thread-safe collection of APIComponent instances.
 type Registry struct {
-	mu       sync.RWMutex
+	mu         sync.RWMutex
 	components map[string]*APIComponent
 	// registration order for deterministic iteration
 	order []string

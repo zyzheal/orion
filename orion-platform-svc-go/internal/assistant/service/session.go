@@ -78,9 +78,9 @@ func (s *InMemorySessionStore) Delete(_ context.Context, sessionID, tenantID str
 // SessionManager wraps the store and exposes session lifecycle operations
 // that the assistant Service uses to maintain multi-turn context.
 type SessionManager struct {
-	store       SessionStore
-	maxTurns    int
-	maxAge      time.Duration
+	store    SessionStore
+	maxTurns int
+	maxAge   time.Duration
 }
 
 // NewSessionManager creates a manager with the given store.

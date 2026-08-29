@@ -64,9 +64,9 @@ func (e *PipelineExecutor) Execute(ctx context.Context, tenantID string, req *mo
 	}
 
 	payload := map[string]interface{}{
-		"task": req.Prompt,
+		"task":  req.Prompt,
 		"title": req.Title,
-		"desc": req.Description,
+		"desc":  req.Description,
 	}
 
 	totalSteps := 3

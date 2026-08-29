@@ -1,10 +1,10 @@
 package handler
 
 import (
-	"orion/platform-svc-go/internal/oci-registry/models"
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"orion/platform-svc-go/internal/oci-registry/models"
 	"testing"
 
 	"orion/platform-svc-go/internal/oci-registry/service"
@@ -24,6 +24,7 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	c.Request = httptest.NewRequest(method, path, nil)
 	return c, w
 }
+
 type fakeOciRegistryService struct{}
 
 func (f *fakeOciRegistryService) ToggleRegistry(ctx context.Context, tenantID, registryID string, req *models.ToggleRegistryRequest) (*models.OciRegistry, error) {
@@ -34,7 +35,7 @@ func (f *fakeOciRegistryService) ListTags(ctx context.Context, tenantID, registr
 	return &models.TagsResponse{}, nil
 }
 
-func (f *fakeOciRegistryService) DeleteImage(ctx context.Context, tenantID, registryID, name, digest string) (error) {
+func (f *fakeOciRegistryService) DeleteImage(ctx context.Context, tenantID, registryID, name, digest string) error {
 	return nil
 }
 
@@ -54,12 +55,11 @@ func (f *fakeOciRegistryService) Update(ctx context.Context, tenantID, id string
 	return &models.OciRegistry{}, nil
 }
 
-func (f *fakeOciRegistryService) Delete(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeOciRegistryService) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
 var _ service.ServiceInterface = (*fakeOciRegistryService)(nil)
-
 
 func TestHandler_OCI_REGISTRY_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/infrastructure/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/infrastructure/models"
 )
 
@@ -104,7 +104,6 @@ func (f *fakeInfrastructureService) UnregisterConnector(ctx context.Context, ten
 }
 
 var _ service.ServiceInterface = (*fakeInfrastructureService)(nil)
-
 
 func TestHandler_INFRASTRUCTURE_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/api-consumption/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/api-consumption/models"
 )
 
@@ -71,7 +71,6 @@ func (f *fakeApi_consumptionService) UpdateLimit(ctx context.Context, tenantID, 
 }
 
 var _ service.ServiceInterface = (*fakeApi_consumptionService)(nil)
-
 
 func TestAPI_CONSUMPTION_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

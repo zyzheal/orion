@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/cost-allocation/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/cost-allocation/models"
 )
 
@@ -95,7 +95,6 @@ func (f *fakeCost_allocationService) UpdateAllocation(ctx context.Context, tenan
 }
 
 var _ service.ServiceInterface = (*fakeCost_allocationService)(nil)
-
 
 func TestCOST_ALLOCATION_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

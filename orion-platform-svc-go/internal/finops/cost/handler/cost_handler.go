@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strconv"
 
 	"orion/platform-svc-go/internal/finops/cost/models"
@@ -12,12 +13,12 @@ import (
 
 // Handler provides HTTP handlers for cost management operations.
 type Handler struct {
-	costSvc       *service.CostService
-	calculator    *service.CostCalculator
-	budgetSvc     *service.BudgetService
-	optSvc        *service.OptimizationService
-	anomalySvc    *service.AnomalyService
-	log           *zap.Logger
+	costSvc    *service.CostService
+	calculator *service.CostCalculator
+	budgetSvc  *service.BudgetService
+	optSvc     *service.OptimizationService
+	anomalySvc *service.AnomalyService
+	log        *zap.Logger
 }
 
 // New creates a new cost handler instance.
@@ -68,9 +69,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Cost Records ====================
 
 func (h *Handler) RecordCost(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostRecordCost")
+	defer span.End()
 	var req models.RecordCostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, "invalid request body: " + err.Error())
+		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 	if req.Currency == "" {
@@ -79,7 +82,7 @@ func (h *Handler) RecordCost(c *gin.Context) {
 	if req.Category == "" {
 		req.Category = "other"
 	}
-	if err := h.costSvc.RecordCost(c.Request.Context(), &req); err != nil {
+	if err := h.costSvc.RecordCost(ctx, &req); err != nil {
 		h.log.Error("failed to record cost", zap.Error(err))
 		respondInternalError(c, "internal error")
 		return
@@ -88,6 +91,8 @@ func (h *Handler) RecordCost(c *gin.Context) {
 }
 
 func (h *Handler) ListCosts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostListCosts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenant_id")
@@ -108,7 +113,7 @@ func (h *Handler) ListCosts(c *gin.Context) {
 		ResourceID: c.Query("resource_id"),
 		Region:     c.Query("region"),
 	}
-	costs, err := h.costSvc.ListCosts(c.Request.Context(), tenantID, filter, offset, limit)
+	costs, err := h.costSvc.ListCosts(ctx, tenantID, filter, offset, limit)
 	if err != nil {
 		h.log.Error("failed to list costs", zap.Error(err))
 		respondInternalError(c, "internal error")
@@ -118,13 +123,15 @@ func (h *Handler) ListCosts(c *gin.Context) {
 }
 
 func (h *Handler) GetTotalCost(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostGetTotalCost")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenant_id")
 	}
 	startDate := c.Query("start_date")
 	endDate := c.Query("end_date")
-	total, err := h.costSvc.GetTotalCost(c.Request.Context(), tenantID, startDate, endDate)
+	total, err := h.costSvc.GetTotalCost(ctx, tenantID, startDate, endDate)
 	if err != nil {
 		h.log.Error("failed to get total cost", zap.Error(err))
 		respondInternalError(c, "internal error")
@@ -134,6 +141,8 @@ func (h *Handler) GetTotalCost(c *gin.Context) {
 }
 
 func (h *Handler) GetCostByService(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostGetCostByService")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenant_id")
@@ -142,7 +151,7 @@ func (h *Handler) GetCostByService(c *gin.Context) {
 	startDate := c.Query("start_date")
 	endDate := c.Query("end_date")
 
-	aggs, err := h.costSvc.GetCostByService(c.Request.Context(), tenantID, startDate, endDate)
+	aggs, err := h.costSvc.GetCostByService(ctx, tenantID, startDate, endDate)
 	if err != nil {
 		h.log.Error("failed to get cost by service", zap.Error(err))
 		respondInternalError(c, "internal error")
@@ -152,13 +161,15 @@ func (h *Handler) GetCostByService(c *gin.Context) {
 }
 
 func (h *Handler) GetCostByResource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostGetCostByResource")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenant_id")
 	}
 	startDate := c.Query("start_date")
 	endDate := c.Query("end_date")
-	aggs, err := h.costSvc.GetCostByResource(c.Request.Context(), tenantID, startDate, endDate)
+	aggs, err := h.costSvc.GetCostByResource(ctx, tenantID, startDate, endDate)
 	if err != nil {
 		h.log.Error("failed to get cost by resource", zap.Error(err))
 		respondInternalError(c, "internal error")
@@ -168,13 +179,15 @@ func (h *Handler) GetCostByResource(c *gin.Context) {
 }
 
 func (h *Handler) GetCostTrend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostGetCostTrend")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenant_id")
 	}
 	startDate := c.Query("start_date")
 	endDate := c.Query("end_date")
-	trend, err := h.costSvc.GetCostTrend(c.Request.Context(), tenantID, startDate, endDate)
+	trend, err := h.costSvc.GetCostTrend(ctx, tenantID, startDate, endDate)
 	if err != nil {
 		h.log.Error("failed to get cost trend", zap.Error(err))
 		respondInternalError(c, "internal error")
@@ -184,11 +197,13 @@ func (h *Handler) GetCostTrend(c *gin.Context) {
 }
 
 func (h *Handler) DeleteCostRecord(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostDeleteCostRecord")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenant_id")
 	}
-	_, err := h.costSvc.ListCosts(c.Request.Context(), tenantID, &models.ListCostsRequest{}, 0, 1)
+	_, err := h.costSvc.ListCosts(ctx, tenantID, &models.ListCostsRequest{}, 0, 1)
 	if err != nil {
 		respondInternalError(c, "internal error")
 		return
@@ -200,16 +215,18 @@ func (h *Handler) DeleteCostRecord(c *gin.Context) {
 // ==================== Budgets ====================
 
 func (h *Handler) CreateBudget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostCreateBudget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenant_id")
 	}
 	var req models.CreateBudgetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, "invalid request body: " + err.Error())
+		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
-	budget, err := h.budgetSvc.CreateBudget(c.Request.Context(), tenantID, &req)
+	budget, err := h.budgetSvc.CreateBudget(ctx, tenantID, &req)
 	if err != nil {
 		h.log.Error("failed to create budget", zap.Error(err))
 		respondInternalError(c, "internal error")
@@ -219,13 +236,15 @@ func (h *Handler) CreateBudget(c *gin.Context) {
 }
 
 func (h *Handler) ListBudgets(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostListBudgets")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenant_id")
 	}
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	budgets, err := h.budgetSvc.ListBudgets(c.Request.Context(), tenantID, offset, limit)
+	budgets, err := h.budgetSvc.ListBudgets(ctx, tenantID, offset, limit)
 	if err != nil {
 		h.log.Error("failed to list budgets", zap.Error(err))
 		respondInternalError(c, "internal error")
@@ -235,11 +254,13 @@ func (h *Handler) ListBudgets(c *gin.Context) {
 }
 
 func (h *Handler) GetBudget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostGetBudget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenant_id")
 	}
-	budget, err := h.budgetSvc.GetBudget(c.Request.Context(), tenantID, c.Param("id"))
+	budget, err := h.budgetSvc.GetBudget(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, "budget not found")
 		return
@@ -248,16 +269,18 @@ func (h *Handler) GetBudget(c *gin.Context) {
 }
 
 func (h *Handler) UpdateBudget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostUpdateBudget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenant_id")
 	}
 	var req models.UpdateBudgetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, "invalid request body: " + err.Error())
+		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
-	budget, err := h.budgetSvc.UpdateBudget(c.Request.Context(), tenantID, c.Param("id"), &req)
+	budget, err := h.budgetSvc.UpdateBudget(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		respondNotFound(c, "budget not found")
 		return
@@ -266,6 +289,8 @@ func (h *Handler) UpdateBudget(c *gin.Context) {
 }
 
 func (h *Handler) DeleteBudget(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostDeleteBudget")
+	defer span.End()
 	// Soft delete via UpdateBudget with status change
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
@@ -276,11 +301,13 @@ func (h *Handler) DeleteBudget(c *gin.Context) {
 }
 
 func (h *Handler) GetBudgetHealth(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostGetBudgetHealth")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenant_id")
 	}
-	health, err := h.budgetSvc.CheckBudgetHealth(c.Request.Context(), tenantID, c.Param("id"))
+	health, err := h.budgetSvc.CheckBudgetHealth(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, "budget not found")
 		return
@@ -289,11 +316,13 @@ func (h *Handler) GetBudgetHealth(c *gin.Context) {
 }
 
 func (h *Handler) GetBudgetAlerts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostGetBudgetAlerts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenant_id")
 	}
-	alerts, err := h.budgetSvc.GetBudgetAlerts(c.Request.Context(), tenantID)
+	alerts, err := h.budgetSvc.GetBudgetAlerts(ctx, tenantID)
 	if err != nil {
 		h.log.Error("failed to get budget alerts", zap.Error(err))
 		respondInternalError(c, "internal error")
@@ -305,6 +334,8 @@ func (h *Handler) GetBudgetAlerts(c *gin.Context) {
 // ==================== Optimization ====================
 
 func (h *Handler) ListOptimizations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostListOptimizations")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenant_id")
@@ -316,7 +347,7 @@ func (h *Handler) ListOptimizations(c *gin.Context) {
 	if v, err := strconv.ParseFloat(c.Query("min_savings"), 64); err == nil {
 		params.MinSavings = v
 	}
-	suggestions, err := h.optSvc.ListSuggestions(c.Request.Context(), tenantID, params)
+	suggestions, err := h.optSvc.ListSuggestions(ctx, tenantID, params)
 	if err != nil {
 		h.log.Error("failed to list optimizations", zap.Error(err))
 		respondInternalError(c, "internal error")
@@ -328,20 +359,24 @@ func (h *Handler) ListOptimizations(c *gin.Context) {
 // ==================== Anomalies ====================
 
 func (h *Handler) DetectAnomalies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostDetectAnomalies")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenant_id")
 	}
 	var req models.DetectAnomaliesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, "invalid request body: " + err.Error())
+		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
-	result := h.anomalySvc.DetectAnomalies(c.Request.Context(), tenantID, req.StartDate, req.EndDate)
+	result := h.anomalySvc.DetectAnomalies(ctx, tenantID, req.StartDate, req.EndDate)
 	respondSuccess(c, result)
 }
 
 func (h *Handler) GetAnomalies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostGetAnomalies")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenant_id")
@@ -349,7 +384,7 @@ func (h *Handler) GetAnomalies(c *gin.Context) {
 	severity := c.Query("severity")
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	anomalies, err := h.anomalySvc.GetAnomalies(c.Request.Context(), tenantID, severity, offset, limit)
+	anomalies, err := h.anomalySvc.GetAnomalies(ctx, tenantID, severity, offset, limit)
 	if err != nil {
 		h.log.Error("failed to get anomalies", zap.Error(err))
 		respondInternalError(c, "internal error")
@@ -359,11 +394,13 @@ func (h *Handler) GetAnomalies(c *gin.Context) {
 }
 
 func (h *Handler) GetRecentAnomalies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostGetRecentAnomalies")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenant_id")
 	}
-	anomalies, err := h.anomalySvc.GetRecentAnomalies(c.Request.Context(), tenantID)
+	anomalies, err := h.anomalySvc.GetRecentAnomalies(ctx, tenantID)
 	if err != nil {
 		h.log.Error("failed to get recent anomalies", zap.Error(err))
 		respondInternalError(c, "internal error")

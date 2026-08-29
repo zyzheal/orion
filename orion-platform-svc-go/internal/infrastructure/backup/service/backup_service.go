@@ -29,7 +29,7 @@ var backupTracer = otel.Tracer("orion-backup-svc/service")
 
 // BackupService handles all business logic for backup plans, records, and storage.
 type BackupService struct {
-	repo     *repository.BackupRepository
+	repo      *repository.BackupRepository
 	scheduler *Scheduler
 	verifier  *Verifier
 	logger    *zap.Logger
@@ -37,7 +37,7 @@ type BackupService struct {
 
 func NewBackupService(repo *repository.BackupRepository, logger *zap.Logger) *BackupService {
 	svc := &BackupService{
-		repo:  repo,
+		repo:   repo,
 		logger: logger,
 	}
 	svc.scheduler = NewScheduler(svc, logger)
@@ -306,12 +306,12 @@ func (s *BackupService) GetBackupStats(ctx context.Context, tenantID string) (ma
 	}
 
 	return map[string]interface{}{
-		"total_backups":      len(backups),
-		"completed_backups":  completedCount,
-		"failed_backups":     failedCount,
-		"verified_backups":   verifiedCount,
-		"running_backups":    runningCount,
-		"total_size_bytes":   totalSize,
-		"last_completed_at":  lastCompleted,
+		"total_backups":     len(backups),
+		"completed_backups": completedCount,
+		"failed_backups":    failedCount,
+		"verified_backups":  verifiedCount,
+		"running_backups":   runningCount,
+		"total_size_bytes":  totalSize,
+		"last_completed_at": lastCompleted,
 	}, nil
 }

@@ -5,9 +5,10 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai/task-executor/models"
 	"orion/platform-svc-go/internal/ai/task-executor/service"
-	"orion/go-common/pkg/auth"
 )
 
 type TaskExecutorHandler struct {
@@ -34,12 +35,14 @@ func (h *TaskExecutorHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // ListTasks returns paginated tasks.
 func (h *TaskExecutorHandler) ListTasks(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AITaskExecListTasks")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	status := c.Query("status")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	resp, err := h.svc.QueryTasks(c.Request.Context(), tenantID, status, limit, offset)
+	resp, err := h.svc.QueryTasks(ctx, tenantID, status, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -49,6 +52,8 @@ func (h *TaskExecutorHandler) ListTasks(c *gin.Context) {
 
 // CreateTask creates a new task.
 func (h *TaskExecutorHandler) CreateTask(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AITaskExecCreateTask")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req models.CreateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -56,7 +61,7 @@ func (h *TaskExecutorHandler) CreateTask(c *gin.Context) {
 		return
 	}
 
-	task, err := h.svc.CreateTask(c.Request.Context(), tenantID, &req)
+	task, err := h.svc.CreateTask(ctx, tenantID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -66,10 +71,12 @@ func (h *TaskExecutorHandler) CreateTask(c *gin.Context) {
 
 // GetTask returns a task by ID.
 func (h *TaskExecutorHandler) GetTask(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AITaskExecGetTask")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id := c.Param("id")
 
-	task, err := h.svc.GetTask(c.Request.Context(), tenantID, id)
+	task, err := h.svc.GetTask(ctx, tenantID, id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		return
@@ -79,6 +86,8 @@ func (h *TaskExecutorHandler) GetTask(c *gin.Context) {
 
 // ExecuteTask executes a task.
 func (h *TaskExecutorHandler) ExecuteTask(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AITaskExecExecute")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id := c.Param("id")
 
@@ -89,7 +98,7 @@ func (h *TaskExecutorHandler) ExecuteTask(c *gin.Context) {
 		req.Input = map[string]interface{}{}
 	}
 
-	task, err := h.svc.ExecuteTask(c.Request.Context(), tenantID, &req)
+	task, err := h.svc.ExecuteTask(ctx, tenantID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -99,10 +108,12 @@ func (h *TaskExecutorHandler) ExecuteTask(c *gin.Context) {
 
 // CancelTask cancels a task.
 func (h *TaskExecutorHandler) CancelTask(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AITaskExecCancel")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id := c.Param("id")
 
-	task, err := h.svc.CancelTask(c.Request.Context(), tenantID, id)
+	task, err := h.svc.CancelTask(ctx, tenantID, id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		return

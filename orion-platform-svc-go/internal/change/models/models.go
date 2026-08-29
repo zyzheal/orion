@@ -177,13 +177,13 @@ type ChangeStats struct {
 
 // ChangeRiskAnalysis is the AI-assisted risk assessment for a change request.
 type ChangeRiskAnalysis struct {
-	ChangeID    string          `json:"change_id"`
-	Title       string          `json:"title"`
-	RiskScore   int             `json:"risk_score"`   // 0-100
-	RiskLevel   string          `json:"risk_level"`   // low / medium / high
-	Factors     []RiskFactor    `json:"factors"`
-	Suggestions []string        `json:"suggestions"`
-	GeneratedAt time.Time       `json:"generated_at"`
+	ChangeID    string       `json:"change_id"`
+	Title       string       `json:"title"`
+	RiskScore   int          `json:"risk_score"` // 0-100
+	RiskLevel   string       `json:"risk_level"` // low / medium / high
+	Factors     []RiskFactor `json:"factors"`
+	Suggestions []string     `json:"suggestions"`
+	GeneratedAt time.Time    `json:"generated_at"`
 }
 
 // RiskFactor is one contributing dimension of a change's risk.

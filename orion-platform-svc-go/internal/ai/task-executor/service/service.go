@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"orion/platform-svc-go/internal/ai/task-executor/models"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/ai/task-executor/models"
 )
 
 type TaskExecutorService struct {
@@ -167,10 +167,10 @@ func (s *TaskExecutorService) QueryTasks(ctx context.Context, tenantID string, s
 	for _, task := range s.tasks {
 		if task.TenantID != tenantID {
 			continue
-	}
+		}
 		if status != "" && task.Status != status {
 			continue
-	}
+		}
 		resp.Data = append(resp.Data, *task)
 	}
 	resp.Total = int64(len(resp.Data))

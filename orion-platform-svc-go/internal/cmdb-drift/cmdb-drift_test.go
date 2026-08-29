@@ -207,12 +207,12 @@ func TestCmdbDrift_PackageAvailable(t *testing.T) {
 
 	// Verify request types.
 	createReq := models.CreateDriftRequest{
-		CIID:          "ci-1",
-		CIName:        "test-svc",
-		CIType:        "service",
-		Environment:   "prod",
-		DriftType:     models.DriftTypeCIMissing,
-		Severity:      models.SeverityWarning,
+		CIID:        "ci-1",
+		CIName:      "test-svc",
+		CIType:      "service",
+		Environment: "prod",
+		DriftType:   models.DriftTypeCIMissing,
+		Severity:    models.SeverityWarning,
 	}
 	if createReq.CIID != "ci-1" {
 		t.Error("CreateDriftRequest fields incorrect")

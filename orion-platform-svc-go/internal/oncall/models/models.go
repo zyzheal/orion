@@ -31,12 +31,12 @@ type Rotation struct {
 
 // EscalationPath defines the order of escalation.
 type EscalationPath struct {
-	ID          uuid.UUID `json:"id"`
-	ScheduleID  uuid.UUID `json:"schedule_id"`
-	Level       int       `json:"level"`
-	UserID      string    `json:"user_id"`
-	UserName    string    `json:"user_name"`
-	IsCurrent   bool      `json:"is_current"`
+	ID         uuid.UUID `json:"id"`
+	ScheduleID uuid.UUID `json:"schedule_id"`
+	Level      int       `json:"level"`
+	UserID     string    `json:"user_id"`
+	UserName   string    `json:"user_name"`
+	IsCurrent  bool      `json:"is_current"`
 }
 
 // CreateScheduleRequest for creating a schedule.
@@ -62,13 +62,13 @@ type ScheduleResponse struct {
 
 // CurrentOnCallResponse shows who is currently on-call.
 type CurrentOnCallResponse struct {
-	ScheduleID uuid.UUID `json:"schedule_id"`
-	ScheduleName string   `json:"schedule_name"`
-	UserID     string    `json:"user_id"`
-	UserName   string    `json:"user_name"`
-	StartDate  time.Time `json:"start_date"`
-	EndDate    time.Time `json:"end_date"`
-	Level      int       `json:"level"`
+	ScheduleID   uuid.UUID `json:"schedule_id"`
+	ScheduleName string    `json:"schedule_name"`
+	UserID       string    `json:"user_id"`
+	UserName     string    `json:"user_name"`
+	StartDate    time.Time `json:"start_date"`
+	EndDate      time.Time `json:"end_date"`
+	Level        int       `json:"level"`
 }
 
 // ---------------------------------------------------------------------------
@@ -89,17 +89,17 @@ type Assignment struct {
 
 // CreateAssignmentRequest for creating an assignment.
 type CreateAssignmentRequest struct {
-	UserID    string    `json:"user_id" binding:"required"`
-	UserName  string    `json:"user_name" binding:"required"`
+	UserID     string    `json:"user_id" binding:"required"`
+	UserName   string    `json:"user_name" binding:"required"`
 	ScheduleID uuid.UUID `json:"schedule_id" binding:"required"`
-	StartDate time.Time `json:"start_date" binding:"required"`
-	EndDate   time.Time `json:"end_date" binding:"required"`
+	StartDate  time.Time `json:"start_date" binding:"required"`
+	EndDate    time.Time `json:"end_date" binding:"required"`
 }
 
 // UpdateAssignmentRequest for partially updating an assignment.
 type UpdateAssignmentRequest struct {
-	UserID    *string   `json:"user_id"`
-	UserName  *string   `json:"user_name"`
+	UserID    *string    `json:"user_id"`
+	UserName  *string    `json:"user_name"`
 	StartDate *time.Time `json:"start_date"`
 	EndDate   *time.Time `json:"end_date"`
 }
@@ -123,12 +123,12 @@ type Override struct {
 
 // CreateOverrideRequest for creating an override.
 type CreateOverrideRequest struct {
-	UserID    string    `json:"user_id" binding:"required"`
-	UserName  string    `json:"user_name" binding:"required"`
+	UserID     string    `json:"user_id" binding:"required"`
+	UserName   string    `json:"user_name" binding:"required"`
 	ScheduleID uuid.UUID `json:"schedule_id" binding:"required"`
-	Reason    string    `json:"reason"`
-	StartDate time.Time `json:"start_date" binding:"required"`
-	EndDate   time.Time `json:"end_date" binding:"required"`
+	Reason     string    `json:"reason"`
+	StartDate  time.Time `json:"start_date" binding:"required"`
+	EndDate    time.Time `json:"end_date" binding:"required"`
 }
 
 // UpdateOverrideRequest for partially updating an override.

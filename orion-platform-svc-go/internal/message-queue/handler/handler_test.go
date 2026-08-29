@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/message-queue/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/message-queue/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeMessage_queueService) Update(ctx context.Context, tenantID, id stri
 }
 
 var _ service.ServiceInterface = (*fakeMessage_queueService)(nil)
-
 
 func TestHandler_MESSAGE_QUEUE_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

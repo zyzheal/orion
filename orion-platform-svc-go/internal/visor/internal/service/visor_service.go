@@ -15,9 +15,9 @@ import (
 )
 
 var (
-	ErrNotFound         = errors.New("resource not found")
-	ErrInvalidInput     = errors.New("invalid input")
-	ErrAlreadyExists    = errors.New("resource already exists")
+	ErrNotFound          = errors.New("resource not found")
+	ErrInvalidInput      = errors.New("invalid input")
+	ErrAlreadyExists     = errors.New("resource already exists")
 	ErrDashboardNotFound = errors.New("dashboard not found")
 )
 

@@ -43,9 +43,9 @@ func (r *Repository) SaveMetrics(ctx context.Context, m *models.CacheMetrics) er
 		 :memory_used, :memory_total, :hit_count, :miss_count, :eviction_count, :key_count,
 		 :expiration_count, :avg_latency_ms, :p95_latency_ms, :status, :last_collected_at, :created_at)`,
 		map[string]interface{}{
-			"id":                id,
-			"cache_name":        m.Name,
-			"cache_type":        m.Type,
+			"id":                 id,
+			"cache_name":         m.Name,
+			"cache_type":         m.Type,
 			"connections_active": int64(m.ConnectionsActive),
 			"connections_total":  int64(m.ConnectionsTotal),
 			"memory_used":        m.MemoryUsed,
@@ -122,15 +122,15 @@ func (r *Repository) SaveConfig(ctx context.Context, cfg *models.CacheConfig) er
 		 is_enabled = EXCLUDED.is_enabled,
 		 updated_at = EXCLUDED.updated_at`,
 		map[string]interface{}{
-			"id":                     id,
-			"cache_name":             cfg.Name,
-			"cache_type":             cfg.Type,
-			"host":                   cfg.Host,
-			"port":                   cfg.Port,
+			"id":                      id,
+			"cache_name":              cfg.Name,
+			"cache_type":              cfg.Type,
+			"host":                    cfg.Host,
+			"port":                    cfg.Port,
 			"collection_interval_sec": cfg.CollectionInterval,
-			"is_enabled":             cfg.IsEnabled,
-			"created_at":             now,
-			"updated_at":             now,
+			"is_enabled":              cfg.IsEnabled,
+			"created_at":              now,
+			"updated_at":              now,
 		})
 	return err
 }

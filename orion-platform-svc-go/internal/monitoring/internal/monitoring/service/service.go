@@ -9,8 +9,8 @@ import (
 	"net/url"
 	"time"
 
-	"orion/platform-svc-go/internal/monitoring/internal/monitoring/models"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/monitoring/internal/monitoring/models"
 )
 
 type MonitoringService struct {
@@ -33,18 +33,18 @@ func NewMonitoringService(prometheusURL string, logger *zap.Logger) *MonitoringS
 
 func (s *MonitoringService) initPredefinedMetrics() {
 	s.predefined = map[string]*models.PredefinedMetric{
-		"cpu":           {ID: "cpu", Name: "CPU Usage", Description: "Rate of process CPU seconds", PromQL: "rate(process_cpu_seconds_total[5m])"},
-		"memory":        {ID: "memory", Name: "Memory Usage", Description: "Process resident memory bytes", PromQL: "process_resident_memory_bytes"},
-		"requests":      {ID: "requests", Name: "Request Rate", Description: "Rate of HTTP requests", PromQL: "rate(http_requests_total[5m])"},
-		"errors":        {ID: "errors", Name: "Error Rate", Description: "Rate of 5xx errors", PromQL: "rate(http_requests_total{status=~\"5..\"}[5m])"},
-		"latency_p95":   {ID: "latency_p95", Name: "P95 Latency", Description: "95th percentile latency", PromQL: "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))"},
-		"latency_p99":   {ID: "latency_p99", Name: "P99 Latency", Description: "99th percentile latency", PromQL: "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))"},
-		"up":            {ID: "up", Name: "Target Up", Description: "Target availability", PromQL: "up"},
-		"goroutines":    {ID: "goroutines", Name: "Goroutines", Description: "Number of goroutines", PromQL: "go_goroutines"},
-		"memory_heap":   {ID: "memory_heap", Name: "Heap Memory", Description: "Heap memory usage", PromQL: "go_memstats_alloc_bytes"},
-		"gc_pause":      {ID: "gc_pause", Name: "GC Pause", Description: "GC pause time", PromQL: "rate(go_gc_duration_seconds_sum[5m]) / rate(go_gc_duration_seconds_count[5m])"},
-		"disk_usage":    {ID: "disk_usage", Name: "Disk Usage", Description: "Disk usage percentage", PromQL: "node_filesystem_avail_bytes / node_filesystem_size_bytes * 100"},
-		"network_in":    {ID: "network_in", Name: "Network In", Description: "Network bytes received", PromQL: "rate(node_network_receive_bytes_total[5m])"},
+		"cpu":         {ID: "cpu", Name: "CPU Usage", Description: "Rate of process CPU seconds", PromQL: "rate(process_cpu_seconds_total[5m])"},
+		"memory":      {ID: "memory", Name: "Memory Usage", Description: "Process resident memory bytes", PromQL: "process_resident_memory_bytes"},
+		"requests":    {ID: "requests", Name: "Request Rate", Description: "Rate of HTTP requests", PromQL: "rate(http_requests_total[5m])"},
+		"errors":      {ID: "errors", Name: "Error Rate", Description: "Rate of 5xx errors", PromQL: "rate(http_requests_total{status=~\"5..\"}[5m])"},
+		"latency_p95": {ID: "latency_p95", Name: "P95 Latency", Description: "95th percentile latency", PromQL: "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))"},
+		"latency_p99": {ID: "latency_p99", Name: "P99 Latency", Description: "99th percentile latency", PromQL: "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))"},
+		"up":          {ID: "up", Name: "Target Up", Description: "Target availability", PromQL: "up"},
+		"goroutines":  {ID: "goroutines", Name: "Goroutines", Description: "Number of goroutines", PromQL: "go_goroutines"},
+		"memory_heap": {ID: "memory_heap", Name: "Heap Memory", Description: "Heap memory usage", PromQL: "go_memstats_alloc_bytes"},
+		"gc_pause":    {ID: "gc_pause", Name: "GC Pause", Description: "GC pause time", PromQL: "rate(go_gc_duration_seconds_sum[5m]) / rate(go_gc_duration_seconds_count[5m])"},
+		"disk_usage":  {ID: "disk_usage", Name: "Disk Usage", Description: "Disk usage percentage", PromQL: "node_filesystem_avail_bytes / node_filesystem_size_bytes * 100"},
+		"network_in":  {ID: "network_in", Name: "Network In", Description: "Network bytes received", PromQL: "rate(node_network_receive_bytes_total[5m])"},
 	}
 }
 

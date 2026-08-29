@@ -8,8 +8,8 @@ import (
 	"orion/platform-svc-go/internal/artifact/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -233,7 +233,7 @@ func (h *Handler) Download(c *gin.Context) {
 			middleware.RespondNotFound(c, "artifact not found")
 			return
 		}
-	middleware.RespondForbidden(c, err.Error())
+		middleware.RespondForbidden(c, err.Error())
 		return
 	}
 	middleware.RespondSuccess(c, gin.H{"artifact": m, "storage_path": m.StoragePath})

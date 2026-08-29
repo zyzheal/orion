@@ -31,8 +31,8 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrPluginNotFound  = errors.New("plugin not found")
-	ErrPluginDisabled  = errors.New("plugin is disabled")
+	ErrPluginNotFound   = errors.New("plugin not found")
+	ErrPluginDisabled   = errors.New("plugin is disabled")
 	ErrAlreadyInstalled = errors.New("plugin already installed")
 )
 
@@ -71,24 +71,24 @@ func (s *Service) PublishPlugin(ctx context.Context, tenantID string, req *model
 	}
 
 	p := &models.Plugin{
-		TenantID:          tenantID,
-		Name:              req.Name,
-		Description:       sql.NullString{String: req.Description, Valid: req.Description != ""},
-		Author:            sql.NullString{String: req.Author, Valid: req.Author != ""},
-		Category:          sql.NullString{String: req.Category, Valid: req.Category != ""},
-		Version:           req.Version,
-		Tags:              sql.NullString{String: tagsJSON, Valid: tagsJSON != ""},
-		IconURL:           sql.NullString{String: req.IconURL, Valid: req.IconURL != ""},
-		RepositoryURL:     sql.NullString{String: req.RepositoryURL, Valid: req.RepositoryURL != ""},
-		DocumentationURL:  sql.NullString{String: req.DocumentationURL, Valid: req.DocumentationURL != ""},
-		PriceCents:        priceCents,
-		MainEntry:         sql.NullString{String: req.MainEntry, Valid: req.MainEntry != ""},
-		Code:              sql.NullString{String: req.Code, Valid: req.Code != ""},
-		Dependencies:      sql.NullString{String: depsJSON, Valid: depsJSON != ""},
+		TenantID:           tenantID,
+		Name:               req.Name,
+		Description:        sql.NullString{String: req.Description, Valid: req.Description != ""},
+		Author:             sql.NullString{String: req.Author, Valid: req.Author != ""},
+		Category:           sql.NullString{String: req.Category, Valid: req.Category != ""},
+		Version:            req.Version,
+		Tags:               sql.NullString{String: tagsJSON, Valid: tagsJSON != ""},
+		IconURL:            sql.NullString{String: req.IconURL, Valid: req.IconURL != ""},
+		RepositoryURL:      sql.NullString{String: req.RepositoryURL, Valid: req.RepositoryURL != ""},
+		DocumentationURL:   sql.NullString{String: req.DocumentationURL, Valid: req.DocumentationURL != ""},
+		PriceCents:         priceCents,
+		MainEntry:          sql.NullString{String: req.MainEntry, Valid: req.MainEntry != ""},
+		Code:               sql.NullString{String: req.Code, Valid: req.Code != ""},
+		Dependencies:       sql.NullString{String: depsJSON, Valid: depsJSON != ""},
 		PlatformAPIVersion: sql.NullString{String: req.PlatformAPIVersion, Valid: req.PlatformAPIVersion != ""},
-		Permissions:       sql.NullString{String: permsJSON, Valid: permsJSON != ""},
-		ConfigSchema:      sql.NullString{String: schemaJSON, Valid: schemaJSON != ""},
-		Status:            models.PluginStatusActive,
+		Permissions:        sql.NullString{String: permsJSON, Valid: permsJSON != ""},
+		ConfigSchema:       sql.NullString{String: schemaJSON, Valid: schemaJSON != ""},
+		Status:             models.PluginStatusActive,
 	}
 
 	if err := s.repo.CreatePlugin(ctx, p); err != nil {
@@ -194,10 +194,10 @@ func (s *Service) GetQualityScore(ctx context.Context, pluginID string) (*models
 	}
 
 	return &models.QualityScoreResponse{
-		PluginID:         pluginID,
-		OverallScore:     int(qs.Score),
-		SecurityScore:    int(qs.Security),
-		ReliabilityScore: int(qs.CodeQuality),
+		PluginID:             pluginID,
+		OverallScore:         int(qs.Score),
+		SecurityScore:        int(qs.Security),
+		ReliabilityScore:     int(qs.CodeQuality),
 		MaintainabilityScore: int(qs.Completeness),
 		DocumentationScore:   int(qs.Documentation),
 	}, nil
@@ -233,13 +233,13 @@ func (s *Service) computeDefaultQuality(pluginID string) *models.QualityScore {
 // PluginToInfo converts a database Plugin to the API-facing PluginInfo.
 func (s *Service) PluginToInfo(p *models.Plugin) *models.PluginInfo {
 	info := &models.PluginInfo{
-		ID:         p.ID,
-		TenantID:   p.TenantID,
-		Name:       p.Name,
-		Version:    p.Version,
-		Verified:   p.Verified,
-		Status:     p.Status,
-		CreatedAt:  p.CreatedAt,
+		ID:        p.ID,
+		TenantID:  p.TenantID,
+		Name:      p.Name,
+		Version:   p.Version,
+		Verified:  p.Verified,
+		Status:    p.Status,
+		CreatedAt: p.CreatedAt,
 	}
 	if p.Description.Valid {
 		info.Description = p.Description.String

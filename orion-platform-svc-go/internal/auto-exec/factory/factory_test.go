@@ -16,8 +16,8 @@ type mockPlugin struct {
 	executeFn   func(ctx context.Context, params map[string]interface{}) (*models.Result, error)
 }
 
-func (m *mockPlugin) Name() string          { return m.name }
-func (m *mockPlugin) Description() string   { return m.description }
+func (m *mockPlugin) Name() string                  { return m.name }
+func (m *mockPlugin) Description() string           { return m.description }
 func (m *mockPlugin) DefaultTimeout() time.Duration { return m.timeout }
 func (m *mockPlugin) Execute(ctx context.Context, params map[string]interface{}) (*models.Result, error) {
 	return m.executeFn(ctx, params)

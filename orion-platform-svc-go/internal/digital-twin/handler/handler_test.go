@@ -2,10 +2,10 @@ package handler
 
 import (
 	"bytes"
-	"fmt"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -20,72 +20,114 @@ import (
 // --- mockDigitalTwinRepo implements dt_service.DigitalTwinRepo ---
 
 type mockDigitalTwinRepo struct {
-	dbErr           error
-	twinFn          func(ctx context.Context, tenantID string, req models.CreateDigitalTwinRequest) (*models.DigitalTwin, error)
-	findTwinFn      func(ctx context.Context, tenantID, id string) (*models.DigitalTwin, error)
-	findAllTwinsFn  func(ctx context.Context, tenantID string) ([]models.DigitalTwin, error)
+	dbErr            error
+	twinFn           func(ctx context.Context, tenantID string, req models.CreateDigitalTwinRequest) (*models.DigitalTwin, error)
+	findTwinFn       func(ctx context.Context, tenantID, id string) (*models.DigitalTwin, error)
+	findAllTwinsFn   func(ctx context.Context, tenantID string) ([]models.DigitalTwin, error)
 	createSnapshotFn func(ctx context.Context, twinID, name string) (*models.Snapshot, error)
-	createRecordFn  func(ctx context.Context, in models.CreateTrafficRecordInput) (*models.TrafficRecord, error)
-	recordsByTwinFn func(ctx context.Context, twinID string) ([]models.TrafficRecord, error)
-	replayFn        func(ctx context.Context, in models.CreateReplaySessionInput) (*models.ReplaySession, error)
-	replaysByTwinFn func(ctx context.Context, twinID string) ([]models.ReplaySession, error)
-	replayByIdFn    func(ctx context.Context, id string) (*models.ReplaySession, error)
-	updateReplayFn  func(ctx context.Context, id, status string) (*models.ReplaySession, error)
+	createRecordFn   func(ctx context.Context, in models.CreateTrafficRecordInput) (*models.TrafficRecord, error)
+	recordsByTwinFn  func(ctx context.Context, twinID string) ([]models.TrafficRecord, error)
+	replayFn         func(ctx context.Context, in models.CreateReplaySessionInput) (*models.ReplaySession, error)
+	replaysByTwinFn  func(ctx context.Context, twinID string) ([]models.ReplaySession, error)
+	replayByIdFn     func(ctx context.Context, id string) (*models.ReplaySession, error)
+	updateReplayFn   func(ctx context.Context, id, status string) (*models.ReplaySession, error)
 }
 
 func (m *mockDigitalTwinRepo) CreateTwin(ctx context.Context, tenantID string, req models.CreateDigitalTwinRequest) (*models.DigitalTwin, error) {
-	if m.twinFn != nil { return m.twinFn(ctx, tenantID, req) }
-	if m.dbErr != nil { return nil, m.dbErr }
+	if m.twinFn != nil {
+		return m.twinFn(ctx, tenantID, req)
+	}
+	if m.dbErr != nil {
+		return nil, m.dbErr
+	}
 	return &models.DigitalTwin{ID: "twin-" + req.Name, TenantID: tenantID, Name: req.Name, ServiceType: req.ServiceType, Status: "active", CreatedAt: time.Now().UTC()}, nil
 }
 func (m *mockDigitalTwinRepo) FindTwinByID(ctx context.Context, tenantID, id string) (*models.DigitalTwin, error) {
-	if m.findTwinFn != nil { return m.findTwinFn(ctx, tenantID, id) }
-	if m.dbErr != nil { return nil, m.dbErr }
+	if m.findTwinFn != nil {
+		return m.findTwinFn(ctx, tenantID, id)
+	}
+	if m.dbErr != nil {
+		return nil, m.dbErr
+	}
 	return &models.DigitalTwin{ID: id, TenantID: tenantID, Name: "twin"}, nil
 }
 func (m *mockDigitalTwinRepo) FindAllTwins(ctx context.Context, tenantID string) ([]models.DigitalTwin, error) {
-	if m.findAllTwinsFn != nil { return m.findAllTwinsFn(ctx, tenantID) }
-	if m.dbErr != nil { return nil, m.dbErr }
+	if m.findAllTwinsFn != nil {
+		return m.findAllTwinsFn(ctx, tenantID)
+	}
+	if m.dbErr != nil {
+		return nil, m.dbErr
+	}
 	return []models.DigitalTwin{{ID: "t1", Name: "a"}, {ID: "t2", Name: "b"}}, nil
 }
 func (m *mockDigitalTwinRepo) CreateSnapshot(ctx context.Context, twinID, name string) (*models.Snapshot, error) {
-	if m.createSnapshotFn != nil { return m.createSnapshotFn(ctx, twinID, name) }
-	if m.dbErr != nil { return nil, m.dbErr }
+	if m.createSnapshotFn != nil {
+		return m.createSnapshotFn(ctx, twinID, name)
+	}
+	if m.dbErr != nil {
+		return nil, m.dbErr
+	}
 	return &models.Snapshot{ID: "snap-" + name, TwinID: twinID, Name: name, CreatedAt: time.Now().UTC()}, nil
 }
 func (m *mockDigitalTwinRepo) CreateTrafficRecord(ctx context.Context, in models.CreateTrafficRecordInput) (*models.TrafficRecord, error) {
-	if m.createRecordFn != nil { return m.createRecordFn(ctx, in) }
-	if m.dbErr != nil { return nil, m.dbErr }
+	if m.createRecordFn != nil {
+		return m.createRecordFn(ctx, in)
+	}
+	if m.dbErr != nil {
+		return nil, m.dbErr
+	}
 	return &models.TrafficRecord{ID: "rec-" + in.TwinID, TwinID: in.TwinID, Type: in.Type, StartedAt: in.StartedAt}, nil
 }
 func (m *mockDigitalTwinRepo) FindTrafficRecordsByTwinID(ctx context.Context, tenantID, twinID string) ([]models.TrafficRecord, error) {
-	if m.recordsByTwinFn != nil { return m.recordsByTwinFn(ctx, twinID) }
-	if m.dbErr != nil { return nil, m.dbErr }
+	if m.recordsByTwinFn != nil {
+		return m.recordsByTwinFn(ctx, twinID)
+	}
+	if m.dbErr != nil {
+		return nil, m.dbErr
+	}
 	return nil, nil
 }
 func (m *mockDigitalTwinRepo) CreateReplaySession(ctx context.Context, in models.CreateReplaySessionInput) (*models.ReplaySession, error) {
-	if m.replayFn != nil { return m.replayFn(ctx, in) }
-	if m.dbErr != nil { return nil, m.dbErr }
+	if m.replayFn != nil {
+		return m.replayFn(ctx, in)
+	}
+	if m.dbErr != nil {
+		return nil, m.dbErr
+	}
 	return &models.ReplaySession{ID: "replay-" + in.TwinID, Status: in.Status, StartedAt: in.StartedAt}, nil
 }
 func (m *mockDigitalTwinRepo) FindReplaySessionsByTwinID(ctx context.Context, tenantID, twinID string) ([]models.ReplaySession, error) {
-	if m.replaysByTwinFn != nil { return m.replaysByTwinFn(ctx, twinID) }
-	if m.dbErr != nil { return nil, m.dbErr }
+	if m.replaysByTwinFn != nil {
+		return m.replaysByTwinFn(ctx, twinID)
+	}
+	if m.dbErr != nil {
+		return nil, m.dbErr
+	}
 	return nil, nil
 }
 func (m *mockDigitalTwinRepo) FindReplaySessionById(ctx context.Context, tenantID, id string) (*models.ReplaySession, error) {
-	if m.replayByIdFn != nil { return m.replayByIdFn(ctx, id) }
-	if m.dbErr != nil { return nil, m.dbErr }
+	if m.replayByIdFn != nil {
+		return m.replayByIdFn(ctx, id)
+	}
+	if m.dbErr != nil {
+		return nil, m.dbErr
+	}
 	return &models.ReplaySession{ID: id, Status: "running"}, nil
 }
 func (m *mockDigitalTwinRepo) UpdateReplaySession(ctx context.Context, tenantID, id, status string) (*models.ReplaySession, error) {
-	if m.updateReplayFn != nil { return m.updateReplayFn(ctx, id, status) }
-	if m.dbErr != nil { return nil, m.dbErr }
+	if m.updateReplayFn != nil {
+		return m.updateReplayFn(ctx, id, status)
+	}
+	if m.dbErr != nil {
+		return nil, m.dbErr
+	}
 	return &models.ReplaySession{ID: id, Status: status}, nil
 }
 
 func (m *mockDigitalTwinRepo) GetRecordingRecordsBySessionID(ctx context.Context, id string) ([]interface{}, error) {
-	if m.dbErr != nil { return nil, m.dbErr }
+	if m.dbErr != nil {
+		return nil, m.dbErr
+	}
 	return nil, nil
 }
 

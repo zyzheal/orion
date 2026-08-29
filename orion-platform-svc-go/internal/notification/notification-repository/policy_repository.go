@@ -8,26 +8,26 @@ import (
 	"strings"
 	"time"
 
-	"orion/platform-svc-go/internal/notification/notification/models"
 	"orion/go-common/pkg/database"
+	"orion/platform-svc-go/internal/notification/notification/models"
 
 	"github.com/google/uuid"
 )
 
 // policyRow is used for scanning policy rows from the database.
 type policyRow struct {
-	ID             string    `db:"id"`
-	TenantID       string    `db:"tenant_id"`
-	Name           string    `db:"name"`
-	Description    *string   `db:"description"`
-	Conditions     []byte    `db:"conditions"`
-	Channels       []byte    `db:"channels"`
-	Recipients     []byte    `db:"recipients"`
-	ThrottleMinutes int      `db:"throttle_minutes"`
-	Enabled        bool      `db:"enabled"`
-	CreatedBy      *string   `db:"created_by"`
-	CreatedAt      time.Time `db:"created_at"`
-	UpdatedAt      time.Time `db:"updated_at"`
+	ID              string    `db:"id"`
+	TenantID        string    `db:"tenant_id"`
+	Name            string    `db:"name"`
+	Description     *string   `db:"description"`
+	Conditions      []byte    `db:"conditions"`
+	Channels        []byte    `db:"channels"`
+	Recipients      []byte    `db:"recipients"`
+	ThrottleMinutes int       `db:"throttle_minutes"`
+	Enabled         bool      `db:"enabled"`
+	CreatedBy       *string   `db:"created_by"`
+	CreatedAt       time.Time `db:"created_at"`
+	UpdatedAt       time.Time `db:"updated_at"`
 }
 
 // workflowRow is used for scanning workflow rows from the database.
@@ -425,18 +425,18 @@ func (r *PolicyRepository) mapPolicyRow(row *policyRow) (*models.NotificationPol
 	}
 
 	return &models.NotificationPolicyEntity{
-		ID:             row.ID,
-		TenantID:       row.TenantID,
-		Name:           row.Name,
-		Description:    row.Description,
-		Conditions:     conditions,
-		Channels:       channels,
-		Recipients:     recipients,
+		ID:              row.ID,
+		TenantID:        row.TenantID,
+		Name:            row.Name,
+		Description:     row.Description,
+		Conditions:      conditions,
+		Channels:        channels,
+		Recipients:      recipients,
 		ThrottleMinutes: row.ThrottleMinutes,
-		Enabled:        row.Enabled,
-		CreatedBy:      row.CreatedBy,
-		CreatedAt:      row.CreatedAt,
-		UpdatedAt:      row.UpdatedAt,
+		Enabled:         row.Enabled,
+		CreatedBy:       row.CreatedBy,
+		CreatedAt:       row.CreatedAt,
+		UpdatedAt:       row.UpdatedAt,
 	}, nil
 }
 

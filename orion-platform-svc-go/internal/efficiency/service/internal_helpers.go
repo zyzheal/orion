@@ -91,11 +91,11 @@ func (s *Service) persistTeamDataAsync(ctx context.Context, tenantID, teamID, na
 	pd, _ := json.Marshal(pipelines)
 	dd, _ := json.Marshal(deployments)
 	_ = s.repo.CreateTeamData(ctx, &models.TeamData{
-		ID:        fmt.Sprintf("team-%s-%s", tenantID, teamID),
-		TenantID:  tenantID,
-		Name:      name,
-		Members:   members,
-		Pipelines: string(pd),
+		ID:          fmt.Sprintf("team-%s-%s", tenantID, teamID),
+		TenantID:    tenantID,
+		Name:        name,
+		Members:     members,
+		Pipelines:   string(pd),
 		Deployments: string(dd),
 	})
 	return nil
@@ -109,12 +109,12 @@ func (s *Service) persistProjectDataAsync(ctx context.Context, tenantID, project
 	pd, _ := json.Marshal(pipelines)
 	dd, _ := json.Marshal(deployments)
 	return s.repo.CreateProjectData(ctx, &models.ProjectData{
-		ID:        fmt.Sprintf("proj-%s-%s", tenantID, projectID),
-		TenantID:  tenantID,
-		Name:      name,
-		Pipelines: string(pd),
+		ID:          fmt.Sprintf("proj-%s-%s", tenantID, projectID),
+		TenantID:    tenantID,
+		Name:        name,
+		Pipelines:   string(pd),
 		Deployments: string(dd),
-		Commits:   commits,
+		Commits:     commits,
 	})
 }
 
@@ -125,10 +125,10 @@ func (s *Service) persistGlobalDeploymentsAsync(ctx context.Context, tenantID st
 	}
 	dd, _ := json.Marshal(deployments)
 	return s.repo.CreateGlobalDeployment(ctx, &models.GlobalDeployment{
-		ID:           fmt.Sprintf("gd-%s", tenantID),
-		TenantID:     tenantID,
+		ID:             fmt.Sprintf("gd-%s", tenantID),
+		TenantID:       tenantID,
 		DeploymentData: string(dd),
-		DeployedAt:   deployments[0].DeployedAt,
+		DeployedAt:     deployments[0].DeployedAt,
 	})
 }
 
@@ -139,10 +139,10 @@ func (s *Service) persistGlobalPipelinesAsync(ctx context.Context, tenantID stri
 	}
 	pd, _ := json.Marshal(pipelines)
 	return s.repo.CreateGlobalPipeline(ctx, &models.GlobalPipeline{
-		ID:          fmt.Sprintf("gp-%s", tenantID),
-		TenantID:    tenantID,
+		ID:           fmt.Sprintf("gp-%s", tenantID),
+		TenantID:     tenantID,
 		PipelineData: string(pd),
-		CompletedAt: pipelines[0].CompletedAt,
+		CompletedAt:  pipelines[0].CompletedAt,
 	})
 }
 

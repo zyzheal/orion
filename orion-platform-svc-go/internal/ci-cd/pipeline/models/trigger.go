@@ -14,28 +14,28 @@ const (
 
 // PipelineTrigger defines an automated trigger for a pipeline
 type PipelineTrigger struct {
-	ID           string            `db:"id" json:"id"`
-	PipelineID   string            `db:"pipeline_id" json:"pipeline_id"`
-	TenantID     string            `db:"tenant_id" json:"tenant_id"`
-	Type         TriggerConfigType `db:"type" json:"type"`
-	Name         string            `db:"name" json:"name"`
-	Enabled      bool              `db:"enabled" json:"enabled"`
-	Config       string            `db:"config" json:"config"` // JSON config
-	Secret       string            `db:"secret" json:"-"`      // webhook secret
-	PathFilter   string            `db:"path_filter" json:"path_filter,omitempty"`
-	BranchFilter string            `db:"branch_filter" json:"branch_filter,omitempty"`
-	LastTriggeredAt *time.Time     `db:"last_triggered_at" json:"last_triggered_at,omitempty"`
-	TriggerCount int               `db:"trigger_count" json:"trigger_count"`
-	CreatedAt    time.Time         `db:"created_at" json:"created_at"`
-	UpdatedAt    time.Time         `db:"updated_at" json:"updated_at"`
+	ID              string            `db:"id" json:"id"`
+	PipelineID      string            `db:"pipeline_id" json:"pipeline_id"`
+	TenantID        string            `db:"tenant_id" json:"tenant_id"`
+	Type            TriggerConfigType `db:"type" json:"type"`
+	Name            string            `db:"name" json:"name"`
+	Enabled         bool              `db:"enabled" json:"enabled"`
+	Config          string            `db:"config" json:"config"` // JSON config
+	Secret          string            `db:"secret" json:"-"`      // webhook secret
+	PathFilter      string            `db:"path_filter" json:"path_filter,omitempty"`
+	BranchFilter    string            `db:"branch_filter" json:"branch_filter,omitempty"`
+	LastTriggeredAt *time.Time        `db:"last_triggered_at" json:"last_triggered_at,omitempty"`
+	TriggerCount    int               `db:"trigger_count" json:"trigger_count"`
+	CreatedAt       time.Time         `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time         `db:"updated_at" json:"updated_at"`
 }
 
 // WebhookTriggerConfig is the config for webhook triggers
 type WebhookTriggerConfig struct {
-	URL          string            `json:"url"`
-	Secret       string            `json:"secret"`
-	Events       []string          `json:"events"` // push, pull_request, tag, etc.
-	Headers      map[string]string `json:"headers,omitempty"`
+	URL     string            `json:"url"`
+	Secret  string            `json:"secret"`
+	Events  []string          `json:"events"` // push, pull_request, tag, etc.
+	Headers map[string]string `json:"headers,omitempty"`
 }
 
 // ScheduleTriggerConfig is the config for schedule triggers
@@ -47,9 +47,9 @@ type ScheduleTriggerConfig struct {
 
 // EventTriggerConfig is the config for event-based triggers
 type EventTriggerConfig struct {
-	EventType  string            `json:"event_type"` // build.complete, deploy.success, etc.
-	Source     string            `json:"source"`     // which service emits the event
-	Filters    map[string]string `json:"filters,omitempty"`
+	EventType string            `json:"event_type"` // build.complete, deploy.success, etc.
+	Source    string            `json:"source"`     // which service emits the event
+	Filters   map[string]string `json:"filters,omitempty"`
 }
 
 // SCMTriggerConfig is the config for SCM (git) triggers

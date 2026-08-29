@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/task-executor/models"
 	"orion/platform-svc-go/internal/task-executor/repository"
-	"go.uber.org/zap"
 )
 
 type TaskExecutorService struct {

@@ -30,28 +30,64 @@ type searchArgs struct {
 	offset   int
 }
 
-func (m *mockRepo) BatchCreateCIs(ctx context.Context, items []models.BatchCreateItem, tenantID string, createdBy string) (*models.BatchResult, error) { return nil, nil }
-func (m *mockRepo) BatchDeleteCIs(ctx context.Context, ids []string, tenantID string) (*models.BatchResult, error) { return nil, nil }
-func (m *mockRepo) BatchQueryCIs(ctx context.Context, q *models.BatchQueryRequest, tenantID string) ([]models.CI, int, error) { return nil, 0, nil }
-func (m *mockRepo) BatchUpdateCIs(ctx context.Context, items []models.BatchUpdateItem, tenantID string) (*models.BatchResult, error) { return nil, nil }
-func (m *mockRepo) CreateCI(ctx context.Context, ci *models.CI) error { return nil }
+func (m *mockRepo) BatchCreateCIs(ctx context.Context, items []models.BatchCreateItem, tenantID string, createdBy string) (*models.BatchResult, error) {
+	return nil, nil
+}
+func (m *mockRepo) BatchDeleteCIs(ctx context.Context, ids []string, tenantID string) (*models.BatchResult, error) {
+	return nil, nil
+}
+func (m *mockRepo) BatchQueryCIs(ctx context.Context, q *models.BatchQueryRequest, tenantID string) ([]models.CI, int, error) {
+	return nil, 0, nil
+}
+func (m *mockRepo) BatchUpdateCIs(ctx context.Context, items []models.BatchUpdateItem, tenantID string) (*models.BatchResult, error) {
+	return nil, nil
+}
+func (m *mockRepo) CreateCI(ctx context.Context, ci *models.CI) error                { return nil }
 func (m *mockRepo) CreateRelation(ctx context.Context, rel *models.CIRelation) error { return nil }
-func (m *mockRepo) CreateVersion(ctx context.Context, ciID string, version int, snapshot *string, createdBy string, tenantID string) error { return nil }
+func (m *mockRepo) CreateVersion(ctx context.Context, ciID string, version int, snapshot *string, createdBy string, tenantID string) error {
+	return nil
+}
 func (m *mockRepo) DeleteCI(ctx context.Context, id string) (bool, error) { return false, nil }
-func (m *mockRepo) DeleteRelation(ctx context.Context, relationID string, tenantID string) (bool, error) { return false, nil }
-func (m *mockRepo) ExportCIs(ctx context.Context, ciType, status, environment, search *string, tenantID string, includeArchived bool) ([]models.CI, error) { return nil, nil }
-func (m *mockRepo) GetCIByCiId(ctx context.Context, ciID string, tenantID *string) (*models.CI, error) { return nil, nil }
+func (m *mockRepo) DeleteRelation(ctx context.Context, relationID string, tenantID string) (bool, error) {
+	return false, nil
+}
+func (m *mockRepo) ExportCIs(ctx context.Context, ciType, status, environment, search *string, tenantID string, includeArchived bool) ([]models.CI, error) {
+	return nil, nil
+}
+func (m *mockRepo) GetCIByCiId(ctx context.Context, ciID string, tenantID *string) (*models.CI, error) {
+	return nil, nil
+}
 func (m *mockRepo) GetCIByID(ctx context.Context, id string) (*models.CI, error) { return nil, nil }
-func (m *mockRepo) GetCIRelations(ctx context.Context, ciID string) ([]models.CIRelation, error) { return nil, nil }
-func (m *mockRepo) GetCIVersions(ctx context.Context, ciID string) ([]models.CIVersion, error) { return nil, nil }
-func (m *mockRepo) GetCurrentVersion(ctx context.Context, ciID string) (*models.CIVersion, error) { return nil, nil }
-func (m *mockRepo) GetImpactAnalysis(ctx context.Context, tenantID string, ciID string) ([]models.CIRelation, error) { return nil, nil }
-func (m *mockRepo) GetServiceDependencies(ctx context.Context, tenantID string, ciID string) ([]models.CIRelation, error) { return nil, nil }
-func (m *mockRepo) GetTopologyEdges(ctx context.Context, tenantID string, limit int) ([]models.TopologyEdge, error) { return nil, nil }
-func (m *mockRepo) GetTopologyNodes(ctx context.Context, ciType *string, tenantID string, limit int) ([]models.TopologyNode, error) { return nil, nil }
-func (m *mockRepo) GetVersionSnapshot(ctx context.Context, ciID string, version int) (*string, error) { return nil, nil }
-func (m *mockRepo) ListCIs(ctx context.Context, ciType *string, status *string, tenantID string, page, limit int) ([]models.CI, int, error) { return nil, 0, nil }
-func (m *mockRepo) UpdateCI(ctx context.Context, id string, updates map[string]interface{}) (*models.CI, error) { return nil, nil }
+func (m *mockRepo) GetCIRelations(ctx context.Context, ciID string) ([]models.CIRelation, error) {
+	return nil, nil
+}
+func (m *mockRepo) GetCIVersions(ctx context.Context, ciID string) ([]models.CIVersion, error) {
+	return nil, nil
+}
+func (m *mockRepo) GetCurrentVersion(ctx context.Context, ciID string) (*models.CIVersion, error) {
+	return nil, nil
+}
+func (m *mockRepo) GetImpactAnalysis(ctx context.Context, tenantID string, ciID string) ([]models.CIRelation, error) {
+	return nil, nil
+}
+func (m *mockRepo) GetServiceDependencies(ctx context.Context, tenantID string, ciID string) ([]models.CIRelation, error) {
+	return nil, nil
+}
+func (m *mockRepo) GetTopologyEdges(ctx context.Context, tenantID string, limit int) ([]models.TopologyEdge, error) {
+	return nil, nil
+}
+func (m *mockRepo) GetTopologyNodes(ctx context.Context, ciType *string, tenantID string, limit int) ([]models.TopologyNode, error) {
+	return nil, nil
+}
+func (m *mockRepo) GetVersionSnapshot(ctx context.Context, ciID string, version int) (*string, error) {
+	return nil, nil
+}
+func (m *mockRepo) ListCIs(ctx context.Context, ciType *string, status *string, tenantID string, page, limit int) ([]models.CI, int, error) {
+	return nil, 0, nil
+}
+func (m *mockRepo) UpdateCI(ctx context.Context, id string, updates map[string]interface{}) (*models.CI, error) {
+	return nil, nil
+}
 
 func (m *mockRepo) SearchCIs(ctx context.Context, tenantID, query, domain string, limit, offset int) ([]models.CI, error) {
 	m.calledArgs = searchArgs{tenantID: tenantID, query: query, domain: domain, limit: limit, offset: offset}
@@ -60,12 +96,12 @@ func (m *mockRepo) SearchCIs(ctx context.Context, tenantID, query, domain string
 
 func helperCI(id, name, ciType, tenantID string) models.CI {
 	return models.CI{
-		ID:       id,
-		CIID:     "ci-" + id,
-		Name:     name,
-		CIType:   ciType,
-		Status:   "active",
-		TenantID: tenantID,
+		ID:        id,
+		CIID:      "ci-" + id,
+		Name:      name,
+		CIType:    ciType,
+		Status:    "active",
+		TenantID:  tenantID,
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
 	}

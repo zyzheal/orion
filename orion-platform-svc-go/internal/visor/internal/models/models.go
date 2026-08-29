@@ -64,18 +64,18 @@ type UpdateDashboardRequest struct {
 
 // MonitorHost represents a managed host for ops visualization and monitoring.
 type MonitorHost struct {
-	ID           string     `db:"id" json:"id"`
-	TenantID     string     `db:"tenant_id" json:"tenant_id"`
-	Name         string     `db:"name" json:"name"`
-	Host         string     `db:"host" json:"host"`
-	Port         int        `db:"port" json:"port"`
-	Status       string     `db:"status" json:"status"`
-	OSType       *string    `db:"os_type" json:"os_type,omitempty"`
-	Tags         JSONB      `db:"tags" json:"tags"`
-	AgentID      *string    `db:"agent_id" json:"agent_id,omitempty"`
+	ID            string     `db:"id" json:"id"`
+	TenantID      string     `db:"tenant_id" json:"tenant_id"`
+	Name          string     `db:"name" json:"name"`
+	Host          string     `db:"host" json:"host"`
+	Port          int        `db:"port" json:"port"`
+	Status        string     `db:"status" json:"status"`
+	OSType        *string    `db:"os_type" json:"os_type,omitempty"`
+	Tags          JSONB      `db:"tags" json:"tags"`
+	AgentID       *string    `db:"agent_id" json:"agent_id,omitempty"`
 	LastHeartbeat *time.Time `db:"last_heartbeat" json:"last_heartbeat,omitempty"`
-	CreatedAt    time.Time  `db:"created_at" json:"created_at"`
-	UpdatedAt    time.Time  `db:"updated_at" json:"updated_at"`
+	CreatedAt     time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time  `db:"updated_at" json:"updated_at"`
 }
 
 type CreateHostRequest struct {
@@ -117,27 +117,27 @@ type AlertRule struct {
 }
 
 type CreateAlertRuleRequest struct {
-	Name       string `json:"name" binding:"required"`
-	Metric     string `json:"metric" binding:"required"`
-	Condition  string `json:"condition" binding:"required"`
-	Threshold  float64 `json:"threshold"`
-	Severity   string `json:"severity"`
-	CooldownMs int    `json:"cooldown_ms"`
-	Tags       JSONB  `json:"tags"`
-	Description string `json:"description"`
+	Name        string  `json:"name" binding:"required"`
+	Metric      string  `json:"metric" binding:"required"`
+	Condition   string  `json:"condition" binding:"required"`
+	Threshold   float64 `json:"threshold"`
+	Severity    string  `json:"severity"`
+	CooldownMs  int     `json:"cooldown_ms"`
+	Tags        JSONB   `json:"tags"`
+	Description string  `json:"description"`
 }
 
 type UpdateAlertRuleRequest struct {
-	Name        *string `json:"name"`
-	Metric      *string `json:"metric"`
-	Condition   *string `json:"condition"`
+	Name        *string  `json:"name"`
+	Metric      *string  `json:"metric"`
+	Condition   *string  `json:"condition"`
 	Threshold   *float64 `json:"threshold"`
-	Severity    *string `json:"severity"`
-	Enabled     *bool   `json:"enabled"`
-	Suppressed  *bool   `json:"suppressed"`
-	CooldownMs  *int    `json:"cooldown_ms"`
-	Tags        JSONB   `json:"tags"`
-	Description *string `json:"description"`
+	Severity    *string  `json:"severity"`
+	Enabled     *bool    `json:"enabled"`
+	Suppressed  *bool    `json:"suppressed"`
+	CooldownMs  *int     `json:"cooldown_ms"`
+	Tags        JSONB    `json:"tags"`
+	Description *string  `json:"description"`
 }
 
 // ==================== Alert Instance ====================
@@ -205,14 +205,14 @@ type CreateChannelRequest struct {
 
 // NotificationHistory records the outcome of each notification delivery attempt.
 type NotificationHistory struct {
-	ID          string    `db:"id" json:"id"`
-	TenantID    string    `db:"tenant_id" json:"tenant_id"`
-	AlertID     string    `db:"alert_id" json:"alert_id"`
-	ChannelID   string    `db:"channel_id" json:"channel_id"`
-	ChannelType string    `db:"channel_type" json:"channel_type"`
-	Status      string    `db:"status" json:"status"`
-	ErrorMessage *string  `db:"error_message" json:"error_message,omitempty"`
-	SentAt      time.Time `db:"sent_at" json:"sent_at"`
+	ID           string    `db:"id" json:"id"`
+	TenantID     string    `db:"tenant_id" json:"tenant_id"`
+	AlertID      string    `db:"alert_id" json:"alert_id"`
+	ChannelID    string    `db:"channel_id" json:"channel_id"`
+	ChannelType  string    `db:"channel_type" json:"channel_type"`
+	Status       string    `db:"status" json:"status"`
+	ErrorMessage *string   `db:"error_message" json:"error_message,omitempty"`
+	SentAt       time.Time `db:"sent_at" json:"sent_at"`
 }
 
 // ==================== Common ====================
@@ -245,12 +245,12 @@ func (p *PaginatedRequest) Limit() int {
 
 // AlertStats aggregates alert counts by status and severity.
 type AlertStats struct {
-	Total         int `db:"total" json:"total"`
-	Firing        int `db:"firing" json:"firing"`
-	Acknowledged  int `db:"acknowledged" json:"acknowledged"`
-	Resolved      int `db:"resolved" json:"resolved"`
-	Critical      int `db:"critical" json:"critical"`
-	Warning       int `db:"warning" json:"warning"`
+	Total        int `db:"total" json:"total"`
+	Firing       int `db:"firing" json:"firing"`
+	Acknowledged int `db:"acknowledged" json:"acknowledged"`
+	Resolved     int `db:"resolved" json:"resolved"`
+	Critical     int `db:"critical" json:"critical"`
+	Warning      int `db:"warning" json:"warning"`
 }
 
 // PaginatedResult wraps a paginated list response.

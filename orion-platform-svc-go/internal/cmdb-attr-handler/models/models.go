@@ -22,8 +22,8 @@ type CMDBAttributeValue struct {
 	TenantID    string    `db:"tenant_id"`
 	CIID        string    `db:"ci_id"`
 	AttributeID string    `db:"attribute_id"`
-	Value       string    `db:"value"`      // JSON representation of the typed value
-	Type        string    `db:"type"`       // attribute type identifier
+	Value       string    `db:"value"` // JSON representation of the typed value
+	Type        string    `db:"type"`  // attribute type identifier
 	CreatedAt   time.Time `db:"created_at"`
 	UpdatedAt   time.Time `db:"updated_at"`
 }

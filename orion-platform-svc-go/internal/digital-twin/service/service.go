@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -9,8 +10,8 @@ import (
 	"math/rand"
 	"time"
 
-	"orion/platform-svc-go/internal/digital-twin/models"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/digital-twin/models"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -496,8 +497,7 @@ func ptrTime(t time.Time) *time.Time {
 // --- Sentinel errors ---
 
 var (
-
-	ErrNotFound = sentinel.NotFound
+	ErrNotFound       = sentinel.NotFound
 	ErrTwinNotFound   = errors.New("twin not found")
 	ErrInvalidInput   = errors.New("invalid input")
 	ErrReplayNotFound = errors.New("replay session not found")

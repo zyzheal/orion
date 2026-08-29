@@ -24,10 +24,10 @@ type EvaluateRequest struct {
 
 // EvaluateResult represents the result of rule evaluation.
 type EvaluateResult struct {
-	RuleID   string            `json:"rule_id"`
-	Triggered bool            `json:"triggered"`
-	Actions  []interface{}     `json:"actions"`
-	Message  string            `json:"message"`
+	RuleID    string        `json:"rule_id"`
+	Triggered bool          `json:"triggered"`
+	Actions   []interface{} `json:"actions"`
+	Message   string        `json:"message"`
 }
 
 // CreateRuleRequest for creating a rule.

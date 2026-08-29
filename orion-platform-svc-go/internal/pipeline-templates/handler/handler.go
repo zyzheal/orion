@@ -3,8 +3,6 @@ package handler
 import (
 	"context"
 	"database/sql"
-	"net/http"
-	"strconv"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/pipeline-templates/models"
@@ -66,47 +64,35 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		auth.RequirePermission("pipeline_templates", "write"),
 		h.Create)
 
-	// Item: GET /pipeline-templates/:id
-	r.GET("/:id",
-		auth.RequirePermission("pipeline_templates", "read"),
-		h.Get)
+	// Item: GET /pipeline-templates/:templateId
 
-	// Item: PUT /pipeline-templates/:id
-	r.PUT("/:id",
-		auth.RequirePermission("pipeline_templates", "write"),
-		h.Update)
+	// Item: PUT /pipeline-templates/:templateId
 
-	// Item: DELETE /pipeline-templates/:id
-	r.DELETE("/:id",
-		auth.RequirePermission("pipeline_templates", "delete"),
-		h.Delete)
+	// Item: DELETE /pipeline-templates/:templateId
 
 	// Actions on :id (specific endpoints, mount before :id variants with trailing paths)
-	r.POST("/:id/publish",
+	r.POST("/:templateId/publish",
 		auth.RequirePermission("pipeline_templates", "write"),
 		h.Publish)
 
-	r.POST("/:id/deprecate",
+	r.POST("/:templateId/deprecate",
 		auth.RequirePermission("pipeline_templates", "write"),
 		h.Deprecate)
 
-	// Versions: GET /pipeline-templates/:id/versions
-	r.GET("/:id/versions",
+	// Versions: GET /pipeline-templates/:templateId/versions
+	r.GET("/:templateId/versions",
 		auth.RequirePermission("pipeline_templates", "read"),
 		h.Versions)
 
-	// Instantiate: POST /pipeline-templates/:id/instantiate
-	r.POST("/:id/instantiate",
-		auth.RequirePermission("pipeline_templates", "write"),
-		h.Instantiate)
+	// Instantiate: POST /pipeline-templates/:templateId/instantiate
 
-	// Star: POST /pipeline-templates/:id/star
-	r.POST("/:id/star",
+	// Star: POST /pipeline-templates/:templateId/star
+	r.POST("/:templateId/star",
 		auth.RequirePermission("pipeline_templates", "write"),
 		h.Star)
 
-	// Unstar: DELETE /pipeline-templates/:id/star
-	r.DELETE("/:id/star",
+	// Unstar: DELETE /pipeline-templates/:templateId/star
+	r.DELETE("/:templateId/star",
 		auth.RequirePermission("pipeline_templates", "write"),
 		h.Unstar)
 }
@@ -211,7 +197,7 @@ func (h *Handler) Get(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx = middleware.TimeoutContext(c)
-	tmpl, err := h.svc.Get(ctx, tenantID, c.Param("id"))
+	tmpl, err := h.svc.Get(ctx, tenantID, c.Param("templateId"))
 	if err != nil {
 		middleware.RespondNotFound(c, "template not found")
 		return
@@ -232,7 +218,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	tmpl, err := h.svc.Update(ctx, tenantID, c.Param("id"), req)
+	tmpl, err := h.svc.Update(ctx, tenantID, c.Param("templateId"), req)
 	if err != nil {
 		middleware.RespondNotFound(c, "template not found")
 		return
@@ -246,7 +232,7 @@ func (h *Handler) Delete(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx = middleware.TimeoutContext(c)
-	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("templateId")); err != nil {
 		if err == sql.ErrNoRows {
 			middleware.RespondNotFound(c, "template not found")
 			return
@@ -263,7 +249,7 @@ func (h *Handler) Publish(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx = middleware.TimeoutContext(c)
-	tmpl, err := h.svc.Publish(ctx, tenantID, c.Param("id"))
+	tmpl, err := h.svc.Publish(ctx, tenantID, c.Param("templateId"))
 	if err != nil {
 		middleware.RespondNotFound(c, "template not found")
 		return
@@ -277,7 +263,7 @@ func (h *Handler) Deprecate(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx = middleware.TimeoutContext(c)
-	tmpl, err := h.svc.Deprecate(ctx, tenantID, c.Param("id"))
+	tmpl, err := h.svc.Deprecate(ctx, tenantID, c.Param("templateId"))
 	if err != nil {
 		middleware.RespondNotFound(c, "template not found")
 		return
@@ -301,7 +287,7 @@ func (h *Handler) Versions(c *gin.Context) {
 		q.Limit = 20
 	}
 
-	versions, total, err := h.svc.GetVersions(ctx, tenantID, c.Param("id"), &q)
+	versions, total, err := h.svc.GetVersions(ctx, tenantID, c.Param("templateId"), &q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -325,7 +311,7 @@ func (h *Handler) Instantiate(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.Instantiate(ctx, tenantID, c.Param("id"), req)
+	result, err := h.svc.Instantiate(ctx, tenantID, c.Param("templateId"), req)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -339,7 +325,7 @@ func (h *Handler) Star(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx = middleware.TimeoutContext(c)
-	tmpl, err := h.svc.Star(ctx, tenantID, c.Param("id"))
+	tmpl, err := h.svc.Star(ctx, tenantID, c.Param("templateId"))
 	if err != nil {
 		middleware.RespondNotFound(c, "template not found")
 		return
@@ -353,14 +339,10 @@ func (h *Handler) Unstar(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx = middleware.TimeoutContext(c)
-	tmpl, err := h.svc.Unstar(ctx, tenantID, c.Param("id"))
+	tmpl, err := h.svc.Unstar(ctx, tenantID, c.Param("templateId"))
 	if err != nil {
 		middleware.RespondNotFound(c, "template not found")
 		return
 	}
 	middleware.RespondSuccess(c, tmpl)
 }
-
-// unused import fix
-var _ = http.StatusOK
-var _ = strconv.Itoa

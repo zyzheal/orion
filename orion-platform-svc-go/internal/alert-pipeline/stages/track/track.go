@@ -55,7 +55,7 @@ func (s *Stage) Process(ctx context.Context, alertCtx *models.AlertContext) erro
 			GroupID:   alertCtx.GroupID,
 			Timestamp: now,
 			Source:    alertCtx.Source,
-			Metadata:  map[string]interface{}{
+			Metadata: map[string]interface{}{
 				"result": result,
 			},
 		},

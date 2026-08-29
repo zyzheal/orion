@@ -334,4 +334,3 @@ func TestDeliveryRepository_Count(t *testing.T) {
 		t.Errorf("unfulfilled expectations: %v", err)
 	}
 }
-

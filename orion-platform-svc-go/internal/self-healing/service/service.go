@@ -6,17 +6,17 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"orion/platform-svc-go/internal/self-healing/executor"
 	"orion/platform-svc-go/internal/self-healing/models"
 	"orion/platform-svc-go/internal/self-healing/repository"
-	"orion/platform-svc-go/internal/self-healing/executor"
 
 	"go.uber.org/zap"
 )
 
 type SelfHealingService struct {
-	repo      *repository.SelfHealingRepository
-	executor  *executor.K8sExecutor // optional K8s executor for live cluster operations
-	logger    *zap.Logger
+	repo     *repository.SelfHealingRepository
+	executor *executor.K8sExecutor // optional K8s executor for live cluster operations
+	logger   *zap.Logger
 }
 
 func NewSelfHealingService(repo *repository.SelfHealingRepository, logger *zap.Logger) *SelfHealingService {

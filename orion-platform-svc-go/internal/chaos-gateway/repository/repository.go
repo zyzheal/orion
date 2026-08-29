@@ -15,10 +15,9 @@ import (
 )
 
 var (
-
-	ErrConflict  = errors.New("chaos experiment conflict")
-	ErrRunning   = errors.New("experiment is running")
-	ErrPaused    = errors.New("experiment is not paused")
+	ErrConflict = errors.New("chaos experiment conflict")
+	ErrRunning  = errors.New("experiment is running")
+	ErrPaused   = errors.New("experiment is not paused")
 )
 
 // Repository persists chaos-experiment entities in PostgreSQL via sqlx.
@@ -48,7 +47,7 @@ func (r *Repository) CreateExperiment(ctx context.Context, exp *models.ChaosExpe
 		string(exp.Scenario), exp.Targets, exp.Duration, exp.Intensity,
 		exp.Schedule, exp.Monitoring, exp.Safeguards, exp.CreatedBy,
 		now, now, nullInt64(exp.StartedAt), nullInt64(exp.CompletedAt), exp.TenantID,
-)
+	)
 	return err
 }
 
@@ -58,7 +57,7 @@ func (r *Repository) GetExperiment(ctx context.Context, tenantID, id string) (*m
 		`SELECT id, name, description, status, scenario, targets, duration, intensity,
 		   schedule, monitoring, safeguards, created_by, created_at, updated_at, started_at, completed_at, tenant_id
 		 FROM chaos_experiments WHERE id=$1 AND tenant_id=$2`, id, tenantID,
-)
+	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, sentinel.NotFound
@@ -84,7 +83,7 @@ func (r *Repository) UpdateExperiment(ctx context.Context, tenantID, id string, 
 		 WHERE id=$11 AND tenant_id=$12`,
 		exp.Name, exp.Description, exp.Status, exp.Targets, exp.Duration, exp.Intensity,
 		exp.Schedule, exp.Monitoring, exp.Safeguards, now, id, tenantID,
-)
+	)
 	return err
 }
 
@@ -95,7 +94,7 @@ func (r *Repository) UpdateStatus(ctx context.Context, tenantID, id string, stat
 		   SET status=$1, completed_at=$2, updated_at=$3
 		 WHERE id=$4 AND tenant_id=$5`,
 		status, nullInt64(completedAt), now, id, tenantID,
-)
+	)
 	return err
 }
 
@@ -103,19 +102,19 @@ func (r *Repository) DeleteExperiment(ctx context.Context, tenantID, id string) 
 	// Cascade: delete associated results and logs, then the experiment.
 	_, err := r.db.ExecContext(ctx,
 		`DELETE FROM chaos_experiment_results WHERE experiment_id=$1 AND tenant_id=$2`, id, tenantID,
-)
+	)
 	if err != nil {
 		return err
 	}
 	_, err = r.db.ExecContext(ctx,
 		`DELETE FROM chaos_experiment_logs WHERE experiment_id=$1 AND tenant_id=$2`, id, tenantID,
-)
+	)
 	if err != nil {
 		return err
 	}
 	_, err = r.db.ExecContext(ctx,
 		`DELETE FROM chaos_experiments WHERE id=$1 AND tenant_id=$2`, id, tenantID,
-)
+	)
 	return err
 }
 
@@ -220,7 +219,7 @@ func (r *Repository) CreateResult(ctx context.Context, res *models.ExperimentRes
 		nullInt64(res.StartTime), nullInt64(res.EndTime), res.Duration,
 		res.Metrics, res.ImpactedTargets, res.RecoveryTime, res.DetectionTime,
 		res.Insights, res.Recommendations, res.TenantID, now,
-)
+	)
 	return err
 }
 
@@ -241,7 +240,7 @@ func (r *Repository) ListResults(ctx context.Context, tenantID, experimentID str
 		 FROM chaos_experiment_results WHERE experiment_id=$1 AND tenant_id=$2
 		 ORDER BY created_at DESC LIMIT $3 OFFSET $4`,
 		experimentID, tenantID, limit, offset,
-)
+	)
 	return results, total, err
 }
 
@@ -260,7 +259,7 @@ func (r *Repository) CreateLog(ctx context.Context, log *models.ExperimentLog) e
 		 VALUES
 		  ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		log.ID, log.ExperimentID, log.Timestamp, log.Level, log.Message, log.Details, log.TenantID, now,
-)
+	)
 	return err
 }
 
@@ -280,7 +279,7 @@ func (r *Repository) ListLogs(ctx context.Context, tenantID, experimentID string
 		 FROM chaos_experiment_logs WHERE experiment_id=$1 AND tenant_id=$2
 		 ORDER BY timestamp DESC, created_at DESC LIMIT $3 OFFSET $4`,
 		experimentID, tenantID, limit, offset,
-)
+	)
 	return logs, total, err
 }
 

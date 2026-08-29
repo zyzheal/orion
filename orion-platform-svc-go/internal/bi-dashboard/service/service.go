@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 
-	"orion/platform-svc-go/internal/bi-dashboard/models"
-	"orion/go-common/pkg/otel"
 	"go.uber.org/zap"
+	"orion/go-common/pkg/otel"
+	"orion/platform-svc-go/internal/bi-dashboard/models"
 )
 
 // RepositoryInterface defines the repository methods used by the service.

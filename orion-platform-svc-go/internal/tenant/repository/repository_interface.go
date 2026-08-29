@@ -6,7 +6,6 @@ import (
 	"context"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	CreateTenant(ctx context.Context, name string, displayName *string, settingsJSON string, status string) (*int, error)

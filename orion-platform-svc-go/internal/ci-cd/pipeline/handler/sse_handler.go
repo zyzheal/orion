@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"io"
 
 	"orion/platform-svc-go/internal/ci-cd/pipeline/service"
@@ -19,6 +20,8 @@ func NewSSEHandler(svc *service.SSEService) *SSEHandler {
 
 // StreamLogs handles the SSE connection for pipeline run log streaming
 func (h *SSEHandler) StreamLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineStreamLogs")
+	defer span.End()
 	runID := c.Param("runId")
 	clientID := c.Query("client_id")
 	if clientID == "" {
@@ -35,11 +38,11 @@ func (h *SSEHandler) StreamLogs(c *gin.Context) {
 	c.Header("X-Accel-Buffering", "no")
 
 	// Start streaming in StreamLogs goroutine
-	go h.svc.StreamLogs(c.Request.Context(), client)
+	go h.svc.StreamLogs(ctx, client)
 
 	c.Stream(func(w io.Writer) bool {
 		select {
-		case <-c.Request.Context().Done():
+		case <-ctx.Done():
 			return false
 		case <-client.Done:
 			return false
@@ -55,6 +58,8 @@ func (h *SSEHandler) StreamLogs(c *gin.Context) {
 
 // GetSubscribers returns the number of active subscribers for a run
 func (h *SSEHandler) GetSubscribers(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineGetSubscribers")
+	defer span.End()
 	runID := c.Param("runId")
 	count := h.svc.GetSubscriberCount(runID)
 	respondSuccess(c, gin.H{"run_id": runID, "subscribers": count})

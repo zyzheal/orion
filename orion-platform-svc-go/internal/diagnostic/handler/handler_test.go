@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/diagnostic/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/diagnostic/models"
 )
 
@@ -71,13 +71,13 @@ func (f *fakeHandlerService) GetReportHistory(ctx context.Context, tenantID, ses
 	return []models.Report{}, 0, nil
 }
 
-func (f *fakeHandlerService) GetStatus(ctx context.Context, tenantID string) (*struct{
+func (f *fakeHandlerService) GetStatus(ctx context.Context, tenantID string) (*struct {
 	State    string `json:"state"`
 	Sessions int    `json:"sessions"`
 	Reports  int    `json:"reports"`
 	Patterns int    `json:"patterns"`
 }, error) {
-	return &struct{
+	return &struct {
 		State    string `json:"state"`
 		Sessions int    `json:"sessions"`
 		Reports  int    `json:"reports"`
@@ -98,7 +98,6 @@ func (f *fakeHandlerService) TriggerDiagnostic(ctx context.Context, tenantID str
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestHandler_DIAGNOSTIC_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

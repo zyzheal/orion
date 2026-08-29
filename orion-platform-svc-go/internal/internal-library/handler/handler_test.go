@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/internal-library/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/internal-library/models"
 	"time"
 )
@@ -105,7 +105,6 @@ func (f *fakeInternal_libraryService) UpdateStats(ctx context.Context, libraryID
 }
 
 var _ service.ServiceInterface = (*fakeInternal_libraryService)(nil)
-
 
 func TestHandler_INTERNAL_LIBRA_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

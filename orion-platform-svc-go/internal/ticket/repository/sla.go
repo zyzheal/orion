@@ -96,14 +96,14 @@ func (r *SLARepository) FindPendingRecords(ctx context.Context) ([]models.SLARec
 }
 
 func (r *SLARepository) PauseRecord(ctx context.Context, ticketID, reason string) error {
-	_, err := r.db.ExecContext(ctx, 
+	_, err := r.db.ExecContext(ctx,
 		`UPDATE sla_records SET paused = true, paused_at = NOW(), paused_reason = $1, updated_at = NOW() WHERE ticket_id = $2`,
 		reason, ticketID)
 	return err
 }
 
 func (r *SLARepository) UnpauseRecord(ctx context.Context, ticketID string) error {
-	_, err := r.db.ExecContext(ctx, 
+	_, err := r.db.ExecContext(ctx,
 		`UPDATE sla_records SET paused = false, paused_at = NULL, paused_reason = '', updated_at = NOW() WHERE ticket_id = $1`,
 		ticketID)
 	return err

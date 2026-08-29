@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 	"time"
 
@@ -28,13 +29,15 @@ func (h *SLAPolicyHandler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *SLAPolicyHandler) CreatePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketCreatePolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSLAPolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	policy, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+	policy, err := h.svc.Create(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -43,6 +46,8 @@ func (h *SLAPolicyHandler) CreatePolicy(c *gin.Context) {
 }
 
 func (h *SLAPolicyHandler) ListPolicies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketListPolicies")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	enabled := c.Query("enabled")
 	var enabledFilter *bool
@@ -50,7 +55,7 @@ func (h *SLAPolicyHandler) ListPolicies(c *gin.Context) {
 		val := enabled == "true"
 		enabledFilter = &val
 	}
-	policies, err := h.svc.List(c.Request.Context(), tenantID, enabledFilter)
+	policies, err := h.svc.List(ctx, tenantID, enabledFilter)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -59,9 +64,11 @@ func (h *SLAPolicyHandler) ListPolicies(c *gin.Context) {
 }
 
 func (h *SLAPolicyHandler) GetPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetPolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	policyID := c.Param("policyId")
-	policy, err := h.svc.Get(c.Request.Context(), tenantID, policyID)
+	policy, err := h.svc.Get(ctx, tenantID, policyID)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -70,6 +77,8 @@ func (h *SLAPolicyHandler) GetPolicy(c *gin.Context) {
 }
 
 func (h *SLAPolicyHandler) UpdatePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketUpdatePolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	policyID := c.Param("policyId")
 	var req models.UpdateSLAPolicyRequest
@@ -77,7 +86,7 @@ func (h *SLAPolicyHandler) UpdatePolicy(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	policy, err := h.svc.Update(c.Request.Context(), tenantID, policyID, &req)
+	policy, err := h.svc.Update(ctx, tenantID, policyID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -86,9 +95,11 @@ func (h *SLAPolicyHandler) UpdatePolicy(c *gin.Context) {
 }
 
 func (h *SLAPolicyHandler) DeletePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketDeletePolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	policyID := c.Param("policyId")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, policyID); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, policyID); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -96,6 +107,8 @@ func (h *SLAPolicyHandler) DeletePolicy(c *gin.Context) {
 }
 
 func (h *SLAPolicyHandler) GetPolicyCompliance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetPolicyCompliance")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	policyID := c.Param("policyId")
 	startStr := c.DefaultQuery("start", "")
@@ -108,7 +121,7 @@ func (h *SLAPolicyHandler) GetPolicyCompliance(c *gin.Context) {
 	if start.IsZero() {
 		start = end.AddDate(0, 0, -30)
 	}
-	compliance, err := h.svc.GetCompliance(c.Request.Context(), tenantID, policyID, start, end)
+	compliance, err := h.svc.GetCompliance(ctx, tenantID, policyID, start, end)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -117,9 +130,11 @@ func (h *SLAPolicyHandler) GetPolicyCompliance(c *gin.Context) {
 }
 
 func (h *SLAPolicyHandler) GetTicketSLAStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetTicketSLAStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("ticketId")
-	status, err := h.svc.GetTicketStatus(c.Request.Context(), tenantID, ticketID)
+	status, err := h.svc.GetTicketStatus(ctx, tenantID, ticketID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

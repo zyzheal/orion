@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -34,13 +35,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateRelease")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateReleaseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	release, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+	release, err := h.svc.Create(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -49,9 +52,11 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRelease")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	release, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	release, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -60,15 +65,13 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListReleases")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
-	q := models.ListReleasesQuery{
-		Page:       page,
-		PageSize:   pageSize,
-		PipelineID: c.Query("pipelineId"),
-	}
-	result, err := h.svc.List(c.Request.Context(), tenantID, q)
+	q := models.ListReleasesQuery{Page: page, PageSize: pageSize, PipelineID: c.Query("pipelineId")}
+	result, err := h.svc.List(ctx, tenantID, q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -77,6 +80,8 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateRelease")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateReleaseRequest
@@ -84,7 +89,7 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	release, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
+	release, err := h.svc.Update(ctx, tenantID, id, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -93,9 +98,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteRelease")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -103,6 +110,8 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) Approve(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApproveRelease")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	userID := c.GetString("user_id")
@@ -110,7 +119,7 @@ func (h *Handler) Approve(c *gin.Context) {
 		Comment string `json:"comment"`
 	}
 	c.ShouldBindJSON(&req)
-	approval, err := h.svc.Approve(c.Request.Context(), tenantID, id, userID, req.Comment)
+	approval, err := h.svc.Approve(ctx, tenantID, id, userID, req.Comment)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -119,10 +128,12 @@ func (h *Handler) Approve(c *gin.Context) {
 }
 
 func (h *Handler) Deploy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeployRelease")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	userID := c.GetString("user_id")
-	release, err := h.svc.Deploy(c.Request.Context(), tenantID, id, userID)
+	release, err := h.svc.Deploy(ctx, tenantID, id, userID)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -131,6 +142,8 @@ func (h *Handler) Deploy(c *gin.Context) {
 }
 
 func (h *Handler) Rollback(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RollbackRelease")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	userID := c.GetString("user_id")
@@ -141,7 +154,7 @@ func (h *Handler) Rollback(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	release, err := h.svc.Rollback(c.Request.Context(), tenantID, id, req.Reason, userID)
+	release, err := h.svc.Rollback(ctx, tenantID, id, req.Reason, userID)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return

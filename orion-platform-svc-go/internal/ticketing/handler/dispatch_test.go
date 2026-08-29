@@ -55,8 +55,8 @@ func TestHandler_RegisterEngineer(t *testing.T) {
 
 	body, _ := json.Marshal(map[string]any{
 		"user_id":     "eng-1",
-		"name":       "Alice",
-		"expertise":  []string{"backend"},
+		"name":        "Alice",
+		"expertise":   []string{"backend"},
 		"max_tickets": 10,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/dispatch/engineers", bytes.NewReader(body))

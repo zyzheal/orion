@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/dependency-coordination/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/dependency-coordination/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeDependency_coordinationService) Update(ctx context.Context, tenantI
 }
 
 var _ service.ServiceInterface = (*fakeDependency_coordinationService)(nil)
-
 
 func TestHandler_DEPENDENCY_COO_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

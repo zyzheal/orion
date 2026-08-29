@@ -220,7 +220,7 @@ func (s *Service) IncrementUsage(ctx context.Context, req *models.IncrementUsage
 			CurrentValue: updated.CurrentValue,
 			LimitValue:   limit,
 			UsagePct:     pct,
-				AlertLevel:   "warning",
+			AlertLevel:   "warning",
 			NotifiedAt:   time.Now(),
 		})
 	}

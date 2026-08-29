@@ -635,18 +635,18 @@ func (r *Repository) SetServiceActive(ctx context.Context, tenantID string, acti
 
 // TicketSLATracking maps the ticket_sla_tracking row.
 type TicketSLATracking struct {
-	ID                        string     `db:"id"`
-	TicketID                  string     `db:"ticket_id"`
-	Priority                  string     `db:"priority"`
-	TargetResolutionTimeMs    int64      `db:"target_resolution_time_ms"`
-	ActualResolutionTimeMs    *int64     `db:"actual_resolution_time_ms"`
-	Breached                  bool       `db:"breached"`
-	BreachedAt                *time.Time `db:"breached_at"`
-	ResolvedAt                *time.Time `db:"resolved_at"`
-	FirstResponseAt           *time.Time `db:"first_response_at"`
-	ResponseBreached          bool       `db:"response_breached"`
-	CreatedAt                 time.Time  `db:"created_at"`
-	UpdatedAt                 time.Time  `db:"updated_at"`
+	ID                     string     `db:"id"`
+	TicketID               string     `db:"ticket_id"`
+	Priority               string     `db:"priority"`
+	TargetResolutionTimeMs int64      `db:"target_resolution_time_ms"`
+	ActualResolutionTimeMs *int64     `db:"actual_resolution_time_ms"`
+	Breached               bool       `db:"breached"`
+	BreachedAt             *time.Time `db:"breached_at"`
+	ResolvedAt             *time.Time `db:"resolved_at"`
+	FirstResponseAt        *time.Time `db:"first_response_at"`
+	ResponseBreached       bool       `db:"response_breached"`
+	CreatedAt              time.Time  `db:"created_at"`
+	UpdatedAt              time.Time  `db:"updated_at"`
 }
 
 // UpsertSLATracking creates or updates the SLA tracking row for a ticket.
@@ -715,12 +715,12 @@ func (r *Repository) CreateAssignment(ctx context.Context, tenantID, ticketID, a
 }
 
 func (r *Repository) GetAssignmentsByTicket(ctx context.Context, tenantID, ticketID string) ([]struct {
-	ID        string    `db:"id"`
-	TicketID  string    `db:"ticket_id"`
-	Assignee  string    `db:"assignee"`
-	AssignedBy string   `db:"assigned_by"`
-	Reason    string    `db:"reason"`
-	CreatedAt time.Time `db:"created_at"`
+	ID         string    `db:"id"`
+	TicketID   string    `db:"ticket_id"`
+	Assignee   string    `db:"assignee"`
+	AssignedBy string    `db:"assigned_by"`
+	Reason     string    `db:"reason"`
+	CreatedAt  time.Time `db:"created_at"`
 }, error) {
 	var rows []struct {
 		ID         string    `db:"id"`

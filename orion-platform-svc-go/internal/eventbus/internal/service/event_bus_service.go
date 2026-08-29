@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 	"orion/platform-svc-go/internal/eventbus/internal/models"
 	"orion/platform-svc-go/internal/eventbus/internal/nats"
 	"orion/platform-svc-go/internal/eventbus/internal/repository"
+	"time"
 )
 
 var (

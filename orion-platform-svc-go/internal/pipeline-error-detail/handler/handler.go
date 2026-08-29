@@ -29,20 +29,20 @@ func NewHandler(svc service.ServiceInterface) *Handler {
 }
 
 // RegisterRoutes mounts all pipeline-error-detail routes.
-// Mirrors /api/v1/pipelines/:runId/error-detail from the TS source (1 endpoint).
+// Mirrors /api/v1/pipelines/:id/error-detail from the TS source (1 endpoint).
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	// GET /pipelines/:runId/error-detail — Returns classified error info for a failed run
-	rg.GET("/pipelines/:runId/error-detail",
+	// GET /pipelines/:id/error-detail — Returns classified error info for a failed run
+	rg.GET("/pipelines/:id/error-detail",
 		auth.RequirePermission("pipeline-error-detail", "read"),
 		h.ErrorDetail)
 }
 
-// ErrorDetail handles GET /pipelines/:runId/error-detail.
+// ErrorDetail handles GET /pipelines/:id/error-detail.
 func (h *Handler) ErrorDetail(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ErrorDetail")
 	defer span.End()
 	ctx = middleware.TimeoutContext(c)
-	runID := c.Param("runId")
+	runID := c.Param("id")
 
 	detail, err := h.svc.GetErrorDetail(ctx, runID)
 	if err != nil {

@@ -4,18 +4,26 @@ import (
 	"context"
 	"testing"
 
-	"orion/platform-svc-go/internal/alert-pipeline/models"
-	"orion/platform-svc-go/internal/alert-pipeline/repository"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/alert-pipeline/models"
+	"orion/platform-svc-go/internal/alert-pipeline/repository"
 )
 
 type mockRepo struct{}
 
-func (m *mockRepo) Save(ctx context.Context, tenantID string, result *models.PipelineResult, alertName, severity string) error { return nil }
-func (m *mockRepo) GetByResultID(ctx context.Context, resultID uuid.UUID) (*repository.Result, error) { return nil, nil }
-func (m *mockRepo) GetByAlertID(ctx context.Context, alertID string) (*repository.Result, error) { return nil, nil }
-func (m *mockRepo) List(ctx context.Context, tenantID string, limit, offset int) ([]*repository.Result, error) { return nil, nil }
+func (m *mockRepo) Save(ctx context.Context, tenantID string, result *models.PipelineResult, alertName, severity string) error {
+	return nil
+}
+func (m *mockRepo) GetByResultID(ctx context.Context, resultID uuid.UUID) (*repository.Result, error) {
+	return nil, nil
+}
+func (m *mockRepo) GetByAlertID(ctx context.Context, alertID string) (*repository.Result, error) {
+	return nil, nil
+}
+func (m *mockRepo) List(ctx context.Context, tenantID string, limit, offset int) ([]*repository.Result, error) {
+	return nil, nil
+}
 func (m *mockRepo) Count(ctx context.Context, tenantID string) (int, error) { return 0, nil }
 
 func TestPipelineServiceNew(t *testing.T) {

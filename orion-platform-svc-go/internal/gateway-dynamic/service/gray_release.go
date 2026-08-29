@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/gateway-dynamic/models"
-	"orion/platform-svc-go/internal/gateway-dynamic/repository"
 	"orion/platform-svc-go/internal/gateway-dynamic/redis"
+	"orion/platform-svc-go/internal/gateway-dynamic/repository"
 )
 
 // GrayReleaseService handles gray release business logic.

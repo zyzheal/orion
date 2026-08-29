@@ -115,12 +115,12 @@ func genFlowName(prompt, intent string) string {
 }
 
 var intentNames = map[string]string{
-	"approval":   "审批",
-	"deployment": "发布",
+	"approval":     "审批",
+	"deployment":   "发布",
 	"notification": "通知",
-	"data_sync": "数据同步",
-	"scheduled": "定时任务",
-	"generic":   "通用",
+	"data_sync":    "数据同步",
+	"scheduled":    "定时任务",
+	"generic":      "通用",
 }
 
 const (

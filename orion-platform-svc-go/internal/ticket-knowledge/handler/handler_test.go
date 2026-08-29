@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/ticket-knowledge/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/ticket-knowledge/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeTicket_knowledgeService) Update(ctx context.Context, tenantID, id s
 }
 
 var _ service.ServiceInterface = (*fakeTicket_knowledgeService)(nil)
-
 
 func TestHandler_TICKET_KNOWLED_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

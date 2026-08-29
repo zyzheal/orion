@@ -16,15 +16,15 @@ import (
 
 // EntityCostRecord models cost tracking per entity (project/tenant/team).
 type EntityCostRecord struct {
-	ID          string             `db:"id" json:"id"`
-	EntityType  string             `db:"entity_type" json:"entity_type"`
-	EntityID    string             `db:"entity_id" json:"entity_id"`
-	Amount      float64            `db:"amount" json:"amount"`
-	Category    string             `db:"category" json:"category"`
-	Environment sql.NullString     `db:"environment" json:"environment,omitempty"`
-	Tags        sql.NullString     `db:"tags" json:"tags,omitempty"`
-	Currency    string             `db:"currency" json:"currency"`
-	Timestamp   time.Time          `db:"timestamp" json:"timestamp"`
+	ID          string         `db:"id" json:"id"`
+	EntityType  string         `db:"entity_type" json:"entity_type"`
+	EntityID    string         `db:"entity_id" json:"entity_id"`
+	Amount      float64        `db:"amount" json:"amount"`
+	Category    string         `db:"category" json:"category"`
+	Environment sql.NullString `db:"environment" json:"environment,omitempty"`
+	Tags        sql.NullString `db:"tags" json:"tags,omitempty"`
+	Currency    string         `db:"currency" json:"currency"`
+	Timestamp   time.Time      `db:"timestamp" json:"timestamp"`
 }
 
 // CreateEntityCostRecord inserts an entity-level cost record.
@@ -83,13 +83,13 @@ func (r *CostRepository) GetEntityCostTrend(ctx context.Context, entityType, ent
 
 // EntityCostSummary aggregates costs by entity.
 type EntityCostSummary struct {
-	EntityType  string              `json:"entity_type"`
-	EntityID    string              `json:"entity_id"`
-	TotalAmount float64             `json:"total_amount"`
-	Breakdown   map[string]float64  `json:"breakdown"`
-	Period      string              `json:"period"`
-	Currency    string              `json:"currency"`
-	RecordCount int                 `json:"record_count"`
+	EntityType  string             `json:"entity_type"`
+	EntityID    string             `json:"entity_id"`
+	TotalAmount float64            `json:"total_amount"`
+	Breakdown   map[string]float64 `json:"breakdown"`
+	Period      string             `json:"period"`
+	Currency    string             `json:"currency"`
+	RecordCount int                `json:"record_count"`
 }
 
 // GetEntityCostSummary computes cost summary for an entity.
@@ -224,12 +224,12 @@ func (r *CostRepository) GetCloudCostBreakdown(ctx context.Context, tenantID, di
 
 // FinOpsReport represents a generated cost report.
 type FinOpsReport struct {
-	ID         string             `db:"id" json:"id"`
-	TenantID   string             `db:"tenant_id" json:"tenant_id"`
-	Period     string             `db:"period" json:"period"`
-	TotalCost  float64            `db:"total_cost" json:"total_cost"`
-	Breakdown  sql.NullString     `db:"breakdown" json:"breakdown"`
-	CreatedAt  time.Time          `db:"created_at" json:"created_at"`
+	ID        string         `db:"id" json:"id"`
+	TenantID  string         `db:"tenant_id" json:"tenant_id"`
+	Period    string         `db:"period" json:"period"`
+	TotalCost float64        `db:"total_cost" json:"total_cost"`
+	Breakdown sql.NullString `db:"breakdown" json:"breakdown"`
+	CreatedAt time.Time      `db:"created_at" json:"created_at"`
 }
 
 // CreateReport inserts a cost report.
@@ -258,17 +258,17 @@ func (r *CostRepository) GetReports(ctx context.Context, tenantID string, limit 
 
 // ROIAnalysisRecord models an ROI analysis.
 type ROIAnalysisRecord struct {
-	ID             string             `db:"id" json:"id"`
-	InvestmentType string             `db:"investment_type" json:"investment_type"`
-	Name           string             `db:"name" json:"name"`
-	Cost           float64            `db:"cost" json:"cost"`
-	Savings        float64            `db:"savings" json:"savings"`
-	Period         string             `db:"period" json:"period"`
-	ROIPercentage  float64            `db:"roi_percentage" json:"roi_percentage"`
-	PaybackMonths  sql.NullFloat64    `db:"payback_months" json:"payback_months"`
-	Description    sql.NullString     `db:"description" json:"description"`
-	Details        sql.NullString     `db:"details" json:"details"`
-	AnalyzedAt     time.Time          `db:"analyzed_at" json:"analyzed_at"`
+	ID             string          `db:"id" json:"id"`
+	InvestmentType string          `db:"investment_type" json:"investment_type"`
+	Name           string          `db:"name" json:"name"`
+	Cost           float64         `db:"cost" json:"cost"`
+	Savings        float64         `db:"savings" json:"savings"`
+	Period         string          `db:"period" json:"period"`
+	ROIPercentage  float64         `db:"roi_percentage" json:"roi_percentage"`
+	PaybackMonths  sql.NullFloat64 `db:"payback_months" json:"payback_months"`
+	Description    sql.NullString  `db:"description" json:"description"`
+	Details        sql.NullString  `db:"details" json:"details"`
+	AnalyzedAt     time.Time       `db:"analyzed_at" json:"analyzed_at"`
 }
 
 // CreateROIAnalysis inserts an ROI analysis.
@@ -313,13 +313,13 @@ func (r *CostRepository) GetROIHistory(ctx context.Context, investmentType strin
 
 // CostComparisonRecord models a cost comparison.
 type CostComparisonRecord struct {
-	ID             string          `db:"id" json:"id"`
-	Description    string          `db:"description" json:"description"`
-	BeforeCost     float64         `db:"before_cost" json:"before_cost"`
-	AfterCost      float64         `db:"after_cost" json:"after_cost"`
-	Savings        float64         `db:"savings" json:"savings"`
-	SavingsPercent float64         `db:"savings_percent" json:"savings_percent"`
-	Period         string          `db:"period" json:"period"`
+	ID             string  `db:"id" json:"id"`
+	Description    string  `db:"description" json:"description"`
+	BeforeCost     float64 `db:"before_cost" json:"before_cost"`
+	AfterCost      float64 `db:"after_cost" json:"after_cost"`
+	Savings        float64 `db:"savings" json:"savings"`
+	SavingsPercent float64 `db:"savings_percent" json:"savings_percent"`
+	Period         string  `db:"period" json:"period"`
 }
 
 // CreateCostComparison inserts a cost comparison.
@@ -345,11 +345,11 @@ func (r *CostRepository) GetCostComparisons(ctx context.Context) ([]CostComparis
 
 // GetROISummary computes ROI summary statistics.
 type ROISummary struct {
-	TotalAnalyses       int     `json:"total_analyses"`
-	AverageROI          float64 `json:"average_roi"`
+	TotalAnalyses        int     `json:"total_analyses"`
+	AverageROI           float64 `json:"average_roi"`
 	AveragePaybackMonths float64 `json:"average_payback_months"`
-	TotalComparisons    int     `json:"total_comparisons"`
-	TotalSavings        float64 `json:"total_savings"`
+	TotalComparisons     int     `json:"total_comparisons"`
+	TotalSavings         float64 `json:"total_savings"`
 }
 
 func (r *CostRepository) GetROISummary(ctx context.Context) (*ROISummary, error) {
@@ -387,11 +387,11 @@ func (r *CostRepository) GetROISummary(ctx context.Context) (*ROISummary, error)
 
 // ChargebackEntity represents one entity in a chargeback report.
 type ChargebackEntity struct {
-	EntityType  string             `json:"entity_type"`
-	EntityID    string             `json:"entity_id"`
-	Cost        float64            `json:"cost"`
-	Percentage  float64            `json:"percentage"`
-	Breakdown   map[string]float64 `json:"breakdown"`
+	EntityType string             `json:"entity_type"`
+	EntityID   string             `json:"entity_id"`
+	Cost       float64            `json:"cost"`
+	Percentage float64            `json:"percentage"`
+	Breakdown  map[string]float64 `json:"breakdown"`
 }
 
 // ChargebackReport represents a chargeback report.

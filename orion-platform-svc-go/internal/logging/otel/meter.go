@@ -7,8 +7,8 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
-	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	otelmetric "go.opentelemetry.io/otel/metric"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 )
 
 // MeterProviderConfig holds options specific to the MeterProvider.

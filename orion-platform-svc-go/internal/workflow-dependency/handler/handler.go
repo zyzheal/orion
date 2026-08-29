@@ -7,9 +7,9 @@ import (
 	"orion/platform-svc-go/internal/workflow-dependency/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
-	"orion/go-common/pkg/auth"
 	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Service defines the contract the handler needs from the service layer.

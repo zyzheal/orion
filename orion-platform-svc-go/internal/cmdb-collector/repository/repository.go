@@ -6,9 +6,10 @@
 // isolation.
 //
 // Tables:
-//   cmdb_targets      — remote endpoints to discover / collect from
-//   cmdb_devices      — discovered or registered CMDB assets
-//   cmdb_collections  — time-stamped attribute snapshots
+//
+//	cmdb_targets      — remote endpoints to discover / collect from
+//	cmdb_devices      — discovered or registered CMDB assets
+//	cmdb_collections  — time-stamped attribute snapshots
 //
 // Rollback migration: 254_create_cmdb_collector_tables_down.sql
 package repository
@@ -27,9 +28,9 @@ import (
 )
 
 var (
-	ErrNotFound    = sql.ErrNoRows
-	ErrDuplicate   = errors.New("duplicate key")
-	ErrNotUnique   = errors.New("duplicate entry")
+	ErrNotFound  = sql.ErrNoRows
+	ErrDuplicate = errors.New("duplicate key")
+	ErrNotUnique = errors.New("duplicate entry")
 )
 
 // Repository is the data access layer for cmdb_targets, cmdb_devices and

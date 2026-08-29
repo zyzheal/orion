@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strconv"
 
 	"orion/platform-svc-go/internal/config/internal/config/models"
@@ -21,13 +22,15 @@ func NewTemplateHandler(svc *service.TemplateService) *TemplateHandler {
 
 // Create handles POST /templates.
 func (h *TemplateHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigTemplateCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	t, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+	t, err := h.svc.Create(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -37,10 +40,12 @@ func (h *TemplateHandler) Create(c *gin.Context) {
 
 // List handles GET /templates.
 func (h *TemplateHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigTemplateList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	templates, err := h.svc.List(c.Request.Context(), tenantID, page, pageSize)
+	templates, err := h.svc.List(ctx, tenantID, page, pageSize)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -50,8 +55,10 @@ func (h *TemplateHandler) List(c *gin.Context) {
 
 // GetByID handles GET /templates/:id.
 func (h *TemplateHandler) GetByID(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigTemplateGetByID")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	t, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
+	t, err := h.svc.GetByID(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -61,13 +68,15 @@ func (h *TemplateHandler) GetByID(c *gin.Context) {
 
 // Update handles PUT /templates/:id.
 func (h *TemplateHandler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigTemplateUpdate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	t, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
+	t, err := h.svc.Update(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -77,8 +86,10 @@ func (h *TemplateHandler) Update(c *gin.Context) {
 
 // Delete handles DELETE /templates/:id.
 func (h *TemplateHandler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigTemplateDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -87,13 +98,15 @@ func (h *TemplateHandler) Delete(c *gin.Context) {
 
 // CreateVersion handles POST /templates/:id/versions.
 func (h *TemplateHandler) CreateVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigTemplateCreateVersion")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTemplateVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	v, err := h.svc.CreateVersion(c.Request.Context(), tenantID, c.Param("id"), &req)
+	v, err := h.svc.CreateVersion(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -103,8 +116,10 @@ func (h *TemplateHandler) CreateVersion(c *gin.Context) {
 
 // ListVersions handles GET /templates/:id/versions.
 func (h *TemplateHandler) ListVersions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigTemplateListVersions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	versions, err := h.svc.ListVersions(c.Request.Context(), tenantID, c.Param("id"))
+	versions, err := h.svc.ListVersions(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

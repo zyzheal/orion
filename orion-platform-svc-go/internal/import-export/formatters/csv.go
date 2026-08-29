@@ -71,7 +71,7 @@ func ToCSVRows(out io.Writer, records []map[string]interface{},
 // indexed numerically (col_0, col_1, ...).
 func FromCSVRows(in io.Reader, hasHeader bool) ([]map[string]interface{}, error) {
 	r := csv.NewReader(in)
-	r.LazyQuotes = true     // be tolerant of real-world files
+	r.LazyQuotes = true // be tolerant of real-world files
 	r.TrimLeadingSpace = true
 	records, err := r.ReadAll()
 	if err != nil {

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -31,91 +32,154 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) CreateIntegration(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateIntegration")
+	defer span.End()
 	var req models.CreateIntegrationRequest
-	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(400, gin.H{"error": err.Error()}); return }
-	ig, err := h.svc.CreateIntegration(c.Request.Context(), c.GetString("tenant_id"), &req)
-	if err != nil { c.JSON(500, gin.H{"error": err.Error()}); return }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	ig, err := h.svc.CreateIntegration(ctx, c.GetString("tenant_id"), &req)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(201, gin.H{"data": ig})
 }
 
 func (h *Handler) GetIntegration(c *gin.Context) {
-	ig, err := h.svc.GetIntegration(c.Request.Context(), c.GetString("tenant_id"), c.Param("id"))
-	if err != nil { c.JSON(404, gin.H{"error": err.Error()}); return }
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetIntegration")
+	defer span.End()
+	ig, err := h.svc.GetIntegration(ctx, c.GetString("tenant_id"), c.Param("id"))
+	if err != nil {
+		c.JSON(404, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(200, gin.H{"data": ig})
 }
 
 func (h *Handler) ListIntegrations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListIntegrations")
+	defer span.End()
 	intType := c.Query("type")
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	items, err := h.svc.ListIntegrations(c.Request.Context(), c.GetString("tenant_id"), intType, offset, limit)
-	if err != nil { c.JSON(500, gin.H{"error": err.Error()}); return }
+	items, err := h.svc.ListIntegrations(ctx, c.GetString("tenant_id"), intType, offset, limit)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(200, gin.H{"data": items})
 }
 
 func (h *Handler) UpdateIntegration(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateIntegration")
+	defer span.End()
 	var req models.UpdateIntegrationRequest
-	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(400, gin.H{"error": err.Error()}); return }
-	ig, err := h.svc.UpdateIntegration(c.Request.Context(), c.GetString("tenant_id"), c.Param("id"), &req)
-	if err != nil { c.JSON(500, gin.H{"error": err.Error()}); return }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	ig, err := h.svc.UpdateIntegration(ctx, c.GetString("tenant_id"), c.Param("id"), &req)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(200, gin.H{"data": ig})
 }
 
 func (h *Handler) DeleteIntegration(c *gin.Context) {
-	if err := h.svc.DeleteIntegration(c.Request.Context(), c.GetString("tenant_id"), c.Param("id")); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()}); return
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteIntegration")
+	defer span.End()
+	if err := h.svc.DeleteIntegration(ctx, c.GetString("tenant_id"), c.Param("id")); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
 	}
 	c.JSON(200, gin.H{"status": "deleted"})
 }
 
 func (h *Handler) CreateTask(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateIntegrationTask")
+	defer span.End()
 	var req models.CreateTaskRequest
-	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(400, gin.H{"error": err.Error()}); return }
-	t, err := h.svc.CreateTask(c.Request.Context(), c.GetString("tenant_id"), &req)
-	if err != nil { c.JSON(500, gin.H{"error": err.Error()}); return }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	t, err := h.svc.CreateTask(ctx, c.GetString("tenant_id"), &req)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(201, gin.H{"data": t})
 }
 
 func (h *Handler) GetTask(c *gin.Context) {
-	t, err := h.svc.GetTask(c.Request.Context(), c.GetString("tenant_id"), c.Param("id"))
-	if err != nil { c.JSON(404, gin.H{"error": err.Error()}); return }
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetIntegrationTask")
+	defer span.End()
+	t, err := h.svc.GetTask(ctx, c.GetString("tenant_id"), c.Param("id"))
+	if err != nil {
+		c.JSON(404, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(200, gin.H{"data": t})
 }
 
 func (h *Handler) ListTasks(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListIntegrationTasks")
+	defer span.End()
 	integrationID := c.Query("integration_id")
 	status := c.Query("status")
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	items, err := h.svc.ListTasks(c.Request.Context(), c.GetString("tenant_id"), integrationID, status, offset, limit)
-	if err != nil { c.JSON(500, gin.H{"error": err.Error()}); return }
+	items, err := h.svc.ListTasks(ctx, c.GetString("tenant_id"), integrationID, status, offset, limit)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(200, gin.H{"data": items})
 }
 
 func (h *Handler) UpdateTaskStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateIntegrationTaskStatus")
+	defer span.End()
 	var req struct {
 		Status     string `json:"status" binding:"required"`
 		ErrorMsg   string `json:"error_msg"`
 		Response   string `json:"response"`
 		DurationMs int64  `json:"duration_ms"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(400, gin.H{"error": err.Error()}); return }
-	t, err := h.svc.UpdateTaskStatus(c.Request.Context(), c.GetString("tenant_id"), c.Param("id"), req.Status, req.ErrorMsg, req.Response, req.DurationMs)
-	if err != nil { c.JSON(500, gin.H{"error": err.Error()}); return }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	t, err := h.svc.UpdateTaskStatus(ctx, c.GetString("tenant_id"), c.Param("id"), req.Status, req.ErrorMsg, req.Response, req.DurationMs)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(200, gin.H{"data": t})
 }
 
 func (h *Handler) DeleteTask(c *gin.Context) {
-	if err := h.svc.DeleteTask(c.Request.Context(), c.GetString("tenant_id"), c.Param("id")); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()}); return
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteIntegrationTask")
+	defer span.End()
+	if err := h.svc.DeleteTask(ctx, c.GetString("tenant_id"), c.Param("id")); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
 	}
 	c.JSON(200, gin.H{"status": "deleted"})
 }
 
 func (h *Handler) GetLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetIntegrationTaskLogs")
+	defer span.End()
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	logs, err := h.svc.GetLogs(c.Request.Context(), c.Param("id"), offset, limit)
-	if err != nil { c.JSON(500, gin.H{"error": err.Error()}); return }
+	logs, err := h.svc.GetLogs(ctx, c.Param("id"), offset, limit)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(200, gin.H{"data": logs})
 }

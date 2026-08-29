@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/global-param/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/global-param/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeGlobal_paramService) Update(ctx context.Context, tenantID, id strin
 }
 
 var _ service.ServiceInterface = (*fakeGlobal_paramService)(nil)
-
 
 func TestHandler_GLOBAL_PARAM_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

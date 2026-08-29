@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"go.opentelemetry.io/otel"
 	"strconv"
 	"time"
 
@@ -24,6 +25,8 @@ func NewAnalysisHandler(svc *service.AnalysisService) *AnalysisHandler {
 
 // RecordCost records an entity-level cost.
 func (h *AnalysisHandler) RecordCost(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsRecordCost")
+	defer span.End()
 	_ = c.GetString("tenant_id")
 
 	var req struct {
@@ -55,7 +58,7 @@ func (h *AnalysisHandler) RecordCost(c *gin.Context) {
 		}
 	}
 
-	id, err := h.svc.RecordEntityCost(c.Request.Context(),
+	id, err := h.svc.RecordEntityCost(ctx,
 		req.EntityType, req.EntityID, req.Amount, req.Category,
 		req.Environment, tagsStr, req.Currency, ts,
 	)
@@ -69,6 +72,8 @@ func (h *AnalysisHandler) RecordCost(c *gin.Context) {
 
 // GetCostByEntity returns cost summary for an entity.
 func (h *AnalysisHandler) GetCostByEntity(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsGetCostByEntity")
+	defer span.End()
 	entityType := c.Query("entity_type")
 	entityID := c.Query("entity_id")
 	periodStart := c.Query("period_start")
@@ -77,7 +82,7 @@ func (h *AnalysisHandler) GetCostByEntity(c *gin.Context) {
 	ps, _ := parseTime(periodStart)
 	pe, _ := parseTime(periodEnd)
 
-	summary, err := h.svc.GetEntityCostSummary(c.Request.Context(), entityType, entityID, ps, pe)
+	summary, err := h.svc.GetEntityCostSummary(ctx, entityType, entityID, ps, pe)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -88,6 +93,8 @@ func (h *AnalysisHandler) GetCostByEntity(c *gin.Context) {
 
 // GetCostTrendForEntity returns cost trend for an entity.
 func (h *AnalysisHandler) GetCostTrendForEntity(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsGetCostTrendForEntity")
+	defer span.End()
 	entityType := c.Query("entity_type")
 	entityID := c.Query("entity_id")
 	periodStart := c.Query("period_start")
@@ -96,7 +103,7 @@ func (h *AnalysisHandler) GetCostTrendForEntity(c *gin.Context) {
 	ps, _ := parseTime(periodStart)
 	pe, _ := parseTime(periodEnd)
 
-	trend, err := h.svc.GetCostTrendForEntity(c.Request.Context(), entityType, entityID, ps, pe)
+	trend, err := h.svc.GetCostTrendForEntity(ctx, entityType, entityID, ps, pe)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -107,6 +114,8 @@ func (h *AnalysisHandler) GetCostTrendForEntity(c *gin.Context) {
 
 // ListCostRecords returns all cost records.
 func (h *AnalysisHandler) ListCostRecords(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsListCostRecords")
+	defer span.End()
 	entityType := c.Query("entity_type")
 	entityID := c.Query("entity_id")
 	category := c.Query("category")
@@ -116,7 +125,7 @@ func (h *AnalysisHandler) ListCostRecords(c *gin.Context) {
 	ps, _ := parseTime(periodStart)
 	pe, _ := parseTime(periodEnd)
 
-	records, err := h.svc.GetAllCostRecords(c.Request.Context(), entityType, entityID, category, ps, pe)
+	records, err := h.svc.GetAllCostRecords(ctx, entityType, entityID, category, ps, pe)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -129,6 +138,8 @@ func (h *AnalysisHandler) ListCostRecords(c *gin.Context) {
 
 // GenerateReport generates a cost report.
 func (h *AnalysisHandler) GenerateReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsGenerateReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req struct {
@@ -141,7 +152,7 @@ func (h *AnalysisHandler) GenerateReport(c *gin.Context) {
 		return
 	}
 
-	report, err := h.svc.GenerateReport(c.Request.Context(), tenantID, req.Period, req.TotalCost, req.Breakdown)
+	report, err := h.svc.GenerateReport(ctx, tenantID, req.Period, req.TotalCost, req.Breakdown)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -152,10 +163,12 @@ func (h *AnalysisHandler) GenerateReport(c *gin.Context) {
 
 // ListReports returns report history.
 func (h *AnalysisHandler) ListReports(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsListReports")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 
-	reports, err := h.svc.GetReports(c.Request.Context(), tenantID, limit)
+	reports, err := h.svc.GetReports(ctx, tenantID, limit)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -168,6 +181,8 @@ func (h *AnalysisHandler) ListReports(c *gin.Context) {
 
 // CreateROI creates an ROI analysis.
 func (h *AnalysisHandler) CreateROI(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsCreateROI")
+	defer span.End()
 	var req struct {
 		InvestmentType string  `json:"investment_type" binding:"required"`
 		Name           string  `json:"name" binding:"required"`
@@ -189,7 +204,7 @@ func (h *AnalysisHandler) CreateROI(c *gin.Context) {
 		paybackMonths = req.Cost / req.MonthlySavings
 	}
 
-	analysis, err := h.svc.CreateROIAnalysis(c.Request.Context(), models.CreateROIRequest{
+	analysis, err := h.svc.CreateROIAnalysis(ctx, models.CreateROIRequest{
 		InvestmentType: req.InvestmentType,
 		Name:           req.Name,
 		Cost:           req.Cost,
@@ -208,10 +223,12 @@ func (h *AnalysisHandler) CreateROI(c *gin.Context) {
 
 // ListROI returns ROI analysis history.
 func (h *AnalysisHandler) ListROI(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsListROI")
+	defer span.End()
 	investmentType := c.Query("investment_type")
 	minROI, _ := strconv.ParseFloat(c.DefaultQuery("min_roi", "0"), 64)
 
-	history, err := h.svc.GetROIHistory(c.Request.Context(), investmentType, minROI)
+	history, err := h.svc.GetROIHistory(ctx, investmentType, minROI)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -222,7 +239,9 @@ func (h *AnalysisHandler) ListROI(c *gin.Context) {
 
 // GetROISummary returns ROI summary statistics.
 func (h *AnalysisHandler) GetROISummary(c *gin.Context) {
-	summary, err := h.svc.GetROISummary(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsGetROISummary")
+	defer span.End()
+	summary, err := h.svc.GetROISummary(ctx)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -235,12 +254,14 @@ func (h *AnalysisHandler) GetROISummary(c *gin.Context) {
 
 // CreateCostComparison creates a cost comparison.
 func (h *AnalysisHandler) CreateCostComparison(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsCreateCostComparison")
+	defer span.End()
 	var req struct {
-		Description    string  `json:"description" binding:"required"`
-		BeforeCost     float64 `json:"before_cost" binding:"required"`
-		AfterCost      float64 `json:"after_cost" binding:"required"`
+		Description      string  `json:"description" binding:"required"`
+		BeforeCost       float64 `json:"before_cost" binding:"required"`
+		AfterCost        float64 `json:"after_cost" binding:"required"`
 		TimeSavingsHours float64 `json:"time_savings_hours"`
-		Period         string  `json:"period"`
+		Period           string  `json:"period"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
@@ -253,7 +274,7 @@ func (h *AnalysisHandler) CreateCostComparison(c *gin.Context) {
 		savingsPct = (savings / req.BeforeCost) * 100
 	}
 
-	comparison, err := h.svc.CreateCostComparison(c.Request.Context(), models.CreateCostComparisonRequest{
+	comparison, err := h.svc.CreateCostComparison(ctx, models.CreateCostComparisonRequest{
 		Description:    req.Description,
 		BeforeCost:     req.BeforeCost,
 		AfterCost:      req.AfterCost,
@@ -271,7 +292,9 @@ func (h *AnalysisHandler) CreateCostComparison(c *gin.Context) {
 
 // ListCostComparisons returns all cost comparisons.
 func (h *AnalysisHandler) ListCostComparisons(c *gin.Context) {
-	comparisons, err := h.svc.GetCostComparisons(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsListCostComparisons")
+	defer span.End()
+	comparisons, err := h.svc.GetCostComparisons(ctx)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -284,6 +307,8 @@ func (h *AnalysisHandler) ListCostComparisons(c *gin.Context) {
 
 // GenerateChargebackReport generates a chargeback report.
 func (h *AnalysisHandler) GenerateChargebackReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsGenerateChargebackReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	periodStart := c.Query("period_start")
 	periodEnd := c.Query("period_end")
@@ -291,7 +316,7 @@ func (h *AnalysisHandler) GenerateChargebackReport(c *gin.Context) {
 	ps, _ := parseTime(periodStart)
 	pe, _ := parseTime(periodEnd)
 
-	report, err := h.svc.GenerateChargebackReport(c.Request.Context(), tenantID, ps, pe)
+	report, err := h.svc.GenerateChargebackReport(ctx, tenantID, ps, pe)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -304,6 +329,8 @@ func (h *AnalysisHandler) GenerateChargebackReport(c *gin.Context) {
 
 // GetCostBreakdown returns cost breakdown by dimension.
 func (h *AnalysisHandler) GetCostBreakdown(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsGetCostBreakdown")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	dimension := c.Query("dimension")
 	periodStart := c.Query("period_start")
@@ -312,7 +339,7 @@ func (h *AnalysisHandler) GetCostBreakdown(c *gin.Context) {
 	ps, _ := parseTime(periodStart)
 	pe, _ := parseTime(periodEnd)
 
-	breakdown, err := h.svc.GetCostBreakdown(c.Request.Context(), tenantID, dimension, ps, pe)
+	breakdown, err := h.svc.GetCostBreakdown(ctx, tenantID, dimension, ps, pe)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -325,6 +352,8 @@ func (h *AnalysisHandler) GetCostBreakdown(c *gin.Context) {
 
 // CreateLegacyBudgetAlert creates a legacy budget alert.
 func (h *AnalysisHandler) CreateLegacyBudgetAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsCreateLegacyBudgetAlert")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req struct {
@@ -342,7 +371,7 @@ func (h *AnalysisHandler) CreateLegacyBudgetAlert(c *gin.Context) {
 		req.ThresholdPercent = 80
 	}
 
-	err := h.svc.CreateLegacyBudgetAlert(c.Request.Context(), tenantID, &models.LegacyBudgetAlert{
+	err := h.svc.CreateLegacyBudgetAlert(ctx, tenantID, &models.LegacyBudgetAlert{
 		Environment:      req.Environment,
 		BudgetAmount:     req.BudgetAmount,
 		ThresholdPercent: req.ThresholdPercent,
@@ -359,10 +388,12 @@ func (h *AnalysisHandler) CreateLegacyBudgetAlert(c *gin.Context) {
 
 // ListLegacyBudgetAlerts returns legacy budget alerts.
 func (h *AnalysisHandler) ListLegacyBudgetAlerts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsListLegacyBudgetAlerts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	environment := c.Query("environment")
 
-	alerts, err := h.svc.GetLegacyBudgetAlerts(c.Request.Context(), tenantID, environment)
+	alerts, err := h.svc.GetLegacyBudgetAlerts(ctx, tenantID, environment)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -373,9 +404,11 @@ func (h *AnalysisHandler) ListLegacyBudgetAlerts(c *gin.Context) {
 
 // DeleteLegacyBudgetAlert deletes a legacy budget alert.
 func (h *AnalysisHandler) DeleteLegacyBudgetAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsDeleteLegacyBudgetAlert")
+	defer span.End()
 	id := c.Param("id")
 
-	if err := h.svc.DeleteLegacyBudgetAlert(c.Request.Context(), id); err != nil {
+	if err := h.svc.DeleteLegacyBudgetAlert(ctx, id); err != nil {
 		respondNotFound(c, "alert not found")
 		return
 	}

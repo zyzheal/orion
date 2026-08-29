@@ -2,8 +2,8 @@ package processor
 
 import (
 	"context"
-	"sync"
 	"go.uber.org/zap"
+	"sync"
 )
 
 // ---------------------------------------------------------------------------

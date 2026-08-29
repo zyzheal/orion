@@ -4,19 +4,19 @@ import "time"
 
 // CostOptimizationAnalysis represents the result of a cost analysis.
 type CostOptimizationAnalysis struct {
-	TenantID      string                  `json:"tenant_id"`
-	TotalSpend    float64                 `json:"total_spend"`
+	TenantID      string                   `json:"tenant_id"`
+	TotalSpend    float64                  `json:"total_spend"`
 	Opportunities []CostSavingsOpportunity `json:"opportunities"`
-	Currency      string                  `json:"currency"`
+	Currency      string                   `json:"currency"`
 }
 
 // CostSavingsOpportunity represents a potential savings opportunity.
 type CostSavingsOpportunity struct {
-	Category               string  `json:"category"`
-	ResourceName           string  `json:"resource_name"`
+	Category                string  `json:"category"`
+	ResourceName            string  `json:"resource_name"`
 	EstimatedMonthlySavings float64 `json:"estimated_monthly_savings"`
-	RiskLevel              string  `json:"risk_level"`
-	Description            string  `json:"description"`
+	RiskLevel               string  `json:"risk_level"`
+	Description             string  `json:"description"`
 }
 
 // SavingsRecord represents a historical savings record.
@@ -31,20 +31,20 @@ type SavingsRecord struct {
 
 // CostSummary represents the cost summary response.
 type CostSummary struct {
-	TotalSpend       float64 `json:"total_spend"`
+	TotalSpend         float64 `json:"total_spend"`
 	TotalSavingsToDate float64 `json:"total_savings_to_date"`
-	OpportunityCount int     `json:"opportunity_count"`
-	Currency         string  `json:"currency"`
+	OpportunityCount   int     `json:"opportunity_count"`
+	Currency           string  `json:"currency"`
 }
 
 // CostAlert represents a cost-related alert.
 type CostAlert struct {
-	Type                   string  `json:"type"`
-	Category               string  `json:"category"`
-	ResourceName           string  `json:"resource_name"`
+	Type                    string  `json:"type"`
+	Category                string  `json:"category"`
+	ResourceName            string  `json:"resource_name"`
 	EstimatedMonthlySavings float64 `json:"estimated_monthly_savings"`
-	RiskLevel              string  `json:"risk_level"`
-	Description            string  `json:"description"`
+	RiskLevel               string  `json:"risk_level"`
+	Description             string  `json:"description"`
 }
 
 // OptimizeRequest is the request body for POST /optimize.
@@ -55,5 +55,5 @@ type OptimizeRequest struct {
 // OptimizeResponse is the response for POST /optimize.
 type OptimizeResponse struct {
 	Analysis        CostOptimizationAnalysis `json:"analysis"`
-	Recommendations []CostSavingsOpportunity  `json:"recommendations"`
+	Recommendations []CostSavingsOpportunity `json:"recommendations"`
 }

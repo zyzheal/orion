@@ -1,11 +1,12 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"net/http"
 
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/config/internal/config/models"
 	"orion/platform-svc-go/internal/config/internal/config/service"
-	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,6 +20,8 @@ func NewCanaryHandler(svc *service.CanaryService) *CanaryHandler {
 }
 
 func (h *CanaryHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	configID := c.Param("configId")
 
@@ -28,7 +31,7 @@ func (h *CanaryHandler) Create(c *gin.Context) {
 		return
 	}
 
-	canary, err := h.svc.Create(c.Request.Context(), tenantID, configID, &req)
+	canary, err := h.svc.Create(ctx, tenantID, configID, &req)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if err.Error() == "an active canary already exists for this config" {
@@ -41,10 +44,12 @@ func (h *CanaryHandler) Create(c *gin.Context) {
 }
 
 func (h *CanaryHandler) Promote(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigPromote")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	configID := c.Param("configId")
 
-	result, err := h.svc.Promote(c.Request.Context(), tenantID, configID, c.Param("canaryId"))
+	result, err := h.svc.Promote(ctx, tenantID, configID, c.Param("canaryId"))
 	if err != nil {
 		status := http.StatusInternalServerError
 		if err.Error() == "canary is not in active state" {
@@ -57,10 +62,12 @@ func (h *CanaryHandler) Promote(c *gin.Context) {
 }
 
 func (h *CanaryHandler) Rollback(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigRollback")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	configID := c.Param("configId")
 
-	result, err := h.svc.Rollback(c.Request.Context(), tenantID, configID, c.Param("canaryId"))
+	result, err := h.svc.Rollback(ctx, tenantID, configID, c.Param("canaryId"))
 	if err != nil {
 		status := http.StatusInternalServerError
 		if err.Error() == "canary is not in active state" {

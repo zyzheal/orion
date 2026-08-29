@@ -13,8 +13,8 @@ import (
 
 // ApprovalService manages config change approval workflows.
 type ApprovalService struct {
-	repo       *repository.Repository
-	configSvc  *Service
+	repo      *repository.Repository
+	configSvc *Service
 }
 
 func NewApprovalService(repo *repository.Repository, configSvc *Service) *ApprovalService {

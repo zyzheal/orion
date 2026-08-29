@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -18,7 +19,9 @@ func NewLoadBalancerHandler(svc *service.LoadBalancer) *LoadBalancerHandler {
 
 // GetBalancingReport GET /api/v1/tickets/dispatch/balancing/report
 func (h *LoadBalancerHandler) GetBalancingReport(c *gin.Context) {
-	report, err := h.svc.GetBalancingReport(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingGetBalancingReport")
+	defer span.End()
+	report, err := h.svc.GetBalancingReport(ctx)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -28,7 +31,9 @@ func (h *LoadBalancerHandler) GetBalancingReport(c *gin.Context) {
 
 // GetReassignmentSuggestions GET /api/v1/tickets/dispatch/balancing/suggestions
 func (h *LoadBalancerHandler) GetReassignmentSuggestions(c *gin.Context) {
-	suggestions, err := h.svc.SuggestReassignments(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingGetReassignmentSuggestions")
+	defer span.End()
+	suggestions, err := h.svc.SuggestReassignments(ctx)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -38,7 +43,9 @@ func (h *LoadBalancerHandler) GetReassignmentSuggestions(c *gin.Context) {
 
 // GetTeamCapacity GET /api/v1/tickets/dispatch/balancing/team/:team/capacity
 func (h *LoadBalancerHandler) GetTeamCapacity(c *gin.Context) {
-	capacity, err := h.svc.GetTeamCapacity(c.Request.Context(), c.Param("team"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingGetTeamCapacity")
+	defer span.End()
+	capacity, err := h.svc.GetTeamCapacity(ctx, c.Param("team"))
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -48,7 +55,9 @@ func (h *LoadBalancerHandler) GetTeamCapacity(c *gin.Context) {
 
 // CheckEngineerCapacity GET /api/v1/tickets/dispatch/balancing/engineer/:id/capacity
 func (h *LoadBalancerHandler) CheckEngineerCapacity(c *gin.Context) {
-	check, err := h.svc.CheckEngineerCapacity(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingCheckEngineerCapacity")
+	defer span.End()
+	check, err := h.svc.CheckEngineerCapacity(ctx, c.Param("id"))
 	if err != nil {
 		respondError(c, http.StatusNotFound, err)
 		return
@@ -58,7 +67,9 @@ func (h *LoadBalancerHandler) CheckEngineerCapacity(c *gin.Context) {
 
 // GetAvailableEngineers GET /api/v1/tickets/dispatch/balancing/available
 func (h *LoadBalancerHandler) GetAvailableEngineers(c *gin.Context) {
-	engineers, err := h.svc.GetAvailableEngineers(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingGetAvailableEngineers")
+	defer span.End()
+	engineers, err := h.svc.GetAvailableEngineers(ctx)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return

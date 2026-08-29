@@ -5,7 +5,6 @@ import (
 	"orion/platform-svc-go/internal/ai/models/models"
 )
 
-
 // RepositoryInterface defines the data access contract for the ai-models module.
 // DO NOT MODIFY: auto-generated from repository.go
 type RepositoryInterface interface {

@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/version-archive/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	Create(ctx context.Context, m *models.VersionArchive) error

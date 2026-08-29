@@ -9,38 +9,38 @@ import (
 
 // BuilderImage represents a builder container image.
 type BuilderImage struct {
-	ID          string            `db:"id" json:"id"`
-	TenantID    string            `db:"tenant_id" json:"tenant_id"`
-	Name        string            `db:"name" json:"name"`
-	DisplayName string            `db:"display_name" json:"display_name"`
-	Image       string            `db:"image" json:"image"`
-	Type        PresetImageType   `db:"type" json:"type"`
-	Version     string            `db:"version" json:"version"`
-	Description string            `db:"description" json:"description"`
-	PullPolicy  ImagePullPolicy   `db:"pull_policy" json:"pull_policy"`
+	ID          string             `db:"id" json:"id"`
+	TenantID    string             `db:"tenant_id" json:"tenant_id"`
+	Name        string             `db:"name" json:"name"`
+	DisplayName string             `db:"display_name" json:"display_name"`
+	Image       string             `db:"image" json:"image"`
+	Type        PresetImageType    `db:"type" json:"type"`
+	Version     string             `db:"version" json:"version"`
+	Description string             `db:"description" json:"description"`
+	PullPolicy  ImagePullPolicy    `db:"pull_policy" json:"pull_policy"`
 	Status      BuilderImageStatus `db:"status" json:"status"`
-	IsPreset    bool              `db:"is_preset" json:"is_preset"`
-	Env         json.RawMessage   `db:"env" json:"env,omitempty"`
-	Labels      json.RawMessage   `db:"labels" json:"labels,omitempty"`
-	CreatedBy   string            `db:"created_by" json:"created_by"`
-	CreatedAt   time.Time         `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time         `db:"updated_at" json:"updated_at"`
+	IsPreset    bool               `db:"is_preset" json:"is_preset"`
+	Env         json.RawMessage    `db:"env" json:"env,omitempty"`
+	Labels      json.RawMessage    `db:"labels" json:"labels,omitempty"`
+	CreatedBy   string             `db:"created_by" json:"created_by"`
+	CreatedAt   time.Time          `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time          `db:"updated_at" json:"updated_at"`
 }
 
 // CreateBuilderImageInput is the payload for creating a builder image.
 type CreateBuilderImageInput struct {
-	Name        string          `json:"name" binding:"required"`
-	DisplayName string          `json:"display_name" binding:"required"`
-	Image       string          `json:"image" binding:"required"`
-	Type        PresetImageType `json:"type" binding:"required"`
-	Version     string          `json:"version"`
-	Description string          `json:"description"`
-	PullPolicy  ImagePullPolicy `json:"pull_policy"`
+	Name        string             `json:"name" binding:"required"`
+	DisplayName string             `json:"display_name" binding:"required"`
+	Image       string             `json:"image" binding:"required"`
+	Type        PresetImageType    `json:"type" binding:"required"`
+	Version     string             `json:"version"`
+	Description string             `json:"description"`
+	PullPolicy  ImagePullPolicy    `json:"pull_policy"`
 	Status      BuilderImageStatus `json:"status"`
-	IsPreset    bool            `json:"is_preset"`
-	Env         json.RawMessage `json:"env,omitempty"`
-	Labels      json.RawMessage `json:"labels,omitempty"`
-	CreatedBy   string          `json:"created_by"`
+	IsPreset    bool               `json:"is_preset"`
+	Env         json.RawMessage    `json:"env,omitempty"`
+	Labels      json.RawMessage    `json:"labels,omitempty"`
+	CreatedBy   string             `json:"created_by"`
 }
 
 // ==================== Domain types ====================
@@ -60,9 +60,9 @@ type PresetImageDef struct {
 type ImagePullPolicy string
 
 const (
-	ImagePullPolicyAlways      ImagePullPolicy = "Always"
+	ImagePullPolicyAlways       ImagePullPolicy = "Always"
 	ImagePullPolicyIfNotPresent ImagePullPolicy = "IfNotPresent"
-	ImagePullPolicyNever       ImagePullPolicy = "Never"
+	ImagePullPolicyNever        ImagePullPolicy = "Never"
 )
 
 // BuilderImageStatus defines the lifecycle state of a builder image.
@@ -78,13 +78,13 @@ const (
 type PresetImageType string
 
 const (
-	PresetImageTypeNode    PresetImageType = "node"
-	PresetImageTypePython  PresetImageType = "python"
-	PresetImageTypeGo      PresetImageType = "go"
-	PresetImageTypeJava    PresetImageType = "java"
-	PresetImageTypeDotnet  PresetImageType = "dotnet"
-	PresetImageTypeRust    PresetImageType = "rust"
-	PresetImageTypeCustom  PresetImageType = "custom"
+	PresetImageTypeNode   PresetImageType = "node"
+	PresetImageTypePython PresetImageType = "python"
+	PresetImageTypeGo     PresetImageType = "go"
+	PresetImageTypeJava   PresetImageType = "java"
+	PresetImageTypeDotnet PresetImageType = "dotnet"
+	PresetImageTypeRust   PresetImageType = "rust"
+	PresetImageTypeCustom PresetImageType = "custom"
 )
 
 // BuilderImageQueryOptions filters builder images.

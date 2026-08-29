@@ -8,8 +8,8 @@ import (
 	"orion/platform-svc-go/internal/approval/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {

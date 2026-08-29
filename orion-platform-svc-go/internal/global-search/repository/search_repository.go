@@ -10,29 +10,29 @@ import (
 
 // SearchConfig stores module-specific indexing configuration in PostgreSQL.
 type SearchConfig struct {
-	ID              sql.NullInt64 `db:"id"`
-	Module          string        `db:"module"`
-	IndexName       string        `db:"index_name"`
-	Enabled         bool          `db:"enabled"`
+	ID              sql.NullInt64  `db:"id"`
+	Module          string         `db:"module"`
+	IndexName       string         `db:"index_name"`
+	Enabled         bool           `db:"enabled"`
 	FullTextField   sql.NullString `db:"full_text_field"`
 	RefreshInterval sql.NullString `db:"refresh_interval"`
-	Shards          int           `db:"shards"`
-	Replicas        int           `db:"replicas"`
-	LastReindexedAt sql.NullTime  `db:"last_reindexed_at"`
-	CreatedAt       sql.NullTime  `db:"created_at"`
-	UpdatedAt       sql.NullTime  `db:"updated_at"`
+	Shards          int            `db:"shards"`
+	Replicas        int            `db:"replicas"`
+	LastReindexedAt sql.NullTime   `db:"last_reindexed_at"`
+	CreatedAt       sql.NullTime   `db:"created_at"`
+	UpdatedAt       sql.NullTime   `db:"updated_at"`
 }
 
 // IndexerStatusRecord stores the last-known status of a module indexer.
 type IndexerStatusRecord struct {
-	ID        sql.NullInt64 `db:"id"`
-	Module    string        `db:"module"`
-	IndexName string        `db:"index_name"`
-	DocCount  int64         `db:"doc_count"`
-	Healthy   bool          `db:"healthy"`
+	ID        sql.NullInt64  `db:"id"`
+	Module    string         `db:"module"`
+	IndexName string         `db:"index_name"`
+	DocCount  int64          `db:"doc_count"`
+	Healthy   bool           `db:"healthy"`
 	Error     sql.NullString `db:"error"`
-	CreatedAt sql.NullTime  `db:"created_at"`
-	UpdatedAt sql.NullTime  `db:"updated_at"`
+	CreatedAt sql.NullTime   `db:"created_at"`
+	UpdatedAt sql.NullTime   `db:"updated_at"`
 }
 
 // Repository manages search configuration in PostgreSQL.

@@ -5,9 +5,10 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai/knowledge/models"
 	"orion/platform-svc-go/internal/ai/knowledge/service"
-	"orion/go-common/pkg/auth"
 )
 
 type KnowledgeHandler struct {
@@ -41,11 +42,13 @@ func (h *KnowledgeHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // ListBases returns paginated knowledge bases.
 func (h *KnowledgeHandler) ListBases(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIKnowledgeListBases")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	resp, err := h.svc.QueryBases(c.Request.Context(), tenantID, limit, offset)
+	resp, err := h.svc.QueryBases(ctx, tenantID, limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -55,6 +58,8 @@ func (h *KnowledgeHandler) ListBases(c *gin.Context) {
 
 // CreateBase creates a new knowledge base.
 func (h *KnowledgeHandler) CreateBase(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIKnowledgeCreateBase")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req models.CreateBaseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -62,7 +67,7 @@ func (h *KnowledgeHandler) CreateBase(c *gin.Context) {
 		return
 	}
 
-	base, err := h.svc.CreateBase(c.Request.Context(), tenantID, &req)
+	base, err := h.svc.CreateBase(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -72,10 +77,12 @@ func (h *KnowledgeHandler) CreateBase(c *gin.Context) {
 
 // GetBase returns a single knowledge base.
 func (h *KnowledgeHandler) GetBase(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIKnowledgeGetBase")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id := c.Param("id")
 
-	base, err := h.svc.GetBase(c.Request.Context(), tenantID, id)
+	base, err := h.svc.GetBase(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -85,10 +92,12 @@ func (h *KnowledgeHandler) GetBase(c *gin.Context) {
 
 // DeleteBase removes a knowledge base.
 func (h *KnowledgeHandler) DeleteBase(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIKnowledgeDeleteBase")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id := c.Param("id")
 
-	if err := h.svc.DeleteBase(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteBase(ctx, tenantID, id); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -97,11 +106,13 @@ func (h *KnowledgeHandler) DeleteBase(c *gin.Context) {
 
 // ListDocuments returns paginated documents.
 func (h *KnowledgeHandler) ListDocuments(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIKnowledgeListDocuments")
+	defer span.End()
 	baseID := c.Param("base_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	resp, err := h.svc.QueryDocuments(c.Request.Context(), baseID, limit, offset)
+	resp, err := h.svc.QueryDocuments(ctx, baseID, limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -111,6 +122,8 @@ func (h *KnowledgeHandler) ListDocuments(c *gin.Context) {
 
 // AddDocument adds a document.
 func (h *KnowledgeHandler) AddDocument(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIKnowledgeAddDocument")
+	defer span.End()
 	baseID := c.Param("base_id")
 	var req struct {
 		Title    string `json:"title" binding:"required"`
@@ -122,7 +135,7 @@ func (h *KnowledgeHandler) AddDocument(c *gin.Context) {
 		return
 	}
 
-	doc, err := h.svc.AddDocument(c.Request.Context(), baseID, req.Title, req.Content, req.Metadata)
+	doc, err := h.svc.AddDocument(ctx, baseID, req.Title, req.Content, req.Metadata)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -132,9 +145,11 @@ func (h *KnowledgeHandler) AddDocument(c *gin.Context) {
 
 // DeleteDocument removes a document.
 func (h *KnowledgeHandler) DeleteDocument(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIKnowledgeDeleteDocument")
+	defer span.End()
 	id := c.Param("doc_id")
 
-	if err := h.svc.DeleteDocument(c.Request.Context(), id); err != nil {
+	if err := h.svc.DeleteDocument(ctx, id); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -143,6 +158,8 @@ func (h *KnowledgeHandler) DeleteDocument(c *gin.Context) {
 
 // Search performs semantic search.
 func (h *KnowledgeHandler) Search(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIKnowledgeSearch")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req models.QueryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -150,7 +167,7 @@ func (h *KnowledgeHandler) Search(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.svc.Search(c.Request.Context(), tenantID, &req)
+	resp, err := h.svc.Search(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

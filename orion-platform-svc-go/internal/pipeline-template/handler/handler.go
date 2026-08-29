@@ -8,8 +8,8 @@ import (
 	"orion/platform-svc-go/internal/pipeline-template/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // HandlerService is the contract the handler needs from the service layer.

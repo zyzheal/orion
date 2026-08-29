@@ -81,8 +81,8 @@ func (p *pipelineProvider) Search(ctx context.Context, tenantID string, q models
 	out := make([]models.SourceResult, 0, len(refs))
 	for _, r := range refs {
 		out = append(out, models.SourceResult{
-			Source: "pipeline",
-			Title:  r.Title,
+			Source:  "pipeline",
+			Title:   r.Title,
 			Content: fmt.Sprintf("pipeline id=%s", r.ID),
 		})
 	}

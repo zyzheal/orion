@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/pipeline-audit-log/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/pipeline-audit-log/models"
 )
 
@@ -56,7 +56,6 @@ func (f *fakePipeline_audit_logService) RecordBatch(ctx context.Context, reqs []
 }
 
 var _ service.ServiceInterface = (*fakePipeline_audit_logService)(nil)
-
 
 func TestHandler_PIPELINE_AUDIT_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

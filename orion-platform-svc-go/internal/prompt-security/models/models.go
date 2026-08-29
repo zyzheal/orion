@@ -16,16 +16,16 @@ type PromptSecurityConfig struct {
 
 // SecurityScan represents a security scan result.
 type SecurityScan struct {
-	ID            string    `json:"id"`
-	TenantID      string    `json:"tenant_id"`
-	Prompt        string    `json:"prompt"`
-	Score         float64   `json:"score"`
-	IsSafe        bool      `json:"is_safe"`
-	InjectionDetected bool   `json:"injection_detected"`
-	PiiDetected   bool      `json:"pii_detected"`
-	Findings      []string  `json:"findings"`
-	ScanTimeMs    int       `json:"scan_time_ms"`
-	ScannedAt     time.Time `json:"scanned_at"`
+	ID                string    `json:"id"`
+	TenantID          string    `json:"tenant_id"`
+	Prompt            string    `json:"prompt"`
+	Score             float64   `json:"score"`
+	IsSafe            bool      `json:"is_safe"`
+	InjectionDetected bool      `json:"injection_detected"`
+	PiiDetected       bool      `json:"pii_detected"`
+	Findings          []string  `json:"findings"`
+	ScanTimeMs        int       `json:"scan_time_ms"`
+	ScannedAt         time.Time `json:"scanned_at"`
 }
 
 // ScanRequest for scanning a prompt.

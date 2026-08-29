@@ -66,13 +66,13 @@ type SprintTicket struct {
 
 // SprintBoard represents the board view of a sprint (grouped by status).
 type SprintBoard struct {
-	ID              string                       `json:"id"`
-	TenantID        string                       `json:"tenant_id"`
-	Name            string                       `json:"name"`
-	Status          string                       `json:"status"`
-	StartDate       string                       `json:"start_date"`
-	EndDate         string                       `json:"end_date"`
-	TicketsByStatus map[string][]SprintTicket    `json:"ticketsByStatus"`
+	ID              string                    `json:"id"`
+	TenantID        string                    `json:"tenant_id"`
+	Name            string                    `json:"name"`
+	Status          string                    `json:"status"`
+	StartDate       string                    `json:"start_date"`
+	EndDate         string                    `json:"end_date"`
+	TicketsByStatus map[string][]SprintTicket `json:"ticketsByStatus"`
 }
 
 // BurndownPoint represents a single point in a burndown chart.

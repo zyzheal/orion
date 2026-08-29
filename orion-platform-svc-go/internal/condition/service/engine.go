@@ -128,13 +128,13 @@ func (e *ConditionEngine) EvaluateExpression(expr *models.ConditionExpression, v
 		return e.compareLess(fieldValue, expr.Value)
 	case "<=":
 		return e.compareLessOrEqual(fieldValue, expr.Value)
-		case "contains":
+	case "contains":
 		return e.contains(fieldValue, expr.Value), nil
-		case "notcontains":
+	case "notcontains":
 		return !e.contains(fieldValue, expr.Value), nil
 	case "regex":
 		return e.matchesRegex(fieldValue, expr.Value), nil
-		case "in":
+	case "in":
 		return e.inArray(fieldValue, expr.Value, false), nil
 	case "notin":
 		return e.inArray(fieldValue, expr.Value, true), nil
@@ -303,7 +303,7 @@ func (e *ConditionEngine) compareGreaterOrEqual(fieldValue interface{}, expected
 }
 
 func (e *ConditionEngine) compareLess(fieldValue interface{}, expected string) (bool, error) {
-actual, err := toNumber(fieldValue)
+	actual, err := toNumber(fieldValue)
 	if err != nil {
 		return fmt.Sprintf("%v", fieldValue) < expected, nil
 	}
@@ -575,7 +575,7 @@ func toNumber(v interface{}) (float64, error) {
 	switch val := v.(type) {
 	case float64:
 		return val, nil
-		case int64:
+	case int64:
 		return float64(val), nil
 	case int:
 		return float64(val), nil
@@ -615,9 +615,9 @@ func toJsonStr(v interface{}) string {
 
 // Errors
 var (
-	ErrGroupNotFound         = errors.New("condition group not found")
-	ErrExpressionNotFound    = errors.New("condition expression not found")
-	ErrInvalidGroupType      = errors.New("invalid group type")
-	ErrInvalidOperator       = errors.New("invalid operator")
-	ErrInvalidField          = errors.New("invalid field")
+	ErrGroupNotFound      = errors.New("condition group not found")
+	ErrExpressionNotFound = errors.New("condition expression not found")
+	ErrInvalidGroupType   = errors.New("invalid group type")
+	ErrInvalidOperator    = errors.New("invalid operator")
+	ErrInvalidField       = errors.New("invalid field")
 )

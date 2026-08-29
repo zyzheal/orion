@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/iac/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/iac/models"
 )
 
@@ -39,7 +39,7 @@ func (f *fakeHandlerService) CreateWorkspace(ctx context.Context, tenantID strin
 	return &models.Workspace{}, nil
 }
 
-func (f *fakeHandlerService) DeleteModule(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) DeleteModule(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
@@ -96,7 +96,6 @@ func (f *fakeHandlerService) UpdateWorkspace(ctx context.Context, tenantID, id s
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestHandler_IAC_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

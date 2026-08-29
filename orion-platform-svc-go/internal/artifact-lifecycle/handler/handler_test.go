@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/artifact-lifecycle/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/artifact-lifecycle/models"
 )
 
@@ -71,7 +71,6 @@ func (f *fakeArtifact_lifecycleService) List(ctx context.Context, tenantID strin
 }
 
 var _ service.ServiceInterface = (*fakeArtifact_lifecycleService)(nil)
-
 
 func TestARTIFACT_LIFECYCLE_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

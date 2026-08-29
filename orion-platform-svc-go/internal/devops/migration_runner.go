@@ -21,17 +21,17 @@ import (
 
 // MigrationFile 表示一个 SQL 迁移文件
 type MigrationFile struct {
-	Version   string
-	FilePath  string
-	UpSQL     string
-	DownSQL   string
+	Version  string
+	FilePath string
+	UpSQL    string
+	DownSQL  string
 }
 
 // MigrationRunner 迁移执行器
 type MigrationRunner struct {
-	db         *sql.DB
+	db            *sql.DB
 	migrationsDir string
-	schema     string
+	schema        string
 }
 
 func NewMigrationRunner(db *sql.DB, migrationsDir, schema string) *MigrationRunner {
@@ -151,9 +151,9 @@ func (r *MigrationRunner) MigrateUp(ctx context.Context) (*MigrationReport, erro
 			return report, fmt.Errorf("migration %s: %w", m.Version, err)
 		}
 		report.Applied = append(report.Applied, MigrationResult{
-			Version:   m.Version,
-			FilePath:  m.FilePath,
-			Duration:  time.Since(report.StartedAt),
+			Version:  m.Version,
+			FilePath: m.FilePath,
+			Duration: time.Since(report.StartedAt),
 		})
 	}
 
@@ -210,8 +210,8 @@ func (r *MigrationRunner) MigrateDown(ctx context.Context) error {
 
 // MigrationReport 迁移执行报告
 type MigrationReport struct {
-	StartedAt   time.Time       `json:"startedAt"`
-	CompletedAt *time.Time      `json:"completedAt,omitempty"`
+	StartedAt   time.Time         `json:"startedAt"`
+	CompletedAt *time.Time        `json:"completedAt,omitempty"`
 	Applied     []MigrationResult `json:"applied"`
 	Failed      []MigrationResult `json:"failed,omitempty"`
 }

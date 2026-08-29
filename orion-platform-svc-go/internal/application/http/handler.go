@@ -1,6 +1,7 @@
 package http
 
 import (
+	"go.opentelemetry.io/otel"
 	"net/http"
 
 	"orion/platform-svc-go/internal/application/commands"
@@ -41,6 +42,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // DispatchPipelineActivate dispatches ActivatePipelineCommand.
 func (h *Handler) DispatchPipelineActivate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApplicationDispatchPipelineActivate")
+	defer span.End()
 	var req struct {
 		ID string `json:"id" binding:"required"`
 	}
@@ -52,7 +55,7 @@ func (h *Handler) DispatchPipelineActivate(c *gin.Context) {
 		ID: req.ID,
 	}
 	cmd.SetTenantID(c.GetString("tenant_id"))
-	result, err := commands.Dispatch[*commands.ActivatePipelineCommand, *commands.CommandResult](c.Request.Context(), h.bus, "ActivatePipelineCommand", cmd)
+	result, err := commands.Dispatch[*commands.ActivatePipelineCommand, *commands.CommandResult](ctx, h.bus, "ActivatePipelineCommand", cmd)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -62,6 +65,8 @@ func (h *Handler) DispatchPipelineActivate(c *gin.Context) {
 
 // DispatchPipelineDeactivate dispatches DeactivatePipelineCommand.
 func (h *Handler) DispatchPipelineDeactivate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApplicationDispatchPipelineDeactivate")
+	defer span.End()
 	var req struct {
 		ID     string `json:"id" binding:"required"`
 		Reason string `json:"reason"`
@@ -75,7 +80,7 @@ func (h *Handler) DispatchPipelineDeactivate(c *gin.Context) {
 		Reason: req.Reason,
 	}
 	cmd.SetTenantID(c.GetString("tenant_id"))
-	result, err := commands.Dispatch[*commands.DeactivatePipelineCommand, *commands.CommandResult](c.Request.Context(), h.bus, "DeactivatePipelineCommand", cmd)
+	result, err := commands.Dispatch[*commands.DeactivatePipelineCommand, *commands.CommandResult](ctx, h.bus, "DeactivatePipelineCommand", cmd)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -85,6 +90,8 @@ func (h *Handler) DispatchPipelineDeactivate(c *gin.Context) {
 
 // DispatchPipelineUpdateYAML dispatches UpdatePipelineYAMLCommand.
 func (h *Handler) DispatchPipelineUpdateYAML(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApplicationDispatchPipelineUpdateYAML")
+	defer span.End()
 	var req struct {
 		ID        string `json:"id" binding:"required"`
 		NewYAML   string `json:"newYAML" binding:"required"`
@@ -100,7 +107,7 @@ func (h *Handler) DispatchPipelineUpdateYAML(c *gin.Context) {
 		ChangedBy: req.ChangedBy,
 	}
 	cmd.SetTenantID(c.GetString("tenant_id"))
-	result, err := commands.Dispatch[*commands.UpdatePipelineYAMLCommand, *commands.CommandResult](c.Request.Context(), h.bus, "UpdatePipelineYAMLCommand", cmd)
+	result, err := commands.Dispatch[*commands.UpdatePipelineYAMLCommand, *commands.CommandResult](ctx, h.bus, "UpdatePipelineYAMLCommand", cmd)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -110,12 +117,14 @@ func (h *Handler) DispatchPipelineUpdateYAML(c *gin.Context) {
 
 // DispatchApprovalCreate dispatches CreateApprovalCommand.
 func (h *Handler) DispatchApprovalCreate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApplicationDispatchApprovalCreate")
+	defer span.End()
 	var req struct {
-		ID           string                `json:"id" binding:"required"`
-		ApprovalType string                `json:"approvalType" binding:"required"`
-		TotalLevels  int                   `json:"totalLevels" binding:"required"`
-		Title        string                `json:"title"`
-		Levels       []commands.LevelInfo  `json:"levels" binding:"required"`
+		ID           string               `json:"id" binding:"required"`
+		ApprovalType string               `json:"approvalType" binding:"required"`
+		TotalLevels  int                  `json:"totalLevels" binding:"required"`
+		Title        string               `json:"title"`
+		Levels       []commands.LevelInfo `json:"levels" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -129,7 +138,7 @@ func (h *Handler) DispatchApprovalCreate(c *gin.Context) {
 		Levels:       req.Levels,
 	}
 	cmd.SetTenantID(c.GetString("tenant_id"))
-	result, err := commands.Dispatch[*commands.CreateApprovalCommand, *commands.CommandResult](c.Request.Context(), h.bus, "CreateApprovalCommand", cmd)
+	result, err := commands.Dispatch[*commands.CreateApprovalCommand, *commands.CommandResult](ctx, h.bus, "CreateApprovalCommand", cmd)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -139,6 +148,8 @@ func (h *Handler) DispatchApprovalCreate(c *gin.Context) {
 
 // DispatchApprovalApproveLevel dispatches ApproveLevelCommand.
 func (h *Handler) DispatchApprovalApproveLevel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApplicationDispatchApprovalApproveLevel")
+	defer span.End()
 	var req struct {
 		ApprovalID string `json:"approvalId" binding:"required"`
 		LevelID    string `json:"levelId" binding:"required"`
@@ -156,7 +167,7 @@ func (h *Handler) DispatchApprovalApproveLevel(c *gin.Context) {
 		Comment:    req.Comment,
 	}
 	cmd.SetTenantID(c.GetString("tenant_id"))
-	result, err := commands.Dispatch[*commands.ApproveLevelCommand, *commands.CommandResult](c.Request.Context(), h.bus, "ApproveLevelCommand", cmd)
+	result, err := commands.Dispatch[*commands.ApproveLevelCommand, *commands.CommandResult](ctx, h.bus, "ApproveLevelCommand", cmd)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -166,6 +177,8 @@ func (h *Handler) DispatchApprovalApproveLevel(c *gin.Context) {
 
 // DispatchApprovalRejectLevel dispatches RejectLevelCommand.
 func (h *Handler) DispatchApprovalRejectLevel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApplicationDispatchApprovalRejectLevel")
+	defer span.End()
 	var req struct {
 		ApprovalID string `json:"approvalId" binding:"required"`
 		LevelID    string `json:"levelId" binding:"required"`
@@ -183,7 +196,7 @@ func (h *Handler) DispatchApprovalRejectLevel(c *gin.Context) {
 		Comment:    req.Comment,
 	}
 	cmd.SetTenantID(c.GetString("tenant_id"))
-	result, err := commands.Dispatch[*commands.RejectLevelCommand, *commands.CommandResult](c.Request.Context(), h.bus, "RejectLevelCommand", cmd)
+	result, err := commands.Dispatch[*commands.RejectLevelCommand, *commands.CommandResult](ctx, h.bus, "RejectLevelCommand", cmd)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -193,6 +206,8 @@ func (h *Handler) DispatchApprovalRejectLevel(c *gin.Context) {
 
 // DispatchApprovalCancel dispatches CancelApprovalCommand.
 func (h *Handler) DispatchApprovalCancel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApplicationDispatchApprovalCancel")
+	defer span.End()
 	var req struct {
 		ID          string `json:"id" binding:"required"`
 		Reason      string `json:"reason"`
@@ -208,7 +223,7 @@ func (h *Handler) DispatchApprovalCancel(c *gin.Context) {
 		CancelledBy: req.CancelledBy,
 	}
 	cmd.SetTenantID(c.GetString("tenant_id"))
-	result, err := commands.Dispatch[*commands.CancelApprovalCommand, *commands.CommandResult](c.Request.Context(), h.bus, "CancelApprovalCommand", cmd)
+	result, err := commands.Dispatch[*commands.CancelApprovalCommand, *commands.CommandResult](ctx, h.bus, "CancelApprovalCommand", cmd)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -218,6 +233,8 @@ func (h *Handler) DispatchApprovalCancel(c *gin.Context) {
 
 // DispatchFeatureFlagToggle dispatches ToggleFeatureFlagCommand.
 func (h *Handler) DispatchFeatureFlagToggle(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApplicationDispatchFeatureFlagToggle")
+	defer span.End()
 	var req struct {
 		FlagKey   string `json:"flagKey" binding:"required"`
 		Enabled   bool   `json:"enabled"`
@@ -233,7 +250,7 @@ func (h *Handler) DispatchFeatureFlagToggle(c *gin.Context) {
 		ToggledBy: req.ToggledBy,
 	}
 	cmd.SetTenantID(c.GetString("tenant_id"))
-	result, err := commands.Dispatch[*commands.ToggleFeatureFlagCommand, *commands.CommandResult](c.Request.Context(), h.bus, "ToggleFeatureFlagCommand", cmd)
+	result, err := commands.Dispatch[*commands.ToggleFeatureFlagCommand, *commands.CommandResult](ctx, h.bus, "ToggleFeatureFlagCommand", cmd)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -243,6 +260,8 @@ func (h *Handler) DispatchFeatureFlagToggle(c *gin.Context) {
 
 // DispatchFeatureFlagUpdateRollout dispatches UpdateRolloutCommand.
 func (h *Handler) DispatchFeatureFlagUpdateRollout(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApplicationDispatchFeatureFlagUpdateRollout")
+	defer span.End()
 	var req struct {
 		FlagKey   string `json:"flagKey" binding:"required"`
 		Percent   int    `json:"percent" binding:"required"`
@@ -260,7 +279,7 @@ func (h *Handler) DispatchFeatureFlagUpdateRollout(c *gin.Context) {
 		UpdatedBy: req.UpdatedBy,
 	}
 	cmd.SetTenantID(c.GetString("tenant_id"))
-	result, err := commands.Dispatch[*commands.UpdateRolloutCommand, *commands.CommandResult](c.Request.Context(), h.bus, "UpdateRolloutCommand", cmd)
+	result, err := commands.Dispatch[*commands.UpdateRolloutCommand, *commands.CommandResult](ctx, h.bus, "UpdateRolloutCommand", cmd)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

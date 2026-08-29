@@ -73,22 +73,22 @@ func ComputeChecksum(data []byte) Checksum {
 // FileMetadata is the service-level metadata struct that wraps the database
 // FileRecord with computed fields (checksum) and category-derived enum.
 type FileMetadata struct {
-	ID           string               `db:"id" json:"id"`
-	TenantID     string               `db:"tenant_id" json:"tenantId"`
-	Name         string               `db:"name" json:"name"`
-	OriginalName string               `db:"original_name" json:"originalName"`
-	Type         string               `db:"type" json:"type"`
-	Extension    string               `db:"extension" json:"extension"`
-	Size         int64                `db:"size" json:"size"`
-	StorageType  string               `db:"storage_type" json:"storageType"`
-	StoragePath  string               `db:"storage_path" json:"storagePath"`
-	Bucket       string               `db:"bucket" json:"bucket"`
-	Category     string               `db:"category" json:"category"`
-	FileType     filetypes.FileType   `json:"fileType"`
-	Checksum     NullChecksum         `json:"checksum"`
-	Tags         json.RawMessage      `json:"tags"`
-	CreatedAt    time.Time            `db:"created_at" json:"createdAt"`
-	UpdatedAt    time.Time            `db:"updated_at" json:"updatedAt"`
+	ID           string             `db:"id" json:"id"`
+	TenantID     string             `db:"tenant_id" json:"tenantId"`
+	Name         string             `db:"name" json:"name"`
+	OriginalName string             `db:"original_name" json:"originalName"`
+	Type         string             `db:"type" json:"type"`
+	Extension    string             `db:"extension" json:"extension"`
+	Size         int64              `db:"size" json:"size"`
+	StorageType  string             `db:"storage_type" json:"storageType"`
+	StoragePath  string             `db:"storage_path" json:"storagePath"`
+	Bucket       string             `db:"bucket" json:"bucket"`
+	Category     string             `db:"category" json:"category"`
+	FileType     filetypes.FileType `json:"fileType"`
+	Checksum     NullChecksum       `json:"checksum"`
+	Tags         json.RawMessage    `json:"tags"`
+	CreatedAt    time.Time          `db:"created_at" json:"createdAt"`
+	UpdatedAt    time.Time          `db:"updated_at" json:"updatedAt"`
 }
 
 // GetCategory returns the text category for the underlying FileRecord.
@@ -156,7 +156,7 @@ func (m *MetadataManager) VerifyChecksum(f *models.FileRecord, data []byte) (boo
 
 // List returns all file metadata for a tenant, grouped by category.
 func (m *MetadataManager) List(ctx context.Context, tenantID, category string, limit, offset int) ([]FileMetadata, error) {
-	records, err := m.repo.ListFiles(ctx, tenantID, category, limit,offset)
+	records, err := m.repo.ListFiles(ctx, tenantID, category, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("list files: %w", err)
 	}
@@ -334,7 +334,7 @@ func (m *FileStorageManager) ZipFiles(ctx context.Context, tenantID string, file
 	buf := new(bytes.Buffer)
 	z := zip.NewWriter(buf)
 	defer z.Close()
-	 for _, id := range fileIDs {
+	for _, id := range fileIDs {
 		data, record, err := m.DownloadFile(ctx, tenantID, id)
 		if err != nil {
 			return "", nil, fmt.Errorf("download file %s for zip: %w", id, err)

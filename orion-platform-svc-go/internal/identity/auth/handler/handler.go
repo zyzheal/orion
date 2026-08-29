@@ -10,27 +10,28 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
+	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/database"
 	"orion/platform-svc-go/internal/identity/auth/model"
 	"orion/platform-svc-go/internal/identity/auth/repository"
 	"orion/platform-svc-go/internal/identity/auth/service"
 	"orion/platform-svc-go/internal/identity/auth/ssosvc"
-	"orion/go-common/pkg/auth"
-	"orion/go-common/pkg/database"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 )
 
 type Handler struct {
-	svc        *service.AuthService
-	oidcSVC    *ssosvc.OIDCService
-	oidcRepo   *repository.OIDCRepository
-	log        *zap.Logger
-	jwtSecret  string
-	redis      *redis.Client
+	svc       *service.AuthService
+	oidcSVC   *ssosvc.OIDCService
+	oidcRepo  *repository.OIDCRepository
+	log       *zap.Logger
+	jwtSecret string
+	redis     *redis.Client
 }
 
 func New(db *database.DB, log *zap.Logger, jwtSecret string, redisClient *redis.Client) *Handler {
@@ -43,8 +44,10 @@ func New(db *database.DB, log *zap.Logger, jwtSecret string, redisClient *redis.
 
 // GetUser returns a user by ID.
 func (h *Handler) GetUser(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityAuthGetUser")
+	defer span.End()
 	userID := c.Param("id")
-	u, err := h.svc.GetUser(c.Request.Context(), userID)
+	u, err := h.svc.GetUser(ctx, userID)
 	if err != nil {
 		h.log.Error("get user failed", zap.Error(err))
 		h.respondInternalError(c, "internal error")
@@ -59,17 +62,22 @@ func (h *Handler) GetUser(c *gin.Context) {
 
 // ListUsers returns a list of users (not implemented).
 func (h *Handler) ListUsers(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityAuthListUsers")
+	defer span.End()
+	_ = ctx
 	h.respondInternalError(c, "not implemented")
 }
 
 // CreateUser creates a new user.
 func (h *Handler) CreateUser(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityAuthCreateUser")
+	defer span.End()
 	var u model.User
 	if err := c.ShouldBindJSON(&u); err != nil {
 		h.respondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.CreateUser(c.Request.Context(), &u); err != nil {
+	if err := h.svc.CreateUser(ctx, &u); err != nil {
 		h.log.Error("create user failed", zap.Error(err))
 		h.respondInternalError(c, "internal error")
 		return
@@ -79,12 +87,14 @@ func (h *Handler) CreateUser(c *gin.Context) {
 
 // UpdateUser updates a user.
 func (h *Handler) UpdateUser(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityAuthUpdateUser")
+	defer span.End()
 	var u model.User
 	if err := c.ShouldBindJSON(&u); err != nil {
 		h.respondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.UpdateUser(c.Request.Context(), &u); err != nil {
+	if err := h.svc.UpdateUser(ctx, &u); err != nil {
 		h.log.Error("update user failed", zap.Error(err))
 		h.respondInternalError(c, "internal error")
 		return
@@ -97,6 +107,8 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 // Login handles POST /api/auth/login.
 // Authenticates user by username/password, returns access and refresh JWT tokens.
 func (h *Handler) Login(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityAuthLogin")
+	defer span.End()
 	var req struct {
 		Username string `json:"username" binding:"required"`
 		Password string `json:"password" binding:"required"`
@@ -106,7 +118,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	user, err := h.svc.GetUserByUsername(c.Request.Context(), req.Username)
+	user, err := h.svc.GetUserByUsername(ctx, req.Username)
 	if err != nil {
 		h.log.Error("login lookup failed", zap.Error(err))
 		h.respondInternalError(c, "internal error")
@@ -118,7 +130,7 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		_ = h.svc.RecordLoginAttempt(c.Request.Context(), &model.LoginAttempt{
+		_ = h.svc.RecordLoginAttempt(ctx, &model.LoginAttempt{
 			ID:        uuid.New().String(),
 			TenantID:  user.TenantID,
 			Username:  user.Username,
@@ -159,7 +171,7 @@ func (h *Handler) Login(c *gin.Context) {
 	refreshToken := hex.EncodeToString(refreshBytes)
 	refreshHash := sha256.Sum256([]byte(refreshToken))
 
-	_ = h.svc.SaveRefreshToken(c.Request.Context(), &model.RefreshToken{
+	_ = h.svc.SaveRefreshToken(ctx, &model.RefreshToken{
 		ID:        uuid.New().String(),
 		UserID:    user.ID,
 		TokenHash: hex.EncodeToString(refreshHash[:]),
@@ -167,7 +179,7 @@ func (h *Handler) Login(c *gin.Context) {
 		CreatedAt: time.Now(),
 	})
 
-	_ = h.svc.RecordLoginAttempt(c.Request.Context(), &model.LoginAttempt{
+	_ = h.svc.RecordLoginAttempt(ctx, &model.LoginAttempt{
 		ID:        uuid.New().String(),
 		TenantID:  user.TenantID,
 		Username:  user.Username,
@@ -192,6 +204,8 @@ func (h *Handler) Login(c *gin.Context) {
 // RefreshToken handles POST /api/auth/refresh.
 // Accepts a refresh token, validates it against DB, issues a new access token.
 func (h *Handler) RefreshToken(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityAuthRefreshToken")
+	defer span.End()
 	var req struct {
 		RefreshToken string `json:"refresh_token" binding:"required"`
 	}
@@ -210,7 +224,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	hashHex := hex.EncodeToString(refreshHash[:])
 
 	// Find valid refresh token by hash across all users
-	valid, err := h.svc.FindValidRefreshTokenByHash(c.Request.Context(), hashHex)
+	valid, err := h.svc.FindValidRefreshTokenByHash(ctx, hashHex)
 	if err != nil {
 		h.log.Error("refresh token lookup failed", zap.Error(err))
 		h.respondInternalError(c, "internal error")
@@ -221,7 +235,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	user, err := h.svc.GetUser(c.Request.Context(), valid.UserID)
+	user, err := h.svc.GetUser(ctx, valid.UserID)
 	if err != nil {
 		h.log.Error("get user for refresh failed", zap.Error(err))
 		h.respondInternalError(c, "internal error")
@@ -251,7 +265,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	}
 
 	// Revoke old refresh token after use (one-time use)
-	_ = h.svc.RevokeRefreshToken(c.Request.Context(), valid.ID)
+	_ = h.svc.RevokeRefreshToken(ctx, valid.ID)
 
 	// Issue a new refresh token
 	newRefreshBytes := make([]byte, 32)
@@ -262,7 +276,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	newRefreshToken := hex.EncodeToString(newRefreshBytes)
 	newRefreshHash := sha256.Sum256([]byte(newRefreshToken))
 
-	_ = h.svc.SaveRefreshToken(c.Request.Context(), &model.RefreshToken{
+	_ = h.svc.SaveRefreshToken(ctx, &model.RefreshToken{
 		ID:        uuid.New().String(),
 		UserID:    user.ID,
 		TokenHash: hex.EncodeToString(newRefreshHash[:]),
@@ -281,6 +295,8 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 // Logout handles POST /api/auth/logout.
 // Accepts an access token and blacklists it in Redis.
 func (h *Handler) Logout(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityAuthLogout")
+	defer span.End()
 	// Prefer token from Authorization header; fall back to request body
 	tokenString := c.GetHeader("Authorization")
 	tokenString = strings.TrimPrefix(tokenString, "Bearer ")
@@ -328,7 +344,6 @@ func (h *Handler) Logout(c *gin.Context) {
 	exp, _ := claims["exp"].(float64)
 	ttl := time.Until(time.Unix(int64(exp), 0))
 
-	ctx := c.Request.Context()
 	if h.redis != nil && ttl > 0 {
 		if err := h.redis.Set(ctx, "token:blacklist:"+tokenString, "1", ttl).Err(); err != nil {
 			h.log.Warn("failed to blacklist token", zap.Error(err))
@@ -355,13 +370,15 @@ func (h *Handler) Logout(c *gin.Context) {
 // Me handles GET /api/auth/me.
 // Returns the current authenticated user's info. Requires auth middleware.
 func (h *Handler) Me(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityAuthMe")
+	defer span.End()
 	userID := auth.GetUserID(c)
 	if userID == "" {
 		h.respondForbidden(c, "not authenticated")
 		return
 	}
 
-	user, err := h.svc.GetUser(c.Request.Context(), userID)
+	user, err := h.svc.GetUser(ctx, userID)
 	if err != nil {
 		h.log.Error("get current user failed", zap.Error(err))
 		h.respondInternalError(c, "internal error")
@@ -379,12 +396,14 @@ func (h *Handler) Me(c *gin.Context) {
 		"roles":      auth.GetRoles(c),
 		"status":     user.Status,
 		"last_login": user.LastLoginAt,
-		"created_at": user.CreatedAt,})
+		"created_at": user.CreatedAt})
 }
 
 // Permissions handles GET /api/auth/permissions.
 // Returns the current user's permissions based on role. Requires auth middleware.
 func (h *Handler) Permissions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityAuthPermissions")
+	defer span.End()
 	roles := auth.GetRoles(c)
 	tenantID := auth.GetTenantID(c)
 
@@ -401,7 +420,7 @@ func (h *Handler) Permissions(c *gin.Context) {
 	}
 
 	// Also load DB permissions scoped to tenant
-	dbPerms, err := h.svc.GetPermissions(c.Request.Context(), tenantID)
+	dbPerms, err := h.svc.GetPermissions(ctx, tenantID)
 	if err != nil {
 		h.log.Warn("failed to list DB permissions", zap.Error(err))
 		dbPerms = nil
@@ -409,7 +428,7 @@ func (h *Handler) Permissions(c *gin.Context) {
 
 	h.respondSuccess(c, gin.H{"roles": roles,
 		"permissions":    effectivePerms,
-		"db_permissions": dbPerms,})
+		"db_permissions": dbPerms})
 }
 
 // rolePermissions returns the permission list for a known role.
@@ -422,7 +441,7 @@ func rolePermissions(role string) []string {
 			"project:read", "pipeline:read", "deployment:read", "alert:read",
 			"security:manage", "ticket:read", "approval:approve"},
 		"finops_admin": {"finops:*", "project:read", "deployment:read", "pipeline:read"},
-		"org_admin": {"*:read", "*:write", "*:execute", "*:manage", "*:approve"},
+		"org_admin":    {"*:read", "*:write", "*:execute", "*:manage", "*:approve"},
 		"tech_lead": {"project:read", "project:write", "pipeline:*",
 			"deployment:read", "deployment:execute", "alert:read",
 			"config:read", "ticket:*", "artifact:read", "knowledge:*"},
@@ -437,7 +456,7 @@ func rolePermissions(role string) []string {
 		"viewer": {"project:read", "pipeline:read", "deployment:read",
 			"alert:read", "artifact:read", "knowledge:read", "ticket:read", "finops:read"},
 		"auditor": {"audit_log:*", "*:read", "ticket:read", "approval:read"},
-		"user": {"project:read", "pipeline:read", "deployment:read"},
+		"user":    {"project:read", "pipeline:read", "deployment:read"},
 	}
 	return perms[role]
 }

@@ -6,15 +6,16 @@
 // Kafka, webhook, email, SMS, WeChat, Slack, PagerDuty).
 //
 // SPI contract:
-//   AlertAdapterHandler — the pluggable interface each adapter type must implement.
+//
+//	AlertAdapterHandler — the pluggable interface each adapter type must implement.
 //
 // Flow:
-//   1. POST /api/alert-adapters → CreateAdapter validates and persists adapter
-//      config, instantiates the handler, calls Initialize(config).
-//   2. POST /:id/send → SendToAdapter dispatches the alert to the handler.Send().
-//   3. POST /:id/receive → ReceiveFromAdapter calls handler.Receive() and records
-//      events.
-//   4. GET /:id/events → ListEventsByAdapter.
+//  1. POST /api/alert-adapters → CreateAdapter validates and persists adapter
+//     config, instantiates the handler, calls Initialize(config).
+//  2. POST /:id/send → SendToAdapter dispatches the alert to the handler.Send().
+//  3. POST /:id/receive → ReceiveFromAdapter calls handler.Receive() and records
+//     events.
+//  4. GET /:id/events → ListEventsByAdapter.
 package service
 
 import (
@@ -265,11 +266,11 @@ func (f *AlertAdapterFactory) SendToAdapter(
 
 	// Create event record (status=received)
 	event := &models.AlertEvent{
-		TenantID: a.TenantID,
+		TenantID:  a.TenantID,
 		AdapterID: adapterID,
-		Source:   fmt.Sprintf("%s-%s", a.Type, a.Name),
-		Severity: "info",
-		Status:   "received",
+		Source:    fmt.Sprintf("%s-%s", a.Type, a.Name),
+		Severity:  "info",
+		Status:    "received",
 	}
 	if s, ok := alert["severity"].(string); ok {
 		event.Severity = s

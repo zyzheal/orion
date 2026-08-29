@@ -32,10 +32,10 @@ type SourceProvider interface {
 
 // Service is the assistant brain: intent routing + multi-source fusion + answer.
 type Service struct {
-	providers   []SourceProvider
-	llm         LLMClient
-	executors   map[models.ActionKind]ActionExecutor
-	sessionMgr  *SessionManager
+	providers    []SourceProvider
+	llm          LLMClient
+	executors    map[models.ActionKind]ActionExecutor
+	sessionMgr   *SessionManager
 	sessionStore SessionStore
 }
 

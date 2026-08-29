@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"time"
 
-	"orion/platform-svc-go/internal/notification/notification/models"
 	"orion/go-common/pkg/otel"
+	"orion/platform-svc-go/internal/notification/notification/models"
 	"orion/platform-svc-go/internal/notification/notification/repository"
 
 	"github.com/google/uuid"
@@ -31,12 +31,12 @@ type ChannelDispatcher interface {
 
 // Service implements the notification business logic.
 type Service struct {
-	repo         *repository.Repository
-	publisher    EventPublisher
-	dispatcher   ChannelDispatcher
-	httpClient   *http.Client
-	channelSvc   *ChannelService
-	templateSvc  *TemplateService
+	repo        *repository.Repository
+	publisher   EventPublisher
+	dispatcher  ChannelDispatcher
+	httpClient  *http.Client
+	channelSvc  *ChannelService
+	templateSvc *TemplateService
 }
 
 // Repo exposes the underlying repository for sub-service construction.

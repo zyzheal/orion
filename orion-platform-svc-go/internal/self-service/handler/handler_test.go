@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/self-service/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/self-service/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeSelf_serviceService) Update(ctx context.Context, tenantID, id strin
 }
 
 var _ service.ServiceInterface = (*fakeSelf_serviceService)(nil)
-
 
 func TestHandler_SELF_SERVICE_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

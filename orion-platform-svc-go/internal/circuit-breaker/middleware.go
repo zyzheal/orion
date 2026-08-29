@@ -41,11 +41,11 @@ func (s State) String() string {
 
 // Event represents a state transition event.
 type Event struct {
-	From     State
-	To       State
-	Reason   string
-	Time     time.Time
-	Counter  int
+	From    State
+	To      State
+	Reason  string
+	Time    time.Time
+	Counter int
 }
 
 // Config holds the circuit breaker configuration.
@@ -69,9 +69,9 @@ type Config struct {
 // DefaultConfig returns a sensible default configuration.
 func DefaultConfig() Config {
 	return Config{
-		FailureThreshold:  5,
-		SuccessThreshold:  3,
-		Timeout:           30 * time.Second,
+		FailureThreshold:    5,
+		SuccessThreshold:    3,
+		Timeout:             30 * time.Second,
 		HalfOpenMaxRequests: 1,
 	}
 }
@@ -87,15 +87,15 @@ type Result struct {
 
 // CircuitBreaker is an in-memory circuit breaker implementation.
 type CircuitBreaker struct {
-	name  string
-	cfg   Config
+	name string
+	cfg  Config
 
-	state       atomic.Int32
-	failures    atomic.Int32
-	successes   atomic.Int32
-	openedAt    atomic.Value // time.Time
-	probeCount  atomic.Int32
-	mu          sync.RWMutex
+	state      atomic.Int32
+	failures   atomic.Int32
+	successes  atomic.Int32
+	openedAt   atomic.Value // time.Time
+	probeCount atomic.Int32
+	mu         sync.RWMutex
 
 	// Event stream
 	eventCh chan Event

@@ -12,11 +12,11 @@ import (
 // It holds a registry of validator factories and a configurable set of
 // built-in + plugin rules, and exposes a single ValidateRecord method.
 type CMDBValidator struct {
-	rules           []ValidationRuleEntry
-	pluginFactories map[string]PluginValidatorFactory
+	rules             []ValidationRuleEntry
+	pluginFactories   map[string]PluginValidatorFactory
 	uniquenessChecker func(ctx context.Context, field, value string) (bool, error)
-	opts            Options
-	mu              sync.RWMutex
+	opts              Options
+	mu                sync.RWMutex
 }
 
 // Options holds configurable behaviour for the CMDBValidator.
@@ -31,23 +31,23 @@ type Options struct {
 
 // ValidationRuleEntry couples a rule ID with its concrete validator.
 type ValidationRuleEntry struct {
-	RuleID         string
-	RuleName       string
-	Category       string
-	TargetType     string
-	Severity       string
-	Condition      string
-	ErrorMessage   string
-	Validator      IValidator
+	RuleID       string
+	RuleName     string
+	Category     string
+	TargetType   string
+	Severity     string
+	Condition    string
+	ErrorMessage string
+	Validator    IValidator
 }
 
 // ValidationReport is the output of validating a single CMDB record.
 type ValidationReport struct {
-	RecordID   string          `json:"record_id"`
-	TargetType string          `json:"target_type"`
-	Passed     bool            `json:"passed"`
+	RecordID   string            `json:"record_id"`
+	TargetType string            `json:"target_type"`
+	Passed     bool              `json:"passed"`
 	Errors     []ValidationError `json:"errors"`
-	Duration   time.Duration   `json:"duration"`
+	Duration   time.Duration     `json:"duration"`
 }
 
 // ValidationError describes a single validation violation.

@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/team/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/team/models"
 )
 
@@ -78,8 +78,6 @@ func (f *fakeHandler) AssignRole(ctx context.Context, teamID, roleName, tenantID
 func (f *fakeHandler) RemoveRole(ctx context.Context, teamID, roleName, tenantID string) (bool, error) {
 	return false, nil
 }
-
-
 
 func TestHandler_TEAM_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"orion/platform-svc-go/internal/ci-cd/deploy/models"
 	"orion/go-common/pkg/database"
+	"orion/platform-svc-go/internal/ci-cd/deploy/models"
 )
 
 // EmergencyRepository handles PostgreSQL operations for emergency deployments.
@@ -61,7 +61,7 @@ FROM deploy_emergencies WHERE 1=1`
 // Count returns the count of emergency deploys matching filters.
 func (r *EmergencyRepository) Count(ctx context.Context, tenantID, status string) (int, error) {
 	var count int
-query := `SELECT COUNT(*) FROM deploy_emergencies WHERE 1=1`
+	query := `SELECT COUNT(*) FROM deploy_emergencies WHERE 1=1`
 	args := []interface{}{}
 	argIdx := 1
 

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/sla-engine/events"
 	"orion/platform-svc-go/internal/sla-engine/models"
-	"orion/go-common/pkg/sentinel"
 
 	"github.com/google/uuid"
 )

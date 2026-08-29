@@ -22,7 +22,7 @@ var (
 
 // Config holds Elasticsearch connection parameters.
 type Config struct {
-	URL        string        // e.g. "http://localhost:9200"
+	URL        string // e.g. "http://localhost:9200"
 	Username   string
 	Password   string
 	Timeout    time.Duration // default 10s

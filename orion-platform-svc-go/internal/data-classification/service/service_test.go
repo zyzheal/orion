@@ -27,7 +27,7 @@ type fakeClassificationRepo struct {
 	// getClassificationErr returns this error
 	getClassificationErr error
 
-	listRulesErr error
+	listRulesErr  error
 	createRuleErr error
 }
 
@@ -222,9 +222,9 @@ func TestCreateRule_TenantIDPassedThrough(t *testing.T) {
 	ctx := context.Background()
 
 	req := &models.CreateRuleRequest{
-		Name:   "r",
+		Name:    "r",
 		Pattern: `a`,
-		Level:  models.LevelInternal,
+		Level:   models.LevelInternal,
 	}
 	got, err := s.CreateRule(ctx, "tenant-a", req)
 	if err != nil {
@@ -604,12 +604,12 @@ func TestGetClassification_Success(t *testing.T) {
 
 	// Pre-seed via Classify
 	fake.classifyResources = append(fake.classifyResources, &models.ClassifiedResource{
-		ID:          "cr1",
-		TenantID:    "t1",
-		ResourceID:  "res-1",
+		ID:           "cr1",
+		TenantID:     "t1",
+		ResourceID:   "res-1",
 		ResourceType: "doc",
-		Level:       models.LevelRestricted,
-		RuleID:      "r1",
+		Level:        models.LevelRestricted,
+		RuleID:       "r1",
 		ClassifiedBy: "system",
 	})
 

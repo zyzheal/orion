@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strconv"
 
 	"orion/platform-svc-go/internal/ci-cd/pipeline/models"
@@ -50,6 +51,8 @@ func (h *BatchHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // CreatePhaseGroup creates a new phase group.
 func (h *BatchHandler) CreatePhaseGroup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineBatchCreatePhaseGroup")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 
@@ -59,7 +62,7 @@ func (h *BatchHandler) CreatePhaseGroup(c *gin.Context) {
 		return
 	}
 
-	pg, err := h.svc.CreatePhaseGroup(c.Request.Context(), tenantID, req, userID)
+	pg, err := h.svc.CreatePhaseGroup(ctx, tenantID, req, userID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -70,6 +73,8 @@ func (h *BatchHandler) CreatePhaseGroup(c *gin.Context) {
 
 // ListPhaseGroups lists phase groups for the tenant.
 func (h *BatchHandler) ListPhaseGroups(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineBatchListPhaseGroups")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -82,7 +87,7 @@ func (h *BatchHandler) ListPhaseGroups(c *gin.Context) {
 	}
 	offset := (page - 1) * pageSize
 
-	groups, err := h.svc.ListPhaseGroups(c.Request.Context(), tenantID, offset, pageSize)
+	groups, err := h.svc.ListPhaseGroups(ctx, tenantID, offset, pageSize)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -93,10 +98,12 @@ func (h *BatchHandler) ListPhaseGroups(c *gin.Context) {
 
 // GetPhaseGroup returns a phase group by ID.
 func (h *BatchHandler) GetPhaseGroup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineBatchGetPhaseGroup")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	pg, err := h.svc.GetPhaseGroup(c.Request.Context(), tenantID, id)
+	pg, err := h.svc.GetPhaseGroup(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, "phase group not found")
 		return
@@ -107,6 +114,8 @@ func (h *BatchHandler) GetPhaseGroup(c *gin.Context) {
 
 // UpdatePhaseGroup updates a phase group.
 func (h *BatchHandler) UpdatePhaseGroup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineBatchUpdatePhaseGroup")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -116,7 +125,7 @@ func (h *BatchHandler) UpdatePhaseGroup(c *gin.Context) {
 		return
 	}
 
-	pg, err := h.svc.UpdatePhaseGroup(c.Request.Context(), tenantID, id, req)
+	pg, err := h.svc.UpdatePhaseGroup(ctx, tenantID, id, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -127,10 +136,12 @@ func (h *BatchHandler) UpdatePhaseGroup(c *gin.Context) {
 
 // DeletePhaseGroup deletes a phase group.
 func (h *BatchHandler) DeletePhaseGroup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineBatchDeletePhaseGroup")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	if err := h.svc.DeletePhaseGroup(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeletePhaseGroup(ctx, tenantID, id); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -140,10 +151,12 @@ func (h *BatchHandler) DeletePhaseGroup(c *gin.Context) {
 
 // StartPhaseGroup starts a phase group execution.
 func (h *BatchHandler) StartPhaseGroup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineBatchStartPhaseGroup")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	run, err := h.svc.StartPhaseGroup(c.Request.Context(), tenantID, id)
+	run, err := h.svc.StartPhaseGroup(ctx, tenantID, id)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -154,10 +167,12 @@ func (h *BatchHandler) StartPhaseGroup(c *gin.Context) {
 
 // StopPhaseGroup stops a running phase group execution.
 func (h *BatchHandler) StopPhaseGroup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineBatchStopPhaseGroup")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	run, err := h.svc.StopPhaseGroup(c.Request.Context(), tenantID, id)
+	run, err := h.svc.StopPhaseGroup(ctx, tenantID, id)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -168,10 +183,12 @@ func (h *BatchHandler) StopPhaseGroup(c *gin.Context) {
 
 // GetPhaseGroupStatus returns the latest run status for a phase group.
 func (h *BatchHandler) GetPhaseGroupStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineBatchGetPhaseGroupStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	run, err := h.svc.GetPhaseGroupStatus(c.Request.Context(), tenantID, id)
+	run, err := h.svc.GetPhaseGroupStatus(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, "no status found")
 		return
@@ -182,6 +199,8 @@ func (h *BatchHandler) GetPhaseGroupStatus(c *gin.Context) {
 
 // ListPhaseGroupRuns lists execution records for a phase group.
 func (h *BatchHandler) ListPhaseGroupRuns(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineBatchListPhaseGroupRuns")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	groupID := c.Param("id")
 
@@ -196,7 +215,7 @@ func (h *BatchHandler) ListPhaseGroupRuns(c *gin.Context) {
 	}
 	offset := (page - 1) * pageSize
 
-	runs, err := h.svc.ListPhaseGroupRuns(c.Request.Context(), tenantID, groupID, offset, pageSize)
+	runs, err := h.svc.ListPhaseGroupRuns(ctx, tenantID, groupID, offset, pageSize)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -209,6 +228,8 @@ func (h *BatchHandler) ListPhaseGroupRuns(c *gin.Context) {
 
 // CreateBatchRun creates a new batch run.
 func (h *BatchHandler) CreateBatchRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineBatchCreateBatchRun")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req models.CreateBatchRunRequest
@@ -217,7 +238,7 @@ func (h *BatchHandler) CreateBatchRun(c *gin.Context) {
 		return
 	}
 
-	run, err := h.svc.CreateBatchRun(c.Request.Context(), tenantID, req)
+	run, err := h.svc.CreateBatchRun(ctx, tenantID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -228,6 +249,8 @@ func (h *BatchHandler) CreateBatchRun(c *gin.Context) {
 
 // ListBatchRuns lists batch runs for the tenant.
 func (h *BatchHandler) ListBatchRuns(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineBatchListBatchRuns")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -240,7 +263,7 @@ func (h *BatchHandler) ListBatchRuns(c *gin.Context) {
 	}
 	offset := (page - 1) * pageSize
 
-	runs, err := h.svc.ListBatchRuns(c.Request.Context(), tenantID, offset, pageSize)
+	runs, err := h.svc.ListBatchRuns(ctx, tenantID, offset, pageSize)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -251,10 +274,12 @@ func (h *BatchHandler) ListBatchRuns(c *gin.Context) {
 
 // StartBatchRun starts a batch run execution.
 func (h *BatchHandler) StartBatchRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineBatchStartBatchRun")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	runID := c.Param("id")
 
-	run, err := h.svc.StartBatchRun(c.Request.Context(), tenantID, runID)
+	run, err := h.svc.StartBatchRun(ctx, tenantID, runID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -265,10 +290,12 @@ func (h *BatchHandler) StartBatchRun(c *gin.Context) {
 
 // StopBatchRun stops a running batch run.
 func (h *BatchHandler) StopBatchRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineBatchStopBatchRun")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	runID := c.Param("id")
 
-	run, err := h.svc.StopBatchRun(c.Request.Context(), tenantID, runID)
+	run, err := h.svc.StopBatchRun(ctx, tenantID, runID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

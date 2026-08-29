@@ -10,8 +10,8 @@ import (
 	"orion/platform-svc-go/internal/security-compliance/models"
 	"orion/platform-svc-go/internal/security-compliance/service"
 
-	"github.com/google/uuid"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
 )
 
@@ -458,7 +458,7 @@ type CreateBaselineRequest struct {
 
 // CreateBaseline creates a compliance baseline from the frontend form.
 func (h *Handler) CreateBaseline(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateBaseline")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateBaseline")
 	defer span.End()
 
 	var req CreateBaselineRequest
@@ -520,17 +520,19 @@ func (h *Handler) ScanBaseline(c *gin.Context) {
 
 // Finding is the frontend-facing compliance finding shape.
 type Finding struct {
-	ID           string `json:"id"`
-	Rule         string `json:"rule"`
-	Target       string `json:"target"`
-	Level        string `json:"level"`
-	Status       string `json:"status"`
-	Description  string `json:"description"`
-	DetectedAt   string `json:"detectedAt"`
+	ID          string `json:"id"`
+	Rule        string `json:"rule"`
+	Target      string `json:"target"`
+	Level       string `json:"level"`
+	Status      string `json:"status"`
+	Description string `json:"description"`
+	DetectedAt  string `json:"detectedAt"`
 }
 
 // ListFindings returns demo compliance findings for the ComplianceScan page.
 func (h *Handler) ListFindings(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListFindings")
+	defer span.End()
 	_ = c
 	middleware.RespondSuccess(c, defaultFindings())
 }

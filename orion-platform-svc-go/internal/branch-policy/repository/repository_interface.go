@@ -5,7 +5,6 @@ import (
 	"orion/platform-svc-go/internal/branch-policy/models"
 )
 
-
 // RepositoryInterface defines the data access contract for the branch-policy module.
 // DO NOT MODIFY: auto-generated from repository.go
 type RepositoryInterface interface {

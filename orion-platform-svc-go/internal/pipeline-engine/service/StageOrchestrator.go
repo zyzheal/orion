@@ -14,14 +14,14 @@ import (
 
 // Execution represents a single orchestration run context.
 type Execution struct {
-	ID        string            // run ID
-	TenantID  string
-	StageMap     map[string]string // stage name -> stage ID
+	ID           string // run ID
+	TenantID     string
+	StageMap     map[string]string   // stage name -> stage ID
 	Dependencies map[string][]string // stage name -> [dependency stage names]
-	Variables map[string]string // key-value variable context
-	Completed []string          // completed stage names
-	Failed    []string          // failed stage names
-	mu        sync.Mutex
+	Variables    map[string]string   // key-value variable context
+	Completed    []string            // completed stage names
+	Failed       []string            // failed stage names
+	mu           sync.Mutex
 }
 
 // StageCallbacks defines optional callbacks for orchestration events.
@@ -526,6 +526,7 @@ func stringPtr(s string) *string {
 	}
 	return &s
 }
+
 // nowInt64 returns current unix timestamp as int64.
 func nowInt64() int64 {
 	return nowTime().Unix()

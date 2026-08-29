@@ -5,7 +5,6 @@ import (
 	"orion/platform-svc-go/internal/autonomous-pipeline/models"
 )
 
-
 // RepositoryInterface defines the data access contract for the autonomous-pipeline module.
 // DO NOT MODIFY: auto-generated from repository.go
 type RepositoryInterface interface {

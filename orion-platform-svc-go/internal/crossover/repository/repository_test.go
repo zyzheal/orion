@@ -405,7 +405,10 @@ func TestGetCallStats(t *testing.T) {
 	tenant := "tenant-1"
 	start := time.Now().UTC().Add(-time.Hour)
 	end := time.Now().UTC().Add(time.Hour)
-	dv := make([]driver.Value, 3); dv[0] = tenant; dv[1] = start; dv[2] = end
+	dv := make([]driver.Value, 3)
+	dv[0] = tenant
+	dv[1] = start
+	dv[2] = end
 
 	st.mock.ExpectQuery("SELECT COUNT\\(\\*\\)").
 		WithArgs(dv...).
@@ -435,7 +438,10 @@ func TestGetCallStats(t *testing.T) {
 func TestGetCallStatsEmptyWindow(t *testing.T) {
 	st := newSQLMockTest()
 	ctx := context.Background()
-	dv := make([]driver.Value, 3); dv[0] = "tenant-1"; dv[1] = sqlmock.AnyArg(); dv[2] = sqlmock.AnyArg()
+	dv := make([]driver.Value, 3)
+	dv[0] = "tenant-1"
+	dv[1] = sqlmock.AnyArg()
+	dv[2] = sqlmock.AnyArg()
 
 	st.mock.ExpectQuery("SELECT COUNT\\(\\*\\)").WithArgs(dv...).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(0)))
@@ -456,7 +462,10 @@ func TestGetCallStatsEmptyWindow(t *testing.T) {
 func TestGetCallStatsFailsOnFirstQuery(t *testing.T) {
 	st := newSQLMockTest()
 	ctx := context.Background()
-	dv := make([]driver.Value, 3); dv[0] = "t1"; dv[1] = sqlmock.AnyArg(); dv[2] = sqlmock.AnyArg()
+	dv := make([]driver.Value, 3)
+	dv[0] = "t1"
+	dv[1] = sqlmock.AnyArg()
+	dv[2] = sqlmock.AnyArg()
 
 	st.mock.ExpectQuery("SELECT COUNT\\(\\*\\)").WithArgs(dv...).
 		WillReturnError(fmt.Errorf("connection reset"))
@@ -476,7 +485,11 @@ func TestGetCallStatsByTarget(t *testing.T) {
 	target := "deploy"
 	start := time.Now().UTC().Add(-time.Hour)
 	end := time.Now().UTC().Add(time.Hour)
-	dv := make([]driver.Value, 4); dv[0] = tenant; dv[1] = target; dv[2] = start; dv[3] = end
+	dv := make([]driver.Value, 4)
+	dv[0] = tenant
+	dv[1] = target
+	dv[2] = start
+	dv[3] = end
 
 	st.mock.ExpectQuery("SELECT COUNT\\(\\*\\)").WithArgs(dv...).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(2)))
@@ -499,7 +512,11 @@ func TestGetCallStatsByTarget(t *testing.T) {
 func TestGetCallStatsByTargetNone(t *testing.T) {
 	st := newSQLMockTest()
 	ctx := context.Background()
-	dv := make([]driver.Value, 4); dv[0] = "t1"; dv[1] = "nonexistent"; dv[2] = sqlmock.AnyArg(); dv[3] = sqlmock.AnyArg()
+	dv := make([]driver.Value, 4)
+	dv[0] = "t1"
+	dv[1] = "nonexistent"
+	dv[2] = sqlmock.AnyArg()
+	dv[3] = sqlmock.AnyArg()
 
 	for i := 0; i < 3; i++ {
 		st.mock.ExpectQuery("SELECT COUNT\\(\\*\\)").WithArgs(dv...).
@@ -518,7 +535,11 @@ func TestGetCallStatsByTargetNone(t *testing.T) {
 func TestGetCallStatsByTargetFailsOnFirstQuery(t *testing.T) {
 	st := newSQLMockTest()
 	ctx := context.Background()
-	dv := make([]driver.Value, 4); dv[0] = "t"; dv[1] = "x"; dv[2] = sqlmock.AnyArg(); dv[3] = sqlmock.AnyArg()
+	dv := make([]driver.Value, 4)
+	dv[0] = "t"
+	dv[1] = "x"
+	dv[2] = sqlmock.AnyArg()
+	dv[3] = sqlmock.AnyArg()
 
 	st.mock.ExpectQuery("SELECT COUNT\\(\\*\\)").WithArgs(dv...).
 		WillReturnError(fmt.Errorf("broken pipe"))

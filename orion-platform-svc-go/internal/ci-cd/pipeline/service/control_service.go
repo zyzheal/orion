@@ -178,7 +178,7 @@ func (s *ControlService) RetryRun(ctx context.Context, tenantID, pipelineID, run
 		TriggerType: models.TriggerManual,
 		Environment: originalRun.Environment,
 		Context: map[string]string{
-			"retry_of":  runID,
+			"retry_of":     runID,
 			"triggered_by": userID,
 		},
 	})
@@ -217,7 +217,7 @@ func (s *ControlService) RestartRun(ctx context.Context, tenantID, pipelineID, r
 		TriggerType: models.TriggerManual,
 		Environment: run.Environment,
 		Context: map[string]string{
-			"restart_of":  runID,
+			"restart_of":   runID,
 			"triggered_by": userID,
 		},
 	})

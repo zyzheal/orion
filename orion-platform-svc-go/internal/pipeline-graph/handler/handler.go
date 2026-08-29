@@ -78,7 +78,7 @@ func (h *Handler) GetGraph(c *gin.Context) {
 
 // ParseYaml handles POST /pipelines/parse-yaml.
 func (h *Handler) ParseYaml(c *gin.Context) {
-	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ParseYaml")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ParseYaml")
 	defer span.End()
 	var req models.YamlParseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -97,7 +97,7 @@ func (h *Handler) ParseYaml(c *gin.Context) {
 
 // ToYaml handles POST /pipelines/to-yaml.
 func (h *Handler) ToYaml(c *gin.Context) {
-	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToYaml")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToYaml")
 	defer span.End()
 	var req models.YamlToJsonRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -116,7 +116,7 @@ func (h *Handler) ToYaml(c *gin.Context) {
 
 // Validate handles POST /pipelines/validate.
 func (h *Handler) Validate(c *gin.Context) {
-	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Validate")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Validate")
 	defer span.End()
 	var req models.ValidateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

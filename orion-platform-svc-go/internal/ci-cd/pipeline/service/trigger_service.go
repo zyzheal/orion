@@ -20,8 +20,8 @@ var triggerTracer = otel.Tracer("orion-pipeline-svc-trigger")
 
 // TriggerService manages pipeline triggers and processes trigger events
 type TriggerService struct {
-	db            *sqlx.DB
-	pipelineSvc   *PipelineService
+	db          *sqlx.DB
+	pipelineSvc *PipelineService
 }
 
 func NewTriggerService(db *sqlx.DB, pipelineSvc *PipelineService) *TriggerService {

@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"orion/platform-svc-go/internal/ticket/models"
 	"orion/go-common/pkg/otel"
+	"orion/platform-svc-go/internal/ticket/models"
 	"orion/platform-svc-go/internal/ticket/repository"
 	"time"
 
@@ -294,7 +294,7 @@ func (s *DispatchService) GetWeights() models.DispatchWeights {
 // Queue management
 
 func (s *DispatchService) GetQueueStatus(ctx context.Context) (*models.DispatchQueueStatus, error) {
-	return s.engineerRepo.GetQueueStatus(ctx, )
+	return s.engineerRepo.GetQueueStatus(ctx)
 }
 
 func (s *DispatchService) GetQueueEntries(ctx context.Context) ([]models.DispatchQueueEntry, error) {
@@ -430,7 +430,7 @@ func (s *DispatchService) GetSLAAlerts(ctx context.Context) ([]models.SLARecord,
 				s.slaRepo.UpdateRecord(ctx, &rr)
 			}
 			alerts = append(alerts, rec)
-		} else if rec.ResolutionDeadlineAt.Before(now.Add(2*time.Hour)) {
+		} else if rec.ResolutionDeadlineAt.Before(now.Add(2 * time.Hour)) {
 			alerts = append(alerts, rec)
 		}
 	}
@@ -445,7 +445,7 @@ func (s *DispatchService) GetAssignmentSuccessMetrics(ctx context.Context, start
 	}
 	var successRate float64
 	if metrics.TotalDispatches > 0 {
-		successRate = float64(metrics.TotalDispatches - metrics.AutoDispatches) / float64(metrics.TotalDispatches) * 100
+		successRate = float64(metrics.TotalDispatches-metrics.AutoDispatches) / float64(metrics.TotalDispatches) * 100
 	}
 	return &models.AssignmentSuccessMetrics{
 		TotalAssignments:   metrics.TotalDispatches,
@@ -480,7 +480,7 @@ func (s *DispatchService) GetReassignmentSuggestions(ctx context.Context) ([]mod
 				EngineerName: eng.Name,
 				CurrentLoad:  eng.CurrentLoad,
 				MaxCapacity:  eng.MaxCapacity,
-				Utilization:  float64(eng.CurrentLoad)/float64(eng.MaxCapacity)*100,
+				Utilization:  float64(eng.CurrentLoad) / float64(eng.MaxCapacity) * 100,
 				Action:       "rebalance",
 			})
 		}

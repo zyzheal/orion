@@ -59,10 +59,10 @@ func Test_ModelRouter_Route_EmptyProviders(t *testing.T) {
 func Test_ModelRouter_Route_NoCapabilityMatch(t *testing.T) {
 	r := NewModelRouter(StrategyBalanced)
 	r.RegisterProvider(ModelProvider{
-		Name:         "text-only",
-		Pricing:      Pricing{Input: 5, Output: 5},
-		Capabilities: []string{"text"},
-		MaxTokens:    4096,
+		Name:           "text-only",
+		Pricing:        Pricing{Input: 5, Output: 5},
+		Capabilities:   []string{"text"},
+		MaxTokens:      4096,
 		MaxInputTokens: 8192,
 	})
 
@@ -77,10 +77,10 @@ func Test_ModelRouter_Route_NoCapabilityMatch(t *testing.T) {
 func Test_ModelRouter_Route_CostBudgetExceeded(t *testing.T) {
 	r := NewModelRouter(StrategyCost)
 	r.RegisterProvider(ModelProvider{
-		Name:         "expensive",
-		Pricing:      Pricing{Input: 500, Output: 500},
-		Capabilities: []string{"text"},
-		MaxTokens:    4096,
+		Name:           "expensive",
+		Pricing:        Pricing{Input: 500, Output: 500},
+		Capabilities:   []string{"text"},
+		MaxTokens:      4096,
 		MaxInputTokens: 8192,
 	})
 
@@ -130,17 +130,17 @@ func Test_ModelRouter_Unregister(t *testing.T) {
 func Test_ModelRouter_FastStrategy(t *testing.T) {
 	r := NewModelRouter(StrategyFast)
 	r.RegisterProvider(ModelProvider{
-		Name:         "fast",
-		Pricing:      Pricing{Input: 100, Output: 100},
-		Capabilities: []string{"text", "code", "vision", "embedding"},
-		MaxTokens:    4096,
+		Name:           "fast",
+		Pricing:        Pricing{Input: 100, Output: 100},
+		Capabilities:   []string{"text", "code", "vision", "embedding"},
+		MaxTokens:      4096,
 		MaxInputTokens: 8192,
 	})
 	r.RegisterProvider(ModelProvider{
-		Name:         "slow",
-		Pricing:      Pricing{Input: 1, Output: 1},
-		Capabilities: []string{"text"},
-		MaxTokens:    2048,
+		Name:           "slow",
+		Pricing:        Pricing{Input: 1, Output: 1},
+		Capabilities:   []string{"text"},
+		MaxTokens:      2048,
 		MaxInputTokens: 4096,
 	})
 
@@ -160,17 +160,17 @@ func Test_ModelRouter_FastStrategy(t *testing.T) {
 func Test_ModelRouter_BalancedStrategy(t *testing.T) {
 	r := NewModelRouter(StrategyBalanced)
 	r.RegisterProvider(ModelProvider{
-		Name:         "expensive",
-		Pricing:      Pricing{Input: 200, Output: 200},
-		Capabilities: []string{"text", "code", "vision"},
-		MaxTokens:    4096,
+		Name:           "expensive",
+		Pricing:        Pricing{Input: 200, Output: 200},
+		Capabilities:   []string{"text", "code", "vision"},
+		MaxTokens:      4096,
 		MaxInputTokens: 8192,
 	})
 	r.RegisterProvider(ModelProvider{
-		Name:         "cheap",
-		Pricing:      Pricing{Input: 5, Output: 5},
-		Capabilities: []string{"text", "code", "vision", "embedding"},
-		MaxTokens:    2048,
+		Name:           "cheap",
+		Pricing:        Pricing{Input: 5, Output: 5},
+		Capabilities:   []string{"text", "code", "vision", "embedding"},
+		MaxTokens:      2048,
 		MaxInputTokens: 4096,
 	})
 

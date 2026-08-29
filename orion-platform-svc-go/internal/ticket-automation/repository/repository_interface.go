@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/ticket-automation/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	Create(ctx context.Context, tenantID string, e *models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error)

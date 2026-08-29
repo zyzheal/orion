@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/finops/finops/models"
 	"orion/platform-svc-go/internal/finops/finops/service"
 
@@ -16,6 +17,8 @@ func NewOptimizationHandler(svc *service.OptimizationService) *OptimizationHandl
 }
 
 func (h *OptimizationHandler) Analyze(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsAnalyze")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req models.AnalyzeOptimizationRequest
@@ -24,7 +27,7 @@ func (h *OptimizationHandler) Analyze(c *gin.Context) {
 		return
 	}
 
-	opts, err := h.svc.AnalyzeUtilization(c.Request.Context(), tenantID, req)
+	opts, err := h.svc.AnalyzeUtilization(ctx, tenantID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -34,11 +37,13 @@ func (h *OptimizationHandler) Analyze(c *gin.Context) {
 }
 
 func (h *OptimizationHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	category := models.OptimizationCategory(c.Query("category"))
 	status := models.OptimizationStatus(c.Query("status"))
 
-	opts, err := h.svc.ListOptimizations(c.Request.Context(), tenantID, category, status)
+	opts, err := h.svc.ListOptimizations(ctx, tenantID, category, status)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -48,6 +53,8 @@ func (h *OptimizationHandler) List(c *gin.Context) {
 }
 
 func (h *OptimizationHandler) UpdateStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsUpdateStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -59,7 +66,7 @@ func (h *OptimizationHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.UpdateStatus(c.Request.Context(), tenantID, id, req.Status); err != nil {
+	if err := h.svc.UpdateStatus(ctx, tenantID, id, req.Status); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -68,9 +75,11 @@ func (h *OptimizationHandler) UpdateStatus(c *gin.Context) {
 }
 
 func (h *OptimizationHandler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -79,11 +88,13 @@ func (h *OptimizationHandler) Delete(c *gin.Context) {
 }
 
 func (h *OptimizationHandler) GetSavings(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsGetSavings")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	category := models.OptimizationCategory(c.Query("category"))
 	status := models.OptimizationStatus(c.Query("status"))
 
-	savings, err := h.svc.GetSavingsEstimate(c.Request.Context(), tenantID, category, status)
+	savings, err := h.svc.GetSavingsEstimate(ctx, tenantID, category, status)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -93,9 +104,11 @@ func (h *OptimizationHandler) GetSavings(c *gin.Context) {
 }
 
 func (h *OptimizationHandler) GetRightSizing(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsGetRightSizing")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	recs, err := h.svc.GenerateRightSizingRecommendations(c.Request.Context(), tenantID)
+	recs, err := h.svc.GenerateRightSizingRecommendations(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -105,9 +118,11 @@ func (h *OptimizationHandler) GetRightSizing(c *gin.Context) {
 }
 
 func (h *OptimizationHandler) GetUnusedResources(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsGetUnusedResources")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	resources, err := h.svc.GetUnusedResources(c.Request.Context(), tenantID)
+	resources, err := h.svc.GetUnusedResources(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

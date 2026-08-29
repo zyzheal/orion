@@ -1,13 +1,14 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"net/http"
 	"strconv"
 	"time"
 
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/infrastructure/backup/models"
 	"orion/platform-svc-go/internal/infrastructure/backup/service"
-	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -32,11 +33,6 @@ func New(backupSvc *service.BackupService, recoverySvc *service.RecoveryService,
 // RegisterRoutes mounts all backup routes under the given group.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	bg := rg.Group("/backup")
-	bg.POST("/plans", auth.RequirePermission("backup", "write"), h.CreatePlan)
-	bg.GET("/plans", auth.RequirePermission("backup", "read"), h.ListPlans)
-	bg.GET("/plans/:id", auth.RequirePermission("backup", "read"), h.GetPlan)
-	bg.PUT("/plans/:id", auth.RequirePermission("backup", "write"), h.UpdatePlan)
-	bg.DELETE("/plans/:id", auth.RequirePermission("backup", "delete"), h.DeletePlan)
 	bg.POST("/plans/:id/execute", auth.RequirePermission("backup", "execute"), h.ExecuteBackup)
 	bg.GET("/plans/:id/records", auth.RequirePermission("backup", "read"), h.ListBackupRecords)
 	bg.GET("/plans/:id/records/:record_id", auth.RequirePermission("backup", "read"), h.GetBackupRecord)
@@ -53,6 +49,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Backup Plans ====================
 
 func (h *Handler) CreatePlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BackupCreatePlan")
+	defer span.End()
 	var input models.CreateBackupPlanInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		respondBadRequest(c, "invalid request body: "+err.Error())
@@ -64,7 +62,7 @@ func (h *Handler) CreatePlan(c *gin.Context) {
 		return
 	}
 	input.TenantID = tenantID
-	plan, err := h.backupSvc.CreatePlan(c.Request.Context(), input)
+	plan, err := h.backupSvc.CreatePlan(ctx, input)
 	if err != nil {
 		h.log.Error("failed to create backup plan", zap.Error(err))
 		respondBadRequest(c, err.Error())
@@ -74,6 +72,8 @@ func (h *Handler) CreatePlan(c *gin.Context) {
 }
 
 func (h *Handler) ListPlans(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BackupListPlans")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		respondBadRequest(c, "tenant_id required")
@@ -81,7 +81,7 @@ func (h *Handler) ListPlans(c *gin.Context) {
 	}
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	plans, err := h.backupSvc.ListPlans(c.Request.Context(), tenantID, offset, limit)
+	plans, err := h.backupSvc.ListPlans(ctx, tenantID, offset, limit)
 	if err != nil {
 		h.log.Error("failed to list plans", zap.Error(err))
 		respondInternalError(c, "internal error")
@@ -91,12 +91,14 @@ func (h *Handler) ListPlans(c *gin.Context) {
 }
 
 func (h *Handler) GetPlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BackupGetPlan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		respondBadRequest(c, "tenant_id required")
 		return
 	}
-	plan, err := h.backupSvc.GetPlan(c.Request.Context(), tenantID, c.Param("id"))
+	plan, err := h.backupSvc.GetPlan(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -105,6 +107,8 @@ func (h *Handler) GetPlan(c *gin.Context) {
 }
 
 func (h *Handler) UpdatePlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BackupUpdatePlan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		respondBadRequest(c, "tenant_id required")
@@ -115,7 +119,7 @@ func (h *Handler) UpdatePlan(c *gin.Context) {
 		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
-	plan, err := h.backupSvc.UpdatePlan(c.Request.Context(), tenantID, c.Param("id"), input)
+	plan, err := h.backupSvc.UpdatePlan(ctx, tenantID, c.Param("id"), input)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -124,12 +128,14 @@ func (h *Handler) UpdatePlan(c *gin.Context) {
 }
 
 func (h *Handler) DeletePlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BackupDeletePlan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		respondBadRequest(c, "tenant_id required")
 		return
 	}
-	if err := h.backupSvc.DeletePlan(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.backupSvc.DeletePlan(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -139,6 +145,8 @@ func (h *Handler) DeletePlan(c *gin.Context) {
 // ==================== Backup Execution ====================
 
 func (h *Handler) ExecuteBackup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BackupExecuteBackup")
+	defer span.End()
 	var input models.CreateBackupInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		respondBadRequest(c, "invalid request body: "+err.Error())
@@ -151,7 +159,7 @@ func (h *Handler) ExecuteBackup(c *gin.Context) {
 	}
 	input.TenantID = tenantID
 	input.PlanID = c.Param("id")
-	record, err := h.backupSvc.TriggerBackup(c.Request.Context(), input)
+	record, err := h.backupSvc.TriggerBackup(ctx, input)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -160,6 +168,8 @@ func (h *Handler) ExecuteBackup(c *gin.Context) {
 }
 
 func (h *Handler) ListBackupRecords(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BackupListBackupRecords")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		respondBadRequest(c, "tenant_id required")
@@ -172,7 +182,7 @@ func (h *Handler) ListBackupRecords(c *gin.Context) {
 	}
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	backups, err := h.backupSvc.ListBackups(c.Request.Context(), tenantID, filter, offset, limit)
+	backups, err := h.backupSvc.ListBackups(ctx, tenantID, filter, offset, limit)
 	if err != nil {
 		h.log.Error("failed to list backups", zap.Error(err))
 		respondInternalError(c, "internal error")
@@ -182,12 +192,14 @@ func (h *Handler) ListBackupRecords(c *gin.Context) {
 }
 
 func (h *Handler) GetBackupRecord(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BackupGetBackupRecord")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		respondBadRequest(c, "tenant_id required")
 		return
 	}
-	record, err := h.backupSvc.GetBackup(c.Request.Context(), tenantID, c.Param("record_id"))
+	record, err := h.backupSvc.GetBackup(ctx, tenantID, c.Param("record_id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -196,12 +208,14 @@ func (h *Handler) GetBackupRecord(c *gin.Context) {
 }
 
 func (h *Handler) DeleteBackupRecord(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BackupDeleteBackupRecord")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		respondBadRequest(c, "tenant_id required")
 		return
 	}
-	if err := h.backupSvc.DeleteBackup(c.Request.Context(), tenantID, c.Param("record_id")); err != nil {
+	if err := h.backupSvc.DeleteBackup(ctx, tenantID, c.Param("record_id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -211,6 +225,8 @@ func (h *Handler) DeleteBackupRecord(c *gin.Context) {
 // ==================== Recovery ====================
 
 func (h *Handler) CreateRecovery(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BackupCreateRecovery")
+	defer span.End()
 	var input models.CreateRecoveryInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		respondBadRequest(c, "invalid request body: "+err.Error())
@@ -222,7 +238,7 @@ func (h *Handler) CreateRecovery(c *gin.Context) {
 		return
 	}
 	input.TenantID = tenantID
-	record, err := h.recoverySvc.CreateRecovery(c.Request.Context(), input)
+	record, err := h.recoverySvc.CreateRecovery(ctx, input)
 	if err != nil {
 		h.log.Error("failed to create recovery", zap.Error(err))
 		respondBadRequest(c, err.Error())
@@ -232,6 +248,8 @@ func (h *Handler) CreateRecovery(c *gin.Context) {
 }
 
 func (h *Handler) ListRecoveries(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BackupListRecoveries")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		respondBadRequest(c, "tenant_id required")
@@ -239,7 +257,7 @@ func (h *Handler) ListRecoveries(c *gin.Context) {
 	}
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	recoveries, err := h.recoverySvc.ListRecoveries(c.Request.Context(), tenantID, offset, limit)
+	recoveries, err := h.recoverySvc.ListRecoveries(ctx, tenantID, offset, limit)
 	if err != nil {
 		h.log.Error("failed to list recoveries", zap.Error(err))
 		respondInternalError(c, "internal error")
@@ -249,12 +267,14 @@ func (h *Handler) ListRecoveries(c *gin.Context) {
 }
 
 func (h *Handler) GetRecovery(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BackupGetRecovery")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		respondBadRequest(c, "tenant_id required")
 		return
 	}
-	record, err := h.recoverySvc.GetRecovery(c.Request.Context(), tenantID, c.Param("id"))
+	record, err := h.recoverySvc.GetRecovery(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -263,12 +283,14 @@ func (h *Handler) GetRecovery(c *gin.Context) {
 }
 
 func (h *Handler) ExecuteRecovery(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BackupExecuteRecovery")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		respondBadRequest(c, "tenant_id required")
 		return
 	}
-	record, err := h.recoverySvc.ExecuteRecovery(c.Request.Context(), tenantID, c.Param("id"))
+	record, err := h.recoverySvc.ExecuteRecovery(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -277,12 +299,14 @@ func (h *Handler) ExecuteRecovery(c *gin.Context) {
 }
 
 func (h *Handler) RollbackRecovery(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BackupRollbackRecovery")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		respondBadRequest(c, "tenant_id required")
 		return
 	}
-	record, err := h.recoverySvc.RollbackRecovery(c.Request.Context(), tenantID, c.Param("id"))
+	record, err := h.recoverySvc.RollbackRecovery(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -293,12 +317,14 @@ func (h *Handler) RollbackRecovery(c *gin.Context) {
 // ==================== Stats ====================
 
 func (h *Handler) GetBackupStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BackupGetBackupStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		respondBadRequest(c, "tenant_id required")
 		return
 	}
-	stats, err := h.backupSvc.GetBackupStats(c.Request.Context(), tenantID)
+	stats, err := h.backupSvc.GetBackupStats(ctx, tenantID)
 	if err != nil {
 		h.log.Error("failed to get backup stats", zap.Error(err))
 		respondInternalError(c, "internal error")

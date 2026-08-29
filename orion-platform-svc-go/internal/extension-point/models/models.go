@@ -80,10 +80,10 @@ var ValidExtensionStatuses = map[string]bool{
 // ---------------------------------------------------------------------------
 
 const (
-	TaskStatusPending    = "pending"
-	TaskStatusRunning    = "running"
-	TaskStatusCompleted  = "completed"
-	TaskStatusFailed     = "failed"
+	TaskStatusPending   = "pending"
+	TaskStatusRunning   = "running"
+	TaskStatusCompleted = "completed"
+	TaskStatusFailed    = "failed"
 )
 
 var ValidTaskStatuses = map[string]bool{
@@ -140,21 +140,21 @@ func (j *JSONB) Scan(src interface{}) error {
 // ExtensionPoint represents a pluggable extension point in the system.
 // It tracks registration, initialization, and lifecycle state.
 type ExtensionPoint struct {
-	ID           string    `db:"id" json:"id"`
-	TenantID     string    `db:"tenant_id" json:"tenant_id"`
-	Name         string    `db:"name" json:"name"`             // unique name, e.g. "pipeline-engine"
-	Category     string    `db:"category" json:"category"`     // startup|api|handler|service|listener
-	Description  string    `db:"description" json:"description"`
-	HandlerType  string    `db:"handler_type" json:"handler_type"` // builtin|plugin
-	Config       JSONB     `db:"config" json:"config"`        // jsonb configuration
-	Enabled      bool      `db:"enabled" json:"enabled"`
-	Priority     int       `db:"priority" json:"priority"`    // init order (lower = first)
-	Status       string    `db:"status" json:"status"`        // registered|initialized|active|disabled|error
-	Error        string    `db:"error" json:"error"`
-	RegisteredAt time.Time `db:"registered_at" json:"registered_at"`
+	ID            string     `db:"id" json:"id"`
+	TenantID      string     `db:"tenant_id" json:"tenant_id"`
+	Name          string     `db:"name" json:"name"`         // unique name, e.g. "pipeline-engine"
+	Category      string     `db:"category" json:"category"` // startup|api|handler|service|listener
+	Description   string     `db:"description" json:"description"`
+	HandlerType   string     `db:"handler_type" json:"handler_type"` // builtin|plugin
+	Config        JSONB      `db:"config" json:"config"`             // jsonb configuration
+	Enabled       bool       `db:"enabled" json:"enabled"`
+	Priority      int        `db:"priority" json:"priority"` // init order (lower = first)
+	Status        string     `db:"status" json:"status"`     // registered|initialized|active|disabled|error
+	Error         string     `db:"error" json:"error"`
+	RegisteredAt  time.Time  `db:"registered_at" json:"registered_at"`
 	InitializedAt *time.Time `db:"initialized_at" json:"initialized_at"`
-	CreatedAt    time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt    time.Time `db:"updated_at" json:"updated_at"`
+	CreatedAt     time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time  `db:"updated_at" json:"updated_at"`
 }
 
 // ---------------------------------------------------------------------------
@@ -167,7 +167,7 @@ type StartupTask struct {
 	ID          string     `db:"id" json:"id"`
 	ExtensionID string     `db:"extension_id" json:"extension_id"`
 	Name        string     `db:"name" json:"name"`
-	Status      string     `db:"status" json:"status"`       // pending|running|completed|failed
+	Status      string     `db:"status" json:"status"` // pending|running|completed|failed
 	DurationMs  int64      `db:"duration_ms" json:"duration_ms"`
 	Error       string     `db:"error" json:"error"`
 	StartedAt   time.Time  `db:"started_at" json:"started_at"`
@@ -181,9 +181,9 @@ type StartupTask struct {
 
 // ExtensionEvent is fired when an extension point changes state.
 type ExtensionEvent struct {
-	Type          string `json:"type"`           // register|initialize|shutdown|error
-	ExtensionName string `json:"extension_name"`
-	Status        string `json:"status"`
+	Type          string    `json:"type"` // register|initialize|shutdown|error
+	ExtensionName string    `json:"extension_name"`
+	Status        string    `json:"status"`
 	Timestamp     time.Time `json:"timestamp"`
 }
 
@@ -204,25 +204,25 @@ type CreateExtensionRequest struct {
 
 // UpdateExtensionRequest is the payload for updating an extension point.
 type UpdateExtensionRequest struct {
-	Status    *string             `json:"status"`
-	Enabled   *bool               `json:"enabled"`
-	Priority  *int                `json:"priority"`
-	Config    *map[string]string  `json:"config"`
-	Description *string           `json:"description"`
+	Status      *string            `json:"status"`
+	Enabled     *bool              `json:"enabled"`
+	Priority    *int               `json:"priority"`
+	Config      *map[string]string `json:"config"`
+	Description *string            `json:"description"`
 }
 
 // ExtensionSummary is the list response for extension points.
 type ExtensionSummary struct {
-	Name        string            `json:"name"`
-	Category    string            `json:"category"`
-	Description string            `json:"description"`
-	Status      string            `json:"status"`
-	Enabled     bool              `json:"enabled"`
-	Priority    int               `json:"priority"`
-	HandlerType string            `json:"handler_type"`
-	Config      map[string]string `json:"config"`
-	InitializedAt *time.Time      `json:"initialized_at"`
-	CreatedAt   time.Time         `json:"created_at"`
+	Name          string            `json:"name"`
+	Category      string            `json:"category"`
+	Description   string            `json:"description"`
+	Status        string            `json:"status"`
+	Enabled       bool              `json:"enabled"`
+	Priority      int               `json:"priority"`
+	HandlerType   string            `json:"handler_type"`
+	Config        map[string]string `json:"config"`
+	InitializedAt *time.Time        `json:"initialized_at"`
+	CreatedAt     time.Time         `json:"created_at"`
 }
 
 // CreateStartupRequest is the payload for running startup tasks.

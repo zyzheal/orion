@@ -9,12 +9,12 @@ import (
 type NodeStatus int
 
 const (
-	StatusPending  NodeStatus = iota // not yet started
-	StatusRunning                    // currently executing
-	StatusDone                       // completed successfully
-	StatusFailed                     // execution raised an error
-	StatusSkipped                    // skipped due to condition or parent failure
-	StatusTimeout                    // timed out
+	StatusPending NodeStatus = iota // not yet started
+	StatusRunning                   // currently executing
+	StatusDone                      // completed successfully
+	StatusFailed                    // execution raised an error
+	StatusSkipped                   // skipped due to condition or parent failure
+	StatusTimeout                   // timed out
 )
 
 func (s NodeStatus) String() string {
@@ -31,36 +31,36 @@ func (s NodeStatus) String() string {
 		return "SKIPPED"
 	case StatusTimeout:
 		return "TIMEOUT"
-		default:
+	default:
 		return "UNKNOWN"
 	}
 }
 
 // NodeRecord holds the runtime state for one node during execution.
 type NodeRecord struct {
-	NodeID      string      // node identifier
-	Status      NodeStatus  // current status
-	StartedAt   *time.Time  // when execution began (nil if not started)
-	FinishedAt  *time.Time  // when execution completed (nil if not finished)
-	Outputs     map[string]interface{} // accumulated outputs
-	Error       error       // error if failed
-	ErrorNode   string      // upstream node ID that caused failure
-	Iteration   int         // current iteration for loop nodes
+	NodeID     string                 // node identifier
+	Status     NodeStatus             // current status
+	StartedAt  *time.Time             // when execution began (nil if not started)
+	FinishedAt *time.Time             // when execution completed (nil if not finished)
+	Outputs    map[string]interface{} // accumulated outputs
+	Error      error                  // error if failed
+	ErrorNode  string                 // upstream node ID that caused failure
+	Iteration  int                    // current iteration for loop nodes
 }
 
 // ExecutionCtx is the mutable runtime context for a DAG execution.
 // It holds variables, node statuses, and execution metadata.
 type ExecutionCtx struct {
-	ID      string            // unique execution ID (UUID)
-	DAGName string            // DAG being executed
+	ID      string // unique execution ID (UUID)
+	DAGName string // DAG being executed
 
-	varMu   sync.RWMutex       // guards variables
+	varMu     sync.RWMutex           // guards variables
 	variables map[string]interface{} // runtime variable store
 
-	statusMu sync.RWMutex       // guards records
+	statusMu sync.RWMutex           // guards records
 	records  map[string]*NodeRecord // per-node execution records
 
-	Errors   []error  // collected errors during execution
+	Errors []error // collected errors during execution
 
 	StartTime time.Time
 	EndTime   *time.Time

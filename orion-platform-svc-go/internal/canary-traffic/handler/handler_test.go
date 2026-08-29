@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/canary-traffic/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/canary-traffic/models"
 )
 
@@ -67,7 +67,6 @@ func (f *fakeCanary_trafficService) Update(ctx context.Context, id, tenantID str
 }
 
 var _ service.ServiceInterface = (*fakeCanary_trafficService)(nil)
-
 
 func TestCANARY_TRAFFIC_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

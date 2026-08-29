@@ -40,7 +40,7 @@ type PipelineRunner interface {
 }
 
 type Service struct {
-	repo    RepositoryInterface
+	repo     RepositoryInterface
 	pipeline PipelineRunner
 }
 

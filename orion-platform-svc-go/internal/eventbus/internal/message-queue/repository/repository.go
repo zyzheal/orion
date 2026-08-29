@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"orion/platform-svc-go/internal/eventbus/internal/message-queue/models"
 )
 

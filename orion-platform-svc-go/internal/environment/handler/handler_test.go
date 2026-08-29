@@ -1,10 +1,10 @@
 package handler
 
 import (
-	"orion/platform-svc-go/internal/environment/models"
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"orion/platform-svc-go/internal/environment/models"
 	"testing"
 
 	"orion/platform-svc-go/internal/environment/service"
@@ -24,6 +24,7 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	c.Request = httptest.NewRequest(method, path, nil)
 	return c, w
 }
+
 type fakeEnvironmentService struct{}
 
 func (f *fakeEnvironmentService) Create(ctx context.Context, tenantID, createdBy string, req *models.CreateEnvironmentRequest) (*models.Environment, error) {
@@ -62,13 +63,11 @@ func (f *fakeEnvironmentService) CheckDeploymentAllowed(ctx context.Context, ten
 	return false, nil
 }
 
-func (f *fakeEnvironmentService) Delete(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeEnvironmentService) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
 var _ service.ServiceInterface = (*fakeEnvironmentService)(nil)
-
-
 
 func TestHandler_ENVIRONMENT_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

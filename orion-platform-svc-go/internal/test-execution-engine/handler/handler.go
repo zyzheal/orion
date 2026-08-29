@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/test-execution-engine/models"
@@ -34,13 +35,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TestExecEngineCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateExecutionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	exec, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+	exec, err := h.svc.Create(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -49,9 +52,11 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TestExecEngineGet")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	exec, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	exec, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -60,11 +65,13 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TestExecEngineList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
 	q := models.ListExecutionsQuery{Page: page, PageSize: pageSize}
-	result, err := h.svc.List(c.Request.Context(), tenantID, q)
+	result, err := h.svc.List(ctx, tenantID, q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -73,9 +80,11 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Start(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TestExecEngineStart")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.Start(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Start(ctx, tenantID, id); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
@@ -83,6 +92,8 @@ func (h *Handler) Start(c *gin.Context) {
 }
 
 func (h *Handler) SubmitResults(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TestExecEngineSubmitResults")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.SubmitResultRequest
@@ -90,7 +101,7 @@ func (h *Handler) SubmitResults(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.SubmitResults(c.Request.Context(), tenantID, id, &req); err != nil {
+	if err := h.svc.SubmitResults(ctx, tenantID, id, &req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
@@ -98,9 +109,11 @@ func (h *Handler) SubmitResults(c *gin.Context) {
 }
 
 func (h *Handler) Cancel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TestExecEngineCancel")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.Cancel(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Cancel(ctx, tenantID, id); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
@@ -108,8 +121,10 @@ func (h *Handler) Cancel(c *gin.Context) {
 }
 
 func (h *Handler) GetSuites(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TestExecEngineGetSuites")
+	defer span.End()
 	executionID := c.Param("id")
-	suites, err := h.svc.GetSuites(c.Request.Context(), executionID)
+	suites, err := h.svc.GetSuites(ctx, executionID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -118,8 +133,10 @@ func (h *Handler) GetSuites(c *gin.Context) {
 }
 
 func (h *Handler) GetTestCases(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TestExecEngineGetTestCases")
+	defer span.End()
 	suiteID := c.Param("suiteId")
-	cases, err := h.svc.GetTestCases(c.Request.Context(), suiteID)
+	cases, err := h.svc.GetTestCases(ctx, suiteID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

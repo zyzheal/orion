@@ -22,8 +22,8 @@ const (
 
 // Client handles all HTTP calls to the WeChat Work API.
 type Client struct {
-	cfg     *Config
-	http    *http.Client
+	cfg  *Config
+	http *http.Client
 
 	mu          sync.RWMutex
 	cachedToken string
@@ -58,7 +58,7 @@ func (c *Client) GetAuthorizationURL(redirectURI, state string) string {
 // GetToken retrieves (and caches) the corp access token.
 func (c *Client) GetToken(ctx context.Context) (string, error) {
 	c.mu.RLock()
-	if c.cachedToken != "" && time.Since(c.cachedAt) < (time.Duration(c.cfg.TokenExpirySec-defaultTokenBufferSec) * time.Second) {
+	if c.cachedToken != "" && time.Since(c.cachedAt) < (time.Duration(c.cfg.TokenExpirySec-defaultTokenBufferSec)*time.Second) {
 		token := c.cachedToken
 		c.mu.RUnlock()
 		return token, nil

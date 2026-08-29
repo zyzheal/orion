@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/config/internal/config/service"
 
 	"github.com/gin-gonic/gin"
@@ -15,12 +16,14 @@ func NewDriftHandler(svc *service.DriftService) *DriftHandler {
 }
 
 func (h *DriftHandler) Scan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigScan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	env := c.Query("environment")
 	if env == "" {
 		env = "production"
 	}
-	result, err := h.svc.ScanForDrift(c.Request.Context(), tenantID, env)
+	result, err := h.svc.ScanForDrift(ctx, tenantID, env)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -29,10 +32,12 @@ func (h *DriftHandler) Scan(c *gin.Context) {
 }
 
 func (h *DriftHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	env := c.Query("environment")
 	unresolved := c.Query("unresolved") == "true"
-	drifts, err := h.svc.ListDrifts(c.Request.Context(), tenantID, env, unresolved)
+	drifts, err := h.svc.ListDrifts(ctx, tenantID, env, unresolved)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -41,6 +46,8 @@ func (h *DriftHandler) List(c *gin.Context) {
 }
 
 func (h *DriftHandler) Resolve(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigResolve")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req struct {
 		Resolution string `json:"resolution" binding:"required"`
@@ -50,7 +57,7 @@ func (h *DriftHandler) Resolve(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.ResolveDrift(c.Request.Context(), tenantID, c.Param("id"), req.ResolvedBy, req.Resolution); err != nil {
+	if err := h.svc.ResolveDrift(ctx, tenantID, c.Param("id"), req.ResolvedBy, req.Resolution); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}

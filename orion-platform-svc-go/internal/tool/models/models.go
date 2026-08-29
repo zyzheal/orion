@@ -11,24 +11,24 @@ var ErrToolNotFound = errors.New("tool not found")
 
 // Tool represents a registered tool in the tool center.
 type Tool struct {
-	ID           string         `db:"id" json:"id"`
-	TenantID     string         `db:"tenant_id" json:"tenant_id"`
-	Name         string         `db:"name" json:"name"`
-	DisplayName  string         `db:"display_name" json:"display_name"`
-	Description  string         `db:"description" json:"description"`
-	Category     string         `db:"category" json:"category"`
-	Type         string         `db:"type" json:"type"` // cli, api, script, container
-	Version      string         `db:"version" json:"version"`
-	Config       string         `db:"config" json:"config"` // JSON
-	Endpoint     string         `db:"endpoint" json:"endpoint"`
-	AuthType     string         `db:"auth_type" json:"auth_type"` // none, api_key, oauth2, basic
-	AuthConfig   string         `db:"auth_config" json:"auth_config"` // JSON
-	Tags         string         `db:"tags" json:"tags"` // JSON array
-	Status       string         `db:"status" json:"status"` // active, disabled, deprecated
-	CreatedBy    string         `db:"created_by" json:"created_by"`
-	CreatedAt    time.Time      `db:"created_at" json:"created_at"`
-	UpdatedAt    time.Time      `db:"updated_at" json:"updated_at"`
-	DeprecatedAt sql.NullTime   `db:"deprecated_at" json:"deprecated_at,omitempty"`
+	ID           string       `db:"id" json:"id"`
+	TenantID     string       `db:"tenant_id" json:"tenant_id"`
+	Name         string       `db:"name" json:"name"`
+	DisplayName  string       `db:"display_name" json:"display_name"`
+	Description  string       `db:"description" json:"description"`
+	Category     string       `db:"category" json:"category"`
+	Type         string       `db:"type" json:"type"` // cli, api, script, container
+	Version      string       `db:"version" json:"version"`
+	Config       string       `db:"config" json:"config"` // JSON
+	Endpoint     string       `db:"endpoint" json:"endpoint"`
+	AuthType     string       `db:"auth_type" json:"auth_type"`     // none, api_key, oauth2, basic
+	AuthConfig   string       `db:"auth_config" json:"auth_config"` // JSON
+	Tags         string       `db:"tags" json:"tags"`               // JSON array
+	Status       string       `db:"status" json:"status"`           // active, disabled, deprecated
+	CreatedBy    string       `db:"created_by" json:"created_by"`
+	CreatedAt    time.Time    `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time    `db:"updated_at" json:"updated_at"`
+	DeprecatedAt sql.NullTime `db:"deprecated_at" json:"deprecated_at,omitempty"`
 }
 
 // ToolVersion represents a version history entry for a tool.
@@ -59,7 +59,7 @@ type ToolInvocation struct {
 	ID        string         `db:"id" json:"id"`
 	ToolID    string         `db:"tool_id" json:"tool_id"`
 	TenantID  string         `db:"tenant_id" json:"tenant_id"`
-	Input     string         `db:"input" json:"input"` // JSON
+	Input     string         `db:"input" json:"input"`   // JSON
 	Output    string         `db:"output" json:"output"` // JSON
 	Status    string         `db:"status" json:"status"` // success, failed, timeout
 	Error     sql.NullString `db:"error" json:"error,omitempty"`
@@ -123,8 +123,8 @@ type ToolListParams struct {
 type StatsPeriod string
 
 const (
-	StatsPeriodDay  StatsPeriod = "day"
-	StatsPeriodWeek StatsPeriod = "week"
+	StatsPeriodDay   StatsPeriod = "day"
+	StatsPeriodWeek  StatsPeriod = "week"
 	StatsPeriodMonth StatsPeriod = "month"
 )
 

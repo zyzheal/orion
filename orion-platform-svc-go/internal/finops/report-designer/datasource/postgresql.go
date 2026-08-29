@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	_ "github.com/lib/pq"
 	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 )
 
 // PostgreSQLSource implements DataSource for PostgreSQL.

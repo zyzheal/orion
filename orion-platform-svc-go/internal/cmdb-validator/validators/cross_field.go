@@ -8,7 +8,7 @@ import (
 // CrossFieldValidator evaluates one field conditionally based on the value of
 // another field. The condition JSON has the form:
 //
-//   {"when":"status","equals":"retired","then":"deprecation_date","must":"not_null"}
+//	{"when":"status","equals":"retired","then":"deprecation_date","must":"not_null"}
 //
 // Supported `must` operators: not_null, not_empty, not_blank, gte, lte, gt, lt.
 type CrossFieldValidator struct {
@@ -16,10 +16,10 @@ type CrossFieldValidator struct {
 	condition *RuleCondition
 	errorMsg  string
 
-	when    string // field to watch
-	equals  string // value that triggers the rule
-	then    string // field to validate
-	must    string // operator to apply to then-field
+	when   string // field to watch
+	equals string // value that triggers the rule
+	then   string // field to validate
+	must   string // operator to apply to then-field
 }
 
 func NewCrossFieldValidator(name, condition, errorMsg string) *CrossFieldValidator {

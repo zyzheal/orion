@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -6,8 +7,8 @@ import (
 	"context"
 	"errors"
 
-	"orion/platform-svc-go/internal/canary-traffic/models"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/canary-traffic/models"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -20,7 +21,6 @@ type RepositoryInterface interface {
 }
 
 var (
-
 	ErrInvalidWeights = errors.New("control_weight + canary_weight must not exceed 100")
 )
 

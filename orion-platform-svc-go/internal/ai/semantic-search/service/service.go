@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/ai/semantic-search/models"
 	"orion/platform-svc-go/internal/ai/semantic-search/repository"
-	"go.uber.org/zap"
 )
 
 type SemanticSearchService struct {
@@ -181,8 +181,8 @@ func (s *SemanticSearchService) RecalculateRelevance(listA, listB []models.Searc
 	// We keep the first-seen result (from listA) and let subsequent
 	// appearances only contribute to the score.
 	type rrfEntry struct {
-		result   models.SearchResult
-		fused    float64
+		result models.SearchResult
+		fused  float64
 	}
 
 	merged := make(map[string]*rrfEntry)
@@ -296,7 +296,8 @@ func (s *SemanticSearchService) rankedBy(results []models.SearchResult) []models
 }
 
 // weightedFusion merges two result lists using a weighted score formula:
-//   fused_score = vector_weight * vector_score + keyword_weight * keyword_score
+//
+//	fused_score = vector_weight * vector_score + keyword_weight * keyword_score
 //
 // Results unique to a single list receive the full weight from that side.
 func (s *SemanticSearchService) weightedFusion(vectorResults, keywordResults []models.SearchResult, vectorWeight, keywordWeight float64) []models.SearchResult {

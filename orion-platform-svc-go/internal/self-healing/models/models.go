@@ -24,14 +24,14 @@ type HealingAction struct {
 
 // HealingTrigger represents a trigger condition for self-healing.
 type HealingTrigger struct {
-	ID           uuid.UUID  `json:"id"`
-	TenantID     uuid.UUID  `json:"tenant_id"`
-	ActionID     uuid.UUID  `json:"action_id"`
-	Condition    string     `json:"condition"`
-	Threshold    float64    `json:"threshold"`
-	EvaluationSec int      `json:"evaluation_sec"`
-	IsEnabled    bool       `json:"is_enabled"`
-	CreatedAt    time.Time  `json:"created_at"`
+	ID            uuid.UUID `json:"id"`
+	TenantID      uuid.UUID `json:"tenant_id"`
+	ActionID      uuid.UUID `json:"action_id"`
+	Condition     string    `json:"condition"`
+	Threshold     float64   `json:"threshold"`
+	EvaluationSec int       `json:"evaluation_sec"`
+	IsEnabled     bool      `json:"is_enabled"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 // HealingHistory represents the execution history of a healing action.
@@ -62,7 +62,7 @@ type CreateHealingActionRequest struct {
 
 // HealingActionResponse wraps healing action query results.
 type HealingActionResponse struct {
-	Total int64          `json:"total"`
+	Total int64           `json:"total"`
 	Data  []HealingAction `json:"data"`
 }
 
@@ -97,11 +97,11 @@ type HealingIncident struct {
 
 // HistoryQuery filters for healing incident list queries.
 type HistoryQuery struct {
-	Status  *string    `json:"status"`
-	From    *time.Time `json:"from"`
-	To      *time.Time `json:"to"`
-	Limit   int        `json:"limit"`
-	Offset  int        `json:"offset"`
+	Status *string    `json:"status"`
+	From   *time.Time `json:"from"`
+	To     *time.Time `json:"to"`
+	Limit  int        `json:"limit"`
+	Offset int        `json:"offset"`
 }
 
 // EffectivenessQuery filters for healing effectiveness queries.
@@ -119,13 +119,13 @@ type CreateIncidentRequest struct {
 
 // ApprovalRequest represents a manual approval step for a healing action.
 type ApprovalRequest struct {
-	ID          uuid.UUID  `json:"id"`
-	IncidentID  uuid.UUID  `json:"incident_id"`
-	Title       string     `json:"title"`
-	Status      string     `json:"status"` // pending, approved, rejected, expired
-	RiskLevel   string     `json:"risk_level"`
-	ExpiresAt   *time.Time `json:"expires_at"`
-	CreatedAt   time.Time  `json:"created_at"`
+	ID         uuid.UUID  `json:"id"`
+	IncidentID uuid.UUID  `json:"incident_id"`
+	Title      string     `json:"title"`
+	Status     string     `json:"status"` // pending, approved, rejected, expired
+	RiskLevel  string     `json:"risk_level"`
+	ExpiresAt  *time.Time `json:"expires_at"`
+	CreatedAt  time.Time  `json:"created_at"`
 }
 
 // RespondApprovalRequest is the request payload for responding to an approval request.
@@ -136,11 +136,11 @@ type RespondApprovalRequest struct {
 
 // HealingEffectiveness aggregates execution metrics for a healing strategy.
 type HealingEffectiveness struct {
-	StrategyID         uuid.UUID `json:"strategy_id"`
-	TotalIncidents     int64     `json:"total_incidents"`
-	ResolvedIncidents  int64     `json:"resolved_incidents"`
-	ResolutionRate     float64   `json:"resolution_rate"`
-	AvgResolutionSecs  int64     `json:"avg_resolution_secs"`
+	StrategyID        uuid.UUID `json:"strategy_id"`
+	TotalIncidents    int64     `json:"total_incidents"`
+	ResolvedIncidents int64     `json:"resolved_incidents"`
+	ResolutionRate    float64   `json:"resolution_rate"`
+	AvgResolutionSecs int64     `json:"avg_resolution_secs"`
 }
 
 // RegisterStrategyRequest is the request payload for registering a new healing strategy.

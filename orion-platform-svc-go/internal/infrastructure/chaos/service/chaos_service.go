@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
+	"orion/go-common/pkg/otel"
 	"orion/platform-svc-go/internal/infrastructure/chaos/models"
 	"orion/platform-svc-go/internal/infrastructure/chaos/repository"
-	"orion/go-common/pkg/otel"
 )
 
 var (
@@ -33,13 +33,13 @@ func (s *ChaosService) CreateExperiment(ctx context.Context, tenantID string, in
 
 	now := time.Now().UTC()
 	exp := &models.ChaosExperiment{
-		ID:          fmt.Sprintf("chaos-%d", now.UnixNano()),
-		TenantID:    tenantID,
-		Name:        input.Name,
-		Status:      models.ExpDraft,
+		ID:           fmt.Sprintf("chaos-%d", now.UnixNano()),
+		TenantID:     tenantID,
+		Name:         input.Name,
+		Status:       models.ExpDraft,
 		AutoRollback: true,
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 	if input.Description != nil {
 		exp.Description = sql.NullString{String: *input.Description, Valid: true}

@@ -34,13 +34,13 @@ func TestResourcePool_Fields(t *testing.T) {
 
 func TestCapacityForecast_Fields(t *testing.T) {
 	f := CapacityForecast{
-		ID:            "fc-1",
-		TenantID:      "t1",
-		ResourceType:  "cpu",
-		CurrentUsage:  65.5,
-		Predicted:     82.3,
-		Threshold:     80.0,
-		DaysUntilFull: 14,
+		ID:             "fc-1",
+		TenantID:       "t1",
+		ResourceType:   "cpu",
+		CurrentUsage:   65.5,
+		Predicted:      82.3,
+		Threshold:      80.0,
+		DaysUntilFull:  14,
 		Recommendation: "Scale up cluster",
 	}
 	if f.DaysUntilFull != 14 {

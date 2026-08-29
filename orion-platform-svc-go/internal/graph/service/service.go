@@ -17,14 +17,14 @@ import (
 type Service struct {
 	mu sync.RWMutex
 
-	nodeRepo   *repository.GraphNodeRepository
-	relRepo    *repository.GraphRelationshipRepository
+	nodeRepo *repository.GraphNodeRepository
+	relRepo  *repository.GraphRelationshipRepository
 
 	// In-memory fallback (used when repository is nil)
-	nodes     map[string]*models.GraphNode
-	rels      map[string]*models.GraphRelationship
-	nodeSeq   int
-	relSeq    int
+	nodes   map[string]*models.GraphNode
+	rels    map[string]*models.GraphRelationship
+	nodeSeq int
+	relSeq  int
 }
 
 // NewService creates a Service with PostgreSQL repositories.
@@ -249,11 +249,11 @@ func (s *Service) GetServiceTopology(ctx context.Context, tenantID string) ([]mo
 		status := "unknown"
 		props := node.Properties
 		if p, ok := props["name"]; ok {
-            name = fmt.Sprintf("%v", p)
-        }
-        if p, ok := props["status"]; ok {
-            status = fmt.Sprintf("%v", p)
-        }
+			name = fmt.Sprintf("%v", p)
+		}
+		if p, ok := props["status"]; ok {
+			status = fmt.Sprintf("%v", p)
+		}
 
 		if _, ok := topoNodes[node.ID]; !ok {
 			topoNodes[node.ID] = &models.TopologyNode{
@@ -297,9 +297,9 @@ func (s *Service) GetStats(ctx context.Context, tenantID string) (*models.GraphS
 		// Additional stats would come from DB queries
 	} else {
 		s.mu.RLock()
-        stats.TotalNodes = len(s.nodes)
-        stats.TotalRels = len(s.rels)
-        s.mu.RUnlock()
+		stats.TotalNodes = len(s.nodes)
+		stats.TotalRels = len(s.rels)
+		s.mu.RUnlock()
 	}
 
 	return stats, nil
@@ -393,8 +393,8 @@ func (s *Service) bfsPaths(ctx context.Context, tenantID, startID, endID string)
 
 	// BFS
 	type queueItem struct {
-		nodeID  string
-		path    []*models.GraphRelationship
+		nodeID string
+		path   []*models.GraphRelationship
 	}
 
 	var paths []models.GraphPath
@@ -406,27 +406,27 @@ func (s *Service) bfsPaths(ctx context.Context, tenantID, startID, endID string)
 		queue = queue[1:]
 
 		if item.nodeID == endID {
-            p := models.GraphPath{
-                Relationships: make([]models.GraphRelationship, len(item.path)),
-            }
-            for i, r := range item.path {
-                p.Relationships[i] = *r
-            }
-            paths = append(paths, p)
-            continue
-        }
+			p := models.GraphPath{
+				Relationships: make([]models.GraphRelationship, len(item.path)),
+			}
+			for i, r := range item.path {
+				p.Relationships[i] = *r
+			}
+			paths = append(paths, p)
+			continue
+		}
 
-        if visited[item.nodeID] {
-            continue
-        }
-        visited[item.nodeID] = true
+		if visited[item.nodeID] {
+			continue
+		}
+		visited[item.nodeID] = true
 
-        for _, edge := range adjacency[item.nodeID] {
-            nextPath := make([]*models.GraphRelationship, len(item.path))
-            copy(nextPath, item.path)
-            nextPath = append(nextPath, edge)
-            queue = append(queue, queueItem{edge.EndNodeID, nextPath})
-        }
+		for _, edge := range adjacency[item.nodeID] {
+			nextPath := make([]*models.GraphRelationship, len(item.path))
+			copy(nextPath, item.path)
+			nextPath = append(nextPath, edge)
+			queue = append(queue, queueItem{edge.EndNodeID, nextPath})
+		}
 	}
 
 	return paths, nil
@@ -438,20 +438,20 @@ func (s *Service) pathNodesFromRels(ctx context.Context, rels []models.GraphRela
 	var nodes []models.GraphNode
 
 	for _, r := range rels {
-        if !seen[r.StartNodeID] {
-            seen[r.StartNodeID] = true
-            node, _ := s.GetNode(ctx, "", r.StartNodeID) // skip tenant for path
-            if node != nil {
-                nodes = append(nodes, *node)
-            }
-        }
-        if !seen[r.EndNodeID] {
-            seen[r.EndNodeID] = true
-            node, _ := s.GetNode(ctx, "", r.EndNodeID)
-            if node != nil {
-                nodes = append(nodes, *node)
-            }
-        }
+		if !seen[r.StartNodeID] {
+			seen[r.StartNodeID] = true
+			node, _ := s.GetNode(ctx, "", r.StartNodeID) // skip tenant for path
+			if node != nil {
+				nodes = append(nodes, *node)
+			}
+		}
+		if !seen[r.EndNodeID] {
+			seen[r.EndNodeID] = true
+			node, _ := s.GetNode(ctx, "", r.EndNodeID)
+			if node != nil {
+				nodes = append(nodes, *node)
+			}
+		}
 	}
 
 	return nodes
@@ -670,13 +670,13 @@ func (s *Service) neighborsInMemory(nodeID string, depth int) ([]models.GraphPat
 
 // Errors
 var (
-	ErrNodeNotFound       = errors.New("node not found")
-	ErrRelNotFound        = errors.New("relationship not found")
-	ErrStartNodeNotFound  = errors.New("start node not found")
-	ErrEndNodeNotFound    = errors.New("end node not found")
-	ErrDuplicateNode      = errors.New("node already exists")
-	ErrDuplicateRel       = errors.New("relationship already exists")
-	ErrInvalidLabel       = errors.New("invalid label format")
-	ErrInvalidRelType     = errors.New("invalid relationship type format")
-	ErrMaxDepthExceeded   = errors.New("max traversal depth exceeded")
+	ErrNodeNotFound      = errors.New("node not found")
+	ErrRelNotFound       = errors.New("relationship not found")
+	ErrStartNodeNotFound = errors.New("start node not found")
+	ErrEndNodeNotFound   = errors.New("end node not found")
+	ErrDuplicateNode     = errors.New("node already exists")
+	ErrDuplicateRel      = errors.New("relationship already exists")
+	ErrInvalidLabel      = errors.New("invalid label format")
+	ErrInvalidRelType    = errors.New("invalid relationship type format")
+	ErrMaxDepthExceeded  = errors.New("max traversal depth exceeded")
 )

@@ -30,7 +30,6 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// Health (no auth, matches TS: unauthenticated)
 	rg.GET("/health", h.Health)
 	// Status (no auth, matches TS: unauthenticated)
-	rg.GET("/status", h.Status)
 	// SQL Audit — requires write
 	rg.POST("/audit", auth.RequirePermission("inception", "write"), h.Audit)
 	// SQL Parse — requires write

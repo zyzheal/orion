@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"orion/platform-svc-go/internal/monitoring/internal/alert-deduplication/models"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/monitoring/internal/alert-deduplication/models"
 )
 
 type AlertDeduplicationService struct {

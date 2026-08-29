@@ -320,7 +320,7 @@ func (h *Handler) AddVersionTag(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddVersionTag")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	versionID := c.Param("versionId")
+	versionID := c.Param("commandId")
 	var req models.AddTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -341,7 +341,7 @@ func (h *Handler) RemoveVersionTag(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RemoveVersionTag")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	versionID := c.Param("versionId")
+	versionID := c.Param("commandId")
 	tagName := c.Param("tagName")
 	if err := h.svc.RemoveTag(ctx, tenantID, versionID, tagName); err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -354,7 +354,7 @@ func (h *Handler) DeleteCommandVersion(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteCommandVersion")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	id := c.Param("id")
+	id := c.Param("commandId")
 	if err := h.svc.DeleteCommandVersion(ctx, tenantID, id); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "version not found")

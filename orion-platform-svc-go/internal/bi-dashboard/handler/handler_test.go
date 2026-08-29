@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/bi-dashboard/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/bi-dashboard/models"
 )
 
@@ -59,7 +59,6 @@ func (f *fakeBi_dashboardService) Update(ctx context.Context, id, tenantID strin
 }
 
 var _ service.ServiceInterface = (*fakeBi_dashboardService)(nil)
-
 
 func TestBI_DASHBOARD_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

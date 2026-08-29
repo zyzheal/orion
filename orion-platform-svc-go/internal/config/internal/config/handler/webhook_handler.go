@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/config/internal/config/models"
 	"orion/platform-svc-go/internal/config/internal/config/service"
 
@@ -19,13 +20,15 @@ func NewWebhookHandler(svc *service.WebhookService) *WebhookHandler {
 
 // Create handles POST /webhooks.
 func (h *WebhookHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateWebhookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	w, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+	w, err := h.svc.Create(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -35,8 +38,10 @@ func (h *WebhookHandler) Create(c *gin.Context) {
 
 // List handles GET /webhooks.
 func (h *WebhookHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	webhooks, err := h.svc.List(c.Request.Context(), tenantID)
+	webhooks, err := h.svc.List(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -46,8 +51,10 @@ func (h *WebhookHandler) List(c *gin.Context) {
 
 // GetByID handles GET /webhooks/:id.
 func (h *WebhookHandler) GetByID(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigGetByID")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	w, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
+	w, err := h.svc.GetByID(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -57,13 +64,15 @@ func (h *WebhookHandler) GetByID(c *gin.Context) {
 
 // Update handles PUT /webhooks/:id.
 func (h *WebhookHandler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigUpdate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateWebhookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	w, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
+	w, err := h.svc.Update(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -73,8 +82,10 @@ func (h *WebhookHandler) Update(c *gin.Context) {
 
 // Delete handles DELETE /webhooks/:id.
 func (h *WebhookHandler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}

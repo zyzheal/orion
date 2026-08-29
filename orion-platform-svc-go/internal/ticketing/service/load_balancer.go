@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	overloadThreshold   = 85.0 // percent utilization considered overloaded
-	underutilThreshold  = 25.0 // percent utilization considered underutilized
+	overloadThreshold  = 85.0 // percent utilization considered overloaded
+	underutilThreshold = 25.0 // percent utilization considered underutilized
 )
 
 // LoadBalancer provides advanced load balancing and reassignment capabilities
@@ -134,12 +134,11 @@ func (lb *LoadBalancer) SuggestReassignments(ctx context.Context) ([]models.Reas
 				continue
 			}
 
-
 			suggestions = append(suggestions, models.ReassignmentSuggestion{
-				TicketID:          fmt.Sprintf("suggest-%s-%d", over.ID, len(suggestions)),
-				EngineerID:        over.ID,
-				Action:            "reassign",
-				CurrentLoad:       over.CurrentLoad,
+				TicketID:    fmt.Sprintf("suggest-%s-%d", over.ID, len(suggestions)),
+				EngineerID:  over.ID,
+				Action:      "reassign",
+				CurrentLoad: over.CurrentLoad,
 			})
 
 			excess--
@@ -192,12 +191,12 @@ func (lb *LoadBalancer) CheckEngineerCapacity(ctx context.Context, engineerID st
 	}
 
 	return &models.EngineerCapacityCheck{
-		EngineerID:  eng.ID,
-		CanAcceptMore:   available > 0 && eng.Availability != models.AvailabilityUnavailable,
-		CurrentLoad: eng.CurrentLoad,
-		MaxCapacity: eng.MaxCapacity,
-		AvailableSlots:  available,
-		Utilization: utilization,
+		EngineerID:     eng.ID,
+		CanAcceptMore:  available > 0 && eng.Availability != models.AvailabilityUnavailable,
+		CurrentLoad:    eng.CurrentLoad,
+		MaxCapacity:    eng.MaxCapacity,
+		AvailableSlots: available,
+		Utilization:    utilization,
 	}, nil
 }
 

@@ -42,7 +42,7 @@ func (s MetricSnapshot) P99Latency() int64 {
 	copy(samples, s.LatencySamples)
 	sort.Slice(samples, func(i, j int) bool { return samples[i] < samples[j] })
 	// Use nearest-rank method.
-	idx := int(float64(len(samples)-1)*0.99)
+	idx := int(float64(len(samples)-1) * 0.99)
 	if idx < 0 {
 		idx = 0
 	}

@@ -34,13 +34,13 @@ func NewRepository(db *sqlx.DB) *Repository {
 func (r *Repository) Create(ctx context.Context, tenantID string, req *models.CreateExecutionRequest) (*models.TestExecution, error) {
 	now := time.Now().UTC()
 	exec := &models.TestExecution{
-		ID:          uuid.New().String(),
-		TenantID:    tenantID,
-		Name:        req.Name,
-		Framework:   req.Framework,
-		Status:      models.TestStatusPending,
-		PipelineID:  req.PipelineID,
-		CreatedAt:   now,
+		ID:         uuid.New().String(),
+		TenantID:   tenantID,
+		Name:       req.Name,
+		Framework:  req.Framework,
+		Status:     models.TestStatusPending,
+		PipelineID: req.PipelineID,
+		CreatedAt:  now,
 	}
 	_, err := r.db.NamedExecContext(ctx, `
 		INSERT INTO test_executions (id, tenant_id, name, framework, status, pipeline_id, created_at, updated_at)

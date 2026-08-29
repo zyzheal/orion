@@ -11,13 +11,13 @@ import (
 // expose its documents for global full-text search.
 //
 // Design:
-//  - Module() identifies the data domain (e.g. "ticket", "alert", "cmdb").
-//  - IndexName() returns the Elasticsearch index name for this module.
-//  - Reindex() rebuilds the entire index from source data.
-//  - DeleteIndex() removes the module's search index.
-//  - Documents() returns the module's indexed documents (paginated) so the
-//    SearchService can batch them into Elasticsearch.
-//  - Config() returns module-specific indexing configuration.
+//   - Module() identifies the data domain (e.g. "ticket", "alert", "cmdb").
+//   - IndexName() returns the Elasticsearch index name for this module.
+//   - Reindex() rebuilds the entire index from source data.
+//   - DeleteIndex() removes the module's search index.
+//   - Documents() returns the module's indexed documents (paginated) so the
+//     SearchService can batch them into Elasticsearch.
+//   - Config() returns module-specific indexing configuration.
 type SearchIndexer interface {
 	// Module returns the unique module identifier (e.g. "ticket").
 	Module() string

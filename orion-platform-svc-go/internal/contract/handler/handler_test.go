@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/contract/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/contract/models"
 )
 
@@ -75,7 +75,6 @@ func (f *fakeContractService) UpdateContract(ctx context.Context, tenantID, id s
 }
 
 var _ service.ServiceInterface = (*fakeContractService)(nil)
-
 
 func TestCONTRACT_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

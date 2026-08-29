@@ -21,10 +21,10 @@ type Branch struct {
 }
 
 type Commit struct {
-	SHA      string    `json:"sha"`
-	Message  string    `json:"message"`
-	Author   string    `json:"author"`
-	Branch   string    `json:"branch"`
-	RepoID   int64     `json:"repo_id"`
+	SHA        string    `json:"sha"`
+	Message    string    `json:"message"`
+	Author     string    `json:"author"`
+	Branch     string    `json:"branch"`
+	RepoID     int64     `json:"repo_id"`
 	AuthoredAt time.Time `json:"authored_at"`
 }

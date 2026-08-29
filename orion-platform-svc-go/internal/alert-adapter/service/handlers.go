@@ -30,11 +30,11 @@ type noopHandler struct {
 	config   map[string]string
 }
 
-func (h *noopHandler) Name() string            { return h.name }
-func (h *noopHandler) Type() string            { return h.atype }
-func (h *noopHandler) Category() string        { return h.category }
+func (h *noopHandler) Name() string                                                     { return h.name }
+func (h *noopHandler) Type() string                                                     { return h.atype }
+func (h *noopHandler) Category() string                                                 { return h.category }
 func (h *noopHandler) ValidateConfig(_ context.Context, config map[string]string) error { return nil }
-func (h *noopHandler) Shutdown(_ context.Context) error { return nil }
+func (h *noopHandler) Shutdown(_ context.Context) error                                 { return nil }
 
 // ---------------------------------------------------------------------------
 // Source adapters — pull alerts from external monitoring systems
@@ -196,10 +196,10 @@ func (h *kafkaHandler) Receive(ctx context.Context) ([]map[string]interface{}, e
 // webhookHandler POSTs alerts to an external HTTP endpoint.
 type webhookHandler struct {
 	noopHandler
-	url        string
-	method     string
-	headers    map[string]string
-	client     *http.Client
+	url     string
+	method  string
+	headers map[string]string
+	client  *http.Client
 }
 
 func NewWebhookHandler() *webhookHandler {
@@ -243,7 +243,7 @@ func (h *webhookHandler) Send(ctx context.Context, alert map[string]interface{})
 	payload, err := json.Marshal(alert)
 	if err != nil {
 		return fmt.
-		Errorf("marshal webhook payload failed: %w", err)
+			Errorf("marshal webhook payload failed: %w", err)
 	}
 	req, err := http.NewRequestWithContext(ctx, h.method, h.url, strings.NewReader(string(payload)))
 	if err != nil {
@@ -272,12 +272,12 @@ func (h *webhookHandler) Receive(ctx context.Context) ([]map[string]interface{},
 // emailHandler sends alerts via SMTP.
 type emailHandler struct {
 	noopHandler
-	smtpHost  string
-	smtpPort  string
-	username  string
-	password  string
-	fromAddr  string
-	toAddrs   []string
+	smtpHost string
+	smtpPort string
+	username string
+	password string
+	fromAddr string
+	toAddrs  []string
 }
 
 func NewEmailHandler() *emailHandler {
@@ -568,13 +568,13 @@ func (h *pagerDutyHandler) Send(ctx context.Context, alert map[string]interface{
 
 	dedupKey := fmt.Sprintf("orion-%s", title)
 	payload := map[string]interface{}{
-		"routing_key": h.routingKey,
+		"routing_key":  h.routingKey,
 		"event_action": "trigger",
-		"dedup_key":  dedupKey,
+		"dedup_key":    dedupKey,
 		"payload": map[string]interface{}{
-			"summary":   title,
-			"severity":  severity,
-			"source":    "orion-platform",
+			"summary":  title,
+			"severity": severity,
+			"source":   "orion-platform",
 		},
 	}
 	b, err := json.Marshal(payload)
@@ -607,7 +607,7 @@ func (h *pagerDutyHandler) Receive(ctx context.Context) ([]map[string]interface{
 // ---------------------------------------------------------------------------
 
 type alertQueue struct {
-	mu     atomic.Pointer[[]map[string]interface{}]
+	mu atomic.Pointer[[]map[string]interface{}]
 }
 
 func newAlertQueue() *alertQueue {

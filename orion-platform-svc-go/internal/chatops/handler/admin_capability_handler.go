@@ -1,16 +1,12 @@
 package handler
 
 import (
-
-
-
-
 	"orion/platform-svc-go/internal/chatops/models"
 	"orion/platform-svc-go/internal/chatops/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // ---- Admin: Capability Mappings ----
@@ -251,4 +247,3 @@ func (h *Handler) UpdateGlobalApprovalConfig(c *gin.Context) {
 }
 
 // ---- Admin: Roles ----
-

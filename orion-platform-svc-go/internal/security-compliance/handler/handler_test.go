@@ -5,9 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/security-compliance/models"
 )
 
@@ -97,8 +96,6 @@ func (f *fakeHandler) GetAuditFindings(ctx context.Context, tenantID, reportID s
 func (f *fakeHandler) CloseFinding(ctx context.Context, tenantID, findingID string, reason string) error {
 	return nil
 }
-
-
 
 func TestHandler_SECURITY_COMPL_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

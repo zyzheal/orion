@@ -6,17 +6,17 @@ import (
 )
 
 var (
-	ErrTriggerNotFound  = errors.New("workflow trigger not found")
-	ErrTriggerDisabled  = errors.New("workflow trigger is disabled")
+	ErrTriggerNotFound = errors.New("workflow trigger not found")
+	ErrTriggerDisabled = errors.New("workflow trigger is disabled")
 )
 
 // TriggerType represents the type of workflow trigger.
 type TriggerType string
 
 const (
-	TriggerTypeEvent  TriggerType = "event"
-	TriggerTypeCron   TriggerType = "cron"
-	TriggerTypeManual TriggerType = "manual"
+	TriggerTypeEvent   TriggerType = "event"
+	TriggerTypeCron    TriggerType = "cron"
+	TriggerTypeManual  TriggerType = "manual"
 	TriggerTypeWebhook TriggerType = "webhook"
 )
 
@@ -30,17 +30,17 @@ const (
 
 // WorkflowTrigger is the core domain model persisted in PostgreSQL.
 type WorkflowTrigger struct {
-	ID             string          `db:"id" json:"id"`
-	TenantID       string          `db:"tenant_id" json:"tenant_id"`
-	WorkflowID     string          `db:"workflow_id" json:"workflow_id"`
-	Name           string          `db:"name" json:"name"`
-	Type           TriggerType     `db:"type" json:"type"`
-	Config         string          `db:"config" json:"config"`
-	WebhookSecret  string          `db:"webhook_secret" json:"webhook_secret"`
+	ID              string          `db:"id" json:"id"`
+	TenantID        string          `db:"tenant_id" json:"tenant_id"`
+	WorkflowID      string          `db:"workflow_id" json:"workflow_id"`
+	Name            string          `db:"name" json:"name"`
+	Type            TriggerType     `db:"type" json:"type"`
+	Config          string          `db:"config" json:"config"`
+	WebhookSecret   string          `db:"webhook_secret" json:"webhook_secret"`
 	TriggerStrategy TriggerStrategy `db:"trigger_strategy" json:"trigger_strategy"`
-	Enabled        bool            `db:"enabled" json:"enabled"`
-	CreatedAt      time.Time       `db:"created_at" json:"created_at"`
-	UpdatedAt      time.Time       `db:"updated_at" json:"updated_at"`
+	Enabled         bool            `db:"enabled" json:"enabled"`
+	CreatedAt       time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time       `db:"updated_at" json:"updated_at"`
 }
 
 // CreateWorkflowTriggerRequest is the input for creating a new workflow trigger.

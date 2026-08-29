@@ -4,40 +4,40 @@ import "time"
 
 // BackupPlan represents a backup policy/plan.
 type BackupPlan struct {
-	ID           string     `db:"id" json:"id"`
-	TenantID     string     `db:"tenant_id" json:"tenantId"`
-	Name         string     `db:"name" json:"name"`
-	Schedule     *string    `db:"schedule" json:"schedule"`
+	ID            string    `db:"id" json:"id"`
+	TenantID      string    `db:"tenant_id" json:"tenantId"`
+	Name          string    `db:"name" json:"name"`
+	Schedule      *string   `db:"schedule" json:"schedule"`
 	RetentionDays int       `db:"retention_days" json:"retentionDays"`
-	Sources      string     `db:"sources" json:"sources"`
-	CreatedAt    time.Time  `db:"created_at" json:"createdAt"`
-	UpdatedAt    time.Time  `db:"updated_at" json:"updatedAt"`
+	Sources       string    `db:"sources" json:"sources"`
+	CreatedAt     time.Time `db:"created_at" json:"createdAt"`
+	UpdatedAt     time.Time `db:"updated_at" json:"updatedAt"`
 }
 
 // CreateBackupPlanRequest is the request body for creating a backup plan.
 type CreateBackupPlanRequest struct {
-	Name         string  `json:"name" binding:"required"`
-	Schedule     *string `json:"schedule"`
-	RetentionDays *int   `json:"retentionDays"`
-	Sources      *string `json:"sources"`
+	Name          string  `json:"name" binding:"required"`
+	Schedule      *string `json:"schedule"`
+	RetentionDays *int    `json:"retentionDays"`
+	Sources       *string `json:"sources"`
 }
 
 // UpdateBackupPlanRequest is the request body for updating a backup plan.
 type UpdateBackupPlanRequest struct {
-	Name         *string `json:"name"`
-	Schedule     *string `json:"schedule"`
-	RetentionDays *int   `json:"retentionDays"`
-	Sources      *string `json:"sources"`
+	Name          *string `json:"name"`
+	Schedule      *string `json:"schedule"`
+	RetentionDays *int    `json:"retentionDays"`
+	Sources       *string `json:"sources"`
 }
 
 // RecoveryPlan represents a recovery plan.
 type RecoveryPlan struct {
-	ID          string    `db:"id" json:"id"`
-	TenantID    string    `db:"tenant_id" json:"tenantId"`
-	Name        string    `db:"name" json:"name"`
-	Status      string    `db:"status" json:"status"`
-	CreatedAt   time.Time `db:"created_at" json:"createdAt"`
-	UpdatedAt   time.Time `db:"updated_at" json:"updatedAt"`
+	ID        string    `db:"id" json:"id"`
+	TenantID  string    `db:"tenant_id" json:"tenantId"`
+	Name      string    `db:"name" json:"name"`
+	Status    string    `db:"status" json:"status"`
+	CreatedAt time.Time `db:"created_at" json:"createdAt"`
+	UpdatedAt time.Time `db:"updated_at" json:"updatedAt"`
 }
 
 // CreateRecoveryPlanRequest is the request body for creating a recovery plan.

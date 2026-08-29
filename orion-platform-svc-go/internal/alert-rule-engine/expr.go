@@ -10,19 +10,19 @@ import (
 type TokenType int
 
 const (
-	TokEOF TokenType = iota
-	TokIdent       // metric name
-	TokNumber      // numeric literal
-	TokString      // string literal (for labels)
-	TokCompare     // > < >= <= == !=
+	TokEOF     TokenType = iota
+	TokIdent             // metric name
+	TokNumber            // numeric literal
+	TokString            // string literal (for labels)
+	TokCompare           // > < >= <= == !=
 	TokAnd
 	TokOr
-	TokLParen      // (
-	TokRParen      // )
-	TokComma       // ,
-	TokLBrace      // {
-	TokRBrace      // }
-	TokDot         // .
+	TokLParen // (
+	TokRParen // )
+	TokComma  // ,
+	TokLBrace // {
+	TokRBrace // }
+	TokDot    // .
 )
 
 func (t TokenType) String() string {
@@ -192,9 +192,9 @@ func (e *IdentifierExpr) Eval(ctx EvalContext) (float64, bool, error) {
 
 // AggFuncExpr represents: avg(metric), max(metric), min(metric), sum(metric).
 type AggFuncExpr struct {
-	FuncName  string // "avg", "max", "min", "sum"
-	Argument  Expr
-	Labels    map[string]string // optional label matchers
+	FuncName string // "avg", "max", "min", "sum"
+	Argument Expr
+	Labels   map[string]string // optional label matchers
 }
 
 func (e *AggFuncExpr) Eval(ctx EvalContext) (float64, bool, error) {
@@ -299,8 +299,8 @@ func (e *AggFuncExpr) applyFunc(vals []float64) float64 {
 // WindowExpr represents: metric.last(duration) — returns the last N values'
 // average over the series.
 type WindowExpr struct {
-	Name    string
-	Labels  map[string]string
+	Name     string
+	Labels   map[string]string
 	Duration int // window size in data points (derived from duration string)
 }
 
@@ -361,9 +361,9 @@ func (e *LabeledExpr) Eval(ctx EvalContext) (float64, bool, error) {
 // --- Lexer ---
 
 type Lexer struct {
-	input   string
-	pos     int
-	ch      byte
+	input string
+	pos   int
+	ch    byte
 }
 
 func NewLexer(input string) *Lexer {
@@ -414,43 +414,49 @@ func (l *Lexer) Scan() Token {
 		return Token{Type: TokDot, Value: "."}
 	case '&':
 		if l.pos < len(l.input) && l.input[l.pos] == '&' {
-			l.next(); l.next()
+			l.next()
+			l.next()
 			return Token{Type: TokAnd, Value: "&&"}
 		}
 		l.next()
 		return Token{Type: TokAnd, Value: "&"}
 	case '|':
 		if l.pos < len(l.input) && l.input[l.pos] == '|' {
-			l.next(); l.next()
+			l.next()
+			l.next()
 			return Token{Type: TokOr, Value: "||"}
 		}
 		l.next()
 		return Token{Type: TokOr, Value: "|"}
 	case '>':
 		if l.pos < len(l.input) && l.input[l.pos] == '=' {
-			l.next(); l.next()
+			l.next()
+			l.next()
 			return Token{Type: TokCompare, Value: ">="}
 		}
 		l.next()
 		return Token{Type: TokCompare, Value: ">"}
 	case '<':
 		if l.pos < len(l.input) && l.input[l.pos] == '=' {
-			l.next(); l.next()
+			l.next()
+			l.next()
 			return Token{Type: TokCompare, Value: "<="}
 		}
 		l.next()
 		return Token{Type: TokCompare, Value: "<"}
 	case '=':
 		if l.pos < len(l.input) && l.input[l.pos] == '=' {
-			l.next(); l.next()
+			l.next()
+			l.next()
 			return Token{Type: TokCompare, Value: "=="}
 		}
-		
+
 		l.next()
 		return Token{Type: TokIdent, Value: "="}
 	case '!':
 		if l.pos < len(l.input) && l.input[l.pos] == '=' {
-			l.next(); l.next()
+			l.next()
+			l.next()
 			return Token{Type: TokCompare, Value: "!="}
 		}
 		return Token{Type: TokCompare, Value: string(l.ch)}
@@ -476,7 +482,7 @@ func (l *Lexer) scanIdent() Token {
 	for isAlpha(l.ch) || isDigit(l.ch) || l.ch == '_' {
 		l.next()
 	}
-	word := l.input[start:l.pos-1]
+	word := l.input[start : l.pos-1]
 
 	switch word {
 	case "&&":
@@ -535,9 +541,9 @@ func isDigit(c byte) bool {
 
 // Parser builds an expression AST from tokens produced by the Lexer.
 type Parser struct {
-	lex     *Lexer
-	cur     Token
-	peek    Token
+	lex  *Lexer
+	cur  Token
+	peek Token
 }
 
 func NewParser(input string) *Parser {

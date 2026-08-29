@@ -131,4 +131,3 @@ func (s *BudgetService) CheckBudgetHealth(ctx context.Context, tenantID, id stri
 		Remaining:    roundFloat(remaining),
 	}, nil
 }
-

@@ -2,11 +2,12 @@ package handler
 
 import (
 	"strconv"
-	"orion/platform-svc-go/internal/infrastructure/capacity/models"
-	"orion/platform-svc-go/internal/infrastructure/capacity/service"
-	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/infrastructure/capacity/models"
+	"orion/platform-svc-go/internal/infrastructure/capacity/service"
 )
 
 type Handler struct{ svc *service.Service }
@@ -33,7 +34,6 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	c.GET("/forecasts", auth.RequirePermission("capacity", "read"), h.ListForecasts)
 
 	// Alerts
-	c.GET("/alerts", auth.RequirePermission("capacity", "read"), h.ListAlerts)
 	c.DELETE("/alerts/:id", auth.RequirePermission("capacity", "delete"), h.DeleteAlert)
 
 	// Reports
@@ -50,65 +50,113 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) CreatePool(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraCapacityCreatePool")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreatePoolRequest
-	if err := c.ShouldBindJSON(&req); err != nil { respondBadRequest(c, err.Error()); return }
-	item, err := h.svc.CreatePool(c.Request.Context(), tenantID, &req)
-	if err != nil { respondInternalError(c, err.Error()); return }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	item, err := h.svc.CreatePool(ctx, tenantID, &req)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
 	respondCreated(c, item)
 }
 
 func (h *Handler) ListPools(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraCapacityListPools")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1")); ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.ListPools(c.Request.Context(), tenantID, (page-1)*ps, ps)
-	if err != nil { respondInternalError(c, err.Error()); return }
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	items, err := h.svc.ListPools(ctx, tenantID, (page-1)*ps, ps)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
 	respondSuccess(c, items)
 }
 
 func (h *Handler) GetPool(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraCapacityGetPool")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	item, err := h.svc.GetPool(c.Request.Context(), tenantID, c.Param("id"))
-	if err != nil { respondNotFound(c, err.Error()); return }
+	item, err := h.svc.GetPool(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		respondNotFound(c, err.Error())
+		return
+	}
 	respondSuccess(c, item)
 }
 
 func (h *Handler) UpdatePool(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraCapacityUpdatePool")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreatePoolRequest
-	if err := c.ShouldBindJSON(&req); err != nil { respondBadRequest(c, err.Error()); return }
-	item, err := h.svc.UpdatePool(c.Request.Context(), tenantID, c.Param("id"), &req)
-	if err != nil { respondNotFound(c, err.Error()); return }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	item, err := h.svc.UpdatePool(ctx, tenantID, c.Param("id"), &req)
+	if err != nil {
+		respondNotFound(c, err.Error())
+		return
+	}
 	respondSuccess(c, item)
 }
 
 func (h *Handler) ListForecasts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraCapacityListForecasts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1")); ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.ListForecasts(c.Request.Context(), tenantID, (page-1)*ps, ps)
-	if err != nil { respondInternalError(c, err.Error()); return }
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	items, err := h.svc.ListForecasts(ctx, tenantID, (page-1)*ps, ps)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
 	respondSuccess(c, items)
 }
 
 func (h *Handler) CreatePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraCapacityCreatePolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreatePolicyRequest
-	if err := c.ShouldBindJSON(&req); err != nil { respondBadRequest(c, err.Error()); return }
-	item, err := h.svc.CreatePolicy(c.Request.Context(), tenantID, &req)
-	if err != nil { respondInternalError(c, err.Error()); return }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	item, err := h.svc.CreatePolicy(ctx, tenantID, &req)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
 	respondCreated(c, item)
 }
 
 func (h *Handler) ListPolicies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraCapacityListPolicies")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.ListPolicies(c.Request.Context(), tenantID)
-	if err != nil { respondInternalError(c, err.Error()); return }
+	items, err := h.svc.ListPolicies(ctx, tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
 	respondSuccess(c, items)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraCapacityDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -116,8 +164,10 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraCapacityCount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -126,40 +176,65 @@ func (h *Handler) Count(c *gin.Context) {
 }
 
 func (h *Handler) RecordMetric(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraCapacityRecordMetric")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.RecordMetricRequest
-	if err := c.ShouldBindJSON(&req); err != nil { respondBadRequest(c, err.Error()); return }
-	item, err := h.svc.RecordMetric(c.Request.Context(), tenantID, &req)
-	if err != nil { respondInternalError(c, err.Error()); return }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	item, err := h.svc.RecordMetric(ctx, tenantID, &req)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
 	respondCreated(c, item)
 }
 
 func (h *Handler) ListMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraCapacityListMetrics")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var f models.MetricFilter
 	c.ShouldBindQuery(&f)
-	items, err := h.svc.ListMetrics(c.Request.Context(), tenantID, &f)
-	if err != nil { respondInternalError(c, err.Error()); return }
+	items, err := h.svc.ListMetrics(ctx, tenantID, &f)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
 	respondSuccess(c, items)
 }
 
 func (h *Handler) GenerateForecast(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraCapacityGenerateForecast")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.GenerateForecast(c.Request.Context(), tenantID)
-	if err != nil { respondInternalError(c, err.Error()); return }
+	items, err := h.svc.GenerateForecast(ctx, tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
 	respondCreated(c, items)
 }
 
 func (h *Handler) ListAlerts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraCapacityListAlerts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.ListAlerts(c.Request.Context(), tenantID, nil)
-	if err != nil { respondInternalError(c, err.Error()); return }
+	items, err := h.svc.ListAlerts(ctx, tenantID, nil)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
 	respondSuccess(c, items)
 }
 
 // DeleteAlert deletes a capacity alert.
 func (h *Handler) DeleteAlert(c *gin.Context) {
-	if err := h.svc.DeleteAlert(c.Request.Context(), c.Param("id")); err != nil {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraCapacityDeleteAlert")
+	defer span.End()
+	if err := h.svc.DeleteAlert(ctx, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -168,34 +243,55 @@ func (h *Handler) DeleteAlert(c *gin.Context) {
 
 // GenerateReport generates a capacity report.
 func (h *Handler) GenerateReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraCapacityGenerateReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	title := c.Query("title")
-	report, err := h.svc.GenerateReport(c.Request.Context(), tenantID, title)
-	if err != nil { respondInternalError(c, err.Error()); return }
+	report, err := h.svc.GenerateReport(ctx, tenantID, title)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
 	respondCreated(c, report)
 }
 
 // ListReports lists capacity reports.
 func (h *Handler) ListReports(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraCapacityListReports")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1")); ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.ListReports(c.Request.Context(), tenantID, (page-1)*ps, ps)
-	if err != nil { respondInternalError(c, err.Error()); return }
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	items, err := h.svc.ListReports(ctx, tenantID, (page-1)*ps, ps)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
 	respondSuccess(c, items)
 }
 
 // GetReport gets a capacity report by ID.
 func (h *Handler) GetReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraCapacityGetReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	item, err := h.svc.GetReport(c.Request.Context(), tenantID, c.Param("id"))
-	if err != nil { respondNotFound(c, err.Error()); return }
+	item, err := h.svc.GetReport(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		respondNotFound(c, err.Error())
+		return
+	}
 	respondSuccess(c, item)
 }
 
 // AnalyzeBottlenecks analyzes capacity bottlenecks.
 func (h *Handler) AnalyzeBottlenecks(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraCapacityAnalyzeBottlenecks")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	result, err := h.svc.AnalyzeBottlenecks(c.Request.Context(), tenantID)
-	if err != nil { respondInternalError(c, err.Error()); return }
+	result, err := h.svc.AnalyzeBottlenecks(ctx, tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
 	respondSuccess(c, result)
 }

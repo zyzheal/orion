@@ -6,8 +6,8 @@ import (
 	"orion/platform-svc-go/internal/secret/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler exposes HTTP handlers for secret management endpoints.

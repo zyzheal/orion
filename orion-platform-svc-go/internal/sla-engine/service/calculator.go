@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"orion/platform-svc-go/internal/sla-engine/models"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/sla-engine/models"
 )
 
 // RepositoryInterface defines the repository methods used by the calculator.
@@ -111,8 +111,8 @@ func (c *SLACalculator) PauseTracker(ctx context.Context, tenantID, trackerID, r
 	}
 	now := time.Now().UTC()
 	if err := c.repo.UpdateTracker(ctx, t.TenantID, trackerID, map[string]interface{}{
-		"status":      "paused",
-		"paused_at":   now,
+		"status":        "paused",
+		"paused_at":     now,
 		"paused_reason": reason,
 	}); err != nil {
 		return err
@@ -132,7 +132,7 @@ func (c *SLACalculator) ResumeTracker(ctx context.Context, tenantID, trackerID s
 	}
 	now := time.Now().UTC()
 	if err := c.repo.UpdateTracker(ctx, t.TenantID, trackerID, map[string]interface{}{
-		"status":    "active",
+		"status":     "active",
 		"resumed_at": now,
 	}); err != nil {
 		return err
@@ -188,7 +188,7 @@ func (c *SLACalculator) RecordResolution(ctx context.Context, tenantID, trackerI
 	}
 
 	if err := c.repo.UpdateTracker(ctx, t.TenantID, trackerID, map[string]interface{}{
-		"status":         "resolved",
+		"status":          "resolved",
 		"resolution_time": resolutionTimeMs,
 	}); err != nil {
 		return err
@@ -252,15 +252,15 @@ func (c *SLACalculator) ListTrackers(ctx context.Context, tenantID, targetType, 
 // CreateProfile creates a new SLA profile.
 func (c *SLACalculator) CreateProfile(ctx context.Context, tenantID string, req models.CreateProfileRequest) (*models.SLAProfile, error) {
 	profile := &models.SLAProfile{
-		TenantID:       tenantID,
-		Name:           req.Name,
-		Type:           req.Type,
-		Priority:       req.Priority,
-		ResponseSLA:    req.ResponseSLA,
-		ResolutionSLA:  req.ResolutionSLA,
-		Description:    req.Description,
-		WorkingDays:    req.WorkingDays,
-		WorkingHours:   req.WorkingHours,
+		TenantID:      tenantID,
+		Name:          req.Name,
+		Type:          req.Type,
+		Priority:      req.Priority,
+		ResponseSLA:   req.ResponseSLA,
+		ResolutionSLA: req.ResolutionSLA,
+		Description:   req.Description,
+		WorkingDays:   req.WorkingDays,
+		WorkingHours:  req.WorkingHours,
 	}
 	if req.BusinessHours != nil {
 		profile.BusinessHours = *req.BusinessHours
@@ -440,7 +440,7 @@ func addBusinessHours(openedAt time.Time, duration time.Duration, profile *model
 		if !isWorkingDay(candidate, profile) {
 			// Skip to next day at work start
 			candidate = candidate.AddDate(0, 0, 1)
-			candidate = candidate.Truncate(24*time.Hour).Add(time.Duration(workStart) * time.Minute)
+			candidate = candidate.Truncate(24 * time.Hour).Add(time.Duration(workStart) * time.Minute)
 			continue
 		}
 
@@ -449,7 +449,7 @@ func addBusinessHours(openedAt time.Time, duration time.Duration, profile *model
 		if todayMinutes <= 0 {
 			// Past working hours today, move to next day
 			candidate = candidate.AddDate(0, 0, 1)
-			candidate = candidate.Truncate(24*time.Hour).Add(time.Duration(workStart) * time.Minute)
+			candidate = candidate.Truncate(24 * time.Hour).Add(time.Duration(workStart) * time.Minute)
 			continue
 		}
 
@@ -460,7 +460,7 @@ func addBusinessHours(openedAt time.Time, duration time.Duration, profile *model
 			remainingMinutes -= todayMinutes
 			// Move to next working day
 			candidate = candidate.AddDate(0, 0, 1)
-			candidate = candidate.Truncate(24*time.Hour).Add(time.Duration(workStart) * time.Minute)
+			candidate = candidate.Truncate(24 * time.Hour).Add(time.Duration(workStart) * time.Minute)
 		}
 
 		// Safety valve: prevent infinite loops (max 365 days)

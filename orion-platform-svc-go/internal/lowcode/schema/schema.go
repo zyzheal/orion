@@ -9,27 +9,27 @@ import (
 type NodeCategory string
 
 const (
-	CategoryControl  NodeCategory = "control"   // 流程控制
-	CategoryCompute  NodeCategory = "compute"   // 计算/操作
-	CategoryIO       NodeCategory = "io"        // 输入/输出
-	CategoryBoundary NodeCategory = "boundary"  // 开始/结束
+	CategoryControl  NodeCategory = "control"  // 流程控制
+	CategoryCompute  NodeCategory = "compute"  // 计算/操作
+	CategoryIO       NodeCategory = "io"       // 输入/输出
+	CategoryBoundary NodeCategory = "boundary" // 开始/结束
 )
 
 // NodeType identifies the kind of a lowcode node.
 type NodeType string
 
 const (
-	NodeTypeAction  NodeType = "action"   // 执行动作
+	NodeTypeAction    NodeType = "action"    // 执行动作
 	NodeTypeCondition NodeType = "condition" // 条件分支
-	NodeTypeParallel NodeType = "parallel"   // 并行分支
-	NodeTypeLoop    NodeType = "loop"     // 循环
-	NodeTypeDelay   NodeType = "delay"    // 延时
-	NodeTypeNotify  NodeType = "notify"   // 通知
-	NodeTypeHttp    NodeType = "http"     // HTTP 请求
-	NodeTypeWebhook NodeType = "webhook"  // Webhook 回调
-	NodeTypeError   NodeType = "error"    // 异常捕获
-	NodeTypeStart   NodeType = "start"    // 流程起点
-	NodeTypeEnd     NodeType = "end"      // 流程终点
+	NodeTypeParallel  NodeType = "parallel"  // 并行分支
+	NodeTypeLoop      NodeType = "loop"      // 循环
+	NodeTypeDelay     NodeType = "delay"     // 延时
+	NodeTypeNotify    NodeType = "notify"    // 通知
+	NodeTypeHttp      NodeType = "http"      // HTTP 请求
+	NodeTypeWebhook   NodeType = "webhook"   // Webhook 回调
+	NodeTypeError     NodeType = "error"     // 异常捕获
+	NodeTypeStart     NodeType = "start"     // 流程起点
+	NodeTypeEnd       NodeType = "end"       // 流程终点
 )
 
 var validNodeTypes = map[NodeType]struct{}{
@@ -109,13 +109,13 @@ const (
 type PortType string
 
 const (
-	PortTypeAny      PortType = "any"
-	PortTypeBool     PortType = "boolean"
-	PortTypeNumber   PortType = "number"
-	PortTypeString   PortType = "string"
-	PortTypeJSON     PortType = "json"
-	PortTypeEvent    PortType = "event"
-	PortTypeTrigger  PortType = "trigger"
+	PortTypeAny     PortType = "any"
+	PortTypeBool    PortType = "boolean"
+	PortTypeNumber  PortType = "number"
+	PortTypeString  PortType = "string"
+	PortTypeJSON    PortType = "json"
+	PortTypeEvent   PortType = "event"
+	PortTypeTrigger PortType = "trigger"
 )
 
 // Port defines a typed connection point on a node.
@@ -130,25 +130,25 @@ type Port struct {
 
 // Attribute defines a node's configurable property.
 type Attribute struct {
-	Name        string                 `json:"name"`
-	DisplayName string                 `json:"display_name"`
-	Type        string                 `json:"type"`
-	Required    bool                   `json:"required"`
-	Default     *json.RawMessage       `json:"default,omitempty"`
-	Description string                 `json:"description,omitempty"`
-	Options     []Option `json:"options,omitempty"`
+	Name        string           `json:"name"`
+	DisplayName string           `json:"display_name"`
+	Type        string           `json:"type"`
+	Required    bool             `json:"required"`
+	Default     *json.RawMessage `json:"default,omitempty"`
+	Description string           `json:"description,omitempty"`
+	Options     []Option         `json:"options,omitempty"`
 }
 
 // NodeSchema describes the shape, ports, and allowed attributes for a node type.
 type NodeSchema struct {
-	NodeType      NodeType      `json:"node_type"`
-	Label         string        `json:"label"`
-	Category      NodeCategory  `json:"category"`
-	Description   string        `json:"description"`
-	InputPorts    []Port        `json:"input_ports"`
-	OutputPorts   []Port        `json:"output_ports"`
-	RequiredAttrs []Attribute   `json:"required_attributes"`
-	OptionalAttrs []Attribute   `json:"optional_attributes"`
+	NodeType      NodeType     `json:"node_type"`
+	Label         string       `json:"label"`
+	Category      NodeCategory `json:"category"`
+	Description   string       `json:"description"`
+	InputPorts    []Port       `json:"input_ports"`
+	OutputPorts   []Port       `json:"output_ports"`
+	RequiredAttrs []Attribute  `json:"required_attributes"`
+	OptionalAttrs []Attribute  `json:"optional_attributes"`
 
 	// MaxParents / MinParents constrain graph wiring.
 	MaxParents int `json:"max_parents"`

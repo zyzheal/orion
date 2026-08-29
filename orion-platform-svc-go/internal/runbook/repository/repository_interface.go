@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/runbook/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	EnsureTable(ctx context.Context) error

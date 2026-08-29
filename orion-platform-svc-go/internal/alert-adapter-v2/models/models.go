@@ -6,19 +6,21 @@
 // substitution, and a delivery event audit trail.
 //
 // Supported channels:
-//   email, sms, wechat, dingtalk, feishu, slack, telegram, pagerduty,
-//   opsgenie, webhook, phone, push, in_app, kafka, rabbitmq
+//
+//	email, sms, wechat, dingtalk, feishu, slack, telegram, pagerduty,
+//	opsgenie, webhook, phone, push, in_app, kafka, rabbitmq
 //
 // Data flow:
-//   1. Adapter is registered with channel + config JSON
-//   2. Templates are created with channel-scoped variable substitution
-//   3. SendNotification renders a template and dispatches via the handler
-//   4. AlertNotificationEvent records the full delivery lifecycle
+//  1. Adapter is registered with channel + config JSON
+//  2. Templates are created with channel-scoped variable substitution
+//  3. SendNotification renders a template and dispatches via the handler
+//  4. AlertNotificationEvent records the full delivery lifecycle
 //
 // Tables:
-//   alert_notification_adapters  — registered notification adapters (tenant-scoped)
-//   alert_notification_events    — delivery event audit trail
-//   alert_notification_templates — notification templates with variables
+//
+//	alert_notification_adapters  — registered notification adapters (tenant-scoped)
+//	alert_notification_events    — delivery event audit trail
+//	alert_notification_templates — notification templates with variables
 package models
 
 import (
@@ -111,7 +113,7 @@ type AlertNotificationTemplate struct {
 	TenantID  string    `db:"tenant_id" json:"tenant_id"`
 	Name      string    `db:"name" json:"name"`
 	Channel   string    `db:"channel" json:"channel"`
-	Template  string    `db:"template" json:"template"`  // Template with {{variable}} placeholders
+	Template  string    `db:"template" json:"template"`   // Template with {{variable}} placeholders
 	Variables string    `db:"variables" json:"variables"` // JSON: available variable list
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 }

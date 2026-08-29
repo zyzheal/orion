@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/platform-svc-go/internal/oncall/models"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/oncall/models"
 )
 
 type OnCallRepository struct {

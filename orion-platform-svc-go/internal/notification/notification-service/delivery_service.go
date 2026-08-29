@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"orion/go-common/pkg/otel"
 	"orion/platform-svc-go/internal/notification/notification/models"
 	"orion/platform-svc-go/internal/notification/notification/repository"
-	"orion/go-common/pkg/otel"
 
 	"go.uber.org/zap"
 )
@@ -17,8 +17,8 @@ var ErrDeliveryNotFound = fmt.Errorf("delivery not found")
 
 // DeliveryService implements notification delivery business logic.
 type DeliveryService struct {
-	repo      *repository.DeliveryRepository
-	logger    *zap.Logger
+	repo   *repository.DeliveryRepository
+	logger *zap.Logger
 }
 
 // NewDeliveryService creates a new DeliveryService.

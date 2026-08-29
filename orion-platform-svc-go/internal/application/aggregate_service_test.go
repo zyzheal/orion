@@ -17,7 +17,7 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockEventStore struct {
-	events  []events.DomainEvent
+	events    []events.DomainEvent
 	appendErr error
 }
 
@@ -355,14 +355,14 @@ type testDomainEvent struct {
 	version       int
 }
 
-func (e *testDomainEvent) AggregateType() string  { return e.aggregateType }
-func (e *testDomainEvent) AggregateID() string    { return e.aggregateID }
-func (e *testDomainEvent) TenantID() string       { return e.tenantID }
-func (e *testDomainEvent) EventType() string      { return e.eventType }
-func (e *testDomainEvent) OccurredAt() time.Time  { return e.occurredAt }
-func (e *testDomainEvent) Version() int           { return e.version }
-func (e *testDomainEvent) GetVersion() int        { return e.version }
-func (e *testDomainEvent) SetVersion(v int)       { e.version = v }
+func (e *testDomainEvent) AggregateType() string    { return e.aggregateType }
+func (e *testDomainEvent) AggregateID() string      { return e.aggregateID }
+func (e *testDomainEvent) TenantID() string         { return e.tenantID }
+func (e *testDomainEvent) EventType() string        { return e.eventType }
+func (e *testDomainEvent) OccurredAt() time.Time    { return e.occurredAt }
+func (e *testDomainEvent) Version() int             { return e.version }
+func (e *testDomainEvent) GetVersion() int          { return e.version }
+func (e *testDomainEvent) SetVersion(v int)         { e.version = v }
 func (e *testDomainEvent) SetAggregateID(id string) { e.aggregateID = id }
 func (e *testDomainEvent) SetTenantID(id string)    { e.tenantID = id }
 

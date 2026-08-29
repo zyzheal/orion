@@ -1,7 +1,7 @@
 package handler
 
 import (
-
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/ci-cd/pipeline/models"
 	"orion/platform-svc-go/internal/ci-cd/pipeline/service"
 
@@ -17,6 +17,8 @@ func NewApprovalGateHandler(svc *service.ApprovalGateService) *ApprovalGateHandl
 }
 
 func (h *ApprovalGateHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineCreate")
+	defer span.End()
 	pipelineID := c.Param("pipelineId")
 
 	var req struct {
@@ -34,7 +36,7 @@ func (h *ApprovalGateHandler) Create(c *gin.Context) {
 		req.RequiredApprovals = 1
 	}
 
-	gate, err := h.svc.CreateGate(c.Request.Context(), req.RunID, req.StageID, pipelineID, req.Approvers, req.RequiredApprovals)
+	gate, err := h.svc.CreateGate(ctx, req.RunID, req.StageID, pipelineID, req.Approvers, req.RequiredApprovals)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -44,7 +46,9 @@ func (h *ApprovalGateHandler) Create(c *gin.Context) {
 }
 
 func (h *ApprovalGateHandler) GetByID(c *gin.Context) {
-	gate, err := h.svc.GetGate(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineGetByID")
+	defer span.End()
+	gate, err := h.svc.GetGate(ctx, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, "gate not found")
 		return
@@ -54,9 +58,11 @@ func (h *ApprovalGateHandler) GetByID(c *gin.Context) {
 }
 
 func (h *ApprovalGateHandler) GetByRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineGetByRun")
+	defer span.End()
 	runID := c.Param("runId")
 
-	gates, err := h.svc.GetGatesByRun(c.Request.Context(), runID)
+	gates, err := h.svc.GetGatesByRun(ctx, runID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -66,6 +72,8 @@ func (h *ApprovalGateHandler) GetByRun(c *gin.Context) {
 }
 
 func (h *ApprovalGateHandler) Approve(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineApprove")
+	defer span.End()
 	gateID := c.Param("id")
 	userID := c.GetString("user_id")
 
@@ -75,7 +83,7 @@ func (h *ApprovalGateHandler) Approve(c *gin.Context) {
 		req.Comments = ""
 	}
 
-	gate, err := h.svc.Approve(c.Request.Context(), gateID, userID, req.Comments)
+	gate, err := h.svc.Approve(ctx, gateID, userID, req.Comments)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -85,6 +93,8 @@ func (h *ApprovalGateHandler) Approve(c *gin.Context) {
 }
 
 func (h *ApprovalGateHandler) Reject(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineReject")
+	defer span.End()
 	gateID := c.Param("id")
 	userID := c.GetString("user_id")
 
@@ -93,7 +103,7 @@ func (h *ApprovalGateHandler) Reject(c *gin.Context) {
 		req.Reason = "rejected"
 	}
 
-	gate, err := h.svc.Reject(c.Request.Context(), gateID, userID, req.Reason)
+	gate, err := h.svc.Reject(ctx, gateID, userID, req.Reason)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return

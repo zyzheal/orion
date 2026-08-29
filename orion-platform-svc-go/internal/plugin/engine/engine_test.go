@@ -16,14 +16,14 @@ import (
 
 // mockPlugin is a simple in-memory plugin.Plugin implementation for testing.
 type mockPlugin struct {
-	initCalled      bool
-	executeCount    int
-	shutdownCalled  bool
-	failInit        bool
-	failExecute     bool
-	healthErr       error
-	panicExecute    bool
-	result          *plugin.ExecuteResult
+	initCalled     bool
+	executeCount   int
+	shutdownCalled bool
+	failInit       bool
+	failExecute    bool
+	healthErr      error
+	panicExecute   bool
+	result         *plugin.ExecuteResult
 }
 
 var _ plugin.Plugin = (*mockPlugin)(nil)

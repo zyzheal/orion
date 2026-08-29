@@ -3,25 +3,21 @@ package handler
 import (
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/code-scan/models"
 	"orion/platform-svc-go/internal/middleware"
-
-	"github.com/google/uuid"
-	"github.com/gin-gonic/gin"
 )
 
-// Handler exposes HTTP endpoints for code security scanning (SAST).
 type Handler struct{}
 
-// NewHandler creates a new CodeScan handler.
 func NewHandler() *Handler {
 	return &Handler{}
 }
 
-// RegisterRoutes mounts code-scan routes under the given group.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	codeScan := rg.Group("/code-scan")
-
 	codeScan.GET("/scans", h.ListScans)
 	codeScan.POST("/scans", h.CreateScan)
 	codeScan.GET("/findings", h.ListFindings)
@@ -29,10 +25,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) ListScans(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCodeScans")
+	defer span.End()
 	middleware.RespondSuccess(c, defaultScans())
 }
 
 func (h *Handler) CreateScan(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateCodeScan")
+	defer span.End()
 	var req models.CreateScanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -57,6 +57,8 @@ func (h *Handler) CreateScan(c *gin.Context) {
 }
 
 func (h *Handler) RerunScan(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RerunCodeScan")
+	defer span.End()
 	scanID := c.Param("id")
 	middleware.RespondSuccess(c, gin.H{
 		"id":      scanID,
@@ -66,6 +68,8 @@ func (h *Handler) RerunScan(c *gin.Context) {
 }
 
 func (h *Handler) ListFindings(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCodeScanFindings")
+	defer span.End()
 	middleware.RespondSuccess(c, defaultFindings())
 }
 

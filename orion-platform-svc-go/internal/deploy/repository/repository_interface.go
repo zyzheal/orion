@@ -5,7 +5,6 @@ import (
 	"orion/platform-svc-go/internal/deploy/models"
 )
 
-
 // RepositoryInterface defines the data access contract for the deploy module.
 // DO NOT MODIFY: auto-generated from repository.go
 type RepositoryInterface interface {

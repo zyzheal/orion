@@ -5,7 +5,6 @@ import (
 	"orion/platform-svc-go/internal/api-market/models"
 )
 
-
 // RepositoryInterface defines the data access contract for the api-market module.
 // DO NOT MODIFY: auto-generated from repository.go
 type RepositoryInterface interface {

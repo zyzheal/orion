@@ -5,9 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/permission/models"
 )
 
@@ -49,8 +48,6 @@ func (f *fakeHandler) Delete(ctx context.Context, tenantID, id string) error {
 func (f *fakeHandler) Count(ctx context.Context, tenantID string) (int, error) {
 	return 0, nil
 }
-
-
 
 func TestHandler_PERMISSION_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

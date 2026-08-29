@@ -19,15 +19,15 @@ type AutoRecoveryRule struct {
 
 // RecoveryAction represents a recovery action taken.
 type RecoveryAction struct {
-	ID          string    `json:"id"`
-	RuleID      string    `json:"rule_id"`
-	TenantID    string    `json:"tenant_id"`
-	Action      string    `json:"action"`
-	Target      string    `json:"target"`
-	Status      string    `json:"status"` // pending, executing, succeeded, failed
-	Result      string    `json:"result"`
-	RetryCount  int       `json:"retry_count"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          string     `json:"id"`
+	RuleID      string     `json:"rule_id"`
+	TenantID    string     `json:"tenant_id"`
+	Action      string     `json:"action"`
+	Target      string     `json:"target"`
+	Status      string     `json:"status"` // pending, executing, succeeded, failed
+	Result      string     `json:"result"`
+	RetryCount  int        `json:"retry_count"`
+	CreatedAt   time.Time  `json:"created_at"`
 	CompletedAt *time.Time `json:"completed_at"`
 }
 
@@ -45,7 +45,7 @@ type CreateRuleRequest struct {
 
 // RuleResponse wraps rule query results.
 type RuleResponse struct {
-	Total int64             `json:"total"`
+	Total int64              `json:"total"`
 	Data  []AutoRecoveryRule `json:"data"`
 }
 

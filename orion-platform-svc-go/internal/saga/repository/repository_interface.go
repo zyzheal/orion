@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/saga/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	CreateTransaction(ctx context.Context, tx *models.SagaTransaction) error

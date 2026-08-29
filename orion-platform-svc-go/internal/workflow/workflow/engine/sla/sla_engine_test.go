@@ -11,13 +11,13 @@ func TestDefaultSlaCalculateHandler_Calculate(t *testing.T) {
 	slaConfig := &SLAConfig{
 		EnablePriority: 1,
 		Policies: []SLAPolicy{
-            {Unit: "minute", Timeout: 30},
+			{Unit: "minute", Timeout: 30},
 		},
 	}
 	task := &TaskContext{
-		ID:        "t-1",
-		Priority:  "high",
-		TicketID:  "tk-1",
+		ID:       "t-1",
+		Priority: "high",
+		TicketID: "tk-1",
 	}
 
 	result, err := handler.Calculate(context.Background(), slaConfig, task, time.Now())
@@ -87,12 +87,12 @@ func TestDefaultSlaCalculateHandler_GetRemainingMs(t *testing.T) {
 func TestDefaultSlaCalculateHandler_MatchPolicy(t *testing.T) {
 	handler := &DefaultSlaCalculateHandler{}
 	slaConfig := &SLAConfig{
-        EnablePriority: 1,
-        Policies: []SLAPolicy{
-            {Unit: "minute", Timeout: 30, ConditionGroups: []ConditionGroup{
-                {Type: "priority", Operator: "eq", Values: []string{"high"}, Timeout: 15},
-            }},
-        },
+		EnablePriority: 1,
+		Policies: []SLAPolicy{
+			{Unit: "minute", Timeout: 30, ConditionGroups: []ConditionGroup{
+				{Type: "priority", Operator: "eq", Values: []string{"high"}, Timeout: 15},
+			}},
+		},
 	}
 	task := &TaskContext{Priority: "high"}
 

@@ -8,8 +8,8 @@ import (
 	"orion/platform-svc-go/internal/policy/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler handles HTTP requests for the policy module.

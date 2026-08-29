@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/dual-engine/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/dual-engine/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeDual_engineService) Update(ctx context.Context, tenantID, id string
 }
 
 var _ service.ServiceInterface = (*fakeDual_engineService)(nil)
-
 
 func TestHandler_DUAL_ENGINE_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

@@ -4,19 +4,19 @@ import "time"
 
 // Contract represents an API contract.
 type Contract struct {
-	ID                string            `json:"id" db:"id"`
-	APIName           string            `json:"apiName" db:"api_name"`
-	Version           string            `json:"version" db:"version"`
-	Method            string            `json:"method" db:"method"`
-	Path              string            `json:"path" db:"path"`
-	RequestSchema     string            `json:"requestSchema" db:"request_schema"`
-	ResponseSchema    string            `json:"responseSchema" db:"response_schema"`
-	Status            string            `json:"status" db:"status"`
-	DeprecationDate   *time.Time        `json:"deprecationDate" db:"deprecation_date"`
-	RetirementDate    *time.Time        `json:"retirementDate" db:"retirement_date"`
-	ReplacementVersion *string          `json:"replacementVersion" db:"replacement_version"`
-	CreatedAt         time.Time         `json:"createdAt" db:"created_at"`
-	UpdatedAt         time.Time         `json:"updatedAt" db:"updated_at"`
+	ID                 string     `json:"id" db:"id"`
+	APIName            string     `json:"apiName" db:"api_name"`
+	Version            string     `json:"version" db:"version"`
+	Method             string     `json:"method" db:"method"`
+	Path               string     `json:"path" db:"path"`
+	RequestSchema      string     `json:"requestSchema" db:"request_schema"`
+	ResponseSchema     string     `json:"responseSchema" db:"response_schema"`
+	Status             string     `json:"status" db:"status"`
+	DeprecationDate    *time.Time `json:"deprecationDate" db:"deprecation_date"`
+	RetirementDate     *time.Time `json:"retirementDate" db:"retirement_date"`
+	ReplacementVersion *string    `json:"replacementVersion" db:"replacement_version"`
+	CreatedAt          time.Time  `json:"createdAt" db:"created_at"`
+	UpdatedAt          time.Time  `json:"updatedAt" db:"updated_at"`
 }
 
 // Version represents an API version.
@@ -48,13 +48,13 @@ type Violation struct {
 
 // Rule represents a governance rule.
 type Rule struct {
-	ID          string     `json:"id" db:"id"`
-	Name        string     `json:"name" db:"name"`
-	Description string     `json:"description" db:"description"`
-	Enabled     bool       `json:"enabled" db:"enabled"`
-	Config      string     `json:"config" db:"config"`
-	CreatedAt   time.Time  `json:"createdAt" db:"created_at"`
-	UpdatedAt   time.Time  `json:"updatedAt" db:"updated_at"`
+	ID          string    `json:"id" db:"id"`
+	Name        string    `json:"name" db:"name"`
+	Description string    `json:"description" db:"description"`
+	Enabled     bool      `json:"enabled" db:"enabled"`
+	Config      string    `json:"config" db:"config"`
+	CreatedAt   time.Time `json:"createdAt" db:"created_at"`
+	UpdatedAt   time.Time `json:"updatedAt" db:"updated_at"`
 }
 
 // VerificationHistory represents a verification attempt.
@@ -73,11 +73,11 @@ type VerificationHistory struct {
 
 // CreateContractRequest is the body for creating a contract.
 type CreateContractRequest struct {
-	APIName       string                 `json:"apiName" binding:"required"`
-	Version       string                 `json:"version" binding:"required"`
-	Method        string                 `json:"method" binding:"required"`
-	Path          string                 `json:"path" binding:"required"`
-	RequestSchema map[string]interface{} `json:"requestSchema" binding:"required"`
+	APIName        string                 `json:"apiName" binding:"required"`
+	Version        string                 `json:"version" binding:"required"`
+	Method         string                 `json:"method" binding:"required"`
+	Path           string                 `json:"path" binding:"required"`
+	RequestSchema  map[string]interface{} `json:"requestSchema" binding:"required"`
 	ResponseSchema map[string]interface{} `json:"responseSchema" binding:"required"`
 }
 
@@ -132,18 +132,18 @@ type GovernanceStats struct {
 
 // ContractResponse is the API response for a contract.
 type ContractResponse struct {
-	ID                string `json:"id"`
-	APIName           string `json:"apiName"`
-	Version           string `json:"version"`
-	Method            string `json:"method"`
-	Path              string `json:"path"`
-	RequestSchema     string `json:"requestSchema"`
-	ResponseSchema    string `json:"responseSchema"`
-	Status            string `json:"status"`
-	DeprecationDate   string `json:"deprecationDate,omitempty"`
-	RetirementDate    string `json:"retirementDate,omitempty"`
+	ID                 string `json:"id"`
+	APIName            string `json:"apiName"`
+	Version            string `json:"version"`
+	Method             string `json:"method"`
+	Path               string `json:"path"`
+	RequestSchema      string `json:"requestSchema"`
+	ResponseSchema     string `json:"responseSchema"`
+	Status             string `json:"status"`
+	DeprecationDate    string `json:"deprecationDate,omitempty"`
+	RetirementDate     string `json:"retirementDate,omitempty"`
 	ReplacementVersion string `json:"replacementVersion,omitempty"`
-	CreatedAt         string `json:"createdAt"`
+	CreatedAt          string `json:"createdAt"`
 }
 
 // VersionResponse is the API response for a version.
@@ -180,12 +180,12 @@ type RuleResponse struct {
 
 // VerificationHistoryResponse is the API response for a verification history item.
 type VerificationHistoryResponse struct {
-	ContractID string   `json:"contractId"`
-	Passed     bool     `json:"passed"`
-	Violations string   `json:"violations"`
-	Endpoint   string   `json:"endpoint"`
-	Method     string   `json:"method"`
-	VerifiedAt string   `json:"verifiedAt"`
+	ContractID string `json:"contractId"`
+	Passed     bool   `json:"passed"`
+	Violations string `json:"violations"`
+	Endpoint   string `json:"endpoint"`
+	Method     string `json:"method"`
+	VerifiedAt string `json:"verifiedAt"`
 }
 
 // VerifyResult is the API response from verifying a contract.

@@ -74,13 +74,13 @@ func WithoutRedisKeyPrefix() RedisBackendOption {
 
 // NewRedisBackend creates a Redis-backed cache.
 //
-//  - ctx is used for every Redis operation; it should typically be
-//    context.Background() and the caller should manage cancellation.
-//  - client is a connected go-redis v9 client.
+//   - ctx is used for every Redis operation; it should typically be
+//     context.Background() and the caller should manage cancellation.
+//   - client is a connected go-redis v9 client.
 func NewRedisBackend(ctx context.Context, client *redis.Client, opts ...RedisBackendOption) *RedisBackend {
 	cfg := &RedisBackendConfig{
-		Prefix:        "orion:cache:",
-		Serializer:    &defaultSerializer{},
+		Prefix:           "orion:cache:",
+		Serializer:       &defaultSerializer{},
 		DisableKeyPrefix: false,
 	}
 	for _, opt := range opts {

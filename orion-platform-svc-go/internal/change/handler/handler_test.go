@@ -16,9 +16,9 @@ import (
 )
 
 type fakeChangeService struct {
-	createCalled    bool
-	deleteCalled    bool
-	analyzeCalled   bool
+	createCalled  bool
+	deleteCalled  bool
+	analyzeCalled bool
 }
 
 func (f *fakeChangeService) ListChangeRequests(ctx context.Context, tenantID string, q models.ChangeRequestListQuery) (*models.ListResult[models.ChangeRequest], error) {
@@ -123,9 +123,9 @@ func TestCHANGE_Handler_CreateChangeRequest(t *testing.T) {
 	fake := &fakeChangeService{}
 	h := NewHandler(fake)
 	c, w := makeCtx(http.MethodPost, "/api/v1/change", models.CreateChangeRequestRequest{
-		Title:    "Test change",
+		Title:      "Test change",
 		ChangeType: "standard",
-		Priority: "medium",
+		Priority:   "medium",
 	}, nil)
 	h.CreateChangeRequest(c)
 	if w.Code != http.StatusCreated && w.Code != http.StatusOK {
@@ -257,7 +257,7 @@ func TestCHANGE_Handler_ListRFCs(t *testing.T) {
 func TestCHANGE_Handler_CreateCABMeeting(t *testing.T) {
 	h := NewHandler(&fakeChangeService{})
 	c, w := makeCtx(http.MethodPost, "/api/v1/change/cab", models.CreateCABMeetingRequest{
-		Title: "CAB-1",
+		Title:       "CAB-1",
 		ScheduledAt: time.Now().Add(time.Hour),
 	}, nil)
 	h.CreateCABMeeting(c)
@@ -299,7 +299,7 @@ func TestCHANGE_Handler_AddCABDecision(t *testing.T) {
 	h := NewHandler(&fakeChangeService{})
 	c, w := makeCtx(http.MethodPost, "/api/v1/change/cab/cab-1/decision", models.CreateCABDecisionRequest{
 		ChangeRequestID: "cr-1",
-		Decision: "approved",
+		Decision:        "approved",
 	}, map[string]string{"cabID": "cab-1"})
 	h.AddCABDecision(c)
 	if w.Code != http.StatusCreated && w.Code != http.StatusOK {

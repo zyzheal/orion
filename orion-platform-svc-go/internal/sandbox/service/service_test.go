@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/sandbox/models"
 	"orion/platform-svc-go/internal/sandbox/service"
-	"go.uber.org/zap"
 )
 
 // -----------------------------------------------------------------------------
@@ -18,18 +18,18 @@ var repoErr = errors.New("repo error")
 
 type fakeSandboxRepo struct {
 	stub struct {
-		createErr  error
-		getErr     error
-		listErr    error
-		deleteErr  error
-		getJob     *models.SandboxJob
-		listJobs   []models.SandboxJob
+		createErr error
+		getErr    error
+		listErr   error
+		deleteErr error
+		getJob    *models.SandboxJob
+		listJobs  []models.SandboxJob
 		// Capture last arguments so tests can verify wiring
-		createJob *models.SandboxJob
-		getID     string
-		getTenant string
-		listStatus string
-		deleteID  string
+		createJob    *models.SandboxJob
+		getID        string
+		getTenant    string
+		listStatus   string
+		deleteID     string
 		deleteTenant string
 	}
 }
@@ -77,10 +77,10 @@ func newTestService(repo *fakeSandboxRepo) *service.Service {
 	return service.NewService(repo, logger)
 }
 
-func boolPtr(b bool) *bool   { return &b }
-func floatPtr(f float64) *float64  { return &f }
-func uintPtr(u uint64) *uint64     { return &u }
-func int64Ptr(i int64) *int64      { return &i }
+func boolPtr(b bool) *bool        { return &b }
+func floatPtr(f float64) *float64 { return &f }
+func uintPtr(u uint64) *uint64    { return &u }
+func int64Ptr(i int64) *int64     { return &i }
 
 // -----------------------------------------------------------------------------
 // Tests
@@ -192,17 +192,17 @@ func TestCreateJob_WithOverrides(t *testing.T) {
 
 func TestCreateJob_RepoError(t *testing.T) {
 	repo := &fakeSandboxRepo{stub: struct {
-		createErr  error
-		getErr     error
-		listErr    error
-		deleteErr  error
-		getJob     *models.SandboxJob
-		listJobs   []models.SandboxJob
-		createJob  *models.SandboxJob
-		getID      string
-		getTenant  string
-		listStatus string
-		deleteID   string
+		createErr    error
+		getErr       error
+		listErr      error
+		deleteErr    error
+		getJob       *models.SandboxJob
+		listJobs     []models.SandboxJob
+		createJob    *models.SandboxJob
+		getID        string
+		getTenant    string
+		listStatus   string
+		deleteID     string
 		deleteTenant string
 	}{createErr: repoErr}}
 	svc := newTestService(repo)
@@ -220,17 +220,17 @@ func TestCreateJob_RepoError(t *testing.T) {
 func TestGetJob_Found(t *testing.T) {
 	expected := &models.SandboxJob{ID: "j1", TenantID: "t1", Status: models.JobStatusPending}
 	repo := &fakeSandboxRepo{stub: struct {
-		createErr  error
-		getErr     error
-		listErr    error
-		deleteErr  error
-		getJob     *models.SandboxJob
-		listJobs   []models.SandboxJob
-		createJob  *models.SandboxJob
-		getID      string
-		getTenant  string
-		listStatus string
-		deleteID   string
+		createErr    error
+		getErr       error
+		listErr      error
+		deleteErr    error
+		getJob       *models.SandboxJob
+		listJobs     []models.SandboxJob
+		createJob    *models.SandboxJob
+		getID        string
+		getTenant    string
+		listStatus   string
+		deleteID     string
 		deleteTenant string
 	}{getJob: expected}}
 	svc := newTestService(repo)
@@ -265,17 +265,17 @@ func TestGetJob_NotFound(t *testing.T) {
 
 func TestGetJob_RepoError(t *testing.T) {
 	repo := &fakeSandboxRepo{stub: struct {
-		createErr  error
-		getErr     error
-		listErr    error
-		deleteErr  error
-		getJob     *models.SandboxJob
-		listJobs   []models.SandboxJob
-		createJob  *models.SandboxJob
-		getID      string
-		getTenant  string
-		listStatus string
-		deleteID   string
+		createErr    error
+		getErr       error
+		listErr      error
+		deleteErr    error
+		getJob       *models.SandboxJob
+		listJobs     []models.SandboxJob
+		createJob    *models.SandboxJob
+		getID        string
+		getTenant    string
+		listStatus   string
+		deleteID     string
 		deleteTenant string
 	}{getErr: repoErr}}
 	svc := newTestService(repo)
@@ -294,17 +294,17 @@ func TestListJobs_All(t *testing.T) {
 		{ID: "j2", Status: models.JobStatusCompleted},
 	}
 	repo := &fakeSandboxRepo{stub: struct {
-		createErr  error
-		getErr     error
-		listErr    error
-		deleteErr  error
-		getJob     *models.SandboxJob
-		listJobs   []models.SandboxJob
-		createJob  *models.SandboxJob
-		getID      string
-		getTenant  string
-		listStatus string
-		deleteID   string
+		createErr    error
+		getErr       error
+		listErr      error
+		deleteErr    error
+		getJob       *models.SandboxJob
+		listJobs     []models.SandboxJob
+		createJob    *models.SandboxJob
+		getID        string
+		getTenant    string
+		listStatus   string
+		deleteID     string
 		deleteTenant string
 	}{listJobs: jobs}}
 	svc := newTestService(repo)
@@ -324,17 +324,17 @@ func TestListJobs_All(t *testing.T) {
 func TestListJobs_FilteredByStatus(t *testing.T) {
 	jobs := []models.SandboxJob{{ID: "j1", Status: models.JobStatusFailed}}
 	repo := &fakeSandboxRepo{stub: struct {
-		createErr  error
-		getErr     error
-		listErr    error
-		deleteErr  error
-		getJob     *models.SandboxJob
-		listJobs   []models.SandboxJob
-		createJob  *models.SandboxJob
-		getID      string
-		getTenant  string
-		listStatus string
-		deleteID   string
+		createErr    error
+		getErr       error
+		listErr      error
+		deleteErr    error
+		getJob       *models.SandboxJob
+		listJobs     []models.SandboxJob
+		createJob    *models.SandboxJob
+		getID        string
+		getTenant    string
+		listStatus   string
+		deleteID     string
 		deleteTenant string
 	}{listJobs: jobs}}
 	svc := newTestService(repo)
@@ -350,17 +350,17 @@ func TestListJobs_FilteredByStatus(t *testing.T) {
 
 func TestListJobs_RepoError(t *testing.T) {
 	repo := &fakeSandboxRepo{stub: struct {
-		createErr  error
-		getErr     error
-		listErr    error
-		deleteErr  error
-		getJob     *models.SandboxJob
-		listJobs   []models.SandboxJob
-		createJob  *models.SandboxJob
-		getID      string
-		getTenant  string
-		listStatus string
-		deleteID   string
+		createErr    error
+		getErr       error
+		listErr      error
+		deleteErr    error
+		getJob       *models.SandboxJob
+		listJobs     []models.SandboxJob
+		createJob    *models.SandboxJob
+		getID        string
+		getTenant    string
+		listStatus   string
+		deleteID     string
 		deleteTenant string
 	}{listErr: repoErr}}
 	svc := newTestService(repo)
@@ -391,17 +391,17 @@ func TestDeleteJob_Success(t *testing.T) {
 
 func TestDeleteJob_RepoError(t *testing.T) {
 	repo := &fakeSandboxRepo{stub: struct {
-		createErr  error
-		getErr     error
-		listErr    error
-		deleteErr  error
-		getJob     *models.SandboxJob
-		listJobs   []models.SandboxJob
-		createJob  *models.SandboxJob
-		getID      string
-		getTenant  string
-		listStatus string
-		deleteID   string
+		createErr    error
+		getErr       error
+		listErr      error
+		deleteErr    error
+		getJob       *models.SandboxJob
+		listJobs     []models.SandboxJob
+		createJob    *models.SandboxJob
+		getID        string
+		getTenant    string
+		listStatus   string
+		deleteID     string
 		deleteTenant string
 	}{deleteErr: repoErr}}
 	svc := newTestService(repo)

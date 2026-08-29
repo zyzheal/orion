@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/policy/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/policy/models"
 )
 
@@ -128,7 +128,6 @@ func (f *fakePolicyService) WaiveViolation(ctx context.Context, tenantID, id str
 }
 
 var _ service.ServiceInterface = (*fakePolicyService)(nil)
-
 
 func TestHandler_POLICY_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

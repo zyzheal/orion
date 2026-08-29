@@ -61,11 +61,11 @@ func (s *NATSSubscriber) Start(ctx context.Context) error {
 	subject := fmt.Sprintf("%s.PandaWikiEvent.>", s.stream)
 
 	_, err := s.js.CreateOrUpdateConsumer(ctx, s.stream, jetstream.ConsumerConfig{
-		Name:               "pandawiki-svc-consumer",
-		FilterSubjects:     []string{subject},
-		AckPolicy:          jetstream.AckExplicitPolicy,
-		MaxDeliver:         3,
-		InactiveThreshold:  30 * time.Minute,
+		Name:              "pandawiki-svc-consumer",
+		FilterSubjects:    []string{subject},
+		AckPolicy:         jetstream.AckExplicitPolicy,
+		MaxDeliver:        3,
+		InactiveThreshold: 30 * time.Minute,
 	})
 	if err != nil {
 		return fmt.Errorf("create consumer: %w", err)

@@ -3,11 +3,12 @@ package repository
 import (
 	"context"
 	"fmt"
-	"orion/platform-svc-go/internal/infrastructure/capacity/models"
 	"github.com/jmoiron/sqlx"
+	"orion/platform-svc-go/internal/infrastructure/capacity/models"
 )
 
-type PoolRepository struct { db *sqlx.DB }
+type PoolRepository struct{ db *sqlx.DB }
+
 func NewPoolRepository(db *sqlx.DB) *PoolRepository { return &PoolRepository{db: db} }
 
 func (r *PoolRepository) Create(ctx context.Context, d *models.ResourcePool) error {
@@ -24,7 +25,9 @@ func (r *PoolRepository) List(ctx context.Context, tenantID string, offset, limi
 func (r *PoolRepository) GetByID(ctx context.Context, tenantID, id string) (*models.ResourcePool, error) {
 	var d models.ResourcePool
 	err := r.db.GetContext(ctx, &d, `SELECT * FROM resource_pools WHERE id=$1 AND tenant_id=$2`, id, tenantID)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	return &d, nil
 }
 
@@ -33,7 +36,8 @@ func (r *PoolRepository) Update(ctx context.Context, d *models.ResourcePool) err
 	return err
 }
 
-type ForecastRepository struct { db *sqlx.DB }
+type ForecastRepository struct{ db *sqlx.DB }
+
 func NewForecastRepository(db *sqlx.DB) *ForecastRepository { return &ForecastRepository{db: db} }
 
 func (r *ForecastRepository) Create(ctx context.Context, d *models.CapacityForecast) error {
@@ -47,7 +51,8 @@ func (r *ForecastRepository) List(ctx context.Context, tenantID string, offset, 
 	return items, err
 }
 
-type PolicyRepository struct { db *sqlx.DB }
+type PolicyRepository struct{ db *sqlx.DB }
+
 func NewPolicyRepository(db *sqlx.DB) *PolicyRepository { return &PolicyRepository{db: db} }
 
 func (r *PolicyRepository) Create(ctx context.Context, d *models.ScalingPolicy) error {

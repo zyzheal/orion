@@ -19,12 +19,12 @@ type Ticket struct {
 }
 
 type TicketComment struct {
-	ID        string    `json:"id" db:"id"`
-	TicketID  string    `json:"ticket_id" db:"ticket_id"`
-	Author    string    `json:"author" db:"author"`
-	Content   string    `json:"content" db:"content"`
-	IsInternal bool     `json:"is_internal" db:"is_internal"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID         string    `json:"id" db:"id"`
+	TicketID   string    `json:"ticket_id" db:"ticket_id"`
+	Author     string    `json:"author" db:"author"`
+	Content    string    `json:"content" db:"content"`
+	IsInternal bool      `json:"is_internal" db:"is_internal"`
+	CreatedAt  time.Time `json:"created_at" db:"created_at"`
 }
 
 type TicketAttachment struct {

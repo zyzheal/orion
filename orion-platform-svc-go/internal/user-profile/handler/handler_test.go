@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/user-profile/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/user-profile/models"
 )
 
@@ -40,7 +40,6 @@ func (f *fakeUser_profileService) UpdateProfile(ctx context.Context, tenantID, u
 }
 
 var _ service.ServiceInterface = (*fakeUser_profileService)(nil)
-
 
 func TestHandler_USER_PROFILE_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

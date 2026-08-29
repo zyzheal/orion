@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/tool/models"
@@ -22,6 +23,8 @@ func NewToolHandler(svc *service.ToolService) *ToolHandler {
 }
 
 func (h *ToolHandler) CreateTool(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToolCreate")
+	defer span.End()
 	var req models.CreateToolRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
@@ -35,7 +38,7 @@ func (h *ToolHandler) CreateTool(c *gin.Context) {
 		return
 	}
 
-	tool, err := h.svc.Create(c.Request.Context(), tenantID, userID, req)
+	tool, err := h.svc.Create(ctx, tenantID, userID, req)
 	if err != nil {
 		respondInternalError(c, "internal error")
 		return
@@ -44,10 +47,12 @@ func (h *ToolHandler) CreateTool(c *gin.Context) {
 }
 
 func (h *ToolHandler) GetTool(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToolGet")
+	defer span.End()
 	tenantID := auth.GetTenantID(c)
 	id := c.Param("id")
 
-	tool, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	tool, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		if errors.Is(err, models.ErrToolNotFound) {
 			respondNotFound(c, "tool not found")
@@ -60,6 +65,8 @@ func (h *ToolHandler) GetTool(c *gin.Context) {
 }
 
 func (h *ToolHandler) ListTools(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToolList")
+	defer span.End()
 	tenantID := auth.GetTenantID(c)
 
 	var params models.ToolListParams
@@ -68,7 +75,7 @@ func (h *ToolHandler) ListTools(c *gin.Context) {
 		return
 	}
 
-	tools, total, err := h.svc.List(c.Request.Context(), tenantID, params)
+	tools, total, err := h.svc.List(ctx, tenantID, params)
 	if err != nil {
 		respondInternalError(c, "internal error")
 		return
@@ -77,6 +84,8 @@ func (h *ToolHandler) ListTools(c *gin.Context) {
 }
 
 func (h *ToolHandler) UpdateTool(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToolUpdate")
+	defer span.End()
 	tenantID := auth.GetTenantID(c)
 	id := c.Param("id")
 
@@ -86,7 +95,7 @@ func (h *ToolHandler) UpdateTool(c *gin.Context) {
 		return
 	}
 
-	tool, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+	tool, err := h.svc.Update(ctx, tenantID, id, req)
 	if err != nil {
 		if errors.Is(err, models.ErrToolNotFound) {
 			respondNotFound(c, "tool not found")
@@ -99,10 +108,12 @@ func (h *ToolHandler) UpdateTool(c *gin.Context) {
 }
 
 func (h *ToolHandler) DeleteTool(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToolDelete")
+	defer span.End()
 	tenantID := auth.GetTenantID(c)
 	id := c.Param("id")
 
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		respondInternalError(c, "internal error")
 		return
 	}
@@ -110,9 +121,11 @@ func (h *ToolHandler) DeleteTool(c *gin.Context) {
 }
 
 func (h *ToolHandler) GetCategories(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToolGetCategories")
+	defer span.End()
 	tenantID := auth.GetTenantID(c)
 
-	cats, err := h.svc.GetCategories(c.Request.Context(), tenantID)
+	cats, err := h.svc.GetCategories(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, "internal error")
 		return
@@ -121,6 +134,8 @@ func (h *ToolHandler) GetCategories(c *gin.Context) {
 }
 
 func (h *ToolHandler) SearchTools(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToolSearch")
+	defer span.End()
 	tenantID := auth.GetTenantID(c)
 	query := c.Query("q")
 	if len(query) < 2 {
@@ -128,7 +143,7 @@ func (h *ToolHandler) SearchTools(c *gin.Context) {
 		return
 	}
 
-	tools, err := h.svc.Search(c.Request.Context(), tenantID, query)
+	tools, err := h.svc.Search(ctx, tenantID, query)
 	if err != nil {
 		respondInternalError(c, "internal error")
 		return
@@ -137,10 +152,12 @@ func (h *ToolHandler) SearchTools(c *gin.Context) {
 }
 
 func (h *ToolHandler) GetVersions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToolGetVersions")
+	defer span.End()
 	tenantID := auth.GetTenantID(c)
 	id := c.Param("id")
 
-	versions, err := h.svc.GetVersions(c.Request.Context(), tenantID, id)
+	versions, err := h.svc.GetVersions(ctx, tenantID, id)
 	if err != nil {
 		if errors.Is(err, models.ErrToolNotFound) {
 			respondNotFound(c, "tool not found")
@@ -153,6 +170,8 @@ func (h *ToolHandler) GetVersions(c *gin.Context) {
 }
 
 func (h *ToolHandler) GetInvocations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToolGetInvocations")
+	defer span.End()
 	tenantID := auth.GetTenantID(c)
 	id := c.Param("id")
 
@@ -165,7 +184,7 @@ func (h *ToolHandler) GetInvocations(c *gin.Context) {
 		offset = 0
 	}
 
-	invs, err := h.svc.GetInvocations(c.Request.Context(), tenantID, id, limit, offset)
+	invs, err := h.svc.GetInvocations(ctx, tenantID, id, limit, offset)
 	if err != nil {
 		respondInternalError(c, "internal error")
 		return
@@ -175,6 +194,8 @@ func (h *ToolHandler) GetInvocations(c *gin.Context) {
 
 // CreateVersion creates a new version record for a tool.
 func (h *ToolHandler) CreateVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToolCreateVersion")
+	defer span.End()
 	tenantID := auth.GetTenantID(c)
 	userID := c.GetHeader("X-User-ID")
 	toolID := c.Param("id")
@@ -190,7 +211,7 @@ func (h *ToolHandler) CreateVersion(c *gin.Context) {
 		return
 	}
 
-	version, err := h.svc.CreateVersion(c.Request.Context(), tenantID, userID, toolID, req)
+	version, err := h.svc.CreateVersion(ctx, tenantID, userID, toolID, req)
 	if err != nil {
 		if errors.Is(err, models.ErrToolNotFound) {
 			respondNotFound(c, "tool not found")
@@ -204,10 +225,12 @@ func (h *ToolHandler) CreateVersion(c *gin.Context) {
 
 // GetInvocationDetail retrieves a single invocation record.
 func (h *ToolHandler) GetInvocationDetail(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToolGetInvocationDetail")
+	defer span.End()
 	tenantID := auth.GetTenantID(c)
 	id := c.Param("id")
 
-	inv, err := h.svc.GetInvocationDetail(c.Request.Context(), tenantID, id)
+	inv, err := h.svc.GetInvocationDetail(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, "invocation not found")
 		return
@@ -217,6 +240,8 @@ func (h *ToolHandler) GetInvocationDetail(c *gin.Context) {
 
 // InvokeTool executes a tool and records the invocation.
 func (h *ToolHandler) InvokeTool(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToolInvoke")
+	defer span.End()
 	tenantID := auth.GetTenantID(c)
 	userID := c.GetHeader("X-User-ID")
 	toolID := c.Param("id")
@@ -233,7 +258,7 @@ func (h *ToolHandler) InvokeTool(c *gin.Context) {
 		return
 	}
 
-	inv, err := h.svc.InvokeTool(c.Request.Context(), tenantID, userID, toolID, version, req)
+	inv, err := h.svc.InvokeTool(ctx, tenantID, userID, toolID, version, req)
 	if err != nil {
 		if errors.Is(err, models.ErrToolNotFound) {
 			respondNotFound(c, "tool not found")
@@ -247,10 +272,12 @@ func (h *ToolHandler) InvokeTool(c *gin.Context) {
 
 // GetStats returns overall tenant usage statistics.
 func (h *ToolHandler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToolGetStats")
+	defer span.End()
 	tenantID := auth.GetTenantID(c)
 	period := c.DefaultQuery("period", "day")
 
-	stats, err := h.svc.GetStats(c.Request.Context(), tenantID, models.StatsPeriod(period))
+	stats, err := h.svc.GetStats(ctx, tenantID, models.StatsPeriod(period))
 	if err != nil {
 		respondInternalError(c, "internal error")
 		return
@@ -260,10 +287,12 @@ func (h *ToolHandler) GetStats(c *gin.Context) {
 
 // GetToolStats returns usage statistics for a specific tool.
 func (h *ToolHandler) GetToolStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToolGetToolStats")
+	defer span.End()
 	tenantID := auth.GetTenantID(c)
 	toolID := c.Param("id")
 
-	stats, err := h.svc.GetToolStats(c.Request.Context(), tenantID, toolID)
+	stats, err := h.svc.GetToolStats(ctx, tenantID, toolID)
 	if err != nil {
 		if errors.Is(err, models.ErrToolNotFound) {
 			respondNotFound(c, "tool not found")
@@ -277,13 +306,15 @@ func (h *ToolHandler) GetToolStats(c *gin.Context) {
 
 // GetTopTools returns the most-used tools for a tenant.
 func (h *ToolHandler) GetTopTools(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToolGetTopTools")
+	defer span.End()
 	tenantID := auth.GetTenantID(c)
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	if limit < 1 || limit > 50 {
 		limit = 10
 	}
 
-	ranks, err := h.svc.GetTopTools(c.Request.Context(), tenantID, limit)
+	ranks, err := h.svc.GetTopTools(ctx, tenantID, limit)
 	if err != nil {
 		respondInternalError(c, "internal error")
 		return
@@ -293,6 +324,8 @@ func (h *ToolHandler) GetTopTools(c *gin.Context) {
 
 // MarketSearch searches active tools with filters.
 func (h *ToolHandler) MarketSearch(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToolMarketSearch")
+	defer span.End()
 	tenantID := auth.GetTenantID(c)
 
 	var params models.MarketSearchParams
@@ -301,14 +334,13 @@ func (h *ToolHandler) MarketSearch(c *gin.Context) {
 		return
 	}
 
-	tools, total, err := h.svc.MarketSearch(c.Request.Context(), tenantID, params)
+	tools, total, err := h.svc.MarketSearch(ctx, tenantID, params)
 	if err != nil {
 		respondInternalError(c, "internal error")
 		return
 	}
 	respondSuccess(c, gin.H{"data": tools, "total": total})
 }
-
 
 // ---- local response helpers (wrap middleware package) ----
 

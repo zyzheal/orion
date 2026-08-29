@@ -161,8 +161,8 @@ func TestBatchStrategy_PartialFailure(t *testing.T) {
 	factory.Register(unhealthy)
 
 	s := NewBatchStrategyWithOptions(BatchOptions{
-		Factory:    factory,
-		Logger:     NoopLogger{},
+		Factory: factory,
+		Logger:  NoopLogger{},
 	})
 
 	results, err := s.Execute(context.Background(), testutil.NewTestMessage(),
@@ -196,8 +196,8 @@ func TestBatchStrategy_ContextCancellation(t *testing.T) {
 	factory := newTestFactory()
 
 	s := NewBatchStrategyWithOptions(BatchOptions{
-		Factory:    factory,
-		Logger:     NoopLogger{},
+		Factory: factory,
+		Logger:  NoopLogger{},
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())

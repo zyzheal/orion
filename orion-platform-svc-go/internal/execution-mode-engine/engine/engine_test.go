@@ -154,8 +154,8 @@ func TestEngineExecuteNoHandler(t *testing.T) {
 func TestEngineExecuteSuccess(t *testing.T) {
 	eng := NewEngine(Config{}, zap.NewNop())
 	handler := &testHandler{
-		mode: ModeImmediate,
-		name: "immediate",
+		mode:   ModeImmediate,
+		name:   "immediate",
 		result: &ExecutionResult{Status: StatusSuccess},
 	}
 	eng.RegisterHandler(handler)
@@ -252,8 +252,8 @@ func TestEngineExecuteFallback(t *testing.T) {
 	})
 
 	req := &ExecutionRequest{
-		ID:    "req-fallback",
-		Mode:  ModeImmediate,
+		ID:      "req-fallback",
+		Mode:    ModeImmediate,
 		Timeout: 100 * time.Millisecond,
 	}
 	result, err := eng.Execute(context.Background(), req)
@@ -282,8 +282,8 @@ func TestEngineExecuteFallbackExhausted(t *testing.T) {
 	})
 
 	req := &ExecutionRequest{
-		ID:    "req-exhaust-fallback",
-		Mode:  ModeImmediate,
+		ID:      "req-exhaust-fallback",
+		Mode:    ModeImmediate,
 		Timeout: 5 * time.Second,
 	}
 	_, err := eng.Execute(context.Background(), req)
@@ -341,8 +341,8 @@ func TestEngineTimeout(t *testing.T) {
 	eng.RegisterHandler(slowHandler)
 
 	req := &ExecutionRequest{
-		ID:    "req-timeout",
-		Mode:  ModeScheduled,
+		ID:   "req-timeout",
+		Mode: ModeScheduled,
 	}
 	_, err := eng.Execute(context.Background(), req)
 	if err == nil {

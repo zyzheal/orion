@@ -1,8 +1,8 @@
 package aggregates
 
 import (
-	"time"
 	"orion/platform-svc-go/internal/domain/events"
+	"time"
 )
 
 // AggregateRoot defines the contract for all aggregates in the domain.

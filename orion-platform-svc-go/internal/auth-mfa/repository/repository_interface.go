@@ -5,7 +5,6 @@ import (
 	"orion/platform-svc-go/internal/auth-mfa/models"
 )
 
-
 // RepositoryInterface defines the data access contract for the auth-mfa module.
 // DO NOT MODIFY: auto-generated from repository.go
 type RepositoryInterface interface {

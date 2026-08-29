@@ -171,10 +171,10 @@ func (s *Service) GetAggregateMetrics(ctx context.Context, tenantID string) (map
 	active, _ := s.repo.CountFunctionsByStatus(ctx, tenantID, "active")
 	deployed, _ := s.repo.CountFunctionsByStatus(ctx, tenantID, "deployed")
 	return map[string]interface{}{
-		"total_functions":   total,
-		"active":            active,
-		"deployed":          deployed,
-		"aggregated_at":     time.Now().Format(time.RFC3339),
+		"total_functions": total,
+		"active":          active,
+		"deployed":        deployed,
+		"aggregated_at":   time.Now().Format(time.RFC3339),
 	}, nil
 }
 
@@ -234,8 +234,8 @@ func (s *Service) EvaluateAutoScaling(ctx context.Context, tenantID string) ([]m
 	var recs []map[string]interface{}
 	for _, fn := range functions {
 		recs = append(recs, map[string]interface{}{
-			"function_id":     fn.ID,
-			"function_name":   fn.Name,
+			"function_id":      fn.ID,
+			"function_name":    fn.Name,
 			"current_replicas": fn.Replicas,
 			"recommended":      fn.Replicas, // no change by default
 			"reason":           "stable",

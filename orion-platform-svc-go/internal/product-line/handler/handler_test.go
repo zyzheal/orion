@@ -5,9 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/product-line/models"
 )
 
@@ -81,8 +80,6 @@ func (f *fakeHandler) IsHotfixBranch(ctx context.Context, tenantID, productLineI
 func (f *fakeHandler) ResolveEnvironmentMapping(ctx context.Context, tenantID, productLineID, branch string) (environment string, matchedBranch string, err error) {
 	return "", "", nil
 }
-
-
 
 func TestHandler_PRODUCT_LINE_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

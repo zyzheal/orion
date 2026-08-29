@@ -1,11 +1,11 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"net/http"
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
-	"orion/go-common/pkg/otel"
 	"orion/platform-svc-go/internal/execution-mode-engine/models"
 	"orion/platform-svc-go/internal/execution-mode-engine/service"
 	"orion/platform-svc-go/internal/middleware"
@@ -31,14 +31,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) List(c *gin.Context) {
-	_, span := otel.Tracer("orion-execution-mode-engine").Start(c.Request.Context(), "Handler.List")
+	ctx, span := otel.Tracer("orion-execution-mode-engine").Start(c.Request.Context(), "Handler.List")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		errors.WriteError(c, errors.ErrUnauthorized, "tenant_id required", http.StatusUnauthorized)
 		return
 	}
-	list, err := h.svc.List(c.Request.Context(), tenantID)
+	list, err := h.svc.List(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -47,7 +47,7 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
-	_, span := otel.Tracer("orion-execution-mode-engine").Start(c.Request.Context(), "Handler.Get")
+	ctx, span := otel.Tracer("orion-execution-mode-engine").Start(c.Request.Context(), "Handler.Get")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
@@ -55,7 +55,7 @@ func (h *Handler) Get(c *gin.Context) {
 		return
 	}
 	id := c.Param("id")
-	cfg, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	cfg, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, err.Error(), http.StatusNotFound)
 		return
@@ -64,7 +64,7 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
-	_, span := otel.Tracer("orion-execution-mode-engine").Start(c.Request.Context(), "Handler.Create")
+	ctx, span := otel.Tracer("orion-execution-mode-engine").Start(c.Request.Context(), "Handler.Create")
 	defer span.End()
 	var req models.ExecutionModeConfig
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -76,7 +76,7 @@ func (h *Handler) Create(c *gin.Context) {
 		errors.WriteError(c, errors.ErrUnauthorized, "tenant_id required", http.StatusUnauthorized)
 		return
 	}
-	if err := h.svc.Create(c.Request.Context(), &req); err != nil {
+	if err := h.svc.Create(ctx, &req); err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -84,7 +84,7 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
-	_, span := otel.Tracer("orion-execution-mode-engine").Start(c.Request.Context(), "Handler.Update")
+	ctx, span := otel.Tracer("orion-execution-mode-engine").Start(c.Request.Context(), "Handler.Update")
 	defer span.End()
 	var req models.ExecutionModeConfig
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -92,7 +92,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 	req.ID = c.Param("id")
-	if err := h.svc.Update(c.Request.Context(), &req); err != nil {
+	if err := h.svc.Update(ctx, &req); err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -100,7 +100,7 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
-	_, span := otel.Tracer("orion-execution-mode-engine").Start(c.Request.Context(), "Handler.Delete")
+	ctx, span := otel.Tracer("orion-execution-mode-engine").Start(c.Request.Context(), "Handler.Delete")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
@@ -108,7 +108,7 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
 	}

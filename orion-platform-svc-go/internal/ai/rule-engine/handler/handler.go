@@ -4,9 +4,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai/rule-engine/models"
 	"orion/platform-svc-go/internal/ai/rule-engine/service"
-	"orion/go-common/pkg/auth"
 )
 
 type RuleEngineHandler struct {
@@ -35,6 +36,8 @@ func (h *RuleEngineHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // ListRules returns all rules.
 func (h *RuleEngineHandler) ListRules(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIRuleEngineListRules")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
 	resp, err := h.svc.QueryRules(tenantID)
@@ -47,6 +50,8 @@ func (h *RuleEngineHandler) ListRules(c *gin.Context) {
 
 // CreateRule creates a new rule.
 func (h *RuleEngineHandler) CreateRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIRuleEngineCreateRule")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req models.CreateRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -54,7 +59,7 @@ func (h *RuleEngineHandler) CreateRule(c *gin.Context) {
 		return
 	}
 
-	rule, err := h.svc.CreateRule(c.Request.Context(), tenantID, &req)
+	rule, err := h.svc.CreateRule(ctx, tenantID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -64,6 +69,8 @@ func (h *RuleEngineHandler) CreateRule(c *gin.Context) {
 
 // GetRule returns a rule by ID.
 func (h *RuleEngineHandler) GetRule(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIRuleEngineGetRule")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id := c.Param("id")
 
@@ -77,6 +84,8 @@ func (h *RuleEngineHandler) GetRule(c *gin.Context) {
 
 // UpdateRule updates a rule.
 func (h *RuleEngineHandler) UpdateRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIRuleEngineUpdateRule")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id := c.Param("id")
 
@@ -91,7 +100,7 @@ func (h *RuleEngineHandler) UpdateRule(c *gin.Context) {
 		return
 	}
 
-	rule, err := h.svc.UpdateRule(c.Request.Context(), tenantID, id, req.Name, req.Description, req.Priority, req.IsEnabled)
+	rule, err := h.svc.UpdateRule(ctx, tenantID, id, req.Name, req.Description, req.Priority, req.IsEnabled)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -101,10 +110,12 @@ func (h *RuleEngineHandler) UpdateRule(c *gin.Context) {
 
 // DeleteRule removes a rule.
 func (h *RuleEngineHandler) DeleteRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIRuleEngineDeleteRule")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id := c.Param("id")
 
-	if err := h.svc.DeleteRule(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteRule(ctx, tenantID, id); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		return
 	}
@@ -113,6 +124,8 @@ func (h *RuleEngineHandler) DeleteRule(c *gin.Context) {
 
 // Evaluate evaluates a rule against input data.
 func (h *RuleEngineHandler) Evaluate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIRuleEngineEvaluate")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req models.EvaluateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -120,7 +133,7 @@ func (h *RuleEngineHandler) Evaluate(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.Evaluate(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.Evaluate(ctx, tenantID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return

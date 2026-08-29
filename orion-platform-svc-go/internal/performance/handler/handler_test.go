@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/performance/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/performance/models"
 )
 
@@ -72,7 +72,6 @@ func (f *fakePerformanceService) RecordTestResult(ctx context.Context, tenantID 
 }
 
 var _ service.ServiceInterface = (*fakePerformanceService)(nil)
-
 
 func TestHandler_PERFORMANCE_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

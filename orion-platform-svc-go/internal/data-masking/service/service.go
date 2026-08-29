@@ -105,7 +105,7 @@ func (s *Service) ApplyMask(ctx context.Context, tenantID string, req *models.Ma
 	}
 
 	return &models.MaskResult{
-		MaskedData:  maskedData,
+		MaskedData:   maskedData,
 		MaskedFields: maskedFields,
 	}, nil
 }

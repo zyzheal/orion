@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/data-catalog/introspector"
 	"orion/platform-svc-go/internal/data-catalog/models"
 	dcrepo "orion/platform-svc-go/internal/data-catalog/repository"
-	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface mirrors the repository interface for testability.

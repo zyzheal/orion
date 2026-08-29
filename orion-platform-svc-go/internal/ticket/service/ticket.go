@@ -4,21 +4,21 @@ import (
 	"context"
 	"fmt"
 
-	"orion/platform-svc-go/internal/ticket/models"
 	"orion/go-common/pkg/otel"
+	"orion/platform-svc-go/internal/ticket/models"
 	"orion/platform-svc-go/internal/ticket/repository"
 
 	"github.com/google/uuid"
 )
 
 type TicketService struct {
-	repo      repository.TicketRepositoryInterface
-	comment   repository.CommentRepositoryInterface
-	workflow  *WorkflowService
-	sla       *SLAService
-	dispatch  *DispatchService
-	analyzer  *AnalyzerService
-	ruleRepo  repository.AssignmentRuleRepositoryInterface
+	repo     repository.TicketRepositoryInterface
+	comment  repository.CommentRepositoryInterface
+	workflow *WorkflowService
+	sla      *SLAService
+	dispatch *DispatchService
+	analyzer *AnalyzerService
+	ruleRepo repository.AssignmentRuleRepositoryInterface
 }
 
 func NewTicketService(
@@ -63,10 +63,10 @@ func (s *TicketService) Create(ctx context.Context, tenantID string, req *models
 	// Record workflow entry for initial status
 	if s.workflow != nil {
 		s.workflow.workflowRepo.Create(ctx, &models.WorkflowHistory{
-			ID:         uuid.New().String(),
-			TicketID:   ticket.ID,
-			FromStatus: "",
-			ToStatus:   models.StatusOpen,
+			ID:          uuid.New().String(),
+			TicketID:    ticket.ID,
+			FromStatus:  "",
+			ToStatus:    models.StatusOpen,
 			PerformedBy: createdBy,
 		})
 	}

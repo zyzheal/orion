@@ -5,9 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/env-lifecycle/models"
 )
 
@@ -45,8 +44,6 @@ func (f *fakeHandler) Update(ctx context.Context, tenantID, id string, req *mode
 func (f *fakeHandler) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
-
-
 
 func TestHandler_ENV_LIFECYCLE_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

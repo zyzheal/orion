@@ -64,17 +64,17 @@ type ScanRequest struct {
 
 // ScanResult is the output of a security scan.
 type ScanResult struct {
-	ID            string    `json:"id"`
-	Input         string    `json:"input"`
-	UserID        string    `json:"user_id"`
-	TenantID        string    `json:"tenant_id"`
-	SessionID       string    `json:"session_id"`
-	RiskScore       float64   `json:"risk_score"`
-	Sanitized       bool      `json:"sanitized"`
-	HasViolation    bool      `json:"has_violation"`
-	Violations      []string  `json:"violations"`
-	Recommendation  string    `json:"recommendation"`
-	ScannedAt       time.Time `json:"scanned_at"`
+	ID             string    `json:"id"`
+	Input          string    `json:"input"`
+	UserID         string    `json:"user_id"`
+	TenantID       string    `json:"tenant_id"`
+	SessionID      string    `json:"session_id"`
+	RiskScore      float64   `json:"risk_score"`
+	Sanitized      bool      `json:"sanitized"`
+	HasViolation   bool      `json:"has_violation"`
+	Violations     []string  `json:"violations"`
+	Recommendation string    `json:"recommendation"`
+	ScannedAt      time.Time `json:"scanned_at"`
 }
 
 // SecurityPolicy represents a configurable security policy.
@@ -88,12 +88,12 @@ type SecurityPolicy struct {
 
 // SecurityAlert represents a security alert from a scan.
 type SecurityAlert struct {
-	ID          string    `json:"id"`
-	UserID      string    `json:"user_id"`
-	SessionID   string    `json:"session_id"`
-	RiskScore   float64   `json:"risk_score"`
-	Violations  []string  `json:"violations"`
-	ScannedAt   time.Time `json:"timestamp"`
+	ID         string    `json:"id"`
+	UserID     string    `json:"user_id"`
+	SessionID  string    `json:"session_id"`
+	RiskScore  float64   `json:"risk_score"`
+	Violations []string  `json:"violations"`
+	ScannedAt  time.Time `json:"timestamp"`
 }
 
 // PolicyInput is the input for updating a policy.

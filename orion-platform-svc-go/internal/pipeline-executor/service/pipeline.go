@@ -32,10 +32,10 @@ type StepHandler = models.StepHandler
 // PipelineExecutor chains registered step handlers through a pipeline's steps
 // in priority order, tracking each execution.
 type PipelineExecutor struct {
-	repo    *repository.Repository
-	logger  *zap.Logger
-	mu      sync.RWMutex
-	steps   map[string]StepHandler // keyed by step type
+	repo   *repository.Repository
+	logger *zap.Logger
+	mu     sync.RWMutex
+	steps  map[string]StepHandler // keyed by step type
 }
 
 // NewExecutor creates a PipelineExecutor backed by the given repository.

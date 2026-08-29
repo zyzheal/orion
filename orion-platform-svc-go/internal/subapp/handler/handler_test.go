@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/subapp/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/subapp/models"
 )
 
@@ -60,7 +60,6 @@ func (f *fakeSubappService) Update(ctx context.Context, tenantID, key string, up
 }
 
 var _ service.ServiceInterface = (*fakeSubappService)(nil)
-
 
 func TestHandler_SUBAPP_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/workflow-task/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/workflow-task/models"
 )
 
@@ -44,7 +44,6 @@ func (f *fakeWorkflow_taskService) ListTasks(ctx context.Context, tenantID strin
 }
 
 var _ service.ServiceInterface = (*fakeWorkflow_taskService)(nil)
-
 
 func TestHandler_WORKFLOW_TASK_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

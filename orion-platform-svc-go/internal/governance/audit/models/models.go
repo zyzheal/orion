@@ -119,11 +119,11 @@ type ChainVerificationResult struct {
 // UpdateAuditRequest is the input payload for updating an audit log entry.
 // Only non-hash-chain fields can be modified.
 type UpdateAuditRequest struct {
-	ResponseCode  *int                 `json:"response_code"`
-	ResponseBody  map[string]interface{} `json:"response_body"`
-	IPAddress     string               `json:"ip_address"`
-	UserAgent     string               `json:"user_agent"`
-	RequestBody   map[string]interface{} `json:"request_body"`
+	ResponseCode *int                   `json:"response_code"`
+	ResponseBody map[string]interface{} `json:"response_body"`
+	IPAddress    string                 `json:"ip_address"`
+	UserAgent    string                 `json:"user_agent"`
+	RequestBody  map[string]interface{} `json:"request_body"`
 }
 
 // ListAuditLogFilters contains optional filters for listing audit logs.
@@ -153,21 +153,21 @@ type ExportAuditLogsRequest struct {
 
 // RetentionPolicy represents an audit log retention policy per tenant.
 type RetentionPolicy struct {
-	ID                string    `db:"id" json:"id"`
-	TenantID          string    `db:"tenant_id" json:"tenant_id"`
-	RetentionDays     int       `db:"retention_days" json:"retention_days"`
-	ArchiveBeforeDel  bool      `db:"archive_before_delete" json:"archive_before_delete"`
-	Enabled           bool      `db:"enabled" json:"enabled"`
-	CreatedAt         time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt         time.Time `db:"updated_at" json:"updated_at"`
+	ID               string    `db:"id" json:"id"`
+	TenantID         string    `db:"tenant_id" json:"tenant_id"`
+	RetentionDays    int       `db:"retention_days" json:"retention_days"`
+	ArchiveBeforeDel bool      `db:"archive_before_delete" json:"archive_before_delete"`
+	Enabled          bool      `db:"enabled" json:"enabled"`
+	CreatedAt        time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt        time.Time `db:"updated_at" json:"updated_at"`
 }
 
 // CreateRetentionPolicyInput is the payload for creating/updating a retention policy.
 type CreateRetentionPolicyInput struct {
-	TenantID          string `json:"tenant_id" binding:"required"`
-	RetentionDays     int    `json:"retention_days" binding:"min=30"`
-	ArchiveBeforeDel  bool   `json:"archive_before_delete"`
-	Enabled           bool   `json:"enabled"`
+	TenantID         string `json:"tenant_id" binding:"required"`
+	RetentionDays    int    `json:"retention_days" binding:"min=30"`
+	ArchiveBeforeDel bool   `json:"archive_before_delete"`
+	Enabled          bool   `json:"enabled"`
 }
 
 // UpdateRetentionPolicyInput is the payload for updating a retention policy.
@@ -188,12 +188,12 @@ type RetentionCleanupResult struct {
 
 // RetentionStats holds aggregate statistics about audit log retention.
 type RetentionStats struct {
-	TotalPolicies    int        `json:"total_policies"`
-	EnabledPolicies  int        `json:"enabled_policies"`
-	TotalAuditLogs   int        `json:"total_audit_logs"`
-	OldestLogDate    *time.Time `json:"oldest_log_date,omitempty"`
-	NewestLogDate    *time.Time `json:"newest_log_date,omitempty"`
-	LogsByTenant     []TenantLogStat `json:"logs_by_tenant"`
+	TotalPolicies   int             `json:"total_policies"`
+	EnabledPolicies int             `json:"enabled_policies"`
+	TotalAuditLogs  int             `json:"total_audit_logs"`
+	OldestLogDate   *time.Time      `json:"oldest_log_date,omitempty"`
+	NewestLogDate   *time.Time      `json:"newest_log_date,omitempty"`
+	LogsByTenant    []TenantLogStat `json:"logs_by_tenant"`
 }
 
 // TenantLogStat contains per-tenant log counts with retention days.
@@ -205,25 +205,25 @@ type TenantLogStat struct {
 
 // ComplianceCheckResult represents a single compliance check outcome.
 type ComplianceCheckResult struct {
-	CheckID        string                 `json:"check_id"`
-	Framework      string                 `json:"framework"`
-	ControlID      string                 `json:"control_id"`
-	ControlName    string                 `json:"control_name"`
-	Status         string                 `json:"status"` // PASS, FAIL, WARNING
-	Severity       string                 `json:"severity"` // critical, high, medium, low
-	Description    string                 `json:"description"`
-	Evidence       map[string]interface{} `json:"evidence"`
-	Remediation    string                 `json:"remediation"`
+	CheckID     string                 `json:"check_id"`
+	Framework   string                 `json:"framework"`
+	ControlID   string                 `json:"control_id"`
+	ControlName string                 `json:"control_name"`
+	Status      string                 `json:"status"`   // PASS, FAIL, WARNING
+	Severity    string                 `json:"severity"` // critical, high, medium, low
+	Description string                 `json:"description"`
+	Evidence    map[string]interface{} `json:"evidence"`
+	Remediation string                 `json:"remediation"`
 }
 
 // ComplianceReport holds a full compliance report.
 type ComplianceReport struct {
-	TenantID    string                  `json:"tenant_id"`
-	Framework   string                  `json:"framework"`
-	GeneratedAt time.Time               `json:"generated_at"`
-	OverallScore int                    `json:"overall_score"`
-	Checks      []ComplianceCheckResult `json:"checks"`
-	Summary     ComplianceSummary       `json:"summary"`
+	TenantID     string                  `json:"tenant_id"`
+	Framework    string                  `json:"framework"`
+	GeneratedAt  time.Time               `json:"generated_at"`
+	OverallScore int                     `json:"overall_score"`
+	Checks       []ComplianceCheckResult `json:"checks"`
+	Summary      ComplianceSummary       `json:"summary"`
 }
 
 // ComplianceSummary aggregates compliance check results.

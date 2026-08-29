@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"orion/platform-svc-go/internal/identity/auth/model"
 	"orion/go-common/pkg/database"
+	"orion/platform-svc-go/internal/identity/auth/model"
 )
 
 type PermissionRepository struct {

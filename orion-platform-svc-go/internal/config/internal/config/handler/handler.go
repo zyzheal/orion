@@ -10,6 +10,7 @@ import (
 	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 )
 
 type Handler struct {
@@ -61,13 +62,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== CRUD ====================
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	item, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+	item, err := h.svc.Create(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -76,10 +79,12 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.List(c.Request.Context(), tenantID, (page-1)*ps, ps)
+	items, err := h.svc.List(ctx, tenantID, (page-1)*ps, ps)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -88,16 +93,20 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) GetByID(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigGetByID")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	item, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
+	item, err := h.svc.GetByID(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, "config not found")
 		return
 	}
-		respondSuccess(c, item)
+	respondSuccess(c, item)
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigUpdate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body struct {
 		Value string `json:"value" binding:"required"`
@@ -106,17 +115,19 @@ func (h *Handler) Update(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	item, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), body.Value)
+	item, err := h.svc.Update(ctx, tenantID, c.Param("id"), body.Value)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
-		respondSuccess(c, item)
+	respondSuccess(c, item)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -124,8 +135,10 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigCount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -137,42 +150,48 @@ func (h *Handler) Count(c *gin.Context) {
 
 // GetByKey retrieves a config by key with optional environment filter.
 func (h *Handler) GetByKey(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigGetByKey")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	key := c.Param("key")
 	env := c.Query("environment")
 
-	item, err := h.svc.GetByKey(c.Request.Context(), tenantID, key, env)
+	item, err := h.svc.GetByKey(ctx, tenantID, key, env)
 	if err != nil {
 		respondNotFound(c, "config not found")
 		return
 	}
-		respondSuccess(c, item)
+	respondSuccess(c, item)
 }
 
 // SetConfig creates or updates a config by key (upsert).
 func (h *Handler) SetConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigSet")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.SetConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	item, err := h.svc.SetConfig(c.Request.Context(), tenantID, &req)
+	item, err := h.svc.SetConfig(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
-		respondSuccess(c, item)
+	respondSuccess(c, item)
 }
 
 // ==================== Version History ====================
 
 // GetConfigHistory returns version history for a config by ID.
 func (h *Handler) GetConfigHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigGetHistory")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 
-	versions, err := h.svc.GetConfigHistory(c.Request.Context(), tenantID, c.Param("id"), limit)
+	versions, err := h.svc.GetConfigHistory(ctx, tenantID, c.Param("id"), limit)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -182,12 +201,14 @@ func (h *Handler) GetConfigHistory(c *gin.Context) {
 
 // GetConfigHistoryByKey returns version history for a config by key.
 func (h *Handler) GetConfigHistoryByKey(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigGetHistoryByKey")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	key := c.Param("key")
 	env := c.Query("environment")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 
-	versions, err := h.svc.GetConfigHistoryByKey(c.Request.Context(), tenantID, key, env, limit)
+	versions, err := h.svc.GetConfigHistoryByKey(ctx, tenantID, key, env, limit)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -199,13 +220,15 @@ func (h *Handler) GetConfigHistoryByKey(c *gin.Context) {
 
 // Rollback reverts a config to a target version.
 func (h *Handler) Rollback(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigRollback")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.RollbackRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.RollbackConfig(c.Request.Context(), tenantID, c.Param("id"), &req)
+	result, err := h.svc.RollbackConfig(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if err == service.ErrConfigNotFound || err == service.ErrVersionNotFound {
@@ -223,13 +246,15 @@ func (h *Handler) Rollback(c *gin.Context) {
 
 // DiffEnvironments compares configs between two environments.
 func (h *Handler) DiffEnvironments(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigDiffEnvironments")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.DiffRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	report, err := h.svc.DiffEnvironments(c.Request.Context(), tenantID, req.SourceEnv, req.TargetEnv)
+	report, err := h.svc.DiffEnvironments(ctx, tenantID, req.SourceEnv, req.TargetEnv)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -239,11 +264,13 @@ func (h *Handler) DiffEnvironments(c *gin.Context) {
 
 // DiffVersions compares two specific versions of a config.
 func (h *Handler) DiffVersions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigDiffVersions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	fromVer, _ := strconv.Atoi(c.Query("from_version"))
 	toVer, _ := strconv.Atoi(c.Query("to_version"))
 
-	report, err := h.svc.DiffVersions(c.Request.Context(), tenantID, c.Param("id"), fromVer, toVer)
+	report, err := h.svc.DiffVersions(ctx, tenantID, c.Param("id"), fromVer, toVer)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -255,26 +282,30 @@ func (h *Handler) DiffVersions(c *gin.Context) {
 
 // Export exports configs as JSON, optionally filtered by environment.
 func (h *Handler) Export(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigExport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	env := c.Query("environment")
 
-	data, err := h.svc.ExportConfigs(c.Request.Context(), tenantID, env)
+	data, err := h.svc.ExportConfigs(ctx, tenantID, env)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
-		respondSuccess(c, data)
+	respondSuccess(c, data)
 }
 
 // Import bulk-imports config items.
 func (h *Handler) Import(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigImport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.ImportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	created, skipped, errs := h.svc.ImportConfigs(c.Request.Context(), tenantID, req.Items, req.ChangedBy)
+	created, skipped, errs := h.svc.ImportConfigs(ctx, tenantID, req.Items, req.ChangedBy)
 	respondSuccess(c, gin.H{
 		"created": created,
 		"skipped": skipped,
@@ -286,6 +317,8 @@ func (h *Handler) Import(c *gin.Context) {
 
 // Validate checks a config value for common issues.
 func (h *Handler) Validate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigValidate")
+	defer span.End()
 	var body struct {
 		Key         string `json:"key" binding:"required"`
 		Value       string `json:"value"`
@@ -295,7 +328,7 @@ func (h *Handler) Validate(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	result := h.svc.ValidateConfig(c.Request.Context(), body.Key, body.Value, body.Environment)
+	result := h.svc.ValidateConfig(ctx, body.Key, body.Value, body.Environment)
 	respondSuccess(c, result)
 }
 
@@ -303,6 +336,8 @@ func (h *Handler) Validate(c *gin.Context) {
 
 // Clone copies a config to a different environment.
 func (h *Handler) Clone(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigClone")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body struct {
 		TargetEnv string `json:"target_environment" binding:"required"`
@@ -312,7 +347,7 @@ func (h *Handler) Clone(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	item, err := h.svc.CloneConfig(c.Request.Context(), tenantID, c.Param("id"), body.TargetEnv, body.ChangedBy)
+	item, err := h.svc.CloneConfig(ctx, tenantID, c.Param("id"), body.TargetEnv, body.ChangedBy)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if err == service.ErrConfigNotFound {

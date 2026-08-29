@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/notification/notification/models"
 	"orion/platform-svc-go/internal/notification/notification/service"
 
@@ -34,6 +35,8 @@ func (h *DNDHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Set handles PUT /dnd/:user_id - set DND for a user.
 func (h *DNDHandler) Set(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationSet")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.Param("user_id")
 	var req models.CreateDoNotDisturbInput
@@ -48,7 +51,7 @@ func (h *DNDHandler) Set(c *gin.Context) {
 		EndTime:   req.EndTime,
 		Reason:    req.Reason,
 	}
-	dnd, err := h.dndSvc.SetDND(c.Request.Context(), tenantID, req.UserID, input)
+	dnd, err := h.dndSvc.SetDND(ctx, tenantID, req.UserID, input)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -58,9 +61,11 @@ func (h *DNDHandler) Set(c *gin.Context) {
 
 // Clear handles DELETE /dnd/:user_id - clear DND for a user.
 func (h *DNDHandler) Clear(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationClear")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.Param("user_id")
-	if err := h.dndSvc.ClearDND(c.Request.Context(), tenantID, userID); err != nil {
+	if err := h.dndSvc.ClearDND(ctx, tenantID, userID); err != nil {
 		if err == service.ErrDNDNotFound {
 			respondNotFound(c, err.Error())
 			return
@@ -73,9 +78,11 @@ func (h *DNDHandler) Clear(c *gin.Context) {
 
 // Get handles GET /dnd/:user_id - get DND settings for a user.
 func (h *DNDHandler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationGet")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.Param("user_id")
-	dnd, err := h.dndSvc.GetDndSettings(c.Request.Context(), tenantID, userID)
+	dnd, err := h.dndSvc.GetDndSettings(ctx, tenantID, userID)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -85,9 +92,11 @@ func (h *DNDHandler) Get(c *gin.Context) {
 
 // IsActive handles GET /dnd/:user_id/active - check if DND is active.
 func (h *DNDHandler) IsActive(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationIsActive")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.Param("user_id")
-	active, err := h.dndSvc.IsDndActive(c.Request.Context(), tenantID, userID)
+	active, err := h.dndSvc.IsDndActive(ctx, tenantID, userID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -97,8 +106,10 @@ func (h *DNDHandler) IsActive(c *gin.Context) {
 
 // GetActiveUsers handles GET /dnd/active/users - get all users with active DND.
 func (h *DNDHandler) GetActiveUsers(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationGetActiveUsers")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	users, err := h.dndSvc.GetDndSettings(c.Request.Context(), tenantID, "")
+	users, err := h.dndSvc.GetDndSettings(ctx, tenantID, "")
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

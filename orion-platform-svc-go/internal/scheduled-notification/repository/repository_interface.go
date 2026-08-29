@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/scheduled-notification/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	Create(ctx context.Context, s *models.ScheduledNotification) error

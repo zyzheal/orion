@@ -6,8 +6,8 @@ import (
 	"orion/platform-svc-go/internal/api-market/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -273,11 +273,11 @@ func (h *Handler) ValidateToken(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, gin.H{
-		"valid":              true,
-		"credentialId":       result.CredentialID,
-		"appId":              result.AppID,
-		"scopes":             result.Scopes,
-		"rateLimitPerMin":    result.RateLimitPerMin,
+		"valid":           true,
+		"credentialId":    result.CredentialID,
+		"appId":           result.AppID,
+		"scopes":          result.Scopes,
+		"rateLimitPerMin": result.RateLimitPerMin,
 	})
 }
 

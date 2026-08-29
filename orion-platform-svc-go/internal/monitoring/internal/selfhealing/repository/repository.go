@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"orion/platform-svc-go/internal/monitoring/internal/selfhealing/models"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/monitoring/internal/selfhealing/models"
 )
 
 type SelfHealingRepository struct {

@@ -15,11 +15,11 @@ const (
 	TypeMySQL      DataSourceType = "mysql"
 
 	// API-backed sources
-	TypeREST     DataSourceType = "rest"
-	TypeGraphQL  DataSourceType = "graphql"
+	TypeREST    DataSourceType = "rest"
+	TypeGraphQL DataSourceType = "graphql"
 
 	// File-backed sources
-	TypeCSV DataSourceType = "csv"
+	TypeCSV  DataSourceType = "csv"
 	TypeJSON DataSourceType = "json"
 
 	// Metrics-backed sources
@@ -30,33 +30,33 @@ var ErrUnknownType = errors.New("unknown datasource type")
 
 // DataSourceConfig holds common configuration for all data sources.
 type DataSourceConfig struct {
-	Type       DataSourceType            `json:"type"`
-	Name       string                    `json:"name"`
-	Timeout    time.Duration             `json:"timeout"`
-	RetryCount int                       `json:"retry_count"`
-	Config     map[string]interface{}    `json:"config"`
+	Type       DataSourceType         `json:"type"`
+	Name       string                 `json:"name"`
+	Timeout    time.Duration          `json:"timeout"`
+	RetryCount int                    `json:"retry_count"`
+	Config     map[string]interface{} `json:"config"`
 }
 
 // DatabaseConfig holds configuration for database data sources.
 type DatabaseConfig struct {
-	Host      string `json:"host"`
-	Port      int    `json:"port"`
-	Database  string `json:"database"`
-	User      string `json:"user"`
-	Password  string `json:"password"`
-	SSLMode   string `json:"ssl_mode,omitempty"`
-	MaxConns  int    `json:"max_conns,omitempty"`
-	MaxIdle   int    `json:"max_idle,omitempty"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Database string `json:"database"`
+	User     string `json:"user"`
+	Password string `json:"password"`
+	SSLMode  string `json:"ssl_mode,omitempty"`
+	MaxConns int    `json:"max_conns,omitempty"`
+	MaxIdle  int    `json:"max_idle,omitempty"`
 }
 
 // APIConfig holds configuration for API data sources.
 type APIConfig struct {
-	BaseURL        string            `json:"base_url"`
-	HTTPMethod     string            `json:"http_method"`
-	Path           string            `json:"path"`
-	Headers        map[string]string `json:"headers,omitempty"`
-	AuthToken      string            `json:"auth_token,omitempty"`
-	QueryParams    map[string]string `json:"query_params,omitempty"`
+	BaseURL     string            `json:"base_url"`
+	HTTPMethod  string            `json:"http_method"`
+	Path        string            `json:"path"`
+	Headers     map[string]string `json:"headers,omitempty"`
+	AuthToken   string            `json:"auth_token,omitempty"`
+	QueryParams map[string]string `json:"query_params,omitempty"`
 }
 
 // FileConfig holds configuration for file-based data sources.

@@ -147,17 +147,17 @@ func (p *Processor) GetProgress(ctx context.Context, tenantID, jobID string) (*m
 func (p *Processor) recordInitial(jobID, tenantID, userID, dataType,
 	op, format string) {
 	job := &models.Job{
-		ID:        jobID,
-		TenantID:  tenantID,
-		UserID:    userID,
-		DataType:  dataType,
-		Operation: op,
-		Status:    "processing",
-		Format:    format,
-		Progress:  0,
+		ID:          jobID,
+		TenantID:    tenantID,
+		UserID:      userID,
+		DataType:    dataType,
+		Operation:   op,
+		Status:      "processing",
+		Format:      format,
+		Progress:    0,
 		ProgressMsg: "starting",
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
+		CreatedAt:   time.Now().UTC(),
+		UpdatedAt:   time.Now().UTC(),
 	}
 	if err := p.repo.UpsertJob(context.Background(), job); err != nil {
 		// Log but do not fail the job; the job will still run.
@@ -173,12 +173,12 @@ func (p *Processor) setJobStatus(jobID, status string, progress float64, msg str
 
 	now := time.Now().UTC()
 	_ = p.repo.UpsertJob(context.Background(), &models.Job{
-		ID:        jobID,
-		Status:    status,
-		Progress:  progress,
+		ID:          jobID,
+		Status:      status,
+		Progress:    progress,
 		ProgressMsg: msg,
-		UpdatedAt: now,
-		FinishedAt: &now,
+		UpdatedAt:   now,
+		FinishedAt:  &now,
 	})
 }
 
@@ -187,16 +187,16 @@ func (p *Processor) recordCompleted(jobID, tenantID, userID, dataType,
 	op, format string) {
 	now := time.Now().UTC()
 	_ = p.repo.UpsertJob(context.Background(), &models.Job{
-		ID:         jobID,
-		TenantID:   tenantID,
-		UserID:     userID,
-		DataType:   dataType,
-		Operation:  op,
-		Status:     "completed",
-		Format:     format,
-		Progress:   100,
+		ID:          jobID,
+		TenantID:    tenantID,
+		UserID:      userID,
+		DataType:    dataType,
+		Operation:   op,
+		Status:      "completed",
+		Format:      format,
+		Progress:    100,
 		ProgressMsg: "export complete",
-		UpdatedAt:  now,
-		FinishedAt: &now,
+		UpdatedAt:   now,
+		FinishedAt:  &now,
 	})
 }

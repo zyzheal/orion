@@ -48,8 +48,8 @@ type TestRunner interface {
 }
 
 type Service struct {
-	repo RepositoryInterface
-	db   *sqlx.DB
+	repo   RepositoryInterface
+	db     *sqlx.DB
 	runner TestRunner
 }
 
@@ -309,10 +309,10 @@ func (s *Service) RunTestSuite(ctx context.Context, tenantID, id string) error {
 		// Mark the suite as "run requested" in the DB so downstream systems can
 		// poll and reconcile it later.
 		_ = s.repo.CreateTestExecutionRecord(ctx, &models.TestExecutionRecord{
-			TenantID:   tenantID,
-			TestID:     id,
+			TenantID:    tenantID,
+			TestID:      id,
 			ExecutionID: fmt.Sprintf("pending-%s", uuid.NewString()[:8]),
-			ExecutedAt: time.Now().UTC(),
+			ExecutedAt:  time.Now().UTC(),
 		})
 		return fmt.Errorf("no test runner configured: %w", ErrNoTestRunner)
 	}

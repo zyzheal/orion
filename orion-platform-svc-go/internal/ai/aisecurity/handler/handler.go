@@ -5,6 +5,7 @@ import (
 	"orion/platform-svc-go/internal/ai/aisecurity/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 )
 
 type Handler struct {
@@ -24,12 +25,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateAISecurity")
+	defer span.End()
 	var req models.CreateAISecurityRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.Create(c.Request.Context(), c.GetString("tenant_id"), req)
+	m, err := h.svc.Create(ctx, c.GetString("tenant_id"), req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -38,7 +41,9 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
-	items, err := h.svc.List(c.Request.Context(), c.GetString("tenant_id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAISecurity")
+	defer span.End()
+	items, err := h.svc.List(ctx, c.GetString("tenant_id"))
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strconv"
 
 	"orion/platform-svc-go/internal/finops/finops/models"
@@ -18,6 +19,8 @@ func NewBudgetHandler(svc *service.BudgetService) *BudgetHandler {
 }
 
 func (h *BudgetHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req models.CreateBudgetRequest
@@ -26,7 +29,7 @@ func (h *BudgetHandler) Create(c *gin.Context) {
 		return
 	}
 
-	budget, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	budget, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -36,9 +39,11 @@ func (h *BudgetHandler) Create(c *gin.Context) {
 }
 
 func (h *BudgetHandler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsGet")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	budget, err := h.svc.Get(c.Request.Context(), tenantID, c.Param("id"))
+	budget, err := h.svc.Get(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, "budget not found")
 		return
@@ -48,6 +53,8 @@ func (h *BudgetHandler) Get(c *gin.Context) {
 }
 
 func (h *BudgetHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -58,7 +65,7 @@ func (h *BudgetHandler) List(c *gin.Context) {
 		pageSize = 20
 	}
 
-	budgets, err := h.svc.List(c.Request.Context(), tenantID, (page-1)*pageSize, pageSize)
+	budgets, err := h.svc.List(ctx, tenantID, (page-1)*pageSize, pageSize)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -68,6 +75,8 @@ func (h *BudgetHandler) List(c *gin.Context) {
 }
 
 func (h *BudgetHandler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsUpdate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req models.UpdateBudgetRequest
@@ -76,7 +85,7 @@ func (h *BudgetHandler) Update(c *gin.Context) {
 		return
 	}
 
-	budget, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), req)
+	budget, err := h.svc.Update(ctx, tenantID, c.Param("id"), req)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -86,9 +95,11 @@ func (h *BudgetHandler) Update(c *gin.Context) {
 }
 
 func (h *BudgetHandler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -97,6 +108,8 @@ func (h *BudgetHandler) Delete(c *gin.Context) {
 }
 
 func (h *BudgetHandler) RecordSpend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsRecordSpend")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	budgetID := c.Param("id")
 
@@ -106,7 +119,7 @@ func (h *BudgetHandler) RecordSpend(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.RecordSpend(c.Request.Context(), tenantID, budgetID, req.AmountCents); err != nil {
+	if err := h.svc.RecordSpend(ctx, tenantID, budgetID, req.AmountCents); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -115,9 +128,11 @@ func (h *BudgetHandler) RecordSpend(c *gin.Context) {
 }
 
 func (h *BudgetHandler) GetStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsGetStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	status, err := h.svc.GetStatus(c.Request.Context(), tenantID, c.Param("id"))
+	status, err := h.svc.GetStatus(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -127,9 +142,11 @@ func (h *BudgetHandler) GetStatus(c *gin.Context) {
 }
 
 func (h *BudgetHandler) GetForecast(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsGetForecast")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	forecast, err := h.svc.GetForecast(c.Request.Context(), tenantID, c.Param("id"))
+	forecast, err := h.svc.GetForecast(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -139,7 +156,9 @@ func (h *BudgetHandler) GetForecast(c *gin.Context) {
 }
 
 func (h *BudgetHandler) GetAlertTriggers(c *gin.Context) {
-	triggers, err := h.svc.GetAlertTriggers(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsGetAlertTriggers")
+	defer span.End()
+	triggers, err := h.svc.GetAlertTriggers(ctx, c.Param("id"))
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -149,9 +168,11 @@ func (h *BudgetHandler) GetAlertTriggers(c *gin.Context) {
 }
 
 func (h *BudgetHandler) CheckThresholds(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsCheckThresholds")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	triggers, err := h.svc.CheckThresholds(c.Request.Context(), tenantID)
+	triggers, err := h.svc.CheckThresholds(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

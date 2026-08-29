@@ -18,11 +18,11 @@ import (
 
 // mockFatSvc implements FatigueServiceInterface for testing.
 type mockFatSvc struct {
-	score  map[string]fatigue.FatigueInfo
-	rule   *fatigue.FatigueInfo
-	rules  []string
+	score   map[string]fatigue.FatigueInfo
+	rule    *fatigue.FatigueInfo
+	rules   []string
 	records []string
-	err    error
+	err     error
 }
 
 func (m *mockFatSvc) RecordFatigueAlert(_ context.Context, tenantID uuid.UUID, ruleName, severity string) {

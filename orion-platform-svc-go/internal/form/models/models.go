@@ -53,28 +53,28 @@ type FormSubmission struct {
 
 // CreateFormRequest is the request body for creating a form.
 type CreateFormRequest struct {
-	Name        string                 `json:"name" binding:"required"`
-	Code        string                 `json:"code" binding:"required"`
-	Category    string                 `json:"category" binding:"required"`
-	Description string                 `json:"description"`
-	Layout      map[string]interface{} `json:"layout"`
+	Name        string                   `json:"name" binding:"required"`
+	Code        string                   `json:"code" binding:"required"`
+	Category    string                   `json:"category" binding:"required"`
+	Description string                   `json:"description"`
+	Layout      map[string]interface{}   `json:"layout"`
 	Fields      []map[string]interface{} `json:"fields" binding:"required"`
 }
 
 // UpdateFormRequest is the request body for updating a form.
 type UpdateFormRequest struct {
-	Name        *string                `json:"name"`
-	Category    *string                `json:"category"`
-	Description *string                `json:"description"`
-	Layout      map[string]interface{} `json:"layout"`
+	Name        *string                  `json:"name"`
+	Category    *string                  `json:"category"`
+	Description *string                  `json:"description"`
+	Layout      map[string]interface{}   `json:"layout"`
 	Fields      []map[string]interface{} `json:"fields"`
-	Status      *string                `json:"status"`
+	Status      *string                  `json:"status"`
 }
 
 // SubmitFormRequest is the request body for submitting a form.
 type SubmitFormRequest struct {
-	Data map[string]interface{} `json:"data" binding:"required"`
-	Comment string             `json:"comment"`
+	Data    map[string]interface{} `json:"data" binding:"required"`
+	Comment string                 `json:"comment"`
 }
 
 // ValidateFormRequest is the request body for validating form data.
@@ -84,9 +84,9 @@ type ValidateFormRequest struct {
 
 // ValidationResult is the response for form validation.
 type ValidationResult struct {
-	Valid   bool            `json:"valid"`
-	Errors  []string        `json:"errors"`
-	Fields  []FieldError    `json:"fields"`
+	Valid  bool         `json:"valid"`
+	Errors []string     `json:"errors"`
+	Fields []FieldError `json:"fields"`
 }
 
 // FieldError describes a validation error on a specific field.
@@ -120,7 +120,7 @@ type FormControl struct {
 
 // Option represents a select/radio checkbox option.
 type Option struct {
-	Label string `json:"label"`
-	Value string `json:"value"`
-	Disabled bool `json:"disabled"`
+	Label    string `json:"label"`
+	Value    string `json:"value"`
+	Disabled bool   `json:"disabled"`
 }

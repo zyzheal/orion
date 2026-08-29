@@ -91,13 +91,13 @@ func (s *Service) SaveGraph(ctx context.Context, tenantID string, g *graph.Graph
 	}
 
 	m := &models.Graph{
-		TenantID:  tenantID,
-		Name:      g.Name,
+		TenantID:   tenantID,
+		Name:       g.Name,
 		TemplateID: g.TemplateID,
-		Direction: g.Direction,
-		Layout:    g.Layout,
-		NodesJSON: string(nodesJSON),
-		LinksJSON: string(linksJSON),
+		Direction:  g.Direction,
+		Layout:     g.Layout,
+		NodesJSON:  string(nodesJSON),
+		LinksJSON:  string(linksJSON),
 	}
 	if err := s.repo.Create(ctx, m); err != nil {
 		return nil, err

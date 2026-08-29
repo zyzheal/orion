@@ -28,12 +28,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f := rg.Group("/webhooks")
 
 	// Webhook CRUD
-	f.GET("", auth.RequirePermission("webhook", "read"), h.List)
-	f.POST("", auth.RequirePermission("webhook", "write"), h.Create)
 	f.GET("/count", auth.RequirePermission("webhook", "read"), h.Count)
-	f.GET("/:id", auth.RequirePermission("webhook", "read"), h.Get)
-	f.PUT("/:id", auth.RequirePermission("webhook", "write"), h.Update)
-	f.DELETE("/:id", auth.RequirePermission("webhook", "delete"), h.Delete)
 
 	// Webhook actions
 	f.POST("/:id/trigger", auth.RequirePermission("webhook", "execute"), h.Trigger)

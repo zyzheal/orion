@@ -95,7 +95,7 @@ func parseResourceSize(value string) (uint64, error) {
 // formatHumanSize converts bytes to a human-readable string (e.g. "1.5 GiB").
 func formatHumanSize(bytes uint64) string {
 	const (
-		_ = 1
+		_  = 1
 		ki = 1024
 		mi = 1024 * ki
 		gi = 1024 * mi

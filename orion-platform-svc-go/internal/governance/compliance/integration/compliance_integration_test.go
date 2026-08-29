@@ -53,9 +53,9 @@ func mockComplianceReportList(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"code": 200,
 		"data": gin.H{
-			"reports": []interface{}{},
-			"total":   0,
-			"page":    page,
+			"reports":  []interface{}{},
+			"total":    0,
+			"page":     page,
 			"pageSize": pageSize,
 		},
 	})

@@ -20,10 +20,10 @@ type SafetyFilter struct {
 func NewSafetyFilter() *SafetyFilter {
 	return &SafetyFilter{
 		sensitiveRx: compilePatterns([]string{
-			`\b\d{3}-\d{2,4}-\d{4}\b`,             // SSN-like
-			`\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b`, // credit card-like
+			`\b\d{3}-\d{2,4}-\d{4}\b`,                            // SSN-like
+			`\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b`,            // credit card-like
 			`\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b`, // email
-			`\b(?:\d{1,3}\.){3}\d{1,3}\b`,          // IP address
+			`\b(?:\d{1,3}\.){3}\d{1,3}\b`,                        // IP address
 		}),
 		injectionRx: compilePatterns([]string{
 			`(?i)\bignore\s+(all\s+)?previous\s+instructions\b`,

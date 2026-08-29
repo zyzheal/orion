@@ -16,14 +16,14 @@ type CmdbIndexer struct {
 
 // CI represents a CMDB Configuration Item for indexing.
 type CI struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	CiType      string            `json:"ci_type"`
-	Hostname    string            `json:"hostname"`
-	IP          string            `json:"ip"`
-	Attributes  map[string]string `json:"attributes"`
-	CreatedAt   string            `json:"created_at"`
-	UpdatedAt   string            `json:"updated_at"`
+	ID         string            `json:"id"`
+	Name       string            `json:"name"`
+	CiType     string            `json:"ci_type"`
+	Hostname   string            `json:"hostname"`
+	IP         string            `json:"ip"`
+	Attributes map[string]string `json:"attributes"`
+	CreatedAt  string            `json:"created_at"`
+	UpdatedAt  string            `json:"updated_at"`
 }
 
 // CmdbFetchFunc returns CIs in a paginated batch.
@@ -68,8 +68,8 @@ func (c *CmdbIndexer) Reindex(ctx context.Context) error {
 			"attributes": map[string]string{"type": "object", "enabled": "true"},
 			"body":       map[string]string{"type": "text"},
 			"fields":     map[string]string{"type": "object", "enabled": "true"},
-			"created_at":  map[string]string{"type": "date"},
-			"updated_at":  map[string]string{"type": "date"},
+			"created_at": map[string]string{"type": "date"},
+			"updated_at": map[string]string{"type": "date"},
 		},
 	}
 	if err := c.client.CreateIndex(ctx, c.indexName, mapping); err != nil {
@@ -112,9 +112,9 @@ func (c *CmdbIndexer) Reindex(ctx context.Context) error {
 				"created_at": ci.CreatedAt,
 				"updated_at": ci.UpdatedAt,
 				"fields": map[string]interface{}{
-					"ci_type": ci.CiType,
-					"hostname": ci.Hostname,
-					"ip":      ci.IP,
+					"ci_type":    ci.CiType,
+					"hostname":   ci.Hostname,
+					"ip":         ci.IP,
 					"attributes": attrs,
 				},
 			}
@@ -144,10 +144,10 @@ func (c *CmdbIndexer) Documents(ctx context.Context, offset, limit int) ([]*inte
 	for _, ci := range cis {
 		body := ci.Name + " " + ci.Hostname + " " + ci.IP + " " + ci.CiType
 		docs = append(docs, &interfaces.Document{
-			ID:      ci.ID,
-			Type:    ci.CiType,
-			Title:   ci.Name,
-			Body:    body,
+			ID:        ci.ID,
+			Type:      ci.CiType,
+			Title:     ci.Name,
+			Body:      body,
 			CreatedAt: ci.CreatedAt,
 			UpdatedAt: ci.UpdatedAt,
 			Fields: map[string]interface{}{
@@ -157,7 +157,7 @@ func (c *CmdbIndexer) Documents(ctx context.Context, offset, limit int) ([]*inte
 			},
 		})
 	}
-	return docs, offset+len(cis), nil
+	return docs, offset + len(cis), nil
 }
 
 func (c *CmdbIndexer) Count(ctx context.Context) (int64, error) {

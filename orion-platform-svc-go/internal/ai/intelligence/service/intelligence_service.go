@@ -12,7 +12,8 @@ import (
 
 var ErrIntelligenceTaskNotFound = errors.New("task not found")
 
-type Service struct { repo *repository.Repository }
+type Service struct{ repo *repository.Repository }
+
 func NewService(repo *repository.Repository) *Service { return &Service{repo: repo} }
 
 func (s *Service) Create(ctx context.Context, tenantID string, req *models.CreateIntelligenceTaskRequest) (*models.IntelligenceTask, error) {

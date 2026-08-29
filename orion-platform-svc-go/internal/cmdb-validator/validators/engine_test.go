@@ -24,10 +24,10 @@ func TestCMDBValidator_CIDeprecationCrossField(t *testing.T) {
 
 	// CI with status=retired but no deprecation_date -> should warn
 	data := map[string]interface{}{
-		"id":     "uuid-123",
+		"id":      "uuid-123",
 		"ci_type": "server",
-		"name":   "web-01",
-		"status": "retired",
+		"name":    "web-01",
+		"status":  "retired",
 	}
 	rpt := v.ValidateRecord(context.Background(), "uuid-123", "CI", data)
 
@@ -49,10 +49,10 @@ func TestCMDBValidator_CIStatusEnum(t *testing.T) {
 	v := NewCMDBValidator(Options{})
 
 	data := map[string]interface{}{
-		"id":     "uuid-123",
+		"id":      "uuid-123",
 		"ci_type": "server",
-		"name":   "web-01",
-		"status": "invalid_status",
+		"name":    "web-01",
+		"status":  "invalid_status",
 	}
 	rpt := v.ValidateRecord(context.Background(), "uuid-123", "CI", data)
 
@@ -96,10 +96,10 @@ func TestCMDBValidator_RequiredFieldPresent(t *testing.T) {
 	v := NewCMDBValidator(Options{})
 
 	data := map[string]interface{}{
-		"id":     "uuid-123",
+		"id":      "uuid-123",
 		"ci_type": "server",
-		"name":   "web-01",
-		"status": "active",
+		"name":    "web-01",
+		"status":  "active",
 	}
 	rpt := v.ValidateRecord(context.Background(), "uuid-123", "CI", data)
 
@@ -118,7 +118,7 @@ func TestCMDBValidator_StopOnFirstError(t *testing.T) {
 	v := NewCMDBValidator(Options{StopOnFirstError: true})
 
 	data := map[string]interface{}{
-		"id":     "uuid-123",
+		"id":      "uuid-123",
 		"ci_type": "server",
 	}
 	rpt := v.ValidateRecord(context.Background(), "uuid-123", "CI", data)

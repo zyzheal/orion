@@ -36,11 +36,11 @@ type IValidator interface {
 // that the CMDBValidator can instantiate validators at validation time.
 //
 // Example:
-//   validator.RegisterPlugin("my_rule", func(condition, msg string) IValidator {
-//       return &MyCustomValidator{condition: condition, msg: msg}
-//   })
+//
+//	validator.RegisterPlugin("my_rule", func(condition, msg string) IValidator {
+//	    return &MyCustomValidator{condition: condition, msg: msg}
+//	})
 type PluginValidatorFactory func(condition, errorMsg string) IValidator
-
 
 // RuleCondition holds the parsed JSON condition attached to a rule.
 type RuleCondition struct {
@@ -67,7 +67,6 @@ func ParseConditionOrEmpty(cond string) *RuleCondition {
 	c, _ := parseCondition(cond)
 	return c
 }
-
 
 // getFieldValue retrieves a value from the input data by field name.
 func getFieldValue(data map[string]interface{}, field string) (interface{}, bool) {

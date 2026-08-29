@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -8,8 +9,8 @@ import (
 	"errors"
 	"fmt"
 
-	"orion/platform-svc-go/internal/artifact/models"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/artifact/models"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -36,7 +37,6 @@ type RepositoryInterface interface {
 }
 
 var (
-
 	ErrAlreadyExists = errors.New("artifact already exists")
 	ErrInvalidStatus = errors.New("invalid status")
 	ErrNotAvailable  = errors.New("artifact not available")

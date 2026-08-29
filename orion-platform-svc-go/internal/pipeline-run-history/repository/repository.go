@@ -1,6 +1,7 @@
 package repository
 
-import ("orion/go-common/pkg/sentinel"
+import (
+	"orion/go-common/pkg/sentinel"
 
 	"context"
 	"database/sql"
@@ -9,9 +10,9 @@ import ("orion/go-common/pkg/sentinel"
 
 	"github.com/jmoiron/sqlx"
 )
+
 // ErrNotFound is a sentinel for not-found errors.
 var ErrNotFound = sentinel.NotFound
-
 
 type Repository struct {
 	db *sqlx.DB

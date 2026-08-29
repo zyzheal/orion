@@ -241,7 +241,7 @@ func (r *ParamTypeRegistry) buildSeed(tenantID string) []models.ScriptParamType 
 			Category:  info.Category,
 			Enabled:   true,
 			CreatedAt: now,
-            UpdatedAt: now,
+			UpdatedAt: now,
 		})
 	}
 	return out
@@ -295,19 +295,19 @@ type jsonValuer interface {
 
 type StringParam struct{}
 
-func (h *StringParam) Name() string  { return "String" }
-func (h *StringParam) Code() string  { return "string" }
-func (h *StringParam) Validate(value string) error { return nil }
+func (h *StringParam) Name() string                            { return "String" }
+func (h *StringParam) Code() string                            { return "string" }
+func (h *StringParam) Validate(value string) error             { return nil }
 func (h *StringParam) Parse(value string) (interface{}, error) { return value, nil }
-func (h *StringParam) Serialize(v interface{}) string { return fmt.Sprint(v) }
-func (h *StringParam) Placeholder() string { return "<string>" }
+func (h *StringParam) Serialize(v interface{}) string          { return fmt.Sprint(v) }
+func (h *StringParam) Placeholder() string                     { return "<string>" }
 
 // --- number ---
 
 type NumberParam struct{}
 
-func (h *NumberParam) Name() string  { return "Number" }
-func (h *NumberParam) Code() string  { return "number" }
+func (h *NumberParam) Name() string { return "Number" }
+func (h *NumberParam) Code() string { return "number" }
 func (h *NumberParam) Validate(value string) error {
 	v, err := strconv.ParseFloat(value, 64)
 	if err != nil {
@@ -341,8 +341,8 @@ var truthy = map[string]bool{
 
 type BooleanParam struct{}
 
-func (h *BooleanParam) Name() string  { return "Boolean" }
-func (h *BooleanParam) Code() string  { return "boolean" }
+func (h *BooleanParam) Name() string { return "Boolean" }
+func (h *BooleanParam) Code() string { return "boolean" }
 func (h *BooleanParam) Validate(value string) error {
 	if _, ok := truthy[strings.ToLower(strings.TrimSpace(value))]; !ok {
 		return fmt.Errorf("not a valid boolean, expected true/false, yes/no, 1/0")
@@ -368,8 +368,8 @@ func (h *BooleanParam) Placeholder() string { return "true" }
 
 type DateTimeParam struct{}
 
-func (h *DateTimeParam) Name() string  { return "DateTime" }
-func (h *DateTimeParam) Code() string  { return "datetime" }
+func (h *DateTimeParam) Name() string { return "DateTime" }
+func (h *DateTimeParam) Code() string { return "datetime" }
 func (h *DateTimeParam) Validate(value string) error {
 	_, err := parseDateTime(value)
 	return err
@@ -415,8 +415,8 @@ func parseDateTime(value string) (time.Time, error) {
 
 type SelectParam struct{}
 
-func (h *SelectParam) Name() string  { return "Select" }
-func (h *SelectParam) Code() string  { return "select" }
+func (h *SelectParam) Name() string { return "Select" }
+func (h *SelectParam) Code() string { return "select" }
 func (h *SelectParam) Validate(value string) error {
 	if strings.TrimSpace(value) == "" {
 		return fmt.Errorf("select value is required")
@@ -431,14 +431,14 @@ func (h *SelectParam) Parse(value string) (interface{}, error) {
 	return v, nil
 }
 func (h *SelectParam) Serialize(v interface{}) string { return fmt.Sprint(v) }
-func (h *SelectParam) Placeholder() string { return "<option>" }
+func (h *SelectParam) Placeholder() string            { return "<option>" }
 
 // --- multiselect ---
 
 type MultiSelectParam struct{}
 
-func (h *MultiSelectParam) Name() string  { return "MultiSelect" }
-func (h *MultiSelectParam) Code() string  { return "multiselect" }
+func (h *MultiSelectParam) Name() string { return "MultiSelect" }
+func (h *MultiSelectParam) Code() string { return "multiselect" }
 func (h *MultiSelectParam) Validate(value string) error {
 	if strings.TrimSpace(value) == "" {
 		return fmt.Errorf("multiselect value is required")
@@ -471,8 +471,8 @@ func (h *MultiSelectParam) Placeholder() string { return "option1,option2" }
 
 type PasswordParam struct{}
 
-func (h *PasswordParam) Name() string  { return "Password" }
-func (h *PasswordParam) Code() string  { return "password" }
+func (h *PasswordParam) Name() string { return "Password" }
+func (h *PasswordParam) Code() string { return "password" }
 func (h *PasswordParam) Validate(value string) error {
 	if len(value) < 6 {
 		return fmt.Errorf("password must be at least 6 characters")
@@ -499,8 +499,8 @@ func (h *PasswordParam) Placeholder() string { return "••••••" }
 
 type JSONParam struct{}
 
-func (h *JSONParam) Name() string  { return "JSON" }
-func (h *JSONParam) Code() string  { return "json" }
+func (h *JSONParam) Name() string { return "JSON" }
+func (h *JSONParam) Code() string { return "json" }
 func (h *JSONParam) Validate(value string) error {
 	return h.parseValidate(value)
 }
@@ -528,8 +528,8 @@ func (h *JSONParam) Placeholder() string { return `{"key":"value"}` }
 
 type FileParam struct{}
 
-func (h *FileParam) Name() string  { return "File" }
-func (h *FileParam) Code() string  { return "file" }
+func (h *FileParam) Name() string { return "File" }
+func (h *FileParam) Code() string { return "file" }
 func (h *FileParam) Validate(value string) error {
 	if strings.TrimSpace(value) == "" {
 		return fmt.Errorf("file reference is required")
@@ -540,14 +540,14 @@ func (h *FileParam) Parse(value string) (interface{}, error) {
 	return strings.TrimSpace(value), nil
 }
 func (h *FileParam) Serialize(v interface{}) string { return fmt.Sprint(v) }
-func (h *FileParam) Placeholder() string { return "path/to/file.ext" }
+func (h *FileParam) Placeholder() string            { return "path/to/file.ext" }
 
 // --- sql ---
 
 type SQLParam struct{}
 
-func (h *SQLParam) Name() string  { return "SQL" }
-func (h *SQLParam) Code() string  { return "sql" }
+func (h *SQLParam) Name() string { return "SQL" }
+func (h *SQLParam) Code() string { return "sql" }
 func (h *SQLParam) Validate(value string) error {
 	v := strings.TrimSpace(value)
 	if v == "" {
@@ -569,15 +569,15 @@ func (h *SQLParam) Validate(value string) error {
 	return nil
 }
 func (h *SQLParam) Parse(value string) (interface{}, error) { return strings.TrimSpace(value), nil }
-func (h *SQLParam) Serialize(v interface{}) string { return fmt.Sprint(v) }
-func (h *SQLParam) Placeholder() string { return "SELECT * FROM t WHERE 1=1" }
+func (h *SQLParam) Serialize(v interface{}) string          { return fmt.Sprint(v) }
+func (h *SQLParam) Placeholder() string                     { return "SELECT * FROM t WHERE 1=1" }
 
 // --- script ---
 
 type ScriptParam struct{}
 
-func (h *ScriptParam) Name() string  { return "Script" }
-func (h *ScriptParam) Code() string  { return "script" }
+func (h *ScriptParam) Name() string { return "Script" }
+func (h *ScriptParam) Code() string { return "script" }
 func (h *ScriptParam) Validate(value string) error {
 	if strings.TrimSpace(value) == "" {
 		return fmt.Errorf("script body is required")
@@ -585,15 +585,15 @@ func (h *ScriptParam) Validate(value string) error {
 	return nil
 }
 func (h *ScriptParam) Parse(value string) (interface{}, error) { return value, nil }
-func (h *ScriptParam) Serialize(v interface{}) string { return fmt.Sprint(v) }
-func (h *ScriptParam) Placeholder() string { return "#!/bin/bash\necho hello" }
+func (h *ScriptParam) Serialize(v interface{}) string          { return fmt.Sprint(v) }
+func (h *ScriptParam) Placeholder() string                     { return "#!/bin/bash\necho hello" }
 
 // --- template ---
 
 type TemplateParam struct{}
 
-func (h *TemplateParam) Name() string  { return "Template" }
-func (h *TemplateParam) Code() string  { return "template" }
+func (h *TemplateParam) Name() string { return "Template" }
+func (h *TemplateParam) Code() string { return "template" }
 func (h *TemplateParam) Validate(value string) error {
 	// Template strings may use {{var}} syntax; accept any non-empty.
 	if strings.TrimSpace(value) == "" {
@@ -602,15 +602,15 @@ func (h *TemplateParam) Validate(value string) error {
 	return nil
 }
 func (h *TemplateParam) Parse(value string) (interface{}, error) { return value, nil }
-func (h *TemplateParam) Serialize(v interface{}) string { return fmt.Sprint(v) }
-func (h *TemplateParam) Placeholder() string { return "Hello {{name}}, deployed on {{date}}" }
+func (h *TemplateParam) Serialize(v interface{}) string          { return fmt.Sprint(v) }
+func (h *TemplateParam) Placeholder() string                     { return "Hello {{name}}, deployed on {{date}}" }
 
 // --- reference ---
 
 type ReferenceParam struct{}
 
-func (h *ReferenceParam) Name() string  { return "Reference" }
-func (h *ReferenceParam) Code() string  { return "reference" }
+func (h *ReferenceParam) Name() string { return "Reference" }
+func (h *ReferenceParam) Code() string { return "reference" }
 func (h *ReferenceParam) Validate(value string) error {
 	v := strings.TrimSpace(value)
 	if v == "" {
@@ -622,16 +622,18 @@ func (h *ReferenceParam) Validate(value string) error {
 	}
 	return nil
 }
-func (h *ReferenceParam) Parse(value string) (interface{}, error) { return strings.TrimSpace(value), nil }
+func (h *ReferenceParam) Parse(value string) (interface{}, error) {
+	return strings.TrimSpace(value), nil
+}
 func (h *ReferenceParam) Serialize(v interface{}) string { return fmt.Sprint(v) }
-func (h *ReferenceParam) Placeholder() string { return "${PIPELINE_OUTPUT}" }
+func (h *ReferenceParam) Placeholder() string            { return "${PIPELINE_OUTPUT}" }
 
 // --- enum ---
 
 type EnumParam struct{}
 
-func (h *EnumParam) Name() string  { return "Enum" }
-func (h *EnumParam) Code() string  { return "enum" }
+func (h *EnumParam) Name() string { return "Enum" }
+func (h *EnumParam) Code() string { return "enum" }
 func (h *EnumParam) Validate(value string) error {
 	if strings.TrimSpace(value) == "" {
 		return fmt.Errorf("enum value is required")
@@ -639,15 +641,15 @@ func (h *EnumParam) Validate(value string) error {
 	return nil // actual enum options validated by registry-level options
 }
 func (h *EnumParam) Parse(value string) (interface{}, error) { return strings.TrimSpace(value), nil }
-func (h *EnumParam) Serialize(v interface{}) string { return fmt.Sprint(v) }
-func (h *EnumParam) Placeholder() string { return "<enum-value>" }
+func (h *EnumParam) Serialize(v interface{}) string          { return fmt.Sprint(v) }
+func (h *EnumParam) Placeholder() string                     { return "<enum-value>" }
 
 // --- regex ---
 
 type RegexParam struct{}
 
-func (h *RegexParam) Name() string  { return "Regex" }
-func (h *RegexParam) Code() string  { return "regex" }
+func (h *RegexParam) Name() string { return "Regex" }
+func (h *RegexParam) Code() string { return "regex" }
 func (h *RegexParam) Validate(value string) error {
 	if _, err := regexp.Compile(value); err != nil {
 		return fmt.Errorf("invalid regex pattern: %v", err)
@@ -662,7 +664,7 @@ func (h *RegexParam) Parse(value string) (interface{}, error) {
 	return re.String(), nil
 }
 func (h *RegexParam) Serialize(v interface{}) string { return fmt.Sprint(v) }
-func (h *RegexParam) Placeholder() string { return `^[a-z0-9]+@[a-z]+\.com$` }
+func (h *RegexParam) Placeholder() string            { return `^[a-z0-9]+@[a-z]+\.com$` }
 
 // --- email ---
 
@@ -670,8 +672,8 @@ var emailRe = regexp.MustCompile(`^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]
 
 type EmailParam struct{}
 
-func (h *EmailParam) Name() string  { return "Email" }
-func (h *EmailParam) Code() string  { return "email" }
+func (h *EmailParam) Name() string { return "Email" }
+func (h *EmailParam) Code() string { return "email" }
 func (h *EmailParam) Validate(value string) error {
 	v := strings.TrimSpace(value)
 	if v == "" {
@@ -683,15 +685,15 @@ func (h *EmailParam) Validate(value string) error {
 	return nil
 }
 func (h *EmailParam) Parse(value string) (interface{}, error) { return strings.TrimSpace(value), nil }
-func (h *EmailParam) Serialize(v interface{}) string { return fmt.Sprint(v) }
-func (h *EmailParam) Placeholder() string { return "user@example.com" }
+func (h *EmailParam) Serialize(v interface{}) string          { return fmt.Sprint(v) }
+func (h *EmailParam) Placeholder() string                     { return "user@example.com" }
 
 // --- url ---
 
 type URLParam struct{}
 
-func (h *URLParam) Name() string  { return "URL" }
-func (h *URLParam) Code() string  { return "url" }
+func (h *URLParam) Name() string { return "URL" }
+func (h *URLParam) Code() string { return "url" }
 func (h *URLParam) Validate(value string) error {
 	v := strings.TrimSpace(value)
 	if v == "" {
@@ -703,15 +705,15 @@ func (h *URLParam) Validate(value string) error {
 	return nil
 }
 func (h *URLParam) Parse(value string) (interface{}, error) { return strings.TrimSpace(value), nil }
-func (h *URLParam) Serialize(v interface{}) string { return fmt.Sprint(v) }
-func (h *URLParam) Placeholder() string { return "https://example.com" }
+func (h *URLParam) Serialize(v interface{}) string          { return fmt.Sprint(v) }
+func (h *URLParam) Placeholder() string                     { return "https://example.com" }
 
 // --- ip ---
 
 type IPParam struct{}
 
-func (h *IPParam) Name() string  { return "IP" }
-func (h *IPParam) Code() string  { return "ip" }
+func (h *IPParam) Name() string { return "IP" }
+func (h *IPParam) Code() string { return "ip" }
 func (h *IPParam) Validate(value string) error {
 	ip := strings.TrimSpace(value)
 	if ip == "" {
@@ -724,15 +726,15 @@ func (h *IPParam) Validate(value string) error {
 	return nil
 }
 func (h *IPParam) Parse(value string) (interface{}, error) { return strings.TrimSpace(value), nil }
-func (h *IPParam) Serialize(v interface{}) string { return fmt.Sprint(v) }
-func (h *IPParam) Placeholder() string { return "192.168.1.1" }
+func (h *IPParam) Serialize(v interface{}) string          { return fmt.Sprint(v) }
+func (h *IPParam) Placeholder() string                     { return "192.168.1.1" }
 
 // --- cidr ---
 
 type CIDRParam struct{}
 
-func (h *CIDRParam) Name() string  { return "CIDR" }
-func (h *CIDRParam) Code() string  { return "cidr" }
+func (h *CIDRParam) Name() string { return "CIDR" }
+func (h *CIDRParam) Code() string { return "cidr" }
 func (h *CIDRParam) Validate(value string) error {
 	v := strings.TrimSpace(value)
 	if v == "" {
@@ -749,15 +751,15 @@ func (h *CIDRParam) Validate(value string) error {
 	return nil
 }
 func (h *CIDRParam) Parse(value string) (interface{}, error) { return strings.TrimSpace(value), nil }
-func (h *CIDRParam) Serialize(v interface{}) string { return fmt.Sprint(v) }
-func (h *CIDRParam) Placeholder() string { return "192.168.0.0/16" }
+func (h *CIDRParam) Serialize(v interface{}) string          { return fmt.Sprint(v) }
+func (h *CIDRParam) Placeholder() string                     { return "192.168.0.0/16" }
 
 // --- port ---
 
 type PortParam struct{}
 
-func (h *PortParam) Name() string  { return "Port" }
-func (h *PortParam) Code() string  { return "port" }
+func (h *PortParam) Name() string { return "Port" }
+func (h *PortParam) Code() string { return "port" }
 func (h *PortParam) Validate(value string) error {
 	port, err := strconv.Atoi(strings.TrimSpace(value))
 	if err != nil {

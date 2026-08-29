@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/code-embedding/models"
 	"orion/platform-svc-go/internal/code-embedding/repository"
-	"go.uber.org/zap"
 )
 
 type CodeEmbeddingService struct {
@@ -141,7 +141,7 @@ func (s *CodeEmbeddingService) generateVector(content, language string) []float6
 			hash += int(content[j]) * (j + 1)
 		}
 		hash += i * 7
-		vector[i] = float64(hash%1000) / 1000.0 - 0.5
+		vector[i] = float64(hash%1000)/1000.0 - 0.5
 	}
 	return vector
 }

@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/application/queries"
 	"orion/platform-svc-go/internal/domain/aggregates"
-	"orion/platform-svc-go/internal/domain/eventstore"
 	"orion/platform-svc-go/internal/domain/events"
+	"orion/platform-svc-go/internal/domain/eventstore"
 )
 
 // ============================================================================
@@ -26,11 +26,11 @@ import (
 // CreateApprovalCommand creates a new approval request with one or more levels.
 type CreateApprovalCommand struct {
 	baseCommand
-	ID           string // approval aggregate ID
-	ApprovalType string // e.g. multi_level, emergency
-	TotalLevels  int    // number of approval levels
-	Title        string // human-readable title
-	ReqByID      string // user who created the request
+	ID           string      // approval aggregate ID
+	ApprovalType string      // e.g. multi_level, emergency
+	TotalLevels  int         // number of approval levels
+	Title        string      // human-readable title
+	ReqByID      string      // user who created the request
 	Levels       []LevelInfo // approval levels to set up
 }
 

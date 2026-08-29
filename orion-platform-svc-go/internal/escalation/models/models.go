@@ -4,16 +4,16 @@ import "time"
 
 // EscalationRule represents an escalation policy.
 type EscalationRule struct {
-	ID           string    `db:"id" json:"id"`
-	TenantID     string    `db:"tenant_id" json:"tenant_id"`
-	Name         string    `db:"name" json:"name"`
-	Trigger      string    `db:"trigger" json:"trigger"`
-	Level        int       `db:"level" json:"level"`
-	NotifiedTo   string    `db:"notified_to" json:"notified_to"`
-	Description  string    `db:"description" json:"description"`
-	Status       string    `db:"status" json:"status"`
-	CreatedAt    time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt    time.Time `db:"updated_at" json:"updated_at"`
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenant_id"`
+	Name        string    `db:"name" json:"name"`
+	Trigger     string    `db:"trigger" json:"trigger"`
+	Level       int       `db:"level" json:"level"`
+	NotifiedTo  string    `db:"notified_to" json:"notified_to"`
+	Description string    `db:"description" json:"description"`
+	Status      string    `db:"status" json:"status"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
 }
 
 // TriggerRequest is the payload for triggering an escalation rule.

@@ -12,6 +12,7 @@ import (
 
 	"orion/platform-svc-go/internal/alert-pipeline/models"
 	"orion/platform-svc-go/internal/alert-pipeline/repository"
+	stages_pkg "orion/platform-svc-go/internal/alert-pipeline/stages"
 	"orion/platform-svc-go/internal/alert-pipeline/stages/dedup"
 	"orion/platform-svc-go/internal/alert-pipeline/stages/enrich"
 	"orion/platform-svc-go/internal/alert-pipeline/stages/notify"
@@ -19,7 +20,6 @@ import (
 	"orion/platform-svc-go/internal/alert-pipeline/stages/route"
 	"orion/platform-svc-go/internal/alert-pipeline/stages/track"
 	"orion/platform-svc-go/internal/alert-pipeline/stages/validate"
-	stages_pkg "orion/platform-svc-go/internal/alert-pipeline/stages"
 
 	"github.com/google/uuid"
 
@@ -41,11 +41,11 @@ type RepositoryInterface interface {
 
 // PipelineService orchestrates the end-to-end alert processing pipeline.
 type PipelineService struct {
-	mu        sync.RWMutex
-	chains    map[string]*stages_pkg.Chain  // tenantID → chain
-	cfg       *models.PipelineConfig
-	logger    *zap.Logger
-	repo      RepositoryInterface
+	mu     sync.RWMutex
+	chains map[string]*stages_pkg.Chain // tenantID → chain
+	cfg    *models.PipelineConfig
+	logger *zap.Logger
+	repo   RepositoryInterface
 }
 
 // NewPipelineService creates a new PipelineService.
@@ -115,11 +115,11 @@ func (s *PipelineService) Execute(ctx context.Context, tenantID string, alert mo
 	}
 
 	return &models.PipelineResult{
-		AlertID:   alert.ID,
-		Status:    status,
-		Stages:    stageNames(resultCtx.History),
+		AlertID:    alert.ID,
+		Status:     status,
+		Stages:     stageNames(resultCtx.History),
 		StageCount: len(resultCtx.History),
-		Errors:    errors,
+		Errors:     errors,
 	}
 }
 
@@ -214,7 +214,7 @@ type noopStage struct {
 	logger *zap.Logger
 }
 
-func (n *noopStage) Name() string            { return n.name }
+func (n *noopStage) Name() string { return n.name }
 func (n *noopStage) Process(ctx context.Context, alertCtx *models.AlertContext) error {
 	n.logger.Debug("noop stage", zap.String("stage", n.name), zap.String("alert_id", alertCtx.AlertID))
 	return nil

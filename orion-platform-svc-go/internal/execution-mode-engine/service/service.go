@@ -2,10 +2,10 @@ package service
 
 import (
 	"context"
+	"go.uber.org/zap"
+	"orion/go-common/pkg/otel"
 	"orion/platform-svc-go/internal/execution-mode-engine/models"
 	"orion/platform-svc-go/internal/execution-mode-engine/repository"
-	"orion/go-common/pkg/otel"
-	"go.uber.org/zap"
 )
 
 type Service struct {

@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -14,8 +15,8 @@ import (
 	"orion/platform-svc-go/internal/lowcode/executor"
 	"orion/platform-svc-go/internal/lowcode/models"
 
-	"go.uber.org/zap"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/lowcode/repository"
 )
 
@@ -312,9 +313,9 @@ func (s *Service) parseFlowToDAG(flow *models.LowcodeFlow) (*executor.DAG, error
 			}
 		}
 		dagNodes = append(dagNodes, &executor.Node{
-			ID:   n.ID,
-			Name: n.Name,
-			Type: executor.NodeType(n.Type),
+			ID:     n.ID,
+			Name:   n.Name,
+			Type:   executor.NodeType(n.Type),
 			Config: cfg,
 		})
 	}

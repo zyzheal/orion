@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/monitoring/internal/alert-silence/models"
 	"orion/platform-svc-go/internal/monitoring/internal/alert-silence/repository"
-	"go.uber.org/zap"
 )
 
 type AlertSilenceService struct {
@@ -84,11 +84,10 @@ func (s *AlertSilenceService) ExtendSilence(ctx context.Context, tenantID, id uu
 		return nil, fmt.Errorf("extension must be at least 60 seconds")
 	}
 
-err = s.repo.Extend(ctx, tenantID, id, extendBy)
+	err = s.repo.Extend(ctx, tenantID, id, extendBy)
 	if err != nil {
 		return nil, fmt.Errorf("extend silence: %w", err)
 	}
-
 
 	s.logger.Info("silence extended",
 		zap.String("silenceId", id.String()),

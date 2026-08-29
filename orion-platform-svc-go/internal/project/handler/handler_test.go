@@ -5,9 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/project/models"
 )
 
@@ -45,8 +44,6 @@ func (f *fakeHandler) Update(ctx context.Context, tenantID, id, updatedBy string
 func (f *fakeHandler) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
-
-
 
 func TestHandler_PROJECT_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
+	"orion/go-common/pkg/database"
 	"orion/platform-svc-go/internal/identity/auth/model"
 	"orion/platform-svc-go/internal/identity/auth/repository"
-	"orion/go-common/pkg/database"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"

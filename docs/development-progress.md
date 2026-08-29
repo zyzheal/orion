@@ -120,3 +120,132 @@
   - Phase 2 P1 进度：31/48 = 64.58%
   - 全量测试：83 test files, 571 passed（Form.test.tsx 2 个既有失败）
   - TypeScript：0 新增错误（17 个既有错误不变）
+
+### 2026-08-26（后端专项：可观测性 + 启动正确性）
+
+- ✅ **WeKnora 知识图谱集成方案设计完成**
+  - 文档: `orion-platform-svc-go/docs/weknora-integration-design-2026-08-26.md`（v1.0，15 节，22,043 字节）
+  - 内容: 现状分析与缺口 → 集成架构与分层职责 → 4 大核心能力（实体抽取 / 关系发现 / 图谱查询 / 图谱增强 RAG）→ 数据模型与数据库迁移 → WeKnora Bridge 接口契约与配置 → 与 Knowledge / RAG Pipeline / Graph 三处集成点 → API 路由与清单 → 4 阶段路线图（6-8 周）→ 降级策略 → 监控指标 → 依赖服务 → 配置管理 → 测试计划（单测/集成/压测）→ 风险与缓解 → 总结
+  - 已登记到 `docs/INDEX.md`「外部能力集成设计（2026-08-26）」小节
+
+- ✅ **OpenTelemetry 全量 Handler 埋点完成（5009 / 5009，本轮已修正前一版 4312 的错误统计）**
+  - 覆盖: Go 后端全部 gin handler，span 置于 handler 体首行，`c.Request.Context()` 全部替换为 span 派生的 `ctx`
+  - 审计: 5009 个 gin handler、5015 个以 `c.Request.Context()` 为父上下文的 ingress span、5237 处 `otel.Tracer(...).Start(` 调用（含 service 层链路 span）、15 个 distinct tracer 名
+  - 缺口闭合: 前一轮报告「4312/4312」为错误数字（漏掉 85 个文件共 588 个未埋点 handler，其中 `internal/ticket/handler` 106 个 handler 全部为 0 span），本轮已全部补齐 → 0 个文件 handler 数 > span 数
+  - 本轮埋点范围: 85 个缺口文件 + `internal/middleware/dlp.go`；随后 reconcile 137 + 80 个文件修正 `ctx, span :=` / `_, span :=` 形式（body 不需要 ctx 时降级为 `_` 以满足 Go 未使用变量检查）
+  - Tracer 命名决策: HTTP ingress 层统一使用 `orion-platform-svc`（即便同包兄弟文件用 `orion-ticket-svc` / `admin-service` / `orion-config-mgmt-svc`）——HTTP 入口属同一服务，领域 tracer 名留给 service/repo 层；`internal/ticket/handler` 与 `internal/ticketing/handler` 为重复模块，统一命名使其一致
+  - 修复的 3 类埋点副作用: (1) `ctx := c.Request.Context()` 已被改写为非法 `ctx := ctx` 的 8 个 handler（login_attempt List、mfa Setup/Verify/Disable/Status、tenant AllocateNamespace/GetPoolStatus/GetTenantNamespacesList）→ 删除该冗余行，改由 span 的 ctx 提供；(2) 3 个文件出现重复 `func` 签名行（chatops/command_handler.go、cmdb-collector/factory_handler.go、cron/scheduler_handler.go）→ 折叠；(3) derive_prefix 对 `internal/config/internal/...` 与 `internal/middleware/` 产出无意义前缀 `"Internal"` → 显式覆盖为 ConfigTemplate / PipelineBatch / PipelineRun / PipelineAutonomous / ChatopsAdmin / DLP
+  - 验证: `go build ./...` EXIT 0、0 处残留 `c.Request.Context()`、0 处 `ctx := ctx`、0 处错误降级（body 用 ctx 却写成 `_`）、`gofmt -l internal/` 0 个文件
+  - `go vet ./internal/...` EXIT 1 但 20 条 finding 全部为既有代码问题、与本轮埋点无关（本轮已复跑 `go vet ./...` 并与修复前日志逐字节 diff 确认完全一致）: 8 条 process-step 非导出字段带 json tag、2 条重复 json tag（Config / Channel，同处 handler.go:34）、4 条 unreachable code、6 条 self-assignment
+
+- ✅ **重复路由注册清除（11 对，避免 Gin 启动 panic）**
+  - 背景: 模块搬迁（`internal/*` 重定位）使 import 可解析，暴露出 11 处「同一 handler 包被构建两次并注册两次」的隐性问题，Gin 会以 `http: multiple registrations for ...` 直接 panic
+  - 模块级重复 7 处: channel / do-not-disturb / tenant / session / api-key / ueba / cross-domain — 统一保留模块专属 wiring 文件，删除 `wiring-core-domains.go` 与 `notification_auth_wiring.go` 中的通用侧重复构建、import、var 声明
+  - 同变量重复 4 处: message_queueH / visorH / runbookH / smartDeployH 在 router.go 各注册两次，保留首次出现
+  - 决策: session TTL 两处不一致（72h vs 24h），保留 `sessionH` 的 72h（更宽松且属模块专属 wiring）
+  - 验证: `go build ./...` / `go vet ./cmd/...` / `go test ./cmd/...` 均 EXIT 0；重复审计 0 包级重复、0 同变量重复、327 个已注册变量全部有构建点
+
+- ✅ **原「21 个 handler 构建后从未注册路由」缺口已闭合**（详见下方「路由注册冲突清零」小节）
+  - ticket 域 10 个: 6 个经新增的 `RegisterTicketDomainRoutes`（`internal/ticket/handler/routes.go`）挂载 23 条独占路由；4 个（workflowModH / relationH / suspendH / analyticsTicketH）为 `ticketingH` 完整子集，保留不挂载
+  - 其他 11 个: `cqrsHandler` 已挂载（9 条 `/commands/*`）；chaosH / chaos_enhancedH / chaosGatewayH 由 `chaosEngineH` 门面代理，不重复挂载；ai_knowledgeH / ciCanaryH / ciPipelineH / graphvizH / infraMWH / skillH 为 wiring.go 中从未构建的悬空声明
+  - 注: `cqrsHandler`（`internal/application/http`）是本轮新加 9 个 OTel span 的 CQRS 命令端点，此前埋点完成但路由不可达，现已修复
+
+### 2026-08-29
+
+- ✅ **DBA / 数据挖掘 / AI 智能化缺口深度评审完成（3 份文档 + 前端访问缺口）**
+  - 评审视角: DBA 专家 + 数据挖掘工程师 + AI 智能体集成，对标主流平台（ByteDance-ByConity / Bytebase / Yearning / 阿里 DataWorks / 网易数帆 / SelectDB 等）
+  - **文档 1**: `docs/dba-data-ai-agent-gap-analysis-2026-08-29.md`（859 行）
+    - 评分矩阵: 整体 3/10（DBA 基础 4/10、AI 能力 2/10、数据挖掘 3/10、前端工作台 2/10）
+    - 17 个数据相关模块盘点: **12/17 零 AI 集成**（Text2SQL/SQLAdvisor/IndexAdvisor/Profiler/血缘自动采集/NL→BI 全缺）
+    - 缺口: 17 项 P0 + 10 项 P1，AI Agent 设计（dba/advisor/text2sql.go + AuditEngine + LLMProvider + SourceProvider 扩展）
+    - 前端工作台: `/dba-workbench`（10 子页）+ `/data-workbench`（11 子页），7 个待建 API 客户端，UI 6 阶段 19 人天
+  - **文档 2**: `docs/dba-data-deep-review-and-interaction-issues-2026-08-29.md`（380 行）
+    - 方案遗漏 8 项（GAP-1~8）: 审核规则引擎缺失（AuditRule 仅 CRUD）、连接池不复用、6 模块零互调、EventBus 未接入、无 Saga、密码明文、LLM 无成本控制、无 CMDB 联动
+    - 系统交互问题 9 项（IX-1~9）: 数据源管理分裂（dba vs datasource 两套）、DBA 仅支持 PostgreSQL（硬编码）、6 模块孤立、事件链路断裂等
+    - 数据库类型支持: datasource=PG/MySQL/ClickHouse/ES/MongoDB(5)、data-catalog=PG/MySQL/SQLite(3)、DBA=仅 PG
+    - Phase 0 架构统一前置（13 人天），总工作量修正为 67-68 人天
+  - **文档 3**: `docs/permission-system-review-and-dba-data-integration-2026-08-29.md`（459 行）
+    - 权限体系结论: **完备**（RBAC + ABAC + AuthorizationEngine + 缓存 + 审计 + UEBA + WORM）
+    - 数据域接入 6 项缺口（PERM-1~6）: datasource/database-devops 0 守卫（🔴 安全裸奔）、DBA 角色 fallback 无 dba:* 权限（前后端不一致）、缺 4 个数据专业角色（data_admin/data_steward/bi_analyst/data_engineer）、resource 拼写不一致（data-mashing）、AI 端点无权限
+    - 新增 `:ai` action + 3 条数据场景 ABAC 策略（生产库写审批 / 敏感导出脱敏 / AI SQL 审核）
+    - 完整 资源×动作×角色 权限矩阵 + 守卫覆盖率目标
+  - 核心结论: 当前系统 DBA/数据挖掘/AI 能力不足 3/10，需 Phase 0（13d）+ 原 P0/P1（35d）+ 前端工作台（19d）≈ 67-68 人天补齐
+- ✅ **第四轮深度分析完成：接线状态 + 数据库类型实况 + 测试与安全缺口**
+  - 评审问题: "进行深度分析还存在哪些问题" + "当前具备本管理哪些数据库类型"
+  - 文档: `docs/dba-data-round4-deeper-issues-2026-08-29.md`
+  - 方法: 从服务入口反向审计接线实况（wiring/router 接线审计 + 驱动 import 审计 + 测试文件审计 + 权限守卫审计）
+  - **5 组新问题维度**:
+    - 🔴 R4-1: datasource 模块**完全未接线**（`internal/datasource/` 仅 4 文件无 handler 目录 + `cmd/server/` 零引用）→ 数据源管理实际无任何可用 HTTP API
+    - 🔴 R4-2: datasource 宣称 5 种数据库、**实连仅 2 种**（service.go:17-18 仅 import mysql+pgx 驱动，ClickHouse/ES/MongoDB 调用直接返回错误）
+    - 🔴 R4-3: **三套数据源表示、两处明文密码**（dba 明文 / datasource AES-256-GCM / database-devops 明文 `db:"password"` + `/data-sources` HTTP 端点）
+    - 🟡 R4-4: database-devops **已 wiring 已实例化**（wiring.go:646）但 10 条路由 0 权限守卫 + 0 测试文件（比"无端点"更危险）
+    - 🟡 R4-5: 前端数据域页面覆盖仅 3/17 模块（data-lineage/data-quality/dba），无 datasource.ts API 客户端
+  - 数据库类型实况修正: datasource 宣称 5（PG/MySQL/ClickHouse/ES/MongoDB）实连 2（PG+MySQL）；data-catalog 3（PG/MySQL/SQLite）；DBA 仅 PG（硬编码）；缺 Oracle/SQL Server/OceanBase/openGauss/TiDB
+  - 新增待办: ARCH-0.9~0.12（合计 7 人天）— datasource 补 handler+路由接线 / database-devops 补守卫+测试 / 三套数据源统一+明文清理 / 补 ClickHouse+MongoDB 驱动
+  - 核心洞察: 数据域问题不仅有"缺 AI 能力/交互/权限"，还有**宣称与实现脱节 + 模块未接线 + 已上线无防护**的工程真实性问题
+
+### 2026-08-29（后端专项：P0 启动崩溃修复 + 路由注册冲突清零）
+
+- 🔴→✅ **P0 修复：Go 服务进程根本无法启动（`setupRouter` 在 Gin 内部 panic）**
+  - 现象: 进程一启动就在路由注册阶段 panic，任何 HTTP 端点都不可达
+  - 机制: Gin v1.10.0 每个 HTTP method 一棵 radix tree，两类注册会硬 panic — (a) 同一 `(method, path)` 注册两次（`handlers are already registered for path '...'`）；(b) 同一 trie 节点出现两个不同名的通配符 token。Gin 保留第一次注册，后续重复是死代码，但会当场崩进程
+  - 关键约束: **只有真正组装路由才能暴露这类问题** — `go build` / `go vet` / `go test`（非启动测试）全部查不出；必须按 router.go 的真实顺序重放 316 处注册
+  - 更深一层根因（已修复）: 接线函数定义了但从未被调用。`wireCoreDomains` 从未被调用，导致 `wireGovernanceDomains` / `wireSecurityDomains` / `wireIdentityDomains` / `wireTicketDomain` 全为死代码 → 24 个 handler var 永久为 nil → 16 处路由注册静默 no-op。补上一行 `wireCoreDomains(db, logger)`（`cmd/server/wiring.go:325`）后，立刻暴露出 9 处此前被 nil 守卫掩盖的重复注册
+  - 收敛过程（冲突数 / 已装配路由数）: 冲突 52 → 38 → 31 → 17 → 5 → 3 → 1 → **0**；路由 3097 → 3247 → **3403**
+  - 最终结果: `setupRouter assembled 3403 routes without panic`，`assembled 3407 routes; 0 registration conflicts`
+
+- ✅ **新增 4 个测试文件，把「路由注册合法性」固化为 CI 断言**
+  - `cmd/server/boot_test.go` — 316 处注册完整重放，断言 `setupRouter` 不 panic 且路由数 > 0（P0 回归锁）；内置 sqlx 可用的 driver stub（stubDriver / stubConn / stubStmt / stubTx / stubConnector）
+  - `cmd/server/route_conflict_scan_test.go` — 316 处注册逐处重放，统计 `(method, path)` 重复并归因到注册顺序，输出 `assembled %d routes; %d registration conflicts`
+  - `cmd/server/route_dump_test.go` — 316 处注册分别 dump 到独立 engine，写 `/tmp/perhandler.tsv`（`var\trline\tmethod\tpath\tginHandler-fn`），用于定位某路径的归属 handler
+  - `cmd/server/ticket_routes_conflict_test.go` — 工单域 trie 冲突专项断言
+  - 说明: 3 个重放型测试的 316 项条目列表**手工镜像** `cmd/server/router.go`，改动 router.go 时必须同步（不存在生成脚本）
+  - ⚠️ 注意: 模块 `.gitignore` 第 6 行含 `cmd/server` 整目录，这 4 个测试文件是**未跟踪**状态，提交时必须 `git add -f`（`router.go` 等既有文件早已 force-add，故不受影响）
+
+- ✅ **工单域：新增 `RegisterTicketDomainRoutes` 挂载 23 条独占路由（此前完全不可达）**
+  - 文件: `internal/ticket/handler/routes.go`（新建）
+  - 签名: `RegisterTicketDomainRoutes(rg, ticket, sla, dispatch, queue, lb, transfer *Handler)` — 7 参数，任一为 nil 时跳过对应段
+  - 覆盖 6 个 handler、23 条此前无人认领的路由: PUT/DELETE `/tickets/:id`、GET `/tickets/stats`、`/tickets/:id/comments`（GET/POST）、`/tickets/sla/{targets,compliance,breaches}`、`/tickets/:id/dispatch/{auto,manual}`、SLA 队列（sla-status / sla-entries / sla-alerts / reprioritize）、`/tickets/dispatch/balancing/{report,suggestions,team/:team/capacity,engineer/:id/capacity,available}`、`/tickets/transfer/{suspend/:suspendId,auto-check,config}`
+  - 决策: 刻意排除 `internal/ticketing/handler`（单体 `ticketingH`）已拥有的全部路径，包括 `GET /tickets/:id` 与 `POST /tickets`
+  - 剩余 4 个不挂载: workflowModH / relationH / suspendH / analyticsTicketH — 三者路由 100% 被 `ticketingH` 覆盖，挂载必 panic
+
+- ✅ **4 处「已构建但从未挂载」的 handler 已挂载，恢复可达 API**
+  - `escalationH` — `/escalation` 前缀空闲，直接挂载
+  - `pipelineExecutorH` — `/pipelines`、`/pipelines/:id` 空闲，直接挂载
+  - `cacheMgmtH` — 需**命名空间隔离**挂到 `/cache-mgmt`: 其裸 `/cache/configs` 已被 ciBuildH（构建缓存配置）占用、`/cache/:id` 已被 cacheModH 占用，直接挂载会 panic
+  - `infra.cqrsHandler` — **唯一进入对象图却从未挂载的 handler**（`setupInfra` 中构建并挂在 `infrastructure` 上，router.go 从未引用），导致 `/api/v1/commands/*` 9 条 CQRS 命令端点完全不可达（含 approval 审批链、feature-flag 灰度）。现已挂载；前缀完全空闲
+  - 同批新增 3 处接线补挂: escalationH / pipelineExecutorH 的调用点补在 router.go 对应分组附近
+
+- ✅ **5 处冲突改为命名空间隔离，而非删除路由**
+  - governanceComplianceH / governanceH / governancePolicyH / securityH / securitySecretH — 声明裸相对路径，与已有资源冲突。改为 `api.Group("/x")` 命名空间：既消除根冲突、又与前端 URL 对齐、还保住了 handler 本体
+  - 同类处理: cacheMgmtH → `/cache-mgmt`
+  - 对比: 4 处纯重复（serviceControlH / automationRuleTicketH / slaPolicyTicketH / ticketSourceTicketH）直接删除注册块并留注释说明由 `ticketingH` 覆盖
+
+- ✅ **chaos 三兄弟刻意不挂载（门面模式，已在 router.go 注释）**
+  - `chaosEngineH`（`internal/chaos-engine/handler`）是合并门面，内部以 `if h.chaosH != nil` / `if h.enhancedH != nil` / `if h.gatewayH != nil` 守卫把 `/chaos` 全部路径分派给 chaos / chaos-enhanced / chaos-gateway 三个子服务
+  - 因此 chaosH / chaos_enhancedH / chaosGatewayH **不得**单独注册，否则 `/chaos/*` 每个 `(method, path)` 都会注册两次并 panic
+  - 已在此处加 4 行 router.go 注释固化该决策
+
+- 🔍 **审计确认：8 处模块级重复 handler 必须保持不挂载（避免重复挂载）**
+  - `/iac/*` → iacH（infraIacH 重复）；`/serverless/*` → serverlessH（infraServerlessH 重复）；`/ai-gateway` → aiGatewayH（ai_aigatewayH 重复）；`/ai-review` → aiReviewH（ai_aireviewH 重复）；`/prompt-security/*` → promptSecurityH（psH 重复）；`/orchestration/*` → ai_orchestrationH（orchestrationH 重复）；`/auto-recovery/{rules,actions}` → ai_autorecoveryH（autoRecoveryH 重复）；`/api/v1/dba/*` → dbaH（infraDbaH 重复，router.go 中已注释掉）
+  - **附带发现一个潜伏通配符名冲突**: `orchestrationH` 声明 `/orchestration/:orch_id/runs`，`ai_orchestrationH` 声明 `/orchestration/:id/runs` — 路径完全相同但通配符 token 名不同，同挂必 panic。好在两者当前都未挂载
+  - 审计方法: 按 `\bvar\b` 全词匹配（而非 `var != nil` 守卫形状）判定引用，避免把注释里的提及误判为已注册；对 `/tmp/perhandler.tsv` 做前缀检索时必须用 `'^/api/v1/x'` 纯前缀正则，`\b` 词边界锚定在带 `:` 的路径段上会静默返回空集
+
+- 🧹 **顺带清理 3 处代码坏味道**
+  - `internal/plugin/handler/handler.go` — 乱码注释重写为可理解的通配符 token 说明
+  - `internal/pipeline-templates/handler/handler.go` — 删除 `// unused import fix` 假用法块（`var _ = http.StatusOK` / `var _ = strconv.Itoa`）及随之失效的 2 个死 import（`net/http`、`strconv`）
+  - `cmd/server/wiring.go` — 修复粘连的 import 注释（`// ---- P0-5 ...` 与 import 行挤在一起）
+  - 格式约束: `cmd/server/router.go` 与 `cmd/server/wiring.go` **非 gofmt-clean 且刻意未 gofmt**（router.go `setupRouter` 体用 2/4 空格字面缩进、wiring.go 有既有的手工 import 分组，gofmt 会引入大量无关 diff）；`cmd/server/` 全部测试文件（含本轮新建的 4 个）+ `internal/` 全部 gofmt-clean
+
+- ✅ **验证结果**
+  - `go build ./...` EXIT 0
+  - `gofmt -l internal/` 0 个文件
+  - `go test ./...` EXIT 0 — **542 个包 ok，0 失败**
+  - `cmd/server` 套件全绿: boot（3403 routes no panic）、conflict scan（3407 routes / 0 conflicts）、dump（316 handlers）、TestTicketRoutesTreeConflict
+  - `go vet ./...` 20 条 finding 与修复前日志逐字节 diff 一致，全部为既有问题（8 非导出字段 json tag + 2 重复 json tag + 4 unreachable + 6 self-assignment）
+
+- 📌 **遗留待办（非阻塞，已记录）**
+  - 7 个悬空声明 handler var（`wiring.go` 声明但从未构建，始终为 nil）: ai_knowledgeH、ciCanaryH、ciPipelineH、graphvizH、gsH、infraMWH、skillH；另有 ciCanaryH / ciPipelineH 的赋值在 wiring.go:533、:537 被注释
+  - `cmd/server/router.go:646` `workflowExtraH.RegisterRoutes(api)` 未加 nil 守卫（在 `if workflowH != nil` 内、当前安全但脆弱）
+  - 前端 API 面缺口: `orion-frontend/src/api/api-governance.ts` 调用 `/governance/contracts|rules|violations|report|versions`，后端无 handler 认领；confirmation 客户端调 `/confirmations` 而后端 handler 注册 `/confirmation`（单复数不一致）
+  - 待补: `internal/datasource/` 补 handler + 路由接线、database-devops 补权限守卫 + 测试（见上轮 ARCH-0.9~0.12）

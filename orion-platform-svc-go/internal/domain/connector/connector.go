@@ -36,11 +36,11 @@ const (
 
 // BusinessEvent carries structured data from business modules to the CQRS layer.
 type BusinessEvent struct {
-	ID        string            `json:"id"`
-	Type      EventType         `json:"type"`
-	TenantID  string            `json:"tenantId"`
-	Timestamp time.Time         `json:"timestamp"`
-	Payload   map[string]any    `json:"payload"`
+	ID        string         `json:"id"`
+	Type      EventType      `json:"type"`
+	TenantID  string         `json:"tenantId"`
+	Timestamp time.Time      `json:"timestamp"`
+	Payload   map[string]any `json:"payload"`
 }
 
 // CommandBus dispatches commands to the command handling pipeline.

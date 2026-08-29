@@ -3,12 +3,14 @@ package handler
 import (
 	"strconv"
 
+	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+
+	"orion/go-common/pkg/auth"
+
 	"orion/platform-svc-go/internal/pandawiki/internal/models"
 	"orion/platform-svc-go/internal/pandawiki/internal/repository"
 	"orion/platform-svc-go/internal/pandawiki/internal/service"
-	"orion/go-common/pkg/auth"
-
-	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -57,13 +59,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ================== Space Handlers ==================
 
 func (h *Handler) CreateSpace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PandawikiInternalCreateSpace")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSpaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	space, err := h.svc.CreateSpace(c.Request.Context(), tenantID, &req)
+	space, err := h.svc.CreateSpace(ctx, tenantID, &req)
 	if err != nil {
 		if err == service.ErrInvalidInput {
 			respondBadRequest(c, err.Error())
@@ -76,6 +80,8 @@ func (h *Handler) CreateSpace(c *gin.Context) {
 }
 
 func (h *Handler) ListSpaces(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PandawikiInternalListSpaces")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	opts := parseSpaceListOpts(c)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -84,7 +90,7 @@ func (h *Handler) ListSpaces(c *gin.Context) {
 		pp, _ = strconv.Atoi(p)
 	}
 	offset := (page - 1) * pp
-	spaces, total, err := h.svc.ListSpaces(c.Request.Context(), tenantID, offset, pp, opts)
+	spaces, total, err := h.svc.ListSpaces(ctx, tenantID, offset, pp, opts)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -96,8 +102,10 @@ func (h *Handler) ListSpaces(c *gin.Context) {
 }
 
 func (h *Handler) GetSpace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PandawikiInternalGetSpace")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	space, err := h.svc.GetSpace(c.Request.Context(), tenantID, c.Param("id"))
+	space, err := h.svc.GetSpace(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrNotFound {
 			respondNotFound(c, "space not found")
@@ -110,13 +118,15 @@ func (h *Handler) GetSpace(c *gin.Context) {
 }
 
 func (h *Handler) UpdateSpace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PandawikiInternalUpdateSpace")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var input models.UpdateSpaceInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	space, err := h.svc.UpdateSpace(c.Request.Context(), tenantID, c.Param("id"), &input)
+	space, err := h.svc.UpdateSpace(ctx, tenantID, c.Param("id"), &input)
 	if err != nil {
 		if err == service.ErrNotFound {
 			respondNotFound(c, err.Error())
@@ -129,8 +139,10 @@ func (h *Handler) UpdateSpace(c *gin.Context) {
 }
 
 func (h *Handler) DeleteSpace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PandawikiInternalDeleteSpace")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	err := h.svc.DeleteSpace(c.Request.Context(), tenantID, c.Param("id"))
+	err := h.svc.DeleteSpace(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrNotFound {
 			respondNotFound(c, err.Error())
@@ -145,6 +157,8 @@ func (h *Handler) DeleteSpace(c *gin.Context) {
 // ================== Document Handlers ==================
 
 func (h *Handler) CreateDoc(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PandawikiInternalCreateDoc")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var input models.CreateDocInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -155,7 +169,7 @@ func (h *Handler) CreateDoc(c *gin.Context) {
 		respondBadRequest(c, "title, content, and space_id are required")
 		return
 	}
-	doc, err := h.svc.CreateDoc(c.Request.Context(), tenantID, &input)
+	doc, err := h.svc.CreateDoc(ctx, tenantID, &input)
 	if err != nil {
 		if err == service.ErrNotFound {
 			respondNotFound(c, err.Error())
@@ -172,6 +186,8 @@ func (h *Handler) CreateDoc(c *gin.Context) {
 }
 
 func (h *Handler) ListDocs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PandawikiInternalListDocs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	opts := parseDocListOpts(c)
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -180,7 +196,7 @@ func (h *Handler) ListDocs(c *gin.Context) {
 		pp, _ = strconv.Atoi(p)
 	}
 	offset := (page - 1) * pp
-	docs, total, err := h.svc.ListDocs(c.Request.Context(), tenantID, offset, pp, opts)
+	docs, total, err := h.svc.ListDocs(ctx, tenantID, offset, pp, opts)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -192,8 +208,10 @@ func (h *Handler) ListDocs(c *gin.Context) {
 }
 
 func (h *Handler) GetDoc(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PandawikiInternalGetDoc")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	doc, err := h.svc.GetDoc(c.Request.Context(), tenantID, c.Param("id"))
+	doc, err := h.svc.GetDoc(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrNotFound {
 			respondNotFound(c, "document not found")
@@ -206,13 +224,15 @@ func (h *Handler) GetDoc(c *gin.Context) {
 }
 
 func (h *Handler) UpdateDoc(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PandawikiInternalUpdateDoc")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var input models.UpdateDocInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	doc, err := h.svc.UpdateDoc(c.Request.Context(), tenantID, c.Param("id"), &input)
+	doc, err := h.svc.UpdateDoc(ctx, tenantID, c.Param("id"), &input)
 	if err != nil {
 		if err == service.ErrNotFound {
 			respondNotFound(c, err.Error())
@@ -225,8 +245,10 @@ func (h *Handler) UpdateDoc(c *gin.Context) {
 }
 
 func (h *Handler) DeleteDoc(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PandawikiInternalDeleteDoc")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	err := h.svc.DeleteDoc(c.Request.Context(), tenantID, c.Param("id"))
+	err := h.svc.DeleteDoc(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrNotFound {
 			respondNotFound(c, err.Error())
@@ -239,8 +261,10 @@ func (h *Handler) DeleteDoc(c *gin.Context) {
 }
 
 func (h *Handler) GetDocVersions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PandawikiInternalGetDocVersions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	versions, err := h.svc.GetDocVersions(c.Request.Context(), tenantID, c.Param("id"))
+	versions, err := h.svc.GetDocVersions(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrNotFound {
 			respondNotFound(c, "document not found")
@@ -255,8 +279,10 @@ func (h *Handler) GetDocVersions(c *gin.Context) {
 // ================== Document Center Handlers ==================
 
 func (h *Handler) GetDocTags(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PandawikiInternalGetDocTags")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	tags, err := h.svc.GetDocTags(c.Request.Context(), tenantID)
+	tags, err := h.svc.GetDocTags(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -265,8 +291,10 @@ func (h *Handler) GetDocTags(c *gin.Context) {
 }
 
 func (h *Handler) GetDocToc(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PandawikiInternalGetDocToc")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	toc, err := h.svc.GetDocToc(c.Request.Context(), tenantID)
+	toc, err := h.svc.GetDocToc(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -277,6 +305,8 @@ func (h *Handler) GetDocToc(c *gin.Context) {
 // ================== Sync Handlers ==================
 
 func (h *Handler) TriggerSync(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PandawikiInternalTriggerSync")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body struct {
 		Source *string `json:"source"`
@@ -285,7 +315,7 @@ func (h *Handler) TriggerSync(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	log, err := h.svc.TriggerSync(c.Request.Context(), tenantID, body.Source)
+	log, err := h.svc.TriggerSync(ctx, tenantID, body.Source)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -294,9 +324,11 @@ func (h *Handler) TriggerSync(c *gin.Context) {
 }
 
 func (h *Handler) GetSyncLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PandawikiInternalGetSyncLogs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
-	logs, err := h.svc.GetSyncLogs(c.Request.Context(), tenantID, limit)
+	logs, err := h.svc.GetSyncLogs(ctx, tenantID, limit)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -307,6 +339,8 @@ func (h *Handler) GetSyncLogs(c *gin.Context) {
 // ================== RAG Handlers ==================
 
 func (h *Handler) RAGRetrieve(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PandawikiInternalRAGRetrieve")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body struct {
 		Query   string  `json:"query"`
@@ -321,7 +355,7 @@ func (h *Handler) RAGRetrieve(c *gin.Context) {
 		respondBadRequest(c, "query is required")
 		return
 	}
-	results, err := h.svc.Retrieve(c.Request.Context(), tenantID, body.Query, body.SpaceID, body.TopK)
+	results, err := h.svc.Retrieve(ctx, tenantID, body.Query, body.SpaceID, body.TopK)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -346,6 +380,8 @@ func (h *Handler) RAGRetrieve(c *gin.Context) {
 }
 
 func (h *Handler) RAGQuery(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PandawikiInternalRAGQuery")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body struct {
 		Query   string  `json:"query"`
@@ -360,7 +396,7 @@ func (h *Handler) RAGQuery(c *gin.Context) {
 		respondBadRequest(c, "query is required")
 		return
 	}
-	results, err := h.svc.Retrieve(c.Request.Context(), tenantID, body.Query, body.SpaceID, body.TopK)
+	results, err := h.svc.Retrieve(ctx, tenantID, body.Query, body.SpaceID, body.TopK)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -421,9 +457,11 @@ func (h *Handler) RAGQuery(c *gin.Context) {
 // ================== Graph Handler ==================
 
 func (h *Handler) GetGraph(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PandawikiInternalGetGraph")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	spaceID := c.Query("spaceId")
-	graph, err := h.svc.GetGraph(c.Request.Context(), &tenantID, &spaceID)
+	graph, err := h.svc.GetGraph(ctx, &tenantID, &spaceID)
 	if err != nil {
 		if err == service.ErrNotFound {
 			respondNotFound(c, err.Error())

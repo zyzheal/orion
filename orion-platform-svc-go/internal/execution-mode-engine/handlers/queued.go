@@ -21,8 +21,9 @@ type Queue interface {
 // by a separate worker consuming from the queue.
 //
 // Usage:
-//   handler := handlers.NewQueuedHandler(logger, queue)
-//   engineInstance.RegisterHandler(handler)
+//
+//	handler := handlers.NewQueuedHandler(logger, queue)
+//	engineInstance.RegisterHandler(handler)
 type QueuedHandler struct {
 	logger *zap.Logger
 	queue  Queue
@@ -57,11 +58,11 @@ func (h *QueuedHandler) Handle(ctx context.Context, req *engine.ExecutionRequest
 	if h.queue == nil {
 		h.logger.Error("queued handler: no queue configured")
 		result := &engine.ExecutionResult{
-			RequestID: req.ID,
-			Mode:      engine.ModeQueued,
-			Status:    engine.StatusFailed,
-			Error:     "queue not configured",
-			Duration:  time.Since(start),
+			RequestID:  req.ID,
+			Mode:       engine.ModeQueued,
+			Status:     engine.StatusFailed,
+			Error:      "queue not configured",
+			Duration:   time.Since(start),
 			ExecutedAt: time.Now().UTC(),
 		}
 		h.stats.FailedCalls++
@@ -77,12 +78,12 @@ func (h *QueuedHandler) Handle(ctx context.Context, req *engine.ExecutionRequest
 	duration := time.Since(start)
 
 	result := &engine.ExecutionResult{
-		RequestID: req.ID,
-		Mode:      engine.ModeQueued,
-		Status:    engine.StatusQueued,
-		Duration:  duration,
+		RequestID:  req.ID,
+		Mode:       engine.ModeQueued,
+		Status:     engine.StatusQueued,
+		Duration:   duration,
 		ExecutedAt: time.Now().UTC(),
-		Output:    map[string]interface{}{"enqueued": true},
+		Output:     map[string]interface{}{"enqueued": true},
 	}
 
 	if err != nil {

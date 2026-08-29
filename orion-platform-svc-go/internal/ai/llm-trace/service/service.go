@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/ai/llm-trace/models"
 	"orion/platform-svc-go/internal/ai/llm-trace/repository"
-	"go.uber.org/zap"
 )
 
 type LLMTraceService struct {

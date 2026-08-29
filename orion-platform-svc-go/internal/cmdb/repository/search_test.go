@@ -1,9 +1,9 @@
 package repository
 
 import (
-	"database/sql/driver"
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"testing"
 	"time"
 

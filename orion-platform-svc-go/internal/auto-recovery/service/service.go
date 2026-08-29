@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/auto-recovery/models"
 	"orion/platform-svc-go/internal/auto-recovery/repository"
-	"go.uber.org/zap"
 )
 
 type AutoRecoveryService struct {

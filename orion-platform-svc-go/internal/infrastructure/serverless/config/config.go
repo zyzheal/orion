@@ -2,8 +2,8 @@ package config
 
 // Config holds serverless module configuration.
 type Config struct {
-	DefaultMemory int
-	DefaultTimeout int
+	DefaultMemory   int
+	DefaultTimeout  int
 	DefaultReplicas int
 }
 

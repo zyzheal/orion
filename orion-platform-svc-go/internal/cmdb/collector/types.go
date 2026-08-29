@@ -35,22 +35,22 @@ const (
 type CIStatus string
 
 const (
-	CIStatusActive        CIStatus = "active"
-	CIStatusInactive      CIStatus = "inactive"
+	CIStatusActive         CIStatus = "active"
+	CIStatusInactive       CIStatus = "inactive"
 	CIStatusDecommissioned CIStatus = "decommissioned"
-	CIStatusMaintenance   CIStatus = "maintenance"
+	CIStatusMaintenance    CIStatus = "maintenance"
 )
 
 // VendorType 厂商类型
 type VendorType string
 
 const (
-	VendorCisco     VendorType = "cisco"
-	VendorHuawei    VendorType = "huawei"
-	VendorH3C       VendorType = "h3c"
-	VendorJuniper   VendorType = "juniper"
-	VendorMySQL     VendorType = "mysql"
-	VendorOracle    VendorType = "oracle"
+	VendorCisco      VendorType = "cisco"
+	VendorHuawei     VendorType = "huawei"
+	VendorH3C        VendorType = "h3c"
+	VendorJuniper    VendorType = "juniper"
+	VendorMySQL      VendorType = "mysql"
+	VendorOracle     VendorType = "oracle"
 	VendorPostgreSQL VendorType = "postgresql"
 )
 
@@ -64,10 +64,10 @@ const (
 // 覆盖: Cisco/Huawei/H3C/Juniper | MySQL/Oracle/PG/SQL Server/TiDB
 //
 // SPI 原则:
-//   1. 采集器通过 Register 注入 CollectorFactory
-//   2. Collect(ctx, config) 是唯一采集入口
-//   3. 返回 []CIRaw 供上层转换为 CI
-//   4. 采集器之间解耦，可独立编译/部署
+//  1. 采集器通过 Register 注入 CollectorFactory
+//  2. Collect(ctx, config) 是唯一采集入口
+//  3. 返回 []CIRaw 供上层转换为 CI
+//  4. 采集器之间解耦，可独立编译/部署
 //
 // 扩展点:
 //   - Validate: 采集前参数校验
@@ -111,14 +111,14 @@ type Collector interface {
 //   - 事务入库
 //   - 关系推断
 type CIRaw struct {
-	Name        string            `json:"name"`
-	TypeHint    CIType            `json:"type_hint"`
-	Status      CIStatus          `json:"status"`
-	GroupID     *int64            `json:"group_id,omitempty"`
-	Tags        map[string]any    `json:"tags"`
-	Attributes  map[string]any    `json:"attributes"`
-	EntityAttrs map[string]any    `json:"entity_attrs"` // CICientity 扩展属性
-	Relations   []RawRelation     `json:"relations"`    // 推断关系
+	Name        string         `json:"name"`
+	TypeHint    CIType         `json:"type_hint"`
+	Status      CIStatus       `json:"status"`
+	GroupID     *int64         `json:"group_id,omitempty"`
+	Tags        map[string]any `json:"tags"`
+	Attributes  map[string]any `json:"attributes"`
+	EntityAttrs map[string]any `json:"entity_attrs"` // CICientity 扩展属性
+	Relations   []RawRelation  `json:"relations"`    // 推断关系
 }
 
 // RawRelation 原始关系 — 采集器推断的 CI 间关系
@@ -134,29 +134,29 @@ type RawRelation struct {
 
 // CollectionTask 采集任务
 type CollectionTask struct {
-	ID           string                 `json:"id"`
-	TenantID     string                 `json:"tenant_id"`
-	Collector    string                 `json:"collector"`   // 采集器名称
-	TargetConfig map[string]any         `json:"target_config"`
-	Status       string                 `json:"status"`      // pending/running/success/failed
-	Error        string                 `json:"error"`
-	ResultCount  int                    `json:"result_count"`
-	Schedule     string                 `json:"schedule"`    // CRON 表达式
-	LastRunAt    *time.Time             `json:"last_run_at"`
-	NextRunAt    *time.Time             `json:"next_run_at"`
-	CreatedAt    time.Time              `json:"created_at"`
+	ID           string         `json:"id"`
+	TenantID     string         `json:"tenant_id"`
+	Collector    string         `json:"collector"` // 采集器名称
+	TargetConfig map[string]any `json:"target_config"`
+	Status       string         `json:"status"` // pending/running/success/failed
+	Error        string         `json:"error"`
+	ResultCount  int            `json:"result_count"`
+	Schedule     string         `json:"schedule"` // CRON 表达式
+	LastRunAt    *time.Time     `json:"last_run_at"`
+	NextRunAt    *time.Time     `json:"next_run_at"`
+	CreatedAt    time.Time      `json:"created_at"`
 }
 
 // CollectionResult 采集结果
 type CollectionResult struct {
-	TaskID      string        `json:"task_id"`
-	StartTime   time.Time     `json:"start_time"`
-	EndTime     time.Time     `json:"end_time"`
-	CIInsert    int           `json:"ci_insert"`
-	CIUpdate    int           `json:"ci_update"`
-	CIRelations int           `json:"ci_relations"`
+	TaskID      string    `json:"task_id"`
+	StartTime   time.Time `json:"start_time"`
+	EndTime     time.Time `json:"end_time"`
+	CIInsert    int       `json:"ci_insert"`
+	CIUpdate    int       `json:"ci_update"`
+	CIRelations int       `json:"ci_relations"`
 	// Status 采集状态: success/failed
-	Status      string        `json:"status"`
-	Error       string        `json:"error"`
-	RawCI       []CIRaw       `json:"raw_ci"` // 调试用，生产不入库
+	Status string  `json:"status"`
+	Error  string  `json:"error"`
+	RawCI  []CIRaw `json:"raw_ci"` // 调试用，生产不入库
 }

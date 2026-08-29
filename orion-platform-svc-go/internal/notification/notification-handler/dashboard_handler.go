@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/notification/notification/models"
 	"orion/platform-svc-go/internal/notification/notification/service"
 
@@ -45,8 +46,10 @@ func (h *DashboardHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Overview handles GET /dashboard/overview - aggregate dashboard stats.
 func (h *DashboardHandler) Overview(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationOverview")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	overview, err := h.dashboardSvc.GetOverview(c.Request.Context(), tenantID)
+	overview, err := h.dashboardSvc.GetOverview(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -56,8 +59,10 @@ func (h *DashboardHandler) Overview(c *gin.Context) {
 
 // List handles GET /dashboard - list all dashboards for a tenant.
 func (h *DashboardHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	dashboards, err := h.dashboardSvc.ListDashboards(c.Request.Context(), tenantID)
+	dashboards, err := h.dashboardSvc.ListDashboards(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -67,13 +72,15 @@ func (h *DashboardHandler) List(c *gin.Context) {
 
 // Create handles POST /dashboard - create a new dashboard.
 func (h *DashboardHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var d models.Dashboard
 	if err := c.ShouldBindJSON(&d); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.dashboardSvc.CreateDashboard(c.Request.Context(), tenantID, &d); err != nil {
+	if err := h.dashboardSvc.CreateDashboard(ctx, tenantID, &d); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -82,8 +89,10 @@ func (h *DashboardHandler) Create(c *gin.Context) {
 
 // Get handles GET /dashboard/:id - get a single dashboard.
 func (h *DashboardHandler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationGet")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	d, err := h.dashboardSvc.GetDashboard(c.Request.Context(), tenantID, c.Param("id"))
+	d, err := h.dashboardSvc.GetDashboard(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrDashboardNotFound {
 			respondNotFound(c, "dashboard not found")
@@ -97,13 +106,15 @@ func (h *DashboardHandler) Get(c *gin.Context) {
 
 // Update handles PUT /dashboard/:id - update a dashboard.
 func (h *DashboardHandler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationUpdate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var d models.Dashboard
 	if err := c.ShouldBindJSON(&d); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.dashboardSvc.UpdateDashboard(c.Request.Context(), tenantID, c.Param("id"), &d); err != nil {
+	if err := h.dashboardSvc.UpdateDashboard(ctx, tenantID, c.Param("id"), &d); err != nil {
 		if err == service.ErrDashboardNotFound {
 			respondNotFound(c, "dashboard not found")
 			return
@@ -116,8 +127,10 @@ func (h *DashboardHandler) Update(c *gin.Context) {
 
 // Delete handles DELETE /dashboard/:id - delete a dashboard.
 func (h *DashboardHandler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.dashboardSvc.DeleteDashboard(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.dashboardSvc.DeleteDashboard(ctx, tenantID, c.Param("id")); err != nil {
 		if err == service.ErrDashboardNotFound {
 			respondNotFound(c, "dashboard not found")
 			return
@@ -130,8 +143,10 @@ func (h *DashboardHandler) Delete(c *gin.Context) {
 
 // ListWidgets handles GET /dashboard/:dashboard_id/widgets - list widgets.
 func (h *DashboardHandler) ListWidgets(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationListWidgets")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	widgets, err := h.dashboardSvc.ListWidgets(c.Request.Context(), tenantID)
+	widgets, err := h.dashboardSvc.ListWidgets(ctx, tenantID)
 	if err != nil {
 		if err == service.ErrDashboardNotFound {
 			respondNotFound(c, "dashboard not found")
@@ -145,13 +160,15 @@ func (h *DashboardHandler) ListWidgets(c *gin.Context) {
 
 // CreateWidget handles POST /dashboard/:dashboard_id/widgets - create a widget.
 func (h *DashboardHandler) CreateWidget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationCreateWidget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var w models.DashboardWidget
 	if err := c.ShouldBindJSON(&w); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.dashboardSvc.CreateWidget(c.Request.Context(), tenantID, &w); err != nil {
+	if err := h.dashboardSvc.CreateWidget(ctx, tenantID, &w); err != nil {
 		if err == service.ErrDashboardNotFound {
 			respondNotFound(c, "dashboard not found")
 			return
@@ -164,8 +181,10 @@ func (h *DashboardHandler) CreateWidget(c *gin.Context) {
 
 // GetWidget handles GET /dashboard/:dashboard_id/widgets/:id - get a widget.
 func (h *DashboardHandler) GetWidget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationGetWidget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	w, err := h.dashboardSvc.GetWidget(c.Request.Context(), tenantID, c.Param("id"))
+	w, err := h.dashboardSvc.GetWidget(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrWidgetNotFound {
 			respondNotFound(c, "widget not found")
@@ -179,13 +198,15 @@ func (h *DashboardHandler) GetWidget(c *gin.Context) {
 
 // UpdateWidget handles PUT /dashboard/:dashboard_id/widgets/:id - update a widget.
 func (h *DashboardHandler) UpdateWidget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationUpdateWidget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var w models.DashboardWidget
 	if err := c.ShouldBindJSON(&w); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.dashboardSvc.UpdateWidget(c.Request.Context(), tenantID, c.Param("id"), &w); err != nil {
+	if err := h.dashboardSvc.UpdateWidget(ctx, tenantID, c.Param("id"), &w); err != nil {
 		if err == service.ErrWidgetNotFound {
 			respondNotFound(c, "widget not found")
 			return
@@ -198,8 +219,10 @@ func (h *DashboardHandler) UpdateWidget(c *gin.Context) {
 
 // DeleteWidget handles DELETE /dashboard/:dashboard_id/widgets/:id - delete a widget.
 func (h *DashboardHandler) DeleteWidget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationDeleteWidget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.dashboardSvc.DeleteWidget(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.dashboardSvc.DeleteWidget(ctx, tenantID, c.Param("id")); err != nil {
 		if err == service.ErrWidgetNotFound {
 			respondNotFound(c, "widget not found")
 			return

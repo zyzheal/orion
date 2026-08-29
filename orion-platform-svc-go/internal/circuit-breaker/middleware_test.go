@@ -12,9 +12,9 @@ var errFailure = errors.New("service unavailable")
 
 func TestCircuitBreakerInitialState(t *testing.T) {
 	cb := New("test", Config{
-		FailureThreshold:  3,
-		SuccessThreshold:  2,
-		Timeout:           100 * time.Millisecond,
+		FailureThreshold: 3,
+		SuccessThreshold: 2,
+		Timeout:          100 * time.Millisecond,
 	})
 
 	if cb.State() != StateClosed {
@@ -55,9 +55,9 @@ func TestCircuitBreakerExecuteFailure(t *testing.T) {
 
 func TestCircuitBreakerOpensAfterThreshold(t *testing.T) {
 	cb := New("test", Config{
-		FailureThreshold:  3,
-		SuccessThreshold:  2,
-		Timeout:           1 * time.Second,
+		FailureThreshold: 3,
+		SuccessThreshold: 2,
+		Timeout:          1 * time.Second,
 	})
 
 	// 3 failures should open the circuit
@@ -135,9 +135,9 @@ func TestCircuitBreakerTransitionsToHalfOpen(t *testing.T) {
 
 func TestCircuitBreakerClosesAfterSuccesses(t *testing.T) {
 	cb := New("test", Config{
-		FailureThreshold:  3,
-		SuccessThreshold:  2,
-		Timeout:           50 * time.Millisecond,
+		FailureThreshold:    3,
+		SuccessThreshold:    2,
+		Timeout:             50 * time.Millisecond,
 		HalfOpenMaxRequests: 2,
 	})
 

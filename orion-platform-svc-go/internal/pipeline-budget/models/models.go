@@ -8,10 +8,10 @@ package models
 type BudgetType string
 
 const (
-	BudgetTypeMonthly  BudgetType = "monthly"
+	BudgetTypeMonthly   BudgetType = "monthly"
 	BudgetTypeQuarterly BudgetType = "quarterly"
-	BudgetTypeYearly   BudgetType = "yearly"
-	BudgetTypePerRun   BudgetType = "per_run"
+	BudgetTypeYearly    BudgetType = "yearly"
+	BudgetTypePerRun    BudgetType = "per_run"
 )
 
 // BudgetResourceType represents the type of resource being budgeted.
@@ -71,15 +71,15 @@ type BudgetPeriod struct {
 
 // BudgetAlert represents a notification rule for a budget.
 type BudgetAlert struct {
-	ID             string          `db:"id" json:"id"`
-	Name           string          `db:"name" json:"name"`
-	Threshold      float64         `db:"threshold" json:"threshold"` // percentage
-	Severity       AlertSeverity   `db:"severity" json:"severity"`
-	Channels       string          `db:"channels" json:"channels"`   // JSONB array
-	Enabled        bool            `db:"enabled" json:"enabled"`
-	LastTriggered  *int64          `db:"last_triggered" json:"lastTriggered"` // unix seconds
-	CreatedAt      *int64          `db:"created_at" json:"createdAt"`
-	UpdatedAt      *int64          `db:"updated_at" json:"updatedAt"`
+	ID            string        `db:"id" json:"id"`
+	Name          string        `db:"name" json:"name"`
+	Threshold     float64       `db:"threshold" json:"threshold"` // percentage
+	Severity      AlertSeverity `db:"severity" json:"severity"`
+	Channels      string        `db:"channels" json:"channels"` // JSONB array
+	Enabled       bool          `db:"enabled" json:"enabled"`
+	LastTriggered *int64        `db:"last_triggered" json:"lastTriggered"` // unix seconds
+	CreatedAt     *int64        `db:"created_at" json:"createdAt"`
+	UpdatedAt     *int64        `db:"updated_at" json:"updatedAt"`
 }
 
 // BudgetConfig is the core budget entity for a pipeline.
@@ -94,27 +94,27 @@ type BudgetAlert struct {
 // explosion.  At scale (100k+ pipelines) these JSONB columns can be
 // materialised into relational tables.
 type BudgetConfig struct {
-	ID          string          `db:"id" json:"id"`
-	PipelineID  string          `db:"pipeline_id" json:"pipelineId"`
-	TenantID    string          `db:"tenant_id" json:"tenantId"`
-	Type        BudgetType      `db:"type" json:"type"`
-	Period      string          `db:"period" json:"period"`       // JSONB
-	Limits      string          `db:"limits" json:"limits"`       // JSONB
-	CostLimits  *string         `db:"cost_limits" json:"costLimits"` // JSONB, nullable
-	Alerts      string          `db:"alerts" json:"alerts"`       // JSONB
-	CreatedAt   *int64          `db:"created_at" json:"createdAt"`
-	UpdatedAt   *int64          `db:"updated_at" json:"updatedAt"`
+	ID         string     `db:"id" json:"id"`
+	PipelineID string     `db:"pipeline_id" json:"pipelineId"`
+	TenantID   string     `db:"tenant_id" json:"tenantId"`
+	Type       BudgetType `db:"type" json:"type"`
+	Period     string     `db:"period" json:"period"`          // JSONB
+	Limits     string     `db:"limits" json:"limits"`          // JSONB
+	CostLimits *string    `db:"cost_limits" json:"costLimits"` // JSONB, nullable
+	Alerts     string     `db:"alerts" json:"alerts"`          // JSONB
+	CreatedAt  *int64     `db:"created_at" json:"createdAt"`
+	UpdatedAt  *int64     `db:"updated_at" json:"updatedAt"`
 }
 
 // BudgetHistoryRecord records an auditable event on a budget.
 type BudgetHistoryRecord struct {
-	ID         string      `db:"id" json:"id"`
-	PipelineID string      `db:"pipeline_id" json:"pipelineId"`
-	TenantID   string      `db:"tenant_id" json:"tenantId"`
-	Timestamp  *int64      `db:"timestamp" json:"timestamp"`
+	ID         string        `db:"id" json:"id"`
+	PipelineID string        `db:"pipeline_id" json:"pipelineId"`
+	TenantID   string        `db:"tenant_id" json:"tenantId"`
+	Timestamp  *int64        `db:"timestamp" json:"timestamp"`
 	Action     HistoryAction `db:"action" json:"action"`
-	Details    string      `db:"details" json:"details"` // JSONB
-	Actor      string      `db:"actor" json:"actor"`
+	Details    string        `db:"details" json:"details"` // JSONB
+	Actor      string        `db:"actor" json:"actor"`
 }
 
 // ---------------------------------------------------------------------------
@@ -130,27 +130,27 @@ type CreateLimitRequest struct {
 
 // UpsertBudgetRequest is the body for creating / updating a budget config.
 type UpsertBudgetRequest struct {
-	Type        BudgetType            `json:"type" binding:"required"`
-	Limits      []CreateLimitRequest  `json:"limits" binding:"required"`
-	CostLimits  *BudgetCostLimit      `json:"costLimits"`
+	Type       BudgetType           `json:"type" binding:"required"`
+	Limits     []CreateLimitRequest `json:"limits" binding:"required"`
+	CostLimits *BudgetCostLimit     `json:"costLimits"`
 }
 
 // CreateAlertRequest is the body for creating a budget alert rule.
 type CreateAlertRequest struct {
-	Name      string          `json:"name" binding:"required"`
-	Threshold float64         `json:"threshold" binding:"required"`
-	Severity  AlertSeverity   `json:"severity" binding:"required"`
-	Channels  []string        `json:"channels"`
-	Enabled   *bool           `json:"enabled"`
+	Name      string        `json:"name" binding:"required"`
+	Threshold float64       `json:"threshold" binding:"required"`
+	Severity  AlertSeverity `json:"severity" binding:"required"`
+	Channels  []string      `json:"channels"`
+	Enabled   *bool         `json:"enabled"`
 }
 
 // UpdateAlertRequest is the body for partially updating a budget alert.
 type UpdateAlertRequest struct {
-	Name      *string         `json:"name"`
-	Threshold *float64        `json:"threshold"`
-	Severity  *AlertSeverity  `json:"severity"`
-	Channels  *[]string       `json:"channels"`
-	Enabled   *bool           `json:"enabled"`
+	Name      *string        `json:"name"`
+	Threshold *float64       `json:"threshold"`
+	Severity  *AlertSeverity `json:"severity"`
+	Channels  *[]string      `json:"channels"`
+	Enabled   *bool          `json:"enabled"`
 }
 
 // ---------------------------------------------------------------------------

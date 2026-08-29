@@ -9,9 +9,9 @@ import (
 
 // mockRepo is a minimal in-memory implementation of RepositoryInterface.
 type mockRepo struct {
-	rules    map[string]models.AlertRule // keyed by ID
-	metrics  map[string]models.Metric    // keyed by "tenant/name"
-	fail     bool
+	rules   map[string]models.AlertRule // keyed by ID
+	metrics map[string]models.Metric    // keyed by "tenant/name"
+	fail    bool
 }
 
 func newMockRepo() *mockRepo {
@@ -87,9 +87,9 @@ func TestRecordMetric(t *testing.T) {
 	ctx := context.Background()
 
 	m := &models.Metric{
-		Name:      "cpu_usage",
-		Value:     75.5,
-		Tags:      map[string]string{"host": "node-1"},
+		Name:  "cpu_usage",
+		Value: 75.5,
+		Tags:  map[string]string{"host": "node-1"},
 	}
 	got, err := svc.RecordMetric(ctx, "t1", m)
 	if err != nil {

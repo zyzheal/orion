@@ -12,16 +12,16 @@ import (
 // --- mock repository ---
 
 type mockRepo struct {
-	versions            map[string]*models.Version
-	createErr           error
-	updateErr           error
-	deleteErr           error
-	getErr              error
-	listErr             error
-	publishedVersions   []models.Version
-	publishedErr        error
-	clearDefaultErr     error
-	setStatusPublishedErr error
+	versions               map[string]*models.Version
+	createErr              error
+	updateErr              error
+	deleteErr              error
+	getErr                 error
+	listErr                error
+	publishedVersions      []models.Version
+	publishedErr           error
+	clearDefaultErr        error
+	setStatusPublishedErr  error
 	setStatusDeprecatedErr error
 }
 

@@ -61,24 +61,24 @@ func (a *JSONArray) Scan(src interface{}) error {
 
 // SecurityScan represents a vulnerability/security scan record.
 type SecurityScan struct {
-	ID             string     `db:"id" json:"id"`
-	TenantID       string     `db:"tenant_id" json:"tenant_id"`
-	ScanType       string     `db:"scan_type" json:"scan_type"`
-	Target         string     `db:"target" json:"target"`
-	Scanner        string     `db:"scanner" json:"scanner"`
-	Status         string     `db:"status" json:"status"`
-	CriticalCount  int        `db:"critical_count" json:"critical_count"`
-	HighCount      int        `db:"high_count" json:"high_count"`
-	MediumCount    int        `db:"medium_count" json:"medium_count"`
-	LowCount       int        `db:"low_count" json:"low_count"`
-	TotalCount     int        `db:"total_count" json:"total_count"`
-	Passed         bool       `db:"passed" json:"passed"`
-	GateFailed     bool       `db:"gate_failed" json:"gate_failed"`
-	ScanStartTime  *time.Time `db:"scan_start_time" json:"scan_start_time,omitempty"`
-	ScanEndTime    *time.Time `db:"scan_end_time" json:"scan_end_time,omitempty"`
-	DurationMs     int        `db:"duration_ms" json:"duration_ms"`
-	Result         JSONB      `db:"result" json:"result,omitempty"`
-	CreatedAt      time.Time  `db:"created_at" json:"created_at"`
+	ID            string     `db:"id" json:"id"`
+	TenantID      string     `db:"tenant_id" json:"tenant_id"`
+	ScanType      string     `db:"scan_type" json:"scan_type"`
+	Target        string     `db:"target" json:"target"`
+	Scanner       string     `db:"scanner" json:"scanner"`
+	Status        string     `db:"status" json:"status"`
+	CriticalCount int        `db:"critical_count" json:"critical_count"`
+	HighCount     int        `db:"high_count" json:"high_count"`
+	MediumCount   int        `db:"medium_count" json:"medium_count"`
+	LowCount      int        `db:"low_count" json:"low_count"`
+	TotalCount    int        `db:"total_count" json:"total_count"`
+	Passed        bool       `db:"passed" json:"passed"`
+	GateFailed    bool       `db:"gate_failed" json:"gate_failed"`
+	ScanStartTime *time.Time `db:"scan_start_time" json:"scan_start_time,omitempty"`
+	ScanEndTime   *time.Time `db:"scan_end_time" json:"scan_end_time,omitempty"`
+	DurationMs    int        `db:"duration_ms" json:"duration_ms"`
+	Result        JSONB      `db:"result" json:"result,omitempty"`
+	CreatedAt     time.Time  `db:"created_at" json:"created_at"`
 }
 
 // CreateScanRequest is the input for creating a new scan.
@@ -92,25 +92,25 @@ type CreateScanRequest struct {
 
 // SecurityFinding represents a single finding from a scan or audit.
 type SecurityFinding struct {
-	ID           string     `db:"id" json:"id"`
-	TenantID     string     `db:"tenant_id" json:"tenant_id"`
-	ScanID       *string    `db:"scan_id" json:"scan_id,omitempty"`
-	RuleID       string     `db:"rule_id" json:"rule_id"`
-	Severity     string     `db:"severity" json:"severity"`
-	Category     string     `db:"category" json:"category"`
-	Title        string     `db:"title" json:"title"`
-	Description  string     `db:"description" json:"description,omitempty"`
-	FilePath     string     `db:"file_path" json:"file_path,omitempty"`
-	LineStart    *int       `db:"line_start" json:"line_start,omitempty"`
-	LineEnd      *int       `db:"line_end" json:"line_end,omitempty"`
-	CodeSnippet  string     `db:"code_snippet" json:"code_snippet,omitempty"`
-	MatchText    string     `db:"match_text" json:"match_text,omitempty"`
-	Confidence   float32    `db:"confidence" json:"confidence"`
-	Remediation  string     `db:"remediation" json:"remediation,omitempty"`
-	Status       string     `db:"status" json:"status"`
-	AssignedTo   *string    `db:"assigned_to" json:"assigned_to,omitempty"`
-	ClosedAt     *time.Time `db:"closed_at" json:"closed_at,omitempty"`
-	CreatedAt    time.Time  `db:"created_at" json:"created_at"`
+	ID          string     `db:"id" json:"id"`
+	TenantID    string     `db:"tenant_id" json:"tenant_id"`
+	ScanID      *string    `db:"scan_id" json:"scan_id,omitempty"`
+	RuleID      string     `db:"rule_id" json:"rule_id"`
+	Severity    string     `db:"severity" json:"severity"`
+	Category    string     `db:"category" json:"category"`
+	Title       string     `db:"title" json:"title"`
+	Description string     `db:"description" json:"description,omitempty"`
+	FilePath    string     `db:"file_path" json:"file_path,omitempty"`
+	LineStart   *int       `db:"line_start" json:"line_start,omitempty"`
+	LineEnd     *int       `db:"line_end" json:"line_end,omitempty"`
+	CodeSnippet string     `db:"code_snippet" json:"code_snippet,omitempty"`
+	MatchText   string     `db:"match_text" json:"match_text,omitempty"`
+	Confidence  float32    `db:"confidence" json:"confidence"`
+	Remediation string     `db:"remediation" json:"remediation,omitempty"`
+	Status      string     `db:"status" json:"status"`
+	AssignedTo  *string    `db:"assigned_to" json:"assigned_to,omitempty"`
+	ClosedAt    *time.Time `db:"closed_at" json:"closed_at,omitempty"`
+	CreatedAt   time.Time  `db:"created_at" json:"created_at"`
 }
 
 // ==================== Audit Plan ====================
@@ -228,18 +228,18 @@ type CreateCompliancePolicyRequest struct {
 
 // ComplianceEvaluation represents an evaluation run against a compliance policy.
 type ComplianceEvaluation struct {
-	ID            string     `db:"id" json:"id"`
-	TenantID      string     `db:"tenant_id" json:"tenant_id"`
-	PolicyID      string     `db:"policy_id" json:"policy_id"`
-	Status        string     `db:"status" json:"status"`
-	Score         float32    `db:"score" json:"score"`
-	TotalChecks   int        `db:"total_checks" json:"total_checks"`
-	PassedChecks  int        `db:"passed_checks" json:"passed_checks"`
-	FailedChecks  int        `db:"failed_checks" json:"failed_checks"`
-	Gaps          JSONArray  `db:"gaps" json:"gaps"`
-	StartedAt     time.Time  `db:"started_at" json:"started_at"`
-	CompletedAt   *time.Time `db:"completed_at" json:"completed_at,omitempty"`
-	CreatedAt     time.Time  `db:"created_at" json:"created_at"`
+	ID           string     `db:"id" json:"id"`
+	TenantID     string     `db:"tenant_id" json:"tenant_id"`
+	PolicyID     string     `db:"policy_id" json:"policy_id"`
+	Status       string     `db:"status" json:"status"`
+	Score        float32    `db:"score" json:"score"`
+	TotalChecks  int        `db:"total_checks" json:"total_checks"`
+	PassedChecks int        `db:"passed_checks" json:"passed_checks"`
+	FailedChecks int        `db:"failed_checks" json:"failed_checks"`
+	Gaps         JSONArray  `db:"gaps" json:"gaps"`
+	StartedAt    time.Time  `db:"started_at" json:"started_at"`
+	CompletedAt  *time.Time `db:"completed_at" json:"completed_at,omitempty"`
+	CreatedAt    time.Time  `db:"created_at" json:"created_at"`
 }
 
 // ComplianceGap represents a gap identified during compliance evaluation.
@@ -274,17 +274,17 @@ type ComplianceScoreSummary struct {
 
 // SupplyChainSBOM represents a Software Bill of Materials record.
 type SupplyChainSBOM struct {
-	ID             string    `db:"id" json:"id"`
-	TenantID       string    `db:"tenant_id" json:"tenant_id"`
-	ArtifactID     string    `db:"artifact_id" json:"artifact_id"`
-	PipelineID     *string   `db:"pipeline_id" json:"pipeline_id,omitempty"`
-	SBOMFormat     string    `db:"sbom_format" json:"sbom_format"`
-	SBOMVersion    string    `db:"sbom_version" json:"sbom_version"`
-	Components     JSONArray `db:"components" json:"components"`
-	Dependencies   JSONArray `db:"dependencies" json:"dependencies"`
+	ID              string    `db:"id" json:"id"`
+	TenantID        string    `db:"tenant_id" json:"tenant_id"`
+	ArtifactID      string    `db:"artifact_id" json:"artifact_id"`
+	PipelineID      *string   `db:"pipeline_id" json:"pipeline_id,omitempty"`
+	SBOMFormat      string    `db:"sbom_format" json:"sbom_format"`
+	SBOMVersion     string    `db:"sbom_version" json:"sbom_version"`
+	Components      JSONArray `db:"components" json:"components"`
+	Dependencies    JSONArray `db:"dependencies" json:"dependencies"`
 	Vulnerabilities JSONArray `db:"vulnerabilities" json:"vulnerabilities"`
-	Metadata       JSONB     `db:"metadata" json:"metadata"`
-	CreatedAt      time.Time `db:"created_at" json:"created_at"`
+	Metadata        JSONB     `db:"metadata" json:"metadata"`
+	CreatedAt       time.Time `db:"created_at" json:"created_at"`
 }
 
 // CreateSBOMRequest is the input for generating an SBOM.
@@ -301,15 +301,15 @@ type CreateSBOMRequest struct {
 
 // DependencyGraph represents a dependency analysis result.
 type DependencyGraph struct {
-	ID              string     `db:"id" json:"id"`
-	TenantID        string     `db:"tenant_id" json:"tenant_id"`
-	PackageName     string     `db:"package_name" json:"package_name"`
-	PackageVersion  string     `db:"package_version" json:"package_version"`
-	DirectDeps      JSONArray  `db:"direct_deps" json:"direct_deps"`
-	TransitiveDeps  JSONArray  `db:"transitive_deps" json:"transitive_deps"`
-	VulnerablePaths JSONArray  `db:"vulnerable_paths" json:"vulnerable_paths"`
-	Depth           int        `db:"depth" json:"depth"`
-	AnalyzedAt      time.Time  `db:"analyzed_at" json:"analyzed_at"`
+	ID              string    `db:"id" json:"id"`
+	TenantID        string    `db:"tenant_id" json:"tenant_id"`
+	PackageName     string    `db:"package_name" json:"package_name"`
+	PackageVersion  string    `db:"package_version" json:"package_version"`
+	DirectDeps      JSONArray `db:"direct_deps" json:"direct_deps"`
+	TransitiveDeps  JSONArray `db:"transitive_deps" json:"transitive_deps"`
+	VulnerablePaths JSONArray `db:"vulnerable_paths" json:"vulnerable_paths"`
+	Depth           int       `db:"depth" json:"depth"`
+	AnalyzedAt      time.Time `db:"analyzed_at" json:"analyzed_at"`
 }
 
 // AnalyzeDependencyRequest is the input for dependency analysis.
@@ -323,15 +323,15 @@ type AnalyzeDependencyRequest struct {
 
 // DependencyPoisoningScan represents a dependency poisoning scan result.
 type DependencyPoisoningScan struct {
-	ID                string    `db:"id" json:"id"`
-	TenantID          string    `db:"tenant_id" json:"tenant_id"`
-	PackagesScanned   int       `db:"packages_scanned" json:"packages_scanned"`
-	MaliciousFound    int       `db:"malicious_found" json:"malicious_found"`
-	TyposquattingFound int      `db:"typosquatting_found" json:"typosquatting_found"`
-	RiskScore         int       `db:"risk_score" json:"risk_score"`
-	RiskLevel         string    `db:"risk_level" json:"risk_level"`
-	ScanData          JSONB     `db:"scan_data" json:"scan_data"`
-	CreatedAt         time.Time `db:"created_at" json:"created_at"`
+	ID                 string    `db:"id" json:"id"`
+	TenantID           string    `db:"tenant_id" json:"tenant_id"`
+	PackagesScanned    int       `db:"packages_scanned" json:"packages_scanned"`
+	MaliciousFound     int       `db:"malicious_found" json:"malicious_found"`
+	TyposquattingFound int       `db:"typosquatting_found" json:"typosquatting_found"`
+	RiskScore          int       `db:"risk_score" json:"risk_score"`
+	RiskLevel          string    `db:"risk_level" json:"risk_level"`
+	ScanData           JSONB     `db:"scan_data" json:"scan_data"`
+	CreatedAt          time.Time `db:"created_at" json:"created_at"`
 }
 
 // ScanDependencyPoisoningRequest is the input for dependency poisoning scan.

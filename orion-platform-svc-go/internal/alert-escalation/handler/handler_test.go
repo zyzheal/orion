@@ -153,7 +153,7 @@ func TestAlert_RegisterRoutes(t *testing.T) {
 func TestAlert_CreatePolicy(t *testing.T) {
 	h := NewHandler(newMockAlertSvc())
 	c, w := makeCtx(http.MethodPost, "/policies", map[string]interface{}{
-		"name": "sev-pol",
+		"name":  "sev-pol",
 		"rules": []interface{}{map[string]interface{}{"level": 1}},
 	})
 	h.CreatePolicy(c)

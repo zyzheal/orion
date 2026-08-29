@@ -8,7 +8,7 @@ import "time"
 type GraphNode struct {
 	ID         string                 `json:"id" db:"id"`
 	TenantID   string                 `json:"tenant_id" db:"tenant_id"`
-	Labels     string                 `json:"labels" db:"labels"` // JSON array, e.g. ["Service","Production"]
+	Labels     string                 `json:"labels" db:"labels"`         // JSON array, e.g. ["Service","Production"]
 	Properties map[string]interface{} `json:"properties" db:"properties"` // JSON object, e.g. {"name":"api","version":"1.0"}
 	CreatedAt  time.Time              `json:"created_at" db:"created_at"`
 	UpdatedAt  time.Time              `json:"updated_at" db:"updated_at"`
@@ -16,13 +16,13 @@ type GraphNode struct {
 
 // CreateNodeRequest is the body for creating a node.
 type CreateNodeRequest struct {
-	Labels     []string             `json:"labels" binding:"required,min=1"`
+	Labels     []string               `json:"labels" binding:"required,min=1"`
 	Properties map[string]interface{} `json:"properties"`
 }
 
 // UpdateNodeRequest is the body for updating a node.
 type UpdateNodeRequest struct {
-	Labels     *[]string             `json:"labels"`
+	Labels     *[]string              `json:"labels"`
 	Properties map[string]interface{} `json:"properties"`
 }
 
@@ -101,12 +101,12 @@ type TopologyNode struct {
 
 // GraphStats returns aggregated graph statistics.
 type GraphStats struct {
-	TotalNodes      int `json:"total_nodes"`
-	TotalRels       int `json:"total_relationships"`
-	LabelsCount     int `json:"labels_count"`
-	TypesCount      int `json:"types_count"`
-	OldestNodeID    string `json:"oldest_node_id"`
-	NewestNodeID    string `json:"newest_node_id"`
+	TotalNodes   int    `json:"total_nodes"`
+	TotalRels    int    `json:"total_relationships"`
+	LabelsCount  int    `json:"labels_count"`
+	TypesCount   int    `json:"types_count"`
+	OldestNodeID string `json:"oldest_node_id"`
+	NewestNodeID string `json:"newest_node_id"`
 }
 
 // === Pagination ===

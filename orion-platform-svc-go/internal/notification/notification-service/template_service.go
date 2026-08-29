@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"orion/go-common/pkg/otel"
 	"orion/platform-svc-go/internal/notification/notification/models"
 	"orion/platform-svc-go/internal/notification/notification/repository"
-	"orion/go-common/pkg/otel"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"

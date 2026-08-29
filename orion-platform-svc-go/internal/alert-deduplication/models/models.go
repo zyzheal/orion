@@ -18,10 +18,10 @@ type DeduplicationRecord struct {
 
 // DeduplicationConfig defines deduplication settings.
 type DeduplicationConfig struct {
-	ID          uuid.UUID `json:"id" db:"id"`
-	TenantID    uuid.UUID `json:"tenant_id" db:"tenant_id"`
-	IsEnabled   bool      `json:"is_enabled"`
-	WindowSec   int       `json:"window_sec"`
-	FieldMask   string    `json:"field_mask"` // comma-separated fields for fingerprint
-	CreatedAt   time.Time `json:"created_at"`
+	ID        uuid.UUID `json:"id" db:"id"`
+	TenantID  uuid.UUID `json:"tenant_id" db:"tenant_id"`
+	IsEnabled bool      `json:"is_enabled"`
+	WindowSec int       `json:"window_sec"`
+	FieldMask string    `json:"field_mask"` // comma-separated fields for fingerprint
+	CreatedAt time.Time `json:"created_at"`
 }

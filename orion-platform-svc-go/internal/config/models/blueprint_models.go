@@ -62,17 +62,17 @@ type ConfigItem struct {
 
 // ConfigVersionV2 represents a single version snapshot (blueprint-extended).
 type ConfigVersionV2 struct {
-	ID             string    `db:"id" json:"id"`
-	TenantID       string    `db:"tenant_id" json:"tenant_id"`
-	ConfigID       string    `db:"config_id" json:"config_id"`
-	ConfigKey      string    `db:"config_key" json:"config_key"`
-	Environment    string    `db:"environment" json:"environment"`
-	Value          string    `db:"value" json:"value"`
-	VersionNumber  int       `db:"version_number" json:"version_number"`
-	ChangeType     string    `db:"change_type" json:"change_type"`
-	ChangedBy      string    `db:"changed_by" json:"changed_by"`
-	ChangeReason   string    `db:"change_reason" json:"change_reason"`
-	CreatedAt      time.Time `db:"created_at" json:"created_at"`
+	ID            string    `db:"id" json:"id"`
+	TenantID      string    `db:"tenant_id" json:"tenant_id"`
+	ConfigID      string    `db:"config_id" json:"config_id"`
+	ConfigKey     string    `db:"config_key" json:"config_key"`
+	Environment   string    `db:"environment" json:"environment"`
+	Value         string    `db:"value" json:"value"`
+	VersionNumber int       `db:"version_number" json:"version_number"`
+	ChangeType    string    `db:"change_type" json:"change_type"`
+	ChangedBy     string    `db:"changed_by" json:"changed_by"`
+	ChangeReason  string    `db:"change_reason" json:"change_reason"`
+	CreatedAt     time.Time `db:"created_at" json:"created_at"`
 }
 
 // ConfigDiff describes a single difference between two configurations.
@@ -86,14 +86,14 @@ type ConfigDiffV2 struct {
 
 // DiffReport is the result of comparing two environments.
 type DiffReport struct {
-	SourceEnv    string       `json:"source_environment"`
-	TargetEnv    string       `json:"target_environment"`
+	SourceEnv    string         `json:"source_environment"`
+	TargetEnv    string         `json:"target_environment"`
 	Diffs        []ConfigDiffV2 `json:"diffs"`
-	TotalChanges int          `json:"total_changes"`
-	Added        int          `json:"added"`
-	Removed      int          `json:"removed"`
-	Modified     int          `json:"modified"`
-	GeneratedAt  time.Time    `json:"generated_at"`
+	TotalChanges int            `json:"total_changes"`
+	Added        int            `json:"added"`
+	Removed      int            `json:"removed"`
+	Modified     int            `json:"modified"`
+	GeneratedAt  time.Time      `json:"generated_at"`
 }
 
 // VersionDiffReport compares two specific versions of a config.
@@ -137,8 +137,8 @@ type ValidationIssue struct {
 
 // ValidationResult is the result of validating a configuration value.
 type ValidationResult struct {
-	Valid  bool               `json:"valid"`
-	Issues []ValidationIssue  `json:"issues"`
+	Valid  bool              `json:"valid"`
+	Issues []ValidationIssue `json:"issues"`
 }
 
 // --- Request / Response DTOs ---
@@ -207,17 +207,17 @@ func (p *PaginatedRequest) Limit() int {
 
 // DriftRecord represents a detected configuration drift.
 type DriftRecord struct {
-	ID            string    `db:"id" json:"id"`
-	TenantID      string    `db:"tenant_id" json:"tenant_id"`
-	ConfigID      string    `db:"config_id" json:"config_id"`
-	ConfigKey     string    `db:"config_key" json:"config_key"`
-	Environment   string    `db:"environment" json:"environment"`
-	ExpectedValue string    `db:"expected_value" json:"expected_value"`
-	ActualValue   string    `db:"actual_value" json:"actual_value"`
-	DriftType     string    `db:"drift_type" json:"drift_type"`
-	DetectedAt    time.Time `db:"detected_at" json:"detected_at"`
+	ID            string     `db:"id" json:"id"`
+	TenantID      string     `db:"tenant_id" json:"tenant_id"`
+	ConfigID      string     `db:"config_id" json:"config_id"`
+	ConfigKey     string     `db:"config_key" json:"config_key"`
+	Environment   string     `db:"environment" json:"environment"`
+	ExpectedValue string     `db:"expected_value" json:"expected_value"`
+	ActualValue   string     `db:"actual_value" json:"actual_value"`
+	DriftType     string     `db:"drift_type" json:"drift_type"`
+	DetectedAt    time.Time  `db:"detected_at" json:"detected_at"`
 	ResolvedAt    *time.Time `db:"resolved_at" json:"resolved_at,omitempty"`
-	ResolvedBy    string    `db:"resolved_by" json:"resolved_by,omitempty"`
+	ResolvedBy    string     `db:"resolved_by" json:"resolved_by,omitempty"`
 }
 
 // DriftScanResult is the result of a drift scan.
@@ -266,12 +266,12 @@ type CreateFeatureFlagRequest struct {
 
 // UpdateFeatureFlagRequest is the request to update a feature flag.
 type UpdateFeatureFlagRequest struct {
-	Name        *string `json:"name"`
-	Description *string `json:"description"`
-	Enabled     *bool   `json:"enabled"`
-	FlagType    *string `json:"flag_type"`
-	RolloutPct  *int    `json:"rollout_pct"`
-	Variations  *JSONB  `json:"variations"`
+	Name        *string   `json:"name"`
+	Description *string   `json:"description"`
+	Enabled     *bool     `json:"enabled"`
+	FlagType    *string   `json:"flag_type"`
+	RolloutPct  *int      `json:"rollout_pct"`
+	Variations  *JSONB    `json:"variations"`
 	Tags        *[]string `json:"tags"`
 }
 
@@ -293,32 +293,32 @@ type EvaluateFlagResult struct {
 
 // GitSyncConfig represents a GitOps configuration sync.
 type GitSyncConfig struct {
-	ID              string    `db:"id" json:"id"`
-	TenantID        string    `db:"tenant_id" json:"tenant_id"`
-	Name            string    `db:"name" json:"name"`
-	RepoURL         string    `db:"repo_url" json:"repo_url"`
-	Branch          string    `db:"branch" json:"branch"`
-	Path            string    `db:"path" json:"path"`
-	Environment     string    `db:"environment" json:"environment"`
-	AutoSync        bool      `db:"auto_sync" json:"auto_sync"`
-	SyncIntervalSec int       `db:"sync_interval_sec" json:"sync_interval_sec"`
-	Enabled         bool      `db:"enabled" json:"enabled"`
+	ID              string     `db:"id" json:"id"`
+	TenantID        string     `db:"tenant_id" json:"tenant_id"`
+	Name            string     `db:"name" json:"name"`
+	RepoURL         string     `db:"repo_url" json:"repo_url"`
+	Branch          string     `db:"branch" json:"branch"`
+	Path            string     `db:"path" json:"path"`
+	Environment     string     `db:"environment" json:"environment"`
+	AutoSync        bool       `db:"auto_sync" json:"auto_sync"`
+	SyncIntervalSec int        `db:"sync_interval_sec" json:"sync_interval_sec"`
+	Enabled         bool       `db:"enabled" json:"enabled"`
 	LastSyncAt      *time.Time `db:"last_sync_at" json:"last_sync_at"`
-	LastSyncStatus  string    `db:"last_sync_status" json:"last_sync_status"`
-	CreatedAt       time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt       time.Time `db:"updated_at" json:"updated_at"`
+	LastSyncStatus  string     `db:"last_sync_status" json:"last_sync_status"`
+	CreatedAt       time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time  `db:"updated_at" json:"updated_at"`
 }
 
 // CreateGitSyncRequest is the request to create a Git sync config.
 type CreateGitSyncRequest struct {
-	Name            string  `json:"name" binding:"required"`
-	RepoURL         string  `json:"repo_url" binding:"required"`
-	Branch          string  `json:"branch"`
-	Path            string  `json:"path"`
-	Environment     string  `json:"environment"`
-	AutoSync        *bool   `json:"auto_sync"`
-	SyncIntervalSec int     `json:"sync_interval_sec"`
-	Enabled         *bool   `json:"enabled"`
+	Name            string `json:"name" binding:"required"`
+	RepoURL         string `json:"repo_url" binding:"required"`
+	Branch          string `json:"branch"`
+	Path            string `json:"path"`
+	Environment     string `json:"environment"`
+	AutoSync        *bool  `json:"auto_sync"`
+	SyncIntervalSec int    `json:"sync_interval_sec"`
+	Enabled         *bool  `json:"enabled"`
 }
 
 // SyncResult is the result of a Git sync operation.
@@ -335,18 +335,18 @@ type SyncResult struct {
 
 // ConfigApproval represents a config change approval request.
 type ConfigApproval struct {
-	ID            string    `db:"id" json:"id"`
-	TenantID      string    `db:"tenant_id" json:"tenant_id"`
-	ConfigKey     string    `db:"config_key" json:"config_key"`
-	Environment   string    `db:"environment" json:"environment"`
-	CurrentValue  string    `db:"current_value" json:"current_value"`
-	ProposedValue string    `db:"proposed_value" json:"proposed_value"`
-	Status        string    `db:"status" json:"status"` // pending, approved, rejected, applied
-	RequestedBy   string    `db:"requested_by" json:"requested_by"`
-	RequestedAt   time.Time `db:"requested_at" json:"requested_at"`
-	ReviewedBy    string    `db:"reviewed_by" json:"reviewed_by,omitempty"`
+	ID            string     `db:"id" json:"id"`
+	TenantID      string     `db:"tenant_id" json:"tenant_id"`
+	ConfigKey     string     `db:"config_key" json:"config_key"`
+	Environment   string     `db:"environment" json:"environment"`
+	CurrentValue  string     `db:"current_value" json:"current_value"`
+	ProposedValue string     `db:"proposed_value" json:"proposed_value"`
+	Status        string     `db:"status" json:"status"` // pending, approved, rejected, applied
+	RequestedBy   string     `db:"requested_by" json:"requested_by"`
+	RequestedAt   time.Time  `db:"requested_at" json:"requested_at"`
+	ReviewedBy    string     `db:"reviewed_by" json:"reviewed_by,omitempty"`
 	ReviewedAt    *time.Time `db:"reviewed_at" json:"reviewed_at"`
-	ReviewComment string    `db:"review_comment" json:"review_comment,omitempty"`
+	ReviewComment string     `db:"review_comment" json:"review_comment,omitempty"`
 	AppliedAt     *time.Time `db:"applied_at" json:"applied_at"`
 }
 
@@ -435,10 +435,10 @@ type CreateTemplateRequestV2 struct {
 
 // UpdateTemplateRequestV2 is the blueprint's update template request.
 type UpdateTemplateRequestV2 struct {
-	Name        *string `json:"name"`
-	Description *string `json:"description"`
-	Content     *string `json:"content"`
-	Format      *string `json:"format"`
+	Name        *string   `json:"name"`
+	Description *string   `json:"description"`
+	Content     *string   `json:"content"`
+	Format      *string   `json:"format"`
 	Tags        *[]string `json:"tags"`
 }
 
@@ -473,9 +473,9 @@ type CreateWebhookRequestV2 struct {
 
 // UpdateWebhookRequestV2 is the blueprint's update webhook request.
 type UpdateWebhookRequestV2 struct {
-	Name    *string `json:"name"`
-	URL     *string `json:"url"`
-	Secret  *string `json:"secret"`
+	Name    *string   `json:"name"`
+	URL     *string   `json:"url"`
+	Secret  *string   `json:"secret"`
 	Events  *[]string `json:"events"`
-	Enabled *bool    `json:"enabled"`
+	Enabled *bool     `json:"enabled"`
 }

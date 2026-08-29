@@ -66,10 +66,10 @@ func (e *FakeEmbedder) Embed(ctx context.Context, texts []string) ([][]float32, 
 
 // VectorSearcher provides hybrid search combining vector similarity with BM25-like scoring.
 type VectorSearcher struct {
-	embedder   Embedder
-	indexPath  string
-	index      map[string][]float32
-	metadata   map[string]models.RAGRetrieveResult
+	embedder  Embedder
+	indexPath string
+	index     map[string][]float32
+	metadata  map[string]models.RAGRetrieveResult
 }
 
 func NewVectorSearcher(embedder Embedder) *VectorSearcher {
@@ -114,8 +114,8 @@ func (vs *VectorSearcher) Search(ctx context.Context, query string, topK int) ([
 	queryVec := vecs[0]
 
 	type scored struct {
-		id      string
-		score   float64
+		id    string
+		score float64
 	}
 	var scoredList []scored
 
@@ -208,8 +208,8 @@ func keywordScore(query, title, content string) float64 {
 
 func rrfFuse(vecResults, keywordResults []models.RAGRetrieveResult, topK int) []models.RAGRetrieveResult {
 	type entry struct {
-		doc  models.RAGRetrieveResult
-		sim  float64
+		doc models.RAGRetrieveResult
+		sim float64
 	}
 	scoreMap := make(map[string]*entry)
 

@@ -2,26 +2,27 @@
 // All endpoints are mounted under /api/v1 prefix via RegisterRoutes.
 //
 // API contract:
-//   GET    /api/v1/extension-points             - List all extension points
-//   GET    /api/v1/extension-points/:name        - Get by name
-//   POST   /api/v1/extension-points              - Register new extension point
-//   PUT    /api/v1/extension-points/:name        - Update config/status
-//   POST   /api/v1/extension-points/:name/init   - Initialize extension point
-//   POST   /api/v1/extension-points/:name/shutdown - Shutdown extension point
-//   GET    /api/v1/extension-points/:name/status - Get status
-//   POST   /api/v1/startups                      - Run startup tasks
-//   GET    /api/v1/startups                      - List startup tasks
-//   GET    /api/v1/startups/:name/status         - Get startup status
-//   GET    /api/v1/extension-points/health       - Health check (no auth)
+//
+//	GET    /api/v1/extension-points             - List all extension points
+//	GET    /api/v1/extension-points/:name        - Get by name
+//	POST   /api/v1/extension-points              - Register new extension point
+//	PUT    /api/v1/extension-points/:name        - Update config/status
+//	POST   /api/v1/extension-points/:name/init   - Initialize extension point
+//	POST   /api/v1/extension-points/:name/shutdown - Shutdown extension point
+//	GET    /api/v1/extension-points/:name/status - Get status
+//	POST   /api/v1/startups                      - Run startup tasks
+//	GET    /api/v1/startups                      - List startup tasks
+//	GET    /api/v1/startups/:name/status         - Get startup status
+//	GET    /api/v1/extension-points/health       - Health check (no auth)
 package handler
 
 import (
 	"context"
 	"strconv"
 
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/extension-point/models"
 	"orion/platform-svc-go/internal/extension-point/service"
-	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/middleware"
 
 	"github.com/gin-gonic/gin"

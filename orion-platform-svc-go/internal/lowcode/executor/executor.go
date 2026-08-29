@@ -18,15 +18,15 @@ import (
 
 // ExecutionResult is the output of a DAG execution.
 type ExecutionResult struct {
-	ID         uuid.UUID
-	DAGName    string
-	StartTime  time.Time
-	EndTime    time.Time
-	Duration   time.Duration
-	Status     NodeStatus
-	RecordMap  map[string]*NodeRecord
-	Errors     []error
-	Output     map[string]interface{}
+	ID        uuid.UUID
+	DAGName   string
+	StartTime time.Time
+	EndTime   time.Time
+	Duration  time.Duration
+	Status    NodeStatus
+	RecordMap map[string]*NodeRecord
+	Errors    []error
+	Output    map[string]interface{}
 }
 
 // Executor runs a lowcode DAG with Kahn's topological sort.
@@ -540,11 +540,11 @@ func (e *Executor) runNotify(ctx context.Context, node *Node, execCtx *Execution
 			zap.String("title", title),
 		)
 		return map[string]interface{}{
-			"channel":  channel,
-			"message":  message,
+			"channel":    channel,
+			"message":    message,
 			"recipients": recipients,
-			"title":    title,
-			"status":   "logged",
+			"title":      title,
+			"status":     "logged",
 		}, nil
 	}
 
@@ -558,20 +558,20 @@ func (e *Executor) runNotify(ctx context.Context, node *Node, execCtx *Execution
 			zap.String("message", message),
 		)
 		return map[string]interface{}{
-			"channel":  channel,
-			"message":  message,
+			"channel":    channel,
+			"message":    message,
 			"recipients": recipients,
-			"title":    title,
-			"status":   "deferred",
-			"note":     "configure notify_url in node config to enable real notifications",
+			"title":      title,
+			"status":     "deferred",
+			"note":       "configure notify_url in node config to enable real notifications",
 		}, nil
 	}
 
 	payload := map[string]interface{}{
-		"channel":  channel,
+		"channel":    channel,
 		"recipients": recipients,
-		"title":    title,
-		"message":  message,
+		"title":      title,
+		"message":    message,
 	}
 
 	e.logger.Info("dispatch notification",

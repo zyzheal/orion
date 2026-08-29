@@ -21,9 +21,9 @@ type Client struct {
 
 // Config holds NATS connection configuration
 type Config struct {
-	URLs      string
-	User      string
-	Password  string
+	URLs     string
+	User     string
+	Password string
 }
 
 // Message represents a NATS message with metadata
@@ -150,7 +150,7 @@ func (c *Client) Subscribe(ctx context.Context, subject string, handler MessageH
 
 	c.logger.Info("subscribed to NATS",
 		zap.String("subject", subject),
-		)
+	)
 	return nil
 }
 

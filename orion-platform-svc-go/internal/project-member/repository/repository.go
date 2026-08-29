@@ -10,8 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/platform-svc-go/internal/project-member/models"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/project-member/models"
 )
 
 type Repository struct {
@@ -50,8 +50,12 @@ func (r *Repository) Create(ctx context.Context, tenantID string, m *models.Proj
 	m.CreatedAt = time.Now().UTC()
 	m.UpdatedAt = m.CreatedAt
 	m.InvitedAt = m.CreatedAt
-	if m.Status == "" { m.Status = "active" }
-	if m.Role == "" { m.Role = "viewer" }
+	if m.Status == "" {
+		m.Status = "active"
+	}
+	if m.Role == "" {
+		m.Role = "viewer"
+	}
 	perms, _ := json.Marshal(m.Permissions)
 	_, err := r.db.NamedExecContext(ctx, `
 		INSERT INTO project_members (id, tenant_id, project_id, user_id, role, permissions, status, invited_by, invited_at, joined_at, created_at, updated_at)
@@ -62,37 +66,66 @@ func (r *Repository) Create(ctx context.Context, tenantID string, m *models.Proj
 		"invited_by": m.InvitedBy, "invited_at": m.InvitedAt, "joined_at": m.JoinedAt,
 		"created_at": m.CreatedAt, "updated_at": m.UpdatedAt,
 	})
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	return r.GetByID(ctx, tenantID, m.ID)
 }
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.ProjectMember, error) {
 	var m models.ProjectMember
 	err := r.db.GetContext(ctx, &m, `SELECT * FROM project_members WHERE id = $1 AND tenant_id = $2`, id, tenantID)
-	if errors.Is(err, sql.ErrNoRows) { return nil, sentinel.NotFound }
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, sentinel.NotFound
+	}
 	return &m, err
 }
 
 func (r *Repository) GetByProjectUser(ctx context.Context, tenantID, projectID, userID string) (*models.ProjectMember, error) {
 	var m models.ProjectMember
 	err := r.db.GetContext(ctx, &m, `SELECT * FROM project_members WHERE tenant_id=$1 AND project_id=$2 AND user_id=$3`, tenantID, projectID, userID)
-	if errors.Is(err, sql.ErrNoRows) { return nil, sentinel.NotFound }
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, sentinel.NotFound
+	}
 	return &m, err
 }
 
 func (r *Repository) List(ctx context.Context, tenantID string, q models.ListMembersQuery) ([]models.ProjectMember, int, error) {
 	cond := "WHERE tenant_id = $1"
-	args := []interface{}{tenantID}; idx := 2
-	if q.ProjectID != "" { cond += " AND project_id = $" + strconv.Itoa(idx); args = append(args, q.ProjectID); idx++ }
-	if q.UserID != "" { cond += " AND user_id = $" + strconv.Itoa(idx); args = append(args, q.UserID); idx++ }
-	if q.Role != "" { cond += " AND role = $" + strconv.Itoa(idx); args = append(args, q.Role); idx++ }
-	if q.Status != "" { cond += " AND status = $" + strconv.Itoa(idx); args = append(args, q.Status); idx++ }
+	args := []interface{}{tenantID}
+	idx := 2
+	if q.ProjectID != "" {
+		cond += " AND project_id = $" + strconv.Itoa(idx)
+		args = append(args, q.ProjectID)
+		idx++
+	}
+	if q.UserID != "" {
+		cond += " AND user_id = $" + strconv.Itoa(idx)
+		args = append(args, q.UserID)
+		idx++
+	}
+	if q.Role != "" {
+		cond += " AND role = $" + strconv.Itoa(idx)
+		args = append(args, q.Role)
+		idx++
+	}
+	if q.Status != "" {
+		cond += " AND status = $" + strconv.Itoa(idx)
+		args = append(args, q.Status)
+		idx++
+	}
 	limit, offset := 50, 0
-	if q.Limit != nil && *q.Limit > 0 { limit = *q.Limit }
-	if q.Offset != nil { offset = *q.Offset }
+	if q.Limit != nil && *q.Limit > 0 {
+		limit = *q.Limit
+	}
+	if q.Offset != nil {
+		offset = *q.Offset
+	}
 	var total int
 	err := r.db.GetContext(ctx, &total, "SELECT COUNT(*) FROM project_members "+cond, args...)
-	if err != nil { return nil, 0, err }
+	if err != nil {
+		return nil, 0, err
+	}
 	var items []models.ProjectMember
 	err = r.db.SelectContext(ctx, &items, cond+" ORDER BY created_at DESC LIMIT $"+strconv.Itoa(idx)+" OFFSET $"+strconv.Itoa(idx+1), append(args, limit, offset)...)
 	return items, total, err
@@ -100,10 +133,15 @@ func (r *Repository) List(ctx context.Context, tenantID string, q models.ListMem
 
 func (r *Repository) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.ProjectMember, error) {
 	updates["updated_at"] = time.Now().UTC()
-	if perms, ok := updates["permissions"].([]string); ok { b, _ := json.Marshal(perms); updates["permissions"] = string(b) }
+	if perms, ok := updates["permissions"].([]string); ok {
+		b, _ := json.Marshal(perms)
+		updates["permissions"] = string(b)
+	}
 	_, err := r.db.NamedExecContext(ctx, `UPDATE project_members SET @:updates WHERE id = :id AND tenant_id = :tenant_id`,
 		map[string]interface{}{"updates": updates, "id": id, "tenant_id": tenantID})
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	return r.GetByID(ctx, tenantID, id)
 }
 

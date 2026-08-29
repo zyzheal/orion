@@ -4,21 +4,21 @@ import (
 	"context"
 	"fmt"
 
-	"orion/platform-svc-go/internal/ticketing/models"
 	"orion/go-common/pkg/otel"
+	"orion/platform-svc-go/internal/ticketing/models"
 	"orion/platform-svc-go/internal/ticketing/repository"
 
 	"github.com/google/uuid"
 )
 
 type TicketService struct {
-	repo      repository.TicketRepositoryInterface
-	comment   repository.CommentRepositoryInterface
-	workflow  *WorkflowService
-	sla       *SLAService
-	dispatch  *DispatchService
-	analyzer  *AnalyzerService
-	ruleRepo  repository.AssignmentRuleRepositoryInterface
+	repo     repository.TicketRepositoryInterface
+	comment  repository.CommentRepositoryInterface
+	workflow *WorkflowService
+	sla      *SLAService
+	dispatch *DispatchService
+	analyzer *AnalyzerService
+	ruleRepo repository.AssignmentRuleRepositoryInterface
 }
 
 func NewTicketService(
@@ -46,7 +46,7 @@ func (s *TicketService) Create(ctx context.Context, tenantID string, req *models
 	defer span.End()
 
 	ticket := &models.Ticket{
-		ID: uuid.New().String(),
+		ID:          uuid.New().String(),
 		TenantID:    tenantID,
 		Title:       req.Title,
 		Description: req.Description,
@@ -63,9 +63,9 @@ func (s *TicketService) Create(ctx context.Context, tenantID string, req *models
 	// Record workflow entry for initial status
 	if s.workflow != nil {
 		s.workflow.workflowRepo.Create(ctx, &models.WorkflowHistory{
-						TicketID:   ticket.ID,
-			FromStatus: "",
-			ToStatus:   "open",
+			TicketID:    ticket.ID,
+			FromStatus:  "",
+			ToStatus:    "open",
 			PerformedBy: createdBy,
 		})
 	}
@@ -228,7 +228,7 @@ func (s *TicketService) Escalate(ctx context.Context, ticketID, tenantID, escala
 	// Record in workflow
 	if s.workflow != nil {
 		s.workflow.workflowRepo.Create(ctx, &models.WorkflowHistory{
-						TicketID:    ticketID,
+			TicketID:    ticketID,
 			FromStatus:  ticket.Status,
 			ToStatus:    ticket.Status,
 			PerformedBy: escalatedBy,

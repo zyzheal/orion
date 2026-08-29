@@ -141,7 +141,6 @@ func TestSearchService_BuildQueryBody(t *testing.T) {
 		t.Errorf("size = %v (%T), want 5", size, size)
 	}
 
-
 	if _, ok := body["sort"]; !ok {
 		t.Error("body should contain sort when SortBy is set")
 	}
@@ -186,7 +185,7 @@ func TestSearchService_ExtractTotal(t *testing.T) {
 
 	tests := []struct {
 		name string
-		raw *SearchResultRaw
+		raw  *SearchResultRaw
 		want int64
 	}{
 		{"nil result", nil, 0},
@@ -336,9 +335,9 @@ func TestStripVersionSuffix(t *testing.T) {
 		{"alert_v2", "alert"},
 		{"cmdb_v99", "cmdb"},
 		{"my_module_v1", "my_module"},
-		{"ticket", "ticket"},       // no suffix
+		{"ticket", "ticket"}, // no suffix
 		{"ticket_v100", "ticket"},
-		{"ticket_v", "ticket_v"},   // "v" alone is not valid (len(rest) > 1 guard)
+		{"ticket_v", "ticket_v"}, // "v" alone is not valid (len(rest) > 1 guard)
 		{"ticket_v0", "ticket"},
 		{"_v1", ""},
 		{"", ""},

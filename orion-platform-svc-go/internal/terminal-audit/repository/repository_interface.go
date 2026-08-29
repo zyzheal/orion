@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/terminal-audit/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	Create(ctx context.Context, m *models.TerminalAuditLog) error

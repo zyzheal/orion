@@ -225,13 +225,13 @@ func (a *PrometheusAdapter) Receive(ctx context.Context, _ []Alert) ([]Alert, er
 // ---------------------------------------------------------------------------
 
 type amAlertResponse struct {
-	Status     string            `json:"status"`
-	Labels     map[string]string `json:"labels"`
+	Status      string            `json:"status"`
+	Labels      map[string]string `json:"labels"`
 	Annotations map[string]string `json:"annotations"`
-	Fingerprint string           `json:"fingerprint"`
-	EndsAt     time.Time         `json:"endsAt"`
-	StartsAt   time.Time         `json:"startsAt"`
-	UpdatedAt  time.Time         `json:"updatedAt"`
+	Fingerprint string            `json:"fingerprint"`
+	EndsAt      time.Time         `json:"endsAt"`
+	StartsAt    time.Time         `json:"startsAt"`
+	UpdatedAt   time.Time         `json:"updatedAt"`
 }
 
 // parseDuration parses an integer string as seconds.

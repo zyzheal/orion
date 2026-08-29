@@ -10,15 +10,15 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig   `yaml:"server"`
-	Database DatabaseConfig `yaml:"database"`
-	Redis    RedisConfig    `yaml:"redis"`
-	Otel     OtelConfig     `yaml:"otel"`
-	JWT      JWTConfig      `yaml:"jwt"`
-	CORS     CORSConfig     `yaml:"cors"`
-	NATS     NATSConfig     `yaml:"nats"`
-	JWTSecret  string
-	RedisAddr  string
+	Server    ServerConfig   `yaml:"server"`
+	Database  DatabaseConfig `yaml:"database"`
+	Redis     RedisConfig    `yaml:"redis"`
+	Otel      OtelConfig     `yaml:"otel"`
+	JWT       JWTConfig      `yaml:"jwt"`
+	CORS      CORSConfig     `yaml:"cors"`
+	NATS      NATSConfig     `yaml:"nats"`
+	JWTSecret string
+	RedisAddr string
 }
 
 type ServerConfig struct {
@@ -61,8 +61,8 @@ type CORSConfig struct {
 }
 
 type NATSConfig struct {
-	Addr    string `yaml:"addr"`
-	Stream  string `yaml:"stream"`
+	Addr   string `yaml:"addr"`
+	Stream string `yaml:"stream"`
 }
 
 func Load() (*Config, error) {

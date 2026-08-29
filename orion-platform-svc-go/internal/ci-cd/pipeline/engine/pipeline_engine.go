@@ -24,9 +24,9 @@ var (
 
 // TaskResult holds the outcome of executing a single task.
 type TaskResult struct {
-	Status  models.TaskStatus
-	Output  string
-	Error   string
+	Status   models.TaskStatus
+	Output   string
+	Error    string
 	ExitCode int
 }
 
@@ -42,15 +42,15 @@ type PipelineEngine struct {
 	orchestrator *StageOrchestrator
 
 	// mu guards executions
-	mu          sync.Mutex
-	executions  map[string]*Execution
+	mu         sync.Mutex
+	executions map[string]*Execution
 }
 
 // Execution tracks the in-memory state of a running pipeline execution.
 type Execution struct {
-	Run      *models.PipelineRun
-	Stages   map[string]*models.Stage // keyed by stage ID
-	Cancel   context.CancelFunc
+	Run       *models.PipelineRun
+	Stages    map[string]*models.Stage // keyed by stage ID
+	Cancel    context.CancelFunc
 	StartedAt time.Time
 }
 
@@ -157,9 +157,9 @@ func (e *PipelineEngine) Execute(ctx context.Context, tenantID, pipelineID, runI
 
 	// Step 7: Register execution.
 	execution := &Execution{
-		Run:      run,
-		Stages:   stageMap,
-		Cancel:   cancel,
+		Run:       run,
+		Stages:    stageMap,
+		Cancel:    cancel,
 		StartedAt: time.Now(),
 	}
 	e.mu.Lock()

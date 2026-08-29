@@ -33,9 +33,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f := rg.Group("/projects")
 	f.POST("", auth.RequirePermission("project", "write"), h.Create)
 	f.GET("", auth.RequirePermission("project", "read"), h.List)
-	f.GET("/:id", auth.RequirePermission("project", "read"), h.Get)
-	f.PUT("/:id", auth.RequirePermission("project", "write"), h.Update)
-	f.DELETE("/:id", auth.RequirePermission("project", "delete"), h.Delete)
+	f.GET("/:projectId", auth.RequirePermission("project", "read"), h.Get)
+	f.PUT("/:projectId", auth.RequirePermission("project", "write"), h.Update)
+	f.DELETE("/:projectId", auth.RequirePermission("project", "delete"), h.Delete)
 }
 
 func (h *Handler) Create(c *gin.Context) {
@@ -72,7 +72,7 @@ func (h *Handler) Get(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	p, err := h.svc.GetByID(ctx, tenantID, c.Param("id"))
+	p, err := h.svc.GetByID(ctx, tenantID, c.Param("projectId"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -90,7 +90,7 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	p, err := h.svc.Update(ctx, tenantID, c.Param("id"), updatedBy, &req)
+	p, err := h.svc.Update(ctx, tenantID, c.Param("projectId"), updatedBy, &req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -102,7 +102,7 @@ func (h *Handler) Delete(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("projectId")); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}

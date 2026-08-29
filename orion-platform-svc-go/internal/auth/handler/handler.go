@@ -186,6 +186,8 @@ func (h *Handler) Me(c *gin.Context) {
 
 // ListProviders returns all configured authentication providers.
 func (h *Handler) ListProviders(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListProviders")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	providers := defaultProviders(tenantID)
 	errors.WriteSuccess(c, providers)
@@ -193,6 +195,8 @@ func (h *Handler) ListProviders(c *gin.Context) {
 
 // ListPolicies returns all configured authentication policies.
 func (h *Handler) ListPolicies(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPolicies")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	policies := defaultPolicies(tenantID)
 	errors.WriteSuccess(c, policies)
@@ -200,6 +204,8 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 
 // CreateProvider creates a new authentication provider configuration.
 func (h *Handler) CreateProvider(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateProvider")
+	defer span.End()
 	var req models.CreateProviderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid request body", http.StatusBadRequest)
@@ -241,7 +247,7 @@ func defaultProviders(tenantID string) []models.AuthProvider {
 		{
 			ID: "prov-saml-001", Name: "Azure AD SAML", Type: "saml", Status: "active",
 			DiscoveryURL: "https://login.microsoftonline.com/common/saml/metadata",
-			TenantID: tenantID, CreatedAt: time.Now().Add(-20 * 24 * time.Hour).UTC(), UpdatedAt: time.Now().UTC(),
+			TenantID:     tenantID, CreatedAt: time.Now().Add(-20 * 24 * time.Hour).UTC(), UpdatedAt: time.Now().UTC(),
 		},
 		{
 			ID: "prov-ldap-001", Name: "Company LDAP", Type: "ldap", Status: "active",

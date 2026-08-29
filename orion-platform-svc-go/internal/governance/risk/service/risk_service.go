@@ -44,9 +44,9 @@ type HistoricalWeights struct {
 }
 
 type OrganizationalWeights struct {
-	TeamExperience      float64
-	ReviewCompleteness  float64
-	TimeOfDay           float64
+	TeamExperience     float64
+	ReviewCompleteness float64
+	TimeOfDay          float64
 }
 
 // DefaultWeights returns the default risk scoring weights (summing to 1.0).
@@ -607,11 +607,11 @@ func sortRecommendations(recs []models.RiskRecommendation, order map[string]int)
 // ============================================================
 
 func runPreDeploymentChecks(params struct {
-	TargetID        string
-	PipelineStatus  string
-	TestResults     *models.TestResults
+	TargetID         string
+	PipelineStatus   string
+	TestResults      *models.TestResults
 	CodeReviewStatus string
-	Dependencies    []string
+	Dependencies     []string
 }) models.HealthCheckResult {
 	checks := make([]models.HealthCheck, 0, 5)
 	start := time.Now()
@@ -930,27 +930,27 @@ func (s *Service) AssessDeploymentRisk(ctx context.Context, tenantID string, req
 	var healthCheckResult *models.HealthCheckResult
 	if req.RunHealthChecks {
 		hcr := runPreDeploymentChecks(struct {
-			TargetID        string
-			PipelineStatus  string
-			TestResults     *models.TestResults
+			TargetID         string
+			PipelineStatus   string
+			TestResults      *models.TestResults
 			CodeReviewStatus string
-			Dependencies    []string
+			Dependencies     []string
 		}{
-			TargetID:        req.DeploymentID,
-			PipelineStatus:  req.PipelineStatus,
-			TestResults:     req.TestResults,
+			TargetID:         req.DeploymentID,
+			PipelineStatus:   req.PipelineStatus,
+			TestResults:      req.TestResults,
 			CodeReviewStatus: req.CodeReviewStatus,
-			Dependencies:    req.Dependencies,
+			Dependencies:     req.Dependencies,
 		})
 		healthCheckResult = &hcr
 
 		if !hcr.CanProceed {
 			recommendations = append(recommendations, models.RiskRecommendation{
-				ID:    uuid.New().String(),
-				Type:  "block",
-				Title: "发布前检查未通过",
+				ID:          uuid.New().String(),
+				Type:        "block",
+				Title:       "发布前检查未通过",
 				Description: fmt.Sprintf("健康检查发现 %d 个失败项", hcr.Failed),
-				Priority: "critical",
+				Priority:    "critical",
 			})
 		}
 	}
@@ -1146,17 +1146,17 @@ func (s *Service) ListReports(ctx context.Context, tenantID string, offset, limi
 // RunPreDeploymentChecks runs health checks and returns the result (no persistence).
 func (s *Service) RunPreDeploymentChecks(_ context.Context, req *models.PreDeploymentCheckRequest) (*models.HealthCheckResult, error) {
 	result := runPreDeploymentChecks(struct {
-		TargetID        string
-		PipelineStatus  string
-		TestResults     *models.TestResults
+		TargetID         string
+		PipelineStatus   string
+		TestResults      *models.TestResults
 		CodeReviewStatus string
-		Dependencies    []string
+		Dependencies     []string
 	}{
-		TargetID:        req.TargetID,
-		PipelineStatus:  req.PipelineStatus,
-		TestResults:     req.TestResults,
+		TargetID:         req.TargetID,
+		PipelineStatus:   req.PipelineStatus,
+		TestResults:      req.TestResults,
 		CodeReviewStatus: req.CodeReviewStatus,
-		Dependencies:    req.Dependencies,
+		Dependencies:     req.Dependencies,
 	})
 	return &result, nil
 }

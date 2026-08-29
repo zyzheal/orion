@@ -12,7 +12,7 @@ import (
 // fix both.
 type LRUCache struct {
 	mu      sync.RWMutex
-	store   *list.List            // ordered front (MRU) → back (LRU)
+	store   *list.List // ordered front (MRU) → back (LRU)
 	idx     map[string]*list.Element
 	maxSize int
 }

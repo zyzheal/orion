@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/service-registry/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/service-registry/models"
 	"orion/platform-svc-go/internal/service-registry/repository"
 )
@@ -28,7 +28,7 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 
 type fakeHandlerService struct{}
 
-func (f *fakeHandlerService) Deregister(ctx context.Context, tenantID, serviceID string) (error) {
+func (f *fakeHandlerService) Deregister(ctx context.Context, tenantID, serviceID string) error {
 	return nil
 }
 
@@ -44,7 +44,7 @@ func (f *fakeHandlerService) List(ctx context.Context, tenantID string, filters 
 	return []models.ServiceRegistry{}, nil
 }
 
-func (f *fakeHandlerService) RecordHeartbeat(ctx context.Context, tenantID, serviceID string) (error) {
+func (f *fakeHandlerService) RecordHeartbeat(ctx context.Context, tenantID, serviceID string) error {
 	return nil
 }
 
@@ -53,7 +53,6 @@ func (f *fakeHandlerService) Register(ctx context.Context, tenantID string, req 
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestHandler_SERVICE_REGIST_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

@@ -5,9 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/resilience-score/models"
 )
 
@@ -57,8 +56,6 @@ func (f *fakeHandler) GetComponentScores(ctx context.Context, tenantID string) (
 func (f *fakeHandler) CreateBenchmark(ctx context.Context, tenantID string, req models.CreateBenchmarkRequest) (*models.ResilienceBenchmark, error) {
 	return &models.ResilienceBenchmark{}, nil
 }
-
-
 
 func TestHandler_RESILIENCE_SCO_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

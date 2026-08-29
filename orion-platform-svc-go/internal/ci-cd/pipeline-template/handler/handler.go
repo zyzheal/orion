@@ -3,13 +3,12 @@ package handler
 import (
 	"strconv"
 
+	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ci-cd/pipeline-template/models"
 	"orion/platform-svc-go/internal/ci-cd/pipeline-template/repository"
 	"orion/platform-svc-go/internal/ci-cd/pipeline-template/service"
-
-	"orion/go-common/pkg/auth"
-
-	"github.com/gin-gonic/gin"
 )
 
 // ---------------------------------------------------------------------------
@@ -26,12 +25,7 @@ func NewHandler(svc *service.Service) *Handler {
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r := rg.Group("/templates")
-	r.POST("", auth.RequirePermission("pipeline", "write"), h.Create)
-	r.GET("", h.List)
 	r.GET("/count", h.Count)
-	r.GET("/:id", h.Get)
-	r.PUT("/:id", auth.RequirePermission("pipeline", "write"), h.Update)
-	r.DELETE("/:id", auth.RequirePermission("pipeline", "delete"), h.Delete)
 	r.POST("/:id/instantiate", auth.RequirePermission("pipeline", "write"), h.Instantiate)
 	r.POST("/from-pipeline/:pipelineId", auth.RequirePermission("pipeline", "write"), h.SaveAsTemplate)
 }
@@ -41,13 +35,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineTemplateCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreatePipelineTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+	d, err := h.svc.Create(ctx, tenantID, &req)
 	if err != nil {
 		if err == service.ErrInvalidYAML {
 			respondBadRequest(c, err.Error())
@@ -64,6 +60,8 @@ func (h *Handler) Create(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineTemplateList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -80,7 +78,7 @@ func (h *Handler) List(c *gin.Context) {
 		filter.IsPublic = &b
 	}
 
-	result, err := h.svc.List(c.Request.Context(), tenantID, filter, page, pageSize)
+	result, err := h.svc.List(ctx, tenantID, filter, page, pageSize)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -93,8 +91,10 @@ func (h *Handler) List(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineTemplateGet")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	d, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
+	d, err := h.svc.GetByID(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -107,13 +107,15 @@ func (h *Handler) Get(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineTemplateUpdate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdatePipelineTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
+	d, err := h.svc.Update(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		if err == service.ErrNotFound {
 			respondNotFound(c, err.Error())
@@ -130,8 +132,10 @@ func (h *Handler) Update(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineTemplateDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		if err == service.ErrNotFound {
 			respondNotFound(c, err.Error())
 			return
@@ -147,8 +151,10 @@ func (h *Handler) Delete(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineTemplateCount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -161,6 +167,8 @@ func (h *Handler) Count(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) Instantiate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineTemplateInstantiate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	templateID := c.Param("id")
 
@@ -170,7 +178,7 @@ func (h *Handler) Instantiate(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.InstantiateTemplate(c.Request.Context(), tenantID, templateID, &req)
+	result, err := h.svc.InstantiateTemplate(ctx, tenantID, templateID, &req)
 	if err != nil {
 		switch err {
 		case service.ErrNotFound:
@@ -190,6 +198,8 @@ func (h *Handler) Instantiate(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) SaveAsTemplate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineTemplateSaveAsTemplate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Param("pipelineId")
 
@@ -199,7 +209,7 @@ func (h *Handler) SaveAsTemplate(c *gin.Context) {
 		return
 	}
 
-	d, err := h.svc.SavePipelineAsTemplate(c.Request.Context(), tenantID, pipelineID, &req)
+	d, err := h.svc.SavePipelineAsTemplate(ctx, tenantID, pipelineID, &req)
 	if err != nil {
 		switch err {
 		case service.ErrPipelineNotFound:

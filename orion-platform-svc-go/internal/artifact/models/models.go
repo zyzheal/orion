@@ -6,10 +6,10 @@ import "time"
 type ArtifactStatus string
 
 const (
-	StatusUploading  ArtifactStatus = "UPLOADING"
-	StatusAvailable  ArtifactStatus = "AVAILABLE"
-	StatusDeprecated ArtifactStatus = "DEPRECATED"
-	StatusDeleted    ArtifactStatus = "DELETED"
+	StatusUploading   ArtifactStatus = "UPLOADING"
+	StatusAvailable   ArtifactStatus = "AVAILABLE"
+	StatusDeprecated  ArtifactStatus = "DEPRECATED"
+	StatusDeleted     ArtifactStatus = "DELETED"
 	StatusQuarantined ArtifactStatus = "QUARANTINED"
 )
 
@@ -29,40 +29,40 @@ const (
 
 // Artifact is the core artifact record.
 type Artifact struct {
-	ID            string          `json:"id" db:"id"`
-	TenantID      string          `json:"tenant_id" db:"tenant_id"`
-	Name          string          `json:"name" db:"name"`
-	Namespace     string          `json:"namespace" db:"namespace"`
-	Version       string          `json:"version" db:"version"`
-	Type          ArtifactType    `json:"type" db:"type"`
-	Status        ArtifactStatus  `json:"status" db:"status"`
-	SizeBytes     int64           `json:"size_bytes" db:"size_bytes"`
+	ID             string         `json:"id" db:"id"`
+	TenantID       string         `json:"tenant_id" db:"tenant_id"`
+	Name           string         `json:"name" db:"name"`
+	Namespace      string         `json:"namespace" db:"namespace"`
+	Version        string         `json:"version" db:"version"`
+	Type           ArtifactType   `json:"type" db:"type"`
+	Status         ArtifactStatus `json:"status" db:"status"`
+	SizeBytes      int64          `json:"size_bytes" db:"size_bytes"`
 	ChecksumSha256 *string        `json:"checksum_sha256,omitempty" db:"checksum_sha256"`
 	ChecksumSha512 *string        `json:"checksum_sha512,omitempty" db:"checksum_sha512"`
-	Metadata      string          `json:"metadata" db:"metadata"`       // JSON
-	StoragePath   string          `json:"storage_path" db:"storage_path"`
-	CreatedBy     string          `json:"created_by" db:"created_by"`
-	CreatedAt     time.Time       `json:"created_at" db:"created_at"`
-	UpdatedAt     time.Time       `json:"updated_at" db:"updated_at"`
-	DeletedAt     *time.Time      `json:"deleted_at,omitempty" db:"deleted_at"`
+	Metadata       string         `json:"metadata" db:"metadata"` // JSON
+	StoragePath    string         `json:"storage_path" db:"storage_path"`
+	CreatedBy      string         `json:"created_by" db:"created_by"`
+	CreatedAt      time.Time      `json:"created_at" db:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at" db:"updated_at"`
+	DeletedAt      *time.Time     `json:"deleted_at,omitempty" db:"deleted_at"`
 }
 
 // ArtifactTag represents a tag attached to an artifact.
 type ArtifactTag struct {
-	ID        string    `json:"id" db:"id"`
-	ArtifactID string   `json:"artifact_id" db:"artifact_id"`
-	Tag       string    `json:"tag" db:"tag"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID         string    `json:"id" db:"id"`
+	ArtifactID string    `json:"artifact_id" db:"artifact_id"`
+	Tag        string    `json:"tag" db:"tag"`
+	CreatedAt  time.Time `json:"created_at" db:"created_at"`
 }
 
 // ArtifactDownload represents a download history record.
 type ArtifactDownload struct {
-	ID          string    `json:"id" db:"id"`
-	ArtifactID  string    `json:"artifact_id" db:"artifact_id"`
-	DownloadedBy string   `json:"downloaded_by" db:"downloaded_by"`
+	ID           string    `json:"id" db:"id"`
+	ArtifactID   string    `json:"artifact_id" db:"artifact_id"`
+	DownloadedBy string    `json:"downloaded_by" db:"downloaded_by"`
 	DownloadedAt time.Time `json:"downloaded_at" db:"downloaded_at"`
-	IPAddress   *string   `json:"ip_address,omitempty" db:"ip_address"`
-	UserAgent   *string   `json:"user_agent,omitempty" db:"user_agent"`
+	IPAddress    *string   `json:"ip_address,omitempty" db:"ip_address"`
+	UserAgent    *string   `json:"user_agent,omitempty" db:"user_agent"`
 }
 
 // ArtifactPromotion represents a promotion record.
@@ -80,16 +80,16 @@ type ArtifactPromotion struct {
 // --- Request models ---
 
 type CreateArtifactRequest struct {
-	Name           string     `json:"name" binding:"required"`
-	Namespace      string     `json:"namespace" binding:"required"`
-	Version        string     `json:"version" binding:"required"`
+	Name           string       `json:"name" binding:"required"`
+	Namespace      string       `json:"namespace" binding:"required"`
+	Version        string       `json:"version" binding:"required"`
 	Type           ArtifactType `json:"type" binding:"required"`
-	SizeBytes      int64      `json:"size_bytes" binding:"required"`
-	ChecksumSha256 *string    `json:"checksum_sha256"`
-	ChecksumSha512 *string    `json:"checksum_sha512"`
-	Metadata       string     `json:"metadata"`
-	StoragePath    string     `json:"storage_path" binding:"required"`
-	CreatedBy      string     `json:"created_by"`
+	SizeBytes      int64        `json:"size_bytes" binding:"required"`
+	ChecksumSha256 *string      `json:"checksum_sha256"`
+	ChecksumSha512 *string      `json:"checksum_sha512"`
+	Metadata       string       `json:"metadata"`
+	StoragePath    string       `json:"storage_path" binding:"required"`
+	CreatedBy      string       `json:"created_by"`
 }
 
 type UpdateArtifactRequest struct {
@@ -145,21 +145,21 @@ type ArtifactListResponse struct {
 }
 
 type ArtifactTagResponse struct {
-	ArtifactID string  `json:"artifact_id"`
+	ArtifactID string   `json:"artifact_id"`
 	Tags       []string `json:"tags"`
 }
 
 type ArtifactStats struct {
-	Total       int  `json:"total"`
-	ByType      map[string]int   `json:"by_type"`
-	ByStatus    map[string]int   `json:"by_status"`
-	TotalSize   int64 `json:"total_size_bytes"`
+	Total     int            `json:"total"`
+	ByType    map[string]int `json:"by_type"`
+	ByStatus  map[string]int `json:"by_status"`
+	TotalSize int64          `json:"total_size_bytes"`
 }
 
 type ArtifactTypeStat struct {
-	Type   string `json:"type"`
-	Count  int    `json:"count"`
-	Size   int64  `json:"total_size_bytes"`
+	Type  string `json:"type"`
+	Count int    `json:"count"`
+	Size  int64  `json:"total_size_bytes"`
 }
 
 type NamespaceStat struct {

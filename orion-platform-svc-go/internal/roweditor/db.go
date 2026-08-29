@@ -10,8 +10,8 @@ import (
 	"context"
 	"database/sql"
 
-	_ "github.com/lib/pq"
 	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 )
 
 // DBOperations abstracts the database calls the editor needs.  The concrete

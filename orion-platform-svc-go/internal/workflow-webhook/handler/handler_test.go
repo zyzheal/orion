@@ -2,10 +2,10 @@ package handler_test
 
 import (
 	"bytes"
-	"fmt"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -134,7 +134,6 @@ func (r *fakeWebhookRepo) Update(_ context.Context, t *models.WebhookTrigger) er
 func fmtWebhookNotFound(id string) error {
 	return errors.Join(service.ErrWebhookNotFound, fmt.Errorf("trigger %s", id))
 }
-
 
 var _ service.RepositoryInterface = (*fakeWebhookRepo)(nil)
 

@@ -60,15 +60,15 @@ func (s *Service) GeneratePostmortemDraft(ctx context.Context, tenantID, inciden
 	}
 
 	return &models.PostmortemDraft{
-		IncidentID:    inc.ID,
-		Title:         title,
-		Summary:       summary,
-		RootCause:     rootCause,
-		Factors:       factors,
-		Timeline:      timelineSummary,
-		ActionItems:   actionItems,
+		IncidentID:     inc.ID,
+		Title:          title,
+		Summary:        summary,
+		RootCause:      rootCause,
+		Factors:        factors,
+		Timeline:       timelineSummary,
+		ActionItems:    actionItems,
 		LessonsLearned: lessons,
-		GeneratedAt:   time.Now().UTC(),
+		GeneratedAt:    time.Now().UTC(),
 	}, nil
 }
 

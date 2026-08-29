@@ -50,14 +50,14 @@ func TestHealingAction_JSONFields(t *testing.T) {
 
 func TestHealingTrigger_Creation(t *testing.T) {
 	trig := &HealingTrigger{
-		ID:           uuid.New(),
-		TenantID:     uuid.New(),
-		ActionID:     uuid.New(),
-		Condition:    "cpu > 80",
-		Threshold:    80.0,
+		ID:            uuid.New(),
+		TenantID:      uuid.New(),
+		ActionID:      uuid.New(),
+		Condition:     "cpu > 80",
+		Threshold:     80.0,
 		EvaluationSec: 60,
-		IsEnabled:    true,
-		CreatedAt:    time.Now(),
+		IsEnabled:     true,
+		CreatedAt:     time.Now(),
 	}
 
 	if trig.ID == uuid.Nil {
@@ -77,11 +77,11 @@ func TestHealingHistory_Statuses(t *testing.T) {
 	for _, s := range statuses {
 		t.Run(s, func(t *testing.T) {
 			h := &HealingHistory{
-				ID:      uuid.New(),
-				Status:  s,
-				Attempt: 1,
+				ID:          uuid.New(),
+				Status:      s,
+				Attempt:     1,
 				TriggeredBy: "manual",
-				StartedAt: time.Now(),
+				StartedAt:   time.Now(),
 			}
 			if h.Status != s {
 				t.Errorf("status mismatch: got %q", h.Status)
@@ -96,7 +96,7 @@ func TestHealingHistory_Statuses(t *testing.T) {
 func TestHealingHistory_WithTrigger(t *testing.T) {
 	triggerID := uuid.New()
 	h := &HealingHistory{
-		ID:      uuid.New(),
+		ID:        uuid.New(),
 		TriggerID: &triggerID,
 	}
 	if h.TriggerID == nil {
@@ -142,8 +142,8 @@ func TestHealingIncident(t *testing.T) {
 
 func TestHealingEffectiveness_Rate(t *testing.T) {
 	eff := &HealingEffectiveness{
-		StrategyID:       uuid.New(),
-		TotalIncidents:   10,
+		StrategyID:        uuid.New(),
+		TotalIncidents:    10,
 		ResolvedIncidents: 7,
 	}
 	// Document the invariant: resolution_rate = resolved/total.
@@ -164,12 +164,12 @@ func TestApprovalRequest_Statuses(t *testing.T) {
 	for _, s := range statuses {
 		t.Run(s, func(t *testing.T) {
 			ar := &ApprovalRequest{
-				ID:        uuid.New(),
+				ID:         uuid.New(),
 				IncidentID: uuid.New(),
-				Title:     "approve-deploy",
-				Status:    s,
-				RiskLevel: "high",
-				CreatedAt: time.Now(),
+				Title:      "approve-deploy",
+				Status:     s,
+				RiskLevel:  "high",
+				CreatedAt:  time.Now(),
 			}
 			if ar.Status != s {
 				t.Errorf("status mismatch: got %q", ar.Status)

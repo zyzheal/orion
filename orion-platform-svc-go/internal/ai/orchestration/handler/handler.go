@@ -5,9 +5,10 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai/orchestration/models"
 	"orion/platform-svc-go/internal/ai/orchestration/service"
-	"orion/go-common/pkg/auth"
 )
 
 type OrchestrationHandler struct {
@@ -31,7 +32,7 @@ func (h *OrchestrationHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	orch.GET("/:id", auth.RequirePermission("ai", "read"), h.Get)
 	orch.DELETE("/:id", auth.RequirePermission("ai", "delete"), h.Delete)
 
-	runs := rg.Group("/orchestration/:orch_id/runs")
+	runs := rg.Group("/orchestration/:id/runs")
 	runs.GET("", auth.RequirePermission("ai", "read"), h.ListRuns)
 	runs.POST("", auth.RequirePermission("ai", "execute"), h.Run)
 
@@ -40,11 +41,13 @@ func (h *OrchestrationHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // List returns paginated orchestrations.
 func (h *OrchestrationHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIOrchList")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	resp, err := h.svc.Query(c.Request.Context(), tenantID, limit, offset)
+	resp, err := h.svc.Query(ctx, tenantID, limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -54,18 +57,20 @@ func (h *OrchestrationHandler) List(c *gin.Context) {
 
 // Create creates a new orchestration.
 func (h *OrchestrationHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIOrchCreate")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req struct {
-		Name        string                `json:"name" binding:"required"`
-		Description string                `json:"description"`
-		Agents      []models.AgentConfig  `json:"agents" binding:"required"`
+		Name        string               `json:"name" binding:"required"`
+		Description string               `json:"description"`
+		Agents      []models.AgentConfig `json:"agents" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
 
-	orch, err := h.svc.Create(c.Request.Context(), tenantID, req.Name, req.Description, req.Agents)
+	orch, err := h.svc.Create(ctx, tenantID, req.Name, req.Description, req.Agents)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -75,10 +80,12 @@ func (h *OrchestrationHandler) Create(c *gin.Context) {
 
 // Get returns a single orchestration.
 func (h *OrchestrationHandler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIOrchGet")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id := c.Param("id")
 
-	orch, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	orch, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -88,10 +95,12 @@ func (h *OrchestrationHandler) Get(c *gin.Context) {
 
 // Delete removes an orchestration.
 func (h *OrchestrationHandler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIOrchDelete")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id := c.Param("id")
 
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -100,6 +109,8 @@ func (h *OrchestrationHandler) Delete(c *gin.Context) {
 
 // Run executes an orchestration.
 func (h *OrchestrationHandler) Run(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIOrchRun")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req models.RunRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -107,7 +118,7 @@ func (h *OrchestrationHandler) Run(c *gin.Context) {
 		return
 	}
 
-	run, err := h.svc.Run(c.Request.Context(), tenantID, &req)
+	run, err := h.svc.Run(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -117,11 +128,13 @@ func (h *OrchestrationHandler) Run(c *gin.Context) {
 
 // ListRuns returns paginated runs.
 func (h *OrchestrationHandler) ListRuns(c *gin.Context) {
-	orchID := c.Param("orch_id")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIOrchListRuns")
+	defer span.End()
+	orchID := c.Param("id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	runs, total, err := h.svc.QueryRuns(c.Request.Context(), orchID, limit, offset)
+	runs, total, err := h.svc.QueryRuns(ctx, orchID, limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -131,9 +144,11 @@ func (h *OrchestrationHandler) ListRuns(c *gin.Context) {
 
 // GetRun returns a single run.
 func (h *OrchestrationHandler) GetRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIOrchGetRun")
+	defer span.End()
 	id := c.Param("run_id")
 
-	run, err := h.svc.GetRun(c.Request.Context(), id)
+	run, err := h.svc.GetRun(ctx, id)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return

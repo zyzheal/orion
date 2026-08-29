@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strconv"
 
 	"orion/platform-svc-go/internal/infrastructure/iac/models"
@@ -54,13 +55,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ─── Workspace Handlers ────────────────────────────────────────────────────────
 
 func (h *Handler) CreateWorkspace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraIACCreateWorkspace")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateWorkspaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	w, err := h.svc.CreateWorkspace(c.Request.Context(), tenantID, &req)
+	w, err := h.svc.CreateWorkspace(ctx, tenantID, &req)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -69,6 +72,8 @@ func (h *Handler) CreateWorkspace(c *gin.Context) {
 }
 
 func (h *Handler) ListWorkspaces(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraIACListWorkspaces")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -76,7 +81,7 @@ func (h *Handler) ListWorkspaces(c *gin.Context) {
 	if offset < 0 {
 		offset = 0
 	}
-	items, err := h.svc.ListWorkspaces(c.Request.Context(), tenantID, offset, ps)
+	items, err := h.svc.ListWorkspaces(ctx, tenantID, offset, ps)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -85,8 +90,10 @@ func (h *Handler) ListWorkspaces(c *gin.Context) {
 }
 
 func (h *Handler) GetWorkspace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraIACGetWorkspace")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	w, err := h.svc.GetWorkspace(c.Request.Context(), tenantID, c.Param("id"))
+	w, err := h.svc.GetWorkspace(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -95,13 +102,15 @@ func (h *Handler) GetWorkspace(c *gin.Context) {
 }
 
 func (h *Handler) UpdateWorkspace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraIACUpdateWorkspace")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateWorkspaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	w, err := h.svc.UpdateWorkspace(c.Request.Context(), tenantID, c.Param("id"), &req)
+	w, err := h.svc.UpdateWorkspace(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -112,8 +121,10 @@ func (h *Handler) UpdateWorkspace(c *gin.Context) {
 // ─── Plan & Apply Handlers ─────────────────────────────────────────────────────
 
 func (h *Handler) GeneratePlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraIACGeneratePlan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	plan, err := h.svc.GeneratePlan(c.Request.Context(), tenantID, c.Param("id"))
+	plan, err := h.svc.GeneratePlan(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -122,8 +133,10 @@ func (h *Handler) GeneratePlan(c *gin.Context) {
 }
 
 func (h *Handler) ApplyPlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraIACApplyPlan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	plan, err := h.svc.ApplyPlan(c.Request.Context(), tenantID, c.Param("id"))
+	plan, err := h.svc.ApplyPlan(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -132,8 +145,10 @@ func (h *Handler) ApplyPlan(c *gin.Context) {
 }
 
 func (h *Handler) ListPlansByWorkspace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraIACListPlansByWorkspace")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.ListPlansByWorkspace(c.Request.Context(), tenantID, c.Param("id"))
+	items, err := h.svc.ListPlansByWorkspace(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -142,10 +157,12 @@ func (h *Handler) ListPlansByWorkspace(c *gin.Context) {
 }
 
 func (h *Handler) GetPlanByID(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraIACGetPlanByID")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	workspaceID := c.Param("workspaceId")
 	planID := c.Param("planId")
-	plan, err := h.svc.GetPlanByID(c.Request.Context(), tenantID, workspaceID, planID)
+	plan, err := h.svc.GetPlanByID(ctx, tenantID, workspaceID, planID)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -156,8 +173,10 @@ func (h *Handler) GetPlanByID(c *gin.Context) {
 // ─── State & Resource Handlers ─────────────────────────────────────────────────
 
 func (h *Handler) GetCurrentState(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraIACGetCurrentState")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	state, err := h.svc.GetCurrentState(c.Request.Context(), tenantID, c.Param("id"))
+	state, err := h.svc.GetCurrentState(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -166,8 +185,10 @@ func (h *Handler) GetCurrentState(c *gin.Context) {
 }
 
 func (h *Handler) ListResources(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraIACListResources")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.ListResources(c.Request.Context(), tenantID, c.Param("id"))
+	items, err := h.svc.ListResources(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -176,6 +197,8 @@ func (h *Handler) ListResources(c *gin.Context) {
 }
 
 func (h *Handler) ImportResource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraIACImportResource")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body struct {
 		Type string `json:"type"`
@@ -185,7 +208,7 @@ func (h *Handler) ImportResource(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	resource, err := h.svc.ImportResource(c.Request.Context(), tenantID, c.Param("id"), body.Type, body.Name)
+	resource, err := h.svc.ImportResource(ctx, tenantID, c.Param("id"), body.Type, body.Name)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -196,7 +219,9 @@ func (h *Handler) ImportResource(c *gin.Context) {
 // ─── State Version Handlers ────────────────────────────────────────────────────
 
 func (h *Handler) ListStateVersions(c *gin.Context) {
-	versions, err := h.svc.ListStateVersions(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraIACListStateVersions")
+	defer span.End()
+	versions, err := h.svc.ListStateVersions(ctx, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -205,13 +230,15 @@ func (h *Handler) ListStateVersions(c *gin.Context) {
 }
 
 func (h *Handler) GetStateDiff(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraIACGetStateDiff")
+	defer span.End()
 	versionA := c.Query("versionA")
 	versionB := c.Query("versionB")
 	if versionA == "" || versionB == "" {
 		respondBadRequest(c, "versionA and versionB query parameters are required")
 		return
 	}
-	diff, err := h.svc.GetStateDiff(c.Request.Context(), c.Param("id"), versionA, versionB)
+	diff, err := h.svc.GetStateDiff(ctx, c.Param("id"), versionA, versionB)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -222,12 +249,14 @@ func (h *Handler) GetStateDiff(c *gin.Context) {
 // ─── Module Handlers ───────────────────────────────────────────────────────────
 
 func (h *Handler) CreateModule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraIACCreateModule")
+	defer span.End()
 	var req models.CreateModuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.CreateModule(c.Request.Context(), &req)
+	m, err := h.svc.CreateModule(ctx, &req)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -236,13 +265,15 @@ func (h *Handler) CreateModule(c *gin.Context) {
 }
 
 func (h *Handler) ListModules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraIACListModules")
+	defer span.End()
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	offset := (page - 1) * ps
 	if offset < 0 {
 		offset = 0
 	}
-	items, err := h.svc.ListModules(c.Request.Context(), offset, ps)
+	items, err := h.svc.ListModules(ctx, offset, ps)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -251,7 +282,9 @@ func (h *Handler) ListModules(c *gin.Context) {
 }
 
 func (h *Handler) GetModuleByID(c *gin.Context) {
-	m, err := h.svc.GetModuleByID(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraIACGetModuleByID")
+	defer span.End()
+	m, err := h.svc.GetModuleByID(ctx, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -260,7 +293,9 @@ func (h *Handler) GetModuleByID(c *gin.Context) {
 }
 
 func (h *Handler) DeleteModule(c *gin.Context) {
-	if err := h.svc.DeleteModule(c.Request.Context(), c.Param("id")); err != nil {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraIACDeleteModule")
+	defer span.End()
+	if err := h.svc.DeleteModule(ctx, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}

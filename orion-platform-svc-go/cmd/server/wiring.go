@@ -152,6 +152,11 @@ import (
 	logging_handler "orion/platform-svc-go/internal/logging/handler"
 	logging_repo "orion/platform-svc-go/internal/logging/repository"
 	logging_service "orion/platform-svc-go/internal/logging/service"
+	// ---- P1-1: Crossover cross-module call bus ----
+	crossover_handler "orion/platform-svc-go/internal/crossover/handler"
+	crossover_repo "orion/platform-svc-go/internal/crossover/repository"
+	crossover_service "orion/platform-svc-go/internal/crossover/service"
+	crossover_adapter "orion/platform-svc-go/internal/crossover/adapter"
 	// ---- P0-5: Object storage (S3/MinIO abstraction) ----
 	storage_handler "orion/platform-svc-go/internal/storage/handler"
 	storage_repo "orion/platform-svc-go/internal/storage/repository"
@@ -225,6 +230,7 @@ var (
 	resilienceScoreH    *resilience_score_handler.Handler
 	sbomH               *sbom_handler.Handler
 	loggingH            *logging_handler.Handler
+	crossoverH          *crossover_handler.Handler
 	selfhealingH        *sh_handler.SelfHealingHandler
 	// ---- Blueprint CI-CD merge handlers ----
 	ciArtRegH    *ciArtReg_handler.ArtifactRegistryHandler
@@ -308,7 +314,7 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	wireCmdbRelationship(db, logger)
 	wireChannel(db, logger)
 	wireDoNotDisturb(db)
-	wireChaosGateway(db, logger)
+	wireChaosEngine(db, logger)
 	wireCircuitBreaker(db, logger)
 	// CI/CD & domain modules: chatops, code-repo, approval, audit, incident,
 	// build-env, build, pipeline, dba, deploy, deploy-enhanced, digital-twin,
@@ -317,6 +323,7 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	// ci-type, backup, lowcode
 	wireCICDModules(db)
 	wireDomainModules(db)
+	wireCoreDomains(db, logger)
 	// Notification & channel modules
 	wireNotificationModules(db)
 	// Workflow orchestration modules
@@ -464,6 +471,11 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	loggingRepo := logging_repo.NewRepository(infra.db.DB)
 	loggingSvc := logging_service.NewService(loggingRepo)
 	loggingH = logging_handler.NewHandler(loggingSvc)
+	// P1-1: Crossover cross-module call bus
+	crossoverRepo := crossover_repo.NewRepository(infra.db.DB)
+	crossoverAdapter := crossover_adapter.NewRepositoryAdapter(crossoverRepo)
+	crossoverSvc := crossover_service.NewCrossoverService(crossoverAdapter)
+	crossoverH = crossover_handler.NewHandler(crossoverSvc)
 	// P0-5: Object storage metadata (S3/MinIO abstraction)
 	storageRepo := storage_repo.NewRepository(infra.db.DB)
 	storageSvc := storage_service.NewService(storageRepo)

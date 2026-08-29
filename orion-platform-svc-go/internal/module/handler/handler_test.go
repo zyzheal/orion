@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/module/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/module/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeModuleService) ValidateDependencies(ctx context.Context, tenantID s
 }
 
 var _ service.ServiceInterface = (*fakeModuleService)(nil)
-
 
 func TestHandler_MODULE_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

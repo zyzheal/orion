@@ -60,16 +60,16 @@ func (a *AlertIndexer) Config() interfaces.IndexerConfig {
 func (a *AlertIndexer) Reindex(ctx context.Context) error {
 	mapping := map[string]interface{}{
 		"properties": map[string]interface{}{
-			"id":       map[string]string{"type": "keyword"},
-			"title":    map[string]string{"type": "text"},
-			"severity": map[string]string{"type": "keyword"},
-			"status":   map[string]string{"type": "keyword"},
-			"source":   map[string]string{"type": "keyword"},
-			"message":  map[string]string{"type": "text"},
-			"body":     map[string]string{"type": "text"},
-			"fields":   map[string]string{"type": "object", "enabled": "true"},
-			"created_at":  map[string]string{"type": "date"},
-			"updated_at":  map[string]string{"type": "date"},
+			"id":         map[string]string{"type": "keyword"},
+			"title":      map[string]string{"type": "text"},
+			"severity":   map[string]string{"type": "keyword"},
+			"status":     map[string]string{"type": "keyword"},
+			"source":     map[string]string{"type": "keyword"},
+			"message":    map[string]string{"type": "text"},
+			"body":       map[string]string{"type": "text"},
+			"fields":     map[string]string{"type": "object", "enabled": "true"},
+			"created_at": map[string]string{"type": "date"},
+			"updated_at": map[string]string{"type": "date"},
 		},
 	}
 	if err := a.client.CreateIndex(ctx, a.indexName, mapping); err != nil {
@@ -93,15 +93,15 @@ func (a *AlertIndexer) Reindex(ctx context.Context) error {
 		docs := make([]map[string]interface{}, 0, len(alerts))
 		for _, al := range alerts {
 			doc := map[string]interface{}{
-				"id":       al.ID,
-				"title":    al.Title,
-				"severity": al.Severity,
-				"status":   al.Status,
-				"source":   al.Source,
-				"message":  al.Message,
+				"id":         al.ID,
+				"title":      al.Title,
+				"severity":   al.Severity,
+				"status":     al.Status,
+				"source":     al.Source,
+				"message":    al.Message,
 				"created_at": al.CreatedAt,
 				"updated_at": al.UpdatedAt,
-				"body":     al.Title + " " + al.Message,
+				"body":       al.Title + " " + al.Message,
 				"fields": map[string]interface{}{
 					"severity": al.Severity,
 					"status":   al.Status,
@@ -133,10 +133,10 @@ func (a *AlertIndexer) Documents(ctx context.Context, offset, limit int) ([]*int
 	docs := make([]*interfaces.Document, 0, len(alerts))
 	for _, al := range alerts {
 		docs = append(docs, &interfaces.Document{
-			ID:      al.ID,
-			Type:    al.Severity,
-			Title:   al.Title,
-			Body:    al.Title + " " + al.Message,
+			ID:        al.ID,
+			Type:      al.Severity,
+			Title:     al.Title,
+			Body:      al.Title + " " + al.Message,
 			CreatedAt: al.CreatedAt,
 			UpdatedAt: al.UpdatedAt,
 			Fields: map[string]interface{}{
@@ -146,7 +146,7 @@ func (a *AlertIndexer) Documents(ctx context.Context, offset, limit int) ([]*int
 			},
 		})
 	}
-	return docs, offset+len(alerts), nil
+	return docs, offset + len(alerts), nil
 }
 
 func (a *AlertIndexer) Count(ctx context.Context) (int64, error) {

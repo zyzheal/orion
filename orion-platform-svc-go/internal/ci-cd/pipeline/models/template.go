@@ -21,13 +21,13 @@ type PipelineTemplate struct {
 
 // TemplateVariable defines a configurable variable in a template
 type TemplateVariable struct {
-	Name         string `json:"name"`
-	Type         string `json:"type"` // string, number, boolean, select
-	Label        string `json:"label"`
-	DefaultValue string `json:"default_value,omitempty"`
-	Required     bool   `json:"required"`
+	Name         string   `json:"name"`
+	Type         string   `json:"type"` // string, number, boolean, select
+	Label        string   `json:"label"`
+	DefaultValue string   `json:"default_value,omitempty"`
+	Required     bool     `json:"required"`
 	Options      []string `json:"options,omitempty"` // for select type
-	Description  string `json:"description,omitempty"`
+	Description  string   `json:"description,omitempty"`
 }
 
 // CreateTemplateRequest is input for creating a template

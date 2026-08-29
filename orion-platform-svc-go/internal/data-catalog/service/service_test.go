@@ -21,7 +21,7 @@ type fakeCatalogRepo struct {
 	listResult    []models.Entry
 	listErr       error
 	getByIDResult *models.Entry
-	getByIDErr   error
+	getByIDErr    error
 	createResult  *models.Entry
 	createErr     error
 	updateResult  *models.Entry
@@ -35,11 +35,17 @@ type fakeCatalogRepo struct {
 	getByTableErr error
 
 	// recorded calls
-	createCalls  []struct{ tenant string; req models.CreateEntryRequest }
+	createCalls []struct {
+		tenant string
+		req    models.CreateEntryRequest
+	}
 	getByIDCalls []struct{ tenant, id string }
 	listCalls    []string
-	updateCalls  []struct{ tenant, id string; req models.UpdateEntryRequest }
-	deleteCalls  []struct{ tenant, id string }
+	updateCalls  []struct {
+		tenant, id string
+		req        models.UpdateEntryRequest
+	}
+	deleteCalls []struct{ tenant, id string }
 }
 
 var _ service.RepositoryInterface = (*fakeCatalogRepo)(nil)
@@ -56,12 +62,18 @@ func (f *fakeCatalogRepo) GetByID(ctx context.Context, tenantID, id string) (*mo
 }
 
 func (f *fakeCatalogRepo) Create(ctx context.Context, tenantID string, req models.CreateEntryRequest) (*models.Entry, error) {
-	f.createCalls = append(f.createCalls, struct{ tenant string; req models.CreateEntryRequest }{tenantID, req})
+	f.createCalls = append(f.createCalls, struct {
+		tenant string
+		req    models.CreateEntryRequest
+	}{tenantID, req})
 	return f.createResult, f.createErr
 }
 
 func (f *fakeCatalogRepo) Update(ctx context.Context, tenantID, id string, req models.UpdateEntryRequest) (*models.Entry, error) {
-	f.updateCalls = append(f.updateCalls, struct{ tenant, id string; req models.UpdateEntryRequest }{tenantID, id, req})
+	f.updateCalls = append(f.updateCalls, struct {
+		tenant, id string
+		req        models.UpdateEntryRequest
+	}{tenantID, id, req})
 	return f.updateResult, f.updateErr
 }
 
@@ -94,10 +106,10 @@ var ctx = context.Background()
 
 func sampleEntry() models.Entry {
 	return models.Entry{
-		ID:       "entry-1",
-		TenantID: "tenant-a",
-		Name:     "user_table",
-		DataType: "table",
+		ID:        "entry-1",
+		TenantID:  "tenant-a",
+		Name:      "user_table",
+		DataType:  "table",
 		TableName: "users",
 	}
 }

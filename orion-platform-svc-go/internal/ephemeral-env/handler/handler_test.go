@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/ephemeral-env/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/ephemeral-env/models"
 )
 
@@ -56,7 +56,6 @@ func (f *fakeEphemeral_envService) ListEnvs(ctx context.Context, tenantID string
 }
 
 var _ service.ServiceInterface = (*fakeEphemeral_envService)(nil)
-
 
 func TestHandler_EPHEMERAL_ENV_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

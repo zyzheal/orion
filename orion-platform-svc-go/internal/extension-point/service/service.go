@@ -73,7 +73,7 @@ func (s *ServiceEx) GetExtension(ctx context.Context, name string) (*models.Exte
 		return nil, fmt.Errorf("get extension failed: %w", err)
 	}
 	summary := repository.ExtensionPointToSummary(*ep)
-return &summary, nil
+	return &summary, nil
 }
 
 // Register creates a new extension point.

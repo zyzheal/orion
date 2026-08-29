@@ -24,12 +24,12 @@ func NewHandler(svc service.ServiceInterface) *Handler {
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	g := rg.Group("/pipelines")
 
-	g.GET("/:pipelineId/versions/:versionId", auth.RequirePermission("pipeline", "read"), h.GetVersion)
-	g.GET("/:pipelineId/versions/:versionId/diff", auth.RequirePermission("pipeline", "read"), h.DiffVersions)
-	g.POST("/:pipelineId/versions/:versionId/rollback", auth.RequirePermission("pipeline", "write"), h.Rollback)
-	g.POST("/:pipelineId/versions/:versionId/tag", auth.RequirePermission("pipeline", "write"), h.AddTag)
-	g.DELETE("/:pipelineId/versions/:versionId/tag/:tag", auth.RequirePermission("pipeline", "write"), h.RemoveTag)
-	g.POST("/:pipelineId/versions/:versionId/baseline", auth.RequirePermission("pipeline", "write"), h.SetBaseline)
+	g.GET("/:id/versions/:versionId", auth.RequirePermission("pipeline", "read"), h.GetVersion)
+	g.GET("/:id/versions/:versionId/diff", auth.RequirePermission("pipeline", "read"), h.DiffVersions)
+	g.POST("/:id/versions/:versionId/rollback", auth.RequirePermission("pipeline", "write"), h.Rollback)
+	g.POST("/:id/versions/:versionId/tag", auth.RequirePermission("pipeline", "write"), h.AddTag)
+	g.DELETE("/:id/versions/:versionId/tag/:tag", auth.RequirePermission("pipeline", "write"), h.RemoveTag)
+	g.POST("/:id/versions/:versionId/baseline", auth.RequirePermission("pipeline", "write"), h.SetBaseline)
 }
 
 func (h *Handler) getTenantID(c *gin.Context) string {

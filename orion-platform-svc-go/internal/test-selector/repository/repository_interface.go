@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/test-selector/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	CreatePRTestResult(ctx context.Context, res *models.PRTestResult) error

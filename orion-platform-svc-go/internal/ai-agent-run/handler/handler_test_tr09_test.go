@@ -29,10 +29,10 @@ import (
 
 // fakeAgentRunRepo implements RepositoryInterface for handler tests.
 type fakeAgentRunRepo struct {
-	runs       map[string]*models.AgentRun
-	decisions  []models.AgentDecision
-	nextRunID  int
-	nextDecID  int
+	runs      map[string]*models.AgentRun
+	decisions []models.AgentDecision
+	nextRunID int
+	nextDecID int
 }
 
 func newFakeAgentRunRepo() *fakeAgentRunRepo {

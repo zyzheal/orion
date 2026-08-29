@@ -5,19 +5,19 @@ import (
 )
 
 type Config struct {
-	ServerPort  int    `mapstructure:"server_port"`
-	ServerHost  string `mapstructure:"server_host"`
-	APIPrefix   string `mapstructure:"api_prefix"`
-	DBHost      string `mapstructure:"db_host"`
-	DBPort      int    `mapstructure:"db_port"`
-	DBUser      string `mapstructure:"db_user"`
-	DBPassword  string `mapstructure:"db_password"`
-	DBName      string `mapstructure:"db_name"`
-	DBSSLMode   string `mapstructure:"db_ssl_mode"`
-	JWTSecret   string
-	RedisAddr   string
-	NATSAddr    string `mapstructure:"nats_addr"`
-	NATSStream  string `mapstructure:"nats_stream"`
+	ServerPort int    `mapstructure:"server_port"`
+	ServerHost string `mapstructure:"server_host"`
+	APIPrefix  string `mapstructure:"api_prefix"`
+	DBHost     string `mapstructure:"db_host"`
+	DBPort     int    `mapstructure:"db_port"`
+	DBUser     string `mapstructure:"db_user"`
+	DBPassword string `mapstructure:"db_password"`
+	DBName     string `mapstructure:"db_name"`
+	DBSSLMode  string `mapstructure:"db_ssl_mode"`
+	JWTSecret  string
+	RedisAddr  string
+	NATSAddr   string `mapstructure:"nats_addr"`
+	NATSStream string `mapstructure:"nats_stream"`
 }
 
 func Load() (*Config, error) {

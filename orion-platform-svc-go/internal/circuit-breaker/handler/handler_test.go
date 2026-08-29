@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/circuit-breaker/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/circuit-breaker/models"
 )
 
@@ -79,7 +79,6 @@ func (f *fakeCircuit_breakerService) Update(ctx context.Context, id, tenantID st
 }
 
 var _ service.ServiceInterface = (*fakeCircuit_breakerService)(nil)
-
 
 func TestCIRCUIT_BREAKER_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

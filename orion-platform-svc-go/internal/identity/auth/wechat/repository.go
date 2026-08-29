@@ -41,37 +41,37 @@ func (r *WechatRepository) CreateAccount(ctx context.Context, acct *WeChatWorkAc
 			last_synced_at = EXCLUDED.last_synced_at,
 			updated_at = EXCLUDED.updated_at
 	`, struct {
-		ID             string         `db:"id"`
-		TenantID       string         `db:"tenant_id"`
-		UserID         string         `db:"user_id"`
-		WechatUserID   string         `db:"wechat_userid"`
-		WechatOpenID   sql.NullString `db:"wechat_openid"`
-		Name           sql.NullString `db:"name"`
-		Email          sql.NullString `db:"email"`
-		Mobile         sql.NullString `db:"mobile"`
-		DepartmentIDs  sql.NullString `db:"department_ids"`
-		Position       sql.NullString `db:"position"`
-		Avatar         sql.NullString `db:"avatar"`
-		Linked         bool           `db:"linked"`
-		LastSyncedAt   sql.NullTime   `db:"last_synced_at"`
-		CreatedAt      time.Time      `db:"created_at"`
-		UpdatedAt      time.Time      `db:"updated_at"`
+		ID            string         `db:"id"`
+		TenantID      string         `db:"tenant_id"`
+		UserID        string         `db:"user_id"`
+		WechatUserID  string         `db:"wechat_userid"`
+		WechatOpenID  sql.NullString `db:"wechat_openid"`
+		Name          sql.NullString `db:"name"`
+		Email         sql.NullString `db:"email"`
+		Mobile        sql.NullString `db:"mobile"`
+		DepartmentIDs sql.NullString `db:"department_ids"`
+		Position      sql.NullString `db:"position"`
+		Avatar        sql.NullString `db:"avatar"`
+		Linked        bool           `db:"linked"`
+		LastSyncedAt  sql.NullTime   `db:"last_synced_at"`
+		CreatedAt     time.Time      `db:"created_at"`
+		UpdatedAt     time.Time      `db:"updated_at"`
 	}{
-		ID:             acct.ID,
-		TenantID:       acct.TenantID,
-		UserID:         acct.UserID,
-		WechatUserID:   acct.WechatUserID,
-		WechatOpenID:   acct.WechatOpenID,
-		Name:           acct.Name,
-		Email:          acct.Email,
-		Mobile:         acct.Mobile,
-		DepartmentIDs:  sql.NullString{String: deptIDs, Valid: true},
-		Position:       acct.Position,
-		Avatar:         acct.Avatar,
-		Linked:         acct.Linked,
-		LastSyncedAt:   sql.NullTime{Time: *acct.LastSyncedAt, Valid: acct.LastSyncedAt != nil},
-		CreatedAt:      acct.CreatedAt,
-		UpdatedAt:      acct.UpdatedAt,
+		ID:            acct.ID,
+		TenantID:      acct.TenantID,
+		UserID:        acct.UserID,
+		WechatUserID:  acct.WechatUserID,
+		WechatOpenID:  acct.WechatOpenID,
+		Name:          acct.Name,
+		Email:         acct.Email,
+		Mobile:        acct.Mobile,
+		DepartmentIDs: sql.NullString{String: deptIDs, Valid: true},
+		Position:      acct.Position,
+		Avatar:        acct.Avatar,
+		Linked:        acct.Linked,
+		LastSyncedAt:  sql.NullTime{Time: *acct.LastSyncedAt, Valid: acct.LastSyncedAt != nil},
+		CreatedAt:     acct.CreatedAt,
+		UpdatedAt:     acct.UpdatedAt,
 	})
 	return err
 }
@@ -127,17 +127,17 @@ func (r *WechatRepository) UpsertDepartment(ctx context.Context, dept *WeChatWor
 			last_synced_at = EXCLUDED.last_synced_at,
 			updated_at = EXCLUDED.updated_at
 	`, struct {
-		ID              string         `db:"id"`
-		TenantID        string         `db:"tenant_id"`
-		WechatDeptID    int64          `db:"wechat_dept_id"`
-		WechatDeptName  sql.NullString `db:"wechat_dept_name"`
-		WechatParentID  int64          `db:"wechat_parent_id"`
-		OrionGroupID    sql.NullString `db:"orion_group_id"`
-		OrionGroupName  sql.NullString `db:"orion_group_name"`
-		Enabled         bool           `db:"enabled"`
-		LastSyncedAt    sql.NullTime   `db:"last_synced_at"`
-		CreatedAt       time.Time      `db:"created_at"`
-		UpdatedAt       time.Time      `db:"updated_at"`
+		ID             string         `db:"id"`
+		TenantID       string         `db:"tenant_id"`
+		WechatDeptID   int64          `db:"wechat_dept_id"`
+		WechatDeptName sql.NullString `db:"wechat_dept_name"`
+		WechatParentID int64          `db:"wechat_parent_id"`
+		OrionGroupID   sql.NullString `db:"orion_group_id"`
+		OrionGroupName sql.NullString `db:"orion_group_name"`
+		Enabled        bool           `db:"enabled"`
+		LastSyncedAt   sql.NullTime   `db:"last_synced_at"`
+		CreatedAt      time.Time      `db:"created_at"`
+		UpdatedAt      time.Time      `db:"updated_at"`
 	}{
 		ID:             dept.ID,
 		TenantID:       dept.TenantID,

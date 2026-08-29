@@ -33,7 +33,7 @@ func TestJobActions_PackageAvailable(t *testing.T) {
 // handler constructors is accessible and returns a non-nil IJobActionHandler.
 // This also exercises stubHandler.Name/Type/Category without touching any DB.
 func TestJobActions_HandlerConstructors(t *testing.T) {
-constructors := map[string]func() service.IJobActionHandler{
+	constructors := map[string]func() service.IJobActionHandler{
 		"restart_service":     service.NewRestartServiceHandler,
 		"deploy_code":         service.NewDeployCodeHandler,
 		"backup_db":           service.NewBackupDBHandler,

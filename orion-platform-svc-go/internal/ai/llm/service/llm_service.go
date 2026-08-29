@@ -172,18 +172,18 @@ func (s *Service) CalculateCost(ctx context.Context, modelID string, inputTokens
 	totalCost := inputCost + outputCost
 
 	return &models.CostBreakdown{
-		InputCost:       inputCost,
-		OutputCost:      outputCost,
-		TotalCost:       totalCost,
-		Currency:        "CNY",
+		InputCost:        inputCost,
+		OutputCost:       outputCost,
+		TotalCost:        totalCost,
+		Currency:         "CNY",
 		BreakdownByModel: map[string]float64{modelID: totalCost},
 	}
 }
 
 // CalculateBatchCost computes the total cost across multiple traces.
 func (s *Service) CalculateBatchCost(ctx context.Context, traces []struct {
-	ModelID     string
-	InputTokens int64
+	ModelID      string
+	InputTokens  int64
 	OutputTokens int64
 }) *models.CostBreakdown {
 	var totalInput, totalOutput float64

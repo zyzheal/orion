@@ -295,9 +295,9 @@ func (r *Repository) ClearExpiredPredictions(ctx context.Context) (int64, error)
 
 // PredictionStats holds aggregate statistics over predictions.
 type PredictionStats struct {
-	TotalPredictions int                `db:"total"`
-	AvgScore         float64            `db:"avg_score"`
-	ByLevel          map[string]int     `json:"by_level"`
+	TotalPredictions int            `db:"total"`
+	AvgScore         float64        `db:"avg_score"`
+	ByLevel          map[string]int `json:"by_level"`
 }
 
 // GetPredictionStats returns aggregate stats over non-expired predictions.

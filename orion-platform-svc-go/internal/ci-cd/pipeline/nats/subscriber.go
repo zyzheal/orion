@@ -53,10 +53,10 @@ func (s *NATSSubscriber) Start(ctx context.Context) error {
 	subject := fmt.Sprintf("%s.PipelineEvent.>", s.stream)
 
 	_, err := s.js.CreateOrUpdateConsumer(ctx, s.stream, jetstream.ConsumerConfig{
-		Name:           "pipeline-svc-consumer",
-		FilterSubjects: []string{subject},
-		AckPolicy:      jetstream.AckExplicitPolicy,
-		MaxDeliver:     3,
+		Name:              "pipeline-svc-consumer",
+		FilterSubjects:    []string{subject},
+		AckPolicy:         jetstream.AckExplicitPolicy,
+		MaxDeliver:        3,
 		InactiveThreshold: 30 * time.Minute,
 	})
 	if err != nil {

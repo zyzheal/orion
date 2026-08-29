@@ -7,10 +7,10 @@ import (
 
 // FormatValidator checks that a field value matches a specified pattern/format.
 type FormatValidator struct {
-	name       string
-	condition  *RuleCondition
-	errorMsg   string
-	patternRe  string
+	name      string
+	condition *RuleCondition
+	errorMsg  string
+	patternRe string
 }
 
 func NewFormatValidator(name, condition, errorMsg string) *FormatValidator {

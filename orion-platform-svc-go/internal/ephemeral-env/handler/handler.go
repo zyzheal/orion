@@ -9,8 +9,8 @@ import (
 	"orion/platform-svc-go/internal/ephemeral-env/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/go-common/pkg/errors"
 	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/errors"
 )
 
 type Handler struct {
@@ -23,7 +23,7 @@ func NewHandler(svc service.ServiceInterface) *Handler {
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r := rg.Group("/ephemeral-env")
-r.GET("", auth.RequirePermission("ephemeral-env", "read"), h.ListEnvs)
+	r.GET("", auth.RequirePermission("ephemeral-env", "read"), h.ListEnvs)
 	r.GET("/:id", auth.RequirePermission("ephemeral-env", "read"), h.GetEnv)
 	r.POST("", auth.RequirePermission("ephemeral-env", "write"), h.CreateEnv)
 	r.PUT("/:id/extend", auth.RequirePermission("ephemeral-env", "write"), h.ExtendTTL)
@@ -65,13 +65,13 @@ func (h *Handler) DestroyEnv(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DestroyEnv")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-id := c.Param("id")
-result, err := h.svc.DestroyEnv(ctx, tenantID, id)
+	id := c.Param("id")
+	result, err := h.svc.DestroyEnv(ctx, tenantID, id)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-errors.WriteSuccess(c, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) ExtendTTL(c *gin.Context) {

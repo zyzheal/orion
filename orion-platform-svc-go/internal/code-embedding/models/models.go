@@ -30,11 +30,11 @@ func (e *CodeEmbedding) VectorAsFloats() ([]float64, error) {
 
 // EmbedRequest for generating an embedding.
 type EmbedRequest struct {
-	RepoID   string                 `json:"repo_id" binding:"required"`
-	FilePath string                 `json:"file_path" binding:"required"`
-	Language string                 `json:"language"`
-	Content  string                 `json:"content" binding:"required"`
-	Model    string                 `json:"model"`
+	RepoID   string `json:"repo_id" binding:"required"`
+	FilePath string `json:"file_path" binding:"required"`
+	Language string `json:"language"`
+	Content  string `json:"content" binding:"required"`
+	Model    string `json:"model"`
 }
 
 // SearchRequest for searching code embeddings.

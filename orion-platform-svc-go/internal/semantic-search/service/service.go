@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/semantic-search/models"
 	"orion/platform-svc-go/internal/semantic-search/repository"
-	"go.uber.org/zap"
 )
 
 type SemanticSearchService struct {

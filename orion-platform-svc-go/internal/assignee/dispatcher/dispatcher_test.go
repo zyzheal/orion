@@ -61,6 +61,7 @@ func TestRegistryRegister(t *testing.T) {
 }
 
 type testDispatcher struct{ name string }
+
 func (d *testDispatcher) Type() string { return d.name }
 func (d *testDispatcher) Match(_ context.Context, c []*Candidate, i *WorkItem) (*MatchResult, error) {
 	if len(c) == 0 {

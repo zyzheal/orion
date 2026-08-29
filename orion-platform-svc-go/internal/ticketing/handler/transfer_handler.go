@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -19,6 +20,8 @@ func NewTransferHandler(svc *service.TransferService) *TransferHandler {
 
 // ManualTransfer POST /api/v1/tickets/transfer/:ticketId
 func (h *TransferHandler) ManualTransfer(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingManualTransfer")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("ticketId")
 
@@ -29,7 +32,7 @@ func (h *TransferHandler) ManualTransfer(c *gin.Context) {
 	}
 
 	initiatedBy := GetUserID(c)
-	record, err := h.svc.ManualTransfer(c.Request.Context(), ticketID, tenantID, req.ToUserID, initiatedBy, req.Reason)
+	record, err := h.svc.ManualTransfer(ctx, ticketID, tenantID, req.ToUserID, initiatedBy, req.Reason)
 	if err != nil {
 		respondError(c, http.StatusBadRequest, err)
 		return
@@ -40,9 +43,11 @@ func (h *TransferHandler) ManualTransfer(c *gin.Context) {
 
 // CheckAutoTransfer POST /api/v1/tickets/transfer/auto-check
 func (h *TransferHandler) CheckAutoTransfer(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingCheckAutoTransfer")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	transfers, err := h.svc.CheckAndAutoTransfer(c.Request.Context(), tenantID)
+	transfers, err := h.svc.CheckAndAutoTransfer(ctx, tenantID)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -53,7 +58,9 @@ func (h *TransferHandler) CheckAutoTransfer(c *gin.Context) {
 
 // TransferDueToSuspend POST /api/v1/tickets/transfer/suspend/:suspendId
 func (h *TransferHandler) TransferDueToSuspend(c *gin.Context) {
-	transfers, err := h.svc.TransferDueToSuspend(c.Request.Context(), c.Param("suspendId"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingTransferDueToSuspend")
+	defer span.End()
+	transfers, err := h.svc.TransferDueToSuspend(ctx, c.Param("suspendId"))
 	if err != nil {
 		respondError(c, http.StatusBadRequest, err)
 		return
@@ -64,7 +71,9 @@ func (h *TransferHandler) TransferDueToSuspend(c *gin.Context) {
 
 // GetTransferHistory GET /api/v1/tickets/transfer/:ticketId/history
 func (h *TransferHandler) GetTransferHistory(c *gin.Context) {
-	history, err := h.svc.GetTransferHistory(c.Request.Context(), c.Param("ticketId"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingGetTransferHistory")
+	defer span.End()
+	history, err := h.svc.GetTransferHistory(ctx, c.Param("ticketId"))
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -74,10 +83,12 @@ func (h *TransferHandler) GetTransferHistory(c *gin.Context) {
 
 // GetTransferStats GET /api/v1/tickets/transfer/stats
 func (h *TransferHandler) GetTransferStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingGetTransferStats")
+	defer span.End()
 	start := parseTime(c.Query("periodStart"))
 	end := parseTime(c.Query("periodEnd"))
 
-	stats, err := h.svc.GetTransferStats(c.Request.Context(), start, end)
+	stats, err := h.svc.GetTransferStats(ctx, start, end)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -87,11 +98,15 @@ func (h *TransferHandler) GetTransferStats(c *gin.Context) {
 
 // GetTransferConfig GET /api/v1/tickets/transfer/config
 func (h *TransferHandler) GetTransferConfig(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingGetTransferConfig")
+	defer span.End()
 	respondSuccess(c, h.svc.GetConfig())
 }
 
 // UpdateTransferConfig PUT /api/v1/tickets/transfer/config
 func (h *TransferHandler) UpdateTransferConfig(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingUpdateTransferConfig")
+	defer span.End()
 	var config models.AutoTransferConfig
 	if err := c.ShouldBindJSON(&config); err != nil {
 		respondBadRequest(c, err.Error())

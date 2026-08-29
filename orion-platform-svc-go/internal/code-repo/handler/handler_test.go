@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/code-repo/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/code-repo/models"
 )
 
@@ -46,11 +46,11 @@ func (f *fakeHandlerService) AddReview(ctx context.Context, adapterID, repoID, p
 	return &models.Review{}, nil
 }
 
-func (f *fakeHandlerService) ClosePullRequest(ctx context.Context, adapterID, repoID, prID string) (error) {
+func (f *fakeHandlerService) ClosePullRequest(ctx context.Context, adapterID, repoID, prID string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) CreateBranch(ctx context.Context, adapterID, repoID string, req models.CreateBranchRequest) (error) {
+func (f *fakeHandlerService) CreateBranch(ctx context.Context, adapterID, repoID string, req models.CreateBranchRequest) error {
 	return nil
 }
 
@@ -58,7 +58,7 @@ func (f *fakeHandlerService) CreatePullRequest(ctx context.Context, adapterID, r
 	return &models.PullRequest{}, nil
 }
 
-func (f *fakeHandlerService) DeleteBranch(ctx context.Context, adapterID, repoID, branchName string) (error) {
+func (f *fakeHandlerService) DeleteBranch(ctx context.Context, adapterID, repoID, branchName string) error {
 	return nil
 }
 
@@ -118,7 +118,7 @@ func (f *fakeHandlerService) ListWebhookLogs(ctx context.Context, limit, offset 
 	return []map[string]any{}, nil
 }
 
-func (f *fakeHandlerService) MergePullRequest(ctx context.Context, adapterID, repoID, prID string) (error) {
+func (f *fakeHandlerService) MergePullRequest(ctx context.Context, adapterID, repoID, prID string) error {
 	return nil
 }
 
@@ -135,7 +135,6 @@ func (f *fakeHandlerService) UpdatePullRequest(ctx context.Context, adapterID, r
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestCODE_REPO_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

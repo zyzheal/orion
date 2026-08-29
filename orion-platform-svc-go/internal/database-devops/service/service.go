@@ -9,8 +9,8 @@ import (
 	"orion/platform-svc-go/internal/database-devops/models"
 	"orion/platform-svc-go/internal/database-devops/repository"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 )
 
 // Service implements database DevOps business logic

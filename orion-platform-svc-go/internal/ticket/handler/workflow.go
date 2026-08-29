@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -18,6 +19,8 @@ func NewWorkflowHandler(svc *service.TicketService) *WorkflowHandler {
 
 // TransitionStatus POST /api/v1/tickets/:id/transition
 func (h *WorkflowHandler) TransitionStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketTransitionStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -27,7 +30,7 @@ func (h *WorkflowHandler) TransitionStatus(c *gin.Context) {
 		return
 	}
 
-	ticket, history, err := h.svc.TransitionStatus(c.Request.Context(), id, tenantID, req.ToStatus, req.PerformedBy, req.Reason)
+	ticket, history, err := h.svc.TransitionStatus(ctx, id, tenantID, req.ToStatus, req.PerformedBy, req.Reason)
 	if err != nil {
 		respondError(c, http.StatusBadRequest, err)
 		return
@@ -38,9 +41,11 @@ func (h *WorkflowHandler) TransitionStatus(c *gin.Context) {
 
 // GetWorkflowHistory GET /api/v1/tickets/:id/history
 func (h *WorkflowHandler) GetWorkflowHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetWorkflowHistory")
+	defer span.End()
 	id := c.Param("id")
 
-	history, err := h.svc.GetWorkflowHistory(c.Request.Context(), id)
+	history, err := h.svc.GetWorkflowHistory(ctx, id)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -51,6 +56,8 @@ func (h *WorkflowHandler) GetWorkflowHistory(c *gin.Context) {
 
 // EscalateTicket POST /api/v1/tickets/:id/escalate
 func (h *WorkflowHandler) EscalateTicket(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketEscalateTicket")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -63,7 +70,7 @@ func (h *WorkflowHandler) EscalateTicket(c *gin.Context) {
 		return
 	}
 
-	ticket, err := h.svc.Escalate(c.Request.Context(), id, tenantID, req.EscalatedBy, req.Reason)
+	ticket, err := h.svc.Escalate(ctx, id, tenantID, req.EscalatedBy, req.Reason)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -74,6 +81,8 @@ func (h *WorkflowHandler) EscalateTicket(c *gin.Context) {
 
 // CloseTicket POST /api/v1/tickets/:id/close
 func (h *WorkflowHandler) CloseTicket(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketCloseTicket")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -86,7 +95,7 @@ func (h *WorkflowHandler) CloseTicket(c *gin.Context) {
 		return
 	}
 
-	ticket, err := h.svc.Close(c.Request.Context(), id, tenantID, req.PerformedBy, req.Reason)
+	ticket, err := h.svc.Close(ctx, id, tenantID, req.PerformedBy, req.Reason)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return

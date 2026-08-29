@@ -4,31 +4,31 @@ import "time"
 
 // SearchRequest for semantic search.
 type SearchRequest struct {
-	Query      string          `json:"query" binding:"required"`
-	Sources    []SearchSource  `json:"sources"`
-	TopK       int             `json:"top_k"`
-	Language   string          `json:"language"`
-	MaxTokens  int             `json:"max_tokens"`
+	Query     string         `json:"query" binding:"required"`
+	Sources   []SearchSource `json:"sources"`
+	TopK      int            `json:"top_k"`
+	Language  string         `json:"language"`
+	MaxTokens int            `json:"max_tokens"`
 }
 
 // SearchSource specifies a data source.
 type SearchSource struct {
-	Type     string  `json:"type" binding:"required"` // knowledge, vector, external
-	ID       string  `json:"id"`
-	Weight   float64 `json:"weight"`
-	Filters  string  `json:"filters"`
+	Type    string  `json:"type" binding:"required"` // knowledge, vector, external
+	ID      string  `json:"id"`
+	Weight  float64 `json:"weight"`
+	Filters string  `json:"filters"`
 }
 
 // SearchResult represents a single result.
 type SearchResult struct {
-	ID        string    `json:"id"`
-	Source    string    `json:"source"`
-	Title     string    `json:"title"`
-	Content   string    `json:"content"`
-	Score     float64   `json:"score"`
-	Metadata  string    `json:"metadata"`
-	Rank      int       `json:"rank,omitempty"`
-	FusedScore float64  `json:"fused_score,omitempty"`
+	ID         string  `json:"id"`
+	Source     string  `json:"source"`
+	Title      string  `json:"title"`
+	Content    string  `json:"content"`
+	Score      float64 `json:"score"`
+	Metadata   string  `json:"metadata"`
+	Rank       int     `json:"rank,omitempty"`
+	FusedScore float64 `json:"fused_score,omitempty"`
 }
 
 // SearchResponse wraps search results.
@@ -51,18 +51,18 @@ type IndexRequest struct {
 
 // SearchConfig holds hybrid search tuning parameters.
 type SearchConfig struct {
-	ID                 string  `json:"id"`
-	TenantID           string  `json:"tenant_id"`
-	HybridEnabled      bool    `json:"hybrid_enabled"`
-	VectorWeight       float64 `json:"vector_weight"`
-	KeywordWeight      float64 `json:"keyword_weight"`
-	RRFEnabled         bool    `json:"rrf_enabled"`
-	RRFK               int     `json:"rrf_k"`
-	VectorTopK         int     `json:"vector_top_k"`
-	KeywordTopK        int     `json:"keyword_top_k"`
-	MinScoreThreshold  float64 `json:"min_score_threshold"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
+	ID                string    `json:"id"`
+	TenantID          string    `json:"tenant_id"`
+	HybridEnabled     bool      `json:"hybrid_enabled"`
+	VectorWeight      float64   `json:"vector_weight"`
+	KeywordWeight     float64   `json:"keyword_weight"`
+	RRFEnabled        bool      `json:"rrf_enabled"`
+	RRFK              int       `json:"rrf_k"`
+	VectorTopK        int       `json:"vector_top_k"`
+	KeywordTopK       int       `json:"keyword_top_k"`
+	MinScoreThreshold float64   `json:"min_score_threshold"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 // SetDefaults fills in sensible defaults for SearchConfig.

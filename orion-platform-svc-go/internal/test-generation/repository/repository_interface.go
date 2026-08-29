@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/test-generation/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	List(ctx context.Context, tenantID string) ([]models.Record, error)

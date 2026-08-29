@@ -3,10 +3,10 @@
 // ============================================================
 //
 // 职责:
-//   1. 定时调度采集任务 (CRON)
-//   2. 并发控制 (semaphore)
-//   3. 结果收集与入库
-//   4. 错误重试与告警
+//  1. 定时调度采集任务 (CRON)
+//  2. 并发控制 (semaphore)
+//  3. 结果收集与入库
+//  4. 错误重试与告警
 //
 // 设计参考:
 //   - NeatLogic 采集调度 (定时任务 + 中间件)
@@ -26,25 +26,25 @@ import (
 
 // RunnerConfig 采集器运行配置
 type RunnerConfig struct {
-	MaxParallel  int  `yaml:"max_parallel"`  // 最大并发数
-	Timeout      int  `yaml:"timeout"`        // 采集超时 (秒)
-	Retries      int  `yaml:"retries"`        // 重试次数
-	RetryDelay   int  `yaml:"retry_delay"`    // 重试间隔 (秒)
-	BatchSize    int  `yaml:"batch_size"`     // 批量入库大小
-	DedupKey     string `yaml:"dedup_key"`    // 去重字段
-	LogLevel     string `yaml:"log_level"`    // 日志级别
+	MaxParallel int    `yaml:"max_parallel"` // 最大并发数
+	Timeout     int    `yaml:"timeout"`      // 采集超时 (秒)
+	Retries     int    `yaml:"retries"`      // 重试次数
+	RetryDelay  int    `yaml:"retry_delay"`  // 重试间隔 (秒)
+	BatchSize   int    `yaml:"batch_size"`   // 批量入库大小
+	DedupKey    string `yaml:"dedup_key"`    // 去重字段
+	LogLevel    string `yaml:"log_level"`    // 日志级别
 }
 
 // DefaultRunnerConfig 默认配置
 func DefaultRunnerConfig() *RunnerConfig {
 	return &RunnerConfig{
-		MaxParallel:  10,
-		Timeout:      30,
-		Retries:      3,
-		RetryDelay:   2,
-		BatchSize:    100,
-		DedupKey:     "attributes.vendor",
-		LogLevel:     "info",
+		MaxParallel: 10,
+		Timeout:     30,
+		Retries:     3,
+		RetryDelay:  2,
+		BatchSize:   100,
+		DedupKey:    "attributes.vendor",
+		LogLevel:    "info",
 	}
 }
 
@@ -55,19 +55,19 @@ func DefaultRunnerConfig() *RunnerConfig {
 // Runner 采集任务运行器
 type Runner struct {
 	cfg       *RunnerConfig
-	sem       chan struct{}       // 并发控制
-	results   atomic.Value        // 存储 [CollectionResult]
+	sem       chan struct{} // 并发控制
+	results   atomic.Value  // 存储 [CollectionResult]
 	mu        sync.RWMutex
-	taskQueue chan TaskItem       // 任务队列
-	done      chan struct{}       // 停止信号
+	taskQueue chan TaskItem // 任务队列
+	done      chan struct{} // 停止信号
 }
 
 // TaskItem 任务队列项
 type TaskItem struct {
-	ID     string
+	ID        string
 	Collector string
-	Config map[string]any
-	TenantID string
+	Config    map[string]any
+	TenantID  string
 }
 
 // NewRunner 创建采集运行器
@@ -240,10 +240,10 @@ func (r *Runner) Stats() map[string]any {
 	}
 
 	return map[string]any{
-		"total_tasks":  len(results),
-		"success":      successCount,
-		"failed":       failedCount,
-		"total_ci":     totalCI,
+		"total_tasks":    len(results),
+		"success":        successCount,
+		"failed":         failedCount,
+		"total_ci":       totalCI,
 		"active_workers": len(r.sem),
 	}
 }

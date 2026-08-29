@@ -112,28 +112,28 @@ func (s *Service) SeedEvalSetForScenario(ctx context.Context, tenantID string, u
 
 // CIEvalResult captures the outcome of one eval set run in CI.
 type CIEvalResult struct {
-	Scenario    string  `json:"scenario"`
-	SetID       string  `json:"set_id"`
-	RunID       string  `json:"run_id"`
-	Status      string  `json:"status"`
-	Pass        int     `json:"pass"`
-	Total       int     `json:"total"`
-	PassRate    float64 `json:"pass_rate"`
-	AvgScore    float64 `json:"avg_score"`
-	DurationMs  int     `json:"duration_ms"`
+	Scenario   string  `json:"scenario"`
+	SetID      string  `json:"set_id"`
+	RunID      string  `json:"run_id"`
+	Status     string  `json:"status"`
+	Pass       int     `json:"pass"`
+	Total      int     `json:"total"`
+	PassRate   float64 `json:"pass_rate"`
+	AvgScore   float64 `json:"avg_score"`
+	DurationMs int     `json:"duration_ms"`
 }
 
 // CIEvalSummary is the aggregated CI eval report.
 type CIEvalSummary struct {
-	TotalScenarios  int           `json:"total_scenarios"`
-	Passed          int           `json:"passed"`
-	Failed          int           `json:"failed"`
-	Skipped         int           `json:"skipped"`
-	OverallPassRate float64       `json:"overall_pass_rate"`
-	Threshold       float64       `json:"threshold"`
-	MeetsThreshold  bool          `json:"meets_threshold"`
+	TotalScenarios  int            `json:"total_scenarios"`
+	Passed          int            `json:"passed"`
+	Failed          int            `json:"failed"`
+	Skipped         int            `json:"skipped"`
+	OverallPassRate float64        `json:"overall_pass_rate"`
+	Threshold       float64        `json:"threshold"`
+	MeetsThreshold  bool           `json:"meets_threshold"`
 	Results         []CIEvalResult `json:"results"`
-	DurationMs      int           `json:"duration_ms"`
+	DurationMs      int            `json:"duration_ms"`
 }
 
 // CIEvalConfig configures the CI evaluation pipeline.

@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/cmdb/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/cmdb/models"
 )
 
@@ -146,11 +146,11 @@ func (f *fakeHandlerService) RestoreToVersion(ctx context.Context, ciID string, 
 	return &models.CI{}, nil
 }
 
-func (f *fakeHandlerService) StartK8sSync(ctx context.Context, config *models.StartK8sSyncRequest) (error) {
+func (f *fakeHandlerService) StartK8sSync(ctx context.Context, config *models.StartK8sSyncRequest) error {
 	return nil
 }
 
-func (f *fakeHandlerService) StopK8sSync(ctx context.Context) (error) {
+func (f *fakeHandlerService) StopK8sSync(ctx context.Context) error {
 	return nil
 }
 
@@ -167,7 +167,6 @@ func (f *fakeHandlerService) GenerateRecommendations(ctx context.Context, tenant
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 type fakeCmdbService struct{}
 
@@ -300,7 +299,6 @@ func (f *fakeCmdbService) GenerateRecommendations(ctx context.Context, tenantID 
 }
 
 var _ service.ServiceInterface = (*fakeCmdbService)(nil)
-
 
 func Test_Handler_Handler_RegisterRoutes(t *testing.T) {
 }

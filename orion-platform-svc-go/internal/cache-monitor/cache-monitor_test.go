@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	cacheService "orion/platform-svc-go/internal/cache-monitor/service"
-	"orion/platform-svc-go/internal/cache-monitor/models"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/cache-monitor/models"
+	cacheService "orion/platform-svc-go/internal/cache-monitor/service"
 )
 
 func TestCacheMonitor_NewService_NilRepo(t *testing.T) {

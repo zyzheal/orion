@@ -11,12 +11,12 @@ import (
 
 // TicketAssignment is a row returned by GetAssignmentsByTicket.
 type TicketAssignment struct {
-	ID        string    `db:"id"`
-	TicketID  string    `db:"ticket_id"`
-	Assignee  string    `db:"assignee"`
-	AssignedBy string   `db:"assigned_by"`
-	Reason    string    `db:"reason"`
-	CreatedAt time.Time `db:"created_at"`
+	ID         string    `db:"id"`
+	TicketID   string    `db:"ticket_id"`
+	Assignee   string    `db:"assignee"`
+	AssignedBy string    `db:"assigned_by"`
+	Reason     string    `db:"reason"`
+	CreatedAt  time.Time `db:"created_at"`
 }
 
 // RepositoryInterface defines the data access contract.

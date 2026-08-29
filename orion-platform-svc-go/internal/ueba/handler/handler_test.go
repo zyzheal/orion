@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/ueba/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/ueba/models"
 )
 
@@ -60,7 +60,6 @@ func (f *fakeUebaService) SaveProfile(ctx context.Context, tenantID, userID, ent
 }
 
 var _ service.ServiceInterface = (*fakeUebaService)(nil)
-
 
 func TestHandler_UEBA_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

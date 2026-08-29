@@ -4,9 +4,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai/prompt-security/models"
 	"orion/platform-svc-go/internal/ai/prompt-security/service"
-	"orion/go-common/pkg/auth"
 )
 
 type PromptSecurityHandler struct {
@@ -32,6 +33,8 @@ func (h *PromptSecurityHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Scan scans a prompt for security issues.
 func (h *PromptSecurityHandler) Scan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIPromptSecScan")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req models.ScanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -39,7 +42,7 @@ func (h *PromptSecurityHandler) Scan(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.svc.Scan(c.Request.Context(), tenantID, &req)
+	resp, err := h.svc.Scan(ctx, tenantID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -60,6 +63,8 @@ func (h *PromptSecurityHandler) Scan(c *gin.Context) {
 
 // Check performs prompt-injection detection on the provided prompt.
 func (h *PromptSecurityHandler) Check(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIPromptSecCheck")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req models.CheckRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -67,7 +72,7 @@ func (h *PromptSecurityHandler) Check(c *gin.Context) {
 		return
 	}
 
-	result := h.svc.CheckPrompt(c.Request.Context(), tenantID, req.Prompt)
+	result := h.svc.CheckPrompt(ctx, tenantID, req.Prompt)
 	resp := &models.CheckResponse{Result: *result}
 
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": resp})
@@ -75,12 +80,16 @@ func (h *PromptSecurityHandler) Check(c *gin.Context) {
 
 // GetConfig returns the current security config.
 func (h *PromptSecurityHandler) GetConfig(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIPromptSecGetConfig")
+	defer span.End()
 	resp := h.svc.GetConfig()
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": resp.Config})
 }
 
 // UpdateConfig updates the security config.
 func (h *PromptSecurityHandler) UpdateConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIPromptSecUpdateConfig")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var updates map[string]interface{}
 	if err := c.ShouldBindJSON(&updates); err != nil {
@@ -88,6 +97,6 @@ func (h *PromptSecurityHandler) UpdateConfig(c *gin.Context) {
 		return
 	}
 
-	config := h.svc.UpdateConfig(c.Request.Context(), tenantID, updates)
+	config := h.svc.UpdateConfig(ctx, tenantID, updates)
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": config})
 }

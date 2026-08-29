@@ -9,12 +9,12 @@ import (
 
 // mockDataSource is a test implementation of DataSource.
 type mockDataSource struct {
-	connectErr  error
-	executeErr  error
-	healthErr   error
-	healthy     bool
-	closed      bool
-	mu          sync.Mutex
+	connectErr error
+	executeErr error
+	healthErr  error
+	healthy    bool
+	closed     bool
+	mu         sync.Mutex
 }
 
 func (m *mockDataSource) Type() DataSourceType { return TypePostgreSQL }
@@ -229,8 +229,8 @@ func TestConnector_Execute_ContextCancellation(t *testing.T) {
 	// Create a connector with pool size 0 to simulate pool exhaustion.
 	mockDS := &mockDataSource{healthy: true}
 	conn := &Connector{
-		ds:     mockDS,
-		pool:   make(chan DataSource, 1), // pre-filled with one token
+		ds:       mockDS,
+		pool:     make(chan DataSource, 1), // pre-filled with one token
 		poolSize: 1,
 	}
 

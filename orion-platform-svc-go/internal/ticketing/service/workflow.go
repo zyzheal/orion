@@ -4,18 +4,18 @@ import (
 	"context"
 	"fmt"
 
-	"orion/platform-svc-go/internal/ticketing/models"
 	"orion/go-common/pkg/otel"
+	"orion/platform-svc-go/internal/ticketing/models"
 	"orion/platform-svc-go/internal/ticketing/repository"
 )
 
 // wfValidTransitions defines allowed status transitions (from -> [to, ...])
 var wfValidTransitions = map[string][]string{
-	"open":       {"in_progress", "closed", "cancelled"},
+	"open":        {"in_progress", "closed", "cancelled"},
 	"in_progress": {"open", "closed", "cancelled"},
-	"closed":     {"reopened"},
-	"reopened":   {"in_progress", "closed", "cancelled"},
-	"cancelled":  {"open"},
+	"closed":      {"reopened"},
+	"reopened":    {"in_progress", "closed", "cancelled"},
+	"cancelled":   {"open"},
 }
 
 type WorkflowService struct {

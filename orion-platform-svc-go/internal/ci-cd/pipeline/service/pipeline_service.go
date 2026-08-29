@@ -18,9 +18,9 @@ import (
 )
 
 var (
-	ErrPipelineNotFound = errors.New("pipeline not found")
-	ErrRunNotFound      = errors.New("pipeline run not found")
-	ErrInvalidStatus    = errors.New("invalid status transition")
+	ErrPipelineNotFound  = errors.New("pipeline not found")
+	ErrRunNotFound       = errors.New("pipeline run not found")
+	ErrInvalidStatus     = errors.New("invalid status transition")
 	ErrRunNotCancellable = errors.New("run is not in a cancellable state")
 
 	tracer = otel.Tracer("orion-pipeline-svc")

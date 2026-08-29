@@ -54,7 +54,7 @@ type createJobRequest struct {
 }
 
 func (h *SchedulerHandler) Create(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SchedulerCreate")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SchedulerCreate")
 	defer span.End()
 
 	var req createJobRequest
@@ -75,7 +75,7 @@ func (h *SchedulerHandler) Create(c *gin.Context) {
 		config = make(map[string]string)
 	}
 
-	j, err := h.sm.CreateJob(c.Request.Context(), tenantID, req.Name, req.CronExpr, req.JobType, config)
+	j, err := h.sm.CreateJob(ctx, tenantID, req.Name, req.CronExpr, req.JobType, config)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

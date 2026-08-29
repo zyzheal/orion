@@ -58,10 +58,10 @@ func (c *Cache) Clear() {
 // TTL expiry is evaluated lazily on Get/Set/Delete, plus a periodic background
 // sweep for entries that have not been accessed.
 type TTLCache struct {
-	inner    *Cache
-	ttl      time.Duration
-	mu       sync.RWMutex
-	expiry   map[string]time.Time
+	inner     *Cache
+	ttl       time.Duration
+	mu        sync.RWMutex
+	expiry    map[string]time.Time
 	stopSweep chan struct{}
 }
 

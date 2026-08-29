@@ -52,16 +52,16 @@ func TestRenderer_RenderComparison(t *testing.T) {
 	renderer := NewRenderer()
 
 	baseline := &VersionEntry{
-		Version:  "1.0.0",
-		SemVer:   SemVer{Major: 1, Minor: 0, Patch: 0, Original: "1.0.0"},
+		Version: "1.0.0",
+		SemVer:  SemVer{Major: 1, Minor: 0, Patch: 0, Original: "1.0.0"},
 		ChangeSet: []ChangeItem{
 			{Type: "feature", Summary: "add auth"},
 			{Type: "fix", Summary: "fix bug"},
 		},
 	}
 	target := &VersionEntry{
-		Version:  "1.1.0",
-		SemVer:   SemVer{Major: 1, Minor: 1, Patch: 0, Original: "1.1.0"},
+		Version: "1.1.0",
+		SemVer:  SemVer{Major: 1, Minor: 1, Patch: 0, Original: "1.1.0"},
 		ChangeSet: []ChangeItem{
 			{Type: "feature", Summary: "add auth"},
 			{Type: "feature", Summary: "add caching"},

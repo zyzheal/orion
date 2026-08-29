@@ -273,7 +273,7 @@ func (r *Repository) ListCronJobLogsByJobID(ctx context.Context, tenantID, jobID
 	}
 	var items []models.CronJobLog
 	offset := (page - 1) * pageSize
-		err := r.db.SelectContext(ctx, &items,
+	err := r.db.SelectContext(ctx, &items,
 		`SELECT * FROM visor_exec_cron_job_logs WHERE job_id=$1 AND tenant_id=$2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`, jobID, tenantID, pageSize, offset)
 	if err != nil {
 		return nil, err

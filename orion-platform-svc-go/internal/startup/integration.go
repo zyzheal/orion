@@ -16,16 +16,17 @@ import (
 // phase initialization.
 //
 // Typical usage:
-//   pm := startup.NewPhaseManager(logger)
-//   sm := service.NewStartupManager(repo, logger)
 //
-//   bridge := startup.NewBridge(pm, sm)
-//   // Register modules; bridge wires them to the Services phase.
-//   bridge.Register(sm, myModule)
-//   bridge.Register(sm, anotherModule)
+//	pm := startup.NewPhaseManager(logger)
+//	sm := service.NewStartupManager(repo, logger)
 //
-//   pm.Start(ctx) // runs phases incl. "services" which initializes modules
-//   pm.Stop(ctx)  // reverse-order shutdown incl. modules
+//	bridge := startup.NewBridge(pm, sm)
+//	// Register modules; bridge wires them to the Services phase.
+//	bridge.Register(sm, myModule)
+//	bridge.Register(sm, anotherModule)
+//
+//	pm.Start(ctx) // runs phases incl. "services" which initializes modules
+//	pm.Stop(ctx)  // reverse-order shutdown incl. modules
 //
 // Bridge does not replace either manager — it delegates to them.
 type Bridge struct {
@@ -69,9 +70,9 @@ func (b *Bridge) Register(s service.IStartup) {
 // Call PhaseManager.Start() to drive the full phased initialization,
 // including the wrapped StartupManager's modules at the Services phase.
 type PhaseStartupManager struct {
-	PhaseManager    *PhaseManager
-	StartupManager  *service.StartupManager
-	moduleRegistry  *ModuleRegistry
+	PhaseManager   *PhaseManager
+	StartupManager *service.StartupManager
+	moduleRegistry *ModuleRegistry
 }
 
 // NewPhaseStartupManager constructs a combined manager and auto-wires the
@@ -79,9 +80,9 @@ type PhaseStartupManager struct {
 func NewPhaseStartupManager(logger *zap.Logger, sm *service.StartupManager) *PhaseStartupManager {
 	pm := NewPhaseManager(logger)
 	return &PhaseStartupManager{
-		PhaseManager:    pm,
-		StartupManager:  sm,
-		moduleRegistry:  NewModuleRegistry(),
+		PhaseManager:   pm,
+		StartupManager: sm,
+		moduleRegistry: NewModuleRegistry(),
 	}
 }
 
@@ -128,9 +129,9 @@ func (psm *PhaseStartupManager) Stop(ctx context.Context) error {
 // The validateFn is called during init; return nil to accept the config.
 func NewConfigPhaseHandler(name string, validateFn func(context.Context) error) PhaseHandler {
 	return PhaseHandler{
-		Name:  name,
-		Phase: PhaseConfig,
-		Handler: validateFn,
+		Name:     name,
+		Phase:    PhaseConfig,
+		Handler:  validateFn,
 		Shutdown: func(context.Context) error { return nil },
 	}
 }
@@ -170,9 +171,9 @@ func NewCachePhaseHandler(name string, connectFn, pingFn, closeFn func(context.C
 // NewMiddlewarePhaseHandler returns a PhaseHandler for the Middleware phase.
 func NewMiddlewarePhaseHandler(name string, registerFn func(context.Context) error) PhaseHandler {
 	return PhaseHandler{
-		Name:  name,
-		Phase: PhaseMiddleware,
-		Handler: registerFn,
+		Name:     name,
+		Phase:    PhaseMiddleware,
+		Handler:  registerFn,
 		Shutdown: func(context.Context) error { return nil },
 	}
 }
@@ -181,9 +182,9 @@ func NewMiddlewarePhaseHandler(name string, registerFn func(context.Context) err
 // This is the final phase that marks the system as serving traffic.
 func NewReadyPhaseHandler(name string, onReady func(context.Context) error) PhaseHandler {
 	return PhaseHandler{
-		Name:  name,
-		Phase: PhaseReady,
-		Handler: onReady,
+		Name:     name,
+		Phase:    PhaseReady,
+		Handler:  onReady,
 		Shutdown: func(context.Context) error { return nil },
 	}
 }

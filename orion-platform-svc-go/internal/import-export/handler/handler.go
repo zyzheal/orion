@@ -219,7 +219,7 @@ func (h *Handler) ImportHistory(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, gin.H{
-		"jobs": jobs,
+		"jobs":  jobs,
 		"total": len(jobs),
 	})
 }
@@ -260,4 +260,3 @@ func (h *Handler) JobErrors(c *gin.Context) {
 		"total":  len(errors),
 	})
 }
-

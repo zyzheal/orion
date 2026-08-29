@@ -16,10 +16,10 @@ type PrometheusRangeQueryRequest struct {
 
 // PrometheusResponse wraps Prometheus API responses.
 type PrometheusResponse struct {
-	Status  string      `json:"status"`
-	Data    interface{} `json:"data"`
-	Error   string      `json:"error,omitempty"`
-	Errors  []string    `json:"errors,omitempty"`
+	Status string      `json:"status"`
+	Data   interface{} `json:"data"`
+	Error  string      `json:"error,omitempty"`
+	Errors []string    `json:"errors,omitempty"`
 }
 
 // PredefinedMetric represents a predefined metric shortcut.

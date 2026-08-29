@@ -77,7 +77,7 @@ type UserRole struct {
 
 // RolePermission represents the many-to-many relationship between roles and permissions.
 type RolePermission struct {
-	ID           int64     `db:"id" json:"id"`
-	RoleID       string    `db:"role_id" json:"role_id"`
-	PermissionID string    `db:"permission_id" json:"permission_id"`
+	ID           int64  `db:"id" json:"id"`
+	RoleID       string `db:"role_id" json:"role_id"`
+	PermissionID string `db:"permission_id" json:"permission_id"`
 }

@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/serverless/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/serverless/models"
 )
 
@@ -92,7 +92,6 @@ func (f *fakeServerlessService) Update(ctx context.Context, tenantID, id string,
 }
 
 var _ service.ServiceInterface = (*fakeServerlessService)(nil)
-
 
 func TestHandler_SERVERLESS_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

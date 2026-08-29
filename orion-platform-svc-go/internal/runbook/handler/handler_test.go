@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/runbook/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/runbook/models"
 )
 
@@ -60,7 +60,6 @@ func (f *fakeRunbookService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeRunbookService)(nil)
-
 
 func TestHandler_RUNBOOK_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

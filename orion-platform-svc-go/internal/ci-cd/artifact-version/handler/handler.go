@@ -5,9 +5,10 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ci-cd/artifact-version/models"
 	"orion/platform-svc-go/internal/ci-cd/artifact-version/service"
-	"orion/go-common/pkg/auth"
 )
 
 type ArtifactVersionHandler struct {
@@ -35,12 +36,14 @@ func (h *ArtifactVersionHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // ListVersions returns paginated versions.
 func (h *ArtifactVersionHandler) ListVersions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ArtifactVersionListVersions")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	artifactID := c.Query("artifact_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	resp, err := h.svc.QueryVersions(c.Request.Context(), tenantID, artifactID, limit, offset)
+	resp, err := h.svc.QueryVersions(ctx, tenantID, artifactID, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -50,6 +53,8 @@ func (h *ArtifactVersionHandler) ListVersions(c *gin.Context) {
 
 // CreateVersion creates a new version.
 func (h *ArtifactVersionHandler) CreateVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ArtifactVersionCreateVersion")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req models.CreateVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -57,7 +62,7 @@ func (h *ArtifactVersionHandler) CreateVersion(c *gin.Context) {
 		return
 	}
 
-	version, err := h.svc.CreateVersion(c.Request.Context(), tenantID, &req)
+	version, err := h.svc.CreateVersion(ctx, tenantID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -67,10 +72,12 @@ func (h *ArtifactVersionHandler) CreateVersion(c *gin.Context) {
 
 // GetVersion returns a version by ID.
 func (h *ArtifactVersionHandler) GetVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ArtifactVersionGetVersion")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id := c.Param("id")
 
-	version, err := h.svc.GetVersion(c.Request.Context(), tenantID, id)
+	version, err := h.svc.GetVersion(ctx, tenantID, id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		return
@@ -80,10 +87,12 @@ func (h *ArtifactVersionHandler) GetVersion(c *gin.Context) {
 
 // DeprecateVersion marks a version as deprecated.
 func (h *ArtifactVersionHandler) DeprecateVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ArtifactVersionDeprecateVersion")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id := c.Param("id")
 
-	version, err := h.svc.DeprecateVersion(c.Request.Context(), tenantID, id)
+	version, err := h.svc.DeprecateVersion(ctx, tenantID, id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		return
@@ -93,10 +102,12 @@ func (h *ArtifactVersionHandler) DeprecateVersion(c *gin.Context) {
 
 // ArchiveVersion marks a version as archived.
 func (h *ArtifactVersionHandler) ArchiveVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ArtifactVersionArchiveVersion")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id := c.Param("id")
 
-	version, err := h.svc.ArchiveVersion(c.Request.Context(), tenantID, id)
+	version, err := h.svc.ArchiveVersion(ctx, tenantID, id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		return
@@ -106,10 +117,12 @@ func (h *ArtifactVersionHandler) ArchiveVersion(c *gin.Context) {
 
 // DeleteVersion removes a version.
 func (h *ArtifactVersionHandler) DeleteVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ArtifactVersionDeleteVersion")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id := c.Param("id")
 
-	if err := h.svc.DeleteVersion(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteVersion(ctx, tenantID, id); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		return
 	}

@@ -7,16 +7,17 @@
 // service.AdapterFactory.
 //
 // API contract:
-//   GET    /api/cmdb/adapters              — List adapters
-//   GET    /api/cmdb/adapters/:id          — Get adapter
-//   POST   /api/cmdb/adapters              — Create adapter
-//   PUT    /api/cmdb/adapters/:id          — Update adapter
-//   DELETE /api/cmdb/adapters/:id          — Delete adapter
-//   POST   /api/cmdb/adapters/:id/discover — Run discovery
-//   GET    /api/cmdb/discoveries           — List discovery jobs
-//   GET    /api/cmdb/discoveries/:id       — Get discovery job
-//   GET    /api/cmdb/assets                — List assets
-//   GET    /api/cmdb/assets/:id            — Get asset
+//
+//	GET    /api/cmdb/adapters              — List adapters
+//	GET    /api/cmdb/adapters/:id          — Get adapter
+//	POST   /api/cmdb/adapters              — Create adapter
+//	PUT    /api/cmdb/adapters/:id          — Update adapter
+//	DELETE /api/cmdb/adapters/:id          — Delete adapter
+//	POST   /api/cmdb/adapters/:id/discover — Run discovery
+//	GET    /api/cmdb/discoveries           — List discovery jobs
+//	GET    /api/cmdb/discoveries/:id       — Get discovery job
+//	GET    /api/cmdb/assets                — List assets
+//	GET    /api/cmdb/assets/:id            — Get asset
 package handler
 
 import (
@@ -66,7 +67,7 @@ func (h *FactoryHandler) RegisterRoutes(rg *gin.RouterGroup) {
 // ===========================================================================
 
 func (h *FactoryHandler) ListAdapters(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAdapters")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAdapters")
 	defer span.End()
 	tenantID := h.tenantID(c)
 	filter := service.ListAdaptersFilter{
@@ -75,7 +76,7 @@ func (h *FactoryHandler) ListAdapters(c *gin.Context) {
 		Limit:    h.queryInt(c.Query("limit"), 20),
 	}
 
-	items, err := h.factory.ListAdapters(c.Request.Context(), tenantID, filter)
+	items, err := h.factory.ListAdapters(ctx, tenantID, filter)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -84,7 +85,7 @@ func (h *FactoryHandler) ListAdapters(c *gin.Context) {
 }
 
 func (h *FactoryHandler) CreateAdapter(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateAdapter")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateAdapter")
 	defer span.End()
 	var req models.AdapterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -105,7 +106,7 @@ func (h *FactoryHandler) CreateAdapter(c *gin.Context) {
 		adapter.Enabled = true
 	}
 
-	if err := h.factory.CreateAdapter(c.Request.Context(), tenantID, adapter); err != nil {
+	if err := h.factory.CreateAdapter(ctx, tenantID, adapter); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
@@ -113,12 +114,12 @@ func (h *FactoryHandler) CreateAdapter(c *gin.Context) {
 }
 
 func (h *FactoryHandler) GetAdapter(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAdapter")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAdapter")
 	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
 
-	adapter, err := h.factory.GetAdapter(c.Request.Context(), tenantID, id)
+	adapter, err := h.factory.GetAdapter(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -127,7 +128,7 @@ func (h *FactoryHandler) GetAdapter(c *gin.Context) {
 }
 
 func (h *FactoryHandler) UpdateAdapter(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateAdapter")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateAdapter")
 	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
@@ -139,7 +140,7 @@ func (h *FactoryHandler) UpdateAdapter(c *gin.Context) {
 	}
 
 	// Load existing adapter.
-	existing, err := h.factory.GetAdapter(c.Request.Context(), tenantID, id)
+	existing, err := h.factory.GetAdapter(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -165,7 +166,7 @@ func (h *FactoryHandler) UpdateAdapter(c *gin.Context) {
 		existing.Enabled = *req.Enabled
 	}
 
-	if err := h.factory.UpdateAdapter(c.Request.Context(), tenantID, existing); err != nil {
+	if err := h.factory.UpdateAdapter(ctx, tenantID, existing); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
@@ -173,12 +174,12 @@ func (h *FactoryHandler) UpdateAdapter(c *gin.Context) {
 }
 
 func (h *FactoryHandler) DeleteAdapter(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteAdapter")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteAdapter")
 	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
 
-	if err := h.factory.DeleteAdapter(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.factory.DeleteAdapter(ctx, tenantID, id); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -190,7 +191,7 @@ func (h *FactoryHandler) DeleteAdapter(c *gin.Context) {
 // ===========================================================================
 
 func (h *FactoryHandler) RunDiscover(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RunDiscover")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RunDiscover")
 	defer span.End()
 	adapterID := c.Param("id")
 
@@ -209,7 +210,7 @@ func (h *FactoryHandler) RunDiscover(c *gin.Context) {
 	}
 	tenantID := h.tenantID(c)
 
-	job, err := h.factory.CreateJob(c.Request.Context(), tenantID, req.AdapterID, req.Target)
+	job, err := h.factory.CreateJob(ctx, tenantID, req.AdapterID, req.Target)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -222,13 +223,13 @@ func (h *FactoryHandler) RunDiscover(c *gin.Context) {
 // ===========================================================================
 
 func (h *FactoryHandler) ListJobs(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListJobs")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListJobs")
 	defer span.End()
 	tenantID := h.tenantID(c)
 	offset := h.queryInt(c.Query("offset"), 0)
 	limit := h.queryInt(c.Query("limit"), 20)
 
-	items, err := h.factory.ListJobs(c.Request.Context(), tenantID, c.Query("adapter_id"), c.Query("status"), offset, limit)
+	items, err := h.factory.ListJobs(ctx, tenantID, c.Query("adapter_id"), c.Query("status"), offset, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -242,12 +243,12 @@ func (h *FactoryHandler) ListJobs(c *gin.Context) {
 }
 
 func (h *FactoryHandler) GetJob(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetJob")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetJob")
 	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
 
-	job, err := h.factory.GetJob(c.Request.Context(), tenantID, id)
+	job, err := h.factory.GetJob(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -260,7 +261,7 @@ func (h *FactoryHandler) GetJob(c *gin.Context) {
 // ===========================================================================
 
 func (h *FactoryHandler) ListAssets(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAssets")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAssets")
 	defer span.End()
 	tenantID := h.tenantID(c)
 	offset := h.queryInt(c.Query("offset"), 0)
@@ -274,7 +275,7 @@ func (h *FactoryHandler) ListAssets(c *gin.Context) {
 		Limit:     limit,
 	}
 
-	items, err := h.factory.ListAssets(c.Request.Context(), tenantID, filter)
+	items, err := h.factory.ListAssets(ctx, tenantID, filter)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -288,12 +289,12 @@ func (h *FactoryHandler) ListAssets(c *gin.Context) {
 }
 
 func (h *FactoryHandler) GetAsset(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAsset")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAsset")
 	defer span.End()
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
 
-	asset, err := h.factory.GetAsset(c.Request.Context(), tenantID, id)
+	asset, err := h.factory.GetAsset(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return

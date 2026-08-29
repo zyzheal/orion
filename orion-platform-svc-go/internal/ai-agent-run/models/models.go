@@ -30,38 +30,38 @@ const (
 
 // AgentRun represents a single execution run of an agent.
 type AgentRun struct {
-	ID                string         `db:"id" json:"id"`
-	TenantID          string         `db:"tenant_id" json:"tenantId"`
-	AgentProfileID    string         `db:"agent_profile_id" json:"agentProfileId"`
-	AgentProfileName  string         `db:"agent_profile_name" json:"agentProfileName"`
-	TriggerPayload    string         `db:"trigger_payload" json:"triggerPayload"` // JSONB
-	Status            AgentRunStatus `db:"status" json:"status"`
-	CurrentStep       int            `db:"current_step" json:"currentStep"`
-	TotalSteps        int            `db:"total_steps" json:"totalSteps"`
-	Result            sql.NullString `db:"result" json:"result"`              // JSONB
-	Error             sql.NullString `db:"error" json:"error"`
-	StartedAt         int64          `db:"started_at" json:"startedAt"`       // unix seconds
-	CompletedAt       sql.NullInt64  `db:"completed_at" json:"completedAt"`   // unix seconds
-	TimeoutAt         int64          `db:"timeout_at" json:"timeoutAt"`       // unix seconds
-	CreatedAt         int64          `db:"created_at" json:"createdAt"`       // unix seconds
-	UpdatedAt         sql.NullInt64  `db:"updated_at" json:"updatedAt"`       // unix seconds
+	ID               string         `db:"id" json:"id"`
+	TenantID         string         `db:"tenant_id" json:"tenantId"`
+	AgentProfileID   string         `db:"agent_profile_id" json:"agentProfileId"`
+	AgentProfileName string         `db:"agent_profile_name" json:"agentProfileName"`
+	TriggerPayload   string         `db:"trigger_payload" json:"triggerPayload"` // JSONB
+	Status           AgentRunStatus `db:"status" json:"status"`
+	CurrentStep      int            `db:"current_step" json:"currentStep"`
+	TotalSteps       int            `db:"total_steps" json:"totalSteps"`
+	Result           sql.NullString `db:"result" json:"result"` // JSONB
+	Error            sql.NullString `db:"error" json:"error"`
+	StartedAt        int64          `db:"started_at" json:"startedAt"`     // unix seconds
+	CompletedAt      sql.NullInt64  `db:"completed_at" json:"completedAt"` // unix seconds
+	TimeoutAt        int64          `db:"timeout_at" json:"timeoutAt"`     // unix seconds
+	CreatedAt        int64          `db:"created_at" json:"createdAt"`     // unix seconds
+	UpdatedAt        sql.NullInt64  `db:"updated_at" json:"updatedAt"`     // unix seconds
 }
 
 // --- Core entity: AgentDecision ---
 
 // AgentDecision records a single step decision made during an agent run.
 type AgentDecision struct {
-	ID          string         `db:"id" json:"id"`
-	RunID       string         `db:"run_id" json:"runId"`
-	AgentID     string         `db:"agent_id" json:"agentId"`
-	StepNumber  int            `db:"step_number" json:"stepNumber"`
-	Action      AgentAction    `db:"action" json:"action"`
-	ActionInput string         `db:"action_input" json:"actionInput"`     // JSONB
-	ActionOutput sql.NullString `db:"action_output" json:"actionOutput"`   // JSONB
-	Reasoning   string         `db:"reasoning" json:"reasoning"`
-	ToolResult  sql.NullString `db:"tool_result" json:"toolResult"`       // JSONB
-	Error       sql.NullString `db:"error" json:"error"`
-	CreatedAt   int64          `db:"created_at" json:"createdAt"`          // unix seconds
+	ID           string         `db:"id" json:"id"`
+	RunID        string         `db:"run_id" json:"runId"`
+	AgentID      string         `db:"agent_id" json:"agentId"`
+	StepNumber   int            `db:"step_number" json:"stepNumber"`
+	Action       AgentAction    `db:"action" json:"action"`
+	ActionInput  string         `db:"action_input" json:"actionInput"`   // JSONB
+	ActionOutput sql.NullString `db:"action_output" json:"actionOutput"` // JSONB
+	Reasoning    string         `db:"reasoning" json:"reasoning"`
+	ToolResult   sql.NullString `db:"tool_result" json:"toolResult"` // JSONB
+	Error        sql.NullString `db:"error" json:"error"`
+	CreatedAt    int64          `db:"created_at" json:"createdAt"` // unix seconds
 }
 
 // --- Core entity: AgentApproval ---
@@ -78,17 +78,17 @@ type AgentApproval struct {
 	ApprovedBy      sql.NullString `db:"approved_by" json:"approvedBy"`
 	ApprovedAt      sql.NullInt64  `db:"approved_at" json:"approvedAt"` // unix seconds
 	RejectionReason sql.NullString `db:"rejection_reason" json:"rejectionReason"`
-	CreatedAt       int64          `db:"created_at" json:"createdAt"`   // unix seconds
+	CreatedAt       int64          `db:"created_at" json:"createdAt"` // unix seconds
 }
 
 // --- Request types ---
 
 // TriggerRunRequest is the body for creating a new agent run.
 type TriggerRunRequest struct {
-	AgentProfileID  string                 `json:"agentProfileId" binding:"required"`
-	TriggerPayload  map[string]interface{} `json:"triggerPayload"`
-	TotalSteps      *int                   `json:"totalSteps"`
-	TimeoutSec      *int64                 `json:"timeoutSec"`
+	AgentProfileID string                 `json:"agentProfileId" binding:"required"`
+	TriggerPayload map[string]interface{} `json:"triggerPayload"`
+	TotalSteps     *int                   `json:"totalSteps"`
+	TimeoutSec     *int64                 `json:"timeoutSec"`
 }
 
 // ExecuteStepRequest is the body for executing a step in a run.
@@ -135,12 +135,12 @@ type AgentDecisionResponse struct {
 
 // AgentRunStats aggregates run statistics.
 type AgentRunStats struct {
-	Total           int64              `json:"total"`
-	Running         int64              `json:"running"`
-	Completed       int64              `json:"completed"`
-	Failed          int64              `json:"failed"`
-	Cancelled       int64              `json:"cancelled"`
-	WaitingApproval int64              `json:"waitingApproval"`
+	Total           int64                    `json:"total"`
+	Running         int64                    `json:"running"`
+	Completed       int64                    `json:"completed"`
+	Failed          int64                    `json:"failed"`
+	Cancelled       int64                    `json:"cancelled"`
+	WaitingApproval int64                    `json:"waitingApproval"`
 	ByStatus        map[AgentRunStatus]int64 `json:"byStatus"`
 }
 

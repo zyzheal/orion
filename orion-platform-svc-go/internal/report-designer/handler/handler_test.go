@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/report-designer/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/report-designer/models"
 )
 
@@ -100,7 +100,6 @@ func (f *fakeReport_designerService) UpdateSchedule(ctx context.Context, id stri
 }
 
 var _ service.ServiceInterface = (*fakeReport_designerService)(nil)
-
 
 func TestHandler_REPORT_DESIGNE_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

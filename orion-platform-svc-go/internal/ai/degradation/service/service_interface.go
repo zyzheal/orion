@@ -20,4 +20,3 @@ type ServiceInterface interface {
 }
 
 var _ ServiceInterface = (*DegradationService)(nil)
-

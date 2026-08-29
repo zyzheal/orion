@@ -6,8 +6,8 @@ import (
 	"orion/platform-svc-go/internal/change-request/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -25,11 +25,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 	// --- Change Request CRUD ---
 	// GET /change-requests — List change requests
-	f.GET("", auth.RequirePermission("change_request", "read"), h.ListRequests)
 	// POST /change-requests — Create change request
-	f.POST("", auth.RequirePermission("change_request", "write"), h.CreateRequest)
-	// GET /change-requests/:id — Get change request detail
-	f.GET("/:id", auth.RequirePermission("change_request", "read"), h.GetRequest)
+	// GET /change-requests/:id is served by configH (registered first); the
+	// duplicate registration was removed because Gin panics on a second
+	// (method, path) pair.
 	// PUT /change-requests/:id — Update change request
 	f.PUT("/:id", auth.RequirePermission("change_request", "write"), h.UpdateRequest)
 	// DELETE /change-requests/:id — Delete change request

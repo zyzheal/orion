@@ -10,7 +10,7 @@ import (
 )
 
 type AutomationRuleService struct {
-	repo     *repository.AutomationRuleRepository
+	repo       *repository.AutomationRuleRepository
 	ticketRepo repository.TicketRepositoryInterface
 }
 

@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/build/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/build/models"
 )
 
@@ -95,7 +95,6 @@ func (f *fakeBuildService) UpdateEnvironment(ctx context.Context, tenantID, id s
 }
 
 var _ service.ServiceInterface = (*fakeBuildService)(nil)
-
 
 func TestBUILD_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

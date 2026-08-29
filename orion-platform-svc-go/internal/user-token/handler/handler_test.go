@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/user-token/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/user-token/models"
 )
 
@@ -31,7 +31,7 @@ func (f *fakeHandlerService) CreateToken(ctx context.Context, tenantID string, r
 	return models.CreateTokenResponse{}, nil
 }
 
-func (f *fakeHandlerService) DeleteToken(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) DeleteToken(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
@@ -40,7 +40,6 @@ func (f *fakeHandlerService) GetTokens(ctx context.Context, tenantID, userID str
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestHandler_USER_TOKEN_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

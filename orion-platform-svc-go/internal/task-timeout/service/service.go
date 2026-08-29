@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -8,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"orion/platform-svc-go/internal/task-timeout/models"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/task-timeout/models"
 
 	"go.uber.org/zap"
 )

@@ -51,11 +51,11 @@ type RepositoryInterface interface {
 
 // CrossoverService is the main service for cross-module calls.
 type CrossoverService struct {
-	repo          RepositoryInterface
-	opRegistry    *registry.CallOperationRegistry
-	callRouter    *router.CallRouter
-	asyncDispatch *dispatcher.CallDispatcher
-	asyncBatch    *dispatcher.BatchDispatcher
+	repo            RepositoryInterface
+	opRegistry      *registry.CallOperationRegistry
+	callRouter      *router.CallRouter
+	asyncDispatch   *dispatcher.CallDispatcher
+	asyncBatch      *dispatcher.BatchDispatcher
 	handlerRegistry *router.HandlerRegistry
 
 	// default timeout for sync calls
@@ -79,13 +79,13 @@ func NewCrossoverService(repo RepositoryInterface, opts ...ServiceOption) *Cross
 	asyncDispatch := dispatcher.NewCallDispatcher()
 
 	s := &CrossoverService{
-		repo:          repo,
-		opRegistry:    opRegistry,
+		repo:            repo,
+		opRegistry:      opRegistry,
 		callRouter:      router.NewCallRouter(handlerRegistry, opRegistry),
 		handlerRegistry: handlerRegistry,
 		asyncDispatch:   asyncDispatch,
-		asyncBatch:    dispatcher.NewBatchDispatcher(asyncDispatch),
-		defaultTimeout: 10 * time.Second,
+		asyncBatch:      dispatcher.NewBatchDispatcher(asyncDispatch),
+		defaultTimeout:  10 * time.Second,
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -102,13 +102,13 @@ func NewCrossoverServiceWithRegistry(
 	opts ...ServiceOption,
 ) *CrossoverService {
 	s := &CrossoverService{
-		repo:          repo,
-		opRegistry:    opRegistry,
-		callRouter:    callRouter,
+		repo:            repo,
+		opRegistry:      opRegistry,
+		callRouter:      callRouter,
 		handlerRegistry: handlerRegistry,
-		asyncDispatch: dispatcher.NewCallDispatcher(),
-		asyncBatch:    dispatcher.NewBatchDispatcher(dispatcher.NewCallDispatcher()),
-		defaultTimeout: 10 * time.Second,
+		asyncDispatch:   dispatcher.NewCallDispatcher(),
+		asyncBatch:      dispatcher.NewBatchDispatcher(dispatcher.NewCallDispatcher()),
+		defaultTimeout:  10 * time.Second,
 	}
 	for _, opt := range opts {
 		opt(s)

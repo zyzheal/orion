@@ -22,18 +22,18 @@ import (
 	"log/slog"
 	"time"
 
-	"orion/platform-svc-go/internal/cmdb-collector/service"
 	"orion/platform-svc-go/internal/cmdb-collector/repository"
+	"orion/platform-svc-go/internal/cmdb-collector/service"
 )
 
 // Scheduler drives periodic CMDB collector runs.
 type Scheduler struct {
-	svc          *service.Service
-	repo         *repository.Repository
-	discovery    *periodicTask
-	collection   *periodicTask
-	discoverCtx  context.Context
-	collectCtx   context.Context
+	svc            *service.Service
+	repo           *repository.Repository
+	discovery      *periodicTask
+	collection     *periodicTask
+	discoverCtx    context.Context
+	collectCtx     context.Context
 	discoverCancel context.CancelFunc
 	collectCancel  context.CancelFunc
 }
@@ -56,9 +56,9 @@ type SchedulerConfig struct {
 // collection every 15 minutes.
 func DefaultConfig() SchedulerConfig {
 	return SchedulerConfig{
-		DiscoveryInterval: 6 * time.Hour,
+		DiscoveryInterval:  6 * time.Hour,
 		CollectionInterval: 15 * time.Minute,
-		DefaultCollector:  "ssh-server",
+		DefaultCollector:   "ssh-server",
 	}
 }
 
@@ -73,10 +73,10 @@ func NewScheduler(svc *service.Service, repo *repository.Repository, cfg *Schedu
 	collectCtx, collectCancel := context.WithCancel(context.Background())
 
 	s := &Scheduler{
-		svc:          svc,
-		repo:         repo,
-		discoverCtx:  discoverCtx,
-		collectCtx:   collectCtx,
+		svc:            svc,
+		repo:           repo,
+		discoverCtx:    discoverCtx,
+		collectCtx:     collectCtx,
 		discoverCancel: discoverCancel,
 		collectCancel:  collectCancel,
 		discovery: &periodicTask{

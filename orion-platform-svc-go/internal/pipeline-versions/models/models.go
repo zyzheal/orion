@@ -8,11 +8,11 @@ import (
 type VersionStatus string
 
 const (
-	StatusDraft        VersionStatus = "draft"
+	StatusDraft         VersionStatus = "draft"
 	StatusPendingReview VersionStatus = "pending_review"
-	StatusPublished    VersionStatus = "published"
-	StatusDeprecated   VersionStatus = "deprecated"
-	StatusArchived     VersionStatus = "archived"
+	StatusPublished     VersionStatus = "published"
+	StatusDeprecated    VersionStatus = "deprecated"
+	StatusArchived      VersionStatus = "archived"
 )
 
 // Version represents a pipeline version record.
@@ -23,7 +23,7 @@ type Version struct {
 	VersionNum      string        `json:"version" db:"version"`
 	Name            string        `json:"name" db:"name"`
 	Description     *string       `json:"description" db:"description"`
-	Config          string        `json:"config" db:"config"`       // JSONB
+	Config          string        `json:"config" db:"config"` // JSONB
 	Status          VersionStatus `json:"status" db:"status"`
 	IsDefault       bool          `json:"isDefault" db:"is_default"`
 	CreatedBy       string        `json:"createdBy" db:"created_by"`
@@ -32,7 +32,7 @@ type Version struct {
 	PublishedAt     *time.Time    `json:"publishedAt,omitempty" db:"published_at"`
 	DeprecatedAt    *time.Time    `json:"deprecatedAt,omitempty" db:"deprecated_at"`
 	ChangeLog       *string       `json:"changeLog,omitempty" db:"change_log"`
-	Tags            string        `json:"tags" db:"tags"`           // JSON array string
+	Tags            string        `json:"tags" db:"tags"` // JSON array string
 	ParentVersionID *string       `json:"parentVersionId,omitempty" db:"parent_version_id"`
 }
 
@@ -40,12 +40,12 @@ type Version struct {
 
 // CreateVersionRequest is the request body for creating a new version.
 type CreateVersionRequest struct {
-	Name         string           `json:"name" binding:"required"`
-	Description  *string          `json:"description"`
-	Config       string           `json:"config" binding:"required"`
-	BaseVersionID *string         `json:"baseVersionId"`
-	ChangeLog    *string          `json:"changeLog"`
-	Tags         *string          `json:"tags"` // JSON array string, e.g. "[\"tag1\",\"tag2\"]"
+	Name          string  `json:"name" binding:"required"`
+	Description   *string `json:"description"`
+	Config        string  `json:"config" binding:"required"`
+	BaseVersionID *string `json:"baseVersionId"`
+	ChangeLog     *string `json:"changeLog"`
+	Tags          *string `json:"tags"` // JSON array string, e.g. "[\"tag1\",\"tag2\"]"
 }
 
 // UpdateVersionRequest is the request body for updating a version.
@@ -96,8 +96,8 @@ type VersionListResult struct {
 
 // CompareResult is the result of a version comparison.
 type CompareResult struct {
-	From    Version            `json:"from"`
-	To      Version            `json:"to"`
-	Diff    map[string]any     `json:"diff"`
-	Fields  []string           `json:"fields"`
+	From   Version        `json:"from"`
+	To     Version        `json:"to"`
+	Diff   map[string]any `json:"diff"`
+	Fields []string       `json:"fields"`
 }

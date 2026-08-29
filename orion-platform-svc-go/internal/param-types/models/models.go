@@ -40,7 +40,7 @@ type ScriptParamType struct {
 	ID         string    `db:"id"           json:"id"`
 	TenantID   string    `db:"tenant_id"    json:"tenant_id"`
 	Name       string    `db:"name"         json:"name"`
-	Code       string    `db:"code"         json:"code"`     // "string","number","boolean",...
+	Code       string    `db:"code"         json:"code"` // "string","number","boolean",...
 	Label      string    `db:"label"        json:"label"`
 	Category   string    `db:"category"     json:"category"` // "basic","data","network","security"
 	DefaultVal string    `db:"default_value" json:"default_value"`
@@ -71,25 +71,25 @@ type ScriptParamTemplate struct {
 // ---------------------------------------------------------------------------
 
 type CreateParamTypeRequest struct {
-	Name        string `json:"name"       binding:"required"`
-	Code        string `json:"code"       binding:"required"`
-	Label       string `json:"label"`
-	Category    string `json:"category"`
-	DefaultVal  string `json:"default_value"`
-	Validation  JSONB  `json:"validation"`
-	Options     JSONB  `json:"options"`
-	Enabled     bool   `json:"enabled"`
+	Name       string `json:"name"       binding:"required"`
+	Code       string `json:"code"       binding:"required"`
+	Label      string `json:"label"`
+	Category   string `json:"category"`
+	DefaultVal string `json:"default_value"`
+	Validation JSONB  `json:"validation"`
+	Options    JSONB  `json:"options"`
+	Enabled    bool   `json:"enabled"`
 }
 
 type UpdateParamTypeRequest struct {
-	Name        *string `json:"name"`
-	Code        *string `json:"code"`
-	Label       *string `json:"label"`
-	Category    *string `json:"category"`
-	DefaultVal  *string `json:"default_value"`
-	Validation  JSONB   `json:"validation"`
-	Options     JSONB   `json:"options"`
-	Enabled     *bool   `json:"enabled"`
+	Name       *string `json:"name"`
+	Code       *string `json:"code"`
+	Label      *string `json:"label"`
+	Category   *string `json:"category"`
+	DefaultVal *string `json:"default_value"`
+	Validation JSONB   `json:"validation"`
+	Options    JSONB   `json:"options"`
+	Enabled    *bool   `json:"enabled"`
 }
 
 type CreateParamTemplateRequest struct {
@@ -110,10 +110,10 @@ type ValidateParamRequest struct {
 }
 
 type ValidateParamResponse struct {
-	Valid  bool   `json:"valid"`
-	Type   string `json:"type"`
+	Valid  bool        `json:"valid"`
+	Type   string      `json:"type"`
 	Parsed interface{} `json:"parsed,omitempty"`
-	Error  string `json:"error,omitempty"`
+	Error  string      `json:"error,omitempty"`
 }
 
 // ---------------------------------------------------------------------------

@@ -6,9 +6,10 @@
 // 3. Escalation (trigger when no match within time limit)
 //
 // Public API:
-//   engine.NewEngine() → *Engine
-//   engine.Dispatch(ctx, item, candidates) → *DispatchResult
-//   engine.EvaluateRules(ctx, item, rules) → []*EvaluatedRule
+//
+//	engine.NewEngine() → *Engine
+//	engine.Dispatch(ctx, item, candidates) → *DispatchResult
+//	engine.EvaluateRules(ctx, item, rules) → []*EvaluatedRule
 package engine
 
 import (
@@ -81,7 +82,7 @@ func (e *Engine) DispatchItem(ctx context.Context, item *types.WorkItem, candida
 		}
 		rule := ev.Rule
 
-			// Check rule capacity
+		// Check rule capacity
 		active := e.capacityMap[rule.StringID()]
 		if rule.Capacity > 0 && active >= rule.Capacity {
 			continue
@@ -129,10 +130,10 @@ func (e *Engine) evaluateRules(item *types.WorkItem, rules []*types.AssigneeRule
 			match = e.matchConditions(item, rule.Conditions)
 		}
 		out = append(out, &EvaluatedRule{
-			Rule:     rule,
-			Matched:  match,
-			Score:    e.ruleScore(rule),
-			Item:     item,
+			Rule:      rule,
+			Matched:   match,
+			Score:     e.ruleScore(rule),
+			Item:      item,
 			MatchedAt: now,
 		})
 	}
@@ -321,12 +322,12 @@ func (e *Engine) dispatchRule(ctx context.Context, item *types.WorkItem, rule *t
 	}
 
 	return &types.DispatchResult{
-		RuleID:   rule.ID,
-		RuleName: rule.Name,
-		Strategy: rule.Strategy,
-		Target:   e.dispatcherCandidateToTarget(result.Candidate),
-		Score:    result.Score,
-		Reason:   result.Reason,
+		RuleID:       rule.ID,
+		RuleName:     rule.Name,
+		Strategy:     rule.Strategy,
+		Target:       e.dispatcherCandidateToTarget(result.Candidate),
+		Score:        result.Score,
+		Reason:       result.Reason,
 		DispatchedAt: time.Now(),
 		Alternatives: e.dispatcherAlternativesToTypes(result.Alternatives, candidates),
 	}
@@ -386,10 +387,10 @@ func (e *Engine) CheckEscalation(ctx context.Context, item *types.WorkItem, crea
 // AllCapabilities returns the dispatcher capabilities summary.
 func (e *Engine) AllCapabilities() *types.DispatcherCapabilities {
 	return &types.DispatcherCapabilities{
-		Types:          types.AllDispatcherTypes(),
-		Strategies:     types.AllDispatcherTypes(),
-		HasEscalation:  len(e.escPolicies) > 0,
-		HasCooldown:    true,
+		Types:            types.AllDispatcherTypes(),
+		Strategies:       types.AllDispatcherTypes(),
+		HasEscalation:    len(e.escPolicies) > 0,
+		HasCooldown:      true,
 		HasCapacityLimit: true,
 	}
 }

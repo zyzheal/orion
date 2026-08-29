@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"orion/platform-svc-go/internal/ai/prompt-security/models"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/ai/prompt-security/models"
 )
 
 // injectionKeywords are the keyword patterns used for prompt-injection detection.
@@ -47,10 +47,10 @@ func NewPromptSecurityService(logger *zap.Logger) *PromptSecurityService {
 		},
 		logger: logger,
 		piiPatterns: []*regexp.Regexp{
-			regexp.MustCompile(`\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b`), // email
-			regexp.MustCompile(`\b\d{3}-\d{2}-\d{4}\b`), // SSN
+			regexp.MustCompile(`\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b`),  // email
+			regexp.MustCompile(`\b\d{3}-\d{2}-\d{4}\b`),                      // SSN
 			regexp.MustCompile(`\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b`), // credit card
-			regexp.MustCompile(`\b\d{3}[\s.-]?\d{3}[\s.-]?\d{4}\b`), // phone
+			regexp.MustCompile(`\b\d{3}[\s.-]?\d{3}[\s.-]?\d{4}\b`),          // phone
 		},
 		injectionPatterns: []*regexp.Regexp{
 			regexp.MustCompile(`(?i)(ignore|disregard|discard|forget|override|bypass)\s+(previous|prior|earlier|last|all)`),
@@ -63,7 +63,7 @@ func NewPromptSecurityService(logger *zap.Logger) *PromptSecurityService {
 }
 
 // WithRepository attaches a persistence repository for storing check records.
-func (s *PromptSecurityService) WithRepository(repo interface{
+func (s *PromptSecurityService) WithRepository(repo interface {
 	Create(ctx context.Context, check *models.SecurityCheck) error
 }) *PromptSecurityService {
 	s.repo = repo
@@ -129,16 +129,16 @@ func (s *PromptSecurityService) Scan(ctx context.Context, tenantID string, req *
 	scanTime := int(time.Since(start).Milliseconds())
 
 	scan := &models.SecurityScan{
-		ID:               fmt.Sprintf("scan_%d", time.Now().UnixNano()),
-		TenantID:         tenantID,
-		Prompt:           req.Prompt[:min(len(req.Prompt), 200)] + "...",
-		Score:            score,
-		IsSafe:           isSafe,
+		ID:                fmt.Sprintf("scan_%d", time.Now().UnixNano()),
+		TenantID:          tenantID,
+		Prompt:            req.Prompt[:min(len(req.Prompt), 200)] + "...",
+		Score:             score,
+		IsSafe:            isSafe,
 		InjectionDetected: strings.Contains(strings.Join(findings, ","), "injection"),
-		PiiDetected:     strings.Contains(strings.Join(findings, ","), "PII"),
-		Findings:        findings,
-		ScanTimeMs:      scanTime,
-		ScannedAt:       time.Now(),
+		PiiDetected:       strings.Contains(strings.Join(findings, ","), "PII"),
+		Findings:          findings,
+		ScanTimeMs:        scanTime,
+		ScannedAt:         time.Now(),
 	}
 
 	s.logger.Info("prompt scanned",

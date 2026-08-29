@@ -6,24 +6,24 @@ import (
 )
 
 type User struct {
-	ID           string         `db:"id" json:"id"`
-	TenantID     string         `db:"tenant_id" json:"tenant_id"`
-	Username     string         `db:"username" json:"username"`
-	Email        string         `db:"email" json:"email"`
-	PasswordHash string         `db:"password_hash" json:"-"`
-	Status       string         `db:"status" json:"status"`
-	LastLoginAt  *time.Time     `db:"last_login_at" json:"last_login_at,omitempty"`
-	CreatedAt    time.Time      `db:"created_at" json:"created_at"`
-	UpdatedAt    time.Time      `db:"updated_at" json:"updated_at"`
+	ID           string     `db:"id" json:"id"`
+	TenantID     string     `db:"tenant_id" json:"tenant_id"`
+	Username     string     `db:"username" json:"username"`
+	Email        string     `db:"email" json:"email"`
+	PasswordHash string     `db:"password_hash" json:"-"`
+	Status       string     `db:"status" json:"status"`
+	LastLoginAt  *time.Time `db:"last_login_at" json:"last_login_at,omitempty"`
+	CreatedAt    time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time  `db:"updated_at" json:"updated_at"`
 }
 
 type RefreshToken struct {
-	ID         string     `db:"id" json:"id"`
-	UserID     string     `db:"user_id" json:"user_id"`
-	TokenHash  string     `db:"token_hash" json:"-"`
-	ExpiresAt  time.Time  `db:"expires_at" json:"expires_at"`
-	RevokedAt  *time.Time `db:"revoked_at" json:"revoked_at,omitempty"`
-	CreatedAt  time.Time  `db:"created_at" json:"created_at"`
+	ID        string     `db:"id" json:"id"`
+	UserID    string     `db:"user_id" json:"user_id"`
+	TokenHash string     `db:"token_hash" json:"-"`
+	ExpiresAt time.Time  `db:"expires_at" json:"expires_at"`
+	RevokedAt *time.Time `db:"revoked_at" json:"revoked_at,omitempty"`
+	CreatedAt time.Time  `db:"created_at" json:"created_at"`
 }
 
 type Permission struct {
@@ -42,24 +42,24 @@ type Role struct {
 }
 
 type LoginAttempt struct {
-	ID        string     `db:"id" json:"id"`
-	TenantID  string     `db:"tenant_id" json:"tenant_id"`
-	Username  string     `db:"username" json:"username"`
-	Success   bool       `db:"success" json:"success"`
-	IPAddress string     `db:"ip_address" json:"ip_address"`
-	UserAgent string     `db:"user_agent" json:"user_agent"`
-	CreatedAt time.Time  `db:"created_at" json:"created_at"`
+	ID        string    `db:"id" json:"id"`
+	TenantID  string    `db:"tenant_id" json:"tenant_id"`
+	Username  string    `db:"username" json:"username"`
+	Success   bool      `db:"success" json:"success"`
+	IPAddress string    `db:"ip_address" json:"ip_address"`
+	UserAgent string    `db:"user_agent" json:"user_agent"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
 }
 
 type MfaConfig struct {
-	ID        string     `db:"id" json:"id"`
-	UserID    string     `db:"user_id" json:"user_id"`
-	TenantID  string     `db:"tenant_id" json:"tenant_id"`
-	Type      string     `db:"type" json:"type"`
-	Secret    string     `db:"secret" json:"-"`
-	Enabled   bool       `db:"enabled" json:"enabled"`
-	CreatedAt time.Time  `db:"created_at" json:"created_at"`
-	UpdatedAt time.Time  `db:"updated_at" json:"updated_at"`
+	ID        string    `db:"id" json:"id"`
+	UserID    string    `db:"user_id" json:"user_id"`
+	TenantID  string    `db:"tenant_id" json:"tenant_id"`
+	Type      string    `db:"type" json:"type"`
+	Secret    string    `db:"secret" json:"-"`
+	Enabled   bool      `db:"enabled" json:"enabled"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
 }
 
 type PaginatedRequest struct {

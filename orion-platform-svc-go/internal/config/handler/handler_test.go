@@ -7,9 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/config/models"
 )
 
@@ -208,8 +207,6 @@ func (f *fakeHandler) UpdateWebhook(ctx context.Context, tenantID, id string, re
 func (f *fakeHandler) DeleteWebhook(ctx context.Context, tenantID, id string) error {
 	return nil
 }
-
-
 
 func TestCONFIG_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

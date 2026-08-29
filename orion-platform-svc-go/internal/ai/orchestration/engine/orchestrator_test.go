@@ -344,7 +344,7 @@ func TestAgentExecutorWithMockProvider(t *testing.T) {
 	mock := llmprovider.NewMockProvider(llmprovider.ProviderTypeCustom)
 	mock.ChatFn = func(ctx context.Context, req *llmprovider.ChatRequest) (*llmprovider.ChatResponse, error) {
 		return &llmprovider.ChatResponse{
-			Content: `{"result": "echo", "status": "ok"}`,
+			Content:  `{"result": "echo", "status": "ok"}`,
 			Provider: llmprovider.ProviderTypeCustom,
 			Model:    "mock",
 		}, nil
@@ -358,10 +358,10 @@ func TestAgentExecutorWithMockProvider(t *testing.T) {
 	}
 
 	node := &AgentNode{
-		ID:     "mock-llm",
-		Type:   AgentTypeLLMChat,
-		Prompt: "test prompt",
-		Model:  "mock",
+		ID:      "mock-llm",
+		Type:    AgentTypeLLMChat,
+		Prompt:  "test prompt",
+		Model:   "mock",
 		Outputs: []string{"result"},
 	}
 
@@ -827,7 +827,7 @@ func TestAgentExecutorToolCall(t *testing.T) {
 		ID:     "tool-node",
 		Type:   AgentTypeLLMChat,
 		Prompt: "use echo tool",
-		Tools: []ToolDef{{Name: "echo_tool"}},
+		Tools:  []ToolDef{{Name: "echo_tool"}},
 	}
 
 	result := exec.Execute(context.Background(), node, ctx, "mock", 0.3)

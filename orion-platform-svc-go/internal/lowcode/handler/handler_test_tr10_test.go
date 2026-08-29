@@ -34,20 +34,46 @@ func (m *mockSvcLowcode) GenerateFlowFromPrompt(ctx context.Context, tenantID st
 	}
 	return nil, service.ErrInvalidPrompt
 }
-func (m *mockSvcLowcode) ListFlows(ctx context.Context, tenantID string, filter *models.ListFlowFilters, page, pageSize int) ([]models.LowcodeFlow, int, error) { return nil, 0, nil }
-func (m *mockSvcLowcode) GetFlow(ctx context.Context, tenantID, id string) (*models.LowcodeFlow, error) { return nil, service.ErrFlowNotFound }
-func (m *mockSvcLowcode) CreateFlow(ctx context.Context, tenantID, userID string, req *models.CreateFlowRequest) (*models.LowcodeFlow, error) { return nil, nil }
-func (m *mockSvcLowcode) UpdateFlow(ctx context.Context, tenantID, id string, req *models.UpdateFlowRequest) (*models.LowcodeFlow, error) { return nil, nil }
+func (m *mockSvcLowcode) ListFlows(ctx context.Context, tenantID string, filter *models.ListFlowFilters, page, pageSize int) ([]models.LowcodeFlow, int, error) {
+	return nil, 0, nil
+}
+func (m *mockSvcLowcode) GetFlow(ctx context.Context, tenantID, id string) (*models.LowcodeFlow, error) {
+	return nil, service.ErrFlowNotFound
+}
+func (m *mockSvcLowcode) CreateFlow(ctx context.Context, tenantID, userID string, req *models.CreateFlowRequest) (*models.LowcodeFlow, error) {
+	return nil, nil
+}
+func (m *mockSvcLowcode) UpdateFlow(ctx context.Context, tenantID, id string, req *models.UpdateFlowRequest) (*models.LowcodeFlow, error) {
+	return nil, nil
+}
 func (m *mockSvcLowcode) DeleteFlow(ctx context.Context, tenantID, id string) error { return nil }
-func (m *mockSvcLowcode) PublishFlow(ctx context.Context, tenantID, id string) (*models.LowcodeFlow, error) { return nil, nil }
-func (m *mockSvcLowcode) ExecuteFlow(ctx context.Context, tenantID, userID, flowID string, input string) (*models.LowcodeInstance, error) { return nil, nil }
-func (m *mockSvcLowcode) CreateVersion(ctx context.Context, tenantID, userID, workflowID string) (*models.VersionSnapshot, error) { return nil, nil }
-func (m *mockSvcLowcode) ListVersions(ctx context.Context, tenantID, workflowID string) ([]models.VersionSnapshot, error) { return nil, nil }
-func (m *mockSvcLowcode) ImportWorkflow(ctx context.Context, tenantID, userID string, req *models.ImportWorkflowRequest) (*models.LowcodeFlow, error) { return nil, nil }
-func (m *mockSvcLowcode) ExportWorkflow(ctx context.Context, tenantID, id string) (*models.ExportResponse, error) { return nil, nil }
-func (m *mockSvcLowcode) ListTemplates(ctx context.Context) ([]models.LowcodeTemplate, error) { return nil, nil }
-func (m *mockSvcLowcode) CreateTemplate(ctx context.Context, userID string, req *models.CreateTemplateRequest) (*models.LowcodeTemplate, error) { return nil, nil }
-func (m *mockSvcLowcode) ApplyTemplate(ctx context.Context, tenantID, userID, templateID string, req *models.ApplyTemplateRequest) (*models.LowcodeFlow, error) { return nil, nil }
+func (m *mockSvcLowcode) PublishFlow(ctx context.Context, tenantID, id string) (*models.LowcodeFlow, error) {
+	return nil, nil
+}
+func (m *mockSvcLowcode) ExecuteFlow(ctx context.Context, tenantID, userID, flowID string, input string) (*models.LowcodeInstance, error) {
+	return nil, nil
+}
+func (m *mockSvcLowcode) CreateVersion(ctx context.Context, tenantID, userID, workflowID string) (*models.VersionSnapshot, error) {
+	return nil, nil
+}
+func (m *mockSvcLowcode) ListVersions(ctx context.Context, tenantID, workflowID string) ([]models.VersionSnapshot, error) {
+	return nil, nil
+}
+func (m *mockSvcLowcode) ImportWorkflow(ctx context.Context, tenantID, userID string, req *models.ImportWorkflowRequest) (*models.LowcodeFlow, error) {
+	return nil, nil
+}
+func (m *mockSvcLowcode) ExportWorkflow(ctx context.Context, tenantID, id string) (*models.ExportResponse, error) {
+	return nil, nil
+}
+func (m *mockSvcLowcode) ListTemplates(ctx context.Context) ([]models.LowcodeTemplate, error) {
+	return nil, nil
+}
+func (m *mockSvcLowcode) CreateTemplate(ctx context.Context, userID string, req *models.CreateTemplateRequest) (*models.LowcodeTemplate, error) {
+	return nil, nil
+}
+func (m *mockSvcLowcode) ApplyTemplate(ctx context.Context, tenantID, userID, templateID string, req *models.ApplyTemplateRequest) (*models.LowcodeFlow, error) {
+	return nil, nil
+}
 
 func makeLowcodeCtx(method, path string, body interface{}) (*gin.Context, *httptest.ResponseRecorder) {
 	w := httptest.NewRecorder()

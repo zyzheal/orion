@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/service-health/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/service-health/models"
 )
 
@@ -68,7 +68,6 @@ func (f *fakeService_healthService) Update(ctx context.Context, tenantID, id str
 }
 
 var _ service.ServiceInterface = (*fakeService_healthService)(nil)
-
 
 func TestHandler_SERVICE_HEALTH_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

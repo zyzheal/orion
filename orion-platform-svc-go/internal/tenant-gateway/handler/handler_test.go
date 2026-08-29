@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/tenant-gateway/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/tenant-gateway/models"
 )
 
@@ -64,7 +64,6 @@ func (f *fakeTenant_gatewayService) Update(ctx context.Context, tenantID, id str
 }
 
 var _ service.ServiceInterface = (*fakeTenant_gatewayService)(nil)
-
 
 func TestHandler_TENANT_GATEWAY_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

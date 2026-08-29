@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/sla/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/sla/models"
 )
 
@@ -96,7 +96,6 @@ func (f *fakeSlaService) UpdateTracking(ctx context.Context, tenantID, id string
 }
 
 var _ service.ServiceInterface = (*fakeSlaService)(nil)
-
 
 func TestHandler_SLA_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

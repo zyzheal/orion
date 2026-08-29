@@ -95,10 +95,10 @@ func (h *ActionStepHandler) executeHTTP(ctx context.Context, task *WorkflowTaskC
 	// Capture response
 	return &StepResult{
 		Output: JSONB{
-			"httpStatus":  resp.StatusCode,
-			"httpMethod":  method,
-			"httpURL":     urlStr,
-			"executedAt":  time.Now().Format(time.RFC3339),
+			"httpStatus": resp.StatusCode,
+			"httpMethod": method,
+			"httpURL":    urlStr,
+			"executedAt": time.Now().Format(time.RFC3339),
 		},
 		Actions: []string{fmt.Sprintf("http:%s", method)},
 	}, nil

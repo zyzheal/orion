@@ -9,11 +9,11 @@ import (
 type EventType string
 
 const (
-	EventTypeAlert       EventType = "alert"
+	EventTypeAlert        EventType = "alert"
 	EventTypeAcknowledged EventType = "acknowledged"
-	EventTypeResolved    EventType = "resolved"
-	EventTypeEscalated   EventType = "escalated"
-	EventTypeSuppressed  EventType = "suppressed"
+	EventTypeResolved     EventType = "resolved"
+	EventTypeEscalated    EventType = "escalated"
+	EventTypeSuppressed   EventType = "suppressed"
 )
 
 // ValidEventType returns true if the given string is a recognized event type.
@@ -28,14 +28,14 @@ func ValidEventType(t EventType) bool {
 
 // BaseEvent is the common envelope shared by all alert lifecycle events.
 type BaseEvent struct {
-	EventID   string    `json:"eventId"`
-	EventType EventType `json:"eventType"`
-	TenantID  string    `json:"tenantId"`
-	AlertID   string    `json:"alertId"`
-	GroupID   string    `json:"groupId,omitempty"`
-	Timestamp time.Time `json:"timestamp"`
-	Source    string    `json:"source"`     // adapter or system that generated the event
-	Actor     string    `json:"actor,omitempty"`   // user or system that triggered this lifecycle transition
+	EventID   string                 `json:"eventId"`
+	EventType EventType              `json:"eventType"`
+	TenantID  string                 `json:"tenantId"`
+	AlertID   string                 `json:"alertId"`
+	GroupID   string                 `json:"groupId,omitempty"`
+	Timestamp time.Time              `json:"timestamp"`
+	Source    string                 `json:"source"`          // adapter or system that generated the event
+	Actor     string                 `json:"actor,omitempty"` // user or system that triggered this lifecycle transition
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
@@ -44,8 +44,8 @@ type AlertEvent struct {
 	BaseEvent `json:",inline"`
 
 	Name        string            `json:"name"`
-	Severity    string            `json:"severity"`     // critical, warning, info
-	Status      string            `json:"status"`       // firing, resolved, suppressed
+	Severity    string            `json:"severity"` // critical, warning, info
+	Status      string            `json:"status"`   // firing, resolved, suppressed
 	Fingerprint string            `json:"fingerprint"`
 	SourceType  string            `json:"sourceType"`
 	SourceID    string            `json:"sourceId"`
@@ -61,9 +61,9 @@ type AlertEvent struct {
 type AcknowledgedEvent struct {
 	BaseEvent `json:",inline"`
 
-	AckedBy   string    `json:"ackedBy"`
-	AckedAt   time.Time `json:"ackedAt"`
-	Notes     string    `json:"notes,omitempty"`
+	AckedBy   string     `json:"ackedBy"`
+	AckedAt   time.Time  `json:"ackedAt"`
+	Notes     string     `json:"notes,omitempty"`
 	ExpiresAt *time.Time `json:"expiresAt,omitempty"` // auto-resolve after expiry
 }
 
@@ -71,10 +71,10 @@ type AcknowledgedEvent struct {
 type ResolvedEvent struct {
 	BaseEvent `json:",inline"`
 
-	ResolvedBy  string    `json:"resolvedBy"`
-	ResolvedAt  time.Time `json:"resolvedAt"`
-	Resolution  string    `json:"resolution"`     // manual, auto, expired
-	RunbookRef  string    `json:"runbookRef,omitempty"`
+	ResolvedBy string    `json:"resolvedBy"`
+	ResolvedAt time.Time `json:"resolvedAt"`
+	Resolution string    `json:"resolution"` // manual, auto, expired
+	RunbookRef string    `json:"runbookRef,omitempty"`
 }
 
 // EscalatedEvent records that an alert was escalated to a higher severity or team.
@@ -94,11 +94,11 @@ type EscalatedEvent struct {
 type SuppressedEvent struct {
 	BaseEvent `json:",inline"`
 
-	SuppressedBy  string    `json:"suppressedBy"`
-	SuppressedAt  time.Time `json:"suppressedAt"`
-	SuppressionType string  `json:"suppressionType"` // maintenance-window, known-issue, silence
-	Reason        string    `json:"reason"`
-	ExpiresAt     *time.Time `json:"expiresAt,omitempty"`
+	SuppressedBy    string     `json:"suppressedBy"`
+	SuppressedAt    time.Time  `json:"suppressedAt"`
+	SuppressionType string     `json:"suppressionType"` // maintenance-window, known-issue, silence
+	Reason          string     `json:"reason"`
+	ExpiresAt       *time.Time `json:"expiresAt,omitempty"`
 }
 
 // Validate ensures required fields are present for each event type.

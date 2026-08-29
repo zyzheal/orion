@@ -154,7 +154,7 @@ func (s *PythonInferenceService) PredictDeploymentSuccess(ctx context.Context, a
 	resp, err := s.doRequest(ctx, "POST", s.baseURL+"/api/decision/deployment-predict", bytes.NewReader(body))
 	if err != nil {
 		return nil, err
-		}
+	}
 	var result models.DecisionResponse
 	if err := json.Unmarshal(resp, &result); err != nil {
 		return nil, fmt.Errorf("unmarshal response: %w", err)

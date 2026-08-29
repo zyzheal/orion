@@ -6,11 +6,11 @@ import "time"
 type DriftType string
 
 const (
-	DriftTypeCIMissing          DriftType = "ci_missing"
-	DriftTypeCIPropertyChanged  DriftType = "ci_property_changed"
+	DriftTypeCIMissing           DriftType = "ci_missing"
+	DriftTypeCIPropertyChanged   DriftType = "ci_property_changed"
 	DriftTypeRelationshipChanged DriftType = "relationship_changed"
-	DriftTypeCIAdded            DriftType = "ci_added"
-	DriftTypeConfigValueChanged DriftType = "config_value_changed"
+	DriftTypeCIAdded             DriftType = "ci_added"
+	DriftTypeConfigValueChanged  DriftType = "config_value_changed"
 )
 
 // DriftSeverity 漂移严重程度
@@ -46,14 +46,14 @@ type DriftRecord struct {
 
 // DriftFilter 漂移查询过滤器
 type DriftFilter struct {
-	Environment    string       `form:"environment"`
-	CIID           string       `form:"ciId"`
-	CIType         string       `form:"ciType"`
-	DriftType      DriftType    `form:"driftType"`
+	Environment    string        `form:"environment"`
+	CIID           string        `form:"ciId"`
+	CIType         string        `form:"ciType"`
+	DriftType      DriftType     `form:"driftType"`
 	Severity       DriftSeverity `form:"severity"`
-	UnresolvedOnly bool         `form:"unresolved"`
-	Page           int          `form:"page"`
-	PageSize       int          `form:"pageSize"`
+	UnresolvedOnly bool          `form:"unresolved"`
+	Page           int           `form:"page"`
+	PageSize       int           `form:"pageSize"`
 }
 
 // DriftScanResult 扫描结果
@@ -68,13 +68,13 @@ type DriftScanResult struct {
 
 // DriftStats 漂移统计
 type DriftStats struct {
-	TotalDrifts      int            `json:"totalDrifts"`
-	UnresolvedCount  int            `json:"unresolvedCount"`
-	CriticalCount    int            `json:"criticalCount"`
-	WarningCount     int            `json:"warningCount"`
-	InfoCount        int            `json:"infoCount"`
-	ByType           map[string]int `json:"byType"`
-	BySeverity       map[string]int `json:"bySeverity"`
+	TotalDrifts     int            `json:"totalDrifts"`
+	UnresolvedCount int            `json:"unresolvedCount"`
+	CriticalCount   int            `json:"criticalCount"`
+	WarningCount    int            `json:"warningCount"`
+	InfoCount       int            `json:"infoCount"`
+	ByType          map[string]int `json:"byType"`
+	BySeverity      map[string]int `json:"bySeverity"`
 }
 
 // RemediationResult 自动修复结果

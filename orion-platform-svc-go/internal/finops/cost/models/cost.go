@@ -25,7 +25,7 @@ func (j *JSONB) Scan(src interface{}) error {
 	switch v := src.(type) {
 	case []byte:
 		return json.Unmarshal(v, j)
-		case string:
+	case string:
 		return json.Unmarshal([]byte(v), j)
 	default:
 		return fmt.Errorf("cannot scan %T into JSONB", src)
@@ -36,13 +36,13 @@ func (j *JSONB) Scan(src interface{}) error {
 type CostCategory string
 
 const (
-	CategoryCompute   CostCategory = "compute"
-	CategoryStorage   CostCategory = "storage"
-	CategoryNetwork   CostCategory = "network"
-	CategoryDatabase  CostCategory = "database"
-	CategoryAI        CostCategory = "ai"
-	CategorySaaS      CostCategory = "saas"
-	CategoryOther     CostCategory = "other"
+	CategoryCompute  CostCategory = "compute"
+	CategoryStorage  CostCategory = "storage"
+	CategoryNetwork  CostCategory = "network"
+	CategoryDatabase CostCategory = "database"
+	CategoryAI       CostCategory = "ai"
+	CategorySaaS     CostCategory = "saas"
+	CategoryOther    CostCategory = "other"
 )
 
 // AnomalyType represents the type of a cost anomaly.
@@ -69,11 +69,11 @@ const (
 type OptimizationCategory string
 
 const (
-	OptUnusedResources    OptimizationCategory = "unused-resources"
-	OptRightSizing        OptimizationCategory = "right-sizing"
-	OptScheduling         OptimizationCategory = "scheduling"
-	OptReservedInstances  OptimizationCategory = "reserved-instances"
-	OptSpotInstances      OptimizationCategory = "spot-instances"
+	OptUnusedResources     OptimizationCategory = "unused-resources"
+	OptRightSizing         OptimizationCategory = "right-sizing"
+	OptScheduling          OptimizationCategory = "scheduling"
+	OptReservedInstances   OptimizationCategory = "reserved-instances"
+	OptSpotInstances       OptimizationCategory = "spot-instances"
 	OptStorageOptimization OptimizationCategory = "storage-optimization"
 	OptNetworkOptimization OptimizationCategory = "network-optimization"
 )
@@ -112,17 +112,17 @@ const (
 
 // CostRecord represents a cost data point.
 type CostRecord struct {
-	ID        string    `db:"id" json:"id"`
-	TenantID  string    `db:"tenant_id" json:"tenant_id"`
-	Date      time.Time `db:"date" json:"date"`
-	Service   string    `db:"service" json:"service"`
-	ResourceID *string  `db:"resource_id" json:"resource_id"`
-	Region    *string   `db:"region" json:"region"`
-	Cost      float64   `db:"cost" json:"cost"`
-	Currency  string    `db:"currency" json:"currency"`
-	Category  string    `db:"category" json:"category"`
-	Tags      JSONB     `db:"tags" json:"tags"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	ID         string    `db:"id" json:"id"`
+	TenantID   string    `db:"tenant_id" json:"tenant_id"`
+	Date       time.Time `db:"date" json:"date"`
+	Service    string    `db:"service" json:"service"`
+	ResourceID *string   `db:"resource_id" json:"resource_id"`
+	Region     *string   `db:"region" json:"region"`
+	Cost       float64   `db:"cost" json:"cost"`
+	Currency   string    `db:"currency" json:"currency"`
+	Category   string    `db:"category" json:"category"`
+	Tags       JSONB     `db:"tags" json:"tags"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 }
 
 // Budget represents a tenant-level spending limit.
@@ -166,15 +166,15 @@ type CostAggregation struct {
 
 // CostSummary aggregates costs across multiple dimensions.
 type CostSummary struct {
-	TotalCost     float64             `json:"total_cost"`
-	Currency      string              `json:"currency"`
-	ByService     map[string]float64  `json:"by_service"`
-	ByResource    map[string]float64  `json:"by_resource"`
-	ByRegion      map[string]float64  `json:"by_region"`
-	ByCategory    map[string]float64  `json:"by_category"`
-	RecordCount   int                 `json:"record_count"`
-	PeriodStart   string              `json:"period_start"`
-	PeriodEnd     string              `json:"period_end"`
+	TotalCost   float64            `json:"total_cost"`
+	Currency    string             `json:"currency"`
+	ByService   map[string]float64 `json:"by_service"`
+	ByResource  map[string]float64 `json:"by_resource"`
+	ByRegion    map[string]float64 `json:"by_region"`
+	ByCategory  map[string]float64 `json:"by_category"`
+	RecordCount int                `json:"record_count"`
+	PeriodStart string             `json:"period_start"`
+	PeriodEnd   string             `json:"period_end"`
 }
 
 // CostTrendPoint represents a point in a cost time series.
@@ -194,10 +194,10 @@ type CostTrendResult struct {
 
 // BudgetHealth represents the health status of a budget.
 type BudgetHealth struct {
-	Budget       *Budget  `json:"budget"`
-	UsagePercent float64  `json:"usage_percent"`
-	Status       string   `json:"status"`
-	Remaining    float64  `json:"remaining"`
+	Budget       *Budget `json:"budget"`
+	UsagePercent float64 `json:"usage_percent"`
+	Status       string  `json:"status"`
+	Remaining    float64 `json:"remaining"`
 }
 
 // OptimizationRecommendation contains an optimization suggestion.
@@ -219,35 +219,35 @@ type OptimizationRecommendation struct {
 
 // UtilizationRecord holds resource utilization metrics.
 type UtilizationRecord struct {
-	ResourceID         string   `json:"resource_id"`
-	ResourceType       string   `json:"resource_type"`
-	ResourceName       string   `json:"resource_name"`
-	CPUUtilization     float64  `json:"cpu_utilization"`
-	MemoryUtilization  float64  `json:"memory_utilization"`
-	StorageUtilization float64  `json:"storage_utilization"`
-	MonthlyCost        float64  `json:"monthly_cost"`
-	TenantID           string   `json:"tenant_id"`
-	Environment        string   `json:"environment,omitempty"`
+	ResourceID         string  `json:"resource_id"`
+	ResourceType       string  `json:"resource_type"`
+	ResourceName       string  `json:"resource_name"`
+	CPUUtilization     float64 `json:"cpu_utilization"`
+	MemoryUtilization  float64 `json:"memory_utilization"`
+	StorageUtilization float64 `json:"storage_utilization"`
+	MonthlyCost        float64 `json:"monthly_cost"`
+	TenantID           string  `json:"tenant_id"`
+	Environment        string  `json:"environment,omitempty"`
 }
 
 // UtilizationAnalysis aggregates utilization across resources.
 type UtilizationAnalysis struct {
-	TenantID               string                 `json:"tenant_id"`
-	TotalResources         int                    `json:"total_resources"`
-	UnderutilizedResources int                    `json:"underutilized_resources"`
-	UnusedResources        int                    `json:"unused_resources"`
-	OptimalResources       int                    `json:"optimal_resources"`
-	PotentialMonthlySavings float64              `json:"potential_monthly_savings"`
-	ByCategory             map[OptimizationCategory]int `json:"by_category"`
-	AnalyzedAt             time.Time              `json:"analyzed_at"`
+	TenantID                string                       `json:"tenant_id"`
+	TotalResources          int                          `json:"total_resources"`
+	UnderutilizedResources  int                          `json:"underutilized_resources"`
+	UnusedResources         int                          `json:"unused_resources"`
+	OptimalResources        int                          `json:"optimal_resources"`
+	PotentialMonthlySavings float64                      `json:"potential_monthly_savings"`
+	ByCategory              map[OptimizationCategory]int `json:"by_category"`
+	AnalyzedAt              time.Time                    `json:"analyzed_at"`
 }
 
 // AnomalyDetectionResult contains the output of anomaly detection.
 type AnomalyDetectionResult struct {
-	Anomalies           []AnomalyAlert `json:"anomalies"`
-	TimeWindow          TimeRange      `json:"time_window"`
-	DataPointsAnalyzed  int            `json:"data_points_analyzed"`
-	DetectedAt          time.Time      `json:"detected_at"`
+	Anomalies          []AnomalyAlert `json:"anomalies"`
+	TimeWindow         TimeRange      `json:"time_window"`
+	DataPointsAnalyzed int            `json:"data_points_analyzed"`
+	DetectedAt         time.Time      `json:"detected_at"`
 }
 
 // TimeRange is a start/end time pair.
@@ -258,12 +258,12 @@ type TimeRange struct {
 
 // CostForecastResult contains a cost forecast.
 type CostForecastResult struct {
-	PredictedEndOfMonthCost float64                `json:"predicted_end_of_month_cost"`
-	CurrentSpend            float64                `json:"current_spend"`
-	ProjectedOverage        float64                `json:"projected_overage"`
-	Confidence              float64                `json:"confidence"`
-	DailyForecast           []ForecastDay          `json:"daily_forecast"`
-	GeneratedAt             time.Time              `json:"generated_at"`
+	PredictedEndOfMonthCost float64       `json:"predicted_end_of_month_cost"`
+	CurrentSpend            float64       `json:"current_spend"`
+	ProjectedOverage        float64       `json:"projected_overage"`
+	Confidence              float64       `json:"confidence"`
+	DailyForecast           []ForecastDay `json:"daily_forecast"`
+	GeneratedAt             time.Time     `json:"generated_at"`
 }
 
 // ForecastDay is a single day prediction.
@@ -313,15 +313,15 @@ type ListCostsRequest struct {
 
 // RecordCostRequest is the input for creating a cost record.
 type RecordCostRequest struct {
-	TenantID   string `json:"tenant_id" binding:"required"`
-	Service    string `json:"service" binding:"required"`
+	TenantID   string  `json:"tenant_id" binding:"required"`
+	Service    string  `json:"service" binding:"required"`
 	Cost       float64 `json:"cost" binding:"required"`
-	Date       string `json:"date"`
-	ResourceID string `json:"resource_id"`
-	Region     string `json:"region"`
-	Currency   string `json:"currency"`
-	Category   string `json:"category"`
-	Tags       JSONB  `json:"tags"`
+	Date       string  `json:"date"`
+	ResourceID string  `json:"resource_id"`
+	Region     string  `json:"region"`
+	Currency   string  `json:"currency"`
+	Category   string  `json:"category"`
+	Tags       JSONB   `json:"tags"`
 }
 
 // CreateBudgetRequest is the input for creating a budget.
@@ -335,10 +335,10 @@ type CreateBudgetRequest struct {
 
 // UpdateBudgetRequest is the input for updating a budget.
 type UpdateBudgetRequest struct {
-	Name           *string      `json:"name"`
-	Amount         *float64     `json:"amount"`
+	Name           *string       `json:"name"`
+	Amount         *float64      `json:"amount"`
 	Period         *BudgetPeriod `json:"period"`
-	AlertThreshold *float64     `json:"alert_threshold"`
+	AlertThreshold *float64      `json:"alert_threshold"`
 }
 
 // DetectAnomaliesRequest is the input for anomaly detection.

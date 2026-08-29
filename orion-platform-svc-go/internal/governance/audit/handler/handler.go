@@ -1,15 +1,14 @@
 package handler
 
 import (
-	"orion/go-common/pkg/errors"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/governance/audit/models"
 	"orion/platform-svc-go/internal/governance/audit/service"
-
-	"orion/go-common/pkg/auth"
-
-	"github.com/gin-gonic/gin"
 )
 
 // Handler provides HTTP handlers for audit log operations.
@@ -38,6 +37,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Create handles POST /audit-logs — creates a new audit log entry.
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceAuditCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAuditRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -45,7 +46,7 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	entry, err := h.svc.CreateAuditLog(c.Request.Context(), tenantID, &req)
+	entry, err := h.svc.CreateAuditLog(ctx, tenantID, &req)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if se, ok := err.(*service.ServiceError); ok {
@@ -63,6 +64,8 @@ func (h *Handler) Create(c *gin.Context) {
 // List handles GET /audit-logs — returns paginated, filtered audit logs.
 // Query parameters: page, page_size, user_id, action, resource_type, resource_id.
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceAuditList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var page models.PaginatedRequest
 	if err := c.ShouldBindQuery(&page); err != nil {
@@ -80,7 +83,7 @@ func (h *Handler) List(c *gin.Context) {
 		Offset:       page.Offset(),
 	}
 
-	result, err := h.svc.ListAuditLogs(c.Request.Context(), filters)
+	result, err := h.svc.ListAuditLogs(ctx, filters)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -91,6 +94,8 @@ func (h *Handler) List(c *gin.Context) {
 
 // Update handles PUT /audit-logs/:id — updates non-hash-chain fields.
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceAuditUpdate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -100,7 +105,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	entry, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
+	entry, err := h.svc.Update(ctx, tenantID, id, &req)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if se, ok := err.(*service.ServiceError); ok {
@@ -119,8 +124,10 @@ func (h *Handler) Update(c *gin.Context) {
 
 // Get handles GET /audit-logs/:id — returns a single audit log by ID.
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceAuditGet")
+	defer span.End()
 	id := c.Param("id")
-	entry, err := h.svc.GetAuditLog(c.Request.Context(), id)
+	entry, err := h.svc.GetAuditLog(ctx, id)
 	if err != nil {
 		if se, ok := err.(*service.ServiceError); ok && se.Code == service.ErrCodeNotFound {
 			respondNotFound(c, se.Message)
@@ -134,9 +141,11 @@ func (h *Handler) Get(c *gin.Context) {
 
 // Delete handles DELETE /audit-logs/:id — removes an audit log entry.
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceAuditDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -146,8 +155,10 @@ func (h *Handler) Delete(c *gin.Context) {
 // Count handles GET /audit-logs/count — returns total count for the tenant.
 // Supports optional filters: user_id, action, resource_type.
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceAuditCount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -157,8 +168,10 @@ func (h *Handler) Count(c *gin.Context) {
 
 // VerifyChain handles GET /audit-logs/verify — verifies hash chain integrity.
 func (h *Handler) VerifyChain(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceAuditVerifyChain")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	result, err := h.svc.VerifyChain(c.Request.Context(), tenantID)
+	result, err := h.svc.VerifyChain(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -168,8 +181,10 @@ func (h *Handler) VerifyChain(c *gin.Context) {
 
 // GetActions handles GET /audit-logs/actions — returns distinct action values.
 func (h *Handler) GetActions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceAuditGetActions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	actions, err := h.svc.GetActions(c.Request.Context(), tenantID)
+	actions, err := h.svc.GetActions(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -179,12 +194,13 @@ func (h *Handler) GetActions(c *gin.Context) {
 
 // GetResourceTypes handles GET /audit-logs/resource-types — returns distinct resource_type values.
 func (h *Handler) GetResourceTypes(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GovernanceAuditGetResourceTypes")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	types, err := h.svc.GetResourceTypes(c.Request.Context(), tenantID)
+	types, err := h.svc.GetResourceTypes(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
 	respondSuccess(c, gin.H{"resource_types": types})
 }
-

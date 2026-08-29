@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/slo/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	CreateSLO(ctx context.Context, slo *models.SLODefinition) error

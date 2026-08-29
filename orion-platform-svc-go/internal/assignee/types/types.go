@@ -41,11 +41,11 @@ func AllDispatcherTypes() []string {
 type ConditionField string
 
 const (
-	ConditionFieldCategory    ConditionField = "category"
-	ConditionFieldPriority    ConditionField = "priority"
-	ConditionFieldType        ConditionField = "type"
-	ConditionFieldSource      ConditionField = "source"
-	ConditionFieldAssignee    ConditionField = "assignee"
+	ConditionFieldCategory     ConditionField = "category"
+	ConditionFieldPriority     ConditionField = "priority"
+	ConditionFieldType         ConditionField = "type"
+	ConditionFieldSource       ConditionField = "source"
+	ConditionFieldAssignee     ConditionField = "assignee"
 	ConditionFieldCreatedAfter ConditionField = "created_after"
 	ConditionFieldTargetStatus ConditionField = "status"
 )
@@ -54,14 +54,14 @@ const (
 type ConditionOperator string
 
 const (
-	ConditionOperatorEq      ConditionOperator = "eq"
-	ConditionOperatorNeq     ConditionOperator = "neq"
-	ConditionOperatorIn      ConditionOperator = "in"
-	ConditionOperatorNotIn   ConditionOperator = "notin"
-	ConditionOperatorGt      ConditionOperator = "gt"
-	ConditionOperatorLt      ConditionOperator = "lt"
+	ConditionOperatorEq       ConditionOperator = "eq"
+	ConditionOperatorNeq      ConditionOperator = "neq"
+	ConditionOperatorIn       ConditionOperator = "in"
+	ConditionOperatorNotIn    ConditionOperator = "notin"
+	ConditionOperatorGt       ConditionOperator = "gt"
+	ConditionOperatorLt       ConditionOperator = "lt"
 	ConditionOperatorContains ConditionOperator = "contains"
-	ConditionOperatorRegex   ConditionOperator = "regex"
+	ConditionOperatorRegex    ConditionOperator = "regex"
 )
 
 // Condition describes a single rule condition.
@@ -74,9 +74,9 @@ type Condition struct {
 
 // AssignmentTarget describes who receives the assignment.
 type AssignmentTarget struct {
-	ID          string `json:"id" db:"id"`
-	Type        string `json:"type" db:"type"`        // user, team, group, role
-	Name        string `json:"name" db:"name"`
+	ID          string   `json:"id" db:"id"`
+	Type        string   `json:"type" db:"type"` // user, team, group, role
+	Name        string   `json:"name" db:"name"`
 	Skills      []string `json:"skills"`
 	CurrentLoad int      `json:"current_load"`
 	MaxLoad     int      `json:"max_load"`
@@ -94,20 +94,20 @@ type AssignmentTarget struct {
 
 // AssigneeRule is a routing rule evaluated at dispatch time.
 type AssigneeRule struct {
-	ID          int       `json:"id" db:"id"`
-	TenantID    string    `json:"tenant_id" db:"tenant_id"`
-	Name        string    `json:"name" db:"name"`
-	Conditions  []Condition `json:"conditions" db:"conditions"`
+	ID          int                `json:"id" db:"id"`
+	TenantID    string             `json:"tenant_id" db:"tenant_id"`
+	Name        string             `json:"name" db:"name"`
+	Conditions  []Condition        `json:"conditions" db:"conditions"`
 	Targets     []AssignmentTarget `json:"targets" db:"targets"`
-	TargetIDs   []string  `json:"target_ids" db:"target_ids"`
-	Strategy    string    `json:"strategy" db:"strategy"`
-	Priority    int       `json:"priority" db:"priority"`
-	Enabled     bool      `json:"enabled" db:"enabled"`
-	Capacity    int       `json:"capacity" db:"capacity"`        // max simultaneous assignments this rule can route
-	Weight      float64   `json:"weight" db:"weight"`            // rule weight for tie-breaking
-	CooldownSec int       `json:"cooldown_sec" db:"cooldown_sec"` // minimum seconds between assignments to same target
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	TargetIDs   []string           `json:"target_ids" db:"target_ids"`
+	Strategy    string             `json:"strategy" db:"strategy"`
+	Priority    int                `json:"priority" db:"priority"`
+	Enabled     bool               `json:"enabled" db:"enabled"`
+	Capacity    int                `json:"capacity" db:"capacity"`         // max simultaneous assignments this rule can route
+	Weight      float64            `json:"weight" db:"weight"`             // rule weight for tie-breaking
+	CooldownSec int                `json:"cooldown_sec" db:"cooldown_sec"` // minimum seconds between assignments to same target
+	CreatedAt   time.Time          `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time          `json:"updated_at" db:"updated_at"`
 }
 
 // Validate checks the rule is well-formed.
@@ -158,23 +158,23 @@ func isValidDispatcherType(strategy string) bool {
 
 // WorkItem represents a unit of work to be dispatched.
 type WorkItem struct {
-	ID           string            `json:"id"`
-	TenantID     string            `json:"tenant_id"`
-	TargetType   string            `json:"target_type"` // ticket, task, incident, change
-	Title        string            `json:"title"`
-	Category     string            `json:"category"`
-	Priority     string            `json:"priority"`
-	Type         string            `json:"type"`
-	Source       string            `json:"source"`
-	Status       string            `json:"status"`
-	Description  string            `json:"description"`
-	Metadata     map[string]string `json:"metadata"`
-	CreatedAt    time.Time         `json:"created_at"`
-	RequiredSkills []string        `json:"required_skills"`
+	ID             string            `json:"id"`
+	TenantID       string            `json:"tenant_id"`
+	TargetType     string            `json:"target_type"` // ticket, task, incident, change
+	Title          string            `json:"title"`
+	Category       string            `json:"category"`
+	Priority       string            `json:"priority"`
+	Type           string            `json:"type"`
+	Source         string            `json:"source"`
+	Status         string            `json:"status"`
+	Description    string            `json:"description"`
+	Metadata       map[string]string `json:"metadata"`
+	CreatedAt      time.Time         `json:"created_at"`
+	RequiredSkills []string          `json:"required_skills"`
 	// Internal
-	IsEscalated  bool              `json:"is_escalated"`
+	IsEscalated bool `json:"is_escalated"`
 	// Priority weight (for routing decisions)
-	PriorityWeight int             `json:"priority_weight"`
+	PriorityWeight int `json:"priority_weight"`
 }
 
 // --- Dispatch result ---
@@ -202,33 +202,33 @@ type AlternativeMatch struct {
 
 // EscalationLevel defines an escalation tier.
 type EscalationLevel struct {
-	Level       int               `json:"level"`
-	TargetID    string            `json:"target_id"`
-	TargetType  string            `json:"target_type"`
-	TriggerAfter time.Duration    `json:"trigger_after"`
-	NotifyVia   string            `json:"notify_via"` // email, slack, sms
-	Message     string            `json:"message"`
+	Level        int           `json:"level"`
+	TargetID     string        `json:"target_id"`
+	TargetType   string        `json:"target_type"`
+	TriggerAfter time.Duration `json:"trigger_after"`
+	NotifyVia    string        `json:"notify_via"` // email, slack, sms
+	Message      string        `json:"message"`
 }
 
 // EscalationPolicy defines a complete escalation chain.
 type EscalationPolicy struct {
-	ID          int                 `json:"id" db:"id"`
-	TenantID    string              `json:"tenant_id" db:"tenant_id"`
-	Name        string              `json:"name" db:"name"`
-	Levels      []EscalationLevel   `json:"levels" db:"levels"`
-	Enabled     bool                `json:"enabled" db:"enabled"`
-	CreatedAt   time.Time           `json:"created_at" db:"created_at"`
+	ID        int               `json:"id" db:"id"`
+	TenantID  string            `json:"tenant_id" db:"tenant_id"`
+	Name      string            `json:"name" db:"name"`
+	Levels    []EscalationLevel `json:"levels" db:"levels"`
+	Enabled   bool              `json:"enabled" db:"enabled"`
+	CreatedAt time.Time         `json:"created_at" db:"created_at"`
 }
 
 // --- Capabilities ---
 
 // DispatcherCapabilities describes what the dispatcher can do.
 type DispatcherCapabilities struct {
-	Types      []string          `json:"types"`
-	Strategies []string          `json:"strategies"`
-	HasEscalation bool           `json:"has_escalation"`
-	HasCooldown bool             `json:"has_cooldown"`
-	HasCapacityLimit bool        `json:"has_capacity_limit"`
+	Types            []string `json:"types"`
+	Strategies       []string `json:"strategies"`
+	HasEscalation    bool     `json:"has_escalation"`
+	HasCooldown      bool     `json:"has_cooldown"`
+	HasCapacityLimit bool     `json:"has_capacity_limit"`
 }
 
 // --- Errors ---

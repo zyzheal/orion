@@ -6,8 +6,8 @@ import (
 	"orion/platform-svc-go/internal/supply-chain/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -199,7 +199,7 @@ func (h *Handler) GetVulnerabilities(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-		vulns, err := h.svc.GetVulnerabilitiesForComponent(ctx, tenantID, name, version)
+	vulns, err := h.svc.GetVulnerabilitiesForComponent(ctx, tenantID, name, version)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

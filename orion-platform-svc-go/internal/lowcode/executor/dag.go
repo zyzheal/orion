@@ -36,13 +36,13 @@ const (
 // Edge represents a directed connection between two nodes.
 // Optional Condition controls conditional branching.
 type Edge struct {
-	ID        string       // unique edge identifier
-	From      string       // source node ID
-	To        string       // target node ID
-	PortFrom  string       // output port on source node (e.g. "true", "false", "out")
-	PortTo    string       // input port on target node
-	Condition *string      // expression to evaluate; if non-nil and falsy, edge is not traversed
-	Label     string       // display label on the edge
+	ID        string  // unique edge identifier
+	From      string  // source node ID
+	To        string  // target node ID
+	PortFrom  string  // output port on source node (e.g. "true", "false", "out")
+	PortTo    string  // input port on target node
+	Condition *string // expression to evaluate; if non-nil and falsy, edge is not traversed
+	Label     string  // display label on the edge
 }
 
 // FlowNodeDef is the JSON-deserializable flow node definition (from DB).
@@ -63,20 +63,20 @@ type FlowEdgeDef struct {
 // DAG is the execution graph: a collection of nodes and edges.
 // The executor assumes the DAG is acyclic (cycles are detected at construction).
 type DAG struct {
-	Name     string   // DAG name for logging
-	Nodes    []*Node  // all nodes
-	Edges    []*Edge  // all edges
-	Inputs   []string // input port variable names
-	Outputs  []string // output port variable names
+	Name    string   // DAG name for logging
+	Nodes   []*Node  // all nodes
+	Edges   []*Edge  // all edges
+	Inputs  []string // input port variable names
+	Outputs []string // output port variable names
 }
 
 // Error definitions for executor operations.
 var (
-	ErrDAGHasCycle       = fmt.Errorf("DAG contains cycle")
-	ErrNodeNotFound      = fmt.Errorf("node not found")
-	ErrNoStartNode       = fmt.Errorf("no start node found")
-	ErrUnknownNodeType   = fmt.Errorf("unknown node type")
-	ErrUnsupportedNode   = fmt.Errorf("unsupported node type for execution")
+	ErrDAGHasCycle     = fmt.Errorf("DAG contains cycle")
+	ErrNodeNotFound    = fmt.Errorf("node not found")
+	ErrNoStartNode     = fmt.Errorf("no start node found")
+	ErrUnknownNodeType = fmt.Errorf("unknown node type")
+	ErrUnsupportedNode = fmt.Errorf("unsupported node type for execution")
 )
 
 // NewDAG creates a DAG from node and edge lists, computing parent/child relationships.

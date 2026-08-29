@@ -1,12 +1,12 @@
 package handler
 
 import (
-	"orion/platform-svc-go/internal/community-advanced/models"
-	"context"
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"orion/platform-svc-go/internal/community-advanced/models"
 	"testing"
 
 	"orion/platform-svc-go/internal/community-advanced/service"
@@ -35,6 +35,7 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	}
 	return c, w
 }
+
 type fakeCommunityAdvancedService struct{}
 
 func (f *fakeCommunityAdvancedService) AwardBadge(ctx context.Context, tenantID string, req *models.AwardBadgeRequest) (*models.BadgeAward, error) {
@@ -74,7 +75,6 @@ func (f *fakeCommunityAdvancedService) Delete(ctx context.Context, id, tenantID 
 }
 
 var _ service.ServiceInterface = (*fakeCommunityAdvancedService)(nil)
-
 
 func TestCOMMUNITY_ADVANCED_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

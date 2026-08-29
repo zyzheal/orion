@@ -4,14 +4,14 @@ import (
 	"context"
 	"time"
 
-	"orion/platform-svc-go/internal/monitoring/internal/cache-monitor/models"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/monitoring/internal/cache-monitor/models"
 )
 
 type CacheMonitorService struct {
-	caches  map[string]*models.CacheMetrics
-	config  map[string]*models.CacheConfig
-	logger  *zap.Logger
+	caches map[string]*models.CacheMetrics
+	config map[string]*models.CacheConfig
+	logger *zap.Logger
 }
 
 func NewCacheMonitorService(logger *zap.Logger) *CacheMonitorService {
@@ -22,18 +22,18 @@ func NewCacheMonitorService(logger *zap.Logger) *CacheMonitorService {
 	}
 	// Initialize with default cache configs
 	s.config["redis"] = &models.CacheConfig{
-		Name:              "redis",
-		Type:              "redis",
-		Host:              "localhost",
-		Port:              6379,
+		Name:               "redis",
+		Type:               "redis",
+		Host:               "localhost",
+		Port:               6379,
 		CollectionInterval: 30,
-		IsEnabled:         true,
+		IsEnabled:          true,
 	}
 	s.caches["redis"] = &models.CacheMetrics{
-		Name:    "redis",
-		Type:    "redis",
-		Status:  "healthy",
-		HitCount: 0,
+		Name:      "redis",
+		Type:      "redis",
+		Status:    "healthy",
+		HitCount:  0,
 		MissCount: 0,
 	}
 	return s
@@ -76,7 +76,7 @@ func (s *CacheMonitorService) CollectMetrics(ctx context.Context) map[string]*mo
 		if name == "redis" {
 			s.caches["redis"].ConnectionsActive = 5
 			s.caches["redis"].ConnectionsTotal = 10
-			s.caches["redis"].MemoryUsed = 1024 * 1024 * 64 // 64MB
+			s.caches["redis"].MemoryUsed = 1024 * 1024 * 64   // 64MB
 			s.caches["redis"].MemoryTotal = 1024 * 1024 * 512 // 512MB
 			s.caches["redis"].HitCount += 100
 			s.caches["redis"].MissCount += 10

@@ -8,8 +8,8 @@ import (
 	dt_service "orion/platform-svc-go/internal/digital-twin-simulation/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Service defines the contract the handler needs from the service layer.
@@ -100,8 +100,8 @@ func (h *Handler) ListTwins(c *gin.Context) {
 		data[i] = twinToResponse(&t)
 	}
 	middleware.RespondSuccess(c, gin.H{
-		"data":  data,
-		"total": total,
+		"data":   data,
+		"total":  total,
 		"offset": q.Offset,
 		"limit":  q.Limit,
 	})
@@ -241,8 +241,8 @@ func (h *Handler) ListSimulations(c *gin.Context) {
 		data[i] = simulationToResponse(&s)
 	}
 	middleware.RespondSuccess(c, gin.H{
-		"data":  data,
-		"total": total,
+		"data":   data,
+		"total":  total,
 		"offset": q.Offset,
 		"limit":  q.Limit,
 	})

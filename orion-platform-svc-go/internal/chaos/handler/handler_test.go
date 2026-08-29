@@ -490,7 +490,7 @@ func TestCreateExperimentRequest_Validation(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "missing scope",
+			name: "missing scope",
 			// Actually: name is required, scope is required
 			body:    `{"name":"test","faults":"cpu"}`,
 			wantErr: true,
@@ -552,7 +552,7 @@ func TestPreReleaseVerifyRequest_Validation(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "valid request",
+			name: "valid request",
 			// Note: service_id and environment are required
 			body:    `{"service_id":"svc-a","environment":"staging"}`,
 			wantErr: false,

@@ -4,11 +4,11 @@ import "time"
 
 // Valid suspend reasons
 const (
-	SuspendVacation    = "vacation"
-	SuspendSickLeave   = "sick-leave"
-	SuspendTraining    = "training"
+	SuspendVacation     = "vacation"
+	SuspendSickLeave    = "sick-leave"
+	SuspendTraining     = "training"
 	SuspendReassignment = "reassignment"
-	SuspendOther       = "other"
+	SuspendOther        = "other"
 )
 
 var ValidSuspendReasons = []string{
@@ -50,11 +50,11 @@ type CreateSuspendRequest struct {
 
 // SuspendImpact shows the impact of an engineer's suspension
 type SuspendImpact struct {
-	EngineerID         string `json:"engineer_id"`
-	SuspendID          string `json:"suspend_id"`
-	PendingTickets     int    `json:"pending_tickets"`
-	ActiveTickets      int    `json:"active_tickets"`
-	BackupEngineerID   string `json:"backup_engineer_id,omitempty"`
-	ReassignedTickets  int    `json:"reassigned_tickets"`
-	PausedSLACount     int    `json:"paused_sla_count"`
+	EngineerID        string `json:"engineer_id"`
+	SuspendID         string `json:"suspend_id"`
+	PendingTickets    int    `json:"pending_tickets"`
+	ActiveTickets     int    `json:"active_tickets"`
+	BackupEngineerID  string `json:"backup_engineer_id,omitempty"`
+	ReassignedTickets int    `json:"reassigned_tickets"`
+	PausedSLACount    int    `json:"paused_sla_count"`
 }

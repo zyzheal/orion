@@ -18,12 +18,12 @@ import (
 // --- mock service ---
 
 type mockSvc struct {
-	listFn           func(ctx context.Context, tenantID string) ([]models.PipelineTemplate, int, error)
-	getFn            func(ctx context.Context, id string, tenantID string) (*models.PipelineTemplate, error)
-	createFn         func(ctx context.Context, req *models.CreateTemplateRequest, tenantID string) (*models.PipelineTemplate, error)
-	updateFn         func(ctx context.Context, id string, req *models.UpdateTemplateRequest, tenantID string) (*models.PipelineTemplate, error)
-	deleteFn         func(ctx context.Context, id string, tenantID string) (bool, error)
-	instantiateFn    func(ctx context.Context, templateID string, req *models.InstantiateRequest, tenantID string) (*models.InstantiatedPipeline, error)
+	listFn        func(ctx context.Context, tenantID string) ([]models.PipelineTemplate, int, error)
+	getFn         func(ctx context.Context, id string, tenantID string) (*models.PipelineTemplate, error)
+	createFn      func(ctx context.Context, req *models.CreateTemplateRequest, tenantID string) (*models.PipelineTemplate, error)
+	updateFn      func(ctx context.Context, id string, req *models.UpdateTemplateRequest, tenantID string) (*models.PipelineTemplate, error)
+	deleteFn      func(ctx context.Context, id string, tenantID string) (bool, error)
+	instantiateFn func(ctx context.Context, templateID string, req *models.InstantiateRequest, tenantID string) (*models.InstantiatedPipeline, error)
 }
 
 func (m *mockSvc) ListTemplates(ctx context.Context, tenantID string) ([]models.PipelineTemplate, int, error) {

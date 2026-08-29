@@ -24,9 +24,9 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/identity/auth/model"
 	"orion/platform-svc-go/internal/identity/auth/repository"
-	"go.uber.org/zap"
 )
 
 var (
@@ -40,22 +40,22 @@ var (
 )
 
 const (
-	defaultScope      = "openid email profile"
-	StateTTLMinutes   = 10
-	codeChallengeLen  = 32
+	defaultScope       = "openid email profile"
+	StateTTLMinutes    = 10
+	codeChallengeLen   = 32
 	defaultHTTPTimeout = 15 * time.Second
 )
 
 // OIDCDiscoveryResponse is the parsed /.well-known/openid-configuration.
 type OIDCDiscoveryResponse struct {
-	Issuer            string   `json:"issuer"`
-	AuthorizationURL  string   `json:"authorization_endpoint"`
-	TokenURL          string   `json:"token_endpoint"`
-	UserInfoURL       string   `json:"userinfo_endpoint"`
-	JWKSURL           string   `json:"jwks_uri"`
-	ScopesSupported   []string `json:"scopes_supported"`
-	ResponseTypesSupported []string `json:"response_types_supported"`
-	SubjectTypesSupported  []string `json:"subject_types_supported"`
+	Issuer                           string   `json:"issuer"`
+	AuthorizationURL                 string   `json:"authorization_endpoint"`
+	TokenURL                         string   `json:"token_endpoint"`
+	UserInfoURL                      string   `json:"userinfo_endpoint"`
+	JWKSURL                          string   `json:"jwks_uri"`
+	ScopesSupported                  []string `json:"scopes_supported"`
+	ResponseTypesSupported           []string `json:"response_types_supported"`
+	SubjectTypesSupported            []string `json:"subject_types_supported"`
 	IDTokenSigningAlgValuesSupported []string `json:"id_token_signing_alg_values_supported"`
 }
 
@@ -70,14 +70,14 @@ type OIDCTokens struct {
 
 // OIDCUserInfo is the user info returned from userinfo endpoint / ID token claims.
 type OIDCUserInfo struct {
-	Subject   string   `json:"sub"`
-	Name      string   `json:"name"`
-	Email     string   `json:"email"`
-	EmailVerified bool `json:"email_verified"`
-	Picture   string   `json:"picture"`
-	Groups    []string `json:"groups,omitempty"`
-	Roles     []string `json:"roles,omitempty"`
-	PreferredUsername string `json:"preferred_username"`
+	Subject           string   `json:"sub"`
+	Name              string   `json:"name"`
+	Email             string   `json:"email"`
+	EmailVerified     bool     `json:"email_verified"`
+	Picture           string   `json:"picture"`
+	Groups            []string `json:"groups,omitempty"`
+	Roles             []string `json:"roles,omitempty"`
+	PreferredUsername string   `json:"preferred_username"`
 }
 
 // Config holds per-provider runtime OIDC configuration.
@@ -355,9 +355,9 @@ func (s *OIDCService) ParseIDTokenClaims(idToken string) (*OIDCUserInfo, error) 
 
 // ResolveOrLinkUser finds an existing Orion user for the OIDC identity, or creates/links one.
 // Strategy:
-//   1. Check user_oidc_links for existing (tenant, provider, subject) link.
-//   2. If not linked, look up an existing user by email (account auto-link).
-//   3. If no user exists, return nil for the handler to decide whether to auto-create.
+//  1. Check user_oidc_links for existing (tenant, provider, subject) link.
+//  2. If not linked, look up an existing user by email (account auto-link).
+//  3. If no user exists, return nil for the handler to decide whether to auto-create.
 func (s *OIDCService) ResolveOrLinkUser(ctx context.Context, tenantID, providerName string, info *OIDCUserInfo) (*model.UserOIDCLink, *model.User, error) {
 	// Step 1: existing link?
 	existing, err := s.oidcRepo.GetLinkBySubject(ctx, tenantID, providerName, info.Subject)
@@ -396,11 +396,11 @@ func (s *OIDCService) ResolveOrLinkUser(ctx context.Context, tenantID, providerN
 
 	// Step 3: no existing link, return empty link for handler to process
 	link := &model.UserOIDCLink{
-		TenantID:    tenantID,
+		TenantID:     tenantID,
 		ProviderName: providerName,
-		Subject:     info.Subject,
-		Email:       info.Email,
-		Name:        info.Name,
+		Subject:      info.Subject,
+		Email:        info.Email,
+		Name:         info.Name,
 	}
 
 	return link, linkedUser, nil

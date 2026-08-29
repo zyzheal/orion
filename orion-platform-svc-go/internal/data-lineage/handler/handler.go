@@ -6,8 +6,8 @@ import (
 	"orion/platform-svc-go/internal/data-lineage/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -31,11 +31,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.DELETE("/lineages/:id", auth.RequirePermission("data-lineage", "delete"), h.DeleteLineage)
 
 	// === Nodes ===
-	f.POST("/lineages/:lineageId/nodes", auth.RequirePermission("data-lineage", "write"), h.CreateNode)
-	f.GET("/lineages/:lineageId/nodes", auth.RequirePermission("data-lineage", "read"), h.ListNodes)
+	f.POST("/lineages/:id/nodes", auth.RequirePermission("data-lineage", "write"), h.CreateNode)
+	f.GET("/lineages/:id/nodes", auth.RequirePermission("data-lineage", "read"), h.ListNodes)
 
 	// === Relationships ===
-	f.POST("/lineages/:lineageId/relationships", auth.RequirePermission("data-lineage", "write"), h.CreateRelationship)
+	f.POST("/lineages/:id/relationships", auth.RequirePermission("data-lineage", "write"), h.CreateRelationship)
 	// GET relationships handled below
 
 	// === Stats ===
@@ -147,7 +147,7 @@ func (h *Handler) CreateNode(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateNode")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	lineageID := c.Param("lineageId")
+	lineageID := c.Param("id")
 	var req models.CreateNodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -175,7 +175,7 @@ func (h *Handler) ListNodes(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListNodes")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if id := c.Param("lineageId"); id != "" {
+	if id := c.Param("id"); id != "" {
 		result, err := h.svc.ListNodes(ctx, tenantID, id)
 		if err != nil {
 			middleware.RespondInternalError(c, err.Error())
@@ -193,7 +193,7 @@ func (h *Handler) CreateRelationship(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateRelationship")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	lineageID := c.Param("lineageId")
+	lineageID := c.Param("id")
 	var req models.CreateRelationshipRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())

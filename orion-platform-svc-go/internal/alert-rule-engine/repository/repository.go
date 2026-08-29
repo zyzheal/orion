@@ -24,15 +24,15 @@ func NewRepository(db *sqlx.DB) *Repository {
 }
 
 type ruleRow struct {
-	ID          string    `db:"id"`
-	TenantID    string    `db:"tenant_id"`
-	Name        string    `db:"name"`
-	Expression  string    `db:"expression"`
-	Priority    int       `db:"priority"`
-	Enabled     bool      `db:"enabled"`
-	Group       string    `db:"group"`
-	CreatedAt   time.Time `db:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at"`
+	ID         string    `db:"id"`
+	TenantID   string    `db:"tenant_id"`
+	Name       string    `db:"name"`
+	Expression string    `db:"expression"`
+	Priority   int       `db:"priority"`
+	Enabled    bool      `db:"enabled"`
+	Group      string    `db:"group"`
+	CreatedAt  time.Time `db:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at"`
 }
 
 func (r *Repository) Save(ctx context.Context, tenantID string, rule *alertruleengine.Rule) error {

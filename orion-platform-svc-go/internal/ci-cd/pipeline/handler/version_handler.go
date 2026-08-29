@@ -1,7 +1,7 @@
 package handler
 
 import (
-
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/ci-cd/pipeline/models"
 	"orion/platform-svc-go/internal/ci-cd/pipeline/service"
 
@@ -17,6 +17,8 @@ func NewVersionHandler(svc *service.VersionService) *VersionHandler {
 }
 
 func (h *VersionHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineCreate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Param("pipelineId")
 
@@ -26,7 +28,7 @@ func (h *VersionHandler) Create(c *gin.Context) {
 		return
 	}
 
-	version, err := h.svc.Create(c.Request.Context(), tenantID, pipelineID, req)
+	version, err := h.svc.Create(ctx, tenantID, pipelineID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -36,9 +38,11 @@ func (h *VersionHandler) Create(c *gin.Context) {
 }
 
 func (h *VersionHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineList")
+	defer span.End()
 	pipelineID := c.Param("pipelineId")
 
-	versions, err := h.svc.List(c.Request.Context(), pipelineID)
+	versions, err := h.svc.List(ctx, pipelineID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -48,7 +52,9 @@ func (h *VersionHandler) List(c *gin.Context) {
 }
 
 func (h *VersionHandler) GetByID(c *gin.Context) {
-	version, err := h.svc.GetByID(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineGetByID")
+	defer span.End()
+	version, err := h.svc.GetByID(ctx, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, "version not found")
 		return
@@ -58,9 +64,11 @@ func (h *VersionHandler) GetByID(c *gin.Context) {
 }
 
 func (h *VersionHandler) GetActive(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineGetActive")
+	defer span.End()
 	pipelineID := c.Param("pipelineId")
 
-	version, err := h.svc.GetActive(c.Request.Context(), pipelineID)
+	version, err := h.svc.GetActive(ctx, pipelineID)
 	if err != nil {
 		respondNotFound(c, "no active version")
 		return
@@ -70,10 +78,12 @@ func (h *VersionHandler) GetActive(c *gin.Context) {
 }
 
 func (h *VersionHandler) Rollback(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineRollback")
+	defer span.End()
 	pipelineID := c.Param("pipelineId")
 	versionID := c.Param("id")
 
-	if err := h.svc.Rollback(c.Request.Context(), pipelineID, versionID); err != nil {
+	if err := h.svc.Rollback(ctx, pipelineID, versionID); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}

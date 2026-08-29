@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/ci-type/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/ci-type/models"
 	"orion/platform-svc-go/internal/ci-type/repository"
 )
@@ -84,7 +84,6 @@ func (f *fakeHandlerService) ValidateInstance(ctx context.Context, ciTypeID stri
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestCI_TYPE_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

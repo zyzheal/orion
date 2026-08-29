@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/chaos-gateway/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/chaos-gateway/models"
 )
 
@@ -91,7 +91,6 @@ func (f *fakeChaos_gatewayService) UpdateExperiment(ctx context.Context, tenantI
 }
 
 var _ service.ServiceInterface = (*fakeChaos_gatewayService)(nil)
-
 
 func TestCHAOS_GATEWAY_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

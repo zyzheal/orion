@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/rca/models"
 	"orion/platform-svc-go/internal/rca/repository"
-	"go.uber.org/zap"
 )
 
 type RCAService struct {
@@ -67,10 +67,10 @@ func (s *RCAService) performAnalysis(req *models.AnalyzeRequest) ([]models.RootC
 
 	// Categorize by common patterns
 	patterns := map[string][]string{
-		"performance":  {"latency", "timeout", "slow_query", "resource_exhaustion"},
-		"availability": {"crash", "restart", "connection_refused", "health_check_failure"},
-		"data":         {"corruption", "inconsistency", "data_loss", "migration_failure"},
-		"security":     {"unauthorized", "vulnerability", "authentication_failure"},
+		"performance":   {"latency", "timeout", "slow_query", "resource_exhaustion"},
+		"availability":  {"crash", "restart", "connection_refused", "health_check_failure"},
+		"data":          {"corruption", "inconsistency", "data_loss", "migration_failure"},
+		"security":      {"unauthorized", "vulnerability", "authentication_failure"},
 		"configuration": {"config_change", "deployment_failure", "rollback"},
 	}
 

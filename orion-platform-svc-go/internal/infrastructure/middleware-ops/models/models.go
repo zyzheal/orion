@@ -166,18 +166,18 @@ type CreateBackupRequest struct {
 
 type CreateMetricRequest struct {
 	MiddlewareID string  `json:"middleware_id" binding:"required"`
-	MetricName  string  `json:"metric_name" binding:"required"`
-	Value       float64 `json:"value" binding:"required"`
-	Unit        string  `json:"unit" binding:"required"`
+	MetricName   string  `json:"metric_name" binding:"required"`
+	Value        float64 `json:"value" binding:"required"`
+	Unit         string  `json:"unit" binding:"required"`
 }
 
 type CreateConnectionPoolRequest struct {
 	MiddlewareID string `json:"middleware_id" binding:"required"`
-	PoolName    string `json:"pool_name" binding:"required"`
-	Active      int    `json:"active" binding:"required"`
-	Idle        int    `json:"idle"`
-	Max         int    `json:"max" binding:"required"`
-	Waiting     int    `json:"waiting"`
+	PoolName     string `json:"pool_name" binding:"required"`
+	Active       int    `json:"active" binding:"required"`
+	Idle         int    `json:"idle"`
+	Max          int    `json:"max" binding:"required"`
+	Waiting      int    `json:"waiting"`
 }
 
 type CreateMqStatsRequest struct {

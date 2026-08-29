@@ -8,8 +8,8 @@ import (
 // pipeline.  It tracks progression so downstream stages know where an alert
 // came from and what transformations have been applied.
 type AlertStage struct {
-	Stage   string `json:"stage"`
-	Entered time.Time
+	Stage    string `json:"stage"`
+	Entered  time.Time
 	ExitCode string // "ok", "skipped", "dropped", "error"
 	ExitMsg  string
 }
@@ -23,11 +23,11 @@ type AlertContext struct {
 	Alert       map[string]interface{} `json:"alert"`
 	Stage       AlertStage             `json:"stage"`
 	History     []AlertStage           `json:"history"`
-	Enrichments   map[string]interface{} `json:"enrichments,omitempty"`
-	GroupID       string                 `json:"group_id,omitempty"`
-	Routes        []string               `json:"routes,omitempty"`
-	IsDuplicate   bool                   `json:"is_duplicate"`
-	Error         string                 `json:"error,omitempty"`
+	Enrichments map[string]interface{} `json:"enrichments,omitempty"`
+	GroupID     string                 `json:"group_id,omitempty"`
+	Routes      []string               `json:"routes,omitempty"`
+	IsDuplicate bool                   `json:"is_duplicate"`
+	Error       string                 `json:"error,omitempty"`
 }
 
 // NewAlertContext creates a fresh pipeline context for an incoming alert.
@@ -86,33 +86,33 @@ func DefaultPipelineConfig(name string) *PipelineConfig {
 
 // PipelineResult is returned after the pipeline finishes processing an alert.
 type PipelineResult struct {
-	AlertID   string `json:"alertId"`
-	Status    string `json:"status"` // "success", "dropped", "error"
-	Stages    []string
+	AlertID    string `json:"alertId"`
+	Status     string `json:"status"` // "success", "dropped", "error"
+	Stages     []string
 	StageCount int
-	Errors    []string
+	Errors     []string
 }
 
 // AlertEvent is the typed event emitted when an alert is ingested.  It mirrors
 // the alert-adapter models but is independent so the pipeline does not import
 // sibling internal packages (keeping the build lightweight and avoid ordering).
 type AlertEvent struct {
-	ID          string                 `json:"id"`
-	TenantID    string                 `json:"tenant_id"`
-	Name        string                 `json:"name"`
-	Severity    string                 `json:"severity"`
-	Status      string                 `json:"status"`
-	Fingerprint string                 `json:"fingerprint"`
-	SourceType  string                 `json:"sourceType"`
-	SourceID    string                 `json:"sourceId"`
-	SourceName  string                 `json:"sourceName"`
-	Labels      map[string]string      `json:"labels"`
-	Annotations map[string]string      `json:"annotations"`
-	Value       float64                `json:"value"`
-	Threshold   float64                `json:"threshold"`
-	Metric      string                 `json:"metric"`
-	GroupID     string                 `json:"groupId,omitempty"`
-	ReceivedAt  time.Time              `json:"receivedAt"`
+	ID          string            `json:"id"`
+	TenantID    string            `json:"tenant_id"`
+	Name        string            `json:"name"`
+	Severity    string            `json:"severity"`
+	Status      string            `json:"status"`
+	Fingerprint string            `json:"fingerprint"`
+	SourceType  string            `json:"sourceType"`
+	SourceID    string            `json:"sourceId"`
+	SourceName  string            `json:"sourceName"`
+	Labels      map[string]string `json:"labels"`
+	Annotations map[string]string `json:"annotations"`
+	Value       float64           `json:"value"`
+	Threshold   float64           `json:"threshold"`
+	Metric      string            `json:"metric"`
+	GroupID     string            `json:"groupId,omitempty"`
+	ReceivedAt  time.Time         `json:"receivedAt"`
 }
 
 // AlertSource defines the contract any alert ingestion adapter must implement.

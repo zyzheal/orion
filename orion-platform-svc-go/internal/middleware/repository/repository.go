@@ -41,12 +41,12 @@ type RateLimit struct {
 }
 
 type cfgRow struct {
-	ID           string `db:"id"`
-	TenantID     string `db:"tenant_id"`
-	Name         string `db:"name"`
-	TimeoutMS    int64  `db:"timeout_ms"`
-	Enabled      bool   `db:"enabled"`
-	CreatedAt    string `db:"created_at"`
+	ID        string `db:"id"`
+	TenantID  string `db:"tenant_id"`
+	Name      string `db:"name"`
+	TimeoutMS int64  `db:"timeout_ms"`
+	Enabled   bool   `db:"enabled"`
+	CreatedAt string `db:"created_at"`
 }
 
 func (r *Repository) SaveConfig(ctx context.Context, tenantID string, cfg *TenantConfig) error {

@@ -145,19 +145,19 @@ type UpdateCommandRequest struct {
 
 // ChatOpsExecution represents a single command execution.
 type ChatOpsExecution struct {
-	ID         string    `db:"id" json:"id"`
-	TenantID   string    `db:"tenant_id" json:"tenant_id"`
-	CommandID  string    `db:"command_id" json:"command_id"`
-	UserID     string    `db:"user_id" json:"user_id"`
-	Platform   string    `db:"platform" json:"platform"`
-	Channel    string    `db:"channel" json:"channel"`
-	Params     JSONB     `db:"params" json:"params"`
-	Status     string    `db:"status" json:"status"`
-	StartTime  time.Time `db:"start_time" json:"start_time"`
+	ID         string     `db:"id" json:"id"`
+	TenantID   string     `db:"tenant_id" json:"tenant_id"`
+	CommandID  string     `db:"command_id" json:"command_id"`
+	UserID     string     `db:"user_id" json:"user_id"`
+	Platform   string     `db:"platform" json:"platform"`
+	Channel    string     `db:"channel" json:"channel"`
+	Params     JSONB      `db:"params" json:"params"`
+	Status     string     `db:"status" json:"status"`
+	StartTime  time.Time  `db:"start_time" json:"start_time"`
 	EndTime    *time.Time `db:"end_time" json:"end_time,omitempty"`
-	Result     JSONB     `db:"result" json:"result"`
-	Milestones JSONB     `db:"milestones" json:"milestones"`
-	CreatedAt  time.Time `db:"created_at" json:"created_at"`
+	Result     JSONB      `db:"result" json:"result"`
+	Milestones JSONB      `db:"milestones" json:"milestones"`
+	CreatedAt  time.Time  `db:"created_at" json:"created_at"`
 }
 
 type CreateExecutionRequest struct {
@@ -172,15 +172,15 @@ type CreateExecutionRequest struct {
 
 // ChatOpsSession stores conversation state for a user-channel pair.
 type ChatOpsSession struct {
-	ID        string    `db:"id" json:"id"`
-	TenantID  string    `db:"tenant_id" json:"tenant_id"`
-	SessionKey string   `db:"session_key" json:"session_key"`
-	UserID    string    `db:"user_id" json:"user_id"`
-	ChannelID string    `db:"channel_id" json:"channel_id"`
-	History   JSONB     `db:"history" json:"history"`
-	State     JSONB     `db:"state" json:"state"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+	ID         string    `db:"id" json:"id"`
+	TenantID   string    `db:"tenant_id" json:"tenant_id"`
+	SessionKey string    `db:"session_key" json:"session_key"`
+	UserID     string    `db:"user_id" json:"user_id"`
+	ChannelID  string    `db:"channel_id" json:"channel_id"`
+	History    JSONB     `db:"history" json:"history"`
+	State      JSONB     `db:"state" json:"state"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at" json:"updated_at"`
 }
 
 type CreateSessionRequest struct {
@@ -215,23 +215,23 @@ type CreateAuditLogRequest struct {
 
 // ChatOpsWebhook represents an outbound webhook configuration.
 type ChatOpsWebhook struct {
-	ID                   string     `db:"id" json:"id"`
-	TenantID             string     `db:"tenant_id" json:"tenant_id"`
-	Name                 string     `db:"name" json:"name"`
-	URL                  string     `db:"url" json:"url"`
+	ID                   string      `db:"id" json:"id"`
+	TenantID             string      `db:"tenant_id" json:"tenant_id"`
+	Name                 string      `db:"name" json:"name"`
+	URL                  string      `db:"url" json:"url"`
 	Events               StringArray `db:"events" json:"events"`
-	SecretKey            *string    `db:"secret_key" json:"secret_key,omitempty"`
-	Enabled              bool       `db:"enabled" json:"enabled"`
-	RetryCount           int        `db:"retry_count" json:"retry_count"`
-	RetryIntervalSeconds int        `db:"retry_interval_seconds" json:"retry_interval_seconds"`
-	TimeoutSeconds       int        `db:"timeout_seconds" json:"timeout_seconds"`
-	Headers              JSONB      `db:"headers" json:"headers"`
-	Description          string     `db:"description" json:"description"`
-	CreatedBy            string     `db:"created_by" json:"created_by"`
-	LastTriggeredAt      *time.Time `db:"last_triggered_at" json:"last_triggered_at,omitempty"`
-	LastStatus           *string    `db:"last_status" json:"last_status,omitempty"`
-	CreatedAt            time.Time  `db:"created_at" json:"created_at"`
-	UpdatedAt            time.Time  `db:"updated_at" json:"updated_at"`
+	SecretKey            *string     `db:"secret_key" json:"secret_key,omitempty"`
+	Enabled              bool        `db:"enabled" json:"enabled"`
+	RetryCount           int         `db:"retry_count" json:"retry_count"`
+	RetryIntervalSeconds int         `db:"retry_interval_seconds" json:"retry_interval_seconds"`
+	TimeoutSeconds       int         `db:"timeout_seconds" json:"timeout_seconds"`
+	Headers              JSONB       `db:"headers" json:"headers"`
+	Description          string      `db:"description" json:"description"`
+	CreatedBy            string      `db:"created_by" json:"created_by"`
+	LastTriggeredAt      *time.Time  `db:"last_triggered_at" json:"last_triggered_at,omitempty"`
+	LastStatus           *string     `db:"last_status" json:"last_status,omitempty"`
+	CreatedAt            time.Time   `db:"created_at" json:"created_at"`
+	UpdatedAt            time.Time   `db:"updated_at" json:"updated_at"`
 }
 
 type CreateWebhookRequest struct {
@@ -281,29 +281,29 @@ type ChatOpsWebhookLog struct {
 
 // ChatOpsRateLimit defines rate limit rules for commands/users.
 type ChatOpsRateLimit struct {
-	ID          string    `db:"id" json:"id"`
-	TenantID    string    `db:"tenant_id" json:"tenant_id"`
-	TargetType  string    `db:"target_type" json:"target_type"`
-	TargetID    *string   `db:"target_id" json:"target_id,omitempty"`
-	CommandName *string   `db:"command_name" json:"command_name,omitempty"`
-	LimitType   string    `db:"limit_type" json:"limit_type"`
-	LimitCount  int       `db:"limit_count" json:"limit_count"`
-	WindowSeconds int     `db:"window_seconds" json:"window_seconds"`
-	Description string    `db:"description" json:"description"`
-	Enabled     bool      `db:"enabled" json:"enabled"`
-	CreatedAt   time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+	ID            string    `db:"id" json:"id"`
+	TenantID      string    `db:"tenant_id" json:"tenant_id"`
+	TargetType    string    `db:"target_type" json:"target_type"`
+	TargetID      *string   `db:"target_id" json:"target_id,omitempty"`
+	CommandName   *string   `db:"command_name" json:"command_name,omitempty"`
+	LimitType     string    `db:"limit_type" json:"limit_type"`
+	LimitCount    int       `db:"limit_count" json:"limit_count"`
+	WindowSeconds int       `db:"window_seconds" json:"window_seconds"`
+	Description   string    `db:"description" json:"description"`
+	Enabled       bool      `db:"enabled" json:"enabled"`
+	CreatedAt     time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time `db:"updated_at" json:"updated_at"`
 }
 
 type CreateRateLimitRequest struct {
-	TargetType    string  `json:"target_type" binding:"required"`
-	TargetID      string  `json:"target_id"`
-	CommandName   string  `json:"command_name"`
-	LimitType     string  `json:"limit_type" binding:"required"`
-	LimitCount    int     `json:"limit_count" binding:"required"`
-	WindowSeconds int     `json:"window_seconds" binding:"required"`
-	Description   string  `json:"description"`
-	Enabled       *bool   `json:"enabled"`
+	TargetType    string `json:"target_type" binding:"required"`
+	TargetID      string `json:"target_id"`
+	CommandName   string `json:"command_name"`
+	LimitType     string `json:"limit_type" binding:"required"`
+	LimitCount    int    `json:"limit_count" binding:"required"`
+	WindowSeconds int    `json:"window_seconds" binding:"required"`
+	Description   string `json:"description"`
+	Enabled       *bool  `json:"enabled"`
 }
 
 type UpdateRateLimitRequest struct {
@@ -378,24 +378,24 @@ type RecommendationAction struct {
 
 // ChatOpsRecommendation is a single smart-recommendation item.
 type ChatOpsRecommendation struct {
-	ID          string                `json:"id"`
-	Type        string                `json:"type"`
-	Severity    string                `json:"severity"`
-	Title       string                `json:"title"`
-	Description string                `json:"description"`
+	ID          string                 `json:"id"`
+	Type        string                 `json:"type"`
+	Severity    string                 `json:"severity"`
+	Title       string                 `json:"title"`
+	Description string                 `json:"description"`
 	Actions     []RecommendationAction `json:"actions"`
-	Source      string                `json:"source"`
-	CreatedAt   time.Time             `json:"created_at"`
+	Source      string                 `json:"source"`
+	CreatedAt   time.Time              `json:"created_at"`
 }
 
 // ==================== Message ====================
 
 // SendMessageRequest is the payload for the /messages endpoint.
 type SendMessageRequest struct {
-	Content   string `json:"content" binding:"required"`
-	Channel   string `json:"channel"`
-	Platform  string `json:"platform"`
-	UserID    string `json:"user_id"`
+	Content  string `json:"content" binding:"required"`
+	Channel  string `json:"channel"`
+	Platform string `json:"platform"`
+	UserID   string `json:"user_id"`
 }
 
 // MessageResponse is returned after sending a message.
@@ -413,9 +413,9 @@ type MessageResponse struct {
 
 // ParsedCommand holds the result of parsing a raw chat input string.
 type ParsedCommand struct {
-	Command *ChatOpsCommand    `json:"command,omitempty"`
-	Params  map[string]string  `json:"params"`
-	Raw     string             `json:"raw"`
+	Command *ChatOpsCommand   `json:"command,omitempty"`
+	Params  map[string]string `json:"params"`
+	Raw     string            `json:"raw"`
 }
 
 // ==================== Command Execution Result ====================
@@ -470,14 +470,14 @@ type UpdateCapabilityMappingRequest struct {
 
 // ApprovalConfig defines approval rules for a specific capability.
 type ApprovalConfig struct {
-	ID          string    `db:"id" json:"id"`
-	TenantID    string    `db:"tenant_id" json:"tenant_id"`
-	Capability  string    `db:"capability" json:"capability"`
-	Enabled     bool      `db:"enabled" json:"enabled"`
-	MinApprovers int      `db:"min_approvers" json:"min_approvers"`
-	TimeoutSec  int       `db:"timeout_sec" json:"timeout_sec"`
-	CreatedAt   time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+	ID           string    `db:"id" json:"id"`
+	TenantID     string    `db:"tenant_id" json:"tenant_id"`
+	Capability   string    `db:"capability" json:"capability"`
+	Enabled      bool      `db:"enabled" json:"enabled"`
+	MinApprovers int       `db:"min_approvers" json:"min_approvers"`
+	TimeoutSec   int       `db:"timeout_sec" json:"timeout_sec"`
+	CreatedAt    time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time `db:"updated_at" json:"updated_at"`
 }
 
 type UpdateApprovalConfigRequest struct {
@@ -490,14 +490,14 @@ type UpdateApprovalConfigRequest struct {
 
 // Approver represents a user who can approve operations.
 type Approver struct {
-	ID          string    `db:"id" json:"id"`
-	TenantID    string    `db:"tenant_id" json:"tenant_id"`
-	UserID      string    `db:"user_id" json:"user_id"`
-	UserName    string    `db:"user_name" json:"user_name"`
-	Level       string    `db:"level" json:"level"`
-	Enabled     bool      `db:"enabled" json:"enabled"`
-	CreatedAt   time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+	ID        string    `db:"id" json:"id"`
+	TenantID  string    `db:"tenant_id" json:"tenant_id"`
+	UserID    string    `db:"user_id" json:"user_id"`
+	UserName  string    `db:"user_name" json:"user_name"`
+	Level     string    `db:"level" json:"level"`
+	Enabled   bool      `db:"enabled" json:"enabled"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
 }
 
 type CreateApproverRequest struct {
@@ -529,10 +529,10 @@ type UpdateApproverScheduleRequest struct {
 
 // ApprovalGlobalConfig stores tenant-level approval settings.
 type ApprovalGlobalConfig struct {
-	TenantID              string `db:"tenant_id" json:"tenant_id"`
-	DefaultMinApprovers   int    `db:"default_min_approvers" json:"default_min_approvers"`
-	DefaultTimeoutSec     int    `db:"default_timeout_sec" json:"default_timeout_sec"`
-	RequireApprovalForAll bool   `db:"require_approval_for_all" json:"require_approval_for_all"`
+	TenantID              string    `db:"tenant_id" json:"tenant_id"`
+	DefaultMinApprovers   int       `db:"default_min_approvers" json:"default_min_approvers"`
+	DefaultTimeoutSec     int       `db:"default_timeout_sec" json:"default_timeout_sec"`
+	RequireApprovalForAll bool      `db:"require_approval_for_all" json:"require_approval_for_all"`
 	UpdatedAt             time.Time `db:"updated_at" json:"updated_at"`
 }
 
@@ -546,13 +546,13 @@ type UpdateApprovalGlobalConfigRequest struct {
 
 // AdminRole defines a custom role for ChatOps.
 type AdminRole struct {
-	ID          string    `db:"id" json:"id"`
-	TenantID    string    `db:"tenant_id" json:"tenant_id"`
-	Name        string    `db:"name" json:"name"`
-	Description string    `db:"description" json:"description"`
+	ID          string      `db:"id" json:"id"`
+	TenantID    string      `db:"tenant_id" json:"tenant_id"`
+	Name        string      `db:"name" json:"name"`
+	Description string      `db:"description" json:"description"`
 	Permissions StringArray `db:"permissions" json:"permissions"`
-	CreatedAt   time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+	CreatedAt   time.Time   `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time   `db:"updated_at" json:"updated_at"`
 }
 
 type CreateAdminRoleRequest struct {
@@ -562,8 +562,8 @@ type CreateAdminRoleRequest struct {
 }
 
 type UpdateAdminRoleRequest struct {
-	Name        *string     `json:"name"`
-	Description *string     `json:"description"`
+	Name        *string      `json:"name"`
+	Description *string      `json:"description"`
 	Permissions *StringArray `json:"permissions"`
 }
 
@@ -599,14 +599,14 @@ type UpdateCommandPermissionRequest struct {
 
 // EnvironmentPermission defines which roles can access which environments.
 type EnvironmentPermission struct {
-	ID            string    `db:"id" json:"id"`
-	TenantID      string    `db:"tenant_id" json:"tenant_id"`
-	Environment   string    `db:"environment" json:"environment"`
-	RoleName      string    `db:"role_name" json:"role_name"`
-	Allow         bool      `db:"allow" json:"allow"`
-	Priority      int       `db:"priority" json:"priority"`
-	CreatedAt     time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt     time.Time `db:"updated_at" json:"updated_at"`
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenant_id"`
+	Environment string    `db:"environment" json:"environment"`
+	RoleName    string    `db:"role_name" json:"role_name"`
+	Allow       bool      `db:"allow" json:"allow"`
+	Priority    int       `db:"priority" json:"priority"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
 }
 
 type CreateEnvironmentPermissionRequest struct {
@@ -627,17 +627,17 @@ type UpdateEnvironmentPermissionRequest struct {
 
 // CommandVersion stores version history for commands.
 type CommandVersion struct {
-	ID          string    `db:"id" json:"id"`
-	TenantID    string    `db:"tenant_id" json:"tenant_id"`
-	CommandID   string    `db:"command_id" json:"command_id"`
-	Version     int       `db:"version" json:"version"`
-	SchemaDef   JSONB     `db:"schema_def" json:"schema_def"`
-	Aliases     StringArray `db:"aliases" json:"aliases"`
-	Examples    StringArray `db:"examples" json:"examples"`
-	Tags        StringArray `db:"tags" json:"tags"`
-	CreatedBy   string    `db:"created_by" json:"created_by"`
-	CreatedAt   time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+	ID        string      `db:"id" json:"id"`
+	TenantID  string      `db:"tenant_id" json:"tenant_id"`
+	CommandID string      `db:"command_id" json:"command_id"`
+	Version   int         `db:"version" json:"version"`
+	SchemaDef JSONB       `db:"schema_def" json:"schema_def"`
+	Aliases   StringArray `db:"aliases" json:"aliases"`
+	Examples  StringArray `db:"examples" json:"examples"`
+	Tags      StringArray `db:"tags" json:"tags"`
+	CreatedBy string      `db:"created_by" json:"created_by"`
+	CreatedAt time.Time   `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time   `db:"updated_at" json:"updated_at"`
 }
 
 type CreateCommandVersionRequest struct {

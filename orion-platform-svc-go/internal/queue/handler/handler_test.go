@@ -1,10 +1,10 @@
 package handler
 
 import (
-	"orion/platform-svc-go/internal/queue/models"
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"orion/platform-svc-go/internal/queue/models"
 	"testing"
 
 	"orion/platform-svc-go/internal/queue/service"
@@ -24,6 +24,7 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	c.Request = httptest.NewRequest(method, path, nil)
 	return c, w
 }
+
 type fakeQueueService struct{}
 
 func (f *fakeQueueService) EnqueueJob(ctx context.Context, tenantID, queueName string, req *models.EnqueueJobRequest) (*models.Job, error) {
@@ -54,12 +55,11 @@ func (f *fakeQueueService) Update(ctx context.Context, tenantID, id string, req 
 	return &models.Queue{}, nil
 }
 
-func (f *fakeQueueService) Delete(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeQueueService) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
 var _ service.ServiceInterface = (*fakeQueueService)(nil)
-
 
 func TestHandler_QUEUE_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

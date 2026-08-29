@@ -2,21 +2,23 @@
 // sync.Map storage and init()-based auto-registration of starter plugins.
 //
 // Architecture (inspired by NeatLogic's plugin SPI):
-//   ExecutorFactory (registry)
-//       ├── Plugin: ShellExecutorPlugin
-//       ├── Plugin: PythonExecutorPlugin
-//       ├── Plugin: HTTPExecutorPlugin
-//       ├── Plugin: SQLEXecutorPlugin
-//       └── Plugin: WebhookExecutorPlugin
+//
+//	ExecutorFactory (registry)
+//	    ├── Plugin: ShellExecutorPlugin
+//	    ├── Plugin: PythonExecutorPlugin
+//	    ├── Plugin: HTTPExecutorPlugin
+//	    ├── Plugin: SQLEXecutorPlugin
+//	    └── Plugin: WebhookExecutorPlugin
 //
 // Usage:
-//   // Access the global factory
-//   factory := auto_exec.Factory()
 //
-//   // Look up a plugin by type
-//   if p, ok := factory.Get("shell"); ok {
-//       result, err := p.Execute(ctx, params)
-//   }
+//	// Access the global factory
+//	factory := auto_exec.Factory()
+//
+//	// Look up a plugin by type
+//	if p, ok := factory.Get("shell"); ok {
+//	    result, err := p.Execute(ctx, params)
+//	}
 package factory
 
 import (

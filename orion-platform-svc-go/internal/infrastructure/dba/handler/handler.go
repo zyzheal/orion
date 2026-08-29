@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strconv"
 
 	"orion/platform-svc-go/internal/infrastructure/dba/models"
@@ -52,6 +53,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ─── Order Handlers ────────────────────────────────────────────────────────────
 
 func (h *Handler) CreateOrder(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDBACreateOrder")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	var req models.CreateOrderInput
@@ -59,7 +62,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	order, err := h.svc.CreateOrder(c.Request.Context(), &req, userID, tenantID)
+	order, err := h.svc.CreateOrder(ctx, &req, userID, tenantID)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -68,11 +71,13 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 }
 
 func (h *Handler) ListOrders(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDBAListOrders")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	status := c.Query("status")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	result, err := h.svc.ListOrders(c.Request.Context(), tenantID, status, page, limit)
+	result, err := h.svc.ListOrders(ctx, tenantID, status, page, limit)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -81,7 +86,9 @@ func (h *Handler) ListOrders(c *gin.Context) {
 }
 
 func (h *Handler) GetOrder(c *gin.Context) {
-	order, err := h.svc.GetOrder(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDBAGetOrder")
+	defer span.End()
+	order, err := h.svc.GetOrder(ctx, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -90,8 +97,10 @@ func (h *Handler) GetOrder(c *gin.Context) {
 }
 
 func (h *Handler) ApproveOrder(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDBAApproveOrder")
+	defer span.End()
 	userID := c.GetString("user_id")
-	order, err := h.svc.ApproveOrder(c.Request.Context(), c.Param("id"), userID)
+	order, err := h.svc.ApproveOrder(ctx, c.Param("id"), userID)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -100,7 +109,9 @@ func (h *Handler) ApproveOrder(c *gin.Context) {
 }
 
 func (h *Handler) RejectOrder(c *gin.Context) {
-	order, err := h.svc.RejectOrder(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDBARejectOrder")
+	defer span.End()
+	order, err := h.svc.RejectOrder(ctx, c.Param("id"))
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -109,7 +120,9 @@ func (h *Handler) RejectOrder(c *gin.Context) {
 }
 
 func (h *Handler) ExecuteOrder(c *gin.Context) {
-	order, err := h.svc.ExecuteOrder(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDBAExecuteOrder")
+	defer span.End()
+	order, err := h.svc.ExecuteOrder(ctx, c.Param("id"))
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -120,13 +133,15 @@ func (h *Handler) ExecuteOrder(c *gin.Context) {
 // ─── Data Source Handlers ──────────────────────────────────────────────────────
 
 func (h *Handler) CreateDataSource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDBACreateDataSource")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateDataSourceInput
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	ds, err := h.svc.CreateDataSource(c.Request.Context(), &req, tenantID)
+	ds, err := h.svc.CreateDataSource(ctx, &req, tenantID)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -135,8 +150,10 @@ func (h *Handler) CreateDataSource(c *gin.Context) {
 }
 
 func (h *Handler) ListDataSources(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDBAListDataSources")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.ListDataSources(c.Request.Context(), tenantID)
+	items, err := h.svc.ListDataSources(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -145,7 +162,9 @@ func (h *Handler) ListDataSources(c *gin.Context) {
 }
 
 func (h *Handler) GetDataSource(c *gin.Context) {
-	ds, err := h.svc.GetDataSource(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDBAGetDataSource")
+	defer span.End()
+	ds, err := h.svc.GetDataSource(ctx, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -154,12 +173,14 @@ func (h *Handler) GetDataSource(c *gin.Context) {
 }
 
 func (h *Handler) UpdateDataSource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDBAUpdateDataSource")
+	defer span.End()
 	var req map[string]interface{}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	ds, err := h.svc.UpdateDataSource(c.Request.Context(), c.Param("id"), req)
+	ds, err := h.svc.UpdateDataSource(ctx, c.Param("id"), req)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -168,7 +189,9 @@ func (h *Handler) UpdateDataSource(c *gin.Context) {
 }
 
 func (h *Handler) DeleteDataSource(c *gin.Context) {
-	deleted, err := h.svc.DeleteDataSource(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDBADeleteDataSource")
+	defer span.End()
+	deleted, err := h.svc.DeleteDataSource(ctx, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -181,7 +204,9 @@ func (h *Handler) DeleteDataSource(c *gin.Context) {
 }
 
 func (h *Handler) TestConnection(c *gin.Context) {
-	result, err := h.svc.TestConnection(c.Request.Context(), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDBATestConnection")
+	defer span.End()
+	result, err := h.svc.TestConnection(ctx, c.Param("id"))
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -192,13 +217,15 @@ func (h *Handler) TestConnection(c *gin.Context) {
 // ─── Audit Rule Handlers ───────────────────────────────────────────────────────
 
 func (h *Handler) CreateAuditRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDBACreateAuditRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAuditRuleInput
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	rule, err := h.svc.CreateAuditRule(c.Request.Context(), &req, tenantID)
+	rule, err := h.svc.CreateAuditRule(ctx, &req, tenantID)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -207,8 +234,10 @@ func (h *Handler) CreateAuditRule(c *gin.Context) {
 }
 
 func (h *Handler) ListAuditRules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDBAListAuditRules")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.ListAuditRules(c.Request.Context(), tenantID)
+	items, err := h.svc.ListAuditRules(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -217,12 +246,14 @@ func (h *Handler) ListAuditRules(c *gin.Context) {
 }
 
 func (h *Handler) UpdateAuditRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDBAUpdateAuditRule")
+	defer span.End()
 	var req map[string]interface{}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	rule, err := h.svc.UpdateAuditRule(c.Request.Context(), c.Param("id"), req)
+	rule, err := h.svc.UpdateAuditRule(ctx, c.Param("id"), req)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -233,6 +264,8 @@ func (h *Handler) UpdateAuditRule(c *gin.Context) {
 // ─── Direct Query Handlers ─────────────────────────────────────────────────────
 
 func (h *Handler) ExecuteDirectQuery(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDBAExecuteDirectQuery")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 
@@ -246,7 +279,7 @@ func (h *Handler) ExecuteDirectQuery(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.ExecuteDirectQuery(c.Request.Context(), models.DirectQueryInput{
+	result, err := h.svc.ExecuteDirectQuery(ctx, models.DirectQueryInput{
 		DatabaseID: body.DataSourceID,
 		Query:      body.SQL,
 		Params:     nil,
@@ -263,13 +296,15 @@ func (h *Handler) ExecuteDirectQuery(c *gin.Context) {
 }
 
 func (h *Handler) ListQueryLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDBAListQueryLogs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	dataSourceID := c.Query("dataSourceId")
 	status := c.Query("status")
 
-	result, err := h.svc.ListQueryLogs(c.Request.Context(), tenantID, nil, page, limit, dataSourceID, status)
+	result, err := h.svc.ListQueryLogs(ctx, tenantID, nil, page, limit, dataSourceID, status)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

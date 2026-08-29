@@ -8,15 +8,15 @@ import (
 
 // RCAAnalysis represents a root cause analysis session.
 type RCAAnalysis struct {
-	ID          uuid.UUID `json:"id"`
-	TenantID    uuid.UUID `json:"tenant_id"`
-	IncidentID  string    `json:"incident_id"`
-	Status      string    `json:"status"`
+	ID          uuid.UUID   `json:"id"`
+	TenantID    uuid.UUID   `json:"tenant_id"`
+	IncidentID  string      `json:"incident_id"`
+	Status      string      `json:"status"`
 	RootCauses  []RootCause `json:"root_causes"`
-	Confidence  float64   `json:"confidence"`
-	TriggeredBy string    `json:"triggered_by"`
-	StartedAt   time.Time `json:"started_at"`
-	CompletedAt *time.Time `json:"completed_at"`
+	Confidence  float64     `json:"confidence"`
+	TriggeredBy string      `json:"triggered_by"`
+	StartedAt   time.Time   `json:"started_at"`
+	CompletedAt *time.Time  `json:"completed_at"`
 }
 
 // RootCause represents an identified root cause.
@@ -56,10 +56,10 @@ type TimelineEvent struct {
 
 // AnalyzeRequest for starting an RCA analysis.
 type AnalyzeRequest struct {
-	IncidentID    string   `json:"incident_id" binding:"required"`
-	TimeRange     TimeRange `json:"time_range" binding:"required"`
-	IncludePatterns []string `json:"include_patterns"`
-	ExcludePatterns []string `json:"exclude_patterns"`
+	IncidentID      string    `json:"incident_id" binding:"required"`
+	TimeRange       TimeRange `json:"time_range" binding:"required"`
+	IncludePatterns []string  `json:"include_patterns"`
+	ExcludePatterns []string  `json:"exclude_patterns"`
 }
 
 // TimeRange defines the time window for analysis.
@@ -70,7 +70,7 @@ type TimeRange struct {
 
 // RCAAnalysisResponse wraps analysis results.
 type RCAAnalysisResponse struct {
-	Total int64       `json:"total"`
+	Total int64         `json:"total"`
 	Data  []RCAAnalysis `json:"data"`
 }
 

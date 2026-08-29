@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"net/http"
 	"strconv"
 
@@ -19,7 +20,9 @@ func NewQueueHandler(qm *service.QueueManager) *QueueHandler {
 
 // GetSLAQueueStatus GET /api/v1/tickets/dispatch/queue/sla-status
 func (h *QueueHandler) GetSLAQueueStatus(c *gin.Context) {
-	status, err := h.qm.GetSLAQueueStatus(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingGetSLAQueueStatus")
+	defer span.End()
+	status, err := h.qm.GetSLAQueueStatus(ctx)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -29,7 +32,9 @@ func (h *QueueHandler) GetSLAQueueStatus(c *gin.Context) {
 
 // GetSLAQueueEntries GET /api/v1/tickets/dispatch/queue/sla-entries
 func (h *QueueHandler) GetSLAQueueEntries(c *gin.Context) {
-	entries, err := h.qm.GetSLAQueueEntries(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingGetSLAQueueEntries")
+	defer span.End()
+	entries, err := h.qm.GetSLAQueueEntries(ctx)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -39,13 +44,15 @@ func (h *QueueHandler) GetSLAQueueEntries(c *gin.Context) {
 
 // GetSLAAlerts GET /api/v1/tickets/dispatch/queue/sla-alerts
 func (h *QueueHandler) GetSLAAlerts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingGetSLAAlerts")
+	defer span.End()
 	alertType := c.Query("type")
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	if limit == 0 {
 		limit = 50
 	}
 
-	alerts, err := h.qm.GetSLAAlerts(c.Request.Context(), alertType, limit)
+	alerts, err := h.qm.GetSLAAlerts(ctx, alertType, limit)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -55,7 +62,9 @@ func (h *QueueHandler) GetSLAAlerts(c *gin.Context) {
 
 // ReprioritizeQueue POST /api/v1/tickets/dispatch/queue/reprioritize
 func (h *QueueHandler) ReprioritizeQueue(c *gin.Context) {
-	count, err := h.qm.ReprioritizeAll(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingReprioritizeQueue")
+	defer span.End()
+	count, err := h.qm.ReprioritizeAll(ctx)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return

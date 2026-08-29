@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/decision-explanation/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/decision-explanation/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeDecision_explanationService) Update(ctx context.Context, tenantID, 
 }
 
 var _ service.ServiceInterface = (*fakeDecision_explanationService)(nil)
-
 
 func TestHandler_DECISION_EXPLA_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

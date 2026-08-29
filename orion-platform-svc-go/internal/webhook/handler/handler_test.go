@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/webhook/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/webhook/models"
 )
 
@@ -68,7 +68,6 @@ func (f *fakeWebhookService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeWebhookService)(nil)
-
 
 func TestHandler_WEBHOOK_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

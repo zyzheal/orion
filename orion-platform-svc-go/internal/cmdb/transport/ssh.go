@@ -1,4 +1,5 @@
 //go:build ignore
+
 // ============================================================
 // SSH Transport — 网络设备 SSH 采集底层
 // ============================================================
@@ -34,16 +35,16 @@ import (
 
 // SSHConfig SSH 连接配置
 type SSHConfig struct {
-	Target    string `yaml:"target"`
-	Port      int    `yaml:"port"`       // 默认 22
-	Username  string `yaml:"username"`
-	Password  string `yaml:"password"`
-	KeyPath   string `yaml:"key_path"`   // SSH 私钥路径 (二选一)
-	KeyPass   string `yaml:"key_pass"`   // 私钥密码
+	Target   string `yaml:"target"`
+	Port     int    `yaml:"port"` // 默认 22
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+	KeyPath  string `yaml:"key_path"` // SSH 私钥路径 (二选一)
+	KeyPass  string `yaml:"key_pass"` // 私钥密码
 
 	// 厂商特定配置
-	CliMode  string `yaml:"cli_mode"` // cisco_ios / huawei_vrp / h3c_comware
-	Timeout  int    `yaml:"timeout"`  // 命令超时秒数，默认 30
+	CliMode string `yaml:"cli_mode"` // cisco_ios / huawei_vrp / h3c_comware
+	Timeout int    `yaml:"timeout"`  // 命令超时秒数，默认 30
 
 	// 厂商特定命令前缀
 	EnableCmd  string `yaml:"enable_cmd"`  // enable 命令 (Cisco)
@@ -53,9 +54,9 @@ type SSHConfig struct {
 // DefaultSSHConfig 默认 SSH 配置
 func DefaultSSHConfig() *SSHConfig {
 	return &SSHConfig{
-		Port:     22,
-		Timeout:  30,
-		CliMode:  "generic",
+		Port:      22,
+		Timeout:   30,
+		CliMode:   "generic",
 		EnableCmd: "enable",
 	}
 }
@@ -94,8 +95,8 @@ func (c *SSHConfig) NetAddr() string {
 
 // SSHClient SSH 客户端
 type SSHClient struct {
-	config *SSHConfig
-	client *ssh.Client
+	config  *SSHConfig
+	client  *ssh.Client
 	session *ssh.Session
 }
 
@@ -203,43 +204,43 @@ const (
 
 // CLICommands 厂商 CLI 命令集
 type CLICommands struct {
-	Name        string
-	Mode        CLIMode
-	ShowVersion string // 版本信息命令
-	ShowConfig  string // 配置信息命令
+	Name          string
+	Mode          CLIMode
+	ShowVersion   string // 版本信息命令
+	ShowConfig    string // 配置信息命令
 	ShowInterface string // 接口信息命令
 	ShowNeighbors string // 邻居信息命令
-	ExitCmd     string // 退出命令
+	ExitCmd       string // 退出命令
 }
 
 // DefaultCLICommands 默认厂商 CLI 命令
 var DefaultCLICommands = map[CLIMode]*CLICommands{
 	CLIModeCiscoIOS: {
-		Name:        "Cisco IOS",
-		Mode:        CLIModeCiscoIOS,
-		ShowVersion: "show version",
-		ShowConfig:  "show running-config",
+		Name:          "Cisco IOS",
+		Mode:          CLIModeCiscoIOS,
+		ShowVersion:   "show version",
+		ShowConfig:    "show running-config",
 		ShowInterface: "show interfaces description",
 		ShowNeighbors: "show cdp neighbors detail",
-		ExitCmd:    "exit",
+		ExitCmd:       "exit",
 	},
 	CLIModeHuaweiVRP: {
-		Name:        "Huawei VRP",
-		Mode:        CLIModeHuaweiVRP,
-		ShowVersion: "display version",
-		ShowConfig:  "display current-configuration",
+		Name:          "Huawei VRP",
+		Mode:          CLIModeHuaweiVRP,
+		ShowVersion:   "display version",
+		ShowConfig:    "display current-configuration",
 		ShowInterface: "display interface brief",
 		ShowNeighbors: "display lldp neighbor",
-		ExitCmd:    "quit",
+		ExitCmd:       "quit",
 	},
 	CLIModeH3CComware: {
-		Name:        "H3C Comware",
-		Mode:        CLIModeH3CComware,
-		ShowVersion: "display version",
-		ShowConfig:  "display current-configuration",
+		Name:          "H3C Comware",
+		Mode:          CLIModeH3CComware,
+		ShowVersion:   "display version",
+		ShowConfig:    "display current-configuration",
 		ShowInterface: "display interface brief",
 		ShowNeighbors: "display lldp neighbor-information",
-		ExitCmd:    "quit",
+		ExitCmd:       "quit",
 	},
 }
 

@@ -9,8 +9,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	dt_service "orion/platform-svc-go/internal/digital-twin-simulation/service"
 	"orion/platform-svc-go/internal/digital-twin-simulation/models"
+	dt_service "orion/platform-svc-go/internal/digital-twin-simulation/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,47 +30,69 @@ type mockSvc struct {
 }
 
 func (m *mockSvc) CreateTwin(ctx context.Context, tenantID string, req models.CreateTwinRequest) (*models.DigitalTwin, error) {
-	if m.createTwinFn != nil { return m.createTwinFn(ctx, tenantID, req) }
+	if m.createTwinFn != nil {
+		return m.createTwinFn(ctx, tenantID, req)
+	}
 	return nil, nil
 }
 func (m *mockSvc) ListTwins(ctx context.Context, tenantID string, q models.ListQuery) ([]models.DigitalTwin, int64, error) {
-	if m.listTwinsFn != nil { return m.listTwinsFn(ctx, tenantID, q) }
+	if m.listTwinsFn != nil {
+		return m.listTwinsFn(ctx, tenantID, q)
+	}
 	return nil, 0, nil
 }
 func (m *mockSvc) GetTwin(ctx context.Context, tenantID, id string) (*models.DigitalTwin, error) {
-	if m.getTwinFn != nil { return m.getTwinFn(ctx, tenantID, id) }
+	if m.getTwinFn != nil {
+		return m.getTwinFn(ctx, tenantID, id)
+	}
 	return nil, nil
 }
 func (m *mockSvc) UpdateTwin(ctx context.Context, tenantID, id string, req models.UpdateTwinRequest) (*models.DigitalTwin, error) {
-	if m.updateTwinFn != nil { return m.updateTwinFn(ctx, tenantID, id, req) }
+	if m.updateTwinFn != nil {
+		return m.updateTwinFn(ctx, tenantID, id, req)
+	}
 	return nil, nil
 }
 func (m *mockSvc) DeleteTwin(ctx context.Context, tenantID, id string) error {
-	if m.deleteTwinFn != nil { return m.deleteTwinFn(ctx, tenantID, id) }
+	if m.deleteTwinFn != nil {
+		return m.deleteTwinFn(ctx, tenantID, id)
+	}
 	return nil
 }
 func (m *mockSvc) SyncTwin(ctx context.Context, tenantID, id string) (*models.DigitalTwin, error) {
-	if m.syncTwinFn != nil { return m.syncTwinFn(ctx, tenantID, id) }
+	if m.syncTwinFn != nil {
+		return m.syncTwinFn(ctx, tenantID, id)
+	}
 	return nil, nil
 }
 func (m *mockSvc) GetState(ctx context.Context, twinID string) (*dt_service.TwinStateResponse, error) {
-	if m.getStateFn != nil { return m.getStateFn(ctx, twinID) }
+	if m.getStateFn != nil {
+		return m.getStateFn(ctx, twinID)
+	}
 	return nil, nil
 }
 func (m *mockSvc) Simulate(ctx context.Context, tenantID, twinID string, req models.SimulateRequest) (*models.Simulation, error) {
-	if m.simulateFn != nil { return m.simulateFn(ctx, tenantID, twinID, req) }
+	if m.simulateFn != nil {
+		return m.simulateFn(ctx, tenantID, twinID, req)
+	}
 	return nil, nil
 }
 func (m *mockSvc) ListSimulations(ctx context.Context, twinID string, q models.ListQuery) ([]models.Simulation, int64, error) {
-	if m.listSimulationsFn != nil { return m.listSimulationsFn(ctx, twinID, q) }
+	if m.listSimulationsFn != nil {
+		return m.listSimulationsFn(ctx, twinID, q)
+	}
 	return nil, 0, nil
 }
 func (m *mockSvc) GetComparison(ctx context.Context, twinID string) (*dt_service.TwinComparison, error) {
-	if m.getComparisonFn != nil { return m.getComparisonFn(ctx, twinID) }
+	if m.getComparisonFn != nil {
+		return m.getComparisonFn(ctx, twinID)
+	}
 	return nil, nil
 }
 func (m *mockSvc) Predict(ctx context.Context, twinID string, req models.PredictRequest) (*dt_service.PredictionResult, error) {
-	if m.predictFn != nil { return m.predictFn(ctx, twinID, req) }
+	if m.predictFn != nil {
+		return m.predictFn(ctx, twinID, req)
+	}
 	return nil, nil
 }
 

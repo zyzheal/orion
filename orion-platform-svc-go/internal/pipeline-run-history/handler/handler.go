@@ -9,8 +9,8 @@ import (
 	"orion/platform-svc-go/internal/pipeline-run-history/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Service defines the contract the handler needs from the service layer.

@@ -11,9 +11,9 @@ import (
 type Config struct {
 	Level      zapcore.Level
 	DevMode    bool
-	MaxSize    int    // MB per log file (0 = no file output)
-	MaxBackups int    // max old log files to keep
-	MaxAge     int    // max days to keep old files
+	MaxSize    int // MB per log file (0 = no file output)
+	MaxBackups int // max old log files to keep
+	MaxAge     int // max days to keep old files
 }
 
 // DefaultConfig returns a logger config suitable for production.

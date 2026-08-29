@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	overloadThreshold   = 85.0 // percent utilization considered overloaded
-	underutilThreshold  = 25.0 // percent utilization considered underutilized
+	overloadThreshold  = 85.0 // percent utilization considered overloaded
+	underutilThreshold = 25.0 // percent utilization considered underutilized
 )
 
 // LoadBalancer provides advanced load balancing and reassignment capabilities

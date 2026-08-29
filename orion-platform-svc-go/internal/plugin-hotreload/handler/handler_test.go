@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/plugin-hotreload/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/plugin-hotreload/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakePlugin_hotreloadService) Update(ctx context.Context, tenantID, id s
 }
 
 var _ service.ServiceInterface = (*fakePlugin_hotreloadService)(nil)
-
 
 func TestHandler_PLUGIN_HOTRELO_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

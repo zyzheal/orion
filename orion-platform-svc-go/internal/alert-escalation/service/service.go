@@ -269,11 +269,11 @@ func (s *Service) ResolveAlert(ctx context.Context, req *models.ResolveRequest, 
 		c.Status = "resolved"
 		c.UpdatedAt = now
 		_, err = s.repo.UpdateClosure(ctx, req.AlertID, tenantID, map[string]interface{}{
-			"status":           "resolved",
-			"resolved_by":      req.Operator,
-			"resolved_at":      &now,
-			"resolution_note":  req.ResolutionNote,
-			"mttr_seconds":     c.MTTRSeconds,
+			"status":          "resolved",
+			"resolved_by":     req.Operator,
+			"resolved_at":     &now,
+			"resolution_note": req.ResolutionNote,
+			"mttr_seconds":    c.MTTRSeconds,
 		})
 		if err != nil {
 			return nil, err

@@ -5,7 +5,6 @@ import (
 	"orion/platform-svc-go/internal/digital-twin/models"
 )
 
-
 // RepositoryInterface defines the data access contract for the digital-twin module.
 // DO NOT MODIFY: auto-generated from repository.go
 type RepositoryInterface interface {

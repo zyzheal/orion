@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/workbench/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	Create(ctx context.Context, m *models.Workbench) error

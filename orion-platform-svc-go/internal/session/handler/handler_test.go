@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/session/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/session/models"
 )
 
@@ -56,7 +56,6 @@ func (f *fakeSessionService) Verify(ctx context.Context, tenantID, token string)
 }
 
 var _ service.ServiceInterface = (*fakeSessionService)(nil)
-
 
 func TestHandler_SESSION_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

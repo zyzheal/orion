@@ -21,15 +21,15 @@ import (
 // In the current stub mode the data is persisted to a local fallback directory so the module compiles and tests
 // pass without a live Azure connection.
 type AzureBlobStorage struct {
-	name         string
-	storageURL   string
-	tenantID     string
-	container    string
-	provider     service.IFileStorageMedium
-	logger       *zap.Logger
-	mu           sync.RWMutex
-	initialized  bool
-	accessKey    string
+	name        string
+	storageURL  string
+	tenantID    string
+	container   string
+	provider    service.IFileStorageMedium
+	logger      *zap.Logger
+	mu          sync.RWMutex
+	initialized bool
+	accessKey   string
 }
 
 // AzureBlobConfig holds Azure Blob Storage configuration.
@@ -245,10 +245,10 @@ type azureContainerClient struct {
 // UploadStream uploads data using io.ReadCloser so large blobs are
 // streamed rather than loaded entirely into memory.
 type AzureUploadStream struct {
-	storage  *AzureBlobStorage
-	key      string
+	storage     *AzureBlobStorage
+	key         string
 	contentType string
-	buffer   *bytes.Buffer
+	buffer      *bytes.Buffer
 	initialized bool
 }
 
@@ -258,10 +258,10 @@ func NewAzureUploadStream(storage *AzureBlobStorage, key, contentType string) *A
 		contentType = "application/octet-stream"
 	}
 	return &AzureUploadStream{
-		storage: storage,
-		key:     key,
+		storage:     storage,
+		key:         key,
 		contentType: contentType,
-		buffer: &bytes.Buffer{},
+		buffer:      &bytes.Buffer{},
 	}
 }
 

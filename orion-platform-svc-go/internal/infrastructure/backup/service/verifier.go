@@ -31,11 +31,11 @@ func NewVerifier(backupSvc *BackupService, logger *zap.Logger) *Verifier {
 func (v *Verifier) Verify(ctx context.Context, tenantID, backupID string) (*models.VerificationResult, error) {
 	// Create pending verification result
 	vr := &models.VerificationResult{
-		ID:         uuid.New().String(),
-		TenantID:   tenantID,
-		BackupID:   backupID,
-		Status:     models.VerificationStatusPending,
-		StartedAt:  time.Now(),
+		ID:        uuid.New().String(),
+		TenantID:  tenantID,
+		BackupID:  backupID,
+		Status:    models.VerificationStatusPending,
+		StartedAt: time.Now(),
 	}
 	if err := v.repo.CreateVerification(ctx, vr); err != nil {
 		return nil, fmt.Errorf("failed to create verification result: %w", err)

@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"orion/platform-svc-go/internal/monitoring/internal/models"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/monitoring/internal/models"
 )
 
 // EscalationPolicyRepository manages escalation policies.

@@ -4,13 +4,12 @@ import (
 	"errors"
 	"strconv"
 
+	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"go.uber.org/zap"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/eventbus/internal/models"
 	"orion/platform-svc-go/internal/eventbus/internal/service"
-
-	"orion/go-common/pkg/auth"
-	"go.uber.org/zap"
-
-	"github.com/gin-gonic/gin"
 )
 
 // Handler exposes REST endpoints for the Event Bus domain.
@@ -55,13 +54,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Subscribe handles POST /subscriptions
 func (h *Handler) Subscribe(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EventBusInternalSubscribe")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSubscriptionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	sub, err := h.svc.Subscribe(c.Request.Context(), tenantID, &req)
+	sub, err := h.svc.Subscribe(ctx, tenantID, &req)
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidInput) {
 			respondBadRequest(c, err.Error())
@@ -75,9 +76,11 @@ func (h *Handler) Subscribe(c *gin.Context) {
 
 // Unsubscribe handles DELETE /subscriptions/:id
 func (h *Handler) Unsubscribe(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EventBusInternalUnsubscribe")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.Unsubscribe(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Unsubscribe(ctx, tenantID, id); err != nil {
 		if errors.Is(err, service.ErrSubscriptionNotFound) {
 			respondNotFound(c, err.Error())
 			return
@@ -90,6 +93,8 @@ func (h *Handler) Unsubscribe(c *gin.Context) {
 
 // UpdateSubscription handles PATCH /subscriptions/:id
 func (h *Handler) UpdateSubscription(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EventBusInternalUpdateSubscription")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateSubscriptionRequest
@@ -101,7 +106,7 @@ func (h *Handler) UpdateSubscription(c *gin.Context) {
 		respondBadRequest(c, "enabled field is required")
 		return
 	}
-	sub, err := h.svc.UpdateSubscriptionEnabled(c.Request.Context(), tenantID, id, *req.Enabled)
+	sub, err := h.svc.UpdateSubscriptionEnabled(ctx, tenantID, id, *req.Enabled)
 	if err != nil {
 		if errors.Is(err, service.ErrSubscriptionNotFound) {
 			respondNotFound(c, err.Error())
@@ -115,12 +120,14 @@ func (h *Handler) UpdateSubscription(c *gin.Context) {
 
 // ListSubscriptions handles GET /subscriptions
 func (h *Handler) ListSubscriptions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EventBusInternalListSubscriptions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var eventType *string
 	if et := c.Query("event_type"); et != "" {
 		eventType = &et
 	}
-	subs, err := h.svc.GetSubscriptions(c.Request.Context(), tenantID, eventType)
+	subs, err := h.svc.GetSubscriptions(ctx, tenantID, eventType)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -130,9 +137,11 @@ func (h *Handler) ListSubscriptions(c *gin.Context) {
 
 // GetSubscription handles GET /subscriptions/:id
 func (h *Handler) GetSubscription(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EventBusInternalGetSubscription")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	sub, err := h.svc.GetSubscriptionByID(c.Request.Context(), tenantID, id)
+	sub, err := h.svc.GetSubscriptionByID(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -142,8 +151,10 @@ func (h *Handler) GetSubscription(c *gin.Context) {
 
 // CountSubscriptions handles GET /subscriptions/count
 func (h *Handler) CountSubscriptions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EventBusInternalCountSubscriptions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.CountSubscriptions(c.Request.Context(), tenantID)
+	count, err := h.svc.CountSubscriptions(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -155,13 +166,15 @@ func (h *Handler) CountSubscriptions(c *gin.Context) {
 
 // PublishEvent handles POST /events
 func (h *Handler) PublishEvent(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EventBusInternalPublishEvent")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.PublishEventRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	logEntry, err := h.svc.Publish(c.Request.Context(), tenantID, &req)
+	logEntry, err := h.svc.Publish(ctx, tenantID, &req)
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidInput) {
 			respondBadRequest(c, err.Error())
@@ -175,9 +188,11 @@ func (h *Handler) PublishEvent(c *gin.Context) {
 
 // ListEvents handles GET /events
 func (h *Handler) ListEvents(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EventBusInternalListEvents")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
-	events, err := h.svc.GetEventHistory(c.Request.Context(), tenantID, limit)
+	events, err := h.svc.GetEventHistory(ctx, tenantID, limit)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -187,7 +202,9 @@ func (h *Handler) ListEvents(c *gin.Context) {
 
 // GetEventStats handles GET /events/stats
 func (h *Handler) GetEventStats(c *gin.Context) {
-	stats, err := h.svc.GetEventStats(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EventBusInternalGetEventStats")
+	defer span.End()
+	stats, err := h.svc.GetEventStats(ctx)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -197,9 +214,11 @@ func (h *Handler) GetEventStats(c *gin.Context) {
 
 // RetryPendingEvents handles POST /events/retry
 func (h *Handler) RetryPendingEvents(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EventBusInternalRetryPendingEvents")
+	defer span.End()
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
 	maxRetry, _ := strconv.Atoi(c.DefaultQuery("max_retry", "3"))
-	retried, err := h.svc.RetryPendingEvents(c.Request.Context(), limit, maxRetry)
+	retried, err := h.svc.RetryPendingEvents(ctx, limit, maxRetry)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -209,9 +228,11 @@ func (h *Handler) RetryPendingEvents(c *gin.Context) {
 
 // GetEvent handles GET /events/:id
 func (h *Handler) GetEvent(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EventBusInternalGetEvent")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	logEntry, err := h.svc.GetEventByID(c.Request.Context(), tenantID, id)
+	logEntry, err := h.svc.GetEventByID(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -221,9 +242,11 @@ func (h *Handler) GetEvent(c *gin.Context) {
 
 // MarkEventProcessed handles PATCH /events/:id/process
 func (h *Handler) MarkEventProcessed(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EventBusInternalMarkEventProcessed")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.MarkEventProcessed(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.MarkEventProcessed(ctx, tenantID, id); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -234,7 +257,9 @@ func (h *Handler) MarkEventProcessed(c *gin.Context) {
 
 // ListConfigs handles GET /configs
 func (h *Handler) ListConfigs(c *gin.Context) {
-	configs, err := h.svc.Repo().GetAllConfigs(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EventBusInternalListConfigs")
+	defer span.End()
+	configs, err := h.svc.Repo().GetAllConfigs(ctx)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -244,7 +269,9 @@ func (h *Handler) ListConfigs(c *gin.Context) {
 
 // GetConfig handles GET /configs/:key
 func (h *Handler) GetConfig(c *gin.Context) {
-	cfg, err := h.svc.Repo().FindConfigByKey(c.Request.Context(), c.Param("key"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EventBusInternalGetConfig")
+	defer span.End()
+	cfg, err := h.svc.Repo().FindConfigByKey(ctx, c.Param("key"))
 	if err != nil {
 		respondNotFound(c, "config not found")
 		return
@@ -254,6 +281,8 @@ func (h *Handler) GetConfig(c *gin.Context) {
 
 // UpsertConfig handles PUT /configs/:key
 func (h *Handler) UpsertConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EventBusInternalUpsertConfig")
+	defer span.End()
 	key := c.Param("key")
 	var body struct {
 		Value       models.JSONB `json:"value" binding:"required"`
@@ -263,7 +292,7 @@ func (h *Handler) UpsertConfig(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	cfg, err := h.svc.Repo().UpsertConfig(c.Request.Context(), key, body.Value, body.Description)
+	cfg, err := h.svc.Repo().UpsertConfig(ctx, key, body.Value, body.Description)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

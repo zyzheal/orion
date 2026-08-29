@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/role/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	Create(ctx context.Context, role *models.Role) error

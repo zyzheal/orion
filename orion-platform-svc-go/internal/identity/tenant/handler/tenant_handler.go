@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"net/http"
 	"strconv"
 
@@ -13,11 +14,11 @@ import (
 )
 
 type Handler struct {
-	tenantSvc     *service.TenantService
-	quotaSvc      *service.QuotaService
-	isolationSvc  *service.TenantIsolationService
-	repo          *repository.TenantRepository
-	log           *zap.Logger
+	tenantSvc    *service.TenantService
+	quotaSvc     *service.QuotaService
+	isolationSvc *service.TenantIsolationService
+	repo         *repository.TenantRepository
+	log          *zap.Logger
 }
 
 func New(
@@ -28,26 +29,28 @@ func New(
 	log *zap.Logger,
 ) *Handler {
 	return &Handler{
-		tenantSvc:     tenantSvc,
-		quotaSvc:      quotaSvc,
-		isolationSvc:  isolationSvc,
-		repo:          repo,
-		log:           log,
+		tenantSvc:    tenantSvc,
+		quotaSvc:     quotaSvc,
+		isolationSvc: isolationSvc,
+		repo:         repo,
+		log:          log,
 	}
 }
 
 // CreateTenant handles POST /api/v1/tenant
 func (h *Handler) CreateTenant(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TenantCreateTenant")
+	defer span.End()
 	var req struct {
 		Name        string `json:"name" binding:"required"`
 		DisplayName string `json:"display_name"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, "invalid request body: " + err.Error())
+		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 
-	t, err := h.tenantSvc.CreateTenant(c.Request.Context(), req.Name, req.DisplayName)
+	t, err := h.tenantSvc.CreateTenant(ctx, req.Name, req.DisplayName)
 	if err != nil {
 		h.log.Error("create tenant failed", zap.Error(err))
 		respondBadRequest(c, err.Error())
@@ -58,11 +61,13 @@ func (h *Handler) CreateTenant(c *gin.Context) {
 
 // ListTenants handles GET /api/v1/tenant
 func (h *Handler) ListTenants(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TenantListTenants")
+	defer span.End()
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	status := c.Query("status")
 
-	tenants, total, err := h.tenantSvc.ListTenants(c.Request.Context(), page, limit, status)
+	tenants, total, err := h.tenantSvc.ListTenants(ctx, page, limit, status)
 	if err != nil {
 		h.log.Error("list tenants failed", zap.Error(err))
 		respondInternalError(c, "internal error")
@@ -79,8 +84,10 @@ func (h *Handler) ListTenants(c *gin.Context) {
 
 // GetTenant handles GET /api/v1/tenant/:id
 func (h *Handler) GetTenant(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TenantGetTenant")
+	defer span.End()
 	id := c.Param("id")
-	t, err := h.tenantSvc.GetTenant(c.Request.Context(), id)
+	t, err := h.tenantSvc.GetTenant(ctx, id)
 	if err != nil {
 		h.log.Error("get tenant failed", zap.Error(err))
 		respondNotFound(c, err.Error())
@@ -91,6 +98,8 @@ func (h *Handler) GetTenant(c *gin.Context) {
 
 // UpdateTenant handles PUT /api/v1/tenant/:id
 func (h *Handler) UpdateTenant(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TenantUpdateTenant")
+	defer span.End()
 	id := c.Param("id")
 
 	var req struct {
@@ -99,7 +108,7 @@ func (h *Handler) UpdateTenant(c *gin.Context) {
 		Status      *string `json:"status"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, "invalid request body: " + err.Error())
+		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 
@@ -114,7 +123,7 @@ func (h *Handler) UpdateTenant(c *gin.Context) {
 		updates["status"] = *req.Status
 	}
 
-	t, err := h.tenantSvc.UpdateTenant(c.Request.Context(), id, updates)
+	t, err := h.tenantSvc.UpdateTenant(ctx, id, updates)
 	if err != nil {
 		h.log.Error("update tenant failed", zap.Error(err))
 		respondBadRequest(c, err.Error())
@@ -125,8 +134,10 @@ func (h *Handler) UpdateTenant(c *gin.Context) {
 
 // DeleteTenant handles DELETE /api/v1/tenant/:id
 func (h *Handler) DeleteTenant(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TenantDeleteTenant")
+	defer span.End()
 	id := c.Param("id")
-	if err := h.tenantSvc.DeleteTenant(c.Request.Context(), id); err != nil {
+	if err := h.tenantSvc.DeleteTenant(ctx, id); err != nil {
 		h.log.Error("delete tenant failed", zap.Error(err))
 		respondBadRequest(c, err.Error())
 		return
@@ -136,6 +147,8 @@ func (h *Handler) DeleteTenant(c *gin.Context) {
 
 // GetQuota handles GET /api/v1/tenant/:id/quota
 func (h *Handler) GetQuota(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TenantGetQuota")
+	defer span.End()
 	id := c.Param("id")
 	tenantID, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
@@ -143,7 +156,7 @@ func (h *Handler) GetQuota(c *gin.Context) {
 		return
 	}
 
-	quota, err := h.quotaSvc.GetQuota(c.Request.Context(), tenantID)
+	quota, err := h.quotaSvc.GetQuota(ctx, tenantID)
 	if err != nil {
 		h.log.Error("get quota failed", zap.Error(err))
 		respondInternalError(c, "internal error")
@@ -151,7 +164,7 @@ func (h *Handler) GetQuota(c *gin.Context) {
 	}
 
 	// Include usage report
-	usage, _ := h.quotaSvc.GetUsageReport(c.Request.Context(), tenantID)
+	usage, _ := h.quotaSvc.GetUsageReport(ctx, tenantID)
 
 	respondSuccess(c, gin.H{
 		"quota": quota,
@@ -161,6 +174,8 @@ func (h *Handler) GetQuota(c *gin.Context) {
 
 // UpdateQuota handles PUT /api/v1/tenant/:id/quota
 func (h *Handler) UpdateQuota(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TenantUpdateQuota")
+	defer span.End()
 	id := c.Param("id")
 	tenantID, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
@@ -182,12 +197,12 @@ func (h *Handler) UpdateQuota(c *gin.Context) {
 		ApiRateLimitWindowSeconds *int64 `json:"api_rate_limit_window_seconds"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, "invalid request body: " + err.Error())
+		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 
 	// Load existing quota and merge
-	quota, _ := h.quotaSvc.GetQuota(c.Request.Context(), tenantID)
+	quota, _ := h.quotaSvc.GetQuota(ctx, tenantID)
 	if quota == nil {
 		quota = &service.TenantQuota{TenantID: tenantID}
 	}
@@ -226,7 +241,7 @@ func (h *Handler) UpdateQuota(c *gin.Context) {
 		quota.ApiRateLimitWindowSeconds = *req.ApiRateLimitWindowSeconds
 	}
 
-	if err := h.quotaSvc.SetQuota(c.Request.Context(), quota); err != nil {
+	if err := h.quotaSvc.SetQuota(ctx, quota); err != nil {
 		h.log.Error("update quota failed", zap.Error(err))
 		respondInternalError(c, "internal error")
 		return
@@ -237,6 +252,8 @@ func (h *Handler) UpdateQuota(c *gin.Context) {
 
 // GetNamespaces handles GET /api/v1/tenant/:id/namespaces
 func (h *Handler) GetNamespaces(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TenantGetNamespaces")
+	defer span.End()
 	id := c.Param("id")
 	tenantID, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
@@ -244,7 +261,7 @@ func (h *Handler) GetNamespaces(c *gin.Context) {
 		return
 	}
 
-	namespaces, err := h.repo.ListNamespacesByTenant(c.Request.Context(), tenantID)
+	namespaces, err := h.repo.ListNamespacesByTenant(ctx, tenantID)
 	if err != nil {
 		h.log.Error("list namespaces failed", zap.Error(err))
 		respondInternalError(c, "internal error")
@@ -256,6 +273,8 @@ func (h *Handler) GetNamespaces(c *gin.Context) {
 
 // AllocateNamespace handles POST /api/v1/tenant/:id/namespaces/allocate
 func (h *Handler) AllocateNamespace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TenantAllocateNamespace")
+	defer span.End()
 	id := c.Param("id")
 	tenantID, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
@@ -280,7 +299,6 @@ func (h *Handler) AllocateNamespace(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
 	currentCount, err := h.repo.CountNamespacesByTenant(ctx, tenantID)
 	if err != nil {
 		h.log.Error("count namespaces failed", zap.Error(err))
@@ -316,9 +334,11 @@ func (h *Handler) AllocateNamespace(c *gin.Context) {
 
 // ReleaseNamespace handles DELETE /api/v1/tenant/:id/namespaces/:namespace_name
 func (h *Handler) ReleaseNamespace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TenantReleaseNamespace")
+	defer span.End()
 	namespaceName := c.Param("namespace_name")
 
-	ns, err := h.repo.FindNamespaceByName(c.Request.Context(), namespaceName)
+	ns, err := h.repo.FindNamespaceByName(ctx, namespaceName)
 	if err != nil {
 		h.log.Error("find namespace failed", zap.Error(err))
 		respondInternalError(c, "internal error")
@@ -338,7 +358,7 @@ func (h *Handler) ReleaseNamespace(c *gin.Context) {
 		return
 	}
 
-	released, err := h.repo.ReleaseNamespace(c.Request.Context(), ns.ID)
+	released, err := h.repo.ReleaseNamespace(ctx, ns.ID)
 	if err != nil {
 		h.log.Error("release namespace failed", zap.Error(err))
 		respondInternalError(c, "internal error")
@@ -350,7 +370,8 @@ func (h *Handler) ReleaseNamespace(c *gin.Context) {
 
 // GetPoolStatus handles GET /api/v1/tenant/pool/status
 func (h *Handler) GetPoolStatus(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TenantGetPoolStatus")
+	defer span.End()
 
 	available, _ := h.repo.CountNamespacesByStatus(ctx, "available")
 	allocated, _ := h.repo.CountNamespacesByStatus(ctx, "allocated")
@@ -366,7 +387,8 @@ func (h *Handler) GetPoolStatus(c *gin.Context) {
 
 // GetTenantNamespacesList handles GET /api/v1/tenant/namespaces (admin: list all)
 func (h *Handler) GetTenantNamespacesList(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TenantGetTenantNamespacesList")
+	defer span.End()
 	tenantID, _ := strconv.ParseInt(c.Query("tenant_id"), 10, 64)
 
 	var namespaces []models.TenantNamespace
@@ -387,16 +409,20 @@ func (h *Handler) GetTenantNamespacesList(c *gin.Context) {
 
 // GetRLSStatus handles GET /api/v1/tenant/rls/status/:table
 func (h *Handler) GetRLSStatus(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TenantGetRLSStatus")
+	defer span.End()
 	table := c.Param("table")
 	respondSuccess(c, gin.H{
-			"table_name":    table,
-			"rls_supported": true,
-			"session_var":   "app.current_tenant_id",
-		})
+		"table_name":    table,
+		"rls_supported": true,
+		"session_var":   "app.current_tenant_id",
+	})
 }
 
 // SetTenantSessionVariable handles POST /api/v1/tenant/session/variable
 func (h *Handler) SetTenantSessionVariable(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TenantSetTenantSessionVariable")
+	defer span.End()
 	var req struct {
 		TenantID int64 `json:"tenant_id" binding:"required"`
 	}
@@ -406,7 +432,7 @@ func (h *Handler) SetTenantSessionVariable(c *gin.Context) {
 	}
 
 	db := h.repo.DB().DB.DB
-	if err := h.repo.SetTenantSessionVariable(c.Request.Context(), db, req.TenantID); err != nil {
+	if err := h.repo.SetTenantSessionVariable(ctx, db, req.TenantID); err != nil {
 		h.log.Error("set session variable failed", zap.Error(err))
 		respondInternalError(c, "internal error")
 		return

@@ -187,10 +187,10 @@ func (s *Service) ListStateVersions(ctx context.Context, workspaceID string) ([]
 
 func (s *Service) GetStateDiff(ctx context.Context, workspaceID, versionA, versionB string) (*models.IaCStateDiff, error) {
 	return &models.IaCStateDiff{
-		VersionA:     1,
-		VersionB:     2,
-		Additions:    []string{"resource \"aws_instance\" \"web\""},
-		Deletions:    []string{},
+		VersionA:      1,
+		VersionB:      2,
+		Additions:     []string{"resource \"aws_instance\" \"web\""},
+		Deletions:     []string{},
 		Modifications: []string{"resource \"aws_s3_bucket\" \"data\""},
 	}, nil
 }

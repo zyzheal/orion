@@ -23,17 +23,17 @@ const (
 
 // Recommendation represents a single AI-generated CMDB recommendation.
 type Recommendation struct {
-	ID          string               `json:"id"`
-	Type        RecommendationType   `json:"type"`
-	SourceCIID  string               `json:"sourceCi"`
-	SourceCIName string              `json:"sourceCiName"`
-	TargetCIID  string               `json:"targetCi"`
-	TargetCIName string              `json:"targetCiName"`
-	Confidence  float64              `json:"confidence"`
-	Status      RecommendationStatus `json:"status"`
-	RecommendAt time.Time            `json:"recommendTime"`
-	Suggestion  string               `json:"suggestion"`
-	Reason      string               `json:"reason"`
+	ID           string               `json:"id"`
+	Type         RecommendationType   `json:"type"`
+	SourceCIID   string               `json:"sourceCi"`
+	SourceCIName string               `json:"sourceCiName"`
+	TargetCIID   string               `json:"targetCi"`
+	TargetCIName string               `json:"targetCiName"`
+	Confidence   float64              `json:"confidence"`
+	Status       RecommendationStatus `json:"status"`
+	RecommendAt  time.Time            `json:"recommendTime"`
+	Suggestion   string               `json:"suggestion"`
+	Reason       string               `json:"reason"`
 }
 
 // AnomalyDetected represents a detected CMDB data quality anomaly.

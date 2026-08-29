@@ -9,39 +9,39 @@ import (
 // SLAConfig is the root configuration for SLA calculation.
 // Mirrors NeatLogic's SLA JSON config (calculateHandler + calculatePolicyList).
 type SLAConfig struct {
-	EnablePriority   int          `json:"enablePriority"` // 1 = per-priority calculation
-	CalculateHandler string       `json:"calculateHandler"`
-	Policies         []SLAPolicy  `json:"calculatePolicyList"`
-	ServiceWindow    *Worktime    `json:"serviceWindow"` // working hours window
+	EnablePriority   int         `json:"enablePriority"` // 1 = per-priority calculation
+	CalculateHandler string      `json:"calculateHandler"`
+	Policies         []SLAPolicy `json:"calculatePolicyList"`
+	ServiceWindow    *Worktime   `json:"serviceWindow"` // working hours window
 }
 
 // SLAPolicy defines response/resolution time per priority level.
 type SLAPolicy struct {
-	Unit     string            `json:"unit"` // "minute" | "hour" | "day"
-	Timeout  int               `json:"time"`
+	Unit            string           `json:"unit"` // "minute" | "hour" | "day"
+	Timeout         int              `json:"time"`
 	ConditionGroups []ConditionGroup `json:"conditionGroupList"`
 }
 
 // ConditionGroup is a set of matching conditions for applying a policy.
 type ConditionGroup struct {
-	Type      string            `json:"type"`      // "priority" | "category" | "source"
-	Operator  string            `json:"operator"`  // "eq" | "in" | "gte" | "lte"
-	Values    []string          `json:"values"`
-	Timeout   int               `json:"time"`      // override
-	Unit      string            `json:"unit"`
-	Priority  string            `json:"priority"`  // used for priority-based timeout lookup
+	Type     string   `json:"type"`     // "priority" | "category" | "source"
+	Operator string   `json:"operator"` // "eq" | "in" | "gte" | "lte"
+	Values   []string `json:"values"`
+	Timeout  int      `json:"time"` // override
+	Unit     string   `json:"unit"`
+	Priority string   `json:"priority"` // used for priority-based timeout lookup
 }
 
 // Worktime defines the working hours window for SLA calculation.
 // Non-working hours are excluded from SLA clock.
 type Worktime struct {
-	Enable       bool            `json:"enable"`
-	Weekdays     []int           `json:"weekdays"`      // 1=Mon ... 7=Sun
-	StartTime    string          `json:"startTime"`     // "09:00"
-	EndTime      string          `json:"endTime"`       // "18:00"
-	Holidays     []string        `json:"holidays"`      // "2026-01-01"
-	ExcludeDays  []int           `json:"excludeDays"`   // days of month
-	ExcludeMonths []int          `json:"excludeMonths"` // months of year
+	Enable        bool     `json:"enable"`
+	Weekdays      []int    `json:"weekdays"`      // 1=Mon ... 7=Sun
+	StartTime     string   `json:"startTime"`     // "09:00"
+	EndTime       string   `json:"endTime"`       // "18:00"
+	Holidays      []string `json:"holidays"`      // "2026-01-01"
+	ExcludeDays   []int    `json:"excludeDays"`   // days of month
+	ExcludeMonths []int    `json:"excludeMonths"` // months of year
 }
 
 // SLAResult is the output of SLA calculation.
@@ -54,8 +54,8 @@ type SLAResult struct {
 	ResolutionDurationMs int64  `json:"resolution_duration_ms"`
 	ResolutionRemaining  int64  `json:"resolution_remaining_ms"`
 
-	DeadlineAt    string `json:"deadline_at"`     // latest of response + resolution
-	ElapsedMs     int64  `json:"elapsed_ms"`      // elapsed working time
+	DeadlineAt    string  `json:"deadline_at"`    // latest of response + resolution
+	ElapsedMs     int64   `json:"elapsed_ms"`     // elapsed working time
 	UtilizedRatio float64 `json:"utilized_ratio"` // 0-1, 1 = deadline reached
 }
 
@@ -143,18 +143,18 @@ func (h *DefaultSlaCalculateHandler) matchPolicy(sla *SLAConfig, task *TaskConte
 	if sla.EnablePriority == 1 && task.Priority != "" {
 		for _, policy := range sla.Policies {
 			for _, cg := range policy.ConditionGroups {
-                if cg.Type == "priority" && cg.Operator == "eq" {
-                    for _, v := range cg.Values {
-                        if v == task.Priority && cg.Timeout > 0 {
-                            // Clone policy with priority-specific timeout
-                            return &SLAPolicy{
-                                Unit:      policy.Unit,
-                                Timeout:   cg.Timeout,
-                                ConditionGroups: policy.ConditionGroups,
-                            }, nil
-                        }
-                    }
-                }
+				if cg.Type == "priority" && cg.Operator == "eq" {
+					for _, v := range cg.Values {
+						if v == task.Priority && cg.Timeout > 0 {
+							// Clone policy with priority-specific timeout
+							return &SLAPolicy{
+								Unit:            policy.Unit,
+								Timeout:         cg.Timeout,
+								ConditionGroups: policy.ConditionGroups,
+							}, nil
+						}
+					}
+				}
 			}
 		}
 	}
@@ -165,10 +165,10 @@ func (h *DefaultSlaCalculateHandler) matchPolicy(sla *SLAConfig, task *TaskConte
 
 // TaskContext carries the task data for SLA calculation.
 type TaskContext struct {
-	ID          string `json:"id"`
-	Priority    string `json:"priority"`   // "critical" | "high" | "medium" | "low"
-	Category    string `json:"category"`
-	TicketID    string `json:"ticket_id"`
-	WorkflowID  string `json:"workflow_id"`
-	FormData    map[string]interface{} `json:"form_data"`
+	ID         string                 `json:"id"`
+	Priority   string                 `json:"priority"` // "critical" | "high" | "medium" | "low"
+	Category   string                 `json:"category"`
+	TicketID   string                 `json:"ticket_id"`
+	WorkflowID string                 `json:"workflow_id"`
+	FormData   map[string]interface{} `json:"form_data"`
 }

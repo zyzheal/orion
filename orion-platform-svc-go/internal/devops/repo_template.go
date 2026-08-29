@@ -1,10 +1,10 @@
 // Plan 09 — 数据库 DevOps 框架 (Repository Template)
 //
 // 用法:
-//   1. 复制本文件到目标模块 (e.g. internal/xxx/repository/base_repo.go)
-//   2. 修改 T 为具体模型类型
-//   3. 修改 TableName() 为实际表名
-//   4. 删除此注释头
+//  1. 复制本文件到目标模块 (e.g. internal/xxx/repository/base_repo.go)
+//  2. 修改 T 为具体模型类型
+//  3. 修改 TableName() 为实际表名
+//  4. 删除此注释头
 package devops
 
 import (
@@ -25,9 +25,9 @@ func NewBaseRepository[T any](db *sql.DB, schema, tenantID string) BaseRepositor
 	return BaseRepository[T]{db: db, schema: schema, tenantID: tenantID}
 }
 
-func (r *BaseRepository[T]) DB() *sql.DB       { return r.db }
-func (r *BaseRepository[T]) Schema() string     { return r.schema }
-func (r *BaseRepository[T]) TenantID() string   { return r.tenantID }
+func (r *BaseRepository[T]) DB() *sql.DB      { return r.db }
+func (r *BaseRepository[T]) Schema() string   { return r.schema }
+func (r *BaseRepository[T]) TenantID() string { return r.tenantID }
 
 // ---- 标准请求/响应结构 ----
 
@@ -54,11 +54,11 @@ type ListRequest struct {
 }
 
 type ListResponse struct {
-	Items   []interface{} `json:"items"`
-	Total   int           `json:"total"`
-	Page    int           `json:"page"`
-	PageSize int          `json:"page_size"`
-	HasMore bool          `json:"hasMore"`
+	Items    []interface{} `json:"items"`
+	Total    int           `json:"total"`
+	Page     int           `json:"page"`
+	PageSize int           `json:"page_size"`
+	HasMore  bool          `json:"hasMore"`
 }
 
 type SoftDeleteRequest struct {

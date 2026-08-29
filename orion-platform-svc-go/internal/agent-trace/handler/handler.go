@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/middleware"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 )
 
 // Handler exposes HTTP endpoints for agent trace observability.
@@ -42,27 +43,31 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) Health(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AgentTraceHealth")
+	defer span.End()
 	middleware.RespondSuccess(c, gin.H{"status": "ok", "module": "agent-trace"})
 }
 
 type recordTraceRequest struct {
-	AgentID     string `json:"agent_id" binding:"required"`
-	AgentName   string `json:"agent_name"`
-	Prompt      string `json:"prompt"`
-	ToolCalls   []struct {
+	AgentID   string `json:"agent_id" binding:"required"`
+	AgentName string `json:"agent_name"`
+	Prompt    string `json:"prompt"`
+	ToolCalls []struct {
 		Name       string `json:"name"`
 		Input      string `json:"input"`
 		Output     string `json:"output"`
 		DurationMs int64  `json:"duration_ms"`
 		Error      string `json:"error"`
 	} `json:"tool_calls"`
-	Response      string    `json:"response"`
-	Status        string    `json:"status"`
-	DurationMs    int64     `json:"duration_ms"`
-	ParentTraceID string    `json:"parent_trace_id"`
+	Response      string `json:"response"`
+	Status        string `json:"status"`
+	DurationMs    int64  `json:"duration_ms"`
+	ParentTraceID string `json:"parent_trace_id"`
 }
 
 func (h *Handler) RecordTrace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AgentTraceRecord")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	var req recordTraceRequest
@@ -72,14 +77,14 @@ func (h *Handler) RecordTrace(c *gin.Context) {
 	}
 
 	trace := &models.AgentTrace{
-		TenantID:   tenantID,
-		UserID:     userID,
-		AgentID:    req.AgentID,
-		AgentName:  req.AgentName,
-		Prompt:     req.Prompt,
-		Response:   req.Response,
-		Status:     req.Status,
-		DurationMs: req.DurationMs,
+		TenantID:      tenantID,
+		UserID:        userID,
+		AgentID:       req.AgentID,
+		AgentName:     req.AgentName,
+		Prompt:        req.Prompt,
+		Response:      req.Response,
+		Status:        req.Status,
+		DurationMs:    req.DurationMs,
 		ParentTraceID: req.ParentTraceID,
 	}
 	if trace.Status == "" {
@@ -95,7 +100,7 @@ func (h *Handler) RecordTrace(c *gin.Context) {
 		})
 	}
 
-	if err := h.svc.RecordTrace(c.Request.Context(), trace); err != nil {
+	if err := h.svc.RecordTrace(ctx, trace); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -103,13 +108,15 @@ func (h *Handler) RecordTrace(c *gin.Context) {
 }
 
 func (h *Handler) GetTrace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AgentTraceGet")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if id == "" {
 		middleware.RespondBadRequest(c, "trace id is required")
 		return
 	}
-	trace, err := h.svc.GetTrace(c.Request.Context(), tenantID, id)
+	trace, err := h.svc.GetTrace(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -125,6 +132,8 @@ type completeRequest struct {
 }
 
 func (h *Handler) CompleteTrace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AgentTraceComplete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req completeRequest
@@ -132,7 +141,7 @@ func (h *Handler) CompleteTrace(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.CompleteTrace(c.Request.Context(), tenantID, id, req.Error, req.DurationMs, req.Response); err != nil {
+	if err := h.svc.CompleteTrace(ctx, tenantID, id, req.Error, req.DurationMs, req.Response); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -140,6 +149,8 @@ func (h *Handler) CompleteTrace(c *gin.Context) {
 }
 
 func (h *Handler) ListTraces(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AgentTraceList")
+	defer span.End()
 	_ = c.GetString("tenant_id")
 	var req models.TraceQueryRequest
 	req.AgentID = c.Query("agent_id")
@@ -166,7 +177,7 @@ func (h *Handler) ListTraces(c *gin.Context) {
 		}
 	}
 
-	traces, total, err := h.svc.ListTraces(c.Request.Context(), req)
+	traces, total, err := h.svc.ListTraces(ctx, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -178,6 +189,8 @@ func (h *Handler) ListTraces(c *gin.Context) {
 }
 
 func (h *Handler) GetMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AgentTraceMetrics")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	agentID := c.Query("agent_id")
 	days := 7
@@ -186,7 +199,7 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 			days = d
 		}
 	}
-	metric, err := h.svc.GetMetrics(c.Request.Context(), tenantID, agentID, days)
+	metric, err := h.svc.GetMetrics(ctx, tenantID, agentID, days)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -195,6 +208,8 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 }
 
 func (h *Handler) RouteModel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AgentTraceRouteModel")
+	defer span.End()
 	type routeRequest struct {
 		InputTokens   int      `json:"input_tokens"`
 		OutputTokens  int      `json:"output_tokens"`
@@ -213,7 +228,7 @@ func (h *Handler) RouteModel(c *gin.Context) {
 	strategy := service.RoutingStrategy(req.PreferredTier)
 	router := service.NewModelRouter(strategy)
 
-	resp, err := router.Route(c.Request.Context(), service.RoutingRequest{
+	resp, err := router.Route(ctx, service.RoutingRequest{
 		InputTokens:   req.InputTokens,
 		OutputTokens:  req.OutputTokens,
 		Temperature:   req.Temperature,

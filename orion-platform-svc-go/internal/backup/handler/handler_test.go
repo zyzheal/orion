@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/backup/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/backup/models"
 )
 
@@ -99,7 +99,6 @@ func (f *fakeBackupService) VerifyBackup(ctx context.Context, backupID string, t
 }
 
 var _ service.ServiceInterface = (*fakeBackupService)(nil)
-
 
 func TestBACKUP_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

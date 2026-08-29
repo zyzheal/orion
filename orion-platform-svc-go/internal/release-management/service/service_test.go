@@ -18,13 +18,13 @@ import (
 var errNotFound = errors.New("not found")
 
 type fakeReleaseRepo struct {
-	releases  map[string]*models.Release
-	createID  int
-	createErr error
-	getErr    error
-	listErr   error
-	updateErr error
-	deleteErr error
+	releases   map[string]*models.Release
+	createID   int
+	createErr  error
+	getErr     error
+	listErr    error
+	updateErr  error
+	deleteErr  error
 	approveErr error
 }
 
@@ -194,11 +194,11 @@ func TestService_Create_success(t *testing.T) {
 	svc := service.NewService(repo)
 
 	req := &models.CreateReleaseRequest{
-		Name:        "release-v1",
-		Version:     "1.0.0",
-		Description: "First release",
-		ArtifactID:  "art-123",
-		PipelineID:  "pipe-1",
+		Name:         "release-v1",
+		Version:      "1.0.0",
+		Description:  "First release",
+		ArtifactID:   "art-123",
+		PipelineID:   "pipe-1",
 		ReleaseNotes: "initial",
 	}
 	r, err := svc.Create(context.Background(), "tenant-1", req)
@@ -342,13 +342,13 @@ func TestService_List_success(t *testing.T) {
 	svc := service.NewService(repo)
 
 	svc.Create(context.Background(), "tenant-1", &models.CreateReleaseRequest{
-		Name:     "r1",
-		Version:  "1.0",
+		Name:       "r1",
+		Version:    "1.0",
 		PipelineID: "pipe-a",
 	})
 	svc.Create(context.Background(), "tenant-1", &models.CreateReleaseRequest{
-		Name:     "r2",
-		Version:  "2.0",
+		Name:       "r2",
+		Version:    "2.0",
 		PipelineID: "pipe-b",
 	})
 	svc.Create(context.Background(), "tenant-2", &models.CreateReleaseRequest{

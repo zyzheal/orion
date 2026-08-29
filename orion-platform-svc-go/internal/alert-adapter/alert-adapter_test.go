@@ -255,8 +255,8 @@ func TestAlertAdapter_SPIAndFactoryVerify(t *testing.T) {
 // testAdapterImpl is a minimal implementation of spi.AlertAdapter used for interface verification.
 type testAdapterImpl struct{}
 
-func (testAdapterImpl) Name() string                              { return "Test" }
-func (testAdapterImpl) Type() string                              { return "test" }
+func (testAdapterImpl) Name() string { return "Test" }
+func (testAdapterImpl) Type() string { return "test" }
 func (testAdapterImpl) Receive(ctx context.Context, alerts []spi.Alert) ([]spi.Alert, error) {
 	return []spi.Alert{
 		{ID: "a1", Severity: spi.SeverityInfo},

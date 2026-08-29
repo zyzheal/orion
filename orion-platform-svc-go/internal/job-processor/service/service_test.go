@@ -35,15 +35,29 @@ type fakeRepo struct {
 
 var _ RepositoryInterface = (*fakeRepo)(nil)
 
-func (f *fakeRepo) CreateOperation(ctx context.Context, op *models.JobOperation) error       { return f.err }
-func (f *fakeRepo) GetOperation(ctx context.Context, tenantID, id string) (*models.JobOperation, error)            { return nil, f.err }
-func (f *fakeRepo) ListOperations(ctx context.Context, tenantID, chainID string, limit, offset int) (*models.OperationListResponse, error) { return nil, f.err }
-func (f *fakeRepo) UpdateStatus(ctx context.Context, tenantID, id string, status string, resultJSON string, errMsg string) error { return f.err }
-func (f *fakeRepo) CreateChain(ctx context.Context, tenantID string, name string) (*models.JobOperationChain, error) { return nil, f.err }
-func (f *fakeRepo) GetChain(ctx context.Context, tenantID, id string) (*models.JobOperationChain, error) { return nil, f.err }
-func (f *fakeRepo) UpdateChain(ctx context.Context, tenantID, id string, fields map[string]interface{}) (*models.JobOperationChain, error) { return nil, f.err }
-func (f *fakeRepo) ListChains(ctx context.Context, tenantID string, limit, offset int) (*models.ChainListResponse, error) { return &models.ChainListResponse{}, f.err }
-func (f *fakeRepo) AutoMigrate(ctx context.Context) error                                                              { return f.err }
+func (f *fakeRepo) CreateOperation(ctx context.Context, op *models.JobOperation) error { return f.err }
+func (f *fakeRepo) GetOperation(ctx context.Context, tenantID, id string) (*models.JobOperation, error) {
+	return nil, f.err
+}
+func (f *fakeRepo) ListOperations(ctx context.Context, tenantID, chainID string, limit, offset int) (*models.OperationListResponse, error) {
+	return nil, f.err
+}
+func (f *fakeRepo) UpdateStatus(ctx context.Context, tenantID, id string, status string, resultJSON string, errMsg string) error {
+	return f.err
+}
+func (f *fakeRepo) CreateChain(ctx context.Context, tenantID string, name string) (*models.JobOperationChain, error) {
+	return nil, f.err
+}
+func (f *fakeRepo) GetChain(ctx context.Context, tenantID, id string) (*models.JobOperationChain, error) {
+	return nil, f.err
+}
+func (f *fakeRepo) UpdateChain(ctx context.Context, tenantID, id string, fields map[string]interface{}) (*models.JobOperationChain, error) {
+	return nil, f.err
+}
+func (f *fakeRepo) ListChains(ctx context.Context, tenantID string, limit, offset int) (*models.ChainListResponse, error) {
+	return &models.ChainListResponse{}, f.err
+}
+func (f *fakeRepo) AutoMigrate(ctx context.Context) error { return f.err }
 
 // ---------------------------------------------------------------------------
 // helpers

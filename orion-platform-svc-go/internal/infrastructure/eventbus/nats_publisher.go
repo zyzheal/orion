@@ -39,11 +39,11 @@ type BatchableEventStore interface {
 
 // NATSEventPublisher publishes domain events to a NATS JetStream stream.
 type NATSEventPublisher struct {
-	conn    *nats.Conn
-	jet     nats.JetStreamContext
-	stream  string
-	prefix  string
-	store   EventStore // persistence back-end; nil means skip persistence
+	conn   *nats.Conn
+	jet    nats.JetStreamContext
+	stream string
+	prefix string
+	store  EventStore // persistence back-end; nil means skip persistence
 }
 
 // NATSEventSubscriber registers a NATS subscription for one or more event types.
@@ -68,9 +68,9 @@ type NATSEventSubscriber struct {
 // NATSEventSubscriberFactory builds subscribers wired to a NATS connection and
 // owns the lifetime of all subscriptions it creates.
 type NATSEventSubscriberFactory struct {
-	conn    *nats.Conn
-	stream  string
-	prefix  string
+	conn   *nats.Conn
+	stream string
+	prefix string
 }
 
 // NewNATSEventPublisher creates a publisher that writes events to the configured
@@ -92,7 +92,7 @@ func NewNATSEventPublisher(store EventStore) (*NATSEventPublisher, error) {
 	}
 
 	// Ensure the stream exists so Publish succeeds out of the box.
-	_ , _ = js.AddStream(&nats.StreamConfig{
+	_, _ = js.AddStream(&nats.StreamConfig{
 		Name:      stream,
 		Subjects:  []string{prefix + ".>"},
 		Retention: nats.InterestPolicy,
@@ -244,13 +244,13 @@ func (s *NATSEventSubscriber) handlerFunc(eventType string, handler events.Event
 
 		var lastErr error
 		for attempt := 1; attempt <= maxRetries; attempt++ {
-            // Build a minimal DomainEvent from headers for the handler.
-            hdrEvent := &headerDomainEvent{
-                aggType:     eventType,
-                tenantID:    tenant,
-                correlationID: correlation,
-                RawPayload:    msg.Data,
-            }
+			// Build a minimal DomainEvent from headers for the handler.
+			hdrEvent := &headerDomainEvent{
+				aggType:       eventType,
+				tenantID:      tenant,
+				correlationID: correlation,
+				RawPayload:    msg.Data,
+			}
 			err := handler.Handle(ctx, hdrEvent)
 			if err == nil {
 				if err := msg.Ack(); err != nil {
@@ -335,12 +335,12 @@ func serializeEvent(ev events.DomainEvent) ([]byte, error) {
 // available in NATS headers plus the raw payload.  Use when the full event
 // body is not needed by the handler.
 type headerDomainEvent struct {
-	aggType     string
-	aggID       string
-	evType      string
-	tenantID    string
+	aggType       string
+	aggID         string
+	evType        string
+	tenantID      string
 	correlationID string
-	RawPayload  []byte
+	RawPayload    []byte
 }
 
 func (h *headerDomainEvent) AggregateType() string { return h.aggType }
@@ -349,9 +349,10 @@ func (h *headerDomainEvent) EventType() string     { return h.evType }
 func (h *headerDomainEvent) TenantID() string      { return h.tenantID }
 func (h *headerDomainEvent) OccurredAt() time.Time { return time.Time{} }
 func (h *headerDomainEvent) Version() int          { return 0 }
-func (h *headerDomainEvent) SetAggregateID(string)    {}
-func (h *headerDomainEvent) SetTenantID(string)       {}
-func (h *headerDomainEvent) SetVersion(int)            {}
+func (h *headerDomainEvent) SetAggregateID(string) {}
+func (h *headerDomainEvent) SetTenantID(string)    {}
+func (h *headerDomainEvent) SetVersion(int)        {}
+
 // --- Helpers ---
 
 // headerToDomainEvent deserializes a NATS message body into the provided

@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/domain/aggregates"
-	"orion/platform-svc-go/internal/domain/eventstore"
 	"orion/platform-svc-go/internal/domain/events"
+	"orion/platform-svc-go/internal/domain/eventstore"
 )
 
 // ============================================================================
@@ -55,8 +55,8 @@ func (q *GetPipelineByIDQuery) Validate() error {
 // PipelineEventStreamQuery replays all domain events for a pipeline (used
 // for audit trails and debugging).
 type PipelineEventStreamQuery struct {
-	TenantID   string
-	ID         string
+	TenantID     string
+	ID           string
 	AfterVersion int // optional: incremental replay from a given version
 }
 
@@ -94,20 +94,20 @@ func (q *PipelineAggregateRebuildQuery) Validate() error {
 // PipelineSummary is a read-model projection of a Pipeline aggregate.
 // It is built from domain events rather than read directly from a table.
 type PipelineSummary struct {
-	ID           string    `json:"id"`
-	Name         string    `json:"name"`
-	Status       string    `json:"status"`
-	Version      int       `json:"version"`
-	CreatedAt    time.Time `json:"createdAt"`
+	ID           string     `json:"id"`
+	Name         string     `json:"name"`
+	Status       string     `json:"status"`
+	Version      int        `json:"version"`
+	CreatedAt    time.Time  `json:"createdAt"`
 	ActivatedAt  *time.Time `json:"activatedAt"`
 	DeprecatedAt *time.Time `json:"deprecatedAt"`
 }
 
 // PipelineEventEntry pairs an event with its position in the stream.
 type PipelineEventEntry struct {
-	Index    int        `json:"index"`
-	Type     string     `json:"type"`
-	Data     string     `json:"data"`
+	Index     int       `json:"index"`
+	Type      string    `json:"type"`
+	Data      string    `json:"data"`
 	OcurredAt time.Time `json:"occurredAt"`
 }
 

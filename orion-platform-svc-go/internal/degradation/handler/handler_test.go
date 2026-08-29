@@ -1,10 +1,10 @@
 package handler
 
 import (
-	"orion/platform-svc-go/internal/degradation/models"
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"orion/platform-svc-go/internal/degradation/models"
 	"testing"
 
 	"orion/platform-svc-go/internal/degradation/service"
@@ -24,6 +24,7 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	c.Request = httptest.NewRequest(method, path, nil)
 	return c, w
 }
+
 type fakeDegradationService struct{}
 
 func (f *fakeDegradationService) Create(ctx context.Context, tenantID string, req *models.CreateDegradationRequest) (*models.Degradation, error) {
@@ -42,7 +43,7 @@ func (f *fakeDegradationService) Update(ctx context.Context, tenantID, id string
 	return &models.Degradation{}, nil
 }
 
-func (f *fakeDegradationService) Delete(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeDegradationService) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
@@ -63,8 +64,6 @@ func (f *fakeDegradationService) Resolve(ctx context.Context, tenantID, policyID
 }
 
 var _ service.ServiceInterface = (*fakeDegradationService)(nil)
-
-
 
 func TestHandler_DEGRADATION_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

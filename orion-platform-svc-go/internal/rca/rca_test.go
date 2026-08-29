@@ -17,10 +17,10 @@ func TestRCA_NewService(t *testing.T) {
 
 func TestRCA_ModelsCompile(t *testing.T) {
 	a := models.RCAAnalysis{
-		ID:          uuid.New(),
-		IncidentID:  "inc-1",
-		Status:      "running",
-		Confidence:  0.75,
+		ID:         uuid.New(),
+		IncidentID: "inc-1",
+		Status:     "running",
+		Confidence: 0.75,
 	}
 	if a.IncidentID != "inc-1" {
 		t.Fatal("unexpected analysis")

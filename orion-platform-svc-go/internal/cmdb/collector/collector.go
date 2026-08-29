@@ -18,11 +18,11 @@ import "sync"
 
 // Factory 管理所有已注册的 Collector
 type Factory struct {
-	mu      sync.RWMutex
-	index   map[string]Collector     // name -> Collector
-	vendor  map[VendorType][]Collector // vendor -> [Collector...]
-	typ     map[string][]Collector   // type -> [Collector...]
-	all     []Collector
+	mu     sync.RWMutex
+	index  map[string]Collector       // name -> Collector
+	vendor map[VendorType][]Collector // vendor -> [Collector...]
+	typ    map[string][]Collector     // type -> [Collector...]
+	all    []Collector
 }
 
 // NewFactory 创建新的采集器工厂

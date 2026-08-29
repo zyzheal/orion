@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 )
 
@@ -43,6 +44,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Execute handles POST /alerts/pipeline - run the pipeline for a single alert.
 func (h *Handler) Execute(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertPipelineExecute")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var alert models.AlertEvent
 	if err := c.ShouldBindJSON(&alert); err != nil {
@@ -54,12 +57,14 @@ func (h *Handler) Execute(c *gin.Context) {
 		alert.ID = service.GenerateAlertID()
 	}
 
-	result := h.svc.Execute(c.Request.Context(), tenantID, alert)
+	result := h.svc.Execute(ctx, tenantID, alert)
 	middleware.RespondSuccess(c, result)
 }
 
 // ExecuteBatch handles POST /alerts/pipeline/batch - run the pipeline for multiple alerts.
 func (h *Handler) ExecuteBatch(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertPipelineExecuteBatch")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var alerts []models.AlertEvent
 	if err := c.ShouldBindJSON(&alerts); err != nil {
@@ -67,18 +72,22 @@ func (h *Handler) ExecuteBatch(c *gin.Context) {
 		return
 	}
 
-	results := h.svc.ExecuteBatch(c.Request.Context(), tenantID, alerts)
+	results := h.svc.ExecuteBatch(ctx, tenantID, alerts)
 	middleware.RespondSuccess(c, results)
 }
 
 // GetConfig handles GET /alerts/pipeline/config - get current pipeline configuration.
 func (h *Handler) GetConfig(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertPipelineGetConfig")
+	defer span.End()
 	cfg := h.svc.Config()
 	middleware.RespondSuccess(c, cfg)
 }
 
 // UpdateConfig handles PUT /alerts/pipeline/config - update pipeline configuration.
 func (h *Handler) UpdateConfig(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertPipelineUpdateConfig")
+	defer span.End()
 	var cfg models.PipelineConfig
 	if err := c.ShouldBindJSON(&cfg); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
@@ -92,6 +101,8 @@ func (h *Handler) UpdateConfig(c *gin.Context) {
 
 // Toggle handles PUT /alerts/pipeline/:tenantId/enable - toggle pipeline on/off.
 func (h *Handler) Toggle(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertPipelineToggle")
+	defer span.End()
 	tenantID := c.Param("tenantId")
 	var req struct {
 		Enabled bool `json:"enabled"`
@@ -106,6 +117,8 @@ func (h *Handler) Toggle(c *gin.Context) {
 
 // GetResult handles GET /alerts/pipeline/:id - get pipeline result by alert ID.
 func (h *Handler) GetResult(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertPipelineGetResult")
+	defer span.End()
 	id := c.Param("id")
 	if id == "" {
 		errors.WriteError(c, errors.ErrBadRequest, "alert ID is required", 400)
@@ -117,7 +130,7 @@ func (h *Handler) GetResult(c *gin.Context) {
 		return
 	}
 
-	row, err := h.repo.GetByAlertID(c.Request.Context(), id)
+	row, err := h.repo.GetByAlertID(ctx, id)
 	if err != nil {
 		middleware.RespondSuccess(c, gin.H{"alert_id": id, "stages": []string{}, "status": "not_found"})
 		return
@@ -151,6 +164,8 @@ func (h *Handler) GetResult(c *gin.Context) {
 
 // List handles GET /alerts/pipeline - list recent pipeline executions.
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertPipelineList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	if h.repo == nil {
@@ -158,7 +173,7 @@ func (h *Handler) List(c *gin.Context) {
 		return
 	}
 
-	rows, err := h.repo.List(c.Request.Context(), tenantID, 50, 0)
+	rows, err := h.repo.List(ctx, tenantID, 50, 0)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

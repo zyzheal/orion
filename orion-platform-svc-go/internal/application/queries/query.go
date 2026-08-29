@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"orion/platform-svc-go/internal/domain/eventstore"
 	"orion/platform-svc-go/internal/domain/events"
+	"orion/platform-svc-go/internal/domain/eventstore"
 )
 
 // ============================================================================

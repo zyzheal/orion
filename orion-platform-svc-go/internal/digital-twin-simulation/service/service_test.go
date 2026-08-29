@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"database/sql"
-	"strings"
 	"math/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,8 +12,8 @@ import (
 )
 
 type mockSimRepo struct {
-	twins  map[string]*models.DigitalTwin
-	dbErr  error
+	twins map[string]*models.DigitalTwin
+	dbErr error
 }
 
 func newMockSimRepo() *mockSimRepo {

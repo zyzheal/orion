@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/chaos-enhanced/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/chaos-enhanced/models"
 )
 
@@ -38,7 +38,7 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 
 type fakeHandlerService struct{}
 
-func (f *fakeHandlerService) AvailableFaultTypes() ([]string) {
+func (f *fakeHandlerService) AvailableFaultTypes() []string {
 	return []string{}
 }
 
@@ -46,7 +46,7 @@ func (f *fakeHandlerService) CreateExperiment(ctx context.Context, req *models.C
 	return &models.Experiment{}, nil
 }
 
-func (f *fakeHandlerService) FaultConfigTemplate(faultType string) (map[string]any) {
+func (f *fakeHandlerService) FaultConfigTemplate(faultType string) map[string]any {
 	return map[string]any{}
 }
 
@@ -79,7 +79,6 @@ func (f *fakeHandlerService) StopExperiment(ctx context.Context, id string, tena
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestCHAOS_ENHANCED_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

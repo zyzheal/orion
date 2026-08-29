@@ -182,17 +182,17 @@ func (s *Service) CountFindings(ctx context.Context, tenantID string) (int, erro
 
 func (s *Service) CreateAuditPlan(ctx context.Context, tenantID string, req *models.CreateAuditPlanRequest) (*models.AuditPlan, error) {
 	d := &models.AuditPlan{
-		ID:             uuid.New().String(),
-		TenantID:       tenantID,
-		Name:           req.Name,
-		Description:    req.Description,
-		Scope:          models.JSONB(req.Scope),
-		AuditType:      req.AuditType,
-		ScheduleType:   req.ScheduleType,
-		Reviewers:      models.JSONArray(req.Reviewers),
-		Status:         "draft",
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		ID:           uuid.New().String(),
+		TenantID:     tenantID,
+		Name:         req.Name,
+		Description:  req.Description,
+		Scope:        models.JSONB(req.Scope),
+		AuditType:    req.AuditType,
+		ScheduleType: req.ScheduleType,
+		Reviewers:    models.JSONArray(req.Reviewers),
+		Status:       "draft",
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 	}
 	if d.Scope == nil {
 		d.Scope = models.JSONB{}
@@ -244,12 +244,12 @@ func (s *Service) ExecuteAudit(ctx context.Context, tenantID, planID string) (*m
 
 	now := time.Now()
 	exec := &models.AuditExecution{
-		ID:          uuid.New().String(),
-		PlanID:      planID,
-		TenantID:    tenantID,
-		Status:      "running",
-		StartedAt:   now,
-		CreatedAt:   now,
+		ID:        uuid.New().String(),
+		PlanID:    planID,
+		TenantID:  tenantID,
+		Status:    "running",
+		StartedAt: now,
+		CreatedAt: now,
 	}
 	if err := s.repo.CreateAuditExecution(ctx, exec); err != nil {
 		return nil, err
@@ -476,14 +476,14 @@ func (s *Service) calculateScore(gaps []models.ComplianceGap) float32 {
 
 func (s *Service) CreateSBOM(ctx context.Context, tenantID string, req *models.CreateSBOMRequest) (*models.SupplyChainSBOM, error) {
 	d := &models.SupplyChainSBOM{
-		ID:             uuid.New().String(),
-		TenantID:       tenantID,
-		ArtifactID:     req.ArtifactID,
-		SBOMFormat:     req.Format,
-		SBOMVersion:    req.Version,
-		Components:     models.JSONArray(req.Components),
-		Dependencies:   models.JSONArray(req.Dependencies),
-		CreatedAt:      time.Now(),
+		ID:           uuid.New().String(),
+		TenantID:     tenantID,
+		ArtifactID:   req.ArtifactID,
+		SBOMFormat:   req.Format,
+		SBOMVersion:  req.Version,
+		Components:   models.JSONArray(req.Components),
+		Dependencies: models.JSONArray(req.Dependencies),
+		CreatedAt:    time.Now(),
 	}
 	if d.SBOMFormat == "" {
 		d.SBOMFormat = "cyclonedx"
@@ -526,15 +526,15 @@ func (s *Service) AnalyzeDependency(ctx context.Context, tenantID string, req *m
 	}
 
 	d := &models.DependencyGraph{
-		ID:             uuid.New().String(),
-		TenantID:       tenantID,
-		PackageName:    req.PackageName,
-		PackageVersion: req.PackageVersion,
-		DirectDeps:     models.JSONArray{},
-		TransitiveDeps: models.JSONArray{},
+		ID:              uuid.New().String(),
+		TenantID:        tenantID,
+		PackageName:     req.PackageName,
+		PackageVersion:  req.PackageVersion,
+		DirectDeps:      models.JSONArray{},
+		TransitiveDeps:  models.JSONArray{},
 		VulnerablePaths: models.JSONArray{},
-		Depth:          req.Depth,
-		AnalyzedAt:     time.Now(),
+		Depth:           req.Depth,
+		AnalyzedAt:      time.Now(),
 	}
 	return d, s.repo.CreateDependencyGraph(ctx, d)
 }
@@ -544,7 +544,7 @@ func (s *Service) GetDependencyGraph(ctx context.Context, tenantID, packageName,
 }
 
 func (s *Service) ListDependencyGraphs(ctx context.Context, tenantID string, offset, limit int) ([]models.DependencyGraph, error) {
-	return s.repo.ListDependencyGraphs(ctx, tenantID, offset,limit)
+	return s.repo.ListDependencyGraphs(ctx, tenantID, offset, limit)
 }
 
 // ==================== Dependency Poisoning ====================
@@ -579,12 +579,12 @@ func (s *Service) CountDependencyPoisoningScans(ctx context.Context, tenantID st
 
 // Known malicious packages for detection
 var knownMaliciousPackages = map[string]string{
-	"event-stream":   "Malicious code injecting Bitcoin theft",
-	"ua-parser-js":   "Cryptominer injection",
-	"coa":            "Malware in compromised package",
-	"rc":             "Malware in compromised package",
-	"eslint-scope":   "Credential exfiltration",
-	"cross-spawn":    "Credential theft",
+	"event-stream": "Malicious code injecting Bitcoin theft",
+	"ua-parser-js": "Cryptominer injection",
+	"coa":          "Malware in compromised package",
+	"rc":           "Malware in compromised package",
+	"eslint-scope": "Credential exfiltration",
+	"cross-spawn":  "Credential theft",
 }
 
 // Popular packages for typosquatting detection

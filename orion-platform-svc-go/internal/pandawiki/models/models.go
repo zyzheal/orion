@@ -94,21 +94,21 @@ type Space struct {
 
 // CreateSpaceRequest is the request body for creating a space.
 type CreateSpaceRequest struct {
-	Name        string       `json:"name" binding:"required"`
-	Type        SpaceType    `json:"type" binding:"oneof=public internal private docs"`
+	Name        string        `json:"name" binding:"required"`
+	Type        SpaceType     `json:"type" binding:"oneof=public internal private docs"`
 	Source      ContentSource `json:"source" binding:"oneof=manual synced"`
-	OwnerID     string       `json:"owner_id"`
-	TeamID      *string      `json:"team_id"`
-	Description *string      `json:"description"`
+	OwnerID     string        `json:"owner_id"`
+	TeamID      *string       `json:"team_id"`
+	Description *string       `json:"description"`
 }
 
 // UpdateSpaceInput is the input for updating a space.
 type UpdateSpaceInput struct {
-	Name        *string      `json:"name"`
-	Type        *SpaceType   `json:"type"`
+	Name        *string        `json:"name"`
+	Type        *SpaceType     `json:"type"`
 	Source      *ContentSource `json:"source"`
-	TeamID      *string      `json:"team_id"`
-	Description *string      `json:"description"`
+	TeamID      *string        `json:"team_id"`
+	Description *string        `json:"description"`
 }
 
 // ============================================================================
@@ -125,40 +125,40 @@ const (
 
 // Doc represents a knowledge document within a space.
 type Doc struct {
-	ID        string      `db:"id" json:"id"`
-	TenantID  string      `db:"tenant_id" json:"tenant_id"`
-	SpaceID   string      `db:"space_id" json:"space_id"`
-	Title     string      `db:"title" json:"title"`
-	Content   string      `db:"content" json:"content"`
-	Type      string      `db:"type" json:"type"`
+	ID        string        `db:"id" json:"id"`
+	TenantID  string        `db:"tenant_id" json:"tenant_id"`
+	SpaceID   string        `db:"space_id" json:"space_id"`
+	Title     string        `db:"title" json:"title"`
+	Content   string        `db:"content" json:"content"`
+	Type      string        `db:"type" json:"type"`
 	Source    ContentSource `db:"source" json:"source"`
-	Tags      JSONArray   `db:"tags" json:"tags"`
-	Status    DocStatus   `db:"status" json:"status"`
-	Version   int         `db:"version" json:"version"`
-	AuthorID  *string     `db:"author_id" json:"author_id"`
-	CreatedAt time.Time   `db:"created_at" json:"created_at"`
-	UpdatedAt time.Time   `db:"updated_at" json:"updated_at"`
+	Tags      JSONArray     `db:"tags" json:"tags"`
+	Status    DocStatus     `db:"status" json:"status"`
+	Version   int           `db:"version" json:"version"`
+	AuthorID  *string       `db:"author_id" json:"author_id"`
+	CreatedAt time.Time     `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time     `db:"updated_at" json:"updated_at"`
 }
 
 // CreateDocInput is the input for creating a document.
 type CreateDocInput struct {
-	Title    string      `json:"title" binding:"required"`
-	Content  string      `json:"content" binding:"required"`
-	SpaceID  string      `json:"space_id" binding:"required"`
-	Type     *string     `json:"type"`
+	Title    string         `json:"title" binding:"required"`
+	Content  string         `json:"content" binding:"required"`
+	SpaceID  string         `json:"space_id" binding:"required"`
+	Type     *string        `json:"type"`
 	Source   *ContentSource `json:"source"`
-	Tags     []string    `json:"tags"`
-	Status   *DocStatus  `json:"status"`
-	AuthorID *string     `json:"author_id"`
+	Tags     []string       `json:"tags"`
+	Status   *DocStatus     `json:"status"`
+	AuthorID *string        `json:"author_id"`
 }
 
 // UpdateDocInput is the input for updating a document.
 type UpdateDocInput struct {
-	Title    *string    `json:"title"`
-	Content  *string    `json:"content"`
-	Tags     *[]string  `json:"tags"`
-	Status   *DocStatus `json:"status"`
-	Source   *ContentSource `json:"source"`
+	Title   *string        `json:"title"`
+	Content *string        `json:"content"`
+	Tags    *[]string      `json:"tags"`
+	Status  *DocStatus     `json:"status"`
+	Source  *ContentSource `json:"source"`
 }
 
 // DocVersion represents a historical version of a document.

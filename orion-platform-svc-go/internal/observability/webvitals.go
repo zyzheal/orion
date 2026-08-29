@@ -22,14 +22,14 @@ import (
 
 // VitalMetric 单条 Web Vital 指标
 type VitalMetric struct {
-	Name     string  `json:"name"`
-	Value    float64 `json:"value"`
-	Delta    float64 `json:"delta"`
-	Timestamp float64 `json:"timestamp"`
-	Rating   string  `json:"rating"`
-	NavigationType string `json:"navigationType"`
-	URL      string  `json:"url"`
-	Element  string  `json:"element"`
+	Name           string  `json:"name"`
+	Value          float64 `json:"value"`
+	Delta          float64 `json:"delta"`
+	Timestamp      float64 `json:"timestamp"`
+	Rating         string  `json:"rating"`
+	NavigationType string  `json:"navigationType"`
+	URL            string  `json:"url"`
+	Element        string  `json:"element"`
 }
 
 // PageLoadMetrics 页面加载指标
@@ -45,12 +45,12 @@ type PageLoadMetrics struct {
 
 // WebVitalsReport 前端上报的完整报告
 type WebVitalsReport struct {
-	Vitals    []VitalMetric `json:"vitals"`
+	Vitals    []VitalMetric   `json:"vitals"`
 	PageLoad  PageLoadMetrics `json:"pageLoad"`
-	UserAgent string      `json:"userAgent"`
-	PageUrl   string      `json:"pageUrl"`
-	Timestamp string      `json:"timestamp"`
-	SessionID string      `json:"sessionId"`
+	UserAgent string          `json:"userAgent"`
+	PageUrl   string          `json:"pageUrl"`
+	Timestamp string          `json:"timestamp"`
+	SessionID string          `json:"sessionId"`
 }
 
 // ============================================================

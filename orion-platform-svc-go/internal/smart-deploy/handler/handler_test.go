@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/smart-deploy/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/smart-deploy/models"
 )
 
@@ -68,7 +68,6 @@ func (f *fakeSmart_deployService) Rollback(ctx context.Context, tenantID, deploy
 }
 
 var _ service.ServiceInterface = (*fakeSmart_deployService)(nil)
-
 
 func TestHandler_SMART_DEPLOY_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

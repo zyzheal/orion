@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/handler-registry/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/handler-registry/models"
 )
 
@@ -31,15 +31,15 @@ func (f *fakeHandlerService) Create(ctx context.Context, tenantID string, req mo
 	return &models.HandlerRegistry{}, nil
 }
 
-func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) Disable(ctx context.Context, tenantID, domain, name string) (error) {
+func (f *fakeHandlerService) Disable(ctx context.Context, tenantID, domain, name string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) Enable(ctx context.Context, tenantID, domain, name string) (error) {
+func (f *fakeHandlerService) Enable(ctx context.Context, tenantID, domain, name string) error {
 	return nil
 }
 
@@ -75,7 +75,7 @@ func (f *fakeHandlerService) RegisterHandler(ctx context.Context, tenantID strin
 	return &models.HandlerRegistryEntry{}, nil
 }
 
-func (f *fakeHandlerService) Unregister(ctx context.Context, tenantID, domain, name string) (error) {
+func (f *fakeHandlerService) Unregister(ctx context.Context, tenantID, domain, name string) error {
 	return nil
 }
 
@@ -84,7 +84,6 @@ func (f *fakeHandlerService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestHandler_HANDLER_REGIST_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

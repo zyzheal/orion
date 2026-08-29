@@ -19,14 +19,14 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockBudgetService struct {
-	getBudgetFn       func(ctx context.Context, tenantID, pipelineID string) (*models.BudgetConfig, error)
-	upsertBudgetFn    func(ctx context.Context, tenantID, pipelineID string, req *models.UpsertBudgetRequest) (*models.BudgetConfig, error)
-	getBudgetUsageFn  func(ctx context.Context, tenantID, pipelineID string) (*models.BudgetUsage, error)
-	getAlertsFn       func(ctx context.Context, tenantID, pipelineID string) ([]models.BudgetAlert, error)
-	createAlertFn     func(ctx context.Context, tenantID, pipelineID string, req *models.CreateAlertRequest) (*models.BudgetAlert, error)
-	updateAlertFn     func(ctx context.Context, tenantID, pipelineID, alertID string, req *models.UpdateAlertRequest) (*models.BudgetAlert, error)
-	deleteAlertFn     func(ctx context.Context, tenantID, pipelineID, alertID string) error
-	getHistoryPageFn  func(ctx context.Context, tenantID, pipelineID string, q *models.ListQuery) (*service.HistoryPage, error)
+	getBudgetFn      func(ctx context.Context, tenantID, pipelineID string) (*models.BudgetConfig, error)
+	upsertBudgetFn   func(ctx context.Context, tenantID, pipelineID string, req *models.UpsertBudgetRequest) (*models.BudgetConfig, error)
+	getBudgetUsageFn func(ctx context.Context, tenantID, pipelineID string) (*models.BudgetUsage, error)
+	getAlertsFn      func(ctx context.Context, tenantID, pipelineID string) ([]models.BudgetAlert, error)
+	createAlertFn    func(ctx context.Context, tenantID, pipelineID string, req *models.CreateAlertRequest) (*models.BudgetAlert, error)
+	updateAlertFn    func(ctx context.Context, tenantID, pipelineID, alertID string, req *models.UpdateAlertRequest) (*models.BudgetAlert, error)
+	deleteAlertFn    func(ctx context.Context, tenantID, pipelineID, alertID string) error
+	getHistoryPageFn func(ctx context.Context, tenantID, pipelineID string, q *models.ListQuery) (*service.HistoryPage, error)
 }
 
 func (m *mockBudgetService) GetBudget(ctx context.Context, tenantID, pipelineID string) (*models.BudgetConfig, error) {

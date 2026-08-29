@@ -20,8 +20,8 @@ import (
 // synthetic data shaped like a real multi-service sweep.
 type awsCloud struct{}
 
-func (c awsCloud) Name() string     { return "aws-cloud" }
-func (c awsCloud) Type() string     { return models.TypeCloud }
+func (c awsCloud) Name() string { return "aws-cloud" }
+func (c awsCloud) Type() string { return models.TypeCloud }
 func (c awsCloud) ConfigSchema() map[string]interface{} {
 	return map[string]interface{}{
 		"access_key_id":     "string, required — AWS access key",
@@ -52,14 +52,14 @@ func (c awsCloud) Discover(ctx context.Context, target *models.Target) ([]*model
 			Adapter:      "aws-cloud",
 			Status:       "active",
 			Attributes: map[string]interface{}{
-				"service":       "ec2",
-				"region":        "us-east-1",
-				"instance_type": "t3.medium",
-				"state":         "running",
-				"private_ip":    "10.0.1.42",
-				"public_ip":     "52.1.2.3",
+				"service":           "ec2",
+				"region":            "us-east-1",
+				"instance_type":     "t3.medium",
+				"state":             "running",
+				"private_ip":        "10.0.1.42",
+				"public_ip":         "52.1.2.3",
 				"availability_zone": "us-east-1a",
-				"launch_time":   "2026-06-01T00:00:00Z",
+				"launch_time":       "2026-06-01T00:00:00Z",
 			},
 		},
 		{
@@ -108,9 +108,9 @@ func (c awsCloud) Discover(ctx context.Context, target *models.Target) ([]*model
 func (c awsCloud) Collect(ctx context.Context, device *models.Device) (*models.Collection, error) {
 	_ = device
 	select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
 	}
 	attrs := map[string]interface{}{
 		"cpu.usage.percent":   28.0,
@@ -147,8 +147,8 @@ type awsCloudAdapter struct {
 	collector awsCloud
 }
 
-func (a awsCloudAdapter) Name() string                 { return a.collector.Name() }
+func (a awsCloudAdapter) Name() string                        { return a.collector.Name() }
 func (a awsCloudAdapter) Init(_ map[string]interface{}) error { return nil }
-func (a awsCloudAdapter) Collector() interfaces.Collector { return a.collector }
+func (a awsCloudAdapter) Collector() interfaces.Collector     { return a.collector }
 
 func init() { registry.Default().Register(awsCloudAdapter{collector: awsCloud{}}) }

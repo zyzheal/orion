@@ -8,8 +8,8 @@ import (
 	"orion/platform-svc-go/internal/user-activity/models"
 	"orion/platform-svc-go/internal/user-activity/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 )
 
 func newHandler() *Handler {
@@ -31,7 +31,7 @@ func (f *fakeHandlerService) CreateActivity(ctx context.Context, userID, action,
 	return &models.UserActivity{}, nil
 }
 
-func (f *fakeHandlerService) DeleteActivity(ctx context.Context, userID, activityID string) (error) {
+func (f *fakeHandlerService) DeleteActivity(ctx context.Context, userID, activityID string) error {
 	return nil
 }
 
@@ -44,7 +44,6 @@ func (f *fakeHandlerService) GetActivity(ctx context.Context, userID, activityID
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestHandler_USER_ACTIVITY_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

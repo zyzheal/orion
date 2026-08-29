@@ -371,7 +371,7 @@ func TestHandler_Get_Success(t *testing.T) {
 		},
 	})
 
-	w := performRequest(h, h.Get, "GET", nil, map[string]string{"id": "tmpl-1"}, nil)
+	w := performRequest(h, h.Get, "GET", nil, map[string]string{"templateId": "tmpl-1"}, nil)
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", w.Code)
 	}
@@ -384,7 +384,7 @@ func TestHandler_Get_NotFound(t *testing.T) {
 		},
 	})
 
-	w := performRequest(h, h.Get, "GET", nil, map[string]string{"id": "nonexistent"}, nil)
+	w := performRequest(h, h.Get, "GET", nil, map[string]string{"templateId": "nonexistent"}, nil)
 	if w.Code != http.StatusNotFound {
 		t.Errorf("expected 404, got %d", w.Code)
 	}
@@ -526,7 +526,7 @@ func TestHandler_Update_Success(t *testing.T) {
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Set("tenant_id", "tenant-1")
-	c.Params = append(c.Params, gin.Param{Key: "id", Value: "tmpl-1"})
+	c.Params = append(c.Params, gin.Param{Key: "templateId", Value: "tmpl-1"})
 
 	body := map[string]interface{}{"name": "updated"}
 	b, _ := json.Marshal(body)
@@ -543,7 +543,7 @@ func TestHandler_Update_Success(t *testing.T) {
 func TestHandler_Update_BadRequest(t *testing.T) {
 	h := newHandlerWithSvc(&mockSvc{})
 
-	w := performRequest(h, h.Update, "PUT", "invalid json", map[string]string{"id": "tmpl-1"}, nil)
+	w := performRequest(h, h.Update, "PUT", "invalid json", map[string]string{"templateId": "tmpl-1"}, nil)
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", w.Code)
 	}
@@ -558,7 +558,7 @@ func TestHandler_Update_NotFound(t *testing.T) {
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Set("tenant_id", "tenant-1")
-	c.Params = append(c.Params, gin.Param{Key: "id", Value: "nonexistent"})
+	c.Params = append(c.Params, gin.Param{Key: "templateId", Value: "nonexistent"})
 
 	body := map[string]interface{}{"name": "updated"}
 	b, _ := json.Marshal(body)
@@ -593,7 +593,7 @@ func TestHandler_Delete_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Set("tenant_id", "tenant-1")
-	c.Params = append(c.Params, gin.Param{Key: "id", Value: "tmpl-1"})
+	c.Params = append(c.Params, gin.Param{Key: "templateId", Value: "tmpl-1"})
 	c.Request = httptest.NewRequest("DELETE", "/", nil)
 
 	h.Delete(c)
@@ -613,7 +613,7 @@ func TestHandler_Delete_NotFound(t *testing.T) {
 		},
 	})
 
-	w := performRequest(h, h.Delete, "DELETE", nil, map[string]string{"id": "nonexistent"}, nil)
+	w := performRequest(h, h.Delete, "DELETE", nil, map[string]string{"templateId": "nonexistent"}, nil)
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("expected 500, got %d", w.Code)
 	}
@@ -634,7 +634,7 @@ func TestHandler_Publish_Success(t *testing.T) {
 		},
 	})
 
-	w := performRequest(h, h.Publish, "POST", nil, map[string]string{"id": "tmpl-1"}, nil)
+	w := performRequest(h, h.Publish, "POST", nil, map[string]string{"templateId": "tmpl-1"}, nil)
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", w.Code)
 	}
@@ -647,7 +647,7 @@ func TestHandler_Publish_NotFound(t *testing.T) {
 		},
 	})
 
-	w := performRequest(h, h.Publish, "POST", nil, map[string]string{"id": "nonexistent"}, nil)
+	w := performRequest(h, h.Publish, "POST", nil, map[string]string{"templateId": "nonexistent"}, nil)
 	if w.Code != http.StatusNotFound {
 		t.Errorf("expected 404, got %d", w.Code)
 	}
@@ -668,7 +668,7 @@ func TestHandler_Deprecate_Success(t *testing.T) {
 		},
 	})
 
-	w := performRequest(h, h.Deprecate, "POST", nil, map[string]string{"id": "tmpl-1"}, nil)
+	w := performRequest(h, h.Deprecate, "POST", nil, map[string]string{"templateId": "tmpl-1"}, nil)
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", w.Code)
 	}
@@ -681,7 +681,7 @@ func TestHandler_Deprecate_NotFound(t *testing.T) {
 		},
 	})
 
-	w := performRequest(h, h.Deprecate, "POST", nil, map[string]string{"id": "nonexistent"}, nil)
+	w := performRequest(h, h.Deprecate, "POST", nil, map[string]string{"templateId": "nonexistent"}, nil)
 	if w.Code != http.StatusNotFound {
 		t.Errorf("expected 404, got %d", w.Code)
 	}
@@ -704,7 +704,7 @@ func TestHandler_Versions_Success(t *testing.T) {
 		},
 	})
 
-	w := performRequest(h, h.Versions, "GET", nil, map[string]string{"id": "tmpl-1"}, map[string]string{"limit": "5"})
+	w := performRequest(h, h.Versions, "GET", nil, map[string]string{"templateId": "tmpl-1"}, map[string]string{"limit": "5"})
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", w.Code)
 	}
@@ -725,7 +725,7 @@ func TestHandler_Versions_DefaultLimit(t *testing.T) {
 		},
 	})
 
-	w := performRequest(h, h.Versions, "GET", nil, map[string]string{"id": "tmpl-1"}, map[string]string{"limit": "0"})
+	w := performRequest(h, h.Versions, "GET", nil, map[string]string{"templateId": "tmpl-1"}, map[string]string{"limit": "0"})
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", w.Code)
 	}
@@ -741,7 +741,7 @@ func TestHandler_Versions_InternalError(t *testing.T) {
 		},
 	})
 
-	w := performRequest(h, h.Versions, "GET", nil, map[string]string{"id": "tmpl-1"}, nil)
+	w := performRequest(h, h.Versions, "GET", nil, map[string]string{"templateId": "tmpl-1"}, nil)
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("expected 500, got %d", w.Code)
 	}
@@ -767,7 +767,7 @@ func TestHandler_Instantiate_Success(t *testing.T) {
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Set("tenant_id", "tenant-1")
-	c.Params = append(c.Params, gin.Param{Key: "id", Value: "tmpl-1"})
+	c.Params = append(c.Params, gin.Param{Key: "templateId", Value: "tmpl-1"})
 
 	body := map[string]interface{}{
 		"name":       "my-pipeline",
@@ -787,7 +787,7 @@ func TestHandler_Instantiate_Success(t *testing.T) {
 func TestHandler_Instantiate_BadBody(t *testing.T) {
 	h := newHandlerWithSvc(&mockSvc{})
 
-	w := performRequest(h, h.Instantiate, "POST", "invalid json", map[string]string{"id": "tmpl-1"}, nil)
+	w := performRequest(h, h.Instantiate, "POST", "invalid json", map[string]string{"templateId": "tmpl-1"}, nil)
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", w.Code)
 	}
@@ -802,7 +802,7 @@ func TestHandler_Instantiate_ServiceError(t *testing.T) {
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Set("tenant_id", "tenant-1")
-	c.Params = append(c.Params, gin.Param{Key: "id", Value: "tmpl-1"})
+	c.Params = append(c.Params, gin.Param{Key: "templateId", Value: "tmpl-1"})
 
 	body := map[string]interface{}{
 		"name":       "my-pipeline",
@@ -834,7 +834,7 @@ func TestHandler_Star_Success(t *testing.T) {
 		},
 	})
 
-	w := performRequest(h, h.Star, "POST", nil, map[string]string{"id": "tmpl-1"}, nil)
+	w := performRequest(h, h.Star, "POST", nil, map[string]string{"templateId": "tmpl-1"}, nil)
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", w.Code)
 	}
@@ -847,7 +847,7 @@ func TestHandler_Star_NotFound(t *testing.T) {
 		},
 	})
 
-	w := performRequest(h, h.Star, "POST", nil, map[string]string{"id": "nonexistent"}, nil)
+	w := performRequest(h, h.Star, "POST", nil, map[string]string{"templateId": "nonexistent"}, nil)
 	if w.Code != http.StatusNotFound {
 		t.Errorf("expected 404, got %d", w.Code)
 	}
@@ -868,7 +868,7 @@ func TestHandler_Unstar_Success(t *testing.T) {
 		},
 	})
 
-	w := performRequest(h, h.Unstar, "DELETE", nil, map[string]string{"id": "tmpl-1"}, nil)
+	w := performRequest(h, h.Unstar, "DELETE", nil, map[string]string{"templateId": "tmpl-1"}, nil)
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", w.Code)
 	}
@@ -881,7 +881,7 @@ func TestHandler_Unstar_NotFound(t *testing.T) {
 		},
 	})
 
-	w := performRequest(h, h.Unstar, "DELETE", nil, map[string]string{"id": "nonexistent"}, nil)
+	w := performRequest(h, h.Unstar, "DELETE", nil, map[string]string{"templateId": "nonexistent"}, nil)
 	if w.Code != http.StatusNotFound {
 		t.Errorf("expected 404, got %d", w.Code)
 	}

@@ -26,11 +26,11 @@ type ExtendTTLRequest struct {
 
 // EnvLog represents a log entry for an ephemeral environment.
 type EnvLog struct {
-	ID         string    `db:"id" json:"id"`
-	EnvID      string    `db:"env_id" json:"env_id"`
-	Level      string    `db:"level" json:"level"`
-	Message    string    `db:"message" json:"message"`
-	CreatedAt  time.Time `db:"created_at" json:"created_at"`
+	ID        string    `db:"id" json:"id"`
+	EnvID     string    `db:"env_id" json:"env_id"`
+	Level     string    `db:"level" json:"level"`
+	Message   string    `db:"message" json:"message"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
 }
 
 // ListEnvsResponse returns a paginated list.

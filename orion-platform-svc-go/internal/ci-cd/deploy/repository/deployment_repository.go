@@ -3,9 +3,9 @@ package repository
 import (
 	"context"
 	"fmt"
+	"orion/go-common/pkg/database"
 	"orion/platform-svc-go/internal/ci-cd/deploy/models"
 	"time"
-	"orion/go-common/pkg/database"
 )
 
 type DeploymentRepository struct {

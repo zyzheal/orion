@@ -64,22 +64,22 @@ var ValidCardinalities = map[string]bool{
 
 // CMDBRelationshipType defines an allowed relationship between two CI types.
 type CMDBRelationshipType struct {
-	ID            string     `db:"id" json:"id"`
-	TenantID      string     `db:"tenant_id" json:"tenant_id"`
-	Name          string     `db:"name" json:"name"`
-	Description   string     `db:"description" json:"description"`
-	SourceType    string     `db:"source_type" json:"source_type"`    // allowed source CI type
-	TargetType    string     `db:"target_type" json:"target_type"`    // allowed target CI type
-	Cardinality   string     `db:"cardinality" json:"cardinality"`    // 1:1, 1:N, N:1, N:N
-	Bidirectional bool       `db:"bidirectional" json:"bidirectional"`
-	InverseName   string     `db:"inverse_name" json:"inverse_name"`  // label for reverse direction
-	Icon          string     `db:"icon" json:"icon"`
-	Color         string     `db:"color" json:"color"`
-	Attributes    string     `db:"attributes" json:"attributes"`      // JSON: custom attributes
-	Enabled       bool       `db:"enabled" json:"enabled"`
-	Status        string     `db:"status" json:"status"`              // active, deprecated
-	CreatedAt     time.Time  `db:"created_at" json:"created_at"`
-	UpdatedAt     time.Time  `db:"updated_at" json:"updated_at"`
+	ID            string    `db:"id" json:"id"`
+	TenantID      string    `db:"tenant_id" json:"tenant_id"`
+	Name          string    `db:"name" json:"name"`
+	Description   string    `db:"description" json:"description"`
+	SourceType    string    `db:"source_type" json:"source_type"` // allowed source CI type
+	TargetType    string    `db:"target_type" json:"target_type"` // allowed target CI type
+	Cardinality   string    `db:"cardinality" json:"cardinality"` // 1:1, 1:N, N:1, N:N
+	Bidirectional bool      `db:"bidirectional" json:"bidirectional"`
+	InverseName   string    `db:"inverse_name" json:"inverse_name"` // label for reverse direction
+	Icon          string    `db:"icon" json:"icon"`
+	Color         string    `db:"color" json:"color"`
+	Attributes    string    `db:"attributes" json:"attributes"` // JSON: custom attributes
+	Enabled       bool      `db:"enabled" json:"enabled"`
+	Status        string    `db:"status" json:"status"` // active, deprecated
+	CreatedAt     time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time `db:"updated_at" json:"updated_at"`
 }
 
 // ---------------------------------------------------------------------------
@@ -131,26 +131,26 @@ type CMDBRelationship struct {
 
 // CreateRelationshipRequest is the payload for creating a relationship.
 type CreateRelationshipRequest struct {
-	SourceID string            `json:"source_id" binding:"required"`
-	TargetID string            `json:"target_id" binding:"required"`
-	TypeID   string            `json:"type_id" binding:"required"`
+	SourceID   string                 `json:"source_id" binding:"required"`
+	TargetID   string                 `json:"target_id" binding:"required"`
+	TypeID     string                 `json:"type_id" binding:"required"`
 	Attributes map[string]interface{} `json:"attributes"`
 }
 
 // TopologyNode represents a node in the relationship topology graph.
 type TopologyNode struct {
-	ID        string      `json:"id"`
-	Type      string      `json:"type"` // CI type label
-	Depth     int         `json:"depth"`
-	Children  []TopologyNode `json:"children,omitempty"`
+	ID       string         `json:"id"`
+	Type     string         `json:"type"` // CI type label
+	Depth    int            `json:"depth"`
+	Children []TopologyNode `json:"children,omitempty"`
 }
 
 // TopologyEdge represents an edge in the topology graph.
 type TopologyEdge struct {
-	ID       string `json:"id"`
-	SourceID string `json:"source_id"`
-	TargetID string `json:"target_id"`
-	TypeID   string `json:"type_id"`
+	ID        string `json:"id"`
+	SourceID  string `json:"source_id"`
+	TargetID  string `json:"target_id"`
+	TypeID    string `json:"type_id"`
 	Direction string `json:"direction"` // outbound | inbound
 }
 

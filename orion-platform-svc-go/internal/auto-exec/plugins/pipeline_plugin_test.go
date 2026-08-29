@@ -14,12 +14,12 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockPipelineRunner struct {
-	called    bool
-	calledID  string
+	called       bool
+	calledID     string
 	calledTenant string
 	calledInputs map[string]interface{}
-	result    *PipelineRunResult
-	err       error
+	result       *PipelineRunResult
+	err          error
 }
 
 func (m *mockPipelineRunner) RunPipeline(ctx context.Context, tenantID, pipelineID string, inputs map[string]interface{}) (*PipelineRunResult, error) {

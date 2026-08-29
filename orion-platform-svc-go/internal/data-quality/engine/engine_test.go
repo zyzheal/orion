@@ -24,9 +24,15 @@ type mockRepo struct {
 }
 
 func (m *mockRepo) CreateRule(ctx context.Context, rule *models.Rule) error { return nil }
-func (m *mockRepo) GetRuleByID(ctx context.Context, tenantID, id string) (*models.Rule, error) { return nil, nil }
-func (m *mockRepo) UpdateRule(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Rule, error) { return nil, nil }
-func (m *mockRepo) DeleteRule(ctx context.Context, tenantID, id string) (bool, error) { return false, nil }
+func (m *mockRepo) GetRuleByID(ctx context.Context, tenantID, id string) (*models.Rule, error) {
+	return nil, nil
+}
+func (m *mockRepo) UpdateRule(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Rule, error) {
+	return nil, nil
+}
+func (m *mockRepo) DeleteRule(ctx context.Context, tenantID, id string) (bool, error) {
+	return false, nil
+}
 func (m *mockRepo) CreateScanResult(ctx context.Context, result *models.ScanResult) error {
 	result.ID = "result-1"
 	result.CreatedAt = time.Now().UTC()
@@ -35,7 +41,9 @@ func (m *mockRepo) CreateScanResult(ctx context.Context, result *models.ScanResu
 	}
 	return nil
 }
-func (m *mockRepo) ListScanResults(ctx context.Context, tenantID, ruleID string, status *string) ([]models.ScanResult, error) { return nil, nil }
+func (m *mockRepo) ListScanResults(ctx context.Context, tenantID, ruleID string, status *string) ([]models.ScanResult, error) {
+	return nil, nil
+}
 func (m *mockRepo) CreateAlert(ctx context.Context, alert *models.Alert) error {
 	if m.createAlertFn != nil {
 		return m.createAlertFn(ctx, alert)
@@ -44,11 +52,21 @@ func (m *mockRepo) CreateAlert(ctx context.Context, alert *models.Alert) error {
 	alert.CreatedAt = time.Now().UTC()
 	return nil
 }
-func (m *mockRepo) GetAlertByID(ctx context.Context, tenantID, id string) (*models.Alert, error) { return nil, nil }
-func (m *mockRepo) ListAlerts(ctx context.Context, tenantID string, status *string) ([]models.Alert, error) { return nil, nil }
-func (m *mockRepo) UpdateAlert(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Alert, error) { return nil, nil }
-func (m *mockRepo) DeleteAlert(ctx context.Context, tenantID, id string) (bool, error) { return false, nil }
-func (m *mockRepo) GetStats(ctx context.Context, tenantID string) (*models.QualityStats, error) { return &models.QualityStats{}, nil }
+func (m *mockRepo) GetAlertByID(ctx context.Context, tenantID, id string) (*models.Alert, error) {
+	return nil, nil
+}
+func (m *mockRepo) ListAlerts(ctx context.Context, tenantID string, status *string) ([]models.Alert, error) {
+	return nil, nil
+}
+func (m *mockRepo) UpdateAlert(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Alert, error) {
+	return nil, nil
+}
+func (m *mockRepo) DeleteAlert(ctx context.Context, tenantID, id string) (bool, error) {
+	return false, nil
+}
+func (m *mockRepo) GetStats(ctx context.Context, tenantID string) (*models.QualityStats, error) {
+	return &models.QualityStats{}, nil
+}
 func (m *mockRepo) ListRules(ctx context.Context, tenantID string, filter *models.RuleFilter) ([]models.Rule, error) {
 	if m.listRulesFn != nil {
 		return m.listRulesFn(ctx, tenantID, filter)
@@ -60,8 +78,8 @@ func (m *mockRepo) ListRules(ctx context.Context, tenantID string, filter *model
 var _ repository.RepositoryInterface = (*mockRepo)(nil)
 
 type mockSvc struct {
-	getRuleFn       func(ctx context.Context, tenantID, id string) (*models.Rule, error)
-	createAlertFn   func(ctx context.Context, tenantID string, req *models.CreateAlertRequest) (*models.Alert, error)
+	getRuleFn     func(ctx context.Context, tenantID, id string) (*models.Rule, error)
+	createAlertFn func(ctx context.Context, tenantID string, req *models.CreateAlertRequest) (*models.Alert, error)
 }
 
 func (m *mockSvc) GetRule(ctx context.Context, tenantID, id string) (*models.Rule, error) {
@@ -96,14 +114,14 @@ func (m *mockNotifier) Notify(ctx context.Context, alert *models.Alert) error {
 
 func newRule(tenantID string, ruleType string, threshold float64, expression string) *models.Rule {
 	return &models.Rule{
-		ID:        "rule-1",
-		TenantID:  tenantID,
-		Name:      "test-rule",
-		RuleType:  ruleType,
-		Threshold: &threshold,
+		ID:         "rule-1",
+		TenantID:   tenantID,
+		Name:       "test-rule",
+		RuleType:   ruleType,
+		Threshold:  &threshold,
 		Expression: &expression,
-		Severity:  "medium",
-		Status:    "active",
+		Severity:   "medium",
+		Status:     "active",
 	}
 }
 
@@ -212,13 +230,13 @@ func TestEvaluator_RangeCheck_BadExpression(t *testing.T) {
 func TestEvaluator_PatternMatch_Allow(t *testing.T) {
 	e := &Evaluator{}
 	rule := &models.Rule{
-		ID:        "rule-2",
-		TenantID:  "t1",
-		Name:      "pattern-test",
-		RuleType:  "pattern_match",
+		ID:         "rule-2",
+		TenantID:   "t1",
+		Name:       "pattern-test",
+		RuleType:   "pattern_match",
 		Expression: strPtr2("[a-z]+"),
-		Severity:  "low",
-		Status:    "active",
+		Severity:   "low",
+		Status:     "active",
 	}
 	input := &EvaluationInput{Samples: []interface{}{"hello", "world", "123"}}
 	ev, err := e.Evaluate(context.Background(), rule, input)
@@ -234,14 +252,14 @@ func TestEvaluator_PatternMatch_Deny(t *testing.T) {
 	e := &Evaluator{}
 	denyThreshold := 1.0
 	rule := &models.Rule{
-		ID:        "rule-3",
-		TenantID:  "t1",
-		Name:      "deny-test",
-		RuleType:  "pattern_match",
+		ID:         "rule-3",
+		TenantID:   "t1",
+		Name:       "deny-test",
+		RuleType:   "pattern_match",
 		Expression: strPtr2("ERROR"),
-		Threshold: &denyThreshold,
-		Severity:  "high",
-		Status:    "active",
+		Threshold:  &denyThreshold,
+		Severity:   "high",
+		Status:     "active",
 	}
 	input := &EvaluationInput{Samples: []interface{}{"ok", "ERROR here", "fine"}}
 	ev, err := e.Evaluate(context.Background(), rule, input)

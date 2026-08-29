@@ -57,10 +57,18 @@ func (m *mockMonitoringRepo) PingContext(_ context.Context) error {
 // --- Metrics (stubs) ---
 
 func (m *mockMonitoringRepo) CreateMetric(_ context.Context, _ *models.Metric) error { return m.dbErr }
-func (m *mockMonitoringRepo) RecordMetric(_ context.Context, _ string, _ models.RecordMetricRequest) error { return m.dbErr }
-func (m *mockMonitoringRepo) ListMetrics(_ context.Context, _ string, _, _ int) ([]models.Metric, error) { return nil, m.dbErr }
-func (m *mockMonitoringRepo) GetMetricSeries(_ context.Context, _, _ string, _, _ *time.Time, _ int) ([]models.MetricSeriesPoint, error) { return nil, m.dbErr }
-func (m *mockMonitoringRepo) GetMetricSummary(_ context.Context, _, _ string, _, _ *time.Time) (*models.MetricSummary, error) { return nil, m.dbErr }
+func (m *mockMonitoringRepo) RecordMetric(_ context.Context, _ string, _ models.RecordMetricRequest) error {
+	return m.dbErr
+}
+func (m *mockMonitoringRepo) ListMetrics(_ context.Context, _ string, _, _ int) ([]models.Metric, error) {
+	return nil, m.dbErr
+}
+func (m *mockMonitoringRepo) GetMetricSeries(_ context.Context, _, _ string, _, _ *time.Time, _ int) ([]models.MetricSeriesPoint, error) {
+	return nil, m.dbErr
+}
+func (m *mockMonitoringRepo) GetMetricSummary(_ context.Context, _, _ string, _, _ *time.Time) (*models.MetricSummary, error) {
+	return nil, m.dbErr
+}
 
 // --- Alert Rules ---
 
@@ -172,54 +180,100 @@ func (m *mockMonitoringRepo) UnsuppressRule(_ context.Context, tenantID, id stri
 // --- Alerts (stubs) ---
 
 func (m *mockMonitoringRepo) CreateAlert(_ context.Context, _ *models.Alert) error { return m.dbErr }
-func (m *mockMonitoringRepo) ListAlerts(_ context.Context, _ string, _, _ int) ([]models.Alert, error) { return nil, m.dbErr }
-func (m *mockMonitoringRepo) ListActiveAlerts(_ context.Context, _ string, _, _ int) ([]models.Alert, error) { return nil, m.dbErr }
-func (m *mockMonitoringRepo) GetAlert(_ context.Context, _, _ string) (*models.Alert, error) { return nil, m.dbErr }
-func (m *mockMonitoringRepo) AcknowledgeAlert(_ context.Context, _, _, _, _ string) error { return m.dbErr }
-func (m *mockMonitoringRepo) ResolveAlert(_ context.Context, _, _ string, _ string) error { return m.dbErr }
-func (m *mockMonitoringRepo) UpdateAlertStatus(_ context.Context, _, _, _, _ string) error { return m.dbErr }
+func (m *mockMonitoringRepo) ListAlerts(_ context.Context, _ string, _, _ int) ([]models.Alert, error) {
+	return nil, m.dbErr
+}
+func (m *mockMonitoringRepo) ListActiveAlerts(_ context.Context, _ string, _, _ int) ([]models.Alert, error) {
+	return nil, m.dbErr
+}
+func (m *mockMonitoringRepo) GetAlert(_ context.Context, _, _ string) (*models.Alert, error) {
+	return nil, m.dbErr
+}
+func (m *mockMonitoringRepo) AcknowledgeAlert(_ context.Context, _, _, _, _ string) error {
+	return m.dbErr
+}
+func (m *mockMonitoringRepo) ResolveAlert(_ context.Context, _, _ string, _ string) error {
+	return m.dbErr
+}
+func (m *mockMonitoringRepo) UpdateAlertStatus(_ context.Context, _, _, _, _ string) error {
+	return m.dbErr
+}
 
 // --- Notification Channels (stubs) ---
 
-func (m *mockMonitoringRepo) CreateChannel(_ context.Context, _ *models.NotificationChannel) error { return m.dbErr }
-func (m *mockMonitoringRepo) ListChannels(_ context.Context, _ string, _, _ int) ([]models.NotificationChannel, error) { return nil, m.dbErr }
-func (m *mockMonitoringRepo) GetChannel(_ context.Context, _, _ string) (*models.NotificationChannel, error) { return nil, m.dbErr }
-func (m *mockMonitoringRepo) ToggleChannel(_ context.Context, _, _ string, _ bool) error { return m.dbErr }
+func (m *mockMonitoringRepo) CreateChannel(_ context.Context, _ *models.NotificationChannel) error {
+	return m.dbErr
+}
+func (m *mockMonitoringRepo) ListChannels(_ context.Context, _ string, _, _ int) ([]models.NotificationChannel, error) {
+	return nil, m.dbErr
+}
+func (m *mockMonitoringRepo) GetChannel(_ context.Context, _, _ string) (*models.NotificationChannel, error) {
+	return nil, m.dbErr
+}
+func (m *mockMonitoringRepo) ToggleChannel(_ context.Context, _, _ string, _ bool) error {
+	return m.dbErr
+}
 
 // --- Escalation Policies (stubs) ---
 
-func (m *mockMonitoringRepo) CreateEscalationPolicy(_ context.Context, _ *models.EscalationPolicy) error { return m.dbErr }
-func (m *mockMonitoringRepo) ListEscalationPolicies(_ context.Context, _ string, _, _ int) ([]models.EscalationPolicy, error) { return nil, m.dbErr }
+func (m *mockMonitoringRepo) CreateEscalationPolicy(_ context.Context, _ *models.EscalationPolicy) error {
+	return m.dbErr
+}
+func (m *mockMonitoringRepo) ListEscalationPolicies(_ context.Context, _ string, _, _ int) ([]models.EscalationPolicy, error) {
+	return nil, m.dbErr
+}
 
 // --- Notification History (stubs) ---
 
-func (m *mockMonitoringRepo) CreateNotificationRecord(_ context.Context, _ *models.NotificationRecord) error { return m.dbErr }
-func (m *mockMonitoringRepo) ListNotificationRecords(_ context.Context, _ string, _, _ int) ([]models.NotificationRecord, error) { return nil, m.dbErr }
+func (m *mockMonitoringRepo) CreateNotificationRecord(_ context.Context, _ *models.NotificationRecord) error {
+	return m.dbErr
+}
+func (m *mockMonitoringRepo) ListNotificationRecords(_ context.Context, _ string, _, _ int) ([]models.NotificationRecord, error) {
+	return nil, m.dbErr
+}
 
 // --- Dashboard Widgets (stubs) ---
 
-func (m *mockMonitoringRepo) CreateWidgetConfig(_ context.Context, _ *models.WidgetConfig) error { return m.dbErr }
-func (m *mockMonitoringRepo) ListWidgetConfigs(_ context.Context, _ string, _, _ int) ([]models.WidgetConfig, error) { return nil, m.dbErr }
+func (m *mockMonitoringRepo) CreateWidgetConfig(_ context.Context, _ *models.WidgetConfig) error {
+	return m.dbErr
+}
+func (m *mockMonitoringRepo) ListWidgetConfigs(_ context.Context, _ string, _, _ int) ([]models.WidgetConfig, error) {
+	return nil, m.dbErr
+}
 
 // --- Anomalies (stubs) ---
 
-func (m *mockMonitoringRepo) CreateAnomaly(_ context.Context, _ *models.Anomaly) error { return m.dbErr }
-func (m *mockMonitoringRepo) ListAnomalies(_ context.Context, _ string, _, _ int) ([]models.Anomaly, error) { return nil, m.dbErr }
+func (m *mockMonitoringRepo) CreateAnomaly(_ context.Context, _ *models.Anomaly) error {
+	return m.dbErr
+}
+func (m *mockMonitoringRepo) ListAnomalies(_ context.Context, _ string, _, _ int) ([]models.Anomaly, error) {
+	return nil, m.dbErr
+}
 func (m *mockMonitoringRepo) CountAnomaliesByMetric(_ context.Context, _ string) ([]struct {
 	Metric   string  `db:"metric"`
 	Count    int     `db:"count"`
 	AvgScore float64 `db:"avg_score"`
-}, error) { return nil, m.dbErr }
+}, error) {
+	return nil, m.dbErr
+}
 func (m *mockMonitoringRepo) CountAnomaliesBySeverity(_ context.Context, _ string) ([]struct {
 	Severity string `db:"severity"`
 	Count    int    `db:"count"`
-}, error) { return nil, m.dbErr }
-func (m *mockMonitoringRepo) CountAnomaliesLast24h(_ context.Context, _ string) (int, error) { return 0, m.dbErr }
+}, error) {
+	return nil, m.dbErr
+}
+func (m *mockMonitoringRepo) CountAnomaliesLast24h(_ context.Context, _ string) (int, error) {
+	return 0, m.dbErr
+}
 
 // --- Aggregation Helpers (stubs) ---
 
-func (m *mockMonitoringRepo) CountAlertsBySeverity(_ context.Context, _ string) ([]models.Alert, error) { return nil, m.dbErr }
-func (m *mockMonitoringRepo) RuleAlertCounts(_ context.Context, _ string) ([]models.RuleAlertCounts, error) { return nil, m.dbErr }
+func (m *mockMonitoringRepo) CountAlertsBySeverity(_ context.Context, _ string) ([]models.Alert, error) {
+	return nil, m.dbErr
+}
+func (m *mockMonitoringRepo) RuleAlertCounts(_ context.Context, _ string) ([]models.RuleAlertCounts, error) {
+	return nil, m.dbErr
+}
 
 // --- Tests ---
 

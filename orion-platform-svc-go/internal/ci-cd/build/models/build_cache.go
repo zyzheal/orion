@@ -25,17 +25,17 @@ type BuildCacheConfig struct {
 
 // CacheEntry represents a single cache entry.
 type CacheEntry struct {
-	ID          string      `db:"id" json:"id"`
-	ConfigID    string      `db:"config_id" json:"config_id"`
-	CacheKey    string      `db:"cache_key" json:"cache_key"`
-	Hash        string      `db:"hash" json:"hash"`
-	Size        int64       `db:"size" json:"size"`
-	StoragePath string      `db:"storage_path" json:"storage_path"`
-	HitCount    int         `db:"hit_count" json:"hit_count"`
-	LastHitAt   *time.Time  `db:"last_hit_at" json:"last_hit_at,omitempty"`
-	ExpiresAt   *time.Time  `db:"expires_at" json:"expires_at,omitempty"`
-	CreatedAt   time.Time   `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time   `db:"updated_at" json:"updated_at"`
+	ID          string     `db:"id" json:"id"`
+	ConfigID    string     `db:"config_id" json:"config_id"`
+	CacheKey    string     `db:"cache_key" json:"cache_key"`
+	Hash        string     `db:"hash" json:"hash"`
+	Size        int64      `db:"size" json:"size"`
+	StoragePath string     `db:"storage_path" json:"storage_path"`
+	HitCount    int        `db:"hit_count" json:"hit_count"`
+	LastHitAt   *time.Time `db:"last_hit_at" json:"last_hit_at,omitempty"`
+	ExpiresAt   *time.Time `db:"expires_at" json:"expires_at,omitempty"`
+	CreatedAt   time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time  `db:"updated_at" json:"updated_at"`
 }
 
 // CreateBuildCacheConfigInput is the payload for creating a cache config.
@@ -55,15 +55,15 @@ type CreateBuildCacheConfigInput struct {
 
 // UpdateBuildCacheConfigInput is the payload for updating a cache config.
 type UpdateBuildCacheConfigInput struct {
-	Status          string     `json:"status"`
-	StorageType     string     `json:"storage_type"`
-	StoragePath     string     `json:"storage_path"`
-	MaxTotalSize    int64      `json:"max_total_size"`
-	MaxAgeDays      *int       `json:"max_age_days"`
-	CleanupPolicy   string     `json:"cleanup_policy"`
-	CacheKeyPattern string     `json:"cache_key_pattern"`
-	CachePaths      []string   `json:"cache_paths"`
-	Description     string     `json:"description"`
+	Status          string   `json:"status"`
+	StorageType     string   `json:"storage_type"`
+	StoragePath     string   `json:"storage_path"`
+	MaxTotalSize    int64    `json:"max_total_size"`
+	MaxAgeDays      *int     `json:"max_age_days"`
+	CleanupPolicy   string   `json:"cleanup_policy"`
+	CacheKeyPattern string   `json:"cache_key_pattern"`
+	CachePaths      []string `json:"cache_paths"`
+	Description     string   `json:"description"`
 }
 
 // CacheLevel defines the scope of a cache configuration.

@@ -9,8 +9,8 @@ import (
 	"orion/platform-svc-go/internal/escalation/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/go-common/pkg/errors"
 	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/errors"
 )
 
 type Handler struct {
@@ -23,7 +23,7 @@ func NewHandler(svc service.ServiceInterface) *Handler {
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r := rg.Group("/escalation")
-r.POST("", auth.RequirePermission("escalation", "write"), h.CreateRule)
+	r.POST("", auth.RequirePermission("escalation", "write"), h.CreateRule)
 	r.GET("/:id", auth.RequirePermission("escalation", "read"), h.GetRule)
 	r.GET("", auth.RequirePermission("escalation", "read"), h.ListRules)
 	r.PUT("/:id", auth.RequirePermission("escalation", "write"), h.UpdateRule)
@@ -123,13 +123,13 @@ func (h *Handler) UpdateRule(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateRule")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-id := c.Param("id")
+	id := c.Param("id")
 	var req models.TriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-result, err := h.svc.UpdateRule(ctx, tenantID, id, req)
+	result, err := h.svc.UpdateRule(ctx, tenantID, id, req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return

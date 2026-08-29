@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -28,6 +29,8 @@ func GetUserID(c *gin.Context) string {
 
 // ListTickets GET /api/v1/tickets
 func (h *TicketHandler) ListTickets(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingListTickets")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var q models.ListQuery
@@ -36,7 +39,7 @@ func (h *TicketHandler) ListTickets(c *gin.Context) {
 		return
 	}
 
-	tickets, total, err := h.svc.List(c.Request.Context(), tenantID, q)
+	tickets, total, err := h.svc.List(ctx, tenantID, q)
 	if err != nil {
 		respondInternalError(c, "failed to list tickets")
 		return
@@ -47,10 +50,12 @@ func (h *TicketHandler) ListTickets(c *gin.Context) {
 
 // GetTicket GET /api/v1/tickets/:id
 func (h *TicketHandler) GetTicket(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingGetTicket")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	ticket, err := h.svc.GetByID(c.Request.Context(), id, tenantID)
+	ticket, err := h.svc.GetByID(ctx, id, tenantID)
 	if err != nil {
 		respondNotFound(c, "ticket not found")
 		return
@@ -61,6 +66,8 @@ func (h *TicketHandler) GetTicket(c *gin.Context) {
 
 // CreateTicket POST /api/v1/tickets
 func (h *TicketHandler) CreateTicket(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingCreateTicket")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	createdBy := GetUserID(c)
 
@@ -70,7 +77,7 @@ func (h *TicketHandler) CreateTicket(c *gin.Context) {
 		return
 	}
 
-	ticket, err := h.svc.Create(c.Request.Context(), tenantID, &req, createdBy)
+	ticket, err := h.svc.Create(ctx, tenantID, &req, createdBy)
 	if err != nil {
 		respondInternalError(c, "failed to create ticket")
 		return
@@ -81,10 +88,12 @@ func (h *TicketHandler) CreateTicket(c *gin.Context) {
 
 // UpdateTicket PUT /api/v1/tickets/:id
 func (h *TicketHandler) UpdateTicket(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingUpdateTicket")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	existing, err := h.svc.GetByID(c.Request.Context(), id, tenantID)
+	existing, err := h.svc.GetByID(ctx, id, tenantID)
 	if err != nil {
 		respondNotFound(c, "ticket not found")
 		return
@@ -115,7 +124,7 @@ func (h *TicketHandler) UpdateTicket(c *gin.Context) {
 		existing.AssignedTo = v
 	}
 
-	if err := h.svc.Update(c.Request.Context(), existing); err != nil {
+	if err := h.svc.Update(ctx, existing); err != nil {
 		respondInternalError(c, "failed to update ticket")
 		return
 	}
@@ -125,10 +134,12 @@ func (h *TicketHandler) UpdateTicket(c *gin.Context) {
 
 // DeleteTicket DELETE /api/v1/tickets/:id
 func (h *TicketHandler) DeleteTicket(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingDeleteTicket")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	if err := h.svc.Delete(c.Request.Context(), id, tenantID); err != nil {
+	if err := h.svc.Delete(ctx, id, tenantID); err != nil {
 		respondInternalError(c, "failed to delete ticket")
 		return
 	}
@@ -138,6 +149,8 @@ func (h *TicketHandler) DeleteTicket(c *gin.Context) {
 
 // AssignTicket POST /api/v1/tickets/:id/assign
 func (h *TicketHandler) AssignTicket(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingAssignTicket")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -147,7 +160,7 @@ func (h *TicketHandler) AssignTicket(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.Assign(c.Request.Context(), id, tenantID, req.AssigneeID); err != nil {
+	if err := h.svc.Assign(ctx, id, tenantID, req.AssigneeID); err != nil {
 		respondInternalError(c, "failed to assign ticket")
 		return
 	}
@@ -157,11 +170,13 @@ func (h *TicketHandler) AssignTicket(c *gin.Context) {
 
 // ResolveTicket POST /api/v1/tickets/:id/resolve
 func (h *TicketHandler) ResolveTicket(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingResolveTicket")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	performedBy := GetUserID(c)
 
-	if err := h.svc.Resolve(c.Request.Context(), id, tenantID, performedBy); err != nil {
+	if err := h.svc.Resolve(ctx, id, tenantID, performedBy); err != nil {
 		respondInternalError(c, "failed to resolve ticket")
 		return
 	}
@@ -171,10 +186,12 @@ func (h *TicketHandler) ResolveTicket(c *gin.Context) {
 
 // ListComments GET /api/v1/tickets/:id/comments
 func (h *TicketHandler) ListComments(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingListComments")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	comments, err := h.svc.ListComments(c.Request.Context(), id, tenantID)
+	comments, err := h.svc.ListComments(ctx, id, tenantID)
 	if err != nil {
 		respondNotFound(c, "ticket not found")
 		return
@@ -185,6 +202,8 @@ func (h *TicketHandler) ListComments(c *gin.Context) {
 
 // CreateComment POST /api/v1/tickets/:id/comments
 func (h *TicketHandler) CreateComment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingCreateComment")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -194,7 +213,7 @@ func (h *TicketHandler) CreateComment(c *gin.Context) {
 		return
 	}
 
-	comment, err := h.svc.AddComment(c.Request.Context(), id, tenantID, &req)
+	comment, err := h.svc.AddComment(ctx, id, tenantID, &req)
 	if err != nil {
 		respondNotFound(c, "ticket not found")
 		return
@@ -204,8 +223,10 @@ func (h *TicketHandler) CreateComment(c *gin.Context) {
 }
 
 func (h *TicketHandler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketingCount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return

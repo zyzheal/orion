@@ -2,22 +2,22 @@ package events
 
 import (
 	"encoding/json"
-    "fmt"
+	"fmt"
 
-    "orion/platform-svc-go/internal/sla-engine/models"
+	"orion/platform-svc-go/internal/sla-engine/models"
 )
 
 // ViolationAlert is the domain event published when an SLA violation is detected.
 type ViolationAlert struct {
-	Type        string            `json:"type"`
-	TenantID    string            `json:"tenant_id"`
-	TrackerID   string            `json:"tracker_id"`
-	TargetID    string            `json:"target_id"`
-	TargetType  string            `json:"target_type"`
-	Severity    models.SeverityLevel `json:"severity"`
-	ViolationType string          `json:"violation_type"`
-	Message     string            `json:"message"`
-	OverdueMs   int64             `json:"overdue_ms"`
+	Type          string               `json:"type"`
+	TenantID      string               `json:"tenant_id"`
+	TrackerID     string               `json:"tracker_id"`
+	TargetID      string               `json:"target_id"`
+	TargetType    string               `json:"target_type"`
+	Severity      models.SeverityLevel `json:"severity"`
+	ViolationType string               `json:"violation_type"`
+	Message       string               `json:"message"`
+	OverdueMs     int64                `json:"overdue_ms"`
 }
 
 // NewViolationAlert creates a new alert event for the given violation.

@@ -5,7 +5,6 @@ import (
 	"orion/platform-svc-go/internal/ai/degradation/models"
 )
 
-
 // RepositoryInterface defines the data access contract for the ai-degradation module.
 // DO NOT MODIFY: auto-generated from repository.go
 type RepositoryInterface interface {

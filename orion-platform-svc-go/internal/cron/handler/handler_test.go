@@ -66,7 +66,7 @@ func (f *fakeCronService) UpdatePartial(ctx context.Context, tenantID, id string
 	return &models.CronJob{Name: "sample"}, nil
 }
 func (f *fakeCronService) Start() {}
-func (f *fakeCronService) Stop() {}
+func (f *fakeCronService) Stop()  {}
 
 func newHandler() *Handler {
 	return NewHandler(&fakeCronService{})

@@ -8,8 +8,8 @@ import (
 	"orion/platform-svc-go/internal/api-governance/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -141,8 +141,8 @@ func (h *Handler) EvaluateContract(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, &service.EvaluatedContract{
-		ContractID:  id,
-		Compliance:  true,
+		ContractID: id,
+		Compliance: true,
 		Checks: []service.EvalCheck{
 			{Name: "schema_valid", Passed: true},
 			{Name: "version_format", Passed: true},

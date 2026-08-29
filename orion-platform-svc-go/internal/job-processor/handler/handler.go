@@ -1,19 +1,11 @@
-// Package handler provides HTTP handlers for job-processor,
-// delegating all business logic to the service layer.
-//
-// ARCHITECTURE (Clean Architecture):
-//   Handler (thin, gin) → Service → Processor + Repository
-//
-// The handler is responsible ONLY for: HTTP binding, response formatting,
-// error mapping, and routing. All orchestration lives in the service layer.
 package handler
 
 import (
 	stderrors "errors"
+	"go.opentelemetry.io/otel"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
-
 	"orion/platform-svc-go/internal/job-processor/models"
 	"orion/platform-svc-go/internal/job-processor/processor"
 	"orion/platform-svc-go/internal/job-processor/repository"
@@ -44,18 +36,16 @@ func (h *Handler) tenantID(c *gin.Context) string {
 	return c.GetString("tenant_id")
 }
 
-// ---------------------------------------------------------------------------
-// Process — create and execute a single operation
-// ---------------------------------------------------------------------------
-
 func (h *Handler) Process(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ProcessJobOperation")
+	defer span.End()
 	var req models.CreateOperationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
 	chainID := c.Query("chain_id")
-	op, err := h.svc.Process(c.Request.Context(), h.tenantID(c), &req, chainID)
+	op, err := h.svc.Process(ctx, h.tenantID(c), &req, chainID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -63,17 +53,15 @@ func (h *Handler) Process(c *gin.Context) {
 	respondCreated(c, op)
 }
 
-// ---------------------------------------------------------------------------
-// ProcessChain — create and execute a chain of operations
-// ---------------------------------------------------------------------------
-
 func (h *Handler) ProcessChain(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ProcessJobChain")
+	defer span.End()
 	var req models.CreateChainRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	chain, err := h.svc.ProcessChain(c.Request.Context(), h.tenantID(c), &req)
+	chain, err := h.svc.ProcessChain(ctx, h.tenantID(c), &req)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -81,12 +69,10 @@ func (h *Handler) ProcessChain(c *gin.Context) {
 	respondCreated(c, chain)
 }
 
-// ---------------------------------------------------------------------------
-// GetOperation
-// ---------------------------------------------------------------------------
-
 func (h *Handler) GetOperation(c *gin.Context) {
-	op, err := h.svc.GetOperation(c.Request.Context(), h.tenantID(c), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetJobOperation")
+	defer span.End()
+	op, err := h.svc.GetOperation(ctx, h.tenantID(c), c.Param("id"))
 	if err != nil {
 		if stderrors.Is(err, repository.ErrNotFound) {
 			respondNotFound(c, err.Error())
@@ -98,30 +84,26 @@ func (h *Handler) GetOperation(c *gin.Context) {
 	respondSuccess(c, op)
 }
 
-// ---------------------------------------------------------------------------
-// ListOperations
-// ---------------------------------------------------------------------------
-
 func (h *Handler) ListOperations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListJobOperations")
+	defer span.End()
 	chainID := c.Query("chain_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	resp, err := h.svc.ListOperations(c.Request.Context(), h.tenantID(c), chainID, limit, offset)
+	resp, err := h.svc.ListOperations(ctx, h.tenantID(c), chainID, limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
 	respondSuccess(c, resp)
 }
-
-// ---------------------------------------------------------------------------
-// ListChains
-// ---------------------------------------------------------------------------
 
 func (h *Handler) ListChains(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListJobChains")
+	defer span.End()
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	resp, err := h.svc.ListChains(c.Request.Context(), h.tenantID(c), limit, offset)
+	resp, err := h.svc.ListChains(ctx, h.tenantID(c), limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -129,12 +111,10 @@ func (h *Handler) ListChains(c *gin.Context) {
 	respondSuccess(c, resp)
 }
 
-// ---------------------------------------------------------------------------
-// CancelChain
-// ---------------------------------------------------------------------------
-
 func (h *Handler) CancelChain(c *gin.Context) {
-	chain, err := h.svc.CancelChain(c.Request.Context(), h.tenantID(c), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CancelJobChain")
+	defer span.End()
+	chain, err := h.svc.CancelChain(ctx, h.tenantID(c), c.Param("id"))
 	if err != nil {
 		respondError(c, err)
 		return
@@ -142,19 +122,12 @@ func (h *Handler) CancelChain(c *gin.Context) {
 	respondSuccess(c, chain)
 }
 
-// ---------------------------------------------------------------------------
-// response helpers
-// ---------------------------------------------------------------------------
-
 func respondError(c *gin.Context, err error) {
-	// Map known processor errors to appropriate HTTP statuses
-	if stderrors.Is(err, processor.ErrUnknownOperationType) ||
-		stderrors.Is(err, processor.ErrInvalidStatus) {
+	if stderrors.Is(err, processor.ErrUnknownOperationType) || stderrors.Is(err, processor.ErrInvalidStatus) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	if stderrors.Is(err, processor.ErrChainNotFound) ||
-		stderrors.Is(err, repository.ErrNotFound) {
+	if stderrors.Is(err, processor.ErrChainNotFound) || stderrors.Is(err, repository.ErrNotFound) {
 		respondNotFound(c, err.Error())
 		return
 	}

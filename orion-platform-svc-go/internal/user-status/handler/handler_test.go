@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/user-status/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/user-status/models"
 )
 
@@ -40,7 +40,6 @@ func (f *fakeUser_statusService) SetStatus(ctx context.Context, tenantID, userID
 }
 
 var _ service.ServiceInterface = (*fakeUser_statusService)(nil)
-
 
 func TestHandler_USER_STATUS_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

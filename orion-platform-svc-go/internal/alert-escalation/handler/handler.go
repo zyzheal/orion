@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/middleware"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 )
 
 type Handler struct {
@@ -59,7 +60,9 @@ func (h *Handler) getOperator(c *gin.Context) string {
 // --- Policy ---
 
 func (h *Handler) ListPolicies(c *gin.Context) {
-	policies, err := h.svc.ListPolicies(c.Request.Context(), h.getTenantID(c))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertEscListPolicies")
+	defer span.End()
+	policies, err := h.svc.ListPolicies(ctx, h.getTenantID(c))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -68,12 +71,14 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 }
 
 func (h *Handler) CreatePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertEscCreatePolicy")
+	defer span.End()
 	var req models.CreatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	p, err := h.svc.CreatePolicy(c.Request.Context(), &req, h.getTenantID(c), h.getOperator(c))
+	p, err := h.svc.CreatePolicy(ctx, &req, h.getTenantID(c), h.getOperator(c))
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -82,7 +87,9 @@ func (h *Handler) CreatePolicy(c *gin.Context) {
 }
 
 func (h *Handler) GetPolicy(c *gin.Context) {
-	p, err := h.svc.GetPolicy(c.Request.Context(), c.Param("id"), h.getTenantID(c))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertEscGetPolicy")
+	defer span.End()
+	p, err := h.svc.GetPolicy(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -91,12 +98,14 @@ func (h *Handler) GetPolicy(c *gin.Context) {
 }
 
 func (h *Handler) UpdatePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertEscUpdatePolicy")
+	defer span.End()
 	var req models.UpdatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	p, err := h.svc.UpdatePolicy(c.Request.Context(), c.Param("id"), h.getTenantID(c), &req)
+	p, err := h.svc.UpdatePolicy(ctx, c.Param("id"), h.getTenantID(c), &req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -105,7 +114,9 @@ func (h *Handler) UpdatePolicy(c *gin.Context) {
 }
 
 func (h *Handler) DeletePolicy(c *gin.Context) {
-	deleted, err := h.svc.DeletePolicy(c.Request.Context(), c.Param("id"), h.getTenantID(c))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertEscDeletePolicy")
+	defer span.End()
+	deleted, err := h.svc.DeletePolicy(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil || !deleted {
 		middleware.RespondNotFound(c, "policy not found")
 		return
@@ -116,6 +127,8 @@ func (h *Handler) DeletePolicy(c *gin.Context) {
 // --- Evaluate & Triggers ---
 
 func (h *Handler) EvaluatePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertEscEvaluatePolicy")
+	defer span.End()
 	var body struct {
 		AlertID  string `json:"alertId" binding:"required"`
 		Severity string `json:"severity" binding:"required"`
@@ -124,7 +137,7 @@ func (h *Handler) EvaluatePolicy(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	triggers, err := h.svc.EvaluatePolicy(c.Request.Context(), body.AlertID, body.Severity, h.getTenantID(c))
+	triggers, err := h.svc.EvaluatePolicy(ctx, body.AlertID, body.Severity, h.getTenantID(c))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -133,8 +146,10 @@ func (h *Handler) EvaluatePolicy(c *gin.Context) {
 }
 
 func (h *Handler) ListTriggers(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertEscListTriggers")
+	defer span.End()
 	policyID := c.Query("policyId")
-	triggers, err := h.svc.ListTriggers(c.Request.Context(), h.getTenantID(c), policyID)
+	triggers, err := h.svc.ListTriggers(ctx, h.getTenantID(c), policyID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -143,7 +158,9 @@ func (h *Handler) ListTriggers(c *gin.Context) {
 }
 
 func (h *Handler) ResolveTrigger(c *gin.Context) {
-	t, err := h.svc.ResolveTrigger(c.Request.Context(), c.Param("id"), h.getTenantID(c))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertEscResolveTrigger")
+	defer span.End()
+	t, err := h.svc.ResolveTrigger(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -154,8 +171,10 @@ func (h *Handler) ResolveTrigger(c *gin.Context) {
 // --- Closure ---
 
 func (h *Handler) ListClosures(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertEscListClosures")
+	defer span.End()
 	status := c.Query("status")
-	closures, err := h.svc.ListClosures(c.Request.Context(), h.getTenantID(c), status)
+	closures, err := h.svc.ListClosures(ctx, h.getTenantID(c), status)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -164,7 +183,9 @@ func (h *Handler) ListClosures(c *gin.Context) {
 }
 
 func (h *Handler) GetClosure(c *gin.Context) {
-	closure, err := h.svc.GetClosure(c.Request.Context(), c.Param("alertId"), h.getTenantID(c))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertEscGetClosure")
+	defer span.End()
+	closure, err := h.svc.GetClosure(ctx, c.Param("alertId"), h.getTenantID(c))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -173,12 +194,14 @@ func (h *Handler) GetClosure(c *gin.Context) {
 }
 
 func (h *Handler) AcknowledgeAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertEscAcknowledge")
+	defer span.End()
 	var req models.AcknowledgeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	closure, err := h.svc.AcknowledgeAlert(c.Request.Context(), req.AlertID, h.getTenantID(c), req.Operator)
+	closure, err := h.svc.AcknowledgeAlert(ctx, req.AlertID, h.getTenantID(c), req.Operator)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -187,12 +210,14 @@ func (h *Handler) AcknowledgeAlert(c *gin.Context) {
 }
 
 func (h *Handler) ResolveAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertEscResolveAlert")
+	defer span.End()
 	var req models.ResolveRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	closure, err := h.svc.ResolveAlert(c.Request.Context(), &req, h.getTenantID(c))
+	closure, err := h.svc.ResolveAlert(ctx, &req, h.getTenantID(c))
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -203,7 +228,9 @@ func (h *Handler) ResolveAlert(c *gin.Context) {
 // --- Metrics ---
 
 func (h *Handler) GetMetrics(c *gin.Context) {
-	closures, err := h.svc.ListClosures(c.Request.Context(), h.getTenantID(c), "")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertEscGetMetrics")
+	defer span.End()
+	closures, err := h.svc.ListClosures(ctx, h.getTenantID(c), "")
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -225,12 +252,12 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 		avgMTTR = totalMTTR / int64(resolvedCount)
 	}
 	middleware.RespondSuccess(c, gin.H{
-		"totalAlerts":        total,
-		"acknowledgedCount":  ackCount,
-		"resolvedCount":      resolvedCount,
-		"openCount":          total - ackCount - resolvedCount,
-		"avgMTTRSeconds":     avgMTTR,
-		"avgMTTRFormatted":   formatSeconds(avgMTTR),
+		"totalAlerts":       total,
+		"acknowledgedCount": ackCount,
+		"resolvedCount":     resolvedCount,
+		"openCount":         total - ackCount - resolvedCount,
+		"avgMTTRSeconds":    avgMTTR,
+		"avgMTTRFormatted":  formatSeconds(avgMTTR),
 	})
 }
 

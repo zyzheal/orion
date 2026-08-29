@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +26,8 @@ func (h *AutomationRuleHandler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *AutomationRuleHandler) CreateRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketCreateRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	createdBy := GetUserID(c)
 
@@ -33,7 +36,7 @@ func (h *AutomationRuleHandler) CreateRule(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	rule, err := h.svc.Create(c.Request.Context(), tenantID, createdBy, &req)
+	rule, err := h.svc.Create(ctx, tenantID, createdBy, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -42,6 +45,8 @@ func (h *AutomationRuleHandler) CreateRule(c *gin.Context) {
 }
 
 func (h *AutomationRuleHandler) ListRules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketListRules")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	enabled := c.Query("enabled")
 	var enabledFilter *bool
@@ -49,7 +54,7 @@ func (h *AutomationRuleHandler) ListRules(c *gin.Context) {
 		val := enabled == "true"
 		enabledFilter = &val
 	}
-	rules, err := h.svc.List(c.Request.Context(), tenantID, enabledFilter)
+	rules, err := h.svc.List(ctx, tenantID, enabledFilter)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -58,9 +63,11 @@ func (h *AutomationRuleHandler) ListRules(c *gin.Context) {
 }
 
 func (h *AutomationRuleHandler) GetRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ruleID := c.Param("ruleId")
-	rule, err := h.svc.Get(c.Request.Context(), tenantID, ruleID)
+	rule, err := h.svc.Get(ctx, tenantID, ruleID)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -69,6 +76,8 @@ func (h *AutomationRuleHandler) GetRule(c *gin.Context) {
 }
 
 func (h *AutomationRuleHandler) UpdateRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketUpdateRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ruleID := c.Param("ruleId")
 	var req models.UpdateAutomationRuleRequest
@@ -76,7 +85,7 @@ func (h *AutomationRuleHandler) UpdateRule(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	rule, err := h.svc.Update(c.Request.Context(), tenantID, ruleID, &req)
+	rule, err := h.svc.Update(ctx, tenantID, ruleID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -85,9 +94,11 @@ func (h *AutomationRuleHandler) UpdateRule(c *gin.Context) {
 }
 
 func (h *AutomationRuleHandler) DeleteRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketDeleteRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ruleID := c.Param("ruleId")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, ruleID); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, ruleID); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -95,6 +106,8 @@ func (h *AutomationRuleHandler) DeleteRule(c *gin.Context) {
 }
 
 func (h *AutomationRuleHandler) ExecuteRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketExecuteRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ruleID := c.Param("ruleId")
 	var req models.ExecuteRuleRequest
@@ -106,7 +119,7 @@ func (h *AutomationRuleHandler) ExecuteRule(c *gin.Context) {
 	if req.TriggeredBy != "" {
 		triggeredBy = req.TriggeredBy
 	}
-	execution, err := h.svc.Execute(c.Request.Context(), tenantID, ruleID, req.TicketID, triggeredBy, req.TicketData)
+	execution, err := h.svc.Execute(ctx, tenantID, ruleID, req.TicketID, triggeredBy, req.TicketData)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

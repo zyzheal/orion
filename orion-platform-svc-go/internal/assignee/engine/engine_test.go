@@ -129,10 +129,10 @@ func TestDispatchItemPriorityOrdering(t *testing.T) {
 	e := NewEngine()
 	e.SetRules([]*types.AssigneeRule{
 		{ID: 1, Name: "low", Strategy: "round_robin", Priority: 1, Enabled: true,
-			TargetIDs: []string{"a"},
+			TargetIDs:  []string{"a"},
 			Conditions: []types.Condition{{Field: types.ConditionFieldCategory, Operator: types.ConditionOperatorEq, Value: "ops"}}},
 		{ID: 2, Name: "high", Strategy: "round_robin", Priority: 100, Enabled: true,
-			TargetIDs: []string{"b"},
+			TargetIDs:  []string{"b"},
 			Conditions: []types.Condition{{Field: types.ConditionFieldCategory, Operator: types.ConditionOperatorEq, Value: "ops"}}},
 	})
 

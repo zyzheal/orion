@@ -16,34 +16,34 @@ type VPC struct {
 
 // Subnet represents a subnet within a VPC.
 type Subnet struct {
-	ID              string    `json:"id" db:"id"`
-	TenantID        string    `json:"tenant_id" db:"tenant_id"`
-	VPCID           string    `json:"vpc_id" db:"vpc_id"`
-	Name            string    `json:"name" db:"name"`
-	CIDR            string    `json:"cidr" db:"cidr"`
+	ID               string    `json:"id" db:"id"`
+	TenantID         string    `json:"tenant_id" db:"tenant_id"`
+	VPCID            string    `json:"vpc_id" db:"vpc_id"`
+	Name             string    `json:"name" db:"name"`
+	CIDR             string    `json:"cidr" db:"cidr"`
 	AvailabilityZone string    `json:"availability_zone" db:"availability_zone"`
-	Status          string    `json:"status" db:"status"`
-	CreatedAt       time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
+	Status           string    `json:"status" db:"status"`
+	CreatedAt        time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // FirewallRule represents an inbound/outbound firewall rule.
 type FirewallRule struct {
-	ID          string    `json:"id" db:"id"`
-	TenantID    string    `json:"tenant_id" db:"tenant_id"`
-	VPCID       string    `json:"vpc_id" db:"vpc_id"`
-	Name        string    `json:"name" db:"name"`
-	Protocol    string    `json:"protocol" db:"protocol"`
-	Direction   string    `json:"direction" db:"direction"`
-	SourceCIDR  string    `json:"source_cidr" db:"source_cidr"`
-	DestCIDR    string    `json:"dest_cidr" db:"dest_cidr"`
-	PortFrom    int       `json:"port_from" db:"port_from"`
-	PortTo      int       `json:"port_to" db:"port_to"`
-	Action      string    `json:"action" db:"action"`
-	Priority    int       `json:"priority" db:"priority"`
-	Enabled     bool      `json:"enabled" db:"enabled"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	ID         string    `json:"id" db:"id"`
+	TenantID   string    `json:"tenant_id" db:"tenant_id"`
+	VPCID      string    `json:"vpc_id" db:"vpc_id"`
+	Name       string    `json:"name" db:"name"`
+	Protocol   string    `json:"protocol" db:"protocol"`
+	Direction  string    `json:"direction" db:"direction"`
+	SourceCIDR string    `json:"source_cidr" db:"source_cidr"`
+	DestCIDR   string    `json:"dest_cidr" db:"dest_cidr"`
+	PortFrom   int       `json:"port_from" db:"port_from"`
+	PortTo     int       `json:"port_to" db:"port_to"`
+	Action     string    `json:"action" db:"action"`
+	Priority   int       `json:"priority" db:"priority"`
+	Enabled    bool      `json:"enabled" db:"enabled"`
+	CreatedAt  time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // LoadBalancer represents a cloud load balancer resource.
@@ -107,17 +107,17 @@ type UpdateSubnetRequest struct {
 
 // CreateFirewallRuleRequest is the request body for creating a firewall rule.
 type CreateFirewallRuleRequest struct {
-	VPCID       string `json:"vpc_id" binding:"required"`
-	Name        string `json:"name" binding:"required"`
-	Protocol    string `json:"protocol" binding:"required"`
-	Direction   string `json:"direction" binding:"required"`
-	SourceCIDR  string `json:"source_cidr"`
-	DestCIDR    string `json:"dest_cidr"`
-	PortFrom    int    `json:"port_from"`
-	PortTo      int    `json:"port_to"`
-	Action      string `json:"action" binding:"required"`
-	Priority    int    `json:"priority"`
-	Enabled     *bool  `json:"enabled"`
+	VPCID      string `json:"vpc_id" binding:"required"`
+	Name       string `json:"name" binding:"required"`
+	Protocol   string `json:"protocol" binding:"required"`
+	Direction  string `json:"direction" binding:"required"`
+	SourceCIDR string `json:"source_cidr"`
+	DestCIDR   string `json:"dest_cidr"`
+	PortFrom   int    `json:"port_from"`
+	PortTo     int    `json:"port_to"`
+	Action     string `json:"action" binding:"required"`
+	Priority   int    `json:"priority"`
+	Enabled    *bool  `json:"enabled"`
 }
 
 // UpdateFirewallRuleRequest contains optional fields for updating a firewall rule.
@@ -136,10 +136,10 @@ type UpdateFirewallRuleRequest struct {
 
 // CreateLoadBalancerRequest is the request body for creating a load balancer.
 type CreateLoadBalancerRequest struct {
-	Name   string `json:"name" binding:"required"`
-	VPCID  string `json:"vpc_id" binding:"required"`
-	Scheme string `json:"scheme"`
-	Type   string `json:"type"`
+	Name    string  `json:"name" binding:"required"`
+	VPCID   string  `json:"vpc_id" binding:"required"`
+	Scheme  string  `json:"scheme"`
+	Type    string  `json:"type"`
 	DNSName *string `json:"dns_name"`
 }
 

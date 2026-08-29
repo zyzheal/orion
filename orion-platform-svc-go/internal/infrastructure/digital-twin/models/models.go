@@ -96,12 +96,12 @@ type DigitalTwin struct {
 
 // CreateDigitalTwinRequest is the request body for creating a digital twin.
 type CreateDigitalTwinRequest struct {
-	Name        string   `json:"name" binding:"required"`
-	Description *string  `json:"description,omitempty"`
-	Environment string   `json:"environment"`
-	Services    []string `json:"services"`
-	SyncInterval int    `json:"sync_interval"`
-	EntityType  string   `json:"entity_type"`
+	Name         string   `json:"name" binding:"required"`
+	Description  *string  `json:"description,omitempty"`
+	Environment  string   `json:"environment"`
+	Services     []string `json:"services"`
+	SyncInterval int      `json:"sync_interval"`
+	EntityType   string   `json:"entity_type"`
 }
 
 // UpdateDigitalTwinRequest is the request body for updating a digital twin.
@@ -133,12 +133,12 @@ type SyncResult struct {
 
 // SnapshotComponent represents a single component in a snapshot.
 type SnapshotComponent struct {
-	Name         string            `json:"name"`
-	Type         string            `json:"type"`
-	Version      string            `json:"version"`
-	Replicas     int               `json:"replicas"`
-	EnvVars      map[string]string `json:"env_vars"`
-	ConfigMapRefs []string         `json:"config_map_refs"`
+	Name          string            `json:"name"`
+	Type          string            `json:"type"`
+	Version       string            `json:"version"`
+	Replicas      int               `json:"replicas"`
+	EnvVars       map[string]string `json:"env_vars"`
+	ConfigMapRefs []string          `json:"config_map_refs"`
 }
 
 // TwinSnapshot represents a point-in-time snapshot of a production environment.
@@ -204,11 +204,11 @@ type TwinSandbox struct {
 
 // CreateSandboxRequest is the request body for creating a sandbox.
 type CreateSandboxRequest struct {
-	Name        *string          `json:"name,omitempty"`
-	SnapshotID  *string          `json:"snapshot_id,omitempty"`
-	Resources   *SandboxResources `json:"resources,omitempty"`
-	EnvVars     map[string]string `json:"env_vars,omitempty"`
-	NetworkIsolation *bool       `json:"network_isolation,omitempty"`
+	Name             *string           `json:"name,omitempty"`
+	SnapshotID       *string           `json:"snapshot_id,omitempty"`
+	Resources        *SandboxResources `json:"resources,omitempty"`
+	EnvVars          map[string]string `json:"env_vars,omitempty"`
+	NetworkIsolation *bool             `json:"network_isolation,omitempty"`
 }
 
 // ==================== Recording Session ====================
@@ -265,8 +265,8 @@ type StartRecordingRequest struct {
 
 // RecordTrafficRequest is the request body for recording a traffic entry.
 type RecordTrafficRequest struct {
-	Request  RecordedRequest  `json:"request" binding:"required"`
-	Response RecordedResponse `json:"response" binding:"required"`
+	Request  RecordedRequest        `json:"request" binding:"required"`
+	Response RecordedResponse       `json:"response" binding:"required"`
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
@@ -274,47 +274,47 @@ type RecordTrafficRequest struct {
 
 // ReplayResult is the result of replaying a single request.
 type ReplayResult struct {
-	RequestIndex  int         `json:"request_index"`
-	RecordID      string      `json:"record_id"`
-	OriginalStatus int        `json:"original_status"`
-	ReplayStatus  int         `json:"replay_status,omitempty"`
-	OriginalBody  interface{} `json:"original_body"`
-	ReplayBody    interface{} `json:"replay_body,omitempty"`
-	LatencyDiff   int         `json:"latency_diff"`
-	Matched       bool        `json:"matched"`
-	Error         string      `json:"error,omitempty"`
+	RequestIndex   int         `json:"request_index"`
+	RecordID       string      `json:"record_id"`
+	OriginalStatus int         `json:"original_status"`
+	ReplayStatus   int         `json:"replay_status,omitempty"`
+	OriginalBody   interface{} `json:"original_body"`
+	ReplayBody     interface{} `json:"replay_body,omitempty"`
+	LatencyDiff    int         `json:"latency_diff"`
+	Matched        bool        `json:"matched"`
+	Error          string      `json:"error,omitempty"`
 }
 
 // ReplaySession represents a traffic replay session.
 type ReplaySession struct {
-	ID                  string     `db:"id" json:"id"`
-	TenantID            string     `db:"tenant_id" json:"tenant_id"`
-	TwinID              string     `db:"twin_id" json:"twin_id"`
-	RecordingSessionID  string     `db:"recording_session_id" json:"recording_session_id"`
-	SandboxEndpoint     string     `db:"sandbox_endpoint" json:"sandbox_endpoint"`
-	Status              string     `db:"status" json:"status"`
-	TotalRequests       int        `db:"total_requests" json:"total_requests"`
-	CompletedRequests   int        `db:"completed_requests" json:"completed_requests"`
-	MatchedRequests     int        `db:"matched_requests" json:"matched_requests"`
-	FailedRequests      int        `db:"failed_requests" json:"failed_requests"`
-	Results             JSONBRaw   `db:"results" json:"results"`
-	Config              JSONB      `db:"config" json:"config"`
-	Progress            int        `db:"progress" json:"progress"`
-	StartedAt           *time.Time `db:"started_at" json:"started_at,omitempty"`
-	CompletedAt         *time.Time `db:"completed_at" json:"completed_at,omitempty"`
+	ID                 string     `db:"id" json:"id"`
+	TenantID           string     `db:"tenant_id" json:"tenant_id"`
+	TwinID             string     `db:"twin_id" json:"twin_id"`
+	RecordingSessionID string     `db:"recording_session_id" json:"recording_session_id"`
+	SandboxEndpoint    string     `db:"sandbox_endpoint" json:"sandbox_endpoint"`
+	Status             string     `db:"status" json:"status"`
+	TotalRequests      int        `db:"total_requests" json:"total_requests"`
+	CompletedRequests  int        `db:"completed_requests" json:"completed_requests"`
+	MatchedRequests    int        `db:"matched_requests" json:"matched_requests"`
+	FailedRequests     int        `db:"failed_requests" json:"failed_requests"`
+	Results            JSONBRaw   `db:"results" json:"results"`
+	Config             JSONB      `db:"config" json:"config"`
+	Progress           int        `db:"progress" json:"progress"`
+	StartedAt          *time.Time `db:"started_at" json:"started_at,omitempty"`
+	CompletedAt        *time.Time `db:"completed_at" json:"completed_at,omitempty"`
 }
 
 // StartReplayRequest is the request body for starting a replay.
 type StartReplayRequest struct {
-	TwinID             string `json:"twin_id" binding:"required"`
-	RecordingSessionID string `json:"recording_session_id" binding:"required"`
-	SandboxEndpoint    string `json:"sandbox_endpoint" binding:"required"`
-	SpeedMultiplier    int    `json:"speed_multiplier,omitempty"`
-	MaxConcurrency     int    `json:"max_concurrency,omitempty"`
+	TwinID             string   `json:"twin_id" binding:"required"`
+	RecordingSessionID string   `json:"recording_session_id" binding:"required"`
+	SandboxEndpoint    string   `json:"sandbox_endpoint" binding:"required"`
+	SpeedMultiplier    int      `json:"speed_multiplier,omitempty"`
+	MaxConcurrency     int      `json:"max_concurrency,omitempty"`
 	FilterPaths        []string `json:"filter_paths,omitempty"`
-	TargetEndpoint     string `json:"target_endpoint,omitempty"`
-	CompareResponses   *bool  `json:"compare_responses,omitempty"`
-	StopOnFailure      *bool  `json:"stop_on_failure,omitempty"`
+	TargetEndpoint     string   `json:"target_endpoint,omitempty"`
+	CompareResponses   *bool    `json:"compare_responses,omitempty"`
+	StopOnFailure      *bool    `json:"stop_on_failure,omitempty"`
 }
 
 // UpdateProgressRequest is the request body for updating replay progress.

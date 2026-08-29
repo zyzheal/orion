@@ -59,17 +59,17 @@ func (j *JSONB) Scan(src interface{}) error {
 
 // CallRecord is the persistence representation of a CrossoverCall.
 type CallRecord struct {
-	ID             string    `db:"id"               json:"id"`
-	TenantID       string    `db:"tenant_id"        json:"tenant_id"`
-	SourceDomain   string    `db:"source_domain"    json:"source_domain"`
-	TargetDomain   string    `db:"target_domain"    json:"target_domain"`
-	Method         string    `db:"method"           json:"method"`
-	Payload        JSONB     `db:"payload"          json:"payload,omitempty"`
-	Response       JSONB     `db:"response"         json:"response,omitempty"`
-	Status         string    `db:"status"           json:"status"` // pending|succeeded|failed|timeout
-	Duration       int64     `db:"duration_ms"      json:"duration_ms"` // duration in milliseconds
-	CreatedAt      time.Time `db:"created_at"       json:"created_at"`
-	UpdatedAt      time.Time `db:"updated_at"       json:"updated_at"`
+	ID           string    `db:"id"               json:"id"`
+	TenantID     string    `db:"tenant_id"        json:"tenant_id"`
+	SourceDomain string    `db:"source_domain"    json:"source_domain"`
+	TargetDomain string    `db:"target_domain"    json:"target_domain"`
+	Method       string    `db:"method"           json:"method"`
+	Payload      JSONB     `db:"payload"          json:"payload,omitempty"`
+	Response     JSONB     `db:"response"         json:"response,omitempty"`
+	Status       string    `db:"status"           json:"status"`      // pending|succeeded|failed|timeout
+	Duration     int64     `db:"duration_ms"      json:"duration_ms"` // duration in milliseconds
+	CreatedAt    time.Time `db:"created_at"       json:"created_at"`
+	UpdatedAt    time.Time `db:"updated_at"       json:"updated_at"`
 }
 
 // ---------------------------------------------------------------------------
@@ -106,11 +106,11 @@ func (f CallFilter) DefaultLimit() int {
 
 // CallStats holds aggregated crossover call statistics.
 type CallStats struct {
-	TotalCalls    int64   `db:"total_calls"    json:"total_calls"`
-	SuccessCalls  int64   `db:"success_calls"  json:"success_calls"`
-	FailedCalls   int64   `db:"failed_calls"   json:"failed_calls"`
-	AvgDuration   float64 `db:"avg_duration_ms" json:"avg_duration_ms"` // average duration in milliseconds
-	P99Duration   float64 `db:"p99_duration_ms" json:"p99_duration_ms"` // 99th percentile duration in milliseconds
+	TotalCalls   int64   `db:"total_calls"    json:"total_calls"`
+	SuccessCalls int64   `db:"success_calls"  json:"success_calls"`
+	FailedCalls  int64   `db:"failed_calls"   json:"failed_calls"`
+	AvgDuration  float64 `db:"avg_duration_ms" json:"avg_duration_ms"` // average duration in milliseconds
+	P99Duration  float64 `db:"p99_duration_ms" json:"p99_duration_ms"` // 99th percentile duration in milliseconds
 }
 
 // ---------------------------------------------------------------------------

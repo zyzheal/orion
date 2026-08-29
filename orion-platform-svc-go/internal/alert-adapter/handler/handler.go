@@ -2,15 +2,16 @@
 // All endpoints are mounted under /api prefix via RegisterRoutes.
 //
 // API contract:
-//   POST   /api/alert-adapters              - Create a new adapter
-//   GET    /api/alert-adapters              - List adapters (paginated)
-//   GET    /api/alert-adapters/:id          - Get adapter
-//   PUT    /api/alert-adapters/:id          - Update adapter
-//   DELETE /api/alert-adapters/:id          - Delete adapter
-//   POST   /api/alert-adapters/:id/send     - Send an alert through the adapter
-//   POST   /api/alert-adapters/:id/receive  - Receive alerts from the adapter
-//   GET    /api/alert-adapters/:id/events   - List events for the adapter
-//   GET    /api/alert-adapters/health       - Health check (no auth)
+//
+//	POST   /api/alert-adapters              - Create a new adapter
+//	GET    /api/alert-adapters              - List adapters (paginated)
+//	GET    /api/alert-adapters/:id          - Get adapter
+//	PUT    /api/alert-adapters/:id          - Update adapter
+//	DELETE /api/alert-adapters/:id          - Delete adapter
+//	POST   /api/alert-adapters/:id/send     - Send an alert through the adapter
+//	POST   /api/alert-adapters/:id/receive  - Receive alerts from the adapter
+//	GET    /api/alert-adapters/:id/events   - List events for the adapter
+//	GET    /api/alert-adapters/health       - Health check (no auth)
 package handler
 
 import (
@@ -255,7 +256,7 @@ func (h *Handler) Receive(c *gin.Context) {
 	}
 
 	middleware.RespondSuccess(c, gin.H{
-		"count": len(events),
+		"count":  len(events),
 		"events": events,
 	})
 }

@@ -18,9 +18,9 @@ var (
 
 // CostService handles cost aggregation and querying by resource, time, and tenant.
 type CostService struct {
-	repo       *repository.CostRepository
-	optSvc     *OptimizationService
-	logger     *zap.Logger
+	repo   *repository.CostRepository
+	optSvc *OptimizationService
+	logger *zap.Logger
 }
 
 // NewCostService creates a new cost service instance.
@@ -116,11 +116,11 @@ func (s *CostService) GetCostTrend(ctx context.Context, tenantID, startDate, end
 
 	if len(points) == 0 {
 		return &models.CostTrendResult{
-			Points: points,
-			TotalCost: 0,
+			Points:      points,
+			TotalCost:   0,
 			AverageCost: 0,
-			Trend: "stable",
-			ChangeRate: 0,
+			Trend:       "stable",
+			ChangeRate:  0,
 		}, nil
 	}
 
@@ -211,7 +211,7 @@ func (s *CostService) EvaluateCost(ctx context.Context, tenantID string, req *mo
 
 	if budgetCents == 0 {
 		return &models.EvaluateCostResult{
-			IsWithinBudget:  true,
+			IsWithinBudget:   true,
 			ThresholdPercent: 100.0,
 		}, nil
 	}

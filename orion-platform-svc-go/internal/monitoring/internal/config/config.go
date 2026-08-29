@@ -7,21 +7,21 @@ import (
 )
 
 type Config struct {
-	ServerPort     int
-	DBHost         string
-	DBPort         int
-	DBName         string
-	DBUser         string
-	DBPassword     string
-	DBSSLMode      string
-	RedisAddr      string
-	RedisDB        int
-	OTLPEndpoint   string
-	Environment    string
-	JWTSecret      string
-	NATSAddr       string
-	NATSStream     string
-	PrometheusURL  string
+	ServerPort    int
+	DBHost        string
+	DBPort        int
+	DBName        string
+	DBUser        string
+	DBPassword    string
+	DBSSLMode     string
+	RedisAddr     string
+	RedisDB       int
+	OTLPEndpoint  string
+	Environment   string
+	JWTSecret     string
+	NATSAddr      string
+	NATSStream    string
+	PrometheusURL string
 }
 
 func Load() (*Config, error) {
@@ -40,25 +40,25 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("invalid REDIS_DB: %w", err)
 	}
 
-		jwtSecret := getEnv("JWT_SECRET", "change-me-in-production")
+	jwtSecret := getEnv("JWT_SECRET", "change-me-in-production")
 	redisAddr := getEnv("REDIS_ADDR", "localhost:6379")
 
-return &Config{
-		ServerPort:   port,
-		DBHost:       getEnv("DB_HOST", "localhost"),
-		DBPort:       dbPort,
-		DBName:       getEnv("DB_NAME", "orion_monitor"),
-		DBUser:       getEnv("DB_USER", "postgres"),
-		DBPassword:   getEnv("DB_PASSWORD", "postgres"),
-		DBSSLMode:    getEnv("DB_SSL_MODE", "disable"),
-		RedisAddr:    redisAddr,
-		RedisDB:      redisDB,
-		OTLPEndpoint: getEnv("OTLP_ENDPOINT", "localhost:4317"),
-		Environment:  getEnv("ENVIRONMENT", "development"),
-		JWTSecret:    jwtSecret,
-		NATSAddr:       getEnv("NATS_ADDR", "nats://localhost:4222"),
-		NATSStream:     getEnv("NATS_STREAM", "EVENTS"),
-		PrometheusURL:  getEnv("PROMETHEUS_URL", "http://localhost:9090"),
+	return &Config{
+		ServerPort:    port,
+		DBHost:        getEnv("DB_HOST", "localhost"),
+		DBPort:        dbPort,
+		DBName:        getEnv("DB_NAME", "orion_monitor"),
+		DBUser:        getEnv("DB_USER", "postgres"),
+		DBPassword:    getEnv("DB_PASSWORD", "postgres"),
+		DBSSLMode:     getEnv("DB_SSL_MODE", "disable"),
+		RedisAddr:     redisAddr,
+		RedisDB:       redisDB,
+		OTLPEndpoint:  getEnv("OTLP_ENDPOINT", "localhost:4317"),
+		Environment:   getEnv("ENVIRONMENT", "development"),
+		JWTSecret:     jwtSecret,
+		NATSAddr:      getEnv("NATS_ADDR", "nats://localhost:4222"),
+		NATSStream:    getEnv("NATS_STREAM", "EVENTS"),
+		PrometheusURL: getEnv("PROMETHEUS_URL", "http://localhost:9090"),
 	}, nil
 }
 

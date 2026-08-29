@@ -12,13 +12,13 @@ import (
 // groups by ScenarioID — which records the originating module (assistant /
 // pipeline / chatops / lowcode etc).
 type ModuleCostSummary struct {
-	Scenario  string            `json:"scenario"`
-	Requests  int               `json:"requests"`
-	Tokens    int64             `json:"tokens"`
-	Cost      float64           `json:"cost"`
-	Currency  string            `json:"currency"`
-	SuccessRate float64         `json:"successRate"`
-	ByDay     []ModuleDayUsage  `json:"byDay,omitempty"`
+	Scenario    string           `json:"scenario"`
+	Requests    int              `json:"requests"`
+	Tokens      int64            `json:"tokens"`
+	Cost        float64          `json:"cost"`
+	Currency    string           `json:"currency"`
+	SuccessRate float64          `json:"successRate"`
+	ByDay       []ModuleDayUsage `json:"byDay,omitempty"`
 }
 
 type ModuleDayUsage struct {
@@ -78,11 +78,11 @@ func (s *Service) GetModuleCostDashboard(ctx context.Context, tenantID string, s
 	result := make([]ModuleCostSummary, 0, len(groups))
 	for _, g := range groups {
 		sum := ModuleCostSummary{
-			Scenario:  g.Scenario,
-			Requests:  g.Requests,
-			Tokens:    g.Tokens,
-			Cost:      g.Cost,
-			Currency:  g.Currency,
+			Scenario:    g.Scenario,
+			Requests:    g.Requests,
+			Tokens:      g.Tokens,
+			Cost:        g.Cost,
+			Currency:    g.Currency,
 			SuccessRate: float64(g.Success) / float64(maxInt(g.Requests, 1)),
 		}
 		for _, d := range g.ByDay {
@@ -94,28 +94,28 @@ func (s *Service) GetModuleCostDashboard(ctx context.Context, tenantID string, s
 }
 
 type moduleCostAccum struct {
-	Scenario   string
-	Currency   string
-	Requests   int
-	Success    int
-	Tokens     int64
-	Cost       float64
-	ByDay      map[string]ModuleDayUsage
+	Scenario string
+	Currency string
+	Requests int
+	Success  int
+	Tokens   int64
+	Cost     float64
+	ByDay    map[string]ModuleDayUsage
 }
 
 // Register default module name tags for the cost dashboard scenario labels.
 // These map the internal ScenarioID values to human-readable names.
 var ModuleNameMap = map[string]string{
-	"assistant":     "AI 助手",
-	"dev-agent":     "研发流程 Agent (TR-09)",
-	"pipeline":      "AI 流水线 (TR-09)",
-	"ai-generate":   "LowCode AI 生成 (TR-10)",
-	"lowcode":       "LowCode (TR-10)",
-	"ops":           "Ops 问答助手 (TR-11)",
-	"chatops":       "ChatOps",
-	"runbook":       "Runbook (TR-11)",
-	"eval":          "评测集 (TR-05)",
-	"unknown":       "未分类",
+	"assistant":   "AI 助手",
+	"dev-agent":   "研发流程 Agent (TR-09)",
+	"pipeline":    "AI 流水线 (TR-09)",
+	"ai-generate": "LowCode AI 生成 (TR-10)",
+	"lowcode":     "LowCode (TR-10)",
+	"ops":         "Ops 问答助手 (TR-11)",
+	"chatops":     "ChatOps",
+	"runbook":     "Runbook (TR-11)",
+	"eval":        "评测集 (TR-05)",
+	"unknown":     "未分类",
 }
 
 func maxInt(a, b int) int {

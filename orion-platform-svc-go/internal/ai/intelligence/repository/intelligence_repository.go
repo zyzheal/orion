@@ -2,11 +2,12 @@ package repository
 
 import (
 	"context"
-	"orion/platform-svc-go/internal/ai/intelligence/models"
 	"github.com/jmoiron/sqlx"
+	"orion/platform-svc-go/internal/ai/intelligence/models"
 )
 
-type Repository struct { db *sqlx.DB }
+type Repository struct{ db *sqlx.DB }
+
 func NewRepository(db *sqlx.DB) *Repository { return &Repository{db: db} }
 
 func (r *Repository) Create(ctx context.Context, d *models.IntelligenceTask) error {
@@ -24,7 +25,9 @@ func (r *Repository) List(ctx context.Context, tenantID string, offset, limit in
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.IntelligenceTask, error) {
 	var d models.IntelligenceTask
 	err := r.db.GetContext(ctx, &d, `SELECT * FROM intelligence_tasks WHERE id=$1 AND tenant_id=$2`, id, tenantID)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	return &d, nil
 }
 

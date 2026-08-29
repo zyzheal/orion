@@ -13,10 +13,10 @@ import (
 type Mode string
 
 const (
-	ModeImmediate  Mode = "immediate"     // execute synchronously, blocking the caller
-	ModeQueued     Mode = "queued"        // enqueue for async processing by a worker
-	ModeScheduled  Mode = "scheduled"     // schedule for a future time
-	ModeManual     Mode = "manual"        // require explicit user confirmation before running
+	ModeImmediate    Mode = "immediate"     // execute synchronously, blocking the caller
+	ModeQueued       Mode = "queued"        // enqueue for async processing by a worker
+	ModeScheduled    Mode = "scheduled"     // schedule for a future time
+	ModeManual       Mode = "manual"        // require explicit user confirmation before running
 	ModeAPITriggered Mode = "api-triggered" // triggered by an external API call / webhook
 )
 
@@ -47,25 +47,25 @@ var (
 
 // ExecutionRequest describes a single unit of work to be executed.
 type ExecutionRequest struct {
-	ID         string
-	Name       string
-	TenantID   string
-	Mode       Mode
-	Payload    map[string]interface{}
+	ID          string
+	Name        string
+	TenantID    string
+	Mode        Mode
+	Payload     map[string]interface{}
 	ScheduledAt time.Time
-	Timeout    time.Duration
-	RetryMax   int
+	Timeout     time.Duration
+	RetryMax    int
 	TriggeredBy string // user, cron, webhook, etc.
 }
 
 // ExecutionResult describes the outcome of an execution.
 type ExecutionResult struct {
-	RequestID string
-	Mode      Mode
-	Status    ExecutionStatus
-	Output    map[string]interface{}
-	Error     string
-	Duration  time.Duration
+	RequestID  string
+	Mode       Mode
+	Status     ExecutionStatus
+	Output     map[string]interface{}
+	Error      string
+	Duration   time.Duration
 	ExecutedAt time.Time
 }
 
@@ -73,13 +73,13 @@ type ExecutionResult struct {
 type ExecutionStatus string
 
 const (
-	StatusSuccess    ExecutionStatus = "success"
-	StatusFailed     ExecutionStatus = "failed"
-	StatusRejected   ExecutionStatus = "rejected"
-	StatusQueued     ExecutionStatus = "queued"
-	StatusScheduled  ExecutionStatus = "scheduled"
-	StatusCancelled  ExecutionStatus = "cancelled"
-	StatusTimeout    ExecutionStatus = "timeout"
+	StatusSuccess   ExecutionStatus = "success"
+	StatusFailed    ExecutionStatus = "failed"
+	StatusRejected  ExecutionStatus = "rejected"
+	StatusQueued    ExecutionStatus = "queued"
+	StatusScheduled ExecutionStatus = "scheduled"
+	StatusCancelled ExecutionStatus = "cancelled"
+	StatusTimeout   ExecutionStatus = "timeout"
 )
 
 // ModeHandler is the interface that every mode-specific handler must implement.
@@ -183,12 +183,12 @@ func (e *Engine) RegisterHandler(h ModeHandler) {
 // Execute dispatches the request through the appropriate mode handler.
 //
 // Execution flow:
-//   1. Resolve tenant from context (falls back to "system").
-//   2. Apply timeout if not set.
-//   3. Route to the primary handler.
-//   4. Execute with configured retries.
-//   5. On failure, optionally try fallback modes.
-//   6. Return the final ExecutionResult.
+//  1. Resolve tenant from context (falls back to "system").
+//  2. Apply timeout if not set.
+//  3. Route to the primary handler.
+//  4. Execute with configured retries.
+//  5. On failure, optionally try fallback modes.
+//  6. Return the final ExecutionResult.
 func (e *Engine) Execute(ctx context.Context, req *ExecutionRequest) (*ExecutionResult, error) {
 	if req == nil {
 		return nil, fmt.Errorf("execution-mode-engine: request is nil")

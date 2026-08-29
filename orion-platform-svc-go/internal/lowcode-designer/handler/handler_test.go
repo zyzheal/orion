@@ -383,11 +383,11 @@ func TestDesigner_CreateComponent(t *testing.T) {
 	h := NewHandler(svc)
 
 	body := map[string]interface{}{
-		"name":         "btn",
-		"displayName":  "Button",
-		"propsSchema":  map[string]interface{}{"label": "string"},
+		"name":          "btn",
+		"displayName":   "Button",
+		"propsSchema":   map[string]interface{}{"label": "string"},
 		"defaultConfig": map[string]interface{}{"label": "Click"},
-		"icon":         "button",
+		"icon":          "button",
 	}
 	c, w := makeCtx(http.MethodPost, "/components", body)
 	h.CreateComponent(c)

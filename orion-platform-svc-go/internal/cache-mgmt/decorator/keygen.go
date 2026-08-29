@@ -79,9 +79,9 @@ func JSONKeyGenerator() KeyGenerator {
 // MethodKeyGenerator prepends a method name prefix to the generated key.
 // Useful when sharing a single cache between multiple methods.
 type MethodKeyGenerator struct {
-	prefix     string
-	generator  KeyGenerator
-	separator  string
+	prefix    string
+	generator KeyGenerator
+	separator string
 }
 
 // NewMethodKeyGenerator returns a KeyGenerator that prefixes keys with the

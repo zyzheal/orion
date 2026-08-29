@@ -4,10 +4,9 @@ package repository
 
 import (
 	"context"
-	"time"
 	"orion/platform-svc-go/internal/service-health/models"
+	"time"
 )
-
 
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {

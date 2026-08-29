@@ -262,15 +262,15 @@ func (s *Service) GetTaskByID(ctx context.Context, tenantID, id string) (*models
 
 func (s *Service) CreateTask(ctx context.Context, req *models.CreateTaskRequest) (*models.WorkflowTask, error) {
 	t := &models.WorkflowTask{
-		ID:                  uuid.New().String(),
-		TenantID:            req.TenantID,
-		WorkflowID:          req.WorkflowID,
-		WorkflowInstanceID:  req.WorkflowInstanceID,
-		NodeID:              req.NodeID,
-		AssigneeID:          req.AssigneeID,
-		Status:              models.TaskPending,
-		Comment:             req.Comment,
-		FormData:            models.JSONB(req.FormData),
+		ID:                 uuid.New().String(),
+		TenantID:           req.TenantID,
+		WorkflowID:         req.WorkflowID,
+		WorkflowInstanceID: req.WorkflowInstanceID,
+		NodeID:             req.NodeID,
+		AssigneeID:         req.AssigneeID,
+		Status:             models.TaskPending,
+		Comment:            req.Comment,
+		FormData:           models.JSONB(req.FormData),
 	}
 	return t, s.repo.CreateTask(ctx, t)
 }

@@ -17,11 +17,11 @@ import (
 )
 
 var (
-	ErrBuildNotFound     = errors.New("build not found")
-	ErrEnvNotFound       = errors.New("build environment not found")
-	ErrArtifactNotFound  = errors.New("artifact not found")
-	ErrInvalidStatus     = errors.New("invalid status transition")
-	ErrInvalidInput      = errors.New("invalid input")
+	ErrBuildNotFound    = errors.New("build not found")
+	ErrEnvNotFound      = errors.New("build environment not found")
+	ErrArtifactNotFound = errors.New("artifact not found")
+	ErrInvalidStatus    = errors.New("invalid status transition")
+	ErrInvalidInput     = errors.New("invalid input")
 )
 
 var tracer = otel.Tracer("orion-build-svc/service")
@@ -69,11 +69,11 @@ func (s *BuildService) CreateFromInput(ctx context.Context, input models.CreateB
 	}
 
 	b := &models.Build{
-		TenantID:      input.TenantID,
-		Branch:        input.Branch,
-		CommitSHA:     input.CommitSHA,
-		Status:        "pending",
-		BuildArgs:     buildArgs,
+		TenantID:  input.TenantID,
+		Branch:    input.Branch,
+		CommitSHA: input.CommitSHA,
+		Status:    "pending",
+		BuildArgs: buildArgs,
 	}
 	if input.ProjectID != "" {
 		b.ProjectID = &input.ProjectID
@@ -404,11 +404,11 @@ func (s *BuildService) CreateEnvironment(ctx context.Context, input models.Creat
 	}
 
 	env := &models.BuildEnvironment{
-		TenantID:    input.TenantID,
-		Name:        input.Name,
-		Type:        input.Type,
-		Image:       input.Image,
-		Status:      "active",
+		TenantID: input.TenantID,
+		Name:     input.Name,
+		Type:     input.Type,
+		Image:    input.Image,
+		Status:   "active",
 	}
 	if input.Description != "" {
 		env.Description = &input.Description
@@ -491,13 +491,13 @@ func (s *BuildService) CreateArtifact(ctx context.Context, input models.CreateAr
 	}
 
 	a := &models.Artifact{
-		TenantID:       input.TenantID,
-		Name:           input.Name,
-		Type:           input.Type,
-		StorageType:    input.StorageType,
-		StoragePath:    input.StoragePath,
-		SizeBytes:      input.SizeBytes,
-		RunID:          input.RunID,
+		TenantID:        input.TenantID,
+		Name:            input.Name,
+		Type:            input.Type,
+		StorageType:     input.StorageType,
+		StoragePath:     input.StoragePath,
+		SizeBytes:       input.SizeBytes,
+		RunID:           input.RunID,
 		DownloadedCount: 0,
 	}
 	if input.ChecksumSHA256 != "" {

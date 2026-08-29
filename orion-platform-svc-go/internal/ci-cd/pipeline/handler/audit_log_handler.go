@@ -1,11 +1,12 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strconv"
 
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ci-cd/pipeline/models"
 	"orion/platform-svc-go/internal/ci-cd/pipeline/service"
-	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,6 +33,8 @@ func (h *AuditLogHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // RecordAudit records a single audit log entry.
 func (h *AuditLogHandler) RecordAudit(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineRecordAudit")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req models.RecordAuditRequest
@@ -45,7 +48,7 @@ func (h *AuditLogHandler) RecordAudit(c *gin.Context) {
 		req.Actor = c.GetString("user_id")
 	}
 
-	log, err := h.svc.Record(c.Request.Context(), tenantID, req)
+	log, err := h.svc.Record(ctx, tenantID, req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -56,6 +59,8 @@ func (h *AuditLogHandler) RecordAudit(c *gin.Context) {
 
 // BatchRecordAudit records multiple audit log entries.
 func (h *AuditLogHandler) BatchRecordAudit(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineBatchRecordAudit")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var reqs []models.RecordAuditRequest
@@ -75,7 +80,7 @@ func (h *AuditLogHandler) BatchRecordAudit(c *gin.Context) {
 		}
 	}
 
-	count, err := h.svc.BatchRecord(c.Request.Context(), tenantID, reqs)
+	count, err := h.svc.BatchRecord(ctx, tenantID, reqs)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -86,6 +91,8 @@ func (h *AuditLogHandler) BatchRecordAudit(c *gin.Context) {
 
 // QueryAudit queries audit logs with optional filters.
 func (h *AuditLogHandler) QueryAudit(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineQueryAudit")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
@@ -109,7 +116,7 @@ func (h *AuditLogHandler) QueryAudit(c *gin.Context) {
 		Offset:     offset,
 	}
 
-	logs, total, err := h.svc.List(c.Request.Context(), tenantID, filter)
+	logs, total, err := h.svc.List(ctx, tenantID, filter)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -120,6 +127,8 @@ func (h *AuditLogHandler) QueryAudit(c *gin.Context) {
 
 // AuditTrail returns audit trail with enriched context.
 func (h *AuditLogHandler) AuditTrail(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineAuditTrail")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
@@ -135,7 +144,7 @@ func (h *AuditLogHandler) AuditTrail(c *gin.Context) {
 	pipelineID := c.Query("pipeline_id")
 	runID := c.Query("run_id")
 
-	entries, total, err := h.svc.GetTrail(c.Request.Context(), tenantID, pipelineID, runID, limit, offset)
+	entries, total, err := h.svc.GetTrail(ctx, tenantID, pipelineID, runID, limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -146,6 +155,8 @@ func (h *AuditLogHandler) AuditTrail(c *gin.Context) {
 
 // CleanupAudit deletes audit logs older than the specified timestamp.
 func (h *AuditLogHandler) CleanupAudit(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineCleanupAudit")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	before := c.Query("before")
 	if before == "" {
@@ -153,12 +164,12 @@ func (h *AuditLogHandler) CleanupAudit(c *gin.Context) {
 		return
 	}
 
-	count, err := h.svc.Cleanup(c.Request.Context(), tenantID, before)
+	count, err := h.svc.Cleanup(ctx, tenantID, before)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
 
 	respondSuccess(c, gin.H{"message": "audit logs cleaned up",
-		"deleted": count,})
+		"deleted": count})
 }

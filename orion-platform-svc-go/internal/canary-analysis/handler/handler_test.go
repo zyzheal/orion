@@ -1,12 +1,12 @@
 package handler
 
 import (
-	"orion/platform-svc-go/internal/canary-analysis/models"
-	"context"
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"orion/platform-svc-go/internal/canary-analysis/models"
 	"testing"
 
 	"orion/platform-svc-go/internal/canary-analysis/service"
@@ -35,6 +35,7 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 	}
 	return c, w
 }
+
 type fakeCanaryAnalysisService struct{}
 
 func (f *fakeCanaryAnalysisService) ForcePromote(ctx context.Context, tenantID string, req *models.ForcePromoteRequest) (*models.Analysis, error) {
@@ -82,7 +83,6 @@ func (f *fakeCanaryAnalysisService) Delete(ctx context.Context, id, tenantID str
 }
 
 var _ service.ServiceInterface = (*fakeCanaryAnalysisService)(nil)
-
 
 func TestCANARY_ANALYSIS_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

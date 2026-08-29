@@ -1,31 +1,31 @@
 package aggregates
 
 import (
-	"time"
 	"orion/platform-svc-go/internal/domain/events"
+	"time"
 )
 
 // ApprovalAggregate represents the Approval aggregate root.
 type ApprovalAggregate struct {
 	BaseAggregate
-	ApprovalType string            `json:"approvalType"`
-	Status       string            `json:"status"` // PENDING/APPROVED/REJECTED/CANCELLED
-	TotalLevels  int               `json:"totalLevels"`
-	CurrentLevel int               `json:"currentLevel"`
-	Approvals    []ApprovalLevel  `json:"approvals"`
-	CreatedAt    time.Time         `json:"createdAt"`
-	UpdatedAt    time.Time         `json:"updatedAt"`
+	ApprovalType string          `json:"approvalType"`
+	Status       string          `json:"status"` // PENDING/APPROVED/REJECTED/CANCELLED
+	TotalLevels  int             `json:"totalLevels"`
+	CurrentLevel int             `json:"currentLevel"`
+	Approvals    []ApprovalLevel `json:"approvals"`
+	CreatedAt    time.Time       `json:"createdAt"`
+	UpdatedAt    time.Time       `json:"updatedAt"`
 }
 
 // ApprovalLevel represents a single approval level in the chain.
 type ApprovalLevel struct {
-	LevelID      string     `json:"levelId"`
-	Order        int        `json:"order"`
-	Status       string     `json:"status"` // PENDING/APPROVED/REJECTED
-	ApproverID   string     `json:"approverId"`
-	ApprovedAt   *time.Time `json:"approvedAt"`
-	RejectedAt   *time.Time `json:"rejectedAt"`
-	Comment      string     `json:"comment"`
+	LevelID    string     `json:"levelId"`
+	Order      int        `json:"order"`
+	Status     string     `json:"status"` // PENDING/APPROVED/REJECTED
+	ApproverID string     `json:"approverId"`
+	ApprovedAt *time.Time `json:"approvedAt"`
+	RejectedAt *time.Time `json:"rejectedAt"`
+	Comment    string     `json:"comment"`
 }
 
 // CreateApproval creates a ApprovalCreatedEvent.
@@ -68,9 +68,9 @@ func (a *ApprovalAggregate) ApproveLevel(levelID, approverID, comment string) ev
 		}
 	}
 	return &events.ApprovalLevelApprovedEvent{
-		LevelID:   levelID,
+		LevelID:    levelID,
 		ApproverID: approverID,
-		Level:     level.Order,
+		Level:      level.Order,
 	}
 }
 

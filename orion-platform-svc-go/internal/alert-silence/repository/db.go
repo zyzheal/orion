@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 
-	"go.uber.org/zap"
 	"github.com/jmoiron/sqlx"
+	"go.uber.org/zap"
 )
 
 // DB wraps *sqlx.DB for the alert-silence repository.

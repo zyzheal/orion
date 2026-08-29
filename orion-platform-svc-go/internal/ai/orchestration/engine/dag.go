@@ -20,13 +20,13 @@ type Condition func(ctx ExecutionContext) bool
 type AgentType string
 
 const (
-	AgentTypeLLMChat    AgentType = "LLM_CHAT"
-	AgentTypeToolCall   AgentType = "TOOL_CALL"
+	AgentTypeLLMChat     AgentType = "LLM_CHAT"
+	AgentTypeToolCall    AgentType = "TOOL_CALL"
 	AgentTypeHumanReview AgentType = "HUMAN_REVIEW"
-	AgentTypeParallel   AgentType = "PARALLEL"
-	AgentTypeSequential AgentType = "SEQUENTIAL"
-	AgentTypeSupervisor AgentType = "SUPERVISOR"
-	AgentTypeCritic     AgentType = "CRITIC"
+	AgentTypeParallel    AgentType = "PARALLEL"
+	AgentTypeSequential  AgentType = "SEQUENTIAL"
+	AgentTypeSupervisor  AgentType = "SUPERVISOR"
+	AgentTypeCritic      AgentType = "CRITIC"
 )
 
 // Validate returns an error if the agent type is not recognized.
@@ -55,16 +55,16 @@ type DAG struct {
 
 // AgentNode is a single unit of work in the orchestration DAG.
 type AgentNode struct {
-	ID          string                `json:"id"`
-	Name        string                `json:"name"`
-	Type        AgentType             `json:"type"`
-	Prompt      string                `json:"prompt"`
-	Model       string                `json:"model"`               // optional; empty = registry default
-	Temperature float64               `json:"temperature"`         // optional; 0.0 = provider default
-	MaxTokens   int                   `json:"maxTokens"`
-	Inputs      map[string]interface{} `json:"inputs"`             // static input bindings
-	Outputs     []string              `json:"outputs"`             // output keys that this node publishes
-	Tools       []ToolDef             `json:"tools"`
+	ID          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	Type        AgentType              `json:"type"`
+	Prompt      string                 `json:"prompt"`
+	Model       string                 `json:"model"`       // optional; empty = registry default
+	Temperature float64                `json:"temperature"` // optional; 0.0 = provider default
+	MaxTokens   int                    `json:"maxTokens"`
+	Inputs      map[string]interface{} `json:"inputs"`  // static input bindings
+	Outputs     []string               `json:"outputs"` // output keys that this node publishes
+	Tools       []ToolDef              `json:"tools"`
 	// Grouping nodes (PARALLEL/SEQUENTIAL) list their child node IDs.
 	Children []string `json:"children"`
 	// CRITIC: criteria for evaluation (comma-separated string or JSON array).
@@ -96,14 +96,14 @@ type DAGEdge struct {
 
 // OrchestrationDAG is the compiled DAG that the Orchestrator consumes.
 type OrchestrationDAG struct {
-	ID          string              `json:"id"`
-	Name        string              `json:"name"`
-	Description string              `json:"description"`
-	DAG         DAG                 `json:"dag"`
-	Model       string              `json:"model"`           // default model for all LLM nodes
-	Temperature float64             `json:"temperature"`     // default temperature
-	MaxSteps    int                 `json:"maxSteps"`        // maximum number of node executions
-	TimeoutSec  int                 `json:"timeoutSec"`      // overall timeout
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
+	DAG         DAG     `json:"dag"`
+	Model       string  `json:"model"`       // default model for all LLM nodes
+	Temperature float64 `json:"temperature"` // default temperature
+	MaxSteps    int     `json:"maxSteps"`    // maximum number of node executions
+	TimeoutSec  int     `json:"timeoutSec"`  // overall timeout
 }
 
 // nodeMap returns a lookup map for the nodes.
@@ -266,13 +266,13 @@ func (ctx *ExecutionContext) GetString(key string) string {
 
 // NodeResult holds the output of executing a single AgentNode.
 type NodeResult struct {
-	NodeID    string                 `json:"nodeId"`
-	NodeType  AgentType              `json:"nodeType"`
-	Output    string                 `json:"output"`          // LLM response content
-	Structured map[string]interface{} `json:"structured"`     // parsed structured output
-	ToolsUsed []ToolCall             `json:"toolsUsed"`      // tools invoked during this node
-	Error     string                 `json:"error,omitempty"`
-	Success   bool                   `json:"success"`
+	NodeID     string                 `json:"nodeId"`
+	NodeType   AgentType              `json:"nodeType"`
+	Output     string                 `json:"output"`     // LLM response content
+	Structured map[string]interface{} `json:"structured"` // parsed structured output
+	ToolsUsed  []ToolCall             `json:"toolsUsed"`  // tools invoked during this node
+	Error      string                 `json:"error,omitempty"`
+	Success    bool                   `json:"success"`
 	// For CRITIC nodes: the evaluation score (0-100).
 	CriticScore int `json:"criticScore,omitempty"`
 	// For CRITIC nodes: whether the output passed the threshold.
@@ -288,12 +288,12 @@ type ToolCall struct {
 
 // RunResult aggregates the outcome of a full orchestration run.
 type RunResult struct {
-	RunID        string           `json:"runId"`
-	OrchID       string           `json:"orchId"`
-	Status       string           `json:"status"` // "completed" | "failed" | "timeout" | "max_steps"
+	RunID        string                 `json:"runId"`
+	OrchID       string                 `json:"orchId"`
+	Status       string                 `json:"status"` // "completed" | "failed" | "timeout" | "max_steps"
 	NodeResults  map[string]*NodeResult `json:"nodeResults"`
-	ExecutionLog []string          `json:"executionLog"`
-	Error        string            `json:"error,omitempty"`
+	ExecutionLog []string               `json:"executionLog"`
+	Error        string                 `json:"error,omitempty"`
 }
 
 // MarshalValues serializes the execution context values to JSON bytes.

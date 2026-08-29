@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	ErrNotFound = sql.ErrNoRows
+	ErrNotFound  = sql.ErrNoRows
 	ErrDuplicate = errors.New("duplicate key")
 )
 

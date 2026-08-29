@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/ai/llm-provider"
 	"orion/platform-svc-go/internal/ai/orchestration/engine"
 	"orion/platform-svc-go/internal/ai/orchestration/models"
 	"orion/platform-svc-go/internal/ai/orchestration/repository"
-	"go.uber.org/zap"
 )
 
 // OrchestrationService orchestrates multi-agent DAG execution.
@@ -149,9 +149,9 @@ func (s *OrchestrationService) buildDAG(orch *models.Orchestration, opts models.
 	for i := range orch.Agents {
 		ac := &orch.Agents[i]
 		n := engine.AgentNode{
-			ID:     ac.ID,
-			Name:   ac.Name,
-			Type:   engine.AgentType(ac.Type),
+			ID:   ac.ID,
+			Name: ac.Name,
+			Type: engine.AgentType(ac.Type),
 			Inputs: map[string]interface{}{
 				"capabilities": ac.Capabilities,
 				"config":       ac.Config,
@@ -186,7 +186,7 @@ func (s *OrchestrationService) buildDAG(orch *models.Orchestration, opts models.
 			Nodes: agentNodes,
 			Edges: edges,
 		},
-		MaxSteps: maxSteps,
+		MaxSteps:   maxSteps,
 		TimeoutSec: opts.TimeoutSec,
 	}
 }

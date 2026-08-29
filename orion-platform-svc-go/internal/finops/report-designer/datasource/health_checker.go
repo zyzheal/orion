@@ -18,38 +18,38 @@ const DefaultRetryDelay = 500 * time.Millisecond
 
 // HealthStatus represents the health state of a data source.
 type HealthStatus struct {
-	Name      string    `json:"name"`
-	Healthy   bool      `json:"healthy"`
+	Name      string        `json:"name"`
+	Healthy   bool          `json:"healthy"`
 	Latency   time.Duration `json:"latency"`
-	Error     string    `json:"error,omitempty"`
-	CheckedAt time.Time `json:"checked_at"`
+	Error     string        `json:"error,omitempty"`
+	CheckedAt time.Time     `json:"checked_at"`
 }
 
 // HealthChecker monitors data source health with automatic retry logic.
 type HealthChecker struct {
-	mu          sync.RWMutex
-	manager     *Manager
-	factory     *DataSourceFactory
-	interval    time.Duration
-	retryCount  int
-	retryDelay  time.Duration
-	logger      Logger
-	stop        chan struct{}
-	running     bool
-	status      map[string]*HealthStatus
+	mu         sync.RWMutex
+	manager    *Manager
+	factory    *DataSourceFactory
+	interval   time.Duration
+	retryCount int
+	retryDelay time.Duration
+	logger     Logger
+	stop       chan struct{}
+	running    bool
+	status     map[string]*HealthStatus
 }
 
 // NewHealthChecker creates a new HealthChecker.
 func NewHealthChecker(manager *Manager, factory *DataSourceFactory, logger Logger) *HealthChecker {
 	return &HealthChecker{
-		manager:     manager,
-		factory:     factory,
-		interval:    DefaultHealthCheckInterval,
-		retryCount:  DefaultRetryAttempts,
-		retryDelay:  DefaultRetryDelay,
-		logger:      logger,
-		stop:        make(chan struct{}),
-		status:      make(map[string]*HealthStatus),
+		manager:    manager,
+		factory:    factory,
+		interval:   DefaultHealthCheckInterval,
+		retryCount: DefaultRetryAttempts,
+		retryDelay: DefaultRetryDelay,
+		logger:     logger,
+		stop:       make(chan struct{}),
+		status:     make(map[string]*HealthStatus),
 	}
 }
 

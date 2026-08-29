@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -9,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"orion/platform-svc-go/internal/security-compliance/models"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/security-compliance/models"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -476,7 +477,6 @@ func (s *Service) PerformGapAnalysis(ctx context.Context, tenantID string, req m
 // --- Errors ---
 
 var (
-
 	ErrPolicyNotExists = errors.New("policy does not exist")
 	ErrPlanNotExists   = errors.New("audit plan does not exist")
 )

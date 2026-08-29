@@ -43,11 +43,11 @@ type WebhookAdapter struct {
 	enabled     bool
 
 	// config — set during Start
-	url         string
-	method      string
-	headers     map[string]string
-	client      *http.Client
-	batchSize   int
+	url       string
+	method    string
+	headers   map[string]string
+	client    *http.Client
+	batchSize int
 }
 
 // NewWebhookAdapter creates a new Webhook adapter instance.

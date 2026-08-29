@@ -61,6 +61,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Health ====================
 
 func (h *Handler) Health(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Health")
+	defer span.End()
 	middleware.RespondSuccess(c, gin.H{
 		"status":  "ok",
 		"service": "orion-graph-svc",

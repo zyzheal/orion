@@ -769,7 +769,7 @@ func validateCycles(stages []rawStage, resp *models.ValidateResponse) {
 			color[st.Name] = white
 		}
 	}
-	
+
 	var dfs func(node string, path []string, depth int)
 	dfs = func(node string, path []string, depth int) {
 		if depth > maxDepth {
@@ -778,7 +778,7 @@ func validateCycles(stages []rawStage, resp *models.ValidateResponse) {
 		}
 		color[node] = gray
 		path = append(path, node)
-		
+
 		for _, neighbor := range adj[node] {
 			if _, ok := color[neighbor]; !ok {
 				continue
@@ -805,10 +805,10 @@ func validateCycles(stages []rawStage, resp *models.ValidateResponse) {
 				dfs(neighbor, path, depth+1)
 			}
 		}
-		
+
 		color[node] = black
 	}
-	
+
 	for _, st := range stages {
 		if st.Name != "" && color[st.Name] == white {
 			dfs(st.Name, []string{}, 0)

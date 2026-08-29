@@ -15,6 +15,7 @@ import (
 	"orion/platform-svc-go/internal/assignee/types"
 	"orion/platform-svc-go/internal/tenantutil"
 
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 )
 
@@ -60,7 +61,9 @@ func (h *Handler) Routes() []routeDef {
 // --- Handlers ---
 
 func (h *Handler) handleCreateRule(w http.ResponseWriter, r *http.Request) {
-	tenantID := tenantutil.FromContext(r.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(r.Context(), "AssigneeCreateRule")
+	defer span.End()
+	tenantID := tenantutil.FromContext(ctx)
 
 	var req CreateRuleRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -80,7 +83,7 @@ func (h *Handler) handleCreateRule(w http.ResponseWriter, r *http.Request) {
 		TargetIDs:   req.TargetIDs,
 	}
 
-	if err := h.svc.CreateRule(r.Context(), tenantID, rule); err != nil {
+	if err := h.svc.CreateRule(ctx, tenantID, rule); err != nil {
 		h.logger.Error("create rule failed",
 			zap.String("tenant_id", tenantID),
 			zap.String("name", req.Name),
@@ -93,7 +96,9 @@ func (h *Handler) handleCreateRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleListRules(w http.ResponseWriter, r *http.Request) {
-	tenantID := tenantutil.FromContext(r.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(r.Context(), "AssigneeListRules")
+	defer span.End()
+	tenantID := tenantutil.FromContext(ctx)
 
 	enabledStr := r.URL.Query().Get("enabled")
 	var enabled *bool
@@ -105,7 +110,7 @@ func (h *Handler) handleListRules(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 
-	rules, err := h.svc.ListRules(r.Context(), tenantID, enabled, limit, offset)
+	rules, err := h.svc.ListRules(ctx, tenantID, enabled, limit, offset)
 	if err != nil {
 		h.logger.Error("list rules failed",
 			zap.String("tenant_id", tenantID),
@@ -118,7 +123,9 @@ func (h *Handler) handleListRules(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetRule(w http.ResponseWriter, r *http.Request) {
-	tenantID := tenantutil.FromContext(r.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(r.Context(), "AssigneeGetRule")
+	defer span.End()
+	tenantID := tenantutil.FromContext(ctx)
 
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
@@ -126,7 +133,7 @@ func (h *Handler) handleGetRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rule, err := h.svc.GetRule(r.Context(), tenantID, id)
+	rule, err := h.svc.GetRule(ctx, tenantID, id)
 	if err != nil {
 		if types.IsNotFound(err) {
 			h.respondJSON(w, http.StatusNotFound, map[string]string{"error": "rule not found"})
@@ -144,7 +151,9 @@ func (h *Handler) handleGetRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleUpdateRule(w http.ResponseWriter, r *http.Request) {
-	tenantID := tenantutil.FromContext(r.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(r.Context(), "AssigneeUpdateRule")
+	defer span.End()
+	tenantID := tenantutil.FromContext(ctx)
 
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
@@ -178,7 +187,7 @@ func (h *Handler) handleUpdateRule(w http.ResponseWriter, r *http.Request) {
 		updates["cooldown_sec"] = *req.CooldownSec
 	}
 
-	if err := h.svc.UpdateRule(r.Context(), tenantID, id, updates); err != nil {
+	if err := h.svc.UpdateRule(ctx, tenantID, id, updates); err != nil {
 		h.logger.Error("update rule failed",
 			zap.String("tenant_id", tenantID),
 			zap.Int("id", id),
@@ -191,7 +200,9 @@ func (h *Handler) handleUpdateRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleDeleteRule(w http.ResponseWriter, r *http.Request) {
-	tenantID := tenantutil.FromContext(r.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(r.Context(), "AssigneeDeleteRule")
+	defer span.End()
+	tenantID := tenantutil.FromContext(ctx)
 
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
@@ -199,7 +210,7 @@ func (h *Handler) handleDeleteRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.svc.DeleteRule(r.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteRule(ctx, tenantID, id); err != nil {
 		h.logger.Error("delete rule failed",
 			zap.String("tenant_id", tenantID),
 			zap.Int("id", id),
@@ -212,7 +223,9 @@ func (h *Handler) handleDeleteRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleDispatch(w http.ResponseWriter, r *http.Request) {
-	tenantID := tenantutil.FromContext(r.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(r.Context(), "AssigneeDispatch")
+	defer span.End()
+	tenantID := tenantutil.FromContext(ctx)
 
 	var req DispatchRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -235,7 +248,7 @@ func (h *Handler) handleDispatch(w http.ResponseWriter, r *http.Request) {
 		PriorityWeight: req.PriorityWeight,
 	}
 
-	result, err := h.svc.Dispatch(r.Context(), item, req.Candidates)
+	result, err := h.svc.Dispatch(ctx, item, req.Candidates)
 	if err != nil {
 		if types.IsNotFound(err) {
 			h.respondJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
@@ -253,7 +266,9 @@ func (h *Handler) handleDispatch(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleCheckEscalation(w http.ResponseWriter, r *http.Request) {
-	tenantID := tenantutil.FromContext(r.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(r.Context(), "AssigneeCheckEscalation")
+	defer span.End()
+	tenantID := tenantutil.FromContext(ctx)
 
 	var req EscalationCheckRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -262,12 +277,12 @@ func (h *Handler) handleCheckEscalation(w http.ResponseWriter, r *http.Request) 
 	}
 
 	item := &types.WorkItem{
-		ID:       req.ItemID,
-		TenantID: tenantID,
+		ID:        req.ItemID,
+		TenantID:  tenantID,
 		CreatedAt: req.CreatedAt,
 	}
 
-	esc := h.svc.CheckEscalation(r.Context(), item, req.CurrentLevel)
+	esc := h.svc.CheckEscalation(ctx, item, req.CurrentLevel)
 	if esc == nil {
 		h.respondJSON(w, http.StatusOK, map[string]string{"status": "no_escalation"})
 		return
@@ -277,11 +292,15 @@ func (h *Handler) handleCheckEscalation(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) handleCapabilities(w http.ResponseWriter, r *http.Request) {
+	_, span := otel.Tracer("orion-platform-svc").Start(r.Context(), "AssigneeCapabilities")
+	defer span.End()
 	caps := h.svc.Capabilities()
 	h.respondJSON(w, http.StatusOK, caps)
 }
 
 func (h *Handler) handleStrategies(w http.ResponseWriter, r *http.Request) {
+	_, span := otel.Tracer("orion-platform-svc").Start(r.Context(), "AssigneeStrategies")
+	defer span.End()
 	strategies := h.svc.GetAvailableStrategies()
 	h.respondJSON(w, http.StatusOK, strategies)
 }
@@ -311,26 +330,26 @@ type CreateRuleRequest struct {
 }
 
 type UpdateRuleRequest struct {
-	Strategy    *string   `json:"strategy"`
-	Priority    *int      `json:"priority"`
-	Enabled     *bool     `json:"enabled"`
-	Capacity    *int      `json:"capacity"`
-	Weight      *float64  `json:"weight"`
-	CooldownSec *int      `json:"cooldown_sec"`
+	Strategy    *string  `json:"strategy"`
+	Priority    *int     `json:"priority"`
+	Enabled     *bool    `json:"enabled"`
+	Capacity    *int     `json:"capacity"`
+	Weight      *float64 `json:"weight"`
+	CooldownSec *int     `json:"cooldown_sec"`
 }
 
 type DispatchRequest struct {
-	ID             string                  `json:"id" binding:"required"`
-	TargetType     string                  `json:"target_type" binding:"required"`
-	Category       string                  `json:"category"`
-	Priority       string                  `json:"priority"`
-	Type           string                  `json:"type"`
-	Source         string                  `json:"source"`
-	Status         string                  `json:"status"`
-	RequiredSkills []string                `json:"required_skills"`
-	Metadata       map[string]string       `json:"metadata"`
-	IsEscalated    bool                    `json:"is_escalated"`
-	PriorityWeight int                     `json:"priority_weight"`
+	ID             string                    `json:"id" binding:"required"`
+	TargetType     string                    `json:"target_type" binding:"required"`
+	Category       string                    `json:"category"`
+	Priority       string                    `json:"priority"`
+	Type           string                    `json:"type"`
+	Source         string                    `json:"source"`
+	Status         string                    `json:"status"`
+	RequiredSkills []string                  `json:"required_skills"`
+	Metadata       map[string]string         `json:"metadata"`
+	IsEscalated    bool                      `json:"is_escalated"`
+	PriorityWeight int                       `json:"priority_weight"`
 	Candidates     []*types.AssignmentTarget `json:"candidates"`
 }
 

@@ -37,12 +37,12 @@ var DefaultConfig = models.SandboxConfig{
 
 // LanguageRunner maps a language tag to the interpreter command.
 var LanguageRunner = map[string][]string{
-	"python":  {"python3", "-c"},
-	"python3": {"python3", "-c"},
+	"python":     {"python3", "-c"},
+	"python3":    {"python3", "-c"},
 	"javascript": {"node", "-e"},
-	"js":       {"node", "-e"},
-	"bash":     {"bash", "-c"},
-	"sh":       {"sh", "-c"},
+	"js":         {"node", "-e"},
+	"bash":       {"bash", "-c"},
+	"sh":         {"sh", "-c"},
 }
 
 type Service struct {
@@ -63,13 +63,13 @@ func (s *Service) WithConfig(cfg models.SandboxConfig) {
 // CreateJob creates a new sandbox job in pending status.
 func (s *Service) CreateJob(ctx context.Context, tenantID string, req models.CreateSandboxJobRequest) (*models.SandboxJob, error) {
 	job := &models.SandboxJob{
-		TenantID: tenantID,
-		Code:     req.Code,
-		Language: req.Language,
-		MaxCPU:   s.config.MaxCPU,
-		MaxMemory: s.config.MaxMemory,
+		TenantID:   tenantID,
+		Code:       req.Code,
+		Language:   req.Language,
+		MaxCPU:     s.config.MaxCPU,
+		MaxMemory:  s.config.MaxMemory,
 		TimeoutSec: int64(s.config.Timeout.Seconds()),
-		Network:  s.config.Network,
+		Network:    s.config.Network,
 		FileAccess: s.config.FileAccess,
 	}
 	if req.MaxCPU != nil {
@@ -147,11 +147,11 @@ func (s *Service) Execute(ctx context.Context, tenantID, jobID string) (*models.
 		)
 		logsJSON, _ := json.Marshal(result.Logs)
 		updates := map[string]interface{}{
-			"status":     models.JobStatusFailed,
-			"exit_code":  -1,
-			"stdout":     result.Stdout,
-			"stderr":     result.Stderr + "\n[error] " + err.Error(),
-			"logs":       string(logsJSON),
+			"status":    models.JobStatusFailed,
+			"exit_code": -1,
+			"stdout":    result.Stdout,
+			"stderr":    result.Stderr + "\n[error] " + err.Error(),
+			"logs":      string(logsJSON),
 		}
 		return s.repo.Update(ctx, tenantID, jobID, updates)
 	}

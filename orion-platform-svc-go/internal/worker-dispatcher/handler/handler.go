@@ -9,8 +9,8 @@ import (
 	"orion/platform-svc-go/internal/worker-dispatcher/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/go-common/pkg/auth"
 	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 )
 
 type Handler struct {

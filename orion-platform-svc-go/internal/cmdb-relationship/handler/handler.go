@@ -1,15 +1,16 @@
 // Package handler provides HTTP handlers for the CMDB relationship service.
 //
 // API contract (mounted under /api/v1/cmdb via RegisterRoutes):
-//   POST   /api/v1/cmdb/relationship-types          - Create a relationship type
-//   GET    /api/v1/cmdb/relationship-types           - List relationship types
-//   GET    /api/v1/cmdb/relationship-types/:id       - Get a relationship type
-//   PUT    /api/v1/cmdb/relationship-types/:id       - Update a relationship type
-//   DELETE /api/v1/cmdb/relationship-types/:id       - Soft-delete a relationship type
-//   POST   /api/v1/cmdb/relationships                - Create a concrete relationship
-//   GET    /api/v1/cmdb/relationships/:ciId          - Get CI relationships (with ?direction=)
-//   DELETE /api/v1/cmdb/relationships/:id            - Delete a relationship
-//   GET    /api/v1/cmdb/relationships/:ciId/topology - Build topology graph for a CI
+//
+//	POST   /api/v1/cmdb/relationship-types          - Create a relationship type
+//	GET    /api/v1/cmdb/relationship-types           - List relationship types
+//	GET    /api/v1/cmdb/relationship-types/:id       - Get a relationship type
+//	PUT    /api/v1/cmdb/relationship-types/:id       - Update a relationship type
+//	DELETE /api/v1/cmdb/relationship-types/:id       - Soft-delete a relationship type
+//	POST   /api/v1/cmdb/relationships                - Create a concrete relationship
+//	GET    /api/v1/cmdb/relationships/:ciId          - Get CI relationships (with ?direction=)
+//	DELETE /api/v1/cmdb/relationships/:id            - Delete a relationship
+//	GET    /api/v1/cmdb/relationships/:ciId/topology - Build topology graph for a CI
 package handler
 
 import (

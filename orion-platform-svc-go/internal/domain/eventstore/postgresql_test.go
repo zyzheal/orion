@@ -20,14 +20,14 @@ type MockDomainEvent struct {
 	version       int
 }
 
-func (e *MockDomainEvent) AggregateType() string  { return e.aggregateType }
-func (e *MockDomainEvent) AggregateID() string    { return e.aggregateID }
-func (e *MockDomainEvent) TenantID() string       { return e.tenantID }
-func (e *MockDomainEvent) EventType() string      { return e.eventType }
-func (e *MockDomainEvent) OccurredAt() time.Time  { return e.occurredAt }
-func (e *MockDomainEvent) Version() int           { return e.version }
-func (e *MockDomainEvent) GetVersion() int        { return e.version }
-func (e *MockDomainEvent) SetVersion(v int)       { e.version = v }
+func (e *MockDomainEvent) AggregateType() string    { return e.aggregateType }
+func (e *MockDomainEvent) AggregateID() string      { return e.aggregateID }
+func (e *MockDomainEvent) TenantID() string         { return e.tenantID }
+func (e *MockDomainEvent) EventType() string        { return e.eventType }
+func (e *MockDomainEvent) OccurredAt() time.Time    { return e.occurredAt }
+func (e *MockDomainEvent) Version() int             { return e.version }
+func (e *MockDomainEvent) GetVersion() int          { return e.version }
+func (e *MockDomainEvent) SetVersion(v int)         { e.version = v }
 func (e *MockDomainEvent) SetAggregateID(id string) { e.aggregateID = id }
 func (e *MockDomainEvent) SetTenantID(id string)    { e.tenantID = id }
 

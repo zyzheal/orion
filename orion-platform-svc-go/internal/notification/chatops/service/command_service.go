@@ -152,15 +152,15 @@ func (s *CommandService) ExecuteCommand(ctx context.Context, tenantID, userID, p
 
 	// Record execution
 	exec := &models.ChatOpsExecution{
-		ID:        uuid.New().String(),
-		TenantID:  tenantID,
-		CommandID: parsed.Command.ID,
-		UserID:    userID,
-		Platform:  platform,
-		Channel:   channel,
-		Params:    models.JSONB{},
-		Status:    "running",
-		StartTime: time.Now(),
+		ID:         uuid.New().String(),
+		TenantID:   tenantID,
+		CommandID:  parsed.Command.ID,
+		UserID:     userID,
+		Platform:   platform,
+		Channel:    channel,
+		Params:     models.JSONB{},
+		Status:     "running",
+		StartTime:  time.Now(),
 		Milestones: models.JSONB{},
 	}
 	// Copy params

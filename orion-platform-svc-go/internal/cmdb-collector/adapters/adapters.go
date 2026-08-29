@@ -41,14 +41,14 @@ func register(a interfaces.Adapter) {
 // ciscoSNMP is the stub SNMP collector for Cisco IOS / NX-OS devices.
 type ciscoSNMP struct{}
 
-func (c ciscoSNMP) Name() string         { return "cisco-snmp" }
-func (c ciscoSNMP) Type() string         { return models.TypeNetwork }
+func (c ciscoSNMP) Name() string { return "cisco-snmp" }
+func (c ciscoSNMP) Type() string { return models.TypeNetwork }
 func (c ciscoSNMP) ConfigSchema() map[string]interface{} {
 	return map[string]interface{}{
-		"host":         "string, required — SNMP target IP",
-		"port":         "int, default 161",
-		"community":    "string, required — SNMP community string",
-		"version":      "string, one of [1, 2c, 3]",
+		"host":           "string, required — SNMP target IP",
+		"port":           "int, default 161",
+		"community":      "string, required — SNMP community string",
+		"version":        "string, one of [1, 2c, 3]",
 		"security_level": "string, for SNMPv3: noAuthNoPriv | authNoPriv | authPriv",
 	}
 }
@@ -87,23 +87,23 @@ func (c ciscoSNMP) Collect(ctx context.Context, device *models.Device) (*models.
 	default:
 	}
 	attrs := map[string]interface{}{
-		"cpu.usage.percent":          23.4,
-		"memory.used.percent":        61.0,
-		"interfaces.total":           48,
-		"interfaces.up":              44,
-		"interfaces.down":            4,
-		"power.supply.status":        "ok",
-		"fan.status":                 "ok",
-		"uptime.seconds":             int64(3916800),
+		"cpu.usage.percent":   23.4,
+		"memory.used.percent": 61.0,
+		"interfaces.total":    48,
+		"interfaces.up":       44,
+		"interfaces.down":     4,
+		"power.supply.status": "ok",
+		"fan.status":          "ok",
+		"uptime.seconds":      int64(3916800),
 	}
 	return &models.Collection{
-		Collector:    "cisco-snmp",
-		DeviceID:     &device.ID,
-		Status:       models.CollectionSuccess,
-		Attributes:   attrs,
+		Collector:      "cisco-snmp",
+		DeviceID:       &device.ID,
+		Status:         models.CollectionSuccess,
+		Attributes:     attrs,
 		AttributeCount: len(attrs),
-		DurationMs:   120,
-		CreatedAt:    time.Now().UTC(),
+		DurationMs:     120,
+		CreatedAt:      time.Now().UTC(),
 	}, nil
 }
 
@@ -125,9 +125,9 @@ type ciscoSNMPAdapter struct {
 	collector ciscoSNMP
 }
 
-func (a ciscoSNMPAdapter) Name() string             { return a.collector.Name() }
+func (a ciscoSNMPAdapter) Name() string                        { return a.collector.Name() }
 func (a ciscoSNMPAdapter) Init(_ map[string]interface{}) error { return nil } // stub
-func (a ciscoSNMPAdapter) Collector() interfaces.Collector { return a.collector }
+func (a ciscoSNMPAdapter) Collector() interfaces.Collector     { return a.collector }
 
 func init() { register(ciscoSNMPAdapter{collector: ciscoSNMP{}}) }
 
@@ -135,8 +135,8 @@ func init() { register(ciscoSNMPAdapter{collector: ciscoSNMP{}}) }
 
 type huaweiSNMP struct{}
 
-func (c huaweiSNMP) Name() string         { return "huawei-snmp" }
-func (c huaweiSNMP) Type() string         { return models.TypeNetwork }
+func (c huaweiSNMP) Name() string { return "huawei-snmp" }
+func (c huaweiSNMP) Type() string { return models.TypeNetwork }
 func (c huaweiSNMP) ConfigSchema() map[string]interface{} {
 	return map[string]interface{}{
 		"host":      "string, required — SNMP target IP",
@@ -179,23 +179,23 @@ func (c huaweiSNMP) Collect(ctx context.Context, device *models.Device) (*models
 	default:
 	}
 	attrs := map[string]interface{}{
-		"cpu.usage.percent":          18.7,
-		"memory.used.percent":        54.2,
-		"interfaces.total":           52,
-		"interfaces.up":              48,
-		"interfaces.down":            4,
-		"power.supply.status":        "ok",
-		"fan.status":                 "ok",
-		"uptime.seconds":             int64(1065600),
+		"cpu.usage.percent":   18.7,
+		"memory.used.percent": 54.2,
+		"interfaces.total":    52,
+		"interfaces.up":       48,
+		"interfaces.down":     4,
+		"power.supply.status": "ok",
+		"fan.status":          "ok",
+		"uptime.seconds":      int64(1065600),
 	}
 	return &models.Collection{
-		Collector:    "huawei-snmp",
-		DeviceID:     &device.ID,
-		Status:       models.CollectionSuccess,
-		Attributes:   attrs,
+		Collector:      "huawei-snmp",
+		DeviceID:       &device.ID,
+		Status:         models.CollectionSuccess,
+		Attributes:     attrs,
 		AttributeCount: len(attrs),
-		DurationMs:   95,
-		CreatedAt:    time.Now().UTC(),
+		DurationMs:     95,
+		CreatedAt:      time.Now().UTC(),
 	}, nil
 }
 
@@ -213,9 +213,9 @@ func (c huaweiSNMP) HealthCheck(ctx context.Context, target *models.Target) erro
 
 type huaweiSNMPAdapter struct{ collector huaweiSNMP }
 
-func (a huaweiSNMPAdapter) Name() string                { return a.collector.Name() }
+func (a huaweiSNMPAdapter) Name() string                        { return a.collector.Name() }
 func (a huaweiSNMPAdapter) Init(_ map[string]interface{}) error { return nil }
-func (a huaweiSNMPAdapter) Collector() interfaces.Collector { return a.collector }
+func (a huaweiSNMPAdapter) Collector() interfaces.Collector     { return a.collector }
 
 func init() { register(huaweiSNMPAdapter{collector: huaweiSNMP{}}) }
 
@@ -223,17 +223,17 @@ func init() { register(huaweiSNMPAdapter{collector: huaweiSNMP{}}) }
 
 type mysqlJDBC struct{}
 
-func (c mysqlJDBC) Name() string         { return "mysql-jdbc" }
-func (c mysqlJDBC) Type() string         { return models.TypeDatabase }
+func (c mysqlJDBC) Name() string { return "mysql-jdbc" }
+func (c mysqlJDBC) Type() string { return models.TypeDatabase }
 func (c mysqlJDBC) ConfigSchema() map[string]interface{} {
 	return map[string]interface{}{
-		"host":        "string, required — MySQL host",
-		"port":        "int, default 3306",
-		"username":    "string, required",
-		"password":    "string, required",
-		"database":    "string, optional — target database (default: information_schema)",
-		"ssl_mode":    "string, one of [disabled, preferred, required]",
-		"pool.size":   "int, connection pool size (default 5)",
+		"host":      "string, required — MySQL host",
+		"port":      "int, default 3306",
+		"username":  "string, required",
+		"password":  "string, required",
+		"database":  "string, optional — target database (default: information_schema)",
+		"ssl_mode":  "string, one of [disabled, preferred, required]",
+		"pool.size": "int, connection pool size (default 5)",
 	}
 }
 
@@ -269,25 +269,25 @@ func (c mysqlJDBC) Collect(ctx context.Context, device *models.Device) (*models.
 	default:
 	}
 	attrs := map[string]interface{}{
-		"cpu.usage.percent":          42.1,
-		"memory.used.percent":        70.5,
-		"connections.active":         128,
-		"connections.max":            500,
-		"threads.running":            12,
-		"queries.per.second":         1250.0,
-		"slow.queries":               3,
+		"cpu.usage.percent":            42.1,
+		"memory.used.percent":          70.5,
+		"connections.active":           128,
+		"connections.max":              500,
+		"threads.running":              12,
+		"queries.per.second":           1250.0,
+		"slow.queries":                 3,
 		"innodb.buffer.pool.hit.ratio": 99.2,
-		"tables.count":               340,
-		"uptime.seconds":             int64(864000),
+		"tables.count":                 340,
+		"uptime.seconds":               int64(864000),
 	}
 	return &models.Collection{
-		Collector:    "mysql-jdbc",
-		DeviceID:     &device.ID,
-		Status:       models.CollectionSuccess,
-		Attributes:   attrs,
+		Collector:      "mysql-jdbc",
+		DeviceID:       &device.ID,
+		Status:         models.CollectionSuccess,
+		Attributes:     attrs,
 		AttributeCount: len(attrs),
-		DurationMs:   210,
-		CreatedAt:    time.Now().UTC(),
+		DurationMs:     210,
+		CreatedAt:      time.Now().UTC(),
 	}, nil
 }
 
@@ -305,9 +305,9 @@ func (c mysqlJDBC) HealthCheck(ctx context.Context, target *models.Target) error
 
 type mysqlJDBCAdapter struct{ collector mysqlJDBC }
 
-func (a mysqlJDBCAdapter) Name() string                { return a.collector.Name() }
+func (a mysqlJDBCAdapter) Name() string                        { return a.collector.Name() }
 func (a mysqlJDBCAdapter) Init(_ map[string]interface{}) error { return nil }
-func (a mysqlJDBCAdapter) Collector() interfaces.Collector { return a.collector }
+func (a mysqlJDBCAdapter) Collector() interfaces.Collector     { return a.collector }
 
 func init() { register(mysqlJDBCAdapter{collector: mysqlJDBC{}}) }
 
@@ -315,16 +315,16 @@ func init() { register(mysqlJDBCAdapter{collector: mysqlJDBC{}}) }
 
 type postgresqlJDBC struct{}
 
-func (c postgresqlJDBC) Name() string         { return "postgresql-jdbc" }
-func (c postgresqlJDBC) Type() string         { return models.TypeDatabase }
+func (c postgresqlJDBC) Name() string { return "postgresql-jdbc" }
+func (c postgresqlJDBC) Type() string { return models.TypeDatabase }
 func (c postgresqlJDBC) ConfigSchema() map[string]interface{} {
 	return map[string]interface{}{
-		"host":        "string, required — PostgreSQL host",
-		"port":        "int, default 5432",
-		"username":    "string, required",
-		"password":    "string, required",
-		"database":    "string, optional — default postgres",
-		"sslmode":     "string, one of [disable, require, verify-ca, verify-full]",
+		"host":     "string, required — PostgreSQL host",
+		"port":     "int, default 5432",
+		"username": "string, required",
+		"password": "string, required",
+		"database": "string, optional — default postgres",
+		"sslmode":  "string, one of [disable, require, verify-ca, verify-full]",
 	}
 }
 
@@ -360,25 +360,25 @@ func (c postgresqlJDBC) Collect(ctx context.Context, device *models.Device) (*mo
 	default:
 	}
 	attrs := map[string]interface{}{
-		"cpu.usage.percent":          31.0,
-		"memory.used.percent":        65.8,
-		"connections.active":         84,
-		"connections.max":            200,
-		"buffers.hit.ratio":          98.7,
-		"queries.per.second":         890.0,
-		"replication.lag.bytes":      1234,
-		"tables.count":               220,
-		"indexes.count":              540,
-		"uptime.seconds":             int64(1728000),
+		"cpu.usage.percent":     31.0,
+		"memory.used.percent":   65.8,
+		"connections.active":    84,
+		"connections.max":       200,
+		"buffers.hit.ratio":     98.7,
+		"queries.per.second":    890.0,
+		"replication.lag.bytes": 1234,
+		"tables.count":          220,
+		"indexes.count":         540,
+		"uptime.seconds":        int64(1728000),
 	}
 	return &models.Collection{
-		Collector:    "postgresql-jdbc",
-		DeviceID:     &device.ID,
-		Status:       models.CollectionSuccess,
-		Attributes:   attrs,
+		Collector:      "postgresql-jdbc",
+		DeviceID:       &device.ID,
+		Status:         models.CollectionSuccess,
+		Attributes:     attrs,
 		AttributeCount: len(attrs),
-		DurationMs:   175,
-		CreatedAt:    time.Now().UTC(),
+		DurationMs:     175,
+		CreatedAt:      time.Now().UTC(),
 	}, nil
 }
 
@@ -396,9 +396,9 @@ func (c postgresqlJDBC) HealthCheck(ctx context.Context, target *models.Target) 
 
 type postgresqlJDBCAdapter struct{ collector postgresqlJDBC }
 
-func (a postgresqlJDBCAdapter) Name() string                { return a.collector.Name() }
+func (a postgresqlJDBCAdapter) Name() string                        { return a.collector.Name() }
 func (a postgresqlJDBCAdapter) Init(_ map[string]interface{}) error { return nil }
-func (a postgresqlJDBCAdapter) Collector() interfaces.Collector { return a.collector }
+func (a postgresqlJDBCAdapter) Collector() interfaces.Collector     { return a.collector }
 
 func init() { register(postgresqlJDBCAdapter{collector: postgresqlJDBC{}}) }
 
@@ -406,8 +406,8 @@ func init() { register(postgresqlJDBCAdapter{collector: postgresqlJDBC{}}) }
 
 type sshServer struct{}
 
-func (c sshServer) Name() string         { return "ssh-server" }
-func (c sshServer) Type() string         { return models.TypeServer }
+func (c sshServer) Name() string { return "ssh-server" }
+func (c sshServer) Type() string { return models.TypeServer }
 func (c sshServer) ConfigSchema() map[string]interface{} {
 	return map[string]interface{}{
 		"host":        "string, required — server IP or hostname",
@@ -439,10 +439,10 @@ func (c sshServer) Discover(ctx context.Context, target *models.Target) ([]*mode
 			Adapter:      "ssh-server",
 			Status:       "active",
 			Attributes: map[string]interface{}{
-				"os.release":   "22.04",
-				"kernel":       "5.15.0-91-generic",
-				"arch":         "x86_64",
-				"hostname":     fmt.Sprintf("srv-%s.local", target.Host),
+				"os.release": "22.04",
+				"kernel":     "5.15.0-91-generic",
+				"arch":       "x86_64",
+				"hostname":   fmt.Sprintf("srv-%s.local", target.Host),
 			},
 		},
 	}, nil
@@ -455,28 +455,28 @@ func (c sshServer) Collect(ctx context.Context, device *models.Device) (*models.
 	default:
 	}
 	attrs := map[string]interface{}{
-		"cpu.usage.percent":          35.2,
-		"memory.used.percent":        58.0,
-		"disk.used.percent":          44.0,
-		"disk.total.bytes":           int64(1099511627776), // 1TB
-		"disk.used.bytes":            int64(483183820800),  // ~450GB
-		"load.average.1m":            1.24,
-		"load.average.5m":            0.98,
-		"load.average.15m":           0.72,
-		"processes.total":            245,
-		"processes.running":          8,
-		"net.io.read.bytes":          int64(2147483648),
-		"net.io.write.bytes":         int64(1073741824),
-		"uptime.seconds":             int64(345600),
+		"cpu.usage.percent":   35.2,
+		"memory.used.percent": 58.0,
+		"disk.used.percent":   44.0,
+		"disk.total.bytes":    int64(1099511627776), // 1TB
+		"disk.used.bytes":     int64(483183820800),  // ~450GB
+		"load.average.1m":     1.24,
+		"load.average.5m":     0.98,
+		"load.average.15m":    0.72,
+		"processes.total":     245,
+		"processes.running":   8,
+		"net.io.read.bytes":   int64(2147483648),
+		"net.io.write.bytes":  int64(1073741824),
+		"uptime.seconds":      int64(345600),
 	}
 	return &models.Collection{
-		Collector:    "ssh-server",
-		DeviceID:     &device.ID,
-		Status:       models.CollectionSuccess,
-		Attributes:   attrs,
+		Collector:      "ssh-server",
+		DeviceID:       &device.ID,
+		Status:         models.CollectionSuccess,
+		Attributes:     attrs,
 		AttributeCount: len(attrs),
-		DurationMs:   340,
-		CreatedAt:    time.Now().UTC(),
+		DurationMs:     340,
+		CreatedAt:      time.Now().UTC(),
 	}, nil
 }
 
@@ -494,8 +494,8 @@ func (c sshServer) HealthCheck(ctx context.Context, target *models.Target) error
 
 type sshServerAdapter struct{ collector sshServer }
 
-func (a sshServerAdapter) Name() string                { return a.collector.Name() }
+func (a sshServerAdapter) Name() string                        { return a.collector.Name() }
 func (a sshServerAdapter) Init(_ map[string]interface{}) error { return nil }
-func (a sshServerAdapter) Collector() interfaces.Collector { return a.collector }
+func (a sshServerAdapter) Collector() interfaces.Collector     { return a.collector }
 
 func init() { register(sshServerAdapter{collector: sshServer{}}) }

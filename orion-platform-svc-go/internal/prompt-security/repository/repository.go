@@ -15,18 +15,18 @@ import (
 
 // SecurityScanRecord stores a scan result in DB.
 type SecurityScanRecord struct {
-	ID              int64     `db:"id"`
-	TenantID        string    `db:"tenant_id"`
-	PromptPreview   string    `db:"prompt_preview"`
-	Score           float64   `db:"score"`
-	IsSafe          bool      `db:"is_safe"`
-	FindingsJSON    string    `db:"findings"`
-	Severity        int       `db:"severity"`
-	InjectionDetected bool    `db:"injection_detected"`
-	PiiDetected     bool      `db:"pii_detected"`
-	ScanTimeMs      int       `db:"scan_time_ms"`
-	CreatedAt       time.Time `db:"created_at"`
-	UpdatedAt       time.Time `db:"updated_at"`
+	ID                int64     `db:"id"`
+	TenantID          string    `db:"tenant_id"`
+	PromptPreview     string    `db:"prompt_preview"`
+	Score             float64   `db:"score"`
+	IsSafe            bool      `db:"is_safe"`
+	FindingsJSON      string    `db:"findings"`
+	Severity          int       `db:"severity"`
+	InjectionDetected bool      `db:"injection_detected"`
+	PiiDetected       bool      `db:"pii_detected"`
+	ScanTimeMs        int       `db:"scan_time_ms"`
+	CreatedAt         time.Time `db:"created_at"`
+	UpdatedAt         time.Time `db:"updated_at"`
 }
 
 // SecurityConfigRecord stores per-tenant config in DB.
@@ -278,15 +278,15 @@ func NewScanRecord(scan *models.SecurityScan) *SecurityScanRecord {
 	severity := calculateSeverity(scan)
 
 	return &SecurityScanRecord{
-		TenantID:        scan.TenantID,
-		PromptPreview:   scan.Prompt,
-		Score:           scan.Score,
-		IsSafe:          scan.IsSafe,
-		FindingsJSON:    findingsJSON,
-		Severity:        severity,
+		TenantID:          scan.TenantID,
+		PromptPreview:     scan.Prompt,
+		Score:             scan.Score,
+		IsSafe:            scan.IsSafe,
+		FindingsJSON:      findingsJSON,
+		Severity:          severity,
 		InjectionDetected: scan.InjectionDetected,
-		PiiDetected:     scan.PiiDetected,
-		ScanTimeMs:      scan.ScanTimeMs,
+		PiiDetected:       scan.PiiDetected,
+		ScanTimeMs:        scan.ScanTimeMs,
 	}
 }
 

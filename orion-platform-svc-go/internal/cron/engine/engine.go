@@ -45,8 +45,8 @@ func (w *JobWrapper) Execute(ctx context.Context) (string, error) {
 
 // Adapter wraps an engine.Job so it also satisfies the legacy IJob contract.
 type Adapter struct {
-	j       Job
-	name    string
+	j        Job
+	name     string
 	cronExpr string
 }
 
@@ -54,8 +54,8 @@ func NewAdapter(j Job, name, cronExpr string) *Adapter {
 	return &Adapter{j: j, name: name, cronExpr: cronExpr}
 }
 
-func (a *Adapter) Name() string       { return a.name }
-func (a *Adapter) CronExpr() string   { return a.cronExpr }
+func (a *Adapter) Name() string     { return a.name }
+func (a *Adapter) CronExpr() string { return a.cronExpr }
 func (a *Adapter) Execute(ctx context.Context, config map[string]string) (string, error) {
 	return a.j.Execute(ctx)
 }
@@ -63,18 +63,18 @@ func (a *Adapter) Validate() error { return nil }
 
 // Execution is the result of running a single job attempt through the engine.
 type Execution struct {
-	ID         string        `json:"id"`
-	JobID      string        `json:"job_id"`
-	JobName    string        `json:"job_name"`
-	Kind       types.JobKind `json:"kind"`
-	Status     string        `json:"status"`     // running | completed | failed | skipped
-	Output     string        `json:"output"`
-	Error      string        `json:"error"`
-	Attempt    int           `json:"attempt"`    // 1-based
-	MaxAttempts int          `json:"max_attempts"`
-	DurationMs int64         `json:"duration_ms"`
-	StartedAt  time.Time     `json:"started_at"`
-	FinishedAt *time.Time    `json:"finished_at"`
+	ID          string        `json:"id"`
+	JobID       string        `json:"job_id"`
+	JobName     string        `json:"job_name"`
+	Kind        types.JobKind `json:"kind"`
+	Status      string        `json:"status"` // running | completed | failed | skipped
+	Output      string        `json:"output"`
+	Error       string        `json:"error"`
+	Attempt     int           `json:"attempt"` // 1-based
+	MaxAttempts int           `json:"max_attempts"`
+	DurationMs  int64         `json:"duration_ms"`
+	StartedAt   time.Time     `json:"started_at"`
+	FinishedAt  *time.Time    `json:"finished_at"`
 }
 
 // ExecutionEngine is responsible for running a job with retry policy and a hard

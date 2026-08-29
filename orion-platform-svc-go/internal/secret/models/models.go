@@ -6,15 +6,15 @@ import "time"
 // EncryptedValue stores the AES-256-GCM encrypted secret (IV + authTag + ciphertext) as BYTEA.
 // The plaintext value is never persisted.
 type Secret struct {
-	ID             string     `db:"id" json:"id"`
-	TenantID       string     `db:"tenant_id" json:"tenant_id"`
-	Name           string     `db:"name" json:"name"`
-	EncryptedValue []byte     `db:"encrypted_value" json:"-"` // never exposed to client
-	Scope          string     `db:"scope" json:"scope"`
-	Description    string     `db:"description" json:"description"`
-	CreatedAt      time.Time  `db:"created_at" json:"created_at"`
-	UpdatedAt      time.Time  `db:"updated_at" json:"updated_at"`
-	CreatedBy      string     `db:"created_by" json:"created_by"`
+	ID             string    `db:"id" json:"id"`
+	TenantID       string    `db:"tenant_id" json:"tenant_id"`
+	Name           string    `db:"name" json:"name"`
+	EncryptedValue []byte    `db:"encrypted_value" json:"-"` // never exposed to client
+	Scope          string    `db:"scope" json:"scope"`
+	Description    string    `db:"description" json:"description"`
+	CreatedAt      time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt      time.Time `db:"updated_at" json:"updated_at"`
+	CreatedBy      string    `db:"created_by" json:"created_by"`
 }
 
 // CreateSecretRequest is the input for creating a new secret.
@@ -38,9 +38,9 @@ type ResolveSecretsRequest struct {
 
 // ResolveSecretsResult is the output of the resolve endpoint.
 type ResolveSecretsResult struct {
-	Parameters    map[string]string `json:"parameters"`
-	Resolved      int               `json:"resolved"`
-	Unresolved    []string          `json:"unresolved"`
+	Parameters map[string]string `json:"parameters"`
+	Resolved   int               `json:"resolved"`
+	Unresolved []string          `json:"unresolved"`
 }
 
 // ListFilter carries optional filter criteria for listing secrets.

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"net/http"
 
 	"orion/platform-svc-go/internal/database-devops/models"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
+	"go.opentelemetry.io/otel"
 )
 
 type Handler struct {
@@ -37,8 +37,10 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 }
 
 func (h *Handler) ListOperations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListOperations")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.ListOperations(context.Background(), tenantID)
+	items, err := h.svc.ListOperations(ctx, tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -47,8 +49,10 @@ func (h *Handler) ListOperations(c *gin.Context) {
 }
 
 func (h *Handler) GetOperation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetOperation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	item, err := h.svc.GetOperation(context.Background(), tenantID, c.Param("id"))
+	item, err := h.svc.GetOperation(ctx, tenantID, c.Param("id"))
 	if err != nil || item == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
@@ -57,13 +61,15 @@ func (h *Handler) GetOperation(c *gin.Context) {
 }
 
 func (h *Handler) CreateOperation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateOperation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateDatabaseDevopsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	item, err := h.svc.CreateOperation(context.Background(), tenantID, &req)
+	item, err := h.svc.CreateOperation(ctx, tenantID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -72,13 +78,15 @@ func (h *Handler) CreateOperation(c *gin.Context) {
 }
 
 func (h *Handler) UpdateOperation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateOperation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateDatabaseDevopsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	item, err := h.svc.UpdateOperation(context.Background(), tenantID, c.Param("id"), &req)
+	item, err := h.svc.UpdateOperation(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -87,8 +95,10 @@ func (h *Handler) UpdateOperation(c *gin.Context) {
 }
 
 func (h *Handler) DeleteOperation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteOperation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.DeleteOperation(context.Background(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.DeleteOperation(ctx, tenantID, c.Param("id")); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -96,8 +106,10 @@ func (h *Handler) DeleteOperation(c *gin.Context) {
 }
 
 func (h *Handler) ExecuteBackup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteBackup")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	result, err := h.svc.ExecuteBackup(context.Background(), tenantID, c.Param("id"))
+	result, err := h.svc.ExecuteBackup(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -106,8 +118,10 @@ func (h *Handler) ExecuteBackup(c *gin.Context) {
 }
 
 func (h *Handler) ExecuteRestore(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteRestore")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.ExecuteRestore(context.Background(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.ExecuteRestore(ctx, tenantID, c.Param("id")); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -115,8 +129,10 @@ func (h *Handler) ExecuteRestore(c *gin.Context) {
 }
 
 func (h *Handler) ListDataSources(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDataSources")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.ListDataSources(context.Background(), tenantID)
+	items, err := h.svc.ListDataSources(ctx, tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -125,13 +141,15 @@ func (h *Handler) ListDataSources(c *gin.Context) {
 }
 
 func (h *Handler) CreateDataSource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateDataSource")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateDataSourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	ds, err := h.svc.CreateDataSource(context.Background(), tenantID, &req)
+	ds, err := h.svc.CreateDataSource(ctx, tenantID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -140,8 +158,10 @@ func (h *Handler) CreateDataSource(c *gin.Context) {
 }
 
 func (h *Handler) DeleteDataSource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteDataSource")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.DeleteDataSource(context.Background(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.DeleteDataSource(ctx, tenantID, c.Param("id")); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

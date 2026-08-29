@@ -21,14 +21,14 @@ import (
 // In the current stub mode the data is persisted to a local fallback directory so the module compiles and tests
 // pass without a live GCS connection.
 type GCSStorage struct {
-	name       string
-	projectID  string
-	bucket     string
-	provider   service.IFileStorageMedium
-	logger     *zap.Logger
-	mu         sync.RWMutex
+	name        string
+	projectID   string
+	bucket      string
+	provider    service.IFileStorageMedium
+	logger      *zap.Logger
+	mu          sync.RWMutex
 	initialized bool
-	creds      string
+	creds       string
 }
 
 // GCSConfig holds Google Cloud Storage configuration.
@@ -225,10 +225,10 @@ func (r *GCSStreamReadCloser) ContentType() string {
 
 // gcsClient wraps the cloud.google.com/go/storage.Client.
 type gcsClient struct {
-	bucket  string
-	region  string
-	creds   string
-	logger  *zap.Logger
+	bucket string
+	region string
+	creds  string
+	logger *zap.Logger
 }
 
 func newGCSClient(projectID, bucket, region, creds string, logger *zap.Logger) (*gcsClient, error) {
@@ -242,17 +242,17 @@ func newGCSClient(projectID, bucket, region, creds string, logger *zap.Logger) (
 		region = "us-central1"
 	}
 	return &gcsClient{
-		bucket:  bucket,
-		region:  region,
-		creds:   creds,
-		logger:  logger,
+		bucket: bucket,
+		region: region,
+		creds:  creds,
+		logger: logger,
 	}, nil
 }
 
 // GCSUploadWriter wraps an io.Writer from GCS SDK.
 type GCSUploadWriter struct {
-	writer      io.Writer
-	mimeType    string
+	writer       io.Writer
+	mimeType     string
 	storageClass string
 }
 

@@ -18,9 +18,9 @@ import (
 // ---------------------------------------------------------------------------
 
 var (
-	ErrJobNotFound    = errors.New("job not found")
-	ErrJobFailed      = errors.New("job execution failed")
-	ErrInvalidStatus  = errors.New("invalid job status")
+	ErrJobNotFound   = errors.New("job not found")
+	ErrJobFailed     = errors.New("job execution failed")
+	ErrInvalidStatus = errors.New("invalid job status")
 )
 
 // ---------------------------------------------------------------------------
@@ -73,8 +73,8 @@ type CallDispatcher struct {
 func NewCallDispatcher() *CallDispatcher {
 	ctx, cancel := context.WithCancel(context.Background())
 	d := &CallDispatcher{
-		jobs: make(map[string]*AsyncJob),
-		ctx:  ctx,
+		jobs:   make(map[string]*AsyncJob),
+		ctx:    ctx,
 		cancel: cancel,
 	}
 	return d

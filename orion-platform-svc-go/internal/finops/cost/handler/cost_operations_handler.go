@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strconv"
 
 	"orion/platform-svc-go/internal/finops/cost/models"
@@ -13,11 +14,11 @@ import (
 // CostOperationsHandler provides HTTP handlers for cost operations.
 // Mirrors the Node.js /api/v1/cost-operations routes.
 type CostOperationsHandler struct {
-	costSvc     *service.CostService
-	anomalySvc  *service.AnomalyService
-	optSvc      *service.OptimizationService
-	budgetSvc   *service.BudgetService
-	log         *zap.Logger
+	costSvc    *service.CostService
+	anomalySvc *service.AnomalyService
+	optSvc     *service.OptimizationService
+	budgetSvc  *service.BudgetService
+	log        *zap.Logger
 }
 
 // NewCostOperationsHandler creates a new cost operations handler.
@@ -64,13 +65,15 @@ func (h *CostOperationsHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // CreateBudgetGuard creates a budget guard (maps to budget).
 func (h *CostOperationsHandler) CreateBudgetGuard(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostCreateBudgetGuard")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateBudgetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	budget, err := h.budgetSvc.CreateBudget(c.Request.Context(), tenantID, &req)
+	budget, err := h.budgetSvc.CreateBudget(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -80,10 +83,12 @@ func (h *CostOperationsHandler) CreateBudgetGuard(c *gin.Context) {
 
 // GetBudgetGuards lists budget guards (maps to budgets).
 func (h *CostOperationsHandler) GetBudgetGuards(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostGetBudgetGuards")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	budgets, err := h.budgetSvc.ListBudgets(c.Request.Context(), tenantID, offset, limit)
+	budgets, err := h.budgetSvc.ListBudgets(ctx, tenantID, offset, limit)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -93,6 +98,8 @@ func (h *CostOperationsHandler) GetBudgetGuards(c *gin.Context) {
 
 // DeleteBudgetGuard soft-deletes a budget guard.
 func (h *CostOperationsHandler) DeleteBudgetGuard(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostDeleteBudgetGuard")
+	defer span.End()
 	// BudgetService has no Delete method; respond with informational message.
 	respondSuccess(c, gin.H{"message": "budget guard deleted", "id": c.Param("id")})
 }
@@ -101,13 +108,15 @@ func (h *CostOperationsHandler) DeleteBudgetGuard(c *gin.Context) {
 
 // EvaluateCost evaluates cost against budget.
 func (h *CostOperationsHandler) EvaluateCost(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostEvaluateCost")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.EvaluateCostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.costSvc.EvaluateCost(c.Request.Context(), tenantID, &req)
+	result, err := h.costSvc.EvaluateCost(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -119,8 +128,10 @@ func (h *CostOperationsHandler) EvaluateCost(c *gin.Context) {
 
 // GetAnomalies triggers anomaly detection.
 func (h *CostOperationsHandler) GetAnomalies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostGetAnomalies")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	result := h.anomalySvc.DetectAnomalies(c.Request.Context(), tenantID, "", "")
+	result := h.anomalySvc.DetectAnomalies(ctx, tenantID, "", "")
 	respondSuccess(c, result)
 }
 
@@ -128,10 +139,12 @@ func (h *CostOperationsHandler) GetAnomalies(c *gin.Context) {
 
 // GetCostTrend returns cost trend for the tenant.
 func (h *CostOperationsHandler) GetCostTrend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostGetCostTrend")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	startDate := c.Query("start_date")
 	endDate := c.Query("end_date")
-	trend, err := h.costSvc.GetCostTrend(c.Request.Context(), tenantID, startDate, endDate)
+	trend, err := h.costSvc.GetCostTrend(ctx, tenantID, startDate, endDate)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -143,8 +156,10 @@ func (h *CostOperationsHandler) GetCostTrend(c *gin.Context) {
 
 // GetCostOverview returns a high-level cost overview.
 func (h *CostOperationsHandler) GetCostOverview(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostGetCostOverview")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	overview, err := h.costSvc.GetCostOverview(c.Request.Context(), tenantID)
+	overview, err := h.costSvc.GetCostOverview(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -156,12 +171,14 @@ func (h *CostOperationsHandler) GetCostOverview(c *gin.Context) {
 
 // GetOptimizationSuggestions returns optimization suggestions.
 func (h *CostOperationsHandler) GetOptimizationSuggestions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostGetOptimizationSuggestions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	params := models.GetOptimizationsQueryParams{
 		Category: models.OptimizationCategory(c.Query("category")),
 		Status:   models.OptimizationStatus(c.Query("status")),
 	}
-	suggestions, err := h.optSvc.ListSuggestions(c.Request.Context(), tenantID, params)
+	suggestions, err := h.optSvc.ListSuggestions(ctx, tenantID, params)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -171,11 +188,15 @@ func (h *CostOperationsHandler) GetOptimizationSuggestions(c *gin.Context) {
 
 // ApplyOptimization marks an optimization as applied.
 func (h *CostOperationsHandler) ApplyOptimization(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostApplyOptimization")
+	defer span.End()
 	respondSuccess(c, gin.H{"message": "optimization applied", "id": c.Param("id")})
 }
 
 // RejectOptimization marks an optimization as rejected.
 func (h *CostOperationsHandler) RejectOptimization(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostRejectOptimization")
+	defer span.End()
 	respondSuccess(c, gin.H{"message": "optimization rejected", "id": c.Param("id")})
 }
 
@@ -183,13 +204,15 @@ func (h *CostOperationsHandler) RejectOptimization(c *gin.Context) {
 
 // CompareCosts compares costs between two services.
 func (h *CostOperationsHandler) CompareCosts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostCompareCosts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CompareCostsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.costSvc.CompareCosts(c.Request.Context(), tenantID, &req)
+	result, err := h.costSvc.CompareCosts(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -201,11 +224,13 @@ func (h *CostOperationsHandler) CompareCosts(c *gin.Context) {
 
 // GetServiceCostTrend returns cost trend for a specific service.
 func (h *CostOperationsHandler) GetServiceCostTrend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostGetServiceCostTrend")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	serviceName := c.DefaultQuery("serviceId", "default")
 	period := c.DefaultQuery("period", "monthly")
 	category := c.Query("category")
-	trend, err := h.costSvc.GetServiceCostTrend(c.Request.Context(), tenantID, serviceName, period, category)
+	trend, err := h.costSvc.GetServiceCostTrend(ctx, tenantID, serviceName, period, category)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -217,10 +242,12 @@ func (h *CostOperationsHandler) GetServiceCostTrend(c *gin.Context) {
 
 // GetServiceOptimizationSuggestions returns optimization suggestions for a service.
 func (h *CostOperationsHandler) GetServiceOptimizationSuggestions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CostGetServiceOptimizationSuggestions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	serviceName := c.DefaultQuery("serviceId", "default")
 	entityType := c.DefaultQuery("entityType", "project")
-	suggestions, err := h.costSvc.GetServiceOptimizationSuggestions(c.Request.Context(), tenantID, serviceName, entityType)
+	suggestions, err := h.costSvc.GetServiceOptimizationSuggestions(ctx, tenantID, serviceName, entityType)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

@@ -13,17 +13,17 @@ import (
 )
 
 var (
-	ErrReportNotFound      = errors.New("report not found")
-	ErrDatasourceNotFound  = errors.New("datasource not found")
-	ErrScheduleNotFound    = errors.New("schedule not found")
+	ErrReportNotFound     = errors.New("report not found")
+	ErrDatasourceNotFound = errors.New("datasource not found")
+	ErrScheduleNotFound   = errors.New("schedule not found")
 )
 
 // ReportDesignerService provides business logic for report designer operations.
 type ReportDesignerService struct {
-	definitionRepo  *repository.ReportDefinitionRepository
-	datasourceRepo  *repository.ReportDatasourceRepository
-	scheduleRepo    *repository.ReportScheduleRepository
-	executionRepo   *repository.ReportExecutionRepository
+	definitionRepo *repository.ReportDefinitionRepository
+	datasourceRepo *repository.ReportDatasourceRepository
+	scheduleRepo   *repository.ReportScheduleRepository
+	executionRepo  *repository.ReportExecutionRepository
 }
 
 // NewReportDesignerService creates a new ReportDesignerService.
@@ -125,7 +125,7 @@ func (s *ReportDesignerService) PreviewReport(ctx context.Context, tenantID, id 
 		params = map[string]interface{}{}
 	}
 	return &models.PreviewResult{
-		Report:       *report,
+		Report:        *report,
 		PreviewParams: params,
 	}, nil
 }
@@ -169,11 +169,11 @@ func (s *ReportDesignerService) CreateDatasource(ctx context.Context, tenantID s
 	}
 
 	ds := &models.ReportDatasource{
-		ID:             fmt.Sprintf("rptds-%d-%s", time.Now().UnixNano(), uuid.New().String()[:7]),
-		TenantID:       tenantID,
-		Name:           input.Name,
-		DatasourceType: input.DatasourceType,
-		Config:         input.Config,
+		ID:              fmt.Sprintf("rptds-%d-%s", time.Now().UnixNano(), uuid.New().String()[:7]),
+		TenantID:        tenantID,
+		Name:            input.Name,
+		DatasourceType:  input.DatasourceType,
+		Config:          input.Config,
 		RefreshInterval: input.RefreshInterval,
 	}
 

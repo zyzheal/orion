@@ -4,11 +4,11 @@
 // various source formats (CSV, Excel, JSON, YAML, API, DB, SFTP).
 //
 // Data flow:
-//   1. Create import job with source config and field mapping
-//   2. Start job → manager dispatches to matching IImportHandler
-//   3. Handler parses, validates, and returns structured rows
-//   4. Each row produces a CMDBImportRecord (created/updated/skipped/failed)
-//   5. Job transitions to completed/failed with aggregate counts
+//  1. Create import job with source config and field mapping
+//  2. Start job → manager dispatches to matching IImportHandler
+//  3. Handler parses, validates, and returns structured rows
+//  4. Each row produces a CMDBImportRecord (created/updated/skipped/failed)
+//  5. Job transitions to completed/failed with aggregate counts
 //
 // Tables: cmdb_import_jobs, cmdb_import_records
 package models
@@ -26,12 +26,12 @@ type CMDBImportJob struct {
 	ID           string     `db:"id"`
 	TenantID     string     `db:"tenant_id"`
 	Name         string     `db:"name"`
-	SourceType   string     `db:"source_type"`   // csv | excel | json | yaml | api | db | sftp
+	SourceType   string     `db:"source_type"` // csv | excel | json | yaml | api | db | sftp
 	SourcePath   string     `db:"source_path"`
-	TargetType   string     `db:"target_type"`   // ci | relation | attribute
-	Mapping      string     `db:"mapping"`       // JSON string: field mapping
-	Mode         string     `db:"mode"`          // create | update | upsert | merge
-	Status       string     `db:"status"`        // pending | running | completed | failed | cancelled
+	TargetType   string     `db:"target_type"` // ci | relation | attribute
+	Mapping      string     `db:"mapping"`     // JSON string: field mapping
+	Mode         string     `db:"mode"`        // create | update | upsert | merge
+	Status       string     `db:"status"`      // pending | running | completed | failed | cancelled
 	TotalCount   int        `db:"total_count"`
 	SuccessCount int        `db:"success_count"`
 	ErrorCount   int        `db:"error_count"`
@@ -63,8 +63,8 @@ var ValidJobStatuses = map[JobStatus]bool{
 
 // ValidStatusTransitions defines allowed forward-progress transitions.
 var ValidStatusTransitions = map[JobStatus][]JobStatus{
-	JobStatusPending:  {JobStatusRunning, JobStatusCancelled},
-	JobStatusRunning:  {JobStatusCompleted, JobStatusFailed, JobStatusCancelled},
+	JobStatusPending:   {JobStatusRunning, JobStatusCancelled},
+	JobStatusRunning:   {JobStatusCompleted, JobStatusFailed, JobStatusCancelled},
 	JobStatusCompleted: {}, // terminal
 	JobStatusFailed:    {}, // terminal
 	JobStatusCancelled: {}, // terminal
@@ -144,8 +144,8 @@ type ValidateImportRequest struct {
 
 // ValidateImportResponse is the response from validation.
 type ValidateImportResponse struct {
-	Valid        bool    `json:"valid"`
-	RowCount     int     `json:"row_count"`
+	Valid        bool     `json:"valid"`
+	RowCount     int      `json:"row_count"`
 	Columns      []string `json:"columns"`
 	MappingHints []string `json:"mapping_hints"`
 	Errors       []string `json:"errors"`

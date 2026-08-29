@@ -10,9 +10,9 @@ import (
 // CreateDeploySagaSteps returns the ordered steps for a deployment saga.
 //
 // Flow:
-//   1. BuildArtifact -> on failure / abort: CancelBuild (delete build + clear build_id)
-//   2. CanaryDeploy -> on failure / abort: RollbackCanary (delete canary + clear canary_id)
-//   3. FullDeploy -> on failure / abort: RollbackFullDeploy (delete deployment + clear deployment_id)
+//  1. BuildArtifact -> on failure / abort: CancelBuild (delete build + clear build_id)
+//  2. CanaryDeploy -> on failure / abort: RollbackCanary (delete canary + clear canary_id)
+//  3. FullDeploy -> on failure / abort: RollbackFullDeploy (delete deployment + clear deployment_id)
 //
 // Each step records its output in map[string]interface{} so that the matching
 // compensate function can undo exactly what was done.
@@ -32,14 +32,14 @@ func CreateDeploySagaSteps() []saga.SagaStep {
 			ExecuteFunc: func(ctx context.Context, inst *saga.SagaInstance, ctxData map[string]interface{}) (map[string]interface{}, error) {
 				buildID := generateID("build")
 				result := map[string]interface{}{
-					"build_id":       buildID,
-					"app_name":       getString(ctxData, "app_name", ""),
-					"environment":    getString(ctxData, "environment", "dev"),
-					"version":        getString(ctxData, "version", ""),
-					"commit_sha":     getString(ctxData, "commit_sha", ""),
-					"artifact_path":  "/artifacts/" + getString(ctxData, "app_name", "app") + "/" +getString(ctxData, "version", "latest"),
-					"status":         "succeeded",
-					"built_at":       time.Now().UTC(),
+					"build_id":      buildID,
+					"app_name":      getString(ctxData, "app_name", ""),
+					"environment":   getString(ctxData, "environment", "dev"),
+					"version":       getString(ctxData, "version", ""),
+					"commit_sha":    getString(ctxData, "commit_sha", ""),
+					"artifact_path": "/artifacts/" + getString(ctxData, "app_name", "app") + "/" + getString(ctxData, "version", "latest"),
+					"status":        "succeeded",
+					"built_at":      time.Now().UTC(),
 				}
 				inst.ContextData["build_id"] = buildID
 				inst.Steps = append(inst.Steps, saga.SagaStepResult{

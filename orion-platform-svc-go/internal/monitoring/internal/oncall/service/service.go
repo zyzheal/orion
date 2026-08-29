@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/monitoring/internal/oncall/models"
 	"orion/platform-svc-go/internal/monitoring/internal/oncall/repository"
-	"go.uber.org/zap"
 )
 
 type OnCallService struct {

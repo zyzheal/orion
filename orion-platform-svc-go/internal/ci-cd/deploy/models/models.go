@@ -88,12 +88,12 @@ type EmergencyDeploy struct {
 
 // DeployProgress holds overall deployment progress for a multi-stage deploy.
 type DeployProgress struct {
-	DeploymentID    string              `json:"deployment_id"`
-	TotalStages     int                 `json:"total_stages"`
-	CurrentStage    *ProgressiveStage   `json:"current_stage"`
-	CompletedStages int                 `json:"completed_stages"`
-	FailedStages    int                 `json:"failed_stages"`
-	Stages          []ProgressiveStage  `json:"stages"`
-	OverallPercent  int                 `json:"overall_percent"`
-	Status          string              `json:"status"`
+	DeploymentID    string             `json:"deployment_id"`
+	TotalStages     int                `json:"total_stages"`
+	CurrentStage    *ProgressiveStage  `json:"current_stage"`
+	CompletedStages int                `json:"completed_stages"`
+	FailedStages    int                `json:"failed_stages"`
+	Stages          []ProgressiveStage `json:"stages"`
+	OverallPercent  int                `json:"overall_percent"`
+	Status          string             `json:"status"`
 }

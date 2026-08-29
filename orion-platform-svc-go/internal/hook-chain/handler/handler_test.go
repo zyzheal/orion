@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/hook-chain/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/hook-chain/models"
 )
 
@@ -52,7 +52,6 @@ func (f *fakeHook_chainService) Update(ctx context.Context, tenantID, id string,
 }
 
 var _ service.ServiceInterface = (*fakeHook_chainService)(nil)
-
 
 func TestHandler_HOOK_CHAIN_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

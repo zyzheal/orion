@@ -6,9 +6,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/alert-correlation/models"
 	"orion/platform-svc-go/internal/alert-correlation/service"
-	"orion/go-common/pkg/auth"
 )
 
 type AlertCorrelationHandler struct {
@@ -41,6 +42,8 @@ func (h *AlertCorrelationHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // CreateGroup creates a correlation group.
 func (h *AlertCorrelationHandler) CreateGroup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertCorrCreateGroup")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req models.CreateCorrelationGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -48,7 +51,7 @@ func (h *AlertCorrelationHandler) CreateGroup(c *gin.Context) {
 		return
 	}
 
-	group, err := h.svc.CreateGroup(c.Request.Context(), tenantID, req.RootAlertID, req.AlertIDs, req.GroupType)
+	group, err := h.svc.CreateGroup(ctx, tenantID, req.RootAlertID, req.AlertIDs, req.GroupType)
 	if err != nil {
 		errors.WriteSuccessInternalError(c, err.Error())
 		return
@@ -58,12 +61,14 @@ func (h *AlertCorrelationHandler) CreateGroup(c *gin.Context) {
 
 // ListGroups returns paginated correlation groups.
 func (h *AlertCorrelationHandler) ListGroups(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertCorrListGroups")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	groupType := c.Query("group_type")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	resp, err := h.svc.QueryGroups(c.Request.Context(), tenantID, groupType, limit, offset)
+	resp, err := h.svc.QueryGroups(ctx, tenantID, groupType, limit, offset)
 	if err != nil {
 		errors.WriteSuccessInternalError(c, err.Error())
 		return
@@ -73,6 +78,8 @@ func (h *AlertCorrelationHandler) ListGroups(c *gin.Context) {
 
 // GetGroup returns a single correlation group.
 func (h *AlertCorrelationHandler) GetGroup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertCorrGetGroup")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -80,7 +87,7 @@ func (h *AlertCorrelationHandler) GetGroup(c *gin.Context) {
 		return
 	}
 
-	group, err := h.svc.GetGroup(c.Request.Context(), tenantID, id)
+	group, err := h.svc.GetGroup(ctx, tenantID, id)
 	if err != nil {
 		errors.WriteSuccessNotFound(c, err.Error())
 		return
@@ -90,6 +97,8 @@ func (h *AlertCorrelationHandler) GetGroup(c *gin.Context) {
 
 // DeleteGroup removes a correlation group.
 func (h *AlertCorrelationHandler) DeleteGroup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertCorrDeleteGroup")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -97,7 +106,7 @@ func (h *AlertCorrelationHandler) DeleteGroup(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.DeleteGroup(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteGroup(ctx, tenantID, id); err != nil {
 		errors.WriteSuccessNotFound(c, err.Error())
 		return
 	}
@@ -106,6 +115,8 @@ func (h *AlertCorrelationHandler) DeleteGroup(c *gin.Context) {
 
 // CreateRule creates a correlation rule.
 func (h *AlertCorrelationHandler) CreateRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertCorrCreateRule")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req struct {
 		Name          string `json:"name" binding:"required"`
@@ -119,7 +130,7 @@ func (h *AlertCorrelationHandler) CreateRule(c *gin.Context) {
 		return
 	}
 
-	rule, err := h.svc.CreateRule(c.Request.Context(), tenantID, req.Name, req.Description, req.GroupType, req.TimeWindowSec, req.Conditions)
+	rule, err := h.svc.CreateRule(ctx, tenantID, req.Name, req.Description, req.GroupType, req.TimeWindowSec, req.Conditions)
 	if err != nil {
 		errors.WriteSuccessInternalError(c, err.Error())
 		return
@@ -129,11 +140,13 @@ func (h *AlertCorrelationHandler) CreateRule(c *gin.Context) {
 
 // ListRules returns paginated correlation rules.
 func (h *AlertCorrelationHandler) ListRules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertCorrListRules")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	rules, total, err := h.svc.QueryRules(c.Request.Context(), tenantID, limit, offset)
+	rules, total, err := h.svc.QueryRules(ctx, tenantID, limit, offset)
 	if err != nil {
 		errors.WriteSuccessInternalError(c, err.Error())
 		return
@@ -143,9 +156,11 @@ func (h *AlertCorrelationHandler) ListRules(c *gin.Context) {
 
 // AutoCorrelate triggers automatic correlation.
 func (h *AlertCorrelationHandler) AutoCorrelate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertCorrAutoCorrelate")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 
-	groups, err := h.svc.AutoCorrelate(c.Request.Context(), tenantID)
+	groups, err := h.svc.AutoCorrelate(ctx, tenantID)
 	if err != nil {
 		errors.WriteSuccessInternalError(c, err.Error())
 		return

@@ -5,7 +5,6 @@ import (
 	"orion/platform-svc-go/internal/apk-upload-history/models"
 )
 
-
 // RepositoryInterface defines the data access contract for the apk-upload-history module.
 // DO NOT MODIFY: auto-generated from repository.go
 type RepositoryInterface interface {

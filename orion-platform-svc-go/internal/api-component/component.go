@@ -223,11 +223,11 @@ type APIComponent struct {
 // and summary. Use options to customize further.
 func NewAPIComponent(name, prefix, summary string, opts ...ComponentOption) *APIComponent {
 	c := &APIComponent{
-		Name:      name,
-		Prefix:    prefix,
-		Summary:   summary,
-		Metadata:  make(gin.H),
-		Tags:      []string{name},
+		Name:       name,
+		Prefix:     prefix,
+		Summary:    summary,
+		Metadata:   make(gin.H),
+		Tags:       []string{name},
 		Middleware: nil,
 	}
 	for _, opt := range opts {

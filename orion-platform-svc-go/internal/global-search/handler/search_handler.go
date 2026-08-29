@@ -37,14 +37,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // searchRequest is the JSON body for the search endpoint.
 type searchRequest struct {
-	Query         string            `json:"query" binding:"required"`
-	Modules       []string          `json:"modules,omitempty"`
-	Filters       map[string]string `json:"filters,omitempty"`
+	Query         string                       `json:"query" binding:"required"`
+	Modules       []string                     `json:"modules,omitempty"`
+	Filters       map[string]string            `json:"filters,omitempty"`
 	ModuleFilters map[string]map[string]string `json:"module_filters,omitempty"`
-	Page          int               `json:"page"`
-	PageSize      int               `json:"page_size"`
-	SortBy        string            `json:"sort_by,omitempty"`
-	SortOrder     string            `json:"sort_order,omitempty"`
+	Page          int                          `json:"page"`
+	PageSize      int                          `json:"page_size"`
+	SortBy        string                       `json:"sort_by,omitempty"`
+	SortOrder     string                       `json:"sort_order,omitempty"`
 }
 
 // bulkSearchRequest supports multiple queries in a single call.
@@ -63,14 +63,14 @@ func (h *Handler) Search(c *gin.Context) {
 	}
 
 	sr := &models.SearchRequest{
-		Query:       req.Query,
-		Modules:     req.Modules,
-		Filters:     req.Filters,
+		Query:         req.Query,
+		Modules:       req.Modules,
+		Filters:       req.Filters,
 		ModuleFilters: req.ModuleFilters,
-		From:        (req.Page - 1) * req.PageSize,
-		Size:        req.PageSize,
-		SortBy:      req.SortBy,
-		SortOrder:   req.SortOrder,
+		From:          (req.Page - 1) * req.PageSize,
+		Size:          req.PageSize,
+		SortBy:        req.SortBy,
+		SortOrder:     req.SortOrder,
 	}
 
 	if sr.Size <= 0 {
@@ -102,12 +102,12 @@ func (h *Handler) BulkSearch(c *gin.Context) {
 	results := make([]models.SearchResponse, 0, len(req.Queries))
 	for _, q := range req.Queries {
 		sr := &models.SearchRequest{
-			Query:   q.Query,
-			Modules: q.Modules,
-			Filters: q.Filters,
-			From:    (q.Page - 1) * q.PageSize,
-			Size:    q.PageSize,
-			SortBy:  q.SortBy,
+			Query:     q.Query,
+			Modules:   q.Modules,
+			Filters:   q.Filters,
+			From:      (q.Page - 1) * q.PageSize,
+			Size:      q.PageSize,
+			SortBy:    q.SortBy,
 			SortOrder: q.SortOrder,
 		}
 		if sr.Size <= 0 {
@@ -125,7 +125,7 @@ func (h *Handler) BulkSearch(c *gin.Context) {
 }
 
 func (h *Handler) ListModules(c *gin.Context) {
-_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "global-search-modules")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "global-search-modules")
 	defer span.End()
 
 	modules := h.registry.All()

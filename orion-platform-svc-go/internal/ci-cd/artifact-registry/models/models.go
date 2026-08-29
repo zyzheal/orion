@@ -18,17 +18,17 @@ type ArtifactRegistry struct {
 
 // ArtifactEntry represents a single artifact in the registry.
 type ArtifactEntry struct {
-	ID            string    `json:"id" db:"id"`
-	RegistryID    string    `json:"registry_id" db:"registry_id"`
-	Name          string    `json:"name" db:"name"`
-	Version       string    `json:"version" db:"version"`
-	ContentType   string    `json:"content_type" db:"content_type"`
-	Size          int64     `json:"size" db:"size"`
-	Checksum      string    `json:"checksum" db:"checksum"`
-	StoragePath   string    `json:"storage_path" db:"storage_path"`
-	Metadata      string    `json:"metadata" db:"metadata"`
-	IsLatest      bool      `json:"is_latest" db:"is_latest"`
-	CreatedAt     time.Time `json:"created_at" db:"created_at"`
+	ID          string    `json:"id" db:"id"`
+	RegistryID  string    `json:"registry_id" db:"registry_id"`
+	Name        string    `json:"name" db:"name"`
+	Version     string    `json:"version" db:"version"`
+	ContentType string    `json:"content_type" db:"content_type"`
+	Size        int64     `json:"size" db:"size"`
+	Checksum    string    `json:"checksum" db:"checksum"`
+	StoragePath string    `json:"storage_path" db:"storage_path"`
+	Metadata    string    `json:"metadata" db:"metadata"`
+	IsLatest    bool      `json:"is_latest" db:"is_latest"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 }
 
 // CreateRegistryRequest for creating a registry.
@@ -60,6 +60,6 @@ type RegistryResponse struct {
 
 // ArtifactResponse wraps artifact query results.
 type ArtifactResponse struct {
-	Total int64          `json:"total"`
+	Total int64           `json:"total"`
 	Data  []ArtifactEntry `json:"data"`
 }

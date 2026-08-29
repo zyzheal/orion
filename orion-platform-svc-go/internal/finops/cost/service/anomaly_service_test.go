@@ -142,8 +142,8 @@ func TestDetectIQRAnomalies_Drop(t *testing.T) {
 
 func TestSumFloats(t *testing.T) {
 	cases := []struct {
-		name string
-		input []float64
+		name     string
+		input    []float64
 		expected float64
 	}{
 		{"normal", []float64{1, 2, 3, 4, 5}, 15},

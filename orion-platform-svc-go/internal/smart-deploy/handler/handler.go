@@ -1,16 +1,19 @@
 package handler
+
 import (
-	"strconv"
+	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/smart-deploy/models"
 	"orion/platform-svc-go/internal/smart-deploy/service"
-	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
-	"go.opentelemetry.io/otel"
+	"strconv"
 )
+
 type Handler struct {
 	svc service.ServiceInterface
 }
+
 func NewHandler(svc service.ServiceInterface) *Handler {
 	return &Handler{svc: svc}
 }
@@ -51,6 +54,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		auth.RequirePermission("smart-deploy", "read"),
 		h.GetAuditTrail)
 }
+
 // CreateDeployment handles POST /smart-deploy
 func (h *Handler) CreateDeployment(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateDeployment")
@@ -71,6 +75,7 @@ func (h *Handler) CreateDeployment(c *gin.Context) {
 	}
 	middleware.RespondCreated(c, deployment)
 }
+
 // GetDeployment handles GET /smart-deploy/:id
 func (h *Handler) GetDeployment(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDeployment")
@@ -86,6 +91,7 @@ func (h *Handler) GetDeployment(c *gin.Context) {
 	}
 	middleware.RespondSuccess(c, deployment)
 }
+
 // ListDeployments handles GET /smart-deploy
 func (h *Handler) ListDeployments(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDeployments")
@@ -130,12 +136,13 @@ func (h *Handler) ListDeployments(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, gin.H{
-		"data": deployments,
+		"data":  deployments,
 		"total": total,
 		"page":  opt.Page,
 		"limit": opt.Limit,
 	})
 }
+
 // GetLatestDeployment handles GET /smart-deploy/latest/:appName/:environment
 func (h *Handler) GetLatestDeployment(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetLatestDeployment")
@@ -151,6 +158,7 @@ func (h *Handler) GetLatestDeployment(c *gin.Context) {
 	}
 	middleware.RespondSuccess(c, deployment)
 }
+
 // CancelDeployment handles POST /smart-deploy/:id/cancel
 func (h *Handler) CancelDeployment(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CancelDeployment")
@@ -173,14 +181,16 @@ func (h *Handler) CancelDeployment(c *gin.Context) {
 	}
 	middleware.RespondSuccess(c, deployment)
 }
+
 // DeleteDeployment handles DELETE /smart-deploy/:id
 func (h *Handler) DeleteDeployment(c *gin.Context) {
-	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteDeployment")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteDeployment")
 	defer span.End()
 	_ = c.GetString("tenant_id")
 	// Delete is not exposed on service; return not-implemented.
 	middleware.RespondBadRequest(c, "delete not supported for deployments")
 }
+
 // Rollback handles POST /smart-deploy/:id/rollback
 func (h *Handler) Rollback(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Rollback")
@@ -201,6 +211,7 @@ func (h *Handler) Rollback(c *gin.Context) {
 	}
 	middleware.RespondSuccess(c, rollback)
 }
+
 // GetRollbackHistory handles GET /smart-deploy/:id/rollbacks
 func (h *Handler) GetRollbackHistory(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRollbackHistory")
@@ -215,10 +226,11 @@ func (h *Handler) GetRollbackHistory(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, gin.H{
-		"data": rollbacks,
+		"data":  rollbacks,
 		"total": len(rollbacks),
 	})
 }
+
 // GetMetrics handles GET /smart-deploy/metrics
 func (h *Handler) GetMetrics(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetMetrics")
@@ -234,6 +246,7 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 	}
 	middleware.RespondSuccess(c, metrics)
 }
+
 // GetAuditTrail handles GET /smart-deploy/:id/audit
 func (h *Handler) GetAuditTrail(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAuditTrail")
@@ -248,7 +261,7 @@ func (h *Handler) GetAuditTrail(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, gin.H{
-		"data": entries,
+		"data":  entries,
 		"total": len(entries),
 	})
 }

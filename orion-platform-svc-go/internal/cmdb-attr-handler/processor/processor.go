@@ -20,8 +20,8 @@ import (
 	"sync"
 
 	"orion/platform-svc-go/internal/cmdb-attr-handler/models"
-	"orion/platform-svc-go/internal/cmdb-attr-handler/validator"
 	"orion/platform-svc-go/internal/cmdb-attr-handler/valhandlers"
+	"orion/platform-svc-go/internal/cmdb-attr-handler/validator"
 
 	"go.uber.org/zap"
 )
@@ -31,11 +31,11 @@ import (
 // ---------------------------------------------------------------------------
 
 var (
-	ErrInvalidDataType    = errors.New("invalid attribute data type")
+	ErrInvalidDataType      = errors.New("invalid attribute data type")
 	ErrMissingAttributeName = errors.New("attribute name is required")
-	ErrValidationFailed   = errors.New("attribute value validation failed")
-	ErrPersistFailed      = errors.New("failed to persist attribute value")
-	ErrTransformFailed    = errors.New("failed to transform attribute value")
+	ErrValidationFailed     = errors.New("attribute value validation failed")
+	ErrPersistFailed        = errors.New("failed to persist attribute value")
+	ErrTransformFailed      = errors.New("failed to transform attribute value")
 )
 
 // ---------------------------------------------------------------------------
@@ -44,12 +44,12 @@ var (
 
 // AttributeValue holds the domain representation of a CMDB CI attribute.
 //
-//   attributeName  — human-readable name of the attribute (e.g. "cpu_model").
-//   value          — raw input value as a string; may be empty to request default.
-//   dataType       — attribute type identifier (string|number|boolean|enum|
-//                    reference|date|json|datetime|... any built-in or custom type).
-//   validationRules — optional runtime validation rules passed to the Validator.
-//   defaultValue   — optional fallback used when value is empty.
+//	attributeName  — human-readable name of the attribute (e.g. "cpu_model").
+//	value          — raw input value as a string; may be empty to request default.
+//	dataType       — attribute type identifier (string|number|boolean|enum|
+//	                 reference|date|json|datetime|... any built-in or custom type).
+//	validationRules — optional runtime validation rules passed to the Validator.
+//	defaultValue   — optional fallback used when value is empty.
 type AttributeValue struct {
 	AttributeName   string            `json:"attribute_name"`
 	Value           string            `json:"value"`
@@ -68,12 +68,12 @@ type ValidateAttributeValue struct {
 
 // ProcessedValue is the output of Process containing the typed, persisted result.
 type ProcessedValue struct {
-	AttributeName    string               `json:"attribute_name"`
-	Value            interface{}          `json:"value"`
-	SerializedValue  string               `json:"serialized_value"`
-	DataType         string               `json:"data_type"`
-	AppliedDefault   bool                 `json:"applied_default"`
-	Record           *models.CMDBAttributeValue
+	AttributeName   string      `json:"attribute_name"`
+	Value           interface{} `json:"value"`
+	SerializedValue string      `json:"serialized_value"`
+	DataType        string      `json:"data_type"`
+	AppliedDefault  bool        `json:"applied_default"`
+	Record          *models.CMDBAttributeValue
 }
 
 // ---------------------------------------------------------------------------
@@ -121,7 +121,7 @@ type Service interface {
 // Pass an optional Service for list/count semantics, or nil to skip them.
 func NewProcessor(repo Repository, svc Service, logger *zap.Logger) *Processor {
 	p := &Processor{
-		handlers: make(map[string]handlers.AttributeValueHandler),
+		handlers:  make(map[string]handlers.AttributeValueHandler),
 		validator: validator.NewValidator(logger),
 		repo:      repo,
 		svc:       svc,

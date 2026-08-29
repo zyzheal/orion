@@ -10,9 +10,9 @@ import (
 
 // Client wraps a go-redis client for gateway gray-release operations.
 type Client struct {
-	rdb     *redis.Client
-	ctx     context.Context
-	pubSub  *redis.PubSub
+	rdb    *redis.Client
+	ctx    context.Context
+	pubSub *redis.PubSub
 }
 
 // NewClient creates a Redis client connected to the given addr.

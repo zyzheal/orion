@@ -8,9 +8,9 @@ import (
 
 // Record, CreateRequest, ListQuery are type aliases to the shared CRUD types.
 type (
-	Record      = crud.Record
+	Record        = crud.Record
 	CreateRequest = crud.CreateRequest
-	ListQuery   = crud.ListQuery
+	ListQuery     = crud.ListQuery
 )
 
 // ==================== Model Registry ====================

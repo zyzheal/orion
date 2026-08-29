@@ -17,8 +17,8 @@ var (
 	ErrAggregateNotFound = errors.New("aggregate not found")
 	ErrAggregateNotReady = errors.New("aggregate is not in a valid state for this command")
 	ErrAppendFailed      = errors.New("failed to persist events")
-	ErrPublishFailed      = errors.New("failed to publish event")
-	ErrHandlerNotFound    = errors.New("no handler registered for command")
+	ErrPublishFailed     = errors.New("failed to publish event")
+	ErrHandlerNotFound   = errors.New("no handler registered for command")
 )
 
 // ============================================================================
@@ -110,8 +110,8 @@ func (b *CommandBus) Register(name string, handler any) {
 //
 // Usage:
 //
-//  bus.Register("ActivatePipelineCommand", activateHandler)
-//  result, err := Dispatch[*ActivatePipelineCommand, *CommandResult](ctx, bus, "ActivatePipelineCommand", cmd)
+//	bus.Register("ActivatePipelineCommand", activateHandler)
+//	result, err := Dispatch[*ActivatePipelineCommand, *CommandResult](ctx, bus, "ActivatePipelineCommand", cmd)
 func Dispatch[C any, R any](
 	ctx context.Context,
 	bus *CommandBus,

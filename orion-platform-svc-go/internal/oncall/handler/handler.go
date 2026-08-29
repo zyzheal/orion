@@ -1,15 +1,16 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/oncall/models"
 	"orion/platform-svc-go/internal/oncall/service"
-	"orion/platform-svc-go/internal/middleware"
-	"orion/go-common/pkg/auth"
 )
 
 type OnCallHandler struct {
@@ -25,28 +26,26 @@ func (h *OnCallHandler) GetTenantID(c *gin.Context) uuid.UUID {
 	return tenantID
 }
 
-// RegisterRoutes registers on-call routes.
 func (h *OnCallHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	schedules := rg.Group("/oncall/schedules")
-
 	schedules.GET("", auth.RequirePermission("monitor", "read"), h.ListSchedules)
 	schedules.POST("", auth.RequirePermission("monitor", "write"), h.CreateSchedule)
 	schedules.GET("/:id", auth.RequirePermission("monitor", "read"), h.GetSchedule)
 	schedules.DELETE("/:id", auth.RequirePermission("monitor", "delete"), h.DeleteSchedule)
 	schedules.GET("/:id/current", auth.RequirePermission("monitor", "read"), h.GetCurrentOnCall)
 
-	rotations := rg.Group("/oncall/schedules/:schedule_id/rotations")
+	rotations := rg.Group("/oncall/schedules/:id/rotations")
 	rotations.GET("", auth.RequirePermission("monitor", "read"), h.ListRotations)
 	rotations.POST("", auth.RequirePermission("monitor", "write"), h.AddRotation)
 }
 
-// ListSchedules returns paginated schedules.
 func (h *OnCallHandler) ListSchedules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "OncallListSchedules")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-
-	resp, err := h.svc.QuerySchedules(c.Request.Context(), tenantID, limit, offset)
+	resp, err := h.svc.QuerySchedules(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -54,16 +53,16 @@ func (h *OnCallHandler) ListSchedules(c *gin.Context) {
 	middleware.RespondPaginated(c, resp.Data, offset, limit, int(resp.Total))
 }
 
-// CreateSchedule creates a new schedule.
 func (h *OnCallHandler) CreateSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "OncallCreateSchedule")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req models.CreateScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-
-	schedule, err := h.svc.CreateSchedule(c.Request.Context(), tenantID, &req)
+	schedule, err := h.svc.CreateSchedule(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -71,16 +70,16 @@ func (h *OnCallHandler) CreateSchedule(c *gin.Context) {
 	middleware.RespondCreated(c, schedule)
 }
 
-// GetSchedule returns a single schedule.
 func (h *OnCallHandler) GetSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "OncallGetSchedule")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		middleware.RespondBadRequest(c, "invalid id format")
 		return
 	}
-
-	schedule, err := h.svc.GetSchedule(c.Request.Context(), tenantID, id)
+	schedule, err := h.svc.GetSchedule(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -88,31 +87,31 @@ func (h *OnCallHandler) GetSchedule(c *gin.Context) {
 	middleware.RespondSuccess(c, schedule)
 }
 
-// DeleteSchedule removes a schedule.
 func (h *OnCallHandler) DeleteSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "OncallDeleteSchedule")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		middleware.RespondBadRequest(c, "invalid id format")
 		return
 	}
-
-	if err := h.svc.DeleteSchedule(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteSchedule(ctx, tenantID, id); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
 	c.JSON(http.StatusNoContent, nil)
 }
 
-// GetCurrentOnCall returns who is currently on-call.
 func (h *OnCallHandler) GetCurrentOnCall(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "OncallGetCurrentOnCall")
+	defer span.End()
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		middleware.RespondBadRequest(c, "invalid id format")
 		return
 	}
-
-	resp, err := h.svc.GetCurrentOnCall(c.Request.Context(), id)
+	resp, err := h.svc.GetCurrentOnCall(ctx, id)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -120,17 +119,17 @@ func (h *OnCallHandler) GetCurrentOnCall(c *gin.Context) {
 	middleware.RespondSuccess(c, resp)
 }
 
-// ListRotations returns rotations for a schedule.
 func (h *OnCallHandler) ListRotations(c *gin.Context) {
-	scheduleID, err := uuid.Parse(c.Param("schedule_id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "OncallListRotations")
+	defer span.End()
+	scheduleID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		middleware.RespondBadRequest(c, "invalid schedule_id format")
 		return
 	}
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-
-	rotations, total, err := h.svc.QueryRotations(c.Request.Context(), scheduleID, limit, offset)
+	rotations, total, err := h.svc.QueryRotations(ctx, scheduleID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -138,22 +137,21 @@ func (h *OnCallHandler) ListRotations(c *gin.Context) {
 	middleware.RespondPaginated(c, rotations, offset, limit, int(total))
 }
 
-// AddRotation adds a rotation to a schedule.
 func (h *OnCallHandler) AddRotation(c *gin.Context) {
-	scheduleID, err := uuid.Parse(c.Param("schedule_id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "OncallAddRotation")
+	defer span.End()
+	scheduleID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		middleware.RespondBadRequest(c, "invalid schedule_id format")
 		return
 	}
 	tenantID := h.GetTenantID(c)
-
 	var req models.AddRotationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-
-	rotation, err := h.svc.AddRotation(c.Request.Context(), tenantID, scheduleID, &req)
+	rotation, err := h.svc.AddRotation(ctx, tenantID, scheduleID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

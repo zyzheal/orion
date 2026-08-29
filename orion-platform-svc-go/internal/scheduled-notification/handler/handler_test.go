@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/scheduled-notification/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/scheduled-notification/models"
 )
 
@@ -68,7 +68,6 @@ func (f *fakeScheduled_notificationService) Update(ctx context.Context, tenantID
 }
 
 var _ service.ServiceInterface = (*fakeScheduled_notificationService)(nil)
-
 
 func TestHandler_SCHEDULED_NOTI_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

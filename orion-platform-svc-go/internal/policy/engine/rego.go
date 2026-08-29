@@ -169,11 +169,13 @@ func (s *scanner) peek() tok {
 	return t
 }
 
-func isIdent(c rune) bool  { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' }
-func isAlnum(c rune) bool  { return isIdent(c) || isDigit(c) }
-func isDigit(c rune) bool  { return c >= '0' && c <= '9' }
-func isSpace(c rune) bool  { return c == ' ' || c == '\t' || c == '\n' || c == '\r' }
-func isCompOp(t tok) bool  { return t.typ == "==" || t.typ == "!=" || t.typ == ">" || t.typ == "<" || t.typ == ">=" || t.typ == "<=" }
+func isIdent(c rune) bool { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' }
+func isAlnum(c rune) bool { return isIdent(c) || isDigit(c) }
+func isDigit(c rune) bool { return c >= '0' && c <= '9' }
+func isSpace(c rune) bool { return c == ' ' || c == '\t' || c == '\n' || c == '\r' }
+func isCompOp(t tok) bool {
+	return t.typ == "==" || t.typ == "!=" || t.typ == ">" || t.typ == "<" || t.typ == ">=" || t.typ == "<="
+}
 
 // ---------------------------------------------------------------------------
 // Parser
@@ -184,7 +186,7 @@ type parser struct {
 	cur tok
 }
 
-func (p *parser) next() { p.cur = p.s.next() }
+func (p *parser) next()     { p.cur = p.s.next() }
 func (p *parser) peek() tok { return p.s.peek() }
 
 func (p *parser) errf(format string, args ...interface{}) error {
@@ -483,30 +485,37 @@ type ctx struct{ input map[string]interface{} }
 // ---- leaves ----
 
 type boolExpr struct{ v bool }
-func (e boolExpr) eval(_ *ctx) bool { return e.v }
+
+func (e boolExpr) eval(_ *ctx) bool       { return e.v }
 func (e boolExpr) val(_ *ctx) interface{} { return e.v }
 
 type numExpr struct{ v float64 }
-func (e numExpr) eval(_ *ctx) bool { return e.v != 0 }
+
+func (e numExpr) eval(_ *ctx) bool       { return e.v != 0 }
 func (e numExpr) val(_ *ctx) interface{} { return e.v }
 
 type strExpr struct{ v string }
-func (e strExpr) eval(_ *ctx) bool { return e.v != "" }
+
+func (e strExpr) eval(_ *ctx) bool       { return e.v != "" }
 func (e strExpr) val(_ *ctx) interface{} { return e.v }
 
 type nilExpr struct{}
-func (nilExpr) eval(_ *ctx) bool { return false }
+
+func (nilExpr) eval(_ *ctx) bool       { return false }
 func (nilExpr) val(_ *ctx) interface{} { return nil }
 
 type nilLit struct{}
-func (nilLit) eval(_ *ctx) bool { return false }
+
+func (nilLit) eval(_ *ctx) bool       { return false }
 func (nilLit) val(_ *ctx) interface{} { return nil }
 
 type inputExpr struct{}
-func (inputExpr) eval(_ *ctx) bool { return true }
+
+func (inputExpr) eval(_ *ctx) bool         { return true }
 func (inputExpr) val(ctx *ctx) interface{} { return ctx.input }
 
 type dotExpr struct{ key string }
+
 func (e dotExpr) eval(_ *ctx) bool { return true }
 func (e dotExpr) val(ctx *ctx) interface{} {
 	if ctx.input == nil {
@@ -516,10 +525,12 @@ func (e dotExpr) val(ctx *ctx) interface{} {
 }
 
 type varExpr struct{ name string }
-func (varExpr) eval(_ *ctx) bool { return false }
+
+func (varExpr) eval(_ *ctx) bool       { return false }
 func (varExpr) val(_ *ctx) interface{} { return nil }
 
 type arrayExpr struct{ elems []expr }
+
 func (e arrayExpr) eval(_ *ctx) bool { return true }
 func (e arrayExpr) val(c *ctx) interface{} {
 	v := make([]interface{}, len(e.elems))
@@ -532,19 +543,23 @@ func (e arrayExpr) val(c *ctx) interface{} {
 // ---- compound boolean ----
 
 type truthyExpr struct{ inner expr }
-func (e truthyExpr) eval(ctx *ctx) bool { return isTruthy(e.inner.val(ctx)) }
+
+func (e truthyExpr) eval(ctx *ctx) bool       { return isTruthy(e.inner.val(ctx)) }
 func (e truthyExpr) val(ctx *ctx) interface{} { return e.eval(ctx) }
 
 type andExpr struct{ left, right expr }
-func (e andExpr) eval(ctx *ctx) bool { return e.left.eval(ctx) && e.right.eval(ctx) }
+
+func (e andExpr) eval(ctx *ctx) bool       { return e.left.eval(ctx) && e.right.eval(ctx) }
 func (e andExpr) val(ctx *ctx) interface{} { return e.eval(ctx) }
 
 type orExpr struct{ left, right expr }
-func (e orExpr) eval(ctx *ctx) bool { return e.left.eval(ctx) || e.right.eval(ctx) }
+
+func (e orExpr) eval(ctx *ctx) bool       { return e.left.eval(ctx) || e.right.eval(ctx) }
 func (e orExpr) val(ctx *ctx) interface{} { return e.eval(ctx) }
 
 type notExpr struct{ inner expr }
-func (e notExpr) eval(ctx *ctx) bool { return !e.inner.eval(ctx) }
+
+func (e notExpr) eval(ctx *ctx) bool       { return !e.inner.eval(ctx) }
 func (e notExpr) val(ctx *ctx) interface{} { return e.eval(ctx) }
 
 // ---- comparison ----
@@ -594,6 +609,7 @@ func (e cmpExpr) val(ctx *ctx) interface{} { return e.eval(ctx) }
 // ---- contains ----
 
 type containsExpr struct{ left, right expr }
+
 func (e containsExpr) eval(ctx *ctx) bool {
 	lv, ok := e.left.val(ctx).(string)
 	rv, ok2 := e.right.val(ctx).(string)
@@ -607,6 +623,7 @@ func (e containsExpr) val(ctx *ctx) interface{} { return e.eval(ctx) }
 // ---- in ----
 
 type inExpr struct{ left, right expr }
+
 func (e inExpr) eval(ctx *ctx) bool {
 	lv := e.left.val(ctx)
 	rv := e.right.val(ctx)
@@ -713,6 +730,7 @@ func asFloat(v interface{}) float64 {
 }
 
 type kind int
+
 const (
 	kindStr kind = iota
 	kindNum
@@ -794,7 +812,7 @@ func isTruthy(v interface{}) bool {
 		return t != ""
 	case float64:
 		return t != 0
-	_ = t
+		_ = t
 	case []interface{}:
 		return len(t) > 0
 	case map[string]interface{}:

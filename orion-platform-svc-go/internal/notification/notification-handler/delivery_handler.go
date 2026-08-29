@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/notification/notification/models"
 	"orion/platform-svc-go/internal/notification/notification/service"
 
@@ -32,6 +33,8 @@ func (h *DeliveryHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // List handles GET /deliveries - list deliveries with optional filters.
 func (h *DeliveryHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	notificationID := c.Query("notification_id")
 	status := c.Query("status")
@@ -40,10 +43,10 @@ func (h *DeliveryHandler) List(c *gin.Context) {
 	var err error
 
 	if notificationID != "" {
-		items, err = h.deliverySvc.ListDeliveries(c.Request.Context(), tenantID, notificationID)
+		items, err = h.deliverySvc.ListDeliveries(ctx, tenantID, notificationID)
 	} else {
 		// For now, return all deliveries; in production add pagination
-		items, err = h.deliverySvc.ListDeliveries(c.Request.Context(), tenantID, "")
+		items, err = h.deliverySvc.ListDeliveries(ctx, tenantID, "")
 		_ = status
 	}
 
@@ -56,10 +59,12 @@ func (h *DeliveryHandler) List(c *gin.Context) {
 
 // Get handles GET /deliveries/:id - get a single delivery record.
 func (h *DeliveryHandler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationGet")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	delivery, err := h.deliverySvc.GetDelivery(c.Request.Context(), tenantID, id)
+	delivery, err := h.deliverySvc.GetDelivery(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, "delivery not found")
 		return
@@ -69,10 +74,12 @@ func (h *DeliveryHandler) Get(c *gin.Context) {
 
 // Retry handles POST /deliveries/:id/retry - retry a failed delivery.
 func (h *DeliveryHandler) Retry(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationRetry")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	delivery, err := h.deliverySvc.GetDelivery(c.Request.Context(), tenantID, id)
+	delivery, err := h.deliverySvc.GetDelivery(ctx, tenantID, id)
 	if err != nil {
 		if err == service.ErrDeliveryNotFound {
 			respondNotFound(c, err.Error())

@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/branch-policy/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/branch-policy/models"
 )
 
@@ -38,11 +38,11 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 
 type fakeHandlerService struct{}
 
-func (f *fakeHandlerService) AddTag(ctx context.Context, tenantID string, tag string) (error) {
+func (f *fakeHandlerService) AddTag(ctx context.Context, tenantID string, tag string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) Approve(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) Approve(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
@@ -54,7 +54,7 @@ func (f *fakeHandlerService) CheckCompatibility(ctx context.Context, tenantID st
 	return false, nil
 }
 
-func (f *fakeHandlerService) Configure(ctx context.Context, tenantID string, cfg map[string]any) (error) {
+func (f *fakeHandlerService) Configure(ctx context.Context, tenantID string, cfg map[string]any) error {
 	return nil
 }
 
@@ -62,39 +62,39 @@ func (f *fakeHandlerService) Create(ctx context.Context, tenantID string, req mo
 	return &models.Record{}, nil
 }
 
-func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) DeleteTag(ctx context.Context, tenantID string, tag string) (error) {
+func (f *fakeHandlerService) DeleteTag(ctx context.Context, tenantID string, tag string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) Deploy(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) Deploy(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) DeregisterModel(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) DeregisterModel(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) DisablePlugin(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) DisablePlugin(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) EnablePlugin(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) EnablePlugin(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) EnforcePolicy(ctx context.Context, tenantID string) (error) {
+func (f *fakeHandlerService) EnforcePolicy(ctx context.Context, tenantID string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) Escalate(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) Escalate(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) Evaluate(ctx context.Context, tenantID string) (error) {
+func (f *fakeHandlerService) Evaluate(ctx context.Context, tenantID string) error {
 	return nil
 }
 
@@ -214,43 +214,43 @@ func (f *fakeHandlerService) ListViolations(ctx context.Context, tenantID string
 	return []string{}, nil
 }
 
-func (f *fakeHandlerService) Pause(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) Pause(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) Regenerate(ctx context.Context, tenantID string) (error) {
+func (f *fakeHandlerService) Regenerate(ctx context.Context, tenantID string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) RegisterModel(ctx context.Context, tenantID string) (error) {
+func (f *fakeHandlerService) RegisterModel(ctx context.Context, tenantID string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) Reject(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) Reject(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) Restart(ctx context.Context, tenantID string) (error) {
+func (f *fakeHandlerService) Restart(ctx context.Context, tenantID string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) Resume(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) Resume(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) Rollback(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) Rollback(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) RunInspection(ctx context.Context, tenantID string) (error) {
+func (f *fakeHandlerService) RunInspection(ctx context.Context, tenantID string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) RunPipeline(ctx context.Context, tenantID string) (error) {
+func (f *fakeHandlerService) RunPipeline(ctx context.Context, tenantID string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) ScaleResource(ctx context.Context, tenantID string) (error) {
+func (f *fakeHandlerService) ScaleResource(ctx context.Context, tenantID string) error {
 	return nil
 }
 
@@ -258,11 +258,11 @@ func (f *fakeHandlerService) Search(ctx context.Context, tenantID, q string) ([]
 	return []string{}, nil
 }
 
-func (f *fakeHandlerService) Train(ctx context.Context, tenantID string) (error) {
+func (f *fakeHandlerService) Train(ctx context.Context, tenantID string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) Trigger(ctx context.Context, tenantID string) (error) {
+func (f *fakeHandlerService) Trigger(ctx context.Context, tenantID string) error {
 	return nil
 }
 
@@ -270,11 +270,11 @@ func (f *fakeHandlerService) Update(ctx context.Context, tenantID, id string, re
 	return &models.Record{}, nil
 }
 
-func (f *fakeHandlerService) UpdateConfig(ctx context.Context, tenantID string, cfg map[string]any) (error) {
+func (f *fakeHandlerService) UpdateConfig(ctx context.Context, tenantID string, cfg map[string]any) error {
 	return nil
 }
 
-func (f *fakeHandlerService) UpdateStatus(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) UpdateStatus(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
@@ -283,7 +283,6 @@ func (f *fakeHandlerService) ValidateBranch(ctx context.Context, tenantID, branc
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestBRANCH_POLICY_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

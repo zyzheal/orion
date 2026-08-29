@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/zap"
 	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/rule-engine/handler"
 	"orion/platform-svc-go/internal/rule-engine/models"
 	"orion/platform-svc-go/internal/rule-engine/repository"
 	"orion/platform-svc-go/internal/rule-engine/service"
-	"go.uber.org/zap"
 )
 
 // TestRuleEngine_ModelTypes verifies that the Rule model and its
@@ -45,11 +45,11 @@ func TestRuleEngine_ModelTypes(t *testing.T) {
 	}
 
 	createReq := models.CreateRuleRequest{
-		Name:       "r2",
+		Name:        "r2",
 		Description: "desc",
-		Priority:   1,
-		Conditions: []string{"level=critical"},
-		Actions:    []string{"page-oncall"},
+		Priority:    1,
+		Conditions:  []string{"level=critical"},
+		Actions:     []string{"page-oncall"},
 	}
 	if createReq.Name != "r2" {
 		t.Fatal("CreateRuleRequest not populated")

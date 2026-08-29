@@ -182,10 +182,10 @@ func (r *Repository) CheckUniqueField(ctx context.Context, tenantID, field, valu
 
 	// Whitelist of CI columns that can be checked for uniqueness.
 	validCIFields := map[string]bool{
-		"ci_id":    true,
-		"name":     true,
-		"ci_type":  true,
-		"status":   true,
+		"ci_id":       true,
+		"name":        true,
+		"ci_type":     true,
+		"status":      true,
 		"environment": true,
 	}
 

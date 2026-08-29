@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/user-activity/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	GetActivities(ctx context.Context, userID string, limit, offset int) ([]models.UserActivity, error)

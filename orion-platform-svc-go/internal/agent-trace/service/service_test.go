@@ -27,11 +27,11 @@ func Test_Service_RecordTrace_Success(t *testing.T) {
 	svc := NewService(store)
 
 	trace := &models.AgentTrace{
-		TenantID: "t1",
-		UserID:   "u1",
-		AgentID:  "agent-1",
-		AgentName: "test-agent",
-		Status:   "completed",
+		TenantID:   "t1",
+		UserID:     "u1",
+		AgentID:    "agent-1",
+		AgentName:  "test-agent",
+		Status:     "completed",
 		DurationMs: 150,
 	}
 	err := svc.RecordTrace(context.Background(), trace)

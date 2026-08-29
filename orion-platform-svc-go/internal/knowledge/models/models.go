@@ -99,8 +99,8 @@ type RAGRetrieveResult struct {
 // SourceIngestRequest ingests operational records (alerts/tickets/incidents/changes)
 // into the knowledge base as searchable documents.
 type SourceIngestRequest struct {
-	Source  string `json:"source" binding:"required"` // alert, ticket, incident, change
-	SpaceID string `json:"space_id"`
+	Source  string             `json:"source" binding:"required"` // alert, ticket, incident, change
+	SpaceID string             `json:"space_id"`
 	Items   []SourceIngestItem `json:"items" binding:"required"`
 }
 
@@ -154,75 +154,75 @@ type Conversation struct {
 
 // ChatMessage represents a single message in a RAG conversation.
 type ChatMessage struct {
-	ID         string        `json:"id" db:"id"`
-	TenantID   string        `json:"tenant_id" db:"tenant_id"`
-	ConvID     string        `json:"conversation_id" db:"conversation_id"`
-	Role       string        `json:"role" db:"role"` // user, assistant
-	Content    string        `json:"content" db:"content"`
-	Sources    []RAGSource   `json:"sources,omitempty" db:"sources"`
-	Confidence float64       `json:"confidence,omitempty" db:"confidence"`
-	CreatedAt  time.Time     `json:"created_at" db:"created_at"`
+	ID         string      `json:"id" db:"id"`
+	TenantID   string      `json:"tenant_id" db:"tenant_id"`
+	ConvID     string      `json:"conversation_id" db:"conversation_id"`
+	Role       string      `json:"role" db:"role"` // user, assistant
+	Content    string      `json:"content" db:"content"`
+	Sources    []RAGSource `json:"sources,omitempty" db:"sources"`
+	Confidence float64     `json:"confidence,omitempty" db:"confidence"`
+	CreatedAt  time.Time   `json:"created_at" db:"created_at"`
 }
 
 // FeedbackEvent records a user thumbs-up/thumbs-down with optional correction.
 type FeedbackEvent struct {
-	ID             string `json:"id" db:"id"`
-	TenantID       string `json:"tenant_id" db:"tenant_id"`
-	UserID         string `json:"user_id" db:"user_id"`
-	ConvID         string `json:"conversation_id" db:"conversation_id"`
-	MessageID      string `json:"message_id" db:"message_id"`
-	IsPositive     bool   `json:"is_positive" db:"is_positive"`
-	CorrectedAnswer string `json:"corrected_answer,omitempty" db:"corrected_answer"`
-	CreatedAt      time.Time `json:"created_at" db:"created_at"`
+	ID              string    `json:"id" db:"id"`
+	TenantID        string    `json:"tenant_id" db:"tenant_id"`
+	UserID          string    `json:"user_id" db:"user_id"`
+	ConvID          string    `json:"conversation_id" db:"conversation_id"`
+	MessageID       string    `json:"message_id" db:"message_id"`
+	IsPositive      bool      `json:"is_positive" db:"is_positive"`
+	CorrectedAnswer string    `json:"corrected_answer,omitempty" db:"corrected_answer"`
+	CreatedAt       time.Time `json:"created_at" db:"created_at"`
 }
 
 // UserCorrection stores cross-session user corrections with similarity hashing.
 type UserCorrection struct {
-	ID             string    `json:"id" db:"id"`
-	TenantID       string    `json:"tenant_id" db:"tenant_id"`
-	UserID         string    `json:"user_id" db:"user_id"`
-	Query          string    `json:"query" db:"query"`
-	OriginalAnswer string    `json:"original_answer,omitempty" db:"original_answer"`
-	CorrectedAnswer string   `json:"corrected_answer" db:"corrected_answer"`
-	SimilarityHash string    `json:"similarity_hash" db:"similarity_hash"`
-	AppliedCount   int       `json:"applied_count" db:"applied_count"`
-	CreatedAt      time.Time `json:"created_at" db:"created_at"`
+	ID              string    `json:"id" db:"id"`
+	TenantID        string    `json:"tenant_id" db:"tenant_id"`
+	UserID          string    `json:"user_id" db:"user_id"`
+	Query           string    `json:"query" db:"query"`
+	OriginalAnswer  string    `json:"original_answer,omitempty" db:"original_answer"`
+	CorrectedAnswer string    `json:"corrected_answer" db:"corrected_answer"`
+	SimilarityHash  string    `json:"similarity_hash" db:"similarity_hash"`
+	AppliedCount    int       `json:"applied_count" db:"applied_count"`
+	CreatedAt       time.Time `json:"created_at" db:"created_at"`
 }
 
 // UserPreferences stores per-user query patterns and preferences.
 type UserPreferences struct {
-	ID              string    `json:"id" db:"id"`
-	TenantID        string    `json:"tenant_id" db:"tenant_id"`
-	UserID          string    `json:"user_id" db:"user_id"`
-	PreferredScope  string    `json:"preferred_scope,omitempty" db:"preferred_scope"`
-	ExcludedTopics  string    `json:"excluded_topics,omitempty" db:"excluded_topics"` // JSON array
-	QueryPatterns   string    `json:"query_patterns,omitempty" db:"query_patterns"` // JSON object
-	ActiveUntil     time.Time `json:"active_until,omitempty" db:"active_until"`
-	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
+	ID             string    `json:"id" db:"id"`
+	TenantID       string    `json:"tenant_id" db:"tenant_id"`
+	UserID         string    `json:"user_id" db:"user_id"`
+	PreferredScope string    `json:"preferred_scope,omitempty" db:"preferred_scope"`
+	ExcludedTopics string    `json:"excluded_topics,omitempty" db:"excluded_topics"` // JSON array
+	QueryPatterns  string    `json:"query_patterns,omitempty" db:"query_patterns"`   // JSON object
+	ActiveUntil    time.Time `json:"active_until,omitempty" db:"active_until"`
+	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // EvalMetric stores RAG evaluation metrics per query.
 type EvalMetric struct {
-	ID          string  `json:"id" db:"id"`
-	TenantID    string  `json:"tenant_id" db:"tenant_id"`
-	QueryID     string  `json:"query_id" db:"query_id"`
-	RecallAt5   float64 `json:"recall_at_5,omitempty" db:"recall_at_5"`
-	Precision   float64 `json:"precision,omitempty" db:"precision"`
-	NDCG        float64 `json:"ndcg,omitempty" db:"ndcg"`
-	HallucinationRate float64 `json:"hallucination_rate,omitempty" db:"hallucination_rate"`
-	LatencyMs   int     `json:"latency_ms,omitempty" db:"latency_ms"`
-	Score       float64 `json:"score,omitempty" db:"score"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	ID                string    `json:"id" db:"id"`
+	TenantID          string    `json:"tenant_id" db:"tenant_id"`
+	QueryID           string    `json:"query_id" db:"query_id"`
+	RecallAt5         float64   `json:"recall_at_5,omitempty" db:"recall_at_5"`
+	Precision         float64   `json:"precision,omitempty" db:"precision"`
+	NDCG              float64   `json:"ndcg,omitempty" db:"ndcg"`
+	HallucinationRate float64   `json:"hallucination_rate,omitempty" db:"hallucination_rate"`
+	LatencyMs         int       `json:"latency_ms,omitempty" db:"latency_ms"`
+	Score             float64   `json:"score,omitempty" db:"score"`
+	CreatedAt         time.Time `json:"created_at" db:"created_at"`
 }
 
 // EvalGroundTruth stores ground truth data for offline evaluation.
 type EvalGroundTruth struct {
-	ID         string `json:"id" db:"id"`
-	TenantID   string `json:"tenant_id" db:"tenant_id"`
-	Query      string `json:"query" db:"query"`
-	GoldAnswer string `json:"gold_answer" db:"gold_answer"`
-	GoldSources string `json:"gold_sources,omitempty" db:"gold_sources"` // JSON array of doc IDs
-	CreatedAt  time.Time `json:"created_at" db:"created_at"`
+	ID          string    `json:"id" db:"id"`
+	TenantID    string    `json:"tenant_id" db:"tenant_id"`
+	Query       string    `json:"query" db:"query"`
+	GoldAnswer  string    `json:"gold_answer" db:"gold_answer"`
+	GoldSources string    `json:"gold_sources,omitempty" db:"gold_sources"` // JSON array of doc IDs
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 }
 
 // EvalSet is a versioned collection of evaluation cases.
@@ -252,34 +252,34 @@ type EvalSetCase struct {
 
 // EvalRun is one execution of an eval set against retrieval.
 type EvalRun struct {
-	ID         string    `json:"id" db:"id"`
-	SetID      string    `json:"set_id" db:"set_id"`
-	TenantID   string    `json:"tenant_id" db:"tenant_id"`
-	Model      string    `json:"model" db:"model"`
-	Status     string    `json:"status" db:"status"` // running / completed / failed
-	PassCount  int       `json:"pass_count" db:"pass_count"`
-	TotalCount int       `json:"total_count" db:"total_count"`
-	AvgRecall  float64   `json:"avg_recall" db:"avg_recall"`
-	AvgScore   float64   `json:"avg_score" db:"avg_score"`
-	Report     string    `json:"report" db:"report"`
-	CreatedBy  string    `json:"created_by" db:"created_by"`
-	CreatedAt  time.Time `json:"created_at" db:"created_at"`
+	ID          string     `json:"id" db:"id"`
+	SetID       string     `json:"set_id" db:"set_id"`
+	TenantID    string     `json:"tenant_id" db:"tenant_id"`
+	Model       string     `json:"model" db:"model"`
+	Status      string     `json:"status" db:"status"` // running / completed / failed
+	PassCount   int        `json:"pass_count" db:"pass_count"`
+	TotalCount  int        `json:"total_count" db:"total_count"`
+	AvgRecall   float64    `json:"avg_recall" db:"avg_recall"`
+	AvgScore    float64    `json:"avg_score" db:"avg_score"`
+	Report      string     `json:"report" db:"report"`
+	CreatedBy   string     `json:"created_by" db:"created_by"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
 	CompletedAt *time.Time `json:"completed_at,omitempty" db:"completed_at"`
 }
 
 // CreateEvalSetRequest is the payload for creating an eval set with cases.
 type CreateEvalSetRequest struct {
-	Name        string   `json:"name" binding:"required"`
-	Description string   `json:"description"`
+	Name        string             `json:"name" binding:"required"`
+	Description string             `json:"description"`
 	Cases       []EvalSetCaseInput `json:"cases" binding:"required"`
 }
 
 // EvalSetCaseInput is a raw case in a create/append request.
 type EvalSetCaseInput struct {
-	Query       string `json:"query" binding:"required"`
-	GoldAnswer  string `json:"gold_answer"`
+	Query       string   `json:"query" binding:"required"`
+	GoldAnswer  string   `json:"gold_answer"`
 	GoldSources []string `json:"gold_sources"`
-	Tags        string `json:"tags"`
+	Tags        string   `json:"tags"`
 }
 
 // RunEvalRequest triggers an evaluation run on a set.
@@ -297,31 +297,31 @@ type CompareRunsRequest struct {
 
 // EvalRunComparison is the regression diff between two runs.
 type EvalRunComparison struct {
-	Base   *EvalRun `json:"base"`
-	Head   *EvalRun `json:"head"`
-	Delta  EvalRunDelta `json:"delta"`
+	Base  *EvalRun     `json:"base"`
+	Head  *EvalRun     `json:"head"`
+	Delta EvalRunDelta `json:"delta"`
 }
 
 // EvalRunDelta shows per-metric deltas between runs.
 type EvalRunDelta struct {
-	PassRateDelta   float64 `json:"pass_rate_delta"`
-	AvgRecallDelta  float64 `json:"avg_recall_delta"`
-	AvgScoreDelta   float64 `json:"avg_score_delta"`
-	Regression      bool    `json:"regression"` // true when metrics dropped
+	PassRateDelta  float64 `json:"pass_rate_delta"`
+	AvgRecallDelta float64 `json:"avg_recall_delta"`
+	AvgScoreDelta  float64 `json:"avg_score_delta"`
+	Regression     bool    `json:"regression"` // true when metrics dropped
 }
 
 // SemanticCache stores cached query-answer pairs with semantic hash.
 type SemanticCache struct {
-	ID            string        `json:"id" db:"id"`
-	TenantID      string        `json:"tenant_id" db:"tenant_id"`
-	QueryHash     string        `json:"query_hash" db:"query_hash"`
-	OriginalQuery string        `json:"original_query" db:"original_query"`
-	CachedAnswer  string        `json:"cached_answer" db:"cached_answer"`
-	Sources       []RAGSource   `json:"sources,omitempty" db:"sources"`
-	HitCount      int           `json:"hit_count" db:"hit_count"`
-	LastAccessedAt time.Time    `json:"last_accessed_at" db:"last_accessed_at"`
-	ExpiresAt     time.Time     `json:"expires_at" db:"expires_at"`
-	CreatedAt     time.Time     `json:"created_at" db:"created_at"`
+	ID             string      `json:"id" db:"id"`
+	TenantID       string      `json:"tenant_id" db:"tenant_id"`
+	QueryHash      string      `json:"query_hash" db:"query_hash"`
+	OriginalQuery  string      `json:"original_query" db:"original_query"`
+	CachedAnswer   string      `json:"cached_answer" db:"cached_answer"`
+	Sources        []RAGSource `json:"sources,omitempty" db:"sources"`
+	HitCount       int         `json:"hit_count" db:"hit_count"`
+	LastAccessedAt time.Time   `json:"last_accessed_at" db:"last_accessed_at"`
+	ExpiresAt      time.Time   `json:"expires_at" db:"expires_at"`
+	CreatedAt      time.Time   `json:"created_at" db:"created_at"`
 }
 
 // PromptTemplate stores versioned prompt templates.
@@ -336,10 +336,10 @@ type PromptTemplate struct {
 
 // PromptCanaryRequest publishes a new prompt version as a canary.
 type PromptCanaryRequest struct {
-	Name          string `json:"name" binding:"required"`
-	Content       string `json:"content" binding:"required"`
-	Version       string `json:"version"`             // optional; defaults to timestamp-based
-	TrafficPercent float64 `json:"traffic_percent"`    // 0-100, default 10
+	Name           string  `json:"name" binding:"required"`
+	Content        string  `json:"content" binding:"required"`
+	Version        string  `json:"version"`         // optional; defaults to timestamp-based
+	TrafficPercent float64 `json:"traffic_percent"` // 0-100, default 10
 }
 
 // PromptVersionInfo describes a single prompt template version.
@@ -355,30 +355,30 @@ type PromptVersionInfo struct {
 
 // PromptCanaryStatus shows the current canary state for a prompt name.
 type PromptCanaryStatus struct {
-	Name           string             `json:"name"`
-	ActiveVersion  string             `json:"active_version"`
-	CanaryVersion  string             `json:"canary_version,omitempty"`
-	TrafficPercent float64            `json:"traffic_percent"`
+	Name           string              `json:"name"`
+	ActiveVersion  string              `json:"active_version"`
+	CanaryVersion  string              `json:"canary_version,omitempty"`
+	TrafficPercent float64             `json:"traffic_percent"`
 	Versions       []PromptVersionInfo `json:"versions"`
 }
 
 // RAGQueryRequest is the incoming RAG query.
 type RAGQueryRequest struct {
-	Query        string `json:"query" binding:"required"`
-	SpaceID      string `json:"space_id"`
-	TopK         *int   `json:"top_k"`
+	Query          string `json:"query" binding:"required"`
+	SpaceID        string `json:"space_id"`
+	TopK           *int   `json:"top_k"`
 	ConversationID string `json:"conversation_id,omitempty"`
-	UserID       string `json:"user_id,omitempty"`
+	UserID         string `json:"user_id,omitempty"`
 }
 
 // RAGQueryResponse is the structured output returned to the client.
 type RAGQueryResponse struct {
-	Answer         string      `json:"answer"`
-	Sources        []RAGSource `json:"sources"`
-	Confidence     float64     `json:"confidence"`
-	FeedbackToken  string      `json:"feedback_token,omitempty"`
-	QueryType      string      `json:"query_type,omitempty"` // simple, moderate, complex
-	LatencyMs      int         `json:"latency_ms,omitempty"`
+	Answer        string      `json:"answer"`
+	Sources       []RAGSource `json:"sources"`
+	Confidence    float64     `json:"confidence"`
+	FeedbackToken string      `json:"feedback_token,omitempty"`
+	QueryType     string      `json:"query_type,omitempty"` // simple, moderate, complex
+	LatencyMs     int         `json:"latency_ms,omitempty"`
 }
 
 // RAGFeedbackRequest is the user feedback submission.
@@ -398,25 +398,25 @@ type RAGSource struct {
 
 // RAGQueryAuditLog records a RAG query for security auditing.
 type RAGQueryAuditLog struct {
-	ID               string     `json:"id" db:"id"`
-	TenantID         string     `json:"tenant_id" db:"tenant_id"`
-	UserID           string     `json:"user_id" db:"user_id"`
-	QueryText        string     `json:"query_text" db:"query_text"`
-	QueryHash        string     `json:"query_hash" db:"query_hash"`
-	QueryType        string     `json:"query_type" db:"query_type"`
-	Confidence       float64    `json:"confidence" db:"confidence"`
-	LatencyMs        int        `json:"latency_ms" db:"latency_ms"`
-	SourceCount      int        `json:"source_count" db:"source_count"`
-	AnswerLength     int        `json:"answer_length" db:"answer_length"`
-	HasFeedback      bool       `json:"has_feedback" db:"has_feedback"`
-	FeedbackPositive *bool      `json:"feedback_positive,omitempty" db:"feedback_positive"`
-	HasCorrection    bool       `json:"has_correction" db:"has_correction"`
-	CorrectionText   string     `json:"correction_text,omitempty" db:"correction_text"`
-	SafetyFlagged    bool       `json:"safety_flagged" db:"safety_flagged"`
-	SafetyReason     string     `json:"safety_reason,omitempty" db:"safety_reason"`
-	IPAddress        string     `json:"ip_address" db:"ip_address"`
-	UserAgent        string     `json:"user_agent" db:"user_agent"`
-	CreatedAt        time.Time  `json:"created_at" db:"created_at"`
+	ID               string    `json:"id" db:"id"`
+	TenantID         string    `json:"tenant_id" db:"tenant_id"`
+	UserID           string    `json:"user_id" db:"user_id"`
+	QueryText        string    `json:"query_text" db:"query_text"`
+	QueryHash        string    `json:"query_hash" db:"query_hash"`
+	QueryType        string    `json:"query_type" db:"query_type"`
+	Confidence       float64   `json:"confidence" db:"confidence"`
+	LatencyMs        int       `json:"latency_ms" db:"latency_ms"`
+	SourceCount      int       `json:"source_count" db:"source_count"`
+	AnswerLength     int       `json:"answer_length" db:"answer_length"`
+	HasFeedback      bool      `json:"has_feedback" db:"has_feedback"`
+	FeedbackPositive *bool     `json:"feedback_positive,omitempty" db:"feedback_positive"`
+	HasCorrection    bool      `json:"has_correction" db:"has_correction"`
+	CorrectionText   string    `json:"correction_text,omitempty" db:"correction_text"`
+	SafetyFlagged    bool      `json:"safety_flagged" db:"safety_flagged"`
+	SafetyReason     string    `json:"safety_reason,omitempty" db:"safety_reason"`
+	IPAddress        string    `json:"ip_address" db:"ip_address"`
+	UserAgent        string    `json:"user_agent" db:"user_agent"`
+	CreatedAt        time.Time `json:"created_at" db:"created_at"`
 }
 
 // SafetyFilterResult holds the result of content safety filtering.

@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/version-archive/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/version-archive/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeVersion_archiveService) Update(ctx context.Context, tenantID, id st
 }
 
 var _ service.ServiceInterface = (*fakeVersion_archiveService)(nil)
-
 
 func TestHandler_VERSION_ARCHIV_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

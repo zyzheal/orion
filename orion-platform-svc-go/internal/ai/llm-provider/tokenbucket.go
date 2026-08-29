@@ -68,7 +68,7 @@ func (tb *TokenBucket) Wait(ctx context.Context, n int64) error {
 
 		// Compute how long until enough tokens are available.
 		needed := float64(n) - tb.tokens
-		wait := time.Duration(needed/tb.RefillRate*float64(time.Second))
+		wait := time.Duration(needed / tb.RefillRate * float64(time.Second))
 		tb.mu.Unlock()
 
 		// Wait no longer than the context allows.

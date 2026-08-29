@@ -7,11 +7,11 @@ import (
 func TestAllDispatcherTypes(t *testing.T) {
 	types := AllDispatcherTypes()
 	expected := map[string]bool{
-		DispatcherTypeRoundRobin: true,
-		DispatcherTypeWeighted:   true,
-		DispatcherTypeSkillBased: true,
+		DispatcherTypeRoundRobin:   true,
+		DispatcherTypeWeighted:     true,
+		DispatcherTypeSkillBased:   true,
 		DispatcherTypeLoadBalanced: true,
-		DispatcherTypeTimeBased:  true,
+		DispatcherTypeTimeBased:    true,
 	}
 	if len(types) != len(expected) {
 		t.Fatalf("expected %d types, got %d", len(expected), len(types))
@@ -35,22 +35,22 @@ func TestAssigneeRuleValidate(t *testing.T) {
 			rule: AssigneeRule{Name: "r1", Strategy: "round_robin", Priority: 1},
 		},
 		{
-			name: "missing name",
-			rule: AssigneeRule{Name: "", Strategy: "round_robin"},
+			name:    "missing name",
+			rule:    AssigneeRule{Name: "", Strategy: "round_robin"},
 			wantErr: true,
 			errStr:  "name",
 		},
 		{
-			name: "negative priority",
-			rule: AssigneeRule{Name: "r2", Strategy: "round_robin", Priority: -1},
+			name:    "negative priority",
+			rule:    AssigneeRule{Name: "r2", Strategy: "round_robin", Priority: -1},
 			wantErr: true,
-			errStr: "priority",
+			errStr:  "priority",
 		},
 		{
-			name: "invalid strategy",
-			rule: AssigneeRule{Name: "r3", Strategy: "bogus"},
+			name:    "invalid strategy",
+			rule:    AssigneeRule{Name: "r3", Strategy: "bogus"},
 			wantErr: true,
-			errStr: "strategy",
+			errStr:  "strategy",
 		},
 		{
 			name: "invalid condition",
@@ -59,7 +59,7 @@ func TestAssigneeRuleValidate(t *testing.T) {
 				Conditions: []Condition{{Field: "", Operator: "eq"}},
 			},
 			wantErr: true,
-			errStr: "condition",
+			errStr:  "condition",
 		},
 	}
 	for _, tt := range tests {

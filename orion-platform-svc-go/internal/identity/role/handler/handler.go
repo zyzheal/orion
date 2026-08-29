@@ -4,9 +4,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/identity/role/models"
 	"orion/platform-svc-go/internal/identity/role/service"
-	"orion/go-common/pkg/auth"
 )
 
 type RoleHandler struct{ svc *service.RoleService }
@@ -27,7 +28,9 @@ func (h *RoleHandler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *RoleHandler) List(c *gin.Context) {
-	roles, err := h.svc.ListRoles(c.Request.Context(), h.GetTenantID(c))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRoles")
+	defer span.End()
+	roles, err := h.svc.ListRoles(ctx, h.GetTenantID(c))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -36,12 +39,14 @@ func (h *RoleHandler) List(c *gin.Context) {
 }
 
 func (h *RoleHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateRole")
+	defer span.End()
 	var req models.CreateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
 		return
 	}
-	role, err := h.svc.CreateRole(c.Request.Context(), h.GetTenantID(c), &req)
+	role, err := h.svc.CreateRole(ctx, h.GetTenantID(c), &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -50,7 +55,9 @@ func (h *RoleHandler) Create(c *gin.Context) {
 }
 
 func (h *RoleHandler) Get(c *gin.Context) {
-	role, err := h.svc.GetRole(c.Request.Context(), h.GetTenantID(c), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRole")
+	defer span.End()
+	role, err := h.svc.GetRole(ctx, h.GetTenantID(c), c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		return
@@ -59,12 +66,14 @@ func (h *RoleHandler) Get(c *gin.Context) {
 }
 
 func (h *RoleHandler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateRole")
+	defer span.End()
 	var req models.UpdateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
 		return
 	}
-	role, err := h.svc.UpdateRole(c.Request.Context(), h.GetTenantID(c), c.Param("id"), &req)
+	role, err := h.svc.UpdateRole(ctx, h.GetTenantID(c), c.Param("id"), &req)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		return
@@ -73,7 +82,9 @@ func (h *RoleHandler) Update(c *gin.Context) {
 }
 
 func (h *RoleHandler) Delete(c *gin.Context) {
-	if err := h.svc.DeleteRole(c.Request.Context(), h.GetTenantID(c), c.Param("id")); err != nil {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteRole")
+	defer span.End()
+	if err := h.svc.DeleteRole(ctx, h.GetTenantID(c), c.Param("id")); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		return
 	}

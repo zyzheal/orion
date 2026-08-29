@@ -129,19 +129,19 @@ type DeploymentRecord struct {
 
 // IncidentRecord represents an incident for MTTR calculation.
 type IncidentRecord struct {
-	ID              string    `db:"id" json:"id"`
-	TenantID        string    `db:"tenant_id" json:"tenant_id"`
-	DeploymentID    string    `db:"deployment_id" json:"deployment_id,omitempty"`
-	PipelineRunID   string    `db:"pipeline_run_id" json:"pipeline_run_id,omitempty"`
-	Type            string    `db:"type" json:"type"`
-	Severity        string    `db:"severity" json:"severity,omitempty"`
-	Status          string    `db:"status" json:"status"`
-	DetectedAt      time.Time `db:"detected_at" json:"detected_at"`
-	AcknowledgedAt  time.Time `db:"acknowledged_at" json:"acknowledged_at,omitempty"`
-	ResolvedAt      time.Time `db:"resolved_at" json:"resolved_at,omitempty"`
-	RecoveryTimeMs  int64     `db:"recovery_time_ms" json:"recovery_time_ms,omitempty"`
-	Service         string    `db:"service" json:"service,omitempty"`
-	Environment     string    `db:"environment" json:"environment,omitempty"`
+	ID             string    `db:"id" json:"id"`
+	TenantID       string    `db:"tenant_id" json:"tenant_id"`
+	DeploymentID   string    `db:"deployment_id" json:"deployment_id,omitempty"`
+	PipelineRunID  string    `db:"pipeline_run_id" json:"pipeline_run_id,omitempty"`
+	Type           string    `db:"type" json:"type"`
+	Severity       string    `db:"severity" json:"severity,omitempty"`
+	Status         string    `db:"status" json:"status"`
+	DetectedAt     time.Time `db:"detected_at" json:"detected_at"`
+	AcknowledgedAt time.Time `db:"acknowledged_at" json:"acknowledged_at,omitempty"`
+	ResolvedAt     time.Time `db:"resolved_at" json:"resolved_at,omitempty"`
+	RecoveryTimeMs int64     `db:"recovery_time_ms" json:"recovery_time_ms,omitempty"`
+	Service        string    `db:"service" json:"service,omitempty"`
+	Environment    string    `db:"environment" json:"environment,omitempty"`
 }
 
 // MetricSnapshot stores historical DORA metric values for trend calculation.
@@ -183,12 +183,12 @@ type WeeklyReport struct {
 
 // TeamData stores registered team information.
 type TeamData struct {
-	ID         string    `db:"id" json:"id"`
-	TenantID   string    `db:"tenant_id" json:"tenant_id"`
-	Name       string    `db:"name" json:"name"`
-	Members    int       `db:"members" json:"members"`
-	Pipelines  JSONB     `db:"pipelines" json:"pipelines"`
-	Deployments JSONB    `db:"deployments" json:"deployments"`
+	ID          string `db:"id" json:"id"`
+	TenantID    string `db:"tenant_id" json:"tenant_id"`
+	Name        string `db:"name" json:"name"`
+	Members     int    `db:"members" json:"members"`
+	Pipelines   JSONB  `db:"pipelines" json:"pipelines"`
+	Deployments JSONB  `db:"deployments" json:"deployments"`
 }
 
 // ProjectData stores registered project information.
@@ -203,10 +203,10 @@ type ProjectData struct {
 
 // GlobalDeployment stores a deployment record for report generation.
 type GlobalDeployment struct {
-	ID           string    `db:"id" json:"id"`
-	TenantID     string    `db:"tenant_id" json:"tenant_id"`
-	DeploymentData JSONB   `db:"deployment_data" json:"deployment_data"`
-	DeployedAt   time.Time `db:"deployed_at" json:"deployed_at"`
+	ID             string    `db:"id" json:"id"`
+	TenantID       string    `db:"tenant_id" json:"tenant_id"`
+	DeploymentData JSONB     `db:"deployment_data" json:"deployment_data"`
+	DeployedAt     time.Time `db:"deployed_at" json:"deployed_at"`
 }
 
 // GlobalPipeline stores a pipeline record for report generation.
@@ -246,11 +246,11 @@ type AllDORAResult struct {
 
 // DORATrendResult compares two time periods of DORA metrics.
 type DORATrendResult struct {
-	Current       AllDORAResult `json:"current"`
-	Previous      AllDORAResult `json:"previous"`
-	Changes       TrendChanges  `json:"changes"`
-	CurrentPeriod string        `json:"currentPeriod"`
-	PreviousPeriod string       `json:"previousPeriod"`
+	Current        AllDORAResult `json:"current"`
+	Previous       AllDORAResult `json:"previous"`
+	Changes        TrendChanges  `json:"changes"`
+	CurrentPeriod  string        `json:"currentPeriod"`
+	PreviousPeriod string        `json:"previousPeriod"`
 }
 
 // TrendChanges holds percentage changes for each DORA metric.
@@ -272,13 +272,13 @@ type DeploymentFrequencyResult struct {
 
 // LeadTimeResult holds lead time calculation output.
 type LeadTimeResult struct {
-	TotalChanges       int     `json:"totalChanges"`
-	AverageLeadTimeMs  float64 `json:"averageLeadTimeMs"`
-	MedianLeadTimeMs   float64 `json:"medianLeadTimeMs"`
-	P90LeadTimeMs      float64 `json:"p90LeadTimeMs"`
-	P99LeadTimeMs      float64 `json:"p99LeadTimeMs"`
-	LeadTimeLevel      string  `json:"leadTimeLevel"`
-	CalculationMethod  string  `json:"calculationMethod"`
+	TotalChanges      int     `json:"totalChanges"`
+	AverageLeadTimeMs float64 `json:"averageLeadTimeMs"`
+	MedianLeadTimeMs  float64 `json:"medianLeadTimeMs"`
+	P90LeadTimeMs     float64 `json:"p90LeadTimeMs"`
+	P99LeadTimeMs     float64 `json:"p99LeadTimeMs"`
+	LeadTimeLevel     string  `json:"leadTimeLevel"`
+	CalculationMethod string  `json:"calculationMethod"`
 }
 
 // ChangeFailureRateResult holds failure rate calculation output.
@@ -291,8 +291,8 @@ type ChangeFailureRateResult struct {
 
 // MTTRResult holds MTTR calculation output.
 type MTTRResult struct {
-	TotalIncidents       int     `json:"totalIncidents"`
-	RecoveredIncidents   int     `json:"recoveredIncidents"`
+	TotalIncidents        int     `json:"totalIncidents"`
+	RecoveredIncidents    int     `json:"recoveredIncidents"`
 	AverageRecoveryTimeMs float64 `json:"averageRecoveryTimeMs"`
 	MedianRecoveryTimeMs  float64 `json:"medianRecoveryTimeMs"`
 	P90RecoveryTimeMs     float64 `json:"p90RecoveryTimeMs"`
@@ -302,24 +302,24 @@ type MTTRResult struct {
 
 // DORAMetricsReport is the full DORA report with all four metrics.
 type DORAMetricsReport struct {
-	ReportID             string                  `json:"reportId"`
-	TenantID             string                  `json:"tenantId"`
-	DeploymentFrequency  DeploymentFrequencyResult `json:"deploymentFrequency"`
-	LeadTimeForChanges   LeadTimeResult            `json:"leadTimeForChanges"`
-	ChangeFailureRate    ChangeFailureRateResult    `json:"changeFailureRate"`
-	MeanTimeToRecovery   MTTRResult                `json:"meanTimeToRecovery"`
-	OverallLevel         string                    `json:"overallLevel"`
-	GeneratedAt          time.Time                 `json:"generatedAt"`
+	ReportID            string                    `json:"reportId"`
+	TenantID            string                    `json:"tenantId"`
+	DeploymentFrequency DeploymentFrequencyResult `json:"deploymentFrequency"`
+	LeadTimeForChanges  LeadTimeResult            `json:"leadTimeForChanges"`
+	ChangeFailureRate   ChangeFailureRateResult   `json:"changeFailureRate"`
+	MeanTimeToRecovery  MTTRResult                `json:"meanTimeToRecovery"`
+	OverallLevel        string                    `json:"overallLevel"`
+	GeneratedAt         time.Time                 `json:"generatedAt"`
 }
 
 // ==================== Dashboard Types ====================
 
 // DashboardWidget represents a single widget in a scenario dashboard.
 type DashboardWidget struct {
-	ID     string      `json:"id"`
-	Type   string      `json:"type"`
-	Title  string      `json:"title"`
-	Data   interface{} `json:"data"`
+	ID     string        `json:"id"`
+	Type   string        `json:"type"`
+	Title  string        `json:"title"`
+	Data   interface{}   `json:"data"`
 	Layout *WidgetLayout `json:"layout,omitempty"`
 }
 
@@ -340,13 +340,13 @@ type ScenarioSummary struct {
 
 // ScenarioResult is the full scenario dashboard response.
 type ScenarioResult struct {
-	ID          string           `json:"id"`
-	Name        string           `json:"name"`
-	Description string           `json:"description"`
-	Category    string           `json:"category"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	Category    string            `json:"category"`
 	Widgets     []DashboardWidget `json:"widgets"`
-	TimeRange   TimeRange        `json:"timeRange"`
-	Summary     ScenarioSummary  `json:"summary"`
+	TimeRange   TimeRange         `json:"timeRange"`
+	Summary     ScenarioSummary   `json:"summary"`
 }
 
 // TimeRange defines a start/end time range.
@@ -380,47 +380,47 @@ type EfficiencyReport struct {
 
 // TeamMetricsResult holds team-level metrics.
 type TeamMetricsResult struct {
-	TeamID                string  `json:"teamId"`
-	TeamName              string  `json:"teamName"`
-	TenantID              string  `json:"tenantId"`
-	ActiveMembers         int     `json:"activeMembers"`
-	CompletedPipelines    int     `json:"completedPipelines"`
-	SuccessRate           float64 `json:"successRate"`
+	TeamID                 string  `json:"teamId"`
+	TeamName               string  `json:"teamName"`
+	TenantID               string  `json:"tenantId"`
+	ActiveMembers          int     `json:"activeMembers"`
+	CompletedPipelines     int     `json:"completedPipelines"`
+	SuccessRate            float64 `json:"successRate"`
 	AverageExecutionTimeMs float64 `json:"averageExecutionTimeMs"`
-	DeploymentCount       int     `json:"deploymentCount"`
-	ChangeFailureRate     float64 `json:"changeFailureRate"`
+	DeploymentCount        int     `json:"deploymentCount"`
+	ChangeFailureRate      float64 `json:"changeFailureRate"`
 }
 
 // ProjectMetricsResult holds project-level metrics.
 type ProjectMetricsResult struct {
-	ProjectID          string  `json:"projectId"`
-	ProjectName        string  `json:"projectName"`
-	TenantID           string  `json:"tenantId"`
-	TotalPipelines     int     `json:"totalPipelines"`
-	RecentPipelineCount int    `json:"recentPipelineCount"`
-	SuccessRate        float64 `json:"successRate"`
-	AverageBuildTimeMs float64 `json:"averageBuildTimeMs"`
-	DeploymentCount    int     `json:"deploymentCount"`
-	CommitCount        int     `json:"commitCount"`
+	ProjectID           string  `json:"projectId"`
+	ProjectName         string  `json:"projectName"`
+	TenantID            string  `json:"tenantId"`
+	TotalPipelines      int     `json:"totalPipelines"`
+	RecentPipelineCount int     `json:"recentPipelineCount"`
+	SuccessRate         float64 `json:"successRate"`
+	AverageBuildTimeMs  float64 `json:"averageBuildTimeMs"`
+	DeploymentCount     int     `json:"deploymentCount"`
+	CommitCount         int     `json:"commitCount"`
 }
 
 // PeriodMetrics holds computed metrics for a single time period.
 type PeriodMetrics struct {
-	Label             string    `json:"label"`
-	Start             time.Time `json:"start"`
-	End               time.Time `json:"end"`
-	PipelineRuns      int       `json:"pipelineRuns"`
-	SuccessRate       float64   `json:"successRate"`
-	AverageBuildTimeMs float64  `json:"averageBuildTimeMs"`
-	Deployments       int       `json:"deployments"`
-	ChangeFailureRate float64   `json:"changeFailureRate"`
+	Label              string    `json:"label"`
+	Start              time.Time `json:"start"`
+	End                time.Time `json:"end"`
+	PipelineRuns       int       `json:"pipelineRuns"`
+	SuccessRate        float64   `json:"successRate"`
+	AverageBuildTimeMs float64   `json:"averageBuildTimeMs"`
+	Deployments        int       `json:"deployments"`
+	ChangeFailureRate  float64   `json:"changeFailureRate"`
 }
 
 // PeriodComparisonResult compares two time periods.
 type PeriodComparisonResult struct {
-	PeriodA  PeriodMetrics `json:"periodA"`
-	PeriodB  PeriodMetrics `json:"periodB"`
-	Changes  PeriodChanges `json:"changes"`
+	PeriodA PeriodMetrics `json:"periodA"`
+	PeriodB PeriodMetrics `json:"periodB"`
+	Changes PeriodChanges `json:"changes"`
 }
 
 // PeriodChanges holds the percentage changes between two periods.
@@ -434,14 +434,14 @@ type PeriodChanges struct {
 
 // WeeklyReportResult is the full weekly report response.
 type WeeklyReportResult struct {
-	ReportID   string                 `json:"reportId"`
-	TeamID     string                 `json:"teamId"`
-	WeekStart  time.Time              `json:"weekStart"`
-	WeekEnd    time.Time              `json:"weekEnd"`
-	GeneratedAt time.Time             `json:"generatedAt"`
-	HealthScore string                `json:"healthScore"`
-	Markdown   string                 `json:"markdown"`
-	JSON       map[string]interface{} `json:"json"`
+	ReportID    string                 `json:"reportId"`
+	TeamID      string                 `json:"teamId"`
+	WeekStart   time.Time              `json:"weekStart"`
+	WeekEnd     time.Time              `json:"weekEnd"`
+	GeneratedAt time.Time              `json:"generatedAt"`
+	HealthScore string                 `json:"healthScore"`
+	Markdown    string                 `json:"markdown"`
+	JSON        map[string]interface{} `json:"json"`
 }
 
 // WeeklyReportListItem is a summary for listing past reports.
@@ -493,9 +493,9 @@ func (p *PaginatedRequest) Limit() int {
 
 // RegisterTeamRequest is the request body for registering a team.
 type RegisterTeamRequest struct {
-	TeamID    string `json:"team_id" binding:"required"`
-	Name      string `json:"name" binding:"required"`
-	Members   int    `json:"members"`
+	TeamID  string `json:"team_id" binding:"required"`
+	Name    string `json:"name" binding:"required"`
+	Members int    `json:"members"`
 }
 
 // RegisterProjectRequest is the request body for registering a project.

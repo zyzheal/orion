@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/domain/aggregates"
-	"orion/platform-svc-go/internal/domain/eventstore"
 	"orion/platform-svc-go/internal/domain/events"
+	"orion/platform-svc-go/internal/domain/eventstore"
 )
 
 // ============================================================================
@@ -112,15 +112,15 @@ func (q *ApprovalAggregateRebuildQuery) Validate() error {
 
 // ApprovalSummary is a read-model projection of an Approval aggregate.
 type ApprovalSummary struct {
-	ID            string            `json:"id"`
-	ApprovalType  string            `json:"approvalType"`
-	Status        string            `json:"status"`
-	CurrentLevel  int               `json:"currentLevel"`
-	TotalLevels   int               `json:"totalLevels"`
-	Version       int               `json:"version"`
-	Approvals     []ApprovalLevel   `json:"approvals"`
-	CreatedAt     time.Time         `json:"createdAt"`
-	UpdatedAt     time.Time         `json:"updatedAt"`
+	ID           string          `json:"id"`
+	ApprovalType string          `json:"approvalType"`
+	Status       string          `json:"status"`
+	CurrentLevel int             `json:"currentLevel"`
+	TotalLevels  int             `json:"totalLevels"`
+	Version      int             `json:"version"`
+	Approvals    []ApprovalLevel `json:"approvals"`
+	CreatedAt    time.Time       `json:"createdAt"`
+	UpdatedAt    time.Time       `json:"updatedAt"`
 }
 
 // ApprovalLevel is copied from aggregates.ApprovalLevel for the read-model.
@@ -301,19 +301,19 @@ func (h *ApprovalLevelHistoryHandler) Execute(ctx context.Context, query Query) 
 		switch e := ev.(type) {
 		case *events.ApprovalLevelApprovedEvent:
 			records = append(records, ApprovalLevelRecord{
-				Level:     e.Level,
-				Status:    "approved",
-				LevelID:   e.LevelID,
+				Level:      e.Level,
+				Status:     "approved",
+				LevelID:    e.LevelID,
 				ApproverID: e.ApproverID,
 				OcurredAt:  ev.OccurredAt(),
 			})
 		case *events.ApprovalLevelRejectedEvent:
 			records = append(records, ApprovalLevelRecord{
-				Level:     e.Level,
-				Status:    "rejected",
-				LevelID:   e.LevelID,
+				Level:      e.Level,
+				Status:     "rejected",
+				LevelID:    e.LevelID,
 				ApproverID: e.ApproverID,
-				Comment:   e.Comment,
+				Comment:    e.Comment,
 				OcurredAt:  ev.OccurredAt(),
 			})
 		}

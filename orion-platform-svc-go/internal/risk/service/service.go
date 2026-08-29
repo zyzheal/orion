@@ -62,8 +62,8 @@ func NewService(repo RepositoryInterface) *Service {
 func (s *Service) CalculateWeightedScore(_ context.Context, factors []models.RiskFactor, mitigation *models.MitigationPlan) (*models.WeightedScoreResult, error) {
 	if len(factors) == 0 {
 		return &models.WeightedScoreResult{
-			Score:  0,
-			Level:  "low",
+			Score:           0,
+			Level:           "low",
 			FactorBreakdown: []models.FactorBreakdown{},
 		}, nil
 	}
@@ -161,13 +161,13 @@ func (s *Service) GetRiskTrends(_ context.Context, tenantID string, since time.T
 
 		if len(records) == 0 {
 			trends = append(trends, models.RiskTrend{
-				RiskID:        r.ID,
-				RiskName:      r.Name,
-				AvgScore:      0,
-				MinScore:      0,
-				MaxScore:      0,
-				ScoreDelta:    0,
-				SampleCount:   0,
+				RiskID:         r.ID,
+				RiskName:       r.Name,
+				AvgScore:       0,
+				MinScore:       0,
+				MaxScore:       0,
+				ScoreDelta:     0,
+				SampleCount:    0,
 				TrendDirection: "stable",
 			})
 			continue
@@ -200,13 +200,13 @@ func (s *Service) GetRiskTrends(_ context.Context, tenantID string, since time.T
 		}
 
 		trends = append(trends, models.RiskTrend{
-			RiskID:        r.ID,
-			RiskName:      r.Name,
-			AvgScore:      roundFloat(avg, 2),
-			MinScore:      roundFloat(minV, 2),
-			MaxScore:      roundFloat(maxV, 2),
-			ScoreDelta:    roundFloat(delta, 2),
-			SampleCount:   len(records),
+			RiskID:         r.ID,
+			RiskName:       r.Name,
+			AvgScore:       roundFloat(avg, 2),
+			MinScore:       roundFloat(minV, 2),
+			MaxScore:       roundFloat(maxV, 2),
+			ScoreDelta:     roundFloat(delta, 2),
+			SampleCount:    len(records),
 			TrendDirection: direction,
 		})
 	}

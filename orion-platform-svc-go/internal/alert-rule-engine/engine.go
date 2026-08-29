@@ -11,12 +11,12 @@ import (
 // Engine is the central rule engine. It manages registered rules, evaluates
 // them against incoming metric snapshots, and enforces cooldown periods.
 type Engine struct {
-	mu        sync.RWMutex
-	logger    *zap.Logger
-	rules     map[string]*Rule   // ID -> rule
-	byGroup   map[string][]string // group -> []ruleID (sorted by priority)
-	cooldown  *CooldownTracker
-	severity  map[Severity]int  // severity -> rule count
+	mu       sync.RWMutex
+	logger   *zap.Logger
+	rules    map[string]*Rule    // ID -> rule
+	byGroup  map[string][]string // group -> []ruleID (sorted by priority)
+	cooldown *CooldownTracker
+	severity map[Severity]int // severity -> rule count
 }
 
 // EngineOption configures the engine.
@@ -32,11 +32,11 @@ func WithLogger(logger *zap.Logger) EngineOption {
 // NewEngine creates a new rule engine.
 func NewEngine(opts ...EngineOption) *Engine {
 	e := &Engine{
-		rules:     make(map[string]*Rule),
-		byGroup:   make(map[string][]string),
-		cooldown:  NewCooldownTracker(),
-		severity:  make(map[Severity]int),
-		logger:    zap.NewNop(),
+		rules:    make(map[string]*Rule),
+		byGroup:  make(map[string][]string),
+		cooldown: NewCooldownTracker(),
+		severity: make(map[Severity]int),
+		logger:   zap.NewNop(),
 	}
 	for _, opt := range opts {
 		opt(e)
@@ -170,10 +170,10 @@ func (e *Engine) Evaluate(snapshot *MetricSnapshot) []*RuleResult {
 // evaluateRule evaluates a single rule and checks cooldown.
 func (e *Engine) evaluateRule(rule *Rule, snapshot *MetricSnapshot) *RuleResult {
 	result := &RuleResult{
-		RuleID:    rule.ID,
-		RuleName:  rule.Name,
-		Severity:  rule.Severity,
-		Labels:    rule.Labels,
+		RuleID:      rule.ID,
+		RuleName:    rule.Name,
+		Severity:    rule.Severity,
+		Labels:      rule.Labels,
 		Annotations: rule.Annotations,
 	}
 
@@ -272,9 +272,9 @@ func (e *Engine) Stats() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"total":   len(e.rules),
-		"enabled": enabled,
-		"groups":  len(e.byGroup),
+		"total":       len(e.rules),
+		"enabled":     enabled,
+		"groups":      len(e.byGroup),
 		"by_severity": counts,
 	}
 }
@@ -322,6 +322,7 @@ func severityRank(s Severity) int {
 
 // ErrRuleExists is returned when trying to register a rule with an existing ID.
 var ErrRuleExists = NewRuleEngineError("rule already exists")
+
 // ErrRuleNotFound is returned when trying to access a non-existent rule.
 var ErrRuleNotFound = NewRuleEngineError("rule not found")
 

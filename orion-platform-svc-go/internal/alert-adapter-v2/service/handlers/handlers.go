@@ -5,8 +5,9 @@
 // initialize runtime state, and dispatch a rendered notification.
 //
 // Channels implemented:
-//   email, sms, wechat, dingtalk, feishu, slack, telegram, pagerduty,
-//   opsgenie, webhook, push, in_app, kafka
+//
+//	email, sms, wechat, dingtalk, feishu, slack, telegram, pagerduty,
+//	opsgenie, webhook, push, in_app, kafka
 //
 // Phone and rabbitmq are reserved for future implementation.
 package handlers
@@ -355,8 +356,8 @@ func (h *SlackHandler) Send(ctx context.Context, template string, variables map[
 // ---------------------------------------------------------------------------
 
 type TelegramHandler struct {
-	botToken  string
-	chatID    string
+	botToken   string
+	chatID     string
 	configured bool
 }
 
@@ -495,9 +496,9 @@ func (h *OpsgenieHandler) Send(ctx context.Context, template string, variables m
 	}
 	endpoint := fmt.Sprintf("%s/v2/alerts", strings.TrimSuffix(h.region, "/"))
 	payload := map[string]interface{}{
-		"message":   title,
+		"message":     title,
 		"description": template,
-		"priority":  mapSeverityToPriority(severity),
+		"priority":    mapSeverityToPriority(severity),
 	}
 	return postJSONWithHeader(ctx, endpoint, payload, "Authorization", "GenieKey "+h.apiKey)
 }
@@ -507,9 +508,9 @@ func (h *OpsgenieHandler) Send(ctx context.Context, template string, variables m
 // ---------------------------------------------------------------------------
 
 type WebhookHandler struct {
-	url    string
-	method string
-	headers map[string]string
+	url        string
+	method     string
+	headers    map[string]string
 	configured bool
 }
 
@@ -578,10 +579,10 @@ func (h *WebhookHandler) Send(ctx context.Context, template string, _ map[string
 // ---------------------------------------------------------------------------
 
 type PushHandler struct {
-	provider    string
-	appKey      string
-	endpoints   []string
-	configured  bool
+	provider   string
+	appKey     string
+	endpoints  []string
+	configured bool
 }
 
 func NewPushHandler() *PushHandler {
@@ -668,9 +669,9 @@ func (h *InAppHandler) Send(ctx context.Context, template string, _ map[string]s
 // ---------------------------------------------------------------------------
 
 type KafkaHandler struct {
-	brokers  []string
-	topic    string
-	partition int
+	brokers    []string
+	topic      string
+	partition  int
 	configured bool
 }
 

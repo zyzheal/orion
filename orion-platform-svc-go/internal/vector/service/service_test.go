@@ -10,16 +10,16 @@ import (
 
 // mockVectorRepo implements RepositoryInterface for testing.
 type mockVectorRepo struct {
-	stores         map[string]*models.VectorStore
-	listErr        error
-	getErr         error
-	createErr      error
-	deleteErr      error
+	stores          map[string]*models.VectorStore
+	listErr         error
+	getErr          error
+	createErr       error
+	deleteErr       error
 	deleteVectorErr error
 	deleteVectorN   int
-	upsertErr      error
-	searchErr      error
-	searchResults  []models.SearchResult
+	upsertErr       error
+	searchErr       error
+	searchResults   []models.SearchResult
 }
 
 func newMockVectorRepo() *mockVectorRepo {

@@ -20,9 +20,9 @@ import (
 )
 
 var (
-	ErrObjectNotFound  = errors.New("object not found")
-	ErrBucketNotFound  = errors.New("bucket not found")
-	ErrObjectTooLarge  = errors.New("object exceeds maximum allowed size")
+	ErrObjectNotFound = errors.New("object not found")
+	ErrBucketNotFound = errors.New("bucket not found")
+	ErrObjectTooLarge = errors.New("object exceeds maximum allowed size")
 )
 
 const (
@@ -343,9 +343,9 @@ func (*MinIOProvider) guessContentType(key string) string {
 type ProviderType string
 
 const (
-	ProviderTypeMinIO    ProviderType = "minio"
+	ProviderTypeMinIO      ProviderType = "minio"
 	ProviderTypeFilesystem ProviderType = "filesystem"
-	ProviderTypeS3       ProviderType = "s3"
+	ProviderTypeS3         ProviderType = "s3"
 )
 
 // NewProvider creates a storage provider based on the given type and config.

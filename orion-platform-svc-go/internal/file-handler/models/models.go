@@ -8,7 +8,7 @@ type FileRecord struct {
 	TenantID     string    `db:"tenant_id" json:"tenantId"`
 	Name         string    `db:"name" json:"name"`
 	OriginalName string    `db:"original_name" json:"originalName"`
-	Type         string    `db:"type" json:"type"`          // MIME type
+	Type         string    `db:"type" json:"type"`           // MIME type
 	Extension    string    `db:"extension" json:"extension"` // ".pdf", ".jpg", ".go"
 	Size         int64     `db:"size" json:"size"`
 	StorageType  string    `db:"storage_type" json:"storageType"` // "local", "s3", "minio", "azure", "gcs", "nfs"
@@ -17,7 +17,7 @@ type FileRecord struct {
 	Category     string    `db:"category" json:"category"` // "document", "image", "archive", "media", "code", "config"
 	Owner        string    `db:"owner" json:"owner"`
 	Visibility   string    `db:"visibility" json:"visibility"` // "public", "private", "team"
-	Tags         string    `db:"tags" json:"tags"`           // JSON array
+	Tags         string    `db:"tags" json:"tags"`             // JSON array
 	CreatedAt    time.Time `db:"created_at" json:"createdAt"`
 	UpdatedAt    time.Time `db:"updated_at" json:"updatedAt"`
 }
@@ -52,10 +52,10 @@ type MoveRequest struct {
 
 // CreateBackendRequest creates a new storage backend.
 type CreateBackendRequest struct {
-	Name   string `json:"name" binding:"required"`
-	Type   string `json:"type" binding:"required"`
-	Config string `json:"config"`
-	Enabled bool  `json:"enabled"`
+	Name    string `json:"name" binding:"required"`
+	Type    string `json:"type" binding:"required"`
+	Config  string `json:"config"`
+	Enabled bool   `json:"enabled"`
 }
 
 // ValidateRequest validates whether a file extension + content is allowed.

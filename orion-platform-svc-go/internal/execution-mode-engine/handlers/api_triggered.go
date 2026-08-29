@@ -26,8 +26,9 @@ type APITokenVerifier interface {
 // provided) and delegates the actual work to an Executor.
 //
 // Usage:
-//   handler := handlers.NewAPITriggeredHandler(logger, executor, verifier)
-//   engineInstance.RegisterHandler(handler)
+//
+//	handler := handlers.NewAPITriggeredHandler(logger, executor, verifier)
+//	engineInstance.RegisterHandler(handler)
 type APITriggeredHandler struct {
 	logger   *zap.Logger
 	executor Executor
@@ -62,8 +63,8 @@ func (h *APITriggeredHandler) Handle(ctx context.Context, req *engine.ExecutionR
 	h.stats.TotalCalls++
 
 	result := &engine.ExecutionResult{
-		RequestID: req.ID,
-		Mode:      engine.ModeAPITriggered,
+		RequestID:  req.ID,
+		Mode:       engine.ModeAPITriggered,
 		ExecutedAt: time.Now().UTC(),
 	}
 

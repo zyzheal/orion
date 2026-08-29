@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/workbench/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/workbench/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeWorkbenchService) Update(ctx context.Context, tenantID, id string, 
 }
 
 var _ service.ServiceInterface = (*fakeWorkbenchService)(nil)
-
 
 func TestHandler_WORKBENCH_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

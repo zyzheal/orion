@@ -3,11 +3,11 @@ package handler
 import (
 	"strconv"
 
+	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ci-cd/pipeline/models"
 	"orion/platform-svc-go/internal/ci-cd/pipeline/service"
-	"orion/go-common/pkg/auth"
-
-	"github.com/gin-gonic/gin"
 )
 
 // Handler provides HTTP handlers for pipeline operations.
@@ -58,6 +58,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Pipeline Handlers ====================
 
 func (h *Handler) CreatePipeline(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIPipelineCreatePipeline")
+	defer span.End()
 	var pipeline models.Pipeline
 	if err := c.ShouldBindJSON(&pipeline); err != nil {
 		respondBadRequest(c, err.Error())
@@ -65,7 +67,7 @@ func (h *Handler) CreatePipeline(c *gin.Context) {
 	}
 
 	pipeline.TenantID = c.GetString("tenant_id")
-	if err := h.svc.Create(c.Request.Context(), &pipeline); err != nil {
+	if err := h.svc.Create(ctx, &pipeline); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -74,10 +76,12 @@ func (h *Handler) CreatePipeline(c *gin.Context) {
 }
 
 func (h *Handler) GetPipeline(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIPipelineGetPipeline")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	pipeline, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
+	pipeline, err := h.svc.GetByID(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, "pipeline not found")
 		return
@@ -87,6 +91,8 @@ func (h *Handler) GetPipeline(c *gin.Context) {
 }
 
 func (h *Handler) ListPipelines(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIPipelineListPipelines")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -99,7 +105,7 @@ func (h *Handler) ListPipelines(c *gin.Context) {
 	}
 	offset := (page - 1) * pageSize
 
-	pipelines, err := h.svc.List(c.Request.Context(), tenantID, offset, pageSize)
+	pipelines, err := h.svc.List(ctx, tenantID, offset, pageSize)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -109,6 +115,8 @@ func (h *Handler) ListPipelines(c *gin.Context) {
 }
 
 func (h *Handler) UpdatePipeline(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIPipelineUpdatePipeline")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -120,7 +128,7 @@ func (h *Handler) UpdatePipeline(c *gin.Context) {
 
 	pipeline.ID = id
 	pipeline.TenantID = tenantID
-	if err := h.svc.Update(c.Request.Context(), &pipeline); err != nil {
+	if err := h.svc.Update(ctx, &pipeline); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -129,8 +137,10 @@ func (h *Handler) UpdatePipeline(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIPipelineDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -138,8 +148,10 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIPipelineCount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -151,6 +163,8 @@ func (h *Handler) Count(c *gin.Context) {
 
 // RunPipeline starts a new pipeline execution.
 func (h *Handler) RunPipeline(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIPipelineRunPipeline")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Param("id")
 
@@ -163,7 +177,7 @@ func (h *Handler) RunPipeline(c *gin.Context) {
 		req.TriggerType = models.TriggerManual
 	}
 
-	run, err := h.svc.RunPipeline(c.Request.Context(), tenantID, pipelineID, req)
+	run, err := h.svc.RunPipeline(ctx, tenantID, pipelineID, req)
 	if err != nil {
 		if err == service.ErrPipelineNotFound {
 			respondNotFound(c, err.Error())
@@ -178,6 +192,8 @@ func (h *Handler) RunPipeline(c *gin.Context) {
 
 // TriggerRun is the legacy trigger endpoint.
 func (h *Handler) TriggerRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIPipelineTriggerRun")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	triggeredBy := c.GetString("user_id")
 	pipelineID := c.Param("id")
@@ -192,7 +208,7 @@ func (h *Handler) TriggerRun(c *gin.Context) {
 		req.TriggerType = "manual"
 	}
 
-	run, err := h.svc.TriggerRun(c.Request.Context(), tenantID, pipelineID, req.TriggerType, triggeredBy)
+	run, err := h.svc.TriggerRun(ctx, tenantID, pipelineID, req.TriggerType, triggeredBy)
 	if err != nil {
 		if err == service.ErrPipelineNotFound {
 			respondNotFound(c, err.Error())
@@ -207,9 +223,11 @@ func (h *Handler) TriggerRun(c *gin.Context) {
 
 // GetRun returns a pipeline run by ID.
 func (h *Handler) GetRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIPipelineGetRun")
+	defer span.End()
 	id := c.Param("id")
 
-	run, err := h.svc.GetRunByID(c.Request.Context(), id)
+	run, err := h.svc.GetRunByID(ctx, id)
 	if err != nil {
 		respondNotFound(c, "run not found")
 		return
@@ -220,9 +238,11 @@ func (h *Handler) GetRun(c *gin.Context) {
 
 // GetRunStatus returns the current status of a pipeline run.
 func (h *Handler) GetRunStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIPipelineGetRunStatus")
+	defer span.End()
 	id := c.Param("id")
 
-	run, err := h.svc.GetRunStatus(c.Request.Context(), id)
+	run, err := h.svc.GetRunStatus(ctx, id)
 	if err != nil {
 		respondNotFound(c, "run not found")
 		return
@@ -235,14 +255,16 @@ func (h *Handler) GetRunStatus(c *gin.Context) {
 		"completed_at": run.CompletedAt,
 		"duration_ms":  run.DurationMs,
 		"trigger_type": run.TriggerType,
-		"trigger_by":   run.TriggerBy,})
+		"trigger_by":   run.TriggerBy})
 }
 
 // GetRunStages returns all stages for a run.
 func (h *Handler) GetRunStages(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIPipelineGetRunStages")
+	defer span.End()
 	runID := c.Param("id")
 
-	stages, err := h.svc.GetStages(c.Request.Context(), runID)
+	stages, err := h.svc.GetStages(ctx, runID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -253,9 +275,11 @@ func (h *Handler) GetRunStages(c *gin.Context) {
 
 // GetRunLogs returns execution logs for all stages in a run.
 func (h *Handler) GetRunLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIPipelineGetRunLogs")
+	defer span.End()
 	runID := c.Param("id")
 
-	logs, err := h.svc.GetRunLogs(c.Request.Context(), runID)
+	logs, err := h.svc.GetRunLogs(ctx, runID)
 	if err != nil {
 		if err == service.ErrRunNotFound {
 			respondNotFound(c, err.Error())
@@ -270,9 +294,11 @@ func (h *Handler) GetRunLogs(c *gin.Context) {
 
 // CancelRun cancels a running pipeline run.
 func (h *Handler) CancelRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIPipelineCancelRun")
+	defer span.End()
 	runID := c.Param("id")
 
-	run, err := h.svc.CancelRun(c.Request.Context(), runID)
+	run, err := h.svc.CancelRun(ctx, runID)
 	if err != nil {
 		if err == service.ErrRunNotFound {
 			respondNotFound(c, err.Error())
@@ -291,6 +317,8 @@ func (h *Handler) CancelRun(c *gin.Context) {
 
 // ListRuns lists pipeline runs with optional filtering.
 func (h *Handler) ListRuns(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIPipelineListRuns")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	filter := models.PipelineRunFilter{
@@ -307,7 +335,7 @@ func (h *Handler) ListRuns(c *gin.Context) {
 		filter.Offset = offset
 	}
 
-	result, err := h.svc.ListRuns(c.Request.Context(), filter)
+	result, err := h.svc.ListRuns(ctx, filter)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -318,10 +346,12 @@ func (h *Handler) ListRuns(c *gin.Context) {
 
 // GetPipelineStats returns aggregate statistics for a pipeline.
 func (h *Handler) GetPipelineStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIPipelineGetPipelineStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Param("id")
 
-	stats, err := h.svc.GetPipelineStats(c.Request.Context(), tenantID, pipelineID)
+	stats, err := h.svc.GetPipelineStats(ctx, tenantID, pipelineID)
 	if err != nil {
 		if err == service.ErrPipelineNotFound {
 			respondNotFound(c, err.Error())

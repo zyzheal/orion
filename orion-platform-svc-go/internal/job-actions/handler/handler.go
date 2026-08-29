@@ -5,13 +5,12 @@ import (
 	"errors"
 	"strconv"
 
+	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
-
 	"orion/platform-svc-go/internal/job-actions/models"
 	"orion/platform-svc-go/internal/job-actions/repository"
 	"orion/platform-svc-go/internal/job-actions/service"
-
-	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -41,6 +40,8 @@ func (h *Handler) tenantID(c *gin.Context) string {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) CreateAction(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "JobActionsCreateAction")
+	defer span.End()
 	var req models.CreateActionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
@@ -50,7 +51,7 @@ func (h *Handler) CreateAction(c *gin.Context) {
 		respondBadRequest(c, "unsupported action type: "+req.Type)
 		return
 	}
-	action, err := h.repo.CreateAction(c.Request.Context(), h.tenantID(c), &req)
+	action, err := h.repo.CreateAction(ctx, h.tenantID(c), &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -63,7 +64,9 @@ func (h *Handler) CreateAction(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) GetAction(c *gin.Context) {
-	action, err := h.exec.GetAction(c.Request.Context(), h.tenantID(c), c.Param("id"))
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "JobActionsGetAction")
+	defer span.End()
+	action, err := h.exec.GetAction(ctx, h.tenantID(c), c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -76,10 +79,12 @@ func (h *Handler) GetAction(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) ListActions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "JobActionsListActions")
+	defer span.End()
 	category := c.Query("category")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	resp, err := h.repo.ListActions(c.Request.Context(), h.tenantID(c), category, limit, offset)
+	resp, err := h.repo.ListActions(ctx, h.tenantID(c), category, limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -92,6 +97,8 @@ func (h *Handler) ListActions(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) ExecuteAction(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "JobActionsExecuteAction")
+	defer span.End()
 	var req models.ExecuteActionRequest
 	_ = c.ShouldBindJSON(&req)
 
@@ -99,7 +106,7 @@ func (h *Handler) ExecuteAction(c *gin.Context) {
 	// to using the param :id as the action type directly.
 	actionName := c.Param("id")
 
-	ex, err := h.exec.ExecuteAction(c.Request.Context(), h.tenantID(c), actionName, req.Params)
+	ex, err := h.exec.ExecuteAction(ctx, h.tenantID(c), actionName, req.Params)
 	if err != nil {
 		if errors.Is(err, service.ErrActionNotFound) {
 			respondNotFound(c, err.Error())
@@ -124,15 +131,17 @@ func (h *Handler) ExecuteAction(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) GetHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "JobActionsGetHistory")
+	defer span.End()
 	actionID := c.Param("id")
 	// Verify action belongs to tenant
-	if _, terr := h.repo.GetAction(c.Request.Context(), h.tenantID(c), actionID); terr != nil {
+	if _, terr := h.repo.GetAction(ctx, h.tenantID(c), actionID); terr != nil {
 		respondNotFound(c, terr.Error())
 		return
 	}
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	resp, err := h.repo.ListHistory(c.Request.Context(), actionID, limit, offset)
+	resp, err := h.repo.ListHistory(ctx, actionID, limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

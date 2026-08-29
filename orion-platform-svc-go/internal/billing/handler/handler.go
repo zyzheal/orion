@@ -8,8 +8,8 @@ import (
 	"orion/platform-svc-go/internal/billing/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler exposes the billing module's HTTP endpoints.

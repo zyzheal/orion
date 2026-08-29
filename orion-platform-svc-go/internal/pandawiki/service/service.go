@@ -44,13 +44,13 @@ func (s *Service) CreateSpace(ctx context.Context, tenantID string, req *models.
 	}
 
 	space := &models.Space{
-		ID:        uuid.New().String(),
-		TenantID:  tenantID,
-		Name:      req.Name,
-		Type:      req.Type,
-		Source:    req.Source,
-		OwnerID:   req.OwnerID,
-		TeamID:    req.TeamID,
+		ID:          uuid.New().String(),
+		TenantID:    tenantID,
+		Name:        req.Name,
+		Type:        req.Type,
+		Source:      req.Source,
+		OwnerID:     req.OwnerID,
+		TeamID:      req.TeamID,
 		Description: req.Description,
 	}
 	if space.OwnerID == "" {
@@ -129,17 +129,17 @@ func (s *Service) CreateDoc(ctx context.Context, tenantID string, input *models.
 	}
 
 	doc := &models.Doc{
-		ID:        uuid.New().String(),
-		TenantID:  tenantID,
-		SpaceID:   input.SpaceID,
-		Title:     input.Title,
-		Content:   input.Content,
-		Type:      "knowledge",
-		Source:    models.SourceManual,
-		Tags:      models.JSONArray(input.Tags),
-		Status:    models.DocStatusDraft,
-		Version:   1,
-		AuthorID:  input.AuthorID,
+		ID:       uuid.New().String(),
+		TenantID: tenantID,
+		SpaceID:  input.SpaceID,
+		Title:    input.Title,
+		Content:  input.Content,
+		Type:     "knowledge",
+		Source:   models.SourceManual,
+		Tags:     models.JSONArray(input.Tags),
+		Status:   models.DocStatusDraft,
+		Version:  1,
+		AuthorID: input.AuthorID,
 	}
 	if input.Type != nil {
 		doc.Type = *input.Type

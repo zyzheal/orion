@@ -26,20 +26,20 @@ type RunMetric struct {
 
 // PipelineMetric holds aggregated metrics for a pipeline.
 type PipelineMetric struct {
-	TotalRuns           int        `json:"total_runs"`
-	SuccessRuns         int        `json:"success_runs"`
-	FailedRuns          int        `json:"failed_runs"`
-	CancelledRuns       int        `json:"cancelled_runs"`
-	RunningRuns         int        `json:"running_runs"`
-	PendingRuns         int        `json:"pending_runs"`
-	SuccessRate         float64    `json:"success_rate"`
-	AverageDurationMs   float64    `json:"average_duration_ms"`
-	MedianDurationMs    int64      `json:"median_duration_ms"`
-	P95DurationMs       int64      `json:"p95_duration_ms"`
-	LastUpdated         time.Time  `json:"last_updated"`
-	FailuresByErrorType map[string]int `json:"failures_by_error_type"`
+	TotalRuns           int                          `json:"total_runs"`
+	SuccessRuns         int                          `json:"success_runs"`
+	FailedRuns          int                          `json:"failed_runs"`
+	CancelledRuns       int                          `json:"cancelled_runs"`
+	RunningRuns         int                          `json:"running_runs"`
+	PendingRuns         int                          `json:"pending_runs"`
+	SuccessRate         float64                      `json:"success_rate"`
+	AverageDurationMs   float64                      `json:"average_duration_ms"`
+	MedianDurationMs    int64                        `json:"median_duration_ms"`
+	P95DurationMs       int64                        `json:"p95_duration_ms"`
+	LastUpdated         time.Time                    `json:"last_updated"`
+	FailuresByErrorType map[string]int               `json:"failures_by_error_type"`
 	RunsByPipeline      map[string]PipelineRunMetric `json:"runs_by_pipeline"`
-	RunsByTriggerType   map[string]int `json:"runs_by_trigger_type"`
+	RunsByTriggerType   map[string]int               `json:"runs_by_trigger_type"`
 }
 
 // PipelineRunMetric holds metrics for a single pipeline.
@@ -60,12 +60,12 @@ type PrometheusMetric struct {
 
 // MetricsService provides pipeline metrics collection and aggregation.
 type MetricsService struct {
-	db           *repository.RunRepository
-	logger       *zap.Logger
-	metrics      []RunMetric
-	mu           sync.RWMutex
-	maxHistory   int
-	maxAgeHours  int
+	db          *repository.RunRepository
+	logger      *zap.Logger
+	metrics     []RunMetric
+	mu          sync.RWMutex
+	maxHistory  int
+	maxAgeHours int
 }
 
 // NewMetricsService creates a new metrics service.

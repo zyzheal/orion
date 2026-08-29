@@ -1,9 +1,10 @@
 // Package engine provides the execution engine for Pipeline Executor.
 //
 // Architecture (three-tier):
-//   Pipeline — top-level container for an ordered set of Stages.
-//   Stage    — a parallelisable group of Tasks with dependency links.
-//   Task     — a single processing unit with retry policy, timeout, and action.
+//
+//	Pipeline — top-level container for an ordered set of Stages.
+//	Stage    — a parallelisable group of Tasks with dependency links.
+//	Task     — a single processing unit with retry policy, timeout, and action.
 //
 // The Engine orchestrates stages via a StageScheduler (topological, parallel
 // where dependencies allow) and delegates each task to a pluggable handler.
@@ -38,22 +39,22 @@ const (
 type StageStatus string
 
 const (
-	StageStatusPending  StageStatus = "pending"
-	StageStatusRunning  StageStatus = "running"
-	StageStatusSkipped  StageStatus = "skipped"
-	StageStatusSuccess  StageStatus = "success"
-	StageStatusFailed   StageStatus = "failed"
+	StageStatusPending StageStatus = "pending"
+	StageStatusRunning StageStatus = "running"
+	StageStatusSkipped StageStatus = "skipped"
+	StageStatusSuccess StageStatus = "success"
+	StageStatusFailed  StageStatus = "failed"
 )
 
 // TaskStatus represents the state of a Task.
 type TaskStatus string
 
 const (
-	TaskStatusPending  TaskStatus = "pending"
-	TaskStatusRunning  TaskStatus = "running"
-	TaskStatusSuccess  TaskStatus = "success"
-	TaskStatusFailed   TaskStatus = "failed"
-	TaskStatusSkipped  TaskStatus = "skipped"
+	TaskStatusPending TaskStatus = "pending"
+	TaskStatusRunning TaskStatus = "running"
+	TaskStatusSuccess TaskStatus = "success"
+	TaskStatusFailed  TaskStatus = "failed"
+	TaskStatusSkipped TaskStatus = "skipped"
 )
 
 // ---------------------------------------------------------------------------
@@ -121,15 +122,15 @@ func (c *Config) ResolveMaxRetries(taskMaxRetries int) int {
 
 // Pipeline bundles stages and execution configuration.
 type Pipeline struct {
-	ID        string          `json:"id"`
-	Name      string          `json:"name"`
-	TenantID  string          `json:"tenant_id"`
-	Category  string          `json:"category"`
-	Status    PipelineStatus  `json:"status"`
-	CreatedAt time.Time       `json:"created_at"`
-	UpdatedAt time.Time       `json:"updated_at"`
-	Stages    []Stage         `json:"stages"`
-	Config    Config          `json:"config"`
+	ID        string         `json:"id"`
+	Name      string         `json:"name"`
+	TenantID  string         `json:"tenant_id"`
+	Category  string         `json:"category"`
+	Status    PipelineStatus `json:"status"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	Stages    []Stage        `json:"stages"`
+	Config    Config         `json:"config"`
 }
 
 // HasStage reports whether a stage with the given name exists.
@@ -231,15 +232,15 @@ type TaskResult struct {
 
 // RunResult aggregates stage-level results after Execute completes.
 type RunResult struct {
-	PipelineID string                `json:"pipeline_id"`
-	TenantID   string                `json:"tenant_id"`
-	RunID      string                `json:"run_id"`
-	Status     PipelineStatus        `json:"status"`
+	PipelineID string                 `json:"pipeline_id"`
+	TenantID   string                 `json:"tenant_id"`
+	RunID      string                 `json:"run_id"`
+	Status     PipelineStatus         `json:"status"`
 	Stages     map[string]*StageState `json:"stages"`
-	StartedAt  time.Time             `json:"started_at"`
-	FinishedAt time.Time             `json:"finished_at"`
-	DurationMs int64                 `json:"duration_ms"`
-	Error      string                `json:"error,omitempty"`
+	StartedAt  time.Time              `json:"started_at"`
+	FinishedAt time.Time              `json:"finished_at"`
+	DurationMs int64                  `json:"duration_ms"`
+	Error      string                 `json:"error,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -248,12 +249,12 @@ type RunResult struct {
 
 // StageState tracks a stage's execution state within a run.
 type StageState struct {
-	Name       string          `json:"name"`
-	Status     StageStatus     `json:"status"`
+	Name       string      `json:"name"`
+	Status     StageStatus `json:"status"`
 	Tasks      map[string]*TaskState
-	StartedAt  time.Time       `json:"started_at,omitempty"`
-	FinishedAt time.Time       `json:"finished_at,omitempty"`
-	Error      string          `json:"error,omitempty"`
+	StartedAt  time.Time `json:"started_at,omitempty"`
+	FinishedAt time.Time `json:"finished_at,omitempty"`
+	Error      string    `json:"error,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -282,8 +283,8 @@ type Rollback func(ctx context.Context, stageName string, state *StageState) err
 
 // EngineCallbacks are optional hooks for run-level observability.
 type EngineCallbacks struct {
-	OnRunStart  func(result *RunResult)
-	OnRunEnd    func(result *RunResult)
+	OnRunStart   func(result *RunResult)
+	OnRunEnd     func(result *RunResult)
 	OnStageStart func(runID, stageName string)
 	OnStageEnd   func(runID, stageName string, status StageStatus, err error)
 	OnTaskStart  func(runID, stageName, taskName string)

@@ -527,4 +527,3 @@ func (e *K8sExecutor) ListNamespaces(ctx context.Context) ([]string, error) {
 	}
 	return names, nil
 }
-

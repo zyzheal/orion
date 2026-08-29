@@ -24,14 +24,14 @@ type HealingAction struct {
 
 // HealingTrigger represents a trigger condition for self-healing.
 type HealingTrigger struct {
-	ID           uuid.UUID  `json:"id"`
-	TenantID     uuid.UUID  `json:"tenant_id"`
-	ActionID     uuid.UUID  `json:"action_id"`
-	Condition    string     `json:"condition"`
-	Threshold    float64    `json:"threshold"`
-	EvaluationSec int      `json:"evaluation_sec"`
-	IsEnabled    bool       `json:"is_enabled"`
-	CreatedAt    time.Time  `json:"created_at"`
+	ID            uuid.UUID `json:"id"`
+	TenantID      uuid.UUID `json:"tenant_id"`
+	ActionID      uuid.UUID `json:"action_id"`
+	Condition     string    `json:"condition"`
+	Threshold     float64   `json:"threshold"`
+	EvaluationSec int       `json:"evaluation_sec"`
+	IsEnabled     bool      `json:"is_enabled"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 // HealingHistory represents the execution history of a healing action.
@@ -62,7 +62,7 @@ type CreateHealingActionRequest struct {
 
 // HealingActionResponse wraps healing action query results.
 type HealingActionResponse struct {
-	Total int64          `json:"total"`
+	Total int64           `json:"total"`
 	Data  []HealingAction `json:"data"`
 }
 

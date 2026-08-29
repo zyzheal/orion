@@ -8,7 +8,6 @@ import (
 
 	"orion/platform-svc-go/internal/ci-cd/pipeline/models"
 
-
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -101,8 +100,8 @@ func (s *GraphService) ValidateYAML(ctx context.Context, yamlContent string) (*m
 	defer span.End()
 
 	result := &models.YAMLValidationResult{
-		Valid:   true,
-		Errors:  []models.YAMLValidationErr{},
+		Valid:    true,
+		Errors:   []models.YAMLValidationErr{},
 		Warnings: []string{},
 	}
 

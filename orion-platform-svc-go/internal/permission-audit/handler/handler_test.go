@@ -5,9 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/permission-audit/models"
 )
 
@@ -41,8 +40,6 @@ func (f *fakeHandler) GetAuditLog(ctx context.Context, tenantID, id string) (*mo
 func (f *fakeHandler) DeleteAuditLog(ctx context.Context, tenantID, id string) (bool, error) {
 	return false, nil
 }
-
-
 
 func TestHandler_PERMISSION_AUD_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

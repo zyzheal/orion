@@ -1,10 +1,11 @@
 package handler
 
 import (
-	"strconv"
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/workflow/workflow/models"
 	"orion/platform-svc-go/internal/workflow/workflow/service"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,6 +27,8 @@ func (h *ExtraHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Update — update workflow name/description/status
 func (h *ExtraHandler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "WorkflowEngineUpdate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req struct {
@@ -45,7 +48,7 @@ func (h *ExtraHandler) Update(c *gin.Context) {
 	if req.Description != nil {
 		updates["description"] = *req.Description
 	}
-	updated, err := h.svc.UpdateDefinition(c.Request.Context(), tenantID, id, &models.UpdateDefinitionRequest{
+	updated, err := h.svc.UpdateDefinition(ctx, tenantID, id, &models.UpdateDefinitionRequest{
 		Name:        req.Name,
 		Description: req.Description,
 		Enabled:     req.Enabled,
@@ -59,6 +62,8 @@ func (h *ExtraHandler) Update(c *gin.Context) {
 
 // Execute — create an instance (executes the workflow)
 func (h *ExtraHandler) Execute(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "WorkflowEngineExecute")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var body struct {
@@ -69,7 +74,7 @@ func (h *ExtraHandler) Execute(c *gin.Context) {
 	if body.TriggeredBy == "" {
 		body.TriggeredBy = "system"
 	}
-	inst, err := h.svc.CreateInstance(c.Request.Context(), tenantID, id, &models.CreateInstanceRequest{
+	inst, err := h.svc.CreateInstance(ctx, tenantID, id, &models.CreateInstanceRequest{
 		TriggeredBy:  body.TriggeredBy,
 		InitialInput: body.InitialInput,
 	})
@@ -82,9 +87,11 @@ func (h *ExtraHandler) Execute(c *gin.Context) {
 
 // Executions — list runs for a workflow (returns instances as execution history)
 func (h *ExtraHandler) Executions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "WorkflowEngineExecutions")
+	defer span.End()
 	id := c.Param("id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	instances, err := h.svc.ListInstances(c.Request.Context(), id, limit)
+	instances, err := h.svc.ListInstances(ctx, id, limit)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -94,13 +101,15 @@ func (h *ExtraHandler) Executions(c *gin.Context) {
 
 // Pause — set workflow to disabled
 func (h *ExtraHandler) Pause(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "WorkflowEnginePause")
+	defer span.End()
 	tenantID := c.GetString("tenantID")
 	if tenantID == "" {
 		tenantID = c.GetString("tenant_id")
 	}
 	id := c.Param("id")
 	falseVal := false
-	def, err := h.svc.UpdateDefinition(c.Request.Context(), tenantID, id, &models.UpdateDefinitionRequest{Enabled: &falseVal})
+	def, err := h.svc.UpdateDefinition(ctx, tenantID, id, &models.UpdateDefinitionRequest{Enabled: &falseVal})
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -110,13 +119,15 @@ func (h *ExtraHandler) Pause(c *gin.Context) {
 
 // Resume — set workflow to enabled
 func (h *ExtraHandler) Resume(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "WorkflowEngineResume")
+	defer span.End()
 	tenantID := c.GetString("tenantID")
 	if tenantID == "" {
 		tenantID = c.GetString("tenant_id")
 	}
 	id := c.Param("id")
 	trueVal := true
-	def, err := h.svc.UpdateDefinition(c.Request.Context(), tenantID, id, &models.UpdateDefinitionRequest{Enabled: &trueVal})
+	def, err := h.svc.UpdateDefinition(ctx, tenantID, id, &models.UpdateDefinitionRequest{Enabled: &trueVal})
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -126,5 +137,7 @@ func (h *ExtraHandler) Resume(c *gin.Context) {
 
 // Terminate — no-op for now (placeholder)
 func (h *ExtraHandler) Terminate(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "WorkflowEngineTerminate")
+	defer span.End()
 	respondSuccess(c, gin.H{"message": "terminated"})
 }

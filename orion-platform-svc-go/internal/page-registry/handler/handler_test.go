@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/page-registry/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/page-registry/models"
 )
 
@@ -60,7 +60,6 @@ func (f *fakePage_registryService) Update(ctx context.Context, tenantID, path st
 }
 
 var _ service.ServiceInterface = (*fakePage_registryService)(nil)
-
 
 func TestHandler_PAGE_REGISTRY_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

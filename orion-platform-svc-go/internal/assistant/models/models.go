@@ -14,12 +14,12 @@ type QueryRequest struct {
 
 // SourceResult is a single citation retrieved for the question.
 type SourceResult struct {
-	Source   string      `json:"source"`   // knowledge, alert, ticket, pipeline, change, faq
-	Title    string      `json:"title"`
-	Content  string      `json:"content"`
-	SpaceID  string      `json:"space_id,omitempty"`
-	Similarity float64   `json:"similarity,omitempty"`
-	Meta     interface{} `json:"meta,omitempty"`
+	Source     string      `json:"source"` // knowledge, alert, ticket, pipeline, change, faq
+	Title      string      `json:"title"`
+	Content    string      `json:"content"`
+	SpaceID    string      `json:"space_id,omitempty"`
+	Similarity float64     `json:"similarity,omitempty"`
+	Meta       interface{} `json:"meta,omitempty"`
 }
 
 // QueryResponse is the assistant's reply.

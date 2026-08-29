@@ -124,7 +124,7 @@ func (s *Service) Evaluate(ctx context.Context, tenantID string, req *models.Eva
 	// For now, we use the thresholds provided in the request context.
 	// The policy lookup would be: policy, err := s.policyRepo.GetByID(ctx, tenantID, req.PolicyID)
 
-	errorRateThreshold := 0.05  // default 5%
+	errorRateThreshold := 0.05       // default 5%
 	latencyThresholdMs := int64(500) // default 500ms
 	minSampleCount := 10
 
@@ -302,11 +302,11 @@ func (s *Service) Resolve(ctx context.Context, tenantID, policyID string, req *m
 	}
 
 	status = models.DegradationStatus{
-		PolicyID:       policyID,
-		IsDegraded:     false,
-		ActiveTrigger:  &trigger,
-		EvaluatedAt:    now,
-		Actions:        actions,
+		PolicyID:      policyID,
+		IsDegraded:    false,
+		ActiveTrigger: &trigger,
+		EvaluatedAt:   now,
+		Actions:       actions,
 	}
 	for i := range actions {
 		actions[i].Status = "reverted"

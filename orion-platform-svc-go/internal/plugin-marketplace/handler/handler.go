@@ -3,13 +3,13 @@ package handler
 import (
 	"strconv"
 
-
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/plugin-marketplace/models"
 	"orion/platform-svc-go/internal/plugin-marketplace/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 )
 
 type Handler struct {
@@ -38,6 +38,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) PublishPlugin(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PublishPlugin")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondBadRequest(c, "tenant ID required")
@@ -50,7 +52,7 @@ func (h *Handler) PublishPlugin(c *gin.Context) {
 		return
 	}
 
-	info, err := h.svc.PublishPlugin(c.Request.Context(), tenantID, &req)
+	info, err := h.svc.PublishPlugin(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -59,6 +61,8 @@ func (h *Handler) PublishPlugin(c *gin.Context) {
 }
 
 func (h *Handler) ListPlugins(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPlugins")
+	defer span.End()
 	filter := &models.ListPluginFilter{
 		Category: ptrIf(c.Query("category")),
 		Verified: ptrBool(c.Query("verified")),
@@ -67,18 +71,19 @@ func (h *Handler) ListPlugins(c *gin.Context) {
 		Offset:   ptrInt(c.Query("offset")),
 	}
 
-	info, total, err := h.svc.ListPlugins(c.Request.Context(), filter)
+	info, total, err := h.svc.ListPlugins(ctx, filter)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.RespondSuccess(c, gin.H{"data": info, "total": total, "limit": defaultLimit(filter.Limit), "offset": defaultOffset(filter.Offset),
-	})
+	middleware.RespondSuccess(c, gin.H{"data": info, "total": total, "limit": defaultLimit(filter.Limit), "offset": defaultOffset(filter.Offset)})
 }
 
 func (h *Handler) GetPlugin(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPlugin")
+	defer span.End()
 	id := c.Param("id")
-	info, err := h.svc.GetPlugin(c.Request.Context(), id)
+	info, err := h.svc.GetPlugin(ctx, id)
 	if err != nil {
 		if err == service.ErrPluginNotFound {
 			middleware.RespondNotFound(c, "Plugin not found")
@@ -95,13 +100,15 @@ func (h *Handler) GetPlugin(c *gin.Context) {
 }
 
 func (h *Handler) InstallPlugin(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InstallPlugin")
+	defer span.End()
 	pluginID := c.Param("id")
 	userID := c.GetString("user_id")
 
 	var req models.InstallPluginRequest
 	_ = c.ShouldBindJSON(&req)
 
-	result, err := h.svc.InstallPlugin(c.Request.Context(), pluginID, userID, &req)
+	result, err := h.svc.InstallPlugin(ctx, pluginID, userID, &req)
 	if err != nil {
 		if err == service.ErrPluginNotFound {
 			middleware.RespondNotFound(c, "Plugin not found")
@@ -118,6 +125,8 @@ func (h *Handler) InstallPlugin(c *gin.Context) {
 }
 
 func (h *Handler) RatePlugin(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RatePlugin")
+	defer span.End()
 	pluginID := c.Param("id")
 
 	var req models.ReviewPluginRequest
@@ -126,7 +135,7 @@ func (h *Handler) RatePlugin(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.RatePlugin(c.Request.Context(), pluginID, &req); err != nil {
+	if err := h.svc.RatePlugin(ctx, pluginID, &req); err != nil {
 		if err == service.ErrPluginNotFound {
 			middleware.RespondNotFound(c, "Plugin not found")
 			return
@@ -138,9 +147,11 @@ func (h *Handler) RatePlugin(c *gin.Context) {
 }
 
 func (h *Handler) UninstallPlugin(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UninstallPlugin")
+	defer span.End()
 	pluginID := c.Param("id")
 
-	if err := h.svc.UninstallPlugin(c.Request.Context(), pluginID); err != nil {
+	if err := h.svc.UninstallPlugin(ctx, pluginID); err != nil {
 		if err == service.ErrPluginNotFound {
 			middleware.RespondNotFound(c, "Plugin not found")
 			return
@@ -152,9 +163,11 @@ func (h *Handler) UninstallPlugin(c *gin.Context) {
 }
 
 func (h *Handler) GetQualityScore(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetQualityScore")
+	defer span.End()
 	pluginID := c.Param("id")
 
-	resp, err := h.svc.GetQualityScore(c.Request.Context(), pluginID)
+	resp, err := h.svc.GetQualityScore(ctx, pluginID)
 	if err != nil {
 		if err == service.ErrPluginNotFound {
 			middleware.RespondNotFound(c, "Plugin not found")
@@ -167,7 +180,9 @@ func (h *Handler) GetQualityScore(c *gin.Context) {
 }
 
 func (h *Handler) GetStats(c *gin.Context) {
-	stats, err := h.svc.GetStats(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPluginStats")
+	defer span.End()
+	stats, err := h.svc.GetStats(ctx)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

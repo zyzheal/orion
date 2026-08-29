@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/deploy-enhanced/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/deploy-enhanced/models"
 )
 
@@ -92,7 +92,6 @@ func (f *fakeDeploy_enhancedService) UpdateWindow(ctx context.Context, id string
 }
 
 var _ service.ServiceInterface = (*fakeDeploy_enhancedService)(nil)
-
 
 func TestHandler_DEPLOY_ENHANCE_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

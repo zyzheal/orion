@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/progressive/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/progressive/models"
 )
 
@@ -76,7 +76,6 @@ func (f *fakeProgressiveService) Update(ctx context.Context, tenantID, id string
 }
 
 var _ service.ServiceInterface = (*fakeProgressiveService)(nil)
-
 
 func TestHandler_PROGRESSIVE_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

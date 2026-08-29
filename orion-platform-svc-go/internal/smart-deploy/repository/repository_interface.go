@@ -7,7 +7,6 @@ import (
 	"orion/platform-svc-go/internal/smart-deploy/models"
 )
 
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateDeploymentRequest) (*models.Deployment, error)

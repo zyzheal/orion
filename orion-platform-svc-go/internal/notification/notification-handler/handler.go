@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/notification/notification/models"
 	"orion/platform-svc-go/internal/notification/notification/service"
 
@@ -45,7 +46,6 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 	// Subscriptions
 	sub := rg.Group("/subscriptions")
-	sub.GET("", auth.RequirePermission("notification", "read"), h.GetSubscriptions)
 	sub.POST("", auth.RequirePermission("notification", "write"), h.Subscribe)
 	sub.DELETE("/:channel", auth.RequirePermission("notification", "delete"), h.Unsubscribe)
 }
@@ -54,6 +54,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Send handles POST /notifications - create and dispatch a notification.
 func (h *Handler) Send(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationSend")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateNotificationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -64,7 +66,7 @@ func (h *Handler) Send(c *gin.Context) {
 		req.TenantID = tenantID
 	}
 
-	n, err := h.svc.SendNotification(c.Request.Context(), tenantID, &req)
+	n, err := h.svc.SendNotification(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -74,6 +76,8 @@ func (h *Handler) Send(c *gin.Context) {
 
 // List handles GET /notifications - list notifications with optional filters.
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationList")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var opts models.ListNotificationsQuery
 	if err := c.ShouldBindQuery(&opts); err != nil {
@@ -81,7 +85,7 @@ func (h *Handler) List(c *gin.Context) {
 		return
 	}
 
-	items, total, err := h.svc.ListNotifications(c.Request.Context(), tenantID, opts)
+	items, total, err := h.svc.ListNotifications(ctx, tenantID, opts)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -95,8 +99,10 @@ func (h *Handler) List(c *gin.Context) {
 
 // Get handles GET /notifications/:id - get a single notification.
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationGet")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	n, err := h.svc.GetNotification(c.Request.Context(), tenantID, c.Param("id"))
+	n, err := h.svc.GetNotification(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, "notification not found")
 		return
@@ -106,8 +112,10 @@ func (h *Handler) Get(c *gin.Context) {
 
 // MarkAsRead handles POST /notifications/:id/read - mark notification as read.
 func (h *Handler) MarkAsRead(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationMarkAsRead")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	n, err := h.svc.MarkAsRead(c.Request.Context(), tenantID, c.Param("id"))
+	n, err := h.svc.MarkAsRead(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrNotificationNotFound {
 			respondNotFound(c, err.Error())
@@ -121,6 +129,8 @@ func (h *Handler) MarkAsRead(c *gin.Context) {
 
 // GetUnreadCount handles GET /notifications/unread-count - get unread count for user.
 func (h *Handler) GetUnreadCount(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationGetUnreadCount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.Query("user_id")
 	if userID == "" {
@@ -128,7 +138,7 @@ func (h *Handler) GetUnreadCount(c *gin.Context) {
 		return
 	}
 
-	count, err := h.svc.GetUnreadCount(c.Request.Context(), tenantID, userID)
+	count, err := h.svc.GetUnreadCount(ctx, tenantID, userID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -138,6 +148,8 @@ func (h *Handler) GetUnreadCount(c *gin.Context) {
 
 // Broadcast handles POST /notifications/broadcast - send to multiple users.
 func (h *Handler) Broadcast(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationBroadcast")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.BroadcastRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -145,7 +157,7 @@ func (h *Handler) Broadcast(c *gin.Context) {
 		return
 	}
 
-	err := h.svc.Broadcast(c.Request.Context(), tenantID, &req)
+	err := h.svc.Broadcast(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -155,8 +167,10 @@ func (h *Handler) Broadcast(c *gin.Context) {
 
 // Delete handles DELETE /notifications/:id.
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -165,8 +179,10 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // Count handles GET /notifications/count.
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationCount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -176,8 +192,10 @@ func (h *Handler) Count(c *gin.Context) {
 
 // Stats handles GET /notifications/stats.
 func (h *Handler) Stats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	stats, err := h.svc.Stats(c.Request.Context(), tenantID)
+	stats, err := h.svc.Stats(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -189,6 +207,8 @@ func (h *Handler) Stats(c *gin.Context) {
 
 // GetSettings handles GET /settings - get notification preferences for a user.
 func (h *Handler) GetSettings(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationGetSettings")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.Query("user_id")
 	if userID == "" {
@@ -196,7 +216,7 @@ func (h *Handler) GetSettings(c *gin.Context) {
 		return
 	}
 
-	settings, err := h.svc.GetSettings(c.Request.Context(), tenantID, userID)
+	settings, err := h.svc.GetSettings(ctx, tenantID, userID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -206,6 +226,8 @@ func (h *Handler) GetSettings(c *gin.Context) {
 
 // UpdateSettings handles PUT /settings - update notification preferences.
 func (h *Handler) UpdateSettings(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationUpdateSettings")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.Query("user_id")
 	if userID == "" {
@@ -219,7 +241,7 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 		return
 	}
 
-	settings, err := h.svc.UpdateSettings(c.Request.Context(), tenantID, userID, &req)
+	settings, err := h.svc.UpdateSettings(ctx, tenantID, userID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -231,6 +253,8 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 
 // GetSubscriptions handles GET /subscriptions - list user's channel subscriptions.
 func (h *Handler) GetSubscriptions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationGetSubscriptions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.Query("user_id")
 	if userID == "" {
@@ -238,7 +262,7 @@ func (h *Handler) GetSubscriptions(c *gin.Context) {
 		return
 	}
 
-	subs, err := h.svc.GetSubscriptions(c.Request.Context(), tenantID, userID)
+	subs, err := h.svc.GetSubscriptions(ctx, tenantID, userID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -248,6 +272,8 @@ func (h *Handler) GetSubscriptions(c *gin.Context) {
 
 // Subscribe handles POST /subscriptions - subscribe to a channel.
 func (h *Handler) Subscribe(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationSubscribe")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.Query("user_id")
 	if userID == "" {
@@ -261,7 +287,7 @@ func (h *Handler) Subscribe(c *gin.Context) {
 		return
 	}
 
-	sub, err := h.svc.Subscribe(c.Request.Context(), tenantID, userID, req.Channel, req.Enabled)
+	sub, err := h.svc.Subscribe(ctx, tenantID, userID, req.Channel, req.Enabled)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -271,6 +297,8 @@ func (h *Handler) Subscribe(c *gin.Context) {
 
 // Unsubscribe handles DELETE /subscriptions/:channel - unsubscribe from a channel.
 func (h *Handler) Unsubscribe(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationUnsubscribe")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.Query("user_id")
 	if userID == "" {
@@ -278,7 +306,7 @@ func (h *Handler) Unsubscribe(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.Unsubscribe(c.Request.Context(), tenantID, userID, c.Param("channel")); err != nil {
+	if err := h.svc.Unsubscribe(ctx, tenantID, userID, c.Param("channel")); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}

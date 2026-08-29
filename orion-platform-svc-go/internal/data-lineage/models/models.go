@@ -6,13 +6,13 @@ import (
 
 // Lineage represents a data lineage definition.
 type Lineage struct {
-	ID          string     `json:"id" db:"id"`
-	TenantID    string     `json:"tenantId" db:"tenant_id"`
-	Name        string     `json:"name" db:"name"`
-	Description *string    `json:"description" db:"description"`
-	Status      string     `json:"status" db:"status"`
-	CreatedAt   time.Time  `json:"createdAt" db:"created_at"`
-	UpdatedAt   time.Time  `json:"updatedAt" db:"updated_at"`
+	ID          string    `json:"id" db:"id"`
+	TenantID    string    `json:"tenantId" db:"tenant_id"`
+	Name        string    `json:"name" db:"name"`
+	Description *string   `json:"description" db:"description"`
+	Status      string    `json:"status" db:"status"`
+	CreatedAt   time.Time `json:"createdAt" db:"created_at"`
+	UpdatedAt   time.Time `json:"updatedAt" db:"updated_at"`
 }
 
 // CreateLineageRequest is the request body for creating a lineage.
@@ -30,12 +30,12 @@ type UpdateLineageRequest struct {
 
 // Node represents a node in a data lineage graph.
 type Node struct {
-	ID        string     `json:"id" db:"id"`
-	LineageID string     `json:"lineageId" db:"lineage_id"`
-	Name      string     `json:"name" db:"name"`
-	Type      string     `json:"type" db:"type"`   // table, column, dataset, api, event
+	ID         string         `json:"id" db:"id"`
+	LineageID  string         `json:"lineageId" db:"lineage_id"`
+	Name       string         `json:"name" db:"name"`
+	Type       string         `json:"type" db:"type"` // table, column, dataset, api, event
 	Properties map[string]any `json:"properties" db:"properties"`
-	CreatedAt time.Time  `json:"createdAt" db:"created_at"`
+	CreatedAt  time.Time      `json:"createdAt" db:"created_at"`
 }
 
 // CreateNodeRequest is the request body for creating a node.
@@ -47,13 +47,13 @@ type CreateNodeRequest struct {
 
 // Relationship represents an edge between two nodes in a data lineage graph.
 type Relationship struct {
-	ID           string     `json:"id" db:"id"`
-	LineageID    string     `json:"lineageId" db:"lineage_id"`
-	SourceNodeID string     `json:"sourceNodeId" db:"source_node_id"`
-	TargetNodeID string     `json:"targetNodeId" db:"target_node_id"`
-	Type         string     `json:"type" db:"type"`        // reads, writes, transforms
-	Description  *string    `json:"description" db:"description"`
-	CreatedAt    time.Time  `json:"createdAt" db:"created_at"`
+	ID           string    `json:"id" db:"id"`
+	LineageID    string    `json:"lineageId" db:"lineage_id"`
+	SourceNodeID string    `json:"sourceNodeId" db:"source_node_id"`
+	TargetNodeID string    `json:"targetNodeId" db:"target_node_id"`
+	Type         string    `json:"type" db:"type"` // reads, writes, transforms
+	Description  *string   `json:"description" db:"description"`
+	CreatedAt    time.Time `json:"createdAt" db:"created_at"`
 }
 
 // CreateRelationshipRequest is the request body for creating a relationship.

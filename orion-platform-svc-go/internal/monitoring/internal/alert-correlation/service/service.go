@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/monitoring/internal/alert-correlation/models"
 	"orion/platform-svc-go/internal/monitoring/internal/alert-correlation/repository"
-	"go.uber.org/zap"
 )
 
 type AlertCorrelationService struct {

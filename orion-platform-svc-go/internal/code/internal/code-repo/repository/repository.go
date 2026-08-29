@@ -34,7 +34,7 @@ func (r *codeRepoRepositoryImpl) List(ctx context.Context, tenantID string) ([]m
 	args := []interface{}{}
 	argIdx := 1
 	if tenantID != "" {
-	query += fmt.Sprintf(" WHERE tenant_id = $%d", argIdx)
+		query += fmt.Sprintf(" WHERE tenant_id = $%d", argIdx)
 		args = append(args, tenantID)
 		argIdx++
 	}

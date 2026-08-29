@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/sso-providers/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/sso-providers/models"
 )
 
@@ -52,7 +52,6 @@ func (f *fakeSso_providersService) Update(ctx context.Context, tenantID, id stri
 }
 
 var _ service.ServiceInterface = (*fakeSso_providersService)(nil)
-
 
 func TestHandler_SSO_PROVIDERS_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

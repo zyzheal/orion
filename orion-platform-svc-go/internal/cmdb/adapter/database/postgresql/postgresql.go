@@ -27,7 +27,6 @@ import (
 	"log/slog"
 
 	"orion/platform-svc-go/internal/cmdb/collector"
-	"orion/platform-svc-go/internal/cmdb/collector"
 	"orion/platform-svc-go/internal/cmdb/transport"
 )
 
@@ -87,12 +86,12 @@ func (c *PostgreSQLCollector) Ping(ctx context.Context, config map[string]any) (
 	}
 
 	sqlConfig := &transport.SQLConfig{
-		Dialect:     transport.DBDialectPostgreSQL,
-		Host:        host,
-		Port:        port,
-		Username:    username,
-		Password:    password,
-		Database:    database,
+		Dialect:      transport.DBDialectPostgreSQL,
+		Host:         host,
+		Port:         port,
+		Username:     username,
+		Password:     password,
+		Database:     database,
 		QueryTimeout: 5,
 	}
 
@@ -114,14 +113,14 @@ func (c *PostgreSQLCollector) Ping(ctx context.Context, config map[string]any) (
 // Collect 执行采集
 //
 // 采集流程:
-//   1. 连接数据库 (pgx 连接池)
-//   2. 获取版本 (SELECT version())
-//   3. 获取数据库列表 (pg_database)
-//   4. 获取 schema/表信息 (pg_stat_user_tables)
-//   5. 获取用户列表 (pg_user)
-//   6. 获取连接状态 (pg_stat_activity)
-//   7. 获取系统参数 (pg_settings)
-//   8. 组装 CIRaw
+//  1. 连接数据库 (pgx 连接池)
+//  2. 获取版本 (SELECT version())
+//  3. 获取数据库列表 (pg_database)
+//  4. 获取 schema/表信息 (pg_stat_user_tables)
+//  5. 获取用户列表 (pg_user)
+//  6. 获取连接状态 (pg_stat_activity)
+//  7. 获取系统参数 (pg_settings)
+//  8. 组装 CIRaw
 func (c *PostgreSQLCollector) Collect(ctx context.Context, config map[string]any) ([]collector.CIRaw, error) {
 	host := config["host"].(string)
 	port := 5432
@@ -185,10 +184,10 @@ func (c *PostgreSQLCollector) Collect(ctx context.Context, config map[string]any
 		TypeHint: collector.CITypeDatabase,
 		Status:   collector.CIStatusActive,
 		Attributes: map[string]any{
-			"vendor": "postgresql",
-			"host":   host,
-			"port":   port,
-			"version": version,
+			"vendor":    "postgresql",
+			"host":      host,
+			"port":      port,
+			"version":   version,
 			"databases": dbList,
 			"connection": map[string]any{
 				"username": username,
@@ -230,7 +229,7 @@ func (c *PostgreSQLCollector) Collect(ctx context.Context, config map[string]any
 		}
 
 		tableCI := collector.CIRaw{
-			Name:     fmt.Sprintf("%s/%s", host,dbName),
+			Name:     fmt.Sprintf("%s/%s", host, dbName),
 			TypeHint: collector.CITypeDatabase,
 			Status:   collector.CIStatusActive,
 			Attributes: map[string]any{
@@ -278,18 +277,18 @@ func init() {
 type PGView string
 
 const (
-	PGViewDatabase        PGView = "pg_database"
-	PGViewStatActivity     PGView = "pg_stat_activity"
-	PGViewStatUserTables   PGView = "pg_stat_user_tables"
-	PGViewUser             PGView = "pg_user"
-	PGViewRoles            PGView = "pg_roles"
-	PGViewSettings         PGView = "pg_settings"
-	PGViewShdepend         PGView = "pg_shdepend"
-	PGViewClass            PGView = "pg_class"
-	PGViewAttribute        PGView = "pg_attribute"
-	PGViewType             PGView = "pg_type"
-	PGViewNamespace        PGView = "pg_namespace"
-	PGViewConstraint       PGView = "pg_constraint"
+	PGViewDatabase       PGView = "pg_database"
+	PGViewStatActivity   PGView = "pg_stat_activity"
+	PGViewStatUserTables PGView = "pg_stat_user_tables"
+	PGViewUser           PGView = "pg_user"
+	PGViewRoles          PGView = "pg_roles"
+	PGViewSettings       PGView = "pg_settings"
+	PGViewShdepend       PGView = "pg_shdepend"
+	PGViewClass          PGView = "pg_class"
+	PGViewAttribute      PGView = "pg_attribute"
+	PGViewType           PGView = "pg_type"
+	PGViewNamespace      PGView = "pg_namespace"
+	PGViewConstraint     PGView = "pg_constraint"
 )
 
 // String 返回视图名

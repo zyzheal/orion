@@ -160,9 +160,9 @@ func TestValidateParamResponse(t *testing.T) {
 
 func TestCreateParamTypeRequest(t *testing.T) {
 	req := CreateParamTypeRequest{
-		Name:     "Custom",
-		Code:     "string",
-		Enabled:  true,
+		Name:       "Custom",
+		Code:       "string",
+		Enabled:    true,
 		Validation: JSONB{"min_length": 5},
 	}
 	data, err := json.Marshal(req)

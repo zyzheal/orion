@@ -56,7 +56,7 @@ type Server struct {
 // NewServer creates a new gRPC server wrapping the given PipelineEngine.
 func NewServer(engine *pe_service.PipelineEngine) *Server {
 	s := &Server{
-		engine: engine,
+		engine:  engine,
 		grpcSrv: grpc.NewServer(),
 	}
 

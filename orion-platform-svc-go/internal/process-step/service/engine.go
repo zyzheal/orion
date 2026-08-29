@@ -73,11 +73,11 @@ func (inst *ProcessInstance) MergeOutput(output map[string]interface{}) {
 func (inst *ProcessInstance) Data() map[string]interface{} {
 	inst.mu.RLock()
 	defer inst.mu.RUnlock()
-out := make(map[string]interface{}, len(inst.data))
-for k, v := range inst.data {
-out[k] = v
-}
-return out
+	out := make(map[string]interface{}, len(inst.data))
+	for k, v := range inst.data {
+		out[k] = v
+	}
+	return out
 }
 
 // StepsExecuted returns the number of steps successfully executed.
@@ -170,12 +170,12 @@ func (e *Engine) ListInstances() []*ProcessInstance {
 // ExecuteProcess runs a full process definition to completion (or until a blocking step).
 //
 // The process is defined by an ordered list of ProcessStep entries. The engine:
-//   1. Sorts steps by Order
-//   2. Iterates each step
-//   3. Looks up and runs the matching handler
-//   4. Merges output into the instance data
-//   5. Routes to next step based on handler.NextSteps
-//   6. Pauses on blocking steps (approval, pending)
+//  1. Sorts steps by Order
+//  2. Iterates each step
+//  3. Looks up and runs the matching handler
+//  4. Merges output into the instance data
+//  5. Routes to next step based on handler.NextSteps
+//  6. Pauses on blocking steps (approval, pending)
 func (e *Engine) ExecuteProcess(
 	ctx context.Context,
 	tenantID string,

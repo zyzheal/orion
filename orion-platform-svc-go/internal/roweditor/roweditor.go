@@ -95,8 +95,8 @@ type RowSpec struct {
 
 // ColumnSpec describes a single column in the RowSpec.
 type ColumnSpec struct {
-	Name   string
-	Type   string
+	Name     string
+	Type     string
 	Nullable bool
 	ReadOnly bool
 	Unique   bool
@@ -410,7 +410,6 @@ func buildDeleteQuery(table, pk, tenantID string, version int64, versionColumn s
 func buildVersionUpdate(table, versionColumn string) string {
 	return fmt.Sprintf("SET %s=%s+1, updated_at=now()", versionColumn, versionColumn)
 }
-
 
 // Now returns the current UTC time. It exists only so tests can stub it.
 var Now = time.Now

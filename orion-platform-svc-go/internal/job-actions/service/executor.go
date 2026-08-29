@@ -16,9 +16,9 @@ import (
 )
 
 var (
-	ErrActionNotFound = errors.New("action not found")
+	ErrActionNotFound  = errors.New("action not found")
 	ErrHandlerNotFound = errors.New("action handler not registered")
-	ErrActionDisabled = errors.New("action is disabled")
+	ErrActionDisabled  = errors.New("action is disabled")
 )
 
 // ---------------------------------------------------------------------------
@@ -35,10 +35,10 @@ type IJobActionHandler interface {
 
 // ActionResult — typed output returned by action handlers
 type ActionResult struct {
-	Success bool              `json:"success"`
-	Output  string            `json:"output"`
-	Data    map[string]any    `json:"data"`
-	Error   string            `json:"error"`
+	Success bool           `json:"success"`
+	Output  string         `json:"output"`
+	Data    map[string]any `json:"data"`
+	Error   string         `json:"error"`
 }
 
 // ---------------------------------------------------------------------------
@@ -326,9 +326,9 @@ type stubHandler struct {
 	category string
 }
 
-func (s *stubHandler) Name() string { return s.name }
-func (s *stubHandler) Type() string { return s.typ }
-func (s *stubHandler) Category() string { return s.category }
+func (s *stubHandler) Name() string                                      { return s.name }
+func (s *stubHandler) Type() string                                      { return s.typ }
+func (s *stubHandler) Category() string                                  { return s.category }
 func (s *stubHandler) Validate(context.Context, map[string]string) error { return nil }
 func (s *stubHandler) Execute(ctx context.Context, params map[string]string) (*ActionResult, error) {
 	if ctx.Err() != nil {

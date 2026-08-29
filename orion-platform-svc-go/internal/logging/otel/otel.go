@@ -6,13 +6,14 @@
 // graceful shutdown.
 //
 // Environment variables (all optional):
-//   OTEL_SERVICE_NAME           service identifier (default: orion-platform)
-//   OTEL_EXPORTER_OTLP_ENDPOINT OTLP gRPC endpoint (default: localhost:4317)
-//   OTEL_TRACES_SAMPLE_RATE     head-based trace sampling, 0.0-1.0 (default: 1.0)
-//   OTEL_TRACE_EXPORT_INTERVAL  span flush interval (default: 5s)
-//   OTEL_METRIC_EXPORT_INTERVAL metric flush interval (default: 15s)
-//   OTEL_INSECURE               disable TLS for OTLP (default: true)
-//   OTEL_DISABLED               force no-op providers (default: false)
+//
+//	OTEL_SERVICE_NAME           service identifier (default: orion-platform)
+//	OTEL_EXPORTER_OTLP_ENDPOINT OTLP gRPC endpoint (default: localhost:4317)
+//	OTEL_TRACES_SAMPLE_RATE     head-based trace sampling, 0.0-1.0 (default: 1.0)
+//	OTEL_TRACE_EXPORT_INTERVAL  span flush interval (default: 5s)
+//	OTEL_METRIC_EXPORT_INTERVAL metric flush interval (default: 15s)
+//	OTEL_INSECURE               disable TLS for OTLP (default: true)
+//	OTEL_DISABLED               force no-op providers (default: false)
 //
 // If OTEL_EXPORTER_OTLP_ENDPOINT is unset, all providers are no-op and the
 // application runs with zero OTel overhead.
@@ -23,9 +24,9 @@ import (
 	"fmt"
 
 	otelglobal "go.opentelemetry.io/otel"
-	oteltrace "go.opentelemetry.io/otel/trace"
 	otelmetric "go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // ShutdownFunc is the cleanup function returned by Init. Call it on graceful

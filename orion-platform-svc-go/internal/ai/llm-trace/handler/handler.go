@@ -6,9 +6,10 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai/llm-trace/models"
 	"orion/platform-svc-go/internal/ai/llm-trace/service"
-	"orion/go-common/pkg/auth"
 )
 
 type LLMTraceHandler struct {
@@ -37,6 +38,8 @@ func (h *LLMTraceHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // List returns paginated traces.
 func (h *LLMTraceHandler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AILLMTraceList")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	model := c.Query("model")
 	provider := c.Query("provider")
@@ -46,7 +49,7 @@ func (h *LLMTraceHandler) List(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	resp, err := h.svc.Query(c.Request.Context(), tenantID, model, provider, status, startTime, endTime, limit, offset)
+	resp, err := h.svc.Query(ctx, tenantID, model, provider, status, startTime, endTime, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -56,6 +59,8 @@ func (h *LLMTraceHandler) List(c *gin.Context) {
 
 // Create creates a new trace.
 func (h *LLMTraceHandler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AILLMTraceCreate")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	var req models.CreateTraceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -63,7 +68,7 @@ func (h *LLMTraceHandler) Create(c *gin.Context) {
 		return
 	}
 
-	trace, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+	trace, err := h.svc.Create(ctx, tenantID, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -73,10 +78,12 @@ func (h *LLMTraceHandler) Create(c *gin.Context) {
 
 // CostSummary returns aggregated cost data.
 func (h *LLMTraceHandler) CostSummary(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AILLMTraceCostSummary")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	period := c.DefaultQuery("period", "month")
 
-	summary, err := h.svc.GetCostSummary(c.Request.Context(), tenantID, period)
+	summary, err := h.svc.GetCostSummary(ctx, tenantID, period)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -86,10 +93,12 @@ func (h *LLMTraceHandler) CostSummary(c *gin.Context) {
 
 // GetByTraceID returns traces for a trace ID.
 func (h *LLMTraceHandler) GetByTraceID(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AILLMTraceGetByTraceID")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	traceID := c.Param("trace_id")
 
-	traces, err := h.svc.GetByTraceID(c.Request.Context(), tenantID, traceID)
+	traces, err := h.svc.GetByTraceID(ctx, tenantID, traceID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -99,6 +108,8 @@ func (h *LLMTraceHandler) GetByTraceID(c *gin.Context) {
 
 // DeleteOld removes old traces.
 func (h *LLMTraceHandler) DeleteOld(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AILLMTraceDeleteOld")
+	defer span.End()
 	tenantID := h.GetTenantID(c)
 	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
 
@@ -106,7 +117,7 @@ func (h *LLMTraceHandler) DeleteOld(c *gin.Context) {
 		days = 30
 	}
 
-	count, err := h.svc.DeleteOldTraces(c.Request.Context(), tenantID, days)
+	count, err := h.svc.DeleteOldTraces(ctx, tenantID, days)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return

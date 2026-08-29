@@ -28,11 +28,11 @@ type Cluster struct {
 
 // Namespace represents a namespace within a cluster.
 type Namespace struct {
-	ID        string      `json:"id" db:"id"`
-	ClusterID string      `json:"cluster_id" db:"cluster_id"`
-	Name      string      `json:"name" db:"name"`
-	Status    string      `json:"status" db:"status"`
-	CreatedAt time.Time   `json:"created_at" db:"created_at"`
+	ID        string    `json:"id" db:"id"`
+	ClusterID string    `json:"cluster_id" db:"cluster_id"`
+	Name      string    `json:"name" db:"name"`
+	Status    string    `json:"status" db:"status"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
 // CreateClusterRequest is the request body for creating a cluster.
@@ -45,10 +45,10 @@ type CreateClusterRequest struct {
 
 // UpdateClusterRequest contains optional fields for updating a cluster.
 type UpdateClusterRequest struct {
-	Name        *string `json:"name"`
-	APIEndpoint *string `json:"api_endpoint"`
-	CaCert      *string `json:"ca_cert"`
-	Token       *string `json:"token"`
+	Name        *string        `json:"name"`
+	APIEndpoint *string        `json:"api_endpoint"`
+	CaCert      *string        `json:"ca_cert"`
+	Token       *string        `json:"token"`
 	Status      *ClusterStatus `json:"status"`
 }
 
@@ -56,12 +56,12 @@ type UpdateClusterRequest struct {
 
 // ClusterInfo holds live K8s cluster information.
 type ClusterInfo struct {
-	ServerVersion *string                    `json:"server_version,omitempty"`
-	NodeCount     int                        `json:"node_count"`
-	Nodes         []NodeInfo                 `json:"nodes"`
-	NamespaceCount int                        `json:"namespace_count"`
-	Namespaces    []NamespaceInfo            `json:"namespaces"`
-	PodCount      int                        `json:"pod_count"`
+	ServerVersion  *string         `json:"server_version,omitempty"`
+	NodeCount      int             `json:"node_count"`
+	Nodes          []NodeInfo      `json:"nodes"`
+	NamespaceCount int             `json:"namespace_count"`
+	Namespaces     []NamespaceInfo `json:"namespaces"`
+	PodCount       int             `json:"pod_count"`
 }
 
 // NodeInfo holds K8s node information.
@@ -74,7 +74,7 @@ type NodeInfo struct {
 
 // NamespaceInfo holds K8s namespace information.
 type NamespaceInfo struct {
-	Name       string `json:"name"`
-	Status     string `json:"status"`
-	PodCount   int    `json:"pod_count"`
+	Name     string `json:"name"`
+	Status   string `json:"status"`
+	PodCount int    `json:"pod_count"`
 }

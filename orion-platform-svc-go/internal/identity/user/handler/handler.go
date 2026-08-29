@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"net/http"
 	"strconv"
 
@@ -17,14 +18,14 @@ import (
 
 // Handler handles HTTP requests for the user service.
 type Handler struct {
-	userRepo    *repository.UserRepository
-	roleRepo    *repository.RoleRepository
-	permRepo    *repository.PermissionRepository
-	userSvc     *service.UserService
-	rbacSvc     *service.RBACService
-	rdb         *redis.Client
-	logger      *zap.Logger
-	cfg         *config.Config
+	userRepo *repository.UserRepository
+	roleRepo *repository.RoleRepository
+	permRepo *repository.PermissionRepository
+	userSvc  *service.UserService
+	rbacSvc  *service.RBACService
+	rdb      *redis.Client
+	logger   *zap.Logger
+	cfg      *config.Config
 }
 
 // New creates a new Handler with full service layer.
@@ -63,12 +64,13 @@ func (h *Handler) err(c *gin.Context, code int, message string) {
 // === User CRUD ===
 
 func (h *Handler) ListUsers(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityUserListUsers")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	search := c.Query("search")
 
-	ctx := c.Request.Context()
 	users, err := h.userSvc.ListUsers(ctx, tenantID, search, page, pageSize)
 	if err != nil {
 		h.logger.Error("failed to list users", zap.Error(err))
@@ -80,10 +82,11 @@ func (h *Handler) ListUsers(c *gin.Context) {
 }
 
 func (h *Handler) GetUser(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityUserGetUser")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := c.GetString("tenant_id")
 
-	ctx := c.Request.Context()
 	user, err := h.userSvc.GetUser(ctx, id, tenantID)
 	if err != nil {
 		switch err {
@@ -111,6 +114,8 @@ func (h *Handler) GetUser(c *gin.Context) {
 }
 
 func (h *Handler) UpdateUser(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityUserUpdateUser")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := c.GetString("tenant_id")
 
@@ -120,7 +125,6 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
 	if err := h.userSvc.UpdateUser(ctx, id, tenantID, req); err != nil {
 		switch err {
 		case service.ErrUserNotFound:
@@ -135,10 +139,11 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 }
 
 func (h *Handler) DeleteUser(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityUserDeleteUser")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := c.GetString("tenant_id")
 
-	ctx := c.Request.Context()
 	if err := h.userSvc.DeleteUser(ctx, id, tenantID); err != nil {
 		switch err {
 		case service.ErrUserNotFound:
@@ -153,6 +158,8 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 }
 
 func (h *Handler) UpdateUserStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityUserUpdateUserStatus")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := c.GetString("tenant_id")
 	var req struct {
@@ -163,7 +170,6 @@ func (h *Handler) UpdateUserStatus(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
 	if err := h.userSvc.UpdateUserStatus(ctx, id, tenantID, req.Status); err != nil {
 		switch err {
 		case service.ErrUserNotFound:
@@ -180,6 +186,8 @@ func (h *Handler) UpdateUserStatus(c *gin.Context) {
 // === Role CRUD ===
 
 func (h *Handler) CreateRole(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityUserCreateRole")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -187,7 +195,6 @@ func (h *Handler) CreateRole(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
 	role, err := h.rbacSvc.CreateRole(ctx, req, tenantID)
 	if err != nil {
 		h.logger.Error("failed to create role", zap.Error(err))
@@ -199,7 +206,8 @@ func (h *Handler) CreateRole(c *gin.Context) {
 }
 
 func (h *Handler) ListRoles(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityUserListRoles")
+	defer span.End()
 	roles, err := h.rbacSvc.ListRoles(ctx)
 	if err != nil {
 		h.logger.Error("failed to list roles", zap.Error(err))
@@ -211,9 +219,10 @@ func (h *Handler) ListRoles(c *gin.Context) {
 }
 
 func (h *Handler) GetRole(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityUserGetRole")
+	defer span.End()
 	id := c.Param("id")
 
-	ctx := c.Request.Context()
 	role, err := h.rbacSvc.GetRole(ctx, id)
 	if err != nil {
 		switch err {
@@ -229,6 +238,8 @@ func (h *Handler) GetRole(c *gin.Context) {
 }
 
 func (h *Handler) UpdateRole(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityUserUpdateRole")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -236,7 +247,6 @@ func (h *Handler) UpdateRole(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
 	if err := h.rbacSvc.UpdateRole(ctx, id, req); err != nil {
 		switch err {
 		case service.ErrRoleNotFound:
@@ -251,9 +261,10 @@ func (h *Handler) UpdateRole(c *gin.Context) {
 }
 
 func (h *Handler) DeleteRole(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityUserDeleteRole")
+	defer span.End()
 	id := c.Param("id")
 
-	ctx := c.Request.Context()
 	if err := h.rbacSvc.DeleteRole(ctx, id); err != nil {
 		switch err {
 		case service.ErrRoleNotFound:
@@ -270,13 +281,14 @@ func (h *Handler) DeleteRole(c *gin.Context) {
 // === Permission CRUD ===
 
 func (h *Handler) CreatePermission(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityUserCreatePermission")
+	defer span.End()
 	var req models.CreatePermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.err(c, http.StatusBadRequest, "invalid request: "+err.Error())
 		return
 	}
 
-	ctx := c.Request.Context()
 	perm, err := h.rbacSvc.CreatePermission(ctx, req)
 	if err != nil {
 		h.logger.Error("failed to create permission", zap.Error(err))
@@ -288,7 +300,8 @@ func (h *Handler) CreatePermission(c *gin.Context) {
 }
 
 func (h *Handler) ListPermissions(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityUserListPermissions")
+	defer span.End()
 	perms, err := h.rbacSvc.ListPermissions(ctx)
 	if err != nil {
 		h.logger.Error("failed to list permissions", zap.Error(err))
@@ -300,6 +313,8 @@ func (h *Handler) ListPermissions(c *gin.Context) {
 }
 
 func (h *Handler) UpdatePermission(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityUserUpdatePermission")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdatePermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -307,7 +322,6 @@ func (h *Handler) UpdatePermission(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
 	if err := h.rbacSvc.UpdatePermission(ctx, id, req); err != nil {
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
@@ -317,9 +331,10 @@ func (h *Handler) UpdatePermission(c *gin.Context) {
 }
 
 func (h *Handler) DeletePermission(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityUserDeletePermission")
+	defer span.End()
 	id := c.Param("id")
 
-	ctx := c.Request.Context()
 	if err := h.rbacSvc.DeletePermission(ctx, id); err != nil {
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
@@ -331,6 +346,8 @@ func (h *Handler) DeletePermission(c *gin.Context) {
 // === Role-Permission Assignment ===
 
 func (h *Handler) AssignPermissionToRole(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityUserAssignPermissionToRole")
+	defer span.End()
 	var req struct {
 		RoleID       string `json:"role_id" binding:"required"`
 		PermissionID string `json:"permission_id" binding:"required"`
@@ -340,7 +357,6 @@ func (h *Handler) AssignPermissionToRole(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
 	if err := h.rbacSvc.AssignPermissionToRole(ctx, req.RoleID, req.PermissionID); err != nil {
 		h.logger.Error("failed to assign permission to role", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -351,6 +367,8 @@ func (h *Handler) AssignPermissionToRole(c *gin.Context) {
 }
 
 func (h *Handler) RemovePermissionFromRole(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityUserRemovePermissionFromRole")
+	defer span.End()
 	var req struct {
 		RoleID       string `json:"role_id" binding:"required"`
 		PermissionID string `json:"permission_id" binding:"required"`
@@ -360,7 +378,6 @@ func (h *Handler) RemovePermissionFromRole(c *gin.Context) {
 		return
 	}
 
-	ctx := c.Request.Context()
 	if err := h.rbacSvc.RemovePermissionFromRole(ctx, req.RoleID, req.PermissionID); err != nil {
 		h.logger.Error("failed to remove permission from role", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
@@ -371,9 +388,10 @@ func (h *Handler) RemovePermissionFromRole(c *gin.Context) {
 }
 
 func (h *Handler) GetRolePermissions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IdentityUserGetRolePermissions")
+	defer span.End()
 	roleID := c.Param("role_id")
 
-	ctx := c.Request.Context()
 	perms, err := h.rbacSvc.GetRolePermissions(ctx, roleID)
 	if err != nil {
 		h.logger.Error("failed to get role permissions", zap.Error(err))

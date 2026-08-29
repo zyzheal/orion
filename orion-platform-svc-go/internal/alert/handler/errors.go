@@ -31,4 +31,4 @@ var (
 )
 
 func NewAlertError(code, message string) error { return &AlertError{Code: code, Message: message} }
-func IsAlertNotFound(err error) bool { return errors.Is(err, ErrAlertNotFound) }
+func IsAlertNotFound(err error) bool           { return errors.Is(err, ErrAlertNotFound) }

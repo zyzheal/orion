@@ -52,7 +52,7 @@ type Snapshot struct {
 	AggregateID   string    `db:"aggregate_id" json:"aggregate_id"`
 	TenantID      string    `db:"tenant_id" json:"tenant_id"`
 	Version       int       `db:"version" json:"version"`
-	State         string    `db:"state" json:"state"`  // JSONB - serialized aggregate state
+	State         string    `db:"state" json:"state"`       // JSONB - serialized aggregate state
 	Metadata      string    `db:"metadata" json:"metadata"` // JSONB - optional metadata
 	CreatedAt     time.Time `db:"created_at" json:"created_at"`
 }

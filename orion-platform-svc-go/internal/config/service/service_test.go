@@ -11,19 +11,19 @@ import (
 
 // mockConfigRepo implements RepositoryInterface for testing.
 type mockConfigRepo struct {
-	configs         map[string]*models.Config
-	templates       map[string]*models.ConfigTemplate
-	canaries        map[string]*models.CanaryDeployment
-	changeRequests  map[string]*models.ChangeRequest
-	gitOpsConfigs   map[string]*models.GitOpsConfig
-	webhooks        map[string]*models.ConfigWebhook
-	snapshots       map[string]*models.ConfigSnapshot
-	versions        map[string][]models.ConfigVersion
-	auditEntries    map[string][]models.AuditEntry
-	err             error
-	createErr       error
-	updateErr       error
-	deleteErr       error
+	configs        map[string]*models.Config
+	templates      map[string]*models.ConfigTemplate
+	canaries       map[string]*models.CanaryDeployment
+	changeRequests map[string]*models.ChangeRequest
+	gitOpsConfigs  map[string]*models.GitOpsConfig
+	webhooks       map[string]*models.ConfigWebhook
+	snapshots      map[string]*models.ConfigSnapshot
+	versions       map[string][]models.ConfigVersion
+	auditEntries   map[string][]models.AuditEntry
+	err            error
+	createErr      error
+	updateErr      error
+	deleteErr      error
 }
 
 func newMockConfigRepo() *mockConfigRepo {
@@ -525,10 +525,10 @@ func Test_CreateWebhook_DefaultEnabled(t *testing.T) {
 	ctx := context.Background()
 
 	req := models.CreateWebhookRequest{
-		Name:     "my-webhook",
-		URL:      "http://example.com/hook",
-		Secret:   "secret123",
-		Events:   []string{"create", "update"},
+		Name:   "my-webhook",
+		URL:    "http://example.com/hook",
+		Secret: "secret123",
+		Events: []string{"create", "update"},
 		// Enabled intentionally nil to test default true
 	}
 
@@ -571,10 +571,10 @@ func Test_CreateWebhook_CustomEnabled(t *testing.T) {
 func Test_CreateTemplateVersion(t *testing.T) {
 	repo := newMockConfigRepo()
 	repo.templates["tmpl-1"] = &models.ConfigTemplate{
-		ID:     "tmpl-1",
+		ID:       "tmpl-1",
 		TenantID: "tenant-1",
-		Name:   "test-template",
-		Schema: map[string]any{"field": "string"},
+		Name:     "test-template",
+		Schema:   map[string]any{"field": "string"},
 	}
 	svc := NewService(repo)
 	ctx := context.Background()
@@ -690,20 +690,20 @@ func Test_Service_getTime_NonZero(t *testing.T) {
 func Test_ConfigFilter_FieldMapping(t *testing.T) {
 	repo := newMockConfigRepo()
 	repo.configs["cfg-1"] = &models.Config{
-		ID:       "cfg-1",
-		TenantID: "tenant-1",
-		Name:     "prod-config",
-		Value:    "val",
+		ID:          "cfg-1",
+		TenantID:    "tenant-1",
+		Name:        "prod-config",
+		Value:       "val",
 		Environment: "production",
-		Status:   "active",
+		Status:      "active",
 	}
 	repo.configs["cfg-2"] = &models.Config{
-		ID:       "cfg-2",
-		TenantID: "tenant-1",
-		Name:     "dev-config",
-		Value:    "val",
+		ID:          "cfg-2",
+		TenantID:    "tenant-1",
+		Name:        "dev-config",
+		Value:       "val",
 		Environment: "development",
-		Status:   "archived",
+		Status:      "archived",
 	}
 	svc := NewService(repo)
 	ctx := context.Background()

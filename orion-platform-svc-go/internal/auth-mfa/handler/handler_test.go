@@ -8,8 +8,8 @@ import (
 	"orion/platform-svc-go/internal/auth-mfa/models"
 	"orion/platform-svc-go/internal/auth-mfa/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 )
 
 func makeMFAHandler() *Handler {
@@ -18,7 +18,7 @@ func makeMFAHandler() *Handler {
 
 type fakeHandlerService struct{}
 
-func (f *fakeHandlerService) ActivateDevice(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) ActivateDevice(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
@@ -30,7 +30,7 @@ func (f *fakeHandlerService) DeleteDevice(ctx context.Context, tenantID, id stri
 	return false, nil
 }
 
-func (f *fakeHandlerService) DisableDevice(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) DisableDevice(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
@@ -51,7 +51,6 @@ func (f *fakeHandlerService) VerifyCode(ctx context.Context, tenantID, userID, c
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func mfaCtx(method string, pathParams map[string]string) (*gin.Context, *httptest.ResponseRecorder) {
 	w := httptest.NewRecorder()

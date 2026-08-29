@@ -55,31 +55,49 @@ func (r *Repository) UpdateFunction(ctx context.Context, tenantID, id string, re
 	idx := 1
 
 	if req.Name != nil {
-		setClauses = append(setClauses, fmt.Sprintf("name=$%d", idx)); args = append(args, *req.Name); idx++
+		setClauses = append(setClauses, fmt.Sprintf("name=$%d", idx))
+		args = append(args, *req.Name)
+		idx++
 	}
 	if req.Description != nil {
-		setClauses = append(setClauses, fmt.Sprintf("description=$%d", idx)); args = append(args, *req.Description); idx++
+		setClauses = append(setClauses, fmt.Sprintf("description=$%d", idx))
+		args = append(args, *req.Description)
+		idx++
 	}
 	if req.Runtime != nil {
-		setClauses = append(setClauses, fmt.Sprintf("runtime=$%d", idx)); args = append(args, *req.Runtime); idx++
+		setClauses = append(setClauses, fmt.Sprintf("runtime=$%d", idx))
+		args = append(args, *req.Runtime)
+		idx++
 	}
 	if req.Handler != nil {
-		setClauses = append(setClauses, fmt.Sprintf("handler=$%d", idx)); args = append(args, *req.Handler); idx++
+		setClauses = append(setClauses, fmt.Sprintf("handler=$%d", idx))
+		args = append(args, *req.Handler)
+		idx++
 	}
 	if req.Memory != nil {
-		setClauses = append(setClauses, fmt.Sprintf("memory=$%d", idx)); args = append(args, *req.Memory); idx++
+		setClauses = append(setClauses, fmt.Sprintf("memory=$%d", idx))
+		args = append(args, *req.Memory)
+		idx++
 	}
 	if req.Timeout != nil {
-		setClauses = append(setClauses, fmt.Sprintf("timeout=$%d", idx)); args = append(args, *req.Timeout); idx++
+		setClauses = append(setClauses, fmt.Sprintf("timeout=$%d", idx))
+		args = append(args, *req.Timeout)
+		idx++
 	}
 	if req.Environment != nil {
-		setClauses = append(setClauses, fmt.Sprintf("environment=$%d", idx)); args = append(args, *req.Environment); idx++
+		setClauses = append(setClauses, fmt.Sprintf("environment=$%d", idx))
+		args = append(args, *req.Environment)
+		idx++
 	}
 	if req.Code != nil {
-		setClauses = append(setClauses, fmt.Sprintf("code=$%d", idx)); args = append(args, *req.Code); idx++
+		setClauses = append(setClauses, fmt.Sprintf("code=$%d", idx))
+		args = append(args, *req.Code)
+		idx++
 	}
 	if req.Replicas != nil {
-		setClauses = append(setClauses, fmt.Sprintf("replicas=$%d", idx)); args = append(args, *req.Replicas); idx++
+		setClauses = append(setClauses, fmt.Sprintf("replicas=$%d", idx))
+		args = append(args, *req.Replicas)
+		idx++
 	}
 
 	if len(setClauses) == 0 {

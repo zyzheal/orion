@@ -60,8 +60,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// --- Plan Details ---
 	// GET /iac/workspaces/:id/plans - 计划列表
 	f.GET("/workspaces/:id/plans", auth.RequirePermission("iac", "read"), h.ListPlans)
-	// GET /iac/workspaces/:workspaceId/plans/:planId - 计划详情
-	rg.GET("/iac/workspaces/:workspaceId/plans/:planId", auth.RequirePermission("iac", "read"), h.GetPlan)
+	// GET /iac/workspaces/:id/plans/:planId - 计划详情
+	rg.GET("/iac/workspaces/:id/plans/:planId", auth.RequirePermission("iac", "read"), h.GetPlan)
 
 	// --- Modules ---
 	// GET /iac/modules - 列出模块
@@ -285,7 +285,7 @@ func (h *Handler) GetPlan(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPlan")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	workspaceID := c.Param("workspaceId")
+	workspaceID := c.Param("id")
 	planID := c.Param("planId")
 	plan, err := h.svc.GetPlan(ctx, tenantID, planID)
 	if err != nil {

@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/dba/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/dba/models"
 )
 
@@ -96,7 +96,6 @@ func (f *fakeDbaService) UpdateDataSource(ctx context.Context, id string, req mo
 }
 
 var _ service.ServiceInterface = (*fakeDbaService)(nil)
-
 
 func TestHandler_DBA_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

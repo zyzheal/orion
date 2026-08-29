@@ -17,15 +17,15 @@ import (
 // --- mock service ---
 
 type mockService struct {
-	listVersionsFn    func(ctx context.Context, tenantID, pipelineID string, q *models.ListQuery) (*models.VersionListResult, error)
-	getVersionFn      func(ctx context.Context, tenantID, versionID string) (*models.Version, error)
-	createVersionFn   func(ctx context.Context, tenantID, pipelineID string, req *models.CreateVersionRequest, createdBy string) (*models.Version, error)
-	updateVersionFn   func(ctx context.Context, tenantID, versionID string, req *models.UpdateVersionRequest) (*models.Version, error)
-	deleteVersionFn   func(ctx context.Context, tenantID, versionID string) error
-	publishVersionFn  func(ctx context.Context, tenantID, versionID string, req *models.PublishVersionRequest) (*models.Version, error)
+	listVersionsFn     func(ctx context.Context, tenantID, pipelineID string, q *models.ListQuery) (*models.VersionListResult, error)
+	getVersionFn       func(ctx context.Context, tenantID, versionID string) (*models.Version, error)
+	createVersionFn    func(ctx context.Context, tenantID, pipelineID string, req *models.CreateVersionRequest, createdBy string) (*models.Version, error)
+	updateVersionFn    func(ctx context.Context, tenantID, versionID string, req *models.UpdateVersionRequest) (*models.Version, error)
+	deleteVersionFn    func(ctx context.Context, tenantID, versionID string) error
+	publishVersionFn   func(ctx context.Context, tenantID, versionID string, req *models.PublishVersionRequest) (*models.Version, error)
 	deprecateVersionFn func(ctx context.Context, tenantID, versionID string) (*models.Version, error)
-	rollbackVersionFn func(ctx context.Context, tenantID, pipelineID string, req *models.RollbackVersionRequest) (*models.Version, error)
-	compareVersionsFn func(ctx context.Context, tenantID string, req *models.CompareVersionsRequest) (*models.CompareResult, error)
+	rollbackVersionFn  func(ctx context.Context, tenantID, pipelineID string, req *models.RollbackVersionRequest) (*models.Version, error)
+	compareVersionsFn  func(ctx context.Context, tenantID string, req *models.CompareVersionsRequest) (*models.CompareResult, error)
 }
 
 func (m *mockService) ListVersions(ctx context.Context, tenantID, pipelineID string, q *models.ListQuery) (*models.VersionListResult, error) {

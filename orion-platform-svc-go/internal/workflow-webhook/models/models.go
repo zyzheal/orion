@@ -16,16 +16,16 @@ const (
 
 // WebhookTrigger is the core domain model persisted in PostgreSQL.
 type WebhookTrigger struct {
-	ID             string         `db:"id" json:"id"`
-	TenantID       string         `db:"tenant_id" json:"tenantId"`
-	WorkflowID     string         `db:"workflow_id" json:"workflowId"`
-	Name           string         `db:"name" json:"name"`
-	WebhookPath    string         `db:"webhook_path" json:"webhookPath"`
-	WebhookSecret  string         `db:"webhook_secret" json:"webhookSecret"`
+	ID              string          `db:"id" json:"id"`
+	TenantID        string          `db:"tenant_id" json:"tenantId"`
+	WorkflowID      string          `db:"workflow_id" json:"workflowId"`
+	Name            string          `db:"name" json:"name"`
+	WebhookPath     string          `db:"webhook_path" json:"webhookPath"`
+	WebhookSecret   string          `db:"webhook_secret" json:"webhookSecret"`
 	TriggerStrategy TriggerStrategy `db:"trigger_strategy" json:"triggerStrategy"`
-	Enabled        bool           `db:"enabled" json:"enabled"`
-	CreatedAt      time.Time      `db:"created_at" json:"createdAt"`
-	UpdatedAt      time.Time      `db:"updated_at" json:"updatedAt"`
+	Enabled         bool            `db:"enabled" json:"enabled"`
+	CreatedAt       time.Time       `db:"created_at" json:"createdAt"`
+	UpdatedAt       time.Time       `db:"updated_at" json:"updatedAt"`
 }
 
 // ---------------------------------------------------------------------------
@@ -34,14 +34,14 @@ type WebhookTrigger struct {
 
 // WebhookTriggerLog stores the execution log for a webhook-triggered workflow.
 type WebhookTriggerLog struct {
-	ID           string     `db:"id" json:"id"`
-	TriggerID    string     `db:"trigger_id" json:"triggerId"`
-	EventType    string     `db:"event_type" json:"eventType"`
-	EventPayload string     `db:"event_payload" json:"eventPayload"`
-	Status       string     `db:"status" json:"status"`
-	ErrorMessage string     `db:"error_message" json:"errorMessage"`
-	DurationMs   int        `db:"duration_ms" json:"durationMs"`
-	CreatedAt    time.Time  `db:"created_at" json:"createdAt"`
+	ID           string    `db:"id" json:"id"`
+	TriggerID    string    `db:"trigger_id" json:"triggerId"`
+	EventType    string    `db:"event_type" json:"eventType"`
+	EventPayload string    `db:"event_payload" json:"eventPayload"`
+	Status       string    `db:"status" json:"status"`
+	ErrorMessage string    `db:"error_message" json:"errorMessage"`
+	DurationMs   int       `db:"duration_ms" json:"durationMs"`
+	CreatedAt    time.Time `db:"created_at" json:"createdAt"`
 }
 
 // ---------------------------------------------------------------------------
@@ -50,22 +50,22 @@ type WebhookTriggerLog struct {
 
 // CreateWebhookTriggerRequest is the request payload for creating a trigger.
 type CreateWebhookTriggerRequest struct {
-	Name           string `json:"name" binding:"required"`
-	WorkflowID     string `json:"workflowId" binding:"required"`
-	WebhookPath    string `json:"webhookPath" binding:"required"`
-	WebhookSecret  string `json:"webhookSecret"`
+	Name            string `json:"name" binding:"required"`
+	WorkflowID      string `json:"workflowId" binding:"required"`
+	WebhookPath     string `json:"webhookPath" binding:"required"`
+	WebhookSecret   string `json:"webhookSecret"`
 	TriggerStrategy string `json:"triggerStrategy"`
-	Enabled        bool   `json:"enabled"`
+	Enabled         bool   `json:"enabled"`
 }
 
 // UpdateWebhookTriggerRequest carries optional fields for partial updates.
 type UpdateWebhookTriggerRequest struct {
-	Name           *string `json:"name"`
-	WorkflowID     *string `json:"workflowId"`
-	WebhookPath    *string `json:"webhookPath"`
-	WebhookSecret  *string `json:"webhookSecret"`
+	Name            *string `json:"name"`
+	WorkflowID      *string `json:"workflowId"`
+	WebhookPath     *string `json:"webhookPath"`
+	WebhookSecret   *string `json:"webhookSecret"`
 	TriggerStrategy *string `json:"triggerStrategy"`
-	Enabled        *bool   `json:"enabled"`
+	Enabled         *bool   `json:"enabled"`
 }
 
 // WebhookEvent is the payload received on the public webhook endpoint.
@@ -88,8 +88,8 @@ type ListFilter struct {
 
 // PaginatedResponse wraps paginated data for list endpoints.
 type PaginatedResponse struct {
-	Data     any    `json:"data"`
-	Total    int    `json:"total"`
-	Page     int    `json:"page"`
-	PageSize int    `json:"pageSize"`
+	Data     any `json:"data"`
+	Total    int `json:"total"`
+	Page     int `json:"page"`
+	PageSize int `json:"pageSize"`
 }

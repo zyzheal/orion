@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/data-lineage/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/data-lineage/models"
 )
 
@@ -68,7 +68,6 @@ func (f *fakeData_lineageService) UpdateLineage(ctx context.Context, tenantID, i
 }
 
 var _ service.ServiceInterface = (*fakeData_lineageService)(nil)
-
 
 func TestHandler_DATA_LINEAGE_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

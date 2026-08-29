@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -9,12 +10,12 @@ import (
 	"strconv"
 	"time"
 
-	"orion/platform-svc-go/internal/pipeline-versions/models"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/pipeline-versions/models"
 )
+
 // ErrNotFound is an alias for sentinel.NotFound for test compatibility.
 var ErrNotFound = sentinel.NotFound
-
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
@@ -30,7 +31,6 @@ type RepositoryInterface interface {
 }
 
 var (
-
 	ErrBadRequest       = errors.New("bad request")
 	ErrLocked           = errors.New("version locked")
 	ErrAlreadyPublished = errors.New("version already published")

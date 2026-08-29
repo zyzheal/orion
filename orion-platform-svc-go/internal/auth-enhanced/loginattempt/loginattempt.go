@@ -35,9 +35,9 @@ func DefaultConfig() Config {
 
 // Tracker tracks per-username login failures and lockout state.
 type Tracker struct {
-	mu    sync.RWMutex
-	data  map[string]*state
-	cfg   Config
+	mu   sync.RWMutex
+	data map[string]*state
+	cfg  Config
 }
 
 type state struct {

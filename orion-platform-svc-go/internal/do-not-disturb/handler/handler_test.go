@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/do-not-disturb/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/do-not-disturb/models"
 )
 
@@ -44,7 +44,6 @@ func (f *fakeDo_not_disturbService) Update(ctx context.Context, tenantID, userID
 }
 
 var _ service.ServiceInterface = (*fakeDo_not_disturbService)(nil)
-
 
 func TestHandler_DO_NOT_DISTURB_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

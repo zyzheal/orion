@@ -8,9 +8,9 @@ import (
 	"orion/platform-svc-go/internal/health-check/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 var validCheckTypes = map[string]bool{

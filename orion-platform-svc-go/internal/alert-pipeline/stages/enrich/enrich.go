@@ -14,10 +14,10 @@ import (
 
 // Stage enriches alerts by running registered EnrichmentSource plugins.
 type Stage struct {
-	logger      *zap.Logger
-	sources     []models.EnrichmentSource
-	cmdbCache   map[string]interface{}
-	topology    map[string]interface{}
+	logger    *zap.Logger
+	sources   []models.EnrichmentSource
+	cmdbCache map[string]interface{}
+	topology  map[string]interface{}
 }
 
 // NewStage creates an enrich stage.

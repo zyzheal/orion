@@ -53,16 +53,16 @@ func (a *JSONArray) Scan(src interface{}) error {
 }
 
 type FederatedCluster struct {
-	ID        string    `db:"id" json:"id"`
-	TenantID  string    `db:"tenant_id" json:"tenant_id"`
-	Name      string    `db:"name" json:"name"`
+	ID       string `db:"id" json:"id"`
+	TenantID string `db:"tenant_id" json:"tenant_id"`
+	Name     string `db:"name" json:"name"`
 
-	CreatedAt time.Time    `db:"created_at" json:"created_at"`
-	PeerURL  string     `db:"peer_url" json:"peer_url"`
-	Protocol string     `db:"protocol" json:"protocol"`
-	Status   string     `db:"status" json:"status"`
-	Config   JSONB      `db:"config" json:"config,omitempty"`
-	LastSync *time.Time `db:"last_sync" json:"last_sync,omitempty"`
+	CreatedAt time.Time  `db:"created_at" json:"created_at"`
+	PeerURL   string     `db:"peer_url" json:"peer_url"`
+	Protocol  string     `db:"protocol" json:"protocol"`
+	Status    string     `db:"status" json:"status"`
+	Config    JSONB      `db:"config" json:"config,omitempty"`
+	LastSync  *time.Time `db:"last_sync" json:"last_sync,omitempty"`
 }
 
 type CreateFederatedClusterRequest struct {
@@ -125,19 +125,19 @@ type FederationConfig struct {
 }
 
 type CreateFederationConfigRequest struct {
-	Name        string `json:"name" binding:"required"`
-	Description string `json:"description"`
+	Name        string   `json:"name" binding:"required"`
+	Description string   `json:"description"`
 	Clusters    []string `json:"clusters"`
-	Strategy    string `json:"strategy"`
-	Metadata    JSONB `json:"metadata"`
+	Strategy    string   `json:"strategy"`
+	Metadata    JSONB    `json:"metadata"`
 }
 
 type UpdateFederationConfigRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
 	Clusters    []string `json:"clusters"`
-	Strategy    string `json:"strategy"`
-	Status      string `json:"status"`
+	Strategy    string   `json:"strategy"`
+	Status      string   `json:"status"`
 }
 
 // ---------------------------------------------------------------------------
@@ -145,21 +145,21 @@ type UpdateFederationConfigRequest struct {
 // ---------------------------------------------------------------------------
 
 type Executor struct {
-	ID                  string    `db:"id" json:"id"`
-	TenantID            string    `db:"tenant_id" json:"tenant_id"`
-	ClusterID           string    `db:"cluster_id" json:"cluster_id"`
-	Name                string    `db:"name" json:"name"`
-	Region              string    `db:"region" json:"region"`
-	Status              string    `db:"status" json:"status"`
-	CPUCapacity         float64   `db:"cpu_capacity" json:"cpu_capacity"`
-	MemoryCapacityMB    float64   `db:"memory_capacity_mb" json:"memory_capacity_mb"`
-	CPUUsed             float64   `db:"cpu_used" json:"cpu_used"`
-	MemoryUsedMB        float64   `db:"memory_used_mb" json:"memory_used_mb"`
-	RunningJobs         int       `db:"running_jobs" json:"running_jobs"`
-	MaxConcurrentJobs   int       `db:"max_concurrent_jobs" json:"max_concurrent_jobs"`
-	LastHeartbeat       *time.Time `db:"last_heartbeat" json:"last_heartbeat"`
-	RegisteredAt        time.Time `db:"registered_at" json:"registered_at"`
-	Labels              JSONB     `db:"labels" json:"labels"`
+	ID                string     `db:"id" json:"id"`
+	TenantID          string     `db:"tenant_id" json:"tenant_id"`
+	ClusterID         string     `db:"cluster_id" json:"cluster_id"`
+	Name              string     `db:"name" json:"name"`
+	Region            string     `db:"region" json:"region"`
+	Status            string     `db:"status" json:"status"`
+	CPUCapacity       float64    `db:"cpu_capacity" json:"cpu_capacity"`
+	MemoryCapacityMB  float64    `db:"memory_capacity_mb" json:"memory_capacity_mb"`
+	CPUUsed           float64    `db:"cpu_used" json:"cpu_used"`
+	MemoryUsedMB      float64    `db:"memory_used_mb" json:"memory_used_mb"`
+	RunningJobs       int        `db:"running_jobs" json:"running_jobs"`
+	MaxConcurrentJobs int        `db:"max_concurrent_jobs" json:"max_concurrent_jobs"`
+	LastHeartbeat     *time.Time `db:"last_heartbeat" json:"last_heartbeat"`
+	RegisteredAt      time.Time  `db:"registered_at" json:"registered_at"`
+	Labels            JSONB      `db:"labels" json:"labels"`
 }
 
 type CreateExecutorRequest struct {
@@ -180,41 +180,41 @@ type ExecutorHeartbeatRequest struct {
 }
 
 type ExecutorHealth struct {
-	ExecutorID      string     `db:"executor_id" json:"executor_id"`
-	Status          string     `db:"status" json:"status"`
-	CPUUsagePct     float64    `db:"cpu_usage_pct" json:"cpu_usage_pct"`
-	MemoryUsagePct  float64    `db:"memory_usage_pct" json:"memory_usage_pct"`
-	RunningJobs     int        `db:"running_jobs" json:"running_jobs"`
-	QueueDepth      int        `db:"queue_depth" json:"queue_depth"`
-	LastHeartbeat   *time.Time `db:"last_heartbeat" json:"last_heartbeat"`
-	ResponseTimeMs  int        `db:"response_time_ms" json:"response_time_ms"`
-	ErrorsLastHour  int        `db:"errors_last_hour" json:"errors_last_hour"`
+	ExecutorID     string     `db:"executor_id" json:"executor_id"`
+	Status         string     `db:"status" json:"status"`
+	CPUUsagePct    float64    `db:"cpu_usage_pct" json:"cpu_usage_pct"`
+	MemoryUsagePct float64    `db:"memory_usage_pct" json:"memory_usage_pct"`
+	RunningJobs    int        `db:"running_jobs" json:"running_jobs"`
+	QueueDepth     int        `db:"queue_depth" json:"queue_depth"`
+	LastHeartbeat  *time.Time `db:"last_heartbeat" json:"last_heartbeat"`
+	ResponseTimeMs int        `db:"response_time_ms" json:"response_time_ms"`
+	ErrorsLastHour int        `db:"errors_last_hour" json:"errors_last_hour"`
 }
 
 type ExecutorDashboard struct {
-	TotalExecutors   int             `json:"total_executors"`
-	OnlineExecutors  int             `json:"online_executors"`
-	OfflineExecutors int             `json:"offline_executors"`
-	AvgCPUUsage      float64         `json:"avg_cpu_usage"`
-	AvgMemoryUsage   float64         `json:"avg_memory_usage"`
-	TotalRunningJobs int             `json:"total_running_jobs"`
+	TotalExecutors   int              `json:"total_executors"`
+	OnlineExecutors  int              `json:"online_executors"`
+	OfflineExecutors int              `json:"offline_executors"`
+	AvgCPUUsage      float64          `json:"avg_cpu_usage"`
+	AvgMemoryUsage   float64          `json:"avg_memory_usage"`
+	TotalRunningJobs int              `json:"total_running_jobs"`
 	Executors        []ExecutorHealth `json:"executors"`
 }
 
 type DispatchJobRequest struct {
-	Name                  string             `json:"name" binding:"required"`
-	Description           string             `json:"description"`
-	JobType               string             `json:"job_type"`
-	SourceClusterID       string             `json:"source_cluster_id" binding:"required"`
-	TargetClusterIDs      []string           `json:"target_cluster_ids"`
-	Priority              string             `json:"priority"`
-	Spec                  JSONB              `json:"spec"`
-	ExecutorID            string             `json:"executor_id"`
-	ResourceRequirements  *ResourceReqs      `json:"resource_requirements"`
+	Name                 string        `json:"name" binding:"required"`
+	Description          string        `json:"description"`
+	JobType              string        `json:"job_type"`
+	SourceClusterID      string        `json:"source_cluster_id" binding:"required"`
+	TargetClusterIDs     []string      `json:"target_cluster_ids"`
+	Priority             string        `json:"priority"`
+	Spec                 JSONB         `json:"spec"`
+	ExecutorID           string        `json:"executor_id"`
+	ResourceRequirements *ResourceReqs `json:"resource_requirements"`
 }
 
 type ResourceReqs struct {
-	CPU     float64 `json:"cpu"`
+	CPU      float64 `json:"cpu"`
 	MemoryMB float64 `json:"memory_mb"`
 }
 
@@ -254,20 +254,20 @@ type CreateSchedulingPolicyRequest struct {
 // ---------------------------------------------------------------------------
 
 type CrossClusterJob struct {
-	ID             string    `db:"id" json:"id"`
-	TenantID       string    `db:"tenant_id" json:"tenant_id"`
-	Name           string    `db:"name" json:"name"`
-	Spec           JSONB     `db:"spec" json:"spec"`
-	TargetClusters JSONArray `db:"target_clusters" json:"target_clusters"`
-	Status         string    `db:"status" json:"status"`
-	ScheduledAt    time.Time `db:"scheduled_at" json:"scheduled_at"`
+	ID             string     `db:"id" json:"id"`
+	TenantID       string     `db:"tenant_id" json:"tenant_id"`
+	Name           string     `db:"name" json:"name"`
+	Spec           JSONB      `db:"spec" json:"spec"`
+	TargetClusters JSONArray  `db:"target_clusters" json:"target_clusters"`
+	Status         string     `db:"status" json:"status"`
+	ScheduledAt    time.Time  `db:"scheduled_at" json:"scheduled_at"`
 	CompletedAt    *time.Time `db:"completed_at" json:"completed_at"`
 }
 
 type ScheduleCrossClusterJobRequest struct {
-	Name                 string          `json:"name" binding:"required"`
-	TargetClusters       []string        `json:"target_clusters" binding:"required"`
-	ResourceRequirements *ResourceReqs   `json:"resource_requirements"`
+	Name                 string        `json:"name" binding:"required"`
+	TargetClusters       []string      `json:"target_clusters" binding:"required"`
+	ResourceRequirements *ResourceReqs `json:"resource_requirements"`
 }
 
 // ---------------------------------------------------------------------------

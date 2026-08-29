@@ -8,11 +8,11 @@ type DatabaseDevopsItem struct {
 	TenantID    string    `json:"tenant_id" db:"tenant_id"`
 	Name        string    `json:"name" db:"name"`
 	Description string    `json:"description" db:"description"`
-	Type        string    `json:"type" db:"type"`             // backup, restore, pitr, migration, vacuum
-	Status      string    `json:"status" db:"status"`         // pending, running, completed, failed
+	Type        string    `json:"type" db:"type"`     // backup, restore, pitr, migration, vacuum
+	Status      string    `json:"status" db:"status"` // pending, running, completed, failed
 	DatabaseID  string    `json:"database_id" db:"database_id"`
-	Config      string    `json:"config" db:"config"`        // JSON config
-	Result      string    `json:"result" db:"result"`        // JSON result
+	Config      string    `json:"config" db:"config"` // JSON config
+	Result      string    `json:"result" db:"result"` // JSON result
 	Enabled     bool      `json:"enabled" db:"enabled"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
@@ -24,7 +24,7 @@ type CreateDatabaseDevopsRequest struct {
 	Description string `json:"description"`
 	Type        string `json:"type" binding:"required"` // backup, restore, pitr, migration, vacuum
 	DatabaseID  string `json:"database_id" binding:"required"`
-	Config      string `json:"config"`  // JSON config payload
+	Config      string `json:"config"` // JSON config payload
 	Enabled     bool   `json:"enabled"`
 }
 
@@ -40,9 +40,9 @@ type UpdateDatabaseDevopsRequest struct {
 
 // BackupConfig defines backup operation parameters
 type BackupConfig struct {
-	BackupType    string `json:"backup_type"`    // full, incremental, wal
+	BackupType    string `json:"backup_type"` // full, incremental, wal
 	CompressLevel int    `json:"compress_level"`
-	Destination   string `json:"destination"`   // local, s3, minio
+	Destination   string `json:"destination"` // local, s3, minio
 	RetainDays    int    `json:"retain_days"`
 }
 

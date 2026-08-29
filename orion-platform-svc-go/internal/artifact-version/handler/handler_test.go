@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/artifact-version/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/artifact-version/models"
 )
 
@@ -62,11 +62,11 @@ func (f *fakeHandlerService) Create(ctx context.Context, tenantID string, req mo
 	return &models.Record{}, nil
 }
 
-func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
-func (f *fakeHandlerService) DeleteTag(ctx context.Context, tenantID, id, tag string) (error) {
+func (f *fakeHandlerService) DeleteTag(ctx context.Context, tenantID, id, tag string) error {
 	return nil
 }
 
@@ -287,7 +287,6 @@ func (f *fakeHandlerService) ValidateBranch(ctx context.Context, tenantID, branc
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestARTIFACT_VERSION_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

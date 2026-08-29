@@ -335,10 +335,10 @@ func (s *Service) ReviewAction(ctx context.Context, tenantID, skillID, userID, a
 		}
 
 		err = s.repo.UpdateReview(ctx, tenantID, skillID, map[string]interface{}{
-			"status":       "approved",
-			"reviewed_by":  userID,
-			"review_note":  req.Note,
-			"updated_at":   now,
+			"status":      "approved",
+			"reviewed_by": userID,
+			"review_note": req.Note,
+			"updated_at":  now,
 		})
 		if err != nil {
 			return nil, err
@@ -368,10 +368,10 @@ func (s *Service) ReviewAction(ctx context.Context, tenantID, skillID, userID, a
 		}
 
 		err = s.repo.UpdateReview(ctx, tenantID, skillID, map[string]interface{}{
-			"status":       "rejected",
-			"reviewed_by":  userID,
-			"review_note":  req.Note,
-			"updated_at":   now,
+			"status":      "rejected",
+			"reviewed_by": userID,
+			"review_note": req.Note,
+			"updated_at":  now,
 		})
 		if err != nil {
 			return nil, err
@@ -413,12 +413,12 @@ func (s *Service) ReviewAction(ctx context.Context, tenantID, skillID, userID, a
 			review.UpdatedAt = now
 		} else {
 			review = &models.SkillReview{
-				SkillID:   skillID,
-				TenantID:  tenantID,
-				Status:    "archived",
+				SkillID:    skillID,
+				TenantID:   tenantID,
+				Status:     "archived",
 				ReviewedBy: userID,
-				CreatedAt: now,
-				UpdatedAt: now,
+				CreatedAt:  now,
+				UpdatedAt:  now,
 			}
 		}
 

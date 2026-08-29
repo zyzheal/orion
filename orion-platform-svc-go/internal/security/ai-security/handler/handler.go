@@ -1,12 +1,13 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"strconv"
 	"time"
 
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/security/ai-security/models"
 	"orion/platform-svc-go/internal/security/ai-security/service"
-	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 )
@@ -41,6 +42,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // ListScans — GET /api/v1/ai/security/scans
 func (h *Handler) ListScans(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityAISEListScans")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.Query("user_id")
 	startTime := parseTimeQuery(c, "start_time")
@@ -48,7 +51,7 @@ func (h *Handler) ListScans(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
-	scanResult, err := h.svc.ListScans(c.Request.Context(), tenantID, userID, startTime, endTime, page, ps)
+	scanResult, err := h.svc.ListScans(ctx, tenantID, userID, startTime, endTime, page, ps)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -58,10 +61,12 @@ func (h *Handler) ListScans(c *gin.Context) {
 
 // GetScan — GET /api/v1/ai/security/scans/:id
 func (h *Handler) GetScan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityAISEGetScan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	scanResult, err := h.svc.GetScan(c.Request.Context(), tenantID, id)
+	scanResult, err := h.svc.GetScan(ctx, tenantID, id)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -75,6 +80,8 @@ func (h *Handler) GetScan(c *gin.Context) {
 
 // RunScan — POST /api/v1/ai/security/scans
 func (h *Handler) RunScan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityAISERunScan")
+	defer span.End()
 	userID := c.GetString("user_id")
 
 	var req models.ScanRequest
@@ -83,7 +90,7 @@ func (h *Handler) RunScan(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.Scan(c.Request.Context(), req.Input, userID)
+	result, err := h.svc.Scan(ctx, req.Input, userID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -95,18 +102,20 @@ func (h *Handler) RunScan(c *gin.Context) {
 	}
 
 	respondCreated(c, gin.H{
-		"input":        req.Input,
-		"user_id":      userID,
-		"risk_score":   result.RiskScore,
-		"sanitized":    result.Sanitized,
+		"input":         req.Input,
+		"user_id":       userID,
+		"risk_score":    result.RiskScore,
+		"sanitized":     result.Sanitized,
 		"has_violation": result.HasViolation,
-		"scanned_at":   result.ScannedAt,
+		"scanned_at":    result.ScannedAt,
 	})
 }
 
 // ListPolicies — GET /api/v1/ai/security/policies
 func (h *Handler) ListPolicies(c *gin.Context) {
-	policies, err := h.svc.ListPolicies(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityAISEListPolicies")
+	defer span.End()
+	policies, err := h.svc.ListPolicies(ctx)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -116,6 +125,8 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 
 // GetPolicy — GET /api/v1/ai/security/policies/:id
 func (h *Handler) GetPolicy(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityAISEGetPolicy")
+	defer span.End()
 	id := c.Param("id")
 	policy, err := h.svc.GetPolicy(id)
 	if err != nil {
@@ -133,6 +144,8 @@ func (h *Handler) GetPolicy(c *gin.Context) {
 
 // UpdatePolicy — PUT /api/v1/ai/security/policies/:id
 func (h *Handler) UpdatePolicy(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityAISEUpdatePolicy")
+	defer span.End()
 	id := c.Param("id")
 
 	var req models.PolicyInput
@@ -152,6 +165,8 @@ func (h *Handler) UpdatePolicy(c *gin.Context) {
 
 // DeletePolicy — DELETE /api/v1/ai/security/policies/:id
 func (h *Handler) DeletePolicy(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityAISEDeletePolicy")
+	defer span.End()
 	id := c.Param("id")
 
 	err := h.svc.DisablePolicy(id)
@@ -165,6 +180,8 @@ func (h *Handler) DeletePolicy(c *gin.Context) {
 
 // ListAlerts — GET /api/v1/ai/security/alerts
 func (h *Handler) ListAlerts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityAISEListAlerts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.Query("user_id")
 	startTime := parseTimeQuery(c, "start_time")
@@ -172,7 +189,7 @@ func (h *Handler) ListAlerts(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
-	alerts, err := h.svc.GetAlerts(c.Request.Context(), tenantID, userID, startTime, endTime, page, ps)
+	alerts, err := h.svc.GetAlerts(ctx, tenantID, userID, startTime, endTime, page, ps)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -182,21 +199,23 @@ func (h *Handler) ListAlerts(c *gin.Context) {
 
 // GetAlert — GET /api/v1/ai/security/alerts/:id
 func (h *Handler) GetAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityAISEGetAlert")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	alert, err := h.svc.GetAlert(c.Request.Context(), tenantID, id)
+	alert, err := h.svc.GetAlert(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
 	respondSuccess(c, gin.H{
-		"id":          alert.ID,
-		"timestamp":   alert.ScannedAt,
-		"user_id":     alert.UserID,
-		"session_id":  alert.SessionID,
-		"risk_score":  alert.RiskScore,
-		"violations":  alert.Violations,
+		"id":         alert.ID,
+		"timestamp":  alert.ScannedAt,
+		"user_id":    alert.UserID,
+		"session_id": alert.SessionID,
+		"risk_score": alert.RiskScore,
+		"violations": alert.Violations,
 	})
 }
 

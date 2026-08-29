@@ -5,7 +5,6 @@ import (
 	"orion/platform-svc-go/internal/apm/models"
 )
 
-
 // RepositoryInterface defines the data access contract for the apm module.
 type RepositoryInterface interface {
 	Create(ctx context.Context, entity *models.ApmEntry) error

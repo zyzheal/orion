@@ -13,11 +13,11 @@ import (
 )
 
 type mockRepo struct {
-	graphs   map[string]*models.Graph
+	graphs    map[string]*models.Graph
 	createErr error
-	getErr   error
-	listErr  error
-	delErr   error
+	getErr    error
+	listErr   error
+	delErr    error
 }
 
 func newMockRepo() *mockRepo {

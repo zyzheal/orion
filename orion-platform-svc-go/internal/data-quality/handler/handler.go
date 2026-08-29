@@ -34,7 +34,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 	// === Scan Results ===
 	f.POST("/scan-results", auth.RequirePermission("data-quality", "write"), h.CreateScanResult)
-	f.GET("/rules/:ruleId/scan-results", auth.RequirePermission("data-quality", "read"), h.ListScanResults)
+	f.GET("/rules/:id/scan-results", auth.RequirePermission("data-quality", "read"), h.ListScanResults)
 
 	// === Alerts ===
 	f.GET("/alerts", auth.RequirePermission("data-quality", "read"), h.ListAlerts)
@@ -189,7 +189,7 @@ func (h *Handler) ListScanResults(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListScanResults")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ruleID := c.Param("ruleId")
+	ruleID := c.Param("id")
 	var status *string
 	if s := c.Query("status"); s != "" {
 		status = &s

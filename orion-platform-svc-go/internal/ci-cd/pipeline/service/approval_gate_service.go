@@ -14,8 +14,8 @@ import (
 
 // ApprovalGateService manages approval gates in pipeline execution
 type ApprovalGateService struct {
-	db          *sqlx.DB
-	stageRepo   interface {
+	db        *sqlx.DB
+	stageRepo interface {
 		MarkRunning(ctx context.Context, id string) error
 		MarkCompleted(ctx context.Context, id string, status models.StageStatus) error
 	}

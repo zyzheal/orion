@@ -1,7 +1,7 @@
 package handler
 
 import (
-
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/notification/chatops/models"
 	"orion/platform-svc-go/internal/notification/chatops/service"
 
@@ -19,9 +19,11 @@ func NewConfigHandler(svc *service.ConfigService) *ConfigHandler {
 // Question Config
 
 func (h *ConfigHandler) GetQuestionConfigs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsGetQuestionConfigs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
-	configs, err := h.svc.GetQuestionConfigs(c.Request.Context(), tenantID, userID)
+	configs, err := h.svc.GetQuestionConfigs(ctx, tenantID, userID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -30,6 +32,8 @@ func (h *ConfigHandler) GetQuestionConfigs(c *gin.Context) {
 }
 
 func (h *ConfigHandler) UpsertQuestionConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsUpsertQuestionConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	var input models.QuestionConfigInput
@@ -37,7 +41,7 @@ func (h *ConfigHandler) UpsertQuestionConfig(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	cfg, err := h.svc.UpsertQuestionConfig(c.Request.Context(), tenantID, userID, input)
+	cfg, err := h.svc.UpsertQuestionConfig(ctx, tenantID, userID, input)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -46,9 +50,11 @@ func (h *ConfigHandler) UpsertQuestionConfig(c *gin.Context) {
 }
 
 func (h *ConfigHandler) DeleteQuestionConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsDeleteQuestionConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
-	if err := h.svc.DeleteQuestionConfig(c.Request.Context(), tenantID, userID, c.Param("key")); err != nil {
+	if err := h.svc.DeleteQuestionConfig(ctx, tenantID, userID, c.Param("key")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -58,9 +64,11 @@ func (h *ConfigHandler) DeleteQuestionConfig(c *gin.Context) {
 // Command Config
 
 func (h *ConfigHandler) GetCommandConfigs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsGetCommandConfigs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
-	configs, err := h.svc.GetCommandConfigs(c.Request.Context(), tenantID, userID)
+	configs, err := h.svc.GetCommandConfigs(ctx, tenantID, userID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -69,6 +77,8 @@ func (h *ConfigHandler) GetCommandConfigs(c *gin.Context) {
 }
 
 func (h *ConfigHandler) UpsertCommandConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsUpsertCommandConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	var input models.CommandConfigInput
@@ -76,7 +86,7 @@ func (h *ConfigHandler) UpsertCommandConfig(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	cfg, err := h.svc.UpsertCommandConfig(c.Request.Context(), tenantID, userID, input)
+	cfg, err := h.svc.UpsertCommandConfig(ctx, tenantID, userID, input)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -85,9 +95,11 @@ func (h *ConfigHandler) UpsertCommandConfig(c *gin.Context) {
 }
 
 func (h *ConfigHandler) DeleteCommandConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsDeleteCommandConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
-	if err := h.svc.DeleteCommandConfig(c.Request.Context(), tenantID, userID, c.Param("key")); err != nil {
+	if err := h.svc.DeleteCommandConfig(ctx, tenantID, userID, c.Param("key")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}

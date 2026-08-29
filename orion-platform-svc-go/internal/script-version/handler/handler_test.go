@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/script-version/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/script-version/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeScript_versionService) Update(ctx context.Context, tenantID, id str
 }
 
 var _ service.ServiceInterface = (*fakeScript_versionService)(nil)
-
 
 func TestHandler_SCRIPT_VERSION_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/api-market/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/api-market/models"
 )
 
@@ -86,7 +86,7 @@ func (f *fakeHandlerService) PublishProduct(ctx context.Context, id string, tena
 	return &models.Product{}, nil
 }
 
-func (f *fakeHandlerService) Subscribe(ctx context.Context, req *models.SubscribeRequest, tenantID string) (error) {
+func (f *fakeHandlerService) Subscribe(ctx context.Context, req *models.SubscribeRequest, tenantID string) error {
 	return nil
 }
 
@@ -95,7 +95,6 @@ func (f *fakeHandlerService) ValidateAPIKey(ctx context.Context, tenantID string
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func Test_Handler_Handler_RegisterRoutes(t *testing.T) {
 	// route wildcard conflicts expected (e.g. :id vs :somethingId); tested in integration suite

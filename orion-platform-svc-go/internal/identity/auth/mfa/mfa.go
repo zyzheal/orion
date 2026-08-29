@@ -21,12 +21,12 @@ import (
 // ---------------------------------------------------------------------------
 
 const (
-	TotpSecretLength = 20       // 20 bytes = 160 bits (RFC 4226 recommendation)
-	TotpDigits       = 6        // 6-digit OTP (standard)
-	TotpPeriod       = 30       // 30-second time step (RFC 6238)
-	TotpWindow       = 1        // Allow ±1 time step for clock drift
+	TotpSecretLength = 20 // 20 bytes = 160 bits (RFC 4226 recommendation)
+	TotpDigits       = 6  // 6-digit OTP (standard)
+	TotpPeriod       = 30 // 30-second time step (RFC 6238)
+	TotpWindow       = 1  // Allow ±1 time step for clock drift
 	BackupCodeCount  = 10
-	BackupCodeLength = 10       // 10-character alphanumeric codes
+	BackupCodeLength = 10 // 10-character alphanumeric codes
 )
 
 var (
@@ -44,16 +44,16 @@ var (
 
 // SetupResult is returned by SetupMFA.
 type SetupResult struct {
-	Secret       string   `json:"secret"`       // Base32-encoded TOTP secret (plaintext, for QR)
-	QRCodeUri    string   `json:"qr_code_uri"`  // otpauth:// URI for authenticator app
-	BackupCodes  []string `json:"backup_codes"` // Plaintext backup codes (shown once)
+	Secret      string   `json:"secret"`       // Base32-encoded TOTP secret (plaintext, for QR)
+	QRCodeUri   string   `json:"qr_code_uri"`  // otpauth:// URI for authenticator app
+	BackupCodes []string `json:"backup_codes"` // Plaintext backup codes (shown once)
 }
 
 // VerifyResult is returned by VerifyTOTP / VerifyMFA.
 type VerifyResult struct {
-	Success        bool   `json:"success"`
-	UsedBackupCode bool   `json:"used_backup_code"`
-	RemainingCodes int    `json:"remaining_backup_codes"`
+	Success        bool `json:"success"`
+	UsedBackupCode bool `json:"used_backup_code"`
+	RemainingCodes int  `json:"remaining_backup_codes"`
 }
 
 // ---------------------------------------------------------------------------
@@ -104,11 +104,10 @@ func GenerateTOTP(secretBase32 string, counter uint64) string {
 // dynamicTruncation extracts a 4-byte code from HMAC-SHA1 per RFC 4226 §5.3.
 func dynamicTruncation(digest []byte) int {
 	offset := int(digest[len(digest)-1] & 0x0f)
-	binary := (
-		(int(digest[offset]) & 0x7f) << 24 |
-			(int(digest[offset+1]) & 0xff) << 16 |
-			(int(digest[offset+2]) & 0xff) << 8 |
-			(int(digest[offset+3]) & 0xff))
+	binary := ((int(digest[offset])&0x7f)<<24 |
+		(int(digest[offset+1])&0xff)<<16 |
+		(int(digest[offset+2])&0xff)<<8 |
+		(int(digest[offset+3]) & 0xff))
 	return binary % int(math.Pow(10, float64(TotpDigits)))
 }
 
@@ -238,15 +237,15 @@ func BuildQRCodeUri(secret, issuer, account string) string {
 
 // LoginAttemptTracker tracks per-username login failures and lockout state.
 type LoginAttemptTracker struct {
-	mu    sync.RWMutex
-	data  map[string]*attemptState
-	maxFails int
+	mu              sync.RWMutex
+	data            map[string]*attemptState
+	maxFails        int
 	lockoutDuration time.Duration
 }
 
 type attemptState struct {
-	failures    int
-	lastFailAt  time.Time
+	failures     int
+	lastFailAt   time.Time
 	lockoutUntil time.Time
 }
 

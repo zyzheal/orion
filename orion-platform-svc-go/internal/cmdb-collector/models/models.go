@@ -28,18 +28,18 @@ const (
 	TypeCloud    = "cloud"
 
 	// Protocol tags (informational; the adapter chooses its own transport)
-	ProtoSNMP  = "snmp"
-	ProtoSSH   = "ssh"
-	ProtoJDBC  = "jdbc"
-	ProtoAPI   = "api"
-	ProtoWMI   = "wmi"
+	ProtoSNMP = "snmp"
+	ProtoSSH  = "ssh"
+	ProtoJDBC = "jdbc"
+	ProtoAPI  = "api"
+	ProtoWMI  = "wmi"
 
 	// Collection status
-	CollectionPending  = "pending"
-	CollectionRunning  = "running"
-	CollectionSuccess  = "success"
-	CollectionFailed   = "failed"
-	CollectionSkipped  = "skipped"
+	CollectionPending = "pending"
+	CollectionRunning = "running"
+	CollectionSuccess = "success"
+	CollectionFailed  = "failed"
+	CollectionSkipped = "skipped"
 )
 
 // ---- Target ----
@@ -54,7 +54,7 @@ type Target struct {
 	Name       string                 `db:"name" json:"name"`
 	Host       string                 `db:"host" json:"host"`
 	Port       int                    `db:"port" json:"port"`
-	TargetType string                 `db:"type" json:"type"`        // network | server | database | …
+	TargetType string                 `db:"type" json:"type"`         // network | server | database | …
 	Protocol   string                 `db:"protocol" json:"protocol"` // snmp | ssh | jdbc | api | wmi
 	TenantID   string                 `db:"tenant_id" json:"tenant_id"`
 	Config     map[string]interface{} `db:"config" json:"config"` // vendor-specific (JSONB)
@@ -74,7 +74,7 @@ type Device struct {
 	ID           string                 `db:"id" json:"id"`
 	DeviceID     string                 `db:"device_id" json:"device_id"` // external canonical ID (e.g. MAC, serial)
 	Name         string                 `db:"name" json:"name"`
-	DeviceType   string                 `db:"type" json:"type"`           // network | server | database | …
+	DeviceType   string                 `db:"type" json:"type"` // network | server | database | …
 	Vendor       string                 `db:"vendor" json:"vendor"`
 	Model        string                 `db:"model" json:"model"`
 	IP           string                 `db:"ip" json:"ip"`
@@ -84,7 +84,7 @@ type Device struct {
 	Adapter      string                 `db:"adapter" json:"adapter"`     // which adapter last reported
 	LastSeenAt   *time.Time             `db:"last_seen_at" json:"last_seen_at"`
 	Attributes   map[string]interface{} `db:"attributes" json:"attributes"` // current metrics (JSONB)
-	Status       string                 `db:"status" json:"status"` // active | stale | decommissioned
+	Status       string                 `db:"status" json:"status"`         // active | stale | decommissioned
 	Metadata     map[string]interface{} `db:"metadata" json:"metadata"`
 	CreatedAt    time.Time              `db:"created_at" json:"created_at"`
 	UpdatedAt    time.Time              `db:"updated_at" json:"updated_at"`
@@ -96,29 +96,29 @@ type Device struct {
 // discovery sweep against a target).  Each collection is a time-stamped
 // snapshot of attributes.
 type Collection struct {
-	ID            string                 `db:"id" json:"id"`
-	CollectionID  string                 `db:"collection_id" json:"collection_id"` // external, stable ID
-	Collector     string                 `db:"collector" json:"collector"`         // adapter name
-	DeviceID      *string                `db:"device_id" json:"device_id"`         // FK → cmdb_devices.id (nullable for discovery)
-	TargetID      *string                `db:"target_id" json:"target_id"`         // FK → cmdb_targets.id
-	TenantID      string                 `db:"tenant_id" json:"tenant_id"`
-	Phase         string                 `db:"phase" json:"phase"`                 // discover | collect
-	Status        string                 `db:"status" json:"status"`               // pending | running | success | failed | skipped
-	AttributeCount int                   `db:"attribute_count" json:"attribute_count"`
-	Attributes    map[string]interface{} `db:"attributes" json:"attributes"` // full attribute payload (JSONB)
-	Error         *string                `db:"error" json:"error"`
-	DurationMs    int                    `db:"duration_ms" json:"duration_ms"`
-	CreatedAt     time.Time              `db:"created_at" json:"created_at"`
+	ID             string                 `db:"id" json:"id"`
+	CollectionID   string                 `db:"collection_id" json:"collection_id"` // external, stable ID
+	Collector      string                 `db:"collector" json:"collector"`         // adapter name
+	DeviceID       *string                `db:"device_id" json:"device_id"`         // FK → cmdb_devices.id (nullable for discovery)
+	TargetID       *string                `db:"target_id" json:"target_id"`         // FK → cmdb_targets.id
+	TenantID       string                 `db:"tenant_id" json:"tenant_id"`
+	Phase          string                 `db:"phase" json:"phase"`   // discover | collect
+	Status         string                 `db:"status" json:"status"` // pending | running | success | failed | skipped
+	AttributeCount int                    `db:"attribute_count" json:"attribute_count"`
+	Attributes     map[string]interface{} `db:"attributes" json:"attributes"` // full attribute payload (JSONB)
+	Error          *string                `db:"error" json:"error"`
+	DurationMs     int                    `db:"duration_ms" json:"duration_ms"`
+	CreatedAt      time.Time              `db:"created_at" json:"created_at"`
 }
 
 // ---- Attribute ----
 
 // Attribute is a single typed metric collected from a device.
 type Attribute struct {
-	Key       string      `json:"key"`       // e.g. "cpu.usage.percent", "disk.free.bytes"
-	Value     interface{} `json:"value"`     // int / float / string
-	Unit      string      `json:"unit"`      // "percent", "bytes", "seconds"
-	Category  string      `json:"category"`  // "system", "network", "storage", "process"
+	Key       string      `json:"key"`      // e.g. "cpu.usage.percent", "disk.free.bytes"
+	Value     interface{} `json:"value"`    // int / float / string
+	Unit      string      `json:"unit"`     // "percent", "bytes", "seconds"
+	Category  string      `json:"category"` // "system", "network", "storage", "process"
 	Timestamp time.Time   `json:"timestamp"`
 }
 
@@ -133,11 +133,11 @@ type DiscoverRequest struct {
 
 // DiscoverResponse carries the list of discovered devices.
 type DiscoverResponse struct {
-	Collector  string   `json:"collector"`
-	TargetID   string   `json:"target_id"`
-	DeviceCount int     `json:"device_count"`
-	Devices    []Device `json:"devices"`
-	Error      *string  `json:"error,omitempty"`
+	Collector   string   `json:"collector"`
+	TargetID    string   `json:"target_id"`
+	DeviceCount int      `json:"device_count"`
+	Devices     []Device `json:"devices"`
+	Error       *string  `json:"error,omitempty"`
 }
 
 // CollectRequest is the payload for the collection endpoint.
@@ -149,14 +149,14 @@ type CollectRequest struct {
 
 // CollectResponse carries the collection result.
 type CollectResponse struct {
-	CollectionID  string            `json:"collection_id"`
-	Collector     string            `json:"collector"`
-	DeviceID      string            `json:"device_id"`
-	Status        string            `json:"status"`
-	AttributeCount int              `json:"attribute_count"`
-	Attributes    []Attribute       `json:"attributes"`
-	DurationMs    int               `json:"duration_ms"`
-	Error         *string           `json:"error,omitempty"`
+	CollectionID   string      `json:"collection_id"`
+	Collector      string      `json:"collector"`
+	DeviceID       string      `json:"device_id"`
+	Status         string      `json:"status"`
+	AttributeCount int         `json:"attribute_count"`
+	Attributes     []Attribute `json:"attributes"`
+	DurationMs     int         `json:"duration_ms"`
+	Error          *string     `json:"error,omitempty"`
 }
 
 // PaginatedResponse wraps paginated data for list endpoints.

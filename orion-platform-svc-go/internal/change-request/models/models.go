@@ -54,10 +54,10 @@ type ListChangeRequestRequest struct {
 
 // PaginatedResponse is a generic paginated response.
 type PaginatedResponse struct {
-	Data       any   `json:"data"`
-	Total      int   `json:"total"`
-	Page       int   `json:"page"`
-	PageSize   int   `json:"pageSize"`
+	Data     any `json:"data"`
+	Total    int `json:"total"`
+	Page     int `json:"page"`
+	PageSize int `json:"pageSize"`
 }
 
 // ChangeApproval represents an approval entry in the chain.
@@ -78,13 +78,13 @@ type CreateApprovalRequest struct {
 
 // ExecutionStep represents a single execution step.
 type ExecutionStep struct {
-	ID        string            `db:"id" json:"id"`
-	RequestID string            `db:"request_id" json:"requestId"`
-	Status    string            `db:"status" json:"status"`
-	StartedAt *time.Time        `db:"started_at" json:"startedAt"`
-	CompletedAt *time.Time      `db:"completed_at" json:"completedAt"`
-	Result    map[string]any    `db:"result" json:"result"`
-	CreatedAt time.Time         `db:"created_at" json:"createdAt"`
+	ID          string         `db:"id" json:"id"`
+	RequestID   string         `db:"request_id" json:"requestId"`
+	Status      string         `db:"status" json:"status"`
+	StartedAt   *time.Time     `db:"started_at" json:"startedAt"`
+	CompletedAt *time.Time     `db:"completed_at" json:"completedAt"`
+	Result      map[string]any `db:"result" json:"result"`
+	CreatedAt   time.Time      `db:"created_at" json:"createdAt"`
 }
 
 // CreateExecutionStepRequest is the request body for creating an execution step.
@@ -100,10 +100,10 @@ type StartExecutionRequest struct {
 
 // UpdateExecutionStepRequest is the request body for updating an execution step.
 type UpdateExecutionStepRequest struct {
-	Status      string            `json:"status" binding:"required"`
-	Result      map[string]any    `json:"result"`
-	StartedAt   *time.Time        `json:"startedAt"`
-	CompletedAt *time.Time        `json:"completedAt"`
+	Status      string         `json:"status" binding:"required"`
+	Result      map[string]any `json:"result"`
+	StartedAt   *time.Time     `json:"startedAt"`
+	CompletedAt *time.Time     `json:"completedAt"`
 }
 
 // ExecutionProgress represents the execution progress for a change request.

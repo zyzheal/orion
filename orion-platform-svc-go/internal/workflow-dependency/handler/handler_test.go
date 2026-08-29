@@ -18,21 +18,27 @@ import (
 // --- mock service (implements Service interface) ---
 
 type mockSvc struct {
-	getGraphFn          func(ctx context.Context, tenantID string) (*models.DependencyGraph, error)
-	checkDefinitionFn   func(ctx context.Context, definitionID string, tenantID string) (*models.DependencyCheck, error)
-	getVisualizationFn  func(ctx context.Context, tenantID string) (*models.VisualizationData, error)
+	getGraphFn         func(ctx context.Context, tenantID string) (*models.DependencyGraph, error)
+	checkDefinitionFn  func(ctx context.Context, definitionID string, tenantID string) (*models.DependencyCheck, error)
+	getVisualizationFn func(ctx context.Context, tenantID string) (*models.VisualizationData, error)
 }
 
 func (m *mockSvc) GetGraph(ctx context.Context, tenantID string) (*models.DependencyGraph, error) {
-	if m.getGraphFn != nil { return m.getGraphFn(ctx, tenantID) }
+	if m.getGraphFn != nil {
+		return m.getGraphFn(ctx, tenantID)
+	}
 	return nil, nil
 }
 func (m *mockSvc) CheckDefinition(ctx context.Context, definitionID string, tenantID string) (*models.DependencyCheck, error) {
-	if m.checkDefinitionFn != nil { return m.checkDefinitionFn(ctx, definitionID, tenantID) }
+	if m.checkDefinitionFn != nil {
+		return m.checkDefinitionFn(ctx, definitionID, tenantID)
+	}
 	return nil, nil
 }
 func (m *mockSvc) GetVisualization(ctx context.Context, tenantID string) (*models.VisualizationData, error) {
-	if m.getVisualizationFn != nil { return m.getVisualizationFn(ctx, tenantID) }
+	if m.getVisualizationFn != nil {
+		return m.getVisualizationFn(ctx, tenantID)
+	}
 	return nil, nil
 }
 
@@ -74,15 +80,21 @@ func TestHandler_GetGraph_Success(t *testing.T) {
 		getGraphFn: func(ctx context.Context, tenantID string) (*models.DependencyGraph, error) { return graph, nil },
 	})
 	w := performRequest(h, h.GetGraph, "GET", nil, nil, nil)
-	if w.Code != http.StatusOK { t.Fatalf("expected 200, got %d", w.Code) }
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
 }
 
 func TestHandler_GetGraph_Error(t *testing.T) {
 	h := newHandlerWithSvc(&mockSvc{
-		getGraphFn: func(ctx context.Context, tenantID string) (*models.DependencyGraph, error) { return nil, errors.New("db down") },
+		getGraphFn: func(ctx context.Context, tenantID string) (*models.DependencyGraph, error) {
+			return nil, errors.New("db down")
+		},
 	})
 	w := performRequest(h, h.GetGraph, "GET", nil, nil, nil)
-	if w.Code != http.StatusInternalServerError { t.Fatalf("expected 500, got %d", w.Code) }
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", w.Code)
+	}
 }
 
 // ==================== CheckDefinition ====================
@@ -90,26 +102,38 @@ func TestHandler_GetGraph_Error(t *testing.T) {
 func TestHandler_CheckDefinition_Success(t *testing.T) {
 	check := &models.DependencyCheck{IsSafe: true}
 	h := newHandlerWithSvc(&mockSvc{
-		checkDefinitionFn: func(ctx context.Context, definitionID string, tenantID string) (*models.DependencyCheck, error) { return check, nil },
+		checkDefinitionFn: func(ctx context.Context, definitionID string, tenantID string) (*models.DependencyCheck, error) {
+			return check, nil
+		},
 	})
 	w := performRequest(h, h.CheckDefinition, "GET", nil, map[string]string{"definitionId": "wf1"}, nil)
-	if w.Code != http.StatusOK { t.Fatalf("expected 200, got %d", w.Code) }
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
 }
 
 func TestHandler_CheckDefinition_NotFound(t *testing.T) {
 	h := newHandlerWithSvc(&mockSvc{
-		checkDefinitionFn: func(ctx context.Context, definitionID string, tenantID string) (*models.DependencyCheck, error) { return nil, service.ErrWorkflowNotFound },
+		checkDefinitionFn: func(ctx context.Context, definitionID string, tenantID string) (*models.DependencyCheck, error) {
+			return nil, service.ErrWorkflowNotFound
+		},
 	})
 	w := performRequest(h, h.CheckDefinition, "GET", nil, map[string]string{"definitionId": "x"}, nil)
-	if w.Code != http.StatusNotFound { t.Fatalf("expected 404, got %d", w.Code) }
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", w.Code)
+	}
 }
 
 func TestHandler_CheckDefinition_Error(t *testing.T) {
 	h := newHandlerWithSvc(&mockSvc{
-		checkDefinitionFn: func(ctx context.Context, definitionID string, tenantID string) (*models.DependencyCheck, error) { return nil, errors.New("db err") },
+		checkDefinitionFn: func(ctx context.Context, definitionID string, tenantID string) (*models.DependencyCheck, error) {
+			return nil, errors.New("db err")
+		},
 	})
 	w := performRequest(h, h.CheckDefinition, "GET", nil, map[string]string{"definitionId": "wf1"}, nil)
-	if w.Code != http.StatusInternalServerError { t.Fatalf("expected 500, got %d", w.Code) }
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", w.Code)
+	}
 }
 
 // ==================== GetVisualization ====================
@@ -120,13 +144,19 @@ func TestHandler_GetVisualization_Success(t *testing.T) {
 		getVisualizationFn: func(ctx context.Context, tenantID string) (*models.VisualizationData, error) { return viz, nil },
 	})
 	w := performRequest(h, h.GetVisualization, "GET", nil, nil, nil)
-	if w.Code != http.StatusOK { t.Fatalf("expected 200, got %d", w.Code) }
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
 }
 
 func TestHandler_GetVisualization_Error(t *testing.T) {
 	h := newHandlerWithSvc(&mockSvc{
-		getVisualizationFn: func(ctx context.Context, tenantID string) (*models.VisualizationData, error) { return nil, errors.New("db down") },
+		getVisualizationFn: func(ctx context.Context, tenantID string) (*models.VisualizationData, error) {
+			return nil, errors.New("db down")
+		},
 	})
 	w := performRequest(h, h.GetVisualization, "GET", nil, nil, nil)
-	if w.Code != http.StatusInternalServerError { t.Fatalf("expected 500, got %d", w.Code) }
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", w.Code)
+	}
 }

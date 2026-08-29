@@ -12,7 +12,7 @@ func TestIsValidSeverity(t *testing.T) {
 
 	invalid := []string{
 		"",
-		"Critical",    // case-sensitive
+		"Critical", // case-sensitive
 		"urgent",
 		"1=1",
 		"; DROP TABLE",

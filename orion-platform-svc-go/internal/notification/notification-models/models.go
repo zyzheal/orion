@@ -23,10 +23,10 @@ const (
 type ChannelType string
 
 const (
-	ChannelEmail   ChannelType = "email"
-	ChannelSlack   ChannelType = "slack"
-	ChannelWebhook ChannelType = "webhook"
-	ChannelInApp   ChannelType = "in-app"
+	ChannelEmail    ChannelType = "email"
+	ChannelSlack    ChannelType = "slack"
+	ChannelWebhook  ChannelType = "webhook"
+	ChannelInApp    ChannelType = "in-app"
 	ChannelDingtalk ChannelType = "dingtalk"
 	ChannelWechat   ChannelType = "wechat"
 )
@@ -102,31 +102,31 @@ type NotificationChannel struct {
 
 // NotificationSettings stores per-user notification preferences.
 type NotificationSettings struct {
-	ID                string     `db:"id" json:"id"`
-	UserID            string     `db:"user_id" json:"user_id"`
-	TenantID          string     `db:"tenant_id" json:"tenant_id"`
-	EmailEnabled      bool       `db:"email_enabled" json:"email_enabled"`
-	SlackEnabled      bool       `db:"slack_enabled" json:"slack_enabled"`
-	WebhookEnabled    bool       `db:"webhook_enabled" json:"webhook_enabled"`
-	WebhookURL        *string    `db:"webhook_url" json:"webhook_url"`
-	PipelineCompleted bool       `db:"pipeline_completed" json:"pipeline_completed"`
-	PipelineFailed    bool       `db:"pipeline_failed" json:"pipeline_failed"`
-	TicketAssigned    bool       `db:"ticket_assigned" json:"ticket_assigned"`
-	TicketEscalated   bool       `db:"ticket_escalated" json:"ticket_escalated"`
-	SLAWarning        bool       `db:"sla_warning" json:"sla_warning"`
-	SLABreached       bool       `db:"sla_breached" json:"sla_breached"`
-	AlertTriggered    bool       `db:"alert_triggered" json:"alert_triggered"`
-	DeploymentSuccess bool       `db:"deployment_success" json:"deployment_success"`
-	DeploymentFailed  bool       `db:"deployment_failed" json:"deployment_failed"`
-	SystemAlert       bool       `db:"system_alert" json:"system_alert"`
-	CommentMention    bool       `db:"comment_mention" json:"comment_mention"`
-	TransferRequest   bool       `db:"transfer_request" json:"transfer_request"`
-	DigestEnabled     bool       `db:"digest_enabled" json:"digest_enabled"`
-	DigestFrequency   string     `db:"digest_frequency" json:"digest_frequency"`
-	QuietHoursStart   *string    `db:"quiet_hours_start" json:"quiet_hours_start"`
-	QuietHoursEnd     *string    `db:"quiet_hours_end" json:"quiet_hours_end"`
-	CreatedAt         time.Time  `db:"created_at" json:"created_at"`
-	UpdatedAt         time.Time  `db:"updated_at" json:"updated_at"`
+	ID                string    `db:"id" json:"id"`
+	UserID            string    `db:"user_id" json:"user_id"`
+	TenantID          string    `db:"tenant_id" json:"tenant_id"`
+	EmailEnabled      bool      `db:"email_enabled" json:"email_enabled"`
+	SlackEnabled      bool      `db:"slack_enabled" json:"slack_enabled"`
+	WebhookEnabled    bool      `db:"webhook_enabled" json:"webhook_enabled"`
+	WebhookURL        *string   `db:"webhook_url" json:"webhook_url"`
+	PipelineCompleted bool      `db:"pipeline_completed" json:"pipeline_completed"`
+	PipelineFailed    bool      `db:"pipeline_failed" json:"pipeline_failed"`
+	TicketAssigned    bool      `db:"ticket_assigned" json:"ticket_assigned"`
+	TicketEscalated   bool      `db:"ticket_escalated" json:"ticket_escalated"`
+	SLAWarning        bool      `db:"sla_warning" json:"sla_warning"`
+	SLABreached       bool      `db:"sla_breached" json:"sla_breached"`
+	AlertTriggered    bool      `db:"alert_triggered" json:"alert_triggered"`
+	DeploymentSuccess bool      `db:"deployment_success" json:"deployment_success"`
+	DeploymentFailed  bool      `db:"deployment_failed" json:"deployment_failed"`
+	SystemAlert       bool      `db:"system_alert" json:"system_alert"`
+	CommentMention    bool      `db:"comment_mention" json:"comment_mention"`
+	TransferRequest   bool      `db:"transfer_request" json:"transfer_request"`
+	DigestEnabled     bool      `db:"digest_enabled" json:"digest_enabled"`
+	DigestFrequency   string    `db:"digest_frequency" json:"digest_frequency"`
+	QuietHoursStart   *string   `db:"quiet_hours_start" json:"quiet_hours_start"`
+	QuietHoursEnd     *string   `db:"quiet_hours_end" json:"quiet_hours_end"`
+	CreatedAt         time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt         time.Time `db:"updated_at" json:"updated_at"`
 }
 
 // NotificationSubscription tracks channel subscriptions per user.
@@ -232,24 +232,24 @@ type SubscribeRequest struct {
 
 // CreateNotificationTemplateInput is the payload for creating a notification template.
 type CreateNotificationTemplateInput struct {
-	Name            string   `json:"name" binding:"required"`
-	EventType       string   `json:"event_type" binding:"required"`
+	Name            string      `json:"name" binding:"required"`
+	EventType       string      `json:"event_type" binding:"required"`
 	Channel         ChannelType `json:"channel"`
-	ChannelIDs      []string `json:"channel_ids"`
-	Subject         string   `json:"subject"`
-	SubjectTemplate string   `json:"subject_template"`
-	BodyTemplate    string   `json:"body_template" binding:"required"`
+	ChannelIDs      []string    `json:"channel_ids"`
+	Subject         string      `json:"subject"`
+	SubjectTemplate string      `json:"subject_template"`
+	BodyTemplate    string      `json:"body_template" binding:"required"`
 }
 
 // UpdateNotificationTemplateInput is the payload for updating a notification template.
 type UpdateNotificationTemplateInput struct {
-	Name            *string   `json:"name"`
-	EventType       *string   `json:"event_type"`
+	Name            *string      `json:"name"`
+	EventType       *string      `json:"event_type"`
 	Channel         *ChannelType `json:"channel"`
-	ChannelIDs      *[]string `json:"channel_ids"`
-	Subject         *string   `json:"subject"`
-	SubjectTemplate *string   `json:"subject_template"`
-	BodyTemplate    *string   `json:"body_template"`
+	ChannelIDs      *[]string    `json:"channel_ids"`
+	Subject         *string      `json:"subject"`
+	SubjectTemplate *string      `json:"subject_template"`
+	BodyTemplate    *string      `json:"body_template"`
 }
 
 // ============================================================
@@ -260,22 +260,22 @@ type UpdateNotificationTemplateInput struct {
 type PolicyConditionOperator string
 
 const (
-	PolicyOpEQ        PolicyConditionOperator = "eq"
-	PolicyOpNEQ       PolicyConditionOperator = "neq"
-	PolicyOpContains  PolicyConditionOperator = "contains"
-	PolicyOpGT        PolicyConditionOperator = "gt"
-	PolicyOpLT        PolicyConditionOperator = "lt"
-	PolicyOpGTE       PolicyConditionOperator = "gte"
-	PolicyOpLTE       PolicyConditionOperator = "lte"
-	PolicyOpIn        PolicyConditionOperator = "in"
-	PolicyOpRegex     PolicyConditionOperator = "regex"
+	PolicyOpEQ       PolicyConditionOperator = "eq"
+	PolicyOpNEQ      PolicyConditionOperator = "neq"
+	PolicyOpContains PolicyConditionOperator = "contains"
+	PolicyOpGT       PolicyConditionOperator = "gt"
+	PolicyOpLT       PolicyConditionOperator = "lt"
+	PolicyOpGTE      PolicyConditionOperator = "gte"
+	PolicyOpLTE      PolicyConditionOperator = "lte"
+	PolicyOpIn       PolicyConditionOperator = "in"
+	PolicyOpRegex    PolicyConditionOperator = "regex"
 )
 
 // PolicyCondition represents a single condition in a notification policy.
 type PolicyCondition struct {
-	Field    string                 `db:"-" json:"field"`
+	Field    string                  `db:"-" json:"field"`
 	Operator PolicyConditionOperator `db:"-" json:"operator"`
-	Value    interface{}            `db:"-" json:"value"`
+	Value    interface{}             `db:"-" json:"value"`
 }
 
 // WorkflowStepType represents the type of a workflow step.
@@ -290,11 +290,11 @@ const (
 
 // WorkflowStep represents a single step in a notification workflow.
 type WorkflowStep struct {
-	ID    string                 `db:"-" json:"id"`
-	Name  string                 `db:"-" json:"name"`
-	Type  WorkflowStepType       `db:"-" json:"type"`
+	ID     string                 `db:"-" json:"id"`
+	Name   string                 `db:"-" json:"name"`
+	Type   WorkflowStepType       `db:"-" json:"type"`
 	Config map[string]interface{} `db:"-" json:"config"`
-	Order int                    `db:"-" json:"order"`
+	Order  int                    `db:"-" json:"order"`
 }
 
 // NotificationPolicyEntity represents a notification policy record.
@@ -315,16 +315,16 @@ type NotificationPolicyEntity struct {
 
 // NotificationWorkflowEntity represents a notification workflow record.
 type NotificationWorkflowEntity struct {
-	ID          string            `db:"id" json:"id"`
-	TenantID    string            `db:"tenant_id" json:"tenantId"`
-	Name        string            `db:"name" json:"name"`
-	Description *string           `db:"description" json:"description"`
-	PolicyID    string            `db:"policy_id" json:"policyId"`
-	Steps       []WorkflowStep    `db:"-" json:"steps"`
-	Enabled     bool              `db:"enabled" json:"enabled"`
-	CreatedBy   *string           `db:"created_by" json:"createdBy"`
-	CreatedAt   time.Time         `db:"created_at" json:"createdAt"`
-	UpdatedAt   time.Time         `db:"updated_at" json:"updatedAt"`
+	ID          string         `db:"id" json:"id"`
+	TenantID    string         `db:"tenant_id" json:"tenantId"`
+	Name        string         `db:"name" json:"name"`
+	Description *string        `db:"description" json:"description"`
+	PolicyID    string         `db:"policy_id" json:"policyId"`
+	Steps       []WorkflowStep `db:"-" json:"steps"`
+	Enabled     bool           `db:"enabled" json:"enabled"`
+	CreatedBy   *string        `db:"created_by" json:"createdBy"`
+	CreatedAt   time.Time      `db:"created_at" json:"createdAt"`
+	UpdatedAt   time.Time      `db:"updated_at" json:"updatedAt"`
 }
 
 // ============================================================
@@ -333,24 +333,24 @@ type NotificationWorkflowEntity struct {
 
 // CreatePolicyRequest is the payload for creating a notification policy.
 type CreatePolicyRequest struct {
-	Name           string             `json:"name" binding:"required"`
-	Description    *string            `json:"description"`
-	Conditions     []PolicyCondition  `json:"conditions"`
-	Channels       []string           `json:"channels"`
-	Recipients     []string           `json:"recipients"`
+	Name            string            `json:"name" binding:"required"`
+	Description     *string           `json:"description"`
+	Conditions      []PolicyCondition `json:"conditions"`
+	Channels        []string          `json:"channels"`
+	Recipients      []string          `json:"recipients"`
 	ThrottleMinutes int               `json:"throttleMinutes"`
-	Enabled        *bool              `json:"enabled"`
+	Enabled         *bool             `json:"enabled"`
 }
 
 // UpdatePolicyRequest is the payload for updating a notification policy.
 type UpdatePolicyRequest struct {
-	Name           *string            `json:"name"`
-	Description    *string            `json:"description"`
-	Conditions     []PolicyCondition  `json:"conditions"`
-	Channels       []string           `json:"channels"`
-	Recipients     []string           `json:"recipients"`
+	Name            *string           `json:"name"`
+	Description     *string           `json:"description"`
+	Conditions      []PolicyCondition `json:"conditions"`
+	Channels        []string          `json:"channels"`
+	Recipients      []string          `json:"recipients"`
 	ThrottleMinutes *int              `json:"throttleMinutes"`
-	Enabled        *bool              `json:"enabled"`
+	Enabled         *bool             `json:"enabled"`
 }
 
 // CreateWorkflowRequest is the payload for creating a notification workflow.
@@ -364,7 +364,7 @@ type CreateWorkflowRequest struct {
 
 // UpdateWorkflowRequest is the payload for updating a notification workflow.
 type UpdateWorkflowRequest struct {
-	Name        *string         `json:"name"`
+	Name        *string        `json:"name"`
 	Description *string        `json:"description"`
 	Steps       []WorkflowStep `json:"steps"`
 	Enabled     *bool          `json:"enabled"`
@@ -398,25 +398,25 @@ const (
 
 // NotificationDelivery tracks individual channel delivery attempts.
 type NotificationDelivery struct {
-	ID              string         `db:"id" json:"id"`
-	TenantID        string         `db:"tenant_id" json:"tenantId"`
-	NotificationID  string         `db:"notification_id" json:"notificationId"`
+	ID              string          `db:"id" json:"id"`
+	TenantID        string          `db:"tenant_id" json:"tenantId"`
+	NotificationID  string          `db:"notification_id" json:"notificationId"`
 	Channel         DeliveryChannel `db:"channel" json:"channel"`
-	Recipient       string         `db:"recipient" json:"recipient"`
-	Subject         *string        `db:"subject" json:"subject"`
-	Body            *string        `db:"body" json:"body"`
-	Status          DeliveryStatus `db:"status" json:"status"`
-	AttemptNumber   int            `db:"attempt_number" json:"attemptNumber"`
-	MaxAttempts     int            `db:"max_attempts" json:"maxAttempts"`
-	ErrorMessage    *string        `db:"error_message" json:"errorMessage"`
-	ResponseBody    *string        `db:"response_body" json:"responseBody"`
-	ResponseStatus  *int           `db:"response_status" json:"responseStatus"`
-	SentAt          *time.Time     `db:"sent_at" json:"sentAt"`
-	NextRetryAt     *time.Time     `db:"next_retry_at" json:"nextRetryAt"`
-	FallbackChannel *string        `db:"fallback_channel" json:"fallbackChannel"`
-	Metadata        JSONB          `db:"metadata" json:"metadata"`
-	CreatedAt       time.Time      `db:"created_at" json:"createdAt"`
-	UpdatedAt       time.Time      `db:"updated_at" json:"updatedAt"`
+	Recipient       string          `db:"recipient" json:"recipient"`
+	Subject         *string         `db:"subject" json:"subject"`
+	Body            *string         `db:"body" json:"body"`
+	Status          DeliveryStatus  `db:"status" json:"status"`
+	AttemptNumber   int             `db:"attempt_number" json:"attemptNumber"`
+	MaxAttempts     int             `db:"max_attempts" json:"maxAttempts"`
+	ErrorMessage    *string         `db:"error_message" json:"errorMessage"`
+	ResponseBody    *string         `db:"response_body" json:"responseBody"`
+	ResponseStatus  *int            `db:"response_status" json:"responseStatus"`
+	SentAt          *time.Time      `db:"sent_at" json:"sentAt"`
+	NextRetryAt     *time.Time      `db:"next_retry_at" json:"nextRetryAt"`
+	FallbackChannel *string         `db:"fallback_channel" json:"fallbackChannel"`
+	Metadata        JSONB           `db:"metadata" json:"metadata"`
+	CreatedAt       time.Time       `db:"created_at" json:"createdAt"`
+	UpdatedAt       time.Time       `db:"updated_at" json:"updatedAt"`
 }
 
 // CreateDeliveryInput is the payload for creating a delivery record.
@@ -466,20 +466,20 @@ const (
 
 // ScheduledNotification represents a delayed or periodic notification.
 type ScheduledNotification struct {
-	ID             string                     `db:"id" json:"id"`
-	TenantID       string                     `db:"tenant_id" json:"tenantId"`
-	UserID         *string                    `db:"user_id" json:"userId"`
-	TemplateID     *string                    `db:"template_id" json:"templateId"`
-	Type           string                     `db:"type" json:"type"`
-	Title          string                     `db:"title" json:"title"`
-	Message        string                     `db:"message" json:"message"`
-	Channel        ChannelType                `db:"channel" json:"channel"`
-	ScheduledAt    time.Time                  `db:"scheduled_at" json:"scheduledAt"`
-	Status         ScheduledNotificationStatus `db:"status" json:"status"`
-	SentAt         *time.Time                 `db:"sent_at" json:"sentAt"`
-	ErrorMessage   *string                    `db:"error_message" json:"errorMessage"`
-	CreatedAt      time.Time                  `db:"created_at" json:"createdAt"`
-	UpdatedAt      time.Time                  `db:"updated_at" json:"updatedAt"`
+	ID           string                      `db:"id" json:"id"`
+	TenantID     string                      `db:"tenant_id" json:"tenantId"`
+	UserID       *string                     `db:"user_id" json:"userId"`
+	TemplateID   *string                     `db:"template_id" json:"templateId"`
+	Type         string                      `db:"type" json:"type"`
+	Title        string                      `db:"title" json:"title"`
+	Message      string                      `db:"message" json:"message"`
+	Channel      ChannelType                 `db:"channel" json:"channel"`
+	ScheduledAt  time.Time                   `db:"scheduled_at" json:"scheduledAt"`
+	Status       ScheduledNotificationStatus `db:"status" json:"status"`
+	SentAt       *time.Time                  `db:"sent_at" json:"sentAt"`
+	ErrorMessage *string                     `db:"error_message" json:"errorMessage"`
+	CreatedAt    time.Time                   `db:"created_at" json:"createdAt"`
+	UpdatedAt    time.Time                   `db:"updated_at" json:"updatedAt"`
 }
 
 // CreateScheduledNotificationInput is the payload for creating a scheduled notification.
@@ -674,26 +674,26 @@ const (
 type AnomalyType string
 
 const (
-	AnomalyTypeSpamThreshold      AnomalyType = "spamThreshold"
-	AnomalyTypeDeliverySpike      AnomalyType = "deliverySpike"
-	AnomalyTypeFailureRate        AnomalyType = "failureRate"
+	AnomalyTypeSpamThreshold       AnomalyType = "spamThreshold"
+	AnomalyTypeDeliverySpike       AnomalyType = "deliverySpike"
+	AnomalyTypeFailureRate         AnomalyType = "failureRate"
 	AnomalyTypeDuplicateRecipients AnomalyType = "duplicateRecipients"
-	AnomalyTypeChannelDown        AnomalyType = "channelDown"
+	AnomalyTypeChannelDown         AnomalyType = "channelDown"
 )
 
 // Anomaly is a detected anomaly in notification delivery.
 type Anomaly struct {
-	ID           string           `db:"id" json:"id"`
-	TenantID     string           `db:"tenant_id" json:"tenantId"`
-	Type         AnomalyType      `db:"type" json:"type"`
-	Severity     AnomalySeverity  `db:"severity" json:"severity"`
-	Message      string           `db:"message" json:"message"`
-	Details      JSONB            `db:"details" json:"details"`
-	SourceID     *string          `db:"source_id" json:"sourceId"`
-	SourceIDType string           `db:"source_id_type" json:"sourceIdType"`
-	Status       string           `db:"status" json:"status"`
-	ResolvedAt   *time.Time       `db:"resolved_at" json:"resolvedAt"`
-	CreatedAt    time.Time        `db:"created_at" json:"createdAt"`
+	ID           string          `db:"id" json:"id"`
+	TenantID     string          `db:"tenant_id" json:"tenantId"`
+	Type         AnomalyType     `db:"type" json:"type"`
+	Severity     AnomalySeverity `db:"severity" json:"severity"`
+	Message      string          `db:"message" json:"message"`
+	Details      JSONB           `db:"details" json:"details"`
+	SourceID     *string         `db:"source_id" json:"sourceId"`
+	SourceIDType string          `db:"source_id_type" json:"sourceIdType"`
+	Status       string          `db:"status" json:"status"`
+	ResolvedAt   *time.Time      `db:"resolved_at" json:"resolvedAt"`
+	CreatedAt    time.Time       `db:"created_at" json:"createdAt"`
 }
 
 // ListAnomaliesQuery contains filter parameters for anomaly listing.

@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/gateway-dynamic/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/gateway-dynamic/models"
 )
 
@@ -31,7 +31,7 @@ func (f *fakeHandlerService) Create(ctx context.Context, tenantID string, req mo
 	return &models.GatewayRoute{}, nil
 }
 
-func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) (error) {
+func (f *fakeHandlerService) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
@@ -60,7 +60,6 @@ func (f *fakeHandlerService) Update(ctx context.Context, tenantID, id string, re
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestHandler_GATEWAY_DYNAMI_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

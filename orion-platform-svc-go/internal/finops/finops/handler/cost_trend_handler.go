@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/finops/finops/service"
 
 	"github.com/gin-gonic/gin"
@@ -15,11 +16,13 @@ func NewCostTrendHandler(svc *service.CostTrendService) *CostTrendHandler {
 }
 
 func (h *CostTrendHandler) GetTrend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsGetTrend")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	periodStart := c.Query("period_start")
 	periodEnd := c.Query("period_end")
 
-	trend, err := h.svc.GetCostTrend(c.Request.Context(), tenantID, periodStart, periodEnd)
+	trend, err := h.svc.GetCostTrend(ctx, tenantID, periodStart, periodEnd)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -29,11 +32,13 @@ func (h *CostTrendHandler) GetTrend(c *gin.Context) {
 }
 
 func (h *CostTrendHandler) GetByService(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsGetByService")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	periodStart := c.Query("period_start")
 	periodEnd := c.Query("period_end")
 
-	data, err := h.svc.GetCostByService(c.Request.Context(), tenantID, periodStart, periodEnd)
+	data, err := h.svc.GetCostByService(ctx, tenantID, periodStart, periodEnd)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -43,11 +48,13 @@ func (h *CostTrendHandler) GetByService(c *gin.Context) {
 }
 
 func (h *CostTrendHandler) GetK8sByNamespace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsGetK8sByNamespace")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	periodStart := c.Query("period_start")
 	periodEnd := c.Query("period_end")
 
-	data, err := h.svc.GetK8sCostByNamespace(c.Request.Context(), tenantID, periodStart, periodEnd)
+	data, err := h.svc.GetK8sCostByNamespace(ctx, tenantID, periodStart, periodEnd)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -57,11 +64,13 @@ func (h *CostTrendHandler) GetK8sByNamespace(c *gin.Context) {
 }
 
 func (h *CostTrendHandler) DetectAnomalies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsDetectAnomalies")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	periodStart := c.Query("period_start")
 	periodEnd := c.Query("period_end")
 
-	anomalies, err := h.svc.DetectAnomalies(c.Request.Context(), tenantID, periodStart, periodEnd)
+	anomalies, err := h.svc.DetectAnomalies(ctx, tenantID, periodStart, periodEnd)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -71,9 +80,11 @@ func (h *CostTrendHandler) DetectAnomalies(c *gin.Context) {
 }
 
 func (h *CostTrendHandler) GetROI(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FinopsGetROI")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	roi, err := h.svc.CalculateROI(c.Request.Context(), tenantID)
+	roi, err := h.svc.CalculateROI(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

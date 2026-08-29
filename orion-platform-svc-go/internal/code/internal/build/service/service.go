@@ -23,6 +23,10 @@ func NewBuildService(db *sql.DB) BuildService {
 func (s *buildServiceImpl) StartBuild(ctx context.Context, repoID, branch string) (interface{}, error) {
 	return nil, nil
 }
-func (s *buildServiceImpl) GetBuild(ctx context.Context, id string) (interface{}, error) { return nil, nil }
+func (s *buildServiceImpl) GetBuild(ctx context.Context, id string) (interface{}, error) {
+	return nil, nil
+}
 func (s *buildServiceImpl) CancelBuild(ctx context.Context, id string) error { return nil }
-func (s *buildServiceImpl) ListBuilds(ctx context.Context, page, size int) (interface{}, error) { return nil, nil }
+func (s *buildServiceImpl) ListBuilds(ctx context.Context, page, size int) (interface{}, error) {
+	return nil, nil
+}

@@ -10,9 +10,9 @@ import (
 // CreateApprovalSagaSteps returns the ordered steps for an approval workflow saga.
 //
 // Flow:
-//   1. CreateApprovalRequest  -> on failure / abort: DeleteApprovalRequest
-//   2. CreateApprovalLevel    -> on failure / abort: DeleteApprovalLevel
-//   3. AssignApprover         -> on failure / abort: RevokeApproverAssignment
+//  1. CreateApprovalRequest  -> on failure / abort: DeleteApprovalRequest
+//  2. CreateApprovalLevel    -> on failure / abort: DeleteApprovalLevel
+//  3. AssignApprover         -> on failure / abort: RevokeApproverAssignment
 //
 // Each step records its output in map[string]interface{} so that the matching
 // compensate function can undo exactly what was done.
@@ -25,17 +25,17 @@ func CreateApprovalSagaSteps() []saga.SagaStep {
 				approvalID := generateID("approval")
 				status := "pending"
 				result := map[string]interface{}{
-					"approval_id": approvalID,
-					"title":       getString(ctxData, "title", "Untitled Approval"),
-					"type":        getString(ctxData, "type", "multi_level"),
+					"approval_id":  approvalID,
+					"title":        getString(ctxData, "title", "Untitled Approval"),
+					"type":         getString(ctxData, "type", "multi_level"),
 					"total_levels": getInt(ctxData, "levels", 1),
-					"req_by_id":   getString(ctxData, "user_id", ""),
-					"status":      status,
+					"req_by_id":    getString(ctxData, "user_id", ""),
+					"status":       status,
 				}
 				inst.Steps = append(inst.Steps, saga.SagaStepResult{
-					StepID:  "create_approval_request",
-					Status:  "COMPLETED",
-					Result:  result,
+					StepID:     "create_approval_request",
+					Status:     "COMPLETED",
+					Result:     result,
 					ExecutedAt: nowPtr(),
 				})
 				return result, nil
@@ -46,8 +46,8 @@ func CreateApprovalSagaSteps() []saga.SagaStep {
 					return nil
 				}
 				comp := saga.SagaCompensation{
-					StepID:   "create_approval_request",
-					Status:   "COMPLETED",
+					StepID:     "create_approval_request",
+					Status:     "COMPLETED",
 					ExecutedAt: time.Now().UTC(),
 				}
 				inst.CompensationLog = append(inst.CompensationLog, comp)
@@ -71,19 +71,19 @@ func CreateApprovalSagaSteps() []saga.SagaStep {
 					approverName = a.(string)
 				}
 				result := map[string]interface{}{
-					"level_id":     levelID,
-					"approval_id":  approvalID,
-					"level":        1,
-					"approver_id":  approverID,
+					"level_id":      levelID,
+					"approval_id":   approvalID,
+					"level":         1,
+					"approver_id":   approverID,
 					"approver_name": approverName,
-					"total_levels": totalLevels,
-					"status":       "pending",
+					"total_levels":  totalLevels,
+					"status":        "pending",
 				}
 				inst.ContextData["approval_id"] = approvalID
 				inst.Steps = append(inst.Steps, saga.SagaStepResult{
-					StepID:  "create_approval_level",
-					Status:  "COMPLETED",
-					Result:  result,
+					StepID:     "create_approval_level",
+					Status:     "COMPLETED",
+					Result:     result,
 					ExecutedAt: nowPtr(),
 				})
 				return result, nil
@@ -94,8 +94,8 @@ func CreateApprovalSagaSteps() []saga.SagaStep {
 					return nil
 				}
 				comp := saga.SagaCompensation{
-					StepID:   "create_approval_level",
-					Status:   "COMPLETED",
+					StepID:     "create_approval_level",
+					Status:     "COMPLETED",
 					ExecutedAt: time.Now().UTC(),
 				}
 				inst.CompensationLog = append(inst.CompensationLog, comp)
@@ -120,9 +120,9 @@ func CreateApprovalSagaSteps() []saga.SagaStep {
 					"assigned_at":   time.Now().UTC(),
 				}
 				inst.Steps = append(inst.Steps, saga.SagaStepResult{
-					StepID:  "assign_approver",
-					Status:  "COMPLETED",
-					Result:  result,
+					StepID:     "assign_approver",
+					Status:     "COMPLETED",
+					Result:     result,
 					ExecutedAt: nowPtr(),
 				})
 				return result, nil
@@ -133,8 +133,8 @@ func CreateApprovalSagaSteps() []saga.SagaStep {
 					return nil
 				}
 				comp := saga.SagaCompensation{
-					StepID:   "assign_approver",
-					Status:   "COMPLETED",
+					StepID:     "assign_approver",
+					Status:     "COMPLETED",
 					ExecutedAt: time.Now().UTC(),
 				}
 				inst.CompensationLog = append(inst.CompensationLog, comp)

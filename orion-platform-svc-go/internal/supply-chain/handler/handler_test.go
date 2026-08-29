@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/supply-chain/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/supply-chain/models"
 )
 
@@ -68,7 +68,6 @@ func (f *fakeSupply_chainService) VerifyArtifactSignature(ctx context.Context, a
 }
 
 var _ service.ServiceInterface = (*fakeSupply_chainService)(nil)
-
 
 func TestHandler_SUPPLY_CHAIN_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

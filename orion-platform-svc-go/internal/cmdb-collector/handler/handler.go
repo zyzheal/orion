@@ -97,7 +97,7 @@ func (h *Handler) GetCollector(c *gin.Context) {
 // ---------- Targets ----------
 
 func (h *Handler) ListTargets(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTargets")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTargets")
 	defer span.End()
 	tenantID := h.tenantID(c)
 	collectorName := c.Param("name")
@@ -106,7 +106,7 @@ func (h *Handler) ListTargets(c *gin.Context) {
 	if limit <= 0 || limit > 500 {
 		limit = 50
 	}
-	targets, err := h.svc.ListTargets(c.Request.Context(), tenantID, collectorName, offset, limit)
+	targets, err := h.svc.ListTargets(ctx, tenantID, collectorName, offset, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

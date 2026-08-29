@@ -19,11 +19,11 @@ type testAdapter struct {
 	typ  string
 }
 
-func (t *testAdapter) Name() string          { return t.name }
-func (t *testAdapter) Type() string          { return t.typ }
+func (t *testAdapter) Name() string                                                   { return t.name }
+func (t *testAdapter) Type() string                                                   { return t.typ }
 func (t *testAdapter) Initialize(ctx context.Context, config map[string]string) error { return nil }
 func (t *testAdapter) StartListening(ctx context.Context, handler EventHandler) error { return nil }
-func (t *testAdapter) Stop() error { return nil }
+func (t *testAdapter) Stop() error                                                    { return nil }
 
 // ---------------------------------------------------------------------------
 // Adapter tests
@@ -572,7 +572,6 @@ func TestSourcePipeline_SetCallback(t *testing.T) {
 	}
 }
 
-
 // ---------------------------------------------------------------------------
 // ChainExecutor tests
 // ---------------------------------------------------------------------------
@@ -663,10 +662,18 @@ type mockRepository struct {
 
 func (m *mockRepository) Create(ctx context.Context, s *models.JobSource) error { return nil }
 func (m *mockRepository) Delete(ctx context.Context, tenantID, id string) error { return nil }
-func (m *mockRepository) GetByID(ctx context.Context, tenantID, id string) (*models.JobSource, error) { return nil, nil }
-func (m *mockRepository) List(ctx context.Context, tenantID string, limit, offset int) ([]models.JobSource, error) { return nil, nil }
-func (m *mockRepository) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error { return nil }
-func (m *mockRepository) UpdatePartial(ctx context.Context, tenantID, id string, updates map[string]interface{}) error { return nil }
+func (m *mockRepository) GetByID(ctx context.Context, tenantID, id string) (*models.JobSource, error) {
+	return nil, nil
+}
+func (m *mockRepository) List(ctx context.Context, tenantID string, limit, offset int) ([]models.JobSource, error) {
+	return nil, nil
+}
+func (m *mockRepository) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
+	return nil
+}
+func (m *mockRepository) UpdatePartial(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
+	return nil
+}
 func (m *mockRepository) CreateEvent(ctx context.Context, e *models.JobSourceEvent) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -679,7 +686,9 @@ func (m *mockRepository) UpdateEventStatus(ctx context.Context, tenantID, id str
 	m.updated = append(m.updated, id)
 	return nil
 }
-func (m *mockRepository) ListEvents(ctx context.Context, tenantID, sourceID string, limit, offset int) ([]models.JobSourceEvent, error) { return nil, nil }
+func (m *mockRepository) ListEvents(ctx context.Context, tenantID, sourceID string, limit, offset int) ([]models.JobSourceEvent, error) {
+	return nil, nil
+}
 
 func TestEventRecorder_RecordReceived(t *testing.T) {
 	logger := zaptest.NewLogger(t)

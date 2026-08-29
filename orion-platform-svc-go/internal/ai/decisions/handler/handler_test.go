@@ -31,39 +31,57 @@ type mockSvc struct {
 }
 
 func (m *mockSvc) ListDecisions(ctx context.Context, tenantID string, q *models.ListQuery) ([]models.AIDecision, int64, error) {
-	if m.listFn != nil { return m.listFn(ctx, tenantID, q) }
+	if m.listFn != nil {
+		return m.listFn(ctx, tenantID, q)
+	}
 	return nil, 0, nil
 }
 func (m *mockSvc) RecordDecision(ctx context.Context, tenantID, userID string, req *models.RecordDecisionRequest) (*models.AIDecision, error) {
-	if m.createFn != nil { return m.createFn(ctx, tenantID, userID, req) }
+	if m.createFn != nil {
+		return m.createFn(ctx, tenantID, userID, req)
+	}
 	return nil, nil
 }
 func (m *mockSvc) GetDecision(ctx context.Context, id, tenantID string) (*models.AIDecision, error) {
-	if m.getFn != nil { return m.getFn(ctx, id, tenantID) }
+	if m.getFn != nil {
+		return m.getFn(ctx, id, tenantID)
+	}
 	return nil, nil
 }
 func (m *mockSvc) DeleteDecision(ctx context.Context, id, tenantID string) (bool, error) {
-	if m.deleteFn != nil { return m.deleteFn(ctx, id, tenantID) }
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, id, tenantID)
+	}
 	return false, nil
 }
 func (m *mockSvc) GetExplanation(ctx context.Context, id, tenantID string) (*service.ExplanationResult, error) {
-	if m.getExplanationFn != nil { return m.getExplanationFn(ctx, id, tenantID) }
+	if m.getExplanationFn != nil {
+		return m.getExplanationFn(ctx, id, tenantID)
+	}
 	return nil, nil
 }
 func (m *mockSvc) SubmitFeedback(ctx context.Context, tenantID, userID, decisionID string, req *models.SubmitFeedbackRequest) (*models.AIDecision, error) {
-	if m.submitFeedbackFn != nil { return m.submitFeedbackFn(ctx, tenantID, userID, decisionID, req) }
+	if m.submitFeedbackFn != nil {
+		return m.submitFeedbackFn(ctx, tenantID, userID, decisionID, req)
+	}
 	return nil, nil
 }
 func (m *mockSvc) GetTraces(ctx context.Context, decisionID, tenantID string) ([]models.DecisionTrace, error) {
-	if m.getTracesFn != nil { return m.getTracesFn(ctx, decisionID, tenantID) }
+	if m.getTracesFn != nil {
+		return m.getTracesFn(ctx, decisionID, tenantID)
+	}
 	return nil, nil
 }
 func (m *mockSvc) GetStats(ctx context.Context, tenantID string, dateRange *models.DateRange) (*models.DecisionStats, error) {
-	if m.getStatsFn != nil { return m.getStatsFn(ctx, tenantID, dateRange) }
+	if m.getStatsFn != nil {
+		return m.getStatsFn(ctx, tenantID, dateRange)
+	}
 	return nil, nil
 }
 func (m *mockSvc) AnalyzeDecisions(ctx context.Context, tenantID string, req *models.AnalyzeDecisionsRequest) (*models.AnalyzeDecisionsResult, error) {
-	if m.analyzeFn != nil { return m.analyzeFn(ctx, tenantID, req) }
+	if m.analyzeFn != nil {
+		return m.analyzeFn(ctx, tenantID, req)
+	}
 	return nil, nil
 }
 
@@ -107,11 +125,11 @@ func makeDecision(id string) *models.AIDecision {
 
 func makeTrace(id, action string, step int) models.DecisionTrace {
 	return models.DecisionTrace{
-		ID:        id,
+		ID:         id,
 		DecisionID: "d1",
-		Action:    action,
-		Step:      step,
-		Timestamp: time.Now().Unix(),
+		Action:     action,
+		Step:       step,
+		Timestamp:  time.Now().Unix(),
 	}
 }
 
@@ -121,8 +139,8 @@ func makeStats() *models.DecisionStats {
 
 func makeAnalyzeResult() *models.AnalyzeDecisionsResult {
 	return &models.AnalyzeDecisionsResult{
-		AnalysisType: "pattern",
-		Insights:     []models.AnalysisInsight{{Type: "pattern", Title: "test"}},
+		AnalysisType:    "pattern",
+		Insights:        []models.AnalysisInsight{{Type: "pattern", Title: "test"}},
 		Recommendations: []string{"recommendation 1"},
 	}
 }
@@ -132,18 +150,26 @@ func makeAnalyzeResult() *models.AnalyzeDecisionsResult {
 func TestHandler_List_Success(t *testing.T) {
 	decisions := []models.AIDecision{*makeDecision("d1")}
 	h := newHandlerWithSvc(&mockSvc{
-		listFn: func(ctx context.Context, tenantID string, q *models.ListQuery) ([]models.AIDecision, int64, error) { return decisions, 1, nil },
+		listFn: func(ctx context.Context, tenantID string, q *models.ListQuery) ([]models.AIDecision, int64, error) {
+			return decisions, 1, nil
+		},
 	})
 	w := performRequest(h, h.List, "GET", nil, nil, nil)
-	if w.Code != http.StatusOK { t.Fatalf("expected 200, got %d", w.Code) }
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
 }
 
 func TestHandler_List_Error(t *testing.T) {
 	h := newHandlerWithSvc(&mockSvc{
-		listFn: func(ctx context.Context, tenantID string, q *models.ListQuery) ([]models.AIDecision, int64, error) { return nil, 0, errors.New("db down") },
+		listFn: func(ctx context.Context, tenantID string, q *models.ListQuery) ([]models.AIDecision, int64, error) {
+			return nil, 0, errors.New("db down")
+		},
 	})
 	w := performRequest(h, h.List, "GET", nil, nil, nil)
-	if w.Code != http.StatusInternalServerError { t.Fatalf("expected 500, got %d", w.Code) }
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", w.Code)
+	}
 }
 
 // ==================== Create ====================
@@ -151,36 +177,46 @@ func TestHandler_List_Error(t *testing.T) {
 func TestHandler_Create_Success(t *testing.T) {
 	d := makeDecision("d1")
 	h := newHandlerWithSvc(&mockSvc{
-		createFn: func(ctx context.Context, tenantID, userID string, req *models.RecordDecisionRequest) (*models.AIDecision, error) { return d, nil },
+		createFn: func(ctx context.Context, tenantID, userID string, req *models.RecordDecisionRequest) (*models.AIDecision, error) {
+			return d, nil
+		},
 	})
 	w := performRequest(h, h.Create, "POST", models.RecordDecisionRequest{
-		Type: "recommendation",
-		Input:  map[string]interface{}{"key": "val"},
-		Output: map[string]interface{}{"result": "ok"},
+		Type:       "recommendation",
+		Input:      map[string]interface{}{"key": "val"},
+		Output:     map[string]interface{}{"result": "ok"},
 		Confidence: 0.9,
 		Reasoning:  models.DecisionReasoning{Summary: "test"},
 	}, nil, nil)
-	if w.Code != http.StatusCreated { t.Fatalf("expected 201, got %d", w.Code) }
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", w.Code)
+	}
 }
 
 func TestHandler_Create_BadRequest(t *testing.T) {
 	h := newHandlerWithSvc(&mockSvc{})
 	w := performRequest(h, h.Create, "POST", map[string]interface{}{"bad": "data"}, nil, nil)
-	if w.Code != http.StatusBadRequest { t.Fatalf("expected 400, got %d", w.Code) }
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
 }
 
 func TestHandler_Create_ServiceError(t *testing.T) {
 	h := newHandlerWithSvc(&mockSvc{
-		createFn: func(ctx context.Context, tenantID, userID string, req *models.RecordDecisionRequest) (*models.AIDecision, error) { return nil, errors.New("db err") },
+		createFn: func(ctx context.Context, tenantID, userID string, req *models.RecordDecisionRequest) (*models.AIDecision, error) {
+			return nil, errors.New("db err")
+		},
 	})
 	w := performRequest(h, h.Create, "POST", models.RecordDecisionRequest{
-		Type: "recommendation",
-		Input:  map[string]interface{}{"key": "val"},
-		Output: map[string]interface{}{"result": "ok"},
+		Type:       "recommendation",
+		Input:      map[string]interface{}{"key": "val"},
+		Output:     map[string]interface{}{"result": "ok"},
 		Confidence: 0.9,
 		Reasoning:  models.DecisionReasoning{Summary: "test"},
 	}, nil, nil)
-	if w.Code != http.StatusInternalServerError { t.Fatalf("expected 500, got %d", w.Code) }
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", w.Code)
+	}
 }
 
 // ==================== Get ====================
@@ -191,15 +227,21 @@ func TestHandler_Get_Success(t *testing.T) {
 		getFn: func(ctx context.Context, id, tenantID string) (*models.AIDecision, error) { return d, nil },
 	})
 	w := performRequest(h, h.Get, "GET", nil, map[string]string{"id": "d1"}, nil)
-	if w.Code != http.StatusOK { t.Fatalf("expected 200, got %d", w.Code) }
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
 }
 
 func TestHandler_Get_NotFound(t *testing.T) {
 	h := newHandlerWithSvc(&mockSvc{
-		getFn: func(ctx context.Context, id, tenantID string) (*models.AIDecision, error) { return nil, service.ErrDecisionNotFound },
+		getFn: func(ctx context.Context, id, tenantID string) (*models.AIDecision, error) {
+			return nil, service.ErrDecisionNotFound
+		},
 	})
 	w := performRequest(h, h.Get, "GET", nil, map[string]string{"id": "x"}, nil)
-	if w.Code != http.StatusNotFound { t.Fatalf("expected 404, got %d", w.Code) }
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", w.Code)
+	}
 }
 
 // ==================== Delete ====================
@@ -209,7 +251,9 @@ func TestHandler_Delete_Success(t *testing.T) {
 		deleteFn: func(ctx context.Context, id, tenantID string) (bool, error) { return true, nil },
 	})
 	w := performRequest(h, h.Delete, "DELETE", nil, map[string]string{"id": "d1"}, nil)
-	if w.Code != http.StatusOK { t.Fatalf("expected 200, got %d", w.Code) }
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
 }
 
 func TestHandler_Delete_NotFound(t *testing.T) {
@@ -217,25 +261,35 @@ func TestHandler_Delete_NotFound(t *testing.T) {
 		deleteFn: func(ctx context.Context, id, tenantID string) (bool, error) { return false, nil },
 	})
 	w := performRequest(h, h.Delete, "DELETE", nil, map[string]string{"id": "d1"}, nil)
-	if w.Code != http.StatusNotFound { t.Fatalf("expected 404, got %d", w.Code) }
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", w.Code)
+	}
 }
 
 // ==================== GetExplanation ====================
 
 func TestHandler_GetExplanation_Success(t *testing.T) {
 	h := newHandlerWithSvc(&mockSvc{
-		getExplanationFn: func(ctx context.Context, id, tenantID string) (*service.ExplanationResult, error) { return &service.ExplanationResult{Explanation: "test"}, nil },
+		getExplanationFn: func(ctx context.Context, id, tenantID string) (*service.ExplanationResult, error) {
+			return &service.ExplanationResult{Explanation: "test"}, nil
+		},
 	})
 	w := performRequest(h, h.GetExplanation, "GET", nil, map[string]string{"id": "d1"}, nil)
-	if w.Code != http.StatusOK { t.Fatalf("expected 200, got %d", w.Code) }
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
 }
 
 func TestHandler_GetExplanation_NotFound(t *testing.T) {
 	h := newHandlerWithSvc(&mockSvc{
-		getExplanationFn: func(ctx context.Context, id, tenantID string) (*service.ExplanationResult, error) { return nil, service.ErrDecisionNotFound },
+		getExplanationFn: func(ctx context.Context, id, tenantID string) (*service.ExplanationResult, error) {
+			return nil, service.ErrDecisionNotFound
+		},
 	})
 	w := performRequest(h, h.GetExplanation, "GET", nil, map[string]string{"id": "x"}, nil)
-	if w.Code != http.StatusNotFound { t.Fatalf("expected 404, got %d", w.Code) }
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", w.Code)
+	}
 }
 
 // ==================== SubmitFeedback ====================
@@ -243,16 +297,22 @@ func TestHandler_GetExplanation_NotFound(t *testing.T) {
 func TestHandler_SubmitFeedback_Success(t *testing.T) {
 	d := makeDecision("d1")
 	h := newHandlerWithSvc(&mockSvc{
-		submitFeedbackFn: func(ctx context.Context, tenantID, userID, decisionID string, req *models.SubmitFeedbackRequest) (*models.AIDecision, error) { return d, nil },
+		submitFeedbackFn: func(ctx context.Context, tenantID, userID, decisionID string, req *models.SubmitFeedbackRequest) (*models.AIDecision, error) {
+			return d, nil
+		},
 	})
 	w := performRequest(h, h.SubmitFeedback, "POST", models.SubmitFeedbackRequest{Type: "positive"}, map[string]string{"id": "d1"}, nil)
-	if w.Code != http.StatusOK { t.Fatalf("expected 200, got %d", w.Code) }
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
 }
 
 func TestHandler_SubmitFeedback_BadRequest(t *testing.T) {
 	h := newHandlerWithSvc(&mockSvc{})
 	w := performRequest(h, h.SubmitFeedback, "POST", map[string]interface{}{"bad": "data"}, map[string]string{"id": "d1"}, nil)
-	if w.Code != http.StatusBadRequest { t.Fatalf("expected 400, got %d", w.Code) }
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
 }
 
 // ==================== GetTraces ====================
@@ -260,18 +320,26 @@ func TestHandler_SubmitFeedback_BadRequest(t *testing.T) {
 func TestHandler_GetTraces_Success(t *testing.T) {
 	traces := []models.DecisionTrace{makeTrace("t1", "inference", 1)}
 	h := newHandlerWithSvc(&mockSvc{
-		getTracesFn: func(ctx context.Context, decisionID, tenantID string) ([]models.DecisionTrace, error) { return traces, nil },
+		getTracesFn: func(ctx context.Context, decisionID, tenantID string) ([]models.DecisionTrace, error) {
+			return traces, nil
+		},
 	})
 	w := performRequest(h, h.GetTraces, "GET", nil, map[string]string{"id": "d1"}, nil)
-	if w.Code != http.StatusOK { t.Fatalf("expected 200, got %d", w.Code) }
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
 }
 
 func TestHandler_GetTraces_NotFound(t *testing.T) {
 	h := newHandlerWithSvc(&mockSvc{
-		getTracesFn: func(ctx context.Context, decisionID, tenantID string) ([]models.DecisionTrace, error) { return nil, service.ErrDecisionNotFound },
+		getTracesFn: func(ctx context.Context, decisionID, tenantID string) ([]models.DecisionTrace, error) {
+			return nil, service.ErrDecisionNotFound
+		},
 	})
 	w := performRequest(h, h.GetTraces, "GET", nil, map[string]string{"id": "x"}, nil)
-	if w.Code != http.StatusNotFound { t.Fatalf("expected 404, got %d", w.Code) }
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", w.Code)
+	}
 }
 
 // ==================== GetStats ====================
@@ -279,18 +347,26 @@ func TestHandler_GetTraces_NotFound(t *testing.T) {
 func TestHandler_GetStats_Success(t *testing.T) {
 	stats := makeStats()
 	h := newHandlerWithSvc(&mockSvc{
-		getStatsFn: func(ctx context.Context, tenantID string, dateRange *models.DateRange) (*models.DecisionStats, error) { return stats, nil },
+		getStatsFn: func(ctx context.Context, tenantID string, dateRange *models.DateRange) (*models.DecisionStats, error) {
+			return stats, nil
+		},
 	})
 	w := performRequest(h, h.GetStats, "GET", nil, nil, nil)
-	if w.Code != http.StatusOK { t.Fatalf("expected 200, got %d", w.Code) }
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
 }
 
 func TestHandler_GetStats_Error(t *testing.T) {
 	h := newHandlerWithSvc(&mockSvc{
-		getStatsFn: func(ctx context.Context, tenantID string, dateRange *models.DateRange) (*models.DecisionStats, error) { return nil, errors.New("db down") },
+		getStatsFn: func(ctx context.Context, tenantID string, dateRange *models.DateRange) (*models.DecisionStats, error) {
+			return nil, errors.New("db down")
+		},
 	})
 	w := performRequest(h, h.GetStats, "GET", nil, nil, nil)
-	if w.Code != http.StatusInternalServerError { t.Fatalf("expected 500, got %d", w.Code) }
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", w.Code)
+	}
 }
 
 // ==================== AnalyzeDecisions ====================
@@ -298,14 +374,20 @@ func TestHandler_GetStats_Error(t *testing.T) {
 func TestHandler_AnalyzeDecisions_Success(t *testing.T) {
 	result := makeAnalyzeResult()
 	h := newHandlerWithSvc(&mockSvc{
-		analyzeFn: func(ctx context.Context, tenantID string, req *models.AnalyzeDecisionsRequest) (*models.AnalyzeDecisionsResult, error) { return result, nil },
+		analyzeFn: func(ctx context.Context, tenantID string, req *models.AnalyzeDecisionsRequest) (*models.AnalyzeDecisionsResult, error) {
+			return result, nil
+		},
 	})
 	w := performRequest(h, h.AnalyzeDecisions, "POST", models.AnalyzeDecisionsRequest{AnalysisType: "pattern"}, nil, nil)
-	if w.Code != http.StatusOK { t.Fatalf("expected 200, got %d", w.Code) }
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
 }
 
 func TestHandler_AnalyzeDecisions_BadRequest(t *testing.T) {
 	h := newHandlerWithSvc(&mockSvc{})
 	w := performRequest(h, h.AnalyzeDecisions, "POST", models.AnalyzeDecisionsRequest{}, nil, nil)
-	if w.Code != http.StatusBadRequest { t.Fatalf("expected 400, got %d", w.Code) }
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
 }

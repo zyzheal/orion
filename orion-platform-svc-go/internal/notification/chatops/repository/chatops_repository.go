@@ -89,7 +89,6 @@ func (r *Repository) GetCommandByName(ctx context.Context, tenantID, name string
 	return &d, nil
 }
 
-
 func (r *Repository) GetCommandByID(ctx context.Context, tenantID, id string) (*models.ChatOpsCommand, error) {
 	var d models.ChatOpsCommand
 	err := r.db.GetContext(ctx, &d,
@@ -243,7 +242,6 @@ func (r *Repository) CountExecutions(ctx context.Context, tenantID string) (int,
 		`SELECT COUNT(*) FROM chatops_executions WHERE tenant_id=$1`, tenantID)
 	return count, err
 }
-
 
 // CountExecutionsInWindow counts executions for a user within a time window.
 // If commandName is non-empty, only counts executions for that specific command.

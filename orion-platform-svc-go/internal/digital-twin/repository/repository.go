@@ -181,15 +181,15 @@ func ErrNotFoundMsg(msg string) error {
 
 // FindRecordingSessionByID reads a recording session by id, scanning the JSONB records column.
 type recordingSessionRow struct {
-	ID          string          `db:"id"`
-	TwinID      string          `db:"twin_id"`
-	Name        string          `db:"name"`
-	Status      string          `db:"status"`
-	RecordCount int64           `db:"record_count"`
-	RecordsJSON []byte          `db:"records"`
-	StartedAt   time.Time       `db:"started_at"`
-	CompletedAt *time.Time      `db:"completed_at"`
-	UpdatedAt   time.Time       `db:"updated_at"`
+	ID          string     `db:"id"`
+	TwinID      string     `db:"twin_id"`
+	Name        string     `db:"name"`
+	Status      string     `db:"status"`
+	RecordCount int64      `db:"record_count"`
+	RecordsJSON []byte     `db:"records"`
+	StartedAt   time.Time  `db:"started_at"`
+	CompletedAt *time.Time `db:"completed_at"`
+	UpdatedAt   time.Time  `db:"updated_at"`
 }
 
 func (r *Repository) FindRecordingSessionByID(ctx context.Context, id string) (*recordingSessionRow, error) {

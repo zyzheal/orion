@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/identity/auth/permission"
 
 	"github.com/gin-gonic/gin"
@@ -19,6 +20,8 @@ func NewPermissionHandler(svc *permission.Service, log *zap.Logger) *PermissionH
 
 // ListPermissions handles GET /permissions.
 func (h *PermissionHandler) ListPermissions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthListPermissions")
+	defer span.End()
 	tenantID := c.DefaultQuery("tenant_id", "")
 	resource := c.DefaultQuery("resource", "")
 
@@ -27,7 +30,7 @@ func (h *PermissionHandler) ListPermissions(c *gin.Context) {
 		return
 	}
 
-	perms, err := h.svc.List(c.Request.Context(), tenantID, resource)
+	perms, err := h.svc.List(ctx, tenantID, resource)
 	if err != nil {
 		h.log.Error("failed to list permissions", zap.Error(err))
 		h.respondInternalError(c, "internal error")
@@ -35,13 +38,15 @@ func (h *PermissionHandler) ListPermissions(c *gin.Context) {
 	}
 
 	h.respondSuccess(c, gin.H{"permissions": perms,
-		"total": len(perms),})
+		"total": len(perms)})
 }
 
 // GetPermission handles GET /permissions/:id.
 func (h *PermissionHandler) GetPermission(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthGetPermission")
+	defer span.End()
 	id := c.Param("id")
-	p, err := h.svc.Get(c.Request.Context(), id)
+	p, err := h.svc.Get(ctx, id)
 	if err != nil {
 		h.respondNotFound(c, err.Error())
 		return
@@ -56,6 +61,8 @@ func (h *PermissionHandler) GetPermission(c *gin.Context) {
 
 // CreatePermission handles POST /permissions.
 func (h *PermissionHandler) CreatePermission(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthCreatePermission")
+	defer span.End()
 	var req struct {
 		TenantID    string `json:"tenant_id" binding:"required"`
 		Resource    string `json:"resource" binding:"required"`
@@ -67,7 +74,7 @@ func (h *PermissionHandler) CreatePermission(c *gin.Context) {
 		return
 	}
 
-	p, err := h.svc.Create(c.Request.Context(), req.TenantID, req.Resource, req.Action, req.Description)
+	p, err := h.svc.Create(ctx, req.TenantID, req.Resource, req.Action, req.Description)
 	if err != nil {
 		if pe, ok := err.(*permission.PermissionError); ok {
 			h.respondBadRequest(c, pe.Error())
@@ -83,6 +90,8 @@ func (h *PermissionHandler) CreatePermission(c *gin.Context) {
 
 // UpdatePermission handles PUT /permissions/:id.
 func (h *PermissionHandler) UpdatePermission(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthUpdatePermission")
+	defer span.End()
 	id := c.Param("id")
 	var req struct {
 		Description string `json:"description"`
@@ -93,7 +102,7 @@ func (h *PermissionHandler) UpdatePermission(c *gin.Context) {
 		return
 	}
 
-	p, err := h.svc.Update(c.Request.Context(), id, req.Description, req.Enabled)
+	p, err := h.svc.Update(ctx, id, req.Description, req.Enabled)
 	if err != nil {
 		h.respondNotFound(c, err.Error())
 		return
@@ -104,8 +113,10 @@ func (h *PermissionHandler) UpdatePermission(c *gin.Context) {
 
 // DeletePermission handles DELETE /permissions/:id.
 func (h *PermissionHandler) DeletePermission(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthDeletePermission")
+	defer span.End()
 	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), id); err != nil {
+	if err := h.svc.Delete(ctx, id); err != nil {
 		h.respondNotFound(c, err.Error())
 		return
 	}
@@ -115,6 +126,8 @@ func (h *PermissionHandler) DeletePermission(c *gin.Context) {
 
 // AssignPermissionToUser handles POST /users/:userId/permissions.
 func (h *PermissionHandler) AssignPermissionToUser(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthAssignPermissionToUser")
+	defer span.End()
 	userID := c.Param("userId")
 	var req struct {
 		TenantID     string `json:"tenant_id" binding:"required"`
@@ -130,19 +143,21 @@ func (h *PermissionHandler) AssignPermissionToUser(c *gin.Context) {
 		req.GrantedBy = "admin"
 	}
 
-	if err := h.svc.AssignPermission(c.Request.Context(), req.TenantID, userID, req.RoleID, req.PermissionID, req.GrantedBy); err != nil {
+	if err := h.svc.AssignPermission(ctx, req.TenantID, userID, req.RoleID, req.PermissionID, req.GrantedBy); err != nil {
 		h.log.Error("failed to assign permission", zap.Error(err))
 		h.respondInternalError(c, "internal error")
 		return
 	}
 
 	h.respondSuccess(c, gin.H{"message": "permission assigned",
-		"user_id":   userID,
-		"permission_id": req.PermissionID,})
+		"user_id":       userID,
+		"permission_id": req.PermissionID})
 }
 
 // CheckPermission handles POST /permissions/check.
 func (h *PermissionHandler) CheckPermission(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuthCheckPermission")
+	defer span.End()
 	var req struct {
 		TenantID string `json:"tenant_id" binding:"required"`
 		UserID   string `json:"user_id" binding:"required"`
@@ -154,7 +169,7 @@ func (h *PermissionHandler) CheckPermission(c *gin.Context) {
 		return
 	}
 
-	granted, err := h.svc.CheckPermission(c.Request.Context(), req.TenantID, req.UserID, req.Resource, req.Action)
+	granted, err := h.svc.CheckPermission(ctx, req.TenantID, req.UserID, req.Resource, req.Action)
 	if err != nil {
 		h.log.Error("failed to check permission", zap.Error(err))
 		h.respondInternalError(c, "internal error")

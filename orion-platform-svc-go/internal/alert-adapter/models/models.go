@@ -12,11 +12,11 @@
 // AlertAdapterFactory and dispatch alerts via Send/Receive operations.
 //
 // Data flow:
-//   1. Adapter is registered via POST /api/alert-adapters (config stored as JSON)
-//   2. Factory creates a typed handler and calls Initialize(config)
-//   3. Send: Orion pushes an alert → handler.Send() → external system
-//   4. Receive: handler.Receive() pulls → recorded as AlertEvent
-//   5. AlertEvent records every receive/send lifecycle with status tracking
+//  1. Adapter is registered via POST /api/alert-adapters (config stored as JSON)
+//  2. Factory creates a typed handler and calls Initialize(config)
+//  3. Send: Orion pushes an alert → handler.Send() → external system
+//  4. Receive: handler.Receive() pulls → recorded as AlertEvent
+//  5. AlertEvent records every receive/send lifecycle with status tracking
 //
 // Tables: alert_adapters (adapter registry), alert_events (event audit trail)
 package models
@@ -110,17 +110,17 @@ var ValidEventStatuses = map[string]bool{
 
 // AlertAdapter represents a registered alert adapter with a typed handler.
 type AlertAdapter struct {
-	ID          string    `db:"id" json:"id"`
-	TenantID    string    `db:"tenant_id" json:"tenant_id"`
-	Name        string    `db:"name" json:"name"`
-	Type        string    `db:"type" json:"type"`       // prometheus, zabbix, grafana, kafka, webhook, email, sms, wechat, slack, pagerduty
-	Category    string    `db:"category" json:"category"` // source, notification, export
-	Config      string    `db:"config" json:"config"`    // JSON
-	Status      string    `db:"status" json:"status"`    // enabled, disabled, error
-	Enabled     bool      `db:"enabled" json:"enabled"`
-	Error       string    `db:"error" json:"error"`
-	CreatedAt   time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+	ID        string    `db:"id" json:"id"`
+	TenantID  string    `db:"tenant_id" json:"tenant_id"`
+	Name      string    `db:"name" json:"name"`
+	Type      string    `db:"type" json:"type"`         // prometheus, zabbix, grafana, kafka, webhook, email, sms, wechat, slack, pagerduty
+	Category  string    `db:"category" json:"category"` // source, notification, export
+	Config    string    `db:"config" json:"config"`     // JSON
+	Status    string    `db:"status" json:"status"`     // enabled, disabled, error
+	Enabled   bool      `db:"enabled" json:"enabled"`
+	Error     string    `db:"error" json:"error"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
 }
 
 // ---------------------------------------------------------------------------
@@ -136,9 +136,9 @@ type AlertEvent struct {
 	Title       string     `db:"title" json:"title"`
 	Message     string     `db:"message" json:"message"`
 	Severity    string     `db:"severity" json:"severity"` // info, warning, critical, emergency
-	Labels      string     `db:"labels" json:"labels"`      // JSON
-	Payload     string     `db:"payload" json:"payload"`    // JSON
-	Status      string     `db:"status" json:"status"`      // received, processed, failed
+	Labels      string     `db:"labels" json:"labels"`     // JSON
+	Payload     string     `db:"payload" json:"payload"`   // JSON
+	Status      string     `db:"status" json:"status"`     // received, processed, failed
 	ProcessedAt *time.Time `db:"processed_at" json:"processed_at,omitempty"`
 	Error       string     `db:"error" json:"error"`
 	CreatedAt   time.Time  `db:"created_at" json:"created_at"`

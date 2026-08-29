@@ -13,11 +13,11 @@ type VectorStore struct {
 }
 
 type VectorItem struct {
-	ID        string                 `db:"id" json:"id"`
-	StoreID   string                 `db:"store_id" json:"store_id"`
-	Vector    string                 `db:"vector" json:"vector"`  // JSON array of float64
-	Metadata  string                 `db:"metadata" json:"metadata"` // JSON map
-	CreatedAt time.Time              `db:"created_at" json:"created_at"`
+	ID        string    `db:"id" json:"id"`
+	StoreID   string    `db:"store_id" json:"store_id"`
+	Vector    string    `db:"vector" json:"vector"`     // JSON array of float64
+	Metadata  string    `db:"metadata" json:"metadata"` // JSON map
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
 }
 
 type SearchQuery struct {
@@ -37,6 +37,6 @@ type CreateStoreRequest struct {
 }
 
 type UpsertVectorsRequest struct {
-	Vector   []float64        `json:"vector" binding:"required"`
+	Vector   []float64         `json:"vector" binding:"required"`
 	Metadata map[string]string `json:"metadata"`
 }

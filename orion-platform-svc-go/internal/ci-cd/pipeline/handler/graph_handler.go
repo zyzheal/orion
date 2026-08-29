@@ -1,10 +1,10 @@
 package handler
 
 import (
-
+	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ci-cd/pipeline/models"
 	"orion/platform-svc-go/internal/ci-cd/pipeline/service"
-	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,6 +30,8 @@ func (h *GraphHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // BuildGraph constructs a dependency graph from a pipeline.
 func (h *GraphHandler) BuildGraph(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineBuildGraph")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Query("pipeline_id")
 	if pipelineID == "" {
@@ -37,7 +39,7 @@ func (h *GraphHandler) BuildGraph(c *gin.Context) {
 		return
 	}
 
-	graph, err := h.svc.BuildGraph(c.Request.Context(), tenantID, pipelineID)
+	graph, err := h.svc.BuildGraph(ctx, tenantID, pipelineID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -48,6 +50,8 @@ func (h *GraphHandler) BuildGraph(c *gin.Context) {
 
 // ParseYAML parses a pipeline YAML definition into a structured model.
 func (h *GraphHandler) ParseYAML(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineParseYAML")
+	defer span.End()
 	var req struct {
 		YAML string `json:"yaml" binding:"required"`
 	}
@@ -56,7 +60,7 @@ func (h *GraphHandler) ParseYAML(c *gin.Context) {
 		return
 	}
 
-	def, err := h.svc.ParseYAML(c.Request.Context(), req.YAML)
+	def, err := h.svc.ParseYAML(ctx, req.YAML)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -67,13 +71,15 @@ func (h *GraphHandler) ParseYAML(c *gin.Context) {
 
 // ToYAML converts a pipeline definition to YAML string.
 func (h *GraphHandler) ToYAML(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineToYAML")
+	defer span.End()
 	var def models.PipelineYAMLDef
 	if err := c.ShouldBindJSON(&def); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
 
-	yamlStr, err := h.svc.ToYAML(c.Request.Context(), &def)
+	yamlStr, err := h.svc.ToYAML(ctx, &def)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -84,6 +90,8 @@ func (h *GraphHandler) ToYAML(c *gin.Context) {
 
 // ValidateYAML validates a pipeline YAML definition.
 func (h *GraphHandler) ValidateYAML(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineValidateYAML")
+	defer span.End()
 	var req struct {
 		YAML string `json:"yaml" binding:"required"`
 	}
@@ -92,7 +100,7 @@ func (h *GraphHandler) ValidateYAML(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.ValidateYAML(c.Request.Context(), req.YAML)
+	result, err := h.svc.ValidateYAML(ctx, req.YAML)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

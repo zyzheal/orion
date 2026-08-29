@@ -1,7 +1,8 @@
 // Package service provides the business logic layer for job-processor.
 //
 // ARCHITECTURE (Clean Architecture):
-//   Handler → Service → Processor + Repository
+//
+//	Handler → Service → Processor + Repository
 //
 // The service coordinates between the Processor (business orchestration)
 // and Repository (data access), so the handler never calls either directly.

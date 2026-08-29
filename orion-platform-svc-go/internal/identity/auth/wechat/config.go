@@ -7,11 +7,11 @@ import (
 
 // Config holds the WeChat Work SSO configuration.
 type Config struct {
-	CorpID       string // Enterprise WeChat Corp ID
-	AgentID      string // Agent ID for the application
-	CorpSecret   string // Corp Secret for API access
-	Enabled      bool   // Whether WeChat Work SSO is enabled
-	TokenExpirySec int64 // Expected token expiry in seconds (default 7200)
+	CorpID         string // Enterprise WeChat Corp ID
+	AgentID        string // Agent ID for the application
+	CorpSecret     string // Corp Secret for API access
+	Enabled        bool   // Whether WeChat Work SSO is enabled
+	TokenExpirySec int64  // Expected token expiry in seconds (default 7200)
 }
 
 // LoadConfig reads WeChat Work configuration from environment variables.

@@ -6,8 +6,8 @@ import (
 	"orion/platform-svc-go/internal/backup/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -84,9 +84,9 @@ func (h *Handler) ListPlans(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, models.PaginatedResponse{
-		Data:  plans,
-		Total: total,
-		Page:  1,
+		Data:     plans,
+		Total:    total,
+		Page:     1,
 		PageSize: total,
 	})
 }
@@ -176,9 +176,9 @@ func (h *Handler) ListRecoveryPlans(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, models.PaginatedResponse{
-		Data:  plans,
-		Total: total,
-		Page:  1,
+		Data:     plans,
+		Total:    total,
+		Page:     1,
 		PageSize: total,
 	})
 }
@@ -313,9 +313,9 @@ func (h *Handler) ListBackups(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, models.PaginatedResponse{
-		Data:  jobs,
-		Total: total,
-		Page:  1,
+		Data:     jobs,
+		Total:    total,
+		Page:     1,
 		PageSize: total,
 	})
 }

@@ -1,7 +1,7 @@
 package handler
 
 import (
-
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/notification/chatops/service"
 
 	"github.com/gin-gonic/gin"
@@ -16,8 +16,10 @@ func NewRecommendationHandler(svc *service.RecommendationService) *Recommendatio
 }
 
 func (h *RecommendationHandler) GetRecommendations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChatopsGetRecommendations")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	recs, err := h.svc.GetRecommendations(c.Request.Context(), tenantID)
+	recs, err := h.svc.GetRecommendations(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

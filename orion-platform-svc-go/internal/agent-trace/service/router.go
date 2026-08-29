@@ -13,12 +13,12 @@ import (
 
 // ModelProvider describes a registered LLM provider.
 type ModelProvider struct {
-	Name          string
-	Endpoint      string
-	APIKey        string
-	Pricing       Pricing
-	Capabilities  []string // "text", "vision", "code", "embedding"
-	MaxTokens     int
+	Name           string
+	Endpoint       string
+	APIKey         string
+	Pricing        Pricing
+	Capabilities   []string // "text", "vision", "code", "embedding"
+	MaxTokens      int
 	MaxInputTokens int
 }
 
@@ -61,9 +61,9 @@ type ModelRouter struct {
 type RoutingStrategy string
 
 const (
-	StrategyFast    RoutingStrategy = "fast"    // lowest latency
+	StrategyFast     RoutingStrategy = "fast"     // lowest latency
 	StrategyBalanced RoutingStrategy = "balanced" // best balance
-	StrategyCost    RoutingStrategy = "cost"    // lowest cost
+	StrategyCost     RoutingStrategy = "cost"     // lowest cost
 )
 
 // NewModelRouter creates a router with the given strategy.

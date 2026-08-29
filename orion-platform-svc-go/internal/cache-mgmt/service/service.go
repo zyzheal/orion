@@ -27,7 +27,7 @@ type RepositoryInterface interface {
 
 // Service encapsulates business logic for cache management.
 type Service struct {
-	repo   RepositoryInterface
+	repo    RepositoryInterface
 	manager *MethodCacheManager
 }
 

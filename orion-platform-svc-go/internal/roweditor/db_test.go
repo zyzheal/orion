@@ -21,7 +21,7 @@ type mockDB struct {
 	autoVersion bool
 
 	// lastSQL stores the last query string for assertion
-	lastSQL string
+	lastSQL  string
 	lastArgs []any
 
 	// errToReturn is returned by the next DB call
@@ -231,8 +231,8 @@ func TestCreate(t *testing.T) {
 	}
 
 	row := Row{
-		"id":    "r1",
-		"name":  "item1",
+		"id":        "r1",
+		"name":      "item1",
 		"tenant_id": "t1",
 	}
 

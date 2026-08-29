@@ -7,8 +7,8 @@ import (
 
 	"orion/platform-svc-go/internal/observability/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/observability/models"
 )
 
@@ -48,7 +48,6 @@ func (f *fakeObservabilityService) RecordMetric(ctx context.Context, tenantID st
 }
 
 var _ service.ServiceInterface = (*fakeObservabilityService)(nil)
-
 
 func TestHandler_OBSERVABILITY_RegisterRoutes(t *testing.T) {
 	_ = newHandler()

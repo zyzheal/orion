@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"orion/platform-svc-go/internal/ci-cd/deploy/models"
 	"orion/go-common/pkg/otel"
+	"orion/platform-svc-go/internal/ci-cd/deploy/models"
 	"orion/platform-svc-go/internal/ci-cd/deploy/repository"
 
 	"go.opentelemetry.io/otel/attribute"

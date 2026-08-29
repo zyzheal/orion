@@ -9,8 +9,8 @@ import (
 
 	"orion/platform-svc-go/internal/api-governance/service"
 
-	"github.com/gin-gonic/gin"
 	"context"
+	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/api-governance/models"
 )
 
@@ -99,7 +99,6 @@ func (f *fakeHandlerService) VerifyContract(ctx context.Context, id string, req 
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
-
 
 func TestAPI_GOVERNANCE_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))

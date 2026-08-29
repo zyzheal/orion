@@ -138,14 +138,14 @@ func TestAutoRecovery_ContextDeadline(t *testing.T) {
 func TestAutoRecovery_PackageAvailable(t *testing.T) {
 	// Verify model structs and their expected fields compile.
 	rule := models.AutoRecoveryRule{
-		ID:        "rule-1",
-		TenantID:  "tenant-1",
-		Name:      "test rule",
-		Trigger:   "error_rate",
-		Condition: "error_rate > 0.1",
-		Action:    "restart",
-		Target:    "svc-a",
-		IsEnabled: true,
+		ID:         "rule-1",
+		TenantID:   "tenant-1",
+		Name:       "test rule",
+		Trigger:    "error_rate",
+		Condition:  "error_rate > 0.1",
+		Action:     "restart",
+		Target:     "svc-a",
+		IsEnabled:  true,
 		MaxRetries: 3,
 	}
 	if rule.Name != "test rule" {

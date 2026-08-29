@@ -50,8 +50,8 @@ type PipelineStartedEvent struct {
 // PipelineCompletedEvent is raised when a pipeline execution is completed.
 type PipelineCompletedEvent struct {
 	BaseDomainEvent
-	Status          string                    `json:"status"`     // success, failed, cancelled
-	TotalDurationMs int64                     `json:"total_duration_ms"`
+	Status          string                   `json:"status"` // success, failed, cancelled
+	TotalDurationMs int64                    `json:"total_duration_ms"`
 	Artifacts       []map[string]interface{} `json:"artifacts"`
 }
 
@@ -75,7 +75,7 @@ type ApprovalCreatedEvent struct {
 type ApprovalRequestedEvent struct {
 	BaseDomainEvent
 	Title       string `json:"title"`
-	Type        string `json:"type"`        // multi_level, emergency
+	Type        string `json:"type"` // multi_level, emergency
 	TotalLevels int    `json:"total_levels"`
 	ReqByID     string `json:"req_by_id"`
 }
@@ -121,10 +121,10 @@ type ApprovalWithdrawnEvent struct {
 // ApprovalDelegateEvent is raised when an approver delegates to another.
 type ApprovalDelegateEvent struct {
 	BaseDomainEvent
-	OldApproverID  string `json:"old_approver_id"`
-	NewApproverID  string `json:"new_approver_id"`
-	Level          int    `json:"level"`
-	Reason         string `json:"reason"`
+	OldApproverID string `json:"old_approver_id"`
+	NewApproverID string `json:"new_approver_id"`
+	Level         int    `json:"level"`
+	Reason        string `json:"reason"`
 }
 
 // ApprovalReassignedEvent is raised when an approver is reassigned.
@@ -151,10 +151,10 @@ type FeatureFlagToggledEvent struct {
 // FeatureFlagCreatedEvent is raised when a feature flag is created.
 type FeatureFlagCreatedEvent struct {
 	BaseDomainEvent
-	FlagKey       string `json:"flag_key"`
-	Enabled       bool   `json:"enabled"`
-	Description   string `json:"description"`
-	CreatedBy     string `json:"created_by"`
+	FlagKey     string `json:"flag_key"`
+	Enabled     bool   `json:"enabled"`
+	Description string `json:"description"`
+	CreatedBy   string `json:"created_by"`
 }
 
 // FeatureFlagDeletedEvent is raised when a feature flag is deleted.

@@ -7,11 +7,11 @@ type CacheConfig struct {
 	ID         string    `json:"id" db:"id"`
 	TenantID   string    `json:"tenant_id" db:"tenant_id"`
 	Name       string    `json:"name" db:"name"`
-	TTL        int       `json:"ttl" db:"ttl"`              // Time to live in seconds
-	MaxSize    int       `json:"max_size" db:"max_size"`    // Max entries
-	Eviction   string    `json:"eviction" db:"eviction"`    // "LRU", "LFU", "FIFO"
+	TTL        int       `json:"ttl" db:"ttl"`               // Time to live in seconds
+	MaxSize    int       `json:"max_size" db:"max_size"`     // Max entries
+	Eviction   string    `json:"eviction" db:"eviction"`     // "LRU", "LFU", "FIFO"
 	Serializer string    `json:"serializer" db:"serializer"` // "json", "gob", "msgpack"
-	Backend    string    `json:"backend" db:"backend"`      // "memory", "redis"
+	Backend    string    `json:"backend" db:"backend"`       // "memory", "redis"
 	Enabled    bool      `json:"enabled" db:"enabled"`
 	CreatedAt  time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at" db:"updated_at"`
@@ -53,9 +53,9 @@ type UpdateCacheConfigRequest struct {
 
 // CacheValueRequest is the body for GET/SET cache value operations.
 type CacheValueRequest struct {
-	Key   string      `json:"key" binding:"required"`
-	Value interface{} `json:"value"`
-	Method string    `json:"method"`
+	Key    string      `json:"key" binding:"required"`
+	Value  interface{} `json:"value"`
+	Method string      `json:"method"`
 }
 
 // EvictKeyRequest is the body for evicting a single cache key.

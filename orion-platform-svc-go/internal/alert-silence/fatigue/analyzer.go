@@ -17,25 +17,25 @@ type FatigueInfo struct {
 
 // AlertRecord represents a single fired alert in the sliding window.
 type AlertRecord struct {
-	Ts        time.Time
-	Severity  string
-	Silenced  bool
+	Ts       time.Time
+	Severity string
+	Silenced bool
 }
 
 // Analyzer tracks alert frequency per rule (tenant-scoped, sliding window).
 type Analyzer struct {
-	mu       sync.RWMutex
+	mu sync.RWMutex
 	// key format: "tenantID|ruleName"
-	alerts      map[string][]AlertRecord
-	window      time.Duration
-	fatigueTh   float64 // threshold above which auto-silence is recommended
+	alerts    map[string][]AlertRecord
+	window    time.Duration
+	fatigueTh float64 // threshold above which auto-silence is recommended
 }
 
 func NewAnalyzer(window time.Duration, fatigueTh float64) *Analyzer {
 	return &Analyzer{
-		alerts:      make(map[string][]AlertRecord),
-		window:      window,
-		fatigueTh:   fatigueTh,
+		alerts:    make(map[string][]AlertRecord),
+		window:    window,
+		fatigueTh: fatigueTh,
 	}
 }
 

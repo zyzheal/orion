@@ -3,15 +3,15 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/platform-svc-go/internal/rca/models"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/rca/models"
 )
 
 type RCARespository struct {

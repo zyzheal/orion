@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"go.opentelemetry.io/otel"
 	"sync"
 	"time"
 
@@ -25,6 +26,8 @@ var (
 
 // StartTicketingService POST /api/v1/ticketing/start
 func (h *ServiceControlHandler) StartTicketingService(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketStartTicketingService")
+	defer span.End()
 	mu.Lock()
 	if serviceRunning {
 		mu.Unlock()
@@ -40,14 +43,16 @@ func (h *ServiceControlHandler) StartTicketingService(c *gin.Context) {
 	mu.Unlock()
 
 	respondSuccess(c, gin.H{
-		"success":     true,
-		"message":     "Ticketing service started",
-		"started_at":  startedAt,
+		"success":    true,
+		"message":    "Ticketing service started",
+		"started_at": startedAt,
 	})
 }
 
 // StopTicketingService POST /api/v1/ticketing/stop
 func (h *ServiceControlHandler) StopTicketingService(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketStopTicketingService")
+	defer span.End()
 	mu.Lock()
 	if !serviceRunning {
 		mu.Unlock()
@@ -71,20 +76,22 @@ func (h *ServiceControlHandler) StopTicketingService(c *gin.Context) {
 
 // TicketingHealthCheck GET /api/v1/ticketing/health
 func (h *ServiceControlHandler) TicketingHealthCheck(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketTicketingHealthCheck")
+	defer span.End()
 	mu.RLock()
 	running := serviceRunning
 	sinceStart := time.Since(lastStartedAt)
 	mu.RUnlock()
 
 	respondSuccess(c, gin.H{
-			"health": map[string]any{
-				"status":        map[string]bool{"running": running},
-				"uptime":        sinceStart.String(),
-				"started_at":    lastStartedAt,
-				"last_stopped":  lastStoppedAt,
-				"service_name":  "orion-ticket-svc",
-			},
-		},)
+		"health": map[string]any{
+			"status":       map[string]bool{"running": running},
+			"uptime":       sinceStart.String(),
+			"started_at":   lastStartedAt,
+			"last_stopped": lastStoppedAt,
+			"service_name": "orion-ticket-svc",
+		},
+	})
 }
 
 // RegisterRoutes mounts all service-control endpoints under the given RouterGroup.
