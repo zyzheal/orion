@@ -562,3 +562,43 @@
   - ARCH-0.9 剩余 — 前端 `datasource.ts` 客户端
   - ARCH-0.11 — 三套数据源统一 + `/data-sources` 明文密码清理
   - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动
+
+### 2026-08-29（前端专项：ARCH-0.9 收尾 — `datasource.ts` 客户端）
+
+> 后端那条线在 253 行那节已经把 `internal/datasource/` 从死代码接成 11 条带守卫路由，但**前端始终没有一个客户端**——所有消费方各写各的 `fetch`，字段改名只会在运行时才炸。这一节补上 ARCH-0.9 的前端那一半，让它真正关闭。
+
+- ✅ **新增 `orion-frontend/src/api/datasource.ts`**
+  - **11 个类型化函数，逐一对应 11 条后端路由**：`listDataSources` / `listDataSourceTypes` / `getAllDataSourcesHealth` / `getDataSource` / `getDataSourceHealth` / `createDataSource` / `updateDataSource` / `deleteDataSource` / `testDataSourceConnection` / `queryDataSource` / `executeDataSource`。每个函数尾注标出后端守卫（`datasource:read` / `write` / `execute` / `delete`），读代码的人不用跳进 Go 才知道这条路由谁能调
+  - **10 个类型**：`DataSourceType`（5 值：postgres / mysql / clickhouse / elasticsearch / mongodb）、`DataSourceStatus`（4 值：active / inactive / error / connecting）、`DataSource`、`DataSourceInput`、`QueryResult`、`DataSourceHealth`、`DataSourceListResponse`、`DataSourceHealthAllResponse`、`QueryArgs`。**字段是照 `internal/datasource/models.go` 和 handler 的 `registerRequest` / `queryRequest` 读出来的，不是猜的**——包括 `List` 返回 `gin.H{"items":…, "total":…}`、`HealthAll` 返回 `gin.H{"total":…, "statuses":…}`、`TestConnection` 只返回 `{ok: true}` 这三个只有看 handler 才知道的形状
+  - `DataSourceInput` 全字段可选，因为后端的 `Update` 是逐字段判断（`if req.Name != ""` 之类）的**部分变更**，只改传入字段、不会重开连接池；创建时后端对 name/type/host 有 `binding:"required"`，缺失会 400
+
+- ✅ **写进文件头注释的 4 条契约注记**（都是读代码才发现、猜不到的）
+  - `{ success, data }` 信封被 `client.ts:67` 的响应拦截器解包，所以这 11 个函数 resolve 出来的**就是载荷本身**，调用方读 `response.data` 得到 `T`——与 `backup.ts` 现有惯例一致
+  - `password` **只写不读**：Go 模型里 `Password` 和 `PasswordEnc` 都是 `json:"-"`，任何响应都不可能带凭据。注册/更新时发送，**永远不要期待回吐**。这也是 `datasource` 模块值得学的地方——ARCH-0.11 要清理的明文密码问题在 `database-devops` 那边（`DatabaseSource.Password` 明文持久化且 `omitempty` 回吐），这个模块已经做对了
+  - `connMaxLifetime` 是 Go 的 `time.Duration`，JSON 编码成**纳秒整数**——所以 TS 侧标为 `number` 并加注。同类影响面：`QueryResult.took`、`DataSourceHealth.latency`
+  - `List` / `HealthAll` 读 `c.GetString("tenant_id")`，空值直接 401 `"tenant_id required"`——**这个客户端只有在 PERM-8 阶段 2（`/api/v1` 严格 `auth.Auth`）落地后才完全正确**，在那之前调用方得为租户作用域端点拒绝自己做好准备。注在客户端头部而不是藏在 issue 里，是为了让第一个踩到 401 的人能立刻理解为什么
+
+- ✅ **新增 `src/api/__tests__/datasource.test.ts`：11 条测试（11/11 PASS）**
+  - 每条后端路由一条测试，断言**精确 path** 和**精确载荷形状**——后端删一条路由或改一个字段名，坏的是这个文件而不是某个随机消费方
+  - `vi.mock('../client', …)` 只 mock `get/post/put/delete/patch` 五个函数，helper `ok<T>(data)` 直接返回解包后的载荷（形状就是调用方读的），并断言 `queryDataSource` / `executeDataSource` 的**默认 `args = []`** 确实被发送（`{ query: 'select id from t', args: [] }`）
+  - helper 用 `as unknown as AxiosResponse<T>` + `import type { AxiosResponse }` 而不是 `as any`
+
+- ✅ **验证结果**
+  - `npx vitest run src/api/__tests__/datasource.test.ts` → **11 passed (11)**
+  - `npx eslint src/api/datasource.ts src/api/__tests__/datasource.test.ts --max-warnings 0` → 干净（exit 0、无输出）
+  - `npx tsc --noEmit` → 45 个错误，**0 个提及 `datasource`**，与改动前数量一致 → **0 新增类型错误**（那 45 个是既有问题：大部分集中在既有 `src/api/__tests__/*.test.ts` 的 mock 类型，另有 5 个在 `src/tokens/useOrionToken.ts`）
+  - `git check-ignore -v` → 两个新文件均未被忽略；`src/api/` 下无 barrel 文件需要更新
+
+- 🔍 **本轮确认但仍未解的（记录）**
+  - **PERM-8 阶段 2 是这个客户端的隐性依赖**：租户作用域的两个端点要 `tenant_id`，而 `tenant_id` 只有严格认证才会写进 context。所以「客户端能用」和「客户端在所有调用方上都对」不是同一件事，这个依赖已写在文件头注释里
+  - **ARCH-0.12 仍在**：类型声明里有 5 种引擎，但驱动只接了部分（ClickHouse / MongoDB 未实现），前端客户端已按 5 种声明好类型，后端补驱动后前端无需改动
+  - **ARCH-0.11 未动**：`database-devops` 的明文密码与 `datasource` 模块的双模块重复，本轮未动
+  - PERM-6（AI 端点权限）、ARCH-0.10b（备份/恢复真实现，与 ARCH-0.15 备份系统统一有重叠）、`internal/identity/role` 死代码、`orchestrationH` vs `ai_orchestrationH` 通配符名冲突 —— 沿用记录
+  - 前端 45 个既有 `tsc` 错误、`orion-go-common` 的 `pkg/dag`（`Graph.RemoveEdge` 缺失）与 `pkg/cron` 测试构建失败 —— 均非本轮引入，未处理
+
+- 📌 **本轮明确未做（已排期）**
+  - PERM-8 阶段 2 — `/api/v1` 切严格 `auth.Auth`（破坏性变更，需客户端迁移计划）
+  - ARCH-0.10b — 备份/恢复引擎真实现（复用 `internal/backup/` 或 `internal/infrastructure/backup/`，见 ARCH-0.15）
+  - PERM-6 — AI 端点权限定义（决策待定：44 个角色里只有 1 个授予任何 `ai*`）
+  - ARCH-0.11 — 三套数据源统一 + `/data-sources` 明文密码清理
+  - ARCH-0.12 — datasource 补 ClickHouse / MongoDB 驱动

@@ -10,16 +10,16 @@
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已完成 | 33 项 |
+| ✅ 已完成 | 34 项 |
 | 🔴 待处理 | 5 项 P0 |
 | 🟡 待处理 | 6 项 P1 |
 | 🔵 待处理 | 11 项 P2 |
 | ⚠️ 已废弃/不适用 | 11 项 |
-| **总计** | **66 项** |
+| **总计** | **67 项** |
 
 ---
 
-## 二、已完成清单 (33 项)
+## 二、已完成清单 (34 项)
 
 | # | 任务 | 完成日期 | 证据 |
 |---|------|---------|------|
@@ -56,6 +56,7 @@
 | ✅ | **PERM-9: 多角色语义对齐** | 2026-08-29 | 四个守卫（`RequirePermission` / `RequireAnyPermission` / `RequireRole` / `RequireAnyRole`）全部改走 `GetRoles(c)`：**任一**持有角色授权即通过（并集语义，与前端 `matchPermission` 的多角色遍历一致，授权第二个角色不可能撤销第一个已给的访问权）；多角色规则收进两个单点实现 `anyRoleHasPermission`（permission.go）/ `hasRole`（middleware.go）；`GetRoles` 加固——`roles` 存在但为空也回退单 `role`，不再把「只设了 role」的调用方静默降为 `no role assigned`；`no role assigned` / `insufficient permissions` 两条 403 文案与无身份分支逐字保留；认证默认关闭时不会有任何角色写进 context，生产行为零变化；守卫层 8 个子测试 + 端到端 `TestOptionalAuthMultiRoleUnion`（真实多角色 JWT 走完 `roles` 数组→`ParseClaims`→`applyClaims`→`GetRoles`→`RequirePermission`）；**变异验证已做**：把守卫退回单角色后端到端测试实测 FAIL（`insufficient permissions`），恢复后 PASS |
 | ✅ | **P1-3: chaos 三模块合并**（核实完成，无代码改动） | 2026-08-29 | `wireChaosEngine`（wiring-chaos-engine.go）已把 chaos(1384行)+chaos-enhanced(367行)+chaos-gateway(517行) 接进同一个 `chaos_engine_handler.NewHandler(chaosSvc, chaosEnhancedSvc, chaosGatewaySvc)`；facade 挂 `/chaos` 组共 32 条路由、32 处 `auth.RequirePermission("chaos", …)` 守卫，三个子 handler 全部实际调用（chaosH×18 / enhancedH×7 / gatewayH×7）；`router.go` 挂载 `chaosEngineH` 并在注册点注释说明三个 legacy handler 刻意不注册（重复挂同一 `(method, path)` 会让 Gin panic）；已被 `route_dump_test.go` + `route_conflict_scan_test.go` 覆盖（0 conflicts） |
 | ✅ | **ARCH-0.10 剩余: database-devops 备份/恢复契约测试** | 2026-08-29 | `service.go` 抽出包私有 `repoInterface`（10 方法，与 `repository.Repository` 一一对应）+ 仅测试用 `newServiceWithRepo`，生产仍走 `NewService(db *sqlx.DB)`，**外部调用点 0 处改动**；新增 `service_test.go` 8 条契约测试（状态生命周期 `running→completed`、结果回读与落库一致、not-found 无副作用、**坏配置在置 running 之前失败**、空配置仍完成、每一次调用的租户作用域、`NewService(nil)` 容错），fakeRepo 记录调用序列因此能断言顺序而非仅最终值；**变异验证已做**：把最终 `UpdateStatus` 的 `completed` 改成 `failed` 后 `TestExecuteBackup_StatusLifecycle` 实测 FAIL 于两条预期断言，恢复后 8/8 PASS；`go test ./...` → 543 包 ok / 0 FAIL。**注意：这是契约测试，不是实现**——`ExecuteBackup`/`ExecuteRestore` 仍是桩（见下方第五轮 R5-3） |
+| ✅ | **ARCH-0.9 前端: `datasource.ts` 客户端** | 2026-08-29 | 后端已有 11 条带守卫路由，但前端无任何客户端，消费方各写各的 `fetch`；新增 `orion-frontend/src/api/datasource.ts`：**11 个类型化函数逐一对应 11 条后端路由**（list / types / health-all / get / health / create / update / delete / test / query / execute），每个函数尾注标注后端守卫（`datasource:read`/`write`/`execute`/`delete`）；10 个类型（`DataSourceType` 5 值、`DataSourceStatus` 4 值、`DataSource`、`DataSourceInput`、`QueryResult`、`DataSourceHealth`、`DataSourceListResponse`、`DataSourceHealthAllResponse`、`QueryArgs`）按 Go `models.go` 读字段而非猜；写清 4 条契约注记——`{success,data}` 信封由 `client.ts:67` 拦截器解包故函数直接 resolve 载荷、`password` 写时专用（Go 模型 `Password`/`PasswordEnc` 均 `json:"-"`，响应永不带凭据，ARCH-0.11 才是 database-devops 的明文问题）、`connMaxLifetime` 是 Go `time.Duration` 故 JSON 为纳秒整数、`List`/`HealthAll` 读 `c.GetString("tenant_id")` 空值即 401 `"tenant_id required"` 故须待 PERM-8 阶段 2；新增 `src/api/__tests__/datasource.test.ts` 11 条（每路由一条，断言精确 path 与载荷形状，含 `args = []` 默认值）→ vitest **11/11 PASS**、eslint `--max-warnings 0` 干净、`tsc --noEmit` **0 新增错误**（总数仍 45 且 0 条提及 datasource） |
 
 ---
 
@@ -215,7 +216,7 @@
 
 | ID | 任务 | 解决缺口 | 优先级 | 工作量 |
 |----|------|---------|--------|--------|
-| ~~ARCH-0.9~~ | datasource 补 handler 层 + 路由接线 | R4-1 | 🟡 **部分完成 2026-08-29** — 后端已完成: 11 条带守卫路由 `/api/v1/data-sources` + repository 实现 + wiring + migration 551；**剩余: 前端 `datasource.ts` 客户端** | 2d |
+| ~~ARCH-0.9~~ | datasource 补 handler 层 + 路由接线 | R4-1 | ✅ **完成 2026-08-29** — 后端: 11 条带守卫路由 `/api/v1/data-sources` + repository 实现 + wiring + migration 551；前端: `src/api/datasource.ts` 11 个类型化函数 + 10 个类型 + 11 条测试（见上方已完成清单） | 2d |
 | ~~ARCH-0.10~~ | database-devops 补权限守卫 + 补测试 | R4-4 + PERM-2 | ✅ **完成 2026-08-29** — 10 条路由守卫已全部补齐（read/write/delete/execute）；备份/恢复**契约**测试已完成（8 条，`internal/database-devops/service/service_test.go`，变异验证已做） | 1.5d |
 | ARCH-0.11 | **三套数据源统一 + 明文密码清理**（database-devops 复用 datasource 加密模型，删除 `/data-sources` 明文端点） | R4-3 + IX-8 | 🔴 高 | 2d |
 | ARCH-0.12 | **datasource 补 ClickHouse/MongoDB 驱动**（宣称 5 → 实连 5） | R4-2 | 🟡 中 | 1.5d |
