@@ -2,7 +2,9 @@
  * Schema-as-Code Atlas Migration Management Page
  * Atlas DB schema migration: plan, apply, review, history
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { API_BASE_URL } from '@/api/client';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
   Card,
@@ -50,40 +52,35 @@ const FALLBACK_MIGRATIONS: Migration[] = [
 ];
 
 const AtlasSchemaPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [migrations, setMigrations] = useState<Migration[]>(FALLBACK_MIGRATIONS);
   const [planModal, setPlanModal] = useState(false);
   const [applyModal, setApplyModal] = useState(false);
   const [selected, setSelected] = useState<Migration | null>(null);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const resp = await fetch('/api/v1/dba/migrations', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
-      });
-      if (resp.ok) {
-        const json = await resp.json();
-        setMigrations(json.data || FALLBACK_MIGRATIONS);
-      }
-    } catch {
-      setMigrations(FALLBACK_MIGRATIONS);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: migrations, isLoading: loading, refetch } = useQuery<Migration[]>({
+    queryKey: ['dba-migrations'],
+    queryFn: async () => {
+      try {
+        const resp = await fetch(`${API_BASE_URL}/dba/migrations`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+        });
+        if (resp.ok) { const json = await resp.json(); return json.data || FALLBACK_MIGRATIONS; }
+      } catch { /* fallback */ }
+      return FALLBACK_MIGRATIONS;
+    },
+  });
 
-  useEffect(() => { load(); }, []);
+  const load = () => refetch();
+  const safeMigrations = migrations ?? FALLBACK_MIGRATIONS;
 
-  const pending = migrations.filter((m) => m.status === 'pending');
-  const applied = migrations.filter((m) => m.status === 'applied');
-  const failed = migrations.filter((m) => m.status === 'failed');
+  const pending = safeMigrations.filter((m) => m.status === 'pending');
+  const applied = safeMigrations.filter((m) => m.status === 'applied');
+  const failed = safeMigrations.filter((m) => m.status === 'failed');
 
   const handleApply = async (m: Migration) => {
     setApplyModal(false);
     message.loading({ content: `正在执行迁移 ${m.version}...`, key: 'migrate' });
     try {
-      const resp = await fetch(`/api/v1/dba/migrations/${m.id}/apply`, {
+      const resp = await fetch(`${API_BASE_URL}/dba/migrations/${m.id}/apply`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
       });
@@ -143,14 +140,14 @@ ALTER TABLE \`orders\`
       {loading ? <PageSkeleton rows={6} /> : (
         <>
           <Row gutter={[spacing.md, spacing.md]} style={{ marginBottom: spacing.md }}>
-            <Col span={6}><Card size="small"><Statistic title="迁移总数" value={migrations.length} prefix={<DatabaseOutlined />} /></Card></Col>
+            <Col span={6}><Card size="small"><Statistic title="迁移总数" value={safeMigrations.length} prefix={<DatabaseOutlined />} /></Card></Col>
             <Col span={6}><Card size="small"><Statistic title="已应用" value={applied.length} prefix={<PlayCircleOutlined />} valueStyle={{ color: colors.success[500] }} /></Card></Col>
             <Col span={6}><Card size="small"><Statistic title="待执行" value={pending.length} prefix={<HistoryOutlined />} valueStyle={{ color: colors.warning[500] }} /></Card></Col>
             <Col span={6}><Card size="small"><Statistic title="失败" value={failed.length} prefix={<DatabaseOutlined />} valueStyle={{ color: failed.length > 0 ? colors.error[500] : colors.success[500] }} /></Card></Col>
           </Row>
 
           <Card title="迁移历史" extra={<Button icon={<ReloadOutlined />} onClick={load}>刷新</Button>}>
-            <Table dataSource={migrations} columns={columns} rowKey="id" size="small" pagination={{ pageSize: 10 }}
+            <Table dataSource={safeMigrations} columns={columns} rowKey="id" size="small" pagination={{ pageSize: 10 }}
               locale={{ emptyText: <Empty description="暂无迁移记录" /> }} />
           </Card>
 
