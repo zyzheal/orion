@@ -2,7 +2,9 @@
  * Compliance Scan Page (H1.7 合规检查)
  * Security baseline scanning, compliance report generation, and remediation tracking
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
+import { API_BASE_URL } from '@/api/client';
 import {
   Typography,
   Card,
@@ -61,7 +63,7 @@ interface ComplianceBaseline {
 type FrameworkType = 'owasp' | 'cis' | 'pci' | 'hipaa' | 'soc2' | 'internal';
 
 async function apiCall<T>(path: string, options?: RequestInit): Promise<T> {
-  const resp = await fetch(`/api/v1/compliance${path}`, {
+  const resp = await fetch(`${API_BASE_URL}/compliance${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -103,41 +105,36 @@ const frameworkConfig: Record<FrameworkType, { label: string; color: string }> =
 };
 
 const ComplianceScanPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [findings, setFindings] = useState<ComplianceFinding[]>([]);
-  const [baselines, setBaselines] = useState<ComplianceBaseline[]>([]);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createForm] = Form.useForm<{ name: string; framework: FrameworkType; description?: string }>();
   const [scanning, setScanning] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const loadCompliance = async () => {
-    setLoading(true);
-    setScanning(null);
-    try {
+  const { data: rawData, isLoading: loading, refetch } = useQuery<{ findings: ComplianceFinding[]; baselines: ComplianceBaseline[] }>({
+    queryKey: ['compliance-scan'],
+    queryFn: async () => {
       const [findingsRes, baselinesRes] = await Promise.all([
         apiCall<ComplianceFinding[]>('/findings'),
         apiCall<ComplianceBaseline[]>('/baselines'),
       ]);
-      setFindings(Array.isArray(findingsRes) ? findingsRes : []);
-      setBaselines(Array.isArray(baselinesRes) ? baselinesRes : []);
-    } catch (_err: unknown) {
-      message.warning('合规数据加载失败，显示默认状态');
-      setFindings([]);
-      setBaselines([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        findings: Array.isArray(findingsRes) ? findingsRes : [],
+        baselines: Array.isArray(baselinesRes) ? baselinesRes : [],
+      };
+    },
+    retry: 0,
+    staleTime: 30_000,
+  });
 
-  useEffect(() => { loadCompliance(); }, []);
+  const safeFindings = rawData?.findings ?? [];
+  const safeBaselines = rawData?.baselines ?? [];
 
   const handleScan = async (id: string, name: string) => {
     setScanning(id);
     try {
       await apiCall<void>(`/baselines/${id}/scan`, { method: 'POST' });
       message.success(`安全基线 "${name}" 扫描已启动`);
-      loadCompliance();
+      refetch();
     } catch (_err: unknown) {
       message.warning('扫描启动失败，请稍后重试');
     } finally {
@@ -252,11 +249,11 @@ const ComplianceScanPage: React.FC = () => {
     },
   ];
 
-  const totalRules = baselines.reduce((sum, b) => sum + b.rules, 0);
-  const avgPassRate = baselines.length > 0
-    ? Math.round(baselines.reduce((s, b) => s + b.passRate, 0) / baselines.length)
+  const totalRules = safeBaselines.reduce((sum, b) => sum + b.rules, 0);
+  const avgPassRate = safeBaselines.length > 0
+    ? Math.round(safeBaselines.reduce((s, b) => s + b.passRate, 0) / safeBaselines.length)
     : 0;
-  const criticalCount = findings.filter((f) => f.level === 'critical' || f.level === 'high').length;
+  const criticalCount = safeFindings.filter((f) => f.level === 'critical' || f.level === 'high').length;
 
   return (
     <div style={{ padding: spacing.lg }}>
@@ -306,7 +303,7 @@ const ComplianceScanPage: React.FC = () => {
         title="合规基线"
         extra={
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadCompliance}>刷新</Button>
+            <Button icon={<ReloadOutlined />} onClick={refetch}>刷新</Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
               新建基线
             </Button>
@@ -315,7 +312,7 @@ const ComplianceScanPage: React.FC = () => {
         style={{ marginBottom: spacing.md }}
       >
         <Table
-          dataSource={baselines}
+          dataSource={safeBaselines}
           columns={baselineColumns}
           rowKey="id"
           loading={loading}
@@ -327,7 +324,7 @@ const ComplianceScanPage: React.FC = () => {
 
       <Card title="违规发现列表">
         <Table
-          dataSource={findings}
+          dataSource={safeFindings}
           columns={findingColumns}
           rowKey="id"
           loading={loading}
@@ -353,7 +350,7 @@ const ComplianceScanPage: React.FC = () => {
             message.success(`合规基线 "${values.name}" 创建成功`);
             setCreateModalOpen(false);
             createForm.resetFields();
-            loadCompliance();
+            refetch();
           } catch (_err: unknown) {
             message.warning('基线创建失败，请稍后重试');
           } finally {
