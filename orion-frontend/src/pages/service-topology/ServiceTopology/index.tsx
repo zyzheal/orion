@@ -9,7 +9,8 @@
  * API: /api/v1/service-topology
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
 import { Typography, Card, Table, Tag, Space, Select, Button, message, Empty, Spin } from 'antd';
 import { ClusterOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { TableColumn } from '@/components/Table';
@@ -32,52 +33,38 @@ const DEPENDENCY_TYPE_COLORS: Record<string, string> = {
 };
 
 const ServiceTopologyPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [topology, setTopology] = useState<TopologyGraph | null>(null);
-  const [dependencies, setDependencies] = useState<ServiceDependencies | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<string | undefined>(undefined);
 
-  const loadTopology = async () => {
-    setLoading(true);
-    try {
+  const { data: topologyData, isLoading: topologyLoading, refetch: refetchTopology } = useQuery<TopologyGraph | null>({
+    queryKey: ['service-topology/topology'],
+    queryFn: async () => {
       const response = await serviceTopologyApi.getTopology();
-      setTopology(response.data ?? null);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载服务拓扑失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return response.data ?? null;
+    },
+    retry: 0,
+    staleTime: 30_000,
+  });
 
-  const loadDependencies = async (serviceId: string) => {
-    setLoading(true);
-    try {
-      const response = await serviceTopologyApi.getServiceDependencies(serviceId);
-      setDependencies(response.data ?? null);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载服务依赖关系失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: depsData, isLoading: depsLoading, refetch: refetchDeps } = useQuery<ServiceDependencies | null>({
+    queryKey: ['service-topology/dependencies', selectedServiceId],
+    queryFn: async () => {
+      const response = await serviceTopologyApi.getServiceDependencies(selectedServiceId!);
+      return response.data ?? null;
+    },
+    enabled: !!selectedServiceId,
+    retry: 0,
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    loadTopology();
-  }, []);
-
-  useEffect(() => {
-    if (selectedServiceId) {
-      loadDependencies(selectedServiceId);
-    } else {
-      setDependencies(null);
-    }
-  }, [selectedServiceId]);
+  const topology = topologyData ?? null;
+  const dependencies = depsData ?? null;
+  const loading = topologyLoading || depsLoading;
 
   const handleRefresh = () => {
     if (selectedServiceId) {
-      loadDependencies(selectedServiceId);
+      refetchDeps();
     } else {
-      loadTopology();
+      refetchTopology();
     }
   };
 
