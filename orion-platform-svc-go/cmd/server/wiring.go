@@ -62,6 +62,7 @@ import (
 	schemaReg_repo "orion/platform-svc-go/internal/schema-registry/repository"
 	schemaReg_service "orion/platform-svc-go/internal/schema-registry/service"
 	infraChaos_handler "orion/platform-svc-go/internal/infrastructure/chaos/handler"
+	migration "orion/platform-svc-go/internal/migration"
 	infraChaos_repo "orion/platform-svc-go/internal/infrastructure/chaos/repository"
 	infraChaos_service "orion/platform-svc-go/internal/infrastructure/chaos/service"
 	infraDba_handler "orion/platform-svc-go/internal/infrastructure/dba/handler"
@@ -237,7 +238,12 @@ var (
 	infraDrH  *infraDr_handler.Handler
 	infraEEH  *infraEE_handler.Handler
 	infraBackupH  *infraBackup_handler.Handler
+	infraArchiveH *infraBackup_handler.ArchiveHandler
+	infraArchiveSchedulerH *infraBackup_handler.ArchiveSchedulerHandler
+	infraArchiveScheduler  *infraBackup_service.ArchiveScheduler
+	infraRetentionH        *infraBackup_handler.RetentionHandler
 	infraSchemaRegH *schemaReg_handler.Handler
+	migrationH *migration.Handler
 	infraChaosH   *infraChaos_handler.Handler
 	infraDbaH     *infraDba_handler.Handler
 	infraDegH     *infraDegradation_handler.Handler
@@ -548,7 +554,41 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	infraBackupRepo := infraBackup_repo.NewBackupRepository(infra.db)
 	infraBackupSvc := infraBackup_service.NewBackupService(infraBackupRepo, infra.logger)
 	infraRecoverySvc := infraBackup_service.NewRecoveryService(infraBackupRepo, infra.logger)
+	// Archiver reuses BackupService's storageBackendFor as its resolver so
+	// that WAL/binlog archive records land in the same backend as backup
+	// artifacts. Pass a closure to keep the private method encapsulated.
+	infraBackupArchiver := infraBackup_service.NewArchiver(
+		infraBackupRepo,
+		infraBackupSvc.StorageBackendForPublic,
+		infra.logger,
+	)
 	infraBackupH = infraBackup_handler.New(infraBackupSvc, infraRecoverySvc, infra.logger)
+	infraArchiveH = infraBackup_handler.NewArchiveHandler(infraBackupArchiver, infraBackupH, infra.logger)
+	// Lifecycle: start the backup scheduler (fires cron-based plans)
+	// and the archive scheduler (fires cron-based WAL/binlog captures).
+	// Both are best-effort: on failure we log and continue so the server
+	// still boots for manual-only workflows.
+	infraBackupSvc.Start()
+	// Retention cron: daily purge of expired backups at 02:30 UTC.
+	infraBackupSvc.StartRetentionCron("0 30 2 * * *")
+	infraArchiveScheduler = infraBackup_service.NewArchiveScheduler(infraBackupArchiver, infra.logger)
+	infraArchiveScheduler.Start()
+	infraArchiveSchedulerH = infraBackup_handler.NewArchiveSchedulerHandler(infraArchiveScheduler, infra.logger)
+	infraRetentionH = infraBackup_handler.NewRetentionHandler(infraBackupSvc, infra.logger)
+	infraRecoverySvc.SetArchiver(infraBackupArchiver)
+	infraRecoverySvc.SetArchiveScheduler(infraArchiveScheduler)
+	// Auto-load archive configs from existing backup plans. When a plan's
+	// storage_config contains an "archive" block, it is registered here
+	// so the scheduler fires it without any manual setup. Failures are
+	// logged and skipped — the server still boots for manual-only work.
+	if infraBackupRepo != nil {
+		if plans, err := infraBackupRepo.ListPlans(context.Background(), "default", 0, 10000); err == nil {
+			if n, err := infraArchiveScheduler.LoadArchivesFromPlans(context.Background(), "default", plans); err == nil && n > 0 {
+				infra.logger.Info("archive autoload: registered plans from storage_config",
+					zap.Int("loaded", n))
+			}
+		}
+	}
 	// schema-registry: Postgres-backed repository (migration 404). Falls
 	// back to InMemory when the DB handle is missing (e.g. unit tests).
 	var schemaRegRepo schemaReg_repo.Interface
@@ -563,6 +603,10 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	infraChaosRepo := infraChaos_repo.NewChaosRepository(infra.db.DB)
 	infraChaosSvc := infraChaos_service.NewChaosService(infraChaosRepo)
 	infraChaosH = infraChaos_handler.NewHandler(infraChaosSvc)
+	// migration: ARCH-0.18 repo -> service -> handler
+	migRepo := migration.NewRepository()
+	migSvc := migration.NewService(migRepo, infra.logger)
+	migrationH = migration.NewHandler(migSvc, infra.logger)
 	// dba: repo -> service -> handler
 	infraDbaRepo := infraDba_repo.NewRepository(infra.db.DB)
 	infraDbaSvc := infraDba_service.NewService(infraDbaRepo)

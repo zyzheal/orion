@@ -1018,8 +1018,17 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if infraArchiveH != nil {
     infraArchiveH.RegisterRoutes(api)
   }
+  if infraArchiveSchedulerH != nil {
+    infraArchiveSchedulerH.RegisterRoutes(api)
+  }
+  if infraRetentionH != nil {
+    infraRetentionH.RegisterRoutes(api)
+  }
   if infraChaosH != nil {
     infraChaosH.RegisterRoutes(api)
+  }
+  if migrationH != nil {
+    migrationH.RegisterRoutes(api)
   }
   if infraSchemaRegH != nil {
     infraSchemaRegH.RegisterRoutes(api)

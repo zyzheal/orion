@@ -302,6 +302,7 @@ export const routes: AppRoute[] = [
     path: '/itsm/changes',
     element: React.lazy(() => import('@/pages/ChangeManagement')),
     protected: true,
+    requiredPermission: { resource: 'itsm', action: 'read' },
   },
   // Personal Workbench (统一工作台)
   // [ARCHIVED] - old /bi entry, migrated to /dashboard/executive; retained for backward compatibility
@@ -375,6 +376,7 @@ export const routes: AppRoute[] = [
     path: '/security/auth-config',
     element: React.lazy(() => import('@/pages/security/AuthConfig')),
     protected: true,
+    requiredPermission: { resource: 'security', action: 'manage' },
   },
   // H1 Security - Compliance Scan
   {
@@ -418,6 +420,7 @@ export const routes: AppRoute[] = [
     path: '/change-intelligence',
     element: React.lazy(() => import('@/pages/ChangeIntelligence')),
     protected: true,
+    requiredPermission: { resource: 'change', action: 'read' },
   },
   // Canary Analysis
   {
@@ -469,11 +472,13 @@ export const routes: AppRoute[] = [
         path: '/skills/admin/pending',
         element: React.lazy(() => import('@/pages/SkillManagement/PendingReviews')),
         protected: true,
+        requiredPermission: { resource: 'skill', action: 'manage' },
       },
       {
         path: '/skills/admin/history',
         element: React.lazy(() => import('@/pages/SkillManagement/AuditHistory')),
         protected: true,
+        requiredPermission: { resource: 'skill', action: 'manage' },
       },
     ],
   },
@@ -962,6 +967,7 @@ export const routes: AppRoute[] = [
         path: '/observability/self-healing/approvals',
         element: React.lazy(() => import('@/pages/SelfHealing/ApprovalQueue')),
         protected: true,
+        requiredPermission: { resource: 'approval', action: 'manage' },
       },
       {
         path: '/observability/self-healing/effectiveness',
@@ -1186,6 +1192,7 @@ export const routes: AppRoute[] = [
     path: '/approvals/workflows',
     element: React.lazy(() => import('@/pages/approval/ApprovalPage')),
     protected: true,
+    requiredPermission: { resource: 'approval', action: 'manage' },
   },
   // Workflow Designer (Lowcode)
   {
@@ -1395,6 +1402,7 @@ export const routes: AppRoute[] = [
     path: '/backup',
     element: React.lazy(() => import('@/pages/Backup')),
     protected: true,
+    requiredPermission: { resource: 'backup', action: 'manage' },
   },
   // Runner Pool Management (GAP-CN-07)
   {
@@ -1531,6 +1539,7 @@ export const routes: AppRoute[] = [
     path: '/config-mgmt-enhanced',
     element: React.lazy(() => import('@/pages/ConfigManagement')),
     protected: true,
+    requiredPermission: { resource: 'config', action: 'manage' },
   },
   // Security Compliance (Phase 3)
   {
@@ -1561,6 +1570,12 @@ export const routes: AppRoute[] = [
   {
     path: '/disaster-recovery',
     element: React.lazy(() => import('@/pages/disaster-recovery/DisasterRecoveryPage')),
+    protected: true,
+  },
+  // Data Migration (ARCH-0.18)
+  {
+    path: '/migration',
+    element: React.lazy(() => import('@/pages/migration/MigrationPage')),
     protected: true,
   },
   // Performance Engineering (Phase 4)
@@ -1922,6 +1937,7 @@ export const routes: AppRoute[] = [
     path: '/infra',
     element: <RedirectTo to="/environments" />,
     protected: true,
+    requiredPermission: { resource: 'infra', action: 'read' },
   },
   {
     path: '/governance',
@@ -1968,7 +1984,7 @@ export const routes: AppRoute[] = [
     path: '/capability-admin',
     element: React.lazy(() => import('@/pages/CapabilityAdmin')),
     protected: true,
-    roles: ['super_admin', 'platform_admin'],
+    requiredPermission: { resource: '*', action: 'manage' },
   } as any,
 
   // ==================== Previously Orphaned Pages ====================
@@ -1990,6 +2006,7 @@ export const routes: AppRoute[] = [
     path: '/console/change-request-management',
     element: React.lazy(() => import('@/pages/ChangeRequestManagement')),
     protected: true,
+    requiredPermission: { resource: 'change', action: 'manage' },
   } as any,
   // Sprint Board (RDM Extension)
   {
@@ -2020,6 +2037,7 @@ export const routes: AppRoute[] = [
     path: '/pipeline/audit-logs',
     element: React.lazy(() => import('@/pages/AuditLogs')),
     protected: true,
+    requiredPermission: { resource: 'audit', action: 'read' },
   } as any,
 
   // ==================== P0-10: 未注册页面路由补全 (22 pages) ====================
@@ -2195,12 +2213,14 @@ export const routes: AppRoute[] = [
     path: '/config-mgmt',
     element: React.lazy(() => import('@/pages/config-mgmt/ConfigMgmtPage')),
     protected: true,
+    requiredPermission: { resource: 'config', action: 'manage' },
   },
   // Config Version Diff
   {
     path: '/config-diff',
     element: React.lazy(() => import('@/pages/ConfigDiff')),
     protected: true,
+    requiredPermission: { resource: 'config', action: 'read' },
   },
   // Pipeline Run Analytics
   {
@@ -2220,6 +2240,7 @@ export const routes: AppRoute[] = [
     path: '/apk-credentials',
     element: React.lazy(() => import('@/pages/pipeline-svc/ApkCredentials')),
     protected: true,
+    requiredPermission: { resource: 'credential', action: 'manage' },
   },
   {
     path: '/apk-upload-history',
