@@ -1525,6 +1525,11 @@ func buildDumpEntries() []dumpEntry {
 				migrationH.RegisterRoutes(api)
 			}
 		}},
+		{"infraSchemaRegH", 1033, func(api *gin.RouterGroup) {
+			if infraSchemaRegH != nil {
+				infraSchemaRegH.RegisterRoutes(api)
+			}
+		}},
 		{"infraDegH", 963, func(api *gin.RouterGroup) {
 			if infraDegH != nil {
 				infraDegH.RegisterRoutes(api)

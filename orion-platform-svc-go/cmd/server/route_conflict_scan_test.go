@@ -1483,6 +1483,11 @@ func TestRouteConflictScan(t *testing.T) {
 				migrationH.RegisterRoutes(api)
 			}
 		}},
+		{"infraSchemaRegH", func() {
+			if infraSchemaRegH != nil {
+				infraSchemaRegH.RegisterRoutes(api)
+			}
+		}},
 		{"infraDegH", func() {
 			if infraDegH != nil {
 				infraDegH.RegisterRoutes(api)

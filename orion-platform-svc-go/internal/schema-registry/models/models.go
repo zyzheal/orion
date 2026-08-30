@@ -76,6 +76,7 @@ type IndexDefinition struct {
 // Schema is the core registry entry.
 type Schema struct {
 	ID            string                 `json:"id"`
+	TenantID      string                 `json:"tenantId,omitempty"`
 	Name          string                 `json:"name"`
 	Namespace     string                 `json:"namespace"`
 	Type          SchemaType             `json:"type"`
@@ -197,6 +198,6 @@ type SchemaVersion struct {
 }
 
 type VersionHistoryResponse struct {
-	Schema   string          `json:"schema"`
-	Versions []SchemaVersion `json:"versions"`
+	Schema   string              `json:"schema"`
+	Versions []*SchemaVersion `json:"versions"`
 }
