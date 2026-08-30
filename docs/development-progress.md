@@ -593,12 +593,12 @@
   - **PERM-8 阶段 2 是这个客户端的隐性依赖**：租户作用域的两个端点要 `tenant_id`，而 `tenant_id` 只有严格认证才会写进 context。所以「客户端能用」和「客户端在所有调用方上都对」不是同一件事，这个依赖已写在文件头注释里
   - **ARCH-0.12 仍在**：类型声明里有 5 种引擎，但驱动只接了部分（ClickHouse / MongoDB 未实现），前端客户端已按 5 种声明好类型，后端补驱动后前端无需改动
   - **ARCH-0.11 未动**：`database-devops` 的明文密码与 `datasource` 模块的双模块重复，本轮未动
-  - PERM-6（AI 端点权限）、ARCH-0.10b（备份/恢复真实现，与 ARCH-0.15 备份系统统一有重叠）、`internal/identity/role` 死代码、`orchestrationH` vs `ai_orchestrationH` 通配符名冲突 —— 沿用记录
-  - 前端 45 个既有 `tsc` 错误、`orion-go-common` 的 `pkg/dag`（`Graph.RemoveEdge` 缺失）与 `pkg/cron` 测试构建失败 —— 均非本轮引入，未处理
+  - PERM-6（AI 端点权限）、~~ARCH-0.10b/ARCH-0.15~~ ✅（备份引擎真实现 + 系统统一均已完成）、`internal/identity/role` 死代码、`orchestrationH` vs `ai_orchestrationH` 通配符名冲突 —— 沿用记录
+  - 前端 45 个既有 `tsc` 错误 ~~（均非本轮引入）~~ ✅ **已修复**（ARCH-0.15 附带修复 backup API 对齐 + disaster-recovery 适配）；`orion-go-common` 的 `pkg/dag`（`Graph.RemoveEdge` 缺失）与 `pkg/cron` 测试构建失败 —— 未处理
 
 - 📌 **本轮明确未做（已排期）**
   - PERM-8 阶段 2 — `/api/v1` 切严格 `auth.Auth`（破坏性变更，需客户端迁移计划）
-  - ARCH-0.10b — 备份/恢复引擎真实现（复用 `internal/backup/` 或 `internal/infrastructure/backup/`，见 ARCH-0.15）
+  - ~~ARCH-0.10b/ARCH-0.15~~ ✅ — 备份引擎真实现 + 系统统一均已完成
   - PERM-6 — AI 端点权限定义（决策待定：44 个角色里只有 1 个授予任何 `ai*`）
   - ARCH-0.11 — 三套数据源统一 + `/data-sources` 明文密码清理
   - ~~ARCH-0.12~~ — datasource 补 ClickHouse 驱动 ✅ 已完成
@@ -745,14 +745,14 @@
   - `go test ./...` → **545 包 ok / 0 FAIL**
 
 - 🔍 **本轮确认但仍未解的（记录）**
-  - **P0-0 剩余：备份/恢复/Redis 采集接真实执行**（ARCH-0.10b + ARCH-0.15/0.17，5-7d）——`database-devops` 的 `ExecuteBackup`/`ExecuteRestore` 仍是 `// TODO` 桩，`internal/infrastructure/backup/` 的 `executeBackup` 仍是模拟执行；~~ARCH-0.16 慢查询已接 pg_stat_statements 真实采集 ✅~~
+  - **P0-0 剩余：Migration 能力建设**（ARCH-0.18，3-5d）——`database-devops` 的 `ExecuteBackup`/`ExecuteRestore` 已接真实执行 ✅（ARCH-0.10b）；备份系统已统一 ✅（ARCH-0.15）；Redis 采集已接 go-redis INFO ✅（ARCH-0.17）；~~ARCH-0.16 慢查询已接 pg_stat_statements 真实采集 ✅~~
   - **PERM-8 阶段 2**：`/api/v1` 切严格 `auth.Auth`——破坏性变更，需客户端迁移计划
   - ~~**ARCH-0.12**~~：datasource 补 ClickHouse 驱动 ✅ 已完成
   - **PERM-6**：AI 端点权限定义（决策待定）
 
 - 📌 **本轮明确未做（已排期）**
-  - ARCH-0.10b — 备份/恢复引擎真实现（3-5 天）
-  - ARCH-0.15/0.17 — Redis 采集接真实执行（~~ARCH-0.16 慢查询已接 pg_stat_statements ✅~~）
+  - ~~ARCH-0.10b~~ ✅ — 备份/恢复引擎真实现（2026-08-30）
+  - ~~ARCH-0.15/0.17~~ ✅ — Redis 采集 + 备份系统统一（2026-08-29/26）（~~ARCH-0.16 慢查询已接 pg_stat_statements ✅~~）
   - ~~ARCH-0.12~~ — datasource 补 ClickHouse 驱动 ✅ 已完成
   - PERM-8 阶段 2 — `/api/v1` 切严格 `auth.Auth`（需迁移计划）
   - PERM-6 — AI 端点权限定义（决策待定）
@@ -1025,7 +1025,7 @@ go test ./internal/datasource/... ✅ 全部 PASS
 - **`nonEmptyStrings` 辅助**：避免 `[]string{""}` 传递给 executor
 
 ### 剩余
-- ARCH-0.15：备份系统统一（`internal/backup/` + `internal/infrastructure/backup/` 合并）
+- ~~ARCH-0.15：备份系统统一（`internal/backup/` + `internal/infrastructure/backup/` 合并）~~ ✅ **完成 2026-08-26**
 - 真实存储后端（S3/MinIO）尚未接入 database-devops 路径
 - `HealthCheck` 未实现 PG 流复制探测或 MySQL 主从切换检查
 - `convertSteps` 所有步骤统一标记为 `PhasePreflight`，未按命令内容推断 phase
