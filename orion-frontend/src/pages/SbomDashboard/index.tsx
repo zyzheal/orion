@@ -2,7 +2,8 @@
  * SBOM Dashboard Page
  * SBOM coverage stats, vulnerability trends, compliance score, SBOM list
  */
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
   Button,
@@ -65,41 +66,33 @@ const sbomStatusToBadge: Record<string, StatusType> = {
 
 const SbomDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [documents, setDocuments] = useState<SbomDocument[]>([]);
-  const [waivers, setWaivers] = useState<SbomWaiver[]>([]);
-  const [compliance, setCompliance] = useState<SbomComplianceReport | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [waiverModalVisible, setWaiverModalVisible] = useState(false);
   const [waiverSubmitting, setWaiverSubmitting] = useState(false);
   const [form] = Form.useForm();
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const { data: rawData, isLoading: loading, refetch } = useQuery<{ documents: SbomDocument[]; waivers: SbomWaiver[]; compliance: SbomComplianceReport | null }>({
+    queryKey: ['sbom-dashboard'],
+    queryFn: async () => {
       const [docRes, waiverRes, compRes] = await Promise.all([
         getSbomDocuments(),
         getSbomWaivers(),
         getSbomComplianceReport(),
       ]);
-      setDocuments(Array.isArray(docRes?.data) ? (docRes.data as SbomDocument[]) : []);
-      setWaivers(Array.isArray(waiverRes?.data) ? (waiverRes.data as SbomWaiver[]) : []);
-      setCompliance((compRes?.data as SbomComplianceReport) || null);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`Failed to load SBOM data：${error.message}`);
-      } else {
-        message.error('Failed to load SBOM data');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        documents: Array.isArray(docRes?.data) ? (docRes.data as SbomDocument[]) : [],
+        waivers: Array.isArray(waiverRes?.data) ? (waiverRes.data as SbomWaiver[]) : [],
+        compliance: (compRes?.data as SbomComplianceReport) || null,
+      };
+    },
+    retry: 0,
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const documents = rawData?.documents ?? [];
+  const waivers = rawData?.waivers ?? [];
+  const compliance = rawData?.compliance ?? null;
 
   const filteredDocs = useMemo(() => {
     return documents.filter((doc) => {
@@ -146,7 +139,7 @@ const SbomDashboard: React.FC = () => {
       message.success('Waiver created successfully');
       setWaiverModalVisible(false);
       form.resetFields();
-      loadData();
+      refetch();
     } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
@@ -289,7 +282,7 @@ const SbomDashboard: React.FC = () => {
           <Text type="secondary">软件物料清单与漏洞管理</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={refetch} loading={loading}>
             刷新
           </Button>
           <Button
