@@ -4,7 +4,8 @@ import { colors, spacing } from '@/tokens';
  * AI Review - Rules
  * Review rule management with CRUD operations
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
   Card,
@@ -42,8 +43,6 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 const AIReviewRules: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<AIReviewRule[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<AIReviewRule | null>(null);
   const [form] = Form.useForm();
@@ -51,25 +50,17 @@ const AIReviewRules: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | undefined>(undefined);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const { data: rawData, isLoading: loading, refetch } = useQuery<AIReviewRule[]>({
+    queryKey: ['ai-review-rules'],
+    queryFn: async () => {
       const res = await getReviewRules();
-      setData((res.data as any)?.items || []);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载评审规则失败：${error.message}`);
-      } else {
-        message.error('加载评审规则失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (res.data as any)?.items || [];
+    },
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const loadData = () => refetch();
+  const data = rawData ?? [];
 
   const handleToggle = async (ruleId: string) => {
     try {
