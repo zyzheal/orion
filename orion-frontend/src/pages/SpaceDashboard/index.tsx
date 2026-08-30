@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { API_BASE_URL } from '@/api/client';
+import { useQuery } from '@/providers/QueryProvider';
 import { Typography, Card, Row, Col, Statistic, Progress, Table, Tag, Space, Select, Button } from 'antd';
 import {
   SmileOutlined,
@@ -35,7 +37,7 @@ const SPACE_CONFIG: Record<SpaceMetric, { label: string; icon: React.ReactNode; 
 
 async function fetchSpaceData(period: string): Promise<SpaceData> {
   try {
-    const resp = await fetch(`/api/v1/space-metrics?period=${period}`, {
+    const resp = await fetch(`${API_BASE_URL}/space-metrics?period=${period}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
     });
     if (!resp.ok) return getFallbackData();
@@ -67,20 +69,13 @@ interface SpaceDetailRow {
 
 const SpaceDashboardPage: React.FC = () => {
   const [period, setPeriod] = useState('30d');
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<SpaceData | null>(null);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const result = await fetchSpaceData(period);
-      setData(result);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data, isLoading: loading, refetch } = useQuery<SpaceData>({
+    queryKey: ['space-metrics', period],
+    queryFn: () => fetchSpaceData(period),
+  });
 
-  React.useEffect(() => { loadData(); }, [period]);
+  const loadData = () => refetch();
 
   if (!data) return null;
 
