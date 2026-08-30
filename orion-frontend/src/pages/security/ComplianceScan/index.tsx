@@ -268,7 +268,7 @@ const ComplianceScanPage: React.FC = () => {
       <Row gutter={[spacing.md, spacing.md]} style={{ marginBottom: spacing.md }}>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="合规基线数" value={baselines.length} prefix={<FileProtectOutlined />} />
+            <Statistic title="合规基线数" value={safeBaselines.length} prefix={<FileProtectOutlined />} />
           </Card>
         </Col>
         <Col span={6}>
@@ -303,7 +303,7 @@ const ComplianceScanPage: React.FC = () => {
         title="合规基线"
         extra={
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={refetch}>刷新</Button>
+            <Button icon={<ReloadOutlined />} onClick={() => refetch()}>刷新</Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
               新建基线
             </Button>

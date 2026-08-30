@@ -88,7 +88,7 @@ const DevPortalPage: React.FC = () => {
 
   const filtered = search
     ? safeComponents.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()) || c.owner.includes(search.toLowerCase()))
-    : components;
+    : safeComponents;
 
   const stats = {
     total: safeComponents.length,
@@ -97,7 +97,7 @@ const DevPortalPage: React.FC = () => {
     healthy: safeComponents.filter((c) => c.health >= 90).length,
   };
 
-  const avgHealth = safeComponents.length > 0 ? Math.round(components.reduce((s, c) => s + c.health, 0) / safeComponents.length) : 0;
+  const avgHealth = safeComponents.length > 0 ? Math.round(safeComponents.reduce((s, c) => s + c.health, 0) / safeComponents.length) : 0;
 
   const handleView = (c: ServiceComponent) => {
     setSelected(c);

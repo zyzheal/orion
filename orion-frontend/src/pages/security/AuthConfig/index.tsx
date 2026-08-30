@@ -247,7 +247,7 @@ const AuthConfigPage: React.FC = () => {
         title="认证源列表"
         extra={
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={refetch}>刷新</Button>
+            <Button icon={<ReloadOutlined />} onClick={() => refetch()}>刷新</Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
               新建认证源
             </Button>

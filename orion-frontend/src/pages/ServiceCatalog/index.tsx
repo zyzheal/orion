@@ -265,7 +265,7 @@ const ServiceCatalogPage: React.FC = () => {
           title="服务目录"
           extra={
             <Space>
-              <Button icon={<ReloadOutlined />} size="small" onClick={loadItems} loading={loading}>
+              <Button icon={<ReloadOutlined />} size="small" onClick={() => refetchItems()} loading={loading}>
                 刷新
               </Button>
               <Button type="primary" size="small" icon={<PlusOutlined />} onClick={handleCreate}>
@@ -297,7 +297,7 @@ const ServiceCatalogPage: React.FC = () => {
             </>
           }
           extra={
-            <Button icon={<ReloadOutlined />} size="small" onClick={refetchBreaches}>
+            <Button icon={<ReloadOutlined />} size="small" onClick={() => refetchBreaches()}>
               刷新
             </Button>
           }

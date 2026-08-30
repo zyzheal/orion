@@ -282,7 +282,7 @@ const SbomDashboard: React.FC = () => {
           <Text type="secondary">软件物料清单与漏洞管理</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={refetch} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
             刷新
           </Button>
           <Button

@@ -273,7 +273,7 @@ const ServicePortalPage: React.FC = () => {
           <Button type="primary" icon={<PlusOutlined />} onClick={handleRegister}>
             注册服务
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={loadServices} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
             刷新
           </Button>
         </Space>

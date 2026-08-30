@@ -11,7 +11,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@/providers/QueryProvider';
-import { Typography, Card, Table, Tag, Space, Select, Button, message, Empty, Spin } from 'antd';
+import { Typography, Card, Table, Tag, Space, Select, Button, Empty, Spin } from 'antd';
 import { ClusterOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { TableColumn } from '@/components/Table';
 import {
