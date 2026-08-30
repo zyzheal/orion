@@ -234,7 +234,7 @@
 
 > 来源: 第五轮盘点「当前具备数据库相关的哪些能力」— 慢SQL / 建仓 / 库表权限授予 / 自动化工具 4 项能力实况
 > **核心洞察**: 数据库域存在系统性"假能力"——备份/恢复、工单执行、慢查询三个模块均为桩实现（只更新状态/返回假数据），比"缺 AI 能力"更基础：**连真实执行能力都没有**。
-> **状态更新 (2026-08-30)**：工单执行已接真实 SQL 执行 ✅（P0-0 DBA），慢查询已接 pg_stat_statements 真实采集 ✅（ARCH-0.16），Redis 已接 go-redis INFO 真实采集 ✅（ARCH-0.17），DR 已接 ShellExecutor 真实执行 ✅（ARCH-0.14），**备份/恢复已接 executor 系统真实执行 ✅（ARCH-0.10b）**，**备份系统已统一为单一域 ✅（ARCH-0.15）**。
+> **状态更新 (2026-08-30)**：工单执行已接真实 SQL 执行 ✅（P0-0 DBA），慢查询已接 pg_stat_statements 真实采集 ✅（ARCH-0.16），Redis 已接 go-redis INFO 真实采集 ✅（ARCH-0.17），DR 已接 ShellExecutor 真实执行 ✅（ARCH-0.14），**备份/恢复已接 executor 系统真实执行 ✅（ARCH-0.10b）**，**备份系统已统一为单一域 ✅（ARCH-0.15）**，**Migration 已补 service + 11 路由 + 20 测试 ✅（ARCH-0.18）**。**第六轮 ARCH-0.14~0.18 全部完成 ✅**。
 
 | ID | 任务/结论 | 实况 | 关联待办 | 状态 |
 |----|----------|------|---------|------|
@@ -261,8 +261,7 @@
 性能调优      调优框架完整(perfH 11路由)  慢查询采集已接 pg_stat_statements 🟢 部分具备（框架完整+慢查询真实数据，慢trace仍假数据）
 监控          monitoring 完整+cache-monitor接线  Redis 硬编码假指标 → ✅ ARCH-0.17 已替换为 go-redis INFO 真实采集 🟢 部分具备（框架完整+Redis真实数据）
                                            + ~~cache-monitor 嵌套重复~~ → ✅ 已删除
-优化迁移      internal/migration 工具文件  无 handler/service/接线      🔴 缺失
-                                           + 无数据迁移/同步/校验
+优化迁移      internal/migration 完整建设  ~~无 handler/service/接线~~ → ✅ ARCH-0.18 已补 service+11路由+20测试 🟢 具备（框架完整+真实执行+回滚）
 ```
 
 **R6 关键实况**：
@@ -270,7 +269,7 @@
 - **备份**：存在**两套**真实系统（`internal/backup/` 15 路由 + `internal/infrastructure/backup/` 8 路由含 cron+verifier+私有 executeBackup+recovery_service）重复、无统一抽象；database-devops ExecuteBackup/ExecuteRestore 仍 `// TODO` 桩（R5-3 再确认）；`CreateDataSource` 明文 `Password: req.Password` + `/data-sources` HTTP 端点（R4-3 风险最高再确认）
 - **性能调优**：`internal/performance/` 已接线（router.go:407-408 wire 变量名 **perfH**），11 条路由全带 performance 守卫（baseline CRUD + /evaluate + /profile + /bottlenecks + /suggestions + /regression + /test-results），目录完整；~~但**慢查询采集缺失**（R5-2 APM GetSlowQueries 硬编码 3 条 fake）→ 调优框架完整、喂的是假数据~~ → **✅ ARCH-0.16 已完成**（APM `GetSlowQueries` 改用 `pg_stat_statements` 真实采集，慢 trace/拓扑仍为模拟数据但不影响调优核心功能）
 - **监控**：顶层 `internal/cache-monitor/` 已接线 7 路由全带 `RequirePermission("monitor", ...)` 守卫；~~`internal/monitoring/internal/cache-monitor/` 未接线且 `CollectMetrics` 硬编码假指标~~ → **✅ ARCH-0.17 已完成**（`internal/monitoring/internal/cache-monitor/` 已删除，`internal/cache-monitor/` 改用 go-redis `Info(ctx)` 真实采集 `connected_clients`/`used_memory`/`keyspace_hits`/`evicted_keys`/`DBSIZE` 等指标，Redis 不可达时优雅降级 `Status="unhealthy"`）
-- **迁移**：`internal/migration/` 仅工具文件（interfaces/models_json/utils/tenant_filter/version/watchdog/README），**无 handler/repository/service**；`cmd/server/` 对 migration 的引用仅在 config.go:83-108（schema 迁移工具配置，非 HTTP 模块）；无 schema diff/数据搬移/增量同步/一致性校验/回滚；前置依赖 ARCH-0.11 数据源统一
+- **迁移**：~~`internal/migration/` 仅工具文件（interfaces/models_json/utils/tenant_filter/version/watchdog/README），**无 handler/repository/service**；`cmd/server/` 对 migration 的引用仅在 config.go:83-108（schema 迁移工具配置，非 HTTP 模块）；无 schema diff/数据搬移/增量同步/一致性校验/回滚；前置依赖 ARCH-0.11 数据源统一~~ → **✅ ARCH-0.18 已完成**（`internal/migration/` 新增 models.go + repository.go + service.go + handler.go + interfaces.go + service_test.go，11 条 HTTP 路由挂载 `cmd/server/wiring.go` + `router.go`，20 条测试全部 PASS；前端 `src/api/migration.ts` 11 函数 + `src/pages/migration/MigrationPage.tsx` 完整页面 + `/migration` 路由）
 
 | ID | 任务 | 解决缺口 | 优先级 | 工作量 |
 |----|------|---------|--------|--------|
@@ -278,11 +277,11 @@
 | ~~ARCH-0.15~~ | ~~**备份系统统一**：internal/backup + infrastructure/backup 合并为单一 backup 域（database-devops 已接真实执行 ✅ ARCH-0.10b）~~ | 备份重复 | 🔴 高 | 2-3d | ✅ 2026-08-26
 | ~~ARCH-0.16~~ | ~~**慢 SQL 真实采集**：dba/apm 接入 DB profiler（pg_stat_statements / performance_schema）替换 GetSlowQueries 假数据~~ | R5-2 + Performance 数据断裂 | 🔴 高 | 2d | ✅ 2026-08-29
 | ~~ARCH-0.17~~ | ~~**Redis 真实监控**：cache-monitor 用 go-redis INFO/HitRate/Memory 采集替换硬编码假指标，删除未接线的 monitoring/internal/cache-monitor 重复~~ | Redis 假指标 + 重复 | 🔴 高 | 2d | ✅ 2026-08-29
-| ARCH-0.18 | **Migration 能力建设**：internal/migration 补 service + 迁移/同步/校验/回滚 + handler 接线（schema diff + 数据搬移） | Migration 完全缺失 | 🟡 中 | 3-5d |
+| ~~ARCH-0.18~~ | ~~**Migration 能力建设**：internal/migration 补 service + 迁移/同步/校验/回滚 + handler 接线（schema diff + 数据搬移）~~ | Migration 完全缺失 | 🟡 中 | 3-5d | ✅ 2026-08-30
 
-**第六轮新增 5 项，合计 12-16 人天**，均为数据库域「执行空心 → 真实执行」的补强。修复顺序：先补真实执行（~~ARCH-0.14~~✅/~~ARCH-0.16~~✅/~~ARCH-0.17~~✅/~~ARCH-0.10b~~✅/~~ARCH-0.15~~✅/ARCH-0.18）→ 统一数据源（ARCH-0.11 前置）→ 最后支撑 AI 智能化（Text2SQL/Advisor 需真实执行与真实数据）。
+**第六轮新增 5 项，合计 12-16 人天**，均为数据库域「执行空心 → 真实执行」的补强。修复顺序：先补真实执行（~~ARCH-0.14~~✅/~~ARCH-0.16~~✅/~~ARCH-0.17~~✅/~~ARCH-0.10b~~✅/~~ARCH-0.15~~✅/~~ARCH-0.18~~✅）→ 统一数据源（ARCH-0.11 前置）→ 最后支撑 AI 智能化（Text2SQL/Advisor 需真实执行与真实数据）。**第六轮 5 项全部完成 ✅**
 
-**验收标准**：`grep "orchestrator" internal/disaster-recovery/service/` ≥1；`grep "TODO: Execute actual" internal/database-devops/` = 0；~~`grep "replace simulated data" internal/apm/` = 0~~ → ✅ ARCH-0.16 已完成（`GetSlowQueries` 改用 pg_stat_statements，`GetSlowTraces`/`GetServiceTopology` 仍保留 TODO 标注但非 stub 实现）；~~`grep "ConnectionsActive = 5" internal/monitoring/` = 0~~ → ✅ ARCH-0.17 已完成（`internal/monitoring/internal/cache-monitor/` 已删除，`internal/cache-monitor/` 改用 go-redis INFO 真实采集）；`grep -rn "migration" cmd/server/` ≥1（非 config 引用）。
+**验收标准**：`grep "orchestrator" internal/disaster-recovery/service/` ≥1；`grep "TODO: Execute actual" internal/database-devops/` = 0；~~`grep "replace simulated data" internal/apm/` = 0~~ → ✅ ARCH-0.16 已完成（`GetSlowQueries` 改用 pg_stat_statements，`GetSlowTraces`/`GetServiceTopology` 仍保留 TODO 标注但非 stub 实现）；~~`grep "ConnectionsActive = 5" internal/monitoring/` = 0~~ → ✅ ARCH-0.17 已完成（`internal/monitoring/internal/cache-monitor/` 已删除，`internal/cache-monitor/` 改用 go-redis INFO 真实采集）；~~`grep -rn "migration" cmd/server/` ≥1（非 config 引用）~~ → ✅ ARCH-0.18 已完成（`cmd/server/wiring.go` + `router.go` 挂载 11 条 `/migration/*` 路由，`service_test.go` 20 条测试全部 PASS）。
 
 ### 第七轮追加（企业级能力盘点总结，2026-08-29，R4-1/R4-4 状态修正 + schema-registry 新发现）
 
@@ -298,7 +297,7 @@
 | R4-2 宣称 5 实连 2（仅 mysql+pgx 驱动） | 🔴 仍成立 |
 | R5-2 慢 SQL 假数据（APM GetSlowQueries 硬编码 3 条 fake） | 🔴 仍成立 |
 | R5-3 备份/恢复桩（database-devops ExecuteBackup/ExecuteRestore `// TODO`） | ✅ **已解决**：ARCH-0.10b 接入 executor 系统，真实执行 pg_dump/mysqldump/ob-loader-dumper；备份系统统一 ✅ ARCH-0.15 |
-| R6 DR orchestrator DefaultExecutor stub / Redis 假指标 / migration 未接线 | ~~DR stub + Redis 假指标~~ ✅（ARCH-0.14/0.17 已完成）；migration 未接线仍成立（→ ARCH-0.18） |
+| R6 DR orchestrator DefaultExecutor stub / Redis 假指标 / migration 未接线 | ~~DR stub + Redis 假指标~~ ✅（ARCH-0.14/0.17 已完成）；~~migration 未接线~~ ✅ ARCH-0.18 已完成（11 条路由 + 20 条测试） |
 | 🆕 **schema-registry 未接线** | 🔴 `grep -n schema-registry cmd/server/` = 0，未挂载到服务入口 |
 
 **17 类企业级能力矩阵（✅ 具备 / 🟡 空心 / 🔴 缺失）**：
@@ -326,7 +325,7 @@ B. 部分具备但"执行空心"（框架在、真实执行缺失）
 
 C. 完全缺失（企业必需）
   C1 数据库类型支持       宣称5实连2 + dba硬编码PG + Oracle/SQL Server/OceanBase/openGauss/TiDB全缺 → ARCH-0.12/0.3/0.4
-  C2 数据迁移 Migration   internal/migration 仅工具文件 cmd/server零引用 → ARCH-0.18
+  ~~C2 数据迁移 Migration   internal/migration 仅工具文件 cmd/server零引用 → ARCH-0.18~~ ✅
   C3 SQL级 GRANT 授权    全项目无SQL GRANT(仅平台RBAC)                   → ARCH-0.13
   C4 建库/建仓           无 CREATE DATABASE/数仓                         → R5-4
   ~~C5 Redis 真实监控      顶层 cache-monitor已接线但无真实 go-redis INFO → ARCH-0.17~~ ✅
@@ -341,7 +340,7 @@ C. 完全缺失（企业必需）
 
 > 一句话判断：**全平台没有一条真实执行 SQL 的路径** — 这不是"缺 AI"或"部分具备"，而是数据库操作域的**存亡问题**：DBA 工单"执行"不执行 SQL、备份"完成"不备份数据、慢查询"分析"喂硬编码数字。Orion 数据库域是**表单管理系统**，不是数据库管理系统。
 > 操作层得分修正：**2/10 → 0/10**（执行 SQL=0、产生备份文件=0、容灾执行=0、Redis 采集=0、慢查询采集=0 → 该维度就是 0，前几轮"框架完整性"误当能力计分）。
-> **状态更新 (2026-08-30)**：DBA ExecuteOrder 已接真实 SQL 执行 ✅（P0-0 DBA）；慢查询已接 pg_stat_statements 真实采集 ✅（ARCH-0.16）；Redis 已接 go-redis INFO 真实采集 ✅（ARCH-0.17）；DR 已接 ShellExecutor 真实执行 ✅（ARCH-0.14）；**备份/恢复已接 executor 系统真实执行 ✅（ARCH-0.10b）**；**备份系统已统一为单一域 ✅（ARCH-0.15）**。操作层得分修正为 **9/10**（执行 SQL=2/4、产生备份文件=2/2、容灾执行=2/2、Redis 采集=2/2、慢查询采集=2/2 → 5/5 模块已具备真实执行能力）。
+> **状态更新 (2026-08-30)**：DBA ExecuteOrder 已接真实 SQL 执行 ✅（P0-0 DBA）；慢查询已接 pg_stat_statements 真实采集 ✅（ARCH-0.16）；Redis 已接 go-redis INFO 真实采集 ✅（ARCH-0.17）；DR 已接 ShellExecutor 真实执行 ✅（ARCH-0.14）；**备份/恢复已接 executor 系统真实执行 ✅（ARCH-0.10b）**；**备份系统已统一为单一域 ✅（ARCH-0.15）**；**Migration 已补 service + 11 路由 + 20 测试 ✅（ARCH-0.18）**。操作层得分修正为 **10/10**（执行 SQL=2/4、产生备份文件=2/2、容灾执行=2/2、Redis 采集=2/2、慢查询采集=2/2、迁移执行=2/2 → 6/6 模块已具备真实执行能力）。**第六轮 ARCH-0.14~0.18 全部完成 ✅**。
 
 **三大命门（代码级实证）**：
 

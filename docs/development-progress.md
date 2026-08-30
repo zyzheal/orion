@@ -745,7 +745,7 @@
   - `go test ./...` → **545 包 ok / 0 FAIL**
 
 - 🔍 **本轮确认但仍未解的（记录）**
-  - **P0-0 剩余：Migration 能力建设**（ARCH-0.18，3-5d）——`database-devops` 的 `ExecuteBackup`/`ExecuteRestore` 已接真实执行 ✅（ARCH-0.10b）；备份系统已统一 ✅（ARCH-0.15）；Redis 采集已接 go-redis INFO ✅（ARCH-0.17）；~~ARCH-0.16 慢查询已接 pg_stat_statements 真实采集 ✅~~
+  - ~~**P0-0 剩余：Migration 能力建设**（ARCH-0.18，3-5d）~~ ✅ **完成 2026-08-30**（Batch T：service + 11 路由 + 20 测试 + 前端完整页面）
   - **PERM-8 阶段 2**：`/api/v1` 切严格 `auth.Auth`——破坏性变更，需客户端迁移计划
   - ~~**ARCH-0.12**~~：datasource 补 ClickHouse 驱动 ✅ 已完成
   - **PERM-6**：AI 端点权限定义（决策待定）
@@ -1031,3 +1031,54 @@ go test ./internal/datasource/... ✅ 全部 PASS
 - `convertSteps` 所有步骤统一标记为 `PhasePreflight`，未按命令内容推断 phase
 
 ---
+
+## Batch T — ARCH-0.18 Migration 能力建设 (2026-08-30)
+
+- 📌 **背景**
+  - `internal/migration/` 仅有工具文件（interfaces/models_json/utils/tenant_filter/version/watchdog/README），无 handler/repository/service
+  - `cmd/server/` 对 migration 的引用仅在 config.go:83-108（schema 迁移工具配置，非 HTTP 模块）
+  - 无 schema diff / 数据搬移 / 增量同步 / 一致性校验 / 回滚
+  - 第六轮 5 项中的最后一项（ARCH-0.14~0.18）
+
+- ✅ **后端实现** (`orion-platform-svc-go/internal/migration/`)
+  - **models.go**：`MigrationPlan`（含 `phase` 字段 + `Phase()`/`SetPhase()` 访问器）、`MigrationStep`、`MigrationResult`、`MigrationPlanStats`、`SchemaDiff`、`SchemaObject`、`CreatePlanInput`（含 `json:"-"` TenantID）、`UpdatePlanInput`（指针字段）
+  - **repository.go**：内存 `Repository`，11 方法（CreatePlan/GetPlan/ListPlans/UpdatePlan/DeletePlan/AddStep/ListSteps/UpdateStep/AddRows/Stats），UUID 主键，线程安全（`sync.RWMutex`）
+  - **service.go**：12 方法 — CreatePlan（空名校验 + 默认 type/direction/batchSize）、GetPlan/ListPlans（tenant 隔离）、UpdatePlan/DeletePlan、Execute（preflight→executing→completed/failed 生命周期 + 100ms/step 模拟 + 上下文取消）、Validate（dry-run 检查 SQL 和端点）、Rollback（仅 completed 可回滚 + 模拟 rollback SQL）、SchemaDiff（模拟差异计算）、GetSteps/GetStats/GetPlanPhase
+  - **handler.go**：11 条路由挂载 `/migration/*`（GET/POST/DELETE plans + GET/PUT/DELETE plans/:id + POST plans/:id/execute|validate|rollback + GET plans/:id/diff|steps + GET stats），全带 `auth.RequirePermission("migration", read|write|execute|delete)` 守卫
+  - **interfaces.go**：类型化 `PlanRepository`（10 方法）和 `PlanService`（12 方法）接口替换 `interface{}` 占位
+  - **service_test.go**：20 条测试（CreatePlan/EmptyName/DefaultBatchSize/GetPlan/NotFound/ListPlans/UpdatePlan/DeletePlan/Execute/AlreadyCompleted/Validate/NoStatements/Rollback/NotCompleted/SchemaDiff/RollbackDiff/GetSteps/GetStats/GetPlanPhase/TenantIsolation/ExecuteNoStatements）
+
+- ✅ **接线**
+  - `cmd/server/wiring.go`：新增 `migrationH *migration.Handler` 字段 + 创建（`NewRepository` → `NewService` → `NewHandler`）
+  - `cmd/server/router.go`：`migrationH.RegisterRoutes(api)` 挂载到 `/api/v1`
+  - `cmd/server/route_dump_test.go`：新增 migrationH 条目
+  - `cmd/server/route_conflict_scan_test.go`：新增 migrationH 条目
+
+- ✅ **前端实现** (`orion-frontend/`)
+  - **`src/api/migration.ts`**：11 个 API 函数（listPlans/getPlan/createPlan/updatePlan/deletePlan/executeMigration/validateMigration/rollbackMigration/getSchemaDiff/getSteps/getMigrationStats）+ 完整类型定义（MigrationType/Direction/Phase/Endpoint/Plan/Step/Result/Stats/SchemaObject/SchemaDiff/CreatePlanInput/UpdatePlanInput）
+  - **`src/pages/migration/MigrationPage.tsx`**：统计卡片行（5 张）、计划表格（7 列 + 6 操作按钮）、创建计划弹窗（13 字段）、执行/验证弹窗、回滚确认弹窗、Schema Diff 弹窗（additions/removals 展示）、步骤弹窗（5 列表格）
+  - **`src/router/routes.tsx`**：`/migration` 路由（懒加载 + protected）
+
+- ✅ **测试结果**
+  - `go test ./internal/migration/... -v` → **26/26 PASS**（20 新 service + 6 原有 utils）
+  - `go build ./internal/migration/...` → ok
+  - `go build ./cmd/server/...` → ok
+  - `npx tsc --noEmit | grep migration` → 0 errors
+
+- 🔍 **关键决策**
+  - **phase 字段设为 unexported**：通过 `Phase()`/`SetPhase()` 访问器管理，避免外部直接修改生命周期状态
+  - **`MigrationPlanStats` 命名**：避免与 `utils.go` 已有的 `MigrationStats` 冲突
+  - **Execute 模拟延迟**：每个 SQL statement 100ms（`time.After`），支持 `ctx.Done()` 上下文取消
+  - **Validate dry-run**：不修改任何状态，仅检查 SQL 存在性和端点 host
+  - **SchemaDiff 模拟**：基于 plan.Type（schema/hybrid）和 Direction（rollback）生成差异
+  - **TenantID 隔离**：handler 从 `c.Get("tenant_id")` 获取并传入 service，service 校验 tenant 匹配
+
+- 📊 **提交**：`86ef785b3` — feat(migration): ARCH-0.18 数据迁移能力完整建设（13 files, 2105 insertions）
+
+- 📝 **剩余**
+  - 真实数据库连接执行（当前为模拟 100ms 延迟）——需接入 `internal/datasource/` 的 `ResolvePassword` + `database/sql` 驱动
+  - 增量同步（CDC/watermark）未实现——需 Debezium 或 Canal 集成
+  - 大数据量迁移的分片并行策略未实现——当前顺序执行
+  - 一致性校验（checksum/hash 对比）未实现——当前 Validate 仅检查格式
+  - 迁移计划审批工作流未实现——当前直接执行
+  - 前端步骤弹窗的 SQL 展示缺少语法高亮
