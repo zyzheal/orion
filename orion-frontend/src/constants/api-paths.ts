@@ -3,47 +3,62 @@
  *
  * 所有前端 API 客户端使用的路径统一在此定义，
  * 避免硬编码字符串散落在各个文件中。
+ * 路径为相对路径（无 /api/v1 前缀），由 api client 自动拼接 baseURL。
  */
 
 export const API_PATHS = {
+  SCHEMA_REGISTRY: {
+    BASE: 'schema-registry',
+    SCHEMAS: 'schema-registry/schemas',
+    SCHEMA_DETAIL: (namespace: string, name: string) =>
+      `schema-registry/schemas/${namespace}/${name}`,
+    EVOLVE: (namespace: string, name: string) =>
+      `schema-registry/schemas/${namespace}/${name}/evolve`,
+    VERSIONS: (namespace: string, name: string) =>
+      `schema-registry/schemas/${namespace}/${name}/versions`,
+    VERSION_DETAIL: (namespace: string, name: string, version: number) =>
+      `schema-registry/schemas/${namespace}/${name}/versions/${version}`,
+    COMPATIBILITY: (namespace: string, name: string) =>
+      `schema-registry/schemas/${namespace}/${name}/compatibility`,
+  },
   CANARY: {
-    BASE: '/api/v1/canary-analysis',
-    RUNS: '/api/v1/canary-analysis/runs',
-    RUN_DETAIL: (id: string) => `/api/v1/canary-analysis/runs/${id}`,
-    RUN_METRICS: (runId: string) => `/api/v1/canary-analysis/runs/${runId}/metrics`,
-    RUN_ML_RESULTS: (runId: string) => `/api/v1/canary-analysis/runs/${runId}/ml-results`,
-    CONFIGS: '/api/v1/canary-analysis/configs',
+    BASE: 'canary-analysis',
+    RUNS: 'canary-analysis/runs',
+    RUN_DETAIL: (id: string) => `canary-analysis/runs/${id}`,
+    RUN_METRICS: (runId: string) => `canary-analysis/runs/${runId}/metrics`,
+    RUN_ML_RESULTS: (runId: string) => `canary-analysis/runs/${runId}/ml-results`,
+    CONFIGS: 'canary-analysis/configs',
     CONFIG_DETAIL: (serviceName: string, environment: string) =>
-      `/api/v1/canary-analysis/configs/${serviceName}/${environment}`,
-    CONFIG_BY_ID: (id: string) => `/api/v1/canary-analysis/configs/${id}`,
-    FORCE_PROMOTE: '/api/v1/canary-analysis/force-promote',
-    FORCE_ROLLBACK: '/api/v1/canary-analysis/force-rollback',
-    METRICS_DISCOVER: '/api/v1/canary-analysis/metrics/discover',
-    MODELS_RETRAIN: '/api/v1/canary-analysis/models/retrain',
+      `canary-analysis/configs/${serviceName}/${environment}`,
+    CONFIG_BY_ID: (id: string) => `canary-analysis/configs/${id}`,
+    FORCE_PROMOTE: 'canary-analysis/force-promote',
+    FORCE_ROLLBACK: 'canary-analysis/force-rollback',
+    METRICS_DISCOVER: 'canary-analysis/metrics/discover',
+    MODELS_RETRAIN: 'canary-analysis/models/retrain',
   },
   COMPLIANCE: {
-    BASE: '/api/v1/compliance',
-    POLICIES: '/api/v1/compliance/policies',
-    EVALUATE: '/api/v1/compliance/evaluate',
-    REPORT: (policyId: string) => `/api/v1/compliance/report/${policyId}`,
-    SCORE: '/api/v1/compliance/score',
-    REMEDIATE: '/api/v1/compliance/remediate',
-    AUDIT_PLANS: '/api/v1/compliance/audit/plans',
-    AUDIT_EXECUTE: (auditId: string) => `/api/v1/compliance/audit/${auditId}/execute`,
-    AUDIT_REPORT: (auditId: string) => `/api/v1/compliance/audit/${auditId}/report`,
-    AUDIT_FINDINGS: (auditId: string) => `/api/v1/compliance/audit/${auditId}/findings`,
-    FINDING_CLOSE: (findingId: string) => `/api/v1/compliance/audit/findings/${findingId}/close`,
+    BASE: 'compliance',
+    POLICIES: 'compliance/policies',
+    EVALUATE: 'compliance/evaluate',
+    REPORT: (policyId: string) => `compliance/report/${policyId}`,
+    SCORE: 'compliance/score',
+    REMEDIATE: 'compliance/remediate',
+    AUDIT_PLANS: 'compliance/audit/plans',
+    AUDIT_EXECUTE: (auditId: string) => `compliance/audit/${auditId}/execute`,
+    AUDIT_REPORT: (auditId: string) => `compliance/audit/${auditId}/report`,
+    AUDIT_FINDINGS: (auditId: string) => `compliance/audit/${auditId}/findings`,
+    FINDING_CLOSE: (findingId: string) => `compliance/audit/findings/${findingId}/close`,
   },
   REPORTS: {
-    BASE: '/api/v1/reports',
-    LIST: '/api/v1/reports/',
-    CREATE: '/api/v1/reports/',
-    DETAIL: (id: string) => `/api/v1/reports/${id}`,
-    PREVIEW: (id: string) => `/api/v1/reports/${id}/preview`,
-    EXECUTE: (id: string) => `/api/v1/reports/${id}/execute`,
-    SCHEDULES: (id: string) => `/api/v1/reports/${id}/schedules`,
-    DATASOURCES: '/api/v1/reports/datasources',
-    DATASOURCE_DETAIL: (id: string) => `/api/v1/reports/datasources/${id}`,
+    BASE: 'reports',
+    LIST: 'reports/',
+    CREATE: 'reports/',
+    DETAIL: (id: string) => `reports/${id}`,
+    PREVIEW: (id: string) => `reports/${id}/preview`,
+    EXECUTE: (id: string) => `reports/${id}/execute`,
+    SCHEDULES: (id: string) => `reports/${id}/schedules`,
+    DATASOURCES: 'reports/datasources',
+    DATASOURCE_DETAIL: (id: string) => `reports/datasources/${id}`,
   },
 } as const;
 
