@@ -29,14 +29,16 @@ import {
   CheckCircleOutlined,
 } from '@ant-design/icons';
 import {
-  getBackups,
   getBackupStats,
-  createBackup,
-  restoreBackup,
-  deleteBackup,
-  type BackupRecord,
-  type BackupInput,
-  type BackupStats,
+  listPlans,
+  createPlan,
+  deletePlan,
+  executeBackup,
+  createRecovery,
+  executeRecovery,
+  type BackupPlan,
+  type CreatePlanInput,
+  type BackupType,
 } from '@/api/backup';
 import { colors, spacing } from '@/tokens';
 import disasterRecoveryApi from '@/api/disaster-recovery';
@@ -44,17 +46,17 @@ import disasterRecoveryApi from '@/api/disaster-recovery';
 const { Title, Text } = Typography;
 
 const DisasterRecoveryPage: React.FC = () => {
-  const [backups, setBackups] = useState<BackupRecord[]>([]);
-  const [stats, setStats] = useState<BackupStats | null>(null);
+  const [plans, setPlans] = useState<BackupPlan[]>([]);
+  const [stats, setStats] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [restoreModalOpen, setRestoreModalOpen] = useState(false);
-  const [selectedBackup, setSelectedBackup] = useState<BackupRecord | null>(null);
+  const [selectedBackupPlan, setSelectedBackupPlan] = useState<BackupPlan | null>(null);
   const [restoring, setRestoring] = useState(false);
   const [createForm] = Form.useForm();
   const [drillModalOpen, setDrillModalOpen] = useState(false);
-  const [plans, setPlans] = useState<any[]>([]);
-  const [selectedPlan, setSelectedPlan] = useState<string>('');
+  const [drillPlans, setDrillPlans] = useState<any[]>([]);
+  const [selectedDrillPlan, setSelectedDrillPlan] = useState<string>('');
   const [drilling, setDrilling] = useState(false);
   const [drillStep, setDrillStep] = useState(0);
 
@@ -65,9 +67,9 @@ const DisasterRecoveryPage: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [backupRes, statsRes] = await Promise.all([getBackups(), getBackupStats()]);
-      setBackups(((backupRes.data as { backups?: unknown[] })?.backups ?? []) as BackupRecord[]);
-      setStats(((statsRes.data as { stats?: unknown })?.stats ?? null) as BackupStats | null);
+      const [plansRes, statsRes] = await Promise.all([listPlans(), getBackupStats()]);
+      setPlans(Array.isArray(plansRes.data) ? plansRes.data : []);
+      setStats(statsRes.data as unknown as Record<string, unknown> | null);
     } catch {
       message.error('Failed to load backup data');
     } finally {
@@ -75,22 +77,34 @@ const DisasterRecoveryPage: React.FC = () => {
     }
   };
 
-  const handleCreate = async (values: BackupInput) => {
+  const handleCreate = async (values: { name: string; type: BackupType; retentionDays?: number }) => {
     try {
-      await createBackup(values);
-      message.success('Backup created');
+      await createPlan({
+        name: values.name,
+        type: values.type,
+        retention_days: values.retentionDays ?? 7,
+        enabled: true,
+      } as CreatePlanInput);
+      message.success('Backup plan created');
       setCreateModalOpen(false);
       createForm.resetFields();
       loadData();
     } catch {
-      message.error('Failed to create backup');
+      message.error('Failed to create backup plan');
     }
   };
 
-  const handleRestore = async (id: string) => {
+  const handleRestore = async (plan: BackupPlan) => {
     setRestoring(true);
     try {
-      await restoreBackup(id);
+      const res = await executeBackup(plan.id);
+      const record = res.data;
+      if (record?.id) {
+        const recovery = await createRecovery({ backup_id: record.id });
+        if (recovery.data?.id) {
+          await executeRecovery(recovery.data.id);
+        }
+      }
       message.success('Restore initiated');
       setRestoreModalOpen(false);
       loadData();
@@ -103,28 +117,28 @@ const DisasterRecoveryPage: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      await deleteBackup(id);
-      message.success('Backup deleted');
+      await deletePlan(id);
+      message.success('Backup plan deleted');
       loadData();
     } catch {
-      message.error('Failed to delete backup');
+      message.error('Failed to delete backup plan');
     }
   };
 
   const openDrillModal = async () => {
     try {
-      const plans = await disasterRecoveryApi.listDRPlans();
-      setPlans(plans || []);
+      const p = await disasterRecoveryApi.listDRPlans();
+      setDrillPlans(p || []);
       setDrillModalOpen(true);
       setDrillStep(0);
     } catch {
-      setPlans([]);
+      setDrillPlans([]);
       setDrillModalOpen(true);
     }
   };
 
   const handleDrill = async () => {
-    if (!selectedPlan) { message.warning('请选择灾备方案'); return; }
+    if (!selectedDrillPlan) { message.warning('请选择灾备方案'); return; }
     setDrilling(true);
     const steps = ['预检查', '流量切换', '服务验证', '完成演练'];
     for (let i = 0; i < steps.length; i++) {
@@ -132,7 +146,7 @@ const DisasterRecoveryPage: React.FC = () => {
       await new Promise((r) => setTimeout(r, 800));
     }
     try {
-      await disasterRecoveryApi.executeFailoverTest(selectedPlan);
+      await disasterRecoveryApi.executeFailoverTest(selectedDrillPlan);
       message.success('灾备切换演练完成');
       setDrillModalOpen(false);
     } catch {
@@ -142,46 +156,37 @@ const DisasterRecoveryPage: React.FC = () => {
     }
   };
 
-  const statusColor: Record<string, string> = {
-    completed: 'green',
-    failed: 'red',
-    in_progress: 'blue',
-    scheduled: 'gold',
-  };
-
   const columns = [
     { title: 'Name', dataIndex: 'name', key: 'name' },
     {
       title: 'Type',
       dataIndex: 'type',
       key: 'type',
-      render: (v: string) => <Tag color="blue">{v}</Tag>,
+      render: (v: BackupType) => <Tag color="blue">{v}</Tag>,
     },
     {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (v: string) => <Tag color={statusColor[v]}>{v}</Tag>,
+      title: 'Enabled',
+      dataIndex: 'enabled',
+      key: 'enabled',
+      render: (v: boolean) => <Tag color={v ? 'success' : 'default'}>{v ? 'Enabled' : 'Disabled'}</Tag>,
     },
     {
-      title: 'Size',
-      dataIndex: 'size',
-      key: 'size',
-      render: (v: number) => (v > 0 ? `${(v / (1024 * 1024)).toFixed(0)} MB` : '-'),
+      title: 'Retention',
+      dataIndex: 'retention_days',
+      key: 'retention_days',
+      render: (v: number) => `${v}d`,
     },
-    { title: 'Created', dataIndex: 'createdAt', key: 'createdAt' },
-    { title: 'Completed', dataIndex: 'completedAt', key: 'completedAt' },
+    { title: 'Created', dataIndex: 'created_at', key: 'created_at' },
     {
       title: 'Actions',
       key: 'actions',
-      render: (_: any, record: BackupRecord) => (
+      render: (_: unknown, record: BackupPlan) => (
         <Space>
           <Button
             size="small"
             icon={<UndoOutlined />}
-            disabled={record.status !== 'completed'}
             onClick={() => {
-              setSelectedBackup(record);
+              setSelectedBackupPlan(record);
               setRestoreModalOpen(true);
             }}
           >
@@ -222,14 +227,14 @@ const DisasterRecoveryPage: React.FC = () => {
       <Row gutter={24} style={{ marginBottom: spacing.lg }}>
         <Col span={8}>
           <Card>
-            <Statistic title="Total Backups" value={stats?.total ?? 0} />
+            <Statistic title="Total Backups" value={Number(stats?.total_backups ?? 0)} />
           </Card>
         </Col>
         <Col span={8}>
           <Card>
             <Statistic
               title="Successful"
-              value={stats?.successful ?? 0}
+              value={Number(stats?.completed_backups ?? 0)}
               valueStyle={{ color: colors.success[500] }}
             />
           </Card>
@@ -238,18 +243,18 @@ const DisasterRecoveryPage: React.FC = () => {
           <Card>
             <Statistic
               title="Failed"
-              value={stats?.failed ?? 0}
+              value={Number(stats?.failed_backups ?? 0)}
               valueStyle={{ color: colors.error[400] }}
             />
           </Card>
         </Col>
       </Row>
 
-      {/* Backup List */}
+      {/* Plan List */}
       <Card title="Backups">
         <Table
           columns={columns}
-          dataSource={backups}
+          dataSource={plans}
           rowKey="id"
           loading={loading}
           pagination={{ pageSize: 10 }}
@@ -268,14 +273,17 @@ const DisasterRecoveryPage: React.FC = () => {
           <Form.Item label="Name" name="name" rules={[{ required: true }]}>
             <Input placeholder="Backup name" />
           </Form.Item>
-          <Form.Item label="Type" name="type" initialValue="database" rules={[{ required: true }]}>
+          <Form.Item label="Type" name="type" initialValue="full" rules={[{ required: true }]}>
             <Select
               options={[
-                { value: 'database', label: 'Database' },
-                { value: 'config', label: 'Configuration' },
-                { value: 'full', label: 'Full System' },
+                { value: 'full', label: 'Full' },
+                { value: 'incremental', label: 'Incremental' },
+                { value: 'differential', label: 'Differential' },
               ]}
             />
+          </Form.Item>
+          <Form.Item label="Retention Days" name="retentionDays" initialValue={7}>
+            <Input type="number" min={1} max={365} />
           </Form.Item>
         </Form>
       </Modal>
@@ -285,22 +293,18 @@ const DisasterRecoveryPage: React.FC = () => {
         title="确认恢复"
         open={restoreModalOpen}
         onCancel={() => setRestoreModalOpen(false)}
-        onOk={() => selectedBackup && handleRestore(selectedBackup.id)}
+        onOk={() => selectedBackupPlan && handleRestore(selectedBackupPlan)}
         confirmLoading={restoring}
         okText="确认恢复"
         cancelText="取消"
         okButtonProps={{ danger: true }}
       >
-        {selectedBackup && (
+        {selectedBackupPlan && (
           <Descriptions column={1} bordered>
-            <Descriptions.Item label="备份名称">{selectedBackup.name}</Descriptions.Item>
-            <Descriptions.Item label="类型">{selectedBackup.type}</Descriptions.Item>
-            <Descriptions.Item label="创建时间">{selectedBackup.createdAt}</Descriptions.Item>
-            <Descriptions.Item label="大小">
-              {selectedBackup.size > 0
-                ? `${(selectedBackup.size / (1024 * 1024)).toFixed(0)} MB`
-                : '-'}
-            </Descriptions.Item>
+            <Descriptions.Item label="计划名称">{selectedBackupPlan.name}</Descriptions.Item>
+            <Descriptions.Item label="类型">{selectedBackupPlan.type}</Descriptions.Item>
+            <Descriptions.Item label="保留天数">{selectedBackupPlan.retention_days} 天</Descriptions.Item>
+            <Descriptions.Item label="创建时间">{selectedBackupPlan.created_at}</Descriptions.Item>
           </Descriptions>
         )}
         <div style={{ marginTop: spacing.md }}>
@@ -316,8 +320,8 @@ const DisasterRecoveryPage: React.FC = () => {
       >
         <Form layout="vertical">
           <Form.Item label="选择灾备方案">
-            <Select placeholder="选择方案..." value={selectedPlan} onChange={setSelectedPlan}
-              options={plans.map((p: any) => ({ value: p.id, label: `${p.name} (RTO: ${p.rto || '5min'}, RPO: ${p.rpo || '1min'})` }))} />
+            <Select placeholder="选择方案..." value={selectedDrillPlan} onChange={setSelectedDrillPlan}
+              options={drillPlans.map((p: any) => ({ value: p.id, label: `${p.name} (RTO: ${p.rto || '5min'}, RPO: ${p.rpo || '1min'})` }))} />
           </Form.Item>
         </Form>
         <div style={{ marginTop: 8 }}>

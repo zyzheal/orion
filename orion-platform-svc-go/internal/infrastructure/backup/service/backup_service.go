@@ -2,15 +2,18 @@ package service
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
+	"orion/platform-svc-go/internal/infrastructure/backup/executor"
 	"orion/platform-svc-go/internal/infrastructure/backup/models"
 	"orion/platform-svc-go/internal/infrastructure/backup/repository"
+	"orion/platform-svc-go/internal/infrastructure/backup/storage"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -33,16 +36,59 @@ type BackupService struct {
 	scheduler *Scheduler
 	verifier  *Verifier
 	logger    *zap.Logger
+
+	// execRegistry routes to the engine-specific backup/restore executor.
+	// Always non-nil after NewBackupService; SetExecutorRegistry allows
+	// test doubles to substitute a fake registry.
+	execRegistry *executor.Registry
+	// storageBackends maps storage type -> backend. When nil, artifacts
+	// are written to local disk only (see writeArtifact).
+	storageBackends map[string]storage.StorageBackend
+	// baseBackupDir is the local scratch directory where artifacts are
+	// written before any optional storage backend upload. Defaults to
+	// /var/backups/orion.
+	baseBackupDir string
 }
 
+// NewBackupService creates the service with a default Executor registry and
+// no remote storage backends. Callers that need S3/MinIO wiring should use
+// SetStorageBackend after construction.
 func NewBackupService(repo *repository.BackupRepository, logger *zap.Logger) *BackupService {
 	svc := &BackupService{
-		repo:   repo,
-		logger: logger,
+		repo:          repo,
+		logger:        logger,
+		execRegistry:  executor.NewRegistry(),
+		storageBackends: map[string]storage.StorageBackend{},
+		baseBackupDir: "/var/backups/orion",
 	}
 	svc.scheduler = NewScheduler(svc, logger)
 	svc.verifier = NewVerifier(svc, logger)
+	svc.verifier.SetExecutorRegistry(svc.execRegistry)
 	return svc
+}
+
+// SetExecutorRegistry swaps the executor registry. Used by tests and by
+// wiring code that wants to inject custom binaries.
+func (s *BackupService) SetExecutorRegistry(reg *executor.Registry) {
+	s.execRegistry = reg
+	s.verifier.SetExecutorRegistry(reg)
+}
+
+// SetStorageBackend registers a storage backend for the given type key.
+// Duplicate registrations replace the previous one.
+func (s *BackupService) SetStorageBackend(typ string, b storage.StorageBackend) {
+	if s.storageBackends == nil {
+		s.storageBackends = map[string]storage.StorageBackend{}
+	}
+	s.storageBackends[typ] = b
+}
+
+// SetBaseBackupDir overrides the default /var/backups/orion scratch path.
+// Called during wiring so operators can relocate scratch on any mount.
+func (s *BackupService) SetBaseBackupDir(dir string) {
+	if dir != "" {
+		s.baseBackupDir = dir
+	}
 }
 
 // ==================== Backup Plan ====================
@@ -190,56 +236,203 @@ func (s *BackupService) TriggerBackup(ctx context.Context, input models.CreateBa
 	return s.executeBackup(ctx, plan)
 }
 
-// executeBackup performs the actual backup operation.
+// executeBackup performs the actual backup operation. It routes to the
+// engine-specific executor (PG/MySQL/OceanBase), uploads the artifact to the
+// configured storage backend, and stores the resulting path/checksum on the
+// record. Any failure flips the record to BackupStatusFailed with a
+// machine-readable error message — there is no silent partial-success path.
 func (s *BackupService) executeBackup(ctx context.Context, plan *models.BackupPlan) (*models.BackupRecord, error) {
-	// Create backup record with running status
 	record := &models.BackupRecord{
 		TenantID: plan.TenantID,
 		PlanID:   plan.ID,
 		Status:   models.BackupStatusRunning,
 	}
-
 	if err := s.repo.CreateBackup(ctx, record); err != nil {
 		return nil, fmt.Errorf("failed to create backup record: %w", err)
 	}
 
-	// Simulate backup execution (in production, this would interact with storage)
-	// Generate a simulated checksum
-	data := fmt.Sprintf("backup-data-%s-%d", record.ID, time.Now().Unix())
-	hash := sha256.Sum256([]byte(data))
-	checksum := hex.EncodeToString(hash[:])
+	// Parse the plan target and storage config up-front so configuration
+	// errors surface here, before any subprocess is spawned.
+	var target models.BackupTarget
+	if err := json.Unmarshal(plan.Target, &target); err != nil {
+		s.failBackup(ctx, record, "invalid plan target: "+err.Error())
+		return nil, fmt.Errorf("invalid plan target: %w", err)
+	}
+	var storageCfg models.BackupStorageConfig
+	if len(plan.StorageConfig) > 0 {
+		if err := json.Unmarshal(plan.StorageConfig, &storageCfg); err != nil {
+			s.failBackup(ctx, record, "invalid storage_config: "+err.Error())
+			return nil, fmt.Errorf("invalid storage_config: %w", err)
+		}
+	}
 
-	// Simulate compression ratio
-	compressionRatio := 1.5
+	conn := executor.ConnInfo{
+		Host:       target.Host,
+		Port:       target.Port,
+		DB:         target.DB,
+		User:       target.User,
+		Password:   target.Password,
+		SSLMode:    target.SSLMode,
+		TenantName: target.TenantName,
+	}
 
-	// Complete the backup
-	storagePath := fmt.Sprintf("/var/backups/orion/%s.bak", record.ID)
+	d := executor.Dialect(target.Dialect)
+	be, ok := s.execRegistry.BackupFor(d)
+	if !ok {
+		s.failBackup(ctx, record, fmt.Sprintf("no backup executor for dialect %q", d))
+		return nil, fmt.Errorf("no backup executor for dialect %q", d)
+	}
+
+	// Compute the scratch + artifact paths. Local scratch always exists so
+	// the executor has a definite write target; the storage upload runs
+	// afterwards if a remote backend is configured.
+	baseDir := s.baseBackupDir
+	if baseDir == "" {
+		baseDir = "/var/backups/orion"
+	}
+	if err := os.MkdirAll(baseDir, 0o750); err != nil {
+		s.failBackup(ctx, record, "scratch base unavailable: "+err.Error())
+		return nil, fmt.Errorf("scratch base unavailable: %w", err)
+	}
+	artifactName := fmt.Sprintf("%s-%d.dump", plan.ID, time.Now().Unix())
+	artifactPath := filepath.Join(baseDir, artifactName)
+
+	opts := executor.BackupOptions{
+		Type:        string(plan.Type),
+		Format:      "custom",
+		Compression: 6,
+		Databases:   nonEmptyStrings(target.DB),
+		Tables:      target.Tables,
+		Exclude:     target.Exclude,
+		OutputPath:  artifactPath,
+	}
+	if plan.EncryptionKey != nil && *plan.EncryptionKey != "" {
+		opts.EncryptKey = []byte(*plan.EncryptionKey)
+	}
+
+	s.logger.Info("backup executing",
+		zap.String("backup_id", record.ID),
+		zap.String("dialect", string(d)),
+		zap.String("artifact", artifactPath),
+	)
+
+	res, err := be.Backup(ctx, conn, opts)
+	if err != nil {
+		os.Remove(artifactPath)
+		s.failBackup(ctx, record, "executor failed: "+err.Error())
+		return nil, fmt.Errorf("backup executor failed: %w", err)
+	}
+
+	// If a matching remote storage backend is configured, upload the
+	// artifact and point the record at the remote path. Otherwise the
+	// local path is authoritative and used by the Verifier.
+	finalPath := res.OutputPath
+	if b := s.storageBackendFor(storageCfg); b != nil {
+		remoteKey := renderPathTemplate(storageCfg.PathTemplate, plan.ID, record.ID)
+		if err := s.uploadArtifact(ctx, b, remoteKey, artifactPath); err != nil {
+			os.Remove(artifactPath)
+			s.failBackup(ctx, record, "storage upload failed: "+err.Error())
+			return nil, fmt.Errorf("storage upload failed: %w", err)
+		}
+		os.Remove(artifactPath)
+		finalPath = fmt.Sprintf("%s://%s", b.Type(), remoteKey)
+	}
+
+	size := res.SizeBytes
+	if size == 0 {
+		if n, err := executor.FileSize(finalPath); err == nil {
+			size = n
+		}
+	}
+	compRatio := res.CompressionRatio
+	if compRatio == 0 {
+		compRatio = 1.0
+	}
+
 	if err := s.repo.UpdateBackupStatus(ctx, record.TenantID, record.ID,
-		models.BackupStatusCompleted, 1024*1024, &storagePath, &checksum, &compressionRatio); err != nil {
-		s.logger.Error("failed to complete backup", zap.String("backup_id", record.ID), zap.Error(err))
+		models.BackupStatusCompleted, size, &finalPath, &res.ChecksumSHA256, &compRatio); err != nil {
+		s.logger.Error("failed to complete backup record", zap.String("backup_id", record.ID), zap.Error(err))
 		_ = s.repo.FailBackup(ctx, record.TenantID, record.ID, err.Error())
 		return nil, err
 	}
 
-	// Update record with new values
 	record.Status = models.BackupStatusCompleted
-	record.StoragePath = &storagePath
-	record.Checksum = &checksum
-	record.CompressionRatio = &compressionRatio
-	record.SizeBytes = 1024 * 1024
-
-	// Auto-verify if plan has encryption
-	if plan.EncryptionKey != nil {
-		go func() {
-			if _, err := s.verifier.Verify(context.Background(), record.TenantID, record.ID); err == nil {
-				s.logger.Info("backup auto-verified", zap.String("backup_id", record.ID))
-				_ = s.repo.UpdateBackupStatus(context.Background(), record.TenantID, record.ID,
-					models.BackupStatusVerified, record.SizeBytes, record.StoragePath, record.Checksum, record.CompressionRatio)
-			}
-		}()
-	}
+	record.StoragePath = &finalPath
+	record.Checksum = &res.ChecksumSHA256
+	record.CompressionRatio = &compRatio
+	record.SizeBytes = size
 
 	return record, nil
+}
+
+// failBackup marks the record as failed with a stable error message so
+// callers can distinguish a real DB write failure from a genuine backup
+// failure.
+func (s *BackupService) failBackup(ctx context.Context, record *models.BackupRecord, msg string) {
+	_ = s.repo.FailBackup(ctx, record.TenantID, record.ID, msg)
+	s.logger.Error("backup failed", zap.String("backup_id", record.ID), zap.String("reason", msg))
+}
+
+// storageBackendFor resolves the StorageBackend for a plan's storage config,
+// or returns nil when no remote backend is configured for the type.
+func (s *BackupService) storageBackendFor(cfg models.BackupStorageConfig) storage.StorageBackend {
+	typ := cfg.Type
+	if typ == "" {
+		typ = "local"
+	}
+	// Local is never a "remote" backend here; the executor already wrote to
+	// local scratch. Return nil so we keep the local path.
+	if typ == "local" {
+		return nil
+	}
+	if b, ok := s.storageBackends[typ]; ok {
+		return b
+	}
+	if b, ok := s.storageBackends["s3"]; ok && (typ == "minio" || typ == "s3") {
+		return b
+	}
+	return nil
+}
+
+// StorageBackendForPublic is the exported variant of storageBackendFor. It
+// is intended for external callers (Archiver) that need to resolve the
+// same backend instance the BackupService uses — keeps the private map
+// encapsulated.
+func (s *BackupService) StorageBackendForPublic(cfg models.BackupStorageConfig) storage.StorageBackend {
+	return s.storageBackendFor(cfg)
+}
+
+// uploadArtifact reads a local file and PUTs it to the storage backend.
+// The artifact is streamed so large backups do not need to be buffered in
+// memory.
+func (s *BackupService) uploadArtifact(ctx context.Context, b storage.StorageBackend, remoteKey, localPath string) error {
+	f, err := os.Open(localPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return b.Put(ctx, remoteKey, f)
+}
+
+// renderPathTemplate substitutes {{plan_id}} and {{backup_id}} placeholders
+// in the storage path template. When template is empty we return a stable
+// fallback path derived from the IDs.
+func renderPathTemplate(tmpl, planID, backupID string) string {
+	if tmpl == "" {
+		tmpl = "{{plan_id}}/{{backup_id}}"
+	}
+	out := strings.ReplaceAll(tmpl, "{{plan_id}}", planID)
+	out = strings.ReplaceAll(out, "{{backup_id}}", backupID)
+	return strings.TrimPrefix(out, "/")
+}
+
+// nonEmptyStrings returns the input wrapped in a single-element slice, or
+// nil when the input is empty — executors treat nil Databases as "dump all".
+func nonEmptyStrings(s string) []string {
+	if s == "" {
+		return nil
+	}
+	return []string{s}
 }
 
 // ==================== Backup Records ====================
@@ -314,4 +507,12 @@ func (s *BackupService) GetBackupStats(ctx context.Context, tenantID string) (ma
 		"total_size_bytes":  totalSize,
 		"last_completed_at": lastCompleted,
 	}, nil
+}
+
+// Verify delegates to the verifier to validate a backup's integrity.
+func (s *BackupService) Verify(ctx context.Context, tenantID, backupID string) (*models.VerificationResult, error) {
+	if s.verifier == nil {
+		return nil, fmt.Errorf("verifier not configured")
+	}
+	return s.verifier.Verify(ctx, tenantID, backupID)
 }

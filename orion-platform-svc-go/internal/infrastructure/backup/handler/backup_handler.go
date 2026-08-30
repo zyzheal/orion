@@ -33,16 +33,30 @@ func New(backupSvc *service.BackupService, recoverySvc *service.RecoveryService,
 // RegisterRoutes mounts all backup routes under the given group.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	bg := rg.Group("/backup")
+
+	// --- Plan CRUD (ARCH-0.15: migrated from internal/backup) ---
+	bg.GET("/plans", auth.RequirePermission("backup", "read"), h.ListPlans)
+	bg.POST("/plans", auth.RequirePermission("backup", "write"), h.CreatePlan)
+	bg.GET("/plans/:id", auth.RequirePermission("backup", "read"), h.GetPlan)
+	bg.PUT("/plans/:id", auth.RequirePermission("backup", "write"), h.UpdatePlan)
+	bg.DELETE("/plans/:id", auth.RequirePermission("backup", "delete"), h.DeletePlan)
 	bg.POST("/plans/:id/execute", auth.RequirePermission("backup", "execute"), h.ExecuteBackup)
+
+	// --- Backup Records ---
 	bg.GET("/plans/:id/records", auth.RequirePermission("backup", "read"), h.ListBackupRecords)
 	bg.GET("/plans/:id/records/:record_id", auth.RequirePermission("backup", "read"), h.GetBackupRecord)
 	bg.DELETE("/plans/:id/records/:record_id", auth.RequirePermission("backup", "delete"), h.DeleteBackupRecord)
+	bg.POST("/verify/:backup_id", auth.RequirePermission("backup", "write"), h.VerifyBackup)
 
+	// --- Recovery ---
 	bg.POST("/recovery", auth.RequirePermission("backup", "write"), h.CreateRecovery)
 	bg.GET("/recovery", auth.RequirePermission("backup", "read"), h.ListRecoveries)
 	bg.GET("/recovery/:id", auth.RequirePermission("backup", "read"), h.GetRecovery)
 	bg.POST("/recovery/:id/execute", auth.RequirePermission("backup", "execute"), h.ExecuteRecovery)
+	bg.POST("/recovery/:id/execute-pitr", auth.RequirePermission("backup", "execute"), h.ExecuteRecoveryPITR)
 	bg.DELETE("/recovery/:id", auth.RequirePermission("backup", "delete"), h.RollbackRecovery)
+
+	// --- Stats ---
 	bg.GET("/status", auth.RequirePermission("backup", "read"), h.GetBackupStats)
 }
 
@@ -222,6 +236,23 @@ func (h *Handler) DeleteBackupRecord(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
+// VerifyBackup triggers integrity verification on a backup artifact.
+func (h *Handler) VerifyBackup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BackupVerifyBackup")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" {
+		respondBadRequest(c, "tenant_id required")
+		return
+	}
+	result, err := h.backupSvc.Verify(ctx, tenantID, c.Param("backup_id"))
+	if err != nil {
+		respondNotFound(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
+}
+
 // ==================== Recovery ====================
 
 func (h *Handler) CreateRecovery(c *gin.Context) {
@@ -291,6 +322,25 @@ func (h *Handler) ExecuteRecovery(c *gin.Context) {
 		return
 	}
 	record, err := h.recoverySvc.ExecuteRecovery(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		respondNotFound(c, err.Error())
+		return
+	}
+	respondSuccess(c, record)
+}
+
+// ExecuteRecoveryPITR runs a point-in-time recovery: base backup + WAL/binlog
+// archive segments in the recovery window. It requires PITRMode and TargetTime
+// on the recovery record.
+func (h *Handler) ExecuteRecoveryPITR(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BackupExecuteRecoveryPITR")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" {
+		respondBadRequest(c, "tenant_id required")
+		return
+	}
+	record, err := h.recoverySvc.ExecuteRecoveryPITR(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return

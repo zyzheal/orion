@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"orion/go-common/pkg/database"
 	"orion/platform-svc-go/internal/infrastructure/backup/models"
@@ -415,4 +416,69 @@ func (r *BackupRepository) UpdateVerification(ctx context.Context, vr *models.Ve
 		vr.RestoreDetails, vr.ErrorMessage, vr.VerifiedAt, vr.ID, vr.TenantID,
 	)
 	return err
+}
+
+// ==================== Backup Archive (WAL / binlog) ====================
+
+func (r *BackupRepository) CreateArchive(ctx context.Context, rec *models.ArchiveRecord) error {
+	query := `INSERT INTO backup_archive
+		(id, tenant_id, plan_id, backup_id, archive_type, window_start, window_end,
+		 size_bytes, path, checksum, status, error_message, created_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
+	_, err := r.db.ExecContext(ctx, query,
+		rec.ID, rec.TenantID, rec.PlanID, rec.BackupID,
+		string(rec.ArchiveType), rec.WindowStart, rec.WindowEnd,
+		rec.SizeBytes, rec.Path, rec.Checksum, string(rec.Status),
+		rec.ErrorMessage, rec.CreatedAt,
+	)
+	return err
+}
+
+func (r *BackupRepository) GetArchive(ctx context.Context, tenantID, id string) (*models.ArchiveRecord, error) {
+	var rec models.ArchiveRecord
+	query := `SELECT id, tenant_id, plan_id, backup_id, archive_type, window_start, window_end,
+		size_bytes, path, checksum, status, error_message, created_at
+		FROM backup_archive WHERE tenant_id = $1 AND id = $2`
+	if err := r.db.GetContext(ctx, &rec, query, tenantID, id); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("archive not found")
+		}
+		return nil, err
+	}
+	return &rec, nil
+}
+
+func (r *BackupRepository) ListArchives(ctx context.Context, tenantID, planID string, archiveType models.ArchiveType, windowStart, windowEnd time.Time, limit int) ([]models.ArchiveRecord, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	// Build WHERE dynamically so the caller can pass zero values to skip filters.
+	clauses := []string{"tenant_id = $1"}
+	args := []interface{}{tenantID}
+	if planID != "" {
+		args = append(args, planID)
+		clauses = append(clauses, fmt.Sprintf("plan_id = $%d", len(args)))
+	}
+	if archiveType != "" {
+		args = append(args, string(archiveType))
+		clauses = append(clauses, fmt.Sprintf("archive_type = $%d", len(args)))
+	}
+	if !windowStart.IsZero() {
+		args = append(args, windowStart)
+		clauses = append(clauses, fmt.Sprintf("window_start >= $%d", len(args)))
+	}
+	if !windowEnd.IsZero() {
+		args = append(args, windowEnd)
+		clauses = append(clauses, fmt.Sprintf("window_start <= $%d", len(args)))
+	}
+	args = append(args, limit)
+	where := strings.Join(clauses, " AND ")
+	query := `SELECT id, tenant_id, plan_id, backup_id, archive_type, window_start, window_end,
+		size_bytes, path, checksum, status, error_message, created_at
+		FROM backup_archive WHERE ` + where + ` ORDER BY window_start DESC LIMIT $` + fmt.Sprintf("%d", len(args))
+	var recs []models.ArchiveRecord
+	if err := r.db.SelectContext(ctx, &recs, query, args...); err != nil {
+		return nil, err
+	}
+	return recs, nil
 }

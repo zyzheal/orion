@@ -108,9 +108,6 @@ import (
 	cit_handler "orion/platform-svc-go/internal/ci-type/handler"
 	cit_repo "orion/platform-svc-go/internal/ci-type/repository"
 	cit_service "orion/platform-svc-go/internal/ci-type/service"
-	backup_handler "orion/platform-svc-go/internal/backup/handler"
-	backup_repo "orion/platform-svc-go/internal/backup/repository"
-	backup_service "orion/platform-svc-go/internal/backup/service"
 	lowcode_handler "orion/platform-svc-go/internal/lowcode/handler"
 	lowcode_models "orion/platform-svc-go/internal/lowcode/models"
 	lowcode_repo "orion/platform-svc-go/internal/lowcode/repository"
@@ -482,11 +479,6 @@ func wireDomainModules(db *database.DB) {
 	citSvc := cit_service.NewService(citRepo)
 	citH = cit_handler.NewHandler(citSvc)
 
-	// backup services
-	backupRepo := backup_repo.NewRepository(db.DB)
-	backupSvc := backup_service.NewService(backupRepo)
-	backupH = backup_handler.NewHandler(backupSvc)
-
 	// lowcode services
 	lowcodeRepo := lowcode_repo.NewRepository(db.DB)
 	lowcodeSvc = lowcode_service.NewService(lowcodeRepo)
@@ -498,7 +490,6 @@ var (
 	amH                 *am_handler.Handler
 	approvalH           *approval_handler.Handler
 	auditH              *audit_handler.Handler
-	backupH             *backup_handler.Handler
 	build_envH          *build_env_handler.Handler
 	buildH              *build_handler.Handler
 	changeH             *change_handler.Handler

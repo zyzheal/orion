@@ -201,11 +201,6 @@ func buildDumpEntries() []dumpEntry {
 			}
 		}},
 		// authH (118): skipped, non-standard args 'public, protected'
-		{"backupH", 121, func(api *gin.RouterGroup) {
-			if backupH != nil {
-				backupH.RegisterRoutes(api)
-			}
-		}},
 		{"cacheModH", 124, func(api *gin.RouterGroup) {
 			if cacheModH != nil {
 				cacheModH.RegisterRoutes(api)

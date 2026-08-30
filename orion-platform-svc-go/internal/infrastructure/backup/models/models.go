@@ -93,6 +93,44 @@ type UpdateBackupPlanInput struct {
 
 // ==================== Backup Record ====================
 
+// BackupTarget is the concrete shape of the JSON stored in BackupPlan.Target.
+// It is unmarshalled by the service before invoking an executor so the
+// executor sees typed fields rather than an opaque json.RawMessage.
+//
+// Dialect selects which Executor is used (postgresql | mysql | oceanbase).
+// TenantName is required for OceanBase MySQL-mode and ignored otherwise.
+type BackupTarget struct {
+	Dialect    string `json:"dialect" binding:"required"`
+	Host       string `json:"host" binding:"required"`
+	Port       string `json:"port"`
+	DB         string `json:"db"`
+	User       string `json:"user"`
+	Password   string `json:"password"` // plaintext at rest is discouraged; prefer EncryptionKey in the plan
+	SSLMode    string `json:"ssl_mode,omitempty"`
+	TenantName string `json:"tenant_name,omitempty"`
+
+	// Tables/Exclude are the table-level selection applied by the executor.
+	Tables  []string `json:"tables,omitempty"`
+	Exclude []string `json:"exclude_tables,omitempty"`
+}
+
+// BackupStorageConfig is the concrete shape of BackupPlan.StorageConfig.
+// It controls where the final artifact is uploaded and how it is encrypted.
+//
+// Type is "local" | "s3" | "minio". PathTemplate supports {{plan_id}} and
+// {{backup_id}} placeholders; the service fills them before calling Put.
+type BackupStorageConfig struct {
+	Type         string `json:"type"`                    // local | s3 | minio
+	BasePath     string `json:"base_path,omitempty"`     // local only
+	Endpoint     string `json:"endpoint,omitempty"`      // s3 only
+	Region       string `json:"region,omitempty"`
+	Bucket       string `json:"bucket,omitempty"`
+	AccessKey    string `json:"access_key,omitempty"`
+	SecretKey    string `json:"secret_key,omitempty"`
+	UseSSL       bool   `json:"use_ssl,omitempty"`
+	PathTemplate string `json:"path_template,omitempty"`
+}
+
 // BackupRecord represents a single backup execution record.
 type BackupRecord struct {
 	ID               string       `db:"id" json:"id"`
@@ -124,26 +162,35 @@ type BackupFilter struct {
 
 // ==================== Recovery Record ====================
 
-// RecoveryRecord represents a recovery execution record.
+// RecoveryRecord represents a recovery execution record. The PITR-related
+// fields (PITRMode, WALArchivePath, BinlogArchivePath, ArchiveStart/End)
+// are only populated when a recovery targets a specific point in time;
+// full restores leave them nil.
 type RecoveryRecord struct {
-	ID             string          `db:"id" json:"id"`
-	TenantID       string          `db:"tenant_id" json:"tenant_id"`
-	PlanID         string          `db:"plan_id" json:"plan_id"`
-	PlanName       string          `db:"plan_name" json:"plan_name"`
-	BackupID       *string         `db:"backup_id" json:"backup_id"`
-	Status         RecoveryStatus  `db:"status" json:"status"`
-	TargetTime     *time.Time      `db:"target_time" json:"target_time,omitempty"`
-	RtoTargetMs    int64           `db:"rto_target_ms" json:"rto_target_ms"`
-	RpoTargetMs    int64           `db:"rpo_target_ms" json:"rpo_target_ms"`
-	ActualRtoMs    *int64          `db:"actual_rto_ms" json:"actual_rto_ms"`
-	ActualRpoMs    *int64          `db:"actual_rpo_ms" json:"actual_rpo_ms"`
-	RtoMet         *bool           `db:"rto_met" json:"rto_met"`
-	RpoMet         *bool           `db:"rpo_met" json:"rpo_met"`
-	StepExecutions json.RawMessage `db:"step_executions" json:"step_executions"`
-	ErrorMessage   *string         `db:"error_message" json:"error_message,omitempty"`
-	InitiatedAt    time.Time       `db:"initiated_at" json:"initiated_at"`
-	CompletedAt    *time.Time      `db:"completed_at" json:"completed_at,omitempty"`
-	CreatedAt      time.Time       `db:"created_at" json:"created_at"`
+	ID                string          `db:"id" json:"id"`
+	TenantID          string          `db:"tenant_id" json:"tenant_id"`
+	PlanID            string          `db:"plan_id" json:"plan_id"`
+	PlanName          string          `db:"plan_name" json:"plan_name"`
+	BackupID          *string         `db:"backup_id" json:"backup_id"`
+	Status            RecoveryStatus  `db:"status" json:"status"`
+	TargetTime        *time.Time      `db:"target_time" json:"target_time,omitempty"`
+	RtoTargetMs       int64           `db:"rto_target_ms" json:"rto_target_ms"`
+	RpoTargetMs       int64           `db:"rpo_target_ms" json:"rpo_target_ms"`
+	ActualRtoMs       *int64          `db:"actual_rto_ms" json:"actual_rto_ms"`
+	ActualRpoMs       *int64          `db:"actual_rpo_ms" json:"actual_rpo_ms"`
+	RtoMet            *bool           `db:"rto_met" json:"rto_met"`
+	RpoMet            *bool           `db:"rpo_met" json:"rpo_met"`
+	StepExecutions    json.RawMessage `db:"step_executions" json:"step_executions"`
+	ErrorMessage      *string         `db:"error_message" json:"error_message,omitempty"`
+	// PITR fields (added by migration 055).
+	PITRMode        *string    `db:"pitr_mode" json:"pitr_mode,omitempty"`             // "wal" | "binlog" | "" (full restore)
+	WALArchivePath  *string    `db:"wal_archive_path" json:"wal_archive_path,omitempty"`
+	BinlogArchivePath *string  `db:"binlog_archive_path" json:"binlog_archive_path,omitempty"`
+	ArchiveStart    *time.Time `db:"archive_start" json:"archive_start,omitempty"`
+	ArchiveEnd      *time.Time `db:"archive_end" json:"archive_end,omitempty"`
+	InitiatedAt     time.Time  `db:"initiated_at" json:"initiated_at"`
+	CompletedAt     *time.Time `db:"completed_at" json:"completed_at,omitempty"`
+	CreatedAt       time.Time  `db:"created_at" json:"created_at"`
 }
 
 // CreateRecoveryInput is the payload for initiating a recovery.
@@ -155,6 +202,47 @@ type CreateRecoveryInput struct {
 }
 
 // ==================== Backup Storage ====================
+
+// ArchiveStatus is the lifecycle state of an archive record.
+type ArchiveStatus string
+
+const (
+	ArchiveStatusPending ArchiveStatus = "pending"
+	ArchiveStatusRunning ArchiveStatus = "running"
+	ArchiveStatusCompleted ArchiveStatus = "completed"
+	ArchiveStatusFailed  ArchiveStatus = "failed"
+)
+
+// ArchiveType is the kind of transaction log being archived.
+type ArchiveType string
+
+const (
+	ArchiveTypeWAL        ArchiveType = "wal"        // PostgreSQL Write-Ahead Log
+	ArchiveTypeBinlog     ArchiveType = "binlog"     // MySQL binary log
+	ArchiveTypeArchivelog ArchiveType = "archivelog" // Oracle archivelog
+	ArchiveTypeRedolog    ArchiveType = "redolog"    // DB2 redo log
+	ArchiveTypeLogBackup  ArchiveType = "log_backup" // SQL Server transaction log backup
+	ArchiveTypeClog       ArchiveType = "clog"       // OceanBase clog
+)
+
+// ArchiveRecord tracks a single WAL/binlog archive window. Phase 1a creates
+// the schema and lifecycle fields; the actual capture logic lands in
+// Phase 2 alongside the redo-stream collector.
+type ArchiveRecord struct {
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenant_id"`
+	PlanID      string    `db:"plan_id" json:"plan_id"`
+	BackupID    *string   `db:"backup_id" json:"backup_id"`
+	ArchiveType ArchiveType `db:"archive_type" json:"archive_type"`
+	WindowStart time.Time `db:"window_start" json:"window_start"`
+	WindowEnd   *time.Time `db:"window_end" json:"window_end,omitempty"`
+	SizeBytes   int64     `db:"size_bytes" json:"size_bytes"`
+	Path        string    `db:"path" json:"path"`
+	Checksum    *string   `db:"checksum" json:"checksum,omitempty"`
+	Status      ArchiveStatus `db:"status" json:"status"`
+	ErrorMessage *string  `db:"error_message" json:"error_message,omitempty"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+}
 
 // BackupStorage represents storage information for a backup.
 type BackupStorage struct {

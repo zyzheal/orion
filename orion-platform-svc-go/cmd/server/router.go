@@ -140,9 +140,6 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
     protected := api.Group("/auth")
     authH.RegisterRoutes(public, protected)
   }
-  if backupH != nil {
-    backupH.RegisterRoutes(api)
-  }
   if cacheModH != nil {
     cacheModH.RegisterRoutes(api)
   }
@@ -1018,8 +1015,14 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if infraBackupH != nil {
     infraBackupH.RegisterRoutes(api)
   }
+  if infraArchiveH != nil {
+    infraArchiveH.RegisterRoutes(api)
+  }
   if infraChaosH != nil {
     infraChaosH.RegisterRoutes(api)
+  }
+  if infraSchemaRegH != nil {
+    infraSchemaRegH.RegisterRoutes(api)
   }
   // infraDbaH is NOT registered: identical route set to dbaH above.
   if infraDegH != nil {

@@ -37,9 +37,7 @@ import {
   ClockCircleOutlined,
   DatabaseOutlined,
   FileProtectOutlined,
-  SettingOutlined,
   SaveOutlined,
-  EditOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -47,14 +45,19 @@ import MetricCard from '@/components/MetricCard';
 import { colors, spacing } from '@/tokens';
 import {
   getBackupStats,
-  getBackups,
-  createBackup,
-  restoreBackup,
-  deleteBackup,
-  updateBackup,
-  getBackupDownloadUrl,
+  listPlans,
+  createPlan,
+  deletePlan,
+  executeBackup,
+  listBackupRecords,
+  deleteBackupRecord,
+  createRecovery,
+  executeRecovery,
   type BackupRecord as APIBackupRecord,
-  type BackupStats as APIBackupStats,
+  type BackupPlan as APIBackupPlan,
+  type CreatePlanInput,
+  type BackupType,
+  type BackupStatus,
 } from '@/api/backup';
 import dayjs from 'dayjs';
 
@@ -64,20 +67,25 @@ const { Title, Text } = Typography;
 // Types
 // ============================================================================
 
-type BackupType = 'database' | 'config' | 'full';
-type BackupStatus = 'success' | 'failed' | 'running' | 'pending' | 'restored';
-
 interface BackupRecord {
   id: string;
-  name: string;
+  planId: string;
   type: BackupType;
   size: number;
   status: BackupStatus;
   createdAt: string;
   completedAt?: string;
-  duration?: number;
-  description?: string;
-  createdBy: string;
+  errorMessage?: string;
+}
+
+interface BackupPlanItem {
+  id: string;
+  name: string;
+  type: BackupType;
+  retentionDays: number;
+  schedule?: string;
+  enabled: boolean;
+  createdAt: string;
 }
 
 interface BackupStats {
@@ -93,31 +101,35 @@ interface BackupStats {
 // ============================================================================
 
 const typeLabelMap: Record<BackupType, string> = {
-  database: '数据库',
-  config: '配置',
-  full: '完整备份',
+  full: '全量',
+  incremental: '增量',
+  differential: '差异',
 };
 
 const typeIconMap: Record<BackupType, React.ReactNode> = {
-  database: <DatabaseOutlined />,
-  config: <SettingOutlined />,
   full: <FileProtectOutlined />,
+  incremental: <DatabaseOutlined />,
+  differential: <DatabaseOutlined />,
 };
 
 const statusColorMap: Record<BackupStatus, string> = {
-  success: 'success',
-  failed: 'error',
-  running: 'processing',
   pending: 'default',
-  restored: 'blue',
+  running: 'processing',
+  completed: 'success',
+  failed: 'error',
+  verified: 'blue',
+  expired: 'warning',
+  deleted: 'default',
 };
 
 const statusLabelMap: Record<BackupStatus, string> = {
-  success: '成功',
-  failed: '失败',
-  running: '运行中',
   pending: '等待中',
-  restored: '已恢复',
+  running: '运行中',
+  completed: '完成',
+  failed: '失败',
+  verified: '已验证',
+  expired: '已过期',
+  deleted: '已删除',
 };
 
 // ============================================================================
@@ -125,38 +137,29 @@ const statusLabelMap: Record<BackupStatus, string> = {
 // ============================================================================
 
 /** Map API BackupRecord to UI shape */
-function mapApiBackup(b: APIBackupRecord): BackupRecord {
+function mapApiRecord(b: APIBackupRecord): BackupRecord {
   return {
     id: b.id,
-    name: b.name,
+    planId: b.plan_id,
     type: b.type,
-    size: b.size,
-    status:
-      b.status === 'completed'
-        ? 'success'
-        : b.status === 'in_progress'
-          ? 'running'
-          : b.status === 'scheduled'
-            ? 'pending'
-            : b.status === 'failed'
-              ? 'failed'
-              : 'restored',
-    createdAt: b.createdAt,
-    completedAt: b.completedAt,
-    duration: 0,
-    description: b.errorMessage || undefined,
-    createdBy: 'system',
+    size: b.size_bytes,
+    status: b.status,
+    createdAt: b.created_at,
+    completedAt: b.completed_at,
+    errorMessage: b.error_message,
   };
 }
 
-/** Map API stats to UI shape */
-function mapApiStats(s: APIBackupStats): BackupStats {
+/** Map API BackupPlan to UI shape */
+function mapApiPlan(p: APIBackupPlan): BackupPlanItem {
   return {
-    total: s.total,
-    successful: s.successful,
-    failed: s.failed,
-    lastBackupTime: undefined,
-    totalSize: 0,
+    id: p.id,
+    name: p.name,
+    type: p.type,
+    retentionDays: p.retention_days,
+    schedule: p.schedule,
+    enabled: p.enabled,
+    createdAt: p.created_at,
   };
 }
 
@@ -167,44 +170,34 @@ const formatSize = (bytes: number): string => {
   return `${bytes} B`;
 };
 
-const formatDuration = (seconds: number): string => {
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return `${hours}h ${remainingMinutes}m`;
-};
-
 // ============================================================================
 // Main Component
 // ============================================================================
 
 const BackupManagement: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [backups, setBackups] = useState<BackupRecord[]>([]);
+  const [plans, setPlans] = useState<BackupPlanItem[]>([]);
   const [stats, setStats] = useState<BackupStats | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [editModalVisible, setEditModalVisible] = useState(false);
   const [restoreModalVisible, setRestoreModalVisible] = useState(false);
-  const [selectedBackup, setSelectedBackup] = useState<BackupRecord | null>(null);
-  const [editingBackup, setEditingBackup] = useState<BackupRecord | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<BackupRecord | null>(null);
+  const [expandedRecords, setExpandedRecords] = useState<Record<string, BackupRecord[]>>({});
   const [submitting, setSubmitting] = useState(false);
   const [createForm] = Form.useForm();
-  const [editForm] = Form.useForm();
 
   // ---- Data Loading ----
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const response = await getBackups();
-      setBackups((response.data as any).backups.map(mapApiBackup));
+      const res = await listPlans();
+      const raw = res.data;
+      const plans = Array.isArray(raw) ? raw : [];
+      setPlans(plans.map(mapApiPlan));
     } catch (error: unknown) {
-      message.error(`Failed to load backups: ${(error as Error).message}`);
+      message.error(`Failed to load plans: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -212,10 +205,31 @@ const BackupManagement: React.FC = () => {
 
   const loadStats = async () => {
     try {
-      const response = await getBackupStats();
-      setStats(mapApiStats((response.data as any).stats));
+      const res = await getBackupStats();
+      const s = res.data ?? {};
+      setStats({
+        total: s.total_backups ?? 0,
+        successful: s.completed_backups ?? 0,
+        failed: s.failed_backups ?? 0,
+        lastBackupTime: s.last_completed_at ?? undefined,
+        totalSize: s.total_size_bytes ?? 0,
+      });
     } catch (error: unknown) {
       message.error(`Failed to load backup stats: ${(error as Error).message}`);
+    }
+  };
+
+  const loadRecords = async (planId: string) => {
+    try {
+      const res = await listBackupRecords(planId);
+      const raw = res.data;
+      const records = Array.isArray(raw) ? raw : [];
+      setExpandedRecords((prev) => ({
+        ...prev,
+        [planId]: records.map(mapApiRecord),
+      }));
+    } catch {
+      setExpandedRecords((prev) => ({ ...prev, [planId]: [] }));
     }
   };
 
@@ -227,21 +241,17 @@ const BackupManagement: React.FC = () => {
   // ---- Filtering ----
 
   const filteredData = useMemo(() => {
-    return backups.filter((b) => {
+    return plans.filter((p) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        if (
-          !b.name.toLowerCase().includes(q) &&
-          !(b.description && b.description.toLowerCase().includes(q))
-        ) {
+        if (!p.name.toLowerCase().includes(q)) {
           return false;
         }
       }
-      if (filters.type && filters.type !== 'all' && b.type !== filters.type) return false;
-      if (filters.status && filters.status !== 'all' && b.status !== filters.status) return false;
+      if (filters.type && filters.type !== 'all' && p.type !== filters.type) return false;
       return true;
     });
-  }, [searchQuery, filters, backups]);
+  }, [searchQuery, filters, plans]);
 
   // ---- Actions ----
 
@@ -249,29 +259,72 @@ const BackupManagement: React.FC = () => {
     try {
       const values = await createForm.validateFields();
       setSubmitting(true);
-      await createBackup({ name: values.name, type: values.type });
-      message.success('备份任务已创建');
+      await createPlan({
+        name: values.name,
+        type: values.type,
+        retention_days: values.retentionDays ?? 7,
+        enabled: true,
+      } as CreatePlanInput);
+      message.success('备份计划已创建');
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData();
       loadStats();
     } catch (error: unknown) {
       if (!(error instanceof Error && error.name === 'ValidationError')) {
-        message.error(`创建备份失败：${(error as Error).message}`);
+        message.error(`创建备份计划失败：${(error as Error).message}`);
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleRestore = async () => {
-    if (!selectedBackup) return;
+  const handleExecute = async (planId: string) => {
     try {
       setSubmitting(true);
-      await restoreBackup(selectedBackup.id);
-      message.success(`备份 "${selectedBackup.name}" 恢复任务已启动`);
-      setRestoreModalVisible(false);
+      await executeBackup(planId);
+      message.success('备份任务已启动');
+      loadStats();
+    } catch (error: unknown) {
+      message.error(`执行备份失败：${(error as Error).message}`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeletePlan = async (id: string) => {
+    try {
+      await deletePlan(id);
+      message.success('备份计划已删除');
       loadData();
+      loadStats();
+    } catch (error: unknown) {
+      message.error(`删除失败：${(error as Error).message}`);
+    }
+  };
+
+  const handleDeleteRecord = async (planId: string, recordId: string) => {
+    try {
+      await deleteBackupRecord(planId, recordId);
+      message.success('备份记录已删除');
+      loadRecords(planId);
+      loadStats();
+    } catch (error: unknown) {
+      message.error(`删除失败：${(error as Error).message}`);
+    }
+  };
+
+  const handleRestore = async () => {
+    if (!selectedRecord) return;
+    try {
+      setSubmitting(true);
+      const res = await createRecovery({ backup_id: selectedRecord.id });
+      const recovery = res.data;
+      if (recovery?.id) {
+        await executeRecovery(recovery.id);
+      }
+      message.success(`备份恢复任务已启动 (${recovery?.id ?? 'ok'})`);
+      setRestoreModalVisible(false);
       loadStats();
     } catch (error: unknown) {
       message.error(`恢复失败：${(error as Error).message}`);
@@ -280,86 +333,43 @@ const BackupManagement: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteBackup(id);
-      message.success('备份已删除');
-      loadData();
-      loadStats();
-    } catch (error: unknown) {
-      message.error(`删除失败：${(error as Error).message}`);
-    }
-  };
-
-  const handleDownload = async (record: BackupRecord) => {
-    try {
-      const res = await getBackupDownloadUrl(record.id);
-      const url = res.data?.url;
-      if (url) {
-        window.open(url, '_blank');
-      } else {
-        message.warning('未获取到下载链接');
-      }
-    } catch (error: unknown) {
-      message.error(`下载失败: ${(error as Error).message}`);
-    }
-  };
-
   const openRestore = (record: BackupRecord) => {
-    setSelectedBackup(record);
+    setSelectedRecord(record);
     setRestoreModalVisible(true);
   };
 
-  const openEdit = (record: BackupRecord) => {
-    setEditingBackup(record);
-    editForm.setFieldsValue({
-      name: record.name,
-      type: record.type,
-      description: record.description,
-    });
-    setEditModalVisible(true);
-  };
-
-  const handleEdit = async () => {
-    if (!editingBackup) return;
-    try {
-      const values = await editForm.validateFields();
-      setSubmitting(true);
-      await updateBackup(editingBackup.id, {
-        name: values.name,
-        type: values.type,
-      });
-      message.success('备份信息已更新');
-      setEditModalVisible(false);
-      editForm.resetFields();
-      setEditingBackup(null);
-      loadData();
-      loadStats();
-    } catch (error: unknown) {
-      if (!(error instanceof Error && error.name === 'ValidationError')) {
-        message.error(`更新失败：${(error as Error).message}`);
-      }
-    } finally {
-      setSubmitting(false);
+  const toggleRecords = (planId: string) => {
+    if (!expandedRecords[planId]) {
+      loadRecords(planId);
     }
+    setExpandedRecords((prev) => {
+      const next = { ...prev };
+      if (next[planId]) {
+        delete next[planId];
+      } else {
+        next[planId] = [];
+        setTimeout(() => loadRecords(planId), 0);
+      }
+      return next;
+    });
   };
 
   // ---- Table Columns ----
 
-  const columns: TableColumn<BackupRecord>[] = useMemo<TableColumn<BackupRecord>[]>(
+  const columns: TableColumn<BackupPlanItem>[] = useMemo<TableColumn<BackupPlanItem>[]>(
     () => [
       {
         key: 'name',
-        title: '备份名称',
+        title: '计划名称',
         dataIndex: 'name',
         width: 240,
         sortable: true,
-        render: (value: unknown, record: BackupRecord) => (
+        render: (value: unknown, record: BackupPlanItem) => (
           <Space direction="vertical" size={0}>
             <Text strong>{String(value)}</Text>
-            {record.description && (
+            {record.schedule && (
               <Text type="secondary" style={{ fontSize: 12 }}>
-                {record.description}
+                调度: {record.schedule}
               </Text>
             )}
           </Space>
@@ -369,41 +379,30 @@ const BackupManagement: React.FC = () => {
         key: 'type',
         title: '类型',
         width: 100,
-        render: (_: unknown, record: BackupRecord) => (
+        render: (_: unknown, record: BackupPlanItem) => (
           <Tag icon={typeIconMap[record.type]} color="blue">
             {typeLabelMap[record.type]}
           </Tag>
         ),
       },
       {
-        key: 'size',
-        title: '大小',
-        width: 100,
-        sortable: true,
-        render: (_: unknown, record: BackupRecord) => (
-          <Text type="secondary">{formatSize(record.size)}</Text>
-        ),
-      },
-      {
-        key: 'status',
+        key: 'enabled',
         title: '状态',
         width: 100,
-        render: (_: unknown, record: BackupRecord) => (
-          <Tag color={statusColorMap[record.status]}>{statusLabelMap[record.status]}</Tag>
+        render: (_: unknown, record: BackupPlanItem) => (
+          <Tag color={record.enabled ? 'success' : 'default'}>
+            {record.enabled ? '启用' : '禁用'}
+          </Tag>
         ),
       },
       {
-        key: 'duration',
-        title: '耗时',
-        width: 90,
-        render: (_: unknown, record: BackupRecord) =>
-          record.duration ? (
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {formatDuration(record.duration)}
-            </Text>
-          ) : (
-            <Text type="secondary">-</Text>
-          ),
+        key: 'retentionDays',
+        title: '保留天数',
+        width: 100,
+        dataIndex: 'retentionDays',
+        render: (value: unknown) => (
+          <Text type="secondary">{String(value)} 天</Text>
+        ),
       },
       {
         key: 'createdAt',
@@ -418,54 +417,32 @@ const BackupManagement: React.FC = () => {
         ),
       },
       {
-        key: 'createdBy',
-        title: '创建人',
-        dataIndex: 'createdBy',
-        width: 90,
-        render: (value: unknown) => (
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {String(value)}
-          </Text>
-        ),
-      },
-      {
         key: 'actions',
         title: '操作',
-        width: 200,
-        render: (_: unknown, record: BackupRecord) => (
+        width: 260,
+        render: (_: unknown, record: BackupPlanItem) => (
           <Space size="small" wrap>
             <Button
               type="link"
               size="small"
-              icon={<EditOutlined />}
-              onClick={() => openEdit(record)}
+              icon={<CloudDownloadOutlined />}
+              onClick={() => handleExecute(record.id)}
+              loading={submitting}
             >
-              编辑
+              执行
             </Button>
-            {record.status === 'success' && (
-              <Button
-                type="link"
-                size="small"
-                icon={<RollbackOutlined />}
-                onClick={() => openRestore(record)}
-              >
-                恢复
-              </Button>
-            )}
-            {record.status === 'success' && (
-              <Button
-                type="link"
-                size="small"
-                icon={<CloudDownloadOutlined />}
-                onClick={() => handleDownload(record)}
-              >
-                下载
-              </Button>
-            )}
+            <Button
+              type="link"
+              size="small"
+              icon={<ReloadOutlined />}
+              onClick={() => toggleRecords(record.id)}
+            >
+              {expandedRecords[record.id] ? '收起记录' : '查看记录'}
+            </Button>
             <Popconfirm
-              title="确认删除该备份?"
-              description="删除后无法恢复"
-              onConfirm={() => handleDelete(record.id)}
+              title="确认删除该计划?"
+              description="删除后计划内的调度将停止"
+              onConfirm={() => handleDeletePlan(record.id)}
             >
               <Button type="link" size="small" danger icon={<DeleteOutlined />}>
                 删除
@@ -475,7 +452,7 @@ const BackupManagement: React.FC = () => {
         ),
       },
     ],
-    [handleDelete, handleDownload, openRestore, openEdit]
+    [handleExecute, handleDeletePlan, openRestore, toggleRecords, expandedRecords, submitting]
   );
 
   // ---- Filter Definitions ----
@@ -487,21 +464,9 @@ const BackupManagement: React.FC = () => {
         label: '备份类型',
         options: [
           { label: '全部', value: 'all' },
-          { label: '数据库', value: 'database' },
-          { label: '配置', value: 'config' },
-          { label: '完整备份', value: 'full' },
-        ],
-      },
-      {
-        key: 'status',
-        label: '状态',
-        options: [
-          { label: '全部', value: 'all' },
-          { label: '成功', value: 'success' },
-          { label: '失败', value: 'failed' },
-          { label: '运行中', value: 'running' },
-          { label: '等待中', value: 'pending' },
-          { label: '已恢复', value: 'restored' },
+          { label: '全量', value: 'full' },
+          { label: '增量', value: 'incremental' },
+          { label: '差异', value: 'differential' },
         ],
       },
     ],
@@ -587,14 +552,14 @@ const BackupManagement: React.FC = () => {
         </Row>
       )}
 
-      {/* Backup List */}
+      {/* Plan List */}
       <Card>
         <div style={{ marginBottom: spacing[4] }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}
             filters={filterDefs}
-            searchPlaceholder="搜索备份名称或描述..."
+            searchPlaceholder="搜索计划名称..."
           />
         </div>
         <Table
@@ -604,12 +569,52 @@ const BackupManagement: React.FC = () => {
           rowKey="id"
           size="middle"
           striped
+          expandable={{
+            expandedRowKeys: Object.keys(expandedRecords).filter((k) => expandedRecords[k]),
+            expandedRowRender: (record: BackupPlanItem) => {
+              const records = expandedRecords[record.id] || [];
+              if (records.length === 0) return <Text type="secondary">暂无备份记录</Text>;
+              return (
+                <div style={{ padding: '8px 0' }}>
+                  {records.map((r) => (
+                    <div
+                      key={r.id}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}
+                    >
+                      <Space>
+                        <Tag color={statusColorMap[r.status]}>{statusLabelMap[r.status]}</Tag>
+                        <Text>{r.id.slice(0, 8)}...</Text>
+                        <Text type="secondary">{formatSize(r.size)}</Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {dayjs(r.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+                        </Text>
+                      </Space>
+                      <Space size="small">
+                        <Button type="link" size="small" icon={<RollbackOutlined />} onClick={() => openRestore(r)}>
+                          恢复
+                        </Button>
+                        <Popconfirm
+                          title="确认删除该备份记录?"
+                          onConfirm={() => handleDeleteRecord(record.id, r.id)}
+                        >
+                          <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+                            删除
+                          </Button>
+                        </Popconfirm>
+                      </Space>
+                    </div>
+                  ))}
+                </div>
+              );
+            },
+            expandRowByClick: true,
+          }}
         />
       </Card>
 
-      {/* Create Backup Modal */}
+      {/* Create Plan Modal */}
       <Modal
-        title="创建备份"
+        title="创建备份计划"
         open={createModalVisible}
         onCancel={() => setCreateModalVisible(false)}
         onOk={handleCreate}
@@ -620,10 +625,10 @@ const BackupManagement: React.FC = () => {
         <Form form={createForm} layout="vertical">
           <Form.Item
             name="name"
-            label="备份名称"
-            rules={[{ required: true, message: '请输入备份名称' }]}
+            label="计划名称"
+            rules={[{ required: true, message: '请输入计划名称' }]}
           >
-            <Input placeholder="如: manual-backup-2026-04-27" />
+            <Input placeholder="如: daily-db-backup" />
           </Form.Item>
           <Form.Item
             name="type"
@@ -632,48 +637,21 @@ const BackupManagement: React.FC = () => {
             initialValue="full"
           >
             <Select>
-              <Select.Option value="database">数据库备份</Select.Option>
-              <Select.Option value="config">配置备份</Select.Option>
-              <Select.Option value="full">完整备份</Select.Option>
+              <Select.Option value="full">全量备份</Select.Option>
+              <Select.Option value="incremental">增量备份</Select.Option>
+              <Select.Option value="differential">差异备份</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input.TextArea rows={3} placeholder="备份描述（可选）..." />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Edit Backup Modal */}
-      <Modal
-        title="编辑备份"
-        open={editModalVisible}
-        onCancel={() => setEditModalVisible(false)}
-        onOk={handleEdit}
-        confirmLoading={submitting}
-        width={520}
-        destroyOnClose
-      >
-        <Form form={editForm} layout="vertical">
           <Form.Item
-            name="name"
-            label="备份名称"
-            rules={[{ required: true, message: '请输入备份名称' }]}
+            name="retentionDays"
+            label="保留天数"
+            initialValue={7}
+            rules={[{ required: true, message: '请输入保留天数' }]}
           >
-            <Input placeholder="如: manual-backup-2026-04-27" />
+            <Input type="number" min={1} max={365} />
           </Form.Item>
-          <Form.Item
-            name="type"
-            label="备份类型"
-            rules={[{ required: true, message: '请选择备份类型' }]}
-          >
-            <Select>
-              <Select.Option value="database">数据库备份</Select.Option>
-              <Select.Option value="config">配置备份</Select.Option>
-              <Select.Option value="full">完整备份</Select.Option>
-            </Select>
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input.TextArea rows={3} placeholder="备份描述（可选）..." />
+          <Form.Item name="schedule" label="Cron 调度表达式">
+            <Input placeholder="如: 0 2 * * *（每天凌晨2点）" />
           </Form.Item>
         </Form>
       </Modal>
@@ -687,7 +665,7 @@ const BackupManagement: React.FC = () => {
         confirmLoading={submitting}
         width={480}
       >
-        {selectedBackup && (
+        {selectedRecord && (
           <div>
             <Alert
               message="恢复操作警告"
@@ -699,20 +677,20 @@ const BackupManagement: React.FC = () => {
             <Card size="small">
               <Space direction="vertical" size={8}>
                 <div>
-                  <Text type="secondary">备份名称: </Text>
-                  <Text strong>{selectedBackup.name}</Text>
+                  <Text type="secondary">备份 ID: </Text>
+                  <Text strong>{selectedRecord.id}</Text>
                 </div>
                 <div>
                   <Text type="secondary">备份类型: </Text>
-                  <Tag color="blue">{typeLabelMap[selectedBackup.type]}</Tag>
+                  <Tag color="blue">{typeLabelMap[selectedRecord.type]}</Tag>
                 </div>
                 <div>
                   <Text type="secondary">创建时间: </Text>
-                  <Text>{dayjs(selectedBackup.createdAt).format('YYYY-MM-DD HH:mm:ss')}</Text>
+                  <Text>{dayjs(selectedRecord.createdAt).format('YYYY-MM-DD HH:mm:ss')}</Text>
                 </div>
                 <div>
                   <Text type="secondary">备份大小: </Text>
-                  <Text>{formatSize(selectedBackup.size)}</Text>
+                  <Text>{formatSize(selectedRecord.size)}</Text>
                 </div>
               </Space>
             </Card>

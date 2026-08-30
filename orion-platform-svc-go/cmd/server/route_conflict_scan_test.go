@@ -160,11 +160,6 @@ func TestRouteConflictScan(t *testing.T) {
 				authH.RegisterRoutes(public, protected)
 			}
 		}},
-		{"backupH", func() {
-			if backupH != nil {
-				backupH.RegisterRoutes(api)
-			}
-		}},
 		{"cacheModH", func() {
 			if cacheModH != nil {
 				cacheModH.RegisterRoutes(api)
