@@ -5,6 +5,8 @@ package service
 
 import (
 	"context"
+	"database/sql"
+
 	"orion/platform-svc-go/internal/apm/models"
 )
 
@@ -19,10 +21,14 @@ type RepositoryInterface interface {
 
 type Service struct {
 	repo RepositoryInterface
+	db   *sql.DB // PostgreSQL connection for pg_stat_statements; nil disables slow query collection
 }
 
-func NewService(repo RepositoryInterface) *Service {
-	return &Service{repo: repo}
+// NewService creates an APM Service.
+// db is the application PostgreSQL connection used for slow query collection
+// via pg_stat_statements. Pass nil to disable slow query collection (tests).
+func NewService(repo RepositoryInterface, db *sql.DB) *Service {
+	return &Service{repo: repo, db: db}
 }
 
 func (s *Service) Create(ctx context.Context, req *models.CreateRequest, tenantID string) (*models.ApmEntry, error) {

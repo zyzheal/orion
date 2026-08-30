@@ -745,14 +745,14 @@
   - `go test ./...` → **545 包 ok / 0 FAIL**
 
 - 🔍 **本轮确认但仍未解的（记录）**
-  - **P0-0 剩余：备份/恢复/慢查询/Redis 采集接真实执行**（ARCH-0.10b + ARCH-0.15/0.16/0.17，6-9d）——`database-devops` 的 `ExecuteBackup`/`ExecuteRestore` 仍是 `// TODO` 桩，`internal/infrastructure/backup/` 的 `executeBackup` 仍是模拟执行
+  - **P0-0 剩余：备份/恢复/Redis 采集接真实执行**（ARCH-0.10b + ARCH-0.15/0.17，5-7d）——`database-devops` 的 `ExecuteBackup`/`ExecuteRestore` 仍是 `// TODO` 桩，`internal/infrastructure/backup/` 的 `executeBackup` 仍是模拟执行；~~ARCH-0.16 慢查询已接 pg_stat_statements 真实采集 ✅~~
   - **PERM-8 阶段 2**：`/api/v1` 切严格 `auth.Auth`——破坏性变更，需客户端迁移计划
   - ~~**ARCH-0.12**~~：datasource 补 ClickHouse 驱动 ✅ 已完成
   - **PERM-6**：AI 端点权限定义（决策待定）
 
 - 📌 **本轮明确未做（已排期）**
   - ARCH-0.10b — 备份/恢复引擎真实现（3-5 天）
-  - ARCH-0.15/0.16/0.17 — 慢查询/Redis 采集接真实执行
+  - ARCH-0.15/0.17 — Redis 采集接真实执行（~~ARCH-0.16 慢查询已接 pg_stat_statements ✅~~）
   - ~~ARCH-0.12~~ — datasource 补 ClickHouse 驱动 ✅ 已完成
   - PERM-8 阶段 2 — `/api/v1` 切严格 `auth.Auth`（需迁移计划）
   - PERM-6 — AI 端点权限定义（决策待定）
@@ -784,3 +784,45 @@
 - 🔍 **剩余**
   - MongoDB/ES 非 SQL 引擎无法用 `database/sql` 连接，需独立驱动方案（非 ARCH-0.12 范围）
   - Oracle/SQL Server/OceanBase/openGauss/TiDB 等企业级类型仍未支持（→ ARCH-0.3）
+
+## Batch O — ARCH-0.16 慢 SQL 真实采集 (2026-08-29)
+
+- 📌 **背景**
+  - `internal/apm/service/business.go` 的 `GetSlowQueries` 原返回 3 条硬编码 fake 数据（`sql-001`/`sql-002`/`sql-003`），标注 `// TODO: replace simulated data with real DatabaseProfiler queries`
+  - R5-2 确认性能调优模块框架完整但喂的是假数据；R7 终审将 ARCH-0.16 列为 P0-0 的三条关键路径之一
+  - 慢查询采集是性能调优的核心——没有真实数据，`/performance/evaluate`、`/bottlenecks`、`/suggestions` 的调优建议都建立在虚空中
+
+- ✅ **实现**
+  - `internal/apm/service/service.go`：`Service` 结构体新增 `db *sql.DB` 字段；`NewService(repo, db *sql.DB)` 签名增加 `db` 参数（nil 时优雅返回空结果，不影响前端降级）
+  - `internal/apm/service/business.go`：`GetSlowQueries` 从硬编码 fake 数据改为查询 PostgreSQL 的 `pg_stat_statements` extension：
+    - SQL：`SELECT queryid, querytext, round(mean_exec_time)::int AS duration_ms, calls, coalesce(d.datname,'') FROM pg_stat_statements q LEFT JOIN pg_database d ON d.oid = q.dbid`
+    - 过滤条件：`MinDurationMs`（`WHERE mean_exec_time >= $1`）、`Database`（`AND coalesce(d.datname,'') = $2`）、`Limit`（`LIMIT $N`）
+    - 排序：`ORDER BY total_exec_time DESC`
+    - 错误处理：DB 不可达或 extension 未启用时不报错，返回空结果 `{Total: 0, Queries: []}`
+  - 新增 `limitArgOffset(q)` 辅助函数计算 LIMIT 子句的参数位置号
+  - `cmd/server/blueprint_batch_wiring.go`：`NewService(apmRepo, db.DB.DB)`（`db.DB` 是 `*sqlx.DB`，取 `.DB` 得 `*sql.DB`）
+
+- ✅ **测试**
+  - 新增 `internal/apm/service/service_test.go`（11 条测试）：
+    - `TestService_New` / `TestService_Create` / `TestService_List` / `TestService_Delete` — 基本 CRUD
+    - `TestGetSlowQueries_NoDB` — nil db 返回空结果
+    - `TestGetSlowQueries_NilQueryFilter` — nil 过滤条件
+    - `TestGetSlowQueries_FilterParamsIgnoredWhenNoDB` — 所有过滤组合在 nil db 下返回空（5 个子测试）
+    - `TestLimitArgOffset` — 参数偏移计算（5 个子测试）
+    - `TestGetSlowQueries_WithRealSQLConnection_FailsGracefully` — 真实 SQL 连接不可达时优雅失败
+
+- ✅ **验证结果**
+  - `gofmt -l` 全干净
+  - `go build ./...` → ok
+  - `go test ./internal/apm/service/` → 11/11 PASS
+  - `go test ./...` → **546 包 ok / 0 FAIL**（545 基线 + service_test.go 新增包）
+
+- 🔍 **验收标准**
+  - `grep "replace simulated data" internal/apm/` = 0（`GetSlowTraces`/`GetServiceTopology` 的 TODO 注释保留但非 stub 实现——慢查询已替换为真实数据）
+  - `GetSlowQueries` 不再返回硬编码 `sql-001`/`sql-002`/`sql-003`
+
+- 🔍 **剩余**
+  - `GetSlowTraces`（慢 trace）和 `GetServiceTopology`（服务拓扑）仍为模拟数据——属于分布式追踪（OTel）范畴，需独立设计（→ ARCH-0.14 或新增 ARCH-0.19）
+  - `pg_stat_statements` 需要 PostgreSQL 启用 `pg_stat_statements` extension 且有查询统计积累才能返回数据（冷启动时返回空结果是预期行为）
+
+---

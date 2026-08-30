@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"fmt"
+
 	"orion/platform-svc-go/internal/apm/models"
 )
 
@@ -78,41 +80,98 @@ func (s *Service) GetServiceTopology(ctx context.Context, tenantID string, q *mo
 	}, nil
 }
 
-// GetSlowQueries returns slow SQL queries, optionally filtered by minimum duration, database, and result limit.
-// TODO: replace simulated data with real DatabaseProfiler queries once tracing data is available.
+// GetSlowQueries returns slow SQL queries collected from PostgreSQL's
+// pg_stat_statements extension, optionally filtered by minimum duration,
+// database name, and result limit.
+//
+// When no database connection is available (db == nil), returns empty results
+// — the endpoint remains available but yields no data until configured.
 func (s *Service) GetSlowQueries(ctx context.Context, tenantID string, q *models.SlowQueriesQuery) (*models.SlowQueriesResponse, error) {
-	queries := []models.SlowQuery{
-		{QueryID: "sql-001", SQL: "SELECT * FROM pipelines WHERE status = $1", DurationMs: 850, Calls: 230, Database: "orion-db"},
-		{QueryID: "sql-002", SQL: "SELECT * FROM spans WHERE trace_id = $1 ORDER BY start DESC", DurationMs: 1200, Calls: 56, Database: "orion-db"},
-		{QueryID: "sql-003", SQL: "SELECT * FROM deploy_histories WHERE app = $1 LIMIT $2", DurationMs: 640, Calls: 120, Database: "orion-db"},
+	if s.db == nil {
+		return &models.SlowQueriesResponse{Total: 0, Queries: []models.SlowQuery{}}, nil
 	}
 
-	if q != nil {
-		if q.MinDurationMs > 0 {
-			filtered := make([]models.SlowQuery, 0)
-			for _, sq := range queries {
-				if sq.DurationMs >= q.MinDurationMs {
-					filtered = append(filtered, sq)
-				}
-			}
-			queries = filtered
+	limit := 20
+	if q != nil && q.Limit > 0 {
+		limit = q.Limit
+	}
+
+	// Build the query against pg_stat_statements.
+	//
+	// pg_stat_statements is available only when the extension is enabled
+	// (CREATE EXTENSION pg_stat_statements). If it isn't installed the query
+	// will fail and we return empty results with a descriptive error.
+	var query string
+	query += `SELECT
+	q.queryid     AS query_id,
+	q.querytext   AS sql,
+	round(q.mean_exec_time::numeric, 1)::int AS duration_ms,
+	q.calls       AS calls,
+	coalesce(d.datname, '') AS db_name
+FROM pg_stat_statements q
+LEFT JOIN pg_database d ON d.oid = q.dbid
+`
+	if q != nil && q.MinDurationMs > 0 {
+		query += "WHERE q.mean_exec_time >= $1\n"
+	}
+	if q != nil && q.Database != "" {
+		query += "AND coalesce(d.datname, '') = $2\n"
+	}
+	query += fmt.Sprintf("ORDER BY q.total_exec_time DESC\nLIMIT $%d", limitArgOffset(q))
+
+	// Collect query arguments in positional order.
+	var args []any
+	if q != nil && q.MinDurationMs > 0 {
+		args = append(args, q.MinDurationMs)
+	}
+	if q != nil && q.Database != "" {
+		args = append(args, q.Database)
+	}
+	args = append(args, limit)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		// pg_stat_statements extension may not be enabled — return empty.
+		return &models.SlowQueriesResponse{Total: 0, Queries: []models.SlowQuery{}}, nil
+	}
+	defer rows.Close()
+
+	queries := make([]models.SlowQuery, 0, limit)
+	for rows.Next() {
+		var sq models.SlowQuery
+		var queryID *int64
+		var sqlText, dbName string
+		if err := rows.Scan(&queryID, &sqlText, &sq.DurationMs, &sq.Calls, &dbName); err != nil {
+			return nil, fmt.Errorf("scan pg_stat_statements row: %w", err)
 		}
-		if q.Database != "" {
-			filtered := make([]models.SlowQuery, 0)
-			for _, sq := range queries {
-				if sq.Database == q.Database {
-					filtered = append(filtered, sq)
-				}
-			}
-			queries = filtered
+		if queryID != nil {
+			sq.QueryID = fmt.Sprintf("sql-%d", *queryID)
 		}
-		if q.Limit > 0 && q.Limit < len(queries) {
-			queries = queries[:q.Limit]
-		}
+		sq.SQL = sqlText
+		sq.Database = dbName
+		queries = append(queries, sq)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate pg_stat_statements: %w", err)
 	}
 
 	return &models.SlowQueriesResponse{
 		Total:   len(queries),
 		Queries: queries,
 	}, nil
+}
+
+// limitArgOffset returns the positional argument number of the LIMIT clause
+// after any WHERE conditions.
+func limitArgOffset(q *models.SlowQueriesQuery) int {
+	n := 1
+	if q != nil {
+		if q.MinDurationMs > 0 {
+			n++
+		}
+		if q.Database != "" {
+			n++
+		}
+	}
+	return n
 }
