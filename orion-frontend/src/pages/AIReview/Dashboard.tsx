@@ -2,7 +2,8 @@
  * AI Review - Dashboard
  * Overview of recent reviews, issue statistics, and quick actions
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
   Card,
@@ -40,31 +41,20 @@ const { Title, Text } = Typography;
 
 const AIReviewDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [recentReviews, setRecentReviews] = useState<AIReviewResult[]>([]);
   const [triggerModalOpen, setTriggerModalOpen] = useState(false);
   const [triggerForm] = Form.useForm();
   const [triggerLoading, setTriggerLoading] = useState(false);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const { data: recentReviews, isLoading: loading, refetch } = useQuery<AIReviewResult[]>({
+    queryKey: ['ai-review-recent'],
+    queryFn: async () => {
       const res = await getReviewHistory({ pageSize: 10 });
-      setRecentReviews((res.data as any)?.items || []);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载评审历史失败：${error.message}`);
-      } else {
-        message.error('加载评审历史失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (res.data as any)?.items || [];
+    },
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const loadData = () => refetch();
 
   const handleTriggerReview = async (values: { prId: string; repoId: string; mode: string }) => {
     setTriggerLoading(true);
@@ -89,11 +79,12 @@ const AIReviewDashboard: React.FC = () => {
     }
   };
 
-  const totalIssues = recentReviews.reduce((sum, r) => sum + r.totalIssues, 0);
-  const totalCritical = recentReviews.reduce((sum, r) => sum + r.criticalCount, 0);
+  const safeReviews = recentReviews ?? [];
+  const totalIssues = safeReviews.reduce((sum, r) => sum + r.totalIssues, 0);
+  const totalCritical = safeReviews.reduce((sum, r) => sum + r.criticalCount, 0);
   const avgPassRate =
-    recentReviews.length > 0
-      ? recentReviews.reduce((sum, r) => sum + r.passRate, 0) / recentReviews.length
+    safeReviews.length > 0
+      ? safeReviews.reduce((sum, r) => sum + r.passRate, 0) / safeReviews.length
       : 0;
 
   const statusColor = (status: string) => {
@@ -186,7 +177,7 @@ const AIReviewDashboard: React.FC = () => {
     },
   ];
 
-  const tableData = recentReviews.map((r) => ({ ...r, key: r.id }));
+  const tableData = safeReviews.map((r) => ({ ...r, key: r.id }));
 
   return (
     <div style={{ padding: spacing.lg }}>
@@ -217,7 +208,7 @@ const AIReviewDashboard: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
-            <Statistic title="评审总数" value={recentReviews.length} prefix={<SwapOutlined />} />
+            <Statistic title="评审总数" value={safeReviews.length} prefix={<SwapOutlined />} />
           </Card>
         </Col>
         <Col span={6}>

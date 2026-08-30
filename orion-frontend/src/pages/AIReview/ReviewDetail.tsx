@@ -2,7 +2,8 @@
  * AI Review - Review Detail
  * Detailed view of a single AI review result
  */
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
   Card,
@@ -16,7 +17,6 @@ import {
   Col,
   Statistic,
   Table,
-  message,
   Empty,
 } from 'antd';
 import {
@@ -40,41 +40,25 @@ const AIReviewDetail: React.FC = () => {
   const [searchParams] = useSearchParams();
   const reviewId = searchParams.get('id') || '';
 
-  const [loading, setLoading] = useState(false);
-  const [detail, setDetail] = useState<AIReviewResult | null>(null);
-  const [issues, setIssues] = useState<AIReviewResult['comments']>([]);
-
-  const loadDetail = async () => {
-    if (!reviewId) {
-      message.warning('缺少评审 ID 参数');
-      return;
-    }
-    setLoading(true);
-    try {
+  const { data, isLoading: loading, refetch } = useQuery<{ detail: AIReviewResult | null; issues: AIReviewResult['comments'] }>({
+    queryKey: ['ai-review-detail', reviewId],
+    queryFn: async () => {
       const res = await getReviewDetail(reviewId);
-      setDetail((res.data || null) as unknown as AIReviewResult | null);
-      // Load real issues/comments from API
+      const detail = (res.data || null) as unknown as AIReviewResult | null;
+      let issues: AIReviewResult['comments'] = [];
       try {
         const commentsRes = await getReviewComments(reviewId);
-        setIssues((commentsRes.data || []) as unknown as AIReviewResult['comments']);
-      } catch {
-        // If comments endpoint fails, use empty array (backward compatible)
-        setIssues([]);
-      }
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载评审详情失败：${error.message}`);
-      } else {
-        message.error('加载评审详情失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+        issues = (commentsRes.data || []) as unknown as AIReviewResult['comments'];
+      } catch { /* backward compatible */ }
+      return { detail, issues };
+    },
+    enabled: !!reviewId,
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    loadDetail();
-  }, [reviewId]);
+  const loadDetail = () => refetch();
+  const detail = data?.detail ?? null;
+  const issues = data?.issues ?? [];
 
   if (loading) {
     return (
