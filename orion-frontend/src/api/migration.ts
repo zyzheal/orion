@@ -1,4 +1,5 @@
 import api from './client';
+import { API_PATHS } from '@/constants/api-paths';
 
 export type MigrationType = 'schema' | 'data' | 'hybrid';
 export type MigrationDirection = 'forward' | 'rollback';
@@ -102,45 +103,45 @@ export interface UpdatePlanInput {
 }
 
 export async function listPlans(params?: { offset?: number; limit?: number }) {
-  return api.get<MigrationPlan[]>('/api/v1/migration/plans', { params });
+  return api.get<MigrationPlan[]>(API_PATHS.MIGRATION.PLANS, { params });
 }
 
 export async function getPlan(id: string) {
-  return api.get<MigrationPlan>(`/api/v1/migration/plans/${id}`);
+  return api.get<MigrationPlan>(API_PATHS.MIGRATION.PLAN_DETAIL(id));
 }
 
 export async function createPlan(input: CreatePlanInput) {
-  return api.post<MigrationPlan>('/api/v1/migration/plans', input);
+  return api.post<MigrationPlan>(API_PATHS.MIGRATION.PLANS, input);
 }
 
 export async function updatePlan(id: string, input: UpdatePlanInput) {
-  return api.put<MigrationPlan>(`/api/v1/migration/plans/${id}`, input);
+  return api.put<MigrationPlan>(API_PATHS.MIGRATION.PLAN_DETAIL(id), input);
 }
 
 export async function deletePlan(id: string) {
-  return api.delete<void>(`/api/v1/migration/plans/${id}`);
+  return api.delete<void>(API_PATHS.MIGRATION.PLAN_DETAIL(id));
 }
 
 export async function executeMigration(planId: string) {
-  return api.post<MigrationResult>(`/api/v1/migration/plans/${planId}/execute`);
+  return api.post<MigrationResult>(API_PATHS.MIGRATION.PLAN_EXECUTE(planId));
 }
 
 export async function validateMigration(planId: string) {
-  return api.post<MigrationResult>(`/api/v1/migration/plans/${planId}/validate`);
+  return api.post<MigrationResult>(API_PATHS.MIGRATION.PLAN_VALIDATE(planId));
 }
 
 export async function rollbackMigration(planId: string) {
-  return api.post<MigrationResult>(`/api/v1/migration/plans/${planId}/rollback`);
+  return api.post<MigrationResult>(API_PATHS.MIGRATION.PLAN_ROLLBACK(planId));
 }
 
 export async function getSchemaDiff(planId: string) {
-  return api.get<SchemaDiff>(`/api/v1/migration/plans/${planId}/diff`);
+  return api.get<SchemaDiff>(API_PATHS.MIGRATION.PLAN_DIFF(planId));
 }
 
 export async function getSteps(planId: string) {
-  return api.get<MigrationStep[]>(`/api/v1/migration/plans/${planId}/steps`);
+  return api.get<MigrationStep[]>(API_PATHS.MIGRATION.PLAN_STEPS(planId));
 }
 
 export async function getMigrationStats() {
-  return api.get<MigrationStats>('/api/v1/migration/stats');
+  return api.get<MigrationStats>(API_PATHS.MIGRATION.STATS);
 }

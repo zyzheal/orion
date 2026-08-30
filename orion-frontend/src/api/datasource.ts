@@ -24,6 +24,7 @@
  */
 
 import { api } from './client';
+import { API_PATHS } from '@/constants/api-paths';
 
 /** Engine types the backend can connect to (GET /data-sources/types). */
 export type DataSourceType = 'postgres' | 'mysql' | 'clickhouse' | 'elasticsearch' | 'mongodb';
@@ -116,56 +117,56 @@ export type QueryArgs = unknown[];
 
 /** GET /data-sources — every source for the caller's tenant. Guard: datasource:read */
 export async function listDataSources() {
-  return api.get<DataSourceListResponse>('/data-sources');
+  return api.get<DataSourceListResponse>(API_PATHS.DATASOURCE.BASE);
 }
 
 /** GET /data-sources/types — engine types the service can connect to. Guard: datasource:read */
 export async function listDataSourceTypes() {
-  return api.get<DataSourceType[]>('/data-sources/types');
+  return api.get<DataSourceType[]>(API_PATHS.DATASOURCE.TYPES);
 }
 
 /** GET /data-sources/health — health of every registered source. Guard: datasource:read */
 export async function getAllDataSourcesHealth() {
-  return api.get<DataSourceHealthAllResponse>('/data-sources/health');
+  return api.get<DataSourceHealthAllResponse>(API_PATHS.DATASOURCE.HEALTH);
 }
 
 /** GET /data-sources/:id — one source by ID. Guard: datasource:read */
 export async function getDataSource(id: string) {
-  return api.get<DataSource>(`/data-sources/${id}`);
+  return api.get<DataSource>(API_PATHS.DATASOURCE.DETAIL(id));
 }
 
 /** GET /data-sources/:id/health — health of one source. Guard: datasource:read */
 export async function getDataSourceHealth(id: string) {
-  return api.get<DataSourceHealth>(`/data-sources/${id}/health`);
+  return api.get<DataSourceHealth>(API_PATHS.DATASOURCE.HEALTH_BY_ID(id));
 }
 
 /** POST /data-sources — persist and open the connection pool. Guard: datasource:write */
 export async function createDataSource(input: DataSourceInput) {
-  return api.post<DataSource>('/data-sources', input);
+  return api.post<DataSource>(API_PATHS.DATASOURCE.BASE, input);
 }
 
 /** PUT /data-sources/:id — mutate mutable fields only; the pool is not reopened,
  * so a reconnect is an unregister + re-register. Guard: datasource:write */
 export async function updateDataSource(id: string, input: DataSourceInput) {
-  return api.put<DataSource>(`/data-sources/${id}`, input);
+  return api.put<DataSource>(API_PATHS.DATASOURCE.DETAIL(id), input);
 }
 
 /** DELETE /data-sources/:id — close the pool and remove the row. Guard: datasource:delete */
 export async function deleteDataSource(id: string) {
-  return api.delete<void>(`/data-sources/${id}`);
+  return api.delete<void>(API_PATHS.DATASOURCE.DETAIL(id));
 }
 
 /** POST /data-sources/:id/test — reachability probe against the live pool. Guard: datasource:write */
 export async function testDataSourceConnection(id: string) {
-  return api.post<{ ok: boolean }>(`/data-sources/${id}/test`);
+  return api.post<{ ok: boolean }>(API_PATHS.DATASOURCE.TEST(id));
 }
 
 /** POST /data-sources/:id/query — read query, returns rows. Guard: datasource:execute */
 export async function queryDataSource(id: string, query: string, args: QueryArgs = []) {
-  return api.post<QueryResult>(`/data-sources/${id}/query`, { query, args });
+  return api.post<QueryResult>(API_PATHS.DATASOURCE.QUERY(id), { query, args });
 }
 
 /** POST /data-sources/:id/execute — write query, returns affected counts. Guard: datasource:execute */
 export async function executeDataSource(id: string, query: string, args: QueryArgs = []) {
-  return api.post<QueryResult>(`/data-sources/${id}/execute`, { query, args });
+  return api.post<QueryResult>(API_PATHS.DATASOURCE.EXECUTE(id), { query, args });
 }

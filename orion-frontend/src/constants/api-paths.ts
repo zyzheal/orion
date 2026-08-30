@@ -21,6 +21,26 @@ export const API_PATHS = {
     COMPATIBILITY: (namespace: string, name: string) =>
       `schema-registry/schemas/${namespace}/${name}/compatibility`,
   },
+  MIGRATION: {
+    PLANS: 'migration/plans',
+    PLAN_DETAIL: (id: string) => `migration/plans/${id}`,
+    PLAN_EXECUTE: (id: string) => `migration/plans/${id}/execute`,
+    PLAN_VALIDATE: (id: string) => `migration/plans/${id}/validate`,
+    PLAN_ROLLBACK: (id: string) => `migration/plans/${id}/rollback`,
+    PLAN_DIFF: (id: string) => `migration/plans/${id}/diff`,
+    PLAN_STEPS: (id: string) => `migration/plans/${id}/steps`,
+    STATS: 'migration/stats',
+  },
+  DATASOURCE: {
+    BASE: 'data-sources',
+    TYPES: 'data-sources/types',
+    HEALTH: 'data-sources/health',
+    DETAIL: (id: string) => `data-sources/${id}`,
+    HEALTH_BY_ID: (id: string) => `data-sources/${id}/health`,
+    TEST: (id: string) => `data-sources/${id}/test`,
+    QUERY: (id: string) => `data-sources/${id}/query`,
+    EXECUTE: (id: string) => `data-sources/${id}/execute`,
+  },
   CANARY: {
     BASE: 'canary-analysis',
     RUNS: 'canary-analysis/runs',
