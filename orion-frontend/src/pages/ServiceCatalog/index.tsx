@@ -2,7 +2,8 @@
  * 服务目录 (Service Catalog)
  * 后端: /api/v1/service-catalog — 服务注册、请求生命周期、SLA 违约
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   Card,
   Table,
@@ -57,48 +58,36 @@ const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
 
 const ServiceCatalogPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'catalog' | 'sla'>('catalog');
-  const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ServiceCatalog | null>(null);
   const [form] = Form.useForm();
 
-  const [items, setItems] = useState<ServiceCatalog[]>([]);
-  const [breaches, setBreaches] = useState<SLABreach[]>([]);
-  const [totalBreaches, setTotalBreaches] = useState(0);
-
-  const loadItems = useCallback(async () => {
-    setLoading(true);
-    try {
+  const { data: itemsData, isLoading: itemsLoading, refetch: refetchItems } = useQuery<ServiceCatalog[]>({
+    queryKey: ['service-catalog/items'],
+    queryFn: async () => {
       const data = await listCatalogItems();
-      setItems(Array.isArray(data) ? data : []);
-    } catch {
-      message.error('加载服务目录失败');
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return Array.isArray(data) ? data : [];
+    },
+    retry: 0,
+    staleTime: 30_000,
+  });
 
-  const loadBreaches = useCallback(async () => {
-    try {
+  const { data: breachesData, isLoading: breachesLoading, refetch: refetchBreaches } = useQuery<{ breaches: SLABreach[]; total: number }>({
+    queryKey: ['service-catalog/breaches'],
+    queryFn: async () => {
       const data = await getSLABreaches({ limit: 20 });
-      setBreaches(data?.breaches || []);
-      setTotalBreaches(data?.total || 0);
-    } catch {
-      message.error('加载 SLA 违约记录失败');
-      setBreaches([]);
-      setTotalBreaches(0);
-    }
-  }, []);
+      return { breaches: data?.breaches || [], total: data?.total || 0 };
+    },
+    retry: 0,
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    loadItems();
-  }, [loadItems]);
-  useEffect(() => {
-    loadBreaches();
-  }, [loadBreaches]);
+  const items = itemsData ?? [];
+  const breaches = breachesData?.breaches ?? [];
+  const totalBreaches = breachesData?.total ?? 0;
+  const loading = itemsLoading || breachesLoading;
 
   const handleCreate = () => {
     setSelectedItem(null);
@@ -128,7 +117,7 @@ const ServiceCatalogPage: React.FC = () => {
       }
       setModalOpen(false);
       form.resetFields();
-      loadItems();
+      refetchItems();
     } catch (error: unknown) {
       if (!(error instanceof Error) && (error as { errorFields?: unknown[] })?.errorFields) {
         return;
@@ -147,7 +136,7 @@ const ServiceCatalogPage: React.FC = () => {
         try {
           await deleteCatalogItem(id);
           message.success('删除成功');
-          loadItems();
+          refetchItems();
         } catch {
           message.error('删除失败');
         }
@@ -308,7 +297,7 @@ const ServiceCatalogPage: React.FC = () => {
             </>
           }
           extra={
-            <Button icon={<ReloadOutlined />} size="small" onClick={loadBreaches}>
+            <Button icon={<ReloadOutlined />} size="small" onClick={refetchBreaches}>
               刷新
             </Button>
           }
