@@ -746,6 +746,7 @@
 
 - 🔍 **本轮确认但仍未解的（记录）**
   - ~~**P0-0 剩余：Migration 能力建设**（ARCH-0.18，3-5d）~~ ✅ **完成 2026-08-30**（Batch T：service + 11 路由 + 20 测试 + 前端完整页面）
+  - ~~**P0-0 剩余：Schema-Registry 接线**（ARCH-0.19，1-1.5d）~~ ✅ **完成 2026-08-30**（Batch U：handler 9 路由 + inmemory/postgres repository + 31 测试 + migration 404）
   - **PERM-8 阶段 2**：`/api/v1` 切严格 `auth.Auth`——破坏性变更，需客户端迁移计划
   - ~~**ARCH-0.12**~~：datasource 补 ClickHouse 驱动 ✅ 已完成
   - **PERM-6**：AI 端点权限定义（决策待定）
@@ -754,6 +755,7 @@
   - ~~ARCH-0.10b~~ ✅ — 备份/恢复引擎真实现（2026-08-30）
   - ~~ARCH-0.15/0.17~~ ✅ — Redis 采集 + 备份系统统一（2026-08-29/26）（~~ARCH-0.16 慢查询已接 pg_stat_statements ✅~~）
   - ~~ARCH-0.12~~ — datasource 补 ClickHouse 驱动 ✅ 已完成
+  - ~~ARCH-0.19~~ ✅ — Schema-Registry 完整接线（2026-08-30，Batch U）
   - PERM-8 阶段 2 — `/api/v1` 切严格 `auth.Auth`（需迁移计划）
   - PERM-6 — AI 端点权限定义（决策待定）
   - 死代码清理 — `database-devops` repository DS 方法 + models、`internal/identity/role/`
@@ -1082,3 +1084,69 @@ go test ./internal/datasource/... ✅ 全部 PASS
   - 一致性校验（checksum/hash 对比）未实现——当前 Validate 仅检查格式
   - 迁移计划审批工作流未实现——当前直接执行
   - 前端步骤弹窗的 SQL 展示缺少语法高亮
+
+---
+
+## Batch U — ARCH-0.19 schema-registry 完整接线 (2026-08-30)
+
+- 📌 **背景**
+  - `internal/schema-registry/` 已有 service（Register/Lookup/List/Evolve/ValidateFields，含兼容性检查）和 models（Schema/SchemaField/EvolutionChange 等）
+  - 但 handler + repository 实现 + 路由测试全部缺失
+  - 第七轮总结发现 `grep -n schema-registry cmd/server/` = 0，未挂载到服务入口
+  - 第六轮 5 项 + 第七轮 1 项（ARCH-0.19）构成完整数据库域能力补齐
+
+- ✅ **后端实现** (`orion-platform-svc-go/internal/schema-registry/`)
+  - **handler/handler.go**：9 个 REST 端点 — Register(POST) / List(GET) / Lookup(GET) / Update(PUT) / Delete(DELETE) / Evolve(POST) / VersionHistory(GET) / GetVersion(GET) / Compatibility(GET)
+    - 全带 `auth.RequirePermission("schema-registry", "read|write|delete")` 守卫
+    - `RegisterRoutesWithoutAuth` 方法定义在测试文件中（test-only variant）
+  - **handler/handler_test.go**：10 条集成测试
+    - TestRegister_Success / TestRegister_BadBody / TestRegister_FieldValidation
+    - TestRegister_EvolutionIncrementsVersion / TestRegister_EvolutionRejectsBreaking
+    - TestList_Query / TestLookup_NotFound / TestEvolve_DryRun
+    - TestDelete_Missing / TestCompatibility_ReturnsMode
+  - **repository/inmemory.go**：完整内存实现（`sync.RWMutex` 线程安全），10 个 Interface 方法
+  - **repository/inmemory_test.go**：12 条单元测试
+    - CreateAndGet / CreateDuplicateRejected / GetMissingReturnsNil
+    - UpdatePersists / UpdateMissingFails / Delete
+    - ListFiltersByNamespace / QueryFiltersByTypeStatusOwner
+    - Versions / VersionsLimitTruncates / GetCompatibility / ConcurrentAccess
+  - **repository/postgres.go**：Postgres 持久化实现
+    - `schema_registry` 表（id/tenant_id/namespace/name/type/version/status/owner/description/fields/relationships/indexes/compatibility/metadata/created_at/updated_at）
+    - `schema_registry_versions` 表（id/tenant_id/namespace/name/version/schema_json/changes/released_at/released_by/created_at）
+    - JSONB 存储 fields/relationships/indexes/metadata
+  - **models/models.go**：`Schema` 新增 `TenantID` 字段（多租户隔离），`VersionHistoryResponse.Versions` 改为 `[]*SchemaVersion` 指针切片
+
+- ✅ **Migration** (`orion-platform-svc-go/migrations/404_create_schema_registry.sql`)
+  - `schema_registry` 表 + 唯一约束 `(tenant_id, namespace, name)` + 索引
+  - `schema_registry_versions` 表 + 唯一约束 `(tenant_id, namespace, name, version)` + 索引
+  - JSONB 列存储 schema_json 和 changes
+
+- ✅ **接线**
+  - `cmd/server/wiring.go`：已有 `infraSchemaRegH` 创建（Postgres 优先，InMemory 降级）
+  - `cmd/server/router.go`：已有 `infraSchemaRegH.RegisterRoutes(api)` 挂载
+  - `cmd/server/route_dump_test.go`：新增 `infraSchemaRegH` 条目（line 1033）
+  - `cmd/server/route_conflict_scan_test.go`：新增 `infraSchemaRegH` 条目
+  - 路由总数 3461，冲突数 0
+
+- ✅ **测试结果**
+  - `go build ./internal/schema-registry/...` → ok
+  - `go test ./internal/schema-registry/... -v` → **31/31 PASS**
+    - handler: 10/10 PASS
+    - repository: 12/12 PASS
+    - service: 9/9 PASS
+  - `go test ./cmd/server/ -run "RouteDump|RouteConflict" -v` → **PASS**（3461 routes, 0 conflicts）
+
+- 🔍 **关键决策**
+  - **handler 与 repository 分离**：handler 只依赖 service + repository（直接调用 repo 的 DeleteSchema/GetVersionHistory/GetVersion/GetCompatibility），不通过 service 间接调用
+  - **RegisterRoutesWithoutAuth 在测试文件中定义**：生产代码仅暴露 `RegisterRoutes`（含 auth middleware），测试文件定义无 auth 变体
+  - **InMemory 降级**：wiring.go 中 `infra.db != nil` 时用 Postgres，否则用 InMemory（与 migration 模块模式一致）
+  - **Schema TenantID 字段**：models.Schema 新增 `TenantID` 字段，postgres.go 的 row 结构体同步新增，SQL 查询用 `tenant_id = 'default'` 硬编码（后续可改为参数化）
+
+- 📊 **提交**：`b4252d533` — feat(schema-registry): ARCH-0.19 完整接线（9 files, 1530 insertions）
+
+- 📝 **剩余**
+  - 前端 `src/api/schema-registry.ts` 客户端未创建——需消费方按需添加
+  - 前端 Schema Registry 管理页面未创建——需完整 CRUD UI
+  - `tenant_id = 'default'` 硬编码——后续应改为从 context 参数化
+  - 兼容性检查仅支持 backward/forward/full/none，未支持 per-field 粒度
+  - 版本历史未实现分页（当前 limit 参数直接传入 LIMIT）
