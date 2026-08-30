@@ -1196,3 +1196,51 @@ go test ./internal/datasource/... ✅ 全部 PASS
   - P1-7：`ai/aicost` vs `ai/cost` 有意互补关系需文档化
   - P1-8：后端响应格式统一（436 文件 gin.H, 188 文件 RespondSuccess）
   - P1-9：三域补全（ITSM/CI-CD/CMDB gaps, 10-15d）
+
+---
+
+## Batch W — P2 技术债快速清理 (2026-08-31)
+
+- 📌 **背景**
+  - Batch V 完成后继续推进 P2 级技术债，优先处理可快速完成的项目
+
+- ✅ **P2-1：未引用 API 客户端清理**
+  - 核实: page-registry/deploy-enhanced/confirmations 实际被引用（stale claim）
+  - 删除 3 个真正孤立的 API 文件：`cache.ts`(59行)、`database-devops.ts`(559行)、`firewall-policies.ts`(61行)
+  - 保留: `cmdb-drift.ts`/`compliance.ts`/`forms.ts`/`reportDashboard.ts`/`schema-registry.ts` 均有后端模块对应
+
+- ✅ **P2-3：ErrorBoundary 覆盖核实**
+  - 核实: `main.tsx` 顶层 `<ErrorBoundary>` 已覆盖全部 218 个页面，无需逐页添加
+  - 标记为 ✅（原始估计基于 "0 覆盖" 的误解）
+
+- ✅ **P2-5：Go 模块路径冗余嵌套清理**
+  - 删除 `internal/finops/finops/` 死代码（19 文件，未在 router.go 注册）
+  - 扁平化 `internal/security/security/` → `internal/security/`（5 子目录，6 处 import 更新）
+  - 扁平化 `internal/notification/notification/` → `internal/notification/`（3 子目录，66 处 import 更新）
+  - 合计 69 文件变更，3908 行删除
+  - `go build ./cmd/server/` → ok；`go test ./cmd/server/ -run "RouteDump|RouteConflict"` → 3460 routes, 0 conflicts
+
+- ✅ **P2-6：/digital-twin 重复路由核实**
+  - 核实: 当前 routes.tsx 仅 1 条 digital-twin 路由（原估计的重复已被其他 agent 修复）
+
+- ✅ **P2-8：console.log 残留核实**
+  - 核实: 生产代码 0 处 console.log（2 处均在 `__tests__/` 测试数据中）
+
+- ✅ **P2-2：ARCHIVED 路由核实**
+  - 49→17 处（32 已移除），剩余 17 处均为向后兼容 301 重定向，建议保留
+
+- 🔍 **关键决策**
+  - **P2-3 不逐页添加**：React ErrorBoundary 在 main.tsx 顶层已覆盖全应用，逐页添加为过度设计
+  - **P2-5 删除 finops/finops**：该模块自包含且未在 router.go 注册——纯死代码
+  - **P2-5 扁平化策略**：`security/security/*` 和 `notification/notification/*` 直接移动到父目录，避免 `mv` 冲突（目标目录不存在）
+
+- 📊 **提交**
+  - `d2c53e8d3` — chore(frontend): P2-1 删除 3 个未引用 API 客户端
+  - `54de42d73` — chore(go): P2-5 冗余嵌套路径清理
+
+- 📝 **剩余**
+  - P2-4：36 个页面补测试目录（3-5d）
+  - P2-7：前端 `any` 类型清理（3-5d）
+  - P2-9：前端最大页面拆分（2-3d）
+  - P2-10：react-query 迁移 10 页面（2-3d）
+  - P2-11：wiring.go/router.go 拆分（1-2d）
