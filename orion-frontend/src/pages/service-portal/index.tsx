@@ -3,7 +3,8 @@
  * 对接后端 /api/v1/service-registry 服务注册与发现
  * 含服务列表、注册、健康监控
  */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
   Card,
@@ -56,8 +57,6 @@ const HEALTH_STATUS: Record<string, { color: string; icon: React.ReactNode; labe
 };
 
 const ServicePortalPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [services, setServices] = useState<ServiceInfo[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -66,22 +65,17 @@ const ServicePortalPage: React.FC = () => {
   const [healthLoading, setHealthLoading] = useState(false);
   const [form] = Form.useForm();
 
-  const loadServices = useCallback(async () => {
-    setLoading(true);
-    try {
+  const { data: rawData, isLoading: loading, refetch } = useQuery<ServiceInfo[]>({
+    queryKey: ['service-registry/services'],
+    queryFn: async () => {
       const data = await getServices();
-      setServices(Array.isArray(data) ? data : []);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载服务列表失败');
-      setServices([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return Array.isArray(data) ? data : [];
+    },
+    retry: 0,
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    loadServices();
-  }, [loadServices]);
+  const services = rawData ?? [];
 
   const handleRegister = () => {
     form.resetFields();
@@ -95,7 +89,7 @@ const ServicePortalPage: React.FC = () => {
       await registerService(values as RegisterServicePayload);
       message.success('服务注册成功');
       setModalOpen(false);
-      loadServices();
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(error.message);
@@ -109,7 +103,7 @@ const ServicePortalPage: React.FC = () => {
     try {
       await deregisterService(id);
       message.success('服务已注销');
-      loadServices();
+      refetch();
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '注销失败');
     }
