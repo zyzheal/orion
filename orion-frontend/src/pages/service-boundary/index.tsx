@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { API_BASE_URL } from '@/api/client';
+import { useQuery } from '@/providers/QueryProvider';
 import { Typography, Card, Row, Col, Tag, Button, Space, Table, Statistic, Progress, Alert, Modal, List, Empty, Descriptions } from 'antd';
 import { ClusterOutlined, SafetyCertificateOutlined, AlertOutlined, DatabaseOutlined, CloudServerOutlined, ReloadOutlined, ThunderboltOutlined, CodeOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
@@ -38,26 +40,26 @@ const BOOT_LEVELS = [
 ];
 
 const ServiceBoundaryPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [modules, setModules] = useState<ModuleRef[]>(FALLBACK_MODULES);
   const [selected, setSelected] = useState<ModuleRef | null>(null);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const resp = await fetch('/api/v1/architecture/module-coupling', {
+  const { data: modules, isLoading: loading, refetch } = useQuery<ModuleRef[]>({
+    queryKey: ['module-coupling'],
+    queryFn: async () => {
+      const resp = await fetch(`${API_BASE_URL}/architecture/module-coupling`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
       });
-      if (resp.ok) { const json = await resp.json(); if (json.data) setModules(json.data); }
-    } catch { setModules(FALLBACK_MODULES); }
-    finally { setLoading(false); }
-  };
-  useEffect(() => { load(); }, []);
+      if (resp.ok) { const json = await resp.json(); if (json.data) return json.data; }
+      return FALLBACK_MODULES;
+    },
+  });
 
-  const highRiskCount = modules.filter((m) => m.risk === 'high').length;
-  const noInterfaceCount = modules.filter((m) => !m.hasInterface).length;
-  const avgRefs = Math.round(modules.reduce((s, m) => s + m.references, 0) / modules.length);
-  const interfaceRate = Math.round((modules.filter((m) => m.hasInterface).length / modules.length) * 100);
+  const load = () => refetch();
+
+  const safeModules = modules ?? FALLBACK_MODULES;
+  const highRiskCount = safeModules.filter((m) => m.risk === 'high').length;
+  const noInterfaceCount = safeModules.filter((m) => !m.hasInterface).length;
+  const avgRefs = safeModules.length > 0 ? Math.round(safeModules.reduce((s, m) => s + m.references, 0) / safeModules.length) : 0;
+  const interfaceRate = safeModules.length > 0 ? Math.round((safeModules.filter((m) => m.hasInterface).length / safeModules.length) * 100) : 0;
 
   const moduleColumns: ColumnsType<ModuleRef> = [
     { title: '模块', dataIndex: 'module', key: 'module', render: (v: string) => <Text strong><CodeOutlined style={{ marginRight: 4 }} />{v}</Text> },
@@ -84,7 +86,7 @@ const ServiceBoundaryPage: React.FC = () => {
       {loading ? <PageSkeleton rows={6} /> : (
         <>
           <Row gutter={[spacing.md, spacing.md]} style={{ marginBottom: spacing.md }}>
-            <Col span={4}><Card size="small"><Statistic title="模块总数" value={modules.length} prefix={<ClusterOutlined />} /></Card></Col>
+            <Col span={4}><Card size="small"><Statistic title="模块总数" value={safeModules.length} prefix={<ClusterOutlined />} /></Card></Col>
             <Col span={4}><Card size="small"><Statistic title="高风险模块" value={highRiskCount} prefix={<AlertOutlined />} valueStyle={{ color: colors.error[500] }} /></Card></Col>
             <Col span={4}><Card size="small"><Statistic title="接口层缺失" value={noInterfaceCount} prefix={<SafetyCertificateOutlined />} valueStyle={{ color: colors.warning[500] }} /></Card></Col>
             <Col span={4}><Card size="small"><Statistic title="平均引用" value={avgRefs} prefix={<DatabaseOutlined />} /></Card></Col>
@@ -97,7 +99,7 @@ const ServiceBoundaryPage: React.FC = () => {
           <Row gutter={[spacing.md, spacing.md]}>
             <Col span={16}>
               <Card title="跨模块引用耦合度 (Go 后端)" extra={<Button icon={<ReloadOutlined />} onClick={load}>刷新</Button>}>
-                <Table dataSource={modules} columns={moduleColumns} rowKey="module" size="small" pagination={{ pageSize: 10 }}
+                <Table dataSource={safeModules} columns={moduleColumns} rowKey="module" size="small" pagination={{ pageSize: 10 }}
                   locale={{ emptyText: <Empty description="暂无数据" /> }} />
               </Card>
             </Col>
