@@ -112,19 +112,19 @@
 
 | # | 任务 | 来源 | 详细说明 | 工作量 |
 |---|------|------|---------|--------|
-| **P2-1** | 4 个未引用 API 客户端清理 | merged-action-items | page-registry(1次非API引用), deploy-enhanced(0次), confirmation(文本引用), cache(1次非API引用) | 0.5 天 |
-| **P2-2** | 49 处 ARCHIVED 路由分批移除 | merged-action-items | routes.ts 中 49 处 ARCHIVED 标记的路由 | 2-3 天 |
-| **P2-3** | ErrorBoundary 覆盖 218 页面 | merged-action-items | 当前 0 覆盖 → 已部分完成(P2-038)，需验证 | 1 天 |
+| ~~**P2-1** | 4 个未引用 API 客户端清理 | merged-action-items | ~~核实: page-registry/deploy-enhanced/confirmations 实际被引用；删除 3 个真正孤立的 (cache/database-devops/firewall-policies, 679 行)~~ | ✅ 2026-08-31 |
+| **P2-2** | 49 处 ARCHIVED 路由分批移除 | merged-action-items | 49→17 (32 已移除)；剩余 17 处均为向后兼容重定向，建议保留 | 低优先 |
+| **P2-3** | ErrorBoundary 覆盖 218 页面 | merged-action-items | 核实: main.tsx 顶层 ErrorBoundary 已覆盖全部页面，无需逐页添加 | ✅ 2026-08-31 |
 | **P2-4** | 36 个页面补测试目录 | merged-action-items | 约 36/218 页面无 `__tests__/` 目录 | 3-5 天 |
-| **P2-5** | Go 模块路径冗余嵌套清理 | merged-action-items | notification/notification, finops/finops, security/security | 0.5 天 |
-| **P2-6** | /digital-twin 重复路由 | merged-action-items | 第 1409 行和第 2007 行 | 0.5 天 |
+| ~~**P2-5** | Go 模块路径冗余嵌套清理 | merged-action-items | ~~删除 finops/finops 死代码 (19 文件)；扁平化 security/security + notification/notification (69 文件, 3908 行删除)~~ | ✅ 2026-08-31 |
+| ~~**P2-6** | /digital-twin 重复路由 | merged-action-items | 核实: 当前 routes.tsx 仅 1 条 digital-twin 路由，重复已修复 | ✅ 2026-08-31 |
 | **P2-7** | 前端 `any` 类型清理 | 三域分析 | 1138 处 `any` 类型，pages 层 1118 处 | 3-5 天 |
-| **P2-8** | 前端 `console.log` 残留 | 三域分析 | 60 处 `console.log` 残留 | 0.5 天 |
+| ~~**P2-8** | 前端 `console.log` 残留 | 三域分析 | 核实: 生产代码 0 处 console.log (2 处均在 __tests__ 测试数据中) | ✅ 2026-08-31 |
 | **P2-9** | 前端最大页面拆分 | 三域分析 | ChangeManagement(1899行) 等超大单文件拆分 | 2-3 天 |
 | **P2-10** | 安装 @tanstack/react-query | merged-action-items | 已安装(P2-040)，但 10 个核心页面未迁移 | 2-3 天 |
-| **P2-11** | wired.go / router.go 拆分 | 三域分析 | wiring.go 953 行 + router.go 617 行，入口文件膨胀 | 1-2 天 |
+| **P2-11** | wired.go / router.go 拆分 | 三域分析 | wiring.go 792 行 + router.go 1160 行，入口文件膨胀 | 1-2 天 |
 
-**P2 合计工作量**: 14.5-24 天
+**P2 合计工作量**: 10-18 天（P2-1/P2-3/P2-5/P2-6/P2-8 已完成）
 
 ---
 
