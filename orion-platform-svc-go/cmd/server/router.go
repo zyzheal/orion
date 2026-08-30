@@ -703,16 +703,9 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if ai_llmH != nil {
     ai_llmH.RegisterRoutes(api)
   }
-  if ai_aiagentH != nil {
-    ai_aiagentH.RegisterRoutes(api)
-  }
   if ai_aicostH != nil {
     ai_aicostH.RegisterRoutes(api)
   }
-  // ai_aigatewayH is NOT registered: its entire route set is a duplicate of
-  // aiGatewayH above. Gin keeps the first registration and panics on the second.
-  // ai_aireviewH is NOT registered: identical route set to aiReviewH above.
-  // Gin keeps the first registration and panics on the second.
   if ai_aisecurityH != nil {
     ai_aisecurityH.RegisterRoutes(api)
   }

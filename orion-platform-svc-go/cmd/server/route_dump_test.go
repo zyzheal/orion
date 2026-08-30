@@ -1064,12 +1064,7 @@ func buildDumpEntries() []dumpEntry {
 				ai_llmH.RegisterRoutes(api)
 			}
 		}},
-		{"ai_aiagentH", 643, func(api *gin.RouterGroup) {
-			if ai_aiagentH != nil {
-				ai_aiagentH.RegisterRoutes(api)
-			}
-		}},
-		{"ai_aicostH", 646, func(api *gin.RouterGroup) {
+		{"ai_aicostH", 643, func(api *gin.RouterGroup) {
 			if ai_aicostH != nil {
 				ai_aicostH.RegisterRoutes(api)
 			}

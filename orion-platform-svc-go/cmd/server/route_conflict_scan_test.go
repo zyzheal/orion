@@ -1023,11 +1023,6 @@ func TestRouteConflictScan(t *testing.T) {
 				ai_llmH.RegisterRoutes(api)
 			}
 		}},
-		{"ai_aiagentH", func() {
-			if ai_aiagentH != nil {
-				ai_aiagentH.RegisterRoutes(api)
-			}
-		}},
 		{"ai_aicostH", func() {
 			if ai_aicostH != nil {
 				ai_aicostH.RegisterRoutes(api)

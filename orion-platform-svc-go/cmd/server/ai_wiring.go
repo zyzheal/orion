@@ -9,11 +9,6 @@ import (
 	ai_llm_repo "orion/platform-svc-go/internal/ai/llm/repository"
 	ai_llm_service "orion/platform-svc-go/internal/ai/llm/service"
 
-	// AI module: aiagent (agent registry & execution)
-	ai_aiagent_handler "orion/platform-svc-go/internal/ai/aiagent/handler"
-	ai_aiagent_repo "orion/platform-svc-go/internal/ai/aiagent/repository"
-	ai_aiagent_service "orion/platform-svc-go/internal/ai/aiagent/service"
-
 	// AI module: aicost (cost optimization)
 	ai_aicost_handler "orion/platform-svc-go/internal/ai/aicost/handler"
 	ai_aicost_repo "orion/platform-svc-go/internal/ai/aicost/repository"
@@ -53,11 +48,6 @@ func wireAIModules(db *database.DB, logger *zap.Logger) {
 	ai_llmSvc := ai_llm_service.NewService(ai_llmRepo)
 	ai_llmH = ai_llm_handler.NewHandler(ai_llmSvc)
 
-	// --- aiagent: agent registry ---
-	ai_aiagentRepo := ai_aiagent_repo.NewRepository(db.DB)
-	ai_aiagentSvc := ai_aiagent_service.NewService(ai_aiagentRepo)
-	ai_aiagentH = ai_aiagent_handler.NewHandler(ai_aiagentSvc)
-
 	// --- aicost: cost optimization ---
 	ai_aicostRepo := ai_aicost_repo.NewRepository(db.DB)
 	ai_aicostSvc := ai_aicost_service.NewService(ai_aicostRepo)
@@ -90,7 +80,6 @@ func wireAIModules(db *database.DB, logger *zap.Logger) {
 }
 // Handler variables for ai_wiring (moved from central wiring.go var block)
 var (
-	ai_aiagentH       *ai_aiagent_handler.Handler
 	ai_aicostH        *ai_aicost_handler.Handler
 	ai_aisecurityH    *ai_aisecurity_handler.Handler
 	ai_autorecoveryH  *ai_autorecovery_handler.AutoRecoveryHandler
