@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"orion/platform-svc-go/internal/notification/notification/models"
+	"orion/platform-svc-go/internal/notification/models"
 )
 
 type Service struct{}

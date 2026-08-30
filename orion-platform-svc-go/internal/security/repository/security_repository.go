@@ -8,7 +8,7 @@ import (
 	"math"
 	"strings"
 
-	"orion/platform-svc-go/internal/security/security/models"
+	"orion/platform-svc-go/internal/security/models"
 
 	"github.com/jmoiron/sqlx"
 )

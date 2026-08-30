@@ -4,8 +4,8 @@ import (
 	"orion/go-common/pkg/database"
 
 	notification_handler "orion/platform-svc-go/internal/notification/notification-handler"
-	notification_repo "orion/platform-svc-go/internal/notification/notification/repository"
-	notification_service "orion/platform-svc-go/internal/notification/notification/service"
+	notification_repo "orion/platform-svc-go/internal/notification/repository"
+	notification_service "orion/platform-svc-go/internal/notification/service"
 
 	notification_policy_handler "orion/platform-svc-go/internal/notification-policy/handler"
 	notification_policy_repo "orion/platform-svc-go/internal/notification-policy/repository"

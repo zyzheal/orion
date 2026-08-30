@@ -25,9 +25,9 @@ import (
 	gp_repo "orion/platform-svc-go/internal/governance/policy/repository"
 	gp_service "orion/platform-svc-go/internal/governance/policy/service"
 
-	s_handler "orion/platform-svc-go/internal/security/security/handler"
-	s_repo "orion/platform-svc-go/internal/security/security/repository"
-	s_service "orion/platform-svc-go/internal/security/security/service"
+	s_handler "orion/platform-svc-go/internal/security/handler"
+	s_repo "orion/platform-svc-go/internal/security/repository"
+	s_service "orion/platform-svc-go/internal/security/service"
 
 	ss_handler "orion/platform-svc-go/internal/security/secret/handler"
 	ss_repo "orion/platform-svc-go/internal/security/secret/repository"

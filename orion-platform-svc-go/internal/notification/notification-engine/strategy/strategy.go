@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/notification/notification-engine"
-	"orion/platform-svc-go/internal/notification/notification/models"
+	"orion/platform-svc-go/internal/notification/models"
 )
 
 // ---------------------------------------------------------------------------

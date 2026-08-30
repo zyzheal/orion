@@ -3,7 +3,7 @@ package service
 import (
 	"testing"
 
-	"orion/platform-svc-go/internal/security/security/repository"
+	"orion/platform-svc-go/internal/security/repository"
 )
 
 func TestNewServiceNotNil(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 
 	"orion/platform-svc-go/internal/notification/notification-engine"
 	"orion/platform-svc-go/internal/notification/notification-engine/testutil"
-	"orion/platform-svc-go/internal/notification/notification/models"
+	"orion/platform-svc-go/internal/notification/models"
 )
 
 // ---------------------------------------------------------------------------

@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"orion/platform-svc-go/internal/notification/notification/models"
-	"orion/platform-svc-go/internal/notification/notification/repository"
+	"orion/platform-svc-go/internal/notification/models"
+	"orion/platform-svc-go/internal/notification/repository"
 )
 
 // ChannelService handles notification channel CRUD.

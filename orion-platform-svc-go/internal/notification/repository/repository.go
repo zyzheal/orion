@@ -6,7 +6,7 @@ import (
 
 	"orion/go-common/pkg/database"
 
-	"orion/platform-svc-go/internal/notification/notification/models"
+	"orion/platform-svc-go/internal/notification/models"
 )
 
 // Repository is the main notification repository.

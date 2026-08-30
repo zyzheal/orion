@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"orion/platform-svc-go/internal/notification/notification/models"
+	"orion/platform-svc-go/internal/notification/models"
 )
 
 // ---------------------------------------------------------------------------

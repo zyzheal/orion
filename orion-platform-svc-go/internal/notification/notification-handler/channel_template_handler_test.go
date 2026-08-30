@@ -3,7 +3,7 @@ package handler
 import (
 	"testing"
 
-	"orion/platform-svc-go/internal/notification/notification/service"
+	"orion/platform-svc-go/internal/notification/service"
 )
 
 func TestNewTemplateHandler(t *testing.T) {

@@ -3,8 +3,8 @@ package handler
 import (
 	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
-	"orion/platform-svc-go/internal/security/security/models"
-	"orion/platform-svc-go/internal/security/security/service"
+	"orion/platform-svc-go/internal/security/models"
+	"orion/platform-svc-go/internal/security/service"
 	"strconv"
 
 	"github.com/gin-gonic/gin"

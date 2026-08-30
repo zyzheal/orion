@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"orion/go-common/pkg/auth"
-	"orion/platform-svc-go/internal/notification/notification/models"
-	"orion/platform-svc-go/internal/notification/notification/service"
+	"orion/platform-svc-go/internal/notification/models"
+	"orion/platform-svc-go/internal/notification/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"

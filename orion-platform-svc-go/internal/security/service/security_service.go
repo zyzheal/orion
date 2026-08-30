@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"orion/platform-svc-go/internal/security/security/models"
-	"orion/platform-svc-go/internal/security/security/repository"
+	"orion/platform-svc-go/internal/security/models"
+	"orion/platform-svc-go/internal/security/repository"
 	"strings"
 	"time"
 

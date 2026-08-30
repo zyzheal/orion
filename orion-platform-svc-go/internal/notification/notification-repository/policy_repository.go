@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"orion/go-common/pkg/database"
-	"orion/platform-svc-go/internal/notification/notification/models"
+	"orion/platform-svc-go/internal/notification/models"
 
 	"github.com/google/uuid"
 )

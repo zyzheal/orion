@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"orion/platform-svc-go/internal/notification/notification/repository"
-	"orion/platform-svc-go/internal/notification/notification/service"
+	"orion/platform-svc-go/internal/notification/repository"
+	"orion/platform-svc-go/internal/notification/service"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"

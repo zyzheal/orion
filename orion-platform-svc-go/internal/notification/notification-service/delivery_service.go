@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"orion/go-common/pkg/otel"
-	"orion/platform-svc-go/internal/notification/notification/models"
-	"orion/platform-svc-go/internal/notification/notification/repository"
+	"orion/platform-svc-go/internal/notification/models"
+	"orion/platform-svc-go/internal/notification/repository"
 
 	"go.uber.org/zap"
 )
