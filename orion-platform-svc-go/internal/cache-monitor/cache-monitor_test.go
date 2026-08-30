@@ -28,12 +28,12 @@ func TestCacheMonitor_NewService_NilRepo(t *testing.T) {
 	if metrics.Type != "redis" {
 		t.Errorf("expected metrics.Type = redis, got %s", metrics.Type)
 	}
-	if metrics.Status != "healthy" {
-		t.Errorf("expected metrics.Status = healthy, got %s", metrics.Status)
+	if metrics.Status != "unknown" {
+		t.Errorf("expected metrics.Status = unknown before first collection, got %s", metrics.Status)
 	}
 }
 
-func TestCacheMonitor_CollectMetricsPopulatesRedis(t *testing.T) {
+func TestCacheMonitor_CollectMetrics_NoRedisAvailable(t *testing.T) {
 	logger := zap.NewNop()
 	svc := cacheService.NewCacheMonitorService(logger, nil)
 
@@ -45,17 +45,12 @@ func TestCacheMonitor_CollectMetricsPopulatesRedis(t *testing.T) {
 		t.Fatal("expected redis entry in collected metrics")
 	}
 
-	if redisMetrics.ConnectionsActive == 0 {
-		t.Error("expected ConnectionsActive > 0 after CollectMetrics")
-	}
-	if redisMetrics.KeyCount == 0 {
-		t.Error("expected KeyCount > 0 after CollectMetrics")
+	// When Redis is unreachable, status should be unhealthy (graceful degradation)
+	if redisMetrics.Status != "unhealthy" {
+		t.Errorf("expected Status = unhealthy when Redis is unreachable, got %s", redisMetrics.Status)
 	}
 	if redisMetrics.LastCollectedAt.IsZero() {
-		t.Error("expected LastCollectedAt to be set after CollectMetrics")
-	}
-	if redisMetrics.Status != "healthy" {
-		t.Errorf("expected Status = healthy, got %s", redisMetrics.Status)
+		t.Error("expected LastCollectedAt to be set even when Redis is unreachable")
 	}
 }
 

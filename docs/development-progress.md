@@ -826,3 +826,54 @@
   - `pg_stat_statements` 需要 PostgreSQL 启用 `pg_stat_statements` extension 且有查询统计积累才能返回数据（冷启动时返回空结果是预期行为）
 
 ---
+
+## Batch P — ARCH-0.17 Redis 真实监控 (2026-08-29)
+
+- 📌 **背景**
+  - `internal/cache-monitor/service` 的 `CollectMetrics` 原在 `if name == "redis"` 分支硬编码 9 条假指标（`ConnectionsActive=5`/`ConnectionsTotal=10`/`MemoryUsed=64MB`/`MemoryTotal=512MB`/`HitCount+=100`/`MissCount+=10`/`KeyCount=50000`/`AvgLatencyMs=0.5`/`P95LatencyMs=1.2`），所有缓存监控端点返回的都是虚假数据
+  - 同时 `internal/monitoring/internal/cache-monitor/` 存在一套完全相同的未接线重复代码（handler/models/service 三个目录），从未被路由注册，构成死代码
+
+- ✅ **实现**
+  - `models.CacheConfig` 新增 `Password` 字段，支持 Redis 认证
+  - `CacheMonitorService` 结构体新增 `sync.RWMutex` + `clients map[string]*redis.Client`，确保并发 HTTP handler 调用 `CollectMetrics` 时线程安全
+  - `registerClient(name)` 创建 go-redis v9 连接：`DialTimeout=3s` / `ReadTimeout=3s` / `WriteTimeout=3s`
+  - `CollectMetrics` 完全重写：遍历所有注册的 cache config → Redis 类型调用 `collectRedisMetrics` → 其他类型标记 `Status="unknown"` → 返回 map 副本
+  - `collectRedisMetrics` 调用 `client.Info(ctx)` 获取真实 INFO 输出 → `parseRedisInfo` 解析为 `map[string]int64`：
+    - `key:value` 整数行直接解析
+    - `db0:keys=50000,expires=100,expires_evicted=10` 逗号分隔 `key=value` 对累加（`+=` 而非 `=`）
+    - 非数字值（如 `redis_version:7.2.4`、`redis_mode:standalone`）自动跳过
+    - `# Section` 头行忽略
+  - 指标映射：`connected_clients`→ConnectionsActive、`total_connections_received`→ConnectionsTotal、`used_memory`→MemoryUsed、`maxmemory`→MemoryTotal（回退 `used_memory_rss`）、`keyspace_hits`→HitCount、`keyspace_misses`→MissCount、`evicted_keys`→EvictionCount、`expired_keys`→ExpirationCount、`keyspace_entries`→KeyCount（回退 `DBSIZE` 命令）
+  - `computeAvgLatency` 从 INFO 的 `commandstats` 段解析所有 `cmdstat_*:calls=N,usec=M` 行，累加 `totalUsec`/`totalCalls`，返回 `totalUsec/totalCalls/1000`（毫秒）
+  - Redis 不可达时：`Status="unhealthy"`，不返回 error（优雅降级）
+  - 删除 `internal/monitoring/internal/cache-monitor/`（handler/、models/、service/ 三个目录，共 3 个 Go 文件）
+
+- ✅ **测试**
+  - 新增 `service_internal_test.go`（6 条测试）：
+    - `TestParseRedisInfo_BasicFields` — 完整 INFO 输出解析，验证 13 个字段
+    - `TestParseRedisInfo_EmptyInput` — 空字符串返回空 map
+    - `TestParseRedisInfo_SectionHeadersIgnored` — `# Server`/`# Clients` 不存为 key，非数字值不存
+    - `TestParseRedisInfo_CommaSeparatedValues` — db0+db1 累加：keys=51000、expires=110、expires_evicted=12
+    - `TestParseRedisInfo_NonNumericValuesSkipped` — `standalone`/`Linux 4.14.0` 跳过，`tcp_port:6379` 保留
+    - `TestParseInt64` — 存在/不存在/负值三种情况
+  - `cache-monitor_test.go` 更新：
+    - `TestCacheMonitor_NewService_NilRepo`：`Status != "healthy"` → `Status != "unknown"`
+    - `TestCacheMonitor_CollectMetricsPopulatesRedis` → `TestCacheMonitor_CollectMetrics_NoRedisAvailable`：断言 Redis 不可达时 `Status="unhealthy"`、`LastCollectedAt` 已设置
+
+- ✅ **验证结果**
+  - `go build ./...` → ok
+  - `go test ./internal/cache-monitor/... -v` → 9/9 PASS（3 external + 6 internal）
+  - `go vet ./internal/cache-monitor/...` → clean（仅 repository.go 中预先存在的 self-assignment warning）
+  - `go test ./...` → **547 包 ok / 0 FAIL**（546 基线 + service_internal_test.go 新增包）
+
+- 🎯 **验收标准**
+  - `grep "ConnectionsActive = 5" internal/` = 0 ✅（假指标已清除）
+  - `internal/monitoring/internal/cache-monitor/` 已删除 ✅
+  - `go-redis` v9.7.0 已在 go.mod 中，INFO 命令调用真实连接 ✅
+
+- 🔍 **剩余**
+  - MongoDB/ES 等非 Redis 缓存类型目前标记 `Status="unknown"`，未实现真实采集（memcached 需单独驱动，非 ARCH-0.17 范围）
+  - `P95LatencyMs` 未实现——Redis INFO 无 per-command latency distribution 数据，需 Redis 6.2+ `LATENCY DOCTOR` 或独立采样
+  - `avg_latency_ms` 基于 `commandstats` 全命令累计计算，反映的是「实例生命周期内」均值而非实时延迟
+
+---

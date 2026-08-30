@@ -35,6 +35,7 @@ type CacheConfig struct {
 	Type               string `json:"type"`
 	Host               string `json:"host"`
 	Port               int    `json:"port"`
+	Password           string `json:"password,omitempty"`
 	CollectionInterval int    `json:"collection_interval_sec"`
 	IsEnabled          bool   `json:"is_enabled"`
 }
