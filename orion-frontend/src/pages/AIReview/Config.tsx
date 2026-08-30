@@ -3,6 +3,7 @@
  * AI Review configuration management
  */
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
 import { Typography, Card, Form, Input, Button, Select, message, Divider, Space } from 'antd';
 import { spacing } from '@/tokens';
 import { colors } from '@/tokens';
@@ -15,31 +16,22 @@ const { TextArea } = Input;
 
 const AIReviewConfig: React.FC = () => {
   const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const loadConfig = async () => {
-    setLoading(true);
-    try {
+  const { data: config, isLoading: loading, refetch } = useQuery<AIReviewConfig | undefined>({
+    queryKey: ['ai-review-config'],
+    queryFn: async () => {
       const res = await getReviewConfig();
-      const config = res.data;
-      if (config) {
-        form.setFieldsValue(config);
-      }
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载配置失败：${error.message}`);
-      } else {
-        message.error('加载配置失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (res.data as { data?: AIReviewConfig }).data;
+    },
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
-    loadConfig();
-  }, []);
+    if (config) {
+      form.setFieldsValue(config);
+    }
+  }, [config, form]);
 
   const handleSave = async (values: AIReviewConfig) => {
     setSaving(true);
@@ -58,7 +50,7 @@ const AIReviewConfig: React.FC = () => {
   };
 
   const handleReset = () => {
-    loadConfig();
+    refetch();
   };
 
   return (
