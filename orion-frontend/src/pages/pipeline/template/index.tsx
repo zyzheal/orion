@@ -2,7 +2,9 @@
  * Pipeline Template Marketplace Page (GitLab Pipeline include pattern)
  * Browse, search, fork and apply reusable pipeline templates
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { API_BASE_URL } from '@/api/client';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
   Card,
@@ -62,7 +64,7 @@ async function fetchTemplates(category: string, q: string): Promise<Template[]> 
     const params = new URLSearchParams();
     if (category !== 'all') params.set('category', category);
     if (q) params.set('q', q);
-    const resp = await fetch(`/api/v1/pipeline-templates?${params.toString()}`, {
+    const resp = await fetch(`${API_BASE_URL}/pipeline-templates?${params.toString()}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
     });
     if (!resp.ok) return FALLBACK_TEMPLATES;
@@ -76,22 +78,16 @@ async function fetchTemplates(category: string, q: string): Promise<Template[]> 
 const TemplateMarketPage: React.FC = () => {
   const [category, setCategory] = useState('all');
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [templates, setTemplates] = useState<Template[]>(FALLBACK_TEMPLATES);
   const [selected, setSelected] = useState<Template | null>(null);
   const [applyModal, setApplyModal] = useState(false);
 
-  const loadTemplates = async () => {
-    setLoading(true);
-    try {
-      const data = await fetchTemplates(category, search);
-      setTemplates(data);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: templates, isLoading: loading, refetch } = useQuery<Template[]>({
+    queryKey: ['pipeline-templates', category, search],
+    queryFn: () => fetchTemplates(category, search),
+  });
 
-  useEffect(() => { loadTemplates(); }, [category]);
+  const loadTemplates = () => refetch();
+  const safeTemplates = templates ?? FALLBACK_TEMPLATES;
 
   const handleApply = (t: Template) => {
     setSelected(t);
@@ -104,10 +100,10 @@ const TemplateMarketPage: React.FC = () => {
   };
 
   const stats = {
-    total: templates.length,
-    official: templates.filter((t) => t.isOfficial).length,
-    downloads: templates.reduce((s, t) => s + t.downloads, 0),
-    stars: templates.reduce((s, t) => s + t.stars, 0),
+    total: safeTemplates.length,
+    official: safeTemplates.filter((t) => t.isOfficial).length,
+    downloads: safeTemplates.reduce((s, t) => s + t.downloads, 0),
+    stars: safeTemplates.reduce((s, t) => s + t.stars, 0),
   };
 
   return (
@@ -158,7 +154,7 @@ const TemplateMarketPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {templates.map((t) => (
+                {safeTemplates.map((t) => (
                   <tr key={t.id} style={{ borderBottom: '1px solid #f0f0f0', cursor: 'pointer' }}
                     onClick={() => setSelected(t)}>
                     <td style={{ padding: 12 }}><Space><FileTextOutlined style={{ color: colors.primary[500] }} /><Text strong>{t.name}</Text>{t.isOfficial && <Tag color="blue">官方</Tag>}<Tag>{t.version}</Tag></Space></td>
@@ -177,7 +173,7 @@ const TemplateMarketPage: React.FC = () => {
                 ))}
               </tbody>
             </table>
-            {templates.length === 0 && <Empty description="暂无模板" />}
+            {safeTemplates.length === 0 && <Empty description="暂无模板" />}
           </Card>
         </>
       )}
