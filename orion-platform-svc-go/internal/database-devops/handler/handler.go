@@ -6,6 +6,7 @@ import (
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/database-devops/models"
 	"orion/platform-svc-go/internal/database-devops/service"
+	"orion/platform-svc-go/internal/infrastructure/backup/executor"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
@@ -38,6 +39,19 @@ func (h *Handler) RegisterRoutes(router *gin.RouterGroup) {
 	// /database-devops/data-sources endpoints are gone; callers use
 	// /data-sources (internal/datasource) which has full CRUD + test +
 	// query + execute + health and shares the same AES-256 key.
+}
+
+// SetExecutor injects the executor registry and conn resolver for real
+// backup/restore execution (ARCH-0.10b). When called, ExecuteBackup and
+// ExecuteRestore route to engine-specific executors instead of returning
+// placeholder results.
+func (h *Handler) SetExecutor(reg *executor.Registry, resolver service.ConnInfoResolver) {
+	h.svc.SetExecutorRegistry(reg)
+	h.svc.SetConnResolver(resolver)
+}
+
+func (h *Handler) SetBackupDir(dir string) {
+	h.svc.SetBackupDir(dir)
 }
 
 func (h *Handler) ListOperations(c *gin.Context) {

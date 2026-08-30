@@ -10,7 +10,7 @@
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已完成 | 41 项 |
+| ✅ 已完成 | 42 项 |
 | 🔴 待处理 | 3 项 P0 |
 | 🟡 待处理 | 6 项 P1 |
 | 🔵 待处理 | 11 项 P2 |
@@ -55,7 +55,7 @@
 | ✅ | **PERM-8 阶段 1: 可选（非阻塞）认证中间件，默认关闭** | 2026-08-29 | `pkg/auth/middleware.go` 抽出 `ParseClaims` / `jwtKeyfunc` / `applyClaims`，`Auth` 改为薄封装且 7 条 401 文案逐字保留；新增 `auth.OptionalAuth`（**从不 abort / 401 / 403**，带守卫的请求只能 403→200、不可能 200→401）；`router.go` 按 `AUTH_OPTIONAL_ENABLED` 挂载，严格 `auth.Auth` **刻意不挂**（会 401 整个无 token 客户端盘）；新增 `optional_auth_test.go` 3 个测试；`cmd/server` 9 个测试全绿、542 包 0 FAIL、路由/守卫指标逐字节不变 |
 | ✅ | **PERM-9: 多角色语义对齐** | 2026-08-29 | 四个守卫（`RequirePermission` / `RequireAnyPermission` / `RequireRole` / `RequireAnyRole`）全部改走 `GetRoles(c)`：**任一**持有角色授权即通过（并集语义，与前端 `matchPermission` 的多角色遍历一致，授权第二个角色不可能撤销第一个已给的访问权）；多角色规则收进两个单点实现 `anyRoleHasPermission`（permission.go）/ `hasRole`（middleware.go）；`GetRoles` 加固——`roles` 存在但为空也回退单 `role`，不再把「只设了 role」的调用方静默降为 `no role assigned`；`no role assigned` / `insufficient permissions` 两条 403 文案与无身份分支逐字保留；认证默认关闭时不会有任何角色写进 context，生产行为零变化；守卫层 8 个子测试 + 端到端 `TestOptionalAuthMultiRoleUnion`（真实多角色 JWT 走完 `roles` 数组→`ParseClaims`→`applyClaims`→`GetRoles`→`RequirePermission`）；**变异验证已做**：把守卫退回单角色后端到端测试实测 FAIL（`insufficient permissions`），恢复后 PASS |
 | ✅ | **P1-3: chaos 三模块合并**（核实完成，无代码改动） | 2026-08-29 | `wireChaosEngine`（wiring-chaos-engine.go）已把 chaos(1384行)+chaos-enhanced(367行)+chaos-gateway(517行) 接进同一个 `chaos_engine_handler.NewHandler(chaosSvc, chaosEnhancedSvc, chaosGatewaySvc)`；facade 挂 `/chaos` 组共 32 条路由、32 处 `auth.RequirePermission("chaos", …)` 守卫，三个子 handler 全部实际调用（chaosH×18 / enhancedH×7 / gatewayH×7）；`router.go` 挂载 `chaosEngineH` 并在注册点注释说明三个 legacy handler 刻意不注册（重复挂同一 `(method, path)` 会让 Gin panic）；已被 `route_dump_test.go` + `route_conflict_scan_test.go` 覆盖（0 conflicts） |
-| ✅ | **ARCH-0.10 剩余: database-devops 备份/恢复契约测试** | 2026-08-29 | `service.go` 抽出包私有 `repoInterface`（10 方法，与 `repository.Repository` 一一对应）+ 仅测试用 `newServiceWithRepo`，生产仍走 `NewService(db *sqlx.DB)`，**外部调用点 0 处改动**；新增 `service_test.go` 8 条契约测试（状态生命周期 `running→completed`、结果回读与落库一致、not-found 无副作用、**坏配置在置 running 之前失败**、空配置仍完成、每一次调用的租户作用域、`NewService(nil)` 容错），fakeRepo 记录调用序列因此能断言顺序而非仅最终值；**变异验证已做**：把最终 `UpdateStatus` 的 `completed` 改成 `failed` 后 `TestExecuteBackup_StatusLifecycle` 实测 FAIL 于两条预期断言，恢复后 8/8 PASS；`go test ./...` → 543 包 ok / 0 FAIL。**注意：这是契约测试，不是实现**——`ExecuteBackup`/`ExecuteRestore` 仍是桩（见下方第五轮 R5-3） |
+| ✅ | **ARCH-0.10 剩余: database-devops 备份/恢复契约测试** | 2026-08-29 | `service.go` 抽出包私有 `repoInterface`（10 方法，与 `repository.Repository` 一一对应）+ 仅测试用 `newServiceWithRepo`，生产仍走 `NewService(db *sqlx.DB)`，**外部调用点 0 处改动**；新增 `service_test.go` 8 条契约测试（状态生命周期 `running→completed`、结果回读与落库一致、not-found 无副作用、**坏配置在置 running 之前失败**、空配置仍完成、每一次调用的租户作用域、`NewService(nil)` 容错），fakeRepo 记录调用序列因此能断言顺序而非仅最终值；**变异验证已做**：把最终 `UpdateStatus` 的 `completed` 改成 `failed` 后 `TestExecuteBackup_StatusLifecycle` 实测 FAIL 于两条预期断言，恢复后 8/8 PASS；`go test ./...` → 543 包 ok / 0 FAIL。**ARCH-0.10b 已完成**（2026-08-30）：`ExecuteBackup`/`ExecuteRestore` 接入 executor 系统，13 条新测试，21/21 PASS |
 | ✅ | **ARCH-0.9 前端: `datasource.ts` 客户端** | 2026-08-29 | 后端已有 11 条带守卫路由，但前端无任何客户端，消费方各写各的 `fetch`；新增 `orion-frontend/src/api/datasource.ts`：**11 个类型化函数逐一对应 11 条后端路由**（list / types / health-all / get / health / create / update / delete / test / query / execute），每个函数尾注标注后端守卫（`datasource:read`/`write`/`execute`/`delete`）；10 个类型（`DataSourceType` 5 值、`DataSourceStatus` 4 值、`DataSource`、`DataSourceInput`、`QueryResult`、`DataSourceHealth`、`DataSourceListResponse`、`DataSourceHealthAllResponse`、`QueryArgs`）按 Go `models.go` 读字段而非猜；写清 4 条契约注记——`{success,data}` 信封由 `client.ts:67` 拦截器解包故函数直接 resolve 载荷、`password` 写时专用（Go 模型 `Password`/`PasswordEnc` 均 `json:"-"`，响应永不带凭据，ARCH-0.11 才是 database-devops 的明文问题）、`connMaxLifetime` 是 Go `time.Duration` 故 JSON 为纳秒整数、`List`/`HealthAll` 读 `c.GetString("tenant_id")` 空值即 401 `"tenant_id required"` 故须待 PERM-8 阶段 2；新增 `src/api/__tests__/datasource.test.ts` 11 条（每路由一条，断言精确 path 与载荷形状，含 `args = []` 默认值）→ vitest **11/11 PASS**、eslint `--max-warnings 0` 干净、`tsc --noEmit` **0 新增错误**（总数仍 45 且 0 条提及 datasource） |
 | ✅ | **ARCH-0.11 明文密码清理: database-devops 复用 datasource 加密模型** | 2026-08-29 | `internal/datasource/service` 原私持 40 行 AES-256-GCM 算法（`Key`/`Encrypt`/`Decrypt`）从未暴露给 `database-devops`，导致 `database-devops` 的 `DatabaseSource.Password` 以明文落库且 `POST /api/v1/database-devops/data-sources` 的 201 响应原样回显调用方密码（模型标签曾是 `json:"password,omitempty"`；`ListDataSources` 的 SELECT 本就不读该列故 list 路径从未泄漏，create 响应是唯一泄漏点）；本批抽出 `internal/shared/aesgcm`（`Key` 派生：64-hex 原样 / 其他 SHA-256；`Encrypt` 随机 nonce 前缀后 hex；`Decrypt` 验 GCM tag，错钥/篡改即失败），datasource 三助手改为单行委托（调用点与既有测试不变），database-devops `Service.key []byte` + `CreateDataSource` 加密前置 + `models.Password` 改 `json:"-"`（`db:"password"` 保留，`NamedExecContext` 绑定不变）+ `NewHandler(db *sqlx.DB, secretKey string)` 取与 `internal/datasource` **同一** `datasourceKey(logger)`（`DATASOURCE_SECRET_KEY` → `JWT_SECRET` → dev fallback，两模块同一把钥匙——`datasourceKey` 抽到 `cmd/server/wiring-datasource.go`，`wiring.go:628` 调用之）；新增 `aesgcm_test.go` 6 条（往返含 unicode/10KB、错钥、篡改一 bit、畸形输入、`Key` 派生含空密、nonce 非确定性）、`models_test.go` 2 条（反射断言 `json:"-"`/`db:"password"`/`binding:"required"` 标签 + 序列化输出不含 `password`/明文 + 非秘密字段仍序列化）、`service_test.go` 新增 `TestCreateDataSourceEncryptsPassword`（响应非明文、可解密回原文、错钥不解、落库行同密文、跨租户不可见）+ 7 处 `newServiceWithRepo(repo)` → `newServiceWithRepo(repo, testDSKey)` + `NewService(nil)` → `NewService(nil, testDSKey)` + fakeRepo 的 `CreateDataSource`/`ListDataSources` 改为真记录；**变异验证已做**：还原 `json:"password,omitempty"` → 3 条断言 FAIL（标签检查、明文回显、字段名），删除 `aesgcm.Encrypt` 调用 → "the response carries the caller's plaintext password" FAIL；恢复后 `gofmt -l` 全干净、`go build ./...` ok、`go vet` 干净、`go test ./internal/shared/aesgcm/ ./internal/database-devops/... ./internal/datasource/... ./cmd/server/` 全 PASS、`go test ./...` → **545 包 ok / 0 FAIL**（基线 543 + aesgcm 新包 + models 从无测试到有测试 = 545）。**未做**：ARCH-0.11b 三套数据源统一（删除 `/database-devops/data-sources` 重复端点）仍开放——本批只清了凭据路径 |
 | ✅ | **ARCH-0.11b 三套数据源统一: 删除 database-devops 重复 `/data-sources` 端点** | 2026-08-29 | `database-devops` handler 注册了 3 条重复数据源路由（`GET/POST/DELETE /database-devops/data-sources`），与 `internal/datasource` 的 `/data-sources`（11 条路由：list/types/health-all/get/health/create/update/delete/test/query/execute）完全重叠且功能更少（无 update/test/query/execute/health）；前端 0 处消费 `/database-devops/data-sources`（`grep -rn 'database-devops/data-sources' orion-frontend/src/` = 0）；本批删除 handler 3 条路由 + 3 个 handler 方法（`ListDataSources`/`CreateDataSource`/`DeleteDataSource`）+ service 3 个方法 + `repoInterface` 3 个接口方法 + `Service.key []byte` 字段 + `aesgcm` import，`NewHandler(db *sqlx.DB, secretKey string)` → `NewHandler(db *sqlx.DB)`、`NewService(db, secretKey)` → `NewService(db)`、`newServiceWithRepo(repo, secretKey)` → `newServiceWithRepo(repo)`；`wiring.go:631` 调用改为 `dbdevops_handler.NewHandler(infra.db.DB)`（不再传 `datasourceKey(logger)`）；`wiring-datasource.go` `datasourceKey` 文档注释更新（仅 `wireDatasource` 调用之）；`service_test.go` 移除 `aesgcm` import + `testDSKey` 常量 + fakeRepo 的 `dataSources` 字段与 3 个 DS 方法 + `TestCreateDataSourceEncryptsPassword`，7 处 `newServiceWithRepo(repo, testDSKey)` → `newServiceWithRepo(repo)`、`NewService(nil, testDSKey)` → `NewService(nil)`；repository 层 3 个 DS 方法 + models（`DatabaseSource`/`CreateDataSourceRequest`）保留为惰性类型（无 HTTP 路径可达，`models_test.go` 2 条标签断言仍 PASS）；路由 3447→3444（-3）、冲突 0、319 handler 不变；**变异验证已做**：临时恢复 1 条 `GET /data-sources` 路由 → 路由数 3444→3445（证明数量下降完全由本批删除引起），恢复后 3444；`gofmt -l` 全干净（`wiring.go` 保持原有 un-gofmt'd 状态不变）、`go build` ok、`go vet` 干净、`go test ./internal/database-devops/... ./internal/datasource/... ./internal/shared/aesgcm/... ./cmd/server/` 全 PASS、`go test ./...` → **545 包 ok / 0 FAIL** |
@@ -71,7 +71,7 @@
 
 | ID | 任务 | 解决缺口 | 优先级 | 工作量 |
 |----|------|---------|--------|--------|
-| **ARCH-0.10b** | **备份/恢复引擎真实现** — `ExecuteBackup` / `ExecuteRestore` 目前只查 operation、解析 config、置 `running`、返回占位 `BackupResult`、置 `completed`，两处 `// TODO` 仍在（`internal/database-devops/service/service.go`）。**已有契约测试钉住 status 生命周期 / 结果回读 / 租户作用域 / 坏配置不置 running**，实现时必须继续满足这些断言。**提示：仓库里已存在两套真实备份系统**（`internal/backup/` 15 路由；`internal/infrastructure/backup/` 8 路由含 cron + verifier + 私有 `executeBackup` + `recovery_service`），优先复用而非新写 | R5-3（备份/恢复桩实现） | 🔴 高 | 3-5 天（pg_dump / WAL 归档 / PITR，含真实存储与并发保护） |
+| ✅ **ARCH-0.10b** | **备份/恢复引擎真实现** — `ExecuteBackup`/`ExecuteRestore` 接入 `infrastructure/backup/executor` 系统（pg_dump/mysqldump/ob-loader-dumper），通过 `ConnInfoResolver` 从 `internal/datasource` 解析连接信息，`SetExecutorRegistry`/`SetConnResolver`/`SetBackupDir` 注入，`canExecute()` 判断启用。真实执行产出 `OutputPath`/`ChecksumSHA256`，失败置 `failed` 并返回 error。优雅降级：executor nil 时保持占位行为。**13 条新测试**（真实执行成功/失败、conn resolver error、无 executor、缺 backup_path、无效 PITR 时间、canExecute 表驱动、SetBackupDir 空值保护）。`go build ./...` 干净，21/21 测试 PASS | R5-3（备份/恢复桩实现） | ✅ **完成 2026-08-30** | 1.5d |
 
 ---
 
@@ -224,7 +224,7 @@
 | ID | 任务 | 解决缺口 | 优先级 | 工作量 |
 |----|------|---------|--------|--------|
 | ~~ARCH-0.9~~ | datasource 补 handler 层 + 路由接线 | R4-1 | ✅ **完成 2026-08-29** — 后端: 11 条带守卫路由 `/api/v1/data-sources` + repository 实现 + wiring + migration 551；前端: `src/api/datasource.ts` 11 个类型化函数 + 10 个类型 + 11 条测试（见上方已完成清单） | 2d |
-| ~~ARCH-0.10~~ | database-devops 补权限守卫 + 补测试 | R4-4 + PERM-2 | ✅ **完成 2026-08-29** — 10 条路由守卫已全部补齐（read/write/delete/execute）；备份/恢复**契约**测试已完成（8 条，`internal/database-devops/service/service_test.go`，变异验证已做） | 1.5d |
+| ~~ARCH-0.10~~ | database-devops 补权限守卫 + 补测试 | R4-4 + PERM-2 | ✅ **完成 2026-08-29** — 10 条路由守卫已全部补齐（read/write/delete/execute）；备份/恢复**契约**测试已完成（8 条）；**ARCH-0.10b 已接真实执行**（13 条新测试，2026-08-30） | 1.5d |
 | ~~ARCH-0.11a~~ | **明文密码清理**（database-devops 复用 datasource 加密模型） | R4-3 | ✅ **完成 2026-08-29** — `internal/shared/aesgcm` 共享实现 + `models.Password` 改 `json:"-"` + `CreateDataSource` 加密前置 + `datasourceKey` 两模块同一把钥匙；见上方已完成清单 | 0.5d |
 | ~~ARCH-0.11b~~ | **三套数据源统一**（删除 `/database-devops/data-sources` 重复端点，消费方迁至 `/data-sources`） | IX-8 | ✅ **完成 2026-08-29** — handler 3 条重复路由 + 3 个 handler 方法 + service 3 个方法 + `key` 字段 + `aesgcm` import 全部删除；`NewHandler(db, secretKey)` → `NewHandler(db)`；前端 0 消费方故无迁移；路由 3447→3444、545 包 0 FAIL；见上方已完成清单 | 1.5d |
 | ~~ARCH-0.12~~ | **datasource 补 ClickHouse 驱动**（宣称 5 → 实连 3） | R4-2 | ✅ **完成 2026-08-29** — 新增 `clickhouse-go/v2` 驱动，ClickHouse 类型从错误返回改为真实连接；MongoDB/ES 非 SQL 引擎无法用 database/sql，错误消息已改为明确说明；见上方已完成清单 | 1.5d |
@@ -234,13 +234,13 @@
 
 > 来源: 第五轮盘点「当前具备数据库相关的哪些能力」— 慢SQL / 建仓 / 库表权限授予 / 自动化工具 4 项能力实况
 > **核心洞察**: 数据库域存在系统性"假能力"——备份/恢复、工单执行、慢查询三个模块均为桩实现（只更新状态/返回假数据），比"缺 AI 能力"更基础：**连真实执行能力都没有**。
-> **状态更新 (2026-08-29)**：工单执行已接真实 SQL 执行 ✅（P0-0 DBA），慢查询已接 pg_stat_statements 真实采集 ✅（ARCH-0.16）。剩余：备份/恢复引擎（ARCH-0.10b/0.15）。
+> **状态更新 (2026-08-30)**：工单执行已接真实 SQL 执行 ✅（P0-0 DBA），慢查询已接 pg_stat_statements 真实采集 ✅（ARCH-0.16），Redis 已接 go-redis INFO 真实采集 ✅（ARCH-0.17），DR 已接 ShellExecutor 真实执行 ✅（ARCH-0.14），**备份/恢复已接 executor 系统真实执行 ✅（ARCH-0.10b）**。剩余：备份系统统一（ARCH-0.15）。
 
 | ID | 任务/结论 | 实况 | 关联待办 | 状态 |
 |----|----------|------|---------|------|
 | R5-1 | **库表权限授予用户（SQL GRANT）** — 全项目 0 处 SQL 级 GRANT；仅平台 RBAC（identity user_permissions 表 / OAuth grant_type） | 全新维度（前四轮从未评估） | ARCH-0.13 | ✅ 盘点完成 → 设计待排期 |
 | R5-2 | **慢SQL 确认假数据** — `internal/apm/service/business.go` GetSlowQueries 返回 3 条硬编码 fake（`// TODO: replace simulated data with real DatabaseProfiler queries`）；dba 无 slowquery 采集 | DBA-05 缺口成立 | DBA-05 | ✅ 确认缺失 |
-| R5-3 | **备份/恢复桩实现** — database-devops ExecuteBackup/ExecuteRestore 均 `// TODO` 桩（只 UpdateStatus 不真执行）；dba ExecuteOrder 也是状态桩 | R4-4 深化 | 补测试 ✅ 2026-08-29（契约测试 8 条）；真实现 → **ARCH-0.10b**（并见 ARCH-0.15 备份系统统一） | ✅ 确认缺失 |
+| R5-3 | **备份/恢复桩实现** — database-devops ExecuteBackup/ExecuteRestore 原 `// TODO` 桩；dba ExecuteOrder 也是状态桩 | R4-4 深化 | 补测试 ✅ 2026-08-29（契约测试 8 条）；真实现 ✅ **2026-08-30**（ARCH-0.10b，13 条新测试）；备份系统统一 → ARCH-0.15 | ✅ 已完成 |
 | R5-4 | **建仓（建库/数仓）缺失** — 无 CREATE DATABASE / warehouse；data-pipeline 仅 Schedule 字段 + RunPipeline 手动触发（`"pipeline run triggered"`），无调度器接入 | 全新维度 | data-pipeline 调度器 | ✅ 确认缺失 |
 | R5-5 | **自动化引擎具备但未接线** — `internal/cron/` SchedulerManager 完整（CronJob/ShouldFireAt/JobHandlerFunc + scheduler_job_definitions 表），但 dba/data-pipeline/database-devops 均未接入 | 引擎在、消费者缺 | data-pipeline 调度器 | ✅ 盘点完成 |
 
@@ -275,12 +275,12 @@
 | ID | 任务 | 解决缺口 | 优先级 | 工作量 |
 |----|------|---------|--------|--------|
 | ~~ARCH-0.14~~ | ~~**DR 执行引擎落地**：orchestrator 注入 service + 真实容灾执行（PG 流复制探测 / MySQL 主从切换 / 演练 / RPO·RTO 记录）~~ | DR 执行缺失 | 🔴 高 | 3-4d | ✅ 2026-08-29
-| ARCH-0.15 | **备份系统统一**：internal/backup + infrastructure/backup 合并为单一 backup 域，database-devops ExecuteBackup/ExecuteRestore 改接真实执行路径 | 备份重复 + R5-3 桩 | 🔴 高 | 2-3d |
+| ARCH-0.15 | **备份系统统一**：internal/backup + infrastructure/backup 合并为单一 backup 域（database-devops 已接真实执行 ✅ ARCH-0.10b） | 备份重复 | 🔴 高 | 2-3d |
 | ~~ARCH-0.16~~ | ~~**慢 SQL 真实采集**：dba/apm 接入 DB profiler（pg_stat_statements / performance_schema）替换 GetSlowQueries 假数据~~ | R5-2 + Performance 数据断裂 | 🔴 高 | 2d | ✅ 2026-08-29
 | ~~ARCH-0.17~~ | ~~**Redis 真实监控**：cache-monitor 用 go-redis INFO/HitRate/Memory 采集替换硬编码假指标，删除未接线的 monitoring/internal/cache-monitor 重复~~ | Redis 假指标 + 重复 | 🔴 高 | 2d | ✅ 2026-08-29
 | ARCH-0.18 | **Migration 能力建设**：internal/migration 补 service + 迁移/同步/校验/回滚 + handler 接线（schema diff + 数据搬移） | Migration 完全缺失 | 🟡 中 | 3-5d |
 
-**第六轮新增 5 项，合计 12-16 人天**，均为数据库域「执行空心 → 真实执行」的补强。修复顺序：先补真实执行（~~ARCH-0.14~~✅/~~ARCH-0.16~~✅/~~ARCH-0.17~~✅/ARCH-0.15/ARCH-0.18）→ 统一数据源（ARCH-0.11 前置）→ 最后支撑 AI 智能化（Text2SQL/Advisor 需真实执行与真实数据）。
+**第六轮新增 5 项，合计 12-16 人天**，均为数据库域「执行空心 → 真实执行」的补强。修复顺序：先补真实执行（~~ARCH-0.14~~✅/~~ARCH-0.16~~✅/~~ARCH-0.17~~✅/~~ARCH-0.10b~~✅/ARCH-0.15/ARCH-0.18）→ 统一数据源（ARCH-0.11 前置）→ 最后支撑 AI 智能化（Text2SQL/Advisor 需真实执行与真实数据）。
 
 **验收标准**：`grep "orchestrator" internal/disaster-recovery/service/` ≥1；`grep "TODO: Execute actual" internal/database-devops/` = 0；~~`grep "replace simulated data" internal/apm/` = 0~~ → ✅ ARCH-0.16 已完成（`GetSlowQueries` 改用 pg_stat_statements，`GetSlowTraces`/`GetServiceTopology` 仍保留 TODO 标注但非 stub 实现）；~~`grep "ConnectionsActive = 5" internal/monitoring/` = 0~~ → ✅ ARCH-0.17 已完成（`internal/monitoring/internal/cache-monitor/` 已删除，`internal/cache-monitor/` 改用 go-redis INFO 真实采集）；`grep -rn "migration" cmd/server/` ≥1（非 config 引用）。
 
@@ -297,7 +297,7 @@
 | R4-4 database-devops 0 守卫 🔴 | ✅ **已解决**：现 10 个 `RequirePermission`（read/write/delete/execute）+ 契约测试 8 条 |
 | R4-2 宣称 5 实连 2（仅 mysql+pgx 驱动） | 🔴 仍成立 |
 | R5-2 慢 SQL 假数据（APM GetSlowQueries 硬编码 3 条 fake） | 🔴 仍成立 |
-| R5-3 备份/恢复桩（database-devops ExecuteBackup/ExecuteRestore `// TODO`） | 🔴 仍成立（真实现 → ARCH-0.15） |
+| R5-3 备份/恢复桩（database-devops ExecuteBackup/ExecuteRestore `// TODO`） | ✅ **已解决**：ARCH-0.10b 接入 executor 系统，真实执行 pg_dump/mysqldump/ob-loader-dumper；备份系统统一 → ARCH-0.15 |
 | R6 DR orchestrator DefaultExecutor stub / Redis 假指标 / migration 未接线 | ~~DR stub + Redis 假指标~~ ✅（ARCH-0.14/0.17 已完成）；migration 未接线仍成立（→ ARCH-0.18） |
 | 🆕 **schema-registry 未接线** | 🔴 `grep -n schema-registry cmd/server/` = 0，未挂载到服务入口 |
 
@@ -316,11 +316,11 @@ A. 真实具备（数据治理层为主）
 
 B. 部分具备但"执行空心"（框架在、真实执行缺失）
   B1 慢 SQL 采集          APM GetSlowQueries 硬编码 fake → pg_stat_statements ✅ → ARCH-0.16 ✅
-  B2 备份/恢复            database-devops ExecuteBackup/Restore TODO桩   → ARCH-0.15
+  B2 备份/恢复            database-devops ExecuteBackup/Restore TODO桩   → ARCH-0.10b ✅
   B3 容灾 DR              disaster-recovery orchestrator DefaultExecutor stub → ARCH-0.14 ✅
   B4 Redis 监控           monitoring/internal/cache-monitor 硬编码假指标 → ARCH-0.17 ✅
   B5 性能调优             performance 11路由全守卫但喂假数据(B1) → B1已修 ✅ → ARCH-0.16 ✅
-  B6 备份第二套           internal/infrastructure/backup 与 backup 重复  → ARCH-0.15
+  B6 备份第二套           internal/infrastructure/backup 与 backup 重复  → ARCH-0.15（database-devops 已接 ✅）
   B7 自动化调度引擎       internal/cron 引擎完整但数据域未接入           → R5-4/R5-5
   B8 数据管道             data-pipeline 仅手动触发无调度器               → R5-4
 
@@ -341,7 +341,7 @@ C. 完全缺失（企业必需）
 
 > 一句话判断：**全平台没有一条真实执行 SQL 的路径** — 这不是"缺 AI"或"部分具备"，而是数据库操作域的**存亡问题**：DBA 工单"执行"不执行 SQL、备份"完成"不备份数据、慢查询"分析"喂硬编码数字。Orion 数据库域是**表单管理系统**，不是数据库管理系统。
 > 操作层得分修正：**2/10 → 0/10**（执行 SQL=0、产生备份文件=0、容灾执行=0、Redis 采集=0、慢查询采集=0 → 该维度就是 0，前几轮"框架完整性"误当能力计分）。
-> **状态更新 (2026-08-29)**：DBA ExecuteOrder 已接真实 SQL 执行 ✅（P0-0 DBA）；慢查询已接 pg_stat_statements 真实采集 ✅（ARCH-0.16）；Redis 已接 go-redis INFO 真实采集 ✅（ARCH-0.17）；DR 已接 ShellExecutor 真实执行 ✅（ARCH-0.14）。剩余：备份/恢复引擎（ARCH-0.10b/0.15）。操作层得分修正为 **8/10**（执行 SQL=2/4、产生备份文件=0/2、容灾执行=2/2、Redis 采集=2/2、慢查询采集=2/2 → 4/5 模块已具备真实执行能力）。
+> **状态更新 (2026-08-30)**：DBA ExecuteOrder 已接真实 SQL 执行 ✅（P0-0 DBA）；慢查询已接 pg_stat_statements 真实采集 ✅（ARCH-0.16）；Redis 已接 go-redis INFO 真实采集 ✅（ARCH-0.17）；DR 已接 ShellExecutor 真实执行 ✅（ARCH-0.14）；**备份/恢复已接 executor 系统真实执行 ✅（ARCH-0.10b）**。剩余：备份系统统一（ARCH-0.15）。操作层得分修正为 **9/10**（执行 SQL=2/4、产生备份文件=2/2、容灾执行=2/2、Redis 采集=2/2、慢查询采集=2/2 → 5/5 模块已具备真实执行能力）。
 
 **三大命门（代码级实证）**：
 
@@ -349,7 +349,7 @@ C. 完全缺失（企业必需）
 |------|------|------|
 | 🔴 **审批"执行"不跑 SQL** | `internal/dba/service/service.go:92-95` `ExecuteOrder` 直接 `UpdateOrderStatus(...,"completed",...)` + 硬编码 `result := "Execution completed"` — **无任何 sql.DB 调用** | 全平台唯一 DBA 执行路径为零；整个工单闭环（提交→审批→执行）是假的 |
 | 🔴 **明文口令端点仍在线** | `internal/database-devops/service/service.go:200` `Password: req.Password` 明文存储 + `handler.go:35-37` `/data-sources` GET/POST/DELETE 仍挂载；router.go:1100-1101 注释自认"dbdevopsH keeps its own nested /database-devops/data-sources pair above" | AES-256-GCM 加密体系与明文体系**双轨运行**；最接近真实数据泄露的洞，至今原样存在 |
-| 🔴 **备份/恢复仍是 TODO 桩** | `service.go:143/:177` `// TODO: Execute actual backup/restore based on cfg` — 返回占位 `Status:"completed"` | 数据库无任何备份文件产生 |
+| ✅ **备份/恢复已接真实执行** | ~~`service.go:143/:177` `// TODO`~~ → ARCH-0.10b 接入 `infrastructure/backup/executor` 系统，产出 `OutputPath`/`ChecksumSHA256`；13 条新测试 | ✅ 完成 2026-08-30 |
 
 **待办优先级重排**：以下三条 = 数据库域从 0 到 1 的唯一关键路径，**先于一切 ARCH-0.x**：
 
@@ -357,7 +357,7 @@ C. 完全缺失（企业必需）
 |--------|------|--------|
 | ~~**P0-0**~~ | ~~**删除 database-devops 明文 `/data-sources` 端点**（堵数据泄露洞，比一切优先）~~ ✅ **完成 2026-08-29** — ARCH-0.11b 已删除 3 条重复路由，`/data-sources`（internal/datasource）是唯一入口 | ~~0.5d~~ |
 | ~~**P0-0**~~ | ~~**DBA ExecuteOrder 接真实 SQL 执行**（复用 datasource.GetConnection / ExecuteDirectQuery 雏形）— 把表单系统变数据库管理系统~~ ✅ **完成 2026-08-29** — `ExecuteOrder` 从桩代码改为真实执行：按 `order.Database` 匹配数据源 → PostgreSQL 连接 → `executePGSQL`（只读语句走 `QueryContext` 返回行列，DML/DDL 走 `ExecContext` 返回受影响行数）→ 60s 超时 → 执行结果写入审计日志 + 更新 order 状态为 `completed`/`failed`；签名从 `ExecuteOrder(ctx, id)` 改为 `ExecuteOrder(ctx, tenantID, userID, id)`；新增 `sqlExecResult` 结构体 + `executePGSQL` 函数；handler 跟进传 `tenant_id`/`user_id`；545 包 0 FAIL | ~~1-2d~~ |
-| **P0-0** | **备份/恢复引擎接真实执行**（ARCH-0.15）~~（ARCH-0.14 DR 已接 ShellExecutor ✅）（ARCH-0.16 慢查询已接 pg_stat_statements ✅）（ARCH-0.17 Redis 已接 go-redis INFO ✅）~~ | 3-5d |
+| ~~**P0-0**~~ | ~~**备份/恢复引擎接真实执行**（ARCH-0.15）~~ ✅ **完成 2026-08-30** — ARCH-0.10b 接入 executor 系统（pg_dump/mysqldump/ob-loader-dumper）；13 条新测试；`canExecute()` 优雅降级；备份系统统一 → ARCH-0.15 | ~~3-5d~~ |
 
 > ✅ ARCH-0.11 明文密码清理 + ARCH-0.11b 三套数据源统一均已于 2026-08-29 完成（见上方已完成清单）。R4-3 最高风险点"重复端点 + 明文密码"两半全部关闭。
 

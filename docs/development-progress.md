@@ -933,3 +933,101 @@
   - `ExecuteSteps` 与 `Failover` 有约 30 行重复逻辑（步骤迭代+错误处理+rollback 触发），可抽取公共方法
 
 ---
+
+## Batch R — ARCH-0.10b 备份/恢复引擎真实现（2026-08-30）
+
+### 目标
+将 `database-devops` 的 `ExecuteBackup`/`ExecuteRestore` 从占位桩改为接入
+`infrastructure/backup/executor` 系统（pg_dump/mysqldump/ob-loader-dumper），
+通过 `ConnInfoResolver` 从 `internal/datasource` 解析数据库连接信息。
+
+### 核心设计
+
+**优雅降级**：`canExecute()` 判断 `execRegistry != nil && connResolver != nil`，
+为 true 时走真实执行路径，为 false 时保持占位行为。8 条契约测试
+（`TestExecuteBackup_StatusLifecycle` 等）全部在占位模式下运行，
+无需修改即可继续通过。
+
+**注入模式**：
+- `SetExecutorRegistry(reg *executor.Registry)` — 注入执行器注册表
+- `SetConnResolver(r ConnInfoResolver)` — 注入连接信息解析器
+- `SetBackupDir(dir string)` — 设置备份产物目录（空字符串不覆盖）
+
+**新增类型**：
+- `ConnInfoResolver` — `func(ctx, tenantID, databaseID) (*executor.ConnInfo, executor.Dialect, error)`
+- `BackupResult.OutputPath` — 备份产物路径
+- `BackupResult.ChecksumSHA256` — 产物完整性校验和
+- `RestoreConfig.BackupPath` — 恢复时使用的备份产物路径
+
+### 变更文件
+
+**`models.go`**
+- `BackupResult` 新增 `OutputPath`/`ChecksumSHA256` 字段
+- `RestoreConfig` 新增 `BackupPath` 字段
+
+**`service.go`**
+- 新增 `SetExecutorRegistry`/`SetConnResolver`/`SetBackupDir`/`canExecute`
+- 重写 `ExecuteBackup`：executor 可用时 `executeRealBackup`（解析 conn → 查 executor → 构建 BackupOptions → 执行 → 返回带 OutputPath/ChecksumSHA256 的结果），executor 不可用时保持占位
+- 重写 `ExecuteRestore`：executor 可用时 `executeRealRestore`（解析 conn → 查 executor → 构建 RestoreOptions（含 PITR 时间解析）→ 执行），executor 不可用时保持占位
+- 新增 `nonEmptyStrings` 辅助函数
+- 执行失败时标记 status 为 `failed` 并返回 error
+
+**`service_test.go`**
+- 8 条契约测试全部保持通过（无修改）
+- 新增 13 条测试：
+  - `TestExecuteBackup_RealExecutor_Success` — 真实执行成功，验证 OutputPath/ChecksumSHA256/Size
+  - `TestExecuteBackup_RealExecutor_ConnResolverError` — conn resolver 失败
+  - `TestExecuteBackup_RealExecutor_NoExecutorForDialect` — 无 executor 注册
+  - `TestExecuteBackup_RealExecutor_BackupFails` — backup 执行失败
+  - `TestExecuteBackup_CanExecuteFalse_NoExecutorSet` — 仅有 registry 无 resolver
+  - `TestExecuteRestore_RealExecutor_Success` — 恢复成功，验证 backupPath + PITR 时间解析
+  - `TestExecuteRestore_RealExecutor_MissingBackupPath` — 缺 backup_path
+  - `TestExecuteRestore_RealExecutor_InvalidPointInTime` — 无效 PITR 时间
+  - `TestCanExecute` — 表驱动 4 场景
+  - `TestSetBackupDir_EmptyDoesNotOverride` — 空字符串不覆盖
+- `fakeExecutor` 实现 `BackupExecutor` + `RestoreExecutor`，可注入错误
+
+**`handler.go`**
+- 新增 `SetExecutor(reg *executor.Registry, resolver service.ConnInfoResolver)` 方法
+- 新增 `SetBackupDir(dir string)` 方法
+- 新增 `executor` import
+
+**`wiring-database-devops.go`**（新文件）
+- `wireDatabaseDevopsExecutors(logger)` — 创建 executor.NewRegistry()，构建 conn resolver，注入 handler
+- `makeConnResolver(logger)` — 返回 ConnInfoResolver 闭包，通过 `datasourceSvc.Get()` + `ResolvePassword()` 解析连接信息
+- `mapDialect(dsType)` — DSCPostgres→DialectPostgreSQL、DSCMySQL→DialectMySQL
+- `backupDir()` — 从 `BACKUP_DIR` 环境变量或 `/var/backups/orion` 获取
+
+**`wiring-datasource.go`**
+- 新增 `datasourceSvc` 包变量，`wireDatasource` 设置它
+
+**`wiring.go`**
+- 在 `dbdevopsH = dbdevops_handler.NewHandler(infra.db.DB)` 之后调用 `wireDatabaseDevopsExecutors(logger)`
+
+**`datasource/service/service.go`**
+- 新增 `ResolvePassword(ctx, dsID)` 方法：查询 datasource → 解密 PasswordEnc → 返回明文密码
+
+### 测试验证
+
+```
+go build ./...                ✅ 干净
+go test ./internal/database-devops/... -v  ✅ 21/21 PASS（8 契约 + 13 新）
+go test ./internal/disaster-recovery/... -v ✅ 全部 PASS
+go test ./internal/infrastructure/backup/... ✅ 全部 PASS
+go test ./internal/datasource/... ✅ 全部 PASS
+```
+
+### 关键决策
+- **不修改 `NewService` 签名**：通过 `SetXxx` 方法注入，保持向后兼容
+- **`canExecute()` 模式**：两个 nil 检查 → 优雅降级，契约测试不受影响
+- **conn resolver 从 datasource 服务获取**：复用 `ResolvePassword`（新增），不重复解密逻辑
+- **失败时标记 `failed`**：executor 失败 → status `failed` + return error（区别于占位模式的 `completed`）
+- **`nonEmptyStrings` 辅助**：避免 `[]string{""}` 传递给 executor
+
+### 剩余
+- ARCH-0.15：备份系统统一（`internal/backup/` + `internal/infrastructure/backup/` 合并）
+- 真实存储后端（S3/MinIO）尚未接入 database-devops 路径
+- `HealthCheck` 未实现 PG 流复制探测或 MySQL 主从切换检查
+- `convertSteps` 所有步骤统一标记为 `PhasePreflight`，未按命令内容推断 phase
+
+---

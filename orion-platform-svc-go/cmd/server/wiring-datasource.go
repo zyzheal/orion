@@ -23,7 +23,12 @@ func wireDatasource(db *database.DB, logger *zap.Logger) {
 
 	svc := ds_service.New(repo, key, logger)
 	datasourceH = ds_handler.NewHandler(svc)
+	datasourceSvc = svc
 }
+
+// datasourceSvc is set by wireDatasource and consumed by wireDatabaseDevopsExecutors
+// to resolve database IDs to connection info for real backup/restore execution.
+var datasourceSvc *ds_service.Service
 
 var datasourceH *ds_handler.Handler
 

@@ -3,11 +3,15 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"orion/platform-svc-go/internal/database-devops/models"
+	"orion/platform-svc-go/internal/infrastructure/backup/executor"
 )
 
 // ARCH-0.10, remainder: backup / restore coverage.
@@ -278,5 +282,365 @@ func TestNewServiceNilDBIsTolerated(t *testing.T) {
 	}
 	if len(items) != 0 {
 		t.Errorf("ListOperations with a nil DB returned %d items, want 0", len(items))
+	}
+}
+
+// ==================== Real execution path tests ====================
+
+// fakeExecutor implements executor.BackupExecutor and executor.RestoreExecutor
+// for testing real backup/restore without invoking pg_dump or mysqldump.
+type fakeExecutor struct {
+	dialect         executor.Dialect
+	backupOutput    string
+	backupSize      int64
+	backupChecksum  string
+	backupError     error
+	restoreError    error
+	restoreBackupPath string
+	restoreOpts     *executor.RestoreOptions
+}
+
+func (f *fakeExecutor) Dialect() executor.Dialect { return f.dialect }
+
+func (f *fakeExecutor) Backup(_ context.Context, _ executor.ConnInfo, opts executor.BackupOptions) (*executor.BackupResult, error) {
+	if f.backupError != nil {
+		return nil, f.backupError
+	}
+	// Write a dummy artifact so the path exists
+	if err := os.MkdirAll(filepath.Dir(opts.OutputPath), 0o750); err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(opts.OutputPath, []byte("dummy-backup-data"), 0o644); err != nil {
+		return nil, err
+	}
+	return &executor.BackupResult{
+		OutputPath:     opts.OutputPath,
+		SizeBytes:      f.backupSize,
+		ChecksumSHA256: f.backupChecksum,
+	}, nil
+}
+
+func (f *fakeExecutor) Restore(_ context.Context, opts executor.RestoreOptions) (*executor.RestoreResult, error) {
+	f.restoreBackupPath = opts.BackupPath
+	f.restoreOpts = &opts
+	if f.restoreError != nil {
+		return nil, f.restoreError
+	}
+	return &executor.RestoreResult{
+		Duration:     100 * time.Millisecond,
+		RowsRestored: 1000,
+	}, nil
+}
+
+// --- Tests ---
+
+func TestExecuteBackup_RealExecutor_Success(t *testing.T) {
+	repo := newFakeRepo()
+	cfg := `{"backup_type":"full","compress_level":9,"destination":"local"}`
+	repo.seed("t1", "op1", cfg, "db-42")
+
+	tmpDir := t.TempDir()
+	exe := &fakeExecutor{
+		dialect:      executor.DialectPostgreSQL,
+		backupSize:   2048,
+		backupChecksum: "abc123",
+	}
+	reg := executor.NewEmptyRegistry()
+	reg.Register(exe)
+
+	resolver := func(_ context.Context, _, _ string) (*executor.ConnInfo, executor.Dialect, error) {
+		return &executor.ConnInfo{Host: "localhost", Port: "5432", DB: "orion", User: "admin"}, executor.DialectPostgreSQL, nil
+	}
+
+	svc := newServiceWithRepo(repo)
+	svc.SetExecutorRegistry(reg)
+	svc.SetConnResolver(resolver)
+	svc.SetBackupDir(tmpDir)
+
+	result, err := svc.ExecuteBackup(context.Background(), "t1", "op1")
+	if err != nil {
+		t.Fatalf("ExecuteBackup returned error: %v", err)
+	}
+
+	// Real execution should populate OutputPath and ChecksumSHA256
+	if result.OutputPath == "" {
+		t.Error("OutputPath is empty — expected a real artifact path")
+	}
+	if result.ChecksumSHA256 != "abc123" {
+		t.Errorf("ChecksumSHA256 = %q, want 'abc123'", result.ChecksumSHA256)
+	}
+	if result.Size != 2048 {
+		t.Errorf("Size = %d, want 2048", result.Size)
+	}
+	if result.Status != "completed" {
+		t.Errorf("Status = %q, want completed", result.Status)
+	}
+	// Message should NOT contain the placeholder marker
+	if strings.Contains(result.Message, "placeholder") {
+		t.Errorf("Message = %q — should not be a placeholder when executor is configured", result.Message)
+	}
+	// Final operation status should be completed
+	if got := repo.ops[key("t1", "op1")].Status; got != "completed" {
+		t.Errorf("final operation status = %q, want completed", got)
+	}
+	// An artifact should exist on disk
+	if _, err := os.Stat(result.OutputPath); err != nil {
+		t.Errorf("artifact at %s does not exist: %v", result.OutputPath, err)
+	}
+}
+
+func TestExecuteBackup_RealExecutor_ConnResolverError(t *testing.T) {
+	repo := newFakeRepo()
+	repo.seed("t1", "op1", `{"backup_type":"full"}`, "db-42")
+
+	exe := &fakeExecutor{dialect: executor.DialectPostgreSQL}
+	reg := executor.NewEmptyRegistry()
+	reg.Register(exe)
+
+	resolver := func(_ context.Context, _, _ string) (*executor.ConnInfo, executor.Dialect, error) {
+		return nil, "", fmt.Errorf("database not found")
+	}
+
+	svc := newServiceWithRepo(repo)
+	svc.SetExecutorRegistry(reg)
+	svc.SetConnResolver(resolver)
+	svc.SetBackupDir(t.TempDir())
+
+	_, err := svc.ExecuteBackup(context.Background(), "t1", "op1")
+	if err == nil {
+		t.Fatal("expected error from conn resolver failure")
+	}
+	if !strings.Contains(err.Error(), "resolve conn info") {
+		t.Errorf("err = %v, want it to mention 'resolve conn info'", err)
+	}
+	// Status should be failed
+	if got := repo.ops[key("t1", "op1")].Status; got != "failed" {
+		t.Errorf("status = %q, want 'failed'", got)
+	}
+}
+
+func TestExecuteBackup_RealExecutor_NoExecutorForDialect(t *testing.T) {
+	repo := newFakeRepo()
+	repo.seed("t1", "op1", `{"backup_type":"full"}`, "db-42")
+
+	// Registry with no executors registered
+	reg := executor.NewEmptyRegistry()
+
+	resolver := func(_ context.Context, _, _ string) (*executor.ConnInfo, executor.Dialect, error) {
+		return &executor.ConnInfo{DB: "orion"}, executor.DialectPostgreSQL, nil
+	}
+
+	svc := newServiceWithRepo(repo)
+	svc.SetExecutorRegistry(reg)
+	svc.SetConnResolver(resolver)
+	svc.SetBackupDir(t.TempDir())
+
+	_, err := svc.ExecuteBackup(context.Background(), "t1", "op1")
+	if err == nil {
+		t.Fatal("expected error — no executor registered for postgresql")
+	}
+	if !strings.Contains(err.Error(), "no backup executor") {
+		t.Errorf("err = %v, want 'no backup executor'", err)
+	}
+}
+
+func TestExecuteBackup_RealExecutor_BackupFails(t *testing.T) {
+	repo := newFakeRepo()
+	repo.seed("t1", "op1", `{"backup_type":"full"}`, "db-42")
+
+	exe := &fakeExecutor{
+		dialect:     executor.DialectPostgreSQL,
+		backupError: fmt.Errorf("pg_dump failed"),
+	}
+	reg := executor.NewEmptyRegistry()
+	reg.Register(exe)
+
+	resolver := func(_ context.Context, _, _ string) (*executor.ConnInfo, executor.Dialect, error) {
+		return &executor.ConnInfo{DB: "orion"}, executor.DialectPostgreSQL, nil
+	}
+
+	svc := newServiceWithRepo(repo)
+	svc.SetExecutorRegistry(reg)
+	svc.SetConnResolver(resolver)
+	svc.SetBackupDir(t.TempDir())
+
+	_, err := svc.ExecuteBackup(context.Background(), "t1", "op1")
+	if err == nil {
+		t.Fatal("expected error from backup failure")
+	}
+	if !strings.Contains(err.Error(), "backup executor failed") {
+		t.Errorf("err = %v, want 'backup executor failed'", err)
+	}
+	if got := repo.ops[key("t1", "op1")].Status; got != "failed" {
+		t.Errorf("status = %q, want 'failed'", got)
+	}
+}
+
+func TestExecuteBackup_CanExecuteFalse_NoExecutorSet(t *testing.T) {
+	// Verify graceful degradation: with only registry set but no resolver,
+	// placeholder behavior is used.
+	repo := newFakeRepo()
+	repo.seed("t1", "op1", `{"backup_type":"full"}`, "db-42")
+
+	reg := executor.NewEmptyRegistry()
+	svc := newServiceWithRepo(repo)
+	svc.SetExecutorRegistry(reg)
+	// No conn resolver set
+
+	if svc.canExecute() {
+		t.Fatal("canExecute should be false without conn resolver")
+	}
+
+	result, err := svc.ExecuteBackup(context.Background(), "t1", "op1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.OutputPath != "" {
+		t.Errorf("OutputPath should be empty in placeholder mode, got %q", result.OutputPath)
+	}
+	if !strings.Contains(result.Message, "placeholder") {
+		t.Errorf("Message should contain 'placeholder', got %q", result.Message)
+	}
+}
+
+func TestExecuteRestore_RealExecutor_Success(t *testing.T) {
+	repo := newFakeRepo()
+	cfg := `{"backup_id":"b-7","backup_path":"/var/backups/orion/b-7.dump","point_in_time":"2026-08-26T00:00:00Z"}`
+	repo.seed("t1", "r1", cfg, "db-42")
+
+	exe := &fakeExecutor{dialect: executor.DialectPostgreSQL}
+	reg := executor.NewEmptyRegistry()
+	reg.Register(exe)
+
+	resolver := func(_ context.Context, _, _ string) (*executor.ConnInfo, executor.Dialect, error) {
+		return &executor.ConnInfo{Host: "localhost", Port: "5432", DB: "orion"}, executor.DialectPostgreSQL, nil
+	}
+
+	svc := newServiceWithRepo(repo)
+	svc.SetExecutorRegistry(reg)
+	svc.SetConnResolver(resolver)
+	svc.SetBackupDir(t.TempDir())
+
+	if err := svc.ExecuteRestore(context.Background(), "t1", "r1"); err != nil {
+		t.Fatalf("ExecuteRestore returned error: %v", err)
+	}
+
+	// Verify the executor was called with the right backup path
+	if exe.restoreBackupPath != "/var/backups/orion/b-7.dump" {
+		t.Errorf("restoreBackupPath = %q, want '/var/backups/orion/b-7.dump'", exe.restoreBackupPath)
+	}
+	// Verify PITR timestamp was parsed
+	if exe.restoreOpts == nil {
+		t.Fatal("restoreOpts is nil — executor was not called")
+	}
+	if exe.restoreOpts.TargetTime == nil {
+		t.Error("TargetTime is nil — PITR timestamp was not parsed")
+	} else {
+		want := time.Date(2026, 8, 26, 0, 0, 0, 0, time.UTC)
+		if !exe.restoreOpts.TargetTime.Equal(want) {
+			t.Errorf("TargetTime = %v, want %v", exe.restoreOpts.TargetTime, want)
+		}
+	}
+	// Final status should be completed
+	if got := repo.ops[key("t1", "r1")].Status; got != "completed" {
+		t.Errorf("final status = %q, want completed", got)
+	}
+}
+
+func TestExecuteRestore_RealExecutor_MissingBackupPath(t *testing.T) {
+	repo := newFakeRepo()
+	// Config without backup_path
+	repo.seed("t1", "r1", `{"backup_id":"b-7"}`, "db-42")
+
+	exe := &fakeExecutor{dialect: executor.DialectPostgreSQL}
+	reg := executor.NewEmptyRegistry()
+	reg.Register(exe)
+
+	resolver := func(_ context.Context, _, _ string) (*executor.ConnInfo, executor.Dialect, error) {
+		return &executor.ConnInfo{DB: "orion"}, executor.DialectPostgreSQL, nil
+	}
+
+	svc := newServiceWithRepo(repo)
+	svc.SetExecutorRegistry(reg)
+	svc.SetConnResolver(resolver)
+	svc.SetBackupDir(t.TempDir())
+
+	err := svc.ExecuteRestore(context.Background(), "t1", "r1")
+	if err == nil {
+		t.Fatal("expected error when backup_path is missing")
+	}
+	if !strings.Contains(err.Error(), "backup_path") {
+		t.Errorf("err = %v, want it to mention 'backup_path'", err)
+	}
+	if got := repo.ops[key("t1", "r1")].Status; got != "failed" {
+		t.Errorf("status = %q, want 'failed'", got)
+	}
+}
+
+func TestExecuteRestore_RealExecutor_InvalidPointInTime(t *testing.T) {
+	repo := newFakeRepo()
+	repo.seed("t1", "r1", `{"backup_path":"/backup.dump","point_in_time":"not-a-date"}`, "db-42")
+
+	exe := &fakeExecutor{dialect: executor.DialectPostgreSQL}
+	reg := executor.NewEmptyRegistry()
+	reg.Register(exe)
+
+	resolver := func(_ context.Context, _, _ string) (*executor.ConnInfo, executor.Dialect, error) {
+		return &executor.ConnInfo{DB: "orion"}, executor.DialectPostgreSQL, nil
+	}
+
+	svc := newServiceWithRepo(repo)
+	svc.SetExecutorRegistry(reg)
+	svc.SetConnResolver(resolver)
+	svc.SetBackupDir(t.TempDir())
+
+	err := svc.ExecuteRestore(context.Background(), "t1", "r1")
+	if err == nil {
+		t.Fatal("expected error for invalid point_in_time")
+	}
+	if !strings.Contains(err.Error(), "point_in_time") {
+		t.Errorf("err = %v, want it to mention 'point_in_time'", err)
+	}
+}
+
+func TestCanExecute(t *testing.T) {
+	tests := []struct {
+		name   string
+		hasReg bool
+		hasRes bool
+		want   bool
+	}{
+		{"neither", false, false, false},
+		{"registry only", true, false, false},
+		{"resolver only", false, true, false},
+		{"both", true, true, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newServiceWithRepo(newFakeRepo())
+			if tt.hasReg {
+				svc.SetExecutorRegistry(executor.NewEmptyRegistry())
+			}
+			if tt.hasRes {
+				svc.SetConnResolver(func(ctx context.Context, tenantID, databaseID string) (*executor.ConnInfo, executor.Dialect, error) {
+					return nil, "", nil
+				})
+			}
+			if got := svc.canExecute(); got != tt.want {
+				t.Errorf("canExecute() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSetBackupDir_EmptyDoesNotOverride(t *testing.T) {
+	svc := newServiceWithRepo(newFakeRepo())
+	svc.SetBackupDir("/custom/path")
+	if svc.backupDir != "/custom/path" {
+		t.Errorf("backupDir = %q, want '/custom/path'", svc.backupDir)
+	}
+	svc.SetBackupDir("")
+	if svc.backupDir != "/custom/path" {
+		t.Errorf("backupDir = %q after empty set, want '/custom/path' (unchanged)", svc.backupDir)
 	}
 }

@@ -409,6 +409,23 @@ func (s *Service) Get(ctx context.Context, dsID string) (*dsm.DataSource, error)
 	return s.repo.GetByID(ctx, dsID)
 }
 
+// ResolvePassword looks up a datasource by ID and returns the decrypted password.
+// This is used by the backup/restore executor wiring (ARCH-0.10b) to build
+// connection info without exposing the encryption key or PasswordEnc field.
+func (s *Service) ResolvePassword(ctx context.Context, dsID string) (string, error) {
+	ds, err := s.repo.GetByID(ctx, dsID)
+	if err != nil {
+		return "", err
+	}
+	if ds == nil {
+		return "", fmt.Errorf("datasource %s not found", dsID)
+	}
+	if ds.PasswordEnc == "" {
+		return "", nil
+	}
+	return decrypt(s.key, ds.PasswordEnc)
+}
+
 // TestConnection opens a temporary connection to verify credentials.
 func (s *Service) TestConnection(ctx context.Context, ds *dsm.DataSource) error {
 	temp := *ds

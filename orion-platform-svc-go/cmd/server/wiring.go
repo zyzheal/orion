@@ -58,6 +58,9 @@ import (
 	infraBackup_handler "orion/platform-svc-go/internal/infrastructure/backup/handler"
 	infraBackup_repo "orion/platform-svc-go/internal/infrastructure/backup/repository"
 	infraBackup_service "orion/platform-svc-go/internal/infrastructure/backup/service"
+	schemaReg_handler "orion/platform-svc-go/internal/schema-registry/handler"
+	schemaReg_repo "orion/platform-svc-go/internal/schema-registry/repository"
+	schemaReg_service "orion/platform-svc-go/internal/schema-registry/service"
 	infraChaos_handler "orion/platform-svc-go/internal/infrastructure/chaos/handler"
 	infraChaos_repo "orion/platform-svc-go/internal/infrastructure/chaos/repository"
 	infraChaos_service "orion/platform-svc-go/internal/infrastructure/chaos/service"
@@ -234,6 +237,7 @@ var (
 	infraDrH  *infraDr_handler.Handler
 	infraEEH  *infraEE_handler.Handler
 	infraBackupH  *infraBackup_handler.Handler
+	infraSchemaRegH *schemaReg_handler.Handler
 	infraChaosH   *infraChaos_handler.Handler
 	infraDbaH     *infraDba_handler.Handler
 	infraDegH     *infraDegradation_handler.Handler
@@ -537,10 +541,24 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	infraEEH = infraEE_handler.NewHandler(infraEESvc)
 	// middleware-ops: repo -> service -> handler
 	// backup: repo -> 2 services (BackupService + RecoveryService) -> handler
+	// Phase 1a: the services own their own executor registry and share a
+	// single Local storage backend rooted at /var/backups/orion. Remote
+	// backends (S3/MinIO) are wired via SetStorageBackend when a plan's
+	// storage_config requests them; local is the default.
 	infraBackupRepo := infraBackup_repo.NewBackupRepository(infra.db)
 	infraBackupSvc := infraBackup_service.NewBackupService(infraBackupRepo, infra.logger)
 	infraRecoverySvc := infraBackup_service.NewRecoveryService(infraBackupRepo, infra.logger)
 	infraBackupH = infraBackup_handler.New(infraBackupSvc, infraRecoverySvc, infra.logger)
+	// schema-registry: Postgres-backed repository (migration 404). Falls
+	// back to InMemory when the DB handle is missing (e.g. unit tests).
+	var schemaRegRepo schemaReg_repo.Interface
+	if infra.db != nil {
+		schemaRegRepo = schemaReg_repo.NewPostgres(infra.db.DB)
+	} else {
+		schemaRegRepo = schemaReg_repo.NewInMemory()
+	}
+	schemaRegSvc := schemaReg_service.New(schemaRegRepo, infra.logger)
+	infraSchemaRegH = schemaReg_handler.New(schemaRegSvc, schemaRegRepo)
 	// chaos: repo -> service -> handler
 	infraChaosRepo := infraChaos_repo.NewChaosRepository(infra.db.DB)
 	infraChaosSvc := infraChaos_service.NewChaosService(infraChaosRepo)
@@ -629,6 +647,7 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 		// was removed in ARCH-0.11b — /data-sources (internal/datasource) is the
 		// single source of truth for data source CRUD + encryption.
 		dbdevopsH = dbdevops_handler.NewHandler(infra.db.DB)
+		wireDatabaseDevopsExecutors(logger) // ARCH-0.10b: real backup/restore execution
 		gwRoutesH = gw_routes_handler.NewHandler(infra.db.DB)
 		rateLimitH = rate_limit_handler.NewHandler(infra.db.DB)
 		testReportsH = test_reports_handler.NewHandler(infra.db.DB)

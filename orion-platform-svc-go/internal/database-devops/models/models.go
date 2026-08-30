@@ -52,6 +52,11 @@ type RestoreConfig struct {
 	PointInTime string `json:"point_in_time"` // PITR target timestamp (RFC3339)
 	TargetDB    string `json:"target_db"`
 	DryRun      bool   `json:"dry_run"`
+	// BackupPath is the path (local or remote URI) of the backup artifact to
+	// restore from. When set, real execution routes through the restore executor
+	// and uses this path directly. When empty, the service tries to resolve it
+	// from a prior BackupResult's OutputPath.
+	BackupPath string `json:"backup_path,omitempty"`
 }
 
 // DatabaseSource represents a database data source
@@ -101,4 +106,10 @@ type BackupResult struct {
 	Message    string `json:"message"`
 	StartedAt  string `json:"started_at"`
 	FinishedAt string `json:"finished_at"`
+	// OutputPath is the local or remote path of the backup artifact.
+	// Populated when the executor produces a real artifact; empty for
+	// placeholder runs (no executor configured).
+	OutputPath string `json:"output_path,omitempty"`
+	// ChecksumSHA256 is the integrity hash of the backup artifact.
+	ChecksumSHA256 string `json:"checksum_sha256,omitempty"`
 }
