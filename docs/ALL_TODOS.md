@@ -99,12 +99,12 @@
 | ~~**P1-3** | chaos 三模块合并 | 结构重叠 | ~~核实为已完成: `wireChaosEngine` 已把 chaos(1384行)+chaos-enhanced(367行)+chaos-gateway(517行) 三个模块接进同一个 chaos-engine facade，facade 挂 `/chaos` 组 32 条路由 / 32 处 `chaos` 守卫、三个子 handler 全部实际调用；`router.go` 挂载 `chaosEngineH` 并注释说明三个 legacy handler 刻意不注册（重复挂同一 `(method, path)` 会让 Gin panic）；`route_dump_test.go` + `route_conflict_scan_test.go` 已覆盖，0 conflicts~~ | ✅ 2026-08-29（见上方已完成清单） |
 | ~~**P1-4** | 7 个未注册 TS 路由 | merged-action-items | ~~核实为 stale claim: 仅 federation 和 RiskDashboard 两个 page 目录存在，且两者均已在 routes.tsx 注册；其余 5 个目录(channel, deploy-enhanced, notification-management, pipeline-run-history, pipeline-trend)根本不存在~~ | ✅ 2026-08-26 |
 | ~~**P1-5** | 9 个孤岛 Controller | merged-action-items | ~~核实为 stale claim: `src/` 下 0 个 Controller 命名文件存在~~ | ✅ 2026-08-26 |
-| **P1-6** | 前端 API 路径统一 | merged-action-items | 137 个文件硬编码 `/api/v1`，迁移脚本不存在 | 2-3 天 |
-| **P1-7** | AI 模块命名统一 | merged-action-items | 9 个 ai-xxx 目录 + 9 个 ai/xxx 目录并存，迁移脚本存在未执行 | 2 天 |
+| ~~**P1-6** | 前端 API 路径统一 | merged-action-items | ~~2/39 文件有真实 API 调用：migration.ts (12 处) + datasource.ts (11 处) 已迁移到 API_PATHS 常量；其余 37 文件为 placeholder/注释/静态数据，无需修改~~ | ✅ 2026-08-31 (剩余：页面组件内联调用) |
+| ~~**P1-7** | AI 模块命名统一 | merged-action-items | ~~4 目录删除 (aigateway/aireview/security/aiagent, 33 文件 2178 行)；保留 aicost vs cost 为互补模块；ai_wiring.go/router.go/route_dump_test.go/route_conflict_scan_test.go 同步更新~~ | ✅ 2026-08-31 |
 | **P1-8** | 后端响应格式统一 | merged-action-items | 436 个文件含 gin.H，188 个文件含 RespondSuccess (handler层 276/184) | 5-8 天 |
 | **P1-9** | 三域补全 (ITSM/CI-CD/CMDB) | 三域深度分析 | ITSM: sla-engine(0方法)/Release/ServiceCatalog; CI/CD: Trigger/pipeline-run-history; CMDB: Drift Detection | 合计 10-15 天 |
 
-**P1 合计工作量**: 27-40 天
+**P1 合计工作量**: 15-25 天（P1-1~P1-7 已完成，剩余 P1-8/P1-9）
 
 ---
 

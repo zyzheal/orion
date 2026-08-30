@@ -1145,8 +1145,54 @@ go test ./internal/datasource/... ✅ 全部 PASS
 - 📊 **提交**：`b4252d533` — feat(schema-registry): ARCH-0.19 完整接线（9 files, 1530 insertions）
 
 - 📝 **剩余**
-  - 前端 `src/api/schema-registry.ts` 客户端未创建——需消费方按需添加
+  - ~~前端 `src/api/schema-registry.ts` 客户端未创建~~ → ✅ 已完成 (9 函数 + 完整类型)
   - 前端 Schema Registry 管理页面未创建——需完整 CRUD UI
   - `tenant_id = 'default'` 硬编码——后续应改为从 context 参数化
   - 兼容性检查仅支持 backward/forward/full/none，未支持 per-field 粒度
   - 版本历史未实现分页（当前 limit 参数直接传入 LIMIT）
+
+---
+
+## Batch V — 技术债清理 & API 路径统一 (2026-08-31)
+
+- 📌 **背景**
+  - Batch U 完成后推进 P1 级技术债：API 路径统一 (P1-6) 和 AI 模块命名清理 (P1-7)
+  - 原 ALL_TODOS.md 估计 39 文件硬编码 `/api/v1`，实际排查发现仅 2 文件有真实 API 调用
+
+- ✅ **前端：schema-registry API 客户端** (Batch U 遗留项)
+  - `src/api/schema-registry.ts`：9 函数 (registerSchema/listSchemas/lookupSchema/updateSchema/deleteSchema/evolveSchema/getVersionHistory/getVersion/getCompatibility) + 完整类型 (SchemaType/CompatibilityMode/SchemaStatus/Schema/Field/Relationship/Index/EvolutionChange/Result 等)
+  - `src/constants/api-paths.ts`：新增 SCHEMA_REGISTRY (8 路径) + MIGRATION (8 路径) + DATASOURCE (8 路径)
+
+- ✅ **P1-6：API 路径统一**
+  - `src/api/migration.ts`：12 处 API 调用从 `'/api/v1/migration/...'` → `API_PATHS.MIGRATION.*`
+  - `src/api/datasource.ts`：11 处 API 调用从相对路径 → `API_PATHS.DATASOURCE.*`
+  - **发现**：39 个含 `/api/v1` 字符串的文件中，仅 2 个有真实 API 调用；其余为 `<Input>` placeholder、静态数据、MSW handler、注释——均正确无需修改
+
+- ✅ **P1-7：AI 模块命名清理**（4 目录删除，共 33 文件 2178 行）
+  - `internal/ai/aigateway/` (6 files)：已创建但未注册到 router.go（注释说明与 `ai/gateway` 路由冲突）
+  - `internal/ai/aireview/` (6 files)：已创建但未注册到 router.go（注释说明与 `ai/review` 路由冲突）
+  - `internal/ai/security/` (8 files)：从未被任何 wiring 或 router 引用——纯死代码
+  - `internal/ai/aiagent/` (8 files, 530 lines)：仅注册 1 条路由 `GET /ai-agents/list`，与 `ai/agents`（9 路由 2083 行）功能重复
+  - **保留**：`ai/aicost` vs `ai/cost` 为互补模块（API 路径不同：`/ai/cost` vs `/ai-cost`，用途不同：成本优化 vs 成本记录）
+  - 修改文件：`ai_wiring.go`（移除 4 个 import + 初始化 + var 声明）、`router.go`（移除注册 + 注释）、`route_dump_test.go`、`route_conflict_scan_test.go`
+
+- ✅ **测试结果**
+  - `go build ./cmd/server/` → ok
+  - `go test ./cmd/server/ -run "RouteDump|RouteConflict"` → PASS，0 conflicts
+  - `npx tsc --noEmit --project tsconfig.json` → 0 errors (affected files)
+
+- 🔍 **关键决策**
+  - **P1-6 范围修正**：原始 "39 文件" 估计大幅虚高；实际仅需迁移 2 个 API client 文件（23 处调用）
+  - **aicost/cost 保留决策**：两模块 API 路径和用途不同，合并需重设计 service interface，暂以文档记录为有意互补
+
+- 📊 **提交**
+  - `955c14f4e` — feat(frontend): schema-registry API client + api-paths 扩展
+  - `46ad6f469` — refactor(frontend): P1-6 API 路径统一
+  - `6ed6509f5` — chore(ai): P1-7 删除 3 个未注册的 AI 目录
+  - `56b33bf60` — chore(ai): P1-7 删除 ai/aiagent
+
+- 📝 **剩余**
+  - P1-6：页面组件内联 API 调用（非 `src/api/` 文件）未迁移——需逐一排查
+  - P1-7：`ai/aicost` vs `ai/cost` 有意互补关系需文档化
+  - P1-8：后端响应格式统一（436 文件 gin.H, 188 文件 RespondSuccess）
+  - P1-9：三域补全（ITSM/CI-CD/CMDB gaps, 10-15d）
