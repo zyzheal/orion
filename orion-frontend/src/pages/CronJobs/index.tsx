@@ -3,7 +3,8 @@
  *
  * Phase 2.3: Standalone cron job management UI
  */
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   Table,
   Button,
@@ -45,28 +46,30 @@ import { spacing } from '@/tokens';
 const { Title, Text } = Typography;
 
 const CronJobsPage: React.FC = () => {
-  const [jobs, setJobs] = useState<CronJob[]>([]);
-  const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingJob, setEditingJob] = useState<CronJob | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm<CronJobInput>();
 
-  const fetchJobs = async () => {
-    setLoading(true);
-    try {
+  const { data: rawData, isLoading: loading, isError, error, refetch } = useQuery<CronJob[]>({
+    queryKey: ['cron-jobs'],
+    queryFn: async () => {
       const res = await getCronJobs();
-      setJobs((res.data as any)?.jobs || []);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (res.data as any)?.jobs || [];
+    },
+    retry: 0,
+    staleTime: 30_000,
+  });
 
+  const jobs = rawData ?? [];
+
+  // 加载失败反馈：当前锁定的 @tanstack/react-query 构建不调用 useQuery 的 onError
+  // 选项（observer 级回调未实现），统一改用 isError + useEffect 保持错误可见。
   useEffect(() => {
-    fetchJobs();
-  }, []);
+    if (isError) {
+      message.error(error instanceof Error ? error.message : '加载失败');
+    }
+  }, [isError, error]);
 
   const handleCreate = async (values: CronJobInput) => {
     try {
@@ -81,7 +84,7 @@ const CronJobsPage: React.FC = () => {
       setModalVisible(false);
       setEditingJob(null);
       form.resetFields();
-      fetchJobs();
+      refetch();
     } catch (error: unknown) {
       message.error(
         error instanceof Error ? error.message : (editingJob ? '更新' : '创建') + '失败'
@@ -106,7 +109,7 @@ const CronJobsPage: React.FC = () => {
     try {
       await deleteCronJob(id);
       message.success('删除成功');
-      fetchJobs();
+      refetch();
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '删除失败');
     }
@@ -116,7 +119,7 @@ const CronJobsPage: React.FC = () => {
     try {
       await executeCronJob(id);
       message.success('执行成功');
-      fetchJobs();
+      refetch();
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '执行失败');
     }

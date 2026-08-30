@@ -4,7 +4,9 @@
  * RAG 评测集管理系统 — 管理评测集（EvalSet）及其评测用例（Cases），
  * 支持创建/查看/删除/运行/对比。后端 /api/v1/knowledge/eval/* 已实现。
  */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { API_BASE_URL } from '@/api/client';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
   Button,
@@ -79,7 +81,7 @@ interface EvalRun {
 // --- API Client ---
 
 async function apiCall<T>(path: string, options?: RequestInit): Promise<T> {
-  const resp = await fetch(`/api/v1/knowledge${path}`, {
+  const resp = await fetch(`${API_BASE_URL}/knowledge${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -113,30 +115,40 @@ const statusLabel: Record<string, string> = {
 // --- Page Component ---
 
 const EvalSetManagement: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [sets, setSets] = useState<EvalSet[]>([]);
-  const [runs, setRuns] = useState<EvalRun[]>([]);
   const [selectedSet, setSelectedSet] = useState<EvalSet | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createForm] = Form.useForm<{ name: string; description?: string; cases: string }>();
   const [selectedRuns, setSelectedRuns] = useState<EvalRun[]>([]);
   const [runLoading, setRunLoading] = useState<string | null>(null);
 
-  const loadSets = useCallback(async () => {
-    setLoading(true);
-    try {
+  const { data: rawData, isLoading: loading, isError, error, refetch } = useQuery<{ sets: EvalSet[]; runs: EvalRun[] }>({
+    queryKey: ['eval-sets'],
+    queryFn: async () => {
       const [setsRes, runsRes] = await Promise.all([
         apiCall<EvalSet[]>('/eval/sets'),
         apiCall<EvalRun[]>('/eval/runs'),
       ]);
-      setSets(Array.isArray(setsRes) ? setsRes : []);
-      setRuns(Array.isArray(runsRes) ? runsRes : []);
-    } catch (error: unknown) {
-      message.error(`加载评测集失败: ${error instanceof Error ? error.message : '未知错误'}`);
-    } finally {
-      setLoading(false);
+      return {
+        sets: Array.isArray(setsRes) ? setsRes : [],
+        runs: Array.isArray(runsRes) ? runsRes : [],
+      };
+    },
+    retry: 0,
+    staleTime: 30_000,
+  });
+
+  const sets = rawData?.sets ?? [];
+  const runs = rawData?.runs ?? [];
+
+  // 加载失败反馈：当前锁定的 @tanstack/react-query 构建不调用 useQuery 的 onError
+  // 选项（observer 级回调未实现），统一改用 isError + useEffect 保持错误可见。
+  useEffect(() => {
+    if (isError) {
+      message.error(
+        `加载评测集失败: ${error instanceof Error ? error.message : '未知错误'}`
+      );
     }
-  }, []);
+  }, [isError, error]);
 
   const [seeding, setSeeding] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -147,7 +159,7 @@ const EvalSetManagement: React.FC = () => {
       const result = await apiCall<{ seeded: number }>('/eval/sets/seed', { method: 'POST' });
       const count = (result as unknown as { seeded?: number })?.seeded ?? 0;
       message.success(`已初始化 ${count} 个评测集（TR-09/10/11 演示数据）`);
-      loadSets();
+      refetch();
     } catch (error: unknown) {
       message.warning(`初始化失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
@@ -207,9 +219,6 @@ const EvalSetManagement: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    loadSets();
-  }, [loadSets]);
 
   const handleCreateSet = async () => {
     const values = await createForm.validateFields();
@@ -245,7 +254,7 @@ const EvalSetManagement: React.FC = () => {
       message.success(`评测集 "${values.name}" 创建成功，含 ${cases.length} 个用例`);
       setCreateModalOpen(false);
       createForm.resetFields();
-      loadSets();
+      refetch();
     } catch (error: unknown) {
       message.error(`创建失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
@@ -255,7 +264,7 @@ const EvalSetManagement: React.FC = () => {
     try {
       await apiCall<void>(`/eval/sets/${id}`, { method: 'DELETE' });
       message.success(`评测集 "${name}" 已删除`);
-      loadSets();
+      refetch();
     } catch (error: unknown) {
       message.error(`删除失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
@@ -286,7 +295,7 @@ const EvalSetManagement: React.FC = () => {
         ),
         duration: 5,
       });
-      loadSets();
+      refetch();
     } catch (error: unknown) {
       message.error(`启动评测失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
@@ -540,7 +549,7 @@ const EvalSetManagement: React.FC = () => {
                 初始化演示数据
               </Button>
             )}
-            <Button icon={<ReloadOutlined />} onClick={loadSets}>
+            <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
               刷新
             </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>

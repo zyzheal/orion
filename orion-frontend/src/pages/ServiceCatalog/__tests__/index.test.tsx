@@ -2,12 +2,12 @@
  * Tests for ServiceCatalog page
  */
 import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { renderWithProviders } from '@/tests/render';
 import ServiceCatalog from '../index';
 
 const renderWithRouter = (ui: React.ReactElement) => {
-  return render(<MemoryRouter>{ui}</MemoryRouter>);
+  return renderWithProviders(<MemoryRouter>{ui}</MemoryRouter>);
 };
 
 describe('ServiceCatalog', () => {

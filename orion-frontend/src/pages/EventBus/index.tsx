@@ -3,6 +3,7 @@
  * Event bus status monitoring and event stream visualization
  */
 import React, { useState, useMemo, useEffect } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
   Button,
@@ -90,9 +91,6 @@ const statusIconMap: Record<EventStatus, React.ReactNode> = {
 // ---- Main Component ----
 
 const EventBusMonitoring: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [events, setEvents] = useState<EventBusEvent[]>([]);
-  const [stats, setStats] = useState<EventBusStats | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -119,26 +117,37 @@ const EventBusMonitoring: React.FC = () => {
     eventRate: rawStats.eventRate || 0,
   });
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const { data: rawData, isLoading: loading, isError, error, refetch } = useQuery<{
+    events: EventBusEvent[];
+    stats: EventBusStats | null;
+  }>({
+    queryKey: ['event-bus'],
+    queryFn: async () => {
       const [eventsRes, statsRes] = await Promise.all([getEvents({ limit: 100 }), getStats()]);
       const eventsData = (eventsRes.data as any)?.events || [];
       const statsData = (statsRes.data as any)?.stats || {};
-      setEvents(eventsData.map(mapApiEvent));
-      setStats(mapApiStats(statsData));
-    } catch (error: unknown) {
-      message.error(`加载 EventBus 数据失败: ${(error as Error).message}`);
-      setEvents([]);
-      setStats(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        events: eventsData.map(mapApiEvent),
+        stats: mapApiStats(statsData),
+      };
+    },
+    retry: 0,
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本项目锁定的 @tanstack/react-query 5.101.4 构建不会调用
+  // useQuery 的 onError 选项（QueryObserver 未实现 observer 级回调），
+  // 故统一改用 isError + useEffect 呈现错误，保证用户可见性。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isError) {
+      message.error(
+        `加载 EventBus 数据失败: ${error instanceof Error ? error.message : '未知错误'}`
+      );
+    }
+  }, [isError, error]);
+
+  const events = rawData?.events ?? [];
+  const stats = rawData?.stats ?? null;
 
   const eventTypes = useMemo(
     () => Array.from(new Set(events.map((e) => e.eventType))).sort(),
@@ -290,7 +299,7 @@ const EventBusMonitoring: React.FC = () => {
           <Text type="secondary">事件总线监控</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
             刷新
           </Button>
         </Space>

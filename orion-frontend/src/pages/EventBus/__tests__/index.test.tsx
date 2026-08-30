@@ -5,8 +5,9 @@
  * - Shows empty state when API returns empty array
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { renderWithProviders } from '@/tests/render';
 import EventBusMonitoring from '../index';
 
 const { mockMessage, mockApi } = vi.hoisted(() => ({
@@ -53,7 +54,7 @@ vi.mock('dayjs/plugin/relativeTime', async (importOriginal) => {
 });
 
 const renderWithRouter = (ui: React.ReactElement) => {
-  return render(<MemoryRouter>{ui}</MemoryRouter>);
+  return renderWithProviders(<MemoryRouter>{ui}</MemoryRouter>);
 };
 
 const mockApiEvent = {
