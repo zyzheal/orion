@@ -2,7 +2,9 @@
  * Auth Configuration Page (H1.1 认证授权)
  * OAuth2/OIDC/MFA/SSO provider management and authentication policy configuration
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
+import { API_BASE_URL } from '@/api/client';
 import {
   Typography,
   Card,
@@ -62,7 +64,7 @@ interface AuthPolicy {
 }
 
 async function apiCall<T>(path: string, options?: RequestInit): Promise<T> {
-  const resp = await fetch(`/api/v1/auth${path}`, {
+  const resp = await fetch(`${API_BASE_URL}/auth${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -94,32 +96,28 @@ const statusConfig: Record<ProviderStatus, { label: string; color: string }> = {
 };
 
 const AuthConfigPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [providers, setProviders] = useState<AuthProvider[]>([]);
-  const [policies, setPolicies] = useState<AuthPolicy[]>([]);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createForm] = Form.useForm<{ name: string; type: ProviderType; clientId?: string; clientSecret?: string; discoveryUrl?: string }>();
 
-  const loadProviders = async () => {
-    setLoading(true);
-    try {
+  const { data: rawData, isLoading: loading, refetch } = useQuery<{ providers: AuthProvider[]; policies: AuthPolicy[] }>({
+    queryKey: ['auth-config'],
+    queryFn: async () => {
       const [providersRes, policiesRes] = await Promise.all([
         apiCall<AuthProvider[]>('/providers'),
         apiCall<AuthPolicy[]>('/policies'),
       ]);
-      setProviders(Array.isArray(providersRes) ? providersRes : []);
-      setPolicies(Array.isArray(policiesRes) ? policiesRes : []);
-    } catch (_err: unknown) {
-      message.warning('认证配置数据加载失败，显示默认状态');
-      setProviders([]);
-      setPolicies([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        providers: Array.isArray(providersRes) ? providersRes : [],
+        policies: Array.isArray(policiesRes) ? policiesRes : [],
+      };
+    },
+    retry: 0,
+    staleTime: 30_000,
+  });
 
-  useEffect(() => { loadProviders(); }, []);
+  const safeProviders = rawData?.providers ?? [];
+  const safePolicies = rawData?.policies ?? [];
 
   const providerColumns: ColumnsType<AuthProvider> = [
     {
@@ -209,8 +207,8 @@ const AuthConfigPage: React.FC = () => {
     },
   ];
 
-  const totalUsers = providers.reduce((sum, p) => sum + p.users, 0);
-  const activeProviders = providers.filter((p) => p.status === 'active').length;
+  const totalUsers = safeProviders.reduce((sum, p) => sum + p.users, 0);
+  const activeProviders = safeProviders.filter((p) => p.status === 'active').length;
 
   return (
     <div style={{ padding: spacing.lg }}>
@@ -225,7 +223,7 @@ const AuthConfigPage: React.FC = () => {
       <Row gutter={[spacing.md, spacing.md]} style={{ marginBottom: spacing.md }}>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="认证源总数" value={providers.length} prefix={<KeyOutlined />} />
+            <Statistic title="认证源总数" value={safeProviders.length} prefix={<KeyOutlined />} />
           </Card>
         </Col>
         <Col span={6}>
@@ -240,7 +238,7 @@ const AuthConfigPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="策略规则数" value={policies.length} prefix={<BellOutlined />} />
+            <Statistic title="策略规则数" value={safePolicies.length} prefix={<BellOutlined />} />
           </Card>
         </Col>
       </Row>
@@ -249,7 +247,7 @@ const AuthConfigPage: React.FC = () => {
         title="认证源列表"
         extra={
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadProviders}>刷新</Button>
+            <Button icon={<ReloadOutlined />} onClick={refetch}>刷新</Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
               新建认证源
             </Button>
@@ -258,7 +256,7 @@ const AuthConfigPage: React.FC = () => {
         style={{ marginBottom: spacing.md }}
       >
         <Table
-          dataSource={providers}
+          dataSource={safeProviders}
           columns={providerColumns}
           rowKey="id"
           loading={loading}
@@ -270,7 +268,7 @@ const AuthConfigPage: React.FC = () => {
 
       <Card title="访问策略规则">
         <Table
-          dataSource={policies}
+          dataSource={safePolicies}
           columns={policyColumns}
           rowKey="id"
           loading={loading}
@@ -296,7 +294,7 @@ const AuthConfigPage: React.FC = () => {
             message.success(`认证源 "${values.name}" 创建成功`);
             setCreateModalOpen(false);
             createForm.resetFields();
-            loadProviders();
+            refetch();
           } catch (_err: unknown) {
             message.warning('认证源创建失败，请联系管理员');
           } finally {
