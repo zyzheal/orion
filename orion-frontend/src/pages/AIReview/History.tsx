@@ -2,8 +2,9 @@
  * AI Review - History
  * Review history list with filtering and search
  */
-import React, { useState, useEffect } from 'react';
-import { Typography, Card, Table, Tag, Space, Button, Input, Select, message, Empty } from 'antd';
+import React, { useState } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
+import { Typography, Card, Table, Tag, Space, Button, Input, Select, Empty } from 'antd';
 import { SearchOutlined, ReloadOutlined, EyeOutlined } from '@ant-design/icons';
 import { getReviewHistory } from '@/api/ai-review';
 import type { AIReviewResult } from '@/api/ai-review';
@@ -15,37 +16,27 @@ const { Title, Text } = Typography;
 
 const AIReviewHistory: React.FC = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<AIReviewResult[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [filters, setFilters] = useState<{ status?: string; repoId?: string }>({});
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const { data: queryData, isLoading: loading } = useQuery<{ items: AIReviewResult[]; total: number }>({
+    queryKey: ['ai-review-history', filters, page, pageSize],
+    queryFn: async () => {
       const res = await getReviewHistory({ ...filters, page, pageSize });
-      setData((res.data as any)?.items || []);
-      setTotal((res.data as any)?.total || 0);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载评审历史失败：${error.message}`);
-      } else {
-        message.error('加载评审历史失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        items: (res.data as any)?.items || [],
+        total: (res.data as any)?.total || 0,
+      };
+    },
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    loadData();
-  }, [page, pageSize, filters]);
+  const safeData = queryData?.items ?? [];
+  const total = queryData?.total ?? 0;
 
   const handleSearch = () => {
     setPage(1);
-    loadData();
   };
 
   const handleReset = () => {
@@ -137,7 +128,7 @@ const AIReviewHistory: React.FC = () => {
     },
   ];
 
-  const tableData = data.map((r) => ({ ...r, key: r.id }));
+  const tableData = safeData.map((r) => ({ ...r, key: r.id }));
 
   return (
     <div style={{ padding: spacing.lg }}>
