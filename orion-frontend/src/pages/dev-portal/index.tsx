@@ -2,7 +2,9 @@
  * Developer Portal / Backstage Page
  * Service catalog, tech docs, owned-by, component health overview (Backstage-style)
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
+import { API_BASE_URL } from '@/api/client';
 import {
   Typography,
   Card,
@@ -60,7 +62,7 @@ const FALLBACK_COMPONENTS: ServiceComponent[] = [
 
 async function fetchComponents(): Promise<ServiceComponent[]> {
   try {
-    const resp = await fetch('/api/v1/developer-portal/components', {
+    const resp = await fetch(`${API_BASE_URL}/developer-portal/components`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
     });
     if (!resp.ok) return FALLBACK_COMPONENTS;
@@ -72,36 +74,30 @@ async function fetchComponents(): Promise<ServiceComponent[]> {
 }
 
 const DevPortalPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
-  const [components, setComponents] = useState<ServiceComponent[]>(FALLBACK_COMPONENTS);
   const [selected, setSelected] = useState<ServiceComponent | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const data = await fetchComponents();
-      setComponents(data);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: components, isLoading: loading } = useQuery<ServiceComponent[]>({
+    queryKey: ['developer-portal/components'],
+    queryFn: fetchComponents,
+    staleTime: 30_000,
+  });
 
-  useEffect(() => { load(); }, []);
+  const safeComponents = components ?? FALLBACK_COMPONENTS;
 
   const filtered = search
-    ? components.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()) || c.owner.includes(search.toLowerCase()))
+    ? safeComponents.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()) || c.owner.includes(search.toLowerCase()))
     : components;
 
   const stats = {
-    total: components.length,
-    services: components.filter((c) => c.type === 'service').length,
-    libraries: components.filter((c) => c.type === 'library').length,
-    healthy: components.filter((c) => c.health >= 90).length,
+    total: safeComponents.length,
+    services: safeComponents.filter((c) => c.type === 'service').length,
+    libraries: safeComponents.filter((c) => c.type === 'library').length,
+    healthy: safeComponents.filter((c) => c.health >= 90).length,
   };
 
-  const avgHealth = components.length > 0 ? Math.round(components.reduce((s, c) => s + c.health, 0) / components.length) : 0;
+  const avgHealth = safeComponents.length > 0 ? Math.round(components.reduce((s, c) => s + c.health, 0) / safeComponents.length) : 0;
 
   const handleView = (c: ServiceComponent) => {
     setSelected(c);
@@ -169,7 +165,7 @@ const DevPortalPage: React.FC = () => {
           <Card title="最近更新" style={{ marginTop: spacing.md }}>
             <List
               itemLayout="horizontal"
-              dataSource={components.slice(0, 5)}
+              dataSource={safeComponents.slice(0, 5)}
               renderItem={(item) => (
                 <List.Item>
                   <List.Item.Meta
