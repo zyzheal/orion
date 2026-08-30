@@ -2,7 +2,9 @@
  * AI Hallucination Rate Monitoring Page
  * Tracks LLM hallucination rate, false positives, model drift, and quality scores
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { API_BASE_URL } from '@/api/client';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
   Card,
@@ -51,7 +53,7 @@ const FALLBACK_DATA: HallucinationRecord[] = [
 
 async function fetchHallucinationData(period: string): Promise<HallucinationRecord[]> {
   try {
-    const resp = await fetch(`/api/v1/ai-security/hallucination?period=${period}`, {
+    const resp = await fetch(`${API_BASE_URL}/ai-security/hallucination?period=${period}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
     });
     if (!resp.ok) return FALLBACK_DATA;
@@ -64,26 +66,19 @@ async function fetchHallucinationData(period: string): Promise<HallucinationReco
 
 const HallucinationRatePage: React.FC = () => {
   const [period, setPeriod] = useState('7d');
-  const [loading, setLoading] = useState(false);
-  const [records, setRecords] = useState<HallucinationRecord[]>([]);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const data = await fetchHallucinationData(period);
-      setRecords(data);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: records, isLoading: loading, refetch } = useQuery<HallucinationRecord[]>({
+    queryKey: ['ai-hallucination', period],
+    queryFn: () => fetchHallucinationData(period),
+  });
 
-  useEffect(() => { loadData(); }, [period]);
+  const loadData = () => refetch();
 
-  const total = records.length;
-  const hallucinated = records.filter((r) => r.hallucinated).length;
+  const total = records?.length ?? 0;
+  const hallucinated = records?.filter((r) => r.hallucinated).length ?? 0;
   const rate = total > 0 ? Math.round(hallucinated / total * 100) : 0;
-  const avgConfidence = total > 0 ? Math.round(records.reduce((s, r) => s + r.confidence, 0) / total * 100) / 100 : 0;
-  const criticalCount = records.filter((r) => r.confidence < 0.5 && r.hallucinated).length;
+  const avgConfidence = total > 0 ? Math.round(records!.reduce((s, r) => s + r.confidence, 0) / total * 100) / 100 : 0;
+  const criticalCount = records?.filter((r) => r.confidence < 0.5 && r.hallucinated).length ?? 0;
 
   const columns: ColumnsType<HallucinationRecord> = [
     { title: '模型', dataIndex: 'model', key: 'model', width: 120, render: (v: string) => <Text code>{v}</Text> },
