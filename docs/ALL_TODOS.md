@@ -11,11 +11,11 @@
 | 状态 | 数量 |
 |------|------|
 | ✅ 已完成 | 43 项 |
-| 🔴 待处理 | 3 项 P0 |
-| 🟡 待处理 | 6 项 P1 |
-| 🔵 待处理 | 11 项 P2 |
+| 🔴 待处理 | 5 项 P0 |
+| 🟡 待处理 | 8 项 P1 |
+| 🔵 待处理 | 15 项 P2 |
 | ⚠️ 已废弃/不适用 | 11 项 |
-| **总计** | **70 项** |
+| **总计** | **82 项** |
 
 ---
 
@@ -76,7 +76,7 @@
 
 ---
 
-## 三、待处理 — P0 阻塞性 (3 项)
+## 三、待处理 — P0 阻塞性 (5 项)
 
 | # | 任务 | 来源 | 详细说明 | 工作量 |
 |---|------|------|---------|--------|
@@ -86,11 +86,14 @@
 | ~~**P0-4** | alert-deduplication 补 Repo 层 | 交叉验证 | ~~核实为 stale claim: `internal/alert-deduplication/repository/` 已存在 (67行/2方法), 已 wired to service~~ | ✅ 2026-08-26 |
 | **PERM-8 阶段 2** | 把 `/api/v1` 切到严格 `auth.Auth` — 3640 处 `RequirePermission` 全部 403 | 权限审计 | 根因（阶段 1 已证实）：`cmd/server/router.go` 对 `/api/v1` 只挂 7 个中间件（无 `auth.Auth`）；全仓库仅 `pkg/auth/middleware.go` 一处 `c.Set("role", …)`，位于 `auth.Auth` 内；平台 `internal/middleware/` 0 个认证中间件。认证原本在独立 auth 服务（`blueprints/orion-auth-svc.archived/`），归档时中间件未移植。**阶段 1 已完成（2026-08-29）**：`auth.OptionalAuth` 默认关闭上线，`AUTH_OPTIONAL_ENABLED=1` 后带 token 的调用方即获得真实身份、守卫生效，无 token 调用方逐字不变（同一 403、同一响应体），可用环境变量灰度而无需迁移客户端。阶段 2 是破坏性变更：切 `auth.Auth` 后所有无 token 调用立刻 401，且 `auth.Auth` 强制 `tenant_id` claim；落地后要补 `/roles/permissions-map` 的守卫并翻转 `roles_permissions_map_test.go` 第 3 条断言 | ⬜ 待做（**需客户端迁移计划，不是一个 commit**） |
 
-**P0 合计工作量**: 4.5-6 天
+| **G1** | PG PITR 执行闭环接入 Restore 链 | Phase 7 计划 | `PGExecutor.Restore` 在 PITR 模式（`TargetTime` + `ArchivePaths`）走 `PreparePGRecoveryPlan` 产物消费链路（manifest + runbook），退役占位 `replayArchives`；删 `executor/pg.go:184` 过时注释；补单测（ArchReplayed/ArchSizes 填充、RPO 用真实 archive 时间戳）；探活接入 | 1-2 天 |
+| **G2** | OceanBase 凭证 env-only（安全） | Phase 7 计划 | `executor/oceanbase.go:54-63` 移除 `-p` argv 明文密码，改 env（对齐 PG `PGPASSWORD` / MySQL `MYSQL_PWD`）；新增门禁：`executor` 包 grep 断言无 `"-p",` + `Password` 组合；G3 新引擎遵守同一基线 | 0.5-1 天 |
+
+**P0 合计工作量**: 6-9 天（含 G1 1-2 + G2 0.5-1）
 
 ---
 
-## 四、待处理 — P1 高优先级 (7 项)
+## 四、待处理 — P1 高优先级 (9 项)
 
 | # | 任务 | 来源 | 详细说明 | 工作量 |
 |---|------|------|---------|--------|
@@ -104,11 +107,14 @@
 | **P1-8** | 后端响应格式统一 | merged-action-items | 436 个文件含 gin.H，188 个文件含 RespondSuccess (handler层 276/184) | 5-8 天 |
 | **P1-9** | 三域补全 (ITSM/CI-CD/CMDB) | 三域深度分析 | ITSM: sla-engine(0方法)/Release/ServiceCatalog; CI/CD: Trigger/pipeline-run-history; CMDB: Drift Detection | 合计 10-15 天 |
 
-**P1 合计工作量**: 15-25 天（P1-1~P1-7 已完成，剩余 P1-8/P1-9）
+| **G3** | Oracle/DB2/SQL Server 三引擎 Executor | Phase 7 计划 | `OracleExecutor`（archivelog + rman/expdp）/ `DB2Executor`（redo log）/ `SQLServerExecutor`（log_backup + `RESTORE DATABASE ... WITH RECOVERY`）注册进 `NewRegistry`；每引擎 Backup/Restore 覆盖 env 连接、SHA256、Encrypt/Decrypt、RTO/RPO；DB 变更命令默认注释；`executor.go:135-141` `IsSupported` 扩展至 6 引擎 | 4-6 天 |
+| **G4** | OceanBase clog PITR 实现 | Phase 7 计划 | `oceanbase.go:163-165` 当前仅注释占位；设计文档先行（sys tenant + oblogminer 回放链路），`OBCLogExecutor`/扩展 `OceanBaseExecutor` 列 clog 归档、按目标时间回放、恢复后探活 | 3-4 天 |
+
+**P1 合计工作量**: 22-35 天（P1-1~P1-7 已完成，剩余 P1-8/P1-9 + G3/G4）
 
 ---
 
-## 五、待处理 — P2 技术债务 (11 项)
+## 五、待处理 — P2 技术债务 (15 项, 含 G8=P3 低优先)
 
 | # | 任务 | 来源 | 详细说明 | 工作量 |
 |---|------|------|---------|--------|
@@ -121,10 +127,15 @@
 | **P2-7** | 前端 `any` 类型清理 | 三域分析 | 1138 处 `any` 类型，pages 层 1118 处 | 3-5 天 |
 | ~~**P2-8** | 前端 `console.log` 残留 | 三域分析 | 核实: 生产代码 0 处 console.log (2 处均在 __tests__ 测试数据中) | ✅ 2026-08-31 |
 | **P2-9** | 前端最大页面拆分 | 三域分析 | ChangeManagement(1899行) 等超大单文件拆分 | 2-3 天 |
-| **P2-10** | 安装 @tanstack/react-query | merged-action-items | ✅ 已安装 + 6/11 页面已迁移 (SpaceDashboard/HallucinationRate/ServiceBoundary/PipelineTemplate/SchemaCode/ContractTest)；剩余 5 页面为复杂 mutation 页面需 useMutation | 剩余 1-2 天 |
+| **P2-10** | 安装 @tanstack/react-query | merged-action-items | ✅ 已安装 + 10/11 页面已迁移 (SpaceDashboard/HallucinationRate/ServiceBoundary/PipelineTemplate/SchemaCode/ContractTest/AIReview×4)；剩余 1 复杂 mutation 页面 | 剩余 1 天 |
 | **P2-11** | wired.go / router.go 拆分 | 三域分析 | wiring.go 792 行 + router.go 1160 行，入口文件膨胀 | 1-2 天 |
 
-**P2 合计工作量**: 10-18 天（P2-1/P2-3/P2-5/P2-6/P2-8 已完成，P2-10 6/11 页面已迁移）
+| **G5** | AES 分块 AEAD（chunked，消除整文件读内存） | Phase 7 计划 | `crypto.go:22-24` `EncryptFile`/`DecryptFile` 改造为分块 AEAD（nonce per chunk / 流式 GCM）；版本头 + 格式版本字段向后兼容；单测：>内存大小文件往返一致 + 篡改任一 chunk 校验失败 | 2-3 天 |
+| **G6** | KMS / 密钥轮换 / 版本化 | Phase 7 计划 | 定义 `KeyProvider` 接口（本地 base64 + KMS stub），`EncryptFile` 注入 provider 取密钥；密钥元数据带 `version`，解密按版本取对应密钥；单测：旧版本密钥仍解旧文件 + provider 失败 fail-closed（依赖 G5） | 2-3 天 |
+| **G7** | RPO 精确化 | Phase 7 计划 | `recovery_service.go:422-432` 不再用最后 archive `WindowStart` 近似，改目标时间点前最近 archive 的真实提交时间戳；无提交时间戳时保留近似并 warn；单测：时间序列 archive 断言 RPO 精确 | 1-2 天 |
+| **G8** | 存储后端增强（P3 低优先） | Phase 7 计划 | `backup_service.go:419-436` `storageBackendFor` 区分 local/S3/MinIO 能力差异；S3/MinIO 断点续传（multipart）、生命周期策略、冷热分层；本轮仅设计 + 接口定义 + 单测，不要求生产级实现 | 2-3 天 |
+
+**P2 合计工作量**: 16-28 天（P2-1/P2-3/P2-5/P2-6/P2-8 已完成，P2-10 10/11 页面已迁移，含 G5-G8 7-11 天）
 
 ---
 
