@@ -1238,9 +1238,26 @@ go test ./internal/datasource/... ✅ 全部 PASS
   - `d2c53e8d3` — chore(frontend): P2-1 删除 3 个未引用 API 客户端
   - `54de42d73` — chore(go): P2-5 冗余嵌套路径清理
 
+- ✅ **P2-10：react-query 迁移 (6/11 已完成)**
+  - `SpaceDashboard` — 单 fetch，queryKey=['space-metrics', period]
+  - `HallucinationRate` — 单 fetch，queryKey=['ai-hallucination', period]
+  - `ServiceBoundary` — 单 fetch，queryKey=['module-coupling']，safeModules + 零长度守卫
+  - `PipelineTemplate` — 单 fetch，queryKey=['pipeline-templates', category, search]
+  - `SchemaCode` — 单 fetch + POST apply，queryKey=['dba-migrations']，safeMigrations
+  - `ContractTest` — 单 fetch + POST verify，queryKey=['contract-test/contracts']，safeContracts + 零长度守卫
+  - **剩余 5 页面** (复杂 mutation 页面，需 useMutation + useQueryClient)：EvalSetManagement, ComplianceScan, AuthConfig, dev-portal, MCPManagement, PromptCanary
+
+- 📊 **提交**
+  - `d5d881e46` — refactor(frontend): P2-10 SpaceDashboard 迁移到 react-query
+  - `c678806af` — refactor(frontend): P2-10 HallucinationRate 迁移到 react-query
+  - `2f8ca2374` — refactor(frontend): P2-10 ServiceBoundary 迁移到 react-query
+  - `d2752c1a3` — refactor(frontend): P2-10 PipelineTemplate 迁移到 react-query
+  - `173fc4c37` — refactor(frontend): P2-10 SchemaCode 迁移到 react-query
+  - `97daefd38` — refactor(frontend): P2-10 ContractTest 迁移到 react-query
+
 - 📝 **剩余**
   - P2-4：36 个页面补测试目录（3-5d）
   - P2-7：前端 `any` 类型清理（3-5d）
   - P2-9：前端最大页面拆分（2-3d）
-  - P2-10：react-query 迁移 10 页面（2-3d）
+  - P2-10：react-query 迁移剩余 5 页面（复杂 mutation 页面，2-3d）
   - P2-11：wiring.go/router.go 拆分（1-2d）

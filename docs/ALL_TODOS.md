@@ -121,10 +121,10 @@
 | **P2-7** | 前端 `any` 类型清理 | 三域分析 | 1138 处 `any` 类型，pages 层 1118 处 | 3-5 天 |
 | ~~**P2-8** | 前端 `console.log` 残留 | 三域分析 | 核实: 生产代码 0 处 console.log (2 处均在 __tests__ 测试数据中) | ✅ 2026-08-31 |
 | **P2-9** | 前端最大页面拆分 | 三域分析 | ChangeManagement(1899行) 等超大单文件拆分 | 2-3 天 |
-| **P2-10** | 安装 @tanstack/react-query | merged-action-items | 已安装(P2-040)，但 10 个核心页面未迁移 | 2-3 天 |
+| **P2-10** | 安装 @tanstack/react-query | merged-action-items | ✅ 已安装 + 6/11 页面已迁移 (SpaceDashboard/HallucinationRate/ServiceBoundary/PipelineTemplate/SchemaCode/ContractTest)；剩余 5 页面为复杂 mutation 页面需 useMutation | 剩余 1-2 天 |
 | **P2-11** | wired.go / router.go 拆分 | 三域分析 | wiring.go 792 行 + router.go 1160 行，入口文件膨胀 | 1-2 天 |
 
-**P2 合计工作量**: 10-18 天（P2-1/P2-3/P2-5/P2-6/P2-8 已完成）
+**P2 合计工作量**: 10-18 天（P2-1/P2-3/P2-5/P2-6/P2-8 已完成，P2-10 6/11 页面已迁移）
 
 ---
 
