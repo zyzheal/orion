@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { API_BASE_URL } from '@/api/client';
+import { useQuery } from '@/providers/QueryProvider';
 import { Typography, Card, Row, Col, Tag, Button, Space, Table, Statistic, Alert, Modal, List, Empty, Descriptions } from 'antd';
 import { FileProtectOutlined, CheckCircleOutlined, CloseCircleOutlined, SyncOutlined, CodeOutlined, ApiOutlined, ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
@@ -25,39 +27,41 @@ const FALLBACK_DRIFT: DriftDetail[] = [
 ];
 
 const ContractTestPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [contracts, setContracts] = useState<Contract[]>(FALLBACK_CONTRACTS);
   const [selected, setSelected] = useState<Contract | null>(null);
   const [verifying, setVerifying] = useState(false);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const resp = await fetch('/api/v1/contract-test/contracts', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
-      });
-      if (resp.ok) { const json = await resp.json(); if (json.data) setContracts(json.data); }
-    } catch { setContracts(FALLBACK_CONTRACTS); }
-    finally { setLoading(false); }
-  };
-  useEffect(() => { load(); }, []);
+  const { data: contracts, isLoading: loading, refetch } = useQuery<Contract[]>({
+    queryKey: ['contract-test/contracts'],
+    queryFn: async () => {
+      try {
+        const resp = await fetch(`${API_BASE_URL}/contract-test/contracts`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+        });
+        if (resp.ok) { const json = await resp.json(); if (json.data) return json.data; }
+      } catch { /* fallback */ }
+      return FALLBACK_CONTRACTS;
+    },
+  });
+
+  const load = () => refetch();
+  const safeContracts = contracts ?? FALLBACK_CONTRACTS;
 
   const stats = {
-    total: contracts.length,
-    verified: contracts.filter((c) => c.status === 'verified').length,
-    drift: contracts.filter((c) => c.status === 'drift').length,
-    missing: contracts.filter((c) => c.status === 'missing').length,
-    rate: Math.round((contracts.filter((c) => c.status === 'verified').length / contracts.length) * 100),
+    total: safeContracts.length,
+    verified: safeContracts.filter((c) => c.status === 'verified').length,
+    drift: safeContracts.filter((c) => c.status === 'drift').length,
+    missing: safeContracts.filter((c) => c.status === 'missing').length,
+    rate: safeContracts.length > 0 ? Math.round((safeContracts.filter((c) => c.status === 'verified').length / safeContracts.length) * 100) : 0,
   };
 
   const handleVerify = async (c: Contract) => {
     setVerifying(true);
     try {
-      const resp = await fetch(`/api/v1/contract-test/verify?consumer=${c.consumer}&provider=${c.provider}&endpoint=${encodeURIComponent(c.endpoint)}`, {
+      const resp = await fetch(`${API_BASE_URL}/contract-test/verify?consumer=${c.consumer}&provider=${c.provider}&endpoint=${encodeURIComponent(c.endpoint)}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
       });
-      if (resp.ok) { setContracts((prev) => prev.map((x) => x.endpoint === c.endpoint ? { ...x, status: 'verified', lastVerified: new Date().toISOString() } : x)); }
+      if (resp.ok) { load(); }
     } catch { /* fallback */ }
     finally { setVerifying(false); }
   };
@@ -120,7 +124,7 @@ const ContractTestPage: React.FC = () => {
           <Row gutter={[spacing.md, spacing.md]}>
             <Col span={16}>
               <Card title="API 契约列表" extra={<Button icon={<ReloadOutlined />} onClick={load}>刷新</Button>}>
-                <Table dataSource={contracts} columns={columns} rowKey="endpoint" size="small" pagination={{ pageSize: 10 }}
+                <Table dataSource={safeContracts} columns={columns} rowKey="endpoint" size="small" pagination={{ pageSize: 10 }}
                   locale={{ emptyText: <Empty description="暂无契约" /> }} />
               </Card>
             </Col>
