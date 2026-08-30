@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os/exec"
 	"sync"
 	"time"
 
@@ -123,6 +124,14 @@ type RepositoryInterface interface {
 // --- Command executor (pluggable) ---
 
 type CommandExecutor func(ctx context.Context, command string) (string, error)
+
+// ShellExecutor runs commands as real shell processes via os/exec.
+// It is the default production executor that makes DR steps actually execute.
+func ShellExecutor(ctx context.Context, command string) (string, error) {
+	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", command)
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
 
 // DefaultExecutor is a stub that returns an error for unimplemented commands.
 func DefaultExecutor(ctx context.Context, command string) (string, error) {
@@ -275,8 +284,53 @@ func (o *DROrchestrator) executeStep(ctx context.Context, step *DRStep) *DRStepR
 }
 
 func (o *DROrchestrator) rollback(ctx context.Context, plan *DRPlan, result *DRResult) {
-	for i := len(plan.Steps) - 1; i >= 0; i-- {
-		step := plan.Steps[i]
+	o.rollbackSteps(ctx, plan.Steps, result)
+}
+
+// ExecuteSteps runs a slice of DRSteps sequentially without a repo lookup.
+// It is designed to be called from the service layer when the plan's steps
+// are already known (e.g. loaded from the service's own repository).
+// On failure, AutoRollback is honoured if true.
+func (o *DROrchestrator) ExecuteSteps(ctx context.Context, planID string, steps []DRStep, autoRollback bool) (*DRResult, error) {
+	now := time.Now()
+	result := &DRResult{PlanID: planID, Status: "running", StartedAt: now}
+
+	for i := range steps {
+		step := &steps[i]
+		sr := o.executeStep(ctx, step)
+		result.Steps = append(result.Steps, *sr)
+
+		o.logger.Info("DR step completed",
+			zap.String("step", step.Name),
+			zap.String("phase", string(step.Phase)),
+			zap.String("status", string(sr.Status)))
+
+		if sr.Status == StepFailed {
+			result.Status = "failed"
+			result.Error = fmt.Sprintf("step %s failed: %s", step.Name, sr.Error)
+			end := time.Now()
+			result.EndedAt = &end
+
+			if autoRollback {
+				o.logger.Info("starting auto-rollback for ExecuteSteps")
+				o.rollbackSteps(ctx, steps, result)
+				result.Status = "rolled-back"
+			}
+
+			return result, fmt.Errorf("step %s failed: %s", step.Name, sr.Error)
+		}
+	}
+
+	result.Status = "success"
+	end := time.Now()
+	result.EndedAt = &end
+	return result, nil
+}
+
+// rollbackSteps is a variant of rollback that takes steps directly instead of a DRPlan.
+func (o *DROrchestrator) rollbackSteps(ctx context.Context, steps []DRStep, result *DRResult) {
+	for i := len(steps) - 1; i >= 0; i-- {
+		step := steps[i]
 		if step.RollbackCommand == "" {
 			continue
 		}

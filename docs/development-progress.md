@@ -877,3 +877,59 @@
   - `avg_latency_ms` 基于 `commandstats` 全命令累计计算，反映的是「实例生命周期内」均值而非实时延迟
 
 ---
+
+## Batch Q — ARCH-0.14 DR 执行引擎落地 (2026-08-29)
+
+- 📌 **背景**
+  - `internal/disaster-recovery/service/service.go` 的 `RunPlan` 原本只创建 `RecoveryRun` 记录并置 `Status="running"`，从不实际执行任何容灾步骤
+  - `internal/disaster-recovery/orchestrator/` 拥有完整的 failover 引擎（preflight→scale_down→data_sync→traffic_switch→scale_up→verification→cleanup→rollback），但 `DefaultExecutor` 是 stub（返回 `"command executor not configured"`），且从未被 service 引用
+  - R6 确认 DR orchestrator `DefaultExecutor stub` 为架构缺陷，ARCH-0.14 是第六轮 5 项中的第 1 项
+
+- ✅ **实现**
+  - `orchestrator/orchestrator.go`：
+    - 新增 `ShellExecutor`：使用 `os/exec.CommandContext` + `/bin/sh -c` 执行真实 shell 命令，支持超时取消（`ctx.Done()`）
+    - 新增 `ExecuteSteps(ctx, planID, []DRStep, autoRollback)` 方法：无需 repo 查询，直接执行传入的步骤列表，支持重试/超时/自动回滚
+    - 新增 `rollbackSteps(ctx, []DRStep, *DRResult)` 辅助方法：与 `rollback` 逻辑一致但接受 `[]DRStep` 而非 `*DRPlan`
+    - `rollback` 方法改为委托 `rollbackSteps(plan.Steps, result)`
+  - `service/service.go`：
+    - `Service` 结构体新增 `orch *orchestrator.DROrchestrator` 字段
+    - 新增 `SetOrchestrator` 方法注入 orchestrator（不改 `NewService` 签名，保持向后兼容）
+    - `RunPlan` 重写：创建 run 记录后，如果 `orch != nil` 则调用 `convertSteps(plan.Steps)` 将 JSON `[]string` 转换为 `[]orchestrator.DRStep`，再调用 `orch.ExecuteSteps`，最后更新 `run.Status` 和 `run.EndedAt` 并持久化
+    - 新增 `convertSteps(stepsJSON string)` 辅助函数：每个命令字符串转换为 `DRStep{ID:"step-N", Timeout:60s, OnFail:"abort", MaxRetries:1}`
+    - 新增 `truncate(s, n)` 辅助函数
+  - `cmd/server/wiring-disaster-recovery.go`：
+    - 新增 `disasterrecovery_orch` 导入
+    - `wiredisasterrecovery` 中创建 `DROrchestrator`（repo=nil，因为 `ExecuteSteps` 不需要 repo）并注入 `ShellExecutor`，通过 `svc.SetOrchestrator(orch)` 注入 service
+
+- ✅ **测试**
+  - `orchestrator_test.go` 新增 8 条测试：
+    - `TestShellExecutor_EchoCommand` — `echo hello` → `"hello\n"`
+    - `TestShellExecutor_FailingCommand` — `exit 1` → error
+    - `TestShellExecutor_MultiLineCommand` — `echo line1 && echo line2` → 包含两行
+    - `TestShellExecutor_ContextTimeout` — `sleep 10` + 50ms timeout → error
+    - `TestExecuteSteps_Success` — 2 步成功，验证 status/steps/planID
+    - `TestExecuteSteps_Failure_NoRollback` — 第 2 步失败，验证 failed 状态
+    - `TestExecuteSteps_Failure_WithRollback` — 第 2 步失败 + autoRollback=true，验证 rolled-back 状态和 4 条命令
+    - `TestExecuteSteps_EmptySteps` — 空步骤列表，验证 success 状态
+  - `service/service_test.go`（新文件，10 条测试）：
+    - `TestConvertSteps_ValidJSON` / `TestConvertSteps_InvalidJSON` / `TestConvertSteps_EmptyString`
+    - `TestTruncate_ShortString` / `TestTruncate_LongString`
+    - `TestService_New_NilOrch` / `TestService_SetOrchestrator`
+    - `TestService_RunPlan_NoOrch` — 无 orchestrator 时 status=running、EndedAt=zero
+    - `TestService_RunPlan_WithOrch_Success` — 有 orchestrator 时 status=success、EndedAt≠zero
+    - `TestService_RunPlan_WithOrch_Failure` — 步骤失败时 status=failed
+    - `TestService_RunPlan_PlanNotFound` — 不存在的 plan 返回 error
+    - `TestService_CreatePlan` / `TestService_ListPlans`
+
+- 🎯 **验收标准**
+  - `grep "orchestrator" internal/disaster-recovery/service/` ≥ 1 ✅
+  - `DefaultExecutor` 不再作为生产执行器（`ShellExecutor` 已注入 cmd/server）✅
+  - `RunPlan` 不再只创建 "running" 记录 ✅
+
+- 🔍 **剩余**
+  - `HealthCheck` 仍使用 `checkEndpoint`（仅检查 `Name/Region/DBHost` 非空），未实现 PG 流复制探测或 MySQL 主从切换检查（→ 独立设计）
+  - `convertSteps` 将所有步骤统一标记为 `PhasePreflight`，未根据命令内容推断实际 phase（如 `kubectl scale`→`PhaseScaleDown`）
+  - `RecoveryRun` 未记录 `DRResult` 的详细步骤输出（仅记录最终 status），详细结果需通过 orchestrator 的 `active` map 或日志查看
+  - `ExecuteSteps` 与 `Failover` 有约 30 行重复逻辑（步骤迭代+错误处理+rollback 触发），可抽取公共方法
+
+---

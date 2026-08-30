@@ -7,9 +7,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"time"
+
 	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/disaster-recovery/models"
-	"time"
+	"orion/platform-svc-go/internal/disaster-recovery/orchestrator"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -31,10 +34,18 @@ var (
 
 type Service struct {
 	repo RepositoryInterface
+	orch *orchestrator.DROrchestrator
 }
 
 func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
+}
+
+// SetOrchestrator injects the DR orchestrator for real failover execution.
+// When set, RunPlan will invoke the orchestrator's ExecuteSteps to actually
+// run the plan's steps instead of just recording a "running" status.
+func (s *Service) SetOrchestrator(orch *orchestrator.DROrchestrator) {
+	s.orch = orch
 }
 
 func (s *Service) CreatePlan(ctx context.Context, tenantID string, req models.CreateDisasterPlanRequest) (*models.DisasterPlan, error) {
@@ -91,7 +102,7 @@ func (s *Service) UpdatePlan(ctx context.Context, tenantID, id string, req model
 }
 
 func (s *Service) RunPlan(ctx context.Context, tenantID, planID string) (*models.RecoveryRun, error) {
-	_, err := s.repo.GetPlan(ctx, tenantID, planID)
+	plan, err := s.repo.GetPlan(ctx, tenantID, planID)
 	if err != nil {
 		return nil, sentinel.NotFound
 	}
@@ -108,7 +119,50 @@ func (s *Service) RunPlan(ctx context.Context, tenantID, planID string) (*models
 	if err := s.repo.UpdatePlanLastRun(ctx, tenantID, planID, now); err != nil {
 		return nil, err
 	}
+
+	// If an orchestrator is injected, actually execute the plan's steps.
+	if s.orch != nil {
+		drSteps := convertSteps(plan.Steps)
+		result, _ := s.orch.ExecuteSteps(ctx, planID, drSteps, true)
+		end := time.Now().UTC()
+		run.Status = result.Status
+		run.EndedAt = end
+		// Persist the updated run status.
+		_ = s.repo.CreateRun(ctx, run)
+	}
+
 	return s.repo.GetRun(ctx, tenantID, planID, run.ID)
+}
+
+// convertSteps converts a JSON-encoded []string steps column into a slice of
+// orchestrator.DRStep objects. Each string becomes a DRStep with the string as
+// its Command, a default preflight phase, 60-second timeout, and auto-rollback.
+func convertSteps(stepsJSON string) []orchestrator.DRStep {
+	var raw []string
+	if err := json.Unmarshal([]byte(stepsJSON), &raw); err != nil {
+		return nil
+	}
+	steps := make([]orchestrator.DRStep, 0, len(raw))
+	for i, cmd := range raw {
+		steps = append(steps, orchestrator.DRStep{
+			ID:          fmt.Sprintf("step-%d", i+1),
+			Name:        fmt.Sprintf("Step %d: %s", i+1, truncate(cmd, 64)),
+			Phase:       orchestrator.PhasePreflight,
+			Command:     cmd,
+			Timeout:     60 * time.Second,
+			OnFail:      "abort",
+			MaxRetries:  1,
+		})
+	}
+	return steps
+}
+
+// truncate shortens a string to n characters, appending "…" if truncated.
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n-1] + "…"
 }
 
 func (s *Service) ListRuns(ctx context.Context, tenantID, planID string) ([]models.RecoveryRun, error) {

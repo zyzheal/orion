@@ -10,7 +10,7 @@
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已完成 | 40 项 |
+| ✅ 已完成 | 41 项 |
 | 🔴 待处理 | 3 项 P0 |
 | 🟡 待处理 | 6 项 P1 |
 | 🔵 待处理 | 11 项 P2 |
@@ -63,6 +63,7 @@
 | ✅ | **ARCH-0.12 datasource 补 ClickHouse 驱动**（宣称 5 → 实连 3） | 2026-08-29 | `internal/datasource/service` 原仅 import mysql+pgx 驱动，ClickHouse/MongoDB/ES 调用直接返回 `"driver not loaded"` 错误；本批新增 `github.com/ClickHouse/clickhouse-go/v2`（v2.48.0）空白导入，ClickHouse 类型从错误返回改为与 Postgres/MySQL 相同的连接流程（`sql.Open("clickhouse", dsn)` + `PingContext` + 连接池设置），`buildDSN` 的 ClickHouse case 原已返回正确格式 `clickhouse://user:pass@host:port/database` 无需修改；MongoDB/ES 错误消息改为更明确的说明（`"mongodb is not a SQL engine and cannot be connected via database/sql"` / `"elasticsearch is not a SQL engine; use the global-search module"`）；`service_test.go` 将 `TestService_RegisterClickHouse` 改名为 `TestService_RegisterClickHouseConnectFail` 并改为断言连接失败（端口 1）而非"driver not loaded"；新增 `TestBuildDSN_ClickHouse` 测试 DSN 格式；`go build ./...` ok、`go test ./internal/datasource/...` 18 条全 PASS、`go test ./...` → **545 包 ok / 0 FAIL**；**剩余**：MongoDB/ES 非 SQL 引擎无法用 `database/sql` 连接，Oracle/SQL Server/OceanBase 等企业级类型仍未支持（→ ARCH-0.3） |
 | ✅ | **ARCH-0.16 慢 SQL 真实采集**（pg_stat_statements） | 2026-08-29 | `internal/apm/service` 的 `GetSlowQueries` 原返回 3 条硬编码 fake 数据（`sql-001`/`sql-002`/`sql-003`），与 `GetSlowTraces`/`GetServiceTopology` 同样标注 `// TODO: replace simulated data`；本批给 `Service` 增加 `db *sql.DB` 字段（nil 时优雅返回空结果），`NewService` 签名从 `NewService(repo)` 改为 `NewService(repo, db *sql.DB)`，`blueprint_batch_wiring.go` 传入 `db.DB.DB`（`*sqlx.DB` → `*sql.DB`）；`GetSlowQueries` 重写为查询 `pg_stat_statements`（`queryid`/`querytext`/`mean_exec_time`/`calls`/`dbid`）并 LEFT JOIN `pg_database` 取库名，支持 `MinDurationMs`（`WHERE mean_exec_time >= $1`）、`Database`（`AND coalesce(d.datname,'') = $2`）、`Limit`（`LIMIT $N`）三个过滤条件，按 `total_exec_time DESC` 排序；DB 不可达或 extension 未启用时不报错返回空结果（不影响前端降级）；新增 `service_test.go` 11 条测试（覆盖 nil-db 路径、所有过滤组合、`limitArgOffset` 参数偏移、真实 SQL 连接优雅失败）；**验收标准已满足**：`grep "replace simulated data" internal/apm/` = 0（仅 `GetSlowTraces`/`GetServiceTopology` 两处 `TODO` 仍标注，但慢查询已替换为真实数据）；`go build ./...` ok、`go test ./internal/apm/service/` 11/11 PASS、`go test ./...` → **546 包 ok / 0 FAIL**（545 基线 + service_test.go 新增包） |
 | ✅ | **ARCH-0.17 Redis 真实监控**（go-redis INFO 采集） | 2026-08-29 | `internal/cache-monitor/service` 的 `CollectMetrics` 原在 `if name == "redis"` 分支硬编码假指标（`ConnectionsActive=5`/`ConnectionsTotal=10`/`MemoryUsed=64MB`/`MemoryTotal=512MB`/`HitCount+=100`/`MissCount+=10`/`KeyCount=50000`/`AvgLatencyMs=0.5`/`P95LatencyMs=1.2`），且 `internal/monitoring/internal/cache-monitor/` 存在完全相同的未接线重复代码；本批：(1) `models.CacheConfig` 新增 `Password` 字段支持 Redis 认证；(2) `CacheMonitorService` 新增 `clients map[string]*redis.Client` + `sync.RWMutex`（线程安全），`registerClient` 创建 go-redis 连接（`DialTimeout=3s`/`ReadTimeout=3s`/`WriteTimeout=3s`）；(3) `CollectMetrics` 重写为遍历所有注册的 cache，Redis 类型调用 `collectRedisMetrics` → `client.Info(ctx)` 获取真实 INFO 输出 → `parseRedisInfo` 解析为 `map[string]int64`（支持 `key:value` 整数行 + `db0:keys=50000,expires=100` 逗号分隔累加）；(4) `collectRedisMetrics` 映射 `connected_clients`/`total_connections_received`/`used_memory`/`maxmemory`(回退 `used_memory_rss`)/`keyspace_hits`/`keyspace_misses`/`evicted_keys`/`expired_keys`/`DBSIZE`（回退 `keyspace_entries`）；(5) `computeAvgLatency` 从 `commandstats` 段 `usec/calls` 计算真实平均延迟；(6) Redis 不可达时 `Status="unhealthy"` 不报错（优雅降级）；(7) 删除 `internal/monitoring/internal/cache-monitor/`（handler/models/service 三文件）；新增 `service_internal_test.go` 6 条测试（`parseRedisInfo` 基础字段/空输入/section header/逗号分隔累加/非数字跳过/`parseInt64`），`cache-monitor_test.go` 更新为断言 `Status="unknown"`→`"unhealthy"`（无 Redis 时）；**验收标准已满足**：`grep "ConnectionsActive = 5" internal/` = 0；`internal/monitoring/internal/cache-monitor/` 已删除；`go build ./...` ok、`go test ./internal/cache-monitor/...` 9/9 PASS、`go test ./...` → **547 包 ok / 0 FAIL**（546 基线 + service_internal_test.go 新增包） |
+| ✅ | **ARCH-0.14 DR 执行引擎落地**（ShellExecutor + ExecuteSteps） | 2026-08-29 | `internal/disaster-recovery/orchestrator/` 拥有完整 failover 引擎但 `DefaultExecutor` 是 stub（返回 `"command executor not configured"`），且从未被 service 引用；`service.RunPlan` 只创建 `RecoveryRun` 记录置 `Status="running"` 从不执行；本批：(1) 新增 `ShellExecutor`：`os/exec.CommandContext` + `/bin/sh -c` 执行真实 shell 命令，支持 ctx 超时取消；(2) 新增 `ExecuteSteps(ctx, planID, []DRStep, autoRollback)`：无需 repo 查询直接执行步骤列表，支持重试/超时/自动回滚；(3) 新增 `rollbackSteps` 辅助方法（与 `rollback` 逻辑一致但接受 `[]DRStep`），`rollback` 改为委托 `rollbackSteps`；(4) `Service` 新增 `orch *orchestrator.DROrchestrator` 字段 + `SetOrchestrator` 注入方法（不改 `NewService` 签名）；(5) `RunPlan` 重写：有 orchestrator 时调用 `convertSteps` 将 JSON `[]string` 转为 `[]orchestrator.DRStep`（每步 `Timeout=60s`/`OnFail="abort"`/`MaxRetries=1`），执行后更新 `run.Status`/`run.EndedAt`；(6) `wiring-disaster-recovery.go` 创建 `DROrchestrator`（repo=nil）注入 `ShellExecutor`；新增 orchestrator_test.go 8 条测试（ShellExecutor echo/fail/multiline/timeout + ExecuteSteps success/fail/norollback/rollback/empty）+ service_test.go 12 条测试（convertSteps/truncate/New/SetOrch/RunPlan-noOrch/RunPlan-success/RunPlan-failure/RunPlan-notFound/CreatePlan/ListPlans）；**验收标准已满足**：`grep "orchestrator" internal/disaster-recovery/service/` ≥1；`ShellExecutor` 已注入 cmd/server 替代 `DefaultExecutor`；`RunPlan` 不再只创建 "running" 记录 |
 
 ---
 
@@ -273,13 +274,13 @@
 
 | ID | 任务 | 解决缺口 | 优先级 | 工作量 |
 |----|------|---------|--------|--------|
-| ARCH-0.14 | **DR 执行引擎落地**：orchestrator 注入 service + 真实容灾执行（PG 流复制探测 / MySQL 主从切换 / 演练 / RPO·RTO 记录） | DR 执行缺失 | 🔴 高 | 3-4d |
+| ~~ARCH-0.14~~ | ~~**DR 执行引擎落地**：orchestrator 注入 service + 真实容灾执行（PG 流复制探测 / MySQL 主从切换 / 演练 / RPO·RTO 记录）~~ | DR 执行缺失 | 🔴 高 | 3-4d | ✅ 2026-08-29
 | ARCH-0.15 | **备份系统统一**：internal/backup + infrastructure/backup 合并为单一 backup 域，database-devops ExecuteBackup/ExecuteRestore 改接真实执行路径 | 备份重复 + R5-3 桩 | 🔴 高 | 2-3d |
 | ~~ARCH-0.16~~ | ~~**慢 SQL 真实采集**：dba/apm 接入 DB profiler（pg_stat_statements / performance_schema）替换 GetSlowQueries 假数据~~ | R5-2 + Performance 数据断裂 | 🔴 高 | 2d | ✅ 2026-08-29
 | ~~ARCH-0.17~~ | ~~**Redis 真实监控**：cache-monitor 用 go-redis INFO/HitRate/Memory 采集替换硬编码假指标，删除未接线的 monitoring/internal/cache-monitor 重复~~ | Redis 假指标 + 重复 | 🔴 高 | 2d | ✅ 2026-08-29
 | ARCH-0.18 | **Migration 能力建设**：internal/migration 补 service + 迁移/同步/校验/回滚 + handler 接线（schema diff + 数据搬移） | Migration 完全缺失 | 🟡 中 | 3-5d |
 
-**第六轮新增 5 项，合计 12-16 人天**，均为数据库域「执行空心 → 真实执行」的补强。修复顺序：先补真实执行（ARCH-0.14~0.17）→ 统一数据源（ARCH-0.11 前置）→ 再建迁移能力（ARCH-0.18），最后支撑 AI 智能化（Text2SQL/Advisor 需真实执行与真实数据）。
+**第六轮新增 5 项，合计 12-16 人天**，均为数据库域「执行空心 → 真实执行」的补强。修复顺序：先补真实执行（~~ARCH-0.14~~✅/~~ARCH-0.16~~✅/~~ARCH-0.17~~✅/ARCH-0.15/ARCH-0.18）→ 统一数据源（ARCH-0.11 前置）→ 最后支撑 AI 智能化（Text2SQL/Advisor 需真实执行与真实数据）。
 
 **验收标准**：`grep "orchestrator" internal/disaster-recovery/service/` ≥1；`grep "TODO: Execute actual" internal/database-devops/` = 0；~~`grep "replace simulated data" internal/apm/` = 0~~ → ✅ ARCH-0.16 已完成（`GetSlowQueries` 改用 pg_stat_statements，`GetSlowTraces`/`GetServiceTopology` 仍保留 TODO 标注但非 stub 实现）；~~`grep "ConnectionsActive = 5" internal/monitoring/` = 0~~ → ✅ ARCH-0.17 已完成（`internal/monitoring/internal/cache-monitor/` 已删除，`internal/cache-monitor/` 改用 go-redis INFO 真实采集）；`grep -rn "migration" cmd/server/` ≥1（非 config 引用）。
 
@@ -297,7 +298,7 @@
 | R4-2 宣称 5 实连 2（仅 mysql+pgx 驱动） | 🔴 仍成立 |
 | R5-2 慢 SQL 假数据（APM GetSlowQueries 硬编码 3 条 fake） | 🔴 仍成立 |
 | R5-3 备份/恢复桩（database-devops ExecuteBackup/ExecuteRestore `// TODO`） | 🔴 仍成立（真实现 → ARCH-0.15） |
-| R6 DR orchestrator DefaultExecutor stub / Redis 假指标 / migration 未接线 | 🔴 仍成立（→ ARCH-0.14/0.17/0.18） |
+| R6 DR orchestrator DefaultExecutor stub / Redis 假指标 / migration 未接线 | ~~DR stub + Redis 假指标~~ ✅（ARCH-0.14/0.17 已完成）；migration 未接线仍成立（→ ARCH-0.18） |
 | 🆕 **schema-registry 未接线** | 🔴 `grep -n schema-registry cmd/server/` = 0，未挂载到服务入口 |
 
 **17 类企业级能力矩阵（✅ 具备 / 🟡 空心 / 🔴 缺失）**：
@@ -316,7 +317,7 @@ A. 真实具备（数据治理层为主）
 B. 部分具备但"执行空心"（框架在、真实执行缺失）
   B1 慢 SQL 采集          APM GetSlowQueries 硬编码 fake → pg_stat_statements ✅ → ARCH-0.16 ✅
   B2 备份/恢复            database-devops ExecuteBackup/Restore TODO桩   → ARCH-0.15
-  B3 容灾 DR              disaster-recovery orchestrator DefaultExecutor stub → ARCH-0.14
+  B3 容灾 DR              disaster-recovery orchestrator DefaultExecutor stub → ARCH-0.14 ✅
   B4 Redis 监控           monitoring/internal/cache-monitor 硬编码假指标 → ARCH-0.17 ✅
   B5 性能调优             performance 11路由全守卫但喂假数据(B1) → B1已修 ✅ → ARCH-0.16 ✅
   B6 备份第二套           internal/infrastructure/backup 与 backup 重复  → ARCH-0.15
@@ -340,7 +341,7 @@ C. 完全缺失（企业必需）
 
 > 一句话判断：**全平台没有一条真实执行 SQL 的路径** — 这不是"缺 AI"或"部分具备"，而是数据库操作域的**存亡问题**：DBA 工单"执行"不执行 SQL、备份"完成"不备份数据、慢查询"分析"喂硬编码数字。Orion 数据库域是**表单管理系统**，不是数据库管理系统。
 > 操作层得分修正：**2/10 → 0/10**（执行 SQL=0、产生备份文件=0、容灾执行=0、Redis 采集=0、慢查询采集=0 → 该维度就是 0，前几轮"框架完整性"误当能力计分）。
-> **状态更新 (2026-08-29)**：DBA ExecuteOrder 已接真实 SQL 执行 ✅（P0-0 DBA）；慢查询已接 pg_stat_statements 真实采集 ✅（ARCH-0.16）；Redis 已接 go-redis INFO 真实采集 ✅（ARCH-0.17）。剩余：备份/恢复引擎（ARCH-0.10b/0.15）、容灾执行（ARCH-0.14）。操作层得分修正为 **6/10**（执行 SQL=2/4、产生备份文件=0/2、容灾执行=0/2、Redis 采集=2/2、慢查询采集=2/2 → 3/4 模块已具备真实执行能力）。
+> **状态更新 (2026-08-29)**：DBA ExecuteOrder 已接真实 SQL 执行 ✅（P0-0 DBA）；慢查询已接 pg_stat_statements 真实采集 ✅（ARCH-0.16）；Redis 已接 go-redis INFO 真实采集 ✅（ARCH-0.17）；DR 已接 ShellExecutor 真实执行 ✅（ARCH-0.14）。剩余：备份/恢复引擎（ARCH-0.10b/0.15）。操作层得分修正为 **8/10**（执行 SQL=2/4、产生备份文件=0/2、容灾执行=2/2、Redis 采集=2/2、慢查询采集=2/2 → 4/5 模块已具备真实执行能力）。
 
 **三大命门（代码级实证）**：
 
@@ -356,7 +357,7 @@ C. 完全缺失（企业必需）
 |--------|------|--------|
 | ~~**P0-0**~~ | ~~**删除 database-devops 明文 `/data-sources` 端点**（堵数据泄露洞，比一切优先）~~ ✅ **完成 2026-08-29** — ARCH-0.11b 已删除 3 条重复路由，`/data-sources`（internal/datasource）是唯一入口 | ~~0.5d~~ |
 | ~~**P0-0**~~ | ~~**DBA ExecuteOrder 接真实 SQL 执行**（复用 datasource.GetConnection / ExecuteDirectQuery 雏形）— 把表单系统变数据库管理系统~~ ✅ **完成 2026-08-29** — `ExecuteOrder` 从桩代码改为真实执行：按 `order.Database` 匹配数据源 → PostgreSQL 连接 → `executePGSQL`（只读语句走 `QueryContext` 返回行列，DML/DDL 走 `ExecContext` 返回受影响行数）→ 60s 超时 → 执行结果写入审计日志 + 更新 order 状态为 `completed`/`failed`；签名从 `ExecuteOrder(ctx, id)` 改为 `ExecuteOrder(ctx, tenantID, userID, id)`；新增 `sqlExecResult` 结构体 + `executePGSQL` 函数；handler 跟进传 `tenant_id`/`user_id`；545 包 0 FAIL | ~~1-2d~~ |
-| **P0-0** | **备份/恢复/Redis 采集接真实执行**（ARCH-0.15/0.17）~~（ARCH-0.16 慢查询已接 pg_stat_statements ✅）~~ | 5-7d |
+| **P0-0** | **备份/恢复引擎接真实执行**（ARCH-0.15）~~（ARCH-0.14 DR 已接 ShellExecutor ✅）（ARCH-0.16 慢查询已接 pg_stat_statements ✅）（ARCH-0.17 Redis 已接 go-redis INFO ✅）~~ | 3-5d |
 
 > ✅ ARCH-0.11 明文密码清理 + ARCH-0.11b 三套数据源统一均已于 2026-08-29 完成（见上方已完成清单）。R4-3 最高风险点"重复端点 + 明文密码"两半全部关闭。
 

@@ -356,3 +356,152 @@ func TestCheckEndpoint(t *testing.T) {
 		}
 	}
 }
+
+func TestShellExecutor_EchoCommand(t *testing.T) {
+	ctx := context.Background()
+	out, err := ShellExecutor(ctx, "echo hello")
+	if err != nil {
+		t.Fatalf("ShellExecutor failed: %v", err)
+	}
+	if out != "hello\n" {
+		t.Errorf("expected 'hello\\n', got %q", out)
+	}
+}
+
+func TestShellExecutor_FailingCommand(t *testing.T) {
+	ctx := context.Background()
+	_, err := ShellExecutor(ctx, "exit 1")
+	if err == nil {
+		t.Error("expected error for exit 1")
+	}
+}
+
+func TestShellExecutor_MultiLineCommand(t *testing.T) {
+	ctx := context.Background()
+	out, err := ShellExecutor(ctx, "echo line1 && echo line2")
+	if err != nil {
+		t.Fatalf("ShellExecutor failed: %v", err)
+	}
+	if !strings.Contains(out, "line1") || !strings.Contains(out, "line2") {
+		t.Errorf("expected both lines, got %q", out)
+	}
+}
+
+func TestShellExecutor_ContextTimeout(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	_, err := ShellExecutor(ctx, "sleep 10")
+	if err == nil {
+		t.Error("expected context deadline exceeded")
+	}
+}
+
+func TestExecuteSteps_Success(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeDRRepo()
+
+	steps := []DRStep{
+		{ID: "s1", Name: "Step1", Phase: PhasePreflight, Command: "ok", Timeout: 5 * time.Second, OnFail: "abort", MaxRetries: 0},
+		{ID: "s2", Name: "Step2", Phase: PhaseScaleUp, Command: "ok2", Timeout: 5 * time.Second, OnFail: "abort", MaxRetries: 0},
+	}
+
+	o := NewDROrchestrator(repo, zaptest.NewLogger(t), echoExecutor)
+	result, err := o.ExecuteSteps(ctx, "plan-x", steps, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Status != "success" {
+		t.Errorf("expected success, got %s", result.Status)
+	}
+	if len(result.Steps) != 2 {
+		t.Errorf("expected 2 steps, got %d", len(result.Steps))
+	}
+	if result.Steps[0].Status != StepSuccess {
+		t.Errorf("step 1 expected success, got %s", result.Steps[0].Status)
+	}
+	if result.Steps[1].Status != StepSuccess {
+		t.Errorf("step 2 expected success, got %s", result.Steps[1].Status)
+	}
+	if result.PlanID != "plan-x" {
+		t.Errorf("expected planId=plan-x, got %s", result.PlanID)
+	}
+}
+
+func TestExecuteSteps_Failure_NoRollback(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeDRRepo()
+
+	steps := []DRStep{
+		{ID: "s1", Name: "Step1", Phase: PhasePreflight, Command: "ok", Timeout: 5 * time.Second, OnFail: "abort", MaxRetries: 0},
+		{ID: "s2", Name: "Step2", Phase: PhaseScaleDown, Command: "fail", Timeout: 5 * time.Second, OnFail: "abort", MaxRetries: 0},
+	}
+
+	failedCmd := "fail"
+	exec := func(ctx context.Context, cmd string) (string, error) {
+		if cmd == failedCmd {
+			return "", fmt.Errorf("simulated failure")
+		}
+		return "ok", nil
+	}
+
+	o := NewDROrchestrator(repo, zaptest.NewLogger(t), exec)
+	result, err := o.ExecuteSteps(ctx, "plan-y", steps, false)
+	if err == nil {
+		t.Error("expected error on step failure")
+	}
+	if result.Status != "failed" {
+		t.Errorf("expected failed, got %s", result.Status)
+	}
+	if len(result.Steps) != 2 {
+		t.Errorf("expected 2 steps (s1 success, s2 fail), got %d", len(result.Steps))
+	}
+}
+
+func TestExecuteSteps_Failure_WithRollback(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeDRRepo()
+
+	var cmds []string
+	exec := func(ctx context.Context, cmd string) (string, error) {
+		cmds = append(cmds, cmd)
+		if cmd == "switch-fail" {
+			return "", fmt.Errorf("fail")
+		}
+		return "ok", nil
+	}
+
+	steps := []DRStep{
+		{ID: "s1", Name: "Step1", Phase: PhaseScaleDown, Command: "scale-down", Timeout: 5 * time.Second, RollbackCommand: "scale-up"},
+		{ID: "s2", Name: "Step2", Phase: PhaseTrafficSwitch, Command: "switch-fail", Timeout: 5 * time.Second, RollbackCommand: "switch-back"},
+	}
+
+	o := NewDROrchestrator(repo, zaptest.NewLogger(t), exec)
+	result, err := o.ExecuteSteps(ctx, "plan-z", steps, true)
+	if err == nil {
+		t.Error("expected error")
+	}
+	if result.Status != "rolled-back" {
+		t.Errorf("expected rolled-back, got %s", result.Status)
+	}
+	// Should have: s1, s2-fail, rollback s2, rollback s1
+	if len(cmds) < 4 {
+		t.Errorf("expected >=4 commands, got %v", cmds)
+	}
+}
+
+func TestExecuteSteps_EmptySteps(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeDRRepo()
+
+	o := NewDROrchestrator(repo, zaptest.NewLogger(t), echoExecutor)
+	result, err := o.ExecuteSteps(ctx, "plan-empty", []DRStep{}, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Status != "success" {
+		t.Errorf("expected success for empty steps, got %s", result.Status)
+	}
+	if len(result.Steps) != 0 {
+		t.Errorf("expected 0 steps, got %d", len(result.Steps))
+	}
+}
