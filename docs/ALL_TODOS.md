@@ -127,7 +127,7 @@
 | **P2-7** | 前端 `any` 类型清理 | 三域分析 | 1138 处 `any` 类型，pages 层 1118 处 | 3-5 天 |
 | ~~**P2-8** | 前端 `console.log` 残留 | 三域分析 | 核实: 生产代码 0 处 console.log (2 处均在 __tests__ 测试数据中) | ✅ 2026-08-31 |
 | **P2-9** | 前端最大页面拆分 | 三域分析 | ChangeManagement(1899行) 等超大单文件拆分 | 2-3 天 |
-| **P2-10** | 安装 @tanstack/react-query | merged-action-items | ✅ 已安装 + 10/11 页面已迁移 (SpaceDashboard/HallucinationRate/ServiceBoundary/PipelineTemplate/SchemaCode/ContractTest/AIReview×4)；剩余 1 复杂 mutation 页面 | 剩余 1 天 |
+| **P2-10** | 安装 @tanstack/react-query | merged-action-items | ✅ 已安装 + 11/11 页面全部迁移 (SpaceDashboard/HallucinationRate/ServiceBoundary/PipelineTemplate/SchemaCode/ContractTest/AIReview×5) | ✅ 2026-08-31 |
 | **P2-11** | wired.go / router.go 拆分 | 三域分析 | wiring.go 792 行 + router.go 1160 行，入口文件膨胀 | 1-2 天 |
 
 | **G5** | AES 分块 AEAD（chunked，消除整文件读内存） | Phase 7 计划 | `crypto.go:22-24` `EncryptFile`/`DecryptFile` 改造为分块 AEAD（nonce per chunk / 流式 GCM）；版本头 + 格式版本字段向后兼容；单测：>内存大小文件往返一致 + 篡改任一 chunk 校验失败 | 2-3 天 |
@@ -135,7 +135,7 @@
 | **G7** | RPO 精确化 | Phase 7 计划 | `recovery_service.go:422-432` 不再用最后 archive `WindowStart` 近似，改目标时间点前最近 archive 的真实提交时间戳；无提交时间戳时保留近似并 warn；单测：时间序列 archive 断言 RPO 精确 | 1-2 天 |
 | **G8** | 存储后端增强（P3 低优先） | Phase 7 计划 | `backup_service.go:419-436` `storageBackendFor` 区分 local/S3/MinIO 能力差异；S3/MinIO 断点续传（multipart）、生命周期策略、冷热分层；本轮仅设计 + 接口定义 + 单测，不要求生产级实现 | 2-3 天 |
 
-**P2 合计工作量**: 16-28 天（P2-1/P2-3/P2-5/P2-6/P2-8 已完成，P2-10 10/11 页面已迁移，含 G5-G8 7-11 天）
+**P2 合计工作量**: 14-25 天（P2-1/P2-3/P2-5/P2-6/P2-8/P2-10 已完成，含 G5-G8 7-11 天）
 
 ---
 

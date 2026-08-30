@@ -1238,7 +1238,7 @@ go test ./internal/datasource/... ✅ 全部 PASS
   - `d2c53e8d3` — chore(frontend): P2-1 删除 3 个未引用 API 客户端
   - `54de42d73` — chore(go): P2-5 冗余嵌套路径清理
 
-- ✅ **P2-10：react-query 迁移 (10/11 已完成)**
+- ✅ **P2-10：react-query 迁移 (11/11 已完成)**
   - `SpaceDashboard` — 单 fetch，queryKey=['space-metrics', period]
   - `HallucinationRate` — 单 fetch，queryKey=['ai-hallucination', period]
   - `ServiceBoundary` — 单 fetch，queryKey=['module-coupling']，safeModules + 零长度守卫
@@ -1249,7 +1249,8 @@ go test ./internal/datasource/... ✅ 全部 PASS
   - `AIReview/ReviewDetail` — 双 fetch (getReviewDetail + getReviewComments)，queryKey=['ai-review-detail', reviewId]，enabled: !!reviewId
   - `AIReview/Rules` — 单 fetch (getReviewRules)，queryKey=['ai-review-rules']，safeRules + safeCategories
   - `AIReview/Config` — 单 fetch (getReviewConfig) + form 同步，queryKey=['ai-review-config']，useEffect 同步 data → form
-  - **剩余 1 页面** (复杂 mutation 页面，需 useMutation + useQueryClient)：EvalSetManagement, ComplianceScan, AuthConfig, dev-portal, MCPManagement, PromptCanary
+  - `AIReview/History` — 单 fetch (getReviewHistory) + 分页过滤，queryKey=['ai-review-history', filters, page, pageSize]
+  - **P2-10 完成** ✅
 
 - 📊 **提交**
   - `d5d881e46` — refactor(frontend): P2-10 SpaceDashboard 迁移到 react-query
@@ -1261,10 +1262,10 @@ go test ./internal/datasource/... ✅ 全部 PASS
   - `1ac3df2c1` — refactor(frontend): P2-10 AIReview Dashboard + ReviewDetail 迁移到 react-query
   - `02f67d827` — refactor(frontend): P2-10 AIReview Rules 迁移到 react-query
   - `562b4065a` — refactor(frontend): P2-10 AIReview Config 迁移到 react-query
+  - `9c10e666f` — refactor(frontend): P2-10 AIReview History 迁移到 react-query
 
 - 📝 **剩余**
   - P2-4：36 个页面补测试目录（3-5d）
   - P2-7：前端 `any` 类型清理（3-5d）
   - P2-9：前端最大页面拆分（2-3d）
-  - P2-10：react-query 迁移剩余 1 页面（复杂 mutation 页面，需 useMutation + useQueryClient）
   - P2-11：wiring.go/router.go 拆分（1-2d）— 高风险，暂缓
