@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { startMonitoring, stopMonitoring, getMonitoringHealth, getMetrics,
   recordMetric, getAlertRules, createAlertRule, deleteAlertRule,
-  getAlerts, getActiveAlerts, getAlert, acknowledgeAlert } from '../monitoring';
+  getAlerts, getActiveAlerts, acknowledgeAlert } from '../monitoring';
 import { api } from '../client';
 
 vi.mock('../client', () => ({ api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn(), patch: vi.fn() } }));
 
 describe('Monitoring API', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('should start monitoring', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { data: { status: 'started' } }, status: 200, statusText: 'OK', headers: {}, config: {} } as any);

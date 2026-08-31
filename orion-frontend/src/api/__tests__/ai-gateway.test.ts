@@ -7,18 +7,19 @@ vi.mock('../client', () => ({
 }));
 
 describe('AI Gateway API', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('should execute AI request', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { data: { result: 'ok' } }, status: 200, statusText: 'OK', headers: {}, config: {} } as any);
-    await executeAIRequest({ scenario: 'code_review', input: { code: 'x=1' } });
-    expect(api.post).toHaveBeenCalledWith('/ai-gateway/execute', { scenario: 'code_review', input: { code: 'x=1' } });
+    // AIScenario 用连字符命名（code-review），下划线写法已从联合类型里移除
+    await executeAIRequest({ scenario: 'code-review', input: { code: 'x=1' } });
+    expect(api.post).toHaveBeenCalledWith('/ai-gateway/execute', { scenario: 'code-review', input: { code: 'x=1' } });
   });
 
   it('should get scenario health', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: { data: { status: 'healthy' } }, status: 200, statusText: 'OK', headers: {}, config: {} } as any);
-    await getScenarioHealth('code_review');
-    expect(api.get).toHaveBeenCalledWith('/ai-gateway/health/code_review');
+    await getScenarioHealth('code-review');
+    expect(api.get).toHaveBeenCalledWith('/ai-gateway/health/code-review');
   });
 
   it('should get all health', async () => {

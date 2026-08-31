@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getSbomDocuments, getSbomDocument, createSbomDocument, deleteSbomDocument,
-  getSbomPackages, downloadSbomDocument, triggerSbomVulnerabilityScan,
+  getSbomPackages, triggerSbomVulnerabilityScan,
   getSbomVulnerabilityResults,
   getSbomWaivers, createSbomWaiver, deleteSbomWaiver } from '../sbom';
 import { api } from '../client';
@@ -8,7 +8,7 @@ import { api } from '../client';
 vi.mock('../client', () => ({ api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn(), patch: vi.fn() } }));
 
 describe('SBOM API', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('should list SBOM documents', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: { data: [], total: 0 }, status: 200, statusText: 'OK', headers: {}, config: {} } as any);
@@ -24,8 +24,9 @@ describe('SBOM API', () => {
 
   it('should create SBOM document', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { data: { id: '1' } }, status: 201, statusText: 'Created', headers: {}, config: {} } as any);
-    await createSbomDocument({ name: 'test-sbom', buildId: 'b-1' });
-    expect(api.post).toHaveBeenCalledWith('/sbom/documents', { name: 'test-sbom', buildId: 'b-1' });
+    // SbomDocumentInput 是结构化字段集，没有 name
+    await createSbomDocument({ buildId: 'b-1', pipelineRunId: 'r-1', format: 'cyclonedx', specVersion: '1.5', documentId: 'sbom-1', content: { name: 'test-sbom' } });
+    expect(api.post).toHaveBeenCalledWith('/sbom/documents', { buildId: 'b-1', pipelineRunId: 'r-1', format: 'cyclonedx', specVersion: '1.5', documentId: 'sbom-1', content: { name: 'test-sbom' } });
   });
 
   it('should delete SBOM document', async () => {
@@ -60,8 +61,9 @@ describe('SBOM API', () => {
 
   it('should create SBOM waiver', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { data: { id: 'w-1' } }, status: 201, statusText: 'Created', headers: {}, config: {} } as any);
-    await createSbomWaiver({ reason: 'accepted risk', package: 'lodash' });
-    expect(api.post).toHaveBeenCalledWith('/sbom/waivers', { reason: 'accepted risk', package: 'lodash' });
+    // SbomWaiverInput 用 cveId + packageName/packageVersion 三元组定位被豁免的组件
+    await createSbomWaiver({ cveId: 'CVE-2024-1234', packageName: 'lodash', packageVersion: '4.17.21', reason: 'accepted risk', expiresAt: '2027-01-01', scope: 'project' });
+    expect(api.post).toHaveBeenCalledWith('/sbom/waivers', { cveId: 'CVE-2024-1234', packageName: 'lodash', packageVersion: '4.17.21', reason: 'accepted risk', expiresAt: '2027-01-01', scope: 'project' });
   });
 
   it('should delete SBOM waiver', async () => {

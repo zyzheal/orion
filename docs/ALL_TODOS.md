@@ -129,15 +129,15 @@
 | **P2-9** | 前端最大页面拆分 | 三域分析 | ChangeManagement(1899行) 等超大单文件拆分 | 2-3 天 |
 | **P2-10** | 安装 @tanstack/react-query | merged-action-items | ✅ 已安装；**但"11/11"仅指自行圈定的 11 个文件**。真实盘点：467 个页面组件中仅 24 个使用 react-query。附带修复：该批次曾静默删除 10 个页面约 20 处加载失败提示（Batch X 已恢复），并遗留 9 处 TS 错误 + 弄坏 2 个测试文件（已修） | ⚠️ 部分完成，见 P2-12 |
 | **P2-12** | 剩余 308 个页面 react-query 迁移 | Batch X 盘点 | `useEffect + useState(setLoading)` 手动加载模式仍占 308 个页面（467 总页面的 66%）。**前置约束**：本仓库 `@tanstack/query-core@5.101.4` 的 `QueryObserver` 未实现 observer 级回调，`useQuery` 的 `onError/onSuccess` 是**静默 no-op**（`useMutation` 正常）。必须用 `isError + useEffect` 呈现错误反馈，否则每个页面都会丢失加载失败提示。见 `src/providers/QueryProvider.tsx` 顶部注释 | 10-15 天 |
-| **P2-13** | 修复 17 个遗留失败测试文件 | Batch Y 全量基线 | 从 `orion-frontend/` 建立的有效基线：`17 failed \| 304 passed (321)` 文件、`55 failed \| 1115 passed` 用例。已知样例：`api/__tests__/datasource.test.ts` 11/11、`AgentDashboard` 8/9、`pages/__tests__/SbomDashboard.test.tsx` 3/3、`NotificationRules`、`CronManagement`、`Form`、`Login`。注：SbomDashboard 的 `Cannot find package '@/components/charts'` 是路径解析问题，`src/components/charts` **目录实际存在** | 2-3 天 |
+| **P2-13** | 修复 17 个遗留失败测试文件 | Batch Y 全量基线 | 基线 `17 failed \| 304 passed (321)` 文件、`55 failed \| 1115 passed` 用例。**Batch AB 已修 6 个文件 / 31 个用例**：`datasource` 11/11（断言硬编码 `/data-sources/*`，源码已迁到 `API_PATHS.DATASOURCE.*` 相对路径）、`AgentDashboard` 8/9（`getAgentApprovals` mock 返回裸数组，而 `api.get<T>()` 返回的是 `AxiosResponse<T>`、载荷在 `.data`）、`SbomDashboard` 3/3（缺 `QueryClientProvider`）、`Login` 1/1（缺 `IntlProvider`）、`pages/NotificationRules` 4/4 + `CronManagement` 3/3（缺 `MemoryRouter`；CronManagement 还需 mock 掉 `PermissionGuard`——测试无登录态时 `hasPermission` 恒 false，守卫渲染 null 导致整页空白）。⚠️ 顺带纠正一条错误结论：SbomDashboard 的 `Cannot find package '@/components/charts'` **不是仓库问题**（`src/components/charts` 目录确实存在），那条报错来自在**仓库根**误跑 vitest（v4.1.11、无 config、无 `@` alias）；正确位置是 `orion-frontend/`（v1.6.1，`vite.config.ts` 里 `@` → `./src`） | 2-3 天 |
 | ~~**P2-14** | 迁移剩余 5 个内联 fetch 页面 | Batch Y 盘点 | `dba/AuditRule`、`federation/Workspace`、`MCPManagement`、`PromptCanary`、`security/CodeScan`（共 10 处 `API_BASE_URL`）。经核实当时的未提交 diff 每文件仅 2 行，是同一任务链"硬编码 /api/v1 → API_BASE_URL"的前置半步，非他人成果，已一并收口。迁后 `src/pages` 下 `API_BASE_URL` 引用数归零 | ✅ 2026-08-26 |
 | ~~**P2-15** | 修复 `localStorage.getItem('token')` 键错误 | Batch Z 发现 | `authStore` 的真实键是 **`access_token`**（`TOKEN_KEY`），而 15 个页面的裸 fetch 全在读 `token`——`grep "setItem('token'" src` **0 处**，即 `|| ''` 兜底一直在生效，**这些页面的请求一直带空 Bearer token**。已随 P2-10~14 迁移自动修复（拦截器改走 `authStore.getToken()`）。残留 2 处已改键名：`CMDB/WebTerminalPage.tsx`（WS auth 消息此前恒不发送，真 bug）、`hooks/usePermission.ts`（保留裸 fetch，避免权限引导触发全局 toast）。全仓库 `getItem('token'` 现为 **0 处** | ✅ 2026-08-26 |
 | **P2-16** | 评估 `stores/subappStore.ts` 的 `fetchApi` 迁移 | Batch Z 盘点 | 与 P2-15 相反，这里的键是 `access_token`（**正确**）。但返回体未解包（`return data as T`，调用方再判 `response.success`），迁到 `api.*` 会连带改所有调用点。另：SubAppRoute×3 / usePipelineSSE / web-vitals 已判定**不可迁**（需 URL 字符串或 sendBeacon，与 axios 语义冲突） | 0.5-1 天 |
 | **P2-11** | wired.go / router.go 拆分 | 三域分析 | wiring.go 792 行 + router.go 1160 行，入口文件膨胀（文件名应为 `wiring.go`，此前误写 wired.go） | 1-2 天 |
 
-| **G5** | AES 分块 AEAD（chunked，消除整文件读内存） | Phase 7 计划 | `crypto.go:22-24` `EncryptFile`/`DecryptFile` 改造为分块 AEAD（nonce per chunk / 流式 GCM）；版本头 + 格式版本字段向后兼容；单测：>内存大小文件往返一致 + 篡改任一 chunk 校验失败 | 2-3 天 |
-| **G6** | KMS / 密钥轮换 / 版本化 | Phase 7 计划 | 定义 `KeyProvider` 接口（本地 base64 + KMS stub），`EncryptFile` 注入 provider 取密钥；密钥元数据带 `version`，解密按版本取对应密钥；单测：旧版本密钥仍解旧文件 + provider 失败 fail-closed（依赖 G5） | 2-3 天 |
-| **G7** | RPO 精确化 | Phase 7 计划 | `recovery_service.go:422-432` 不再用最后 archive `WindowStart` 近似，改目标时间点前最近 archive 的真实提交时间戳；无提交时间戳时保留近似并 warn；单测：时间序列 archive 断言 RPO 精确 | 1-2 天 |
+| ~~**G5** | AES 分块 AEAD（chunked，消除整文件读内存） | Phase 7 计划 | ~~`crypto.go` `EncryptFile`/`DecryptFile` 改造为分块 AEAD（`ORCH` magic + v1 版本头 + nonce per chunk + AAD=块索引防重排，1 MiB/块流式）；`DecryptFile` magic sniff 兼容 legacy v0（`EncryptBytes/DecryptBytes` 保持 v0 字节语义）；`crypto_test.go` 新增 8 用例：往返/多块大文件(>8MiB)/篡改任一帧失败/截断失败/重排帧失败/v0 兼容/空 key/格式头断言；执行器加密往返测试沿用通过~~ | ✅ **完成 2026-08-31** |
+| ~~**G6** | KMS / 密钥轮换 / 版本化 | Phase 7 计划 | ~~新 `key_provider.go`：`KeyProvider` 接口 + 4 实现（`Static`/`StaticMap`/`Base64`/`KMS` stub，均 fail-closed）；`EncryptFileWithProvider`/`DecryptFileWithProvider` 引入 **v2 KEYED 格式**（`ORCH\|0x02\|keyIDLen\|keyID\|帧`），解密按头中 keyID 取对应版本密钥；raw-key `EncryptFile` 保持 v1 格式不变，`DecryptFile` 兼容 v0/v1/v2 全格式；`crypto_test.go` 新增 5 用例：旧版本密钥仍解旧文件/新文件用当前密钥+头记录 keyID/未知 key 解密 fail-closed/provider 加密失败不落盘/v0 经 provider 解~~ | ✅ **完成 2026-08-31** |
+| ~~**G7** | RPO 精确化 | Phase 7 计划 | ~~抽 `rpoFromArchives(archives, targetTime, baseCompleted)` helper：从 newest 倒序选目标时间前最近的 archive `WindowStart`（真实提交时间戳，archiver.go 以文件 ModTime 填充）作锚点，不再取最后一段（可能提交于目标后）；每段均在目标后/无 archive 时回退 base backup `CompletedAt` 近似；锚点 nil 时打 warn；`recovery_service_test.go` 新增 5 用例：目标前最近段/全在目标后回退 base/无 archive 用 base/空输入 nil/恰好目标时刻 RPO=0~~ | ✅ **完成 2026-08-31** |
 | **G8** | 存储后端增强（P3 低优先） | Phase 7 计划 | `backup_service.go:419-436` `storageBackendFor` 区分 local/S3/MinIO 能力差异；S3/MinIO 断点续传（multipart）、生命周期策略、冷热分层；本轮仅设计 + 接口定义 + 单测，不要求生产级实现 | 2-3 天 |
 
 **P2 合计工作量**: 14-25 天（P2-1/P2-3/P2-5/P2-6/P2-8/P2-10 已完成，含 G5-G8 7-11 天）
@@ -191,7 +191,7 @@
 
 | # | 任务 | 工作量 |
 |---|------|--------|
-| P2-1~16 | 全部 P2 项（P2-13 修复遗留失败测试 2-3 天、P2-14 剩余 5 页面 fetch 迁移 0.5 天 ✅、P2-15 token 键修复 0.5 天 ✅、P2-16 subappStore 评估 0.5-1 天） | 16.5-27.5 天 |
+| P2-1~16 | 全部 P2 项（P2-13 修复遗留失败测试 6/17 文件已修 2-3 天、P2-14 剩余 5 页面 fetch 迁移 0.5 天 ✅、P2-15 token 键修复 0.5 天 ✅、P2-16 subappStore 评估 0.5-1 天） | 16.5-27.5 天 |
 
 ### 总计: ~25.5-47.5 天
 

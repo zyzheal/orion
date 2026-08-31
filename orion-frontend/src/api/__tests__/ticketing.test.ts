@@ -1,18 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createTicket, getTicket, getTickets, updateTicket, deleteTicket,
-  transitionStatus, assignTicket, closeTicket, getWorkflowHistory,
+  transitionStatus, closeTicket, getWorkflowHistory,
   addAssignmentRule, getAssignmentRules } from '../ticketing';
 import { api } from '../client';
 
 vi.mock('../client', () => ({ api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn(), patch: vi.fn() } }));
 
 describe('Ticketing API', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('should create ticket', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { data: { id: '1' } }, status: 201, statusText: 'Created', headers: {}, config: {} } as any);
-    await createTicket({ title: 'test ticket', description: 'd', priority: 'P1' });
-    expect(api.post).toHaveBeenCalledWith('/tickets', { title: 'test ticket', description: 'd', priority: 'P1' });
+    // TicketPriority 是 low/medium/high/critical，不是 P1 级别串；且必填 category/reporter
+    await createTicket({ title: 'test ticket', description: 'd', category: 'application', priority: 'high', reporter: 'tester' });
+    expect(api.post).toHaveBeenCalledWith('/tickets', { title: 'test ticket', description: 'd', category: 'application', priority: 'high', reporter: 'tester' });
   });
 
   it('should get ticket by id', async () => {
@@ -59,8 +60,9 @@ describe('Ticketing API', () => {
 
   it('should add assignment rule', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { data: { id: 'r-1' } }, status: 201, statusText: 'Created', headers: {}, config: {} } as any);
-    await addAssignmentRule({ name: 'rule', pattern: 'P1' });
-    expect(api.post).toHaveBeenCalledWith('/ticketing/rules', { name: 'rule', pattern: 'P1' });
+    // AssignmentRule 的字段是 condition/assignee/priority(number)，没有 pattern
+    await addAssignmentRule({ name: 'rule', condition: 'priority=high', assignee: 'sre', priority: 1 });
+    expect(api.post).toHaveBeenCalledWith('/ticketing/rules', { name: 'rule', condition: 'priority=high', assignee: 'sre', priority: 1 });
   });
 
   it('should get assignment rules', async () => {

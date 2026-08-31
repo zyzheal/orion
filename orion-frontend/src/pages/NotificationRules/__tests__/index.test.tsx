@@ -1,9 +1,16 @@
 /**
  * Tests for NotificationRules page
  */
+import type { ReactElement } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import NotificationRules from '../index';
+
+// 页面用 useNavigate()，裸 render 会抛
+// "useNavigate() may be used only in the context of a <Router> component"。
+const renderWithRouter = (ui: ReactElement) =>
+  render(<MemoryRouter>{ui}</MemoryRouter>);
 import * as notificationRulesApi from '@/api/notificationRules';
 
 vi.mock('@/api/notificationRules', () => ({
@@ -57,7 +64,7 @@ describe('NotificationRules', () => {
   it('renders page header with tab navigation', async () => {
     vi.mocked(notificationRulesApi.getIMNotificationRules).mockResolvedValue([]);
 
-    render(<NotificationRules />);
+    renderWithRouter(<NotificationRules />);
 
     expect(screen.getByText('通知规则管理')).toBeTruthy();
     expect(screen.getByText('管理平台 Webhook 与 IM 通知规则')).toBeTruthy();
@@ -68,7 +75,7 @@ describe('NotificationRules', () => {
   it('shows IM notification rules when switching to IM tab', async () => {
     vi.mocked(notificationRulesApi.getIMNotificationRules).mockResolvedValue(mockIMRules as any);
 
-    render(<NotificationRules />);
+    renderWithRouter(<NotificationRules />);
 
     // Find the IM notifications tab by role
     const tabs = screen.getAllByRole('tab');
@@ -86,7 +93,7 @@ describe('NotificationRules', () => {
   it('opens create modal on button click in IM tab', async () => {
     vi.mocked(notificationRulesApi.getIMNotificationRules).mockResolvedValue([]);
 
-    render(<NotificationRules />);
+    renderWithRouter(<NotificationRules />);
 
     // Switch to IM tab
     const tabs = screen.getAllByRole('tab');
@@ -109,7 +116,7 @@ describe('NotificationRules', () => {
   it('shows empty state when no IM rules exist', async () => {
     vi.mocked(notificationRulesApi.getIMNotificationRules).mockResolvedValue([]);
 
-    render(<NotificationRules />);
+    renderWithRouter(<NotificationRules />);
 
     const tabs = screen.getAllByRole('tab');
     const imTab = tabs.find((t) => t.textContent?.includes('IM'));

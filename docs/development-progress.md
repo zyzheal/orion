@@ -1635,4 +1635,178 @@ Batch Z 发现的系统性 token 键错误（真实键 `access_token`，无人�
 ### 📊 提交
 
 - `3834a0725` — refactor(frontend): Batch Z 收口最后 5 页面内联 fetch, 发现 token 键系统性错误
+- `2e153260a` — fix(frontend): Batch AA 修复残留 2 处 token 键错误
+- `50ed192db` — fix(frontend): Batch AB 修复遗留测试类型错误与 6 个失败测试文件
+- 本批次见下方 commit
+
+---
+
+## Batch AB — 修复遗留测试类型错误与失败测试文件 (2026-08-26)
+
+ALL_TODOS 的 P2-13。目标：清掉 Batch Y 基线里遗留的 48 个 tsc 错误和 17 个失败测试文件。
+
+### 1. 类型错误 48 → 1
+
+| 类别 | 数量 | 内容 |
+|------|------|------|
+| `TS2322` | 13 | `beforeEach(() => vi.clearAllMocks())` 的箭头函数返回 `VitestUtils`，不满足 `Awaitable<HookCleanupCallback>`。改成显式块 `beforeEach(() => { vi.clearAllMocks(); });`。涉及 13 个 `api/__tests__/*.test.ts` |
+| 未使用导入 | 6 | `canceller`(`activeCount`)、`tokens/themeEngine`(`initThemeEngine`)、`incident`(`getPostmortem`)、`monitoring`(`getAlert`)、`sbom`(`downloadSbomDocument`)、`ticketing`(`assignTicket`) |
+| `useOrionToken.ts` | 5 | 见下 |
+
+**`src/tokens/useOrionToken.ts`（本轮唯一改了业务代码的类型修复）**
+
+原代码在 `exists === false` 时返回 `{ value: undefined as TokenValue, exists: false }`，
+即用一个硬转型掩盖了"不存在时 value 不该有值"这个不变量。改为可辨识联合：
+
+```ts
+type TokenResult<T = TokenValue> =
+  | { cssVar?: string; value: T; exists: true }
+  | { cssVar?: string; value: undefined; exists: false };
+```
+
+两处返回都改成 `return { value: undefined, exists: false }`，转型全部删除。
+顺带删掉没人用的 `TokenPath` 类型和因此变空的 `themeVars` 导入
+（`useOrionToken` 全仓库 0 处外部引用，改动无下游影响）。
+
+**`useThemeSubscription` 里有一个真实运行时 bug**
+
+```ts
+// zustand 原生 subscribe 只接受单个 (state, prevState) listener；
+// (selector, listener) 两参形式需要 subscribeWithSelector 中间件……
+// 主题一变 handler 就收不到通知 —— 真 bug。
+const unsubscribe = useTokenStore.subscribe((state, prevState) => {
+  if (state.theme !== prevState.theme) handler(state.theme);
+});
+```
+
+旧的 `(selector, listener)` 两参写法把 listener 当成了 selector 传进去，
+**主题切换时订阅方永远收不到通知**。
+
+### 2. 删掉 3 个假的测试用例（`pages/Backup/__tests__/index.test.tsx`）
+
+这 3 个 `handleDownload` 用例是**自证的假测试**，全部删除：
+
+- 引用了一个**不存在**的 API 函数 `getBackupDownloadUrl`；
+- 调用的是**测试自己**写的 `vi.fn()`，而不是组件的行为；
+- 断言对象是**测试自己**调用的 `message.warning` / `message.error` / `window.open`。
+
+即"测试先调用它自己的 mock，再断言它调用了它自己的 mock"——
+任何实现都能通过，且**该页面根本没有下载功能**
+（`CloudDownloadOutlined` 按钮的语义是"执行备份"，走 `handleExecute`）。
+只保留 `renders without crashing`。删除理由写在文件头部注释，避免被"顺手"加回来。
+
+### 3. 修好 6 个失败测试文件 / 31 个用例
+
+每处都在修复点写了注释说明根因，避免同类错误再犯：
+
+| 文件 | 前 → 后 | 根因 |
+|------|---------|------|
+| `api/__tests__/datasource.test.ts` | 11/11 红 → 11/11 绿 | `datasource.ts` 已把路径迁到 `API_PATHS.DATASOURCE.*`（相对路径），但 11 个断言仍硬编码 `'/data-sources/...'`。改成引用同一批常量——**测的是旧写法，不是接口契约** |
+| `pages/Login/__tests__/index.test.tsx` | 1/1 红 → 1/1 绿 | Login 同时依赖两套上下文：`useLocation` 要 `MemoryRouter`，`useIntl`（`index.tsx:69`）要 `IntlProvider`。原先只套了 Router |
+| `pages/AgentDashboard/__tests__/index.test.tsx` | 8/9 红 → 9/9 绿 | `getAgentApprovals` 的 mock 返回**裸数组**，而 `api.get<T>()` 返回 `AxiosResponse<T>`、载荷在 `.data`。`.data` 拿到 `undefined`，组件里 `approvals.length` 直接抛 `TypeError`，连带 8 个用例全红。mock 全部改成 `{ data: ... }` |
+| `pages/__tests__/SbomDashboard.test.tsx` | 3/3 红 → 3/3 绿 | 缺 `QueryClientProvider`，组件抛 `No QueryClient set`。每次渲染新建 client 并关重试/自动 refetch（`retry: false, gcTime: 50, staleTime: 0, refetchOnWindowFocus: false`），避免跨用例缓存污染与拖慢 |
+| `pages/NotificationRules/__tests__/index.test.tsx` | 4/4 红 → 4/4 绿 | 页面用 `useNavigate()`，裸 render 抛 `useNavigate() may be used only in the context of a <Router> component` |
+| `pages/CronManagement/__tests__/index.test.tsx` | 3/3 红 → 3/3 绿 | 同上的 `MemoryRouter`，**外加**见下 |
+
+### 4. `PermissionGuard` 在无登录态时会把整页清空
+
+CronManagement 加了 Router 之后仍然找不到 `orion-table` / `新建任务` / 错误提示，
+根因比 Router 更隐蔽：
+
+整页被 `PermissionGuard` 包着。它初始 `hasCapPermission = null`，
+只有拿到权限才渲染 children，否则渲染 `fallback`（默认 `null`）。
+权限来自 `usePermission` 的 `userRoles`，而 `userRoles` 派生自 `authStore.user`。
+**测试里没有登录** → `userRoles = []` → `hasPermission()` 恒 `false` →
+守卫渲染 `null` → **整页空白**，任何选择器都找不到。
+
+修法是把守卫 mock 成直通：
+
+```tsx
+vi.mock('@/components/PermissionGuard', () => ({
+  PermissionGuard: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+```
+
+权限判定本身有独立的 PermissionGuard 单测，页面测试只关心页面逻辑。
+此前**全仓库 0 个测试 mock 过 PermissionGuard**——这是一个系统性的测试盲点，
+P2-4（36 个页面缺测试）里凡是包了守卫的页面都会撞同一个坑。
+
+### 5. ⚠️ 纠正一条错误结论：`api.get<T>()` 返回 `AxiosResponse<T>`
+
+排查 AgentDashboard 时一度以为 `agentsRes.data` 是 bug
+（误以为 client 直接返回载荷，准备去改组件和 API 契约）。
+通读 `src/api/client.ts` 后确认**判断是错的**，是组件没错、测试写错：
+
+- `api.get<T>()` 返回 `Promise<AxiosResponse<T>>`（`executeWithRetryAndCancel` 于 `client.ts:233-257`），
+  五个方法（get/post/put/delete/patch）全部如此；
+- 响应拦截器（`client.ts:67-99`）**只就地改写 `response.data`**：
+  解包 `{success:true,data:T}`（72-75）、旧格式 `{code:200,data:T}`（79-87）、裸 `{data:T}`（89-97），
+  `success:false` 不解包；
+- 所以**所有调用方都必须读 `res.data`**——
+  这也解释了为什么全仓库都是 `doraRes?.data?.metrics`、`pipelineRes?.data?.runs`、
+  `agentsRes.data` 这种写法：**它们是正确的，不是 bug**。
+
+因此修的是**测试 fixture**（mock 返回 `{ data: T }`），而不是改组件。
+同时把 `AgentDashboard/index.tsx` 里那句错误的注释
+（旧注释写 "returns data directly"，就是它误导出过一批写坏的 mock）改正。
+这一步避免了对 5 个调用点的破坏性契约变更。
+
+**顺带确认的两条无害写法**：`'data-sources'`（相对）与 `'/data-sources'`（带斜杠）
+经 axios `combineURLs` 后都解析成 `/api/v1/data-sources`
+（`isAbsoluteURL` 只看 scheme，`combineURLs` 会剥掉前导斜杠），
+因此仓库里 `API_PATHS` 相对路径与内联 `'/tickets'` 两种风格**行为等价**。
+
+### 6. ⚠️⚠️ 工具陷阱升级：vitest 必须在 `orion-frontend/` 下跑
+
+Batch AA 记录的"Bash CWD 不稳定"在 vitest 上后果严重得多，本轮实测：
+
+从**仓库根**跑 `npx vitest run` 会**静默**挑到另一个 vitest：
+
+| | 仓库根（错误） | `orion-frontend/`（正确） |
+|---|---|---|
+| 版本 | **v4.1.11** | v1.6.1 |
+| 配置文件 | **无**（仓库根没有任何 `vitest.config.*`） | `vite.config.ts` 的 `test:` 块（第 240-267 行） |
+| `@` alias | **不解析** → `Cannot find package '@/constants/api-paths'` | `@` → `./src`（`vite.config.ts:15-17`） |
+| 文件数 | 323 | 321 |
+| 耗时 | ~40 分钟 | ~2 分钟 |
+
+仓库根的 tsconfig 是 Node/TS 工具包，所以 `npx tsc` 在那里静默通过；
+`npx vitest` 在那里则会**换版本、丢配置、跑错文件、还慢 20 倍**——
+而且不会报错，只会把失败原因伪装成路径解析问题。
+
+**判定方法：看 vitest 的 banner 行，必须读到
+`RUN  v1.6.1 /Users/heal/orion-design/orion-frontend`。**
+
+配置要点（`vite.config.ts` 的 `test:` 块）：`globals: true`、`environment: 'jsdom'`、
+`setupFiles: './src/tests/setup.ts'`、`css: true`、
+`fileParallelism: false`（所以全量是串行的）、
+覆盖率阈值 branches 50 / functions 55 / lines 60 / statements 60。
+
+**推论：ALL_TODOS P2-13 里"SbomDashboard 的 `Cannot find package '@/components/charts'`
+是路径解析问题"这条结论是错的。** `src/components/charts` 目录确实存在、
+在正确 CWD 下能正常解析——那条报错纯粹是根 CWD 造成的假象。
+同一轮跑出的一份"全量基线"也因此作废，已全部用正确 CWD 重跑的数据替换。
+
+### 7. 验证
+
+- `npx tsc --noEmit`（`orion-frontend/` 下）→ **1**（基线 48）。
+  唯一残留是 `src/utils/auth.ts(153,5) TS2740`——**该文件是并发修改，本轮刻意跳过**
+- 6 个目标测试文件在正确 CWD 下逐个复跑：11 + 1 + 9 + 3 + 4 + 3 = **31 个用例全绿**
+- 全量 suite 复跑（后台任务 `bpd4cml32`，正确 CWD，~18.5 min）：
+
+  | | Batch Y 基线 | 本轮 |
+  |---|---|---|
+  | 失败文件 | 17 | **11** |
+  | 失败用例 | 55 | **26** |
+  | 通过用例 | 1115 | 1146 |
+  | 跳过 | 15 | 15 |
+  | 总用例 | 1186 | 1187 |
+
+  6 个失败文件、31 个用例从红到绿，符合预期。剩余 11 个失败文件均属于本批之外的测试
+  （`ProductLine`、`Projects`、`ApiKeyManagement`、`Console.integration` 等），
+  登记为 P2-13 下阶段继续处理。
+
+### 📊 提交
+
+- `2e153260a` — refactor(frontend): Batch AA 修复残留 2 处 token 键错误
 - 本批次见下方 commit

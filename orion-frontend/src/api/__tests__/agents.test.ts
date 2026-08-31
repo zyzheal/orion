@@ -5,7 +5,7 @@ import { api } from '../client';
 vi.mock('../client', () => ({ api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn(), patch: vi.fn() } }));
 
 describe('Agents API', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('should list agent profiles', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: { data: [] }, status: 200, statusText: 'OK', headers: {}, config: {} } as any);
@@ -15,8 +15,8 @@ describe('Agents API', () => {
 
   it('should create agent profile', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { data: { id: '1' } }, status: 201, statusText: 'Created', headers: {}, config: {} } as any);
-    await createAgentProfile({ name: 'builder', role: 'builder', enabled: true });
-    expect(api.post).toHaveBeenCalledWith('/agents', { name: 'builder', role: 'builder', enabled: true });
+    await createAgentProfile({ name: 'builder', role: 'builder', enabled: true, tools: [] });
+    expect(api.post).toHaveBeenCalledWith('/agents', { name: 'builder', role: 'builder', enabled: true, tools: [] });
   });
 
   it('should update agent profile', async () => {
@@ -51,8 +51,10 @@ describe('Agents API', () => {
 
   it('should trigger agent run', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { data: { id: 'r1' } }, status: 201, statusText: 'Created', headers: {}, config: {} } as any);
-    await triggerAgentRun({ agentId: '1', context: { taskId: 't1' } });
-    expect(api.post).toHaveBeenCalledWith('/agent-runs', { agentId: '1', context: { taskId: 't1' } });
+    // TriggerAgentRunInput 是 { workflowId?, triggerEvent, triggerPayload }，
+    // 旧的 { agentId, context } 是废弃形状 —— 断言跟着一起改，否则等于断言了不存在的契约
+    await triggerAgentRun({ triggerEvent: 'task.submitted', triggerPayload: { taskId: 't1' } });
+    expect(api.post).toHaveBeenCalledWith('/agent-runs', { triggerEvent: 'task.submitted', triggerPayload: { taskId: 't1' } });
   });
 
   it('should cancel agent run', async () => {

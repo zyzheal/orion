@@ -5,7 +5,7 @@ import { api } from '../client';
 vi.mock('../client', () => ({ api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn(), patch: vi.fn() } }));
 
 describe('Projects API', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('should list projects', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: { data: [] }, status: 200, statusText: 'OK', headers: {}, config: {} } as any);
@@ -21,8 +21,8 @@ describe('Projects API', () => {
 
   it('should create project', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { data: { id: '1' } }, status: 201, statusText: 'Created', headers: {}, config: {} } as any);
-    await createProject({ name: 'test', slug: 'test-slug' });
-    expect(api.post).toHaveBeenCalledWith('/projects', { name: 'test', slug: 'test-slug' });
+    await createProject({ name: 'test', tenantId: 't1' });
+    expect(api.post).toHaveBeenCalledWith('/projects', { name: 'test', tenantId: 't1' });
   });
 
   it('should update project', async () => {

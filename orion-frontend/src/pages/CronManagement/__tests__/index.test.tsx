@@ -1,10 +1,25 @@
 /**
  * Tests for CronManagement page
  */
+import type { ReactElement, ReactNode } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import CronManagement from '../index';
 import * as cronApi from '@/api/cron';
+
+// 页面用 useNavigate()，裸 render 会抛
+// "useNavigate() may be used only in the context of a <Router> component"。
+const renderWithRouter = (ui: ReactElement) =>
+  render(<MemoryRouter>{ui}</MemoryRouter>);
+
+// 整页被 PermissionGuard 包着。它依赖 authStore 的用户角色，而测试里没有登录：
+// userRoles 为空 → hasPermission 恒 false → 守卫渲染 fallback(null)，整页空白，
+// 于是 orion-table / 新建任务 / 错误提示全都找不到。权限判定本身有独立的
+// PermissionGuard 单测，页面测试只关心页面逻辑，这里直接放行。
+vi.mock('@/components/PermissionGuard', () => ({
+  PermissionGuard: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
 
 vi.mock('@/api/cron', () => ({
   getCronJobs: vi.fn(),
@@ -62,7 +77,7 @@ describe('CronManagement', () => {
     vi.mocked(cronApi.getCronJobs).mockResolvedValue({ data: { jobs: mockJobs } } as any);
     vi.mocked(cronApi.getCronStatus).mockResolvedValue({ data: mockStats } as any);
 
-    render(<CronManagement />);
+    renderWithRouter(<CronManagement />);
 
     // Loading state
     await waitFor(() => {
@@ -78,7 +93,7 @@ describe('CronManagement', () => {
     vi.mocked(cronApi.getCronStatus).mockResolvedValue({ data: mockStats } as any);
     vi.mocked(cronApi.createCronJob).mockResolvedValue({ data: {} } as any);
 
-    render(<CronManagement />);
+    renderWithRouter(<CronManagement />);
 
     await waitFor(() => {
       expect(screen.getByText('新建任务')).toBeTruthy();
@@ -95,7 +110,7 @@ describe('CronManagement', () => {
     vi.mocked(cronApi.getCronJobs).mockRejectedValue(new Error('加载定时任务失败'));
     vi.mocked(cronApi.getCronStatus).mockRejectedValue(new Error('加载定时任务失败'));
 
-    render(<CronManagement />);
+    renderWithRouter(<CronManagement />);
 
     await waitFor(() => {
       expect(screen.getByText('加载定时任务失败')).toBeTruthy();

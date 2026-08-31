@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { applyThemeVariables, initThemeEngine } from '../themeEngine';
+import { applyThemeVariables } from '../themeEngine';
 
 describe('ThemeEngine', () => {
   let styles: HTMLStyleElement[] = [];

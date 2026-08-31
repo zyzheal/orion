@@ -5,7 +5,7 @@ import { api } from '../client';
 vi.mock('../client', () => ({ api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn(), patch: vi.fn() } }));
 
 describe('Alerts API', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('should list alerts', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: { data: [] }, status: 200, statusText: 'OK', headers: {}, config: {} } as any);
@@ -21,8 +21,8 @@ describe('Alerts API', () => {
 
   it('should create alert', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { data: { id: '1' } }, status: 201, statusText: 'Created', headers: {}, config: {} } as any);
-    await createAlert({ severity: 'critical', message: 'high cpu' });
-    expect(api.post).toHaveBeenCalledWith('/alert/ingest', { severity: 'critical', message: 'high cpu' });
+    await createAlert({ severity: 'critical', metric: 'cpu', value: 97, threshold: 90, message: 'high cpu' });
+    expect(api.post).toHaveBeenCalledWith('/alert/ingest', { severity: 'critical', metric: 'cpu', value: 97, threshold: 90, message: 'high cpu' });
   });
 
   it('should get active alerts', async () => {
@@ -39,8 +39,8 @@ describe('Alerts API', () => {
 
   it('should create alert rule', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { data: { id: 'r1' } }, status: 201, statusText: 'Created', headers: {}, config: {} } as any);
-    await createAlertRule({ name: 'high-cpu', metric: 'cpu' });
-    expect(api.post).toHaveBeenCalledWith('/monitoring/rules', { name: 'high-cpu', metric: 'cpu' });
+    await createAlertRule({ name: 'high-cpu', metric: 'cpu', condition: '>', threshold: 90, severity: 'warning' });
+    expect(api.post).toHaveBeenCalledWith('/monitoring/rules', { name: 'high-cpu', metric: 'cpu', condition: '>', threshold: 90, severity: 'warning' });
   });
 
   it('should delete alert rule', async () => {

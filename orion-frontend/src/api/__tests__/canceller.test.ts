@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createRequestCanceller, getAbortConfig, activeCount } from '../canceller';
+import { createRequestCanceller, getAbortConfig } from '../canceller';
 
 describe('createRequestCanceller', () => {
   beforeEach(() => {

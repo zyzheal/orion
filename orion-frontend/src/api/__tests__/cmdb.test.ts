@@ -13,10 +13,17 @@ vi.mock('../client', () => ({
   api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn(), patch: vi.fn() },
 }));
 
-const mockedClient = client as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn>; put: ReturnType<typeof vi.fn>; delete: ReturnType<typeof vi.fn> };
+// AxiosInstance 与 Mock 形状无重叠，直接 as 触发 TS2352；经 unknown 中转。
+// mock 工厂把 default 替换成 vi.fn() 集合，所以运行时这个断言成立。
+const mockedClient = client as unknown as {
+  get: ReturnType<typeof vi.fn>;
+  post: ReturnType<typeof vi.fn>;
+  put: ReturnType<typeof vi.fn>;
+  delete: ReturnType<typeof vi.fn>;
+};
 
 describe('CMDB API', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('should list CIs', async () => {
     vi.mocked(mockedClient.get).mockResolvedValue({ data: { data: [] }, status: 200, statusText: 'OK', headers: {}, config: {} } as any);
@@ -32,8 +39,8 @@ describe('CMDB API', () => {
 
   it('should create CI', async () => {
     vi.mocked(mockedClient.post).mockResolvedValue({ data: { data: { id: '1' } }, status: 201, statusText: 'Created', headers: {}, config: {} } as any);
-    await createCI({ name: 'server-01', type: 'host' });
-    expect(mockedClient.post).toHaveBeenCalledWith('/cmdb/cis', { name: 'server-01', type: 'host' });
+    await createCI({ tenant_id: 't1', name: 'server-01', type: 'host' });
+    expect(mockedClient.post).toHaveBeenCalledWith('/cmdb/cis', { tenant_id: 't1', name: 'server-01', type: 'host' });
   });
 
   it('should update CI', async () => {
@@ -56,8 +63,9 @@ describe('CMDB API', () => {
 
   it('should create relation', async () => {
     vi.mocked(mockedClient.post).mockResolvedValue({ data: { data: { id: 'r1' } }, status: 201, statusText: 'Created', headers: {}, config: {} } as any);
-    await createRelation({ sourceId: '1', targetId: '2', type: 'deploys_to' });
-    expect(mockedClient.post).toHaveBeenCalledWith('/cmdb/relations', { sourceId: '1', targetId: '2', type: 'deploys_to' });
+    // CreateRelationInput 用 snake_case：source_id / target_id / relation_type
+    await createRelation({ source_id: '1', target_id: '2', relation_type: 'deploys_to' });
+    expect(mockedClient.post).toHaveBeenCalledWith('/cmdb/relations', { source_id: '1', target_id: '2', relation_type: 'deploys_to' });
   });
 
   it('should delete relation', async () => {

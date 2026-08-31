@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ChartProvider } from '@/components/charts';
 import SbomDashboard from '@/pages/SbomDashboard';
 
@@ -63,12 +64,23 @@ vi.mock('antd', async () => {
   return { ...actual, message: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } };
 });
 
-const renderWithProviders = (ui: React.ReactElement) =>
-  render(
+// SbomDashboard 内部用 useQuery，缺 QueryClientProvider 时组件直接抛
+// "No QueryClient set, use QueryClientProvider to set one"。
+// 每次渲染新建 client 并关掉重试/自动 refetch：避免跨用例缓存污染、避免拖慢用例。
+const renderWithProviders = (ui: React.ReactElement) => {
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: 50, staleTime: 0, refetchOnWindowFocus: false },
+    },
+  });
+  return render(
     <BrowserRouter>
-      <ChartProvider>{ui}</ChartProvider>
-    </BrowserRouter>
+      <QueryClientProvider client={client}>
+        <ChartProvider>{ui}</ChartProvider>
+      </QueryClientProvider>
+    </BrowserRouter>,
   );
+};
 
 describe('SbomDashboard', () => {
   beforeEach(() => {

@@ -125,7 +125,9 @@ describe('PipelineRuns API', () => {
 
     const result = await getPipelineRunDetail('run-1');
     expect(api.get).toHaveBeenCalledWith('/pipeline-runs/run-1');
-    expect(result.data.stages).toHaveLength(2);
+    // getPipelineRunDetail 未声明泛型，data 是 unknown —— 断言处显式收窄
+    const detail = result.data as { stages: unknown[] };
+    expect(detail.stages).toHaveLength(2);
   });
 
   it('should retry from stage', async () => {

@@ -7,6 +7,13 @@ import AgentDashboard from '../index';
 import * as agentsApi from '@/api/agents';
 
 // Mock the agents API
+//
+// ⚠️ mock 的返回形状必须是 { data: T }，不能是裸 T。
+// api.get<T>() 返回的是 AxiosResponse<T>（client.ts 的拦截器只就地把
+// response.data 从 { success, data } 解包成 T，函数本身仍然返回 response），
+// 所以页面读的是 `agentsRes.data`。此前 getAgentApprovals 的 mock 返回裸数组，
+// `.data` 拿到 undefined，组件里 `approvals.length` 直接抛 TypeError，
+// 9 个用例中 8 个全红。
 vi.mock('@/api/agents', () => ({
   getAgentProfiles: vi.fn(),
   getAgentRuns: vi.fn(),
@@ -146,7 +153,7 @@ describe('AgentDashboard', () => {
   it('renders the AgentDashboard page', async () => {
     vi.mocked(agentsApi.getAgentProfiles).mockResolvedValue({ data: mockAgents } as any);
     vi.mocked(agentsApi.getAgentRuns).mockResolvedValue({ data: mockRuns } as any);
-    vi.mocked(agentsApi.getAgentApprovals).mockResolvedValue(mockApprovals as any);
+    vi.mocked(agentsApi.getAgentApprovals).mockResolvedValue({ data: mockApprovals } as any);
 
     render(<AgentDashboard />);
 
@@ -160,7 +167,7 @@ describe('AgentDashboard', () => {
   it('displays summary metrics', async () => {
     vi.mocked(agentsApi.getAgentProfiles).mockResolvedValue({ data: mockAgents } as any);
     vi.mocked(agentsApi.getAgentRuns).mockResolvedValue({ data: mockRuns } as any);
-    vi.mocked(agentsApi.getAgentApprovals).mockResolvedValue([] as any);
+    vi.mocked(agentsApi.getAgentApprovals).mockResolvedValue({ data: [] } as any);
 
     render(<AgentDashboard />);
 
@@ -177,7 +184,7 @@ describe('AgentDashboard', () => {
   it('displays agent list', async () => {
     vi.mocked(agentsApi.getAgentProfiles).mockResolvedValue({ data: mockAgents } as any);
     vi.mocked(agentsApi.getAgentRuns).mockResolvedValue({ data: [] } as any);
-    vi.mocked(agentsApi.getAgentApprovals).mockResolvedValue([] as any);
+    vi.mocked(agentsApi.getAgentApprovals).mockResolvedValue({ data: [] } as any);
 
     render(<AgentDashboard />);
 
@@ -192,7 +199,7 @@ describe('AgentDashboard', () => {
   it('shows run and approval counts', async () => {
     vi.mocked(agentsApi.getAgentProfiles).mockResolvedValue({ data: mockAgents } as any);
     vi.mocked(agentsApi.getAgentRuns).mockResolvedValue({ data: mockRuns } as any);
-    vi.mocked(agentsApi.getAgentApprovals).mockResolvedValue(mockApprovals as any);
+    vi.mocked(agentsApi.getAgentApprovals).mockResolvedValue({ data: mockApprovals } as any);
 
     render(<AgentDashboard />);
 
@@ -207,7 +214,7 @@ describe('AgentDashboard', () => {
   it('opens create agent modal when button is clicked', async () => {
     vi.mocked(agentsApi.getAgentProfiles).mockResolvedValue({ data: [] } as any);
     vi.mocked(agentsApi.getAgentRuns).mockResolvedValue({ data: [] } as any);
-    vi.mocked(agentsApi.getAgentApprovals).mockResolvedValue([] as any);
+    vi.mocked(agentsApi.getAgentApprovals).mockResolvedValue({ data: [] } as any);
 
     render(<AgentDashboard />);
 
@@ -225,7 +232,7 @@ describe('AgentDashboard', () => {
   it('opens trigger run modal when button is clicked', async () => {
     vi.mocked(agentsApi.getAgentProfiles).mockResolvedValue({ data: [] } as any);
     vi.mocked(agentsApi.getAgentRuns).mockResolvedValue({ data: [] } as any);
-    vi.mocked(agentsApi.getAgentApprovals).mockResolvedValue([] as any);
+    vi.mocked(agentsApi.getAgentApprovals).mockResolvedValue({ data: [] } as any);
 
     render(<AgentDashboard />);
 
@@ -243,7 +250,7 @@ describe('AgentDashboard', () => {
   it('shows approval count in header', async () => {
     vi.mocked(agentsApi.getAgentProfiles).mockResolvedValue({ data: mockAgents } as any);
     vi.mocked(agentsApi.getAgentRuns).mockResolvedValue({ data: mockRuns } as any);
-    vi.mocked(agentsApi.getAgentApprovals).mockResolvedValue(mockApprovals as any);
+    vi.mocked(agentsApi.getAgentApprovals).mockResolvedValue({ data: mockApprovals } as any);
 
     render(<AgentDashboard />);
 
@@ -267,7 +274,7 @@ describe('AgentDashboard', () => {
   it('refreshes data when refresh button is clicked', async () => {
     vi.mocked(agentsApi.getAgentProfiles).mockResolvedValue({ data: [] } as any);
     vi.mocked(agentsApi.getAgentRuns).mockResolvedValue({ data: [] } as any);
-    vi.mocked(agentsApi.getAgentApprovals).mockResolvedValue([] as any);
+    vi.mocked(agentsApi.getAgentApprovals).mockResolvedValue({ data: [] } as any);
 
     render(<AgentDashboard />);
 

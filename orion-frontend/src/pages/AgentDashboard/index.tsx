@@ -61,9 +61,10 @@ const AgentDashboard: React.FC = () => {
       ]);
       setAgents(agentsRes.data || []);
       setRuns(runsRes.data || []);
-      // getAgentApprovals returns data directly (not wrapped in AxiosResponse)
+      // 与上面两个一致：api.* 返回 AxiosResponse<T>，载荷在 .data 里。
+      // （旧注释写"returns data directly"是错的，误导出过一批写坏的测试 mock。）
       const approvalsData = await getAgentApprovals({ status: 'pending' });
-      setApprovals(approvalsData.data);
+      setApprovals(approvalsData?.data ?? []);
     } catch (err: unknown) {
       if (err instanceof Error) {
         if (err.message.includes('401') || err.message.includes('403')) {

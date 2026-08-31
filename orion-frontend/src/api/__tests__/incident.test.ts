@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getIncidents, getIncident, createIncident, updateIncident, deleteIncident,
   updateIncidentStatus, assignIncident, escalateIncident, getIncidentTimeline,
-  getPostmortem, createPostmortem, getIncidentStats } from '../incident';
+  createPostmortem, getIncidentStats } from '../incident';
 import { api } from '../client';
 
 vi.mock('../client', () => ({ api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn(), patch: vi.fn() } }));
 
 describe('Incident API', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('should list incidents', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: { data: [], meta: { total: 0 } }, status: 200, statusText: 'OK', headers: {}, config: {} } as any);

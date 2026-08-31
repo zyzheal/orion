@@ -6,7 +6,7 @@ import { api } from '../client';
 vi.mock('../client', () => ({ api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn(), patch: vi.fn() } }));
 
 describe('FinOps API', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('should get cost overview', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: { data: { total: 1000 } }, status: 200, statusText: 'OK', headers: {}, config: {} } as any);
@@ -28,14 +28,15 @@ describe('FinOps API', () => {
 
   it('should create budget', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { data: { budget: { id: '1' } } }, status: 201, statusText: 'Created', headers: {}, config: {} } as any);
-    await createBudget({ name: 'test-budget', limit: 10000 });
-    expect(api.post).toHaveBeenCalledWith('/finops/budgets', { name: 'test-budget', limit: 10000 });
+    // BudgetInput 以 entityType+entityId 定位预算归属，不是 name/limit
+    await createBudget({ entityType: 'project', entityId: 'p1', amount: 10000, period: 'monthly' });
+    expect(api.post).toHaveBeenCalledWith('/finops/budgets', { entityType: 'project', entityId: 'p1', amount: 10000, period: 'monthly' });
   });
 
   it('should update budget', async () => {
     vi.mocked(api.put).mockResolvedValue({ data: { data: { budget: { id: '1' } } }, status: 200, statusText: 'OK', headers: {}, config: {} } as any);
-    await updateBudget('1', { limit: 20000 });
-    expect(api.put).toHaveBeenCalledWith('/finops/budgets/1', { limit: 20000 });
+    await updateBudget('1', { amount: 20000 });
+    expect(api.put).toHaveBeenCalledWith('/finops/budgets/1', { amount: 20000 });
   });
 
   it('should delete budget', async () => {

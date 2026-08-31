@@ -6,13 +6,13 @@ import { api } from '../client';
 vi.mock('../client', () => ({ api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn(), patch: vi.fn() } }));
 
 describe('Workflow API', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('should list workflows', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: { data: [] }, status: 200, statusText: 'OK', headers: {}, config: {} } as any);
     await getWorkflowList({ status: 'active' });
     expect(api.get).toHaveBeenCalled();
-    expect(api.get.mock.calls[0][0]).toMatch(/^\/workflows(\?|$)/);
+    expect(vi.mocked(api.get).mock.calls[0][0]).toMatch(/^\/workflows(\?|$)/);
   });
 
   it('should get workflow by id', async () => {

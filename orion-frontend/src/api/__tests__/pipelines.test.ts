@@ -5,7 +5,7 @@ import { api } from '../client';
 vi.mock('../client', () => ({ api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn(), patch: vi.fn() } }));
 
 describe('Pipelines API', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => { vi.clearAllMocks(); });
 
   it('should list pipelines', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: { data: [] }, status: 200, statusText: 'OK', headers: {}, config: {} } as any);
@@ -21,14 +21,16 @@ describe('Pipelines API', () => {
 
   it('should create pipeline', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { data: { id: '1' } }, status: 201, statusText: 'Created', headers: {}, config: {} } as any);
-    await createPipeline({ name: 'build', status: 'active' });
-    expect(api.post).toHaveBeenCalledWith('/pipelines', { name: 'build', status: 'active' });
+    // CreatePipelineInput 要求 version + yamlDefinition，没有 status 字段
+    await createPipeline({ name: 'build', version: '1.0', yamlDefinition: 'stages: []' });
+    expect(api.post).toHaveBeenCalledWith('/pipelines', { name: 'build', version: '1.0', yamlDefinition: 'stages: []' });
   });
 
   it('should update pipeline', async () => {
     vi.mocked(api.put).mockResolvedValue({ data: { data: { id: '1' } }, status: 200, statusText: 'OK', headers: {}, config: {} } as any);
-    await updatePipeline('1', { name: 'updated' });
-    expect(api.put).toHaveBeenCalledWith('/pipelines/1', { name: 'updated' });
+    // UpdatePipelineInput 不可改 name（标识符），只能改 yamlDefinition/description/status
+    await updatePipeline('1', { description: 'updated' });
+    expect(api.put).toHaveBeenCalledWith('/pipelines/1', { description: 'updated' });
   });
 
   it('should delete pipeline', async () => {
