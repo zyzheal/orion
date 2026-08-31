@@ -132,7 +132,7 @@
 | **P2-13** | 修复 17 个遗留失败测试文件 | ✅ 完成 | 基线 17 failed / 55 用例。Batch AB 修 6 文件 / 31 用例（datasource 11 + AgentDashboard 8 + SbomDashboard 3 + Login 1 + NotificationRules 4 + CronManagement 3 + 13 API 测试 `beforeEach` 类型修正）；Batch AC 再修 11 文件 / 26 用例（Form 2 + Login 2 + ApiKey 3 + Webhook 3 + ProductLine 3 + Console 6 + InternalLibrary 1 + Projects 2 + DashboardNew 2 + RiskDashboard 1 + CMDB 1）。**当前 0 失败** | 2-3 天 |
 | ~~**P2-14** | 迁移剩余 5 个内联 fetch 页面 | Batch Y 盘点 | `dba/AuditRule`、`federation/Workspace`、`MCPManagement`、`PromptCanary`、`security/CodeScan`（共 10 处 `API_BASE_URL`）。经核实当时的未提交 diff 每文件仅 2 行，是同一任务链"硬编码 /api/v1 → API_BASE_URL"的前置半步，非他人成果，已一并收口。迁后 `src/pages` 下 `API_BASE_URL` 引用数归零 | ✅ 2026-08-26 |
 | ~~**P2-15** | 修复 `localStorage.getItem('token')` 键错误 | Batch Z 发现 | `authStore` 的真实键是 **`access_token`**（`TOKEN_KEY`），而 15 个页面的裸 fetch 全在读 `token`——`grep "setItem('token'" src` **0 处**，即 `|| ''` 兜底一直在生效，**这些页面的请求一直带空 Bearer token**。已随 P2-10~14 迁移自动修复（拦截器改走 `authStore.getToken()`）。残留 2 处已改键名：`CMDB/WebTerminalPage.tsx`（WS auth 消息此前恒不发送，真 bug）、`hooks/usePermission.ts`（保留裸 fetch，避免权限引导触发全局 toast）。全仓库 `getItem('token'` 现为 **0 处** | ✅ 2026-08-26 |
-| **P2-16** | 评估 `stores/subappStore.ts` 的 `fetchApi` 迁移 | Batch Z 盘点 | 与 P2-15 相反，这里的键是 `access_token`（**正确**）。但返回体未解包（`return data as T`，调用方再判 `response.success`），迁到 `api.*` 会连带改所有调用点。另：SubAppRoute×3 / usePipelineSSE / web-vitals 已判定**不可迁**（需 URL 字符串或 sendBeacon，与 axios 语义冲突） | 0.5-1 天 |
+| **P2-16** | 评估 `stores/subappStore.ts` 的 `fetchApi` 迁移 | ✅ **评估完成** | `fetchApi<T>` 为文件内私有函数（未 export），5 个外部 importer（`microfront/apps`、`SubAppLauncher`、`SubAppRouteDynamic`、`Layout`、`SubAppManagement`）全部经 store action 方法调用，**迁移范围完全内含于 subappStore.ts 单一文件，调用方零改动**。7 个 API 调用点（GET×3 / POST / PUT×2 / DELETE）迁到 `api.get/post/put/delete` 后，拦截器已自动解包 `{success,data}` 信封，store 内部从 `response.success && response.data` 简化为 `res.data` 直接取用。`access_token` 键与 `authStore.getToken()` 一致（正确）。`auth.ts` 另用 `orion_access_token` 前缀键——**不一致，属既有 bug，与本次迁移无关**。SubAppRoute×3 / usePipelineSSE / web-vitals 已判定**不可迁**（URL 字符串 / sendBeacon 与 axios 语义冲突）。前置依赖：`src/api/client.ts` 的 `API_BASE_URL` export + `src/stores/subappStore.ts` 的 `API_BASE_URL` import 两项并发 diff **未提交**，待前序 PR merge 后方可实施迁移。 | 0.5-1 天 |
 | **P2-11** | wired.go / router.go 拆分 | 三域分析 | wiring.go 792 行 + router.go 1160 行，入口文件膨胀（文件名应为 `wiring.go`，此前误写 wired.go） | 1-2 天 |
 
 | ~~**G5** | AES 分块 AEAD（chunked，消除整文件读内存） | Phase 7 计划 | ~~`crypto.go` `EncryptFile`/`DecryptFile` 改造为分块 AEAD（`ORCH` magic + v1 版本头 + nonce per chunk + AAD=块索引防重排，1 MiB/块流式）；`DecryptFile` magic sniff 兼容 legacy v0（`EncryptBytes/DecryptBytes` 保持 v0 字节语义）；`crypto_test.go` 新增 8 用例：往返/多块大文件(>8MiB)/篡改任一帧失败/截断失败/重排帧失败/v0 兼容/空 key/格式头断言；执行器加密往返测试沿用通过~~ | ✅ **完成 2026-08-31** |
@@ -191,7 +191,7 @@
 
 | # | 任务 | 工作量 |
 |---|------|--------|
-| P2-1~16 | 全部 P2 项（P2-13 ✅ 完成（17/17 文件、55/55 用例）、P2-14 ✅、P2-15 ✅、P2-16 subappStore 评估 0.5-1 天） | 16.5-27.5 天 |
+| P2-1~16 | 全部 P2 项（P2-13 ✅、P2-14 ✅、P2-15 ✅、P2-16 ✅ 评估完成——迁移内含单文件，调用方零改动，待并发 PR merge 后实施） | 16.5-27.5 天 |
 
 ### 总计: ~25.5-47.5 天
 
