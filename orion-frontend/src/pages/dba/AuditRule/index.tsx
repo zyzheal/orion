@@ -3,6 +3,7 @@
  * SQL audit rules: pattern matching, severity, enable/disable, CRUD with React Query optimistic updates
  */
 import React, { useState, useEffect } from 'react';
+import { api } from '@/api/client';
 import { useQuery, useMutation, useQueryClient } from '@/providers/QueryProvider';
 import {
   Typography,
@@ -57,22 +58,25 @@ const severityConfig: Record<Severity, { label: string; color: string }> = {
   critical: { label: '严重', color: 'red' },
 };
 
+// 委托 axios 实例（src/api/client.ts）：请求拦截器注入 authStore token 并支持
+// 401 自动刷新重放，响应拦截器统一解包 { success, data }，另带重试与请求取消注册。
+// 保留原有 fetch 风格签名与"失败抛出 Error(message)"语义，调用方 catch 无需修改。
 async function apiCall<T>(path: string, options?: RequestInit): Promise<T> {
-  const resp = await fetch(`/api/v1/dba${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
-      ...options?.headers,
-    },
-  });
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    const msg = err.message || err.error?.message || err.error?.Message || `HTTP ${resp.status}`;
-    throw new Error(msg);
+  const method = (options?.method ?? 'GET').toUpperCase();
+  const data = typeof options?.body === 'string' ? JSON.parse(options.body) : undefined;
+  const url = `/dba${path}`;
+  try {
+    const resp = method === 'POST' ? await api.post<unknown>(url, data)
+      : method === 'PUT' ? await api.put<unknown>(url, data)
+      : method === 'PATCH' ? await api.patch<unknown>(url, data)
+      : method === 'DELETE' ? await api.delete<unknown>(url)
+      : await api.get<unknown>(url);
+    return resp.data as T;
+  } catch (err) {
+    const ax = err as { message?: string; response?: { status: number; data?: { error?: string; message?: string; Message?: string } } };
+    const body = ax.response?.data;
+    throw new Error(body?.error || body?.message || body?.Message || ax.message || (ax.response ? `HTTP ${ax.response.status}` : '网络请求失败'));
   }
-  const json = await resp.json();
-  return (json.data || json) as T;
 }
 
 const AuditRulePage: React.FC = () => {

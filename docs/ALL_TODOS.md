@@ -107,14 +107,14 @@
 | **P1-8** | 后端响应格式统一 | merged-action-items | 436 个文件含 gin.H，188 个文件含 RespondSuccess (handler层 276/184) | 5-8 天 |
 | **P1-9** | 三域补全 (ITSM/CI-CD/CMDB) | 三域深度分析 | ITSM: sla-engine(0方法)/Release/ServiceCatalog; CI/CD: Trigger/pipeline-run-history; CMDB: Drift Detection | 合计 10-15 天 |
 
-| **G3** | Oracle/DB2/SQL Server 三引擎 Executor | Phase 7 计划 | `OracleExecutor`（archivelog + rman/expdp）/ `DB2Executor`（redo log）/ `SQLServerExecutor`（log_backup + `RESTORE DATABASE ... WITH RECOVERY`）注册进 `NewRegistry`；每引擎 Backup/Restore 覆盖 env 连接、SHA256、Encrypt/Decrypt、RTO/RPO；DB 变更命令默认注释；`executor.go:135-141` `IsSupported` 扩展至 6 引擎 | 4-6 天 |
+| ~~**G3** | Oracle/DB2/SQL Server 三引擎 Executor | Phase 7 计划 | ~~`OracleExecutor`（archivelog + rman/expdp）/ `DB2Executor`（redo log）/ `SQLServerExecutor`（log_backup + `RESTORE DATABASE ... WITH RECOVERY`）注册进 `NewRegistry`；每引擎 Backup/Restore 覆盖 env 连接、SHA256、Encrypt/Decrypt、RTO/RPO；DB 变更命令默认注释；`executor.go` `IsSupported` 扩展至 6 引擎~~ | ✅ **完成 2026-08-31** |
 | **G4** | OceanBase clog PITR 实现 | Phase 7 计划 | `oceanbase.go:163-165` 当前仅注释占位；设计文档先行（sys tenant + oblogminer 回放链路），`OBCLogExecutor`/扩展 `OceanBaseExecutor` 列 clog 归档、按目标时间回放、恢复后探活 | 3-4 天 |
 
-**P1 合计工作量**: 22-35 天（P1-1~P1-7 已完成，剩余 P1-8/P1-9 + G3/G4）
+**P1 合计工作量**: 22-35 天（P1-1~P1-7 已完成，剩余 P1-8/P1-9 + G4）
 
 ---
 
-## 五、待处理 — P2 技术债务 (18 项, 含 G8=P3 低优先)
+## 五、待处理 — P2 技术债务 (20 项, 含 G8=P3 低优先)
 
 | # | 任务 | 来源 | 详细说明 | 工作量 |
 |---|------|------|---------|--------|
@@ -130,7 +130,9 @@
 | **P2-10** | 安装 @tanstack/react-query | merged-action-items | ✅ 已安装；**但"11/11"仅指自行圈定的 11 个文件**。真实盘点：467 个页面组件中仅 24 个使用 react-query。附带修复：该批次曾静默删除 10 个页面约 20 处加载失败提示（Batch X 已恢复），并遗留 9 处 TS 错误 + 弄坏 2 个测试文件（已修） | ⚠️ 部分完成，见 P2-12 |
 | **P2-12** | 剩余 308 个页面 react-query 迁移 | Batch X 盘点 | `useEffect + useState(setLoading)` 手动加载模式仍占 308 个页面（467 总页面的 66%）。**前置约束**：本仓库 `@tanstack/query-core@5.101.4` 的 `QueryObserver` 未实现 observer 级回调，`useQuery` 的 `onError/onSuccess` 是**静默 no-op**（`useMutation` 正常）。必须用 `isError + useEffect` 呈现错误反馈，否则每个页面都会丢失加载失败提示。见 `src/providers/QueryProvider.tsx` 顶部注释 | 10-15 天 |
 | **P2-13** | 修复 17 个遗留失败测试文件 | Batch Y 全量基线 | 从 `orion-frontend/` 建立的有效基线：`17 failed \| 304 passed (321)` 文件、`55 failed \| 1115 passed` 用例。已知样例：`api/__tests__/datasource.test.ts` 11/11、`AgentDashboard` 8/9、`pages/__tests__/SbomDashboard.test.tsx` 3/3、`NotificationRules`、`CronManagement`、`Form`、`Login`。注：SbomDashboard 的 `Cannot find package '@/components/charts'` 是路径解析问题，`src/components/charts` **目录实际存在** | 2-3 天 |
-| **P2-14** | 迁移剩余 5 个内联 fetch 页面 | Batch Y 盘点 | `dba/AuditRule`、`federation/Workspace`、`MCPManagement`、`PromptCanary`、`security/CodeScan`（共 10 处 `API_BASE_URL`）因当时有并发未提交修改而跳过。迁到 `api.*` 可获得 401 自动刷新重放、统一解包、统一错误提示、重试、请求取消。**注意**：这 5 个文件是 react-query 迁移的"半成品"——已在 useQuery 里，但 queryFn 仍是裸 fetch | 0.5 天 |
+| ~~**P2-14** | 迁移剩余 5 个内联 fetch 页面 | Batch Y 盘点 | `dba/AuditRule`、`federation/Workspace`、`MCPManagement`、`PromptCanary`、`security/CodeScan`（共 10 处 `API_BASE_URL`）。经核实当时的未提交 diff 每文件仅 2 行，是同一任务链"硬编码 /api/v1 → API_BASE_URL"的前置半步，非他人成果，已一并收口。迁后 `src/pages` 下 `API_BASE_URL` 引用数归零 | ✅ 2026-08-26 |
+| **P2-15** | 修复 `localStorage.getItem('token')` 键错误 | Batch Z 发现 | `authStore` 的真实键是 **`access_token`**（`TOKEN_KEY`），而 15 个页面的裸 fetch 全在读 `token`——`grep "setItem('token'" src` **0 处**，即 `|| ''` 兜底一直在生效，**这些页面的请求一直带空 Bearer token**。已随 P2-10~14 迁移自动修复（拦截器改走 `authStore.getToken()`）。**残留 2 处**：`hooks/usePermission.ts:184`（权限引导，改走 api.* 会让后端抖动时全局 toast 刷屏，且需适配 `{success,data}` 解包——需先权衡）、`pages/CMDB/WebTerminalPage.tsx:191`（WS 首条 auth 消息，改 `access_token` 即可，一行） | 0.5 天 |
+| **P2-16** | 评估 `stores/subappStore.ts` 的 `fetchApi` 迁移 | Batch Z 盘点 | 与 P2-15 相反，这里的键是 `access_token`（**正确**）。但返回体未解包（`return data as T`，调用方再判 `response.success`），迁到 `api.*` 会连带改所有调用点。另：SubAppRoute×3 / usePipelineSSE / web-vitals 已判定**不可迁**（需 URL 字符串或 sendBeacon，与 axios 语义冲突） | 0.5-1 天 |
 | **P2-11** | wired.go / router.go 拆分 | 三域分析 | wiring.go 792 行 + router.go 1160 行，入口文件膨胀（文件名应为 `wiring.go`，此前误写 wired.go） | 1-2 天 |
 
 | **G5** | AES 分块 AEAD（chunked，消除整文件读内存） | Phase 7 计划 | `crypto.go:22-24` `EncryptFile`/`DecryptFile` 改造为分块 AEAD（nonce per chunk / 流式 GCM）；版本头 + 格式版本字段向后兼容；单测：>内存大小文件往返一致 + 篡改任一 chunk 校验失败 | 2-3 天 |
@@ -189,9 +191,9 @@
 
 | # | 任务 | 工作量 |
 |---|------|--------|
-| P2-1~14 | 全部 P2 项（P2-13 修复遗留失败测试 2-3 天、P2-14 剩余 5 页面 fetch 迁移 0.5 天） | 17-27.5 天 |
+| P2-1~16 | 全部 P2 项（P2-13 修复遗留失败测试 2-3 天、P2-14 剩余 5 页面 fetch 迁移 0.5 天 ✅、P2-15 token 键修复 0.5 天、P2-16 subappStore 评估 0.5-1 天） | 17.5-28.5 天 |
 
-### 总计: ~26-47.5 天
+### 总计: ~26.5-48.5 天
 
 ---
 

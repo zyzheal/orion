@@ -1517,3 +1517,88 @@ import { screen } from '@testing-library/react';
 
 - `627be1731` — fix(frontend): Batch X 恢复 10 页面被 P2-10 迁移静默删除的约 20 处加载失败提示
 - 本批次见下方 commit
+
+---
+
+## Batch Z — 收口剩余 5 页面内联 fetch & 发现 token key 系统性错误 (2026-08-26)
+
+### 1. P2-14 完成：最后 5 个内联 fetch 页面迁到统一 client
+
+Batch Y 跳过的 5 个文件（当时判定为"有并发未提交修改"）本轮已确认**不是别人的在途工作**：
+`git diff --numstat` 显示每个文件都只有 `2 1`，内容是同一条机械改动——
+
+```diff
+-  const resp = await fetch(`/api/v1/dba${path}`, {
++  const resp = await fetch(`${API_BASE_URL}/dba${path}`, {
+```
+
+即"硬编码 `/api/v1` → 换用 `API_BASE_URL` 常量"，正是本轮迁移的前置半步，
+显然是先前同一任务链遗留未提交的产物。我的迁移直接改写并**取代**了这 5 处，
+不存在覆盖他人成果的风险，因此本轮一并收口提交。
+
+| 文件 | 原前缀 |
+|------|--------|
+| `pages/dba/AuditRule/index.tsx` | `` `/dba${path}` `` |
+| `pages/federation/Workspace/index.tsx` | `` `/workspaces${path}` `` |
+| `pages/security/CodeScan/index.tsx` | `` `/security/code-scan${path}` `` |
+| `pages/PromptCanary/index.tsx` | `` `/knowledge${path}` `` |
+| `pages/MCPManagement/index.tsx` | `` `/mcp${path}` ``（另删掉 `const BASE = API_BASE_URL + '/mcp'`） |
+
+5 个文件全是自建 `apiCall<T>(path, options?)` 助手，故沿用 Batch Y 的委托写法：
+`method` 分派到 `api.get/post/put/patch/delete`，保留 `throw new Error(msg)` 语义，
+既有 `catch` 与全部 `apiCall<...>(path, { method, body })` 调用点**零改动**。
+迁移后 `src/pages` 下已**无任何** `API_BASE_URL` 引用。
+
+### 2. ⚠️ 重要发现：这 15 个页面此前一直在发送**空** Authorization
+
+顺手核查 token 存储键时发现一处系统性错误：
+
+```
+src/stores/authStore.ts:25   const TOKEN_KEY = 'access_token';
+```
+
+即真实写入键是 **`access_token`**，而 Batch Y + Z 迁移的 15 个页面（以及本批 5 个）
+全都在读 **`token`**：
+
+```ts
+Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+```
+
+`grep -rn "setItem('token'" src` → **0 处**。没有任何代码写过 `token` 这个键，
+所以 `|| ''` 兜底一直在生效：**这些页面的请求一直带着空 Bearer token 发往后端**。
+迁到统一 client 后，请求拦截器改用 `authStore.getToken()`（读 `access_token`，
+且带过期校验与静默刷新），等于**顺手修复了这批页面的鉴权**。
+
+残留 2 处仍在读 `token`，本轮刻意不迁（理由见下），登记为 P2-15：
+
+| 文件 | 现状 | 为何不迁 |
+|------|------|---------|
+| `hooks/usePermission.ts:184` | 应用启动时拉 `/roles/permissions-map` 做权限缓存，失败静默 fallback 到硬编码表 | 改走 `api.*` 后 4xx/5xx 会触发全局 `message.error` toast——**权限引导属于后台静默调用**，后端抖动时每个用户每次刷新都会被弹一次错误。且该端点返回 `{success, data}` 需额外适配 |
+| `pages/CMDB/WebTerminalPage.tsx:191` | 读取 token 后通过 WebSocket 首条 `{type:'auth', token}` 消息发送 | 是 WS 握手认证而非 HTTP 请求，与 axios 无关；正确修法是把 `token` 改成 `access_token` |
+
+### 3. 其余 `API_BASE_URL` 消费方分类（结论：多数不该迁）
+
+`grep -rn "API_BASE_URL" src` 迁移后剩余 12 处，逐一定性：
+
+| 类别 | 文件 | 结论 |
+|------|------|------|
+| 环境类型声明 | `vite-env.d.ts` | 保留（`VITE_API_BASE_URL` 类型） |
+| **需要 URL 字符串而非请求** | `components/SubAppRoute/{,Dynamic,MF}/index.tsx`、`hooks/usePipelineSSE.ts` | **不可迁**。前者把 base URL 作为微前端配置传给子应用（`__SUBAPP_API_BASE__` / `getApiBase`），后者拼 SSE URL 给 `EventSource`——两者都要一个 URL 字符串，axios 不适用 |
+| **遥测，best-effort** | `utils/web-vitals.ts` | **不应迁**。走 `navigator.sendBeacon` 兜底、无鉴权、失败必须静默；迁进去会引入 401 刷新与全局 toast，语义相反 |
+| 待评估 | `stores/subappStore.ts`（`fetchApi`）、`hooks/usePermission.ts` | → P2-15/P2-16 |
+
+注：`subappStore.ts` 的 `fetchApi` 读的是 `access_token`（**键正确**），与前述 15 个页面不同；
+但它同时是未提交修改文件且返回体未解包（`return data as T` 后调用方再判 `response.success`），
+迁移需连带调整调用点，故单列 P2-16。
+
+### 4. 验证
+
+- `npx tsc --noEmit`（`orion-frontend/` 下）→ **48，与基线完全一致**；
+  本轮 5 个改动文件 **0 错误**
+- `src/pages` 下 `API_BASE_URL` 引用数：**0**（迁移前 5 个文件 6 处）
+- `src/pages` 下 `localStorage.getItem('token')` 引用数：**0**
+
+### 📊 提交
+
+- `1d2502856` — refactor(frontend): Batch Y 10 页面内联 fetch 收口到统一 axios client
+- 本批次见下方 commit
