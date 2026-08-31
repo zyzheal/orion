@@ -181,7 +181,10 @@ async function fetchPermissionsMap(): Promise<Record<string, string[]>> {
     try {
       const resp = await fetch(`${API_BASE_URL}/roles/permissions-map`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+          // 键名修正：真实键是 access_token（authStore TOKEN_KEY），'token' 从未被写入，
+          // 旧代码下 Bearer 一直是空的。此处刻意继续用裸 fetch 而非 api.* ——
+          // 权限引导是后台静默调用，失败必须 fallback 到硬编码表，不能触发全局 toast。
+          Authorization: `Bearer ${localStorage.getItem('access_token') || ''}`,
           'x-tenant-id': localStorage.getItem('tenant_id') || '',
         },
       });

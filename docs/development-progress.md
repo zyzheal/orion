@@ -1602,3 +1602,37 @@ Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
 
 - `1d2502856` — refactor(frontend): Batch Y 10 页面内联 fetch 收口到统一 axios client
 - 本批次见下方 commit
+
+---
+
+## Batch AA — 修复残留 2 处 `localStorage.getItem('token')` 键错误 (2026-08-26)
+
+Batch Z 发现的系统性 token 键错误（真实键 `access_token`，无人写过 `token`）的
+最后 2 处残留，本轮按"最小改动、保留原语义"处理：
+
+| 文件 | 改动 | 为何不用 `api.*` |
+|------|------|-----------------|
+| `pages/CMDB/WebTerminalPage.tsx:191` | `getItem('token')` → `getItem('access_token')` | WS 握手认证，与 axios 无关。**这处是真 bug**：旧代码 `if (token)` 恒为 false，WS **从未发送过** `{type:'auth', token}` 消息 |
+| `hooks/usePermission.ts:184` | `getItem('token')` → `getItem('access_token')` | 保留裸 fetch。权限引导是应用启动期的后台静默调用，失败必须 fallback 到 `ROLE_PERMISSIONS_FALLBACK`；改走 `api.*` 会让后端抖动时每个用户每次刷新都被全局 `message.error` 刷屏 |
+
+两处都补了注释说明键名由来与取舍理由，避免下一位"顺手"改回去或改错方向。
+
+**验证**：`grep -rn "getItem('token'" src` → **0 处**（全仓库已无该错误键）；
+`npx tsc --noEmit`（`orion-frontend/` 下）→ **48，基线不变**，2 个改动文件 0 错误。
+
+### ⚠️ 工具陷阱记录：Bash 的 CWD 在调用间不稳定
+
+本轮踩到一个新陷阱：`npx tsc --noEmit` 一度返回 **exit=0 / 0 错误**，与 48 的基线矛盾。
+排查发现 **Bash 工具每次调用的工作目录并不稳定**——有时落在仓库根
+`/Users/heal/orion-design`（那里有自己的 tsconfig，是 Node/TS 工具包，
+`npx tsc` 会静默通过、报 0 错误），有时落在 `orion-frontend`。
+
+判定方法：在同一命令里 `pwd` 一并打印，或先跑一条只读探针
+（如 `grep -n "TokenPath" src/tokens/useOrionToken.ts`）——若在仓库根会报
+`No such file or directory`。**结论：所有 tsc / vitest 命令都必须显式
+`cd /Users/heal/orion-design/orion-frontend &&` 前缀**，不能依赖 CWD 继承。
+
+### 📊 提交
+
+- `3834a0725` — refactor(frontend): Batch Z 收口最后 5 页面内联 fetch, 发现 token 键系统性错误
+- 本批次见下方 commit

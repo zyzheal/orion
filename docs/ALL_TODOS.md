@@ -108,9 +108,9 @@
 | **P1-9** | 三域补全 (ITSM/CI-CD/CMDB) | 三域深度分析 | ITSM: sla-engine(0方法)/Release/ServiceCatalog; CI/CD: Trigger/pipeline-run-history; CMDB: Drift Detection | 合计 10-15 天 |
 
 | ~~**G3** | Oracle/DB2/SQL Server 三引擎 Executor | Phase 7 计划 | ~~`OracleExecutor`（archivelog + rman/expdp）/ `DB2Executor`（redo log）/ `SQLServerExecutor`（log_backup + `RESTORE DATABASE ... WITH RECOVERY`）注册进 `NewRegistry`；每引擎 Backup/Restore 覆盖 env 连接、SHA256、Encrypt/Decrypt、RTO/RPO；DB 变更命令默认注释；`executor.go` `IsSupported` 扩展至 6 引擎~~ | ✅ **完成 2026-08-31** |
-| **G4** | OceanBase clog PITR 实现 | Phase 7 计划 | `oceanbase.go:163-165` 当前仅注释占位；设计文档先行（sys tenant + oblogminer 回放链路），`OBCLogExecutor`/扩展 `OceanBaseExecutor` 列 clog 归档、按目标时间回放、恢复后探活 | 3-4 天 |
+| ~~**G4** | OceanBase clog PITR 实现 | Phase 7 计划 | ~~设计文档 (`docs/oceanbase-clog-pitr-design-2026-08-31.md` D1-D5)；新建 `OBCLogExecutor` (`executor/obclog_pitr.go`：`PrepareOBCLogRecoveryPlan` stat+SHA256 clog 段、manifest 0o600/runbook 0o700/`ManifestSHA256`、runbook-first 安全默认——`ALTER SYSTEM ARCHIVELOG`/oblogminer 回放/`ALTER SYSTEM RESTORE` 均 `#` 注释，sha256sum 校验/`SHOW TENANT`/`SELECT 1` 默认运行、`OB_PASSWORD` env-only)；`common.go` 注册 `oblogminer`/`ob_client` 二进制路径；`OceanBaseExecutor.Restore` PITR 分支（`TargetTime`+`ArchivePaths`+`TenantName=="sys"`）委托 OBC 路径并填充 `ScriptPath`/`ManifestPath`/`ArchReplayed`/`ArchSizes`；`obclog_pitr_test.go` 20 单测（必填校验/sys tenant/上下文取消/runbook 注释断言/权限/接线），`go build ./...` + `go test -count=1 ./...` 0 FAIL~~ | ✅ **完成 2026-08-31** |
 
-**P1 合计工作量**: 22-35 天（P1-1~P1-7 已完成，剩余 P1-8/P1-9 + G4）
+**P1 合计工作量**: 22-35 天（P1-1~P1-7 + G4 已完成，剩余 P1-8/P1-9）
 
 ---
 
@@ -131,7 +131,7 @@
 | **P2-12** | 剩余 308 个页面 react-query 迁移 | Batch X 盘点 | `useEffect + useState(setLoading)` 手动加载模式仍占 308 个页面（467 总页面的 66%）。**前置约束**：本仓库 `@tanstack/query-core@5.101.4` 的 `QueryObserver` 未实现 observer 级回调，`useQuery` 的 `onError/onSuccess` 是**静默 no-op**（`useMutation` 正常）。必须用 `isError + useEffect` 呈现错误反馈，否则每个页面都会丢失加载失败提示。见 `src/providers/QueryProvider.tsx` 顶部注释 | 10-15 天 |
 | **P2-13** | 修复 17 个遗留失败测试文件 | Batch Y 全量基线 | 从 `orion-frontend/` 建立的有效基线：`17 failed \| 304 passed (321)` 文件、`55 failed \| 1115 passed` 用例。已知样例：`api/__tests__/datasource.test.ts` 11/11、`AgentDashboard` 8/9、`pages/__tests__/SbomDashboard.test.tsx` 3/3、`NotificationRules`、`CronManagement`、`Form`、`Login`。注：SbomDashboard 的 `Cannot find package '@/components/charts'` 是路径解析问题，`src/components/charts` **目录实际存在** | 2-3 天 |
 | ~~**P2-14** | 迁移剩余 5 个内联 fetch 页面 | Batch Y 盘点 | `dba/AuditRule`、`federation/Workspace`、`MCPManagement`、`PromptCanary`、`security/CodeScan`（共 10 处 `API_BASE_URL`）。经核实当时的未提交 diff 每文件仅 2 行，是同一任务链"硬编码 /api/v1 → API_BASE_URL"的前置半步，非他人成果，已一并收口。迁后 `src/pages` 下 `API_BASE_URL` 引用数归零 | ✅ 2026-08-26 |
-| **P2-15** | 修复 `localStorage.getItem('token')` 键错误 | Batch Z 发现 | `authStore` 的真实键是 **`access_token`**（`TOKEN_KEY`），而 15 个页面的裸 fetch 全在读 `token`——`grep "setItem('token'" src` **0 处**，即 `|| ''` 兜底一直在生效，**这些页面的请求一直带空 Bearer token**。已随 P2-10~14 迁移自动修复（拦截器改走 `authStore.getToken()`）。**残留 2 处**：`hooks/usePermission.ts:184`（权限引导，改走 api.* 会让后端抖动时全局 toast 刷屏，且需适配 `{success,data}` 解包——需先权衡）、`pages/CMDB/WebTerminalPage.tsx:191`（WS 首条 auth 消息，改 `access_token` 即可，一行） | 0.5 天 |
+| ~~**P2-15** | 修复 `localStorage.getItem('token')` 键错误 | Batch Z 发现 | `authStore` 的真实键是 **`access_token`**（`TOKEN_KEY`），而 15 个页面的裸 fetch 全在读 `token`——`grep "setItem('token'" src` **0 处**，即 `|| ''` 兜底一直在生效，**这些页面的请求一直带空 Bearer token**。已随 P2-10~14 迁移自动修复（拦截器改走 `authStore.getToken()`）。残留 2 处已改键名：`CMDB/WebTerminalPage.tsx`（WS auth 消息此前恒不发送，真 bug）、`hooks/usePermission.ts`（保留裸 fetch，避免权限引导触发全局 toast）。全仓库 `getItem('token'` 现为 **0 处** | ✅ 2026-08-26 |
 | **P2-16** | 评估 `stores/subappStore.ts` 的 `fetchApi` 迁移 | Batch Z 盘点 | 与 P2-15 相反，这里的键是 `access_token`（**正确**）。但返回体未解包（`return data as T`，调用方再判 `response.success`），迁到 `api.*` 会连带改所有调用点。另：SubAppRoute×3 / usePipelineSSE / web-vitals 已判定**不可迁**（需 URL 字符串或 sendBeacon，与 axios 语义冲突） | 0.5-1 天 |
 | **P2-11** | wired.go / router.go 拆分 | 三域分析 | wiring.go 792 行 + router.go 1160 行，入口文件膨胀（文件名应为 `wiring.go`，此前误写 wired.go） | 1-2 天 |
 
@@ -191,9 +191,9 @@
 
 | # | 任务 | 工作量 |
 |---|------|--------|
-| P2-1~16 | 全部 P2 项（P2-13 修复遗留失败测试 2-3 天、P2-14 剩余 5 页面 fetch 迁移 0.5 天 ✅、P2-15 token 键修复 0.5 天、P2-16 subappStore 评估 0.5-1 天） | 17.5-28.5 天 |
+| P2-1~16 | 全部 P2 项（P2-13 修复遗留失败测试 2-3 天、P2-14 剩余 5 页面 fetch 迁移 0.5 天 ✅、P2-15 token 键修复 0.5 天 ✅、P2-16 subappStore 评估 0.5-1 天） | 16.5-27.5 天 |
 
-### 总计: ~26.5-48.5 天
+### 总计: ~25.5-47.5 天
 
 ---
 

@@ -188,7 +188,9 @@ const WebTerminalPage: React.FC = () => {
 
       ws.onopen = () => {
         // 发送认证消息
-        const token = localStorage.getItem('token');
+        // 键名修正：真实键是 access_token（authStore TOKEN_KEY），'token' 从未被写入，
+        // 旧代码下 if (token) 恒为 false，WS 从未发送过 auth 消息
+        const token = localStorage.getItem('access_token');
         if (token) {
           ws.send(JSON.stringify({ type: 'auth', token }));
         }
