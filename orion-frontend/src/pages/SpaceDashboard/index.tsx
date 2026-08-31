@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { API_BASE_URL } from '@/api/client';
+import { api } from '@/api/client';
 import { useQuery } from '@/providers/QueryProvider';
 import { Typography, Card, Row, Col, Statistic, Progress, Table, Tag, Space, Select, Button } from 'antd';
 import {
@@ -37,15 +37,12 @@ const SPACE_CONFIG: Record<SpaceMetric, { label: string; icon: React.ReactNode; 
 
 async function fetchSpaceData(period: string): Promise<SpaceData> {
   try {
-    const resp = await fetch(`${API_BASE_URL}/space-metrics?period=${period}`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
-    });
-    if (!resp.ok) return getFallbackData();
-    const json = await resp.json();
-    return json.data || getFallbackData();
+    const resp = await api.get<SpaceData>('/space-metrics', { params: { period } });
+    if (resp.data && typeof resp.data === 'object') return resp.data;
   } catch {
     return getFallbackData();
   }
+  return getFallbackData();
 }
 
 function getFallbackData(): SpaceData {

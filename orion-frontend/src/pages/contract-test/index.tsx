@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { API_BASE_URL } from '@/api/client';
+import { api } from '@/api/client';
 import { useQuery } from '@/providers/QueryProvider';
 import { Typography, Card, Row, Col, Tag, Button, Space, Table, Statistic, Alert, Modal, List, Empty, Descriptions } from 'antd';
 import { FileProtectOutlined, CheckCircleOutlined, CloseCircleOutlined, SyncOutlined, CodeOutlined, ApiOutlined, ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons';
@@ -34,10 +34,8 @@ const ContractTestPage: React.FC = () => {
     queryKey: ['contract-test/contracts'],
     queryFn: async () => {
       try {
-        const resp = await fetch(`${API_BASE_URL}/contract-test/contracts`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
-        });
-        if (resp.ok) { const json = await resp.json(); if (json.data) return json.data; }
+        const resp = await api.get<Contract[]>('/contract-test/contracts');
+        if (Array.isArray(resp.data)) return resp.data;
       } catch { /* fallback */ }
       return FALLBACK_CONTRACTS;
     },
@@ -57,11 +55,10 @@ const ContractTestPage: React.FC = () => {
   const handleVerify = async (c: Contract) => {
     setVerifying(true);
     try {
-      const resp = await fetch(`${API_BASE_URL}/contract-test/verify?consumer=${c.consumer}&provider=${c.provider}&endpoint=${encodeURIComponent(c.endpoint)}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+      await api.post('/contract-test/verify', undefined, {
+        params: { consumer: c.consumer, provider: c.provider, endpoint: c.endpoint },
       });
-      if (resp.ok) { load(); }
+      load();
     } catch { /* fallback */ }
     finally { setVerifying(false); }
   };

@@ -3,7 +3,7 @@
  * Browse, search, fork and apply reusable pipeline templates
  */
 import React, { useState } from 'react';
-import { API_BASE_URL } from '@/api/client';
+import { api } from '@/api/client';
 import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
@@ -61,18 +61,15 @@ const FALLBACK_TEMPLATES: Template[] = [
 
 async function fetchTemplates(category: string, q: string): Promise<Template[]> {
   try {
-    const params = new URLSearchParams();
-    if (category !== 'all') params.set('category', category);
-    if (q) params.set('q', q);
-    const resp = await fetch(`${API_BASE_URL}/pipeline-templates?${params.toString()}`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
-    });
-    if (!resp.ok) return FALLBACK_TEMPLATES;
-    const json = await resp.json();
-    return json.data || FALLBACK_TEMPLATES;
+    const params: Record<string, string> = {};
+    if (category !== 'all') params.category = category;
+    if (q) params.q = q;
+    const resp = await api.get<Template[]>('/pipeline-templates', { params });
+    if (Array.isArray(resp.data)) return resp.data;
   } catch {
     return FALLBACK_TEMPLATES;
   }
+  return FALLBACK_TEMPLATES;
 }
 
 const TemplateMarketPage: React.FC = () => {

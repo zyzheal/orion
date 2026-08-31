@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { API_BASE_URL } from '@/api/client';
+import { api } from '@/api/client';
 import { useQuery } from '@/providers/QueryProvider';
 import { Typography, Card, Row, Col, Tag, Button, Space, Table, Statistic, Progress, Alert, Modal, List, Empty, Descriptions } from 'antd';
 import { ClusterOutlined, SafetyCertificateOutlined, AlertOutlined, DatabaseOutlined, CloudServerOutlined, ReloadOutlined, ThunderboltOutlined, CodeOutlined } from '@ant-design/icons';
@@ -45,10 +45,10 @@ const ServiceBoundaryPage: React.FC = () => {
   const { data: modules, isLoading: loading, refetch } = useQuery<ModuleRef[]>({
     queryKey: ['module-coupling'],
     queryFn: async () => {
-      const resp = await fetch(`${API_BASE_URL}/architecture/module-coupling`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
-      });
-      if (resp.ok) { const json = await resp.json(); if (json.data) return json.data; }
+      try {
+        const resp = await api.get<ModuleRef[]>('/architecture/module-coupling');
+        if (Array.isArray(resp.data)) return resp.data;
+      } catch { /* fallback */ }
       return FALLBACK_MODULES;
     },
   });

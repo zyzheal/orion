@@ -4,7 +4,7 @@
  */
 import React, { useState } from 'react';
 import { useQuery } from '@/providers/QueryProvider';
-import { API_BASE_URL } from '@/api/client';
+import { api } from '@/api/client';
 import {
   Typography,
   Card,
@@ -62,15 +62,12 @@ const FALLBACK_COMPONENTS: ServiceComponent[] = [
 
 async function fetchComponents(): Promise<ServiceComponent[]> {
   try {
-    const resp = await fetch(`${API_BASE_URL}/developer-portal/components`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
-    });
-    if (!resp.ok) return FALLBACK_COMPONENTS;
-    const json = await resp.json();
-    return json.data || FALLBACK_COMPONENTS;
+    const resp = await api.get<ServiceComponent[]>('/developer-portal/components');
+    if (Array.isArray(resp.data)) return resp.data;
   } catch {
     return FALLBACK_COMPONENTS;
   }
+  return FALLBACK_COMPONENTS;
 }
 
 const DevPortalPage: React.FC = () => {

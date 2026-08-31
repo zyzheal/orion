@@ -3,7 +3,7 @@
  * Atlas DB schema migration: plan, apply, review, history
  */
 import React, { useState } from 'react';
-import { API_BASE_URL } from '@/api/client';
+import { api } from '@/api/client';
 import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
@@ -60,10 +60,8 @@ const AtlasSchemaPage: React.FC = () => {
     queryKey: ['dba-migrations'],
     queryFn: async () => {
       try {
-        const resp = await fetch(`${API_BASE_URL}/dba/migrations`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
-        });
-        if (resp.ok) { const json = await resp.json(); return json.data || FALLBACK_MIGRATIONS; }
+        const resp = await api.get<Migration[]>('/dba/migrations');
+        if (Array.isArray(resp.data)) return resp.data;
       } catch { /* fallback */ }
       return FALLBACK_MIGRATIONS;
     },
@@ -80,16 +78,9 @@ const AtlasSchemaPage: React.FC = () => {
     setApplyModal(false);
     message.loading({ content: `正在执行迁移 ${m.version}...`, key: 'migrate' });
     try {
-      const resp = await fetch(`${API_BASE_URL}/dba/migrations/${m.id}/apply`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
-      });
-      if (resp.ok) {
-        message.success({ content: `迁移 ${m.version} 执行成功`, key: 'migrate' });
-        load();
-      } else {
-        message.error({ content: '迁移执行失败', key: 'migrate' });
-      }
+      await api.post(`/dba/migrations/${m.id}/apply`);
+      message.success({ content: `迁移 ${m.version} 执行成功`, key: 'migrate' });
+      load();
     } catch {
       message.error({ content: '迁移执行失败', key: 'migrate' });
     }

@@ -1368,11 +1368,35 @@ vitest 下 `@testing-library/react` 的 ESM 命名空间不可重定义，全局
   src/pages/security/ComplianceScan src/pages/service-portal src/pages/service-topology`
   → **5 个测试文件 / 7 个用例全绿**
 
-### ⚠️ 全量测试基线待确认
+### ✅ 全量测试基线已建立（2026-08-26 修正）
 
-从**仓库根目录**误跑过一次全量测试（17 文件 / 56 用例失败），但该结果**不可信**：
-根目录的 vitest 是 v4.1.11（前端是 v1.6.1），且 glob 把 `.worktrees/cmdb-ops/` 的
-重复树也扫进来了。需从 `orion-frontend/` 下重跑以建立正确基线。**待办。**
+从**仓库根目录**跑过一次全量测试，结论当时判断为"不可信"：根目录 vitest 是
+v4.1.11（前端是 v1.6.1），且 glob 把 `.worktrees/cmdb-ops/` 的重复树扫进来了。
+**但重跑后结论需要修正** —— 那批失败是真实的。
+
+从 `orion-frontend/` 下重跑（`RUN v1.6.1 /Users/heal/orion-design/orion-frontend`，
+worktree 泄漏 0）：
+
+```
+Test Files  17 failed | 304 passed (321)
+     Tests  55 failed | 1115 passed | 15 skipped (1185)
+   Errors   8 errors
+```
+
+与根目录误跑的结果（17 文件 / 56 用例失败）**数量级完全一致**。也就是说：
+根目录那次运行在**方法论上无效**（vitest 版本、glob 范围都错），但它的失败清单
+**恰好指向真实存在的前端失败**。此前"这些失败是目录错误造成的假象"的判断是错的，
+已在 Batch Y 记录为 P2-13 待办。
+
+已确认的失败样例（与本轮改动无关，均为此前遗留）：
+- `src/api/__tests__/datasource.test.ts` — 11/11 失败
+- `src/pages/AgentDashboard/__tests__/index.test.tsx` — 8/9 失败
+- `src/pages/__tests__/SbomDashboard.test.tsx` — 3/3 失败
+  （`Cannot find package '@/components/charts'` 是路径解析问题，
+  `src/components/charts` **目录实际存在**，非缺失）
+- `src/pages/NotificationRules`、`CronManagement`、`Form`、`Login` 等
+
+**本轮 Batch X 改动的 13 个文件不在失败清单中**（目标定向测试 5 文件 / 7 用例全绿）。
 
 ### 📊 提交
 
@@ -1393,3 +1417,103 @@ useEffect + useState(setLoading) 且无 useQuery  308   ← 遗留手动加载�
 
 注意存在同名易混的旧版重复页面仍未迁移：`service-catalog/index.tsx`(461)、
 `ServicePortal/index.tsx`(1071)、`graph/GraphPage.tsx`(1058, 多 tab)。
+
+---
+
+## Batch Y — 页面内联 fetch 收口到统一 axios client & 全量测试基线修正 (2026-08-26)
+
+### 1. 真实基线：全量测试是有效的，之前判断错了
+
+见 Batch X 的「全量测试基线待确认」—— 当时把根目录误跑的结果判为"假象"。**修正：**
+
+```
+RUN v1.6.1 /Users/heal/orion-design/orion-frontend   ← 正确目录、正确版本
+worktree 泄漏：0
+
+Test Files  17 failed | 304 passed (321)
+     Tests  55 failed | 1115 passed | 15 skipped (1185)
+   Errors   8 errors
+```
+
+与根目录误跑的 17 文件 / 56 用例**几乎完全一致**。根目录那次在方法论上无效
+（vitest v4.1.11 vs 前端 v1.6.1、glob 扫进 `.worktrees/cmdb-ops/` 重复树），
+但它的失败清单**恰好命中真实的前端失败**。所以那批失败是遗留问题，不是噪音。
+已登记为 P2-13。
+
+顺带澄清一个误导项：`src/pages/__tests__/SbomDashboard.test.tsx` 报
+`Cannot find package '@/components/charts'`，但 `src/components/charts`
+**目录实际存在** —— 是路径解析问题，不是缺失依赖。
+
+### 2. 页面内联 fetch 收口（P1-6 剩余部分）
+
+盘点 `src/pages` 下仍直接拼 `API_BASE_URL` 的文件：**15 个**。全部已迁到
+react-query，但 `queryFn` / 事件处理里还在用裸 `fetch(API_BASE_URL + ...)`
++ 手写 `Authorization: Bearer ${localStorage.getItem('token')}`。
+
+这样绕过了 `src/api/client.ts` 的整套能力：
+
+| 能力 | 裸 fetch | `api.*` (axios) |
+|---|---|---|
+| Token 注入 | 手写，每次重复 | 请求拦截器统一注入 authStore |
+| **401 自动刷新重放** | ❌ 无 | ✅ 含并发刷新队列 |
+| 响应解包 `{success,data}` | 每个页面手写 | 拦截器统一（含 `{code,data}`/`{data}` 过渡格式） |
+| 4xx/5xx 统一提示 | ❌ 静默 | ✅ 拦截器按状态码分类提示 |
+| 重试 | ❌ 无 | ✅ 幂等请求指数退避 |
+| 请求取消注册 | ❌ 无 | ✅ 按 tag 取消 |
+
+本轮迁移 **10 个文件**（另 5 个文件有并发未提交修改，刻意跳过以避免与
+他人工作进行中的改动冲突，见下方清单）：
+
+**简单 GET（7 文件）** — `fetch` + 手写 header → `api.get<T>(相对路径)`：
+`service-boundary`、`contract-test`(含 1 个 POST)、`dba/SchemaCode`(含 1 个 POST)、
+`AISecurity/HallucinationRate`、`dev-portal`、`pipeline/template`、`SpaceDashboard`
+
+**自建 `apiCall` 助手（3 文件）** — `EvalSetManagement`(`/knowledge`)、
+`security/AuthConfig`(`/auth`)、`security/ComplianceScan`(`/compliance`)。
+三者原本各复制了一份 16 行的 fetch 封装，现改为委托 `api` 并按 method 分派，
+**签名与"失败抛 `Error(message)`"语义保持不变**，所有既有 `catch` 无需修改。
+4 种写方法（POST/PUT/PATCH/DELETE）一并覆盖。
+
+关键点：迁移后错误文案提取改为从 axios error 的 `response.data` 读取
+`error` / `message` / `Message`，再退化到 `err.message` 与 `HTTP {status}`，
+与原 `fetch` 版本的取值顺序一致。
+
+**剩余 5 文件（10 处）— 因有并发未提交修改而跳过**：
+`dba/AuditRule`、`federation/Workspace`、`MCPManagement`、`PromptCanary`、
+`security/CodeScan`。待这些文件的并发工作落地后再迁移。
+
+### 3. 测试补强
+
+这 10 个页面**此前零测试覆盖**（已确认全库无任何测试引用它们）。新增 2 个冒烟测试：
+
+| 测试文件 | 用例 | 断言要点 |
+|---|---|---|
+| `service-boundary/__tests__/index.test.tsx` | 3 | 走 `api.get('/architecture/module-coupling')` 相对路径；渲染标题与数据；失败回退 FALLBACK_MODULES 不崩溃 |
+| `security/ComplianceScan/__tests__/index.test.tsx` | 2 | 并发拉取 `/findings` + `/baselines`；**失败时 `合规数据加载失败，显示默认状态` 提示必须出现**（回归保护 Batch X 的修复） |
+
+### 4. 新踩的坑：`render` 不返回 `screen`
+
+`const { screen } = renderWithProviders(...)` 得到 `undefined`，随后抛
+`Cannot read properties of undefined (reading 'getByText')`。
+
+本仓库锁定的 `@testing-library/react` 版本 **render 不返回 `screen`（也不返回
+`user`）**。正确做法是导入模块级代理：
+
+```tsx
+import { screen } from '@testing-library/react';
+```
+
+已固化到 `src/tests/render.tsx` 的文档注释中（与 Batch X 的 `user` 缺失同源）。
+
+### 5. 验证
+
+- `npx tsc --noEmit`（`orion-frontend/` 下）→ **48，与基线完全一致**；
+  本轮 10 个改动文件 + 2 个新测试文件 **0 错误**
+  （中途曾到 50，来源是新建测试里的 `import React` 未使用 TS6133，已移除）
+- 新增测试：`service-boundary` 3/3、`ComplianceScan` 2/2 **全绿**
+- 回归集（Batch X 的 9 个目录 + 新增）：**6 文件 / 9 用例全绿**
+
+### 📊 提交
+
+- `627be1731` — fix(frontend): Batch X 恢复 10 页面被 P2-10 迁移静默删除的约 20 处加载失败提示
+- 本批次见下方 commit

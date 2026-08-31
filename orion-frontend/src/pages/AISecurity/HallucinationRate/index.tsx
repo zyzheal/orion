@@ -3,7 +3,7 @@
  * Tracks LLM hallucination rate, false positives, model drift, and quality scores
  */
 import React, { useState } from 'react';
-import { API_BASE_URL } from '@/api/client';
+import { api } from '@/api/client';
 import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
@@ -53,15 +53,14 @@ const FALLBACK_DATA: HallucinationRecord[] = [
 
 async function fetchHallucinationData(period: string): Promise<HallucinationRecord[]> {
   try {
-    const resp = await fetch(`${API_BASE_URL}/ai-security/hallucination?period=${period}`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+    const resp = await api.get<HallucinationRecord[]>('/ai-security/hallucination', {
+      params: { period },
     });
-    if (!resp.ok) return FALLBACK_DATA;
-    const json = await resp.json();
-    return json.data || FALLBACK_DATA;
+    if (Array.isArray(resp.data)) return resp.data;
   } catch {
     return FALLBACK_DATA;
   }
+  return FALLBACK_DATA;
 }
 
 const HallucinationRatePage: React.FC = () => {
