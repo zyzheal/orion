@@ -1,10 +1,23 @@
 /**
  * Tests for ApiKeyManagement page
  */
+import type { ReactElement, ReactNode } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ApiKeyManagement from '../index';
 import * as apiKeyApi from '@/api/api-key';
+
+// 页面用 useNavigate()，裸 render 会抛 "useNavigate() may be used only in the context of a <Router> component"。
+const renderWithRouter = (ui: ReactElement) =>
+  render(<MemoryRouter>{ui}</MemoryRouter>);
+
+// 整页被 PermissionGuard 包着。它依赖 authStore 的用户角色，而测试里没有登录：
+// userRoles 为空 → hasPermission 恒 false → 守卫渲染 fallback(null)，整页空白。
+// 页面测试只关心页面逻辑，直接放行。
+vi.mock('@/components/PermissionGuard', () => ({
+  PermissionGuard: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
 
 vi.mock('@/api/api-key', () => ({
   getApiKeys: vi.fn(),
@@ -55,7 +68,7 @@ describe('ApiKeyManagement', () => {
     vi.mocked(apiKeyApi.getApiKeys).mockResolvedValue({ data: { keys: mockKeys } } as any);
     vi.mocked(apiKeyApi.getApiKeyStats).mockResolvedValue({ data: { stats: mockStats } } as any);
 
-    render(<ApiKeyManagement />);
+    renderWithRouter(<ApiKeyManagement />);
 
     await waitFor(() => {
       expect(screen.getByTestId('orion-table')).toBeTruthy();
@@ -69,7 +82,7 @@ describe('ApiKeyManagement', () => {
     vi.mocked(apiKeyApi.getApiKeys).mockResolvedValue({ data: { keys: [] } } as any);
     vi.mocked(apiKeyApi.getApiKeyStats).mockResolvedValue({ data: { stats: mockStats } } as any);
 
-    render(<ApiKeyManagement />);
+    renderWithRouter(<ApiKeyManagement />);
 
     await waitFor(() => {
       expect(screen.getByText('新建 Key')).toBeTruthy();
@@ -86,7 +99,7 @@ describe('ApiKeyManagement', () => {
     vi.mocked(apiKeyApi.getApiKeys).mockRejectedValue(new Error('加载 API Key 列表失败'));
     vi.mocked(apiKeyApi.getApiKeyStats).mockRejectedValue(new Error('加载 API Key 列表失败'));
 
-    render(<ApiKeyManagement />);
+    renderWithRouter(<ApiKeyManagement />);
 
     await waitFor(() => {
       expect(screen.getByText('加载 API Key 列表失败')).toBeTruthy();

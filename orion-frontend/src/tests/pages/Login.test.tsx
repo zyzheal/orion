@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
+import { IntlProvider } from '@/i18n/IntlProvider';
 import Login from '@/pages/Login';
 
 // Mock useAuth hook
@@ -30,14 +31,19 @@ Object.defineProperty(window, 'location', {
 });
 
 const renderWithRouter = (ui: React.ReactElement) => {
-  return render(<BrowserRouter>{ui}</BrowserRouter>);
+  return render(
+    <IntlProvider>
+      <BrowserRouter>{ui}</BrowserRouter>
+    </IntlProvider>,
+  );
 };
 
 describe('Login', () => {
   it('should render login form', () => {
     renderWithRouter(<Login />);
-    expect(screen.getByPlaceholderText('请输入用户名')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('请输入密码')).toBeInTheDocument();
+    // 页面用 i18n: placeholder={t('login.username')} → "用户名"（不是 "请输入用户名"）
+    expect(screen.getByPlaceholderText('用户名')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('密码')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /登\s*录/i })).toBeInTheDocument();
   });
 
@@ -65,8 +71,9 @@ describe('Login', () => {
 
   it('should submit form with valid data', async () => {
     renderWithRouter(<Login />);
-    const usernameInput = screen.getByPlaceholderText('请输入用户名');
-    const passwordInput = screen.getByPlaceholderText('请输入密码');
+    // i18n 后 placeholder 是 "用户名" / "密码"
+    const usernameInput = screen.getByPlaceholderText('用户名');
+    const passwordInput = screen.getByPlaceholderText('密码');
     const submitButton = screen.getByRole('button', { name: /登\s*录/i });
 
     fireEvent.change(usernameInput, { target: { value: 'admin' } });
@@ -74,8 +81,8 @@ describe('Login', () => {
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('请输入用户名')).toHaveValue('admin');
-      expect(screen.getByPlaceholderText('请输入密码')).toHaveValue('admin123');
+      expect(screen.getByPlaceholderText('用户名')).toHaveValue('admin');
+      expect(screen.getByPlaceholderText('密码')).toHaveValue('admin123');
     });
   });
 });

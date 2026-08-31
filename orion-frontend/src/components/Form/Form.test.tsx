@@ -41,15 +41,18 @@ describe('OrionForm', () => {
     const handleSubmit = vi.fn();
     render(<Form fields={baseFields} onSubmit={handleSubmit} />);
 
-    // Fill in the form
-    const usernameInput = screen.getByPlaceholderText(/please enter username/i);
-    const emailInput = screen.getByPlaceholderText(/please enter email/i);
+    // 组件根据 field.label 自动生成 placeholder: `请输入${label}`。
+    // 旧测试用的是英文 "please enter username"，与实际生成的 "请输入Username" 不匹配。
+    const usernameInput = screen.getByPlaceholderText('请输入Username');
+    const emailInput = screen.getByPlaceholderText('请输入Email');
 
     fireEvent.change(usernameInput, { target: { value: 'testuser' } });
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
 
-    // Click submit
-    fireEvent.click(screen.getByText('Submit'));
+    // 默认 submitText 是 "提交" 不是 "Submit"。
+    // antd Button 在 JSDOM 里会把 "提交" 渲染成两个 text node（"提" + "交"），
+    // 用正则放宽匹配。
+    fireEvent.click(screen.getByText(/提\s*交/));
 
     await waitFor(() => {
       expect(handleSubmit).toHaveBeenCalledWith(
@@ -127,7 +130,8 @@ describe('OrionForm', () => {
 
   it('should show loading state on submit button', () => {
     render(<Form fields={baseFields} onSubmit={vi.fn()} submitting={true} />);
-    const submitBtn = screen.getByRole('button', { name: /submit/i });
+    // 默认 submitText 是 "提交"，但 antd Button 渲染出 "提 交"（带空格）。
+    const submitBtn = screen.getByRole('button', { name: /提\s*交/i });
     expect(submitBtn).toHaveAttribute('aria-busy');
   });
 

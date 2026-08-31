@@ -3,9 +3,28 @@
  * Verify: loads from API on mount, shows error on failure
  */
 import { render, screen, waitFor } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import InternalLibraryManagement from '../index';
-import { server } from '@/tests/mocks/server';
+import * as libraryApi from '@/api/internal-library';
+
+vi.mock('antd', async () => {
+  const actual = await vi.importActual<typeof import('antd')>('antd');
+  return { ...actual, message: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } };
+});
+
+vi.mock('@/api/internal-library', () => ({
+  getInternalLibraries: vi.fn(),
+  getInternalLibrary: vi.fn(),
+  getInternalLibraryByName: vi.fn(),
+  createInternalLibrary: vi.fn(),
+  deleteInternalLibrary: vi.fn(),
+  deprecateInternalLibrary: vi.fn(),
+  activateInternalLibrary: vi.fn(),
+  publishLibraryVersion: vi.fn(),
+  getLibraryVersions: vi.fn(),
+  getLibraryVersion: vi.fn(),
+  getLibraryDependents: vi.fn(),
+}));
 
 describe('InternalLibraryManagement', () => {
   const mockLibraries = [
@@ -28,16 +47,12 @@ describe('InternalLibraryManagement', () => {
     },
   ];
 
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('loads libraries from API on mount', async () => {
-    server.use(
-      http.get('/api/internal-libraries', () => {
-        return HttpResponse.json({
-          code: 0,
-          message: 'success',
-          data: mockLibraries,
-        });
-      })
-    );
+    vi.mocked(libraryApi.getInternalLibraries).mockResolvedValue({ data: mockLibraries } as any);
 
     render(<InternalLibraryManagement />);
 
@@ -47,15 +62,7 @@ describe('InternalLibraryManagement', () => {
   });
 
   it('shows empty table when API returns empty array', async () => {
-    server.use(
-      http.get('/api/internal-libraries', () => {
-        return HttpResponse.json({
-          code: 0,
-          message: 'success',
-          data: [],
-        });
-      })
-    );
+    vi.mocked(libraryApi.getInternalLibraries).mockResolvedValue({ data: [] } as any);
 
     render(<InternalLibraryManagement />);
 
@@ -65,14 +72,7 @@ describe('InternalLibraryManagement', () => {
   });
 
   it('shows error message and empty data when API fails', async () => {
-    server.use(
-      http.get('/api/internal-libraries', () => {
-        return HttpResponse.json(
-          { code: 500, message: 'Internal Server Error', data: null },
-          { status: 500 }
-        );
-      })
-    );
+    vi.mocked(libraryApi.getInternalLibraries).mockRejectedValue(new Error('Internal Server Error'));
 
     render(<InternalLibraryManagement />);
 

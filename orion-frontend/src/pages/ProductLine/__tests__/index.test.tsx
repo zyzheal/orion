@@ -3,9 +3,28 @@
  * Verify: loads from API on mount, shows error on failure
  */
 import { render, screen, waitFor } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import ProductLineManagement from '../index';
-import { server } from '@/tests/mocks/server';
+import * as productLineApi from '@/api/product-lines';
+
+vi.mock('antd', async () => {
+  const actual = await vi.importActual<typeof import('antd')>('antd');
+  return { ...actual, message: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } };
+});
+
+vi.mock('@/api/product-lines', () => ({
+  getProductLines: vi.fn(),
+  getProductLine: vi.fn(),
+  getProductLineByName: vi.fn(),
+  createProductLine: vi.fn(),
+  updateProductLine: vi.fn(),
+  deleteProductLine: vi.fn(),
+  activateProductLine: vi.fn(),
+  suspendProductLine: vi.fn(),
+  getProductLineBranches: vi.fn(),
+  getProductLineEnvironments: vi.fn(),
+  getProductLineStats: vi.fn(),
+}));
 
 describe('ProductLineManagement', () => {
   const mockProductLines = [
@@ -43,16 +62,12 @@ describe('ProductLineManagement', () => {
     },
   ];
 
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('loads product lines from API on mount', async () => {
-    server.use(
-      http.get('/api/v1/product-lines', () => {
-        return HttpResponse.json({
-          code: 0,
-          message: 'success',
-          data: mockProductLines,
-        });
-      })
-    );
+    vi.mocked(productLineApi.getProductLines).mockResolvedValue({ data: mockProductLines } as any);
 
     render(<ProductLineManagement />);
 
@@ -62,15 +77,7 @@ describe('ProductLineManagement', () => {
   });
 
   it('shows empty table when API returns empty array', async () => {
-    server.use(
-      http.get('/api/v1/product-lines', () => {
-        return HttpResponse.json({
-          code: 0,
-          message: 'success',
-          data: [],
-        });
-      })
-    );
+    vi.mocked(productLineApi.getProductLines).mockResolvedValue({ data: [] } as any);
 
     render(<ProductLineManagement />);
 
@@ -80,14 +87,7 @@ describe('ProductLineManagement', () => {
   });
 
   it('shows error message and empty data when API fails', async () => {
-    server.use(
-      http.get('/api/v1/product-lines', () => {
-        return HttpResponse.json(
-          { code: 500, message: 'Internal Server Error', data: null },
-          { status: 500 }
-        );
-      })
-    );
+    vi.mocked(productLineApi.getProductLines).mockRejectedValue(new Error('Internal Server Error'));
 
     render(<ProductLineManagement />);
 

@@ -1,10 +1,19 @@
 /**
  * Tests for WebhookManagement page
  */
+import type { ReactElement, ReactNode } from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import WebhookManagement from '../index';
 import * as webhookApi from '@/api/webhook';
+
+const renderWithRouter = (ui: ReactElement) =>
+  render(<MemoryRouter>{ui}</MemoryRouter>);
+
+vi.mock('@/components/PermissionGuard', () => ({
+  PermissionGuard: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
 
 vi.mock('@/api/webhook', () => ({
   getWebhooks: vi.fn(),
@@ -51,7 +60,7 @@ describe('WebhookManagement', () => {
       data: { webhooks: mockWebhooks },
     } as any);
 
-    render(<WebhookManagement />);
+    renderWithRouter(<WebhookManagement />);
 
     await waitFor(() => {
       expect(screen.getByTestId('orion-table')).toBeTruthy();
@@ -64,7 +73,7 @@ describe('WebhookManagement', () => {
   it('opens create modal on button click', async () => {
     vi.mocked(webhookApi.getWebhooks).mockResolvedValue({ data: { webhooks: [] } } as any);
 
-    render(<WebhookManagement />);
+    renderWithRouter(<WebhookManagement />);
 
     await waitFor(() => {
       expect(screen.getByText('新建 Webhook')).toBeTruthy();
@@ -82,7 +91,7 @@ describe('WebhookManagement', () => {
   it('shows error message when API fails', async () => {
     vi.mocked(webhookApi.getWebhooks).mockRejectedValue(new Error('加载 Webhook 列表失败'));
 
-    render(<WebhookManagement />);
+    renderWithRouter(<WebhookManagement />);
 
     await waitFor(() => {
       expect(screen.getByText('加载 Webhook 列表失败')).toBeTruthy();

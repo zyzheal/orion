@@ -1,11 +1,12 @@
 /**
  * Tests for Console page - Phase 6 integration verification
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import Console from '@/pages/Console';
-import { server } from '@/tests/mocks/server';
+import * as pluginsApi from '@/api/plugins';
+import * as flagsApi from '@/api/feature-flags';
 
 vi.mock('antd', async () => {
   const actual = await vi.importActual<typeof import('antd')>('antd');
@@ -15,15 +16,27 @@ vi.mock('antd', async () => {
   };
 });
 
-const renderWithProviders = (ui: React.ReactElement) => render(<BrowserRouter>{ui}</BrowserRouter>);
+// 页面挂载时并发调用 getInstalledPlugins + getFeatureFlags，任一未 mock 都会卡 loading。
+vi.mock('@/api/plugins', () => ({
+  getInstalledPlugins: vi.fn().mockResolvedValue({ data: { data: [] } }),
+  getPlugin: vi.fn(),
+  togglePlugin: vi.fn(),
+  deletePlugin: vi.fn(),
+}));
+
+vi.mock('@/api/feature-flags', () => ({
+  getFeatureFlags: vi.fn().mockResolvedValue({ data: [] }),
+  createFeatureFlag: vi.fn(),
+  updateFeatureFlag: vi.fn(),
+  deleteFeatureFlag: vi.fn(),
+  toggleFeatureFlag: vi.fn(),
+}));
+
+const renderWithProviders = (ui: React.ReactElement) =>
+  render(<BrowserRouter>{ui}</BrowserRouter>);
 
 beforeEach(() => {
   vi.clearAllMocks();
-  server.resetHandlers();
-});
-
-afterEach(() => {
-  server.resetHandlers();
 });
 
 describe('Console Phase 6 service governance', () => {

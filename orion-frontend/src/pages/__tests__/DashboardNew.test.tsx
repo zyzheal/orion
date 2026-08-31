@@ -18,6 +18,24 @@ vi.mock('antd', async () => {
   return { ...actual, message: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } };
 });
 
+// 页面挂载时并发调用 4 个 API 拉数据，任何未 mock 的 API 都会挂起导致整页卡在 loading。
+vi.mock('@/api/pipelines', () => ({
+  getPipelines: vi.fn().mockResolvedValue({ data: [] }),
+  getPipelineRuns: vi.fn().mockResolvedValue({ data: { data: [] } }),
+}));
+
+vi.mock('@/api/pipelineRuns', () => ({
+  retryPipelineRun: vi.fn().mockResolvedValue({ data: {} }),
+}));
+
+vi.mock('@/api/monitoring', () => ({
+  getMonitoringHealth: vi.fn().mockResolvedValue({ data: { status: 'healthy' } }),
+}));
+
+vi.mock('@/api/health', () => ({
+  getServiceHealthList: vi.fn().mockResolvedValue({ data: [] }),
+}));
+
 const renderWithProviders = (ui: React.ReactElement) =>
   render(
     <BrowserRouter>
