@@ -1856,3 +1856,59 @@ P2-13 收尾：将剩余 11 个失败测试文件（26 个失败用例）全部�
 ### 5. P2-13 状态
 
 **P2-13 完成**：前端测试套件失败数从 55 降至 **0**，17 个失败文件全部修完。
+
+---
+
+## Batch AD — P2-16 subappStore fetchApi 迁移评估（2026-08-26）
+
+### 1. 评估目标
+
+P2-16 要求评估 `src/stores/subappStore.ts` 中内联 `fetchApi<T>` 迁移到 `api` 客户端的工作量。
+
+### 2. 关键发现
+
+**`fetchApi` 为私有函数，不对外暴露**：
+```ts
+// line 75 — 无 export 关键字
+async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> { ... }
+```
+
+**5 个外部 importer 全部只消费 store action 方法**：
+
+| Importer | 使用的 store 方法 |
+|---|---|
+| `src/microfront/apps.ts` | `useSubAppStore.getState()` |
+| `src/components/SubAppLauncher/index.tsx` | `fetchApps` |
+| `src/components/SubAppRouteDynamic/index.tsx` | `fetchEnabledApps` |
+| `src/components/Layout/index.tsx` | `fetchApps` |
+| `src/pages/SubAppManagement/index.tsx` | `fetchApps`/`fetchEnabledApps`/`createApp`/`updateApp`/`deleteApp`/`toggleStatus`/`getHistory` |
+
+**迁移范围完全内含于 subappStore.ts 单一文件**，调用方零改动。
+
+**7 个 API 调用点**（均可直接映射到 `api.*`）：
+- `fetchApps` → `api.get<SubAppConfig[]>('/subapps')`
+- `fetchEnabledApps` → `api.get<SubAppConfig[]>('/subapps/enabled')`
+- `createApp` → `api.post<SubAppConfig>('/subapps', body)`
+- `updateApp` → `api.put<SubAppConfig>(`/subapps/${key}`, body)`
+- `deleteApp` → `api.delete<{success:boolean}>(`/subapps/${key}`)`
+- `toggleStatus` → `api.put<SubAppConfig>(`/subapps/${key}/status`, body)`
+- `getHistory` → `api.get<SubAppConfigHistory[]>(`/subapps/${key}/history`)`
+
+**拦截器自动解包信封**：`api.get<T>()` 返回 `AxiosResponse<T>`，`res.data` 已是解包后的 `T`，store 内部从 `response.success && response.data` 简化为 `res.data` 直取。
+
+**token 键一致性**：`subappStore` 用 `access_token`，与 `authStore.getToken()` 一致（正确）。`auth.ts` 另用 `orion_access_token` 前缀——不一致，属既有 bug，与本次迁移无关。
+
+**已判定不可迁**：SubAppRoute×3 / usePipelineSSE / web-vitals（URL 字符串 / sendBeacon 与 axios 语义冲突）。
+
+### 3. 并发状态
+
+以下 diff **已存在但未提交**，属前序任务的并发改动：
+- `src/api/client.ts`（+2/-2）：`API_BASE_URL` 改为 `export const` + refresh URL 修复合并
+- `src/stores/subappStore.ts`（+3/-1）：`const API_BASE = '/api/v1'` 替换为 `import { API_BASE_URL }` + `const API_BASE = API_BASE_URL`
+- `src/utils/auth.ts`（+3/-2）：`getSsoProviders` / `logout` 从裸 `axios` 迁到 `api` 客户端
+
+**subappStore 迁移待并发 PR merge 后方可实施**，避免冲突。
+
+### 4. 结论
+
+P2-16 **评估完成**。迁移工作量约 0.5 天（单一文件、7 个调用点、调用方零改动），风险低。待并发改动落地后实施。
