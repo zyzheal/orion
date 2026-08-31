@@ -86,7 +86,7 @@
 | ~~**P0-4** | alert-deduplication 补 Repo 层 | 交叉验证 | ~~核实为 stale claim: `internal/alert-deduplication/repository/` 已存在 (67行/2方法), 已 wired to service~~ | ✅ 2026-08-26 |
 | **PERM-8 阶段 2** | 把 `/api/v1` 切到严格 `auth.Auth` — 3640 处 `RequirePermission` 全部 403 | 权限审计 | 根因（阶段 1 已证实）：`cmd/server/router.go` 对 `/api/v1` 只挂 7 个中间件（无 `auth.Auth`）；全仓库仅 `pkg/auth/middleware.go` 一处 `c.Set("role", …)`，位于 `auth.Auth` 内；平台 `internal/middleware/` 0 个认证中间件。认证原本在独立 auth 服务（`blueprints/orion-auth-svc.archived/`），归档时中间件未移植。**阶段 1 已完成（2026-08-29）**：`auth.OptionalAuth` 默认关闭上线，`AUTH_OPTIONAL_ENABLED=1` 后带 token 的调用方即获得真实身份、守卫生效，无 token 调用方逐字不变（同一 403、同一响应体），可用环境变量灰度而无需迁移客户端。阶段 2 是破坏性变更：切 `auth.Auth` 后所有无 token 调用立刻 401，且 `auth.Auth` 强制 `tenant_id` claim；落地后要补 `/roles/permissions-map` 的守卫并翻转 `roles_permissions_map_test.go` 第 3 条断言 | ⬜ 待做（**需客户端迁移计划，不是一个 commit**） |
 
-| **G1** | PG PITR 执行闭环接入 Restore 链 | Phase 7 计划 | `PGExecutor.Restore` 在 PITR 模式（`TargetTime` + `ArchivePaths`）走 `PreparePGRecoveryPlan` 产物消费链路（manifest + runbook），退役占位 `replayArchives`；删 `executor/pg.go:184` 过时注释；补单测（ArchReplayed/ArchSizes 填充、RPO 用真实 archive 时间戳）；探活接入 | 1-2 天 |
+| ~~**G1** | PG PITR 执行闭环接入 Restore 链 | Phase 7 计划 | `PGExecutor.Restore` 在 PITR 模式（`TargetTime` + `ArchivePaths`）走 `PreparePGRecoveryPlan` 产物消费链路（manifest + runbook），退役占位 `replayArchives`；删 `executor/pg.go:184` 过时注释；补单测（ArchReplayed/ArchSizes 填充、RPO 用真实 archive 时间戳）；探活接入~~ | ✅ **完成 2026-08-31** |
 | **G2** | OceanBase 凭证 env-only（安全） | Phase 7 计划 | `executor/oceanbase.go:54-63` 移除 `-p` argv 明文密码，改 env（对齐 PG `PGPASSWORD` / MySQL `MYSQL_PWD`）；新增门禁：`executor` 包 grep 断言无 `"-p",` + `Password` 组合；G3 新引擎遵守同一基线 | 0.5-1 天 |
 
 **P0 合计工作量**: 6-9 天（含 G1 1-2 + G2 0.5-1）
@@ -114,7 +114,7 @@
 
 ---
 
-## 五、待处理 — P2 技术债务 (15 项, 含 G8=P3 低优先)
+## 五、待处理 — P2 技术债务 (16 项, 含 G8=P3 低优先)
 
 | # | 任务 | 来源 | 详细说明 | 工作量 |
 |---|------|------|---------|--------|
@@ -127,7 +127,8 @@
 | **P2-7** | 前端 `any` 类型清理 | 三域分析 | 1138 处 `any` 类型，pages 层 1118 处 | 3-5 天 |
 | ~~**P2-8** | 前端 `console.log` 残留 | 三域分析 | 核实: 生产代码 0 处 console.log (2 处均在 __tests__ 测试数据中) | ✅ 2026-08-31 |
 | **P2-9** | 前端最大页面拆分 | 三域分析 | ChangeManagement(1899行) 等超大单文件拆分 | 2-3 天 |
-| **P2-10** | 安装 @tanstack/react-query | merged-action-items | ✅ 已安装 + 11/11 页面全部迁移 (SpaceDashboard/HallucinationRate/ServiceBoundary/PipelineTemplate/SchemaCode/ContractTest/AIReview×5) | ✅ 2026-08-31 |
+| **P2-10** | 安装 @tanstack/react-query | merged-action-items | ✅ 已安装；**但"11/11"仅指自行圈定的 11 个文件**。真实盘点：467 个页面组件中仅 24 个使用 react-query。附带修复：该批次曾静默删除 10 个页面约 20 处加载失败提示（Batch X 已恢复），并遗留 9 处 TS 错误 + 弄坏 2 个测试文件（已修） | ⚠️ 部分完成，见 P2-12 |
+| **P2-12** | 剩余 308 个页面 react-query 迁移 | Batch X 盘点 | `useEffect + useState(setLoading)` 手动加载模式仍占 308 个页面（467 总页面的 66%）。**前置约束**：本仓库 `@tanstack/query-core@5.101.4` 的 `QueryObserver` 未实现 observer 级回调，`useQuery` 的 `onError/onSuccess` 是**静默 no-op**（`useMutation` 正常）。必须用 `isError + useEffect` 呈现错误反馈，否则每个页面都会丢失加载失败提示。见 `src/providers/QueryProvider.tsx` 顶部注释 | 10-15 天 |
 | **P2-11** | wired.go / router.go 拆分 | 三域分析 | wiring.go 792 行 + router.go 1160 行，入口文件膨胀 | 1-2 天 |
 
 | **G5** | AES 分块 AEAD（chunked，消除整文件读内存） | Phase 7 计划 | `crypto.go:22-24` `EncryptFile`/`DecryptFile` 改造为分块 AEAD（nonce per chunk / 流式 GCM）；版本头 + 格式版本字段向后兼容；单测：>内存大小文件往返一致 + 篡改任一 chunk 校验失败 | 2-3 天 |

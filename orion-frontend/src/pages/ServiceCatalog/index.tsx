@@ -2,7 +2,7 @@
  * 服务目录 (Service Catalog)
  * 后端: /api/v1/service-catalog — 服务注册、请求生命周期、SLA 违约
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@/providers/QueryProvider';
 import {
   Card,
@@ -64,7 +64,7 @@ const ServiceCatalogPage: React.FC = () => {
   const [selectedItem, setSelectedItem] = useState<ServiceCatalog | null>(null);
   const [form] = Form.useForm();
 
-  const { data: itemsData, isLoading: itemsLoading, refetch: refetchItems } = useQuery<ServiceCatalog[]>({
+  const { data: itemsData, isLoading: itemsLoading, isError: itemsError, refetch: refetchItems } = useQuery<ServiceCatalog[]>({
     queryKey: ['service-catalog/items'],
     queryFn: async () => {
       const data = await listCatalogItems();
@@ -74,7 +74,7 @@ const ServiceCatalogPage: React.FC = () => {
     staleTime: 30_000,
   });
 
-  const { data: breachesData, isLoading: breachesLoading, refetch: refetchBreaches } = useQuery<{ breaches: SLABreach[]; total: number }>({
+  const { data: breachesData, isLoading: breachesLoading, isError: breachesError, refetch: refetchBreaches } = useQuery<{ breaches: SLABreach[]; total: number }>({
     queryKey: ['service-catalog/breaches'],
     queryFn: async () => {
       const data = await getSLABreaches({ limit: 20 });
@@ -88,6 +88,20 @@ const ServiceCatalogPage: React.FC = () => {
   const breaches = breachesData?.breaches ?? [];
   const totalBreaches = breachesData?.total ?? 0;
   const loading = itemsLoading || breachesLoading;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (itemsError) {
+      message.error('加载服务目录失败');
+    }
+  }, [itemsError]);
+
+  useEffect(() => {
+    if (breachesError) {
+      message.error('加载 SLA 违约记录失败');
+    }
+  }, [breachesError]);
 
   const handleCreate = () => {
     setSelectedItem(null);

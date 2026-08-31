@@ -2,7 +2,7 @@
  * Compliance Scan Page (H1.7 合规检查)
  * Security baseline scanning, compliance report generation, and remediation tracking
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@/providers/QueryProvider';
 import { API_BASE_URL } from '@/api/client';
 import {
@@ -110,7 +110,7 @@ const ComplianceScanPage: React.FC = () => {
   const [scanning, setScanning] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const { data: rawData, isLoading: loading, refetch } = useQuery<{ findings: ComplianceFinding[]; baselines: ComplianceBaseline[] }>({
+  const { data: rawData, isLoading: loading, isError, refetch } = useQuery<{ findings: ComplianceFinding[]; baselines: ComplianceBaseline[] }>({
     queryKey: ['compliance-scan'],
     queryFn: async () => {
       const [findingsRes, baselinesRes] = await Promise.all([
@@ -128,6 +128,14 @@ const ComplianceScanPage: React.FC = () => {
 
   const safeFindings = rawData?.findings ?? [];
   const safeBaselines = rawData?.baselines ?? [];
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError) {
+      message.warning('合规数据加载失败，显示默认状态');
+    }
+  }, [isError]);
 
   const handleScan = async (id: string, name: string) => {
     setScanning(id);

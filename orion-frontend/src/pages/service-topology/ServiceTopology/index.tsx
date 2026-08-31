@@ -9,9 +9,9 @@
  * API: /api/v1/service-topology
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@/providers/QueryProvider';
-import { Typography, Card, Table, Tag, Space, Select, Button, Empty, Spin } from 'antd';
+import { Typography, Card, Table, Tag, Space, Select, Button, Empty, Spin, message } from 'antd';
 import { ClusterOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { TableColumn } from '@/components/Table';
 import {
@@ -35,7 +35,7 @@ const DEPENDENCY_TYPE_COLORS: Record<string, string> = {
 const ServiceTopologyPage: React.FC = () => {
   const [selectedServiceId, setSelectedServiceId] = useState<string | undefined>(undefined);
 
-  const { data: topologyData, isLoading: topologyLoading, refetch: refetchTopology } = useQuery<TopologyGraph | null>({
+  const { data: topologyData, isLoading: topologyLoading, isError: topologyError, error: topologyErrorMsg, refetch: refetchTopology } = useQuery<TopologyGraph | null>({
     queryKey: ['service-topology/topology'],
     queryFn: async () => {
       const response = await serviceTopologyApi.getTopology();
@@ -45,7 +45,7 @@ const ServiceTopologyPage: React.FC = () => {
     staleTime: 30_000,
   });
 
-  const { data: depsData, isLoading: depsLoading, refetch: refetchDeps } = useQuery<ServiceDependencies | null>({
+  const { data: depsData, isLoading: depsLoading, isError: depsError, error: depsErrorMsg, refetch: refetchDeps } = useQuery<ServiceDependencies | null>({
     queryKey: ['service-topology/dependencies', selectedServiceId],
     queryFn: async () => {
       const response = await serviceTopologyApi.getServiceDependencies(selectedServiceId!);
@@ -59,6 +59,20 @@ const ServiceTopologyPage: React.FC = () => {
   const topology = topologyData ?? null;
   const dependencies = depsData ?? null;
   const loading = topologyLoading || depsLoading;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (topologyError) {
+      message.error(topologyErrorMsg instanceof Error ? topologyErrorMsg.message : '加载服务拓扑失败');
+    }
+  }, [topologyError, topologyErrorMsg]);
+
+  useEffect(() => {
+    if (depsError) {
+      message.error(depsErrorMsg instanceof Error ? depsErrorMsg.message : '加载服务依赖关系失败');
+    }
+  }, [depsError, depsErrorMsg]);
 
   const handleRefresh = () => {
     if (selectedServiceId) {

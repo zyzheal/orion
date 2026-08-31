@@ -3,7 +3,7 @@
  * 对接后端 /api/v1/service-registry 服务注册与发现
  * 含服务列表、注册、健康监控
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
@@ -65,7 +65,7 @@ const ServicePortalPage: React.FC = () => {
   const [healthLoading, setHealthLoading] = useState(false);
   const [form] = Form.useForm();
 
-  const { data: rawData, isLoading: loading, refetch } = useQuery<ServiceInfo[]>({
+  const { data: rawData, isLoading: loading, isError, error, refetch } = useQuery<ServiceInfo[]>({
     queryKey: ['service-registry/services'],
     queryFn: async () => {
       const data = await getServices();
@@ -76,6 +76,14 @@ const ServicePortalPage: React.FC = () => {
   });
 
   const services = rawData ?? [];
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError) {
+      message.error(error instanceof Error ? error.message : '加载服务列表失败');
+    }
+  }, [isError, error]);
 
   const handleRegister = () => {
     form.resetFields();

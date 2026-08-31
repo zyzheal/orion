@@ -9,6 +9,27 @@ import React from 'react';
 import { QueryClient, QueryClientProvider as TanStackProvider } from '@tanstack/react-query';
 import type { QueryClientConfig } from '@tanstack/react-query';
 
+// =============================================================================
+// ⚠️ 重要约束（已实测确认，2026-08-26）：
+//
+// 本仓库锁定的 @tanstack/react-query 5.101.4 / query-core 构建中，
+// QueryObserver 未实现 observer 级回调 —— 因此传给 useQuery 的
+// onError / onSuccess / onSettled 选项是**静默 no-op**，永远不会被调用。
+// （useMutation 的同名回调正常，由 mutation.js 调用。）
+//
+// 实测证据：queryFn 抛错后 status='error'、error 可取，但 onError 回调
+// mock 调用次数为 0；成功场景的 onSuccess 同样为 0。
+//
+// ✅ 正确写法 —— 用 hook 返回值 + useEffect 呈现副作用：
+//   const { isError, error } = useQuery({ ... });
+//   useEffect(() => { if (isError) message.error('...'); }, [isError, error]);
+//
+// ❌ 错误写法（不生效）：useQuery({ ..., onError: (e) => message.error(...) })
+//
+// 相关回归：Batch W 的 P2-10 迁移删掉了原 useEffect+fetch 的 try/catch，
+// 导致 10 个页面共约 20 处加载失败提示静默丢失，已于 Batch X 恢复。
+// =============================================================================
+
 // ---------------------------------------------------------------------------
 // QueryClient 配置
 // ---------------------------------------------------------------------------

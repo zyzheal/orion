@@ -2,9 +2,9 @@
  * AI Review - History
  * Review history list with filtering and search
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@/providers/QueryProvider';
-import { Typography, Card, Table, Tag, Space, Button, Input, Select, Empty } from 'antd';
+import { Typography, Card, Table, Tag, Space, Button, Input, Select, Empty, message } from 'antd';
 import { SearchOutlined, ReloadOutlined, EyeOutlined } from '@ant-design/icons';
 import { getReviewHistory } from '@/api/ai-review';
 import type { AIReviewResult } from '@/api/ai-review';
@@ -20,7 +20,7 @@ const AIReviewHistory: React.FC = () => {
   const [pageSize, setPageSize] = useState(10);
   const [filters, setFilters] = useState<{ status?: string; repoId?: string }>({});
 
-  const { data: queryData, isLoading: loading } = useQuery<{ items: AIReviewResult[]; total: number }>({
+  const { data: queryData, isLoading: loading, isError, error } = useQuery<{ items: AIReviewResult[]; total: number }>({
     queryKey: ['ai-review-history', filters, page, pageSize],
     queryFn: async () => {
       const res = await getReviewHistory({ ...filters, page, pageSize });
@@ -31,6 +31,16 @@ const AIReviewHistory: React.FC = () => {
     },
     staleTime: 30_000,
   });
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError) {
+      message.error(
+        error instanceof Error ? `加载评审历史失败：${error.message}` : '加载评审历史失败，请稍后重试'
+      );
+    }
+  }, [isError, error]);
 
   const safeData = queryData?.items ?? [];
   const total = queryData?.total ?? 0;

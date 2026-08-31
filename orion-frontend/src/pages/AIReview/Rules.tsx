@@ -4,7 +4,7 @@ import { colors, spacing } from '@/tokens';
  * AI Review - Rules
  * Review rule management with CRUD operations
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
@@ -50,7 +50,7 @@ const AIReviewRules: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | undefined>(undefined);
 
-  const { data: rawData, isLoading: loading, refetch } = useQuery<AIReviewRule[]>({
+  const { data: rawData, isLoading: loading, isError, error, refetch } = useQuery<AIReviewRule[]>({
     queryKey: ['ai-review-rules'],
     queryFn: async () => {
       const res = await getReviewRules();
@@ -58,6 +58,16 @@ const AIReviewRules: React.FC = () => {
     },
     staleTime: 30_000,
   });
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError) {
+      message.error(
+        error instanceof Error ? `加载评审规则失败：${error.message}` : '加载评审规则失败，请稍后重试'
+      );
+    }
+  }, [isError, error]);
 
   const loadData = () => refetch();
   const data = rawData ?? [];

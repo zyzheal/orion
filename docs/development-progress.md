@@ -1239,6 +1239,12 @@ go test ./internal/datasource/... ✅ 全部 PASS
   - `54de42d73` — chore(go): P2-5 冗余嵌套路径清理
 
 - ✅ **P2-10：react-query 迁移 (11/11 已完成)**
+  - ⚠️ **范围说明（2026-08-26 更正）**：这里的 11/11 仅指上一轮自己圈定的 11 个文件，
+    不代表仓库整体迁移完成。真实盘点见 Batch X：467 个页面组件中仅 24 个使用 react-query，
+    仍有 **308 个页面**沿用 `useEffect + useState(setLoading)` 手动加载模式。
+  - ⚠️ **该批次遗留缺陷（已由 Batch W-fix / Batch X 修复）**：提交时未跑 `tsc`，
+    留下 9 处 TS 错误（5 处 `onClick={refetch}` 的 MouseEvent→RefetchOptions 类型错误 +
+    4 处未定义/可能为空的变量），并弄坏 2 个测试文件（ServiceCatalog、SbomDashboard）。
   - `SpaceDashboard` — 单 fetch，queryKey=['space-metrics', period]
   - `HallucinationRate` — 单 fetch，queryKey=['ai-hallucination', period]
   - `ServiceBoundary` — 单 fetch，queryKey=['module-coupling']，safeModules + 零长度守卫
@@ -1269,3 +1275,121 @@ go test ./internal/datasource/... ✅ 全部 PASS
   - P2-7：前端 `any` 类型清理（3-5d）
   - P2-9：前端最大页面拆分（2-3d）
   - P2-11：wiring.go/router.go 拆分（1-2d）— 高风险，暂缓
+  - **P2-12（新增，见 Batch X）：剩余 308 个页面的 react-query 迁移**
+
+## Batch X — react-query 加载错误反馈回归修复 & 续迁 3 页 (2026-08-26)
+
+### 关键发现：本仓库的 react-query 构建**不会调用** useQuery 的 onError
+
+这是本轮最重要的发现，直接影响所有已完成和未完成的 react-query 迁移。
+
+**现象**：`useQuery({ onError: (e) => message.error(...) })` 传入的回调从不执行。
+
+**实测证据**（临时探针测试，已删除）：
+```
+t+50   [ 'FETCH' ]          ← queryFn 执行了
+t+200  [ 'FETCH' ]          ← onError 始终未调用
+t+500  [ 'FETCH' ]          ← onSuccess（成功场景）也从未调用
+query.status = 'error'      ← 但 status/error 都能正确取到
+```
+
+**根因**：`@tanstack/query-core@5.101.4`（package.json 锁 `^5.101.4`）的构建中，
+`options.onError / onSuccess / onSettled` **只在 `mutation.js` 中被调用**：
+```
+$ grep -rn "options\.onError\|options\.onSuccess" node_modules/@tanstack/query-core/build/modern/*.js
+mutation.js:123:  await this.options.onSuccess?.(
+mutation.js:159:  await this.options.onError?.(
+```
+`QueryObserver.js` 中对这三个回调的引用数为 **0** —— observer 级回调在该构建里未实现。
+因此 query 级 `onError` 是静默 no-op，而 `useMutation` 的同名回调一切正常。
+
+**✅ 正确写法**（已固化到 `src/providers/QueryProvider.tsx` 顶部注释）：
+```tsx
+const { isError, error } = useQuery({ ... });
+useEffect(() => {
+  if (isError) message.error('加载失败');
+}, [isError, error]);
+```
+
+### 回归修复：10 个页面约 20 处加载失败提示被静默删除
+
+Batch W 的 P2-10 迁移把 `useEffect + fetch` 的 `try/catch { message.error(...) }` 整个删掉，
+而 QueryProvider 的 `throwOnError: false` 会把 rejection 吞掉，用户从此**看不到任何加载失败反馈**。
+
+恢复清单（逐条对齐迁移前的原始文案）：
+
+| 文件 | 恢复的提示 |
+|---|---|
+| `AIReview/Config.tsx` | `加载配置失败：{msg}` / `加载配置失败，请稍后重试` |
+| `AIReview/History.tsx` | `加载评审历史失败：{msg}` / `加载评审历史失败，请稍后重试` |
+| `AIReview/ReviewDetail.tsx` | `加载评审详情失败：{msg}` + `缺少评审 ID 参数`（warning） |
+| `AIReview/Rules.tsx` | `加载评审规则失败：{msg}` / `加载评审规则失败，请稍后重试` |
+| `SbomDashboard/index.tsx` | `Failed to load SBOM data：{msg}` / `Failed to load SBOM data` |
+| `ServiceCatalog/index.tsx` | `加载服务目录失败` + `加载 SLA 违约记录失败` |
+| `security/AuthConfig/index.tsx` | `认证配置数据加载失败，显示默认状态`（warning） |
+| `security/ComplianceScan/index.tsx` | `合规数据加载失败，显示默认状态`（warning） |
+| `service-portal/index.tsx` | `{msg}` / `加载服务列表失败` |
+| `service-topology/ServiceTopology/index.tsx` | `{msg}` / `加载服务拓扑失败` + `加载服务依赖关系失败` |
+
+另在本轮新迁的 3 个页面同步应用该模式：`EvalSetManagement`、`CronJobs`、`EventBus`。
+
+### 续迁 3 页（Batch W 未覆盖）
+
+- `EvalSetManagement/index.tsx`（729 行）— 双 fetch 合并为单个 `queryKey: ['eval-sets']`，
+  `Promise.all([apiCall('/eval/sets'), apiCall('/eval/runs')])`，保留 `useMemo` 列定义
+- `CronJobs/index.tsx`（305 行）— 单 fetch，`queryKey: ['cron-jobs']`
+- `EventBus/index.tsx`（442 行）— 双 fetch，`queryKey: ['event-bus']`，
+  queryFn 内完成 API→UI 映射
+
+3 页统一 `retry: 0, staleTime: 30_000`；`onClick={loadXxx}` → `onClick={() => refetch()}`。
+
+### 测试基础设施：`src/tests/render.tsx`
+
+迁移后 `render(<Page />)` 缺 `QueryClientProvider` 上下文会抛
+`"No QueryClient set, use QueryClientProvider to set one"`。
+
+**尝试过并在 setup.ts 全局打补丁的方案失败**，已回退：
+```
+TypeError: Cannot redefine property: render
+```
+vitest 下 `@testing-library/react` 的 ESM 命名空间不可重定义，全局 spy 无法生效。
+因此改为显式 helper：`renderWithProviders()`，每次调用创建**独立** QueryClient
+（`retry: false, gcTime: 50, staleTime: 0`），避免跨用例缓存污染。
+
+已切换 4 个测试文件：`CronJobs`、`ServiceCatalog`、`SbomDashboard`、`EventBus` 的
+`__tests__/index.test.tsx`。其中 ServiceCatalog、SbomDashboard 是被 Batch W 弄坏后才修好的。
+
+### 验证
+
+- `npx tsc --noEmit`（**必须在 `orion-frontend/` 下运行**，仓库根目录同名 tsconfig 会静默通过）
+  → **48 个错误，与基线一致**，全部为既有测试文件类型问题；本轮改动文件 0 错误
+- `npx vitest run src/pages/CronJobs src/pages/EventBus src/pages/ServiceCatalog
+  src/pages/SbomDashboard src/pages/AIReview src/pages/security/AuthConfig
+  src/pages/security/ComplianceScan src/pages/service-portal src/pages/service-topology`
+  → **5 个测试文件 / 7 个用例全绿**
+
+### ⚠️ 全量测试基线待确认
+
+从**仓库根目录**误跑过一次全量测试（17 文件 / 56 用例失败），但该结果**不可信**：
+根目录的 vitest 是 v4.1.11（前端是 v1.6.1），且 glob 把 `.worktrees/cmdb-ops/` 的
+重复树也扫进来了。需从 `orion-frontend/` 下重跑以建立正确基线。**待办。**
+
+### 📊 提交
+
+- `6df4b29b1` — refactor(frontend): Batch W+X EvalSet/CronJobs/EventBus 迁移 react-query + 恢复加载错误反馈
+
+### 📝 真实盘点：react-query 迁移远未完成
+
+```
+src/pages 下 .tsx 页面组件（排除 __tests__）   467
+调用 useQuery 的文件                             24   (5.1%)
+useEffect + useState(setLoading) 且无 useQuery  308   ← 遗留手动加载模式
+```
+
+后续最大遗留页面（行数）：`developer-portal/DeveloperPortalPage.tsx` 2686、
+`OpsTools/index.tsx` 1825、`observability/TraceDetailPage.tsx` 1295、
+`multi-cloud/MultiCloudAdvancedPage.tsx` 1043、`multi-cloud/MultiCloudPage.tsx` 1031、
+`KnowledgeBaseV2/KnowledgeBasePage.tsx` 890、`notify-svc/ChatOps/AdminSettings.tsx` 887。
+
+注意存在同名易混的旧版重复页面仍未迁移：`service-catalog/index.tsx`(461)、
+`ServicePortal/index.tsx`(1071)、`graph/GraphPage.tsx`(1058, 多 tab)。

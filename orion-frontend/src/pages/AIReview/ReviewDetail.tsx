@@ -2,7 +2,7 @@
  * AI Review - Review Detail
  * Detailed view of a single AI review result
  */
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
@@ -18,6 +18,7 @@ import {
   Statistic,
   Table,
   Empty,
+  message,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -40,7 +41,7 @@ const AIReviewDetail: React.FC = () => {
   const [searchParams] = useSearchParams();
   const reviewId = searchParams.get('id') || '';
 
-  const { data, isLoading: loading, refetch } = useQuery<{ detail: AIReviewResult | null; issues: AIReviewResult['comments'] }>({
+  const { data, isLoading: loading, isError, error, refetch } = useQuery<{ detail: AIReviewResult | null; issues: AIReviewResult['comments'] }>({
     queryKey: ['ai-review-detail', reviewId],
     queryFn: async () => {
       const res = await getReviewDetail(reviewId);
@@ -55,6 +56,23 @@ const AIReviewDetail: React.FC = () => {
     enabled: !!reviewId,
     staleTime: 30_000,
   });
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  // 缺少评审 ID 参数提示（迁移前由 loadDetail 内的守卫给出）
+  useEffect(() => {
+    if (!reviewId) {
+      message.warning('缺少评审 ID 参数');
+    }
+  }, [reviewId]);
+
+  useEffect(() => {
+    if (isError) {
+      message.error(
+        error instanceof Error ? `加载评审详情失败：${error.message}` : '加载评审详情失败，请稍后重试'
+      );
+    }
+  }, [isError, error]);
 
   const loadDetail = () => refetch();
   const detail = data?.detail ?? null;

@@ -18,7 +18,7 @@ const AIReviewConfig: React.FC = () => {
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
 
-  const { data: config, isLoading: loading, refetch } = useQuery<AIReviewConfig | undefined>({
+  const { data: config, isLoading: loading, isError, error, refetch } = useQuery<AIReviewConfig | undefined>({
     queryKey: ['ai-review-config'],
     queryFn: async () => {
       const res = await getReviewConfig();
@@ -26,6 +26,16 @@ const AIReviewConfig: React.FC = () => {
     },
     staleTime: 30_000,
   });
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError) {
+      message.error(
+        error instanceof Error ? `加载配置失败：${error.message}` : '加载配置失败，请稍后重试'
+      );
+    }
+  }, [isError, error]);
 
   useEffect(() => {
     if (config) {

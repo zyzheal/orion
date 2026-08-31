@@ -2,7 +2,7 @@
  * Auth Configuration Page (H1.1 认证授权)
  * OAuth2/OIDC/MFA/SSO provider management and authentication policy configuration
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@/providers/QueryProvider';
 import { API_BASE_URL } from '@/api/client';
 import {
@@ -100,7 +100,7 @@ const AuthConfigPage: React.FC = () => {
   const [creating, setCreating] = useState(false);
   const [createForm] = Form.useForm<{ name: string; type: ProviderType; clientId?: string; clientSecret?: string; discoveryUrl?: string }>();
 
-  const { data: rawData, isLoading: loading, refetch } = useQuery<{ providers: AuthProvider[]; policies: AuthPolicy[] }>({
+  const { data: rawData, isLoading: loading, isError, refetch } = useQuery<{ providers: AuthProvider[]; policies: AuthPolicy[] }>({
     queryKey: ['auth-config'],
     queryFn: async () => {
       const [providersRes, policiesRes] = await Promise.all([
@@ -118,6 +118,14 @@ const AuthConfigPage: React.FC = () => {
 
   const safeProviders = rawData?.providers ?? [];
   const safePolicies = rawData?.policies ?? [];
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError) {
+      message.warning('认证配置数据加载失败，显示默认状态');
+    }
+  }, [isError]);
 
   const providerColumns: ColumnsType<AuthProvider> = [
     {

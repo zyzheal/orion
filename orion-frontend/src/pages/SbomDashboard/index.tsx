@@ -2,7 +2,7 @@
  * SBOM Dashboard Page
  * SBOM coverage stats, vulnerability trends, compliance score, SBOM list
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
@@ -72,7 +72,7 @@ const SbomDashboard: React.FC = () => {
   const [waiverSubmitting, setWaiverSubmitting] = useState(false);
   const [form] = Form.useForm();
 
-  const { data: rawData, isLoading: loading, refetch } = useQuery<{ documents: SbomDocument[]; waivers: SbomWaiver[]; compliance: SbomComplianceReport | null }>({
+  const { data: rawData, isLoading: loading, isError, error, refetch } = useQuery<{ documents: SbomDocument[]; waivers: SbomWaiver[]; compliance: SbomComplianceReport | null }>({
     queryKey: ['sbom-dashboard'],
     queryFn: async () => {
       const [docRes, waiverRes, compRes] = await Promise.all([
@@ -93,6 +93,16 @@ const SbomDashboard: React.FC = () => {
   const documents = rawData?.documents ?? [];
   const waivers = rawData?.waivers ?? [];
   const compliance = rawData?.compliance ?? null;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError) {
+      message.error(
+        error instanceof Error ? `Failed to load SBOM data：${error.message}` : 'Failed to load SBOM data'
+      );
+    }
+  }, [isError, error]);
 
   const filteredDocs = useMemo(() => {
     return documents.filter((doc) => {
