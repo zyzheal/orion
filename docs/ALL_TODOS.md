@@ -1,6 +1,6 @@
 # Orion 平台 — 所有待办汇总（单一权威来源）
 
-> 最后更新: 2026-08-30 | 分支: `feat/wave2-parallel-execution`
+> 最后更新: 2026-09-01 | 分支: `feat/wave2-parallel-execution`
 > 数据来源: `architecture-review-2026-08-01.md` + `CROSS_VALIDATION_REPORT.md` + `merged-action-items-2026-07-27.md` + `structure-overlap-verification-2026-08-01.md` + `three-domain-depth-analysis-2026-08-01.md`
 > 状态: ✅ **已通过专家评审核实** (2026-08-01)，以下为**当前有效清单**
 
@@ -10,10 +10,10 @@
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已完成 | 43 项 |
-| 🔴 待处理 | 5 项 P0 |
-| 🟡 待处理 | 8 项 P1 |
-| 🔵 待处理 | 15 项 P2 |
+| ✅ 已完成 | 51 项（含 Phase 7 G1-G8 + Wave 7-D MinIO e2e） |
+| 🔴 待处理 | 1 项 P0（PERM-8 阶段 2，需客户端迁移计划） |
+| 🟡 待处理 | 2 项 P1（P1-8 响应格式统一 / P1-9 三域补全） |
+| 🔵 待处理 | 7 项 P2（P2-2/4/7/9/11/12/16 部分完成） |
 | ⚠️ 已废弃/不适用 | 11 项 |
 | **总计** | **82 项** |
 
