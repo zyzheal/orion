@@ -69,11 +69,15 @@ interface SubAppStore {
 // ==================== API Functions ====================
 
 import { API_BASE_URL } from '@/api/client';
+import { useAuthStore } from '@/stores/authStore';
 
 const API_BASE = API_BASE_URL;
 
 async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('access_token');
+  // 使用 authStore.getToken() 异步获取 token — 过期时自动刷新,
+  // 避免严格认证模式下用过期 token 打 401。
+  const authStore = useAuthStore.getState();
+  const token = await authStore.getToken();
 
   const response = await fetch(`${API_BASE}${url}`, {
     ...options,

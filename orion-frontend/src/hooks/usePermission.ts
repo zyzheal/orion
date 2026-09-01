@@ -179,12 +179,14 @@ async function fetchPermissionsMap(): Promise<Record<string, string[]>> {
 
   _fetchPromise = (async () => {
     try {
+      // 使用 authStore.getToken() 异步获取 token — 过期时自动刷新,
+      // 避免严格认证模式下用过期 token 打 401。保留裸 fetch 而非 api.* —
+      // 权限引导是后台静默调用,失败必须 fallback 到硬编码表,不能触发全局 toast。
+      const authStore = useAuthStore.getState();
+      const token = await authStore.getToken();
       const resp = await fetch(`${API_BASE_URL}/roles/permissions-map`, {
         headers: {
-          // 键名修正：真实键是 access_token（authStore TOKEN_KEY），'token' 从未被写入，
-          // 旧代码下 Bearer 一直是空的。此处刻意继续用裸 fetch 而非 api.* ——
-          // 权限引导是后台静默调用，失败必须 fallback 到硬编码表，不能触发全局 toast。
-          Authorization: `Bearer ${localStorage.getItem('access_token') || ''}`,
+          Authorization: token ? `Bearer ${token}` : '',
           'x-tenant-id': localStorage.getItem('tenant_id') || '',
         },
       });

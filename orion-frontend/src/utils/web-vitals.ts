@@ -3,7 +3,7 @@
 // Collects LCP, CLS, INP, FID, FCP, TTFB
 // Sends metrics via Beacon API or fetch to API_BASE_URL + /performance/vitals
 import { API_BASE_URL } from '@/api/client';
-// ============================================================
+import { useAuthStore } from '@/stores/authStore';
 
 // Type declarations for Performance APIs
 interface LCPEntry extends PerformanceEntry {
@@ -389,9 +389,14 @@ export async function reportWebVitals(collector: WebVitalsCollector): Promise<vo
   }
 
   try {
+    const authStore = useAuthStore.getState();
+    const token = await authStore.getToken();
     await fetch(`${API_BASE_URL}/performance/vitals`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify(report),
       keepalive: true,
     });

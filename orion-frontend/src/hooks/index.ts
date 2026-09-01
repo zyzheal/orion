@@ -3,7 +3,6 @@
  */
 
 export { useAuth } from './useAuth';
-export { useFetch } from './useFetch';
 export { useWebSocket } from './useWebSocket';
 export { useBiDashboard } from './useBiDashboard';
 export { useChartPerformance } from './useChartPerformance';

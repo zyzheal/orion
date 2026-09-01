@@ -10,7 +10,7 @@ import { Tag, Tooltip, Popconfirm, message, Space } from 'antd';
 import { LockOutlined, UnlockOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { spacing } from '@/tokens';
-import { API_BASE_URL } from '@/api/client';
+import { api } from '@/api/client';
 
 // ---- Types ----
 
@@ -24,34 +24,16 @@ export interface EnvironmentLockInfo {
 // ---- API calls ----
 
 async function lockEnvironment(envId: string, reason: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/environments/${envId}/lock`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason, lockedBy: 'current-user' }),
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Request failed' }));
-    throw new Error(error.message || 'Failed to lock environment');
-  }
+  await api.post(`environments/${envId}/lock`, { reason, lockedBy: 'current-user' });
 }
 
 async function unlockEnvironment(envId: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/environments/${envId}/unlock`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Request failed' }));
-    throw new Error(error.message || 'Failed to unlock environment');
-  }
+  await api.post(`environments/${envId}/unlock`);
 }
 
 async function fetchLockStatus(envId: string): Promise<EnvironmentLockInfo> {
-  const response = await fetch(`${API_BASE_URL}/environments/${envId}/lock-status`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch lock status');
-  }
-  return response.json();
+  const response = await api.get<EnvironmentLockInfo>(`environments/${envId}/lock-status`);
+  return response.data;
 }
 
 // ---- Component ----
