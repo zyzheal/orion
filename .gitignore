@@ -66,3 +66,7 @@ orion-ai-service/src/data/
 
 # Claude worktrees
 .claude/worktrees/
+
+# Playwright test reports
+playwright-report/
+playwright/.cache/
