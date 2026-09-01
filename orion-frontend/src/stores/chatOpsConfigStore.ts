@@ -139,36 +139,34 @@ function saveToCache(questions: ChatOpsQuestionConfig[], commands: ChatOpsComman
 
 /** 合并问答默认值与远程数据 */
 function mergeQuestions(
-  remote: any[] | null,
+  remote: Partial<ChatOpsQuestionConfig>[] | null,
   defaults: ChatOpsQuestionConfig[]
 ): ChatOpsQuestionConfig[] {
   if (!remote || remote.length === 0) return [...defaults];
   const merged = defaults.map((defQ) => {
-    const remoteQ = remote.find((q: any) => q.key === defQ.key);
+    const remoteQ = remote.find((q) => q.key === defQ.key);
     return remoteQ ? { ...defQ, ...remoteQ } : defQ;
   });
   for (const r of remote) {
-    if (!merged.find((q) => q.key === r.key) && r.key) {
-      merged.push(r as ChatOpsQuestionConfig);
-    }
+    if (!r.key || merged.find((q) => q.key === r.key)) continue;
+    merged.push(r as unknown as ChatOpsQuestionConfig);
   }
   return merged;
 }
 
 /** 合并命令默认值与远程数据 */
 function mergeCommands(
-  remote: any[] | null,
+  remote: Partial<ChatOpsCommandConfig>[] | null,
   defaults: ChatOpsCommandConfig[]
 ): ChatOpsCommandConfig[] {
   if (!remote || remote.length === 0) return [...defaults];
   const merged = defaults.map((defC) => {
-    const remoteC = remote.find((c: any) => c.key === defC.key);
+    const remoteC = remote.find((c) => c.key === defC.key);
     return remoteC ? { ...defC, ...remoteC } : defC;
   });
   for (const r of remote) {
-    if (!merged.find((c) => c.key === r.key) && r.key) {
-      merged.push(r as ChatOpsCommandConfig);
-    }
+    if (!r.key || merged.find((c) => c.key === r.key)) continue;
+    merged.push(r as unknown as ChatOpsCommandConfig);
   }
   return merged;
 }

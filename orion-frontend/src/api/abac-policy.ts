@@ -11,7 +11,8 @@ export interface AbacPolicy {
   description?: string;
   resourceType: string | string[];
   actionType: string | string[];
-  conditions: any;
+  /** ABAC conditions are inherently JSON-based, so we use a flexible record type */
+  conditions: Record<string, unknown>;
   effect: 'allow' | 'deny';
   priority?: number;
   enabled?: boolean;

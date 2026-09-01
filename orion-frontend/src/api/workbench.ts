@@ -108,16 +108,16 @@ export async function getWorkbenchData(): Promise<WorkbenchData> {
  */
 export async function getWorkbenchFallback(): Promise<WorkbenchData> {
   const [pipelines, alerts, tickets, deployments] = await Promise.allSettled([
-    api.get<{ data?: { items?: any[]; data?: any[] } } | { items?: any[]; data?: any[] }>(
+    api.get<{ data?: { items?: Array<Record<string, unknown>>; data?: Array<Record<string, unknown>> } } | { items?: Array<Record<string, unknown>>; data?: Array<Record<string, unknown>> }>(
       '/pipeline-runs?limit=5&status=all'
     ),
-    api.get<{ data?: { items?: any[]; data?: any[] } } | { items?: any[]; data?: any[] }>(
+    api.get<{ data?: { items?: Array<Record<string, unknown>>; data?: Array<Record<string, unknown>> } } | { items?: Array<Record<string, unknown>>; data?: Array<Record<string, unknown>> }>(
       '/alerts?limit=5&status=active'
     ),
-    api.get<{ data?: { items?: any[]; data?: any[] } } | { items?: any[]; data?: any[] }>(
+    api.get<{ data?: { items?: Array<Record<string, unknown>>; data?: Array<Record<string, unknown>> } } | { items?: Array<Record<string, unknown>>; data?: Array<Record<string, unknown>> }>(
       '/tickets?limit=5&status=active'
     ),
-    api.get<{ data?: { items?: any[]; data?: any[] } } | { items?: any[]; data?: any[] }>(
+    api.get<{ data?: { items?: Array<Record<string, unknown>>; data?: Array<Record<string, unknown>> } } | { items?: Array<Record<string, unknown>>; data?: Array<Record<string, unknown>> }>(
       '/deployments?limit=5'
     ),
   ]);

@@ -156,7 +156,8 @@ export const useAuthStore = create<AuthState>()(
 
       // Phase 3.8.4: 广播登出事件通知子应用
       try {
-        (getDefaultChannel() as any).emit('auth:logout', {
+        const channel = getDefaultChannel() as { emit?: (event: string, data: Record<string, unknown>) => void };
+        channel.emit?.('auth:logout', {
           timestamp: new Date().toISOString(),
           reason: 'user_logout',
         });

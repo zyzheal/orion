@@ -6,7 +6,7 @@
 /**
  * 防抖函数
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
@@ -28,10 +28,10 @@ export function debounce<T extends (...args: any[]) => any>(
 /**
  * 节流函数
  */
-export function throttle<T extends (...args: any[]) => any>(func: T, limit: number): T {
+export function throttle<T extends (...args: unknown[]) => unknown>(func: T, limit: number): T {
   let inThrottle: boolean;
 
-  return function (this: any, ...args: Parameters<T>) {
+  return function (this: unknown, ...args: Parameters<T>) {
     if (!inThrottle) {
       func.apply(this, args);
       inThrottle = true;
@@ -43,10 +43,10 @@ export function throttle<T extends (...args: any[]) => any>(func: T, limit: numb
 /**
  * 请求动画帧节流
  */
-export function rafThrottle<T extends (...args: any[]) => any>(func: T): T {
+export function rafThrottle<T extends (...args: unknown[]) => unknown>(func: T): T {
   let rafId: number | null = null;
 
-  return function (this: any, ...args: Parameters<T>) {
+  return function (this: unknown, ...args: Parameters<T>) {
     if (rafId !== null) return;
 
     rafId = requestAnimationFrame(() => {

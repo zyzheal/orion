@@ -275,7 +275,7 @@ export const multiCloudApi = {
    */
   getCostStats: async () => {
     const response = await apiClient.get('/multi-cloud/costs');
-    return response.data as { success: boolean; data: any };
+    return response.data as { success: boolean; data: Record<string, unknown> };
   },
 
   /**
@@ -283,7 +283,7 @@ export const multiCloudApi = {
    */
   getCostByProvider: async (provider: string) => {
     const response = await apiClient.get(`/multi-cloud/costs/${provider}`);
-    return response.data as { success: boolean; data: any };
+    return response.data as { success: boolean; data: Record<string, unknown> };
   },
 
   /**

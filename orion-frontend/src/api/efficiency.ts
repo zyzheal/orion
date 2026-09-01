@@ -89,7 +89,7 @@ export function getDoraMetrics(query?: DoraMetricsQuery) {
 }
 
 export function generateDoraReport(query?: DoraMetricsQuery & { format?: 'json' | 'pdf' }) {
-  return api.post<{ report: any }>('/efficiency/dora/report', query);
+  return api.post<{ report: unknown }>('/efficiency/dora/report', query);
 }
 
 export function getDoraBenchmarks() {

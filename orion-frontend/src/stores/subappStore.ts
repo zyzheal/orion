@@ -124,8 +124,9 @@ export const useSubAppStore = create<SubAppStore>()(
           } else {
             throw new Error('Failed to fetch sub-apps');
           }
-        } catch (error: any) {
-          set({ error: error.message, loading: false });
+        } catch (error: unknown) {
+          const msg = error instanceof Error ? error.message : 'Unknown error';
+          set({ error: msg, loading: false });
           console.error('[SubAppStore] Failed to fetch apps:', error);
         }
       },
@@ -146,8 +147,9 @@ export const useSubAppStore = create<SubAppStore>()(
           } else {
             throw new Error('Failed to fetch enabled sub-apps');
           }
-        } catch (error: any) {
-          set({ error: error.message, loading: false });
+        } catch (error: unknown) {
+          const msg = error instanceof Error ? error.message : 'Unknown error';
+          set({ error: msg, loading: false });
           console.error('[SubAppStore] Failed to fetch enabled apps:', error);
         }
       },
@@ -170,8 +172,9 @@ export const useSubAppStore = create<SubAppStore>()(
           } else {
             throw new Error('Failed to create sub-app');
           }
-        } catch (error: any) {
-          set({ error: error.message, loading: false });
+        } catch (error: unknown) {
+          const msg = error instanceof Error ? error.message : 'Unknown error';
+          set({ error: msg, loading: false });
           throw error;
         }
       },
@@ -197,8 +200,9 @@ export const useSubAppStore = create<SubAppStore>()(
           } else {
             throw new Error('Failed to update sub-app');
           }
-        } catch (error: any) {
-          set({ error: error.message, loading: false });
+        } catch (error: unknown) {
+          const msg = error instanceof Error ? error.message : 'Unknown error';
+          set({ error: msg, loading: false });
           throw error;
         }
       },
@@ -219,8 +223,9 @@ export const useSubAppStore = create<SubAppStore>()(
           } else {
             throw new Error('Failed to delete sub-app');
           }
-        } catch (error: any) {
-          set({ error: error.message, loading: false });
+        } catch (error: unknown) {
+          const msg = error instanceof Error ? error.message : 'Unknown error';
+          set({ error: msg, loading: false });
           throw error;
         }
       },
@@ -246,8 +251,9 @@ export const useSubAppStore = create<SubAppStore>()(
           } else {
             throw new Error('Failed to toggle sub-app status');
           }
-        } catch (error: any) {
-          set({ error: error.message, loading: false });
+        } catch (error: unknown) {
+          const msg = error instanceof Error ? error.message : 'Unknown error';
+          set({ error: msg, loading: false });
           throw error;
         }
       },
@@ -279,7 +285,7 @@ export const useSubAppStore = create<SubAppStore>()(
         apps: state.apps,
         lastFetchTime: state.lastFetchTime,
       }),
-      migrate: (_persistedState: any, _version: number) => {
+      migrate: (_persistedState: unknown, _version: number) => {
         // 强制清除缓存，触发重新获取
 
         return {};

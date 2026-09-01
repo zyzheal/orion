@@ -55,6 +55,15 @@ export interface PageContext {
   id?: string;
 }
 
+export type ChatOpsCommand = {
+  id: string;
+  name: string;
+  subcommand: string;
+  aliases: string[];
+  schema: Record<string, unknown>;
+  examples: string[];
+};
+
 // ---- Store ----
 
 interface ChatOpsState {
@@ -76,14 +85,7 @@ interface ChatOpsState {
   pageContext: PageContext | null;
 
   // 命令
-  commands: Array<{
-    id: string;
-    name: string;
-    subcommand: string;
-    aliases: string[];
-    schema: Record<string, unknown>;
-    examples: string[];
-  }>;
+  commands: ChatOpsCommand[];
 
   // 分页
   isLoadingMore: boolean;
@@ -389,9 +391,10 @@ export const useChatOpsStore = create<ChatOpsState>()(
 );
 
 // 辅助: 从执行结果提取操作按钮
-function extractActionsFromResult(result: any): ChatMessage['actions'] {
+function extractActionsFromResult(result: unknown): ChatMessage['actions'] {
   if (!result) return undefined;
-  if (result.actions) return result.actions;
+  const r = result as { actions?: ExtendedAction[] };
+  if (r.actions) return r.actions;
   return [{ label: '查看详情', command: 'status', params: {} }];
 }
 
@@ -408,7 +411,7 @@ export async function initializeChatOpsStore(): Promise<void> {
       commands.forEach((cmd: { name: string; schema?: Record<string, unknown> }) => {
         parser.registerSchema(cmd.name, cmd.schema || {});
       });
-      useChatOpsStore.setState({ commands: commands as any });
+      useChatOpsStore.setState({ commands: commands as ChatOpsCommand[] });
     }
     useChatOpsStore.getState().fetchRecommendations();
   } catch (err) {

@@ -15,7 +15,7 @@ export interface AgentConfig {
   type?: string;
   model?: string;
   tools?: string[];
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface AgentInfo {

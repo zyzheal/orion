@@ -35,7 +35,7 @@ export interface PluginConfigField {
   type: 'string' | 'number' | 'boolean' | 'array' | 'object';
   description: string;
   required?: boolean;
-  default?: any;
+  default?: unknown;
   enum?: string[];
 }
 
