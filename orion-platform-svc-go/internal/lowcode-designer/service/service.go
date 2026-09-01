@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
@@ -509,7 +511,9 @@ func (s *Service) getMaxFieldIndex(ctx context.Context, formID, tenantID string)
 }
 
 func generateID(prefix string) string {
+	b := make([]byte, 4)
+	rand.Read(b)
 	h := fnv.New64a()
-	h.Write([]byte(prefix + "-" + time.Now().Format("20060102150405") + "-" + fmt.Sprintf("%d", time.Now().UnixNano()%100000)))
+	h.Write([]byte(prefix + "-" + time.Now().Format("20060102150405") + "-" + hex.EncodeToString(b)))
 	return fmt.Sprintf("%s-%x", prefix, h.Sum(nil)[:8])
 }
