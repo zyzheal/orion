@@ -5,6 +5,7 @@
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { message } from 'antd';
+import { API_BASE_URL } from '@/api/client';
 
 interface PipelineLogEvent {
   pipelineId: string;
@@ -77,7 +78,7 @@ export function usePipelineSSE(options: UsePipelineSSEOptions): UsePipelineSSERe
 
   // Build SSE URL
   const buildSSEUrl = useCallback(() => {
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
+    const baseUrl = import.meta.env.VITE_API_URL || API_BASE_URL;
     const logLevelParam = logLevel.join(',');
     return `${baseUrl}/pipelines/sse/logs?pipelineId=${pipelineId}&runId=${runId}&logLevel=${logLevelParam}`;
   }, [pipelineId, runId, logLevel]);

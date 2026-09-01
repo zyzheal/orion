@@ -10,6 +10,7 @@ import { loadSubApp, getSubApp } from '@orion-mf/core';
 import type { SubAppInstance } from '@orion-mf/core';
 import { getSubAppConfig } from '@/microfront/apps';
 import { Loading } from '@/components/Loading';
+import { API_BASE_URL } from '@/api/client';
 import { colors, spacing } from '@/tokens';
 
 // Orion-MF 配置接口
@@ -133,7 +134,7 @@ const SubAppRouteMF: React.FC = () => {
             token: token || '',
             tenantId: tenantId || '',
             user,
-            getApiBase: () => '/api/v1',
+            getApiBase: () => API_BASE_URL,
           };
         }
       } catch (err: any) {

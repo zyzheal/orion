@@ -15,7 +15,7 @@ const { shouldRetry, getRetryDelay, withRetry } = createRetryHandler();
  *  client.ts 自动拼接 /api/v1 前缀。
  *  硬编码 /xxx 的旧文件需迁移到相对路径。
  */
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 // 创建 Axios 实例
 const apiClient: AxiosInstance = axios.create({
@@ -138,7 +138,7 @@ apiClient.interceptors.response.use(
 
         // 直接调用刷新端点（绕过当前 axios 实例的拦截器，避免递归）
         const response = await axios.post(
-          `${import.meta.env.VITE_API_BASE_URL || '/api'}/v1/auth/refresh`,
+          `${API_BASE_URL}/auth/refresh`,
           { refreshToken },
           { timeout: 10000 }
         );

@@ -1,450 +1,179 @@
 /**
  * Deploy Enhanced API Service
- * Release management: plans, strategies, windows, approvals, records, versions, rollbacks, reports
- * Prefix: /deploy-enhanced
+ * Matches backend routes under /deploy/ (wired from internal/deploy-enhanced/handler)
+ * Resources: windows, progressive deploys, emergencies
  */
 import { api } from './client';
 
-// ==================== Release Plan ====================
+// ==================== Deploy Window ====================
 
-export interface ReleasePlanStep {
-  id: string;
-  order: number;
-  name: string;
-  type: 'build' | 'test' | 'deploy' | 'verify';
-  status: 'pending' | 'running' | 'success' | 'failed' | 'skipped';
-  config: Record<string, unknown>;
-  duration?: number;
-  startedAt?: string;
-  completedAt?: string;
-}
-
-export interface ReleasePlan {
+export interface DeployWindow {
   id: string;
   tenantId: string;
   name: string;
-  description: string;
-  projectId: string;
-  appNames: string[];
-  environment: string;
-  status: 'draft' | 'approved' | 'executing' | 'completed' | 'cancelled' | 'failed';
-  strategyId: string;
-  scheduledAt?: string;
-  steps: ReleasePlanStep[];
-  createdBy: string;
-  approvedBy?: string;
-  approvedAt?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreatePlanInput {
-  name: string;
-  description: string;
-  projectId: string;
-  appNames: string[];
-  environment: string;
-  strategyId: string;
-  scheduledAt?: string;
-  steps: Omit<ReleasePlanStep, 'id' | 'status' | 'startedAt' | 'completedAt'>[];
-}
-
-export function listPlans(params?: {
-  page?: number;
-  limit?: number;
-  status?: string;
-  search?: string;
-}) {
-  return api.get('/deploy-enhanced/plans', { params });
-}
-
-export function getPlan(id: string) {
-  return api.get(`/deploy-enhanced/plans/${id}`);
-}
-
-export function createPlan(data: CreatePlanInput) {
-  return api.post('/deploy-enhanced/plans', data);
-}
-
-export function updatePlan(id: string, data: Partial<ReleasePlan>) {
-  return api.patch(`/deploy-enhanced/plans/${id}`, data);
-}
-
-export function deletePlan(id: string) {
-  return api.delete(`/deploy-enhanced/plans/${id}`);
-}
-
-export function approvePlan(id: string) {
-  return api.post(`/deploy-enhanced/plans/${id}/approve`);
-}
-
-export function cancelPlan(id: string) {
-  return api.post(`/deploy-enhanced/plans/${id}/cancel`);
-}
-
-// ==================== Release Strategy ====================
-
-export interface ReleaseStrategy {
-  id: string;
-  tenantId: string;
-  name: string;
-  description: string;
-  type: 'blue-green' | 'canary' | 'full';
-  config: {
-    canaryPercentage?: number;
-    canarySteps?: number[];
-    canaryInterval?: number;
-    maxRollbackVersion?: number;
-  };
-  enabled: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreateStrategyInput {
-  name: string;
-  description: string;
-  type: 'blue-green' | 'canary' | 'full';
-  config: {
-    canaryPercentage?: number;
-    canarySteps?: number[];
-    canaryInterval?: number;
-    maxRollbackVersion?: number;
-  };
-}
-
-export function listStrategies(params?: { page?: number; limit?: number; search?: string }) {
-  return api.get('/deploy-enhanced/strategies', { params });
-}
-
-export function getStrategy(id: string) {
-  return api.get(`/deploy-enhanced/strategies/${id}`);
-}
-
-export function createStrategy(data: CreateStrategyInput) {
-  return api.post('/deploy-enhanced/strategies', data);
-}
-
-export function updateStrategy(id: string, data: Partial<ReleaseStrategy>) {
-  return api.patch(`/deploy-enhanced/strategies/${id}`, data);
-}
-
-export function deleteStrategy(id: string) {
-  return api.delete(`/deploy-enhanced/strategies/${id}`);
-}
-
-export function toggleStrategy(id: string) {
-  return api.post(`/deploy-enhanced/strategies/${id}/toggle`);
-}
-
-// ==================== Release Window ====================
-
-export interface ReleaseWindow {
-  id: string;
-  tenantId: string;
-  name: string;
-  description: string;
-  environment: string;
-  weekDays: number[];
-  startTime: string;
-  endTime: string;
+  environmentId?: string;
+  type: string;
+  cronExpression?: string;
+  startTime?: string;
+  endTime?: string;
+  durationMinutes: number;
   timezone: string;
-  enabled: boolean;
+  status: string;
+  createdBy: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface CreateWindowInput {
+export interface CreateDeployWindowInput {
   name: string;
-  description: string;
-  environment: string;
-  weekDays: number[];
-  startTime: string;
-  endTime: string;
+  cronExpression: string;
+  environmentId: string;
+  durationMinutes?: number;
   timezone?: string;
 }
 
-export function listWindows(params?: {
-  page?: number;
-  limit?: number;
-  environment?: string;
-  search?: string;
-}) {
-  return api.get('/deploy-enhanced/windows', { params });
+export interface UpdateDeployWindowInput {
+  name?: string;
+  cronExpression?: string;
+  durationMinutes?: number;
+  timezone?: string;
+  status?: string;
+}
+
+export interface WindowCheckResult {
+  isActive: boolean;
+  window?: DeployWindow;
+  reason: string;
+}
+
+export function listWindows(params?: { environmentId?: string; status?: string }) {
+  return api.get<DeployWindow[]>('/deploy/windows', { params });
 }
 
 export function getWindow(id: string) {
-  return api.get(`/deploy-enhanced/windows/${id}`);
+  return api.get<DeployWindow>(`/deploy/windows/${id}`);
 }
 
-export function createWindow(data: CreateWindowInput) {
-  return api.post('/deploy-enhanced/windows', data);
+export function createWindow(data: CreateDeployWindowInput) {
+  return api.post<DeployWindow>('/deploy/windows', data);
 }
 
-export function updateWindow(id: string, data: Partial<ReleaseWindow>) {
-  return api.patch(`/deploy-enhanced/windows/${id}`, data);
+export function updateWindow(id: string, data: UpdateDeployWindowInput) {
+  return api.put<DeployWindow>(`/deploy/windows/${id}`, data);
 }
 
 export function deleteWindow(id: string) {
-  return api.delete(`/deploy-enhanced/windows/${id}`);
+  return api.delete<void>(`/deploy/windows/${id}`);
 }
 
-export function toggleWindow(id: string) {
-  return api.post(`/deploy-enhanced/windows/${id}/toggle`);
+export function checkWindow(id: string) {
+  return api.get<WindowCheckResult>(`/deploy/windows/${id}/check`);
 }
 
-export function checkWindow(environment: string) {
-  return api.get(`/deploy-enhanced/windows/check/${environment}`);
-}
+// ==================== Progressive Deploy ====================
 
-// ==================== Approval ====================
-
-export interface ApprovalUser {
-  userId: string;
-  userName: string;
-  status: 'pending' | 'approved' | 'rejected';
-  respondedAt?: string;
-  comment?: string;
-}
-
-export interface ApprovalRecord {
-  id: string;
-  tenantId: string;
-  planId: string;
-  planName: string;
-  type: 'plan' | 'strategy' | 'rollback';
-  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
-  approvers: ApprovalUser[];
-  requestedBy: string;
-  requestedAt: string;
-  approvedAt?: string;
-  rejectedReason?: string;
-  createdAt: string;
-}
-
-export function listApprovals(params?: { page?: number; limit?: number; status?: string }) {
-  return api.get('/deploy-enhanced/approvals', { params });
-}
-
-export function getApproval(id: string) {
-  return api.get(`/deploy-enhanced/approvals/${id}`);
-}
-
-export function createApproval(planId: string, type: 'plan' | 'strategy' | 'rollback') {
-  return api.post('/deploy-enhanced/approvals', { planId, type });
-}
-
-export function respondToApproval(id: string, approved: boolean, comment?: string) {
-  const userId = localStorage.getItem('userId') || 'current-user';
-  const userName = localStorage.getItem('userName') || 'Current User';
-  return api.post(`/deploy-enhanced/approvals/${id}/respond`, {
-    userId,
-    userName,
-    approved,
-    comment,
-  });
-}
-
-export function cancelApproval(id: string) {
-  return api.post(`/deploy-enhanced/approvals/${id}/cancel`);
-}
-
-// ==================== Release Record ====================
-
-export interface ReleaseRecordMetrics {
-  successRate: number;
-  totalPods: number;
-  healthyPods: number;
-  responseTimeP50: number;
-  responseTimeP99: number;
-  errorRate: number;
-}
-
-export interface ReleaseRecord {
-  id: string;
-  tenantId: string;
-  planId?: string;
-  appName: string;
-  version: string;
-  environment: string;
-  strategy: string;
-  status: 'pending' | 'deploying' | 'success' | 'failed' | 'rolled_back' | 'cancelled';
-  startedAt: string;
+export interface DeployStage {
+  name: string;
+  trafficPct: number;
+  durationSec: number;
+  status: string;
+  startedAt?: string;
   completedAt?: string;
-  duration?: number;
-  createdBy: string;
-  metrics?: ReleaseRecordMetrics;
-  rollbackFrom?: string;
+  validationResult?: string;
 }
 
-export function listRecords(params?: {
-  page?: number;
-  limit?: number;
-  environment?: string;
-  status?: string;
-  search?: string;
-}) {
-  return api.get('/deploy-enhanced/records', { params });
-}
-
-export function getRecord(id: string) {
-  return api.get(`/deploy-enhanced/records/${id}`);
-}
-
-export function createRecord(data: {
-  planId?: string;
-  appName: string;
-  version: string;
-  environment: string;
-  strategy: string;
-}) {
-  return api.post('/deploy-enhanced/records', data);
-}
-
-export function updateRecordStatus(id: string, status: string, metrics?: ReleaseRecordMetrics) {
-  return api.patch(`/deploy-enhanced/records/${id}/status`, { status, metrics });
-}
-
-export function cancelRecord(id: string) {
-  return api.post(`/deploy-enhanced/records/${id}/cancel`);
-}
-
-// ==================== Version ====================
-
-export interface VersionRecord {
+export interface ProgressiveDeploy {
   id: string;
   tenantId: string;
-  appName: string;
-  version: string;
-  description: string;
-  gitCommit: string;
-  gitBranch: string;
-  artifactUrl: string;
-  status: 'draft' | 'validated' | 'released' | 'deprecated';
-  changelog: string[];
-  createdBy: string;
+  deploymentId: string;
+  strategy: string;
+  stages: string;
+  currentStage: number;
+  status: string;
+  rollbackEnabled: boolean;
+  rollbackStage?: string;
+  rollbackReason?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface CreateVersionInput {
-  appName: string;
-  version: string;
-  description: string;
-  gitCommit: string;
-  gitBranch: string;
-  artifactUrl: string;
-  changelog: string[];
+export interface CreateProgressiveDeployInput {
+  stages: DeployStage[];
 }
 
-export function listVersions(params?: {
-  page?: number;
-  limit?: number;
-  status?: string;
-  search?: string;
-}) {
-  return api.get('/deploy-enhanced/versions', { params });
+export interface AdvanceStageInput {
+  stageId: string;
+  validationResult?: string;
 }
 
-export function getVersion(id: string) {
-  return api.get(`/deploy-enhanced/versions/${id}`);
+export interface RollbackStageInput {
+  stageId: string;
+  reason: string;
 }
 
-export function createVersion(data: CreateVersionInput) {
-  return api.post('/deploy-enhanced/versions', data);
+export function createProgressiveDeploy(deploymentId: string, data: CreateProgressiveDeployInput) {
+  return api.post<ProgressiveDeploy>(`/deploy/${deploymentId}/progressive`, data);
 }
 
-export function updateVersion(id: string, data: Partial<VersionRecord>) {
-  return api.patch(`/deploy-enhanced/versions/${id}`, data);
+export function getProgress(deployId: string) {
+  return api.get<ProgressiveDeploy>(`/deploy/progressive/${deployId}`);
 }
 
-export function deleteVersion(id: string) {
-  return api.delete(`/deploy-enhanced/versions/${id}`);
+export function advanceStage(deployId: string, data: AdvanceStageInput) {
+  return api.post<ProgressiveDeploy>(`/deploy/progressive/${deployId}/advance`, data);
 }
 
-export function listVersionsByApp(appName: string) {
-  return api.get(`/deploy-enhanced/versions/app/${appName}`);
+export function rollbackStage(deployId: string, data: RollbackStageInput) {
+  return api.post<ProgressiveDeploy>(`/deploy/progressive/${deployId}/rollback`, data);
 }
 
-export function compareVersions(id1: string, id2: string) {
-  return api.post('/deploy-enhanced/versions/compare', { id1, id2 });
-}
+// ==================== Emergency Deploy ====================
 
-// ==================== Rollback ====================
-
-export interface RollbackRecord {
+export interface EmergencyDeploy {
   id: string;
   tenantId: string;
-  planId?: string;
-  appName: string;
-  environment: string;
-  fromVersion: string;
-  toVersion: string;
-  status: 'pending' | 'executing' | 'success' | 'failed' | 'cancelled';
+  deploymentId: string;
   reason: string;
   requestedBy: string;
-  startedAt?: string;
-  completedAt?: string;
+  approvedBy?: string;
+  urgency: string;
+  status: string;
+  postMortem?: string;
+  executedAt?: string;
   createdAt: string;
+  updatedAt: string;
 }
 
-export function listRollbacks(params?: {
-  page?: number;
-  limit?: number;
-  environment?: string;
-  status?: string;
-  search?: string;
-}) {
-  return api.get('/deploy-enhanced/rollbacks', { params });
-}
-
-export function getRollback(id: string) {
-  return api.get(`/deploy-enhanced/rollbacks/${id}`);
-}
-
-export function createRollback(data: {
-  planId?: string;
-  appName: string;
-  environment: string;
-  fromVersion: string;
-  toVersion: string;
+export interface CreateEmergencyDeployInput {
+  deploymentId: string;
   reason: string;
-}) {
-  return api.post('/deploy-enhanced/rollbacks', data);
+  requestedBy: string;
 }
 
-export function executeRollback(id: string) {
-  return api.post(`/deploy-enhanced/rollbacks/${id}/execute`);
+export interface ApproveEmergencyInput {
+  approvedBy: string;
 }
 
-export function cancelRollback(id: string) {
-  return api.post(`/deploy-enhanced/rollbacks/${id}/cancel`);
+export interface CompleteEmergencyInput {
+  postMortem?: string;
 }
 
-// ==================== Reports ====================
-
-export interface DailyMetric {
-  date: string;
-  total: number;
-  success: number;
-  failed: number;
-  rollback: number;
+export function requestEmergencyDeploy(data: CreateEmergencyDeployInput) {
+  return api.post<EmergencyDeploy>('/deploy/emergencies', data);
 }
 
-export interface ReleaseReportMetrics {
-  totalReleases: number;
-  successRate: number;
-  averageDuration: number;
-  rollbackRate: number;
-  releasesByEnv: Record<string, number>;
-  releasesByStatus: Record<string, number>;
-  last30Days: DailyMetric[];
+export function listEmergencies(params?: { status?: string }) {
+  return api.get<EmergencyDeploy[]>('/deploy/emergencies', { params });
 }
 
-export function getReportMetrics() {
-  return api.get('/deploy-enhanced/reports/metrics');
+export function approveEmergency(id: string, data: ApproveEmergencyInput) {
+  return api.post<EmergencyDeploy>(`/deploy/emergencies/${id}/approve`, data);
 }
 
-export function getMetricsSummary() {
-  return api.get('/deploy-enhanced/reports/summary');
+export function completeEmergency(id: string, data?: CompleteEmergencyInput) {
+  return api.post<EmergencyDeploy>(`/deploy/emergencies/${id}/complete`, data || {});
+}
+
+export function rejectEmergency(id: string) {
+  return api.post<EmergencyDeploy>(`/deploy/emergencies/${id}/reject`);
 }

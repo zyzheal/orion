@@ -22,7 +22,7 @@ function flatten(obj: Record<string, unknown>, prefix: string = ''): Record<stri
 
 const flatLocales: Record<LocaleCode, Record<string, string>> = {} as Record<LocaleCode, Record<string, string>>;
 for (const code of supportedLocales) {
-  flatLocales[code] = flatten(locales[code] as Record<string, unknown>);
+  flatLocales[code] = flatten(locales[code] as unknown as Record<string, unknown>);
 }
 
 export class I18n {

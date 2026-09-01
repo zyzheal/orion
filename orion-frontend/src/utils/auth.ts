@@ -14,6 +14,7 @@
  */
 
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import { api } from '@/api/client';
 
 // ==================== Token Storage ====================
 
@@ -148,7 +149,14 @@ export async function getSsoProviders(): Promise<
   }>
 > {
   try {
-    const response = await axios.get('/api/v1/auth/sso/providers-enabled');
+    const response = await api.get<
+      Array<{
+        name: string;
+        type: string;
+        display_name: string;
+        display_icon?: string;
+      }>
+    >('auth/sso/providers-enabled');
     return response.data || [];
   } catch {
     // Fallback to default providers
@@ -172,7 +180,7 @@ export async function logout(): Promise<void> {
   const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
 
   try {
-    await axios.post('/api/v1/auth/logout', {
+    await api.post('auth/logout', {
       accessToken,
       refreshToken,
     });

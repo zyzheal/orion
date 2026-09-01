@@ -46,15 +46,20 @@ import {
   CloudUploadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { api } from '@/api/client';
 import type { Deployment, HealthCheckResult } from '@/api/deployments';
-import { getDeployments, cancelDeployment, rollbackDeployment } from '@/api/deployments';
+import { getDeployments, createDeployment, cancelDeployment, rollbackDeployment, startDeployment } from '@/api/deployments';
 import {
   getReleaseNotes,
   generateReleaseNotes,
   type ReleaseNotes,
   type ReleaseNotesChange,
 } from '@/api/deploy';
+import {
+  createWindow,
+  createProgressiveDeploy,
+  advanceStage,
+  rollbackStage,
+} from '@/api/deploy-enhanced';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
@@ -368,7 +373,7 @@ const DeployPage: React.FC = () => {
         pipelineRunId: values.pipelineRunId,
         commit: values.commit,
       };
-      await api.post('/v1/deploy', payload);
+      await createDeployment(payload);
       message.success('部署任务创建成功');
       setCreateModalVisible(false);
       createForm.resetFields();
@@ -387,7 +392,7 @@ const DeployPage: React.FC = () => {
     try {
       const values = await emergencyForm.validateFields();
       setEmergencyLoading(true);
-      await api.post('/v1/deploy', {
+      await createDeployment({
         appName: values.appName,
         version: values.version,
         environment: 'prod',
@@ -413,7 +418,7 @@ const DeployPage: React.FC = () => {
 
   const handleExecute = async (id: string) => {
     try {
-      await api.post(`/v1/deploy/${id}/execute`);
+      await startDeployment(id);
       message.success('部署已启动');
       loadData();
     } catch (error: unknown) {
@@ -456,7 +461,17 @@ const DeployPage: React.FC = () => {
         recurringPattern: values.recurring ? values.recurringPattern : undefined,
         description: values.description,
       };
-      await api.post('/v1/deploy/windows', payload);
+      // Map form fields to backend CreateDeployWindowRequest: { name, cronExpression, environmentId, durationMinutes?, timezone? }
+      const durationMinutes = Math.round(values.endTime.diff(values.startTime, 'minute'));
+      const cronExpression = values.recurring
+        ? `${values.startTime.minute()} ${values.startTime.hour()} * * * ?` // daily cron as base; backend cron parser handles pattern
+        : `${values.startTime.minute()} ${values.startTime.hour()} ${values.startTime.date()} ${values.startTime.month() + 1} ? ${values.startTime.year()}`;
+      await createWindow({
+        name: payload.name,
+        cronExpression,
+        environmentId: payload.environment,
+        durationMinutes,
+      });
       message.success('部署窗口创建成功');
       setDeployWindowModalVisible(false);
       deployWindowForm.resetFields();
@@ -496,12 +511,14 @@ const DeployPage: React.FC = () => {
         { name: '75% 流量', status: 'pending', trafficPercent: 75 },
         { name: '100% 全量', status: 'pending', trafficPercent: 100 },
       ];
-      await api.post('/v1/deploy/progressive', {
-        appName: values.appName,
-        version: values.version,
-        environment: values.environment,
-        stages,
-      });
+      // Map frontend form to backend: POST /deploy/:deploymentId/progressive with { stages: [{ name, trafficPct, durationSec, status }] }
+      const backendStages = stages.map((s) => ({
+        name: s.name,
+        trafficPct: s.trafficPercent,
+        durationSec: 60,
+        status: s.status,
+      }));
+      await createProgressiveDeploy(values.appName, { stages: backendStages });
       message.success('渐进式部署任务创建成功');
       setProgressiveDeployModalVisible(false);
       progressiveDeployForm.resetFields();
@@ -530,6 +547,10 @@ const DeployPage: React.FC = () => {
 
   const handleAdvanceStage = async (deployId: string) => {
     try {
+      const currentDeploy = progressiveDeploys.find((d) => d.id === deployId);
+      if (!currentDeploy) return;
+      const stageIdx = currentDeploy.currentStage;
+
       setProgressiveDeploys((prev) =>
         prev.map((d) => {
           if (d.id !== deployId || d.currentStage >= d.stages.length - 1) return d;
@@ -559,7 +580,7 @@ const DeployPage: React.FC = () => {
           return { ...d, currentStage: newCurrentStage, stages: newStages, status: newStatus };
         })
       );
-      await api.post(`/v1/deploy/progressive/${deployId}/advance`);
+      await advanceStage(deployId, { stageId: `stage-${stageIdx}` });
       message.success('阶段已推进');
     } catch (error: unknown) {
       message.error(`推进失败: ${(error as Error).message}`);
@@ -568,13 +589,17 @@ const DeployPage: React.FC = () => {
 
   const handleRollbackProgressive = async (deployId: string) => {
     try {
+      const currentDeploy = progressiveDeploys.find((d) => d.id === deployId);
+      if (!currentDeploy) return;
+      const stageIdx = currentDeploy.currentStage;
+
       setProgressiveDeploys((prev) =>
         prev.map((d) => {
           if (d.id !== deployId) return d;
           return { ...d, status: 'rolled_back' as const };
         })
       );
-      await api.post(`/v1/deploy/progressive/${deployId}/rollback`);
+      await rollbackStage(deployId, { stageId: `stage-${stageIdx}`, reason: 'manual rollback' });
       message.success('渐进式部署已回滚');
     } catch (error: unknown) {
       message.error(`回滚失败: ${(error as Error).message}`);

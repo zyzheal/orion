@@ -7,6 +7,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getSubAppConfig, injectGlobalState, startSubApp } from '@/microfront/config';
 import { Loading } from '@/components/Loading';
+import { API_BASE_URL } from '@/api/client';
 
 const SubAppRoute: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -53,10 +54,10 @@ const SubAppRoute: React.FC = () => {
     // 注入子应用 API 路由域标识（供子应用参考，不用于 URL 重写）
     const apiDomain = (appConfig as { api_domain?: string })?.api_domain || appKey;
     (window as unknown as { __SUBAPP_API_BASE__?: string }).__SUBAPP_API_BASE__ =
-      `/api/v1/${apiDomain}`;
+      `${API_BASE_URL}/${apiDomain}`;
 
     // 定义 getApiBase 函数（用于传递给子应用）
-    const apiBase = `/api/v1/${apiDomain}`;
+    const apiBase = `${API_BASE_URL}/${apiDomain}`;
 
     injectGlobalState({
       token,

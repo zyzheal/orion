@@ -1,7 +1,8 @@
 // ============================================================
 // Web Vitals Collector — Core Web Vitals (Plan 32)
 // Collects LCP, CLS, INP, FID, FCP, TTFB
-// Sends metrics via Beacon API or fetch to /api/v1/performance/vitals
+// Sends metrics via Beacon API or fetch to API_BASE_URL + /performance/vitals
+import { API_BASE_URL } from '@/api/client';
 // ============================================================
 
 // Type declarations for Performance APIs
@@ -383,9 +384,12 @@ export const webVitalsCollector = new WebVitalsCollector();
 
 export async function reportWebVitals(collector: WebVitalsCollector): Promise<void> {
   const report = collector.buildReport();
+  if (!report.vitals.length && !report.pageLoad.domContentLoaded && !report.pageLoad.load) {
+    return; // Nothing to report
+  }
 
   try {
-    await fetch('/api/v1/performance/vitals', {
+    await fetch(`${API_BASE_URL}/performance/vitals`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(report),
@@ -394,14 +398,7 @@ export async function reportWebVitals(collector: WebVitalsCollector): Promise<vo
   } catch (_e) {
     if (navigator.sendBeacon) {
       const blob = new Blob([JSON.stringify(report)], { type: 'application/json' });
-      navigator.sendBeacon('/api/v1/performance/vitals', blob);
+      navigator.sendBeacon(`${API_BASE_URL}/performance/vitals`, blob);
     }
   }
-
-  window.addEventListener('pagehide', () => {
-    if (navigator.sendBeacon) {
-      const blob = new Blob([JSON.stringify(collector.buildReport())], { type: 'application/json' });
-      navigator.sendBeacon('/api/v1/performance/vitals', blob);
-    }
-  }, { once: true });
 }

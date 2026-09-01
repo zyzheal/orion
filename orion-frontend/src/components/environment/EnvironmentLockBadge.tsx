@@ -10,6 +10,7 @@ import { Tag, Tooltip, Popconfirm, message, Space } from 'antd';
 import { LockOutlined, UnlockOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { spacing } from '@/tokens';
+import { API_BASE_URL } from '@/api/client';
 
 // ---- Types ----
 
@@ -23,7 +24,7 @@ export interface EnvironmentLockInfo {
 // ---- API calls ----
 
 async function lockEnvironment(envId: string, reason: string): Promise<void> {
-  const response = await fetch(`/api/v1/environments/${envId}/lock`, {
+  const response = await fetch(`${API_BASE_URL}/environments/${envId}/lock`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reason, lockedBy: 'current-user' }),
@@ -35,7 +36,7 @@ async function lockEnvironment(envId: string, reason: string): Promise<void> {
 }
 
 async function unlockEnvironment(envId: string): Promise<void> {
-  const response = await fetch(`/api/v1/environments/${envId}/unlock`, {
+  const response = await fetch(`${API_BASE_URL}/environments/${envId}/unlock`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
@@ -46,7 +47,7 @@ async function unlockEnvironment(envId: string): Promise<void> {
 }
 
 async function fetchLockStatus(envId: string): Promise<EnvironmentLockInfo> {
-  const response = await fetch(`/api/v1/environments/${envId}/lock-status`);
+  const response = await fetch(`${API_BASE_URL}/environments/${envId}/lock-status`);
   if (!response.ok) {
     throw new Error('Failed to fetch lock status');
   }

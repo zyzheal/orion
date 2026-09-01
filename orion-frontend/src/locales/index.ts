@@ -17,11 +17,19 @@ import zhCN from './zh-CN.json';
 import enUS from './en-US.json';
 
 export type LocaleCode = 'zh-CN' | 'en-US';
-export type LocalePacks = typeof zhCN;
+
+export interface LocalePacks {
+  common: Record<string, string>;
+  login: Record<string, string | Record<string, string>>;
+  dashboard: Record<string, string>;
+  pipeline: Record<string, string | Record<string, string>>;
+  deploy: Record<string, string | Record<string, string>>;
+  ticket: Record<string, string | Record<string, string>>;
+}
 
 export const locales: Record<LocaleCode, LocalePacks> = {
-  'zh-CN': zhCN,
-  'en-US': enUS,
+  'zh-CN': zhCN as LocalePacks,
+  'en-US': enUS as LocalePacks,
 };
 
 export const defaultLocale: LocaleCode = 'zh-CN';

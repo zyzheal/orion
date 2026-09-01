@@ -280,7 +280,7 @@ const ServiceRegistry: React.FC = () => {
                   try {
                     // 使用 fetch 直接调用心跳接口，因为 API client 未导出 heartbeat
                     const { api } = await import('@/api/client');
-                    await api.post(`/v1/service-registry/services/${record.id}/heartbeat`);
+                    await api.post(`/service-registry/services/${record.id}/heartbeat`);
                     message.success(`心跳已发送：${record.name}`);
                     loadServices();
                   } catch (error: unknown) {

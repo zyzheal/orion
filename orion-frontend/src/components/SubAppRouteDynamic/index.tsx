@@ -9,6 +9,7 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSubAppStore } from '@/stores/subappStore';
+import { API_BASE_URL } from '@/api/client';
 import {
   loadSubApp,
   getSubApp,
@@ -142,7 +143,7 @@ const SubAppRouteDynamic: React.FC = () => {
     // 注入子应用 API 路由域标识（供子应用参考，不用于 URL 重写）
     const apiDomain = appConfig?.api_domain || subAppKey;
     (window as unknown as { __SUBAPP_API_BASE__?: string }).__SUBAPP_API_BASE__ =
-      `/api/v1/${apiDomain}`;
+      `${API_BASE_URL}/${apiDomain}`;
 
     // 确保容器 ID 正确
     const containerId = `mf-${subAppKey}`;

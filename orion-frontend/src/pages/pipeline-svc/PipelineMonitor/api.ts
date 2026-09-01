@@ -16,14 +16,14 @@ export interface RunStats {
  * 备用接口：如果后端没有专门的 stats 端点，使用 getAllPipelineRuns 聚合
  */
 export function getRunStats(params?: { days?: number }): Promise<{ data: RunStats }> {
-  return api.get('/v1/pipelines/stats', { params });
+  return api.get('/pipelines/stats', { params });
 }
 
 /**
  * 获取 Pipeline 指标数据（SSE metrics 端点，首次请求返回快照）
  */
 export function getPipelineMetrics(): Promise<{ data: { data: any[] } }> {
-  return api.get('/v1/pipelines/sse/metrics');
+  return api.get('/pipelines/sse/metrics');
 }
 
 /**

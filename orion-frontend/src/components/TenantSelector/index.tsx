@@ -38,7 +38,7 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({ onTenantChange }
         tenants: MyTenant[];
         currentTenant: MyTenant | null;
         total: number;
-      }>('/v1/tenant/my-tenants');
+      }>('/tenant/my-tenants');
 
       const body =
         (res.data as { tenants?: MyTenant[]; currentTenant?: MyTenant | null; total?: number }) ??

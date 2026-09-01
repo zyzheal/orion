@@ -5,8 +5,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import Console from '@/pages/Console';
-import * as pluginsApi from '@/api/plugins';
-import * as flagsApi from '@/api/feature-flags';
 
 vi.mock('antd', async () => {
   const actual = await vi.importActual<typeof import('antd')>('antd');

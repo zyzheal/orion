@@ -10,6 +10,7 @@ import {
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useIntl } from '@/i18n';
 import { getEnabledSsoProviders } from '@/api/auth';
 import { colors, spacing, themeVars } from '@/tokens';
 
@@ -27,13 +28,14 @@ interface SsoProvider {
   display_icon?: string;
 }
 
-// 左侧装饰特性列表
-const features = [
-  { icon: <RocketOutlined />, title: '智能流水线', desc: 'AI 驱动的 CI/CD 自动化' },
-  { icon: <SafetyOutlined />, title: '安全治理', desc: '全链路安全策略与合规' },
-  { icon: <ThunderboltOutlined />, title: '效能洞察', desc: '研发效能度量与分析' },
-  { icon: <CheckCircleOutlined />, title: '自愈系统', desc: '自动化故障检测与恢复' },
-];
+const featureIcons = [RocketOutlined, SafetyOutlined, ThunderboltOutlined, CheckCircleOutlined] as const;
+
+const featureKeys = [
+  ['features.smartPipeline', 'features.smartPipelineDesc'],
+  ['features.securityGovernance', 'features.securityGovernanceDesc'],
+  ['features.efficiencyInsight', 'features.efficiencyInsightDesc'],
+  ['features.selfHealing', 'features.selfHealingDesc'],
+] as const;
 
 // 左侧背景装饰图形
 const DecorativeCircles: React.FC = () => (
@@ -64,6 +66,7 @@ const Login: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { login, isLoading } = useAuth();
+  const { t } = useIntl();
   const [form] = Form.useForm<LoginFormData>();
   const [_ssoProviders, setSsoProviders] = useState<SsoProvider[]>([]);
   const [_loadingProviders, setLoadingProviders] = useState(false);
@@ -93,15 +96,15 @@ const Login: React.FC = () => {
   const handleSubmit = async (values: LoginFormData) => {
     const result = await login(values);
     if (result.success) {
-      message.success('登录成功');
+      message.success(t('login.loginSuccess'));
       const from =
         (location.state as { from?: { pathname?: string } })?.from?.pathname ?? '/dashboard';
       navigate(from, { replace: true });
     } else {
       if (result.error && typeof result.error === 'object' && 'message' in result.error) {
-        message.error(`登录失败：${(result.error as Error).message}`);
+        message.error(`${t('login.loginFailed')}：${(result.error as Error).message}`);
       } else {
-        message.error('登录失败，请检查用户名和密码');
+        message.error(t('login.loginFailed'));
       }
     }
   };
@@ -142,7 +145,7 @@ const Login: React.FC = () => {
                 letterSpacing: '0.5px',
               }}
             >
-              Orion Platform
+              {t('login.title')}
             </span>
           </div>
         </div>
@@ -160,9 +163,9 @@ const Login: React.FC = () => {
               letterSpacing: '-0.5px',
             }}
           >
-            让工具链
+            {t('login.tagline1')}
             <br />
-            变得更聪明
+            {t('login.tagline2')}
           </Title>
           <Text
             style={{
@@ -179,7 +182,9 @@ const Login: React.FC = () => {
 
           {/* 特性列表 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            {features.map((f, i) => (
+            {featureKeys.map(([_titleKey, _descKey], i) => {
+              const Icon = featureIcons[i];
+              return (
               <div
                 key={String(i)}
                 style={{
@@ -216,7 +221,7 @@ const Login: React.FC = () => {
                     flexShrink: 0,
                   }}
                 >
-                  {f.icon}
+                  <Icon />
                 </div>
                 <div>
                   <div
@@ -227,14 +232,15 @@ const Login: React.FC = () => {
                       marginBottom: 2,
                     }}
                   >
-                    {f.title}
+                    {t(_titleKey)}
                   </div>
                   <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, lineHeight: 1.5 }}>
-                    {f.desc}
+                    {t(_descKey)}
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -304,10 +310,10 @@ const Login: React.FC = () => {
                 letterSpacing: '-0.3px',
               }}
             >
-              欢迎回来
+              {t('login.welcome')}
             </Title>
             <Text style={{ fontSize: 15, color: themeVars.textTertiary }}>
-              登录你的 Orion 账户以继续使用平台
+              {t('login.subtitle')}
             </Text>
           </div>
 
@@ -322,7 +328,7 @@ const Login: React.FC = () => {
           >
             <Form.Item
               name="username"
-              rules={[{ required: true, message: '请输入用户名' }]}
+              rules={[{ required: true, message: t('login.usernameRequired') }]}
               style={{ marginBottom: spacing.lg }}
             >
               <div>
@@ -339,7 +345,7 @@ const Login: React.FC = () => {
                 </Text>
                 <Input
                   prefix={<UserOutlined style={{ color: themeVars.textDisabled }} />}
-                  placeholder="请输入用户名"
+                  placeholder={t('login.username')}
                   autoComplete="username"
                   style={{
                     height: 48,
@@ -353,7 +359,7 @@ const Login: React.FC = () => {
 
             <Form.Item
               name="password"
-              rules={[{ required: true, message: '请输入密码' }]}
+              rules={[{ required: true, message: t('login.passwordRequired') }]}
               style={{ marginBottom: spacing.xl }}
             >
               <div>
@@ -370,7 +376,7 @@ const Login: React.FC = () => {
                 </Text>
                 <Input.Password
                   prefix={<LockOutlined style={{ color: themeVars.textDisabled }} />}
-                  placeholder="请输入密码"
+                  placeholder={t('login.password')}
                   autoComplete="current-password"
                   style={{
                     height: 48,
@@ -399,7 +405,7 @@ const Login: React.FC = () => {
                   boxShadow: `0 4px 14px ${colors.primary[300]}40`,
                 }}
               >
-                登 录
+                {isLoading ? t('login.signingIn') : t('login.signIn')}
               </Button>
             </Form.Item>
           </Form>
@@ -407,7 +413,7 @@ const Login: React.FC = () => {
           {/* 底部提示 */}
           <div style={{ marginTop: 32, textAlign: 'center' }}>
             <Text style={{ fontSize: 12, color: themeVars.textDisabled }}>
-              如遇登录问题，请联系平台管理员
+              {t('login.loginFailed')}
             </Text>
           </div>
         </div>

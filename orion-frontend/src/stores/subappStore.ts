@@ -68,7 +68,9 @@ interface SubAppStore {
 
 // ==================== API Functions ====================
 
-const API_BASE = '/api/v1';
+import { API_BASE_URL } from '@/api/client';
+
+const API_BASE = API_BASE_URL;
 
 async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('access_token');
