@@ -1,11 +1,9 @@
 package main
+
 import (
-	pm_handler "orion/platform-svc-go/internal/plugin-marketplace/handler"
-	pm_repo "orion/platform-svc-go/internal/plugin-marketplace/repository"
-	pm_service "orion/platform-svc-go/internal/plugin-marketplace/service"
-	user_handler "orion/platform-svc-go/internal/user/handler"
-	user_repo "orion/platform-svc-go/internal/user/repository"
-	user_service "orion/platform-svc-go/internal/user/service"
+	"context"
+	"go.uber.org/zap"
+	llmprovider "orion/platform-svc-go/internal/ai/llm-provider"
 	auth_handler "orion/platform-svc-go/internal/auth/handler"
 	auth_repo "orion/platform-svc-go/internal/auth/repository"
 	auth_service "orion/platform-svc-go/internal/auth/service"
@@ -13,174 +11,22 @@ import (
 	perm_repo "orion/platform-svc-go/internal/permission/repository"
 	perm_service "orion/platform-svc-go/internal/permission/service"
 	pipeline_service "orion/platform-svc-go/internal/pipeline/service"
-	// ---- Wave 2: Auth + Permission modules ----
-	// ---- Wave 5: Pipeline Assistant modules ----
-	// ---- Wave 7a: P2 modules ----
-	// ---- problem module ----
-	// ---- new blueprint modules ----
-	dataCatalog_handler "orion/platform-svc-go/internal/data-catalog/handler"
-	dataCatalog_repo "orion/platform-svc-go/internal/data-catalog/repository"
-	dataCatalog_service "orion/platform-svc-go/internal/data-catalog/service"
-	dataCatalog_introspector "orion/platform-svc-go/internal/data-catalog/introspector"
-	dataQuality_handler "orion/platform-svc-go/internal/data-quality/handler"
-	dataQuality_repo    "orion/platform-svc-go/internal/data-quality/repository"
-	dataQuality_service "orion/platform-svc-go/internal/data-quality/service"
-	dataPipeline_handler "orion/platform-svc-go/internal/data-pipeline/handler"
-	dataPipeline_repo    "orion/platform-svc-go/internal/data-pipeline/repository"
-	dataPipeline_service "orion/platform-svc-go/internal/data-pipeline/service"
-	apiConsumption_handler "orion/platform-svc-go/internal/api-consumption/handler"
-	// ---- GraphViz module ----
-	contract_handler "orion/platform-svc-go/internal/contract/handler"
-	pe_handler "orion/platform-svc-go/internal/pipeline-engine/handler"
-	// infraCap handler (used later in the unassigned-handlers block)
-	infraCap_handler "orion/platform-svc-go/internal/infrastructure/capacity/handler"
-	infraCap_repo "orion/platform-svc-go/internal/infrastructure/capacity/repository"
-	infraCap_service "orion/platform-svc-go/internal/infrastructure/capacity/service"
-	// ---- Batch 1: registered modules ----
-	aiAgents_handler "orion/platform-svc-go/internal/ai/agents/handler"
-	aiCost_handler "orion/platform-svc-go/internal/ai/cost/handler"
-	aiGateway_handler "orion/platform-svc-go/internal/ai/gateway/handler"
-	aiDecisions_handler "orion/platform-svc-go/internal/ai/decisions/handler"
-	aiDecisions_repo "orion/platform-svc-go/internal/ai/decisions/repository"
-	aiDecisions_service "orion/platform-svc-go/internal/ai/decisions/service"
-	aiGateway_repo "orion/platform-svc-go/internal/ai/gateway/repository"
-	aiGateway_service "orion/platform-svc-go/internal/ai/gateway/service"
-	llmprovider "orion/platform-svc-go/internal/ai/llm-provider"
-	aiReview_handler "orion/platform-svc-go/internal/ai/review/handler"
-	artifactVersion_handler "orion/platform-svc-go/internal/artifact-version/handler"
-	cache_mod_handler "orion/platform-svc-go/internal/cache/handler"
-	cacheCleanup_handler "orion/platform-svc-go/internal/cache-cleanup/handler"
-	aiReview_repo "orion/platform-svc-go/internal/ai/review/repository"
-	aiReview_service "orion/platform-svc-go/internal/ai/review/service"
-	aiAgents_repo "orion/platform-svc-go/internal/ai/agents/repository"
-	aiAgents_service "orion/platform-svc-go/internal/ai/agents/service"
-	aiCost_repo "orion/platform-svc-go/internal/ai/cost/repository"
-	aiCost_service "orion/platform-svc-go/internal/ai/cost/service"
-	apiConsumption_repo "orion/platform-svc-go/internal/api-consumption/repository"
-	apiConsumption_service "orion/platform-svc-go/internal/api-consumption/service"
-	artifactVersion_repo "orion/platform-svc-go/internal/artifact-version/repository"
-	artifactVersion_service "orion/platform-svc-go/internal/artifact-version/service"
-	cache_mod_repo "orion/platform-svc-go/internal/cache/repository"
-	cache_mod_service "orion/platform-svc-go/internal/cache/service"
-	cacheCleanup_repo "orion/platform-svc-go/internal/cache-cleanup/repository"
-	cacheCleanup_service "orion/platform-svc-go/internal/cache-cleanup/service"
-	contract_repo "orion/platform-svc-go/internal/contract/repository"
-	contract_service "orion/platform-svc-go/internal/contract/service"
-	pe_service "orion/platform-svc-go/internal/pipeline-engine/service"
-	// ---- Wave 7: P2 module imports (batch 1-2 + alert/apm/bi/canary) ----
-	message_queue_handler "orion/platform-svc-go/internal/message-queue/handler"
-	// ---- P0-6: Agent sandbox (isolated code execution) ----
-	sandbox_handler "orion/platform-svc-go/internal/sandbox/handler"
-	aiModels_handler "orion/platform-svc-go/internal/ai/models/handler"
-	aiModels_repo "orion/platform-svc-go/internal/ai/models/repository"
-	aiModels_service "orion/platform-svc-go/internal/ai/models/service"
-	pipeline_budget_handler "orion/platform-svc-go/internal/pipeline-budget/handler"
-	pipeline_budget_repo "orion/platform-svc-go/internal/pipeline-budget/repository"
-	pipeline_budget_service "orion/platform-svc-go/internal/pipeline-budget/service"
-	pipeline_templates_handler "orion/platform-svc-go/internal/pipeline-templates/handler"
-	pipeline_templates_repo "orion/platform-svc-go/internal/pipeline-templates/repository"
-	pipeline_templates_service "orion/platform-svc-go/internal/pipeline-templates/service"
-	pipeline_versions_handler "orion/platform-svc-go/internal/pipeline-versions/handler"
-	pipeline_versions_repo "orion/platform-svc-go/internal/pipeline-versions/repository"
-	pipeline_versions_service "orion/platform-svc-go/internal/pipeline-versions/service"
-	resilience_score_handler "orion/platform-svc-go/internal/resilience-score/handler"
-	resilience_score_repo "orion/platform-svc-go/internal/resilience-score/repository"
-	resilience_score_service "orion/platform-svc-go/internal/resilience-score/service"
-	sbom_handler "orion/platform-svc-go/internal/sbom/handler"
-	sbom_repo "orion/platform-svc-go/internal/sbom/repository"
-	sbom_service "orion/platform-svc-go/internal/sbom/service"
-	sandbox_repo "orion/platform-svc-go/internal/sandbox/repository"
-	sandbox_service "orion/platform-svc-go/internal/sandbox/service"
-	// ---- P0-9: Centralized logging service ----
-	logging_handler "orion/platform-svc-go/internal/logging/handler"
-	logging_repo "orion/platform-svc-go/internal/logging/repository"
-	logging_service "orion/platform-svc-go/internal/logging/service"
-	// ---- P1-1: Crossover cross-module call bus ----
-	crossover_handler "orion/platform-svc-go/internal/crossover/handler"
-	crossover_repo "orion/platform-svc-go/internal/crossover/repository"
-	crossover_service "orion/platform-svc-go/internal/crossover/service"
-	crossover_adapter "orion/platform-svc-go/internal/crossover/adapter"
-	// ---- P0-5: Object storage (S3/MinIO abstraction) ----
-	storage_handler "orion/platform-svc-go/internal/storage/handler"
-	storage_repo "orion/platform-svc-go/internal/storage/repository"
-	storage_service "orion/platform-svc-go/internal/storage/service"
-	// ---- P0-8: Message queue reliable persistence ----
-	message_queue_repo "orion/platform-svc-go/internal/message-queue/repository"
-	message_queue_service "orion/platform-svc-go/internal/message-queue/service"
-	// ---- P0-4: AI Inference Proxy ----
-	aiInference_handler "orion/platform-svc-go/internal/ai/inference/handler"
-	aiInference_service "orion/platform-svc-go/internal/ai/inference/service"
 	sh_handler "orion/platform-svc-go/internal/self-healing/handler"
-	// ---- P0-20: Network Management Module ----
-	network_handler "orion/platform-svc-go/internal/network/handler"
-	network_repo "orion/platform-svc-go/internal/network/repository"
-	network_service "orion/platform-svc-go/internal/network/service"
-	// ---- P0-18: K8s Provisioner ----
-	cluster_handler "orion/platform-svc-go/internal/cluster/handler"
-	cluster_repo "orion/platform-svc-go/internal/cluster/repository"
-	cluster_service "orion/platform-svc-go/internal/cluster/service"
+	user_handler "orion/platform-svc-go/internal/user/handler"
+	user_repo "orion/platform-svc-go/internal/user/repository"
+	user_service "orion/platform-svc-go/internal/user/service"
 	"os"
-	"context"
-	"go.uber.org/zap"
 	// NATS subscribers for incident + self-healing domains
 	incident_nats "orion/platform-svc-go/internal/incident/nats"
 	sh_nats "orion/platform-svc-go/internal/self-healing/nats"
-	// ---- AI module handler imports (internal/ai/) ----
-	ai_agent_run_handler "orion/platform-svc-go/internal/ai-agent-run/handler"
-	ai_agent_run_repo "orion/platform-svc-go/internal/ai-agent-run/repository"
-	ai_agent_run_service "orion/platform-svc-go/internal/ai-agent-run/service"
-	// ---- Prompt Security + remaining un-wired modules ----
-	ps_handler "orion/platform-svc-go/internal/prompt-security/handler"
-	// P1: agents, database-devops, gateway-routes, rate-limiting, test-reports
-	agents_handler "orion/platform-svc-go/internal/agents/handler"
-	dbdevops_handler "orion/platform-svc-go/internal/database-devops/handler"
-	gw_routes_handler "orion/platform-svc-go/internal/gateway-routes/handler"
-	rate_limit_handler "orion/platform-svc-go/internal/rate-limiting/handler"
-	test_reports_handler "orion/platform-svc-go/internal/test-reports/handler"
-	)
-var (
-	pluginMarketplaceH  *pm_handler.Handler
-	authH               *auth_handler.Handler
-	pipelineRunnerSvc   *pipeline_service.Service
-	dataQualityH        *dataQuality_handler.Handler
-	dataPipelineH       *dataPipeline_handler.Handler
-	apiConsumptionH     *apiConsumption_handler.Handler
-	// ---- GraphViz module ----
-	contractH           *contract_handler.Handler
-	peH                 *pe_handler.Handler
-	aiAgentRunH         *ai_agent_run_handler.Handler
-	aiAgentsH           *aiAgents_handler.Handler
-	aiCostH             *aiCost_handler.Handler
-	aiGatewayH          *aiGateway_handler.Handler
-	aiDecisionsH        *aiDecisions_handler.Handler
-	aiReviewH           *aiReview_handler.Handler
-	artifactVersionH    *artifactVersion_handler.Handler
-	cacheModH           *cache_mod_handler.Handler
-	cacheCleanupH       *cacheCleanup_handler.Handler
-	storageH            *storage_handler.Handler
-	clusterH            *cluster_handler.Handler
-	aiInferenceH        *aiInference_handler.Handler
-	networkH            *network_handler.Handler
-	sandboxH            *sandbox_handler.Handler
-	aiModelsH           *aiModels_handler.Handler
-	pipelineBudgetH     *pipeline_budget_handler.Handler
-	pipelineTemplatesH  *pipeline_templates_handler.Handler
-	pipelineVersionsH   *pipeline_versions_handler.Handler
-	resilienceScoreH    *resilience_score_handler.Handler
-	sbomH               *sbom_handler.Handler
-	loggingH            *logging_handler.Handler
-	crossoverH          *crossover_handler.Handler
-	selfhealingH        *sh_handler.SelfHealingHandler
-	infraCapH *infraCap_handler.Handler
-	// ---- AI module handlers (internal/ai/) ----
-	psH *ps_handler.PromptSecurityHandler
-	// P1: handlers for agents, database-devops, gateway-routes, rate-limiting, test-reports
-	agentsH     *agents_handler.Handler
-	dbdevopsH   *dbdevops_handler.Handler
-	gwRoutesH   *gw_routes_handler.Handler
-	rateLimitH  *rate_limit_handler.Handler
-	testReportsH *test_reports_handler.Handler
 )
+
+var (
+	authH             *auth_handler.Handler
+	pipelineRunnerSvc *pipeline_service.Service // unused — retained for backward compatibility
+	selfhealingH      *sh_handler.SelfHealingHandler
+)
+
 func initWiring(infra *infrastructure, logger *zap.Logger) {
 	db := infra.db
 	_ = logger
@@ -257,15 +103,8 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	wireMLOps(db, logger)
 	wireTestGeneration(db, logger)
 	wireInspection(db, logger)
-	dataCatalogRepo := dataCatalog_repo.NewRepository(infra.db.DB)
-	dataCatalogSvc := dataCatalog_service.NewService(dataCatalogRepo, dataCatalog_introspector.New())
-	dataCatalogH = dataCatalog_handler.NewHandler(dataCatalogSvc)
-	dataQualityRepo := dataQuality_repo.NewRepository(infra.db.DB)
-	dataQualitySvc := dataQuality_service.NewService(dataQualityRepo)
-	dataQualityH = dataQuality_handler.NewHandler(dataQualitySvc)
-	dataPipelineRepo := dataPipeline_repo.NewRepository(infra.db.DB)
-	dataPipelineSvc := dataPipeline_service.NewService(dataPipelineRepo)
-	dataPipelineH = dataPipeline_handler.NewHandler(dataPipelineSvc)
+	// Data modules: catalog (with introspector override), quality, pipeline
+	wireDataModules(db, logger)
 	// Wave 7: P2 batch modules (alert-breaker, apm, bi-dashboard, canary-*,
 	// cross-domain, decision-explanation, degradation, dependency-coordination,
 	// dual-engine, env-*, global-param, integration, maintenance-window,
@@ -360,156 +199,40 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 			DefaultModel: "claude-3-haiku-20240307",
 		}))
 	}
-	// ai-decisions services
-	aiDecisionsRepo := aiDecisions_repo.NewRepository(infra.db.DB)
-	aiDecisionsSvc := aiDecisions_service.NewService(aiDecisionsRepo)
-	aiDecisionsSvc.WithLLMProvider(llmProviderRegistry)
-	aiDecisionsH = aiDecisions_handler.NewHandler(aiDecisionsSvc)
-	// ai-agent-run services
-	aiAgentRunRepo := ai_agent_run_repo.NewRepository(infra.db.DB)
-	aiAgentRunSvc := ai_agent_run_service.NewService(aiAgentRunRepo)
-	aiAgentRunH = ai_agent_run_handler.NewHandler(aiAgentRunSvc)
-	// plugin-marketplace services
-	pmRepo := pm_repo.NewRepository(infra.db.DB)
-	pmSvc := pm_service.NewService(pmRepo)
-	pluginMarketplaceH = pm_handler.NewHandler(pmSvc)
-	// ai-gateway services
-	aiGatewayRepo := aiGateway_repo.NewRepository(infra.db.DB)
-	aiGatewaySvc := aiGateway_service.NewService(aiGatewayRepo)
-	aiGatewaySvc.WithLLMProvider(llmProviderRegistry)
-	aiGatewayH = aiGateway_handler.NewHandler(aiGatewaySvc)
-	// P0-6: Agent sandbox (isolated code execution)
-	sandboxRepo := sandbox_repo.NewRepository(infra.db.DB)
-	sandboxSvc := sandbox_service.NewService(sandboxRepo, infra.logger)
-	sandboxH = sandbox_handler.NewHandler(sandboxSvc)
-	// P0-9: Centralized logging service
-	loggingRepo := logging_repo.NewRepository(infra.db.DB)
-	loggingSvc := logging_service.NewService(loggingRepo)
-	loggingH = logging_handler.NewHandler(loggingSvc)
-	// P1-1: Crossover cross-module call bus
-	crossoverRepo := crossover_repo.NewRepository(infra.db.DB)
-	crossoverAdapter := crossover_adapter.NewRepositoryAdapter(crossoverRepo)
-	crossoverSvc := crossover_service.NewCrossoverService(crossoverAdapter)
-	crossoverH = crossover_handler.NewHandler(crossoverSvc)
-	// P0-5: Object storage metadata (S3/MinIO abstraction)
-	storageRepo := storage_repo.NewRepository(infra.db.DB)
-	storageSvc := storage_service.NewService(storageRepo)
-	storageH = storage_handler.NewHandler(storageSvc)
-	// P0-8: Message queue reliable persistence
-	message_queueRepo := message_queue_repo.NewRepository(infra.db.DB)
-	message_queueSvc := message_queue_service.NewService(message_queueRepo)
-	message_queueH = message_queue_handler.NewHandler(message_queueSvc)
-	// P0-18: K8s Provisioner
-	clusterRepo := cluster_repo.NewRepository(infra.db.DB)
-	clusterSvc := cluster_service.NewService(clusterRepo)
-	clusterH = cluster_handler.NewHandler(clusterSvc)
-	// P0-4: AI Inference Proxy (HTTP proxy to Python AI service)
-	aiInferenceSvc := aiInference_service.NewPythonInferenceService()
-	aiInferenceH = aiInference_handler.NewHandler(aiInferenceSvc)
-	// P0-20: Network Management Module
-	networkRepo := network_repo.NewRepository(infra.db.DB)
-	networkSvc := network_service.NewService(networkRepo)
-	networkH = network_handler.NewHandler(networkSvc)
-	// ai-models services
-	aiModelsRepo := aiModels_repo.NewRepository(infra.db.DB)
-	aiModelsSvc := aiModels_service.NewService(aiModelsRepo, infra.logger)
-	aiModelsH = aiModels_handler.NewHandler(aiModelsSvc)
-	// pipeline-budget services
-	pipelineBudgetRepo := pipeline_budget_repo.NewRepository(infra.db.DB)
-	pipelineBudgetSvc := pipeline_budget_service.NewService(pipelineBudgetRepo)
-	pipelineBudgetH = pipeline_budget_handler.NewHandler(pipelineBudgetSvc)
-	// pipeline-templates services
-	pipelineTemplatesRepo := pipeline_templates_repo.NewRepository(infra.db.DB)
-	pipelineTemplatesSvc := pipeline_templates_service.NewService(pipelineTemplatesRepo)
-	pipelineTemplatesH = pipeline_templates_handler.NewHandler(pipelineTemplatesSvc)
-	// pipeline-versions services
-	pipelineVersionsRepo := pipeline_versions_repo.NewRepository(infra.db.DB)
-	pipelineVersionsSvc := pipeline_versions_service.NewService(pipelineVersionsRepo)
-	pipelineVersionsH = pipeline_versions_handler.NewHandler(pipelineVersionsSvc)
-	// resilience-score services
-	resilienceScoreRepo := resilience_score_repo.NewRepository(infra.db.DB)
-	resilienceScoreSvc := resilience_score_service.NewService(resilienceScoreRepo, infra.db.DB)
-	resilienceScoreH = resilience_score_handler.NewHandler(resilienceScoreSvc)
-	// sbom services
-	sbomRepo := sbom_repo.NewRepository(infra.db.DB)
-	sbomSvc := sbom_service.NewService(sbomRepo)
-	sbomH = sbom_handler.NewHandler(sbomSvc)
+	// AI inline services: decisions, agent-run, plugin-marketplace, gateway (LLM-registry-aware)
+	wireAIInlineServices(db, logger, llmProviderRegistry)
+	// P0 core modules: sandbox, logging, crossover, storage, message-queue,
+	// cluster, ai-inference, network, ai-models
+	wireP0Modules(db, logger)
+	// Pipeline modules: budget, templates, versions, resilience-score, sbom
+	wirePipelineModules(db, logger)
 	// ---- Blueprint CI-CD merge: wire subdomain handlers ----
 	wireBlueprintCICD(db, logger)
 	// ---- Blueprint InfraOps merge: wire infrastructure subdomain handlers ----
 	wireBlueprintInfraOps(db, logger)
 	// ---- AI modules (internal/ai/) ----
 	wireAIModules(db, logger)
-		// Prompt Security: repo -> service -> handler
-		// ---- Event Infrastructure: Incident + Self-Healing NATS Subscribers ----
-		wireNatsSubscribers(logger)
-		// ---- Wire unassigned handlers (repo → service → handler) ----
-		// Group A: Standard CRUD handlers
-		aiAgentsRepo := aiAgents_repo.NewRepository(db.DB)
-		aiAgentsSvc := aiAgents_service.NewService(aiAgentsRepo)
-		aiAgentsH = aiAgents_handler.NewHandler(aiAgentsSvc)
-		aiCostRepo := aiCost_repo.NewRepository(db.DB)
-		aiCostSvc := aiCost_service.NewService(aiCostRepo)
-		aiCostH = aiCost_handler.NewHandler(aiCostSvc)
-		aiReviewRepo := aiReview_repo.NewRepository(db.DB)
-		aiReviewSvc := aiReview_service.NewService(aiReviewRepo)
-		aiReviewH = aiReview_handler.NewHandler(aiReviewSvc)
-		apiConsumptionRepo := apiConsumption_repo.NewRepository(db.DB)
-		apiConsumptionSvc := apiConsumption_service.NewService(apiConsumptionRepo)
-		apiConsumptionH = apiConsumption_handler.NewHandler(apiConsumptionSvc)
-		artifactVersionRepo := artifactVersion_repo.NewRepository(db.DB)
-		artifactVersionSvc := artifactVersion_service.NewService(artifactVersionRepo)
-		artifactVersionH = artifactVersion_handler.NewHandler(artifactVersionSvc)
-		cacheCleanupRepo := cacheCleanup_repo.NewRepository(db.DB)
-		cacheCleanupSvc := cacheCleanup_service.NewService(cacheCleanupRepo)
-		cacheCleanupH = cacheCleanup_handler.NewHandler(cacheCleanupSvc)
-		cacheModRepo := cache_mod_repo.NewRepository(db.DB)
-		cacheModSvc := cache_mod_service.NewService(cacheModRepo)
-		cacheModH = cache_mod_handler.NewHandler(cacheModSvc)
-		contractRepo := contract_repo.NewRepository(db.DB)
-		contractSvc := contract_service.NewService(contractRepo)
-		contractH = contract_handler.NewHandler(contractSvc)
-		// Group B: Special handlers
-		// selfHealing requires pgxpool (not available from sqlx.DB),
-		// defer to infrastructure layer wiring. Keep nil so router guard skips it.
-		// TODO: wire pgxpool and pass real selfHealingRepo once core_infra_wiring exposes it.
-		peH = pe_handler.NewHandler(&pe_service.PipelineEngine{})
-		infraCapPoolRepo := infraCap_repo.NewPoolRepository(db.DB)
-		infraCapForecastRepo := infraCap_repo.NewForecastRepository(db.DB)
-		infraCapPolicyRepo := infraCap_repo.NewPolicyRepository(db.DB)
-		infraCapMetricRepo := infraCap_repo.NewMetricRepository(db.DB)
-		infraCapAlertRepo := infraCap_repo.NewAlertRepository(db.DB)
-		infraCapReportRepo := infraCap_repo.NewReportRepository(db.DB)
-		infraCapSvc := infraCap_service.NewService(infraCapPoolRepo, infraCapForecastRepo, infraCapPolicyRepo, infraCapMetricRepo, infraCapAlertRepo, infraCapReportRepo)
-		infraCapH = infraCap_handler.NewHandler(infraCapSvc)
-		// Group C: Duplicate - psH shares the same handler as promptSecurityH
-		psH = promptSecurityH
-		// P1: agents, database-devops, gateway-routes, rate-limiting, test-reports
-		agentsH = agents_handler.NewHandler(infra.db.DB)
-		// database-devops: backup/restore operations only. Data source management
-		// was removed in ARCH-0.11b — /data-sources (internal/datasource) is the
-		// single source of truth for data source CRUD + encryption.
-		dbdevopsH = dbdevops_handler.NewHandler(infra.db.DB)
-		wireDatabaseDevopsExecutors(logger) // ARCH-0.10b: real backup/restore execution
-		gwRoutesH = gw_routes_handler.NewHandler(infra.db.DB)
-		rateLimitH = rate_limit_handler.NewHandler(infra.db.DB)
-		testReportsH = test_reports_handler.NewHandler(infra.db.DB)
-		// Blueprint modules: middleware, statistics, roweditor, api-component, alert-rule-engine
-		wireMiddleware(db, logger)
-		wireStatistics(db, logger)
-		wireRoweditor(db, logger)
-		wireAPIComponent(db, logger)
-		wireAlertRuleEngine(db, logger)
-		// P3-02: Service Catalog
-		wireServiceCatalog(db, logger)
-		// Wave 4: wire 6 previously unwired SQL-repo modules
-		wireAlertAdapterV2(db, logger)
-		wireAutoRecovery(db, logger)
-		wireCapacity(db, logger)
-		wireMiddlewareOps(db, logger)
-		wireOrchestration(db, logger)
-
+	// ---- Event Infrastructure: Incident + Self-Healing NATS Subscribers ----
+	wireNatsSubscribers(logger)
+	// Inline handlers: Group A (crud), Group B (pe, infra-cap), Group C (psH alias),
+	// P1 (agents, dbdevops, gw-routes, rate-limit, test-reports)
+	wireInlineHandlers(db, logger)
+	// Blueprint modules: middleware, statistics, roweditor, api-component, alert-rule-engine
+	wireMiddleware(db, logger)
+	wireStatistics(db, logger)
+	wireRoweditor(db, logger)
+	wireAPIComponent(db, logger)
+	wireAlertRuleEngine(db, logger)
+	// P3-02: Service Catalog
+	wireServiceCatalog(db, logger)
+	// Wave 4: wire 6 previously unwired SQL-repo modules
+	wireAlertAdapterV2(db, logger)
+	wireAutoRecovery(db, logger)
+	wireCapacity(db, logger)
+	wireMiddlewareOps(db, logger)
+	wireOrchestration(db, logger)
 }
+
 // wireNatsSubscribers initializes the Incident and Self-Healing NATS JetStream
 // subscribers. Graceful no-op when NATS is unreachable (async event-driven pipeline).
 func wireNatsSubscribers(logger *zap.Logger) {
@@ -559,17 +282,21 @@ func wireNatsSubscribers(logger *zap.Logger) {
 		}
 	}
 }
+
 // selfHealingNatsHandler is a no-op EventHandler for the self-healing NATS subscriber
 // until the full SelfHealingService is wired. Keeps the NATS subject consumed and
 // logged while pgxpool-based repository wiring is pending.
 type selfHealingNatsHandler struct{}
+
 func (h *selfHealingNatsHandler) HandleSelfHealingEvent(ctx context.Context, event *sh_nats.SelfHealingEvent) error {
 	return nil
 }
+
 // incidentEventHandlerStub adapts to the NATS EventHandler interface.
 type incidentEventHandlerStub struct {
 	logger *zap.Logger
 }
+
 func (h *incidentEventHandlerStub) HandleIncidentEvent(ctx context.Context, event *incident_nats.EventBusEvent) error {
 	h.logger.Info("incident event received", zap.String("id", event.ID), zap.String("type", event.Type))
 	_ = ctx
