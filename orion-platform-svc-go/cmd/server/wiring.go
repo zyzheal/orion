@@ -66,8 +66,6 @@ import (
 	cacheCleanup_service "orion/platform-svc-go/internal/cache-cleanup/service"
 	contract_repo "orion/platform-svc-go/internal/contract/repository"
 	contract_service "orion/platform-svc-go/internal/contract/service"
-	infraCap_repo "orion/platform-svc-go/internal/infrastructure/capacity/repository"
-	infraCap_service "orion/platform-svc-go/internal/infrastructure/capacity/service"
 	pe_service "orion/platform-svc-go/internal/pipeline-engine/service"
 	// ---- Wave 7: P2 module imports (batch 1-2 + alert/apm/bi/canary) ----
 	message_queue_handler "orion/platform-svc-go/internal/message-queue/handler"
