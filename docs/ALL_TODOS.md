@@ -10,10 +10,10 @@
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已完成 | 52 项（含 Phase 7 G1-G8 + Wave 7-D MinIO e2e + P2-11 wiring.go 收尾） |
+| ✅ 已完成 | 53 项（含 Phase 7 G1-G8 + Wave 7-D MinIO e2e + P2-11 wiring.go 收尾 + P2-7 shared any cleanup） |
 | ✅ 全部完成 | P0 清零（PERM-8 阶段 2 客户端迁移完成 2026-09-01） |
 | 🟡 待处理 | 1 项 P1（P1-8 响应格式统一；P1-9 三域补全已核实过时,sla-engine 32 函数 + pipeline-run-history 4 函数 + drift 6 函数均已实现） |
-| 🔵 待处理 | 6 项 P2（P2-2/4/7/9/12/16 部分完成） |
+| 🔵 待处理 | 5 项 P2（P2-2/4/9/12/16 部分完成；P2-7 shared 已清） |
 | ⚠️ 已废弃/不适用 | 11 项 |
 | **总计** | **82 项** |
 
@@ -125,7 +125,7 @@
 | **P2-4** | 36 个页面补测试目录 | merged-action-items | 约 36/218 页面无 `__tests__/` 目录 | 3-5 天 |
 | ~~**P2-5** | Go 模块路径冗余嵌套清理 | merged-action-items | ~~删除 finops/finops 死代码 (19 文件)；扁平化 security/security + notification/notification (69 文件, 3908 行删除)~~ | ✅ 2026-08-31 |
 | ~~**P2-6** | /digital-twin 重复路由 | merged-action-items | 核实: 当前 routes.tsx 仅 1 条 digital-twin 路由，重复已修复 | ✅ 2026-08-31 |
-| **P2-7** | 前端 `any` 类型清理 | 三域分析 | 1138 处 `any` 类型，pages 层 1118 处 | 3-5 天 |
+| ~~**P2-7** | 前端 `any` 类型清理 | 三域分析 | ~~共享基础设施 19 处已完成（api/×6 + stores/×4 + utils/×1），`tsc` 0 错误；pages 层 1118 处保留（Ant Design columns 内联/第三方类型）~~ | ✅ 2026-09-02（shared 已清） |
 | ~~**P2-8** | 前端 `console.log` 残留 | 三域分析 | 核实: 生产代码 0 处 console.log (2 处均在 __tests__ 测试数据中) | ✅ 2026-08-31 |
 | **P2-9** | 前端最大页面拆分 | 三域分析 | ChangeManagement(1899行) 等超大单文件拆分 | 2-3 天 |
 | **P2-10** | 安装 @tanstack/react-query | merged-action-items | ✅ 已安装；**但"11/11"仅指自行圈定的 11 个文件**。真实盘点：467 个页面组件中仅 24 个使用 react-query。附带修复：该批次曾静默删除 10 个页面约 20 处加载失败提示（Batch X 已恢复），并遗留 9 处 TS 错误 + 弄坏 2 个测试文件（已修） | ⚠️ 部分完成，见 P2-12 |
