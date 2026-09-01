@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
+	"orion/platform-svc-go/internal/inception/engine"
 	"orion/platform-svc-go/internal/inception/models"
 	"orion/platform-svc-go/internal/inception/repository"
 
@@ -18,26 +20,46 @@ var (
 	ErrBlacklisted              = errors.New("sql blocked by blacklist")
 	ErrInvalidStatus            = errors.New("invalid status transition")
 	ErrInceptionProjectNotFound = errors.New("project not found")
+	ErrEngineNotConfigured      = errors.New("inception engine not configured for tenant")
+	ErrEngineSubmit             = errors.New("inception engine submit failed")
 )
+
+// EngineClient is the narrow interface the Service uses to talk to the
+// Inception engine. engine.Client implements this; tests can inject a fake.
+type EngineClient interface {
+	CheckSQL(ctx context.Context, req engine.TaskRequest) (*engine.Result, error)
+	ExecuteSQL(ctx context.Context, req engine.TaskRequest) (*engine.Result, error)
+	Health(ctx context.Context) error
+}
 
 // Service provides business logic for the inception SQL audit engine.
 type Service struct {
-	repo *repository.Repository
+	repo  *repository.Repository
+	client EngineClient // may be nil when no engine is wired
 }
 
-// NewService creates a new Service.
-func NewService(repo *repository.Repository) *Service {
-	return &Service{repo: repo}
+// NewService creates a new Service. Passing nil for client leaves the
+// Service in a local-only mode — audit records are persisted but no
+// submission to a remote Inception engine is attempted.
+func NewService(repo *repository.Repository, client EngineClient) *Service {
+	return &Service{repo: repo, client: client}
 }
+
+// SetEngineClient swaps the engine client after construction. Useful for
+// wiring code that resolves the tenant-specific engine at runtime.
+func (s *Service) SetEngineClient(c EngineClient) { s.client = c }
 
 // ---------------------------------------------------------------------------
 // SQL Audit History
 // ---------------------------------------------------------------------------
 
 // CreateAudit validates and records a SQL audit entry. If the SQL matches a
-// blacklist pattern, the audit is rejected immediately.
+// blacklist pattern, the audit is rejected immediately. When an engine
+// client is wired, the audit is submitted to Inception — the returned
+// record is updated with the engine's errors, warnings, affected-row
+// count, and execution time. When no client is wired the record is
+// persisted as "pending" and callers can follow up with SubmitToEngine.
 func (s *Service) CreateAudit(ctx context.Context, tenantID string, req *models.CreateAuditRequest) (*models.SQLAuditHistory, error) {
-	// Normalize operation type
 	opType := strings.ToLower(strings.TrimSpace(req.OperationType))
 	if opType == "" {
 		opType = "audit"
@@ -47,7 +69,6 @@ func (s *Service) CreateAudit(ctx context.Context, tenantID string, req *models.
 		return nil, fmt.Errorf("invalid operation_type %q; allowed: audit, parse, execute, validate", opType)
 	}
 
-	// Check blacklist
 	blocked, reason, err := s.repo.IsBlacklisted(ctx, tenantID, req.SQLStatement)
 	if err != nil {
 		return nil, fmt.Errorf("blacklist check failed: %w", err)
@@ -77,7 +98,149 @@ func (s *Service) CreateAudit(ctx context.Context, tenantID string, req *models.
 	if err := s.repo.CreateAudit(ctx, a); err != nil {
 		return nil, fmt.Errorf("create audit failed: %w", err)
 	}
+
+	// If an engine is wired, submit immediately. Otherwise the record stays
+	// pending so a later SubmitToEngine call can pick it up. When the
+	// operation is "execute" the engine runs the SQL; other operations
+	// (audit/parse/validate) only request an audit pass.
+	if s.client != nil {
+		status, errors, warnings, affected, execMs := s.submitToEngine(ctx, a, opType == "execute")
+		if status != "" {
+			newStatus := status
+			if err := s.repo.UpdateAuditStatus(ctx, tenantID, a.ID, newStatus, errors, warnings, affected, execMs); err != nil {
+				return nil, fmt.Errorf("persist audit engine result failed: %w", err)
+			}
+			a.Status = status
+			a.Errors = errors
+			a.Warnings = warnings
+			if affected != nil {
+				a.AffectedRows = affected
+			}
+			if execMs != nil {
+				a.ExecTimeMs = execMs
+			}
+		}
+	}
 	return a, nil
+}
+
+// SubmitToEngine is the manual variant of CreateAudit's engine call. It is
+// exported so operators can retry a previously-pending audit without
+// recreating it.
+func (s *Service) SubmitToEngine(ctx context.Context, tenantID, id string) (*models.SQLAuditHistory, error) {
+	a, err := s.repo.GetAuditByID(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if s.client == nil {
+		return nil, ErrEngineNotConfigured
+	}
+	status, errors, warnings, affected, execMs := s.submitToEngine(ctx, a, a.OperationType == "execute")
+	if status == "" {
+		// No engine call happened (engine client was nil at call time or the
+		// audit already carried a terminal status). Return as-is.
+		return a, nil
+	}
+	if err := s.repo.UpdateAuditStatus(ctx, tenantID, a.ID, status, errors, warnings, affected, execMs); err != nil {
+		return nil, err
+	}
+	a.Status = status
+	a.Errors = errors
+	a.Warnings = warnings
+	if affected != nil {
+		a.AffectedRows = affected
+	}
+	if execMs != nil {
+		a.ExecTimeMs = execMs
+	}
+	return a, nil
+}
+
+// submitToEngine calls the engine client and folds the result back into the
+// audit's Status/Errors/Warnings/AffectedRows/ExecTimeMs fields. When the
+// engine returns an error we still produce a valid status so the record
+// ends up in a well-defined state rather than stuck at "pending".
+func (s *Service) submitToEngine(ctx context.Context, a *models.SQLAuditHistory, execute bool) (string, models.JSONArray, models.JSONArray, *int, *int) {
+	if s.client == nil {
+		return "", models.JSONArray{}, models.JSONArray{}, nil, nil
+	}
+	if a.Status == "success" || a.Status == "failed" {
+		return a.Status, a.Errors, a.Warnings, nil, nil
+	}
+
+	taskName := a.ID
+	if a.RequestID != nil && *a.RequestID != "" {
+		taskName = *a.RequestID
+	}
+	req := engine.TaskRequest{
+		TaskName:     taskName,
+		JobName:      fmt.Sprintf("%s-%s", a.TenantID, a.ID),
+		DBName:       a.DBName,
+		SQLStatement: a.SQLStatement,
+		DryRun:       !execute,
+	}
+
+	var res *engine.Result
+	var callErr error
+	if execute {
+		res, callErr = s.client.ExecuteSQL(ctx, req)
+	} else {
+		res, callErr = s.client.CheckSQL(ctx, req)
+	}
+	if callErr != nil {
+		// Engine call failed. Persist as failed with the transport error so
+		// operators can see what went wrong.
+		errors := models.JSONArray{fmt.Sprintf("engine call failed: %v", callErr)}
+		return "failed", errors, models.JSONArray{}, nil, nil
+	}
+
+	errors := models.JSONArray{}
+	warnings := models.JSONArray{}
+	for _, e := range res.Errors {
+		errors = append(errors, e)
+	}
+	for _, w := range res.Warnings {
+		warnings = append(warnings, w)
+	}
+
+	var affected *int
+	var execMs *int
+	if res.AffectedRows > 0 {
+		affected = &res.AffectedRows
+	}
+	if res.DurationMS > 0 {
+		execMs = int32ToPointer(int(res.DurationMS))
+	}
+
+	if res.Success && len(errors) == 0 {
+		return "success", errors, warnings, affected, execMs
+	}
+	// Non-success or engine flagged errors — record as failed so the caller
+	// can surface a definitive outcome.
+	return "failed", errors, warnings, affected, execMs
+}
+
+// int32ToPointer is a helper since the audit's ExecTimeMs field is *int and
+// the engine reports DurationMS as int64. It clamps large values to fit
+// int32 so the field's type contract stays honest.
+func int32ToPointer(v int) *int {
+	if v > 2147483647 {
+		v = 2147483647
+	}
+	if v < -2147483648 {
+		v = -2147483648
+	}
+	return &v
+}
+
+// SetDefaultEngineClient wires an engine client built from host/port/env
+// for callers that do not have their own client manager.
+func (s *Service) SetDefaultEngineClient(baseURL, apiKey string, timeout time.Duration) {
+	s.client = engine.New(engine.Config{
+		BaseURL: baseURL,
+		APIKey:  apiKey,
+		Timeout: timeout,
+	})
 }
 
 // ListAudits returns paginated audit history.
@@ -331,12 +494,21 @@ func (s *Service) PurgeExpiredReports(ctx context.Context) (int64, error) {
 // Engine / Status helpers
 // ---------------------------------------------------------------------------
 
-// Health returns the engine health status.
+// Health returns the engine health status. When no engine client is wired
+// the service reports "unreachable" — callers can treat that as a
+// configuration gap rather than a live failure.
 func (s *Service) Health(ctx context.Context) (string, error) {
+	if s.client == nil {
+		return "not_configured", nil
+	}
+	if err := s.client.Health(ctx); err != nil {
+		return "unreachable", err
+	}
 	return "ok", nil
 }
 
 // Status returns the inception engine configuration status for a tenant.
+// It only reports the configuration state; use Health for a live check.
 func (s *Service) Status(ctx context.Context, tenantID string) (enabled bool, message string, err error) {
 	cfg, err := s.GetConfigByTenant(ctx, tenantID)
 	if err != nil {

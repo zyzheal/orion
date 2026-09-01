@@ -32,63 +32,10 @@ import (
 	// ---- GraphViz module ----
 	contract_handler "orion/platform-svc-go/internal/contract/handler"
 	pe_handler "orion/platform-svc-go/internal/pipeline-engine/handler"
-	// ---- Blueprint CI-CD merge: ci-cd subdomain handlers ----
-	ciArtReg_handler "orion/platform-svc-go/internal/ci-cd/artifact-registry/handler"
-	ciArtReg_repo "orion/platform-svc-go/internal/ci-cd/artifact-registry/repository"
-	ciArtReg_service "orion/platform-svc-go/internal/ci-cd/artifact-registry/service"
-	ciArtVer_handler "orion/platform-svc-go/internal/ci-cd/artifact-version/handler"
-	ciArtVer_repo "orion/platform-svc-go/internal/ci-cd/artifact-version/repository"
-	ciArtVer_service "orion/platform-svc-go/internal/ci-cd/artifact-version/service"
-	ciBuild_handler "orion/platform-svc-go/internal/ci-cd/build/handler"
-	ciDeploy_handler "orion/platform-svc-go/internal/ci-cd/deploy/handler"
-	ciPTmpl_handler "orion/platform-svc-go/internal/ci-cd/pipeline-template/handler"
-	ciPTmpl_repo "orion/platform-svc-go/internal/ci-cd/pipeline-template/repository"
-	ciPTmpl_service "orion/platform-svc-go/internal/ci-cd/pipeline-template/service"
-	ciRunner_handler "orion/platform-svc-go/internal/ci-cd/runner/handler"
-	ciRunner_repo "orion/platform-svc-go/internal/ci-cd/runner/repository"
-	ciRunner_service "orion/platform-svc-go/internal/ci-cd/runner/service"
-	// ---- Blueprint InfraOps merge: infrastructure subdomain handlers ----
+	// infraCap handler (used later in the unassigned-handlers block)
 	infraCap_handler "orion/platform-svc-go/internal/infrastructure/capacity/handler"
-	infraDr_handler "orion/platform-svc-go/internal/infrastructure/dr/handler"
-	infraDr_repo "orion/platform-svc-go/internal/infrastructure/dr/repository"
-	infraDr_service "orion/platform-svc-go/internal/infrastructure/dr/service"
-	infraEE_handler "orion/platform-svc-go/internal/infrastructure/ephemeral-env/handler"
-	infraEE_repo "orion/platform-svc-go/internal/infrastructure/ephemeral-env/repository"
-	infraEE_service "orion/platform-svc-go/internal/infrastructure/ephemeral-env/service"
-	infraBackup_handler "orion/platform-svc-go/internal/infrastructure/backup/handler"
-	infraBackup_repo "orion/platform-svc-go/internal/infrastructure/backup/repository"
-	infraBackup_service "orion/platform-svc-go/internal/infrastructure/backup/service"
-	schemaReg_handler "orion/platform-svc-go/internal/schema-registry/handler"
-	schemaReg_repo "orion/platform-svc-go/internal/schema-registry/repository"
-	schemaReg_service "orion/platform-svc-go/internal/schema-registry/service"
-	infraChaos_handler "orion/platform-svc-go/internal/infrastructure/chaos/handler"
-	migration "orion/platform-svc-go/internal/migration"
-	infraChaos_repo "orion/platform-svc-go/internal/infrastructure/chaos/repository"
-	infraChaos_service "orion/platform-svc-go/internal/infrastructure/chaos/service"
-	infraDba_handler "orion/platform-svc-go/internal/infrastructure/dba/handler"
-	infraDba_repo "orion/platform-svc-go/internal/infrastructure/dba/repository"
-	infraDba_service "orion/platform-svc-go/internal/infrastructure/dba/service"
-	infraDegradation_handler "orion/platform-svc-go/internal/infrastructure/degradation/handler"
-	infraDegradation_repo "orion/platform-svc-go/internal/infrastructure/degradation/repository"
-	infraDegradation_service "orion/platform-svc-go/internal/infrastructure/degradation/service"
-	infraDTwin_handler "orion/platform-svc-go/internal/infrastructure/digital-twin/handler"
-	infraDTwin_repo "orion/platform-svc-go/internal/infrastructure/digital-twin/repository"
-	infraDTwin_service "orion/platform-svc-go/internal/infrastructure/digital-twin/service"
-	infraIac_handler "orion/platform-svc-go/internal/infrastructure/iac/handler"
-	infraIac_repo "orion/platform-svc-go/internal/infrastructure/iac/repository"
-	infraIac_service "orion/platform-svc-go/internal/infrastructure/iac/service"
-	infraMWn_handler "orion/platform-svc-go/internal/infrastructure/maintenance-window/handler"
-	infraMWn_repo "orion/platform-svc-go/internal/infrastructure/maintenance-window/repository"
-	infraMWn_service "orion/platform-svc-go/internal/infrastructure/maintenance-window/service"
-	infraMulti_handler "orion/platform-svc-go/internal/infrastructure/multicloud/handler"
-	infraMulti_repo "orion/platform-svc-go/internal/infrastructure/multicloud/repository"
-	infraMulti_service "orion/platform-svc-go/internal/infrastructure/multicloud/service"
-	infraOCI_handler "orion/platform-svc-go/internal/infrastructure/oci-registry/handler"
-	infraOCI_repo "orion/platform-svc-go/internal/infrastructure/oci-registry/repository"
-	infraOCI_service "orion/platform-svc-go/internal/infrastructure/oci-registry/service"
-	infraServerless_handler "orion/platform-svc-go/internal/infrastructure/serverless/handler"
-	infraServerless_repo "orion/platform-svc-go/internal/infrastructure/serverless/repository"
-	infraServerless_service "orion/platform-svc-go/internal/infrastructure/serverless/service"
+	infraCap_repo "orion/platform-svc-go/internal/infrastructure/capacity/repository"
+	infraCap_service "orion/platform-svc-go/internal/infrastructure/capacity/service"
 	// ---- Batch 1: registered modules ----
 	aiAgents_handler "orion/platform-svc-go/internal/ai/agents/handler"
 	aiCost_handler "orion/platform-svc-go/internal/ai/cost/handler"
@@ -226,33 +173,7 @@ var (
 	loggingH            *logging_handler.Handler
 	crossoverH          *crossover_handler.Handler
 	selfhealingH        *sh_handler.SelfHealingHandler
-	// ---- Blueprint CI-CD merge handlers ----
-	ciArtRegH    *ciArtReg_handler.ArtifactRegistryHandler
-	ciArtVerH    *ciArtVer_handler.ArtifactVersionHandler
-	ciBuildH     *ciBuild_handler.Handler
-	ciDeployH    *ciDeploy_handler.Handler
-	ciPTmplH     *ciPTmpl_handler.Handler
-	ciRunnerH    *ciRunner_handler.Handler
-	// ---- Blueprint InfraOps merge handlers ----
 	infraCapH *infraCap_handler.Handler
-	infraDrH  *infraDr_handler.Handler
-	infraEEH  *infraEE_handler.Handler
-	infraBackupH  *infraBackup_handler.Handler
-	infraArchiveH *infraBackup_handler.ArchiveHandler
-	infraArchiveSchedulerH *infraBackup_handler.ArchiveSchedulerHandler
-	infraArchiveScheduler  *infraBackup_service.ArchiveScheduler
-	infraRetentionH        *infraBackup_handler.RetentionHandler
-	infraSchemaRegH *schemaReg_handler.Handler
-	migrationH *migration.Handler
-	infraChaosH   *infraChaos_handler.Handler
-	infraDbaH     *infraDba_handler.Handler
-	infraDegH     *infraDegradation_handler.Handler
-	infraDTwinH   *infraDTwin_handler.Handler
-	infraIacH     *infraIac_handler.Handler
-	infraMWnH     *infraMWn_handler.Handler
-	infraMultiH   *infraMulti_handler.Handler
-	infraOCIH     *infraOCI_handler.Handler
-	infraServerlessH *infraServerless_handler.Handler
 	// ---- AI module handlers (internal/ai/) ----
 	psH *ps_handler.PromptSecurityHandler
 	// P1: handlers for agents, database-devops, gateway-routes, rate-limiting, test-reports
@@ -516,129 +437,9 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	sbomSvc := sbom_service.NewService(sbomRepo)
 	sbomH = sbom_handler.NewHandler(sbomSvc)
 	// ---- Blueprint CI-CD merge: wire subdomain handlers ----
-	// artifact-registry: repo -> service -> handler
-	ciArtRegRepo := ciArtReg_repo.NewArtifactRegistryRepository(infra.db.DB.DB)
-	ciArtRegSvc := ciArtReg_service.NewArtifactRegistryService(ciArtRegRepo, infra.logger)
-	ciArtRegH = ciArtReg_handler.NewArtifactRegistryHandler(ciArtRegSvc)
-	// artifact-version: repo -> service -> handler
-	ciArtVerSvc := ciArtVer_service.NewArtifactVersionServiceWithRepo(ciArtVer_repo.NewArtifactVersionRepository(infra.db.DB), infra.logger)
-	ciArtVerH = ciArtVer_handler.NewArtifactVersionHandler(ciArtVerSvc)
-	// build: repo -> service -> handler (requires db + logger)
-	ciBuildH = ciBuild_handler.New(infra.db, infra.logger)
-	// deploy: repo -> service -> handler (requires db + logger)
-	ciDeployH = ciDeploy_handler.New(infra.db, infra.logger)
-	// pipeline-template: repo -> service -> handler
-	ciPTmplRepo := ciPTmpl_repo.NewRepository(infra.db.DB)
-	ciPTmplSvc := ciPTmpl_service.NewService(ciPTmplRepo)
-	ciPTmplH = ciPTmpl_handler.NewHandler(ciPTmplSvc)
-	// runner: repo -> service -> handler
-	ciRunnerRepo := ciRunner_repo.NewRepository(infra.db.DB)
-	ciRunnerSvc := ciRunner_service.NewService(ciRunnerRepo)
-	ciRunnerH = ciRunner_handler.NewHandler(ciRunnerSvc)
+	wireBlueprintCICD(db, logger)
 	// ---- Blueprint InfraOps merge: wire infrastructure subdomain handlers ----
-	// capacity: repo -> service -> handler
-	// dr: repo -> service -> handler
-	infraDrRepo := infraDr_repo.NewRepository(infra.db.DB)
-	infraDrSvc := infraDr_service.NewService(infraDrRepo)
-	infraDrH = infraDr_handler.NewHandler(infraDrSvc)
-	// ephemeral-env: repo -> service -> handler
-	infraEERepo := infraEE_repo.NewRepository(infra.db.DB)
-	infraEESvc := infraEE_service.NewService(infraEERepo)
-	infraEEH = infraEE_handler.NewHandler(infraEESvc)
-	// middleware-ops: repo -> service -> handler
-	// backup: repo -> 2 services (BackupService + RecoveryService) -> handler
-	// Phase 1a: the services own their own executor registry and share a
-	// single Local storage backend rooted at /var/backups/orion. Remote
-	// backends (S3/MinIO) are wired via SetStorageBackend when a plan's
-	// storage_config requests them; local is the default.
-	infraBackupRepo := infraBackup_repo.NewBackupRepository(infra.db)
-	infraBackupSvc := infraBackup_service.NewBackupService(infraBackupRepo, infra.logger)
-	infraRecoverySvc := infraBackup_service.NewRecoveryService(infraBackupRepo, infra.logger)
-	// Archiver reuses BackupService's storageBackendFor as its resolver so
-	// that WAL/binlog archive records land in the same backend as backup
-	// artifacts. Pass a closure to keep the private method encapsulated.
-	infraBackupArchiver := infraBackup_service.NewArchiver(
-		infraBackupRepo,
-		infraBackupSvc.StorageBackendForPublic,
-		infra.logger,
-	)
-	infraBackupH = infraBackup_handler.New(infraBackupSvc, infraRecoverySvc, infra.logger)
-	infraArchiveH = infraBackup_handler.NewArchiveHandler(infraBackupArchiver, infraBackupH, infra.logger)
-	// Lifecycle: start the backup scheduler (fires cron-based plans)
-	// and the archive scheduler (fires cron-based WAL/binlog captures).
-	// Both are best-effort: on failure we log and continue so the server
-	// still boots for manual-only workflows.
-	infraBackupSvc.Start()
-	// Retention cron: daily purge of expired backups at 02:30 UTC.
-	infraBackupSvc.StartRetentionCron("0 30 2 * * *")
-	infraArchiveScheduler = infraBackup_service.NewArchiveScheduler(infraBackupArchiver, infra.logger)
-	infraArchiveScheduler.Start()
-	infraArchiveSchedulerH = infraBackup_handler.NewArchiveSchedulerHandler(infraArchiveScheduler, infra.logger)
-	infraRetentionH = infraBackup_handler.NewRetentionHandler(infraBackupSvc, infra.logger)
-	infraRecoverySvc.SetArchiver(infraBackupArchiver)
-	infraRecoverySvc.SetArchiveScheduler(infraArchiveScheduler)
-	// Auto-load archive configs from existing backup plans. When a plan's
-	// storage_config contains an "archive" block, it is registered here
-	// so the scheduler fires it without any manual setup. Failures are
-	// logged and skipped — the server still boots for manual-only work.
-	if infraBackupRepo != nil {
-		if plans, err := infraBackupRepo.ListPlans(context.Background(), "default", 0, 10000); err == nil {
-			if n, err := infraArchiveScheduler.LoadArchivesFromPlans(context.Background(), "default", plans); err == nil && n > 0 {
-				infra.logger.Info("archive autoload: registered plans from storage_config",
-					zap.Int("loaded", n))
-			}
-		}
-	}
-	// schema-registry: Postgres-backed repository (migration 404). Falls
-	// back to InMemory when the DB handle is missing (e.g. unit tests).
-	var schemaRegRepo schemaReg_repo.Interface
-	if infra.db != nil {
-		schemaRegRepo = schemaReg_repo.NewPostgres(infra.db.DB)
-	} else {
-		schemaRegRepo = schemaReg_repo.NewInMemory()
-	}
-	schemaRegSvc := schemaReg_service.New(schemaRegRepo, infra.logger)
-	infraSchemaRegH = schemaReg_handler.New(schemaRegSvc, schemaRegRepo)
-	// chaos: repo -> service -> handler
-	infraChaosRepo := infraChaos_repo.NewChaosRepository(infra.db.DB)
-	infraChaosSvc := infraChaos_service.NewChaosService(infraChaosRepo)
-	infraChaosH = infraChaos_handler.NewHandler(infraChaosSvc)
-	// migration: ARCH-0.18 repo -> service -> handler
-	migRepo := migration.NewRepository()
-	migSvc := migration.NewService(migRepo, infra.logger)
-	migrationH = migration.NewHandler(migSvc, infra.logger)
-	// dba: repo -> service -> handler
-	infraDbaRepo := infraDba_repo.NewRepository(infra.db.DB)
-	infraDbaSvc := infraDba_service.NewService(infraDbaRepo)
-	infraDbaH = infraDba_handler.NewHandler(infraDbaSvc)
-	// degradation: repo -> service -> handler
-	infraDegRepo := infraDegradation_repo.NewRepository(infra.db.DB)
-	infraDegSvc := infraDegradation_service.NewService(infraDegRepo)
-	infraDegH = infraDegradation_handler.NewHandler(infraDegSvc)
-	// digital-twin: repo -> service -> handler
-	infraDTwinRepo := infraDTwin_repo.NewRepository(infra.db.DB)
-	infraDTwinSvc := infraDTwin_service.NewService(infraDTwinRepo)
-	infraDTwinH = infraDTwin_handler.NewHandler(infraDTwinSvc)
-	// iac: repo -> service -> handler
-	infraIacRepo := infraIac_repo.NewRepository(infra.db.DB)
-	infraIacSvc := infraIac_service.NewService(infraIacRepo)
-	infraIacH = infraIac_handler.NewHandler(infraIacSvc)
-	// maintenance-window: repo -> service -> handler
-	infraMWnRepo := infraMWn_repo.NewRepository(infra.db.DB)
-	infraMWnSvc := infraMWn_service.NewService(infraMWnRepo)
-	infraMWnH = infraMWn_handler.NewHandler(infraMWnSvc)
-	// multicloud: repo -> service -> handler
-	infraMultiRepo := infraMulti_repo.NewRepository(infra.db.DB)
-	infraMultiSvc := infraMulti_service.NewService(infraMultiRepo)
-	infraMultiH = infraMulti_handler.NewHandler(infraMultiSvc)
-	// oci-registry: repo -> service -> handler
-	infraOCIRepo := infraOCI_repo.NewRepository(infra.db.DB)
-	infraOCISvc := infraOCI_service.NewService(infraOCIRepo)
-	infraOCIH = infraOCI_handler.NewHandler(infraOCISvc)
-	// serverless: repo -> service -> handler
-	infraServerlessRepo := infraServerless_repo.NewRepository(infra.db.DB)
-	infraServerlessSvc := infraServerless_service.NewService(infraServerlessRepo)
-	infraServerlessH = infraServerless_handler.NewHandler(infraServerlessSvc)
+	wireBlueprintInfraOps(db, logger)
 	// ---- AI modules (internal/ai/) ----
 	wireAIModules(db, logger)
 		// Prompt Security: repo -> service -> handler
