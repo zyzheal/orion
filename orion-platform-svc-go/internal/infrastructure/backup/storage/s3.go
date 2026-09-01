@@ -105,3 +105,42 @@ func (s *S3) Size(ctx context.Context, path string) (int64, error) {
 func (s *S3) normalizePath(path string) string {
 	return strings.TrimPrefix(strings.TrimSpace(path), "/")
 }
+
+// --- G8 advanced capabilities (S3/MinIO) ---
+
+var _ AdvancedBackend = (*S3)(nil)
+
+// Capabilities reports that S3-compatible backends support multipart upload,
+// lifecycle rules, and operator-defined cold storage classes.
+func (s *S3) Capabilities() BackendCaps {
+	return BackendCaps{
+		MultipartUpload: true,
+		LifecycleRules:  true,
+		ColdStorage:     true,
+	}
+}
+
+// MultipartUpload streams reader to the object. The minio client performs
+// server-side multipart automatically for large payloads (resumable and
+// memory-friendly), which matches the S3 protocol's native semantics.
+func (s *S3) MultipartUpload(ctx context.Context, path string, reader io.Reader) error {
+	_, err := s.client.PutObject(ctx, s.bucket, s.normalizePath(path), reader, -1,
+		minio.PutObjectOptions{ContentType: "application/octet-stream"})
+	return err
+}
+
+// SetLifecycle installs a retention rule on the S3 bucket. Rules are
+// idempotent at the bucket level (re-application replaces the same rule ID).
+func (s *S3) SetLifecycle(ctx context.Context, policy LifecyclePolicy) error {
+	if err := policy.Validate(); err != nil {
+		return err
+	}
+	cfg, err := LifecycleRuleSet([]LifecyclePolicy{policy})
+	if err != nil {
+		return err
+	}
+	if err := s.client.SetBucketLifecycle(ctx, s.bucket, cfg); err != nil {
+		return fmt.Errorf("storage/s3: set lifecycle: %w", err)
+	}
+	return nil
+}

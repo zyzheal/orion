@@ -145,6 +145,18 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      minio:
+        image: minio/minio:latest
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        ports:
+          - 9000:9000
+        options: >-
+          --healthcmd "curl -f http://localhost:9000/minio/health/live || exit 1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - uses: actions/checkout@v4
@@ -159,7 +171,7 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Integration tests (DB + Redis)
+      - name: Integration tests (DB + Redis + MinIO)
         env:
           DB_HOST: localhost
           DB_PORT: 5432
@@ -167,6 +179,10 @@ jobs:
           DB_PASSWORD: test
           DB_NAME: orion_test
           REDIS_ADDR: localhost:6379
+          MINIO_E2E_ENDPOINT: localhost:9000
+          MINIO_E2E_ACCESS_KEY: minioadmin
+          MINIO_E2E_SECRET_KEY: minioadmin
+          MINIO_E2E_BUCKET: backup-e2e
         run: |
           go test -v -race -count=1 -timeout=15m \
             -tags=integration \
@@ -181,6 +197,10 @@ jobs:
           DB_PASSWORD: test
           DB_NAME: orion_test
           REDIS_ADDR: localhost:6379
+          MINIO_E2E_ENDPOINT: localhost:9000
+          MINIO_E2E_ACCESS_KEY: minioadmin
+          MINIO_E2E_SECRET_KEY: minioadmin
+          MINIO_E2E_BUCKET: backup-e2e
         run: |
           go test -v -race -count=1 -timeout=15m ./internal/...
 

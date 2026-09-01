@@ -67,6 +67,47 @@ func NewBackupService(repo *repository.BackupRepository, logger *zap.Logger) *Ba
 	return svc
 }
 
+// Start begins the internal Scheduler. Call this once at server boot; the
+// scheduler fires the cron jobs registered by AddPlan/UpdatePlan. Without
+// calling Start, the cron instance never fires and all scheduled backups
+// are silently skipped.
+func (s *BackupService) Start() {
+	if s.scheduler != nil {
+		s.scheduler.Start()
+	}
+}
+
+// StartRetentionCron registers a daily cron entry that runs PurgeAll for
+// every tenant. The default schedule fires at 02:30 UTC each day. Pass
+// schedule="" to disable. Returns the cron EntryID for tests to inspect.
+func (s *BackupService) StartRetentionCron(schedule string) int {
+	if s.scheduler == nil || schedule == "" {
+		return -1
+	}
+	entryID, err := s.scheduler.cron.AddFunc(schedule, func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
+		results := s.PurgeAll(ctx)
+		s.logger.Info("retention purge-all completed",
+			zap.Int("tenants", len(results)))
+	})
+	if err != nil {
+		s.logger.Error("failed to schedule retention purge", zap.Error(err))
+		return -1
+	}
+	return int(entryID)
+}
+
+// Stop halts the internal Scheduler. Call at server shutdown.
+func (s *BackupService) Stop() {
+	if s.scheduler != nil {
+		s.scheduler.Stop()
+	}
+}
+
+// Scheduler exposes the internal Scheduler so tests can inspect state.
+func (s *BackupService) Scheduler() *Scheduler { return s.scheduler }
+
 // SetExecutorRegistry swaps the executor registry. Used by tests and by
 // wiring code that wants to inject custom binaries.
 func (s *BackupService) SetExecutorRegistry(reg *executor.Registry) {
@@ -402,15 +443,34 @@ func (s *BackupService) StorageBackendForPublic(cfg models.BackupStorageConfig) 
 	return s.storageBackendFor(cfg)
 }
 
-// uploadArtifact reads a local file and PUTs it to the storage backend.
-// The artifact is streamed so large backups do not need to be buffered in
-// memory.
+// BackendCapabilitiesForPublic reports the advanced capabilities (G8) of the
+// backend a plan config resolves to. A nil backend (local scratch, or an
+// unconfigured remote) yields a zero-value caps set — callers must not assume
+// multipart or lifecycle support without checking.
+func (s *BackupService) BackendCapabilitiesForPublic(cfg models.BackupStorageConfig) storage.BackendCaps {
+	b := s.storageBackendFor(cfg)
+	if b == nil {
+		return storage.BackendCaps{}
+	}
+	if adv, ok := b.(storage.AdvancedBackend); ok {
+		return adv.Capabilities()
+	}
+	return storage.BackendCaps{}
+}
+
+// uploadArtifact reads a local file and PUTs it to the storage backend. The
+// artifact is streamed so large backups do not need to be buffered in memory.
+// When the backend supports multipart upload (G8), that path is preferred —
+// it is resumable on large payloads and consumes less memory client-side.
 func (s *BackupService) uploadArtifact(ctx context.Context, b storage.StorageBackend, remoteKey, localPath string) error {
 	f, err := os.Open(localPath)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
+	if adv, ok := b.(storage.AdvancedBackend); ok && adv.Capabilities().MultipartUpload {
+		return adv.MultipartUpload(ctx, remoteKey, f)
+	}
 	return b.Put(ctx, remoteKey, f)
 }
 

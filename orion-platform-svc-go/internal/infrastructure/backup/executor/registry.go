@@ -30,6 +30,9 @@ func NewRegistry() *Registry {
 	r.Register(NewPGExecutor())
 	r.Register(NewMySQLExecutor())
 	r.Register(NewOceanBaseExecutor())
+	r.Register(NewOracleExecutor())
+	r.Register(NewDB2Executor())
+	r.Register(NewSQLServerExecutor())
 	return r
 }
 

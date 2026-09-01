@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -36,6 +37,20 @@ func requireMySQLMode(conn ConnInfo) error {
 	return nil
 }
 
+// buildOceanBaseEnv passes the password via OB_PASSWORD instead of argv
+// ("-p"), which would be visible in `ps` output on shared hosts. It mirrors
+// buildMySQLEnv (MYSQL_PWD) and PG's PGPASSWORD so the credential never leaves
+// the child process environment. The env var name follows the Phase 7 plan
+// (docs/backup-phase7-plan-2026-08-30.md G2); confirm against upstream
+// ob-loader-dumper docs before changing it.
+func buildOceanBaseEnv(conn ConnInfo) []string {
+	env := os.Environ()
+	if conn.Password != "" {
+		env = append(env, "OB_PASSWORD="+conn.Password)
+	}
+	return env
+}
+
 func (e *OceanBaseExecutor) Backup(ctx context.Context, conn ConnInfo, opts BackupOptions) (*BackupResult, error) {
 	toolBin := e.ToolBin
 	if toolBin == "" {
@@ -57,7 +72,6 @@ func (e *OceanBaseExecutor) Backup(ctx context.Context, conn ConnInfo, opts Back
 		"--log-file=" + opts.OutputPath,
 		"--db=" + conn.DB,
 		"-u", conn.User,
-		"-p", conn.Password,
 		"-h", conn.Host,
 		"-P", conn.Port,
 	}
@@ -70,7 +84,7 @@ func (e *OceanBaseExecutor) Backup(ctx context.Context, conn ConnInfo, opts Back
 	}
 	args = append(args, opts.ExtraArgs...)
 
-	stdout, err := RunCommand(ctx, toolBin, args, os.Environ(), nil)
+	stdout, err := RunCommand(ctx, toolBin, args, buildOceanBaseEnv(conn), nil)
 	if err != nil {
 		return nil, fmt.Errorf("ob-loader-dumper: %w", err)
 	}
@@ -144,7 +158,6 @@ func (e *OceanBaseExecutor) Restore(ctx context.Context, opts RestoreOptions) (*
 		"--csv-file=" + artifactPath,
 		"--db=" + opts.TargetConn.DB,
 		"-u", opts.TargetConn.User,
-		"-p", opts.TargetConn.Password,
 		"-h", opts.TargetConn.Host,
 		"-P", opts.TargetConn.Port,
 		"--load-threads=4",
@@ -152,7 +165,7 @@ func (e *OceanBaseExecutor) Restore(ctx context.Context, opts RestoreOptions) (*
 	args = append(args, opts.WALExtra...)
 	args = append(args, opts.TargetConn.TenantName) // pass tenant as trailing arg
 
-	stdout, err := RunCommand(ctx, toolBin, args, os.Environ(), nil)
+	stdout, err := RunCommand(ctx, toolBin, args, buildOceanBaseEnv(opts.TargetConn), nil)
 	if err != nil {
 		return &RestoreResult{Errors: []string{stdout}}, fmt.Errorf("ob-loader-dumper --load: %w", err)
 	}
@@ -160,8 +173,37 @@ func (e *OceanBaseExecutor) Restore(ctx context.Context, opts RestoreOptions) (*
 	if stdout := strings.TrimSpace(stdout); stdout != "" {
 		result.Warnings = append(result.Warnings, stdout)
 	}
-	// Validate + account for clog archive segments. OceanBase PITR
-	// requires sys tenant + oblogminer; Phase 4.
+	// PITR mode: delegate clog replay to the sys-tenant oblogminer executor.
+	// State-changing recovery commands are emitted as a runbook for DBA review;
+	// only idempotent verification runs by default (design D4, G4).
+	if opts.TargetTime != nil && len(opts.ArchivePaths) > 0 {
+		if opts.BackupID == "" {
+			return result, fmt.Errorf("oceanbase PITR restore requires BackupID (found empty)")
+		}
+		if opts.TargetConn.TenantName != "sys" {
+			return result, fmt.Errorf("oceanbase PITR restore requires sys tenant connection (got tenant %q)", opts.TargetConn.TenantName)
+		}
+		plan, err := PrepareOBCLogRecoveryPlan(ctx, OBCLogRecoveryOptions{
+			BackupID:     opts.BackupID,
+			BackupPath:   opts.BackupPath,
+			ArchivePaths: opts.ArchivePaths,
+			TargetTime:   opts.TargetTime,
+			ScratchDir:   opts.ScratchDir,
+			TargetConn:   opts.TargetConn,
+		}, nil)
+		if err != nil {
+			return result, err
+		}
+		result.ScriptPath = plan.ScriptPath
+		result.ManifestPath = OBCLogManifestPath(filepath.Dir(plan.ScriptPath), opts.BackupID)
+		result.ArchReplayed = len(plan.ArchiveFiles)
+		result.ArchSizes = make([]int64, 0, len(plan.ArchiveFiles))
+		for _, f := range plan.ArchiveFiles {
+			result.ArchSizes = append(result.ArchSizes, f.Size)
+		}
+		return result, nil
+	}
+	// Non-PITR: keep existing accounting (replayArchives).
 	if err := replayArchives(ctx, opts.ArchivePaths, result); err != nil {
 		return result, err
 	}

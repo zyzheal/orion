@@ -28,6 +28,9 @@ const (
 	DialectPostgreSQL Dialect = "postgresql"
 	DialectMySQL      Dialect = "mysql"
 	DialectOceanBase  Dialect = "oceanbase"
+	DialectOracle     Dialect = "oracle"
+	DialectDB2        Dialect = "db2"
+	DialectSQLServer  Dialect = "sqlserver"
 )
 
 // ErrUnsupportedDialect is returned when the Registry has no executor for a
@@ -76,6 +79,9 @@ type BackupResult struct {
 
 // RestoreOptions controls how a single restore run is executed.
 type RestoreOptions struct {
+	// BackupID identifies the source backup artifact. Required when the
+	// engine's PITR path produces a recovery plan (see PGExecutor.Restore).
+	BackupID    string
 	BackupPath  string
 	TargetConn  ConnInfo
 	Format      string
@@ -91,6 +97,9 @@ type RestoreOptions struct {
 	ArchivePaths []string
 	WALExtra     []string
 	Timeout      time.Duration
+	// ScratchDir is the directory where PITR plan artifacts (runbook +
+	// manifest) are written. Empty defaults to /var/lib/orion-pitr.
+	ScratchDir string
 }
 
 // RestoreResult is the executor's outcome for a restore run. Warnings and
@@ -107,6 +116,11 @@ type RestoreResult struct {
 	// ArchSizes is the byte size of each replayed segment, in order. Useful
 	// for operators to verify what was applied.
 	ArchSizes []int64
+	// ScriptPath is the generated recovery runbook (PITR mode only). Non-empty
+	// when the executor produced a plan artifact for operator review.
+	ScriptPath string
+	// ManifestPath is the generated PITR manifest JSON (PITR mode only).
+	ManifestPath string
 }
 
 // Executor is the umbrella interface implemented by every engine-specific
@@ -134,7 +148,8 @@ type RestoreExecutor interface {
 // package has shipped implementations for. Useful as a config-time guard.
 func IsSupported(d Dialect) bool {
 	switch d {
-	case DialectPostgreSQL, DialectMySQL, DialectOceanBase:
+	case DialectPostgreSQL, DialectMySQL, DialectOceanBase,
+		DialectOracle, DialectDB2, DialectSQLServer:
 		return true
 	}
 	return false

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -179,8 +180,35 @@ func (e *PGExecutor) Restore(ctx context.Context, opts RestoreOptions) (*Restore
 	if stdout := strings.TrimSpace(stdout); stdout != "" {
 		result.Warnings = append(result.Warnings, stdout)
 	}
-	// Validate + account for WAL archive segments. Real PG PITR server
-	// orchestration is Phase 4.
+	// PITR mode: consume the Phase 6 recovery-plan producer. When a target
+	// time and archive set are present, generate the runbook + manifest for
+	// operator review instead of the old placeholder accounting. This closes
+	// the PG PITR execution loop — the DBA executes the runbook against the
+	// restored base to replay WAL up to TargetTime.
+	if opts.TargetTime != nil && len(opts.ArchivePaths) > 0 {
+		if opts.BackupID == "" {
+			return result, fmt.Errorf("pg PITR restore requires BackupID (found empty)")
+		}
+		plan, err := PreparePGRecoveryPlan(ctx, PGRecoveryOptions{
+			BackupID:     opts.BackupID,
+			BackupPath:   opts.BackupPath,
+			ArchivePaths: opts.ArchivePaths,
+			TargetTime:   opts.TargetTime,
+			ScratchDir:   opts.ScratchDir,
+		}, nil)
+		if err != nil {
+			return result, err
+		}
+		result.ScriptPath = plan.ScriptPath
+		result.ManifestPath = PITRManifestPath(filepath.Dir(plan.ScriptPath), opts.BackupID)
+		result.ArchReplayed = len(plan.ArchiveFiles)
+		result.ArchSizes = make([]int64, 0, len(plan.ArchiveFiles))
+		for _, af := range plan.ArchiveFiles {
+			result.ArchSizes = append(result.ArchSizes, af.Size)
+		}
+		return result, nil
+	}
+	// Non-PITR: account for any staged WAL/binlog segments (no target time).
 	if err := replayArchives(ctx, opts.ArchivePaths, result); err != nil {
 		return result, err
 	}

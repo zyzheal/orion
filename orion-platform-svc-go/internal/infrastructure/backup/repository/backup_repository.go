@@ -482,3 +482,89 @@ func (r *BackupRepository) ListArchives(ctx context.Context, tenantID, planID st
 	}
 	return recs, nil
 }
+
+// DeleteArchive removes a single archive record.
+func (r *BackupRepository) DeleteArchive(ctx context.Context, tenantID, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM backup_archive WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	return err
+}
+
+// PurgeExpiredBackups marks all backup records whose retention window has
+// passed as expired, and returns their IDs so the caller can clean up
+// on-disk artifacts. It uses plan.RetentionDays joined through the plan
+// table. Plans with retention_days = 0 keep all records.
+func (r *BackupRepository) PurgeExpiredBackups(ctx context.Context, tenantID string, now time.Time) ([]string, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		UPDATE backup_records br
+		   SET status = 'expired'
+		 WHERE br.tenant_id = $1
+		   AND br.plan_id IN (
+		      SELECT p.id FROM backup_plans p WHERE p.tenant_id = $2 AND p.retention_days > 0
+		   )
+		   AND EXISTS (
+		      SELECT 1 FROM backup_plans p
+		      WHERE p.id = br.plan_id AND p.tenant_id = br.tenant_id
+		        AND p.retention_days > 0
+		        AND br.completed_at < NOW() - (p.retention_days * INTERVAL '1 day')
+		   )
+		 RETURNING br.id`, now, tenantID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return ids, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+// DeleteBackupsBulk removes multiple backup records in one round-trip.
+func (r *BackupRepository) DeleteBackupsBulk(ctx context.Context, tenantID string, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	// Build $1, $2, ..., $N for the IN clause.
+	placeholders := make([]string, len(ids))
+	args := []interface{}{tenantID}
+	for i, id := range ids {
+		placeholders[i] = fmt.Sprintf("$%d", i+2)
+		args = append(args, id)
+	}
+	query := `DELETE FROM backup_records WHERE tenant_id = $1 AND id IN (` + strings.Join(placeholders, ",") + `)`
+	_, err := r.db.ExecContext(ctx, query, args...)
+	return err
+}
+
+// DeleteArchivesForPlan removes all archive records belonging to a plan,
+// used during retention cleanup so stale WAL/binlog segments don't outlive
+// the base backup they depend on.
+func (r *BackupRepository) DeleteArchivesForPlan(ctx context.Context, tenantID, planID string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM backup_archive WHERE tenant_id = $1 AND plan_id = $2`, tenantID, planID)
+	return err
+}
+
+// ListTenantsWithPlans returns the distinct tenant IDs that own at least
+// one backup plan. Used by PurgeAll to fan out to every tenant without
+// depending on a separate tenants table (which may not exist in
+// single-tenant deployments).
+func (r *BackupRepository) ListTenantsWithPlans(ctx context.Context) ([]string, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT DISTINCT tenant_id FROM backup_plans ORDER BY tenant_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return ids, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}

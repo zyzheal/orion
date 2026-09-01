@@ -8,15 +8,16 @@ import (
 )
 
 // replayArchives walks ArchivePaths in order, verifying each file exists and
-// recording its size. Real PG PITR requires server restart + recovery.conf
-// and MySQL PITR requires mysqlbinlog --stop-datetime piping; those
-// orchestrations land in Phase 4. Phase 3 validates the archive set is
-// present and accounted-for so the upper RecoveryService can compute RPO
-// and operators can see what was staged before the actual replay call.
+// recording its size. It is the accounting helper for engines without a
+// dedicated PITR orchestration path yet — notably OceanBase (clog replay,
+// Phase 7 G4). PostgreSQL now routes PITR restores through
+// PreparePGRecoveryPlan (pg_pitr.go) when a TargetTime + archive set is
+// present; this helper remains for the non-PITR / OceanBase cases so the
+// restore fails closed on a missing segment while still surfacing sizes.
 //
-// The helper is shared across all engine-specific executors so the
-// behaviour is consistent: missing file → hard error (the restore must
-// fail closed); present file → its byte size is recorded.
+// The helper is shared across engine-specific executors so the behaviour is
+// consistent: missing file → hard error (the restore must fail closed);
+// present file → its byte size is recorded.
 func replayArchives(ctx context.Context, paths []string, result *RestoreResult) error {
 	if len(paths) == 0 || result == nil {
 		return nil

@@ -54,6 +54,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	bg.GET("/recovery/:id", auth.RequirePermission("backup", "read"), h.GetRecovery)
 	bg.POST("/recovery/:id/execute", auth.RequirePermission("backup", "execute"), h.ExecuteRecovery)
 	bg.POST("/recovery/:id/execute-pitr", auth.RequirePermission("backup", "execute"), h.ExecuteRecoveryPITR)
+	bg.POST("/recovery/:id/verify", auth.RequirePermission("backup", "read"), h.VerifyRecovery)
 	bg.DELETE("/recovery/:id", auth.RequirePermission("backup", "delete"), h.RollbackRecovery)
 
 	// --- Stats ---
@@ -346,6 +347,24 @@ func (h *Handler) ExecuteRecoveryPITR(c *gin.Context) {
 		return
 	}
 	respondSuccess(c, record)
+}
+
+// VerifyRecovery runs a post-restore smoke check against the target DB and
+// reports whether the recovery met its RTO/RPO targets.
+func (h *Handler) VerifyRecovery(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BackupVerifyRecovery")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" {
+		respondBadRequest(c, "tenant_id required")
+		return
+	}
+	result, err := h.recoverySvc.VerifyRecovery(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		respondNotFound(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
 }
 
 func (h *Handler) RollbackRecovery(c *gin.Context) {

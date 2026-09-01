@@ -17,10 +17,14 @@ import (
 // exercise storageBackendFor without a real filesystem or network call.
 type noopStorageBackend struct {
 	typeLabel string
+	putCalled bool
 }
 
 func (b *noopStorageBackend) Type() string { return b.typeLabel }
-func (b *noopStorageBackend) Put(_ context.Context, _ string, _ io.Reader) error { return nil }
+func (b *noopStorageBackend) Put(_ context.Context, _ string, _ io.Reader) error {
+	b.putCalled = true
+	return nil
+}
 func (b *noopStorageBackend) Get(_ context.Context, _ string) (io.ReadCloser, error) {
 	return nil, nil
 }
@@ -162,4 +166,98 @@ func TestBackupService_BaseBackupDirDefaults(t *testing.T) {
 	if s.baseBackupDir != "/tmp/backup-scratch" {
 		t.Fatalf("empty string should not reset, got %s", s.baseBackupDir)
 	}
+}
+
+// advancedStorageBackend doubles storage.AdvancedBackend so the service can
+// exercise the multipart-preferred upload path and capability probing without
+// a real S3 service. It records which method was called last.
+type advancedStorageBackend struct {
+	noopStorageBackend
+	multipartCalled bool
+	lifecycleCalled bool
+}
+
+func (b *advancedStorageBackend) Capabilities() storage.BackendCaps {
+	return storage.BackendCaps{MultipartUpload: true, LifecycleRules: true, ColdStorage: true}
+}
+
+func (b *advancedStorageBackend) MultipartUpload(_ context.Context, _ string, _ io.Reader) error {
+	b.multipartCalled = true
+	return nil
+}
+
+func (b *advancedStorageBackend) SetLifecycle(_ context.Context, _ storage.LifecyclePolicy) error {
+	b.lifecycleCalled = true
+	return nil
+}
+
+var _ storage.AdvancedBackend = (*advancedStorageBackend)(nil)
+
+func TestBackendCapabilitiesForPublic_LocalZeroCaps(t *testing.T) {
+	// Local / unconfigured backends must yield zero-value caps — callers
+	// cannot assume multipart or lifecycle support.
+	s := &BackupService{}
+	if caps := s.BackendCapabilitiesForPublic(models.BackupStorageConfig{Type: "local"}); caps.MultipartUpload || caps.LifecycleRules || caps.ColdStorage {
+		t.Fatalf("local must not report advanced caps, got %+v", caps)
+	}
+	if caps := s.BackendCapabilitiesForPublic(models.BackupStorageConfig{}); caps != (storage.BackendCaps{}) {
+		t.Fatalf("unconfigured raw jwt must be zero caps, got %+v", caps)
+	}
+}
+
+func TestBackendCapabilitiesForPublic_S3ReportsCaps(t *testing.T) {
+	s := &BackupService{}
+	s.SetStorageBackend("s3", &advancedStorageBackend{})
+	// minio config resolves to the s3 backend and must expose the S3 caps.
+	caps := s.BackendCapabilitiesForPublic(models.BackupStorageConfig{Type: "minio"})
+	if !caps.MultipartUpload || !caps.LifecycleRules || !caps.ColdStorage {
+		t.Fatalf("s3 backend should report full caps, got %+v", caps)
+	}
+}
+
+func TestUploadArtifact_PrefersMultipart(t *testing.T) {
+	// When the backend implements AdvancedBackend with multipart support, the
+	// service must route through MultipartUpload rather than the single-shot
+	// Put path.
+	s := &BackupService{}
+	b := &advancedStorageBackend{}
+	src := writeTempArtifact(t, "some backup bytes")
+	if err := s.uploadArtifact(context.Background(), b, "bkup/p-1/b-1", src); err != nil {
+		t.Fatal(err)
+	}
+	if !b.multipartCalled {
+		t.Fatal("expected MultipartUpload to be called for advanced backend")
+	}
+	if b.noopStorageBackend.putCalled {
+		t.Fatal("Put must not be called when multipart is available")
+	}
+}
+
+func TestUploadArtifact_FallsBackToPut(t *testing.T) {
+	// A plain backend that lacks multipart must still upload via Put — this is
+	// the compatibility path for Local and older backends.
+	s := &BackupService{}
+	b := &noopStorageBackend{typeLabel: "noput"}
+	src := writeTempArtifact(t, "some backup bytes")
+	if err := s.uploadArtifact(context.Background(), b, "bkup/p-1/b-1", src); err != nil {
+		t.Fatal(err)
+	}
+	if !b.putCalled {
+		t.Fatal("expected Put to be called for non-advanced backend")
+	}
+}
+
+// writeTempArtifact writes payload to a temp file and returns its path, so
+// uploadArtifact has a real readable source stream.
+func writeTempArtifact(t *testing.T, payload string) string {
+	t.Helper()
+	f, err := os.CreateTemp(t.TempDir(), "artifact-*.dump")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if _, err := f.WriteString(payload); err != nil {
+		t.Fatal(err)
+	}
+	return f.Name()
 }

@@ -4,15 +4,18 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"strings"
 )
 
 // MySQLExecutor implements BackupExecutor and RestoreExecutor for MySQL and
-// MariaDB using the official mysqldump / mysql clients.
+// MariaDB using the official mysqldump / mysql / mysqlbinlog clients.
 type MySQLExecutor struct {
 	DumpBin    string
 	ClientBin  string
+	BinlogBin  string
 }
 
 // NewMySQLExecutor returns a MySQL executor with production defaults.
@@ -20,6 +23,7 @@ func NewMySQLExecutor() *MySQLExecutor {
 	return &MySQLExecutor{
 		DumpBin:   DefaultBinPath("mysqldump"),
 		ClientBin: DefaultBinPath("mysql"),
+		BinlogBin: DefaultBinPath("mysqlbinlog"),
 	}
 }
 
@@ -158,10 +162,107 @@ func (e *MySQLExecutor) Restore(ctx context.Context, opts RestoreOptions) (*Rest
 		return &RestoreResult{Errors: []string{stderr.String()}}, fmt.Errorf("mysql: %w (stderr: %s)", err, strings.TrimSpace(stderr.String()))
 	}
 	result := &RestoreResult{}
-	// Validate + account for binlog archive segments. Real MySQL PITR uses
-	// mysqlbinlog --start-datetime/--stop-datetime + mysql client; Phase 4.
-	if err := replayArchives(ctx, opts.ArchivePaths, result); err != nil {
+	// Real MySQL PITR replay: for each ArchivePath, run `mysqlbinlog <file> |
+	// mysql ...` so the base backup is followed by the binlog segments in
+	// order. --start-datetime / --stop-datetime (from opts.TargetTime)
+	// are honoured by mysqlbinlog itself when PITR is requested.
+	if err := e.replayArchivePaths(ctx, opts, clientBin, result); err != nil {
 		return result, err
 	}
 	return result, nil
+}
+
+// replayArchivePaths runs real mysqlbinlog replay for each ArchivePath.
+// When opts.ArchivePaths is empty the function returns immediately —
+// the base restore has already completed in the caller.
+func (e *MySQLExecutor) replayArchivePaths(ctx context.Context, opts RestoreOptions, clientBin string, result *RestoreResult) error {
+	if len(opts.ArchivePaths) == 0 {
+		return nil
+	}
+	binlogBin := e.BinlogBin
+	if binlogBin == "" {
+		binlogBin = DefaultBinPath("mysqlbinlog")
+	}
+	if _, err := exec.LookPath(binlogBin); err != nil {
+		return fmt.Errorf("mysqlbinlog not found: %w", err)
+	}
+
+	binlogArgs := []string{
+		"--database=" + opts.TargetConn.DB,
+	}
+	if opts.TargetTime != nil {
+		// mysqlbinlog uses --stop-datetime to stop at the target time.
+		// The start-datetime is implicitly the beginning of the first
+		// segment we're replaying; mysqlbinlog handles that automatically.
+		binlogArgs = append(binlogArgs,
+			"--stop-datetime="+opts.TargetTime.UTC().Format("2006-01-02 15:04:05"),
+		)
+	}
+
+	mysqlArgs := []string{
+		"-h", opts.TargetConn.Host,
+		"-P", opts.TargetConn.Port,
+		"-u", opts.TargetConn.User,
+		"--max-allowed-packet=64M",
+	}
+	if opts.TargetConn.DB != "" {
+		mysqlArgs = append(mysqlArgs, opts.TargetConn.DB)
+	}
+
+	for i, path := range opts.ArchivePaths {
+		if err := runBinlogReplay(ctx, binlogBin, binlogArgs, path, clientBin, mysqlArgs, opts.TargetConn, result); err != nil {
+			return fmt.Errorf("archive segment %d (%s) replay failed: %w", i, path, err)
+		}
+		result.ArchReplayed++
+	}
+	return nil
+}
+
+// runBinlogReplay pipes `mysqlbinlog [args] <path>` stdout into
+// `mysql [args]` stdin and reports the outcome.
+func runBinlogReplay(ctx context.Context, binlogBin string, binlogArgs []string, path string, clientBin string, mysqlArgs []string, conn ConnInfo, result *RestoreResult) error {
+	// Create an explicit io.Pipe so binlog stdout → mysql stdin can flow
+	// without buffering through an intermediate file.
+	pr, pw := io.Pipe()
+	// Build the binlog command first so we can write its stdout to the pipe.
+	binlogArgs = append(append([]string{}, binlogArgs...), path)
+	binlogCmd := newCmd(ctx, binlogBin, binlogArgs, buildMySQLEnv(conn))
+	binlogCmd.Stdout = pw
+	var binlogStderr bytes.Buffer
+	binlogCmd.Stderr = &binlogStderr
+	if err := binlogCmd.Start(); err != nil {
+		_ = pw.Close()
+		return fmt.Errorf("start mysqlbinlog: %w", err)
+	}
+
+	// mysql consumes stdin from the pipe.
+	mysqlCmd := newCmd(ctx, clientBin, mysqlArgs, buildMySQLEnv(conn))
+	mysqlCmd.Stdin = pr
+	var mysqlStderr bytes.Buffer
+	mysqlCmd.Stderr = &mysqlStderr
+
+	// Start mysql so the pipeline flows.
+	if err := mysqlCmd.Start(); err != nil {
+		_ = binlogCmd.Process.Kill()
+		return fmt.Errorf("start mysql: %w", err)
+	}
+
+	// Wait for both processes. mysql exits when it consumes EOF on stdin,
+	// which happens when mysqlbinlog exits (its stdout closes).
+	binlogErr := binlogCmd.Wait()
+	mysqlErr := mysqlCmd.Wait()
+
+	if mysqlErr != nil {
+		if s := strings.TrimSpace(mysqlStderr.String()); s != "" {
+			return fmt.Errorf("mysql: %w (stderr: %s)", mysqlErr, s)
+		}
+		return fmt.Errorf("mysql: %w", mysqlErr)
+	}
+	if binlogErr != nil {
+		if s := strings.TrimSpace(binlogStderr.String()); s != "" {
+			return fmt.Errorf("mysqlbinlog: %w (stderr: %s)", binlogErr, s)
+		}
+		return fmt.Errorf("mysqlbinlog: %w", binlogErr)
+	}
+	return nil
 }

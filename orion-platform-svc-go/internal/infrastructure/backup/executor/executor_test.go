@@ -105,20 +105,20 @@ func (f *backupOnlyFake) Backup(_ context.Context, _ ConnInfo, _ BackupOptions) 
 }
 
 func TestIsSupported(t *testing.T) {
-	for _, d := range []Dialect{DialectPostgreSQL, DialectMySQL, DialectOceanBase} {
+	for _, d := range []Dialect{DialectPostgreSQL, DialectMySQL, DialectOceanBase, DialectOracle, DialectDB2, DialectSQLServer} {
 		if !IsSupported(d) {
 			t.Fatalf("expected %s to be supported", d)
 		}
 	}
-	if IsSupported(Dialect("oracle")) {
-		t.Fatal("oracle should not be in shipped set")
+	if IsSupported(Dialect("mongodb")) {
+		t.Fatal("mongodb should not be in shipped set")
 	}
 }
 
 func TestRegistry_BackupDialectsListsAll(t *testing.T) {
 	r := NewRegistry()
 	dialects := r.BackupDialects()
-	if len(dialects) != 3 {
-		t.Fatalf("expected 3 dialects, got %d: %v", len(dialects), dialects)
+	if len(dialects) != 6 {
+		t.Fatalf("expected 6 dialects, got %d: %v", len(dialects), dialects)
 	}
 }

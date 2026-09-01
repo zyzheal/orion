@@ -30,6 +30,20 @@ func DefaultBinPath(name string) string {
 		return "/usr/bin/mysql"
 	case "ob-loader-dumper":
 		return "/usr/bin/ob-loader-dumper"
+	case "oblogminer":
+		return "/usr/bin/oblogminer"
+	case "ob_client":
+		return "/usr/bin/obclient"
+	case "expdp":
+		return "/usr/bin/expdp"
+	case "impdp":
+		return "/usr/bin/impdp"
+	case "rman":
+		return "/usr/bin/rman"
+	case "db2":
+		return "/usr/bin/db2"
+	case "sqlcmd":
+		return "/opt/mssql-tools18/bin/sqlcmd"
 	}
 	// Fall back to PATH lookup for anything else.
 	return name
