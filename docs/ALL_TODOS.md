@@ -1,6 +1,6 @@
 # Orion 平台 — 所有待办汇总（单一权威来源）
 
-> 最后更新: 2026-09-01 | 分支: `feat/wave2-parallel-execution`
+> 最后更新: 2026-09-02 | 分支: `feat/wave2-parallel-execution`
 > 数据来源: `architecture-review-2026-08-01.md` + `CROSS_VALIDATION_REPORT.md` + `merged-action-items-2026-07-27.md` + `structure-overlap-verification-2026-08-01.md` + `three-domain-depth-analysis-2026-08-01.md`
 > 状态: ✅ **已通过专家评审核实** (2026-08-01)，以下为**当前有效清单**
 
@@ -133,7 +133,7 @@
 | ~~**P2-14** | 迁移剩余 5 个内联 fetch 页面 | Batch Y 盘点 | `dba/AuditRule`、`federation/Workspace`、`MCPManagement`、`PromptCanary`、`security/CodeScan`（共 10 处 `API_BASE_URL`）。经核实当时的未提交 diff 每文件仅 2 行，是同一任务链"硬编码 /api/v1 → API_BASE_URL"的前置半步，非他人成果，已一并收口。迁后 `src/pages` 下 `API_BASE_URL` 引用数归零 | ✅ 2026-08-26 |
 | ~~**P2-15** | 修复 `localStorage.getItem('token')` 键错误 | Batch Z 发现 | `authStore` 的真实键是 **`access_token`**（`TOKEN_KEY`），而 15 个页面的裸 fetch 全在读 `token`——`grep "setItem('token'" src` **0 处**，即 `|| ''` 兜底一直在生效，**这些页面的请求一直带空 Bearer token**。已随 P2-10~14 迁移自动修复（拦截器改走 `authStore.getToken()`）。残留 2 处已改键名：`CMDB/WebTerminalPage.tsx`（WS auth 消息此前恒不发送，真 bug）、`hooks/usePermission.ts`（保留裸 fetch，避免权限引导触发全局 toast）。全仓库 `getItem('token'` 现为 **0 处** | ✅ 2026-08-26 |
 | **P2-16** | 评估 `stores/subappStore.ts` 的 `fetchApi` 迁移 | ✅ **token 迁移完成** | PERM-8 阶段 2 已将 fetchApi 的 token 获取改为 `authStore.getToken()`(异步,过期自动刷新)。api.get/post 迁移保留为可选优化(fetchApi 已正确注入 token,功能无影响) |
-| ~~**P2-11** | wiring.go / router.go 拆分 | 三域分析 | ~~router.go 1160→298 行(表驱动注册), wiring.go 792→577 行, 98 个 wiring-*.go 拆分文件~~ | ✅ 2026-09-01 |
+| ~~**P2-11** | wiring.go / router.go 拆分 | 三域分析 | ~~router.go 1160→298 行(表驱动注册), wiring.go 792→577→304 行, 103 个 wiring-*.go 拆分文件；本轮新增 5 个：wiring-data-modules.go(39行) / wiring-ai-inline-services.go(52行) / wiring-p0-modules.go(89行) / wiring-pipeline-modules.go(56行) / wiring-inline-handlers.go(121行)；~130 行内联代码抽出，保留 user/auth/perm+LLM Registry 内联~~ | ✅ 2026-09-01 |
 
 | ~~**G5** | AES 分块 AEAD（chunked，消除整文件读内存） | Phase 7 计划 | ~~`crypto.go` `EncryptFile`/`DecryptFile` 改造为分块 AEAD（`ORCH` magic + v1 版本头 + nonce per chunk + AAD=块索引防重排，1 MiB/块流式）；`DecryptFile` magic sniff 兼容 legacy v0（`EncryptBytes/DecryptBytes` 保持 v0 字节语义）；`crypto_test.go` 新增 8 用例：往返/多块大文件(>8MiB)/篡改任一帧失败/截断失败/重排帧失败/v0 兼容/空 key/格式头断言；执行器加密往返测试沿用通过~~ | ✅ **完成 2026-08-31** |
 | ~~**G6** | KMS / 密钥轮换 / 版本化 | Phase 7 计划 | ~~新 `key_provider.go`：`KeyProvider` 接口 + 4 实现（`Static`/`StaticMap`/`Base64`/`KMS` stub，均 fail-closed）；`EncryptFileWithProvider`/`DecryptFileWithProvider` 引入 **v2 KEYED 格式**（`ORCH\|0x02\|keyIDLen\|keyID\|帧`），解密按头中 keyID 取对应版本密钥；raw-key `EncryptFile` 保持 v1 格式不变，`DecryptFile` 兼容 v0/v1/v2 全格式；`crypto_test.go` 新增 5 用例：旧版本密钥仍解旧文件/新文件用当前密钥+头记录 keyID/未知 key 解密 fail-closed/provider 加密失败不落盘/v0 经 provider 解~~ | ✅ **完成 2026-08-31** |
