@@ -15,16 +15,12 @@ import {
   Typography,
   Button,
   Space,
-  Tag,
   Card,
   Tabs,
-  Timeline,
-  Empty,
   message,
   Form,
   Select,
   Input,
-  Descriptions,
   Modal,
   Row,
   Col,
@@ -33,13 +29,10 @@ import {
   PlusOutlined,
   ReloadOutlined,
   EyeOutlined,
-  EditOutlined,
-  CloseCircleOutlined,
   SwapOutlined,
   FileTextOutlined,
   TeamOutlined,
   SafetyCertificateOutlined,
-  ThunderboltOutlined,
 } from '@ant-design/icons';
 import { Layout } from '@/components/Layout';
 import Table from '@/components/Table';
@@ -78,9 +71,7 @@ import dayjs from 'dayjs';
 import {
   typeConfig,
   priorityConfig,
-  riskConfig,
   statusConfig,
-  statusTransitions,
   eventTypeConfig,
 } from './config';
 import {
@@ -89,6 +80,7 @@ import {
   useCABColumns,
 } from './columns';
 import { ChangeForm } from './ChangeForm';
+import { ChangeDetailPanel } from './ChangeDetailPanel';
 import { RFCForm } from './RFCForm';
 import { CABForm } from './CABForm';
 import { DecisionForm } from './DecisionForm';
@@ -431,6 +423,22 @@ const ChangeManagement: React.FC = () => {
     setEditModalOpen(true);
   };
 
+  const handleRiskAnalysis = async () => {
+    if (!selectedChange) return;
+    setRiskLoading(true);
+    try {
+      const analysis = await getChangeRiskAnalysis(selectedChange.id);
+      setRiskAnalysis(analysis);
+      message.success('AI 风险分析完成');
+    } catch (error: unknown) {
+      message.error(
+        error instanceof Error ? error.message : 'AI 风险分析失败，请稍后重试'
+      );
+    } finally {
+      setRiskLoading(false);
+    }
+  };
+
   // ============================================================================
   // Timeline Handlers
   // ============================================================================
@@ -762,360 +770,22 @@ const ChangeManagement: React.FC = () => {
           变更详情
         </span>
       ),
-      children: selectedChange ? (
-        <>
-          {/* Header */}
-          <Card
-            style={{
-              marginBottom: spacing.md,
-              borderRadius: radius.lg,
-              boxShadow: shadows.card,
-            }}
-            loading={detailLoading}
-          >
-            <div
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}
-            >
-              <div>
-                <Title level={3} style={{ marginBottom: spacing.sm }}>
-                  {selectedChange.title}
-                </Title>
-                <Space size="small" wrap>
-                  <Tag color={typeConfig[selectedChange.type]?.color}>
-                    {typeConfig[selectedChange.type]?.label || selectedChange.type}
-                  </Tag>
-                  <Tag color={priorityConfig[selectedChange.priority]?.color}>
-                    {priorityConfig[selectedChange.priority]?.label || selectedChange.priority}
-                  </Tag>
-                  <Tag color={riskConfig[selectedChange.risk_level]?.color}>
-                    {riskConfig[selectedChange.risk_level]?.label || selectedChange.risk_level}
-                  </Tag>
-                  <Tag color={statusConfig[selectedChange.status]?.color}>
-                    {statusConfig[selectedChange.status]?.label || selectedChange.status}
-                  </Tag>
-                </Space>
-              </div>
-              <Space>
-                <Button
-                  type="primary"
-                  icon={<ThunderboltOutlined />}
-                  loading={riskLoading}
-                  onClick={async () => {
-                    if (!selectedChange) return;
-                    setRiskLoading(true);
-                    try {
-                      const analysis = await getChangeRiskAnalysis(selectedChange.id);
-                      setRiskAnalysis(analysis);
-                      message.success('AI 风险分析完成');
-                    } catch (error: unknown) {
-                      message.error(
-                        error instanceof Error ? error.message : 'AI 风险分析失败，请稍后重试'
-                      );
-                    } finally {
-                      setRiskLoading(false);
-                    }
-                  }}
-                >
-                  AI 风险分析
-                </Button>
-                <Button icon={<EditOutlined />} onClick={handleOpenEditModal}>
-                  编辑
-                </Button>
-              </Space>
-            </div>
-          </Card>
-
-          {/* Status Transitions */}
-          {statusTransitions[selectedChange.status]?.length > 0 && (
-            <Card
-              title="状态流转"
-              size="small"
-              style={{
-                marginBottom: spacing.md,
-                borderRadius: radius.lg,
-                boxShadow: shadows.card,
-              }}
-            >
-              <Space wrap>
-                {statusTransitions[selectedChange.status].map((t) => (
-                  <Button
-                    key={t.status}
-                    type={t.danger ? 'default' : 'primary'}
-                    danger={t.danger}
-                    icon={t.icon}
-                    onClick={() => handleStatusChange(t.status)}
-                  >
-                    {t.label}
-                  </Button>
-                ))}
-                {selectedChange.status !== 'closed' &&
-                  selectedChange.status !== 'cancelled' &&
-                  !['rejected'].includes(selectedChange.status) && (
-                    <Button
-                      danger
-                      icon={<CloseCircleOutlined />}
-                      onClick={() => handleStatusChange('cancelled')}
-                    >
-                      取消
-                    </Button>
-                  )}
-              </Space>
-            </Card>
-          )}
-
-          {/* AI Risk Analysis Result */}
-          {riskAnalysis && (
-            <Card
-              title={
-                <span>
-                  <ThunderboltOutlined
-                    style={{ marginRight: spacing.xs, color: colors.purple[500] }}
-                  />
-                  AI 风险分析报告
-                </span>
-              }
-              extra={
-                <Text type="secondary">
-                  生成于 {dayjs(riskAnalysis.generated_at).format('YYYY-MM-DD HH:mm')}
-                </Text>
-              }
-              style={{
-                marginBottom: spacing.md,
-                borderRadius: radius.lg,
-                boxShadow: shadows.card,
-                borderColor: colors.purple[200],
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  gap: spacing.lg,
-                  alignItems: 'center',
-                  marginBottom: spacing.md,
-                  padding: spacing.md,
-                  background: colors.purple[50],
-                  borderRadius: radius.md,
-                }}
-              >
-                <div style={{ textAlign: 'center' }}>
-                  <Text style={{ fontSize: 36, fontWeight: 600, color: colors.purple[600] }}>
-                    {riskAnalysis.risk_score}
-                  </Text>
-                  <Text type="secondary">/ 100</Text>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <Text strong>
-                    风险等级：
-                    <Tag
-                      color={
-                        riskAnalysis.risk_level === 'high'
-                          ? 'red'
-                          : riskAnalysis.risk_level === 'medium'
-                            ? 'orange'
-                            : 'green'
-                      }
-                    >
-                      {riskAnalysis.risk_level.toUpperCase()}
-                    </Tag>
-                  </Text>
-                </div>
-              </div>
-
-              <Text strong style={{ display: 'block', marginBottom: spacing.sm }}>
-                风险因素
-              </Text>
-              <ul style={{ paddingLeft: 20, marginBottom: spacing.md }}>
-                {riskAnalysis.factors?.map((factor, idx) => (
-                  <li key={factor.name}>
-                    <strong>{factor.name}</strong>（权重 {factor.weight}）：{factor.reason}
-                  </li>
-                ))}
-              </ul>
-
-              {riskAnalysis.suggestions?.length > 0 && (
-                <>
-                  <Text strong style={{ display: 'block', marginBottom: spacing.sm }}>
-                    AI 建议
-                  </Text>
-                  <ul style={{ paddingLeft: 20 }}>
-                    {riskAnalysis.suggestions.map((s, idx) => (
-                      <li key={idx} style={{ color: colors.info[600] }}>
-                        {s}
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </Card>
-          )}
-
-          {/* Detail Descriptions */}
-          <Card
-            title="基本信息"
-            style={{
-              marginBottom: spacing.md,
-              borderRadius: radius.lg,
-              boxShadow: shadows.card,
-            }}
-          >
-            <Descriptions column={2} bordered size="small">
-              <Descriptions.Item label="变更 ID">{selectedChange.id}</Descriptions.Item>
-              <Descriptions.Item label="类型">
-                <Tag color={typeConfig[selectedChange.type]?.color}>
-                  {typeConfig[selectedChange.type]?.label || selectedChange.type}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="优先级">
-                <Tag color={priorityConfig[selectedChange.priority]?.color}>
-                  {priorityConfig[selectedChange.priority]?.label || selectedChange.priority}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="风险等级">
-                <Tag color={riskConfig[selectedChange.risk_level]?.color}>
-                  {riskConfig[selectedChange.risk_level]?.label || selectedChange.risk_level}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <Tag color={statusConfig[selectedChange.status]?.color}>
-                  {statusConfig[selectedChange.status]?.label || selectedChange.status}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="分类">{selectedChange.category || '-'}</Descriptions.Item>
-              <Descriptions.Item label="申请人">
-                {selectedChange.requester_id || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="负责人">
-                {selectedChange.assigned_to || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="审批人">
-                {selectedChange.approved_by || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="审批时间">
-                {selectedChange.approved_at
-                  ? dayjs(selectedChange.approved_at).format('YYYY-MM-DD HH:mm')
-                  : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="计划开始">
-                {selectedChange.scheduled_start
-                  ? dayjs(selectedChange.scheduled_start).format('YYYY-MM-DD HH:mm')
-                  : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="计划结束">
-                {selectedChange.scheduled_end
-                  ? dayjs(selectedChange.scheduled_end).format('YYYY-MM-DD HH:mm')
-                  : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="实际开始">
-                {selectedChange.actual_start
-                  ? dayjs(selectedChange.actual_start).format('YYYY-MM-DD HH:mm')
-                  : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="实际结束">
-                {selectedChange.actual_end
-                  ? dayjs(selectedChange.actual_end).format('YYYY-MM-DD HH:mm')
-                  : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="描述" span={2}>
-                {selectedChange.description || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="影响描述" span={2}>
-                {selectedChange.impact_description || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="实施计划" span={2}>
-                {selectedChange.implementation_plan || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="回滚计划" span={2}>
-                {selectedChange.rollback_plan || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="受影响服务" span={2}>
-                {selectedChange.affected_services?.length ? (
-                  <Space size={4} wrap>
-                    {selectedChange.affected_services.map((s) => (
-                      <Tag key={s} color="blue">
-                        {s}
-                      </Tag>
-                    ))}
-                  </Space>
-                ) : (
-                  '-'
-                )}
-              </Descriptions.Item>
-              {selectedChange.rejection_reason && (
-                <Descriptions.Item label="拒绝原因" span={2}>
-                  <Text type="danger">{selectedChange.rejection_reason}</Text>
-                </Descriptions.Item>
-              )}
-              <Descriptions.Item label="创建时间">
-                {dayjs(selectedChange.created_at).format('YYYY-MM-DD HH:mm')}
-              </Descriptions.Item>
-              <Descriptions.Item label="更新时间">
-                {dayjs(selectedChange.updated_at).format('YYYY-MM-DD HH:mm')}
-              </Descriptions.Item>
-            </Descriptions>
-          </Card>
-
-          {/* Timeline */}
-          <Card
-            title="变更时间线"
-            extra={
-              <Button
-                type="primary"
-                size="small"
-                icon={<PlusOutlined />}
-                onClick={() => {
-                  eventForm.resetFields();
-                  setAddEventModalOpen(true);
-                }}
-              >
-                添加事件
-              </Button>
-            }
-            style={{
-              borderRadius: radius.lg,
-              boxShadow: shadows.card,
-            }}
-          >
-            {timelineLoading ? (
-              <div style={{ textAlign: 'center', padding: spacing.lg }}>
-                <Text type="secondary">加载中...</Text>
-              </div>
-            ) : timeline.length > 0 ? (
-              <Timeline
-                items={timeline.map((event) => {
-                  const cfg = eventTypeConfig[event.event_type] || {
-                    color: 'blue',
-                    label: event.event_type,
-                  };
-                  return {
-                    color: cfg.color,
-                    children: (
-                      <div>
-                        <div style={{ marginBottom: spacing.xs }}>
-                          <Tag color={cfg.color}>{cfg.label}</Tag>
-                          <Text type="secondary" style={{ marginLeft: spacing.sm, fontSize: 12 }}>
-                            {dayjs(event.created_at).format('YYYY-MM-DD HH:mm')}
-                          </Text>
-                          {event.created_by && (
-                            <Text type="secondary" style={{ marginLeft: spacing.sm, fontSize: 12 }}>
-                              by {event.created_by}
-                            </Text>
-                          )}
-                        </div>
-                        <div>{event.description}</div>
-                      </div>
-                    ),
-                  };
-                })}
-              />
-            ) : (
-              <Empty description="暂无时间线事件" />
-            )}
-          </Card>
-        </>
-      ) : (
-        <Card style={{ borderRadius: radius.lg, boxShadow: shadows.card }}>
-          <Empty description="请从变更请求列表中选择一条记录查看详情" />
-        </Card>
+      children: (
+        <ChangeDetailPanel
+          change={selectedChange}
+          detailLoading={detailLoading}
+          riskLoading={riskLoading}
+          riskAnalysis={riskAnalysis}
+          timeline={timeline}
+          timelineLoading={timelineLoading}
+          onRiskAnalysis={handleRiskAnalysis}
+          onEdit={handleOpenEditModal}
+          onStatusChange={handleStatusChange}
+          onAddEvent={() => {
+            eventForm.resetFields();
+            setAddEventModalOpen(true);
+          }}
+        />
       ),
     },
     {
