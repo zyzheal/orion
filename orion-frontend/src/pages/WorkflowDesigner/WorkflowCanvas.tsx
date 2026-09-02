@@ -51,6 +51,8 @@ import {
   type WorkflowEdge,
 } from '@/api/workflow';
 import { colors, themeVars } from '@/tokens';
+
+import { WorkflowCanvasModals } from './WorkflowCanvasModals';
 import {
   nodeTypeColors,
   nodeTypeLabels,
@@ -1207,159 +1209,33 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
         </ReactFlow>
       </div>
 
-      {/* Node Detail Drawer */}
-      <Drawer
-        title={
-          <Space>
-            {selectedNode && (
-              <Tag color={nodeTypeColors[selectedNode.type]}>
-                {nodeTypeLabels[selectedNode.type] || selectedNode.type}
-              </Tag>
-            )}
-            {selectedNode?.name || '节点详情'}
-          </Space>
-        }
-        placement="right"
-        width={480}
-        open={drawerOpen}
-        onClose={() => {
-          setDrawerOpen(false);
-          setEditMode(false);
-        }}
-        extra={
-          selectedNode && (
-            <Space>
-              {!editMode && (
-                <Button type="link" icon={<EditOutlined />} onClick={handleEditToggle}>
-                  编辑
-                </Button>
-              )}
-              <Button
-                danger
-                type="link"
-                icon={<DeleteOutlined />}
-                onClick={handleDeleteNode}
-                size="small"
-              >
-                删除
-              </Button>
-            </Space>
-          )
-        }
-        footer={
-          editMode && (
-            <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
-              <Button onClick={handleCancelEdit}>取消</Button>
-              <Button type="primary" onClick={handleSaveNodeWithVariables}>
-                保存
-              </Button>
-            </Space>
-          )
-        }
-      >
-        {selectedNode && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Text type="secondary">
-              位置：X: {selectedNode.position.x}, Y: {selectedNode.position.y}
-            </Text>
-
-            <Form form={editForm}>
-              {editMode && (
-                <Form.Item
-                  label="名称"
-                  name="name"
-                  rules={[{ required: true, message: '请输入节点名称' }]}
-                >
-                  <Input />
-                </Form.Item>
-              )}
-
-              {editMode ? (
-                <>
-                  {renderNodeForm(selectedNode, true)}
-                  <Divider />
-                  {renderErrorHandlingForm(true)}
-                </>
-              ) : (
-                <>{renderNodeForm(selectedNode, false)}</>
-              )}
-
-              {editMode && (
-                <>
-                  <Divider>输入变量映射</Divider>
-                  {renderInputVariableMapping()}
-                  <Divider>输出变量</Divider>
-                  {renderOutputVariables()}
-                </>
-              )}
-            </Form>
-          </div>
-        )}
-      </Drawer>
-
-      {/* Edge Edit Modal */}
-      <Modal
-        title="编辑连线"
-        open={edgeModalOpen}
-        onOk={handleSaveEdge}
-        onCancel={() => setEdgeModalOpen(false)}
-        okText="保存"
-        cancelText="取消"
-      >
-        {editingEdge && (
-          <Form form={edgeForm} layout="vertical">
-            <Form.Item label="源节点" name="source">
-              <Input disabled />
-            </Form.Item>
-            <Form.Item label="目标节点" name="target">
-              <Input disabled />
-            </Form.Item>
-            <Form.Item label="条件表达式" name="condition">
-              <Input placeholder="可选，如：${status} === 'approved'" />
-            </Form.Item>
-            <Form.Item label="描述" name="label">
-              <Input placeholder="连线描述" />
-            </Form.Item>
-            <Button danger onClick={handleDeleteEdge} style={{ marginTop: 8 }}>
-              删除连线
-            </Button>
-          </Form>
-        )}
-      </Modal>
-
-      {/* Add Edge Modal */}
-      <Modal
-        title="添加连线"
-        open={addEdgeModalOpen}
-        onOk={handleAddEdge}
-        onCancel={() => setAddEdgeModalOpen(false)}
-        okText="添加"
-        cancelText="取消"
-      >
-        <Form form={addEdgeForm} layout="vertical">
-          <Form.Item label="源节点" name="source" rules={[{ required: true }]}>
-            <Select
-              options={(workflow.nodes || []).map((n) => ({
-                label: `${nodeTypeLabels[n.type] || n.type} - ${n.name}`,
-                value: n.id,
-              }))}
-              placeholder="选择源节点"
-            />
-          </Form.Item>
-          <Form.Item label="目标节点" name="target" rules={[{ required: true }]}>
-            <Select
-              options={(workflow.nodes || []).map((n) => ({
-                label: `${nodeTypeLabels[n.type] || n.type} - ${n.name}`,
-                value: n.id,
-              }))}
-              placeholder="选择目标节点"
-            />
-          </Form.Item>
-          <Form.Item label="条件表达式" name="condition">
-            <Input placeholder="可选" />
-          </Form.Item>
-        </Form>
-      </Modal>
+    <WorkflowCanvasModals
+      selectedNode={selectedNode}
+      drawerOpen={drawerOpen}
+      setDrawerOpen={setDrawerOpen}
+      editMode={editMode}
+      setEditMode={setEditMode}
+      handleEditToggle={handleEditToggle}
+      handleDeleteNode={handleDeleteNode}
+      handleCancelEdit={handleCancelEdit}
+      handleSaveNodeWithVariables={handleSaveNodeWithVariables}
+      editForm={editForm}
+      renderNodeForm={renderNodeForm}
+      renderErrorHandlingForm={renderErrorHandlingForm}
+      renderInputVariableMapping={renderInputVariableMapping}
+      renderOutputVariables={renderOutputVariables}
+      edgeModalOpen={edgeModalOpen}
+      setEdgeModalOpen={setEdgeModalOpen}
+      handleSaveEdge={handleSaveEdge}
+      editingEdge={editingEdge}
+      edgeForm={edgeForm}
+      handleDeleteEdge={handleDeleteEdge}
+      addEdgeModalOpen={addEdgeModalOpen}
+      setAddEdgeModalOpen={setAddEdgeModalOpen}
+      handleAddEdge={handleAddEdge}
+      addEdgeForm={addEdgeForm}
+      workflow={workflow}
+    />
     </div>
   );
 };
