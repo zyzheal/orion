@@ -49,9 +49,21 @@ import {
   FileTextOutlined,
   BulbOutlined,
 } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { colors, spacing, themeVars } from '@/tokens';
+import {
+  statusColor,
+  statusLabel,
+  changeTypeLabel,
+  riskLevelColor,
+  riskLevelLabel,
+  impactScopeLabel,
+  approvalStatusLabel,
+  approvalStatusColor,
+  executionStepStatusColor,
+  executionStepStatusLabel,
+} from './config';
+import { buildColumns } from './columns';
 import {
   listChangeRequests,
   createChangeRequest,
@@ -73,82 +85,6 @@ import {
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
-
-/* ==================== Constants ==================== */
-
-const statusColor: Record<string, string> = {
-  draft: 'default',
-  pending_approval: 'processing',
-  approved: 'success',
-  rejected: 'error',
-  implementing: 'warning',
-  completed: 'success',
-  cancelled: 'default',
-};
-
-const statusLabel: Record<string, string> = {
-  draft: '草稿',
-  pending_approval: '待审批',
-  approved: '已批准',
-  rejected: '已拒绝',
-  implementing: '实施中',
-  completed: '已完成',
-  cancelled: '已取消',
-};
-
-const changeTypeLabel: Record<string, string> = {
-  standard: '标准变更',
-  normal: '普通变更',
-  emergency: '紧急变更',
-};
-
-const riskLevelColor: Record<string, string> = {
-  low: 'green',
-  medium: 'orange',
-  high: 'red',
-  critical: 'volcano',
-};
-
-const riskLevelLabel: Record<string, string> = {
-  low: '低',
-  medium: '中',
-  high: '高',
-  critical: '严重',
-};
-
-const impactScopeLabel: Record<string, string> = {
-  minor: '轻微',
-  major: '重大',
-  significant: '显著',
-};
-
-const approvalStatusLabel: Record<string, string> = {
-  pending: '待审批',
-  approved: '已批准',
-  rejected: '已拒绝',
-};
-
-const approvalStatusColor: Record<string, string> = {
-  pending: 'processing',
-  approved: 'success',
-  rejected: 'error',
-};
-
-const executionStepStatusColor: Record<string, string> = {
-  pending: colors.neutral[400],
-  running: colors.primary[500],
-  completed: colors.success[500],
-  failed: colors.error[500],
-  skipped: colors.neutral[300],
-};
-
-const executionStepStatusLabel: Record<string, string> = {
-  pending: '待执行',
-  running: '执行中',
-  completed: '已完成',
-  failed: '失败',
-  skipped: '已跳过',
-};
 
 /* ==================== Component ==================== */
 
@@ -418,102 +354,15 @@ export default function ChangeRequestManagementPage() {
 
   /* ==================== Table Columns ==================== */
 
-  const columns: ColumnsType<ChangeRequest> = [
-    {
-      title: '标题',
-      dataIndex: 'title',
-      key: 'title',
-      ellipsis: true,
-      render: (text: string, record) => <a onClick={() => handleViewDetail(record)}>{text}</a>,
-    },
-    {
-      title: '变更类型',
-      dataIndex: 'changeType',
-      key: 'changeType',
-      width: 100,
-      render: (val: string) => <Tag>{changeTypeLabel[val] ?? val}</Tag>,
-    },
-    {
-      title: '风险等级',
-      dataIndex: 'riskLevel',
-      key: 'riskLevel',
-      width: 80,
-      render: (val: string) => <Tag color={riskLevelColor[val]}>{riskLevelLabel[val] ?? val}</Tag>,
-    },
-    {
-      title: '影响范围',
-      dataIndex: 'impactScope',
-      key: 'impactScope',
-      width: 80,
-      render: (val: string | null) => (val ? <Tag>{impactScopeLabel[val] ?? val}</Tag> : '-'),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (val: string) => (
-        <Badge status={statusColor[val] as any} text={statusLabel[val] ?? val} />
-      ),
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 160,
-      render: (text: string) => dayjs(text).format('YYYY-MM-DD HH:mm'),
-    },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 300,
-      render: (_, record) => (
-        <Space size={4}>
-          <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
-            详情
-          </Button>
-          <Button type="link" icon={<ThunderboltOutlined />} onClick={() => handleAIRisk(record)}>
-            AI 风险
-          </Button>
-          {record.status === 'draft' && (
-            <>
-              <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
-                编辑
-              </Button>
-              <Button
-                type="link"
-                icon={<SendOutlined />}
-                onClick={() => handleSubmitForApproval(record.id)}
-              >
-                提交
-              </Button>
-            </>
-          )}
-          {record.status === 'approved' && (
-            <Button
-              type="link"
-              icon={<PlayCircleOutlined />}
-              onClick={() => handleStartExecution(record)}
-            >
-              执行
-            </Button>
-          )}
-          {record.status === 'implementing' && (
-            <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewExecution(record)}>
-              进度
-            </Button>
-          )}
-          {['draft', 'rejected', 'cancelled'].includes(record.status) && (
-            <Popconfirm title="确认删除？" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" danger icon={<DeleteOutlined />}>
-                删除
-              </Button>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
-    },
-  ];
+  const columns = buildColumns({
+    handleViewDetail,
+    handleAIRisk,
+    handleEdit,
+    handleSubmitForApproval,
+    handleStartExecution,
+    handleViewExecution,
+    handleDelete,
+  });
 
   /* ==================== Approval Timeline ==================== */
 
