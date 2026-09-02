@@ -39,10 +39,8 @@ import {
   CodeOutlined,
   PlayCircleOutlined,
   HistoryOutlined,
-  RollbackOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { colors, spacing } from '@/tokens';
 import {
@@ -69,40 +67,20 @@ import {
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
-const scriptTypeLabel: Record<string, string> = {
-  shell: 'Shell',
-  python: 'Python',
-  powershell: 'PowerShell',
-  ansible: 'Ansible',
-};
-
-const scriptTypeColor: Record<string, string> = {
-  shell: 'green',
-  python: 'blue',
-  powershell: 'purple',
-  ansible: 'orange',
-};
-
-const paramTypeLabel: Record<string, string> = {
-  string: '字符串',
-  number: '数字',
-  boolean: '布尔',
-  secret: '密钥',
-};
-
-const statusColor: Record<string, string> = {
-  pending: colors.neutral[400],
-  running: colors.primary[500],
-  completed: colors.success[500],
-  failed: colors.error[500],
-};
-
-const statusLabel: Record<string, string> = {
-  pending: '待执行',
-  running: '执行中',
-  completed: '已完成',
-  failed: '失败',
-};
+import {
+  scriptTypeLabel,
+  scriptTypeColor,
+  paramTypeLabel,
+  statusColor,
+  statusLabel,
+  cardStyle,
+} from './config';
+import {
+  buildScriptColumns,
+  buildVersionColumns,
+  buildParamColumns,
+  buildExecutionColumns,
+} from './columns';
 
 export default function ScriptLibraryPage() {
   // Script list state

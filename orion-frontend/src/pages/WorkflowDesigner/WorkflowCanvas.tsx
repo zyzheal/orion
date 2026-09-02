@@ -779,15 +779,7 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
         return (
           <>
             <Form.Item label="通知渠道" name="channel">
-              <Select
-                options={[
-                  { label: '邮件', value: 'email' },
-                  { label: '短信', value: 'sms' },
-                  { label: '钉钉', value: 'dingtalk' },
-                  { label: '飞书', value: 'feishu' },
-                  { label: 'Webhook', value: 'webhook' },
-                ]}
-              />
+              <Select options={notificationChannelOptions} />
             </Form.Item>
             <Form.Item label="接收人" name="recipients">
               <Input placeholder="多个收件人以逗号分隔" />
@@ -808,14 +800,7 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
               <Input placeholder="https://..." />
             </Form.Item>
             <Form.Item label="方法" name="method">
-              <Select
-                options={[
-                  { label: 'GET', value: 'GET' },
-                  { label: 'POST', value: 'POST' },
-                  { label: 'PUT', value: 'PUT' },
-                  { label: 'DELETE', value: 'DELETE' },
-                ]}
-              />
+              <Select options={webhookMethodOptions} />
             </Form.Item>
             <Form.Item label="请求体" name="body">
               <Input.TextArea rows={3} />
