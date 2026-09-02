@@ -32,7 +32,6 @@ import {
   SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { Layout } from '@/components/Layout';
-import Table from '@/components/Table';
 import MetricCard from '@/components/MetricCard';
 import { colors, spacing, radius, shadows } from '@/tokens';
 import {
@@ -84,6 +83,8 @@ import { buildStatsCards } from './stats';
 import { StatusNoteForm } from './StatusNoteForm';
 import { TimelineEventForm } from './TimelineEventForm';
 import { RequestsTab } from './RequestsTab';
+import { RFCsTab } from './RFCsTab';
+import { CABsTab } from './CABsTab';
 
 const { Title, Text } = Typography;
 
@@ -726,40 +727,20 @@ const ChangeManagement: React.FC = () => {
         </span>
       ),
       children: (
-        <>
-          <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'flex-end' }}>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => {
-                rfcForm.resetFields();
-                setEditRfcId(null);
-                setRfcModalOpen(true);
-              }}
-            >
-              新建 RFC
-            </Button>
-          </div>
-          <Card
-            style={{
-              borderRadius: radius.lg,
-              boxShadow: shadows.card,
-            }}
-          >
-            <Table<RFC>
-              columns={rfcColumns}
-              dataSource={rfcs}
-              loading={rfcLoading}
-              rowKey="id"
-              pagination={{
-                current: rfcPage,
-                pageSize,
-                total: rfcTotal,
-              }}
-              onPaginationChange={(p: number) => setRfcPage(p)}
-            />
-          </Card>
-        </>
+        <RFCsTab
+          rfcs={rfcs}
+          rfcLoading={rfcLoading}
+          rfcTotal={rfcTotal}
+          rfcPage={rfcPage}
+          pageSize={pageSize}
+          rfcColumns={rfcColumns}
+          onCreate={() => {
+            rfcForm.resetFields();
+            setEditRfcId(null);
+            setRfcModalOpen(true);
+          }}
+          onPageChange={setRfcPage}
+        />
       ),
     },
     {
@@ -771,40 +752,20 @@ const ChangeManagement: React.FC = () => {
         </span>
       ),
       children: (
-        <>
-          <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'flex-end' }}>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => {
-                cabForm.resetFields();
-                setEditCabId(null);
-                setCabModalOpen(true);
-              }}
-            >
-              新建 CAB 会议
-            </Button>
-          </div>
-          <Card
-            style={{
-              borderRadius: radius.lg,
-              boxShadow: shadows.card,
-            }}
-          >
-            <Table<CABMeeting>
-              columns={cabColumns}
-              dataSource={cabMeetings}
-              loading={cabLoading}
-              rowKey="id"
-              pagination={{
-                current: cabPage,
-                pageSize,
-                total: cabTotal,
-              }}
-              onPaginationChange={(p: number) => setCabPage(p)}
-            />
-          </Card>
-        </>
+        <CABsTab
+          cabMeetings={cabMeetings}
+          cabLoading={cabLoading}
+          cabTotal={cabTotal}
+          cabPage={cabPage}
+          pageSize={pageSize}
+          cabColumns={cabColumns}
+          onCreate={() => {
+            cabForm.resetFields();
+            setEditCabId(null);
+            setCabModalOpen(true);
+          }}
+          onPageChange={setCabPage}
+        />
       ),
     },
   ];
