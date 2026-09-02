@@ -54,8 +54,6 @@ import {
   type ServerlessFunction as Fn,
   type ServerlessTrigger,
   type ServerlessDeployment,
-  type ServerlessLog,
-  type AutoScalingRecommendation,
   type AggregateMetrics,
   type FunctionStatus,
   type FunctionRuntime,
@@ -63,72 +61,23 @@ import {
 } from '@/api/serverless';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
+import {
+  statusColorMap,
+  statusLabelMap,
+  runtimeLabelMap,
+  triggerTypeLabelMap,
+  triggerTypeColorMap,
+  scaleActionColorMap,
+  scaleActionLabelMap,
+} from './ServerlessConfig';
+import {
+  logsColumns,
+  autoscalingColumns,
+  functionsEmpty,
+  triggersEmpty,
+} from './ServerlessColumns';
 
 const { Title, Text, Paragraph } = Typography;
-
-// ============================================================================
-// Utility helpers
-// ============================================================================
-
-const statusColorMap: Record<FunctionStatus, string> = {
-  draft: colors.neutral[500],
-  deployed: colors.success[500],
-  stopped: colors.warning[500],
-  error: colors.error[500],
-};
-
-const statusLabelMap: Record<FunctionStatus, string> = {
-  draft: '草稿',
-  deployed: '已部署',
-  stopped: '已停止',
-  error: '错误',
-};
-
-const runtimeLabelMap: Record<FunctionRuntime, string> = {
-  nodejs18: 'Node.js 18',
-  nodejs20: 'Node.js 20',
-  'python3.9': 'Python 3.9',
-  'python3.11': 'Python 3.11',
-  'go1.21': 'Go 1.21',
-  java17: 'Java 17',
-};
-
-const triggerTypeLabelMap: Record<TriggerType, string> = {
-  http: 'HTTP',
-  cron: '定时任务',
-  event: '事件',
-  queue: '消息队列',
-  kafka: 'Kafka',
-  s3: '对象存储',
-};
-
-const triggerTypeColorMap: Record<TriggerType, string> = {
-  http: colors.primary[500],
-  cron: colors.success[500],
-  event: colors.info[500],
-  queue: colors.warning[500],
-  kafka: colors.purple[500],
-  s3: colors.neutral[700],
-};
-
-const scaleActionColorMap: Record<string, string> = {
-  scale_up: colors.error[500],
-  scale_down: colors.warning[500],
-  no_change: colors.success[500],
-};
-
-const scaleActionLabelMap: Record<string, string> = {
-  scale_up: '扩容',
-  scale_down: '缩容',
-  no_change: '不变',
-};
-
-const logLevelColorMap: Record<string, string> = {
-  info: colors.info[500],
-  warn: colors.warning[500],
-  error: colors.error[500],
-  debug: colors.neutral[500],
-};
 
 // ============================================================================
 // Functions Tab
@@ -701,30 +650,7 @@ const FunctionsTab: React.FC = () => {
               函数: <strong>{currentFn.name}</strong>
             </Paragraph>
             <Table
-              columns={[
-                {
-                  title: '级别',
-                  dataIndex: 'level',
-                  key: 'level',
-                  width: 80,
-                  render: (l: string) => <Tag color={logLevelColorMap[l]}>{l}</Tag>,
-                },
-                { title: '消息', dataIndex: 'message', key: 'message', ellipsis: true },
-                {
-                  title: '耗时',
-                  dataIndex: 'duration',
-                  key: 'duration',
-                  width: 80,
-                  render: (v: number) => (v ? `${v}ms` : '-'),
-                },
-                {
-                  title: '时间',
-                  dataIndex: 'timestamp',
-                  key: 'timestamp',
-                  width: 180,
-                  render: (v: string) => new Date(v).toLocaleString(),
-                },
-              ]}
+              columns={logsColumns}
               dataSource={logs}
               rowKey="id"
               pagination={{ pageSize: 20 }}
