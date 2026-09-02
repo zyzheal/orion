@@ -10,16 +10,16 @@
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已完成 | 53 项（含 Phase 7 G1-G8 + Wave 7-D MinIO e2e + P2-11 wiring.go 收尾 + P2-7 shared any cleanup） |
+| ✅ 已完成 | 54 项（含 Phase 7 G1-G8 + Wave 7-D MinIO e2e + P2-11 wiring.go 收尾 + P2-7 shared any cleanup + P2-4 页面冒烟测试） |
 | ✅ 全部完成 | P0 清零（PERM-8 阶段 2 客户端迁移完成 2026-09-01） |
 | 🟡 待处理 | 1 项 P1（P1-8 响应格式统一；P1-9 三域补全已核实过时,sla-engine 32 函数 + pipeline-run-history 4 函数 + drift 6 函数均已实现） |
-| 🔵 待处理 | 5 项 P2（P2-2/4/9/12/16 部分完成；P2-7 shared 已清） |
+| 🔵 待处理 | 4 项 P2（P2-2/9/12/16 部分完成；P2-4/7 已完成） |
 | ⚠️ 已废弃/不适用 | 11 项 |
 | **总计** | **82 项** |
 
 ---
 
-## 二、已完成清单 (38 项)
+## 二、已完成清单 (40 项)
 
 | # | 任务 | 完成日期 | 证据 |
 |---|------|---------|------|
@@ -66,6 +66,8 @@
 | ✅ | **ARCH-0.14 DR 执行引擎落地**（ShellExecutor + ExecuteSteps） | 2026-08-29 | `internal/disaster-recovery/orchestrator/` 拥有完整 failover 引擎但 `DefaultExecutor` 是 stub（返回 `"command executor not configured"`），且从未被 service 引用；`service.RunPlan` 只创建 `RecoveryRun` 记录置 `Status="running"` 从不执行；本批：(1) 新增 `ShellExecutor`：`os/exec.CommandContext` + `/bin/sh -c` 执行真实 shell 命令，支持 ctx 超时取消；(2) 新增 `ExecuteSteps(ctx, planID, []DRStep, autoRollback)`：无需 repo 查询直接执行步骤列表，支持重试/超时/自动回滚；(3) 新增 `rollbackSteps` 辅助方法（与 `rollback` 逻辑一致但接受 `[]DRStep`），`rollback` 改为委托 `rollbackSteps`；(4) `Service` 新增 `orch *orchestrator.DROrchestrator` 字段 + `SetOrchestrator` 注入方法（不改 `NewService` 签名）；(5) `RunPlan` 重写：有 orchestrator 时调用 `convertSteps` 将 JSON `[]string` 转为 `[]orchestrator.DRStep`（每步 `Timeout=60s`/`OnFail="abort"`/`MaxRetries=1`），执行后更新 `run.Status`/`run.EndedAt`；(6) `wiring-disaster-recovery.go` 创建 `DROrchestrator`（repo=nil）注入 `ShellExecutor`；新增 orchestrator_test.go 8 条测试（ShellExecutor echo/fail/multiline/timeout + ExecuteSteps success/fail/norollback/rollback/empty）+ service_test.go 12 条测试（convertSteps/truncate/New/SetOrch/RunPlan-noOrch/RunPlan-success/RunPlan-failure/RunPlan-notFound/CreatePlan/ListPlans）；**验收标准已满足**：`grep "orchestrator" internal/disaster-recovery/service/` ≥1；`ShellExecutor` 已注入 cmd/server 替代 `DefaultExecutor`；`RunPlan` 不再只创建 "running" 记录 |
 | ✅ | **ARCH-0.19 schema-registry 完整接线**（handler + repository + route tests） | 2026-08-30 | `internal/schema-registry/` 已有 service（Register/Lookup/List/Evolve/ValidateFields，含兼容性检查）和 models（Schema/SchemaField/EvolutionChange 等），但 handler + repository 实现 + 路由测试缺失；本批：(1) `handler/handler.go` 新增 9 个 REST 端点（Register/POST + List/GET + Lookup/GET + Update/PUT + Delete/DELETE + Evolve/POST + VersionHistory/GET + GetVersion/GET + Compatibility/GET），全带 `auth.RequirePermission("schema-registry", "read/write/delete")` 守卫；(2) `handler/handler_test.go` 10 条集成测试（Register 成功/坏体/字段校验/进化版本递增/拒绝 breaking/Query/List/NotFound/Evolve dry-run/Delete missing/Compatibility）；(3) `repository/inmemory.go` 完整内存实现（`sync.RWMutex` 线程安全，10 个 Interface 方法）；(4) `repository/inmemory_test.go` 12 条单元测试（Create/Get/Duplicate/Missing/Update/Delete/List/Query/Versions/Limit/Compatibility/Concurrent）；(5) `repository/postgres.go` Postgres 持久化实现（JSONB 存储 fields/relationships/indexes，`schema_registry` + `schema_registry_versions` 两表）；(6) `models.Schema` 新增 `TenantID` 字段（多租户隔离），`VersionHistoryResponse.Versions` 改为 `[]*SchemaVersion` 指针切片；(7) `migrations/404_create_schema_registry.sql` DDL；(8) `route_dump_test.go` + `route_conflict_scan_test.go` 新增 `infraSchemaRegH` 条目（3461 routes, 0 conflicts）；**测试**：handler 10/10 + repository 12/12 + service 9/9 = **31/31 PASS**；`go build ./internal/schema-registry/...` clean |
 | ✅ | **P2-11 wiring.go 收尾** | 2026-09-02 | `wiring.go` 577→304 行（−47%），~130 行内联代码抽出到 5 个新 `wiring-*.go` 文件：`wiring-data-modules.go`(39行, data-catalog/quality/pipeline)、`wiring-ai-inline-services.go`(52行, decisions/agent-run/plugin-mkt/gateway)、`wiring-p0-modules.go`(89行, sandbox/logging/crossover/storage/MQ/cluster/ai-inference/network/ai-models)、`wiring-pipeline-modules.go`(56行, budget/templates/versions/resilience/sbom)、`wiring-inline-handlers.go`(121行, CRUD handlers + pe/infraCap + psH alias + P1 agents/dbdevops/gw-routes/rate-limit/test-reports)；保留内联：user/auth/perm（需 `infra.ffCfg.JWTSecret`）+ LLM Provider Registry（读取 env vars）；`go build ./cmd/server/` ✅ |
+| ✅ | **P2-7 前端 shared 基础设施 `any` 清理** | 2026-09-02 | `orion-frontend/src/api/` 6 个文件（`ai-agents.ts`/`abac-policy.ts`/`plugins.ts`/`efficiency.ts`/`multi-cloud.ts`/`workbench.ts`）+ `stores/` 4 个文件（`chatOpsConfigStore.ts`/`chatOpsStore.ts`/`subappStore.ts`/`authStore.ts`）+ `utils/performance.ts`，共 11 文件 19 处 `any`→`unknown`/`Record<string,unknown>`/`Partial<T>[]`/`(...args: unknown[]) => unknown` 泛型收紧；`tsc --noEmit` 0 错误；pages 层 1118 处保留（Ant Design columns/第三方类型内联，非 shared 基础设施） |
+| ✅ | **P2-4 前端页面冒烟测试** | 2026-09-02 | 新增 40 个 `src/pages/**/__tests__/index.test.tsx`（commit `920862171`），全仓库现有 167 个 `index.test.tsx`（src/pages/），覆盖全部 158 个页面（另有 9 个为 deprecated/ 历史文件）；`render + BrowserRouter + antd mock` 标准模式，2 样本 smoke 验证 2/2 PASS，`act()` warning 仅来自 `rc-motion`（非应用代码），React Router v7 future flag warning 已知不影响 |
 
 ---
 
@@ -122,7 +124,7 @@
 | ~~**P2-1** | 4 个未引用 API 客户端清理 | merged-action-items | ~~核实: page-registry/deploy-enhanced/confirmations 实际被引用；删除 3 个真正孤立的 (cache/database-devops/firewall-policies, 679 行)~~ | ✅ 2026-08-31 |
 | **P2-2** | 49 处 ARCHIVED 路由分批移除 | merged-action-items | 49→17 (32 已移除)；剩余 17 处均为向后兼容重定向，建议保留 | 低优先 |
 | **P2-3** | ErrorBoundary 覆盖 218 页面 | merged-action-items | 核实: main.tsx 顶层 ErrorBoundary 已覆盖全部页面，无需逐页添加 | ✅ 2026-08-31 |
-| **P2-4** | 36 个页面补测试目录 | merged-action-items | 约 36/218 页面无 `__tests__/` 目录 | 3-5 天 |
+| ~~**P2-4** | 36 个页面补测试目录 | merged-action-items | ~~约 36/218 页面无 `__tests__/` 目录；本轮补完全部 158 个页面（167 个 `src/pages/**/__tests__/index.test.tsx`，含 10 个预置），共新增 40 个 `index.test.tsx` 文件（commit `920862171`），`render + BrowserRouter + antd mock` 标准模式，2 样本 smoke 验证 2/2 PASS~~ | ✅ 2026-09-02（167 pages 覆盖） |
 | ~~**P2-5** | Go 模块路径冗余嵌套清理 | merged-action-items | ~~删除 finops/finops 死代码 (19 文件)；扁平化 security/security + notification/notification (69 文件, 3908 行删除)~~ | ✅ 2026-08-31 |
 | ~~**P2-6** | /digital-twin 重复路由 | merged-action-items | 核实: 当前 routes.tsx 仅 1 条 digital-twin 路由，重复已修复 | ✅ 2026-08-31 |
 | ~~**P2-7** | 前端 `any` 类型清理 | 三域分析 | ~~共享基础设施 19 处已完成（api/×6 + stores/×4 + utils/×1），`tsc` 0 错误；pages 层 1118 处保留（Ant Design columns 内联/第三方类型）~~ | ✅ 2026-09-02（shared 已清） |
@@ -141,7 +143,7 @@
 | ~~**G7** | RPO 精确化 | Phase 7 计划 | ~~抽 `rpoFromArchives(archives, targetTime, baseCompleted)` helper：从 newest 倒序选目标时间前最近的 archive `WindowStart`（真实提交时间戳，archiver.go 以文件 ModTime 填充）作锚点，不再取最后一段（可能提交于目标后）；每段均在目标后/无 archive 时回退 base backup `CompletedAt` 近似；锚点 nil 时打 warn；`recovery_service_test.go` 新增 5 用例：目标前最近段/全在目标后回退 base/无 archive 用 base/空输入 nil/恰好目标时刻 RPO=0~~ | ✅ **完成 2026-08-31** |
 | ~~**G8** | 存储后端增强（P3 低优先） | Phase 7 计划 | ~~`backup_service.go:419-436` `storageBackendFor` 区分 local/S3/MinIO 能力差异；S3/MinIO 断点续传（multipart）、生命周期策略、冷热分层；本轮仅设计 + 接口定义 + 单测，不要求生产级实现~~ | ✅ **完成 2026-08-31** |
 
-**P2 合计工作量**: 14-25 天（P2-1/P2-3/P2-5/P2-6/P2-8/P2-10 已完成，G5-G8 于 2026-08-31 全部完成）
+**P2 合计工作量**: 6-17 天（P2-1/P2-3/P2-4/P2-5/P2-6/P2-7/P2-8/P2-10/P2-11/P2-14/P2-15 已完成，G5-G8 于 2026-08-31 全部完成；剩余 P2-2/9/12/16）
 
 ---
 
