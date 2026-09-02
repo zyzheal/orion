@@ -53,6 +53,7 @@ import {
   knownErrorStatusOptions,
 } from './config';
 import { buildProblemColumns, buildKedbColumns } from './columns';
+import { ProblemModals } from './ProblemModals';
 import {
   getProblems,
   getProblem,
@@ -868,259 +869,33 @@ const ProblemPage: React.FC = () => {
 
         {/* ==================== Modals ==================== */}
 
-        {/* Create Problem Modal */}
-        <Modal
-          title="新建问题"
-          open={createModalVisible}
-          onOk={handleCreate}
-          onCancel={() => {
-            setCreateModalVisible(false);
-            createForm.resetFields();
-          }}
-          okText="创建"
-          cancelText="取消"
-          width={640}
-          destroyOnClose
-        >
-          <Form form={createForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item
-              name="title"
-              label="问题标题"
-              rules={[{ required: true, message: '请输入问题标题' }]}
-            >
-              <Input placeholder="简要描述问题" />
-            </Form.Item>
-            <Form.Item name="description" label="问题描述">
-              <TextArea rows={3} placeholder="详细描述问题现象" />
-            </Form.Item>
-            <Row gutter={spacing.md}>
-              <Col span={8}>
-                <Form.Item
-                  name="severity"
-                  label="严重级别"
-                  rules={[{ required: true, message: '请选择严重级别' }]}
-                >
-                  <Select
-                    placeholder="选择级别"
-                    options={severityOptions}
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item name="category" label="分类">
-                  <Input placeholder="问题分类" />
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item name="assigned_to" label="负责人">
-                  <Input placeholder="分配给" />
-                </Form.Item>
-              </Col>
-            </Row>
-          </Form>
-        </Modal>
-
-        {/* Edit Problem Modal */}
-        <Modal
-          title="编辑问题"
-          open={editModalVisible}
-          onOk={handleEdit}
-          onCancel={() => {
-            setEditModalVisible(false);
-            editForm.resetFields();
-          }}
-          okText="保存"
-          cancelText="取消"
-          width={720}
-          destroyOnClose
-        >
-          <Form form={editForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item
-              name="title"
-              label="问题标题"
-              rules={[{ required: true, message: '请输入问题标题' }]}
-            >
-              <Input placeholder="简要描述问题" />
-            </Form.Item>
-            <Form.Item name="description" label="问题描述">
-              <TextArea rows={3} placeholder="详细描述问题现象" />
-            </Form.Item>
-            <Row gutter={spacing.md}>
-              <Col span={8}>
-                <Form.Item
-                  name="severity"
-                  label="严重级别"
-                  rules={[{ required: true, message: '请选择严重级别' }]}
-                >
-                  <Select
-                    placeholder="选择级别"
-                    options={severityOptions}
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item name="category" label="分类">
-                  <Input placeholder="问题分类" />
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item name="assigned_to" label="负责人">
-                  <Input placeholder="分配给" />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Form.Item name="root_cause" label="根因分析">
-              <TextArea rows={2} placeholder="问题的根本原因" />
-            </Form.Item>
-            <Form.Item name="workaround" label="临时解决方案">
-              <TextArea rows={2} placeholder="临时规避方案" />
-            </Form.Item>
-            <Form.Item name="resolution" label="永久解决方案">
-              <TextArea rows={2} placeholder="永久修复方案" />
-            </Form.Item>
-          </Form>
-        </Modal>
-
-        {/* Link Incident Modal */}
-        <Modal
-          title="关联事件"
-          open={linkIncidentModalVisible}
-          onOk={handleLinkIncident}
-          onCancel={() => {
-            setLinkIncidentModalVisible(false);
-            linkForm.resetFields();
-          }}
-          okText="关联"
-          cancelText="取消"
-          confirmLoading={linkingLoading}
-          width={480}
-          destroyOnClose
-        >
-          <Form form={linkForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item
-              name="id"
-              label="事件 ID"
-              rules={[{ required: true, message: '请输入事件 ID' }]}
-            >
-              <Input placeholder="输入要关联的事件 ID" />
-            </Form.Item>
-          </Form>
-        </Modal>
-
-        {/* Link Change Modal */}
-        <Modal
-          title="关联变更"
-          open={linkChangeModalVisible}
-          onOk={handleLinkChange}
-          onCancel={() => {
-            setLinkChangeModalVisible(false);
-            linkForm.resetFields();
-          }}
-          okText="关联"
-          cancelText="取消"
-          confirmLoading={linkingLoading}
-          width={480}
-          destroyOnClose
-        >
-          <Form form={linkForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item
-              name="id"
-              label="变更 ID"
-              rules={[{ required: true, message: '请输入变更 ID' }]}
-            >
-              <Input placeholder="输入要关联的变更 ID" />
-            </Form.Item>
-          </Form>
-        </Modal>
-
-        {/* Create Known Error Modal */}
-        <Modal
-          title="新建已知错误"
-          open={kedbModalVisible}
-          onOk={handleCreateKnownError}
-          onCancel={() => {
-            setKedbModalVisible(false);
-            kedbForm.resetFields();
-          }}
-          okText="创建"
-          cancelText="取消"
-          width={640}
-          destroyOnClose
-        >
-          <Form form={kedbForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item
-              name="title"
-              label="标题"
-              rules={[{ required: true, message: '请输入标题' }]}
-            >
-              <Input placeholder="已知错误标题" />
-            </Form.Item>
-            <Form.Item name="description" label="描述">
-              <TextArea rows={2} placeholder="详细描述" />
-            </Form.Item>
-            <Form.Item name="symptoms" label="症状">
-              <TextArea rows={2} placeholder="可观测到的症状" />
-            </Form.Item>
-            <Form.Item name="root_cause" label="根因">
-              <TextArea rows={2} placeholder="根本原因" />
-            </Form.Item>
-            <Form.Item name="workaround" label="临时方案">
-              <TextArea rows={2} placeholder="临时解决方案" />
-            </Form.Item>
-            <Form.Item name="keywords" label="关键词" help="多个关键词用逗号分隔">
-              <Input placeholder="关键词1, 关键词2, ..." />
-            </Form.Item>
-            <Form.Item name="problem_id" label="关联问题 ID">
-              <Input placeholder="可选：关联的问题 ID" />
-            </Form.Item>
-          </Form>
-        </Modal>
-
-        {/* Edit Known Error Modal */}
-        <Modal
-          title="编辑已知错误"
-          open={kedbEditModalVisible}
-          onOk={handleEditKnownError}
-          onCancel={() => {
-            setKedbEditModalVisible(false);
-            kedbEditForm.resetFields();
-            setEditingKnownError(null);
-          }}
-          okText="保存"
-          cancelText="取消"
-          width={640}
-          destroyOnClose
-        >
-          <Form form={kedbEditForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item
-              name="title"
-              label="标题"
-              rules={[{ required: true, message: '请输入标题' }]}
-            >
-              <Input placeholder="已知错误标题" />
-            </Form.Item>
-            <Form.Item name="description" label="描述">
-              <TextArea rows={2} placeholder="详细描述" />
-            </Form.Item>
-            <Form.Item name="symptoms" label="症状">
-              <TextArea rows={2} placeholder="可观测到的症状" />
-            </Form.Item>
-            <Form.Item name="root_cause" label="根因">
-              <TextArea rows={2} placeholder="根本原因" />
-            </Form.Item>
-            <Form.Item name="workaround" label="临时方案">
-              <TextArea rows={2} placeholder="临时解决方案" />
-            </Form.Item>
-            <Form.Item name="keywords" label="关键词" help="多个关键词用逗号分隔">
-              <Input placeholder="关键词1, 关键词2, ..." />
-            </Form.Item>
-            <Form.Item name="status" label="状态">
-              <Select
-                options={knownErrorStatusOptions}
-              />
-            </Form.Item>
-          </Form>
-        </Modal>
+        <ProblemModals
+          createModalVisible={createModalVisible}
+          setCreateModalVisible={setCreateModalVisible}
+          createForm={createForm}
+          handleCreate={handleCreate}
+          editModalVisible={editModalVisible}
+          setEditModalVisible={setEditModalVisible}
+          editForm={editForm}
+          handleEdit={handleEdit}
+          linkIncidentModalVisible={linkIncidentModalVisible}
+          setLinkIncidentModalVisible={setLinkIncidentModalVisible}
+          linkForm={linkForm}
+          handleLinkIncident={handleLinkIncident}
+          linkingLoading={linkingLoading}
+          linkChangeModalVisible={linkChangeModalVisible}
+          setLinkChangeModalVisible={setLinkChangeModalVisible}
+          handleLinkChange={handleLinkChange}
+          kedbModalVisible={kedbModalVisible}
+          setKedbModalVisible={setKedbModalVisible}
+          kedbForm={kedbForm}
+          handleCreateKnownError={handleCreateKnownError}
+          kedbEditModalVisible={kedbEditModalVisible}
+          setKedbEditModalVisible={setKedbEditModalVisible}
+          kedbEditForm={kedbEditForm}
+          handleEditKnownError={handleEditKnownError}
+          setEditingKnownError={setEditingKnownError}
+        />
       </div>
     </Layout>
   );
