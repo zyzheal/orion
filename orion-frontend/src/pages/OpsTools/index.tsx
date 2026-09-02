@@ -11,15 +11,13 @@
  *
  * 遵循 Design Token 体系与交互完整性规范。
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Card,
   Tabs,
   Table,
   Button,
   Space,
-  Tag,
-  Switch,
   Modal,
   Form,
   Input,
@@ -30,36 +28,42 @@ import {
   Row,
   Col,
   Typography,
-  Progress,
-  Popconfirm,
-  Tooltip,
 } from 'antd';
-import type { TabsProps, TableColumnsType } from 'antd';
+import type { TabsProps } from 'antd';
 import {
-  ClusterOutlined,
-  ClockCircleOutlined,
-  DatabaseOutlined,
-  RocketOutlined,
-  FileTextOutlined,
-  SettingOutlined,
   ReloadOutlined,
-  PlayCircleOutlined,
-  PauseCircleOutlined,
   PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
   DownloadOutlined,
-  SendOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   ThunderboltOutlined,
   TeamOutlined,
   ToolOutlined,
-  AuditOutlined,
-  FileSyncOutlined,
-  ConsoleSqlOutlined,
+  SendOutlined,
 } from '@ant-design/icons';
 import { colors, spacing, componentRadius } from '@/tokens';
+import {
+  tabConfig,
+  LOG_LEVEL_OPTIONS,
+  LOG_SERVICE_OPTIONS,
+  THEME_MODE_OPTIONS,
+} from './config';
+import {
+  dumpColumns,
+  fragmentColumns,
+  mqColumns,
+  batchColumns,
+  licenseColumns,
+  threadPoolColumns,
+  auditColumns,
+  logColumns,
+  getCronColumns,
+  getIndexColumns,
+  getTagentColumns,
+  getFileColumns,
+  getThemeColumns,
+  getModuleColumns,
+} from './columns';
 import {
   getCronJobs,
   createCronJob,
@@ -112,37 +116,6 @@ import {
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
-const { confirm } = Modal;
-
-// ==================== 状态色映射 ====================
-
-const STATUS_COLORS = {
-  online: 'success',
-  idle: 'default',
-  running: 'processing',
-  error: 'error',
-  offline: 'default',
-  upgrading: 'processing',
-  healthy: 'success',
-  warning: 'warning',
-  critical: 'error',
-  active: 'success',
-  unused: 'warning',
-  redundant: 'error',
-  success: 'success',
-  pending: 'processing',
-  completed: 'success',
-  failed: 'error',
-  uploaded: 'default',
-  distributing: 'processing',
-  distributed: 'success',
-  normal: 'success',
-  busy: 'warning',
-  saturated: 'error',
-  grace: 'warning',
-  expired: 'error',
-};
-
 // ==================== 主页面 ====================
 
 const OpsTools: React.FC = () => {
@@ -583,528 +556,68 @@ const OpsTools: React.FC = () => {
     }
   };
 
-  // ==================== 列定义 ====================
+  // ==================== 列定义 (从 columns.tsx 导入) ====================
 
-  const cronColumns: TableColumnsType<CronJob> = [
-    { title: '名称', dataIndex: 'name', key: 'name', width: 150 },
-    { title: 'Cron 表达式', dataIndex: 'cronExpression', key: 'cronExpression', width: 180 },
-    { title: '命令', dataIndex: 'command', key: 'command', width: 250 },
-    { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-    {
-      title: '状态',
-      key: 'status',
-      width: 100,
-      render: (_, record) => (
-        <Space>
-          <Tag color={record.enabled ? 'success' : 'default'}>
-            {record.enabled ? '已启用' : '已禁用'}
-          </Tag>
-          <Tag color={STATUS_COLORS[record.status as keyof typeof STATUS_COLORS]}>
-            {record.status === 'idle' ? '空闲' : record.status === 'running' ? '运行中' : '错误'}
-          </Tag>
-        </Space>
-      ),
-    },
-    {
-      title: '上次运行',
-      dataIndex: 'lastRunAt',
-      key: 'lastRunAt',
-      width: 180,
-      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
-    },
-    {
-      title: '下次运行',
-      dataIndex: 'nextRunAt',
-      key: 'nextRunAt',
-      width: 180,
-      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 200,
-      render: (_, record) => (
-        <Space size="small">
-          <Tooltip title={record.enabled ? '禁用' : '启用'}>
-            <Button
-              type="text"
-              size="small"
-              icon={record.enabled ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
-              onClick={() => handleCronToggle(record)}
-            />
-          </Tooltip>
-          <Button
-            type="text"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleCronEdit(record)}
-          />
-          <Popconfirm title="确认删除该定时任务？" onConfirm={() => handleCronDelete(record)}>
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+  const cronColumns = useMemo(
+    () =>
+      getCronColumns({
+        handleCronToggle,
+        handleCronEdit,
+        handleCronDelete,
+      }),
+    [handleCronToggle, handleCronEdit, handleCronDelete],
+  );
 
-  const dumpColumns: TableColumnsType<SqlDumpResult> = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 180 },
-    { title: '文件名', dataIndex: 'filename', key: 'filename' },
-    { title: '大小', dataIndex: 'size', key: 'size' },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (v: string) => (
-        <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>
-          {v === 'success' ? '成功' : v === 'running' ? '运行中' : '失败'}
-        </Tag>
-      ),
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (v: string) => new Date(v).toLocaleString(),
-    },
-  ];
+  const indexColumns = useMemo(
+    () =>
+      getIndexColumns({
+        handleDeleteIndex,
+      }),
+    [handleDeleteIndex],
+  );
 
-  const fragmentColumns: TableColumnsType<DatabaseFragment> = [
-    { title: '数据库', dataIndex: 'databaseName', key: 'databaseName' },
-    { title: '表名', dataIndex: 'tableName', key: 'tableName' },
-    { title: '总大小', dataIndex: 'totalSize', key: 'totalSize' },
-    { title: '碎片大小', dataIndex: 'fragmentSize', key: 'fragmentSize' },
-    {
-      title: '碎片率',
-      dataIndex: 'fragmentRate',
-      key: 'fragmentRate',
-      render: (v: number) => (
-        <Progress
-          percent={Math.min(v, 100)}
-          size="small"
-          strokeColor={
-            v > 25 ? colors.error[500] : v > 15 ? colors.warning[500] : colors.success[500]
-          }
-          format={() => `${v.toFixed(1)}%`}
-        />
-      ),
-    },
-    { title: '建议操作', dataIndex: 'suggestedAction', key: 'suggestedAction' },
-  ];
+  const tagentColumns = useMemo(
+    () =>
+      getTagentColumns({
+        handleTagentUpgrade,
+      }),
+    [handleTagentUpgrade],
+  );
 
-  const indexColumns: TableColumnsType<IndexInfo> = [
-    { title: '表名', dataIndex: 'tableName', key: 'tableName' },
-    { title: '索引名', dataIndex: 'indexName', key: 'indexName' },
-    { title: '列', dataIndex: 'columns', key: 'columns', render: (v: string[]) => v.join(', ') },
-    { title: '大小', dataIndex: 'size', key: 'size' },
-    { title: '使用次数', dataIndex: 'usageCount', key: 'usageCount' },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (v: string) => (
-        <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>
-          {v === 'active' ? '活跃' : v === 'unused' ? '未使用' : '冗余'}
-        </Tag>
-      ),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 100,
-      render: (_, record) => (
-        <Popconfirm title="确认删除该索引？" onConfirm={() => handleDeleteIndex(record)}>
-          <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-        </Popconfirm>
-      ),
-    },
-  ];
+  const fileColumns = useMemo(
+    () =>
+      getFileColumns({
+        handleDistributeOpen: (fileId: string) => {
+          setDistributingFile(fileId);
+          setDistributeModalOpen(true);
+        },
+        handleDeleteFile,
+      }),
+    [handleDeleteFile],
+  );
 
-  const mqColumns: TableColumnsType<MQQueue> = [
-    { title: '队列名', dataIndex: 'name', key: 'name' },
-    { title: '类型', dataIndex: 'type', key: 'type' },
-    { title: '消息数', dataIndex: 'messageCount', key: 'messageCount' },
-    { title: '消费者数', dataIndex: 'consumerCount', key: 'consumerCount' },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      render: (v: string) => (
-        <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>
-          {v === 'healthy' ? '健康' : v === 'warning' ? '警告' : '严重'}
-        </Tag>
+  const themeColumns = useMemo(
+    () =>
+      getThemeColumns(
+        {
+          handleThemeToggle,
+          handleDeleteTheme,
+        },
+        loading,
       ),
-    },
-    {
-      title: '死信数',
-      dataIndex: 'deadLetters',
-      key: 'deadLetters',
-      render: (v: number) => (v ? <Tag color="error">{v}</Tag> : '0'),
-    },
-    {
-      title: '最后活跃',
-      dataIndex: 'lastActiveAt',
-      key: 'lastActiveAt',
-      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
-    },
-  ];
+    [handleThemeToggle, handleDeleteTheme, loading],
+  );
 
-  const tagentColumns: TableColumnsType<TagentClient> = [
-    { title: '主机名', dataIndex: 'hostname', key: 'hostname' },
-    { title: 'IP', dataIndex: 'ip', key: 'ip' },
-    { title: '版本', dataIndex: 'version', key: 'version' },
-    { title: 'OS', dataIndex: 'os', key: 'os' },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      render: (v: string) => (
-        <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>
-          {v === 'online' ? '在线' : v === 'offline' ? '离线' : '升级中'}
-        </Tag>
+  const moduleColumns = useMemo(
+    () =>
+      getModuleColumns(
+        {
+          handleModuleToggle,
+        },
+        loading,
       ),
-    },
-    { title: 'CPU', dataIndex: 'cpuUsage', key: 'cpuUsage', render: (v: number) => `${v}%` },
-    { title: '内存', dataIndex: 'memoryUsage', key: 'memoryUsage', render: (v: number) => `${v}%` },
-    { title: '磁盘', dataIndex: 'diskUsage', key: 'diskUsage', render: (v: number) => `${v}%` },
-    {
-      title: '最后心跳',
-      dataIndex: 'lastHeartbeat',
-      key: 'lastHeartbeat',
-      render: (v: string) => new Date(v).toLocaleString(),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 120,
-      render: (_, record) => (
-        <Button
-          type="text"
-          size="small"
-          icon={<RocketOutlined />}
-          onClick={() => {
-            confirm({
-              title: '升级 Tagent',
-              content: `确认将 ${record.hostname} 升级到哪个版本？`,
-              onOk: async () => {
-                handleTagentUpgrade(record, '2.5.2');
-              },
-            });
-          }}
-          disabled={record.status === 'offline' || record.status === 'upgrading'}
-        >
-          升级
-        </Button>
-      ),
-    },
-  ];
-
-  const batchColumns: TableColumnsType<BatchOperation> = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 160 },
-    { title: '命令', dataIndex: 'command', key: 'command', ellipsis: true },
-    {
-      title: '目标主机',
-      dataIndex: 'targetHosts',
-      key: 'targetHosts',
-      render: (v: string[]) => v.join(', '),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (v: string) => (
-        <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>
-          {v === 'pending'
-            ? '待执行'
-            : v === 'running'
-              ? '运行中'
-              : v === 'completed'
-                ? '已完成'
-                : '失败'}
-        </Tag>
-      ),
-    },
-    {
-      title: '开始时间',
-      dataIndex: 'startedAt',
-      key: 'startedAt',
-      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
-    },
-    {
-      title: '完成时间',
-      dataIndex: 'finishedAt',
-      key: 'finishedAt',
-      render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
-    },
-    {
-      title: '结果',
-      dataIndex: 'result',
-      key: 'result',
-      ellipsis: true,
-      render: (v: string) => v || '-',
-    },
-  ];
-
-  const fileColumns: TableColumnsType<FileInfo> = [
-    { title: '文件名', dataIndex: 'name', key: 'name' },
-    { title: '路径', dataIndex: 'path', key: 'path' },
-    {
-      title: '大小',
-      dataIndex: 'size',
-      key: 'size',
-      render: (v: number) => `${(v / 1024).toFixed(2)} KB`,
-    },
-    { title: '类型', dataIndex: 'mime', key: 'mime' },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (v: string) => (
-        <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>
-          {v === 'uploaded'
-            ? '已上传'
-            : v === 'distributing'
-              ? '分发中'
-              : v === 'distributed'
-                ? '已分发'
-                : '失败'}
-        </Tag>
-      ),
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (v: string) => new Date(v).toLocaleString(),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 160,
-      render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="text"
-            size="small"
-            icon={<SendOutlined />}
-            onClick={() => {
-              setDistributingFile(record.id);
-              setDistributeModalOpen(true);
-            }}
-          >
-            分发
-          </Button>
-          <Popconfirm title="确认删除该文件？" onConfirm={() => handleDeleteFile(record)}>
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
-
-  const themeColumns: TableColumnsType<ThemeConfig> = [
-    { title: '主题名', dataIndex: 'name', key: 'name' },
-    {
-      title: '主色',
-      dataIndex: 'primaryColor',
-      key: 'primaryColor',
-      width: 120,
-      render: (v: string) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: 4,
-              backgroundColor: v,
-              border: `1px solid ${colors.neutral[300]}`,
-            }}
-          />
-          <span>{v}</span>
-        </div>
-      ),
-    },
-    {
-      title: '圆角',
-      dataIndex: 'borderRadius',
-      key: 'borderRadius',
-      render: (v: number) => `${v}px`,
-    },
-    {
-      title: '模式',
-      dataIndex: 'mode',
-      key: 'mode',
-      render: (v: string) => <Tag>{v === 'light' ? '浅色' : '深色'}</Tag>,
-    },
-    {
-      title: '启用',
-      dataIndex: 'enabled',
-      key: 'enabled',
-      width: 100,
-      render: (v: boolean, record) => (
-        <Switch
-          checked={v}
-          onChange={() => handleThemeToggle(record)}
-          size="small"
-          disabled={loading}
-        />
-      ),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 100,
-      render: (_, record) => (
-        <Popconfirm title="确认删除该主题？" onConfirm={() => handleDeleteTheme(record)}>
-          <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-        </Popconfirm>
-      ),
-    },
-  ];
-
-  const licenseColumns: TableColumnsType<LicenseInfo> = [
-    { title: '产品', dataIndex: 'productName', key: 'productName' },
-    { title: '许可证', dataIndex: 'licenseKey', key: 'licenseKey' },
-    {
-      title: '类型',
-      dataIndex: 'type',
-      key: 'type',
-      render: (v: string) => (
-        <Tag>{v === 'enterprise' ? '企业版' : v === 'standard' ? '标准版' : '社区版'}</Tag>
-      ),
-    },
-    { title: '席位', dataIndex: 'seats', key: 'seats' },
-    { title: '已使用', dataIndex: 'usedSeats', key: 'usedSeats' },
-    {
-      title: '使用率',
-      key: 'usageRate',
-      render: (_, record) => (
-        <Progress
-          percent={record.seats > 0 ? Math.round((record.usedSeats / record.seats) * 100) : 0}
-          size="small"
-        />
-      ),
-    },
-    {
-      title: '到期时间',
-      dataIndex: 'expireAt',
-      key: 'expireAt',
-      render: (v: string) => new Date(v).toLocaleString(),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      render: (v: string) => (
-        <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>
-          {v === 'active' ? '有效' : v === 'expired' ? '已过期' : '宽限期'}
-        </Tag>
-      ),
-    },
-  ];
-
-  const moduleColumns: TableColumnsType<SystemModule> = [
-    { title: '模块名', dataIndex: 'name', key: 'name' },
-    { title: '描述', dataIndex: 'description', key: 'description' },
-    { title: '版本', dataIndex: 'version', key: 'version' },
-    {
-      title: '依赖',
-      dataIndex: 'dependencies',
-      key: 'dependencies',
-      render: (v: string[]) => v.join(', ') || '-',
-    },
-    {
-      title: '启用',
-      dataIndex: 'enabled',
-      key: 'enabled',
-      width: 100,
-      render: (v: boolean, record) => (
-        <Switch
-          checked={v}
-          onChange={() => handleModuleToggle(record)}
-          size="small"
-          disabled={loading}
-        />
-      ),
-    },
-  ];
-
-  const threadPoolColumns: TableColumnsType<ThreadPool> = [
-    { title: '线程池名', dataIndex: 'name', key: 'name' },
-    { title: '核心数', dataIndex: 'coreSize', key: 'coreSize' },
-    { title: '最大数', dataIndex: 'maxSize', key: 'maxSize' },
-    { title: '活跃线程', dataIndex: 'activeCount', key: 'activeCount' },
-    { title: '队列大小', dataIndex: 'queueSize', key: 'queueSize' },
-    { title: '已完成任务', dataIndex: 'completedTasks', key: 'completedTasks' },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (v: string) => (
-        <Tag color={STATUS_COLORS[v as keyof typeof STATUS_COLORS]}>
-          {v === 'normal' ? '正常' : v === 'busy' ? '繁忙' : '饱和'}
-        </Tag>
-      ),
-    },
-    {
-      title: '使用率',
-      key: 'usage',
-      render: (_, record) => (
-        <Progress
-          percent={record.maxSize > 0 ? Math.round((record.activeCount / record.maxSize) * 100) : 0}
-          size="small"
-        />
-      ),
-    },
-  ];
-
-  const auditColumns: TableColumnsType<AuditEvent> = [
-    { title: '用户', dataIndex: 'username', key: 'username' },
-    { title: '操作', dataIndex: 'action', key: 'action' },
-    { title: '资源', dataIndex: 'resource', key: 'resource' },
-    {
-      title: '结果',
-      dataIndex: 'result',
-      key: 'result',
-      render: (v: string) => (
-        <Tag color={v === 'success' ? 'success' : 'error'}>{v === 'success' ? '成功' : '失败'}</Tag>
-      ),
-    },
-    { title: 'IP', dataIndex: 'ip', key: 'ip' },
-    {
-      title: '时间',
-      dataIndex: 'timestamp',
-      key: 'timestamp',
-      render: (v: string) => new Date(v).toLocaleString(),
-    },
-  ];
-
-  const logColumns: TableColumnsType<LogEntry> = [
-    {
-      title: '级别',
-      dataIndex: 'level',
-      key: 'level',
-      width: 80,
-      render: (v: string) => {
-        const color =
-          v === 'ERROR' ? 'error' : v === 'WARN' ? 'warning' : v === 'DEBUG' ? 'default' : 'blue';
-        return <Tag color={color}>{v}</Tag>;
-      },
-    },
-    { title: '服务', dataIndex: 'service', key: 'service' },
-    { title: '消息', dataIndex: 'message', key: 'message', ellipsis: true },
-    {
-      title: '时间',
-      dataIndex: 'timestamp',
-      key: 'timestamp',
-      render: (v: string) => new Date(v).toLocaleString(),
-    },
-  ];
+    [handleModuleToggle, loading],
+  );
 
   // ==================== Tab 面板 ====================
 
@@ -1500,12 +1013,7 @@ const OpsTools: React.FC = () => {
           allowClear
           value={logLevel}
           onChange={setLogLevel}
-          options={[
-            { label: 'ERROR', value: 'ERROR' },
-            { label: 'WARN', value: 'WARN' },
-            { label: 'INFO', value: 'INFO' },
-            { label: 'DEBUG', value: 'DEBUG' },
-          ]}
+          options={LOG_LEVEL_OPTIONS}
         />
         <Text style={{ marginLeft: 16 }}>服务:</Text>
         <Select
@@ -1514,13 +1022,7 @@ const OpsTools: React.FC = () => {
           allowClear
           value={logService}
           onChange={setLogService}
-          options={[
-            { label: 'orion-platform', value: 'orion-platform' },
-            { label: 'orion-deploy', value: 'orion-deploy' },
-            { label: 'orion-ai', value: 'orion-ai' },
-            { label: 'orion-monitor', value: 'orion-monitor' },
-            { label: 'orion-auth', value: 'orion-auth' },
-          ]}
+          options={LOG_SERVICE_OPTIONS}
         />
       </Space>
       <Table
@@ -1536,87 +1038,15 @@ const OpsTools: React.FC = () => {
   // ==================== Tab 配置 ====================
 
   const tabItems: TabsProps['items'] = [
-    {
-      key: 'cron',
-      label: (
-        <span>
-          <ClockCircleOutlined /> 定时调度
-        </span>
-      ),
-      children: renderCronTab(),
-    },
-    {
-      key: 'db',
-      label: (
-        <span>
-          <DatabaseOutlined /> 数据库工具
-        </span>
-      ),
-      children: renderDbTab(),
-    },
-    {
-      key: 'mq',
-      label: (
-        <span>
-          <ClusterOutlined /> MQ监控
-        </span>
-      ),
-      children: renderMqTab(),
-    },
-    {
-      key: 'tagent',
-      label: (
-        <span>
-          <ToolOutlined /> Tagent管理
-        </span>
-      ),
-      children: renderTagentTab(),
-    },
-    {
-      key: 'batch',
-      label: (
-        <span>
-          <ConsoleSqlOutlined /> 批量操作
-        </span>
-      ),
-      children: renderBatchTab(),
-    },
-    {
-      key: 'file',
-      label: (
-        <span>
-          <FileTextOutlined /> 文件管理
-        </span>
-      ),
-      children: renderFileTab(),
-    },
-    {
-      key: 'config',
-      label: (
-        <span>
-          <SettingOutlined /> 系统配置
-        </span>
-      ),
-      children: renderConfigTab(),
-    },
-    {
-      key: 'audit',
-      label: (
-        <span>
-          <AuditOutlined /> 审计
-        </span>
-      ),
-      children: renderAuditTab(),
-    },
-    {
-      key: 'logs',
-      label: (
-        <span>
-          <FileSyncOutlined /> 日志
-        </span>
-      ),
-      children: renderLogTab(),
-    },
+    { ...tabConfig[0]!, children: renderCronTab() },
+    { ...tabConfig[1]!, children: renderDbTab() },
+    { ...tabConfig[2]!, children: renderMqTab() },
+    { ...tabConfig[3]!, children: renderTagentTab() },
+    { ...tabConfig[4]!, children: renderBatchTab() },
+    { ...tabConfig[5]!, children: renderFileTab() },
+    { ...tabConfig[6]!, children: renderConfigTab() },
+    { ...tabConfig[7]!, children: renderAuditTab() },
+    { ...tabConfig[8]!, children: renderLogTab() },
   ];
 
   // ==================== 渲染 ====================
@@ -1808,13 +1238,7 @@ const OpsTools: React.FC = () => {
             <InputNumber min={0} max={20} style={{ width: '100%' }} defaultValue={6} />
           </Form.Item>
           <Form.Item name="mode" label="模式">
-            <Select
-              options={[
-                { label: '浅色', value: 'light' },
-                { label: '深色', value: 'dark' },
-              ]}
-              defaultValue="light"
-            />
+            <Select options={THEME_MODE_OPTIONS} defaultValue="light" />
           </Form.Item>
         </Form>
       </Modal>
