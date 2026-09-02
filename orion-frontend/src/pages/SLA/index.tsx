@@ -17,7 +17,6 @@ import {
   Select,
   message,
   Tabs,
-  Popconfirm,
   InputNumber,
   Switch,
   Badge,
@@ -26,19 +25,13 @@ import {
 import {
   PlusOutlined,
   ReloadOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  PauseCircleOutlined,
-  PlayCircleOutlined,
   SafetyCertificateOutlined,
   ExclamationCircleOutlined,
   FieldTimeOutlined,
   FireOutlined,
 } from '@ant-design/icons';
 import { Layout } from '@/components/Layout';
-import Table, { type TableColumn } from '@/components/Table';
+import Table from '@/components/Table';
 import { colors, spacing, componentRadius, shadows } from '@/tokens';
 import {
   getSLADefinitions,
@@ -55,81 +48,24 @@ import {
 import type { SLADefinition, SLATracking, SLABreachEvent, SLAStats } from '@/api/sla';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import {
+  TRACKING_STATUS_LABEL_MAP,
+  TRACKING_STATUS_OPTIONS,
+  TYPE_OPTIONS,
+  DEF_STATUS_OPTIONS,
+  ENTITY_TYPE_OPTIONS,
+  PRIORITY_OPTIONS,
+  TARGET_UNIT_OPTIONS,
+} from './config';
+import {
+  getDefColumns,
+  getTrackingColumns,
+  breachColumns,
+} from './columns';
 
 dayjs.extend(relativeTime);
 
 const { Title, Text } = Typography;
-
-// ==================== Constants ====================
-
-const TYPE_COLOR_MAP: Record<string, string> = {
-  response: 'blue',
-  resolution: 'orange',
-  availability: 'green',
-};
-
-const TYPE_LABEL_MAP: Record<string, string> = {
-  response: '响应时间',
-  resolution: '解决时间',
-  availability: '可用性',
-};
-
-const DEF_STATUS_COLOR_MAP: Record<string, string> = {
-  active: 'green',
-  inactive: 'default',
-  archived: 'default',
-};
-
-const DEF_STATUS_LABEL_MAP: Record<string, string> = {
-  active: '启用',
-  inactive: '停用',
-  archived: '归档',
-};
-
-const TRACKING_STATUS_LABEL_MAP: Record<string, string> = {
-  tracking: '追踪中',
-  met: '已达成',
-  breached: '已违约',
-  paused: '已暂停',
-};
-
-const ENTITY_TYPE_COLOR_MAP: Record<string, string> = {
-  incident: 'red',
-  request: 'blue',
-  change: 'purple',
-};
-
-const ENTITY_TYPE_LABEL_MAP: Record<string, string> = {
-  incident: '事件',
-  request: '请求',
-  change: '变更',
-};
-
-const PRIORITY_COLOR_MAP: Record<string, string> = {
-  critical: 'red',
-  high: 'orange',
-  medium: 'blue',
-  low: 'default',
-};
-
-const PRIORITY_LABEL_MAP: Record<string, string> = {
-  critical: '紧急',
-  high: '高',
-  medium: '中',
-  low: '低',
-};
-
-const EVENT_TYPE_COLOR_MAP: Record<string, string> = {
-  warning: 'orange',
-  breach: 'red',
-  escalation: 'purple',
-};
-
-const EVENT_TYPE_LABEL_MAP: Record<string, string> = {
-  warning: '预警',
-  breach: '违约',
-  escalation: '升级',
-};
 
 // ==================== Component ====================
 
@@ -235,7 +171,6 @@ const SLAManagement: React.FC = () => {
     loadData();
   }, [loadData]);
 
-  // Re-fetch when filters change
   useEffect(() => {
     if (activeTab === 'definitions') loadDefinitions();
   }, [defTypeFilter, defStatusFilter, activeTab, loadDefinitions]);
@@ -370,6 +305,22 @@ const SLAManagement: React.FC = () => {
     }
   };
 
+  // ---- Column definitions (factories) ----
+
+  const defColumns = useMemo(
+    () => getDefColumns({ onEdit: openEditDefModal, onDelete: handleDeleteDefinition }),
+    [openEditDefModal, handleDeleteDefinition],
+  );
+
+  const trackingColumns = useMemo(
+    () => getTrackingColumns({
+      onStatusUpdate: handleUpdateTrackingStatus,
+      onBreach: handleMarkBreach,
+      definitionMap,
+    }),
+    [handleUpdateTrackingStatus, handleMarkBreach, definitionMap],
+  );
+
   // ---- Stats Cards ----
 
   const statsBar = (
@@ -498,353 +449,6 @@ const SLAManagement: React.FC = () => {
     </Row>
   );
 
-  // ---- Definitions Table Columns ----
-
-  const defColumns: TableColumn<SLADefinition>[] = useMemo<TableColumn<SLADefinition>[]>(
-    () => [
-      {
-        key: 'name',
-        title: '名称',
-        dataIndex: 'name',
-        width: 200,
-        sortable: true,
-        render: (value: unknown, record: SLADefinition) => (
-          <Space direction="vertical" size={0}>
-            <Text strong>{String(value)}</Text>
-            {record.description && (
-              <Text type="secondary" style={{ fontSize: 12 }} ellipsis>
-                {record.description}
-              </Text>
-            )}
-          </Space>
-        ),
-      },
-      {
-        key: 'type',
-        title: '类型',
-        dataIndex: 'type',
-        width: 110,
-        render: (value: unknown) => (
-          <Tag color={TYPE_COLOR_MAP[String(value)] || 'default'}>
-            {TYPE_LABEL_MAP[String(value)] || String(value)}
-          </Tag>
-        ),
-      },
-      {
-        key: 'target_value',
-        title: '目标值',
-        dataIndex: 'target_value',
-        width: 140,
-        render: (_: unknown, record: SLADefinition) => (
-          <Text strong>
-            {record.target_value} {record.target_unit}
-          </Text>
-        ),
-      },
-      {
-        key: 'priority',
-        title: '优先级',
-        dataIndex: 'priority',
-        width: 90,
-        render: (value: unknown) =>
-          value ? (
-            <Tag color={PRIORITY_COLOR_MAP[String(value)] || 'default'}>
-              {PRIORITY_LABEL_MAP[String(value)] || String(value)}
-            </Tag>
-          ) : (
-            <Text type="secondary">-</Text>
-          ),
-      },
-      {
-        key: 'business_hours_only',
-        title: '仅工作时间',
-        dataIndex: 'business_hours_only',
-        width: 110,
-        render: (value: unknown) => <Switch checked={!!value} size="small" disabled />,
-      },
-      {
-        key: 'status',
-        title: '状态',
-        dataIndex: 'status',
-        width: 80,
-        render: (value: unknown) => (
-          <Tag color={DEF_STATUS_COLOR_MAP[String(value)] || 'default'}>
-            {DEF_STATUS_LABEL_MAP[String(value)] || String(value)}
-          </Tag>
-        ),
-      },
-      {
-        key: 'actions',
-        title: '操作',
-        width: 140,
-        render: (_: unknown, record: SLADefinition) => (
-          <Space size="small">
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => openEditDefModal(record)}
-            >
-              编辑
-            </Button>
-            <Popconfirm
-              title="确认删除此 SLA 定义?"
-              description="删除后不可恢复，关联的追踪记录也将失效。"
-              onConfirm={() => handleDeleteDefinition(record.id)}
-              okText="删除"
-              cancelText="取消"
-              okButtonProps={{ danger: true }}
-            >
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                删除
-              </Button>
-            </Popconfirm>
-          </Space>
-        ),
-      },
-    ],
-    [handleDeleteDefinition, openEditDefModal]
-  );
-
-  // ---- Tracking Table Columns ----
-
-  const trackingColumns: TableColumn<SLATracking>[] = useMemo<TableColumn<SLATracking>[]>(
-    () => [
-      {
-        key: 'entity_type',
-        title: '实体类型',
-        dataIndex: 'entity_type',
-        width: 100,
-        render: (value: unknown) => (
-          <Tag color={ENTITY_TYPE_COLOR_MAP[String(value)] || 'default'}>
-            {ENTITY_TYPE_LABEL_MAP[String(value)] || String(value)}
-          </Tag>
-        ),
-      },
-      {
-        key: 'entity_id',
-        title: '实体 ID',
-        dataIndex: 'entity_id',
-        width: 160,
-        render: (value: unknown) => <Text code>{String(value)}</Text>,
-      },
-      {
-        key: 'sla_definition_id',
-        title: 'SLA 定义',
-        dataIndex: 'sla_definition_id',
-        width: 160,
-        render: (value: unknown) => {
-          const def = definitionMap[String(value)];
-          return def ? (
-            <Text strong>{def.name}</Text>
-          ) : (
-            <Text type="secondary">{String(value)}</Text>
-          );
-        },
-      },
-      {
-        key: 'status',
-        title: '状态',
-        dataIndex: 'status',
-        width: 100,
-        render: (value: unknown) => {
-          const statusStr = String(value);
-          const badgeStatus =
-            statusStr === 'tracking'
-              ? 'processing'
-              : statusStr === 'met'
-                ? 'success'
-                : statusStr === 'breached'
-                  ? 'error'
-                  : 'warning';
-          return (
-            <Badge
-              status={badgeStatus as 'processing' | 'success' | 'error' | 'warning'}
-              text={TRACKING_STATUS_LABEL_MAP[statusStr] || statusStr}
-            />
-          );
-        },
-      },
-      {
-        key: 'start_time',
-        title: '开始时间',
-        dataIndex: 'start_time',
-        width: 160,
-        render: (value: unknown) =>
-          value ? (
-            <Text type="secondary">{dayjs(String(value)).format('YYYY-MM-DD HH:mm')}</Text>
-          ) : (
-            <Text type="secondary">-</Text>
-          ),
-      },
-      {
-        key: 'target_time',
-        title: '目标时间',
-        dataIndex: 'target_time',
-        width: 160,
-        render: (value: unknown) =>
-          value ? (
-            <Text>{dayjs(String(value)).format('YYYY-MM-DD HH:mm')}</Text>
-          ) : (
-            <Text type="secondary">-</Text>
-          ),
-      },
-      {
-        key: 'actual_time',
-        title: '实际完成',
-        dataIndex: 'actual_time',
-        width: 160,
-        render: (value: unknown) =>
-          value ? (
-            <Text type="secondary">{dayjs(String(value)).format('YYYY-MM-DD HH:mm')}</Text>
-          ) : (
-            <Text type="secondary">-</Text>
-          ),
-      },
-      {
-        key: 'breach_time',
-        title: '违约时间',
-        dataIndex: 'breach_time',
-        width: 160,
-        render: (value: unknown) =>
-          value ? (
-            <Text type="danger">{dayjs(String(value)).format('YYYY-MM-DD HH:mm')}</Text>
-          ) : (
-            <Text type="secondary">-</Text>
-          ),
-      },
-      {
-        key: 'actions',
-        title: '操作',
-        width: 220,
-        render: (_: unknown, record: SLATracking) => {
-          const status = record.status;
-          return (
-            <Space size="small">
-              {status === 'tracking' && (
-                <>
-                  <Button
-                    type="link"
-                    size="small"
-                    icon={<CheckCircleOutlined />}
-                    onClick={() => handleUpdateTrackingStatus(record.id, 'met')}
-                  >
-                    达成
-                  </Button>
-                  <Popconfirm
-                    title="确认标记为违约?"
-                    onConfirm={() => handleMarkBreach(record.id)}
-                    okText="确认"
-                    cancelText="取消"
-                  >
-                    <Button type="link" size="small" danger icon={<CloseCircleOutlined />}>
-                      违约
-                    </Button>
-                  </Popconfirm>
-                  <Button
-                    type="link"
-                    size="small"
-                    icon={<PauseCircleOutlined />}
-                    onClick={() => handleUpdateTrackingStatus(record.id, 'paused')}
-                  >
-                    暂停
-                  </Button>
-                </>
-              )}
-              {status === 'paused' && (
-                <Button
-                  type="link"
-                  size="small"
-                  icon={<PlayCircleOutlined />}
-                  onClick={() => handleUpdateTrackingStatus(record.id, 'tracking')}
-                >
-                  恢复
-                </Button>
-              )}
-              {(status === 'met' || status === 'breached') && (
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  已结束
-                </Text>
-              )}
-            </Space>
-          );
-        },
-      },
-    ],
-    [handleMarkBreach, handleUpdateTrackingStatus]
-  );
-
-  // ---- Breach Table Columns ----
-
-  const breachColumns: TableColumn<SLABreachEvent>[] = useMemo<TableColumn<SLABreachEvent>[]>(
-    () => [
-      {
-        key: 'event_type',
-        title: '事件类型',
-        dataIndex: 'event_type',
-        width: 100,
-        render: (value: unknown) => (
-          <Tag color={EVENT_TYPE_COLOR_MAP[String(value)] || 'default'}>
-            {EVENT_TYPE_LABEL_MAP[String(value)] || String(value)}
-          </Tag>
-        ),
-      },
-      {
-        key: 'sla_tracking_id',
-        title: '追踪 ID',
-        dataIndex: 'sla_tracking_id',
-        width: 200,
-        render: (value: unknown) => <Text code>{String(value)}</Text>,
-      },
-      {
-        key: 'event_time',
-        title: '事件时间',
-        dataIndex: 'event_time',
-        width: 180,
-        render: (value: unknown) =>
-          value ? (
-            <Text>{dayjs(String(value)).format('YYYY-MM-DD HH:mm:ss')}</Text>
-          ) : (
-            <Text type="secondary">-</Text>
-          ),
-      },
-      {
-        key: 'details',
-        title: '详情',
-        dataIndex: 'details',
-        width: 300,
-        render: (value: unknown) => {
-          if (!value) return <Text type="secondary">-</Text>;
-          const detail = typeof value === 'object' ? JSON.stringify(value) : String(value);
-          return (
-            <Text ellipsis={{ tooltip: detail }} style={{ maxWidth: 280 }}>
-              {detail}
-            </Text>
-          );
-        },
-      },
-      {
-        key: 'notified_users',
-        title: '通知用户',
-        dataIndex: 'notified_users',
-        width: 200,
-        render: (value: unknown) => {
-          if (!Array.isArray(value) || value.length === 0) {
-            return <Text type="secondary">-</Text>;
-          }
-          return (
-            <Space size={[0, 4]} wrap>
-              {value.map((u: string, i: number) => (
-                <Tag key={String(i)}>{u}</Tag>
-              ))}
-            </Space>
-          );
-        },
-      },
-    ],
-    []
-  );
-
   // ---- Tab Items ----
 
   const tabItems = useMemo(
@@ -854,7 +458,6 @@ const SLAManagement: React.FC = () => {
         label: `SLA 定义 (${defTotal})`,
         children: (
           <>
-            {/* Filter Bar */}
             <div
               style={{
                 display: 'flex',
@@ -872,11 +475,7 @@ const SLAManagement: React.FC = () => {
                   style={{ width: 140 }}
                   value={defTypeFilter}
                   onChange={(v) => setDefTypeFilter(v)}
-                  options={[
-                    { label: '响应时间', value: 'response' },
-                    { label: '解决时间', value: 'resolution' },
-                    { label: '可用性', value: 'availability' },
-                  ]}
+                  options={TYPE_OPTIONS}
                 />
                 <Select
                   placeholder="状态筛选"
@@ -884,11 +483,7 @@ const SLAManagement: React.FC = () => {
                   style={{ width: 120 }}
                   value={defStatusFilter}
                   onChange={(v) => setDefStatusFilter(v)}
-                  options={[
-                    { label: '启用', value: 'active' },
-                    { label: '停用', value: 'inactive' },
-                    { label: '归档', value: 'archived' },
-                  ]}
+                  options={DEF_STATUS_OPTIONS}
                 />
               </Space>
               <Button type="primary" icon={<PlusOutlined />} onClick={openCreateDefModal}>
@@ -912,7 +507,6 @@ const SLAManagement: React.FC = () => {
         label: `追踪记录 (${trackingTotal})`,
         children: (
           <>
-            {/* Filter Bar */}
             <div
               style={{
                 display: 'flex',
@@ -930,12 +524,7 @@ const SLAManagement: React.FC = () => {
                   style={{ width: 130 }}
                   value={trackingStatusFilter}
                   onChange={(v) => setTrackingStatusFilter(v)}
-                  options={[
-                    { label: '追踪中', value: 'tracking' },
-                    { label: '已达成', value: 'met' },
-                    { label: '已违约', value: 'breached' },
-                    { label: '已暂停', value: 'paused' },
-                  ]}
+                  options={TRACKING_STATUS_OPTIONS}
                 />
                 <Select
                   placeholder="实体类型"
@@ -943,11 +532,7 @@ const SLAManagement: React.FC = () => {
                   style={{ width: 120 }}
                   value={trackingEntityFilter}
                   onChange={(v) => setTrackingEntityFilter(v)}
-                  options={[
-                    { label: '事件', value: 'incident' },
-                    { label: '请求', value: 'request' },
-                    { label: '变更', value: 'change' },
-                  ]}
+                  options={ENTITY_TYPE_OPTIONS}
                 />
               </Space>
               <Button
@@ -978,7 +563,6 @@ const SLAManagement: React.FC = () => {
         label: `违约事件 (${breachTotal})`,
         children: (
           <>
-            {/* Filter Bar */}
             <div
               style={{
                 display: 'flex',
@@ -1022,7 +606,6 @@ const SLAManagement: React.FC = () => {
       trackingEntityFilter,
       breachTotal,
       breaches,
-      breachColumns,
       breachTrackingFilter,
       loading,
       trackingForm,
@@ -1034,7 +617,6 @@ const SLAManagement: React.FC = () => {
   return (
     <Layout>
       <div style={{ padding: 0 }}>
-        {/* Page Header */}
         <div
           style={{
             display: 'flex',
@@ -1057,10 +639,8 @@ const SLAManagement: React.FC = () => {
           </Button>
         </div>
 
-        {/* Stats Bar */}
         {statsBar}
 
-        {/* Main Tabs */}
         <Card
           style={{ borderRadius: componentRadius.card, boxShadow: shadows.card }}
           styles={{ body: { padding: spacing.lg } }}
@@ -1068,7 +648,6 @@ const SLAManagement: React.FC = () => {
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
         </Card>
 
-        {/* Definition Create/Edit Modal */}
         <Modal
           title={editingDef ? '编辑 SLA 定义' : '创建 SLA 定义'}
           open={defModalVisible}
@@ -1106,14 +685,7 @@ const SLAManagement: React.FC = () => {
                   label="类型"
                   rules={[{ required: true, message: '请选择类型' }]}
                 >
-                  <Select
-                    placeholder="选择类型"
-                    options={[
-                      { label: '响应时间', value: 'response' },
-                      { label: '解决时间', value: 'resolution' },
-                      { label: '可用性', value: 'availability' },
-                    ]}
-                  />
+                  <Select placeholder="选择类型" options={TYPE_OPTIONS} />
                 </Form.Item>
               </Col>
               <Col span={12}>
@@ -1121,12 +693,7 @@ const SLAManagement: React.FC = () => {
                   <Select
                     placeholder="选择优先级"
                     allowClear
-                    options={[
-                      { label: '紧急', value: 'critical' },
-                      { label: '高', value: 'high' },
-                      { label: '中', value: 'medium' },
-                      { label: '低', value: 'low' },
-                    ]}
+                    options={PRIORITY_OPTIONS}
                   />
                 </Form.Item>
               </Col>
@@ -1147,14 +714,7 @@ const SLAManagement: React.FC = () => {
                   label="目标单位"
                   rules={[{ required: true, message: '请选择单位' }]}
                 >
-                  <Select
-                    placeholder="选择单位"
-                    options={[
-                      { label: '分钟', value: 'minutes' },
-                      { label: '小时', value: 'hours' },
-                      { label: '百分比', value: 'percent' },
-                    ]}
-                  />
+                  <Select placeholder="选择单位" options={TARGET_UNIT_OPTIONS} />
                 </Form.Item>
               </Col>
             </Row>
@@ -1167,7 +727,6 @@ const SLAManagement: React.FC = () => {
           </Form>
         </Modal>
 
-        {/* Tracking Create Modal */}
         <Modal
           title="创建追踪记录"
           open={trackingModalVisible}
@@ -1204,11 +763,7 @@ const SLAManagement: React.FC = () => {
             >
               <Select
                 placeholder="选择实体类型"
-                options={[
-                  { label: '事件', value: 'incident' },
-                  { label: '请求', value: 'request' },
-                  { label: '变更', value: 'change' },
-                ]}
+                options={ENTITY_TYPE_OPTIONS}
               />
             </Form.Item>
             <Form.Item
