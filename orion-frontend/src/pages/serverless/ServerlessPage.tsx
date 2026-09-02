@@ -54,6 +54,8 @@ import {
   type ServerlessFunction as Fn,
   type ServerlessTrigger,
   type ServerlessDeployment,
+  type ServerlessLog,
+  type AutoScalingRecommendation,
   type AggregateMetrics,
   type FunctionStatus,
   type FunctionRuntime,
@@ -73,8 +75,6 @@ import {
 import {
   logsColumns,
   autoscalingColumns,
-  functionsEmpty,
-  triggersEmpty,
 } from './ServerlessColumns';
 
 const { Title, Text, Paragraph } = Typography;
@@ -1013,44 +1013,7 @@ const MetricsTab: React.FC = () => {
 
       <Card title="自动扩缩容建议">
         <Table
-          columns={[
-            { title: '函数', dataIndex: 'functionName', key: 'functionName' },
-            { title: '当前副本', dataIndex: 'currentReplicas', key: 'currentReplicas' },
-            {
-              title: '建议副本',
-              dataIndex: 'suggestedReplicas',
-              key: 'suggestedReplicas',
-              render: (v: number, r: AutoScalingRecommendation) => (
-                <span
-                  style={{
-                    color:
-                      r.action === 'scale_up'
-                        ? colors.error[500]
-                        : r.action === 'scale_down'
-                          ? colors.warning[500]
-                          : colors.neutral[900],
-                  }}
-                >
-                  {r.currentReplicas} → {v}
-                </span>
-              ),
-            },
-            {
-              title: '操作',
-              dataIndex: 'action',
-              key: 'action',
-              render: (a: string) => (
-                <Tag color={scaleActionColorMap[a]}>{scaleActionLabelMap[a]}</Tag>
-              ),
-            },
-            {
-              title: '原因',
-              dataIndex: 'reason',
-              key: 'reason',
-              ellipsis: true,
-              render: (v: string) => v || '-',
-            },
-          ]}
+          columns={autoscalingColumns}
           dataSource={recommendations}
           rowKey="functionId"
           loading={loading}
