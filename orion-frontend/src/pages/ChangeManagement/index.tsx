@@ -13,8 +13,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography,
-  Button,
-  Space,
   Card,
   Tabs,
   message,
@@ -24,7 +22,6 @@ import {
   Col,
 } from 'antd';
 import {
-  PlusOutlined,
   EyeOutlined,
   SwapOutlined,
   FileTextOutlined,
@@ -72,19 +69,12 @@ import {
   useRFCColumns,
   useCABColumns,
 } from './columns';
-import { ChangeForm } from './ChangeForm';
 import { ChangeDetailPanel } from './ChangeDetailPanel';
-import { RFCForm } from './RFCForm';
-import { CABForm } from './CABForm';
-import { DecisionForm } from './DecisionForm';
-import { CABDetailContent } from './CABDetailContent';
-import { RFCDetailContent } from './RFCDetailContent';
 import { buildStatsCards } from './stats';
-import { StatusNoteForm } from './StatusNoteForm';
-import { TimelineEventForm } from './TimelineEventForm';
 import { RequestsTab } from './RequestsTab';
 import { RFCsTab } from './RFCsTab';
 import { CABsTab } from './CABsTab';
+import { ChangeManagementModals } from './ChangeManagementModals';
 
 const { Title, Text } = Typography;
 
@@ -812,168 +802,80 @@ const ChangeManagement: React.FC = () => {
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
         </Card>
 
-        {/* ===== Modals ===== */}
-
-        {/* Create Change Request Modal */}
-        <Modal
-          title="新建变更请求"
-          open={createModalOpen}
-          onOk={handleCreate}
-          onCancel={() => {
+        <ChangeManagementModals
+          createModalOpen={createModalOpen}
+          createForm={createForm}
+          createSubmitting={createSubmitting}
+          onCreate={handleCreate}
+          onCreateCancel={() => {
             setCreateModalOpen(false);
             createForm.resetFields();
           }}
-          width={720}
-          okText="创建"
-          cancelText="取消"
-          confirmLoading={createSubmitting}
-        >
-          <ChangeForm formInstance={createForm} />
-        </Modal>
-
-        {/* Edit Change Request Modal */}
-        <Modal
-          title="编辑变更请求"
-          open={editModalOpen}
-          onOk={handleEdit}
-          onCancel={() => {
+          editModalOpen={editModalOpen}
+          editForm={editForm}
+          editSubmitting={editSubmitting}
+          onEdit={handleEdit}
+          onEditCancel={() => {
             setEditModalOpen(false);
             editForm.resetFields();
           }}
-          width={720}
-          okText="保存"
-          cancelText="取消"
-          confirmLoading={editSubmitting}
-        >
-          <ChangeForm formInstance={editForm} />
-        </Modal>
-
-        {/* Status Change Note Modal */}
-        <Modal
-          title={`状态变更: ${statusConfig[pendingStatusChange]?.label || pendingStatusChange}`}
-          open={statusNoteModalOpen}
-          onOk={handleConfirmStatusChange}
-          onCancel={() => {
+          statusNoteModalOpen={statusNoteModalOpen}
+          statusNoteForm={statusNoteForm}
+          pendingStatusChange={pendingStatusChange}
+          onStatusConfirm={handleConfirmStatusChange}
+          onStatusCancel={() => {
             setStatusNoteModalOpen(false);
             statusNoteForm.resetFields();
             setPendingStatusChange('');
           }}
-          width={480}
-          okText="确认变更"
-          cancelText="取消"
-        >
-          <StatusNoteForm formInstance={statusNoteForm} />
-        </Modal>
-
-        {/* Add Timeline Event Modal */}
-        <Modal
-          title="添加时间线事件"
-          open={addEventModalOpen}
-          onOk={handleAddTimelineEvent}
-          onCancel={() => {
+          addEventModalOpen={addEventModalOpen}
+          eventForm={eventForm}
+          onEventAdd={handleAddTimelineEvent}
+          onEventCancel={() => {
             setAddEventModalOpen(false);
             eventForm.resetFields();
           }}
-          width={480}
-          okText="添加"
-          cancelText="取消"
-        >
-          <TimelineEventForm formInstance={eventForm} />
-        </Modal>
-
-        {/* RFC Modal (Create/Edit) */}
-        <Modal
-          title={editRfcId ? '编辑 RFC' : '新建 RFC'}
-          open={rfcModalOpen}
-          onOk={editRfcId ? handleUpdateRfc : handleCreateRfc}
-          onCancel={() => {
+          rfcModalOpen={rfcModalOpen}
+          rfcForm={rfcForm}
+          editRfcId={editRfcId}
+          onCreateRfc={handleCreateRfc}
+          onUpdateRfc={handleUpdateRfc}
+          onRfcCancel={() => {
             setRfcModalOpen(false);
             rfcForm.resetFields();
             setEditRfcId(null);
           }}
-          width={640}
-          okText={editRfcId ? '保存' : '创建'}
-          cancelText="取消"
-        >
-          <RFCForm formInstance={rfcForm} />
-        </Modal>
-
-        {/* RFC Detail Modal */}
-        <Modal
-          title="RFC 详情"
-          open={rfcDetailModalOpen}
-          onCancel={() => {
+          rfcDetailModalOpen={rfcDetailModalOpen}
+          selectedRfc={selectedRfc}
+          onRfcDetailCancel={() => {
             setRfcDetailModalOpen(false);
             setSelectedRfc(null);
           }}
-          width={640}
-          footer={null}
-        >
-          {selectedRfc && <RFCDetailContent rfc={selectedRfc} />}
-        </Modal>
-
-        {/* CAB Meeting Modal (Create/Edit) */}
-        <Modal
-          title={editCabId ? '编辑 CAB 会议' : '新建 CAB 会议'}
-          open={cabModalOpen}
-          onOk={editCabId ? handleUpdateCab : handleCreateCab}
-          onCancel={() => {
+          cabModalOpen={cabModalOpen}
+          cabForm={cabForm}
+          editCabId={editCabId}
+          onCreateCab={handleCreateCab}
+          onUpdateCab={handleUpdateCab}
+          onCabCancel={() => {
             setCabModalOpen(false);
             cabForm.resetFields();
             setEditCabId(null);
           }}
-          width={560}
-          okText={editCabId ? '保存' : '创建'}
-          cancelText="取消"
-        >
-          <CABForm formInstance={cabForm} />
-        </Modal>
-
-        {/* CAB Meeting Detail Modal */}
-        <Modal
-          title="CAB 会议详情"
-          open={cabDetailModalOpen}
-          onCancel={() => {
-            setCabDetailModalOpen(false);
-            setSelectedCab(null);
+          cabDetailModalOpen={cabDetailModalOpen}
+          selectedCab={selectedCab}
+          onCabDetailCancel={() => setCabDetailModalOpen(false)}
+          onOpenDecision={() => {
+            decisionForm.resetFields();
+            setDecisionModalOpen(true);
           }}
-          width={720}
-          footer={
-            selectedCab ? (
-              <Space>
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={() => {
-                    decisionForm.resetFields();
-                    setDecisionModalOpen(true);
-                  }}
-                >
-                  添加决策
-                </Button>
-                <Button onClick={() => setCabDetailModalOpen(false)}>关闭</Button>
-              </Space>
-            ) : null
-          }
-        >
-          {selectedCab && <CABDetailContent cab={selectedCab} />}
-        </Modal>
-
-        {/* Add CAB Decision Modal */}
-        <Modal
-          title="添加 CAB 决策"
-          open={decisionModalOpen}
-          onOk={handleAddDecision}
-          onCancel={() => {
+          decisionModalOpen={decisionModalOpen}
+          decisionForm={decisionForm}
+          onDecisionAdd={handleAddDecision}
+          onDecisionCancel={() => {
             setDecisionModalOpen(false);
             decisionForm.resetFields();
           }}
-          width={480}
-          okText="添加"
-          cancelText="取消"
-        >
-          <DecisionForm formInstance={decisionForm} />
-        </Modal>
+        />;
       </div>
     </Layout>
   );
