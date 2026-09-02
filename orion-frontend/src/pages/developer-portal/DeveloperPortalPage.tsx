@@ -75,9 +75,11 @@ import {
 } from '@/api/developer-portal';
 import { colors, spacing, themeVars } from '@/tokens';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { Search } = Input;
 const { TextArea } = Input;
+
+import { DeveloperPortalModals } from './DeveloperPortalModals';
 
 import {
   documentTypeConfig,
