@@ -10,7 +10,7 @@
  *
  * API: @/api/change
  */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Typography,
   Button,
@@ -25,7 +25,6 @@ import {
   Select,
   Input,
   Descriptions,
-  Popconfirm,
   Modal,
   Row,
   Col,
@@ -36,11 +35,8 @@ import {
   ReloadOutlined,
   EyeOutlined,
   EditOutlined,
-  DeleteOutlined,
   CheckCircleOutlined,
-  SendOutlined,
   PlayCircleOutlined,
-  StopOutlined,
   CloseCircleOutlined,
   SwapOutlined,
   FileTextOutlined,
@@ -50,7 +46,7 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { Layout } from '@/components/Layout';
-import Table, { type TableColumn } from '@/components/Table';
+import Table from '@/components/Table';
 import MetricCard from '@/components/MetricCard';
 import { colors, spacing, radius, shadows } from '@/tokens';
 import {
@@ -83,96 +79,24 @@ import type {
   ChangeRiskAnalysis,
 } from '@/api/change';
 import dayjs from 'dayjs';
+import {
+  typeConfig,
+  priorityConfig,
+  riskConfig,
+  statusConfig,
+  rfcStatusConfig,
+  cabStatusConfig,
+  statusTransitions,
+  eventTypeConfig,
+} from './config';
+import {
+  useChangeColumns,
+  useRFCColumns,
+  useCABColumns,
+} from './columns';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
-
-// ============================================================================
-// Configuration Maps
-// ============================================================================
-
-/** Change type display config */
-const typeConfig: Record<string, { color: string; label: string }> = {
-  standard: { color: 'blue', label: '标准' },
-  normal: { color: 'cyan', label: '普通' },
-  emergency: { color: 'red', label: '紧急' },
-};
-
-/** Priority display config */
-const priorityConfig: Record<string, { color: string; label: string }> = {
-  critical: { color: 'red', label: '严重' },
-  high: { color: 'orange', label: '高' },
-  medium: { color: 'blue', label: '中' },
-  low: { color: 'green', label: '低' },
-};
-
-/** Risk level display config */
-const riskConfig: Record<string, { color: string; label: string }> = {
-  high: { color: 'red', label: '高风险' },
-  medium: { color: 'orange', label: '中风险' },
-  low: { color: 'green', label: '低风险' },
-};
-
-/** Change request status display config */
-const statusConfig: Record<string, { color: string; label: string }> = {
-  draft: { color: 'default', label: '草稿' },
-  submitted: { color: 'blue', label: '已提交' },
-  approved: { color: 'green', label: '已批准' },
-  rejected: { color: 'red', label: '已拒绝' },
-  in_progress: { color: 'orange', label: '实施中' },
-  completed: { color: 'cyan', label: '已完成' },
-  cancelled: { color: 'default', label: '已取消' },
-  closed: { color: 'default', label: '已关闭' },
-};
-
-/** RFC status display config */
-const rfcStatusConfig: Record<string, { color: string; label: string }> = {
-  draft: { color: 'default', label: '草稿' },
-  pending_review: { color: 'orange', label: '待审核' },
-  approved: { color: 'green', label: '已批准' },
-  rejected: { color: 'red', label: '已拒绝' },
-};
-
-/** CAB meeting status display config */
-const cabStatusConfig: Record<string, { color: string; label: string }> = {
-  scheduled: { color: 'blue', label: '已安排' },
-  in_progress: { color: 'orange', label: '进行中' },
-  completed: { color: 'green', label: '已完成' },
-  cancelled: { color: 'default', label: '已取消' },
-};
-
-/** Status transition map: current status -> allowed next statuses */
-const statusTransitions: Record<
-  string,
-  Array<{ status: string; label: string; icon: React.ReactNode; danger?: boolean }>
-> = {
-  draft: [{ status: 'submitted', label: '提交审批', icon: <SendOutlined /> }],
-  submitted: [
-    { status: 'approved', label: '批准', icon: <CheckCircleOutlined /> },
-    { status: 'rejected', label: '拒绝', icon: <CloseCircleOutlined />, danger: true },
-  ],
-  approved: [{ status: 'in_progress', label: '开始实施', icon: <PlayCircleOutlined /> }],
-  in_progress: [{ status: 'completed', label: '完成', icon: <CheckCircleOutlined /> }],
-  completed: [{ status: 'closed', label: '关闭', icon: <StopOutlined /> }],
-  rejected: [],
-  cancelled: [],
-  closed: [],
-};
-
-/** Timeline event type display config */
-const eventTypeConfig: Record<string, { color: string; label: string }> = {
-  created: { color: 'blue', label: '创建' },
-  submitted: { color: 'cyan', label: '提交' },
-  approved: { color: 'green', label: '批准' },
-  rejected: { color: 'red', label: '拒绝' },
-  started: { color: 'orange', label: '开始实施' },
-  completed: { color: 'green', label: '完成' },
-  closed: { color: 'default', label: '关闭' },
-  cancelled: { color: 'default', label: '取消' },
-  update: { color: 'blue', label: '更新' },
-  comment: { color: 'purple', label: '备注' },
-  risk_change: { color: 'orange', label: '风险变更' },
-};
 
 // ============================================================================
 // ChangeManagement Component
@@ -686,282 +610,25 @@ const ChangeManagement: React.FC = () => {
   };
 
   // ============================================================================
-  // Table Columns
+  // Table Columns (factories from ./columns)
   // ============================================================================
 
-  const changeColumns: TableColumn<ChangeRequest>[] = useMemo<TableColumn<ChangeRequest>[]>(
-    () => [
-      {
-        key: 'title',
-        title: '标题',
-        dataIndex: 'title',
-        ellipsis: true,
-        render: (_: unknown, record: ChangeRequest) => (
-          <a onClick={() => handleViewDetail(record)}>{record.title}</a>
-        ),
-      },
-      {
-        key: 'type',
-        title: '类型',
-        dataIndex: 'type',
-        width: 80,
-        render: (_: unknown, record: ChangeRequest) => {
-          const cfg = typeConfig[record.type];
-          return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.type}</Tag>;
-        },
-      },
-      {
-        key: 'priority',
-        title: '优先级',
-        dataIndex: 'priority',
-        width: 80,
-        render: (_: unknown, record: ChangeRequest) => {
-          const cfg = priorityConfig[record.priority];
-          return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.priority}</Tag>;
-        },
-      },
-      {
-        key: 'risk_level',
-        title: '风险',
-        dataIndex: 'risk_level',
-        width: 90,
-        render: (_: unknown, record: ChangeRequest) => {
-          const cfg = riskConfig[record.risk_level];
-          return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.risk_level}</Tag>;
-        },
-      },
-      {
-        key: 'status',
-        title: '状态',
-        dataIndex: 'status',
-        width: 90,
-        render: (_: unknown, record: ChangeRequest) => {
-          const cfg = statusConfig[record.status];
-          return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.status}</Tag>;
-        },
-      },
-      {
-        key: 'requester_id',
-        title: '申请人',
-        dataIndex: 'requester_id',
-        width: 100,
-        ellipsis: true,
-      },
-      {
-        key: 'scheduled_start',
-        title: '计划开始',
-        dataIndex: 'scheduled_start',
-        width: 140,
-        render: (_: unknown, record: ChangeRequest) =>
-          record.scheduled_start ? dayjs(record.scheduled_start).format('YYYY-MM-DD HH:mm') : '-',
-      },
-      {
-        key: 'actions',
-        title: '操作',
-        width: 160,
-        fixed: 'right',
-        render: (_: unknown, record: ChangeRequest) => (
-          <Space size="small">
-            <Button
-              type="link"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => handleViewDetail(record)}
-            >
-              详情
-            </Button>
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => {
-                setSelectedChange(record);
-                handleOpenEditModal();
-              }}
-            >
-              编辑
-            </Button>
-            <Popconfirm
-              title="确认删除"
-              description="确定要删除此变更请求吗？"
-              onConfirm={() => handleDelete(record.id)}
-              okText="删除"
-              cancelText="取消"
-              okButtonProps={{ danger: true }}
-            >
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                删除
-              </Button>
-            </Popconfirm>
-          </Space>
-        ),
-      },
-    ],
-    [handleDelete, handleViewDetail]
-  );
+  const changeColumns = useChangeColumns({
+    handleDelete,
+    handleViewDetail,
+    handleOpenEditModal,
+    setSelectedChange,
+  });
 
-  const rfcColumns: TableColumn<RFC>[] = useMemo<TableColumn<RFC>[]>(
-    () => [
-      {
-        key: 'rfc_number',
-        title: 'RFC 编号',
-        dataIndex: 'rfc_number',
-        width: 140,
-        render: (_: unknown, record: RFC) => (
-          <a onClick={() => handleViewRfc(record)}>{record.rfc_number}</a>
-        ),
-      },
-      {
-        key: 'change_request_id',
-        title: '关联变更',
-        dataIndex: 'change_request_id',
-        width: 200,
-        ellipsis: true,
-      },
-      {
-        key: 'justification',
-        title: '变更理由',
-        dataIndex: 'justification',
-        ellipsis: true,
-      },
-      {
-        key: 'status',
-        title: '状态',
-        dataIndex: 'status',
-        width: 100,
-        render: (_: unknown, record: RFC) => {
-          const cfg = rfcStatusConfig[record.status];
-          return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.status}</Tag>;
-        },
-      },
-      {
-        key: 'reviewed_by',
-        title: '审核人',
-        dataIndex: 'reviewed_by',
-        width: 100,
-        ellipsis: true,
-        render: (_: unknown, record: RFC) => record.reviewed_by || '-',
-      },
-      {
-        key: 'created_at',
-        title: '创建时间',
-        dataIndex: 'created_at',
-        width: 140,
-        render: (_: unknown, record: RFC) => dayjs(record.created_at).format('YYYY-MM-DD HH:mm'),
-      },
-      {
-        key: 'actions',
-        title: '操作',
-        width: 140,
-        fixed: 'right',
-        render: (_: unknown, record: RFC) => (
-          <Space size="small">
-            <Button
-              type="link"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => handleViewRfc(record)}
-            >
-              详情
-            </Button>
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => handleEditRfc(record)}
-            >
-              编辑
-            </Button>
-          </Space>
-        ),
-      },
-    ],
-    [handleEditRfc, handleViewRfc]
-  );
+  const rfcColumns = useRFCColumns({
+    handleViewRfc,
+    handleEditRfc,
+  });
 
-  const cabColumns: TableColumn<CABMeeting>[] = useMemo<TableColumn<CABMeeting>[]>(
-    () => [
-      {
-        key: 'title',
-        title: '会议标题',
-        dataIndex: 'title',
-        ellipsis: true,
-        render: (_: unknown, record: CABMeeting) => (
-          <a onClick={() => handleViewCab(record)}>{record.title}</a>
-        ),
-      },
-      {
-        key: 'scheduled_at',
-        title: '会议时间',
-        dataIndex: 'scheduled_at',
-        width: 160,
-        render: (_: unknown, record: CABMeeting) =>
-          dayjs(record.scheduled_at).format('YYYY-MM-DD HH:mm'),
-      },
-      {
-        key: 'location',
-        title: '地点',
-        dataIndex: 'location',
-        width: 120,
-        ellipsis: true,
-        render: (_: unknown, record: CABMeeting) => record.location || '-',
-      },
-      {
-        key: 'attendees',
-        title: '参会人',
-        dataIndex: 'attendees',
-        width: 200,
-        render: (_: unknown, record: CABMeeting) =>
-          record.attendees?.length ? (
-            <Space size={4} wrap>
-              {record.attendees.slice(0, 3).map((a) => (
-                <Tag key={a}>{a}</Tag>
-              ))}
-              {record.attendees.length > 3 && <Tag>+{record.attendees.length - 3}</Tag>}
-            </Space>
-          ) : (
-            '-'
-          ),
-      },
-      {
-        key: 'status',
-        title: '状态',
-        dataIndex: 'status',
-        width: 90,
-        render: (_: unknown, record: CABMeeting) => {
-          const cfg = cabStatusConfig[record.status];
-          return cfg ? <Tag color={cfg.color}>{cfg.label}</Tag> : <Tag>{record.status}</Tag>;
-        },
-      },
-      {
-        key: 'actions',
-        title: '操作',
-        width: 140,
-        fixed: 'right',
-        render: (_: unknown, record: CABMeeting) => (
-          <Space size="small">
-            <Button
-              type="link"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => handleViewCab(record)}
-            >
-              详情
-            </Button>
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => handleEditCab(record)}
-            >
-              编辑
-            </Button>
-          </Space>
-        ),
-      },
-    ],
-    [handleEditCab, handleViewCab]
-  );
+  const cabColumns = useCABColumns({
+    handleViewCab,
+    handleEditCab,
+  });
 
   // ============================================================================
   // Stats Computation
