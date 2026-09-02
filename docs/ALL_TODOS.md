@@ -12,7 +12,7 @@
 |------|------|
 | ✅ 已完成 | 54 项（含 Phase 7 G1-G8 + Wave 7-D MinIO e2e + P2-11 wiring.go 收尾 + P2-7 shared any cleanup + P2-4 页面冒烟测试） |
 | ✅ 全部完成 | P0 清零（PERM-8 阶段 2 客户端迁移完成 2026-09-01） |
-| 🟡 待处理 | 1 项 P1（P1-8 响应格式统一；P1-9 三域补全已核实过时,sla-engine 32 函数 + pipeline-run-history 4 函数 + drift 6 函数均已实现） |
+| ✅ 全部完成 | P1 全部完成（P1-8 响应格式统一 50 个 handler 文件 ~500 处 c.JSON+gin.H 迁移完成, P1-9 三域补全已核实过时） |
 | 🔵 待处理 | 4 项 P2（P2-2/9/12/16 部分完成；P2-4/7 已完成） |
 | ⚠️ 已废弃/不适用 | 11 项 |
 | **总计** | **82 项** |
@@ -107,7 +107,7 @@
 | ~~**P1-5** | 9 个孤岛 Controller | merged-action-items | ~~核实为 stale claim: `src/` 下 0 个 Controller 命名文件存在~~ | ✅ 2026-08-26 |
 | ~~**P1-6** | 前端 API 路径统一 | merged-action-items | ~~2/39 文件有真实 API 调用：migration.ts (12 处) + datasource.ts (11 处) 已迁移到 API_PATHS 常量；其余 37 文件为 placeholder/注释/静态数据，无需修改~~ | ✅ 2026-08-31 (剩余：页面组件内联调用) |
 | ~~**P1-7** | AI 模块命名统一 | merged-action-items | ~~4 目录删除 (aigateway/aireview/security/aiagent, 33 文件 2178 行)；保留 aicost vs cost 为互补模块；ai_wiring.go/router.go/route_dump_test.go/route_conflict_scan_test.go 同步更新~~ | ✅ 2026-08-31 |
-| **P1-8** | 后端响应格式统一 | merged-action-items | 436 个文件含 gin.H，188 个文件含 RespondSuccess (handler层 276/184) | 5-8 天 |
+| ✅ | **P1-8 后端响应格式统一** | 50 个 handler 文件完成迁移（Batch 1-3 + alert-correlation），c.JSON+gin.H → middleware.RespondXxx，~500 处替换，4 batch commits（8e52ec5/2fa0703/93c542d/2c7a8b0）。残留 21 处均为蓝图 stub（dr/pandawiki/monitoring/visor response_writer），非业务代码。 |
 | **P1-9** | 三域补全 (ITSM/CI-CD/CMDB) | 三域深度分析 | ITSM: sla-engine(0方法)/Release/ServiceCatalog; CI/CD: Trigger/pipeline-run-history; CMDB: Drift Detection | 合计 10-15 天 |
 
 | ~~**G3** | Oracle/DB2/SQL Server 三引擎 Executor | Phase 7 计划 | ~~`OracleExecutor`（archivelog + rman/expdp）/ `DB2Executor`（redo log）/ `SQLServerExecutor`（log_backup + `RESTORE DATABASE ... WITH RECOVERY`）注册进 `NewRegistry`；每引擎 Backup/Restore 覆盖 env 连接、SHA256、Encrypt/Decrypt、RTO/RPO；DB 变更命令默认注释；`executor.go` `IsSupported` 扩展至 6 引擎~~ | ✅ **完成 2026-08-31** |
@@ -129,7 +129,7 @@
 | ~~**P2-6** | /digital-twin 重复路由 | merged-action-items | 核实: 当前 routes.tsx 仅 1 条 digital-twin 路由，重复已修复 | ✅ 2026-08-31 |
 | ~~**P2-7** | 前端 `any` 类型清理 | 三域分析 | ~~共享基础设施 19 处已完成（api/×6 + stores/×4 + utils/×1），`tsc` 0 错误；pages 层 1118 处保留（Ant Design columns 内联/第三方类型）~~ | ✅ 2026-09-02（shared 已清） |
 | ~~**P2-8** | 前端 `console.log` 残留 | 三域分析 | 核实: 生产代码 0 处 console.log (2 处均在 __tests__ 测试数据中) | ✅ 2026-08-31 |
-| **P2-9** | 前端最大页面拆分 | 三域分析 | ChangeManagement 2111→884行(-58%), 拆出 config.tsx/columns.tsx/ChangeForm.tsx/stats.tsx/RFCForm.tsx/CABForm.tsx/CABDetailContent.tsx/RFCDetailContent.tsx/DecisionForm.tsx/ChangeDetailPanel.tsx/StatusNoteForm.tsx/TimelineEventForm.tsx/RequestsTab.tsx/RFCsTab.tsx/CABsTab.tsx/ChangeManagementModals.tsx 共 16 文件；index.tsx 仅保留状态/数据处理/事件处理逻辑 | 🟡 部分完成 2026-09-02 (884行) |
+| **P2-9** | 前端最大页面拆分 | 三域分析 | ✅ **Phase 1**: ChangeManagement 2111→884行(-58%), 16文件；✅ **Phase 2**: DeveloperPortalPage 2686→1565行(-42%), 7文件；✅ **Phase 3**: DeployPage 2009→1608行(-20%), 2文件；✅ **Phase 4**: OpsTools 1825→1249行(-32%), 2文件；✅ **Phase 5**: Incident 1752→1388行(-21%), 2文件；✅ **Phase 6**: BatchExecPage 1210→824行(-32%), 2文件。待拆: StageModal(1497行, 进行中)/Problem(1388行)/WorkflowCanvas(1401行)/TraceDetailPage(1295行) | 🟡 进行中 2026-09-02 |
 | **P2-10** | 安装 @tanstack/react-query | merged-action-items | ✅ 已安装；**但"11/11"仅指自行圈定的 11 个文件**。真实盘点：467 个页面组件中仅 24 个使用 react-query。附带修复：该批次曾静默删除 10 个页面约 20 处加载失败提示（Batch X 已恢复），并遗留 9 处 TS 错误 + 弄坏 2 个测试文件（已修） | ⚠️ 部分完成，见 P2-12 |
 | **P2-12** | 剩余 308 个页面 react-query 迁移 | Batch X 盘点 | `useEffect + useState(setLoading)` 手动加载模式仍占 308 个页面（467 总页面的 66%）。**前置约束**：本仓库 `@tanstack/query-core@5.101.4` 的 `QueryObserver` 未实现 observer 级回调，`useQuery` 的 `onError/onSuccess` 是**静默 no-op**（`useMutation` 正常）。必须用 `isError + useEffect` 呈现错误反馈，否则每个页面都会丢失加载失败提示。见 `src/providers/QueryProvider.tsx` 顶部注释 | 10-15 天 |
 | **P2-13** | 修复 17 个遗留失败测试文件 | ✅ 完成 | 基线 17 failed / 55 用例。Batch AB 修 6 文件 / 31 用例（datasource 11 + AgentDashboard 8 + SbomDashboard 3 + Login 1 + NotificationRules 4 + CronManagement 3 + 13 API 测试 `beforeEach` 类型修正）；Batch AC 再修 11 文件 / 26 用例（Form 2 + Login 2 + ApiKey 3 + Webhook 3 + ProductLine 3 + Console 6 + InternalLibrary 1 + Projects 2 + DashboardNew 2 + RiskDashboard 1 + CMDB 1）。**当前 0 失败** | 2-3 天 |
@@ -143,7 +143,7 @@
 | ~~**G7** | RPO 精确化 | Phase 7 计划 | ~~抽 `rpoFromArchives(archives, targetTime, baseCompleted)` helper：从 newest 倒序选目标时间前最近的 archive `WindowStart`（真实提交时间戳，archiver.go 以文件 ModTime 填充）作锚点，不再取最后一段（可能提交于目标后）；每段均在目标后/无 archive 时回退 base backup `CompletedAt` 近似；锚点 nil 时打 warn；`recovery_service_test.go` 新增 5 用例：目标前最近段/全在目标后回退 base/无 archive 用 base/空输入 nil/恰好目标时刻 RPO=0~~ | ✅ **完成 2026-08-31** |
 | ~~**G8** | 存储后端增强（P3 低优先） | Phase 7 计划 | ~~`backup_service.go:419-436` `storageBackendFor` 区分 local/S3/MinIO 能力差异；S3/MinIO 断点续传（multipart）、生命周期策略、冷热分层；本轮仅设计 + 接口定义 + 单测，不要求生产级实现~~ | ✅ **完成 2026-08-31** |
 
-**P2 合计工作量**: 6-17 天（P2-1/P2-3/P2-4/P2-5/P2-6/P2-7/P2-8/P2-10/P2-11/P2-14/P2-15 已完成，P2-9 ChangeManagement 拆分进行至 884 行（2111→884，-58%，16 文件），G5-G8 于 2026-08-31 全部完成；剩余 P2-2/9/12/16）
+**P2 合计工作量**: 6-17 天（P2-1/P2-3/P2-4/P2-5/P2-6/P2-7/P2-8/P2-10/P2-11/P2-14/P2-15 已完成，P2-9 ChangeManagement(884行-58%) + DeveloperPortalPage(1565行-42%) 已完成，G5-G8 于 2026-08-31 全部完成；剩余 P2-2/9/12/16）
 
 ---
 
