@@ -19,14 +19,12 @@ import {
   Tabs,
   message,
   Form,
-  Select,
   Modal,
   Row,
   Col,
 } from 'antd';
 import {
   PlusOutlined,
-  ReloadOutlined,
   EyeOutlined,
   SwapOutlined,
   FileTextOutlined,
@@ -68,8 +66,6 @@ import type {
 } from '@/api/change';
 import dayjs from 'dayjs';
 import {
-  typeConfig,
-  priorityConfig,
   statusConfig,
 } from './config';
 import {
@@ -87,6 +83,7 @@ import { RFCDetailContent } from './RFCDetailContent';
 import { buildStatsCards } from './stats';
 import { StatusNoteForm } from './StatusNoteForm';
 import { TimelineEventForm } from './TimelineEventForm';
+import { RequestsTab } from './RequestsTab';
 
 const { Title, Text } = Typography;
 
@@ -660,105 +657,38 @@ const ChangeManagement: React.FC = () => {
         </span>
       ),
       children: (
-        <>
-          {/* Filter Bar */}
-          <Card
-            size="small"
-            style={{
-              marginBottom: spacing.md,
-              borderRadius: radius.lg,
-              boxShadow: shadows.card,
-            }}
-          >
-            <Space size="middle" wrap>
-              <Select
-                placeholder="状态筛选"
-                allowClear
-                style={{ width: 130 }}
-                value={filterStatus}
-                onChange={(v) => {
-                  setFilterStatus(v);
-                  setPage(1);
-                }}
-              >
-                {Object.entries(statusConfig).map(([key, cfg]) => (
-                  <Select.Option key={key} value={key}>
-                    {cfg.label}
-                  </Select.Option>
-                ))}
-              </Select>
-              <Select
-                placeholder="类型筛选"
-                allowClear
-                style={{ width: 120 }}
-                value={filterType}
-                onChange={(v) => {
-                  setFilterType(v);
-                  setPage(1);
-                }}
-              >
-                {Object.entries(typeConfig).map(([key, cfg]) => (
-                  <Select.Option key={key} value={key}>
-                    {cfg.label}
-                  </Select.Option>
-                ))}
-              </Select>
-              <Select
-                placeholder="优先级筛选"
-                allowClear
-                style={{ width: 120 }}
-                value={filterPriority}
-                onChange={(v) => {
-                  setFilterPriority(v);
-                  setPage(1);
-                }}
-              >
-                {Object.entries(priorityConfig).map(([key, cfg]) => (
-                  <Select.Option key={key} value={key}>
-                    {cfg.label}
-                  </Select.Option>
-                ))}
-              </Select>
-              <Button icon={<ReloadOutlined />} onClick={loadChanges}>
-                刷新
-              </Button>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => {
-                  createForm.resetFields();
-                  setCreateModalOpen(true);
-                }}
-              >
-                新建变更
-              </Button>
-            </Space>
-          </Card>
-
-          {/* Change Requests Table */}
-          <Card
-            style={{
-              borderRadius: radius.lg,
-              boxShadow: shadows.card,
-            }}
-          >
-            <Table<ChangeRequest>
-              columns={changeColumns}
-              dataSource={changes}
-              loading={loading}
-              rowKey="id"
-              pagination={{
-                current: page,
-                pageSize,
-                total,
-              }}
-              onPaginationChange={(p: number, ps: number) => {
-                setPage(p);
-                setPageSize(ps);
-              }}
-            />
-          </Card>
-        </>
+        <RequestsTab
+          changes={changes}
+          loading={loading}
+          total={total}
+          page={page}
+          pageSize={pageSize}
+          filterStatus={filterStatus}
+          filterType={filterType}
+          filterPriority={filterPriority}
+          changeColumns={changeColumns}
+          onFilterStatusChange={(v) => {
+            setFilterStatus(v || undefined);
+            setPage(1);
+          }}
+          onFilterTypeChange={(v) => {
+            setFilterType(v || undefined);
+            setPage(1);
+          }}
+          onFilterPriorityChange={(v) => {
+            setFilterPriority(v || undefined);
+            setPage(1);
+          }}
+          onRefresh={loadChanges}
+          onCreate={() => {
+            createForm.resetFields();
+            setCreateModalOpen(true);
+          }}
+          onPageChange={(p, ps) => {
+            setPage(p);
+            setPageSize(ps);
+          }}
+        />
       ),
     },
     {
