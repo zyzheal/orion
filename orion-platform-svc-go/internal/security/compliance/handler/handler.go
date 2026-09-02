@@ -2,9 +2,9 @@ package handler
 
 import (
 	"go.opentelemetry.io/otel"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/security/compliance/models"
 	"orion/platform-svc-go/internal/security/compliance/service"
@@ -38,10 +38,10 @@ func (h *ComplianceHandler) ListFrameworks(c *gin.Context) {
 	defer span.End()
 	list, err := h.svc.ListFrameworks(ctx)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": list})
+	middleware.RespondSuccess(c, list)
 }
 
 func (h *ComplianceHandler) CreateFramework(c *gin.Context) {
@@ -49,15 +49,15 @@ func (h *ComplianceHandler) CreateFramework(c *gin.Context) {
 	defer span.End()
 	var req models.ComplianceFramework
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	fw, err := h.svc.CreateFramework(ctx, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": fw})
+	middleware.RespondCreated(c, fw)
 }
 
 func (h *ComplianceHandler) ListRequirements(c *gin.Context) {
@@ -66,10 +66,10 @@ func (h *ComplianceHandler) ListRequirements(c *gin.Context) {
 	frameworkID := c.Query("framework_id")
 	list, err := h.svc.ListRequirements(ctx, frameworkID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": list})
+	middleware.RespondSuccess(c, list)
 }
 
 func (h *ComplianceHandler) CreateRequirement(c *gin.Context) {
@@ -77,15 +77,15 @@ func (h *ComplianceHandler) CreateRequirement(c *gin.Context) {
 	defer span.End()
 	var req models.ComplianceRequirement
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	r, err := h.svc.CreateRequirement(ctx, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": r})
+	middleware.RespondCreated(c, r)
 }
 
 func (h *ComplianceHandler) ListEvidence(c *gin.Context) {
@@ -94,10 +94,10 @@ func (h *ComplianceHandler) ListEvidence(c *gin.Context) {
 	frameworkID := c.Query("framework_id")
 	list, err := h.svc.ListEvidence(ctx, h.GetTenantID(c), frameworkID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": list})
+	middleware.RespondSuccess(c, list)
 }
 
 func (h *ComplianceHandler) CreateEvidence(c *gin.Context) {
@@ -105,15 +105,15 @@ func (h *ComplianceHandler) CreateEvidence(c *gin.Context) {
 	defer span.End()
 	var req models.CreateEvidenceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	ev, err := h.svc.CreateEvidence(ctx, h.GetTenantID(c), &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": ev})
+	middleware.RespondCreated(c, ev)
 }
 
 func (h *ComplianceHandler) ListGapAnalyses(c *gin.Context) {
@@ -121,10 +121,10 @@ func (h *ComplianceHandler) ListGapAnalyses(c *gin.Context) {
 	defer span.End()
 	list, err := h.svc.ListGapAnalyses(ctx, h.GetTenantID(c))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": list})
+	middleware.RespondSuccess(c, list)
 }
 
 func (h *ComplianceHandler) CreateGapAnalysis(c *gin.Context) {
@@ -132,15 +132,15 @@ func (h *ComplianceHandler) CreateGapAnalysis(c *gin.Context) {
 	defer span.End()
 	var req models.CreateGapAnalysisRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	ga, err := h.svc.CreateGapAnalysis(ctx, h.GetTenantID(c), &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": ga})
+	middleware.RespondCreated(c, ga)
 }
 
 func (h *ComplianceHandler) ListRemediations(c *gin.Context) {
@@ -149,10 +149,10 @@ func (h *ComplianceHandler) ListRemediations(c *gin.Context) {
 	frameworkID := c.Query("framework_id")
 	list, err := h.svc.ListRemediations(ctx, h.GetTenantID(c), frameworkID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": list})
+	middleware.RespondSuccess(c, list)
 }
 
 func (h *ComplianceHandler) CreateRemediation(c *gin.Context) {
@@ -160,15 +160,15 @@ func (h *ComplianceHandler) CreateRemediation(c *gin.Context) {
 	defer span.End()
 	var req models.CreateRemediationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	p, err := h.svc.CreateRemediation(ctx, h.GetTenantID(c), &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": p})
+	middleware.RespondCreated(c, p)
 }
 
 func (h *ComplianceHandler) UpdateRemediationStatus(c *gin.Context) {
@@ -178,13 +178,13 @@ func (h *ComplianceHandler) UpdateRemediationStatus(c *gin.Context) {
 		Status string `json:"status" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	p, err := h.svc.UpdateRemediationStatus(ctx, h.GetTenantID(c), c.Param("id"), req.Status)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": p})
+	middleware.RespondSuccess(c, p)
 }

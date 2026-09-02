@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -9,6 +8,7 @@ import (
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ci-cd/artifact-version/models"
 	"orion/platform-svc-go/internal/ci-cd/artifact-version/service"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type ArtifactVersionHandler struct {
@@ -45,10 +45,10 @@ func (h *ArtifactVersionHandler) ListVersions(c *gin.Context) {
 
 	resp, err := h.svc.QueryVersions(ctx, tenantID, artifactID, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "total": resp.Total, "data": resp.Data})
+	middleware.RespondSuccess(c, gin.H{"total": resp.Total, "data": resp.Data})
 }
 
 // CreateVersion creates a new version.
@@ -58,16 +58,16 @@ func (h *ArtifactVersionHandler) CreateVersion(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.CreateVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	version, err := h.svc.CreateVersion(ctx, tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "message": "created", "data": version})
+	middleware.RespondCreated(c, gin.H{"message": "created", "data": version})
 }
 
 // GetVersion returns a version by ID.
@@ -79,10 +79,10 @@ func (h *ArtifactVersionHandler) GetVersion(c *gin.Context) {
 
 	version, err := h.svc.GetVersion(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": version})
+	middleware.RespondSuccess(c, gin.H{"data": version})
 }
 
 // DeprecateVersion marks a version as deprecated.
@@ -94,10 +94,10 @@ func (h *ArtifactVersionHandler) DeprecateVersion(c *gin.Context) {
 
 	version, err := h.svc.DeprecateVersion(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": version})
+	middleware.RespondSuccess(c, gin.H{"data": version})
 }
 
 // ArchiveVersion marks a version as archived.
@@ -109,10 +109,10 @@ func (h *ArtifactVersionHandler) ArchiveVersion(c *gin.Context) {
 
 	version, err := h.svc.ArchiveVersion(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": version})
+	middleware.RespondSuccess(c, gin.H{"data": version})
 }
 
 // DeleteVersion removes a version.
@@ -123,8 +123,8 @@ func (h *ArtifactVersionHandler) DeleteVersion(c *gin.Context) {
 	id := c.Param("id")
 
 	if err := h.svc.DeleteVersion(ctx, tenantID, id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	middleware.RespondNoContent(c)
 }

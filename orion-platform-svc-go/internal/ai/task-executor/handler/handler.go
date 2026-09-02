@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -9,6 +8,7 @@ import (
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai/task-executor/models"
 	"orion/platform-svc-go/internal/ai/task-executor/service"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type TaskExecutorHandler struct {
@@ -44,10 +44,10 @@ func (h *TaskExecutorHandler) ListTasks(c *gin.Context) {
 
 	resp, err := h.svc.QueryTasks(ctx, tenantID, status, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "total": resp.Total, "data": resp.Data})
+	middleware.RespondSuccess(c, gin.H{"total": resp.Total, "data": resp.Data})
 }
 
 // CreateTask creates a new task.
@@ -57,16 +57,16 @@ func (h *TaskExecutorHandler) CreateTask(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.CreateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	task, err := h.svc.CreateTask(ctx, tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "message": "created", "data": task})
+	middleware.RespondCreated(c, gin.H{"message": "created", "data": task})
 }
 
 // GetTask returns a task by ID.
@@ -78,10 +78,10 @@ func (h *TaskExecutorHandler) GetTask(c *gin.Context) {
 
 	task, err := h.svc.GetTask(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": task})
+	middleware.RespondSuccess(c, task)
 }
 
 // ExecuteTask executes a task.
@@ -100,10 +100,10 @@ func (h *TaskExecutorHandler) ExecuteTask(c *gin.Context) {
 
 	task, err := h.svc.ExecuteTask(ctx, tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": task})
+	middleware.RespondSuccess(c, task)
 }
 
 // CancelTask cancels a task.
@@ -115,8 +115,8 @@ func (h *TaskExecutorHandler) CancelTask(c *gin.Context) {
 
 	task, err := h.svc.CancelTask(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": task})
+	middleware.RespondSuccess(c, task)
 }
