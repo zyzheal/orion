@@ -4,8 +4,9 @@
  *
  * 2026-05-19: 从 orion-visor-ui 批量执行模块迁移至 CMDB
  * 2026-05-20: 新增定时任务、文件上传 Tab
+ * 2026-09-02: 提取列定义至 BatchExecColumns.tsx, 配置至 BatchExecConfig.tsx (P2-9)
  */
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Typography,
   Card,
@@ -21,30 +22,18 @@ import {
   message,
   Tabs,
   Descriptions,
-  Statistic,
-  Row,
-  Col,
-  Popconfirm,
   Drawer,
-  Tooltip,
   Switch,
   Upload,
-  Progress,
   Empty,
 } from 'antd';
 import {
-  PlayCircleOutlined,
   ReloadOutlined,
+  PlayCircleOutlined,
   PlusOutlined,
-  DeleteOutlined,
-  EyeOutlined,
-  CopyOutlined,
-  CloudServerOutlined,
-  ClockCircleOutlined,
-  FileTextOutlined,
   ScheduleOutlined,
   UploadOutlined,
-  PauseCircleOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { getHosts, type HostInfo } from '@/api/cmdb';
 import {
@@ -65,50 +54,27 @@ import {
   listUploadTasks,
   cancelUploadTask,
 } from '@/api/visor-exec';
-import { colors, spacing } from '@/tokens';
+import { spacing, colors } from '@/tokens';
+import {
+  type ExecRecord,
+  buildExecColumns,
+  buildTemplateColumns,
+  buildCronJobColumns,
+  buildUploadColumns,
+} from './BatchExecColumns';
+import {
+  EXEC_STATUS_COLOR_MAP,
+  EXEC_STATUS_LABEL_MAP,
+  TEMPLATE_CATEGORY_OPTIONS,
+  BATCH_EXEC_TAB_KEYS,
+  renderStatsRow,
+} from './BatchExecConfig';
 
 const { Text } = Typography;
 const { TextArea } = Input;
 
-// ============================================================================
-// Types
-// ============================================================================
-
-interface ExecRecord {
-  id: string;
-  command: string;
-  hosts: string[];
-  hostnames: string[];
-  status: 'pending' | 'running' | 'success' | 'failed' | 'partial';
-  output: string;
-  errorOutput: string;
-  startTime: string;
-  endTime?: string;
-  operator: string;
-}
-
 // Re-export ScriptTemplate type from API client (adds updatedAt field)
 type ScriptTemplate = ScriptTemplateType;
-
-// ============================================================================
-// Status Maps
-// ============================================================================
-
-const statusColorMap: Record<ExecRecord['status'], string> = {
-  pending: 'blue',
-  running: 'orange',
-  success: 'green',
-  failed: 'red',
-  partial: 'orange',
-};
-
-const statusLabelMap: Record<ExecRecord['status'], string> = {
-  pending: '等待中',
-  running: '执行中',
-  success: '成功',
-  failed: '失败',
-  partial: '部分成功',
-};
 
 // ============================================================================
 // Command Execution Tab
@@ -185,78 +151,12 @@ const CommandExecTab: React.FC<{
     }
   };
 
-  const columns: TableProps<ExecRecord>['columns'] = [
-    {
-      title: '执行ID',
-      dataIndex: 'id',
-      key: 'id',
-      width: 120,
-      render: (v: string) => (
-        <Text code style={{ fontSize: 12 }}>
-          {v.slice(0, 12)}
-        </Text>
-      ),
+  const execColumns: TableProps<ExecRecord>['columns'] = buildExecColumns({
+    onViewResult: (record) => {
+      setSelectedRecord(record);
+      setViewingResult(true);
     },
-    {
-      title: '命令',
-      dataIndex: 'command',
-      key: 'command',
-      ellipsis: true,
-      render: (v: string) => (
-        <Text code style={{ fontSize: 12 }}>
-          {v}
-        </Text>
-      ),
-    },
-    {
-      title: '目标主机',
-      dataIndex: 'hostnames',
-      key: 'hostnames',
-      width: 200,
-      render: (v: string[]) => (
-        <Space wrap>
-          {v.slice(0, 2).map((name, i) => (
-            <Tag key={String(i)} icon={<CloudServerOutlined />}>
-              {name}
-            </Tag>
-          ))}
-          {v.length > 2 && <Tag>+{v.length - 2}</Tag>}
-        </Space>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (v: ExecRecord['status']) => <Tag color={statusColorMap[v]}>{statusLabelMap[v]}</Tag>,
-    },
-    {
-      title: '执行时间',
-      dataIndex: 'startTime',
-      key: 'startTime',
-      width: 170,
-      render: (v: string) => <Text type="secondary">{v}</Text>,
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 100,
-      render: (_: unknown, record: ExecRecord) => (
-        <Button
-          type="link"
-          size="small"
-          icon={<EyeOutlined />}
-          onClick={() => {
-            setSelectedRecord(record);
-            setViewingResult(true);
-          }}
-        >
-          查看结果
-        </Button>
-      ),
-    },
-  ];
+  });
 
   return (
     <div>
@@ -306,7 +206,7 @@ const CommandExecTab: React.FC<{
         </Button>
       </div>
       <Table
-        columns={columns}
+        columns={execColumns}
         dataSource={execRecords}
         rowKey="id"
         size="middle"
@@ -330,8 +230,8 @@ const CommandExecTab: React.FC<{
             <Descriptions bordered size="small" column={2} style={{ marginBottom: spacing.md }}>
               <Descriptions.Item label="执行ID">{selectedRecord.id}</Descriptions.Item>
               <Descriptions.Item label="状态">
-                <Tag color={statusColorMap[selectedRecord.status]}>
-                  {statusLabelMap[selectedRecord.status]}
+                <Tag color={EXEC_STATUS_COLOR_MAP[selectedRecord.status]}>
+                  {EXEC_STATUS_LABEL_MAP[selectedRecord.status]}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="目标主机" span={2}>
@@ -476,64 +376,11 @@ const ScriptTemplateTab: React.FC<{ onUseTemplate?: (tpl: ScriptTemplate) => voi
     }
   };
 
-  const columns: TableProps<ScriptTemplate>['columns'] = [
-    {
-      title: '名称',
-      dataIndex: 'name',
-      key: 'name',
-      width: 180,
-      render: (v: string) => (
-        <Space>
-          <FileTextOutlined style={{ color: colors.primary[500] }} />
-          <Text strong>{v}</Text>
-        </Space>
-      ),
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-      render: (v: string) => <Text type="secondary">{v || '-'}</Text>,
-    },
-    {
-      title: '类别',
-      dataIndex: 'category',
-      key: 'category',
-      width: 120,
-      render: (v: string) => <Tag>{v}</Tag>,
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 120,
-      render: (v: string) => <Text type="secondary">{v}</Text>,
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 200,
-      render: (_: unknown, record: ScriptTemplate) => (
-        <Space size="small">
-          <Button type="link" size="small" onClick={() => handleUse(record)}>
-            使用
-          </Button>
-          <Tooltip title="复制脚本内容">
-            <Button
-              type="link"
-              size="small"
-              icon={<CopyOutlined />}
-              onClick={() => handleCopy(record)}
-            />
-          </Tooltip>
-          <Popconfirm title="确认删除此模板？" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+  const templateColumns: TableProps<ScriptTemplate>['columns'] = buildTemplateColumns({
+    onUse: handleUse,
+    onCopy: handleCopy,
+    onDelete: handleDelete,
+  });
 
   return (
     <div>
@@ -545,7 +392,7 @@ const ScriptTemplateTab: React.FC<{ onUseTemplate?: (tpl: ScriptTemplate) => voi
       </div>
 
       <Table
-        columns={columns}
+        columns={templateColumns}
         dataSource={templates}
         rowKey="id"
         size="middle"
@@ -573,20 +420,9 @@ const ScriptTemplateTab: React.FC<{ onUseTemplate?: (tpl: ScriptTemplate) => voi
           <Form.Item label="描述" name="description">
             <Input placeholder="模板用途描述" />
           </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="类别" name="category" initialValue="自定义">
-                <Select
-                  options={[
-                    { label: '系统检查', value: '系统检查' },
-                    { label: '服务检查', value: '服务检查' },
-                    { label: '系统维护', value: '系统维护' },
-                    { label: '自定义', value: '自定义' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
+          <Form.Item label="类别" name="category" initialValue="自定义">
+            <Select options={TEMPLATE_CATEGORY_OPTIONS} />
+          </Form.Item>
           <Form.Item
             label="脚本内容"
             name="content"
@@ -699,95 +535,11 @@ const CronJobTab: React.FC = () => {
     }
   };
 
-  const columns: TableProps<CronJob>['columns'] = [
-    {
-      title: '任务名称',
-      dataIndex: 'name',
-      key: 'name',
-      width: 160,
-      render: (v: string) => (
-        <Space>
-          <ScheduleOutlined style={{ color: colors.primary[500] }} />
-          <Text strong>{v}</Text>
-        </Space>
-      ),
-    },
-    {
-      title: '命令',
-      dataIndex: 'command',
-      key: 'command',
-      ellipsis: true,
-      render: (v: string) => (
-        <Text code style={{ fontSize: 12 }}>
-          {v.slice(0, 50)}
-          {v.length > 50 ? '...' : ''}
-        </Text>
-      ),
-    },
-    {
-      title: '目标主机',
-      dataIndex: 'hostnames',
-      key: 'hostnames',
-      width: 180,
-      render: (v: string[]) => (
-        <Space wrap>
-          {v.slice(0, 2).map((name, i) => (
-            <Tag key={String(i)} icon={<CloudServerOutlined />}>
-              {name}
-            </Tag>
-          ))}
-          {v.length > 2 && <Tag>+{v.length - 2}</Tag>}
-        </Space>
-      ),
-    },
-    {
-      title: 'Cron 表达式',
-      dataIndex: 'cronExpression',
-      key: 'cronExpression',
-      width: 140,
-      render: (v: string) => (
-        <Text code style={{ fontSize: 12 }}>
-          {v}
-        </Text>
-      ),
-    },
-    {
-      title: '下次执行',
-      dataIndex: 'nextRunAt',
-      key: 'nextRunAt',
-      width: 160,
-      render: (v: string) => <Text type="secondary">{v || '-'}</Text>,
-    },
-    {
-      title: '状态',
-      dataIndex: 'enabled',
-      key: 'enabled',
-      width: 80,
-      render: (v: boolean, record: CronJob) => (
-        <Switch size="small" checked={v} onChange={(checked) => handleToggle(record.id, checked)} />
-      ),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 120,
-      render: (_: unknown, record: CronJob) => (
-        <Space size="small">
-          <Tooltip title="立即执行">
-            <Button
-              type="link"
-              size="small"
-              icon={<PlayCircleOutlined />}
-              onClick={() => handleRunNow(record.id)}
-            />
-          </Tooltip>
-          <Popconfirm title="确认删除此任务？" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+  const cronJobColumns: TableProps<CronJob>['columns'] = buildCronJobColumns({
+    onToggle: handleToggle,
+    onRunNow: handleRunNow,
+    onDelete: handleDelete,
+  });
 
   return (
     <div>
@@ -799,7 +551,7 @@ const CronJobTab: React.FC = () => {
       </div>
 
       <Table
-        columns={columns}
+        columns={cronJobColumns}
         dataSource={cronJobs}
         rowKey="id"
         size="middle"
@@ -924,114 +676,9 @@ const FileUploadTab: React.FC = () => {
     }
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
-  const columns: TableProps<UploadTask>['columns'] = [
-    {
-      title: '文件名',
-      dataIndex: 'fileName',
-      key: 'fileName',
-      render: (v: string) => (
-        <Space>
-          <FileTextOutlined style={{ color: colors.primary[500] }} />
-          <Text strong>{v}</Text>
-        </Space>
-      ),
-    },
-    {
-      title: '大小',
-      dataIndex: 'fileSize',
-      key: 'fileSize',
-      width: 100,
-      render: (v: number) => <Text code>{formatFileSize(v)}</Text>,
-    },
-    {
-      title: '目标主机',
-      dataIndex: 'hostnames',
-      key: 'hostnames',
-      width: 200,
-      render: (v: string[]) => (
-        <Space wrap>
-          {v.slice(0, 2).map((name, i) => (
-            <Tag key={String(i)} icon={<CloudServerOutlined />}>
-              {name}
-            </Tag>
-          ))}
-          {v.length > 2 && <Tag>+{v.length - 2}</Tag>}
-        </Space>
-      ),
-    },
-    {
-      title: '目标路径',
-      dataIndex: 'targetPath',
-      key: 'targetPath',
-      width: 160,
-      render: (v: string) => (
-        <Text code style={{ fontSize: 12 }}>
-          {v}
-        </Text>
-      ),
-    },
-    {
-      title: '进度',
-      dataIndex: 'progress',
-      key: 'progress',
-      width: 150,
-      render: (v: number, record: UploadTask) => (
-        <Progress
-          percent={v}
-          size="small"
-          status={
-            record.status === 'failed'
-              ? 'exception'
-              : record.status === 'success'
-                ? 'success'
-                : 'active'
-          }
-        />
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (v: UploadTask['status']) => {
-        const colorMap: Record<string, string> = {
-          pending: 'blue',
-          running: 'orange',
-          success: 'green',
-          failed: 'red',
-          partial: 'orange',
-        };
-        const labelMap: Record<string, string> = {
-          pending: '等待中',
-          running: '上传中',
-          success: '成功',
-          failed: '失败',
-          partial: '部分成功',
-        };
-        return <Tag color={colorMap[v]}>{labelMap[v]}</Tag>;
-      },
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 80,
-      render: (_: unknown, record: UploadTask) =>
-        record.status === 'running' || record.status === 'pending' ? (
-          <Popconfirm title="取消此上传任务？" onConfirm={() => handleCancel(record.id)}>
-            <Button type="link" size="small" danger icon={<PauseCircleOutlined />}>
-              取消
-            </Button>
-          </Popconfirm>
-        ) : null,
-    },
-  ];
+  const uploadColumns: TableProps<UploadTask>['columns'] = buildUploadColumns({
+    onCancel: handleCancel,
+  });
 
   return (
     <div>
@@ -1077,7 +724,7 @@ const FileUploadTab: React.FC = () => {
         </Button>
       </div>
       <Table
-        columns={columns}
+        columns={uploadColumns}
         dataSource={uploadTasks}
         rowKey="id"
         size="middle"
@@ -1122,7 +769,7 @@ const BatchExecPage: React.FC = () => {
 
   const tabItems = [
     {
-      key: 'exec',
+      key: BATCH_EXEC_TAB_KEYS.exec,
       label: (
         <span>
           <PlayCircleOutlined /> 命令执行
@@ -1137,7 +784,7 @@ const BatchExecPage: React.FC = () => {
       ),
     },
     {
-      key: 'templates',
+      key: BATCH_EXEC_TAB_KEYS.templates,
       label: (
         <span>
           <FileTextOutlined /> 脚本模板
@@ -1146,7 +793,7 @@ const BatchExecPage: React.FC = () => {
       children: <ScriptTemplateTab onUseTemplate={handleUseTemplate} />,
     },
     {
-      key: 'cron',
+      key: BATCH_EXEC_TAB_KEYS.cron,
       label: (
         <span>
           <ScheduleOutlined /> 定时任务
@@ -1155,7 +802,7 @@ const BatchExecPage: React.FC = () => {
       children: <CronJobTab />,
     },
     {
-      key: 'upload',
+      key: BATCH_EXEC_TAB_KEYS.upload,
       label: (
         <span>
           <UploadOutlined /> 文件上传
@@ -1167,40 +814,7 @@ const BatchExecPage: React.FC = () => {
 
   return (
     <div>
-      <Row gutter={16} style={{ marginBottom: spacing.md }}>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic title="执行总数" value={execStats.total} prefix={<ClockCircleOutlined />} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic
-              title="成功"
-              value={execStats.success}
-              valueStyle={{ color: colors.success[500] }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic
-              title="部分成功"
-              value={execStats.partial}
-              valueStyle={{ color: colors.warning[500] }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic
-              title="失败"
-              value={execStats.failed}
-              valueStyle={{ color: colors.error[500] }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      {renderStatsRow(execStats)}
 
       <Tabs defaultActiveKey="exec" items={tabItems} size="large" />
     </div>
