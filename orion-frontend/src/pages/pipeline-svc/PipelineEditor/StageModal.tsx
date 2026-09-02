@@ -34,6 +34,16 @@ import type {
   QualityGateConfig,
   QualityGateRule,
 } from './types';
+import {
+  STAGE_TYPES,
+  BUILD_PLATFORMS,
+  CONTAINER_NETWORK_OPTIONS,
+  APK_UPLOAD_TYPE_OPTIONS,
+  APK_MARKET_OPTIONS,
+  APK_CHANNEL_OPTIONS,
+  METRIC_OPTIONS,
+  OPERATOR_OPTIONS,
+} from './StageModalConfig';
 import MatrixConfigurator from '@/components/MatrixConfigurator';
 import PRTriggerConfigComponent, {
   type PRTriggerConfig as PRTriggerConfigType,
@@ -42,19 +52,6 @@ import { getPipelines } from '@/api/pipelines';
 import { colors, spacing } from '@/tokens';
 
 const { TextArea } = Input;
-
-const STAGE_TYPES = [
-  { label: '🔨 构建 (Build)', value: 'build' },
-  { label: '🧪 测试 (Test)', value: 'test' },
-  { label: '🔍 代码扫描 (Scan)', value: 'scan' },
-  { label: '🚀 部署 (Deploy)', value: 'deploy' },
-  { label: '📢 通知 (Notify)', value: 'notify' },
-  { label: '🔀 子流水线 (Sub-Pipeline)', value: 'sub-pipeline' },
-  { label: '🏷️ 多架构构建 (Buildx)', value: 'buildx' },
-  { label: '📦 容器运行 (Container)', value: 'container' },
-  { label: '📱 APK 上传 (APK Upload)', value: 'apk-upload' },
-  { label: '⚙️ 自定义 (Custom)', value: 'custom' },
-];
 
 interface StageModalProps {
   visible: boolean;
@@ -447,21 +444,6 @@ const StageModal: React.FC<StageModalProps> = ({
     }));
   };
 
-  const METRIC_OPTIONS = [
-    { label: '测试通过率', value: 'test_pass_rate' },
-    { label: '代码覆盖率', value: 'coverage' },
-    { label: '漏洞数量', value: 'vulnerability_count' },
-    { label: '自定义指标', value: 'custom' },
-  ];
-
-  const OPERATOR_OPTIONS = [
-    { label: '>', value: '>' },
-    { label: '<', value: '<' },
-    { label: '>=', value: '>=' },
-    { label: '<=', value: '<=' },
-    { label: '==', value: '==' },
-  ];
-
   return (
     <Modal
       title={stage ? '编辑阶段' : '添加阶段'}
@@ -702,13 +684,7 @@ const StageModal: React.FC<StageModalProps> = ({
                   <Select
                     mode="multiple"
                     placeholder="选择目标平台"
-                    options={[
-                      { label: 'linux/amd64', value: 'linux/amd64' },
-                      { label: 'linux/arm64', value: 'linux/arm64' },
-                      { label: 'linux/arm/v7', value: 'linux/arm/v7' },
-                      { label: 'linux/s390x', value: 'linux/s390x' },
-                      { label: 'linux/ppc64le', value: 'linux/ppc64le' },
-                    ]}
+                    options={BUILD_PLATFORMS}
                   />
                 </Form.Item>
 
@@ -855,11 +831,7 @@ const StageModal: React.FC<StageModalProps> = ({
                     <Form.Item label="网络模式" name="containerNetwork" tooltip="容器网络模式">
                       <Select
                         placeholder="选择网络模式"
-                        options={[
-                          { label: 'host', value: 'host' },
-                          { label: 'bridge', value: 'bridge' },
-                          { label: 'none', value: 'none' },
-                        ]}
+                        options={CONTAINER_NETWORK_OPTIONS}
                       />
                     </Form.Item>
                   </Card>
@@ -879,10 +851,7 @@ const StageModal: React.FC<StageModalProps> = ({
                     >
                       <Select
                         placeholder="选择上传类型"
-                        options={[
-                          { label: '单市场 (Single)', value: 'single' },
-                          { label: '多市场并行 (Parallel)', value: 'parallel' },
-                        ]}
+                        options={APK_UPLOAD_TYPE_OPTIONS}
                       />
                     </Form.Item>
 
@@ -894,18 +863,7 @@ const StageModal: React.FC<StageModalProps> = ({
                     >
                       <Select
                         placeholder="选择目标市场"
-                        options={[
-                          { label: '华为 AppGallery', value: 'huawei' },
-                          { label: '小米应用商店', value: 'xiaomi' },
-                          { label: 'OPPO 软件商店', value: 'oppo' },
-                          { label: 'VIVO 应用商店', value: 'vivo' },
-                          { label: '荣耀应用市场', value: 'honor' },
-                          { label: '腾讯应用宝', value: 'tencent' },
-                          { label: 'Google Play', value: 'googleplay' },
-                          { label: '三星 Galaxy Store', value: 'samsung' },
-                          { label: '蒲公英', value: 'pgyer' },
-                          { label: 'fir.im', value: 'fir' },
-                        ]}
+                        options={APK_MARKET_OPTIONS}
                       />
                     </Form.Item>
 
@@ -925,18 +883,7 @@ const StageModal: React.FC<StageModalProps> = ({
                             <Select
                               mode="multiple"
                               placeholder="选择多个目标市场"
-                              options={[
-                                { label: '华为 AppGallery', value: 'huawei' },
-                                { label: '小米应用商店', value: 'xiaomi' },
-                                { label: 'OPPO 软件商店', value: 'oppo' },
-                                { label: 'VIVO 应用商店', value: 'vivo' },
-                                { label: '荣耀应用市场', value: 'honor' },
-                                { label: '腾讯应用宝', value: 'tencent' },
-                                { label: 'Google Play', value: 'googleplay' },
-                                { label: '三星 Galaxy Store', value: 'samsung' },
-                                { label: '蒲公英', value: 'pgyer' },
-                                { label: 'fir.im', value: 'fir' },
-                              ]}
+                              options={APK_MARKET_OPTIONS}
                             />
                           </Form.Item>
                         )
@@ -957,18 +904,7 @@ const StageModal: React.FC<StageModalProps> = ({
                           >
                             <Select
                               placeholder="选择目标市场"
-                              options={[
-                                { label: '华为 AppGallery', value: 'huawei' },
-                                { label: '小米应用商店', value: 'xiaomi' },
-                                { label: 'OPPO 软件商店', value: 'oppo' },
-                                { label: 'VIVO 应用商店', value: 'vivo' },
-                                { label: '荣耀应用市场', value: 'honor' },
-                                { label: '腾讯应用宝', value: 'tencent' },
-                                { label: 'Google Play', value: 'googleplay' },
-                                { label: '三星 Galaxy Store', value: 'samsung' },
-                                { label: '蒲公英', value: 'pgyer' },
-                                { label: 'fir.im', value: 'fir' },
-                              ]}
+                              options={APK_MARKET_OPTIONS}
                             />
                           </Form.Item>
                         )
@@ -1016,12 +952,7 @@ const StageModal: React.FC<StageModalProps> = ({
                     >
                       <Select
                         placeholder="选择发布渠道"
-                        options={[
-                          { label: '正式 (Production)', value: 'production' },
-                          { label: '测试版 (Beta)', value: 'beta' },
-                          { label: '内测版 (Alpha)', value: 'alpha' },
-                          { label: '内部 (Internal)', value: 'internal' },
-                        ]}
+                        options={APK_CHANNEL_OPTIONS}
                       />
                     </Form.Item>
                   </Card>
