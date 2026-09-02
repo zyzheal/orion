@@ -110,7 +110,7 @@ func (h *AlertCorrelationHandler) DeleteGroup(c *gin.Context) {
 		errors.WriteSuccessNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	middleware.RespondNoContent(c)
 }
 
 // CreateRule creates a correlation rule.
