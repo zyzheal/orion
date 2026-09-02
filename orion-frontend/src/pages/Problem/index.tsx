@@ -23,7 +23,6 @@ import {
   message,
   Card,
   Descriptions,
-  Popconfirm,
   Row,
   Col,
   Spin,
@@ -32,24 +31,28 @@ import {
   PlusOutlined,
   BugOutlined,
   EditOutlined,
-  DeleteOutlined,
   EyeOutlined,
   ReloadOutlined,
   LinkOutlined,
   ArrowRightOutlined,
   BookOutlined,
   ExclamationCircleOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  SyncOutlined,
-  WarningOutlined,
-  InfoCircleOutlined,
 } from '@ant-design/icons';
 import { Layout } from '@/components/Layout';
-import Table, { type TableColumn } from '@/components/Table';
-import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
+import Table from '@/components/Table';
+import SearchFilterBar from '@/components/SearchFilterBar';
 import MetricCard from '@/components/MetricCard';
-import { colors, spacing, radius, componentRadius, shadows } from '@/tokens';
+import { colors, spacing, radius, shadows } from '@/tokens';
+import {
+  severityConfig,
+  statusConfig,
+  statusTransitions,
+  KEDB_DEFAULT_PAGE_SIZE,
+  severityOptions,
+  problemStatusOptions,
+  knownErrorStatusOptions,
+} from './config';
+import { buildProblemColumns, buildKedbColumns } from './columns';
 import {
   getProblems,
   getProblem,
@@ -71,46 +74,6 @@ import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-/** Severity configuration with color coding */
-const severityConfig: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
-  critical: { color: 'red', label: '严重', icon: <ExclamationCircleOutlined /> },
-  high: { color: 'orange', label: '高', icon: <WarningOutlined /> },
-  medium: { color: 'blue', label: '中', icon: <InfoCircleOutlined /> },
-  low: { color: 'green', label: '低', icon: <InfoCircleOutlined /> },
-};
-
-/** Problem status configuration */
-const statusConfig: Record<string, { color: string; label: string }> = {
-  known: { color: 'purple', label: '已知' },
-  investigating: { color: 'orange', label: '调查中' },
-  resolved: { color: 'green', label: '已解决' },
-  closed: { color: 'default', label: '已关闭' },
-};
-
-/** Known error status configuration */
-const knownErrorStatusConfig: Record<string, { color: string; label: string }> = {
-  active: { color: 'green', label: '活跃' },
-  resolved: { color: 'blue', label: '已解决' },
-  archived: { color: 'default', label: '已归档' },
-};
-
-/** Status transition map: current -> next available statuses */
-const statusTransitions: Record<
-  string,
-  { status: string; label: string; icon: React.ReactNode }[]
-> = {
-  known: [{ status: 'investigating', label: '开始调查', icon: <SyncOutlined /> }],
-  investigating: [{ status: 'resolved', label: '标记解决', icon: <CheckCircleOutlined /> }],
-  resolved: [{ status: 'closed', label: '关闭问题', icon: <CloseCircleOutlined /> }],
-  closed: [],
-};
-
-const KEDB_DEFAULT_PAGE_SIZE = 20;
 
 // ============================================================================
 // Component
@@ -556,135 +519,26 @@ const ProblemPage: React.FC = () => {
   // Tab 1: Problem List
   // ============================================================================
 
-  /** Problem list table columns */
-  const problemColumns: TableColumn<Problem>[] = useMemo<TableColumn<Problem>[]>(
-    () => [
-      {
-        key: 'title',
-        title: '标题',
-        dataIndex: 'title',
-        render: (_value, record) => (
-          <Text
-            strong
-            style={{ color: colors.primary[600], cursor: 'pointer' }}
-            onClick={() => handleViewDetail(record)}
-          >
-            {record.title}
-          </Text>
-        ),
-      },
-      {
-        key: 'severity',
-        title: '严重级别',
-        dataIndex: 'severity',
-        width: 90,
-        render: (_value, record) => {
-          const sev = severityConfig[record.severity] || severityConfig.medium;
-          return (
-            <Tag color={sev.color} icon={sev.icon}>
-              {sev.label}
-            </Tag>
-          );
-        },
-      },
-      {
-        key: 'status',
-        title: '状态',
-        dataIndex: 'status',
-        width: 100,
-        render: (_value, record) => {
-          const st = statusConfig[record.status] || statusConfig.known;
-          return <Tag color={st.color}>{st.label}</Tag>;
-        },
-      },
-      {
-        key: 'category',
-        title: '分类',
-        dataIndex: 'category',
-        width: 120,
-        render: (_value, record) => <Text type="secondary">{record.category || '-'}</Text>,
-      },
-      {
-        key: 'assigned_to',
-        title: '负责人',
-        dataIndex: 'assigned_to',
-        width: 120,
-        render: (_value, record) => <Text>{record.assigned_to || '-'}</Text>,
-      },
-      {
-        key: 'created_at',
-        title: '创建时间',
-        dataIndex: 'created_at',
-        width: 170,
-        render: (_value, record) => (
-          <Text type="secondary" style={{ fontSize: 13 }}>
-            {record.created_at ? dayjs(record.created_at).format('YYYY-MM-DD HH:mm') : '-'}
-          </Text>
-        ),
-      },
-      {
-        key: 'actions',
-        title: '操作',
-        width: 160,
-        render: (_value, record) => (
-          <Space size={4}>
-            <Button
-              type="text"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => handleViewDetail(record)}
-              title="查看详情"
-            />
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => handleOpenEditModal(record)}
-              title="编辑"
-            />
-            <Popconfirm
-              title="确定删除此问题?"
-              description="删除后不可恢复"
-              onConfirm={() => handleDelete(record.id)}
-              okText="删除"
-              cancelText="取消"
-              okButtonProps={{ danger: true }}
-            >
-              <Button type="text" size="small" danger icon={<DeleteOutlined />} title="删除" />
-            </Popconfirm>
-          </Space>
-        ),
-      },
-    ],
-    [handleDelete, handleOpenEditModal, handleViewDetail]
-  );
+  /** Problem list table columns (lazy, depends on handlers) */
+  const problemColumns = buildProblemColumns({
+    handleViewDetail,
+    handleOpenEditModal,
+    handleDelete,
+  });
 
   /** Filter definitions for problem list SearchFilterBar */
-  const problemFilterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
-    () => [
-      {
-        key: 'severity',
-        label: '严重级别',
-        options: [
-          { label: '严重', value: 'critical' },
-          { label: '高', value: 'high' },
-          { label: '中', value: 'medium' },
-          { label: '低', value: 'low' },
-        ],
-      },
-      {
-        key: 'status',
-        label: '状态',
-        options: [
-          { label: '已知', value: 'known' },
-          { label: '调查中', value: 'investigating' },
-          { label: '已解决', value: 'resolved' },
-          { label: '已关闭', value: 'closed' },
-        ],
-      },
-    ],
-    []
-  );
+  const problemFilterDefs = [
+    {
+      key: 'severity',
+      label: '严重级别',
+      options: severityOptions,
+    },
+    {
+      key: 'status',
+      label: '状态',
+      options: problemStatusOptions,
+    },
+  ];
 
   const problemListContent = (
     <div>
@@ -899,119 +753,20 @@ const ProblemPage: React.FC = () => {
   // Tab 3: KEDB
   // ============================================================================
 
-  /** KEDB table columns */
-  const kedbColumns: TableColumn<KnownError>[] = useMemo<TableColumn<KnownError>[]>(
-    () => [
-      {
-        key: 'title',
-        title: '标题',
-        dataIndex: 'title',
-        render: (_value, record) => <Text strong>{record.title}</Text>,
-      },
-      {
-        key: 'symptoms',
-        title: '症状',
-        dataIndex: 'symptoms',
-        width: 180,
-        ellipsis: true,
-        render: (_value, record) => <Text type="secondary">{record.symptoms || '-'}</Text>,
-      },
-      {
-        key: 'root_cause',
-        title: '根因',
-        dataIndex: 'root_cause',
-        width: 180,
-        ellipsis: true,
-        render: (_value, record) => <Text type="secondary">{record.root_cause || '-'}</Text>,
-      },
-      {
-        key: 'workaround',
-        title: '临时方案',
-        dataIndex: 'workaround',
-        width: 180,
-        ellipsis: true,
-        render: (_value, record) => <Text type="secondary">{record.workaround || '-'}</Text>,
-      },
-      {
-        key: 'status',
-        title: '状态',
-        dataIndex: 'status',
-        width: 90,
-        render: (_value, record) => {
-          const keStatus = knownErrorStatusConfig[record.status] || knownErrorStatusConfig.active;
-          return <Tag color={keStatus.color}>{keStatus.label}</Tag>;
-        },
-      },
-      {
-        key: 'keywords',
-        title: '关键词',
-        width: 160,
-        render: (_value, record) => (
-          <Space wrap size={4}>
-            {(record.keywords || []).slice(0, 3).map((kw) => (
-              <Tag key={kw} style={{ borderRadius: componentRadius.tag }}>
-                {kw}
-              </Tag>
-            ))}
-            {(record.keywords || []).length > 3 && <Tag>+{record.keywords.length - 3}</Tag>}
-          </Space>
-        ),
-      },
-      {
-        key: 'created_at',
-        title: '创建时间',
-        dataIndex: 'created_at',
-        width: 170,
-        render: (_value, record) => (
-          <Text type="secondary" style={{ fontSize: 13 }}>
-            {record.created_at ? dayjs(record.created_at).format('YYYY-MM-DD HH:mm') : '-'}
-          </Text>
-        ),
-      },
-      {
-        key: 'actions',
-        title: '操作',
-        width: 120,
-        render: (_value, record) => (
-          <Space size={4}>
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => handleOpenKedbEditModal(record)}
-              title="编辑"
-            />
-            <Popconfirm
-              title="确定删除此已知错误?"
-              onConfirm={() => handleDeleteKnownError(record.id)}
-              okText="删除"
-              cancelText="取消"
-              okButtonProps={{ danger: true }}
-            >
-              <Button type="text" size="small" danger icon={<DeleteOutlined />} title="删除" />
-            </Popconfirm>
-          </Space>
-        ),
-      },
-    ],
-    [handleDeleteKnownError, handleOpenKedbEditModal]
-  );
+  /** KEDB table columns (lazy, depends on handlers) */
+  const kedbColumns = buildKedbColumns({
+    handleOpenKedbEditModal,
+    handleDeleteKnownError,
+  });
 
   /** Filter definitions for KEDB SearchFilterBar */
-  const kedbFilterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
-    () => [
-      {
-        key: 'kedbStatus',
-        label: '状态',
-        options: [
-          { label: '活跃', value: 'active' },
-          { label: '已解决', value: 'resolved' },
-          { label: '已归档', value: 'archived' },
-        ],
-      },
-    ],
-    []
-  );
+  const kedbFilterDefs = [
+    {
+      key: 'kedbStatus',
+      label: '状态',
+      options: knownErrorStatusOptions,
+    },
+  ];
 
   const kedbContent = (
     <div>
@@ -1147,12 +902,7 @@ const ProblemPage: React.FC = () => {
                 >
                   <Select
                     placeholder="选择级别"
-                    options={[
-                      { label: '严重', value: 'critical' },
-                      { label: '高', value: 'high' },
-                      { label: '中', value: 'medium' },
-                      { label: '低', value: 'low' },
-                    ]}
+                    options={severityOptions}
                   />
                 </Form.Item>
               </Col>
@@ -1204,12 +954,7 @@ const ProblemPage: React.FC = () => {
                 >
                   <Select
                     placeholder="选择级别"
-                    options={[
-                      { label: '严重', value: 'critical' },
-                      { label: '高', value: 'high' },
-                      { label: '中', value: 'medium' },
-                      { label: '低', value: 'low' },
-                    ]}
+                    options={severityOptions}
                   />
                 </Form.Item>
               </Col>
@@ -1371,11 +1116,7 @@ const ProblemPage: React.FC = () => {
             </Form.Item>
             <Form.Item name="status" label="状态">
               <Select
-                options={[
-                  { label: '活跃', value: 'active' },
-                  { label: '已解决', value: 'resolved' },
-                  { label: '已归档', value: 'archived' },
-                ]}
+                options={knownErrorStatusOptions}
               />
             </Form.Item>
           </Form>
