@@ -129,7 +129,7 @@
 | ~~**P2-6** | /digital-twin 重复路由 | merged-action-items | 核实: 当前 routes.tsx 仅 1 条 digital-twin 路由，重复已修复 | ✅ 2026-08-31 |
 | ~~**P2-7** | 前端 `any` 类型清理 | 三域分析 | ~~共享基础设施 19 处已完成（api/×6 + stores/×4 + utils/×1），`tsc` 0 错误；pages 层 1118 处保留（Ant Design columns 内联/第三方类型）~~ | ✅ 2026-09-02（shared 已清） |
 | ~~**P2-8** | 前端 `console.log` 残留 | 三域分析 | 核实: 生产代码 0 处 console.log (2 处均在 __tests__ 测试数据中) | ✅ 2026-08-31 |
-| **P2-9** | 前端最大页面拆分 | 三域分析 | ChangeManagement(1899行) 等超大单文件拆分 | 2-3 天 |
+| **P2-9** | 前端最大页面拆分 | 三域分析 | ChangeManagement 2111→884行(-58%), 拆出 config.tsx/columns.tsx/ChangeForm.tsx/stats.tsx/RFCForm.tsx/CABForm.tsx/CABDetailContent.tsx/RFCDetailContent.tsx/DecisionForm.tsx/ChangeDetailPanel.tsx/StatusNoteForm.tsx/TimelineEventForm.tsx/RequestsTab.tsx/RFCsTab.tsx/CABsTab.tsx/ChangeManagementModals.tsx 共 16 文件；index.tsx 仅保留状态/数据处理/事件处理逻辑 | 🟡 部分完成 2026-09-02 (884行) |
 | **P2-10** | 安装 @tanstack/react-query | merged-action-items | ✅ 已安装；**但"11/11"仅指自行圈定的 11 个文件**。真实盘点：467 个页面组件中仅 24 个使用 react-query。附带修复：该批次曾静默删除 10 个页面约 20 处加载失败提示（Batch X 已恢复），并遗留 9 处 TS 错误 + 弄坏 2 个测试文件（已修） | ⚠️ 部分完成，见 P2-12 |
 | **P2-12** | 剩余 308 个页面 react-query 迁移 | Batch X 盘点 | `useEffect + useState(setLoading)` 手动加载模式仍占 308 个页面（467 总页面的 66%）。**前置约束**：本仓库 `@tanstack/query-core@5.101.4` 的 `QueryObserver` 未实现 observer 级回调，`useQuery` 的 `onError/onSuccess` 是**静默 no-op**（`useMutation` 正常）。必须用 `isError + useEffect` 呈现错误反馈，否则每个页面都会丢失加载失败提示。见 `src/providers/QueryProvider.tsx` 顶部注释 | 10-15 天 |
 | **P2-13** | 修复 17 个遗留失败测试文件 | ✅ 完成 | 基线 17 failed / 55 用例。Batch AB 修 6 文件 / 31 用例（datasource 11 + AgentDashboard 8 + SbomDashboard 3 + Login 1 + NotificationRules 4 + CronManagement 3 + 13 API 测试 `beforeEach` 类型修正）；Batch AC 再修 11 文件 / 26 用例（Form 2 + Login 2 + ApiKey 3 + Webhook 3 + ProductLine 3 + Console 6 + InternalLibrary 1 + Projects 2 + DashboardNew 2 + RiskDashboard 1 + CMDB 1）。**当前 0 失败** | 2-3 天 |
@@ -143,7 +143,7 @@
 | ~~**G7** | RPO 精确化 | Phase 7 计划 | ~~抽 `rpoFromArchives(archives, targetTime, baseCompleted)` helper：从 newest 倒序选目标时间前最近的 archive `WindowStart`（真实提交时间戳，archiver.go 以文件 ModTime 填充）作锚点，不再取最后一段（可能提交于目标后）；每段均在目标后/无 archive 时回退 base backup `CompletedAt` 近似；锚点 nil 时打 warn；`recovery_service_test.go` 新增 5 用例：目标前最近段/全在目标后回退 base/无 archive 用 base/空输入 nil/恰好目标时刻 RPO=0~~ | ✅ **完成 2026-08-31** |
 | ~~**G8** | 存储后端增强（P3 低优先） | Phase 7 计划 | ~~`backup_service.go:419-436` `storageBackendFor` 区分 local/S3/MinIO 能力差异；S3/MinIO 断点续传（multipart）、生命周期策略、冷热分层；本轮仅设计 + 接口定义 + 单测，不要求生产级实现~~ | ✅ **完成 2026-08-31** |
 
-**P2 合计工作量**: 6-17 天（P2-1/P2-3/P2-4/P2-5/P2-6/P2-7/P2-8/P2-10/P2-11/P2-14/P2-15 已完成，G5-G8 于 2026-08-31 全部完成；剩余 P2-2/9/12/16）
+**P2 合计工作量**: 6-17 天（P2-1/P2-3/P2-4/P2-5/P2-6/P2-7/P2-8/P2-10/P2-11/P2-14/P2-15 已完成，P2-9 ChangeManagement 拆分进行至 884 行（2111→884，-58%，16 文件），G5-G8 于 2026-08-31 全部完成；剩余 P2-2/9/12/16）
 
 ---
 
