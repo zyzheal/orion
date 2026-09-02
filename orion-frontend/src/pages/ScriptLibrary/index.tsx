@@ -81,6 +81,7 @@ import {
   buildParamColumns,
   buildExecutionColumns,
 } from './columns';
+import { ScriptLibraryModals } from './ScriptLibraryModals';
 
 export default function ScriptLibraryPage() {
   // Script list state
@@ -850,404 +851,59 @@ export default function ScriptLibraryPage() {
         ]}
       />
 
-      {/* ==================== Create/Edit Script Modal ==================== */}
-      <Modal
-        title={editingScript ? '编辑脚本' : '创建脚本'}
-        open={scriptModalVisible}
-        onOk={handleSaveScript}
-        confirmLoading={scriptConfirmLoading}
-        onCancel={() => setScriptModalVisible(false)}
-        width={600}
-      >
-        <Form form={scriptForm} layout="vertical">
-          <Form.Item
-            name="name"
-            label="名称"
-            rules={[{ required: true, message: '请输入脚本名称' }]}
-          >
-            <Input placeholder="输入脚本名称" />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <TextArea rows={2} placeholder="输入脚本描述" />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="scriptType"
-                label="脚本类型"
-                rules={[{ required: true, message: '请选择脚本类型' }]}
-              >
-                <Select placeholder="选择脚本类型">
-                  {Object.entries(scriptTypeLabel).map(([val, label]) => (
-                    <Select.Option key={val} value={val}>
-                      {label}
-                    </Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="category" label="分类">
-                <Select placeholder="选择或输入分类" allowClear showSearch>
-                  {categoryOptions.map((cat) => (
-                    <Select.Option key={cat} value={cat}>
-                      {cat}
-                    </Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="tags" label="标签">
-            <Select mode="tags" placeholder="输入标签后回车" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* ==================== Detail Drawer ==================== */}
-      <Drawer
-        title={selectedScript?.name ?? '脚本详情'}
-        open={drawerVisible}
-        onClose={() => setDrawerVisible(false)}
-        width={700}
-      >
-        {selectedScript && (
-          <>
-            <Descriptions column={2} bordered size="small" style={{ marginBottom: spacing.lg }}>
-              <Descriptions.Item label="类型">
-                <Tag color={scriptTypeColor[selectedScript.scriptType]}>
-                  {scriptTypeLabel[selectedScript.scriptType]}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="分类">{selectedScript.category ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label="描述" span={2}>
-                {selectedScript.description ?? '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="标签" span={2}>
-                {selectedScript.tags?.length ? (
-                  <Space size={4} wrap>
-                    {selectedScript.tags.map((t) => (
-                      <Tag key={t}>{t}</Tag>
-                    ))}
-                  </Space>
-                ) : (
-                  '-'
-                )}
-              </Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <Tag color={selectedScript.enabled ? 'green' : 'default'}>
-                  {selectedScript.enabled ? '启用' : '禁用'}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="创建时间">
-                {dayjs(selectedScript.createdAt).format('YYYY-MM-DD HH:mm')}
-              </Descriptions.Item>
-            </Descriptions>
-
-            {/* Version History */}
-            <div style={{ marginBottom: spacing.lg }}>
-              <Row justify="space-between" align="middle" style={{ marginBottom: spacing.sm }}>
-                <Title level={4} style={{ margin: 0 }}>
-                  版本历史
-                </Title>
-                <Space>
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    size="small"
-                    onClick={handleCreateVersion}
-                  >
-                    新建版本
-                  </Button>
-                </Space>
-              </Row>
-              {versions.length === 0 ? (
-                <Empty description="暂无版本" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-              ) : (
-                <Timeline
-                  items={versions.map((v) => ({
-                    color: colors.primary[500],
-                    children: (
-                      <div>
-                        <Space>
-                          <Tag color="blue">v{v.version}</Tag>
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            {dayjs(v.createdAt).format('YYYY-MM-DD HH:mm')}
-                          </Text>
-                          <Popconfirm
-                            title={`确认回滚到 v${v.version}？`}
-                            onConfirm={() => handleRollback(v.version)}
-                          >
-                            <Button type="link" size="small" icon={<RollbackOutlined />}>
-                              回滚
-                            </Button>
-                          </Popconfirm>
-                        </Space>
-                        {v.changelog && (
-                          <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
-                            {v.changelog}
-                          </Text>
-                        )}
-                      </div>
-                    ),
-                  }))}
-                />
-              )}
-            </div>
-
-            {/* Parameters */}
-            <div>
-              <Row justify="space-between" align="middle" style={{ marginBottom: spacing.sm }}>
-                <Title level={4} style={{ margin: 0 }}>
-                  <SettingOutlined style={{ marginRight: 8 }} />
-                  参数配置
-                </Title>
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  size="small"
-                  onClick={handleAddParam}
-                >
-                  添加参数
-                </Button>
-              </Row>
-              {parameters.length === 0 ? (
-                <Empty description="暂无参数配置" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-              ) : (
-                <Table
-                  columns={paramColumns}
-                  dataSource={parameters}
-                  rowKey="paramKey"
-                  loading={paramsLoading}
-                  size="small"
-                  pagination={false}
-                />
-              )}
-            </div>
-          </>
-        )}
-      </Drawer>
-
-      {/* ==================== Create Version Modal ==================== */}
-      <Modal
-        title="创建新版本"
-        open={versionModalVisible}
-        onOk={handleSaveVersion}
-        onCancel={() => setVersionModalVisible(false)}
-        width={600}
-      >
-        <Form form={versionForm} layout="vertical">
-          <Form.Item
-            name="content"
-            label="脚本内容"
-            rules={[{ required: true, message: '请输入脚本内容' }]}
-          >
-            <TextArea
-              rows={12}
-              placeholder="输入脚本代码..."
-              style={{ fontFamily: 'monospace', fontSize: 13 }}
-            />
-          </Form.Item>
-          <Form.Item name="changelog" label="变更说明">
-            <Input placeholder="描述本次变更内容" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* ==================== Parameter Modal ==================== */}
-      <Modal
-        title={editingParam ? '编辑参数' : '添加参数'}
-        open={paramModalVisible}
-        onOk={handleSaveParam}
-        onCancel={() => setParamModalVisible(false)}
-        width={500}
-      >
-        <Form form={paramForm} layout="vertical">
-          <Form.Item
-            name="paramKey"
-            label="参数名"
-            rules={[{ required: true, message: '请输入参数名' }]}
-          >
-            <Input placeholder="例如: target_host" disabled={!!editingParam} />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="paramType"
-                label="参数类型"
-                rules={[{ required: true, message: '请选择参数类型' }]}
-              >
-                <Select>
-                  {Object.entries(paramTypeLabel).map(([val, label]) => (
-                    <Select.Option key={val} value={val}>
-                      {label}
-                    </Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="required" label="是否必填" valuePropName="checked">
-                <Select>
-                  <Select.Option value={true}>是</Select.Option>
-                  <Select.Option value={false}>否</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="defaultValue" label="默认值">
-            <Input placeholder="输入默认值" />
-          </Form.Item>
-          <Form.Item name="description" label="说明">
-            <Input placeholder="参数用途说明" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* ==================== Execute Script Modal ==================== */}
-      <Modal
-        title={`执行脚本: ${executingScript?.name ?? ''}`}
-        open={executeModalVisible}
-        onOk={handleExecute}
-        onCancel={() => setExecuteModalVisible(false)}
-        width={600}
-        okText="执行"
-        okButtonProps={{ icon: <PlayCircleOutlined /> }}
-      >
-        <Form form={executeForm} layout="vertical">
-          {parameters.length > 0 && (
-            <>
-              <Title level={5} style={{ marginBottom: spacing.sm }}>
-                参数设置
-              </Title>
-              {parameters.map((param) => (
-                <Form.Item
-                  key={param.paramKey}
-                  name={['params', param.paramKey]}
-                  label={
-                    <Space>
-                      <Text code>{param.paramKey}</Text>
-                      <Tag style={{ borderRadius: 4 }}>{paramTypeLabel[param.paramType]}</Tag>
-                      {param.required && <Tag color="red">必填</Tag>}
-                    </Space>
-                  }
-                  rules={
-                    param.required
-                      ? [{ required: true, message: `请输入 ${param.paramKey}` }]
-                      : undefined
-                  }
-                  extra={param.description}
-                >
-                  {param.paramType === 'number' ? (
-                    <InputNumber style={{ width: '100%' }} placeholder="输入数字" />
-                  ) : param.paramType === 'boolean' ? (
-                    <Select placeholder="选择">
-                      <Select.Option value="true">true</Select.Option>
-                      <Select.Option value="false">false</Select.Option>
-                    </Select>
-                  ) : param.paramType === 'secret' ? (
-                    <Input.Password placeholder="输入密钥值" />
-                  ) : (
-                    <Input placeholder={`输入 ${param.paramKey}`} />
-                  )}
-                </Form.Item>
-              ))}
-            </>
-          )}
-          <Form.Item name="targets" label="执行目标" extra="可选，指定执行主机或目标">
-            <Input placeholder="例如: 192.168.1.10 或 host-group-name" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* ==================== Execution Detail Drawer ==================== */}
-      <Drawer
-        title="执行详情"
-        open={execDetailVisible}
-        onClose={() => setExecDetailVisible(false)}
-        width={500}
-      >
-        {selectedExecution && (
-          <>
-            <Descriptions column={1} bordered size="small" style={{ marginBottom: spacing.md }}>
-              <Descriptions.Item label="状态">
-                <Tag color={statusColor[selectedExecution.status]}>
-                  {statusLabel[selectedExecution.status]}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="版本">v{selectedExecution.version}</Descriptions.Item>
-              <Descriptions.Item label="执行者">
-                {selectedExecution.executedBy ?? '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="耗时">
-                {selectedExecution.durationMs != null ? `${selectedExecution.durationMs}ms` : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="执行时间">
-                {dayjs(selectedExecution.createdAt).format('YYYY-MM-DD HH:mm:ss')}
-              </Descriptions.Item>
-            </Descriptions>
-
-            {selectedExecution.params && Object.keys(selectedExecution.params).length > 0 && (
-              <div style={{ marginBottom: spacing.md }}>
-                <Title level={5}>执行参数</Title>
-                <Card size="small" style={{ background: colors.neutral[50] }}>
-                  <pre
-                    style={{
-                      margin: 0,
-                      whiteSpace: 'pre-wrap',
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                    }}
-                  >
-                    {JSON.stringify(selectedExecution.params, null, 2)}
-                  </pre>
-                </Card>
-              </div>
-            )}
-
-            {selectedExecution.output && (
-              <div style={{ marginBottom: spacing.md }}>
-                <Title level={5}>输出</Title>
-                <Card size="small" style={{ background: colors.neutral[50] }}>
-                  <pre
-                    style={{
-                      margin: 0,
-                      whiteSpace: 'pre-wrap',
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                      maxHeight: 300,
-                      overflow: 'auto',
-                    }}
-                  >
-                    {selectedExecution.output}
-                  </pre>
-                </Card>
-              </div>
-            )}
-
-            {selectedExecution.error && (
-              <div>
-                <Title level={5} style={{ color: colors.error[500] }}>
-                  错误信息
-                </Title>
-                <Card size="small" style={{ background: colors.error[50] }}>
-                  <pre
-                    style={{
-                      margin: 0,
-                      whiteSpace: 'pre-wrap',
-                      fontFamily: 'monospace',
-                      fontSize: 12,
-                      color: colors.error[600],
-                    }}
-                  >
-                    {selectedExecution.error}
-                  </pre>
-                </Card>
-              </div>
-            )}
-          </>
-        )}
-      </Drawer>
+      <ScriptLibraryModals
+        scripts={scripts}
+        scriptModalVisible={scriptModalVisible}
+        setScriptModalVisible={setScriptModalVisible}
+        scriptConfirmLoading={scriptConfirmLoading}
+        setScriptConfirmLoading={setScriptConfirmLoading}
+        editingScript={editingScript}
+        setEditingScript={setEditingScript}
+        scriptForm={scriptForm}
+        handleSaveScript={handleSaveScript}
+        drawerVisible={drawerVisible}
+        setDrawerVisible={setDrawerVisible}
+        selectedScript={selectedScript}
+        setSelectedScript={setSelectedScript}
+        versions={versions}
+        setVersions={setVersions}
+        versionsLoading={versionsLoading}
+        setVersionsLoading={setVersionsLoading}
+        versionModalVisible={versionModalVisible}
+        setVersionModalVisible={setVersionModalVisible}
+        versionForm={versionForm}
+        handleSaveVersion={handleSaveVersion}
+        handleCreateVersion={handleCreateVersion}
+        handleRollback={handleRollback}
+        parameters={parameters}
+        setParametersList={setParametersList}
+        paramsLoading={paramsLoading}
+        setParamsLoading={setParamsLoading}
+        paramModalVisible={paramModalVisible}
+        setParamModalVisible={setParamModalVisible}
+        paramForm={paramForm}
+        editingParam={editingParam}
+        setEditingParam={setEditingParam}
+        handleSaveParam={handleSaveParam}
+        handleAddParam={handleAddParam}
+        handleEditParam={handleEditParam}
+        handleDeleteParam={handleDeleteParam}
+        executeModalVisible={executeModalVisible}
+        setExecuteModalVisible={setExecuteModalVisible}
+        executingScript={executingScript}
+        setExecutingScript={setExecutingScript}
+        executeForm={executeForm}
+        handleOpenExecute={handleOpenExecute}
+        handleExecute={handleExecute}
+        executions={executions}
+        setExecutions={setExecutions}
+        executionsLoading={executionsLoading}
+        setExecutionsLoading={setExecutionsLoading}
+        execDetailVisible={execDetailVisible}
+        setExecDetailVisible={setExecDetailVisible}
+        selectedExecution={selectedExecution}
+        setSelectedExecution={setSelectedExecution}
+      />
     </div>
   );
 }
