@@ -22,7 +22,6 @@ import {
   Statistic,
   Steps,
   Timeline,
-  Tooltip,
   Alert,
   Tabs,
   Progress,
@@ -32,10 +31,7 @@ import {
 import {
   PlusOutlined,
   ReloadOutlined,
-  EyeOutlined,
   RocketOutlined,
-  PauseCircleOutlined,
-  StopOutlined,
   ThunderboltOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
@@ -62,6 +58,7 @@ import {
 import {
   ProgressiveDeployment,
   DeployWindow,
+  ProgressiveStage,
   statusColorMap,
   statusLabelMap,
   statusIconMap,
