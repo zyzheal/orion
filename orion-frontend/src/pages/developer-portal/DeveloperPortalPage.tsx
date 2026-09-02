@@ -21,7 +21,6 @@ import {
   Button,
   Tabs,
   Tag,
-  Badge,
   Input,
   message,
   Descriptions,
@@ -35,27 +34,20 @@ import {
   Col,
   Statistic,
   Empty,
-  Popconfirm,
-  Switch,
   Tooltip,
   InputNumber,
   Spin,
   Divider,
 } from 'antd';
 import {
-  ApiOutlined,
+  FileTextOutlined,
   CodeOutlined,
   PlusOutlined,
   ReloadOutlined,
-  EyeOutlined,
   EditOutlined,
-  DeleteOutlined,
   CloudUploadOutlined,
   StarOutlined,
   ThunderboltOutlined,
-  RocketOutlined,
-  DownloadOutlined,
-  FileTextOutlined,
   ExperimentOutlined,
   SendOutlined,
   CopyOutlined,
@@ -81,62 +73,28 @@ import {
   PlaygroundRequest,
   PlaygroundExecuteRequest,
 } from '@/api/developer-portal';
-import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing, themeVars } from '@/tokens';
 
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
 const { TextArea } = Input;
 
-// ==================== Config ====================
-
-const documentTypeConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> =
-  {
-    api_doc: { label: 'API 文档', color: 'blue', icon: <ApiOutlined /> },
-    sdk: { label: 'SDK', color: 'green', icon: <DownloadOutlined /> },
-    guide: { label: '指南', color: 'orange', icon: <RocketOutlined /> },
-    tutorial: { label: '教程', color: 'purple', icon: <FileTextOutlined /> },
-    reference: { label: '参考', color: 'cyan', icon: <FileTextOutlined /> },
-    sample: { label: '示例', color: 'gold', icon: <ThunderboltOutlined /> },
-  };
-
-const statusConfig: Record<string, { label: string; color: string }> = {
-  published: { label: '已发布', color: 'green' },
-  draft: { label: '草稿', color: 'default' },
-};
-
-const httpMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
-
-const languageOptions: { value: SDKLanguage; label: string }[] = [
-  { value: 'typescript', label: 'TypeScript' },
-  { value: 'python', label: 'Python' },
-  { value: 'go', label: 'Go' },
-  { value: 'java', label: 'Java' },
-  { value: 'csharp', label: 'C#' },
-];
-
-const subscriptionStatusMap: Record<string, { label: string; color: string }> = {
-  pending: { label: '待审批', color: 'orange' },
-  approved: { label: '已通过', color: 'green' },
-  rejected: { label: '已拒绝', color: 'red' },
-  suspended: { label: '已暂停', color: 'default' },
-  cancelled: { label: '已取消', color: 'default' },
-};
-
-const sdkStatusMap: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  pending: { label: '等待中', color: 'default', icon: <ClockCircleOutlined /> },
-  generating: { label: '生成中', color: 'processing', icon: <SyncOutlined spin /> },
-  completed: { label: '已完成', color: 'success', icon: <CheckCircleOutlined /> },
-  failed: { label: '失败', color: 'error', icon: <CloseCircleOutlined /> },
-};
-
-const TAB_KEYS = {
-  DOCS: 'docs',
-  MOCK: 'mock',
-  SDK: 'sdk',
-  SUBSCRIPTIONS: 'subscriptions',
-  PLAYGROUND: 'playground',
-};
+import {
+  documentTypeConfig,
+  httpMethods,
+  languageOptions,
+  subscriptionStatusMap,
+  sdkStatusMap,
+  TAB_KEYS,
+  type TabKey,
+} from './config';
+import {
+  useDocColumns,
+  useMockColumns,
+  useSdkColumns,
+  useSubColumns,
+  usePgColumns,
+} from './columns';
 
 // ==================== Component ====================
 
@@ -819,488 +777,53 @@ const DeveloperPortalPage: React.FC = () => {
     navigator.clipboard.writeText(text).then(() => message.success('已复制到剪贴板'));
   };
 
-  // ==================== Document Columns ====================
 
-  const docColumns: ColumnsType<PortalDocument> = [
-    {
-      title: '标题',
-      dataIndex: 'title',
-      key: 'title',
-      width: 250,
-      render: (text: string, record: PortalDocument) => (
-        <Space direction="vertical" size={0}>
-          <Text
-            strong
-            style={{ cursor: 'pointer', color: colors.primary[500] }}
-            onClick={() => openDocDetail(record)}
-          >
-            {documentTypeConfig[record.documentType]?.icon}
-            <span style={{ marginLeft: 6 }}>{text}</span>
-          </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.slug}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      title: '类型',
-      dataIndex: 'documentType',
-      key: 'documentType',
-      width: 100,
-      render: (type: string) => {
-        const cfg = documentTypeConfig[type] || { label: type, color: 'default' };
-        return <Tag color={cfg.color}>{cfg.label}</Tag>;
-      },
-    },
-    {
-      title: '版本',
-      dataIndex: 'version',
-      key: 'version',
-      width: 80,
-      render: (v: string) => v || '-',
-    },
-    {
-      title: '状态',
-      dataIndex: 'published',
-      key: 'published',
-      width: 90,
-      render: (published: boolean) => {
-        const cfg = published ? statusConfig.published : statusConfig.draft;
-        return <Badge status={published ? 'success' : 'default'} text={cfg.label} />;
-      },
-    },
-    {
-      title: '浏览',
-      dataIndex: 'viewCount',
-      key: 'viewCount',
-      width: 70,
-      render: (n: number) => n || 0,
-    },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 200,
-      render: (_: unknown, record: PortalDocument) => (
-        <Space size="small">
-          <Tooltip title="查看">
-            <Button
-              type="link"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => openDocDetail(record)}
-            />
-          </Tooltip>
-          <Tooltip title="编辑">
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => openDocEdit(record)}
-            />
-          </Tooltip>
-          {record.published ? (
-            <Tooltip title="取消发布">
-              <Button type="link" size="small" onClick={() => handleUnpublish(record.id)}>
-                下架
-              </Button>
-            </Tooltip>
-          ) : (
-            <Tooltip title="发布">
-              <Button type="link" size="small" onClick={() => handlePublish(record.id)}>
-                发布
-              </Button>
-            </Tooltip>
-          )}
-          <Popconfirm title="确认删除此文档？" onConfirm={() => handleDeleteDoc(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+  // ==================== Column Hooks ====================
 
-  // ==================== Mock Columns ====================
+  const docColumns = useDocColumns({
+    onDocDetail: openDocDetail,
+    onDocEdit: openDocEdit,
+    onPublish: handlePublish,
+    onUnpublish: handleUnpublish,
+    onDelete: handleDeleteDoc,
+  });
 
-  const mockColumns: ColumnsType<MockRule> = [
-    {
-      title: '名称',
-      dataIndex: 'name',
-      key: 'name',
-      width: 180,
-      render: (text: string, record: MockRule) => (
-        <Space direction="vertical" size={0}>
-          <Text strong>{text}</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.description}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      title: '方法',
-      dataIndex: 'method',
-      key: 'method',
-      width: 80,
-      render: (m: string) => {
-        const colorMap: Record<string, string> = {
-          GET: 'green',
-          POST: 'blue',
-          PUT: 'orange',
-          DELETE: 'red',
-          PATCH: 'purple',
-        };
-        return <Tag color={colorMap[m] || 'default'}>{m}</Tag>;
-      },
-    },
-    {
-      title: '路径',
-      dataIndex: 'path',
-      key: 'path',
-      width: 200,
-      render: (p: string) => <Text code>{p}</Text>,
-    },
-    {
-      title: '匹配类型',
-      dataIndex: 'matchType',
-      key: 'matchType',
-      width: 100,
-      render: (t: string) => <Tag>{t === 'exact' ? '精确' : t === 'prefix' ? '前缀' : '正则'}</Tag>,
-    },
-    {
-      title: '状态码',
-      dataIndex: 'statusCode',
-      key: 'statusCode',
-      width: 80,
-      render: (code: number) => (
-        <Tag color={code < 300 ? 'green' : code < 400 ? 'blue' : code < 500 ? 'orange' : 'red'}>
-          {code}
-        </Tag>
-      ),
-    },
-    {
-      title: '启用',
-      dataIndex: 'enabled',
-      key: 'enabled',
-      width: 80,
-      render: (enabled: boolean, record: MockRule) => (
-        <Switch checked={enabled} size="small" onChange={() => handleToggleMock(record.id)} />
-      ),
-    },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 120,
-      render: (_: unknown, record: MockRule) => (
-        <Space size="small">
-          <Tooltip title="编辑">
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => openMockEdit(record)}
-            />
-          </Tooltip>
-          <Popconfirm title="确认删除此规则？" onConfirm={() => handleDeleteMock(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+  const mockColumns = useMockColumns({
+    onToggle: handleToggleMock,
+    onEdit: openMockEdit,
+    onDelete: handleDeleteMock,
+  });
 
-  // ==================== SDK Columns ====================
+  const sdkColumns = useSdkColumns({
+    onDetail: (sdk) => {
+      setSelectedSdk(sdk);
+      setSdkDetailDrawer(true);
+    },
+    onRegenerate: handleRegenerateSdk,
+    onDelete: handleDeleteSdk,
+  });
 
-  const sdkColumns: ColumnsType<SDKGenerationTask> = [
-    {
-      title: '名称',
-      dataIndex: 'name',
-      key: 'name',
-      width: 200,
+  const subColumns = useSubColumns({
+    onDetail: (sub) => {
+      setSelectedSub(sub);
+      setSubDetailDrawer(true);
     },
-    {
-      title: '语言',
-      dataIndex: 'language',
-      key: 'language',
-      width: 120,
-      render: (lang: string) => <Tag color="blue">{lang}</Tag>,
+    onApprove: handleApproveSub,
+    onReject: (sub) => {
+      setSelectedSub(sub);
+      setRejectSubModal(true);
     },
-    {
-      title: '包名',
-      dataIndex: 'packageName',
-      key: 'packageName',
-      width: 200,
-      render: (n: string) => <Text code>{n}</Text>,
-    },
-    {
-      title: '版本',
-      dataIndex: 'version',
-      key: 'version',
-      width: 80,
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (status: string) => {
-        const cfg = sdkStatusMap[status] || sdkStatusMap.pending;
-        return (
-          <Tag icon={cfg.icon} color={cfg.color}>
-            {cfg.label}
-          </Tag>
-        );
-      },
-    },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 180,
-      render: (_: unknown, record: SDKGenerationTask) => (
-        <Space size="small">
-          <Tooltip title="查看代码">
-            <Button
-              type="link"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => {
-                setSelectedSdk(record);
-                setSdkDetailDrawer(true);
-              }}
-            />
-          </Tooltip>
-          {record.status === 'failed' && (
-            <Tooltip title="重新生成">
-              <Button
-                type="link"
-                size="small"
-                icon={<SyncOutlined />}
-                onClick={() => handleRegenerateSdk(record.id)}
-              />
-            </Tooltip>
-          )}
-          <Popconfirm title="确认删除？" onConfirm={() => handleDeleteSdk(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+    onSuspend: handleSuspendSub,
+    onCancel: handleCancelSub,
+    onCopyKey: handleCopyToClipboard,
+  });
 
-  // ==================== Subscription Columns ====================
-
-  const subColumns: ColumnsType<APISubscription> = [
-    {
-      title: 'API 名称',
-      dataIndex: 'apiName',
-      key: 'apiName',
-      width: 200,
-      render: (name: string, record: APISubscription) => (
-        <Space direction="vertical" size={0}>
-          <Text
-            strong
-            style={{ cursor: 'pointer', color: colors.primary[500] }}
-            onClick={() => {
-              setSelectedSub(record);
-              setSubDetailDrawer(true);
-            }}
-          >
-            {name}
-          </Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.planName}
-          </Text>
-        </Space>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (status: string) => {
-        const cfg = subscriptionStatusMap[status] || { label: status, color: 'default' };
-        return <Tag color={cfg.color}>{cfg.label}</Tag>;
-      },
-    },
-    {
-      title: '日用量',
-      key: 'dailyUsage',
-      width: 120,
-      render: (_: unknown, record: APISubscription) => (
-        <Text>
-          {record.usedToday} / {record.quotaPerDay}
-        </Text>
-      ),
-    },
-    {
-      title: '月用量',
-      key: 'monthlyUsage',
-      width: 120,
-      render: (_: unknown, record: APISubscription) => (
-        <Text>
-          {record.usedThisMonth} / {record.quotaPerMonth}
-        </Text>
-      ),
-    },
-    {
-      title: 'API Key',
-      dataIndex: 'apiKey',
-      key: 'apiKey',
-      width: 160,
-      render: (key: string) => (
-        <Space>
-          <Text code style={{ fontSize: 11 }}>
-            {key?.substring(0, 16)}...
-          </Text>
-          <Tooltip title="复制">
-            <Button
-              type="link"
-              size="small"
-              icon={<CopyOutlined />}
-              onClick={() => handleCopyToClipboard(key)}
-            />
-          </Tooltip>
-        </Space>
-      ),
-    },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 200,
-      render: (_: unknown, record: APISubscription) => (
-        <Space size="small">
-          <Tooltip title="详情">
-            <Button
-              type="link"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => {
-                setSelectedSub(record);
-                setSubDetailDrawer(true);
-              }}
-            />
-          </Tooltip>
-          {record.status === 'pending' && (
-            <>
-              <Button type="link" size="small" onClick={() => handleApproveSub(record.id)}>
-                批准
-              </Button>
-              <Button
-                type="link"
-                size="small"
-                danger
-                onClick={() => {
-                  setSelectedSub(record);
-                  setRejectSubModal(true);
-                }}
-              >
-                拒绝
-              </Button>
-            </>
-          )}
-          {record.status === 'approved' && (
-            <>
-              <Popconfirm title="确认暂停？" onConfirm={() => handleSuspendSub(record.id)}>
-                <Button type="link" size="small">
-                  暂停
-                </Button>
-              </Popconfirm>
-              <Popconfirm title="确认取消？" onConfirm={() => handleCancelSub(record.id)}>
-                <Button type="link" size="small" danger>
-                  取消
-                </Button>
-              </Popconfirm>
-            </>
-          )}
-          {(record.status === 'suspended' || record.status === 'rejected') && (
-            <Popconfirm title="确认取消？" onConfirm={() => handleCancelSub(record.id)}>
-              <Button type="link" size="small" danger>
-                取消
-              </Button>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
-    },
-  ];
-
-  // ==================== Playground Columns ====================
-
-  const pgColumns: ColumnsType<PlaygroundRequest> = [
-    {
-      title: '名称',
-      dataIndex: 'name',
-      key: 'name',
-      width: 200,
-    },
-    {
-      title: '方法',
-      dataIndex: 'method',
-      key: 'method',
-      width: 80,
-      render: (m: string) => {
-        const colorMap: Record<string, string> = {
-          GET: 'green',
-          POST: 'blue',
-          PUT: 'orange',
-          DELETE: 'red',
-          PATCH: 'purple',
-        };
-        return <Tag color={colorMap[m] || 'default'}>{m}</Tag>;
-      },
-    },
-    {
-      title: 'URL',
-      dataIndex: 'url',
-      key: 'url',
-      width: 300,
-      ellipsis: true,
-      render: (url: string) => <Text code>{url}</Text>,
-    },
-    {
-      title: 'Body 类型',
-      dataIndex: 'bodyType',
-      key: 'bodyType',
-      width: 90,
-    },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 200,
-      render: (_: unknown, record: PlaygroundRequest) => (
-        <Space size="small">
-          <Tooltip title="加载到表单">
-            <Button
-              type="link"
-              size="small"
-              icon={<DownloadOutlined />}
-              onClick={() => loadSavedRequest(record)}
-            />
-          </Tooltip>
-          <Tooltip title="重放">
-            <Button
-              type="link"
-              size="small"
-              icon={<SendOutlined />}
-              onClick={() => handleReplayRequest(record.id)}
-            />
-          </Tooltip>
-          <Tooltip title="响应历史">
-            <Button
-              type="link"
-              size="small"
-              icon={<HistoryOutlined />}
-              onClick={() => openPgHistory(record.id)}
-            />
-          </Tooltip>
-          <Popconfirm title="确认删除？" onConfirm={() => handleDeletePgRequest(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+  const pgColumns = usePgColumns({
+    onLoad: loadSavedRequest,
+    onReplay: handleReplayRequest,
+    onHistory: openPgHistory,
+    onDelete: handleDeletePgRequest,
+  });
 
   // ==================== Tab Items ====================
 
@@ -1452,7 +975,7 @@ const DeveloperPortalPage: React.FC = () => {
       {/* Main Tabs */}
       <Tabs
         activeKey={activeTab}
-        onChange={setActiveTab}
+        onChange={(key) => setActiveTab(key as TabKey)}
         items={tabItems}
         style={{ marginBottom: spacing.md }}
       />
@@ -1968,717 +1491,73 @@ const DeveloperPortalPage: React.FC = () => {
 
       {/* ==================== Modals & Drawers ==================== */}
 
-      {/* Create Document Modal */}
-      <Modal
-        title={
-          <>
-            <CloudUploadOutlined style={{ marginRight: spacing.sm, color: colors.primary[500] }} />
-            创建文档
-          </>
-        }
-        open={createDocModal}
-        onCancel={() => setCreateDocModal(false)}
-        onOk={() => createDocForm.submit()}
-        confirmLoading={loading}
-        width={720}
-        destroyOnClose
-      >
-        <Form form={createDocForm} layout="vertical" onFinish={handleCreateDoc}>
-          <Form.Item name="title" label="标题" rules={[{ required: true, message: '请输入标题' }]}>
-            <Input placeholder="如: Orion Pipeline API 参考" />
-          </Form.Item>
-          <Form.Item
-            name="slug"
-            label="URL 别名"
-            rules={[{ required: true, message: '请输入 URL 别名' }]}
-          >
-            <Input placeholder="如: pipeline-api-reference" />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="documentType" label="文档类型" rules={[{ required: true }]}>
-                <Select
-                  options={Object.entries(documentTypeConfig).map(([k, v]) => ({
-                    value: k,
-                    label: v.label,
-                  }))}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="category" label="分类">
-                <Input placeholder="如: 持续集成" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="version" label="版本">
-                <Input placeholder="v1.0.0" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="contentFormat" label="内容格式" initialValue="markdown">
-            <Select
-              options={[
-                { value: 'markdown', label: 'Markdown' },
-                { value: 'html', label: 'HTML' },
-                { value: 'plain', label: '纯文本' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item
-            name="content"
-            label="内容"
-            rules={[{ required: true, message: '请输入内容' }]}
-          >
-            <TextArea rows={6} placeholder="输入文档内容（支持 Markdown）..." />
-          </Form.Item>
-          <Form.Item name="tags" label="标签">
-            <Select mode="tags" placeholder="输入标签后回车" />
-          </Form.Item>
-        </Form>
-      </Modal>
 
-      {/* Edit Document Drawer */}
-      <Drawer
-        title={
-          <>
-            <EditOutlined style={{ marginRight: spacing.sm }} />
-            编辑文档
-          </>
-        }
-        open={editDocDrawer}
-        onClose={() => setEditDocDrawer(false)}
-        width={720}
-        destroyOnClose
-        extra={
-          <Space>
-            {selectedDoc &&
-              (selectedDoc.published ? (
-                <Button onClick={() => handleUnpublish(selectedDoc.id)}>取消发布</Button>
-              ) : (
-                <Button type="primary" onClick={() => handlePublish(selectedDoc.id)}>
-                  发布
-                </Button>
-              ))}
-            <Button onClick={() => editDocForm.submit()} loading={loading} type="primary">
-              保存
-            </Button>
-          </Space>
-        }
-      >
-        <Form form={editDocForm} layout="vertical" onFinish={handleEditDoc}>
-          <Form.Item name="title" label="标题" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="slug" label="URL 别名" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="documentType" label="文档类型" rules={[{ required: true }]}>
-                <Select
-                  options={Object.entries(documentTypeConfig).map(([k, v]) => ({
-                    value: k,
-                    label: v.label,
-                  }))}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="category" label="分类">
-                <Input />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="content" label="内容" rules={[{ required: true }]}>
-            <TextArea rows={10} />
-          </Form.Item>
-          <Form.Item name="tags" label="标签">
-            <Select mode="tags" />
-          </Form.Item>
-        </Form>
-      </Drawer>
+      <DeveloperPortalModals
+        loading={loading}
+        // Document
+        createDocModal={createDocModal}
+        createDocForm={createDocForm}
+        onCreateDoc={() => createDocForm.submit()}
+        onCreateDocCancel={() => setCreateDocModal(false)}
+        editDocDrawer={editDocDrawer}
+        editDocForm={editDocForm}
+        selectedDoc={selectedDoc}
+        onEditDoc={() => editDocForm.submit()}
+        onEditDocCancel={() => setEditDocDrawer(false)}
+        onPublish={handlePublish}
+        onUnpublish={handleUnpublish}
+        detailDocDrawer={detailDocDrawer}
+        docVersions={docVersions}
+        onDetailDocCancel={() => setDetailDocDrawer(false)}
+        onOpenDocEdit={() => {
+          setDetailDocDrawer(false);
+          openDocEdit(selectedDoc!);
+        }}
+        onOpenNewVersion={() => {
+          newVersionForm.resetFields();
+          setNewVersionModal(true);
+        }}
+        newVersionModal={newVersionModal}
+        newVersionForm={newVersionForm}
+        onNewVersion={() => newVersionForm.submit()}
+        onNewVersionCancel={() => setNewVersionModal(false)}
+        // Mock
+        createMockModal={createMockModal}
+        createMockForm={createMockForm}
+        onCreateMock={() => createMockForm.submit()}
+        onCreateMockCancel={() => setCreateMockModal(false)}
+        editMockModal={editMockModal}
+        editMockForm={editMockForm}
+        selectedMock={selectedMock}
+        onEditMock={() => editMockForm.submit()}
+        onEditMockCancel={() => setEditMockModal(false)}
+        // SDK
+        createSdkModal={createSdkModal}
+        createSdkForm={createSdkForm}
+        onCreateSdk={() => createSdkForm.submit()}
+        onCreateSdkCancel={() => setCreateSdkModal(false)}
+        sdkDetailDrawer={sdkDetailDrawer}
+        selectedSdk={selectedSdk}
+        onSdkDetailCancel={() => setSdkDetailDrawer(false)}
+        onCopyCode={handleCopyToClipboard}
+        // Subscription
+        createSubModal={createSubModal}
+        createSubForm={createSubForm}
+        onCreateSub={() => createSubForm.submit()}
+        onCreateSubCancel={() => setCreateSubModal(false)}
+        subDetailDrawer={subDetailDrawer}
+        selectedSub={selectedSub}
+        onSubDetailCancel={() => setSubDetailDrawer(false)}
+        rejectSubModal={rejectSubModal}
+        rejectSubForm={rejectSubForm}
+        onRejectSub={() => rejectSubForm.submit()}
+        onRejectSubCancel={() => setRejectSubModal(false)}
+        // Playground
+        pgHistoryDrawer={pgHistoryDrawer}
+        pgHistory={pgHistory}
+        onPgHistoryCancel={() => setPgHistoryDrawer(false)}
+      />
 
-      {/* Document Detail Drawer */}
-      <Drawer
-        title={selectedDoc?.title || '文档详情'}
-        open={detailDocDrawer}
-        onClose={() => setDetailDocDrawer(false)}
-        width={720}
-        destroyOnClose
-        extra={
-          <Space>
-            {selectedDoc && (
-              <Button
-                icon={<EditOutlined />}
-                onClick={() => {
-                  setDetailDocDrawer(false);
-                  openDocEdit(selectedDoc);
-                }}
-              >
-                编辑
-              </Button>
-            )}
-            {selectedDoc && (
-              <Button
-                icon={<PlusOutlined />}
-                onClick={() => {
-                  newVersionForm.resetFields();
-                  setNewVersionModal(true);
-                }}
-              >
-                新建版本
-              </Button>
-            )}
-          </Space>
-        }
-      >
-        {selectedDoc && (
-          <Space direction="vertical" style={{ width: '100%' }} size="large">
-            <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="标题" span={2}>
-                {selectedDoc.title}
-              </Descriptions.Item>
-              <Descriptions.Item label="URL 别名" span={2}>
-                <Text code>{selectedDoc.slug}</Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="文档类型">
-                <Tag color={documentTypeConfig[selectedDoc.documentType]?.color}>
-                  {documentTypeConfig[selectedDoc.documentType]?.label || selectedDoc.documentType}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="状态">
-                {selectedDoc.published ? <Tag color="green">已发布</Tag> : <Tag>草稿</Tag>}
-              </Descriptions.Item>
-              <Descriptions.Item label="分类">{selectedDoc.category || '未分类'}</Descriptions.Item>
-              <Descriptions.Item label="版本">{selectedDoc.version || '-'}</Descriptions.Item>
-              <Descriptions.Item label="标签" span={2}>
-                <Space wrap>
-                  {(selectedDoc.tags || []).map((t: string, i: number) => (
-                    <Tag key={String(i)}>{t}</Tag>
-                  ))}
-                </Space>
-              </Descriptions.Item>
-              <Descriptions.Item label="浏览">{selectedDoc.viewCount || 0}</Descriptions.Item>
-              <Descriptions.Item label="点赞">
-                <StarOutlined style={{ color: colors.warning[500], marginRight: 4 }} />
-                {selectedDoc.helpfulCount || 0}
-              </Descriptions.Item>
-              <Descriptions.Item label="作者">{selectedDoc.authorId}</Descriptions.Item>
-              <Descriptions.Item label="创建时间">
-                {selectedDoc.createdAt
-                  ? new Date(selectedDoc.createdAt).toLocaleString()
-                  : new Date(selectedDoc.created_at).toLocaleString()}
-              </Descriptions.Item>
-            </Descriptions>
-            <Card size="small" title="内容预览">
-              <Paragraph>
-                {selectedDoc.content?.substring(0, 500) || '无内容'}
-                {(selectedDoc.content?.length || 0) > 500 && '...'}
-              </Paragraph>
-            </Card>
-            {docVersions.length > 1 && (
-              <Card size="small" title={`版本历史 (${docVersions.length})`}>
-                <Table
-                  dataSource={docVersions}
-                  rowKey="id"
-                  size="small"
-                  pagination={false}
-                  columns={[
-                    { title: '版本', dataIndex: 'version', key: 'version', width: 100 },
-                    {
-                      title: '状态',
-                      dataIndex: 'published',
-                      key: 'published',
-                      width: 100,
-                      render: (p: boolean) =>
-                        p ? <Tag color="green">已发布</Tag> : <Tag>草稿</Tag>,
-                    },
-                    {
-                      title: '更新时间',
-                      dataIndex: 'updatedAt',
-                      key: 'updatedAt',
-                      render: (t: string) => new Date(t).toLocaleString(),
-                    },
-                  ]}
-                />
-              </Card>
-            )}
-          </Space>
-        )}
-      </Drawer>
-
-      {/* New Version Modal */}
-      <Modal
-        title="创建新版本"
-        open={newVersionModal}
-        onCancel={() => setNewVersionModal(false)}
-        onOk={() => newVersionForm.submit()}
-        confirmLoading={loading}
-        destroyOnClose
-      >
-        <Form form={newVersionForm} layout="vertical" onFinish={handleCreateVersion}>
-          <Form.Item
-            name="version"
-            label="新版本号"
-            rules={[{ required: true, message: '请输入版本号' }]}
-          >
-            <Input placeholder="如: 2.0.0" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Create Mock Rule Modal */}
-      <Modal
-        title={
-          <>
-            <ExperimentOutlined style={{ marginRight: spacing.sm }} />
-            添加 Mock 规则
-          </>
-        }
-        open={createMockModal}
-        onCancel={() => setCreateMockModal(false)}
-        onOk={() => createMockForm.submit()}
-        confirmLoading={loading}
-        width={720}
-        destroyOnClose
-      >
-        <Form form={createMockForm} layout="vertical" onFinish={handleCreateMock}>
-          <Form.Item name="name" label="规则名称" rules={[{ required: true }]}>
-            <Input placeholder="如: 用户列表 Mock" />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input placeholder="规则描述" />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={6}>
-              <Form.Item name="method" label="HTTP 方法" rules={[{ required: true }]}>
-                <Select options={httpMethods.map((m) => ({ value: m, label: m }))} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="path" label="路径" rules={[{ required: true }]}>
-                <Input placeholder="/api/v1/users" />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item name="matchType" label="匹配类型" initialValue="exact">
-                <Select
-                  options={[
-                    { value: 'exact', label: '精确' },
-                    { value: 'prefix', label: '前缀' },
-                    { value: 'regex', label: '正则' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="statusCode" label="状态码" initialValue={200}>
-                <InputNumber min={100} max={599} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="delay" label="延迟 (ms)" initialValue={0}>
-                <InputNumber min={0} max={30000} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="priority" label="优先级" initialValue={0}>
-                <InputNumber min={0} max={100} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="body" label="响应 Body (JSON)">
-            <TextArea rows={4} placeholder='{"data": []}' />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Edit Mock Rule Modal */}
-      <Modal
-        title={
-          <>
-            <EditOutlined style={{ marginRight: spacing.sm }} />
-            编辑 Mock 规则
-          </>
-        }
-        open={editMockModal}
-        onCancel={() => setEditMockModal(false)}
-        onOk={() => editMockForm.submit()}
-        confirmLoading={loading}
-        width={720}
-        destroyOnClose
-      >
-        <Form form={editMockForm} layout="vertical" onFinish={handleEditMock}>
-          <Form.Item name="name" label="规则名称" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={6}>
-              <Form.Item name="method" label="HTTP 方法" rules={[{ required: true }]}>
-                <Select options={httpMethods.map((m) => ({ value: m, label: m }))} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="path" label="路径" rules={[{ required: true }]}>
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item name="matchType" label="匹配类型">
-                <Select
-                  options={[
-                    { value: 'exact', label: '精确' },
-                    { value: 'prefix', label: '前缀' },
-                    { value: 'regex', label: '正则' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="statusCode" label="状态码">
-                <InputNumber min={100} max={599} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="delay" label="延迟 (ms)">
-                <InputNumber min={0} max={30000} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="priority" label="优先级">
-                <InputNumber min={0} max={100} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="body" label="响应 Body (JSON)">
-            <TextArea rows={4} />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Create SDK Task Modal */}
-      <Modal
-        title={
-          <>
-            <CodeOutlined style={{ marginRight: spacing.sm }} />
-            生成 SDK
-          </>
-        }
-        open={createSdkModal}
-        onCancel={() => setCreateSdkModal(false)}
-        onOk={() => createSdkForm.submit()}
-        confirmLoading={loading}
-        width={720}
-        destroyOnClose
-      >
-        <Form form={createSdkForm} layout="vertical" onFinish={handleCreateSdk}>
-          <Form.Item name="name" label="任务名称" rules={[{ required: true }]}>
-            <Input placeholder="如: Orion Pipeline SDK" />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="language" label="目标语言" rules={[{ required: true }]}>
-                <Select options={languageOptions} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="packageName" label="包名" rules={[{ required: true }]}>
-                <Input placeholder="orion-pipeline-sdk" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="version" label="版本" initialValue="1.0.0">
-                <Input />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item
-            name="apiSpec"
-            label="API 规范 (OpenAPI/Swagger JSON 或 YAML)"
-            rules={[{ required: true }]}
-          >
-            <TextArea rows={6} placeholder='{"openapi": "3.0.0", ...}' />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* SDK Detail Drawer */}
-      <Drawer
-        title={`SDK 代码 - ${selectedSdk?.name || ''}`}
-        open={sdkDetailDrawer}
-        onClose={() => setSdkDetailDrawer(false)}
-        width={800}
-        destroyOnClose
-        extra={
-          selectedSdk?.output && (
-            <Button
-              icon={<CopyOutlined />}
-              onClick={() => handleCopyToClipboard(selectedSdk.output || '')}
-            >
-              复制代码
-            </Button>
-          )
-        }
-      >
-        {selectedSdk && (
-          <Space direction="vertical" style={{ width: '100%' }} size="middle">
-            <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="语言">
-                <Tag color="blue">{selectedSdk.language}</Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="包名">
-                <Text code>{selectedSdk.packageName}</Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="版本">{selectedSdk.version}</Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <Tag color={sdkStatusMap[selectedSdk.status]?.color}>
-                  {sdkStatusMap[selectedSdk.status]?.label}
-                </Tag>
-              </Descriptions.Item>
-            </Descriptions>
-            {selectedSdk.status === 'completed' && selectedSdk.output ? (
-              <Card size="small" title="生成的代码">
-                <pre
-                  style={{
-                    background: themeVars.bgTertiary,
-                    padding: spacing.md,
-                    borderRadius: 8,
-                    maxHeight: 500,
-                    overflow: 'auto',
-                    fontSize: 12,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {selectedSdk.output}
-                </pre>
-              </Card>
-            ) : selectedSdk.status === 'failed' ? (
-              <Card size="small" title="错误信息">
-                <Text type="danger">{selectedSdk.error}</Text>
-              </Card>
-            ) : (
-              <Card size="small">
-                <Spin tip="生成中..." />
-              </Card>
-            )}
-          </Space>
-        )}
-      </Drawer>
-
-      {/* Create Subscription Modal */}
-      <Modal
-        title={
-          <>
-            <KeyOutlined style={{ marginRight: spacing.sm }} />
-            申请 API 订阅
-          </>
-        }
-        open={createSubModal}
-        onCancel={() => setCreateSubModal(false)}
-        onOk={() => createSubForm.submit()}
-        confirmLoading={loading}
-        width={600}
-        destroyOnClose
-      >
-        <Form form={createSubForm} layout="vertical" onFinish={handleCreateSub}>
-          <Form.Item name="apiName" label="API 名称" rules={[{ required: true }]}>
-            <Input placeholder="如: Pipeline API" />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="planName" label="套餐" initialValue="standard">
-                <Select
-                  options={[
-                    { value: 'free', label: '免费版' },
-                    { value: 'standard', label: '标准版' },
-                    { value: 'premium', label: '高级版' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item name="quotaPerDay" label="日配额" initialValue={1000}>
-                <InputNumber min={1} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item name="quotaPerMonth" label="月配额" initialValue={30000}>
-                <InputNumber min={1} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="reason" label="申请理由">
-            <TextArea rows={3} placeholder="请说明使用场景和目的" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Subscription Detail Drawer */}
-      <Drawer
-        title={`订阅详情 - ${selectedSub?.apiName || ''}`}
-        open={subDetailDrawer}
-        onClose={() => setSubDetailDrawer(false)}
-        width={600}
-        destroyOnClose
-      >
-        {selectedSub && (
-          <Space direction="vertical" style={{ width: '100%' }} size="large">
-            <Descriptions bordered size="small" column={2}>
-              <Descriptions.Item label="API 名称" span={2}>
-                {selectedSub.apiName}
-              </Descriptions.Item>
-              <Descriptions.Item label="套餐">{selectedSub.planName}</Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <Tag color={subscriptionStatusMap[selectedSub.status]?.color}>
-                  {subscriptionStatusMap[selectedSub.status]?.label}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="日用量">
-                {selectedSub.usedToday} / {selectedSub.quotaPerDay}
-              </Descriptions.Item>
-              <Descriptions.Item label="月用量">
-                {selectedSub.usedThisMonth} / {selectedSub.quotaPerMonth}
-              </Descriptions.Item>
-              <Descriptions.Item label="API Key" span={2}>
-                <Space>
-                  <Text code copyable>
-                    {selectedSub.apiKey}
-                  </Text>
-                </Space>
-              </Descriptions.Item>
-              <Descriptions.Item label="申请人">{selectedSub.userId}</Descriptions.Item>
-              <Descriptions.Item label="审批人">{selectedSub.approvedBy || '-'}</Descriptions.Item>
-              <Descriptions.Item label="申请理由" span={2}>
-                {selectedSub.reason || '-'}
-              </Descriptions.Item>
-              {selectedSub.rejectReason && (
-                <Descriptions.Item label="拒绝原因" span={2}>
-                  <Text type="danger">{selectedSub.rejectReason}</Text>
-                </Descriptions.Item>
-              )}
-              <Descriptions.Item label="到期时间">
-                {selectedSub.expiresAt ? new Date(selectedSub.expiresAt).toLocaleDateString() : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="创建时间">
-                {selectedSub.createdAt
-                  ? new Date(selectedSub.createdAt).toLocaleString()
-                  : new Date(selectedSub.created_at).toLocaleString()}
-              </Descriptions.Item>
-            </Descriptions>
-
-            <Card size="small" title="用量趋势">
-              <div style={{ textAlign: 'center', padding: 20 }}>
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <Statistic
-                      title="日配额使用率"
-                      value={
-                        selectedSub.quotaPerDay > 0
-                          ? Math.round((selectedSub.usedToday / selectedSub.quotaPerDay) * 100)
-                          : 0
-                      }
-                      suffix="%"
-                      valueStyle={{
-                        color:
-                          selectedSub.usedToday / selectedSub.quotaPerDay > 0.8
-                            ? colors.error[500]
-                            : colors.success[500],
-                      }}
-                    />
-                  </Col>
-                  <Col span={12}>
-                    <Statistic
-                      title="月配额使用率"
-                      value={
-                        selectedSub.quotaPerMonth > 0
-                          ? Math.round(
-                              (selectedSub.usedThisMonth / selectedSub.quotaPerMonth) * 100
-                            )
-                          : 0
-                      }
-                      suffix="%"
-                      valueStyle={{
-                        color:
-                          selectedSub.usedThisMonth / selectedSub.quotaPerMonth > 0.8
-                            ? colors.error[500]
-                            : colors.success[500],
-                      }}
-                    />
-                  </Col>
-                </Row>
-              </div>
-            </Card>
-          </Space>
-        )}
-      </Drawer>
-
-      {/* Reject Subscription Modal */}
-      <Modal
-        title="拒绝订阅"
-        open={rejectSubModal}
-        onCancel={() => setRejectSubModal(false)}
-        onOk={() => rejectSubForm.submit()}
-        destroyOnClose
-      >
-        <Form form={rejectSubForm} layout="vertical" onFinish={handleRejectSub}>
-          <Form.Item
-            name="reason"
-            label="拒绝原因"
-            rules={[{ required: true, message: '请输入拒绝原因' }]}
-          >
-            <TextArea rows={3} placeholder="请说明拒绝原因" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Playground History Drawer */}
-      <Drawer
-        title="响应历史"
-        open={pgHistoryDrawer}
-        onClose={() => setPgHistoryDrawer(false)}
-        width={500}
-        destroyOnClose
-      >
-        <Table
-          dataSource={pgHistory}
-          rowKey="id"
-          size="small"
-          pagination={false}
-          columns={[
-            {
-              title: '状态码',
-              dataIndex: 'statusCode',
-              key: 'statusCode',
-              width: 80,
-              render: (c: number) => (
-                <Tag color={c < 300 ? 'green' : c < 400 ? 'blue' : 'red'}>{c}</Tag>
-              ),
-            },
-            {
-              title: '延迟',
-              dataIndex: 'latencyMs',
-              key: 'latencyMs',
-              width: 80,
-              render: (ms: number) => `${ms}ms`,
-            },
-            {
-              title: '时间',
-              dataIndex: 'timestamp',
-              key: 'timestamp',
-              render: (t: string) => new Date(t).toLocaleString(),
-            },
-          ]}
-          locale={{ emptyText: <Empty description="暂无响应历史" /> }}
-        />
-      </Drawer>
     </div>
   );
 };
