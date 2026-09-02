@@ -1,4 +1,3 @@
-import { PermissionGuard } from '@/components/PermissionGuard';
 /**
  * Configuration Management Page
  * GitOps, config approval, diff analysis, and drift detection
@@ -39,8 +38,6 @@ import {
   ScanOutlined,
   RocketOutlined,
   ArrowRightOutlined,
-  EditOutlined,
-  DeleteOutlined,
 } from '@ant-design/icons';
 import {
   getConfigs,
@@ -60,12 +57,22 @@ import {
   type EnvDiffResult,
   type DriftResult,
 } from '@/api/config';
+import { PermissionGuard } from '@/components/PermissionGuard';
+import { buildConfigColumns } from './columns';
+import {
+  ENVIRONMENTS,
+  ENVIRONMENT_OPTIONS,
+  CATEGORY_OPTIONS,
+  VERSION_OPTIONS,
+  STATUS_COLOR_MAP,
+  STATUS_LABEL_MAP,
+  CHANGE_COLOR_MAP,
+  CHANGE_LABEL_MAP,
+  buildConfigSelectOptions,
+} from './config';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
-
-/** 环境列表 */
-const ENVIRONMENTS = ['dev', 'staging', 'prod'] as const;
 
 /** 格式化配置变更展示 */
 const renderChangeItem = (change: {
@@ -74,17 +81,6 @@ const renderChangeItem = (change: {
   oldValue?: unknown;
   newValue?: unknown;
 }) => {
-  const colorMap: Record<string, string> = {
-    add: colors.success[500],
-    remove: colors.error[500],
-    update: colors.warning[500],
-  };
-  const labelMap: Record<string, string> = {
-    add: '新增',
-    remove: '删除',
-    update: '变更',
-  };
-
   return (
     <div
       key={change.path}
@@ -93,11 +89,11 @@ const renderChangeItem = (change: {
         marginBottom: spacing.sm,
         borderRadius: 4,
         background: colors.neutral[50],
-        borderLeft: `3px solid ${colorMap[change.operation] || colors.neutral[400]}`,
+        borderLeft: `3px solid ${CHANGE_COLOR_MAP[change.operation] || colors.neutral[400]}`,
       }}
     >
       <Space style={{ marginBottom: 4 }}>
-        <Tag color={colorMap[change.operation]}>{labelMap[change.operation]}</Tag>
+        <Tag color={CHANGE_COLOR_MAP[change.operation]}>{CHANGE_LABEL_MAP[change.operation]}</Tag>
         <Text strong>{change.path}</Text>
       </Space>
       {change.oldValue !== undefined && change.operation !== 'add' && (
@@ -141,18 +137,15 @@ const ConfigManagementPage: React.FC = () => {
 
   // === Diff Tab state ===
   const [activeTab, setActiveTab] = useState('overview');
-  // Environment comparison
   const [sourceEnv, setSourceEnv] = useState<string>('dev');
   const [targetEnv, setTargetEnv] = useState<string>('staging');
   const [envDiffLoading, setEnvDiffLoading] = useState(false);
   const [envDiffResult, setEnvDiffResult] = useState<EnvDiffResult | null>(null);
-  // Version comparison
   const [versionDiffConfigId, setVersionDiffConfigId] = useState<string>('');
   const [versionA, setVersionA] = useState<number>(1);
   const [versionB, setVersionB] = useState<number>(2);
   const [versionDiffLoading, setVersionDiffLoading] = useState(false);
   const [versionDiffResult, setVersionDiffResult] = useState<ConfigDiff | null>(null);
-  // Diff report
   const [reportLoading, setReportLoading] = useState(false);
   const [diffReport, setDiffReport] = useState<{
     totalConfigs: number;
@@ -286,7 +279,6 @@ const ConfigManagementPage: React.FC = () => {
     }
   };
 
-  // === Environment comparison handler ===
   const handleEnvCompare = async () => {
     if (!sourceEnv || !targetEnv) {
       message.warning('请选择源环境和目标环境');
@@ -312,7 +304,6 @@ const ConfigManagementPage: React.FC = () => {
     }
   };
 
-  // === Version comparison handler ===
   const handleVersionCompare = async () => {
     if (!versionDiffConfigId) {
       message.warning('请选择配置项');
@@ -342,7 +333,6 @@ const ConfigManagementPage: React.FC = () => {
     }
   };
 
-  // === Diff report handler ===
   const handleGenerateReport = async () => {
     setReportLoading(true);
     try {
@@ -369,7 +359,6 @@ const ConfigManagementPage: React.FC = () => {
     }
   };
 
-  // === Drift detection handler ===
   const handleDriftDetect = async () => {
     setDriftLoading(true);
     try {
@@ -391,124 +380,18 @@ const ConfigManagementPage: React.FC = () => {
     }
   };
 
-  const statusColorMap: Record<string, string> = {
-    draft: 'default',
-    pending_approval: 'orange',
-    approved: 'blue',
-    rejected: 'red',
-    active: 'green',
-  };
+  const columns = buildConfigColumns({
+    onEdit: handleEdit,
+    onDelete: handleDelete,
+    onApproval: handleApproval,
+    onViewDetail: (record) => {
+      setSelectedConfig(record);
+      setDetailDrawerOpen(true);
+    },
+  });
 
-  const columns = [
-    {
-      title: '配置键',
-      dataIndex: 'key',
-      key: 'key',
-      render: (text: string, record: ConfigItem) => (
-        <Space>
-          <FileTextOutlined />
-          <Text strong>{text}</Text>
-          {record.sensitive && <Tag color="red">敏感</Tag>}
-          {record.encrypted && <Tag color="purple">加密</Tag>}
-        </Space>
-      ),
-    },
-    {
-      title: '值',
-      dataIndex: 'value',
-      key: 'value',
-      render: (value: unknown, record: ConfigItem) =>
-        record.sensitive ? '***' : JSON.stringify(value)?.slice(0, 50),
-    },
-    {
-      title: '环境',
-      dataIndex: 'environment',
-      key: 'environment',
-      filters: [
-        { text: 'development', value: 'development' },
-        { text: 'testing', value: 'testing' },
-        { text: 'staging', value: 'staging' },
-        { text: 'production', value: 'production' },
-      ],
-      onFilter: (value: unknown, record: ConfigItem) => record.environment === value,
-      render: (env: string) => <Tag color={env === 'production' ? 'red' : 'blue'}>{env}</Tag>,
-    },
-    {
-      title: '分类',
-      dataIndex: 'category',
-      key: 'category',
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => (
-        <Tag color={statusColorMap[status] || 'default'}>
-          {status === 'active' ? '已激活' : status === 'pending_approval' ? '待审批' : status}
-        </Tag>
-      ),
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updatedAt',
-      key: 'updatedAt',
-      render: (ts: string) => new Date(ts).toLocaleString(),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      render: (_: unknown, record: ConfigItem) => (
-        <Space>
-          <Button
-            type="link"
-            size="small"
-            onClick={() => {
-              setSelectedConfig(record);
-              setDetailDrawerOpen(true);
-            }}
-          >
-            详情
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          >
-            编辑
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record.id)}
-          >
-            删除
-          </Button>
-          {record.status === 'draft' && (
-            <Button type="link" size="small" onClick={() => handleApproval(record.id)}>
-              提交审批
-            </Button>
-          )}
-        </Space>
-      ),
-    },
-  ];
+  const configSelectOptions = buildConfigSelectOptions(configs);
 
-  /** 获取配置项列表供版本对比选择 */
-  const configSelectOptions = configs.map((c) => ({
-    label: `${c.key} (${c.environment})`,
-    value: c.id,
-  }));
-
-  /** 版本选择选项 */
-  const versionOptions = Array.from({ length: 10 }, (_, i) => i + 1).map((v) => ({
-    label: `v${v}`,
-    value: v,
-  }));
-
-  // === Tabs definition ===
   const tabItems = [
     {
       key: 'overview',
@@ -520,7 +403,6 @@ const ConfigManagementPage: React.FC = () => {
       ),
       children: (
         <>
-          {/* Summary Cards */}
           <Row gutter={16} style={{ marginBottom: spacing.lg }}>
             <Col span={4}>
               <Card>
@@ -586,7 +468,6 @@ const ConfigManagementPage: React.FC = () => {
             </Col>
           </Row>
 
-          {/* GitOps Status */}
           <Card title="GitOps 同步状态" style={{ marginBottom: spacing.lg }}>
             <Row gutter={16}>
               <Col span={6}>
@@ -612,7 +493,6 @@ const ConfigManagementPage: React.FC = () => {
             </Row>
           </Card>
 
-          {/* Config Table */}
           <Card title="配置列表">
             <Table
               columns={columns}
@@ -635,7 +515,6 @@ const ConfigManagementPage: React.FC = () => {
       ),
       children: (
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          {/* Environment Comparison */}
           <Card
             title="环境差异对比"
             extra={
@@ -756,7 +635,7 @@ const ConfigManagementPage: React.FC = () => {
                 {envDiffResult.differences.length === 0 &&
                   (envDiffResult.onlyInSource?.length || 0) +
                     (envDiffResult.onlyInTarget?.length || 0) ===
-                    0 && (
+                      0 && (
                     <Alert
                       message="两个环境的配置完全一致"
                       type="success"
@@ -772,7 +651,6 @@ const ConfigManagementPage: React.FC = () => {
             )}
           </Card>
 
-          {/* Version Comparison */}
           <Card
             title="版本差异对比"
             extra={
@@ -807,7 +685,7 @@ const ConfigManagementPage: React.FC = () => {
                   value={versionA}
                   onChange={setVersionA}
                   style={{ width: '100%', marginTop: spacing.sm }}
-                  options={versionOptions}
+                  options={VERSION_OPTIONS}
                 />
               </Col>
               <Col span={4}>
@@ -816,7 +694,7 @@ const ConfigManagementPage: React.FC = () => {
                   value={versionB}
                   onChange={setVersionB}
                   style={{ width: '100%', marginTop: spacing.sm }}
-                  options={versionOptions}
+                  options={VERSION_OPTIONS}
                 />
               </Col>
             </Row>
@@ -845,7 +723,6 @@ const ConfigManagementPage: React.FC = () => {
             )}
           </Card>
 
-          {/* Diff Report */}
           <Card
             title="综合差异报告"
             extra={
@@ -903,13 +780,7 @@ const ConfigManagementPage: React.FC = () => {
                               {item.changes.map((c, idx) => (
                                 <Tag
                                   key={String(idx)}
-                                  color={
-                                    c.operation === 'add'
-                                      ? 'green'
-                                      : c.operation === 'remove'
-                                        ? 'red'
-                                        : 'orange'
-                                  }
+                                  color={CHANGE_COLOR_MAP[c.operation] || 'default'}
                                 >
                                   {c.path} ({c.operation})
                                 </Tag>
@@ -1042,7 +913,6 @@ const ConfigManagementPage: React.FC = () => {
 
   return (
     <div style={{ padding: spacing.lg, background: colors.neutral[0], minHeight: '100vh' }}>
-      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
           <Title level={2}>配置管理</Title>
@@ -1064,10 +934,8 @@ const ConfigManagementPage: React.FC = () => {
         </Space>
       </div>
 
-      {/* Tabbed Content */}
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="large" />
 
-      {/* Create/Edit Modal */}
       <Modal
         title={editingConfig ? '编辑配置' : '新建配置'}
         open={createModalOpen || !!editingConfig}
@@ -1092,22 +960,12 @@ const ConfigManagementPage: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item label="环境" name="environment" rules={[{ required: true }]}>
-                <Select>
-                  <Select.Option value="development">development</Select.Option>
-                  <Select.Option value="testing">testing</Select.Option>
-                  <Select.Option value="staging">staging</Select.Option>
-                  <Select.Option value="production">production</Select.Option>
-                </Select>
+                <Select options={ENVIRONMENT_OPTIONS} />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item label="分类" name="category" rules={[{ required: true }]}>
-                <Select>
-                  <Select.Option value="application">application</Select.Option>
-                  <Select.Option value="database">database</Select.Option>
-                  <Select.Option value="cache">cache</Select.Option>
-                  <Select.Option value="feature">feature</Select.Option>
-                </Select>
+                <Select options={CATEGORY_OPTIONS} />
               </Form.Item>
             </Col>
           </Row>
@@ -1129,7 +987,6 @@ const ConfigManagementPage: React.FC = () => {
         </Form>
       </Modal>
 
-      {/* Detail Drawer */}
       <Drawer
         title="配置详情"
         placement="right"
@@ -1148,7 +1005,9 @@ const ConfigManagementPage: React.FC = () => {
             <Descriptions.Item label="环境">{selectedConfig.environment}</Descriptions.Item>
             <Descriptions.Item label="分类">{selectedConfig.category}</Descriptions.Item>
             <Descriptions.Item label="状态">
-              <Tag color={statusColorMap[selectedConfig.status]}>{selectedConfig.status}</Tag>
+              <Tag color={STATUS_COLOR_MAP[selectedConfig.status] || 'default'}>
+                {STATUS_LABEL_MAP[selectedConfig.status] || selectedConfig.status}
+              </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="敏感">
               {selectedConfig.sensitive ? '是' : '否'}
