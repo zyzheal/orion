@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/statistics/handler/models"
 	"orion/platform-svc-go/internal/statistics/service"
 )
@@ -27,14 +28,14 @@ func (h *Handler) Ingest(c *gin.Context) {
 	defer span.End()
 	var req models.StatMetricRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.Ingest(ctx, c.GetString("tenant_id"), &req); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(201, gin.H{"status": "ingested"})
+	middleware.RespondCreated(c, gin.H{"status": "ingested"})
 }
 
 func (h *Handler) IngestBatch(c *gin.Context) {
@@ -44,14 +45,14 @@ func (h *Handler) IngestBatch(c *gin.Context) {
 		Metrics []models.StatMetricRequest `json:"metrics" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.IngestBatch(ctx, c.GetString("tenant_id"), req.Metrics); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(201, gin.H{"status": "ingested", "count": len(req.Metrics)})
+	middleware.RespondCreated(c, gin.H{"status": "ingested", "count": len(req.Metrics)})
 }
 
 func (h *Handler) Aggregate(c *gin.Context) {
@@ -59,15 +60,15 @@ func (h *Handler) Aggregate(c *gin.Context) {
 	defer span.End()
 	var req models.AggregateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.Aggregate(ctx, c.GetString("tenant_id"), &req)
 	if err != nil {
-		c.JSON(404, gin.H{"error": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": result})
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) AggregateAll(c *gin.Context) {
@@ -79,10 +80,10 @@ func (h *Handler) AggregateAll(c *gin.Context) {
 	}
 	results, err := h.svc.AggregateAll(ctx, c.GetString("tenant_id"), window)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": results})
+	middleware.RespondSuccess(c, results)
 }
 
 func (h *Handler) Prune(c *gin.Context) {
@@ -90,15 +91,15 @@ func (h *Handler) Prune(c *gin.Context) {
 	defer span.End()
 	pruned, err := h.svc.Prune(ctx, c.GetString("tenant_id"))
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"pruned": pruned})
+	middleware.RespondSuccess(c, gin.H{"pruned": pruned})
 }
 
 func (h *Handler) Stats(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
 	defer span.End()
 	stats := h.svc.Stats(ctx, c.GetString("tenant_id"))
-	c.JSON(200, gin.H{"data": stats})
+	middleware.RespondSuccess(c, stats)
 }

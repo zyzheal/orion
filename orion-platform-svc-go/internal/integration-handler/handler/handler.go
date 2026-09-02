@@ -8,6 +8,7 @@ import (
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/integration-handler/models"
 	"orion/platform-svc-go/internal/integration-handler/service"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct{ svc *service.Service }
@@ -36,15 +37,15 @@ func (h *Handler) CreateIntegration(c *gin.Context) {
 	defer span.End()
 	var req models.CreateIntegrationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	ig, err := h.svc.CreateIntegration(ctx, c.GetString("tenant_id"), &req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(201, gin.H{"data": ig})
+	middleware.RespondCreated(c, ig)
 }
 
 func (h *Handler) GetIntegration(c *gin.Context) {
@@ -52,10 +53,10 @@ func (h *Handler) GetIntegration(c *gin.Context) {
 	defer span.End()
 	ig, err := h.svc.GetIntegration(ctx, c.GetString("tenant_id"), c.Param("id"))
 	if err != nil {
-		c.JSON(404, gin.H{"error": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": ig})
+	middleware.RespondSuccess(c, ig)
 }
 
 func (h *Handler) ListIntegrations(c *gin.Context) {
@@ -66,10 +67,10 @@ func (h *Handler) ListIntegrations(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	items, err := h.svc.ListIntegrations(ctx, c.GetString("tenant_id"), intType, offset, limit)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": items})
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) UpdateIntegration(c *gin.Context) {
@@ -77,22 +78,22 @@ func (h *Handler) UpdateIntegration(c *gin.Context) {
 	defer span.End()
 	var req models.UpdateIntegrationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	ig, err := h.svc.UpdateIntegration(ctx, c.GetString("tenant_id"), c.Param("id"), &req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": ig})
+	middleware.RespondSuccess(c, ig)
 }
 
 func (h *Handler) DeleteIntegration(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteIntegration")
 	defer span.End()
 	if err := h.svc.DeleteIntegration(ctx, c.GetString("tenant_id"), c.Param("id")); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	c.JSON(200, gin.H{"status": "deleted"})

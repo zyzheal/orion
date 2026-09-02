@@ -8,6 +8,7 @@ import (
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/crossover/models"
 	"orion/platform-svc-go/internal/crossover/service"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct{ svc *service.CrossoverService }
@@ -36,15 +37,15 @@ func (h *Handler) RegisterOperation(c *gin.Context) {
 	defer span.End()
 	var req models.RegisterOperationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	_, err := h.svc.RegisterOperation(ctx, c.GetString("tenant_id"), &req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(201, gin.H{"status": "registered"})
+	middleware.RespondCreated(c, gin.H{"status": "registered"})
 }
 
 func (h *Handler) UnregisterOperation(c *gin.Context) {
@@ -52,10 +53,10 @@ func (h *Handler) UnregisterOperation(c *gin.Context) {
 	defer span.End()
 	err := h.svc.UnregisterOperation(ctx, c.GetString("tenant_id"), c.Param("module"), c.Param("name"))
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"status": "deleted"})
+	middleware.RespondSuccess(c, gin.H{"status": "deleted"})
 }
 
 func (h *Handler) ListOperations(c *gin.Context) {
@@ -66,18 +67,18 @@ func (h *Handler) ListOperations(c *gin.Context) {
 	if module != "" {
 		ops, err := h.svc.ListOperationsByModule(ctx, tenantID, module)
 		if err != nil {
-			c.JSON(500, gin.H{"error": err.Error()})
+			middleware.RespondInternalError(c, err.Error())
 			return
 		}
-		c.JSON(200, gin.H{"data": ops})
+		middleware.RespondSuccess(c, ops)
 		return
 	}
 	ops, err := h.svc.ListOperations(ctx, tenantID, nil)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": ops})
+	middleware.RespondSuccess(c, ops)
 }
 
 func (h *Handler) GetOperation(c *gin.Context) {
@@ -85,10 +86,10 @@ func (h *Handler) GetOperation(c *gin.Context) {
 	defer span.End()
 	op, err := h.svc.GetOperation(ctx, c.GetString("tenant_id"), c.Param("module"), c.Param("name"))
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": op})
+	middleware.RespondSuccess(c, op)
 }
 
 func (h *Handler) Invoke(c *gin.Context) {
@@ -96,15 +97,15 @@ func (h *Handler) Invoke(c *gin.Context) {
 	defer span.End()
 	var req models.CreateCrossoverCallRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.Invoke(ctx, c.GetString("tenant_id"), &req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": result})
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) CreateAsyncJob(c *gin.Context) {
@@ -112,15 +113,15 @@ func (h *Handler) CreateAsyncJob(c *gin.Context) {
 	defer span.End()
 	var req models.CreateAsyncJobRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	job, err := h.svc.CreateAsyncJob(ctx, c.GetString("tenant_id"), &req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(201, gin.H{"data": job})
+	middleware.RespondCreated(c, job)
 }
 
 func (h *Handler) GetAsyncJob(c *gin.Context) {
@@ -128,10 +129,10 @@ func (h *Handler) GetAsyncJob(c *gin.Context) {
 	defer span.End()
 	job, err := h.svc.GetAsyncJob(c.Param("id"))
 	if err != nil || job == nil {
-		c.JSON(404, gin.H{"error": "job not found"})
+		middleware.RespondNotFound(c, "job not found")
 		return
 	}
-	c.JSON(200, gin.H{"data": job})
+	middleware.RespondSuccess(c, job)
 }
 
 func (h *Handler) DispatchBatch(c *gin.Context) {
@@ -141,15 +142,15 @@ func (h *Handler) DispatchBatch(c *gin.Context) {
 		Calls []*models.CrossoverCall `json:"calls" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	ids, err := h.svc.DispatchBatch(ctx, c.GetString("tenant_id"), req.Calls)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(201, gin.H{"job_ids": ids})
+	middleware.RespondCreated(c, gin.H{"job_ids": ids})
 }
 
 func (h *Handler) ListCalls(c *gin.Context) {
@@ -161,18 +162,18 @@ func (h *Handler) ListCalls(c *gin.Context) {
 	if targetModule != "" {
 		calls, err := h.svc.ListCallsByTarget(ctx, tenantID, targetModule, opts)
 		if err != nil {
-			c.JSON(500, gin.H{"error": err.Error()})
+			middleware.RespondInternalError(c, err.Error())
 			return
 		}
-		c.JSON(200, gin.H{"data": calls, "total": len(calls)})
+		middleware.RespondSuccess(c, gin.H{"data": calls, "total": len(calls)})
 		return
 	}
 	calls, err := h.svc.ListCalls(ctx, tenantID, opts)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": calls, "total": len(calls)})
+	middleware.RespondSuccess(c, gin.H{"data": calls, "total": len(calls)})
 }
 
 func (h *Handler) GetCall(c *gin.Context) {
@@ -180,14 +181,14 @@ func (h *Handler) GetCall(c *gin.Context) {
 	defer span.End()
 	call, err := h.svc.GetCall(ctx, c.GetString("tenant_id"), c.Param("id"))
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if call == nil {
-		c.JSON(404, gin.H{"error": "call not found"})
+		middleware.RespondNotFound(c, "call not found")
 		return
 	}
-	c.JSON(200, gin.H{"data": call})
+	middleware.RespondSuccess(c, call)
 }
 
 func (h *Handler) DeleteCall(c *gin.Context) {
@@ -195,10 +196,10 @@ func (h *Handler) DeleteCall(c *gin.Context) {
 	defer span.End()
 	err := h.svc.DeleteCall(ctx, c.GetString("tenant_id"), c.Param("id"))
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"status": "deleted"})
+	middleware.RespondSuccess(c, gin.H{"status": "deleted"})
 }
 
 func (h *Handler) Stats(c *gin.Context) {
@@ -206,17 +207,17 @@ func (h *Handler) Stats(c *gin.Context) {
 	defer span.End()
 	stats, err := h.svc.Stats(ctx, c.GetString("tenant_id"))
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": stats})
+	middleware.RespondSuccess(c, stats)
 }
 
 func (h *Handler) ListAsyncJobs(c *gin.Context) {
 	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCrossoverAsyncJobs")
 	defer span.End()
 	jobs := h.svc.ListAsyncJobs(c.GetString("tenant_id"), c.Query("status"))
-	c.JSON(200, gin.H{"data": jobs, "total": len(jobs)})
+	middleware.RespondSuccess(c, gin.H{"data": jobs, "total": len(jobs)})
 }
 
 func intParam(c *gin.Context, key string, fallback int) int {

@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/roweditor"
 	"orion/platform-svc-go/internal/roweditor/handler/models"
 	"orion/platform-svc-go/internal/roweditor/service"
@@ -35,7 +36,7 @@ func (h *Handler) RegisterEditor(c *gin.Context) {
 	defer span.End()
 	var req models.RowEditorSpecRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	name := c.Query("name")
@@ -43,10 +44,10 @@ func (h *Handler) RegisterEditor(c *gin.Context) {
 		name = req.TableName
 	}
 	if err := h.svc2.RegisterEditor(ctx, c.GetString("tenant_id"), name, &req); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(201, gin.H{"status": "registered", "name": name})
+	middleware.RespondCreated(c, gin.H{"status": "registered", "name": name})
 }
 
 func (h *Handler) Stats(c *gin.Context) {
@@ -54,10 +55,10 @@ func (h *Handler) Stats(c *gin.Context) {
 	defer span.End()
 	stats, err := h.svc2.Stats(ctx, c.Param("name"))
 	if err != nil {
-		c.JSON(404, gin.H{"error": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": stats})
+	middleware.RespondSuccess(c, stats)
 }
 
 func (h *Handler) CreateRow(c *gin.Context) {
@@ -65,15 +66,15 @@ func (h *Handler) CreateRow(c *gin.Context) {
 	defer span.End()
 	var req models.RowCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	resp, err := h.svc2.CreateRow(ctx, c.Param("editor"), h.svc, &req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(201, gin.H{"data": resp})
+	middleware.RespondCreated(c, resp)
 }
 
 func (h *Handler) ReadRow(c *gin.Context) {
@@ -81,10 +82,10 @@ func (h *Handler) ReadRow(c *gin.Context) {
 	defer span.End()
 	resp, err := h.svc2.ReadRow(ctx, c.Param("editor"), h.svc, c.GetString("tenant_id"), c.Param("row_id"))
 	if err != nil {
-		c.JSON(404, gin.H{"error": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": resp})
+	middleware.RespondSuccess(c, resp)
 }
 
 func (h *Handler) UpdateRow(c *gin.Context) {
@@ -92,15 +93,15 @@ func (h *Handler) UpdateRow(c *gin.Context) {
 	defer span.End()
 	var req models.RowUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	resp, err := h.svc2.UpdateRow(ctx, c.Param("editor"), h.svc, &req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": resp})
+	middleware.RespondSuccess(c, resp)
 }
 
 func (h *Handler) DeleteRow(c *gin.Context) {
@@ -108,10 +109,10 @@ func (h *Handler) DeleteRow(c *gin.Context) {
 	defer span.End()
 	resp, err := h.svc2.DeleteRow(ctx, c.Param("editor"), h.svc, c.GetString("tenant_id"), c.Param("row_id"))
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": resp})
+	middleware.RespondSuccess(c, resp)
 }
 
 func (h *Handler) BatchCreate(c *gin.Context) {

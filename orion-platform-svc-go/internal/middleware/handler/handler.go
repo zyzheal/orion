@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/middleware/handler/models"
 	"orion/platform-svc-go/internal/middleware/service"
 )
@@ -29,14 +30,14 @@ func (h *Handler) RegisterRateLimit(c *gin.Context) {
 	defer span.End()
 	var req models.RateLimitConfig
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.RegisterRateLimit(ctx, c.GetString("tenant_id"), &req); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(201, gin.H{"status": "registered"})
+	middleware.RespondCreated(c, gin.H{"status": "registered"})
 }
 
 func (h *Handler) GetRateLimit(c *gin.Context) {
@@ -44,10 +45,10 @@ func (h *Handler) GetRateLimit(c *gin.Context) {
 	defer span.End()
 	cfg, err := h.svc.GetRateLimit(ctx, c.GetString("tenant_id"))
 	if err != nil {
-		c.JSON(404, gin.H{"error": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": cfg})
+	middleware.RespondSuccess(c, cfg)
 }
 
 func (h *Handler) UpdateMiddleware(c *gin.Context) {
@@ -55,14 +56,14 @@ func (h *Handler) UpdateMiddleware(c *gin.Context) {
 	defer span.End()
 	var req models.MiddlewareUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.UpdateMiddleware(ctx, c.GetString("tenant_id"), &req); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"status": "updated"})
+	middleware.RespondSuccess(c, gin.H{"status": "updated"})
 }
 
 func (h *Handler) GetStats(c *gin.Context) {

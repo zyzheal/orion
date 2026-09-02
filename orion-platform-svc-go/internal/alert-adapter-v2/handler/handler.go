@@ -8,6 +8,7 @@ import (
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/alert-adapter-v2/models"
 	"orion/platform-svc-go/internal/alert-adapter-v2/service"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct{ factory *service.NotificationFactory }
@@ -36,10 +37,10 @@ func (h *Handler) CreateAdapter(c *gin.Context) {
 	_ = c.ShouldBindJSON(&req)
 	a, err := h.factory.CreateAdapter(ctx, c.GetString("tenant_id"), req.Name, req.Channel, req.Config)
 	if err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(201, gin.H{"data": a})
+	middleware.RespondCreated(c, a)
 }
 
 func (h *Handler) ListAdapters(c *gin.Context) {
@@ -53,10 +54,10 @@ func (h *Handler) ListAdapters(c *gin.Context) {
 	}
 	items, err := h.factory.ListAdapters(ctx, c.GetString("tenant_id"), ch, offset, limit)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": items})
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) GetAdapter(c *gin.Context) {
@@ -64,10 +65,10 @@ func (h *Handler) GetAdapter(c *gin.Context) {
 	defer span.End()
 	a, err := h.factory.GetAdapter(ctx, c.GetString("tenant_id"), c.Param("id"))
 	if err != nil {
-		c.JSON(404, gin.H{"error": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": a})
+	middleware.RespondSuccess(c, a)
 }
 
 func (h *Handler) UpdateAdapter(c *gin.Context) {
@@ -75,25 +76,25 @@ func (h *Handler) UpdateAdapter(c *gin.Context) {
 	defer span.End()
 	var req models.UpdateAdapterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	a, err := h.factory.UpdateAdapter(ctx, c.GetString("tenant_id"), c.Param("id"), &req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": a})
+	middleware.RespondSuccess(c, a)
 }
 
 func (h *Handler) DeleteAdapter(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertAdapterDeleteAdapter")
 	defer span.End()
 	if err := h.factory.DeleteAdapter(ctx, c.GetString("tenant_id"), c.Param("id")); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"status": "deleted"})
+	middleware.RespondSuccess(c, gin.H{"status": "deleted"})
 }
 
 func (h *Handler) CreateTemplate(c *gin.Context) {
