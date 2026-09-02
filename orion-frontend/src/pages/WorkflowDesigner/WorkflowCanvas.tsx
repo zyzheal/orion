@@ -51,6 +51,26 @@ import {
   type WorkflowEdge,
 } from '@/api/workflow';
 import { colors, themeVars } from '@/tokens';
+import {
+  nodeTypeColors,
+  nodeTypeLabels,
+  approvalModeOptions,
+  notificationChannelOptions,
+  webhookMethodOptions,
+  errorHandlingStrategyOptions,
+  retryCountOptions,
+  defaultEdgeOptions,
+  controlsStyle,
+  miniMapStyle,
+  toolbarDividerStyle,
+  emptyContainerStyle,
+  emptyColumnContainerStyle,
+} from './WorkflowCanvasConfig';
+import {
+  makeInputMappingColumns,
+  makeOutputVariableColumns,
+  tableAddRowStyle,
+} from './WorkflowCanvasColumns';
 
 const { Text } = Typography;
 
@@ -176,31 +196,6 @@ function CustomNode({ data }: CustomNodeProps) {
 
 // ==================== 类型映射 ====================
 
-const nodeTypeColors: Record<string, string> = {
-  start: colors.success[500],
-  approval: colors.purple[500],
-  condition: colors.warning[500],
-  notification: colors.info[500],
-  webhook: colors.primary[500],
-  task: colors.primary[600],
-  'sub-workflow': colors.purple[600],
-  delay: colors.info[400],
-  timer: colors.purple[500],
-  end: colors.neutral[500],
-};
-
-const nodeTypeLabels: Record<string, string> = {
-  start: '开始节点',
-  approval: '审批节点',
-  condition: '条件分支',
-  notification: '通知节点',
-  webhook: 'Webhook',
-  task: '人工任务',
-  'sub-workflow': '子流程',
-  delay: '延迟节点',
-  timer: '定时器',
-  end: '结束节点',
-};
 
 const customNodeTypes = { workflow: CustomNode };
 
@@ -772,13 +767,7 @@ const WorkflowCanvasInner: React.FC<WorkflowCanvasProps> = ({ workflowId }) => {
               <Select mode="tags" placeholder="选择或输入审批人" />
             </Form.Item>
             <Form.Item label="审批模式" name="mode">
-              <Select
-                options={[
-                  { label: '一人通过', value: 'one' },
-                  { label: '多数通过', value: 'majority' },
-                  { label: '全员通过', value: 'all' },
-                ]}
-              />
+              <Select options={approvalModeOptions} />
             </Form.Item>
             <Form.Item label="超时时间(秒)" name="timeout">
               <Input type="number" />
