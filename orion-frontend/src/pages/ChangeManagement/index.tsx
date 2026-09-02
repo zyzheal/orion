@@ -28,7 +28,6 @@ import {
   Modal,
   Row,
   Col,
-  DatePicker,
 } from 'antd';
 import {
   PlusOutlined,
@@ -81,8 +80,6 @@ import {
   priorityConfig,
   riskConfig,
   statusConfig,
-  rfcStatusConfig,
-  cabStatusConfig,
   statusTransitions,
   eventTypeConfig,
 } from './config';
@@ -92,6 +89,11 @@ import {
   useCABColumns,
 } from './columns';
 import { ChangeForm } from './ChangeForm';
+import { RFCForm } from './RFCForm';
+import { CABForm } from './CABForm';
+import { DecisionForm } from './DecisionForm';
+import { CABDetailContent } from './CABDetailContent';
+import { RFCDetailContent } from './RFCDetailContent';
 import { buildStatsCards } from './stats';
 
 const { Title, Text } = Typography;
@@ -1358,30 +1360,7 @@ const ChangeManagement: React.FC = () => {
           okText={editRfcId ? '保存' : '创建'}
           cancelText="取消"
         >
-          <Form form={rfcForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item
-              name="change_request_id"
-              label="关联变更请求 ID"
-              rules={[{ required: true, message: '请输入变更请求 ID' }]}
-            >
-              <Input placeholder="变更请求 ID" />
-            </Form.Item>
-            <Form.Item name="justification" label="变更理由">
-              <TextArea rows={3} placeholder="说明变更的必要性" />
-            </Form.Item>
-            <Form.Item name="risk_assessment" label="风险评估">
-              <TextArea rows={2} placeholder="评估变更风险" />
-            </Form.Item>
-            <Form.Item name="test_plan" label="测试计划">
-              <TextArea rows={2} placeholder="变更测试方案" />
-            </Form.Item>
-            <Form.Item name="communication_plan" label="沟通计划">
-              <TextArea rows={2} placeholder="变更沟通方案" />
-            </Form.Item>
-            <Form.Item name="backout_plan" label="退出计划">
-              <TextArea rows={2} placeholder="变更退出/回滚方案" />
-            </Form.Item>
-          </Form>
+          <RFCForm formInstance={rfcForm} />
         </Modal>
 
         {/* RFC Detail Modal */}
@@ -1395,44 +1374,7 @@ const ChangeManagement: React.FC = () => {
           width={640}
           footer={null}
         >
-          {selectedRfc && (
-            <Descriptions column={1} bordered size="small">
-              <Descriptions.Item label="RFC 编号">{selectedRfc.rfc_number}</Descriptions.Item>
-              <Descriptions.Item label="关联变更 ID">
-                {selectedRfc.change_request_id}
-              </Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <Tag color={rfcStatusConfig[selectedRfc.status]?.color}>
-                  {rfcStatusConfig[selectedRfc.status]?.label || selectedRfc.status}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="审核人">{selectedRfc.reviewed_by || '-'}</Descriptions.Item>
-              <Descriptions.Item label="审核时间">
-                {selectedRfc.reviewed_at
-                  ? dayjs(selectedRfc.reviewed_at).format('YYYY-MM-DD HH:mm')
-                  : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="变更理由">
-                {selectedRfc.justification || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="风险评估">
-                {selectedRfc.risk_assessment || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="测试计划">{selectedRfc.test_plan || '-'}</Descriptions.Item>
-              <Descriptions.Item label="沟通计划">
-                {selectedRfc.communication_plan || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="退出计划">
-                {selectedRfc.backout_plan || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="创建时间">
-                {dayjs(selectedRfc.created_at).format('YYYY-MM-DD HH:mm')}
-              </Descriptions.Item>
-              <Descriptions.Item label="更新时间">
-                {dayjs(selectedRfc.updated_at).format('YYYY-MM-DD HH:mm')}
-              </Descriptions.Item>
-            </Descriptions>
-          )}
+          {selectedRfc && <RFCDetailContent rfc={selectedRfc} />}
         </Modal>
 
         {/* CAB Meeting Modal (Create/Edit) */}
@@ -1449,31 +1391,7 @@ const ChangeManagement: React.FC = () => {
           okText={editCabId ? '保存' : '创建'}
           cancelText="取消"
         >
-          <Form form={cabForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item
-              name="title"
-              label="会议标题"
-              rules={[{ required: true, message: '请输入会议标题' }]}
-            >
-              <Input placeholder="CAB 会议标题" />
-            </Form.Item>
-            <Form.Item name="description" label="会议描述">
-              <TextArea rows={2} placeholder="会议描述（可选）" />
-            </Form.Item>
-            <Form.Item
-              name="scheduled_at"
-              label="会议时间"
-              rules={[{ required: true, message: '请选择会议时间' }]}
-            >
-              <DatePicker showTime style={{ width: '100%' }} placeholder="选择会议时间" />
-            </Form.Item>
-            <Form.Item name="location" label="会议地点">
-              <Input placeholder="会议地点（可选）" />
-            </Form.Item>
-            <Form.Item name="attendees" label="参会人" help="多人用逗号分隔">
-              <Input placeholder="张三, 李四, 王五" />
-            </Form.Item>
-          </Form>
+          <CABForm formInstance={cabForm} />
         </Modal>
 
         {/* CAB Meeting Detail Modal */}
@@ -1503,86 +1421,7 @@ const ChangeManagement: React.FC = () => {
             ) : null
           }
         >
-          {selectedCab && (
-            <>
-              <Descriptions column={2} bordered size="small" style={{ marginBottom: spacing.md }}>
-                <Descriptions.Item label="会议 ID">{selectedCab.id}</Descriptions.Item>
-                <Descriptions.Item label="状态">
-                  <Tag color={cabStatusConfig[selectedCab.status]?.color}>
-                    {cabStatusConfig[selectedCab.status]?.label || selectedCab.status}
-                  </Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="会议时间" span={2}>
-                  {dayjs(selectedCab.scheduled_at).format('YYYY-MM-DD HH:mm')}
-                </Descriptions.Item>
-                <Descriptions.Item label="地点">{selectedCab.location || '-'}</Descriptions.Item>
-                <Descriptions.Item label="创建人">
-                  {selectedCab.created_by || '-'}
-                </Descriptions.Item>
-                <Descriptions.Item label="描述" span={2}>
-                  {selectedCab.description || '-'}
-                </Descriptions.Item>
-                <Descriptions.Item label="参会人" span={2}>
-                  {selectedCab.attendees?.length ? (
-                    <Space size={4} wrap>
-                      {selectedCab.attendees.map((a) => (
-                        <Tag key={a}>{a}</Tag>
-                      ))}
-                    </Space>
-                  ) : (
-                    '-'
-                  )}
-                </Descriptions.Item>
-                <Descriptions.Item label="创建时间">
-                  {dayjs(selectedCab.created_at).format('YYYY-MM-DD HH:mm')}
-                </Descriptions.Item>
-                <Descriptions.Item label="更新时间">
-                  {dayjs(selectedCab.updated_at).format('YYYY-MM-DD HH:mm')}
-                </Descriptions.Item>
-              </Descriptions>
-
-              {/* Decisions */}
-              <Card title="决策记录" size="small" type="inner">
-                {selectedCab.decisions?.length ? (
-                  <Timeline
-                    items={selectedCab.decisions.map((d) => ({
-                      color:
-                        d.decision === 'approved'
-                          ? 'green'
-                          : d.decision === 'rejected'
-                            ? 'red'
-                            : 'orange',
-                      children: (
-                        <div>
-                          <Space>
-                            <Tag
-                              color={
-                                d.decision === 'approved'
-                                  ? 'green'
-                                  : d.decision === 'rejected'
-                                    ? 'red'
-                                    : 'orange'
-                              }
-                            >
-                              {d.decision === 'approved'
-                                ? '批准'
-                                : d.decision === 'rejected'
-                                  ? '拒绝'
-                                  : '推迟'}
-                            </Tag>
-                            <Text type="secondary">变更请求: {d.changeRequestId}</Text>
-                          </Space>
-                          {d.notes && <div style={{ marginTop: spacing.xs }}>{d.notes}</div>}
-                        </div>
-                      ),
-                    }))}
-                  />
-                ) : (
-                  <Empty description="暂无决策记录" />
-                )}
-              </Card>
-            </>
-          )}
+          {selectedCab && <CABDetailContent cab={selectedCab} />}
         </Modal>
 
         {/* Add CAB Decision Modal */}
@@ -1598,29 +1437,7 @@ const ChangeManagement: React.FC = () => {
           okText="添加"
           cancelText="取消"
         >
-          <Form form={decisionForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item
-              name="changeRequestId"
-              label="变更请求 ID"
-              rules={[{ required: true, message: '请输入变更请求 ID' }]}
-            >
-              <Input placeholder="变更请求 ID" />
-            </Form.Item>
-            <Form.Item
-              name="decision"
-              label="决策"
-              rules={[{ required: true, message: '请选择决策' }]}
-            >
-              <Select placeholder="选择决策">
-                <Select.Option value="approved">批准</Select.Option>
-                <Select.Option value="rejected">拒绝</Select.Option>
-                <Select.Option value="deferred">推迟</Select.Option>
-              </Select>
-            </Form.Item>
-            <Form.Item name="notes" label="备注">
-              <TextArea rows={3} placeholder="决策备注（可选）" />
-            </Form.Item>
-          </Form>
+          <DecisionForm formInstance={decisionForm} />
         </Modal>
       </div>
     </Layout>
