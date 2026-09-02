@@ -20,7 +20,6 @@ import {
   message,
   Form,
   Select,
-  Input,
   Modal,
   Row,
   Col,
@@ -72,7 +71,6 @@ import {
   typeConfig,
   priorityConfig,
   statusConfig,
-  eventTypeConfig,
 } from './config';
 import {
   useChangeColumns,
@@ -87,9 +85,10 @@ import { DecisionForm } from './DecisionForm';
 import { CABDetailContent } from './CABDetailContent';
 import { RFCDetailContent } from './RFCDetailContent';
 import { buildStatsCards } from './stats';
+import { StatusNoteForm } from './StatusNoteForm';
+import { TimelineEventForm } from './TimelineEventForm';
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
 
 // ============================================================================
 // ChangeManagement Component
@@ -972,11 +971,7 @@ const ChangeManagement: React.FC = () => {
           okText="确认变更"
           cancelText="取消"
         >
-          <Form form={statusNoteForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item name="note" label="备注（可选）">
-              <TextArea rows={3} placeholder="添加状态变更备注" />
-            </Form.Item>
-          </Form>
+          <StatusNoteForm formInstance={statusNoteForm} />
         </Modal>
 
         {/* Add Timeline Event Modal */}
@@ -992,28 +987,7 @@ const ChangeManagement: React.FC = () => {
           okText="添加"
           cancelText="取消"
         >
-          <Form form={eventForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item
-              name="event_type"
-              label="事件类型"
-              rules={[{ required: true, message: '请选择事件类型' }]}
-            >
-              <Select placeholder="选择事件类型">
-                {Object.entries(eventTypeConfig).map(([key, cfg]) => (
-                  <Select.Option key={key} value={key}>
-                    {cfg.label}
-                  </Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-            <Form.Item
-              name="description"
-              label="事件描述"
-              rules={[{ required: true, message: '请输入事件描述' }]}
-            >
-              <TextArea rows={4} placeholder="详细描述此事件记录" />
-            </Form.Item>
-          </Form>
+          <TimelineEventForm formInstance={eventForm} />
         </Modal>
 
         {/* RFC Modal (Create/Edit) */}
