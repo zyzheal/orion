@@ -33,16 +33,16 @@ func (h *SemanticSearchHandler) Search(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.SearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	resp, err := h.svc.Search(ctx, tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": resp})
+	middleware.RespondSuccess(c, resp)
 }
 
 func (h *SemanticSearchHandler) Index(c *gin.Context) {
@@ -51,13 +51,13 @@ func (h *SemanticSearchHandler) Index(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.IndexRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	if err := h.svc.IndexContent(ctx, tenantID, &req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "message": "indexed"})
+	middleware.RespondCreated(c, gin.H{"status": "indexed"})
 }

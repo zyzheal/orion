@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // ============================================================
@@ -129,7 +130,7 @@ var (
 func WebVitalsHandler(c *gin.Context) {
 	var report WebVitalsReport
 	if err := c.ShouldBindJSON(&report); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		middleware.RespondBadRequest(c, "invalid request")
 		return
 	}
 
@@ -170,7 +171,7 @@ func WebVitalsHandler(c *gin.Context) {
 	bestRating := findBestRating(report.Vitals)
 	wvTotalReports.WithLabelValues(page, service, bestRating).Inc()
 
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	middleware.RespondSuccess(c, gin.H{"status": "ok"})
 }
 
 // ============================================================

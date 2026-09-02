@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/code/build/service"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type BuildHandler struct {
@@ -27,29 +28,29 @@ func (h *BuildHandler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *BuildHandler) StartBuild(c *gin.Context) {
 	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartBuild")
 	defer span.End()
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "message": "success"})
+	middleware.RespondCreated(c, gin.H{"message": "success"})
 }
 
 func (h *BuildHandler) GetBuild(c *gin.Context) {
 	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBuild")
 	defer span.End()
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success"})
+	middleware.RespondSuccess(c, gin.H{"message": "success"})
 }
 
 func (h *BuildHandler) GetBuildLogs(c *gin.Context) {
 	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBuildLogs")
 	defer span.End()
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success"})
+	middleware.RespondSuccess(c, gin.H{"message": "success"})
 }
 
 func (h *BuildHandler) CancelBuild(c *gin.Context) {
 	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CancelBuild")
 	defer span.End()
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success"})
+	middleware.RespondSuccess(c, gin.H{"message": "success"})
 }
 
 func (h *BuildHandler) ListBuilds(c *gin.Context) {
 	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListBuilds")
 	defer span.End()
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success"})
+	middleware.RespondSuccess(c, gin.H{"message": "success"})
 }

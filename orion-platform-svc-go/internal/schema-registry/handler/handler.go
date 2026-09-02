@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/schema-registry/models"
@@ -121,7 +122,7 @@ func (h *Handler) Delete(c *gin.Context) {
 	err := h.repo.DeleteSchema(c.Request.Context(), c.Param("namespace"), c.Param("name"))
 	if err != nil {
 		if errors.Is(err, repository.ErrSchemaNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "schema not found"})
+			middleware.RespondNotFound(c, "schema not found")
 			return
 		}
 		handleError(c, err)
@@ -182,7 +183,7 @@ func (h *Handler) GetVersion(c *gin.Context) {
 	v, err := h.repo.GetVersion(c.Request.Context(), c.Param("namespace"), c.Param("name"), ver)
 	if err != nil {
 		if errors.Is(err, repository.ErrSchemaNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "version not found"})
+			middleware.RespondNotFound(c, "version not found")
 			return
 		}
 		handleError(c, err)
@@ -198,21 +199,21 @@ func (h *Handler) Compatibility(c *gin.Context) {
 		handleError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"compatibility": mode})
+	middleware.RespondSuccess(c, gin.H{"compatibility": mode})
 }
 
 // --- response helpers ---
 
 func badRequest(c *gin.Context, msg string) {
-	c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+	middleware.RespondBadRequest(c, msg)
 }
 
 func handleError(c *gin.Context, err error) {
 	if errors.Is(err, repository.ErrSchemaNotFound) {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	middleware.RespondInternalError(c, err.Error())
 }
 
 func joinErrors(errs []string) string {

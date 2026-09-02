@@ -2,7 +2,6 @@ package handler
 
 import (
 	"fmt"
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -10,6 +9,7 @@ import (
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai/llm-trace/models"
 	"orion/platform-svc-go/internal/ai/llm-trace/service"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type LLMTraceHandler struct {
@@ -51,10 +51,10 @@ func (h *LLMTraceHandler) List(c *gin.Context) {
 
 	resp, err := h.svc.Query(ctx, tenantID, model, provider, status, startTime, endTime, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "total": resp.Total, "data": resp.Data})
+	middleware.RespondSuccess(c, gin.H{"total": resp.Total, "data": resp.Data})
 }
 
 // Create creates a new trace.
@@ -64,16 +64,16 @@ func (h *LLMTraceHandler) Create(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.CreateTraceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	trace, err := h.svc.Create(ctx, tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "message": "created", "data": trace})
+	middleware.RespondCreated(c, trace)
 }
 
 // CostSummary returns aggregated cost data.
@@ -85,10 +85,10 @@ func (h *LLMTraceHandler) CostSummary(c *gin.Context) {
 
 	summary, err := h.svc.GetCostSummary(ctx, tenantID, period)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": summary})
+	middleware.RespondSuccess(c, summary)
 }
 
 // GetByTraceID returns traces for a trace ID.
@@ -100,10 +100,10 @@ func (h *LLMTraceHandler) GetByTraceID(c *gin.Context) {
 
 	traces, err := h.svc.GetByTraceID(ctx, tenantID, traceID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": traces})
+	middleware.RespondSuccess(c, traces)
 }
 
 // DeleteOld removes old traces.
@@ -119,8 +119,8 @@ func (h *LLMTraceHandler) DeleteOld(c *gin.Context) {
 
 	count, err := h.svc.DeleteOldTraces(ctx, tenantID, days)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": fmt.Sprintf("deleted %d old traces", count)})
+	middleware.RespondSuccess(c, gin.H{"message": fmt.Sprintf("deleted %d old traces", count)})
 }

@@ -1,13 +1,12 @@
 package handler
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai/rule-engine/models"
 	"orion/platform-svc-go/internal/ai/rule-engine/service"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type RuleEngineHandler struct {
@@ -42,10 +41,10 @@ func (h *RuleEngineHandler) ListRules(c *gin.Context) {
 
 	resp, err := h.svc.QueryRules(tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "total": resp.Total, "data": resp.Data})
+	middleware.RespondSuccess(c, gin.H{"total": resp.Total, "data": resp.Data})
 }
 
 // CreateRule creates a new rule.
@@ -55,16 +54,16 @@ func (h *RuleEngineHandler) CreateRule(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.CreateRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	rule, err := h.svc.CreateRule(ctx, tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "message": "created", "data": rule})
+	middleware.RespondCreated(c, rule)
 }
 
 // GetRule returns a rule by ID.
@@ -76,10 +75,10 @@ func (h *RuleEngineHandler) GetRule(c *gin.Context) {
 
 	rule, err := h.svc.GetRule(tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": rule})
+	middleware.RespondSuccess(c, rule)
 }
 
 // UpdateRule updates a rule.
@@ -96,16 +95,16 @@ func (h *RuleEngineHandler) UpdateRule(c *gin.Context) {
 		IsEnabled   *bool   `json:"is_enabled"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	rule, err := h.svc.UpdateRule(ctx, tenantID, id, req.Name, req.Description, req.Priority, req.IsEnabled)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": rule})
+	middleware.RespondSuccess(c, rule)
 }
 
 // DeleteRule removes a rule.
@@ -116,10 +115,10 @@ func (h *RuleEngineHandler) DeleteRule(c *gin.Context) {
 	id := c.Param("id")
 
 	if err := h.svc.DeleteRule(ctx, tenantID, id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	middleware.RespondNoContent(c)
 }
 
 // Evaluate evaluates a rule against input data.
@@ -129,14 +128,14 @@ func (h *RuleEngineHandler) Evaluate(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.EvaluateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	result, err := h.svc.Evaluate(ctx, tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": result})
+	middleware.RespondSuccess(c, result)
 }

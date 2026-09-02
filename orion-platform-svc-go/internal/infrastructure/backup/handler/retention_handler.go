@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // RetentionHandler exposes backup retention cleanup endpoints. The service
@@ -41,21 +42,21 @@ func (h *RetentionHandler) PurgeTenant(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RetentionPurgeTenant")
 	defer span.End()
 	if h.backupSvc == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "backup service not configured"})
+		middleware.RespondServiceUnavailable(c, "backup service not configured")
 		return
 	}
 	tenantID := c.DefaultQuery("tenant_id", c.GetString("tenant_id"))
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id required"})
+		middleware.RespondBadRequest(c, "tenant_id required")
 		return
 	}
 	res, err := h.backupSvc.PurgeExpired(ctx, tenantID)
 	if err != nil {
 		h.log.Error("purge failed", zap.String("tenant_id", tenantID), zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"result": res})
+	middleware.RespondSuccess(c, gin.H{"result": res})
 }
 
 // PurgeAll purges expired backups across all tenants. Reserved for
@@ -66,7 +67,7 @@ func (h *RetentionHandler) PurgeAll(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RetentionPurgeAll")
 	defer span.End()
 	if h.backupSvc == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "backup service not configured"})
+		middleware.RespondServiceUnavailable(c, "backup service not configured")
 		return
 	}
 	dryRun := c.DefaultQuery("dry_run", "0") == "1"
@@ -77,7 +78,7 @@ func (h *RetentionHandler) PurgeAll(c *gin.Context) {
 	} else {
 		out = h.backupSvc.PurgeAll(ctx)
 	}
-	c.JSON(http.StatusOK, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"results":    out,
 		"dryRun":     dryRun,
 		"durationMs": time.Since(start).Milliseconds(),
@@ -90,7 +91,7 @@ func (h *RetentionHandler) Status(c *gin.Context) {
 	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RetentionStatus")
 	defer span.End()
 	configured := h.backupSvc != nil
-	c.JSON(http.StatusOK, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"configured": configured,
 		"time":       time.Now().UTC().Format(time.RFC3339),
 	})

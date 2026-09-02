@@ -1,14 +1,13 @@
 package handler
 
 import (
-	"net/http"
-
 	"orion/platform-svc-go/internal/gateway-routes/models"
 	"orion/platform-svc-go/internal/gateway-routes/repository"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -33,10 +32,10 @@ func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.repo.List(ctx, tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"items": items})
+	middleware.RespondSuccess(c, gin.H{"items": items})
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -45,10 +44,10 @@ func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	item, err := h.repo.Get(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		middleware.RespondNotFound(c, "not found")
 		return
 	}
-	c.JSON(http.StatusOK, item)
+	middleware.RespondSuccess(c, item)
 }
 
 func (h *Handler) Create(c *gin.Context) {
@@ -57,7 +56,7 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateGatewayRoutesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	item := &models.GatewayRoutesItem{
@@ -67,10 +66,10 @@ func (h *Handler) Create(c *gin.Context) {
 		Enabled:     req.Enabled,
 	}
 	if err := h.repo.Create(ctx, item); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, item)
+	middleware.RespondCreated(c, item)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
@@ -78,8 +77,8 @@ func (h *Handler) Delete(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if err := h.repo.Delete(ctx, tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"ok": true})
+	middleware.RespondSuccess(c, gin.H{"ok": true})
 }

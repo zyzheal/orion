@@ -92,7 +92,7 @@ func (h *Handler) DispatchCommand(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"command_id":   cmd.CommandID,
 		"command_type": cmd.CommandType,
 		"aggregate_id": cmd.AggregateID,

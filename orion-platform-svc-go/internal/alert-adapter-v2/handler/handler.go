@@ -102,15 +102,15 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 	defer span.End()
 	var req struct{ Name, Channel, Template, Variables string }
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	t, err := h.factory.CreateTemplate(ctx, c.GetString("tenant_id"), req.Name, req.Channel, req.Template, req.Variables)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(201, gin.H{"data": t})
+	middleware.RespondCreated(c, t)
 }
 
 func (h *Handler) ListTemplates(c *gin.Context) {
@@ -124,10 +124,10 @@ func (h *Handler) ListTemplates(c *gin.Context) {
 	}
 	items, err := h.factory.ListTemplates(ctx, c.GetString("tenant_id"), ch, offset, limit)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": items})
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) SendNotification(c *gin.Context) {
@@ -138,15 +138,15 @@ func (h *Handler) SendNotification(c *gin.Context) {
 		Variables           map[string]string
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	ev, err := h.factory.SendNotification(ctx, c.GetString("tenant_id"), c.Param("id"), req.TemplateID, req.AlertID, req.Variables)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": ev})
+	middleware.RespondSuccess(c, ev)
 }
 
 func (h *Handler) ListEvents(c *gin.Context) {
@@ -159,8 +159,8 @@ func (h *Handler) ListEvents(c *gin.Context) {
 	}
 	items, err := h.factory.ListEvents(ctx, c.GetString("tenant_id"), c.Param("id"), c.Query("status"), offset, limit)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": items})
+	middleware.RespondSuccess(c, items)
 }

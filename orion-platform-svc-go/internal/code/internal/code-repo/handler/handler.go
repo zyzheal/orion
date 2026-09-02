@@ -1,11 +1,10 @@
 package handler
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/code/internal/code-repo/service"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type CodeRepoHandler struct {
@@ -33,10 +32,10 @@ func (h *CodeRepoHandler) List(c *gin.Context) {
 	defer span.End()
 	repos, err := h.Service.List(ctx)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": repos})
+	middleware.RespondSuccess(c, repos)
 }
 
 func (h *CodeRepoHandler) Create(c *gin.Context) {
@@ -49,15 +48,15 @@ func (h *CodeRepoHandler) Create(c *gin.Context) {
 		Token    string `json:"token,omitempty"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid request"})
+		middleware.RespondBadRequest(c, "invalid request")
 		return
 	}
 	repo, err := h.Service.Create(ctx, req.Name, req.URL, req.Provider, req.Token)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "message": "success", "data": repo})
+	middleware.RespondCreated(c, repo)
 }
 
 func (h *CodeRepoHandler) Get(c *gin.Context) {
@@ -66,38 +65,38 @@ func (h *CodeRepoHandler) Get(c *gin.Context) {
 	id := c.Param("id")
 	repo, err := h.Service.Get(ctx, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "not found"})
+		middleware.RespondNotFound(c, "not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": repo})
+	middleware.RespondSuccess(c, repo)
 }
 
 func (h *CodeRepoHandler) Update(c *gin.Context) {
 	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CodeInternalUpdateRepo")
 	defer span.End()
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success"})
+	middleware.RespondSuccess(c, gin.H{"message": "success"})
 }
 
 func (h *CodeRepoHandler) Delete(c *gin.Context) {
 	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CodeInternalDeleteRepo")
 	defer span.End()
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success"})
+	middleware.RespondSuccess(c, gin.H{"message": "success"})
 }
 
 func (h *CodeRepoHandler) HandleWebhook(c *gin.Context) {
 	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CodeInternalHandleWebhook")
 	defer span.End()
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success"})
+	middleware.RespondSuccess(c, gin.H{"message": "success"})
 }
 
 func (h *CodeRepoHandler) ListBranches(c *gin.Context) {
 	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CodeInternalListBranches")
 	defer span.End()
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success"})
+	middleware.RespondSuccess(c, gin.H{"message": "success"})
 }
 
 func (h *CodeRepoHandler) ListCommits(c *gin.Context) {
 	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CodeInternalListCommits")
 	defer span.End()
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success"})
+	middleware.RespondSuccess(c, gin.H{"message": "success"})
 }

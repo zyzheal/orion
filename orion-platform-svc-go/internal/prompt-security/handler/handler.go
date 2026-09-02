@@ -2,11 +2,11 @@ package handler
 
 import (
 	"go.opentelemetry.io/otel"
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/prompt-security/models"
 	"orion/platform-svc-go/internal/prompt-security/service"
 )
@@ -37,19 +37,19 @@ func (h *PromptSecurityHandler) Scan(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.ScanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	resp, err := h.svc.Scan(ctx, tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !resp.Scan.IsSafe {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "prompt contains security issues", "data": resp.Scan})
+		middleware.RespondBadRequest(c, "prompt contains security issues")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": resp.Scan})
+	middleware.RespondSuccess(c, resp.Scan)
 }
 
 func (h *PromptSecurityHandler) GetConfig(c *gin.Context) {
@@ -58,10 +58,10 @@ func (h *PromptSecurityHandler) GetConfig(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	resp, err := h.svc.GetConfig(ctx, tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": resp.Config})
+	middleware.RespondSuccess(c, resp.Config)
 }
 
 func (h *PromptSecurityHandler) UpdateConfig(c *gin.Context) {
@@ -70,15 +70,15 @@ func (h *PromptSecurityHandler) UpdateConfig(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var updates map[string]interface{}
 	if err := c.ShouldBindJSON(&updates); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	cfg, err := h.svc.UpdateConfig(ctx, tenantID, updates)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": cfg})
+	middleware.RespondSuccess(c, cfg)
 }
 
 func (h *PromptSecurityHandler) ListScans(c *gin.Context) {
@@ -92,8 +92,8 @@ func (h *PromptSecurityHandler) ListScans(c *gin.Context) {
 	}
 	scans, total, err := h.svc.ScanHistory(ctx, tenantID, page, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "total": total, "page": page, "limit": limit, "data": scans})
+	middleware.RespondSuccess(c, gin.H{"total": total, "page": page, "limit": limit, "data": scans})
 }

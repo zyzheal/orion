@@ -27,25 +27,25 @@ func (h *Handler) CompileRule(c *gin.Context) {
 	defer span.End()
 	var req models.RuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	resp, err := h.svc.CompileRule(ctx, c.GetString("tenant_id"), &req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(201, gin.H{"data": resp})
+	middleware.RespondCreated(c, resp)
 }
 
 func (h *Handler) UnregisterRule(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertRuleUnregister")
 	defer span.End()
 	if err := h.svc.UnregisterRule(ctx, c.GetString("tenant_id"), c.Param("id")); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"status": "deleted"})
+	middleware.RespondSuccess(c, gin.H{"status": "deleted"})
 }
 
 func (h *Handler) GetRule(c *gin.Context) {
@@ -53,10 +53,10 @@ func (h *Handler) GetRule(c *gin.Context) {
 	defer span.End()
 	resp, err := h.svc.GetRule(ctx, c.GetString("tenant_id"), c.Param("id"))
 	if err != nil {
-		c.JSON(404, gin.H{"error": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": resp})
+	middleware.RespondSuccess(c, resp)
 }
 
 func (h *Handler) ListRules(c *gin.Context) {
@@ -65,10 +65,10 @@ func (h *Handler) ListRules(c *gin.Context) {
 	group := c.Query("group")
 	rules, err := h.svc.ListRules(ctx, c.GetString("tenant_id"), group)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": rules})
+	middleware.RespondSuccess(c, rules)
 }
 
 func (h *Handler) UpdateRule(c *gin.Context) {
@@ -76,14 +76,14 @@ func (h *Handler) UpdateRule(c *gin.Context) {
 	defer span.End()
 	var req models.RuleUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.UpdateRule(ctx, c.GetString("tenant_id"), c.Param("id"), &req); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"status": "updated"})
+	middleware.RespondSuccess(c, gin.H{"status": "updated"})
 }
 
 func (h *Handler) Stats(c *gin.Context) {
@@ -91,10 +91,10 @@ func (h *Handler) Stats(c *gin.Context) {
 	defer span.End()
 	stats, err := h.svc.Stats(ctx, c.GetString("tenant_id"))
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": stats})
+	middleware.RespondSuccess(c, stats)
 }
 
 func (h *Handler) Evaluate(c *gin.Context) {
@@ -104,7 +104,7 @@ func (h *Handler) Evaluate(c *gin.Context) {
 		Metrics []map[string]interface{} `json:"metrics" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	builder := alertruleengine.NewSnapshotBuilder()
@@ -116,18 +116,18 @@ func (h *Handler) Evaluate(c *gin.Context) {
 	snapshot := builder.Build()
 	results, err := h.svc.Evaluate(ctx, c.GetString("tenant_id"), snapshot)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": results})
+	middleware.RespondSuccess(c, results)
 }
 
 func (h *Handler) ResetCooldown(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertRuleResetCooldown")
 	defer span.End()
 	if err := h.svc.ResetCooldown(ctx, c.GetString("tenant_id"), c.Param("id")); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"status": "reset"})
+	middleware.RespondSuccess(c, gin.H{"status": "reset"})
 }

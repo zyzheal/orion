@@ -159,7 +159,7 @@ func (h *Handler) Reindex(c *gin.Context) {
 		return
 	}
 	if len(results) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"message": "no indexers registered"})
+		middleware.RespondNotFound(c, "no indexers registered")
 		return
 	}
 	errors.WriteSuccess(c, results)
@@ -179,5 +179,5 @@ func (h *Handler) DeleteModule(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted", "module": module})
+	middleware.RespondSuccess(c, gin.H{"message": "deleted", "module": module})
 }

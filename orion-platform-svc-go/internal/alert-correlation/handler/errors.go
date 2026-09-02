@@ -29,7 +29,7 @@ func (errorsAlias) WriteSuccessCreated(c *gin.Context, data any) {
 }
 
 func (errorsAlias) WriteSuccess(c *gin.Context, status int, data any) {
-	c.JSON(status, gin.H{"code": status, "data": data, "message": "ok"})
+	middleware.RespondSuccess(c, gin.H{"data": data, "message": "ok"})
 }
 
 func (errorsAlias) RespondBadRequest(c *gin.Context, message string) {

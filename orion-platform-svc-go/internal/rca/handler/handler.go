@@ -53,7 +53,7 @@ func (h *RCAHandler) Analyze(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusAccepted, gin.H{"data": analysis})
+	middleware.RespondSuccess(c, analysis)
 }
 
 func (h *RCAHandler) ListHistory(c *gin.Context) {

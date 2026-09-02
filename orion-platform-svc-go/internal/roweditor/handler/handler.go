@@ -120,15 +120,15 @@ func (h *Handler) BatchCreate(c *gin.Context) {
 	defer span.End()
 	var req models.BatchCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	resp, err := h.svc2.BatchCreate(ctx, c.Param("editor"), h.svc, &req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(201, gin.H{"data": resp})
+	middleware.RespondCreated(c, resp)
 }
 
 func (h *Handler) BatchUpdate(c *gin.Context) {
@@ -136,13 +136,13 @@ func (h *Handler) BatchUpdate(c *gin.Context) {
 	defer span.End()
 	var req models.BatchUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	resp, err := h.svc2.BatchUpdate(ctx, c.Param("editor"), h.svc, &req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": resp})
+	middleware.RespondSuccess(c, resp)
 }

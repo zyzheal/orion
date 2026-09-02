@@ -1,13 +1,12 @@
 package handler
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai/code-embedding/models"
 	"orion/platform-svc-go/internal/ai/code-embedding/service"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type CodeEmbeddingHandler struct {
@@ -34,16 +33,16 @@ func (h *CodeEmbeddingHandler) Embed(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.EmbedRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	resp, err := h.svc.Embed(ctx, tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "message": "embedded", "data": resp.Embedding})
+	middleware.RespondCreated(c, gin.H{"message": "embedded", "data": resp.Embedding})
 }
 
 func (h *CodeEmbeddingHandler) Search(c *gin.Context) {
@@ -52,14 +51,14 @@ func (h *CodeEmbeddingHandler) Search(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.SearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	resp, err := h.svc.Search(ctx, tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": resp})
+	middleware.RespondSuccess(c, resp)
 }

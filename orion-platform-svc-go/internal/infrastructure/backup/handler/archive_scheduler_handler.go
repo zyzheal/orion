@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // ArchiveSchedulerHandler exposes the scheduler's status and per-plan controls.
@@ -28,13 +29,13 @@ type ArchiveSchedulerHandler struct {
 // SchedulerRunSummary captures the outcome of the most recent cron-triggered
 // archive run. It is the payload of GET /backup/archive/scheduler/status.
 type SchedulerRunSummary struct {
-	PlanID      string    `json:"planId"`
-	TenantID    string    `json:"tenantId"`
-	StartedAt   time.Time `json:"startedAt"`
-	Archived    int       `json:"archived"`
-	Skipped     int       `json:"skipped"`
-	Failed      int       `json:"failed"`
-	TotalBytes  int64     `json:"totalBytes"`
+	PlanID     string    `json:"planId"`
+	TenantID   string    `json:"tenantId"`
+	StartedAt  time.Time `json:"startedAt"`
+	Archived   int       `json:"archived"`
+	Skipped    int       `json:"skipped"`
+	Failed     int       `json:"failed"`
+	TotalBytes int64     `json:"totalBytes"`
 }
 
 // NewArchiveSchedulerHandler returns an ArchiveSchedulerHandler. Scheduler
@@ -57,11 +58,11 @@ func (h *ArchiveSchedulerHandler) Status(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ArchiveSchedulerStatus")
 	defer span.End()
 	if h.scheduler == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "archive scheduler not configured"})
+		middleware.RespondServiceUnavailable(c, "archive scheduler not configured")
 		return
 	}
 	_ = ctx
-	c.JSON(http.StatusOK, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"plans":   h.scheduler.List(),
 		"lastRun": h.lastRun,
 	})
@@ -69,13 +70,13 @@ func (h *ArchiveSchedulerHandler) Status(c *gin.Context) {
 
 // RegisterPlanRequest is the payload for adding/updating a scheduled plan.
 type RegisterPlanRequest struct {
-	TenantID      string              `json:"tenantId"`
-	PlanID        string              `json:"planId" binding:"required"`
-	SourceDir     string              `json:"sourceDir" binding:"required"`
-	ArchiveType   models.ArchiveType  `json:"archiveType" binding:"required"`
-	Schedule      string              `json:"schedule" binding:"required"`
-	EncryptionKey string              `json:"encryptionKey,omitempty"`
-	Enabled       bool                `json:"enabled"`
+	TenantID      string             `json:"tenantId"`
+	PlanID        string             `json:"planId" binding:"required"`
+	SourceDir     string             `json:"sourceDir" binding:"required"`
+	ArchiveType   models.ArchiveType `json:"archiveType" binding:"required"`
+	Schedule      string             `json:"schedule" binding:"required"`
+	EncryptionKey string             `json:"encryptionKey,omitempty"`
+	Enabled       bool               `json:"enabled"`
 }
 
 // RegisterPlan upserts a scheduled archive plan.
@@ -83,12 +84,12 @@ func (h *ArchiveSchedulerHandler) RegisterPlan(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ArchiveSchedulerRegisterPlan")
 	defer span.End()
 	if h.scheduler == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "archive scheduler not configured"})
+		middleware.RespondServiceUnavailable(c, "archive scheduler not configured")
 		return
 	}
 	var req RegisterPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if !req.Enabled {
@@ -106,7 +107,7 @@ func (h *ArchiveSchedulerHandler) RegisterPlan(c *gin.Context) {
 		spec.EncryptionKey = []byte(req.EncryptionKey)
 	}
 	h.scheduler.AddPlan(spec)
-	c.JSON(http.StatusOK, gin.H{"registered": true, "plan": spec})
+	middleware.RespondSuccess(c, gin.H{"registered": true, "plan": spec})
 	_ = ctx
 }
 
@@ -115,12 +116,12 @@ func (h *ArchiveSchedulerHandler) UnregisterPlan(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ArchiveSchedulerUnregisterPlan")
 	defer span.End()
 	if h.scheduler == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "archive scheduler not configured"})
+		middleware.RespondServiceUnavailable(c, "archive scheduler not configured")
 		return
 	}
 	tenantID := c.DefaultQuery("tenant_id", c.GetString("tenant_id"))
 	h.scheduler.RemovePlan(tenantID, c.Param("planId"))
-	c.JSON(http.StatusOK, gin.H{"removed": true})
+	middleware.RespondSuccess(c, gin.H{"removed": true})
 	_ = ctx
 }
 

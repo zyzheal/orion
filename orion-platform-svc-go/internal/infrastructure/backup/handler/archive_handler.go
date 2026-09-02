@@ -12,14 +12,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // ArchiveHandler exposes the WAL/binlog archiver behind a small REST surface.
 // It is a thin wrapper around service.Archiver — the handler only parses
 // requests, runs the archiver, and serialises the result.
 type ArchiveHandler struct {
-	archiver  *service.Archiver
-	log       *zap.Logger
+	archiver *service.Archiver
+	log      *zap.Logger
 	// parent is the parent backup handler, kept only so ArchiveHandler can
 	// be constructed alongside the main handler and share the router group.
 	parent *Handler
@@ -43,15 +44,15 @@ func (h *ArchiveHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // RunRequest is the payload for a manual archive run.
 type RunRequest struct {
-	SourceDir     string                    `json:"sourceDir" binding:"required"`
-	PlanID        string                    `json:"planId" binding:"required"`
-	TenantID      string                    `json:"tenantId"`
-	ArchiveType   models.ArchiveType        `json:"archiveType" binding:"required"`
+	SourceDir     string                     `json:"sourceDir" binding:"required"`
+	PlanID        string                     `json:"planId" binding:"required"`
+	TenantID      string                     `json:"tenantId"`
+	ArchiveType   models.ArchiveType         `json:"archiveType" binding:"required"`
 	StorageConfig models.BackupStorageConfig `json:"storageConfig,omitempty"`
-	EncryptionKey string                    `json:"encryptionKey,omitempty"` // base64
-	WindowStart   *time.Time                `json:"windowStart,omitempty"`
-	WindowEnd     *time.Time                `json:"windowEnd,omitempty"`
-	DryRun        bool                      `json:"dryRun"`
+	EncryptionKey string                     `json:"encryptionKey,omitempty"` // base64
+	WindowStart   *time.Time                 `json:"windowStart,omitempty"`
+	WindowEnd     *time.Time                 `json:"windowEnd,omitempty"`
+	DryRun        bool                       `json:"dryRun"`
 }
 
 // Run executes one archive window and returns the per-file records.
@@ -61,7 +62,7 @@ func (h *ArchiveHandler) Run(c *gin.Context) {
 
 	var req RunRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := req.TenantID
@@ -94,10 +95,10 @@ func (h *ArchiveHandler) Run(c *gin.Context) {
 	res, err := h.archiver.ArchiveWindow(ctx, opts)
 	if err != nil {
 		h.log.Error("archive run failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"result": res})
+	middleware.RespondSuccess(c, gin.H{"result": res})
 }
 
 // List returns archived records filtered by tenant/plan/window.
@@ -131,21 +132,20 @@ func (h *ArchiveHandler) List(c *gin.Context) {
 	out, err := h.archiver.Query(ctx, q)
 	if err != nil {
 		h.log.Error("archive list failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"items": out, "total": len(out)})
+	middleware.RespondSuccess(c, gin.H{"items": out, "total": len(out)})
 }
 
 // Seen returns the in-memory dedupe cache (path -> mtime).
 func (h *ArchiveHandler) Seen(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"seen": h.archiver.ListSeen()})
+	middleware.RespondSuccess(c, gin.H{"seen": h.archiver.ListSeen()})
 }
 
 // ResetSeen clears the dedupe cache so the next run retries previously
 // processed files.
 func (h *ArchiveHandler) ResetSeen(c *gin.Context) {
 	h.archiver.ResetSeen()
-	c.JSON(http.StatusOK, gin.H{"reset": true})
+	middleware.RespondSuccess(c, gin.H{"reset": true})
 }
-

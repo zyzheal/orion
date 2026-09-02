@@ -71,7 +71,7 @@ func (h *AlertSilenceHandler) List(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"total": resp.Total,
 		"data":  resp.Data,
 	})
@@ -113,7 +113,7 @@ func (h *AlertSilenceHandler) Get(c *gin.Context) {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, silence)
+	middleware.RespondSuccess(c, silence)
 }
 
 // Delete removes a silence.
@@ -131,7 +131,7 @@ func (h *AlertSilenceHandler) Delete(c *gin.Context) {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	middleware.RespondNoContent(c)
 }
 
 // Extend extends a silence duration.
@@ -158,7 +158,7 @@ func (h *AlertSilenceHandler) Extend(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, silence)
+	middleware.RespondSuccess(c, silence)
 }
 
 // FatigueScore returns per-rule fatigue metrics for the tenant.
@@ -175,7 +175,7 @@ func (h *AlertSilenceHandler) FatigueScore(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"rules": scores})
+	middleware.RespondSuccess(c, gin.H{"rules": scores})
 }
 
 // AutoSilenceRecommendations returns rules recommended for auto-silencing.
@@ -192,7 +192,7 @@ func (h *AlertSilenceHandler) AutoSilenceRecommendations(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"recommended_rules": names})
+	middleware.RespondSuccess(c, gin.H{"recommended_rules": names})
 }
 
 // RuleFatigue returns fatigue info for a single rule.
@@ -210,7 +210,7 @@ func (h *AlertSilenceHandler) RuleFatigue(c *gin.Context) {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, info)
+	middleware.RespondSuccess(c, info)
 }
 
 // RecordAlert records a fired alert into the fatigue analyzer.

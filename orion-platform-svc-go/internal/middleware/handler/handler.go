@@ -70,7 +70,7 @@ func (h *Handler) GetStats(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetMiddlewareStats")
 	defer span.End()
 	stats := h.svc.GetStats(ctx, c.GetString("tenant_id"))
-	c.JSON(200, gin.H{"data": stats})
+	middleware.RespondSuccess(c, stats)
 }
 
 func (h *Handler) SetTimeout(c *gin.Context) {
@@ -80,21 +80,21 @@ func (h *Handler) SetTimeout(c *gin.Context) {
 		Timeout string `json:"timeout" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	dur, err := time.ParseDuration(req.Timeout)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "invalid duration"})
+		middleware.RespondBadRequest(c, "invalid duration")
 		return
 	}
 	h.svc.SetTimeout(ctx, c.GetString("tenant_id"), dur)
-	c.JSON(200, gin.H{"status": "updated"})
+	middleware.RespondSuccess(c, gin.H{"status": "updated"})
 }
 
 func (h *Handler) GenerateTraceID(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GenerateTraceID")
 	defer span.End()
 	id := h.svc.GenerateTraceID(ctx, c.GetString("tenant_id"))
-	c.JSON(200, gin.H{"trace_id": id})
+	middleware.RespondSuccess(c, gin.H{"trace_id": id})
 }

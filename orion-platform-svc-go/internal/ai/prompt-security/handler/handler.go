@@ -1,13 +1,12 @@
 package handler
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai/prompt-security/models"
 	"orion/platform-svc-go/internal/ai/prompt-security/service"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type PromptSecurityHandler struct {
@@ -38,27 +37,23 @@ func (h *PromptSecurityHandler) Scan(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.ScanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	resp, err := h.svc.Scan(ctx, tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
 	// If scan found issues, return 400 with findings
 	if !resp.Scan.IsSafe {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "prompt contains security issues",
-			"data":    resp.Scan,
-		})
+		middleware.RespondBadRequest(c, "prompt contains security issues")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": resp.Scan})
+	middleware.RespondSuccess(c, resp.Scan)
 }
 
 // Check performs prompt-injection detection on the provided prompt.
@@ -68,14 +63,14 @@ func (h *PromptSecurityHandler) Check(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.CheckRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	result := h.svc.CheckPrompt(ctx, tenantID, req.Prompt)
 	resp := &models.CheckResponse{Result: *result}
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": resp})
+	middleware.RespondSuccess(c, resp)
 }
 
 // GetConfig returns the current security config.
@@ -83,7 +78,7 @@ func (h *PromptSecurityHandler) GetConfig(c *gin.Context) {
 	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIPromptSecGetConfig")
 	defer span.End()
 	resp := h.svc.GetConfig()
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": resp.Config})
+	middleware.RespondSuccess(c, resp.Config)
 }
 
 // UpdateConfig updates the security config.
@@ -93,10 +88,10 @@ func (h *PromptSecurityHandler) UpdateConfig(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var updates map[string]interface{}
 	if err := c.ShouldBindJSON(&updates); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	config := h.svc.UpdateConfig(ctx, tenantID, updates)
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": config})
+	middleware.RespondSuccess(c, config)
 }

@@ -6,6 +6,7 @@ import (
 	"orion/go-common/pkg/errors"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // respondSuccess writes a canonical success envelope.
@@ -35,5 +36,5 @@ func respondInternalError(c *gin.Context, message string) {
 
 // respondAccepted writes a 202 Accepted envelope.
 func respondAccepted(c *gin.Context, data any) {
-	c.JSON(http.StatusAccepted, gin.H{"code": 0, "data": data})
+	middleware.RespondSuccess(c, data)
 }

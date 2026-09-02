@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -9,6 +8,7 @@ import (
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ci-cd/artifact-registry/models"
 	"orion/platform-svc-go/internal/ci-cd/artifact-registry/service"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type ArtifactRegistryHandler struct {
@@ -47,10 +47,10 @@ func (h *ArtifactRegistryHandler) ListRegistries(c *gin.Context) {
 
 	resp, err := h.svc.QueryRegistries(ctx, tenantID, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "total": resp.Total, "data": resp.Data})
+	middleware.RespondSuccess(c, gin.H{"total": resp.Total, "data": resp.Data})
 }
 
 // CreateRegistry creates a new registry.
@@ -60,16 +60,16 @@ func (h *ArtifactRegistryHandler) CreateRegistry(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.CreateRegistryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	reg, err := h.svc.CreateRegistry(ctx, tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "message": "created", "data": reg})
+	middleware.RespondCreated(c, reg)
 }
 
 // GetRegistry returns a registry by ID.
@@ -81,10 +81,10 @@ func (h *ArtifactRegistryHandler) GetRegistry(c *gin.Context) {
 
 	reg, err := h.svc.GetRegistry(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": reg})
+	middleware.RespondSuccess(c, reg)
 }
 
 // DeleteRegistry removes a registry.
@@ -95,10 +95,10 @@ func (h *ArtifactRegistryHandler) DeleteRegistry(c *gin.Context) {
 	id := c.Param("id")
 
 	if err := h.svc.DeleteRegistry(ctx, tenantID, id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	middleware.RespondNoContent(c)
 }
 
 // ListArtifacts returns paginated artifacts.
@@ -113,10 +113,10 @@ func (h *ArtifactRegistryHandler) ListArtifacts(c *gin.Context) {
 
 	resp, err := h.svc.QueryArtifacts(ctx, tenantID, registryID, name, limit, Offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "total": resp.Total, "data": resp.Data})
+	middleware.RespondSuccess(c, gin.H{"total": resp.Total, "data": resp.Data})
 }
 
 // PushArtifact pushes an artifact.
@@ -126,16 +126,16 @@ func (h *ArtifactRegistryHandler) PushArtifact(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.PushArtifactRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	art, err := h.svc.PushArtifact(ctx, tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "message": "pushed", "data": art})
+	middleware.RespondCreated(c, gin.H{"message": "pushed", "data": art})
 }
 
 // DeleteArtifact removes an artifact.
@@ -146,8 +146,8 @@ func (h *ArtifactRegistryHandler) DeleteArtifact(c *gin.Context) {
 	artifactID := c.Param("artifact_id")
 
 	if err := h.svc.DeleteArtifact(ctx, tenantID, artifactID); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	middleware.RespondNoContent(c)
 }

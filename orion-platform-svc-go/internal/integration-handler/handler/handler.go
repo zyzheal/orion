@@ -96,7 +96,7 @@ func (h *Handler) DeleteIntegration(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"status": "deleted"})
+	middleware.RespondSuccess(c, gin.H{"status": "deleted"})
 }
 
 func (h *Handler) CreateTask(c *gin.Context) {
@@ -104,15 +104,15 @@ func (h *Handler) CreateTask(c *gin.Context) {
 	defer span.End()
 	var req models.CreateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	t, err := h.svc.CreateTask(ctx, c.GetString("tenant_id"), &req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(201, gin.H{"data": t})
+	middleware.RespondCreated(c, t)
 }
 
 func (h *Handler) GetTask(c *gin.Context) {
@@ -120,10 +120,10 @@ func (h *Handler) GetTask(c *gin.Context) {
 	defer span.End()
 	t, err := h.svc.GetTask(ctx, c.GetString("tenant_id"), c.Param("id"))
 	if err != nil {
-		c.JSON(404, gin.H{"error": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": t})
+	middleware.RespondSuccess(c, t)
 }
 
 func (h *Handler) ListTasks(c *gin.Context) {
@@ -135,10 +135,10 @@ func (h *Handler) ListTasks(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	items, err := h.svc.ListTasks(ctx, c.GetString("tenant_id"), integrationID, status, offset, limit)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": items})
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) UpdateTaskStatus(c *gin.Context) {
@@ -151,25 +151,25 @@ func (h *Handler) UpdateTaskStatus(c *gin.Context) {
 		DurationMs int64  `json:"duration_ms"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	t, err := h.svc.UpdateTaskStatus(ctx, c.GetString("tenant_id"), c.Param("id"), req.Status, req.ErrorMsg, req.Response, req.DurationMs)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": t})
+	middleware.RespondSuccess(c, t)
 }
 
 func (h *Handler) DeleteTask(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteIntegrationTask")
 	defer span.End()
 	if err := h.svc.DeleteTask(ctx, c.GetString("tenant_id"), c.Param("id")); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"status": "deleted"})
+	middleware.RespondSuccess(c, gin.H{"status": "deleted"})
 }
 
 func (h *Handler) GetLogs(c *gin.Context) {
@@ -179,8 +179,8 @@ func (h *Handler) GetLogs(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	logs, err := h.svc.GetLogs(ctx, c.Param("id"), offset, limit)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": logs})
+	middleware.RespondSuccess(c, logs)
 }

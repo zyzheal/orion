@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -9,6 +8,7 @@ import (
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai/vector/models"
 	"orion/platform-svc-go/internal/ai/vector/service"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type VectorHandler struct {
@@ -49,10 +49,10 @@ func (h *VectorHandler) ListStores(c *gin.Context) {
 
 	stores, total, err := h.svc.QueryStores(ctx, tenantID, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "total": total, "data": stores})
+	middleware.RespondSuccess(c, gin.H{"total": total, "data": stores})
 }
 
 // CreateStore creates a new vector store.
@@ -62,16 +62,16 @@ func (h *VectorHandler) CreateStore(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.CreateStoreRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	store, err := h.svc.CreateStore(ctx, tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "message": "created", "data": store})
+	middleware.RespondCreated(c, store)
 }
 
 // GetStore returns a single vector store.
@@ -83,10 +83,10 @@ func (h *VectorHandler) GetStore(c *gin.Context) {
 
 	store, err := h.svc.GetStore(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": store})
+	middleware.RespondSuccess(c, store)
 }
 
 // DeleteStore removes a vector store.
@@ -97,10 +97,10 @@ func (h *VectorHandler) DeleteStore(c *gin.Context) {
 	id := c.Param("id")
 
 	if err := h.svc.DeleteStore(ctx, tenantID, id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	middleware.RespondNoContent(c)
 }
 
 // UpsertVector inserts or updates a vector.
@@ -116,15 +116,15 @@ func (h *VectorHandler) UpsertVector(c *gin.Context) {
 		Payload string    `json:"payload"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	if err := h.svc.UpsertVector(ctx, tenantID, storeID, vectorID, req.Data, req.Payload); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "message": "upserted", "data": gin.H{"vector_id": vectorID}})
+	middleware.RespondCreated(c, gin.H{"message": "upserted", "data": gin.H{"vector_id": vectorID}})
 }
 
 // DeleteVector removes a vector.
@@ -136,10 +136,10 @@ func (h *VectorHandler) DeleteVector(c *gin.Context) {
 	vectorID := c.Param("vector_id")
 
 	if err := h.svc.DeleteVector(ctx, tenantID, storeID, vectorID); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	middleware.RespondNoContent(c)
 }
 
 // Search performs vector similarity search.
@@ -149,14 +149,14 @@ func (h *VectorHandler) Search(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	var req models.SearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	results, err := h.svc.SearchVectors(ctx, tenantID, req.StoreID, req.Query, req.TopK)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{"query": results, "top_k": req.TopK}})
+	middleware.RespondSuccess(c, gin.H{"query": results, "top_k": req.TopK})
 }
