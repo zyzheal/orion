@@ -35,13 +35,10 @@ import {
   ReloadOutlined,
   EyeOutlined,
   EditOutlined,
-  CheckCircleOutlined,
-  PlayCircleOutlined,
   CloseCircleOutlined,
   SwapOutlined,
   FileTextOutlined,
   TeamOutlined,
-  ExclamationCircleOutlined,
   SafetyCertificateOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
@@ -95,6 +92,7 @@ import {
   useCABColumns,
 } from './columns';
 import { ChangeForm } from './ChangeForm';
+import { buildStatsCards } from './stats';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -635,40 +633,7 @@ const ChangeManagement: React.FC = () => {
   // Stats Computation
   // ============================================================================
 
-  const statsCards = stats
-    ? [
-        {
-          title: '变更请求总数',
-          value: stats.totalRequests,
-          icon: <SwapOutlined style={{ fontSize: 24, color: colors.primary[500] }} />,
-          color: colors.primary[500],
-        },
-        {
-          title: '草稿',
-          value: stats.byStatus?.draft || 0,
-          icon: <FileTextOutlined style={{ fontSize: 24, color: colors.neutral[500] }} />,
-          color: colors.neutral[500],
-        },
-        {
-          title: '已批准',
-          value: stats.byStatus?.approved || 0,
-          icon: <CheckCircleOutlined style={{ fontSize: 24, color: colors.success[500] }} />,
-          color: colors.success[500],
-        },
-        {
-          title: '实施中',
-          value: stats.byStatus?.in_progress || 0,
-          icon: <PlayCircleOutlined style={{ fontSize: 24, color: colors.warning[500] }} />,
-          color: colors.warning[500],
-        },
-        {
-          title: '紧急变更',
-          value: stats.byType?.emergency || 0,
-          icon: <ExclamationCircleOutlined style={{ fontSize: 24, color: colors.error[500] }} />,
-          color: colors.error[500],
-        },
-      ]
-    : [];
+  const statsCards = buildStatsCards(stats);
 
   // Change Form: rendered by ChangeForm component in modals
 
