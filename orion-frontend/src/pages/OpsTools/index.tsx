@@ -48,6 +48,7 @@ import {
   LOG_SERVICE_OPTIONS,
   THEME_MODE_OPTIONS,
 } from './config';
+import { OpsToolsModals } from './OpsToolsModals';
 import {
   dumpColumns,
   fragmentColumns,
@@ -1121,127 +1122,78 @@ const OpsTools: React.FC = () => {
 
       {/* ==================== 弹窗 ==================== */}
 
-      {/* CronJob 创建/编辑弹窗 */}
-      <Modal
-        title={cronEditingJob ? '编辑定时任务' : '新建定时任务'}
-        open={cronModalOpen}
-        onCancel={() => {
-          setCronModalOpen(false);
-          setCronEditingJob(null);
-          cronForm.resetFields();
-        }}
-        onOk={() => cronForm.submit()}
-        confirmLoading={loading}
-        width={500}
-      >
-        <Form form={cronForm} layout="vertical" onFinish={handleCronSave}>
-          <Form.Item name="name" label="任务名称" rules={[{ required: true }]}>
-            <Input placeholder="例如: 日志清理" />
-          </Form.Item>
-          <Form.Item name="cronExpression" label="Cron 表达式" rules={[{ required: true }]}>
-            <Input placeholder="例如: 0 2 * * *" />
-          </Form.Item>
-          <Form.Item name="command" label="执行命令" rules={[{ required: true }]}>
-            <Input placeholder="例如: scripts/clean-logs.sh" />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <TextArea rows={3} placeholder="任务描述" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* 索引创建弹窗 */}
-      <Modal
-        title="新建索引"
-        open={indexModalOpen}
-        onCancel={() => {
-          setIndexModalOpen(false);
-          indexForm.resetFields();
-        }}
-        onOk={() => indexForm.submit()}
-        width={480}
-      >
-        <Form form={indexForm} layout="vertical" onFinish={handleCreateIndex}>
-          <Form.Item name="tableName" label="表名" rules={[{ required: true }]}>
-            <Input placeholder="例如: pipelines" />
-          </Form.Item>
-          <Form.Item name="indexName" label="索引名" rules={[{ required: true }]}>
-            <Input placeholder="例如: idx_pipelines_status" />
-          </Form.Item>
-          <Form.Item name="columns" label="列（逗号分隔）" rules={[{ required: true }]}>
-            <Input placeholder="例如: tenant_id,status" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* 文件上传弹窗 */}
-      <Modal
-        title="上传文件"
-        open={uploadModalOpen}
-        onCancel={() => {
-          setUploadModalOpen(false);
-          uploadForm.resetFields();
-        }}
-        onOk={() => uploadForm.submit()}
-        width={480}
-      >
-        <Form form={uploadForm} layout="vertical" onFinish={handleUpload}>
-          <Form.Item name="name" label="文件名" rules={[{ required: true }]}>
-            <Input placeholder="例如: config.yaml" />
-          </Form.Item>
-          <Form.Item name="size" label="文件大小 (bytes)" rules={[{ required: true }]}>
-            <InputNumber min={1} style={{ width: '100%' }} placeholder="例如: 1024" />
-          </Form.Item>
-          <Form.Item name="mime" label="MIME 类型">
-            <Input placeholder="例如: application/octet-stream" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* 文件分发弹窗 */}
-      <Modal
-        title="分发文件"
-        open={distributeModalOpen}
-        onCancel={() => {
-          setDistributeModalOpen(false);
-          distributeForm.resetFields();
-        }}
-        onOk={() => distributeForm.submit()}
-        width={480}
-      >
-        <Form form={distributeForm} layout="vertical" onFinish={handleDistribute}>
-          <Form.Item name="targetHosts" label="目标主机（逗号分隔）" rules={[{ required: true }]}>
-            <Input placeholder="prod-web-01,prod-api-01" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* 主题创建弹窗 */}
-      <Modal
-        title="新建主题"
-        open={themeModalOpen}
-        onCancel={() => {
-          setThemeModalOpen(false);
-          themeForm.resetFields();
-        }}
-        onOk={() => themeForm.submit()}
-        width={480}
-      >
-        <Form form={themeForm} layout="vertical" onFinish={handleThemeSave}>
-          <Form.Item name="name" label="主题名" rules={[{ required: true }]}>
-            <Input placeholder="例如: 深紫主题" />
-          </Form.Item>
-          <Form.Item name="primaryColor" label="主色" rules={[{ required: true }]}>
-            <Input placeholder="#7C5CFC" />
-          </Form.Item>
-          <Form.Item name="borderRadius" label="圆角 (px)">
-            <InputNumber min={0} max={20} style={{ width: '100%' }} defaultValue={6} />
-          </Form.Item>
-          <Form.Item name="mode" label="模式">
-            <Select options={THEME_MODE_OPTIONS} defaultValue="light" />
-          </Form.Item>
-        </Form>
-      </Modal>
+      <OpsToolsModals
+        loading={loading}
+        setLoading={setLoading}
+        systemInfo={systemInfo}
+        setSystemInfo={setSystemInfo}
+        cronJobs={cronJobs}
+        setCronJobs={setCronJobs}
+        cronModalOpen={cronModalOpen}
+        setCronModalOpen={setCronModalOpen}
+        cronEditingJob={cronEditingJob}
+        setCronEditingJob={setCronEditingJob}
+        cronForm={cronForm}
+        handleCronSave={handleCronSave}
+        handleCronToggle={handleCronToggle}
+        handleCronDelete={handleCronDelete}
+        handleCronEdit={handleCronEdit}
+        dumps={dumps}
+        setDumps={setDumps}
+        dumpRunning={dumpRunning}
+        setDumpRunning={setDumpRunning}
+        fragments={fragments}
+        setFragments={setFragments}
+        indexes={indexes}
+        setIndexes={setIndexes}
+        indexModalOpen={indexModalOpen}
+        setIndexModalOpen={setIndexModalOpen}
+        indexForm={indexForm}
+        handleSqlDump={handleSqlDump}
+        handleCreateIndex={handleCreateIndex}
+        handleDeleteIndex={handleDeleteIndex}
+        tagentClients={tagentClients}
+        setTagentClients={setTagentClients}
+        tagentStats={tagentStats}
+        setTagentStats={setTagentStats}
+        tagentLoading={tagentLoading}
+        setTagentLoading={setTagentLoading}
+        handleTagentUpgrade={handleTagentUpgrade}
+        batchOps={batchOps}
+        setBatchOps={setBatchOps}
+        batchLoading={batchLoading}
+        setBatchLoading={setBatchLoading}
+        batchForm={batchForm}
+        batchExecLoading={batchExecLoading}
+        setBatchExecLoading={setBatchExecLoading}
+        handleBatchExecute={handleBatchExecute}
+        files={files}
+        setFiles={setFiles}
+        fileLoading={fileLoading}
+        setFileLoading={setFileLoading}
+        uploadForm={uploadForm}
+        uploadModalOpen={uploadModalOpen}
+        setUploadModalOpen={setUploadModalOpen}
+        distributeModalOpen={distributeModalOpen}
+        setDistributeModalOpen={setDistributeModalOpen}
+        distributingFile={distributingFile}
+        setDistributingFile={setDistributingFile}
+        distributeForm={distributeForm}
+        handleUpload={handleUpload}
+        handleDeleteFile={handleDeleteFile}
+        handleDistribute={handleDistribute}
+        themes={themes}
+        setThemes={setThemes}
+        themeForm={themeForm}
+        handleThemeSave={handleThemeSave}
+        handleThemeToggle={handleThemeToggle}
+        handleDeleteTheme={handleDeleteTheme}
+        handleModuleToggle={handleModuleToggle}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        dbLoading={_dbLoading}
+        setDbLoading={setDbLoading}
+      />
     </div>
   );
 };
