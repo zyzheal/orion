@@ -50,6 +50,7 @@ import {
   type CreateUserInput,
   type UpdateUserInput,
 } from '@/api/users';
+import { UserManagementModals } from './UserManagementModals';
 import { colors } from '@/tokens/colors';
 import dayjs from 'dayjs';
 import { spacing } from '@/tokens';
@@ -618,186 +619,32 @@ const UserManagement: React.FC = () => {
             />
           </Card>
 
-          {/* Create Modal */}
-          <Modal
-            title="创建用户"
-            open={createModalVisible}
-            onCancel={() => setCreateModalVisible(false)}
-            onOk={handleCreate}
-            confirmLoading={submitting}
-            width={560}
-            destroyOnClose
-          >
-            <Form form={createForm} layout="vertical" initialValues={{ role: 'user' }}>
-              <Form.Item
-                name="username"
-                label="用户名"
-                rules={[
-                  { required: true, message: '请输入用户名' },
-                  {
-                    pattern: /^[a-zA-Z0-9_-]+$/,
-                    message: '用户名只能包含字母、数字、连字符和下划线',
-                  },
-                ]}
-              >
-                <Input placeholder="如: zhangsan" />
-              </Form.Item>
-              <Form.Item
-                name="password"
-                label="密码"
-                rules={[
-                  { required: true, message: '请输入密码' },
-                  { min: 8, message: '密码至少8个字符' },
-                ]}
-              >
-                <Input.Password placeholder="至少8个字符" />
-              </Form.Item>
-              <Form.Item name="name" label="显示名称">
-                <Input placeholder="用户显示名称" />
-              </Form.Item>
-              <Form.Item
-                name="email"
-                label="邮箱"
-                rules={[{ type: 'email', message: '请输入有效的邮箱地址' }]}
-              >
-                <Input placeholder="user@example.com" />
-              </Form.Item>
-              <Form.Item
-                name="role"
-                label="角色"
-                rules={[{ required: true, message: '请选择角色' }]}
-              >
-                <Select options={roleOptions} />
-              </Form.Item>
-            </Form>
-          </Modal>
-
-          {/* Edit Modal */}
-          <Modal
-            title="编辑用户"
-            open={editModalVisible}
-            onCancel={() => setEditModalVisible(false)}
-            onOk={handleEdit}
-            confirmLoading={submitting}
-            width={560}
-            destroyOnClose
-          >
-            <Form form={editForm} layout="vertical">
-              <Form.Item
-                name="username"
-                label="用户名"
-                rules={[{ required: true, message: '请输入用户名' }]}
-              >
-                <Input />
-              </Form.Item>
-              <Form.Item name="name" label="显示名称">
-                <Input />
-              </Form.Item>
-              <Form.Item
-                name="email"
-                label="邮箱"
-                rules={[{ type: 'email', message: '请输入有效的邮箱地址' }]}
-              >
-                <Input />
-              </Form.Item>
-              <Form.Item
-                name="role"
-                label="角色"
-                rules={[{ required: true, message: '请选择角色' }]}
-              >
-                <Select options={roleOptions} />
-              </Form.Item>
-            </Form>
-          </Modal>
-
-          {/* Change Password Modal */}
-          <Modal
-            title="重置密码"
-            open={changePwModalVisible}
-            onCancel={() => setChangePwModalVisible(false)}
-            onOk={handleChangePassword}
-            confirmLoading={submitting}
-            width={480}
-          >
-            {selectedUser && (
-              <div style={{ marginBottom: spacing.md }}>
-                <Text>
-                  用户: <Text strong>{selectedUser.name || selectedUser.username}</Text> (
-                  {selectedUser.username})
-                </Text>
-              </div>
-            )}
-            <Form form={changePwForm} layout="vertical">
-              <Form.Item
-                name="newPassword"
-                label="新密码"
-                rules={[
-                  { required: true, message: '请输入新密码' },
-                  { min: 8, message: '密码至少8个字符' },
-                ]}
-              >
-                <Input.Password placeholder="至少8个字符" />
-              </Form.Item>
-              <Form.Item
-                name="confirmPassword"
-                label="确认新密码"
-                dependencies={['newPassword']}
-                rules={[
-                  { required: true, message: '请确认新密码' },
-                  ({ getFieldValue }) => ({
-                    validator(_, value) {
-                      if (!value || getFieldValue('newPassword') === value) {
-                        return Promise.resolve();
-                      }
-                      return Promise.reject(new Error('两次输入的密码不一致'));
-                    },
-                  }),
-                ]}
-              >
-                <Input.Password placeholder="再次输入新密码" />
-              </Form.Item>
-            </Form>
-          </Modal>
-
-          {/* Detail Drawer */}
-          <Drawer
-            title={
-              selectedUser
-                ? `${selectedUser.name || selectedUser.username} (${selectedUser.username})`
-                : '用户详情'
-            }
-            open={detailDrawerVisible}
-            onClose={() => setDetailDrawerVisible(false)}
-            width={720}
-            destroyOnClose
-          >
-            {detailItems}
-            <div style={{ marginTop: spacing.lg, display: 'flex', gap: spacing.sm }}>
-              <Button
-                icon={<EditOutlined />}
-                onClick={() => {
-                  setDetailDrawerVisible(false);
-                  if (selectedUser) openEdit(selectedUser);
-                }}
-              >
-                编辑
-              </Button>
-              {selectedUser && selectedUser.status === 'active' && (
-                <Popconfirm title="确认禁用?" onConfirm={() => handleDisable(selectedUser.id)}>
-                  <Button danger icon={<LockOutlined />}>
-                    禁用
-                  </Button>
-                </Popconfirm>
-              )}
-              {selectedUser &&
-                selectedUser.status !== 'active' &&
-                selectedUser.status !== 'deleted' && (
-                  <Popconfirm title="确认启用?" onConfirm={() => handleEnable(selectedUser.id)}>
-                    <Button icon={<UnlockOutlined />}>启用</Button>
-                  </Popconfirm>
-                )}
-            </div>
-          </Drawer>
+          <UserManagementModals
+            createModalVisible={createModalVisible}
+            setCreateModalVisible={setCreateModalVisible}
+            editModalVisible={editModalVisible}
+            setEditModalVisible={setEditModalVisible}
+            editingUser={editingUser}
+            setEditingUser={setEditingUser}
+            detailDrawerVisible={detailDrawerVisible}
+            setDetailDrawerVisible={setDetailDrawerVisible}
+            selectedUser={selectedUser}
+            setSelectedUser={setSelectedUser}
+            changePwModalVisible={changePwModalVisible}
+            setChangePwModalVisible={setChangePwModalVisible}
+            createForm={createForm}
+            editForm={editForm}
+            changePwForm={changePwForm}
+            submitting={submitting}
+            setSubmitting={setSubmitting}
+            handleCreate={handleCreate}
+            handleEdit={handleEdit}
+            handleChangePassword={handleChangePassword}
+            handleEnable={handleEnable}
+            handleDisable={handleDisable}
+            openEdit={openEdit}
+            roleOptions={roleOptions}
+          />
         </>
       )}
     </div>
