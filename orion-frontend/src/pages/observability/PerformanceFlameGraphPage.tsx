@@ -47,250 +47,27 @@ import {
   generateIOFlameGraph,
   getFlameGraph,
 } from '@/api/flamegraph';
+import {
+  ZOOM_MIN,
+  ZOOM_MAX,
+  FRAME_HEIGHT,
+  FRAME_GAP,
+  HEADER_HEIGHT,
+  LEGEND_HEIGHT,
+  DETAIL_PANEL_WIDTH,
+  FLAME_COLORS,
+  colorByDepth,
+  textColorByDepth,
+  formatValue,
+  formatPct,
+  flattenFlameGraph,
+  getMaxDepth,
+  getCategoryStats,
+  type RenderRow,
+} from './PerformanceFlameGraphConfig';
+import { FlameFrame, categoryTagColor, categoryCardColor } from './PerformanceFlameGraphColumns';
 
 const { Title, Text } = Typography;
-
-// ---- 常量 ----
-
-const ZOOM_MIN = 0.5;
-const ZOOM_MAX = 6;
-const FRAME_HEIGHT = 22; // 每层帧高度
-const FRAME_GAP = 1; // 帧间间隙
-const MIN_FRAME_WIDTH = 3; // 最小帧宽度 (px)
-const MIN_LABEL_WIDTH = 30; // 显示标签的最小宽度
-const HEADER_HEIGHT = 56; // 顶部工具栏高度
-const LEGEND_HEIGHT = 44; // 底部图例高度
-const DETAIL_PANEL_WIDTH = 360; // 右侧详情面板宽度
-
-// ---- 火焰图经典配色 (热度由浅到深) ----
-
-const FLAME_COLORS: string[] = [
-  '#F5C77E', // 浅 - 低层 (叶子)
-  '#E07A5F',
-  '#C44536',
-  '#9E2A2B',
-  '#821F20', // 深 - 高层 (根)
-];
-
-// 文字颜色：浅色帧用深色文字，深色帧用白色文字
-const FLAME_TEXT_COLORS: string[] = ['#1f1f1f', '#1f1f1f', '#ffffff', '#ffffff', '#ffffff'];
-
-// ---- 工具函数 ----
-
-/** 根据深度选择颜色（深度 = 0 为根节点） */
-const colorByDepth = (depth: number): string => {
-  const i = Math.min(FLAME_COLORS.length - 1, Math.max(0, depth % FLAME_COLORS.length));
-  return FLAME_COLORS[i];
-};
-
-const textColorByDepth = (depth: number): string => {
-  const i = Math.min(FLAME_TEXT_COLORS.length - 1, Math.max(0, depth % FLAME_TEXT_COLORS.length));
-  return FLAME_TEXT_COLORS[i];
-};
-
-/** 将火焰图节点展平为渲染列表，返回每行的渲染信息 */
-interface RenderRow {
-  frame: FlameGraphFrame;
-  depth: number;
-  x: number; // 在该行中的 x 偏移（相对行宽的比例 0~1）
-  w: number; // 在该行中的宽度比例 0~1
-}
-
-/**
- * 将火焰图递归展平为 RenderRow 列表。
- * 算法：DFS 遍历，每层累积 value 占比。
- * 支持 collapsed 节点（展开/收起）。
- */
-const flattenFlameGraph = (
-  frame: FlameGraphFrame,
-  collapsed: Set<string>,
-  depth: number = 0,
-  parentValue: number = 0
-): RenderRow[] => {
-  const rows: RenderRow[] = [];
-
-  const processLayer = (f: FlameGraphFrame, d: number, layerRows: RenderRow[]) => {
-    const total = parentValue > 0 ? parentValue : getTotalValue(f);
-    let accum = 0;
-
-    const children = collapsed.has(f.name) ? [] : f.children || [];
-
-    if (children.length === 0 || total <= 0) {
-      layerRows.push({ frame: f, depth: d, x: 0, w: 1 });
-    } else {
-      for (const child of children) {
-        const childTotal = getTotalValue(child);
-        const ratio = childTotal / total;
-        layerRows.push({ frame: child, depth: d + 1, x: accum, w: ratio });
-        accum += ratio;
-        processLayer(child, d + 1, layerRows);
-      }
-    }
-  };
-
-  processLayer(frame, depth, rows);
-  return rows;
-};
-
-/** 计算节点总 value（包含子节点） */
-const getTotalValue = (frame: FlameGraphFrame): number => {
-  const sum = (f: FlameGraphFrame): number => {
-    if (f.children && f.children.length > 0) {
-      return f.children.reduce((acc, c) => acc + sum(c), 0);
-    }
-    return f.value;
-  };
-  return sum(frame);
-};
-
-/** 计算最大深度（用于图例） */
-const getMaxDepth = (rows: RenderRow[]): number =>
-  rows.length > 0 ? Math.max(...rows.map((r) => r.depth)) : 0;
-
-/** 计算类别统计 */
-const getCategoryStats = (
-  frame: FlameGraphFrame,
-  totalValue: number
-): Record<string, { value: number; pct: number }> => {
-  const stats: Record<string, { value: number; pct: number }> = {};
-  const collect = (f: FlameGraphFrame) => {
-    if (f.children && f.children.length > 0) {
-      for (const c of f.children) collect(c);
-    } else {
-      const cat = f.category || 'uncategorized';
-      if (!stats[cat]) stats[cat] = { value: 0, pct: 0 };
-      stats[cat].value += f.value;
-    }
-  };
-  collect(frame);
-  for (const cat of Object.keys(stats)) {
-    stats[cat].pct = totalValue > 0 ? (stats[cat].value / totalValue) * 100 : 0;
-  }
-  return stats;
-};
-
-/** 格式化数值 */
-const formatValue = (v: number): string => {
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(2)}M`;
-  if (v >= 1_000) return `${(v / 1_000).toFixed(2)}K`;
-  return v.toString();
-};
-
-/** 格式化百分比 */
-const formatPct = (pct: number): string => `${pct.toFixed(1)}%`;
-
-// ---- SVG 帧渲染 ----
-
-const FlameFrame: React.FC<{
-  row: RenderRow;
-  rowIndex: number;
-  chartWidth: number;
-  zoom: number;
-  hoveredFrame: FlameGraphFrame | null;
-  selectedFrame: FlameGraphFrame | null;
-  collapsed: Set<string>;
-  isCollapsedAncestor: boolean;
-  onEnter: (f: FlameGraphFrame) => void;
-  onLeave: () => void;
-  onClick: (f: FlameGraphFrame) => void;
-}> = ({
-  row,
-  rowIndex,
-  chartWidth,
-  zoom,
-  hoveredFrame,
-  selectedFrame,
-  collapsed,
-  isCollapsedAncestor,
-  onEnter,
-  onLeave,
-  onClick,
-}) => {
-  const { frame, depth, x, w } = row;
-
-  const left = x * chartWidth * zoom;
-  const width = Math.max(MIN_FRAME_WIDTH, w * chartWidth * zoom);
-  const top = rowIndex * (FRAME_HEIGHT + FRAME_GAP);
-  const fill = isCollapsedAncestor ? FLAME_COLORS[0] : colorByDepth(depth);
-  const textColor = textColorByDepth(depth);
-
-  const isHovered = hoveredFrame === frame;
-  const isSelected = selectedFrame === frame;
-  const isCollapsed = collapsed.has(frame.name) && frame.children && frame.children.length > 0;
-
-  // 仅当帧足够宽且未被折叠时显示标签
-  const showLabel = width >= MIN_LABEL_WIDTH && !isCollapsedAncestor;
-
-  const label = showLabel ? truncateLabel(frame.name, width) : '';
-
-  return (
-    <g
-      onMouseEnter={() => onEnter(frame)}
-      onMouseLeave={onLeave}
-      onClick={() => onClick(frame)}
-      style={{ cursor: 'pointer', userSelect: 'none' }}
-    >
-      <rect
-        x={left}
-        y={top}
-        width={width}
-        height={FRAME_HEIGHT}
-        fill={fill}
-        rx={radius.xs}
-        style={{
-          stroke: isHovered || isSelected ? '#ffffff' : 'none',
-          strokeWidth: isHovered || isSelected ? 2 : 0,
-          filter: isHovered ? 'brightness(1.1)' : 'none',
-          opacity: isCollapsedAncestor ? 0.5 : 1,
-          transition: 'filter 150ms ease, opacity 150ms ease',
-        }}
-      />
-      {label && (
-        <text
-          x={left + 4}
-          y={top + FRAME_HEIGHT / 2 + 3}
-          fontSize={10}
-          fill={textColor}
-          style={{
-            userSelect: 'none',
-            fontWeight: isSelected ? 600 : 400,
-            pointerEvents: 'none',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-          }}
-          clipPath={`url(#clip-${rowIndex})`}
-        >
-          {label}
-        </text>
-      )}
-      {/* 折叠指示器 */}
-      {isCollapsed && width > 10 && (
-        <text
-          x={left + width - 10}
-          y={top + FRAME_HEIGHT / 2 + 3}
-          fontSize={9}
-          fill={textColor}
-          style={{ userSelect: 'none', pointerEvents: 'none' }}
-          textAnchor="end"
-        >
-          +{frame.children?.length ?? 0}
-        </text>
-      )}
-    </g>
-  );
-};
-
-/** 截断标签以适应帧宽度 */
-const truncateLabel = (name: string, availableWidth: number): string => {
-  // 每个字符大约 5.5px (fontSize=10)
-  const maxChars = Math.floor((availableWidth - 8) / 5.5);
-  if (maxChars <= 0) return '';
-  if (name.length <= maxChars) return name;
-  // 优先截取最后一个 "." 之前的部分
-  const dotIdx = name.lastIndexOf('.', maxChars);
-  if (dotIdx > 4) return '…' + name.substring(dotIdx);
-  return name.substring(0, maxChars - 1) + '…';
-};
 
 // ---- 右侧详情面板 ----
 
