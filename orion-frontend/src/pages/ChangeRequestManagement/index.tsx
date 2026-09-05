@@ -64,6 +64,7 @@ import {
   executionStepStatusLabel,
 } from './config';
 import { buildColumns } from './columns';
+import { ChangeRequestManagementModals } from './ChangeRequestManagementModals';
 import {
   listChangeRequests,
   createChangeRequest,
@@ -603,368 +604,44 @@ export default function ChangeRequestManagementPage() {
         />
       </Card>
 
-      {/* ==================== Create/Edit Modal ==================== */}
-      <Modal
-        title={editingRequest ? '编辑变更请求' : '创建变更请求'}
-        open={modalVisible}
-        onOk={handleSave}
+      <ChangeRequestManagementModals
+        renderExecutionProgress={renderExecutionProgress}
+        modalVisible={modalVisible}
+        setModalVisible={setModalVisible}
         confirmLoading={confirmLoading}
-        onCancel={() => setModalVisible(false)}
-        width={700}
-        destroyOnClose
-      >
-        <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
-          <Form.Item
-            name="title"
-            label="标题"
-            rules={[{ required: true, message: '请输入变更标题' }]}
-          >
-            <Input placeholder="输入变更请求标题" />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <TextArea rows={3} placeholder="详细描述变更内容" />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="changeType"
-                label="变更类型"
-                rules={[{ required: true, message: '请选择变更类型' }]}
-              >
-                <Select placeholder="选择变更类型">
-                  <Select.Option value="standard">标准变更</Select.Option>
-                  <Select.Option value="normal">普通变更</Select.Option>
-                  <Select.Option value="emergency">紧急变更</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="riskLevel" label="风险等级">
-                <Select placeholder="选择风险等级">
-                  <Select.Option value="low">低</Select.Option>
-                  <Select.Option value="medium">中</Select.Option>
-                  <Select.Option value="high">高</Select.Option>
-                  <Select.Option value="critical">严重</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="impactScope" label="影响范围">
-                <Select placeholder="选择影响范围">
-                  <Select.Option value="minor">轻微</Select.Option>
-                  <Select.Option value="major">重大</Select.Option>
-                  <Select.Option value="significant">显著</Select.Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="rollbackPlan" label="回滚方案">
-            <TextArea rows={2} placeholder="描述回滚方案" />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="scheduledStart" label="计划开始时间">
-                <DatePicker showTime style={{ width: '100%' }} placeholder="选择开始时间" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="scheduledEnd" label="计划结束时间">
-                <DatePicker showTime style={{ width: '100%' }} placeholder="选择结束时间" />
-              </Form.Item>
-            </Col>
-          </Row>
-        </Form>
-      </Modal>
-
-      {/* ==================== Detail Drawer ==================== */}
-      <Drawer
-        title={
-          <Space>
-            <FileTextOutlined style={{ color: colors.primary[500] }} />
-            <span>{selectedRequest?.title ?? '变更详情'}</span>
-          </Space>
-        }
-        open={detailDrawerVisible}
-        onClose={() => setDetailDrawerVisible(false)}
-        width={640}
-      >
-        {selectedRequest && (
-          <>
-            <Descriptions column={2} bordered size="small" style={{ marginBottom: spacing.lg }}>
-              <Descriptions.Item label="状态" span={2}>
-                <Badge
-                  status={statusColor[selectedRequest.status] as any}
-                  text={statusLabel[selectedRequest.status]}
-                />
-              </Descriptions.Item>
-              <Descriptions.Item label="变更类型">
-                <Tag>{changeTypeLabel[selectedRequest.changeType]}</Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="风险等级">
-                <Tag color={riskLevelColor[selectedRequest.riskLevel]}>
-                  {riskLevelLabel[selectedRequest.riskLevel]}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="影响范围">
-                {selectedRequest.impactScope ? impactScopeLabel[selectedRequest.impactScope] : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="创建人">
-                {selectedRequest.createdBy ?? '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="创建时间" span={2}>
-                {dayjs(selectedRequest.createdAt).format('YYYY-MM-DD HH:mm:ss')}
-              </Descriptions.Item>
-              <Descriptions.Item label="描述" span={2}>
-                {selectedRequest.description ?? '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="回滚方案" span={2}>
-                {selectedRequest.rollbackPlan ?? '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="计划开始">
-                {selectedRequest.scheduledStart
-                  ? dayjs(selectedRequest.scheduledStart).format('YYYY-MM-DD HH:mm')
-                  : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="计划结束">
-                {selectedRequest.scheduledEnd
-                  ? dayjs(selectedRequest.scheduledEnd).format('YYYY-MM-DD HH:mm')
-                  : '-'}
-              </Descriptions.Item>
-            </Descriptions>
-
-            {/* Approval Chain Section */}
-            <Title level={4} style={{ marginBottom: spacing.sm }}>
-              <CheckOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
-              审批链
-            </Title>
-            {renderApprovalTimeline()}
-
-            {/* AI Risk Analysis Section (TR-03) */}
-            <div
-              style={{
-                marginTop: spacing.lg,
-                borderTop: `1px solid ${colors.neutral[200]}`,
-                paddingTop: spacing.md,
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: spacing.sm,
-                }}
-              >
-                <Title level={4} style={{ marginBottom: 0 }}>
-                  <BulbOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
-                  AI 风险评估
-                </Title>
-                <Button
-                  size="small"
-                  loading={riskLoading}
-                  onClick={() => fetchRisk(selectedRequest.id)}
-                >
-                  {riskAnalysis ? '重新评估' : '开始评估'}
-                </Button>
-              </div>
-
-              {riskLoading && (
-                <div style={{ textAlign: 'center', padding: '16px 0' }}>
-                  <Text type="secondary">正在分析变更风险…</Text>
-                </div>
-              )}
-
-              {!riskLoading && !riskAnalysis && (
-                <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                  点击"开始评估"，基于变更类型、优先级、关键词与历史完成率生成风险评分。
-                </Text>
-              )}
-
-              {!riskLoading && riskAnalysis && (
-                <Space direction="vertical" style={{ width: '100%' }} size={12}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <Text strong style={{ fontSize: spacing[4] }}>
-                      {riskAnalysis.risk_score}
-                    </Text>
-                    <Tag
-                      color={
-                        riskAnalysis.risk_level === 'high'
-                          ? 'red'
-                          : riskAnalysis.risk_level === 'medium'
-                            ? 'orange'
-                            : 'green'
-                      }
-                      style={{ fontWeight: 600 }}
-                    >
-                      {riskAnalysis.risk_level === 'high'
-                        ? '高风险'
-                        : riskAnalysis.risk_level === 'medium'
-                          ? '中风险'
-                          : '低风险'}
-                    </Tag>
-                  </div>
-
-                  {riskAnalysis.factors && riskAnalysis.factors.length > 0 && (
-                    <div>
-                      <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                        评估因素
-                      </Text>
-                      <ul style={{ margin: '4px 0 0 0', paddingLeft: 18 }}>
-                        {riskAnalysis.factors.map((f, idx) => (
-                          <li key={String(idx)}>
-                            <Text style={{ fontSize: spacing[3] }}>
-                              {f.name}（权重 {f.weight}）— {f.reason}
-                            </Text>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {riskAnalysis.suggestions && riskAnalysis.suggestions.length > 0 && (
-                    <div>
-                      <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                        建议
-                      </Text>
-                      <ul style={{ margin: '4px 0 0 0', paddingLeft: 18 }}>
-                        {riskAnalysis.suggestions.map((s, idx) => (
-                          <li key={String(idx)}>
-                            <Text style={{ fontSize: spacing[3] }}>{s}</Text>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </Space>
-              )}
-            </div>
-
-            {/* Action Buttons for draft */}
-            {selectedRequest.status === 'draft' && (
-              <div style={{ marginTop: spacing.lg, textAlign: 'right' }}>
-                <Space>
-                  <Button
-                    icon={<EditOutlined />}
-                    onClick={() => {
-                      setDetailDrawerVisible(false);
-                      handleEdit(selectedRequest);
-                    }}
-                  >
-                    编辑
-                  </Button>
-                  <Button
-                    type="primary"
-                    icon={<SendOutlined />}
-                    onClick={() => {
-                      handleSubmitForApproval(selectedRequest.id);
-                      setDetailDrawerVisible(false);
-                    }}
-                  >
-                    提交审批
-                  </Button>
-                </Space>
-              </div>
-            )}
-
-            {/* Execution Button for approved */}
-            {selectedRequest.status === 'approved' && (
-              <div style={{ marginTop: spacing.lg, textAlign: 'right' }}>
-                <Button
-                  type="primary"
-                  icon={<PlayCircleOutlined />}
-                  onClick={() => {
-                    handleStartExecution(selectedRequest);
-                    setDetailDrawerVisible(false);
-                  }}
-                >
-                  开始执行
-                </Button>
-              </div>
-            )}
-
-            {/* View Execution for implementing/completed */}
-            {(selectedRequest.status === 'implementing' ||
-              selectedRequest.status === 'completed') && (
-              <div style={{ marginTop: spacing.lg, textAlign: 'right' }}>
-                <Button
-                  type="primary"
-                  icon={<EyeOutlined />}
-                  onClick={() => {
-                    setDetailDrawerVisible(false);
-                    handleViewExecution(selectedRequest);
-                  }}
-                >
-                  查看执行进度
-                </Button>
-              </div>
-            )}
-          </>
-        )}
-      </Drawer>
-
-      {/* ==================== Approve/Reject Modal ==================== */}
-      <Modal
-        title={actionType === 'approve' ? '审批通过' : '拒绝变更'}
-        open={actionModalVisible}
-        onOk={handleConfirmAction}
-        onCancel={() => setActionModalVisible(false)}
-        confirmLoading={actionLoading}
-        okText={actionType === 'approve' ? '确认通过' : '确认拒绝'}
-        okButtonProps={actionType === 'reject' ? { danger: true } : {}}
-        destroyOnClose
-      >
-        <div style={{ marginTop: spacing.md }}>
-          <Text style={{ display: 'block', marginBottom: spacing.sm }}>
-            {actionType === 'approve' ? '请确认审批通过此变更请求:' : '请填写拒绝原因:'}
-          </Text>
-          <TextArea
-            rows={3}
-            placeholder={actionType === 'approve' ? '审批备注（可选）' : '请输入拒绝原因'}
-            value={actionComment}
-            onChange={(e) => setActionComment(e.target.value)}
-          />
-        </div>
-      </Modal>
-
-      {/* ==================== Execution Progress Drawer ==================== */}
-      <Drawer
-        title={
-          <Space>
-            <PlayCircleOutlined style={{ color: colors.primary[500] }} />
-            <span>执行进度 - {selectedExecutionRequest?.title}</span>
-          </Space>
-        }
-        open={executionDrawerVisible}
-        onClose={() => setExecutionDrawerVisible(false)}
-        width={640}
-      >
-        {selectedExecutionRequest && (
-          <>
-            <Descriptions column={2} bordered size="small" style={{ marginBottom: spacing.lg }}>
-              <Descriptions.Item label="状态" span={2}>
-                <Badge
-                  status={statusColor[selectedExecutionRequest.status] as any}
-                  text={statusLabel[selectedExecutionRequest.status]}
-                />
-              </Descriptions.Item>
-              <Descriptions.Item label="变更类型">
-                {changeTypeLabel[selectedExecutionRequest.changeType]}
-              </Descriptions.Item>
-              <Descriptions.Item label="风险等级">
-                <Tag color={riskLevelColor[selectedExecutionRequest.riskLevel]}>
-                  {riskLevelLabel[selectedExecutionRequest.riskLevel]}
-                </Tag>
-              </Descriptions.Item>
-            </Descriptions>
-
-            <Title level={4} style={{ marginBottom: spacing.sm }}>
-              <ClockCircleOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
-              步骤执行详情
-            </Title>
-            {renderExecutionProgress()}
-          </>
-        )}
-      </Drawer>
+        editingRequest={editingRequest}
+        setEditingRequest={setEditingRequest}
+        handleSave={handleSave}
+        handleCreate={handleCreate}
+        form={form}
+        detailDrawerVisible={detailDrawerVisible}
+        setDetailDrawerVisible={setDetailDrawerVisible}
+        selectedRequest={selectedRequest}
+        setSelectedRequest={setSelectedRequest}
+        riskAnalysis={riskAnalysis}
+        riskLoading={riskLoading}
+        setRiskLoading={setRiskLoading}
+        handleAIRisk={handleAIRisk}
+        approvalChain={approvalChain}
+        approvalLoading={approvalLoading}
+        actionModalVisible={actionModalVisible}
+        setActionModalVisible={setActionModalVisible}
+        actionType={actionType}
+        setActionType={setActionType}
+        actionApprovalId={actionApprovalId}
+        setActionApprovalId={setActionApprovalId}
+        actionComment={actionComment}
+        setActionComment={setActionComment}
+        actionLoading={actionLoading}
+        handleSubmitAction={handleSubmitAction}
+        executionDrawerVisible={executionDrawerVisible}
+        setExecutionDrawerVisible={setExecutionDrawerVisible}
+        executionSteps={executionSteps}
+        executionLoading={executionLoading}
+        selectedExecutionRequest={selectedExecutionRequest}
+        handleSubmitForApproval={handleSubmitForApproval}
+        handleDelete={handleDelete}
+      />
     </div>
   );
 }
