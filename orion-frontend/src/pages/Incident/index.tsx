@@ -91,6 +91,7 @@ import {
   postmortemStatusConfig,
 } from './config';
 import { buildIncidentColumns, incidentFilterDefs } from './columns';
+import { IncidentModals } from './IncidentModals';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -1119,267 +1120,60 @@ const IncidentManagement: React.FC = () => {
 
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
 
-        {/* Create Incident Modal */}
-        <Modal
-          title="创建事件"
-          open={createModalOpen}
-          onOk={handleCreate}
-          onCancel={() => { setCreateModalOpen(false); createForm.resetFields(); }}
-          confirmLoading={createSubmitting}
-          width={640}
-          okText="创建"
-          cancelText="取消"
-        >
-          <Form form={createForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item name="title" label="事件标题" rules={[{ required: true, message: '请输入事件标题' }]}>
-              <Input placeholder="简要描述事件" />
-            </Form.Item>
-            <Row gutter={spacing.md}>
-              <Col span={8}>
-                <Form.Item name="severity" label="严重程度" rules={[{ required: true, message: '请选择严重程度' }]}>
-                  <Select placeholder="选择严重程度">
-                    {severityOptions.map((o) => (
-                      <Select.Option key={o.value} value={o.value}>{o.label}</Select.Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item name="type" label="事件类型" initialValue="incident">
-                  <Select>
-                    {incidentTypeOptions.map((o) => (
-                      <Select.Option key={o.value} value={o.value}>{o.label}</Select.Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item name="urgency" label="紧急度">
-                  <Select placeholder="选择紧急度" allowClear>
-                    {urgencyOptions.map((o) => (
-                      <Select.Option key={o.value} value={o.value}>{o.label}</Select.Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-            </Row>
-            <Form.Item name="description" label="描述">
-              <TextArea rows={3} placeholder="详细描述事件情况" />
-            </Form.Item>
-            <Form.Item name="impact" label="影响范围">
-              <TextArea rows={2} placeholder="描述事件影响的范围和用户" />
-            </Form.Item>
-            <Row gutter={spacing.md}>
-              <Col span={12}>
-                <Form.Item name="assigned_to" label="负责人">
-                  <Input placeholder="负责人用户名" />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item name="detected_by" label="检测来源">
-                  <Input placeholder="如: monitoring, alert, manual" />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Form.Item name="affected_services" label="受影响服务" help="多个服务用逗号分隔">
-              <Input placeholder="service-a, service-b" />
-            </Form.Item>
-            <Form.Item name="tags" label="标签" help="多个标签用逗号分隔">
-              <Input placeholder="tag1, tag2" />
-            </Form.Item>
-          </Form>
-        </Modal>
-
-        {/* Edit Incident Modal */}
-        <Modal
-          title="编辑事件"
-          open={editModalOpen}
-          onOk={handleEdit}
-          onCancel={() => { setEditModalOpen(false); editForm.resetFields(); }}
-          confirmLoading={editSubmitting}
-          width={640}
-          okText="保存"
-          cancelText="取消"
-        >
-          <Form form={editForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item name="title" label="事件标题" rules={[{ required: true, message: '请输入事件标题' }]}>
-              <Input placeholder="简要描述事件" />
-            </Form.Item>
-            <Row gutter={spacing.md}>
-              <Col span={8}>
-                <Form.Item name="severity" label="严重程度" rules={[{ required: true, message: '请选择严重程度' }]}>
-                  <Select placeholder="选择严重程度">
-                    {severityOptions.map((o) => (
-                      <Select.Option key={o.value} value={o.value}>{o.label}</Select.Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item name="priority" label="优先级">
-                  <Select placeholder="选择优先级" allowClear>
-                    {priorityOptions.map((o) => (
-                      <Select.Option key={o.value} value={o.value}>{o.label}</Select.Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item name="urgency" label="紧急度">
-                  <Select placeholder="选择紧急度" allowClear>
-                    {urgencyOptions.map((o) => (
-                      <Select.Option key={o.value} value={o.value}>{o.label}</Select.Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-              </Col>
-            </Row>
-            <Form.Item name="description" label="描述">
-              <TextArea rows={3} placeholder="详细描述事件情况" />
-            </Form.Item>
-            <Form.Item name="impact" label="影响范围">
-              <TextArea rows={2} placeholder="描述事件影响的范围和用户" />
-            </Form.Item>
-            <Row gutter={spacing.md}>
-              <Col span={12}>
-                <Form.Item name="assigned_to" label="负责人">
-                  <Input placeholder="负责人用户名" />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item name="detected_by" label="检测来源">
-                  <Input placeholder="如: monitoring, alert, manual" />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Form.Item name="affected_services" label="受影响服务" help="多个服务用逗号分隔">
-              <Input placeholder="service-a, service-b" />
-            </Form.Item>
-            <Form.Item name="tags" label="标签" help="多个标签用逗号分隔">
-              <Input placeholder="tag1, tag2" />
-            </Form.Item>
-          </Form>
-        </Modal>
-
-        {/* Assign Commander Modal */}
-        <Modal
-          title="分配指挥官"
-          open={assignModalOpen}
-          onOk={handleAssign}
-          onCancel={() => { setAssignModalOpen(false); assignForm.resetFields(); }}
-          width={400}
-          okText="分配"
-          cancelText="取消"
-        >
-          <Form form={assignForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item name="commander_id" label="指挥官" rules={[{ required: true, message: '请输入指挥官ID' }]}>
-              <Input placeholder="输入指挥官用户名或ID" prefix={<UserOutlined />} />
-            </Form.Item>
-          </Form>
-        </Modal>
-
-        {/* Escalate Modal */}
-        <Modal
-          title="升级事件"
-          open={escalateModalOpen}
-          onOk={handleEscalate}
-          onCancel={() => { setEscalateModalOpen(false); escalateForm.resetFields(); }}
-          width={480}
-          okText="升级"
-          cancelText="取消"
-        >
-          <Form form={escalateForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item name="to_level" label="升级到层级" rules={[{ required: true, message: '请选择升级层级' }]}>
-              <Select placeholder="选择目标层级">
-                {escalationLevelOptions.map((o) => (
-                  <Select.Option key={o.value} value={o.value}>{o.label}</Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-            <Form.Item name="reason" label="升级原因" rules={[{ required: true, message: '请输入升级原因' }]}>
-              <TextArea rows={3} placeholder="说明升级原因" />
-            </Form.Item>
-          </Form>
-        </Modal>
-
-        {/* Add Timeline Event Modal */}
-        <Modal
-          title="添加事件记录"
-          open={addEventModalOpen}
-          onOk={handleAddEvent}
-          onCancel={() => { setAddEventModalOpen(false); eventForm.resetFields(); }}
-          width={480}
-          okText="添加"
-          cancelText="取消"
-        >
-          <Form form={eventForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item name="event_type" label="事件类型" rules={[{ required: true, message: '请选择事件类型' }]}>
-              <Select placeholder="选择事件类型">
-                {Object.entries(eventTypeConfig).map(([key, cfg]) => (
-                  <Select.Option key={key} value={key}>{cfg.label}</Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-            <Form.Item name="description" label="事件描述" rules={[{ required: true, message: '请输入事件描述' }]}>
-              <TextArea rows={4} placeholder="详细描述此事件记录" />
-            </Form.Item>
-          </Form>
-        </Modal>
-
-        {/* Status Change Note Modal */}
-        <Modal
-          title={`状态变更: ${statusConfig[pendingStatusChange]?.label || pendingStatusChange}`}
-          open={statusNoteModalOpen}
-          onOk={handleConfirmStatusChange}
-          onCancel={() => { setStatusNoteModalOpen(false); statusNoteForm.resetFields(); }}
-          width={480}
-          okText="确认变更"
-          cancelText="取消"
-        >
-          <Form form={statusNoteForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item name="note" label="备注（可选）">
-              <TextArea rows={3} placeholder="添加状态变更备注" />
-            </Form.Item>
-          </Form>
-        </Modal>
-
-        {/* Create Postmortem Modal */}
-        <Modal
-          title="创建复盘文档"
-          open={postmortemModalOpen}
-          onOk={handleCreatePostmortem}
-          onCancel={() => { setPostmortemModalOpen(false); postmortemForm.resetFields(); }}
-          width={640}
-          okText="创建"
-          cancelText="取消"
-        >
-          <Form form={postmortemForm} layout="vertical" style={{ marginTop: spacing.md }}>
-            <Form.Item name="title" label="复盘标题" rules={[{ required: true, message: '请输入标题' }]}>
-              <Input placeholder="事件复盘标题" />
-            </Form.Item>
-            <Form.Item name="summary" label="摘要" rules={[{ required: true, message: '请输入摘要' }]}>
-              <TextArea rows={3} placeholder="事件概要描述" />
-            </Form.Item>
-            <Form.Item name="root_cause" label="根因分析" rules={[{ required: true, message: '请输入根因分析' }]}>
-              <TextArea rows={3} placeholder="深入分析事件根因" />
-            </Form.Item>
-            <Form.Item name="impact_description" label="影响描述">
-              <TextArea rows={2} placeholder="描述事件影响范围和程度" />
-            </Form.Item>
-            <Form.Item name="timeline_summary" label="时间线摘要">
-              <TextArea rows={2} placeholder="关键时间节点概述" />
-            </Form.Item>
-            <Form.Item name="action_items" label="行动项" help="每行一个行动项">
-              <TextArea
-                rows={3}
-                placeholder={'修复监控告警阈值\n增加自动化巡检\n优化容灾切换流程'}
-              />
-            </Form.Item>
-            <Form.Item name="lessons_learned" label="经验教训">
-              <TextArea rows={3} placeholder="总结经验教训" />
-            </Form.Item>
-          </Form>
-        </Modal>
+      <IncidentModals
+        selectedIncident={selectedIncident}
+        setSelectedIncident={setSelectedIncident}
+        timeline={timeline}
+        setTimeline={setTimeline}
+        postmortem={postmortem}
+        setPostmortem={setPostmortem}
+        aiDraft={aiDraft}
+        setAiDraft={setAiDraft}
+        createModalOpen={createModalOpen}
+        setCreateModalOpen={setCreateModalOpen}
+        editModalOpen={editModalOpen}
+        setEditModalOpen={setEditModalOpen}
+        assignModalOpen={assignModalOpen}
+        setAssignModalOpen={setAssignModalOpen}
+        escalateModalOpen={escalateModalOpen}
+        setEscalateModalOpen={setEscalateModalOpen}
+        postmortemModalOpen={postmortemModalOpen}
+        setPostmortemModalOpen={setPostmortemModalOpen}
+        addEventModalOpen={addEventModalOpen}
+        setAddEventModalOpen={setAddEventModalOpen}
+        statusNoteModalOpen={statusNoteModalOpen}
+        setStatusNoteModalOpen={setStatusNoteModalOpen}
+        pendingStatusChange={pendingStatusChange}
+        setPendingStatusChange={setPendingStatusChange}
+        createSubmitting={createSubmitting}
+        setCreateSubmitting={setCreateSubmitting}
+        editSubmitting={editSubmitting}
+        setEditSubmitting={setEditSubmitting}
+        createForm={createForm}
+        editForm={editForm}
+        assignForm={assignForm}
+        escalateForm={escalateForm}
+        postmortemForm={postmortemForm}
+        eventForm={eventForm}
+        statusNoteForm={statusNoteForm}
+        handleCreate={handleCreate}
+        handleEdit={handleEdit}
+        handleAssign={handleAssign}
+        handleEscalate={handleEscalate}
+        handleAddEvent={handleAddEvent}
+        handleCreatePostmortem={handleCreatePostmortem}
+        handlePublishPostmortem={handlePublishPostmortem}
+        handleGenerateDraft={handleGenerateDraft}
+        handleFillDraftToForm={handleFillDraftToForm}
+        handleConfirmStatusChange={handleConfirmStatusChange}
+        handleOpenEdit={handleOpenEdit}
+        handleOpenAssign={handleOpenAssign}
+        handleOpenEscalate={handleOpenEscalate}
+        handleStatusChange={handleStatusChange}
+        handleBackToList={handleBackToList}
+        handleDelete={handleDelete}
+        handleViewDetail={handleViewDetail}
+      />
       </div>
     </Layout>
   );
