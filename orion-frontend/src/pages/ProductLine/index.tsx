@@ -50,6 +50,7 @@ import {
   type HotfixChannelInput,
   type ProductLinePhase,
 } from '@/api/product-lines';
+import { ProductLineModals } from './ProductLineModals';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { colors, spacing } from '@/tokens';
@@ -681,167 +682,37 @@ const ProductLineManagement: React.FC = () => {
             />
           </Card>
 
-          {/* Create Modal */}
-          <Modal
-            title="创建产品线"
-            open={createModalVisible}
-            onCancel={() => setCreateModalVisible(false)}
-            onOk={handleCreate}
-            confirmLoading={submitting}
-            width={640}
-            destroyOnClose
-          >
-            <Form form={createForm} layout="vertical">
-              <Form.Item
-                name="name"
-                label="名称 (唯一标识)"
-                rules={[{ required: true, message: '请输入名称' }]}
-              >
-                <Input placeholder="如: core-platform" />
-              </Form.Item>
-              <Form.Item
-                name="displayName"
-                label="显示名称"
-                rules={[{ required: true, message: '请输入显示名称' }]}
-              >
-                <Input placeholder="如: 核心平台" />
-              </Form.Item>
-              <Form.Item name="description" label="描述">
-                <Input.TextArea rows={2} placeholder="产品线描述..." />
-              </Form.Item>
-              <Form.Item
-                name="gitUrl"
-                label="Git 仓库地址"
-                rules={[
-                  { required: true, message: '请输入仓库地址' },
-                  {
-                    pattern: /^https?:\/\/.+/,
-                    message: '请输入合法的 HTTP/HTTPS 仓库地址',
-                  },
-                ]}
-              >
-                <Input placeholder="https://github.com/org/repo" />
-              </Form.Item>
-              <Form.Item name="gitProvider" label="Git Provider">
-                <Select options={gitProviderOptions} defaultValue="github" />
-              </Form.Item>
-              <Form.Item name="gitDefaultBranch" label="默认分支">
-                <Input placeholder="main" defaultValue="main" />
-              </Form.Item>
-              <Form.Item name="branchMode" label="分支模式" rules={[{ required: true }]}>
-                <Select options={branchModeOptions} defaultValue="gitflow" />
-              </Form.Item>
-              <Form.Item name="defaultEnvironment" label="默认环境">
-                <Select options={envOptions} defaultValue="dev" />
-              </Form.Item>
-              <Form.Item name="tenantId" label="租户 ID (可选)">
-                <Input placeholder="tenant-id" />
-              </Form.Item>
-            </Form>
-          </Modal>
-
-          {/* Edit Modal */}
-          <Modal
-            title="编辑产品线"
-            open={editModalVisible}
-            onCancel={() => setEditModalVisible(false)}
-            onOk={handleEdit}
-            confirmLoading={submitting}
-            width={640}
-            destroyOnClose
-          >
-            <Form form={editForm} layout="vertical">
-              <Form.Item name="displayName" label="显示名称" rules={[{ required: true }]}>
-                <Input />
-              </Form.Item>
-              <Form.Item name="description" label="描述">
-                <Input.TextArea rows={2} />
-              </Form.Item>
-              <Form.Item name="branchMode" label="分支模式">
-                <Select options={branchModeOptions} />
-              </Form.Item>
-            </Form>
-          </Modal>
-
-          {/* Detail Drawer */}
-          <Drawer
-            title={selectedPL ? `${selectedPL.displayName} (${selectedPL.name})` : '详情'}
-            open={detailDrawerVisible}
-            onClose={() => setDetailDrawerVisible(false)}
-            width={800}
-            destroyOnClose
-          >
-            <Tabs items={detailTabItems} />
-          </Drawer>
-
-          {/* Create Release Train Modal */}
-          <Modal
-            title="创建发布列车"
-            open={rtModalVisible}
-            onCancel={() => setRtModalVisible(false)}
-            onOk={handleCreateRT}
-            confirmLoading={submitting}
-          >
-            <Form form={rtForm} layout="vertical">
-              <Form.Item name="rtName" label="名称" rules={[{ required: true }]}>
-                <Input placeholder="如: Weekly Release" />
-              </Form.Item>
-              <Form.Item name="rtSchedule" label="调度 (Cron 表达式)" rules={[{ required: true }]}>
-                <Input placeholder="0 10 * * 4" />
-              </Form.Item>
-              <Form.Item name="rtSourceBranch" label="源分支">
-                <Input placeholder="develop" defaultValue="develop" />
-              </Form.Item>
-              <Form.Item name="rtTargetBranch" label="目标分支">
-                <Input placeholder="main" defaultValue="main" />
-              </Form.Item>
-              <Form.Item name="rtApprovalRequired" label="需要审批" valuePropName="checked">
-                <Switch defaultChecked />
-              </Form.Item>
-              <Form.Item name="rtAutoPromote" label="自动晋升" valuePropName="checked">
-                <Switch />
-              </Form.Item>
-              <Form.Item name="rtApprovers" label="审批人 (逗号分隔)">
-                <Input placeholder="tech-lead, qa-lead" />
-              </Form.Item>
-            </Form>
-          </Modal>
-
-          {/* Create Hotfix Channel Modal */}
-          <Modal
-            title="创建 Hotfix 通道"
-            open={hfModalVisible}
-            onCancel={() => setHfModalVisible(false)}
-            onOk={handleCreateHF}
-            confirmLoading={submitting}
-          >
-            <Form form={hfForm} layout="vertical">
-              <Form.Item name="hfName" label="名称" rules={[{ required: true }]}>
-                <Input placeholder="如: Production Hotfix" />
-              </Form.Item>
-              <Form.Item name="hfBranchPattern" label="分支匹配模式">
-                <Input placeholder="^hotfix/.*$" defaultValue="^hotfix/.*$" />
-              </Form.Item>
-              <Form.Item name="hfEnabled" label="启用" valuePropName="checked">
-                <Switch defaultChecked />
-              </Form.Item>
-              <Form.Item name="hfApprovalRequired" label="需要审批" valuePropName="checked">
-                <Switch defaultChecked />
-              </Form.Item>
-              <Form.Item name="hfApprovalTimeout" label="审批超时 (分钟)">
-                <Input type="number" defaultValue={30} />
-              </Form.Item>
-              <Form.Item name="hfAutoMerge" label="自动合并" valuePropName="checked">
-                <Switch />
-              </Form.Item>
-              <Form.Item name="hfNotifyOnCall" label="通知值班" valuePropName="checked">
-                <Switch defaultChecked />
-              </Form.Item>
-              <Form.Item name="hfMaxDuration" label="最大持续时间 (分钟)">
-                <Input type="number" defaultValue={60} />
-              </Form.Item>
-            </Form>
-          </Modal>
+          <ProductLineModals
+            createModalVisible={createModalVisible}
+            setCreateModalVisible={setCreateModalVisible}
+            editModalVisible={editModalVisible}
+            setEditModalVisible={setEditModalVisible}
+            editingPL={editingPL}
+            setEditingPL={setEditingPL}
+            detailDrawerVisible={detailDrawerVisible}
+            setDetailDrawerVisible={setDetailDrawerVisible}
+            selectedPL={selectedPL}
+            setSelectedPL={setSelectedPL}
+            releaseTrains={releaseTrains}
+            setReleaseTrains={setReleaseTrains}
+            hotfixChannels={hotfixChannels}
+            setHotfixChannels={setHotfixChannels}
+            rtModalVisible={rtModalVisible}
+            setRtModalVisible={setRtModalVisible}
+            hfModalVisible={hfModalVisible}
+            setHfModalVisible={setHfModalVisible}
+            createForm={createForm}
+            editForm={editForm}
+            rtForm={rtForm}
+            hfForm={hfForm}
+            submitting={submitting}
+            setSubmitting={setSubmitting}
+            handleCreate={handleCreate}
+            handleEdit={handleEdit}
+            handleCreateRT={handleCreateRT}
+            handleCreateHF={handleCreateHF}
+            productLines={productLines}
+          />
         </>
       )}
     </div>
