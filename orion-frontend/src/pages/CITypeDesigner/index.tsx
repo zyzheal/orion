@@ -62,6 +62,7 @@ import {
   type UpdateCITypeInput,
   type CreateCIAttributeInput,
 } from '@/api/ci-types';
+import { CITypeDesignerModals } from './CITypeDesignerModals';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -800,228 +801,60 @@ export default function CITypeDesignerPage() {
         ]}
       />
 
-      {/* ============ Create/Edit CI Type Modal ============ */}
-      <Modal
-        title={editingType ? '编辑 CI 类型' : '创建 CI 类型'}
-        open={typeModalVisible}
-        onOk={handleSaveType}
-        confirmLoading={typeConfirmLoading}
-        onCancel={() => setTypeModalVisible(false)}
-        width={600}
-        destroyOnClose
-      >
-        <Form form={typeForm} layout="vertical">
-          <Form.Item
-            name="name"
-            label="类型名称"
-            rules={[{ required: true, message: '请输入类型名称' }]}
-          >
-            <Input placeholder="如 server, database, router" disabled={!!editingType} />
-          </Form.Item>
-          <Form.Item name="displayName" label="显示名称">
-            <Input placeholder="如 服务器, 数据库, 路由器" />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <TextArea rows={2} placeholder="输入类型描述" />
-          </Form.Item>
-          <Row gutter={spacing.md}>
-            <Col span={12}>
-              <Form.Item name="icon" label="图标">
-                <Input placeholder="图标名称或 emoji" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="category" label="分类">
-                <Select placeholder="选择分类" options={categoryOptions} allowClear />
-              </Form.Item>
-            </Col>
-          </Row>
-        </Form>
-      </Modal>
-
-      {/* ============ Detail Drawer ============ */}
-      <Drawer
-        title="CI 类型详情"
-        open={detailDrawerVisible}
-        onClose={() => setDetailDrawerVisible(false)}
-        width={500}
-      >
-        {selectedType && (
-          <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="类型名称">{selectedType.name}</Descriptions.Item>
-            <Descriptions.Item label="显示名称">
-              {selectedType.displayName ?? '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="描述">{selectedType.description ?? '-'}</Descriptions.Item>
-            <Descriptions.Item label="图标">{selectedType.icon ?? '-'}</Descriptions.Item>
-            <Descriptions.Item label="分类">
-              {selectedType.category ? (
-                <Tag color={categoryColorMap[selectedType.category] ?? 'default'}>
-                  {selectedType.category}
-                </Tag>
-              ) : (
-                '-'
-              )}
-            </Descriptions.Item>
-            <Descriptions.Item label="版本">
-              <Tag>v{selectedType.version}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="状态">
-              <Tag color={selectedType.enabled ? 'green' : 'default'}>
-                {selectedType.enabled ? '启用' : '禁用'}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="创建时间">
-              {dayjs(selectedType.createdAt).format('YYYY-MM-DD HH:mm')}
-            </Descriptions.Item>
-            <Descriptions.Item label="更新时间">
-              {dayjs(selectedType.updatedAt).format('YYYY-MM-DD HH:mm')}
-            </Descriptions.Item>
-          </Descriptions>
-        )}
-      </Drawer>
-
-      {/* ============ Add/Edit Attribute Modal ============ */}
-      <Modal
-        title={editingAttr ? '编辑属性' : '添加属性'}
-        open={attrModalVisible}
-        onOk={handleSaveAttr}
-        onCancel={() => setAttrModalVisible(false)}
-        width={600}
-        destroyOnClose
-      >
-        <Form form={attrForm} layout="vertical">
-          <Row gutter={spacing.md}>
-            <Col span={12}>
-              <Form.Item
-                name="attrKey"
-                label="属性标识"
-                rules={[{ required: true, message: '请输入属性标识' }]}
-              >
-                <Input placeholder="如 hostname, ip_address" disabled={!!editingAttr} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="displayName" label="显示名称">
-                <Input placeholder="如 主机名, IP 地址" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={spacing.md}>
-            <Col span={12}>
-              <Form.Item
-                name="attrType"
-                label="属性类型"
-                rules={[{ required: true, message: '请选择属性类型' }]}
-              >
-                <Select placeholder="选择类型" options={attrTypeOptions} />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item name="required" label="必填" valuePropName="checked">
-                <Switch />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item name="sortOrder" label="排序">
-                <InputNumber style={{ width: '100%' }} min={0} />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="defaultValue" label="默认值">
-            <Input placeholder="默认值（可选）" />
-          </Form.Item>
-          <Form.Item noStyle shouldUpdate={(prev, cur) => prev.attrType !== cur.attrType}>
-            {({ getFieldValue }) => {
-              const attrType = getFieldValue('attrType');
-              if (attrType === 'select' || attrType === 'multiselect') {
-                return (
-                  <Form.Item
-                    name="options"
-                    label="选项列表"
-                    extra="每行一个选项"
-                    rules={[{ required: true, message: '请输入选项' }]}
-                  >
-                    <TextArea rows={3} placeholder={'选项1\n选项2\n选项3'} />
-                  </Form.Item>
-                );
-              }
-              return null;
-            }}
-          </Form.Item>
-          <Form.Item name="validationRule" label="校验规则">
-            <Input placeholder="正则表达式或校验规则（可选）" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* ============ Validate Instance Modal ============ */}
-      <Modal
-        title={`校验实例数据 - ${validatingType?.displayName ?? validatingType?.name ?? ''}`}
-        open={validateModalVisible}
-        onOk={handleValidate}
-        onCancel={() => setValidateModalVisible(false)}
-        width={600}
-        okText="校验"
-        destroyOnClose
-      >
-        <Form form={validateForm} layout="vertical">
-          <Form.Item
-            name="instanceData"
-            label="实例数据 (JSON)"
-            rules={[{ required: true, message: '请输入 JSON 数据' }]}
-            extra="输入 JSON 格式的实例数据，将根据类型 Schema 进行校验"
-          >
-            <TextArea
-              rows={8}
-              placeholder={'{\n  "hostname": "web-01",\n  "ip_address": "192.168.1.100"\n}'}
-              style={{ fontFamily: 'monospace', fontSize: 13 }}
-            />
-          </Form.Item>
-        </Form>
-
-        {validationResult && (
-          <div style={{ marginTop: spacing.md }}>
-            {validationResult.valid ? (
-              <div
-                style={{
-                  padding: spacing.md,
-                  background: colors.success[50],
-                  border: `1px solid ${colors.success[200]}`,
-                  borderRadius: componentRadius.input,
-                }}
-              >
-                <Space>
-                  <CheckCircleOutlined style={{ color: colors.success[500] }} />
-                  <Text style={{ color: colors.success[500] }}>校验通过，数据格式正确</Text>
-                </Space>
-              </div>
-            ) : (
-              <div
-                style={{
-                  padding: spacing.md,
-                  background: colors.error[50],
-                  border: `1px solid ${colors.error[100]}`,
-                  borderRadius: componentRadius.input,
-                }}
-              >
-                <Text
-                  strong
-                  style={{ color: colors.error[500], display: 'block', marginBottom: 8 }}
-                >
-                  校验不通过
-                </Text>
-                {validationResult.errors.map((err, idx) => (
-                  <div key={String(idx)} style={{ marginBottom: 4 }}>
-                    <Tag color="error">{err.field}</Tag>
-                    <Text type="danger">{err.message}</Text>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
+      <CITypeDesignerModals
+        ciTypes={ciTypes}
+        setCITypes={setCITypes}
+        typesLoading={typesLoading}
+        setTypesLoading={setTypesLoading}
+        typeModalVisible={typeModalVisible}
+        setTypeModalVisible={setTypeModalVisible}
+        typeConfirmLoading={typeConfirmLoading}
+        setTypeConfirmLoading={setTypeConfirmLoading}
+        editingType={editingType}
+        setEditingType={setEditingType}
+        typeForm={typeForm}
+        handleSaveType={handleSaveType}
+        handleDeleteType={handleDeleteType}
+        detailDrawerVisible={detailDrawerVisible}
+        setDetailDrawerVisible={setDetailDrawerVisible}
+        selectedType={selectedType}
+        setSelectedType={setSelectedType}
+        selectedTypeId={selectedTypeId}
+        setSelectedTypeId={setSelectedTypeId}
+        attributes={attributes}
+        setAttributes={setAttributes}
+        attrsLoading={attrsLoading}
+        setAttrsLoading={setAttrsLoading}
+        attrModalVisible={attrModalVisible}
+        setAttrModalVisible={setAttrModalVisible}
+        editingAttr={editingAttr}
+        setEditingAttr={setEditingAttr}
+        attrForm={attrForm}
+        handleSaveAttr={handleSaveAttr}
+        handleDeleteAttr={handleDeleteAttr}
+        versions={versions}
+        setVersions={setVersions}
+        versionsLoading={versionsLoading}
+        setVersionsLoading={setVersionsLoading}
+        validateModalVisible={validateModalVisible}
+        setValidateModalVisible={setValidateModalVisible}
+        validatingType={validatingType}
+        setValidatingType={setValidatingType}
+        validateForm={validateForm}
+        validationResult={validationResult}
+        setValidationResult={setValidationResult}
+        handleValidate={handleValidate}
+        handleCreateVersion={handleCreateVersion}
+        handleRollback={handleRollback}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        categoryFilter={categoryFilter}
+        setCategoryFilter={setCategoryFilter}
+        versionTypeId={versionTypeId}
+        setVersionTypeId={setVersionTypeId}
+        categoryOptions={categoryOptions}
+        attrTypeOptions={attrTypeOptions}
+      />
     </div>
   );
 }
