@@ -50,6 +50,7 @@ import {
   type CreateOverrideInput,
   type CurrentOnCallResult,
 } from '@/api/oncall';
+import { OnCallModals } from './OnCallModals';
 import { listUsers, type User } from '@/api/users';
 import PageSkeleton from '@/components/PageSkeleton';
 import { colors } from '@/tokens/colors';
@@ -664,133 +665,28 @@ const OnCallManagement: React.FC = () => {
           </Card>
 
           {/* Create Schedule Modal */}
-          <Modal
-            title="创建值班排班"
-            open={createModalVisible}
-            onCancel={() => setCreateModalVisible(false)}
-            onOk={handleCreate}
-            confirmLoading={submitting}
-            width={560}
-            destroyOnClose
-          >
-            <Form form={createForm} layout="vertical">
-              <Form.Item
-                name="name"
-                label="排班名称"
-                rules={[{ required: true, message: '请输入排班名称' }]}
-              >
-                <Input placeholder="如: 平台核心服务值班" />
-              </Form.Item>
-              <Form.Item
-                name="timezone"
-                label="时区"
-                rules={[{ required: true, message: '请选择时区' }]}
-                initialValue="Asia/Shanghai"
-              >
-                <Select options={timezoneOptions} />
-              </Form.Item>
-              <Form.Item
-                name="rotationType"
-                label="轮换方式"
-                rules={[{ required: true, message: '请选择轮换方式' }]}
-              >
-                <Select
-                  options={[
-                    { label: '每日轮换', value: 'daily' },
-                    { label: '每周轮换', value: 'weekly' },
-                    { label: '每月轮换', value: 'monthly' },
-                  ]}
-                />
-              </Form.Item>
-              <Form.Item label="团队成员 (逗号分隔的用户ID)" required>
-                <Input
-                  value={memberInput}
-                  onChange={(e) => setMemberInput(e.target.value)}
-                  placeholder="如: dev-001, dev-002, dev-003"
-                />
-              </Form.Item>
-              <Form.Item name="rotationStartHour" label="轮换开始时间 (小时)" initialValue={9}>
-                <Select
-                  options={Array.from({ length: 24 }, (_, i) => ({ label: `${i}:00`, value: i }))}
-                />
-              </Form.Item>
-            </Form>
-          </Modal>
-
-          {/* Override Modal */}
-          <Modal
-            title="设置代班"
-            open={overrideModalVisible}
-            onCancel={() => setOverrideModalVisible(false)}
-            onOk={handleCreateOverride}
-            confirmLoading={submitting}
-            width={480}
-            destroyOnClose
-          >
-            {selectedSchedule && (
-              <div style={{ marginBottom: spacing.md }}>
-                <Text>
-                  当前排班: <Text strong>{selectedSchedule.name}</Text>
-                </Text>
-              </div>
-            )}
-            <Form form={overrideForm} layout="vertical">
-              <Form.Item
-                name="originalUserId"
-                label="原始值班人员"
-                rules={[{ required: true, message: '请选择原始值班人员' }]}
-              >
-                <Select
-                  options={selectedSchedule?.teamMembers.map((uid) => ({
-                    label: resolveUserName(uid),
-                    value: uid,
-                  }))}
-                  placeholder="选择原始值班人员"
-                />
-              </Form.Item>
-              <Form.Item
-                name="overrideUserId"
-                label="代班人员"
-                rules={[{ required: true, message: '请选择代班人员' }]}
-              >
-                <Select
-                  loading={usersLoading}
-                  options={Object.entries(userMap)
-                    .filter(([uid]) => selectedSchedule?.teamMembers.includes(uid))
-                    .map(([uid, name]) => ({ label: name, value: uid }))}
-                  placeholder="选择代班人员"
-                />
-              </Form.Item>
-              <Form.Item
-                name="startTime"
-                label="代班开始时间"
-                rules={[{ required: true, message: '请选择开始时间' }]}
-              >
-                <Input placeholder="YYYY-MM-DD HH:mm" />
-              </Form.Item>
-              <Form.Item
-                name="endTime"
-                label="代班结束时间"
-                rules={[{ required: true, message: '请选择结束时间' }]}
-              >
-                <Input placeholder="YYYY-MM-DD HH:mm" />
-              </Form.Item>
-              <Form.Item name="reason" label="代班原因">
-                <Input.TextArea rows={2} placeholder="代班原因..." />
-              </Form.Item>
-            </Form>
-          </Modal>
-
-          {/* Detail Drawer */}
-          <Drawer
-            title={selectedSchedule ? `${selectedSchedule.name} - 排班详情` : '排班详情'}
-            open={detailDrawerVisible}
-            onClose={() => setDetailDrawerVisible(false)}
-            width={720}
-            destroyOnClose
-          >
-            {renderDetailContent()}
-          </Drawer>
+          <OnCallModals
+            renderDetailContent={renderDetailContent}
+            createModalVisible={createModalVisible}
+            setCreateModalVisible={setCreateModalVisible}
+            overrideModalVisible={overrideModalVisible}
+            setOverrideModalVisible={setOverrideModalVisible}
+            detailDrawerVisible={detailDrawerVisible}
+            setDetailDrawerVisible={setDetailDrawerVisible}
+            selectedSchedule={selectedSchedule}
+            setSelectedSchedule={setSelectedSchedule}
+            createForm={createForm}
+            overrideForm={overrideForm}
+            submitting={submitting}
+            setSubmitting={setSubmitting}
+            memberInput={memberInput}
+            setMemberInput={setMemberInput}
+            handleCreate={handleCreate}
+            handleCreateOverride={handleCreateOverride}
+            schedules={schedules}
+            userMap={userMap}
+            usersLoading={usersLoading}
+          />
         </>
       )}
     </div>
