@@ -51,6 +51,7 @@ import {
   RocketOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { ProcessStepModals } from './ProcessStepModals';
 import dayjs from 'dayjs';
 import { colors, spacing } from '@/tokens';
 import {
@@ -647,343 +648,40 @@ export default function ProcessStepPage() {
         ]}
       />
 
-      {/* ==================== Definition Form Modal ==================== */}
-      <Modal
-        title={editingDef ? '编辑流程定义' : '新建流程定义'}
-        open={defModalOpen}
-        onOk={handleSaveDef}
-        onCancel={() => setDefModalOpen(false)}
-        confirmLoading={defModalLoading}
-        width={640}
-      >
-        <Form form={defForm} layout="vertical">
-          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
-            <Input placeholder="输入流程定义名称" />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <TextArea rows={2} placeholder="输入描述" />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="entityType"
-                label="实体类型"
-                rules={[{ required: true, message: '请选择实体类型' }]}
-              >
-                <Select
-                  placeholder="选择实体类型"
-                  options={[
-                    { label: '工单', value: 'ticket' },
-                    { label: '变更', value: 'change' },
-                    { label: '发布', value: 'release' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="enabled" label="启用" valuePropName="checked">
-                <Switch />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item label="流程步骤">
-            <Form.List name="steps">
-              {(fields, { add, remove }) => (
-                <>
-                  {fields.map((field, index) => (
-                    <Row key={field.key} gutter={8} style={{ marginBottom: 8 }}>
-                      <Col span={8}>
-                        <Form.Item name={[field.name, 'name']} noStyle>
-                          <Input placeholder={`步骤 ${index + 1} 名称`} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item name={[field.name, 'type']} noStyle>
-                          <Select
-                            placeholder="类型"
-                            options={Object.entries(stepTypeLabel).map(([k, v]) => ({
-                              label: v,
-                              value: k,
-                            }))}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item name={[field.name, 'handler']} noStyle>
-                          <Input placeholder="处理器 (可选)" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={2}>
-                        {fields.length > 1 && (
-                          <Button
-                            type="link"
-                            danger
-                            icon={<DeleteOutlined />}
-                            onClick={() => remove(field.name)}
-                          />
-                        )}
-                      </Col>
-                    </Row>
-                  ))}
-                  <Button type="dashed" block icon={<PlusOutlined />} onClick={() => add()}>
-                    添加步骤
-                  </Button>
-                </>
-              )}
-            </Form.List>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* ==================== Start Instance Modal ==================== */}
-      <Modal
-        title="启动流程实例"
-        open={startModalOpen}
-        onOk={handleConfirmStart}
-        onCancel={() => setStartModalOpen(false)}
-        confirmLoading={startModalLoading}
-      >
-        <Form form={startForm} layout="vertical">
-          <Form.Item
-            name="definitionId"
-            label="流程定义"
-            rules={[{ required: true, message: '请选择流程定义' }]}
-          >
-            <Select
-              placeholder="选择流程定义"
-              showSearch
-              optionFilterProp="label"
-              options={definitions.map((d) => ({ label: d.name, value: d.id }))}
-            />
-          </Form.Item>
-          <Form.Item name="entityType" label="实体类型">
-            <Select
-              placeholder="选择实体类型"
-              options={[
-                { label: '工单', value: 'ticket' },
-                { label: '变更', value: 'change' },
-                { label: '发布', value: 'release' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item name="entityId" label="实体ID">
-            <Input placeholder="输入关联实体ID" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* ==================== Instance Detail Drawer ==================== */}
-      <Drawer
-        title="流程实例详情"
-        open={detailDrawerOpen}
-        onClose={() => setDetailDrawerOpen(false)}
-        width={600}
-      >
-        {detailInstance && (
-          <>
-            <Descriptions column={2} bordered size="small" style={{ marginBottom: spacing.md }}>
-              <Descriptions.Item label="实例ID">{detailInstance.id}</Descriptions.Item>
-              <Descriptions.Item label="定义ID">{detailInstance.definitionId}</Descriptions.Item>
-              <Descriptions.Item label="实体类型">{detailInstance.entityType}</Descriptions.Item>
-              <Descriptions.Item label="实体ID">{detailInstance.entityId}</Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <Tag color={statusColor[detailInstance.status]}>
-                  {statusLabel[detailInstance.status] || detailInstance.status}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="当前步骤">
-                {detailInstance.currentStepId || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="创建时间">
-                {dayjs(detailInstance.createdAt).format('YYYY-MM-DD HH:mm')}
-              </Descriptions.Item>
-              <Descriptions.Item label="完成时间">
-                {detailInstance.completedAt
-                  ? dayjs(detailInstance.completedAt).format('YYYY-MM-DD HH:mm')
-                  : '-'}
-              </Descriptions.Item>
-            </Descriptions>
-
-            <Title level={4} style={{ marginBottom: spacing.sm }}>
-              <HistoryOutlined style={{ marginRight: 8 }} /> 步骤历史
-            </Title>
-
-            {stepLoading ? (
-              <div style={{ textAlign: 'center', padding: 40 }}>加载中...</div>
-            ) : stepHistory.length === 0 ? (
-              <Empty description="暂无步骤记录" />
-            ) : (
-              <Timeline
-                items={stepHistory.map((step) => {
-                  const canAdvance = ![
-                    'success',
-                    'failed',
-                    'close',
-                    'skip',
-                    'aborted',
-                    'rejected',
-                  ].includes(step.status);
-                  const allowedActions = getAllowedActions(step.status);
-
-                  return {
-                    color: getTimelineColor(step.status),
-                    children: (
-                      <div key={step.id}>
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <Space>
-                            <Text strong>{step.stepName}</Text>
-                            <Tag color={statusColor[step.status]}>
-                              {statusLabel[step.status] || step.status}
-                            </Tag>
-                            {step.stepType && (
-                              <Tag>{stepTypeLabel[step.stepType] || step.stepType}</Tag>
-                            )}
-                          </Space>
-                          {canAdvance && allowedActions.length > 0 && (
-                            <Space size={4}>
-                              {allowedActions.map((action) => (
-                                <Tooltip key={action} title={actionLabel[action]}>
-                                  <Button
-                                    size="small"
-                                    type={
-                                      action === 'success'
-                                        ? 'primary'
-                                        : action === 'failed'
-                                          ? 'primary'
-                                          : 'default'
-                                    }
-                                    danger={
-                                      action === 'failed' ||
-                                      action === 'aborted' ||
-                                      action === 'rejected'
-                                    }
-                                    icon={actionIcon[action]}
-                                    onClick={() =>
-                                      handleAdvanceStep(detailInstance.id, step.stepId, action)
-                                    }
-                                  >
-                                    {actionLabel[action]}
-                                  </Button>
-                                </Tooltip>
-                              ))}
-                            </Space>
-                          )}
-                        </div>
-                        {step.operator && (
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            操作人: {step.operator}
-                          </Text>
-                        )}
-                        {step.comment && (
-                          <div>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                              备注: {step.comment}
-                            </Text>
-                          </div>
-                        )}
-                        {step.startedAt && (
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            开始: {dayjs(step.startedAt).format('HH:mm:ss')}
-                            {step.completedAt &&
-                              ` | 完成: ${dayjs(step.completedAt).format('HH:mm:ss')}`}
-                          </Text>
-                        )}
-                      </div>
-                    ),
-                  };
-                })}
-              />
-            )}
-          </>
-        )}
-      </Drawer>
-
-      {/* ==================== Definition Detail Drawer ==================== */}
-      <Drawer
-        title="流程定义详情"
-        open={defDetailOpen}
-        onClose={() => setDefDetailOpen(false)}
-        width={560}
-      >
-        {defDetail && (
-          <>
-            <Descriptions column={2} bordered size="small" style={{ marginBottom: spacing.md }}>
-              <Descriptions.Item label="名称">{defDetail.name}</Descriptions.Item>
-              <Descriptions.Item label="版本">v{defDetail.version}</Descriptions.Item>
-              <Descriptions.Item label="实体类型">{defDetail.entityType}</Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <Badge
-                  status={defDetail.enabled ? 'success' : 'default'}
-                  text={defDetail.enabled ? '启用' : '禁用'}
-                />
-              </Descriptions.Item>
-              <Descriptions.Item label="描述" span={2}>
-                {defDetail.description || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="创建时间" span={2}>
-                {dayjs(defDetail.createdAt).format('YYYY-MM-DD HH:mm')}
-              </Descriptions.Item>
-            </Descriptions>
-
-            <Title level={4} style={{ marginBottom: spacing.sm }}>
-              <ApartmentOutlined style={{ marginRight: 8 }} /> 流程步骤
-            </Title>
-
-            {defDetail.steps.length === 0 ? (
-              <Empty description="暂无步骤" />
-            ) : (
-              <Timeline
-                items={defDetail.steps.map((step) => ({
-                  children: (
-                    <div key={step.id}>
-                      <Text strong>{step.name}</Text>
-                      {step.type && (
-                        <Tag style={{ marginLeft: 8 }}>{stepTypeLabel[step.type] || step.type}</Tag>
-                      )}
-                      {step.handler && (
-                        <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
-                          处理器: {step.handler}
-                        </Text>
-                      )}
-                    </div>
-                  ),
-                }))}
-              />
-            )}
-
-            <div style={{ marginTop: spacing.md }}>
-              <Space>
-                <Button
-                  type="primary"
-                  icon={<RocketOutlined />}
-                  onClick={() => {
-                    setDefDetailOpen(false);
-                    handleStartInstance(defDetail.id);
-                  }}
-                >
-                  启动实例
-                </Button>
-                <Button
-                  icon={<EditOutlined />}
-                  onClick={() => {
-                    setDefDetailOpen(false);
-                    handleEditDef(defDetail);
-                  }}
-                >
-                  编辑
-                </Button>
-              </Space>
-            </div>
-          </>
-        )}
-      </Drawer>
+      <ProcessStepModals
+        definitions={definitions}
+        editingDef={editingDef}
+        defModalOpen={defModalOpen}
+        defModalLoading={defModalLoading}
+        setDefModalOpen={setDefModalOpen}
+        defForm={defForm}
+        handleSaveDef={handleSaveDef}
+        handleCreateDef={handleCreateDef}
+        setEditingDef={setEditingDef}
+        startModalOpen={startModalOpen}
+        startModalLoading={startModalLoading}
+        startForm={startForm}
+        handleConfirmStart={handleConfirmStart}
+        setStartModalOpen={setStartModalOpen}
+        detailDrawerOpen={detailDrawerOpen}
+        setDetailDrawerOpen={setDetailDrawerOpen}
+        detailInstance={detailInstance}
+        stepHistory={stepHistory}
+        stepLoading={stepLoading}
+        handleAdvanceStep={handleAdvanceStep}
+        defDetailOpen={defDetailOpen}
+        setDefDetailOpen={setDefDetailOpen}
+        defDetail={defDetail}
+        handleStartInstance={handleStartInstance}
+        handleEditDef={handleEditDef}
+        getAllowedActions={getAllowedActions}
+        getTimelineColor={getTimelineColor}
+        stepTypeLabel={stepTypeLabel}
+        statusColor={statusColor}
+        statusLabel={statusLabel}
+        actionLabel={actionLabel}
+        actionIcon={actionIcon}
+      />
     </div>
   );
 }
