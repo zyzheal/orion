@@ -268,6 +268,9 @@ func (e *LocalAuditEngine) Check(ctx context.Context, sqlStr string, dbType stri
 		return report, nil
 	}
 	report.StatementType = parsed.kind
+	// Set the resolved dialect on the parsed statement so rule matchers
+	// can scope their behaviour (e.g. SELECT * whitelist per dialect).
+	parsed.dbType = dbType
 
 	for _, r := range e.allRules() {
 		if e.isBlocked(r.id) {
@@ -943,10 +946,24 @@ func countStatements(s string) int {
 			count++
 		}
 	}
-	// A single statement with no trailing ';' still counts.
+	// N semicolons means N+1 statements (e.g. "SELECT 1; DROP TABLE t"
+	// has 1 semicolon and 2 statements). Handle the no-semicolons case
+	// (single statement) and the trailing-semicolon case (don't double-
+	// count an empty tail).
 	if strings.TrimSpace(s) != "" {
-		if count == 0 {
-			count = 1
+		// Strip trailing whitespace and count how many statement bodies
+		// remain after splitting on ';'.
+		body := strings.TrimRight(strings.TrimSpace(s), ";")
+		parts := strings.Split(body, ";")
+		// Count non-empty parts.
+		n := 0
+		for _, p := range parts {
+			if strings.TrimSpace(p) != "" {
+				n++
+			}
+		}
+		if n > 0 {
+			count = n
 		}
 	}
 	return count
