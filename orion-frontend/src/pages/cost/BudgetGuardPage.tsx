@@ -1,560 +1,130 @@
 /**
- * Budget Guard Page
+ * Budget Guard Page - 布局编排
  * Phase 2 - Budget guard configuration, evaluation, and cost forecasting
  *
- * Features:
- * - Budget guard CRUD (create, edit, delete, toggle)
- * - Guard list with status, action, scope display
- * - Budget evaluation panel (test pipeline against guards)
- * - Cost forecast display
- * - Full integration with /v1/cost-operations/budget-guards API
+ * 主页面仅保留: 页头 + SummaryCards + ForecastCard + Filters + Table + 3 Modals
+ * 状态+加载器+CRUD+评估抽到 useBudgetGuardState hook (Form 实例由主页面持有)
+ * 顶部统计卡抽到 SummaryCards，预测卡抽到 ForecastCard
+ * 表格列配置抽到 buildBudgetGuardColumns，3 个 Modal 各自独立组件
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   Card,
   Table,
   Button,
-  Modal,
   Form,
   Input,
   Select,
-  InputNumber,
-  Tag,
   Space,
-  Statistic,
-  Row,
-  Col,
-  message,
   Typography,
-  Descriptions,
-  Popconfirm,
-  Switch,
-  Alert,
-  Divider,
 } from 'antd';
 import {
   SafetyOutlined,
   PlusOutlined,
   ReloadOutlined,
-  EditOutlined,
-  DeleteOutlined,
   ThunderboltOutlined,
-  LineChartOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  WarningOutlined,
   DollarOutlined,
 } from '@ant-design/icons';
-import type { TableColumn } from '@/components/Table';
-import {
-  getBudgetGuards,
-  createBudgetGuard,
-  updateBudgetGuard,
-  deleteBudgetGuard,
-  evaluateBudgetGuard,
-  getCostForecast,
-  type BudgetGuard,
-  type BudgetGuardInput,
-  type EvaluationResult,
-  type CostForecastResult,
-} from '@/api/cost-operations';
+import type { BudgetGuard } from '@/api/cost-operations';
 import { colors, spacing, themeVars } from '@/tokens';
+import { useBudgetGuardState } from './useBudgetGuardState';
+import { buildBudgetGuardColumns } from './BudgetGuardColumns';
+import { SummaryCards } from './SummaryCards';
+import { ForecastCard } from './ForecastCard';
+import { CreateGuardModal } from './CreateGuardModal';
+import { EditGuardModal } from './EditGuardModal';
+import { EvaluateGuardModal } from './EvaluateGuardModal';
 
 const { Title, Text } = Typography;
 
-// ============================================================================
-// Summary Cards Component
-// ============================================================================
-
-interface SummaryCardsProps {
-  guards: BudgetGuard[];
-  forecast: CostForecastResult | null;
-  evaluationCount: number;
-  blockedCount: number;
-}
-
-const SummaryCards: React.FC<SummaryCardsProps> = ({
-  guards,
-  forecast: _forecast,
-  evaluationCount,
-  blockedCount,
-}) => {
-  const activeCount = guards.filter((g) => g.status === 'active').length;
-  const totalBudget = guards.reduce((sum, g) => sum + g.budgetAmount, 0);
-
-  return (
-    <Row gutter={spacing[4]} style={{ marginBottom: spacing[4] }}>
-      <Col span={6}>
-        <Card>
-          <Statistic
-            title="Budget Guards"
-            value={guards.length}
-            prefix={<SafetyOutlined />}
-            suffix={`/ ${activeCount} active`}
-          />
-        </Card>
-      </Col>
-      <Col span={6}>
-        <Card>
-          <Statistic
-            title="Total Budget"
-            value={totalBudget}
-            precision={2}
-            prefix="¥"
-            suffix="/ month"
-          />
-        </Card>
-      </Col>
-      <Col span={6}>
-        <Card>
-          <Statistic title="Evaluations" value={evaluationCount} prefix={<ThunderboltOutlined />} />
-        </Card>
-      </Col>
-      <Col span={6}>
-        <Card>
-          <Statistic
-            title="Blocked"
-            value={blockedCount}
-            prefix={<CloseCircleOutlined />}
-            valueStyle={{ color: blockedCount > 0 ? colors.error[500] : colors.success[500] }}
-          />
-        </Card>
-      </Col>
-    </Row>
-  );
-};
-
-// ============================================================================
-// Forecast Card Component
-// ============================================================================
-
-interface ForecastCardProps {
-  forecast: CostForecastResult | null;
-  loading: boolean;
-}
-
-const ForecastCard: React.FC<ForecastCardProps> = ({ forecast, loading }) => {
-  if (!forecast) {
-    return (
-      <Card
-        title={
-          <Space>
-            <LineChartOutlined />
-            Cost Forecast
-          </Space>
-        }
-        loading={loading}
-      >
-        <Alert
-          message="No forecast data available"
-          description="Cost forecast is generated based on historical spending patterns."
-          type="info"
-          showIcon
-        />
-      </Card>
-    );
-  }
-
-  const isOverBudget = forecast.projectedOverage > 0;
-
-  return (
-    <Card
-      title={
-        <Space>
-          <LineChartOutlined />
-          Cost Forecast
-        </Space>
-      }
-      loading={loading}
-    >
-      <Row gutter={spacing[4]}>
-        <Col span={8}>
-          <Statistic title="Current Spend" value={forecast.currentSpend} precision={2} prefix="¥" />
-        </Col>
-        <Col span={8}>
-          <Statistic
-            title="Predicted End of Month"
-            value={forecast.predictedEndOfMonthCost}
-            precision={2}
-            prefix="¥"
-            valueStyle={{ color: isOverBudget ? colors.error[500] : colors.success[500] }}
-          />
-        </Col>
-        <Col span={8}>
-          <Statistic
-            title={isOverBudget ? 'Projected Overage' : 'Budget Remaining'}
-            value={Math.abs(forecast.projectedOverage)}
-            precision={2}
-            prefix="¥"
-            valueStyle={{ color: isOverBudget ? colors.error[500] : colors.success[500] }}
-          />
-        </Col>
-      </Row>
-      <Divider />
-      <Descriptions size="small" column={2}>
-        <Descriptions.Item label="Confidence">
-          {(forecast.confidence * 100).toFixed(0)}%
-        </Descriptions.Item>
-        <Descriptions.Item label="Forecast Days">
-          {forecast.dailyForecast?.length || 0} days
-        </Descriptions.Item>
-      </Descriptions>
-    </Card>
-  );
-};
-
-// ============================================================================
-// Budget Guard Page Component
-// ============================================================================
-
 const BudgetGuardPage: React.FC = () => {
-  // Guard list state
-  const [guards, setGuards] = useState<BudgetGuard[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [actionFilter, setActionFilter] = useState<string>('all');
+  const state = useBudgetGuardState();
+  const {
+    guards,
+    loading,
+    searchQuery,
+    setSearchQuery,
+    statusFilter,
+    setStatusFilter,
+    actionFilter,
+    setActionFilter,
+    filteredGuards,
+    submitting,
+    forecast,
+    forecastLoading,
+    evaluationCount,
+    blockedCount,
+    evalLoading,
+    evalResult,
+    setEvalResult,
+    loadGuards,
+    handleCreate,
+    handleUpdate,
+    handleDelete,
+    handleToggle,
+    handleEvaluate,
+  } = state;
 
-  // Modal state
+  // Modal state (form owners)
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingGuard, setEditingGuard] = useState<BudgetGuard | null>(null);
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
-  const [submitting, setSubmitting] = useState(false);
 
-  // Evaluation state
+  // Evaluation modal state
   const [evalModalOpen, setEvalModalOpen] = useState(false);
   const [evalForm] = Form.useForm();
-  const [evalLoading, setEvalLoading] = useState(false);
-  const [evalResult, setEvalResult] = useState<EvaluationResult | null>(null);
-
-  // Forecast state
-  const [forecast, setForecast] = useState<CostForecastResult | null>(null);
-  const [forecastLoading, setForecastLoading] = useState(false);
-
-  // Stats
-  const [evaluationCount, setEvaluationCount] = useState(0);
-  const [blockedCount, setBlockedCount] = useState(0);
 
   // ============================================================================
-  // Data Loading
+  // Handlers (form wrappers)
   // ============================================================================
 
-  const loadGuards = async () => {
-    setLoading(true);
-    try {
-      const res = await getBudgetGuards();
-      const data = res.data?.data;
-      setGuards(Array.isArray(data) ? data : []);
-    } catch (error: unknown) {
-      setGuards([]);
-      if (error instanceof Error) {
-        message.error(`加载 Budget Guard 列表失败: ${error.message}`);
-      } else {
-        message.error('加载 Budget Guard 列表失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
+  const handleOpenCreate = () => {
+    createForm.resetFields();
+    setCreateModalOpen(true);
   };
 
-  const loadForecast = async () => {
-    setForecastLoading(true);
-    try {
-      const res = await getCostForecast({ days: 30 });
-      // API returns { success: boolean; data: CostForecastResult } structure
-      const apiResponse = res.data as unknown as { data?: CostForecastResult };
-      setForecast(apiResponse?.data || null);
-    } catch {
-      setForecast(null);
-    } finally {
-      setForecastLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadGuards();
-    loadForecast();
-  }, []);
-
-  // ============================================================================
-  // Filtering
-  // ============================================================================
-
-  const filteredGuards = useMemo(() => {
-    return guards.filter((g) => {
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        if (!g.name.toLowerCase().includes(q) && !(g.description || '').toLowerCase().includes(q)) {
-          return false;
-        }
-      }
-      if (statusFilter !== 'all' && g.status !== statusFilter) return false;
-      if (actionFilter !== 'all' && g.action !== actionFilter) return false;
-      return true;
+  const handleOpenEdit = (guard: BudgetGuard) => {
+    setEditingGuard(guard);
+    editForm.setFieldsValue({
+      name: guard.name,
+      description: guard.description || undefined,
+      budgetAmount: guard.budgetAmount,
+      currency: guard.currency || 'CNY',
+      action: guard.action,
     });
-  }, [guards, searchQuery, statusFilter, actionFilter]);
-
-  // ============================================================================
-  // CRUD Operations
-  // ============================================================================
-
-  const handleCreate = async (values: BudgetGuardInput) => {
-    setSubmitting(true);
-    try {
-      await createBudgetGuard({
-        name: values.name,
-        description: values.description,
-        budgetAmount: values.budgetAmount,
-        currency: values.currency || 'CNY',
-        action: values.action,
-        scope: values.scope,
-      });
-      message.success('Budget Guard 创建成功');
-      setCreateModalOpen(false);
-      createForm.resetFields();
-      await loadGuards();
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`创建失败: ${error.message}`);
-      } else {
-        message.error('创建失败，请稍后重试');
-      }
-    } finally {
-      setSubmitting(false);
-    }
+    setEditModalOpen(true);
   };
 
-  const handleUpdate = async (values: BudgetGuardInput) => {
+  const handleCreateSubmit = async (values: unknown) => {
+    await handleCreate(values as Parameters<typeof handleCreate>[0]);
+    setCreateModalOpen(false);
+    createForm.resetFields();
+  };
+
+  const handleUpdateSubmit = async (values: unknown) => {
     if (!editingGuard) return;
-    setSubmitting(true);
-    try {
-      await updateBudgetGuard(editingGuard.id, {
-        name: values.name,
-        description: values.description,
-        budgetAmount: values.budgetAmount,
-        currency: values.currency,
-        action: values.action,
-        scope: values.scope,
-      });
-      message.success('Budget Guard 更新成功');
-      setEditModalOpen(false);
-      await loadGuards();
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`更新失败: ${error.message}`);
-      } else {
-        message.error('更新失败，请稍后重试');
-      }
-    } finally {
-      setSubmitting(false);
-    }
+    await handleUpdate(values as Parameters<typeof handleUpdate>[0], editingGuard);
+    setEditModalOpen(false);
   };
 
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteBudgetGuard(id);
-      message.success('Budget Guard 删除成功');
-      await loadGuards();
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`删除失败: ${error.message}`);
-      } else {
-        message.error('删除失败，请稍后重试');
-      }
-    }
-  };
-
-  const handleToggle = async (guard: BudgetGuard) => {
-    try {
-      const newStatus = guard.status === 'active' ? 'inactive' : 'active';
-      await updateBudgetGuard(guard.id, {
-        name: guard.name,
-        budgetAmount: guard.budgetAmount,
-        currency: guard.currency,
-        action: guard.action,
-        scope: guard.scope
-          ? { projectIds: guard.scope.projectIds, environment: guard.scope.environment ?? undefined }
-          : undefined,
-        status: newStatus,
-      });
-      message.success(`Guard ${guard.name} ${newStatus === 'active' ? '已启用' : '已停用'}`);
-      await loadGuards();
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`操作失败: ${error.message}`);
-      } else {
-        message.error('操作失败，请稍后重试');
-      }
-    }
-  };
-
-  // ============================================================================
-  // Evaluation
-  // ============================================================================
-
-  const handleEvaluate = async (values: { pipelineId: string; estimatedCost: number }) => {
-    setEvalLoading(true);
+  const handleOpenEvaluate = () => {
     setEvalResult(null);
-    try {
-      const res = await evaluateBudgetGuard(values.pipelineId, values.estimatedCost);
-      setEvalResult(res.data?.data || null);
-      setEvaluationCount((prev) => prev + 1);
-      if (res.data?.data?.passed === false) {
-        setBlockedCount((prev) => prev + 1);
-      }
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`评估失败: ${error.message}`);
-      } else {
-        message.error('评估失败，请稍后重试');
-      }
-    } finally {
-      setEvalLoading(false);
-    }
+    evalForm.resetFields();
+    setEvalModalOpen(true);
   };
 
   // ============================================================================
   // Table Columns
   // ============================================================================
 
-  const columns: TableColumn<BudgetGuard>[] = useMemo<TableColumn<BudgetGuard>[]>(
-    () => [
-      {
-        title: 'Name',
-        dataIndex: 'name',
-        key: 'name',
-        width: 180,
-        render: (_: unknown, record: BudgetGuard) => (
-          <Space>
-            <SafetyOutlined />
-            <Text strong>{record.name}</Text>
-          </Space>
-        ),
-      },
-      {
-        title: 'Description',
-        dataIndex: 'description',
-        key: 'description',
-        ellipsis: true,
-        render: (value: unknown) => (value as string | null) || '--',
-      },
-      {
-        title: 'Budget',
-        dataIndex: 'budgetAmount',
-        key: 'budgetAmount',
-        width: 120,
-        render: (_: unknown, record: BudgetGuard) => (
-          <Text>
-            {record.currency || 'CNY'} {record.budgetAmount.toLocaleString()}
-          </Text>
-        ),
-      },
-      {
-        title: 'Action',
-        dataIndex: 'action',
-        key: 'action',
-        width: 100,
-        render: (value: unknown) => {
-          const action = value as 'allow' | 'block' | 'warn';
-          const config = {
-            allow: { color: 'success', icon: <CheckCircleOutlined />, label: 'Allow' },
-            block: { color: 'error', icon: <CloseCircleOutlined />, label: 'Block' },
-            warn: { color: 'warning', icon: <WarningOutlined />, label: 'Warn' },
-          }[action];
-          return (
-            <Tag icon={config.icon} color={config.color}>
-              {config.label}
-            </Tag>
-          );
-        },
-      },
-      {
-        title: 'Scope',
-        dataIndex: 'scope',
-        key: 'scope',
-        width: 180,
-        render: (value: unknown) => {
-          const scope = value as BudgetGuard['scope'];
-          if (!scope) return <Text type="secondary">Global</Text>;
-          const parts: string[] = [];
-          if (scope.projectIds?.length) parts.push(`${scope.projectIds.length} projects`);
-          if (scope.environment) parts.push(scope.environment);
-          return <Text>{parts.join(', ') || 'Global'}</Text>;
-        },
-      },
-      {
-        title: 'Status',
-        dataIndex: 'status',
-        key: 'status',
-        width: 100,
-        render: (value: unknown) => {
-          const status = value as 'active' | 'inactive';
-          return (
-            <Tag color={status === 'active' ? 'green' : 'default'}>
-              {status === 'active' ? 'Active' : 'Inactive'}
-            </Tag>
-          );
-        },
-      },
-      {
-        title: 'Created',
-        dataIndex: 'createdAt',
-        key: 'createdAt',
-        width: 160,
-        render: (value: unknown) => new Date(value as string).toLocaleDateString(),
-      },
-      {
-        title: 'Actions',
-        key: 'actions',
-        width: 180,
-        fixed: 'right' as const,
-        render: (_: unknown, record: BudgetGuard) => (
-          <Space>
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => {
-                setEditingGuard(record);
-                editForm.setFieldsValue({
-                  name: record.name,
-                  description: record.description || undefined,
-                  budgetAmount: record.budgetAmount,
-                  currency: record.currency || 'CNY',
-                  action: record.action,
-                });
-                setEditModalOpen(true);
-              }}
-            >
-              Edit
-            </Button>
-            <Switch
-              size="small"
-              checked={record.status === 'active'}
-              onChange={() => handleToggle(record)}
-              checkedChildren="On"
-              unCheckedChildren="Off"
-            />
-            <Popconfirm
-              title="Delete Budget Guard"
-              description={`Are you sure you want to delete "${record.name}"?`}
-              onConfirm={() => handleDelete(record.id)}
-              okText="Delete"
-              cancelText="Cancel"
-              okButtonProps={{ danger: true }}
-            >
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                Delete
-              </Button>
-            </Popconfirm>
-          </Space>
-        ),
-      },
-    ],
-    [handleDelete]
-  );
+  const columns = buildBudgetGuardColumns({
+    editForm,
+    onEdit: handleOpenEdit,
+    onToggle: handleToggle,
+    onDelete: handleDelete,
+  });
 
   // ============================================================================
   // Render
@@ -573,7 +143,9 @@ const BudgetGuardPage: React.FC = () => {
       >
         <div>
           <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <DollarOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <DollarOutlined
+              style={{ marginRight: spacing[3], color: colors.primary[500] }}
+            />
             <SafetyOutlined style={{ marginRight: spacing[2] }} />
             Budget Guard
           </Title>
@@ -582,27 +154,13 @@ const BudgetGuardPage: React.FC = () => {
           </Text>
         </div>
         <Space>
-          <Button
-            icon={<ThunderboltOutlined />}
-            onClick={() => {
-              setEvalResult(null);
-              evalForm.resetFields();
-              setEvalModalOpen(true);
-            }}
-          >
+          <Button icon={<ThunderboltOutlined />} onClick={handleOpenEvaluate}>
             Evaluate
           </Button>
           <Button icon={<ReloadOutlined />} onClick={loadGuards}>
             Refresh
           </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => {
-              createForm.resetFields();
-              setCreateModalOpen(true);
-            }}
-          >
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
             Create Guard
           </Button>
         </Space>
@@ -670,190 +228,32 @@ const BudgetGuardPage: React.FC = () => {
       </Card>
 
       {/* Create Modal */}
-      <Modal
-        title="Create Budget Guard"
+      <CreateGuardModal
         open={createModalOpen}
+        form={createForm}
+        submitting={submitting}
         onCancel={() => setCreateModalOpen(false)}
-        onOk={() => createForm.submit()}
-        confirmLoading={submitting}
-        width={600}
-      >
-        <Form form={createForm} layout="vertical" onFinish={handleCreate}>
-          <Form.Item
-            label="Guard Name"
-            name="name"
-            rules={[{ required: true, message: 'Please enter guard name' }]}
-          >
-            <Input placeholder="e.g., Production Budget Guard" />
-          </Form.Item>
-          <Form.Item label="Description" name="description">
-            <Input.TextArea rows={2} placeholder="Describe the purpose of this guard" />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                label="Budget Amount"
-                name="budgetAmount"
-                rules={[{ required: true, message: 'Please enter budget amount' }]}
-              >
-                <InputNumber style={{ width: '100%' }} min={0} precision={2} placeholder="10000" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="Currency" name="currency" initialValue="CNY">
-                <Select
-                  options={[
-                    { label: 'CNY (¥)', value: 'CNY' },
-                    { label: 'USD ($)', value: 'USD' },
-                    { label: 'EUR (€)', value: 'EUR' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item
-            label="Action"
-            name="action"
-            rules={[{ required: true, message: 'Please select action' }]}
-            initialValue="warn"
-          >
-            <Select
-              options={[
-                { label: 'Allow - Always allow execution', value: 'allow' },
-                { label: 'Block - Block if over budget', value: 'block' },
-                { label: 'Warn - Warn but allow execution', value: 'warn' },
-              ]}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+        onSubmit={handleCreateSubmit}
+      />
 
       {/* Edit Modal */}
-      <Modal
-        title="Edit Budget Guard"
+      <EditGuardModal
         open={editModalOpen}
+        form={editForm}
+        submitting={submitting}
         onCancel={() => setEditModalOpen(false)}
-        onOk={() => editForm.submit()}
-        confirmLoading={submitting}
-        width={600}
-      >
-        <Form form={editForm} layout="vertical" onFinish={handleUpdate}>
-          <Form.Item
-            label="Guard Name"
-            name="name"
-            rules={[{ required: true, message: 'Please enter guard name' }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item label="Description" name="description">
-            <Input.TextArea rows={2} />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="Budget Amount" name="budgetAmount" rules={[{ required: true }]}>
-                <InputNumber style={{ width: '100%' }} min={0} precision={2} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="Currency" name="currency">
-                <Select
-                  options={[
-                    { label: 'CNY (¥)', value: 'CNY' },
-                    { label: 'USD ($)', value: 'USD' },
-                    { label: 'EUR (€)', value: 'EUR' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item label="Action" name="action" rules={[{ required: true }]}>
-            <Select
-              options={[
-                { label: 'Allow', value: 'allow' },
-                { label: 'Block', value: 'block' },
-                { label: 'Warn', value: 'warn' },
-              ]}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+        onSubmit={handleUpdateSubmit}
+      />
 
       {/* Evaluation Modal */}
-      <Modal
-        title="Budget Evaluation"
+      <EvaluateGuardModal
         open={evalModalOpen}
+        form={evalForm}
+        evalLoading={evalLoading}
+        evalResult={evalResult}
         onCancel={() => setEvalModalOpen(false)}
-        footer={null}
-        width={700}
-      >
-        <Form form={evalForm} layout="vertical" onFinish={handleEvaluate}>
-          <Form.Item
-            label="Pipeline ID"
-            name="pipelineId"
-            rules={[{ required: true, message: 'Please enter pipeline ID' }]}
-          >
-            <Input placeholder="e.g., pipeline-001" />
-          </Form.Item>
-          <Form.Item
-            label="Estimated Cost"
-            name="estimatedCost"
-            rules={[{ required: true, message: 'Please enter estimated cost' }]}
-          >
-            <InputNumber style={{ width: '100%' }} min={0} precision={2} placeholder="500.00" />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" loading={evalLoading} block>
-              <ThunderboltOutlined /> Evaluate
-            </Button>
-          </Form.Item>
-        </Form>
-
-        {evalResult && (
-          <Card
-            title="Evaluation Result"
-            style={{ marginTop: spacing[4] }}
-            styles={{ body: { padding: spacing[4] } }}
-          >
-            <Alert
-              message={evalResult.passed ? 'PASSED' : 'BLOCKED'}
-              description={evalResult.message}
-              type={evalResult.passed ? 'success' : 'error'}
-              showIcon
-              icon={evalResult.passed ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-              style={{ marginBottom: spacing[3] }}
-            />
-            <Descriptions column={2} size="small" bordered>
-              <Descriptions.Item label="Estimated Cost">
-                ¥{evalResult.estimatedCost?.toFixed(2)}
-              </Descriptions.Item>
-              <Descriptions.Item label="Budget Limit">
-                ¥{evalResult.budgetAmount?.toFixed(2)}
-              </Descriptions.Item>
-              <Descriptions.Item label="Usage Percent">
-                {evalResult.usagePercent?.toFixed(1)}%
-              </Descriptions.Item>
-              <Descriptions.Item label="Action">
-                <Tag
-                  color={
-                    evalResult.action === 'block'
-                      ? 'error'
-                      : evalResult.action === 'warn'
-                        ? 'warning'
-                        : 'success'
-                  }
-                >
-                  {evalResult.action}
-                </Tag>
-              </Descriptions.Item>
-              {evalResult.matchedGuard && (
-                <Descriptions.Item label="Matched Guard" span={2}>
-                  {evalResult.matchedGuard.name}
-                </Descriptions.Item>
-              )}
-            </Descriptions>
-          </Card>
-        )}
-      </Modal>
+        onSubmit={handleEvaluate}
+      />
     </div>
   );
 };
