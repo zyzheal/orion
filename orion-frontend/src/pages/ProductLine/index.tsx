@@ -691,9 +691,7 @@ const ProductLineManagement: React.FC = () => {
             selectedPL={selectedPL}
             setSelectedPL={setSelectedPL}
             releaseTrains={releaseTrains}
-            setReleaseTrains={setReleaseTrains}
             hotfixChannels={hotfixChannels}
-            setHotfixChannels={setHotfixChannels}
             rtModalVisible={rtModalVisible}
             setRtModalVisible={setRtModalVisible}
             hfModalVisible={hfModalVisible}

@@ -5,7 +5,6 @@
  * handlers, so they are built through a factory function (getTicketColumns)
  * that receives the callbacks and dynamic context from the parent component.
  */
-import React from 'react';
 import { Typography, Tag, Badge, Space, Button, Popconfirm } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { EyeOutlined, StopOutlined } from '@ant-design/icons';

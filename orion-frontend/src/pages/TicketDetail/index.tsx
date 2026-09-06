@@ -760,7 +760,7 @@ const TicketDetail: React.FC = () => {
         transferModalOpen={transferModalOpen}
         setTransferModalOpen={setTransferModalOpen}
         transferForm={transferForm}
-        engineers={engineers}
+        engineers={engineers as any}
         handleAssign={handleAssign}
         handleEscalate={handleEscalate}
         handleResolve={handleResolve}
