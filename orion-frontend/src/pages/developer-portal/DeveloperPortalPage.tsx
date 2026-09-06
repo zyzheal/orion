@@ -23,19 +23,15 @@ import {
   Tag,
   Input,
   message,
-  Descriptions,
   Typography,
   Space,
-  Modal,
   Form,
   Select,
-  Drawer,
   Row,
   Col,
   Statistic,
   Empty,
   Tooltip,
-  InputNumber,
   Spin,
   Divider,
 } from 'antd';
@@ -44,8 +40,6 @@ import {
   CodeOutlined,
   PlusOutlined,
   ReloadOutlined,
-  EditOutlined,
-  CloudUploadOutlined,
   StarOutlined,
   ThunderboltOutlined,
   ExperimentOutlined,
@@ -82,11 +76,7 @@ const { TextArea } = Input;
 import { DeveloperPortalModals } from './DeveloperPortalModals';
 
 import {
-  documentTypeConfig,
   httpMethods,
-  languageOptions,
-  subscriptionStatusMap,
-  sdkStatusMap,
   TAB_KEYS,
   type TabKey,
 } from './config';
@@ -1499,12 +1489,26 @@ const DeveloperPortalPage: React.FC = () => {
         // Document
         createDocModal={createDocModal}
         createDocForm={createDocForm}
-        onCreateDoc={() => createDocForm.submit()}
+        onCreateDoc={async () => {
+          try {
+            const values = await createDocForm.validateFields();
+            handleCreateDoc(values);
+          } catch {
+            /* validation failed */
+          }
+        }}
         onCreateDocCancel={() => setCreateDocModal(false)}
         editDocDrawer={editDocDrawer}
         editDocForm={editDocForm}
         selectedDoc={selectedDoc}
-        onEditDoc={() => editDocForm.submit()}
+        onEditDoc={async () => {
+          try {
+            const values = await editDocForm.validateFields();
+            handleEditDoc(values);
+          } catch {
+            /* validation failed */
+          }
+        }}
         onEditDocCancel={() => setEditDocDrawer(false)}
         onPublish={handlePublish}
         onUnpublish={handleUnpublish}
@@ -1521,22 +1525,50 @@ const DeveloperPortalPage: React.FC = () => {
         }}
         newVersionModal={newVersionModal}
         newVersionForm={newVersionForm}
-        onNewVersion={() => newVersionForm.submit()}
+        onNewVersion={async () => {
+          try {
+            const values = await newVersionForm.validateFields();
+            handleCreateVersion(values);
+          } catch {
+            /* validation failed */
+          }
+        }}
         onNewVersionCancel={() => setNewVersionModal(false)}
         // Mock
         createMockModal={createMockModal}
         createMockForm={createMockForm}
-        onCreateMock={() => createMockForm.submit()}
+        onCreateMock={async () => {
+          try {
+            const values = await createMockForm.validateFields();
+            handleCreateMock(values);
+          } catch {
+            /* validation failed */
+          }
+        }}
         onCreateMockCancel={() => setCreateMockModal(false)}
         editMockModal={editMockModal}
         editMockForm={editMockForm}
         selectedMock={selectedMock}
-        onEditMock={() => editMockForm.submit()}
+        onEditMock={async () => {
+          try {
+            const values = await editMockForm.validateFields();
+            handleEditMock(values);
+          } catch {
+            /* validation failed */
+          }
+        }}
         onEditMockCancel={() => setEditMockModal(false)}
         // SDK
         createSdkModal={createSdkModal}
         createSdkForm={createSdkForm}
-        onCreateSdk={() => createSdkForm.submit()}
+        onCreateSdk={async () => {
+          try {
+            const values = await createSdkForm.validateFields();
+            handleCreateSdk(values);
+          } catch {
+            /* validation failed */
+          }
+        }}
         onCreateSdkCancel={() => setCreateSdkModal(false)}
         sdkDetailDrawer={sdkDetailDrawer}
         selectedSdk={selectedSdk}
@@ -1545,14 +1577,28 @@ const DeveloperPortalPage: React.FC = () => {
         // Subscription
         createSubModal={createSubModal}
         createSubForm={createSubForm}
-        onCreateSub={() => createSubForm.submit()}
+        onCreateSub={async () => {
+          try {
+            const values = await createSubForm.validateFields();
+            handleCreateSub(values);
+          } catch {
+            /* validation failed */
+          }
+        }}
         onCreateSubCancel={() => setCreateSubModal(false)}
         subDetailDrawer={subDetailDrawer}
         selectedSub={selectedSub}
         onSubDetailCancel={() => setSubDetailDrawer(false)}
         rejectSubModal={rejectSubModal}
         rejectSubForm={rejectSubForm}
-        onRejectSub={() => rejectSubForm.submit()}
+        onRejectSub={async () => {
+          try {
+            const values = await rejectSubForm.validateFields();
+            handleRejectSub(values);
+          } catch {
+            /* validation failed */
+          }
+        }}
         onRejectSubCancel={() => setRejectSubModal(false)}
         // Playground
         pgHistoryDrawer={pgHistoryDrawer}

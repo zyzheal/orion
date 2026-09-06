@@ -2,13 +2,11 @@
  * TenantList Modals
  */
 import React from 'react';
-import {
-  Modal,
+import {Modal,
   Form,
   Input,
   InputNumber,
   Switch,
-  Select,
   Button,
   Space,
   Tag,
@@ -18,21 +16,19 @@ import {
   Col,
   Table,
   Typography,
-  message,
+  message, Tabs, Tooltip
 } from 'antd';
-import {
-  PlusOutlined,
-  DeleteOutlined,
+import { PlusOutlined,
   EditOutlined,
-  SettingOutlined,
-  DownloadOutlined,
+  SettingOutlined, DatabaseOutlined, InfoCircleOutlined, TeamOutlined
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import type { TenantEntity } from '@/api/tenant';
 import type { TenantUser } from '@/api/tenant';
 
 type FormInstance = ReturnType<typeof Form.useForm>[0];
-const { Title, Text } = Typography;
+const { Text } = Typography;
+
 
 interface QuotaTemplate {
   name: string;
@@ -69,6 +65,8 @@ interface TenantListModalsProps {
   users: TenantUser[];
   usersLoading: boolean;
   QUOTA_TEMPLATES: QuotaTemplate[];
+  setUserModalTenant: (v: TenantEntity | null) => void;
+  setUsers: (v: TenantUser[]) => void;
 }
 
 export const TenantListModals: React.FC<TenantListModalsProps> = (props) => (
@@ -372,8 +370,8 @@ export const TenantListModals: React.FC<TenantListModalsProps> = (props) => (
         open={props.userModalOpen}
         onCancel={() => {
           props.setUserModalOpen(false);
-          setUserModalTenant(null);
-          setUsers([]);
+          props.setUserModalTenant(null);
+          props.setUsers([]);
         }}
         footer={[
           <Button key="close" onClick={() => props.setUserModalOpen(false)}>

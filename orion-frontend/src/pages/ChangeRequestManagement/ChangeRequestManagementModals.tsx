@@ -2,8 +2,7 @@
  * ChangeRequestManagement Modals & Drawers
  */
 import React from 'react';
-import {
-  Modal,
+import { Modal,
   Drawer,
   Form,
   Input,
@@ -11,21 +10,14 @@ import {
   Button,
   Space,
   Tag,
-  Steps,
-  Timeline,
-  Empty,
   Typography,
   DatePicker,
-  InputNumber,
   Row,
-  Col,
+  Col, Badge, Descriptions
 } from 'antd';
-import {
-  ClockCircleOutlined,
-  ExclamationCircleOutlined,
-} from '@ant-design/icons';
+import { ClockCircleOutlined, BulbOutlined, CheckOutlined, EditOutlined, EyeOutlined, FileTextOutlined, PlayCircleOutlined, SendOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { colors, spacing, themeVars } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import type {
   ChangeRequest,
   ChangeRiskAnalysis,
@@ -33,10 +25,6 @@ import type {
   ChangeExecution,
 } from '@/api/change-requests';
 import {
-  approvalStatusColor,
-  approvalStatusLabel,
-  executionStepStatusColor,
-  executionStepStatusLabel,
   riskLevelColor,
   riskLevelLabel,
   statusColor,
@@ -48,7 +36,6 @@ import {
 type FormInstance = ReturnType<typeof Form.useForm>[0];
 const { Title, Text } = Typography;
 const { TextArea } = Input;
-const { RangePicker } = DatePicker;
 
 interface ChangeRequestManagementModalsProps {
   renderExecutionProgress: () => React.ReactNode;
@@ -80,6 +67,11 @@ interface ChangeRequestManagementModalsProps {
   setActionComment: (v: string) => void;
   actionLoading: boolean;
   handleSubmitAction: () => void;
+  fetchRisk: (id: string) => void;
+  handleEdit: (record: any) => void;
+  handleStartExecution: (record: any) => void;
+  handleViewExecution: (record: any) => void;
+  renderApprovalTimeline: () => React.ReactNode;
   executionDrawerVisible: boolean;
   setExecutionDrawerVisible: (v: boolean) => void;
   executionSteps: ChangeExecution[];
@@ -225,7 +217,7 @@ export const ChangeRequestManagementModals: React.FC<ChangeRequestManagementModa
               <CheckOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
               审批链
             </Title>
-            {renderApprovalTimeline()}
+            {props.renderApprovalTimeline()}
 
             {/* AI Risk Analysis Section (TR-03) */}
             <div
@@ -250,7 +242,7 @@ export const ChangeRequestManagementModals: React.FC<ChangeRequestManagementModa
                 <Button
                   size="small"
                   loading={props.riskLoading}
-                  onClick={() => fetchRisk(props.selectedRequest.id)}
+                  onClick={() => props.fetchRisk(props.selectedRequest.id)}
                 >
                   {props.riskAnalysis ? '重新评估' : '开始评估'}
                 </Button>
@@ -335,7 +327,7 @@ export const ChangeRequestManagementModals: React.FC<ChangeRequestManagementModa
                     icon={<EditOutlined />}
                     onClick={() => {
                       props.setDetailDrawerVisible(false);
-                      handleEdit(props.selectedRequest);
+                      props.handleEdit(props.selectedRequest);
                     }}
                   >
                     编辑
@@ -361,7 +353,7 @@ export const ChangeRequestManagementModals: React.FC<ChangeRequestManagementModa
                   type="primary"
                   icon={<PlayCircleOutlined />}
                   onClick={() => {
-                    handleStartExecution(props.selectedRequest);
+                    props.handleStartExecution(props.selectedRequest);
                     props.setDetailDrawerVisible(false);
                   }}
                 >
@@ -379,7 +371,7 @@ export const ChangeRequestManagementModals: React.FC<ChangeRequestManagementModa
                   icon={<EyeOutlined />}
                   onClick={() => {
                     props.setDetailDrawerVisible(false);
-                    handleViewExecution(props.selectedRequest);
+                    props.handleViewExecution(props.selectedRequest);
                   }}
                 >
                   查看执行进度
@@ -394,7 +386,7 @@ export const ChangeRequestManagementModals: React.FC<ChangeRequestManagementModa
       <Modal
         title={props.actionType === 'approve' ? '审批通过' : '拒绝变更'}
         open={props.actionModalVisible}
-        onOk={handleConfirmAction}
+        onOk={props.handleSubmitAction}
         onCancel={() => props.setActionModalVisible(false)}
         confirmLoading={props.actionLoading}
         okText={props.actionType === 'approve' ? '确认通过' : '确认拒绝'}

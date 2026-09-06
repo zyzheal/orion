@@ -9,14 +9,10 @@ import {
   Space,
   Tag,
   Card,
-  Modal,
   Form,
-  Input,
-  Select,
   message,
   Popconfirm,
   Descriptions,
-  Drawer,
   Tooltip,
   Table as AntTable,
   Timeline,
@@ -79,16 +75,6 @@ const rotationTypeColor: Record<RotationType, string> = {
   weekly: 'green',
   monthly: 'purple',
 };
-
-const timezoneOptions = [
-  { label: 'Asia/Shanghai (UTC+8)', value: 'Asia/Shanghai' },
-  { label: 'America/New_York (UTC-5)', value: 'America/New_York' },
-  { label: 'America/Los_Angeles (UTC-8)', value: 'America/Los_Angeles' },
-  { label: 'Europe/London (UTC+0)', value: 'Europe/London' },
-  { label: 'Europe/Berlin (UTC+1)', value: 'Europe/Berlin' },
-  { label: 'Asia/Tokyo (UTC+9)', value: 'Asia/Tokyo' },
-  { label: 'UTC', value: 'UTC' },
-];
 
 // ---- User Map State ----
 // Fallback users in case the API fails, matching the historical MOCK_USERS shape
@@ -667,6 +653,7 @@ const OnCallManagement: React.FC = () => {
           {/* Create Schedule Modal */}
           <OnCallModals
             renderDetailContent={renderDetailContent}
+            resolveUserName={resolveUserName}
             createModalVisible={createModalVisible}
             setCreateModalVisible={setCreateModalVisible}
             overrideModalVisible={overrideModalVisible}

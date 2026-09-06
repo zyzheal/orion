@@ -15,19 +15,13 @@ import {
   Tag,
   Space,
   Button,
-  Modal,
   Form,
-  Input,
   Select,
-  Switch,
   Row,
   Col,
   Tabs,
-  Drawer,
-  Descriptions,
   Popconfirm,
   Empty,
-  InputNumber,
   message,
 } from 'antd';
 import {
@@ -65,7 +59,6 @@ import {
 import { CITypeDesignerModals } from './CITypeDesignerModals';
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
 
 const categoryOptions = [
   { label: '服务器', value: 'server' },
@@ -854,6 +847,7 @@ export default function CITypeDesignerPage() {
         setVersionTypeId={setVersionTypeId}
         categoryOptions={categoryOptions}
         attrTypeOptions={attrTypeOptions}
+        categoryColorMap={categoryColorMap}
       />
     </div>
   );

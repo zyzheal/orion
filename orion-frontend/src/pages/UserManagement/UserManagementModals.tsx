@@ -9,17 +9,15 @@ import {
   Input,
   Select,
   Button,
-  Space,
-  Tag,
-  Descriptions,
   Popconfirm,
   Typography,
 } from 'antd';
 import {
   LockOutlined,
   UnlockOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { spacing } from '@/tokens';
 import type { User } from '@/api/users';
 
 type FormInstance = ReturnType<typeof Form.useForm>[0];
@@ -50,6 +48,7 @@ interface UserManagementModalsProps {
   handleDisable: (id: string) => void;
   openEdit: (u: User) => void;
   roleOptions: { label: string; value: string }[];
+  detailItems: React.ReactNode;
 }
 
 export const UserManagementModals: React.FC<UserManagementModalsProps> = (props) => (
@@ -103,7 +102,7 @@ export const UserManagementModals: React.FC<UserManagementModalsProps> = (props)
                 label="角色"
                 rules={[{ required: true, message: '请选择角色' }]}
               >
-                <Select options={roleOptions} />
+                <Select options={props.roleOptions} />
               </Form.Item>
             </Form>
           </Modal>
@@ -141,7 +140,7 @@ export const UserManagementModals: React.FC<UserManagementModalsProps> = (props)
                 label="角色"
                 rules={[{ required: true, message: '请选择角色' }]}
               >
-                <Select options={roleOptions} />
+                <Select options={props.roleOptions} />
               </Form.Item>
             </Form>
           </Modal>
@@ -207,7 +206,7 @@ export const UserManagementModals: React.FC<UserManagementModalsProps> = (props)
             width={720}
             destroyOnClose
           >
-            {detailItems}
+            {props.detailItems}
             <div style={{ marginTop: spacing.lg, display: 'flex', gap: spacing.sm }}>
               <Button
                 icon={<EditOutlined />}

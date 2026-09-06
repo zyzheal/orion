@@ -2,21 +2,21 @@
  * CITypeDesigner Modals & Drawers
  */
 import React from 'react';
-import {
-  Modal,
+import {Modal,
   Drawer,
   Form,
   Input,
   Select,
-  Button,
   Space,
-  Tag,
-  Divider,
-  Table,
-  message,
+  Tag, Col, Descriptions, InputNumber, Row, Switch, Typography
 } from 'antd';
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined } from '@ant-design/icons';
 import type { CIType, CIAttribute, CITypeVersion } from '@/api/ci-types';
+import dayjs from 'dayjs';
+import { colors, spacing, componentRadius } from '@/tokens';
+
+const { TextArea } = Input;
+const { Text } = Typography;
 
 type FormInstance = ReturnType<typeof Form.useForm>[0];
 
@@ -73,6 +73,7 @@ interface CITypeDesignerModalsProps {
   setVersionTypeId: (v: string | undefined) => void;
   categoryOptions: { label: string; value: string }[];
   attrTypeOptions: { label: string; value: string }[];
+  categoryColorMap: Record<string, string>;
 }
 
 export const CITypeDesignerModals: React.FC<CITypeDesignerModalsProps> = (props) => (
@@ -109,7 +110,7 @@ export const CITypeDesignerModals: React.FC<CITypeDesignerModalsProps> = (props)
             </Col>
             <Col span={12}>
               <Form.Item name="category" label="分类">
-                <Select placeholder="选择分类" options={categoryOptions} allowClear />
+                <Select placeholder="选择分类" options={props.categoryOptions} allowClear />
               </Form.Item>
             </Col>
           </Row>
@@ -133,7 +134,7 @@ export const CITypeDesignerModals: React.FC<CITypeDesignerModalsProps> = (props)
             <Descriptions.Item label="图标">{props.selectedType.icon ?? '-'}</Descriptions.Item>
             <Descriptions.Item label="分类">
               {props.selectedType.category ? (
-                <Tag color={categoryColorMap[props.selectedType.category] ?? 'default'}>
+                <Tag color={props.categoryColorMap[props.selectedType.category] ?? 'default'}>
                   {props.selectedType.category}
                 </Tag>
               ) : (
@@ -191,7 +192,7 @@ export const CITypeDesignerModals: React.FC<CITypeDesignerModalsProps> = (props)
                 label="属性类型"
                 rules={[{ required: true, message: '请选择属性类型' }]}
               >
-                <Select placeholder="选择类型" options={attrTypeOptions} />
+                <Select placeholder="选择类型" options={props.attrTypeOptions} />
               </Form.Item>
             </Col>
             <Col span={6}>
@@ -288,7 +289,7 @@ export const CITypeDesignerModals: React.FC<CITypeDesignerModalsProps> = (props)
                 >
                   校验不通过
                 </Text>
-                {props.validationResult.errors.map((err, idx) => (
+                {props.validationResult.errors.map((err: any, idx: number) => (
                   <div key={String(idx)} style={{ marginBottom: 4 }}>
                     <Tag color="error">{err.field}</Tag>
                     <Text type="danger">{err.message}</Text>

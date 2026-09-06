@@ -6,8 +6,9 @@
  * handler callbacks (handleViewDetail, handleOpenEdit, handleDelete).
  * Filter definitions are static and exported as a constant.
  */
-import React from 'react';
-import { Space, Button, Tag, Popconfirm, Text } from 'antd';
+import {
+  Typography, Space, Button, Tag, Popconfirm,
+} from 'antd';
 import {
   EyeOutlined,
   EditOutlined,
@@ -154,6 +155,9 @@ export function buildIncidentColumns(
 // ============================================================================
 
 import { severityFilterOptions, statusFilterOptions } from './config';
+
+const { Text } = Typography;
+
 
 /** Filter definitions for SearchFilterBar */
 export const incidentFilterDefs: FilterDefinition[] = [

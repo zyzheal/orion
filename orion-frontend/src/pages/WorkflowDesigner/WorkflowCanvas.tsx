@@ -17,15 +17,13 @@ import {
   Tag,
   Typography,
   message,
-  Drawer,
   Form,
   Modal,
   Select,
   Table,
   Input,
-  Divider,
 } from 'antd';
-import { PlayCircleOutlined, DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { PlayCircleOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import ReactFlow, {
   type Node,
   type Edge,
@@ -59,20 +57,7 @@ import {
   approvalModeOptions,
   notificationChannelOptions,
   webhookMethodOptions,
-  errorHandlingStrategyOptions,
-  retryCountOptions,
-  defaultEdgeOptions,
-  controlsStyle,
-  miniMapStyle,
-  toolbarDividerStyle,
-  emptyContainerStyle,
-  emptyColumnContainerStyle,
 } from './WorkflowCanvasConfig';
-import {
-  makeInputMappingColumns,
-  makeOutputVariableColumns,
-  tableAddRowStyle,
-} from './WorkflowCanvasColumns';
 
 const { Text } = Typography;
 

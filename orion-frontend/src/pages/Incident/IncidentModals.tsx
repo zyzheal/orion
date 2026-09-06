@@ -2,20 +2,18 @@
  * Incident Modals
  */
 import React from 'react';
-import {
-  Modal,
+import {Modal,
   Form,
   Input,
-  Select,
-  Button,
-  Space,
-  Tag,
-  Divider,
-  message,
+  Select, Col, Row
 } from 'antd';
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { UserOutlined } from '@ant-design/icons';
 import type { Incident, TimelineEvent, Postmortem, PostmortemDraft } from '@/api/incident';
-import { severityConfig, statusConfig, priorityConfig, severityOptions, incidentTypeOptions } from './config';
+import { statusConfig, severityOptions, incidentTypeOptions, eventTypeConfig, urgencyOptions, priorityOptions, escalationLevelOptions } from './config';
+import { spacing } from '@/tokens';
+
+const { TextArea } = Input;
+
 
 type FormInstance = ReturnType<typeof Form.useForm>[0];
 

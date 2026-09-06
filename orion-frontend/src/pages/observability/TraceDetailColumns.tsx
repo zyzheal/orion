@@ -9,8 +9,8 @@
  */
 
 import React from 'react';
-import { Typography, Tag, Tooltip } from 'antd';
-import { spacing, shadows, radius, themeVars } from '@/tokens';
+import { Typography, Tag } from 'antd';
+import { spacing, radius, themeVars } from '@/tokens';
 import { colors } from '@/tokens/colors';
 import {
   ROW_GAP,

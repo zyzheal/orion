@@ -7,26 +7,17 @@ import {
   Typography,
   Button,
   Space,
-  Tag,
   Card,
-  Modal,
   Form,
   Input,
   Select,
   message,
   Table as AntTable,
-  Descriptions,
-  Drawer,
   Row,
   Col,
   Statistic,
-  Steps,
-  Timeline,
   Alert,
   Tabs,
-  Progress,
-  DatePicker,
-  Switch,
 } from 'antd';
 import {
   PlusOutlined,
@@ -38,16 +29,14 @@ import {
   CloseCircleOutlined,
   SyncOutlined,
   RiseOutlined,
-  RollbackOutlined,
   CloudUploadOutlined,
 } from '@ant-design/icons';
-import type { Deployment, HealthCheckResult } from '@/api/deployments';
+import type { Deployment } from '@/api/deployments';
 import { getDeployments, createDeployment, cancelDeployment, rollbackDeployment, startDeployment } from '@/api/deployments';
 import {
   getReleaseNotes,
   generateReleaseNotes,
   type ReleaseNotes,
-  type ReleaseNotesChange,
 } from '@/api/deploy';
 import {
   createWindow,
@@ -59,15 +48,6 @@ import {
   ProgressiveDeployment,
   DeployWindow,
   ProgressiveStage,
-  statusColorMap,
-  statusLabelMap,
-  statusIconMap,
-  strategyColorMap,
-  strategyLabelMap,
-  envColorMap,
-  envLabelMap,
-  progressiveStatusMap,
-  stageStatusMap,
   StatCard,
 } from './config';
 import { useDeployColumns, useProgressiveColumns, useWindowColumns } from './columns';

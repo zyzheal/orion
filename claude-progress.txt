@@ -4525,3 +4525,43 @@ expect(result.data.xxx).toBe(...); // 正确访问解包后的数据
 
 ### 下一步
 - Phase 1.2: 批量审计所有 service_interface.go 是否与对应 service.go 的方法签名完全一致（过时接口检测）
+
+## 2026-09-02: P2-9 CMDB BatchExecPage Columns + Config 提取
+
+### 概述
+将 `orion-frontend/src/pages/CMDB/BatchExecPage.tsx` (1210 行) 中的表格列定义和配置常量提取为独立文件。
+
+### 新增文件
+| 文件 | 行数 | 内容 |
+|------|------|------|
+| `BatchExecColumns.tsx` | 405 | 4 个列定义工厂函数 + 共享类型 |
+| `BatchExecConfig.tsx` | 164 | 状态映射/分类选项/工具函数/渲染辅助 |
+
+### 提取内容
+- **Columns (BatchExecColumns.tsx)**: `buildExecColumns`, `buildTemplateColumns`, `buildCronJobColumns`, `buildUploadColumns` (工厂函数，接受回调 props)
+- **Config (BatchExecConfig.tsx)**: `EXEC_STATUS_*_MAP`, `UPLOAD_TASK_STATUS_*_MAP`, `TEMPLATE_CATEGORY_OPTIONS`, `BATCH_EXEC_TAB_KEYS`, `formatFileSize`, `renderStatsRow`, `renderUploadTaskStatusTag`, `renderUploadTaskProgress`, `renderHostTags`
+- **页面缩减**: 1210 -> 824 行 (-32%)，移除 6 个不再使用的 import
+
+### 验证
+- `npx tsc --noEmit`: 0 errors
+- Commit: `5e3d354c4`
+
+## 2026-09-02: P2-9 SLA Columns + Config 提取
+
+### 概述
+将 `orion-frontend/src/pages/SLA/index.tsx` (1238 行) 中的表格列定义和配置常量提取为独立文件。
+
+### 新增文件
+| 文件 | 行数 | 内容 |
+|------|------|------|
+| `columns.tsx` | 395 | 2 个列工厂函数 (`getDefColumns`, `getTrackingColumns`) + 1 个常量 (`breachColumns`) |
+| `config.tsx` | 135 | 7 组 color/label maps + 6 组 select option 列表 |
+
+### 提取内容
+- **Config (config.tsx)**: `TYPE_COLOR_MAP`/`TYPE_LABEL_MAP`/`TYPE_OPTIONS`, `DEF_STATUS_*`, `TRACKING_STATUS_*` (+ `TRACKING_STATUS_BADGE_MAP`), `ENTITY_TYPE_*`, `PRIORITY_*`, `TARGET_UNIT_OPTIONS`, `EVENT_TYPE_*`
+- **Columns (columns.tsx)**: `getDefColumns` (工厂, 接受 `{onEdit, onDelete}`), `getTrackingColumns` (工厂, 接受 `{onStatusUpdate, onBreach, definitionMap}`), `breachColumns` (纯常量)
+- **页面缩减**: 1238 -> 793 行 (-36%)，移除 `TableColumn` import（不再需要类型标注）、4 个未使用图标 import
+
+### 验证
+- `npx tsc --noEmit`: 0 errors
+- Commit: `6f0d98961`

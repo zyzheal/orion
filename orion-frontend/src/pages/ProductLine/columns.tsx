@@ -6,16 +6,14 @@
  * - hotfixChannelColumns – static columns for the hotfix-channel detail table
  * - filterDefinitions   – static filter definitions for the search bar
  */
-import React, { useMemo } from 'react';
 import {
+  Typography,
   Tag,
   Tooltip,
   Button,
   Popconfirm,
   Space,
   Switch,
-  Text,
-  type TypographyProps,
 } from 'antd';
 import {
   EditOutlined,
@@ -34,11 +32,14 @@ import type {
 import type { TableColumn } from '@/components/Table';
 import type { FilterDefinition } from '@/components/SearchFilterBar';
 import dayjs from 'dayjs';
+
 import {
   phaseColorMap,
   releaseTrainStateColorMap,
   branchModeLabels,
 } from './config';
+
+const { Text } = Typography;
 
 // ---------------------------------------------------------------------------
 // Product Line columns (factory – needs action callbacks)

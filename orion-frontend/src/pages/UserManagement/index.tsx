@@ -10,14 +10,10 @@ import {
   Space,
   Tag,
   Card,
-  Modal,
   Form,
-  Input,
-  Select,
   message,
   Popconfirm,
   Descriptions,
-  Drawer,
   Tooltip,
   Statistic,
   Row,
@@ -644,6 +640,7 @@ const UserManagement: React.FC = () => {
             handleDisable={handleDisable}
             openEdit={openEdit}
             roleOptions={roleOptions}
+            detailItems={detailItems}
           />
         </>
       )}

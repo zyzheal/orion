@@ -28,7 +28,7 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import { useSearchParams } from 'react-router-dom';
-import { traceApi, type Span, type TraceDetail } from '@/api/trace';
+import { traceApi, type TraceDetail } from '@/api/trace';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
   ZOOM_MIN,
@@ -36,17 +36,13 @@ import {
   ROW_HEIGHT,
   BAR_MIN_HEIGHT,
   BAR_MIN_WIDTH,
-  nsToMs,
   TREE_COL_WIDTH,
   HEADER_HEIGHT,
   AXIS_HEIGHT,
   ROW_GAP,
-  SpanNode,
-  nsToMs,
   spanDurationMs,
   spanStartMs,
   formatDuration,
-  formatTime,
   isSpanError,
   statusColor,
   statusLabel,

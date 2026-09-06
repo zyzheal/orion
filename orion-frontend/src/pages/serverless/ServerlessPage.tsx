@@ -69,8 +69,6 @@ import {
   runtimeLabelMap,
   triggerTypeLabelMap,
   triggerTypeColorMap,
-  scaleActionColorMap,
-  scaleActionLabelMap,
 } from './ServerlessConfig';
 import {
   logsColumns,

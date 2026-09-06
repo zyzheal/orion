@@ -11,17 +11,12 @@ import {
   Tag,
   Space,
   Button,
-  Modal,
   Form,
   Input,
-  InputNumber,
-  Switch,
   Select,
   message,
   Tooltip,
   Popconfirm,
-  Tabs,
-  Divider,
   Empty,
   Row,
   Col,
@@ -33,12 +28,9 @@ import {
   DeleteOutlined,
   EditOutlined,
   SwapOutlined,
-  InfoCircleOutlined,
   BankOutlined,
   TeamOutlined,
-  SettingOutlined,
   DownloadOutlined,
-  DatabaseOutlined,
 } from '@ant-design/icons';
 import {
   listTenants,
@@ -629,6 +621,8 @@ const TenantListPage: React.FC<TenantListPageProps> = ({ onTenantSelect }) => {
         users={users}
         usersLoading={usersLoading}
         QUOTA_TEMPLATES={QUOTA_TEMPLATES}
+        setUserModalTenant={setUserModalTenant}
+        setUsers={setUsers}
       />
     </div>
   );

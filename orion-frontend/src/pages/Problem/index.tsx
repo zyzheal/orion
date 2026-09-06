@@ -14,10 +14,7 @@ import {
   Button,
   Space,
   Tag,
-  Modal,
   Form,
-  Select,
-  Input,
   Tabs,
   Empty,
   message,
@@ -27,8 +24,7 @@ import {
   Col,
   Spin,
 } from 'antd';
-import {
-  PlusOutlined,
+import {PlusOutlined,
   BugOutlined,
   EditOutlined,
   EyeOutlined,
@@ -36,7 +32,7 @@ import {
   LinkOutlined,
   ArrowRightOutlined,
   BookOutlined,
-  ExclamationCircleOutlined,
+  ExclamationCircleOutlined, SyncOutlined
 } from '@ant-design/icons';
 import { Layout } from '@/components/Layout';
 import Table from '@/components/Table';
@@ -74,7 +70,6 @@ import type { Problem, KnownError, ProblemStats } from '@/api/problem';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
 
 // ============================================================================
 // Component

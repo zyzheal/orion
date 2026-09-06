@@ -24,22 +24,14 @@ import {
 
 const { Title, Text } = Typography;
 const {TextArea} = Input;
-import {
-  DeleteOutlined,
+import {DeleteOutlined,
   EditOutlined,
   HistoryOutlined,
   RocketOutlined,
-  PlayCircleOutlined,
-  PauseCircleOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  UndoOutlined,
-  ForwardOutlined,
-  StopOutlined,
-  ApartmentOutlined,
+  ApartmentOutlined, PlusOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { colors, spacing } from '@/tokens';
+import { spacing } from '@/tokens';
 import type {
   ProcessDefinition,
   ProcessInstance,

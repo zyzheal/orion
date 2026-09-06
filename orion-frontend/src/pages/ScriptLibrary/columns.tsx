@@ -1,4 +1,6 @@
-import { Tag, Space, Button, Popconfirm, Text } from 'antd';
+import {
+  Typography, Tag, Space, Button, Popconfirm,
+} from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   PlayCircleOutlined,
@@ -21,6 +23,8 @@ import {
   statusColor,
   statusLabel,
 } from './config';
+
+const { Text } = Typography;
 
 export interface ScriptColumnsDeps {
   handleViewDetail: (record: ScriptEntry) => void;

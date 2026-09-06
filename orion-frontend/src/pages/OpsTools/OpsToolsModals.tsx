@@ -7,14 +7,7 @@ import {
   Form,
   Input,
   Select,
-  Button,
-  Space,
-  Tag,
   InputNumber,
-  message,
-  Switch,
-  Tooltip,
-  Cascader,
 } from 'antd';
 import type {
   CronJob,
@@ -29,6 +22,8 @@ import type {
   IndexInfo,
 } from '@/api/ops-tools';
 import { THEME_MODE_OPTIONS } from './config';
+
+const { TextArea } = Input;
 
 type FormInstance = ReturnType<typeof Form.useForm>[0];
 
@@ -95,6 +90,8 @@ interface OpsToolsModalsProps {
   themes: ThemeConfig[];
   setThemes: (v: ThemeConfig[]) => void;
   themeForm: FormInstance;
+  themeModalOpen: boolean;
+  setThemeModalOpen: (v: boolean) => void;
   handleThemeSave: (values: any) => void;
   handleThemeToggle: (theme: ThemeConfig) => void;
   handleDeleteTheme: (theme: ThemeConfig) => void;
@@ -205,9 +202,9 @@ export const OpsToolsModals: React.FC<OpsToolsModalsProps> = (props) => (
       {/* 主题创建弹窗 */}
       <Modal
         title="新建主题"
-        open={themeModalOpen}
+        open={props.themeModalOpen}
         onCancel={() => {
-          setThemeModalOpen(false);
+          props.setThemeModalOpen(false);
           props.themeForm.resetFields();
         }}
         onOk={() => props.themeForm.submit()}

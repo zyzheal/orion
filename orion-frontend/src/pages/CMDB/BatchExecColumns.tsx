@@ -6,10 +6,10 @@
  * set of callback handlers they need (stateful operations remain in the page).
  */
 import {
+  Typography,
   Button,
   Space,
   Tag,
-  Text,
   Popconfirm,
   Tooltip,
   Switch,
@@ -17,7 +17,6 @@ import {
 } from 'antd';
 import {
   PlayCircleOutlined,
-  PlusOutlined,
   DeleteOutlined,
   EyeOutlined,
   CopyOutlined,
@@ -32,6 +31,7 @@ import {
   type UploadTask,
 } from '@/api/visor-exec';
 import { colors } from '@/tokens';
+
 import {
   EXEC_STATUS_COLOR_MAP,
   EXEC_STATUS_LABEL_MAP,
@@ -40,6 +40,8 @@ import {
   renderUploadTaskProgress,
   renderHostTags,
 } from './BatchExecConfig';
+
+const { Text } = Typography;
 
 // ============================================================================
 // Shared types

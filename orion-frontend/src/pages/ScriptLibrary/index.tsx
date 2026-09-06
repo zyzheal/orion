@@ -17,29 +17,21 @@ import {
   Space,
   Button,
   message,
-  Modal,
   Form,
-  Input,
   Select,
   Row,
   Col,
   Tabs,
-  Drawer,
-  Descriptions,
   Popconfirm,
   Empty,
-  Timeline,
-  InputNumber,
 } from 'antd';
-import {
-  PlusOutlined,
+import {PlusOutlined,
   ReloadOutlined,
   EditOutlined,
   DeleteOutlined,
   CodeOutlined,
   PlayCircleOutlined,
-  HistoryOutlined,
-  SettingOutlined,
+  HistoryOutlined, RollbackOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { colors, spacing } from '@/tokens';
@@ -65,7 +57,6 @@ import {
 } from '@/api/script-library';
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
 
 import {
   scriptTypeLabel,
@@ -73,15 +64,10 @@ import {
   paramTypeLabel,
   statusColor,
   statusLabel,
-  cardStyle,
 } from './config';
-import {
-  buildScriptColumns,
-  buildVersionColumns,
-  buildParamColumns,
-  buildExecutionColumns,
-} from './columns';
 import { ScriptLibraryModals } from './ScriptLibraryModals';
+import type { ColumnsType } from 'antd/es/table';
+
 
 export default function ScriptLibraryPage() {
   // Script list state
@@ -903,6 +889,8 @@ export default function ScriptLibraryPage() {
         setExecDetailVisible={setExecDetailVisible}
         selectedExecution={selectedExecution}
         setSelectedExecution={setSelectedExecution}
+        categoryOptions={categoryOptions}
+        paramColumns={paramColumns}
       />
     </div>
   );

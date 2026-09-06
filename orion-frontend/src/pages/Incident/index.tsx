@@ -25,12 +25,8 @@ import {
   Empty,
   message,
   Form,
-  Select,
-  Input,
   Descriptions,
   Badge,
-  Popconfirm,
-  Modal,
   Row,
   Col,
 } from 'antd';
@@ -83,18 +79,12 @@ import {
   priorityConfig,
   eventTypeConfig,
   statusTransitions,
-  severityOptions,
-  incidentTypeOptions,
-  urgencyOptions,
-  priorityOptions,
-  escalationLevelOptions,
   postmortemStatusConfig,
 } from './config';
 import { buildIncidentColumns, incidentFilterDefs } from './columns';
 import { IncidentModals } from './IncidentModals';
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
 
 const IncidentManagement: React.FC = () => {
   // --- State ---

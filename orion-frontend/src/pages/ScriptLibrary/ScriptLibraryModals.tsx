@@ -2,8 +2,7 @@
  * ScriptLibrary Modals & Drawers
  */
 import React from 'react';
-import {
-  Modal,
+import {Modal,
   Drawer,
   Form,
   Input,
@@ -14,19 +13,15 @@ import {
   Table,
   Descriptions,
   Card,
-  Title,
-  Divider,
-  message,
+  Col, Empty, InputNumber, Popconfirm, Row, Timeline, Typography
 } from 'antd';
 import dayjs from 'dayjs';
 import { colors, spacing } from '@/tokens';
-import { Typography } from 'antd';
 import type {
   ScriptEntry,
   ScriptVersion,
   ScriptParameter,
   ScriptExecution,
-  CreateParameterInput,
 } from '@/api/script-library';
 import {
   scriptTypeLabel,
@@ -34,8 +29,11 @@ import {
   paramTypeLabel,
   statusColor,
   statusLabel,
-  cardStyle,
 } from './config';
+import { PlayCircleOutlined, PlusOutlined, RollbackOutlined, SettingOutlined } from '@ant-design/icons';
+
+const { Title, Text } = Typography;
+const { TextArea } = Input;
 
 type FormInstance = ReturnType<typeof Form.useForm>[0];
 
@@ -91,6 +89,8 @@ interface ScriptLibraryModalsProps {
   setExecDetailVisible: (v: boolean) => void;
   selectedExecution: ScriptExecution | null;
   setSelectedExecution: (v: ScriptExecution | null) => void;
+  categoryOptions: string[];
+  paramColumns: any;
 }
 
 export const ScriptLibraryModals: React.FC<ScriptLibraryModalsProps> = (props) => (
@@ -134,7 +134,7 @@ export const ScriptLibraryModals: React.FC<ScriptLibraryModalsProps> = (props) =
             <Col span={12}>
               <Form.Item name="category" label="分类">
                 <Select placeholder="选择或输入分类" allowClear showSearch>
-                  {categoryOptions.map((cat) => (
+                  {props.categoryOptions.map((cat) => (
                     <Select.Option key={cat} value={cat}>
                       {cat}
                     </Select.Option>
@@ -260,7 +260,7 @@ export const ScriptLibraryModals: React.FC<ScriptLibraryModalsProps> = (props) =
                 <Empty description="暂无参数配置" image={Empty.PRESENTED_IMAGE_SIMPLE} />
               ) : (
                 <Table
-                  columns={paramColumns}
+                  columns={props.paramColumns}
                   dataSource={props.parameters}
                   rowKey="paramKey"
                   loading={props.paramsLoading}

@@ -2,25 +2,24 @@
  * ReportDesigner Modals & Drawers
  */
 import React from 'react';
-import {
-  Modal,
+import {Modal,
   Drawer,
   Form,
   Input,
   Select,
-  Button,
-  Space,
-  Tag,
-  Divider,
-  message,
+  Tag, Card, Descriptions, Empty, Switch, Typography
 } from 'antd';
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type {
   ReportDefinition,
   ReportDatasource,
   ReportSchedule,
   ReportExecution,
 } from '@/api/reports';
+import dayjs from 'dayjs';
+import { colors, spacing } from '@/tokens';
+
+const { Title, Text } = Typography;
+const { TextArea } = Input;
 
 type FormInstance = ReturnType<typeof Form.useForm>[0];
 
@@ -102,7 +101,7 @@ export const ReportDesignerModals: React.FC<ReportDesignerModalsProps> = (props)
             label="分类"
             rules={[{ required: true, message: '请选择分类' }]}
           >
-            <Select placeholder="选择报表分类" style={{ height: 36 }} options={categoryOptions} />
+            <Select placeholder="选择报表分类" style={{ height: 36 }} options={props.categoryOptions} />
           </Form.Item>
           <Form.Item name="enabled" label="启用" valuePropName="checked" initialValue={true}>
             <Switch />
@@ -240,8 +239,8 @@ export const ReportDesignerModals: React.FC<ReportDesignerModalsProps> = (props)
                 {props.selectedReportForPreview.name}
               </Descriptions.Item>
               <Descriptions.Item label="分类">
-                <Tag color={categoryColor[props.selectedReportForPreview.category ?? ''] ?? 'default'}>
-                  {categoryLabel[props.selectedReportForPreview.category ?? ''] ??
+                <Tag color={props.categoryColor[props.selectedReportForPreview.category ?? ''] ?? 'default'}>
+                  {props.categoryLabel[props.selectedReportForPreview.category ?? ''] ??
                     props.selectedReportForPreview.category ??
                     '-'}
                 </Tag>

@@ -9,17 +9,15 @@ import {
   Space,
   Tag,
   Card,
-  Modal,
   Form,
   Input,
   Select,
   message,
-  Tabs,
   Table as AntTable,
   Descriptions,
-  Drawer,
 } from 'antd';
 import {
+  FireOutlined,
   PlusOutlined,
   ReloadOutlined,
   BranchesOutlined,
@@ -46,6 +44,8 @@ import {
   type ProductLine,
   type ProductLineCreateInput,
   type ProductLineUpdateInput,
+  type ReleaseTrain,
+  type HotfixChannel,
   type ReleaseTrainInput,
   type HotfixChannelInput,
   type ProductLinePhase,
@@ -56,9 +56,6 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { colors, spacing } from '@/tokens';
 import {
   phaseColorMap,
-  branchModeOptions,
-  envOptions,
-  gitProviderOptions,
 } from './config';
 import {
   buildProductLineColumns,
@@ -712,6 +709,7 @@ const ProductLineManagement: React.FC = () => {
             handleCreateRT={handleCreateRT}
             handleCreateHF={handleCreateHF}
             productLines={productLines}
+            detailTabItems={detailTabItems}
           />
         </>
       )}

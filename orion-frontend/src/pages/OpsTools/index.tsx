@@ -18,10 +18,8 @@ import {
   Table,
   Button,
   Space,
-  Modal,
   Form,
   Input,
-  InputNumber,
   Select,
   message,
   Statistic,
@@ -46,7 +44,6 @@ import {
   tabConfig,
   LOG_LEVEL_OPTIONS,
   LOG_SERVICE_OPTIONS,
-  THEME_MODE_OPTIONS,
 } from './config';
 import { OpsToolsModals } from './OpsToolsModals';
 import {
@@ -116,7 +113,6 @@ import {
 } from '@/api/ops-tools';
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
 // ==================== 主页面 ====================
 
 const OpsTools: React.FC = () => {
@@ -1185,6 +1181,8 @@ const OpsTools: React.FC = () => {
         themes={themes}
         setThemes={setThemes}
         themeForm={themeForm}
+        themeModalOpen={themeModalOpen}
+        setThemeModalOpen={setThemeModalOpen}
         handleThemeSave={handleThemeSave}
         handleThemeToggle={handleThemeToggle}
         handleDeleteTheme={handleDeleteTheme}

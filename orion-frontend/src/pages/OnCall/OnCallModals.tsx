@@ -8,23 +8,29 @@ import {
   Form,
   Input,
   Select,
-  Button,
-  Space,
-  Tag,
-  Descriptions,
-  InputNumber,
-  Switch,
   Typography,
-  DatePicker,
 } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { spacing } from '@/tokens';
 import type { OnCallSchedule } from '@/api/on-call';
 
 type FormInstance = ReturnType<typeof Form.useForm>[0];
 const { Text } = Typography;
 
+
+// Timezone options
+const timezoneOptions = [
+  { label: 'Asia/Shanghai (UTC+8)', value: 'Asia/Shanghai' },
+  { label: 'America/New_York (UTC-5)', value: 'America/New_York' },
+  { label: 'America/Los_Angeles (UTC-8)', value: 'America/Los_Angeles' },
+  { label: 'Europe/London (UTC+0)', value: 'Europe/London' },
+  { label: 'Europe/Berlin (UTC+1)', value: 'Europe/Berlin' },
+  { label: 'Asia/Tokyo (UTC+9)', value: 'Asia/Tokyo' },
+  { label: 'UTC', value: 'UTC' },
+];
+
 interface OnCallModalsProps {
   renderDetailContent: () => React.ReactNode;
+  resolveUserName: (userId: string) => string;
   createModalVisible: boolean;
   setCreateModalVisible: (v: boolean) => void;
   overrideModalVisible: boolean;
@@ -125,8 +131,8 @@ export const OnCallModals: React.FC<OnCallModalsProps> = (props) => (
                 rules={[{ required: true, message: '请选择原始值班人员' }]}
               >
                 <Select
-                  options={props.selectedSchedule?.teamMembers.map((uid) => ({
-                    label: resolveUserName(uid),
+                  options={props.selectedSchedule?.teamMembers.map((uid: string) => ({
+                    label: props.resolveUserName(uid),
                     value: uid,
                   }))}
                   placeholder="选择原始值班人员"

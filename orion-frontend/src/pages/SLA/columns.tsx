@@ -5,8 +5,9 @@
  * - trackingColumns: factory, takes status/breach handlers + definitionMap
  * - breachColumns: fully self-contained constant
  */
-import React from 'react';
-import { Space, Tag, Text, Badge, Switch, Popconfirm, Button } from 'antd';
+import {
+  Typography, Space, Tag, Badge, Switch, Popconfirm, Button,
+} from 'antd';
 import {
   EditOutlined,
   DeleteOutlined,
@@ -18,6 +19,7 @@ import {
 import dayjs from 'dayjs';
 import type { TableColumn } from '@/components/Table';
 import type { SLADefinition, SLATracking, SLABreachEvent } from '@/api/sla';
+
 import {
   TYPE_COLOR_MAP,
   TYPE_LABEL_MAP,
@@ -32,6 +34,8 @@ import {
   EVENT_TYPE_COLOR_MAP,
   EVENT_TYPE_LABEL_MAP,
 } from './config';
+
+const { Text } = Typography;
 
 // ==================== SLA Definition Columns ====================
 

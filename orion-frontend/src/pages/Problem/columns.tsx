@@ -5,14 +5,17 @@
  * depend on handler callbacks (view / edit / delete).  Callers wrap
  * these with useMemo, passing stable handlers.
  */
-import React from 'react';
-import { Button, Popconfirm, Space, Tag, Text } from 'antd';
+import {
+  Typography, Button, Popconfirm, Space, Tag} from 'antd';
 import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { colors, componentRadius } from '@/tokens';
 import type { TableColumn } from '@/components/Table';
 import type { Problem, KnownError } from '@/api/problem';
 import { severityConfig, statusConfig, knownErrorStatusConfig } from './config';
+
+const { Text } = Typography;
+
 
 // ---------------------------------------------------------------------------
 // Problem list columns

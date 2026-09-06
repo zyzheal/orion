@@ -7,7 +7,6 @@ import {
   Typography,
   Button,
   Space,
-  Tag,
   Card,
   Row,
   Col,
@@ -19,7 +18,6 @@ import {
   Tabs,
   InputNumber,
   Switch,
-  Badge,
   Progress,
 } from 'antd';
 import {

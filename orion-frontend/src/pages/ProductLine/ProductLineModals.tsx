@@ -8,15 +8,9 @@ import {
   Form,
   Input,
   Select,
-  Button,
-  Space,
-  Tag,
-  Descriptions,
   Switch,
-  InputNumber,
-  Typography,
+  Tabs,
 } from 'antd';
-import { colors, spacing } from '@/tokens';
 import type {
   ProductLine,
   ReleaseTrain,
@@ -25,8 +19,6 @@ import type {
 import { branchModeOptions, envOptions, gitProviderOptions } from './config';
 
 type FormInstance = ReturnType<typeof Form.useForm>[0];
-const { Title, Text } = Typography;
-const { TextArea } = Input;
 
 interface ProductLineModalsProps {
   productLines: ProductLine[];
@@ -56,6 +48,7 @@ interface ProductLineModalsProps {
   handleEdit: () => void;
   handleCreateRT: () => void;
   handleCreateHF: () => void;
+  detailTabItems: React.ReactNode;
 }
 
 export const ProductLineModals: React.FC<ProductLineModalsProps> = (props) => (
@@ -150,7 +143,7 @@ export const ProductLineModals: React.FC<ProductLineModalsProps> = (props) => (
             width={800}
             destroyOnClose
           >
-            <Tabs items={detailTabItems} />
+            <Tabs items={props.detailTabItems} />
           </Drawer>
 
           {/* Create Release Train Modal */}

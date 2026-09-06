@@ -14,21 +14,13 @@ import {
   Space,
   Tag,
   Card,
-  Modal,
   Form,
-  Input,
-  Select,
   message,
-  Alert,
   Popconfirm,
   Switch,
   Row,
   Col,
   Tooltip,
-  Progress,
-  Descriptions,
-  Badge,
-  Table as AntTable,
   Spin,
   Empty,
 } from 'antd';
@@ -37,15 +29,12 @@ import {
   ReloadOutlined,
   EditOutlined,
   DeleteOutlined,
-  CloseCircleOutlined,
   SecurityScanOutlined,
   StopOutlined,
   EyeOutlined,
   ThunderboltOutlined,
   SafetyOutlined,
-  FilterOutlined,
   WarningOutlined,
-  CheckCircleOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -59,127 +48,28 @@ import {
   updatePolicy,
   deletePolicy,
   togglePolicy,
-  type SecurityPolicy as APISecurityPolicy,
-  type PolicyEvaluation as APIPolicyEvaluation,
 } from '@/api/ai-security';
 import { AISecurityModals } from './AISecurityModals';
+import {
+  mapApiPolicyToUI,
+  mapApiEvalToUI,
+  typeLabelMap,
+  typeIconMap,
+  statusColorMap,
+  statusLabelMap,
+  severityColorMap,
+  severityLabelMap,
+  policyTypeOptions,
+  severityOptions,
+  type UISecurityPolicy,
+  type SecurityStats,
+  type PolicyEvaluation,
+} from './config';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
 // ============================================================================
-// UI Types & Maps
-// ============================================================================
-
-type PolicyType = 'input_validation' | 'output_filtering' | 'pii_detection' | 'rate_limiting';
-type PolicyStatus = 'active' | 'inactive' | 'draft' | 'violated';
-type PolicySeverity = 'low' | 'medium' | 'high' | 'critical';
-
-// UI-local policy shape (maps from API SecurityPolicy)
-interface UISecurityPolicy {
-  id: string;
-  name: string;
-  description: string;
-  type: PolicyType;
-  status: PolicyStatus;
-  severity: PolicySeverity;
-  violations: number;
-  lastUpdated: string;
-  createdBy: string;
-  enabled: boolean;
-  rules: string[];
-}
-
-interface SecurityStats {
-  policiesActive: number;
-  requestsBlocked: number;
-  sensitiveDataDetected: number;
-  complianceScore: number;
-  totalViolations: number;
-  avgResponseTime: number;
-}
-
-interface PolicyEvaluation {
-  policyId: string;
-  policyName: string;
-  result: 'pass' | 'fail' | 'warning';
-  timestamp: string;
-  details: string;
-}
-
-/** Map API SecurityPolicy to UI shape */
-function mapApiPolicyToUI(p: APISecurityPolicy): UISecurityPolicy {
-  return {
-    id: p.id,
-    name: p.name,
-    description: p.description,
-    type: p.type as PolicyType,
-    status: p.enabled ? 'active' : 'inactive',
-    severity: p.severity,
-    violations: p.matchCount,
-    lastUpdated: p.updatedAt,
-    createdBy: '',
-    enabled: p.enabled,
-    rules: [p.rule],
-  };
-}
-
-/** Map API PolicyEvaluation to UI shape */
-function mapApiEvalToUI(e: APIPolicyEvaluation): PolicyEvaluation {
-  return {
-    policyId: e.policyId,
-    policyName: e.policyName,
-    result: e.status,
-    timestamp: e.evaluatedAt,
-    details: e.message,
-  };
-}
-
-// ============================================================================
-// Label & Color Maps
-// ============================================================================
-
-const typeLabelMap: Record<PolicyType, string> = {
-  input_validation: '输入验证',
-  output_filtering: '输出过滤',
-  pii_detection: 'PII 检测',
-  rate_limiting: '速率限制',
-};
-
-const typeIconMap: Record<PolicyType, React.ReactNode> = {
-  input_validation: <FilterOutlined />,
-  output_filtering: <SecurityScanOutlined />,
-  pii_detection: <SafetyOutlined />,
-  rate_limiting: <ThunderboltOutlined />,
-};
-
-const statusColorMap: Record<PolicyStatus, string> = {
-  active: 'success',
-  inactive: 'default',
-  draft: 'processing',
-  violated: 'error',
-};
-
-const statusLabelMap: Record<PolicyStatus, string> = {
-  active: '活跃',
-  inactive: '未激活',
-  draft: '草稿',
-  violated: '已违规',
-};
-
-const severityColorMap: Record<PolicySeverity, string> = {
-  low: 'blue',
-  medium: 'orange',
-  high: 'volcano',
-  critical: 'red',
-};
-
-const severityLabelMap: Record<PolicySeverity, string> = {
-  low: '低',
-  medium: '中',
-  high: '高',
-  critical: '严重',
-};
 
 // ============================================================================
 // Main Component

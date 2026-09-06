@@ -12,10 +12,13 @@ import {
   Space,
   Tag,
   Divider,
+  Typography,
 } from 'antd';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { WorkflowNode } from '@/api/workflow';
 import { nodeTypeColors, nodeTypeLabels } from './WorkflowCanvasConfig';
+
+const { Text } = Typography;
 
 type FormInstance = ReturnType<typeof Form.useForm>[0];
 

@@ -17,47 +17,27 @@ import {
   Space,
   Button,
   message,
-  Modal,
   Form,
-  Input,
   Select,
-  DatePicker,
   Row,
   Col,
-  Drawer,
-  Descriptions,
   Timeline,
-  Popconfirm,
   Steps,
   Empty,
-  Badge,
 } from 'antd';
 import {
   PlusOutlined,
   ReloadOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  SendOutlined,
   CheckOutlined,
   CloseOutlined,
-  EyeOutlined,
-  PlayCircleOutlined,
-  ThunderboltOutlined,
   SafetyOutlined,
   ExclamationCircleOutlined,
   ClockCircleOutlined,
-  FileTextOutlined,
-  BulbOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { colors, spacing, themeVars } from '@/tokens';
 import {
-  statusColor,
   statusLabel,
-  changeTypeLabel,
-  riskLevelColor,
-  riskLevelLabel,
-  impactScopeLabel,
   approvalStatusLabel,
   approvalStatusColor,
   executionStepStatusColor,
@@ -85,7 +65,6 @@ import {
 } from '@/api/change-requests';
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
 
 /* ==================== Component ==================== */
 
@@ -633,7 +612,12 @@ export default function ChangeRequestManagementPage() {
         actionComment={actionComment}
         setActionComment={setActionComment}
         actionLoading={actionLoading}
-        handleSubmitAction={handleSubmitAction}
+        handleSubmitAction={handleConfirmAction}
+        fetchRisk={fetchRisk}
+        handleEdit={handleEdit}
+        handleStartExecution={handleStartExecution}
+        handleViewExecution={handleViewExecution}
+        renderApprovalTimeline={renderApprovalTimeline}
         executionDrawerVisible={executionDrawerVisible}
         setExecutionDrawerVisible={setExecutionDrawerVisible}
         executionSteps={executionSteps}

@@ -14,22 +14,28 @@ import {
   Descriptions,
   Progress,
   Typography,
-  Spin,
-  Checkbox,
+  Alert,
+  Table as AntTable,
 } from 'antd';
-import { SecurityScanOutlined } from '@ant-design/icons';
+import {
+  SecurityScanOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  WarningOutlined,
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { colors, spacing } from '@/tokens';
-import type {
-  UISecurityPolicy,
-  PolicyEvaluation,
-  SecurityStats,
-  PolicyStatus,
-  PolicySeverity,
-} from '@/api/security-policies';
+import {
+  type UISecurityPolicy,
+  type PolicyEvaluation,
+  type SecurityStats,
+  typeIconMap,
+  typeLabelMap,
+} from './config';
 
 type FormInstance = ReturnType<typeof Form.useForm>[0];
-const { Title, Text } = Typography;
+const { Title } = Typography;
+
 
 interface AISecurityModalsProps {
   loading: boolean;

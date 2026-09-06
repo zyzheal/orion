@@ -8,7 +8,7 @@
  * handleDelete, setCurrentFn) remain inline in their respective tab components.
  */
 import React from 'react';
-import { Tag, Tooltip, Space, Empty } from 'antd';
+import { Tag, Empty } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ServerlessLog } from '@/api/serverless';
 import { AutoScalingRecommendation } from '@/api/serverless';
@@ -79,7 +79,7 @@ export const autoscalingColumns: ColumnsType<AutoScalingRecommendation> = [
                 : colors.neutral[900],
         }}
       >
-        {r.currentReplicas} -> {v}
+        {r.currentReplicas} {'->'} {v}
       </span>
     ),
   },

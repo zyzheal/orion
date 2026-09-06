@@ -1,7 +1,7 @@
 /**
  * DeveloperPortal Modals & Drawers — all 12 modals/drawers extracted from DeveloperPortalPage.tsx
  */
-import { Modal, Drawer, Button, Space, Typography } from 'antd';
+import { Modal, Drawer, Button, Space } from 'antd';
 import { EditOutlined, PlusOutlined, CopyOutlined } from '@ant-design/icons';
 import type { PortalDocument, MockRule, SDKGenerationTask, APISubscription } from '@/api/developer-portal';
 import { spacing, colors } from '@/tokens';

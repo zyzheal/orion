@@ -65,7 +65,7 @@ import {
   getCategoryStats,
   type RenderRow,
 } from './PerformanceFlameGraphConfig';
-import { FlameFrame, categoryTagColor, categoryCardColor } from './PerformanceFlameGraphColumns';
+import { FlameFrame } from './PerformanceFlameGraphColumns';
 
 const { Title, Text } = Typography;
 
