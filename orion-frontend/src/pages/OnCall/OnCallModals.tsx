@@ -11,7 +11,7 @@ import {
   Typography,
 } from 'antd';
 import { spacing } from '@/tokens';
-import type { OnCallSchedule } from '@/api/on-call';
+import type { OnCallSchedule } from '@/api/oncall';
 
 type FormInstance = ReturnType<typeof Form.useForm>[0];
 const { Text } = Typography;

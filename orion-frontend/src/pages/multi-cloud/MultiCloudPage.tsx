@@ -7,16 +7,18 @@
  * - 云账号管理 (CRUD)
  * - 资源跟踪与同步
  * - 成本对比分析
+ *
+ * 模块拆分：
+ * - ./MultiCloudConfig    颜色 / 标签 / 选项等纯数据常量
+ * - ./MultiCloudColumns   表格列定义（含工厂函数模式）
+ * - ./MultiCloudModals    注册 / 编辑 / 成本对比弹窗
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   Table,
   Button,
-  Modal,
   Form,
-  Input,
-  Select,
   Tag,
   Space,
   Statistic,
@@ -26,8 +28,8 @@ import {
   Typography,
   Tabs,
   Progress,
+  Modal,
   Tooltip,
-  Badge,
 } from 'antd';
 import {
   CloudServerOutlined,
@@ -35,15 +37,11 @@ import {
   ReloadOutlined,
   CloudOutlined,
   DollarOutlined,
-  SyncOutlined,
   GlobalOutlined,
-  DatabaseOutlined,
   HddOutlined,
   ApiOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
-  EditOutlined,
-  DeleteOutlined,
 } from '@ant-design/icons';
 import {
   multiCloudApi,
@@ -53,48 +51,16 @@ import {
   type CostComparison,
 } from '@/api/multi-cloud';
 import { colors, spacing, themeVars } from '@/tokens';
+import {
+  providerLabelMap,
+  providerIconColors,
+  resourceTypeIcons,
+  resourceTypeTokenColors,
+} from './MultiCloudConfig';
+import { makeAccountColumns, resourceColumns } from './MultiCloudColumns';
+import { CreateAccountModal, EditAccountModal, CostComparisonModal } from './MultiCloudModals';
 
 const { Title, Text } = Typography;
-
-const providerTypeColor: Record<string, string> = {
-  aws: 'orange',
-  azure: 'blue',
-  gcp: 'red',
-  alicloud: 'green',
-  aliyun: 'green',
-  tencent: 'cyan',
-};
-
-const providerLabelMap: Record<string, string> = {
-  aws: 'AWS',
-  azure: 'Azure',
-  gcp: 'Google Cloud',
-  alicloud: '阿里云',
-  aliyun: '阿里云',
-  tencent: '腾讯云',
-  private: '私有云',
-};
-
-const statusColorMap: Record<string, string> = {
-  active: 'green',
-  inactive: 'default',
-  error: 'red',
-};
-
-const statusLabelMap: Record<string, string> = {
-  active: '已连接',
-  inactive: '未激活',
-  error: '错误',
-};
-
-const providerIconColors: Record<string, string> = {
-  aws: colors.cloud.aws,
-  azure: colors.cloud.azure,
-  gcp: colors.cloud.gcp,
-  alicloud: colors.cloud.alicloud,
-  aliyun: colors.cloud.alicloud,
-  tencent: colors.cloud.tencent,
-};
 
 const MultiCloudPage: React.FC = () => {
   const [accounts, setAccounts] = useState<CloudAccount[]>([]);
@@ -327,176 +293,17 @@ const MultiCloudPage: React.FC = () => {
   const maxCost = Math.max(...costTrendData.map((t) => t.cost), 1);
 
   // Account columns
-  const accountColumns = [
-    {
-      title: '账号名称',
-      dataIndex: 'account_name',
-      key: 'account_name',
-      width: 160,
-      render: (v: string, record: CloudAccount) => v || record.account_name || '-',
-    },
-    {
-      title: '云厂商',
-      key: 'provider',
-      width: 120,
-      render: (_: unknown, record: CloudAccount) => {
-        const provider = record.provider_id || record.credential_type || 'unknown';
-        return (
-          <Tag color={providerTypeColor[provider] || 'default'}>
-            {providerLabelMap[provider] || provider}
-          </Tag>
-        );
-      },
-    },
-    { title: '区域', dataIndex: 'region', key: 'region', width: 120 },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (v: string) => (
-        <Tag color={statusColorMap[v] || 'default'}>{statusLabelMap[v] || v}</Tag>
-      ),
-    },
-    {
-      title: '资源数',
-      key: 'resourceCount',
-      width: 80,
-      render: (_: unknown, record: CloudAccount) => {
-        const accountId = record.account_id;
-        return resources.filter((r) => r.account_id === accountId || r.account_id === accountId)
-          .length;
-      },
-    },
-    {
-      title: '月度费用',
-      key: 'cost',
-      width: 100,
-      render: (_: unknown, record: CloudAccount) => {
-        const cost = record.current_spend ?? 0;
-        return cost > 0 ? `$${cost.toFixed(2)}` : '-';
-      },
-    },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 160,
-      render: (_: unknown, record: CloudAccount) => (
-        <Space>
-          <Tooltip title="同步资源">
-            <Button
-              type="link"
-              size="small"
-              icon={<SyncOutlined spin={syncing === record.account_id} />}
-              onClick={() => handleSync(record.account_id)}
-              disabled={syncing !== null}
-            />
-          </Tooltip>
-          <Tooltip title="编辑">
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => handleEdit(record)}
-            />
-          </Tooltip>
-          <Tooltip title="删除">
-            <Button
-              type="link"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => handleDelete(record)}
-            />
-          </Tooltip>
-        </Space>
-      ),
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      width: 160,
-      render: (v: string) => (v ? new Date(v).toLocaleString('zh-CN') : '-'),
-    },
-  ];
-
-  // Resource columns
-  const resourceColumns = [
-    {
-      title: '名称',
-      dataIndex: 'resource_name',
-      key: 'resource_name',
-      width: 160,
-      render: (v: string, r: CloudResource) => v || r.resource_name || '-',
-    },
-    {
-      title: '类型',
-      dataIndex: 'resource_type',
-      key: 'resource_type',
-      width: 120,
-      render: (v: string) => {
-        const typeColors: Record<string, string> = {
-          compute: 'blue',
-          storage: 'green',
-          database: 'purple',
-          network: 'orange',
-          container: 'cyan',
-        };
-        return <Tag color={typeColors[v] || 'default'}>{v}</Tag>;
-      },
-    },
-    { title: '区域', dataIndex: 'region', key: 'region', width: 120 },
-    {
-      title: '状态',
-      dataIndex: 'state',
-      key: 'state',
-      width: 100,
-      render: (v: string) => {
-        const stateColors: Record<string, string> = {
-          running: 'green',
-          active: 'green',
-          stopped: 'red',
-          error: 'red',
-          pending: 'orange',
-        };
-        return (
-          <Badge
-            status={
-              stateColors[v] === 'green'
-                ? 'success'
-                : stateColors[v] === 'red'
-                  ? 'error'
-                  : 'warning'
-            }
-            text={v}
-          />
-        );
-      },
-    },
-    {
-      title: '月度费用',
-      dataIndex: 'monthly_cost',
-      key: 'monthly_cost',
-      width: 100,
-      render: (v: number) => (v > 0 ? `$${v.toFixed(2)}` : '-'),
-    },
-    {
-      title: '标签',
-      key: 'tags',
-      width: 160,
-      render: (_: unknown, record: CloudResource) =>
-        record.tags
-          ? Object.entries(record.tags)
-              .slice(0, 2)
-              .map(([k, v]) => (
-                <Tag key={String(k)}>
-                  {k}: {v}
-                </Tag>
-              ))
-          : '-',
-    },
-  ];
+  const accountColumns = useMemo(
+    () =>
+      makeAccountColumns({
+        resources,
+        syncing,
+        handleSync,
+        handleEdit,
+        handleDelete,
+      }),
+    [resources, syncing]
+  );
 
   // Dashboard overview section
   const renderDashboard = () => (
@@ -622,7 +429,9 @@ const MultiCloudPage: React.FC = () => {
                             color: providerIconColors[item.provider] || colors.neutral[500],
                           }}
                         />
-                        <Text strong>{providerLabelMap[item.provider] || item.provider}</Text>
+                        <Text strong>
+                          {providerLabelMap[item.provider] || item.provider}
+                        </Text>
                       </Space>
                       <Text type="secondary">
                         {item.count} 个资源 ({item.percentage}%)
@@ -692,34 +501,36 @@ const MultiCloudPage: React.FC = () => {
                 costTrendData.map((item, index) => {
                   const height = maxCost > 0 ? (item.cost / maxCost) * 140 : 0;
                   const isCurrent = index === costTrendData.length - 1;
-                return (
-                  <Tooltip key={item.month} title={`$${item.cost.toLocaleString()}`}>
-                    <div
-                      style={{
-                        flex: 1,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <Text style={{ fontSize: 10, marginBottom: 4 }}>
-                        ${(item.cost / 1000).toFixed(1)}k
-                      </Text>
+                  return (
+                    <Tooltip key={item.month} title={`$${item.cost.toLocaleString()}`}>
                       <div
                         style={{
-                          width: '100%',
-                          height: Math.max(height, 4),
-                          backgroundColor: isCurrent ? colors.primary[500] : colors.primary[200],
-                          borderRadius: '4px 4px 0 0',
-                          transition: 'height 0.3s ease',
+                          flex: 1,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
                         }}
-                      />
-                      <Text type="secondary" style={{ fontSize: 10, marginTop: 4 }}>
-                        {item.month}
-                      </Text>
-                    </div>
-                  </Tooltip>
-                );
+                      >
+                        <Text style={{ fontSize: 10, marginBottom: 4 }}>
+                          ${(item.cost / 1000).toFixed(1)}k
+                        </Text>
+                        <div
+                          style={{
+                            width: '100%',
+                            height: Math.max(height, 4),
+                            backgroundColor: isCurrent
+                              ? colors.primary[500]
+                              : colors.primary[200],
+                            borderRadius: '4px 4px 0 0',
+                            transition: 'height 0.3s ease',
+                          }}
+                        />
+                        <Text type="secondary" style={{ fontSize: 10, marginTop: 4 }}>
+                          {item.month}
+                        </Text>
+                      </div>
+                    </Tooltip>
+                  );
                 })
               )}
             </div>
@@ -733,55 +544,39 @@ const MultiCloudPage: React.FC = () => {
           <Col span={24}>
             <Card title="资源类型分布" size="small" style={{ borderRadius: 12 }}>
               <Row gutter={16}>
-                {resourceTypeDistribution.map((item) => {
-                  const typeIcons: Record<string, React.ReactNode> = {
-                    compute: <CloudServerOutlined />,
-                    storage: <HddOutlined />,
-                    database: <DatabaseOutlined />,
-                    network: <ApiOutlined />,
-                    container: <CloudOutlined />,
-                  };
-                  const typeColorsMap: Record<string, string> = {
-                    compute: colors.primary[500],
-                    storage: colors.success[500],
-                    database: colors.purple[500],
-                    network: colors.warning[500],
-                    container: colors.info[500],
-                  };
-                  return (
-                    <Col span={4} key={item.type}>
-                      <Card
-                        size="small"
+                {resourceTypeDistribution.map((item) => (
+                  <Col span={4} key={item.type}>
+                    <Card
+                      size="small"
+                      style={{
+                        textAlign: 'center',
+                        borderRadius: 8,
+                        borderTop: `2px solid ${resourceTypeTokenColors[item.type] || colors.neutral[300]}`,
+                      }}
+                    >
+                      <div
                         style={{
-                          textAlign: 'center',
-                          borderRadius: 8,
-                          borderTop: `2px solid ${typeColorsMap[item.type] || colors.neutral[300]}`,
+                          fontSize: 24,
+                          color: resourceTypeTokenColors[item.type],
+                          marginBottom: spacing.sm,
                         }}
                       >
-                        <div
-                          style={{
-                            fontSize: 24,
-                            color: typeColorsMap[item.type],
-                            marginBottom: spacing.sm,
-                          }}
-                        >
-                          {typeIcons[item.type] || <HddOutlined />}
-                        </div>
-                        <Statistic
-                          title={item.type}
-                          value={item.count}
-                          valueStyle={{ fontSize: 20 }}
-                        />
-                        <Progress
-                          percent={item.percentage}
-                          size="small"
-                          strokeColor={typeColorsMap[item.type]}
-                          format={() => `${item.percentage}%`}
-                        />
-                      </Card>
-                    </Col>
-                  );
-                })}
+                        {resourceTypeIcons[item.type] || <HddOutlined />}
+                      </div>
+                      <Statistic
+                        title={item.type}
+                        value={item.count}
+                        valueStyle={{ fontSize: 20 }}
+                      />
+                      <Progress
+                        percent={item.percentage}
+                        size="small"
+                        strokeColor={resourceTypeTokenColors[item.type]}
+                        format={() => `${item.percentage}%`}
+                      />
+                    </Card>
+                  </Col>
+                ))}
               </Row>
             </Card>
           </Col>
@@ -861,169 +656,35 @@ const MultiCloudPage: React.FC = () => {
         <Tabs items={tabItems} />
       </Card>
 
-      {/* Create Modal */}
-      <Modal
-        title="添加云账号"
+      <CreateAccountModal
         open={createModalOpen}
+        form={form}
         onCancel={() => setCreateModalOpen(false)}
-        onOk={() => form.submit()}
-        width={600}
-      >
-        <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item
-            label="账号名称"
-            name="name"
-            rules={[{ required: true, message: '请输入账号名称' }]}
-          >
-            <Input placeholder="如: AWS Production" />
-          </Form.Item>
-          <Form.Item
-            label="云厂商"
-            name="provider"
-            rules={[{ required: true, message: '请选择云厂商' }]}
-          >
-            <Select
-              options={[
-                { value: 'aws', label: 'AWS' },
-                { value: 'azure', label: 'Azure' },
-                { value: 'gcp', label: 'Google Cloud' },
-                { value: 'alicloud', label: '阿里云' },
-                { value: 'tencent', label: '腾讯云' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item label="区域" name="region" rules={[{ required: true, message: '请输入区域' }]}>
-            <Input placeholder="如: us-east-1" />
-          </Form.Item>
-          <Form.Item label="凭证引用" name="credentials_ref">
-            <Input placeholder="如: IAM Role ARN 或 Service Account Path" />
-          </Form.Item>
-        </Form>
-      </Modal>
+        onFinish={handleCreate}
+      />
 
-      {/* Edit Modal */}
-      <Modal
-        title="编辑云账号"
+      <EditAccountModal
         open={editModalOpen}
+        form={editForm}
         onCancel={() => {
           setEditModalOpen(false);
           setEditingAccount(null);
           editForm.resetFields();
         }}
-        onOk={() => editForm.submit()}
-        width={600}
-      >
-        <Form form={editForm} layout="vertical" onFinish={handleEditSubmit}>
-          <Form.Item
-            label="账号名称"
-            name="name"
-            rules={[{ required: true, message: '请输入账号名称' }]}
-          >
-            <Input placeholder="如: AWS Production" />
-          </Form.Item>
-          <Form.Item
-            label="云厂商"
-            name="provider"
-            rules={[{ required: true, message: '请选择云厂商' }]}
-          >
-            <Select
-              options={[
-                { value: 'aws', label: 'AWS' },
-                { value: 'azure', label: 'Azure' },
-                { value: 'gcp', label: 'Google Cloud' },
-                { value: 'alicloud', label: '阿里云' },
-                { value: 'tencent', label: '腾讯云' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item label="区域" name="region" rules={[{ required: true, message: '请输入区域' }]}>
-            <Input placeholder="如: us-east-1" />
-          </Form.Item>
-        </Form>
-      </Modal>
+        onFinish={handleEditSubmit}
+      />
 
-      {/* Cost Comparison Modal */}
-      <Modal
-        title="跨云成本对比"
+      <CostComparisonModal
         open={costModalOpen}
+        form={costForm}
+        comparison={costComparison}
+        loading={costLoading}
         onCancel={() => {
           setCostModalOpen(false);
           setCostComparison([]);
         }}
-        footer={null}
-        width={700}
-      >
-        <Form
-          form={costForm}
-          layout="inline"
-          onFinish={handleCostCompare}
-          style={{ marginBottom: spacing.md }}
-        >
-          <Form.Item label="VM 数量" name="vm_count" initialValue={1}>
-            <Input type="number" style={{ width: 80 }} />
-          </Form.Item>
-          <Form.Item label="VM 类型" name="vm_type" initialValue="medium">
-            <Select
-              style={{ width: 100 }}
-              options={[
-                { value: 'small', label: 'Small' },
-                { value: 'medium', label: 'Medium' },
-                { value: 'large', label: 'Large' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item label="存储(GB)" name="storage_gb" initialValue={100}>
-            <Input type="number" style={{ width: 80 }} />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" loading={costLoading}>
-              对比
-            </Button>
-          </Form.Item>
-        </Form>
-
-        {costComparison.length > 0 && (
-          <Table
-            dataSource={costComparison}
-            rowKey="provider"
-            pagination={false}
-            size="small"
-            columns={[
-              {
-                title: '云厂商',
-                dataIndex: 'provider',
-                render: (v: string) => (
-                  <Tag color={providerTypeColor[v]}>{providerLabelMap[v] || v}</Tag>
-                ),
-              },
-              {
-                title: '计算费用',
-                dataIndex: ['breakdown', 'compute'],
-                render: (v: number) => `$${v?.toFixed(2) ?? 0}`,
-              },
-              {
-                title: '存储费用',
-                dataIndex: ['breakdown', 'storage'],
-                render: (v: number) => `$${v?.toFixed(2) ?? 0}`,
-              },
-              {
-                title: '带宽费用',
-                dataIndex: ['breakdown', 'bandwidth'],
-                render: (v: number) => `$${v?.toFixed(2) ?? 0}`,
-              },
-              {
-                title: '月度总费用',
-                dataIndex: 'estimatedMonthlyCost',
-                render: (v: number) => (
-                  <Text strong style={{ color: colors.primary[500] }}>
-                    ${v?.toFixed(2)}
-                  </Text>
-                ),
-              },
-            ]}
-          />
-        )}
-      </Modal>
+        onFinish={handleCostCompare}
+      />
     </div>
   );
 };

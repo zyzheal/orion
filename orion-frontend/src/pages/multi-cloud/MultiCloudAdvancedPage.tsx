@@ -8,7 +8,6 @@ import {
   type CloudAccount,
   type CloudResource,
   type ComplianceReport,
-  type ComplianceCheckResult,
   type SchedulingPolicy,
   type SchedulingDecision,
 } from '@/api/multi-cloud';
@@ -16,7 +15,6 @@ import {
   Card,
   Table,
   Button,
-  Modal,
   Form,
   Select,
   Input,
@@ -27,7 +25,6 @@ import {
   Row,
   Col,
   Tabs,
-  Badge as AntBadge,
   Descriptions,
   Timeline,
   Collapse,
@@ -47,10 +44,23 @@ import {
   ScheduleOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  WarningOutlined,
-  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { colors, spacing, themeVars } from '@/tokens';
+import {
+  buildAccountColumns,
+  buildResourceColumns,
+  buildComplianceColumns,
+  buildScheduleAlternativeColumns,
+} from './MultiCloudAdvancedColumns';
+import {
+  RegisterCloudAccountModal,
+  CreateDrPlanModal,
+} from './MultiCloudAdvancedModals';
+import {
+  COMPLIANCE_CATEGORY_OPTIONS,
+  SCHEDULING_RESOURCE_TYPE_OPTIONS,
+  SCHEDULING_PROVIDER_OPTIONS,
+} from './MultiCloudAdvancedConfig';
 
 const { Panel } = Collapse;
 const { Title, Text } = Typography;
@@ -156,171 +166,9 @@ const MultiCloudAdvancedPage: React.FC = () => {
     }
   };
 
-  const accountColumns = [
-    {
-      title: 'Name',
-      dataIndex: 'account_name',
-      key: 'account_name',
-      render: (v: string, r: any) => v || r.name || '-',
-    },
-    {
-      title: 'Provider',
-      key: 'provider',
-      render: (_: unknown, r: any) => {
-        const p = r.provider_id || r.credential_type || r.provider || 'unknown';
-        const colorMap: Record<string, string> = {
-          aws: 'orange',
-          azure: 'blue',
-          gcp: 'red',
-          alicloud: 'green',
-          aliyun: 'green',
-          tencent: 'cyan',
-        };
-        return <Tag color={colorMap[p] || 'default'}>{p.toUpperCase()}</Tag>;
-      },
-    },
-    { title: 'Region', dataIndex: 'region', key: 'region' },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => (
-        <AntBadge
-          status={status === 'active' ? 'success' : status === 'error' ? 'error' : 'default'}
-          text={status}
-        />
-      ),
-    },
-    {
-      title: 'Created',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      render: (d: string) => (d ? new Date(d).toLocaleString() : '-'),
-    },
-  ];
-
-  const resourceColumns = [
-    {
-      title: 'Name',
-      dataIndex: 'resource_name',
-      key: 'resource_name',
-      render: (v: string, r: any) => v || r.name || '-',
-    },
-    {
-      title: 'Type',
-      dataIndex: 'resource_type',
-      key: 'resource_type',
-      render: (t: string) => <Tag color="blue">{t}</Tag>,
-    },
-    { title: 'Region', dataIndex: 'region', key: 'region' },
-    {
-      title: 'Status',
-      dataIndex: 'state',
-      key: 'state',
-      render: (s: string) => (
-        <Tag color={s === 'running' || s === 'active' ? 'green' : 'default'}>{s}</Tag>
-      ),
-    },
-    {
-      title: 'Tags',
-      dataIndex: 'tags',
-      key: 'tags',
-      render: (tags: Record<string, string>) =>
-        tags
-          ? Object.entries(tags)
-              .slice(0, 3)
-              .map(([k, v]) => (
-                <Tag key={String(k)}>
-                  {k}={v}
-                </Tag>
-              ))
-          : '-',
-    },
-  ];
-
-  // Severity color map
-  const severityColorMap: Record<string, string> = {
-    critical: 'red',
-    high: 'orange',
-    medium: 'blue',
-    low: 'green',
-  };
-
-  const severityIconMap: Record<string, React.ReactNode> = {
-    critical: <CloseCircleOutlined style={{ color: colors.error[500] }} />,
-    high: <ExclamationCircleOutlined style={{ color: colors.warning[500] }} />,
-    medium: <WarningOutlined style={{ color: colors.info[500] }} />,
-    low: <CheckCircleOutlined style={{ color: colors.success[500] }} />,
-  };
-
-  const categoryLabelMap: Record<string, string> = {
-    security: '安全',
-    cost: '成本',
-    governance: '治理',
-    availability: '可用性',
-    'data-residency': '数据驻留',
-  };
-
-  // Compliance check results table columns
-  const complianceColumns = [
-    {
-      title: '状态',
-      key: 'status',
-      width: 60,
-      render: (_: unknown, record: ComplianceCheckResult) =>
-        record.passed ? (
-          <CheckCircleOutlined style={{ color: colors.success[500], fontSize: 18 }} />
-        ) : (
-          <CloseCircleOutlined style={{ color: colors.error[500], fontSize: 18 }} />
-        ),
-    },
-    {
-      title: '规则',
-      dataIndex: 'ruleName',
-      key: 'ruleName',
-      render: (v: string, record: ComplianceCheckResult) => (
-        <div>
-          <Text strong>{v}</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.ruleId}
-          </Text>
-        </div>
-      ),
-    },
-    {
-      title: '类别',
-      dataIndex: 'category',
-      key: 'category',
-      width: 80,
-      render: (v: string) => <Tag>{categoryLabelMap[v] || v}</Tag>,
-    },
-    {
-      title: '严重程度',
-      dataIndex: 'severity',
-      key: 'severity',
-      width: 100,
-      render: (v: string) => (
-        <Space>
-          {severityIconMap[v]}
-          <Tag color={severityColorMap[v]}>{v}</Tag>
-        </Space>
-      ),
-    },
-    {
-      title: '详情',
-      dataIndex: 'details',
-      key: 'details',
-      ellipsis: true,
-    },
-    {
-      title: '修复建议',
-      dataIndex: 'remediation',
-      key: 'remediation',
-      ellipsis: true,
-      render: (v: string) => v || '-',
-    },
-  ];
+  const accountColumns = buildAccountColumns();
+  const resourceColumns = buildResourceColumns();
+  const complianceColumns = buildComplianceColumns();
 
   return (
     <div style={{ padding: spacing.lg, background: themeVars.bgSecondary, minHeight: '100vh' }}>
@@ -429,13 +277,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
                       style={{ width: 140 }}
                       allowClear
                       onChange={(value) => value && handleRunComplianceCheck([value])}
-                      options={[
-                        { value: 'security', label: '安全' },
-                        { value: 'cost', label: '成本' },
-                        { value: 'governance', label: '治理' },
-                        { value: 'availability', label: '可用性' },
-                        { value: 'data-residency', label: '数据驻留' },
-                      ]}
+                      options={COMPLIANCE_CATEGORY_OPTIONS}
                     />
                   </Space>
                 }
@@ -491,11 +333,13 @@ const MultiCloudAdvancedPage: React.FC = () => {
                       <Col span={6}>
                         <Card
                           size="small"
-                          style={{
-                            textAlign: 'center',
-                            borderRadius: 8,
-                            borderTop: `2px solid ${colors.error[500]}`,
-                          }}
+                          style={
+                            {
+                              textAlign: 'center',
+                              borderRadius: 8,
+                              borderTop: `2px solid ${colors.error[500]}`,
+                            } as React.CSSProperties
+                          }
                         >
                           <Statistic
                             title="未通过"
@@ -553,15 +397,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
                   >
                     <Form layout="vertical" onFinish={handleScheduleResource}>
                       <Form.Item label="资源类型" name="resourceType" rules={[{ required: true }]}>
-                        <Select
-                          options={[
-                            { value: 'compute', label: '计算资源' },
-                            { value: 'storage', label: '存储资源' },
-                            { value: 'database', label: '数据库' },
-                            { value: 'container', label: '容器服务' },
-                            { value: 'network', label: '网络资源' },
-                          ]}
-                        />
+                        <Select options={SCHEDULING_RESOURCE_TYPE_OPTIONS} />
                       </Form.Item>
                       <Row gutter={16}>
                         <Col span={8}>
@@ -596,12 +432,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
                             <Select
                               placeholder="不限"
                               allowClear
-                              options={[
-                                { value: 'aws', label: 'AWS' },
-                                { value: 'azure', label: 'Azure' },
-                                { value: 'gcp', label: 'GCP' },
-                                { value: 'alicloud', label: '阿里云' },
-                              ]}
+                              options={SCHEDULING_PROVIDER_OPTIONS}
                             />
                           </Form.Item>
                         </Col>
@@ -658,19 +489,7 @@ const MultiCloudAdvancedPage: React.FC = () => {
                               size="small"
                               pagination={false}
                               style={{ marginTop: spacing.sm }}
-                              columns={[
-                                {
-                                  title: '厂商',
-                                  dataIndex: 'provider',
-                                  render: (v: string) => <Tag>{v.toUpperCase()}</Tag>,
-                                },
-                                { title: '区域', dataIndex: 'region' },
-                                {
-                                  title: '预估费用',
-                                  dataIndex: 'cost',
-                                  render: (v: number) => `$${v.toFixed(2)}`,
-                                },
-                              ]}
+                              columns={buildScheduleAlternativeColumns()}
                             />
                           </div>
                         )}
@@ -978,64 +797,15 @@ const MultiCloudAdvancedPage: React.FC = () => {
       />
 
       {/* Register Cloud Account Modal */}
-      <Modal
-        title="Register Cloud Account"
+      <RegisterCloudAccountModal
         open={accountModal}
+        form={form}
         onCancel={() => setAccountModal(false)}
-        onOk={() => form.submit()}
-      >
-        <Form form={form} layout="vertical" onFinish={handleRegisterAccount}>
-          <Form.Item label="Provider" name="provider" rules={[{ required: true }]}>
-            <Select
-              options={[
-                { value: 'aws', label: 'AWS' },
-                { value: 'azure', label: 'Azure' },
-                { value: 'gcp', label: 'GCP' },
-                { value: 'alicloud', label: '阿里云' },
-                { value: 'tencent', label: '腾讯云' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item label="Account Name" name="name" rules={[{ required: true }]}>
-            <Input placeholder="aws-production" />
-          </Form.Item>
-          <Form.Item label="Region" name="region" rules={[{ required: true }]}>
-            <Input placeholder="us-east-1" />
-          </Form.Item>
-          <Form.Item label="Access Key ID" name={['credentials', 'accessKeyId']}>
-            <Input.Password />
-          </Form.Item>
-          <Form.Item label="Secret Access Key" name={['credentials', 'secretAccessKey']}>
-            <Input.Password />
-          </Form.Item>
-        </Form>
-      </Modal>
+        onSubmit={handleRegisterAccount}
+      />
 
       {/* Create DR Plan Modal */}
-      <Modal
-        title="Create DR Plan"
-        open={drModal}
-        onCancel={() => setDrModal(false)}
-        onOk={() => form.submit()}
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item label="Plan Name" name="name" rules={[{ required: true }]}>
-            <Input placeholder="primary-dr-plan" />
-          </Form.Item>
-          <Form.Item label="Primary Region" name="primary_region" rules={[{ required: true }]}>
-            <Input placeholder="us-east-1" />
-          </Form.Item>
-          <Form.Item label="Failover Region" name="failover_region" rules={[{ required: true }]}>
-            <Input placeholder="ap-northeast-1" />
-          </Form.Item>
-          <Form.Item label="RPO Target (minutes)" name="rpo_target">
-            <Input type="number" defaultValue={10} />
-          </Form.Item>
-          <Form.Item label="RTO Target (minutes)" name="rto_target">
-            <Input type="number" defaultValue={30} />
-          </Form.Item>
-        </Form>
-      </Modal>
+      <CreateDrPlanModal open={drModal} form={form} onCancel={() => setDrModal(false)} />
     </div>
   );
 };

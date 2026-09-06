@@ -131,10 +131,10 @@ export const SpanDetailPopover: React.FC<{ span: import('@/api/trace').Span }> =
       {hasEvents && (
         <div style={{ marginTop: 8 }}>
           <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
-            Events ({span.events.length})
+            Events ({span.events!.length})
           </Text>
           <div style={{ maxHeight: 80, overflow: 'auto', fontSize: 11 }}>
-            {span.events.map((ev, i) => (
+            {span.events!.map((ev, i) => (
               <div
                 key={String(i)}
                 style={{

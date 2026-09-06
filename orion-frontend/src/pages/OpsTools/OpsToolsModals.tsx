@@ -221,7 +221,7 @@ export const OpsToolsModals: React.FC<OpsToolsModalsProps> = (props) => (
             <InputNumber min={0} max={20} style={{ width: '100%' }} defaultValue={6} />
           </Form.Item>
           <Form.Item name="mode" label="模式">
-            <Select options={THEME_MODE_OPTIONS} defaultValue="light" />
+            <Select options={[THEME_MODE_OPTIONS].slice()} defaultValue="light" />
           </Form.Item>
         </Form>
       </Modal>

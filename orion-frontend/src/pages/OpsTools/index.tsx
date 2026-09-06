@@ -1010,7 +1010,7 @@ const OpsTools: React.FC = () => {
           allowClear
           value={logLevel}
           onChange={setLogLevel}
-          options={LOG_LEVEL_OPTIONS}
+          options={[LOG_LEVEL_OPTIONS].slice()}
         />
         <Text style={{ marginLeft: 16 }}>服务:</Text>
         <Select
@@ -1019,7 +1019,7 @@ const OpsTools: React.FC = () => {
           allowClear
           value={logService}
           onChange={setLogService}
-          options={LOG_SERVICE_OPTIONS}
+          options={[LOG_SERVICE_OPTIONS].slice()}
         />
       </Space>
       <Table

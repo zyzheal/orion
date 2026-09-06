@@ -5,39 +5,21 @@
 import React, { useState, useEffect } from 'react';
 import {
   Typography,
-  Card,
-  Row,
-  Col,
-  Table,
-  Tag,
-  Space,
   Button,
-  Statistic,
-  Modal,
-  Form,
-  Input,
-  Select,
-  Switch,
-  message,
-  Drawer,
-  Descriptions,
+  Space,
   Tabs,
-  Alert,
-  List,
-  Empty,
+  Form,
+  message,
+  Modal,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
   ReloadOutlined,
   PlusOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
   FileTextOutlined,
   CloudSyncOutlined,
   DiffOutlined,
   ScanOutlined,
-  RocketOutlined,
-  ArrowRightOutlined,
 } from '@ant-design/icons';
 import {
   getConfigs,
@@ -59,70 +41,13 @@ import {
 } from '@/api/config';
 import { PermissionGuard } from '@/components/PermissionGuard';
 import { buildConfigColumns } from './columns';
-import {
-  ENVIRONMENTS,
-  ENVIRONMENT_OPTIONS,
-  CATEGORY_OPTIONS,
-  VERSION_OPTIONS,
-  STATUS_COLOR_MAP,
-  STATUS_LABEL_MAP,
-  CHANGE_COLOR_MAP,
-  CHANGE_LABEL_MAP,
-  buildConfigSelectOptions,
-} from './config';
+import { buildConfigSelectOptions } from './config';
+import { ConfigCreateModal, ConfigDetailDrawer } from './ConfigModals';
+import { OverviewTab } from './OverviewTab';
+import { DiffTab, type DiffReportData } from './DiffTab';
+import { DriftTab } from './DriftTab';
 
-const { Title, Text, Paragraph } = Typography;
-const { TextArea } = Input;
-
-/** 格式化配置变更展示 */
-const renderChangeItem = (change: {
-  path: string;
-  operation: 'add' | 'remove' | 'update';
-  oldValue?: unknown;
-  newValue?: unknown;
-}) => {
-  return (
-    <div
-      key={change.path}
-      style={{
-        padding: '8px 12px',
-        marginBottom: spacing.sm,
-        borderRadius: 4,
-        background: colors.neutral[50],
-        borderLeft: `3px solid ${CHANGE_COLOR_MAP[change.operation] || colors.neutral[400]}`,
-      }}
-    >
-      <Space style={{ marginBottom: 4 }}>
-        <Tag color={CHANGE_COLOR_MAP[change.operation]}>{CHANGE_LABEL_MAP[change.operation]}</Tag>
-        <Text strong>{change.path}</Text>
-      </Space>
-      {change.oldValue !== undefined && change.operation !== 'add' && (
-        <div style={{ marginBottom: 4 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            旧值:{' '}
-          </Text>
-          <Text delete style={{ fontSize: 12, color: colors.error[500] }}>
-            {typeof change.oldValue === 'string'
-              ? change.oldValue
-              : JSON.stringify(change.oldValue)}
-          </Text>
-        </div>
-      )}
-      {change.newValue !== undefined && change.operation !== 'remove' && (
-        <div>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            新值:{' '}
-          </Text>
-          <Text style={{ fontSize: 12, color: colors.success[600] }}>
-            {typeof change.newValue === 'string'
-              ? change.newValue
-              : JSON.stringify(change.newValue)}
-          </Text>
-        </div>
-      )}
-    </div>
-  );
-};
+const { Title, Text } = Typography;
 
 const ConfigManagementPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -147,20 +72,7 @@ const ConfigManagementPage: React.FC = () => {
   const [versionDiffLoading, setVersionDiffLoading] = useState(false);
   const [versionDiffResult, setVersionDiffResult] = useState<ConfigDiff | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
-  const [diffReport, setDiffReport] = useState<{
-    totalConfigs: number;
-    totalDifferences: number;
-    items: {
-      key: string;
-      environment: string;
-      changes: {
-        path: string;
-        operation: string;
-        oldValue?: unknown;
-        newValue?: unknown;
-      }[];
-    }[];
-  } | null>(null);
+  const [diffReport, setDiffReport] = useState<DiffReportData | null>(null);
 
   // === Drift Detection state ===
   const [driftLoading, setDriftLoading] = useState(false);
@@ -402,107 +314,12 @@ const ConfigManagementPage: React.FC = () => {
         </Space>
       ),
       children: (
-        <>
-          <Row gutter={16} style={{ marginBottom: spacing.lg }}>
-            <Col span={4}>
-              <Card>
-                <Statistic title="配置总数" value={configs.length} />
-              </Card>
-            </Col>
-            <Col span={4}>
-              <Card>
-                <Statistic
-                  title="已激活"
-                  value={configs.filter((c) => c.status === 'active').length}
-                  valueStyle={{ color: colors.success[500] }}
-                />
-              </Card>
-            </Col>
-            <Col span={4}>
-              <Card>
-                <Statistic
-                  title="待审批"
-                  value={configs.filter((c) => c.status === 'pending_approval').length}
-                  valueStyle={{ color: colors.warning[500] }}
-                />
-              </Card>
-            </Col>
-            <Col span={4}>
-              <Card>
-                <Statistic
-                  title="草稿"
-                  value={configs.filter((c) => c.status === 'draft').length}
-                  valueStyle={{ color: colors.neutral[400] }}
-                />
-              </Card>
-            </Col>
-            <Col span={4}>
-              <Card>
-                <Statistic
-                  title="敏感配置"
-                  value={configs.filter((c) => c.sensitive).length}
-                  valueStyle={{ color: colors.error[500] }}
-                />
-              </Card>
-            </Col>
-            <Col span={4}>
-              <Card>
-                <Statistic
-                  title="GitOps 状态"
-                  value={gitOpsConfig?.syncStatus === 'success' ? 1 : 0}
-                  valueStyle={{
-                    color:
-                      gitOpsConfig?.syncStatus === 'success'
-                        ? colors.success[500]
-                        : colors.error[500],
-                  }}
-                  prefix={
-                    gitOpsConfig?.syncStatus === 'success' ? (
-                      <CheckCircleOutlined />
-                    ) : (
-                      <CloseCircleOutlined />
-                    )
-                  }
-                />
-              </Card>
-            </Col>
-          </Row>
-
-          <Card title="GitOps 同步状态" style={{ marginBottom: spacing.lg }}>
-            <Row gutter={16}>
-              <Col span={6}>
-                <Text type="secondary">状态:</Text>{' '}
-                <Tag color={gitOpsConfig?.syncStatus === 'success' ? 'green' : 'default'}>
-                  {gitOpsConfig?.syncStatus || 'idle'}
-                </Tag>
-              </Col>
-              <Col span={6}>
-                <Text type="secondary">仓库:</Text>{' '}
-                <Text code>{gitOpsConfig?.repository || '未配置'}</Text>
-              </Col>
-              <Col span={6}>
-                <Text type="secondary">分支:</Text>{' '}
-                <Text code>{gitOpsConfig?.branch || 'main'}</Text>
-              </Col>
-              <Col span={6}>
-                <Text type="secondary">最后同步:</Text>{' '}
-                {gitOpsConfig?.lastSyncAt
-                  ? new Date(gitOpsConfig.lastSyncAt).toLocaleString()
-                  : '从未'}
-              </Col>
-            </Row>
-          </Card>
-
-          <Card title="配置列表">
-            <Table
-              columns={columns}
-              dataSource={configs}
-              loading={loading}
-              pagination={{ pageSize: 10 }}
-              rowKey="id"
-            />
-          </Card>
-        </>
+        <OverviewTab
+          configs={configs}
+          gitOpsConfig={gitOpsConfig}
+          loading={loading}
+          columns={columns}
+        />
       ),
     },
     {
@@ -514,291 +331,28 @@ const ConfigManagementPage: React.FC = () => {
         </Space>
       ),
       children: (
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          <Card
-            title="环境差异对比"
-            extra={
-              <Button
-                type="primary"
-                icon={<DiffOutlined />}
-                onClick={handleEnvCompare}
-                loading={envDiffLoading}
-              >
-                对比
-              </Button>
-            }
-          >
-            <Row gutter={24} align="middle">
-              <Col span={6}>
-                <Text strong>源环境:</Text>
-                <Select
-                  value={sourceEnv}
-                  onChange={setSourceEnv}
-                  style={{ width: '100%', marginTop: spacing.sm }}
-                  options={ENVIRONMENTS.map((e) => ({ label: e, value: e }))}
-                />
-              </Col>
-              <Col span={2} style={{ textAlign: 'center' }}>
-                <ArrowRightOutlined style={{ fontSize: 20, color: colors.primary[500] }} />
-              </Col>
-              <Col span={6}>
-                <Text strong>目标环境:</Text>
-                <Select
-                  value={targetEnv}
-                  onChange={setTargetEnv}
-                  style={{ width: '100%', marginTop: spacing.sm }}
-                  options={ENVIRONMENTS.map((e) => ({ label: e, value: e }))}
-                />
-              </Col>
-            </Row>
-
-            {envDiffResult && (
-              <div style={{ marginTop: spacing.md }}>
-                <Row gutter={16} style={{ marginBottom: spacing.md }}>
-                  <Col span={6}>
-                    <Statistic
-                      title="配置总数"
-                      value={envDiffResult.totalConfigs}
-                      valueStyle={{ fontSize: 20 }}
-                    />
-                  </Col>
-                  <Col span={6}>
-                    <Statistic
-                      title="完全一致"
-                      value={envDiffResult.identical}
-                      valueStyle={{ color: colors.success[500], fontSize: 20 }}
-                    />
-                  </Col>
-                  <Col span={6}>
-                    <Statistic
-                      title="有差异"
-                      value={envDiffResult.differences.length}
-                      valueStyle={{ color: colors.warning[500], fontSize: 20 }}
-                    />
-                  </Col>
-                  <Col span={6}>
-                    <Statistic
-                      title="仅在一侧"
-                      value={
-                        (envDiffResult.onlyInSource?.length || 0) +
-                        (envDiffResult.onlyInTarget?.length || 0)
-                      }
-                      valueStyle={{ color: colors.error[500], fontSize: 20 }}
-                    />
-                  </Col>
-                </Row>
-
-                {envDiffResult.differences.length > 0 && (
-                  <>
-                    <Text strong style={{ display: 'block', marginBottom: spacing.sm }}>
-                      差异详情 ({envDiffResult.differences.length} 项)
-                    </Text>
-                    {envDiffResult.differences.map((change) =>
-                      renderChangeItem(
-                        change as {
-                          path: string;
-                          operation: 'add' | 'remove' | 'update';
-                          oldValue?: unknown;
-                          newValue?: unknown;
-                        }
-                      )
-                    )}
-                  </>
-                )}
-
-                {(envDiffResult.onlyInSource?.length > 0 ||
-                  envDiffResult.onlyInTarget?.length > 0) && (
-                  <>
-                    <Text
-                      strong
-                      style={{ display: 'block', marginTop: spacing.md, marginBottom: spacing.sm }}
-                    >
-                      仅存在于一侧的配置项
-                    </Text>
-                    {envDiffResult.onlyInSource?.map((key) => (
-                      <Tag
-                        key={`src-${key}`}
-                        color={colors.warning[100]}
-                        style={{ marginBottom: 4 }}
-                      >
-                        仅在 {sourceEnv}: {key}
-                      </Tag>
-                    ))}
-                    {envDiffResult.onlyInTarget?.map((key) => (
-                      <Tag key={`tgt-${key}`} color={colors.info[100]} style={{ marginBottom: 4 }}>
-                        仅在 {targetEnv}: {key}
-                      </Tag>
-                    ))}
-                  </>
-                )}
-
-                {envDiffResult.differences.length === 0 &&
-                  (envDiffResult.onlyInSource?.length || 0) +
-                    (envDiffResult.onlyInTarget?.length || 0) ===
-                      0 && (
-                    <Alert
-                      message="两个环境的配置完全一致"
-                      type="success"
-                      showIcon
-                      style={{ marginTop: spacing.sm }}
-                    />
-                  )}
-              </div>
-            )}
-
-            {!envDiffResult && (
-              <Empty description="请选择环境并点击对比" style={{ marginTop: spacing.md }} />
-            )}
-          </Card>
-
-          <Card
-            title="版本差异对比"
-            extra={
-              <Button
-                type="primary"
-                icon={<DiffOutlined />}
-                onClick={handleVersionCompare}
-                loading={versionDiffLoading}
-              >
-                对比
-              </Button>
-            }
-          >
-            <Row gutter={16} align="middle">
-              <Col span={8}>
-                <Text strong>配置项:</Text>
-                <Select
-                  value={versionDiffConfigId || undefined}
-                  onChange={setVersionDiffConfigId}
-                  style={{ width: '100%', marginTop: spacing.sm }}
-                  options={configSelectOptions}
-                  placeholder="选择配置项"
-                  showSearch
-                  filterOption={(input, option) =>
-                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                  }
-                />
-              </Col>
-              <Col span={4}>
-                <Text strong>版本 A:</Text>
-                <Select
-                  value={versionA}
-                  onChange={setVersionA}
-                  style={{ width: '100%', marginTop: spacing.sm }}
-                  options={VERSION_OPTIONS}
-                />
-              </Col>
-              <Col span={4}>
-                <Text strong>版本 B:</Text>
-                <Select
-                  value={versionB}
-                  onChange={setVersionB}
-                  style={{ width: '100%', marginTop: spacing.sm }}
-                  options={VERSION_OPTIONS}
-                />
-              </Col>
-            </Row>
-
-            {versionDiffResult &&
-              versionDiffResult.changes &&
-              versionDiffResult.changes.length > 0 && (
-                <div style={{ marginTop: spacing.md }}>
-                  <Text strong style={{ display: 'block', marginBottom: spacing.sm }}>
-                    变更项 ({versionDiffResult.changes.length} 项)
-                  </Text>
-                  {versionDiffResult.changes.map((change) => renderChangeItem(change))}
-                </div>
-              )}
-            {versionDiffResult &&
-              (!versionDiffResult.changes || versionDiffResult.changes.length === 0) && (
-                <Alert
-                  message="两个版本的配置完全一致"
-                  type="success"
-                  showIcon
-                  style={{ marginTop: spacing.md }}
-                />
-              )}
-            {!versionDiffResult && (
-              <Empty description="请选择配置项和版本并点击对比" style={{ marginTop: spacing.md }} />
-            )}
-          </Card>
-
-          <Card
-            title="综合差异报告"
-            extra={
-              <Button
-                type="primary"
-                icon={<RocketOutlined />}
-                onClick={handleGenerateReport}
-                loading={reportLoading}
-              >
-                生成报告
-              </Button>
-            }
-          >
-            {diffReport && (
-              <>
-                <Row gutter={16} style={{ marginBottom: spacing.md }}>
-                  <Col span={8}>
-                    <Statistic
-                      title="配置总数"
-                      value={diffReport.totalConfigs}
-                      valueStyle={{ fontSize: 20 }}
-                    />
-                  </Col>
-                  <Col span={8}>
-                    <Statistic
-                      title="差异总数"
-                      value={diffReport.totalDifferences}
-                      valueStyle={{
-                        color:
-                          diffReport.totalDifferences > 0
-                            ? colors.warning[500]
-                            : colors.success[500],
-                        fontSize: 20,
-                      }}
-                    />
-                  </Col>
-                </Row>
-
-                {diffReport.items.length > 0 ? (
-                  <List
-                    bordered
-                    dataSource={diffReport.items}
-                    renderItem={(item) => (
-                      <List.Item>
-                        <List.Item.Meta
-                          title={
-                            <Space>
-                              <FileTextOutlined />
-                              <Text strong>{item.key}</Text>
-                              <Tag color="blue">{item.environment}</Tag>
-                            </Space>
-                          }
-                          description={
-                            <Space wrap>
-                              {item.changes.map((c, idx) => (
-                                <Tag
-                                  key={String(idx)}
-                                  color={CHANGE_COLOR_MAP[c.operation] || 'default'}
-                                >
-                                  {c.path} ({c.operation})
-                                </Tag>
-                              ))}
-                            </Space>
-                          }
-                        />
-                      </List.Item>
-                    )}
-                  />
-                ) : (
-                  <Alert message="所有环境配置完全一致" type="success" showIcon />
-                )}
-              </>
-            )}
-            {!diffReport && <Empty description="点击生成报告查看综合差异" />}
-          </Card>
-        </Space>
+        <DiffTab
+          sourceEnv={sourceEnv}
+          targetEnv={targetEnv}
+          onSourceEnvChange={setSourceEnv}
+          onTargetEnvChange={setTargetEnv}
+          envDiffLoading={envDiffLoading}
+          envDiffResult={envDiffResult}
+          onEnvCompare={handleEnvCompare}
+          versionDiffConfigId={versionDiffConfigId}
+          versionA={versionA}
+          versionB={versionB}
+          onVersionDiffConfigIdChange={setVersionDiffConfigId}
+          onVersionAChange={setVersionA}
+          onVersionBChange={setVersionB}
+          versionDiffLoading={versionDiffLoading}
+          versionDiffResult={versionDiffResult}
+          onVersionCompare={handleVersionCompare}
+          configSelectOptions={configSelectOptions}
+          reportLoading={reportLoading}
+          diffReport={diffReport}
+          onGenerateReport={handleGenerateReport}
+        />
       ),
     },
     {
@@ -810,106 +364,20 @@ const ConfigManagementPage: React.FC = () => {
         </Space>
       ),
       children: (
-        <Card
-          title="配置漂移检测"
-          extra={
-            <Button
-              type="primary"
-              icon={<ScanOutlined />}
-              onClick={handleDriftDetect}
-              loading={driftLoading}
-            >
-              检测漂移
-            </Button>
-          }
-        >
-          <Paragraph type="secondary">
-            检测当前环境与 Git 仓库之间的配置差异，识别配置漂移。 漂移指本地配置与 Git
-            中定义的配置不一致的情况。
-          </Paragraph>
-
-          {driftResult && (
-            <>
-              <Alert
-                message={
-                  driftResult.driftDetected
-                    ? `检测到 ${driftResult.itemCount} 处配置漂移`
-                    : '未检测到配置漂移'
-                }
-                type={driftResult.driftDetected ? 'warning' : 'success'}
-                showIcon
-                style={{ marginBottom: spacing.md }}
-              />
-
-              {driftResult.driftDetected && driftResult.items && driftResult.items.length > 0 && (
-                <List
-                  bordered
-                  dataSource={driftResult.items}
-                  renderItem={(item: any) => (
-                    <List.Item>
-                      <List.Item.Meta
-                        title={
-                          <Space>
-                            <FileTextOutlined />
-                            <Text strong>{item.key}</Text>
-                            <Tag color="blue">{item.environment}</Tag>
-                          </Space>
-                        }
-                        description={
-                          <div>
-                            <Paragraph
-                              style={{
-                                background: colors.error[50],
-                                padding: '4px 8px',
-                                borderRadius: 4,
-                                marginBottom: 4,
-                              }}
-                            >
-                              <Text type="secondary">当前值: </Text>
-                              <Text delete style={{ fontSize: 12 }}>
-                                {typeof item.localValue === 'string'
-                                  ? item.localValue
-                                  : JSON.stringify(item.localValue)}
-                              </Text>
-                            </Paragraph>
-                            <Paragraph
-                              style={{
-                                background: colors.success[50],
-                                padding: '4px 8px',
-                                borderRadius: 4,
-                              }}
-                            >
-                              <Text type="secondary">期望值: </Text>
-                              <Text style={{ fontSize: 12, color: colors.success[600] }}>
-                                {typeof item.remoteValue === 'string'
-                                  ? item.remoteValue
-                                  : JSON.stringify(item.remoteValue)}
-                              </Text>
-                            </Paragraph>
-                          </div>
-                        }
-                      />
-                    </List.Item>
-                  )}
-                />
-              )}
-
-              {!driftResult.driftDetected && (
-                <Empty
-                  image={
-                    <CheckCircleOutlined style={{ fontSize: 64, color: colors.success[500] }} />
-                  }
-                  description="当前环境与 Git 仓库配置完全一致"
-                />
-              )}
-            </>
-          )}
-
-          {!driftResult && <Empty description="点击检测漂移按钮开始扫描" />}
-        </Card>
+        <DriftTab
+          driftLoading={driftLoading}
+          driftResult={driftResult}
+          onDriftDetect={handleDriftDetect}
+        />
       ),
     },
   ];
+
+  const handleModalClose = () => {
+    setCreateModalOpen(false);
+    setEditingConfig(null);
+    form.resetFields();
+  };
 
   return (
     <div style={{ padding: spacing.lg, background: colors.neutral[0], minHeight: '100vh' }}>
@@ -936,96 +404,21 @@ const ConfigManagementPage: React.FC = () => {
 
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="large" />
 
-      <Modal
-        title={editingConfig ? '编辑配置' : '新建配置'}
-        open={createModalOpen || !!editingConfig}
-        onCancel={() => {
-          setCreateModalOpen(false);
-          setEditingConfig(null);
-          form.resetFields();
-        }}
-        onOk={() => form.submit()}
-        confirmLoading={submitting}
-        okText={editingConfig ? '保存' : '创建'}
-        cancelText="取消"
-        width={600}
-      >
-        <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item label="配置键" name="key" rules={[{ required: true }]}>
-            <Input placeholder="例如：app.name" />
-          </Form.Item>
-          <Form.Item label="配置值" name="value" rules={[{ required: true }]}>
-            <TextArea placeholder='例如：{"key": "value"}' rows={3} />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="环境" name="environment" rules={[{ required: true }]}>
-                <Select options={ENVIRONMENT_OPTIONS} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="分类" name="category" rules={[{ required: true }]}>
-                <Select options={CATEGORY_OPTIONS} />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="敏感的配置" name="sensitive" valuePropName="checked">
-                <Switch />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item label="加密存储" name="encrypted" valuePropName="checked">
-                <Switch />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item label="描述" name="description">
-            <TextArea rows={2} />
-          </Form.Item>
-        </Form>
-      </Modal>
+      <ConfigCreateModal
+        open={createModalOpen}
+        editingConfig={editingConfig}
+        submitting={submitting}
+        form={form}
+        onCreate={handleCreate}
+        onCancel={handleModalClose}
+        onClose={handleModalClose}
+      />
 
-      <Drawer
-        title="配置详情"
-        placement="right"
-        width={700}
+      <ConfigDetailDrawer
         open={detailDrawerOpen}
+        selectedConfig={selectedConfig}
         onClose={() => setDetailDrawerOpen(false)}
-      >
-        {selectedConfig && (
-          <Descriptions column={1} bordered>
-            <Descriptions.Item label="ID">{selectedConfig.id}</Descriptions.Item>
-            <Descriptions.Item label="配置键">{selectedConfig.key}</Descriptions.Item>
-            <Descriptions.Item label="配置值">
-              <pre>{JSON.stringify(selectedConfig.value, null, 2)}</pre>
-            </Descriptions.Item>
-            <Descriptions.Item label="版本">{selectedConfig.version}</Descriptions.Item>
-            <Descriptions.Item label="环境">{selectedConfig.environment}</Descriptions.Item>
-            <Descriptions.Item label="分类">{selectedConfig.category}</Descriptions.Item>
-            <Descriptions.Item label="状态">
-              <Tag color={STATUS_COLOR_MAP[selectedConfig.status] || 'default'}>
-                {STATUS_LABEL_MAP[selectedConfig.status] || selectedConfig.status}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="敏感">
-              {selectedConfig.sensitive ? '是' : '否'}
-            </Descriptions.Item>
-            <Descriptions.Item label="加密">
-              {selectedConfig.encrypted ? '是' : '否'}
-            </Descriptions.Item>
-            <Descriptions.Item label="创建者">{selectedConfig.createdBy}</Descriptions.Item>
-            <Descriptions.Item label="创建时间">
-              {new Date(selectedConfig.createdAt).toLocaleString()}
-            </Descriptions.Item>
-            <Descriptions.Item label="更新者">{selectedConfig.updatedBy}</Descriptions.Item>
-            <Descriptions.Item label="更新时间">
-              {new Date(selectedConfig.updatedAt).toLocaleString()}
-            </Descriptions.Item>
-          </Descriptions>
-        )}
-      </Drawer>
+      />
     </div>
   );
 };

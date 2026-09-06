@@ -241,7 +241,7 @@ export const DeployModals: React.FC<DeployModalsProps> = (props) => (
         width={600}
         destroyOnClose
       >
-        <Form form={props.deployWindowForm} layout="vertical" onFinish={props.props.handleCreateDeployWindow}>
+        <Form form={props.deployWindowForm} layout="vertical" onFinish={props.handleCreateDeployWindow}>
           <Form.Item
             name="name"
             label="窗口名称"
@@ -335,7 +335,7 @@ export const DeployModals: React.FC<DeployModalsProps> = (props) => (
         <Form
           form={props.progressiveDeployForm}
           layout="vertical"
-          onFinish={props.props.handleCreateProgressiveDeploy}
+          onFinish={props.handleCreateProgressiveDeploy}
         >
           <Form.Item
             name="appName"
@@ -505,14 +505,14 @@ export const DeployModals: React.FC<DeployModalsProps> = (props) => (
                 <Button
                   type="primary"
                   icon={<RiseOutlined />}
-                  onClick={() => props.handleAdvanceStage(props.selectedProgressiveDeploy.id)}
+                  onClick={() => props.handleAdvanceStage(props.selectedProgressiveDeploy!.id)}
                 >
                   推进到下一阶段
                 </Button>
                 <Button
                   danger
                   icon={<RollbackOutlined />}
-                  onClick={() => props.handleRollbackProgressive(props.selectedProgressiveDeploy.id)}
+                  onClick={() => props.handleRollbackProgressive(props.selectedProgressiveDeploy!.id)}
                 >
                   回滚部署
                 </Button>
@@ -689,13 +689,13 @@ export const DeployModals: React.FC<DeployModalsProps> = (props) => (
                 )}
               </div>
 
-              {props.props.releaseNotesLoading && (
+              {props.releaseNotesLoading && (
                 <Card size="small">
                   <Text type="secondary">加载中...</Text>
                 </Card>
               )}
 
-              {!props.props.releaseNotesLoading && props.releaseNotes && (
+              {!props.releaseNotesLoading && props.releaseNotes && (
                 <Card size="small">
                   <Space direction="vertical" style={{ width: '100%' }} size="middle">
                     {/* Summary */}
@@ -812,7 +812,7 @@ export const DeployModals: React.FC<DeployModalsProps> = (props) => (
                 </Card>
               )}
 
-              {!props.props.releaseNotesLoading && !props.releaseNotes && (
+              {!props.releaseNotesLoading && !props.releaseNotes && (
                 <Alert
                   message="暂无版本说明"
                   description="点击上方按钮从 Git 提交历史自动生成版本说明"

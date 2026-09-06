@@ -47,7 +47,7 @@ export const STATUS_COLORS: Record<string, string> = {
 
 // ==================== Tab 配置 ====================
 
-export const tabConfig: TabsProps['items'] = [
+export const tabConfig: NonNullable<TabsProps['items']> = [
   {
     key: 'cron',
     label: (

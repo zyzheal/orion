@@ -296,7 +296,7 @@ export const ProcessStepModals: React.FC<ProcessStepModalsProps> = (props) => (
                                     }
                                     icon={props.actionIcon[action]}
                                     onClick={() =>
-                                      props.handleAdvanceStep(props.detailInstance.id, step.stepId, action)
+                                      props.handleAdvanceStep(props.detailInstance!.id, step.stepId, action)
                                     }
                                   >
                                     {props.actionLabel[action]}
@@ -395,7 +395,7 @@ export const ProcessStepModals: React.FC<ProcessStepModalsProps> = (props) => (
                   icon={<RocketOutlined />}
                   onClick={() => {
                     props.setDefDetailOpen(false);
-                    props.handleStartInstance(props.defDetail.id);
+                    props.handleStartInstance(props.defDetail!.id);
                   }}
                 >
                   启动实例
@@ -404,7 +404,7 @@ export const ProcessStepModals: React.FC<ProcessStepModalsProps> = (props) => (
                   icon={<EditOutlined />}
                   onClick={() => {
                     props.setDefDetailOpen(false);
-                    props.handleEditDef(props.defDetail);
+                    props.handleEditDef(props.defDetail!);
                   }}
                 >
                   编辑

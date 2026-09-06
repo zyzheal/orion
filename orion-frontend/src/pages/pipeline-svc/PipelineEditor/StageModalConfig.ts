@@ -1,8 +1,16 @@
 /**
  * StageModalConfig - StageModal 静态配置常量
  *
- * 包含阶段类型、质量门禁指标、构建平台、容器网络、APK 上传等所有静态选项。
+ * 包含阶段类型、质量门禁指标、构建平台、容器网络、APK 上传等所有静态选项，
+ * 以及 PR 触发/超时/审批/质量门禁各配置的默认初始值。
  */
+import type {
+  ApprovalConfig,
+  MatrixBuildConfig,
+  QualityGateConfig,
+  TimeoutConfig,
+} from './types';
+import type { PRTriggerConfig as PRTriggerConfigType } from '@/components/PRTriggerConfig';
 
 export const STAGE_TYPES: { label: string; value: string }[] = [
   { label: '🔨 构建 (Build)', value: 'build' },
@@ -70,3 +78,43 @@ export const OPERATOR_OPTIONS: { label: string; value: string }[] = [
   { label: '<=', value: '<=' },
   { label: '==', value: '==' },
 ];
+
+/** ============ 各配置区块的默认初始值 ============ */
+
+/** 矩阵构建默认配置 */
+export const DEFAULT_MATRIX_CONFIG: MatrixBuildConfig = {
+  enabled: false,
+  dimensions: [],
+  exclusions: [],
+};
+
+/** PR/MR 触发默认配置 */
+export const DEFAULT_PR_TRIGGER_CONFIG: Partial<PRTriggerConfigType> = {
+  enabled: false,
+  provider: 'github',
+  prActions: ['opened', 'synchronize'],
+};
+
+/** 超时策略默认配置 */
+export const DEFAULT_TIMEOUT_CONFIG: TimeoutConfig = {
+  enabled: false,
+  duration: 300,
+  action: 'fail',
+  retryCount: 1,
+};
+
+/** 审批默认配置 */
+export const DEFAULT_APPROVAL_CONFIG: ApprovalConfig = {
+  enabled: false,
+  approvers: [],
+  mode: 'any',
+  timeout: 24,
+  timeoutAction: 'reject',
+};
+
+/** 质量门禁默认配置 */
+export const DEFAULT_QUALITY_GATE_CONFIG: QualityGateConfig = {
+  enabled: false,
+  rules: [],
+  failureAction: 'block',
+};

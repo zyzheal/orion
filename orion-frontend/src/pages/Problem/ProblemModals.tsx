@@ -225,7 +225,7 @@ export const ProblemModals: React.FC<ProblemModalsProps> = (props) => (
         <Modal
           title="新建已知错误"
           open={props.kedbModalVisible}
-          onOk={props.props.handleCreateKnownError}
+          onOk={props.handleCreateKnownError}
           onCancel={() => {
             props.setKedbModalVisible(false);
             props.kedbForm.resetFields();
@@ -268,7 +268,7 @@ export const ProblemModals: React.FC<ProblemModalsProps> = (props) => (
         <Modal
           title="编辑已知错误"
           open={props.kedbEditModalVisible}
-          onOk={props.props.handleEditKnownError}
+          onOk={props.handleEditKnownError}
           onCancel={() => {
             props.setKedbEditModalVisible(false);
             props.kedbEditForm.resetFields();

@@ -26,6 +26,7 @@ import type {
   PlaygroundRequest,
 } from '@/api/developer-portal';
 import { documentTypeConfig, statusConfig, subscriptionStatusMap, sdkStatusMap } from './config';
+import { httpMethodColorMap } from './constants';
 
 const { Text } = Typography;
 
@@ -171,16 +172,7 @@ export function useMockColumns(props: MockColumnsProps): ColumnsType<MockRule> {
       dataIndex: 'method',
       key: 'method',
       width: 80,
-      render: (m: string) => {
-        const colorMap: Record<string, string> = {
-          GET: 'green',
-          POST: 'blue',
-          PUT: 'orange',
-          DELETE: 'red',
-          PATCH: 'purple',
-        };
-        return <Tag color={colorMap[m] || 'default'}>{m}</Tag>;
-      },
+      render: (m: string) => <Tag color={httpMethodColorMap[m] || 'default'}>{m}</Tag>,
     },
     {
       title: '路径',
@@ -487,16 +479,7 @@ export function usePgColumns(props: PgColumnsProps): ColumnsType<PlaygroundReque
       dataIndex: 'method',
       key: 'method',
       width: 80,
-      render: (m: string) => {
-        const colorMap: Record<string, string> = {
-          GET: 'green',
-          POST: 'blue',
-          PUT: 'orange',
-          DELETE: 'red',
-          PATCH: 'purple',
-        };
-        return <Tag color={colorMap[m] || 'default'}>{m}</Tag>;
-      },
+      render: (m: string) => <Tag color={httpMethodColorMap[m] || 'default'}>{m}</Tag>,
     },
     {
       title: 'URL',

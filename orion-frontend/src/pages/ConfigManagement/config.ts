@@ -31,7 +31,7 @@ export const CATEGORY_OPTIONS = [
 export const VERSION_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1).map((v) => ({
   label: `v${v}`,
   value: v,
-})) as const;
+}));
 
 /** 状态 → 标签颜色映射 */
 export const STATUS_COLOR_MAP: Record<string, string> = {

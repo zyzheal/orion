@@ -421,7 +421,7 @@ const ScriptTemplateTab: React.FC<{ onUseTemplate?: (tpl: ScriptTemplate) => voi
             <Input placeholder="模板用途描述" />
           </Form.Item>
           <Form.Item label="类别" name="category" initialValue="自定义">
-            <Select options={TEMPLATE_CATEGORY_OPTIONS} />
+            <Select options={[TEMPLATE_CATEGORY_OPTIONS].slice()} />
           </Form.Item>
           <Form.Item
             label="脚本内容"

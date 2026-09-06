@@ -218,7 +218,7 @@ export const UserManagementModals: React.FC<UserManagementModalsProps> = (props)
                 编辑
               </Button>
               {props.selectedUser && props.selectedUser.status === 'active' && (
-                <Popconfirm title="确认禁用?" onConfirm={() => props.handleDisable(props.selectedUser.id)}>
+                <Popconfirm title="确认禁用?" onConfirm={() => props.handleDisable(props.selectedUser!.id)}>
                   <Button danger icon={<LockOutlined />}>
                     禁用
                   </Button>
@@ -227,7 +227,7 @@ export const UserManagementModals: React.FC<UserManagementModalsProps> = (props)
               {props.selectedUser &&
                 props.selectedUser.status !== 'active' &&
                 props.selectedUser.status !== 'deleted' && (
-                  <Popconfirm title="确认启用?" onConfirm={() => props.handleEnable(props.selectedUser.id)}>
+                  <Popconfirm title="确认启用?" onConfirm={() => props.handleEnable(props.selectedUser!.id)}>
                     <Button icon={<UnlockOutlined />}>启用</Button>
                   </Popconfirm>
                 )}

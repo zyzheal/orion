@@ -333,7 +333,7 @@ export const AISecurityModals: React.FC<AISecurityModalsProps> = (props) => (
                   <Progress
                     percent={props.stats.complianceScore}
                     strokeColor={props.getComplianceColor(props.stats.complianceScore)}
-                    format={() => `${props.stats.complianceScore}%`}
+                    format={() => `${props.stats!.complianceScore}%`}
                   />
                 </div>
               )}

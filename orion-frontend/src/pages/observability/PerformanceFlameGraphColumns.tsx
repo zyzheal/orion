@@ -19,7 +19,8 @@ import {
   MIN_LABEL_WIDTH,
   truncateLabel,
 } from './PerformanceFlameGraphConfig';
-import type { FlameGraphFrame, RenderRow } from './PerformanceFlameGraphConfig';
+import type { RenderRow } from './PerformanceFlameGraphConfig';
+import type { FlameGraphFrame } from '@/api/flamegraph';
 import { colors } from '@/tokens/colors';
 import { radius } from '@/tokens';
 

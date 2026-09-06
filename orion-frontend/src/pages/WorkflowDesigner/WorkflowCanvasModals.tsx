@@ -40,7 +40,7 @@ interface WorkflowCanvasModalsProps {
   edgeModalOpen: boolean;
   setEdgeModalOpen: (v: boolean) => void;
   handleSaveEdge: () => void;
-  editingEdge: unknown | null;
+  editingEdge: object | null;
   edgeForm: FormInstance;
   handleDeleteEdge: () => void;
   addEdgeModalOpen: boolean;
@@ -184,7 +184,7 @@ export const WorkflowCanvasModals: React.FC<WorkflowCanvasModalsProps> = (props)
         <Form form={props.addEdgeForm} layout="vertical">
           <Form.Item label="源节点" name="source" rules={[{ required: true }]}>
             <Select
-              options={(props.workflow.nodes || []).map((n) => ({
+              options={(props.workflow!.nodes || []).map((n) => ({
                 label: `${nodeTypeLabels[n.type] || n.type} - ${n.name}`,
                 value: n.id,
               }))}
@@ -193,7 +193,7 @@ export const WorkflowCanvasModals: React.FC<WorkflowCanvasModalsProps> = (props)
           </Form.Item>
           <Form.Item label="目标节点" name="target" rules={[{ required: true }]}>
             <Select
-              options={(props.workflow.nodes || []).map((n) => ({
+              options={(props.workflow!.nodes || []).map((n) => ({
                 label: `${nodeTypeLabels[n.type] || n.type} - ${n.name}`,
                 value: n.id,
               }))}

@@ -3,7 +3,7 @@
  */
 import { Form, Input, Select, Row, Col, InputNumber } from 'antd';
 import { spacing } from '@/tokens';
-import { httpMethods } from './config';
+import { httpMethods } from './constants';
 
 interface MockFormProps {
   formInstance: ReturnType<typeof Form.useForm>[0];

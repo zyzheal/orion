@@ -4,7 +4,7 @@
 import { Form, Input, Select, Row, Col, InputNumber, Button } from 'antd';
 import { spacing } from '@/tokens';
 import { SendOutlined } from '@ant-design/icons';
-import { languageOptions, httpMethods } from './config';
+import { languageOptions, httpMethods, subscriptionPlanOptions, playgroundBodyTypes } from './constants';
 
 type FormInstance = ReturnType<typeof Form.useForm>[0];
 
@@ -51,13 +51,7 @@ export function CreateSubForm({ formInstance }: { formInstance: FormInstance }) 
       <Row gutter={spacing.md}>
         <Col span={12}>
           <Form.Item name="planName" label="套餐" initialValue="standard">
-            <Select
-              options={[
-                { value: 'free', label: '免费版' },
-                { value: 'standard', label: '标准版' },
-                { value: 'premium', label: '高级版' },
-              ]}
-            />
+            <Select options={subscriptionPlanOptions} />
           </Form.Item>
         </Col>
         <Col span={6}>

@@ -473,7 +473,7 @@ const SLAManagement: React.FC = () => {
                   style={{ width: 140 }}
                   value={defTypeFilter}
                   onChange={(v) => setDefTypeFilter(v)}
-                  options={TYPE_OPTIONS}
+                  options={[TYPE_OPTIONS].slice()}
                 />
                 <Select
                   placeholder="状态筛选"
@@ -481,7 +481,7 @@ const SLAManagement: React.FC = () => {
                   style={{ width: 120 }}
                   value={defStatusFilter}
                   onChange={(v) => setDefStatusFilter(v)}
-                  options={DEF_STATUS_OPTIONS}
+                  options={[DEF_STATUS_OPTIONS].slice()}
                 />
               </Space>
               <Button type="primary" icon={<PlusOutlined />} onClick={openCreateDefModal}>
@@ -522,7 +522,7 @@ const SLAManagement: React.FC = () => {
                   style={{ width: 130 }}
                   value={trackingStatusFilter}
                   onChange={(v) => setTrackingStatusFilter(v)}
-                  options={TRACKING_STATUS_OPTIONS}
+                  options={[TRACKING_STATUS_OPTIONS].slice()}
                 />
                 <Select
                   placeholder="实体类型"
@@ -530,7 +530,7 @@ const SLAManagement: React.FC = () => {
                   style={{ width: 120 }}
                   value={trackingEntityFilter}
                   onChange={(v) => setTrackingEntityFilter(v)}
-                  options={ENTITY_TYPE_OPTIONS}
+                  options={[ENTITY_TYPE_OPTIONS].slice()}
                 />
               </Space>
               <Button
@@ -683,7 +683,7 @@ const SLAManagement: React.FC = () => {
                   label="类型"
                   rules={[{ required: true, message: '请选择类型' }]}
                 >
-                  <Select placeholder="选择类型" options={TYPE_OPTIONS} />
+                  <Select placeholder="选择类型" options={[TYPE_OPTIONS].slice()} />
                 </Form.Item>
               </Col>
               <Col span={12}>
@@ -691,7 +691,7 @@ const SLAManagement: React.FC = () => {
                   <Select
                     placeholder="选择优先级"
                     allowClear
-                    options={PRIORITY_OPTIONS}
+                    options={[PRIORITY_OPTIONS].slice()}
                   />
                 </Form.Item>
               </Col>
@@ -712,7 +712,7 @@ const SLAManagement: React.FC = () => {
                   label="目标单位"
                   rules={[{ required: true, message: '请选择单位' }]}
                 >
-                  <Select placeholder="选择单位" options={TARGET_UNIT_OPTIONS} />
+                  <Select placeholder="选择单位" options={[TARGET_UNIT_OPTIONS].slice()} />
                 </Form.Item>
               </Col>
             </Row>
@@ -761,7 +761,7 @@ const SLAManagement: React.FC = () => {
             >
               <Select
                 placeholder="选择实体类型"
-                options={ENTITY_TYPE_OPTIONS}
+                options={[ENTITY_TYPE_OPTIONS].slice()}
               />
             </Form.Item>
             <Form.Item

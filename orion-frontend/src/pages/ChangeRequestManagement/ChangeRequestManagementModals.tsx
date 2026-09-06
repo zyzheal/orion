@@ -242,7 +242,7 @@ export const ChangeRequestManagementModals: React.FC<ChangeRequestManagementModa
                 <Button
                   size="small"
                   loading={props.riskLoading}
-                  onClick={() => props.fetchRisk(props.selectedRequest.id)}
+                  onClick={() => props.fetchRisk(props.selectedRequest!.id)}
                 >
                   {props.riskAnalysis ? '重新评估' : '开始评估'}
                 </Button>
@@ -336,7 +336,7 @@ export const ChangeRequestManagementModals: React.FC<ChangeRequestManagementModa
                     type="primary"
                     icon={<SendOutlined />}
                     onClick={() => {
-                      props.handleSubmitForApproval(props.selectedRequest.id);
+                      props.handleSubmitForApproval(props.selectedRequest!.id);
                       props.setDetailDrawerVisible(false);
                     }}
                   >
