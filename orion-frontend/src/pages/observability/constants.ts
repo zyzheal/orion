@@ -1,35 +1,19 @@
 /**
- * Observability constants
- * 全栈可观测性页常量（抽取自 ObservabilityPage.tsx）
+ * constants.ts - RootCausePage 常量
+ * 抽取自 observability/RootCausePage.tsx (P2-9 Phase 70)
  */
 
-// 告警严重度颜色映射
-export const severityColorMap: Record<string, string> = {
-  critical: 'error',
-  warning: 'warning',
-  info: 'blue',
-};
-
-// 服务健康状态颜色映射
-export const healthColorMap: Record<string, string> = {
-  healthy: 'success',
-  degraded: 'warning',
-  unhealthy: 'error',
-};
-
-// 根因分析状态颜色映射
-export const rcaStatusColorMap: Record<string, string> = {
+export const STATUS_COLOR_MAP: Record<string, string> = {
   analyzing: 'processing',
   completed: 'success',
   failed: 'error',
+  partial: 'warning',
 };
 
-// 告警条件标签映射
-export const conditionLabels: Record<string, string> = {
-  gt: '>',
-  lt: '<',
-  eq: '==',
-  gte: '>=',
-  lte: '<=',
-  neq: '!=',
+export const DEP_TYPE_COLOR_MAP: Record<string, string> = {
+  sync: 'blue',
+  async: 'green',
+  database: 'orange',
+  cache: 'purple',
+  external: 'default',
 };
