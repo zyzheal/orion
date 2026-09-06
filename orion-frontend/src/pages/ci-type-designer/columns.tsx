@@ -2,8 +2,8 @@
  * CI 类型设计器 列定义
  * 抽取自 index.tsx (P2-9 Phase 106)
  */
-import React from 'react';
-import { Button, Space, Tag, Text, Popconfirm } from 'antd';
+import { Button, Space, Tag, Typography, Popconfirm } from 'antd';
+const { Text } = Typography;
 import {
   EditOutlined,
   DeleteOutlined,

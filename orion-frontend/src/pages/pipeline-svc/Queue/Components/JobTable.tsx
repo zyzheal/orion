@@ -4,9 +4,10 @@
  */
 import React, { useMemo } from 'react';
 import { Card } from 'antd';
-import Table from '@/components/Table';
+import { Table } from 'antd';
 import type { QueueState } from '../useQueueState';
 import { buildQueueColumns } from '../columns';
+import type { QueueJob } from '@/api/queue';
 
 interface JobTableProps {
   state: QueueState;
@@ -25,7 +26,7 @@ export const JobTable: React.FC<JobTableProps> = ({ state }) => {
 
   return (
     <Card>
-      <Table
+      <Table<QueueJob>
         columns={columns}
         dataSource={state.filteredJobs}
         loading={state.loading}

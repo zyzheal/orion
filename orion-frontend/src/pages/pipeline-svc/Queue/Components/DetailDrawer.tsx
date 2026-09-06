@@ -3,7 +3,8 @@
  * 抽取自 index.tsx (P2-9 Phase 105)
  */
 import React from 'react';
-import { Drawer, Descriptions, Tag, Text, Space, Button, Popconfirm } from 'antd';
+import { Drawer, Descriptions, Tag, Typography, Space, Button, Popconfirm } from 'antd';
+const { Text } = Typography;
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { colors, spacing } from '@/tokens';

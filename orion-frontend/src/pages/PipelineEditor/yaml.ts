@@ -3,7 +3,7 @@
  * 纯函数 - 根据 PipelineForm + stages 生成 YAML 字符串
  * 对齐后端 PipelineStage schema (FIXED P0-8)
  */
-import type { StageConfig, CacheConfig, ArtifactConfig } from './types';
+import type { StageConfig } from './types';
 import type { PipelineForm } from './pipelineForm';
 
 export interface GenerateYamlParams {

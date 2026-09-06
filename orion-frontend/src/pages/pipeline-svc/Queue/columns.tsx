@@ -2,8 +2,8 @@
  * Queue columns 构建器
  * 抽取自 index.tsx (P2-9 Phase 105)
  */
-import React from 'react';
-import { Button, Space, Tag, Text, Tooltip, Popconfirm } from 'antd';
+import { Button, Space, Tag, Typography, Tooltip, Popconfirm } from 'antd';
+const { Text } = Typography;
 import {
   EyeOutlined,
   CheckCircleOutlined,

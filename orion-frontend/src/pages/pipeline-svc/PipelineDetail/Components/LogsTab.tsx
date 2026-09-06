@@ -3,13 +3,11 @@
  * 抽取自 pipeline-svc/PipelineDetail/index.tsx (P2-9 Phase 103)
  */
 import React from 'react';
-import { Typography } from 'antd';
 import { colors, spacing } from '@/tokens';
 import CardPanel from '@/components/CardPanel';
 import type { PipelineDetailModel, StageDetail } from '../types';
 import { stageStatusColors } from '../constants';
 
-const { Text } = Typography;
 
 interface LogsTabProps {
   pipeline: PipelineDetailModel;

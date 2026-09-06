@@ -6,7 +6,6 @@
  * DagPreviewCard / StageTypesCard / YamlPreviewDrawer / usePipelineEditorState)
  */
 import React from 'react';
-import { spacing } from '@/tokens';
 import StageModal from './StageModal';
 import { usePipelineEditorState } from './usePipelineEditorState';
 import { Header } from './Components/Header';

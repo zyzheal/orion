@@ -2,8 +2,8 @@
  * CI 类型设计器 状态管理 Hook
  * 抽取自 index.tsx (P2-9 Phase 106)
  */
-import { useState, useCallback, useEffect, Form } from 'react';
-import { message } from 'antd';
+import { useState, useCallback, useEffect } from 'react';
+import { message, Form } from 'antd';
 import {
   listCITypes,
   getCIType,

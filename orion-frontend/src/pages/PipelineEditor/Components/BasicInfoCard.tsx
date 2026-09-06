@@ -6,7 +6,6 @@ import React from 'react';
 import { Card, Form, Input } from 'antd';
 import { spacing } from '@/tokens';
 import type { PipelineForm } from '../pipelineForm';
-import type { PipelineEditorState } from '../usePipelineEditorState';
 
 interface BasicInfoCardProps {
   form: React.ComponentProps<typeof Form>['form'];
