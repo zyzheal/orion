@@ -37,7 +37,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({
       dataSource={auditEvents}
       rowKey="id"
       size="middle"
-      pagination={false}
+      pagination={{ current: auditPage, total: auditTotal, onChange: onPageChange, pageSize: 10 }}
     />
   </Card>
 );

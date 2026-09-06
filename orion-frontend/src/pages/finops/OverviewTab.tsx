@@ -5,7 +5,7 @@
  * 费用构成进度条视图。
  */
 import React from 'react';
-import { Button, Card, Col, Empty, Progress, Row, Space, Statistic, Table, Tag, Typography } from 'antd';
+import { Button, Card, Col, Empty, Progress, Row, Space, Statistic, Table, Typography } from 'antd';
 import { ArrowUpOutlined, ExportOutlined, MinusOutlined } from '@ant-design/icons';
 import type { CostSummaryResponse, CostBreakdownItem } from '@/types/finops';
 import { colors, componentRadius, radius, spacing } from '@/tokens';

@@ -8,7 +8,13 @@ import { useEffect, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { FormInstance } from 'antd';
 import { getPipelines } from '@/api/pipelines';
-import type { MatrixBuildConfig, StageConfig, TimeoutConfig, ApprovalConfig, QualityGateConfig } from './types';
+import type {
+  MatrixBuildConfig,
+  StageConfig,
+  TimeoutConfig,
+  ApprovalConfig,
+  QualityGateConfig,
+} from './types';
 import type { PRTriggerConfig as PRTriggerConfigType } from '@/components/PRTriggerConfig';
 import {
   DEFAULT_MATRIX_CONFIG,
@@ -67,8 +73,6 @@ export function useStageModalState(
   const [pipelineOptions, setPipelineOptions] = useState<PipelineOption[]>([]);
   const [subPipelineParams, setSubPipelineParams] = useState<ParamEntry[]>([{ key: '', value: '' }]);
 
-  const stageConfig = (stage?.config ?? {}) as Record<string, unknown>;
-
   useEffect(() => {
     if (stage) {
       form.setFieldsValue({
@@ -77,10 +81,10 @@ export function useStageModalState(
         timeout: stage.timeout,
         retryCount: stage.retryCount,
         dependsOn: stage.dependsOn,
-        script: stageConfig.script ?? '',
-        command: stageConfig.command ?? '',
-        image: stageConfig.image ?? '',
-        env: stageConfig.env ?? '',
+        script: (stage.config?.script as string) ?? '',
+        command: (stage.config?.command as string) ?? '',
+        image: (stage.config?.image as string) ?? '',
+        env: (stage.config?.env as string) ?? '',
         subPipelineId: stage.type === 'sub-pipeline' ? stage.subPipeline?.pipelineId : undefined,
         subPipelineBranch: stage.type === 'sub-pipeline' ? stage.subPipeline?.branch : 'main',
         cacheEnabled: stage.cache?.enabled || false,
@@ -88,7 +92,7 @@ export function useStageModalState(
         cacheRestoreKeys: stage.cache?.restoreKeys?.join('\n') || '',
         artifactUpload: stage.artifacts?.upload?.join('\n') || '',
         artifactExpiry: stage.artifacts?.expiry || 7,
-      } as StageFormValues);
+      } as unknown as StageFormValues);
       setCachePaths(stage.cache?.paths?.length ? stage.cache.paths : ['']);
       setArtifactPaths(stage.artifacts?.upload?.length ? stage.artifacts.upload : ['']);
       // 加载子流水线参数
@@ -121,7 +125,7 @@ export function useStageModalState(
       setApprovalConfig(DEFAULT_APPROVAL_CONFIG);
       setQualityGateConfig(DEFAULT_QUALITY_GATE_CONFIG);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- stageConfig 派生自 stage，随 stage 变化
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 派生值随 stage 变化
   }, [stage, form, visible]);
 
   // 加载可用流水线列表（用于子流水线选择）

@@ -2,7 +2,7 @@
  * StageQualityGateSection - 质量门禁配置区块
  */
 import React from 'react';
-import { Button, Card, Divider, Form, Input, InputNumber, Radio, Select, Space, Switch, Tag } from 'antd';
+import { Button, Card, Divider, Form, InputNumber, Radio, Select, Space, Switch, Tag } from 'antd';
 import { DeleteOutlined, PlusOutlined, SafetyOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import { METRIC_OPTIONS, OPERATOR_OPTIONS } from '../StageModalConfig';

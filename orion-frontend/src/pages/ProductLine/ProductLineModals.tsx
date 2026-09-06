@@ -143,7 +143,7 @@ export const ProductLineModals: React.FC<ProductLineModalsProps> = (props) => (
             width={800}
             destroyOnClose
           >
-            <Tabs items={props.detailTabItems} />
+            <Tabs items={props.detailTabItems as any} />
           </Drawer>
 
           {/* Create Release Train Modal */}

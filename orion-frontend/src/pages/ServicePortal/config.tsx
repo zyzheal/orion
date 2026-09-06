@@ -68,3 +68,14 @@ export const PRIORITY_OPTIONS = [
 
 /** 请求表单默认值 */
 export const DEFAULT_REQUEST_VALUES = { priority: 'medium' };
+
+/** 未匹配到配置项时的回退标签配置 */
+export const DEFAULT_TAG_CONFIG: StatusTagConfig = {
+  color: 'default',
+  label: '',
+};
+
+/** 状态/优先级值 → 标签配置（未匹配时回退为 default 颜色 + 原值文案） */
+export function tagConfig(config: Record<string, StatusTagConfig>, value: string) {
+  return config[value] || { color: DEFAULT_TAG_CONFIG.color, label: value };
+}

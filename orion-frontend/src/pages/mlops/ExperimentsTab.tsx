@@ -51,7 +51,6 @@ export const ExperimentsTab: React.FC = () => {
   const [runsDrawerOpen, setRunsDrawerOpen] = useState(false);
   const [currentRuns, setCurrentRuns] = useState<MLExperimentRun[]>([]);
   const [currentRunsLoading, setCurrentRunsLoading] = useState(false);
-  const [_currentExperimentId, setCurrentExperimentId] = useState<string>('');
   const [currentExperiment, setCurrentExperiment] = useState<MLExperiment | null>(null);
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
@@ -147,7 +146,6 @@ export const ExperimentsTab: React.FC = () => {
   };
 
   const handleViewRuns = async (id: string) => {
-    setCurrentExperimentId(id);
     setRunsDrawerOpen(true);
     setCurrentRunsLoading(true);
     try {

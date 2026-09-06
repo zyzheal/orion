@@ -3,7 +3,7 @@
  * All dialogs used by the experiments / models / training jobs tabs.
  */
 import React from 'react';
-import { Button, Drawer, Form, Input, Modal, Select, Table } from 'antd';
+import {  Drawer, Form, Input, Modal, Select, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { MLExperimentRun } from '@/api/mlops';
 import {

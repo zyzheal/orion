@@ -9,7 +9,7 @@
  * No state lives here; every value comes through props so `index.tsx` remains
  * the single source of truth.
  */
-import React from 'react';
+import * as React from 'react';
 import {
   Typography,
   Row,

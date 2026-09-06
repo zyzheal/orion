@@ -51,7 +51,7 @@ interface ProblemModalsProps {
   setKedbEditModalVisible: (v: boolean) => void;
   kedbEditForm: FormInstance;
   handleEditKnownError: () => void;
-  setEditingKnownError: (v: unknown | null) => void;
+  setEditingKnownError: (v: import("@/api/problem").KnownError | null) => void;
 }
 
 export const ProblemModals: React.FC<ProblemModalsProps> = (props) => (

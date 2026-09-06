@@ -12,15 +12,30 @@
  * - ./config.ts         - status color maps, select options, layout presets, form rules
  * - ./columns.tsx       - table column factories (build*Columns)
  * - ./MLOpsModals.tsx   - modals and drawers
- * - ./tabs.tsx          - tab components and tab registry
+ * - ./MetricsTab.tsx    - overview metrics dashboard
+ * - ./ExperimentsTab.tsx / ./ModelRegistryTab.tsx / ./TrainingJobsTab.tsx - data tabs
  */
 import React from 'react';
 import { Tabs, Typography } from 'antd';
 import { ExperimentOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
-import { TAB_ITEMS } from './tabs';
+import { MetricsTab } from './MetricsTab';
+import { ExperimentsTab } from './ExperimentsTab';
+import { ModelRegistryTab } from './ModelRegistryTab';
+import { TrainingJobsTab } from './TrainingJobsTab';
 
 const { Title, Text } = Typography;
+
+// ============================================================================
+// Tab registry
+// ============================================================================
+
+const TAB_ITEMS = [
+  { key: 'overview', label: '概览', children: <MetricsTab /> },
+  { key: 'experiments', label: '实验管理', children: <ExperimentsTab /> },
+  { key: 'models', label: '模型注册', children: <ModelRegistryTab /> },
+  { key: 'jobs', label: '训练任务', children: <TrainingJobsTab /> },
+];
 
 // ============================================================================
 // Main Page

@@ -191,15 +191,13 @@ export function ServiceCatalogView({
     <div>
       {/* Category filter + actions */}
       <div
-        style={
-          {
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: spacing.sm,
-            marginBottom: spacing.md,
-            alignItems: 'center',
-          } as const
-        }
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: spacing.sm,
+          marginBottom: spacing.md,
+          alignItems: 'center',
+        }}
       >
         <Select
           placeholder="按分类筛选"
@@ -249,9 +247,7 @@ export function ServiceCatalogView({
                     </Tooltip>,
                   ]}
                 >
-                  <div style={
-                    { marginBottom: spacing.sm } as const
-                  }>
+                  <div style={{ marginBottom: spacing.sm }}>
                     <Space size={spacing.xs} align="center">
                       {CATEGORY_ICONS[service.category_id] ? (
                         <span style={{ color: colors.primary[500], fontSize: 18 }}>
@@ -271,13 +267,11 @@ export function ServiceCatalogView({
                     {service.description || '暂无描述'}
                   </Paragraph>
                   <div
-                    style={
-                      {
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      } as const
-                    }
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
                   >
                     <Tag
                       color={SERVICE_STATUS_CONFIG[service.status]?.color || 'default'}
@@ -336,15 +330,13 @@ export function MyTicketsView({
   return (
     <div>
       <div
-        style={
-          {
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: spacing.sm,
-            marginBottom: spacing.md,
-            alignItems: 'center',
-          } as const
-        }
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: spacing.sm,
+          marginBottom: spacing.md,
+          alignItems: 'center',
+        }}
       >
         <Select
           placeholder="状态筛选"

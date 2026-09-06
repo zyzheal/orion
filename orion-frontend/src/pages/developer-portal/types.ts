@@ -11,6 +11,9 @@ export type TabKey = 'docs' | 'mock' | 'sdk' | 'subscriptions' | 'playground';
 /** Body-type union used by playground requests. */
 export type PlaygroundBodyType = 'json' | 'form' | 'raw' | 'none';
 
+/** SDK language targets for code generation. */
+export type SDKLanguage = 'typescript' | 'python' | 'go' | 'java' | 'csharp';
+
 /** Payload returned by `executePlaygroundRequest`. */
 export interface PlaygroundExecuteResult {
   request: unknown;

@@ -78,8 +78,8 @@ import { DeveloperPortalModals } from './DeveloperPortalModals';
 import {
   httpMethods,
   TAB_KEYS,
-  type TabKey,
-} from './config';
+} from './constants';
+import type { TabKey } from './types';
 import {
   useDocColumns,
   useMockColumns,
@@ -91,7 +91,7 @@ import {
 // ==================== Component ====================
 
 const DeveloperPortalPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState(TAB_KEYS.DOCS);
+  const [activeTab, setActiveTab] = useState<TabKey>(TAB_KEYS.DOCS);
 
   // ---- Shared state ----
   const [loading, setLoading] = useState(false);

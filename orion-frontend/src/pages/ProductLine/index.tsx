@@ -709,7 +709,7 @@ const ProductLineManagement: React.FC = () => {
             handleCreateRT={handleCreateRT}
             handleCreateHF={handleCreateHF}
             productLines={productLines}
-            detailTabItems={detailTabItems}
+            detailTabItems={detailTabItems as any}
           />
         </>
       )}

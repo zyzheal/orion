@@ -4,7 +4,7 @@
  * Holds non-JSX option lists, label maps, empty-state copy and pagination
  * defaults. Anything containing a JSX element / icon must live in config.tsx.
  */
-import type { SDKLanguage, TabKey, PlaygroundBodyType } from './types';
+import type { SDKLanguage, PlaygroundBodyType } from './types';
 
 /** HTTP methods used by mock rules and the playground builder. */
 export const httpMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'] as const;
@@ -27,7 +27,7 @@ export const languageOptions: { value: SDKLanguage; label: string }[] = [
 ];
 
 /** Subscription plan options. */
-export const subscriptionPlanOptions = [
+export const subscriptionPlanOptions: { value: string; label: string }[] = [
   { value: 'free', label: '免费版' },
   { value: 'standard', label: '标准版' },
   { value: 'premium', label: '高级版' },
@@ -42,26 +42,31 @@ export const httpMethodColorMap: Record<string, string> = {
   PATCH: 'purple',
 };
 
-/** Tab keys shared by the header actions, Tabs and per-tab renderers. */
-export const TAB_KEYS: Record<string, TabKey> = {
-  DOCS: 'docs',
-  MOCK: 'mock',
-  SDK: 'sdk',
-  SUBSCRIPTIONS: 'subscriptions',
-  PLAYGROUND: 'playground',
-};
+/** Tab key constants for the five top-level portal tabs. */
+export const TAB_DOCS = 'docs' as const;
+export const TAB_MOCK = 'mock' as const;
+export const TAB_SDK = 'sdk' as const;
+export const TAB_SUBSCRIPTIONS = 'subscriptions' as const;
+export const TAB_PLAYGROUND = 'playground' as const;
+
+/** All tab keys as an object, for switch/case and record lookups. */
+export const TAB_KEYS = {
+  DOCS: TAB_DOCS,
+  MOCK: TAB_MOCK,
+  SDK: TAB_SDK,
+  SUBSCRIPTIONS: TAB_SUBSCRIPTIONS,
+  PLAYGROUND: TAB_PLAYGROUND,
+} as const;
 
 /** Empty-state copy used inside each tab's table. */
-export const EMPTY_STATES: Record<
-  'docs' | 'mock' | 'sdk' | 'subscriptions' | 'playground',
-  string
-> = {
+export const EMPTY_STATES = {
   docs: '暂无文档，点击"创建文档"开始添加',
   mock: '暂无 Mock 规则',
   sdk: '暂无 SDK 任务',
   subscriptions: '暂无订阅',
   playground: '暂无保存的请求',
-};
+  playgroundForm: '填写请求参数并点击"发送请求"',
+} as const;
 
 /** Default table pagination shared by all five tabs. */
 export const defaultPagination = { current: 1, pageSize: 10, total: 0 };

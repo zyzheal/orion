@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "files": [
+    "src/pages/pipeline-svc/PipelineEditor/StageModal.tsx",
+    "src/pages/pipeline-svc/PipelineEditor/buildStageConfig.ts",
+    "src/pages/pipeline-svc/PipelineEditor/stageFormValues.ts",
+    "src/pages/pipeline-svc/PipelineEditor/useStageModalState.ts",
+    "src/pages/pipeline-svc/PipelineEditor/StageModalConfig.ts",
+    "src/pages/pipeline-svc/PipelineEditor/stage-sections/index.ts",
+    "src/pages/pipeline-svc/PipelineEditor/stage-sections/StageMatrixSection.tsx",
+    "src/pages/pipeline-svc/PipelineEditor/stage-sections/StagePrTriggerSection.tsx",
+    "src/pages/pipeline-svc/PipelineEditor/stage-sections/StageTimeoutSection.tsx",
+    "src/pages/pipeline-svc/PipelineEditor/stage-sections/StageApprovalSection.tsx",
+    "src/pages/pipeline-svc/PipelineEditor/stage-sections/StageQualityGateSection.tsx"
+  ],
+  "include": ["src/**/*.d.ts"]
+}

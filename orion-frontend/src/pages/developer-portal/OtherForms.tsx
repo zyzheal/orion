@@ -51,7 +51,7 @@ export function CreateSubForm({ formInstance }: { formInstance: FormInstance }) 
       <Row gutter={spacing.md}>
         <Col span={12}>
           <Form.Item name="planName" label="套餐" initialValue="standard">
-            <Select options={subscriptionPlanOptions} />
+            <Select options={[...subscriptionPlanOptions]} />
           </Form.Item>
         </Col>
         <Col span={6}>
@@ -123,14 +123,7 @@ export function PlaygroundForm({ formInstance, pgExecuting }: PlaygroundFormProp
       <Row gutter={12}>
         <Col span={6}>
           <Form.Item name="bodyType" label="Body 类型">
-            <Select
-              options={[
-                { value: 'none', label: 'None' },
-                { value: 'json', label: 'JSON' },
-                { value: 'form', label: 'Form' },
-                { value: 'raw', label: 'Raw' },
-              ]}
-            />
+            <Select options={playgroundBodyTypes} />
           </Form.Item>
         </Col>
         <Col span={18}>

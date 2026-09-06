@@ -5,7 +5,6 @@
  *   - Infrastructure Topology table
  *   - Impact Analysis table (directly + transitively impacted)
  */
-import React from 'react';
 import { Badge, Button, Space, Tag, Typography } from 'antd';
 import { DeploymentUnitOutlined } from '@ant-design/icons';
 import type { TableColumn } from '@/components/Table';

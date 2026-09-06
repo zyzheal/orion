@@ -3,9 +3,9 @@
  *
  * `NotificationListRenderer` renders a single notification row. Because the row
  * needs live handler callbacks and the set of expanded ids, it is constructed
- * through the `useNotificationListRenderer` factory so the parent stays thin.
+ * through the `createNotificationListRenderer` factory so the parent stays thin.
  */
-import React from 'react';
+import * as React from 'react';
 import { Typography, Button, List, Tag, Space, Empty, Popconfirm } from 'antd';
 import dayjs from 'dayjs';
 import { colors, spacing, themeVars } from '@/tokens';
@@ -35,7 +35,7 @@ export interface NotificationRendererDeps {
  * Factory: returns the list item renderer bound to the current handlers.
  * Re-created by `useMemo` whenever the handler/expanded state changes.
  */
-export const useNotificationListRenderer = (
+export const createNotificationListRenderer = (
   deps: NotificationRendererDeps
 ): React.FC<{ item: NotificationItem }> => {
   const { isExpanded, handleMarkAsRead, handleDelete, toggleExpand } = deps;

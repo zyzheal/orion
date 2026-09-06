@@ -9,6 +9,7 @@
 import React from 'react';
 import { Button, Modal, Form, Input, Select, Table } from 'antd';
 import type { FormInstance } from 'antd/es/form';
+import { costColumns } from './MultiCloudColumns';
 import { providerOptions } from './MultiCloudConfig';
 import type { CostComparison } from '@/api/multi-cloud';
 import { spacing } from '@/tokens';
@@ -19,7 +20,7 @@ import { spacing } from '@/tokens';
 
 export interface CreateAccountModalProps {
   open: boolean;
-  form: ReturnType<typeof Form.useForm>[0];
+  form: FormInstance;
   onCancel: () => void;
   onFinish: (values: { name: string; provider: string; region: string; credentials_ref?: string }) => void;
 }
@@ -68,7 +69,7 @@ export const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
 
 export interface EditAccountModalProps {
   open: boolean;
-  form: ReturnType<typeof Form.useForm>[0];
+  form: FormInstance;
   onCancel: () => void;
   onFinish: (values: { name: string; provider: string; region: string }) => void;
 }
@@ -114,7 +115,7 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
 
 export interface CostComparisonModalProps {
   open: boolean;
-  form: ReturnType<typeof Form.useForm>[0];
+  form: FormInstance;
   comparison: CostComparison[];
   loading: boolean;
   onCancel: () => void;
@@ -134,10 +135,6 @@ export const CostComparisonModal: React.FC<CostComparisonModalProps> = ({
   onCancel,
   onFinish,
 }) => {
-  const columns = [
-    { title: '云厂商', dataIndex: 'provider', key: 'provider' },
-    { title: '月成本 (USD)', dataIndex: 'monthly_cost', key: 'monthly_cost' },
-  ];
   return (
     <Modal title="跨云成本对比" open={open} onCancel={onCancel} footer={null} width={700}>
       <Form
@@ -170,7 +167,7 @@ export const CostComparisonModal: React.FC<CostComparisonModalProps> = ({
       </Form>
 
       {comparison.length > 0 && (
-        <Table dataSource={comparison} rowKey="provider" pagination={false} size="small" columns={columns} />
+        <Table dataSource={comparison} rowKey="provider" pagination={false} size="small" columns={costColumns} />
       )}
     </Modal>
   );

@@ -63,13 +63,13 @@ interface IncidentModalsProps {
   handleGenerateDraft: () => void;
   handleFillDraftToForm: () => void;
   handleConfirmStatusChange: () => void;
-  handleOpenEdit: () => void;
+  handleOpenEdit: (record: Incident) => void;
   handleOpenAssign: () => void;
   handleOpenEscalate: () => void;
   handleStatusChange: (v: string) => void;
   handleBackToList: () => void;
-  handleDelete: () => void;
-  handleViewDetail: () => void;
+  handleDelete: (record: Incident) => Promise<void>;
+  handleViewDetail: (record: Incident) => void;
 }
 
 export const IncidentModals: React.FC<IncidentModalsProps> = (props) => (

@@ -4,9 +4,11 @@
  *
  * 从 MultiCloudAdvancedPage.tsx 拆分而来，保持交互与字段不变。
  */
-import React, { type FormInstance } from 'react';
+import React from 'react';
 import { Modal, Form, Select, Input } from 'antd';
 import { ACCOUNT_PROVIDER_OPTIONS } from './MultiCloudAdvancedConfig';
+
+type FormInstance<T = any> = ReturnType<typeof Form.useForm<T>>[0];
 
 export interface RegisterCloudAccountModalProps {
   open: boolean;

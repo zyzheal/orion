@@ -9,8 +9,7 @@ import {
   Form,
   Tabs,
   Tag,
-  Text,
-  Title,
+  Typography,
   message,
 } from 'antd';
 import {
@@ -40,6 +39,8 @@ import DependenciesTab from './DependenciesTab';
 import InfrastructureTab from './InfrastructureTab';
 import ImpactTab from './ImpactTab';
 import CypherTab from './CypherTab';
+
+const { Title, Text } = Typography;
 
 // ---- Header Styles ----
 

@@ -4,7 +4,6 @@
  * 使用工厂函数模式：列定义中引用的 handler 由工厂参数注入，
  * 保证列模块保持纯函数、可在多处复用。
  */
-import React from 'react';
 import { Button, Popconfirm, Space, Tag, Typography } from 'antd';
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';

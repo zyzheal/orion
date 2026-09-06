@@ -5,7 +5,8 @@ import React from 'react';
 import { Card, Table, Button, Space } from 'antd';
 import { ReloadOutlined, PlusOutlined } from '@ant-design/icons';
 import { spacing } from '@/tokens';
-import type { CronJob, TableColumnsType } from 'antd';
+import type { TableColumnsType } from 'antd';
+import type { CronJob } from '@/api/ops-tools';
 
 interface CronTabProps {
   cronColumns: TableColumnsType<CronJob>;

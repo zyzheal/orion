@@ -1,39 +1,16 @@
 /**
  * StageModal - Stage 配置弹窗
+ *
+ * 负责弹窗骨架与"字段类"表单（阶段名称/类型、高级设置、执行配置、
+ * 子流水线、Buildx、容器/APK 上传、缓存、构建产物）。
+ * 矩阵/PR 触发/超时/审批/质量门禁五个配置区块拆分至 stage-sections/，
+ * 受控状态与回填逻辑收敛在 useStageModalState，
+ * 表单值 → StageConfig 的转换见 buildStageConfig。
  */
-import React, { useEffect, useState } from 'react';
-import {
-  Modal,
-  Form,
-  Input,
-  InputNumber,
-  Select,
-  Space,
-  Divider,
-  Switch,
-  Button,
-  Card,
-  message,
-  Tag,
-  Radio,
-} from 'antd';
-import {
-  PlusOutlined,
-  DeleteOutlined,
-  ThunderboltOutlined,
-  BranchesOutlined,
-  UserOutlined,
-  SafetyOutlined,
-  ClockCircleOutlined,
-} from '@ant-design/icons';
-import type {
-  StageConfig,
-  MatrixBuildConfig,
-  TimeoutConfig,
-  ApprovalConfig,
-  QualityGateConfig,
-  QualityGateRule,
-} from './types';
+
+import { Form, Button, Card, Input, InputNumber, message, Modal, Select, Space, Switch, Divider } from 'antd';
+import { BranchesOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import type { StageConfig } from './types';
 import {
   STAGE_TYPES,
   BUILD_PLATFORMS,
@@ -41,15 +18,19 @@ import {
   APK_UPLOAD_TYPE_OPTIONS,
   APK_MARKET_OPTIONS,
   APK_CHANNEL_OPTIONS,
-  METRIC_OPTIONS,
-  OPERATOR_OPTIONS,
 } from './StageModalConfig';
-import MatrixConfigurator from '@/components/MatrixConfigurator';
-import PRTriggerConfigComponent, {
-  type PRTriggerConfig as PRTriggerConfigType,
-} from '@/components/PRTriggerConfig';
-import { getPipelines } from '@/api/pipelines';
-import { colors, spacing } from '@/tokens';
+import { STAGE_FORM_INITIAL_VALUES } from './stageFormValues';
+import type { StageFormValues } from './stageFormValues';
+import { buildStageConfig } from './buildStageConfig';
+import { useStageModalState } from './useStageModalState';
+import {
+  StageMatrixSection,
+  StagePrTriggerSection,
+  StageTimeoutSection,
+  StageApprovalSection,
+  StageQualityGateSection,
+} from './stage-sections';
+import { spacing } from '@/tokens';
 
 const { TextArea } = Input;
 
@@ -61,305 +42,47 @@ interface StageModalProps {
   onCancel: () => void;
 }
 
-const StageModal: React.FC<StageModalProps> = ({
+const StageModal = ({
   visible,
   stage,
   availableDependencies,
   onSave,
   onCancel,
-}) => {
-  const [form] = Form.useForm();
-  const [cachePaths, setCachePaths] = useState<string[]>(['']);
-  const [artifactPaths, setArtifactPaths] = useState<string[]>(['']);
-  const [matrixConfig, setMatrixConfig] = useState<MatrixBuildConfig>({
-    enabled: false,
-    dimensions: [],
-    exclusions: [],
-  });
-  const [prTriggerConfig, setPrTriggerConfig] = useState<Partial<PRTriggerConfigType>>({
-    enabled: false,
-    provider: 'github',
-    prActions: ['opened', 'synchronize'],
-  });
-  // 超时配置
-  const [timeoutConfig, setTimeoutConfig] = useState<TimeoutConfig>({
-    enabled: false,
-    duration: 300,
-    action: 'fail',
-    retryCount: 1,
-  });
-  // 审批配置
-  const [approvalConfig, setApprovalConfig] = useState<ApprovalConfig>({
-    enabled: false,
-    approvers: [],
-    mode: 'any',
-    timeout: 24,
-    timeoutAction: 'reject',
-  });
-  // 质量门禁配置
-  const [qualityGateConfig, setQualityGateConfig] = useState<QualityGateConfig>({
-    enabled: false,
-    rules: [],
-    failureAction: 'block',
-  });
-  // 子流水线相关状态
-  const [pipelineOptions, setPipelineOptions] = useState<{ label: string; value: string }[]>([]);
-  const [subPipelineParams, setSubPipelineParams] = useState<{ key: string; value: string }[]>([
-    { key: '', value: '' },
-  ]);
-
-  useEffect(() => {
-    if (stage) {
-      form.setFieldsValue({
-        name: stage.name,
-        type: stage.type,
-        timeout: stage.timeout,
-        retryCount: stage.retryCount,
-        dependsOn: stage.dependsOn,
-        script: stage.config?.script || '',
-        command: stage.config?.command || '',
-        image: stage.config?.image || '',
-        env: stage.config?.env || '',
-        subPipelineId: stage.type === 'sub-pipeline' ? stage.subPipeline?.pipelineId : undefined,
-        subPipelineBranch: stage.type === 'sub-pipeline' ? stage.subPipeline?.branch : 'main',
-        cacheEnabled: stage.cache?.enabled || false,
-        cacheKey: stage.cache?.key || '',
-        cacheRestoreKeys: stage.cache?.restoreKeys?.join('\n') || '',
-        artifactUpload: stage.artifacts?.upload?.join('\n') || '',
-        artifactExpiry: stage.artifacts?.expiry || 7,
-      });
-      setCachePaths(stage.cache?.paths?.length ? stage.cache.paths : ['']);
-      setArtifactPaths(stage.artifacts?.upload?.length ? stage.artifacts.upload : ['']);
-      // 加载子流水线参数
-      if (stage.type === 'sub-pipeline' && stage.subPipeline) {
-        const paramsArr = stage.subPipeline.params
-          ? Object.entries(stage.subPipeline.params).map(([key, value]) => ({ key, value }))
-          : [{ key: '', value: '' }];
-        setSubPipelineParams(paramsArr);
-      } else {
-        setSubPipelineParams([{ key: '', value: '' }]);
-      }
-      // 加载矩阵构建配置
-      setMatrixConfig(
-        stage.matrix || {
-          enabled: false,
-          dimensions: [],
-          exclusions: [],
-        }
-      );
-      // 加载 PR 触发配置
-      if (stage.prTrigger) {
-        setPrTriggerConfig(stage.prTrigger);
-      } else {
-        setPrTriggerConfig({
-          enabled: false,
-          provider: 'github',
-          prActions: ['opened', 'synchronize'],
-        });
-      }
-      // 加载超时配置
-      if (stage.timeoutConfig) {
-        setTimeoutConfig(stage.timeoutConfig);
-      } else {
-        setTimeoutConfig({
-          enabled: false,
-          duration: 300,
-          action: 'fail',
-          retryCount: 1,
-        });
-      }
-      // 加载审批配置
-      if (stage.approvalConfig) {
-        setApprovalConfig(stage.approvalConfig);
-      } else {
-        setApprovalConfig({
-          enabled: false,
-          approvers: [],
-          mode: 'any',
-          timeout: 24,
-          timeoutAction: 'reject',
-        });
-      }
-      // 加载质量门禁配置
-      if (stage.qualityGateConfig) {
-        setQualityGateConfig(stage.qualityGateConfig);
-      } else {
-        setQualityGateConfig({
-          enabled: false,
-          rules: [],
-          failureAction: 'block',
-        });
-      }
-    } else {
-      form.resetFields();
-      setCachePaths(['']);
-      setArtifactPaths(['']);
-      setSubPipelineParams([{ key: '', value: '' }]);
-      setMatrixConfig({
-        enabled: false,
-        dimensions: [],
-        exclusions: [],
-      });
-      setTimeoutConfig({
-        enabled: false,
-        duration: 300,
-        action: 'fail',
-        retryCount: 1,
-      });
-      setApprovalConfig({
-        enabled: false,
-        approvers: [],
-        mode: 'any',
-        timeout: 24,
-        timeoutAction: 'reject',
-      });
-      setQualityGateConfig({
-        enabled: false,
-        rules: [],
-        failureAction: 'block',
-      });
-    }
-  }, [stage, form, visible]);
-
-  // 加载可用流水线列表（用于子流水线选择）
-  useEffect(() => {
-    if (visible) {
-      getPipelines()
-        .then((res) => {
-          const data = res.data ?? res.data;
-          const list = Array.isArray(data) ? data : [];
-          const opts = list.map((p: { id: string; name: string }) => ({
-            label: p.name,
-            value: p.id,
-          }));
-          setPipelineOptions(opts);
-        })
-        .catch(() => {
-          setPipelineOptions([]);
-        });
-    }
-  }, [visible]);
+}: StageModalProps) => {
+  const [form] = Form.useForm<StageFormValues>();
+  const {
+    cachePaths,
+    setCachePaths,
+    artifactPaths,
+    setArtifactPaths,
+    subPipelineParams,
+    setSubPipelineParams,
+    matrixConfig,
+    setMatrixConfig,
+    prTriggerConfig,
+    setPrTriggerConfig,
+    timeoutConfig,
+    setTimeoutConfig,
+    approvalConfig,
+    setApprovalConfig,
+    qualityGateConfig,
+    setQualityGateConfig,
+    pipelineOptions,
+  } = useStageModalState(form, stage, visible);
 
   const handleOk = async () => {
     try {
       const values = await form.validateFields();
-      const stageConfig: StageConfig = {
-        id: stage?.id || `stage-${Date.now()}`,
-        name: values.name,
-        type: values.type,
-        timeout: values.timeout,
-        retryCount: values.retryCount,
-        dependsOn: values.dependsOn,
-        config: {
-          script: values.script,
-          command: values.command,
-          image: values.image,
-          env: values.env,
-          // Buildx config
-          imageName: values.buildxImageName,
-          tag: values.buildxTag || 'latest',
-          platforms: values.buildxPlatforms || ['linux/amd64'],
-          dockerfilePath: values.buildxDockerfile,
-          context: values.buildxContext || '.',
-          push: values.buildxPush ?? true,
-          // Container config
-          containerImage: values.containerImage,
-          containerCommand: values.containerCommand,
-          containerArgs: values.containerArgs?.split('\n').filter(Boolean),
-          containerEnv: values.containerEnv,
-          containerResources: values.containerResources
-            ? {
-                cpu: values.containerCpu,
-                memory: values.containerMemory,
-                gpu: values.containerGpu
-                  ? {
-                      devices: values.containerGpuDevices,
-                      capabilities: values.containerGpuCapabilities?.split(',').filter(Boolean),
-                    }
-                  : undefined,
-              }
-            : undefined,
-          containerNetwork: values.containerNetwork,
-        },
-        // APK 上传配置
-        apkUpload:
-          values.type === 'apk-upload'
-            ? {
-                uploadType: values.apkUploadType || 'single',
-                market: values.apkMarket,
-                apkPath: values.apkPath,
-                packageName: values.packageName,
-                versionName: values.versionName,
-                changelog: values.changelog,
-                credentials: values.apkCredentials,
-                channel: values.apkChannel,
-              }
-            : undefined,
-        // 缓存配置
-        cache: values.cacheEnabled
-          ? {
-              enabled: true,
-              key: values.cacheKey,
-              paths: cachePaths.filter((p) => p.trim()),
-              restoreKeys: values.cacheRestoreKeys?.split('\n').filter((k: string) => k.trim()),
-            }
-          : undefined,
-        // Artifact 配置
-        artifacts: {
-          upload: artifactPaths.filter((p) => p.trim()),
-          expiry: values.artifactExpiry,
-        },
-        // 子流水线配置
-        subPipeline:
-          values.type === 'sub-pipeline' && values.subPipelineId
-            ? {
-                pipelineId: values.subPipelineId,
-                branch: values.subPipelineBranch || 'main',
-                params: subPipelineParams
-                  .filter((p) => p.key.trim())
-                  .reduce(
-                    (acc, p) => ({ ...acc, [p.key.trim()]: p.value.trim() }),
-                    {} as Record<string, string>
-                  ),
-              }
-            : undefined,
-        // 矩阵构建配置
-        matrix: matrixConfig.enabled
-          ? {
-              enabled: true,
-              dimensions: matrixConfig.dimensions,
-              exclusions: matrixConfig.exclusions,
-            }
-          : undefined,
-        // PR/MR 触发配置 - 显式构建完整对象，确保必填字段
-        prTrigger: prTriggerConfig?.enabled
-          ? ({
-              ...prTriggerConfig,
-              enabled: true,
-              provider: prTriggerConfig.provider || 'github',
-              prActions: prTriggerConfig.prActions || ['opened', 'synchronize'],
-              branchFilter: prTriggerConfig.branchFilter || {
-                targetBranches: ['main', 'master', 'develop'],
-              },
-              pathFilter: prTriggerConfig.pathFilter || {
-                includePaths: [],
-                excludePaths: ['docs/**', '*.md'],
-              },
-              labelFilter: prTriggerConfig.labelFilter || {
-                requiredLabels: [],
-                excludedLabels: ['wip', 'do-not-merge'],
-              },
-              draftPolicy: prTriggerConfig.draftPolicy || 'skip',
-              securityLevel: prTriggerConfig.securityLevel || 'safe',
-            } as PRTriggerConfigType)
-          : undefined,
-        // 超时配置
-        timeoutConfig: timeoutConfig.enabled ? timeoutConfig : undefined,
-        // 审批配置
-        approvalConfig: approvalConfig.enabled ? approvalConfig : undefined,
-        // 质量门禁配置
-        qualityGateConfig: qualityGateConfig.enabled ? qualityGateConfig : undefined,
-      };
+      const stageConfig = buildStageConfig(values, {
+        cachePaths,
+        artifactPaths,
+        subPipelineParams,
+        prTriggerConfig,
+        timeoutConfig,
+        approvalConfig,
+        qualityGateConfig,
+        isEditing: Boolean(stage),
+      });
       onSave(stageConfig);
     } catch (error: unknown) {
       // Ant Design 表单验证失败会自动显示错误
@@ -371,78 +94,39 @@ const StageModal: React.FC<StageModalProps> = ({
   };
 
   // 缓存路径管理
-  const handleAddCachePath = () => setCachePaths([...cachePaths, '']);
-  const handleRemoveCachePath = (index: number) => {
-    const newPaths = cachePaths.filter((_, i) => i !== index);
-    setCachePaths(newPaths.length ? newPaths : ['']);
-  };
-  const handleUpdateCachePath = (index: number, value: string) => {
-    const newPaths = [...cachePaths];
-    newPaths[index] = value;
-    setCachePaths(newPaths);
-  };
+  const handleAddCachePath = () => setCachePaths((prev) => [...prev, '']);
+  const handleRemoveCachePath = (index: number) =>
+    setCachePaths((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      return next.length ? next : [''];
+    });
+  const handleUpdateCachePath = (index: number, value: string) =>
+    setCachePaths((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
 
   // Artifact 路径管理
-  const handleAddArtifactPath = () => setArtifactPaths([...artifactPaths, '']);
-  const handleRemoveArtifactPath = (index: number) => {
-    const newPaths = artifactPaths.filter((_, i) => i !== index);
-    setArtifactPaths(newPaths.length ? newPaths : ['']);
-  };
-  const handleUpdateArtifactPath = (index: number, value: string) => {
-    const newPaths = [...artifactPaths];
-    newPaths[index] = value;
-    setArtifactPaths(newPaths);
-  };
+  const handleAddArtifactPath = () => setArtifactPaths((prev) => [...prev, '']);
+  const handleRemoveArtifactPath = (index: number) =>
+    setArtifactPaths((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      return next.length ? next : [''];
+    });
+  const handleUpdateArtifactPath = (index: number, value: string) =>
+    setArtifactPaths((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
 
-  // 质量门禁规则管理
-  const handleAddQualityRule = () => {
-    const newRule: QualityGateRule = {
-      id: `rule-${Date.now()}`,
-      metric: 'test_pass_rate',
-      operator: '>=',
-      threshold: 80,
-    };
-    setQualityGateConfig((prev) => ({
-      ...prev,
-      rules: [...prev.rules, newRule],
-    }));
-  };
-  const handleRemoveQualityRule = (id: string) => {
-    setQualityGateConfig((prev) => ({
-      ...prev,
-      rules: prev.rules.filter((r) => r.id !== id),
-    }));
-  };
-  const handleUpdateQualityRule = (
-    id: string,
-    field: keyof QualityGateRule,
-    value: string | number | boolean
-  ) => {
-    setQualityGateConfig((prev) => ({
-      ...prev,
-      rules: prev.rules.map((r) => (r.id === id ? { ...r, [field]: value } : r)),
-    }));
-  };
-
-  // 审批人管理
-  const handleAddApprover = () => {
-    setApprovalConfig((prev) => ({
-      ...prev,
-      approvers: [...prev.approvers, ''],
-    }));
-  };
-  const handleRemoveApprover = (index: number) => {
-    setApprovalConfig((prev) => ({
-      ...prev,
-      approvers: prev.approvers.filter((_, i) => i !== index),
-    }));
-  };
-  const handleUpdateApprover = (index: number, value: string) => {
-    setApprovalConfig((prev) => ({
-      ...prev,
-      approvers: prev.approvers.map((a, i) => (i === index ? value : a)),
-    }));
-  };
+  const updateParam = (index: number, field: 'key' | 'value', value: string) =>
+    setSubPipelineParams((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
 
   return (
     <Modal
@@ -466,12 +150,7 @@ const StageModal: React.FC<StageModalProps> = ({
         form={form}
         layout="vertical"
         requiredMark
-        initialValues={{
-          timeout: 300,
-          retryCount: 0,
-          cacheEnabled: false,
-          artifactExpiry: 7,
-        }}
+        initialValues={STAGE_FORM_INITIAL_VALUES}
       >
         <Form.Item
           label="阶段名称"
@@ -608,40 +287,32 @@ const StageModal: React.FC<StageModalProps> = ({
                       <Space key={String(index)} style={{ width: '100%' }}>
                         <Input
                           value={param.key}
-                          onChange={(e) => {
-                            const newParams = [...subPipelineParams];
-                            newParams[index] = { ...newParams[index], key: e.target.value };
-                            setSubPipelineParams(newParams);
-                          }}
+                          onChange={(e) => updateParam(index, 'key', e.target.value)}
                           placeholder="参数名"
                           style={{ flex: 1 }}
                         />
                         <Input
                           value={param.value}
-                          onChange={(e) => {
-                            const newParams = [...subPipelineParams];
-                            newParams[index] = { ...newParams[index], value: e.target.value };
-                            setSubPipelineParams(newParams);
-                          }}
+                          onChange={(e) => updateParam(index, 'value', e.target.value)}
                           placeholder="参数值"
                           style={{ flex: 1.5 }}
                         />
                         <Button
                           icon={<PlusOutlined />}
-                          onClick={() => {
-                            setSubPipelineParams([...subPipelineParams, { key: '', value: '' }]);
-                          }}
+                          onClick={() =>
+                            setSubPipelineParams((prev) => [...prev, { key: '', value: '' }])
+                          }
                         />
                         <Button
                           danger
                           icon={<DeleteOutlined />}
-                          onClick={() => {
-                            if (subPipelineParams.length === 1) {
-                              setSubPipelineParams([{ key: '', value: '' }]);
-                            } else {
-                              setSubPipelineParams(subPipelineParams.filter((_, i) => i !== index));
-                            }
-                          }}
+                          onClick={() =>
+                            setSubPipelineParams((prev) =>
+                              prev.length === 1
+                                ? [{ key: '', value: '' }]
+                                : prev.filter((_, i) => i !== index)
+                            )
+                          }
                           disabled={subPipelineParams.length === 1}
                         />
                       </Space>
@@ -713,7 +384,7 @@ const StageModal: React.FC<StageModalProps> = ({
           }
         </Form.Item>
 
-        {/* Container 容器运行配置 */}
+        {/* Container 容器运行配置 / APK Upload 配置 */}
         <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
           {(formInstance) =>
             (formInstance.getFieldValue('type') === 'container' ||
@@ -988,7 +659,7 @@ const StageModal: React.FC<StageModalProps> = ({
                 <Form.Item label="缓存路径" required>
                   <Space direction="vertical" style={{ width: '100%' }} size={8}>
                     {cachePaths.map((path, index) => (
-                      <Space key={String(index)} style={{ width: '100%' }}>
+                      <Space key={String(index)} style={{ width: '100%' }} className="orion-stage-path-row">
                         <Input
                           value={path}
                           onChange={(e) => handleUpdateCachePath(index, e.target.value)}
@@ -1032,7 +703,7 @@ const StageModal: React.FC<StageModalProps> = ({
           <Form.Item label="上传路径" required>
             <Space direction="vertical" style={{ width: '100%' }} size={8}>
               {artifactPaths.map((path, index) => (
-                <Space key={String(index)} style={{ width: '100%' }}>
+                <Space key={String(index)} style={{ width: '100%' }} className="orion-stage-path-row">
                   <Input
                     value={path}
                     onChange={(e) => handleUpdateArtifactPath(index, e.target.value)}
@@ -1061,365 +732,22 @@ const StageModal: React.FC<StageModalProps> = ({
         </Card>
 
         {/* 矩阵构建配置 */}
-        <Divider orientation="left" orientationMargin={0}>
-          <Space>
-            <ThunderboltOutlined style={{ color: colors.warning[500] }} />
-            <span>矩阵构建 (Matrix Build)</span>
-          </Space>
-        </Divider>
-
-        <Form.Item noStyle shouldUpdate>
-          <Card
-            size="small"
-            style={{ marginBottom: spacing.md }}
-            extra={
-              <Space>
-                <span>启用矩阵构建</span>
-                <Switch
-                  checked={matrixConfig.enabled}
-                  onChange={(checked) =>
-                    setMatrixConfig((prev) => ({
-                      ...prev,
-                      enabled: checked,
-                      dimensions: checked ? prev.dimensions : [],
-                      exclusions: checked ? prev.exclusions : [],
-                    }))
-                  }
-                />
-              </Space>
-            }
-          >
-            {matrixConfig.enabled ? (
-              <MatrixConfigurator value={matrixConfig} onChange={setMatrixConfig} />
-            ) : (
-              <div style={{ padding: '8px 0', color: colors.neutral[500] }}>
-                启用后可在多个维度上并行构建，例如同时测试多个 Node.js 版本和操作系统
-              </div>
-            )}
-          </Card>
-        </Form.Item>
+        <StageMatrixSection value={matrixConfig} onChange={setMatrixConfig} />
 
         {/* PR/MR 触发配置 */}
-        <Divider orientation="left" orientationMargin={0}>
-          <Space>
-            <BranchesOutlined />
-            <span>PR/MR 触发配置</span>
-          </Space>
-        </Divider>
-
-        <Form.Item noStyle shouldUpdate>
-          <PRTriggerConfigComponent
-            value={prTriggerConfig}
-            onChange={(config) => setPrTriggerConfig(config as Partial<PRTriggerConfigType>)}
-          />
-        </Form.Item>
+        <StagePrTriggerSection
+          value={prTriggerConfig}
+          onChange={setPrTriggerConfig}
+        />
 
         {/* 超时配置 */}
-        <Divider orientation="left" orientationMargin={0}>
-          <Space>
-            <ClockCircleOutlined />
-            <span>超时策略配置</span>
-          </Space>
-        </Divider>
-
-        <Card size="small" style={{ marginBottom: spacing.md }}>
-          <Form.Item label="启用超时策略" valuePropName="checked">
-            <Switch
-              checked={timeoutConfig.enabled}
-              onChange={(checked) => setTimeoutConfig((prev) => ({ ...prev, enabled: checked }))}
-              checkedChildren="启用"
-              unCheckedChildren="禁用"
-            />
-          </Form.Item>
-
-          {timeoutConfig.enabled && (
-            <>
-              <Form.Item label="超时时长 (秒)" tooltip="阶段执行超过此时间将触发超时策略">
-                <InputNumber
-                  min={1}
-                  max={7200}
-                  step={60}
-                  value={timeoutConfig.duration}
-                  onChange={(value) =>
-                    setTimeoutConfig((prev) => ({ ...prev, duration: value || 300 }))
-                  }
-                  style={{ width: '100%' }}
-                  placeholder="默认 300 秒"
-                />
-              </Form.Item>
-
-              <Form.Item label="超时后动作">
-                <Radio.Group
-                  value={timeoutConfig.action}
-                  onChange={(e) =>
-                    setTimeoutConfig((prev) => ({ ...prev, action: e.target.value }))
-                  }
-                >
-                  <Space direction="vertical">
-                    <Radio value="fail">
-                      <Space>
-                        <Tag color="error">失败</Tag>
-                        <span>标记阶段为失败</span>
-                      </Space>
-                    </Radio>
-                    <Radio value="skip">
-                      <Space>
-                        <Tag color="warning">跳过</Tag>
-                        <span>跳过当前阶段继续后续阶段</span>
-                      </Space>
-                    </Radio>
-                    <Radio value="retry">
-                      <Space>
-                        <Tag color="processing">重试</Tag>
-                        <span>自动重试指定次数</span>
-                      </Space>
-                    </Radio>
-                  </Space>
-                </Radio.Group>
-              </Form.Item>
-
-              {timeoutConfig.action === 'retry' && (
-                <Form.Item label="重试次数">
-                  <InputNumber
-                    min={1}
-                    max={5}
-                    value={timeoutConfig.retryCount}
-                    onChange={(value) =>
-                      setTimeoutConfig((prev) => ({ ...prev, retryCount: value || 1 }))
-                    }
-                    style={{ width: '100%' }}
-                  />
-                </Form.Item>
-              )}
-            </>
-          )}
-
-          {!timeoutConfig.enabled && (
-            <div style={{ padding: '8px 0', color: colors.neutral[500] }}>
-              启用后可配置超时时长和超时后的动作（失败/跳过/重试）
-            </div>
-          )}
-        </Card>
+        <StageTimeoutSection value={timeoutConfig} onChange={setTimeoutConfig} />
 
         {/* 审批配置 */}
-        <Divider orientation="left" orientationMargin={0}>
-          <Space>
-            <UserOutlined />
-            <span>审批配置</span>
-          </Space>
-        </Divider>
-
-        <Card size="small" style={{ marginBottom: spacing.md }}>
-          <Form.Item label="启用审批" valuePropName="checked">
-            <Switch
-              checked={approvalConfig.enabled}
-              onChange={(checked) => setApprovalConfig((prev) => ({ ...prev, enabled: checked }))}
-              checkedChildren="启用"
-              unCheckedChildren="禁用"
-            />
-          </Form.Item>
-
-          {approvalConfig.enabled && (
-            <>
-              <Form.Item label="审批人" required tooltip="输入审批人的用户名或邮箱">
-                <Space direction="vertical" style={{ width: '100%' }} size={8}>
-                  {approvalConfig.approvers.map((approver, index) => (
-                    <Space key={String(index)} style={{ width: '100%' }}>
-                      <Input
-                        value={approver}
-                        onChange={(e) => handleUpdateApprover(index, e.target.value)}
-                        placeholder="输入审批人用户名或邮箱"
-                        prefix={<UserOutlined />}
-                        style={{ flex: 1 }}
-                      />
-                      <Button
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => handleRemoveApprover(index)}
-                        disabled={approvalConfig.approvers.length === 0}
-                      />
-                    </Space>
-                  ))}
-                  <Button type="dashed" icon={<PlusOutlined />} onClick={handleAddApprover} block>
-                    添加审批人
-                  </Button>
-                </Space>
-              </Form.Item>
-
-              <Form.Item label="审批模式">
-                <Radio.Group
-                  value={approvalConfig.mode}
-                  onChange={(e) => setApprovalConfig((prev) => ({ ...prev, mode: e.target.value }))}
-                >
-                  <Radio value="any">
-                    <Space>
-                      <Tag color="success">任一审批</Tag>
-                      <span>任意一个审批人通过即可</span>
-                    </Space>
-                  </Radio>
-                  <Radio value="unanimous">
-                    <Space>
-                      <Tag color="processing">全部审批</Tag>
-                      <span>所有审批人都必须通过</span>
-                    </Space>
-                  </Radio>
-                </Radio.Group>
-              </Form.Item>
-
-              <Form.Item label="审批超时 (小时)" tooltip="审批人超过此时间未处理将触发超时动作">
-                <InputNumber
-                  min={1}
-                  max={168}
-                  value={approvalConfig.timeout}
-                  onChange={(value) =>
-                    setApprovalConfig((prev) => ({ ...prev, timeout: value || 24 }))
-                  }
-                  style={{ width: '100%' }}
-                />
-              </Form.Item>
-
-              <Form.Item label="超时动作">
-                <Radio.Group
-                  value={approvalConfig.timeoutAction}
-                  onChange={(e) =>
-                    setApprovalConfig((prev) => ({
-                      ...prev,
-                      timeoutAction: e.target.value,
-                    }))
-                  }
-                >
-                  <Radio value="reject">
-                    <Tag color="error">自动拒绝</Tag>
-                  </Radio>
-                  <Radio value="approve">
-                    <Tag color="success">自动通过</Tag>
-                  </Radio>
-                </Radio.Group>
-              </Form.Item>
-            </>
-          )}
-
-          {!approvalConfig.enabled && (
-            <div style={{ padding: '8px 0', color: colors.neutral[500] }}>
-              启用后可配置审批人、审批模式和超时处理策略
-            </div>
-          )}
-        </Card>
+        <StageApprovalSection value={approvalConfig} onChange={setApprovalConfig} />
 
         {/* 质量门禁配置 */}
-        <Divider orientation="left" orientationMargin={0}>
-          <Space>
-            <SafetyOutlined />
-            <span>质量门禁配置</span>
-          </Space>
-        </Divider>
-
-        <Card size="small" style={{ marginBottom: spacing.md }}>
-          <Form.Item label="启用质量门禁" valuePropName="checked">
-            <Switch
-              checked={qualityGateConfig.enabled}
-              onChange={(checked) =>
-                setQualityGateConfig((prev) => ({ ...prev, enabled: checked }))
-              }
-              checkedChildren="启用"
-              unCheckedChildren="禁用"
-            />
-          </Form.Item>
-
-          {qualityGateConfig.enabled && (
-            <>
-              <Form.Item label="不通过时的动作">
-                <Radio.Group
-                  value={qualityGateConfig.failureAction}
-                  onChange={(e) =>
-                    setQualityGateConfig((prev) => ({
-                      ...prev,
-                      failureAction: e.target.value,
-                    }))
-                  }
-                >
-                  <Space direction="vertical">
-                    <Radio value="block">
-                      <Space>
-                        <Tag color="error">阻断</Tag>
-                        <span>阻断流水线执行</span>
-                      </Space>
-                    </Radio>
-                    <Radio value="warn">
-                      <Space>
-                        <Tag color="warning">警告</Tag>
-                        <span>记录警告但继续执行</span>
-                      </Space>
-                    </Radio>
-                    <Radio value="continue">
-                      <Space>
-                        <Tag color="default">继续</Tag>
-                        <span>不处理，直接继续</span>
-                      </Space>
-                    </Radio>
-                  </Space>
-                </Radio.Group>
-              </Form.Item>
-
-              <Form.Item label="规则列表">
-                <Space direction="vertical" style={{ width: '100%' }} size={12}>
-                  {qualityGateConfig.rules.map((rule) => (
-                    <Card
-                      key={rule.id}
-                      size="small"
-                      extra={
-                        <Button
-                          danger
-                          size="small"
-                          icon={<DeleteOutlined />}
-                          onClick={() => handleRemoveQualityRule(rule.id)}
-                        />
-                      }
-                    >
-                      <Space style={{ width: '100%' }} size={8}>
-                        <Select
-                          value={rule.metric}
-                          onChange={(value) => handleUpdateQualityRule(rule.id, 'metric', value)}
-                          options={METRIC_OPTIONS}
-                          style={{ width: 160 }}
-                          placeholder="选择指标"
-                        />
-                        <Select
-                          value={rule.operator}
-                          onChange={(value) => handleUpdateQualityRule(rule.id, 'operator', value)}
-                          options={OPERATOR_OPTIONS}
-                          style={{ width: 80 }}
-                        />
-                        <InputNumber
-                          value={rule.threshold}
-                          onChange={(value) =>
-                            handleUpdateQualityRule(rule.id, 'threshold', value || 0)
-                          }
-                          style={{ width: 120 }}
-                          placeholder="阈值"
-                        />
-                      </Space>
-                    </Card>
-                  ))}
-                  <Button
-                    type="dashed"
-                    icon={<PlusOutlined />}
-                    onClick={handleAddQualityRule}
-                    block
-                  >
-                    添加质量规则
-                  </Button>
-                </Space>
-              </Form.Item>
-            </>
-          )}
-
-          {!qualityGateConfig.enabled && (
-            <div style={{ padding: '8px 0', color: colors.neutral[500] }}>
-              启用后可配置质量检查规则，如测试通过率、代码覆盖率、漏洞数量等
-            </div>
-          )}
-        </Card>
+        <StageQualityGateSection value={qualityGateConfig} onChange={setQualityGateConfig} />
       </Form>
     </Modal>
   );

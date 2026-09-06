@@ -4,7 +4,7 @@
  * the list of connections between nodes.
  */
 import React from 'react';
-import { Button, Card, Col, Row, Spin, Statistic, Typography } from 'antd';
+import { Button, Card, Col, Row, Spin, Statistic } from 'antd';
 import { ReloadOutlined, ShareAltOutlined } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
@@ -12,8 +12,6 @@ import Table from '@/components/Table';
 import type { InfrastructureTopology } from '@/api/graph';
 import { buildInfraColumns } from './columns';
 import InfrastructureEdgeList from './InfrastructureEdgeList';
-
-const { Text } = Typography;
 
 export interface InfrastructureTabProps {
   topology: InfrastructureTopology;

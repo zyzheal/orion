@@ -4,7 +4,7 @@
  * card, action bar, and side-by-side table + dependency tree.
  */
 import React from 'react';
-import { Button, Card, Col, Row, Space, Spin, Statistic, Tag, Text, Tree, Typography } from 'antd';
+import { Button, Card, Col, Row, Spin, Statistic, Tree, Typography } from 'antd';
 import { DeploymentUnitOutlined, ReloadOutlined } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
@@ -14,7 +14,7 @@ import { buildServiceColumns } from './columns';
 import { buildServiceDependencyTreeData } from './ServiceDependencyTree';
 import ServiceDetailCard from './ServiceDetailCard';
 
-const { Text: TypoText } = Typography;
+const { Text } = Typography;
 
 export interface DependenciesTabProps {
   services: ServiceDependency[];
@@ -97,7 +97,7 @@ const DependenciesTab: React.FC<DependenciesTabProps> = ({
           marginBottom: spacing.md,
         }}
       >
-        <TypoText type="secondary">服务依赖关系概览</TypoText>
+        <Text type="secondary">服务依赖关系概览</Text>
         <Button icon={<ReloadOutlined />} onClick={onRefresh} loading={svcLoading}>
           刷新
         </Button>

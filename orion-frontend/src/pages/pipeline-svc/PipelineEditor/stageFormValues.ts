@@ -72,10 +72,10 @@ export interface StageFormValues {
   apkMarket?: string;
   /** APK 上传：多市场列表 */
   apkMarkets?: string[];
-  /** APK 上传：APK 文件路径 */
-  apkPath?: string;
-  /** APK 上传：应用包名 */
-  packageName?: string;
+  /** APK 上传：APK 文件路径（必填） */
+  apkPath: string;
+  /** APK 上传：应用包名（必填） */
+  packageName: string;
   /** APK 上传：版本名称 */
   versionName?: string;
   /** APK 上传：更新日志 */
@@ -87,8 +87,8 @@ export interface StageFormValues {
 
   /** 缓存：是否启用 */
   cacheEnabled?: boolean;
-  /** 缓存：Key */
-  cacheKey?: string;
+  /** 缓存：Key（必填） */
+  cacheKey: string;
   /** 缓存：恢复 Key 前缀（每行一个） */
   cacheRestoreKeys?: string;
 

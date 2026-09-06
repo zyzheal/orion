@@ -5,7 +5,7 @@
  * 从 MultiCloudAdvancedPage.tsx 拆分而来。
  * 使用工厂函数模式，未来可扩展接收 handler 参数而不破坏现有调用。
  */
-import React from 'react';
+
 import type { ColumnsType } from 'antd/es/table';
 import { Tag, Space, Typography, Badge as AntBadge } from 'antd';
 import {

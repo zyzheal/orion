@@ -48,7 +48,7 @@ export const ConfigTab: React.FC<ConfigTabProps> = ({
         loading={themeLoading}
         rowKey="id"
         size="middle"
-        pagination={false}
+        pagination={{ pageSize: 5 }}
       />
     </Card>
 
@@ -72,7 +72,7 @@ export const ConfigTab: React.FC<ConfigTabProps> = ({
             loading={moduleLoading}
             rowKey="id"
             size="small"
-            pagination={false}
+            pagination={{ pageSize: 5 }}
           />
         </Card>
       </Col>
@@ -84,7 +84,7 @@ export const ConfigTab: React.FC<ConfigTabProps> = ({
         dataSource={threadPools}
         rowKey="name"
         size="middle"
-        pagination={false}
+        pagination={{ pageSize: 5 }}
       />
     </Card>
   </div>

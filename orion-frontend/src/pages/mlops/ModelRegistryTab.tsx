@@ -152,7 +152,7 @@ export const ModelRegistryTab: React.FC = () => {
           value={modelStatusFilter}
           onChange={setModelStatusFilter}
           allowClear
-          style={ { width: 120 } }
+          style={{ width: 120 }}
           options={MODEL_STATUS_OPTIONS}
         />
       </div>

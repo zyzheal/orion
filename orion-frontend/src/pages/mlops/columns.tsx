@@ -2,7 +2,6 @@
  * MLOps Page - Table Column Definitions
  * Handler-dependent columns use the factory function pattern (build*Columns).
  */
-import React from 'react';
 import { Button, Popconfirm, Space, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {

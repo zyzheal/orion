@@ -7,48 +7,31 @@
  * - Empty state for no notifications
  * - Admin broadcast modal (broadcast messages to multiple users)
  * - User notification settings drawer (toggle notification preferences)
+ *
+ * State + data fetching live here; presentation is delegated to
+ * `columns.tsx` (list rows), `NotificationCenterModals.tsx` (stats/broadcast/
+ * settings) and `config.ts` (constant definitions).
  */
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Typography,
   Button,
   Tabs,
   List,
-  Tag,
   Space,
-  Card,
-  Statistic,
-  Row,
-  Col,
-  Empty,
   message,
   Popconfirm,
-  Modal,
   Form,
-  Input,
-  Select,
-  Switch,
-  Drawer,
-  Divider,
-  Spin,
   Pagination,
 } from 'antd';
-import { colors, spacing, themeVars } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   BellOutlined,
-  UserAddOutlined,
-  ArrowUpOutlined,
-  WarningOutlined,
-  ExclamationCircleOutlined,
-  CheckCircleOutlined,
-  MessageOutlined,
-  SwapOutlined,
-  AlertOutlined,
-  DeleteOutlined,
   CheckOutlined,
   ClearOutlined,
-  SoundOutlined,
   SettingOutlined,
+  SoundOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -67,109 +50,49 @@ import {
   type BroadcastInput,
 } from '@/api/notifications';
 import { listUsers, type User } from '@/api/users';
-
-// ============================================================================
-// Local type for notification data (matches API response shape)
-// ============================================================================
-
-interface NotificationItem {
-  id: string;
-  title: string;
-  content: string;
-  type:
-    | 'ticket_assigned'
-    | 'ticket_escalated'
-    | 'sla_warning'
-    | 'sla_breached'
-    | 'pipeline_completed'
-    | 'system_alert'
-    | 'comment_mention'
-    | 'transfer_request';
-  priority: 'critical' | 'high' | 'medium' | 'low';
-  read: boolean;
-  createdAt: string;
-  relatedId?: string;
-  sender: string;
-  actions?: Array<{ label: string; type: string }>;
-}
+import {
+  tabDefinitions,
+  DEFAULT_PAGE_SIZE,
+  PAGE_SIZE_OPTIONS,
+  broadcastPriorityToType,
+  type SettingsKey,
+} from './config';
+import { createNotificationListRenderer, renderEmptyState } from './columns';
+import {
+  NotificationStatsRow,
+  BroadcastModal,
+  NotificationSettingsDrawer,
+  type BroadcastAudience,
+} from './NotificationCenterModals';
+import type { NotificationItem, NotificationStats } from './types';
 
 dayjs.extend(relativeTime);
 dayjs.locale('zh-cn');
 
-const { Title, Text, Paragraph } = Typography;
-
-// ============================================================================
-// Configuration
-// ============================================================================
-
-// Icon mapping for notification types
-const typeIconMap: Record<string, React.ReactElement> = {
-  ticket_assigned: <UserAddOutlined style={{ color: colors.primary[500], fontSize: spacing[5] }} />,
-  ticket_escalated: (
-    <ArrowUpOutlined style={{ color: colors.warning[500], fontSize: spacing[5] }} />
-  ),
-  sla_warning: <WarningOutlined style={{ color: colors.warning[500], fontSize: spacing[5] }} />,
-  sla_breached: (
-    <ExclamationCircleOutlined style={{ color: colors.error[500], fontSize: spacing[5] }} />
-  ),
-  pipeline_completed: (
-    <CheckCircleOutlined style={{ color: colors.success[500], fontSize: spacing[5] }} />
-  ),
-  comment_mention: <MessageOutlined style={{ color: colors.purple[500], fontSize: spacing[5] }} />,
-  transfer_request: <SwapOutlined style={{ color: colors.info[500], fontSize: spacing[5] }} />,
-  system_alert: <AlertOutlined style={{ color: colors.error[500], fontSize: spacing[5] }} />,
-};
-
-// Type label mapping
-const typeLabelMap: Record<string, string> = {
-  ticket_assigned: '工单分配',
-  ticket_escalated: '工单升级',
-  sla_warning: 'SLA 警告',
-  sla_breached: 'SLA 违约',
-  pipeline_completed: 'Pipeline 完成',
-  system_alert: '系统告警',
-  comment_mention: '评论提及',
-  transfer_request: '转派请求',
-};
-
-// Priority config
-const priorityConfig: Record<string, { color: string; label: string; bg: string }> = {
-  critical: { color: colors.error[500], label: '紧急', bg: 'rgba(245, 34, 45, 0.04)' },
-  high: { color: colors.warning[500], label: '高', bg: 'rgba(250, 140, 22, 0.04)' },
-  medium: { color: colors.warning[500], label: '中', bg: 'transparent' },
-  low: { color: colors.neutral[300], label: '低', bg: 'transparent' },
-};
-
-// Tab definitions
-const tabDefinitions = [
-  { key: 'all', label: '全部' },
-  { key: 'unread', label: '未读' },
-  { key: 'tickets', label: '工单' },
-  { key: 'system', label: '系统' },
-  { key: 'read', label: '已读' },
-];
-
-// ============================================================================
-// Component
-// ============================================================================
+const { Title, Text } = Typography;
 
 const NotificationCenter: React.FC = () => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [stats, setStats] = useState({ unread: 0, critical: 0, today: 0, thisWeek: 0 });
+  const [stats, setStats] = useState<NotificationStats>({
+    unread: 0,
+    critical: 0,
+    today: 0,
+    thisWeek: 0,
+  });
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [total, setTotal] = useState(0);
 
   // Broadcast modal state (admin only)
   const [broadcastModalVisible, setBroadcastModalVisible] = useState(false);
   const [broadcastForm] = Form.useForm();
   const [broadcastSubmitting, setBroadcastSubmitting] = useState(false);
-  const [broadcastAudience, setBroadcastAudience] = useState<'all' | 'specific'>('all');
+  const [broadcastAudience, setBroadcastAudience] = useState<BroadcastAudience>('all');
   const [selectedBroadcastUsers, setSelectedBroadcastUsers] = useState<string[]>([]);
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -247,6 +170,7 @@ const NotificationCenter: React.FC = () => {
   useEffect(() => {
     fetchNotifications();
     fetchStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, currentPage, pageSize]);
 
   // Toggle expand/collapse
@@ -359,18 +283,10 @@ const NotificationCenter: React.FC = () => {
         return;
       }
 
-      // Map priority to notification type
-      const typeMap: Record<string, string> = {
-        critical: 'system_alert',
-        high: 'system_alert',
-        medium: 'system_alert',
-        low: 'system_alert',
-      };
-
       const payload: BroadcastInput = {
         tenantId,
         userIds,
-        type: typeMap[values.priority] || 'system_alert',
+        type: broadcastPriorityToType[values.priority] || 'system_alert',
         title: values.title,
         message: values.message,
       };
@@ -412,7 +328,7 @@ const NotificationCenter: React.FC = () => {
   };
 
   /** Toggle a specific notification setting */
-  const handleToggleSetting = async (key: keyof NotificationSettings) => {
+  const handleToggleSetting = async (key: SettingsKey) => {
     if (!notificationSettings) return;
     setSettingsSaving(true);
     try {
@@ -450,225 +366,18 @@ const NotificationCenter: React.FC = () => {
     setExpandedIds(new Set());
   };
 
-  // Render stats row
-  const renderStatsRow = () => (
-    <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
-      <Col xs={12} sm={6}>
-        <Card size="small" style={{ textAlign: 'center' }}>
-          <Statistic
-            title="未读"
-            value={stats.unread}
-            valueStyle={{
-              color: stats.unread > 0 ? colors.error[500] : undefined,
-              fontSize: spacing[6],
-            }}
-            prefix={<BellOutlined />}
-          />
-        </Card>
-      </Col>
-      <Col xs={12} sm={6}>
-        <Card size="small" style={{ textAlign: 'center' }}>
-          <Statistic
-            title="紧急"
-            value={stats.critical}
-            valueStyle={{
-              color: stats.critical > 0 ? colors.error[500] : undefined,
-              fontSize: spacing[6],
-            }}
-            prefix={<ExclamationCircleOutlined />}
-          />
-        </Card>
-      </Col>
-      <Col xs={12} sm={6}>
-        <Card size="small" style={{ textAlign: 'center' }}>
-          <Statistic
-            title="今日"
-            value={stats.today}
-            valueStyle={{ fontSize: spacing[6] }}
-            prefix={<CheckCircleOutlined />}
-          />
-        </Card>
-      </Col>
-      <Col xs={12} sm={6}>
-        <Card size="small" style={{ textAlign: 'center' }}>
-          <Statistic
-            title="本周"
-            value={stats.thisWeek}
-            valueStyle={{ fontSize: spacing[6] }}
-            prefix={<BellOutlined />}
-          />
-        </Card>
-      </Col>
-    </Row>
-  );
-
-  // Render notification item
-  const renderNotificationItem = (item: NotificationItem) => {
-    const isExpanded = expandedIds.has(item.id);
-    const priorityConf = priorityConfig[item.priority];
-    const typeIcon = typeIconMap[item.type] || <BellOutlined style={{ fontSize: spacing[5] }} />;
-    const typeLabel = typeLabelMap[item.type] || item.type;
-
-    // Background color for priority (only critical and high)
-    const hasPriorityBg = item.priority === 'critical' || item.priority === 'high';
-    const bgColor = hasPriorityBg
-      ? priorityConf.bg
-      : item.read
-        ? 'transparent'
-        : 'rgba(24, 144, 255, 0.02)';
-    const borderLeft = item.read ? '3px solid transparent' : `3px solid ${priorityConf.color}`;
-
-    return (
-      <List.Item
-        style={{
-          padding: spacing.md,
-          background: bgColor,
-          borderLeft,
-          borderRadius: 8,
-          marginBottom: spacing.sm,
-          cursor: 'pointer',
-          transition: 'all 0.2s',
-        }}
-        onClick={() => {
-          if (!item.read) {
-            handleMarkAsRead(item.id);
-          }
-          toggleExpand(item.id);
-        }}
-      >
-        <Space align="start" style={{ width: '100%' }} size={12}>
-          {/* Icon */}
-          <div style={{ marginTop: 2, flexShrink: 0 }}>{typeIcon}</div>
-
-          {/* Content */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {/* Title row */}
-            <div
-              style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: 4 }}
-            >
-              <Text
-                strong={!item.read}
-                style={{
-                  fontSize: spacing[4],
-                  color: item.read ? undefined : colors.neutral[900],
-                  flex: 1,
-                }}
-                ellipsis={{ tooltip: item.title }}
-              >
-                {item.title}
-              </Text>
-              {/* Priority badge */}
-              <Tag color={priorityConf.color} style={{ fontSize: spacing[2], margin: 0 }}>
-                {priorityConf.label}
-              </Tag>
-              {/* Type tag */}
-              <Tag style={{ fontSize: spacing[2], margin: 0 }}>{typeLabel}</Tag>
-              {/* Unread dot */}
-              {!item.read && (
-                <div
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: colors.primary[500],
-                    flexShrink: 0,
-                  }}
-                />
-              )}
-            </div>
-
-            {/* Content (truncated) */}
-            <Paragraph
-              ellipsis={{ rows: isExpanded ? 10 : 2, tooltip: !isExpanded }}
-              style={{ margin: '4px 0 8px', fontSize: spacing[3], color: colors.neutral[500] }}
-            >
-              {item.content}
-            </Paragraph>
-
-            {/* Meta row */}
-            <div
-              style={{ display: 'flex', alignItems: 'center', gap: spacing.md, flexWrap: 'wrap' }}
-            >
-              <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                {item.sender}
-              </Text>
-              <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                {dayjs(item.createdAt).fromNow()}
-              </Text>
-              {item.relatedId && (
-                <Text type="secondary" style={{ fontSize: spacing[3], color: colors.primary[500] }}>
-                  关联: {item.relatedId}
-                </Text>
-              )}
-            </div>
-
-            {/* Expanded actions */}
-            {isExpanded && (
-              <div
-                style={{
-                  marginTop: spacing[3],
-                  borderTop: `1px solid ${themeVars.borderLight}`,
-                  paddingTop: spacing[3],
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                {item.actions && item.actions.length > 0 && (
-                  <Space style={{ marginBottom: spacing.sm }}>
-                    {item.actions.map((action, idx) => (
-                      <Button
-                        key={String(idx)}
-                        type={
-                          action.type as
-                            | 'primary'
-                            | 'default'
-                            | 'link'
-                            | 'text'
-                            | 'dashed'
-                            | undefined
-                        }
-                        size="small"
-                      >
-                        {action.label}
-                      </Button>
-                    ))}
-                  </Space>
-                )}
-                <Space>
-                  {!item.read && (
-                    <Button
-                      size="small"
-                      icon={<CheckOutlined />}
-                      onClick={() => handleMarkAsRead(item.id)}
-                    >
-                      标记已读
-                    </Button>
-                  )}
-                  <Popconfirm
-                    title="确定删除此通知？"
-                    onConfirm={() => handleDelete(item.id)}
-                    okText="确定"
-                    cancelText="取消"
-                  >
-                    <Button size="small" danger icon={<DeleteOutlined />}>
-                      删除
-                    </Button>
-                  </Popconfirm>
-                </Space>
-              </div>
-            )}
-          </div>
-        </Space>
-      </List.Item>
-    );
-  };
-
-  // Empty state
-  const renderEmptyState = () => (
-    <Empty
-      image={Empty.PRESENTED_IMAGE_SIMPLE}
-      description="暂无通知"
-      style={{ padding: '48px 0' }}
-    />
+  // Factory-built list renderer, memoised on the expanded-id set it closes over
+  const isExpanded = useCallback((id: string) => expandedIds.has(id), [expandedIds]);
+  const NotificationListRenderer = useMemo(
+    () =>
+      createNotificationListRenderer({
+        isExpanded,
+        handleMarkAsRead,
+        handleDelete,
+        toggleExpand,
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isExpanded]
   );
 
   return (
@@ -724,7 +433,7 @@ const NotificationCenter: React.FC = () => {
       </div>
 
       {/* Stats row */}
-      {renderStatsRow()}
+      <NotificationStatsRow stats={stats} />
 
       {/* Tab navigation */}
       <Tabs
@@ -759,7 +468,7 @@ const NotificationCenter: React.FC = () => {
             pageSize={pageSize}
             showSizeChanger
             showQuickJumper
-            pageSizeOptions={['10', '20', '50', '100']}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
             onChange={handlePageChange}
             onShowSizeChange={handlePageChange}
             size="small"
@@ -771,7 +480,10 @@ const NotificationCenter: React.FC = () => {
       <List
         dataSource={notifications}
         loading={loading}
-        renderItem={renderNotificationItem}
+        renderItem={(item: NotificationItem) => {
+          const Item = NotificationListRenderer;
+          return <Item item={item} />;
+        }}
         locale={{ emptyText: renderEmptyState() }}
       />
 
@@ -793,7 +505,7 @@ const NotificationCenter: React.FC = () => {
             pageSize={pageSize}
             showSizeChanger
             showQuickJumper
-            pageSizeOptions={['10', '20', '50', '100']}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
             showTotal={(t) => `共 ${t} 条通知`}
             onChange={handlePageChange}
             onShowSizeChange={handlePageChange}
@@ -802,277 +514,31 @@ const NotificationCenter: React.FC = () => {
       )}
 
       {/* Broadcast Modal (admin only) */}
-      <Modal
-        title={
-          <Space>
-            <SoundOutlined /> 广播通知
-          </Space>
-        }
-        open={broadcastModalVisible}
-        onCancel={() => setBroadcastModalVisible(false)}
-        onOk={handleBroadcastSubmit}
-        confirmLoading={broadcastSubmitting}
-        width={560}
-        destroyOnClose
-      >
-        <Form form={broadcastForm} layout="vertical" style={{ marginTop: spacing.md }}>
-          <Form.Item
-            name="title"
-            label="标题"
-            rules={[{ required: true, message: '请输入广播标题' }]}
-          >
-            <Input placeholder="如: 系统维护通知" />
-          </Form.Item>
-          <Form.Item
-            name="message"
-            label="消息内容"
-            rules={[{ required: true, message: '请输入消息内容' }]}
-          >
-            <Input.TextArea rows={4} placeholder="请输入广播消息内容..." />
-          </Form.Item>
-          <Form.Item label="目标受众" initialValue="all">
-            <Select
-              value={broadcastAudience}
-              onChange={(val) => {
-                setBroadcastAudience(val);
-                if (val === 'all') setSelectedBroadcastUsers([]);
-              }}
-              options={[
-                { label: '全体用户', value: 'all' },
-                { label: '指定用户', value: 'specific' },
-              ]}
-            />
-          </Form.Item>
-          {broadcastAudience === 'specific' && (
-            <Form.Item label="选择用户">
-              <Select
-                mode="multiple"
-                loading={usersLoading}
-                value={selectedBroadcastUsers}
-                onChange={setSelectedBroadcastUsers}
-                options={availableUsers.map((u) => ({
-                  label: u.name || u.username,
-                  value: u.id,
-                }))}
-                placeholder="搜索并选择用户"
-                filterOption={(input, option) =>
-                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                }
-              />
-            </Form.Item>
-          )}
-          <Form.Item name="priority" label="优先级" initialValue="medium">
-            <Select
-              options={[
-                { label: '紧急', value: 'critical' },
-                { label: '高', value: 'high' },
-                { label: '中', value: 'medium' },
-                { label: '低', value: 'low' },
-              ]}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+      {isAdmin() && (
+        <BroadcastModal
+          open={broadcastModalVisible}
+          onClose={() => setBroadcastModalVisible(false)}
+          form={broadcastForm}
+          audience={broadcastAudience}
+          onAudienceChange={setBroadcastAudience}
+          selectedUsers={selectedBroadcastUsers}
+          onSelectedUsersChange={setSelectedBroadcastUsers}
+          availableUsers={availableUsers}
+          usersLoading={usersLoading}
+          submitLoading={broadcastSubmitting}
+          onSubmit={handleBroadcastSubmit}
+        />
+      )}
 
       {/* Notification Settings Drawer */}
-      <Drawer
-        title={
-          <Space>
-            <SettingOutlined /> 通知设置
-          </Space>
-        }
+      <NotificationSettingsDrawer
         open={settingsDrawerVisible}
         onClose={() => setSettingsDrawerVisible(false)}
-        width={480}
-        destroyOnClose
-      >
-        {settingsLoading ? (
-          <div style={{ textAlign: 'center', padding: '48px 0' }}>
-            <Spin size="large" />
-          </div>
-        ) : notificationSettings ? (
-          <div>
-            {/* Channel Settings */}
-            <Title level={5}>通知渠道</Title>
-            <div style={{ marginBottom: spacing.md }}>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: spacing[3],
-                }}
-              >
-                <Text>邮件通知</Text>
-                <Switch
-                  checked={notificationSettings.emailEnabled}
-                  onChange={() => handleToggleSetting('emailEnabled')}
-                  loading={settingsSaving}
-                />
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: spacing[3],
-                }}
-              >
-                <Text>声音提醒</Text>
-                <Switch
-                  checked={notificationSettings.soundEnabled}
-                  onChange={() => handleToggleSetting('soundEnabled')}
-                  loading={settingsSaving}
-                />
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: spacing[3],
-                }}
-              >
-                <Text>桌面推送</Text>
-                <Switch
-                  checked={notificationSettings.desktopEnabled}
-                  onChange={() => handleToggleSetting('desktopEnabled')}
-                  loading={settingsSaving}
-                />
-              </div>
-            </div>
-
-            <Divider />
-
-            {/* Event Type Settings */}
-            <Title level={5}>通知类型</Title>
-            <div>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: spacing[3],
-                }}
-              >
-                <Text>工单分配</Text>
-                <Switch
-                  checked={notificationSettings.ticketAssigned}
-                  onChange={() => handleToggleSetting('ticketAssigned')}
-                  loading={settingsSaving}
-                />
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: spacing[3],
-                }}
-              >
-                <Text>工单升级</Text>
-                <Switch
-                  checked={notificationSettings.ticketEscalated}
-                  onChange={() => handleToggleSetting('ticketEscalated')}
-                  loading={settingsSaving}
-                />
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: spacing[3],
-                }}
-              >
-                <Text>SLA 警告</Text>
-                <Switch
-                  checked={notificationSettings.slaWarning}
-                  onChange={() => handleToggleSetting('slaWarning')}
-                  loading={settingsSaving}
-                />
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: spacing[3],
-                }}
-              >
-                <Text>SLA 违约</Text>
-                <Switch
-                  checked={notificationSettings.slaBreached}
-                  onChange={() => handleToggleSetting('slaBreached')}
-                  loading={settingsSaving}
-                />
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: spacing[3],
-                }}
-              >
-                <Text>Pipeline 完成</Text>
-                <Switch
-                  checked={notificationSettings.pipelineCompleted}
-                  onChange={() => handleToggleSetting('pipelineCompleted')}
-                  loading={settingsSaving}
-                />
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: spacing[3],
-                }}
-              >
-                <Text>系统告警</Text>
-                <Switch
-                  checked={notificationSettings.systemAlert}
-                  onChange={() => handleToggleSetting('systemAlert')}
-                  loading={settingsSaving}
-                />
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: spacing[3],
-                }}
-              >
-                <Text>评论提及</Text>
-                <Switch
-                  checked={notificationSettings.commentMention}
-                  onChange={() => handleToggleSetting('commentMention')}
-                  loading={settingsSaving}
-                />
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: spacing[3],
-                }}
-              >
-                <Text>转派请求</Text>
-                <Switch
-                  checked={notificationSettings.transferRequest}
-                  onChange={() => handleToggleSetting('transferRequest')}
-                  loading={settingsSaving}
-                />
-              </div>
-            </div>
-          </div>
-        ) : (
-          <Empty description="无法加载通知设置" />
-        )}
-      </Drawer>
+        loading={settingsLoading}
+        saving={settingsSaving}
+        settings={notificationSettings}
+        onToggle={handleToggleSetting}
+      />
     </div>
   );
 };
