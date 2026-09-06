@@ -65,6 +65,12 @@ type MigrationEndpoint struct {
 	Port     int    `json:"port"`
 	Database string `json:"database"`
 	Schema   string `json:"schema,omitempty"`
+	// User/Password are optional credentials used by DBFactory when
+	// executing real SQL. When omitted, the factory falls back to
+	// ORION_MIG_<SIDE>_USER / ORION_MIG_<SIDE>_PASSWORD env vars.
+	User     string `json:"user,omitempty" alias:"username"`
+	Password string `json:"password,omitempty"`
+	SSLMode  string `json:"sslmode,omitempty"`
 }
 
 // MigrationStep is one atomic operation within a migration plan.

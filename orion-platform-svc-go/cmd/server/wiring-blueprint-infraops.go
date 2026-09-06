@@ -138,9 +138,9 @@ func wireBlueprintInfraOps(db *database.DB, logger *zap.Logger) {
 	infraChaosRepo := infraChaos_repo.NewChaosRepository(db.DB)
 	infraChaosSvc := infraChaos_service.NewChaosService(infraChaosRepo)
 	infraChaosH = infraChaos_handler.NewHandler(infraChaosSvc)
-	// migration: repo -> service -> handler
+	// migration: repo -> service (with real DB factory) -> handler
 	migRepo := migration.NewRepository()
-	migSvc := migration.NewService(migRepo, logger)
+	migSvc := migration.NewService(migRepo, logger, migration.DefaultDBFactory)
 	migrationH = migration.NewHandler(migSvc, logger)
 	// dba: repo -> service -> handler
 	infraDbaRepo := infraDba_repo.NewRepository(db.DB)

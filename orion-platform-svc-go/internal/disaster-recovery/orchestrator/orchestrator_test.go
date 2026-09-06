@@ -91,6 +91,29 @@ func TestNewDROrchestrator_DefaultExecutor(t *testing.T) {
 	}
 }
 
+func TestNewDROrchestrator_DefaultIsShell(t *testing.T) {
+	// Direct proof that ShellExecutor is wired in as the default: the
+	// inherited executor must actually run a shell command.
+	repo := newFakeDRRepo()
+	o := NewDROrchestrator(repo, zaptest.NewLogger(t), nil)
+	out, err := o.executor(context.Background(), "echo default-check")
+	if err != nil {
+		t.Fatalf("default executor must actually run commands, got err: %v", err)
+	}
+	if out != "default-check\n" {
+		t.Errorf("expected echo output, got %q", out)
+	}
+}
+
+func TestDefaultExecutor_StillReturnsError(t *testing.T) {
+	// Backwards-compat: the exported stub still refuses to run commands
+	// even though it is no longer the constructor default.
+	_, err := DefaultExecutor(context.Background(), "echo nope")
+	if err == nil {
+		t.Fatal("expected DefaultExecutor to still error")
+	}
+}
+
 func TestFailover_Success(t *testing.T) {
 	ctx := context.Background()
 	repo := newFakeDRRepo()
@@ -290,6 +313,10 @@ func TestHealthCheck(t *testing.T) {
 	repo.CreatePlan(ctx, plan)
 
 	o := NewDROrchestrator(repo, zaptest.NewLogger(t), echoExecutor)
+	// Inject a fake lag probe so this test does not depend on real hosts.
+	o.SetDBLagProbe(func(_ context.Context, _, _ Endpoint) (time.Duration, string, error) {
+		return 0, "healthy", nil
+	})
 	h, err := o.HealthCheck(ctx, "plan-7")
 	if err != nil {
 		t.Fatalf("HealthCheck failed: %v", err)
@@ -302,6 +329,104 @@ func TestHealthCheck(t *testing.T) {
 	}
 	if h.ReplicationLag != 0 {
 		t.Error("expected 0 replication lag")
+	}
+	if h.SentinelError != "healthy" {
+		t.Errorf("expected sentinel=healthy, got %q", h.SentinelError)
+	}
+}
+
+func TestHealthCheck_UnconfiguredEndpoints(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeDRRepo()
+	plan := DefaultDRPlan()
+	plan.ID = "plan-8"
+	// No DBHost set → unconfigured, sentinel must reflect that.
+	repo.CreatePlan(ctx, plan)
+
+	o := NewDROrchestrator(repo, zaptest.NewLogger(t), echoExecutor)
+	h, err := o.HealthCheck(ctx, "plan-8")
+	if err != nil {
+		t.Fatalf("HealthCheck failed: %v", err)
+	}
+	if h.SentinelError != "unconfigured" {
+		t.Errorf("expected sentinel=unconfigured, got %q", h.SentinelError)
+	}
+	// No lag expected since we didn't measure any.
+	if h.ReplicationLag != 0 {
+		t.Errorf("expected 0 lag for unconfigured, got %v", h.ReplicationLag)
+	}
+}
+
+func TestHealthCheck_RealLagFromMockProbe(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeDRRepo()
+	plan := DefaultDRPlan()
+	plan.ID = "plan-9"
+	plan.Source = Endpoint{Name: "primary", Region: "us-east", DBHost: "db1"}
+	plan.Target = Endpoint{Name: "dr", Region: "us-west", DBHost: "db2"}
+	repo.CreatePlan(ctx, plan)
+
+	// Simulate a healthy PG cluster with 3 seconds of replication lag.
+	o := NewDROrchestrator(repo, zaptest.NewLogger(t), echoExecutor)
+	o.SetDBLagProbe(func(_ context.Context, _, _ Endpoint) (time.Duration, string, error) {
+		return 3 * time.Second, "healthy", nil
+	})
+	h, err := o.HealthCheck(ctx, "plan-9")
+	if err != nil {
+		t.Fatalf("HealthCheck failed: %v", err)
+	}
+	if h.ReplicationLag != 3*time.Second {
+		t.Errorf("expected 3s lag, got %v", h.ReplicationLag)
+	}
+	if h.SentinelError != "healthy" {
+		t.Errorf("expected sentinel=healthy, got %q", h.SentinelError)
+	}
+}
+
+func TestHealthCheck_DegradedLag(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeDRRepo()
+	plan := DefaultDRPlan()
+	plan.ID = "plan-10"
+	plan.Source = Endpoint{Name: "p", Region: "r", DBHost: "h"}
+	plan.Target = Endpoint{Name: "t", Region: "r", DBHost: "h2"}
+	repo.CreatePlan(ctx, plan)
+
+	o := NewDROrchestrator(repo, zaptest.NewLogger(t), echoExecutor)
+	o.SetDBLagProbe(func(_ context.Context, _, _ Endpoint) (time.Duration, string, error) {
+		return 25 * time.Second, "degraded", nil
+	})
+	h, err := o.HealthCheck(ctx, "plan-10")
+	if err != nil {
+		t.Fatalf("HealthCheck failed: %v", err)
+	}
+	if h.SentinelError != "degraded" {
+		t.Errorf("expected sentinel=degraded, got %q", h.SentinelError)
+	}
+	if h.ReplicationLag < 20*time.Second {
+		t.Errorf("expected lag>=20s, got %v", h.ReplicationLag)
+	}
+}
+
+func TestHealthCheck_DBUnreachable(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeDRRepo()
+	plan := DefaultDRPlan()
+	plan.ID = "plan-11"
+	plan.Source = Endpoint{Name: "p", Region: "r", DBHost: "h"}
+	plan.Target = Endpoint{Name: "t", Region: "r", DBHost: "h2"}
+	repo.CreatePlan(ctx, plan)
+
+	o := NewDROrchestrator(repo, zaptest.NewLogger(t), echoExecutor)
+	o.SetDBLagProbe(func(_ context.Context, _, _ Endpoint) (time.Duration, string, error) {
+		return 0, "unreachable", fmt.Errorf("dial tcp: no route to host")
+	})
+	h, err := o.HealthCheck(ctx, "plan-11")
+	if err != nil {
+		t.Fatalf("HealthCheck should not wrap probe errors, got: %v", err)
+	}
+	if !strings.HasPrefix(h.SentinelError, "unreachable:") {
+		t.Errorf("expected sentinel=unreachable:*, got %q", h.SentinelError)
 	}
 }
 

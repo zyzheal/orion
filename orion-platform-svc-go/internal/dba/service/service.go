@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 
 	"orion/platform-svc-go/internal/dba/models"
@@ -125,9 +126,10 @@ func (s *Service) ExecuteOrder(ctx context.Context, tenantID, userID, id string)
 		return nil, fmt.Errorf("%s", errMsg)
 	}
 
-	// Only PostgreSQL is supported for direct execution.
-	if ds.Type != "postgresql" && ds.Type != "postgres" {
-		errMsg := fmt.Sprintf("execution not supported for %s; only PostgreSQL data sources are supported", ds.Type)
+	// Only PostgreSQL and MySQL are supported for direct execution.
+	dbType := normalizeDBType(ds.Type)
+	if dbType == "" {
+		errMsg := fmt.Sprintf("execution not supported for %s; supported types are postgresql and mysql", ds.Type)
 		_, _ = s.repo.UpdateOrderStatus(ctx, id, "failed", nil, &errMsg)
 		return nil, fmt.Errorf("%s", errMsg)
 	}
@@ -138,7 +140,7 @@ func (s *Service) ExecuteOrder(ctx context.Context, tenantID, userID, id string)
 	defer cancel()
 
 	normalized := strings.TrimSpace(strings.ToLower(order.SQL))
-	result, execErr := executePGSQL(ds, ctx, order.SQL, normalized)
+	result, execErr := executeSQLByType(ds, dbType, ctx, order.SQL, normalized)
 	latency := float64(time.Since(start).Milliseconds())
 
 	if execErr != nil {
@@ -219,7 +221,7 @@ func (s *Service) TestConnection(ctx context.Context, id string) (*models.TestCo
 	if err != nil {
 		return nil, err
 	}
-	ok, message, version, latency := testPGConnection(ds, 5*time.Second)
+	ok, message, version, latency := testConnectionByType(ds, normalizeDBType(ds.Type), 5*time.Second)
 	if ok {
 		if err := s.repo.UpdateDataSourceStatus(ctx, id, "online"); err != nil {
 			return nil, err
@@ -302,11 +304,11 @@ func (s *Service) ExecuteDirectQuery(ctx context.Context, tenantID, userID strin
 		return nil, err
 	}
 
-	// Only PostgreSQL is supported for direct query execution.
-	sourceType := ds.Type
-	if sourceType != "postgresql" && sourceType != "postgres" {
+	// Only PostgreSQL and MySQL are supported for direct query execution.
+	dbType := normalizeDBType(ds.Type)
+	if dbType == "" {
 		rec := newExecutionRecord(ctx, tenantID, userID, req.DataSourceID, ds.Name, req.SQL, "error",
-			"Direct query execution not supported for "+sourceType+". Only PostgreSQL data sources are supported.", 0, nil)
+			"Direct query execution not supported for "+ds.Type+". Supported types are postgresql and mysql.", 0, nil)
 		return &models.DirectQueryResponse{
 			Success:         false,
 			Error:           *rec.Error,
@@ -338,7 +340,7 @@ func (s *Service) ExecuteDirectQuery(ctx context.Context, tenantID, userID strin
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	rows, err := executePGQuery(ds, ctx, req.SQL)
+	rows, err := executeSQLQueryByType(ds, dbType, ctx, req.SQL)
 	if err != nil {
 		latency := float64(time.Since(start).Milliseconds())
 		errMsg := err.Error()
@@ -466,6 +468,200 @@ func isReadOnlySQL(sql string) bool {
 			(strings.Contains(sql, "select") || strings.Contains(sql, " SELECT"))
 	}
 	return strings.HasPrefix(sql, "select")
+}
+
+// normalizeDBType maps any user-supplied DataSource.Type string onto a
+// canonical engine key used for connection dispatch. Recognised keys:
+//   "postgres", "mysql".
+// Unknown or empty types return "" so callers can fall through to an
+// "unsupported" error branch instead of guessing.
+func normalizeDBType(t string) string {
+	switch strings.ToLower(strings.TrimSpace(t)) {
+	case "postgres", "postgresql", "pg", "postgre":
+		return "postgres"
+	case "mysql", "mysql8", "mariadb":
+		return "mysql"
+	default:
+		return ""
+	}
+}
+
+// executeSQLByType dispatches an arbitrary SQL execution to the correct
+// driver based on the data source type. PostgreSQL and MySQL share the
+// same caller-facing sqlExecResult shape so the JSON returned to the UI
+// is identical regardless of backend.
+func executeSQLByType(ds *models.DataSource, dbType string, ctx context.Context, sqlStr, normalized string) (*sqlExecResult, error) {
+	switch dbType {
+	case "postgres":
+		return executePGSQL(ds, ctx, sqlStr, normalized)
+	case "mysql":
+		return executeMySQLSQL(ds, ctx, sqlStr, normalized)
+	default:
+		return nil, fmt.Errorf("unsupported db type: %s", dbType)
+	}
+}
+
+// executeSQLQueryByType opens a read-only connection to the appropriate
+// engine and returns the *sql.Rows for the caller to iterate.
+func executeSQLQueryByType(ds *models.DataSource, dbType string, ctx context.Context, sqlStr string) (*sql.Rows, error) {
+	switch dbType {
+	case "postgres":
+		return executePGQuery(ds, ctx, sqlStr)
+	case "mysql":
+		return executeMySQLQuery(ds, ctx, sqlStr)
+	default:
+		return nil, fmt.Errorf("unsupported db type: %s", dbType)
+	}
+}
+
+// testConnectionByType probes connectivity to whichever engine the data
+// source is configured for. It returns the same (ok, message, version,
+// latency) tuple the callers have always used.
+func testConnectionByType(ds *models.DataSource, dbType string, timeout time.Duration) (bool, string, string, float64) {
+	switch dbType {
+	case "postgres":
+		return testPGConnection(ds, timeout)
+	case "mysql":
+		return testMySQLConnection(ds, timeout)
+	default:
+		// Preserve the legacy behaviour for unknown/empty types: try
+		// PostgreSQL so that untyped data sources still work.
+		return testPGConnection(ds, timeout)
+	}
+}
+
+func buildMySQLDSN(ds *models.DataSource) string {
+	host := ds.Host
+	port := ds.Port
+	database := ds.Database
+	user := ""
+	password := ""
+	if ds.Username != nil {
+		user = *ds.Username
+	}
+	if ds.Password != nil {
+		password = *ds.Password
+	}
+	// Default to standard MySQL port.
+	if port <= 0 {
+		port = 3306
+	}
+	if host == "" {
+		host = "localhost"
+	}
+	if database == "" {
+		database = "mysql"
+	}
+	dsn := fmt.Sprintf(
+		"%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local&collation=utf8mb4_unicode_ci",
+		user, password, host, port, database,
+	)
+	return dsn
+}
+
+func testMySQLConnection(ds *models.DataSource, timeout time.Duration) (ok bool, message string, version string, latency float64) {
+	dsn := buildMySQLDSN(ds)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	conn, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return false, fmt.Sprintf("failed to open connection: %s", err), "", 0
+	}
+	defer conn.Close()
+	start := time.Now()
+	err = conn.PingContext(ctx)
+	if err != nil {
+		return false, fmt.Sprintf("failed to ping database: %s", err), "", 0
+	}
+	rows, err := conn.QueryContext(ctx, "SELECT VERSION()")
+	if err != nil {
+		return true, "Connection successful", "", float64(time.Since(start).Milliseconds())
+	}
+	if rows.Next() {
+		rows.Scan(&version)
+	}
+	rows.Close()
+	latency = float64(time.Since(start).Milliseconds())
+	return true, "Connection successful", version, latency
+}
+
+func executeMySQLQuery(ds *models.DataSource, ctx context.Context, query string) (*sql.Rows, error) {
+	dsn := buildMySQLDSN(ds)
+	conn, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open connection to %s: %w", ds.Name, err)
+	}
+	conn.SetMaxOpenConns(1)
+	conn.SetConnMaxLifetime(30 * time.Second)
+	return conn.QueryContext(ctx, query)
+}
+
+// executeMySQLSQL executes an arbitrary SQL statement against a MySQL
+// data source with the same read-only detection logic used for PG.
+// MySQL uses `LIMIT n` (same as PG's basic form), backticks for
+// identifier quoting (vs PG double-quotes), and
+// `SHOW DATABASES`/`INFORMATION_SCHEMA.TABLES` for introspection. The
+// driver's `parseTime=True` option keeps DATETIME values as time.Time.
+func executeMySQLSQL(ds *models.DataSource, ctx context.Context, sqlStr, normalized string) (*sqlExecResult, error) {
+	dsn := buildMySQLDSN(ds)
+	conn, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open connection to %s: %w", ds.Name, err)
+	}
+	conn.SetMaxOpenConns(1)
+	conn.SetConnMaxLifetime(30 * time.Second)
+	defer conn.Close()
+
+	if isReadOnlySQL(normalized) {
+		rows, err := conn.QueryContext(ctx, sqlStr)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		columns, _ := rows.Columns()
+		result := &sqlExecResult{
+			Columns: columns,
+			Rows:    []map[string]interface{}{},
+		}
+
+		for rows.Next() {
+			values := make([]interface{}, len(columns))
+			valuePtrs := make([]interface{}, len(columns))
+			for i := range values {
+				valuePtrs[i] = &values[i]
+			}
+			if err := rows.Scan(valuePtrs...); err != nil {
+				return nil, fmt.Errorf("scan row: %w", err)
+			}
+			row := make(map[string]interface{}, len(columns))
+			for i, col := range columns {
+				// MySQL driver returns []byte for most non-numeric types
+				// and time.Time for DATETIME/TIMESTAMP columns.
+				switch v := values[i].(type) {
+				case []byte:
+					row[col] = string(v)
+				case time.Time:
+					row[col] = v.Format(time.RFC3339)
+				default:
+					row[col] = v
+				}
+			}
+			result.Rows = append(result.Rows, row)
+		}
+		result.RowCount = len(result.Rows)
+		return result, nil
+	}
+
+	res, err := conn.ExecContext(ctx, sqlStr)
+	if err != nil {
+		return nil, err
+	}
+	affected, _ := res.RowsAffected()
+	return &sqlExecResult{
+		RowsAffected: affected,
+		RowCount:     int(affected),
+	}, nil
 }
 
 func buildPGDSN(ds *models.DataSource) string {

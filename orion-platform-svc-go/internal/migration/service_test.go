@@ -2,16 +2,51 @@ package migration
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"go.uber.org/zap"
 )
 
+// setupService constructs a Service wired to a sqlmock-backed *sql.DB.
+// Every plan execution opens a fresh mock DB that accepts Begin, an
+// unlimited number of Execs (each returning 0 rows), and both Commit
+// and Rollback. This keeps the CGO requirement out of tests while
+// exercising the real *sql.DB → BeginTx → ExecContext → Commit path.
 func setupService(t *testing.T) (*Service, *Repository) {
 	t.Helper()
 	logger, _ := zap.NewDevelopment()
 	repo := NewRepository()
-	svc := NewService(repo, logger)
+	factory := func(ctx context.Context, ep MigrationEndpoint) (*sql.DB, error) {
+		db, mock, err := sqlmock.New(
+			sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp),
+		)
+		if err != nil {
+			return nil, err
+		}
+		// Set unordered matching so Commit can match even when Exec
+		// expectations remain in the queue. sqlmock defaults to ordered
+		// which rejects Commit if any Exec is still pending.
+		mock.MatchExpectationsInOrder(false)
+		mock.ExpectBegin()
+		for i := 0; i < 32; i++ {
+			mock.ExpectExec(".*").WillReturnResult(sqlmock.NewResult(0, 0))
+		}
+		mock.ExpectCommit()
+		mock.ExpectBegin()
+		for i := 0; i < 32; i++ {
+			mock.ExpectExec(".*").WillReturnResult(sqlmock.NewResult(0, 0))
+		}
+		mock.ExpectCommit()
+		mock.ExpectBegin()
+		for i := 0; i < 32; i++ {
+			mock.ExpectExec(".*").WillReturnResult(sqlmock.NewResult(0, 0))
+		}
+		mock.ExpectRollback()
+		return db, nil
+	}
+	svc := NewService(repo, logger, factory)
 	return svc, repo
 }
 
@@ -209,7 +244,7 @@ func TestExecute(t *testing.T) {
 		Target: MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
 		Direction: DirectionForward,
 		SqlStatements: []string{
-			"CREATE TABLE users (id SERIAL PRIMARY KEY)",
+			"CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)",
 			"INSERT INTO users (name) VALUES ('test')",
 		},
 	})

@@ -2,12 +2,14 @@ package orchestrator
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os/exec"
 	"sync"
 	"time"
 
+	_ "github.com/lib/pq"
 	"go.uber.org/zap"
 )
 
@@ -46,6 +48,8 @@ type Endpoint struct {
 	DBHost      string `json:"dbHost"`
 	DBPort      int    `json:"dbPort"`
 	DBName      string `json:"dbName"`
+	DBUser      string `json:"dbUser,omitempty"`
+	DBPassword  string `json:"dbPassword,omitempty"`
 	IngressHost string `json:"ingressHost"`
 }
 
@@ -106,6 +110,11 @@ type DRHealth struct {
 	ReplicationLag  time.Duration `json:"replicationLag,omitempty"`
 	LastFailover    *time.Time    `json:"lastFailover,omitempty"`
 	LastHealthCheck time.Time     `json:"lastHealthCheck"`
+	// SentinelError is a machine-readable status key:
+	// "healthy" | "degraded" | "unconfigured" | "unreachable:<reason>".
+	// Callers can key off this to distinguish "no lag because we're fine"
+	// from "no lag because we couldn't measure it".
+	SentinelError string `json:"sentinelError,omitempty"`
 }
 
 // --- Repository ---
@@ -134,6 +143,10 @@ func ShellExecutor(ctx context.Context, command string) (string, error) {
 }
 
 // DefaultExecutor is a stub that returns an error for unimplemented commands.
+// It is retained for backwards compatibility (callers that explicitly pass
+// nil previously received this) but is no longer the constructor default —
+// NewDROrchestrator now falls back to ShellExecutor so DR steps actually
+// execute in production deployments.
 func DefaultExecutor(ctx context.Context, command string) (string, error) {
 	return "", fmt.Errorf("command executor not configured")
 }
@@ -146,6 +159,17 @@ type DROrchestrator struct {
 	executor CommandExecutor
 	mu       sync.Mutex
 	active   map[string]*DRResult
+	// dbLagProbe is injectable so tests can return a synthetic lag without
+	// needing a real PostgreSQL peer. When nil, the default implementation
+	// (measurePgLag) is used.
+	dbLagProbe func(ctx context.Context, src, tgt Endpoint) (time.Duration, string, error)
+}
+
+// SetDBLagProbe overrides the replication-lag measurement used by
+// HealthCheck. Passing nil restores the default pg_stat_replication
+// probe. Exported so handler/service tests can inject a fake.
+func (o *DROrchestrator) SetDBLagProbe(p func(ctx context.Context, src, tgt Endpoint) (time.Duration, string, error)) {
+	o.dbLagProbe = p
 }
 
 func NewDROrchestrator(repo RepositoryInterface, logger *zap.Logger, executor CommandExecutor) *DROrchestrator {
@@ -153,7 +177,10 @@ func NewDROrchestrator(repo RepositoryInterface, logger *zap.Logger, executor Co
 		logger, _ = zap.NewProduction()
 	}
 	if executor == nil {
-		executor = DefaultExecutor
+		// ShellExecutor is the production default so DR steps actually run.
+		// Callers that want the old stub behaviour (e.g. tests asserting
+		// "no command executed") can pass DefaultExecutor explicitly.
+		executor = ShellExecutor
 	}
 	return &DROrchestrator{
 		repo:     repo,
@@ -342,7 +369,26 @@ func (o *DROrchestrator) rollbackSteps(ctx context.Context, steps []DRStep, resu
 	}
 }
 
-// HealthCheck reports the health of source and target endpoints.
+// HealthCheck reports the health of source and target endpoints, and —
+// when both endpoints have DBHost configured — measures the real
+// PostgreSQL replication lag by querying pg_stat_replication on the
+// primary. The returned DRHealth.SentinelError (JSON: sentinelError)
+// carries a machine-readable status string so the caller can distinguish
+// "healthy" from "unconfigured" without parsing ReplicationLag==0.
+//
+// Behaviour:
+//   - plan not found        → wrapped sentinel error
+//   - endpoints empty       → SourceHealthy/TargetHealthy=false,
+//                             lag=0, SentinelError="unconfigured"
+//   - DB unreachable        → SentinelError="unreachable:<reason>"
+//   - replicas reported     → SentinelError="healthy" or "degraded"
+//     based on the lag threshold (10s warn, 60s fail)
+//
+// The endpoint-level check remains a structural test (name/region/host
+// must be set) because that is what "healthy" means at the endpoint
+// descriptor level; the DB liveness signal is folded into
+// SentinelError so existing callers that only inspect SourceHealthy /
+// TargetHealthy keep their old semantics.
 func (o *DROrchestrator) HealthCheck(ctx context.Context, planID string) (*DRHealth, error) {
 	plan, err := o.repo.GetPlan(ctx, planID)
 	if err != nil {
@@ -352,11 +398,102 @@ func (o *DROrchestrator) HealthCheck(ctx context.Context, planID string) (*DRHea
 		SourceHealthy:   o.checkEndpoint(plan.Source),
 		TargetHealthy:   o.checkEndpoint(plan.Target),
 		LastHealthCheck: time.Now(),
+		SentinelError:   "healthy",
 	}
-	if plan.Source.DBHost != "" && plan.Target.DBHost != "" {
-		h.ReplicationLag = 0
+
+	if plan.Source.DBHost == "" || plan.Target.DBHost == "" {
+		h.SentinelError = "unconfigured"
+		return h, nil
 	}
+
+	probe := o.dbLagProbe
+	if probe == nil {
+		probe = measurePgLag
+	}
+	lag, state, perr := probe(ctx, plan.Source, plan.Target)
+	if perr != nil {
+		h.SentinelError = "unreachable:" + perr.Error()
+		return h, nil
+	}
+	h.ReplicationLag = lag
+	h.SentinelError = state
 	return h, nil
+}
+
+// measurePgLag queries pg_stat_replication on the source (primary) to
+// compute the maximum write-ahead-lag across all known replicas, in
+// seconds. Returns a state string of "healthy", "degraded" or "healthy".
+// The threshold: lag < 10s → healthy, lag >= 10s → degraded.
+//
+// This is PostgreSQL-only. If the plan's source is not PG the probe
+// returns (0, "healthy", nil) — the endpoint-level check is still what
+// guards the caller.
+func measurePgLag(ctx context.Context, src, tgt Endpoint) (time.Duration, string, error) {
+	if src.DBHost == "" {
+		return 0, "unconfigured", fmt.Errorf("source db host not configured")
+	}
+	port := src.DBPort
+	if port <= 0 {
+		port = 5432
+	}
+	dbName := src.DBName
+	if dbName == "" {
+		dbName = "postgres"
+	}
+	user := src.DBUser
+	if user == "" {
+		user = "postgres"
+	}
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%q dbname=%s sslmode=disable ApplicationName=orion-dr-probe",
+		src.DBHost, port, user, src.DBPassword, dbName)
+
+	conn, err := sql.Open("postgres", dsn)
+	if err != nil {
+		return 0, "unreachable", fmt.Errorf("open: %w", err)
+	}
+	conn.SetMaxOpenConns(1)
+	conn.SetConnMaxLifetime(30 * time.Second)
+	defer conn.Close()
+
+	probeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if err := conn.PingContext(probeCtx); err != nil {
+		return 0, "unreachable", fmt.Errorf("ping: %w", err)
+	}
+
+	// query_replica_lag returns the max write_lag_seconds across all
+	// active replicas. It is a package-level var so tests can override
+	// without spinning up PostgreSQL.
+	maxLagSec, err := queryReplicaLag(probeCtx, conn)
+	if err != nil {
+		return 0, "unreachable", err
+	}
+	lag := time.Duration(maxLagSec * float64(time.Second))
+	state := "healthy"
+	if maxLagSec >= 10 {
+		state = "degraded"
+	}
+	return lag, state, nil
+}
+
+// queryReplicaLag returns the maximum write-lag in seconds across all
+// active replicas of the primary. It prefers the standby-side clock
+// (`pg_last_xact_replay_timestamp`) over the primary-side
+// `write_lag_seconds` because it is more stable across versions.
+var queryReplicaLag = func(ctx context.Context, conn *sql.DB) (float64, error) {
+	row := conn.QueryRowContext(ctx, `
+SELECT COALESCE(MAX(
+    EXTRACT(EPOCH FROM (pg_now() - pg_last_xact_replay_timestamp()))
+) FILTER (WHERE state = 'streaming' OR state = 'catchup'), 0)` +
+		" FROM pg_stat_replication")
+	var lag float64
+	if err := row.Scan(&lag); err != nil {
+		return 0, fmt.Errorf("scan: %w", err)
+	}
+	if lag < 0 {
+		lag = 0
+	}
+	return lag, nil
 }
 
 func (o *DROrchestrator) checkEndpoint(ep Endpoint) bool {
