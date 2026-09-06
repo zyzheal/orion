@@ -3,7 +3,8 @@
  * 抽取自 ChaosEngineering/index.tsx (P2-9 Phase 91)
  */
 import React from 'react';
-import { Drawer, Descriptions, Tag, Space, Card, Button, Text } from 'antd';
+import { Drawer, Descriptions, Tag, Space, Card, Button , Typography } from 'antd';
+const { Text } = Typography;
 import { PlayCircleOutlined } from '@ant-design/icons';
 import type { ChaosExperiment } from '@/api/chaos';
 import { spacing } from '@/tokens';
@@ -67,7 +68,7 @@ export const DetailDrawer: React.FC<DetailDrawerProps> = ({
                 <div key={String(i)}>
                   <Tag color={cfg.color}>{cfg.label}</Tag>
                   <Text type="secondary" style={{ marginLeft: spacing.sm }}>
-                    持续 {f.duration || 60}s | 严重程度 {f.severity || 'medium'}
+                    持续 {Math.round((f.duration_ms || 60000) / 1000)}s | 严重程度 {String((f.config as Record<string, unknown>)?.severity ?? 'medium')}
                   </Text>
                 </div>
               );

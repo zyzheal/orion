@@ -3,7 +3,8 @@
  * 抽取自 ChaosEngineering/index.tsx (P2-9 Phase 91)
  */
 import React from 'react';
-import { Space, Text, Tag, Button, Tooltip } from 'antd';
+import { Space, Tag, Button, Tooltip, Typography } from 'antd';
+const { Text } = Typography;
 import { ExperimentOutlined, EyeOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { ChaosExperiment } from '@/api/chaos';
