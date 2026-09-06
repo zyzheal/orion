@@ -13,7 +13,7 @@
 | ✅ 已完成 | 54 项（含 Phase 7 G1-G8 + Wave 7-D MinIO e2e + P2-11 wiring.go 收尾 + P2-7 shared any cleanup + P2-4 页面冒烟测试） |
 | ✅ 全部完成 | P0 清零（PERM-8 阶段 2 客户端迁移完成 2026-09-01） |
 | ✅ 全部完成 | P1 全部完成（P1-8 响应格式统一 50 个 handler 文件 ~500 处 c.JSON+gin.H 迁移完成, P1-9 三域补全已核实过时） |
-| 🔵 待处理 | 4 项 P2（P2-2/9/12/16 部分完成；P2-4/7 已完成） |
+| 🔵 待处理 | 1 项 P2（P2-12 308 页 react-query 迁移 10-15 天；P2-2/9/16 已完成/低优先） |
 | ⚠️ 已废弃/不适用 | 11 项 |
 | **总计** | **82 项** |
 
@@ -123,7 +123,7 @@
 | # | 任务 | 来源 | 详细说明 | 工作量 |
 |---|------|------|---------|--------|
 | ~~**P2-1** | 4 个未引用 API 客户端清理 | merged-action-items | ~~核实: page-registry/deploy-enhanced/confirmations 实际被引用；删除 3 个真正孤立的 (cache/database-devops/firewall-policies, 679 行)~~ | ✅ 2026-08-31 |
-| **P2-2** | 49 处 ARCHIVED 路由分批移除 | merged-action-items | 49→17 (32 已移除)；剩余 17 处均为向后兼容重定向，建议保留 | 低优先 |
+| ~~**P2-2** | 49 处 ARCHIVED 路由分批移除 | merged-action-items | ~~49→17 (32 已移除)；剩余 17 处均为向后兼容重定向（redirect 到当前活跃路径），保留以防旧链接 404，不再进一步清理~~ | ✅ 2026-09-06（32 移除，17 保留） |
 | **P2-3** | ErrorBoundary 覆盖 218 页面 | merged-action-items | 核实: main.tsx 顶层 ErrorBoundary 已覆盖全部页面，无需逐页添加 | ✅ 2026-08-31 |
 | ~~**P2-4** | 36 个页面补测试目录 | merged-action-items | ~~约 36/218 页面无 `__tests__/` 目录；本轮补完全部 158 个页面（167 个 `src/pages/**/__tests__/index.test.tsx`，含 10 个预置），共新增 40 个 `index.test.tsx` 文件（commit `920862171`），`render + BrowserRouter + antd mock` 标准模式，2 样本 smoke 验证 2/2 PASS~~ | ✅ 2026-09-02（167 pages 覆盖） |
 | ~~**P2-5** | Go 模块路径冗余嵌套清理 | merged-action-items | ~~删除 finops/finops 死代码 (19 文件)；扁平化 security/security + notification/notification (69 文件, 3908 行删除)~~ | ✅ 2026-08-31 |
@@ -144,7 +144,7 @@
 | ~~**G7** | RPO 精确化 | Phase 7 计划 | ~~抽 `rpoFromArchives(archives, targetTime, baseCompleted)` helper：从 newest 倒序选目标时间前最近的 archive `WindowStart`（真实提交时间戳，archiver.go 以文件 ModTime 填充）作锚点，不再取最后一段（可能提交于目标后）；每段均在目标后/无 archive 时回退 base backup `CompletedAt` 近似；锚点 nil 时打 warn；`recovery_service_test.go` 新增 5 用例：目标前最近段/全在目标后回退 base/无 archive 用 base/空输入 nil/恰好目标时刻 RPO=0~~ | ✅ **完成 2026-08-31** |
 | ~~**G8** | 存储后端增强（P3 低优先） | Phase 7 计划 | ~~`backup_service.go:419-436` `storageBackendFor` 区分 local/S3/MinIO 能力差异；S3/MinIO 断点续传（multipart）、生命周期策略、冷热分层；本轮仅设计 + 接口定义 + 单测，不要求生产级实现~~ | ✅ **完成 2026-08-31** |
 
-**P2 合计工作量**: 6-17 天（P2-1/P2-3/P2-4/P2-5/P2-6/P2-7/P2-8/P2-10/P2-11/P2-14/P2-15 已完成，P2-9 ChangeManagement(884行-58%) + DeveloperPortalPage(1565行-42%) + DeployPage(825行-46%) + Problem(905行-20%) + WorkflowCanvas(1252行-9%) 已完成，G5-G8 于 2026-08-31 全部完成；剩余 P2-2/9/12/16）
+**P2 合计工作量**: 10-15 天（P2-1/P2-2/P2-3/P2-4/P2-5/P2-6/P2-7/P2-8/P2-9/P2-10/P2-11/P2-14/P2-15/P2-16 已完成；P2-2 剩余 17 处 ARCHIVED 路由建议保留向后兼容，P2-9 全部 21 阶段完成含 DeveloperPortalPage 1613→906(-44%)/StageModal 1428→755(-47%) 等 21 个大页面拆分；仅剩 P2-12 308 页 react-query 迁移）
 
 ---
 
