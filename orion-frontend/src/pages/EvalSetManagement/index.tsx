@@ -1,496 +1,62 @@
 /**
  * EvalSet Management Page (TR-05)
- *
- * RAG 评测集管理系统 — 管理评测集（EvalSet）及其评测用例（Cases），
- * 支持创建/查看/删除/运行/对比。后端 /api/v1/knowledge/eval/* 已实现。
+ * - 布局编排: Header + StatsRow + EvalSets Card + EvalRuns Card + CreateModal + DetailModal
+ * 抽取自 740 行原始文件 (P2-9 Phase 60)
  */
-import React, { useState, useMemo, useEffect } from 'react';
-import { api } from '@/api/client';
-import { useQuery } from '@/providers/QueryProvider';
+import React from 'react';
 import {
   Typography,
   Button,
   Space,
-  Tag,
   Card,
-  Modal,
-  Form,
-  Input,
   Table,
-  Statistic,
-  message,
-  Popconfirm,
   Empty,
-  Row,
-  Col,
-  Divider,
-  Descriptions,
 } from 'antd';
 import {
   PlusOutlined,
-  DeleteOutlined,
-  PlayCircleOutlined,
-  EyeOutlined,
-  SwapOutlined,
   ReloadOutlined,
   ThunderboltOutlined,
-  FormOutlined,
-  ExportOutlined,
   RocketOutlined,
+  ExportOutlined,
+  SwapOutlined,
 } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing } from '@/tokens';
+import { useEvalSetState } from './useEvalSetState';
+import { useEvalSetColumns, useRunColumns } from './EvalSetColumns';
+import { CreateEvalSetModal } from './CreateEvalSetModal';
+import { EvalSetDetailModal } from './EvalSetDetailModal';
+import { EvalSetStatsRow } from './EvalSetStatsRow';
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
-
-// --- Types ---
-
-interface EvalSetCase {
-  id: string;
-  query: string;
-  gold_answer?: string;
-  gold_sources?: string;
-  tags?: string;
-}
-
-interface EvalSet {
-  id: string;
-  name: string;
-  description?: string;
-  version: number;
-  is_active: boolean;
-  cases?: EvalSetCase[];
-  created_by?: string;
-  created_at?: string;
-}
-
-interface EvalRun {
-  id: string;
-  set_id: string;
-  model: string;
-  status: 'running' | 'completed' | 'failed';
-  pass_count: number;
-  total_count: number;
-  avg_recall: number;
-  avg_score: number;
-  created_by?: string;
-  created_at?: string;
-}
-
-// --- API Client ---
-
-// 委托 axios 实例（src/api/client.ts）：请求拦截器注入 authStore token 并支持
-// 401 自动刷新重放，响应拦截器统一解包 { success, data }，另带重试与请求取消注册。
-// 保留原有 fetch 风格签名与"失败抛出 Error(message)"语义，调用方 catch 无需修改。
-async function apiCall<T>(path: string, options?: RequestInit): Promise<T> {
-  const method = (options?.method ?? 'GET').toUpperCase();
-  const data = typeof options?.body === 'string' ? JSON.parse(options.body) : undefined;
-  const url = `/knowledge${path}`;
-  try {
-    const resp = method === 'POST' ? await api.post<unknown>(url, data)
-      : method === 'PUT' ? await api.put<unknown>(url, data)
-      : method === 'PATCH' ? await api.patch<unknown>(url, data)
-      : method === 'DELETE' ? await api.delete<unknown>(url)
-      : await api.get<unknown>(url);
-    return resp.data as T;
-  } catch (err) {
-    const ax = err as { message?: string; response?: { status: number; data?: { error?: string; message?: string; Message?: string } } };
-    const body = ax.response?.data;
-    throw new Error(body?.error || body?.message || body?.Message || ax.message || (ax.response ? `HTTP ${ax.response.status}` : '网络请求失败'));
-  }
-}
-
-// --- Color helpers ---
-
-const statusColor: Record<string, string> = {
-  running: colors.warning[500],
-  completed: colors.success[500],
-  failed: colors.error[500],
-};
-
-const statusLabel: Record<string, string> = {
-  running: '运行中',
-  completed: '已完成',
-  failed: '失败',
-};
-
-// --- Page Component ---
 
 const EvalSetManagement: React.FC = () => {
-  const [selectedSet, setSelectedSet] = useState<EvalSet | null>(null);
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [createForm] = Form.useForm<{ name: string; description?: string; cases: string }>();
-  const [selectedRuns, setSelectedRuns] = useState<EvalRun[]>([]);
-  const [runLoading, setRunLoading] = useState<string | null>(null);
+  const {
+    selectedSet, setSelectedSet,
+    createModalOpen, setCreateModalOpen,
+    createForm,
+    selectedRuns, setSelectedRuns,
+    runLoading,
+    seeding,
+    exporting,
+    sets, runs,
+    loading,
+    refetch,
+    handleSeed,
+    handleExportReport,
+    handleCreateSet,
+    handleDeleteSet,
+    handleViewSet,
+    handleRunEval,
+    handleCompare,
+  } = useEvalSetState();
 
-  const { data: rawData, isLoading: loading, isError, error, refetch } = useQuery<{ sets: EvalSet[]; runs: EvalRun[] }>({
-    queryKey: ['eval-sets'],
-    queryFn: async () => {
-      const [setsRes, runsRes] = await Promise.all([
-        apiCall<EvalSet[]>('/eval/sets'),
-        apiCall<EvalRun[]>('/eval/runs'),
-      ]);
-      return {
-        sets: Array.isArray(setsRes) ? setsRes : [],
-        runs: Array.isArray(runsRes) ? runsRes : [],
-      };
-    },
-    retry: 0,
-    staleTime: 30_000,
+  const setColumns = useEvalSetColumns({
+    runLoading,
+    handleViewSet,
+    handleRunEval,
+    handleDeleteSet,
   });
-
-  const sets = rawData?.sets ?? [];
-  const runs = rawData?.runs ?? [];
-
-  // 加载失败反馈：当前锁定的 @tanstack/react-query 构建不调用 useQuery 的 onError
-  // 选项（observer 级回调未实现），统一改用 isError + useEffect 保持错误可见。
-  useEffect(() => {
-    if (isError) {
-      message.error(
-        `加载评测集失败: ${error instanceof Error ? error.message : '未知错误'}`
-      );
-    }
-  }, [isError, error]);
-
-  const [seeding, setSeeding] = useState(false);
-  const [exporting, setExporting] = useState(false);
-
-  const handleSeed = async () => {
-    setSeeding(true);
-    try {
-      const result = await apiCall<{ seeded: number }>('/eval/sets/seed', { method: 'POST' });
-      const count = (result as unknown as { seeded?: number })?.seeded ?? 0;
-      message.success(`已初始化 ${count} 个评测集（TR-09/10/11 演示数据）`);
-      refetch();
-    } catch (error: unknown) {
-      message.warning(`初始化失败: ${error instanceof Error ? error.message : '未知错误'}`);
-    } finally {
-      setSeeding(false);
-    }
-  };
-
-  const handleExportReport = async () => {
-    if (runs.length === 0) {
-      message.warning('暂无评测运行记录可导出');
-      return;
-    }
-    setExporting(true);
-    try {
-      const report = {
-        reportTitle: 'Orion RAG 评测报告',
-        exportTime: new Date().toISOString(),
-        totalRuns: runs.length,
-        summary: {
-          totalSets: sets.length,
-          totalCases: sets.reduce((sum, s) => sum + (s.cases?.length || 0), 0),
-          avgPassRate: runs.length > 0
-            ? runs.reduce((s, r) => s + (r.total_count > 0 ? r.pass_count / r.total_count : 0), 0) / runs.length
-            : 0,
-          avgRecall: runs.length > 0
-            ? runs.reduce((s, r) => s + (r.avg_recall ?? 0), 0) / runs.length
-            : 0,
-          avgScore: runs.length > 0
-            ? runs.reduce((s, r) => s + (r.avg_score ?? 0), 0) / runs.length
-            : 0,
-        },
-        runs: runs.map((r) => ({
-          runId: r.id,
-          setId: r.set_id,
-          model: r.model,
-          status: r.status,
-          passCount: r.pass_count,
-          totalCount: r.total_count,
-          passRate: r.total_count > 0 ? Number((r.pass_count / r.total_count * 100).toFixed(2)) : 0,
-          avgRecall: r.avg_recall ?? 0,
-          avgScore: r.avg_score ?? 0,
-          createdAt: r.created_at,
-        })),
-      };
-      const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `eval-report-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      message.success('评测报告已导出');
-    } catch (error: unknown) {
-      message.warning(`导出失败: ${error instanceof Error ? error.message : '未知错误'}`);
-    } finally {
-      setExporting(false);
-    }
-  };
-
-
-  const handleCreateSet = async () => {
-    const values = await createForm.validateFields();
-    const lines = values.cases
-      ? String(values.cases)
-          .split('\n')
-          .map((l: string) => l.trim())
-          .filter(Boolean)
-      : [];
-
-    if (lines.length === 0) {
-      message.warning('请至少输入一个评测用例');
-      return;
-    }
-
-    const cases: Array<{ query: string; gold_answer?: string }> = lines.map((line) => {
-      const parts = line.split('|||');
-      return {
-        query: parts[0].trim(),
-        gold_answer: parts[1]?.trim() || '',
-      };
-    });
-
-    try {
-      await apiCall<EvalSet>('/eval/sets', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: values.name,
-          description: values.description,
-          cases,
-        }),
-      });
-      message.success(`评测集 "${values.name}" 创建成功，含 ${cases.length} 个用例`);
-      setCreateModalOpen(false);
-      createForm.resetFields();
-      refetch();
-    } catch (error: unknown) {
-      message.error(`创建失败: ${error instanceof Error ? error.message : '未知错误'}`);
-    }
-  };
-
-  const handleDeleteSet = async (id: string, name: string) => {
-    try {
-      await apiCall<void>(`/eval/sets/${id}`, { method: 'DELETE' });
-      message.success(`评测集 "${name}" 已删除`);
-      refetch();
-    } catch (error: unknown) {
-      message.error(`删除失败: ${error instanceof Error ? error.message : '未知错误'}`);
-    }
-  };
-
-  const handleViewSet = async (id: string) => {
-    try {
-      const set = await apiCall<EvalSet>(`/eval/sets/${id}`);
-      setSelectedSet(set);
-    } catch (error: unknown) {
-      message.error(`加载失败: ${error instanceof Error ? error.message : '未知错误'}`);
-    }
-  };
-
-  const handleRunEval = async (setId: string, setName: string) => {
-    setRunLoading(setId);
-    try {
-      const run = await apiCall<EvalRun>(`/eval/sets/${setId}/run`, { method: 'POST' });
-      message.success({
-        content: (
-          <div>
-            <strong>评测已启动</strong>
-            <br />
-            <Text type="secondary">
-              评测集: {setName} | Run ID: {run.id}
-            </Text>
-          </div>
-        ),
-        duration: 5,
-      });
-      refetch();
-    } catch (error: unknown) {
-      message.error(`启动评测失败: ${error instanceof Error ? error.message : '未知错误'}`);
-    } finally {
-      setRunLoading(null);
-    }
-  };
-
-  const handleCompare = async () => {
-    if (selectedRuns.length !== 2) {
-      message.warning('请勾选两条评测运行记录进行对比');
-      return;
-    }
-    try {
-      await apiCall<{ run_a: EvalRun; run_b: EvalRun }>('/eval/compare', {
-        method: 'POST',
-        body: JSON.stringify({
-          run_a_id: selectedRuns[0].id,
-          run_b_id: selectedRuns[1].id,
-        }),
-      });
-      message.success({
-        content: (
-          <div>
-            <strong>对比分析完成</strong>
-            <br />
-            <Text type="secondary">
-              {selectedRuns[0].model} vs {selectedRuns[1].model}
-            </Text>
-            <br />
-            <Text>
-              得分 A: {selectedRuns[0].avg_score?.toFixed(2)} | 得分 B:{' '}
-              {selectedRuns[1].avg_score?.toFixed(2)}
-            </Text>
-          </div>
-        ),
-        duration: 8,
-      });
-      setSelectedRuns([]);
-    } catch (error: unknown) {
-      message.error(`对比失败: ${error instanceof Error ? error.message : '未知错误'}`);
-    }
-  };
-
-  const setColumns: ColumnsType<EvalSet> = useMemo(
-    () => [
-      {
-        title: '评测集名称',
-        dataIndex: 'name',
-        key: 'name',
-        render: (val: string, record: EvalSet) => (
-          <Space>
-            <Text strong>{val}</Text>
-            {record.is_active && <Tag color="green">活跃</Tag>}
-          </Space>
-        ),
-      },
-      {
-        title: '描述',
-        dataIndex: 'description',
-        key: 'description',
-        ellipsis: true,
-      },
-      {
-        title: '版本',
-        dataIndex: 'version',
-        key: 'version',
-        render: (val: number) => <Tag>v{val}</Tag>,
-        width: 60,
-      },
-      {
-        title: '用例数',
-        key: 'cases',
-        render: (_, record: EvalSet) => record.cases?.length ?? 0,
-        width: 80,
-      },
-      {
-        title: '创建人',
-        dataIndex: 'created_by',
-        key: 'created_by',
-        width: 100,
-      },
-      {
-        title: '创建时间',
-        dataIndex: 'created_at',
-        key: 'created_at',
-        width: 160,
-      },
-      {
-        title: '操作',
-        key: 'actions',
-        width: 220,
-        render: (_, record: EvalSet) => (
-          <Space size="small">
-            <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewSet(record.id)}>
-              查看
-            </Button>
-            <Button
-              size="small"
-              type="primary"
-              icon={<PlayCircleOutlined />}
-              loading={runLoading === record.id}
-              onClick={() => handleRunEval(record.id, record.name)}
-            >
-              运行
-            </Button>
-            <Popconfirm
-              title="确定删除此评测集？"
-              onConfirm={() => handleDeleteSet(record.id, record.name)}
-              okText="确定"
-              cancelText="取消"
-            >
-              <Button size="small" danger icon={<DeleteOutlined />}>
-                删除
-              </Button>
-            </Popconfirm>
-          </Space>
-        ),
-      },
-    ],
-    [runLoading]
-  );
-
-  const runColumns: ColumnsType<EvalRun> = useMemo(
-    () => [
-      {
-        title: 'Run ID',
-        dataIndex: 'id',
-        key: 'id',
-        render: (val: string) => (
-          <Text code style={{ fontSize: 11 }}>
-            {val.slice(0, 8)}...
-          </Text>
-        ),
-        width: 100,
-      },
-      {
-        title: '评测集',
-        dataIndex: 'set_id',
-        key: 'set_id',
-        render: (val: string) => (
-          <Text code style={{ fontSize: 11 }}>
-            {val.slice(0, 8)}
-          </Text>
-        ),
-        width: 100,
-      },
-      {
-        title: '模型',
-        dataIndex: 'model',
-        key: 'model',
-      },
-      {
-        title: '状态',
-        dataIndex: 'status',
-        key: 'status',
-        width: 80,
-        render: (val: string) => (
-          <Tag color={statusColor[val] || 'default'}>{statusLabel[val] || val}</Tag>
-        ),
-      },
-      {
-        title: '通过率',
-        key: 'pass_rate',
-        width: 100,
-        render: (_, record: EvalRun) => {
-          const rate = record.total_count > 0 ? (record.pass_count / record.total_count) * 100 : 0;
-          return <Text>{rate.toFixed(1)}%</Text>;
-        },
-      },
-      {
-        title: '平均 Recall',
-        dataIndex: 'avg_recall',
-        key: 'avg_recall',
-        width: 100,
-        render: (val: number) => (val !== undefined ? val.toFixed(3) : '-'),
-      },
-      {
-        title: '平均 Score',
-        dataIndex: 'avg_score',
-        key: 'avg_score',
-        width: 100,
-        render: (val: number) => (val !== undefined ? val.toFixed(3) : '-'),
-      },
-      {
-        title: '创建时间',
-        dataIndex: 'created_at',
-        key: 'created_at',
-        width: 160,
-      },
-    ],
-    []
-  );
+  const runColumns = useRunColumns();
 
   return (
     <div style={{ padding: spacing.lg }}>
@@ -502,53 +68,14 @@ const EvalSetManagement: React.FC = () => {
         管理 RAG 评测集及评测用例，支持创建/查看/删除/运行/对比。用例格式: query ||| gold_answer
       </Text>
 
-      <Row gutter={[spacing.md, spacing.md]} style={{ marginBottom: spacing.md }}>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic title="评测集总数" value={sets.length} prefix={<FormOutlined />} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic
-              title="评测用例总数"
-              value={sets.reduce((sum, s) => sum + (s.cases?.length || 0), 0)}
-              prefix={<EyeOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic title="评测运行数" value={runs.length} prefix={<PlayCircleOutlined />} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic
-              title="最近通过率"
-              value={
-                runs[0]?.total_count
-                  ? `${((runs[0].pass_count / runs[0].total_count) * 100).toFixed(1)}%`
-                  : '-'
-              }
-              valueStyle={{
-                color: runs[0]?.pass_count > 0 ? colors.success[500] : colors.neutral[500],
-              }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      <EvalSetStatsRow sets={sets} runs={runs} />
 
       <Card
         title="评测集列表"
         extra={
           <Space>
             {sets.length === 0 && (
-              <Button
-                icon={<RocketOutlined />}
-                loading={seeding}
-                onClick={handleSeed}
-              >
+              <Button icon={<RocketOutlined />} loading={seeding} onClick={handleSeed}>
                 初始化演示数据
               </Button>
             )}
@@ -614,125 +141,23 @@ const EvalSetManagement: React.FC = () => {
       </Card>
 
       {/* Create EvalSet Modal */}
-      <Modal
-        title="新建评测集"
+      <CreateEvalSetModal
         open={createModalOpen}
         onCancel={() => {
           setCreateModalOpen(false);
           createForm.resetFields();
         }}
         onOk={handleCreateSet}
-        okText="创建"
-        cancelText="取消"
-        destroyOnClose
-      >
-        <Form form={createForm} layout="vertical">
-          <Form.Item
-            label="评测集名称"
-            name="name"
-            rules={[{ required: true, message: '请输入评测集名称' }]}
-          >
-            <Input placeholder="例: RAG 检索质量评测 v2" />
-          </Form.Item>
-          <Form.Item label="描述" name="description">
-            <Input.TextArea rows={2} placeholder="评测目的说明" />
-          </Form.Item>
-          <Form.Item
-            label="评测用例"
-            name="cases"
-            rules={[{ required: true, message: '请至少输入一个评测用例' }]}
-          >
-            <TextArea
-              rows={8}
-              placeholder={
-                '每行一个用例，格式: query ||| gold_answer\n' +
-                '例:\nOrion Pipeline 是什么？ ||| Orion Pipeline 是基于 Tekton 的 CI/CD 流水线引擎\n' +
-                '如何创建变更请求？ ||| 在变更管理页面点击「新建」按钮即可'
-              }
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+        form={createForm}
+      />
 
       {/* View Detail Modal */}
-      {selectedSet && (
-        <Modal
-          title={`评测集详情: ${selectedSet.name}`}
-          open={!!selectedSet}
-          onCancel={() => setSelectedSet(null)}
-          footer={[
-            <Button key="close" onClick={() => setSelectedSet(null)}>
-              关闭
-            </Button>,
-            <Button
-              key="run"
-              type="primary"
-              icon={<PlayCircleOutlined />}
-              loading={runLoading === selectedSet.id}
-              onClick={() => handleRunEval(selectedSet.id, selectedSet.name)}
-            >
-              运行评测
-            </Button>,
-          ]}
-          width={700}
-        >
-          <Descriptions column={2} bordered size="small" style={{ marginBottom: spacing.md }}>
-            <Descriptions.Item label="名称">{selectedSet.name}</Descriptions.Item>
-            <Descriptions.Item label="版本">v{selectedSet.version}</Descriptions.Item>
-            <Descriptions.Item label="状态">
-              <Tag color={selectedSet.is_active ? 'green' : 'default'}>
-                {selectedSet.is_active ? '活跃' : '非活跃'}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="用例数">{selectedSet.cases?.length || 0}</Descriptions.Item>
-          </Descriptions>
-          {selectedSet.cases && selectedSet.cases.length > 0 ? (
-            <>
-              <Text strong>评测用例</Text>
-              <Divider />
-              <div style={{ maxHeight: 400, overflow: 'auto' }}>
-                {selectedSet.cases.map((c, idx) => (
-                  <div
-                    key={c.id}
-                    style={{
-                      marginBottom: spacing.sm,
-                      display: 'flex',
-                      gap: spacing.sm,
-                      padding: spacing.sm,
-                      background: colors.light.bg.secondary,
-                      borderRadius: 4,
-                    }}
-                  >
-                    <Text type="secondary" style={{ flexShrink: 0 }}>
-                      #{idx + 1}
-                    </Text>
-                    <div style={{ flex: 1 }}>
-                      <div>
-                        <Text strong>Q:</Text> {c.query}
-                      </div>
-                      {c.gold_answer && (
-                        <div>
-                          <Text strong>A:</Text> {c.gold_answer}
-                        </div>
-                      )}
-                      {c.gold_sources && (
-                        <div>
-                          <Text strong type="secondary">
-                            来源:
-                          </Text>{' '}
-                          {c.gold_sources}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <Empty description="暂无评测用例" />
-          )}
-        </Modal>
-      )}
+      <EvalSetDetailModal
+        selectedSet={selectedSet}
+        runLoading={runLoading}
+        onClose={() => setSelectedSet(null)}
+        onRunEval={handleRunEval}
+      />
     </div>
   );
 };
