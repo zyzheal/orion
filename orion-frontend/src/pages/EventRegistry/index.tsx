@@ -1,207 +1,63 @@
 /**
  * EventRegistry Page
- * Event Trigger Registry - View event types, subscriptions, test matching, and statistics
+ * - 布局编排: Header + Tabs (EventTypes/Subscriptions/Statistics) + TestMatchModal
+ * - 6 文件拆分: types.ts + constants.tsx + useEventRegistryState.ts + TestMatchModal.tsx + index.tsx
+ * 抽取自 733 行原始文件 (P2-9 Phase 63)
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React from 'react';
 import {
   Typography,
   Button,
   Space,
   Tag,
   Card,
-  Select,
-  Input,
   Table,
   Tabs,
-  message,
   Empty,
-  Divider,
   Badge,
   Tooltip,
-  Modal,
 } from 'antd';
 import {
   ReloadOutlined,
-  CalendarOutlined,
-  PlayCircleOutlined,
   ExperimentOutlined,
   CopyOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  LinkOutlined,
   TagsOutlined,
   PlusOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 import MetricCard from '@/components/MetricCard';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens/spacing';
-import {
-  getEventTypes,
-  getSubscriptions,
-  testMatch,
-  getStatistics,
-  type EventTypeInfo,
-  type Subscription,
-  type TestMatchResult,
-  type TriggerStatistics,
-} from '@/api/event-registry';
+import { useEventRegistryState } from './useEventRegistryState';
+import { categoryColorMap, triggerTypeIconMap, getTypeColor } from './constants';
+import { TestMatchModal } from './TestMatchModal';
 
-const { Title, Text, Paragraph } = Typography;
-
-// ============================================================================
-// Types
-// ============================================================================
-
-interface StatisticsData {
-  totalTriggers: number;
-  byType: Record<string, { total: number; enabled: number }>;
-  triggers: TriggerStatistics[];
-}
-
-// Category color mapping
-const categoryColorMap: Record<string, string> = {
-  pipeline: 'blue',
-  code: 'green',
-  deploy: 'orange',
-  config: 'purple',
-  incident: 'red',
-  workflow: 'cyan',
-};
-
-// Trigger type icon mapping
-const triggerTypeIconMap: Record<string, React.ReactNode> = {
-  cron: <CalendarOutlined />,
-  manual: <PlayCircleOutlined />,
-  webhook: <LinkOutlined />,
-};
-
-// ============================================================================
-// Main Component
-// ============================================================================
+const { Title, Text } = Typography;
 
 const EventRegistryPage: React.FC = () => {
-  // Loading states
-  const [loadingEventTypes, setLoadingEventTypes] = useState(false);
-  const [loadingSubscriptions, setLoadingSubscriptions] = useState(false);
-  const [loadingStatistics, setLoadingStatistics] = useState(false);
-  const [loadingTestMatch, setLoadingTestMatch] = useState(false);
-
-  // Data states
-  const [eventTypes, setEventTypes] = useState<EventTypeInfo[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [statistics, setStatistics] = useState<StatisticsData | null>(null);
-
-  // Test match modal state
-  const [testMatchModalVisible, setTestMatchModalVisible] = useState(false);
-  const [selectedEventType, setSelectedEventType] = useState<string>('');
-  const [testPayload, setTestPayload] = useState<string>('{}');
-  const [testResults, setTestResults] = useState<TestMatchResult[]>([]);
-
-  // Load event types
-  const loadEventTypes = async () => {
-    setLoadingEventTypes(true);
-    try {
-      const data = await getEventTypes();
-      setEventTypes(data.eventTypes || []);
-      setCategories(data.categories || []);
-    } catch (error: unknown) {
-      message.error(`加载事件类型失败: ${(error as Error).message}`);
-    } finally {
-      setLoadingEventTypes(false);
-    }
-  };
-
-  // Load subscriptions
-  const loadSubscriptions = async () => {
-    setLoadingSubscriptions(true);
-    try {
-      const data = await getSubscriptions();
-      setSubscriptions(data.subscriptions || []);
-    } catch (error: unknown) {
-      message.error(`加载订阅状态失败: ${(error as Error).message}`);
-    } finally {
-      setLoadingSubscriptions(false);
-    }
-  };
-
-  // Load statistics
-  const loadStatistics = async () => {
-    setLoadingStatistics(true);
-    try {
-      const data = await getStatistics();
-      setStatistics(data);
-    } catch (error: unknown) {
-      message.error(`加载统计信息失败: ${(error as Error).message}`);
-    } finally {
-      setLoadingStatistics(false);
-    }
-  };
-
-  // Initial load
-  useEffect(() => {
-    loadEventTypes();
-    loadSubscriptions();
-    loadStatistics();
-  }, []);
-
-  // Group event types by category
-  const eventTypesByCategory = useMemo(() => {
-    const grouped: Record<string, EventTypeInfo[]> = {};
-    for (const et of eventTypes) {
-      if (!grouped[et.category]) {
-        grouped[et.category] = [];
-      }
-      grouped[et.category].push(et);
-    }
-    return grouped;
-  }, [eventTypes]);
-
-  // Run test match
-  const runTestMatch = async () => {
-    if (!selectedEventType) {
-      message.warning('请选择事件类型');
-      return;
-    }
-
-    let parsedPayload: Record<string, unknown>;
-    try {
-      parsedPayload = JSON.parse(testPayload);
-    } catch {
-      message.error('JSON 格式错误');
-      return;
-    }
-
-    setLoadingTestMatch(true);
-    try {
-      const data = await testMatch({
-        eventType: selectedEventType,
-        eventPayload: parsedPayload,
-      });
-      setTestResults(data.results || []);
-      const matchedCount = data.results.filter((r) => r.matched).length;
-      const totalCount = data.results.length;
-      if (totalCount === 0) {
-        message.info('当前事件类型没有已注册的触发器');
-      } else if (matchedCount > 0) {
-        message.success(`匹配完成: ${matchedCount}/${totalCount} 个触发器匹配`);
-      } else {
-        message.warning(`匹配完成: ${totalCount} 个触发器均不匹配`);
-      }
-    } catch (error: unknown) {
-      message.error(`测试匹配失败: ${(error as Error).message}`);
-    } finally {
-      setLoadingTestMatch(false);
-    }
-  };
-
-  // Copy payload sample
-  const copySamplePayload = (sample: Record<string, unknown>) => {
-    navigator.clipboard.writeText(JSON.stringify(sample, null, 2));
-    message.success('已复制到剪贴板');
-  };
-
-  // ---- Render ----
+  const {
+    loadingEventTypes,
+    loadingSubscriptions,
+    loadingStatistics,
+    loadingTestMatch,
+    eventTypes,
+    categories,
+    subscriptions,
+    statistics,
+    testMatchModalVisible,
+    setTestMatchModalVisible,
+    selectedEventType,
+    setSelectedEventType,
+    testPayload,
+    setTestPayload,
+    testResults,
+    eventTypesByCategory,
+    loadEventTypes,
+    loadSubscriptions,
+    loadStatistics,
+    runTestMatch,
+    copySamplePayload,
+  } = useEventRegistryState();
 
   return (
     <div style={{ padding: 0 }}>
@@ -255,7 +111,6 @@ const EventRegistryPage: React.FC = () => {
             ),
             children: (
               <div>
-                {/* Categories Overview */}
                 <div style={{ marginBottom: spacing.lg }}>
                   <Text strong style={{ marginRight: spacing.md }}>
                     分类:
@@ -271,7 +126,6 @@ const EventRegistryPage: React.FC = () => {
                   ))}
                 </div>
 
-                {/* Event Types by Category */}
                 {categories.map((category) => (
                   <Card
                     key={category}
@@ -413,19 +267,21 @@ const EventRegistryPage: React.FC = () => {
                     loading={loadingSubscriptions}
                     rowKey="triggerId"
                     size="middle"
-                    locale={{
-                      emptyText: (
-                        <Empty description="暂无订阅">
-                          <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            onClick={() => setTestMatchModalVisible(true)}
-                          >
-                            测试事件匹配
-                          </Button>
-                        </Empty>
-                      ),
-                    }}
+                    locale={
+                      {
+                        emptyText: (
+                          <Empty description="暂无订阅">
+                            <Button
+                              type="primary"
+                              icon={<PlusOutlined />}
+                              onClick={() => setTestMatchModalVisible(true)}
+                            >
+                              测试事件匹配
+                            </Button>
+                          </Empty>
+                        ),
+                      } as any
+                    }
                   />
                 </Card>
               </div>
@@ -442,7 +298,6 @@ const EventRegistryPage: React.FC = () => {
             ),
             children: (
               <div>
-                {/* Statistics Cards */}
                 {statistics && (
                   <div
                     style={{
@@ -482,7 +337,6 @@ const EventRegistryPage: React.FC = () => {
                   </div>
                 )}
 
-                {/* Trigger List */}
                 <Card
                   title={
                     <Space>
@@ -545,20 +399,26 @@ const EventRegistryPage: React.FC = () => {
                     loading={loadingStatistics}
                     rowKey="triggerId"
                     size="middle"
-                    pagination={{ pageSize: 10 }}
-                    locale={{
-                      emptyText: (
-                        <Empty description="暂无触发器">
-                          <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            onClick={() => setTestMatchModalVisible(true)}
-                          >
-                            测试事件匹配
-                          </Button>
-                        </Empty>
-                      ),
-                    }}
+                    pagination={
+                      {
+                        pageSize: 10,
+                      } as any
+                    }
+                    locale={
+                      {
+                        emptyText: (
+                          <Empty description="暂无触发器">
+                            <Button
+                              type="primary"
+                              icon={<PlusOutlined />}
+                              onClick={() => setTestMatchModalVisible(true)}
+                            >
+                              测试事件匹配
+                            </Button>
+                          </Empty>
+                        ),
+                      } as any
+                    }
                   />
                 </Card>
               </div>
@@ -568,166 +428,21 @@ const EventRegistryPage: React.FC = () => {
       />
 
       {/* Test Match Modal */}
-      <Modal
-        title={
-          <Space>
-            <ExperimentOutlined /> 测试事件匹配
-          </Space>
-        }
+      <TestMatchModal
         open={testMatchModalVisible}
-        onCancel={() => setTestMatchModalVisible(false)}
-        width={800}
-        footer={[
-          <Button key="cancel" onClick={() => setTestMatchModalVisible(false)}>
-            关闭
-          </Button>,
-          <Button
-            key="test"
-            type="primary"
-            loading={loadingTestMatch}
-            onClick={runTestMatch}
-            disabled={!selectedEventType}
-          >
-            执行测试
-          </Button>,
-        ]}
-      >
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <div>
-            <Text strong>选择事件类型:</Text>
-            <Select
-              style={{ width: '100%', marginTop: spacing.xs }}
-              placeholder="选择事件类型"
-              value={selectedEventType || undefined}
-              onChange={setSelectedEventType}
-              showSearch
-              options={eventTypes.map((et) => ({
-                label: (
-                  <Space>
-                    <Tag color={categoryColorMap[et.category]} style={{ margin: 0 }}>
-                      {et.category}
-                    </Tag>
-                    {et.type}
-                  </Space>
-                ),
-                value: et.type,
-              }))}
-            />
-          </div>
-
-          <div>
-            <Text strong>输入事件 Payload (JSON):</Text>
-            <Input.TextArea
-              style={{ marginTop: spacing.xs, fontFamily: 'monospace', fontSize: 12 }}
-              rows={8}
-              value={testPayload}
-              onChange={(e) => setTestPayload(e.target.value)}
-              placeholder='{"key": "value"}'
-            />
-          </div>
-
-          {selectedEventType && eventTypes.find((et) => et.type === selectedEventType) && (
-            <Card
-              size="small"
-              title="示例 Payload"
-              extra={
-                <Button
-                  type="link"
-                  size="small"
-                  icon={<CopyOutlined />}
-                  onClick={() =>
-                    copySamplePayload(
-                      eventTypes.find((et) => et.type === selectedEventType)!.samplePayload
-                    )
-                  }
-                >
-                  复制
-                </Button>
-              }
-            >
-              <pre style={{ margin: 0, fontSize: 11 }}>
-                {JSON.stringify(
-                  eventTypes.find((et) => et.type === selectedEventType)?.samplePayload,
-                  null,
-                  2
-                )}
-              </pre>
-            </Card>
-          )}
-
-          <Divider />
-
-          <div>
-            <Text strong>匹配结果:</Text>
-            {testResults.length > 0 ? (
-              <div style={{ marginTop: spacing.sm }}>
-                {testResults.map((result, idx) => (
-                  <Card
-                    key={String(idx)}
-                    size="small"
-                    style={{
-                      marginBottom: spacing.sm,
-                      borderLeft: result.matched
-                        ? `3px solid ${colors.success[500]}`
-                        : `3px solid ${colors.error[500]}`,
-                    }}
-                  >
-                    <Space>
-                      {result.matched ? (
-                        <CheckCircleOutlined style={{ color: colors.success[500], fontSize: 16 }} />
-                      ) : (
-                        <CloseCircleOutlined style={{ color: colors.error[500], fontSize: 16 }} />
-                      )}
-                      <Text strong>{result.triggerName}</Text>
-                      <Tag color={result.matched ? 'success' : 'error'}>
-                        {result.matched ? '匹配' : '不匹配'}
-                      </Tag>
-                    </Space>
-                    <Paragraph
-                      type="secondary"
-                      style={{ fontSize: 12, marginTop: spacing.xs, marginBottom: 0 }}
-                    >
-                      {result.matchDetails}
-                    </Paragraph>
-                    {result.matchedFields && Object.keys(result.matchedFields).length > 0 && (
-                      <div style={{ marginTop: spacing.xs }}>
-                        <Text type="secondary" style={{ fontSize: 11 }}>
-                          匹配的字段:
-                        </Text>
-                        <pre
-                          style={{
-                            margin: 0,
-                            fontSize: 10,
-                            background: colors.neutral[50],
-                            padding: 4,
-                          }}
-                        >
-                          {JSON.stringify(result.matchedFields, null, 2)}
-                        </pre>
-                      </div>
-                    )}
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <Empty description="点击「执行测试」查看匹配结果" style={{ marginTop: spacing.md }} />
-            )}
-          </div>
-        </Space>
-      </Modal>
+        onClose={() => setTestMatchModalVisible(false)}
+        eventTypes={eventTypes}
+        selectedEventType={selectedEventType}
+        setSelectedEventType={setSelectedEventType}
+        testPayload={testPayload}
+        setTestPayload={setTestPayload}
+        testResults={testResults}
+        loadingTestMatch={loadingTestMatch}
+        onRunTest={runTestMatch}
+        onCopySample={copySamplePayload}
+      />
     </div>
   );
 };
-
-// Helper function
-function getTypeColor(type: string): string {
-  const colorMap: Record<string, string> = {
-    event: 'blue',
-    cron: 'purple',
-    manual: 'orange',
-    webhook: 'green',
-  };
-  return colorMap[type] || 'default';
-}
 
 export default EventRegistryPage;
