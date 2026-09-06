@@ -6,7 +6,7 @@ import { Modal, Form, Input } from 'antd';
 
 export interface NamespaceModalProps {
   open: boolean;
-  form: ReturnType<typeof Form.useForm>[0];
+  form: ReturnType<typeof Form.useForm<any>>[0];
   onOk: (values: { name: string; description?: string }) => void;
   onCancel: () => void;
 }

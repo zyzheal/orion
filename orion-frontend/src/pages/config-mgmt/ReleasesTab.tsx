@@ -69,7 +69,7 @@ export const ReleasesTab: React.FC<ReleasesTabProps> = ({
                 </Form>
               ),
               onOk: () =>
-                rollbackForm.validateFields().then((values) => handleRollback(values)),
+                rollbackForm.validateFields().then((values) => handleRollback(values as any)),
             });
             rollbackForm.resetFields();
           }}

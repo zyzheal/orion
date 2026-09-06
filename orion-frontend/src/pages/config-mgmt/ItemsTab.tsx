@@ -1,7 +1,7 @@
 /**
  * ItemsTab - 配置项管理 Tab
  */
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Card,
   Table,

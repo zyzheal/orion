@@ -33,7 +33,7 @@ export const ItemModal: React.FC<ItemModalProps> = ({
     <Form
       form={form}
       layout="vertical"
-      onFinish={editingItem ? (v) => onOk({ id: editingItem.id, ...v }) : onOk}
+      onFinish={editingItem ? (v) => onOk({ id: editingItem.id, ...((v as any) || {}) }) : onOk}
     >
       {!editingItem && (
         <Form.Item name="keyName" label="配置键名" rules={[{ required: true }]}>

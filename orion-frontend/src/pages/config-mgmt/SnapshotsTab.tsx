@@ -55,7 +55,7 @@ export const SnapshotsTab: React.FC<SnapshotsTabProps> = ({
           </Form>
         ),
         onOk: () =>
-          releaseForm.validateFields().then((values) => handlePublishRelease(values)),
+          releaseForm.validateFields().then((values) => handlePublishRelease(values as any)),
         okButtonProps: { loading: false },
       });
       releaseForm.resetFields();
