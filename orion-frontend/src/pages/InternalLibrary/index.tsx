@@ -6,7 +6,7 @@ import { colors, spacing } from '@/tokens';
  * 抽取自 Phase 74 (P2-9): 状态 Hook + 4 Modal + 详情抽屉 + 表格
  */
 import React from 'react';
-import { Typography, Button, Space, Modal, Tabs, Card } from 'antd';
+import { Typography, Button, Space, Card } from 'antd';
 import { PlusOutlined, ReloadOutlined, BookOutlined } from '@ant-design/icons';
 import PageSkeleton from '@/components/PageSkeleton';
 import SearchFilterBar from '@/components/SearchFilterBar';
@@ -26,9 +26,7 @@ const InternalLibraryManagement: React.FC = () => {
   const {
     loading,
     libraries,
-    searchQuery,
     setSearchQuery,
-    filters,
     setFilters,
     createModalVisible,
     setCreateModalVisible,

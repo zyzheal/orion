@@ -7,7 +7,6 @@ import { Drawer, Descriptions, Typography, Tag, Tabs } from 'antd';
 import { TeamOutlined } from '@ant-design/icons';
 import { spacing } from '@/tokens';
 import type { InternalLibrary } from '@/api/internal-library';
-import { getLibraryTabItems } from './LibraryDetail';
 
 const { Text } = Typography;
 

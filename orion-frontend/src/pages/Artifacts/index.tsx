@@ -25,9 +25,7 @@ const ArtifactManagement: React.FC = () => {
   const {
     loading,
     artifacts,
-    searchQuery,
     setSearchQuery,
-    filters,
     setFilters,
     createModalVisible,
     setCreateModalVisible,

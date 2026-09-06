@@ -25,7 +25,7 @@ import {
   type Tag as TagType,
   type ArtifactStats as ArtifactStatsType,
 } from '@/api/artifacts';
-import { typeLabelMap, promotionStageOrder } from './constants';
+import { typeLabelMap } from './constants';
 
 export const useArtifactState = () => {
   const [loading, setLoading] = useState(false);
