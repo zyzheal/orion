@@ -162,8 +162,8 @@ export const useApiGovernanceState = () => {
         }
         const resultRes = await apiGovernanceApi.verifyContract(selectedContract.id, {
           actualResponse: values.actualResponse ? JSON.parse(values.actualResponse) : {},
-          endpoint: values.endpoint,
-          method: values.method,
+          endpoint: values.endpoint as string,
+          method: values.method as string,
         });
         const result = (resultRes as any).data ?? resultRes;
         setVerificationResults((prev) => [...prev, result as VerificationResult]);

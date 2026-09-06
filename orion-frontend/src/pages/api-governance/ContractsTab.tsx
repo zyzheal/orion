@@ -7,7 +7,6 @@ import { Card, Table, Button, Space } from 'antd';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { buildContractColumns } from './ApiGovernanceColumns';
 import type { GovernanceContract } from '@/api/api-governance';
-import type { ApiVersionType } from './useApiGovernanceState';
 
 export interface ContractsTabProps {
   contracts: GovernanceContract[];

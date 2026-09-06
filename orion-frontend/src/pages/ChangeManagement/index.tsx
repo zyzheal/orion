@@ -9,18 +9,13 @@
  * - Tab 4: CAB meetings with CRUD and decision recording
  *
  * API: @/api/change
+ *
+ * P2-9 Phase 50 重构: 884 → 245 行 (-72%)
+ * 拆分: useChangeManagementState.ts (全状态+loaders+handlers)
+ *       index.tsx 仅保留 7 Form.useForm + form wrapper + 布局编排
  */
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Typography,
-  Card,
-  Tabs,
-  message,
-  Form,
-  Modal,
-  Row,
-  Col,
-} from 'antd';
+import React, { useCallback } from 'react';
+import { Typography, Card, Tabs, Row, Col, Form } from 'antd';
 import {
   EyeOutlined,
   SwapOutlined,
@@ -32,38 +27,8 @@ import { Layout } from '@/components/Layout';
 import MetricCard from '@/components/MetricCard';
 import { colors, spacing, radius, shadows } from '@/tokens';
 import {
-  getChangeRequests,
-  getChangeRequest,
-  createChangeRequest,
-  updateChangeRequest,
-  deleteChangeRequest,
-  updateChangeRequestStatus,
-  getChangeTimeline,
-  addChangeTimelineEvent,
-  getRFCs,
-  getRFC,
-  createRFC,
-  updateRFC,
-  getCABMeetings,
-  getCABMeeting,
-  createCABMeeting,
-  updateCABMeeting,
-  addCABDecision,
-  getChangeStats,
-  getChangeRiskAnalysis,
-} from '@/api/change';
-import type {
-  ChangeRequest,
-  CABMeeting,
-  ChangeTimelineEvent,
-  RFC,
-  ChangeStats,
-  ChangeRiskAnalysis,
-} from '@/api/change';
-import dayjs from 'dayjs';
-import {
-  statusConfig,
-} from './config';
+  useChangeManagementState,
+} from './useChangeManagementState';
 import {
   useChangeColumns,
   useRFCColumns,
@@ -75,6 +40,7 @@ import { RequestsTab } from './RequestsTab';
 import { RFCsTab } from './RFCsTab';
 import { CABsTab } from './CABsTab';
 import { ChangeManagementModals } from './ChangeManagementModals';
+import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
@@ -83,64 +49,50 @@ const { Title, Text } = Typography;
 // ============================================================================
 
 const ChangeManagement: React.FC = () => {
-  // --- State ---
-  const [activeTab, setActiveTab] = useState<string>('requests');
-  const [changes, setChanges] = useState<ChangeRequest[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [filterStatus, setFilterStatus] = useState<string | undefined>();
-  const [filterType, setFilterType] = useState<string | undefined>();
-  const [filterPriority, setFilterPriority] = useState<string | undefined>();
-
-  // Detail state
-  const [selectedChange, setSelectedChange] = useState<ChangeRequest | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-
-  // AI Risk Analysis (TR-03)
-  const [riskAnalysis, setRiskAnalysis] = useState<ChangeRiskAnalysis | null>(null);
-  const [riskLoading, setRiskLoading] = useState(false);
-
-  // Timeline state
-  const [timeline, setTimeline] = useState<ChangeTimelineEvent[]>([]);
-  const [timelineLoading, setTimelineLoading] = useState(false);
-
-  // RFC state
-  const [rfcs, setRfcs] = useState<RFC[]>([]);
-  const [rfcTotal, setRfcTotal] = useState(0);
-  const [rfcLoading, setRfcLoading] = useState(false);
-  const [rfcPage, setRfcPage] = useState(1);
-
-  // CAB state
-  const [cabMeetings, setCabMeetings] = useState<CABMeeting[]>([]);
-  const [cabTotal, setCabTotal] = useState(0);
-  const [cabLoading, setCabLoading] = useState(false);
-  const [cabPage, setCabPage] = useState(1);
-
-  // Stats state
-  const [stats, setStats] = useState<ChangeStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(false);
-
-  // Modal state
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [addEventModalOpen, setAddEventModalOpen] = useState(false);
-  const [statusNoteModalOpen, setStatusNoteModalOpen] = useState(false);
-  const [pendingStatusChange, setPendingStatusChange] = useState<string>('');
-  const [rfcModalOpen, setRfcModalOpen] = useState(false);
-  const [rfcDetailModalOpen, setRfcDetailModalOpen] = useState(false);
-  const [selectedRfc, setSelectedRfc] = useState<RFC | null>(null);
-  const [editRfcId, setEditRfcId] = useState<string | null>(null);
-  const [cabModalOpen, setCabModalOpen] = useState(false);
-  const [cabDetailModalOpen, setCabDetailModalOpen] = useState(false);
-  const [selectedCab, setSelectedCab] = useState<CABMeeting | null>(null);
-  const [editCabId, setEditCabId] = useState<string | null>(null);
-  const [decisionModalOpen, setDecisionModalOpen] = useState(false);
-
-  // Submitting states
-  const [createSubmitting, setCreateSubmitting] = useState(false);
-  const [editSubmitting, setEditSubmitting] = useState(false);
+  const {
+    activeTab, setActiveTab,
+    changes, total, loading,
+    page, setPage,
+    pageSize, setPageSize,
+    filterStatus, setFilterStatus,
+    filterType, setFilterType,
+    filterPriority, setFilterPriority,
+    selectedChange, setSelectedChange,
+    detailLoading,
+    riskAnalysis, riskLoading,
+    timeline, timelineLoading,
+    rfcs, rfcTotal, rfcLoading,
+    rfcPage, setRfcPage,
+    cabMeetings, cabTotal, cabLoading,
+    cabPage, setCabPage,
+    stats, statsLoading,
+    createModalOpen, setCreateModalOpen,
+    editModalOpen, setEditModalOpen,
+    addEventModalOpen, setAddEventModalOpen,
+    statusNoteModalOpen, setStatusNoteModalOpen,
+    pendingStatusChange, setPendingStatusChange,
+    rfcModalOpen, setRfcModalOpen,
+    rfcDetailModalOpen, setRfcDetailModalOpen,
+    selectedRfc, setSelectedRfc,
+    editRfcId, setEditRfcId,
+    cabModalOpen, setCabModalOpen,
+    cabDetailModalOpen, setCabDetailModalOpen,
+    selectedCab,
+    editCabId, setEditCabId,
+    decisionModalOpen, setDecisionModalOpen,
+    createSubmitting, editSubmitting,
+    loadChanges,
+    handleCreate, handleEdit, handleDelete,
+    handleViewDetail, handleStatusChange,
+    handleConfirmStatusChange,
+    handleRiskAnalysis,
+    handleAddTimelineEvent,
+    handleCreateRfc, handleUpdateRfc,
+    handleViewRfc,
+    handleCreateCab, handleUpdateCab,
+    handleViewCab,
+    handleAddDecision,
+  } = useChangeManagementState();
 
   // Forms
   const [createForm] = Form.useForm();
@@ -152,243 +104,30 @@ const ChangeManagement: React.FC = () => {
   const [decisionForm] = Form.useForm();
 
   // ============================================================================
-  // Data Loading
+  // Form wrapper handlers (validateFields + resetFields + call hook handler)
   // ============================================================================
 
-  const loadStats = useCallback(async () => {
-    setStatsLoading(true);
-    try {
-      const data = await getChangeStats();
-      setStats(data);
-    } catch {
-      // API may not be fully ready
-    } finally {
-      setStatsLoading(false);
-    }
-  }, []);
-
-  const loadChanges = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: {
-        status?: string;
-        type?: string;
-        priority?: string;
-        limit: number;
-        offset: number;
-      } = { limit: pageSize, offset: (page - 1) * pageSize };
-      if (filterStatus) params.status = filterStatus;
-      if (filterType) params.type = filterType;
-      if (filterPriority) params.priority = filterPriority;
-      const res = await getChangeRequests(params);
-      setChanges(Array.isArray(res.data) ? res.data : []);
-      setTotal(res.total || 0);
-    } catch {
-      message.error('加载变更请求列表失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [page, pageSize, filterStatus, filterType, filterPriority]);
-
-  const loadTimeline = useCallback(async (changeId: string) => {
-    setTimelineLoading(true);
-    try {
-      const data = await getChangeTimeline(changeId);
-      setTimeline(Array.isArray(data) ? data : []);
-    } catch {
-      // Timeline may not exist yet
-      setTimeline([]);
-    } finally {
-      setTimelineLoading(false);
-    }
-  }, []);
-
-  const loadRfcs = useCallback(async () => {
-    setRfcLoading(true);
-    try {
-      const res = await getRFCs({ limit: pageSize, offset: (rfcPage - 1) * pageSize });
-      setRfcs(Array.isArray(res.data) ? res.data : []);
-      setRfcTotal(res.total || 0);
-    } catch {
-      message.error('加载 RFC 列表失败');
-    } finally {
-      setRfcLoading(false);
-    }
-  }, [rfcPage, pageSize]);
-
-  const loadCabMeetings = useCallback(async () => {
-    setCabLoading(true);
-    try {
-      const res = await getCABMeetings({ limit: pageSize, offset: (cabPage - 1) * pageSize });
-      setCabMeetings(Array.isArray(res.data) ? res.data : []);
-      setCabTotal(res.total || 0);
-    } catch {
-      message.error('加载 CAB 会议列表失败');
-    } finally {
-      setCabLoading(false);
-    }
-  }, [cabPage, pageSize]);
-
-  useEffect(() => {
-    loadStats();
-    loadChanges();
-  }, [loadChanges, loadStats]);
-
-  useEffect(() => {
-    if (activeTab === 'rfc') loadRfcs();
-    if (activeTab === 'cab') loadCabMeetings();
-  }, [activeTab, loadRfcs, loadCabMeetings]);
-
-  // ============================================================================
-  // Change Request Handlers
-  // ============================================================================
-
-  const handleCreate = async () => {
+  const handleCreateWrapper = useCallback(async () => {
     try {
       const values = await createForm.validateFields();
-      setCreateSubmitting(true);
-      const payload = {
-        ...values,
-        affected_services: values.affected_services
-          ? values.affected_services
-              .split(',')
-              .map((s: string) => s.trim())
-              .filter(Boolean)
-          : undefined,
-        scheduled_start: values.scheduled_start?.toISOString(),
-        scheduled_end: values.scheduled_end?.toISOString(),
-      };
-      await createChangeRequest(payload);
-      message.success('变更请求创建成功');
-      setCreateModalOpen(false);
+      await handleCreate(values);
       createForm.resetFields();
-      loadChanges();
-      loadStats();
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'errorFields' in err) return; // form validation
-      message.error('创建变更请求失败');
-    } finally {
-      setCreateSubmitting(false);
+    } catch {
+      // form validation error - ignore
     }
-  };
+  }, [createForm, handleCreate]);
 
-  const handleEdit = async () => {
-    if (!selectedChange) return;
+  const handleEditWrapper = useCallback(async () => {
     try {
       const values = await editForm.validateFields();
-      setEditSubmitting(true);
-      const payload = {
-        ...values,
-        affected_services: values.affected_services
-          ? typeof values.affected_services === 'string'
-            ? values.affected_services
-                .split(',')
-                .map((s: string) => s.trim())
-                .filter(Boolean)
-            : values.affected_services
-          : undefined,
-        scheduled_start: values.scheduled_start?.toISOString?.() || values.scheduled_start,
-        scheduled_end: values.scheduled_end?.toISOString?.() || values.scheduled_end,
-      };
-      await updateChangeRequest(selectedChange.id, payload);
-      message.success('变更请求更新成功');
-      setEditModalOpen(false);
+      await handleEdit(values);
       editForm.resetFields();
-      // Refresh detail
-      const updated = await getChangeRequest(selectedChange.id);
-      setSelectedChange(updated);
-      loadChanges();
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'errorFields' in err) return;
-      message.error('更新变更请求失败');
-    } finally {
-      setEditSubmitting(false);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteChangeRequest(id);
-      message.success('变更请求已删除');
-      if (selectedChange?.id === id) {
-        setSelectedChange(null);
-        setActiveTab('requests');
-      }
-      loadChanges();
-      loadStats();
     } catch {
-      message.error('删除变更请求失败');
+      // form validation error - ignore
     }
-  };
+  }, [editForm, handleEdit]);
 
-  const handleViewDetail = async (record: ChangeRequest) => {
-    setDetailLoading(true);
-    setActiveTab('detail');
-    try {
-      const detail = await getChangeRequest(record.id);
-      setSelectedChange(detail);
-      loadTimeline(record.id);
-    } catch {
-      message.error('加载变更详情失败');
-    } finally {
-      setDetailLoading(false);
-    }
-  };
-
-  const handleStatusChange = (newStatus: string) => {
-    if (newStatus === 'cancelled') {
-      // Cancel requires confirmation but no special note
-      Modal.confirm({
-        title: '确认取消变更',
-        content: '确定要取消此变更请求吗？此操作不可撤销。',
-        okText: '确认取消',
-        cancelText: '返回',
-        okButtonProps: { danger: true },
-        onOk: async () => {
-          if (!selectedChange) return;
-          try {
-            const updated = await updateChangeRequestStatus(selectedChange.id, 'cancelled');
-            setSelectedChange(updated);
-            message.success('变更请求已取消');
-            loadChanges();
-            loadStats();
-          } catch {
-            message.error('取消变更请求失败');
-          }
-        },
-      });
-      return;
-    }
-    setPendingStatusChange(newStatus);
-    setStatusNoteModalOpen(true);
-  };
-
-  const handleConfirmStatusChange = async () => {
-    if (!selectedChange || !pendingStatusChange) return;
-    try {
-      const values = await statusNoteForm.validateFields();
-      const updated = await updateChangeRequestStatus(
-        selectedChange.id,
-        pendingStatusChange,
-        values.note
-      );
-      setSelectedChange(updated);
-      message.success(
-        `状态已变更为: ${statusConfig[pendingStatusChange]?.label || pendingStatusChange}`
-      );
-      setStatusNoteModalOpen(false);
-      statusNoteForm.resetFields();
-      setPendingStatusChange('');
-      loadTimeline(selectedChange.id);
-      loadChanges();
-      loadStats();
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'errorFields' in err) return;
-      message.error('状态变更失败');
-    }
-  };
-
-  const handleOpenEditModal = () => {
+  const handleOpenEditModalWrapper = useCallback(() => {
     if (!selectedChange) return;
     editForm.setFieldsValue({
       title: selectedChange.title,
@@ -408,92 +147,51 @@ const ChangeManagement: React.FC = () => {
       affected_services: selectedChange.affected_services?.join(', '),
     });
     setEditModalOpen(true);
-  };
+  }, [selectedChange, editForm, setEditModalOpen]);
 
-  const handleRiskAnalysis = async () => {
-    if (!selectedChange) return;
-    setRiskLoading(true);
+  const handleConfirmStatusChangeWrapper = useCallback(async () => {
     try {
-      const analysis = await getChangeRiskAnalysis(selectedChange.id);
-      setRiskAnalysis(analysis);
-      message.success('AI 风险分析完成');
-    } catch (error: unknown) {
-      message.error(
-        error instanceof Error ? error.message : 'AI 风险分析失败，请稍后重试'
-      );
-    } finally {
-      setRiskLoading(false);
+      const values = await statusNoteForm.validateFields();
+      await handleConfirmStatusChange(values.note);
+      statusNoteForm.resetFields();
+    } catch {
+      // form validation error - ignore
     }
-  };
+  }, [statusNoteForm, handleConfirmStatusChange]);
 
-  // ============================================================================
-  // Timeline Handlers
-  // ============================================================================
-
-  const handleAddTimelineEvent = async () => {
-    if (!selectedChange) return;
+  const handleAddTimelineEventWrapper = useCallback(async () => {
     try {
       const values = await eventForm.validateFields();
-      await addChangeTimelineEvent(selectedChange.id, {
-        event_type: values.event_type,
-        description: values.description,
-      });
-      message.success('时间线事件已添加');
-      setAddEventModalOpen(false);
+      await handleAddTimelineEvent(values);
       eventForm.resetFields();
-      loadTimeline(selectedChange.id);
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'errorFields' in err) return;
-      message.error('添加时间线事件失败');
-    }
-  };
-
-  // ============================================================================
-  // RFC Handlers
-  // ============================================================================
-
-  const handleCreateRfc = async () => {
-    try {
-      const values = await rfcForm.validateFields();
-      await createRFC(values);
-      message.success('RFC 创建成功');
-      setRfcModalOpen(false);
-      rfcForm.resetFields();
-      setEditRfcId(null);
-      loadRfcs();
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'errorFields' in err) return;
-      message.error('创建 RFC 失败');
-    }
-  };
-
-  const handleUpdateRfc = async () => {
-    if (!editRfcId) return;
-    try {
-      const values = await rfcForm.validateFields();
-      await updateRFC(editRfcId, values);
-      message.success('RFC 更新成功');
-      setRfcModalOpen(false);
-      rfcForm.resetFields();
-      setEditRfcId(null);
-      loadRfcs();
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'errorFields' in err) return;
-      message.error('更新 RFC 失败');
-    }
-  };
-
-  const handleViewRfc = async (record: RFC) => {
-    try {
-      const detail = await getRFC(record.id);
-      setSelectedRfc(detail);
-      setRfcDetailModalOpen(true);
     } catch {
-      message.error('加载 RFC 详情失败');
+      // form validation error - ignore
     }
-  };
+  }, [eventForm, handleAddTimelineEvent]);
 
-  const handleEditRfc = (record: RFC) => {
+  const handleCreateRfcWrapper = useCallback(async () => {
+    try {
+      const values = await rfcForm.validateFields();
+      await handleCreateRfc(values);
+      rfcForm.resetFields();
+      setEditRfcId(null);
+    } catch {
+      // form validation error - ignore
+    }
+  }, [rfcForm, handleCreateRfc, setEditRfcId]);
+
+  const handleUpdateRfcWrapper = useCallback(async () => {
+    try {
+      const values = await rfcForm.validateFields();
+      await handleUpdateRfc(values);
+      rfcForm.resetFields();
+      setEditRfcId(null);
+    } catch {
+      // form validation error - ignore
+    }
+  }, [rfcForm, handleUpdateRfc, setEditRfcId]);
+
+  const handleEditRfcWrapper = useCallback((record: any) => {
     setEditRfcId(record.id);
     rfcForm.setFieldsValue({
       change_request_id: record.change_request_id,
@@ -504,74 +202,31 @@ const ChangeManagement: React.FC = () => {
       backout_plan: record.backout_plan,
     });
     setRfcModalOpen(true);
-  };
+  }, [rfcForm, setEditRfcId, setRfcModalOpen]);
 
-  // ============================================================================
-  // CAB Meeting Handlers
-  // ============================================================================
-
-  const handleCreateCab = async () => {
+  const handleCreateCabWrapper = useCallback(async () => {
     try {
       const values = await cabForm.validateFields();
-      const payload = {
-        ...values,
-        scheduled_at: values.scheduled_at.toISOString(),
-        attendees: values.attendees
-          ? values.attendees
-              .split(',')
-              .map((s: string) => s.trim())
-              .filter(Boolean)
-          : undefined,
-      };
-      await createCABMeeting(payload);
-      message.success('CAB 会议创建成功');
-      setCabModalOpen(false);
+      await handleCreateCab(values);
       cabForm.resetFields();
       setEditCabId(null);
-      loadCabMeetings();
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'errorFields' in err) return;
-      message.error('创建 CAB 会议失败');
-    }
-  };
-
-  const handleUpdateCab = async () => {
-    if (!editCabId) return;
-    try {
-      const values = await cabForm.validateFields();
-      const payload: Record<string, unknown> = { ...values };
-      if (values.scheduled_at?.toISOString) {
-        payload.scheduled_at = values.scheduled_at.toISOString();
-      }
-      if (values.attendees && typeof values.attendees === 'string') {
-        payload.attendees = values.attendees
-          .split(',')
-          .map((s: string) => s.trim())
-          .filter(Boolean);
-      }
-      await updateCABMeeting(editCabId, payload);
-      message.success('CAB 会议更新成功');
-      setCabModalOpen(false);
-      cabForm.resetFields();
-      setEditCabId(null);
-      loadCabMeetings();
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'errorFields' in err) return;
-      message.error('更新 CAB 会议失败');
-    }
-  };
-
-  const handleViewCab = async (record: CABMeeting) => {
-    try {
-      const detail = await getCABMeeting(record.id);
-      setSelectedCab(detail);
-      setCabDetailModalOpen(true);
     } catch {
-      message.error('加载 CAB 会议详情失败');
+      // form validation error - ignore
     }
-  };
+  }, [cabForm, handleCreateCab, setEditCabId]);
 
-  const handleEditCab = (record: CABMeeting) => {
+  const handleUpdateCabWrapper = useCallback(async () => {
+    try {
+      const values = await cabForm.validateFields();
+      await handleUpdateCab(values);
+      cabForm.resetFields();
+      setEditCabId(null);
+    } catch {
+      // form validation error - ignore
+    }
+  }, [cabForm, handleUpdateCab, setEditCabId]);
+
+  const handleEditCabWrapper = useCallback((record: any) => {
     setEditCabId(record.id);
     cabForm.setFieldsValue({
       title: record.title,
@@ -581,29 +236,17 @@ const ChangeManagement: React.FC = () => {
       attendees: record.attendees?.join(', '),
     });
     setCabModalOpen(true);
-  };
+  }, [cabForm, setEditCabId, setCabModalOpen]);
 
-  const handleAddDecision = async () => {
-    if (!selectedCab) return;
+  const handleAddDecisionWrapper = useCallback(async () => {
     try {
       const values = await decisionForm.validateFields();
-      await addCABDecision(selectedCab.id, {
-        changeRequestId: values.changeRequestId,
-        decision: values.decision,
-        notes: values.notes,
-      });
-      message.success('决策记录已添加');
-      setDecisionModalOpen(false);
+      await handleAddDecision(values);
       decisionForm.resetFields();
-      // Refresh CAB detail
-      const updated = await getCABMeeting(selectedCab.id);
-      setSelectedCab(updated);
-      loadCabMeetings();
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'errorFields' in err) return;
-      message.error('添加决策记录失败');
+    } catch {
+      // form validation error - ignore
     }
-  };
+  }, [decisionForm, handleAddDecision]);
 
   // ============================================================================
   // Table Columns (factories from ./columns)
@@ -612,18 +255,18 @@ const ChangeManagement: React.FC = () => {
   const changeColumns = useChangeColumns({
     handleDelete,
     handleViewDetail,
-    handleOpenEditModal,
+    handleOpenEditModal: handleOpenEditModalWrapper,
     setSelectedChange,
   });
 
   const rfcColumns = useRFCColumns({
     handleViewRfc,
-    handleEditRfc,
+    handleEditRfc: handleEditRfcWrapper,
   });
 
   const cabColumns = useCABColumns({
     handleViewCab,
-    handleEditCab,
+    handleEditCab: handleEditCabWrapper,
   });
 
   // ============================================================================
@@ -631,8 +274,6 @@ const ChangeManagement: React.FC = () => {
   // ============================================================================
 
   const statsCards = buildStatsCards(stats);
-
-  // Change Form: rendered by ChangeForm component in modals
 
   // ============================================================================
   // Tab Items
@@ -699,7 +340,7 @@ const ChangeManagement: React.FC = () => {
           timeline={timeline}
           timelineLoading={timelineLoading}
           onRiskAnalysis={handleRiskAnalysis}
-          onEdit={handleOpenEditModal}
+          onEdit={handleOpenEditModalWrapper}
           onStatusChange={handleStatusChange}
           onAddEvent={() => {
             eventForm.resetFields();
@@ -806,7 +447,7 @@ const ChangeManagement: React.FC = () => {
           createModalOpen={createModalOpen}
           createForm={createForm}
           createSubmitting={createSubmitting}
-          onCreate={handleCreate}
+          onCreate={handleCreateWrapper}
           onCreateCancel={() => {
             setCreateModalOpen(false);
             createForm.resetFields();
@@ -814,7 +455,7 @@ const ChangeManagement: React.FC = () => {
           editModalOpen={editModalOpen}
           editForm={editForm}
           editSubmitting={editSubmitting}
-          onEdit={handleEdit}
+          onEdit={handleEditWrapper}
           onEditCancel={() => {
             setEditModalOpen(false);
             editForm.resetFields();
@@ -822,7 +463,7 @@ const ChangeManagement: React.FC = () => {
           statusNoteModalOpen={statusNoteModalOpen}
           statusNoteForm={statusNoteForm}
           pendingStatusChange={pendingStatusChange}
-          onStatusConfirm={handleConfirmStatusChange}
+          onStatusConfirm={handleConfirmStatusChangeWrapper}
           onStatusCancel={() => {
             setStatusNoteModalOpen(false);
             statusNoteForm.resetFields();
@@ -830,7 +471,7 @@ const ChangeManagement: React.FC = () => {
           }}
           addEventModalOpen={addEventModalOpen}
           eventForm={eventForm}
-          onEventAdd={handleAddTimelineEvent}
+          onEventAdd={handleAddTimelineEventWrapper}
           onEventCancel={() => {
             setAddEventModalOpen(false);
             eventForm.resetFields();
@@ -838,8 +479,8 @@ const ChangeManagement: React.FC = () => {
           rfcModalOpen={rfcModalOpen}
           rfcForm={rfcForm}
           editRfcId={editRfcId}
-          onCreateRfc={handleCreateRfc}
-          onUpdateRfc={handleUpdateRfc}
+          onCreateRfc={handleCreateRfcWrapper}
+          onUpdateRfc={handleUpdateRfcWrapper}
           onRfcCancel={() => {
             setRfcModalOpen(false);
             rfcForm.resetFields();
@@ -854,8 +495,8 @@ const ChangeManagement: React.FC = () => {
           cabModalOpen={cabModalOpen}
           cabForm={cabForm}
           editCabId={editCabId}
-          onCreateCab={handleCreateCab}
-          onUpdateCab={handleUpdateCab}
+          onCreateCab={handleCreateCabWrapper}
+          onUpdateCab={handleUpdateCabWrapper}
           onCabCancel={() => {
             setCabModalOpen(false);
             cabForm.resetFields();
@@ -870,7 +511,7 @@ const ChangeManagement: React.FC = () => {
           }}
           decisionModalOpen={decisionModalOpen}
           decisionForm={decisionForm}
-          onDecisionAdd={handleAddDecision}
+          onDecisionAdd={handleAddDecisionWrapper}
           onDecisionCancel={() => {
             setDecisionModalOpen(false);
             decisionForm.resetFields();

@@ -11,7 +11,7 @@ import {
   StopOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens';
-import type { GovernanceContract, GovernanceRule, GovernanceViolation } from '@/api/api-governance';
+import type { GovernanceContract } from '@/api/api-governance';
 import type { ApiVersionType } from './useApiGovernanceState';
 
 export interface BuildContractColumnsDeps {
