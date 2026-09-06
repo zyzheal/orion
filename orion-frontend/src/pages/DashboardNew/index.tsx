@@ -2,430 +2,53 @@
  * 全新 Dashboard - 工作看板
  * 展示待处理事项、系统状态、快速入口
  * 对接真实后端API获取数据
+ * 8 文件拆分: types.ts + constants.tsx + useDashboardState.ts + DashboardColumns.tsx + RightPanel.tsx + index.tsx
+ * 抽取自 705 行原始文件 (P2-9 Phase 67)
  */
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   Card,
   Row,
   Col,
-  Tag,
   Table,
   Typography,
-  Badge,
   Button,
-  Space,
   Spin,
   Alert,
   Empty,
-  message,
 } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing } from '@/tokens';
 import { StatCard } from '@/components/charts';
-import {
-  CheckCircleOutlined,
-  WarningOutlined,
-  RocketOutlined,
-  HistoryOutlined,
-  PlayCircleOutlined,
-  DashboardOutlined,
-  TeamOutlined,
-  UserSwitchOutlined,
-  AlertOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
+import { DashboardOutlined, RocketOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { getPipelines, getPipelineRuns, type PipelineRun } from '@/api/pipelines';
-import { retryPipelineRun } from '@/api/pipelineRuns';
-import { getMonitoringHealth } from '@/api/monitoring';
-import { getServiceHealthList } from '@/api/health';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
-import 'dayjs/locale/zh-cn';
+import { useDashboardState } from './useDashboardState';
+import { useTaskColumns, usePipelineColumns } from './DashboardColumns';
+import {
+  DashboardLinksCard,
+  SystemHealthCard,
+  QuickActionsCard,
+  AlertsCard,
+} from './RightPanel';
 
-dayjs.extend(relativeTime);
-dayjs.locale('zh-cn');
-
-const { Title, Text, Paragraph } = Typography;
-
-// ---- Type definitions ----
-
-interface PipelineRecord {
-  key: string;
-  name: string;
-  pipelineId: string;
-  runId?: string;
-  status: string;
-  duration: string;
-  trigger: string;
-  time: string;
-}
-
-interface TaskRecord {
-  key: string;
-  title: string;
-  priority: string;
-  status: string;
-  assignee: string;
-  due: string;
-}
-
-interface SystemHealthItem {
-  name: string;
-  status: string;
-  latency: string;
-  uptime: string;
-}
-
-interface QuickAction {
-  name: string;
-  icon: React.ReactNode;
-  color: string;
-  path: string;
-}
-
-interface DashboardLink {
-  name: string;
-  icon: React.ReactNode;
-  color: string;
-  path: string;
-  desc: string;
-}
-
-const dashboardLinks: DashboardLink[] = [
-  {
-    name: '总览看板',
-    icon: <DashboardOutlined />,
-    color: colors.primary[500],
-    path: '/dashboard/executive',
-    desc: '全局 KPI、趋势、排行',
-  },
-  {
-    name: '经理看板',
-    icon: <TeamOutlined />,
-    color: colors.purple[500],
-    path: '/dashboard/manager',
-    desc: '团队明细、周环比',
-  },
-  {
-    name: '个人看板',
-    icon: <UserSwitchOutlined />,
-    color: colors.success[500],
-    path: '/dashboard/engineer',
-    desc: '个人效能、在手工单',
-  },
-  {
-    name: '告警中心',
-    icon: <AlertOutlined />,
-    color: colors.error[400],
-    path: '/alerts',
-    desc: '告警列表、确认处理',
-  },
-];
-
-const quickActions: QuickAction[] = [
-  {
-    name: '创建 Pipeline',
-    icon: <RocketOutlined />,
-    color: colors.primary[500],
-    path: '/pipelines/new',
-  },
-  {
-    name: '运行记录',
-    icon: <HistoryOutlined />,
-    color: colors.success[500],
-    path: '/pipeline-runs',
-  },
-  {
-    name: '部署管理',
-    icon: <PlayCircleOutlined />,
-    color: colors.purple[500],
-    path: '/deployments',
-  },
-  { name: '告警管理', icon: <AlertOutlined />, color: colors.warning[500], path: '/alerts' },
-];
-
-const statusColors: Record<string, string> = {
-  running: 'processing',
-  success: 'success',
-  failed: 'error',
-  pending: 'warning',
-  healthy: 'success',
-  warning: 'warning',
-  error: 'error',
-  cancelled: 'default',
-};
-
-const priorityColors: Record<string, string> = {
-  high: 'red',
-  medium: 'orange',
-  low: 'blue',
-};
-
-// Helper: format duration
-const formatDuration = (run: PipelineRun): string => {
-  if (run.duration) {
-    const seconds = run.duration / 1000;
-    if (seconds < 60) return `${seconds.toFixed(1)}s`;
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}m ${remainingSeconds}s`;
-  }
-  return '-';
-};
-
-// Helper: format time relative to now
-const formatTimeRelative = (timeStr?: string): string => {
-  if (!timeStr) return '-';
-  return dayjs(timeStr).locale('zh-cn').fromNow();
-};
-
-// Helper: map trigger type to display
-const formatTrigger = (trigger: string): string => {
-  const map: Record<string, string> = {
-    manual: '手动',
-    push: '代码推送',
-    schedule: '定时',
-    api: 'API',
-  };
-  return map[trigger] || trigger;
-};
+const { Title, Text } = Typography;
 
 const DashboardNew: React.FC = () => {
   const navigate = useNavigate();
 
-  // State
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [pipelines, setPipelines] = useState<PipelineRun[]>([]);
-  const [recentRuns, setRecentRuns] = useState<PipelineRun[]>([]);
-  const [systemHealth, setSystemHealth] = useState<SystemHealthItem[]>([]);
+  const {
+    loading,
+    error,
+    pipelineStats,
+    tasks,
+    taskStats,
+    recentPipelineRecords,
+    systemHealth,
+    loadData,
+    handleRetry,
+  } = useDashboardState();
 
-  // Derived stats from real data
-  const pipelineStats = {
-    total: pipelines.length,
-    running: recentRuns.filter((r) => r.status === 'running').length,
-    success: recentRuns.filter((r) => r.status === 'success').length,
-    failed: recentRuns.filter((r) => r.status === 'failed').length,
-    pending: recentRuns.filter((r) => r.status === 'pending').length,
-  };
-
-  // Tasks: backend API not yet available, show empty state
-  const tasks: TaskRecord[] = [];
-
-  const taskStats = {
-    total: 0,
-    inProgress: 0,
-    todo: 0,
-    completed: 0,
-  };
-
-  // Load data from APIs
-  const loadData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Fetch pipelines
-      const pipelinesRes = await getPipelines();
-      if (pipelinesRes.data) {
-        setPipelines(Array.isArray(pipelinesRes.data) ? pipelinesRes.data : []);
-      }
-
-      // Fetch recent runs
-      const runsRes = await getPipelineRuns('all', { page: 1, pageSize: 5 });
-      if (runsRes.data) {
-        setRecentRuns(Array.isArray(runsRes.data) ? runsRes.data : []);
-      }
-
-      // Fetch system health from service-health API
-      try {
-        const healthServices = await getServiceHealthList();
-        const mapped = (Array.isArray(healthServices) ? healthServices : []).map(
-          (s) =>
-            ({
-              name: s.serviceName,
-              status: s.status === 'unhealthy' ? 'warning' : 'healthy',
-              latency: s.latencyMs > 0 ? `${s.latencyMs}ms` : '-',
-              uptime: s.uptimePercent > 0 ? `${s.uptimePercent.toFixed(1)}%` : '-',
-            }) as SystemHealthItem
-        );
-        if (mapped.length > 0) {
-          setSystemHealth(mapped);
-        } else {
-          // Fallback: use monitoring health endpoint
-          const healthRes = await getMonitoringHealth();
-          const baseStatus = healthRes.data?.status === 'ok' ? 'healthy' : 'warning';
-          setSystemHealth([
-            { name: 'API Gateway', status: baseStatus, latency: '-', uptime: '-' },
-            { name: 'Platform Service', status: baseStatus, latency: '-', uptime: '-' },
-            { name: 'Database', status: baseStatus, latency: '-', uptime: '-' },
-            { name: 'Redis', status: baseStatus, latency: '-', uptime: '-' },
-          ]);
-        }
-      } catch {
-        message.error('系统健康数据加载失败');
-        setError('系统健康数据加载失败，请稍后刷新重试');
-        setSystemHealth([]);
-      }
-    } catch (err) {
-      // Backend endpoints may not all be available; use demo data
-      message.error('加载数据失败，使用演示数据展示');
-      setError('加载数据失败，使用演示数据展示');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  // Transform runs to table records
-  const recentPipelineRecords: PipelineRecord[] = recentRuns.map((run, idx) => ({
-    key: String(idx + 1),
-    name: run.pipelineName || run.pipelineId,
-    pipelineId: run.pipelineId,
-    runId: run.id,
-    status: run.status,
-    duration: formatDuration(run),
-    trigger: run.author || formatTrigger(run.trigger),
-    time: formatTimeRelative(run.startTime),
-  }));
-
-  const taskColumns: ColumnsType<TaskRecord> = [
-    {
-      title: '任务',
-      dataIndex: 'title',
-      key: 'title',
-      render: (text: string, record: TaskRecord) => (
-        <Space direction="vertical" size={0} style={{ width: '100%' }}>
-          <Text strong>{text}</Text>
-          <Space size={8} style={{ marginTop: 4 }}>
-            <Tag color={priorityColors[record.priority]}>{record.priority.toUpperCase()}</Tag>
-            <Text type="secondary" style={{ fontSize: spacing[3] }}>
-              截止：{record.due}
-            </Text>
-          </Space>
-        </Space>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => {
-        const config: Record<string, { text: string; color: string }> = {
-          'in-progress': { text: '进行中', color: 'blue' },
-          todo: { text: '待开始', color: 'default' },
-          done: { text: '已完成', color: 'green' },
-        };
-        const { text, color } = config[status] || { text: status, color: 'default' };
-        return (
-          <Badge
-            status={color as 'success' | 'processing' | 'error' | 'default' | 'warning'}
-            text={text}
-          />
-        );
-      },
-    },
-    {
-      title: '负责人',
-      dataIndex: 'assignee',
-      key: 'assignee',
-      render: (assignee: string) => (
-        <Text code style={{ fontSize: spacing[3] }}>
-          {assignee}
-        </Text>
-      ),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      render: () => (
-        <Button type="link" size="small">
-          处理
-        </Button>
-      ),
-    },
-  ];
-
-  const pipelineColumns: ColumnsType<PipelineRecord> = [
-    {
-      title: 'Pipeline',
-      dataIndex: 'name',
-      key: 'name',
-      render: (name: string, record) => (
-        <Text
-          code
-          style={{ cursor: 'pointer', color: colors.primary[500] }}
-          onClick={() => navigate(`/pipelines/${record.pipelineId}`)}
-        >
-          {name}
-        </Text>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => (
-        <Badge
-          status={
-            statusColors[status] as 'success' | 'processing' | 'error' | 'default' | 'warning'
-          }
-          text={status}
-        />
-      ),
-    },
-    {
-      title: '耗时',
-      dataIndex: 'duration',
-      key: 'duration',
-    },
-    {
-      title: '触发人',
-      dataIndex: 'trigger',
-      key: 'trigger',
-    },
-    {
-      title: '时间',
-      dataIndex: 'time',
-      key: 'time',
-    },
-    {
-      title: '操作',
-      key: 'action',
-      render: (_: unknown, record: (typeof recentPipelineRecords)[0]) => (
-        <Space>
-          <Button
-            type="link"
-            size="small"
-            disabled={record.status === 'pending'}
-            onClick={() => navigate(`/pipelines/${record.pipelineId}`)}
-          >
-            查看
-          </Button>
-          {record.status === 'failed' && (
-            <Button
-              type="link"
-              size="small"
-              onClick={async () => {
-                try {
-                  await retryPipelineRun(record.runId || record.pipelineId);
-                  message.success('流水线已重新触发');
-                  loadData();
-                } catch {
-                  message.error('重试失败');
-                }
-              }}
-            >
-              重试
-            </Button>
-          )}
-        </Space>
-      ),
-    },
-  ];
+  const taskColumns = useTaskColumns();
+  const pipelineColumns = usePipelineColumns({ navigate, handleRetry });
 
   if (loading) {
     return (
@@ -501,30 +124,19 @@ const DashboardNew: React.FC = () => {
 
       {/* 主要内容区 */}
       <Row gutter={[16, 16]}>
-        {/* 左侧 - 任务和 Pipeline */}
         <Col xs={24} xl={16}>
-          {/* 待处理任务 */}
           <Card
             title="待处理任务"
             extra={<Button type="link">查看全部</Button>}
             style={{ marginBottom: spacing.md }}
           >
             {tasks.length > 0 ? (
-              <Table
-                columns={taskColumns}
-                dataSource={tasks}
-                pagination={false}
-                size="small"
-              />
+              <Table columns={taskColumns} dataSource={tasks} pagination={false} size="small" />
             ) : (
-              <Empty
-                description="暂无待处理任务"
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-              />
+              <Empty description="暂无待处理任务" image={Empty.PRESENTED_IMAGE_SIMPLE} />
             )}
           </Card>
 
-          {/* 最近 Pipeline */}
           <Card
             title="最近 Pipeline 执行"
             extra={
@@ -541,10 +153,7 @@ const DashboardNew: React.FC = () => {
                 size="small"
               />
             ) : (
-              <Empty
-                description="暂无 Pipeline 运行记录"
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-              >
+              <Empty description="暂无 Pipeline 运行记录" image={Empty.PRESENTED_IMAGE_SIMPLE}>
                 <Button
                   type="primary"
                   icon={<RocketOutlined />}
@@ -557,145 +166,11 @@ const DashboardNew: React.FC = () => {
           </Card>
         </Col>
 
-        {/* 右侧 - 系统状态和快速操作 */}
         <Col xs={24} xl={8}>
-          {/* 效能看板入口 */}
-          <Card
-            title={
-              <Space>
-                <DashboardOutlined />
-                效能看板
-              </Space>
-            }
-            extra={
-              <Button type="link" size="small" onClick={() => navigate('/dashboard/executive')}>
-                查看全部
-              </Button>
-            }
-            style={{ marginBottom: spacing.md }}
-          >
-            <Row gutter={[12, 12]}>
-              {dashboardLinks.map((link) => (
-                <Col span={12} key={link.name}>
-                  <Card
-                    hoverable
-                    size="small"
-                    onClick={() => navigate(link.path)}
-                    style={{
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                      height: 110,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      border: `1px solid ${colors.light?.border?.light || colors.neutral[200]}`,
-                      transition: 'all 0.3s',
-                    }}
-                  >
-                    <div style={{ fontSize: spacing[6], color: link.color, marginBottom: 6 }}>
-                      {link.icon}
-                    </div>
-                    <Text strong style={{ fontSize: spacing[3] }}>
-                      {link.name}
-                    </Text>
-                    <Text type="secondary" style={{ fontSize: spacing[2], marginTop: 2 }}>
-                      {link.desc}
-                    </Text>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-          </Card>
-
-          {/* 系统健康状态 */}
-          <Card title="系统健康状态" style={{ marginBottom: spacing.md }}>
-            <Space direction="vertical" style={{ width: '100%' }} size={12}>
-              {systemHealth.map((item) => (
-                <div
-                  key={item.name}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '8px 0',
-                    borderBottom: `1px solid ${colors.neutral?.[50] || colors.neutral[100]}`,
-                  }}
-                >
-                  <Space>
-                    <Badge status={statusColors[item.status] as 'success' | 'warning' | 'error'} />
-                    <Text>{item.name}</Text>
-                  </Space>
-                  <Space>
-                    <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                      {item.latency}
-                    </Text>
-                    <Text type="secondary" style={{ fontSize: spacing[3] }}>
-                      {item.uptime}
-                    </Text>
-                  </Space>
-                </div>
-              ))}
-            </Space>
-          </Card>
-
-          {/* 快速操作 */}
-          <Card title="快速操作" style={{ marginBottom: spacing.md }}>
-            <Row gutter={[12, 12]}>
-              {quickActions.map((action) => (
-                <Col span={12} key={action.name}>
-                  <Card
-                    hoverable
-                    size="small"
-                    onClick={() => navigate(action.path)}
-                    style={{
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                      height: 100,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      transition: 'all 0.3s',
-                    }}
-                  >
-                    <div style={{ fontSize: 28, color: action.color, marginBottom: spacing.sm }}>
-                      {action.icon}
-                    </div>
-                    <Text style={{ fontSize: spacing[3] }}>{action.name}</Text>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-          </Card>
-
-          {/* 公告/提醒 */}
-          <Card title="系统提醒">
-            {pipelineStats.failed > 0 && (
-              <Paragraph
-                type="secondary"
-                style={{ fontSize: spacing[3], marginBottom: spacing.sm }}
-              >
-                <WarningOutlined style={{ color: colors.warning[500], marginRight: spacing.sm }} />
-                {pipelineStats.failed} 个 Pipeline 运行失败，请检查
-              </Paragraph>
-            )}
-            {pipelineStats.running > 0 && (
-              <Paragraph
-                type="secondary"
-                style={{ fontSize: spacing[3], marginBottom: spacing.sm }}
-              >
-                <RocketOutlined style={{ color: colors.primary[500], marginRight: spacing.sm }} />
-                {pipelineStats.running} 个 Pipeline 正在运行中
-              </Paragraph>
-            )}
-            <Paragraph type="secondary" style={{ fontSize: spacing[3] }}>
-              <CheckCircleOutlined
-                style={{ color: colors.success[500], marginRight: spacing.sm }}
-              />
-              系统运行正常
-            </Paragraph>
-          </Card>
+          <DashboardLinksCard navigate={navigate} />
+          <SystemHealthCard health={systemHealth} />
+          <QuickActionsCard navigate={navigate} />
+          <AlertsCard failed={pipelineStats.failed} running={pipelineStats.running} />
         </Col>
       </Row>
     </div>
