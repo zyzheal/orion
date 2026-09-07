@@ -264,6 +264,12 @@ docs/
 | [local-system-gap-analysis-2026-08-26.md](local-system-gap-analysis-2026-08-26.md) | **本地全量缺口分析** | Go 后端 3,816 文件 + 前端 679 页面全量扫描，18 项缺口 (P0×4 + P1×11 + P2×3) |
 | [deliverables/README.md](deliverables/README.md) | **合并交付索引** | 45 方案合并总索引 (873 行)：方案 01-30 增强合并 + 方案 31-45 新增缺口补充 |
 
+### 🆕 大厂资深专家团 — 验收标准缺口补全（2026-08-26）
+
+| 文档 | 主题 | 说明 |
+|------|------|------|
+| [expert-team-acceptance-criteria-completion-2026-08-26.md](expert-team-acceptance-criteria-completion-2026-08-26.md) | **12 位大厂资深专家团评审** | 覆盖 217 前端页面 × 310 后端服务 × 40 spec × 15 ADR，识别 12 个核心缺失域 + 8 类跨域契约 + 6 类运行时规则，753 行含 P0 6 域详案 (AI Agent / 事件响应 / 制品/SBOM / FinOps / 流水线 / 租户用户) + 验收标准模板 + 实施路线图 |
+
 ### 🆕 外部能力集成设计（2026-08-26）
 
 | 文档 | 主题 | 说明 |
