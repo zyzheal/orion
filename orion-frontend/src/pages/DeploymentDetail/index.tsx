@@ -74,7 +74,7 @@ const DeploymentDetail: React.FC = () => {
           <StagesPanel stages={deployment.stages} />
         </Col>
         <Col xs={24} xl={10}>
-          <HealthCheckPanel healthChecks={deployment.healthChecks} />
+          <HealthCheckPanel healthChecks={deployment.healthChecks ?? []} />
         </Col>
       </Row>
     </div>
