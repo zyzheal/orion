@@ -37,6 +37,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/zh-cn';
 import { getNotification, markAsRead, deleteNotification } from '@/api/notifications';
+import { useQuery, useQueryClient } from '@/providers/QueryProvider';
 import { colors, spacing } from '@/tokens';
 
 dayjs.extend(relativeTime);
@@ -79,37 +80,42 @@ const priorityConfig: Record<string, { color: string; label: string; bg: string 
 const NotificationDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [notification, setNotification] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
   const [actionLoading, setActionLoading] = useState(false);
 
-  const fetchNotification = async () => {
-    if (!id) return;
-    setLoading(true);
-    try {
-      const data = await getNotification(id);
-      setNotification(data);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`获取通知详情失败：${error.message}`);
-      } else {
-        message.error('获取通知详情失败');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    data: notification,
+    isLoading: loading,
+    isError,
+    error,
+    refetch: fetchNotification,
+  } = useQuery<any>({
+    queryKey: ['notification', id],
+    queryFn: async () => {
+      if (!id) return null;
+      return getNotification(id);
+    },
+    enabled: !!id,
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    fetchNotification();
-  }, [id]);
+    if (!isError) return;
+    if (error instanceof Error) {
+      message.error(`获取通知详情失败：${error.message}`);
+    } else {
+      message.error('获取通知详情失败');
+    }
+  }, [isError, error]);
 
   const handleMarkAsRead = async () => {
     if (!id) return;
     setActionLoading(true);
     try {
       await markAsRead(id);
-      setNotification((prev: any) => ({ ...prev, read: true }));
+      queryClient.setQueryData(['notification', id], (prev: any) => ({ ...prev, read: true }));
       message.success('已标记为已读');
     } catch (error: unknown) {
       if (error instanceof Error) {
