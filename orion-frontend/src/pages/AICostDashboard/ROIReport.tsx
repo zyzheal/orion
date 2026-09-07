@@ -19,6 +19,7 @@ import { ReloadOutlined, RiseOutlined, FundOutlined, LineChartOutlined } from '@
 import type { ColumnsType } from 'antd/es/table';
 import { getROIReport } from '@/api/ai-cost';
 import { colors, spacing } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 
 const { Title, Text } = Typography;
 
@@ -39,30 +40,33 @@ interface ROISuggestion {
 }
 
 const ROIFeatureReport: React.FC = () => {
-  const [loading, setLoading] = useState(false);
   const [period, setPeriod] = useState('monthly');
-  const [roiData, setRoiData] = useState<ROIFeatureData[]>([]);
-  const [suggestions, setSuggestions] = useState<ROISuggestion[]>([]);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const res = await getROIReport({ period });
-      const data = res.data as { features?: ROIFeatureData[]; suggestions?: ROISuggestion[] };
-      setRoiData(Array.isArray(data?.features) ? data.features : []);
-      setSuggestions(Array.isArray(data?.suggestions) ? data.suggestions : []);
-    } catch (error: unknown) {
-      setRoiData([]);
-      setSuggestions([]);
-      message.error(`加载ROI数据失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    data: report = { features: [], suggestions: [] },
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<{ features?: ROIFeatureData[]; suggestions?: ROISuggestion[] }>({
+    queryKey: ['aicost-roi', period],
+    queryFn: () =>
+      getROIReport({ period }).then(
+        (res) => res.data as { features?: ROIFeatureData[]; suggestions?: ROISuggestion[] }
+      ),
+    staleTime: 30_000,
+  });
+  const roiData = Array.isArray(report.features) ? report.features : [];
+  const suggestions = Array.isArray(report.suggestions) ? report.suggestions : [];
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [period]);
+    if (isError)
+      message.error(
+        queryError instanceof Error ? `加载ROI数据失败: ${queryError.message}` : '加载ROI数据失败'
+      );
+  }, [isError, queryError]);
 
   const avgRoi =
     roiData.length > 0 ? roiData.reduce((sum, r) => sum + r.roi, 0) / roiData.length : 0;
@@ -177,7 +181,7 @@ const ROIFeatureReport: React.FC = () => {
               { label: '本季度', value: 'quarterly' },
             ]}
           />
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
             刷新
           </Button>
         </Space>

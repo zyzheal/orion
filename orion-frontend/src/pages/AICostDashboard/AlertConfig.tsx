@@ -22,6 +22,7 @@ import { PlusOutlined, DeleteOutlined, EditOutlined, BellOutlined } from '@ant-d
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import { getAlerts, type CostAlert } from '@/api/ai-cost';
+import { useQuery } from '@/providers/QueryProvider';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -47,8 +48,16 @@ interface AlertRule {
 }
 
 const AlertConfig: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [alerts, setAlerts] = useState<CostAlert[]>([]);
+  const {
+    data: alerts = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+  } = useQuery<CostAlert[]>({
+    queryKey: ['aicost-alerts'],
+    queryFn: () => getAlerts().then((res) => (Array.isArray(res.data) ? res.data : [])),
+    staleTime: 30_000,
+  });
   // TODO: Alert rule CRUD requires backend API support
   const [rules, setRules] = useState<AlertRule[]>([
     {
@@ -89,22 +98,14 @@ const AlertConfig: React.FC = () => {
   const [editForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
 
-  const loadAlerts = async () => {
-    setLoading(true);
-    try {
-      const res = await getAlerts();
-      setAlerts(Array.isArray(res.data) ? res.data : []);
-    } catch (error: unknown) {
-      setAlerts([]);
-      message.error(`加载告警数据失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadAlerts();
-  }, []);
+    if (isError)
+      message.error(
+        queryError instanceof Error ? `加载告警数据失败: ${queryError.message}` : '加载告警数据失败'
+      );
+  }, [isError, queryError]);
 
   const handleCreateRule = async () => {
     try {

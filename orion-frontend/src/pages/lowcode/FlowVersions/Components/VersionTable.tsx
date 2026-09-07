@@ -5,7 +5,7 @@
 import { Card, Button, Space, Table, Empty, Typography } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import type { LowcodeFlow, LowcodeFlowVersion } from '@/api/lowcode';
-import { colors, spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Text } = Typography;

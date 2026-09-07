@@ -40,6 +40,7 @@ import {
   type BudgetInput,
 } from '@/api/ai-cost';
 import { colors, spacing } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 
 const { Title, Text } = Typography;
 
@@ -59,8 +60,27 @@ const periodOptions = [
 ];
 
 const BudgetManagement: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const {
+    data: budgets = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<Budget[]>({
+    queryKey: ['aicost-budgets'],
+    queryFn: () => getBudgets().then((res) => (Array.isArray(res.data) ? res.data : [])),
+    staleTime: 30_000,
+  });
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError)
+      message.error(
+        queryError instanceof Error ? `加载预算数据失败: ${queryError.message}` : '加载预算数据失败'
+      );
+  }, [isError, queryError]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [createModalVisible, setCreateModalVisible] = useState(false);
@@ -69,23 +89,6 @@ const BudgetManagement: React.FC = () => {
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const res = await getBudgets();
-      setBudgets(Array.isArray(res.data) ? res.data : []);
-    } catch (error: unknown) {
-      setBudgets([]);
-      message.error(`加载预算数据失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
 
   const filteredBudgets = useMemo(() => {
     return budgets.filter((b) => {
@@ -115,7 +118,7 @@ const BudgetManagement: React.FC = () => {
       message.success('预算创建成功');
       setCreateModalVisible(false);
       createForm.resetFields();
-      loadData();
+      refetch();
     } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
@@ -139,7 +142,7 @@ const BudgetManagement: React.FC = () => {
       });
       message.success('预算更新成功');
       setEditModalVisible(false);
-      loadData();
+      refetch();
     } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
@@ -155,7 +158,7 @@ const BudgetManagement: React.FC = () => {
     try {
       await restoreBudget(id);
       message.success('预算已重置');
-      loadData();
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`预算重置失败：${error.message}`);
@@ -169,7 +172,7 @@ const BudgetManagement: React.FC = () => {
     try {
       await deleteBudget(id);
       message.success('预算已删除');
-      loadData();
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`预算删除失败：${error.message}`);
@@ -324,7 +327,7 @@ const BudgetManagement: React.FC = () => {
           <Text type="secondary">创建和管理 AI 调用预算</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
             刷新
           </Button>
           <Button

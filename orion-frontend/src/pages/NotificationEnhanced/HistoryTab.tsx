@@ -2,7 +2,7 @@
  * HistoryTab — 通知历史
  * 只读列表：通知发送记录，支持分页、筛选、标记已读
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Typography,
   Button,
@@ -18,6 +18,7 @@ import {
 } from 'antd';
 import { ReloadOutlined, EyeOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   getNotificationHistory,
   markNotificationHistoryAsRead,
@@ -46,9 +47,6 @@ const STATUS_FILTERS = Object.entries(STATUS_MAP).map(([key, val]) => ({
 }));
 
 const HistoryTab: React.FC = () => {
-  const [items, setItems] = useState<NotificationHistoryItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
@@ -56,35 +54,51 @@ const HistoryTab: React.FC = () => {
   const [dateRange, setDateRange] = useState<[any, any] | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
 
-  useEffect(() => {
-    loadItems();
-  }, [page, pageSize]);
-
-  const loadItems = async () => {
-    setLoading(true);
-    try {
-      const params: Record<string, any> = { page, pageSize };
-      if (statusFilter) params.status = statusFilter;
-      if (channelFilter) params.channelType = channelFilter;
-      if (dateRange && dateRange[0] && dateRange[1]) {
-        params.startDate = dateRange[0].format('YYYY-MM-DD');
-        params.endDate = dateRange[1].format('YYYY-MM-DD');
-      }
-      const result = (await getNotificationHistory(params)) as NotificationHistoryPage;
-      setItems(result.items || []);
-      setTotal(result.total || 0);
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : '加载通知历史失败');
-    } finally {
-      setLoading(false);
+  // 分页/筛选参数变化时自动触发查询；dateRange 为 dayjs 对象，序列化后放入 queryKey
+  const params = useMemo(() => {
+    const p: Record<string, any> = { page, pageSize };
+    if (statusFilter) p.status = statusFilter;
+    if (channelFilter) p.channelType = channelFilter;
+    if (dateRange && dateRange[0] && dateRange[1]) {
+      p.startDate = dateRange[0].format('YYYY-MM-DD');
+      p.endDate = dateRange[1].format('YYYY-MM-DD');
     }
-  };
+    return p;
+  }, [page, pageSize, statusFilter, channelFilter, dateRange]);
+
+  const {
+    data: pageData = null,
+    isLoading,
+    isFetching,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<NotificationHistoryPage | null>({
+    queryKey: ['notification-enhanced-history', params],
+    queryFn: () =>
+      getNotificationHistory(params).then((res) => (res as NotificationHistoryPage) ?? null),
+    staleTime: 30_000,
+  });
+
+  // 首次加载与后续刷新（筛选/分页变化、手动 refetch）都呈现加载态
+  const loading = isLoading || isFetching;
+  const items = pageData?.items ?? [];
+  const total = pageData?.total ?? 0;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError)
+      message.error(
+        queryError instanceof Error ? `加载通知历史失败: ${queryError.message}` : '加载通知历史失败'
+      );
+  }, [isError, queryError]);
 
   const handleMarkRead = async (id: string) => {
     try {
       await markNotificationHistoryAsRead(id);
       message.success('已标记为已读');
-      loadItems();
+      refetch();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '操作失败');
     }
@@ -95,7 +109,7 @@ const HistoryTab: React.FC = () => {
     try {
       const result = await markAllNotificationHistoryAsRead();
       message.success(`已标记 ${result.marked} 条为已读`);
-      loadItems();
+      refetch();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '批量操作失败');
     } finally {
@@ -241,7 +255,7 @@ const HistoryTab: React.FC = () => {
             value={dateRange}
             onChange={(val) => setDateRange(val)}
           />
-          <Button icon={<ReloadOutlined />} loading={loading} onClick={loadItems}>
+          <Button icon={<ReloadOutlined />} loading={loading} onClick={() => refetch()}>
             刷新
           </Button>
           <Button loading={markingAll} onClick={handleMarkAllRead}>

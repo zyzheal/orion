@@ -28,6 +28,7 @@ import {
   GlobalOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   getNotices,
   createNotice,
@@ -80,29 +81,32 @@ const STATUS_OPTIONS = [
 ];
 
 const NoticeTab: React.FC = () => {
-  const [items, setItems] = useState<Notice[]>([]);
-  const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Notice | null>(null);
   const [form] = Form.useForm();
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadItems();
-  }, []);
+  const {
+    data: items = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<Notice[]>({
+    queryKey: ['notification-enhanced-notices', statusFilter],
+    queryFn: () => getNotices(statusFilter ? statusFilter : undefined).then((data) => data ?? []),
+    staleTime: 30_000,
+  });
 
-  const loadItems = async () => {
-    setLoading(true);
-    try {
-      const data = await getNotices(statusFilter ? statusFilter : undefined);
-      setItems(data);
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : '加载公告列表失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError)
+      message.error(
+        queryError instanceof Error ? `加载公告列表失败: ${queryError.message}` : '加载公告列表失败'
+      );
+  }, [isError, queryError]);
 
   const handleOpenCreate = () => {
     setEditingItem(null);
@@ -156,7 +160,7 @@ const NoticeTab: React.FC = () => {
         message.success('公告创建成功');
       }
       setModalOpen(false);
-      loadItems();
+      refetch();
     } catch (err) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error(err instanceof Error ? err.message : '保存失败');
@@ -167,7 +171,7 @@ const NoticeTab: React.FC = () => {
     try {
       await deleteNotice(id);
       message.success('公告删除成功');
-      loadItems();
+      refetch();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '删除失败');
     }
@@ -177,7 +181,7 @@ const NoticeTab: React.FC = () => {
     try {
       await publishNotice(id);
       message.success('公告已发布');
-      loadItems();
+      refetch();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '发布失败');
     }
@@ -187,7 +191,7 @@ const NoticeTab: React.FC = () => {
     try {
       await withdrawNotice(id);
       message.success('公告已撤回');
-      loadItems();
+      refetch();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '撤回失败');
     }
@@ -343,7 +347,7 @@ const NoticeTab: React.FC = () => {
               </Option>
             ))}
           </Select>
-          <Button icon={<ReloadOutlined />} loading={loading} onClick={loadItems}>
+          <Button icon={<ReloadOutlined />} loading={loading} onClick={() => refetch()}>
             刷新
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>

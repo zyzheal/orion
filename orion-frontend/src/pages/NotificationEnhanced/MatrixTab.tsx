@@ -21,6 +21,7 @@ import {
 } from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   getDataMatrices,
   createDataMatrix,
@@ -53,8 +54,6 @@ const STATUS_FILTERS = [
 ];
 
 const MatrixTab: React.FC = () => {
-  const [items, setItems] = useState<DataMatrix[]>([]);
-  const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<DataMatrix | null>(null);
   const [form] = Form.useForm();
@@ -62,21 +61,26 @@ const MatrixTab: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [typeFilter, setTypeFilter] = useState<string | undefined>();
 
-  useEffect(() => {
-    loadItems();
-  }, []);
+  const {
+    data: items = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<DataMatrix[]>({
+    queryKey: ['notification-enhanced-matrices', typeFilter],
+    queryFn: () => getDataMatrices(typeFilter).then((data) => data ?? []),
+    staleTime: 30_000,
+  });
 
-  const loadItems = async () => {
-    setLoading(true);
-    try {
-      const data = await getDataMatrices(typeFilter);
-      setItems(data);
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : '加载矩阵列表失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError)
+      message.error(
+        queryError instanceof Error ? `加载矩阵列表失败: ${queryError.message}` : '加载矩阵列表失败'
+      );
+  }, [isError, queryError]);
 
   const handleOpenCreate = () => {
     setEditingItem(null);
@@ -115,7 +119,7 @@ const MatrixTab: React.FC = () => {
         message.success('矩阵创建成功');
       }
       setModalOpen(false);
-      loadItems();
+      refetch();
     } catch (err) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error(err instanceof Error ? err.message : '保存失败');
@@ -126,7 +130,7 @@ const MatrixTab: React.FC = () => {
     try {
       await deleteDataMatrix(id);
       message.success('矩阵删除成功');
-      loadItems();
+      refetch();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '删除失败');
     }
@@ -268,7 +272,7 @@ const MatrixTab: React.FC = () => {
               </Option>
             ))}
           </Select>
-          <Button icon={<ReloadOutlined />} loading={loading} onClick={loadItems}>
+          <Button icon={<ReloadOutlined />} loading={loading} onClick={() => refetch()}>
             刷新
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>

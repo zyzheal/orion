@@ -30,6 +30,7 @@ import {
   type ModelPricing,
 } from '@/api/ai-cost';
 import { colors, spacing } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 
 const { Title, Text } = Typography;
 
@@ -41,36 +42,38 @@ const RANGE_OPTIONS: Array<{ label: string; value: number }> = [
 ];
 
 const CostOverview: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
-  const [pricing, setPricing] = useState<ModelPricing[]>([]);
   // TR-08: Model / Tenant filters
   const [filterModel, setFilterModel] = useState<string>('all');
   const [filterTenant, setFilterTenant] = useState<string>('all');
   // Date range (default 7 days)
   const [days, setDays] = useState<number>(7);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [dashRes, pricingRes] = await Promise.all([
-        getDashboardData({ days }),
-        getModelPricing(),
-      ]);
-      setDashboard(dashRes.data as DashboardData | null);
-      setPricing(Array.isArray(pricingRes.data) ? pricingRes.data : []);
-    } catch (error: unknown) {
-      setDashboard(null);
-      setPricing([]);
-      message.error(`加载成本数据失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    data: dashboard,
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<DashboardData | null>({
+    queryKey: ['aicost-overview-dashboard', days],
+    queryFn: () => getDashboardData({ days }).then((res) => res.data as DashboardData | null),
+    staleTime: 30_000,
+  });
 
+  const { data: pricing = [] } = useQuery<ModelPricing[]>({
+    queryKey: ['aicost-pricing'],
+    queryFn: () => getModelPricing().then((res) => (Array.isArray(res.data) ? res.data : [])),
+    staleTime: 30_000,
+  });
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [days]);
+    if (isError)
+      message.error(
+        queryError instanceof Error ? `加载成本数据失败: ${queryError.message}` : '加载成本数据失败'
+      );
+  }, [isError, queryError]);
 
   // Calculate day-over-day change
   const dayOverDayChange = useMemo(() => {
@@ -285,7 +288,7 @@ const CostOverview: React.FC = () => {
             style={{ width: 150 }}
             size="small"
           />
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
             刷新
           </Button>
         </div>

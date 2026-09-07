@@ -21,6 +21,7 @@ import {
 import { ReloadOutlined, BarChartOutlined, DownloadOutlined } from '@ant-design/icons';
 import { getModuleCostDashboard, type ModuleCostSummary } from '@/api/ai-cost';
 import { colors, spacing } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 
 const { Title, Text } = Typography;
 
@@ -39,8 +40,18 @@ const SCENARIO_LABEL: Record<string, { label: string; color: string }> = {
 };
 
 const ModuleCostDashboard: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<ModuleCostSummary[]>([]);
+  const {
+    data = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<ModuleCostSummary[]>({
+    queryKey: ['aicost-module-dashboard'],
+    queryFn: () =>
+      getModuleCostDashboard().then((res) => (Array.isArray(res.data) ? res.data : [])),
+    staleTime: 30_000,
+  });
   const [filterScenario, setFilterScenario] = useState<string>('all');
 
   const filteredData = useMemo(() => {
@@ -68,22 +79,14 @@ const ModuleCostDashboard: React.FC = () => {
     message.success('导出完成');
   };
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const res = await getModuleCostDashboard();
-      setData(Array.isArray(res.data) ? res.data : []);
-    } catch (error: unknown) {
-      setData([]);
-      message.error(`加载模块成本数据失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isError)
+      message.error(
+        queryError instanceof Error ? `加载模块成本数据失败: ${queryError.message}` : '加载模块成本数据失败'
+      );
+  }, [isError, queryError]);
 
   const totalCost = filteredData.reduce((sum, d) => sum + (d.cost || 0), 0);
   const totalRequests = filteredData.reduce((sum, d) => sum + (d.requests || 0), 0);
@@ -138,7 +141,7 @@ const ModuleCostDashboard: React.FC = () => {
 
   const empty = (
     <Empty description="暂无模块成本数据">
-      <Button icon={<ReloadOutlined />} onClick={loadData} disabled={loading}>
+      <Button icon={<ReloadOutlined />} onClick={() => refetch()} disabled={loading}>
         刷新
       </Button>
     </Empty>
@@ -180,7 +183,7 @@ const ModuleCostDashboard: React.FC = () => {
           >
             导出
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
             刷新
           </Button>
         </Space>

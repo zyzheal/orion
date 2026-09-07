@@ -19,6 +19,7 @@ import {
 import { ReloadOutlined, DownloadOutlined, DollarOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getCosts, type CostRecord } from '@/api/ai-cost';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -36,33 +37,36 @@ const groupByOptions = [
 ];
 
 const CostDetail: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [costs, setCosts] = useState<CostRecord[]>([]);
   const [groupBy, setGroupBy] = useState('tenant');
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>([
     dayjs().subtract(7, 'day'),
     dayjs(),
   ]);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const res = await getCosts({
+  const {
+    data: costs = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<CostRecord[]>({
+    queryKey: ['aicost-costs', dateRange?.[0]?.format('YYYY-MM-DD'), dateRange?.[1]?.format('YYYY-MM-DD')],
+    queryFn: () =>
+      getCosts({
         startDate: dateRange?.[0]?.format('YYYY-MM-DD'),
         endDate: dateRange?.[1]?.format('YYYY-MM-DD'),
-      });
-      setCosts(Array.isArray(res.data) ? res.data : []);
-    } catch (error: unknown) {
-      setCosts([]);
-      message.error(`加载成本数据失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+      }).then((res) => (Array.isArray(res.data) ? res.data : [])),
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [dateRange]);
+    if (isError)
+      message.error(
+        queryError instanceof Error ? `加载成本数据失败: ${queryError.message}` : '加载成本数据失败'
+      );
+  }, [isError, queryError]);
 
   const totalCost = costs.reduce((sum, c) => sum + c.totalCost, 0);
   const totalInputTokens = costs.reduce((sum, c) => sum + c.inputTokens, 0);
@@ -164,7 +168,7 @@ const CostDetail: React.FC = () => {
           <Button icon={<DownloadOutlined />} onClick={handleExport}>
             导出
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
             刷新
           </Button>
         </Space>

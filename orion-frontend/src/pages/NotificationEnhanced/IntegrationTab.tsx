@@ -28,6 +28,7 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   getNotificationIntegrations,
   createNotificationIntegration,
@@ -52,8 +53,6 @@ const TEST_STATUS_MAP: Record<string, { color: string; label: string }> = {
 };
 
 const IntegrationTab: React.FC = () => {
-  const [items, setItems] = useState<NotificationIntegration[]>([]);
-  const [loading, setLoading] = useState(false);
   const [testingId, setTestingId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<NotificationIntegration | null>(null);
@@ -61,21 +60,26 @@ const IntegrationTab: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [channelFilter, setChannelFilter] = useState<string | undefined>();
 
-  useEffect(() => {
-    loadItems();
-  }, []);
+  const {
+    data: items = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<NotificationIntegration[]>({
+    queryKey: ['notification-enhanced-integrations'],
+    queryFn: () => getNotificationIntegrations().then((data) => data ?? []),
+    staleTime: 30_000,
+  });
 
-  const loadItems = async () => {
-    setLoading(true);
-    try {
-      const data = await getNotificationIntegrations();
-      setItems(data);
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : '加载集成列表失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError)
+      message.error(
+        queryError instanceof Error ? `加载集成列表失败: ${queryError.message}` : '加载集成列表失败'
+      );
+  }, [isError, queryError]);
 
   const handleOpenCreate = () => {
     setEditingItem(null);
@@ -120,7 +124,7 @@ const IntegrationTab: React.FC = () => {
         message.success('集成创建成功');
       }
       setModalOpen(false);
-      loadItems();
+      refetch();
     } catch (err) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error(err instanceof Error ? err.message : '保存失败');
@@ -131,7 +135,7 @@ const IntegrationTab: React.FC = () => {
     try {
       await deleteNotificationIntegration(id);
       message.success('集成删除成功');
-      loadItems();
+      refetch();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '删除失败');
     }
@@ -146,7 +150,7 @@ const IntegrationTab: React.FC = () => {
       } else {
         message.error(`测试失败: ${result.message}`);
       }
-      loadItems();
+      refetch();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '测试请求失败');
     } finally {
@@ -158,7 +162,7 @@ const IntegrationTab: React.FC = () => {
     try {
       await updateNotificationIntegration(item.id, { enabled: !item.enabled });
       message.success(`集成已${!item.enabled ? '启用' : '停用'}`);
-      loadItems();
+      refetch();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '状态切换失败');
     }
@@ -317,7 +321,7 @@ const IntegrationTab: React.FC = () => {
               </Option>
             ))}
           </Select>
-          <Button icon={<ReloadOutlined />} loading={loading} onClick={loadItems}>
+          <Button icon={<ReloadOutlined />} loading={loading} onClick={() => refetch()}>
             刷新
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>

@@ -27,6 +27,7 @@ import {
   PoweroffOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   getNotificationStrategies,
   createNotificationStrategy,
@@ -62,29 +63,32 @@ const STATUS_OPTIONS = [
 ];
 
 const StrategyTab: React.FC = () => {
-  const [items, setItems] = useState<NotificationStrategy[]>([]);
-  const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<NotificationStrategy | null>(null);
   const [form] = Form.useForm();
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
 
-  useEffect(() => {
-    loadItems();
-  }, []);
+  const {
+    data: items = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<NotificationStrategy[]>({
+    queryKey: ['notification-enhanced-strategies'],
+    queryFn: () => getNotificationStrategies().then((data) => data ?? []),
+    staleTime: 30_000,
+  });
 
-  const loadItems = async () => {
-    setLoading(true);
-    try {
-      const data = await getNotificationStrategies();
-      setItems(data);
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : '加载策略列表失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError)
+      message.error(
+        queryError instanceof Error ? `加载策略列表失败: ${queryError.message}` : '加载策略列表失败'
+      );
+  }, [isError, queryError]);
 
   const handleOpenCreate = () => {
     setEditingItem(null);
@@ -142,7 +146,7 @@ const StrategyTab: React.FC = () => {
         message.success('策略创建成功');
       }
       setModalOpen(false);
-      loadItems();
+      refetch();
     } catch (err) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error(err instanceof Error ? err.message : '保存失败');
@@ -153,7 +157,7 @@ const StrategyTab: React.FC = () => {
     try {
       await deleteNotificationStrategy(id);
       message.success('策略删除成功');
-      loadItems();
+      refetch();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '删除失败');
     }
@@ -164,7 +168,7 @@ const StrategyTab: React.FC = () => {
     try {
       await toggleNotificationStrategyStatus(item.id, newStatus);
       message.success(`策略已${newStatus === 'active' ? '启用' : '停用'}`);
-      loadItems();
+      refetch();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '状态切换失败');
     }
@@ -299,7 +303,7 @@ const StrategyTab: React.FC = () => {
               </Option>
             ))}
           </Select>
-          <Button icon={<ReloadOutlined />} loading={loading} onClick={loadItems}>
+          <Button icon={<ReloadOutlined />} loading={loading} onClick={() => refetch()}>
             刷新
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>

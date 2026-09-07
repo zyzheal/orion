@@ -28,6 +28,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   getNotificationSubscriptions,
   createNotificationSubscription,
@@ -60,29 +61,32 @@ const FREQUENCY_OPTIONS = [
 const EVENT_OPTIONS = EVENT_TYPES.map((e) => ({ label: e, value: e }));
 
 const SubscriptionTab: React.FC = () => {
-  const [items, setItems] = useState<NotificationSubscription[]>([]);
-  const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<NotificationSubscription | null>(null);
   const [form] = Form.useForm();
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<boolean | undefined>();
 
-  useEffect(() => {
-    loadItems();
-  }, []);
+  const {
+    data: items = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<NotificationSubscription[]>({
+    queryKey: ['notification-enhanced-subscriptions'],
+    queryFn: () => getNotificationSubscriptions().then((data) => data ?? []),
+    staleTime: 30_000,
+  });
 
-  const loadItems = async () => {
-    setLoading(true);
-    try {
-      const data = await getNotificationSubscriptions();
-      setItems(data);
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : '加载订阅列表失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError)
+      message.error(
+        queryError instanceof Error ? `加载订阅列表失败: ${queryError.message}` : '加载订阅列表失败'
+      );
+  }, [isError, queryError]);
 
   const handleOpenCreate = () => {
     setEditingItem(null);
@@ -127,7 +131,7 @@ const SubscriptionTab: React.FC = () => {
         message.success('订阅创建成功');
       }
       setModalOpen(false);
-      loadItems();
+      refetch();
     } catch (err) {
       if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error(err instanceof Error ? err.message : '保存失败');
@@ -138,7 +142,7 @@ const SubscriptionTab: React.FC = () => {
     try {
       await deleteNotificationSubscription(id);
       message.success('订阅删除成功');
-      loadItems();
+      refetch();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '删除失败');
     }
@@ -148,7 +152,7 @@ const SubscriptionTab: React.FC = () => {
     try {
       await updateNotificationSubscription(item.id, { enabled: !item.enabled });
       message.success(`订阅已${!item.enabled ? '启用' : '停用'}`);
-      loadItems();
+      refetch();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '状态切换失败');
     }
@@ -304,7 +308,7 @@ const SubscriptionTab: React.FC = () => {
             <Option value={true}>启用</Option>
             <Option value={false}>停用</Option>
           </Select>
-          <Button icon={<ReloadOutlined />} loading={loading} onClick={loadItems}>
+          <Button icon={<ReloadOutlined />} loading={loading} onClick={() => refetch()}>
             刷新
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
