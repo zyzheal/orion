@@ -19,7 +19,7 @@ interface StatsRaw {
   byType?: Record<string, number>;
 }
 
-interface MetricCardData {
+export interface MetricCardData {
   title: string;
   value: number;
   icon: React.ReactNode;
