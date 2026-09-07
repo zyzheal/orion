@@ -24,7 +24,8 @@ import {
 import { ReloadOutlined, FileTextOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { spacing, colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
-import { getAllAuditHistory } from '@/api/skills';
+import { getAllAuditHistory, type SkillAuditEntry } from '@/api/skills';
+import { useQuery } from '@/providers/QueryProvider';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -67,8 +68,6 @@ const actionColors: Record<string, string> = {
 };
 
 const AuditHistory: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
 
@@ -80,35 +79,31 @@ const AuditHistory: React.FC = () => {
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedLog, setSelectedLog] = useState<any>(null);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const { data: auditLogs = [], isLoading: loading, isError, error, refetch: loadData } = useQuery<SkillAuditEntry[]>({
+    queryKey: ['skill-audit-history', page],
+    queryFn: async () => {
       const res = await getAllAuditHistory({ page, limit: 50 });
-      const data = res.data;
-      const items = (data as any).logs || [];
-      setAuditLogs(Array.isArray(items) ? items : []);
-      setTotal((data as any).total || 0);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载失败：${error.message}`);
-      } else {
-        message.error('加载失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      const items = (res.data as { data?: { logs?: SkillAuditEntry[]; total?: number } })?.data?.logs || [];
+      setTotal((res.data as { data?: { logs?: SkillAuditEntry[]; total?: number } })?.data?.total || 0);
+      return Array.isArray(items) ? items : [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [page]);
+    if (isError) {
+      message.error(error instanceof Error ? error.message : '加载失败');
+    }
+  }, [isError, error]);
 
   // Client-side filtering
   const filteredLogs = useMemo(() => {
     return auditLogs.filter((log) => {
       if (actionFilter !== 'all' && log.action !== actionFilter) return false;
       if (dateRange && dateRange[0] && dateRange[1]) {
-        const logDate = dayjs(log.createdAt || log.timestamp);
+        const logDate = dayjs(log.createdAt);
         if (logDate.isBefore(dateRange[0]) || logDate.isAfter(dateRange[1].endOf('day'))) {
           return false;
         }
@@ -195,7 +190,7 @@ const AuditHistory: React.FC = () => {
         width: 180,
         sortable: true,
         render: (v: unknown, record) => {
-          const time = v || record.timestamp;
+          const time = v || record.createdAt;
           return (
             <Space direction="vertical" size={0}>
               <Text style={{ fontSize: spacing[3] }}>
@@ -248,7 +243,7 @@ const AuditHistory: React.FC = () => {
           </Title>
           <Text type="secondary">所有技能相关的审核操作记录</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+        <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
           刷新
         </Button>
       </div>

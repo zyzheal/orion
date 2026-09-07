@@ -8,6 +8,7 @@ import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getSkills, installSkill, type SkillPackage } from '@/api/skills';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -27,33 +28,34 @@ const categoryOptions = [
 ];
 
 const SkillMarketplace: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [skills, setSkills] = useState<SkillPackage[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedSkill, setSelectedSkill] = useState<SkillPackage | null>(null);
   const [installing, setInstalling] = useState(false);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: skills = [],
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<SkillPackage[]>({
+    queryKey: ['skill-marketplace'],
+    queryFn: async () => {
       const res = await getSkills();
-      setSkills(Array.isArray(res.data) ? res.data : []);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`Failed to load skills：${error.message}`);
-      } else {
-        message.error('Failed to load skills');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isError) {
+      message.error(error instanceof Error ? error.message : '加载失败');
+    }
+  }, [isError, error]);
 
   const filteredSkills = useMemo(() => {
     return skills.filter((skill) => {
@@ -262,7 +264,7 @@ const SkillMarketplace: React.FC = () => {
           <Text type="secondary">浏览和安装社区共享的技能包</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
             刷新
           </Button>
         </Space>

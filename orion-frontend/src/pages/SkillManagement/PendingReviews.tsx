@@ -40,6 +40,7 @@ import {
   archiveSkill,
   type SkillPackage,
 } from '@/api/skills';
+import { useQuery } from '@/providers/QueryProvider';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -60,9 +61,6 @@ const categoryOptions = [
 
 const PendingReviews: React.FC = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [reviews, setReviews] = useState<SkillPackage[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -75,33 +73,47 @@ const PendingReviews: React.FC = () => {
   const [reviewForm] = Form.useForm();
 
   const loadData = async () => {
-    setLoading(true);
-    try {
-      const params: { page: number; limit: number; category?: string } = {
-        page,
-        limit: 20,
-      };
-      if (categoryFilter !== 'all') {
-        params.category = categoryFilter;
-      }
-      const res = await getPendingReviews(params);
-      const data = res.data;
-      setReviews(Array.isArray((data as any).skills) ? (data as any).skills : []);
-      setTotal((data as any).total || 0);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载失败：${error.message}`);
-      } else {
-        message.error('加载失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
+    const params: { page: number; limit: number; category?: string } = {
+      page,
+      limit: 20,
+    };
+    if (categoryFilter !== 'all') {
+      params.category = categoryFilter;
     }
+    const res = await getPendingReviews(params);
+    return res.data as {
+      data: { skills?: SkillPackage[]; total?: number };
+    };
   };
 
+  const {
+    data,
+    isLoading: loading,
+    isError,
+    error,
+    refetch: refetchReviews,
+  } = useQuery<{ reviews: SkillPackage[]; total: number }>({
+    queryKey: ['skill-pending-reviews', page, categoryFilter],
+    queryFn: async () => {
+      const res = await loadData();
+      return {
+        reviews: Array.isArray(res?.data?.skills) ? res.data.skills : [],
+        total: res?.data?.total || 0,
+      };
+    },
+    staleTime: 30_000,
+  });
+
+  const reviews = data?.reviews ?? [];
+  const total = data?.total ?? 0;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [page, categoryFilter]);
+    if (isError) {
+      message.error(error instanceof Error ? error.message : '加载失败');
+    }
+  }, [isError, error]);
 
   const handleOpenReview = (skill: SkillPackage, action: 'approve' | 'reject' | 'archive') => {
     setReviewingSkill(skill);
@@ -134,7 +146,7 @@ const PendingReviews: React.FC = () => {
           break;
       }
       setReviewModalVisible(false);
-      loadData();
+      refetchReviews();
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '操作失败');
     } finally {
@@ -293,7 +305,7 @@ const PendingReviews: React.FC = () => {
           </Title>
           <Text type="secondary">管理员审核提交的技能包，确保质量和合规性</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+        <Button icon={<ReloadOutlined />} onClick={() => refetchReviews()} loading={loading}>
           刷新
         </Button>
       </div>

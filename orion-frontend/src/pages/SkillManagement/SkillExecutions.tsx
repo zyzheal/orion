@@ -39,6 +39,7 @@ import {
   type SkillExecution,
   type SkillPackage,
 } from '@/api/skills';
+import { useQuery } from '@/providers/QueryProvider';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -59,10 +60,6 @@ const executionStatusColors: Record<string, string> = {
 const SkillExecutions: React.FC = () => {
   const { id: skillId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [executions, setExecutions] = useState<SkillExecution[]>([]);
-  const [skill, setSkill] = useState<SkillPackage | null>(null);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedExecution, setSelectedExecution] = useState<SkillExecution | null>(null);
@@ -72,34 +69,41 @@ const SkillExecutions: React.FC = () => {
   const [capabilityFilter, setCapabilityFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null);
 
-  const loadData = async () => {
-    if (!skillId) return;
-    setLoading(true);
-    try {
+  const { data, isLoading: loading, isError, error, refetch: loadData } = useQuery<{
+    executions: SkillExecution[];
+    skill: SkillPackage | null;
+    total: number;
+  }>({
+    queryKey: ['skill-executions', skillId, page],
+    queryFn: async () => {
+      if (!skillId) return { executions: [], skill: null, total: 0 };
       const [execRes, skillRes] = await Promise.all([
         getSkillExecutions(skillId, { page, limit: 20 }),
         getSkill(skillId),
       ]);
-      const execData = execRes.data;
-      const items = (execData as any).executions || [];
-      setExecutions(Array.isArray(items) ? items : []);
-      setTotal((execData as any).total || 0);
+      const execData = execRes.data as { data: { executions?: SkillExecution[]; total?: number } };
+      const items = execData?.data?.executions || [];
       const skillData = (skillRes as { data?: { data?: unknown } })?.data?.data;
-      setSkill((skillData || null) as SkillPackage | null);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载失败：${error.message}`);
-      } else {
-        message.error('加载失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        executions: Array.isArray(items) ? items : [],
+        skill: (skillData || null) as SkillPackage | null,
+        total: execData?.data?.total || 0,
+      };
+    },
+    staleTime: 30_000,
+  });
 
+  const executions = data?.executions ?? [];
+  const skill = data?.skill ?? null;
+  const total = data?.total ?? 0;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [skillId, page]);
+    if (isError) {
+      message.error(error instanceof Error ? error.message : '加载失败');
+    }
+  }, [isError, error]);
 
   const handleExecute = () => {
     if (!skillId) return;
@@ -291,7 +295,7 @@ const SkillExecutions: React.FC = () => {
           <Text type="secondary">查看技能执行的详细记录和结果</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
             刷新
           </Button>
           <Button type="primary" icon={<PlayCircleOutlined />} onClick={handleExecute}>

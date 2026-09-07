@@ -46,6 +46,7 @@ import {
   type UpdateInstanceInput,
   type SkillPackage,
 } from '@/api/skills';
+import { useQuery } from '@/providers/QueryProvider';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -53,40 +54,46 @@ const { TextArea } = Input;
 const SkillInstances: React.FC = () => {
   const { id: skillId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [instances, setInstances] = useState<SkillInstance[]>([]);
-  const [skill, setSkill] = useState<SkillPackage | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [editingInstance, setEditingInstance] = useState<SkillInstance | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [form] = Form.useForm();
 
-  const loadData = async () => {
-    if (!skillId) return;
-    setLoading(true);
-    try {
+  const {
+    data,
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<{ instances: SkillInstance[]; skill: SkillPackage | null }>({
+    queryKey: ['skill-instances', skillId],
+    queryFn: async () => {
+      if (!skillId) return { instances: [], skill: null };
       const [instRes, skillRes] = await Promise.all([
         getSkillInstances(skillId),
         getSkill(skillId),
       ]);
-      setInstances(Array.isArray(instRes.data) ? instRes.data : []);
       const skillData = (skillRes as { data?: { data?: unknown } })?.data?.data;
-      setSkill((skillData || null) as SkillPackage | null);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载失败：${error.message}`);
-      } else {
-        message.error('加载失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      const instBody = instRes.data as { data?: SkillInstance[] };
+      return {
+        instances: Array.isArray(instBody.data) ? instBody.data : [],
+        skill: (skillData || null) as SkillPackage | null,
+      };
+    },
+    staleTime: 30_000,
+  });
 
+  const instances = data?.instances ?? [];
+  const skill = data?.skill ?? null;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [skillId]);
+    if (isError) {
+      message.error(error instanceof Error ? error.message : '加载失败');
+    }
+  }, [isError, error]);
 
   const handleOpenCreate = () => {
     setModalMode('create');
@@ -340,7 +347,7 @@ const SkillInstances: React.FC = () => {
           <Text type="secondary">管理技能的运行实例，支持多租户和项目级别隔离</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
             刷新
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>

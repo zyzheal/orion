@@ -29,6 +29,7 @@ import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getMySkills, uninstallSkill, type SkillPackage } from '@/api/skills';
+import { useQuery } from '@/providers/QueryProvider';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -38,31 +39,32 @@ const { Title, Text } = Typography;
 
 const MySkills: React.FC = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [skills, setSkills] = useState<SkillPackage[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [uninstallingId, setUninstallingId] = useState<string | null>(null);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: skills = [],
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<SkillPackage[]>({
+    queryKey: ['skill-my-skills'],
+    queryFn: async () => {
       const res = await getMySkills();
-      setSkills(Array.isArray(res.data) ? res.data : []);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`Failed to load installed skills：${error.message}`);
-      } else {
-        message.error('Failed to load installed skills');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isError) {
+      message.error(error instanceof Error ? error.message : '加载失败');
+    }
+  }, [isError, error]);
 
   const filteredSkills = useMemo(() => {
     return skills.filter((skill) => {
@@ -262,7 +264,7 @@ const MySkills: React.FC = () => {
           </Title>
           <Text type="secondary">已安装的技能包管理</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+        <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
           刷新
         </Button>
       </div>
