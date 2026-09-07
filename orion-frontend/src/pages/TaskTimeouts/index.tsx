@@ -34,6 +34,7 @@ import {
   TimedOutTask,
   TimeoutStatus,
 } from '@/api/task-timeout';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
 
@@ -68,42 +69,41 @@ const actionDescriptions: Record<string, string> = {
 };
 
 const TaskTimeoutsPage: React.FC = () => {
-  const [timedOutTasks, setTimedOutTasks] = useState<TimedOutTask[]>([]);
-  const [status, setStatus] = useState<TimeoutStatus>({
-    isRunning: false,
-    processedEventsCount: 0,
-  });
-  const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
 
-  // 获取超时任务列表
-  const fetchTimedOutTasks = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: timedOutTasks = [],
+    isLoading: loading,
+    isError,
+    error,
+    refetch: fetchTimedOutTasks,
+  } = useQuery<TimedOutTask[]>({
+    queryKey: ['task-timeouts'],
+    queryFn: async () => {
       const data = await getTimedOutTasks();
-      setTimedOutTasks(data || []);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载超时任务失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return data || [];
+    },
+    staleTime: 30_000,
+  });
 
-  // 获取检查器状态
-  const fetchStatus = async () => {
-    try {
+  const {
+    data: status = { isRunning: false, processedEventsCount: 0 },
+    refetch: fetchStatus,
+  } = useQuery<TimeoutStatus>({
+    queryKey: ['task-timeout-status'],
+    queryFn: async () => {
       const data = await getTimeoutStatus();
-      setStatus(data || { isRunning: false, processedEventsCount: 0 });
-    } catch (error: unknown) {
-      console.error('Failed to fetch status:', error);
-    }
-  };
+      return data || { isRunning: false, processedEventsCount: 0 };
+    },
+    staleTime: 30_000,
+  });
 
-  // 初始化加载
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    fetchTimedOutTasks();
-    fetchStatus();
-  }, []);
+    if (!isError) return;
+    message.error(error instanceof Error ? error.message : '加载超时任务失败');
+  }, [isError, error]);
 
   // 手动触发检查
   const handleCheckNow = async () => {
