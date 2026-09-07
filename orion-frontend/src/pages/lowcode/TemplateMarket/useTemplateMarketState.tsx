@@ -171,6 +171,7 @@ export const useTemplateMarketState = () => {
     // detail
     selectedTemplate,
     detailVisible,
+    handleViewDetail,
     closeDetail,
     // apply
     applyVisible,
