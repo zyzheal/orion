@@ -3,7 +3,7 @@
  * 抽取自 index.tsx (P2-9 Phase 136)
  */
 import React from 'react';
-import { Card, Table, Button, Modal, Space, Select, Empty } from 'antd';
+import { Card, Table, Button, Space, Select, Empty } from 'antd';
 import { ReloadOutlined, PlusOutlined } from '@ant-design/icons';
 import type { QuotaPlan } from '@/api/tenantQuota';
 import { buildPlanColumns } from '../columns';
