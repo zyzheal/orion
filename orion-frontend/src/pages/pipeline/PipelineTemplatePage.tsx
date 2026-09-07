@@ -36,6 +36,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { pipelineTemplatesApi } from '@/api/pipeline-templates';
 import { colors } from '@/tokens/colors';
 import type { PipelineTemplate } from '@/api/pipeline-templates';
+import { useQuery } from '@/providers/QueryProvider';
 import dayjs from 'dayjs';
 import { spacing } from '@/tokens';
 
@@ -65,8 +66,6 @@ const categoryLabelMap: Record<string, string> = {
 // ---- Main Component ----
 
 const PipelineTemplatePage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [templates, setTemplates] = useState<PipelineTemplate[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
 
@@ -86,23 +85,30 @@ const PipelineTemplatePage: React.FC = () => {
   const [instantiateForm] = Form.useForm();
   const [instantiateLoading, setInstantiateLoading] = useState(false);
 
-  const loadTemplates = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: templates = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch: loadTemplates,
+  } = useQuery<PipelineTemplate[]>({
+    queryKey: ['pipeline-templates'],
+    queryFn: async () => {
       const res = await pipelineTemplatesApi.list({ page: 1, limit: 100 });
       const raw = res.data?.data;
-      setTemplates(Array.isArray(raw) ? raw : []);
-    } catch (error: unknown) {
-      setTemplates([]);
-      message.error(`加载模板列表失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return Array.isArray(raw) ? raw : [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadTemplates();
-  }, []);
+    if (!isError) return;
+    message.error(
+      queryError instanceof Error ? `加载模板列表失败: ${queryError.message}` : '加载模板列表失败'
+    );
+  }, [isError, queryError]);
 
   const filteredData = useMemo(() => {
     return templates.filter((t) => {
@@ -394,7 +400,7 @@ const PipelineTemplatePage: React.FC = () => {
           <Text type="secondary">管理流水线模板库，快速实例化流水线</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadTemplates} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadTemplates()} loading={loading}>
             刷新
           </Button>
           <Button

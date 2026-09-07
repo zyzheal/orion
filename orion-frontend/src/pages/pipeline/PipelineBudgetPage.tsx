@@ -21,6 +21,7 @@ import {
   Tag,
   Table as AntTable,
 } from 'antd';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   ReloadOutlined,
   SettingOutlined,
@@ -125,49 +126,50 @@ const UsageCard: React.FC<{
 // ---- Main Component ----
 
 const PipelineBudgetPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>('pipeline-demo-1');
   const [selectedRunId, setSelectedRunId] = useState<string>('run-demo-1');
 
   // Budget config
-  const [budgetConfig, setBudgetConfig] = useState<BudgetConfig | null>(null);
   const [configModalVisible, setConfigModalVisible] = useState(false);
   const [configForm] = Form.useForm();
   const [savingConfig, setSavingConfig] = useState(false);
-
-  // Budget usage
-  const [budgetUsage, setBudgetUsage] = useState<BudgetUsage | null>(null);
 
   // Budget estimate
   const [budgetEstimate, setBudgetEstimate] = useState<BudgetEstimate | null>(null);
   const [estimateLoading, setEstimateLoading] = useState(false);
   const [selectedTriggerType, setSelectedTriggerType] = useState<string>('manual');
 
-  // Alerts
-  const [alerts, setAlerts] = useState<BudgetAlert[]>([]);
+  const {
+    data: budgetData,
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch: refetchBudget,
+  } = useQuery<{ config: BudgetConfig | null; usage: BudgetUsage | null } | null>({
+    queryKey: ['pipeline-budget', selectedPipelineId, selectedRunId],
+    queryFn: async () => {
+      if (!selectedPipelineId || !selectedRunId) return null;
+      const [configRes, usageRes] = await Promise.allSettled([
+        pipelineBudgetApi.get(selectedPipelineId),
+        pipelineBudgetApi.getUsage(selectedPipelineId, selectedRunId),
+      ]);
+      return {
+        config: configRes.status === 'fulfilled' ? (configRes.value || null) : null,
+        usage: usageRes.status === 'fulfilled' ? (usageRes.value || null) : null,
+      };
+    },
+    staleTime: 30_000,
+  });
 
-  const loadBudgetConfig = async () => {
-    setLoading(true);
-    try {
-      const res = await pipelineBudgetApi.get(selectedPipelineId);
-      setBudgetConfig(res || null);
-    } catch (error: unknown) {
-      setBudgetConfig(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const budgetConfig = budgetData?.config ?? null;
+  const budgetUsage = budgetData?.usage ?? null;
+  const alerts = budgetUsage?.alerts ?? [];
 
-  const loadBudgetUsage = async () => {
-    try {
-      const res = await pipelineBudgetApi.getUsage(selectedPipelineId, selectedRunId);
-      setBudgetUsage(res || null);
-      setAlerts(res?.alerts || []);
-    } catch (error: unknown) {
-      setBudgetUsage(null);
-      setAlerts([]);
-    }
-  };
+  // 加载失败反馈
+  useEffect(() => {
+    if (!isError) return;
+    message.error(queryError instanceof Error ? queryError.message : '加载预算数据失败');
+  }, [isError, queryError]);
 
   const loadEstimate = async () => {
     setEstimateLoading(true);
@@ -181,11 +183,6 @@ const PipelineBudgetPage: React.FC = () => {
       setEstimateLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadBudgetConfig();
-    loadBudgetUsage();
-  }, [selectedPipelineId, selectedRunId]);
 
   const openConfigModal = () => {
     if (budgetConfig) {
@@ -243,7 +240,7 @@ const PipelineBudgetPage: React.FC = () => {
       await pipelineBudgetApi.set(selectedPipelineId, config);
       message.success('预算配置保存成功');
       setConfigModalVisible(false);
-      loadBudgetConfig();
+      refetchBudget();
     } catch (error: unknown) {
       const err = error as { errorFields?: any };
       if (!err.errorFields) {
@@ -328,14 +325,7 @@ const PipelineBudgetPage: React.FC = () => {
               { label: 'Run colors.primary[500]', value: 'run-demo-3' },
             ]}
           />
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={() => {
-              loadBudgetConfig();
-              loadBudgetUsage();
-            }}
-            loading={loading}
-          >
+          <Button icon={<ReloadOutlined />} onClick={() => refetchBudget()} loading={loading}>
             刷新
           </Button>
           <Button icon={<SettingOutlined />} onClick={openConfigModal}>

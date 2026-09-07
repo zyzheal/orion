@@ -34,6 +34,7 @@ import { colors, spacing } from '@/tokens';
 import type { ColumnsType } from 'antd/es/table';
 import { pipelineVersionsApi } from '@/api/pipeline-versions';
 import type { PipelineVersion, VersionDiff, DiffItem } from '@/api/pipeline-versions';
+import { useQuery } from '@/providers/QueryProvider';
 import dayjs from 'dayjs';
 
 const { Title, Text, Paragraph } = Typography;
@@ -141,8 +142,6 @@ const DiffDisplay: React.FC<{ diff: VersionDiff }> = ({ diff }) => {
 // ---- Main Component ----
 
 const PipelineVersionPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [versions, setVersions] = useState<PipelineVersion[]>([]);
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>('pipeline-demo-1');
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
   const [selectedVersion, setSelectedVersion] = useState<PipelineVersion | null>(null);
@@ -157,23 +156,30 @@ const PipelineVersionPage: React.FC = () => {
   const [tagForm] = Form.useForm();
   const [tagLoading, setTagLoading] = useState(false);
 
-  const loadVersions = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: versions = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch: loadVersions,
+  } = useQuery<PipelineVersion[]>({
+    queryKey: ['pipeline-versions', selectedPipelineId],
+    queryFn: async () => {
       const res = await pipelineVersionsApi.list(selectedPipelineId, { page: 1, limit: 100 });
       const raw = (res as any).data?.data;
-      setVersions(Array.isArray(raw) ? raw : []);
-    } catch (error: unknown) {
-      setVersions([]);
-      message.error(`加载版本列表失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return Array.isArray(raw) ? raw : [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadVersions();
-  }, [selectedPipelineId]);
+    if (!isError) return;
+    message.error(
+      queryError instanceof Error ? `加载版本列表失败: ${queryError.message}` : '加载版本列表失败'
+    );
+  }, [isError, queryError]);
 
   const handleViewDiff = async () => {
     try {
@@ -468,7 +474,7 @@ const PipelineVersionPage: React.FC = () => {
               { label: 'Build & Test Pipeline', value: 'pipeline-demo-2' },
             ]}
           />
-          <Button icon={<ReloadOutlined />} onClick={loadVersions} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadVersions()} loading={loading}>
             刷新
           </Button>
         </Space>

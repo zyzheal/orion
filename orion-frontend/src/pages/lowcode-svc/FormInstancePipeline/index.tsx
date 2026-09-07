@@ -2,7 +2,7 @@
  * 表单实例流水线 (Form Instance Pipeline)
  * 提交 → 审批 → 完成 全流程管理
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -30,6 +30,7 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import { colors, spacing, themeVars } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   listInstances,
   getInstance,
@@ -52,9 +53,6 @@ const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
 };
 
 const FormInstancePipeline: React.FC = () => {
-  const [instances, setInstances] = useState<FormInstance[]>([]);
-  const [forms, setForms] = useState<FormDefinition[]>([]);
-  const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string>('');
   const [selectedForm, setSelectedForm] = useState<string>('');
 
@@ -69,35 +67,52 @@ const FormInstancePipeline: React.FC = () => {
 
   const operator = localStorage.getItem('username') || 'system';
 
-  const loadInstances = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data: instances = [] as FormInstance[],
+    isLoading: loading,
+    isError: instancesError,
+    error: instancesQueryError,
+    refetch: loadInstances,
+  } = useQuery<FormInstance[]>({
+    queryKey: ['form-instances', selectedForm, status],
+    queryFn: async () => {
       const data = await listInstances(selectedForm || undefined, status || undefined);
-      setInstances(Array.isArray(data) ? data : []);
-    } catch {
-      message.error('加载实例列表失败');
-      setInstances([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedForm, status]);
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 30_000,
+  });
 
-  const loadForms = useCallback(async () => {
-    try {
+  const {
+    data: forms = [] as FormDefinition[],
+    isError: formsError,
+    error: formsQueryError,
+  } = useQuery<FormDefinition[]>({
+    queryKey: ['lowcode-forms'],
+    queryFn: async () => {
       const data = await listForms();
-      setForms(Array.isArray(data) ? data : []);
-    } catch {
-      message.error('加载表单列表失败');
-      setForms([]);
-    }
-  }, []);
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadInstances();
-  }, [loadInstances]);
+    if (!instancesError) return;
+    message.error(
+      instancesQueryError instanceof Error
+        ? `加载实例列表失败：${instancesQueryError.message}`
+        : '加载实例列表失败'
+    );
+  }, [instancesError, instancesQueryError]);
   useEffect(() => {
-    loadForms();
-  }, [loadForms]);
+    if (!formsError) return;
+    message.error(
+      formsQueryError instanceof Error
+        ? `加载表单列表失败：${formsQueryError.message}`
+        : '加载表单列表失败'
+    );
+  }, [formsError, formsQueryError]);
 
   const handleSubmit = async (values: { formId: string; data: Record<string, unknown> }) => {
     setSubmitting(true);
@@ -299,7 +314,7 @@ const FormInstancePipeline: React.FC = () => {
             <Button
               icon={<ReloadOutlined />}
               size="small"
-              onClick={loadInstances}
+              onClick={() => loadInstances()}
               loading={loading}
             >
               刷新

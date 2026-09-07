@@ -20,6 +20,7 @@ import {
 import { colors, spacing } from '@/tokens';
 import StatusBadge from '@/components/StatusBadge';
 import { usePipelineSSE } from '@/hooks/usePipelineSSE';
+import { useQuery } from '@/providers/QueryProvider';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getPipelineRun } from '@/api/pipelines';
 import type { StageState, StepState, LogEntry } from './types';
@@ -36,7 +37,6 @@ const PipelineRunLive: React.FC = () => {
   const { id, runId } = useParams<{ id: string; runId: string }>();
 
   const [pipeline, setPipeline] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
@@ -44,6 +44,23 @@ const PipelineRunLive: React.FC = () => {
   const [stages, setStages] = useState<StageState[]>([]);
   const [currentStageId, setCurrentStageId] = useState<string | undefined>();
   const [displayLogs, setDisplayLogs] = useState<LogEntry[]>([]);
+
+  const {
+    data: apiData,
+    isLoading: loading,
+    isError: apiQueryError,
+    error: apiQueryErrorObj,
+  } = useQuery<any>({
+    queryKey: ['pipeline-run', runId || id],
+    queryFn: async () => {
+      if (!runId && !id) return null;
+      const response = await getPipelineRun((runId || id)!);
+      return response.data as any;
+    },
+    enabled: !!(id || runId),
+    staleTime: 15_000,
+    // SSE 已负责实时更新，useQuery 仅作初始加载；数据通过下方 useEffect 落到局部 state
+  });
 
   const {
     logs: sseLogs,
@@ -81,65 +98,49 @@ const PipelineRunLive: React.FC = () => {
     );
   }, [sseLogs]);
 
-  // Load pipeline metadata from API
+  // Load pipeline metadata from API — useQuery 数据桥接到局部 state（SSE 合并层）
   useEffect(() => {
-    const loadPipeline = async () => {
-      setLoading(true);
-      setApiError(null);
-      try {
-        const response = await getPipelineRun(runId!);
-        // Backend returns { run, stages, tasks } directly
-        const apiData = response.data as {
-          run?: any;
-          stages?: any[];
-          tasks?: any[];
-        };
-        if (apiData) {
-          setPipeline(apiData);
-          if (apiData.stages) {
-            const initialized: StageState[] = apiData.stages.map((s, idx) => ({
-              id: s.id || `stage-${idx}`,
-              name: s.name || '',
-              status: (s.status || 'pending') as StageState['status'],
-              startTime: s.startTime || '',
-              endTime: s.endTime || '',
-              steps: (s.steps || []).map(
-                (
-                  st: {
-                    id?: string;
-                    name?: string;
-                    status?: string;
-                    startTime?: string;
-                    endTime?: string;
-                  },
-                  stIdx: number
-                ) => ({
-                  id: st.id || `step-${idx}-${stIdx}`,
-                  name: st.name || '',
-                  status: (st.status || 'pending') as StepState['status'],
-                  startTime: st.startTime || '',
-                  endTime: st.endTime || '',
-                })
-              ),
-            }));
-            setStages(initialized);
-            const running = initialized.find((s) => s.status === 'running');
-            if (running) setCurrentStageId(running.id);
-          }
-        } else {
-          setApiError('未找到该 Pipeline 运行记录');
-        }
-      } catch (error: unknown) {
-        const errorMsg = error instanceof Error ? error.message : '加载失败，请稍后重试';
-        setApiError(errorMsg);
-        message.error(`加载 Pipeline 详情失败：${errorMsg}`);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (!apiData) return;
+    setPipeline(apiData);
+    if (apiData.stages) {
+      const initialized: StageState[] = apiData.stages.map((s: any, idx: number) => ({
+        id: s.id || `stage-${idx}`,
+        name: s.name || '',
+        status: (s.status || 'pending') as StageState['status'],
+        startTime: s.startTime || '',
+        endTime: s.endTime || '',
+        steps: (s.steps || []).map(
+          (
+            st: {
+              id?: string;
+              name?: string;
+              status?: string;
+              startTime?: string;
+              endTime?: string;
+            },
+            stIdx: number
+          ) => ({
+            id: st.id || `step-${idx}-${stIdx}`,
+            name: st.name || '',
+            status: (st.status || 'pending') as StepState['status'],
+            startTime: st.startTime || '',
+            endTime: st.endTime || '',
+          })
+        ),
+      }));
+      setStages(initialized);
+      const running = initialized.find((s) => s.status === 'running');
+      if (running) setCurrentStageId(running.id);
+    }
+  }, [apiData]);
 
-    if (id) loadPipeline();
-  }, [id]);
+  // 加载失败反馈
+  useEffect(() => {
+    if (!apiQueryError) return;
+    const msg = apiQueryErrorObj instanceof Error ? apiQueryErrorObj.message : '加载失败，请稍后重试';
+    setApiError(msg);
+    message.error(`加载 Pipeline 详情失败：${msg}`);
+  }, [apiQueryError, apiQueryErrorObj]);
 
   // Elapsed time counter for running pipelines
   useEffect(() => {

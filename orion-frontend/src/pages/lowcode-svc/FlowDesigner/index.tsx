@@ -29,12 +29,11 @@ import {
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens/spacing';
 import { themeVars } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 import { lowcodeApi, type LowcodeFlow } from '@/api/lowcode';
 
 export default function FlowDesigner() {
-  const [flows, setFlows] = useState<LowcodeFlow[]>([]);
   const [selectedFlow, setSelectedFlow] = useState<LowcodeFlow | null>(null);
-  const [loading, setLoading] = useState(false);
   const [createVisible, setCreateVisible] = useState(false);
   const [executeVisible, setExecuteVisible] = useState(false);
   const [detailVisible, setDetailVisible] = useState(false);
@@ -43,21 +42,29 @@ export default function FlowDesigner() {
   const [form] = Form.useForm();
   const [aiForm] = Form.useForm();
 
-  useEffect(() => {
-    loadFlows();
-  }, []);
-
-  const loadFlows = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: flows = [] as LowcodeFlow[],
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch: loadFlows,
+  } = useQuery<LowcodeFlow[]>({
+    queryKey: ['lowcode-flows'],
+    queryFn: async () => {
       const result = await lowcodeApi.listFlows();
-      setFlows(result.flows || []);
-    } catch (e: any) {
-      message.error(e?.message || '加载流程列表失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return result.flows || [];
+    },
+    staleTime: 30_000,
+  });
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (!isError) return;
+    message.error(
+      queryError instanceof Error ? `加载流程列表失败：${queryError.message}` : '加载流程列表失败'
+    );
+  }, [isError, queryError]);
 
   const handleCreate = async (values: { name: string; description?: string; type?: string }) => {
     try {
@@ -158,7 +165,7 @@ export default function FlowDesigner() {
           <Input.Search
             placeholder="搜索流程..."
             style={{ width: 300 }}
-            onSearch={loadFlows}
+            onSearch={() => loadFlows()}
             disabled={loading}
           />
           <Space>

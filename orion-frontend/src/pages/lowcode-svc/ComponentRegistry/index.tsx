@@ -2,7 +2,7 @@
  * 组件注册中心 (Component Registry)
  * 低代码平台自定义组件管理：注册 → 分类 → Props Schema → 默认配置
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -22,6 +22,7 @@ import {
 } from 'antd';
 import { PlusOutlined, ReloadOutlined, CodeOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { colors, spacing, themeVars } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   listComponents,
   createComponent,
@@ -43,8 +44,6 @@ const CATEGORIES = [
 ];
 
 const ComponentRegistryPage: React.FC = () => {
-  const [components, setComponents] = useState<ComponentRegistry[]>([]);
-  const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState<string>('');
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -52,22 +51,29 @@ const ComponentRegistryPage: React.FC = () => {
   const [selectedComponent, setSelectedComponent] = useState<ComponentRegistry | null>(null);
   const [form] = Form.useForm();
 
-  const loadComponents = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data: components = [] as ComponentRegistry[],
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch: loadComponents,
+  } = useQuery<ComponentRegistry[]>({
+    queryKey: ['lowcode-components', category],
+    queryFn: async () => {
       const data = await listComponents(category || undefined);
-      setComponents(Array.isArray(data) ? data : []);
-    } catch {
-      message.error('加载组件列表失败');
-      setComponents([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [category]);
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadComponents();
-  }, [loadComponents]);
+    if (!isError) return;
+    message.error(
+      queryError instanceof Error ? `加载组件列表失败：${queryError.message}` : '加载组件列表失败'
+    );
+  }, [isError, queryError]);
 
   const handleCreate = async (values: any) => {
     setSubmitting(true);
@@ -235,7 +241,7 @@ const ComponentRegistryPage: React.FC = () => {
             <Button
               icon={<ReloadOutlined />}
               size="small"
-              onClick={loadComponents}
+              onClick={() => loadComponents()}
               loading={loading}
             >
               刷新

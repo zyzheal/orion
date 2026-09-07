@@ -7,6 +7,7 @@ import { message, Modal } from 'antd';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import { componentRadius } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   getAllPipelineRuns,
   retryPipelineRun,
@@ -22,35 +23,37 @@ export const usePipelineRunListState = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Filters>({});
   const [dateRange, setDateRange] = useState<DateRange>(null);
-  const [loading, setLoading] = useState(false);
-  const [runs, setRuns] = useState<PipelineRunSummary[]>([]);
   const [cancellingIds, setCancellingIds] = useState<Set<string>>(new Set());
   const [stageRetryModal, setStageRetryModal] = useState<StageRetryState>(DEFAULT_STAGE_RETRY);
   const pollingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load pipeline runs from API
-  const loadRuns = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data: runs = [] as PipelineRunSummary[],
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch: loadRuns,
+  } = useQuery<PipelineRunSummary[]>({
+    queryKey: ['pipeline-runs'],
+    queryFn: async () => {
       const response = await getAllPipelineRuns({ limit: 200 });
       const apiData = response.data;
       const items = Array.isArray(apiData.data) ? apiData.data : [];
-      setRuns(items as PipelineRunSummary[]);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载 Pipeline 运行列表失败：${error.message}`);
-      } else {
-        message.error('加载 Pipeline 运行列表失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return items as PipelineRunSummary[];
+    },
+    staleTime: 30_000,
+  });
 
-  // Initial load
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadRuns();
-  }, [loadRuns]);
+    if (!isError) return;
+    message.error(
+      queryError instanceof Error
+        ? `加载 Pipeline 运行列表失败：${queryError.message}`
+        : '加载 Pipeline 运行列表失败，请稍后重试'
+    );
+  }, [isError, queryError]);
 
   // Polling for running executions: refresh every 5s if any runs are 'running'
   useEffect(() => {
