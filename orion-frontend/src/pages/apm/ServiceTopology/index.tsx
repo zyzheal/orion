@@ -6,6 +6,7 @@
  * - Node hover shows call metrics
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
   Card,
@@ -54,20 +55,27 @@ interface ServiceNodeData {
 }
 
 const ServiceTopologyPage: React.FC = () => {
-  const [dependencies, setDependencies] = useState<ServiceDependency[]>([]);
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [serviceStats, setServiceStats] = useState<
-    Map<string, { calls: number; avgLatency: number; errorRate: number }>
-  >(new Map());
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: topology = {} as {
+      dependencies: ServiceDependency[];
+      serviceStats: Map<string, { calls: number; avgLatency: number; errorRate: number }>;
+      nodes: Node[];
+      edges: Edge[];
+    },
+    isLoading: loading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<{
+    dependencies: ServiceDependency[];
+    serviceStats: Map<string, { calls: number; avgLatency: number; errorRate: number }>;
+    nodes: Node[];
+    edges: Edge[];
+  }>({
+    queryKey: ['apm-service-topology'],
+    queryFn: async () => {
       const result = await apmApi.getServiceTopology();
       const deps: ServiceDependency[] = result.data ?? [];
-      setDependencies(deps);
 
       // Aggregate per-service stats
       const stats = new Map<
@@ -112,7 +120,6 @@ const ServiceTopologyPage: React.FC = () => {
             v.errorRateCount > 0 ? Math.round((v.errorRateSum / v.errorRateCount) * 100) / 100 : 0,
         });
       });
-      setServiceStats(finalStats);
 
       // Convert to ReactFlow nodes
       const uniqueServices = Array.from(
@@ -145,7 +152,6 @@ const ServiceTopologyPage: React.FC = () => {
           targetPosition: Position.Left,
         };
       });
-      setNodes(flowNodes);
 
       // Convert to ReactFlow edges
       const flowEdges: Edge[] = deps.map((d) => ({
@@ -163,17 +169,34 @@ const ServiceTopologyPage: React.FC = () => {
           color: d.error_rate > 5 ? colors.error[500] : colors.neutral[400],
         },
       }));
-      setEdges(flowEdges);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载服务拓扑失败');
-    } finally {
-      setLoading(false);
-    }
-  };
 
+      return {
+        dependencies: deps,
+        serviceStats: finalStats,
+        nodes: flowNodes,
+        edges: flowEdges,
+      };
+    },
+    staleTime: 30_000,
+  });
+
+  const { dependencies, serviceStats } = topology;
+
+  // nodes/edges 需要本地 state 以支持 ReactFlow 交互（拖拽/平移）
+  const [nodes, setNodes] = useState<Node[]>([]);
+  const [edges, setEdges] = useState<Edge[]>([]);
+
+  // 数据加载完成后同步到本地 state
   useEffect(() => {
-    loadData();
-  }, []);
+    setNodes(topology.nodes ?? []);
+    setEdges(topology.edges ?? []);
+  }, [topology.nodes, topology.edges]);
+
+  // 错误反馈
+  useEffect(() => {
+    if (!isError) return;
+    message.error(error instanceof Error ? error.message : '加载服务拓扑失败');
+  }, [isError, error]);
 
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
@@ -230,7 +253,7 @@ const ServiceTopologyPage: React.FC = () => {
               服务间调用关系与依赖拓扑可视化
             </Text>
           </div>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
             刷新
           </Button>
         </div>

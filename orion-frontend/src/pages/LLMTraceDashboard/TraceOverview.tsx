@@ -6,35 +6,46 @@ import { Typography, Button, Card, Row, Col, Table as AntTable, Tag, message, Sp
 import { ReloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getDailyStats, getPricing, type DailyStats, type ModelPricing } from '@/api/llm-trace';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
 const TraceOverview: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [dailyStats, setDailyStats] = useState<DailyStats | null>(null);
-  const [pricing, setPricing] = useState<ModelPricing[]>([]);
   const [tenantId] = useState(1); // Default tenant for demo
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: dashboard = {} as {
+      dailyStats?: DailyStats | null;
+      pricing?: ModelPricing[];
+    },
+    isLoading: loading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<{
+    dailyStats?: DailyStats | null;
+    pricing?: ModelPricing[];
+  }>({
+    queryKey: ['llm-trace-overview', tenantId],
+    queryFn: async () => {
       const [statsRes, pricingRes] = await Promise.all([getDailyStats({ tenantId }), getPricing()]);
-      setDailyStats(statsRes.data as DailyStats | null);
       const pricingData = pricingRes.data as { pricing?: ModelPricing[] } | null;
-      setPricing(pricingData?.pricing || []);
-    } catch (error: unknown) {
-      setDailyStats(null);
-      setPricing([]);
-      message.error(`加载追踪数据失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        dailyStats: (statsRes.data as DailyStats | null) ?? null,
+        pricing: pricingData?.pricing || [],
+      };
+    },
+    staleTime: 30_000,
+  });
 
+  const dailyStats = dashboard.dailyStats;
+  const pricing = dashboard.pricing ?? [];
+
+  // 错误反馈
   useEffect(() => {
-    loadData();
-  }, [tenantId]);
+    if (!isError) return;
+    message.error(`加载追踪数据失败: ${(error as Error)?.message}`);
+  }, [isError, error]);
 
   const modelColumns: ColumnsType<{ modelId: string; count: number; cost: number }> = [
     {
@@ -102,7 +113,7 @@ const TraceOverview: React.FC = () => {
           </Title>
           <Text type="secondary">LLM 调用追踪与成本监控</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+        <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
           刷新
         </Button>
       </div>

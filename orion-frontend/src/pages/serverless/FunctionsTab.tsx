@@ -2,10 +2,11 @@
  * Serverless Page - FunctionsTab
  * 从 ServerlessPage.tsx 抽出的 FunctionsTab tab。
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Typography, Table, Button, Tag, Space, message, Modal, Form, Input, Select, Popconfirm, Row, Col, Descriptions, Empty, Tooltip, Drawer } from 'antd';
 import { CloudUploadOutlined, PlusOutlined, ReloadOutlined, PlayCircleOutlined, DeleteOutlined, RocketOutlined, FileTextOutlined, SettingOutlined } from '@ant-design/icons';
 import { createServerlessFunction, listServerlessFunctions, getServerlessFunction, updateServerlessFunction, deleteServerlessFunction, deployServerlessFunction, invokeServerlessFunction, getFunctionLogs, type ServerlessFunction as Fn, type ServerlessDeployment, type ServerlessLog, type FunctionStatus, type FunctionRuntime } from '@/api/serverless';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
 import { statusColorMap, statusLabelMap, runtimeLabelMap } from './ServerlessConfig';
@@ -15,8 +16,6 @@ const { Title, Text, Paragraph } = Typography;
 
 
 export const FunctionsTab: React.FC = () => {
-  const [functions, setFunctions] = useState<Fn[]>([]);
-  const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
@@ -31,21 +30,25 @@ export const FunctionsTab: React.FC = () => {
   const [invokeLoading, setInvokeLoading] = useState(false);
   const [deployLoading, setDeployLoading] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data: functions = [] as Fn[],
+    isLoading: loading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<Fn[]>({
+    queryKey: ['serverless', 'functions'],
+    queryFn: async () => {
       const res = await listServerlessFunctions();
-      setFunctions((res.data as { data?: Fn[] })?.data ?? []);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载函数列表失败');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return (res.data as { data?: Fn[] })?.data ?? [];
+    },
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!isError) return;
+    message.error(error instanceof Error ? error.message : '加载函数列表失败');
+  }, [isError, error]);
 
   const handleCreate = async (values: any) => {
     try {
@@ -62,7 +65,7 @@ export const FunctionsTab: React.FC = () => {
       message.success('函数创建成功');
       setCreateModalOpen(false);
       form.resetFields();
-      loadData();
+      refetch();
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '创建失败');
     }
@@ -83,7 +86,7 @@ export const FunctionsTab: React.FC = () => {
       message.success('函数更新成功');
       setEditModalOpen(false);
       editForm.resetFields();
-      loadData();
+      refetch();
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '更新失败');
     }
@@ -93,7 +96,7 @@ export const FunctionsTab: React.FC = () => {
     try {
       await deleteServerlessFunction(fn.id);
       message.success('函数删除成功');
-      loadData();
+      refetch();
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '删除失败');
     }
@@ -111,7 +114,7 @@ export const FunctionsTab: React.FC = () => {
         message.warning(`部署状态: ${dep?.status || '未知'}`);
       }
       setDeployDrawerOpen(false);
-      loadData();
+      refetch();
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '部署失败');
     } finally {
@@ -283,7 +286,7 @@ export const FunctionsTab: React.FC = () => {
           <Text type="secondary">管理无服务器函数的创建、部署、调用与监控</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
             刷新
           </Button>
           <Button

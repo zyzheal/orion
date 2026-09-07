@@ -2,7 +2,7 @@
  * Self-Healing - Incident Detail
  * Detailed view of a single self-healing incident
  */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import {
   Typography,
   Card,
@@ -18,6 +18,7 @@ import {
 import { ArrowLeftOutlined, ReloadOutlined, FileTextOutlined } from '@ant-design/icons';
 import { getIncident } from '@/api/self-healing';
 import type { SelfHealingIncident } from '@/api/self-healing';
+import { useQuery } from '@/providers/QueryProvider';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { colors, spacing } from '@/tokens';
@@ -28,32 +29,34 @@ const IncidentDetail: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
-  const [loading, setLoading] = useState(false);
-  const [incident, setIncident] = useState<SelfHealingIncident | null>(null);
-
-  const loadDetail = async () => {
-    if (!id) {
-      message.warning('缺少事件 ID');
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await getIncident(id);
-      setIncident((res.data || null) as unknown as SelfHealingIncident | null);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载事件详情失败：${error.message}`);
-      } else {
-        message.error('加载事件详情失败，请稍后重试');
+  const {
+    data: incident = null as SelfHealingIncident | null,
+    isLoading: loading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<SelfHealingIncident | null>({
+    queryKey: ['self-healing', 'incident', id],
+    queryFn: async () => {
+      if (!id) {
+        message.warning('缺少事件 ID');
+        return null;
       }
-    } finally {
-      setLoading(false);
-    }
-  };
+      const res = await getIncident(id);
+      return (res.data || null) as unknown as SelfHealingIncident | null;
+    },
+    enabled: !!id,
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
-    loadDetail();
-  }, [id]);
+    if (!isError) return;
+    if (error instanceof Error) {
+      message.error(`加载事件详情失败：${error.message}`);
+    } else {
+      message.error('加载事件详情失败，请稍后重试');
+    }
+  }, [isError, error]);
 
   if (loading) {
     return (
@@ -124,7 +127,7 @@ const IncidentDetail: React.FC = () => {
           <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
           事件详情
         </Title>
-        <Button icon={<ReloadOutlined />} onClick={loadDetail}>
+        <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
           刷新
         </Button>
       </div>

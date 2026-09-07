@@ -3,6 +3,7 @@
  * AI 决策解释页 - 查看决策解释、特征重要性、规则匹配路径和历史记录
  */
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
   Card,
@@ -346,31 +347,34 @@ const ExplainDecisionTab: React.FC = () => {
 // ---- Explanation History Tab ----
 
 const ExplanationHistoryTab: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [history, setHistory] = useState<ExplanationWithRules[]>([]);
   const [detail, setDetail] = useState<ExplanationWithRules | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [searchId, setSearchId] = useState('');
   const [filterType, setFilterType] = useState<string | undefined>();
 
-  const loadHistory = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: history = [] as ExplanationWithRules[],
+    isLoading: loading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<ExplanationWithRules[]>({
+    queryKey: ['ai-decision-history'],
+    queryFn: async () => {
       const res = await getExplanationHistory({
         limit: 50,
         decisionType: filterType,
       });
-      setHistory(res.data || []);
-    } catch (error: unknown) {
-      message.error(`加载历史失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return res.data || [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 错误反馈
   useEffect(() => {
-    loadHistory();
-  }, []);
+    if (!isError) return;
+    message.error(`加载历史失败: ${(error as Error)?.message}`);
+  }, [isError, error]);
 
   const loadDetail = async (id: string) => {
     setDetailLoading(true);
@@ -483,7 +487,7 @@ const ExplanationHistoryTab: React.FC = () => {
                   { label: 'diagnosis', value: 'diagnosis' },
                 ]}
               />
-              <Button icon={<ReloadOutlined />} onClick={loadHistory} loading={loading}>
+              <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
                 刷新
               </Button>
             </Space>

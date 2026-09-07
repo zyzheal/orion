@@ -2,7 +2,7 @@
  * DORAMetricsTab.tsx - DORA 指标 Tab
  * 抽取自 efficiency/EfficiencyPage.tsx (P2-9 Phase 76)
  */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Typography, Card, Button, message, Row, Col, Statistic, Progress, Tag } from 'antd';
 import {
   ThunderboltOutlined,
@@ -11,54 +11,64 @@ import {
   WarningOutlined,
   CheckCircleOutlined,
 } from '@ant-design/icons';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
 import { getDoraBenchmarks, getEfficiencyDashboard } from '@/api/efficiency';
 
 const { Text } = Typography;
 
-const DORAMetricsTab: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [dashboardData, setDashboardData] = useState<{
-    dora?: {
-      deploymentFrequency?: string | number;
-      leadTime?: number;
-      mttr?: number;
-      changeFailureRate?: number;
-    };
-    summary?: {
-      totalDeployments?: number;
-      successfulDeployments?: number;
-      failedDeployments?: number;
-    };
-  } | null>(null);
-  const [benchmarks, setBenchmarks] = useState<{
-    deploymentFrequency?: { elite?: string; high?: string; medium?: string; low?: string };
-    leadTimeForChanges?: { elite?: string; high?: string; medium?: string; low?: string };
-    changeFailureRate?: { elite?: string; high?: string; medium?: string; low?: string };
-    meanTimeToRecovery?: { elite?: string; high?: string; medium?: string; low?: string };
-  } | null>(null);
+type DashboardData = {
+  dora?: {
+    deploymentFrequency?: string | number;
+    leadTime?: number;
+    mttr?: number;
+    changeFailureRate?: number;
+  };
+  summary?: {
+    totalDeployments?: number;
+    successfulDeployments?: number;
+    failedDeployments?: number;
+  };
+} | null;
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+type Benchmarks = {
+  deploymentFrequency?: { elite?: string; high?: string; medium?: string; low?: string };
+  leadTimeForChanges?: { elite?: string; high?: string; medium?: string; low?: string };
+  changeFailureRate?: { elite?: string; high?: string; medium?: string; low?: string };
+  meanTimeToRecovery?: { elite?: string; high?: string; medium?: string; low?: string };
+} | null;
+
+const DORAMetricsTab: React.FC = () => {
+  const {
+    data: data = {} as { dashboardData: DashboardData; benchmarks: Benchmarks },
+    isLoading: loading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<{ dashboardData: DashboardData; benchmarks: Benchmarks }>({
+    queryKey: ['efficiency-dora-metrics'],
+    queryFn: async () => {
       const [dashboardRes, benchmarksRes] = await Promise.all([
         getEfficiencyDashboard(),
         getDoraBenchmarks(),
       ]);
       // Response wraps in { dashboard: {...} }
-      setDashboardData((dashboardRes.data as any)?.dashboard || dashboardRes.data || null);
-      setBenchmarks(benchmarksRes.data || null);
-    } catch (error: unknown) {
-      message.error(`加载 DORA 指标失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        dashboardData: (dashboardRes.data as any)?.dashboard || dashboardRes.data || null,
+        benchmarks: benchmarksRes.data || null,
+      };
+    },
+    staleTime: 30_000,
+  });
 
+  const { dashboardData, benchmarks } = data;
+
+  // 错误反馈
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!isError) return;
+    message.error(`加载 DORA 指标失败: ${(error as Error)?.message}`);
+  }, [isError, error]);
 
   const getLevel = (value: number | undefined, metricKey: string): string => {
     if (!value || !benchmarks) return '-';
@@ -85,7 +95,7 @@ const DORAMetricsTab: React.FC = () => {
     <div>
       <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Text type="secondary">DORA 四大核心指标</Text>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+        <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
           刷新
         </Button>
       </div>

@@ -2,6 +2,7 @@
  * LLM Trace List - Call history with filters
  */
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
   Button,
@@ -38,30 +39,33 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const TraceList: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [traces, setTraces] = useState<LLMTrace[]>([]);
-  const [total, setTotal] = useState(0);
   const [tenantId, setTenantId] = useState<number | undefined>(1);
   const [scenarioId, setScenarioId] = useState<string | undefined>();
   const [limit, setLimit] = useState(50);
   const [startDate, setStartDate] = useState<string | undefined>();
   const [endDate, setEndDate] = useState<string | undefined>();
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const { data: listData, isLoading: loading, isError, error, refetch } = useQuery<{
+    data: LLMTrace[];
+    total: number;
+  }>({
+    queryKey: ['llm-trace-list', tenantId, scenarioId, limit],
+    queryFn: async () => {
       const response = await getTraces({ tenantId, scenarioId, limit, startDate, endDate });
       const data = response.data as unknown as { data: LLMTrace[]; total: number };
-      setTraces(data.data || []);
-      setTotal(data.total || 0);
-    } catch (error: unknown) {
-      setTraces([]);
-      setTotal(0);
-      message.error(`加载调用记录失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return { data: data.data || [], total: data.total || 0 };
+    },
+    staleTime: 30_000,
+  });
+
+  const traces = listData?.data ?? [];
+  const total = listData?.total ?? 0;
+
+  // 错误反馈
+  useEffect(() => {
+    if (!isError) return;
+    message.error(`加载调用记录失败: ${(error as Error)?.message}`);
+  }, [isError, error]);
 
   const handleExport = () => {
     const headers = [
@@ -98,10 +102,6 @@ const TraceList: React.FC = () => {
     URL.revokeObjectURL(url);
     message.success('导出完成');
   };
-
-  useEffect(() => {
-    loadData();
-  }, [tenantId, scenarioId, limit]);
 
   const columns: ColumnsType<LLMTrace> = [
     {
@@ -200,7 +200,7 @@ const TraceList: React.FC = () => {
             </Tooltip>
           </Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+        <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
           刷新
         </Button>
       </div>
@@ -255,7 +255,7 @@ const TraceList: React.FC = () => {
             onChange={(d) => setEndDate(d?.toISOString() || undefined)}
             style={{ width: 140 }}
           />
-          <Button icon={<SearchOutlined />} onClick={loadData}>
+          <Button icon={<SearchOutlined />} onClick={() => refetch()}>
             查询
           </Button>
           <Button icon={<DownloadOutlined />} onClick={handleExport} disabled={traces.length === 0}>

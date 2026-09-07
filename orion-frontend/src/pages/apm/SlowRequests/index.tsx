@@ -6,50 +6,49 @@ import React, { useState, useEffect } from 'react';
 import { Typography, Card, Table, Button, Tag, Space, message, Spin, InputNumber } from 'antd';
 import { ScheduleOutlined, ReloadOutlined, BarChartOutlined } from '@ant-design/icons';
 import { apmApi, type SlowQuery, type QueryPatternStats } from '@/api/apm';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
 const ApmSlowRequestsPage: React.FC = () => {
-  const [slowQueries, setSlowQueries] = useState<SlowQuery[]>([]);
-  const [patterns, setPatterns] = useState<QueryPatternStats[]>([]);
-  const [loading, setLoading] = useState(false);
   const [threshold, setThreshold] = useState(1000);
   const [_limit, _setLimit] = useState(20);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: listData = {} as { slowQueries: SlowQuery[]; patterns: QueryPatternStats[] },
+    isLoading: loading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<{ slowQueries: SlowQuery[]; patterns: QueryPatternStats[] }>({
+    queryKey: ['apm-slow-requests', threshold],
+    queryFn: async () => {
       const [queriesRes, patternsRes] = await Promise.all([
         apmApi.getSlowQueries({ limit: 50 }),
         apmApi.getQueryPatternStats(),
       ]);
-      setSlowQueries(queriesRes);
-      setPatterns(patternsRes);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载慢请求数据失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        slowQueries: queriesRes.filter((q) => q.duration_ms >= threshold),
+        patterns: patternsRes,
+      };
+    },
+    staleTime: 30_000,
+  });
 
+  const slowQueries = listData.slowQueries ?? [];
+  const patterns = listData.patterns ?? [];
+
+  // 错误反馈
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!isError) return;
+    message.error(error instanceof Error ? error.message : '加载慢请求数据失败');
+  }, [isError, error]);
 
-  const handleThresholdChange = async (val: number | null) => {
+  const handleThresholdChange = (val: number | null) => {
     if (!val) return;
     setThreshold(val);
-    setLoading(true);
-    try {
-      const result = await apmApi.getSlowQueries({ limit: 50 });
-      setSlowQueries(result.filter((q) => q.duration_ms >= val));
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载慢请求失败');
-    } finally {
-      setLoading(false);
-    }
   };
 
   const queryColumns = [
@@ -169,7 +168,7 @@ const ApmSlowRequestsPage: React.FC = () => {
               min={100}
               style={{ width: 160 }}
             />
-            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
               刷新
             </Button>
           </Space>

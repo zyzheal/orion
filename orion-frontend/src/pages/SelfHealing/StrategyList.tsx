@@ -20,6 +20,7 @@ import {
 import { PlusOutlined, ReloadOutlined, EditOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { getStrategies, createStrategy, updateStrategy, toggleStrategy } from '@/api/self-healing';
 import type { SelfHealingStrategy } from '@/api/self-healing';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
@@ -36,38 +37,40 @@ interface StrategyFormValues {
 }
 
 const StrategyList: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<SelfHealingStrategy[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingStrategy, setEditingStrategy] = useState<SelfHealingStrategy | null>(null);
   const [form] = Form.useForm();
   const [formLoading, setFormLoading] = useState(false);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: data = [] as SelfHealingStrategy[],
+    isLoading: loading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<SelfHealingStrategy[]>({
+    queryKey: ['self-healing', 'strategies'],
+    queryFn: async () => {
       const res = await getStrategies();
-      setData((res.data as any).items || []);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载策略列表失败：${error.message}`);
-      } else {
-        message.error('加载策略列表失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (res.data as any)?.items || [];
+    },
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!isError) return;
+    if (error instanceof Error) {
+      message.error(`加载策略列表失败：${error.message}`);
+    } else {
+      message.error('加载策略列表失败，请稍后重试');
+    }
+  }, [isError, error]);
 
   const handleToggle = async (id: string) => {
     try {
       await toggleStrategy(id);
       message.success('策略状态已切换');
-      loadData();
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`切换策略状态失败：${error.message}`);
@@ -115,7 +118,7 @@ const StrategyList: React.FC = () => {
         message.success('策略已创建');
       }
       setModalOpen(false);
-      loadData();
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(
@@ -206,7 +209,7 @@ const StrategyList: React.FC = () => {
 
       <Card style={{ marginBottom: spacing.md }}>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData}>
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
             刷新
           </Button>
         </Space>

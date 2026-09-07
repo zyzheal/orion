@@ -2,7 +2,7 @@
  * BottleneckAnalysisTab.tsx - 瓶颈分析 Tab
  * 抽取自 efficiency/EfficiencyPage.tsx (P2-9 Phase 76)
  */
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Typography, Table, Tag, Space, Card, Button, Alert } from 'antd';
 import {
   WarningOutlined,
@@ -11,63 +11,51 @@ import {
   LineChartOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
+import { useQuery } from '@/providers/QueryProvider';
 import { getBottlenecks, getTeamComparison, getTeams, type TeamMetrics } from '@/api/efficiency';
 
 const { Text } = Typography;
 
+interface BottleneckItem {
+  id: string;
+  category: string;
+  description: string;
+  impact: 'high' | 'medium' | 'low';
+  metric: string;
+  currentValue: string;
+  targetValue: string;
+  suggestion: string;
+}
+
 const BottleneckAnalysisTab: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [bottlenecks, setBottlenecks] = useState<BottleneckItem[]>([]);
-  const [teamComparison, setTeamComparison] = useState<TeamMetrics[]>([]);
-  const [teamLoading, setTeamLoading] = useState(false);
+  const {
+    data: bottlenecks = [] as BottleneckItem[],
+    isLoading: loading,
+  } = useQuery<BottleneckItem[]>({
+    queryKey: ['efficiency-bottlenecks'],
+    queryFn: async () => {
+      const res = await getBottlenecks();
+      return res.data?.bottlenecks || [];
+    },
+    staleTime: 30_000,
+  });
 
-  interface BottleneckItem {
-    id: string;
-    category: string;
-    description: string;
-    impact: 'high' | 'medium' | 'low';
-    metric: string;
-    currentValue: string;
-    targetValue: string;
-    suggestion: string;
-  }
-
-  useEffect(() => {
-    const loadBottlenecks = async () => {
-      try {
-        const res = await getBottlenecks();
-        setBottlenecks(res.data?.bottlenecks || []);
-      } catch {
-        setBottlenecks([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadBottlenecks();
-  }, []);
-
-  // Load team comparison
-  const loadTeamComparison = async () => {
-    setTeamLoading(true);
-    try {
+  const {
+    data: teamComparison = [] as TeamMetrics[],
+    isLoading: teamLoading,
+    refetch: refetchTeamComparison,
+  } = useQuery<TeamMetrics[]>({
+    queryKey: ['efficiency-team-comparison'],
+    queryFn: async () => {
       const [teamsRes, comparisonRes] = await Promise.all([
         getTeams(),
         getTeamComparison({ interval: 'weekly' }),
       ]);
       const teamIds = teamsRes.data?.teams?.map((t: { teamId: string }) => t.teamId) || [];
-      if (teamIds.length > 0) {
-        setTeamComparison(comparisonRes.data?.teams || []);
-      }
-    } catch {
-      setTeamComparison([]);
-    } finally {
-      setTeamLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadTeamComparison();
-  }, []);
+      return teamIds.length > 0 ? comparisonRes.data?.teams || [] : [];
+    },
+    staleTime: 30_000,
+  });
 
   const impactColorMap: Record<string, string> = {
     high: 'error',
@@ -201,7 +189,7 @@ const BottleneckAnalysisTab: React.FC = () => {
           <Button
             size="small"
             icon={<ReloadOutlined />}
-            onClick={loadTeamComparison}
+            onClick={() => refetchTeamComparison()}
             loading={teamLoading}
           >
             刷新

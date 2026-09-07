@@ -25,6 +25,7 @@ import {
 } from '@ant-design/icons';
 import { getApprovals, respondToApproval } from '@/api/self-healing';
 import type { SelfHealingApproval } from '@/api/self-healing';
+import { useQuery } from '@/providers/QueryProvider';
 import dayjs from 'dayjs';
 import { colors, spacing } from '@/tokens';
 
@@ -32,9 +33,6 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 const ApprovalQueue: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<SelfHealingApproval[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
@@ -43,26 +41,31 @@ const ApprovalQueue: React.FC = () => {
   const [respondForm] = Form.useForm();
   const [respondLoading, setRespondLoading] = useState(false);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: pageData = { items: [] as SelfHealingApproval[], total: 0 },
+    isLoading: loading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<{ items: SelfHealingApproval[]; total: number }>({
+    queryKey: ['self-healing', 'approvals', page, pageSize, statusFilter],
+    queryFn: async () => {
       const res = await getApprovals({ status: statusFilter, page, pageSize });
-      setData((res.data as any).items || []);
-      setTotal((res.data as any).total || 0);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载审批队列失败：${error.message}`);
-      } else {
-        message.error('加载审批队列失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (res.data as any) || { items: [], total: 0 };
+    },
+    staleTime: 30_000,
+  });
+  const data = pageData.items;
+  const total = pageData.total;
 
   useEffect(() => {
-    loadData();
-  }, [page, pageSize, statusFilter]);
+    if (!isError) return;
+    if (error instanceof Error) {
+      message.error(`加载审批队列失败：${error.message}`);
+    } else {
+      message.error('加载审批队列失败，请稍后重试');
+    }
+  }, [isError, error]);
 
   const openRespondModal = (approval: SelfHealingApproval, action: 'approved' | 'rejected') => {
     setCurrentApproval(approval);
@@ -81,7 +84,7 @@ const ApprovalQueue: React.FC = () => {
       message.success('审批已提交');
       setRespondModalOpen(false);
       respondForm.resetFields();
-      loadData();
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`提交审批失败：${error.message}`);
@@ -194,7 +197,7 @@ const ApprovalQueue: React.FC = () => {
             待审批: <Tag color="orange">{pendingCount}</Tag>
           </Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData}>
+        <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
           刷新
         </Button>
       </div>

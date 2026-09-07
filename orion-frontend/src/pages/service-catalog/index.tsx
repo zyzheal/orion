@@ -3,7 +3,8 @@
  * 对接后端 /api/v1/service-catalog 完整 CRUD
  * 含服务请求生命周期管理 + SLA 违规监控
  */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
   Card,
@@ -54,8 +55,6 @@ const SLA_STATUS_MAP: Record<string, { color: string; label: string }> = {
 };
 
 const ServiceCatalogPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [items, setItems] = useState<ServiceCatalog[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ServiceCatalog | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -63,45 +62,49 @@ const ServiceCatalogPage: React.FC = () => {
   const [selectedItem, setSelectedItem] = useState<ServiceCatalog | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
-  const [slaBreaches, setSlaBreaches] = useState<SLABreach[]>([]);
-  const [slaLoading, setSlaLoading] = useState(false);
   const [form] = Form.useForm();
 
-  const loadItems = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data: items = [] as ServiceCatalog[],
+    isLoading: loading,
+    isError: itemsError,
+    error: itemsErrorObj,
+    refetch: refetchItems,
+  } = useQuery<ServiceCatalog[]>({
+    queryKey: ['service-catalog-items'],
+    queryFn: async () => {
       const data = await listCatalogItems();
-      setItems(Array.isArray(data) ? data : []);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载服务目录失败');
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 30_000,
+  });
 
-  const loadSLABreaches = useCallback(async () => {
-    setSlaLoading(true);
-    try {
+  const {
+    data: slaBreaches = [] as SLABreach[],
+    isLoading: slaLoading,
+    isError: slaError,
+    error: slaErrorObj,
+    refetch: refetchSLA,
+  } = useQuery<SLABreach[]>({
+    queryKey: ['service-catalog-sla'],
+    queryFn: async () => {
       const data = await getSLABreaches();
-      setSlaBreaches(data.breaches || []);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载 SLA 数据失败');
-      setSlaBreaches([]);
-    } finally {
-      setSlaLoading(false);
-    }
-  }, []);
+      return data.breaches || [];
+    },
+    enabled: activeTab === 'sla',
+    staleTime: 30_000,
+  });
+
+  // 错误反馈
+  useEffect(() => {
+    if (!itemsError) return;
+    message.error(itemsErrorObj instanceof Error ? itemsErrorObj.message : '加载服务目录失败');
+  }, [itemsError, itemsErrorObj]);
 
   useEffect(() => {
-    loadItems();
-  }, [loadItems]);
-
-  useEffect(() => {
-    if (activeTab === 'sla') {
-      loadSLABreaches();
-    }
-  }, [activeTab, loadSLABreaches]);
+    if (!slaError) return;
+    message.error(slaErrorObj instanceof Error ? slaErrorObj.message : '加载 SLA 数据失败');
+  }, [slaError, slaErrorObj]);
 
   const handleCreate = () => {
     setEditingItem(null);
@@ -140,7 +143,7 @@ const ServiceCatalogPage: React.FC = () => {
         message.success('创建服务目录成功');
       }
       setModalOpen(false);
-      loadItems();
+      refetchItems();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(error.message);
@@ -154,7 +157,7 @@ const ServiceCatalogPage: React.FC = () => {
     try {
       await deleteCatalogItem(id);
       message.success('删除成功');
-      loadItems();
+      refetchItems();
     } catch (error: unknown) {
       message.error(error instanceof Error ? error.message : '删除失败');
     }
@@ -322,7 +325,7 @@ const ServiceCatalogPage: React.FC = () => {
           tabBarExtraContent={
             activeTab === 'catalog' ? (
               <Space>
-                <Button icon={<ReloadOutlined />} onClick={loadItems} loading={loading}>
+                <Button icon={<ReloadOutlined />} onClick={() => refetchItems()} loading={loading}>
                   刷新
                 </Button>
                 <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
@@ -330,7 +333,7 @@ const ServiceCatalogPage: React.FC = () => {
                 </Button>
               </Space>
             ) : (
-              <Button icon={<ReloadOutlined />} onClick={loadSLABreaches} loading={slaLoading}>
+              <Button icon={<ReloadOutlined />} onClick={() => refetchSLA()} loading={slaLoading}>
                 刷新
               </Button>
             )

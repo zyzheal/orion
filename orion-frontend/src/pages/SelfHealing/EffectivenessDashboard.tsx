@@ -2,7 +2,7 @@
  * Self-Healing - Effectiveness Dashboard
  * Metrics and analytics for self-healing effectiveness
  */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Typography, Card, Row, Col, Statistic, Table, Tag, Button, message } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
@@ -15,38 +15,46 @@ import {
 } from '@ant-design/icons';
 import { getEffectiveness, getHealingHistory } from '@/api/self-healing';
 import type { SelfHealingEffectiveness, SelfHealingIncident } from '@/api/self-healing';
+import { useQuery } from '@/providers/QueryProvider';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
 const EffectivenessDashboard: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [effectiveness, setEffectiveness] = useState<SelfHealingEffectiveness | null>(null);
-  const [recentHistory, setRecentHistory] = useState<SelfHealingIncident[]>([]);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: pageData = { effectiveness: null, recentHistory: [] as SelfHealingIncident[] },
+    isLoading: loading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<{
+    effectiveness: SelfHealingEffectiveness | null;
+    recentHistory: SelfHealingIncident[];
+  }>({
+    queryKey: ['self-healing', 'effectiveness'],
+    queryFn: async () => {
       const [effRes, histRes] = await Promise.all([
         getEffectiveness(),
         getHealingHistory({ pageSize: 10 }),
       ]);
-      setEffectiveness((effRes.data || null) as unknown as SelfHealingEffectiveness | null);
-      setRecentHistory((histRes.data as any).items || []);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载效能数据失败：${error.message}`);
-      } else {
-        message.error('加载效能数据失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        effectiveness: (effRes.data || null) as unknown as SelfHealingEffectiveness | null,
+        recentHistory: (histRes.data as any).items || [],
+      };
+    },
+    staleTime: 30_000,
+  });
+  const effectiveness = pageData.effectiveness;
+  const recentHistory = pageData.recentHistory;
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!isError) return;
+    if (error instanceof Error) {
+      message.error(`加载效能数据失败：${error.message}`);
+    } else {
+      message.error('加载效能数据失败，请稍后重试');
+    }
+  }, [isError, error]);
 
   const statusColor = (status: string) => {
     switch (status) {
@@ -102,7 +110,7 @@ const EffectivenessDashboard: React.FC = () => {
           </Title>
           <Text type="secondary">自愈合系统效能分析与趋势</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+        <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
           刷新
         </Button>
       </div>

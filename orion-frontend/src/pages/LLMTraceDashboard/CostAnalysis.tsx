@@ -19,6 +19,7 @@ import {
 import { ReloadOutlined, DollarOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getCostBreakdown, type CostBreakdown } from '@/api/llm-trace';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
@@ -26,32 +27,33 @@ const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const CostAnalysis: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [costData, setCostData] = useState<CostBreakdown | null>(null);
   const [tenantId] = useState(1);
   const [dateRange, setDateRange] = useState<[string, string] | null>(null);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: costData = null as CostBreakdown | null,
+    isLoading: loading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<CostBreakdown | null>({
+    queryKey: ['llm-trace-cost-analysis', tenantId, dateRange],
+    queryFn: async () => {
       const params: { tenantId: number; startDate?: string; endDate?: string } = { tenantId };
       if (dateRange) {
         params.startDate = dateRange[0];
         params.endDate = dateRange[1];
       }
       const response = await getCostBreakdown(params);
-      setCostData(response.data as CostBreakdown | null);
-    } catch (error: unknown) {
-      setCostData(null);
-      message.error(`加载成本数据失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (response.data as CostBreakdown | null) ?? null;
+    },
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
-    loadData();
-  }, [tenantId, dateRange]);
+    if (!isError) return;
+    message.error(`加载成本数据失败: ${(error as Error)?.message}`);
+  }, [isError, error]);
 
   const handleDateChange = (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
     if (dates && dates[0] && dates[1]) {
@@ -117,7 +119,7 @@ const CostAnalysis: React.FC = () => {
         </div>
         <Space>
           <RangePicker onChange={handleDateChange} />
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
             刷新
           </Button>
         </Space>

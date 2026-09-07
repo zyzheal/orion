@@ -24,6 +24,7 @@ import {
 } from '@ant-design/icons';
 import { getHealingHistory, createIncident } from '@/api/self-healing';
 import type { SelfHealingIncident } from '@/api/self-healing';
+import { useQuery } from '@/providers/QueryProvider';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { colors, spacing } from '@/tokens';
@@ -32,9 +33,6 @@ const { Title, Text } = Typography;
 
 const IncidentList: React.FC = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<SelfHealingIncident[]>([]);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [filters, setFilters] = useState<{ severity?: string; status?: string }>({});
@@ -42,26 +40,31 @@ const IncidentList: React.FC = () => {
   const [createForm] = Form.useForm();
   const [createLoading, setCreateLoading] = useState(false);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: pageData = { items: [] as SelfHealingIncident[], total: 0 },
+    isLoading: loading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<{ items: SelfHealingIncident[]; total: number }>({
+    queryKey: ['self-healing', 'incidents', page, pageSize, filters],
+    queryFn: async () => {
       const res = await getHealingHistory({ ...filters, page, pageSize });
-      setData((res.data as any).items || []);
-      setTotal((res.data as any).total || 0);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载事件列表失败：${error.message}`);
-      } else {
-        message.error('加载事件列表失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (res.data as any) || { items: [], total: 0 };
+    },
+    staleTime: 30_000,
+  });
+  const data = pageData.items;
+  const total = pageData.total;
 
   useEffect(() => {
-    loadData();
-  }, [page, pageSize, filters]);
+    if (!isError) return;
+    if (error instanceof Error) {
+      message.error(`加载事件列表失败：${error.message}`);
+    } else {
+      message.error('加载事件列表失败，请稍后重试');
+    }
+  }, [isError, error]);
 
   const handleCreate = async (values: any) => {
     setCreateLoading(true);
@@ -70,7 +73,7 @@ const IncidentList: React.FC = () => {
       message.success('事件已创建');
       setCreateModalOpen(false);
       createForm.resetFields();
-      loadData();
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`创建事件失败：${error.message}`);
@@ -216,7 +219,7 @@ const IncidentList: React.FC = () => {
             <Select.Option value="resolved">已解决</Select.Option>
             <Select.Option value="failed">修复失败</Select.Option>
           </Select>
-          <Button icon={<ReloadOutlined />} onClick={loadData}>
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
             刷新
           </Button>
         </Space>

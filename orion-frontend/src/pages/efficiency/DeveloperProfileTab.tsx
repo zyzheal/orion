@@ -2,9 +2,10 @@
  * DeveloperProfileTab.tsx - 开发者画像 Tab
  * 抽取自 efficiency/EfficiencyPage.tsx (P2-9 Phase 76)
  */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Typography, Table, Tag, Space, Alert, Progress, Avatar, message } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
 import { getDeveloperProfiles, type DeveloperProfile } from '@/api/efficiency';
@@ -12,24 +13,21 @@ import { getDeveloperProfiles, type DeveloperProfile } from '@/api/efficiency';
 const { Text } = Typography;
 
 const DeveloperProfileTab: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [profiles, setProfiles] = useState<DeveloperProfile[]>([]);
+  const { data: profiles = [] as DeveloperProfile[], isLoading: loading, isError, error } =
+    useQuery<DeveloperProfile[]>({
+      queryKey: ['efficiency-developer-profiles'],
+      queryFn: async () => {
+        const res = await getDeveloperProfiles();
+        return res.data?.profiles || [];
+      },
+      staleTime: 30_000,
+    });
 
-  const loadProfiles = async () => {
-    setLoading(true);
-    try {
-      const res = await getDeveloperProfiles();
-      setProfiles(res.data?.profiles || []);
-    } catch (error: unknown) {
-      message.error(`加载开发者画像失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // 错误反馈
   useEffect(() => {
-    loadProfiles();
-  }, []);
+    if (!isError) return;
+    message.error(`加载开发者画像失败: ${(error as Error)?.message}`);
+  }, [isError, error]);
 
   const columns = [
     {

@@ -2,10 +2,11 @@
  * Serverless Page - MetricsTab
  * 从 ServerlessPage.tsx 抽出的 MetricsTab tab。
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import { Typography, Table, Button, message, Card, Row, Col, Statistic, Empty } from 'antd';
 import { ReloadOutlined, BarChartOutlined } from '@ant-design/icons';
 import { getAggregateMetrics, getAutoScalingRecommendations, type AutoScalingRecommendation, type AggregateMetrics } from '@/api/serverless';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
 import { autoscalingColumns } from './ServerlessColumns';
@@ -14,29 +15,36 @@ const { Title, Text } = Typography;
 
 
 export const MetricsTab: React.FC = () => {
-  const [aggregate, setAggregate] = useState<AggregateMetrics | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [recommendations, setRecommendations] = useState<AutoScalingRecommendation[]>([]);
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data,
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<{ aggregate: AggregateMetrics | null; recommendations: AutoScalingRecommendation[] }>({
+    queryKey: ['serverless-metrics'],
+    queryFn: async () => {
       const [aggRes, scaleRes] = await Promise.all([
         getAggregateMetrics(),
         getAutoScalingRecommendations(),
       ]);
-      setAggregate((aggRes.data as { data?: AggregateMetrics })?.data ?? null);
-      setRecommendations((scaleRes.data as { data?: AutoScalingRecommendation[] })?.data ?? []);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载指标失败');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return {
+        aggregate: (aggRes.data as { data?: AggregateMetrics })?.data ?? null,
+        recommendations: (scaleRes.data as { data?: AutoScalingRecommendation[] })?.data ?? [],
+      };
+    },
+    staleTime: 30_000,
+  });
 
+  const aggregate = data?.aggregate ?? null;
+  const recommendations = data?.recommendations ?? [];
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!isError) return;
+    message.error(error instanceof Error ? error.message : '加载指标失败');
+  }, [isError, error]);
 
   return (
     <div>
@@ -48,7 +56,7 @@ export const MetricsTab: React.FC = () => {
           </Title>
           <Text type="secondary">函数运行指标、错误率与自动扩缩容建议</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+        <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
           刷新
         </Button>
       </div>

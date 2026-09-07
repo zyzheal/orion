@@ -1,7 +1,7 @@
 /**
  * LLM Trace Accuracy - Tracking accuracy metrics
  */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Typography, Button, Card, Row, Col, Progress, Statistic, Tag, message, Spin } from 'antd';
 import {
   ReloadOutlined,
@@ -10,30 +10,31 @@ import {
   AimOutlined,
 } from '@ant-design/icons';
 import { getTrackingAccuracy, type TrackingAccuracy } from '@/api/llm-trace';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
 const TrackingAccuracyView: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [accuracy, setAccuracy] = useState<TrackingAccuracy | null>(null);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: accuracy = null as TrackingAccuracy | null,
+    isLoading: loading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<TrackingAccuracy | null>({
+    queryKey: ['llm-trace-tracking-accuracy'],
+    queryFn: async () => {
       const response = await getTrackingAccuracy();
-      setAccuracy(response.data as TrackingAccuracy | null);
-    } catch (error: unknown) {
-      setAccuracy(null);
-      message.error(`加载精度数据失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (response.data as TrackingAccuracy | null) ?? null;
+    },
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!isError) return;
+    message.error(`加载精度数据失败: ${(error as Error)?.message}`);
+  }, [isError, error]);
 
   if (loading) {
     return (
@@ -63,7 +64,7 @@ const TrackingAccuracyView: React.FC = () => {
           </Title>
           <Text type="secondary">LLM 调用追踪准确度与成功率统计</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+        <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
           刷新
         </Button>
       </div>

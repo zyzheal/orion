@@ -27,37 +27,41 @@ import {
   CodeOutlined,
 } from '@ant-design/icons';
 import { apmApi, type TraceSummary } from '@/api/apm';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
 const ApmErrorTrackingPage: React.FC = () => {
-  const [errors, setErrors] = useState<TraceSummary[]>([]);
-  const [allTraces, setAllTraces] = useState<TraceSummary[]>([]);
-  const [loading, setLoading] = useState(false);
   const [serviceFilter, setServiceFilter] = useState<string | undefined>(undefined);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedTrace, setSelectedTrace] = useState<TraceSummary | null>(null);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: errorData = {} as { allTraces: TraceSummary[] },
+    isLoading: loading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<{ allTraces: TraceSummary[] }>({
+    queryKey: ['apm-error-tracking'],
+    queryFn: async () => {
       const traces = await apmApi.listTraces({ limit: 200 });
-      const traceList = Array.isArray(traces) ? traces : ((traces as any).data ?? []);
-      setAllTraces(traceList);
-      const errorTraces = traceList.filter((t: any) => t.status === 'error');
-      setErrors(errorTraces);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载错误数据失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+      const traceList: TraceSummary[] = Array.isArray(traces) ? traces : ((traces as any).data ?? []);
+      return { allTraces: traceList };
+    },
+    staleTime: 30_000,
+  });
 
+  const allTraces = errorData.allTraces ?? [];
+  const errors = allTraces.filter((t) => t.status === 'error');
+
+  // 错误反馈
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!isError) return;
+    message.error(error instanceof Error ? error.message : '加载错误数据失败');
+  }, [isError, error]);
 
   const handleViewDetail = (record: TraceSummary) => {
     setSelectedTrace(record);
@@ -155,7 +159,7 @@ const ApmErrorTrackingPage: React.FC = () => {
                 </Select.Option>
               ))}
             </Select>
-            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
               刷新
             </Button>
           </Space>
