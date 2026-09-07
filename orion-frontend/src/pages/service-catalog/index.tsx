@@ -2,338 +2,62 @@
  * ServiceCatalog — 服务目录
  * 对接后端 /api/v1/service-catalog 完整 CRUD
  * 含服务请求生命周期管理 + SLA 违规监控
+ *
+ * Split into components (P2-9 Phase 151):
+ * - constants.ts / columns.tsx / useServiceCatalogState.ts
+ * - Components/{ServiceCatalogHeader,CatalogTab,SLATab,CatalogFormModal,DetailModal}.tsx
  */
-import React, { useState, useEffect, useMemo } from 'react';
-import { useQuery } from '@/providers/QueryProvider';
+import React, { useMemo } from 'react';
+import { Button, Card, Space, Tabs } from 'antd';
 import {
-  Typography,
-  Card,
-  Table,
-  Tag,
-  Button,
-  Space,
-  Modal,
-  Form,
-  Input,
-  Switch,
-  message,
-  Popconfirm,
-  Empty,
-  Tabs,
-  Descriptions,
-} from 'antd';
-import {
+  ClockCircleOutlined,
   CloudServerOutlined,
   PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
   ReloadOutlined,
-  EyeOutlined,
-  ClockCircleOutlined,
 } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
-import {
-  listCatalogItems,
-  createCatalogItem,
-  updateCatalogItem,
-  deleteCatalogItem,
-  getCatalogItem,
-  getRequestTimeline,
-  getSLABreaches,
-  type ServiceCatalog,
-  type SLABreach,
-  type TimelineEntry,
-} from '@/api/service-catalog';
-import { colors } from '@/tokens';
-
-const { Title, Text } = Typography;
-
-const SLA_STATUS_MAP: Record<string, { color: string; label: string }> = {
-  breached: { color: 'red', label: '已违规' },
-  warning: { color: 'orange', label: '接近违规' },
-  ok: { color: 'green', label: '正常' },
-};
+import { useServiceCatalogState } from './useServiceCatalogState';
+import { buildCatalogColumns, buildSlaColumns } from './columns';
+import { ServiceCatalogHeader } from './Components/ServiceCatalogHeader';
+import { CatalogTab } from './Components/CatalogTab';
+import { SLATab } from './Components/SLATab';
+import { CatalogFormModal } from './Components/CatalogFormModal';
+import { DetailModal } from './Components/DetailModal';
 
 const ServiceCatalogPage: React.FC = () => {
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<ServiceCatalog | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState('catalog');
-  const [selectedItem, setSelectedItem] = useState<ServiceCatalog | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
-  const [form] = Form.useForm();
+  const state = useServiceCatalogState();
 
-  const {
-    data: items = [] as ServiceCatalog[],
-    isLoading: loading,
-    isError: itemsError,
-    error: itemsErrorObj,
-    refetch: refetchItems,
-  } = useQuery<ServiceCatalog[]>({
-    queryKey: ['service-catalog-items'],
-    queryFn: async () => {
-      const data = await listCatalogItems();
-      return Array.isArray(data) ? data : [];
-    },
-    staleTime: 30_000,
-  });
-
-  const {
-    data: slaBreaches = [] as SLABreach[],
-    isLoading: slaLoading,
-    isError: slaError,
-    error: slaErrorObj,
-    refetch: refetchSLA,
-  } = useQuery<SLABreach[]>({
-    queryKey: ['service-catalog-sla'],
-    queryFn: async () => {
-      const data = await getSLABreaches();
-      return data.breaches || [];
-    },
-    enabled: activeTab === 'sla',
-    staleTime: 30_000,
-  });
-
-  // 错误反馈
-  useEffect(() => {
-    if (!itemsError) return;
-    message.error(itemsErrorObj instanceof Error ? itemsErrorObj.message : '加载服务目录失败');
-  }, [itemsError, itemsErrorObj]);
-
-  useEffect(() => {
-    if (!slaError) return;
-    message.error(slaErrorObj instanceof Error ? slaErrorObj.message : '加载 SLA 数据失败');
-  }, [slaError, slaErrorObj]);
-
-  const handleCreate = () => {
-    setEditingItem(null);
-    form.resetFields();
-    setModalOpen(true);
-  };
-
-  const handleEdit = async (record: ServiceCatalog) => {
-    setEditingItem(record);
-    try {
-      const detail = await getCatalogItem(record.id);
-      form.setFieldsValue({
-        name: detail.name,
-        value: detail.value,
-        enabled: detail.enabled,
-      });
-    } catch {
-      form.setFieldsValue({
-        name: record.name,
-        value: record.value,
-        enabled: record.enabled,
-      });
-    }
-    setModalOpen(true);
-  };
-
-  const handleSubmit = async () => {
-    try {
-      const values = await form.validateFields();
-      setSubmitting(true);
-      if (editingItem) {
-        await updateCatalogItem(editingItem.id, values);
-        message.success('更新服务目录成功');
-      } else {
-        await createCatalogItem(values);
-        message.success('创建服务目录成功');
-      }
-      setModalOpen(false);
-      refetchItems();
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(error.message);
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteCatalogItem(id);
-      message.success('删除成功');
-      refetchItems();
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '删除失败');
-    }
-  };
-
-  const handleViewDetail = async (record: ServiceCatalog) => {
-    setSelectedItem(record);
-    setDetailOpen(true);
-    try {
-      const entries = await getRequestTimeline(record.id);
-      setTimeline(Array.isArray(entries) ? entries : []);
-    } catch {
-      setTimeline([]);
-    }
-  };
-
-  const columns: ColumnsType<ServiceCatalog> = useMemo(
-    () => [
-      {
-        title: '名称',
-        dataIndex: 'name',
-        key: 'name',
-        width: '20%',
-        render: (text: string) => <Text strong>{text}</Text>,
-      },
-      {
-        title: '值',
-        dataIndex: 'value',
-        key: 'value',
-        width: '20%',
-        ellipsis: true,
-      },
-      {
-        title: '状态',
-        dataIndex: 'enabled',
-        key: 'enabled',
-        width: '10%',
-        render: (enabled: boolean) =>
-          enabled ? (
-            <Tag color="green">启用</Tag>
-          ) : (
-            <Tag color="default">停用</Tag>
-          ),
-      },
-      {
-        title: '创建时间',
-        dataIndex: 'createdAt',
-        key: 'createdAt',
-        width: '18%',
-        render: (val: string) => (val ? new Date(val).toLocaleString('zh-CN') : '-'),
-      },
-      {
-        title: '更新时间',
-        dataIndex: 'updatedAt',
-        key: 'updatedAt',
-        width: '18%',
-        render: (val: string) => (val ? new Date(val).toLocaleString('zh-CN') : '-'),
-      },
-      {
-        title: '操作',
-        key: 'action',
-        width: '14%',
-        render: (_: unknown, record: ServiceCatalog) => (
-          <Space size="small">
-            <Button
-              type="link"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => handleViewDetail(record)}
-            >
-              详情
-            </Button>
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => handleEdit(record)}
-            >
-              编辑
-            </Button>
-            <Popconfirm
-              title="确认删除此服务目录项？"
-              onConfirm={() => handleDelete(record.id)}
-              okText="确认"
-              cancelText="取消"
-            >
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                删除
-              </Button>
-            </Popconfirm>
-          </Space>
-        ),
-      },
-    ],
-    []
+  const catalogColumns = useMemo(
+    () =>
+      buildCatalogColumns({
+        handleViewDetail: state.handleViewDetail,
+        handleEdit: state.handleEdit,
+        handleDelete: state.handleDelete,
+      }),
+    [state.handleViewDetail, state.handleEdit, state.handleDelete],
   );
-
-  const slaColumns: ColumnsType<SLABreach> = useMemo(
-    () => [
-      {
-        title: '请求 ID',
-        dataIndex: 'requestId',
-        key: 'requestId',
-        width: '20%',
-      },
-      {
-        title: '服务',
-        dataIndex: 'service',
-        key: 'service',
-        width: '15%',
-      },
-      {
-        title: 'SLA 目标(ms)',
-        dataIndex: 'slaTargetMs',
-        key: 'slaTargetMs',
-        width: '15%',
-      },
-      {
-        title: '实际(ms)',
-        dataIndex: 'actualMs',
-        key: 'actualMs',
-        width: '12%',
-      },
-      {
-        title: '超时(ms)',
-        dataIndex: 'overdueMs',
-        key: 'overdueMs',
-        width: '12%',
-        render: (val: number) => (
-          <Text type="danger">{val.toLocaleString()}</Text>
-        ),
-      },
-      {
-        title: '状态',
-        dataIndex: 'status',
-        key: 'status',
-        width: '12%',
-        render: (status: string) => {
-          const info = SLA_STATUS_MAP[status] || { color: 'default', label: status };
-          return <Tag color={info.color}>{info.label}</Tag>;
-        },
-      },
-    ],
-    []
-  );
+  const slaColumns = useMemo(() => buildSlaColumns(), []);
 
   return (
     <div style={{ padding: 24 }}>
-      <Title level={2} style={{ marginBottom: 8 }}>
-        <CloudServerOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
-        服务目录
-      </Title>
-      <Text type="secondary" style={{ marginBottom: 24, display: 'block' }}>
-        管理可复用的服务模板、元数据，监控服务请求 SLA 合规
-      </Text>
+      <ServiceCatalogHeader />
 
-      <Card
-        style={{ borderRadius: 12 }}
-        styles={{ body: { padding: 0 } }}
-      >
+      <Card style={{ borderRadius: 12 }} styles={{ body: { padding: 0 } }}>
         <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
+          activeKey={state.activeTab}
+          onChange={state.setActiveTab}
           style={{ padding: '16px 16px 0' }}
           tabBarExtraContent={
-            activeTab === 'catalog' ? (
+            state.activeTab === 'catalog' ? (
               <Space>
-                <Button icon={<ReloadOutlined />} onClick={() => refetchItems()} loading={loading}>
+                <Button icon={<ReloadOutlined />} onClick={() => state.refetchItems()} loading={state.loading}>
                   刷新
                 </Button>
-                <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+                <Button type="primary" icon={<PlusOutlined />} onClick={state.handleCreate}>
                   新建
                 </Button>
               </Space>
             ) : (
-              <Button icon={<ReloadOutlined />} onClick={() => refetchSLA()} loading={slaLoading}>
+              <Button icon={<ReloadOutlined />} onClick={() => state.refetchSLA()} loading={state.slaLoading}>
                 刷新
               </Button>
             )
@@ -347,17 +71,7 @@ const ServiceCatalogPage: React.FC = () => {
                 </span>
               ),
               children: (
-                <div style={{ padding: '0 16px 16px' }}>
-                  <Table<ServiceCatalog>
-                    columns={columns}
-                    dataSource={items}
-                    rowKey="id"
-                    loading={loading}
-                    pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (t) => `共 ${t} 项` }}
-                    locale={{ emptyText: <Empty description="暂无服务目录数据" /> }}
-                    scroll={{ x: 900 }}
-                  />
-                </div>
+                <CatalogTab columns={catalogColumns} dataSource={state.items} loading={state.loading} />
               ),
             },
             {
@@ -368,96 +82,28 @@ const ServiceCatalogPage: React.FC = () => {
                 </span>
               ),
               children: (
-                <div style={{ padding: '0 16px 16px' }}>
-                  <Table<SLABreach>
-                    columns={slaColumns}
-                    dataSource={slaBreaches}
-                    rowKey="requestId"
-                    loading={slaLoading}
-                    pagination={{ pageSize: 20, showSizeChanger: true }}
-                    locale={{ emptyText: <Empty description="暂无 SLA 违规记录" /> }}
-                    scroll={{ x: 900 }}
-                  />
-                </div>
+                <SLATab columns={slaColumns} dataSource={state.slaBreaches} loading={state.slaLoading} />
               ),
             },
           ]}
         />
       </Card>
 
-      {/* 创建/编辑 Modal */}
-      <Modal
-        title={editingItem ? '编辑服务目录' : '新建服务目录'}
-        open={modalOpen}
-        onOk={handleSubmit}
-        onCancel={() => setModalOpen(false)}
-        confirmLoading={submitting}
-        destroyOnClose
-        okText={editingItem ? '保存' : '创建'}
-        cancelText="取消"
-        width={520}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{ enabled: true }}
-        >
-          <Form.Item
-            name="name"
-            label="名称"
-            rules={[{ required: true, message: '请输入服务目录名称' }]}
-          >
-            <Input placeholder="请输入服务目录名称" />
-          </Form.Item>
-          <Form.Item name="value" label="值">
-            <Input.TextArea rows={3} placeholder="请输入服务目录值（可选）" />
-          </Form.Item>
-          <Form.Item name="enabled" label="状态" valuePropName="checked">
-            <Switch checkedChildren="启用" unCheckedChildren="停用" />
-          </Form.Item>
-        </Form>
-      </Modal>
+      <CatalogFormModal
+        open={state.modalOpen}
+        form={state.form}
+        editingItem={state.editingItem}
+        submitting={state.submitting}
+        onCancel={() => state.setModalOpen(false)}
+        onSubmit={state.handleSubmit}
+      />
 
-      {/* 详情 Drawer */}
-      <Modal
-        title="服务目录详情"
-        open={detailOpen}
-        onCancel={() => setDetailOpen(false)}
-        footer={null}
-        width={640}
-        destroyOnClose
-      >
-        {selectedItem && (
-          <>
-            <Descriptions column={2} bordered size="small" style={{ marginBottom: 16 }}>
-              <Descriptions.Item label="名称">{selectedItem.name}</Descriptions.Item>
-              <Descriptions.Item label="值">{selectedItem.value || '-'}</Descriptions.Item>
-              <Descriptions.Item label="状态">
-                {selectedItem.enabled ? <Tag color="green">启用</Tag> : <Tag color="default">停用</Tag>}
-              </Descriptions.Item>
-              <Descriptions.Item label="创建时间">
-                {selectedItem.createdAt ? new Date(selectedItem.createdAt).toLocaleString('zh-CN') : '-'}
-              </Descriptions.Item>
-            </Descriptions>
-            <Title level={5}>请求时间线</Title>
-            {timeline.length === 0 ? (
-              <Empty description="暂无时间线记录" />
-            ) : (
-              timeline.map((entry, i) => (
-                <Card key={i} size="small" style={{ marginBottom: 8, borderRadius: 8 }}>
-                  <Space direction="vertical" size={2}>
-                    <Text strong>{entry.action}</Text>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      {entry.by} · {new Date(entry.at).toLocaleString('zh-CN')}
-                    </Text>
-                    {entry.comment && <Text>{entry.comment}</Text>}
-                  </Space>
-                </Card>
-              ))
-            )}
-          </>
-        )}
-      </Modal>
+      <DetailModal
+        open={state.detailOpen}
+        item={state.selectedItem}
+        timeline={state.timeline}
+        onCancel={() => state.setDetailOpen(false)}
+      />
     </div>
   );
 };
