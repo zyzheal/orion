@@ -88,7 +88,6 @@ const NotificationDetail: React.FC = () => {
     isLoading: loading,
     isError,
     error,
-    refetch: fetchNotification,
   } = useQuery<any>({
     queryKey: ['notification', id],
     queryFn: async () => {
