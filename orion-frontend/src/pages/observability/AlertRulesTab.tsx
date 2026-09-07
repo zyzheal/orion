@@ -23,6 +23,7 @@ import {
   PlusOutlined,
   DeleteOutlined,
 } from '@ant-design/icons';
+import { useQuery } from '@/providers/QueryProvider';
 import { spacing } from '@/tokens';
 import {
   getAlertRules,
@@ -38,28 +39,39 @@ import { severityColorMap, conditionLabels } from './constants';
 const { Text } = Typography;
 
 export const AlertRulesTab: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [rules, setRules] = useState<AlertRuleType[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRule, setEditingRule] = useState<AlertRuleType | null>(null);
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
 
-  const loadRules = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: rules = [],
+    isLoading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<AlertRuleType[]>({
+    queryKey: ['alert-rules'],
+    queryFn: async () => {
       const res = await getAlertRules();
-      setRules(res.data?.rules || []);
-    } catch (error: unknown) {
-      message.error(`加载告警规则失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
+      return res.data?.rules || [];
+    },
+    staleTime: 30_000,
+  });
+
+  const loadRules = () => {
+    void refetch();
   };
 
+  const loading = isLoading;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadRules();
-  }, []);
+    if (isError) {
+      message.error(`加载告警规则失败: ${queryError instanceof Error ? queryError.message : ''}`);
+    }
+  }, [isError, queryError]);
 
   const openCreateModal = () => {
     setEditingRule(null);

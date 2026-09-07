@@ -31,34 +31,46 @@ import {
   getRootCauseAnalysis,
   type RootCauseAnalysis as RCAType,
 } from '@/api/observability';
+import { useQuery } from '@/providers/QueryProvider';
 import { rcaStatusColorMap } from './constants';
 
 const { Text } = Typography;
 
 export const RootCauseAnalysisTab: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [analyses, setAnalyses] = useState<RCAType[]>([]);
   const [selectedAnalysis, setSelectedAnalysis] = useState<RCAType | null>(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [triggerForm] = Form.useForm();
   const [triggerLoading, setTriggerLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  const loadAnalyses = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: analyses = [],
+    isLoading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<RCAType[]>({
+    queryKey: ['root-cause-analyses'],
+    queryFn: async () => {
       const res = await getRootCauseAnalyses();
-      setAnalyses(res.data?.analyses || []);
-    } catch (error: unknown) {
-      message.error(`加载根因分析列表失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
+      return res.data?.analyses || [];
+    },
+    staleTime: 30_000,
+  });
+
+  const loadAnalyses = () => {
+    void refetch();
   };
 
+  const loading = isLoading;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadAnalyses();
-  }, []);
+    if (isError) {
+      message.error(`加载根因分析列表失败: ${queryError instanceof Error ? queryError.message : ''}`);
+    }
+  }, [isError, queryError]);
 
   const handleTrigger = async () => {
     try {

@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { getQueryClient } from '@/providers/QueryProvider';
 import RootCausePage from '../RootCausePage';
 
 vi.mock('antd', async () => {
@@ -10,9 +12,11 @@ vi.mock('antd', async () => {
 
 function renderPage() {
   return render(
-    <BrowserRouter>
-      <RootCausePage />
-    </BrowserRouter>
+    <QueryClientProvider client={getQueryClient()}>
+      <BrowserRouter>
+        <RootCausePage />
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
 

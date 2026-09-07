@@ -2,7 +2,7 @@
  * ServiceHealthTab
  * 服务健康 Tab（抽取自 ObservabilityPage.tsx）
  */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import {
   Table,
   Tag,
@@ -18,29 +18,40 @@ import {
   getServiceHealth,
   type ServiceHealth,
 } from '@/api/observability';
+import { useQuery } from '@/providers/QueryProvider';
 import { healthColorMap } from './constants';
 
 const { Text } = Typography;
 
 export const ServiceHealthTab: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [services, setServices] = useState<ServiceHealth[]>([]);
-
-  const loadHealth = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: services = [],
+    isLoading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<ServiceHealth[]>({
+    queryKey: ['service-health'],
+    queryFn: async () => {
       const res = await getServiceHealth();
-      setServices(res.data?.services || []);
-    } catch (error: unknown) {
-      message.error(`加载服务健康状态失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
+      return res.data?.services || [];
+    },
+    staleTime: 30_000,
+  });
+
+  const loadHealth = () => {
+    void refetch();
   };
 
+  const loading = isLoading;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadHealth();
-  }, []);
+    if (isError) {
+      message.error(`加载服务健康状态失败: ${queryError instanceof Error ? queryError.message : ''}`);
+    }
+  }, [isError, queryError]);
 
   const columns = [
     {

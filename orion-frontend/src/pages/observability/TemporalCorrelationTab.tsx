@@ -10,14 +10,16 @@ import {
   Button,
   Input,
   Form,
-  Text,
   Divider,
   Statistic,
   Row,
   Col,
   List,
+  Typography,
   message,
 } from 'antd';
+
+const { Text } = Typography;
 import { ClockCircleOutlined } from '@ant-design/icons';
 import { analyzeTemporalCorrelation, type TemporalCorrelationResult } from '@/api/observability';
 import { colors } from '@/tokens/colors';

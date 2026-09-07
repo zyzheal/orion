@@ -6,6 +6,8 @@
  * 提供: flatRows/maxDepth/effectiveMaxDepth/categoryStats/sortedCategories memos + 9 handler
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { message } from 'antd';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   type FlameGraphFrame,
   type FlameGraphProfile,
@@ -62,14 +64,6 @@ export interface UseFlameGraphStateReturn {
 export const useFlameGraphState = (): UseFlameGraphStateReturn => {
   const [activeType, setActiveType] = useState<FlameGraphType>('cpu');
 
-  const [loading, setLoading] = useState(false);
-  const [profiles, setProfiles] = useState<Record<FlameGraphType, FlameGraphProfile | null>>({
-    cpu: null,
-    memory: null,
-    io: null,
-  });
-  const [error, setError] = useState<string | null>(null);
-
   const [zoom, setZoom] = useState(1);
   const [hoveredFrame, setHoveredFrame] = useState<FlameGraphFrame | null>(null);
   const [selectedFrame, setSelectedFrame] = useState<FlameGraphFrame | null>(null);
@@ -81,39 +75,61 @@ export const useFlameGraphState = (): UseFlameGraphStateReturn => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [chartWidth, setChartWidth] = useState(900);
 
-  const currentProfile = profiles[activeType];
-
   // ---- 加载数据 ----
 
-  const loadProfile = useCallback(async (type: FlameGraphType) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getFlameGraph(type);
-      setProfiles((prev) => ({ ...prev, [type]: data }));
-    } catch {
-      // API 不可用时回退到 mock 数据
-      let mockData: FlameGraphProfile;
-      switch (type) {
-        case 'cpu':
-          mockData = generateCpuFlameGraph();
-          break;
-        case 'memory':
-          mockData = generateMemoryFlameGraph();
-          break;
-        case 'io':
-          mockData = generateIOFlameGraph();
-          break;
+  // 3 种 profile 各自独立缓存；queryKey 含 type，切换 Tab 自动重新拉取。
+  const {
+    data: profileData,
+    isLoading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<FlameGraphProfile>({
+    queryKey: ['flame-graph', activeType],
+    queryFn: async () => {
+      try {
+        return await getFlameGraph(activeType);
+      } catch {
+        // API 不可用时回退到 mock 数据
+        switch (activeType) {
+          case 'cpu':
+            return generateCpuFlameGraph();
+          case 'memory':
+            return generateMemoryFlameGraph();
+          case 'io':
+          default:
+            return generateIOFlameGraph();
+        }
       }
-      setProfiles((prev) => ({ ...prev, [type]: mockData }));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    staleTime: 30_000,
+  });
 
+  const profiles = useMemo<Record<FlameGraphType, FlameGraphProfile | null>>(
+    () => ({
+      cpu: activeType === 'cpu' ? (profileData ?? null) : null,
+      memory: activeType === 'memory' ? (profileData ?? null) : null,
+      io: activeType === 'io' ? (profileData ?? null) : null,
+    }),
+    [activeType, profileData]
+  );
+
+  const currentProfile = profiles[activeType];
+
+  const loading = isLoading;
+  const error = isError ? (queryError instanceof Error ? queryError.message : '加载火焰图失败') : null;
+
+  const loadProfile = useCallback(async (type: FlameGraphType) => {
+    // 切换到目标 profile 并重新拉取（queryKey 变化自动触发）
+    if (type !== activeType) setActiveType(type);
+    await refetch();
+  }, [activeType, refetch]);
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadProfile(activeType);
-  }, [activeType, loadProfile]);
+    if (isError && error) message.error(error);
+  }, [isError, error]);
 
   // ---- 展开/收起 ----
 

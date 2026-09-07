@@ -20,6 +20,7 @@ import {
   Switch,
   Drawer,
 } from 'antd';
+import { useQuery } from '@/providers/QueryProvider';
 import { spacing } from '@/tokens';
 import {
   BellOutlined,
@@ -69,26 +70,38 @@ const TemplatesDrawer: React.FC<{
   onClose: () => void;
   onSelect: (templateId: string) => void;
 }> = ({ visible, onClose, onSelect }) => {
-  const [templates, setTemplates] = useState<AlertRuleTemplate[]>([]);
-  const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState<string | undefined>(undefined);
 
-  const loadTemplates = async (cat?: string) => {
-    setLoading(true);
-    try {
-      const res = await getAlertRuleTemplates(cat ? { category: cat } : undefined);
+  const {
+    data: templates = [],
+    isLoading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<AlertRuleTemplate[]>({
+    queryKey: ['alert-rule-templates', category],
+    queryFn: async () => {
+      const res = await getAlertRuleTemplates(category ? { category } : undefined);
       const rawData = (res.data as any)?.data;
-      setTemplates(Array.isArray(rawData) ? rawData : (rawData?.data as AlertRuleTemplate[]) || []);
-    } catch (error: unknown) {
-      message.error(`加载模板失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return Array.isArray(rawData) ? rawData : ((rawData?.data as AlertRuleTemplate[]) || []);
+    },
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
-    if (visible) loadTemplates(category);
-  }, [visible, category]);
+    // 抽屉打开且 category 变化时重新拉取（queryKey 已含 category）
+    if (visible) void refetch();
+  }, [visible, category, refetch]);
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError) {
+      message.error(`加载模板失败: ${queryError instanceof Error ? queryError.message : ''}`);
+    }
+  }, [isError, queryError]);
+
+  const loading = isLoading;
 
   const columns = [
     { title: '模板名称', dataIndex: 'name', key: 'name', width: 180 },
@@ -133,10 +146,7 @@ const TemplatesDrawer: React.FC<{
         <Select
           style={{ width: 120 }}
           value={category}
-          onChange={(v) => {
-            setCategory(v || undefined);
-            loadTemplates(v || undefined);
-          }}
+          onChange={(v) => setCategory(v || undefined)}
           allowClear
           options={[
             { label: '资源', value: 'resource' },
@@ -160,29 +170,40 @@ const TemplatesDrawer: React.FC<{
 // ---- Alert Rules Page ----
 
 const AlertRulesPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [rules, setRules] = useState<AlertRule[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRule, setEditingRule] = useState<AlertRule | null>(null);
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [templatesVisible, setTemplatesVisible] = useState(false);
 
-  const loadRules = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: rules = [],
+    isLoading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<AlertRule[]>({
+    queryKey: ['alert-rules'],
+    queryFn: async () => {
       const res = await getAlertRules();
-      setRules(res.data?.rules || []);
-    } catch (error: unknown) {
-      message.error(`加载告警规则失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
+      return res.data?.rules || [];
+    },
+    staleTime: 30_000,
+  });
+
+  const loadRules = () => {
+    void refetch();
   };
 
+  const loading = isLoading;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadRules();
-  }, []);
+    if (isError) {
+      message.error(`加载告警规则失败: ${queryError instanceof Error ? queryError.message : ''}`);
+    }
+  }, [isError, queryError]);
 
   const openCreateModal = () => {
     setEditingRule(null);

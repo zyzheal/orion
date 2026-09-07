@@ -12,6 +12,8 @@
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { message } from 'antd';
+import { useQuery } from '@/providers/QueryProvider';
 import { traceApi, type TraceDetail } from '@/api/trace';
 import {
   ZOOM_MIN,
@@ -64,9 +66,6 @@ export const useTraceState = (): UseTraceStateReturn => {
   const [searchParams] = useSearchParams();
   const traceIdParam = searchParams.get('traceId') || '';
 
-  const [loading, setLoading] = useState(false);
-  const [detail, setDetail] = useState<TraceDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [hoveredSpanId, setHoveredSpanId] = useState<string | null>(null);
   const [selectedSpanId, setSelectedSpanId] = useState<string | null>(null);
@@ -78,29 +77,42 @@ export const useTraceState = (): UseTraceStateReturn => {
   const [chartWidth, setChartWidth] = useState(800);
 
   // ---- 加载数据 ----
-  const loadTrace = useCallback(async (traceId: string) => {
-    if (!traceId) return;
-    setLoading(true);
-    setError(null);
-    setSelectedSpanId(null);
-    setCollapsed(new Set());
-    try {
-      const data = await traceApi.getTrace(traceId);
-      setDetail(data);
-    } catch (err: unknown) {
-      setError((err as Error).message || '加载 Trace 失败');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const traceIdValue = traceIdParam || 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6';
 
+  const {
+    data: detail,
+    isLoading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<TraceDetail>({
+    queryKey: ['trace-detail', traceIdValue],
+    queryFn: () => traceApi.getTrace(traceIdValue),
+    staleTime: 30_000,
+  });
+
+  const loading = isLoading;
+  const error = isError
+    ? queryError instanceof Error
+      ? queryError.message
+      : '加载 Trace 失败'
+    : null;
+
+  const loadTrace = useCallback(
+    async (traceId: string) => {
+      if (!traceId) return;
+      setSelectedSpanId(null);
+      setCollapsed(new Set());
+      await refetch();
+    },
+    [refetch]
+  );
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    if (traceIdParam) {
-      loadTrace(traceIdParam);
-    } else {
-      loadTrace('a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6');
-    }
-  }, [traceIdParam, loadTrace]);
+    if (isError && error) message.error(error);
+  }, [isError, error]);
 
   // ---- 计算 span 树 ----
   const spanTree = useMemo(() => {
@@ -236,7 +248,7 @@ export const useTraceState = (): UseTraceStateReturn => {
 
   return {
     loading,
-    detail,
+    detail: detail ?? null,
     error,
     zoom,
     hoveredSpanId,

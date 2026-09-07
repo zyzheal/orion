@@ -16,6 +16,7 @@ import {
   Typography,
 } from 'antd';
 import { ReloadOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useQuery } from '@/providers/QueryProvider';
 import { spacing } from '@/tokens';
 import {
   getSilenceRules,
@@ -29,27 +30,38 @@ const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 export const SilenceRulesTab: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [rules, setRules] = useState<SilenceRuleType[]>([]);
   const [form] = Form.useForm();
   const [modalVisible, setModalVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const loadRules = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: rules = [],
+    isLoading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<SilenceRuleType[]>({
+    queryKey: ['silence-rules'],
+    queryFn: async () => {
       const res = await getSilenceRules();
-      setRules(res.data?.rules || []);
-    } catch (error: unknown) {
-      message.error(`加载静默规则失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
+      return res.data?.rules || [];
+    },
+    staleTime: 30_000,
+  });
+
+  const loadRules = () => {
+    void refetch();
   };
 
+  const loading = isLoading;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadRules();
-  }, []);
+    if (isError) {
+      message.error(`加载静默规则失败: ${queryError instanceof Error ? queryError.message : ''}`);
+    }
+  }, [isError, queryError]);
 
   const handleSubmit = async () => {
     try {

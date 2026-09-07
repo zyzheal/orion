@@ -2,20 +2,23 @@
  * TimelineTab.tsx - 部署时间线 Tab（自包含）
  * 抽取自 observability/RootCausePage.tsx (P2-9 Phase 70)
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Tag,
   Space,
   Button,
   Input,
-  Text,
   Form,
   Timeline,
+  Typography,
   message,
 } from 'antd';
+
+const { Text } = Typography;
 import { SearchOutlined } from '@ant-design/icons';
 import { getRcaTimeline, type TimelineEvent } from '@/api/observability';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
 
@@ -26,18 +29,18 @@ interface TimelineData {
 }
 
 const TimelineTab: React.FC = () => {
-  const [loading, setLoading] = useState(false);
   const [deploymentId, setDeploymentId] = useState('');
-  const [timeline, setTimeline] = useState<TimelineData | null>(null);
   const [form] = Form.useForm();
 
-  const loadTimeline = async () => {
-    if (!deploymentId) {
-      message.warning('请输入部署 ID');
-      return;
-    }
-    setLoading(true);
-    try {
+  const {
+    data: timeline,
+    isLoading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<TimelineData>({
+    queryKey: ['rca-timeline', deploymentId],
+    queryFn: async () => {
       const res = await getRcaTimeline(deploymentId);
       const t =
         (
@@ -46,18 +49,35 @@ const TimelineTab: React.FC = () => {
           }
         )?.timeline ?? res.data;
       if (t) {
-        setTimeline({
+        return {
           events: (t as any).events || [],
           totalEvents: (t as any).totalEvents || 0,
           criticalEvents: (t as any).criticalEvents || 0,
-        });
+        };
       }
-    } catch (error: unknown) {
-      message.error(`加载时间线失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
+      return { events: [], totalEvents: 0, criticalEvents: 0 };
+    },
+    enabled: false, // 点击触发加载（按钮触发的加载保持不自动请求）
+    staleTime: 30_000,
+  });
+
+  const loadTimeline = async () => {
+    if (!deploymentId) {
+      message.warning('请输入部署 ID');
+      return;
     }
+    await refetch();
   };
+
+  const loading = isLoading;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError) {
+      message.error(`加载时间线失败: ${queryError instanceof Error ? queryError.message : ''}`);
+    }
+  }, [isError, queryError]);
 
   const getEventColor = (severity: string) => {
     switch (severity) {
