@@ -16,6 +16,7 @@ import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilte
 import { getAlerts, acknowledgeAlert, resolveAlert, escalateAlert } from '@/api/monitoring';
 import type { Alert } from '@/api/monitoring';
 import { colors, spacing } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -33,34 +34,34 @@ const statusConfig: Record<string, { color: string; label: string }> = {
 };
 
 const MonitoringAlerts: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [escalateModalVisible, setEscalateModalVisible] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
   const [escalateForm] = Form.useForm();
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const response = await getAlerts();
-      const apiData = response.data;
-      setAlerts(Array.isArray(apiData) ? apiData : []);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载告警失败：${error.message}`);
-      } else {
-        message.error('加载告警失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    data: alerts = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<Alert[]>({
+    queryKey: ['monitoring-alerts'],
+    queryFn: () => getAlerts().then((res) => (Array.isArray(res.data) ? res.data : [])),
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isError)
+      message.error(
+        queryError instanceof Error
+          ? `加载告警失败：${queryError.message}`
+          : '加载告警失败，请稍后重试'
+      );
+  }, [isError, queryError]);
 
   const filteredAlerts = React.useMemo(() => {
     return alerts.filter((a) => {
@@ -107,7 +108,7 @@ const MonitoringAlerts: React.FC = () => {
     try {
       await acknowledgeAlert(id);
       message.success('告警已确认');
-      loadData();
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`确认告警失败：${error.message}`);
@@ -121,7 +122,7 @@ const MonitoringAlerts: React.FC = () => {
     try {
       await resolveAlert(id);
       message.success('告警已解决');
-      loadData();
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`解决告警失败：${error.message}`);
@@ -262,7 +263,7 @@ const MonitoringAlerts: React.FC = () => {
           </Title>
           <Text type="secondary">共 {filteredAlerts.length} 条告警</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+        <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
           刷新
         </Button>
       </div>

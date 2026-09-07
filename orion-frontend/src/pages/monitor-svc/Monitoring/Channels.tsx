@@ -27,6 +27,7 @@ import {
   createEscalationPolicy,
 } from '@/api/monitoring';
 import type { NotificationChannel, EscalationPolicy } from '@/api/monitoring';
+import { useQuery } from '@/providers/QueryProvider';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -38,57 +39,42 @@ const typeConfig: Record<string, { color: string; label: string; icon: string }>
 };
 
 const MonitoringChannels: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [channels, setChannels] = useState<NotificationChannel[]>([]);
-  const [escalationPolicies, setEscalationPolicies] = useState<EscalationPolicy[]>([]);
   const [channelModalVisible, setChannelModalVisible] = useState(false);
   const [escalationModalVisible, setEscalationModalVisible] = useState(false);
   const [channelForm] = Form.useForm();
   const [escalationForm] = Form.useForm();
 
-  const loadChannels = async () => {
-    setLoading(true);
-    try {
-      const response = await getChannels();
-      const apiData = response.data;
-      setChannels(Array.isArray(apiData) ? apiData : []);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载通知渠道失败：${error.message}`);
-      } else {
-        message.error('加载通知渠道失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    data: channelData = { channels: [], escalationPolicies: [] } as {
+      channels: NotificationChannel[];
+      escalationPolicies: EscalationPolicy[];
+    },
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery({
+    queryKey: ['monitoring-channels'],
+    queryFn: () =>
+      Promise.all([getChannels(), getEscalationPolicies()]).then(([chRes, escRes]) => ({
+        channels: Array.isArray(chRes.data) ? chRes.data : [],
+        escalationPolicies: Array.isArray(escRes.data) ? escRes.data : [],
+      })),
+    staleTime: 30_000,
+  });
+  const channels = channelData.channels;
+  const escalationPolicies = channelData.escalationPolicies;
 
-  const loadEscalationPolicies = async () => {
-    try {
-      const response = await getEscalationPolicies();
-      const apiData = response.data;
-      setEscalationPolicies(Array.isArray(apiData) ? apiData : []);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载升级策略失败：${error.message}`);
-      } else {
-        message.error('加载升级策略失败，请稍后重试');
-      }
-    }
-  };
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      await Promise.all([loadChannels(), loadEscalationPolicies()]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isError)
+      message.error(
+        queryError instanceof Error
+          ? `加载通知渠道失败：${queryError.message}`
+          : '加载通知渠道失败，请稍后重试'
+      );
+  }, [isError, queryError]);
 
   const handleCreateChannel = async (values: any) => {
     try {
@@ -102,7 +88,7 @@ const MonitoringChannels: React.FC = () => {
       message.success('通知渠道已创建');
       setChannelModalVisible(false);
       channelForm.resetFields();
-      loadChannels();
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`创建通知渠道失败：${error.message}`);
@@ -114,11 +100,9 @@ const MonitoringChannels: React.FC = () => {
 
   const handleToggleChannel = async (id: string) => {
     try {
-      const res = await toggleChannel(id);
-      setChannels((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, enabled: res.data?.enabled ?? !c.enabled } : c))
-      );
+      await toggleChannel(id);
       message.success('渠道状态已切换');
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`切换渠道状态失败：${error.message}`);
@@ -140,7 +124,7 @@ const MonitoringChannels: React.FC = () => {
       message.success('升级策略已创建');
       setEscalationModalVisible(false);
       escalationForm.resetFields();
-      loadEscalationPolicies();
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`创建升级策略失败：${error.message}`);
@@ -278,7 +262,7 @@ const MonitoringChannels: React.FC = () => {
           </Title>
           <Text type="secondary">管理告警通知渠道与升级策略</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+        <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
           刷新
         </Button>
       </div>

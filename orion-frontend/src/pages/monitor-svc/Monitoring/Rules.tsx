@@ -28,6 +28,7 @@ import {
 } from '@/api/monitoring';
 import type { AlertRule } from '@/api/monitoring';
 import { colors, spacing } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 
 const { Title, Text } = Typography;
 
@@ -41,34 +42,34 @@ const conditionOptions = [
 ];
 
 const MonitoringRules: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [rules, setRules] = useState<AlertRule[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRule, setEditingRule] = useState<AlertRule | null>(null);
   const [form] = Form.useForm();
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const response = await getAlertRules();
-      const apiData = response.data;
-      setRules(Array.isArray(apiData) ? apiData : []);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载告警规则失败：${error.message}`);
-      } else {
-        message.error('加载告警规则失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    data: rules = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<AlertRule[]>({
+    queryKey: ['monitoring-rules'],
+    queryFn: () => getAlertRules().then((res) => (Array.isArray(res.data) ? res.data : [])),
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isError)
+      message.error(
+        queryError instanceof Error
+          ? `加载告警规则失败：${queryError.message}`
+          : '加载告警规则失败，请稍后重试'
+      );
+  }, [isError, queryError]);
 
   const filteredRules = React.useMemo(() => {
     return rules.filter((r) => {
@@ -120,7 +121,7 @@ const MonitoringRules: React.FC = () => {
         message.success('规则已创建');
       }
       setModalVisible(false);
-      loadData();
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(
@@ -140,7 +141,7 @@ const MonitoringRules: React.FC = () => {
         try {
           await deleteAlertRule(id);
           message.success('规则已删除');
-          loadData();
+          refetch();
         } catch (error: unknown) {
           if (error instanceof Error) {
             message.error(`删除规则失败：${error.message}`);
@@ -154,11 +155,9 @@ const MonitoringRules: React.FC = () => {
 
   const handleToggle = async (id: string) => {
     try {
-      const res = await toggleAlertRule(id);
-      setRules((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, enabled: res.data?.enabled ?? !r.enabled } : r))
-      );
+      await toggleAlertRule(id);
       message.success('规则状态已切换');
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`切换规则状态失败：${error.message}`);
@@ -266,7 +265,7 @@ const MonitoringRules: React.FC = () => {
           <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>
             创建规则
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
             刷新
           </Button>
         </Space>

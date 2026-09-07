@@ -21,51 +21,54 @@ import {
   getAnomalySummary,
 } from '@/api/monitoring';
 import { colors, spacing, themeVars } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
 const MonitoringDashboard: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [dashboardData, setDashboardData] = useState<any>(null);
-  const [health, setHealth] = useState<any>(null);
-  const [anomalies, setAnomalies] = useState<any>(null);
-  const [monitoring, setMonitoring] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [dashRes, healthRes, anomalyRes] = await Promise.all([
-        getDashboardData(),
-        getMonitoringHealth(),
-        getAnomalySummary(),
-      ]);
-      setDashboardData(dashRes.data);
-      setHealth(healthRes.data);
-      setAnomalies(anomalyRes.data);
-      setMonitoring(healthRes.data?.status === 'running');
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载监控仪表盘数据失败：${error.message}`);
-      } else {
-        message.error('加载监控仪表盘数据失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    data: dashboard = {} as Record<string, any>,
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<{ dashboardData: any; health: any; anomalies: any }>({
+    queryKey: ['monitoring-dashboard'],
+    queryFn: () =>
+      Promise.all([getDashboardData(), getMonitoringHealth(), getAnomalySummary()]).then(
+        ([dashRes, healthRes, anomalyRes]) => ({
+          dashboardData: dashRes.data,
+          health: healthRes.data,
+          anomalies: anomalyRes.data,
+        })
+      ),
+    staleTime: 30_000,
+  });
+  const dashboardData = dashboard.dashboardData;
+  const health = dashboard.health;
+  const anomalies = dashboard.anomalies;
+  const monitoring = dashboard.health?.status === 'running';
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isError)
+      message.error(
+        queryError instanceof Error
+          ? `加载监控仪表盘数据失败：${queryError.message}`
+          : '加载监控仪表盘数据失败，请稍后重试'
+      );
+  }, [isError, queryError]);
 
   const handleStart = async () => {
     setActionLoading(true);
     try {
       await startMonitoring();
       message.success('监控已启动');
-      setMonitoring(true);
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`启动监控失败：${error.message}`);
@@ -82,7 +85,7 @@ const MonitoringDashboard: React.FC = () => {
     try {
       await stopMonitoring();
       message.success('监控已停止');
-      setMonitoring(false);
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`停止监控失败：${error.message}`);
@@ -140,7 +143,7 @@ const MonitoringDashboard: React.FC = () => {
               启动监控
             </Button>
           )}
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
             刷新
           </Button>
         </Space>
