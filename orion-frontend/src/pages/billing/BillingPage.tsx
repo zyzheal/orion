@@ -44,6 +44,7 @@ import {
 } from '@/api/billing';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 
 // API 响应包装接口
 interface BillingSummaryResponse {
@@ -66,25 +67,27 @@ const { Title, Text } = Typography;
 // ============================================================================
 
 const BillingSummaryCard: React.FC = () => {
-  const [summary, setSummary] = useState<BillingSummary | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: summary,
+    isLoading: loading,
+    isError,
+    error,
+  } = useQuery<BillingSummary | null>({
+    queryKey: ['billing-summary'],
+    queryFn: async () => {
       const res = await getBillingSummary();
-      setSummary((res.data as BillingSummaryResponse).data ?? null);
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : '加载账单摘要失败';
-      message.error(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (res.data as BillingSummaryResponse).data ?? null;
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!isError) return;
+    const msg = error instanceof Error ? error.message : '加载账单摘要失败';
+    message.error(msg);
+  }, [isError, error]);
 
   return (
     <Card loading={loading} style={{ marginBottom: spacing.lg }}>
@@ -132,27 +135,31 @@ const BillingSummaryCard: React.FC = () => {
 // ============================================================================
 
 const BillingRecordsTab: React.FC = () => {
-  const [records, setRecords] = useState<BillingRecord[]>([]);
-  const [loading, setLoading] = useState(false);
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
   const [form] = Form.useForm();
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: records = [] as BillingRecord[],
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<BillingRecord[]>({
+    queryKey: ['billing-records'],
+    queryFn: async () => {
       const res = await getBillingRecords();
-      setRecords((res.data as BillingRecordsResponse).data || []);
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : '加载账单记录失败';
-      message.error(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (res.data as BillingRecordsResponse).data || [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!isError) return;
+    const msg = error instanceof Error ? error.message : '加载账单记录失败';
+    message.error(msg);
+  }, [isError, error]);
 
   const handleGenerate = async (values: any) => {
     try {
@@ -239,7 +246,7 @@ const BillingRecordsTab: React.FC = () => {
           <Text type="secondary">管理月度账单记录及支付状态</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
             刷新
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setGenerateModalOpen(true)}>
@@ -277,32 +284,40 @@ const BillingRecordsTab: React.FC = () => {
 // ============================================================================
 
 const UsageMeteringTab: React.FC = () => {
-  const [usage, setUsage] = useState<UsageRecord[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [summary, setSummary] = useState<{
-    totalCost: number;
-    byService: Record<string, number>;
-  } | null>(null);
   const [recordModalOpen, setRecordModalOpen] = useState(false);
   const [form] = Form.useForm();
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: usageData,
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<{
+    usage: UsageRecord[];
+    summary: { totalCost: number; byService: Record<string, number> } | null;
+  }>({
+    queryKey: ['billing-usage'],
+    queryFn: async () => {
       const [usageRes, summaryRes] = await Promise.all([getUsage(), getUsageSummary()]);
-      setUsage((usageRes.data as UsageResponse).data || []);
-      setSummary((summaryRes.data as UsageSummaryResponse).data ?? null);
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : '加载用量数据失败';
-      message.error(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        usage: (usageRes.data as UsageResponse).data || [],
+        summary: (summaryRes.data as UsageSummaryResponse).data ?? null,
+      };
+    },
+    staleTime: 30_000,
+  });
 
+  const usage = usageData?.usage ?? [];
+  const summary = usageData?.summary ?? null;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!isError) return;
+    const msg = error instanceof Error ? error.message : '加载用量数据失败';
+    message.error(msg);
+  }, [isError, error]);
 
   const handleRecord = async (values: any) => {
     try {
@@ -386,7 +401,7 @@ const UsageMeteringTab: React.FC = () => {
           <Text type="secondary">跟踪各服务的资源用量和成本</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
             刷新
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setRecordModalOpen(true)}>

@@ -7,7 +7,7 @@
  * Phase 6.12 - Task 6.12
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Tabs,
@@ -32,6 +32,7 @@ import {
   PlusOutlined,
   ExportOutlined,
 } from '@ant-design/icons';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors, spacing, componentRadius, themeVars } from '@/tokens';
 import pipelineVersionsApi, { type PipelineVersion } from '@/api/pipeline-versions';
 import {
@@ -49,9 +50,6 @@ const VersionManagement: React.FC = () => {
   // ==================== State ====================
 
   const [activeTab, setActiveTab] = useState<TabKey>('pipeline');
-  const [loading, setLoading] = useState(false);
-  const [pipelineVersions, setPipelineVersions] = useState<PipelineVersion[]>([]);
-  const [artifactVersions, setArtifactVersions] = useState<ArtifactVersion[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [compareModalVisible, setCompareModalVisible] = useState(false);
   const [diffResult, setDiffResult] = useState<VersionDiff | null>(null);
@@ -59,34 +57,46 @@ const VersionManagement: React.FC = () => {
 
   // ==================== Data Loading ====================
 
-  const loadPipelineVersions = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data: pipelineVersions = [] as PipelineVersion[],
+    isLoading: pipelineLoading,
+    isError: pipelineError,
+    refetch: loadPipelineVersions,
+  } = useQuery<PipelineVersion[]>({
+    queryKey: ['versions', 'pipeline'],
+    queryFn: async () => {
       const versions = await pipelineVersionsApi.list('');
-      setPipelineVersions(versions as unknown as PipelineVersion[]);
-    } catch (err) {
-      message.error('加载 Pipeline 版本失败');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return versions as unknown as PipelineVersion[];
+    },
+    enabled: activeTab === 'pipeline',
+    staleTime: 30_000,
+  });
 
-  const loadArtifactVersions = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data: artifactVersions = [] as ArtifactVersion[],
+    isLoading: artifactLoading,
+    isError: artifactError,
+  } = useQuery<ArtifactVersion[]>({
+    queryKey: ['versions', 'artifact'],
+    queryFn: async () => {
       const res = await getArtifactVersions();
-      setArtifactVersions(res.data.versions);
-    } catch (err) {
-      message.error('加载制品版本失败');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return res.data.versions;
+    },
+    enabled: activeTab === 'artifact',
+    staleTime: 30_000,
+  });
+
+  const loading = activeTab === 'pipeline' ? pipelineLoading : artifactLoading;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (pipelineError) message.error('加载 Pipeline 版本失败');
+  }, [pipelineError]);
 
   useEffect(() => {
-    if (activeTab === 'pipeline') loadPipelineVersions();
-    if (activeTab === 'artifact') loadArtifactVersions();
-  }, [activeTab, loadPipelineVersions, loadArtifactVersions]);
+    if (artifactError) message.error('加载制品版本失败');
+  }, [artifactError]);
 
   // ==================== Actions ====================
 

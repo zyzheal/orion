@@ -11,7 +11,7 @@ import { PermissionGuard } from '@/components/PermissionGuard';
  * Route: /console/webhooks
  * Access: admin, platform_admin
  */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Typography,
   Button,
@@ -39,6 +39,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
 } from '@ant-design/icons';
+import { useQuery } from '@/providers/QueryProvider';
 import Table, { type TableColumn } from '@/components/Table';
 import DataState from '@/components/DataState';
 import { colors, spacing } from '@/tokens';
@@ -69,9 +70,6 @@ const EVENT_OPTIONS = [
 ];
 
 const WebhookManagement: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingWebhook, setEditingWebhook] = useState<Webhook | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -80,22 +78,24 @@ const WebhookManagement: React.FC = () => {
   const [logs, setLogs] = useState<WebhookLog[]>([]);
   const [form] = Form.useForm();
 
-  const loadWebhooks = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
+  const {
+    data: webhooks = [] as Webhook[],
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadWebhooks,
+  } = useQuery<Webhook[]>({
+    queryKey: ['webhooks'],
+    queryFn: async () => {
       const res = await getWebhooks();
-      setWebhooks((res.data as any)?.webhooks ?? []);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('加载 Webhook 列表失败'));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return (res.data as any)?.webhooks ?? [];
+    },
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    loadWebhooks();
-  }, [loadWebhooks]);
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调）。此处使用 DataState 的 error 态呈现。
+  const errorState = isError ? (error as Error | null) : null;
 
   const handleCreate = async (values: WebhookInput) => {
     setSubmitting(true);
@@ -341,7 +341,7 @@ const WebhookManagement: React.FC = () => {
           <Text type="secondary">平台 Webhook 配置与监控</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadWebhooks} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadWebhooks()} loading={loading}>
             刷新
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
@@ -352,11 +352,11 @@ const WebhookManagement: React.FC = () => {
 
       <DataState
         loading={loading && webhooks.length === 0}
-        error={error}
+        error={errorState}
         empty={webhooks.length === 0 && !loading}
         emptyText="暂无 Webhook"
         loadingText="加载 Webhook..."
-        retry={loadWebhooks}
+        retry={() => loadWebhooks()}
       >
         <Card>
           <Table

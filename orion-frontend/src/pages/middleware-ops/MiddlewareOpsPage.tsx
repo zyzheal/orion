@@ -45,6 +45,7 @@ import {
 } from '@/api/middleware-ops';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 
 // API 响应包装接口
 interface ListResponse<T> {
@@ -69,26 +70,30 @@ const { Title, Text } = Typography;
 // ============================================================================
 
 const InstancesTab: React.FC = () => {
-  const [instances, setInstances] = useState<MiddlewareInstance[]>([]);
-  const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [form] = Form.useForm();
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: instances = [] as MiddlewareInstance[],
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<MiddlewareInstance[]>({
+    queryKey: ['middleware-instances'],
+    queryFn: async () => {
       const res = await listMiddlewareInstances();
-      setInstances((res.data as ListResponse<MiddlewareInstance>).data || []);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载中间件实例失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (res.data as ListResponse<MiddlewareInstance>).data || [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!isError) return;
+    message.error(error instanceof Error ? error.message : '加载中间件实例失败');
+  }, [isError, error]);
 
   const handleCreate = async (values: any) => {
     try {
@@ -187,7 +192,7 @@ const InstancesTab: React.FC = () => {
           <Text type="secondary">管理 Redis/Kafka/MySQL/RabbitMQ 等中间件实例</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
             刷新
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
@@ -246,24 +251,27 @@ const InstancesTab: React.FC = () => {
 // ============================================================================
 
 const ConnectionPoolsTab: React.FC = () => {
-  const [pools, setPools] = useState<ConnectionPool[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: pools = [] as ConnectionPool[],
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<ConnectionPool[]>({
+    queryKey: ['middleware-connection-pools'],
+    queryFn: async () => {
       const res = await listConnectionPools();
-      setPools((res.data as ListResponse<ConnectionPool>).data || []);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载连接池失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (res.data as ListResponse<ConnectionPool>).data || [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!isError) return;
+    message.error(error instanceof Error ? error.message : '加载连接池失败');
+  }, [isError, error]);
 
   const columns = [
     { title: '中间件 ID', dataIndex: 'middlewareId', key: 'middlewareId', ellipsis: true },
@@ -312,7 +320,7 @@ const ConnectionPoolsTab: React.FC = () => {
           </Title>
           <Text type="secondary">各中间件连接池使用情况</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+        <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
           刷新
         </Button>
       </div>
@@ -332,24 +340,27 @@ const ConnectionPoolsTab: React.FC = () => {
 // ============================================================================
 
 const MessageQueuesTab: React.FC = () => {
-  const [mqStats, setMqStats] = useState<MessageQueueStats[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: mqStats = [] as MessageQueueStats[],
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<MessageQueueStats[]>({
+    queryKey: ['middleware-mq-stats'],
+    queryFn: async () => {
       const res = await listMqStats();
-      setMqStats((res.data as ListResponse<MessageQueueStats>).data || []);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载消息队列数据失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (res.data as ListResponse<MessageQueueStats>).data || [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!isError) return;
+    message.error(error instanceof Error ? error.message : '加载消息队列数据失败');
+  }, [isError, error]);
 
   const columns = [
     { title: '中间件 ID', dataIndex: 'middlewareId', key: 'middlewareId', ellipsis: true },
@@ -392,7 +403,7 @@ const MessageQueuesTab: React.FC = () => {
           </Title>
           <Text type="secondary">Kafka/RabbitMQ 消息队列监控</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+        <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
           刷新
         </Button>
       </div>
@@ -412,24 +423,27 @@ const MessageQueuesTab: React.FC = () => {
 // ============================================================================
 
 const AlertsTab: React.FC = () => {
-  const [alerts, setAlerts] = useState<MiddlewareAlert[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: alerts = [] as MiddlewareAlert[],
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<MiddlewareAlert[]>({
+    queryKey: ['middleware-alerts'],
+    queryFn: async () => {
       const res = await listMiddlewareAlerts();
-      setAlerts((res.data as ListResponse<MiddlewareAlert>).data || []);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载告警失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (res.data as ListResponse<MiddlewareAlert>).data || [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!isError) return;
+    message.error(error instanceof Error ? error.message : '加载告警失败');
+  }, [isError, error]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -493,7 +507,7 @@ const AlertsTab: React.FC = () => {
           </Title>
           <Text type="secondary">连接池耗尽/消息积压/高延迟等告警</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+        <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
           刷新
         </Button>
       </div>
