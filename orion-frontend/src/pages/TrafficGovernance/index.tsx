@@ -7,7 +7,7 @@
  * Phase 6.12 - Task 6.12
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -37,6 +37,7 @@ import {
   ApartmentOutlined,
 } from '@ant-design/icons';
 import { colors, spacing, componentRadius } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 import canaryTrafficApi, { type CanaryDeployment } from '@/api/canary-traffic';
 
 const { Title, Text } = Typography;
@@ -62,26 +63,23 @@ interface TrafficRule {
 const TrafficGovernance: React.FC = () => {
   // ==================== State ====================
 
-  const [loading, setLoading] = useState(false);
-  const [trafficRules, setTrafficRules] = useState<TrafficRule[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRule, setEditingRule] = useState<TrafficRule | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
-  const [stats, setStats] = useState({
-    totalRules: 0,
-    activeRules: 0,
-    avgCanaryWeight: 0,
-    totalTraffic: 0,
-  });
 
   // ==================== Data Loading ====================
 
-  const loadTrafficRules = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data: trafficRules = [] as TrafficRule[],
+    isLoading: loading,
+    isError,
+    refetch: loadTrafficRules,
+  } = useQuery<TrafficRule[]>({
+    queryKey: ['traffic-rules'],
+    queryFn: async () => {
       const data = await canaryTrafficApi.listCanaryDeployments();
-      const rules: TrafficRule[] = data.map((d: CanaryDeployment) => ({
+      return data.map((d: CanaryDeployment): TrafficRule => ({
         id: d.id,
         serviceName: d.serviceName,
         environment: d.environment,
@@ -93,30 +91,29 @@ const TrafficGovernance: React.FC = () => {
         createdAt: d.createdAt,
         updatedAt: d.updatedAt,
       }));
-      setTrafficRules(rules);
+    },
+    staleTime: 30_000,
+  });
 
-      // Calculate stats
-      const activeRules = rules.filter((r) => r.status === 'active').length;
-      const avgCanary =
-        rules.length > 0
-          ? Math.round(rules.reduce((sum, r) => sum + r.canaryWeight, 0) / rules.length)
-          : 0;
-      setStats({
-        totalRules: rules.length,
-        activeRules,
-        avgCanaryWeight: avgCanary,
-        totalTraffic: rules.reduce((sum, r) => sum + r.canaryWeight + r.baselineWeight, 0),
-      });
-    } catch (err) {
-      message.error('加载流量规则失败');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadTrafficRules();
-  }, [loadTrafficRules]);
+    if (isError) message.error('加载流量规则失败');
+  }, [isError]);
+
+  const stats = useMemo(() => {
+    const activeRules = trafficRules.filter((r) => r.status === 'active').length;
+    const avgCanary =
+      trafficRules.length > 0
+        ? Math.round(trafficRules.reduce((sum, r) => sum + r.canaryWeight, 0) / trafficRules.length)
+        : 0;
+    return {
+      totalRules: trafficRules.length,
+      activeRules,
+      avgCanaryWeight: avgCanary,
+      totalTraffic: trafficRules.reduce((sum, r) => sum + r.canaryWeight + r.baselineWeight, 0),
+    };
+  }, [trafficRules]);
 
   // ==================== Actions ====================
 
