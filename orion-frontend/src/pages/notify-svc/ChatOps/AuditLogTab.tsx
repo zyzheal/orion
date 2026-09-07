@@ -2,7 +2,7 @@
  * AuditLogTab - 审计日志
  * 抽取自 AdminSettings.tsx (P2-9 Phase 41)
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -18,18 +18,23 @@ import {
 import { SearchOutlined, ReloadOutlined, AuditOutlined } from '@ant-design/icons';
 import { getAuditLogs, type AuditLog, type AuditLogListParams } from '@/api/chatops';
 import { colors, spacing, themeVars } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;
 
 export const AuditLogTab: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [logs, setLogs] = useState<AuditLog[]>([]);
   const [filters, setFilters] = useState<AuditLogListParams>({});
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data: logs = [],
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<AuditLog[]>({
+    queryKey: ['chat-audit-logs', filters],
+    queryFn: async () => {
       const params: AuditLogListParams = {
         page: 1,
         perPage: 50,
@@ -37,18 +42,16 @@ export const AuditLogTab: React.FC = () => {
       };
       const res = await getAuditLogs(params);
       const data = res.data ?? [];
-      setLogs(Array.isArray(data) ? data : []);
-    } catch {
-      message.error('获取审计日志失败');
-      setLogs([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters]);
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (isError) message.error('获取审计日志失败');
+  }, [isError, error]);
 
   const columns = [
     {
@@ -138,7 +141,7 @@ export const AuditLogTab: React.FC = () => {
             allowClear
           />
         </Space>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+        <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
           刷新
         </Button>
       </div>

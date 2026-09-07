@@ -2,12 +2,13 @@
  * Execution Dashboard - Recent executions, status tracking, execution timeline
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Timeline, Empty } from 'antd';
+import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, Timeline, Empty, message } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, PlayCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getExecutions, type ChatOpsExecution } from '@/api/chatops';
+import { useQuery } from '@/providers/QueryProvider';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -33,16 +34,14 @@ const statusColorMap: Record<string, string> = {
 };
 
 const ExecutionDashboard: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [executions, setExecutions] = useState<ChatOpsExecution[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
-  const [apiError, setApiError] = useState<string | null>(null);
 
-  const loadData = async () => {
-    setLoading(true);
-    setApiError(null);
-    try {
+  const { data: executions = [], isLoading: loading, isError, error, refetch: loadData } = useQuery<
+    ChatOpsExecution[]
+  >({
+    queryKey: ['chat-executions', searchQuery, filters.status, filters.platform],
+    queryFn: async () => {
       const res = await getExecutions({
         commandId: searchQuery || undefined,
         status: filters.status && filters.status !== 'all' ? String(filters.status) : undefined,
@@ -51,19 +50,17 @@ const ExecutionDashboard: React.FC = () => {
         page: 1,
         perPage: 50,
       });
-      const data = Array.isArray(res.data) ? res.data : [];
-      setExecutions(data);
-    } catch {
-      setApiError('后端服务暂不可用');
-      setExecutions([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [filters.status, filters.platform, searchQuery]);
+    if (isError) message.error('后端服务暂不可用');
+  }, [isError, error]);
+  const apiError = isError ? '后端服务暂不可用' : null;
 
   const filteredExecutions = useMemo(() => {
     return executions;
@@ -178,7 +175,7 @@ const ExecutionDashboard: React.FC = () => {
             marginBottom: spacing.md,
           }}
         >
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
             刷新
           </Button>
         </div>
@@ -199,7 +196,7 @@ const ExecutionDashboard: React.FC = () => {
           marginBottom: spacing.md,
         }}
       >
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+        <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
           刷新
         </Button>
       </div>

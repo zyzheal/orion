@@ -15,6 +15,7 @@
  * - GET /api/v1/chatops/stream/recommendations (SSE stream)
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
   Card,
@@ -217,7 +218,6 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
 
 const SmartRecommend: React.FC = () => {
   const [recommendations, setRecommendations] = useState<RecommendationWithDismissed[]>([]);
-  const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -228,30 +228,45 @@ const SmartRecommend: React.FC = () => {
   const dismissedRef = useRef<Set<string>>(new Set());
 
   // ============================================================================
-  // Data Loading
+  // Data Loading (初始加载 + 手动刷新通过 useQuery 管理)
   // ============================================================================
 
-  const loadRecommendations = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetchRecommendations({ currentPage: 'chatops' });
-      const resData = res.data as { data?: Recommendation[] };
-      const items = Array.isArray(resData?.data) ? resData.data : [];
-      // Re-apply dismissed state
-      setRecommendations(
-        items.map((r: Recommendation) => ({
-          ...r,
-          dismissed: dismissedRef.current.has(r.id),
-        }))
-      );
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load recommendations');
-      setRecommendations([]);
-    } finally {
-      setLoading(false);
+  const { data: fetchedRecs = [], isFetching: loading, isError, error: queryError, refetch: loadRecommendations } =
+    useQuery<Recommendation[]>({
+      queryKey: ['chat-recommendations', 'chatops'],
+      queryFn: async () => {
+        const res = await fetchRecommendations({ currentPage: 'chatops' });
+        const resData = res.data as { data?: Recommendation[] };
+        return Array.isArray(resData?.data) ? resData.data : [];
+      },
+      staleTime: 30_000,
+    });
+
+  // 初始/刷新加载完成后，把兜底数据合并进推荐列表（SSE 到达前先展示）
+  useEffect(() => {
+    if (!isError && fetchedRecs.length > 0) {
+      setError(null);
+      setRecommendations((prev) => {
+        const existingIds = new Set(prev.map((r) => r.id));
+        const fresh = fetchedRecs
+          .filter((r: Recommendation) => !existingIds.has(r.id))
+          .map((r: Recommendation) => ({
+            ...r,
+            dismissed: dismissedRef.current.has(r.id),
+          }));
+        // Prepend new recommendations, limit to 50
+        return [...fresh, ...prev].slice(0, 50);
+      });
     }
-  }, []);
+  }, [fetchedRecs, isError]);
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError) {
+      setError(queryError instanceof Error ? queryError.message : 'Failed to load recommendations');
+    }
+  }, [isError, queryError]);
 
   // ============================================================================
   // SSE Connection
@@ -305,13 +320,14 @@ const SmartRecommend: React.FC = () => {
   // ============================================================================
 
   useEffect(() => {
-    loadRecommendations();
+    // 初始数据加载由 useQuery 按 queryKey 自动触发（见上方 useQuery 定义），
+    // 这里仅建立 SSE 连接并负责清理。
     setupSSE();
 
     return () => {
       disconnectSSE();
     };
-  }, [loadRecommendations, setupSSE]);
+  }, [setupSSE]);
 
   // ============================================================================
   // Actions
@@ -380,7 +396,7 @@ const SmartRecommend: React.FC = () => {
             onReconnect={handleReconnect}
             reconnecting={reconnecting}
           />
-          <Button icon={<SyncOutlined />} onClick={loadRecommendations} loading={loading}>
+          <Button icon={<SyncOutlined />} onClick={() => loadRecommendations()} loading={loading}>
             Refresh
           </Button>
           <Button icon={<ClockCircleOutlined />} onClick={() => setExecutionDrawerOpen(true)}>
@@ -426,7 +442,7 @@ const SmartRecommend: React.FC = () => {
       <Spin spinning={loading && recommendations.length === 0}>
         {recommendations.length === 0 && !loading ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No recommendations available">
-            <Button type="primary" onClick={loadRecommendations}>
+            <Button type="primary" onClick={() => loadRecommendations()}>
               Refresh
             </Button>
           </Empty>

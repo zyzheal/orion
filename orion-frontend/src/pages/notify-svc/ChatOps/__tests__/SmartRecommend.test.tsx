@@ -1,10 +1,11 @@
 /**
  * Tests for SmartRecommend panel
  */
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import SmartRecommend from '../SmartRecommend';
 import * as chatopsApi from '@/api/chatops';
+import { renderWithProviders } from '@/tests/render';
 
 vi.mock('@/api/chatops', () => ({
   fetchRecommendations: vi.fn(),
@@ -53,7 +54,7 @@ describe('SmartRecommend', { timeout: 15000 }, () => {
       data: [],
     } as any);
 
-    render(<SmartRecommend />);
+    renderWithProviders(<SmartRecommend />);
 
     await waitFor(() => {
       expect(screen.getByText('Smart Recommendations')).toBeTruthy();
@@ -65,7 +66,7 @@ describe('SmartRecommend', { timeout: 15000 }, () => {
       data: { data: mockRecommendations },
     } as any);
 
-    render(<SmartRecommend />);
+    renderWithProviders(<SmartRecommend />);
 
     await waitFor(() => {
       expect(screen.getByText('High memory usage detected')).toBeTruthy();
@@ -79,7 +80,7 @@ describe('SmartRecommend', { timeout: 15000 }, () => {
       data: { data: mockRecommendations },
     } as any);
 
-    render(<SmartRecommend />);
+    renderWithProviders(<SmartRecommend />);
 
     await waitFor(() => {
       // Critical tag appears in both the severity tag and badge count
@@ -93,7 +94,7 @@ describe('SmartRecommend', { timeout: 15000 }, () => {
       data: { data: mockRecommendations },
     } as any);
 
-    render(<SmartRecommend />);
+    renderWithProviders(<SmartRecommend />);
 
     await waitFor(() => {
       expect(screen.getByText('Restart Service')).toBeTruthy();
@@ -108,7 +109,7 @@ describe('SmartRecommend', { timeout: 15000 }, () => {
       data: { data: mockRecommendations },
     } as any);
 
-    render(<SmartRecommend />);
+    renderWithProviders(<SmartRecommend />);
 
     await waitFor(() => {
       expect(screen.getByText('High memory usage detected')).toBeTruthy();
@@ -132,7 +133,7 @@ describe('SmartRecommend', { timeout: 15000 }, () => {
       data: [],
     } as any);
 
-    render(<SmartRecommend />);
+    renderWithProviders(<SmartRecommend />);
 
     await waitFor(() => {
       expect(screen.getByText('No recommendations available')).toBeTruthy();
@@ -142,7 +143,7 @@ describe('SmartRecommend', { timeout: 15000 }, () => {
   it('shows error alert when API fails', async () => {
     vi.mocked(chatopsApi.fetchRecommendations).mockRejectedValue(new Error('Network error'));
 
-    render(<SmartRecommend />);
+    renderWithProviders(<SmartRecommend />);
 
     await waitFor(() => {
       expect(screen.getByText('Connection Error')).toBeTruthy();
@@ -154,7 +155,7 @@ describe('SmartRecommend', { timeout: 15000 }, () => {
       .mockResolvedValueOnce({ data: [] } as any)
       .mockResolvedValueOnce({ data: { data: mockRecommendations } } as any);
 
-    render(<SmartRecommend />);
+    renderWithProviders(<SmartRecommend />);
 
     await waitFor(() => {
       expect(screen.getByText('Smart Recommendations')).toBeTruthy();
@@ -189,7 +190,7 @@ describe('SmartRecommend', { timeout: 15000 }, () => {
       data: [],
     } as any);
 
-    render(<SmartRecommend />);
+    renderWithProviders(<SmartRecommend />);
 
     await waitFor(() => {
       // Verify component renders properly - check for title and stats area
@@ -205,7 +206,7 @@ describe('SmartRecommend', { timeout: 15000 }, () => {
       data: [],
     } as any);
 
-    render(<SmartRecommend />);
+    renderWithProviders(<SmartRecommend />);
 
     await waitFor(() => {
       expect(screen.getByText(/Execution Log/)).toBeTruthy();

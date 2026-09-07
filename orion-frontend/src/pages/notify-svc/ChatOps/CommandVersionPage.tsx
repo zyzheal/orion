@@ -2,7 +2,7 @@
  * ChatOps 命令版本管理
  * 查看版本历史、回滚、标签管理
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -29,6 +29,7 @@ import { chatopsAdminApi } from '@/api/chatops-admin';
 import { colors, spacing, themeVars } from '@/tokens';
 import dayjs from 'dayjs';
 import type { ColumnsType } from 'antd/es/table';
+import { useQuery } from '@/providers/QueryProvider';
 
 const { Text } = Typography;
 
@@ -47,9 +48,6 @@ interface CommandVersion {
 }
 
 const CommandVersionPage: React.FC = () => {
-  const [versions, setVersions] = useState<CommandVersion[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [perPage] = useState(20);
   const [detailVisible, setDetailVisible] = useState(false);
@@ -57,23 +55,26 @@ const CommandVersionPage: React.FC = () => {
   const [createVisible, setCreateVisible] = useState(false);
   const [form] = Form.useForm();
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
+  const { data, isLoading: loading, isError, error, refetch: loadData } = useQuery<{
+    versions: CommandVersion[];
+    total: number;
+  }>({
+    queryKey: ['chat-command-versions', page, perPage],
+    queryFn: async () => {
       const res = await chatopsAdminApi.getCommandVersions({ page, perPage });
       const data = (res as { data?: { data?: CommandVersion[]; total?: number } })?.data;
-      setVersions(data?.data ?? []);
-      setTotal(data?.total ?? 0);
-    } catch {
-      message.error('获取版本列表失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [page, perPage]);
+      return { versions: data?.data ?? [], total: data?.total ?? 0 };
+    },
+    staleTime: 30_000,
+  });
+  const versions = data?.versions ?? [];
+  const total = data?.total ?? 0;
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (isError) message.error('获取版本列表失败');
+  }, [isError, error]);
 
   const handleViewDetail = (record: CommandVersion) => {
     setSelectedVersion(record);
@@ -221,7 +222,7 @@ const CommandVersionPage: React.FC = () => {
             </span>
           </Space>
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
               刷新
             </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateVisible(true)}>

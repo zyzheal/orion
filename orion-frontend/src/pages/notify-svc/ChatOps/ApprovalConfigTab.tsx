@@ -2,7 +2,7 @@
  * ApprovalConfigTab - 审批配置 + 审批人列表 + 编辑弹窗
  * 抽取自 AdminSettings.tsx (P2-9 Phase 41)
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -26,39 +26,37 @@ import {
   type Approver,
 } from '@/api/chatops-admin';
 import { colors, spacing, themeVars } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 
 const { Text } = Typography;
 const { Option } = Select;
 
 export const ApprovalConfigTab: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [configs, setConfigs] = useState<ApprovalConfig[]>([]);
-  const [approvers, setApprovers] = useState<Approver[]>([]);
   const [editingConfig, setEditingConfig] = useState<ApprovalConfig | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [form] = Form.useForm();
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
+  const { data, isLoading: loading, isError, error, refetch } = useQuery<{
+    configs: ApprovalConfig[];
+    approvers: Approver[];
+  }>({
+    queryKey: ['chat-approval-configs'],
+    queryFn: async () => {
       const [configRes, approverRes] = await Promise.all([
         chatopsAdminApi.getApprovalConfigs(),
         chatopsAdminApi.getApprovers(),
       ]);
-      setConfigs(configRes.data ?? []);
-      setApprovers(approverRes.data ?? []);
-    } catch {
-      message.error('获取审批配置失败');
-      setConfigs([]);
-      setApprovers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return { configs: configRes.data ?? [], approvers: approverRes.data ?? [] };
+    },
+    staleTime: 30_000,
+  });
+  const { configs = [], approvers = [] } = data ?? {};
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (isError) message.error('获取审批配置失败');
+  }, [isError, error]);
 
   const handleEdit = (record: ApprovalConfig) => {
     setEditingConfig(record);
@@ -77,7 +75,7 @@ export const ApprovalConfigTab: React.FC = () => {
       await chatopsAdminApi.updateApprovalConfig(editingConfig.capability, values);
       message.success('更新成功');
       setModalVisible(false);
-      loadData();
+      refetch();
     } catch {
       // 表单校验失败或 API 错误
     }

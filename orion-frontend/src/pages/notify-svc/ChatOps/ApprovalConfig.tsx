@@ -2,7 +2,7 @@
  * ChatOps 审批配置后台
  * 全局审批开关、能力域审批规则、审批人配置
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Tabs,
@@ -36,6 +36,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { spacing } from '@/tokens';
 import { chatopsAdminApi } from '@/api/chatops-admin';
+import { useQuery } from '@/providers/QueryProvider';
 
 const { Text } = Typography;
 
@@ -80,20 +81,27 @@ export const GlobalSettingsTab: React.FC = () => {
     approvalMode: 'strict',
   });
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(false);
+
+  const { data: settingsData, isLoading: loading } = useQuery<{
+    enabled?: boolean;
+    mode?: string;
+  }>({
+    queryKey: ['chat-approval-global-config'],
+    queryFn: async () => {
+      const res = await chatopsAdminApi.getGlobalApprovalConfig();
+      return (res.data ?? {}) as { enabled?: boolean; mode?: string };
+    },
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
-    setLoading(true);
-    chatopsAdminApi
-      .getGlobalApprovalConfig()
-      .then((res) => {
-        const data = res.data as any;
-        if (data)
-          setSettings({ enabled: data.enabled ?? true, approvalMode: data.mode || 'strict' });
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    const data = settingsData as { enabled?: boolean; mode?: string } | undefined;
+    if (data)
+      setSettings({
+        enabled: data.enabled ?? true,
+        approvalMode: (data.mode || 'strict') as GlobalApprovalSettings['approvalMode'],
+      });
+  }, [settingsData]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -167,48 +175,50 @@ export const GlobalSettingsTab: React.FC = () => {
 
 // ============== Capability Approval Tab ==============
 const CapabilityApprovalTab: React.FC = () => {
-  const [configs, setConfigs] = useState<ApprovalConfig[]>([]);
-  const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingConfig, setEditingConfig] = useState<ApprovalConfig | null>(null);
   const [form] = Form.useForm();
 
-  const loadConfigs = useCallback(async () => {
-    setLoading(true);
-    try {
+  const mapRawToConfig = (c: any): ApprovalConfig => ({
+    id: c.id || c.capability,
+    capabilityId: c.capability || c.capability_id || '',
+    capabilityName: c.capability_name || c.capability || '',
+    riskLevel: c.risk_level ?? 3,
+    enabled: c.enabled ?? true,
+    approvalMode: c.approval_mode || 'strict',
+    approvalLevel: c.approval_level ?? 1,
+    approverRoles: c.approvers || [],
+    approverUsers: c.approver_users || [],
+    proxyRoles: c.proxy_roles || [],
+    proxyUsers: c.proxy_users || [],
+    timeoutMinutes: c.timeout_minutes ?? 30,
+    timeoutAction: c.timeout_action || 'remind',
+    secondTimeoutMinutes: c.second_timeout_minutes ?? 0,
+    secondTimeoutAction: c.second_timeout_action || 'escalate',
+    environments: c.environments || [],
+  });
+
+  const {
+    data: configs = [],
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadConfigs,
+  } = useQuery<ApprovalConfig[]>({
+    queryKey: ['chat-approval-configs'],
+    queryFn: async () => {
       const res = await chatopsAdminApi.getApprovalConfigs();
       const data = (res.data as any) || [];
-      setConfigs(
-        Array.isArray(data)
-          ? data.map((c: any) => ({
-              id: c.id || c.capability,
-              capabilityId: c.capability || c.capability_id || '',
-              capabilityName: c.capability_name || c.capability || '',
-              riskLevel: c.risk_level ?? 3,
-              enabled: c.enabled ?? true,
-              approvalMode: c.approval_mode || 'strict',
-              approvalLevel: c.approval_level ?? 1,
-              approverRoles: c.approvers || [],
-              approverUsers: c.approver_users || [],
-              proxyRoles: c.proxy_roles || [],
-              proxyUsers: c.proxy_users || [],
-              timeoutMinutes: c.timeout_minutes ?? 30,
-              timeoutAction: c.timeout_action || 'remind',
-              secondTimeoutMinutes: c.second_timeout_minutes ?? 0,
-              secondTimeoutAction: c.second_timeout_action || 'escalate',
-              environments: c.environments || [],
-            }))
-          : []
-      );
-    } catch {
-      message.error('加载审批配置失败');
-    }
-    setLoading(false);
-  }, []);
+      return Array.isArray(data) ? data.map(mapRawToConfig) : [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadConfigs();
-  }, [loadConfigs]);
+    if (isError) message.error('加载审批配置失败');
+  }, [isError, error]);
 
   const riskLevelColors: Record<number, string> = {
     3: 'orange',
@@ -497,31 +507,35 @@ const CapabilityApprovalTab: React.FC = () => {
 
 // ============== Approver Config Tab ==============
 const ApproverConfigTab: React.FC = () => {
-  const [approvers, setApprovers] = useState<ApproverInfo[]>([]);
-  const [loading, setLoading] = useState(false);
+  const {
+    data: approvers = [],
+    isLoading: loading,
+    isError,
+    error,
+  } = useQuery<ApproverInfo[]>({
+    queryKey: ['chat-approvers'],
+    queryFn: async () => {
+      const res = await chatopsAdminApi.getApprovers();
+      const data = (res.data as any) || [];
+      return Array.isArray(data)
+        ? data.map((a: any) => ({
+            id: a.user_id || a.id,
+            role: a.role || '',
+            userName: a.user_name || '',
+            userId: a.user_id || '',
+            status: a.is_on_duty ? 'online' : 'offline',
+            isDefault: true,
+          }))
+        : [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    setLoading(true);
-    chatopsAdminApi
-      .getApprovers()
-      .then((res) => {
-        const data = (res.data as any) || [];
-        setApprovers(
-          Array.isArray(data)
-            ? data.map((a: any) => ({
-                id: a.user_id || a.id,
-                role: a.role || '',
-                userName: a.user_name || '',
-                userId: a.user_id || '',
-                status: a.is_on_duty ? 'online' : 'offline',
-                isDefault: true,
-              }))
-            : []
-        );
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    if (isError) message.error('获取审批人列表失败');
+  }, [isError, error]);
 
   const columns: ColumnsType<ApproverInfo> = [
     {

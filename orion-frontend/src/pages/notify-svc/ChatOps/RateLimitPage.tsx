@@ -1,7 +1,7 @@
 /**
  * ChatOps 速率限制配置
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -27,6 +27,7 @@ import {
 import { chatopsAdminApi } from '@/api/chatops-admin';
 import { colors, spacing, themeVars } from '@/tokens';
 import type { ColumnsType } from 'antd/es/table';
+import { useQuery } from '@/providers/QueryProvider';
 
 const { Text } = Typography;
 
@@ -47,27 +48,30 @@ const targetLabels: Record<string, string> = { user: '用户', group: '群组', 
 const limitLabels: Record<string, string> = { minute: '次/分钟', hour: '次/小时', day: '次/天' };
 
 const RateLimitPage: React.FC = () => {
-  const [limits, setLimits] = useState<RateLimit[]>([]);
-  const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingLimit, setEditingLimit] = useState<RateLimit | null>(null);
   const [form] = Form.useForm();
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data: limits = [],
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<RateLimit[]>({
+    queryKey: ['chat-ratelimits'],
+    queryFn: async () => {
       const res = await chatopsAdminApi.getRateLimits();
-      setLimits((res as { data?: { data?: RateLimit[] } })?.data?.data ?? []);
-    } catch {
-      message.error('获取限流配置失败');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return (res as { data?: { data?: RateLimit[] } })?.data?.data ?? [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (isError) message.error('获取限流配置失败');
+  }, [isError, error]);
 
   const handleEdit = (record: RateLimit) => {
     setEditingLimit(record);
@@ -188,7 +192,7 @@ const RateLimitPage: React.FC = () => {
             </span>
           </Space>
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
               刷新
             </Button>
             <Button

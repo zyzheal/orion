@@ -2,7 +2,7 @@
  * CapabilityMappingTab - 命令-Capability 映射管理
  * 抽取自 AdminSettings.tsx (P2-9 Phase 41)
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -36,36 +36,39 @@ import {
 import { colors, spacing, themeVars } from '@/tokens';
 import dayjs from 'dayjs';
 import { riskLevelConfig, environmentOptions } from './constants';
+import { useQuery } from '@/providers/QueryProvider';
 
 const { Text } = Typography;
 const { Option } = Select;
 
 export const CapabilityMappingTab: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [mappings, setMappings] = useState<CapabilityMapping[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [environment, setEnvironment] = useState<string>('');
   const [modalVisible, setModalVisible] = useState(false);
   const [editingMapping, setEditingMapping] = useState<CapabilityMapping | null>(null);
   const [form] = Form.useForm();
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data: mappings = [],
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<CapabilityMapping[]>({
+    queryKey: ['chat-capability-mappings', environment],
+    queryFn: async () => {
       const res = await chatopsAdminApi.getCapabilityMappings(environment || undefined);
       const data = res.data ?? [];
-      setMappings(Array.isArray(data) ? data : []);
-    } catch {
-      message.error('获取映射列表失败');
-      setMappings([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [environment]);
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (isError) message.error('获取映射列表失败');
+  }, [isError, error]);
 
   const filteredMappings = mappings.filter((m) => {
     if (!searchQuery) return true;
@@ -236,7 +239,7 @@ export const CapabilityMappingTab: React.FC = () => {
               style={{ width: 160 }}
               options={environmentOptions}
             />
-            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
               刷新
             </Button>
             <Button

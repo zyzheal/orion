@@ -2,7 +2,7 @@
  * ChatOps 权限管理后台
  * 角色管理、命令权限、环境权限配置
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Tabs,
   Table,
@@ -32,58 +32,64 @@ import {
 import { colors, spacing } from '@/tokens';
 import type { ColumnsType } from 'antd/es/table';
 import { chatopsAdminApi } from '@/api/chatops-admin';
+import { useQuery } from '@/providers/QueryProvider';
 
 const { Text } = Typography;
 
+interface RoleRecord {
+  id?: string;
+  name?: string;
+  description?: string;
+  command_count?: number;
+  user_count?: number;
+}
+
+interface CommandPermissionRecord {
+  id?: string;
+  command?: string;
+  description?: string;
+  capability?: string;
+  risk_level?: number;
+  requires_approval?: boolean;
+  assigned_roles?: string[];
+}
+
+interface EnvPermissionRecord {
+  id?: string;
+  environment?: string;
+  description?: string;
+  allowed_commands?: string[];
+  rate_limit?: number;
+  require_approval?: boolean;
+  assigned_roles?: string[];
+}
+
 // ============== Role Management Tab ==============
 const RoleManagementTab: React.FC = () => {
-  const [roles, setRoles] = useState<
-    {
-      id?: string;
-      name?: string;
-      description?: string;
-      command_count?: number;
-      user_count?: number;
-    }[]
-  >([]);
-  const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingRole, setEditingRole] = useState<{
-    id?: string;
-    name?: string;
-    description?: string;
-  } | null>(null);
+  const [editingRole, setEditingRole] = useState<RoleRecord | null>(null);
   const [form] = Form.useForm();
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data: roles = [],
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<RoleRecord[]>({
+    queryKey: ['chat-roles'],
+    queryFn: async () => {
       const res = await chatopsAdminApi.getRoles();
-      setRoles(
-        (
-          res as {
-            data?: {
-              data?: {
-                id?: string;
-                name?: string;
-                description?: string;
-                command_count?: number;
-                user_count?: number;
-              }[];
-            };
-          }
-        )?.data?.data ?? []
-      );
-    } catch {
-      message.error('获取角色列表失败');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return (res as { data?: { data?: RoleRecord[] } })?.data?.data ?? [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (isError) message.error('获取角色列表失败');
+  }, [isError, error]);
 
   const handleAdd = () => {
     setEditingRole(null);
@@ -91,7 +97,7 @@ const RoleManagementTab: React.FC = () => {
     setModalVisible(true);
   };
 
-  const handleEdit = (role: any) => {
+  const handleEdit = (role: RoleRecord) => {
     setEditingRole(role);
     form.setFieldsValue(role);
     setModalVisible(true);
@@ -124,7 +130,7 @@ const RoleManagementTab: React.FC = () => {
     }
   };
 
-  const columns: ColumnsType<any> = [
+  const columns: ColumnsType<RoleRecord> = [
     {
       title: '角色名称',
       dataIndex: 'name',
@@ -166,7 +172,7 @@ const RoleManagementTab: React.FC = () => {
           >
             编辑
           </Button>
-          <Popconfirm title="确认删除此角色?" onConfirm={() => handleDelete(record.id)}>
+          <Popconfirm title="确认删除此角色?" onConfirm={() => handleDelete(record.id as string)}>
             <Button type="link" size="small" danger icon={<DeleteOutlined />}>
               删除
             </Button>
@@ -181,7 +187,7 @@ const RoleManagementTab: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Text type="secondary">管理 ChatOps 命令执行权限角色</Text>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
             刷新
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
@@ -224,74 +230,39 @@ const RoleManagementTab: React.FC = () => {
 
 // ============== Command Permission Tab ==============
 const CommandPermissionTab: React.FC = () => {
-  const [permissions, setPermissions] = useState<
-    { id?: string; command?: string; risk_level?: number; assigned_roles?: string[] }[]
-  >([]);
-  const [roles, setRoles] = useState<
-    {
-      id?: string;
-      name?: string;
-      description?: string;
-      command_count?: number;
-      user_count?: number;
-    }[]
-  >([]);
-  const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingPermission, setEditingPermission] = useState<{
-    id?: string;
-    command?: string;
-    risk_level?: number;
-    assigned_roles?: string[];
-  } | null>(null);
+  const [editingPermission, setEditingPermission] = useState<CommandPermissionRecord | null>(null);
   const [form] = Form.useForm();
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data,
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<{ permissions: CommandPermissionRecord[]; roles: RoleRecord[] }>({
+    queryKey: ['chat-command-permissions'],
+    queryFn: async () => {
       const [permRes, roleRes] = await Promise.all([
         chatopsAdminApi.getCommandPermissions(),
         chatopsAdminApi.getRoles(),
       ]);
-      setPermissions(
-        (
-          permRes as {
-            data?: {
-              data?: {
-                id?: string;
-                command?: string;
-                risk_level?: number;
-                assigned_roles?: string[];
-              }[];
-            };
-          }
-        )?.data?.data ?? []
-      );
-      setRoles(
-        (
-          roleRes as {
-            data?: {
-              data?: {
-                id?: string;
-                name?: string;
-                description?: string;
-                command_count?: number;
-                user_count?: number;
-              }[];
-            };
-          }
-        )?.data?.data ?? []
-      );
-    } catch {
-      message.error('获取权限列表失败');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return {
+        permissions:
+          (permRes as { data?: { data?: CommandPermissionRecord[] } })?.data?.data ?? [],
+        roles: (roleRes as { data?: { data?: RoleRecord[] } })?.data?.data ?? [],
+      };
+    },
+    staleTime: 30_000,
+  });
+  const permissions = data?.permissions ?? [];
+  const roles = data?.roles ?? [];
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (isError) message.error('获取权限列表失败');
+  }, [isError, error]);
 
   const riskLevelColors: Record<number, string> = {
     1: colors.success[500],
@@ -307,7 +278,7 @@ const CommandPermissionTab: React.FC = () => {
     4: '极高风险',
   };
 
-  const handleEdit = (permission: any) => {
+  const handleEdit = (permission: CommandPermissionRecord) => {
     setEditingPermission(permission);
     form.setFieldsValue({
       ...permission,
@@ -333,7 +304,7 @@ const CommandPermissionTab: React.FC = () => {
     }
   };
 
-  const columns: ColumnsType<any> = [
+  const columns: ColumnsType<CommandPermissionRecord> = [
     {
       title: '命令',
       dataIndex: 'command',
@@ -440,66 +411,39 @@ const CommandPermissionTab: React.FC = () => {
 
 // ============== Environment Permission Tab ==============
 const EnvironmentPermissionTab: React.FC = () => {
-  const [permissions, setPermissions] = useState<
-    { id?: string; environment?: string; assigned_roles?: string[] }[]
-  >([]);
-  const [roles, setRoles] = useState<
-    {
-      id?: string;
-      name?: string;
-      description?: string;
-      command_count?: number;
-      user_count?: number;
-    }[]
-  >([]);
-  const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingPermission, setEditingPermission] = useState<{
-    id?: string;
-    environment?: string;
-    assigned_roles?: string[];
-  } | null>(null);
+  const [editingPermission, setEditingPermission] = useState<EnvPermissionRecord | null>(null);
   const [form] = Form.useForm();
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data,
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<{ permissions: EnvPermissionRecord[]; roles: RoleRecord[] }>({
+    queryKey: ['chat-environment-permissions'],
+    queryFn: async () => {
       const [permRes, roleRes] = await Promise.all([
         chatopsAdminApi.getEnvironmentPermissions(),
         chatopsAdminApi.getRoles(),
       ]);
-      setPermissions(
-        (
-          permRes as {
-            data?: { data?: { id?: string; environment?: string; assigned_roles?: string[] }[] };
-          }
-        )?.data?.data ?? []
-      );
-      setRoles(
-        (
-          roleRes as {
-            data?: {
-              data?: {
-                id?: string;
-                name?: string;
-                description?: string;
-                command_count?: number;
-                user_count?: number;
-              }[];
-            };
-          }
-        )?.data?.data ?? []
-      );
-    } catch {
-      message.error('获取环境权限列表失败');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return {
+        permissions:
+          (permRes as { data?: { data?: EnvPermissionRecord[] } })?.data?.data ?? [],
+        roles: (roleRes as { data?: { data?: RoleRecord[] } })?.data?.data ?? [],
+      };
+    },
+    staleTime: 30_000,
+  });
+  const permissions = data?.permissions ?? [];
+  const roles = data?.roles ?? [];
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (isError) message.error('获取环境权限列表失败');
+  }, [isError, error]);
 
   const envColors: Record<string, string> = {
     prod: colors.error[500],
@@ -507,7 +451,7 @@ const EnvironmentPermissionTab: React.FC = () => {
     dev: colors.success[500],
   };
 
-  const handleEdit = (permission: any) => {
+  const handleEdit = (permission: EnvPermissionRecord) => {
     setEditingPermission(permission);
     form.setFieldsValue({
       ...permission,
@@ -533,7 +477,7 @@ const EnvironmentPermissionTab: React.FC = () => {
     }
   };
 
-  const columns: ColumnsType<any> = [
+  const columns: ColumnsType<EnvPermissionRecord> = [
     {
       title: '环境',
       dataIndex: 'environment',

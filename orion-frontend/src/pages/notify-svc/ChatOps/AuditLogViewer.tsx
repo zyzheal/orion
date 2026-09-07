@@ -1,8 +1,8 @@
 /**
  * Audit Log Viewer - Filterable log table, export, statistics
  */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, DatePicker, Empty } from 'antd';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Typography, Button, Space, Tag, Card, Row, Col, Statistic, DatePicker, Empty, message } from 'antd';
 import { spacing } from '@/tokens';
 import { ReloadOutlined, DownloadOutlined, BarChartOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -14,6 +14,7 @@ import {
   type AuditLog,
   type AuditStats,
 } from '@/api/chatops';
+import { useQuery } from '@/providers/QueryProvider';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -23,49 +24,57 @@ const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const AuditLogViewer: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [stats, setStats] = useState<AuditStats | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
   const [exporting, setExporting] = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setApiError(null);
-    try {
-      const params: Record<string, string> = {};
-      if (searchQuery) {
-        params.command = searchQuery;
-      }
-      if (filters.platform && filters.platform !== 'all') {
-        params.platform = Array.isArray(filters.platform) ? filters.platform[0] : filters.platform;
-      }
-      if (filters.status && filters.status !== 'all') {
-        params.result = Array.isArray(filters.status) ? filters.status[0] : filters.status;
-      }
-      if (dateRange) {
-        params.startDate = dateRange[0].format('YYYY-MM-DD');
-        params.endDate = dateRange[1].format('YYYY-MM-DD');
-      }
-
-      const [logRes, statsRes] = await Promise.all([getAuditLogs(params), getAuditStats(params)]);
-      setLogs(Array.isArray(logRes.data) ? logRes.data : []);
-      setStats(statsRes.data as AuditStats | null);
-    } catch {
-      setApiError('后端服务暂不可用');
-      setLogs([]);
-      setStats(null);
-    } finally {
-      setLoading(false);
+  const buildParams = () => {
+    const params: Record<string, string> = {};
+    if (searchQuery) {
+      params.command = searchQuery;
     }
-  }, [searchQuery, filters, dateRange]);
+    if (filters.platform && filters.platform !== 'all') {
+      params.platform = Array.isArray(filters.platform) ? filters.platform[0] : filters.platform;
+    }
+    if (filters.status && filters.status !== 'all') {
+      params.result = Array.isArray(filters.status) ? filters.status[0] : filters.status;
+    }
+    if (dateRange) {
+      params.startDate = dateRange[0].format('YYYY-MM-DD');
+      params.endDate = dateRange[1].format('YYYY-MM-DD');
+    }
+    return params;
+  };
 
+  const {
+    data,
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<{ logs: AuditLog[]; stats: AuditStats | null }>({
+    queryKey: ['chat-audit-log-viewer', searchQuery, filters, dateRange],
+    queryFn: async () => {
+      const params = buildParams();
+      const [logRes, statsRes] = await Promise.all([getAuditLogs(params), getAuditStats(params)]);
+      return {
+        logs: Array.isArray(logRes.data) ? logRes.data : [],
+        stats: statsRes.data as AuditStats | null,
+      };
+    },
+    staleTime: 30_000,
+  });
+  const logs = data?.logs ?? [];
+  const stats = data?.stats ?? null;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (isError) message.error('后端服务暂不可用');
+  }, [isError, error]);
+
+  const apiError = isError ? '后端服务暂不可用' : null;
 
   const handleExport = async () => {
     setExporting(true);
@@ -214,7 +223,7 @@ const AuditLogViewer: React.FC = () => {
             <Button icon={<DownloadOutlined />} onClick={handleExport} loading={exporting}>
               导出
             </Button>
-            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
               刷新
             </Button>
           </Space>
@@ -240,7 +249,7 @@ const AuditLogViewer: React.FC = () => {
           <Button icon={<DownloadOutlined />} onClick={handleExport} loading={exporting}>
             导出
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
             刷新
           </Button>
         </Space>

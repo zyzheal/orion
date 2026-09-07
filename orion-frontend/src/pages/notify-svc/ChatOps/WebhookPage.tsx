@@ -1,7 +1,7 @@
 /**
  * ChatOps Webhook 管理
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -31,6 +31,7 @@ import { chatopsAdminApi } from '@/api/chatops-admin';
 import { colors, spacing, themeVars } from '@/tokens';
 import dayjs from 'dayjs';
 import type { ColumnsType } from 'antd/es/table';
+import { useQuery } from '@/providers/QueryProvider';
 
 const { Text } = Typography;
 
@@ -73,29 +74,32 @@ interface Webhook {
 }
 
 const WebhookPage: React.FC = () => {
-  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
-  const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingWebhook, setEditingWebhook] = useState<Webhook | null>(null);
   const [logsVisible, setLogsVisible] = useState(false);
   const [logs, setLogs] = useState<any[]>([]);
   const [form] = Form.useForm();
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data: webhooks = [],
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<Webhook[]>({
+    queryKey: ['chat-webhooks'],
+    queryFn: async () => {
       const res = await chatopsAdminApi.getWebhooks();
-      setWebhooks((res as { data?: { data?: Webhook[] } })?.data?.data ?? []);
-    } catch {
-      message.error('获取 Webhook 列表失败');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return (res as { data?: { data?: Webhook[] } })?.data?.data ?? [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (isError) message.error('获取 Webhook 列表失败');
+  }, [isError, error]);
 
   const handleEdit = (record: Webhook) => {
     setEditingWebhook(record);
@@ -305,7 +309,7 @@ const WebhookPage: React.FC = () => {
             </span>
           </Space>
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
               刷新
             </Button>
             <Button

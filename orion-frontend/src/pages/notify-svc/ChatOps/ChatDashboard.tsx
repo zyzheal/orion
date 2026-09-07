@@ -8,7 +8,7 @@
  *
  * Mock 数据，待对接 API: GET /api/v1/chatops/dashboard/stats
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Row,
@@ -22,6 +22,7 @@ import {
   Skeleton,
   Tooltip,
   Tag,
+  message,
 } from 'antd';
 import {
   ReloadOutlined,
@@ -37,6 +38,7 @@ import {
   type TopCommand,
 } from '@/api/chatops';
 import { colors, spacing } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -96,32 +98,33 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, suffix, trend, co
 );
 
 export default function ChatDashboard() {
-  const [loading, setLoading] = useState(false);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [timeRange, setTimeRange] = useState<TimeRangeType>('7d');
-  const [apiError, setApiError] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setApiError(null);
-    try {
+  const {
+    data: stats = null,
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<DashboardStats>({
+    queryKey: ['chat-dashboard-stats', timeRange],
+    queryFn: async () => {
       const res = await getDashboardStats({ range: timeRange });
-      setStats(res.data as DashboardStats);
-    } catch {
-      setApiError('后端服务暂不可用');
-      setStats(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [timeRange]);
+      return res.data as DashboardStats;
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (isError) message.error('后端服务暂不可用');
+  }, [isError, error]);
 
   const handleRefresh = () => {
     loadData();
   };
+  const apiError = isError ? '后端服务暂不可用' : null;
 
   if (apiError && !stats) {
     return (

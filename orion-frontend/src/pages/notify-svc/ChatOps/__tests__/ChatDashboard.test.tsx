@@ -1,7 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import ChatDashboard from '../ChatDashboard';
 import * as chatopsApi from '@/api/chatops';
+import { renderWithProviders } from '@/tests/render';
 
 vi.mock('@/api/chatops');
 vi.mock('echarts-for-react', () => ({
@@ -38,7 +39,7 @@ describe('ChatDashboard', () => {
       data: mockStats,
     });
 
-    render(<ChatDashboard />);
+    renderWithProviders(<ChatDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText(/总执行数/)).toBeInTheDocument();
@@ -51,7 +52,7 @@ describe('ChatDashboard', () => {
       new Error('API error')
     );
 
-    render(<ChatDashboard />);
+    renderWithProviders(<ChatDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText(/后端服务暂不可用/)).toBeInTheDocument();
@@ -63,7 +64,7 @@ describe('ChatDashboard', () => {
       new Promise(() => {})
     );
 
-    render(<ChatDashboard />);
+    renderWithProviders(<ChatDashboard />);
     // During loading, the component renders a Skeleton and the refresh button
     expect(screen.getByText('刷新')).toBeInTheDocument();
   });
