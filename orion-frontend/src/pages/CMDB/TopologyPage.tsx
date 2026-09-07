@@ -47,6 +47,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { colors, spacing } from '@/tokens';
 import PageSkeleton from '@/components/PageSkeleton';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   getTopology,
   getCIs,
@@ -201,8 +202,6 @@ const CINode: React.FC<{ data: CINodeData }> = ({ data }) => {
 };
 
 const TopologyPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [topology, setTopology] = useState<TopologyData | null>(null);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [selectedNode, setSelectedNode] = useState<TopologyNode | null>(null);
@@ -216,30 +215,35 @@ const TopologyPage: React.FC = () => {
   const [edgeDetailOpen, setEdgeDetailOpen] = useState(false);
   const [form] = Form.useForm();
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const result = await getTopology();
-      const data = result.data ?? null;
-      setTopology(data);
-      if (data) {
-        setNodes(convertToFlowNodes(data.nodes || []));
-        setEdges(convertToFlowEdges((data.edges || []) as TopologyEdgeWithId[]));
-      }
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载拓扑图失败：${error.message}`);
-      } else {
-        message.error('加载拓扑图失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    data: topology = null,
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<TopologyData | null>({
+    queryKey: ['cmdb-topology'],
+    queryFn: () => getTopology().then((res) => res.data ?? null),
+    staleTime: 30_000,
+  });
 
+  // 拓扑数据到达/刷新时重置 ReactFlow 节点与连线；
+  // nodes/edges 本身保持可变状态（支持拖拽），仅随拓扑数据变化同步。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (topology) {
+      setNodes(convertToFlowNodes(topology.nodes || []));
+      setEdges(convertToFlowEdges((topology.edges || []) as TopologyEdgeWithId[]));
+    }
+  }, [topology]);
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError)
+      message.error(
+        queryError instanceof Error ? `加载拓扑图失败：${queryError.message}` : '加载拓扑图失败，请稍后重试'
+      );
+  }, [isError, queryError]);
 
   const onNodesChange: OnNodesChange = (changes) =>
     setNodes((nds) => applyNodeChanges(changes, nds));
@@ -272,7 +276,7 @@ const TopologyPage: React.FC = () => {
       message.success('关系创建成功');
       setAddRelationOpen(false);
       form.resetFields();
-      loadData();
+      refetch();
     } catch (error: unknown) {
       const err = error as { errorFields?: unknown };
       if (!err.errorFields) {
@@ -294,7 +298,7 @@ const TopologyPage: React.FC = () => {
       message.success('关系已删除');
       setEdgeDetailOpen(false);
       setSelectedEdge(null);
-      loadData();
+      refetch();
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '未知错误';
       message.error(`删除关系失败：${msg}`);
@@ -336,7 +340,7 @@ const TopologyPage: React.FC = () => {
               <Button icon={<PlusOutlined />} onClick={openAddRelation}>
                 添加关系
               </Button>
-              <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+              <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
                 刷新
               </Button>
             </Space>

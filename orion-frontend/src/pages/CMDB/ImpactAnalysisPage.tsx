@@ -1,7 +1,7 @@
 /**
  * Impact Analysis Page - Visualize CI impact on upstream/downstream dependencies
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Typography,
   Card,
@@ -26,50 +26,63 @@ import {
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import PageSkeleton from '@/components/PageSkeleton';
+import { useQuery } from '@/providers/QueryProvider';
 import { getCIs, getImpactAnalysis, type CIItem, type ImpactData } from '@/api/cmdb';
 
 const { Title, Text } = Typography;
 
 const ImpactAnalysisPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [cis, setCIs] = useState<CIItem[]>([]);
   const [selectedCIId, setSelectedCIId] = useState<string | undefined>();
-  const [impact, setImpact] = useState<ImpactData | null>(null);
 
-  const loadCIs = async () => {
-    try {
-      const result = await getCIs({ pageSize: 200 });
-      setCIs(result.data ?? []);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载配置项失败：${error.message}`);
-      }
+  const {
+    data: cis = [],
+    isLoading: cisLoading,
+    isError: cisError,
+    error: cisQueryError,
+    refetch,
+  } = useQuery<CIItem[]>({
+    queryKey: ['cmdb-cis-list'],
+    queryFn: () => getCIs({ pageSize: 200 }).then((res) => res.data ?? []),
+    staleTime: 30_000,
+  });
+
+  const {
+    data: impact = null,
+    isLoading: loading,
+    isError: impactError,
+    error: impactQueryError,
+  } = useQuery<ImpactData | null>({
+    queryKey: ['cmdb-impact', selectedCIId],
+    queryFn: () =>
+      selectedCIId
+        ? getImpactAnalysis(selectedCIId).then((res) => (res as any).impact ?? null)
+        : Promise.resolve(null),
+    enabled: !!selectedCIId,
+    staleTime: 30_000,
+  });
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  React.useEffect(() => {
+    if (cisError) {
+      message.error(
+        cisQueryError instanceof Error ? `加载配置项失败：${cisQueryError.message}` : '加载配置项失败'
+      );
     }
-  };
+  }, [cisError, cisQueryError]);
 
-  useEffect(() => {
-    loadCIs();
-  }, []);
-
-  const loadImpact = async (ciId: string) => {
-    setLoading(true);
-    try {
-      const result = await getImpactAnalysis(ciId);
-      setImpact((result as any).impact ?? null);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载影响分析失败：${error.message}`);
-      } else {
-        message.error('加载影响分析失败');
-      }
-    } finally {
-      setLoading(false);
+  React.useEffect(() => {
+    if (impactError) {
+      message.error(
+        impactQueryError instanceof Error
+          ? `加载影响分析失败：${impactQueryError.message}`
+          : '加载影响分析失败'
+      );
     }
-  };
+  }, [impactError, impactQueryError]);
 
   const handleCISelect = (ciId: string) => {
     setSelectedCIId(ciId);
-    loadImpact(ciId);
   };
 
   const typeIconMap: Record<string, React.ReactNode> = {
@@ -147,7 +160,7 @@ const ImpactAnalysisPage: React.FC = () => {
               <Title level={4}>影响分析</Title>
               <Text type="secondary">分析配置项变更对上下游系统的影响</Text>
             </div>
-            <Button icon={<ReloadOutlined />} onClick={loadCIs} loading={loading}>
+            <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={cisLoading}>
               刷新
             </Button>
           </div>

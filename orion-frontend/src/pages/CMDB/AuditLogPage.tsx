@@ -24,6 +24,7 @@ import {
   message,
   Empty,
 } from 'antd';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   ReloadOutlined,
   CloudServerOutlined,
@@ -68,28 +69,33 @@ const operationMap: Record<TerminalFileLog['operation'], string> = {
 // ============================================================================
 
 const ConnectLogTab: React.FC = () => {
-  const [logs, setLogs] = useState<TerminalConnectLog[]>([]);
-  const [loading, setLoading] = useState(false);
   const [selectedLog, setSelectedLog] = useState<TerminalConnectLog | null>(null);
   const [detailVisible, setDetailVisible] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
-  const loadLogs = (status?: string) => {
-    setLoading(true);
-    getConnectLogs({ pageSize: 50, status: status as TerminalConnectLog['status'] | undefined })
-      .then((res) => {
-        setLogs(res.data ?? []);
-      })
-      .catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : '未知错误';
-        message.error(`加载连接日志失败：${msg}`);
-      })
-      .finally(() => setLoading(false));
-  };
+  const statusFilter = filterStatus === 'all' ? undefined : (filterStatus as TerminalConnectLog['status']);
 
+  const {
+    data: logs = [],
+    isLoading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<TerminalConnectLog[]>({
+    queryKey: ['cmdb-connect-logs', filterStatus],
+    queryFn: () =>
+      getConnectLogs({ pageSize: 50, status: statusFilter }).then((res) => res.data ?? []),
+    staleTime: 30_000,
+  });
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadLogs(filterStatus === 'all' ? undefined : filterStatus);
-  }, [filterStatus]);
+    if (isError)
+      message.error(
+        queryError instanceof Error ? queryError.message : '加载连接日志失败'
+      );
+  }, [isError, queryError]);
 
   const columns: TableProps<TerminalConnectLog>['columns'] = [
     {
@@ -192,11 +198,7 @@ const ConnectLogTab: React.FC = () => {
               { label: '已终止', value: 'terminated' },
             ]}
           />
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={() => loadLogs(filterStatus === 'all' ? undefined : filterStatus)}
-            loading={loading}
-          >
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isLoading}>
             刷新
           </Button>
         </Space>
@@ -207,7 +209,7 @@ const ConnectLogTab: React.FC = () => {
         dataSource={logs}
         rowKey="id"
         size="middle"
-        loading={loading}
+        loading={isLoading}
         pagination={{ pageSize: 10 }}
         locale={{ emptyText: <Empty description="暂无审计日志记录" /> }}
       />
@@ -252,25 +254,24 @@ const ConnectLogTab: React.FC = () => {
 // ============================================================================
 
 const FileLogTab: React.FC = () => {
-  const [logs, setLogs] = useState<TerminalFileLog[]>([]);
-  const [loading, setLoading] = useState(false);
+  const {
+    data: logs = [],
+    isLoading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<TerminalFileLog[]>({
+    queryKey: ['cmdb-file-logs'],
+    queryFn: () => getFileLogs({ pageSize: 50 }).then((res) => res.data ?? []),
+    staleTime: 30_000,
+  });
 
-  const loadLogs = () => {
-    setLoading(true);
-    getFileLogs({ pageSize: 50 })
-      .then((res) => {
-        setLogs(res.data ?? []);
-      })
-      .catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : '未知错误';
-        message.error(`加载文件日志失败：${msg}`);
-      })
-      .finally(() => setLoading(false));
-  };
-
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadLogs();
-  }, []);
+    if (isError)
+      message.error(queryError instanceof Error ? queryError.message : '加载文件日志失败');
+  }, [isError, queryError]);
 
   const columns: TableProps<TerminalFileLog>['columns'] = [
     {
@@ -349,7 +350,7 @@ const FileLogTab: React.FC = () => {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: spacing.md }}>
-        <Button icon={<ReloadOutlined />} onClick={loadLogs} loading={loading}>
+        <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isLoading}>
           刷新
         </Button>
       </div>
@@ -359,7 +360,7 @@ const FileLogTab: React.FC = () => {
         dataSource={logs}
         rowKey="id"
         size="middle"
-        loading={loading}
+        loading={isLoading}
         pagination={{ pageSize: 10 }}
         locale={{ emptyText: <Empty description="暂无文件传输记录" /> }}
       />
@@ -372,25 +373,19 @@ const FileLogTab: React.FC = () => {
 // ============================================================================
 
 const AuditLogPage: React.FC = () => {
-  const [stats, setStats] = useState({
-    totalConnectLogs: 0,
-    activeSessions: 0,
-    totalFileTransfers: 0,
-  });
-
-  useEffect(() => {
-    getTerminalAuditStats()
-      .then((res) => {
-        if (res.data) {
-          setStats({
-            totalConnectLogs: res.data.totalConnectLogs ?? 0,
-            activeSessions: res.data.activeSessions ?? 0,
-            totalFileTransfers: res.data.totalFileTransfers ?? 0,
-          });
-        }
-      })
-      .catch(() => {});
-  }, []);
+  const { data: stats = { totalConnectLogs: 0, activeSessions: 0, totalFileTransfers: 0 } } =
+    useQuery<{ totalConnectLogs: number; activeSessions: number; totalFileTransfers: number }>({
+      queryKey: ['cmdb-terminal-audit-stats'],
+      queryFn: async () => {
+        const res = await getTerminalAuditStats();
+        return {
+          totalConnectLogs: res.data?.totalConnectLogs ?? 0,
+          activeSessions: res.data?.activeSessions ?? 0,
+          totalFileTransfers: res.data?.totalFileTransfers ?? 0,
+        };
+      },
+      staleTime: 30_000,
+    });
 
   const tabItems = [
     {

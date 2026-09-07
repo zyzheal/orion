@@ -19,6 +19,7 @@ import {
   Row,
   Col,
   List,
+  message,
 } from 'antd';
 import {
   LinkOutlined,
@@ -48,6 +49,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { colors, spacing, themeVars } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   getCIs,
   getTopology,
@@ -194,8 +196,6 @@ const EnhancedNode: React.FC<{ data: EnhancedNodeData }> = ({ data }) => {
 // ============================================================================
 
 const TopologyEnhanced: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [allCIs, setAllCIs] = useState<CIItem[]>([]);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedType, setSelectedType] = useState<string>();
   const [selectedCIId, setSelectedCIId] = useState<string>();
@@ -204,6 +204,48 @@ const TopologyEnhanced: React.FC = () => {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [impact, setImpact] = useState<ImpactData | null>(null);
 
+  const {
+    data: allCIs = [],
+    refetch: refetchCIs,
+  } = useQuery<CIItem[]>({
+    queryKey: ['cmdb-enhanced-cis'],
+    queryFn: () => getCIs({ pageSize: 500 }).then((res) => res.data ?? []),
+    staleTime: 30_000,
+  });
+
+  const {
+    data: topologyData = null,
+    isLoading: loading,
+    isFetching: topologyFetching,
+    isError,
+    error: queryError,
+    refetch: refetchTopology,
+  } = useQuery<TopologyData | null>({
+    queryKey: ['cmdb-enhanced-topology'],
+    queryFn: () => getTopology().then((res) => res.data ?? null),
+    staleTime: 30_000,
+  });
+
+  // 拓扑数据到达/刷新时同步 ReactFlow 节点与连线；
+  // nodes/edges 本身保持可变状态（支持拖拽），仅随拓扑数据变化同步。
+  useEffect(() => {
+    if (topologyData) {
+      setTopology(topologyData);
+      buildFlowGraph(topologyData, selectedCIId);
+    }
+  }, [topologyData]);
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError)
+      message.error(
+        queryError instanceof Error
+          ? `加载拓扑图失败：${queryError.message}`
+          : '加载拓扑图失败，请稍后重试'
+      );
+  }, [isError, queryError]);
+
   const onNodesChange: OnNodesChange = useCallback((changes) => {
     setNodes((nds) => applyNodeChanges(changes, nds));
   }, []);
@@ -211,33 +253,6 @@ const TopologyEnhanced: React.FC = () => {
   const onEdgesChange: OnEdgesChange = useCallback((changes) => {
     setEdges((eds) => applyEdgeChanges(changes, eds));
   }, []);
-
-  const loadCIs = async () => {
-    try {
-      const result = await getCIs({ pageSize: 500 });
-      setAllCIs(result.data ?? []);
-    } catch {
-      // silently fail
-    }
-  };
-
-  const loadTopology = async () => {
-    setLoading(true);
-    try {
-      const result = await getTopology();
-      const data = result.data ?? null;
-      setTopology(data);
-      if (data) {
-        buildFlowGraph(data, selectedCIId);
-      }
-    } catch {
-      setTopology(null);
-      setNodes([]);
-      setEdges([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const buildFlowGraph = (topologyData: TopologyData, highlightId?: string) => {
     const nodeSpacing = { x: 300, y: 140 };
@@ -375,11 +390,6 @@ const TopologyEnhanced: React.FC = () => {
   };
 
   useEffect(() => {
-    loadCIs();
-    loadTopology();
-  }, []);
-
-  useEffect(() => {
     if (selectedCIId) {
       loadImpact(selectedCIId);
     }
@@ -431,10 +441,10 @@ const TopologyEnhanced: React.FC = () => {
         <Button
           icon={<ReloadOutlined />}
           onClick={() => {
-            loadCIs();
-            loadTopology();
+            refetchCIs();
+            refetchTopology();
           }}
-          loading={loading}
+          loading={loading || topologyFetching}
         >
           刷新
         </Button>

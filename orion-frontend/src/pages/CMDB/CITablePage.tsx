@@ -4,7 +4,7 @@
  * - API 客户端统一使用 apiClient（自动解包 { success, data } => data）
  * - 后端 listCIs 返回 { data: CI[], total, page, pageSize }
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Typography,
   Card,
@@ -40,6 +40,7 @@ import {
 } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import PageSkeleton from '@/components/PageSkeleton';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   getCIs,
   createCI,
@@ -56,8 +57,6 @@ import {
 const { Title, Text } = Typography;
 
 const CITablePage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [cis, setCIs] = useState<CIItem[]>([]);
   const [selectedCI, setSelectedCI] = useState<CIItem | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -89,30 +88,31 @@ const CITablePage: React.FC = () => {
    * Load CI list from backend
    * API client auto-unwraps { success: true, data: { data: CI[] } } => { data: CI[] }
    */
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const result = await getCIs({ pageSize: 50 });
-      // After interceptor unwraps, response.data is { data: CI[], total, page, pageSize }
-      setCIs(result.data ?? []);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        if (error.message.includes('401') || error.message.includes('403')) {
-          message.error('权限不足，请重新登录或联系管理员');
-        } else {
-          message.error(`加载配置项失败：${error.message}`);
-        }
-      } else {
-        message.error('加载配置项失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    data: cis = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<CIItem[]>({
+    queryKey: ['cmdb-cis'],
+    queryFn: () => getCIs({ pageSize: 50 }).then((res) => res.data ?? []),
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  React.useEffect(() => {
+    if (isError) {
+      if (queryError instanceof Error && (queryError.message.includes('401') || queryError.message.includes('403'))) {
+        message.error('权限不足，请重新登录或联系管理员');
+      } else {
+        message.error(
+          queryError instanceof Error ? `加载配置项失败：${queryError.message}` : '加载配置项失败，请稍后重试'
+        );
+      }
+    }
+  }, [isError, queryError]);
 
   /**
    * Load relations for a specific CI
@@ -200,7 +200,7 @@ const CITablePage: React.FC = () => {
       message.success('配置项创建成功');
       setCreateModalOpen(false);
       form.resetFields();
-      loadData();
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`创建配置项失败：${error.message}`);
@@ -218,7 +218,7 @@ const CITablePage: React.FC = () => {
         try {
           await deleteCI(id);
           message.success('删除成功');
-          loadData();
+          refetch();
         } catch (error: unknown) {
           if (error instanceof Error) {
             message.error(`删除失败：${error.message}`);
@@ -264,7 +264,7 @@ const CITablePage: React.FC = () => {
       setEditModalOpen(false);
       editForm.resetFields();
       setEditingCI(null);
-      loadData();
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`更新配置项失败：${error.message}`);
@@ -484,7 +484,7 @@ const CITablePage: React.FC = () => {
               <Text type="secondary">管理所有配置项 (CI) 及其生命周期</Text>
             </div>
             <Space>
-              <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+              <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
                 刷新
               </Button>
               <Button

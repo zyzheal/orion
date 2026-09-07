@@ -23,6 +23,7 @@ import {
 } from 'antd';
 import { CloudServerOutlined, FullscreenOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { getHosts, type HostInfo } from '@/api/cmdb';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors, spacing } from '@/tokens';
 
 import '@xterm/xterm/css/xterm.css';
@@ -47,7 +48,6 @@ const WebTerminalPage: React.FC = () => {
   const resizeHandlerRef = useRef<(() => void) | null>(null);
   const cleanupTerminalRef = useRef<(() => void) | null>(null);
 
-  const [hosts, setHosts] = useState<HostInfo[]>([]);
   const [selectedHostId, setSelectedHostId] = useState<string>('');
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -57,17 +57,24 @@ const WebTerminalPage: React.FC = () => {
   const [hostDetail, setHostDetail] = useState<HostInfo | null>(null);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
 
-  // 加载主机列表
+  const {
+    data: hosts = [],
+    isError,
+    error: queryError,
+  } = useQuery<HostInfo[]>({
+    queryKey: ['cmdb-terminal-hosts'],
+    queryFn: () => getHosts({ pageSize: 100 }).then((res) => res.data ?? []),
+    staleTime: 30_000,
+  });
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    getHosts({ pageSize: 100 })
-      .then((res) => {
-        const list = res.data ?? [];
-        setHosts(list);
-      })
-      .catch((err) => {
-        message.error(`加载主机列表失败: ${err.message}`);
-      });
-  }, []);
+    if (isError)
+      message.error(
+        queryError instanceof Error ? `加载主机列表失败: ${queryError.message}` : '加载主机列表失败'
+      );
+  }, [isError, queryError]);
 
   // 组件卸载时清理终端和 WebSocket（#3 Critical + #5 Critical）
   useEffect(() => {

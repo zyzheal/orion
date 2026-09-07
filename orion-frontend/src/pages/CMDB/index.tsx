@@ -6,7 +6,7 @@
  * 原有组件拆分为独立文件
  * 2026-07-27: 新增 4 个统计卡片 (CI总数/主机/K8s/CICD)，调用后端 API
  */
-import React, { useEffect, useState, lazy, Suspense } from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Row, Col, Tabs, Spin, Empty } from 'antd';
 import { StatCard } from '@/components/charts';
 import {
@@ -21,6 +21,7 @@ import {
   DatabaseOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
+import { useQuery } from '@/providers/QueryProvider';
 import { getCIs, getHosts, getK8sResources, getCICDResources } from '@/api/cmdb';
 import CITablePage from './CITablePage';
 import TopologyPage from './TopologyPage';
@@ -41,50 +42,25 @@ interface CMDBStats {
 const defaultStats: CMDBStats = { ciTotal: 0, hostCount: 0, k8sCount: 0, cicdCount: 0 };
 
 const CMDBPage: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<CMDBStats>(defaultStats);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const fetchAll = async () => {
-      try {
-        const [cisRes, hostsRes, k8sRes, cicdRes] = await Promise.all([
-          getCIs().catch(() => ({ data: [] })),
-          getHosts().catch(() => ({ data: [] })),
-          getK8sResources().catch(() => ({ data: [] })),
-          getCICDResources().catch(() => ({ data: [] })),
-        ]);
-
-        if (cancelled) return;
-
-        const ciArr = cisRes.data || [];
-        const hostArr = hostsRes.data || [];
-        const k8sArr = k8sRes.data || [];
-        const cicdArr = cicdRes.data || [];
-
-        setStats({
-          ciTotal: ciArr.length,
-          hostCount: hostArr.length,
-          k8sCount: k8sArr.length,
-          cicdCount: cicdArr.length,
-        });
-      } catch {
-        if (!cancelled) {
-          setStats(defaultStats);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchAll();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // 页面级统计加载迁移至 useQuery；各子请求带空兜底，任一失败不阻塞统计渲染
+  const { data: stats = defaultStats, isLoading: loading } = useQuery<CMDBStats>({
+    queryKey: ['cmdb-dashboard-stats'],
+    queryFn: async () => {
+      const [cisRes, hostsRes, k8sRes, cicdRes] = await Promise.all([
+        getCIs().catch(() => ({ data: [] })),
+        getHosts().catch(() => ({ data: [] })),
+        getK8sResources().catch(() => ({ data: [] })),
+        getCICDResources().catch(() => ({ data: [] })),
+      ]);
+      return {
+        ciTotal: (cisRes.data || []).length,
+        hostCount: (hostsRes.data || []).length,
+        k8sCount: (k8sRes.data || []).length,
+        cicdCount: (cicdRes.data || []).length,
+      };
+    },
+    staleTime: 30_000,
+  });
 
   const tabItems = [
     {

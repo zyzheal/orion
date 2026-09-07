@@ -7,8 +7,9 @@
  * 2026-09-02: 提取列定义至 BatchExecColumns.tsx, 配置至 BatchExecConfig.tsx (P2-9)
  * 2026-08-26: 提取 4 Tab 组件至 Components/ (P2-9 Phase 112)
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Tabs, message } from 'antd';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   PlayCircleOutlined,
   ScheduleOutlined,
@@ -24,7 +25,6 @@ import { CronJobTab } from './Components/CronJobTab';
 import { FileUploadTab } from './Components/FileUploadTab';
 
 const BatchExecPage: React.FC = () => {
-  const [execStats, setExecStats] = useState({ total: 0, success: 0, partial: 0, failed: 0 });
   // 跨 Tab 通信：脚本模板"使用"按钮填充命令表单
   const [pendingTemplateContent, setPendingTemplateContent] = useState<string | null>(null);
   const [pendingTemplateName, setPendingTemplateName] = useState<string | null>(null);
@@ -35,20 +35,26 @@ const BatchExecPage: React.FC = () => {
     message.success(`已加载模板「${tpl.name}」到命令表单，请切换到"命令执行"Tab`);
   };
 
-  useEffect(() => {
-    listCommandLogs(1, 100)
-      .then((res) => {
-        const data = res.data as Record<string, unknown> | undefined;
-        const items = (data?.items ?? []) as ExecRecord[];
-        setExecStats({
-          total: items.length,
-          success: items.filter((r) => r.status === 'success').length,
-          partial: items.filter((r) => r.status === 'partial').length,
-          failed: items.filter((r) => r.status === 'failed').length,
-        });
-      })
-      .catch(() => {});
-  }, []);
+  const { data: execStats = { total: 0, success: 0, partial: 0, failed: 0 } } = useQuery<{
+    total: number;
+    success: number;
+    partial: number;
+    failed: number;
+  }>({
+    queryKey: ['cmdb-exec-stats'],
+    queryFn: async () => {
+      const res = await listCommandLogs(1, 100);
+      const data = res.data as Record<string, unknown> | undefined;
+      const items = (data?.items ?? []) as ExecRecord[];
+      return {
+        total: items.length,
+        success: items.filter((r) => r.status === 'success').length,
+        partial: items.filter((r) => r.status === 'partial').length,
+        failed: items.filter((r) => r.status === 'failed').length,
+      };
+    },
+    staleTime: 30_000,
+  });
 
   const tabItems = [
     {

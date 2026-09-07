@@ -19,6 +19,7 @@ import {
   Space,
   Empty,
 } from 'antd';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   SyncOutlined,
   CloudServerOutlined,
@@ -42,12 +43,8 @@ import {
 const { Title, Text } = Typography;
 
 const IntegrationPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [stopping, setStopping] = useState(false);
-  const [hosts, setHosts] = useState<HostInfo[]>([]);
-  const [k8sResources, setK8sResources] = useState<K8sResource[]>([]);
-  const [cicdResources, setCICDResources] = useState<CICDResource[]>([]);
   const [selectedHost, setSelectedHost] = useState<HostInfo | null>(null);
   const [hostDrawerOpen, setHostDrawerOpen] = useState(false);
 
@@ -55,39 +52,43 @@ const IntegrationPage: React.FC = () => {
    * Load integration data from backend
    * API client auto-unwraps { success, data: { data: [...] } } => { data: [...] }
    */
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [hostsRes, k8sRes, cicdRes] = await Promise.all([
-        getHosts({ pageSize: 20 }),
-        getK8sResources(),
-        getCICDResources(),
-      ]);
-      // response.data is { data: [...] } after interceptor unwrapping
-      setHosts(hostsRes.data ?? []);
-      setK8sResources(k8sRes.data ?? []);
-      setCICDResources(cicdRes.data ?? []);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载集成数据失败：${error.message}`);
-      } else {
-        message.error('加载集成数据失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    data: hosts = [],
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<HostInfo[]>({
+    queryKey: ['cmdb-hosts'],
+    queryFn: () => getHosts({ pageSize: 20 }).then((res) => res.data ?? []),
+    staleTime: 30_000,
+  });
 
+  const { data: k8sResources = [] } = useQuery<K8sResource[]>({
+    queryKey: ['cmdb-k8s-resources'],
+    queryFn: () => getK8sResources().then((res) => res.data ?? []),
+    staleTime: 30_000,
+  });
+
+  const { data: cicdResources = [] } = useQuery<CICDResource[]>({
+    queryKey: ['cmdb-cicd-resources'],
+    queryFn: () => getCICDResources().then((res) => res.data ?? []),
+    staleTime: 30_000,
+  });
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isError)
+      message.error(queryError instanceof Error ? queryError.message : '加载集成数据失败');
+  }, [isError, queryError]);
 
   const handleSync = async () => {
     setSyncing(true);
     try {
       await startK8sSync();
       message.success('K8s 同步已启动');
-      loadData();
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`同步启动失败：${error.message}`);
@@ -104,7 +105,7 @@ const IntegrationPage: React.FC = () => {
     try {
       await stopK8sSync();
       message.success('K8s 同步已停止');
-      loadData();
+      refetch();
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`同步停止失败：${error.message}`);
