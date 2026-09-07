@@ -76,14 +76,14 @@ const FormDesigner: React.FC = () => {
       <Card style={{ borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
         <Tabs activeKey={activeTab} onChange={(k) => setActiveTab(k as 'forms' | 'conditions')}>
           <Tabs.TabPane tab={`表单设计器 (${(forms ?? []).length})`} key="forms" />
-          <Tabs.TabPane tab=`条件引擎 (${(conditions ?? []).length})`} key="conditions" />
+          <Tabs.TabPane tab={`条件引擎 (${(conditions ?? []).length})`} key="conditions" />
         </Tabs>
 
         <Space style={{ marginBottom: spacing.md }}>
-          <Button type="primary" icon=<PlusOutlined />} onClick={handleCreate}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
             {activeTab === 'forms' ? '新建表单' : '新建条件'}
           </Button>
-          <Button icon=<ReloadOutlined />} onClick={() => fetchData()} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => fetchData()} loading={loading}>
             刷新
           </Button>
         </Space>

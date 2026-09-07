@@ -11,7 +11,6 @@ export interface UserItem {
   id: string;
   name?: string | null;
   username?: string;
-  [key: string]: unknown;
 }
 
 interface BroadcastModalProps {

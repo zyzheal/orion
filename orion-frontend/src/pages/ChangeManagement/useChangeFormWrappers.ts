@@ -8,17 +8,24 @@ import { useCallback } from 'react';
 import { Form } from 'antd';
 import dayjs from 'dayjs';
 import type { ChangeRequest, RFC, CABMeeting } from '@/api/change';
+import type {
+  CreateChangeInput,
+  TimelineEventInput,
+  CreateRfcInput,
+  CreateCabInput,
+  AddDecisionInput,
+} from './useChangeManagementState';
 
 export function useChangeFormWrappers(deps: {
-  handleCreate: (values: unknown) => Promise<void>;
-  handleEdit: (values: unknown) => Promise<void>;
+  handleCreate: (values: CreateChangeInput) => Promise<void>;
+  handleEdit: (values: CreateChangeInput) => Promise<void>;
   handleConfirmStatusChange: (note: string) => Promise<void>;
-  handleAddTimelineEvent: (values: unknown) => Promise<void>;
-  handleCreateRfc: (values: unknown) => Promise<void>;
-  handleUpdateRfc: (values: unknown) => Promise<void>;
-  handleCreateCab: (values: unknown) => Promise<void>;
-  handleUpdateCab: (values: unknown) => Promise<void>;
-  handleAddDecision: (values: unknown) => Promise<void>;
+  handleAddTimelineEvent: (values: TimelineEventInput) => Promise<void>;
+  handleCreateRfc: (values: CreateRfcInput) => Promise<void>;
+  handleUpdateRfc: (values: CreateRfcInput) => Promise<void>;
+  handleCreateCab: (values: CreateCabInput) => Promise<void>;
+  handleUpdateCab: (values: CreateCabInput) => Promise<void>;
+  handleAddDecision: (values: AddDecisionInput) => Promise<void>;
   selectedChange: ChangeRequest | null;
   setCreateModalOpen: (v: boolean) => void;
   setEditModalOpen: (v: boolean) => void;
@@ -64,10 +71,8 @@ export function useChangeFormWrappers(deps: {
     setEditRfcId,
     setCabModalOpen,
     setEditCabId,
-    setCabDetailModalOpen,
     setDecisionModalOpen,
   } = deps;
-
 
   const handleCreateWrapper = useCallback(async () => {
     try {

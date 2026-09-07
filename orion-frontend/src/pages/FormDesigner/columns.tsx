@@ -62,19 +62,19 @@ export const buildActionColumn = (deps: ActionColumnDeps): TableColumn<unknown> 
         <Tooltip title="预览 Schema">
           <Button
             type="link"
-            icon=<EyeOutlined />}
+            icon={<EyeOutlined />}
             onClick={() => deps.onPreview(record.schema)}
           />
         </Tooltip>
       )}
       <Tooltip title="编辑">
-        <Button type="link" icon=<EditOutlined />} onClick={() => deps.onEdit(record)} />
+        <Button type="link" icon={<EditOutlined />} onClick={() => deps.onEdit(record)} />
       </Tooltip>
       <Tooltip title="删除">
         <Button
           type="link"
           danger
-          icon=<DeleteOutlined />}
+          icon={<DeleteOutlined />}
           onClick={() => deps.onDelete(record.id)}
         />
       </Tooltip>
