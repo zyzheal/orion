@@ -157,6 +157,8 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	wireuserstatus(db, logger)
 	wireusertoken(db, logger)
 	wireVulnerability(db, logger)
+	// ---- Phase 2: DBA extension modules (approval/query/aireview/osc) ----
+	wireDbaExtensions(db, logger)
 	wireTerminalAudit(db, logger)
 	wireTenantGateway(db, logger)
 	wireApkUploadHistory(db, logger)

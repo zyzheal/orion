@@ -130,7 +130,11 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
 			pipelineTemplatesH, pipelineVersionsH, pluginMarketplaceH, resilienceScoreH, runnerH, sbomH,
 			securityPrivacyH, agentsH, dbdevopsH, datasourceH, skillH, gwRoutesH,
 			rateLimitH, testReportsH, middlewareH, statisticsH, roweditorH, apiComponentH,
-			alertRuleEngineH)
+			alertRuleEngineH,
+			// Phase 2 DBA extension handlers (approval/query/aireview/osc).
+			// Each is nil when its wire function failed to initialise; the
+			// registerRoutes loop above skips nil handlers.
+			dbaApprovalH, dbaQueryH, dbaAirReviewH, dbaOscH, dbaSlowQueryH, dbaExplainH, dbaAdvisorH)
 
 		if authH != nil {
 			public := r.Group("/auth")

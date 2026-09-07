@@ -163,6 +163,16 @@ func (r *Repository) CreateAuditRule(ctx context.Context, rule *models.AuditRule
 	return err
 }
 
+func (r *Repository) GetAuditRuleByID(ctx context.Context, id string) (*models.AuditRule, error) {
+	var rule models.AuditRule
+	err := r.db.GetContext(ctx, &rule,
+		`SELECT * FROM dba_audit_rules WHERE id=$1`, id)
+	if err != nil {
+		return nil, err
+	}
+	return &rule, nil
+}
+
 func (r *Repository) ListAuditRules(ctx context.Context, tenantID string) ([]models.AuditRule, error) {
 	var items []models.AuditRule
 	err := r.db.SelectContext(ctx, &items,

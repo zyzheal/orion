@@ -16,19 +16,19 @@ type ServiceInterface interface {
 	CreateAuditRule(ctx context.Context, tenantID string, req models.CreateAuditRuleRequest) (*models.AuditRule, error)
 	CreateDataSource(ctx context.Context, tenantID string, req models.CreateDataSourceRequest) (*models.DataSource, error)
 	CreateOrder(ctx context.Context, tenantID, userID string, req models.CreateOrderRequest) (*models.SqlOrder, error)
-	DeleteDataSource(ctx context.Context, id string) error
+	DeleteDataSource(ctx context.Context, tenantID, id string) error
 	ExecuteDirectQuery(ctx context.Context, tenantID, userID string, req models.DirectQueryRequest) (*models.DirectQueryResponse, error)
 	ExecuteOrder(ctx context.Context, tenantID, userID, id string) (*models.SqlOrder, error)
-	GetDataSource(ctx context.Context, id string) (*models.DataSource, error)
+	GetDataSource(ctx context.Context, tenantID, id string) (*models.DataSource, error)
 	GetOrder(ctx context.Context, id string) (*models.SqlOrder, error)
 	ListAuditRules(ctx context.Context, tenantID string) ([]models.AuditRule, error)
 	ListDataSources(ctx context.Context, tenantID string) ([]models.DataSource, error)
 	ListOrders(ctx context.Context, tenantID, status string, page, limit int) (*models.OrderListResult, error)
 	ListQueryLogs(ctx context.Context, tenantID string, q models.QueryLogQuery) (*models.QueryLogResult, error)
 	RejectOrder(ctx context.Context, id string) (*models.SqlOrder, error)
-	TestConnection(ctx context.Context, id string) (*models.TestConnectionResult, error)
+	TestConnection(ctx context.Context, tenantID, id string) (*models.TestConnectionResult, error)
 	UpdateAuditRule(ctx context.Context, id string, req models.UpdateAuditRuleRequest) (*models.AuditRule, error)
-	UpdateDataSource(ctx context.Context, id string, req models.UpdateDataSourceRequest) (*models.DataSource, error)
+	UpdateDataSource(ctx context.Context, tenantID, id string, req models.UpdateDataSourceRequest) (*models.DataSource, error)
 }
 
 // Ensure compile-time safety: *Service implements ServiceInterface.

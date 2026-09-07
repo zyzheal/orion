@@ -51,9 +51,12 @@ func (s *Service) CreateOrder(ctx context.Context, req *models.CreateOrderInput,
 	return order, nil
 }
 
-func (s *Service) GetOrder(ctx context.Context, id string) (*models.SQLOrder, error) {
+func (s *Service) GetOrder(ctx context.Context, tenantID, id string) (*models.SQLOrder, error) {
 	order, err := s.repo.GetOrderByID(ctx, id)
 	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrOrderNotFound, id)
+	}
+	if order.TenantID != "" && order.TenantID != tenantID {
 		return nil, fmt.Errorf("%w: %s", ErrOrderNotFound, id)
 	}
 	return order, nil
@@ -75,9 +78,12 @@ func (s *Service) ListOrders(ctx context.Context, tenantID, status string, page,
 	}, nil
 }
 
-func (s *Service) ApproveOrder(ctx context.Context, id, userID string) (*models.SQLOrder, error) {
+func (s *Service) ApproveOrder(ctx context.Context, tenantID, id, userID string) (*models.SQLOrder, error) {
 	order, err := s.repo.GetOrderByID(ctx, id)
 	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrOrderNotFound, id)
+	}
+	if order.TenantID != "" && order.TenantID != tenantID {
 		return nil, fmt.Errorf("%w: %s", ErrOrderNotFound, id)
 	}
 	if order.Status != "pending" {
@@ -89,9 +95,12 @@ func (s *Service) ApproveOrder(ctx context.Context, id, userID string) (*models.
 	return s.repo.GetOrderByID(ctx, id)
 }
 
-func (s *Service) RejectOrder(ctx context.Context, id string) (*models.SQLOrder, error) {
+func (s *Service) RejectOrder(ctx context.Context, tenantID, id string) (*models.SQLOrder, error) {
 	order, err := s.repo.GetOrderByID(ctx, id)
 	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrOrderNotFound, id)
+	}
+	if order.TenantID != "" && order.TenantID != tenantID {
 		return nil, fmt.Errorf("%w: %s", ErrOrderNotFound, id)
 	}
 	if order.Status != "pending" {
@@ -103,9 +112,12 @@ func (s *Service) RejectOrder(ctx context.Context, id string) (*models.SQLOrder,
 	return s.repo.GetOrderByID(ctx, id)
 }
 
-func (s *Service) ExecuteOrder(ctx context.Context, id string) (*models.SQLOrder, error) {
+func (s *Service) ExecuteOrder(ctx context.Context, tenantID, id string) (*models.SQLOrder, error) {
 	order, err := s.repo.GetOrderByID(ctx, id)
 	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrOrderNotFound, id)
+	}
+	if order.TenantID != "" && order.TenantID != tenantID {
 		return nil, fmt.Errorf("%w: %s", ErrOrderNotFound, id)
 	}
 	if order.Status != "approved" {
@@ -154,31 +166,34 @@ func (s *Service) ListDataSources(ctx context.Context, tenantID string) ([]model
 	return s.repo.ListDataSources(ctx, tenantID)
 }
 
-func (s *Service) GetDataSource(ctx context.Context, id string) (*models.DataSource, error) {
+func (s *Service) GetDataSource(ctx context.Context, tenantID, id string) (*models.DataSource, error) {
 	ds, err := s.repo.GetDataSourceByID(ctx, id)
 	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrDataSourceNotFound, id)
+	}
+	if ds.TenantID != "" && ds.TenantID != tenantID {
 		return nil, fmt.Errorf("%w: %s", ErrDataSourceNotFound, id)
 	}
 	return ds, nil
 }
 
-func (s *Service) UpdateDataSource(ctx context.Context, id string, req map[string]interface{}) (*models.DataSource, error) {
-	if _, err := s.repo.GetDataSourceByID(ctx, id); err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrDataSourceNotFound, id)
+func (s *Service) UpdateDataSource(ctx context.Context, tenantID, id string, req map[string]interface{}) (*models.DataSource, error) {
+	if _, err := s.GetDataSource(ctx, tenantID, id); err != nil {
+		return nil, err
 	}
 	return s.repo.UpdateDataSource(ctx, id, req)
 }
 
-func (s *Service) DeleteDataSource(ctx context.Context, id string) (bool, error) {
-	if _, err := s.repo.GetDataSourceByID(ctx, id); err != nil {
-		return false, fmt.Errorf("%w: %s", ErrDataSourceNotFound, id)
+func (s *Service) DeleteDataSource(ctx context.Context, tenantID, id string) (bool, error) {
+	if _, err := s.GetDataSource(ctx, tenantID, id); err != nil {
+		return false, err
 	}
 	return s.repo.DeleteDataSource(ctx, id)
 }
 
-func (s *Service) TestConnection(ctx context.Context, id string) (*models.QueryResult, error) {
-	if _, err := s.repo.GetDataSourceByID(ctx, id); err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrDataSourceNotFound, id)
+func (s *Service) TestConnection(ctx context.Context, tenantID, id string) (*models.QueryResult, error) {
+	if _, err := s.GetDataSource(ctx, tenantID, id); err != nil {
+		return nil, err
 	}
 	return &models.QueryResult{
 		Success:  true,
@@ -224,7 +239,14 @@ func (s *Service) ListAuditRules(ctx context.Context, tenantID string) ([]models
 	return s.repo.ListAuditRules(ctx, tenantID)
 }
 
-func (s *Service) UpdateAuditRule(ctx context.Context, id string, req map[string]interface{}) (*models.AuditRule, error) {
+func (s *Service) UpdateAuditRule(ctx context.Context, tenantID, id string, req map[string]interface{}) (*models.AuditRule, error) {
+	rule, err := s.repo.GetAuditRuleByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidInput, id)
+	}
+	if rule.TenantID != "" && rule.TenantID != tenantID {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidInput, id)
+	}
 	return s.repo.UpdateAuditRule(ctx, id, req)
 }
 

@@ -136,7 +136,8 @@ func (h *Handler) DryRun(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.DryRun(ctx, req)
+	tenantID := c.GetString("tenant_id")
+	result, err := h.svc.DryRun(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

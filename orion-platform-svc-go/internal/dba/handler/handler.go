@@ -172,8 +172,9 @@ func (h *Handler) ListDataSources(c *gin.Context) {
 func (h *Handler) GetDataSource(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDataSource")
 	defer span.End()
+	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	ds, err := h.svc.GetDataSource(ctx, id)
+	ds, err := h.svc.GetDataSource(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "data source not found")
 		return
@@ -201,13 +202,14 @@ func (h *Handler) CreateDataSource(c *gin.Context) {
 func (h *Handler) UpdateDataSource(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateDataSource")
 	defer span.End()
+	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateDataSourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	ds, err := h.svc.UpdateDataSource(ctx, id, req)
+	ds, err := h.svc.UpdateDataSource(ctx, tenantID, id, req)
 	if err != nil {
 		middleware.RespondNotFound(c, "data source not found")
 		return
@@ -218,8 +220,9 @@ func (h *Handler) UpdateDataSource(c *gin.Context) {
 func (h *Handler) DeleteDataSource(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteDataSource")
 	defer span.End()
+	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.DeleteDataSource(ctx, id); err != nil {
+	if err := h.svc.DeleteDataSource(ctx, tenantID, id); err != nil {
 		middleware.RespondNotFound(c, "data source not found")
 		return
 	}
@@ -229,8 +232,9 @@ func (h *Handler) DeleteDataSource(c *gin.Context) {
 func (h *Handler) TestConnection(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TestConnection")
 	defer span.End()
+	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	result, err := h.svc.TestConnection(ctx, id)
+	result, err := h.svc.TestConnection(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "data source not found")
 		return

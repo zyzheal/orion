@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -163,8 +164,15 @@ func (s *Service) ListDataSources(ctx context.Context, tenantID string) ([]model
 	return s.repo.ListDataSources(ctx, tenantID)
 }
 
-func (s *Service) GetDataSource(ctx context.Context, id string) (*models.DataSource, error) {
-	return s.repo.GetDataSource(ctx, id)
+func (s *Service) GetDataSource(ctx context.Context, tenantID, id string) (*models.DataSource, error) {
+	ds, err := s.repo.GetDataSource(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if ds.TenantID != "" && ds.TenantID != tenantID {
+		return nil, fmt.Errorf("data source %q does not belong to tenant", id)
+	}
+	return ds, nil
 }
 
 func (s *Service) CreateDataSource(ctx context.Context, tenantID string, req models.CreateDataSourceRequest) (*models.DataSource, error) {
@@ -184,7 +192,10 @@ func (s *Service) CreateDataSource(ctx context.Context, tenantID string, req mod
 	return ds, nil
 }
 
-func (s *Service) UpdateDataSource(ctx context.Context, id string, req models.UpdateDataSourceRequest) (*models.DataSource, error) {
+func (s *Service) UpdateDataSource(ctx context.Context, tenantID, id string, req models.UpdateDataSourceRequest) (*models.DataSource, error) {
+	if _, err := s.GetDataSource(ctx, tenantID, id); err != nil {
+		return nil, err
+	}
 	updates := make(map[string]interface{})
 	if req.Name != nil {
 		updates["name"] = *req.Name
@@ -210,14 +221,17 @@ func (s *Service) UpdateDataSource(ctx context.Context, id string, req models.Up
 	return s.repo.UpdateDataSource(ctx, id, updates)
 }
 
-func (s *Service) DeleteDataSource(ctx context.Context, id string) error {
+func (s *Service) DeleteDataSource(ctx context.Context, tenantID, id string) error {
+	if _, err := s.GetDataSource(ctx, tenantID, id); err != nil {
+		return err
+	}
 	return s.repo.DeleteDataSource(ctx, id)
 }
 
 // TestConnection checks connectivity to a data source by opening a real
 // PostgreSQL connection and running a lightweight probe (SELECT 1 + version).
-func (s *Service) TestConnection(ctx context.Context, id string) (*models.TestConnectionResult, error) {
-	ds, err := s.repo.GetDataSource(ctx, id)
+func (s *Service) TestConnection(ctx context.Context, tenantID, id string) (*models.TestConnectionResult, error) {
+	ds, err := s.GetDataSource(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -302,6 +316,9 @@ func (s *Service) ExecuteDirectQuery(ctx context.Context, tenantID, userID strin
 			}, nil
 		}
 		return nil, err
+	}
+	if ds.TenantID != "" && ds.TenantID != tenantID {
+		return nil, fmt.Errorf("data source %q does not belong to tenant", req.DataSourceID)
 	}
 
 	// Only PostgreSQL and MySQL are supported for direct query execution.
@@ -445,29 +462,123 @@ func (s *Service) ExecuteDirectQuery(ctx context.Context, tenantID, userID strin
 
 // ---- Internal helpers ----
 
+// isReadOnlySQL returns true when the SQL statement is a safe
+// read-only query. The check is deliberately strict — a single false
+// negative is a write-via-read bug, so we err on the side of rejecting:
+//
+//   - Only "SELECT ..." or "WITH ... SELECT ..." allowed.
+//   - No embedded semicolons (would allow statement stacking).
+//   - No write side-effect keywords anywhere in the body (CREATE,
+//     ALTER, DROP, INSERT, UPDATE, DELETE, TRUNCATE, GRANT, REVOKE,
+//     SET, CALL, EXEC, EXECUTE, VACUUM, ANALYZE, REFRESH, LISTEN,
+//     NOTIFY, LOAD, etc.).
+//   - No string-literal escape tricks: we strip comments BEFORE
+//     checking prefixes.
+//
+// This does not replace Postgres' read-only transactions; use one of
+// those for defense in depth. This gate just catches obvious
+// non-read-only input early.
 func isReadOnlySQL(sql string) bool {
-	// Strip leading whitespace and comments.
-	for {
-		pos := strings.IndexAny(sql, ";--/\n")
-		if pos == -1 {
-			break
-		}
-		switch sql[pos] {
-		case ';':
-			sql = strings.TrimSpace(sql[pos+1:])
-		case '-', '/':
-			sql = sql[pos+1:]
-		case '\n':
-			sql = strings.TrimSpace(sql[1:])
-		default:
-			break
+	// Reject multiple statements outright — a semicolon is the only
+	// reliable separator, and we cannot safely interpret stacked
+	// statements without a real parser.
+	if strings.Contains(sql, ";") {
+		return false
+	}
+	// Strip single-line and multi-line comments so a caller cannot
+	// hide a keyword behind "-- DROP ..." or "/* DROP */".
+	s := stripSQLComments(sql)
+	s = strings.ToLower(strings.TrimSpace(s))
+
+	if s == "" {
+		return false
+	}
+	// Must start with select or with.
+	if !strings.HasPrefix(s, "select") && !strings.HasPrefix(s, "with") {
+		return false
+	}
+	// Reject any write side-effect keyword anywhere in the body.
+	// This is intentionally a superset of what a read-only transaction
+	// would refuse — we catch it at the API boundary.
+	for _, bad := range blockedSQLKeywords {
+		if containsSQLKeyword(s, bad) {
+			return false
 		}
 	}
-	if strings.HasPrefix(sql, "with") {
-		return strings.HasPrefix(sql, "with") &&
-			(strings.Contains(sql, "select") || strings.Contains(sql, " SELECT"))
+	return true
+}
+
+// blockedSQLKeywords is the set of SQL verbs that mutate state or
+// escape the read-only boundary. Kept as a slice so adding a new
+// keyword is a one-line change.
+var blockedSQLKeywords = []string{
+	"create", "alter", "drop", "truncate", "insert", "update", "delete",
+	"grant", "revoke", "call", "exec", "execute", "set", "reset",
+	"vacuum", "analyze", "refresh", "listen", "notify", "load",
+	"copy", "fetch", "prepare", "deallocate", "comment",
+}
+
+// containsSQLKeyword returns true when keyword appears as a
+// word-boundary token in sql. Using regexp so "update_time" does NOT
+// match "update" and "table" does NOT match "set".
+func containsSQLKeyword(sql, keyword string) bool {
+	re := regexp.MustCompile(`(^|\W)` + regexp.QuoteMeta(keyword) + `(\W|$)`)
+	return re.MatchString(sql)
+}
+
+// stripSQLComments removes -- single-line and /* */ block comments
+// (because a DB parser would ignore them), and replaces string
+// literals with '' (because their contents never execute as SQL).
+// The result is what the parser actually evaluates — the keyword
+// scan below runs on this stripped text so a caller cannot hide
+// "DROP" in a comment or a string.
+func stripSQLComments(sql string) string {
+	var out strings.Builder
+	for i := 0; i < len(sql); {
+		// String literal: replace with '' so its contents do not
+		// trigger the keyword scan. Handles SQL-style '' escape.
+		if sql[i] == '\'' {
+			end := i + 1
+			for end < len(sql) {
+				if sql[end] == '\'' {
+					if end+1 < len(sql) && sql[end+1] == '\'' {
+						end += 2
+						continue
+					}
+					break
+				}
+				end++
+			}
+			out.WriteString("''")
+			if end < len(sql) {
+				i = end + 1
+			} else {
+				break
+			}
+			continue
+		}
+		// Single-line comment: skip to end of line.
+		if i+1 < len(sql) && sql[i] == '-' && sql[i+1] == '-' {
+			j := strings.IndexByte(sql[i:], '\n')
+			if j < 0 {
+				break
+			}
+			i += j + 1
+			continue
+		}
+		// Block comment: skip to closing */.
+		if i+1 < len(sql) && sql[i] == '/' && sql[i+1] == '*' {
+			end := strings.Index(sql[i+2:], "*/")
+			if end < 0 {
+				break
+			}
+			i += 2 + end + 2
+			continue
+		}
+		out.WriteByte(sql[i])
+		i++
 	}
-	return strings.HasPrefix(sql, "select")
+	return out.String()
 }
 
 // normalizeDBType maps any user-supplied DataSource.Type string onto a

@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 	"orion/go-common/pkg/database"
 
@@ -45,6 +47,9 @@ import (
 	dba_handler "orion/platform-svc-go/internal/dba/handler"
 	dba_repo "orion/platform-svc-go/internal/dba/repository"
 	dba_service "orion/platform-svc-go/internal/dba/service"
+	dba_advisor "orion/platform-svc-go/internal/dba/advisor"
+	dba_explain "orion/platform-svc-go/internal/dba/explain"
+	dba_slowquery "orion/platform-svc-go/internal/dba/slowquery"
 
 	// runner services (CI task execution on worker agents)
 	runner_handler "orion/platform-svc-go/internal/runner/handler"
@@ -249,6 +254,75 @@ func wireDomainModules(db *database.DB) {
 			for _, p := range pls {
 				refs = append(refs, assistant_service.PipelineRef{ID: p.ID, Title: p.Name})
 			}
+			return refs, nil
+		}),
+		// DBA provider: surfaces slow-query top-N, execution-plan history and
+		// index recommendations to the AI copilot. wireDomainModules runs
+		// before wireDbaExtensions, so the DBA services are dereferenced
+		// lazily; when they are not wired the provider contributes nothing.
+		assistant_service.NewDBAProvider(func(ctx context.Context, tenantID, query string, limit int) ([]assistant_service.DBARef, error) {
+			if limit <= 0 {
+				limit = 5
+			}
+			var refs []assistant_service.DBARef
+
+			// 1. Recent EXPLAIN history — tenant-only, always available.
+			if dbaExplainSvc != nil {
+				jobs, err := dbaExplainSvc.RecentHistory(ctx, tenantID, limit)
+				if err == nil {
+					for _, j := range jobs {
+						title := "EXPLAIN " + j.DBType + " · " + truncateSQL(j.SQL, 48)
+						body := j.PlanText
+						if body == "" {
+							body = j.SQL
+						}
+						refs = append(refs, assistant_service.DBARef{ID: j.ID, Title: title, Body: body})
+					}
+				}
+			}
+
+			// 2. Slow queries + index suggestions — need data sources first.
+			if dbaSlowQuerySvc != nil || dbaAdvisorSvc != nil {
+				dsRepo := dba_repo.NewRepository(db.DB)
+				sources, err := dsRepo.ListDataSources(ctx, tenantID)
+				if err == nil {
+					for _, ds := range sources {
+						if dbaSlowQuerySvc != nil {
+							top, terr := dbaSlowQuerySvc.TopN(ctx, dba_slowquery.TopNRequest{
+								DataSourceID: ds.ID,
+								TenantID:     tenantID,
+								Limit:        limit,
+							})
+							if terr == nil {
+								for _, sq := range top {
+									refs = append(refs, assistant_service.DBARef{
+										ID:    sq.ID,
+										Title: "SLOW · " + ds.Name + " (" + sq.DBType + ") · " + truncateSQL(sq.Query, 48),
+										Body:  formatSlowQuery(sq),
+									})
+								}
+							}
+						}
+						// advisor.SuggestIndexes runs its own slow-query scan
+						// internally — do not repeat TopN for it.
+						if dbaAdvisorSvc != nil {
+							res, aerr := dbaAdvisorSvc.SuggestIndexes(ctx, tenantID, dba_advisor.SuggestIndexesRequest{
+								DataSourceID: ds.ID,
+							})
+							if aerr == nil {
+								for _, sug := range res.Suggestions {
+									refs = append(refs, assistant_service.DBARef{
+										ID:    res.DataSourceID + "/" + sug.Table,
+										Title: "INDEX · " + ds.Name + " · " + sug.Table,
+										Body:  formatIndexSuggestion(sug),
+									})
+								}
+							}
+						}
+					}
+				}
+			}
+
 			return refs, nil
 		}),
 	}
@@ -483,6 +557,38 @@ func wireDomainModules(db *database.DB) {
 	lowcodeRepo := lowcode_repo.NewRepository(db.DB)
 	lowcodeSvc = lowcode_service.NewService(lowcodeRepo)
 	lowcodeH = lowcode_handler.NewHandler(lowcodeSvc)
+}
+
+// truncateSQL shortens a SQL snippet for use in a search result title.
+func truncateSQL(sql string, max int) string {
+	sql = strings.ReplaceAll(sql, "\n", " ")
+	runes := []rune(strings.TrimSpace(sql))
+	if len(runes) <= max {
+		return string(runes)
+	}
+	return string(runes[:max]) + "…"
+}
+
+// formatSlowQuery renders a slow-query record as a human-readable body.
+func formatSlowQuery(sq dba_slowquery.SlowQuery) string {
+	var b strings.Builder
+	b.WriteString("schema=" + sq.Schema)
+	b.WriteString(" calls=" + strconv.FormatInt(sq.CallCount, 10))
+	b.WriteString(" mean=" + strconv.FormatFloat(sq.MeanTime, 'f', 1, 64) + "ms")
+	b.WriteString(" total=" + strconv.FormatFloat(sq.TotalTime, 'f', 1, 64) + "ms")
+	b.WriteString(" rows_read=" + strconv.FormatInt(sq.RowsRead, 10))
+	b.WriteString(" rows_returned=" + strconv.FormatInt(sq.RowsReturned, 10))
+	b.WriteString("\nquery: " + sq.Query)
+	return b.String()
+}
+
+// formatIndexSuggestion renders an index recommendation as searchable text.
+func formatIndexSuggestion(s dba_advisor.IndexSuggestion) string {
+	return "kind=" + s.Kind +
+		" columns=[" + strings.Join(s.Columns, ", ") + "]" +
+		" impact=" + strconv.FormatFloat(s.Impact, 'f', 1, 64) +
+		"\nsql: " + s.SQL +
+		"\nreason: " + s.Reason
 }
 
 // Handler variables for cicd_domain_wiring (moved from central wiring.go var block)

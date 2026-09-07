@@ -25,6 +25,95 @@ func TestIsReadOnlySQL_Select(t *testing.T) {
 	}
 }
 
+func TestIsReadOnlySQL_SelectWithColumns(t *testing.T) {
+	if !isReadOnlySQL("SELECT id, name FROM users WHERE status = 'active'") {
+		t.Error("expected simple SELECT to pass")
+	}
+}
+
+func TestIsReadOnlySQL_WithClause(t *testing.T) {
+	if !isReadOnlySQL("WITH cte AS (SELECT id FROM users) SELECT * FROM cte") {
+		t.Error("expected WITH ... SELECT to pass")
+	}
+}
+
+func TestIsReadOnlySQL_RejectsMultiStatement(t *testing.T) {
+	// Semicolon-stacked statements are outright rejected — this was
+	// the primary injection vector in the original implementation.
+	if isReadOnlySQL("SELECT * FROM users; DROP TABLE users") {
+		t.Error("expected semicolon-stacked statements to be rejected")
+	}
+}
+
+func TestIsReadOnlySQL_RejectsUpdateAfterSemicolon(t *testing.T) {
+	if isReadOnlySQL("SELECT 1; UPDATE users SET x = 1") {
+		t.Error("expected semicolon-stacked UPDATE to be rejected")
+	}
+}
+
+func TestIsReadOnlySQL_ComentedDropIsSafe(t *testing.T) {
+	// "SELECT 1 -- drop table users" is actually safe — the -- makes
+	// the rest a comment. The DB only executes SELECT 1.
+	if !isReadOnlySQL("SELECT 1 -- drop table users") {
+		t.Error("expected commented-out DROP to pass (DB ignores comments)")
+	}
+}
+
+func TestIsReadOnlySQL_BlockCommentedDropIsSafe(t *testing.T) {
+	if !isReadOnlySQL("SELECT 1 /* drop table users */") {
+		t.Error("expected block-commented DROP to pass (DB ignores comments)")
+	}
+}
+
+func TestIsReadOnlySQL_ComentedCreateIsSafe(t *testing.T) {
+	if !isReadOnlySQL("SELECT 1 -- CREATE TABLE evil (x int)") {
+		t.Error("expected commented-out CREATE to pass")
+	}
+}
+
+func TestIsReadOnlySQL_RejectsSemicolonAfterComment(t *testing.T) {
+	// The real attack: comment hides a semicolon? No — semicolons
+	// are always semicolons. But the stacked statement still fails
+	// because we reject any semicolon.
+	if isReadOnlySQL("SELECT 1 /* -- */; DROP TABLE users") {
+		t.Error("expected comment-obfuscated semicolon stack to be rejected")
+	}
+}
+
+func TestIsReadOnlySQL_PreservesKeywordsInStrings(t *testing.T) {
+	// String-literal contents are masked so keywords inside them do
+	// not trigger the rejection.
+	if !isReadOnlySQL("SELECT 1 WHERE name = 'drop table'") {
+		t.Error("expected string-literal DROP to pass (literal contents are masked)")
+	}
+}
+
+func TestIsReadOnlySQL_PreservesEscapedQuotesInString(t *testing.T) {
+	// SQL escape: '' inside a string is a literal quote. The stripper
+	// must not terminate the literal early.
+	if !isReadOnlySQL(`SELECT * FROM t WHERE s = 'it''s fine drop here'`) {
+		t.Error("expected escaped-quote string to pass")
+	}
+}
+
+func TestIsReadOnlySQL_Empty(t *testing.T) {
+	if isReadOnlySQL("") {
+		t.Error("expected empty SQL to be rejected")
+	}
+}
+
+func TestIsReadOnlySQL_NonSelectPrefix(t *testing.T) {
+	if isReadOnlySQL("SHOW TABLES") {
+		t.Error("expected non-SELECT prefix to be rejected")
+	}
+}
+
+func TestIsReadOnlySQL_TrimsWhitespace(t *testing.T) {
+	if !isReadOnlySQL("   SELECT 1   ") {
+		t.Error("expected whitespace-padded SELECT to pass")
+	}
+}
+
 // ---- normalizeDBType ----
 
 func TestNormalizeDBType(t *testing.T) {

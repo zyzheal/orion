@@ -23,6 +23,7 @@ var ErrInvalidTransition = errors.New("invalid job status transition")
 // wiring layer keeps OSC self-contained.
 type DataSourceInfo struct {
 	ID       string
+	TenantID string
 	Type     string // "mysql" / "postgres" / ...
 	Host     string
 	Port     int
@@ -45,7 +46,7 @@ type ServiceInterface interface {
 	StopJob(ctx context.Context, tenantID, jobID string) (*OSCJob, error)
 	GetJob(ctx context.Context, tenantID, jobID string) (*OSCJob, error)
 	ListJobs(ctx context.Context, tenantID string, q OSCListQuery) (*OSCJobListResult, error)
-	DryRun(ctx context.Context, req DryRunRequest) (*DryRunResult, error)
+	DryRun(ctx context.Context, tenantID string, req DryRunRequest) (*DryRunResult, error)
 	Status(ctx context.Context, tenantID, jobID string) (*OSCStatus, error)
 }
 
@@ -110,6 +111,9 @@ func (s *Service) CreateJob(ctx context.Context, tenantID, userID string, req Cr
 				return nil, fmt.Errorf("data source %q not found", req.DataSourceID)
 			}
 			return nil, fmt.Errorf("load data source: %w", err)
+		}
+		if ds.TenantID != "" && ds.TenantID != tenantID {
+			return nil, fmt.Errorf("data source %q does not belong to tenant", req.DataSourceID)
 		}
 		if !isMySQL(ds.Type) {
 			return nil, fmt.Errorf("OSC only supports MySQL data sources; data source %q is %s", ds.ID, ds.Type)
@@ -297,7 +301,7 @@ func (s *Service) ListJobs(ctx context.Context, tenantID string, q OSCListQuery)
 
 // DryRun validates credentials by pinging MySQL, then invokes gh-ost
 // with --execute omitted. It does not persist a job row.
-func (s *Service) DryRun(ctx context.Context, req DryRunRequest) (*DryRunResult, error) {
+func (s *Service) DryRun(ctx context.Context, tenantID string, req DryRunRequest) (*DryRunResult, error) {
 	if s.ds == nil {
 		return nil, errors.New("no data source provider configured")
 	}
@@ -307,6 +311,9 @@ func (s *Service) DryRun(ctx context.Context, req DryRunRequest) (*DryRunResult,
 			return nil, fmt.Errorf("data source %q not found", req.DataSourceID)
 		}
 		return nil, fmt.Errorf("load data source: %w", err)
+	}
+	if ds.TenantID != "" && ds.TenantID != tenantID {
+		return nil, fmt.Errorf("data source %q does not belong to tenant", req.DataSourceID)
 	}
 	if !isMySQL(ds.Type) {
 		return nil, fmt.Errorf("OSC only supports MySQL data sources; data source %q is %s", ds.ID, ds.Type)

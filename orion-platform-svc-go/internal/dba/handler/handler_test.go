@@ -43,7 +43,7 @@ func (f *fakeDbaService) CreateOrder(ctx context.Context, tenantID, userID strin
 	return &models.SqlOrder{}, nil
 }
 
-func (f *fakeDbaService) DeleteDataSource(ctx context.Context, id string) error {
+func (f *fakeDbaService) DeleteDataSource(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
@@ -55,7 +55,7 @@ func (f *fakeDbaService) ExecuteOrder(ctx context.Context, tenantID, userID, id 
 	return &models.SqlOrder{}, nil
 }
 
-func (f *fakeDbaService) GetDataSource(ctx context.Context, id string) (*models.DataSource, error) {
+func (f *fakeDbaService) GetDataSource(ctx context.Context, tenantID, id string) (*models.DataSource, error) {
 	return &models.DataSource{}, nil
 }
 
@@ -83,7 +83,7 @@ func (f *fakeDbaService) RejectOrder(ctx context.Context, id string) (*models.Sq
 	return &models.SqlOrder{}, nil
 }
 
-func (f *fakeDbaService) TestConnection(ctx context.Context, id string) (*models.TestConnectionResult, error) {
+func (f *fakeDbaService) TestConnection(ctx context.Context, tenantID, id string) (*models.TestConnectionResult, error) {
 	return &models.TestConnectionResult{}, nil
 }
 
@@ -91,7 +91,7 @@ func (f *fakeDbaService) UpdateAuditRule(ctx context.Context, id string, req mod
 	return &models.AuditRule{}, nil
 }
 
-func (f *fakeDbaService) UpdateDataSource(ctx context.Context, id string, req models.UpdateDataSourceRequest) (*models.DataSource, error) {
+func (f *fakeDbaService) UpdateDataSource(ctx context.Context, tenantID, id string, req models.UpdateDataSourceRequest) (*models.DataSource, error) {
 	return &models.DataSource{}, nil
 }
 

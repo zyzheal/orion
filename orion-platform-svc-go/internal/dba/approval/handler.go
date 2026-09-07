@@ -23,10 +23,12 @@ func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
 
-// RegisterRoutes mounts the approval endpoints on the provided group.
-// The parent group is expected to be /api/v1/db per the task spec.
+// RegisterRoutes mounts the approval endpoints under /dba/approval on
+// the shared api/v1 group. The CI/CD approval handler already owns
+// /approval at the api/v1 root, so this DBA approval flow nests under
+// /dba to avoid a Gin route collision.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	f := rg.Group("/approval")
+	f := rg.Group("/dba/approval")
 
 	// --- Workflows ---
 	f.POST("/workflows", auth.RequirePermission("dba", "write"), h.CreateWorkflow)
