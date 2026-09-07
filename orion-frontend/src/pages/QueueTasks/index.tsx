@@ -39,6 +39,7 @@ import {
   JobStatus,
   QueueStats,
 } from '@/api/queue';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
 
@@ -52,44 +53,44 @@ const statusColorMap: Record<JobStatus, string> = {
 };
 
 const QueueTasksPage: React.FC = () => {
-  const [jobs, setJobs] = useState<QueueJob[]>([]);
-  const [stats, setStats] = useState<QueueStats>({
-    pending: 0,
-    processing: 0,
-    completed: 0,
-    failed: 0,
-  });
-  const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [filterStatus, setFilterStatus] = useState<JobStatus | undefined>();
   const [form] = Form.useForm<EnqueueInput>();
 
-  const fetchJobs = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: jobs = [],
+    isLoading: loading,
+    isError,
+    error,
+    refetch: fetchJobs,
+  } = useQuery<QueueJob[]>({
+    queryKey: ['queue-jobs', filterStatus],
+    queryFn: async () => {
       const res = await listJobs(filterStatus ? { status: filterStatus } : undefined);
-      setJobs(res.data?.jobs || []);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return res.data?.jobs || [];
+    },
+    staleTime: 30_000,
+  });
 
-  const fetchStats = async () => {
-    try {
+  const {
+    data: stats = { pending: 0, processing: 0, completed: 0, failed: 0 },
+    refetch: fetchStats,
+  } = useQuery<QueueStats>({
+    queryKey: ['queue-stats'],
+    queryFn: async () => {
       const res = await getQueueStats();
-      setStats(res.data || { pending: 0, processing: 0, completed: 0, failed: 0 });
-    } catch {
-      // Stats endpoint may not be available
-    }
-  };
+      return res.data || { pending: 0, processing: 0, completed: 0, failed: 0 };
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    fetchJobs();
-    fetchStats();
-  }, [filterStatus]);
+    if (!isError) return;
+    message.error(error instanceof Error ? error.message : '加载失败');
+  }, [isError, error]);
 
   const handleEnqueue = async (values: EnqueueInput) => {
     setSubmitting(true);
