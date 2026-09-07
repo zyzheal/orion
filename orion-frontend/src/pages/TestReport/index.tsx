@@ -18,7 +18,6 @@ const TestReportPage: React.FC = () => {
     reports,
     summary,
     selectedReport,
-    cases,
     caseLoading,
     caseSearch,
     setCaseSearch,

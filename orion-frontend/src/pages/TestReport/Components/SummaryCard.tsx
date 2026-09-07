@@ -2,7 +2,6 @@
  * TestReport Summary card
  * 抽取自 index.tsx (P2-9 Phase 167)
  */
-import React from 'react';
 import { Card, Col, Row, Statistic } from 'antd';
 import {
   CheckCircleOutlined,
