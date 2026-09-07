@@ -27,6 +27,7 @@ import {
   DislikeOutlined,
   ClearOutlined,
 } from '@ant-design/icons';
+import { useQuery } from '@/providers/QueryProvider';
 import { ragQuery, ragFeedback, getSpaces, type RAGResult } from '@/api/ai-docs';
 import dayjs from 'dayjs';
 
@@ -49,23 +50,28 @@ const RAGQueryPage: React.FC = () => {
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [selectedSpace, setSelectedSpace] = useState<string>('');
-  const [spaces, setSpaces] = useState<{ id: string; name: string }[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const loadSpaces = async () => {
-    try {
+  const {
+    data: spaces = [] as { id: string; name: string }[],
+    isError,
+    error: queryError,
+  } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['ai-doc-spaces'],
+    queryFn: async () => {
       const res = await getSpaces();
       const spaceList = Array.isArray(res.data) ? res.data : [];
-      setSpaces(spaceList.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
-    } catch (error: unknown) {
-      setSpaces([]);
-      message.error(`加载知识库列表失败: ${(error as Error).message}`);
-    }
-  };
+      return spaceList.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name }));
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadSpaces();
-  }, []);
+    if (isError)
+      message.error(queryError instanceof Error ? queryError.message : '加载知识库列表失败');
+  }, [isError, queryError]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });

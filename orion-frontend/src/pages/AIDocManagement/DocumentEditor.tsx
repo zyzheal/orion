@@ -1,7 +1,7 @@
 /**
  * Document Editor - Markdown editor, version history
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Typography,
   Button,
@@ -18,6 +18,7 @@ import {
 import { EditOutlined, SaveOutlined, HistoryOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import StatusBadge from '@/components/StatusBadge';
+import { useQuery } from '@/providers/QueryProvider';
 import { getDocs, updateDoc, type Document } from '@/api/ai-docs';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
@@ -36,8 +37,6 @@ interface DocVersion {
 }
 
 const DocumentEditor: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [documents, setDocuments] = useState<Document[]>([]);
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');
@@ -46,49 +45,51 @@ const DocumentEditor: React.FC = () => {
   const [showVersions, setShowVersions] = useState(false);
   const [versions, setVersions] = useState<DocVersion[]>([]);
 
-  const loadDocuments = async () => {
-    setLoading(true);
-    try {
-      const res = await getDocs();
-      setDocuments(Array.isArray(res.data) ? res.data : []);
-    } catch (error: unknown) {
-      setDocuments([
-        {
-          id: 'd1',
-          spaceId: 's1',
-          title: 'API 设计最佳实践',
-          content: '# API 设计最佳实践\n\n本文档介绍了 RESTful API 的设计原则...',
-          status: 'published',
-          version: 3,
-          tags: ['api', 'design'],
-          authorId: 'admin',
-          createdAt: '2024-01-15',
-          updatedAt: '2024-03-10',
-        },
-        {
-          id: 'd2',
-          spaceId: 's1',
-          title: 'Kubernetes 运维手册',
-          content: '# Kubernetes 运维手册\n\nK8s 日常运维操作指南...',
-          status: 'published',
-          version: 5,
-          tags: ['k8s', 'ops'],
-          authorId: 'admin',
-          createdAt: '2024-02-01',
-          updatedAt: '2024-03-15',
-        },
-      ]);
-      if (error instanceof Error) {
-        message.warning(`加载文档失败，使用模拟数据：${error.message}`);
+  const {
+    data: documents = [] as Document[],
+    isLoading: loading,
+    refetch: loadDocuments,
+  } = useQuery<Document[]>({
+    queryKey: ['ai-doc-documents'],
+    queryFn: async () => {
+      try {
+        const res = await getDocs();
+        return Array.isArray(res.data) ? res.data : [];
+      } catch (error: unknown) {
+        // 加载失败回退到模拟数据（保留原交互语义）
+        if (error instanceof Error) {
+          message.warning(`加载文档失败，使用模拟数据：${error.message}`);
+        }
+        return [
+          {
+            id: 'd1',
+            spaceId: 's1',
+            title: 'API 设计最佳实践',
+            content: '# API 设计最佳实践\n\n本文档介绍了 RESTful API 的设计原则...',
+            status: 'published',
+            version: 3,
+            tags: ['api', 'design'],
+            authorId: 'admin',
+            createdAt: '2024-01-15',
+            updatedAt: '2024-03-10',
+          },
+          {
+            id: 'd2',
+            spaceId: 's1',
+            title: 'Kubernetes 运维手册',
+            content: '# Kubernetes 运维手册\n\nK8s 日常运维操作指南...',
+            status: 'published',
+            version: 5,
+            tags: ['k8s', 'ops'],
+            authorId: 'admin',
+            createdAt: '2024-02-01',
+            updatedAt: '2024-03-15',
+          },
+        ];
       }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadDocuments();
-  }, []);
+    },
+    staleTime: 30_000,
+  });
 
   const handleSelectDoc = (doc: Document) => {
     setSelectedDoc(doc);

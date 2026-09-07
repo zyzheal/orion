@@ -3,8 +3,9 @@
  * Verify: loads from API on mount, shows error on failure, no mock data fallback
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { screen, waitFor, act } from '@testing-library/react';
 import SpaceList from '../SpaceList';
+import { renderWithProviders } from '@/tests/render';
 
 const { mockMessage, mockApi } = vi.hoisted(() => ({
   mockMessage: {
@@ -108,7 +109,7 @@ describe('SpaceList', () => {
     });
 
     await act(async () => {
-      render(<SpaceList />);
+      renderWithProviders(<SpaceList />);
     });
 
     await waitFor(() => {
@@ -128,7 +129,7 @@ describe('SpaceList', () => {
     mockApi.getSpaces.mockRejectedValue(new Error('Network error'));
 
     await act(async () => {
-      render(<SpaceList />);
+      renderWithProviders(<SpaceList />);
     });
 
     await waitFor(() => {
@@ -136,7 +137,7 @@ describe('SpaceList', () => {
     });
 
     await waitFor(() => {
-      expect(mockMessage.error).toHaveBeenCalledWith(expect.stringContaining('加载知识库数据失败'));
+      expect(mockMessage.error).toHaveBeenCalledWith(expect.stringContaining('Network error'));
     });
 
     const rowCount = screen.getByTestId('row-count');
@@ -153,7 +154,7 @@ describe('SpaceList', () => {
     });
 
     await act(async () => {
-      render(<SpaceList />);
+      renderWithProviders(<SpaceList />);
     });
 
     await waitFor(() => {

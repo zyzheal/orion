@@ -6,7 +6,8 @@
  * - 整体健康度环形图
  * - 加载、空状态、错误处理
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
   Card,
@@ -332,28 +333,20 @@ const MetricDetails: React.FC<{ data: EvalMetric; loading?: boolean }> = ({ data
 // ============================================================================
 
 const RAGEvalPage: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<EvalMetric | null>(null);
-
-  const fetchMetrics = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
+  const {
+    data,
+    isLoading: loading,
+    isError,
+    error,
+    refetch: fetchMetrics,
+  } = useQuery<EvalMetric | null>({
+    queryKey: ['rag-eval-metrics'],
+    queryFn: async () => {
       const res = await getRAGEvalMetrics();
-      const metrics = res.data as EvalMetric;
-      setData(metrics);
-    } catch (err: unknown) {
-      const msg = (err as Error).message || '获取评估指标失败';
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchMetrics();
-  }, [fetchMetrics]);
+      return res.data as EvalMetric;
+    },
+    staleTime: 30_000,
+  });
 
   // ---- 健康度 ----
   const healthScore = data?.health_score ?? 0;
@@ -371,15 +364,15 @@ const RAGEvalPage: React.FC = () => {
       </div>
 
       {/* 错误状态 */}
-      {error && !loading && (
+      {isError && error && !loading && (
         <Alert
           type="error"
           message="无法加载评估指标"
-          description={error}
+          description={error instanceof Error ? error.message : '获取评估指标失败'}
           showIcon
           style={{ marginBottom: spacing.md, borderRadius: componentRadius.card }}
           action={
-            <Button size="small" onClick={fetchMetrics}>
+            <Button size="small" onClick={() => fetchMetrics()}>
               重试
             </Button>
           }
@@ -387,7 +380,7 @@ const RAGEvalPage: React.FC = () => {
       )}
 
       {/* 加载中状态 */}
-      {loading && !data && !error && (
+      {loading && !data && !isError && (
         <div style={{ textAlign: 'center', padding: '80px 0' }}>
           <Spin size="large" />
           <div style={{ marginTop: spacing.md }}>
@@ -397,13 +390,13 @@ const RAGEvalPage: React.FC = () => {
       )}
 
       {/* 空状态 */}
-      {!loading && !error && !data && (
+      {!loading && !isError && !data && (
         <Card style={{ borderRadius: componentRadius.card, boxShadow: shadows.card }}>
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无评估数据">
             <Button
               type="primary"
               icon={<ReloadOutlined />}
-              onClick={fetchMetrics}
+              onClick={() => fetchMetrics()}
               style={{ borderRadius: componentRadius.button.md, height: 36 }}
             >
               刷新
@@ -448,7 +441,7 @@ const RAGEvalPage: React.FC = () => {
           <div style={{ textAlign: 'center' }}>
             <Button
               icon={<ReloadOutlined />}
-              onClick={fetchMetrics}
+              onClick={() => fetchMetrics()}
               loading={loading}
               style={{ borderRadius: componentRadius.button.md, height: 36 }}
             >

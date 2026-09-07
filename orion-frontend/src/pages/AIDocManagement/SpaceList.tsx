@@ -34,6 +34,7 @@ import {
   type Space as SpaceType,
   type SpaceInput,
 } from '@/api/ai-docs';
+import { useQuery } from '@/providers/QueryProvider';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -55,8 +56,6 @@ const typeOptions = [
 ];
 
 const SpaceList: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [spaces, setSpaces] = useState<SpaceType[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [createModalVisible, setCreateModalVisible] = useState(false);
@@ -66,22 +65,27 @@ const SpaceList: React.FC = () => {
   const [editForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: spaces = [] as SpaceType[],
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch: loadData,
+  } = useQuery<SpaceType[]>({
+    queryKey: ['ai-doc-spaces'],
+    queryFn: async () => {
       const res = await getSpaces();
-      setSpaces(Array.isArray(res.data) ? res.data : []);
-    } catch (error: unknown) {
-      setSpaces([]);
-      message.error(`加载知识库数据失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isError)
+      message.error(queryError instanceof Error ? queryError.message : '加载知识库数据失败');
+  }, [isError, queryError]);
 
   const filteredSpaces = useMemo(() => {
     return spaces.filter((s) => {
@@ -252,7 +256,7 @@ const SpaceList: React.FC = () => {
           <Text type="secondary">管理知识库空间</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
             刷新
           </Button>
           <Button

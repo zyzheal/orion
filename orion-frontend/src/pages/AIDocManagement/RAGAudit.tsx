@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Table, Tabs, Tag, Card, message, Typography, Space, Tooltip } from 'antd';
 import { colors, spacing, componentRadius, shadows } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 import { getRAGAuditLogs, getRAGFlaggedQueries, RAGAuditLog } from '@/api/ai-docs';
 import dayjs from 'dayjs';
 
@@ -8,30 +9,33 @@ const { Text } = Typography;
 
 const RAGAuditPage: React.FC = () => {
   const [tab, setTab] = useState('all');
-  const [logs, setLogs] = useState<RAGAuditLog[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  const loadLogs = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data: auditData,
+    isLoading: loading,
+    isError,
+    error: queryError,
+  } = useQuery<{ data: RAGAuditLog[]; total: number }>({
+    queryKey: ['rag-audit', tab, page, pageSize],
+    queryFn: async () => {
       const params = { limit: pageSize, offset: (page - 1) * pageSize };
       const res =
         tab === 'all' ? await getRAGAuditLogs(params) : await getRAGFlaggedQueries(params);
-      setLogs(res.data.data);
-      setTotal(res.data.total);
-    } catch (err) {
-      message.error('加载审计日志失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [tab, page, pageSize]);
+      return { data: res.data.data, total: res.data.total };
+    },
+    staleTime: 30_000,
+  });
 
+  const logs = auditData?.data ?? [];
+  const total = auditData?.total ?? 0;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadLogs();
-  }, [loadLogs]);
+    if (isError) message.error(queryError instanceof Error ? queryError.message : '加载审计日志失败');
+  }, [isError, queryError]);
 
   const columns = [
     {

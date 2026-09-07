@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Select, Spin, Empty, Tag, message, Typography, Space, Row, Col } from 'antd';
 import { colors, spacing, componentRadius, shadows, themeVars } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 import { getKnowledgeGraph } from '@/api/ai-docs';
 import { BookOutlined, TagOutlined, FileTextOutlined } from '@ant-design/icons';
 
@@ -37,27 +38,29 @@ const nodeIcons: Record<string, React.ReactNode> = {
 };
 
 const KnowledgeGraphPage: React.FC = () => {
-  const [graph, setGraph] = useState<GraphData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [selectedType, setSelectedType] = useState<string>('all');
 
-  const loadGraph = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data: graph,
+    isLoading: loading,
+    isError,
+    error: queryError,
+  } = useQuery<GraphData | null>({
+    queryKey: ['ai-doc-knowledge-graph'],
+    queryFn: async () => {
       const res = await getKnowledgeGraph();
-      const data = res as unknown as GraphData;
-      setGraph(data);
-    } catch (err) {
-      message.error('加载知识图谱失败');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return res as unknown as GraphData;
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadGraph();
-  }, [loadGraph]);
+    if (isError)
+      message.error(queryError instanceof Error ? queryError.message : '加载知识图谱失败');
+  }, [isError, queryError]);
 
   const filteredNodes =
     graph?.nodes.filter((n) => selectedType === 'all' || n.type === selectedType) || [];
