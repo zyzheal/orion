@@ -1699,6 +1699,48 @@ export const routes: AppRoute[] = [
     protected: true,
     requiredPermission: { resource: 'dba', action: 'write' },
   },
+  {
+    path: '/dba/approval',
+    element: React.lazy(() => import('@/pages/dba/DbaApproval')),
+    protected: true,
+    requiredPermission: { resource: 'dba', action: 'read' },
+  },
+  {
+    path: '/dba/query',
+    element: React.lazy(() => import('@/pages/dba/DbaQuery')),
+    protected: true,
+    requiredPermission: { resource: 'dba', action: 'execute' },
+  },
+  {
+    path: '/dba/aireview',
+    element: React.lazy(() => import('@/pages/dba/DbaAIReview')),
+    protected: true,
+    requiredPermission: { resource: 'dba', action: 'write' },
+  },
+  {
+    path: '/dba/osc',
+    element: React.lazy(() => import('@/pages/dba/DbaOSC')),
+    protected: true,
+    requiredPermission: { resource: 'dba', action: 'write' },
+  },
+  {
+    path: '/dba/slowquery',
+    element: React.lazy(() => import('@/pages/dba/DbaSlowQuery')),
+    protected: true,
+    requiredPermission: { resource: 'dba', action: 'read' },
+  },
+  {
+    path: '/dba/explain',
+    element: React.lazy(() => import('@/pages/dba/DbaExplain')),
+    protected: true,
+    requiredPermission: { resource: 'dba', action: 'execute' },
+  },
+  {
+    path: '/dba/advisor',
+    element: React.lazy(() => import('@/pages/dba/DbaAdvisor')),
+    protected: true,
+    requiredPermission: { resource: 'dba', action: 'write' },
+  },
 
   // Billing - Quota & Billing (Phase 4)
   {
