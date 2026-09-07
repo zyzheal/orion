@@ -9,7 +9,7 @@ import {
   CloudSyncOutlined,
   ScanOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
