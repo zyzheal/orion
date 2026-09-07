@@ -11,6 +11,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, message, Empty } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, RocketOutlined } from '@ant-design/icons';
+import { useQuery } from '@/providers/QueryProvider';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -41,32 +42,34 @@ const DeploymentList: React.FC = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
-  const [loading, setLoading] = useState(false);
-  const [deployments, setDeployments] = useState<DeploymentRecord[]>([]);
-
-  // Load deployments from API
-  const loadDeployments = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: rawDeployments,
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadDeployments,
+  } = useQuery<DeploymentRecord[]>({
+    queryKey: ['deployments'],
+    queryFn: async () => {
       const response = await getDeployments();
       const apiData = response.data;
-      setDeployments(
-        Array.isArray(apiData) ? apiData : (apiData as { items?: DeploymentRecord[] })?.items || []
-      );
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载部署列表失败：${error.message}`);
-      } else {
-        message.error('加载部署列表失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      return Array.isArray(apiData) ? apiData : (apiData as { items?: DeploymentRecord[] })?.items || [];
+    },
+    staleTime: 30_000,
+  });
 
+  const deployments = rawDeployments ?? [];
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadDeployments();
-  }, []);
+    if (!isError) return;
+    if (error instanceof Error) {
+      message.error(`加载部署列表失败：${error.message}`);
+    } else {
+      message.error('加载部署列表失败，请稍后重试');
+    }
+  }, [isError, error]);
 
   // Filter deployments based on search and filters
   const filteredDeployments = useMemo(() => {

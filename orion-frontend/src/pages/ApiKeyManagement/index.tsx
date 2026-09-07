@@ -8,7 +8,7 @@ import { PermissionGuard } from '@/components/PermissionGuard';
  * Route: /console/api-keys
  * Access: admin, platform_admin
  */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Typography,
   Button,
@@ -31,6 +31,7 @@ import {
   KeyOutlined,
   CopyOutlined,
 } from '@ant-design/icons';
+import { useQuery } from '@/providers/QueryProvider';
 import Table, { type TableColumn } from '@/components/Table';
 import MetricCard from '@/components/MetricCard';
 import DataState from '@/components/DataState';
@@ -47,34 +48,36 @@ import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
+interface ApiKeyDashboardData {
+  keys: ApiKey[];
+  stats: { total: number; active: number; expired: number } | null;
+}
+
 const ApiKeyManagement: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [keys, setKeys] = useState<ApiKey[]>([]);
-  const [stats, setStats] = useState<{ total: number; active: number; expired: number } | null>(
-    null
-  );
   const [modalVisible, setModalVisible] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [form] = Form.useForm();
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
+  const {
+    data: dashboard,
+    isLoading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<ApiKeyDashboardData>({
+    queryKey: ['api-keys'],
+    queryFn: async () => {
       const [keysRes, statsRes] = await Promise.all([getApiKeys(), getApiKeyStats()]);
-      setKeys(((keysRes.data as any)?.keys ?? []) as ApiKey[]);
-      setStats((statsRes.data as any)?.stats ?? null);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('加载 API Key 列表失败'));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return {
+        keys: ((keysRes.data as any)?.keys ?? []) as ApiKey[],
+        stats: (statsRes.data as any)?.stats ?? null,
+      };
+    },
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const keys = dashboard?.keys ?? [];
+  const stats = dashboard?.stats ?? null;
 
   const handleCreate = async (values: ApiKeyInput) => {
     try {
@@ -207,7 +210,7 @@ const ApiKeyManagement: React.FC = () => {
           <Text type="secondary">API Key Management</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={isLoading}>
             刷新
           </Button>
           <Button
@@ -224,12 +227,12 @@ const ApiKeyManagement: React.FC = () => {
       </div>
 
       <DataState
-        loading={loading && keys.length === 0}
-        error={error}
-        empty={keys.length === 0 && !loading}
+        loading={isLoading && keys.length === 0}
+        error={isError ? (error as Error | null) : null}
+        empty={keys.length === 0 && !isLoading}
         emptyText="暂无 API Key"
         loadingText="加载 API Key..."
-        retry={loadData}
+        retry={() => loadData()}
       >
         {stats && (
           <div
@@ -268,7 +271,7 @@ const ApiKeyManagement: React.FC = () => {
           <Table
             columns={columns}
             dataSource={keys}
-            loading={loading}
+            loading={isLoading}
             rowKey="id"
             size="middle"
             striped

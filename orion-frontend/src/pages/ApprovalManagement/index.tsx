@@ -3,9 +3,10 @@
  *
  * 三个 Tab：审批流程配置、审批记录、超时管理
  */
-import React, { useState, useEffect } from 'react';
-import { Card, Tabs, Typography, message } from 'antd';
+import React, { useState } from 'react';
+import { Card, Tabs, Typography } from 'antd';
 import { SettingOutlined, HistoryOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { useQuery } from '@/providers/QueryProvider';
 import FlowConfigForm from './FlowConfigForm';
 import ApprovalRecordTable from './ApprovalRecordTable';
 import TimeoutConfig from './TimeoutConfig';
@@ -17,46 +18,39 @@ const { Title, Paragraph } = Typography;
 
 const ApprovalManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState('config');
-  const [flows, setFlows] = useState<ApprovalFlowConfig[]>([]);
-  const [records, setRecords] = useState<ApprovalChainInfo[]>([]);
-  const [timeoutConfigs, setTimeoutConfigs] = useState<ApprovalTimeoutConfig[]>([]);
-  const [loading, setLoading] = useState(false);
 
-  const fetchFlows = async () => {
-    try {
+  const { data: flows = [], refetch: fetchFlows } = useQuery<ApprovalFlowConfig[]>({
+    queryKey: ['approval', 'flows'],
+    queryFn: async () => {
       const res = await getApprovalFlows();
-      setFlows(res.data || []);
-    } catch {
-      message.error('加载审批流程失败');
-    }
-  };
+      return res.data || [];
+    },
+    staleTime: 30_000,
+  });
 
-  const fetchRecords = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: records = [],
+    isLoading: loading,
+    refetch: fetchRecords,
+  } = useQuery<ApprovalChainInfo[]>({
+    queryKey: ['approval', 'records'],
+    queryFn: async () => {
       const res = await getApprovals();
-      setRecords(Array.isArray(res.data) ? res.data : []);
-    } catch {
-      message.error('加载审批记录失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    staleTime: 30_000,
+  });
 
-  const fetchTimeoutConfigs = async () => {
-    try {
+  const { data: timeoutConfigs = [], refetch: fetchTimeoutConfigs } = useQuery<
+    ApprovalTimeoutConfig[]
+  >({
+    queryKey: ['approval', 'timeout-configs'],
+    queryFn: async () => {
       const res = await getTimeoutConfigs();
-      setTimeoutConfigs(Array.isArray(res.data) ? res.data : []);
-    } catch {
-      message.error('加载超时配置失败');
-    }
-  };
-
-  useEffect(() => {
-    fetchFlows();
-    fetchRecords();
-    fetchTimeoutConfigs();
-  }, []);
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    staleTime: 30_000,
+  });
 
   const tabItems = [
     {

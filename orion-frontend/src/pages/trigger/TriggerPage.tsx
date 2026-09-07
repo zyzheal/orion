@@ -27,6 +27,7 @@ import {
   Empty,
 } from 'antd';
 import { ThunderboltOutlined, PlusOutlined, ReloadOutlined, EditOutlined } from '@ant-design/icons';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   getWebhooks,
   createWebhook,
@@ -68,10 +69,6 @@ const statusLabelMap: Record<string, string> = {
 };
 
 const TriggerPage: React.FC = () => {
-  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
-  const [triggers, setTriggers] = useState<Trigger[]>([]);
-  const [triggerStats, setTriggerStats] = useState<TriggerStats | null>(null);
-  const [loading, setLoading] = useState(false);
   const [createWebhookModal, setCreateWebhookModal] = useState(false);
   const [createTriggerModal, setCreateTriggerModal] = useState(false);
   const [editingWebhook, setEditingWebhook] = useState<Webhook | null>(null);
@@ -80,34 +77,50 @@ const TriggerPage: React.FC = () => {
   const [webhookForm] = Form.useForm();
   const [triggerForm] = Form.useForm();
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: triggerData,
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<{
+    webhooks: Webhook[];
+    triggers: Trigger[];
+    triggerStats: TriggerStats | null;
+  }>({
+    queryKey: ['trigger-page'],
+    queryFn: async () => {
       const [webhooksRes, triggersRes, statsRes] = await Promise.allSettled([
         getWebhooks(),
         triggersApi.listTriggers(),
         triggersApi.getTriggerStats(),
       ]);
+      return {
+        webhooks:
+          webhooksRes.status === 'fulfilled'
+            ? (webhooksRes.value.data as { webhooks?: Webhook[] })?.webhooks ?? []
+            : [],
+        triggers:
+          triggersRes.status === 'fulfilled' && Array.isArray(triggersRes.value)
+            ? triggersRes.value
+            : [],
+        triggerStats:
+          statsRes.status === 'fulfilled' ? (statsRes.value ?? null) : null,
+      };
+    },
+    staleTime: 30_000,
+  });
 
-      if (webhooksRes.status === 'fulfilled') {
-        setWebhooks((webhooksRes.value.data as { webhooks?: Webhook[] })?.webhooks ?? []);
-      }
-      if (triggersRes.status === 'fulfilled') {
-        setTriggers(Array.isArray(triggersRes.value) ? triggersRes.value : []);
-      }
-      if (statsRes.status === 'fulfilled') {
-        setTriggerStats(statsRes.value);
-      }
-    } catch (error: unknown) {
-      message.error(`加载触发器数据失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const webhooks = triggerData?.webhooks ?? [];
+  const triggers = triggerData?.triggers ?? [];
+  const triggerStats = triggerData?.triggerStats ?? null;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (!isError) return;
+    message.error(`加载触发器数据失败: ${(error as Error)?.message ?? '未知错误'}`);
+  }, [isError, error]);
 
   // Webhook handlers
   const handleCreateWebhook = async (values: WebhookInput) => {
@@ -361,7 +374,7 @@ const TriggerPage: React.FC = () => {
           <Text type="secondary">Webhook 管理、事件触发器和自动化规则</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
             刷新
           </Button>
           <Button icon={<PlusOutlined />} onClick={() => setCreateWebhookModal(true)}>

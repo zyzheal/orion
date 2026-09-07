@@ -10,6 +10,7 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Space, message } from 'antd';
 import { PlusOutlined, ReloadOutlined, AppstoreOutlined } from '@ant-design/icons';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   getInstalledPlugins,
   getPlugin,
@@ -33,37 +34,38 @@ const { Title, Text } = Typography;
 const PluginManagement: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
-  const [loading, setLoading] = useState(false);
   const [installModalOpen, setInstallModalOpen] = useState(false);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [executeModalOpen, setExecuteModalOpen] = useState(false);
   const [selectedPlugin, setSelectedPlugin] = useState<ApiPlugin | null>(null);
-  const [plugins, setPlugins] = useState<ApiPlugin[]>([]);
 
-  // Load plugins on mount
-  useEffect(() => {
-    loadPlugins();
-  }, []);
-
-  const loadPlugins = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: plugins = [] as ApiPlugin[],
+    isLoading: loading,
+    isError,
+    error,
+    refetch: reloadPlugins,
+  } = useQuery<ApiPlugin[]>({
+    queryKey: ['plugins', 'installed'],
+    queryFn: async () => {
       const response = await getInstalledPlugins({});
-      setPlugins((response.data || []) as unknown as ApiPlugin[]);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        if (err.message.includes('401') || err.message.includes('403')) {
-          message.error('权限不足，请重新登录或联系管理员');
-        } else {
-          message.error(`加载插件列表失败：${err.message}`);
-        }
-      } else {
-        message.error('加载插件列表失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
+      return (response.data || []) as unknown as ApiPlugin[];
+    },
+    staleTime: 30_000,
+  });
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (!isError) return;
+    if (error instanceof Error && (error.message.includes('401') || error.message.includes('403'))) {
+      message.error('权限不足，请重新登录或联系管理员');
+    } else if (error instanceof Error) {
+      message.error(`加载插件列表失败：${error.message}`);
+    } else {
+      message.error('加载插件列表失败，请稍后重试');
     }
-  };
+  }, [isError, error]);
 
   // Handle open plugin detail drawer
   const handleConfigure = async (plugin: ApiPlugin) => {
@@ -112,15 +114,10 @@ const PluginManagement: React.FC = () => {
     }
   };
 
-  // Handle refresh
-  const handleRefresh = () => {
-    loadPlugins();
-  };
-
   // Handle install success
   const handleInstallSuccess = () => {
     setInstallModalOpen(false);
-    loadPlugins();
+    reloadPlugins();
   };
 
   return (
@@ -142,7 +139,7 @@ const PluginManagement: React.FC = () => {
           <Text type="secondary">共 {plugins.length} 个插件</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => reloadPlugins()} loading={loading}>
             刷新
           </Button>
           <Button
@@ -160,7 +157,7 @@ const PluginManagement: React.FC = () => {
       <PluginList
         plugins={plugins}
         loading={loading}
-        onRefresh={handleRefresh}
+        onRefresh={() => reloadPlugins()}
         onConfigure={handleConfigure}
         onExecuteTask={handleExecuteTask}
         searchQuery={searchQuery}

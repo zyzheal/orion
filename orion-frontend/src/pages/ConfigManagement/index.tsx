@@ -13,6 +13,7 @@ import {
   Modal,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   ReloadOutlined,
   PlusOutlined,
@@ -50,9 +51,6 @@ import { DriftTab } from './DriftTab';
 const { Title, Text } = Typography;
 
 const ConfigManagementPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [configs, setConfigs] = useState<ConfigItem[]>([]);
-  const [gitOpsConfig, setGitOpsConfig] = useState<GitOpsConfig | null>(null);
   const [selectedConfig, setSelectedConfig] = useState<ConfigItem | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState<ConfigItem | null>(null);
@@ -78,29 +76,40 @@ const ConfigManagementPage: React.FC = () => {
   const [driftLoading, setDriftLoading] = useState(false);
   const [driftResult, setDriftResult] = useState<DriftResult | null>(null);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: initialData,
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<{ configs: ConfigItem[]; gitOpsConfig: GitOpsConfig | null }>({
+    queryKey: ['config-management'],
+    queryFn: async () => {
       const [configsRes, gitOpsRes] = await Promise.all([
         getConfigs({ pageSize: 50 }),
         getGitOpsConfig(),
       ]);
-      setConfigs(configsRes.data.configs || []);
-      setGitOpsConfig(gitOpsRes.data);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`加载配置失败：${error.message}`);
-      } else {
-        message.error('加载配置失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        configs: configsRes.data.configs || [],
+        gitOpsConfig: gitOpsRes.data || null,
+      };
+    },
+    staleTime: 30_000,
+  });
 
+  const configs = initialData?.configs ?? [];
+  const gitOpsConfig = initialData?.gitOpsConfig ?? null;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!isError) return;
+    if (error instanceof Error) {
+      message.error(`加载配置失败：${error.message}`);
+    } else {
+      message.error('加载配置失败，请稍后重试');
+    }
+  }, [isError, error]);
 
   const handleCreate = async (values: any) => {
     setSubmitting(true);
@@ -387,7 +396,7 @@ const ConfigManagementPage: React.FC = () => {
           <Text type="secondary">GitOps 工作流、变更审批、差异分析、漂移检测</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
             刷新
           </Button>
           <Button icon={<CloudSyncOutlined />} onClick={handleSync} loading={loading}>
