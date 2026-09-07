@@ -3,6 +3,7 @@
  * DORA 效率指标补全页面 - 四大指标概览、等级评估、趋势图表
  */
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
 import { themeVars } from '@/tokens';
 import {
   Typography,
@@ -199,11 +200,7 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, metricKey, metricLabel, c
 const DoraMetricsPage: React.FC = () => {
   const [refreshLoading, setRefreshLoading] = useState(false);
   const [timeWindow, setTimeWindow] = useState<'7d' | '30d' | '90d'>('30d');
-
-  const [doraResult, setDoraResult] = useState<DoraMetricsResult | null>(null);
-  const [benchmarks, setBenchmarks] = useState<DoraBenchmarks | null>(null);
-  const [trends, setTrends] = useState<TrendHistoryPoint[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const timeWindowQueryMap: Record<string, number> = {
     '7d': 1,
@@ -211,39 +208,56 @@ const DoraMetricsPage: React.FC = () => {
     '90d': 13,
   };
 
-  const loadData = async (windowLabel: string = timeWindow) => {
-    const weeks = timeWindowQueryMap[windowLabel] || 4;
-    setError(null);
-
-    try {
+  const {
+    data: doraData,
+    isError,
+    isFetching,
+    error: queryError,
+    refetch: loadData,
+  } = useQuery<{
+    metrics: DoraMetricsResult | null;
+    benchmarks: DoraBenchmarks | null;
+    trends: TrendHistoryPoint[];
+  }>({
+    queryKey: ['dora-metrics', timeWindow],
+    queryFn: async () => {
+      const weeks = timeWindowQueryMap[timeWindow] || 4;
       const [metricsRes, benchmarksRes, trendsRes] = await Promise.all([
         getDoraMetrics({ interval: 'weekly' }),
         getDoraBenchmarks(),
         getDORTrends({ weeks }),
       ]);
-      setDoraResult(metricsRes.data || null);
-      setBenchmarks(benchmarksRes.data || null);
-      setTrends(trendsRes.data?.trends || []);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : '加载 DORA 指标失败';
-      setError(msg);
-      setDoraResult(null);
-      setBenchmarks(null);
-      setTrends([]);
-    }
-  };
+      return {
+        metrics: metricsRes.data || null,
+        benchmarks: benchmarksRes.data || null,
+        trends: trendsRes.data?.trends || [],
+      };
+    },
+    staleTime: 30_000,
+  });
 
+  const doraResult = doraData?.metrics ?? null;
+  const benchmarks = doraData?.benchmarks ?? null;
+  const trends = doraData?.trends ?? [];
+
+  // 错误呈现：查询失败时保留页面级 AlertBanner（含重试/关闭），因此不重复 message 提示。
+  // banner 手动关闭后，下一次重新拉取（isFetching）时重新允许展示。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isFetching) setBannerDismissed(false);
+  }, [isFetching]);
+
+  const bannerError =
+    isError && !isFetching && doraResult === null && !bannerDismissed
+      ? queryError instanceof Error
+        ? queryError.message
+        : '加载 DORA 指标失败'
+      : null;
 
   const handleRefresh = async () => {
     setRefreshLoading(true);
     try {
       await loadData();
       message.success('DORA 指标已刷新');
-    } catch {
-      message.error('刷新 DORA 指标失败，请检查网络连接');
     } finally {
       setRefreshLoading(false);
     }
@@ -362,7 +376,7 @@ const DoraMetricsPage: React.FC = () => {
     },
   ];
 
-  if (doraResult === null && error) {
+  if (doraResult === null && bannerError) {
     return (
       <div>
         <Title level={2} style={{ marginBottom: spacing.sm }}>
@@ -371,12 +385,12 @@ const DoraMetricsPage: React.FC = () => {
         </Title>
         <AlertBanner
           state={{
-            message: error,
+            message: bannerError,
             severity: 'warning',
             actionLabel: '重试',
             onRetry: () => loadData(),
           }}
-          onClose={() => setError(null)}
+          onClose={() => setBannerDismissed(true)}
         />
         <Empty description="数据加载失败" />
       </div>

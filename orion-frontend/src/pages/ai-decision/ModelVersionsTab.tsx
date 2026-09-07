@@ -3,6 +3,7 @@
  * 抽取自 AIDecisionPage.tsx (P2-9 Phase 84)
  */
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@/providers/QueryProvider';
 import {
   Typography,
   Card,
@@ -35,29 +36,32 @@ import { statusColorMap } from './constants';
 const { Title, Text } = Typography;
 
 export const ModelVersionsTab: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [models, setModels] = useState<ModelVersion[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelVersion | null>(null);
   const [detailVisible, setDetailVisible] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [performance, setPerformance] = useState<ModelPerformance | null>(null);
 
-  const loadModels = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: models = [] as ModelVersion[],
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch: loadModels,
+  } = useQuery<ModelVersion[]>({
+    queryKey: ['ai-decision-models'],
+    queryFn: async () => {
       const res = await listModels();
-      setModels(res.data?.models || []);
-    } catch (error: unknown) {
-      message.error(`加载模型列表失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return res.data?.models || [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadModels();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!isError) return;
+    message.error(queryError instanceof Error ? queryError.message : '加载模型列表失败');
+  }, [isError, queryError]);
 
   const viewDetail = async (model: ModelVersion) => {
     setSelectedModel(model);
@@ -182,7 +186,7 @@ export const ModelVersionsTab: React.FC = () => {
     <div>
       <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Text type="secondary">管理 AI 模型版本，查看性能和进行 A/B 测试对比</Text>
-        <Button icon={<ReloadOutlined />} onClick={loadModels} loading={loading}>
+        <Button icon={<ReloadOutlined />} onClick={() => loadModels()} loading={loading}>
           刷新
         </Button>
       </div>
