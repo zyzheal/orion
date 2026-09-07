@@ -28,6 +28,7 @@ import {
   TeamOutlined,
   KeyOutlined,
 } from '@ant-design/icons';
+import { useQuery } from '@/providers/QueryProvider';
 import Table, { type TableColumn } from '@/components/Table';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
@@ -49,8 +50,6 @@ const DEFAULT_TENANT_ID = 'tenant-default';
 // ---- Main Component ----
 
 const RoleManagement: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [roles, setRoles] = useState<Role[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
@@ -58,26 +57,31 @@ const RoleManagement: React.FC = () => {
   const [createForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: roles = [] as Role[],
+    isLoading: loading,
+    isError,
+    error,
+    refetch: loadData,
+  } = useQuery<Role[]>({
+    queryKey: ['roles'],
+    queryFn: async () => {
       const res = await getRoles(DEFAULT_TENANT_ID);
-      setRoles(Array.isArray(res.data) ? res.data : []);
-    } catch (error: unknown) {
-      setRoles([]);
-      if (error instanceof Error) {
-        message.error(`加载角色列表失败：${error.message}`);
-      } else {
-        message.error('加载角色列表失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!isError) return;
+    if (error instanceof Error) {
+      message.error(`加载角色列表失败：${error.message}`);
+    } else {
+      message.error('加载角色列表失败，请稍后重试');
+    }
+  }, [isError, error]);
 
   const filteredData = useMemo(() => {
     if (!searchQuery) return roles;
@@ -295,7 +299,7 @@ const RoleManagement: React.FC = () => {
               <Text type="secondary">管理系统角色及其权限分配 (RBAC)</Text>
             </div>
             <Space>
-              <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+              <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
                 刷新
               </Button>
               <Button
