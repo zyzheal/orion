@@ -2,9 +2,10 @@
  * ForecastTab.tsx - 容量预测 Tab
  * 抽取自 CapacityPlanningPage.tsx (P2-9 Phase 92)
  */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Table, Button, Typography, message } from 'antd';
 import { RiseOutlined, ReloadOutlined } from '@ant-design/icons';
+import { useQuery } from '@/providers/QueryProvider';
 import { listCapacityForecasts, type CapacityForecast } from '@/api/capacity';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
@@ -12,25 +13,26 @@ import { spacing } from '@/tokens';
 const { Title, Text } = Typography;
 
 export const ForecastTab: React.FC = () => {
-  const [forecasts, setForecasts] = useState<CapacityForecast[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: forecasts = [],
+    isLoading: loading,
+    error: queryError,
+    isError,
+    refetch: loadData,
+  } = useQuery<CapacityForecast[]>({
+    queryKey: ['capacity-forecasts'],
+    queryFn: async () => {
       const res = await listCapacityForecasts();
-      setForecasts((res.data as { data?: CapacityForecast[] })?.data ?? []);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载预测失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (res.data as { data?: CapacityForecast[] })?.data ?? [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (isError) message.error(queryError instanceof Error ? queryError.message : '加载预测失败');
+  }, [isError, queryError]);
 
   const columns = [
     { title: '资源', dataIndex: 'resourceId', key: 'resourceId' },
@@ -101,7 +103,7 @@ export const ForecastTab: React.FC = () => {
           </Title>
           <Text type="secondary">资源使用趋势预测与耗尽时间估算</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+        <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
           刷新
         </Button>
       </div>

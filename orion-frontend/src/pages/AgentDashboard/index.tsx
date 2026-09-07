@@ -20,6 +20,7 @@ import {
   getAgentApprovals,
   respondToApproval,
 } from '@/api/agents';
+import { useQuery } from '@/providers/QueryProvider';
 
 // Sub-components
 import AgentMetrics from './AgentMetrics';
@@ -38,47 +39,53 @@ const { Title, Text } = Typography;
 const AgentDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
-  const [loading, setLoading] = useState(false);
-  const [agents, setAgents] = useState<AgentProfile[]>([]);
-  const [runs, setRuns] = useState<AgentRun[]>([]);
-  const [approvals, setApprovals] = useState<AgentApproval[]>([]);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [triggerModalOpen, setTriggerModalOpen] = useState(false);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentProfile | null>(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: agentData,
+    isLoading: loading,
+    error: queryError,
+    isError,
+    refetch: loadData,
+  } = useQuery<{ agents: AgentProfile[]; runs: AgentRun[]; approvals: AgentApproval[] }>({
+    queryKey: ['agent-dashboard'],
+    queryFn: async () => {
       const [agentsRes, runsRes] = await Promise.all([
         getAgentProfiles(),
         getAgentRuns({ pageSize: 10 }),
       ]);
-      setAgents(agentsRes.data || []);
-      setRuns(runsRes.data || []);
       // 与上面两个一致：api.* 返回 AxiosResponse<T>，载荷在 .data 里。
       // （旧注释写"returns data directly"是错的，误导出过一批写坏的测试 mock。）
       const approvalsData = await getAgentApprovals({ status: 'pending' });
-      setApprovals(approvalsData?.data ?? []);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        if (err.message.includes('401') || err.message.includes('403')) {
-          message.error('权限不足，请重新登录或联系管理员');
-        } else {
-          message.error(`加载数据失败：${err.message}`);
-        }
-      } else {
-        message.error('加载数据失败，请稍后重试');
-      }
-    } finally {
-      setLoading(false);
+      return {
+        agents: agentsRes.data || [],
+        runs: runsRes.data || [],
+        approvals: approvalsData?.data ?? [],
+      };
+    },
+    staleTime: 30_000,
+  });
+
+  const agents = agentData?.agents ?? [];
+  const runs = agentData?.runs ?? [];
+  const approvals = agentData?.approvals ?? [];
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (!isError) return;
+    if (queryError instanceof Error && (queryError.message.includes('401') || queryError.message.includes('403'))) {
+      message.error('权限不足，请重新登录或联系管理员');
+    } else {
+      message.error(
+        queryError instanceof Error ? `加载数据失败：${queryError.message}` : '加载数据失败，请稍后重试'
+      );
     }
-  };
+  }, [isError, queryError]);
 
   const filteredAgents = useMemo(() => {
     return agents.filter((agent) => {
@@ -218,7 +225,7 @@ const AgentDashboard: React.FC = () => {
           </Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
             刷新
           </Button>
           <Button

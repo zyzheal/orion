@@ -24,6 +24,7 @@ import {
   DeleteOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 import {
@@ -41,8 +42,6 @@ import {
 const { Title, Text } = Typography;
 
 const EnvProfilesPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<EnvProfile[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<EnvProfile | null>(null);
   const [resolveVisible, setResolveVisible] = useState(false);
@@ -56,21 +55,26 @@ const EnvProfilesPage: React.FC = () => {
   const [form] = Form.useForm();
   const [resolveForm] = Form.useForm();
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data,
+    isLoading: loading,
+    error: queryError,
+    isError,
+    refetch: loadData,
+  } = useQuery<EnvProfile[]>({
+    queryKey: ['env-profiles'],
+    queryFn: async () => {
       const res = await getEnvProfiles();
-      setData(res.data || []);
-    } catch {
-      message.error('加载环境配置失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return res.data || [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-  }, []);
+    if (isError) message.error(queryError instanceof Error ? queryError.message : '加载环境配置失败');
+  }, [isError, queryError]);
 
   const handleCreate = () => {
     setEditingItem(null);
@@ -297,7 +301,7 @@ const EnvProfilesPage: React.FC = () => {
           <Button icon={<PlusOutlined />} type="primary" onClick={handleCreate}>
             创建配置
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
             刷新
           </Button>
         </Space>
@@ -305,7 +309,7 @@ const EnvProfilesPage: React.FC = () => {
 
       <Table
         columns={columns}
-        dataSource={data}
+        dataSource={data ?? []}
         loading={loading}
         rowKey="id"
         size="middle"

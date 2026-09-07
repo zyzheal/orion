@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
 import FormDesigner from '../index';
+import { renderWithProviders } from '@/tests/render';
 
 describe('FormDesigner', () => {
   it('renders without crashing', () => {
-    const { container } = render(<FormDesigner />);
+    const { container } = renderWithProviders(<FormDesigner />);
     expect(container.firstChild).not.toBeNull();
   });
 });

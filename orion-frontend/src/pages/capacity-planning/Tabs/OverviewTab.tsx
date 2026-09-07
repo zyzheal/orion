@@ -2,7 +2,7 @@
  * OverviewTab.tsx - 容量概览 Tab
  * 抽取自 CapacityPlanningPage.tsx (P2-9 Phase 92)
  */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Table, Button, Tag, Space, Typography, Card, Progress, Popconfirm, message } from 'antd';
 import { BarChartOutlined, ReloadOutlined, RiseOutlined } from '@ant-design/icons';
 import {
@@ -13,6 +13,7 @@ import {
   type CapacityAlert,
   type Bottleneck,
 } from '@/api/capacity';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
 import { impactColorMap, severityColorMap } from '../constants';
@@ -20,22 +21,32 @@ import { impactColorMap, severityColorMap } from '../constants';
 const { Title, Text } = Typography;
 
 export const OverviewTab: React.FC = () => {
-  const [bottlenecks, setBottlenecks] = useState<Bottleneck[]>([]);
-  const [alerts, setAlerts] = useState<CapacityAlert[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: capacityData,
+    isLoading: loading,
+    error: queryError,
+    isError,
+    refetch: loadData,
+  } = useQuery<{ bottlenecks: Bottleneck[]; alerts: CapacityAlert[] }>({
+    queryKey: ['capacity-overview'],
+    queryFn: async () => {
       const [bnRes, alertRes] = await Promise.all([analyzeBottlenecks(), listCapacityAlerts()]);
-      setBottlenecks((bnRes.data as { data?: Bottleneck[] })?.data ?? []);
-      setAlerts((alertRes.data as { data?: CapacityAlert[] })?.data ?? []);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载数据失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        bottlenecks: (bnRes.data as { data?: Bottleneck[] })?.data ?? [],
+        alerts: (alertRes.data as { data?: CapacityAlert[] })?.data ?? [],
+      };
+    },
+    staleTime: 30_000,
+  });
+
+  const bottlenecks = capacityData?.bottlenecks ?? [];
+  const alerts = capacityData?.alerts ?? [];
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError) message.error(queryError instanceof Error ? queryError.message : '加载数据失败');
+  }, [isError, queryError]);
 
   const handleForecast = async () => {
     try {
@@ -56,11 +67,6 @@ export const OverviewTab: React.FC = () => {
       message.error(error instanceof Error ? error.message : '删除失败');
     }
   };
-
-  useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const bottleneckColumns = [
     { title: '资源 ID', dataIndex: 'resourceId', key: 'resourceId' },
@@ -139,7 +145,7 @@ export const OverviewTab: React.FC = () => {
           <Button icon={<RiseOutlined />} onClick={handleForecast}>
             生成预测
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
             刷新
           </Button>
         </Space>

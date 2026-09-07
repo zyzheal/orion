@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Tag, Space, Typography, Modal, Form, Input, Select, message } from 'antd';
 import { BarChartOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
+import { useQuery } from '@/providers/QueryProvider';
 import { listCapacityMetrics, recordCapacityMetric, type CapacityMetric } from '@/api/capacity';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
@@ -22,28 +23,30 @@ interface MetricFormValues {
 }
 
 export const MetricsTab: React.FC = () => {
-  const [metrics, setMetrics] = useState<CapacityMetric[]>([]);
-  const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm<MetricFormValues>();
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: metrics = [],
+    isLoading: loading,
+    error: queryError,
+    isError,
+    refetch: loadData,
+  } = useQuery<CapacityMetric[]>({
+    queryKey: ['capacity-metrics'],
+    queryFn: async () => {
       const res = await listCapacityMetrics();
-      setMetrics((res.data as { data?: CapacityMetric[] })?.data ?? []);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载指标失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (res.data as { data?: CapacityMetric[] })?.data ?? [];
+    },
+    staleTime: 30_000,
+  });
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (isError) message.error(queryError instanceof Error ? queryError.message : '加载指标失败');
+  }, [isError, queryError]);
 
   const handleCreate = async (values: MetricFormValues) => {
     setSubmitting(true);
@@ -113,7 +116,7 @@ export const MetricsTab: React.FC = () => {
           <Text type="secondary">各资源类型的容量指标数据</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
             刷新
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>

@@ -2,7 +2,7 @@
  * ReportsTab.tsx - 容量报告 Tab
  * 抽取自 CapacityPlanningPage.tsx (P2-9 Phase 92)
  */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Table, Button, Space, Typography, Progress, message } from 'antd';
 import { BarChartOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
 import {
@@ -10,26 +10,33 @@ import {
   generateCapacityReport,
   type CapacityReport,
 } from '@/api/capacity';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
 export const ReportsTab: React.FC = () => {
-  const [reports, setReports] = useState<CapacityReport[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
+  const {
+    data: reports = [],
+    isLoading: loading,
+    error: queryError,
+    isError,
+    refetch: loadData,
+  } = useQuery<CapacityReport[]>({
+    queryKey: ['capacity-reports'],
+    queryFn: async () => {
       const res = await listCapacityReports();
-      setReports((res.data as { data?: CapacityReport[] })?.data ?? []);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '加载报告失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (res.data as { data?: CapacityReport[] })?.data ?? [];
+    },
+    staleTime: 30_000,
+  });
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (isError) message.error(queryError instanceof Error ? queryError.message : '加载报告失败');
+  }, [isError, queryError]);
 
   const handleGenerate = async () => {
     try {
@@ -40,11 +47,6 @@ export const ReportsTab: React.FC = () => {
       message.error(error instanceof Error ? error.message : '生成失败');
     }
   };
-
-  useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const columns = [
     { title: '标题', dataIndex: 'title', key: 'title' },
@@ -112,7 +114,7 @@ export const ReportsTab: React.FC = () => {
           <Text type="secondary">容量规划报告汇总</Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
             刷新
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleGenerate}>

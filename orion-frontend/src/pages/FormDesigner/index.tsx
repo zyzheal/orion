@@ -43,6 +43,7 @@ import {
 } from '@ant-design/icons';
 import { colors, spacing, themeVars } from '@/tokens';
 import TableWrapper, { type TableColumn } from '@/components/Table';
+import { useQuery } from '@/providers/QueryProvider';
 import { listForms, createForm, updateForm, deleteForm } from '@/api/lowcode';
 
 const { Title } = Typography;
@@ -111,7 +112,6 @@ const STATUS_MAP: Record<string, { color: string; label: string }> = {
 
 const FormDesigner: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'forms' | 'conditions'>('forms');
-  const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewSchema, setPreviewSchema] = useState<string>('');
@@ -119,35 +119,64 @@ const FormDesigner: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
 
-  // Data
-  const [forms, setForms] = useState<FormSchema[]>([]);
-  const [conditions, setConditions] = useState<ConditionRule[]>([]);
+  // ---- 数据加载 ----
+  // forms: 真实 API（@/api/lowcode）；conditions: localStorage-backed（Go 后端待接线）。
+  // 两个查询各自独立缓存，mutation 后按 activeTab 决定 refetch 哪一个。
+  const {
+    data: forms,
+    isLoading: formsLoading,
+    isError: formsError,
+    error: formsQueryError,
+    refetch: refetchForms,
+  } = useQuery<FormSchema[]>({
+    queryKey: ['lowcode-forms'],
+    queryFn: async () => {
+      const data = await listForms();
+      const list = Array.isArray(data)
+        ? data
+        : data && typeof data === 'object' && 'data' in data
+          ? ((data as { data: FormSchema[] }).data ?? [])
+          : [];
+      return list as FormSchema[];
+    },
+    staleTime: 30_000,
+  });
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      if (activeTab === 'forms') {
-        const data = await listForms();
-        const forms = Array.isArray(data)
-          ? data
-          : data && typeof data === 'object' && 'data' in data
-            ? ((data as { data: FormSchema[] }).data ?? [])
-            : [];
-        setForms(forms as FormSchema[]);
-      } else {
-        const res = await listConditions();
-        setConditions(Array.isArray(res) ? res : ((res as { data?: ConditionRule[] }).data ?? []));
-      }
-    } catch (err: any) {
-      message.error(err?.message || '加载失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [activeTab]);
+  const {
+    data: conditions,
+    isLoading: conditionsLoading,
+    isError: conditionsError,
+    error: conditionsQueryError,
+    refetch: refetchConditions,
+  } = useQuery<ConditionRule[]>({
+    queryKey: ['lowcode-conditions'],
+    queryFn: async () => {
+      const res = await listConditions();
+      return Array.isArray(res) ? res : ((res as { data?: ConditionRule[] }).data ?? []);
+    },
+    staleTime: 30_000,
+  });
+
+  const loading = activeTab === 'forms' ? formsLoading : conditionsLoading;
+
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
+  useEffect(() => {
+    if (formsError)
+      message.error(formsQueryError instanceof Error ? formsQueryError.message : '加载表单失败');
+  }, [formsError, formsQueryError]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (conditionsError)
+      message.error(
+        conditionsQueryError instanceof Error ? conditionsQueryError.message : '加载条件失败'
+      );
+  }, [conditionsError, conditionsQueryError]);
+
+  const fetchData = useCallback(() => {
+    if (activeTab === 'forms') return refetchForms();
+    return refetchConditions();
+  }, [activeTab, refetchForms, refetchConditions]);
 
   const handleCreate = () => {
     setEditingItem(null);
@@ -364,7 +393,7 @@ const FormDesigner: React.FC = () => {
     );
   };
 
-  const currentData = (activeTab === 'forms' ? forms : conditions) as unknown as Record<
+  const currentData = ((activeTab === 'forms' ? forms : conditions) ?? []) as unknown as Record<
     string,
     unknown
   >[];
@@ -379,15 +408,15 @@ const FormDesigner: React.FC = () => {
 
       <Card style={{ borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
         <Tabs activeKey={activeTab} onChange={(k) => setActiveTab(k as 'forms' | 'conditions')}>
-          <Tabs.TabPane tab={`表单设计器 (${forms.length})`} key="forms" />
-          <Tabs.TabPane tab={`条件引擎 (${conditions.length})`} key="conditions" />
+          <Tabs.TabPane tab={`表单设计器 (${(forms ?? []).length})`} key="forms" />
+          <Tabs.TabPane tab={`条件引擎 (${(conditions ?? []).length})`} key="conditions" />
         </Tabs>
 
         <Space style={{ marginBottom: spacing.md }}>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
             {activeTab === 'forms' ? '新建表单' : '新建条件'}
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => fetchData()} loading={loading}>
             刷新
           </Button>
         </Space>

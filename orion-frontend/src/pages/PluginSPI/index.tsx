@@ -20,6 +20,7 @@ import {
   SafetyOutlined,
 } from '@ant-design/icons';
 import MetricCard from '@/components/MetricCard';
+import { useQuery } from '@/providers/QueryProvider';
 import { colors, spacing } from '@/tokens';
 import ExtensionPointList from './ExtensionPointList';
 import PluginRegistry from './PluginRegistry';
@@ -103,11 +104,6 @@ function mapApiStats(s: APISPIStats | any): SPIStats {
 // ============================================================================
 
 const PluginSPIPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [extensionPoints, setExtensionPoints] = useState<SPIExtensionPoint[]>([]);
-  const [pluginRegistrations, setPluginRegistrations] = useState<PluginRegistration[]>([]);
-  const [spiConfigs, setSpiConfigs] = useState<SPIConfigType[]>([]);
-  const [stats, setStats] = useState<SPIStats | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [activeTab, setActiveTab] = useState<'extensions' | 'plugins' | 'config'>('extensions');
@@ -118,43 +114,52 @@ const PluginSPIPage: React.FC = () => {
 
   // ---- Data Loading ----
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [extRes, regRes, cfgRes] = await Promise.all([
+  const {
+    data: spiData,
+    isLoading: loading,
+    error: queryError,
+    isError,
+    refetch: loadData,
+  } = useQuery<{
+    extensionPoints: SPIExtensionPoint[];
+    pluginRegistrations: PluginRegistration[];
+    spiConfigs: SPIConfigType[];
+    stats: SPIStats | null;
+  }>({
+    queryKey: ['plugin-spi'],
+    queryFn: async () => {
+      const [extRes, regRes, cfgRes, statsRes] = await Promise.all([
         getExtensionPoints(),
         getPluginRegistrations(),
         getSPIConfigs(),
+        getSPIStats(),
       ]);
       const extPoints = Array.isArray(extRes)
         ? extRes
         : (extRes as any).data?.extensionPoints || [];
       const regs = Array.isArray(regRes) ? regRes : (regRes as any).data?.registrations || [];
       const cfgs = Array.isArray(cfgRes) ? cfgRes : (cfgRes as any).data?.configs || [];
-      setExtensionPoints(extPoints.map(mapApiExtensionPoint));
-      setPluginRegistrations(regs.map(mapApiRegistration));
-      setSpiConfigs(cfgs.map(mapApiSPIConfig));
-    } catch (error: unknown) {
-      message.error(`加载 SPI 数据失败: ${(error as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+      const statsData = (statsRes as any).stats || statsRes || {};
+      return {
+        extensionPoints: extPoints.map(mapApiExtensionPoint),
+        pluginRegistrations: regs.map(mapApiRegistration),
+        spiConfigs: cfgs.map(mapApiSPIConfig),
+        stats: mapApiStats(statsData),
+      };
+    },
+    staleTime: 30_000,
+  });
 
-  const loadStats = async () => {
-    try {
-      const response = await getSPIStats();
-      const statsData = (response as any).stats || response || {};
-      setStats(mapApiStats(statsData));
-    } catch (error: unknown) {
-      message.error(`加载统计信息失败: ${(error as Error).message}`);
-    }
-  };
+  const extensionPoints = spiData?.extensionPoints ?? [];
+  const pluginRegistrations = spiData?.pluginRegistrations ?? [];
+  const spiConfigs = spiData?.spiConfigs ?? [];
+  const stats = spiData?.stats ?? null;
 
+  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
+  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
   useEffect(() => {
-    loadData();
-    loadStats();
-  }, []);
+    if (isError) message.error(`加载 SPI 数据失败: ${(queryError as Error).message}`);
+  }, [isError, queryError]);
 
   // ---- Actions ----
 
@@ -223,12 +228,10 @@ const PluginSPIPage: React.FC = () => {
     const newEnabled = record.status === 'enabled' ? 'disabled' : 'enabled';
     try {
       await toggleExtensionPoint(record.id, newEnabled === 'enabled');
-      setPluginRegistrations((prev) =>
-        prev.map((p) => (p.id === record.id ? { ...p, status: newEnabled } : p))
-      );
       message.success(
         `插件 "${record.pluginName}" 已${newEnabled === 'enabled' ? '启用' : '禁用'}`
       );
+      loadData();
     } catch (error: unknown) {
       message.error(`状态更新失败：${(error as Error).message}`);
     }
@@ -262,14 +265,7 @@ const PluginSPIPage: React.FC = () => {
           </Title>
           <Text type="secondary">插件扩展点管理</Text>
         </div>
-        <Button
-          icon={<ReloadOutlined />}
-          onClick={() => {
-            loadData();
-            loadStats();
-          }}
-          loading={loading}
-        >
+        <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
           刷新
         </Button>
       </div>
