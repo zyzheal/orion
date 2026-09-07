@@ -3,418 +3,91 @@
  *
  * 功能：流程列表展示、新建流程、AI 生成流程、执行流程、查看流程详情
  * API: /api/v1/lowcode/flows  +  POST /api/v1/lowcode/generate (TR-10)
+ *
+ * 拆分自 index.tsx (P2-9 Phase 190)
  */
-
-import { useState, useEffect } from 'react';
-import {
-  Button,
-  Card,
-  Form,
-  Input,
-  Select,
-  Space,
-  message,
-  Modal,
-  Descriptions,
-  Empty,
-  Typography,
-} from 'antd';
-import {
-  PlusOutlined,
-  PlayCircleOutlined,
-  SaveOutlined,
-  EyeOutlined,
-  ThunderboltOutlined,
-} from '@ant-design/icons';
-import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens/spacing';
-import { themeVars } from '@/tokens';
-import { useQuery } from '@/providers/QueryProvider';
-import { lowcodeApi, type LowcodeFlow } from '@/api/lowcode';
+import { useFlowDesignerState } from './useFlowDesignerState';
+import { PageHeader } from './Components/PageHeader';
+import { FlowGrid } from './Components/FlowGrid';
+import { CreateFlowModal } from './Components/CreateFlowModal';
+import { AiGenerateModal } from './Components/AiGenerateModal';
+import { ExecuteFlowModal } from './Components/ExecuteFlowModal';
+import { FlowDetailModal } from './Components/FlowDetailModal';
 
 export default function FlowDesigner() {
-  const [selectedFlow, setSelectedFlow] = useState<LowcodeFlow | null>(null);
-  const [createVisible, setCreateVisible] = useState(false);
-  const [executeVisible, setExecuteVisible] = useState(false);
-  const [detailVisible, setDetailVisible] = useState(false);
-  const [aiVisible, setAiVisible] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [form] = Form.useForm();
-  const [aiForm] = Form.useForm();
-
   const {
-    data: flows = [] as LowcodeFlow[],
-    isLoading: loading,
-    isError,
-    error: queryError,
-    refetch: loadFlows,
-  } = useQuery<LowcodeFlow[]>({
-    queryKey: ['lowcode-flows'],
-    queryFn: async () => {
-      const result = await lowcodeApi.listFlows();
-      return result.flows || [];
-    },
-    staleTime: 30_000,
-  });
-
-  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
-  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
-  useEffect(() => {
-    if (!isError) return;
-    message.error(
-      queryError instanceof Error ? `加载流程列表失败：${queryError.message}` : '加载流程列表失败'
-    );
-  }, [isError, queryError]);
-
-  const handleCreate = async (values: { name: string; description?: string; type?: string }) => {
-    try {
-      await lowcodeApi.createFlow({
-        name: values.name,
-        description: values.description,
-        type: values.type,
-      });
-      message.success('流程创建成功');
-      setCreateVisible(false);
-      form.resetFields();
-      loadFlows();
-    } catch (e: any) {
-      message.error(e?.message || '创建失败');
-    }
-  };
-
-  // TR-10: AI 生成流程 — 用户输入自然语言描述，后端返回流程 DAG
-  const handleAiGenerate = async (values: { prompt: string; name?: string }) => {
-    setAiLoading(true);
-    try {
-      const result = (await lowcodeApi.generateFlow({
-        prompt: values.prompt,
-        workflowName: values.name,
-      })) as { intent: string };
-      message.success(`AI 生成成功，意图识别为「${result.intent}」`);
-      setAiVisible(false);
-      aiForm.resetFields();
-      loadFlows();
-    } catch (e: any) {
-      message.error(e?.message || 'AI 生成失败');
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const handleExecute = async (values: { input?: string }) => {
-    if (!selectedFlow) return;
-    try {
-      let input: Record<string, unknown> = {};
-      if (values.input && values.input.trim()) {
-        try {
-          input = JSON.parse(values.input);
-        } catch {
-          message.error('输入参数 JSON 格式错误');
-          return;
-        }
-      }
-      const result = (await lowcodeApi.executeFlow(selectedFlow.id, input)) as {
-        id?: string;
-        status?: string;
-      };
-      message.success(
-        `流程执行成功，实例ID: ${result?.id || 'unknown'}，状态: ${result?.status || 'running'}`
-      );
-      setExecuteVisible(false);
-    } catch (e: any) {
-      message.error(e?.message || '执行失败');
-    }
-  };
-
-  const handleDelete = async (flow: LowcodeFlow) => {
-    try {
-      await lowcodeApi.deleteFlow(flow.id);
-      message.success('流程删除成功');
-      loadFlows();
-    } catch (e: any) {
-      message.error(e?.message || '删除失败');
-    }
-  };
-
-  const handlePublish = async (flow: LowcodeFlow) => {
-    try {
-      await lowcodeApi.publishFlow(flow.id);
-      message.success(`流程已发布 (${flow.version})`);
-      loadFlows();
-    } catch (e: any) {
-      message.error(e?.message || '发布失败');
-    }
-  };
+    selectedFlow,
+    createVisible,
+    executeVisible,
+    detailVisible,
+    aiVisible,
+    aiLoading,
+    form,
+    aiForm,
+    flows,
+    loading,
+    handleCreate,
+    handleAiGenerate,
+    handleExecute,
+    handleDelete,
+    handlePublish,
+    handleViewDetail,
+    handleExecuteFlow,
+    loadFlows,
+    openCreate,
+    openAi,
+    closeCreate,
+    closeAi,
+    closeExecute,
+    closeDetail,
+    detailToExecute,
+  } = useFlowDesignerState();
 
   return (
     <div style={{ padding: spacing.lg }}>
-      <Typography.Title level={2} style={{ marginBottom: spacing.md }}>
-        <PlayCircleOutlined style={{ marginRight: 12, color: colors.primary[500] }} />
-        流程设计器
-      </Typography.Title>
+      <PageHeader />
 
-      <Card>
-        <div
-          style={{
-            marginBottom: spacing.md,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <Input.Search
-            placeholder="搜索流程..."
-            style={{ width: 300 }}
-            onSearch={() => loadFlows()}
-            disabled={loading}
-          />
-          <Space>
-            <Button icon={<ThunderboltOutlined />} onClick={() => setAiVisible(true)}>
-              AI 生成
-            </Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateVisible(true)}>
-              新建流程
-            </Button>
-          </Space>
-        </div>
+      <FlowGrid
+        flows={flows}
+        loading={loading}
+        onSearch={loadFlows}
+        onAiGenerate={openAi}
+        onCreate={openCreate}
+        onViewDetail={handleViewDetail}
+        onExecute={handleExecuteFlow}
+        onPublish={handlePublish}
+        onDelete={handleDelete}
+      />
 
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: colors.neutral[500] }}>
-            加载中...
-          </div>
-        ) : flows.length === 0 ? (
-          <Empty description="暂无流程，点击右上角新建或 AI 生成">
-            <Space>
-              <Button icon={<ThunderboltOutlined />} onClick={() => setAiVisible(true)}>
-                AI 生成
-              </Button>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateVisible(true)}>
-                新建流程
-              </Button>
-            </Space>
-          </Empty>
-        ) : (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-              gap: spacing.md,
-            }}
-          >
-            {flows.map((flow) => (
-              <Card
-                key={flow.id}
-                hoverable
-                size="small"
-                style={{ borderRadius: 8 }}
-                title={flow.name}
-                extra={
-                  <Space>
-                    <Button
-                      size="small"
-                      icon={<EyeOutlined />}
-                      onClick={() => {
-                        setSelectedFlow(flow);
-                        setDetailVisible(true);
-                      }}
-                    >
-                      查看
-                    </Button>
-                    <Button
-                      size="small"
-                      type="primary"
-                      icon={<PlayCircleOutlined />}
-                      onClick={() => {
-                        setSelectedFlow(flow);
-                        setExecuteVisible(true);
-                      }}
-                    >
-                      执行
-                    </Button>
-                  </Space>
-                }
-                actions={[
-                  <Button type="link" size="small" onClick={() => handlePublish(flow)}>
-                    发布
-                  </Button>,
-                  <Button type="link" size="small" danger onClick={() => handleDelete(flow)}>
-                    删除
-                  </Button>,
-                ]}
-              >
-                <p style={{ color: colors.neutral[500], fontSize: 14 }}>
-                  {flow.description || '无描述'}
-                </p>
-                <p style={{ fontSize: 12, color: colors.neutral[400] }}>
-                  节点数: {flow.nodeCount || 0} | 版本: {flow.version} | 状态: {flow.status}
-                </p>
-              </Card>
-            ))}
-          </div>
-        )}
-      </Card>
-
-      {/* Create Flow Modal */}
-      <Modal
-        title="新建流程"
+      <CreateFlowModal
+        form={form}
         open={createVisible}
-        onCancel={() => setCreateVisible(false)}
-        footer={null}
-      >
-        <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item
-            name="name"
-            label="流程名称"
-            rules={[{ required: true, message: '请输入流程名称' }]}
-          >
-            <Input placeholder="输入流程名称" />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input.TextArea placeholder="流程描述" rows={3} />
-          </Form.Item>
-          <Form.Item name="type" label="流程类型" initialValue="sequential">
-            <Select>
-              <Select.Option value="sequential">顺序执行</Select.Option>
-              <Select.Option value="parallel">并行执行</Select.Option>
-              <Select.Option value="conditional">条件分支</Select.Option>
-            </Select>
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" block icon={<SaveOutlined />}>
-              创建
-            </Button>
-          </Form.Item>
-        </Form>
-      </Modal>
+        onSubmit={handleCreate}
+        onClose={closeCreate}
+      />
 
-      {/* AI Generate Modal (TR-10) */}
-      <Modal
-        title={
-          <span>
-            <ThunderboltOutlined style={{ marginRight: 8, color: colors.purple[500] }} />
-            AI 生成流程
-          </span>
-        }
+      <AiGenerateModal
+        form={aiForm}
         open={aiVisible}
-        onCancel={() => setAiVisible(false)}
-        footer={null}
-      >
-        <Form form={aiForm} layout="vertical" onFinish={handleAiGenerate}>
-          <Form.Item
-            name="prompt"
-            label="描述你想要的流程"
-            rules={[{ required: true, message: '请输入流程描述' }]}
-          >
-            <Input.TextArea
-              placeholder="例如：创建一个审批流程，包含提交、审批、通知节点"
-              rows={4}
-            />
-          </Form.Item>
-          <Form.Item name="name" label="流程名称（可选）">
-            <Input placeholder="留空则自动命名" />
-          </Form.Item>
-          <Form.Item>
-            <Button
-              type="primary"
-              htmlType="submit"
-              block
-              icon={<ThunderboltOutlined />}
-              loading={aiLoading}
-              style={{ backgroundColor: colors.purple[500], borderColor: colors.purple[500] }}
-            >
-              AI 生成
-            </Button>
-          </Form.Item>
-          <div style={{ fontSize: 12, color: colors.neutral[400], textAlign: 'center' }}>
-            支持场景：审批 / 发布 / 通知 / 数据同步 / 定时任务
-          </div>
-        </Form>
-      </Modal>
+        loading={aiLoading}
+        onSubmit={handleAiGenerate}
+        onClose={closeAi}
+      />
 
-      {/* Execute Flow Modal */}
-      <Modal
-        title={`执行流程: ${selectedFlow?.name}`}
+      <ExecuteFlowModal
         open={executeVisible}
-        onCancel={() => setExecuteVisible(false)}
-        footer={null}
-      >
-        <Form layout="vertical" onFinish={handleExecute}>
-          <Form.Item name="input" label="输入参数 (JSON)">
-            <Input.TextArea placeholder='{"key": "value"}' rows={4} />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" block icon={<PlayCircleOutlined />}>
-              执行
-            </Button>
-          </Form.Item>
-        </Form>
-      </Modal>
+        flowName={selectedFlow?.name || ''}
+        onSubmit={handleExecute}
+        onClose={closeExecute}
+      />
 
-      {/* Flow Detail Modal */}
-      <Modal
-        title={`流程详情: ${selectedFlow?.name}`}
+      <FlowDetailModal
         open={detailVisible}
-        onCancel={() => setDetailVisible(false)}
-        footer={[
-          <Button key="close" onClick={() => setDetailVisible(false)}>
-            关闭
-          </Button>,
-          <Button
-            key="execute"
-            type="primary"
-            icon={<PlayCircleOutlined />}
-            onClick={() => {
-              setDetailVisible(false);
-              setExecuteVisible(true);
-            }}
-          >
-            执行流程
-          </Button>,
-        ]}
-        width={700}
-      >
-        {selectedFlow && (
-          <Descriptions bordered column={1} size="small">
-            <Descriptions.Item label="流程ID">{selectedFlow.id}</Descriptions.Item>
-            <Descriptions.Item label="流程名称">{selectedFlow.name}</Descriptions.Item>
-            <Descriptions.Item label="描述">{selectedFlow.description || '无'}</Descriptions.Item>
-            <Descriptions.Item label="版本">{selectedFlow.version}</Descriptions.Item>
-            <Descriptions.Item label="状态">{selectedFlow.status}</Descriptions.Item>
-            <Descriptions.Item label="节点数">{selectedFlow.nodeCount || 0}</Descriptions.Item>
-            <Descriptions.Item label="创建人">
-              {selectedFlow.created_by || 'system'}
-            </Descriptions.Item>
-            <Descriptions.Item label="创建时间">{selectedFlow.created_at}</Descriptions.Item>
-            <Descriptions.Item label="更新时间">{selectedFlow.updated_at}</Descriptions.Item>
-            <Descriptions.Item label="节点定义">
-              <pre
-                style={{
-                  maxHeight: 200,
-                  overflow: 'auto',
-                  background: themeVars.bgTertiary,
-                  padding: 8,
-                  borderRadius: 4,
-                }}
-              >
-                {JSON.stringify(selectedFlow.nodes, null, 2)}
-              </pre>
-            </Descriptions.Item>
-            <Descriptions.Item label="连线定义">
-              <pre
-                style={{
-                  maxHeight: 200,
-                  overflow: 'auto',
-                  background: themeVars.bgTertiary,
-                  padding: 8,
-                  borderRadius: 4,
-                }}
-              >
-                {JSON.stringify(selectedFlow.edges, null, 2)}
-              </pre>
-            </Descriptions.Item>
-          </Descriptions>
-        )}
-      </Modal>
+        flow={selectedFlow}
+        onClose={closeDetail}
+        onExecute={detailToExecute}
+      />
     </div>
   );
 }
