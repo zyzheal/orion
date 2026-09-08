@@ -4,23 +4,12 @@
  * 对接真实后端API获取数据
  * 8 文件拆分: types.ts + constants.tsx + useDashboardState.ts + DashboardColumns.tsx + RightPanel.tsx + index.tsx
  * 抽取自 705 行原始文件 (P2-9 Phase 67)
+ * P2-9 Phase 285: 180->100 行 (-44%), 新增 Components/{PageHeader,StatsCards,MainColumn}.tsx
  */
 import React from 'react';
-import {
-  Card,
-  Row,
-  Col,
-  Table,
-  Typography,
-  Button,
-  Spin,
-  Alert,
-  Empty,
-} from 'antd';
-import { colors, spacing } from '@/tokens';
-import { StatCard } from '@/components/charts';
-import { DashboardOutlined, RocketOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Row, Col, Alert, Spin, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import { spacing } from '@/tokens';
 import { useDashboardState } from './useDashboardState';
 import { useTaskColumns, usePipelineColumns } from './DashboardColumns';
 import {
@@ -29,8 +18,9 @@ import {
   QuickActionsCard,
   AlertsCard,
 } from './RightPanel';
-
-const { Title, Text } = Typography;
+import { PageHeader } from './Components/PageHeader';
+import { StatsCards } from './Components/StatsCards';
+import { MainColumn } from './Components/MainColumn';
 
 const DashboardNew: React.FC = () => {
   const navigate = useNavigate();
@@ -82,88 +72,18 @@ const DashboardNew: React.FC = () => {
         />
       )}
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: spacing.lg,
-        }}
-      >
-        <div>
-          <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <DashboardOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
-            工作台
-          </Title>
-          <Text type="secondary">个人工作与效能度量</Text>
-        </div>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-          刷新
-        </Button>
-      </div>
+      <PageHeader loading={loading} onRefresh={loadData} />
 
-      {/* 顶部统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
-        <Col xs={24} sm={12} lg={6}>
-          <StatCard
-            title="Pipeline 总数"
-            value={pipelineStats.total}
-            trend={{ value: 0, direction: 'up', good: 'up' }}
-          />
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <StatCard title="运行中" value={pipelineStats.running} />
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <StatCard title="成功" value={pipelineStats.success} />
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <StatCard title="待处理任务" value={taskStats.todo} />
-        </Col>
-      </Row>
+      <StatsCards pipelineStats={pipelineStats} taskStats={taskStats} />
 
-      {/* 主要内容区 */}
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={16}>
-          <Card
-            title="待处理任务"
-            extra={<Button type="link">查看全部</Button>}
-            style={{ marginBottom: spacing.md }}
-          >
-            {tasks.length > 0 ? (
-              <Table columns={taskColumns} dataSource={tasks} pagination={false} size="small" />
-            ) : (
-              <Empty description="暂无待处理任务" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            )}
-          </Card>
-
-          <Card
-            title="最近 Pipeline 执行"
-            extra={
-              <Button type="link" onClick={() => navigate('/pipeline-runs')}>
-                查看全部
-              </Button>
-            }
-          >
-            {recentPipelineRecords.length > 0 ? (
-              <Table
-                columns={pipelineColumns}
-                dataSource={recentPipelineRecords}
-                pagination={false}
-                size="small"
-              />
-            ) : (
-              <Empty description="暂无 Pipeline 运行记录" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-                <Button
-                  type="primary"
-                  icon={<RocketOutlined />}
-                  onClick={() => navigate('/pipelines/new')}
-                >
-                  创建 Pipeline
-                </Button>
-              </Empty>
-            )}
-          </Card>
+          <MainColumn
+            tasks={tasks}
+            taskColumns={taskColumns}
+            recentPipelineRecords={recentPipelineRecords}
+            pipelineColumns={pipelineColumns}
+          />
         </Col>
 
         <Col xs={24} xl={8}>
