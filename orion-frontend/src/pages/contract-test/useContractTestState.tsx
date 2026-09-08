@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Button, Space, Tag, Text } from 'antd';
+import { Button, Space, Tag, Typography } from 'antd';
+const { Text } = Typography;
 import { PlayCircleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { api } from '@/api/client';

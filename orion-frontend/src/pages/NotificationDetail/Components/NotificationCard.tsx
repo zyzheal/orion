@@ -1,4 +1,5 @@
-import { Button, Card, Descriptions, Divider, Paragraph, Space, Tag, Typography } from 'antd';
+import { Button, Card, Descriptions, Divider, Space, Tag, Typography } from 'antd';
+const { Paragraph } = Typography;
 import dayjs from 'dayjs';
 import { colors, spacing } from '@/tokens';
 import { priorityConfig, typeLabelMap } from '../constants';

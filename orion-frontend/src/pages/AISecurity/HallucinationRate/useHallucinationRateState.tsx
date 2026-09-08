@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Progress, Tag, Text } from 'antd';
+import { Progress, Tag, Typography } from 'antd';
+const { Text } = Typography;
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@/providers/QueryProvider';
 import type { HallucinationRecord } from './types';
