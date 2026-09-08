@@ -2,335 +2,55 @@
  * Plugin SPI (Service Provider Interface) Page
  * 插件扩展点管理
  *
- * Features:
- * - SPI extension point table with registered plugins and status
- * - Plugin registration list
- * - Filter by SPI type and status
- * - Add/edit SPI configuration modal
+ * 拆分自 index.tsx (P2-9 Phase 213)
+ * - usePluginSPIState.ts: state + useQuery + mappers + handlers
+ * - Components/PageHeader.tsx: title + refresh
+ * - Components/StatsRow.tsx: 4 MetricCards
+ * - Components/TabSwitcher.tsx: 3 tab buttons
+ * - index.tsx: composition
  */
-import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, Button, Form, message, Row, Col } from 'antd';
-import {
-  ReloadOutlined,
-  ApiOutlined,
-  LinkOutlined,
-  CheckCircleOutlined,
-  ExperimentOutlined,
-  SettingOutlined,
-  SafetyOutlined,
-} from '@ant-design/icons';
-import MetricCard from '@/components/MetricCard';
-import { useQuery } from '@/providers/QueryProvider';
-import { colors, spacing } from '@/tokens';
+import { usePluginSPIState } from './usePluginSPIState';
+import { PageHeader } from './Components/PageHeader';
+import { StatsRow } from './Components/StatsRow';
+import { TabSwitcher } from './Components/TabSwitcher';
 import ExtensionPointList from './ExtensionPointList';
 import PluginRegistry from './PluginRegistry';
 import SPIConfig from './SPIConfig';
-import {
-  getSPIStats,
-  getExtensionPoints,
-  getPluginRegistrations,
-  getSPIConfigs,
-  createRegistration,
-  updatePluginConfig,
-  deleteRegistration,
-  toggleExtensionPoint,
-  type SPIStats as APISPIStats,
-  type SPIExtensionPoint as APISPIExtensionPoint,
-  type PluginRegistration as APIPluginRegistration,
-  type SPIConfig as APISPIConfig,
-} from '@/api/plugin-spi';
-import {
-  type SPIExtensionPoint,
-  type PluginRegistration,
-  type SPIConfig as SPIConfigType,
-  type SPIStats,
-} from './types';
 
-const { Title, Text } = Typography;
-
-/** Map API SPIExtensionPoint to UI shape */
-function mapApiExtensionPoint(p: APISPIExtensionPoint): SPIExtensionPoint {
-  return {
-    id: p.id,
-    name: p.name,
-    description: p.description,
-    spiType: p.id, // Use id as placeholder, real mapping depends on backend
-    registeredPlugins: p.registrationCount,
-    status: p.enabled ? 'active' : 'inactive',
-    interfaceName: p.interface,
-    version: '1.0.0',
-    lastUpdated: p.createdAt,
-  };
-}
-
-/** Map API PluginRegistration to UI shape */
-function mapApiRegistration(r: APIPluginRegistration | any): PluginRegistration {
-  return {
-    id: r.id || r.pluginName || '',
-    pluginName: r.pluginName || r.name || '',
-    spiPoint: r.extensionPointName || r.spiPoint || r.capabilities?.[0] || 'Unknown',
-    provider: r.author || r.provider || '',
-    priority: r.priority || 0,
-    status: r.status || (r.enabled ? 'enabled' : 'disabled'),
-    version: r.version || r.manifest?.version || '1.0.0',
-    registeredAt: r.createdAt || r.enabledAt || new Date().toISOString(),
-  };
-}
-
-/** Map API SPIConfig to UI shape */
-function mapApiSPIConfig(c: APISPIConfig): SPIConfigType {
-  return {
-    id: c.id,
-    spiType: c.key,
-    enabled: true,
-    maxPlugins: 10,
-    timeout: 5000,
-    fallbackStrategy: 'default',
-  };
-}
-
-/** Map API stats to UI stats */
-function mapApiStats(s: APISPIStats | any): SPIStats {
-  return {
-    totalExtensionPoints: s.totalExtensionPoints || s.totalPlugins || 0,
-    activePoints: s.activePoints || s.enabledPlugins || 0,
-    totalRegistrations: s.totalRegistrations || s.totalPlugins || 0,
-    enabledPlugins: s.enabledPlugins || 0,
-  };
-}
-
-// ============================================================================
-// Main Component
-// ============================================================================
-
-const PluginSPIPage: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
-  const [activeTab, setActiveTab] = useState<'extensions' | 'plugins' | 'config'>('extensions');
-  const [configModalVisible, setConfigModalVisible] = useState(false);
-  const [editingConfig, setEditingConfig] = useState<SPIConfigType | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [configForm] = Form.useForm();
-
-  // ---- Data Loading ----
-
+const PluginSPIPage = () => {
   const {
-    data: spiData,
-    isLoading: loading,
-    error: queryError,
-    isError,
-    refetch: loadData,
-  } = useQuery<{
-    extensionPoints: SPIExtensionPoint[];
-    pluginRegistrations: PluginRegistration[];
-    spiConfigs: SPIConfigType[];
-    stats: SPIStats | null;
-  }>({
-    queryKey: ['plugin-spi'],
-    queryFn: async () => {
-      const [extRes, regRes, cfgRes, statsRes] = await Promise.all([
-        getExtensionPoints(),
-        getPluginRegistrations(),
-        getSPIConfigs(),
-        getSPIStats(),
-      ]);
-      const extPoints = Array.isArray(extRes)
-        ? extRes
-        : (extRes as any).data?.extensionPoints || [];
-      const regs = Array.isArray(regRes) ? regRes : (regRes as any).data?.registrations || [];
-      const cfgs = Array.isArray(cfgRes) ? cfgRes : (cfgRes as any).data?.configs || [];
-      const statsData = (statsRes as any).stats || statsRes || {};
-      return {
-        extensionPoints: extPoints.map(mapApiExtensionPoint),
-        pluginRegistrations: regs.map(mapApiRegistration),
-        spiConfigs: cfgs.map(mapApiSPIConfig),
-        stats: mapApiStats(statsData),
-      };
-    },
-    staleTime: 30_000,
-  });
-
-  const extensionPoints = spiData?.extensionPoints ?? [];
-  const pluginRegistrations = spiData?.pluginRegistrations ?? [];
-  const spiConfigs = spiData?.spiConfigs ?? [];
-  const stats = spiData?.stats ?? null;
-
-  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
-  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
-  useEffect(() => {
-    if (isError) message.error(`加载 SPI 数据失败: ${(queryError as Error).message}`);
-  }, [isError, queryError]);
-
-  // ---- Actions ----
-
-  const openEditConfig = useCallback(
-    (config: SPIConfigType) => {
-      setEditingConfig(config);
-      configForm.setFieldsValue({
-        spiType: config.spiType,
-        enabled: config.enabled,
-        maxPlugins: config.maxPlugins,
-        timeout: config.timeout,
-        fallbackStrategy: config.fallbackStrategy,
-      });
-      setConfigModalVisible(true);
-    },
-    [configForm]
-  );
-
-  const handleSaveConfig = async () => {
-    try {
-      const values = await configForm.validateFields();
-      setSubmitting(true);
-      if (editingConfig) {
-        await updatePluginConfig(editingConfig.id, {
-          key: values.spiType || editingConfig.id,
-          value: String(values.maxPlugins || ''),
-          description: `SPI config for ${values.spiType}`,
-          category: values.spiType || 'general',
-          encrypted: false,
-        });
-        message.success('SPI 配置已更新');
-      } else {
-        await createRegistration({
-          key: values.spiType || 'new-config',
-          value: String(values.maxPlugins || ''),
-          description: 'New SPI config',
-          category: values.spiType || 'general',
-          encrypted: false,
-        } as any);
-        message.success('SPI 配置已添加');
-      }
-      setConfigModalVisible(false);
-      configForm.resetFields();
-      setEditingConfig(null);
-      loadData();
-    } catch (error: unknown) {
-      if (!(error instanceof Error && error.name === 'ValidationError')) {
-        message.error(`保存配置失败：${(error as Error).message}`);
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDeleteConfig = async (id: string) => {
-    try {
-      await deleteRegistration(id);
-      message.success('配置已删除');
-      loadData();
-    } catch (error: unknown) {
-      message.error(`删除配置失败：${(error as Error).message}`);
-    }
-  };
-
-  const handleTogglePlugin = async (record: PluginRegistration) => {
-    const newEnabled = record.status === 'enabled' ? 'disabled' : 'enabled';
-    try {
-      await toggleExtensionPoint(record.id, newEnabled === 'enabled');
-      message.success(
-        `插件 "${record.pluginName}" 已${newEnabled === 'enabled' ? '启用' : '禁用'}`
-      );
-      loadData();
-    } catch (error: unknown) {
-      message.error(`状态更新失败：${(error as Error).message}`);
-    }
-  };
-
-  // ---- Tab Switching ----
-
-  const handleTabChange = (tab: 'extensions' | 'plugins' | 'config') => {
-    setActiveTab(tab);
-    setSearchQuery('');
-    setFilters({});
-  };
-
-  // ---- Render ----
+    searchQuery,
+    setSearchQuery,
+    filters,
+    setFilters,
+    activeTab,
+    configModalVisible,
+    setConfigModalVisible,
+    editingConfig,
+    setEditingConfig,
+    submitting,
+    configForm,
+    extensionPoints,
+    pluginRegistrations,
+    spiConfigs,
+    stats,
+    loading,
+    loadData,
+    openEditConfig,
+    handleSaveConfig,
+    handleDeleteConfig,
+    handleTogglePlugin,
+    handleTabChange,
+  } = usePluginSPIState();
 
   return (
     <div style={{ padding: 0 }}>
-      {/* Page Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: spacing[6],
-        }}
-      >
-        <div>
-          <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <ExperimentOutlined style={{ marginRight: spacing[3], color: colors.purple[500] }} />
-            Plugin SPI
-          </Title>
-          <Text type="secondary">插件扩展点管理</Text>
-        </div>
-        <Button icon={<ReloadOutlined />} onClick={() => loadData()} loading={loading}>
-          刷新
-        </Button>
-      </div>
+      <PageHeader loading={loading} onRefresh={loadData} />
 
-      {/* Stats Cards */}
-      {stats && (
-        <Row gutter={spacing[4]} style={{ marginBottom: spacing[6] }}>
-          <Col span={6}>
-            <MetricCard
-              title="扩展点总数"
-              value={stats.totalExtensionPoints}
-              icon={<ApiOutlined style={{ fontSize: 20, color: colors.purple[500] }} />}
-              color={colors.purple[500]}
-            />
-          </Col>
-          <Col span={6}>
-            <MetricCard
-              title="活跃扩展点"
-              value={stats.activePoints}
-              icon={<CheckCircleOutlined style={{ fontSize: 20, color: colors.success[500] }} />}
-              color={colors.success[500]}
-            />
-          </Col>
-          <Col span={6}>
-            <MetricCard
-              title="插件注册总数"
-              value={stats.totalRegistrations}
-              icon={<LinkOutlined style={{ fontSize: 20, color: colors.primary[500] }} />}
-              color={colors.primary[500]}
-            />
-          </Col>
-          <Col span={6}>
-            <MetricCard
-              title="已启用插件"
-              value={stats.enabledPlugins}
-              icon={<SafetyOutlined style={{ fontSize: 20, color: colors.warning[500] }} />}
-              color={colors.warning[500]}
-            />
-          </Col>
-        </Row>
-      )}
+      {stats && <StatsRow stats={stats} />}
 
-      {/* Main Card with Tabs */}
-      <div style={{ display: 'flex', gap: spacing[2], marginBottom: spacing[4] }}>
-        <Button
-          type={activeTab === 'extensions' ? 'primary' : 'default'}
-          onClick={() => handleTabChange('extensions')}
-        >
-          <ApiOutlined /> 扩展点列表
-        </Button>
-        <Button
-          type={activeTab === 'plugins' ? 'primary' : 'default'}
-          onClick={() => handleTabChange('plugins')}
-        >
-          <LinkOutlined /> 插件注册列表
-        </Button>
-        <Button
-          type={activeTab === 'config' ? 'primary' : 'default'}
-          onClick={() => handleTabChange('config')}
-        >
-          <SettingOutlined /> SPI 配置
-        </Button>
-      </div>
+      <TabSwitcher activeTab={activeTab} onChange={handleTabChange} />
 
-      {/* Tab Content */}
       {activeTab === 'extensions' && (
         <ExtensionPointList
           extensionPoints={extensionPoints}
