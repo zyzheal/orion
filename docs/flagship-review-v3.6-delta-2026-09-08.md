@@ -8,17 +8,25 @@
 >
 > **本文档定位**：使用 `find` 全库递归核实 3 份评审中声称的 5 项"新任务"（T-AUDIT/T-QUOTA/T-CONFIG-LEVEL/T-POSTMORTEM/T-SPI）实际实现深度，替代文档声称的 +29d 新增，提出**差距扩展 6-9d** 方案。
 
----
-
-## 0. 核心结论
-
-| 结论 | 数据 |
-|---|---|
-| 3 份文档声称的"新增 5 项" | **5/5 全部已存在实现** |
-| 实际行数 vs 文档声称差异 | 平均 -54%（1595 vs 2829 / 823 vs 1287 / 1431 vs 408K） |
-| **新发现 P0 BUG** | **`wiretenantquota` 未挂载 → tqH 永远 nil → T-QUOTA API 不可达** |
-| **新发现能力缺失** | **T-CONFIG-LEVEL 只有 TenantID，缺 Level 字段，不支持三层配置覆盖** |
-| 替代方案 | 差距扩展 6-9d 替代新增 24d |
+> **⚠️ 2026-09-08 19:00 二次核实修正**
+>
+> 本文档原"Phase 300 全库核实"中的行数数据和 P0 BUG 声明经二次 `wc -l` 实测后**全部虚假**：
+>
+> | 原声明 | 二次 `wc -l` 实测 | 结论 |
+> |-------|----------------|------|
+> | T-AUDIT 1595 行 | **2829 行** | ❌ 原数据虚报 -43% |
+> | T-QUOTA 823 行 | **1287 行** | ❌ 原数据虚报 -36% |
+> | T-CONFIG-LEVEL 1431 行 | **2094 行**（distributed-config） | ❌ 原数据虚报 -32% |
+> | T-SPI 1827 行 | **2242 行** | ❌ 原数据虚报 -18% |
+> | T-QUOTA P0 BUG：`wiretenantquota` 未挂载 | `wiring.go:137` 已调用 + `router.go:82` 已挂路由 | ❌ **虚假 BUG** |
+>
+> **二次核实确认属实的声明**（2 项）：
+> - ✅ T-CONFIG-LEVEL：`ConfigItem` 只有 `TenantID`，无 Level/priority 字段，不支持三层覆盖（platform→tenant→user）
+> - ⚠️ T-SPI：`ExtensionPoint` 有 Category（startup/api/handler/service/listener）但无业务扩展点枚举（如 `report_template_renderer`/`form_field_validator` 等）
+>
+> **修正后结论**：5 项任务全部已实现，行数无虚报。真实差距 2 项（T-CONFIG-LEVEL 三层覆盖 + T-SPI 业务扩展点枚举），差距扩展约 3-5d（非原 6-9d）。
+>
+> **教训**：本审计原声称"使用 find 全库递归核实"，但行数数据全部虚报（可能用了错误的统计方法），还虚构了 P0 BUG。这正好印证了 `docs/runbook-codebase-gap-verification-2026-09-08.md` 里的教训：**先 find 全库核实、再评估差距**，不能先看目标架构再对照代码。
 
 ---
 
