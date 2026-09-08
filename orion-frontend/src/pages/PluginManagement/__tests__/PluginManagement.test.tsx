@@ -9,7 +9,18 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { getQueryClient } from '@/providers/QueryProvider';
 import PluginManagement from '../index';
+
+// P2-12 react-query 迁移：测试必须包裹 QueryClientProvider
+function renderPage(ui: React.ReactElement) {
+  return render(
+    <QueryClientProvider client={getQueryClient()}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
 
 // Mock plugin data - defined inside vi.mock factory via vi.hoisted
 const { mockPlugins } = vi.hoisted(() => {
@@ -110,11 +121,7 @@ vi.mock('antd', async () => {
 
 describe('PluginManagement', () => {
   it('should render plugin management page', async () => {
-    render(
-      <MemoryRouter>
-        <PluginManagement />
-      </MemoryRouter>
-    );
+    renderPage(<PluginManagement />);
     // PluginList also renders a div with data-testid="plugin-management-page"
     const pages = screen.getAllByTestId('plugin-management-page');
     expect(pages.length).toBeGreaterThanOrEqual(1);
@@ -122,11 +129,7 @@ describe('PluginManagement', () => {
   });
 
   it('should show summary cards with correct counts', async () => {
-    render(
-      <MemoryRouter>
-        <PluginManagement />
-      </MemoryRouter>
-    );
+    renderPage(<PluginManagement />);
     await waitFor(() => {
       expect(screen.getByTestId('plugin-summary-cards')).toBeInTheDocument();
     });
@@ -138,11 +141,7 @@ describe('PluginManagement', () => {
   });
 
   it('should display plugin table', async () => {
-    render(
-      <MemoryRouter>
-        <PluginManagement />
-      </MemoryRouter>
-    );
+    renderPage(<PluginManagement />);
     // Table component uses data-testid="orion-table"
     await waitFor(() => {
       expect(screen.getByTestId('orion-table')).toBeInTheDocument();
@@ -150,11 +149,7 @@ describe('PluginManagement', () => {
   });
 
   it('should show plugin names and versions', async () => {
-    render(
-      <MemoryRouter>
-        <PluginManagement />
-      </MemoryRouter>
-    );
+    renderPage(<PluginManagement />);
     await waitFor(() => {
       expect(screen.getByText('数据库迁移助手')).toBeInTheDocument();
     });
@@ -164,11 +159,7 @@ describe('PluginManagement', () => {
   });
 
   it('should show enabled/disabled status', async () => {
-    render(
-      <MemoryRouter>
-        <PluginManagement />
-      </MemoryRouter>
-    );
+    renderPage(<PluginManagement />);
     await waitFor(() => {
       expect(screen.getAllByText('已启用').length).toBeGreaterThanOrEqual(1);
     });
@@ -176,11 +167,7 @@ describe('PluginManagement', () => {
   });
 
   it('should have search and filter', async () => {
-    render(
-      <MemoryRouter>
-        <PluginManagement />
-      </MemoryRouter>
-    );
+    renderPage(<PluginManagement />);
     await waitFor(() => {
       expect(screen.getByTestId('orion-table')).toBeInTheDocument();
     });
@@ -191,11 +178,7 @@ describe('PluginManagement', () => {
   });
 
   it('should show health status indicators', async () => {
-    render(
-      <MemoryRouter>
-        <PluginManagement />
-      </MemoryRouter>
-    );
+    renderPage(<PluginManagement />);
     await waitFor(() => {
       expect(screen.getAllByText('正常').length).toBeGreaterThanOrEqual(1);
     });
@@ -204,11 +187,7 @@ describe('PluginManagement', () => {
   });
 
   it('should have install plugin button', async () => {
-    render(
-      <MemoryRouter>
-        <PluginManagement />
-      </MemoryRouter>
-    );
+    renderPage(<PluginManagement />);
     await waitFor(() => {
       expect(screen.getByTestId('install-plugin-button')).toBeInTheDocument();
     });
@@ -216,11 +195,7 @@ describe('PluginManagement', () => {
   });
 
   it('should show action buttons for each plugin', async () => {
-    render(
-      <MemoryRouter>
-        <PluginManagement />
-      </MemoryRouter>
-    );
+    renderPage(<PluginManagement />);
     await waitFor(() => {
       expect(screen.getAllByText('配置').length).toBeGreaterThanOrEqual(1);
     });

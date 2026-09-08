@@ -27,7 +27,7 @@ export function TabsContent({
           key: 'snapshots',
           label: (<><CameraOutlined /> Snapshots</>),
           children: (
-            <Card extra={<Button onClick={onOpenSnapshotModal}>Create Snapshot</Button>>
+            <Card extra={<Button onClick={onOpenSnapshotModal}>Create Snapshot</Button>}>
               <Table columns={buildSnapshotColumns()} dataSource={snapshots} rowKey="id" loading={loading} />
             </Card>
           ),
@@ -36,7 +36,7 @@ export function TabsContent({
           key: 'recordings',
           label: (<><ControlOutlined /> Traffic Recording</>),
           children: (
-            <Card extra={<Button onClick={onOpenRecordingModal}>Start Recording</Button>>
+            <Card extra={<Button onClick={onOpenRecordingModal}>Start Recording</Button>}>
               <Table
                 columns={buildRecordingColumns({ onStopRecording })}
                 dataSource={recordings}
