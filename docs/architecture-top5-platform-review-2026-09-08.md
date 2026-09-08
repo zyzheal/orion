@@ -1,5 +1,16 @@
 # Orion 平台 TOP5 平台级架构深度评审 (2026-09-08)
 
+> ⚠️ **最终核实（2026-09-08 Phase 300 差距扩展审计）**：本评审声称的"5 项新增任务（T-AUDIT/T-QUOTA/T-CONFIG-LEVEL/T-POSTMORTEM/T-SPI）"**已全部实现**，实测行数与能力深度差异巨大：
+> - T-AUDIT：声称 2829 行 vs 实际 **1595 行 (-43%)**；SOC2 已有，ISO27001 endpoint 缺失
+> - T-QUOTA：声称 1287 行 vs 实际 **823 行 (-36%)**；**P0 BUG：`wiretenantquota` 未被 wiring.go 调用 → tqH 永远 nil → API 不可达**
+> - T-CONFIG-LEVEL：声称 408K vs 实际 **1431 行**；**能力缺失：只有 TenantID，无 Level 字段（无法支持 platform→tenant→user 三层）**
+> - T-SPI：实际 1827 行；**能力缺失：只有 Category 分类，无内置扩展点枚举**
+> - T-POSTMORTEM：声称 155 行 + 91 测试 + 6 路由 vs 实际 154 行 + 91 测试 + 6 路由 ✅ **完全匹配**
+>
+> **修正结论**：TOP5 视角暴露的差距**不是"+24d 新增任务"，而是"6d 差距扩展"**。详细数据、修复方案、教训总结见 `docs/flagship-review-v3.6-delta-2026-09-08.md`。
+>
+> **教训**：TOP5 视角评审连续 3 次误判，根因是**先看目标架构、再对照代码**，而不是**先 `find` 全库核实、再评估差距**。
+
 > **定位**：本文档是 5 大平台（NeatLogic/ServiceNow/Datadog/GitLab/AWS）视角对 Orion 各域能力的**详细分析**。
 > **配套文档**：升级后的 80 项任务清单见 `docs/missing-feature-design-2026-08-25.md` 的 G.0 章节（2026-09-08 升级标注，含 5 项新增任务 T-AUDIT/T-QUOTA/T-CONFIG-LEVEL/T-POSTMORTEM/T-SPI）。
 > **关系**：本文档是平台视角分析，G.0 章节是任务清单升级标注，两者配合使用。

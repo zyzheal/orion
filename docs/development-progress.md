@@ -2101,3 +2101,87 @@ Batch AF 补充完成 7 个 phase 的组件化拆分，累计 22 页面降低 47
 ### 5. 结论
 
 Batch AF 补充 II 完成 4 个 phase 的组件化拆分，累计 25 页面降低 49% 代码量。所有拆分保持 100% TSC clean、100% UI/API 完整、100% FORBIDDEN=0 合规。
+
+## Phase 300 — TOP5 差距扩展审计（2026-09-08）
+
+### 1. 范围
+
+对 TOP5 视角声称的 5 项"新任务"（T-AUDIT/T-QUOTA/T-CONFIG-LEVEL/T-POSTMORTEM/T-SPI）执行全库 `find` + `grep` + `wc -l` 实测，核实实现深度、行数差异、能力缺失、接线状态。
+
+### 2. 核实方法
+
+- **文件定位**：`find orion-platform-svc-go/internal/ -name "*audit*" -o -name "*quota*" -o -name "*distributed-config*" -o -name "*extension-point*" -o -name "*postmortem*"`
+- **行数实测**：`wc -l` 逐目录
+- **路由核实**：`grep -rn "RegisterRoutes\|routerGroup\|RegisterHandlers" cmd/server/` + `route_dump_test.go`
+- **接线核实**：`grep -rn "wire[A-Z].*(db" cmd/server/wiring.go`
+
+### 3. 5 项任务实测结果
+
+| 任务 | 文档声称 | 实测 | 差异 |
+|------|---------|------|------|
+| T-AUDIT | 2829 行 + 20 路由 + 区块链 + SOC2/ISO27001 | 6 文件 **1595 行** + 20 路由 + ✅ 区块链哈希链 + ✅ SOC2 endpoint + ❌ ISO27001 | **-43%** + ISO27001 缺失 |
+| T-QUOTA | 1287 行 + wiring 挂载 | 5 文件 **823 行** + 11 路由 + ❌ **wiretenantquota 未挂载** | **-36%** + **P0 BUG** |
+| T-CONFIG-LEVEL | 408K + 三层覆盖 | 5 文件 **1431 行** + 21 路由 + ❌ 只有 TenantID，无 Level 字段 | **-97%** + **能力缺失** |
+| T-SPI | 内置扩展点枚举 | 5 文件 **1827 行** + 11 路由 + 5 Category + ❌ 无内置枚举 | 有分类无枚举 |
+| T-POSTMORTEM | 155 行 + 91 测试 + 6 路由 | 154 行 + 91 测试 + 6 路由 | ✅ 完全匹配 |
+
+### 4. 新发现 P0 BUG
+
+**`wiretenantquota` 函数命名违反 Go 命名约定 + wiring.go 未调用**
+
+- `wiring-tenant-quota.go:14` 定义 `func wiretenantquota(...)` 应为 `wireTenantQuota`
+- `wiring.go` 中 grep `wiretenantquota` = 0 处，仅调用 `wireTenantGateway`
+- 后果：`tqH` 永远为 `nil` → `router.go:82` 传入 nil → 生产路由中 T-QUOTA API 全部不可达
+- `route_dump_test.go:109` 用 `if tqH != nil` 保护 → 测试通过但生产路由缺失
+
+### 5. 差距扩展方案（替代新增 24d）
+
+| Phase | 任务 | 工时 | 优先级 |
+|---|---|---|---|
+| 301 | T-QUOTA 挂载修复 | **0.5d** | 🔴 P0 BUG |
+| 302 | T-CONFIG-LEVEL 三层 Level 字段补全 | **2d** | 🟠 高 |
+| 303 | T-SPI 内置扩展点枚举补全 | **1d** | 🟡 中 |
+| 304 | T-AUDIT ISO27001 endpoint | **0.5d** | 🟡 中 |
+| 305 | T-AUDIT 深度补齐（查询/过滤/导出） | **1d** | 🟢 低 |
+| 306 | T-QUOTA 深度补齐（预警/软限/硬限） | **1d** | 🟢 低 |
+| **合计** | **6 项差距扩展** | **6d** | 替代 +24d 新增 |
+
+### 6. 3 份文档顶部修正
+
+| 文档 | 修正内容 |
+|------|---------|
+| `architecture-top5-platform-review-2026-09-08.md` | 顶部新增 ⚠️ 最终核实标注（5 项已实现 + 行数差距 + P0 BUG） |
+| `top5-new-tasks-design-2026-09-08.md` | 已有初步修正后追加深度核实标注 + Phase 300 方案 |
+| `missing-feature-design-2026-08-25.md` G.0 | 新增最终核实标注 + Wave 总览表修正（+29d → +6d，-23d） |
+
+### 7. 教训总结
+
+**TOP5 视角评审连续 3 次误判记录**：
+
+| 轮次 | 声称 | 实测 |
+|---|---|---|
+| 1 | `missing-feature-design-2026-08-25.md` G.0：新增 5 项 24d | 5 项全部已实现 |
+| 2 | `architecture-top5-platform-review-2026-09-08.md`：平台级架构缺口 | 行数 -36%~-54%，能力大部分具备 |
+| 3 | `top5-new-tasks-design-2026-09-08.md`：新增 5 项 24d 详细设计 | 行数 -43% 但能力深度实测差异巨大 |
+
+**根本原因**：
+1. **文档先行**：先画"目标架构"，再看代码"是否达标"
+2. **行数估算失准**：408K 明显是 408K 字符误写为"行"
+3. **能力评估粗糙**：只看"有没有模块"，不看"字段是否完整"（如 T-CONFIG-LEVEL 的 Level 字段）
+4. **接线状态假设**：文档假设 wiring 存在即挂载，实际漏检 `wiretenantquota` 大小写错误导致未挂载
+
+**改进原则**：任何"新任务"提议前必须执行 3 步：
+1. `find internal/ -name "*.go" | xargs grep -l "<关键词>"` 全库搜索
+2. `grep -rn "<HandlerName>\|<WiringFunc>" cmd/server/wiring*.go router.go` 核实接线
+3. `grep -c "" internal/<module>/*.go` 实测行数，对照文档声明
+
+### 8. 产出
+
+- ✅ `docs/flagship-review-v3.6-delta-2026-09-08.md`（295 行）— 差距扩展清单文档
+- ✅ 3 份文档顶部标注修正
+- ✅ `docs/ALL_TODOS.md` 顶部新增 Phase 300 差距扩展任务表
+- ✅ `docs/development-progress.md` Phase 300 记录追加
+
+### 9. 结论
+
+Batch AF 之后首次系统性核实 TOP5 视角声称的"新任务"，通过全库实测确认 5 项全部已实现但存在行数与能力深度差距。提出 **6d 差距扩展方案替代 24d 新增**，总工时从 315.5d 修正为 292.5d（-23d）。发现新 P0 BUG（`wiretenantquota` 未挂载），需要优先修复。

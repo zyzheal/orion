@@ -28,6 +28,32 @@
 > **建议处理**：
 > 1. 本文档下方详细设计**仅作为参考**，标注"已实现"或"差距扩展"，不执行新建
 > 2. v3.5 G.0 章节需最终修正：原"新增 5 项 24d" → "差距扩展 5 项 6-9d"
+
+> ## ⚠️⚠️ 深度核实（2026-09-08 Phase 300 差距扩展审计）—— 行数与能力深度实测差异
+>
+> 全库 `find` + `grep` + `wc -l` 实测后发现，上述"已实现"标记下的**行数与能力深度**仍存在重大差距：
+>
+> | 任务 | 文档声称 | 实测 | 关键差距 |
+> |------|---------|------|---------|
+> | T-AUDIT | 2829 行 | **1595 行 (-43%)** | ISO27001 endpoint 缺失；SOC2 已有 |
+> | T-QUOTA | 1287 行 | **823 行 (-36%)** | **P0 BUG：`wiretenantquota` 函数命名违反 Go 约定 + wiring.go 未调用 → tqH 永远 nil → 生产 API 不可达** |
+> | T-CONFIG-LEVEL | 408K | **1431 行** | **只有 TenantID，无 Level/Scope 字段（platform→tenant→user 三层覆盖能力缺失）** |
+> | T-SPI | 未标注 | **1827 行** | 只有 Category 分类（startup/api/handler/service/listener），**无内置扩展点枚举**（如 pre_request/post_request） |
+> | T-POSTMORTEM | 155+91+6 | **154+91+6** | ✅ 完全匹配 |
+>
+> **Phase 300 差距扩展方案**（替代"新增 5 项 24d"）：
+>
+> | Phase | 任务 | 工时 | 类型 |
+> |---|---|---|---|
+> | 301 | T-QUOTA 挂载修复（wiretenantquota → wireTenantQuota + wiring.go 调用） | **0.5d** | 🔴 P0 BUG |
+> | 302 | T-CONFIG-LEVEL 三层 Level 字段补全（model + service + frontend） | **2d** | 🟠 能力补全 |
+> | 303 | T-SPI 内置扩展点枚举补全（10-15 个 BuiltinPoint 常量） | **1d** | 🟡 能力补全 |
+> | 304 | T-AUDIT ISO27001 合规报告 endpoint | **0.5d** | 🟡 能力补全 |
+> | 305 | T-AUDIT 深度补齐（查询/过滤/JSON 导出，1595→2000+ 行） | **1d** | 🟢 深度补齐 |
+> | 306 | T-QUOTA 深度补齐（配额预警/软限/硬限，823→1200+ 行） | **1d** | 🟢 深度补齐 |
+> | **合计** | **6 项差距扩展** | **6d** | 替代 24d 新增 |
+>
+> **详见**：`docs/flagship-review-v3.6-delta-2026-09-08.md`
 > 3. 升级后 Wave 总览：73 项保持不变，无新增任务
 >
 > **教训**：TOP5 视角评审连续 2 次误判（"新增 5 项" → "新增 1 项" → 实际 0 项），根因是**只看顶层目录，未深入子模块**。下次必须用 `find -name "*postmortem*" -o -name "*audit*" -o -name "*quota*"` 全库搜索，而不是只看 `internal/` 顶层。

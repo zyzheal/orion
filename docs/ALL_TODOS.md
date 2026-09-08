@@ -1,8 +1,28 @@
 # Orion 平台 — 所有待办汇总（单一权威来源）
 
-> 最后更新: 2026-08-26 | 分支: `feat/wave2-parallel-execution`
-> 数据来源: `architecture-review-2026-08-01.md` + `CROSS_VALIDATION_REPORT.md` + `merged-action-items-2026-07-27.md` + `structure-overlap-verification-2026-08-01.md` + `three-domain-depth-analysis-2026-08-01.md`
+> 最后更新: 2026-09-08 (Phase 300) | 分支: `feat/wave2-parallel-execution`
+> 数据来源: `architecture-review-2026-08-01.md` + `CROSS_VALIDATION_REPORT.md` + `merged-action-items-2026-07-27.md` + `structure-overlap-verification-2026-08-01.md` + `three-domain-depth-analysis-2026-08-01.md` + `flagship-review-v3.6-delta-2026-09-08.md`
 > 状态: ✅ **已通过专家评审核实** (2026-08-01)，以下为**当前有效清单**
+>
+> ## ⚠️ Phase 300 差距扩展审计新增（2026-09-08）
+>
+> 全库 `find` + `grep` + `wc -l` 实测 TOP5 视角声称的 5 项"新任务"（T-AUDIT/T-QUOTA/T-CONFIG-LEVEL/T-POSTMORTEM/T-SPI），发现：
+>
+> - ✅ 5 项**代码全部存在**（原"新增 5 项 24d"假设错误）
+> - ⚠️ 但**行数与能力深度存在重大差距**（详见 `docs/flagship-review-v3.6-delta-2026-09-08.md`）
+> - 🔴 **新发现 P0 BUG**：`wiretenantquota` 函数未被 `wiring.go` 调用 → `tqH` 永远 nil → T-QUOTA API 不可达
+>
+> **新增差距扩展任务**（替代原"新增 5 项 24d"，改为 6d 差距扩展）：
+>
+> | Phase | 任务 | 工时 | 优先级 |
+> |---|---|---|---|
+> | 301 | T-QUOTA 挂载修复（wiretenantquota → wireTenantQuota + wiring.go 调用） | **0.5d** | 🔴 P0 BUG |
+> | 302 | T-CONFIG-LEVEL 三层 Level 字段补全（model + service + frontend） | **2d** | 🟠 高 |
+> | 303 | T-SPI 内置扩展点枚举补全（10-15 个 BuiltinPoint 常量） | **1d** | 🟡 中 |
+> | 304 | T-AUDIT ISO27001 合规报告 endpoint | **0.5d** | 🟡 中 |
+> | 305 | T-AUDIT 深度补齐（查询/过滤/JSON 导出，1595→2000+ 行） | **1d** | 🟢 低 |
+> | 306 | T-QUOTA 深度补齐（配额预警/软限/硬限，823→1200+ 行） | **1d** | 🟢 低 |
+> | **合计** | **6 项差距扩展** | **6d** | 替代 +24d 新增 |
 
 ---
 
