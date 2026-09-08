@@ -2,24 +2,22 @@
  * Artifact Management Page (M29)
  * List, create, view details, promote, tag management, deprecate/quarantine
  * 抽取自 Phase 75 (P2-9): 状态 Hook + 4 Modal + 详情抽屉 + 表格
+ *
+ * Phase 247 拆分:
+ * - Components/PageHeader.tsx: 标题 + 刷新 + 创建按钮
+ * - Components/Modals.tsx: 4 个 Modal + DetailDrawer 组合
  */
-import React, { useMemo } from 'react';
-import { Typography, Button, Space, Card } from 'antd';
-import { colors, spacing } from '@/tokens';
-import { PlusOutlined, ReloadOutlined, InboxOutlined } from '@ant-design/icons';
+import { useMemo } from 'react';
+import { Card } from 'antd';
+import { spacing } from '@/tokens';
 import SearchFilterBar from '@/components/SearchFilterBar';
 import PageSkeleton from '@/components/PageSkeleton';
 import ArtifactStats from './ArtifactStats';
 import ArtifactTable from './ArtifactTable';
 import { getArtifactTabItems } from './ArtifactDetail';
 import { useArtifactState } from './useArtifactState';
-import { CreateArtifactModal } from './CreateArtifactModal';
-import { EditArtifactModal } from './EditArtifactModal';
-import { PromotionModal } from './PromotionModal';
-import { TagModal } from './TagModal';
-import { ArtifactDetailDrawer } from './ArtifactDetailDrawer';
-
-const { Title, Text } = Typography;
+import { PageHeader } from './Components/PageHeader';
+import { Modals } from './Components/Modals';
 
 const ArtifactManagement: React.FC = () => {
   const {
@@ -83,41 +81,14 @@ const ArtifactManagement: React.FC = () => {
 
       {isInitialLoading ? null : (
         <>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              marginBottom: spacing.lg,
+          <PageHeader
+            loading={loading}
+            onRefresh={() => {
+              loadData();
+              loadStats();
             }}
-          >
-            <div>
-              <Title level={2} style={{ marginBottom: spacing.sm }}>
-                <InboxOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
-                制品管理
-              </Title>
-              <Text type="secondary">管理制品仓库、生命周期晋升、标签和安全扫描</Text>
-            </div>
-            <Space>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={() => {
-                  loadData();
-                  loadStats();
-                }}
-                loading={loading}
-              >
-                刷新
-              </Button>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => setCreateModalVisible(true)}
-              >
-                创建制品
-              </Button>
-            </Space>
-          </div>
+            onCreate={() => setCreateModalVisible(true)}
+          />
 
           {stats && <ArtifactStats stats={stats} />}
 
@@ -152,45 +123,29 @@ const ArtifactManagement: React.FC = () => {
             />
           </Card>
 
-          <CreateArtifactModal
-            visible={createModalVisible}
-            form={createForm}
-            submitting={submitting}
-            namespaces={namespaces}
-            onCancel={() => setCreateModalVisible(false)}
-            onOk={handleCreate}
-          />
-
-          <EditArtifactModal
-            visible={editModalVisible}
-            form={editForm}
-            submitting={submitting}
-            onCancel={() => setEditModalVisible(false)}
-            onOk={handleEdit}
-          />
-
-          <PromotionModal
-            visible={promotionModalVisible}
-            form={promotionForm}
-            submitting={submitting}
-            selectedArtifact={selectedArtifact}
-            onCancel={() => setPromotionModalVisible(false)}
-            onOk={handlePromote}
-          />
-
-          <TagModal
-            visible={tagModalVisible}
-            form={tagForm}
-            submitting={submitting}
-            onCancel={() => setTagModalVisible(false)}
-            onOk={handleAddTags}
-          />
-
-          <ArtifactDetailDrawer
-            visible={detailDrawerVisible}
+          <Modals
+            createModalVisible={createModalVisible}
+            setCreateModalVisible={setCreateModalVisible}
+            editModalVisible={editModalVisible}
+            setEditModalVisible={setEditModalVisible}
+            promotionModalVisible={promotionModalVisible}
+            setPromotionModalVisible={setPromotionModalVisible}
+            tagModalVisible={tagModalVisible}
+            setTagModalVisible={setTagModalVisible}
+            detailDrawerVisible={detailDrawerVisible}
+            setDetailDrawerVisible={setDetailDrawerVisible}
             selectedArtifact={selectedArtifact}
             detailTabItems={detailTabItems}
-            onClose={() => setDetailDrawerVisible(false)}
+            submitting={submitting}
+            namespaces={namespaces}
+            createForm={createForm}
+            editForm={editForm}
+            promotionForm={promotionForm}
+            tagForm={tagForm}
+            handleCreate={handleCreate}
+            handleEdit={handleEdit}
+            handlePromote={handlePromote}
+            handleAddTags={handleAddTags}
           />
         </>
       )}
