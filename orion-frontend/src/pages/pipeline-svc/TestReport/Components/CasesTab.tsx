@@ -2,12 +2,14 @@
  * TestReport CasesTab
  * 抽取自 index.tsx (P2-9 Phase 191)
  */
-import { Card, Col, Descriptions, Row, Select, Space, Statistic, Table, Typography } from 'antd';
+import { Card, Col, Descriptions, Input, Row, Select, Space, Statistic, Table, Typography } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { spacing } from '@/tokens';
 import type { TestReport, TestCase } from '@/api/testReports';
 import { CASE_STATUS_OPTIONS } from '../constants';
 
-const { Text, Search } = Typography;
+const { Text } = Typography;
+const { Search } = Input;
 
 interface CasesTabProps {
   selectedReport: TestReport | null;
@@ -15,7 +17,7 @@ interface CasesTabProps {
   caseLoading: boolean;
   caseSearch: string;
   caseStatusFilter: string;
-  columns: Parameters<typeof Table>[0]['columns'];
+  columns: ColumnsType<TestCase>;
   onCaseSearchChange: (v: string) => void;
   onCaseStatusFilterChange: (v: string) => void;
 }

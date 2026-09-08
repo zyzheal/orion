@@ -5,13 +5,14 @@
 import { Button, Card, Select, Space, Table } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { spacing } from '@/tokens';
+import type { ColumnsType } from 'antd/es/table';
 import type { AuditStats } from '@/api/permission-audit';
 
 const { Option } = Select;
 
 interface StatsTableProps {
   stats: AuditStats[];
-  columns: Parameters<typeof Table>[0]['columns'];
+  columns: ColumnsType<AuditStats>;
   hours: number;
   onHoursChange: (v: number) => void;
   onRefresh: () => void;

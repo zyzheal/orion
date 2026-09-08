@@ -36,7 +36,7 @@ const PermissionAudit = () => {
 
   return (
     <div style={{ padding: spacing.lg }}>
-      <StatsRow total={total} hours={hours} activeUsers={stats.length} maxDeny={stats[0]?.count || 0} />
+      <StatsRow total={total} hours={hours} activeUsers={stats.length} maxDeny={Number(stats[0]?.count) || 0} />
 
       <StatsTable
         stats={stats}

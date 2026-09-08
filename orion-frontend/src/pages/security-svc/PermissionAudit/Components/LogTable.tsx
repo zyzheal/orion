@@ -2,8 +2,9 @@
  * PermissionAudit LogTable
  * 抽取自 index.tsx (P2-9 Phase 192)
  */
-import { Button, Card, FilterOutlined, Select, Space, Table } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import { Button, Card, Select, Space, Table } from 'antd';
+import { FilterOutlined, ReloadOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import type { AuditLogEntry } from '@/api/permission-audit';
 
 const { Option } = Select;
@@ -11,7 +12,7 @@ const { Option } = Select;
 interface LogTableProps {
   logs: AuditLogEntry[];
   loading: boolean;
-  columns: Parameters<typeof Table>[0]['columns'];
+  columns: ColumnsType<AuditLogEntry>;
   limit: number;
   onLimitChange: (v: number) => void;
   onRefresh: () => void;

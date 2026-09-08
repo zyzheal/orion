@@ -5,11 +5,12 @@
 import { Card, Space, Table, Tag } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
+import type { ColumnsType } from 'antd/es/table';
 import type { UEBARiskUser } from '@/api/permission-audit';
 
 interface RiskUsersTableProps {
   riskUsers: UEBARiskUser[];
-  columns: Parameters<typeof Table>[0]['columns'];
+  columns: ColumnsType<UEBARiskUser>;
 }
 
 export const RiskUsersTable = ({ riskUsers, columns }: RiskUsersTableProps) => {
