@@ -19,7 +19,7 @@
 > | Phase 235 | **P0-MB Phase 5** | 冲突预检查（L1 增强 PreDeployGate R1-R6） | 6d |
 > | — | — | 总计 | **26d** |
 >
-> 详细设计参见 `docs/flagship-review-v3.7-delta-impl-2026-09-08.md` §7。
+> 详细设计参见 `docs/multi-branch-strategy-design-v2-impl-2026-09-08.md`（1184 行，含 6 大模型 Go 结构、DB 表、40+ 路由、6 个前端页面、40+ 测试用例、验收标准）。
 >
 > **⚠️ 授权状态**：本方案全部涉及 `orion-platform-svc-go/` 目录（当前 FORBIDDEN），需用户明确授权后方可实施。
 
@@ -339,4 +339,4 @@ POST        /api/v1/build-artifacts/sign # 制品签名
 
 ---
 
-**下一步**：等待架构评审 + `orion-platform-svc-go/` 授权通过后，按 §7 路线图启动 P0-MB Phase 1 实施。详细设计参见 `docs/flagship-review-v3.7-delta-impl-2026-09-08.md` §7。
+**下一步**：等待架构评审 + `orion-platform-svc-go/` 授权通过后，按 §7 路线图启动 P0-MB Phase 1 实施。详细技术设计参见 **`docs/multi-branch-strategy-design-v2-impl-2026-09-08.md`**（含每个 Phase 的数据模型 / 路由 / 服务层 / 前端 / 测试 / 验收标准）。

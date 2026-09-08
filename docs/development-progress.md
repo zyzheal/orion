@@ -2248,3 +2248,41 @@ Batch AF 之后首次系统性核实 TOP5 视角声称的"新任务"，通过全
 | P0-MB Phase 1-5 多分支并行 | 26d | `orion-platform-svc-go/` + 前端 | ⚠️ FORBIDDEN |
 
 **结论**：v3.7 详细设计已完成（纯文档，合规），下一步需用户授权 `orion-platform-svc-go/` 目录后方可进入代码实施。
+
+### 7. P0-MB 详细设计补齐（v2 impl）
+
+**新增文档**：`docs/multi-branch-strategy-design-v2-impl-2026-09-08.md`（1184 行）
+
+**内容**：P0-MB Phase 1-5 完整技术设计。
+
+| Phase | 详细设计要点 |
+|-------|------------|
+| P0-MB Phase 1 | BranchProfile + BuildArtifact（6 大模型前 2 个，5d）|
+| P0-MB Phase 2 | NamespaceBinding + BranchEnvGuard 中间件（4d）|
+| P0-MB Phase 3 | SyncPolicy + SyncRunLog + 调度器（6d）|
+| P0-MB Phase 4 | DeployEvent + 部署 API 集成 + 一键回滚（5d）|
+| P0-MB Phase 5 | PreDeployGate R1-R6 + MergePreview（6d）|
+
+**累计产出**：
+- 6 大模型 Go 结构 + 5 DB 表 + 40+ 路由 + 6 前端页面 + 40+ 测试
+- 代码量估算 ~3500 行 Go + ~2500 行 TS/React
+
+### 8. 文档完备度评估（v3.7 + v2 impl 后）
+
+| 任务组 | 详细设计完备度 | 位置 |
+|-------|-------------|-----|
+| Phase 301-306 | ✅ 完整 | `flagship-review-v3.7-delta-impl-2026-09-08.md` §1-6 |
+| P0-MB Phase 1-5 | ✅ 完整 | `multi-branch-strategy-design-v2-impl-2026-09-08.md` §1-5 |
+| Wave 1 前置（T-19/T-18/T-15） | ⚠️ 部分 | 需补齐详细设计 |
+| PERM-8 阶段 2 | ⚠️ 部分 | 已有可选中间件设计 |
+| P1-9 三域补全 | ⚠️ 部分 | 需补齐详细设计 |
+
+### 9. 最终状态
+
+**已完成**：Phase 300 差距扩展审计 + v3.7 详细设计 + P0-MB v2 impl 详细设计 + 4 份 TOP5 文档修正 + Phase 编号统一 + Wave 总览更新。
+
+**总工时池（等待授权）**：
+- Phase 301-306（6d）+ P0-MB Phase 1-5（26d）= **32d** P0 优先级
+- Wave 1 前置（10d）+ PERM-8 阶段 2（3d）+ P1-9 三域补全（10-15d）= **23-28d** P1-P3
+
+**授权阻塞**：全部任务涉及 `orion-platform-svc-go/` 目录（FORBIDDEN），需用户明确授权后进入实施阶段。

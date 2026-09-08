@@ -569,7 +569,8 @@ GET  /tenants/:id/quotas/alerts?level=warning|critical  # 分级 alerts
 ### 7.3 ALL_TODOS.md 对齐
 
 - 顶部新增 "P0-MB 多分支并行策略（26d）" 任务组
-- 引用 `docs/multi-branch-strategy-design.md` §7 路线图
+- 引用 `docs/multi-branch-strategy-design.md` §7 路线图（架构设计 v1.1）
+- 引用 `docs/multi-branch-strategy-design-v2-impl-2026-09-08.md`（1184 行详细技术设计，含 6 大模型 Go 结构 / DB 表 / 40+ 路由 / 6 前端页面 / 40+ 测试用例 / 验收标准）
 - 8 项子任务对齐：L1 BranchProfile / L2 Namespace / L3 BuildArtifact / L4 SyncPolicy / L5 DeployEvent / PreDeployGate R1-R6 / 前端 UI / 测试覆盖
 
 ---
@@ -592,13 +593,13 @@ GET  /tenants/:id/quotas/alerts?level=warning|critical  # 分级 alerts
 
 | Phase | 详细设计完备度 | 缺失项 |
 |-------|-------------|-------|
-| 301 | ✅ 完整 | 无 |
-| 302 | ✅ 完整（数据模型+服务+路由+前端+测试+迁移） | 无 |
-| 303 | ✅ 完整（15 个 BuiltinPoint 定义 + Registry 初始化） | 无 |
-| 304 | ✅ 完整（3 个新合规框架 + Dashboard） | 等保2.0 controls 详细清单需补齐 |
-| 305 | ✅ 完整（Dashboard 数据结构 + 前端视图） | 无 |
-| 306 | ✅ 完整（Soft/Hard + 策略 + 阈值） | 无 |
-| P0-MB Phase 1-5 | ⚠️ 部分 | 需将 §7 路线图扩展为类似本 v3.7 的详细设计 |
+| 301 | ✅ 完整（本文档 §1） | 无 |
+| 302 | ✅ 完整（本文档 §2） | 无 |
+| 303 | ✅ 完整（本文档 §3，15 个 BuiltinPoint 定义 + Registry 初始化） | 无 |
+| 304 | ✅ 完整（本文档 §4，3 个新合规框架 + Dashboard） | 等保2.0 controls 详细清单需补齐 |
+| 305 | ✅ 完整（本文档 §5，Dashboard 数据结构 + 前端视图） | 无 |
+| 306 | ✅ 完整（本文档 §6，Soft/Hard + 策略 + 阈值） | 无 |
+| **P0-MB Phase 1-5** | ✅ 完整（`docs/multi-branch-strategy-design-v2-impl-2026-09-08.md` 1184 行） | 无 |
 
 ---
 
@@ -606,10 +607,13 @@ GET  /tenants/:id/quotas/alerts?level=warning|critical  # 分级 alerts
 
 ### 10.1 立即执行（纯文档）
 
-- ✅ 本文档（v3.7）生成
-- [ ] `docs/multi-branch-strategy-design.md` Phase 编号统一（231-235 → P0-MB Phase 1-5）
-- [ ] `docs/missing-feature-design-2026-08-25.md` G.0 Wave 总览新增 Wave 6（P0-MB 26d）
-- [ ] `docs/flagship-review-v3.6-delta-2026-09-08.md` 顶部追加 v3.7 关联标注
+- ✅ 本文档（v3.7，628 行）生成 — Phase 301-306 详细设计
+- ✅ `docs/multi-branch-strategy-design.md` Phase 编号统一（231-235 → P0-MB Phase 1-5）
+- ✅ `docs/multi-branch-strategy-design-v2-impl-2026-09-08.md`（1184 行）生成 — P0-MB Phase 1-5 详细设计
+- ✅ `docs/missing-feature-design-2026-08-25.md` G.0 Wave 总览新增 Wave 6（P0-MB 26d）
+- ✅ `docs/flagship-review-v3.6-delta-2026-09-08.md` 顶部追加 v3.7 关联标注
+- ✅ `docs/ALL_TODOS.md` 顶部新增 P0-MB 任务组 + 引用 v2 impl 文档
+- ✅ `docs/development-progress.md` 追加 v3.7 + v2 impl 记录
 
 ### 10.2 等待授权后执行（代码）
 

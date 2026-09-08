@@ -28,7 +28,9 @@
 >
 > ## 🔴 P0-MB 多分支并行策略（26d，新增 2026-09-08）
 >
-> 详细设计见 `docs/multi-branch-strategy-design.md`（Phase 编号已统一为 P0-MB Phase 1-5）。5 层防护架构：L1 BranchProfile / L2 Namespace / L3 BuildArtifact / L4 SyncPolicy / L5 DeployEvent + PreDeployGate R1-R6。
+> 详细设计见 `docs/multi-branch-strategy-design.md`（架构设计 v1.1，Phase 编号已统一为 P0-MB Phase 1-5）+ **`docs/multi-branch-strategy-design-v2-impl-2026-09-08.md`**（1184 行详细技术设计，含 6 大模型 Go 结构 / DB 表 / 40+ 路由 / 6 前端页面 / 40+ 测试用例 / 验收标准）。
+>
+> 5 层防护架构：L1 BranchProfile / L2 Namespace / L3 BuildArtifact / L4 SyncPolicy / L5 DeployEvent + PreDeployGate R1-R6。
 >
 > | Phase | 任务 | 工时 | 优先级 |
 > |---|---|---|---|
