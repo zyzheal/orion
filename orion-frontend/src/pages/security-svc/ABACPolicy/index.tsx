@@ -23,7 +23,6 @@ const ABACPolicyManagement = () => {
     loading,
     policies,
     modalOpen,
-    setModalOpen,
     drawerOpen,
     setDrawerOpen,
     selectedPolicy,

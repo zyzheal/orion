@@ -1,5 +1,5 @@
 import { Row, Col } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { spacing } from '@/tokens';
 import { SuccessRateChart } from '../SuccessRateChart';
 import { DurationDistribution } from '../DurationDistribution';
 import { TopSlowRuns } from '../TopSlowRuns';

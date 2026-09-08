@@ -19,9 +19,7 @@ import { PageHeader } from './Components/PageHeader';
 const DeploymentList = () => {
   const navigate = useNavigate();
   const {
-    searchQuery,
     setSearchQuery,
-    filters,
     setFilters,
     loading,
     filteredDeployments,

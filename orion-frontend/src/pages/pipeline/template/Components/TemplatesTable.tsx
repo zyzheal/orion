@@ -2,7 +2,7 @@
  * TemplatesTable.tsx - 模板列表表格
  * 抽取自 index.tsx (P2-9 Phase 240)
  */
-import { Card, Table, Tag, Button, Space, Input, Typography } from 'antd';
+import { Card, Table, Tag, Button, Space, Typography } from 'antd';
 import {
   FileTextOutlined,
   CopyOutlined,

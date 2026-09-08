@@ -2,7 +2,7 @@
  * DetailModal.tsx - 组件详情弹窗
  * 抽取自 index.tsx (P2-9 Phase 241)
  */
-import { Modal, Button, Descriptions, Tag, Progress, Space, Typography } from 'antd';
+import { Modal, Button, Descriptions, Tag, Progress, Space, } from 'antd';
 import { GithubOutlined, TeamOutlined } from '@ant-design/icons';
 import type { ServiceComponent } from '../useDevPortalState';
 

@@ -5,7 +5,7 @@ import { componentRadius, spacing } from '@/tokens';
 import type { PipelineVersion } from '@/api/pipeline-versions';
 import type { ArtifactVersion } from '@/api/artifactVersions';
 import { buildPipelineColumns, artifactColumns } from '../Columns';
-import type { TabKey } from '../useVersionManagementState';
+import type { } from '../useVersionManagementState';
 
 const { Text } = Typography;
 

@@ -19,7 +19,6 @@
  */
 import React from 'react';
 import { Card, Table } from 'antd';
-import { spacing } from '@/tokens';
 import { useQueueState } from './useQueueState';
 import { makeQueueJobColumns } from './columns';
 import { PageHeader } from './Components/PageHeader';

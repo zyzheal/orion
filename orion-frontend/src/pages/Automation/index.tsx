@@ -16,7 +16,6 @@
  * - index.tsx: 组合层
  */
 import React from 'react';
-import { spacing } from '@/tokens';
 import { useAutomationState } from './useAutomationState';
 import { useJobTableColumns } from './JobTableColumns';
 import { StatsBar } from './StatsBar';

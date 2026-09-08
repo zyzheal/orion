@@ -18,9 +18,7 @@ const PipelineRunList: React.FC = () => {
   const {
     pipelineId,
     pipelineName,
-    searchQuery,
     setSearchQuery,
-    filters,
     setFilters,
     dateRange,
     setDateRange,

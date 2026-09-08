@@ -1,4 +1,4 @@
-import { Card, Typography, Button } from 'antd';
+import { Typography, Button } from 'antd';
 import { DashboardOutlined, ReloadOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 

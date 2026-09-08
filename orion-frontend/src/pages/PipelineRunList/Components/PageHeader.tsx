@@ -2,7 +2,7 @@
  * PipelineRunList PageHeader
  * 抽取自 index.tsx (P2-9 Phase 180)
  */
-import React from 'react';
+
 import { Typography, Button, Space } from 'antd';
 import { ReloadOutlined, PlayCircleOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
