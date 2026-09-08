@@ -3,12 +3,13 @@ import { ImportOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { spacing } from '@/tokens';
 import { DataSourcePanel } from '../DataSourcePanel';
 import { ActionPanel } from '../ActionPanel';
+import type { SourceSamples } from '../types';
 
 const { Text } = Typography;
 
 interface Props {
-  importSource: string;
-  setImportSource: (v: string) => void;
+  importSource: SourceSamples;
+  setImportSource: (v: SourceSamples) => void;
   ingesting: boolean;
   handleIngest: () => void;
   actionPrompt: string;
@@ -17,7 +18,7 @@ interface Props {
   setActionTitle: (v: string) => void;
   actionLoading: boolean;
   actionResult: any;
-  handleAction: () => void;
+  handleAction: (kind?: string) => void | Promise<void>;
 }
 
 export function Extras({

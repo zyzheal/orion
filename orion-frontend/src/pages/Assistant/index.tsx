@@ -27,18 +27,20 @@ const AssistantPage = () => {
         <SessionSidebar
           sessions={sessions}
           currentSessionId={currentSessionId}
-          onSelectSession={selectSession}
-          onNewSession={newSession}
-          onDeleteSession={deleteSession}
+          open={sidebarOpen}
+          onSelect={selectSession}
+          onNew={newSession}
+          onDelete={deleteSession}
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
         />
-        <Content style={{ padding: spacing.lg, background: colors.bg.default }}>
+        <Content style={{ padding: spacing.lg, background: colors.light.bg.primary }}>
           {!sidebarOpen && (
             <Button size="small" icon={<MenuUnfoldOutlined />} onClick={() => setSidebarOpen(true)} style={{ marginBottom: spacing.sm }}>
               展开会话
             </Button>
           )}
-          <div style={{ border: `1px solid ${colors.border.default}`, borderRadius: 8, padding: spacing.md, minHeight: 320 }}>
-            <ChatArea messages={messages} loading={loading} />
+          <div style={{ border: `1px solid ${colors.light.border.default}`, borderRadius: 8, padding: spacing.md, minHeight: 320 }}>
+            <ChatArea messages={messages} loading={loading} ask={ask} />
           </div>
           <InputBar
             question={question}
