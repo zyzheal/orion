@@ -17,6 +17,8 @@
  *   Components/StatsBar.tsx   — 统计卡片行
  * P2-9 Phase 255 重构: 294 → 95 行 (-68%), 新增:
  *   Components/TabItems.tsx   — 4 tabs items (requests/detail/rfc/cab)
+ * P2-9 Phase 272 重构: 158 → ~45 行, 新增:
+ *   Components/ModalsBundle.tsx — 55 行 ChangeManagementModals props 汇总
  */
 import React from 'react';
 import { Card, Tabs } from 'antd';
@@ -26,130 +28,71 @@ import { useChangeManagementState } from './useChangeManagementState';
 import { useChangeFormWrappers } from './useChangeFormWrappers';
 import { useChangeColumns, useRFCColumns, useCABColumns } from './columns';
 import { buildStatsCards } from './stats';
-import { ChangeManagementModals } from './ChangeManagementModals';
 import { PageHeader } from './Components/PageHeader';
 import { StatsBar } from './Components/StatsBar';
 import { buildTabItems } from './Components/TabItems';
+import { ModalsBundle } from './Components/ModalsBundle';
 
 const ChangeManagement: React.FC = () => {
   const state = useChangeManagementState();
-  const {
-    activeTab, setActiveTab,
-    stats, statsLoading,
-    createModalOpen, editModalOpen, addEventModalOpen,
-    statusNoteModalOpen, pendingStatusChange,
-    rfcModalOpen, rfcDetailModalOpen, selectedRfc, setRfcDetailModalOpen, editRfcId,
-    cabModalOpen, cabDetailModalOpen, selectedCab, setCabDetailModalOpen, editCabId,
-    decisionModalOpen,
-    createSubmitting, editSubmitting,
-    loadChanges,
-    handleCreate, handleEdit,
-    handleDelete, handleViewDetail,
-    handleStatusChange,
-    handleConfirmStatusChange,
-    handleRiskAnalysis,
-    handleAddTimelineEvent,
-    handleCreateRfc, handleUpdateRfc, handleViewRfc,
-    handleCreateCab, handleUpdateCab, handleViewCab,
-    handleAddDecision,
-    setCreateModalOpen, setEditModalOpen, setAddEventModalOpen,
-    setStatusNoteModalOpen, setPendingStatusChange,
-    setRfcModalOpen, setSelectedRfc, setEditRfcId,
-    setCabModalOpen, setEditCabId, setDecisionModalOpen,
-    setSelectedChange,
-  } = state;
 
   const wrappers = useChangeFormWrappers({
-    handleCreate, handleEdit,
-    handleConfirmStatusChange, handleAddTimelineEvent,
-    handleCreateRfc, handleUpdateRfc,
-    handleCreateCab, handleUpdateCab, handleAddDecision,
+    handleCreate: state.handleCreate,
+    handleEdit: state.handleEdit,
+    handleConfirmStatusChange: state.handleConfirmStatusChange,
+    handleAddTimelineEvent: state.handleAddTimelineEvent,
+    handleCreateRfc: state.handleCreateRfc,
+    handleUpdateRfc: state.handleUpdateRfc,
+    handleCreateCab: state.handleCreateCab,
+    handleUpdateCab: state.handleUpdateCab,
+    handleAddDecision: state.handleAddDecision,
     selectedChange: state.selectedChange,
-    setCreateModalOpen, setEditModalOpen, setAddEventModalOpen,
-    setStatusNoteModalOpen, setPendingStatusChange,
-    setRfcModalOpen, setRfcDetailModalOpen, setSelectedRfc,
-    setEditRfcId, setCabModalOpen, setCabDetailModalOpen,
-    setEditCabId, setDecisionModalOpen,
+    setCreateModalOpen: state.setCreateModalOpen,
+    setEditModalOpen: state.setEditModalOpen,
+    setAddEventModalOpen: state.setAddEventModalOpen,
+    setStatusNoteModalOpen: state.setStatusNoteModalOpen,
+    setPendingStatusChange: state.setPendingStatusChange,
+    setRfcModalOpen: state.setRfcModalOpen,
+    setRfcDetailModalOpen: state.setRfcDetailModalOpen,
+    setSelectedRfc: state.setSelectedRfc,
+    setEditRfcId: state.setEditRfcId,
+    setCabModalOpen: state.setCabModalOpen,
+    setCabDetailModalOpen: state.setCabDetailModalOpen,
+    setEditCabId: state.setEditCabId,
+    setDecisionModalOpen: state.setDecisionModalOpen,
   });
 
   const changeColumns = useChangeColumns({
-    handleDelete,
-    handleViewDetail,
+    handleDelete: state.handleDelete,
+    handleViewDetail: state.handleViewDetail,
     handleOpenEditModal: wrappers.handleOpenEditModalWrapper,
-    setSelectedChange,
+    setSelectedChange: state.setSelectedChange,
   });
 
   const rfcColumns = useRFCColumns({
-    handleViewRfc,
+    handleViewRfc: state.handleViewRfc,
     handleEditRfc: wrappers.handleEditRfcWrapper,
   });
 
   const cabColumns = useCABColumns({
-    handleViewCab,
+    handleViewCab: state.handleViewCab,
     handleEditCab: wrappers.handleEditCabWrapper,
   });
 
-  const statsCards = buildStatsCards(stats);
-
+  const statsCards = buildStatsCards(state.stats);
   const tabItems = buildTabItems({ state, wrappers, changeColumns, rfcColumns, cabColumns });
 
   return (
     <Layout>
       <div style={{ padding: spacing.lg }}>
         <PageHeader />
-        <StatsBar statsCards={statsCards} loading={statsLoading} />
+        <StatsBar statsCards={statsCards} loading={state.statsLoading} />
 
         <Card style={{ borderRadius: radius.lg, boxShadow: shadows.card }}>
-          <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
+          <Tabs activeKey={state.activeTab} onChange={state.setActiveTab} items={tabItems} />
         </Card>
 
-        <ChangeManagementModals
-          createModalOpen={createModalOpen}
-          createForm={wrappers.createForm}
-          createSubmitting={createSubmitting}
-          onCreate={wrappers.handleCreateWrapper}
-          onCreateCancel={wrappers.cancelCreateModal}
-          editModalOpen={editModalOpen}
-          editForm={wrappers.editForm}
-          editSubmitting={editSubmitting}
-          onEdit={wrappers.handleEditWrapper}
-          onEditCancel={wrappers.cancelEditModal}
-          statusNoteModalOpen={statusNoteModalOpen}
-          statusNoteForm={wrappers.statusNoteForm}
-          pendingStatusChange={pendingStatusChange}
-          onStatusConfirm={wrappers.handleConfirmStatusChangeWrapper}
-          onStatusCancel={wrappers.cancelStatusModal}
-          addEventModalOpen={addEventModalOpen}
-          eventForm={wrappers.eventForm}
-          onEventAdd={wrappers.handleAddTimelineEventWrapper}
-          onEventCancel={wrappers.cancelEventModal}
-          rfcModalOpen={rfcModalOpen}
-          rfcForm={wrappers.rfcForm}
-          editRfcId={editRfcId}
-          onCreateRfc={wrappers.handleCreateRfcWrapper}
-          onUpdateRfc={wrappers.handleUpdateRfcWrapper}
-          onRfcCancel={wrappers.cancelRfcModal}
-          rfcDetailModalOpen={rfcDetailModalOpen}
-          selectedRfc={selectedRfc}
-          onRfcDetailCancel={() => {
-            setRfcDetailModalOpen(false);
-            wrappers.cancelRfcDetailModal();
-          }}
-          cabModalOpen={cabModalOpen}
-          cabForm={wrappers.cabForm}
-          editCabId={editCabId}
-          onCreateCab={wrappers.handleCreateCabWrapper}
-          onUpdateCab={wrappers.handleUpdateCabWrapper}
-          onCabCancel={wrappers.cancelCabModal}
-          cabDetailModalOpen={cabDetailModalOpen}
-          selectedCab={selectedCab}
-          onCabDetailCancel={() => setCabDetailModalOpen(false)}
-          onOpenDecision={wrappers.openDecisionModal}
-          decisionModalOpen={decisionModalOpen}
-          decisionForm={wrappers.decisionForm}
-          onDecisionAdd={wrappers.handleAddDecisionWrapper}
-          onDecisionCancel={wrappers.cancelDecisionModal}
-        />
+        <ModalsBundle state={state} wrappers={wrappers} />
       </div>
     </Layout>
   );
