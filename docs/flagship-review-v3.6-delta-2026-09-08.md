@@ -27,6 +27,12 @@
 > **修正后结论**：5 项任务全部已实现，行数无虚报。真实差距 2 项（T-CONFIG-LEVEL 三层覆盖 + T-SPI 业务扩展点枚举），差距扩展约 3-5d（非原 6-9d）。
 >
 > **教训**：本审计原声称"使用 find 全库递归核实"，但行数数据全部虚报（可能用了错误的统计方法），还虚构了 P0 BUG。这正好印证了 `docs/runbook-codebase-gap-verification-2026-09-08.md` 里的教训：**先 find 全库核实、再评估差距**，不能先看目标架构再对照代码。
+>
+> **⚠️ 2026-09-08 v3.7 详细设计关联**：本 v3.6 主报告只提供 Phase 301-306 工时清单，具体技术设计（数据模型/路由/服务层/前端/测试/验收标准）见 **`docs/flagship-review-v3.7-delta-impl-2026-09-08.md`**。
+>
+> **⚠️ v3.7 关键修正**：Phase 304 原描述"T-AUDIT ISO27001 endpoint 补齐"经核实**错误**——ISO27001 endpoint 已在 `internal/audit/handler/handler.go:241` 实现，服务层 `ComplianceReport` + `compliance_test.go` 覆盖 12+ controls。**Phase 304 改为"新增合规框架（PCI-DSS/等保2.0/PDPA）"**。修正后 Phase 301-306 总工时仍为 6d（Phase 304 保持 1d，只是任务内容变化）。
+>
+> **⚠️ P0-MB 多分支并行策略**（26d）：详细设计见 `docs/multi-branch-strategy-design.md`（Phase 编号已统一为 P0-MB Phase 1-5），与本文档 Phase 301-306 共同构成 P0 优先级任务组。全部涉及 `orion-platform-svc-go/` 目录（当前 FORBIDDEN），需用户授权后实施。
 
 ---
 

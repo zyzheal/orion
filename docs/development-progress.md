@@ -2185,3 +2185,66 @@ Batch AF 补充 II 完成 4 个 phase 的组件化拆分，累计 25 页面降�
 ### 9. 结论
 
 Batch AF 之后首次系统性核实 TOP5 视角声称的"新任务"，通过全库实测确认 5 项全部已实现但存在行数与能力深度差距。提出 **6d 差距扩展方案替代 24d 新增**，总工时从 315.5d 修正为 292.5d（-23d）。发现新 P0 BUG（`wiretenantquota` 未挂载），需要优先修复。
+
+---
+
+## Phase 300 v3.7 — 详细设计 + P0-MB 编号统一（2026-09-08）
+
+### 1. v3.7 详细设计产出
+
+**新增文档**：`docs/flagship-review-v3.7-delta-impl-2026-09-08.md`（628 行）
+
+**内容**：Phase 301-306 每项任务的完整技术设计（数据模型/路由/服务层/前端/测试/验收标准）。
+
+| Phase | 详细设计要点 |
+|-------|------------|
+| 301 | `wiretenantquota` → `wireTenantQuota` 重命名（0.5d，代码规范）|
+| 302 | `ConfigItem` 新增 Level/OverrideOf/Priority 字段 + `ResolveEffectiveConfig` 服务 + 覆盖树视图（2d）|
+| 303 | 15 个 `BuiltinPoint*` 常量 + `BuiltinPointRegistry` + 前端 Builtin 徽章（1d）|
+| 304 | **修正**：3 个新合规框架（PCI-DSS/等保2.0/PDPA）+ 多框架仪表板（1d）|
+| 305 | Compliance Dashboard 聚合（框架摘要 + 风险热图 + 30 天趋势）（0.5d）|
+| 306 | `QuotaPlan` 新增 SoftLimit/HardLimit/OverLimitAction/WarnThresholds（1d）|
+
+### 2. 关键修正
+
+**Phase 300 v3.6 审计错误修正**：
+
+| 原声称 | 二次核实 | v3.7 处理 |
+|-------|--------|---------|
+| P0 BUG：`wiretenantquota` 未挂载 | `wiring.go:137` 已调用 | Phase 301 降级为"代码规范" |
+| ISO27001 endpoint 缺失 | `handler.go:241` + `compliance_test.go` 已完整实现（12+ controls 测试）| Phase 304 改为"新增合规框架（PCI-DSS/等保2.0/PDPA）" |
+
+### 3. P0-MB 多分支并行策略 Phase 编号统一
+
+**修改文档**：`docs/multi-branch-strategy-design.md`
+
+| 原编号 | 新编号 | 内容 | 工时 |
+|-------|-------|-----|-----|
+| Phase 231 | **P0-MB Phase 1** | 基础数据模型（L1 + L3）| 5d |
+| Phase 232 | **P0-MB Phase 2** | 环境隔离强化（L2）| 4d |
+| Phase 233 | **P0-MB Phase 3** | 同步策略（L4）| 6d |
+| Phase 234 | **P0-MB Phase 4** | 变更审计（L5）| 5d |
+| Phase 235 | **P0-MB Phase 5** | 冲突预检查（PreDeployGate R1-R6）| 6d |
+| — | — | **总计** | **26d** |
+
+### 4. missing-feature-design G.0 Wave 总览更新
+
+**修改文档**：`docs/missing-feature-design-2026-08-25.md`
+
+新增 **Wave 6 — P0-MB 多分支并行（26d）**：
+- 原合计：292.5d（73 项 + 6 项差距扩展）
+- 新合计：**318.5d**（73 项 + 6 项差距扩展 + 5 项 P0-MB）
+- 净变化：+26d P0-MB，-3d 修正（v3.7 修正 Phase 301/304 工时保持 6d）
+
+### 5. ALL_TODOS.md 顶部更新
+
+新增 **P0-MB 多分支并行策略（26d）** 任务组，与 Phase 301-306（6d）共同构成 P0 优先级任务池（32d）。
+
+### 6. 授权阻塞状态
+
+| 任务组 | 工时 | 涉及目录 | 授权状态 |
+|-------|-----|---------|---------|
+| Phase 301-306 差距扩展 | 6d | `orion-platform-svc-go/` | ⚠️ FORBIDDEN |
+| P0-MB Phase 1-5 多分支并行 | 26d | `orion-platform-svc-go/` + 前端 | ⚠️ FORBIDDEN |
+
+**结论**：v3.7 详细设计已完成（纯文档，合规），下一步需用户授权 `orion-platform-svc-go/` 目录后方可进入代码实施。

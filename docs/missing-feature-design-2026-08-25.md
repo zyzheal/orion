@@ -3601,8 +3601,11 @@ v3.5 报告（system-review-v3.5-2026-08-25.md）：
 | Wave 5 | 16 | 164d | 16 | 164d | 不变 |
 | Wave 5b | 7 | 10.5d | 7 | 10.5d | 不变 |
 | Wave 5c | 3 | 12d | 3 | 12d | 不变 |
-| 差距扩展（Phase 301-306） | 6 | 6d | — | — | T-QUOTA 挂载修复(0.5d) + T-CONFIG-LEVEL Level 字段(2d) + T-SPI 内置扩展点(1d) + T-AUDIT ISO27001(0.5d) + T-AUDIT 深度补齐(1d) + T-QUOTA 深度补齐(1d) |
-| **合计** | **73** | **286.5d** | **73+6** | **292.5d** | **+6d 差距扩展（替代 +29d 新增，-23d 修正）** |
+| 差距扩展（Phase 301-306） | 6 | 6d | — | — | T-QUOTA 命名规范(0.5d) + T-CONFIG-LEVEL Level 字段(2d) + T-SPI 内置扩展点(1d) + T-AUDIT 新合规框架(1d) + T-AUDIT Dashboard(0.5d) + T-QUOTA 软/硬限(1d)（**v3.7 修正**：Phase 304 由 ISO27001 补齐改为 PCI-DSS/等保2.0/PDPA，因 ISO27001 endpoint 已存在）|
+| **Wave 6 — P0-MB 多分支并行** | — | — | **5** | **26d** | **P0-MB Phase 1-5**：基础数据模型(5d) + 环境隔离(4d) + 同步策略(6d) + 变更审计(5d) + 冲突预检查/PreDeployGate(6d)（**新增**，原设计文档 `multi-branch-strategy-design.md` Phase 231-235 编号已统一为 P0-MB Phase 1-5）|
+| **合计** | **73** | **286.5d** | **73+6+5** | **318.5d** | **+6d 差距扩展 +26d P0-MB 多分支（替代 +29d 新增，+3d 净增）** |
+
+> ⚠️ **v3.7 详细设计关联**：Phase 301-306 与 P0-MB Phase 1-5 的完整技术设计（数据模型/路由/服务层/前端/测试/验收标准）见 `docs/flagship-review-v3.7-delta-impl-2026-09-08.md`。
 
 #### 5. 三文档配合关系
 

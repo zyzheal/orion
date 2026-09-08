@@ -16,13 +16,32 @@
 >
 > | Phase | 任务 | 工时 | 优先级 |
 > |---|---|---|---|
-> | 301 | T-QUOTA 挂载修复（wiretenantquota → wireTenantQuota + wiring.go 调用） | **0.5d** | 🔴 P0 BUG |
-> | 302 | T-CONFIG-LEVEL 三层 Level 字段补全（model + service + frontend） | **2d** | 🟠 高 |
-> | 303 | T-SPI 内置扩展点枚举补全（10-15 个 BuiltinPoint 常量） | **1d** | 🟡 中 |
-> | 304 | T-AUDIT ISO27001 合规报告 endpoint | **0.5d** | 🟡 中 |
-> | 305 | T-AUDIT 深度补齐（查询/过滤/JSON 导出，1595→2000+ 行） | **1d** | 🟢 低 |
-> | 306 | T-QUOTA 深度补齐（配额预警/软限/硬限，823→1200+ 行） | **1d** | 🟢 低 |
+> | 301 | T-QUOTA 命名规范（`wiretenantquota` → `wireTenantQuota`，非 P0 BUG 因 wiring.go:137 已调用） | **0.5d** | 🟡 代码规范 |
+> | 302 | T-CONFIG-LEVEL 三层 Level 字段补全（platform/tenant/user + ResolveEffectiveConfig） | **2d** | 🟠 高 |
+> | 303 | T-SPI 内置扩展点枚举补全（15 个 BuiltinPoint 常量 + Registry 初始化） | **1d** | 🟡 中 |
+> | 304 | T-AUDIT 新增合规框架（PCI-DSS v4.0 / 等保2.0 / PDPA，ISO27001 已存在 handler.go:241） | **1d** | 🟡 中 |
+> | 305 | T-AUDIT 合规 Dashboard 可视化（跨框架覆盖度 + 风险热图 + 30 天趋势） | **0.5d** | 🟢 低 |
+> | 306 | T-QUOTA 软限/硬限 + 超配策略 + 分级预警 | **1d** | 🟢 低 |
 > | **合计** | **6 项差距扩展** | **6d** | 替代 +24d 新增 |
+>
+> **⚠️ v3.7 修正**：Phase 301 由"P0 BUG"降级为"代码规范"（wiring.go:137 已调用 `wiretenantquota`，功能正常，只是函数名违反 Go 命名约定）。Phase 304 由"ISO27001 endpoint 补齐"改为"新增合规框架"（ISO27001 已在 `handler.go:241` + `compliance_test.go` 完整实现，含 12+ controls 测试）。详细技术设计见 `docs/flagship-review-v3.7-delta-impl-2026-09-08.md`。
+>
+> ## 🔴 P0-MB 多分支并行策略（26d，新增 2026-09-08）
+>
+> 详细设计见 `docs/multi-branch-strategy-design.md`（Phase 编号已统一为 P0-MB Phase 1-5）。5 层防护架构：L1 BranchProfile / L2 Namespace / L3 BuildArtifact / L4 SyncPolicy / L5 DeployEvent + PreDeployGate R1-R6。
+>
+> | Phase | 任务 | 工时 | 优先级 |
+> |---|---|---|---|
+> | P0-MB Phase 1 | 基础数据模型（L1 BranchProfile + L3 BuildArtifact digest） | **5d** | 🔴 P0 |
+> | P0-MB Phase 2 | 环境隔离强化（L2 Namespace 命名规则 + image tag 前缀强制） | **4d** | 🔴 P0 |
+> | P0-MB Phase 3 | 同步策略（L4 SyncPolicy 页面 + 自动化调度） | **6d** | 🔴 P0 |
+> | P0-MB Phase 4 | 变更审计（L5 DeployEvent + 一键回滚） | **5d** | 🔴 P0 |
+> | P0-MB Phase 5 | 冲突预检查（PreDeployGate R1-R6 阻断规则 + 前端可视化） | **6d** | 🔴 P0 |
+> | **合计** | **5 项 P0-MB 子任务** | **26d** | 全部 P0 |
+>
+> **当前 `internal/branch-policy/` 现状**（1997 行，为 P0-MB 骨架但缺 6 大模型）：handler 779 + tests 777 + service 273 + interface 79 + repo 47 + **models 23**（只有 Record/ListQuery/CreateRequest 3 个通用类型，缺 BranchProfile/BranchDeployment/DeployEvent/SyncPolicy/BuildArtifact/PreDeployGate）。
+>
+> **⚠️ 授权状态**：Phase 301-306 + P0-MB Phase 1-5 全部涉及 `orion-platform-svc-go/` 目录（当前 FORBIDDEN），需用户明确授权后实施。
 
 ---
 

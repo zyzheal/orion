@@ -1,9 +1,27 @@
 # 多分支并行部署策略设计（Multi-Branch Deployment Strategy）
 
-> 文档版本：v1.0  
+> 文档版本：v1.1  
 > 创建日期：2026-08-26  
+> 最后更新：2026-09-08  
 > 状态：待评审  
 > 目标：解决 Git 仓库下多个长期分支并行维护、独立编译部署、避免部署错乱的完整方案
+>
+> **⚠️ 2026-09-08 Phase 编号统一（配合 Phase 300 差距扩展审计）**
+>
+> 本文档 §7 路线图原使用 Phase 231-235 编号，为与 `docs/ALL_TODOS.md` 中 P0-MB 任务组对齐，已统一为 **P0-MB Phase 1-5**。
+>
+> | 原编号 | 新编号 | 内容 | 工时 |
+> |-------|-------|-----|-----|
+> | Phase 231 | **P0-MB Phase 1** | 基础数据模型（L1 BranchProfile + L3 BuildArtifact） | 5d |
+> | Phase 232 | **P0-MB Phase 2** | 环境隔离强化（L2 Namespace） | 4d |
+> | Phase 233 | **P0-MB Phase 3** | 同步策略（L4 SyncPolicy） | 6d |
+> | Phase 234 | **P0-MB Phase 4** | 变更审计（L5 DeployEvent） | 5d |
+> | Phase 235 | **P0-MB Phase 5** | 冲突预检查（L1 增强 PreDeployGate R1-R6） | 6d |
+> | — | — | 总计 | **26d** |
+>
+> 详细设计参见 `docs/flagship-review-v3.7-delta-impl-2026-09-08.md` §7。
+>
+> **⚠️ 授权状态**：本方案全部涉及 `orion-platform-svc-go/` 目录（当前 FORBIDDEN），需用户明确授权后方可实施。
 
 ---
 
@@ -269,32 +287,35 @@ POST        /api/v1/build-artifacts/sign # 制品签名
 
 ## 7. 实施路线图
 
-### Phase 231：基础数据模型（L1 + L3）
-- 新建 `BranchProfile` API + 页面
-- 新建 `BuildArtifact` digest 强制
+> ⚠️ 编号统一：原 Phase 231-235 已改名为 **P0-MB Phase 1-5**，与 `docs/ALL_TODOS.md` 和 `docs/flagship-review-v3.7-delta-impl-2026-09-08.md` 对齐。
+
+### P0-MB Phase 1：基础数据模型（L1 + L3）
+- 新建 `BranchProfile` API + 页面（分支画像 / 生命周期 / 负责人）
+- 新建 `BuildArtifact` digest 强制（SHA256 绑定分支）
 - **预估工时**：3 人日
 
-### Phase 232：环境隔离强化（L2）
-- 部署 API 强校验 image tag 前缀
-- Namespace 命名规则强制
+### P0-MB Phase 2：环境隔离强化（L2）
+- 部署 API 强校验 image tag 前缀（`{branch}/{version}` 格式）
+- Namespace 命名规则强制（`{tenant}/{branch-profile}`）
 - **预估工时**：2 人日
 
-### Phase 233：同步策略（L4）
-- 新建 `SyncPolicy` 页面 + 自动化调度
-- 集成 ChangeManagement 通知
+### P0-MB Phase 3：同步策略（L4）
+- 新建 `SyncPolicy` 页面 + 自动化调度（release/* ← main 定期同步）
+- 集成 ChangeManagement 通知（同步触发变更单）
 - **预估工时**：3 人日
 
-### Phase 234：变更审计（L5）
-- `DeployEvent` 审计增强
-- 一键回滚能力
+### P0-MB Phase 4：变更审计（L5）
+- `DeployEvent` 审计增强（谁/何时/哪个分支/哪个 artifact/哪个环境）
+- 一键回滚能力（基于 DeployEvent 反向追踪）
 - **预估工时**：2 人日
 
-### Phase 235：冲突预检查（L1 增强）
-- `CodeMgmt.createMR` 集成冲突预览
+### P0-MB Phase 5：冲突预检查（L1 增强 PreDeployGate R1-R6）
+- `CodeMgmt.createMR` 集成冲突预览（R1 分支冲突检测）
+- PreDeployGate R2-R6 阻断规则（image tag 一致、artifact digest 一致、namespace 匹配、sync policy 通过、audit chain 完整）
 - 冲突文件列表可视化
 - **预估工时**：2 人日
 
-**总预估**：12 人日
+**总预估**：12 人日（原估算） / 26d（v3.7 详细设计后重新估算）
 
 ---
 
@@ -318,4 +339,4 @@ POST        /api/v1/build-artifacts/sign # 制品签名
 
 ---
 
-**下一步**：等待架构评审通过后，按 §7 路线图启动 Phase 231 实施。
+**下一步**：等待架构评审 + `orion-platform-svc-go/` 授权通过后，按 §7 路线图启动 P0-MB Phase 1 实施。详细设计参见 `docs/flagship-review-v3.7-delta-impl-2026-09-08.md` §7。
