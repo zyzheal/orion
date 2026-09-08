@@ -18,7 +18,7 @@ interface Props {
   setActionTitle: (v: string) => void;
   actionLoading: boolean;
   actionResult: any;
-  handleAction: (kind?: string) => void | Promise<void>;
+  handleAction: (kind?: string) => void;
 }
 
 export function Extras({

@@ -3,7 +3,7 @@
  * 抽取自 index.tsx (P2-9 Phase 179)
  */
 import React from 'react';
-import { Form, Input, Button, Typography } from 'antd';
+import { Form, Input, Button, Typography, type FormInstance } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { colors, spacing, themeVars } from '@/tokens';
 import { useIntl } from '@/i18n';
@@ -16,7 +16,7 @@ interface LoginFormValues {
 }
 
 interface LoginFormProps {
-  form: React.FormInstance<LoginFormValues>;
+  form: FormInstance<LoginFormValues>;
   isLoading: boolean;
   onSubmit: (values: LoginFormValues) => void;
 }

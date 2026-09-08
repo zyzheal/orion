@@ -138,6 +138,7 @@ const VectorStorePage: React.FC = () => {
             setUploadMetadata={s.setUploadMetadata}
             uploadLoading={s.uploadLoading}
             onUpload={s.handleUpload}
+            onFileUpload={() => false}
           />
         </Col>
       </Row>

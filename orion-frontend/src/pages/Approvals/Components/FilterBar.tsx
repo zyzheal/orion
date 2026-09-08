@@ -5,7 +5,7 @@ interface FilterBarProps {
   searchQuery: string;
   setSearchQuery: (v: string) => void;
   statusFilter: string;
-  setStatusFilter: (v: string) => void;
+  setStatusFilter: (v: any) => void;
 }
 
 export function FilterBar({ searchQuery, setSearchQuery, statusFilter, setStatusFilter }: FilterBarProps) {

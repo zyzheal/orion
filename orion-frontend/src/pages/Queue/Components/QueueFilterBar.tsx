@@ -10,9 +10,9 @@ const { Text } = Typography;
 
 interface Props {
   statusFilter?: string;
-  setStatusFilter: (v?: string) => void;
+  setStatusFilter: (v: string) => void;
   queueFilter?: string;
-  setQueueFilter: (v?: string) => void;
+  setQueueFilter: (v: string) => void;
   queueNames: string[];
 }
 
