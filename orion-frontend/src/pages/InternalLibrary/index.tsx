@@ -1,28 +1,30 @@
-import { colors, spacing } from '@/tokens';
-
 /**
  * Internal Library Management Page
  * M30 - 二方库管理：列表、创建、版本管理、依赖追踪
  * 抽取自 Phase 74 (P2-9): 状态 Hook + 4 Modal + 详情抽屉 + 表格
+ *
+ * P2-9 Phase 243 拆分:
+ * - useInternalLibraryHandlers.ts: modal open wrappers + getLibraryTabItems memo
+ * - Components/PageHeader.tsx: 标题栏 + 刷新/创建按钮
+ * - index.tsx: 组合层
  */
-import React from 'react';
-import { Typography, Button, Space, Card } from 'antd';
-import { PlusOutlined, ReloadOutlined, BookOutlined } from '@ant-design/icons';
+import { Card } from 'antd';
+import { spacing } from '@/tokens';
 import PageSkeleton from '@/components/PageSkeleton';
 import SearchFilterBar from '@/components/SearchFilterBar';
 import LibraryTable from './LibraryTable';
 import CreateLibraryModal from './CreateLibraryModal';
-import { getLibraryTabItems } from './LibraryDetail';
 import { useInternalLibraryState } from './useInternalLibraryState';
+import { useInternalLibraryHandlers } from './useInternalLibraryHandlers';
 import { DeprecateModal } from './DeprecateModal';
 import { PublishVersionModal } from './PublishVersionModal';
 import { DeprecateVersionModal } from './DeprecateVersionModal';
 import { AddDependentModal } from './AddDependentModal';
 import { LibraryDetailDrawer } from './LibraryDetailDrawer';
-
-const { Title, Text } = Typography;
+import { PageHeader } from './Components/PageHeader';
 
 const InternalLibraryManagement: React.FC = () => {
+  const state = useInternalLibraryState();
   const {
     loading,
     libraries,
@@ -33,7 +35,6 @@ const InternalLibraryManagement: React.FC = () => {
     detailDrawerVisible,
     setDetailDrawerVisible,
     selectedLib,
-    setSelectedLib,
     versions,
     dependents,
     versionModalVisible,
@@ -50,8 +51,6 @@ const InternalLibraryManagement: React.FC = () => {
     deprecateVersionForm,
     addDependentForm,
     submitting,
-    activeTab,
-    setActiveTab,
     filteredData,
     filterDefs,
     loadData,
@@ -62,36 +61,16 @@ const InternalLibraryManagement: React.FC = () => {
     handlePublishVersion,
     handleDeprecateVersion,
     handleAddDependent,
-    handleUpdateDependent,
-    handleUpdateStats,
     openDetail,
-  } = useInternalLibraryState();
+  } = state;
 
   const {
-    items: detailTabItems,
-    activeKey: detailActiveKey,
-    onChange: detailTabChange,
-  } = getLibraryTabItems(
-    selectedLib,
-    versions,
-    dependents,
-    activeTab,
-    setActiveTab,
-    () => {
-      versionForm.resetFields();
-      setVersionModalVisible(true);
-    },
-    (targetVersion: string) => {
-      versionForm.setFieldValue('_targetVersion', targetVersion);
-      setDeprecateVersionModalVisible(true);
-    },
-    handleUpdateStats,
-    () => {
-      addDependentForm.resetFields();
-      setAddDependentModalVisible(true);
-    },
-    handleUpdateDependent
-  );
+    handleOpenCreate,
+    handleTableDeprecate,
+    detailTabItems,
+    detailActiveKey,
+    detailTabChange,
+  } = useInternalLibraryHandlers({ state });
 
   const isInitialLoading = loading && libraries.length === 0;
 
@@ -101,37 +80,7 @@ const InternalLibraryManagement: React.FC = () => {
 
       {isInitialLoading ? null : (
         <>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              marginBottom: spacing.lg,
-            }}
-          >
-            <div>
-              <Title level={2} style={{ marginBottom: spacing.sm }}>
-                <BookOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
-                二方库管理
-              </Title>
-              <Text type="secondary">管理内部二方库的生命周期、版本发布和依赖追踪</Text>
-            </div>
-            <Space>
-              <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-                刷新
-              </Button>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => {
-                  createForm.resetFields();
-                  setCreateModalVisible(true);
-                }}
-              >
-                创建二方库
-              </Button>
-            </Space>
-          </div>
+          <PageHeader loading={loading} onRefresh={loadData} onCreate={handleOpenCreate} />
 
           <Card>
             <div style={{ marginBottom: spacing.md }}>
@@ -147,10 +96,7 @@ const InternalLibraryManagement: React.FC = () => {
               loading={loading}
               onDetail={openDetail}
               onActivate={handleActivate}
-              onDeprecate={(record) => {
-                setSelectedLib(record);
-                setDeprecateModalVisible(true);
-              }}
+              onDeprecate={handleTableDeprecate}
               onDelete={handleDelete}
             />
           </Card>
