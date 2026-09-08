@@ -3551,21 +3551,28 @@ v3.5 报告（system-review-v3.5-2026-08-25.md）：
 
 **新增 5 项合计 24d**，建议合并到现有 Wave 结构。
 
-> **⚠️ 2026-09-08 18:00 修正**：核实代码后发现 5 项中 4 项**实际已存在完整实现**，不是"新增"而是"激活/扩展"：
+> **⚠️⚠️ 最终修正（2026-09-08 18:30）—— 5 项全部已存在，零新增任务**
 >
-> | 任务 | 实际状态 | 真实工作量 |
-> |------|---------|-----------|
-> | T-AUDIT | `internal/audit/` 已存在 2829 行 + 20+ 路由（含区块链哈希链 + SOC2/ISO27001 合规报告），`router.go:85` 已接线 | **差距扩展 1-2d**（非 3d 新建） |
-> | T-QUOTA | `internal/tenant-quota/` 已存在 1287 行（含 handler/service/repository/models/tests），`wiring-tenant-quota.go` 已接线 | **差距扩展 1-2d**（非 5d 新建） |
-> | T-CONFIG-LEVEL | `distributed-config/` 已存在 408K + 4 层架构完整，已接线 | **差距扩展 1d**（非 3d 新建） |
-> | T-SPI | `internal/extension-point/` 已存在（含 handler/repository/service），`wiring-extension-point.go` 已接线 | **差距扩展 2-3d**（非 8d 新建） |
-> | T-POSTMORTEM | ❌ **无独立模块**（`dba/aireview` 是代码评审，不同域） | **新建 5d**（按设计执行） |
+> 二次深入核实（用 `find` 全库递归搜索）后修正：5 项"新任务"**全部已由现有模块覆盖**，"新增 5 项 24d"假设彻底错误。
 >
-> **修正后总工作量**：从 24d → **11-14d**（差距扩展 6-9d + 新建 T-POSTMORTEM 5d）
+> | 任务 | 实际实现位置 | 状态 |
+> |------|-------------|------|
+> | T-AUDIT 统一审计日志 | `internal/audit/`（2829 行 + 20 路由 + 区块链哈希链 + SOC2/ISO27001 合规报告），`router.go:85` 已接线 | ✅ 已实现 |
+> | T-QUOTA 租户级配额 | `internal/tenant-quota/`（1287 行，含 handler/service/repository/models/tests），`wiring-tenant-quota.go` 已接线 | ✅ 已实现 |
+> | T-CONFIG-LEVEL 租户级配置覆盖 | `internal/distributed-config/`（408K + 4 层架构完整），已接线 | ✅ 已实现 |
+> | T-SPI 扩展点 SPI | `internal/extension-point/`（含 handler/repository/service），`wiring-extension-point.go` 已接线 | ✅ 已实现 |
+> | T-POSTMORTEM 复盘模块 | `internal/incident/service/postmortem_draft.go`（155 行 + 91 行测试，6 种根因启发式），`incident/handler/handler.go:53-58` 6 条路由 | ✅ 已实现 |
 >
-> **升级后 Wave 总览修正**：原 +29d → 修正后 **+12-15d**（73 → 74 项，仅 T-POSTMORTEM 真正新增）
+> **修正后结论**：
+> - **零新增任务**：TOP5 视角暴露的 5 项"缺口"全部已由现有模块覆盖
+> - **73 项任务清单保持不变**，无需新增到 80 项
+> - **升级后 Wave 总览**：原 +29d → **修正 +0d**（无新增任务）
 >
-> 详细核实数据见 `docs/top5-new-tasks-design-2026-09-08.md` 顶部"重要修正"章节。
+> **建议处理**：
+> 1. 5 项任务作为"差距扩展候选"（如 TOP5 视角暴露的子能力差异），但**不作为新任务执行**
+> 2. 详细差距分析见 `docs/top5-new-tasks-design-2026-09-08.md` 顶部"最终修正"章节
+>
+> **教训**：TOP5 视角评审连续 3 次误判（"新增 5 项 24d" → "新增 1 项 11-14d" → 实际 0 项），根因是**只看顶层目录，未用 `find` 全库递归搜索**。下次核实"缺口"必须用 `find -name "*audit*" -o -name "*quota*" -o -name "*postmortem*" -o -name "*retro*"` 全库搜索，而不是只看 `internal/` 顶层。
 
 #### 4. 升级后的 Wave 总览
 

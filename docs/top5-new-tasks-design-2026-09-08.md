@@ -4,59 +4,34 @@
 > **平台视角分析**：见 `docs/architecture-top5-platform-review-2026-09-08.md`
 > **本文档定位**：T-AUDIT/T-QUOTA/T-CONFIG-LEVEL/T-POSTMORTEM/T-SPI 的详细设计方案，含数据模型、路由、服务接口、验收标准
 >
-> ## ⚠️ 重要修正（2026-09-08 18:00）
+> ## ⚠️⚠️ 最终修正（2026-09-08 18:30）—— 5 项全部已存在，无"新任务"
 >
-> 核实代码后发现：**本文档 5 项"新任务"中 4 项实际已存在完整实现**，"新任务"假设是错的。详细核实结果：
+> 二次核实后修正：本文档 5 项"新任务"**全部已存在完整实现**，"新任务"假设彻底错误。
 >
-> | 任务 | 实际状态 | 行数 | 接线状态 |
-> |------|---------|------|---------|
-> | **T-AUDIT** 统一审计日志 | `internal/audit/` 已存在 | 2829 行 | ✅ `router.go:85` |
-> | **T-QUOTA** 租户级配额 | `internal/tenant-quota/` 已存在 | 1287 行 | ✅ `wiring-tenant-quota.go` |
-> | **T-CONFIG-LEVEL** 租户级配置覆盖 | `distributed-config/` 已存在 | 408K | ✅ |
-> | **T-SPI** 扩展点 SPI | `internal/extension-point/` 已存在 | — | ✅ `wiring-extension-point.go` |
-> | **T-POSTMORTEM** 复盘模块 | ❌ 无独立模块 | — | — |
+> | 任务 | 实际实现位置 | 行数 | 接线状态 |
+> |------|-------------|------|---------|
+> | T-AUDIT 统一审计日志 | `internal/audit/` | 2829 行 | ✅ `router.go:85` |
+> | T-QUOTA 租户级配额 | `internal/tenant-quota/` | 1287 行 | ✅ `wiring-tenant-quota.go` |
+> | T-CONFIG-LEVEL 租户级配置覆盖 | `internal/distributed-config/` | 408K | ✅ |
+> | T-SPI 扩展点 SPI | `internal/extension-point/` | — | ✅ `wiring-extension-point.go` |
+> | **T-POSTMORTEM 复盘模块** | `internal/incident/service/postmortem_draft.go` | 155 行 + 91 行测试 | ✅ `handler.go:53-58` 6 条路由 |
 >
-> **唯一真实缺失**：T-POSTMORTEM 复盘模块。
+> **零新增任务**：TOP5 视角暴露的 5 项"缺口"全部已由现有模块覆盖。
 >
-> 本文档下方详细设计作为**参考设计**保留（含数据模型、路由、服务接口、验收标准），但**不需要从零新建**——前 4 项应在现有模块基础上做**深度对齐 + 缺口扩展**，仅 T-POSTMORTEM 需新建。
->
-> **建议处理**：
-> 1. T-AUDIT/T-QUOTA/T-CONFIG-LEVEL/T-SPI → 对比现有实现 vs 本文档设计，找出差距，做差距扩展
-> 2. T-POSTMORTEM → 按本文档设计新建（5d）
-> 3. v3.5 G.0 章节需同步修正"新增 5 项"为"激活/扩展 4 项 + 新建 1 项"
->
-> 详细核实数据：
-> - audit: `internal/audit/` 2829 行 + 20+ 路由 + 区块链哈希链 + SOC2/ISO27001 合规报告
-> - tenant-quota: `internal/tenant-quota/` 1287 行（含 handler 193 行 + service 352 行 + repository 149 行 + models 106 行 + tests 464 行）
-> - distributed-config: `internal/distributed-config/` 408K（4 层架构完整）
-> - extension-point: `internal/extension-point/` 已接线（含 handler/repository/service）
->
-> ## ⚠️ 重要修正（2026-09-08 18:00）
->
-> 核实代码后发现：**本文档 5 项"新任务"中 4 项实际已存在完整实现**，"新任务"假设是错的。详细核实结果：
->
-> | 任务 | 实际状态 | 行数 | 接线状态 |
-> |------|---------|------|---------|
-> | **T-AUDIT** 统一审计日志 | `internal/audit/` 已存在 | 2829 行 | ✅ `router.go:85` |
-> | **T-QUOTA** 租户级配额 | `internal/tenant-quota/` 已存在 | 1287 行 | ✅ `wiring-tenant-quota.go` |
-> | **T-CONFIG-LEVEL** 租户级配置覆盖 | `distributed-config/` 已存在 | 408K | ✅ |
-> | **T-SPI** 扩展点 SPI | `internal/extension-point/` 已存在 | — | ✅ `wiring-extension-point.go` |
-> | **T-POSTMORTEM** 复盘模块 | ❌ 无独立模块 | — | — |
->
-> **唯一真实缺失**：T-POSTMORTEM 复盘模块。
->
-> 本文档下方详细设计作为**参考设计**保留（含数据模型、路由、服务接口、验收标准），但**不需要从零新建**——前 4 项应在现有模块基础上做**深度对齐 + 缺口扩展**，仅 T-POSTMORTEM 需新建。
+> T-POSTMORTEM 已实现功能（incident 模块下）：
+> - `GeneratePostmortemDraft` 自动生成复盘草稿（确定性规则，无 LLM）
+> - 6 种根因启发式：timeout/oom/disk/5xx/change/unknown
+> - 6 条路由：`POST/GET/PUT/POST publish/POST archive` + `GET /draft`
+> - model: `PostmortemDraft` + `CreatePostmortemRequest` + `PostmortemRequired` 字段
+> - 91 行测试覆盖
 >
 > **建议处理**：
-> 1. T-AUDIT/T-QUOTA/T-CONFIG-LEVEL/T-SPI → 对比现有实现 vs 本文档设计，找出差距，做差距扩展
-> 2. T-POSTMORTEM → 按本文档设计新建（5d）
-> 3. v3.5 G.0 章节需同步修正"新增 5 项"为"激活/扩展 4 项 + 新建 1 项"
+> 1. 本文档下方详细设计**仅作为参考**，标注"已实现"或"差距扩展"，不执行新建
+> 2. v3.5 G.0 章节需最终修正：原"新增 5 项 24d" → "差距扩展 5 项 6-9d"
+> 3. 升级后 Wave 总览：73 项保持不变，无新增任务
 >
-> 详细核实数据：
-> - audit: `internal/audit/` 2829 行 + 20+ 路由 + 区块链哈希链 + SOC2/ISO27001 合规报告
-> - tenant-quota: `internal/tenant-quota/` 1287 行（含 handler 193 行 + service 352 行 + repository 149 行 + models 106 行 + tests 464 行）
-> - distributed-config: `internal/distributed-config/` 408K（4 层架构完整）
-> - extension-point: `internal/extension-point/` 已接线（含 handler/repository/service）
+> **教训**：TOP5 视角评审连续 2 次误判（"新增 5 项" → "新增 1 项" → 实际 0 项），根因是**只看顶层目录，未深入子模块**。下次必须用 `find -name "*postmortem*" -o -name "*audit*" -o -name "*quota*"` 全库搜索，而不是只看 `internal/` 顶层。
+>
 
 ---
 
