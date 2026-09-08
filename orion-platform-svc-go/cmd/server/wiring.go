@@ -134,7 +134,7 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	wiredistributedconfig(db, logger)
 	wirelowcodesigner(db, logger)
 	wirealertescalation(db, logger)
-	wiretenantquota(db, logger)
+	wireTenantQuota(db, logger)
 	wiresmartdeploy(db, logger)
 	wirePipelineErrorDetail(db, logger)
 	wireStartup(db, logger)
