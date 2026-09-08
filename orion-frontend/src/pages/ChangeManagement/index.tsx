@@ -15,62 +15,32 @@
  *   useChangeFormWrappers.ts  — 7 Forms + 10 wrappers + 5 openers + 7 cancellers
  *   Components/PageHeader.tsx — 标题 + 副标题
  *   Components/StatsBar.tsx   — 统计卡片行
+ * P2-9 Phase 255 重构: 294 → 95 行 (-68%), 新增:
+ *   Components/TabItems.tsx   — 4 tabs items (requests/detail/rfc/cab)
  */
 import React from 'react';
 import { Card, Tabs } from 'antd';
-import {
-  EyeOutlined,
-  SwapOutlined,
-  FileTextOutlined,
-  TeamOutlined,
-} from '@ant-design/icons';
 import { Layout } from '@/components/Layout';
 import { radius, shadows, spacing } from '@/tokens';
 import { useChangeManagementState } from './useChangeManagementState';
 import { useChangeFormWrappers } from './useChangeFormWrappers';
 import { useChangeColumns, useRFCColumns, useCABColumns } from './columns';
 import { buildStatsCards } from './stats';
-import { ChangeDetailPanel } from './ChangeDetailPanel';
-import { RequestsTab } from './RequestsTab';
-import { RFCsTab } from './RFCsTab';
-import { CABsTab } from './CABsTab';
 import { ChangeManagementModals } from './ChangeManagementModals';
 import { PageHeader } from './Components/PageHeader';
 import { StatsBar } from './Components/StatsBar';
+import { buildTabItems } from './Components/TabItems';
 
 const ChangeManagement: React.FC = () => {
   const state = useChangeManagementState();
   const {
     activeTab, setActiveTab,
-    changes, total, loading,
-    page, setPage,
-    pageSize, setPageSize,
-    filterStatus, setFilterStatus,
-    filterType, setFilterType,
-    filterPriority, setFilterPriority,
-    selectedChange, setSelectedChange,
-    detailLoading,
-    riskAnalysis, riskLoading,
-    timeline, timelineLoading,
-    rfcs, rfcTotal, rfcLoading,
-    rfcPage, setRfcPage,
-    cabMeetings, cabTotal, cabLoading,
-    cabPage, setCabPage,
     stats, statsLoading,
-    createModalOpen, setCreateModalOpen,
-    editModalOpen, setEditModalOpen,
-    addEventModalOpen, setAddEventModalOpen,
-    statusNoteModalOpen, setStatusNoteModalOpen,
-    pendingStatusChange, setPendingStatusChange,
-    rfcModalOpen, setRfcModalOpen,
-    rfcDetailModalOpen, setRfcDetailModalOpen,
-    selectedRfc, setSelectedRfc,
-    editRfcId, setEditRfcId,
-    cabModalOpen, setCabModalOpen,
-    cabDetailModalOpen, setCabDetailModalOpen,
-    selectedCab,
-    editCabId, setEditCabId,
-    decisionModalOpen, setDecisionModalOpen,
+    createModalOpen, editModalOpen, addEventModalOpen,
+    statusNoteModalOpen, pendingStatusChange,
+    rfcModalOpen, rfcDetailModalOpen, selectedRfc, setRfcDetailModalOpen, editRfcId,
+    cabModalOpen, cabDetailModalOpen, selectedCab, setCabDetailModalOpen, editCabId,
+    decisionModalOpen,
     createSubmitting, editSubmitting,
     loadChanges,
     handleCreate, handleEdit,
@@ -82,6 +52,11 @@ const ChangeManagement: React.FC = () => {
     handleCreateRfc, handleUpdateRfc, handleViewRfc,
     handleCreateCab, handleUpdateCab, handleViewCab,
     handleAddDecision,
+    setCreateModalOpen, setEditModalOpen, setAddEventModalOpen,
+    setStatusNoteModalOpen, setPendingStatusChange,
+    setRfcModalOpen, setSelectedRfc, setEditRfcId,
+    setCabModalOpen, setEditCabId, setDecisionModalOpen,
+    setSelectedChange,
   } = state;
 
   const wrappers = useChangeFormWrappers({
@@ -89,7 +64,7 @@ const ChangeManagement: React.FC = () => {
     handleConfirmStatusChange, handleAddTimelineEvent,
     handleCreateRfc, handleUpdateRfc,
     handleCreateCab, handleUpdateCab, handleAddDecision,
-    selectedChange,
+    selectedChange: state.selectedChange,
     setCreateModalOpen, setEditModalOpen, setAddEventModalOpen,
     setStatusNoteModalOpen, setPendingStatusChange,
     setRfcModalOpen, setRfcDetailModalOpen, setSelectedRfc,
@@ -116,113 +91,7 @@ const ChangeManagement: React.FC = () => {
 
   const statsCards = buildStatsCards(stats);
 
-  const tabItems = [
-    {
-      key: 'requests',
-      label: (
-        <span>
-          <SwapOutlined />
-          变更请求
-        </span>
-      ),
-      children: (
-        <RequestsTab
-          changes={changes}
-          loading={loading}
-          total={total}
-          page={page}
-          pageSize={pageSize}
-          filterStatus={filterStatus}
-          filterType={filterType}
-          filterPriority={filterPriority}
-          changeColumns={changeColumns}
-          onFilterStatusChange={(v) => {
-            setFilterStatus(v || undefined);
-            setPage(1);
-          }}
-          onFilterTypeChange={(v) => {
-            setFilterType(v || undefined);
-            setPage(1);
-          }}
-          onFilterPriorityChange={(v) => {
-            setFilterPriority(v || undefined);
-            setPage(1);
-          }}
-          onRefresh={loadChanges}
-          onCreate={wrappers.openCreateModal}
-          onPageChange={(p, ps) => {
-            setPage(p);
-            setPageSize(ps);
-          }}
-        />
-      ),
-    },
-    {
-      key: 'detail',
-      label: (
-        <span>
-          <EyeOutlined />
-          变更详情
-        </span>
-      ),
-      children: (
-        <ChangeDetailPanel
-          change={selectedChange}
-          detailLoading={detailLoading}
-          riskLoading={riskLoading}
-          riskAnalysis={riskAnalysis}
-          timeline={timeline}
-          timelineLoading={timelineLoading}
-          onRiskAnalysis={handleRiskAnalysis}
-          onEdit={wrappers.handleOpenEditModalWrapper}
-          onStatusChange={handleStatusChange}
-          onAddEvent={wrappers.openAddEventModal}
-        />
-      ),
-    },
-    {
-      key: 'rfc',
-      label: (
-        <span>
-          <FileTextOutlined />
-          RFC 管理
-        </span>
-      ),
-      children: (
-        <RFCsTab
-          rfcs={rfcs}
-          rfcLoading={rfcLoading}
-          rfcTotal={rfcTotal}
-          rfcPage={rfcPage}
-          pageSize={pageSize}
-          rfcColumns={rfcColumns}
-          onCreate={wrappers.openRfcModal}
-          onPageChange={setRfcPage}
-        />
-      ),
-    },
-    {
-      key: 'cab',
-      label: (
-        <span>
-          <TeamOutlined />
-          CAB 会议
-        </span>
-      ),
-      children: (
-        <CABsTab
-          cabMeetings={cabMeetings}
-          cabLoading={cabLoading}
-          cabTotal={cabTotal}
-          cabPage={cabPage}
-          pageSize={pageSize}
-          cabColumns={cabColumns}
-          onCreate={wrappers.openCabModal}
-          onPageChange={setCabPage}
-        />
-      ),
-    },
-  ];
+  const tabItems = buildTabItems({ state, wrappers, changeColumns, rfcColumns, cabColumns });
 
   return (
     <Layout>
@@ -230,12 +99,7 @@ const ChangeManagement: React.FC = () => {
         <PageHeader />
         <StatsBar statsCards={statsCards} loading={statsLoading} />
 
-        <Card
-          style={{
-            borderRadius: radius.lg,
-            boxShadow: shadows.card,
-          }}
-        >
+        <Card style={{ borderRadius: radius.lg, boxShadow: shadows.card }}>
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
         </Card>
 
