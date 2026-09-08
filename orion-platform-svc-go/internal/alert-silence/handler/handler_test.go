@@ -91,7 +91,11 @@ func TestFatigueScore_OK(t *testing.T) {
 	resp := testHTTP(t, "GET", "/api/alert-fatigue", nil, m, http.StatusOK)
 	var body map[string]interface{}
 	json.NewDecoder(resp.Body).Decode(&body)
-	if _, ok := body["rules"]; !ok {
+	data, ok := body["data"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected 'data' wrapper in response, got %v", body)
+	}
+	if _, ok := data["rules"]; !ok {
 		t.Error("expected 'rules' key in response")
 	}
 }
@@ -106,8 +110,12 @@ func TestRuleFatigue_OK(t *testing.T) {
 	info := &fatigue.FatigueInfo{RuleName: "mem-leak", Score: 15, Recommendation: "monitor"}
 	m := &mockFatSvc{rule: info}
 	resp := testHTTP(t, "GET", "/api/alert-fatigue/mem-leak", nil, m, http.StatusOK)
+	var body map[string]json.RawMessage
+	json.NewDecoder(resp.Body).Decode(&body)
 	var result fatigue.FatigueInfo
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.Unmarshal(body["data"], &result); err != nil {
+		t.Fatalf("failed to decode data payload: %v", err)
+	}
 	if result.RuleName != "mem-leak" {
 		t.Errorf("RuleName = %s, want mem-leak", result.RuleName)
 	}
@@ -125,7 +133,11 @@ func TestAutoSilenceRecommendations_OK(t *testing.T) {
 	resp := testHTTP(t, "GET", "/api/alert-fatigue/recommendations", nil, m, http.StatusOK)
 	var body map[string]interface{}
 	json.NewDecoder(resp.Body).Decode(&body)
-	recs := body["recommended_rules"].([]interface{})
+	data, ok := body["data"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected 'data' wrapper in response, got %v", body)
+	}
+	recs := data["recommended_rules"].([]interface{})
 	if len(recs) != 2 {
 		t.Errorf("got %d recommendations, want 2", len(recs))
 	}

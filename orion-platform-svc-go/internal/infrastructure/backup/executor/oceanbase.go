@@ -12,10 +12,12 @@ import (
 // OceanBaseExecutor implements BackupExecutor and RestoreExecutor for
 // OceanBase in MySQL mode using the official ob-loader-dumper tool.
 //
-// Scope (Phase 1a):
-//   - MySQL-mode tenants only; Oracle mode arrives in Phase 2.
+// Scope (Phase 1a + Phase 2 PITR):
+//   - MySQL-mode tenants only; Oracle mode arrives in Phase 3.
 //   - Logical backup / restore via CSV, not physical (obd) snapshots.
-//   - PITR is not supported; the redo stream lives in Phase 2.
+//   - PITR is supported via clog replay (PrepareOBCLogRecoveryPlan, see
+//     obclog_pitr.go). MySQL-mode tenant PITR landed in Phase 2; Oracle
+//     mode is pending.
 type OceanBaseExecutor struct {
 	ToolBin string
 }

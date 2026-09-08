@@ -308,11 +308,13 @@ func TestCompatibility_ReturnsMode(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("compat: %d %s", w.Code, w.Body.String())
 	}
-	var got map[string]string
+	var got struct {
+		Data map[string]string `json:"data"`
+	}
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if got["compatibility"] != "backward" {
-		t.Fatalf("expected backward, got %v", got)
+	if got.Data["compatibility"] != "backward" {
+		t.Fatalf("expected backward, got %v", got.Data)
 	}
 }

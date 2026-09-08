@@ -7,10 +7,6 @@
 package observability
 
 import (
-	"encoding/json"
-	"net/http"
-	"time"
-
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -235,11 +231,3 @@ func findBestRating(vitals []VitalMetric) string {
 	}
 	return best
 }
-
-// MarshalJSON is a no-op placeholder to ensure the package compiles
-func MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]string{"status": "ok"})
-}
-
-// Now we suppress the time import warning
-var _ = time.Now

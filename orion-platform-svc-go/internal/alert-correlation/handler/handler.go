@@ -10,6 +10,7 @@ import (
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/alert-correlation/models"
 	"orion/platform-svc-go/internal/alert-correlation/service"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type AlertCorrelationHandler struct {

@@ -4,64 +4,63 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"orion/go-common/pkg/database"
 	"strconv"
 	"strings"
 	"time"
-	"orion/go-common/pkg/database"
 
-	assistant_models "orion/platform-svc-go/internal/assistant/models"
-	assistant_handler "orion/platform-svc-go/internal/assistant/handler"
-	assistant_service "orion/platform-svc-go/internal/assistant/service"
+	agent_run_models "orion/platform-svc-go/internal/ai-agent-run/models"
 	agent_run_repo "orion/platform-svc-go/internal/ai-agent-run/repository"
 	agent_run_service "orion/platform-svc-go/internal/ai-agent-run/service"
-	agent_run_models "orion/platform-svc-go/internal/ai-agent-run/models"
-	runbook_repo "orion/platform-svc-go/internal/runbook/repository"
-	runbook_service "orion/platform-svc-go/internal/runbook/service"
-	runbook_models "orion/platform-svc-go/internal/runbook/models"
-	knowledge_models "orion/platform-svc-go/internal/knowledge/models"
-	pipeline_models "orion/platform-svc-go/internal/pipeline/models"
-	chatops_handler "orion/platform-svc-go/internal/chatops/handler"
-	chatops_repo "orion/platform-svc-go/internal/chatops/repository"
-	chatops_service "orion/platform-svc-go/internal/chatops/service"
-	code_repo_handler "orion/platform-svc-go/internal/code-repo/handler"
-	code_repo_repo "orion/platform-svc-go/internal/code-repo/repository"
-	code_repo_service "orion/platform-svc-go/internal/code-repo/service"
 	approval_handler "orion/platform-svc-go/internal/approval/handler"
 	approval_repo "orion/platform-svc-go/internal/approval/repository"
 	approval_service "orion/platform-svc-go/internal/approval/service"
+	assistant_handler "orion/platform-svc-go/internal/assistant/handler"
+	assistant_models "orion/platform-svc-go/internal/assistant/models"
+	assistant_service "orion/platform-svc-go/internal/assistant/service"
 	audit_handler "orion/platform-svc-go/internal/audit/handler"
 	audit_repo "orion/platform-svc-go/internal/audit/repository"
 	audit_service "orion/platform-svc-go/internal/audit/service"
-	incident_handler "orion/platform-svc-go/internal/incident/handler"
-	incident_repo "orion/platform-svc-go/internal/incident/repository"
-	incident_service "orion/platform-svc-go/internal/incident/service"
 	build_env_handler "orion/platform-svc-go/internal/build-env/handler"
 	build_env_repo "orion/platform-svc-go/internal/build-env/repository"
 	build_env_service "orion/platform-svc-go/internal/build-env/service"
 	build_handler "orion/platform-svc-go/internal/build/handler"
 	build_repo "orion/platform-svc-go/internal/build/repository"
 	build_service "orion/platform-svc-go/internal/build/service"
-	pipeline_handler "orion/platform-svc-go/internal/pipeline/handler"
-	pipeline_repo "orion/platform-svc-go/internal/pipeline/repository"
-	pipeline_service "orion/platform-svc-go/internal/pipeline/service"
+	chatops_handler "orion/platform-svc-go/internal/chatops/handler"
+	chatops_repo "orion/platform-svc-go/internal/chatops/repository"
+	chatops_service "orion/platform-svc-go/internal/chatops/service"
+	code_repo_handler "orion/platform-svc-go/internal/code-repo/handler"
+	code_repo_repo "orion/platform-svc-go/internal/code-repo/repository"
+	code_repo_service "orion/platform-svc-go/internal/code-repo/service"
+	dba_advisor "orion/platform-svc-go/internal/dba/advisor"
 	dba_handler "orion/platform-svc-go/internal/dba/handler"
 	dba_repo "orion/platform-svc-go/internal/dba/repository"
 	dba_service "orion/platform-svc-go/internal/dba/service"
-	dba_advisor "orion/platform-svc-go/internal/dba/advisor"
-	dba_explain "orion/platform-svc-go/internal/dba/explain"
 	dba_slowquery "orion/platform-svc-go/internal/dba/slowquery"
+	incident_handler "orion/platform-svc-go/internal/incident/handler"
+	incident_repo "orion/platform-svc-go/internal/incident/repository"
+	incident_service "orion/platform-svc-go/internal/incident/service"
+	knowledge_models "orion/platform-svc-go/internal/knowledge/models"
+	pipeline_handler "orion/platform-svc-go/internal/pipeline/handler"
+	pipeline_models "orion/platform-svc-go/internal/pipeline/models"
+	pipeline_repo "orion/platform-svc-go/internal/pipeline/repository"
+	pipeline_service "orion/platform-svc-go/internal/pipeline/service"
+	runbook_models "orion/platform-svc-go/internal/runbook/models"
+	runbook_repo "orion/platform-svc-go/internal/runbook/repository"
+	runbook_service "orion/platform-svc-go/internal/runbook/service"
 
 	// runner services (CI task execution on worker agents)
 	runner_handler "orion/platform-svc-go/internal/runner/handler"
 	runner_repo "orion/platform-svc-go/internal/runner/repository"
 	runner_service "orion/platform-svc-go/internal/runner/service"
 
-	deploy_handler "orion/platform-svc-go/internal/deploy/handler"
-	deploy_repo "orion/platform-svc-go/internal/deploy/repository"
-	deploy_service "orion/platform-svc-go/internal/deploy/service"
 	deploy_enhanced_handler "orion/platform-svc-go/internal/deploy-enhanced/handler"
 	deploy_enhanced_repo "orion/platform-svc-go/internal/deploy-enhanced/repository"
 	deploy_enhanced_service "orion/platform-svc-go/internal/deploy-enhanced/service"
+	deploy_handler "orion/platform-svc-go/internal/deploy/handler"
+	deploy_repo "orion/platform-svc-go/internal/deploy/repository"
+	deploy_service "orion/platform-svc-go/internal/deploy/service"
 	digital_twin_handler "orion/platform-svc-go/internal/digital-twin/handler"
 	digital_twin_repo "orion/platform-svc-go/internal/digital-twin/repository"
 	digital_twin_service "orion/platform-svc-go/internal/digital-twin/service"
@@ -69,54 +68,54 @@ import (
 	worker_handler "orion/platform-svc-go/internal/worker-dispatcher/handler"
 
 	// Domain modules
-	finops_handler "orion/platform-svc-go/internal/finops/handler"
-	finops_repo "orion/platform-svc-go/internal/finops/repository"
-	finops_service "orion/platform-svc-go/internal/finops/service"
-	finops_v2_handler "orion/platform-svc-go/internal/finops-v2/handler"
-	finops_v2_repo "orion/platform-svc-go/internal/finops-v2/repository"
-	finops_v2_service "orion/platform-svc-go/internal/finops-v2/service"
-	knowledge_handler "orion/platform-svc-go/internal/knowledge/handler"
-	knowledge_repo "orion/platform-svc-go/internal/knowledge/repository"
-	knowledge_service "orion/platform-svc-go/internal/knowledge/service"
-	code_scan_handler "orion/platform-svc-go/internal/code-scan/handler"
-	security_compliance_handler "orion/platform-svc-go/internal/security-compliance/handler"
-	security_compliance_repo "orion/platform-svc-go/internal/security-compliance/repository"
-	security_compliance_service "orion/platform-svc-go/internal/security-compliance/service"
-	tenant_handler "orion/platform-svc-go/internal/tenant/handler"
-	tenant_repo "orion/platform-svc-go/internal/tenant/repository"
-	tenant_service "orion/platform-svc-go/internal/tenant/service"
-	ticketing_models "orion/platform-svc-go/internal/ticketing/models"
-	ticketing_handler "orion/platform-svc-go/internal/ticketing/handler"
-	ticketing_repo "orion/platform-svc-go/internal/ticketing/repository"
-	ticketing_service "orion/platform-svc-go/internal/ticketing/service"
-	change_handler "orion/platform-svc-go/internal/change/handler"
-	change_repo "orion/platform-svc-go/internal/change/repository"
-	change_service "orion/platform-svc-go/internal/change/service"
-	sla_handler "orion/platform-svc-go/internal/sla/handler"
-	sla_repo "orion/platform-svc-go/internal/sla/repository"
-	sla_service "orion/platform-svc-go/internal/sla/service"
-	cr_handler "orion/platform-svc-go/internal/change-request/handler"
-	cr_repo "orion/platform-svc-go/internal/change-request/repository"
-	cr_service "orion/platform-svc-go/internal/change-request/service"
-	rd_handler "orion/platform-svc-go/internal/report-designer/handler"
-	rd_repo "orion/platform-svc-go/internal/report-designer/repository"
-	rd_service "orion/platform-svc-go/internal/report-designer/service"
-	oncall_handler "orion/platform-svc-go/internal/oncall/handler"
-	oncall_repo "orion/platform-svc-go/internal/oncall/repository"
-	oncall_service "orion/platform-svc-go/internal/oncall/service"
-	diagnostic_handler "orion/platform-svc-go/internal/diagnostic/handler"
-	diagnostic_repo "orion/platform-svc-go/internal/diagnostic/repository"
-	diagnostic_service "orion/platform-svc-go/internal/diagnostic/service"
 	am_handler "orion/platform-svc-go/internal/api-market/handler"
 	am_repo "orion/platform-svc-go/internal/api-market/repository"
 	am_service "orion/platform-svc-go/internal/api-market/service"
+	cr_handler "orion/platform-svc-go/internal/change-request/handler"
+	cr_repo "orion/platform-svc-go/internal/change-request/repository"
+	cr_service "orion/platform-svc-go/internal/change-request/service"
+	change_handler "orion/platform-svc-go/internal/change/handler"
+	change_repo "orion/platform-svc-go/internal/change/repository"
+	change_service "orion/platform-svc-go/internal/change/service"
 	cit_handler "orion/platform-svc-go/internal/ci-type/handler"
 	cit_repo "orion/platform-svc-go/internal/ci-type/repository"
 	cit_service "orion/platform-svc-go/internal/ci-type/service"
+	code_scan_handler "orion/platform-svc-go/internal/code-scan/handler"
+	diagnostic_handler "orion/platform-svc-go/internal/diagnostic/handler"
+	diagnostic_repo "orion/platform-svc-go/internal/diagnostic/repository"
+	diagnostic_service "orion/platform-svc-go/internal/diagnostic/service"
+	finops_v2_handler "orion/platform-svc-go/internal/finops-v2/handler"
+	finops_v2_repo "orion/platform-svc-go/internal/finops-v2/repository"
+	finops_v2_service "orion/platform-svc-go/internal/finops-v2/service"
+	finops_handler "orion/platform-svc-go/internal/finops/handler"
+	finops_repo "orion/platform-svc-go/internal/finops/repository"
+	finops_service "orion/platform-svc-go/internal/finops/service"
+	knowledge_handler "orion/platform-svc-go/internal/knowledge/handler"
+	knowledge_repo "orion/platform-svc-go/internal/knowledge/repository"
+	knowledge_service "orion/platform-svc-go/internal/knowledge/service"
 	lowcode_handler "orion/platform-svc-go/internal/lowcode/handler"
 	lowcode_models "orion/platform-svc-go/internal/lowcode/models"
 	lowcode_repo "orion/platform-svc-go/internal/lowcode/repository"
 	lowcode_service "orion/platform-svc-go/internal/lowcode/service"
+	oncall_handler "orion/platform-svc-go/internal/oncall/handler"
+	oncall_repo "orion/platform-svc-go/internal/oncall/repository"
+	oncall_service "orion/platform-svc-go/internal/oncall/service"
+	rd_handler "orion/platform-svc-go/internal/report-designer/handler"
+	rd_repo "orion/platform-svc-go/internal/report-designer/repository"
+	rd_service "orion/platform-svc-go/internal/report-designer/service"
+	security_compliance_handler "orion/platform-svc-go/internal/security-compliance/handler"
+	security_compliance_repo "orion/platform-svc-go/internal/security-compliance/repository"
+	security_compliance_service "orion/platform-svc-go/internal/security-compliance/service"
+	sla_handler "orion/platform-svc-go/internal/sla/handler"
+	sla_repo "orion/platform-svc-go/internal/sla/repository"
+	sla_service "orion/platform-svc-go/internal/sla/service"
+	tenant_handler "orion/platform-svc-go/internal/tenant/handler"
+	tenant_repo "orion/platform-svc-go/internal/tenant/repository"
+	tenant_service "orion/platform-svc-go/internal/tenant/service"
+	ticketing_handler "orion/platform-svc-go/internal/ticketing/handler"
+	ticketing_models "orion/platform-svc-go/internal/ticketing/models"
+	ticketing_repo "orion/platform-svc-go/internal/ticketing/repository"
+	ticketing_service "orion/platform-svc-go/internal/ticketing/service"
 )
 
 // pipelineSvc is set in wireCICDModules and consumed by wirePipelineAssistantModules
@@ -512,7 +511,6 @@ func wireDomainModules(db *database.DB) {
 	changeSvc := change_service.NewService(changeRepo)
 	changeH = change_handler.NewHandler(changeSvc)
 
-
 	// sla services
 	slaRepo := sla_repo.NewRepository(db.DB)
 	slaSvc := sla_service.NewService(slaRepo)
@@ -593,34 +591,35 @@ func formatIndexSuggestion(s dba_advisor.IndexSuggestion) string {
 
 // Handler variables for cicd_domain_wiring (moved from central wiring.go var block)
 var (
-	amH                 *am_handler.Handler
-	approvalH           *approval_handler.Handler
-	auditH              *audit_handler.Handler
-	build_envH          *build_env_handler.Handler
-	buildH              *build_handler.Handler
-	changeH             *change_handler.Handler
-	chatopsH            *chatops_handler.Handler
-	citH                *cit_handler.Handler
-	code_repoH          *code_repo_handler.Handler
-	crH                 *cr_handler.Handler
-	dbaH                *dba_handler.Handler
-	deploy_enhancedH    *deploy_enhanced_handler.Handler
-	deployH             *deploy_handler.Handler
-	diagnosticH         *diagnostic_handler.Handler
-	digital_twinH       *digital_twin_handler.Handler
-	finops_v2H          *finops_v2_handler.Handler
-	finopsH             *finops_handler.Handler
-	incidentH           *incident_handler.Handler
-	assistantH          *assistant_handler.Handler
-	knowledgeH          *knowledge_handler.Handler
-	code_scanH          *code_scan_handler.Handler
-	lowcodeH            *lowcode_handler.Handler
-	oncallH             *oncall_handler.OnCallHandler
-	pipelineH           *pipeline_handler.Handler
-	rdH                 *rd_handler.Handler
+	amH                  *am_handler.Handler
+	approvalH            *approval_handler.Handler
+	auditH               *audit_handler.Handler
+	build_envH           *build_env_handler.Handler
+	buildH               *build_handler.Handler
+	changeH              *change_handler.Handler
+	chatopsH             *chatops_handler.Handler
+	citH                 *cit_handler.Handler
+	code_repoH           *code_repo_handler.Handler
+	crH                  *cr_handler.Handler
+	dbaH                 *dba_handler.Handler
+	deploy_enhancedH     *deploy_enhanced_handler.Handler
+	deployH              *deploy_handler.Handler
+	diagnosticH          *diagnostic_handler.Handler
+	digital_twinH        *digital_twin_handler.Handler
+	finops_v2H           *finops_v2_handler.Handler
+	finopsH              *finops_handler.Handler
+	incidentH            *incident_handler.Handler
+	assistantH           *assistant_handler.Handler
+	knowledgeH           *knowledge_handler.Handler
+	code_scanH           *code_scan_handler.Handler
+	lowcodeH             *lowcode_handler.Handler
+	oncallH              *oncall_handler.OnCallHandler
+	pipelineH            *pipeline_handler.Handler
+	rdH                  *rd_handler.Handler
 	security_complianceH *security_compliance_handler.Handler
-	slaH                *sla_handler.Handler
-	tenantH             *tenant_handler.Handler
-	ticketingH          *ticketing_handler.Handler
-//	visorH              *visor_handler.Handler // FIXME: visor_handler import missing
+	slaH                 *sla_handler.Handler
+	tenantH              *tenant_handler.Handler
+	ticketingH           *ticketing_handler.Handler
+
+// visorH              *visor_handler.Handler // FIXME: visor_handler import missing
 )

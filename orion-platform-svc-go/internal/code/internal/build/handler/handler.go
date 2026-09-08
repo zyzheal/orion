@@ -3,7 +3,6 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"net/http"
 	"orion/platform-svc-go/internal/code/internal/build/service"
 	"orion/platform-svc-go/internal/middleware"
 )

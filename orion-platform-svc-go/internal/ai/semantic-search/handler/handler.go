@@ -1,13 +1,12 @@
 package handler
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai/semantic-search/models"
 	"orion/platform-svc-go/internal/ai/semantic-search/service"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type SemanticSearchHandler struct {

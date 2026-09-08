@@ -4,7 +4,6 @@ package handler
 
 import (
 	"encoding/json"
-	"net/http"
 	"time"
 
 	"orion/go-common/pkg/auth"

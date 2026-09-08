@@ -2,8 +2,6 @@
 package handler
 
 import (
-	"net/http"
-
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/global-search/index"

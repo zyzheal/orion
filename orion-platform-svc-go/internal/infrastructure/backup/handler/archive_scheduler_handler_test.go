@@ -52,9 +52,11 @@ func TestSchedulerRegisterPlan(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
 	}
-	var resp map[string]interface{}
+	var resp struct {
+		Data map[string]interface{} `json:"data"`
+	}
 	_ = json.Unmarshal(w.Body.Bytes(), &resp)
-	if resp["registered"] != true {
+	if resp.Data["registered"] != true {
 		t.Fatalf("expected registered=true, got %v", resp)
 	}
 }

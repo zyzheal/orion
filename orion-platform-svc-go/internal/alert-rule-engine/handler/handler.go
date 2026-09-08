@@ -7,6 +7,7 @@ import (
 	alertruleengine "orion/platform-svc-go/internal/alert-rule-engine"
 	"orion/platform-svc-go/internal/alert-rule-engine/handler/models"
 	"orion/platform-svc-go/internal/alert-rule-engine/service"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct{ svc *service.Service }

@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"go.opentelemetry.io/otel"
-	"net/http"
 	"strconv"
+
+	"go.opentelemetry.io/otel"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
