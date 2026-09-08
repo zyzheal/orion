@@ -1,10 +1,33 @@
 # Orion 平台 — 所有待办汇总（单一权威来源）
 
-> 最后更新: 2026-09-08 (Phase 300) | 分支: `feat/wave2-parallel-execution`
+> 最后更新: 2026-09-08 (Phase 302) | 分支: `feat/wave2-parallel-execution`
 > 数据来源: `architecture-review-2026-08-01.md` + `CROSS_VALIDATION_REPORT.md` + `merged-action-items-2026-07-27.md` + `structure-overlap-verification-2026-08-01.md` + `three-domain-depth-analysis-2026-08-01.md` + `flagship-review-v3.6-delta-2026-09-08.md`
 > 状态: ✅ **已通过专家评审核实** (2026-08-01)，以下为**当前有效清单**
 >
-> ## ✅ Phase 301 已完成（2026-09-08，commit `b56cd8566`）
+> ## ✅ Phase 302 已完成（2026-09-08，commit `3cc7bd7c2`）
+>
+> Phase 302 T-CONFIG-LEVEL 三层配置覆盖（platform/tenant/user）**已实施并提交**。
+>
+> **改动**：
+> 1. `models.go`：新增 `ConfigLevel` 类型 + 3 常量（platform=100 / tenant=50 / user=10）+ `Priority()` / `IsValid()` / `NormalizeLevel()` 方法
+> 2. `ConfigItem` 新增 `Level` / `OverrideOf` / `Priority` 3 字段；`CreateItemRequest` / `UpdateItemRequest` / `GetItemsFilter` 支持 Level 与 OverrideOnly
+> 3. `repository.go`：`CreateItem` INSERT 扩展 3 列；新增 `ListItemsFiltered`（Level + OverrideOnly）+ `ListOverrides`（`override_of = itemID`）
+> 4. `service.go`：`ResolveEffectiveConfig` 按 KeyName 分组、同组按 `Priority DESC + CreatedAt DESC` 取 top；`ListOverrides` + Level 校验；`UpdateItem` 支持 Level / OverrideOf 更新
+> 5. `handler.go`：新增 `GET /config/items/effective`（必须在 `/items/:id` 之前）+ `GET /config/items/:id/overrides`
+> 6. `migrations/406_add_config_item_level_fields.sql`（+ down）：`ALTER config_item ADD (level, override_of, priority)` + 2 索引
+> 7. **11 个新测试用例**（全部通过，0.013s）+ mock 补齐
+>
+> **向后兼容**：Level 为空自动归一化为 `tenant`（priority=50），既有数据零迁移成本。
+>
+> **验收证据**：
+> - `go build ./cmd/server/` 通过
+> - `go test ./internal/distributed-config/...` 通过（handler cached, service 0.011s）
+> - `go test ./cmd/server/...` 通过（1.799s）
+> - FORBIDDEN 2 次验证 = 0（`migrations/dba` / `orion-frontend/src/api/dba` / `orion-frontend/src/pages/dba` / `orion-frontend/src/router/routes` / `docs/dba`）
+>
+> ---
+>
+> ## ✅ Phase 301 已完成（2026-09-08，commit `b56cd8566` + `4b6fb86c4`）
 >
 > 用户授权 `orion-platform-svc-go/` 修改后，Phase 301 T-QUOTA wiring 命名规范化**已实施并提交**。
 >
@@ -40,13 +63,13 @@
 >
 > | Phase | 任务 | 工时 | 优先级 | 状态 |
 > |---|---|---|---|---|
-> | 301 | T-QUOTA 命名规范（`wiretenantquota` → `wireTenantQuota`）+ 补齐漏提交 wiring 文件 | 0.5d | 🟡 代码规范 | ✅ **已完成** |
-> | 302 | T-CONFIG-LEVEL 三层 Level 字段补全（platform/tenant/user + ResolveEffectiveConfig） | **2d** | 🟠 高 | ⬜ 待实施 |
+> | 301 | T-QUOTA 命名规范（`wiretenantquota` → `wireTenantQuota`）+ 补齐漏提交 wiring 文件 | 0.5d | 🟡 代码规范 | ✅ **已完成** (`b56cd8566` + `4b6fb86c4`) |
+> | 302 | T-CONFIG-LEVEL 三层 Level 字段补全（platform/tenant/user + ResolveEffectiveConfig） | **2d** | 🟠 高 | ✅ **已完成** (`3cc7bd7c2`) |
 > | 303 | T-SPI 内置扩展点枚举补全（15 个 BuiltinPoint 常量 + Registry 初始化） | **1d** | 🟡 中 | ⬜ 待实施 |
 > | 304 | T-AUDIT 新增合规框架（PCI-DSS v4.0 / 等保2.0 / PDPA，ISO27001 已存在 handler.go:241） | **1d** | 🟡 中 | ⬜ 待实施 |
 > | 305 | T-AUDIT 合规 Dashboard 可视化（跨框架覆盖度 + 风险热图 + 30 天趋势） | **0.5d** | 🟢 低 | ⬜ 待实施 |
 > | 306 | T-QUOTA 软限/硬限 + 超配策略 + 分级预警 | **1d** | 🟢 低 | ⬜ 待实施 |
-> | **合计** | **6 项差距扩展** | **6d** | 已 0.5d / 剩 5d | 完成 1/6 |
+> | **合计** | **6 项差距扩展** | **6d** | 已 2.5d / 剩 3.5d | 完成 2/6 |
 >
 > **⚠️ v3.7 修正**：Phase 301 由"P0 BUG"降级为"代码规范"（wiring.go:137 已调用 `wiretenantquota`，功能正常，只是函数名违反 Go 命名约定）。Phase 304 由"ISO27001 endpoint 补齐"改为"新增合规框架"（ISO27001 已在 `handler.go:241` + `compliance_test.go` 完整实现，含 12+ controls 测试）。详细技术设计见 `docs/flagship-review-v3.7-delta-impl-2026-09-08.md`。
 >

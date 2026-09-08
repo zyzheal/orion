@@ -2344,3 +2344,92 @@ fix(platform-svc): Phase 301 T-QUOTA wiring 命名规范化 + 补齐漏提交的
 - Phase 302-306（5d）：T-CONFIG-LEVEL / T-SPI / T-AUDIT 合规 / Dashboard / T-QUOTA 软硬限
 - P0-MB Phase 1-5（26d）：多分支并行策略完整实现
 - Wave 1 前置（10d）+ PERM-8 阶段 2（3d）+ P1-9 三域补全（10-15d）
+
+---
+
+## Phase 302 — T-CONFIG-LEVEL 三层配置覆盖（2026-09-08 实施完成）
+
+> 分支：`feat/wave2-parallel-execution`
+> 授权：沿用 Phase 301 授权（`orion-platform-svc-go/`）
+> Commit：`3cc7bd7c2`
+
+### 任务
+
+Phase 302（2d）：T-CONFIG-LEVEL 三层配置覆盖（platform / tenant / user）—— 为 `distributed-config` 模块补齐 Level 字段与生效值合并能力。
+
+### 优先级定义
+
+| Level | Priority | 语义 |
+|---|---|---|
+| `platform` | 100 | 平台级默认配置（最高优先级，全局兜底） |
+| `tenant` | 50 | 租户级配置（默认值，向后兼容） |
+| `user` | 10 | 用户级覆盖（最低优先级，个性化） |
+
+### 改动清单
+
+| 文件 | 改动 | 类型 |
+|---|---|---|
+| `internal/distributed-config/models/models.go` | 新增 `ConfigLevel` 类型 + 3 常量 + `Priority()` / `IsValid()` / `NormalizeLevel()` 方法；`ConfigItem` + 3 字段；`CreateItemRequest` / `UpdateItemRequest` / `GetItemsFilter` 支持 Level + OverrideOnly；新增 `ConfigValue` 返回结构 | 数据模型 |
+| `internal/distributed-config/service/service_interface.go` | 新增 `ResolveEffectiveConfig` + `ListOverrides` 2 方法 | 接口契约 |
+| `internal/distributed-config/repository/repository.go` | `CreateItem` INSERT 扩展 3 列；新增 `ListItemsFiltered`（Level + OverrideOnly）+ `ListOverrides`；`ListItems` ORDER BY 改为 `key_name, priority DESC` | 数据访问 |
+| `internal/distributed-config/service/service.go` | `CreateItem` Level 归一化 + 非法值校验；`UpdateItem` 支持 Level / OverrideOf 更新；新增 `ResolveEffectiveConfig`（按 KeyName 分组、Priority DESC + CreatedAt DESC 取 top）+ `ListOverrides`；`RepositoryInterface` 补齐 2 方法 | 业务逻辑 |
+| `internal/distributed-config/handler/handler.go` | 新增 `GET /config/items/effective`（置于 `/items/:id` 之前避免路由冲突）+ `GET /config/items/:id/overrides`；均含 OTel span | HTTP 层 |
+| `internal/distributed-config/handler/handler_test.go` | `mockConfigSvc` 补齐 2 方法空实现 | 测试 |
+| `internal/distributed-config/service/service_test.go` | `fakeDCRepo` 补齐 2 方法；新增 11 个测试用例 | 测试 |
+| `migrations/406_add_config_item_level_fields.sql` | `ALTER config_item ADD (level, override_of, priority)` + 2 索引 | 迁移 |
+| `migrations/406_add_config_item_level_fields_down.sql` | DROP 索引 + DROP 3 列 | 回滚 |
+
+### 关键设计决策
+
+1. **`/items/effective` 路由必须在 `/items/:id` 之前**：Gin 路由匹配先注册先命中，静态路径优先级高于参数化路径，但显式声明顺序避免未来改动引入 bug。
+2. **`NormalizeLevel` 向后兼容**：Level 为空自动归一化为 `tenant`（priority=50），既有数据零迁移成本。
+3. **非法 Level 显式返回 error**：`CreateItem` 与 `UpdateItem` 对非空非法 Level 均返回 400（`invalid config level`），不静默接受。
+4. **`OverrideOf` 采用反向引用**：下层 item 引用上层 item 的 ID，避免循环引用与级联更新复杂性；`ListOverrides` 支持反向查询"谁覆盖了我"。
+5. **同 KeyName 取 Priority DESC + CreatedAt DESC**：解决同 Level 内冲突（例如同一 tenant 下多条 `db_host` 记录）—— 后写入的胜出。
+
+### 验收证据
+
+- ✅ `go build ./cmd/server/` 通过（无输出）
+- ✅ `go test ./cmd/server/...` = `ok 1.799s`
+- ✅ `go test ./internal/distributed-config/...`：handler cached + service 0.011s
+- ✅ 11 个新测试用例全部通过：
+  - `TestDC_ConfigLevel_IsValid`
+  - `TestDC_ConfigLevel_Priority`
+  - `TestDC_NormalizeLevel`
+  - `TestDC_CreateItem_DefaultLevel`
+  - `TestDC_CreateItem_ExplicitLevel`
+  - `TestDC_CreateItem_InvalidLevel`
+  - `TestDC_ResolveEffectiveConfig_PlatformOnly`
+  - `TestDC_ResolveEffectiveConfig_TenantOverridePlatform`
+  - `TestDC_ResolveEffectiveConfig_UserOverrideTenant`
+  - `TestDC_ResolveEffectiveConfig_LegacyNoLevel`
+  - `TestDC_ListOverrides`
+  - `TestDC_ListItems_FilterByLevel`
+- ✅ FORBIDDEN 验证 2 次 = 0（git add 后 + commit 前）
+
+### Commit 消息
+
+```
+feat(platform-svc): Phase 302 T-CONFIG-LEVEL 三层配置覆盖（platform/tenant/user）
+```
+
+### 累计进度
+
+- Phase 300 v3.6/v3.7 差距扩展审计 + 详细设计：✅ 已完成
+- P0-MB v2 impl 详细设计（1184 行）：✅ 已完成
+- **Phase 301 实施**：✅ 已完成（commit `b56cd8566` + `4b6fb86c4`）
+- **Phase 302 实施**：✅ 已完成（commit `3cc7bd7c2`）
+- Phase 301-306 差距扩展任务：**已完成 2/6（2.5d / 6d）**
+
+### 剩余任务（Phase 303-306，3.5d）
+
+- Phase 303：T-SPI 内置扩展点枚举补全（15 个 BuiltinPoint 常量 + Registry 初始化，1d）
+- Phase 304：T-AUDIT 新增合规框架（PCI-DSS v4.0 / 等保2.0 / PDPA，1d）
+- Phase 305：T-AUDIT 合规 Dashboard 可视化（0.5d）
+- Phase 306：T-QUOTA 软限/硬限 + 超配策略 + 分级预警（1d）
+
+### 工作区遗留（不主动处理）
+
+- `orion-frontend/src/pages/DigitalTwin/useDigitalTwinState.ts`
+- `orion-frontend/src/pages/SelfHealing/Components/Sider.tsx`
+- `orion-frontend/src/pages/pipeline/template/Components/TemplatesTable.tsx`
