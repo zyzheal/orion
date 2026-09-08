@@ -2,117 +2,50 @@
  * OnCall Management Page
  * Schedule management, rotation viewing, and override operations
  * P2-9 Phase 78: 拆分为 state hook + columns + detail content + 精简主页面
+ * P2-9 Phase 274: 157->77 行 (-51%), 新增 Components/PageHeader.tsx + Components/DetailContent.tsx
  */
 import React, { useMemo } from 'react';
-import { Typography, Button, Space, Card, Table as AntTable } from 'antd';
-import {
-  PlusOutlined,
-  ReloadOutlined,
-  ClockCircleOutlined,
-} from '@ant-design/icons';
+import { Card, Table as AntTable } from 'antd';
 import { OnCallModals } from './OnCallModals';
 import PageSkeleton from '@/components/PageSkeleton';
-import { colors } from '@/tokens/colors';
-import { spacing } from '@/tokens';
 import { useOnCallState } from './useOnCallState';
 import { makeOnCallColumns } from './OnCallColumns';
-import { OnCallDetailContent } from './OnCallDetailContent';
-
-const { Title, Text } = Typography;
+import { PageHeader } from './Components/PageHeader';
+import { makeDetailContentFactory } from './Components/DetailContent';
 
 const OnCallManagement: React.FC = () => {
-  const {
-    loading,
-    schedules,
-    createModalVisible,
-    setCreateModalVisible,
-    overrideModalVisible,
-    setOverrideModalVisible,
-    detailDrawerVisible,
-    setDetailDrawerVisible,
-    selectedSchedule,
-    setSelectedSchedule,
-    currentOnCall,
-    createForm,
-    overrideForm,
-    submitting,
-    setSubmitting,
-    memberInput,
-    setMemberInput,
-    userMap,
-    usersLoading,
-    resolveUserName,
-    loadData,
-    handleCreate,
-    handleDelete,
-    openOverrideModal,
-    handleCreateOverride,
-    openDetail,
-    getAssignmentsForSchedule,
-    getOverridesForSchedule,
-  } = useOnCallState();
+  const state = useOnCallState();
+  const { loading, schedules, currentOnCall, resolveUserName, loadData, createForm } = state;
 
   const columns = useMemo(
-    () => makeOnCallColumns({ currentOnCall, resolveUserName, openDetail, openOverrideModal, handleDelete }),
-    [currentOnCall, resolveUserName, openDetail, openOverrideModal, handleDelete],
-  );
-
-  const renderDetailContent = () => (
-    <OnCallDetailContent
-      selectedSchedule={selectedSchedule}
-      currentOnCall={currentOnCall}
-      resolveUserName={resolveUserName}
-      getAssignmentsForSchedule={getAssignmentsForSchedule}
-      getOverridesForSchedule={getOverridesForSchedule}
-    />
+    () => makeOnCallColumns({
+      currentOnCall,
+      resolveUserName,
+      openDetail: state.openDetail,
+      openOverrideModal: state.openOverrideModal,
+      handleDelete: state.handleDelete,
+    }),
+    [currentOnCall, resolveUserName, state.openDetail, state.openOverrideModal, state.handleDelete],
   );
 
   const isInitialLoading = loading && schedules.length === 0;
 
   return (
     <div style={{ padding: 0 }}>
-      {/* Page loading skeleton (initial load) */}
       {isInitialLoading && <PageSkeleton rows={8} />}
 
       {isInitialLoading ? null : (
         <>
-          {/* Header */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              marginBottom: spacing.lg,
+          <PageHeader
+            loading={loading}
+            onRefresh={loadData}
+            onCreateClick={() => {
+              state.setCreateModalVisible(true);
+              createForm.resetFields();
+              state.setMemberInput('');
             }}
-          >
-            <div>
-              <Title level={2} style={{ marginBottom: spacing.sm }}>
-                <ClockCircleOutlined
-                  style={{ marginRight: spacing[3], color: colors.primary[500] }}
-                />
-                OnCall 值班管理
-              </Title>
-              <Text type="secondary">管理值班排班、轮换分配和代班设置</Text>
-            </div>
-            <Space>
-              <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-                刷新
-              </Button>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => {
-                  setCreateModalVisible(true);
-                  createForm.resetFields();
-                  setMemberInput('');
-                }}
-              >
-                创建排班
-              </Button>
-            </Space>
-          </div>
+          />
 
-          {/* Schedule List */}
           <Card>
             <AntTable
               columns={columns}
@@ -124,29 +57,28 @@ const OnCallManagement: React.FC = () => {
             />
           </Card>
 
-          {/* Create Schedule Modal */}
           <OnCallModals
-            renderDetailContent={renderDetailContent}
+            renderDetailContent={makeDetailContentFactory(state)}
             resolveUserName={resolveUserName}
-            createModalVisible={createModalVisible}
-            setCreateModalVisible={setCreateModalVisible}
-            overrideModalVisible={overrideModalVisible}
-            setOverrideModalVisible={setOverrideModalVisible}
-            detailDrawerVisible={detailDrawerVisible}
-            setDetailDrawerVisible={setDetailDrawerVisible}
-            selectedSchedule={selectedSchedule}
-            setSelectedSchedule={setSelectedSchedule}
-            createForm={createForm}
-            overrideForm={overrideForm}
-            submitting={submitting}
-            setSubmitting={setSubmitting}
-            memberInput={memberInput}
-            setMemberInput={setMemberInput}
-            handleCreate={handleCreate}
-            handleCreateOverride={handleCreateOverride}
+            createModalVisible={state.createModalVisible}
+            setCreateModalVisible={state.setCreateModalVisible}
+            overrideModalVisible={state.overrideModalVisible}
+            setOverrideModalVisible={state.setOverrideModalVisible}
+            detailDrawerVisible={state.detailDrawerVisible}
+            setDetailDrawerVisible={state.setDetailDrawerVisible}
+            selectedSchedule={state.selectedSchedule}
+            setSelectedSchedule={state.setSelectedSchedule}
+            createForm={state.createForm}
+            overrideForm={state.overrideForm}
+            submitting={state.submitting}
+            setSubmitting={state.setSubmitting}
+            memberInput={state.memberInput}
+            setMemberInput={state.setMemberInput}
+            handleCreate={state.handleCreate}
+            handleCreateOverride={state.handleCreateOverride}
             schedules={schedules}
-            userMap={userMap}
-            usersLoading={usersLoading}
+            userMap={state.userMap}
+            usersLoading={state.usersLoading}
           />
         </>
       )}
