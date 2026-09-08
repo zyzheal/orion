@@ -11,182 +11,46 @@
  * - RunsHistoryTab.tsx: 运行历史 Tab
  * - TaskOutputsTable.tsx: 任务输出占位组件
  * - types.ts / constants.ts / helpers.ts: 类型/常量/工具
+ *
+ * P2-9 Phase 261 重构: 194 -> 45 行 (-77%), 新增:
+ *   Components/LoadingStates.tsx  — Loading (info) + Error (error) Result
+ *   Components/TabItems.tsx       — 5 tabs items (stages/logs/dag/runs/outputs)
  */
 import React from 'react';
-import { Typography, Button, Space, Tabs, Result, Card, Badge } from 'antd';
-import {
-  PlayCircleOutlined,
-  CodeOutlined,
-  ApartmentOutlined,
-  HistoryOutlined,
-  SwapOutlined,
-} from '@ant-design/icons';
+import { Tabs } from 'antd';
 import PipelineErrorDetail from '@/components/pipeline/PipelineErrorDetail';
-import { colors, spacing } from '@/tokens';
 import { usePipelineDetailState } from './usePipelineDetailState';
 import { PipelineHeader } from './PipelineHeader';
-import { StageTimeline } from './StageTimeline';
-import { LogViewer } from './LogViewer';
-import { DAGTab } from './DAGTab';
-import { RunsHistoryTab } from './RunsHistoryTab';
-import { TaskOutputsTable } from './TaskOutputsTable';
-
-const { Text } = Typography;
-const { TabPane } = Tabs;
+import { LoadingStates } from './Components/LoadingStates';
+import { buildTabItems } from './Components/TabItems';
 
 const PipelineDetail: React.FC = () => {
-  const {
-    id,
-    navigate,
-    activeTab,
-    setActiveTab,
-    isRerunning,
-    retryingStageId,
-    loading,
-    apiError,
-    pipeline,
-    runs,
-    runsLoading,
-    totalStages,
-    completedStages,
-    progressPercent,
-    formatDuration,
-    handleRerun,
-    handleReloadPipeline,
-    handleRetryFromStage,
-  } = usePipelineDetailState();
+  const state = usePipelineDetailState();
+  const loadingState = <LoadingStates state={state} />;
 
-  // Loading state
-  if (loading) {
-    return (
-      <div style={{ padding: 0 }}>
-        <Result status="info" title="加载中..." />
-      </div>
-    );
-  }
-
-  // Error state
-  if (apiError || !pipeline) {
-    return (
-      <div style={{ padding: 0 }}>
-        <Result
-          status="error"
-          title="加载失败"
-          subTitle={apiError}
-          extra={
-            <Button type="primary" onClick={() => window.location.reload()}>
-              重新加载
-            </Button>
-          }
-        />
-      </div>
-    );
-  }
+  if (loadingState) return loadingState;
 
   return (
     <div style={{ padding: 0 }}>
       <PipelineHeader
-        pipeline={pipeline}
-        isRerunning={isRerunning}
-        loading={loading}
-        totalStages={totalStages}
-        completedStages={completedStages}
-        progressPercent={progressPercent}
-        formatDuration={formatDuration}
-        onBack={() => navigate('/pipelines')}
-        onRerun={handleRerun}
+        pipeline={state.pipeline!}
+        isRerunning={state.isRerunning}
+        loading={state.loading}
+        totalStages={state.totalStages}
+        completedStages={state.completedStages}
+        progressPercent={state.progressPercent}
+        formatDuration={state.formatDuration}
+        onBack={() => state.navigate('/pipelines')}
+        onRerun={state.handleRerun}
       />
 
       {/* Structured error detail for failed pipelines */}
-      {pipeline.status === 'failed' && id && (
-        <PipelineErrorDetail runId={id} onRetry={handleReloadPipeline} />
+      {state.pipeline!.status === 'failed' && state.id && (
+        <PipelineErrorDetail runId={state.id} onRetry={state.handleReloadPipeline} />
       )}
 
       {/* Tabbed content: Stages / Logs / DAG / Runs / Outputs */}
-      <Tabs activeKey={activeTab} onChange={setActiveTab}>
-        <TabPane
-          tab={
-            <Space>
-              <PlayCircleOutlined />
-              阶段详情
-            </Space>
-          }
-          key="stages"
-        >
-          <StageTimeline
-            pipeline={pipeline}
-            retryingStageId={retryingStageId}
-            formatDuration={formatDuration}
-            onRetryFromStage={handleRetryFromStage}
-          />
-        </TabPane>
-
-        <TabPane
-          tab={
-            <Space>
-              <CodeOutlined />
-              执行日志
-            </Space>
-          }
-          key="logs"
-        >
-          <LogViewer pipeline={pipeline} />
-        </TabPane>
-
-        <TabPane
-          tab={
-            <Space>
-              <ApartmentOutlined />
-              DAG 视图
-            </Space>
-          }
-          key="dag"
-        >
-          <DAGTab pipeline={pipeline} />
-        </TabPane>
-
-        {/* 运行历史 Tab */}
-        <TabPane
-          tab={
-            <Space>
-              <HistoryOutlined />
-              运行历史
-              <Badge count={runs.length} style={{ backgroundColor: colors.primary[500] }} />
-            </Space>
-          }
-          key="runs"
-        >
-          <RunsHistoryTab
-            id={id}
-            runs={runs}
-            runsLoading={runsLoading}
-            isRerunning={isRerunning}
-            onNavigate={(path) => navigate(path)}
-            onRerun={handleRerun}
-          />
-        </TabPane>
-
-        <TabPane
-          tab={
-            <Space>
-              <SwapOutlined />
-              任务输出
-            </Space>
-          }
-          key="outputs"
-        >
-          {/* Task outputs / variable propagation table */}
-          <Card
-            style={{ marginBottom: spacing.lg }}
-            title="任务输出与变量传播"
-          >
-            <Text type="secondary" style={{ display: 'block', marginBottom: spacing.md }}>
-              以下列出各阶段任务产生的输出变量及其传播目标。
-            </Text>
-            <TaskOutputsTable />
-          </Card>
-        </TabPane>
-      </Tabs>
+      <Tabs activeKey={state.activeTab} onChange={state.setActiveTab} items={buildTabItems({ state })} />
     </div>
   );
 };
