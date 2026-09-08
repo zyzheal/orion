@@ -8,18 +8,26 @@
  *  - useAlertClosureState.ts - 全部状态与 handler
  *  - Modals/PolicyModal.tsx - 新建/编辑策略弹窗
  *  - Modals/PolicyDetailModal.tsx - 策略详情弹窗
+ *
+ * 二次拆分 (P2-9 Phase 235):
+ *  - Components/MTTRMetricsCard.tsx - MTTR 指标卡
+ *  - Components/PoliciesTab.tsx - 升级策略 Tab
+ *  - Components/ClosuresTab.tsx - 告警闭环 Tab
+ *  - index.tsx: 组合层
  */
 import React from 'react';
-import { Card, Table, Button, Space, Row, Col, Tabs, Select, Typography, Empty } from 'antd';
-import { BellOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Tabs, Typography } from 'antd';
+import { BellOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import { useAlertClosureState } from './useAlertClosureState';
 import { makePolicyColumns, makeTriggerColumns, makeClosureColumns } from './columns';
 import { PolicyModal } from './Modals/PolicyModal';
 import { PolicyDetailModal } from './Modals/PolicyDetailModal';
+import { MTTRMetricsCard } from './Components/MTTRMetricsCard';
+import { PoliciesTab } from './Components/PoliciesTab';
+import { ClosuresTab } from './Components/ClosuresTab';
 
 const { Title, Text } = Typography;
-const { Option } = Select;
 
 const AlertClosurePage: React.FC = () => {
   const {
@@ -73,141 +81,30 @@ const AlertClosurePage: React.FC = () => {
       </Tabs>
 
       {activeTab === 'policies' && (
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <Card
-            title="升级策略"
-            extra={
-              <Space>
-                <Button
-                  icon={<ReloadOutlined />}
-                  size="small"
-                  onClick={handleRefresh}
-                  loading={loading}
-                >
-                  刷新
-                </Button>
-                <Button type="primary" size="small" onClick={handleCreate}>
-                  新建策略
-                </Button>
-              </Space>
-            }
-          >
-            <Table
-              columns={policyColumns}
-              dataSource={policies}
-              rowKey="id"
-              loading={loading}
-              size="small"
-              locale={{ emptyText: <Empty description="暂无升级策略" /> }}
-              pagination={{ pageSize: 10 }}
-            />
-          </Card>
-          <Card
-            title="升级触发器"
-            extra={
-              <Button icon={<ReloadOutlined />} size="small" onClick={loadTriggers}>
-                刷新
-              </Button>
-            }
-          >
-            <Table
-              columns={triggerColumns}
-              dataSource={triggers}
-              rowKey="id"
-              size="small"
-              locale={{ emptyText: <Empty description="暂无触发记录" /> }}
-              pagination={{ pageSize: 10 }}
-            />
-          </Card>
-        </Space>
+        <PoliciesTab
+          policyColumns={policyColumns}
+          triggerColumns={triggerColumns}
+          policies={policies}
+          triggers={triggers}
+          loading={loading}
+          onRefresh={handleRefresh}
+          onCreate={handleCreate}
+          onLoadTriggers={loadTriggers}
+        />
       )}
 
       {activeTab === 'closures' && (
-        <Card
-          title="告警闭环"
-          extra={
-            <Space>
-              <Select
-                style={{ width: 120 }}
-                value={policyStatus}
-                onChange={setPolicyStatus}
-                allowClear
-                placeholder="状态"
-              >
-                <Option value="pending">待确认</Option>
-                <Option value="acknowledged">已确认</Option>
-                <Option value="resolved">已解决</Option>
-              </Select>
-              <Button
-                icon={<ReloadOutlined />}
-                size="small"
-                onClick={loadClosures}
-                loading={loading}
-              >
-                刷新
-              </Button>
-            </Space>
-          }
-        >
-          <Table
-            columns={closureColumns}
-            dataSource={closures}
-            rowKey="id"
-            loading={loading}
-            size="small"
-            locale={{ emptyText: <Empty description="暂无告警记录" /> }}
-            pagination={{ pageSize: 10 }}
-          />
-        </Card>
+        <ClosuresTab
+          columns={closureColumns}
+          dataSource={closures}
+          loading={loading}
+          policyStatus={policyStatus}
+          setPolicyStatus={setPolicyStatus}
+          onLoadClosures={loadClosures}
+        />
       )}
 
-      {activeTab === 'metrics' && metrics && (
-        <Row gutter={[spacing.md, spacing.md]}>
-          <Col span={6}>
-            <Card>
-              <Text type="secondary">总告警数</Text>
-              <div style={{ fontSize: 24, fontWeight: 600, color: colors.primary[500] }}>
-                {metrics.totalAlerts}
-              </div>
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Text type="secondary">待确认</Text>
-              <div style={{ fontSize: 24, fontWeight: 600, color: colors.warning[500] }}>
-                {metrics.openCount}
-              </div>
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Text type="secondary">已确认</Text>
-              <div style={{ fontSize: 24, fontWeight: 600, color: colors.info[500] }}>
-                {metrics.acknowledgedCount}
-              </div>
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Text type="secondary">已解决</Text>
-              <div style={{ fontSize: 24, fontWeight: 600, color: colors.success[500] }}>
-                {metrics.resolvedCount}
-              </div>
-            </Card>
-          </Col>
-          <Col span={24}>
-            <Card>
-              <Text type="secondary">平均 MTTR</Text>
-              <div
-                style={{ fontSize: 32, fontWeight: 700, color: colors.purple[500], marginTop: 4 }}
-              >
-                {metrics.avgMTTRFormatted || '0s'}
-              </div>
-              <Text type="secondary">({metrics.avgMTTRSeconds} 秒)</Text>
-            </Card>
-          </Col>
-        </Row>
-      )}
+      {activeTab === 'metrics' && metrics && <MTTRMetricsCard metrics={metrics} />}
 
       <PolicyModal
         open={modalOpen}
