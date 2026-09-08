@@ -3508,6 +3508,72 @@ v3.5 报告（system-review-v3.5-2026-08-25.md）：
 > 基于附录 E 36 维全量分析整理，全部任务以后端 Go（gin + Repository 四层）+ 前端 React 实现。
 > 每个任务含：ID / 落地模块 / 对标方案 / 验收标准（grep 或运行命令可验证）。
 
+### G.0 TOP5 视角审视（2026-09-08 升级）
+
+> **说明**：本节是 2026-09-08 从 5 大平台（NeatLogic/ServiceNow/Datadog/GitLab/AWS）产品级架构视角对本文档 73 项任务清单的系统性审视。**不是另起炉灶的新任务**，而是对现有 73 项任务的"能力深度标注 + 优先级调整 + 缺口补充"。
+
+#### 1. 任务能力深度审视（按 TOP5 标准重新评估）
+
+| 任务 | TOP5 视角 | 原能力深度 | TOP5 标准下能力深度 | 升级建议 |
+|------|----------|-----------|-------------------|---------|
+| T-04 rdm 后端新建服务 | GitLab | 真断链（无目录） | 仍是真断链 | 维持 P0，本 session 已起步（models 237 行，commit 607db946e） |
+| T-15 可观测三支柱贯通 | Datadog | 5 路由 → 10+ | 三支柱贯通是 Datadog 核心主张，但仍薄 | 维持 Wave 2，建议前置到 Wave 1（GitLab 端到端可观测集成） |
+| T-16 RUM 真实用户监控 | Datadog | 8 路由增加 RUM | RUM 是 Datadog 高级功能 | 维持 Wave 3，需 T-15 完成 |
+| T-17 金丝雀验证 AnalysisRun | GitLab | 667 行分析深度未验证 | GitLab 不强调金丝雀，但 GitOps 生态需要 | 维持 Wave 2，与 T-18 GitOps 联动 |
+| T-18 GitOps 配置同步 | GitLab | 缺 ArgoCD/Flux 集成 | GitLab 原生 GitOps | **从 Wave 2 前置到 Wave 1**（GitLab 视角 P0） |
+| T-19 SLO 烧速计算引擎 | Datadog | 72 行占位 | 仍是占位，但 Datadog 视角是核心 | **从 Wave 2 前置到 Wave 1**（Datadog 视角 P0） |
+| T-20 OnCall 深度排班 | ServiceNow | 仅工单维度 | 缺轮班/升级/时区/override | 维持 Wave 2，ServiceNow 视角 P1 |
+| T-21 多数据源支持 | — | dba 加 MySQL/ClickHouse | 数据库厂商中立 | 维持 Wave 2 |
+| T-58 CircuitBreaker | — | 新增 | 容错模式 | 维持 Wave 2 |
+
+#### 2. 优先级调整建议（基于 TOP5 视角）
+
+**前置到 Wave 1（P0）**：
+- **T-19 SLO 烧速**（原 Wave 2，3d）—— Datadog 视角 P0，可观测性深度核心
+- **T-18 GitOps**（原 Wave 2，3d）—— GitLab 视角 P0，端到端交付核心
+- **新增 T-AUDIT 统一审计日志中心**（3d，AWS+ServiceNow 视角 P0）—— 当前 73 项任务**没有**统一审计中心，是 AWS 多租户核心缺口
+
+**调整到 Wave 2（P1）**：
+- T-20 OnCall 深度排班（ServiceNow 视角 P1）
+
+**维持原 Wave**：
+- 其他 70 项任务按原 Wave 执行
+
+#### 3. TOP5 视角暴露但 73 项任务未覆盖的缺口（新增 5 项）
+
+| 新任务 | TOP5 视角 | 缺口描述 | 预估 | 建议 Wave |
+|--------|----------|---------|------|----------|
+| **T-AUDIT** | AWS + ServiceNow | 统一审计日志中心（当前各模块分散审计，无统一查询/订阅） | 3d | Wave 1 |
+| **T-QUOTA** | AWS + NeatLogic | 租户级配额模块（当前无配额，多租户隔离不彻底） | 5d | Wave 2 |
+| **T-CONFIG-LEVEL** | NeatLogic | 租户级配置覆盖（平台默认→租户 override→用户偏好三层） | 3d | Wave 2 |
+| **T-POSTMORTEM** | ServiceNow | 复盘模块 + Incident→Knowledge 链路（当前 Incident 关闭即终止） | 5d | Wave 2 |
+| **T-SPI** | NeatLogic | 扩展点 SPI 注册中心（8 个核心扩展点，当前 21/29 扩展点缺失） | 8d | Wave 3 |
+
+**新增 5 项合计 24d**，建议合并到现有 Wave 结构。
+
+#### 4. 升级后的 Wave 总览
+
+| Wave | 原任务数 | 原人天 | 升级后任务数 | 升级后人天 | 变更 |
+|------|---------|--------|-------------|-----------|------|
+| Wave 1 | 8 | 11d | 11 | 20d | +T-19/T-18/T-AUDIT（前置 + 新增） |
+| Wave 2 | 15 | 36d | 18 | 48d | +T-QUOTA/T-CONFIG-LEVEL/T-POSTMORTEM（新增） |
+| Wave 3 | 13 | 26d | 14 | 34d | +T-SPI（新增） |
+| Wave 4 | 11 | 27d | 11 | 27d | 不变 |
+| Wave 5 | 16 | 164d | 16 | 164d | 不变 |
+| Wave 5b | 7 | 10.5d | 7 | 10.5d | 不变 |
+| Wave 5c | 3 | 12d | 3 | 12d | 不变 |
+| **合计** | **73** | **286.5d** | **80** | **315.5d** | **+7 项 +29d** |
+
+#### 5. 与 TOP5 评审文档的关系
+
+详细分析见 `docs/architecture-top5-platform-review-2026-09-08.md`（2026-09-08），含 5 大平台视角逐一审视 Orion 每个域的能力深度、跨视角 TOP5 共性缺口、数据基线、未验证项。
+
+本文档本节是**对 73 项任务清单的升级标注**，TOP5 评审文档是**详细的平台视角分析**。两者配合使用：
+- 想看任务清单 → 本文档（升级版 73+7=80 项任务）
+- 想看平台视角分析 → `docs/architecture-top5-platform-review-2026-09-08.md`
+
+---
+
 ### G.1 任务清单总览（73 项，按 Wave 分组，含本地合并 T-58~T-63 + 补充 T-64~T-70 + 架构拆分 T-71~T-73）
 
 | Wave | 任务数 | 人天 | 核心目标 |
