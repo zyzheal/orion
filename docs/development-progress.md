@@ -1912,3 +1912,58 @@ async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> { ...
 ### 4. 结论
 
 P2-16 **评估完成**。迁移工作量约 0.5 天（单一文件、7 个调用点、调用方零改动），风险低。待并发改动落地后实施。
+
+
+---
+
+## Batch AE — 多分支并行部署 + 防部署错乱方案设计确认（2026-08-26）
+
+### 1. 需求来源
+
+用户请求："确认多分支并行 + 防部署错乱方案是否完善到相关文档中并记录到进度文档中"
+
+### 2. 文档完善度审计
+
+| 文档 | 位置 | 内容 | 状态 |
+|---|---|---|---|
+| `docs/multi-branch-strategy-design.md` | 321 行 v1.0 | 完整 5 层防护架构设计 | ✅ 已立项 |
+| `docs/INDEX.md` | L279 "🆕 多分支并行部署策略" | 索引条目 | ✅ 已记录 |
+| `docs/ALL_TODOS.md` | L613 "十、多分支并行部署 + 防部署错乱方案（P0-MB）" | 3 阶段任务分解 | ✅ 已记录 |
+| `docs/development-progress.md` | — | 本次新增 Batch AE | ✅ 本次补齐 |
+| `docs/ALL_TODOS_AUDIT.md` | — | 审计专用，无需引用 | ⏸ 保持现状 |
+
+### 3. 方案完善度结论
+
+**已完善**：
+- **痛点 5 项**（分支合并冲突 / 部署互相干扰 / Image tag 复用串用 / 回滚误拉取 / Hotfix 忘记同步）已在 §1.2 全部覆盖
+- **架构 5 层**（L1 BranchProfile 分支语义 / L2 Namespace 环境隔离 / L3 BuildArtifact 制品指纹 / L4 SyncPolicy 同步策略 / L5 DeployEvent 变更审计）设计完整
+- **阻断规则 6 条**（R1-R6: Branch-Env 匹配 / Digest 完整性 / 变更单审批 / 分支状态 / Pipeline 匹配 / Schema 兼容）+ 同步规则 4 条（S1-S4: 主干同步 / Hotfix 广播 / 依赖锁定 / 冲突告警）
+- **前端页面 5 个**（branch-profiles / branch-deployments / sync-policies / merge-preview / deploy-audit）+ **新增 API 12 条** + 现有 API 扩展 3 条
+- **实施路线图 3 阶段**（P0×4 前置阻塞 2 周 + P1×3 语义+同步 4 周 + P2×2 审计+页面 6 周），总预估 12 人日
+
+**关键设计原则**：
+- **只信 digest，不信 tag**：部署 API 只接受 `imageDigest` 参数，杜绝二进制串用
+- **变更单强制**：所有分支→环境变更需 `approvalId`，与 ChangeManagement 集成
+- **命名空间强制**：`orion-${branch}` 前缀，Image/K8s/Nacos/DB/MQ/Redis 全域覆盖
+- **同步策略自动化**：SyncPolicy cron 调度，冲突阻断下次同步（不静默失败）
+- **双向可追溯**：DeployEvent 记录 before/after commit + imageDigest + outcome + rollbackTo
+
+### 4. 未实施项（P0-MB 全部 ⬜ 未开始）
+
+- **MB-P0-1**: BuildArtifact 模型 + 制品签名强制
+- **MB-P0-2**: Namespace 强制绑定（Image tag 前缀校验中间件）
+- **MB-P0-3**: Pre-deploy Gate 6 条阻断规则
+- **MB-P0-4**: ChangeManagement 分支字段扩展
+- **MB-P1-1/2/3**: BranchProfile / SyncPolicy / 冲突预检查
+- **MB-P2-1/2**: DeployEvent 审计 + 前端 5 页面
+
+### 5. 结论
+
+多分支并行 + 防部署错乱方案**设计层面已完善**，已按 v1.0 落地至 3 份核心文档（design doc / ALL_TODOS / INDEX），并补齐至本进度文档 Batch AE。
+
+**实施层面**待架构评审通过后启动 MB-P0 Phase 1（12 人日估算）。
+
+**下一步建议**：
+1. 提交至架构评审委员会 → 评审通过后启动 MB-P0-1 BuildArtifact 建模
+2. 与 ChangeManagement / CodeMgmt 团队同步 API 字段扩展需求
+3. 补充测试用例矩阵（覆盖 R1-R6 每条阻断规则的 pass/fail 场景）
