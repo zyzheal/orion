@@ -1,221 +1,48 @@
 /**
- * Script Runner Page
- *
- * Phase 2.3: Standalone online script execution UI
+ * ScriptRunner 在线脚本执行页面 (组合层)
+ * 拆分自 index.tsx (P2-9 Phase 230)
+ * - constants.ts: languageOptions + levelOptions
+ * - useScriptRunnerState.ts: 4 useState + Form.useForm + handleScan + handleExecute
+ * - Components/PageHeader.tsx: 标题 + 描述
+ * - Components/ConfigFormCard.tsx: 语言/级别/代码 + 按钮
+ * - Components/ScanResultCard.tsx: 安全扫描结果
+ * - Components/ExecutionResultCard.tsx: 执行结果
+ * - index.tsx: 组合层
  */
-import React, { useState } from 'react';
-import { Button, Form, Select, Input, Card, Typography, message, Space, Tag, Alert } from 'antd';
-import { PlayCircleOutlined, SafetyOutlined, CodeOutlined } from '@ant-design/icons';
-import {
-  scanScript,
-  executeScript,
-  ScriptConfig,
-  ScriptScanResult,
-  ScriptExecutionResult,
-  ScriptLanguage,
-  ScriptLevel,
-} from '@/api/scripts';
-import { colors } from '@/tokens/colors';
+import React from 'react';
 import { spacing } from '@/tokens';
-
-const { Title, Text } = Typography;
-const { TextArea } = Input;
+import { useScriptRunnerState } from './useScriptRunnerState';
+import { PageHeader } from './Components/PageHeader';
+import { ConfigFormCard } from './Components/ConfigFormCard';
+import { ScanResultCard } from './Components/ScanResultCard';
+import { ExecutionResultCard } from './Components/ExecutionResultCard';
 
 const ScriptRunnerPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [scanning, setScanning] = useState(false);
-  const [scanResult, setScanResult] = useState<ScriptScanResult | null>(null);
-  const [execResult, setExecResult] = useState<ScriptExecutionResult | null>(null);
-  const [form] = Form.useForm<ScriptConfig>();
-
-  const languageOptions: { label: string; value: ScriptLanguage }[] = [
-    { label: 'JavaScript', value: 'javascript' },
-    { label: 'TypeScript', value: 'typescript' },
-    { label: 'Python', value: 'python' },
-    { label: 'Shell', value: 'shell' },
-  ];
-
-  const levelOptions: { label: string; value: ScriptLevel }[] = [
-    { label: '安全 (safe)', value: 'safe' },
-    { label: '标准 (standard)', value: 'standard' },
-    { label: '高级 (advanced)', value: 'advanced' },
-  ];
-
-  const handleScan = async () => {
-    const values = form.getFieldsValue();
-    if (!values.code) {
-      message.warning('请先输入脚本代码');
-      return;
-    }
-
-    setScanning(true);
-    try {
-      const res = await scanScript(values as ScriptConfig);
-      setScanResult(res.data || null);
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '扫描失败');
-    } finally {
-      setScanning(false);
-    }
-  };
-
-  const handleExecute = async () => {
-    const values = await form.validateFields();
-    setLoading(true);
-    setExecResult(null);
-
-    try {
-      const res = await executeScript(
-        `task-${Date.now()}`,
-        'manual-run',
-        'standalone',
-        values as ScriptConfig
-      );
-      const data = res.data;
-      setExecResult(data || null);
-      if (data?.success) {
-        message.success('执行成功');
-      } else {
-        message.error('执行失败');
-      }
-    } catch (error: unknown) {
-      message.error(error instanceof Error ? error.message : '执行失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    loading,
+    scanning,
+    scanResult,
+    execResult,
+    form,
+    handleScan,
+    handleExecute,
+  } = useScriptRunnerState();
 
   return (
     <div style={{ padding: spacing.lg }}>
-      <div style={{ marginBottom: spacing.lg }}>
-        <Title level={2} style={{ marginBottom: spacing.sm }}>
-          <CodeOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
-          在线脚本执行
-        </Title>
-        <Text type="secondary">在线编写、执行和安全扫描脚本代码</Text>
-      </div>
+      <PageHeader />
 
-      <Card title="脚本配置" style={{ marginBottom: spacing.md }}>
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{ language: 'javascript', level: 'safe' }}
-        >
-          <Space style={{ marginBottom: spacing.md }} wrap>
-            <Form.Item name="language" label="语言" style={{ marginBottom: 0, width: 160 }}>
-              <Select options={languageOptions} />
-            </Form.Item>
-            <Form.Item name="level" label="安全级别" style={{ marginBottom: 0, width: 160 }}>
-              <Select options={levelOptions} />
-            </Form.Item>
-          </Space>
-          <Form.Item
-            name="code"
-            label="脚本代码"
-            rules={[{ required: true, message: '请输入脚本代码' }]}
-          >
-            <TextArea
-              rows={12}
-              style={{ fontFamily: 'monospace', fontSize: 13 }}
-              placeholder="输入脚本代码..."
-            />
-          </Form.Item>
-          <Space>
-            <Button icon={<SafetyOutlined />} onClick={handleScan} loading={scanning}>
-              安全扫描
-            </Button>
-            <Button
-              type="primary"
-              icon={<PlayCircleOutlined />}
-              onClick={handleExecute}
-              loading={loading}
-            >
-              执行脚本
-            </Button>
-          </Space>
-        </Form>
-      </Card>
+      <ConfigFormCard
+        form={form}
+        loading={loading}
+        scanning={scanning}
+        onScan={handleScan}
+        onExecute={handleExecute}
+      />
 
-      {scanResult && (
-        <Card title="安全扫描结果" style={{ marginBottom: spacing.md }}>
-          <Space style={{ marginBottom: spacing[3] }}>
-            <Tag color={scanResult.passed ? 'success' : 'error'}>
-              {scanResult.passed ? '通过' : '未通过'}
-            </Tag>
-            <Tag
-              color={
-                scanResult.riskScore > 70
-                  ? 'error'
-                  : scanResult.riskScore > 40
-                    ? 'warning'
-                    : 'success'
-              }
-            >
-              风险评分: {scanResult.riskScore}
-            </Tag>
-          </Space>
-          {scanResult.warnings.length > 0 && (
-            <Alert
-              type="warning"
-              message="警告"
-              description={
-                <ul style={{ margin: 0, paddingLeft: 20 }}>
-                  {scanResult.warnings.map((w, i) => (
-                    <li key={String(i)}>{w}</li>
-                  ))}
-                </ul>
-              }
-              style={{ marginBottom: spacing.sm }}
-            />
-          )}
-          {scanResult.errors.length > 0 && (
-            <Alert
-              type="error"
-              message="错误"
-              description={
-                <ul style={{ margin: 0, paddingLeft: 20 }}>
-                  {scanResult.errors.map((e, i) => (
-                    <li key={String(i)}>{e}</li>
-                  ))}
-                </ul>
-              }
-            />
-          )}
-        </Card>
-      )}
+      {scanResult && <ScanResultCard result={scanResult} />}
 
-      {execResult && (
-        <Card title="执行结果">
-          <Space style={{ marginBottom: spacing[3] }}>
-            <Tag color={execResult.success ? 'success' : 'error'}>
-              {execResult.success ? '执行成功' : '执行失败'}
-            </Tag>
-            <Tag>耗时: {execResult.durationMs}ms</Tag>
-            <Tag>退出码: {execResult.exitCode}</Tag>
-          </Space>
-          {execResult.output && (
-            <Card
-              size="small"
-              title="输出"
-              style={{ background: colors.light?.bg?.secondary || colors.neutral[100] }}
-            >
-              <pre
-                style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: 12 }}
-              >
-                {execResult.output}
-              </pre>
-            </Card>
-          )}
-          {execResult.error && (
-            <Alert
-              type="error"
-              message="错误信息"
-              description={execResult.error}
-              style={{ marginTop: spacing[3] }}
-            />
-          )}
-        </Card>
-      )}
+      {execResult && <ExecutionResultCard result={execResult} />}
     </div>
   );
 };
