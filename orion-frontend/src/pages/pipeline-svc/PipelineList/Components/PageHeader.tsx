@@ -1,0 +1,46 @@
+/**
+ * PageHeader - Pipeline List 页头
+ * 抽取自 index.tsx (P2-9 Phase 217)
+ */
+import { Button, Space, Typography } from 'antd';
+import { ApiOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { colors, spacing } from '@/tokens';
+
+const { Title, Text } = Typography;
+
+interface Props {
+  total: number;
+  loading: boolean;
+  onRefresh: () => void;
+  onCreate: () => void;
+}
+
+export const PageHeader = ({ total, loading, onRefresh, onCreate }: Props) => (
+  <div
+    style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: spacing.lg,
+    }}
+  >
+    <div>
+      <Title
+        level={2}
+        style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}
+      >
+        <ApiOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+        Pipeline 列表
+      </Title>
+      <Text type="secondary">共 {total} 个 Pipeline</Text>
+    </div>
+    <Space>
+      <Button icon={<ReloadOutlined />} onClick={onRefresh} loading={loading}>
+        刷新
+      </Button>
+      <Button type="primary" icon={<PlusOutlined />} onClick={onCreate}>
+        创建 Pipeline
+      </Button>
+    </Space>
+  </div>
+);
