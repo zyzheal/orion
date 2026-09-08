@@ -1,191 +1,39 @@
 /**
  * APM Dashboard (Phase 3.5.3)
  * Application performance overview with metrics and trace visualization
+ *
+ * P2-9 Phase 246 拆分:
+ * - useApmDashboardState.ts: useQuery + stats + error effect
+ * - Columns.tsx: traceColumns + serviceColumns
+ * - Components/PageHeader.tsx: 标题 + Refresh
+ * - Components/StatsRow.tsx: 4 张 Statistic Card
+ * - Components/TracesCard.tsx: 最近链路 Card
+ * - Components/ServicesCard.tsx: 服务列表 Card
  */
-import React, { useEffect } from 'react';
-import { Typography, Card, Table, Row, Col, Statistic, Button, Tag, message, Spin } from 'antd';
-import {
-  DashboardOutlined,
-  ReloadOutlined,
-  ClockCircleOutlined,
-  ExclamationCircleOutlined,
-} from '@ant-design/icons';
-import { apmApi, type TraceSummary, type ServiceInfo } from '@/api/apm';
-import { useQuery } from '@/providers/QueryProvider';
-import { colors } from '@/tokens/colors';
+import { Spin } from 'antd';
 import { spacing } from '@/tokens';
-
-const { Title, Text } = Typography;
+import { useApmDashboardState } from './useApmDashboardState';
+import { PageHeader } from './Components/PageHeader';
+import { StatsRow } from './Components/StatsRow';
+import { TracesCard } from './Components/TracesCard';
+import { ServicesCard } from './Components/ServicesCard';
 
 const ApmDashboardPage: React.FC = () => {
-  const {
-    data: dashboard = {} as { traces: TraceSummary[]; services: ServiceInfo[] },
-    isLoading: loading,
-    isError,
-    error,
-    refetch,
-  } = useQuery<{ traces: TraceSummary[]; services: ServiceInfo[] }>({
-    queryKey: ['apm-dashboard'],
-    queryFn: async () => {
-      const [traceRes, serviceRes] = await Promise.all([
-        apmApi.listTraces({ limit: 50 }),
-        apmApi.listServices(),
-      ]);
-      return { traces: traceRes, services: serviceRes };
-    },
-    staleTime: 30_000,
-  });
-
-  const traces = dashboard.traces ?? [];
-  const services = dashboard.services ?? [];
-
-  // Compute stats
-  const errorCount = traces.filter((t) => t.status === 'error').length;
-  const avgDuration =
-    traces.length > 0
-      ? Math.round(traces.reduce((sum, t) => sum + t.duration_ms, 0) / traces.length)
-      : 0;
-
-  // 错误反馈
-  useEffect(() => {
-    if (!isError) return;
-    message.error(error instanceof Error ? error.message : '加载 APM 数据失败');
-  }, [isError, error]);
-
-  const traceColumns = [
-    {
-      title: 'Trace ID',
-      dataIndex: 'traceId',
-      key: 'traceId',
-      ellipsis: true,
-      render: (v: string) => <code style={{ fontSize: 12 }}>{v.slice(0, 16)}...</code>,
-    },
-    { title: '服务', dataIndex: 'root_service', key: 'root_service' },
-    { title: '操作', dataIndex: 'root_operation', key: 'root_operation' },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      render: (s: string) => (
-        <Tag color={s === 'error' ? colors.error[500] : colors.success[500]}>{s}</Tag>
-      ),
-    },
-    {
-      title: '耗时',
-      dataIndex: 'duration_ms',
-      key: 'duration_ms',
-      render: (ms: number) => (
-        <span
-          style={{
-            color:
-              ms > 1000 ? colors.error[500] : ms > 500 ? colors.warning[500] : colors.neutral[900],
-          }}
-        >
-          {ms} ms
-        </span>
-      ),
-    },
-    { title: 'Span 数', dataIndex: 'span_count', key: 'span_count' },
-    {
-      title: '时间',
-      dataIndex: 'start_time',
-      key: 'start_time',
-      render: (v: string) => new Date(v).toLocaleString(),
-    },
-  ];
-
-  const serviceColumns = [
-    { title: '服务名称', dataIndex: 'service_name', key: 'service_name' },
-    { title: 'Trace 数', dataIndex: 'trace_count', key: 'trace_count' },
-    {
-      title: '最大耗时',
-      dataIndex: 'max_duration_ms',
-      key: 'max_duration_ms',
-      render: (ms: number) => `${ms} ms`,
-    },
-  ];
+  const { loading, traces, services, errorCount, avgDuration, refetch } =
+    useApmDashboardState();
 
   return (
     <Spin spinning={loading}>
       <div style={{ padding: spacing.lg }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
-          <div>
-            <Title level={2} style={{ marginBottom: spacing.sm }}>
-              <DashboardOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
-              APM 性能仪表盘
-            </Title>
-            <Text type="secondary" style={{ color: colors.neutral[500], fontSize: 14 }}>
-              应用性能监控与分布式链路追踪
-            </Text>
-          </div>
-          <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={loading}>
-            刷新
-          </Button>
-        </div>
-
-        {/* Overview Stats */}
-        <Row gutter={16} style={{ marginBottom: spacing.lg }}>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="总 Trace 数"
-                value={traces.length}
-                prefix={<ClockCircleOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="平均响应时间"
-                value={avgDuration}
-                suffix="ms"
-                valueStyle={{
-                  color: avgDuration > 500 ? colors.warning[500] : colors.success[500],
-                }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title="错误数"
-                value={errorCount}
-                prefix={<ExclamationCircleOutlined />}
-                valueStyle={{ color: errorCount > 0 ? colors.error[500] : colors.success[500] }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic title="服务数" value={services.length} />
-            </Card>
-          </Col>
-        </Row>
-
-        {/* Recent Traces */}
-        <Card title="最近链路" style={{ marginBottom: spacing.md }}>
-          <Table
-            columns={traceColumns}
-            dataSource={traces}
-            rowKey="traceId"
-            pagination={{ pageSize: 10 }}
-            size="small"
-            locale={{ emptyText: traces.length === 0 ? '暂无链路数据' : undefined }}
-          />
-        </Card>
-
-        {/* Service List */}
-        <Card title="服务列表">
-          <Table
-            columns={serviceColumns}
-            dataSource={services}
-            rowKey="service_name"
-            pagination={false}
-            size="small"
-            locale={{ emptyText: services.length === 0 ? '暂无服务数据' : undefined }}
-          />
-        </Card>
+        <PageHeader loading={loading} onRefresh={() => void refetch()} />
+        <StatsRow
+          tracesCount={traces.length}
+          avgDuration={avgDuration}
+          errorCount={errorCount}
+          servicesCount={services.length}
+        />
+        <TracesCard traces={traces} />
+        <ServicesCard services={services} />
       </div>
     </Spin>
   );
