@@ -331,6 +331,292 @@ func controlCatalog() []complianceControl {
 			Actions:     []string{"APPROVE", "REVIEW", "CREATE", "AUDIT"},
 			ExpectedMin: 2,
 			Remediation: "Maintain a register of legal obligations; audit and review compliance evidence periodically."},
+		// ---- PCI-DSS v4.0 (36 controls across 6 control objectives A–F) ----
+		// Objective A — Information Security Policy & Program
+		{ID: "PCI-A1", Category: "PCI-DSS", Name: "Policy — Information Security Policy Established",
+			Actions:     []string{"CREATE", "APPROVE", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "Document a formal information-security policy covering all cardholder-data (CHD) processes and obtain executive sign-off."},
+		{ID: "PCI-A2", Category: "PCI-DSS", Name: "Policy — CDE Scope Defined",
+			Actions:     []string{"CREATE", "AUDIT", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "Perform and periodically re-run a Cardholder Data Environment (CDE) scope discovery; log every scope change."},
+		{ID: "PCI-A3", Category: "PCI-DSS", Name: "Policy — Roles & Responsibilities",
+			Actions:     []string{"CREATE", "GRANT", "REVOKE", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "Define security roles, map them to named individuals, and review assignments at least quarterly."},
+		{ID: "PCI-A4", Category: "PCI-DSS", Name: "Policy — Security Awareness Training",
+			Actions:     []string{"CREATE", "UPDATE", "APPROVE", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "Deliver annual PCI awareness training and record completion events for every CDE employee."},
+		{ID: "PCI-A5", Category: "PCI-DSS", Name: "Policy — Risk Assessment Cycle",
+			Actions:     []string{"AUDIT", "SCAN", "CREATE", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "Run formal risk-assessment cycles at least annually and log risk-register changes."},
+		{ID: "PCI-A6", Category: "PCI-DSS", Name: "Policy — Service Provider Oversight",
+			Actions:     []string{"CREATE", "APPROVE", "REVIEW", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "Maintain an approved vendor list, sign DPAs, and verify providers' PCI-AOC status at least annually."},
+		// Objective B — Data Flow & Protection
+		{ID: "PCI-B1", Category: "PCI-DSS", Name: "Data — CHD Flow Mapping",
+			Actions:     []string{"CREATE", "AUDIT", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "Produce and keep current diagrams showing every CHD storage, processing and transmission path."},
+		{ID: "PCI-B2", Category: "PCI-DSS", Name: "Data — Logical Segregation of CDE",
+			Actions:     []string{"CREATE", "UPDATE", "REVOKE", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "Enforce logical separation between CDE and non-CDE systems via VLANs, ASGs or equivalent; log boundary changes."},
+		{ID: "PCI-B3", Category: "PCI-DSS", Name: "Data — Storage of CHD Minimized",
+			Actions:     []string{"CREATE", "DELETE", "REVIEW", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "Prohibit CHD storage where not strictly required; run periodic storage-minimization reviews."},
+		{ID: "PCI-B4", Category: "PCI-DSS", Name: "Data — Strong Crypto for CHD in Transit",
+			Actions:     []string{"CREATE", "UPDATE", "SCAN", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "Enforce TLS 1.2+ with strong cipher suites for all external-facing CHD paths; scan for downgrade vulnerabilities."},
+		{ID: "PCI-B5", Category: "PCI-DSS", Name: "Data — PAN Masked in Display",
+			Actions:     []string{"CREATE", "UPDATE", "APPROVE", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "Mask all but the first-6 and last-4 PAN digits wherever PAN is displayed in the UI or logs."},
+		{ID: "PCI-B6", Category: "PCI-DSS", Name: "Data — Retention & Disposal",
+			Actions:     []string{"DELETE", "EXPORT", "REVIEW", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "Define CHD retention windows and purge expired records on schedule; log every bulk delete."},
+		// Objective C — Security Program Elements
+		{ID: "PCI-C1", Category: "PCI-DSS", Name: "Program — Network Security Controls",
+			Actions:     []string{"CREATE", "UPDATE", "GRANT", "REVOKE"},
+			ExpectedMin: 2,
+			Remediation: "Deploy stateful firewall / ASG with least-privilege rules between all network segments; log config changes."},
+		{ID: "PCI-C2", Category: "PCI-DSS", Name: "Program — Asset Inventory",
+			Actions:     []string{"CREATE", "UPDATE", "DELETE", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "Maintain a live inventory of all CDE assets including hardware, software and services; reconcile on change."},
+		{ID: "PCI-C3", Category: "PCI-DSS", Name: "Program — Access Control to CDE Systems",
+			Actions:     []string{"GRANT", "REVOKE", "APPROVE", "AUDIT"},
+			ExpectedMin: 3,
+			Remediation: "Enforce least-privilege, unique accounts and separation of duties for all CDE access."},
+		{ID: "PCI-C4", Category: "PCI-DSS", Name: "Program — Cryptography for Stored CHD",
+			Actions:     []string{"CREATE", "UPDATE", "APPROVE", "SCAN"},
+			ExpectedMin: 2,
+			Remediation: "Encrypt stored PAN/CHD with strong algorithms; rotate keys on schedule and log key-rotation events."},
+		{ID: "PCI-C5", Category: "PCI-DSS", Name: "Program — MFA for CDE Access",
+			Actions:     []string{"LOGIN", "GRANT", "REVOKE", "AUDIT"},
+			ExpectedMin: 3,
+			Remediation: "Require MFA for every authenticated access to the CDE; audit login events for compliance."},
+		{ID: "PCI-C6", Category: "PCI-DSS", Name: "Program — Change Management for CDE",
+			Actions:     []string{"CREATE", "UPDATE", "APPROVE", "REVIEW", "DEPLOY"},
+			ExpectedMin: 3,
+			Remediation: "Place all CDE changes under a formal change-control process; require approval and rollback plans."},
+		// Objective D — Vulnerability Management
+		{ID: "PCI-D1", Category: "PCI-DSS", Name: "Vuln — Approved Patches Within 30 Days",
+			Actions:     []string{"UPDATE", "DEPLOY", "REVIEW", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "Apply critical security patches within 30 days; track patch SLA and log install outcomes."},
+		{ID: "PCI-D2", Category: "PCI-DSS", Name: "Vuln — Quarterly ASV Scans",
+			Actions:     []string{"SCAN", "AUDIT", "CREATE", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "Run quarterly external ASV scans and remediate to a clean report before renewal."},
+		{ID: "PCI-D3", Category: "PCI-DSS", Name: "Vuln — Internal Vulnerability Scans",
+			Actions:     []string{"SCAN", "AUDIT", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "Perform monthly internal vulnerability scans against all CDE assets; track remediation to closure."},
+		{ID: "PCI-D4", Category: "PCI-DSS", Name: "Vuln — Continuous Monitoring",
+			Actions:     []string{"AUDIT", "ALERT", "SCAN"},
+			ExpectedMin: 3,
+			Remediation: "Deploy continuous monitoring of CDE network traffic; alert on suspicious activity."},
+		{ID: "PCI-D5", Category: "PCI-DSS", Name: "Vuln — Intrusion-Detection / Prevention",
+			Actions:     []string{"ALERT", "AUDIT", "UPDATE", "SCAN"},
+			ExpectedMin: 2,
+			Remediation: "Run IDS/IPS at CDE boundaries with tuned rules; review alerts at least weekly."},
+		{ID: "PCI-D6", Category: "PCI-DSS", Name: "Vuln — Incident Response Plan",
+			Actions:     []string{"ALERT", "CREATE", "APPROVE", "REVIEW", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "Document, test and maintain an incident-response plan that covers PCI breach notification timelines."},
+		// Objective E — Secure Access
+		{ID: "PCI-E1", Category: "PCI-DSS", Name: "Access — Strong Authentication",
+			Actions:     []string{"LOGIN", "LOGOUT", "CREATE", "GRANT"},
+			ExpectedMin: 3,
+			Remediation: "Require strong authentication for every access to the CDE; prohibit shared credentials."},
+		{ID: "PCI-E2", Category: "PCI-DSS", Name: "Access — Need-to-Know Authorization",
+			Actions:     []string{"GRANT", "REVOKE", "REVIEW", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "Enforce need-to-know; revoke unnecessary access on role changes."},
+		{ID: "PCI-E3", Category: "PCI-DSS", Name: "Access — Privileged Account Management",
+			Actions:     []string{"GRANT", "REVOKE", "APPROVE", "REVIEW", "AUDIT"},
+			ExpectedMin: 3,
+			Remediation: "Restrict privileged accounts, require JIT or break-glass workflows, and review privileged assignments monthly."},
+		{ID: "PCI-E4", Category: "PCI-DSS", Name: "Access — Session Timeout Enforcement",
+			Actions:     []string{"LOGIN", "LOGOUT", "UPDATE", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "Configure automatic session termination after 15 minutes of inactivity for all CDE applications."},
+		{ID: "PCI-E5", Category: "PCI-DSS", Name: "Access — Quarterly Access Reviews",
+			Actions:     []string{"REVIEW", "AUDIT", "REVOKE", "APPROVE"},
+			ExpectedMin: 2,
+			Remediation: "Conduct quarterly access reviews of all CDE accounts; document approver, outcome and any revocations."},
+		{ID: "PCI-E6", Category: "PCI-DSS", Name: "Access — Timely De-provisioning",
+			Actions:     []string{"REVOKE", "DELETE", "UPDATE", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "Automate de-provisioning on off-boarding or role change; log every account deletion."},
+		// Objective F — Compliance Evidence
+		{ID: "PCI-F1", Category: "PCI-DSS", Name: "Evidence — Retain Audit Logs 12 Months",
+			Actions:     []string{"CREATE", "AUDIT", "EXPORT"},
+			ExpectedMin: 3,
+			Remediation: "Retain CDE audit logs for at least 12 months (3 months immediately available); verify retention policy."},
+		{ID: "PCI-F2", Category: "PCI-DSS", Name: "Evidence — Daily Audit-Log Review",
+			Actions:     []string{"AUDIT", "REVIEW", "ALERT"},
+			ExpectedMin: 3,
+			Remediation: "Perform daily review of audit logs covering all CDE components; record reviewer and outcome."},
+		{ID: "PCI-F3", Category: "PCI-DSS", Name: "Evidence — Time Synchronization",
+			Actions:     []string{"CREATE", "UPDATE", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "Synchronize clocks of all CDE systems via NTP; monitor for clock-skew alerts."},
+		{ID: "PCI-F4", Category: "PCI-DSS", Name: "Evidence — Periodic Security Testing",
+			Actions:     []string{"SCAN", "AUDIT", "REVIEW", "CREATE"},
+			ExpectedMin: 2,
+			Remediation: "Run annual penetration tests of the CDE and quarterly internal scans; track remediation."},
+		{ID: "PCI-F5", Category: "PCI-DSS", Name: "Evidence — Compliance Reporting",
+			Actions:     []string{"CREATE", "APPROVE", "EXPORT", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "Produce the annual SAQ / ROC and archive with governance approval."},
+		{ID: "PCI-F6", Category: "PCI-DSS", Name: "Evidence — Management Review",
+			Actions:     []string{"REVIEW", "APPROVE", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "Schedule and record a formal management review of PCI program effectiveness at least annually."},
+		// ---- MLPS 2.0 等保三级 (21 representative controls) ----
+		{ID: "MLPS-C1", Category: "MLPS2", Name: "安全计算环境 — 身份鉴别",
+			Actions:     []string{"LOGIN", "LOGOUT", "CREATE", "GRANT"},
+			ExpectedMin: 3,
+			Remediation: "为所有访问主机的用户配置唯一标识 + 口令 + 双因子认证；空闲超时不超过 15 分钟。"},
+		{ID: "MLPS-C2", Category: "MLPS2", Name: "安全计算环境 — 访问控制",
+			Actions:     []string{"GRANT", "REVOKE", "REVIEW", "AUDIT"},
+			ExpectedMin: 3,
+			Remediation: "实现基于角色的访问控制；定期审查权限；管理员账号与业务账号分离。"},
+		{ID: "MLPS-C3", Category: "MLPS2", Name: "安全计算环境 — 安全审计",
+			Actions:     []string{"AUDIT", "CREATE", "REVIEW"},
+			ExpectedMin: 3,
+			Remediation: "启用系统、数据库、安全设备审计；审计记录覆盖用户行为并具备完整性保护。"},
+		{ID: "MLPS-C4", Category: "MLPS2", Name: "安全计算环境 — 入侵防范",
+			Actions:     []string{"SCAN", "ALERT", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "部署主机入侵检测；限制默认共享；及时处置漏洞与后门。"},
+		{ID: "MLPS-C5", Category: "MLPS2", Name: "安全计算环境 — 恶意代码防范",
+			Actions:     []string{"SCAN", "ALERT", "UPDATE"},
+			ExpectedMin: 2,
+			Remediation: "启用恶意代码/病毒防护；病毒库定期更新；对重要服务器开启实时监控。"},
+		{ID: "MLPS-C6", Category: "MLPS2", Name: "安全计算环境 — 数据完整性",
+			Actions:     []string{"UPDATE", "DELETE", "REVIEW", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "对重要数据的传输与存储使用完整性校验；异常时告警并告警后能恢复。"},
+		{ID: "MLPS-C7", Category: "MLPS2", Name: "安全计算环境 — 数据备份恢复",
+			Actions:     []string{"BACKUP", "RESTORE", "EXPORT", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "关键数据本地 + 异地备份；定期恢复演练并记录验证结果。"},
+		{ID: "MLPS-B1", Category: "MLPS2", Name: "安全区域边界 — 边界防护",
+			Actions:     []string{"CREATE", "GRANT", "REVOKE", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "在网络边界部署防火墙/ASG；仅开放必要端口与协议；配置变更留痕。"},
+		{ID: "MLPS-B2", Category: "MLPS2", Name: "安全区域边界 — 访问控制",
+			Actions:     []string{"GRANT", "REVOKE", "REVIEW", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "在网络间访问路径上实施访问控制；采用白名单机制；定期审查访问规则。"},
+		{ID: "MLPS-B3", Category: "MLPS2", Name: "安全区域边界 — 入侵防范",
+			Actions:     []string{"ALERT", "SCAN", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "在边界处部署 IPS/IDS；对攻击特征进行告警并留痕。"},
+		{ID: "MLPS-B4", Category: "MLPS2", Name: "安全区域边界 — 安全审计",
+			Actions:     []string{"AUDIT", "CREATE", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "对边界设备进行安全审计；审计记录覆盖进出数据流的来源与去向。"},
+		{ID: "MLPS-N1", Category: "MLPS2", Name: "安全通信网络 — 网络架构",
+			Actions:     []string{"CREATE", "UPDATE", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "关键网络区域应实现冗余（双链路/双机）；网络架构文档化并定期评审。"},
+		{ID: "MLPS-N2", Category: "MLPS2", Name: "安全通信网络 — 通信传输保护",
+			Actions:     []string{"CREATE", "UPDATE", "SCAN"},
+			ExpectedMin: 2,
+			Remediation: "重要通信链路使用加密传输（TLS/IPsec）；密钥定期轮换。"},
+		{ID: "MLPS-N3", Category: "MLPS2", Name: "安全通信网络 — 网络访问控制",
+			Actions:     []string{"GRANT", "REVOKE", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "依据最小授权原则配置网络访问控制；对异常流量告警。"},
+		{ID: "MLPS-N4", Category: "MLPS2", Name: "安全通信网络 — 网络运行监控",
+			Actions:     []string{"AUDIT", "ALERT", "CREATE"},
+			ExpectedMin: 2,
+			Remediation: "部署网络运行监控；对性能、流量与错误率进行实时监测并留痕。"},
+		{ID: "MLPS-M1", Category: "MLPS2", Name: "安全管理中心 — 集中管控",
+			Actions:     []string{"CREATE", "UPDATE", "AUDIT", "APPROVE"},
+			ExpectedMin: 2,
+			Remediation: "建立集中化管理平台，统一管理与安全设备策略、账号、告警。"},
+		{ID: "MLPS-M2", Category: "MLPS2", Name: "安全管理中心 — 审计集中管理",
+			Actions:     []string{"AUDIT", "CREATE", "REVIEW", "EXPORT"},
+			ExpectedMin: 3,
+			Remediation: "审计日志集中存储 ≥ 6 个月；不可修改；具备审计分析能力。"},
+		{ID: "MLPS-P1", Category: "MLPS2", Name: "安全管理制度 — 安全策略",
+			Actions:     []string{"CREATE", "APPROVE", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "制定并公示组织层面的安全策略；每年至少评审一次。"},
+		{ID: "MLPS-P2", Category: "MLPS2", Name: "安全管理制度 — 人员安全管理",
+			Actions:     []string{"CREATE", "APPROVE", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "入职/离岗背景审查；签订保密协议；年度安全意识培训。"},
+		{ID: "MLPS-P3", Category: "MLPS2", Name: "安全管理制度 — 建设管理",
+			Actions:     []string{"CREATE", "APPROVE", "REVIEW", "DEPLOY"},
+			ExpectedMin: 2,
+			Remediation: "系统建设过程开展等级保护评估、验收测评；变更走正式流程。"},
+		{ID: "MLPS-P4", Category: "MLPS2", Name: "安全管理制度 — 合规评估与定级备案",
+			Actions:     []string{"REVIEW", "AUDIT", "CREATE", "APPROVE"},
+			ExpectedMin: 2,
+			Remediation: "完成定级备案；每年至少一次等保测评；出具测评报告并整改。"},
+		// ---- PDPA — Thailand / Singapore Personal Data Protection Act ----
+		// 12 controls mapped from the 8 PDPA principles plus operational overlays.
+		{ID: "PDPA-1", Category: "PDPA", Name: "Consent — Lawful Basis Recorded",
+			Actions:     []string{"CREATE", "APPROVE", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "Capture consent (or other lawful basis) at every collection point; store consent record with timestamp."},
+		{ID: "PDPA-2", Category: "PDPA", Name: "Purpose — Limited & Communicated",
+			Actions:     []string{"CREATE", "APPROVE", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "Define permitted purposes before collection; communicate them to the data subject in privacy notice."},
+		{ID: "PDPA-3", Category: "PDPA", Name: "Necessity — Data Not Excessive",
+			Actions:     []string{"CREATE", "DELETE", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "Run data-minimization reviews; drop fields that cannot be justified against the declared purpose."},
+		{ID: "PDPA-4", Category: "PDPA", Name: "Quality — Accuracy & Currency",
+			Actions:     []string{"UPDATE", "REVIEW", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "Provide a correction workflow for data subjects; document accuracy audits."},
+		{ID: "PDPA-5", Category: "PDPA", Name: "Disclosure — Public Privacy Notice",
+			Actions:     []string{"CREATE", "APPROVE", "EXPORT"},
+			ExpectedMin: 2,
+			Remediation: "Publish a public privacy notice covering controller identity, purposes, rights and contact channel."},
+		{ID: "PDPA-6", Category: "PDPA", Name: "Protection — Organizational & Technical",
+			Actions:     []string{"CREATE", "UPDATE", "GRANT", "SCAN"},
+			ExpectedMin: 3,
+			Remediation: "Implement organizational safeguards (policy, training, roles) plus technical controls (access, encryption, logging)."},
+		{ID: "PDPA-7", Category: "PDPA", Name: "Retention — Limited & Deleted",
+			Actions:     []string{"DELETE", "REVIEW", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "Define retention schedules per data category; purge on expiry and log bulk deletions."},
+		{ID: "PDPA-8", Category: "PDPA", Name: "Rights — Access / Copy / Correction / Erasure",
+			Actions:     []string{"CREATE", "UPDATE", "DELETE", "EXPORT", "APPROVE"},
+			ExpectedMin: 3,
+			Remediation: "Operate a DSAR (data-subject access request) workflow that fulfils requests within the statutory timeframe."},
+		{ID: "PDPA-9", Category: "PDPA", Name: "Cross-Border Transfer — Adequate Protection",
+			Actions:     []string{"CREATE", "APPROVE", "REVIEW"},
+			ExpectedMin: 2,
+			Remediation: "Before transferring personal data abroad, verify adequate protection (adequacy decision, SCC, BCR or consent)."},
+		{ID: "PDPA-10", Category: "PDPA", Name: "Controller Obligation — Register & Contact",
+			Actions:     []string{"CREATE", "UPDATE", "APPROVE"},
+			ExpectedMin: 2,
+			Remediation: "Maintain a controller register with DPO contact details; file with the regulator where required."},
+		{ID: "PDPA-11", Category: "PDPA", Name: "DPIA — Impact Assessment for High-Risk Processing",
+			Actions:     []string{"CREATE", "REVIEW", "APPROVE"},
+			ExpectedMin: 2,
+			Remediation: "Perform a data-protection impact assessment for high-risk processing before launch; archive the DPIA report."},
+		{ID: "PDPA-12", Category: "PDPA", Name: "Incident Notification — Regulator & Subjects",
+			Actions:     []string{"ALERT", "CREATE", "APPROVE", "AUDIT"},
+			ExpectedMin: 2,
+			Remediation: "Notify the regulator within 72 hours of a personal-data breach; notify affected data subjects when risk is material."},
 	}
 }
 
@@ -341,37 +627,68 @@ func frameworkName(fw string) string {
 		return "SOC2 Type II — Trust Services Criteria"
 	case "ISO27001":
 		return "ISO/IEC 27001:2022 — Annex A"
+	case "PCI-DSS", "PCIDSS", "PCI_DSS":
+		return "PCI DSS v4.0 — Payment Card Industry Data Security Standard"
+	case "MLPS2", "MLPS", "等保":
+		return "等保 2.0 — 网络安全等级保护基本要求（三级）"
+	case "PDPA":
+		return "PDPA — Personal Data Protection Act"
 	case "COMBINED":
-		return "Combined — SOC2 + ISO27001"
+		return "Combined — SOC2 + ISO27001 + PCI-DSS + MLPS2 + PDPA"
 	default:
 		return "Compliance"
 	}
 }
 
 // selectControls returns the controls that belong to the given framework.
-// For SOC2 and ISO27001 the catalog is category-partitioned; COMBINED returns
-// every control.
+// For SOC2, ISO27001, PCI-DSS, MLPS2 and PDPA the catalog is category-
+// partitioned; COMBINED returns every control. Unknown frameworks return the
+// full catalog so callers can still render something useful.
 func selectControls(fw string, all []complianceControl) []complianceControl {
-	switch strings.ToUpper(fw) {
-	case "SOC2":
-		var out []complianceControl
-		for _, c := range all {
-			if c.Category == "SOC2" {
-				out = append(out, c)
-			}
-		}
-		return out
-	case "ISO27001":
-		var out []complianceControl
-		for _, c := range all {
-			if c.Category == "ISO27001" {
-				out = append(out, c)
-			}
-		}
-		return out
-	default: // COMBINED or any other value
+	category, ok := frameworkCategory(strings.ToUpper(fw))
+	if !ok {
+		// COMBINED or unknown — return everything.
 		return all
 	}
+	var out []complianceControl
+	for _, c := range all {
+		if c.Category == category {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// frameworkCategory maps a framework code (case-insensitive) to its catalog
+// Category value. Returns false when the input is COMBINED or an unknown code.
+func frameworkCategory(fw string) (string, bool) {
+	switch strings.ToUpper(fw) {
+	case "SOC2":
+		return "SOC2", true
+	case "ISO27001":
+		return "ISO27001", true
+	case "PCI-DSS", "PCIDSS", "PCI_DSS":
+		return "PCI-DSS", true
+	case "MLPS2", "MLPS", "等保":
+		return "MLPS2", true
+	case "PDPA":
+		return "PDPA", true
+	default:
+		return "", false
+	}
+}
+
+// ValidFramework returns true when the given framework code (case-insensitive)
+// maps to a recognized category in the compliance control catalog.
+func ValidFramework(fw string) bool {
+	_, ok := frameworkCategory(strings.ToUpper(fw))
+	return ok
+}
+
+// ListFrameworks returns the canonical framework codes, in display order.
+// Used by the /compliance/list endpoint and by documentation tests.
+func ListFrameworks() []string {
+	return []string{"SOC2", "ISO27001", "PCI-DSS", "MLPS2", "PDPA"}
 }
 
 // -----------------------------------------------------------------------
@@ -579,7 +896,9 @@ func (s *Service) CoverageStats(ctx context.Context, tenantID string) (*models.A
 	byFramework := make(map[string]float64)
 	var allControls, allPassed int
 
-	for _, fw := range []string{"SOC2", "ISO27001"} {
+	// Phase 304: CoverageStats now spans all 5 supported frameworks.
+	// Previously this loop only covered SOC2 + ISO27001.
+	for _, fw := range ListFrameworks() {
 		report, err := s.ComplianceReport(ctx, tenantID, fw)
 		if err != nil {
 			return nil, fmt.Errorf("coverage stats for %s: %w", fw, err)

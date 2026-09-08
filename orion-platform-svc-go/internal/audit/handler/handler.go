@@ -68,11 +68,20 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.GET("/compliance/soc2", auth.RequirePermission("audit", "read"), h.ComplianceSOC2)
 	// GET /audit/compliance/iso27001 - ISO27001 compliance report
 	f.GET("/compliance/iso27001", auth.RequirePermission("audit", "read"), h.ComplianceISO27001)
-	// GET /audit/compliance/combined - Combined SOC2 + ISO27001 report
+	// Phase 304: additional frameworks
+	// GET /audit/compliance/pcidss - PCI-DSS v4.0 compliance report
+	f.GET("/compliance/pcidss", auth.RequirePermission("audit", "read"), h.CompliancePCIDSS)
+	// GET /audit/compliance/mlps2 - 等保 2.0 三级 compliance report
+	f.GET("/compliance/mlps2", auth.RequirePermission("audit", "read"), h.ComplianceMLPS2)
+	// GET /audit/compliance/pdpa - PDPA compliance report
+	f.GET("/compliance/pdpa", auth.RequirePermission("audit", "read"), h.CompliancePDPA)
+	// GET /audit/compliance/list - List supported framework codes
+	f.GET("/compliance/list", auth.RequirePermission("audit", "read"), h.ComplianceList)
+	// GET /audit/compliance/combined - Combined across all supported frameworks
 	f.GET("/compliance/combined", auth.RequirePermission("audit", "read"), h.ComplianceCombined)
-	// GET /audit/compliance/coverage - Audit coverage statistics
+	// GET /audit/compliance/coverage - Audit coverage statistics across all frameworks
 	f.GET("/compliance/coverage", auth.RequirePermission("audit", "read"), h.ComplianceCoverage)
-	// POST /audit/compliance/check - Run all compliance checks
+	// POST /audit/compliance/check - Run compliance check for an arbitrary framework
 	rg.POST("/audit/compliance/check", auth.RequirePermission("audit", "read"), h.ComplianceCheck)
 
 	// --- Compatibility endpoints ---
@@ -251,6 +260,66 @@ func (h *Handler) ComplianceISO27001(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, report)
+}
+
+// CompliancePCIDSS returns the PCI-DSS v4.0 compliance report (Phase 304).
+func (h *Handler) CompliancePCIDSS(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CompliancePCIDSS")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	if tid := c.Query("tenantId"); tid != "" {
+		tenantID = tid
+	}
+	report, err := h.svc.ComplianceReport(ctx, tenantID, "PCI-DSS")
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, report)
+}
+
+// ComplianceMLPS2 returns the 等保 2.0 三级 compliance report (Phase 304).
+func (h *Handler) ComplianceMLPS2(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ComplianceMLPS2")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	if tid := c.Query("tenantId"); tid != "" {
+		tenantID = tid
+	}
+	report, err := h.svc.ComplianceReport(ctx, tenantID, "MLPS2")
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, report)
+}
+
+// CompliancePDPA returns the PDPA compliance report (Phase 304).
+func (h *Handler) CompliancePDPA(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CompliancePDPA")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	if tid := c.Query("tenantId"); tid != "" {
+		tenantID = tid
+	}
+	report, err := h.svc.ComplianceReport(ctx, tenantID, "PDPA")
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, report)
+}
+
+// ComplianceList returns the list of supported framework codes (Phase 304).
+// Useful for the frontend to populate a framework picker without hardcoding.
+func (h *Handler) ComplianceList(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ComplianceList")
+	defer span.End()
+	frameworks := service.ListFrameworks()
+	middleware.RespondSuccess(c, gin.H{
+		"frameworks": frameworks,
+		"count":      len(frameworks),
+	})
 }
 
 func (h *Handler) ComplianceCombined(c *gin.Context) {

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"orion/platform-svc-go/internal/audit/models"
@@ -320,6 +321,82 @@ func TestHandler_ComplianceSOC2_Error(t *testing.T) {
 	w := performRequest(h, h.ComplianceSOC2, "GET", nil, nil, nil)
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", w.Code)
+	}
+}
+
+// ==================== Phase 304: CompliancePCIDSS / MLPS2 / PDPA / List ====================
+
+func TestHandler_CompliancePCIDSS_Success(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{
+		complianceReportFn: func(ctx context.Context, tenantID string, framework string) (*models.ComplianceReport, error) {
+			if framework != "PCI-DSS" {
+				t.Errorf("handler called service with framework=%q, want PCI-DSS", framework)
+			}
+			return &models.ComplianceReport{ReportType: "PCI-DSS", TotalControls: 36}, nil
+		},
+	})
+	w := performRequest(h, h.CompliancePCIDSS, "GET", nil, nil, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestHandler_CompliancePCIDSS_Error(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{
+		complianceReportFn: func(ctx context.Context, tenantID string, framework string) (*models.ComplianceReport, error) {
+			return nil, errors.New("boom")
+		},
+	})
+	w := performRequest(h, h.CompliancePCIDSS, "GET", nil, nil, nil)
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", w.Code)
+	}
+}
+
+func TestHandler_ComplianceMLPS2_Success(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{
+		complianceReportFn: func(ctx context.Context, tenantID string, framework string) (*models.ComplianceReport, error) {
+			if framework != "MLPS2" {
+				t.Errorf("handler called service with framework=%q, want MLPS2", framework)
+			}
+			return &models.ComplianceReport{ReportType: "MLPS2", TotalControls: 21}, nil
+		},
+	})
+	w := performRequest(h, h.ComplianceMLPS2, "GET", nil, nil, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestHandler_CompliancePDPA_Success(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{
+		complianceReportFn: func(ctx context.Context, tenantID string, framework string) (*models.ComplianceReport, error) {
+			if framework != "PDPA" {
+				t.Errorf("handler called service with framework=%q, want PDPA", framework)
+			}
+			return &models.ComplianceReport{ReportType: "PDPA", TotalControls: 12}, nil
+		},
+	})
+	w := performRequest(h, h.CompliancePDPA, "GET", nil, nil, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestHandler_ComplianceList_Success(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{})
+	w := performRequest(h, h.ComplianceList, "GET", nil, nil, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	body := w.Body.String()
+	for _, fw := range []string{"SOC2", "ISO27001", "PCI-DSS", "MLPS2", "PDPA"} {
+		if !strings.Contains(body, fw) {
+			t.Errorf("ComplianceList response missing %s (body: %s)", fw, body)
+		}
+	}
+	if !strings.Contains(body, `"count":5`) {
+		t.Errorf("ComplianceList response missing count=5 (body: %s)", body)
 	}
 }
 

@@ -236,9 +236,10 @@ func TestComplianceReport_Combined(t *testing.T) {
 	if report.ReportType != "COMBINED" {
 		t.Errorf("expected COMBINED, got %s", report.ReportType)
 	}
-	// Combined = all controls (6 SOC2 + 13 ISO27001 = 19).
-	if report.TotalControls != 19 {
-		t.Errorf("expected 19 combined controls, got %d", report.TotalControls)
+	// Phase 304: Combined = all controls across all 5 frameworks.
+	// 6 SOC2 + 13 ISO27001 + 36 PCI-DSS + 21 MLPS2 + 12 PDPA = 88.
+	if report.TotalControls != 88 {
+		t.Errorf("expected 88 combined controls (6+13+36+21+12), got %d", report.TotalControls)
 	}
 }
 
@@ -379,6 +380,284 @@ func TestCoverageStats_RepoError(t *testing.T) {
 	}
 }
 
+// ============================================================================
+// Phase 304: PCI-DSS v4.0, MLPS 2.0, PDPA
+// ============================================================================
+
+func TestControlCatalog_HasAllFiveFrameworks(t *testing.T) {
+	catalog := controlCatalog()
+	counts := map[string]int{}
+	for _, c := range catalog {
+		counts[c.Category]++
+	}
+	expectations := map[string]int{
+		"SOC2":     6,
+		"ISO27001": 13,
+		"PCI-DSS":  36,
+		"MLPS2":    21,
+		"PDPA":     12,
+	}
+	for cat, want := range expectations {
+		if got := counts[cat]; got != want {
+			t.Errorf("category %s: expected %d controls, got %d", cat, want, got)
+		}
+	}
+}
+
+func TestSelectControls_PCI_DSS(t *testing.T) {
+	catalog := controlCatalog()
+	pci := selectControls("PCI-DSS", catalog)
+	if len(pci) == 0 {
+		t.Fatal("PCI-DSS returned no controls")
+	}
+	for _, c := range pci {
+		if c.Category != "PCI-DSS" {
+			t.Errorf("PCI-DSS selection returned non-PCI-DSS control %s (category %s)", c.ID, c.Category)
+		}
+	}
+	if len(pci) != 36 {
+		t.Errorf("expected 36 PCI-DSS controls, got %d", len(pci))
+	}
+}
+
+func TestSelectControls_MLPS2(t *testing.T) {
+	catalog := controlCatalog()
+	mlps := selectControls("MLPS2", catalog)
+	if len(mlps) == 0 {
+		t.Fatal("MLPS2 returned no controls")
+	}
+	for _, c := range mlps {
+		if c.Category != "MLPS2" {
+			t.Errorf("MLPS2 selection returned non-MLPS2 control %s (category %s)", c.ID, c.Category)
+		}
+	}
+	if len(mlps) != 21 {
+		t.Errorf("expected 21 MLPS2 controls, got %d", len(mlps))
+	}
+}
+
+func TestSelectControls_PDPA(t *testing.T) {
+	catalog := controlCatalog()
+	pdpa := selectControls("PDPA", catalog)
+	if len(pdpa) == 0 {
+		t.Fatal("PDPA returned no controls")
+	}
+	for _, c := range pdpa {
+		if c.Category != "PDPA" {
+			t.Errorf("PDPA selection returned non-PDPA control %s (category %s)", c.ID, c.Category)
+		}
+	}
+	if len(pdpa) != 12 {
+		t.Errorf("expected 12 PDPA controls, got %d", len(pdpa))
+	}
+}
+
+func TestSelectControls_CaseInsensitive_NewFrameworks(t *testing.T) {
+	catalog := controlCatalog()
+	if len(selectControls("pcidss", catalog)) == 0 {
+		t.Error("case-insensitive 'pcidss' returned no controls")
+	}
+	if len(selectControls("pci-dss", catalog)) == 0 {
+		t.Error("case-insensitive 'pci-dss' returned no controls")
+	}
+	if len(selectControls("pcI_dSS", catalog)) == 0 {
+		t.Error("case-insensitive 'pcI_dSS' returned no controls")
+	}
+	if len(selectControls("mlps", catalog)) == 0 {
+		t.Error("case-insensitive 'mlps' returned no controls")
+	}
+	if len(selectControls("pdpa", catalog)) == 0 {
+		t.Error("case-insensitive 'pdpa' returned no controls")
+	}
+	// Chinese alias for 等保
+	if len(selectControls("等保", catalog)) == 0 {
+		t.Error("Chinese alias '等保' returned no controls")
+	}
+}
+
+func TestFrameworkName_NewFrameworks(t *testing.T) {
+	tests := []struct {
+		input    string
+		contains string
+	}{
+		{"PCI-DSS", "PCI"},
+		{"pcidss", "PCI"},
+		{"PCI_DSS", "PCI"},
+		{"MLPS2", "等保"},
+		{"mlps", "等保"},
+		{"等保", "等保"},
+		{"PDPA", "PDPA"},
+		{"pdpa", "PDPA"},
+	}
+	for _, tt := range tests {
+		result := frameworkName(tt.input)
+		if !strings.Contains(result, tt.contains) {
+			t.Errorf("frameworkName(%q) = %q, expected to contain %q", tt.input, result, tt.contains)
+		}
+	}
+}
+
+func TestValidFramework(t *testing.T) {
+	yes := []string{"SOC2", "ISO27001", "PCI-DSS", "MLPS2", "PDPA",
+		"pcidss", "pci_dss", "mlps", "pdpa", "等保"}
+	for _, fw := range yes {
+		if !ValidFramework(fw) {
+			t.Errorf("ValidFramework(%q) = false, want true", fw)
+		}
+	}
+	no := []string{"", "COMBINED", "GDPR", "HIPAA", "unknown"}
+	for _, fw := range no {
+		if ValidFramework(fw) {
+			t.Errorf("ValidFramework(%q) = true, want false", fw)
+		}
+	}
+}
+
+func TestListFrameworks(t *testing.T) {
+	got := ListFrameworks()
+	if len(got) != 5 {
+		t.Fatalf("expected 5 frameworks, got %d", len(got))
+	}
+	want := map[string]bool{
+		"SOC2": true, "ISO27001": true, "PCI-DSS": true, "MLPS2": true, "PDPA": true,
+	}
+	seen := map[string]bool{}
+	for _, fw := range got {
+		if !want[fw] {
+			t.Errorf("unexpected framework in list: %s", fw)
+		}
+		seen[fw] = true
+	}
+	for fw := range want {
+		if !seen[fw] {
+			t.Errorf("missing framework in list: %s", fw)
+		}
+	}
+}
+
+func TestComplianceReport_PCIDSS_EmptyLogs(t *testing.T) {
+	svc := buildService(t, nil)
+	report, err := svc.ComplianceReport(context.Background(), "t1", "PCI-DSS")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if report.ReportType != "PCI-DSS" {
+		t.Errorf("expected ReportType=PCI-DSS, got %s", report.ReportType)
+	}
+	if report.TotalControls != 36 {
+		t.Errorf("expected 36 PCI-DSS controls, got %d", report.TotalControls)
+	}
+	if report.Rating != "non-compliant" {
+		t.Errorf("expected non-compliant for empty logs, got %s", report.Rating)
+	}
+	// Every control should have failed status.
+	for _, c := range report.Controls {
+		if c.Status != "failed" {
+			t.Errorf("control %s: expected status=failed, got %s", c.ID, c.Status)
+		}
+	}
+}
+
+func TestComplianceReport_PCIDSS_CategoryCoverage(t *testing.T) {
+	// Empty logs but confirm all 6 objectives A–F are represented.
+	svc := buildService(t, nil)
+	report, _ := svc.ComplianceReport(context.Background(), "t1", "PCI-DSS")
+	prefixes := map[string]int{}
+	for _, c := range report.Controls {
+		// Control IDs look like "PCI-A1", "PCI-B3" etc.
+		if len(c.ID) < 6 {
+			continue
+		}
+		p := c.ID[len(c.ID)-2 : len(c.ID)-1] // e.g. "A" from "PCI-A1" (skip dash + obj letter)
+		prefixes[p]++
+	}
+	for _, obj := range []string{"A", "B", "C", "D", "E", "F"} {
+		if prefixes[obj] != 6 {
+			t.Errorf("PCI-DSS objective %s: expected 6 controls, got %d", obj, prefixes[obj])
+		}
+	}
+}
+
+func TestComplianceReport_MLPS2_EmptyLogs(t *testing.T) {
+	svc := buildService(t, nil)
+	report, err := svc.ComplianceReport(context.Background(), "t1", "MLPS2")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if report.ReportType != "MLPS2" {
+		t.Errorf("expected ReportType=MLPS2, got %s", report.ReportType)
+	}
+	if report.TotalControls != 21 {
+		t.Errorf("expected 21 MLPS2 controls, got %d", report.TotalControls)
+	}
+	// MLPS2 controls use Chinese names — sanity check for a key one.
+	found := false
+	for _, c := range report.Controls {
+		if strings.Contains(c.Name, "安全审计") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected a 安全审计 control in MLPS2 report")
+	}
+}
+
+func TestComplianceReport_PDPA_EmptyLogs(t *testing.T) {
+	svc := buildService(t, nil)
+	report, err := svc.ComplianceReport(context.Background(), "t1", "PDPA")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if report.ReportType != "PDPA" {
+		t.Errorf("expected ReportType=PDPA, got %s", report.ReportType)
+	}
+	if report.TotalControls != 12 {
+		t.Errorf("expected 12 PDPA controls, got %d", report.TotalControls)
+	}
+	// Sanity: the Consent control should be present.
+	found := false
+	for _, c := range report.Controls {
+		if c.ID == "PDPA-1" && strings.Contains(c.Name, "Consent") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected PDPA-1 Consent control to be present")
+	}
+}
+
+func TestComplianceReport_PDPAWithActions(t *testing.T) {
+	// Supply actions that satisfy most PDPA controls (CREATE/UPDATE/DELETE/
+	// APPROVE/REVIEW/EXPORT cover principles 1–8).
+	logs := []*models.AuditLog{
+		{TenantID: "t1", Action: "CREATE"},
+		{TenantID: "t1", Action: "UPDATE"},
+		{TenantID: "t1", Action: "DELETE"},
+		{TenantID: "t1", Action: "APPROVE"},
+		{TenantID: "t1", Action: "REVIEW"},
+		{TenantID: "t1", Action: "EXPORT"},
+	}
+	svc := buildService(t, logs)
+	report, err := svc.ComplianceReport(context.Background(), "t1", "PDPA")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if report.Score <= 0 {
+		t.Errorf("expected non-zero score with matching actions, got %f", report.Score)
+	}
+	passed := 0
+	for _, c := range report.Controls {
+		if c.Status == "passed" {
+			passed++
+		}
+	}
+	if passed == 0 {
+		t.Errorf("expected at least one passed PDPA control, got 0")
+	}
+}
+
 func TestCoverageStats_EmptyLogs(t *testing.T) {
 	svc := buildService(t, nil)
 
@@ -387,11 +666,20 @@ func TestCoverageStats_EmptyLogs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if len(stats.ByFramework) != 2 {
-		t.Errorf("expected 2 frameworks, got %d", len(stats.ByFramework))
+	// Phase 304: 5 frameworks supported.
+	if len(stats.ByFramework) != 5 {
+		t.Errorf("expected 5 frameworks (SOC2, ISO27001, PCI-DSS, MLPS2, PDPA), got %d",
+			len(stats.ByFramework))
 	}
-	if stats.ByFramework["SOC2"] != 0 {
-		t.Errorf("SOC2 score should be 0 with empty logs, got %f", stats.ByFramework["SOC2"])
+	for _, fw := range []string{"SOC2", "ISO27001", "PCI-DSS", "MLPS2", "PDPA"} {
+		score, ok := stats.ByFramework[fw]
+		if !ok {
+			t.Errorf("ByFramework missing %s", fw)
+			continue
+		}
+		if score != 0 {
+			t.Errorf("%s score should be 0 with empty logs, got %f", fw, score)
+		}
 	}
 	if stats.OverallCoveragePct != 0 {
 		t.Errorf("overall should be 0 with empty logs, got %f", stats.OverallCoveragePct)
