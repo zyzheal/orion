@@ -164,3 +164,69 @@ type AuditCoverageStats struct {
 	ByFramework        map[string]float64 `json:"byFramework"`        // e.g. {"SOC2": 75.0, "ISO27001": 80.0}
 	AssessedAt         string             `json:"assessedAt"`
 }
+
+// ---------------------------------------------------------------------------
+// Phase 305 — Compliance Dashboard models
+// ---------------------------------------------------------------------------
+
+// ComplianceDashboardOverview is a single-call summary of every supported
+// framework score, plus aggregate roll-ups used to render the top-of-page
+// compliance dashboard.
+type ComplianceDashboardOverview struct {
+	FrameworkScores []FrameworkScore `json:"frameworkScores"`
+	OverallScore    float64          `json:"overallScore"` // unweighted mean of per-framework scores
+	OverallRating   string           `json:"overallRating"`
+	TotalControls   int              `json:"totalControls"`
+	TotalPassed     int              `json:"totalPassed"`
+	TotalFailed     int              `json:"totalFailed"`
+	AssessedAt      string           `json:"assessedAt"`
+}
+
+// FrameworkScore is the per-framework roll-up surfaced on the dashboard.
+type FrameworkScore struct {
+	Framework      string  `json:"framework"`
+	Score          float64 `json:"score"`         // 0-100
+	Rating         string  `json:"rating"`        // compliant / partial / non-compliant
+	TotalControls  int     `json:"totalControls"`
+	PassedControls int     `json:"passedControls"`
+	FailedControls int     `json:"failedControls"`
+}
+
+// ComplianceRiskMatrix is a 5-row (frameworks) × 4-column (severity) heatmap
+// of finding counts. Findings are derived from a single COMBINED report so
+// each control's findings are attributed to its own framework category.
+type ComplianceRiskMatrix struct {
+	FrameworkRows []FrameworkRiskRow `json:"frameworkRows"`
+	SeverityBuckets []string         `json:"severityBuckets"` // ordered low → critical
+	TotalFindings   int              `json:"totalFindings"`
+	AssessedAt      string           `json:"assessedAt"`
+}
+
+// FrameworkRiskRow holds the severity-bucket finding counts for one framework.
+type FrameworkRiskRow struct {
+	Framework     string  `json:"framework"`
+	Low           int     `json:"low"`
+	Medium        int     `json:"medium"`
+	High          int     `json:"high"`
+	Critical      int     `json:"critical"`
+	TotalFindings int     `json:"totalFindings"`
+	Score         float64 `json:"score"`
+}
+
+// ComplianceScoreTrend contains the daily score history for each framework
+// plus the unweighted mean series. `Days` mirrors the request parameter.
+type ComplianceScoreTrend struct {
+	Days         int                     `json:"days"`
+	Overall      []TrendPoint            `json:"overall"`
+	PerFramework map[string][]TrendPoint `json:"perFramework"`
+	AssessedAt   string                  `json:"assessedAt"`
+}
+
+// TrendPoint is a single day's score for a framework (or the overall mean).
+type TrendPoint struct {
+	Date           string  `json:"date"` // YYYY-MM-DD (UTC)
+	Score          float64 `json:"score"`
+	Rating         string  `json:"rating"`
+	TotalControls  int     `json:"totalControls"`
+	PassedControls int     `json:"passedControls"`
+}

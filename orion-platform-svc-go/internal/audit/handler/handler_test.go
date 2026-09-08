@@ -26,11 +26,14 @@ type mockSvc struct {
 	verifyChainFn      func(ctx context.Context, tenantID string) (*models.ChainVerifyResult, error)
 	getActionsFn       func(ctx context.Context, tenantID string) ([]string, error)
 	getResourceTypesFn func(ctx context.Context, tenantID string) ([]string, error)
-	complianceReportFn func(ctx context.Context, tenantID string, framework string) (*models.ComplianceReport, error)
-	coverageStatsFn    func(ctx context.Context, tenantID string) (*models.AuditCoverageStats, error)
-	chainInfoFn        func(ctx context.Context, tenantID string) (*models.ChainInfo, error)
-	storageStatsFn     func(ctx context.Context, tenantID string) (*models.StorageStats, error)
-	exportFn           func(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogExportResult, error)
+	complianceReportFn     func(ctx context.Context, tenantID string, framework string) (*models.ComplianceReport, error)
+	coverageStatsFn        func(ctx context.Context, tenantID string) (*models.AuditCoverageStats, error)
+	dashboardOverviewFn    func(ctx context.Context, tenantID string) (*models.ComplianceDashboardOverview, error)
+	riskMatrixFn           func(ctx context.Context, tenantID string) (*models.ComplianceRiskMatrix, error)
+	scoreTrendFn           func(ctx context.Context, tenantID string, days int) (*models.ComplianceScoreTrend, error)
+	chainInfoFn            func(ctx context.Context, tenantID string) (*models.ChainInfo, error)
+	storageStatsFn         func(ctx context.Context, tenantID string) (*models.StorageStats, error)
+	exportFn               func(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogExportResult, error)
 }
 
 func (m *mockSvc) List(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogListResult, error) {
@@ -102,6 +105,24 @@ func (m *mockSvc) StorageStats(ctx context.Context, tenantID string) (*models.St
 func (m *mockSvc) Export(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogExportResult, error) {
 	if m.exportFn != nil {
 		return m.exportFn(ctx, tenantID, q)
+	}
+	return nil, nil
+}
+func (m *mockSvc) DashboardOverview(ctx context.Context, tenantID string) (*models.ComplianceDashboardOverview, error) {
+	if m.dashboardOverviewFn != nil {
+		return m.dashboardOverviewFn(ctx, tenantID)
+	}
+	return nil, nil
+}
+func (m *mockSvc) RiskMatrix(ctx context.Context, tenantID string) (*models.ComplianceRiskMatrix, error) {
+	if m.riskMatrixFn != nil {
+		return m.riskMatrixFn(ctx, tenantID)
+	}
+	return nil, nil
+}
+func (m *mockSvc) ScoreTrend(ctx context.Context, tenantID string, days int) (*models.ComplianceScoreTrend, error) {
+	if m.scoreTrendFn != nil {
+		return m.scoreTrendFn(ctx, tenantID, days)
 	}
 	return nil, nil
 }
@@ -455,6 +476,145 @@ func TestHandler_ExportJSON_ServiceError(t *testing.T) {
 		},
 	})
 	w := performRequest(h, h.ExportJSON, "POST", nil, nil, nil)
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", w.Code)
+	}
+}
+
+// ==================== Phase 305: Compliance Dashboard / RiskMap / Trend ====================
+
+func TestHandler_ComplianceDashboard_Success(t *testing.T) {
+	ov := &models.ComplianceDashboardOverview{
+		FrameworkScores: []models.FrameworkScore{
+			{Framework: "SOC2", Score: 90, Rating: "compliant", TotalControls: 6, PassedControls: 5},
+		},
+		OverallScore:  90,
+		OverallRating: "compliant",
+		AssessedAt:    "2026-08-26T00:00:00Z",
+	}
+	h := newHandlerWithSvc(&mockSvc{
+		dashboardOverviewFn: func(ctx context.Context, tenantID string) (*models.ComplianceDashboardOverview, error) {
+			if tenantID != "tenant-1" {
+				t.Errorf("tenantID = %q, want tenant-1", tenantID)
+			}
+			return ov, nil
+		},
+	})
+	w := performRequest(h, h.ComplianceDashboard, "GET", nil, nil, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d (body: %s)", w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, `"overallRating":"compliant"`) {
+		t.Errorf("response missing overallRating=compliant (body: %s)", body)
+	}
+	if !strings.Contains(body, `"SOC2"`) {
+		t.Errorf("response missing SOC2 (body: %s)", body)
+	}
+}
+
+func TestHandler_ComplianceDashboard_Error(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{
+		dashboardOverviewFn: func(ctx context.Context, tenantID string) (*models.ComplianceDashboardOverview, error) {
+			return nil, errors.New("boom")
+		},
+	})
+	w := performRequest(h, h.ComplianceDashboard, "GET", nil, nil, nil)
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", w.Code)
+	}
+}
+
+func TestHandler_ComplianceRiskMap_Success(t *testing.T) {
+	mx := &models.ComplianceRiskMatrix{
+		FrameworkRows:   []models.FrameworkRiskRow{{Framework: "SOC2", High: 3, TotalFindings: 3}},
+		SeverityBuckets: []string{"low", "medium", "high", "critical"},
+		TotalFindings:   3,
+	}
+	h := newHandlerWithSvc(&mockSvc{
+		riskMatrixFn: func(ctx context.Context, tenantID string) (*models.ComplianceRiskMatrix, error) { return mx, nil },
+	})
+	w := performRequest(h, h.ComplianceRiskMap, "GET", nil, nil, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d (body: %s)", w.Code, w.Body.String())
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, `"totalFindings":3`) {
+		t.Errorf("response missing totalFindings=3 (body: %s)", body)
+	}
+}
+
+func TestHandler_ComplianceRiskMap_Error(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{
+		riskMatrixFn: func(ctx context.Context, tenantID string) (*models.ComplianceRiskMatrix, error) {
+			return nil, errors.New("boom")
+		},
+	})
+	w := performRequest(h, h.ComplianceRiskMap, "GET", nil, nil, nil)
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", w.Code)
+	}
+}
+
+func TestHandler_ComplianceTrend_DefaultDays(t *testing.T) {
+	var capturedDays int
+	trend := &models.ComplianceScoreTrend{Days: 30, Overall: []models.TrendPoint{{Date: "2026-08-26", Score: 0}}}
+	h := newHandlerWithSvc(&mockSvc{
+		scoreTrendFn: func(ctx context.Context, tenantID string, days int) (*models.ComplianceScoreTrend, error) {
+			capturedDays = days
+			return trend, nil
+		},
+	})
+	w := performRequest(h, h.ComplianceTrend, "GET", nil, nil, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d (body: %s)", w.Code, w.Body.String())
+	}
+	if capturedDays != 30 {
+		t.Errorf("service was called with days=%d, want default 30", capturedDays)
+	}
+}
+
+func TestHandler_ComplianceTrend_ExplicitDays(t *testing.T) {
+	var capturedDays int
+	h := newHandlerWithSvc(&mockSvc{
+		scoreTrendFn: func(ctx context.Context, tenantID string, days int) (*models.ComplianceScoreTrend, error) {
+			capturedDays = days
+			return &models.ComplianceScoreTrend{Days: days}, nil
+		},
+	})
+	w := performRequest(h, h.ComplianceTrend, "GET", nil, nil, map[string]string{"days": "7"})
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	if capturedDays != 7 {
+		t.Errorf("service was called with days=%d, want 7", capturedDays)
+	}
+}
+
+func TestHandler_ComplianceTrend_BadDaysUsesDefault(t *testing.T) {
+	var capturedDays int
+	h := newHandlerWithSvc(&mockSvc{
+		scoreTrendFn: func(ctx context.Context, tenantID string, days int) (*models.ComplianceScoreTrend, error) {
+			capturedDays = days
+			return &models.ComplianceScoreTrend{Days: days}, nil
+		},
+	})
+	w := performRequest(h, h.ComplianceTrend, "GET", nil, nil, map[string]string{"days": "abc"})
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	if capturedDays != 30 {
+		t.Errorf("service was called with days=%d, want fallback 30 for invalid param", capturedDays)
+	}
+}
+
+func TestHandler_ComplianceTrend_Error(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{
+		scoreTrendFn: func(ctx context.Context, tenantID string, days int) (*models.ComplianceScoreTrend, error) {
+			return nil, errors.New("boom")
+		},
+	})
+	w := performRequest(h, h.ComplianceTrend, "GET", nil, nil, nil)
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", w.Code)
 	}

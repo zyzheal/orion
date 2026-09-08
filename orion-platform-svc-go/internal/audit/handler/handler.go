@@ -25,6 +25,9 @@ type Service interface {
 	GetResourceTypes(ctx context.Context, tenantID string) ([]string, error)
 	ComplianceReport(ctx context.Context, tenantID string, framework string) (*models.ComplianceReport, error)
 	CoverageStats(ctx context.Context, tenantID string) (*models.AuditCoverageStats, error)
+	DashboardOverview(ctx context.Context, tenantID string) (*models.ComplianceDashboardOverview, error)
+	RiskMatrix(ctx context.Context, tenantID string) (*models.ComplianceRiskMatrix, error)
+	ScoreTrend(ctx context.Context, tenantID string, days int) (*models.ComplianceScoreTrend, error)
 	ChainInfo(ctx context.Context, tenantID string) (*models.ChainInfo, error)
 	StorageStats(ctx context.Context, tenantID string) (*models.StorageStats, error)
 	Export(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogExportResult, error)
@@ -83,6 +86,13 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.GET("/compliance/coverage", auth.RequirePermission("audit", "read"), h.ComplianceCoverage)
 	// POST /audit/compliance/check - Run compliance check for an arbitrary framework
 	rg.POST("/audit/compliance/check", auth.RequirePermission("audit", "read"), h.ComplianceCheck)
+	// Phase 305: Compliance dashboard aggregation endpoints
+	// GET /audit/compliance/dashboard - Per-framework score roll-up
+	f.GET("/compliance/dashboard", auth.RequirePermission("audit", "read"), h.ComplianceDashboard)
+	// GET /audit/compliance/risk-map - Framework × severity heatmap
+	f.GET("/compliance/risk-map", auth.RequirePermission("audit", "read"), h.ComplianceRiskMap)
+	// GET /audit/compliance/trend - Per-day score history (?days=N)
+	f.GET("/compliance/trend", auth.RequirePermission("audit", "read"), h.ComplianceTrend)
 
 	// --- Compatibility endpoints ---
 	// GET /audit/chain/info - Chain info (frontend compatibility)
@@ -373,6 +383,60 @@ func (h *Handler) ComplianceCheck(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, report)
+}
+
+// ComplianceDashboard returns the per-framework score roll-up (Phase 305).
+func (h *Handler) ComplianceDashboard(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ComplianceDashboard")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	if tid := c.Query("tenantId"); tid != "" {
+		tenantID = tid
+	}
+	overview, err := h.svc.DashboardOverview(ctx, tenantID)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, overview)
+}
+
+// ComplianceRiskMap returns the framework × severity finding heatmap (Phase 305).
+func (h *Handler) ComplianceRiskMap(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ComplianceRiskMap")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	if tid := c.Query("tenantId"); tid != "" {
+		tenantID = tid
+	}
+	matrix, err := h.svc.RiskMatrix(ctx, tenantID)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, matrix)
+}
+
+// ComplianceTrend returns per-day score history (?days=N, default 30, capped 90).
+func (h *Handler) ComplianceTrend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ComplianceTrend")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	if tid := c.Query("tenantId"); tid != "" {
+		tenantID = tid
+	}
+	days := 30
+	if d := c.Query("days"); d != "" {
+		if parsed, err := strconv.Atoi(d); err == nil && parsed > 0 {
+			days = parsed
+		}
+	}
+	trend, err := h.svc.ScoreTrend(ctx, tenantID, days)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, trend)
 }
 
 // --- Compatibility endpoints ---

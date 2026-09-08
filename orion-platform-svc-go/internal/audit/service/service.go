@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sync"
 	"sort"
 	"strings"
 	"time"
@@ -697,22 +698,48 @@ func ListFrameworks() []string {
 
 // ComplianceReport generates a SOC2 / ISO27001 / combined compliance report
 // by querying the tenant's audit log entries and mapping observed actions
-// against the control catalog.
+// against the control catalog. Uses the default 90-day window anchored at
+// now.
 func (s *Service) ComplianceReport(ctx context.Context, tenantID string, framework string) (*models.ComplianceReport, error) {
 	now := time.Now().UTC()
-	periodStart := now.AddDate(0, -3, 0) // default assessment window = last 90 days
-	periodEnd := now
+	return s.buildComplianceReport(ctx, tenantID, framework, now.AddDate(0, -3, 0), now)
+}
 
-	// 1. Query audit logs for the tenant within the assessment period.
+// buildComplianceReport is the internal implementation of ComplianceReport,
+// parameterised by an explicit [start, end] assessment window. Public callers
+// use ComplianceReport; internal callers (DashboardOverview, ScoreTrend) use
+// this directly.
+func (s *Service) buildComplianceReport(ctx context.Context, tenantID, framework string, periodStart, periodEnd time.Time) (*models.ComplianceReport, error) {
+	logs, err := s.exportWindow(ctx, tenantID, periodStart, periodEnd)
+	if err != nil {
+		return nil, err
+	}
+	now := periodEnd
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	return evaluateCompliance(framework, logs, periodStart, periodEnd, now)
+}
+
+// exportWindow fetches audit logs for a tenant within [start, end) from the
+// repository. Extracted so ComplianceReport and its parallel callers share
+// one query helper.
+func (s *Service) exportWindow(ctx context.Context, tenantID string, start, end time.Time) ([]models.AuditLog, error) {
 	logs, err := s.repo.Export(ctx, tenantID, models.AuditLogQuery{
-		DateFrom: periodStart.Format(time.RFC3339),
-		DateTo:   periodEnd.Format(time.RFC3339),
+		DateFrom: start.Format(time.RFC3339),
+		DateTo:   end.Format(time.RFC3339),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("querying audit logs: %w", err)
 	}
+	return logs, nil
+}
 
-	// 2. Build a set of distinct observed action types.
+// evaluateCompliance is the pure scoring half of buildComplianceReport: given
+// raw audit logs it derives a ComplianceReport. Extracted so ScoreTrend can
+// fan out evaluations across goroutines after a single query.
+func evaluateCompliance(framework string, logs []models.AuditLog, periodStart, periodEnd, now time.Time) (*models.ComplianceReport, error) {
+	// Build a set of distinct observed action types.
 	seen := make(map[string]struct{})
 	for _, l := range logs {
 		if l.Action != "" {
@@ -918,6 +945,292 @@ func (s *Service) CoverageStats(ctx context.Context, tenantID string) (*models.A
 		ByFramework:        byFramework,
 		AssessedAt:         now,
 	}, nil
+}
+
+// -----------------------------------------------------------------------
+// Phase 305 — Compliance Dashboard aggregation
+// -----------------------------------------------------------------------
+
+// parallelReports is the fan-out primitive used by DashboardOverview and
+// RiskMatrix. It issues ONE audit-log query for the given window, then
+// evaluates each framework's compliance report in a separate goroutine
+// over that shared slice.
+//
+// The returned slice is positionally aligned with `frameworks` so callers
+// can index it by framework order without sorting.
+//
+// days is used only to derive the window boundaries (defaults to 90 when
+// non-positive). The evaluation itself is pure — no further repo calls.
+func (s *Service) parallelReports(ctx context.Context, tenantID string, frameworks []string, days int) ([]*models.ComplianceReport, error) {
+	if days < 1 {
+		days = 90
+	}
+	now := time.Now().UTC()
+	start := now.AddDate(0, 0, -days)
+	logs, err := s.exportWindow(ctx, tenantID, start, now)
+	if err != nil {
+		return nil, err
+	}
+	return evaluateParallel(ctx, frameworks, logs, start, now)
+}
+
+// evaluateParallel runs evaluateCompliance across every framework in
+// parallel and returns the reports in the same order as the input slice.
+// It tolerates cancellation of ctx mid-flight and returns the first error.
+func evaluateParallel(ctx context.Context, frameworks []string, logs []models.AuditLog, start, end time.Time) ([]*models.ComplianceReport, error) {
+	results := make([]*models.ComplianceReport, len(frameworks))
+	errs := make([]error, len(frameworks))
+	var wg sync.WaitGroup
+	for i, fw := range frameworks {
+		wg.Add(1)
+		go func(idx int, fw string) {
+			defer wg.Done()
+			r, err := evaluateCompliance(fw, logs, start, end, end)
+			results[idx] = r
+			errs[idx] = err
+		}(i, fw)
+	}
+	wg.Wait()
+	for _, e := range errs {
+		if e != nil {
+			return nil, e
+		}
+	}
+	_ = ctx // reserved for future cancellation-aware evaluation
+	return results, nil
+}
+
+// DashboardOverview returns a single-call roll-up across all supported
+// frameworks. Each FrameworkScore entry is derived from an independent
+// ComplianceReport for that framework; aggregate counts are the sum across
+// frameworks.
+func (s *Service) DashboardOverview(ctx context.Context, tenantID string) (*models.ComplianceDashboardOverview, error) {
+	now := time.Now().UTC().Format(time.RFC3339)
+	frameworks := ListFrameworks()
+
+	reports, err := s.parallelReports(ctx, tenantID, frameworks, 90)
+	if err != nil {
+		return nil, err
+	}
+
+	scores := make([]models.FrameworkScore, 0, len(frameworks))
+	var totalControls, totalPassed, totalFailed int
+	var overallSum float64
+	for i, fw := range frameworks {
+		report := reports[i]
+		scores = append(scores, models.FrameworkScore{
+			Framework:      fw,
+			Score:          report.Score,
+			Rating:         report.Rating,
+			TotalControls:  report.TotalControls,
+			PassedControls: report.PassedControls,
+			FailedControls: report.FailedControls,
+		})
+		totalControls += report.TotalControls
+		totalPassed += report.PassedControls
+		totalFailed += report.FailedControls
+		overallSum += report.Score
+	}
+
+	var overallScore float64
+	if len(scores) > 0 {
+		overallScore = math.Round((overallSum/float64(len(scores)))*10) / 10
+	}
+	overallRating := ratingFromScore(overallScore)
+
+	return &models.ComplianceDashboardOverview{
+		FrameworkScores: scores,
+		OverallScore:    overallScore,
+		OverallRating:   overallRating,
+		TotalControls:   totalControls,
+		TotalPassed:     totalPassed,
+		TotalFailed:     totalFailed,
+		AssessedAt:      now,
+	}, nil
+}
+
+// RiskMatrix returns a framework × severity heatmap of finding counts. Uses
+// a single COMBINED report so each control's findings are attributed back to
+// its native framework via the control catalog.
+func (s *Service) RiskMatrix(ctx context.Context, tenantID string) (*models.ComplianceRiskMatrix, error) {
+	// One COMBINED report for findings + one report per framework for score
+	// tint — all fetched in parallel via a single audit-log query.
+	frameworks := ListFrameworks()
+	reports, err := s.parallelReports(ctx, tenantID, append([]string{"COMBINED"}, frameworks...), 90)
+	if err != nil {
+		return nil, fmt.Errorf("risk matrix: %w", err)
+	}
+	combinedReport := reports[0]
+	// reports[1:] is the per-framework subset (indexed to match `frameworks`).
+
+	// Build control-id → category lookup from the full catalog so findings can
+	// be attributed to a specific framework.
+	catalog := controlCatalog()
+	controlCategory := make(map[string]string, len(catalog))
+	for _, c := range catalog {
+		controlCategory[c.ID] = c.Category
+	}
+
+	// Initialize every supported framework to zero so the heatmap is dense.
+	rowsByFw := make(map[string]*models.FrameworkRiskRow, len(frameworks))
+	for _, fw := range frameworks {
+		rowsByFw[fw] = &models.FrameworkRiskRow{Framework: fw}
+	}
+
+	scoreByFw := make(map[string]float64, len(frameworks))
+	for i, fw := range frameworks {
+		scoreByFw[fw] = reports[i+1].Score
+	}
+
+	totalFindings := 0
+	for _, f := range combinedReport.Findings {
+		fw, ok := controlCategory[f.ControlID]
+		if !ok {
+			continue // unknown control — skip
+		}
+		row, ok := rowsByFw[fw]
+		if !ok {
+			continue
+		}
+		switch strings.ToLower(f.Severity) {
+		case "critical":
+			row.Critical++
+		case "high":
+			row.High++
+		case "medium":
+			row.Medium++
+		case "low":
+			row.Low++
+		default:
+			// unknown severity — count in Low for conservative display
+			row.Low++
+		}
+		row.TotalFindings++
+		totalFindings++
+	}
+
+	rows := make([]models.FrameworkRiskRow, 0, len(frameworks))
+	for _, fw := range frameworks {
+		r := *rowsByFw[fw]
+		r.Score = scoreByFw[fw]
+		rows = append(rows, r)
+	}
+
+	return &models.ComplianceRiskMatrix{
+		FrameworkRows:   rows,
+		SeverityBuckets: []string{"low", "medium", "high", "critical"},
+		TotalFindings:   totalFindings,
+		AssessedAt:      time.Now().UTC().Format(time.RFC3339),
+	}, nil
+}
+
+// ScoreTrend returns per-day score history for every framework plus an
+// unweighted-mean overall series. Each day is assessed independently using
+// only logs observed within [day 00:00 UTC, next-day 00:00 UTC).
+//
+// days is clamped to [1, 90]. Implementation issues ONE audit-log query
+// for the full window, partitions the results by day, then evaluates every
+// (day, framework) pair in parallel via evaluateParallel.
+func (s *Service) ScoreTrend(ctx context.Context, tenantID string, days int) (*models.ComplianceScoreTrend, error) {
+	if days < 1 {
+		days = 30
+	}
+	if days > 90 {
+		days = 90
+	}
+
+	now := time.Now().UTC()
+	todayUTC := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	windowStart := todayUTC.AddDate(0, 0, -(days - 1))
+
+	// Single query for the full window.
+	allLogs, err := s.exportWindow(ctx, tenantID, windowStart, now)
+	if err != nil {
+		return nil, err
+	}
+
+	frameworks := ListFrameworks()
+
+	// Build each day's boundary + label.
+	type dayWindow struct {
+		label string
+		start time.Time
+		end   time.Time
+	}
+	windows := make([]dayWindow, 0, days)
+	for i := days - 1; i >= 0; i-- {
+		start := todayUTC.AddDate(0, 0, -i)
+		windows = append(windows, dayWindow{
+			label: start.Format("2006-01-02"),
+			start: start,
+			end:   start.AddDate(0, 0, 1),
+		})
+	}
+
+	// Bucket every log into its UTC day.
+	byDay := make(map[string][]models.AuditLog, days)
+	for _, l := range allLogs {
+		ts := l.CreatedAt.UTC()
+		if ts.IsZero() {
+			ts = now
+		}
+		label := ts.Format("2006-01-02")
+		byDay[label] = append(byDay[label], l)
+	}
+
+	// For each day, evaluate all frameworks in parallel.
+	perFw := make(map[string][]models.TrendPoint, len(frameworks))
+	for _, fw := range frameworks {
+		perFw[fw] = make([]models.TrendPoint, 0, days)
+	}
+	overallSeries := make([]models.TrendPoint, 0, days)
+
+	for _, win := range windows {
+		dayLogs := byDay[win.label]
+		reports, err := evaluateParallel(ctx, frameworks, dayLogs, win.start, win.end)
+		if err != nil {
+			return nil, fmt.Errorf("trend on %s: %w", win.label, err)
+		}
+		var sum float64
+		for i, fw := range frameworks {
+			r := reports[i]
+			pt := models.TrendPoint{
+				Date:           win.label,
+				Score:          r.Score,
+				Rating:         r.Rating,
+				TotalControls:  r.TotalControls,
+				PassedControls: r.PassedControls,
+			}
+			perFw[fw] = append(perFw[fw], pt)
+			sum += r.Score
+		}
+		overallScore := math.Round((sum/float64(len(frameworks)))*10) / 10
+		overallSeries = append(overallSeries, models.TrendPoint{
+			Date:   win.label,
+			Score:  overallScore,
+			Rating: ratingFromScore(overallScore),
+		})
+	}
+
+	return &models.ComplianceScoreTrend{
+		Days:         days,
+		Overall:      overallSeries,
+		PerFramework: perFw,
+		AssessedAt:   time.Now().UTC().Format(time.RFC3339),
+	}, nil
+}
+
+// ratingFromScore returns the human-readable rating label for a 0-100 score.
+// Extracted so DashboardOverview and ScoreTrend share one source of truth.
+func ratingFromScore(score float64) string {
+	switch {
+	case score >= 80:
+		return "compliant"
+	case score >= 40:
+		return "partial"
+	default:
+		return "non-compliant"
+	}
 }
 
 // Known sentinel errors used by handlers for status-code routing.

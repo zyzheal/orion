@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+	"math"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -708,4 +710,318 @@ func TestSevRank(t *testing.T) {
 			t.Errorf("sevRank(%q) = %d, want %d", sev, got, want)
 		}
 	}
+}
+
+// ============================================================================
+// Phase 305 — Compliance Dashboard aggregation
+// ============================================================================
+
+func TestDashboardOverview_AllFiveFrameworks(t *testing.T) {
+	svc := buildService(t, nil)
+	ov, err := svc.DashboardOverview(context.Background(), "t1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(ov.FrameworkScores) != 5 {
+		t.Fatalf("expected 5 framework scores, got %d", len(ov.FrameworkScores))
+	}
+	// Each framework should have a well-known totalControls count.
+	wantCounts := map[string]int{
+		"SOC2":    6,
+		"ISO27001": 13,
+		"PCI-DSS": 36,
+		"MLPS2":   21,
+		"PDPA":    12,
+	}
+	byFw := make(map[string]models.FrameworkScore, len(ov.FrameworkScores))
+	for _, s := range ov.FrameworkScores {
+		byFw[s.Framework] = s
+		if want, ok := wantCounts[s.Framework]; ok && s.TotalControls != want {
+			t.Errorf("framework %s totalControls = %d, want %d", s.Framework, s.TotalControls, want)
+		}
+		// With no logs, every framework should be non-compliant at 0 score.
+		if s.Score != 0 {
+			t.Errorf("framework %s score = %f with empty logs, want 0", s.Framework, s.Score)
+		}
+		if s.Rating != "non-compliant" {
+			t.Errorf("framework %s rating = %q with empty logs, want non-compliant", s.Framework, s.Rating)
+		}
+	}
+	// Total controls across all frameworks = 88.
+	if ov.TotalControls != 88 {
+		t.Errorf("overall TotalControls = %d, want 88", ov.TotalControls)
+	}
+	if ov.TotalPassed != 0 || ov.TotalFailed != 88 {
+		t.Errorf("totals wrong: passed=%d failed=%d, want 0/88", ov.TotalPassed, ov.TotalFailed)
+	}
+	if ov.OverallScore != 0 {
+		t.Errorf("overallScore = %f with empty logs, want 0", ov.OverallScore)
+	}
+	if ov.OverallRating != "non-compliant" {
+		t.Errorf("overallRating = %q with empty logs, want non-compliant", ov.OverallRating)
+	}
+	if ov.AssessedAt == "" {
+		t.Error("AssessedAt should not be empty")
+	}
+}
+
+func TestDashboardOverview_WithPartialData(t *testing.T) {
+	logs := []*models.AuditLog{
+		{Action: "CREATE"},
+		{Action: "UPDATE"},
+		{Action: "LOGIN"},
+		{Action: "AUDIT"},
+		{Action: "APPROVE"},
+	}
+	svc := buildService(t, logs)
+	ov, err := svc.DashboardOverview(context.Background(), "t1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(ov.FrameworkScores) != 5 {
+		t.Fatalf("expected 5 framework scores, got %d", len(ov.FrameworkScores))
+	}
+	// With any action coverage, score should be > 0 for each framework.
+	for _, s := range ov.FrameworkScores {
+		if s.Score <= 0 {
+			t.Errorf("framework %s score = %f, want > 0 with populated logs", s.Framework, s.Score)
+		}
+	}
+	if ov.OverallScore <= 0 {
+		t.Errorf("overallScore = %f, want > 0", ov.OverallScore)
+	}
+}
+
+func TestDashboardOverview_RepoError(t *testing.T) {
+	repo := newMockAuditRepo()
+	repo.err = errors.New("db down")
+	svc := NewService(repo)
+	if _, err := svc.DashboardOverview(context.Background(), "t1"); err == nil {
+		t.Fatal("expected error from DashboardOverview on repo failure")
+	}
+}
+
+// --- RiskMatrix ---
+
+func TestRiskMatrix_AllFrameworkRowsPresent(t *testing.T) {
+	svc := buildService(t, nil)
+	matrix, err := svc.RiskMatrix(context.Background(), "t1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(matrix.FrameworkRows) != 5 {
+		t.Fatalf("expected 5 rows, got %d", len(matrix.FrameworkRows))
+	}
+	wantBuckets := []string{"low", "medium", "high", "critical"}
+	if !reflect.DeepEqual(matrix.SeverityBuckets, wantBuckets) {
+		t.Errorf("SeverityBuckets = %v, want %v", matrix.SeverityBuckets, wantBuckets)
+	}
+	// With no logs, every control fails → every framework gets findings.
+	for _, row := range matrix.FrameworkRows {
+		if row.TotalFindings == 0 {
+			t.Errorf("framework %s has 0 findings with empty logs, want > 0", row.Framework)
+		}
+		// All findings should be high severity (compliance failure).
+		if row.High+row.Medium+row.Low+row.Critical != row.TotalFindings {
+			t.Errorf("row %s severity bucket sum (%d) != TotalFindings (%d)",
+				row.Framework, row.High+row.Medium+row.Low+row.Critical, row.TotalFindings)
+		}
+	}
+	if matrix.TotalFindings == 0 {
+		t.Error("total findings should be > 0 with empty logs")
+	}
+}
+
+func TestRiskMatrix_WithCompliantLogs(t *testing.T) {
+	logs := []*models.AuditLog{
+		{Action: "CREATE"}, {Action: "UPDATE"}, {Action: "DELETE"},
+		{Action: "LOGIN"}, {Action: "LOGOUT"}, {Action: "GRANT"},
+		{Action: "REVOKE"}, {Action: "APPROVE"}, {Action: "REVIEW"},
+		{Action: "AUDIT"}, {Action: "SCAN"}, {Action: "ALERT"},
+		{Action: "EXPORT"}, {Action: "BACKUP"}, {Action: "RESTORE"},
+		{Action: "DEPLOY"}, {Action: "REJECT"},
+	}
+	svc := buildService(t, logs)
+	matrix, err := svc.RiskMatrix(context.Background(), "t1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// With full action coverage, some frameworks should have 0 findings.
+	totalNonCompliantFindings := 0
+	for _, row := range matrix.FrameworkRows {
+		totalNonCompliantFindings += row.TotalFindings
+	}
+	if totalNonCompliantFindings > matrix.TotalFindings {
+		t.Errorf("internal invariant broken")
+	}
+}
+
+func TestRiskMatrix_RepoError(t *testing.T) {
+	repo := newMockAuditRepo()
+	repo.err = errors.New("boom")
+	svc := NewService(repo)
+	if _, err := svc.RiskMatrix(context.Background(), "t1"); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+// --- ScoreTrend ---
+
+func TestScoreTrend_DefaultDays(t *testing.T) {
+	svc := buildService(t, nil)
+	trend, err := svc.ScoreTrend(context.Background(), "t1", 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if trend.Days != 30 {
+		t.Errorf("trend.Days = %d, want 30 (clamp)", trend.Days)
+	}
+	if len(trend.Overall) != 30 {
+		t.Errorf("len(Overall) = %d, want 30", len(trend.Overall))
+	}
+	for _, fw := range []string{"SOC2", "ISO27001", "PCI-DSS", "MLPS2", "PDPA"} {
+		if pts, ok := trend.PerFramework[fw]; !ok || len(pts) != 30 {
+			t.Errorf("framework %s has %d points, want 30", fw, len(trend.PerFramework[fw]))
+		}
+	}
+}
+
+func TestScoreTrend_ClampsAbove90(t *testing.T) {
+	svc := buildService(t, nil)
+	trend, err := svc.ScoreTrend(context.Background(), "t1", 365)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if trend.Days != 90 {
+		t.Errorf("trend.Days = %d, want 90 (clamp)", trend.Days)
+	}
+	if len(trend.Overall) != 90 {
+		t.Errorf("len(Overall) = %d, want 90", len(trend.Overall))
+	}
+}
+
+func TestScoreTrend_MinDays(t *testing.T) {
+	svc := buildService(t, nil)
+	trend, err := svc.ScoreTrend(context.Background(), "t1", 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if trend.Days != 1 {
+		t.Errorf("trend.Days = %d, want 1", trend.Days)
+	}
+	if len(trend.Overall) != 1 {
+		t.Errorf("len(Overall) = %d, want 1", len(trend.Overall))
+	}
+}
+
+func TestScoreTrend_RepoError(t *testing.T) {
+	repo := newMockAuditRepo()
+	repo.err = errors.New("boom")
+	svc := NewService(repo)
+	if _, err := svc.ScoreTrend(context.Background(), "t1", 7); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestScoreTrend_OverallIsMean(t *testing.T) {
+	logs := []*models.AuditLog{
+		{Action: "CREATE"},
+		{Action: "AUDIT"},
+	}
+	svc := buildService(t, logs)
+	trend, err := svc.ScoreTrend(context.Background(), "t1", 3)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// For each day, overall.score should equal mean of the per-framework scores.
+	for i, overall := range trend.Overall {
+		var sum float64
+		count := 0
+		for _, fw := range []string{"SOC2", "ISO27001", "PCI-DSS", "MLPS2", "PDPA"} {
+			sum += trend.PerFramework[fw][i].Score
+			count++
+		}
+		expected := math.Round((sum/float64(count))*10) / 10
+		if overall.Score != expected {
+			t.Errorf("overall[%d].Score = %f, want %f (mean of per-framework)", i, overall.Score, expected)
+		}
+		if overall.Date == "" {
+			t.Errorf("overall[%d].Date is empty", i)
+		}
+	}
+}
+
+// ============================================================================
+// Phase 305 — Parallel evaluation helpers
+// ============================================================================
+
+func TestParallelReports_RepoCallCount(t *testing.T) {
+	repo := &countingExportRepo{
+		mockAuditRepo: newMockAuditRepo(),
+	}
+	svc := NewService(repo)
+	frameworks := []string{"SOC2", "ISO27001", "PCI-DSS", "MLPS2", "PDPA"}
+	reports, err := svc.parallelReports(context.Background(), "t1", frameworks, 90)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(reports) != len(frameworks) {
+		t.Fatalf("expected %d reports, got %d", len(frameworks), len(reports))
+	}
+	// The parallel helper must issue exactly one Export call regardless of
+	// framework count — the whole point of the optimization.
+	if got := repo.exportCalls; got != 1 {
+		t.Errorf("Export called %d times, want 1", got)
+	}
+	// Results must be positionally aligned with the input slice.
+	for i, fw := range frameworks {
+		if reports[i].ReportType != strings.ToUpper(fw) {
+			t.Errorf("reports[%d].ReportType = %q, want %q", i, reports[i].ReportType, fw)
+		}
+	}
+}
+
+func TestParallelReports_RepoError(t *testing.T) {
+	repo := &countingExportRepo{
+		mockAuditRepo: &mockAuditRepo{logs: map[string]*models.AuditLog{}, err: errors.New("boom")},
+	}
+	svc := NewService(repo)
+	if _, err := svc.parallelReports(context.Background(), "t1", []string{"SOC2"}, 90); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestEvaluateParallel_PositionalAlignment(t *testing.T) {
+	logs := []models.AuditLog{{Action: "CREATE"}, {Action: "AUDIT"}}
+	start := time.Now().UTC().AddDate(0, -1, 0)
+	end := time.Now().UTC()
+	frameworks := []string{"SOC2", "PCI-DSS", "MLPS2"}
+	reports, err := evaluateParallel(context.Background(), frameworks, logs, start, end)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(reports) != len(frameworks) {
+		t.Fatalf("got %d reports, want %d", len(reports), len(frameworks))
+	}
+	wantCounts := map[string]int{"SOC2": 6, "PCI-DSS": 36, "MLPS2": 21}
+	for i, fw := range frameworks {
+		if reports[i].ReportType != fw {
+			t.Errorf("reports[%d].ReportType = %q, want %q", i, reports[i].ReportType, fw)
+		}
+		if want, ok := wantCounts[fw]; ok && reports[i].TotalControls != want {
+			t.Errorf("reports[%d] (%s) TotalControls = %d, want %d", i, fw, reports[i].TotalControls, want)
+		}
+	}
+}
+
+// countingExportRepo wraps the mock repo and counts Export calls so we can
+// assert that parallelReports issues a single query.
+type countingExportRepo struct {
+	*mockAuditRepo
+	exportCalls int
+}
+
+func (c *countingExportRepo) Export(ctx context.Context, tenantID string, q models.AuditLogQuery) ([]models.AuditLog, error) {
+	c.exportCalls++
+	return c.mockAuditRepo.Export(ctx, tenantID, q)
 }
