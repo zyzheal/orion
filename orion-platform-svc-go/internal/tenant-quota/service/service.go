@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"orion/platform-svc-go/internal/tenant-quota/models"
@@ -51,6 +54,10 @@ func (s *Service) CreatePlan(ctx context.Context, req *models.CreatePlanRequest,
 		MaxConcurrentJobs:   req.MaxConcurrentJobs,
 		MaxAlertsPerDay:     req.MaxAlertsPerDay,
 		SLATier:             req.SLATier,
+		SoftLimit:           req.SoftLimit,
+		HardLimit:           req.HardLimit,
+		OverLimitAction:     req.OverLimitAction,
+		WarnThresholds:      req.WarnThresholds,
 		CreatedAt:           time.Now(),
 		UpdatedAt:           time.Now(),
 	}
@@ -113,6 +120,20 @@ func (s *Service) UpdatePlan(ctx context.Context, id, tenantID string, req *mode
 	}
 	if req.SLATier != nil {
 		attrs["sla_tier"] = *req.SLATier
+	}
+	if req.SoftLimit != nil {
+		attrs["soft_limit"] = *req.SoftLimit
+	}
+	if req.HardLimit != nil {
+		attrs["hard_limit"] = *req.HardLimit
+	}
+	if req.OverLimitAction != nil {
+		action := normalizeOverLimitAction(*req.OverLimitAction)
+		attrs["over_limit_action"] = action
+	}
+	if req.WarnThresholds != nil {
+		// Stored as comma-separated int string to keep the JSON schema simple.
+		attrs["warn_thresholds"] = joinInts(req.WarnThresholds)
 	}
 	return s.repo.UpdatePlan(ctx, id, tenantID, attrs)
 }
@@ -264,6 +285,161 @@ func (s *Service) CheckQuota(ctx context.Context, tenantID, metric string, amoun
 	}, nil
 }
 
+// CheckQuotaWithPolicy is the Phase 306 policy-aware check.
+//
+// Resolution order for the effective hard limit:
+//
+//  1. plan.HardLimit > 0        → use it (explicit per-plan override)
+//  2. plan metric limit > 0     → use it (existing per-metric limit)
+//  3. plan.HardLimit == 0       → treat as "no cap"; always allow, no warning
+//
+// Soft limit resolution:
+//
+//  1. plan.SoftLimit > 0                       → use it
+//  2. 0 < hard && plan.SoftLimit == 0          → hard * 0.8 (80% default)
+//  3. hard == 0                                → soft = 0 (no soft)
+//
+// WarnThresholdsHit is populated for every threshold pct in WarnThresholds
+// that is crossed by the projected usage percentage. Returned in ascending order.
+func (s *Service) CheckQuotaWithPolicy(ctx context.Context, tenantID string, req *models.CheckWithPolicyRequest) (*models.CheckWithPolicyResult, error) {
+	if req == nil || req.Metric == "" {
+		return nil, fmt.Errorf("metric is required")
+	}
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+	amount := req.Amount
+	if amount == 0 {
+		amount = 1
+	}
+
+	plan, err := s.resolvePlan(ctx, tenantID, req.PlanID)
+	if err != nil {
+		return nil, err
+	}
+	usage, err := s.repo.GetUsage(ctx, tenantID, req.Metric)
+	if err != nil {
+		return nil, err
+	}
+	current := int64(0)
+	if usage != nil {
+		current = usage.CurrentValue
+	}
+	projected := current + amount
+
+	metricLimit := getLimitForMetric(plan, req.Metric)
+	hardLimit := resolveHardLimit(plan.HardLimit, metricLimit)
+	softLimit := resolveSoftLimit(plan.SoftLimit, hardLimit)
+
+	usagePct := 0.0
+	if hardLimit > 0 {
+		usagePct = float64(projected) / float64(hardLimit) * 100
+	}
+
+	result := &models.CheckWithPolicyResult{
+		Metric:             req.Metric,
+		CurrentValue:       current,
+		ProjectedValue:     projected,
+		SoftLimit:          softLimit,
+		HardLimit:          hardLimit,
+		UsagePct:           usagePct,
+		OverLimitAction:    plan.OverLimitAction,
+		WarnThresholds:     plan.WarnThresholds,
+		WarnThresholdsHit:  computeThresholdHits(plan.WarnThresholds, projected, hardLimit),
+		PlanID:             plan.ID,
+		Allowed:            true,
+		Blocking:           false,
+		Warning:            make([]string, 0),
+	}
+
+	// Hard-cap decision.
+	switch {
+	case hardLimit <= 0:
+		// No cap at all — allow and stop.
+	case projected >= hardLimit:
+		switch plan.OverLimitAction {
+		case "block":
+			result.Allowed = false
+			result.Blocking = true
+			result.Warning = append(result.Warning, fmt.Sprintf("over hard limit: projected=%d hard=%d", projected, hardLimit))
+		case "warn":
+			result.Warning = append(result.Warning, fmt.Sprintf("over hard limit (warn): projected=%d hard=%d", projected, hardLimit))
+		case "allow":
+			// Silent pass — caller opted into ignore-hard.
+		}
+	case softLimit > 0 && projected >= softLimit:
+		result.Warning = append(result.Warning, fmt.Sprintf("over soft limit: projected=%d soft=%d hard=%d", projected, softLimit, hardLimit))
+	default:
+		// Below soft — quiet.
+	}
+
+	return result, nil
+}
+
+// resolvePlan picks the plan to apply.
+// Priority: explicit planID → first plan for tenant.
+func (s *Service) resolvePlan(ctx context.Context, tenantID, planID string) (*models.QuotaPlan, error) {
+	if planID != "" {
+		p, err := s.repo.GetPlan(ctx, planID, tenantID)
+		if err != nil {
+			return nil, err
+		}
+		if p == nil {
+			return nil, fmt.Errorf("plan %q not found for tenant %q", planID, tenantID)
+		}
+		return p, nil
+	}
+	plans, err := s.repo.ListPlans(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if len(plans) == 0 {
+		return nil, fmt.Errorf("no quota plan found")
+	}
+	p := plans[0]
+	return &p, nil
+}
+
+// resolveHardLimit returns the effective hard cap for a check.
+// Prefers explicit plan.HardLimit over per-metric limit.
+func resolveHardLimit(planHard, metricLimit int64) int64 {
+	if planHard > 0 {
+		return planHard
+	}
+	if metricLimit > 0 {
+		return metricLimit
+	}
+	return 0
+}
+
+// resolveSoftLimit returns the effective soft threshold.
+// Default: 80% of hard when soft is not configured.
+func resolveSoftLimit(planSoft, hard int64) int64 {
+	if planSoft > 0 {
+		return planSoft
+	}
+	if hard <= 0 {
+		return 0
+	}
+	return hard * 4 / 5 // 80% via integer math to avoid float drift
+}
+
+// computeThresholdHits returns every threshold percentage in `thresholds`
+// that the projected/hard ratio crosses. Empty when hard <= 0.
+func computeThresholdHits(thresholds []int, projected, hard int64) []int {
+	if len(thresholds) == 0 || hard <= 0 {
+		return nil
+	}
+	pct := float64(projected) / float64(hard) * 100
+	hits := make([]int, 0, len(thresholds))
+	for _, t := range thresholds {
+		if pct >= float64(t) {
+			hits = append(hits, t)
+		}
+	}
+	return hits
+}
+
 func (s *Service) ResetUsage(ctx context.Context, tenantID string) error {
 	return s.repo.ResetUsage(ctx, tenantID)
 }
@@ -277,6 +453,29 @@ func (s *Service) ListAlerts(ctx context.Context, tenantID string) ([]models.Quo
 		return []models.QuotaAlert{}, nil
 	}
 	return alerts, nil
+}
+
+// ListAlertsByLevel returns alerts matching a level ("warning" | "critical").
+// Empty string level = no filter (equivalent to ListAlerts). Matching is
+// case-insensitive with surrounding whitespace trimmed. Unknown levels return
+// an empty slice (not an error), so a mistyped query param simply produces an
+// empty table rather than blowing up the dashboard.
+func (s *Service) ListAlertsByLevel(ctx context.Context, tenantID, level string) ([]models.QuotaAlert, error) {
+	all, err := s.ListAlerts(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if level == "" {
+		return all, nil
+	}
+	want := strings.ToLower(strings.TrimSpace(level))
+	out := make([]models.QuotaAlert, 0, len(all))
+	for _, a := range all {
+		if strings.ToLower(a.AlertLevel) == want {
+			out = append(out, a)
+		}
+	}
+	return out, nil
 }
 
 // --- Helpers ---
@@ -309,6 +508,81 @@ func applyDefaults(p *models.QuotaPlan) {
 	if p.SLATier == "" {
 		p.SLATier = "standard"
 	}
+	// Phase 306 policy defaults
+	if p.OverLimitAction == "" {
+		p.OverLimitAction = "block"
+	} else {
+		p.OverLimitAction = normalizeOverLimitAction(p.OverLimitAction)
+	}
+	if len(p.WarnThresholds) == 0 {
+		p.WarnThresholds = []int{50, 80, 95}
+	} else {
+		p.WarnThresholds = normalizeWarnThresholds(p.WarnThresholds)
+	}
+}
+
+// normalizeOverLimitAction accepts block|warn|allow case-insensitively.
+// Unknown values fall back to "block" (fail-closed for tenant quota).
+func normalizeOverLimitAction(action string) string {
+	switch strings.ToLower(strings.TrimSpace(action)) {
+	case "block":
+		return "block"
+	case "warn":
+		return "warn"
+	case "allow":
+		return "allow"
+	default:
+		return "block"
+	}
+}
+
+// normalizeWarnThresholds sorts ascending, dedups, and clamps to [0, 100].
+func normalizeWarnThresholds(in []int) []int {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]int, 0, len(in))
+	seen := make(map[int]struct{}, len(in))
+	for _, v := range in {
+		if v < 0 {
+			v = 0
+		}
+		if v > 100 {
+			v = 100
+		}
+		if _, dup := seen[v]; dup {
+			continue
+		}
+		seen[v] = struct{}{}
+		out = append(out, v)
+	}
+	sort.Ints(out)
+	return out
+}
+
+func joinInts(in []int) string {
+	parts := make([]string, 0, len(in))
+	for _, v := range in {
+		parts = append(parts, strconv.Itoa(v))
+	}
+	return strings.Join(parts, ",")
+}
+
+func parseThresholds(s string) []int {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := make([]int, 0, len(parts))
+	for _, p := range parts {
+		v, err := strconv.Atoi(strings.TrimSpace(p))
+		if err != nil {
+			continue
+		}
+		out = append(out, v)
+	}
+	return normalizeWarnThresholds(out)
 }
 
 func getLimitForMetric(plan *models.QuotaPlan, metric string) int64 {

@@ -103,6 +103,35 @@ func (m *mockQuotaSvc) ListAlerts(ctx context.Context, tenantID string) ([]model
 	}
 	return m.alerts, nil
 }
+func (m *mockQuotaSvc) CheckQuotaWithPolicy(ctx context.Context, tenantID string, req *models.CheckWithPolicyRequest) (*models.CheckWithPolicyResult, error) {
+	return &models.CheckWithPolicyResult{
+		Metric:          req.Metric,
+		CurrentValue:    10,
+		ProjectedValue:  10 + req.Amount,
+		SoftLimit:       80,
+		HardLimit:       100,
+		UsagePct:        90.0,
+		Allowed:         true,
+		Blocking:        false,
+		OverLimitAction: "block",
+		WarnThresholds:  []int{50, 80, 95},
+		Warning:         []string{"over soft limit"},
+		PlanID:          "qp-mock",
+	}, nil
+}
+func (m *mockQuotaSvc) ListAlertsByLevel(ctx context.Context, tenantID, level string) ([]models.QuotaAlert, error) {
+	all, _ := m.ListAlerts(ctx, tenantID)
+	if level == "" {
+		return all, nil
+	}
+	out := make([]models.QuotaAlert, 0, len(all))
+	for _, a := range all {
+		if a.AlertLevel == level {
+			out = append(out, a)
+		}
+	}
+	return out, nil
+}
 
 func makeCtx(method, path string, body interface{}) (*gin.Context, *httptest.ResponseRecorder) {
 	w := httptest.NewRecorder()
@@ -185,5 +214,47 @@ func TestQuota_ListUsage(t *testing.T) {
 	h.ListUsage(c)
 	if w.Code != 200 {
 		t.Fatalf("ListUsage status = %d, want 200", w.Code)
+	}
+}
+
+func TestQuota_CheckQuotaWithPolicy(t *testing.T) {
+	h := NewHandler(newMockQuotaSvc())
+	c, w := makeCtx(http.MethodPost, "/check-with-policy", map[string]interface{}{
+		"metric": "users", "amount": 5,
+	})
+	h.CheckQuotaWithPolicy(c)
+	if w.Code != 200 {
+		t.Fatalf("CheckQuotaWithPolicy status = %d, want 200", w.Code)
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	data, _ := body["data"].(map[string]interface{})
+	if data == nil {
+		t.Fatalf("no data in response: %v", body)
+	}
+	if data["metric"] != "users" {
+		t.Errorf("metric = %v, want users", data["metric"])
+	}
+}
+
+func TestQuota_CheckQuotaWithPolicy_MissingMetric(t *testing.T) {
+	h := NewHandler(newMockQuotaSvc())
+	c, w := makeCtx(http.MethodPost, "/check-with-policy", map[string]interface{}{
+		"amount": 5,
+	})
+	h.CheckQuotaWithPolicy(c)
+	if w.Code != 400 {
+		t.Fatalf("status = %d, want 400 (binding required)", w.Code)
+	}
+}
+
+func TestQuota_ListAlertsByLevel(t *testing.T) {
+	h := NewHandler(newMockQuotaSvc())
+	c, w := makeCtx(http.MethodGet, "/alerts/by-level", nil)
+	h.ListAlertsByLevel(c)
+	if w.Code != 200 {
+		t.Fatalf("ListAlertsByLevel status = %d, want 200", w.Code)
 	}
 }

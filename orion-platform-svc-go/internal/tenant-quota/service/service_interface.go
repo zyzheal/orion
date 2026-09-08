@@ -17,7 +17,9 @@ type ServiceInterface interface {
 	IncrementUsage(ctx context.Context, req *models.IncrementUsageRequest, tenantID string) (*models.QuotaUsageWithLimit, error)
 	ResetUsage(ctx context.Context, tenantID string) error
 	CheckQuota(ctx context.Context, tenantID, metric string, amount int64) (*models.QuotaCheckResult, error)
+	CheckQuotaWithPolicy(ctx context.Context, tenantID string, req *models.CheckWithPolicyRequest) (*models.CheckWithPolicyResult, error)
 	ListAlerts(ctx context.Context, tenantID string) ([]models.QuotaAlert, error)
+	ListAlertsByLevel(ctx context.Context, tenantID, level string) ([]models.QuotaAlert, error)
 }
 
 var _ ServiceInterface = (*Service)(nil)

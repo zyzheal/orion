@@ -30,7 +30,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.POST("/usage/increment", auth.RequirePermission("quota", "write"), h.IncrementUsage)
 	f.POST("/usage/reset", auth.RequirePermission("quota", "delete"), h.ResetUsage)
 	f.POST("/check", auth.RequirePermission("quota", "read"), h.CheckQuota)
+	f.POST("/check-with-policy", auth.RequirePermission("quota", "read"), h.CheckQuotaWithPolicy)
 	f.GET("/alerts", auth.RequirePermission("quota", "read"), h.ListAlerts)
+	f.GET("/alerts/by-level", auth.RequirePermission("quota", "read"), h.ListAlertsByLevel)
 }
 
 func (h *Handler) getTenantID(c *gin.Context) string {
@@ -185,6 +187,37 @@ func (h *Handler) ListAlerts(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListQuotaAlerts")
 	defer span.End()
 	alerts, err := h.svc.ListAlerts(ctx, h.getTenantID(c))
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, alerts)
+}
+
+func (h *Handler) CheckQuotaWithPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CheckQuotaWithPolicy")
+	defer span.End()
+	var req models.CheckWithPolicyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	result, err := h.svc.CheckQuotaWithPolicy(ctx, h.getTenantID(c), &req)
+	if err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	// Blocking responses still return 200 with Blocking=true — the caller is
+	// expected to enforce the block. Non-200 here would blur "no such plan"
+	// with "policy rejected the request".
+	middleware.RespondSuccess(c, result)
+}
+
+func (h *Handler) ListAlertsByLevel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListQuotaAlertsByLevel")
+	defer span.End()
+	level := c.Query("level")
+	alerts, err := h.svc.ListAlertsByLevel(ctx, h.getTenantID(c), level)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

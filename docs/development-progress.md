@@ -2679,3 +2679,119 @@ feat(frontend): Phase 305 AuditComplianceDashboard 前端
 ### 剩余任务（Phase 306，1d）
 
 - Phase 306：T-QUOTA 软限/硬限 + 超配策略 + 分级预警（1d）
+
+---
+
+## Phase 306 — T-QUOTA 软限/硬限 + 超配策略 + 分级预警（2026-09-08 实施完成）
+
+> 分支：`feat/wave2-parallel-execution`
+> 授权：沿用 Phase 301-305 授权（`orion-platform-svc-go/`）
+> Backend Commit：`pending`（本轮提交）
+
+### 任务
+
+Phase 306（1d）：T-QUOTA 补齐**软限/硬限策略**（`SoftLimit`/`HardLimit`/`OverLimitAction`/`WarnThresholds`）+ **policy-aware check endpoint**（`POST /check-with-policy`，返回允许/拒绝 + 触发阈值 + warning 列表）+ **按级别过滤 alerts**（`GET /alerts/by-level`）。让租户配额从"只有 per-metric 硬阈值"升级到"软/硬阈值 + 超配策略 + 分档预警"完整体系。
+
+### 3 类新增行为
+
+| 类别 | 语义 |
+|---|---|
+| **软限（SoftLimit）** | `usage ≥ SoftLimit && < HardLimit` → 返回 warning，仍允许通过。默认 `HardLimit × 0.8`（整数数学 `hard*4/5`） |
+| **硬限（HardLimit）** | `usage ≥ HardLimit` → 按 `OverLimitAction` 决策：`block`→拒绝、`warn`→允许+warning、`allow`→静默通过 |
+| **超配策略（OverLimitAction）** | 三值枚举 `block`/`warn`/`allow`，大小写不敏感，未知值 fail-closed 到 `block` |
+| **分档预警（WarnThresholds）** | 相对 HardLimit 的百分比数组（默认 `[50, 80, 95]`），`projected/hard × 100` 每跨越一档就在 `WarnThresholdsHit` 中登记，返回值 sort+dedup+clamp[0,100] |
+
+### 新增 2 个 API 端点
+
+| Endpoint | 方法 | 请求体 | 返回类型 | 语义 |
+|---|---|---|---|---|
+| `/tenant-quota/check-with-policy` | POST | `CheckWithPolicyRequest{Metric, Amount, PlanID}` | `CheckWithPolicyResult` | Policy-aware 检查：返回 `Allowed`/`Blocking`/`Warning[]`/`WarnThresholdsHit[]` + soft/hard/usage 数字 |
+| `/tenant-quota/alerts/by-level?level=warning\|critical` | GET | query param | `[]QuotaAlert` | 按 alert level 过滤，大小写不敏感；空 level 不过滤；未知 level 返回空数组（不报错） |
+
+### 新增/扩展的模型
+
+- `QuotaPlan` 追加 `SoftLimit int64` / `HardLimit int64` / `OverLimitAction string` / `WarnThresholds []int`
+- `CreatePlanRequest` 追加同 4 字段（非指针，`applyDefaults` 兜底）
+- `UpdatePlanRequest` 追加同 4 字段（3 指针 + `WarnThresholds []int`，warn_thresholds 以逗号分隔字符串持久化）
+- `CheckWithPolicyRequest{Metric, Amount, PlanID}`
+- `CheckWithPolicyResult{Metric, CurrentValue, ProjectedValue, SoftLimit, HardLimit, UsagePct, Allowed, Blocking, OverLimitAction, WarnThresholds, WarnThresholdsHit, Warning, PlanID}`
+
+### 关键设计：决策树
+
+```
+projected = current + amount
+metricLimit = getLimitForMetric(plan, metric)
+hard = plan.HardLimit > 0 ? plan.HardLimit : metricLimit > 0 ? metricLimit : 0
+soft = plan.SoftLimit > 0 ? plan.SoftLimit : hard > 0 ? hard*4/5 : 0
+
+if hard <= 0                                          → allow (no cap)
+elif projected >= hard:
+    switch OverLimitAction:
+        block → Allowed=false, Blocking=true, warning
+        warn  → warning only
+        allow → silent pass
+elif soft > 0 && projected >= soft                    → warning only
+else                                                   → quiet pass
+
+WarnThresholdsHit = sorted(thresholds where projected/hard*100 >= t)
+```
+
+**Fail-closed 设计**：`normalizeOverLimitAction` 遇到未知值退回 `"block"`（安全默认）；`WarnThresholds` 越界值 clamp 到 [0, 100]；`CheckQuotaWithPolicy` 缺失 `metric` 或 `tenant_id` 直接报错而非返回零值。
+
+### PlanID 解析
+
+`resolvePlan(ctx, tenantID, planID)`：`PlanID` 非空则精确查（未找到报错），否则 fallback 到 `ListPlans(tenantID)[0]`（无 plan 报错）。多 plan 租户可通过 `PlanID` 指定使用哪个 plan。
+
+### 改动清单
+
+| 文件 | 改动 | 类型 |
+|---|---|---|
+| `orion-platform-svc-go/internal/tenant-quota/models/models.go` | `QuotaPlan` +4 字段；`CreatePlanRequest` +4 字段；`UpdatePlanRequest` +4 字段（指针）；新增 `CheckWithPolicyRequest` + `CheckWithPolicyResult`（+58 行） | 类型定义 |
+| `orion-platform-svc-go/internal/tenant-quota/service/service.go` | `CreatePlan`/`UpdatePlan` 传递新字段；`applyDefaults` 追加 policy 默认；新增 `CheckQuotaWithPolicy` + `resolvePlan` + `resolveHardLimit` + `resolveSoftLimit` + `computeThresholdHits` + `ListAlertsByLevel` + `normalizeOverLimitAction` + `normalizeWarnThresholds` + `joinInts` + `parseThresholds`；新增 `sort`/`strconv`/`strings` import（+187 行） | 业务逻辑 |
+| `orion-platform-svc-go/internal/tenant-quota/service/service_interface.go` | ServiceInterface 追加 2 方法签名 | 接口 |
+| `orion-platform-svc-go/internal/tenant-quota/handler/handler.go` | 2 新路由 + 2 新 handler（含 OTel span） | HTTP 层 |
+| `orion-platform-svc-go/internal/tenant-quota/service/service_test.go` | 新增 17 个测试：`CreatePlan_appliesPolicyDefaults`/`CreatePlan_normalizesOverLimitAction`/`CreatePlan_normalizesWarnThresholds`/`CheckWithPolicy_UnderSoft`/`_BetweenSoftAndHard`/`_OverHard_Block`/`_OverHard_Warn`/`_OverHard_Allow`/`_DefaultSoftAt80PctOfHard`/`_PlanHardOverrideWinsOverMetricLimit`/`_NoCapSilentAllow`/`_NoPlanReturnsError`/`_EmptyMetricReturnsError`/`_WarnThresholdsHitMultiple`/`_WarnThresholdsHitPartial`/`_PlanIDOverride`/`_UnknownMetricFallsThrough` + `ListAlertsByLevel_FiltersByLevel`/`_CaseInsensitive`/`_UnknownLevelReturnsEmpty` + `NormalizeOverLimitAction`/`NormalizeWarnThresholds_SortDedupClamp`/`NormalizeWarnThresholds_Empty`/`JoinIntsAndParse`（+554 行） | 测试 |
+| `orion-platform-svc-go/internal/tenant-quota/handler/handler_test.go` | mock 追加 2 方法（`CheckQuotaWithPolicy`/`ListAlertsByLevel`）+ 3 新测试（`CheckQuotaWithPolicy` 200、`CheckQuotaWithPolicy_MissingMetric` 400、`ListAlertsByLevel` 200）（+66 行） | 测试 |
+
+### 关键设计决策
+
+1. **Soft 默认 = 80% × Hard（整数数学）**：用 `hard*4/5` 而非 `hard*0.8`，避免浮点漂移。当 `plan.SoftLimit=0 && plan.HardLimit>0` 时自动生效。
+2. **Plan HardLimit 优先级**：`plan.HardLimit > metricLimit`。允许 plan 级配置收紧或放宽 metric 级硬阈值，同时保留 metric 级默认值作为 fallback。
+3. **OverLimitAction 未知值 fail-closed 到 `block`**：租户配额是安全相关的，误配不应静默允许超配。测试明确覆盖 `"weird"` → `"block"` 分支。
+4. **WarnThresholds 存逗号分隔字符串**：不引入 JSON array 列，保持迁移最小化。`WarnThresholds` 字段标 `db:"-"`，repository 层负责 join/parse。
+5. **Policy-aware check 返回 200 即使 Blocking=true**：`/check` 语义是"询问"而非"执行"，caller 负责根据 `Allowed/Blocking` 字段做业务决策。返回 403/422 会与"no such plan"混淆。
+6. **Unknown level → 空数组（非错误）**：`ListAlertsByLevel` 遇到 `level=does-not-exist` 返回 `[]QuotaAlert{}` 而非 400，让 dashboard 用空表格展示而非 crash。
+7. **ListPlans 顺序 fallback**：无 PlanID 时取 `plans[0]`，配合 repository 层默认按 `created_at ASC` 排序保证语义稳定（首个 plan = 主 plan）。
+
+### 验收证据
+
+- ✅ `go build ./internal/tenant-quota/...` 通过
+- ✅ `go test ./internal/tenant-quota/...` 全部通过（handler 11 tests + service 30 tests）
+- ✅ `go test ./...` 全库通过，零 FAIL
+- ✅ 22 个新测试覆盖：默认值、规范化、决策树 3 分支（Under/Between/Over×block/warn/allow）、plan override、no-cap、no-plan error、missing metric error、threshold 部分/全部 hit、alert level filter/case-insensitive/unknown
+- ✅ 无 `noUnusedLocals` / `imported and not used` 违反
+- ✅ 未提交 `migrations/dba/`、`orion-frontend/src/api/dba/`、`orion-frontend/src/pages/dba/`、`orion-frontend/src/router/routes.tsx`、`docs/dba/`
+
+### Commit 消息
+
+```
+feat(tenant-quota): Phase 306 软限/硬限 + 超配策略 + 分级预警
+```
+
+### 累计进度
+
+- Phase 301 实施：✅ `b56cd8566` + `4b6fb86c4`
+- Phase 302 实施：✅ `3cc7bd7c2`
+- Phase 303 实施：✅ `b6322a01d`
+- Phase 304 实施：✅ `c7c48adb4`
+- Phase 305 实施：✅ `4aa131398` + `057ddba10`
+- **Phase 306 实施**：✅ `pending`（本轮）
+- Phase 301-306 差距扩展任务：**已完成 6/6（6d / 6d）** ✅
+
+### 剩余任务（P0-MB Phase 1-5，26d）
+
+- P0-MB Phase 1：基础数据模型（L1 BranchProfile + L3 BuildArtifact digest）（5d）
+- P0-MB Phase 2：环境隔离强化（L2 Namespace 命名规则 + image tag 前缀强制）（4d）
+- P0-MB Phase 3：同步策略（L4 SyncPolicy 页面 + 自动化调度）（6d）
+- P0-MB Phase 4：变更审计（L5 DeployEvent + 一键回滚）（5d）
+- P0-MB Phase 5：冲突预检查（PreDeployGate R1-R6 阻断规则 + 前端可视化）（6d）
