@@ -71,9 +71,9 @@ func (r *Repository) ListGroups(ctx context.Context, tenantID, namespaceID strin
 
 func (r *Repository) CreateItem(ctx context.Context, item *models.ConfigItem) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO config_item (id, tenant_id, group_id, namespace_id, key_name, value, value_type, encrypted, description, labels, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		item.ID, item.TenantID, item.GroupID, item.NamespaceID, item.KeyName, item.Value, item.ValueType, item.Encrypted, item.Description, item.Labels, item.CreatedAt, item.UpdatedAt)
+		`INSERT INTO config_item (id, tenant_id, group_id, namespace_id, key_name, value, value_type, encrypted, description, labels, level, override_of, priority, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		item.ID, item.TenantID, item.GroupID, item.NamespaceID, item.KeyName, item.Value, item.ValueType, item.Encrypted, item.Description, item.Labels, item.Level, item.OverrideOf, item.Priority, item.CreatedAt, item.UpdatedAt)
 	return err
 }
 
@@ -97,9 +97,46 @@ func (r *Repository) ListItems(ctx context.Context, tenantID, groupID, namespace
 		where += " AND namespace_id=?"
 		args = append(args, namespaceID)
 	}
-	query := fmt.Sprintf("SELECT * FROM config_item WHERE %s ORDER BY key_name", where)
+	query := fmt.Sprintf("SELECT * FROM config_item WHERE %s ORDER BY key_name, priority DESC", where)
 	var items []models.ConfigItem
 	err := r.db.SelectContext(ctx, &items, query, args...)
+	return items, err
+}
+
+// ListItemsFiltered 支持 Phase 302 的 Level 过滤和 OverrideOnly 过滤。
+func (r *Repository) ListItemsFiltered(ctx context.Context, tenantID string, filter *models.GetItemsFilter) ([]models.ConfigItem, error) {
+	if filter == nil {
+		return r.ListItems(ctx, tenantID, "", "")
+	}
+	where := "tenant_id=?"
+	args := []interface{}{tenantID}
+	if filter.GroupID != "" {
+		where += " AND group_id=?"
+		args = append(args, filter.GroupID)
+	}
+	if filter.NamespaceID != "" {
+		where += " AND namespace_id=?"
+		args = append(args, filter.NamespaceID)
+	}
+	if filter.Level.IsValid() {
+		where += " AND level=?"
+		args = append(args, string(filter.Level))
+	}
+	if filter.OverrideOnly {
+		where += " AND EXISTS (SELECT 1 FROM config_item c2 WHERE c2.override_of = config_item.id AND c2.tenant_id = config_item.tenant_id)"
+	}
+	query := fmt.Sprintf("SELECT * FROM config_item WHERE %s ORDER BY key_name, priority DESC", where)
+	var items []models.ConfigItem
+	err := r.db.SelectContext(ctx, &items, query, args...)
+	return items, err
+}
+
+// ListOverrides 返回所有 override_of = itemID 的下层 item（Phase 302）。
+func (r *Repository) ListOverrides(ctx context.Context, tenantID, itemID string) ([]models.ConfigItem, error) {
+	var items []models.ConfigItem
+	err := r.db.SelectContext(ctx, &items,
+		`SELECT * FROM config_item WHERE tenant_id=? AND override_of=? ORDER BY priority DESC, created_at ASC`,
+		tenantID, itemID)
 	return items, err
 }
 

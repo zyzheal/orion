@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
+	"sort"
 	"strings"
 	"time"
 
@@ -23,6 +24,8 @@ type RepositoryInterface interface {
 	CreateItem(ctx context.Context, item *models.ConfigItem) error
 	GetItem(ctx context.Context, id, tenantID string) (*models.ConfigItem, error)
 	ListItems(ctx context.Context, tenantID, groupID, namespaceID string) ([]models.ConfigItem, error)
+	ListItemsFiltered(ctx context.Context, tenantID string, filter *models.GetItemsFilter) ([]models.ConfigItem, error)
+	ListOverrides(ctx context.Context, tenantID, itemID string) ([]models.ConfigItem, error)
 	UpdateItemValue(ctx context.Context, id, tenantID string, attrs map[string]interface{}) (*models.ConfigItem, error)
 	DeleteItem(ctx context.Context, id, tenantID string) (bool, error)
 	GetItemLatestVersion(ctx context.Context, itemID string) (int, error)
@@ -140,6 +143,12 @@ func (s *Service) CreateItem(ctx context.Context, req *models.CreateItemRequest,
 		return nil, fmt.Errorf("group not found: %w", err)
 	}
 
+	// Phase 302: Level 归一化与校验
+	level := models.NormalizeLevel(req.Level)
+	if !req.Level.IsValid() && req.Level != "" {
+		return nil, fmt.Errorf("invalid config level: %q (must be platform/tenant/user)", req.Level)
+	}
+
 	labelsJSON, _ := json.Marshal(req.Labels)
 	item := &models.ConfigItem{
 		ID:          generateID("ci"),
@@ -152,6 +161,9 @@ func (s *Service) CreateItem(ctx context.Context, req *models.CreateItemRequest,
 		Encrypted:   req.Encrypted,
 		Description: req.Description,
 		Labels:      string(labelsJSON),
+		Level:       level,
+		OverrideOf:  req.OverrideOf,
+		Priority:    level.Priority(),
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
@@ -181,7 +193,7 @@ func (s *Service) GetItem(ctx context.Context, id, tenantID string) (*models.Con
 }
 
 func (s *Service) ListItems(ctx context.Context, tenantID string, filter *models.GetItemsFilter) ([]models.ConfigItem, error) {
-	items, err := s.repo.ListItems(ctx, tenantID, filter.GroupID, filter.NamespaceID)
+	items, err := s.repo.ListItemsFiltered(ctx, tenantID, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -191,6 +203,11 @@ func (s *Service) ListItems(ctx context.Context, tenantID string, filter *models
 	for i := range items {
 		if items[i].Labels != "" {
 			json.Unmarshal([]byte(items[i].Labels), &items[i].LabelsMap)
+		}
+		// 兼容旧数据：Level 为空时归一化为 tenant
+		if items[i].Level == "" {
+			items[i].Level = models.ConfigLevelTenant
+			items[i].Priority = models.ConfigLevelTenant.Priority()
 		}
 	}
 	return items, nil
@@ -213,6 +230,17 @@ func (s *Service) UpdateItem(ctx context.Context, id, tenantID, operator string,
 	if req.Labels != nil {
 		labelsJSON, _ := json.Marshal(req.Labels)
 		attrs["labels"] = string(labelsJSON)
+	}
+	// Phase 302: Level / OverrideOf 更新
+	if req.Level != nil {
+		if !req.Level.IsValid() {
+			return nil, fmt.Errorf("invalid config level: %q (must be platform/tenant/user)", *req.Level)
+		}
+		attrs["level"] = string(*req.Level)
+		attrs["priority"] = (*req.Level).Priority()
+	}
+	if req.OverrideOf != nil {
+		attrs["override_of"] = *req.OverrideOf
 	}
 
 	updated, err := s.repo.UpdateItemValue(ctx, id, tenantID, attrs)
@@ -259,6 +287,78 @@ func (s *Service) GetItemHistory(ctx context.Context, itemID, tenantID string) (
 		return []models.ConfigItemHistory{}, nil
 	}
 	return history, nil
+}
+
+// --- Phase 302: 三层 Level 覆盖 ---
+
+// ResolveEffectiveConfig 按 Level 优先级合并配置项（platform → tenant → user）。
+// 优先级：platform(100) > tenant(50) > user(10)，同 KeyName 下取 Priority 最高的。
+// namespaceID 为空时不限制 namespace；userID 参数当前未使用（保留扩展）。
+func (s *Service) ResolveEffectiveConfig(ctx context.Context, tenantID, namespaceID, userID string) (map[string]models.ConfigValue, error) {
+	_ = userID // 保留扩展：未来可用于过滤 user-specific override
+	filter := &models.GetItemsFilter{
+		NamespaceID: namespaceID,
+	}
+	items, err := s.repo.ListItemsFiltered(ctx, tenantID, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	// 按 KeyName 分组，每组内按 Priority DESC 排序，取第一个作为生效值
+	type bucket struct {
+		items []models.ConfigItem
+	}
+	buckets := make(map[string][]models.ConfigItem)
+	for _, it := range items {
+		// 归一化 Level（兼容旧数据）
+		if it.Level == "" {
+			it.Level = models.ConfigLevelTenant
+			it.Priority = models.ConfigLevelTenant.Priority()
+		}
+		buckets[it.KeyName] = append(buckets[it.KeyName], it)
+	}
+
+	effective := make(map[string]models.ConfigValue, len(buckets))
+	for key, list := range buckets {
+		// 按 Priority DESC 排序，同 Priority 按 CreatedAt DESC
+		sort.Slice(list, func(i, j int) bool {
+			if list[i].Priority != list[j].Priority {
+				return list[i].Priority > list[j].Priority
+			}
+			return list[i].CreatedAt.After(list[j].CreatedAt)
+		})
+		top := list[0]
+		effective[key] = models.ConfigValue{
+			ItemID:    top.ID,
+			KeyName:   top.KeyName,
+			Value:     top.Value,
+			ValueType: top.ValueType,
+			Level:     top.Level,
+			Priority:  top.Priority,
+		}
+	}
+	return effective, nil
+}
+
+// ListOverrides 返回所有下层覆盖某个 item 的 records（override_of = itemID）。
+func (s *Service) ListOverrides(ctx context.Context, tenantID, itemID string) ([]models.ConfigItem, error) {
+	items, err := s.repo.ListOverrides(ctx, tenantID, itemID)
+	if err != nil {
+		return nil, err
+	}
+	if items == nil {
+		return []models.ConfigItem{}, nil
+	}
+	for i := range items {
+		if items[i].Labels != "" {
+			json.Unmarshal([]byte(items[i].Labels), &items[i].LabelsMap)
+		}
+		if items[i].Level == "" {
+			items[i].Level = models.ConfigLevelTenant
+			items[i].Priority = models.ConfigLevelTenant.Priority()
+		}
+	}
+	return items, nil
 }
 
 // --- Snapshot ---

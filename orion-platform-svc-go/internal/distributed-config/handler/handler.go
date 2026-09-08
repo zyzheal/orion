@@ -35,10 +35,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// Item
 	f.GET("/items", auth.RequirePermission("config", "read"), h.ListItems)
 	f.POST("/items", auth.RequirePermission("config", "write"), h.CreateItem)
+	// Phase 302: 生效值（三层 Level 合并后的实际生效配置）
+	f.GET("/items/effective", auth.RequirePermission("config", "read"), h.ResolveEffectiveConfig)
 	f.GET("/items/:id", auth.RequirePermission("config", "read"), h.GetItem)
 	f.PUT("/items/:id", auth.RequirePermission("config", "write"), h.UpdateItem)
 	f.DELETE("/items/:id", auth.RequirePermission("config", "delete"), h.DeleteItem)
 	f.GET("/items/:id/history", auth.RequirePermission("config", "read"), h.GetItemHistory)
+	// Phase 302: 列出被下层覆盖的 item
+	f.GET("/items/:id/overrides", auth.RequirePermission("config", "read"), h.ListOverrides)
 
 	// Snapshot
 	f.POST("/snapshots", auth.RequirePermission("config", "write"), h.PublishSnapshot)
@@ -234,6 +238,35 @@ func (h *Handler) GetItemHistory(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, history)
+}
+
+// --- Phase 302: 三层 Level 覆盖 ---
+
+// ResolveEffectiveConfig 返回按 Level 优先级合并后的实际生效配置。
+// Query 参数：namespaceId（可选）、userId（可选，保留扩展）
+func (h *Handler) ResolveEffectiveConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigResolveEffectiveConfig")
+	defer span.End()
+	namespaceID := c.Query("namespaceId")
+	userID := c.Query("userId")
+	result, err := h.svc.ResolveEffectiveConfig(ctx, h.getTenantID(c), namespaceID, userID)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, result)
+}
+
+// ListOverrides 返回所有下层覆盖某个 item 的 records（override_of = itemID）。
+func (h *Handler) ListOverrides(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigListOverrides")
+	defer span.End()
+	items, err := h.svc.ListOverrides(ctx, h.getTenantID(c), c.Param("id"))
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, items)
 }
 
 // --- Snapshot ---

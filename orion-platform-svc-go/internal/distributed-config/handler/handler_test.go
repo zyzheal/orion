@@ -168,6 +168,14 @@ func (m *mockConfigSvc) ListAudit(ctx context.Context, tenantID string, limit in
 	return nil, nil
 }
 
+// Phase 302: 三层 Level 覆盖 mock 方法
+func (m *mockConfigSvc) ResolveEffectiveConfig(ctx context.Context, tenantID, namespaceID, userID string) (map[string]models.ConfigValue, error) {
+	return map[string]models.ConfigValue{}, nil
+}
+func (m *mockConfigSvc) ListOverrides(ctx context.Context, tenantID, itemID string) ([]models.ConfigItem, error) {
+	return []models.ConfigItem{}, nil
+}
+
 func makeCtx(method, path string, body interface{}) (*gin.Context, *httptest.ResponseRecorder) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)

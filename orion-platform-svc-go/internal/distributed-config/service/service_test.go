@@ -102,6 +102,54 @@ func (f *fakeDCRepo) ListItems(ctx context.Context, tenantID, groupID, namespace
 	return items, nil
 }
 
+// Phase 302: 支持 Level 过滤和 OverrideOnly 过滤
+func (f *fakeDCRepo) ListItemsFiltered(ctx context.Context, tenantID string, filter *models.GetItemsFilter) ([]models.ConfigItem, error) {
+	if filter == nil {
+		return f.ListItems(ctx, tenantID, "", "")
+	}
+	var items []models.ConfigItem
+	for _, item := range f.items {
+		if item.TenantID != tenantID {
+			continue
+		}
+		if filter.GroupID != "" && item.GroupID != filter.GroupID {
+			continue
+		}
+		if filter.NamespaceID != "" && item.NamespaceID != filter.NamespaceID {
+			continue
+		}
+		if filter.Level.IsValid() && item.Level != filter.Level {
+			continue
+		}
+		if filter.OverrideOnly {
+			// 检查是否存在下层 override_of = item.ID
+			found := false
+			for _, other := range f.items {
+				if other.TenantID == tenantID && other.OverrideOf == item.ID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+		}
+		items = append(items, *item)
+	}
+	return items, nil
+}
+
+// Phase 302: 列出被下层覆盖的 item
+func (f *fakeDCRepo) ListOverrides(ctx context.Context, tenantID, itemID string) ([]models.ConfigItem, error) {
+	var items []models.ConfigItem
+	for _, item := range f.items {
+		if item.TenantID == tenantID && item.OverrideOf == itemID {
+			items = append(items, *item)
+		}
+	}
+	return items, nil
+}
+
 func (f *fakeDCRepo) UpdateItemValue(ctx context.Context, id, tenantID string, attrs map[string]interface{}) (*models.ConfigItem, error) {
 	item, ok := f.items[id]
 	if !ok {
@@ -403,4 +451,353 @@ func TestDC_ListAudit(t *testing.T) {
 		t.Errorf("Action = %q, want create", audits[0].Action)
 	}
 	_ = ns
+}
+
+// --- Phase 302: 三层 Level 覆盖测试 ---
+
+func TestDC_ConfigLevel_IsValid(t *testing.T) {
+	tests := []struct {
+		level    models.ConfigLevel
+		expected bool
+	}{
+		{models.ConfigLevelPlatform, true},
+		{models.ConfigLevelTenant, true},
+		{models.ConfigLevelUser, true},
+		{"", false},
+		{"invalid", false},
+		{"PLATFORM", false}, // 大小写敏感
+	}
+	for _, tt := range tests {
+		if got := tt.level.IsValid(); got != tt.expected {
+			t.Errorf("Level(%q).IsValid() = %v, want %v", tt.level, got, tt.expected)
+		}
+	}
+}
+
+func TestDC_ConfigLevel_Priority(t *testing.T) {
+	tests := []struct {
+		level    models.ConfigLevel
+		expected int
+	}{
+		{models.ConfigLevelPlatform, 100},
+		{models.ConfigLevelTenant, 50},
+		{models.ConfigLevelUser, 10},
+		{"", 0},
+		{"invalid", 0},
+	}
+	for _, tt := range tests {
+		if got := tt.level.Priority(); got != tt.expected {
+			t.Errorf("Level(%q).Priority() = %d, want %d", tt.level, got, tt.expected)
+		}
+	}
+}
+
+func TestDC_NormalizeLevel(t *testing.T) {
+	if got := models.NormalizeLevel(models.ConfigLevelPlatform); got != models.ConfigLevelPlatform {
+		t.Errorf("NormalizeLevel(platform) = %q, want platform", got)
+	}
+	if got := models.NormalizeLevel(""); got != models.ConfigLevelTenant {
+		t.Errorf("NormalizeLevel(empty) = %q, want tenant", got)
+	}
+	if got := models.NormalizeLevel("invalid"); got != models.ConfigLevelTenant {
+		t.Errorf("NormalizeLevel(invalid) = %q, want tenant", got)
+	}
+}
+
+func TestDC_CreateItem_DefaultLevel(t *testing.T) {
+	repo := newFakeDCRepo()
+	svc := NewService(repo)
+
+	// 先创建 namespace 和 group
+	ns, _ := svc.CreateNamespace(context.Background(), &models.CreateNamespaceRequest{Name: "ns"}, "t1")
+	g, _ := svc.CreateGroup(context.Background(), &models.CreateGroupRequest{NamespaceID: ns.ID, Name: "grp"}, "t1")
+
+	// 不指定 Level，应默认为 tenant
+	item, err := svc.CreateItem(context.Background(), &models.CreateItemRequest{
+		GroupID:     g.ID,
+		NamespaceID: ns.ID,
+		KeyName:     "app.timeout",
+		Value:       "30",
+	}, "t1")
+	if err != nil {
+		t.Fatalf("CreateItem error: %v", err)
+	}
+	if item.Level != models.ConfigLevelTenant {
+		t.Errorf("Level = %q, want tenant (default)", item.Level)
+	}
+	if item.Priority != 50 {
+		t.Errorf("Priority = %d, want 50 (tenant)", item.Priority)
+	}
+}
+
+func TestDC_CreateItem_ExplicitLevel(t *testing.T) {
+	repo := newFakeDCRepo()
+	svc := NewService(repo)
+	ns, _ := svc.CreateNamespace(context.Background(), &models.CreateNamespaceRequest{Name: "ns"}, "t1")
+	g, _ := svc.CreateGroup(context.Background(), &models.CreateGroupRequest{NamespaceID: ns.ID, Name: "grp"}, "t1")
+
+	item, err := svc.CreateItem(context.Background(), &models.CreateItemRequest{
+		GroupID:     g.ID,
+		NamespaceID: ns.ID,
+		KeyName:     "app.timeout",
+		Value:       "60",
+		Level:       models.ConfigLevelPlatform,
+	}, "t1")
+	if err != nil {
+		t.Fatalf("CreateItem error: %v", err)
+	}
+	if item.Level != models.ConfigLevelPlatform {
+		t.Errorf("Level = %q, want platform", item.Level)
+	}
+	if item.Priority != 100 {
+		t.Errorf("Priority = %d, want 100 (platform)", item.Priority)
+	}
+}
+
+func TestDC_CreateItem_InvalidLevel(t *testing.T) {
+	repo := newFakeDCRepo()
+	svc := NewService(repo)
+	ns, _ := svc.CreateNamespace(context.Background(), &models.CreateNamespaceRequest{Name: "ns"}, "t1")
+	g, _ := svc.CreateGroup(context.Background(), &models.CreateGroupRequest{NamespaceID: ns.ID, Name: "grp"}, "t1")
+
+	_, err := svc.CreateItem(context.Background(), &models.CreateItemRequest{
+		GroupID:     g.ID,
+		NamespaceID: ns.ID,
+		KeyName:     "app.timeout",
+		Value:       "60",
+		Level:       "invalid",
+	}, "t1")
+	if err == nil {
+		t.Error("expected error for invalid level, got nil")
+	}
+}
+
+func TestDC_ResolveEffectiveConfig_PlatformOnly(t *testing.T) {
+	repo := newFakeDCRepo()
+	svc := NewService(repo)
+	ns, _ := svc.CreateNamespace(context.Background(), &models.CreateNamespaceRequest{Name: "ns"}, "t1")
+	g, _ := svc.CreateGroup(context.Background(), &models.CreateGroupRequest{NamespaceID: ns.ID, Name: "grp"}, "t1")
+
+	// 只有 platform 层配置
+	_, _ = svc.CreateItem(context.Background(), &models.CreateItemRequest{
+		GroupID:     g.ID,
+		NamespaceID: ns.ID,
+		KeyName:     "app.timeout",
+		Value:       "30",
+		Level:       models.ConfigLevelPlatform,
+	}, "t1")
+
+	result, err := svc.ResolveEffectiveConfig(context.Background(), "t1", ns.ID, "")
+	if err != nil {
+		t.Fatalf("ResolveEffectiveConfig error: %v", err)
+	}
+	cv, ok := result["app.timeout"]
+	if !ok {
+		t.Fatal("expected app.timeout in effective config")
+	}
+	if cv.Level != models.ConfigLevelPlatform {
+		t.Errorf("Level = %q, want platform", cv.Level)
+	}
+	if cv.Value != "30" {
+		t.Errorf("Value = %q, want 30", cv.Value)
+	}
+	if cv.Priority != 100 {
+		t.Errorf("Priority = %d, want 100", cv.Priority)
+	}
+}
+
+func TestDC_ResolveEffectiveConfig_TenantOverridePlatform(t *testing.T) {
+	repo := newFakeDCRepo()
+	svc := NewService(repo)
+	ns, _ := svc.CreateNamespace(context.Background(), &models.CreateNamespaceRequest{Name: "ns"}, "t1")
+	g, _ := svc.CreateGroup(context.Background(), &models.CreateGroupRequest{NamespaceID: ns.ID, Name: "grp"}, "t1")
+
+	// platform 层（priority 100）
+	_, _ = svc.CreateItem(context.Background(), &models.CreateItemRequest{
+		GroupID:     g.ID,
+		NamespaceID: ns.ID,
+		KeyName:     "app.timeout",
+		Value:       "30",
+		Level:       models.ConfigLevelPlatform,
+	}, "t1")
+	// tenant 层（priority 50）——按新规则 platform 应优先
+	_, _ = svc.CreateItem(context.Background(), &models.CreateItemRequest{
+		GroupID:     g.ID,
+		NamespaceID: ns.ID,
+		KeyName:     "app.timeout",
+		Value:       "60",
+		Level:       models.ConfigLevelTenant,
+	}, "t1")
+
+	result, _ := svc.ResolveEffectiveConfig(context.Background(), "t1", ns.ID, "")
+	cv := result["app.timeout"]
+	// platform(100) > tenant(50)，所以 platform 优先
+	if cv.Level != models.ConfigLevelPlatform {
+		t.Errorf("Level = %q, want platform (higher priority)", cv.Level)
+	}
+	if cv.Value != "30" {
+		t.Errorf("Value = %q, want 30 (from platform)", cv.Value)
+	}
+}
+
+func TestDC_ResolveEffectiveConfig_UserOverrideTenant(t *testing.T) {
+	repo := newFakeDCRepo()
+	svc := NewService(repo)
+	ns, _ := svc.CreateNamespace(context.Background(), &models.CreateNamespaceRequest{Name: "ns"}, "t1")
+	g, _ := svc.CreateGroup(context.Background(), &models.CreateGroupRequest{NamespaceID: ns.ID, Name: "grp"}, "t1")
+
+	// tenant 层
+	_, _ = svc.CreateItem(context.Background(), &models.CreateItemRequest{
+		GroupID:     g.ID,
+		NamespaceID: ns.ID,
+		KeyName:     "app.timeout",
+		Value:       "60",
+		Level:       models.ConfigLevelTenant,
+	}, "t1")
+	// user 层（priority 10）
+	_, _ = svc.CreateItem(context.Background(), &models.CreateItemRequest{
+		GroupID:     g.ID,
+		NamespaceID: ns.ID,
+		KeyName:     "app.timeout",
+		Value:       "90",
+		Level:       models.ConfigLevelUser,
+	}, "t1")
+
+	result, _ := svc.ResolveEffectiveConfig(context.Background(), "t1", ns.ID, "")
+	cv := result["app.timeout"]
+	// tenant(50) > user(10)，所以 tenant 优先
+	if cv.Level != models.ConfigLevelTenant {
+		t.Errorf("Level = %q, want tenant (higher than user)", cv.Level)
+	}
+	if cv.Value != "60" {
+		t.Errorf("Value = %q, want 60 (from tenant)", cv.Value)
+	}
+}
+
+func TestDC_ResolveEffectiveConfig_LegacyNoLevel(t *testing.T) {
+	repo := newFakeDCRepo()
+	svc := NewService(repo)
+	ns, _ := svc.CreateNamespace(context.Background(), &models.CreateNamespaceRequest{Name: "ns"}, "t1")
+	g, _ := svc.CreateGroup(context.Background(), &models.CreateGroupRequest{NamespaceID: ns.ID, Name: "grp"}, "t1")
+
+	// 直接注入 Level="" 的旧数据（模拟旧表未加 level 列的情况）
+	repo.items["legacy-1"] = &models.ConfigItem{
+		ID:          "legacy-1",
+		TenantID:    "t1",
+		GroupID:     g.ID,
+		NamespaceID: ns.ID,
+		KeyName:     "app.timeout",
+		Value:       "120",
+		ValueType:   models.ValueTypeString,
+		Level:       "", // 旧数据
+		Priority:    0,
+	}
+
+	result, err := svc.ResolveEffectiveConfig(context.Background(), "t1", ns.ID, "")
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	cv := result["app.timeout"]
+	if cv.Level != models.ConfigLevelTenant {
+		t.Errorf("Level = %q, want tenant (normalized from empty)", cv.Level)
+	}
+	if cv.Priority != 50 {
+		t.Errorf("Priority = %d, want 50 (normalized)", cv.Priority)
+	}
+}
+
+func TestDC_ListOverrides(t *testing.T) {
+	repo := newFakeDCRepo()
+	svc := NewService(repo)
+	ns, _ := svc.CreateNamespace(context.Background(), &models.CreateNamespaceRequest{Name: "ns"}, "t1")
+	g, _ := svc.CreateGroup(context.Background(), &models.CreateGroupRequest{NamespaceID: ns.ID, Name: "grp"}, "t1")
+
+	// 创建 parent item（tenant 层）
+	parent, _ := svc.CreateItem(context.Background(), &models.CreateItemRequest{
+		GroupID:     g.ID,
+		NamespaceID: ns.ID,
+		KeyName:     "app.timeout",
+		Value:       "60",
+		Level:       models.ConfigLevelTenant,
+	}, "t1")
+
+	// 创建 user 层 override
+	_, _ = svc.CreateItem(context.Background(), &models.CreateItemRequest{
+		GroupID:     g.ID,
+		NamespaceID: ns.ID,
+		KeyName:     "app.timeout",
+		Value:       "90",
+		Level:       models.ConfigLevelUser,
+		OverrideOf:  parent.ID,
+	}, "t1")
+
+	// 创建跨租户的 override（应被过滤掉）
+	repo.items["cross-tenant-1"] = &models.ConfigItem{
+		ID:         "cross-tenant-1",
+		TenantID:   "t2", // 不同租户
+		GroupID:    g.ID,
+		KeyName:    "app.timeout",
+		Value:      "999",
+		Level:      models.ConfigLevelUser,
+		OverrideOf: parent.ID,
+		Priority:   10,
+	}
+
+	overrides, err := svc.ListOverrides(context.Background(), "t1", parent.ID)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	if len(overrides) != 1 {
+		t.Fatalf("overrides count = %d, want 1", len(overrides))
+	}
+	if overrides[0].TenantID != "t1" {
+		t.Errorf("TenantID = %q, want t1 (cross-tenant should be filtered)", overrides[0].TenantID)
+	}
+	if overrides[0].Value != "90" {
+		t.Errorf("Value = %q, want 90", overrides[0].Value)
+	}
+}
+
+func TestDC_ListItems_FilterByLevel(t *testing.T) {
+	repo := newFakeDCRepo()
+	svc := NewService(repo)
+	ns, _ := svc.CreateNamespace(context.Background(), &models.CreateNamespaceRequest{Name: "ns"}, "t1")
+	g, _ := svc.CreateGroup(context.Background(), &models.CreateGroupRequest{NamespaceID: ns.ID, Name: "grp"}, "t1")
+
+	// 创建 3 个不同 Level 的 item
+	_, _ = svc.CreateItem(context.Background(), &models.CreateItemRequest{
+		GroupID:     g.ID,
+		NamespaceID: ns.ID,
+		KeyName:     "k1",
+		Value:       "v1",
+		Level:       models.ConfigLevelPlatform,
+	}, "t1")
+	_, _ = svc.CreateItem(context.Background(), &models.CreateItemRequest{
+		GroupID:     g.ID,
+		NamespaceID: ns.ID,
+		KeyName:     "k2",
+		Value:       "v2",
+		Level:       models.ConfigLevelTenant,
+	}, "t1")
+	_, _ = svc.CreateItem(context.Background(), &models.CreateItemRequest{
+		GroupID:     g.ID,
+		NamespaceID: ns.ID,
+		KeyName:     "k3",
+		Value:       "v3",
+		Level:       models.ConfigLevelUser,
+	}, "t1")
+
+	items, err := svc.ListItems(context.Background(), "t1", &models.GetItemsFilter{
+		GroupID: g.ID,
+		Level:   models.ConfigLevelPlatform,
+	})
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("items count = %d, want 1", len(items))
+	}
+	if items[0].KeyName != "k1" {
+		t.Errorf("KeyName = %q, want k1", items[0].KeyName)
+	}
 }

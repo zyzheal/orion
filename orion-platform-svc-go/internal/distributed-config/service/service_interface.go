@@ -18,6 +18,10 @@ type ServiceInterface interface {
 	ListItems(ctx context.Context, tenantID string, filter *models.GetItemsFilter) ([]models.ConfigItem, error)
 	UpdateItem(ctx context.Context, id, tenantID, operator string, req *models.UpdateItemRequest) (*models.ConfigItem, error)
 	DeleteItem(ctx context.Context, id, tenantID string) (bool, error)
+	// Phase 302: 按 Level 优先级合并后的实际生效配置（platform → tenant → user）
+	ResolveEffectiveConfig(ctx context.Context, tenantID, namespaceID, userID string) (map[string]models.ConfigValue, error)
+	// Phase 302: 列出被下层覆盖的 item（override_of = itemID）
+	ListOverrides(ctx context.Context, tenantID, itemID string) ([]models.ConfigItem, error)
 	GetItemHistory(ctx context.Context, itemID, tenantID string) ([]models.ConfigItemHistory, error)
 	PublishSnapshot(ctx context.Context, groupID, environment, operator string, tenantID string) (*models.ConfigSnapshot, error)
 	ListSnapshots(ctx context.Context, tenantID, groupID, environment string) ([]models.ConfigSnapshot, error)
