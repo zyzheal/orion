@@ -1,5 +1,5 @@
 import { Modal, Alert, Card, Space, Typography, Tag } from 'antd';
-import { colors, spacing } from '@/tokens';
+import { spacing } from '@/tokens';
 import dayjs from 'dayjs';
 import { typeLabelMap, formatSize } from '../constants';
 import type { BackupRecord } from '../types';

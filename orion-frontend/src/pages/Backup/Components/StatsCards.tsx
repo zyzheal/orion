@@ -8,14 +8,10 @@ import {
 import MetricCard from '@/components/MetricCard';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
+import type { BackupStats } from '../types';
 
 interface Props {
-  stats: {
-    total: number;
-    successful: number;
-    failed: number;
-    lastBackupTime: string | null;
-  } | null;
+  stats: BackupStats | null;
 }
 
 export function StatsCards({ stats }: Props) {

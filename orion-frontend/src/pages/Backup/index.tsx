@@ -24,13 +24,13 @@ import { RestoreModal } from './Components/RestoreModal';
 const BackupManagement: React.FC = () => {
   const state = useBackupState();
   const {
-    loading, stats, setSearchQuery, setFilters,
+    loading, stats,
     createModalVisible, setCreateModalVisible,
     restoreModalVisible, setRestoreModalVisible,
     selectedRecord, submitting,
     loadData, loadStats,
     handleCreate, handleExecute, handleDeletePlan,
-    handleDeleteRecord, handleRestore, openRestore,
+    handleRestore,
     expandedRecords,
   } = state;
 
