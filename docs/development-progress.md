@@ -2286,3 +2286,61 @@ Batch AF 之后首次系统性核实 TOP5 视角声称的"新任务"，通过全
 - Wave 1 前置（10d）+ PERM-8 阶段 2（3d）+ P1-9 三域补全（10-15d）= **23-28d** P1-P3
 
 **授权阻塞**：全部任务涉及 `orion-platform-svc-go/` 目录（FORBIDDEN），需用户明确授权后进入实施阶段。
+
+---
+
+## Phase 301 — T-QUOTA Wiring 命名规范化（2026-09-08 实施完成）
+
+> 分支：`feat/wave2-parallel-execution`
+> 授权：用户明确授权 `orion-platform-svc-go/` 修改（"户批准 orion-platform-svc-go/ → 立即开始 Phase 301"）
+> Commit：`b56cd8566`
+
+### 任务
+
+Phase 301（0.5d）：T-QUOTA wiring 命名规范化 + 补齐漏提交的 wiring 文件。
+
+### 改动清单
+
+| 文件 | 改动 | 类型 |
+|---|---|---|
+| `orion-platform-svc-go/cmd/server/wiring-tenant-quota.go` | `func wiretenantquota(...)` → `func wireTenantQuota(...)` | 命名规范 |
+| `orion-platform-svc-go/cmd/server/wiring.go:137` | `wiretenantquota(db, logger)` → `wireTenantQuota(db, logger)` | 调用点同步 |
+| `orion-platform-svc-go/cmd/server/wiring-tenant-quota.go` | 强制 `git add -f` 加入 git 追踪 | 补齐漏提交 |
+
+### ⚠️ 关键发现（超出原 Phase 301 范围）
+
+v3.6 审计中"P0 BUG：`wiretenantquota` 未挂载"**误判**（`wiring.go:137` 已调用），但实际存在**更严重问题**：
+
+- `.gitignore` 第 6 行 `cmd/server` 规则导致 `wiring-tenant-quota.go` 从未被 git 追踪
+- HEAD commit 中 `wiring.go:137` 引用了**未定义的函数** `wiretenantquota`
+- 远端 clone 后 `go build ./cmd/server/` 必然失败（undefined: wiretenantquota）
+- 本次修复同时解决**命名规范**和**漏提交**两个问题
+
+### 验收证据
+
+- ✅ `grep -rn wiretenantquota orion-platform-svc-go/` = **0 命中**
+- ✅ `grep -rn wireTenantQuota orion-platform-svc-go/` = **2 命中**（定义 + 调用）
+- ✅ `go build ./cmd/server/` 通过（无输出 = 成功）
+- ✅ `go test ./cmd/server/...` = `ok 2.720s`
+- ✅ `go test ./internal/tenant-quota/...` = `ok (cached)` handler + service
+- ✅ FORBIDDEN 验证 2 次 = 0（`migrations/dba` / `orion-frontend/src/api/dba` / `orion-frontend/src/pages/dba` / `orion-frontend/src/router/routes` / `docs/dba`）
+
+### Commit 消息
+
+```
+fix(platform-svc): Phase 301 T-QUOTA wiring 命名规范化 + 补齐漏提交的 wiring 文件
+```
+
+### 累计进度
+
+- Phase 300 v3.6 差距扩展审计：✅ 已完成
+- Phase 300 v3.7 详细设计（628 行）：✅ 已完成
+- P0-MB v2 impl 详细设计（1184 行）：✅ 已完成
+- 4 份 TOP5 文档修正 + Phase 编号统一 + Wave 总览更新：✅ 已完成
+- **Phase 301 实施**：✅ 已完成（2026-09-08）
+
+### 剩余任务
+
+- Phase 302-306（5d）：T-CONFIG-LEVEL / T-SPI / T-AUDIT 合规 / Dashboard / T-QUOTA 软硬限
+- P0-MB Phase 1-5（26d）：多分支并行策略完整实现
+- Wave 1 前置（10d）+ PERM-8 阶段 2（3d）+ P1-9 三域补全（10-15d）

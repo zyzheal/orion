@@ -4,25 +4,49 @@
 > 数据来源: `architecture-review-2026-08-01.md` + `CROSS_VALIDATION_REPORT.md` + `merged-action-items-2026-07-27.md` + `structure-overlap-verification-2026-08-01.md` + `three-domain-depth-analysis-2026-08-01.md` + `flagship-review-v3.6-delta-2026-09-08.md`
 > 状态: ✅ **已通过专家评审核实** (2026-08-01)，以下为**当前有效清单**
 >
-> ## ⚠️ Phase 300 差距扩展审计新增（2026-09-08）
+> ## ✅ Phase 301 已完成（2026-09-08，commit `b56cd8566`）
+>
+> 用户授权 `orion-platform-svc-go/` 修改后，Phase 301 T-QUOTA wiring 命名规范化**已实施并提交**。
+>
+> **改动**：
+> 1. `wiring-tenant-quota.go:14`：`func wiretenantquota(...)` → `func wireTenantQuota(...)`（Go 命名规范）
+> 2. `wiring.go:137`：调用点同步重命名 `wiretenantquota` → `wireTenantQuota`
+> 3. **强制 add `wiring-tenant-quota.go`**（此前被 `.gitignore` 第 6 行 `cmd/server` 规则忽略，导致该文件从未进入 git）
+>
+> **⚠️ 关键发现**（超出原 Phase 301 范围）：
+> - v3.6 声称的 P0 BUG（`wiretenantquota` 未挂载）**误判**——`wiring.go:137` 已调用
+> - 但实际存在**更严重问题**：`wiring-tenant-quota.go` 从未被 git 追踪 → HEAD commit 中 `wiring.go:137` 引用了**未定义的函数** → **远端 clone 后 `go build ./cmd/server/` 必然失败**
+> - 本次修复同时解决"命名规范"和"漏提交"两个问题
+>
+> **验收证据**：
+> - `grep 全库 wiretenantquota = 0 命中`
+> - `grep 全库 wireTenantQuota = 2 命中`（`wiring-tenant-quota.go:14` 定义 + `wiring.go:137` 调用）
+> - `go build ./cmd/server/` 通过
+> - `go test ./cmd/server/...` 通过（2.7s）
+> - `go test ./internal/tenant-quota/...` 通过（cached）
+> - FORBIDDEN 2 次验证 = 0（`migrations/dba` / `orion-frontend/src/api/dba` / `orion-frontend/src/pages/dba` / `orion-frontend/src/router/routes` / `docs/dba`）
+>
+> ---
+>
+> ## ⚠️ Phase 300 差距扩展审计（2026-09-08，Phase 302-306 待实施）
 >
 > 全库 `find` + `grep` + `wc -l` 实测 TOP5 视角声称的 5 项"新任务"（T-AUDIT/T-QUOTA/T-CONFIG-LEVEL/T-POSTMORTEM/T-SPI），发现：
 >
 > - ✅ 5 项**代码全部存在**（原"新增 5 项 24d"假设错误）
 > - ⚠️ 但**行数与能力深度存在重大差距**（详见 `docs/flagship-review-v3.6-delta-2026-09-08.md`）
-> - 🔴 **新发现 P0 BUG**：`wiretenantquota` 函数未被 `wiring.go` 调用 → `tqH` 永远 nil → T-QUOTA API 不可达
+> - ✅ Phase 301 已解决命名规范 + 漏提交问题（见上方）
 >
-> **新增差距扩展任务**（替代原"新增 5 项 24d"，改为 6d 差距扩展）：
+> **剩余差距扩展任务**（Phase 302-306，5d）：
 >
-> | Phase | 任务 | 工时 | 优先级 |
-> |---|---|---|---|
-> | 301 | T-QUOTA 命名规范（`wiretenantquota` → `wireTenantQuota`，非 P0 BUG 因 wiring.go:137 已调用） | **0.5d** | 🟡 代码规范 |
-> | 302 | T-CONFIG-LEVEL 三层 Level 字段补全（platform/tenant/user + ResolveEffectiveConfig） | **2d** | 🟠 高 |
-> | 303 | T-SPI 内置扩展点枚举补全（15 个 BuiltinPoint 常量 + Registry 初始化） | **1d** | 🟡 中 |
-> | 304 | T-AUDIT 新增合规框架（PCI-DSS v4.0 / 等保2.0 / PDPA，ISO27001 已存在 handler.go:241） | **1d** | 🟡 中 |
-> | 305 | T-AUDIT 合规 Dashboard 可视化（跨框架覆盖度 + 风险热图 + 30 天趋势） | **0.5d** | 🟢 低 |
-> | 306 | T-QUOTA 软限/硬限 + 超配策略 + 分级预警 | **1d** | 🟢 低 |
-> | **合计** | **6 项差距扩展** | **6d** | 替代 +24d 新增 |
+> | Phase | 任务 | 工时 | 优先级 | 状态 |
+> |---|---|---|---|---|
+> | 301 | T-QUOTA 命名规范（`wiretenantquota` → `wireTenantQuota`）+ 补齐漏提交 wiring 文件 | 0.5d | 🟡 代码规范 | ✅ **已完成** |
+> | 302 | T-CONFIG-LEVEL 三层 Level 字段补全（platform/tenant/user + ResolveEffectiveConfig） | **2d** | 🟠 高 | ⬜ 待实施 |
+> | 303 | T-SPI 内置扩展点枚举补全（15 个 BuiltinPoint 常量 + Registry 初始化） | **1d** | 🟡 中 | ⬜ 待实施 |
+> | 304 | T-AUDIT 新增合规框架（PCI-DSS v4.0 / 等保2.0 / PDPA，ISO27001 已存在 handler.go:241） | **1d** | 🟡 中 | ⬜ 待实施 |
+> | 305 | T-AUDIT 合规 Dashboard 可视化（跨框架覆盖度 + 风险热图 + 30 天趋势） | **0.5d** | 🟢 低 | ⬜ 待实施 |
+> | 306 | T-QUOTA 软限/硬限 + 超配策略 + 分级预警 | **1d** | 🟢 低 | ⬜ 待实施 |
+> | **合计** | **6 项差距扩展** | **6d** | 已 0.5d / 剩 5d | 完成 1/6 |
 >
 > **⚠️ v3.7 修正**：Phase 301 由"P0 BUG"降级为"代码规范"（wiring.go:137 已调用 `wiretenantquota`，功能正常，只是函数名违反 Go 命名约定）。Phase 304 由"ISO27001 endpoint 补齐"改为"新增合规框架"（ISO27001 已在 `handler.go:241` + `compliance_test.go` 完整实现，含 12+ controls 测试）。详细技术设计见 `docs/flagship-review-v3.7-delta-impl-2026-09-08.md`。
 >
