@@ -2067,3 +2067,37 @@ NotFound (184) / ServerError (183) / monitor-svc/AlertList (180) / AlertList (16
 ### 6. 结论
 
 Batch AF 补充完成 7 个 phase 的组件化拆分，累计 22 页面降低 47% 代码量。所有拆分保持 100% TSC clean、100% UI/API 完整、100% FORBIDDEN=0 合规。
+
+
+## Batch AF 补充 II — P2-9 组件化拆分第二轮 Phase 286-289（2026-08-26 追加）
+
+### 1. 范围
+4 个 phase 延续 P2-9 组件拆分模式。
+
+### 2. Phase 明细
+
+| Phase | 页面 | Before | After | Δ | 提交 |
+|---|---|---|---|---|---|
+| 286 | DisasterRecovery | 162 | 68 | -58% | fe5c0aa19 |
+| 287 | SelfHealing | 159 | 51 | -68% | 6c1eac1fb |
+| 288 | AlertList | 165 | 108 | -35% | 24bcc386a |
+| 289 | ApprovalEscalation | 151 | 104 | -31% | 85b1d9353 |
+| **合计** | 4 页面 | **637** | **331** | **-48%** | 4 commits |
+
+### 3. 新增模式
+
+**ContentHeader pattern**（Phase 287 采用）：将 Layout Content 内的 Title + subtitle 独立为 `<ContentHeader selectedKey />`，通过 pageTitleMap lookup + null 兜底。
+
+**ApprovalTableCard pattern**（Phase 289 采用）：将主表格 Card（含筛选 Select + 表头信息 + Table）独立为组件，接收 4 props 显式引用 state/handler。
+
+**MiddleRow pattern**（Phase 286 采用）：将 Row/Col 双列布局（RTO/RPO 表 + 演练历史表）独立为组件，通过 ReturnType<typeof useXxxState> typing 引用 state。
+
+### 4. 累计 P2-9 第二轮成效
+
+- Phase 268-289 累计: **25 页面, 3676→1879 行 (-49%)**
+- **总 commits: 26**
+- 剩余 P2-9 目标（≥140 行候选）: NotFound (184) / ServerError (183) / monitor-svc/AlertList (180) / AgentDashboard (148) / WorkflowTasks (147) / TicketList (144) / Projects (144)
+
+### 5. 结论
+
+Batch AF 补充 II 完成 4 个 phase 的组件化拆分，累计 25 页面降低 49% 代码量。所有拆分保持 100% TSC clean、100% UI/API 完整、100% FORBIDDEN=0 合规。
