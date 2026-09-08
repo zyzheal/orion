@@ -1,16 +1,12 @@
 /**
  * ML Canary Analysis Page
- * P2-9 Phase 80: 拆分为 state hook + types + columns + 3 Modal
+ * 组件化重构 (P2-9 Phase 266): 175->90行 (-49%)
+ * 首轮已拆 useCanaryAnalysisState + RunColumns + RunDetailModal + TriggerModal + ConfigModal
+ * 本轮再拆 Components/PageHeader + Components/StatsRow
  */
 import React, { useMemo } from 'react';
-import { Typography, Button, Space, Card, Row, Col, Statistic } from 'antd';
-import { colors, spacing } from '@/tokens';
-import {
-  ReloadOutlined,
-  SettingOutlined,
-  PlayCircleOutlined,
-  ExperimentOutlined,
-} from '@ant-design/icons';
+import { Card } from 'antd';
+import { spacing } from '@/tokens';
 import Table from '@/components/Table';
 import SearchFilterBar from '@/components/SearchFilterBar';
 import { useCanaryAnalysisState } from './useCanaryAnalysisState';
@@ -18,109 +14,35 @@ import { makeRunColumns, canaryFilterDefs } from './RunColumns';
 import { RunDetailModal } from './RunDetailModal';
 import { TriggerModal } from './TriggerModal';
 import { ConfigModal } from './ConfigModal';
-
-const { Title, Text } = Typography;
+import { PageHeader } from './Components/PageHeader';
+import { StatsRow } from './Components/StatsRow';
 
 const CanaryAnalysis: React.FC = () => {
   const {
-    loading,
-    runs,
-    selectedRun,
-    metrics,
-    mlResults,
-    runDetailVisible,
-    setRunDetailVisible,
-    triggerModalVisible,
-    setTriggerModalVisible,
-    configModalVisible,
-    setConfigModalVisible,
-    setSearchQuery,
-    setFilters,
-    triggerForm,
-    configForm,
-    triggerSubmitting,
-    configSubmitting,
-    filteredRuns,
-    runningCount,
-    promotedCount,
-    rolledbackCount,
-    loadData,
-    handleViewRun,
-    handleTrigger,
-    handleForcePromote,
-    handleForceRollback,
-    handleSaveConfig,
+    loading, runs, selectedRun, metrics, mlResults,
+    runDetailVisible, setRunDetailVisible,
+    triggerModalVisible, setTriggerModalVisible,
+    configModalVisible, setConfigModalVisible,
+    setSearchQuery, setFilters,
+    triggerForm, configForm,
+    triggerSubmitting, configSubmitting,
+    filteredRuns, runningCount, promotedCount, rolledbackCount,
+    loadData, handleViewRun, handleTrigger, handleForcePromote, handleForceRollback, handleSaveConfig,
   } = useCanaryAnalysisState();
 
   const runColumns = useMemo(() => makeRunColumns(handleViewRun), [handleViewRun]);
 
   return (
     <div style={{ padding: 0 }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: spacing.lg,
-        }}
-      >
-        <div>
-          <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <ExperimentOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
-            ML 金丝雀分析
-          </Title>
-          <Text type="secondary">全指标比对与智能决策</Text>
-        </div>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-            刷新
-          </Button>
-          <Button icon={<PlayCircleOutlined />} onClick={() => setTriggerModalVisible(true)}>
-            触发分析
-          </Button>
-          <Button icon={<SettingOutlined />} onClick={() => setConfigModalVisible(true)}>
-            配置管理
-          </Button>
-        </Space>
-      </div>
+      <PageHeader
+        loading={loading}
+        loadData={loadData}
+        onOpenTrigger={() => setTriggerModalVisible(true)}
+        onOpenConfig={() => setConfigModalVisible(true)}
+      />
 
-      {/* Stats */}
-      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
-        <Col span={6}>
-          <Card>
-            <Statistic title="总运行数" value={runs.length} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="运行中"
-              value={runningCount}
-              valueStyle={{ color: colors.primary[500] }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="已升级"
-              value={promotedCount}
-              valueStyle={{ color: colors.success[600] }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="已回滚"
-              value={rolledbackCount}
-              valueStyle={{ color: colors.error[600] }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      <StatsRow total={runs.length} runningCount={runningCount} promotedCount={promotedCount} rolledbackCount={rolledbackCount} />
 
-      {/* Runs Table */}
       <Card title="分析运行历史">
         <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
@@ -140,7 +62,6 @@ const CanaryAnalysis: React.FC = () => {
         />
       </Card>
 
-      {/* Run Detail Modal */}
       <RunDetailModal
         visible={runDetailVisible}
         selectedRun={selectedRun}
@@ -151,7 +72,6 @@ const CanaryAnalysis: React.FC = () => {
         onForceRollback={handleForceRollback}
       />
 
-      {/* Trigger Modal */}
       <TriggerModal
         visible={triggerModalVisible}
         form={triggerForm}
@@ -160,7 +80,6 @@ const CanaryAnalysis: React.FC = () => {
         onOk={handleTrigger}
       />
 
-      {/* Config Modal */}
       <ConfigModal
         visible={configModalVisible}
         form={configForm}
