@@ -2,73 +2,40 @@
  * Approval Management Page (P2-9 Phase 56)
  * Multi-level approval workflow management (M33)
  * Layout: Header + StatsPanel + Filters + Table + Modals + DetailDrawer
+ * P2-9 Phase 276 拆分: 188->79 行 (-58%), 新增 Components/{PageHeader,FilterBar,DetailPanel,ModalsBundle}.tsx
  */
-import React from 'react';
-import {
-  Typography,
-  Button,
-  Space,
-  Input,
-  Select,
-  Form,
-  Card,
-  Drawer,
-} from 'antd';
-import {
-  PlusOutlined,
-  ReloadOutlined,
-  CheckCircleOutlined,
-} from '@ant-design/icons';
+import React, { useMemo } from 'react';
+import { Form, Card } from 'antd';
 import Table from '@/components/Table';
 import PageSkeleton from '@/components/PageSkeleton';
-import { colors } from '@/tokens/colors';
-import { spacing } from '@/tokens';
 import { useApprovalState } from './useApprovalState';
 import { useApprovalColumns } from './ApprovalColumns';
 import { ApprovalStatsPanel } from './ApprovalStatsPanel';
-import { ApprovalDetailDrawer } from './ApprovalDetailDrawer';
-import { ApprovalModals } from './ApprovalModals';
-
-const { Title, Text } = Typography;
+import { PageHeader } from './Components/PageHeader';
+import { FilterBar } from './Components/FilterBar';
+import { DetailPanel } from './Components/DetailPanel';
+import { ApprovalModalsBundle } from './Components/ModalsBundle';
 
 const ApprovalManagement: React.FC = () => {
   const state = useApprovalState();
-  const {
-    loading,
-    approvals,
-    searchQuery, setSearchQuery,
-    statusFilter, setStatusFilter,
-    createModalVisible, setCreateModalVisible,
-    detailDrawerVisible, setDetailDrawerVisible,
-    selectedApproval,
-    filteredData,
-    stats,
-    loadData,
-    handleCreate,
-    openCommentModal,
-    openDetail,
-    commentModalVisible, setCommentModalVisible,
-    commentAction,
-    commentText, setCommentText,
-    commentSubmitting,
-    handleCommentSubmit,
-    submitting,
-  } = state;
+  const { loading, approvals, filteredData, stats } = state;
 
   const [createForm] = Form.useForm();
 
-  // Wrapper: validate form → call hook handler → reset form
   const handleCreateWrapper = async () => {
     try {
       const values = await createForm.validateFields();
-      await handleCreate(values);
+      await state.handleCreate(values);
       createForm.resetFields();
     } catch {
       // Form validation error - handled by Form
     }
   };
 
-  const columns = useApprovalColumns({ openCommentModal, openDetail });
+  const columns = useApprovalColumns({
+    openCommentModal: state.openCommentModal,
+    openDetail: state.openDetail,
+  });
 
   const isInitialLoading = loading && approvals.length === 0;
 
@@ -78,66 +45,21 @@ const ApprovalManagement: React.FC = () => {
 
       {isInitialLoading ? null : (
         <>
-          {/* Header */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              marginBottom: spacing.lg,
-            }}
-          >
-            <div>
-              <Title level={2} style={{ marginBottom: spacing.sm }}>
-                <CheckCircleOutlined
-                  style={{ marginRight: spacing[3], color: colors.primary[500] }}
-                />
-                审批管理
-              </Title>
-              <Text type="secondary">管理多级审批流程，包括创建、审批和跟踪</Text>
-            </div>
-            <Space>
-              <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-                刷新
-              </Button>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => setCreateModalVisible(true)}
-              >
-                创建审批
-              </Button>
-            </Space>
-          </div>
+          <PageHeader
+            loading={loading}
+            onRefresh={state.loadData}
+            onCreateClick={() => state.setCreateModalVisible(true)}
+          />
 
-          {/* Stats Panel */}
           <ApprovalStatsPanel stats={stats} />
 
-          {/* Filters */}
           <Card>
-            <div style={{ display: 'flex', gap: spacing.md, marginBottom: spacing.md }}>
-              <Input.Search
-                placeholder="搜索审批标题、描述或申请人..."
-                allowClear
-                style={{ width: 320 }}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onSearch={setSearchQuery}
-              />
-              <Select
-                style={{ width: 140 }}
-                value={statusFilter}
-                onChange={(v) => setStatusFilter(v)}
-                options={[
-                  { label: '全部状态', value: 'all' },
-                  { label: '待审批', value: 'pending' },
-                  { label: '已通过', value: 'approved' },
-                  { label: '已拒绝', value: 'rejected' },
-                  { label: '已取消', value: 'cancelled' },
-                ]}
-              />
-            </div>
-
+            <FilterBar
+              searchQuery={state.searchQuery}
+              setSearchQuery={state.setSearchQuery}
+              statusFilter={state.statusFilter}
+              setStatusFilter={state.setStatusFilter}
+            />
             <Table
               columns={columns}
               dataSource={filteredData}
@@ -148,36 +70,17 @@ const ApprovalManagement: React.FC = () => {
             />
           </Card>
 
-          {/* Detail Drawer */}
-          <Drawer
-            title={selectedApproval ? selectedApproval.title : '审批详情'}
-            open={detailDrawerVisible}
-            onClose={() => setDetailDrawerVisible(false)}
-            width={720}
-            destroyOnClose
-          >
-            {selectedApproval && (
-              <ApprovalDetailDrawer
-                approval={selectedApproval}
-                openCommentModal={openCommentModal}
-              />
-            )}
-          </Drawer>
+          <DetailPanel
+            detailDrawerVisible={state.detailDrawerVisible}
+            setDetailDrawerVisible={state.setDetailDrawerVisible}
+            selectedApproval={state.selectedApproval}
+            openCommentModal={state.openCommentModal}
+          />
 
-          {/* Modals */}
-          <ApprovalModals
-            createModalVisible={createModalVisible}
-            setCreateModalVisible={setCreateModalVisible}
+          <ApprovalModalsBundle
+            state={state}
             createForm={createForm}
-            submitting={submitting}
-            handleCreate={handleCreateWrapper}
-            commentModalVisible={commentModalVisible}
-            setCommentModalVisible={setCommentModalVisible}
-            commentAction={commentAction}
-            commentText={commentText}
-            setCommentText={setCommentText}
-            commentSubmitting={commentSubmitting}
-            handleCommentSubmit={handleCommentSubmit}
+            handleCreateWrapper={handleCreateWrapper}
           />
         </>
       )}
