@@ -1,26 +1,25 @@
 /**
- * Script Library Page - 拆分后主页面（P2-9 Phase 34）
+ * Script Library Page - 拆分后主页面（P2-9 Phase 34 + Phase 234）
  *
  * 拆分结构:
  * - useScriptLibraryState.tsx: 全状态 + 5 loader + 15 handler（form wrapper 委托）
+ * - useScriptLibraryHandlers.ts: 4 个 validateFields wrapper + 4 个 open modal wrapper + paramColumns
  * - ScriptsTab.tsx: 脚本列表 Tab
  * - VersionsTab.tsx: 版本管理 Tab
  * - HistoryTab.tsx: 执行历史 Tab
- * - ScriptLibraryModals.tsx: 6 个 Modal/Drawer（Phase 9 已拆分）
+ * - ScriptLibraryModals.tsx: 6 个 Modal/Drawer
  * - columns.tsx / config.tsx: 表格列配置 + 常量
- *
- * 主页面仅负责：5 个 Form 实例 + 4 个 validateFields wrapper + Tab 路由 + Modal 编排
+ * - index.tsx: 组合层（仅 Form 实例 + Tab 路由 + Modal 编排）
  */
-import { useMemo } from 'react';
 import { Typography, Tabs, Form } from 'antd';
 import { CodeOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import { useScriptLibraryState } from './useScriptLibraryState';
+import { useScriptLibraryHandlers } from './useScriptLibraryHandlers';
 import { ScriptsTab } from './ScriptsTab';
 import { VersionsTab } from './VersionsTab';
 import { HistoryTab } from './HistoryTab';
 import { ScriptLibraryModals } from './ScriptLibraryModals';
-import { buildParamColumns } from './columns';
 
 const { Title } = Typography;
 
@@ -31,82 +30,23 @@ export default function ScriptLibraryPage() {
   const [paramForm] = Form.useForm();
   const [executeForm] = Form.useForm();
 
-  // ==================== Form Wrapper Handlers ====================
-  // Modal.onOk 无参数调用；wrapper 负责 validateFields 后委托给 state hook
-
-  const handleSaveScript = async () => {
-    try {
-      const values = await scriptForm.validateFields();
-      await s.handleSaveScript(values);
-      scriptForm.resetFields();
-    } catch {}
-  };
-
-  const handleSaveVersion = async () => {
-    try {
-      const values = await versionForm.validateFields();
-      await s.handleSaveVersion(values);
-      versionForm.resetFields();
-    } catch {}
-  };
-
-  const handleSaveParam = async () => {
-    try {
-      const values = await paramForm.validateFields();
-      await s.handleSaveParam(values);
-      paramForm.resetFields();
-    } catch {}
-  };
-
-  const handleExecute = async () => {
-    try {
-      const values = await executeForm.validateFields();
-      await s.handleExecute(values);
-      executeForm.resetFields();
-    } catch {}
-  };
-
-  // ==================== Form Value Sync Wrappers ====================
-  // 编辑脚本/参数时把 record 注入对应表单
-
-  const handleOpenEditScript = (record: Parameters<typeof s.handleEditScript>[0]) => {
-    scriptForm.setFieldsValue({
-      name: record.name,
-      description: record.description,
-      scriptType: record.scriptType,
-      category: record.category,
-      tags: record.tags,
-    });
-    s.handleEditScript(record);
-  };
-
-  const handleOpenEditParam = (param: Parameters<typeof s.handleEditParam>[0]) => {
-    paramForm.setFieldsValue({
-      paramKey: param.paramKey,
-      paramType: param.paramType,
-      required: param.required,
-      defaultValue: param.defaultValue,
-      description: param.description,
-    });
-    s.handleEditParam(param);
-  };
-
-  const handleOpenCreateParam = () => {
-    paramForm.resetFields();
-    paramForm.setFieldsValue({ paramType: 'string', required: false });
-    s.handleAddParam();
-  };
-
-  const handleOpenVersion = () => {
-    versionForm.resetFields();
-    s.handleCreateVersion();
-  };
-
-  // ==================== Param Columns for Drawer ====================
-  const paramColumns = useMemo(
-    () => buildParamColumns({ handleEditParam: handleOpenEditParam, handleDeleteParam: s.handleDeleteParam }),
-    [handleOpenEditParam, s.handleDeleteParam]
-  );
+  const {
+    handleSaveScript,
+    handleSaveVersion,
+    handleSaveParam,
+    handleExecute,
+    handleOpenEditScript,
+    handleOpenEditParam,
+    handleOpenCreateParam,
+    handleOpenVersion,
+    paramColumns,
+  } = useScriptLibraryHandlers({
+    state: s,
+    scriptForm,
+    versionForm,
+    paramForm,
+    executeForm,
+  });
 
   return (
     <div style={{ padding: spacing.lg }}>
