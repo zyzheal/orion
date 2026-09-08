@@ -3564,13 +3564,20 @@ v3.5 报告（system-review-v3.5-2026-08-25.md）：
 | Wave 5c | 3 | 12d | 3 | 12d | 不变 |
 | **合计** | **73** | **286.5d** | **80** | **315.5d** | **+7 项 +29d** |
 
-#### 5. 与 TOP5 评审文档的关系
+#### 5. 三文档配合关系
 
-详细分析见 `docs/architecture-top5-platform-review-2026-09-08.md`（2026-09-08），含 5 大平台视角逐一审视 Orion 每个域的能力深度、跨视角 TOP5 共性缺口、数据基线、未验证项。
+本文档（G.0 章节）与另外两份 TOP5 文档形成三层闭环：
 
-本文档本节是**对 73 项任务清单的升级标注**，TOP5 评审文档是**详细的平台视角分析**。两者配合使用：
-- 想看任务清单 → 本文档（升级版 73+7=80 项任务）
-- 想看平台视角分析 → `docs/architecture-top5-platform-review-2026-09-08.md`
+| 文档 | 定位 | 内容 |
+|------|------|------|
+| `docs/missing-feature-design-2026-08-25.md`（本文档 G.0） | **任务清单升级** | 73 项任务的能力深度审视 + 优先级调整 + 5 项新增任务（T-AUDIT/T-QUOTA/T-CONFIG-LEVEL/T-POSTMORTEM/T-SPI）+ 升级后 Wave 总览 |
+| `docs/architecture-top5-platform-review-2026-09-08.md` | **平台视角分析** | 5 大平台（NeatLogic/ServiceNow/Datadog/GitLab/AWS）视角逐一审视 Orion 每个域的能力深度、跨视角 TOP5 共性缺口、数据基线、未验证项 |
+| `docs/top5-new-tasks-design-2026-09-08.md` | **新增任务详细设计** | T-AUDIT/T-QUOTA/T-CONFIG-LEVEL/T-POSTMORTEM/T-SPI 的详细设计方案，含数据模型、路由、服务接口、验收标准（24d 工作量） |
+
+**使用路径**：
+1. 想了解 TOP5 视角对 v3.5 的整体评估 → 读 `architecture-top5-platform-review-2026-09-08.md`
+2. 想看升级后的任务清单（80 项） → 读本文档 G.0 章节
+3. 要执行 5 项新增任务 → 读 `top5-new-tasks-design-2026-09-08.md`
 
 ---
 
