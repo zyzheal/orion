@@ -77,7 +77,7 @@ const VectorStorePage: React.FC = () => {
           >
             刷新
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => s.setCreateModalOpen(true)}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => s.setCreateModalVisible(true)}>
             创建集合
           </Button>
         </Space>
@@ -96,7 +96,7 @@ const VectorStorePage: React.FC = () => {
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
-                  onClick={() => s.setCreateModalOpen(true)}
+                  onClick={() => s.setCreateModalVisible(true)}
                 >
                   创建集合
                 </Button>
@@ -138,27 +138,25 @@ const VectorStorePage: React.FC = () => {
             setUploadMetadata={s.setUploadMetadata}
             uploadLoading={s.uploadLoading}
             onUpload={s.handleUpload}
-            onFileUpload={s.handleFileUpload}
           />
         </Col>
       </Row>
 
       {/* Create Collection Modal */}
       <CreateCollectionModal
-        open={s.createModalOpen}
-        form={s.form}
+        open={s.createModalVisible}
         confirmLoading={s.uploadLoading}
-        onCancel={s.handleCloseCreateModal}
-        onFinish={s.handleCreate}
+        onCancel={() => s.setCreateModalVisible(false)}
+        onFinish={s.handleCreateSuccess}
       />
 
       {/* Detail Drawer */}
       <DetailDrawer
-        open={s.detailDrawerOpen}
+        open={s.detailDrawerVisible}
         selectedCollection={s.selectedCollection}
         collectionDocs={s.collectionDocs}
         handleDeleteDoc={s.handleDeleteDoc}
-        onClose={s.handleCloseDetailDrawer}
+        onClose={() => s.setDetailDrawerVisible(false)}
       />
     </div>
   );

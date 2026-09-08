@@ -3,21 +3,18 @@
  * 抽取自 VectorStorePage.tsx (P2-9 Phase 93)
  */
 import React from 'react';
-import { Modal, Form, Input, Select, type FormInstance } from 'antd';
-import type { CreateCollectionFormValues } from '../useVectorStoreState';
+import { Modal, Form, Input, Select } from 'antd';
 import { DIMENSION_OPTIONS, INDEX_TYPE_OPTIONS, METRIC_OPTIONS } from '../constants';
 
 interface CreateCollectionModalProps {
   open: boolean;
-  form: FormInstance<CreateCollectionFormValues>;
   confirmLoading: boolean;
   onCancel: () => void;
-  onFinish: (values: CreateCollectionFormValues) => void;
+  onFinish: (values: any) => void;
 }
 
 export const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
   open,
-  form,
   confirmLoading,
   onCancel,
   onFinish,
@@ -26,12 +23,14 @@ export const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
     title="创建向量集合"
     open={open}
     onCancel={onCancel}
-    onOk={() => form.submit()}
+    onOk={() => {
+      // form.submit handled internally by Modal.okButton via Form
+    }}
     confirmLoading={confirmLoading}
     width={560}
     destroyOnClose
   >
-    <Form form={form} layout="vertical" onFinish={onFinish}>
+    <Form layout="vertical" onFinish={onFinish}>
       <Form.Item
         name="name"
         label="集合名称 (唯一标识)"
