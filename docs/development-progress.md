@@ -2433,3 +2433,77 @@ feat(platform-svc): Phase 302 T-CONFIG-LEVEL 三层配置覆盖（platform/tenan
 - `orion-frontend/src/pages/DigitalTwin/useDigitalTwinState.ts`
 - `orion-frontend/src/pages/SelfHealing/Components/Sider.tsx`
 - `orion-frontend/src/pages/pipeline/template/Components/TemplatesTable.tsx`
+
+---
+
+## Phase 303 — T-SPI 内置扩展点目录（2026-09-08 实施完成）
+
+> 分支：`feat/wave2-parallel-execution`
+> 授权：沿用 Phase 301/302 授权（`orion-platform-svc-go/`）
+> Commit：`b6322a01d`
+
+### 任务
+
+Phase 303（1d）：T-SPI 内置扩展点目录补全——为 `extension-point` 模块补齐**内置扩展点枚举**，作为租户与插件可以挂载的标准扩展点清单。
+
+### 14 个 BuiltinPoint 分布
+
+| Category | 数量 | 常量 |
+|---|---|---|
+| `api` | 3 | `pre_request` / `post_request` / `auth_middleware` |
+| `handler` | 2 | `before_handler` / `after_handler` |
+| `service` | 3 | `pre_save` / `post_save` / `delete_hook` |
+| `listener` | 3 | `audit_hook` / `notification` / `webhook_dispatch` |
+| `startup` | 3 | `on_startup` / `on_shutdown` / `config_changed` |
+| **合计** | **14** | |
+
+### 改动清单
+
+| 文件 | 改动 | 类型 |
+|---|---|---|
+| `internal/extension-point/models/builtin_points.go`（新增 218 行） | 14 个 BuiltinPoint 常量 + `BuiltinPointMeta` 结构（ID/Category/Description/DefaultOrder/BuiltIn）+ `BuiltinPointRegistry` 包级 var + `ListBuiltinPoints` / `ListBuiltinPointsByCategory` / `IsValidBuiltinPoint` / `BuiltinPointCount` 4 个查询方法 | 数据模型 |
+| `internal/extension-point/service/service.go` | 新增 `ListBuiltinPoints(ctx, category)` 方法（category 为空返回全量、非法值返回 `ErrInvalidCategory`） | 业务逻辑 |
+| `internal/extension-point/handler/handler.go` | `Service` interface 补 `ListBuiltinPoints`；新增 `GET /extension-points/builtins` 路由（**置于 `/:name` 之前**避免路由冲突）+ handler 函数 | HTTP 层 |
+| `internal/extension-point/models/builtin_points_test.go`（新增 155 行） | 12 个测试用例：PointCount / AllIDsAreUnique / AllCategoriesValid / AllBuiltInFlagTrue / AllDefaultOrdersPositive / ExpectedCountPerCategory / ListAllSorted / ListByCategory_Unknown / ListByCategory_EmptyString / IsValidBuiltinPoint / RegistrationsMatchConstants | 测试 |
+
+### 关键设计决策
+
+1. **常量表而非 enum type**：Go 没有 enum，采用字符串常量 + `BuiltinPointRegistry` 包级 map 作为 source of truth，符合现有 Category 常量的模式。
+2. **`BuiltinPointRegistry` 用 var 而非 const**：Go 中 map 无法声明为 const；var 允许未来阶段扩展（虽然 Phase 303 声明为只读）。
+3. **`ListBuiltinPoints` 稳定排序**：按 `Category ASC + DefaultOrder ASC + ID ASC` 三元排序，保证 UI/SDK 渲染一致。
+4. **Unknown category 返回 400**：Service 层对非法 category 值返回 `ErrInvalidCategory`（不静默返回空），避免调用方误以为"该分类下无扩展点"。
+5. **`/extension-points/builtins` 路由置于 `/:name` 之前**：Gin 参数化路由匹配先注册先命中；静态路径优先，但仍显式声明顺序以防未来改动引入 bug。
+6. **`BuiltIn: true` 显式标记**：UI 侧可据此区分"内置扩展点"vs"用户注册扩展点"，无需字符串匹配。
+
+### ⚠️ 设计文档偏差
+
+详细设计文档 `flagship-review-v3.7-delta-impl-2026-09-08.md` §3.2 声称 **15 个** BuiltinPoint 常量，但实际只列出 **14 个**（Startup 类仅 3 个）。本次以常量表为准（14 个），避免虚构；后续如需扩展可添加新常量并同步更新 Registry。
+
+**Startup 类实际 3 个**：`on_startup` / `on_shutdown` / `config_changed`。若需凑齐 15 个，可考虑：`BuiltinDataMigrate`（数据迁移钩子）或 `BuiltinHealthCheck`（健康检查钩子）。
+
+### 验收证据
+
+- ✅ `go build ./cmd/server/` 通过
+- ✅ `go test ./internal/extension-point/...`：models `0.013s` + repository `cached`
+- ✅ `go test ./cmd/server/...` = `ok 2.053s`
+- ✅ 12 个新测试用例全部通过
+- ✅ FORBIDDEN 2 次验证 = 0（git add 后 + commit 前）
+
+### Commit 消息
+
+```
+feat(platform-svc): Phase 303 T-SPI 内置扩展点目录（14 个 BuiltinPoint 常量）
+```
+
+### 累计进度
+
+- Phase 301 实施：✅ `b56cd8566` + `4b6fb86c4`
+- Phase 302 实施：✅ `3cc7bd7c2`
+- **Phase 303 实施**：✅ `b6322a01d`（本轮）
+- Phase 301-306 差距扩展任务：**已完成 3/6（3.5d / 6d）**
+
+### 剩余任务（Phase 304-306，2.5d）
+
+- Phase 304：T-AUDIT 新增合规框架（PCI-DSS v4.0 / 等保2.0 / PDPA，1d）
+- Phase 305：T-AUDIT 合规 Dashboard 可视化（0.5d）
+- Phase 306：T-QUOTA 软限/硬限 + 超配策略 + 分级预警（1d）

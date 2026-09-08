@@ -1,8 +1,28 @@
 # Orion 平台 — 所有待办汇总（单一权威来源）
 
-> 最后更新: 2026-09-08 (Phase 302) | 分支: `feat/wave2-parallel-execution`
+> 最后更新: 2026-09-08 (Phase 303) | 分支: `feat/wave2-parallel-execution`
 > 数据来源: `architecture-review-2026-08-01.md` + `CROSS_VALIDATION_REPORT.md` + `merged-action-items-2026-07-27.md` + `structure-overlap-verification-2026-08-01.md` + `three-domain-depth-analysis-2026-08-01.md` + `flagship-review-v3.6-delta-2026-09-08.md`
 > 状态: ✅ **已通过专家评审核实** (2026-08-01)，以下为**当前有效清单**
+>
+> ## ✅ Phase 303 已完成（2026-09-08，commit `b6322a01d`）
+>
+> Phase 303 T-SPI 内置扩展点目录**已实施并提交**。
+>
+> **改动**：
+> 1. `models/builtin_points.go`（新增 218 行）：14 个 BuiltinPoint 常量 + `BuiltinPointMeta` + `BuiltinPointRegistry` + `ListBuiltinPoints` / `ListBuiltinPointsByCategory` / `IsValidBuiltinPoint` / `BuiltinPointCount`
+> 2. `service/service.go`：新增 `ListBuiltinPoints(ctx, category)` 方法（含 category 校验）
+> 3. `handler/handler.go`：`Service` interface 补齐；新增 `GET /extension-points/builtins` 路由（置于 `/:name` 之前）+ `ListBuiltinPoints` handler
+> 4. `models/builtin_points_test.go`（新增 155 行）：12 个测试用例
+>
+> **⚠️ 设计文档偏差**：详细设计文档声称 15 个 BuiltinPoint 但只列出 14 个常量。**以常量表为准**（14 个），避免虚构；后续如需扩展可添加新常量并同步更新 Registry。
+>
+> **验收证据**：
+> - `go build ./cmd/server/` 通过
+> - `go test ./internal/extension-point/...`：models 0.013s + repository cached
+> - `go test ./cmd/server/...` 通过（2.053s）
+> - FORBIDDEN 2 次验证 = 0
+>
+> ---
 >
 > ## ✅ Phase 302 已完成（2026-09-08，commit `3cc7bd7c2`）
 >
@@ -65,11 +85,11 @@
 > |---|---|---|---|---|
 > | 301 | T-QUOTA 命名规范（`wiretenantquota` → `wireTenantQuota`）+ 补齐漏提交 wiring 文件 | 0.5d | 🟡 代码规范 | ✅ **已完成** (`b56cd8566` + `4b6fb86c4`) |
 > | 302 | T-CONFIG-LEVEL 三层 Level 字段补全（platform/tenant/user + ResolveEffectiveConfig） | **2d** | 🟠 高 | ✅ **已完成** (`3cc7bd7c2`) |
-> | 303 | T-SPI 内置扩展点枚举补全（15 个 BuiltinPoint 常量 + Registry 初始化） | **1d** | 🟡 中 | ⬜ 待实施 |
+> | 303 | T-SPI 内置扩展点枚举补全（14 个 BuiltinPoint 常量 + Registry 初始化） | **1d** | 🟡 中 | ✅ **已完成** (`b6322a01d`) |
 > | 304 | T-AUDIT 新增合规框架（PCI-DSS v4.0 / 等保2.0 / PDPA，ISO27001 已存在 handler.go:241） | **1d** | 🟡 中 | ⬜ 待实施 |
 > | 305 | T-AUDIT 合规 Dashboard 可视化（跨框架覆盖度 + 风险热图 + 30 天趋势） | **0.5d** | 🟢 低 | ⬜ 待实施 |
 > | 306 | T-QUOTA 软限/硬限 + 超配策略 + 分级预警 | **1d** | 🟢 低 | ⬜ 待实施 |
-> | **合计** | **6 项差距扩展** | **6d** | 已 2.5d / 剩 3.5d | 完成 2/6 |
+> | **合计** | **6 项差距扩展** | **6d** | 已 3.5d / 剩 2.5d | 完成 3/6 |
 >
 > **⚠️ v3.7 修正**：Phase 301 由"P0 BUG"降级为"代码规范"（wiring.go:137 已调用 `wiretenantquota`，功能正常，只是函数名违反 Go 命名约定）。Phase 304 由"ISO27001 endpoint 补齐"改为"新增合规框架"（ISO27001 已在 `handler.go:241` + `compliance_test.go` 完整实现，含 12+ controls 测试）。详细技术设计见 `docs/flagship-review-v3.7-delta-impl-2026-09-08.md`。
 >
