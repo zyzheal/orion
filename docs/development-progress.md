@@ -1984,7 +1984,11 @@ P2-16 **评估完成**。迁移工作量约 0.5 天（单一文件、7 个调用
 | 276 | Approvals | 188 | 91 | -52% | 22d70d0e8 |
 | 277 | ConfigManagement | 186 | 44 | -76% | 51d45e232 |
 | 278 | Problem | 181 | 56 | -69% | 886fee058 |
-| **合计** | 6 页面 | **1025** | **434** | **-58%** | 6 commits |
+| 279 | UserManagement | 170 | 83 | -51% | 937c41fd0 |
+| 280 | ScriptLibrary | 171 | 49 | -71% | 6b6346c3e |
+| 281 | CapabilityAdmin | 168 | 45 | -73% | f9a2fdc9f |
+| 282 | EvalSetManagement | 165 | 56 | -66% | 82621dd73 |
+| **合计** | 10 页面 | **1720** | **667** | **-61%** | 10 commits |
 
 ### 3. 关键模式
 
@@ -2009,11 +2013,11 @@ P2-16 **评估完成**。迁移工作量约 0.5 天（单一文件、7 个调用
 - Phase 271 InternalLibrary 158→69 (-56%)
 - Phase 272 ChangeManagement 158→101 (-36%)
 - Phase 273-278 见上表
-- **总计 11 页面 1549→843 行 (-46%)**
+- **总计 15 页面 2167→1062 行 (-51%)**
 
 ### 6. 剩余 P2-9 目标（≥140 行候选）
 
-NotFound (184) / ServerError (183) / monitor-svc/AlertList (180) / DashboardNew (180) / CMDB (172) / ScriptLibrary (171) / UserManagement (170) / CapabilityAdmin (168) / EvalSetManagement (165) / AlertList (165) / DisasterRecovery (162) / SelfHealing (159) / ProductLine (154) / ApprovalEscalation (151) / AgentDashboard (148) / WorkflowTasks (147) / TicketList (144) / Projects (144)
+NotFound (184) / ServerError (183) / monitor-svc/AlertList (180) / DashboardNew (180) / CMDB (172) / AlertList (165) / DisasterRecovery (162) / SelfHealing (159) / ProductLine (154) / ApprovalEscalation (151) / AgentDashboard (148) / WorkflowTasks (147) / TicketList (144) / Projects (144)
 
 ### 7. 结论
 
