@@ -2507,3 +2507,74 @@ feat(platform-svc): Phase 303 T-SPI 内置扩展点目录（14 个 BuiltinPoint 
 - Phase 304：T-AUDIT 新增合规框架（PCI-DSS v4.0 / 等保2.0 / PDPA，1d）
 - Phase 305：T-AUDIT 合规 Dashboard 可视化（0.5d）
 - Phase 306：T-QUOTA 软限/硬限 + 超配策略 + 分级预警（1d）
+
+---
+
+## Phase 304 — T-AUDIT 新增合规框架（2026-09-08 实施完成）
+
+> 分支：`feat/wave2-parallel-execution`
+> 授权：沿用 Phase 301/302/303 授权（`orion-platform-svc-go/`）
+> Commit：`c7c48adb4`
+
+### 任务
+
+Phase 304（1d）：T-AUDIT 新增合规框架——为 `audit` 模块的合规报告引擎补齐**三大主流合规标准**（PCI-DSS v4.0、等保 2.0 三级、PDPA），与既有 SOC2 + ISO27001 组成完整合规仪表盘基础。
+
+### 框架控制规模
+
+| Framework | Category | 控制数 | 分类方式 |
+|---|---|---|---|
+| SOC 2 Type II | `SOC2` | 6 | CC1–CC6（既有） |
+| ISO/IEC 27001:2022 | `ISO27001` | 13 | A.9.x / A.12.x / A.14.x / A.18.x（既有） |
+| **PCI-DSS v4.0** | `PCI-DSS` | **36** | 6 Control Objectives A–F × 6 controls（**新增**） |
+| **等保 2.0 三级** | `MLPS2` | **21** | 5 域 C/B/N/M/P（**新增**，代表性控制） |
+| **PDPA** | `PDPA` | **12** | 8 原则 + 跨境/控制者/DPIA/事件通知（**新增**） |
+| **COMBINED 合计** | — | **88** | 5 框架全量 |
+
+### 改动清单
+
+| 文件 | 改动 | 类型 |
+|---|---|---|
+| `internal/audit/service/service.go` | `controlCatalog()` 追加 69 条控制（PCI-DSS 36 + MLPS2 21 + PDPA 12）；`frameworkName()` 新增 PCI-DSS/MLPS2/PDPA 人类可读名；`selectControls()` 重构抽出 `frameworkCategory()` helper；新增 `ValidFramework()` + `ListFrameworks()` 公开 API；`CoverageStats()` 由 2 框架扩到 5 框架 | 业务逻辑 |
+| `internal/audit/handler/handler.go` | 新增 4 个路由：`GET /compliance/pcidss`、`GET /compliance/mlps2`、`GET /compliance/pdpa`、`GET /compliance/list` + 4 个 handler 函数 | HTTP 层 |
+| `internal/audit/service/compliance_test.go` | 新增 12 个测试：ControlCatalog_HasAllFiveFrameworks、SelectControls_PCI_DSS、SelectControls_MLPS2、SelectControls_PDPA、SelectControls_CaseInsensitive_NewFrameworks、FrameworkName_NewFrameworks、ValidFramework、ListFrameworks、ComplianceReport_PCIDSS_EmptyLogs、PCIDSS_CategoryCoverage、MLPS2_EmptyLogs、PDPA_EmptyLogs、PDPAWithActions | 测试 |
+| `internal/audit/handler/handler_test.go` | 新增 5 个测试：CompliancePCIDSS_Success、CompliancePCIDSS_Error、ComplianceMLPS2_Success、CompliancePDPA_Success、ComplianceList_Success | 测试 |
+| `internal/audit/service/compliance_test.go`（更新） | 更新 TestComplianceReport_Combined（19 → 88）+ TestCoverageStats_EmptyLogs（2 → 5） | 测试更新 |
+
+### 关键设计决策
+
+1. **最小 diff 策略**：详细设计文档声称 `service/compliance.go` 已存在（内联逻辑），实际代码全部在 `service.go` 中约 330 行。本 Phase 选择在原文件内扩展，不新建 `compliance.go`，避免大规模文件搬移。
+2. **`frameworkCategory()` helper 抽出**：原 `selectControls` 使用 3 个几乎相同的 for-range 分支（SOC2/ISO27001/COMBINED），扩到 5 框架会产生 5 个分支。抽出 `frameworkCategory(fw) → (category, ok)` 函数后，`selectControls` 只需一次 category 匹配循环，代码量随框架数 O(1) 增长。
+3. **大小写 + 别名支持**：`ValidFramework` / `selectControls` 均通过 `strings.ToUpper(fw)` 大小写不敏感；支持别名 `PCI-DSS` / `PCIDSS` / `PCI_DSS` / `MLPS2` / `MLPS` / `等保` / `PDPA`，方便 SDK 与前端调用。
+4. **COMBINED 语义演进**：`COMBINED` 由"SOC2 + ISO27001"（19 条）扩展为"全 5 框架"（88 条），符合"总纲"语义，前端只需调用 `/compliance/combined` 即可获得完整合规视图。
+5. **`/compliance/list` 新增**：提供框架枚举的 HTTP 端点，避免前端硬编码框架清单；未来新增框架只需修改 `ListFrameworks()` 一处。
+6. **MLPS2 代表性控制**：等保 2.0 三级有 200+ 控制条款，本 Phase 采用 21 条代表性控制（覆盖 5 大安全域），保留 domain 覆盖度；细粒度控制可在 Phase 307 追加。
+7. **PDPA 英文描述 + 中文备注**：PDPA 描述保留英文以便国际团队使用；Remediation 字段使用中文便于国内合规团队直接落地。
+8. **PCI-DSS 6 Objective 结构**：严格按 PCI DSS v4.0 官方 6 Control Objectives（A–F）分组，每 Objective 6 条控制，共 36 条，便于审计方按 Objective 维度出报告。
+
+### 验收证据
+
+- ✅ `go build ./internal/audit/...` 通过
+- ✅ `go vet ./internal/audit/...` 通过
+- ✅ `go test ./internal/audit/...` 全部通过（audit/handler + audit/service）
+- ✅ `go test ./...` = **556 packages pass, 0 FAIL**
+- ✅ FORBIDDEN 2 次验证 = 0（git add 前 + commit 前）
+
+### Commit 消息
+
+```
+feat(audit): Phase 304 新增 PCI-DSS v4.0 / 等保2.0 / PDPA 合规框架
+```
+
+### 累计进度
+
+- Phase 301 实施：✅ `b56cd8566` + `4b6fb86c4`
+- Phase 302 实施：✅ `3cc7bd7c2`
+- Phase 303 实施：✅ `b6322a01d`
+- **Phase 304 实施**：✅ `c7c48adb4`（本轮）
+- Phase 301-306 差距扩展任务：**已完成 4/6（4.5d / 6d）**
+
+### 剩余任务（Phase 305-306，1.5d）
+
+- Phase 305：T-AUDIT 合规 Dashboard 可视化（0.5d）
+- Phase 306：T-QUOTA 软限/硬限 + 超配策略 + 分级预警（1d）
