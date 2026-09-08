@@ -9,33 +9,22 @@
  *  - Modals/CreateExperimentModal.tsx - 创建实验弹窗
  *  - Components/DetailDrawer.tsx - 实验详情抽屉
  *  - Components/ResilienceScoreCard.tsx - 系统弹性评分卡
+ *  - Components/PageHeader.tsx - 标题 + 刷新
+ *  - Components/ExperimentStatsCard.tsx - 4 张统计卡
+ *  - Components/ExperimentsTableCard.tsx - 实验列表卡
+ *  - index.tsx: 组合层
  */
 import React from 'react';
-import {
-  Card,
-  Table,
-  Button,
-  Alert,
-  Typography,
-  Space,
-  Row,
-  Col,
-  Statistic,
-} from 'antd';
-import {
-  ThunderboltOutlined,
-  ReloadOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
-import { colors } from '@/tokens/colors';
+import { Alert } from 'antd';
 import { spacing } from '@/tokens';
 import { useChaosEngineeringState } from './useChaosEngineeringState';
 import { makeExperimentColumns } from './columns';
 import { CreateExperimentModal } from './Modals/CreateExperimentModal';
 import { DetailDrawer } from './Components/DetailDrawer';
 import { ResilienceScoreCard } from './Components/ResilienceScoreCard';
-
-const { Title, Text } = Typography;
+import { PageHeader } from './Components/PageHeader';
+import { ExperimentStatsCard } from './Components/ExperimentStatsCard';
+import { ExperimentsTableCard } from './Components/ExperimentsTableCard';
 
 const ChaosEngineering: React.FC = () => {
   const {
@@ -69,35 +58,8 @@ const ChaosEngineering: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: spacing.lg,
-        }}
-      >
-        <div>
-          <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
-            混沌工程
-          </Title>
-          <Text type="secondary">故障注入实验与系统弹性测试</Text>
-        </div>
-        <Space>
-          {error && (
-            <Button danger size="small" onClick={() => setError(null)}>
-              清除错误提示
-            </Button>
-          )}
-          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-            刷新
-          </Button>
-        </Space>
-      </div>
+      <PageHeader loading={loading} error={error} setError={setError} onRefresh={loadData} />
 
-      {/* Error display */}
       {error && (
         <Alert
           message="加载失败"
@@ -106,13 +68,10 @@ const ChaosEngineering: React.FC = () => {
           showIcon
           closable
           onClose={() => setError(null)}
-          style={
-            { marginBottom: spacing.md } as React.CSSProperties
-          }
+          style={{ marginBottom: spacing.md } as React.CSSProperties}
         />
       )}
 
-      {/* Run error display */}
       {runError && (
         <Alert
           message="实验运行失败"
@@ -121,97 +80,31 @@ const ChaosEngineering: React.FC = () => {
           showIcon
           closable
           onClose={() => setRunError(null)}
-          style={
-            { marginBottom: spacing.md } as React.CSSProperties
-          }
+          style={{ marginBottom: spacing.md } as React.CSSProperties}
         />
       )}
 
-      {/* Resilience Score */}
       <ResilienceScoreCard score={score} />
+      <ExperimentStatsCard stats={stats} />
 
-      {/* Experiment Stats */}
-      <Row gutter={16} style={{ marginBottom: spacing.lg }} align="stretch">
-        <Col span={6}>
-          <Card size="small">
-            <Statistic title="实验总数" value={stats.total} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic
-              title="就绪"
-              value={stats.active}
-              valueStyle={{ color: colors.success[500] }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic
-              title="已归档"
-              value={stats.archived}
-              valueStyle={{ color: colors.neutral[400] }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic
-              title="已完成"
-              value={stats.completed}
-              valueStyle={{ color: colors.neutral[400] }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Warning for production experiments */}
       {stats.hasProductionActive && (
         <Alert
           message="注意"
           description="存在生产环境的混沌实验，执行前请确认影响范围"
           type="warning"
           showIcon
-          style={
-            { marginBottom: spacing.md } as React.CSSProperties
-          }
+          style={{ marginBottom: spacing.md } as React.CSSProperties}
         />
       )}
 
-      {/* Experiments Table */}
-      <Card
-        title={
-          <>
-            <ThunderboltOutlined style={{ marginRight: spacing.sm }} />
-            混沌实验列表
-          </>
-        }
-        extra={
-          <Space>
-            <Button
-              icon={<PlusOutlined />}
-              type="primary"
-              onClick={openCreate}
-            >
-              创建实验
-            </Button>
-            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-              刷新
-            </Button>
-          </Space>
-        }
-      >
-        <Table
-          columns={columns}
-          dataSource={experiments}
-          rowKey="id"
-          loading={loading}
-          pagination={{ pageSize: 10, showSizeChanger: true }}
-        />
-      </Card>
+      <ExperimentsTableCard
+        columns={columns}
+        dataSource={experiments}
+        loading={loading}
+        onCreate={openCreate}
+        onRefresh={loadData}
+      />
 
-      {/* Create Experiment Modal */}
       <CreateExperimentModal
         open={createModal}
         submitting={submitting}
@@ -220,7 +113,6 @@ const ChaosEngineering: React.FC = () => {
         onFinish={handleCreateExperiment}
       />
 
-      {/* Detail Drawer */}
       <DetailDrawer
         open={detailDrawer}
         experiment={selectedExperiment}
