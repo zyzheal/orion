@@ -9,17 +9,16 @@
  *  - Modals/EnqueueModal.tsx - 入队弹窗
  *  - Modals/DequeueModal.tsx - 出队弹窗
  *  - Components/DetailDrawer.tsx - 详情抽屉
+ *  - Components/QueueStatsPanel.tsx - 队列统计卡
+ *  - Components/QueueFilterBar.tsx - 队列筛选栏
+ *  - index.tsx: 组合层
  */
 import React from 'react';
-import { Typography, Button, Space, Card, Select, Statistic, Row, Col, Table } from 'antd';
+import { Button, Card, Space, Table, Typography } from 'antd';
 import {
+  InboxOutlined,
   PlusOutlined,
   ReloadOutlined,
-  ClockCircleOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  SyncOutlined,
-  InboxOutlined,
 } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import { spacing } from '@/tokens';
@@ -28,6 +27,8 @@ import { makeQueueJobColumns } from './columns';
 import { EnqueueModal } from './Modals/EnqueueModal';
 import { DequeueModal } from './Modals/DequeueModal';
 import { DetailDrawer } from './Components/DetailDrawer';
+import { QueueStatsPanel } from './Components/QueueStatsPanel';
+import { QueueFilterBar } from './Components/QueueFilterBar';
 
 const { Title, Text } = Typography;
 
@@ -66,7 +67,6 @@ const QueueManagement: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      {/* Header */}
       <div
         style={{
           display: 'flex',
@@ -102,76 +102,16 @@ const QueueManagement: React.FC = () => {
         </Space>
       </div>
 
-      {/* Stats Panel */}
-      {stats && (
-        <Card size="small" style={{ marginBottom: spacing.md }}>
-          <Row gutter={16}>
-            <Col span={6}>
-              <Statistic
-                title="等待中"
-                value={stats.pending}
-                prefix={<ClockCircleOutlined />}
-                valueStyle={{ color: colors.primary[500] }}
-              />
-            </Col>
-            <Col span={6}>
-              <Statistic
-                title="处理中"
-                value={stats.processing}
-                prefix={<SyncOutlined spin />}
-                valueStyle={{ color: colors.warning[500] }}
-              />
-            </Col>
-            <Col span={6}>
-              <Statistic
-                title="已完成"
-                value={stats.completed}
-                prefix={<CheckCircleOutlined />}
-                valueStyle={{ color: colors.success[500] }}
-              />
-            </Col>
-            <Col span={6}>
-              <Statistic
-                title="已失败"
-                value={stats.failed}
-                prefix={<CloseCircleOutlined />}
-                valueStyle={{ color: colors.error[400] }}
-              />
-            </Col>
-          </Row>
-        </Card>
-      )}
+      <QueueStatsPanel stats={stats} />
 
-      {/* Filter bar */}
-      <Card size="small" style={{ marginBottom: spacing.md }}>
-        <Space>
-          <Text>状态筛选:</Text>
-          <Select
-            style={{ width: 120 }}
-            value={statusFilter}
-            onChange={setStatusFilter}
-            options={[
-              { label: '全部', value: 'all' },
-              { label: '等待中', value: 'pending' },
-              { label: '处理中', value: 'processing' },
-              { label: '已完成', value: 'completed' },
-              { label: '已失败', value: 'failed' },
-            ]}
-          />
-          <Text style={{ marginLeft: spacing.md }}>队列筛选:</Text>
-          <Select
-            style={{ width: 160 }}
-            value={queueFilter}
-            onChange={setQueueFilter}
-            options={[
-              { label: '全部', value: 'all' },
-              ...queueNames.map((n) => ({ label: n, value: n })),
-            ]}
-          />
-        </Space>
-      </Card>
+      <QueueFilterBar
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+        queueFilter={queueFilter}
+        setQueueFilter={setQueueFilter}
+        queueNames={queueNames}
+      />
 
-      {/* Job List */}
       <Card>
         <Table
           columns={columns}
@@ -187,7 +127,6 @@ const QueueManagement: React.FC = () => {
         />
       </Card>
 
-      {/* Enqueue Modal */}
       <EnqueueModal
         open={enqueueModalVisible}
         form={enqueueForm}
@@ -196,7 +135,6 @@ const QueueManagement: React.FC = () => {
         onOk={handleEnqueue}
       />
 
-      {/* Dequeue Modal */}
       <DequeueModal
         open={dequeueModalVisible}
         form={dequeueForm}
@@ -205,7 +143,6 @@ const QueueManagement: React.FC = () => {
         onOk={handleDequeue}
       />
 
-      {/* Detail Drawer */}
       <DetailDrawer
         open={detailDrawerVisible}
         selectedJob={selectedJob}
