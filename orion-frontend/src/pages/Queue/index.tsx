@@ -12,111 +12,53 @@
  *  - Components/QueueStatsPanel.tsx - 队列统计卡
  *  - Components/QueueFilterBar.tsx - 队列筛选栏
  *  - index.tsx: 组合层
+ *
+ * P2-9 Phase 273 拆分:
+ *  - Components/PageHeader.tsx — 标题栏 + 刷新/入队/出队按钮
+ *  - Components/ModalsAndDrawer.tsx — 2 Modals + 1 Drawer 汇总
  */
 import React from 'react';
-import { Button, Card, Space, Table, Typography } from 'antd';
-import {
-  InboxOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
-import { colors } from '@/tokens/colors';
+import { Card, Table } from 'antd';
 import { spacing } from '@/tokens';
 import { useQueueState } from './useQueueState';
 import { makeQueueJobColumns } from './columns';
-import { EnqueueModal } from './Modals/EnqueueModal';
-import { DequeueModal } from './Modals/DequeueModal';
-import { DetailDrawer } from './Components/DetailDrawer';
+import { PageHeader } from './Components/PageHeader';
 import { QueueStatsPanel } from './Components/QueueStatsPanel';
 import { QueueFilterBar } from './Components/QueueFilterBar';
-
-const { Title, Text } = Typography;
+import { ModalsAndDrawer } from './Components/ModalsAndDrawer';
 
 const QueueManagement: React.FC = () => {
-  const {
-    loading,
-    jobs,
-    stats,
-    statusFilter,
-    setStatusFilter,
-    queueFilter,
-    setQueueFilter,
-    enqueueModalVisible,
-    setEnqueueModalVisible,
-    detailDrawerVisible,
-    setDetailDrawerVisible,
-    selectedJob,
-    dequeueModalVisible,
-    setDequeueModalVisible,
-    enqueueForm,
-    dequeueForm,
-    submitting,
-    queueNames,
-    loadData,
-    loadStats,
-    handleEnqueue,
-    handleDequeue,
-    handleComplete,
-    handleFail,
-    openDetail,
-    openEnqueue,
-    openDequeue,
-  } = useQueueState();
+  const state = useQueueState();
 
-  const columns = makeQueueJobColumns(openDetail, handleComplete, handleFail);
+  const columns = makeQueueJobColumns(state.openDetail, state.handleComplete, state.handleFail);
 
   return (
     <div style={{ padding: 0 }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: spacing.lg,
+      <PageHeader
+        loading={state.loading}
+        onRefresh={() => {
+          state.loadData();
+          state.loadStats();
         }}
-      >
-        <div>
-          <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <InboxOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
-            队列管理
-          </Title>
-          <Text type="secondary">管理异步任务队列，监控任务执行状态</Text>
-        </div>
-        <Space>
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={() => {
-              loadData();
-              loadStats();
-            }}
-            loading={loading}
-          >
-            刷新
-          </Button>
-          <Button icon={<InboxOutlined />} onClick={openDequeue}>
-            出队
-          </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openEnqueue}>
-            入队
-          </Button>
-        </Space>
-      </div>
+        onEnqueue={state.openEnqueue}
+        onDequeue={state.openDequeue}
+      />
 
-      <QueueStatsPanel stats={stats} />
+      <QueueStatsPanel stats={state.stats} />
 
       <QueueFilterBar
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        queueFilter={queueFilter}
-        setQueueFilter={setQueueFilter}
-        queueNames={queueNames}
+        statusFilter={state.statusFilter}
+        setStatusFilter={state.setStatusFilter}
+        queueFilter={state.queueFilter}
+        setQueueFilter={state.setQueueFilter}
+        queueNames={state.queueNames}
       />
 
       <Card>
         <Table
           columns={columns}
-          dataSource={jobs}
-          loading={loading}
+          dataSource={state.jobs}
+          loading={state.loading}
           rowKey="id"
           size="middle"
           pagination={{
@@ -127,29 +69,7 @@ const QueueManagement: React.FC = () => {
         />
       </Card>
 
-      <EnqueueModal
-        open={enqueueModalVisible}
-        form={enqueueForm}
-        submitting={submitting}
-        onCancel={() => setEnqueueModalVisible(false)}
-        onOk={handleEnqueue}
-      />
-
-      <DequeueModal
-        open={dequeueModalVisible}
-        form={dequeueForm}
-        submitting={submitting}
-        onCancel={() => setDequeueModalVisible(false)}
-        onOk={handleDequeue}
-      />
-
-      <DetailDrawer
-        open={detailDrawerVisible}
-        selectedJob={selectedJob}
-        onClose={() => setDetailDrawerVisible(false)}
-        handleComplete={handleComplete}
-        handleFail={handleFail}
-      />
+      <ModalsAndDrawer state={state} />
     </div>
   );
 };
