@@ -2,327 +2,51 @@
  * Deployment List Page (TASK-905)
  * Deployment history with status filtering and detail links.
  *
- * Features:
- * - Table with deployment data (app, version, strategy, status, duration)
- * - Status filtering
- * - Detail link
+ * 拆分自 index.tsx (P2-9 Phase 198)
  */
-import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, message, Empty } from 'antd';
-import { colors, spacing } from '@/tokens';
-import { ReloadOutlined, RocketOutlined } from '@ant-design/icons';
-import { useQuery } from '@/providers/QueryProvider';
-import Table, { type TableColumn } from '@/components/Table';
-import StatusBadge, { type StatusType } from '@/components/StatusBadge';
-import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { PermissionActions } from '@/components/PermissionActions';
-import { getDeployments, rollbackDeployment } from '@/api/deployments';
+import { useMemo } from 'react';
+import { Button, Empty } from 'antd';
+import { RocketOutlined } from '@ant-design/icons';
+import { spacing } from '@/tokens';
+import Table from '@/components/Table';
+import SearchFilterBar from '@/components/SearchFilterBar';
 import { useNavigate } from 'react-router-dom';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
+import { useDeploymentListState } from './useDeploymentListState';
+import { buildColumns } from './columns';
+import { FILTER_DEFS } from './constants';
+import { PageHeader } from './Components/PageHeader';
 
-dayjs.extend(relativeTime);
-
-const { Title, Text } = Typography;
-
-interface DeploymentRecord {
-  id: string;
-  appName: string;
-  version: string;
-  environment: string;
-  strategy: string;
-  status: string;
-  triggeredBy: string;
-  duration?: number;
-  startTime: string;
-  commit?: string;
-}
-
-const DeploymentList: React.FC = () => {
+const DeploymentList = () => {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const {
-    data: rawDeployments,
-    isLoading: loading,
-    isError,
-    error,
-    refetch: loadDeployments,
-  } = useQuery<DeploymentRecord[]>({
-    queryKey: ['deployments'],
-    queryFn: async () => {
-      const response = await getDeployments();
-      const apiData = response.data;
-      return Array.isArray(apiData) ? apiData : (apiData as { items?: DeploymentRecord[] })?.items || [];
-    },
-    staleTime: 30_000,
-  });
+    searchQuery,
+    setSearchQuery,
+    filters,
+    setFilters,
+    loading,
+    filteredDeployments,
+    loadDeployments,
+    handleRefresh,
+  } = useDeploymentListState();
 
-  const deployments = rawDeployments ?? [];
-
-  // 加载失败反馈：本仓库锁定的 react-query 构建不触发 useQuery 的 onError 选项
-  // （QueryObserver 未实现 observer 级回调），统一用 isError + useEffect 呈现。
-  useEffect(() => {
-    if (!isError) return;
-    if (error instanceof Error) {
-      message.error(`加载部署列表失败：${error.message}`);
-    } else {
-      message.error('加载部署列表失败，请稍后重试');
-    }
-  }, [isError, error]);
-
-  // Filter deployments based on search and filters
-  const filteredDeployments = useMemo(() => {
-    return deployments.filter((deployment) => {
-      // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const searchable = [
-          deployment.appName,
-          deployment.version,
-          deployment.triggeredBy,
-          deployment.commit || '',
-        ]
-          .join(' ')
-          .toLowerCase();
-        if (!searchable.includes(query)) return false;
-      }
-
-      // Status filter
-      const statusFilter = filters.status;
-      if (statusFilter && statusFilter !== 'all' && deployment.status !== statusFilter) {
-        return false;
-      }
-
-      // Environment filter
-      const envFilter = filters.environment;
-      if (envFilter && deployment.environment !== envFilter) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [searchQuery, filters]);
-
-  // Filter definitions for SearchFilterBar
-  const filterDefs: FilterDefinition[] = useMemo<FilterDefinition[]>(
-    () => [
-      {
-        key: 'status',
-        label: '状态',
-        options: [
-          { label: '全部', value: 'all' },
-          { label: '成功', value: 'success' },
-          { label: '运行中', value: 'running' },
-          { label: '失败', value: 'failed' },
-          { label: '警告', value: 'warning' },
-        ],
-      },
-      {
-        key: 'environment',
-        label: '环境',
-        options: [
-          { label: '全部', value: 'all' },
-          { label: 'Production', value: 'production' },
-          { label: 'Staging', value: 'staging' },
-          { label: 'Development', value: 'development' },
-          { label: 'Test', value: 'test' },
-        ],
-      },
-    ],
-    []
+  const columns = useMemo(
+    () => buildColumns({ navigate, onRollbackSuccess: () => loadDeployments() }),
+    [navigate, loadDeployments]
   );
-
-  // Environment tag colors
-  const envColors: Record<string, string> = {
-    production: 'red',
-    staging: 'orange',
-    development: 'blue',
-    test: 'default',
-  };
-
-  // Strategy display labels
-  const strategyLabels: Record<string, string> = {
-    rolling: '滚动更新',
-    'blue-green': '蓝绿部署',
-    canary: '金丝雀',
-    recreate: '重建部署',
-  };
-
-  // Table column definitions
-  const columns: TableColumn<DeploymentRecord>[] = useMemo<TableColumn<DeploymentRecord>[]>(
-    () => [
-      {
-        key: 'appName',
-        title: '应用',
-        dataIndex: 'appName',
-        width: 180,
-        sortable: true,
-        filterable: true,
-        render: (_value: unknown, record: any) => (
-          <Space direction="vertical" size={0}>
-            <Text
-              strong
-              style={{ cursor: 'pointer', color: colors.primary[500] }}
-              onClick={() => navigate(`/deployments/${record.id}`)}
-            >
-              {record.appName}
-            </Text>
-            <Text type="secondary" style={{ fontSize: spacing[3] }}>
-              {record.version}
-            </Text>
-          </Space>
-        ),
-      },
-      {
-        key: 'version',
-        title: '版本',
-        dataIndex: 'version',
-        width: 140,
-        render: (value: unknown) => <Tag color="purple">{String(value)}</Tag>,
-      },
-      {
-        key: 'environment',
-        title: '环境',
-        dataIndex: 'environment',
-        width: 120,
-        render: (value: unknown) => (
-          <Tag color={envColors[String(value)] || 'default'}>
-            {String(value).charAt(0).toUpperCase() + String(value).slice(1)}
-          </Tag>
-        ),
-      },
-      {
-        key: 'strategy',
-        title: '策略',
-        dataIndex: 'strategy',
-        width: 120,
-        render: (value: unknown) => (
-          <Text style={{ fontSize: spacing[3] }}>
-            {strategyLabels[String(value)] || String(value)}
-          </Text>
-        ),
-      },
-      {
-        key: 'status',
-        title: '状态',
-        dataIndex: 'status',
-        width: 120,
-        render: (value: unknown) => <StatusBadge status={value as StatusType} size="small" />,
-      },
-      {
-        key: 'triggeredBy',
-        title: '触发人',
-        dataIndex: 'triggeredBy',
-        width: 100,
-        render: (value: unknown) => <Text code>{String(value)}</Text>,
-      },
-      {
-        key: 'duration',
-        title: '耗时',
-        dataIndex: 'duration',
-        width: 100,
-        sortable: true,
-        render: (value: unknown) => {
-          if (!value) return <Text type="secondary">-</Text>;
-          const seconds = Number(value);
-          const minutes = Math.floor(seconds / 60);
-          const secs = seconds % 60;
-          return <Text>{minutes > 0 ? `${minutes}m ${secs}s` : `${secs}s`}</Text>;
-        },
-      },
-      {
-        key: 'startTime',
-        title: '部署时间',
-        dataIndex: 'startTime',
-        width: 160,
-        sortable: true,
-        render: (value: unknown) => (
-          <Space direction="vertical" size={0}>
-            <Text style={{ fontSize: spacing[3] }}>
-              {dayjs(String(value)).format('MM-DD HH:mm')}
-            </Text>
-            <Text type="secondary" style={{ fontSize: spacing[2] }}>
-              {dayjs(String(value)).fromNow()}
-            </Text>
-          </Space>
-        ),
-      },
-      {
-        key: 'actions',
-        title: '操作',
-        width: 120,
-        render: (_: unknown, record: any) => (
-          <PermissionActions
-            resource="deployment"
-            actions={[
-              { key: 'read', label: '详情', onClick: () => navigate(`/deployments/${record.id}`) },
-              ...(record.status === 'success'
-                ? [
-                    {
-                      key: 'execute',
-                      label: '回滚',
-                      danger: true,
-                      confirm: true,
-                      confirmText: '确定要回滚此部署吗？',
-                      onClick: async () => {
-                        try {
-                          await rollbackDeployment(record.id);
-                          message.success('部署回滚已提交');
-                          loadDeployments();
-                        } catch (err) {
-                          message.error(err instanceof Error ? err.message : '回滚失败');
-                        }
-                      },
-                    },
-                  ]
-                : []),
-            ]}
-          />
-        ),
-      },
-    ],
-    [navigate]
-  );
-
-  const handleRefresh = () => {
-    loadDeployments();
-  };
 
   return (
     <div style={{ padding: 0 }}>
-      {/* Page header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: spacing.lg,
-        }}
-      >
-        <div>
-          <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <RocketOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
-            部署管理
-          </Title>
-          <Text type="secondary">共 {filteredDeployments.length} 条部署记录</Text>
-        </div>
-        <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
-          刷新
-        </Button>
-      </div>
+      <PageHeader totalCount={filteredDeployments.length} loading={loading} onRefresh={handleRefresh} />
 
-      {/* Search and filter bar */}
       <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
-          filters={filterDefs}
+          filters={FILTER_DEFS}
           searchPlaceholder="搜索应用名称、版本、提交..."
         />
       </div>
 
-      {/* Deployment table */}
       <Table
         columns={columns}
         dataSource={filteredDeployments}
@@ -334,10 +58,7 @@ const DeploymentList: React.FC = () => {
           filteredDeployments.length === 0
             ? {
                 emptyText: (
-                  <Empty
-                    description="暂无部署记录"
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  >
+                  <Empty description="暂无部署记录" image={Empty.PRESENTED_IMAGE_SIMPLE}>
                     <Button
                       type="primary"
                       icon={<RocketOutlined />}
