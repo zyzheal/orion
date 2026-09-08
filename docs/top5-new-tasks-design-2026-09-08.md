@@ -3,6 +3,60 @@
 > **配套文档**：任务清单升级见 `docs/missing-feature-design-2026-08-25.md` G.0 章节
 > **平台视角分析**：见 `docs/architecture-top5-platform-review-2026-09-08.md`
 > **本文档定位**：T-AUDIT/T-QUOTA/T-CONFIG-LEVEL/T-POSTMORTEM/T-SPI 的详细设计方案，含数据模型、路由、服务接口、验收标准
+>
+> ## ⚠️ 重要修正（2026-09-08 18:00）
+>
+> 核实代码后发现：**本文档 5 项"新任务"中 4 项实际已存在完整实现**，"新任务"假设是错的。详细核实结果：
+>
+> | 任务 | 实际状态 | 行数 | 接线状态 |
+> |------|---------|------|---------|
+> | **T-AUDIT** 统一审计日志 | `internal/audit/` 已存在 | 2829 行 | ✅ `router.go:85` |
+> | **T-QUOTA** 租户级配额 | `internal/tenant-quota/` 已存在 | 1287 行 | ✅ `wiring-tenant-quota.go` |
+> | **T-CONFIG-LEVEL** 租户级配置覆盖 | `distributed-config/` 已存在 | 408K | ✅ |
+> | **T-SPI** 扩展点 SPI | `internal/extension-point/` 已存在 | — | ✅ `wiring-extension-point.go` |
+> | **T-POSTMORTEM** 复盘模块 | ❌ 无独立模块 | — | — |
+>
+> **唯一真实缺失**：T-POSTMORTEM 复盘模块。
+>
+> 本文档下方详细设计作为**参考设计**保留（含数据模型、路由、服务接口、验收标准），但**不需要从零新建**——前 4 项应在现有模块基础上做**深度对齐 + 缺口扩展**，仅 T-POSTMORTEM 需新建。
+>
+> **建议处理**：
+> 1. T-AUDIT/T-QUOTA/T-CONFIG-LEVEL/T-SPI → 对比现有实现 vs 本文档设计，找出差距，做差距扩展
+> 2. T-POSTMORTEM → 按本文档设计新建（5d）
+> 3. v3.5 G.0 章节需同步修正"新增 5 项"为"激活/扩展 4 项 + 新建 1 项"
+>
+> 详细核实数据：
+> - audit: `internal/audit/` 2829 行 + 20+ 路由 + 区块链哈希链 + SOC2/ISO27001 合规报告
+> - tenant-quota: `internal/tenant-quota/` 1287 行（含 handler 193 行 + service 352 行 + repository 149 行 + models 106 行 + tests 464 行）
+> - distributed-config: `internal/distributed-config/` 408K（4 层架构完整）
+> - extension-point: `internal/extension-point/` 已接线（含 handler/repository/service）
+>
+> ## ⚠️ 重要修正（2026-09-08 18:00）
+>
+> 核实代码后发现：**本文档 5 项"新任务"中 4 项实际已存在完整实现**，"新任务"假设是错的。详细核实结果：
+>
+> | 任务 | 实际状态 | 行数 | 接线状态 |
+> |------|---------|------|---------|
+> | **T-AUDIT** 统一审计日志 | `internal/audit/` 已存在 | 2829 行 | ✅ `router.go:85` |
+> | **T-QUOTA** 租户级配额 | `internal/tenant-quota/` 已存在 | 1287 行 | ✅ `wiring-tenant-quota.go` |
+> | **T-CONFIG-LEVEL** 租户级配置覆盖 | `distributed-config/` 已存在 | 408K | ✅ |
+> | **T-SPI** 扩展点 SPI | `internal/extension-point/` 已存在 | — | ✅ `wiring-extension-point.go` |
+> | **T-POSTMORTEM** 复盘模块 | ❌ 无独立模块 | — | — |
+>
+> **唯一真实缺失**：T-POSTMORTEM 复盘模块。
+>
+> 本文档下方详细设计作为**参考设计**保留（含数据模型、路由、服务接口、验收标准），但**不需要从零新建**——前 4 项应在现有模块基础上做**深度对齐 + 缺口扩展**，仅 T-POSTMORTEM 需新建。
+>
+> **建议处理**：
+> 1. T-AUDIT/T-QUOTA/T-CONFIG-LEVEL/T-SPI → 对比现有实现 vs 本文档设计，找出差距，做差距扩展
+> 2. T-POSTMORTEM → 按本文档设计新建（5d）
+> 3. v3.5 G.0 章节需同步修正"新增 5 项"为"激活/扩展 4 项 + 新建 1 项"
+>
+> 详细核实数据：
+> - audit: `internal/audit/` 2829 行 + 20+ 路由 + 区块链哈希链 + SOC2/ISO27001 合规报告
+> - tenant-quota: `internal/tenant-quota/` 1287 行（含 handler 193 行 + service 352 行 + repository 149 行 + models 106 行 + tests 464 行）
+> - distributed-config: `internal/distributed-config/` 408K（4 层架构完整）
+> - extension-point: `internal/extension-point/` 已接线（含 handler/repository/service）
 
 ---
 

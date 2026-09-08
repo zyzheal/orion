@@ -3551,6 +3551,22 @@ v3.5 报告（system-review-v3.5-2026-08-25.md）：
 
 **新增 5 项合计 24d**，建议合并到现有 Wave 结构。
 
+> **⚠️ 2026-09-08 18:00 修正**：核实代码后发现 5 项中 4 项**实际已存在完整实现**，不是"新增"而是"激活/扩展"：
+>
+> | 任务 | 实际状态 | 真实工作量 |
+> |------|---------|-----------|
+> | T-AUDIT | `internal/audit/` 已存在 2829 行 + 20+ 路由（含区块链哈希链 + SOC2/ISO27001 合规报告），`router.go:85` 已接线 | **差距扩展 1-2d**（非 3d 新建） |
+> | T-QUOTA | `internal/tenant-quota/` 已存在 1287 行（含 handler/service/repository/models/tests），`wiring-tenant-quota.go` 已接线 | **差距扩展 1-2d**（非 5d 新建） |
+> | T-CONFIG-LEVEL | `distributed-config/` 已存在 408K + 4 层架构完整，已接线 | **差距扩展 1d**（非 3d 新建） |
+> | T-SPI | `internal/extension-point/` 已存在（含 handler/repository/service），`wiring-extension-point.go` 已接线 | **差距扩展 2-3d**（非 8d 新建） |
+> | T-POSTMORTEM | ❌ **无独立模块**（`dba/aireview` 是代码评审，不同域） | **新建 5d**（按设计执行） |
+>
+> **修正后总工作量**：从 24d → **11-14d**（差距扩展 6-9d + 新建 T-POSTMORTEM 5d）
+>
+> **升级后 Wave 总览修正**：原 +29d → 修正后 **+12-15d**（73 → 74 项，仅 T-POSTMORTEM 真正新增）
+>
+> 详细核实数据见 `docs/top5-new-tasks-design-2026-09-08.md` 顶部"重要修正"章节。
+
 #### 4. 升级后的 Wave 总览
 
 | Wave | 原任务数 | 原人天 | 升级后任务数 | 升级后人天 | 变更 |
