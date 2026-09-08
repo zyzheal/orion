@@ -14,30 +14,17 @@
  * - 表格列配置抽入 AlertColumns.tsx (useAlertColumns hook)
  * - 详情 Modal (含 AI 解释面板) 抽入 AlertDetailModal.tsx
  * - 主页面仅保留 layout + header + SearchFilterBar + Table + rowSelection
+ * P2-9 Phase 290: 180->117 行 (-35%), 新增 Components/PageHeader.tsx
  */
 import React from 'react';
-import {
-  Typography,
-  Button,
-  Space,
-  Tag,
-  Popconfirm,
-} from 'antd';
-import {
-  ReloadOutlined,
-  CheckOutlined,
-  CloseOutlined,
-  BellOutlined,
-} from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { spacing } from '@/tokens';
 import Table from '@/components/Table';
 import SearchFilterBar from '@/components/SearchFilterBar';
 import type { Alert } from '@/types/pages';
 import { useAlertListState } from './useAlertListState';
 import { useAlertColumns } from './AlertColumns';
 import { AlertDetailModal } from './AlertDetailModal';
-
-const { Title, Text } = Typography;
+import { PageHeader } from './Components/PageHeader';
 
 const AlertList: React.FC = () => {
   const state = useAlertListState();
@@ -83,65 +70,17 @@ const AlertList: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      {/* Page header with severity summary */}
-      <div
-        style={
-          {
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            marginBottom: spacing.lg,
-          } as React.CSSProperties
-        }
-      >
-        <div>
-          <Title level={2} style={{ marginBottom: spacing.sm }}>
-            <BellOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
-            监控告警
-          </Title>
-          <Text type="secondary">共 {alerts.length} 条告警记录</Text>
-          {/* Active alert summary */}
-          {(severityCounts.critical > 0 || severityCounts.warning > 0) && (
-            <div style={{ marginTop: spacing.sm }}>
-              <Space size={12}>
-                {severityCounts.critical > 0 && (
-                  <Tag color="red" style={{ fontWeight: 600 }}>
-                    {severityCounts.critical} 个严重告警
-                  </Tag>
-                )}
-                {severityCounts.warning > 0 && (
-                  <Tag color="orange">{severityCounts.warning} 个警告</Tag>
-                )}
-                {severityCounts.info > 0 && <Tag color="blue">{severityCounts.info} 个提示</Tag>}
-              </Space>
-            </div>
-          )}
-        </div>
-        <Space>
-          {selectedRowKeys.length > 0 && (
-            <>
-              <Popconfirm
-                title={`确认 ${selectedRowKeys.length} 条告警?`}
-                onConfirm={handleBatchAcknowledge}
-              >
-                <Button icon={<CheckOutlined />} type="primary" ghost>
-                  批量确认 ({selectedRowKeys.length})
-                </Button>
-              </Popconfirm>
-              <Popconfirm title={`解决 ${batchableCount} 条告警?`} onConfirm={handleBatchResolve}>
-                <Button danger icon={<CloseOutlined />}>
-                  批量解决
-                </Button>
-              </Popconfirm>
-            </>
-          )}
-          <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
-            刷新
-          </Button>
-        </Space>
-      </div>
+      <PageHeader
+        alertsCount={alerts.length}
+        severityCounts={severityCounts}
+        selectedRowKeysCount={selectedRowKeys.length}
+        batchableCount={batchableCount}
+        loading={loading}
+        onBatchAcknowledge={handleBatchAcknowledge}
+        onBatchResolve={handleBatchResolve}
+        onRefresh={handleRefresh}
+      />
 
-      {/* Search and filter bar */}
       <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
@@ -151,7 +90,6 @@ const AlertList: React.FC = () => {
         />
       </div>
 
-      {/* Alert table */}
       <Table
         columns={columns}
         dataSource={filteredAlerts}
@@ -162,7 +100,6 @@ const AlertList: React.FC = () => {
         rowSelection={rowSelection}
       />
 
-      {/* Alert detail modal */}
       <AlertDetailModal
         detailModalVisible={detailModalVisible}
         setDetailModalVisible={setDetailModalVisible}
