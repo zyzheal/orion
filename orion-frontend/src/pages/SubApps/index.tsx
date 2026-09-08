@@ -2,237 +2,26 @@
  * 子系统导航页面
  * 展示所有可用的子系统入口
  * 支持从 menuConfigStore 动态获取配置
+ *
+ * 拆分自 index.tsx (P2-9 Phase 225)
+ * - constants.tsx: SubAppCard 类型 + iconMap + colorMap + defaultSubApps
+ * - useSubAppsState.ts: state + loadSubApps useEffect + navigate handler
+ * - Components/SubAppCardView.tsx: 单个子系统卡片
+ * - Components/SubAppGrid.tsx: Row/Col 卡片网格
+ * - Components/ArchitectureCard.tsx: 微前端架构说明卡
+ * - index.tsx: 组合层
  */
-import React, { useState, useEffect } from 'react';
-import { Typography, Card, Row, Col, Tag, Button, Spin } from 'antd';
-import { colors, spacing, themeVars } from '@/tokens';
-import {
-  DatabaseOutlined,
-  BookOutlined,
-  DashboardOutlined,
-  ArrowRightOutlined,
-  CodeOutlined,
-  CloudOutlined,
-  SafetyOutlined,
-} from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import { useMenuConfigStore, type MenuChildConfig } from '@/stores/menuConfigStore';
+import React from 'react';
+import { Typography, Spin } from 'antd';
+import { spacing } from '@/tokens';
+import { useSubAppsState } from './useSubAppsState';
+import { SubAppGrid } from './Components/SubAppGrid';
+import { ArchitectureCard } from './Components/ArchitectureCard';
 
 const { Title, Paragraph } = Typography;
 
-// 子系统卡片类型
-interface SubAppCard {
-  key: string;
-  name: string;
-  description: string;
-  icon: React.ReactNode;
-  color: string;
-  path: string;
-  tags: string[];
-}
-
-// icon 映射
-const iconMap: Record<string, React.ReactNode> = {
-  '/dba': <DatabaseOutlined />,
-  '/knowledge': <BookOutlined />,
-  '/visor': <DashboardOutlined />,
-  '/ai-gateway': <CloudOutlined />,
-  '/agents': <CodeOutlined />,
-  '/ai-security': <SafetyOutlined />,
-};
-
-// 颜色映射
-const colorMap: Record<string, string> = {
-  '/dba': colors.primary[500],
-  '/knowledge': colors.success[500],
-  '/visor': colors.purple[500],
-  '/ai-gateway': colors.primary[500],
-  '/agents': colors.warning[500],
-  '/ai-security': colors.error[500],
-};
-
-// 默认子系统列表（降级使用）
-const defaultSubApps: SubAppCard[] = [
-  {
-    key: 'dba',
-    name: '数据库管理',
-    description: '提供数据库连接管理、SQL 执行、数据建模、性能监控等功能',
-    icon: <DatabaseOutlined />,
-    color: colors.primary[500],
-    path: '/dba',
-    tags: ['数据库', 'SQL', '管理工具'],
-  },
-  {
-    key: 'knowledge',
-    name: '知识库',
-    description: '团队知识沉淀、文档管理、经验分享、最佳实践收集',
-    icon: <BookOutlined />,
-    color: colors.success[500],
-    path: '/knowledge',
-    tags: ['文档', '知识管理', '协作'],
-  },
-  {
-    key: 'visor',
-    name: '监控中心',
-    description: '系统监控、告警管理、性能分析、日志查询一体化平台',
-    icon: <DashboardOutlined />,
-    color: colors.purple[500],
-    path: '/visor',
-    tags: ['监控', '告警', '分析'],
-  },
-];
-
 const SubApps: React.FC = () => {
-  const navigate = useNavigate();
-  const { modules, loadConfig } = useMenuConfigStore();
-  const [subApps, setSubApps] = useState<SubAppCard[]>(defaultSubApps);
-  const [loading, setLoading] = useState(true);
-
-  // 加载并处理子系统配置
-  useEffect(() => {
-    const loadSubApps = () => {
-      try {
-        // 确保配置已加载
-        loadConfig();
-
-        const subAppsModule = modules['/subapps'];
-
-        if (subAppsModule && subAppsModule.enabled && subAppsModule.children) {
-          const enabledChildren = subAppsModule.children.filter((child) => child.enabled);
-
-          if (enabledChildren.length > 0) {
-            const mappedSubApps: SubAppCard[] = enabledChildren.map((child: MenuChildConfig) => ({
-              key: child.key.replace('/', ''),
-              name: child.label,
-              description: child.description || '',
-              icon: iconMap[child.key] || <CodeOutlined />,
-              color: colorMap[child.key] || colors.primary[500],
-              path: child.key,
-              tags: child.category ? [child.category] : [],
-            }));
-
-            setSubApps(mappedSubApps);
-          }
-        }
-      } catch (error) {
-        // 降级使用默认列表
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadSubApps();
-  }, [modules, loadConfig]);
-
-  // 渲染内容
-  const renderContent = () => (
-    <>
-      <Row gutter={[24, 24]}>
-        {subApps.map((app) => (
-          <Col xs={24} sm={12} md={8} key={app.key}>
-            <Card
-              hoverable
-              style={{
-                height: '100%',
-                minHeight: 280,
-                borderRadius: 12,
-                border: `1px solid ${themeVars.borderLight}`,
-                transition: 'all 0.3s',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-              }}
-              onClick={() => navigate(app.path)}
-              bodyStyle={{
-                display: 'flex',
-                flexDirection: 'column',
-                height: '100%',
-              }}
-            >
-              <div
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: 12,
-                  background: `${app.color}15`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: spacing.md,
-                }}
-              >
-                <div style={{ fontSize: spacing[8], color: app.color }}>{app.icon}</div>
-              </div>
-
-              <Title level={4} style={{ marginBottom: spacing.sm }}>
-                {app.name}
-              </Title>
-
-              {app.tags.length > 0 && (
-                <div style={{ marginBottom: spacing[3] }}>
-                  {app.tags.map((tag) => (
-                    <Tag key={tag} color={app.color} style={{ marginRight: 4 }}>
-                      {tag}
-                    </Tag>
-                  ))}
-                </div>
-              )}
-
-              <Paragraph
-                type="secondary"
-                style={{
-                  flex: 1,
-                  fontSize: spacing[4],
-                  lineHeight: 1.6,
-                  marginBottom: spacing.lg,
-                }}
-              >
-                {app.description}
-              </Paragraph>
-
-              <Button
-                type="primary"
-                icon={<ArrowRightOutlined />}
-                style={{
-                  background: app.color,
-                  borderColor: app.color,
-                  alignSelf: 'flex-start',
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(app.path);
-                }}
-              >
-                进入系统
-              </Button>
-            </Card>
-          </Col>
-        ))}
-      </Row>
-
-      {/* 架构说明 */}
-      <Card
-        style={{
-          marginTop: 32,
-          background: colors.neutral[50],
-          border: 'none',
-        }}
-      >
-        <Title level={5}>🏗️ 微前端架构说明</Title>
-        <Paragraph style={{ fontSize: spacing[4], color: colors.neutral[500] }}>
-          <ul style={{ paddingLeft: 20 }}>
-            <li>
-              采用 <strong>Wujie（无界）</strong> 微前端框架，实现子系统间完全隔离
-            </li>
-            <li>支持子系统独立开发、独立部署、技术栈无关</li>
-            <li>
-              通过 <strong>eventBus</strong> 实现主子应用通信
-            </li>
-            <li>共享用户认证状态、主题配置等全局状态</li>
-            <li>支持子应用预加载和保活模式，提升切换体验</li>
-          </ul>
-        </Paragraph>
-      </Card>
-    </>
-  );
+  const { subApps, loading, handleNavigate } = useSubAppsState();
 
   return (
     <div style={{ padding: spacing.lg }}>
@@ -248,7 +37,10 @@ const SubApps: React.FC = () => {
           <Spin size="large" />
         </div>
       ) : (
-        renderContent()
+        <>
+          <SubAppGrid apps={subApps} onNavigate={handleNavigate} />
+          <ArchitectureCard />
+        </>
       )}
     </div>
   );
