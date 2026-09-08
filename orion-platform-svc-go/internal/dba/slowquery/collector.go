@@ -223,13 +223,15 @@ func (c *Collector) collectMySQL(ctx context.Context, tenantID string, ds *dba_m
 	return len(out), nil
 }
 
-// buildPGDSN builds a PostgreSQL DSN from a DataSource. sslmode=disable
-// keeps the collector compatible with private-cluster defaults; operators
-// who need SSL can inject a custom DSN builder via service.NewService.
+// buildPGDSN builds a PostgreSQL DSN from a DataSource. sslmode=require
+// enforces TLS so credentials are never sent in cleartext — consistent
+// with dba/service and dba/query. Operators who need to disable SSL
+// (e.g. for a local dev cluster) can override via the DataSource's
+// Properties map in a future enhancement.
 func buildPGDSN(ds *dba_models.DataSource) string {
 	user := derefString(ds.Username)
 	pass := derefString(ds.Password)
-	return fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
+	return fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=require",
 		ds.Host, ds.Port, ds.Database, user, pass)
 }
 

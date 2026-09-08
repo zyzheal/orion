@@ -115,6 +115,9 @@ type DirectQueryRequest struct {
 	DataSourceID string `json:"data_source_id" binding:"required"`
 	SQL          string `json:"sql" binding:"required"`
 	Timeout      *int   `json:"timeout"`
+	// RowLimit overrides the default result row cap (DefaultQueryRowLimit).
+	// Values <= 0 use the default; values above MaxQueryRowLimit are clamped.
+	RowLimit *int `json:"row_limit,omitempty"`
 }
 
 type DirectQueryResponse struct {

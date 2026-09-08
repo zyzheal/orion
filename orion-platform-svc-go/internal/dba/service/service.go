@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -23,6 +22,14 @@ import (
 
 	"github.com/google/uuid"
 )
+
+// DefaultQueryRowLimit caps the number of rows returned by ExecuteDirectQuery
+// when the request does not override it. Prevents accidental full-table dumps.
+const DefaultQueryRowLimit = 500
+
+// MaxQueryRowLimit is the upper bound a caller may request via DirectQueryRequest.RowLimit.
+// Values above this are clamped so a single request cannot exhaust memory.
+const MaxQueryRowLimit = 5000
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
@@ -70,6 +77,19 @@ func (s *Service) CreateOrder(ctx context.Context, tenantID, userID string, req 
 	if orderType == "" {
 		orderType = "query"
 	}
+	// Validate order type so the approval workflow can route grant/revoke/ddl
+	// orders through the stricter two-approver path instead of the default
+	// single-approver query flow.
+	validTypes := map[string]bool{
+		"query":  true, // read-only SELECT
+		"grant":  true, // GRANT/REVOKE privileges
+		"revoke": true,
+		"ddl":    true, // CREATE/ALTER/DROP
+		"dml":    true, // INSERT/UPDATE/DELETE
+	}
+	if !validTypes[orderType] {
+		return nil, fmt.Errorf("invalid order type %q; allowed: query, grant, revoke, ddl, dml", orderType)
+	}
 	o := &models.SqlOrder{
 		TenantID: tenantID,
 		UserID:   userID,
@@ -85,18 +105,61 @@ func (s *Service) CreateOrder(ctx context.Context, tenantID, userID string, req 
 }
 
 func (s *Service) ApproveOrder(ctx context.Context, id, approvedBy string) (*models.SqlOrder, error) {
+	// Self-approval gate: the order's creator must not approve their own
+	// order. This enforces a two-person rule so a compromised or
+	// disgruntled user cannot unilaterally approve GRANT/REVOKE/DDL.
+	order, err := s.repo.GetOrder(ctx, id)
+	if err != nil {
+		if errors.Is(err, sentinel.NotFound) {
+			return nil, fmt.Errorf("order not found")
+		}
+		return nil, fmt.Errorf("get order: %w", err)
+	}
+	if order == nil {
+		return nil, fmt.Errorf("order not found")
+	}
+	if order.UserID == approvedBy {
+		return nil, fmt.Errorf("self-approval is not allowed; order %s was created by %q and cannot be approved by the same user", id, approvedBy)
+	}
+	// Idempotent approval: only a pending order can transition to approved.
+	// Already-approved, rejected, completed, or failed orders refuse the
+	// transition so a stale retry cannot resurrect a finalized order.
+	if order.Status != "pending" {
+		return nil, fmt.Errorf("order %s has status %q; only pending orders can be approved", id, order.Status)
+	}
 	return s.repo.UpdateOrderStatus(ctx, id, "approved", &approvedBy, nil)
 }
 
 func (s *Service) RejectOrder(ctx context.Context, id string) (*models.SqlOrder, error) {
+	// Idempotent reject: only a pending order can transition to rejected.
+	// This prevents a stale retry from resurrecting a finalized order.
+	order, err := s.repo.GetOrder(ctx, id)
+	if err != nil {
+		if errors.Is(err, sentinel.NotFound) {
+			return nil, fmt.Errorf("order not found")
+		}
+		return nil, fmt.Errorf("get order: %w", err)
+	}
+	if order == nil {
+		return nil, fmt.Errorf("order not found")
+	}
+	if order.Status != "pending" {
+		return nil, fmt.Errorf("order %s has status %q; only pending orders can be rejected", id, order.Status)
+	}
 	return s.repo.UpdateOrderStatus(ctx, id, "rejected", nil, nil)
 }
 
 // ExecuteOrder executes the SQL of an approved order against its target
-// data source. It looks up the order by id, finds the data source matching
-// order.Database, connects (PostgreSQL only), runs the SQL, records the
-// execution in the audit log, and updates the order with the real result.
-// On failure the order is marked "failed" with the error message.
+// data source. It looks up the order by id, verifies the order has been
+// approved (status == "approved"), finds the data source matching
+// order.Database, connects (PostgreSQL or MySQL), runs the SQL, records
+// the execution in the audit log, and updates the order with the real
+// result. On failure the order is marked "failed" with the error message.
+//
+// The approved-status gate is a hard control: pending, rejected, or
+// already-executed orders cannot be re-executed. This is especially
+// important for GRANT/REVOKE and DDL orders, which the approval workflow
+// must explicitly clear before execution.
 func (s *Service) ExecuteOrder(ctx context.Context, tenantID, userID, id string) (*models.SqlOrder, error) {
 	order, err := s.repo.GetOrder(ctx, id)
 	if err != nil {
@@ -107,6 +170,32 @@ func (s *Service) ExecuteOrder(ctx context.Context, tenantID, userID, id string)
 	}
 	if order == nil {
 		return nil, fmt.Errorf("order not found")
+	}
+
+	// Tenant isolation: the order must belong to the caller's tenant. This
+	// prevents a user from executing another tenant's order by guessing its
+	// ID — the GetOrder query does not filter by tenant_id, so this check
+	// is the hard boundary.
+	if order.TenantID != tenantID {
+		return nil, fmt.Errorf("order %s does not belong to tenant", id)
+	}
+
+	// Hard gate: only approved orders may execute. Pending, rejected, or
+	// already-completed orders are refused so the approval workflow cannot
+	// be bypassed — especially for GRANT/REVOKE/DDL.
+	switch order.Status {
+	case "approved":
+		// proceed
+	case "pending":
+		return nil, fmt.Errorf("order %s is pending approval; cannot execute", id)
+	case "rejected":
+		return nil, fmt.Errorf("order %s was rejected; cannot execute", id)
+	case "completed":
+		return nil, fmt.Errorf("order %s already completed; cannot re-execute", id)
+	case "failed":
+		return nil, fmt.Errorf("order %s previously failed; create a new order to retry", id)
+	default:
+		return nil, fmt.Errorf("order %s has invalid status %q; cannot execute", id, order.Status)
 	}
 
 	// Find the data source matching this order's database name.
@@ -302,7 +391,7 @@ func (s *Service) UpdateAuditRule(ctx context.Context, id string, req models.Upd
 
 // ---- Direct Query ----
 
-// ExecuteDirectQuery runs a read-only SQL query against a PostgreSQL data source.
+// ExecuteDirectQuery runs a read-only SQL query against a PostgreSQL or MySQL data source.
 // The query is validated as SELECT-only and logged for audit purposes.
 func (s *Service) ExecuteDirectQuery(ctx context.Context, tenantID, userID string, req models.DirectQueryRequest) (*models.DirectQueryResponse, error) {
 	ds, err := s.repo.GetDataSource(ctx, req.DataSourceID)
@@ -399,7 +488,7 @@ func (s *Service) ExecuteDirectQuery(ctx context.Context, tenantID, userID strin
 	}
 
 	rowCount := 0
-	rowLimit := 500 // prevent large result sets from overwhelming the response.
+	rowLimit := resolveRowLimit(req.RowLimit)
 	var data []map[string]interface{}
 	for rows.Next() && rowCount < rowLimit {
 		values := make([]interface{}, len(columns))
@@ -934,6 +1023,20 @@ func newExecutionRecord(_ context.Context, tenantID, userID, dataSourceID, dataS
 	}
 }
 
+// resolveRowLimit picks the row cap for ExecuteDirectQuery. When the
+// request overrides the limit (non-nil, positive) we honor it but clamp
+// to MaxQueryRowLimit so a single request cannot exhaust memory. When
+// nil or <= 0, fall back to DefaultQueryRowLimit.
+func resolveRowLimit(req *int) int {
+	if req == nil || *req <= 0 {
+		return DefaultQueryRowLimit
+	}
+	if *req > MaxQueryRowLimit {
+		return MaxQueryRowLimit
+	}
+	return *req
+}
+
 // ---- Query Logs ----
 
 func (s *Service) ListQueryLogs(ctx context.Context, tenantID string, q models.QueryLogQuery) (*models.QueryLogResult, error) {
@@ -948,6 +1051,3 @@ func (s *Service) ListQueryLogs(ctx context.Context, tenantID string, q models.Q
 		Limit: q.Limit,
 	}, nil
 }
-
-// unused sentinel — URL values are encoded via standard library.
-var _ = url.PathEscape

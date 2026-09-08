@@ -93,12 +93,12 @@ func (f *Fetcher) FetchMySQL(ctx context.Context, ds *dba_models.DataSource, sql
 	return jsonOut, time.Since(start), nil
 }
 
-// buildPGDSN builds a PostgreSQL DSN. sslmode=disable matches the
-// rest of the DBA module; operators who need SSL should wrap the
-// Fetcher with a custom DSN builder in the wiring layer.
+// buildPGDSN builds a PostgreSQL DSN. sslmode=require enforces TLS so
+// credentials are never sent in cleartext — consistent with dba/service
+// and dba/query.
 func buildPGDSN(ds *dba_models.DataSource) string {
 	return fmt.Sprintf(
-		"host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
+		"host=%s port=%d dbname=%s user=%s password=%s sslmode=require",
 		ds.Host, ds.Port, ds.Database, derefString(ds.Username), derefString(ds.Password),
 	)
 }

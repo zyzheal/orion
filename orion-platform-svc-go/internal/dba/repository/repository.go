@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"orion/platform-svc-go/internal/dba/models"
@@ -127,9 +129,16 @@ func (r *Repository) CreateDataSource(ctx context.Context, ds *models.DataSource
 	ds.CreatedAt = time.Now().UTC()
 	ds.UpdatedAt = time.Now().UTC()
 	ds.Status = "offline"
+	// Encrypt password before persisting. When DBA_ENCRYPTION_KEY is set,
+	// the stored value is "enc:<base64 ciphertext>"; when unset, the
+	// plaintext is stored (with a one-shot stderr warning).
+	if ds.Password != nil {
+		enc := encryptPassword(*ds.Password)
+		ds.Password = &enc
+	}
 	_, err := r.db.NamedExecContext(ctx,
-		`INSERT INTO dba_data_sources (id, tenant_id, name, source_type, host, port, database_name, username, status, created_at, updated_at)
-		 VALUES (:id, :tenant_id, :name, :source_type, :host, :port, :database_name, :username, :status, :created_at, :updated_at)`,
+		`INSERT INTO dba_data_sources (id, tenant_id, name, source_type, host, port, database_name, username, password, status, created_at, updated_at)
+		 VALUES (:id, :tenant_id, :name, :source_type, :host, :port, :database_name, :username, :password, :status, :created_at, :updated_at)`,
 		ds)
 	return err
 }
@@ -144,6 +153,11 @@ func (r *Repository) GetDataSource(ctx context.Context, id string) (*models.Data
 		}
 		return nil, err
 	}
+	// Decrypt password on read so the service layer gets usable creds.
+	if ds.Password != nil {
+		dec := decryptPassword(*ds.Password)
+		ds.Password = &dec
+	}
 	return &ds, nil
 }
 
@@ -151,17 +165,33 @@ func (r *Repository) ListDataSources(ctx context.Context, tenantID string) ([]mo
 	var ds []models.DataSource
 	err := r.db.SelectContext(ctx, &ds,
 		`SELECT * FROM dba_data_sources WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
+	if err != nil {
+		return ds, err
+	}
+	// Decrypt passwords for all rows so the service layer gets usable creds.
+	for i := range ds {
+		if ds[i].Password != nil {
+			dec := decryptPassword(*ds[i].Password)
+			ds[i].Password = &dec
+		}
+	}
 	return ds, err
 }
 
 func (r *Repository) UpdateDataSource(ctx context.Context, id string, updates map[string]interface{}) (*models.DataSource, error) {
-	updates["updated_at"] = time.Now().UTC()
-	_, err := r.db.NamedExecContext(ctx,
-		`UPDATE dba_data_sources SET :updates WHERE id=$1`,
-		map[string]interface{}{
-			"updates": updates,
-			"id":      id,
-		})
+	// Encrypt password before persisting if the caller is updating it.
+	if pw, ok := updates["password"]; ok {
+		if pwStr, isStr := pw.(string); isStr && pwStr != "" {
+			updates["password"] = encryptPassword(pwStr)
+		}
+	}
+	// Build SET clause manually from the updates map. sqlx NamedExec does
+	// not expand a map-valued parameter into SET col1=$1, col2=$2 — the
+	// old `SET :updates` form was a silent runtime SQL syntax error.
+	setParts, args := buildSetClause(updates)
+	args = append(args, id)
+	query := fmt.Sprintf(`UPDATE dba_data_sources SET %s, updated_at=NOW() WHERE id=$%d`, setParts, len(args))
+	_, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -220,16 +250,50 @@ func (r *Repository) ListAuditRules(ctx context.Context, tenantID string) ([]mod
 }
 
 func (r *Repository) UpdateAuditRule(ctx context.Context, id string, updates map[string]interface{}) (*models.AuditRule, error) {
-	_, err := r.db.NamedExecContext(ctx,
-		`UPDATE dba_audit_rules SET :updates WHERE id=$1`,
-		map[string]interface{}{
-			"updates": updates,
-			"id":      id,
-		})
+	// Build SET clause manually — see UpdateDataSource for the rationale.
+	setParts, args := buildSetClause(updates)
+	args = append(args, id)
+	query := fmt.Sprintf(`UPDATE dba_audit_rules SET %s WHERE id=$%d`, setParts, len(args))
+	_, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 	return r.GetAuditRule(ctx, id)
+}
+
+// buildSetClause turns a map[string]interface{} into "col1=$1, col2=$2"
+// with the matching args slice. Column names are whitelisted against the
+// known set so a caller cannot inject arbitrary SQL through the map key.
+// Unknown keys are silently dropped — the service layer already validates
+// input, so this is defense-in-depth.
+func buildSetClause(updates map[string]interface{}) (string, []interface{}) {
+	// Whitelist of column names allowed in the SET clause. Adding a new
+	// updatable column requires adding it here so an attacker cannot
+	// inject "id=$1" to change the primary key.
+	allowed := map[string]bool{
+		"name": true, "source_type": true, "host": true, "port": true,
+		"database_name": true, "username": true, "password": true,
+		"status": true, "enabled": true, "pattern": true, "severity": true,
+		"description": true, "result": true, "order_type": true,
+		"updated_at": true,
+	}
+	var parts []string
+	var args []interface{}
+	idx := 1
+	// Sort keys for deterministic SQL — avoids query plan cache misses.
+	keys := make([]string, 0, len(updates))
+	for k := range updates {
+		if allowed[k] {
+			keys = append(keys, k)
+		}
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		parts = append(parts, fmt.Sprintf("%s=$%d", k, idx))
+		args = append(args, updates[k])
+		idx++
+	}
+	return strings.Join(parts, ", "), args
 }
 
 // ---- Query Execution Audit Log ----

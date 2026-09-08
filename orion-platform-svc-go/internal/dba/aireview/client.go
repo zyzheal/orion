@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +19,22 @@ const DefaultAITimeout = 30 * time.Second
 
 // DefaultRateLimitPerMinute caps the number of AI calls per tenant.
 const DefaultRateLimitPerMinute = 10
+
+// DefaultAIModel is the model name used when no override is supplied.
+// It is resolved from DBA_AI_MODEL on first use so operators can swap
+// providers without recompiling. Falls back to "gpt-4o-mini" for the
+// zero-config case — the AIClient remains fully usable out of the box.
+var DefaultAIModel = loadDefaultAIModel()
+
+// loadDefaultAIModel reads DBA_AI_MODEL once at package init. Cached so
+// subsequent calls do not re-hit os.Getenv; tests can set the env before
+// importing this package to override the default model name.
+func loadDefaultAIModel() string {
+	if v := strings.TrimSpace(os.Getenv("DBA_AI_MODEL")); v != "" {
+		return v
+	}
+	return "gpt-4o-mini"
+}
 
 // aiChatRequest mirrors the OpenAI-compatible chat completion body.
 type aiChatRequest struct {
@@ -57,9 +74,10 @@ type AIClient struct {
 	maxTokens    int
 	temperature  float64
 
-	mu          sync.Mutex
-	tenantCalls map[string]int64
-	rateLimit   int
+	mu             sync.Mutex
+	tenantCalls    map[string]int64
+	rateLimit      int
+	lastSweepMinute int64 // epoch minute of the last stale-key cleanup
 }
 
 // AIClientConfig carries optional overrides for NewAIClientWithConfig.
@@ -104,7 +122,7 @@ func NewAIClientWithConfig(cfg AIClientConfig) *AIClient {
 		cfg.RateLimitPerTenant = DefaultRateLimitPerMinute
 	}
 	if cfg.Model == "" {
-		cfg.Model = "gpt-4o-mini"
+		cfg.Model = DefaultAIModel
 	}
 	return &AIClient{
 		baseURL:     strings.TrimRight(cfg.BaseURL, "/"),
@@ -252,6 +270,10 @@ func (c *AIClient) requestURL() string {
 // checkRateLimit implements a simple per-tenant counter. It is not
 // persistent across process restarts — good enough for a soft cap.
 // A production deployment should use Redis for durable counters.
+//
+// Cleanup strategy: stale keys (from previous minutes) are swept only when
+// the current epoch minute differs from lastSweepMinute. This avoids
+// O(N) map traversal on every call — the sweep runs at most once per minute.
 func (c *AIClient) checkRateLimit(_ context.Context, tenantID string) error {
 	if c.rateLimit <= 0 {
 		return nil
@@ -261,24 +283,30 @@ func (c *AIClient) checkRateLimit(_ context.Context, tenantID string) error {
 		key = "_global"
 	}
 	now := time.Now().Unix()
+	curMinute := now / 60
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Reset the counter every minute using a small struct.
 	if c.tenantCalls == nil {
 		c.tenantCalls = make(map[string]int64)
 	}
-	// Store the count keyed by "<tenant>@<minute>". We sweep stale keys
-	// lazily on each call.
-	minuteKey := fmt.Sprintf("%s@%d", key, now/60)
+
+	// Sweep stale keys only when the minute has changed since the last
+	// cleanup. This bounds the sweep to once per minute instead of once
+	// per call.
+	if curMinute != c.lastSweepMinute {
+		suffix := fmt.Sprintf("@%d", curMinute)
+		for k := range c.tenantCalls {
+			if !strings.HasSuffix(k, suffix) {
+				delete(c.tenantCalls, k)
+			}
+		}
+		c.lastSweepMinute = curMinute
+	}
+
+	minuteKey := fmt.Sprintf("%s@%d", key, curMinute)
 	c.tenantCalls[minuteKey]++
 	count := c.tenantCalls[minuteKey]
-	// Best-effort cleanup: drop keys from previous minutes.
-	for k := range c.tenantCalls {
-		if !strings.HasSuffix(k, fmt.Sprintf("@%d", now/60)) {
-			delete(c.tenantCalls, k)
-		}
-	}
 	if count > int64(c.rateLimit) {
 		return ErrRateLimited
 	}

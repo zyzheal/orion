@@ -2,6 +2,7 @@ package handler
 
 import (
 	"strconv"
+	"strings"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/dba/models"
@@ -60,13 +61,13 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// POST /dba/audit-rules - create audit rule
 	f.POST("/audit-rules", auth.RequirePermission("dba", "write"), h.CreateAuditRule)
 	// PUT /dba/audit-rules/:id - update audit rule
-	rg.PUT("/dba/audit-rules/:id", auth.RequirePermission("dba", "write"), h.UpdateAuditRule)
+	f.PUT("/audit-rules/:id", auth.RequirePermission("dba", "write"), h.UpdateAuditRule)
 
 	// --- Direct Query ---
 	// POST /dba/query - execute direct SQL query
 	f.POST("/query", auth.RequirePermission("dba", "execute"), h.ExecuteDirectQuery)
 	// GET /dba/query-logs - list query execution audit logs
-	rg.GET("/dba/query-logs", auth.RequirePermission("dba", "read"), h.ListQueryLogs)
+	f.GET("/query-logs", auth.RequirePermission("dba", "read"), h.ListQueryLogs)
 }
 
 // ---- SQL Orders ----
@@ -123,7 +124,7 @@ func (h *Handler) ApproveOrder(c *gin.Context) {
 	approvedBy := c.GetString("user_id")
 	order, err := h.svc.ApproveOrder(ctx, id, approvedBy)
 	if err != nil {
-		middleware.RespondNotFound(c, "order not found")
+		respondOrderError(c, err)
 		return
 	}
 	middleware.RespondSuccess(c, order)
@@ -135,7 +136,7 @@ func (h *Handler) RejectOrder(c *gin.Context) {
 	id := c.Param("id")
 	order, err := h.svc.RejectOrder(ctx, id)
 	if err != nil {
-		middleware.RespondNotFound(c, "order not found")
+		respondOrderError(c, err)
 		return
 	}
 	middleware.RespondSuccess(c, order)
@@ -149,7 +150,7 @@ func (h *Handler) ExecuteOrder(c *gin.Context) {
 	userID := c.GetString("user_id")
 	order, err := h.svc.ExecuteOrder(ctx, tenantID, userID, id)
 	if err != nil {
-		middleware.RespondNotFound(c, "order not found")
+		respondOrderError(c, err)
 		return
 	}
 	middleware.RespondSuccess(c, order)
@@ -338,6 +339,42 @@ func (h *Handler) ListQueryLogs(c *gin.Context) {
 }
 
 // ---- Helpers ----
+
+// respondOrderError maps a service-layer error to the appropriate HTTP
+// status code. Previously every error returned 404 "order not found",
+// hiding the real cause (approval pending, self-approval, tenant mismatch,
+// SQL execution failure, etc.) from the user.
+//
+// The mapping is keyword-based because the service layer returns fmt.Errorf
+// messages, not typed errors. Adding a new error form only requires adding
+// a case here.
+func respondOrderError(c *gin.Context, err error) {
+	msg := err.Error()
+	switch {
+	case containsAny(msg, "not found"):
+		middleware.RespondNotFound(c, msg)
+	case containsAny(msg, "does not belong to tenant"):
+		middleware.RespondForbidden(c, msg)
+	case containsAny(msg, "self-approval"):
+		middleware.RespondForbidden(c, msg)
+	case containsAny(msg, "pending approval"):
+		middleware.RespondConflict(c, msg)
+	case containsAny(msg, "already completed", "previously failed", "was rejected", "has status"):
+		middleware.RespondConflict(c, msg)
+	default:
+		middleware.RespondInternalError(c, msg)
+	}
+}
+
+// containsAny returns true when any needle appears as a substring of s.
+func containsAny(s string, needles ...string) bool {
+	for _, n := range needles {
+		if strings.Contains(s, n) {
+			return true
+		}
+	}
+	return false
+}
 
 func intDef(val string, def int) int {
 	if val == "" {
