@@ -87,9 +87,9 @@
 > | 302 | T-CONFIG-LEVEL 三层 Level 字段补全（platform/tenant/user + ResolveEffectiveConfig） | **2d** | 🟠 高 | ✅ **已完成** (`3cc7bd7c2`) |
 > | 303 | T-SPI 内置扩展点枚举补全（14 个 BuiltinPoint 常量 + Registry 初始化） | **1d** | 🟡 中 | ✅ **已完成** (`b6322a01d`) |
 > | 304 | T-AUDIT 新增合规框架（PCI-DSS v4.0 36 + 等保2.0 21 + PDPA 12 controls，共 88 controls 全库） | **1d** | 🟡 中 | ✅ **已完成** (`c7c48adb4`) |
-> | 305 | T-AUDIT 合规 Dashboard 可视化（跨框架覆盖度 + 风险热图 + 30 天趋势） | **0.5d** | 🟢 低 | ⬜ 待实施 |
+> | 305 | T-AUDIT 合规 Dashboard 可视化（跨框架覆盖度 + 风险热图 + 30 天趋势） | **0.5d** | 🟢 低 | ✅ **已完成** (`4aa131398` backend + `057ddba10` frontend) |
 > | 306 | T-QUOTA 软限/硬限 + 超配策略 + 分级预警 | **1d** | 🟢 低 | ⬜ 待实施 |
-> | **合计** | **6 项差距扩展** | **6d** | 已 4.5d / 剩 1.5d | 完成 4/6 |
+> | **合计** | **6 项差距扩展** | **6d** | 已 5d / 剩 1d | 完成 5/6 |
 >
 > **⚠️ v3.7 修正**：Phase 301 由"P0 BUG"降级为"代码规范"（wiring.go:137 已调用 `wiretenantquota`，功能正常，只是函数名违反 Go 命名约定）。Phase 304 由"ISO27001 endpoint 补齐"改为"新增合规框架"（ISO27001 已在 `handler.go:241` + `compliance_test.go` 完整实现，含 12+ controls 测试）。详细技术设计见 `docs/flagship-review-v3.7-delta-impl-2026-09-08.md`。
 >

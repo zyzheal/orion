@@ -2578,3 +2578,104 @@ feat(audit): Phase 304 新增 PCI-DSS v4.0 / 等保2.0 / PDPA 合规框架
 
 - Phase 305：T-AUDIT 合规 Dashboard 可视化（0.5d）
 - Phase 306：T-QUOTA 软限/硬限 + 超配策略 + 分级预警（1d）
+
+---
+
+## Phase 305 — T-AUDIT 合规 Dashboard 可视化（2026-09-08 实施完成）
+
+> 分支：`feat/wave2-parallel-execution`
+> 授权：沿用 Phase 301-304 授权（`orion-platform-svc-go/` + `orion-frontend/`）
+> Backend Commit：`4aa131398`
+> Frontend Commit：`057ddba10`
+
+### 任务
+
+Phase 305（0.5d）：T-AUDIT 合规 Dashboard 可视化——为已实现的 5 框架合规报告（Phase 304）补齐 **3 个可视化端点**（跨框架覆盖度 roll-up、框架×严重度热图、N 天分数趋势）+ **一个前端仪表板页面**（含 3 个 echarts/antd 组件 + useQuery 状态钩子）。
+
+### 后端 3 个新 API 端点
+
+| Endpoint | 方法 | 返回类型 | 语义 |
+|---|---|---|---|
+| `/api/v1/audit/compliance/dashboard` | GET | `ComplianceDashboardOverview` | 5 框架分数 roll-up + 总控数/通过/未通过 |
+| `/api/v1/audit/compliance/risk-map` | GET | `ComplianceRiskMatrix` | 5 框架 × 4 严重度（Low/Medium/High/Critical）finding 计数 |
+| `/api/v1/audit/compliance/trend?days=N` | GET | `ComplianceScoreTrend` | 逐日整体+每框架分数（days clamped to [1, 90]，默认 30） |
+
+### 新增 6 个后端 model
+
+- `ComplianceDashboardOverview`：`FrameworkScores []FrameworkScore`, `OverallScore`, `OverallRating`, `TotalControls`, `TotalPassed`, `TotalFailed`, `AssessedAt`
+- `FrameworkScore`：`Framework`, `Score`, `Rating`, `TotalControls`, `PassedControls`, `FailedControls`
+- `ComplianceRiskMatrix`：`FrameworkRows []FrameworkRiskRow`, `SeverityBuckets`, `TotalFindings`, `AssessedAt`
+- `FrameworkRiskRow`：`Framework`, `Low`, `Medium`, `High`, `Critical`, `TotalFindings`, `Score`
+- `ComplianceScoreTrend`：`Days`, `Overall []TrendPoint`, `PerFramework map[string][]TrendPoint`, `AssessedAt`
+- `TrendPoint`：`Date`, `Score`, `Rating`, `TotalControls`, `PassedControls`
+
+### 关键设计：并行编排优化
+
+原 `ComplianceReport(fw)` 每次只算 1 个框架；Dashboard 需要 5 框架 roll-up，RiskMatrix 需要 findings 分类，Trend 需要 N 天 × 5 框架分数。若朴素实现每个端点会触发 5-150 次 DB 查询。
+
+采用两层并行优化：
+
+1. **`parallelReports(ctx, tenantID, frameworks, days)`**：一次 `Export` 查询窗口内所有日志 + 5 个 goroutine 并发 `evaluate`，通过 `sync.WaitGroup` 汇聚。用于 DashboardOverview 和 RiskMatrix。
+2. **`evaluateParallel(ctx, frameworks, logs, start, end)`**：位置对齐的纯计算并发，用于 ScoreTrend 的每个 UTC 天桶。
+3. **`buildComplianceReport(ctx, tenantID, fw, start, end)`**：抽出私有方法支持任意时间窗，`ComplianceReport()` 变为薄包装。
+4. **`ratingFromScore(score float64)`**：共享的 3-阈值 rating helper（≥90 compliant / ≥70 partial / else non-compliant）。
+
+### 改动清单
+
+| 文件 | 改动 | 类型 |
+|---|---|---|
+| `orion-platform-svc-go/internal/audit/models/models.go` | 追加 6 个 Phase 305 model（+66 行） | 类型定义 |
+| `orion-platform-svc-go/internal/audit/service/service.go` | `ComplianceReport` 重构为 `buildComplianceReport` + `evaluateCompliance` + `exportWindow` 三层；新增 `parallelReports` + `evaluateParallel` + `DashboardOverview` + `RiskMatrix` + `ScoreTrend` + `ratingFromScore`；新增 `sync` import（+327/-12 行） | 业务逻辑 |
+| `orion-platform-svc-go/internal/audit/service/service_interface.go` | ServiceInterface 追加 3 方法签名 | 接口 |
+| `orion-platform-svc-go/internal/audit/handler/handler.go` | Service interface 追加 3 方法 + 3 路由 + 3 handler 函数 | HTTP 层 |
+| `orion-platform-svc-go/internal/audit/service/compliance_test.go` | 新增 13 个测试（10 service + 3 parallel helper），含 `countingExportRepo` 验证 `parallelReports` 只调用 Export 一次（+316 行） | 测试 |
+| `orion-platform-svc-go/internal/audit/handler/handler_test.go` | 扩展 `mockSvc` 加入 3 方法 mock + 新增 8 个 handler 测试（含 `Trend_DefaultDays`/`Trend_ExplicitDays`/`Trend_BadDaysUsesDefault`）（+170 行） | 测试 |
+| `orion-frontend/src/api/audit-compliance.ts` | 新建 API client：类型定义 + 4 endpoint 函数 + `loadComplianceDashboardBundle` 并行 bundle loader（+110 行） | 前端 API |
+| `orion-frontend/src/pages/AuditComplianceDashboard/useAuditComplianceState.ts` | 新建 state hook：`useQuery` bundle 加载 + `isError + useEffect` 呈现错误（QueryProvider 已知约束）+ `DAYS_OPTIONS` + `MIN_DAYS/MAX_DAYS/DEFAULT_DAYS`（+85 行） | 前端状态 |
+| `orion-frontend/src/pages/AuditComplianceDashboard/Components/FrameworkScoreCard.tsx` | antd Card + Progress 环形 + Statistic 通过率 + Rating Tag（+114 行） | 前端组件 |
+| `orion-frontend/src/pages/AuditComplianceDashboard/Components/RiskHeatmap.tsx` | echarts-for-react 5×4 heatmap + 详细 Table（含 total/score）（+194 行） | 前端组件 |
+| `orion-frontend/src/pages/AuditComplianceDashboard/Components/ScoreTrendChart.tsx` | echarts-for-react 多线趋势 + 固定框架色板 + 70/90 阈值 markLine（+180 行） | 前端组件 |
+| `orion-frontend/src/pages/AuditComplianceDashboard/index.tsx` | 组装 4 大区块（Header + ScoreCards + RiskHeatmap + TrendChart）+ DashboardLayout + PageSkeleton（+220 行） | 前端页面 |
+
+### 关键设计决策
+
+1. **`routes.tsx` FORBIDDEN → 页面组件不注册路由**：Phase 305 只提交页面组件和 API client；路由注册留给后续任务（用户 FORBIDDEN 约束：`orion-frontend/src/router/routes.tsx`）。
+2. **QueryProvider onError no-op**：本仓库 pin 的 tanstack/react-query 版本 `useQuery.onError` 是 no-op，因此 state hook 使用 `isError + useEffect` 呈现错误（详见 `QueryProvider.tsx` README）。
+3. **并行 helper 位置对齐**：`evaluateParallel` 结果按输入顺序对齐（`results[i]` 对应 `frameworks[i]`），调用方无需 sort，减少 bug 面。
+4. **UTC 日期分桶**：Trend 按 UTC 天（`day.Truncate(24h)`）分桶，避免时区跨日抖动。
+5. **Log-scale heatmap 颜色**：RiskHeatmap 使用 `log10(count+1)` 缩放，避免 Critical=1 被 Low=500 淹没；tooltip 与 label 显示原始 count。
+6. **固定框架色板**：ScoreTrendChart 使用 `SOC2→primary / ISO27001→success / PCI-DSS→warning / MLPS2→purple / PDPA→info` 固定映射，跨查询颜色不跳变。
+7. **Days clamp 后端兜底**：`ScoreTrend` 后端 clamp `days` 到 [1, 90]，坏值 fallback 到 30；前端 `DAYS_OPTIONS` 提供 7/14/30/60/90 五档。
+
+### 验收证据
+
+- ✅ `go build ./internal/audit/...` 通过
+- ✅ `go vet ./internal/audit/...` 通过
+- ✅ `go test ./internal/audit/...` 全部通过（audit/handler + audit/service）
+- ✅ 前端 `tsc --noEmit -p tsconfig.json` 零 error
+- ✅ 无 `noUnusedLocals` 违反
+- ✅ FORBIDDEN 2 次验证 = 0（`git add` 前 + `git commit` 前）
+- ✅ 未提交 `migrations/dba/`、`orion-frontend/src/api/dba/`、`orion-frontend/src/pages/dba/`、`orion-frontend/src/router/routes.tsx`、`docs/dba/`
+
+### Commit 消息
+
+```
+# Backend (4aa131398)
+feat(audit): Phase 305 新增 3 个合规可视化端点
+
+# Frontend (057ddba10)
+feat(frontend): Phase 305 AuditComplianceDashboard 前端
+```
+
+### 累计进度
+
+- Phase 301 实施：✅ `b56cd8566` + `4b6fb86c4`
+- Phase 302 实施：✅ `3cc7bd7c2`
+- Phase 303 实施：✅ `b6322a01d`
+- Phase 304 实施：✅ `c7c48adb4`
+- **Phase 305 实施**：✅ `4aa131398` + `057ddba10`（本轮）
+- Phase 301-306 差距扩展任务：**已完成 5/6（5d / 6d）**
+
+### 剩余任务（Phase 306，1d）
+
+- Phase 306：T-QUOTA 软限/硬限 + 超配策略 + 分级预警（1d）
