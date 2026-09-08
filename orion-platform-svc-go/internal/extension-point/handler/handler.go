@@ -14,6 +14,7 @@
 //	GET    /api/v1/startups                      - List startup tasks
 //	GET    /api/v1/startups/:name/status         - Get startup status
 //	GET    /api/v1/extension-points/health       - Health check (no auth)
+//	GET    /api/v1/extension-points/builtins     - List builtin extension points (Phase 303)
 package handler
 
 import (
@@ -44,6 +45,9 @@ type Service interface {
 	CreateStartup(ctx context.Context, names []string) ([]models.StartupTask, error)
 	ListStartupTasks(ctx context.Context, status string, offset, limit int) ([]models.StartupTask, int, error)
 	GetStartupStatus(ctx context.Context, name string) (*models.StartupTask, error)
+
+	// Phase 303: Builtin extension point catalog
+	ListBuiltinPoints(ctx context.Context, category string) ([]models.BuiltinPointMeta, error)
 }
 
 type Handler struct{ svc Service }
@@ -58,6 +62,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// Extension point CRUD
 	rg.GET("/extension-points", auth.RequirePermission("extension-point", "read"), h.ListExtensions)
 	rg.POST("/extension-points", auth.RequirePermission("extension-point", "write"), h.Register)
+	// Phase 303: Builtin catalog — must be declared BEFORE /:name to avoid
+	// being shadowed by the parameterized route.
+	rg.GET("/extension-points/builtins", auth.RequirePermission("extension-point", "read"), h.ListBuiltinPoints)
 	rg.GET("/extension-points/:name", auth.RequirePermission("extension-point", "read"), h.GetExtension)
 	rg.PUT("/extension-points/:name", auth.RequirePermission("extension-point", "write"), h.UpdateExtension)
 	rg.POST("/extension-points/:name/init", auth.RequirePermission("extension-point", "write"), h.InitializeExtension)
@@ -101,6 +108,27 @@ func (h *Handler) ListExtensions(c *gin.Context) {
 		items = []models.ExtensionSummary{}
 	}
 	middleware.RespondPaginated(c, items, (page-1)*ps, ps, total)
+}
+
+// ListBuiltinPoints returns the 15 builtin extension points catalog
+// (Phase 303). Optional `category` query param filters by startup/api/handler/
+// service/listener. Unknown category returns 400.
+func (h *Handler) ListBuiltinPoints(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListBuiltinPoints")
+	defer span.End()
+	category := c.Query("category")
+	points, err := h.svc.ListBuiltinPoints(ctx, category)
+	if err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	if points == nil {
+		points = []models.BuiltinPointMeta{}
+	}
+	middleware.RespondSuccess(c, gin.H{
+		"items": points,
+		"count": len(points),
+	})
 }
 
 func (h *Handler) GetExtension(c *gin.Context) {

@@ -209,6 +209,25 @@ func (s *ServiceEx) GetExtensionStatus(ctx context.Context, name string) (*model
 }
 
 // ===========================================================================
+// Builtin extension points (Phase 303 T-SPI)
+// ===========================================================================
+
+// ListBuiltinPoints returns the 15 builtin extension point catalog.
+// Optional category filter: empty string returns all; unknown category
+// returns an empty slice (not an error) so callers can uniformly render.
+func (s *ServiceEx) ListBuiltinPoints(ctx context.Context, category string) ([]models.BuiltinPointMeta, error) {
+	category = strings.ToLower(strings.TrimSpace(category))
+	if category == "" {
+		return models.ListBuiltinPoints(), nil
+	}
+	if !models.ValidCategories[category] {
+		return nil, fmt.Errorf("%w: %s (allowed: %s)", ErrInvalidCategory, category,
+			joinNames(models.ValidCategories))
+	}
+	return models.ListBuiltinPointsByCategory(category), nil
+}
+
+// ===========================================================================
 // StartupTask CRUD
 // ===========================================================================
 
