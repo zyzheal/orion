@@ -15,132 +15,25 @@
  * - ./config.tsx          : severity/status/priority/event-type display configs
  * - ./IncidentModals.tsx  : create/edit/assign/escalate/timeline/status/postmortem modals
  *
+ * P2-9 Phase 239:
+ * - Components/TabItems.tsx : buildTabItems based on selectedIncident
+ * - Components/ModalsProps.tsx : IncidentModals bound props wrapper
+ *
  * API: @/api/incident
  */
-import React from 'react';
-import {
-  Typography,
-  Tabs,
-} from 'antd';
-import {
-  BugOutlined,
-} from '@ant-design/icons';
+import { Typography, Tabs } from 'antd';
+import { BugOutlined } from '@ant-design/icons';
 import { Layout } from '@/components/Layout';
 import { colors, spacing } from '@/tokens';
 import { useIncidentState } from './useIncidentState';
-import {
-  IncidentListTab,
-  IncidentDetailTab,
-  IncidentTimelineTab,
-  IncidentPostmortemTab,
-} from './IncidentTabs';
 import { IncidentModals } from './IncidentModals';
+import { buildTabItems } from './Components/TabItems';
 
 const { Title, Text } = Typography;
 
 const IncidentManagement: React.FC = () => {
   const s = useIncidentState();
-
-  const tabItems = s.selectedIncident
-    ? [
-        {
-          key: 'list',
-          label: '事件列表',
-          children: (
-            <IncidentListTab
-              incidents={s.incidents}
-              loading={s.loading}
-              page={s.page}
-              pageSize={s.pageSize}
-              total={s.total}
-              columns={s.columns}
-              searchQuery={s.searchQuery}
-              filters={s.filters}
-              stats={s.stats}
-              statsLoading={s.statsLoading}
-              setSearchQuery={s.setSearchQuery}
-              setFilters={s.setFilters}
-              setPage={s.setPage}
-              setPageSize={s.setPageSize}
-              loadIncidents={s.loadIncidents}
-              loadStats={s.loadStats}
-              setCreateModalOpen={s.setCreateModalOpen}
-            />
-          ),
-        },
-        {
-          key: 'detail',
-          label: '事件详情',
-          children: (
-            <IncidentDetailTab
-              selectedIncident={s.selectedIncident}
-              detailLoading={s.detailLoading}
-              handleBackToList={s.handleBackToList}
-              handleOpenEdit={s.handleOpenEdit}
-              handleOpenAssign={s.handleOpenAssign}
-              handleOpenEscalate={s.handleOpenEscalate}
-              handleStatusChange={s.handleStatusChange}
-            />
-          ),
-        },
-        {
-          key: 'timeline',
-          label: '时间线',
-          children: (
-            <IncidentTimelineTab
-              selectedIncident={s.selectedIncident}
-              timeline={s.timeline}
-              timelineLoading={s.timelineLoading}
-              setAddEventModalOpen={s.setAddEventModalOpen}
-              loadTimeline={s.loadTimeline}
-            />
-          ),
-        },
-        {
-          key: 'postmortem',
-          label: '复盘',
-          children: (
-            <IncidentPostmortemTab
-              selectedIncident={s.selectedIncident}
-              postmortem={s.postmortem}
-              postmortemLoading={s.postmortemLoading}
-              aiDraft={s.aiDraft}
-              aiDraftLoading={s.aiDraftLoading}
-              setPostmortemModalOpen={s.setPostmortemModalOpen}
-              handleGenerateDraft={s.handleGenerateDraft}
-              handlePublishPostmortem={s.handlePublishPostmortem}
-              handleFillDraftToForm={s.handleFillDraftToForm}
-            />
-          ),
-        },
-      ]
-    : [
-        {
-          key: 'list',
-          label: '事件列表',
-          children: (
-            <IncidentListTab
-              incidents={s.incidents}
-              loading={s.loading}
-              page={s.page}
-              pageSize={s.pageSize}
-              total={s.total}
-              columns={s.columns}
-              searchQuery={s.searchQuery}
-              filters={s.filters}
-              stats={s.stats}
-              statsLoading={s.statsLoading}
-              setSearchQuery={s.setSearchQuery}
-              setFilters={s.setFilters}
-              setPage={s.setPage}
-              setPageSize={s.setPageSize}
-              loadIncidents={s.loadIncidents}
-              loadStats={s.loadStats}
-              setCreateModalOpen={s.setCreateModalOpen}
-            />
-          ),
-        },
-      ];
+  const tabItems = buildTabItems({ s });
 
   return (
     <Layout>
