@@ -2022,3 +2022,48 @@ NotFound (184) / ServerError (183) / monitor-svc/AlertList (180) / DashboardNew 
 ### 7. 结论
 
 Batch AF 完成 6 个 phase 的组件化拆分，累计 11 页面降低 46% 代码量。所有拆分保持 100% TSC clean、100% UI/API 完整、100% FORBIDDEN=0 合规。下一步按剩余候选清单继续 Phase 279+ 拆分。
+
+
+## Batch AF 补充 — P2-9 组件化拆分第二轮 Phase 279-285（2026-08-26 补充）
+
+### 1. 范围
+本轮 7 个 phase 延续 P2-9 组件拆分模式，与 Phase 273-278 相同的技术模式，但页面候选来自剩余 140+ 行的 index.tsx 清单。
+
+### 2. Phase 明细
+
+| Phase | 页面 | Before | After | Δ | 提交 |
+|---|---|---|---|---|---|
+| 279 | UserManagement | 170 | 83 | -51% | 937c41fd0 |
+| 280 | ScriptLibrary | 171 | 49 | -71% | 6b6346c3e |
+| 281 | CapabilityAdmin | 168 | 45 | -73% | f9a2fdc9f |
+| 282 | EvalSetManagement | 165 | 56 | -66% | 82621dd73 |
+| 283 | ProductLine | 154 | 86 | -44% | 04ac49e04 |
+| 284 | CMDB | 172 | 60 | -65% | 9c04a8855 |
+| 285 | DashboardNew | 180 | 100 | -44% | 7ced1beb5 |
+| **合计** | 7 页面 | **1180** | **479** | **-59%** | 7 commits |
+
+### 3. 新增模式
+
+**StatsCards pattern**（Phase 284/285 采用）：将顶部 4 张 StatCard Row/Col 布局独立为 `<StatsCards stats={state} />`，接收统计数字对象，避免 index.tsx 长 JSX 冗余。
+
+**MainColumn pattern**（Phase 285 采用）：将内容主区（1-2 张 Card + Empty 兜底 + navigate 按钮）独立为 `<MainColumn ... />`，通过 useNavigate 内部持有导航逻辑。
+
+### 4. 累计 P2-9 第二轮成效
+
+- Phase 268 service-boundary 163→74 (-55%)
+- Phase 269 NotificationEnhanced 163→68 (-58%)
+- Phase 270 TicketDetail 159→108 (-32%)
+- Phase 271 InternalLibrary 158→69 (-56%)
+- Phase 272 ChangeManagement 158→101 (-36%)
+- Phase 273-278 见 Batch AF
+- Phase 279-285 见上表
+- **总计 22 页面 3347→1787 行 (-47%)**
+- **总 commits: 22**
+
+### 5. 剩余 P2-9 目标（≥140 行候选）
+
+NotFound (184) / ServerError (183) / monitor-svc/AlertList (180) / AlertList (165) / DisasterRecovery (162) / SelfHealing (159) / ApprovalEscalation (151) / AgentDashboard (148) / WorkflowTasks (147) / TicketList (144) / Projects (144)
+
+### 6. 结论
+
+Batch AF 补充完成 7 个 phase 的组件化拆分，累计 22 页面降低 47% 代码量。所有拆分保持 100% TSC clean、100% UI/API 完整、100% FORBIDDEN=0 合规。
