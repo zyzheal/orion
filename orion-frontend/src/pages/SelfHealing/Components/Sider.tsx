@@ -1,4 +1,4 @@
-import { Layout, Menu, Typography, type SiderTheme } from 'antd';
+import { Layout, Menu, Typography } from 'antd';
 import { colors, themeVars } from '@/tokens';
 import { menuItems, LAYOUT_CONFIG } from './constants';
 
@@ -8,7 +8,7 @@ const { Title } = Typography;
 interface Props {
   collapsed: boolean;
   onCollapse: (v: boolean) => void;
-  theme: SiderTheme;
+  theme: 'light' | 'dark';
   selectedKey: string;
   onMenuClick: (key: string) => void;
 }

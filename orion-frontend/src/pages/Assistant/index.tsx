@@ -61,7 +61,7 @@ const AssistantPage = () => {
             setActionTitle={setActionTitle}
             actionLoading={actionLoading}
             actionResult={actionResult}
-            handleAction={handleAction}
+            handleAction={handleAction as any}
           />
         </Content>
       </Layout>

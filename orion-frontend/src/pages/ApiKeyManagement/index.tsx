@@ -71,7 +71,7 @@ const ApiKeyManagement = () => {
         form={form}
         createdKey={createdKey}
         onCopyKey={copyKey}
-        onSubmit={handleCreate}
+        onSubmit={handleCreate as any}
         onCancel={() => setModalVisible(false)}
       />
     </div>

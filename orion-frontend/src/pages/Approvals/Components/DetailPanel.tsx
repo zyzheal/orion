@@ -5,7 +5,7 @@ interface DetailPanelProps {
   detailDrawerVisible: boolean;
   setDetailDrawerVisible: (v: boolean) => void;
   selectedApproval: any;
-  openCommentModal: (record: any, action: string) => void;
+  openCommentModal: (record: any, action: any) => void;
 }
 
 export function DetailPanel({ detailDrawerVisible, setDetailDrawerVisible, selectedApproval, openCommentModal }: DetailPanelProps) {

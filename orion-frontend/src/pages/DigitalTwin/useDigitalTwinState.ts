@@ -36,7 +36,7 @@ export function useDigitalTwinState() {
 
   const handleCreateSnapshot = async (values: Record<string, unknown>) => {
     try {
-      await digitalTwinApi.createSnapshot(values);
+      await digitalTwinApi.createSnapshot(values as { environment: string; note?: string });
       message.success('Snapshot creation started');
       setSnapshotModal(false);
       await loadData();
@@ -47,7 +47,7 @@ export function useDigitalTwinState() {
 
   const handleStartRecording = async (values: Record<string, unknown>) => {
     try {
-      await digitalTwinApi.startRecording(values);
+      await digitalTwinApi.startRecording(values as { source_env: string; path_prefixes?: string[] });
       message.success('Recording started');
       setRecordingModal(false);
       await loadData();

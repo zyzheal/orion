@@ -31,7 +31,7 @@ export function useApiKeyManagementState() {
     queryFn: async () => {
       const [keysRes, statsRes] = await Promise.all([getApiKeys(), getApiKeyStats()]);
       return {
-        keys: ((keysRes.data as { keys?: ApiKey[] })?.keys ?? []) as ApiKey[],
+        keys: ((keysRes.data as unknown as { keys?: ApiKey[] })?.keys ?? []) as ApiKey[],
         stats: (statsRes.data as { stats?: ApiKeyDashboardData['stats'] })?.stats ?? null,
       };
     },

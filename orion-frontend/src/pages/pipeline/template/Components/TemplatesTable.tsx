@@ -71,6 +71,7 @@ export function TemplatesTable({ templates, onSelect, onApply, onFork }: Props) 
     },
     {
       title: '操作',
+      dataIndex: 'actions',
       width: 120,
       render: (_v, t) => (
         <Space size="small">

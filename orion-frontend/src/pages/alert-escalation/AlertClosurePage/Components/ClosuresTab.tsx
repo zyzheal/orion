@@ -14,7 +14,7 @@ interface Props {
   dataSource: any[];
   loading: boolean;
   policyStatus?: string;
-  setPolicyStatus: (v?: string) => void;
+  setPolicyStatus: (v: string) => void;
   onLoadClosures: () => void;
 }
 
