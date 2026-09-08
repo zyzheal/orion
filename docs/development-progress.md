@@ -2686,7 +2686,7 @@ feat(frontend): Phase 305 AuditComplianceDashboard 前端
 
 > 分支：`feat/wave2-parallel-execution`
 > 授权：沿用 Phase 301-305 授权（`orion-platform-svc-go/`）
-> Backend Commit：`pending`（本轮提交）
+> Backend Commit：`9ef76a56f`
 
 ### 任务
 
@@ -2775,6 +2775,7 @@ WarnThresholdsHit = sorted(thresholds where projected/hard*100 >= t)
 ### Commit 消息
 
 ```
+# Backend (9ef76a56f)
 feat(tenant-quota): Phase 306 软限/硬限 + 超配策略 + 分级预警
 ```
 
@@ -2785,7 +2786,7 @@ feat(tenant-quota): Phase 306 软限/硬限 + 超配策略 + 分级预警
 - Phase 303 实施：✅ `b6322a01d`
 - Phase 304 实施：✅ `c7c48adb4`
 - Phase 305 实施：✅ `4aa131398` + `057ddba10`
-- **Phase 306 实施**：✅ `pending`（本轮）
+- **Phase 306 实施**：✅ `9ef76a56f`（本轮）
 - Phase 301-306 差距扩展任务：**已完成 6/6（6d / 6d）** ✅
 
 ### 剩余任务（P0-MB Phase 1-5，26d）
