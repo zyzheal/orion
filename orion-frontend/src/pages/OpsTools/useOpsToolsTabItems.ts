@@ -1,11 +1,10 @@
 import { useMemo } from 'react';
 import { Form } from 'antd';
 import { useOpsToolsData } from './useOpsToolsData';
-import type { OpsToolsData } from './useOpsToolsData';
 import { buildTabItems } from './tabItems';
 
 interface Props {
-  d: OpsToolsData;
+  d: ReturnType<typeof useOpsToolsData>;
   cronForm: ReturnType<typeof Form.useForm>[0];
   indexForm: ReturnType<typeof Form.useForm>[0];
   batchForm: ReturnType<typeof Form.useForm>[0];

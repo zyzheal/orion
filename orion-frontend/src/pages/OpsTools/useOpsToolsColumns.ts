@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Form } from 'antd';
 import { useOpsToolsData } from './useOpsToolsData';
-import type { OpsToolsData } from './useOpsToolsData';
+
 import {
   getCronColumns,
   getIndexColumns,
@@ -11,7 +11,7 @@ import {
   getModuleColumns,
 } from './columns';
 
-export function useOpsToolsColumns(d: OpsToolsData, cronForm: ReturnType<typeof Form.useForm>[0]) {
+export function useOpsToolsColumns(d: ReturnType<typeof useOpsToolsData>, cronForm: ReturnType<typeof Form.useForm>[0]) {
   const cronColumns = useMemo(
     () =>
       getCronColumns({

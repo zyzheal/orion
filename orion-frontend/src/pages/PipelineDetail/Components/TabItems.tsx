@@ -1,4 +1,4 @@
-import { Typography, Card, Space } from 'antd';
+import { Typography, Card, Space, Badge } from 'antd';
 import type { TabsProps } from 'antd';
 import {
   PlayCircleOutlined,

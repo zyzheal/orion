@@ -1,23 +1,7 @@
-import { Typography, Button, Space, Tabs, Result, Card, Badge } from 'antd';
-import {
-  PlayCircleOutlined,
-  CodeOutlined,
-  ApartmentOutlined,
-  HistoryOutlined,
-  SwapOutlined,
-} from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
-import { StageTimeline } from '../StageTimeline';
-import { LogViewer } from '../LogViewer';
-import { DAGTab } from '../DAGTab';
-import { RunsHistoryTab } from '../RunsHistoryTab';
-import { TaskOutputsTable } from '../TaskOutputsTable';
+import { Button, Result } from 'antd';
 import type { usePipelineDetailState } from '../usePipelineDetailState';
 
 type State = ReturnType<typeof usePipelineDetailState>;
-
-const { Text } = Typography;
-const { TabPane } = Tabs;
 
 interface Props {
   state: State;
