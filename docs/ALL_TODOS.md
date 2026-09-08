@@ -585,6 +585,45 @@ C. 完全缺失（企业必需）
 
 ---
 
+---
+
+## 十、多分支并行部署 + 防部署错乱方案（P0-MB，2026-08-26 立项）
+
+> **设计文档**: `docs/multi-branch-strategy-design.md` (321 行, v1.0)
+> **核心痛点**: 分支合并冲突 / 部署互相干扰 / Image tag 复用导致二进制串用 / 回滚误拉取其他分支产物 / Hotfix 忘记同步
+> **架构**: 5 层防护 (L1 BranchProfile 分支语义 / L2 Namespace 环境隔离 / L3 BuildArtifact 制品指纹 / L4 SyncPolicy 同步策略 / L5 DeployEvent 变更审计)
+> **目标**: 部署防错准确率 ≥ 99.99% · 分支管理自动化（人工介入率 < 10%） · 冲突预检查覆盖率 ≥ 95%
+
+### P0-MB Phase 1 — 前置阻塞（第 1-2 周）
+
+| ID | 任务 | 内容 | 状态 |
+|----|------|------|------|
+| MB-P0-1 | L3 BuildArtifact 模型 + 制品签名强制 | `BuildArtifact` Go 结构 + SHA256 digest + GPG 签名校验 + `imageDigest` 字段入 pipeline 产物表 | ⬜ 未开始 |
+| MB-P0-2 | L2 Namespace 强制绑定 | Image tag 前缀校验中间件 + K8s namespace 命名规则 `orion-${branch}` + 部署 API 前置 gate | ⬜ 未开始 |
+| MB-P0-3 | Pre-deploy Gate 6 条阻断规则 (R1-R6) | 分支-环境匹配 / digest 完整性 / 变更单审批 / 分支状态 / Pipeline 匹配 / Schema 兼容 | ⬜ 未开始 |
+| MB-P0-4 | ChangeManagement 分支字段扩展 | `ChangeRequest` 新增 `branch` / `targetEnv` / `imageDigest` / `approvalId` 字段 + migration | ⬜ 未开始 |
+
+### P0-MB Phase 2 — 分支语义 + 同步策略（第 3-6 周）
+
+| ID | 任务 | 内容 | 状态 |
+|----|------|------|------|
+| MB-P1-1 | L1 BranchProfile 模型 + CRUD API | `/api/v1/branch-profiles` + semantic/owner/ltsUntil/mergeTargets/mergeSources/protectedEnv 字段 | ⬜ 未开始 |
+| MB-P1-2 | L4 SyncPolicy 模型 + 定时任务 | SyncPolicy CR + cron 调度器 + rebase/cherry-pick/merge 策略 + conflict notify | ⬜ 未开始 |
+| MB-P1-3 | 冲突预检查 (merge-preview) | `/api/v1/merge-preview` dry-run 合并冲突检测 + 前端冲突预览页面 | ⬜ 未开始 |
+
+### P0-MB Phase 3 — 审计 + 前端页面（第 7-12 周）
+
+| ID | 任务 | 内容 | 状态 |
+|----|------|------|------|
+| MB-P2-1 | L5 DeployEvent 审计日志 | DeployEvent 表 + 部署流水线埋点 + 双向可追溯 + 一键回滚支持 | ⬜ 未开始 |
+| MB-P2-2 | 前端 5 个新页面 | `/devops/branch-profiles` / `branch-deployments` / `sync-policies` / `merge-preview` / `deploy-audit` | ⬜ 未开始 |
+
+### P0-MB 参考
+
+- 设计文档: `docs/multi-branch-strategy-design.md` (321 行, v1.0, 待评审)
+- 相关评审: `docs/system-review-v3.5-2026-08-25.md` (v3.5 权威评审)
+- 相关分析: `docs/module-coupling-analysis-2026-08-25.md`
+
 > 所有详细分析报告:
 > - `docs/architecture-review-2026-08-01.md` — 主统一报告 (1088 行, 9 章)
 > - `docs/structure-overlap-verification-2026-08-01.md` — 5 项结构重叠核实

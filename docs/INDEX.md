@@ -276,6 +276,12 @@ docs/
 |------|------|------|
 | [../orion-platform-svc-go/docs/weknora-integration-design-2026-08-26.md](../orion-platform-svc-go/docs/weknora-integration-design-2026-08-26.md) | **WeKnora 知识图谱集成方案 v1.0** | 15 节设计：实体抽取 / 关系发现 / 图谱查询 / 图谱增强 RAG、Bridge 接口契约、数据模型与迁移、API 路由、4 阶段路线图、降级策略、监控指标、风险缓解（22,043 字节） |
 
+### 🆕 多分支并行部署策略（2026-08-26）
+
+| 文档 | 主题 | 说明 |
+|------|------|------|
+| [multi-branch-strategy-design.md](multi-branch-strategy-design.md) | **多分支并行 + 防部署错乱方案 v1.0** | 321 行 5 层防护架构 (L1 BranchProfile 分支语义 / L2 Namespace 环境隔离 / L3 BuildArtifact 制品指纹 / L4 SyncPolicy 同步策略 / L5 DeployEvent 变更审计)，覆盖 5 个新增页面 (branch-profiles / branch-deployments / sync-policies / merge-preview / deploy-audit) + 6 条 Pre-deploy Gate 阻断规则 (R1-R6) + 4 条 Post-merge Sync 规则 (S1-S4)；实施路线图 P0×4 (2 周) + P1×3 (1 月) + P2×2 (1 季) |
+
 ### 🆕 v2.0 可交付级生产代码 — 全量扫描合并版（2026-08-26）
 
 > 以下代码文件为方案 1-45 的**生产级可交付实现**，包含完整 import/类型/错误处理/数据库层/单元测试，可直接编译运行。
