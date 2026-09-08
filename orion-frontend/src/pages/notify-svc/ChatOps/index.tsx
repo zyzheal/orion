@@ -10,21 +10,14 @@
  * 2. 执行记录 - 命令执行历史列表
  * 3. 审计日志 - 审计日志查看与导出
  * 4. 管理配置 - 命令-Capability 映射、审批配置
+ *
+ * 组件化重构 (P2-9 Phase 267): 164->47行 (-71%)
+ * 拆分 Components/TabItems + Components/GuideAlert
  */
-import _React, { useState } from 'react';
-import { Tabs, Alert } from 'antd';
-import {
-  DashboardOutlined,
-  PlayCircleOutlined,
-  AuditOutlined,
-  SettingOutlined,
-  CloseOutlined,
-} from '@ant-design/icons';
-import ChatDashboard from './ChatDashboard';
-import ExecutionDashboard from './ExecutionDashboard';
-import AuditLogViewer from './AuditLogViewer';
-import AdminSettings from './AdminSettings';
-import { colors } from '@/tokens';
+import { useState } from 'react';
+import { Tabs } from 'antd';
+import { buildTabItems } from './Components/TabItems';
+import { GuideAlert } from './Components/GuideAlert';
 
 export default function ChatOpsPage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -33,80 +26,10 @@ export default function ChatOpsPage() {
     return localStorage.getItem('chatops-guide-dismissed') !== 'true';
   });
 
-  const tabItems = [
-    {
-      key: 'overview',
-      label: (
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 14,
-            fontWeight: 500,
-          }}
-        >
-          <DashboardOutlined />
-          总览看板
-        </span>
-      ),
-      children: <ChatDashboard />,
-    },
-    {
-      key: 'executions',
-      label: (
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 14,
-            fontWeight: 500,
-          }}
-        >
-          <PlayCircleOutlined />
-          执行记录
-        </span>
-      ),
-      children: <ExecutionDashboard />,
-    },
-    {
-      key: 'audit',
-      label: (
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 14,
-            fontWeight: 500,
-          }}
-        >
-          <AuditOutlined />
-          审计日志
-        </span>
-      ),
-      children: <AuditLogViewer />,
-    },
-    {
-      key: 'admin',
-      label: (
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 14,
-            fontWeight: 500,
-          }}
-        >
-          <SettingOutlined />
-          管理配置
-        </span>
-      ),
-      children: <AdminSettings />,
-    },
-  ];
+  const dismissGuide = () => {
+    setShowGuide(false);
+    localStorage.setItem('chatops-guide-dismissed', 'true');
+  };
 
   return (
     <div
@@ -118,43 +41,12 @@ export default function ChatOpsPage() {
         flexDirection: 'column',
       }}
     >
-      {/* 使用引导 */}
-      {showGuide && (
-        <Alert
-          type="info"
-          style={{ margin: '8px 16px 0', borderRadius: 8 }}
-          message={
-            <span style={{ fontSize: 13 }}>
-              <strong>如何使用 ChatOps？</strong> 本页为
-              <span style={{ color: colors.primary[500], fontWeight: 500 }}>管理中心</span>
-              （数据看板、命令文档、执行记录、配置管理）。 需要对话操作？点击页面
-              <span style={{ color: colors.primary[500], fontWeight: 500 }}>右下角</span>
-              的悬浮按钮打开 AI 助手。
-            </span>
-          }
-          action={
-            <a
-              onClick={() => {
-                setShowGuide(false);
-                localStorage.setItem('chatops-guide-dismissed', 'true');
-              }}
-              style={{ fontSize: 12 }}
-            >
-              <CloseOutlined /> 不再提示
-            </a>
-          }
-          closable
-          onClose={() => {
-            setShowGuide(false);
-            localStorage.setItem('chatops-guide-dismissed', 'true');
-          }}
-        />
-      )}
+      {showGuide && <GuideAlert onDismiss={dismissGuide} />}
 
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
-        items={tabItems}
+        items={buildTabItems()}
         style={{ flex: 1, overflow: 'hidden' }}
         tabBarStyle={{ margin: 0, padding: showGuide ? '8px 16px 0' : '16px 16px 0' }}
         size="large"
