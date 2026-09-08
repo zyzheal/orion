@@ -5,6 +5,7 @@
  */
 import { useMemo } from 'react';
 import { getLibraryTabItems } from './LibraryDetail';
+import type { InternalLibrary } from '@/api/internal-library';
 import type { useInternalLibraryState } from './useInternalLibraryState';
 
 type InternalLibraryState = ReturnType<typeof useInternalLibraryState>;
@@ -39,7 +40,7 @@ export function useInternalLibraryHandlers({ state: s }: Props) {
   };
 
   // 表格行: 打开弃用 Modal (先 setSelectedLib)
-  const handleTableDeprecate = (record: Parameters<typeof s.handleDeprecate>[0]) => {
+  const handleTableDeprecate = (record: InternalLibrary) => {
     s.setSelectedLib(record);
     s.setDeprecateModalVisible(true);
   };

@@ -7,72 +7,26 @@
  * - useInternalLibraryHandlers.ts: modal open wrappers + getLibraryTabItems memo
  * - Components/PageHeader.tsx: 标题栏 + 刷新/创建按钮
  * - index.tsx: 组合层
+ *
+ * P2-9 Phase 271 拆分:
+ * - Components/ModalsAndDrawer.tsx: 6 Modals + 1 Drawer 汇总
+ * - index.tsx: 进一步瘦身
  */
 import { Card } from 'antd';
 import { spacing } from '@/tokens';
 import PageSkeleton from '@/components/PageSkeleton';
 import SearchFilterBar from '@/components/SearchFilterBar';
 import LibraryTable from './LibraryTable';
-import CreateLibraryModal from './CreateLibraryModal';
 import { useInternalLibraryState } from './useInternalLibraryState';
 import { useInternalLibraryHandlers } from './useInternalLibraryHandlers';
-import { DeprecateModal } from './DeprecateModal';
-import { PublishVersionModal } from './PublishVersionModal';
-import { DeprecateVersionModal } from './DeprecateVersionModal';
-import { AddDependentModal } from './AddDependentModal';
-import { LibraryDetailDrawer } from './LibraryDetailDrawer';
 import { PageHeader } from './Components/PageHeader';
+import { ModalsAndDrawer } from './Components/ModalsAndDrawer';
 
 const InternalLibraryManagement: React.FC = () => {
   const state = useInternalLibraryState();
-  const {
-    loading,
-    libraries,
-    setSearchQuery,
-    setFilters,
-    createModalVisible,
-    setCreateModalVisible,
-    detailDrawerVisible,
-    setDetailDrawerVisible,
-    selectedLib,
-    versions,
-    dependents,
-    versionModalVisible,
-    setVersionModalVisible,
-    deprecateModalVisible,
-    setDeprecateModalVisible,
-    deprecateVersionModalVisible,
-    setDeprecateVersionModalVisible,
-    addDependentModalVisible,
-    setAddDependentModalVisible,
-    createForm,
-    versionForm,
-    deprecateForm,
-    deprecateVersionForm,
-    addDependentForm,
-    submitting,
-    filteredData,
-    filterDefs,
-    loadData,
-    handleCreate,
-    handleDelete,
-    handleActivate,
-    handleDeprecate,
-    handlePublishVersion,
-    handleDeprecateVersion,
-    handleAddDependent,
-    openDetail,
-  } = state;
+  const handlers = useInternalLibraryHandlers({ state });
 
-  const {
-    handleOpenCreate,
-    handleTableDeprecate,
-    detailTabItems,
-    detailActiveKey,
-    detailTabChange,
-  } = useInternalLibraryHandlers({ state });
-
-  const isInitialLoading = loading && libraries.length === 0;
+  const isInitialLoading = state.loading && state.libraries.length === 0;
 
   return (
     <div style={{ padding: 0 }}>
@@ -80,75 +34,32 @@ const InternalLibraryManagement: React.FC = () => {
 
       {isInitialLoading ? null : (
         <>
-          <PageHeader loading={loading} onRefresh={loadData} onCreate={handleOpenCreate} />
+          <PageHeader
+            loading={state.loading}
+            onRefresh={state.loadData}
+            onCreate={handlers.handleOpenCreate}
+          />
 
           <Card>
             <div style={{ marginBottom: spacing.md }}>
               <SearchFilterBar
-                onSearch={setSearchQuery}
-                onFilter={setFilters}
-                filters={filterDefs}
+                onSearch={state.setSearchQuery}
+                onFilter={state.setFilters}
+                filters={state.filterDefs}
                 searchPlaceholder="搜索二方库..."
               />
             </div>
             <LibraryTable
-              dataSource={filteredData}
-              loading={loading}
-              onDetail={openDetail}
-              onActivate={handleActivate}
-              onDeprecate={handleTableDeprecate}
-              onDelete={handleDelete}
+              dataSource={state.filteredData}
+              loading={state.loading}
+              onDetail={state.openDetail}
+              onActivate={state.handleActivate}
+              onDeprecate={handlers.handleTableDeprecate}
+              onDelete={state.handleDelete}
             />
           </Card>
 
-          <CreateLibraryModal
-            visible={createModalVisible}
-            form={createForm}
-            submitting={submitting}
-            onCancel={() => setCreateModalVisible(false)}
-            onOk={handleCreate}
-          />
-
-          <DeprecateModal
-            visible={deprecateModalVisible}
-            form={deprecateForm}
-            submitting={submitting}
-            onCancel={() => setDeprecateModalVisible(false)}
-            onOk={handleDeprecate}
-          />
-
-          <PublishVersionModal
-            visible={versionModalVisible}
-            form={versionForm}
-            submitting={submitting}
-            onCancel={() => setVersionModalVisible(false)}
-            onOk={handlePublishVersion}
-          />
-
-          <DeprecateVersionModal
-            visible={deprecateVersionModalVisible}
-            form={deprecateVersionForm}
-            submitting={submitting}
-            onCancel={() => setDeprecateVersionModalVisible(false)}
-            onOk={handleDeprecateVersion}
-          />
-
-          <AddDependentModal
-            visible={addDependentModalVisible}
-            form={addDependentForm}
-            submitting={submitting}
-            onCancel={() => setAddDependentModalVisible(false)}
-            onOk={handleAddDependent}
-          />
-
-          <LibraryDetailDrawer
-            visible={detailDrawerVisible}
-            selectedLib={selectedLib}
-            onClose={() => setDetailDrawerVisible(false)}
-            detailActiveKey={detailActiveKey}
-            detailTabChange={detailTabChange}
-            detailTabItems={detailTabItems}
-          />
+          <ModalsAndDrawer state={state} handlers={handlers} />
         </>
       )}
     </div>
