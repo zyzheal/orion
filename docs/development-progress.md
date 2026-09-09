@@ -4110,7 +4110,7 @@ go vet ./internal/branch-policy/... ./cmd/server/...  ✅
 ### Commit
 
 ```
-TBD feat(branch-policy): Phase G — R6 real checker + Blocking severity + production wiring
+76e07a5f0 feat(branch-policy): Phase G — R6 real checker + Blocking severity + production wiring
 ```
 
 ### 累计进度（Phase A/B/C/D/E/F/G 全部完成）
