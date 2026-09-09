@@ -8,7 +8,7 @@ vi.mock('antd', async () => {
   return {
     ...actual,
     message: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
-    Modal: { confirm: vi.fn(), error: vi.fn(), success: vi.fn(), warning: vi.fn(), info: vi.fn() },
+    Modal: Object.assign(actual.Modal, { confirm: vi.fn(), error: vi.fn(), success: vi.fn(), warning: vi.fn(), info: vi.fn() }),
   };
 });
 

@@ -1,28 +1,24 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
-import Page from '../index';
-
-vi.mock('antd', async () => {
-  const actual = await vi.importActual<typeof import('antd')>('antd');
-  return {
-    ...actual,
-    message: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
-    Modal: { confirm: vi.fn(), error: vi.fn(), success: vi.fn(), warning: vi.fn(), info: vi.fn() },
-  };
-});
-
-function renderPage() {
-  return render(
-    <BrowserRouter>
-      <Page />
-    </BrowserRouter>
-  );
-}
+/**
+ * Tests for pipeline-svc index page (redirect to pipeline monitor)
+ */
+import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import PipelineServiceIndex from '../index';
 
 describe('pipeline-svc', () => {
-  it('renders without error', () => {
-    const { container } = renderPage();
-    expect(container.firstChild).toBeTruthy();
+  it('redirects to /observability/pipelines/monitor', () => {
+    render(
+      <MemoryRouter initialEntries={['/pipeline-svc']}>
+        <Routes>
+          <Route path="/pipeline-svc" element={<PipelineServiceIndex />} />
+          <Route
+            path="/observability/pipelines/monitor"
+            element={<div>Pipeline Monitor Target</div>}
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+    expect(screen.getByText('Pipeline Monitor Target')).toBeTruthy();
   });
 });

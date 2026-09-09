@@ -147,7 +147,9 @@ const mockApprovals = [
 
 describe('AgentDashboard', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // resetAllMocks 而非 clearAllMocks：error 用例的 mockRejectedValue 实现
+    // 若不重置会残留污染后续用例（clear 只清 calls/results，不清实现）
+    vi.resetAllMocks();
   });
 
   it('renders the AgentDashboard page', async () => {
@@ -171,12 +173,10 @@ describe('AgentDashboard', () => {
 
     render(<AgentDashboard />);
 
+    // agent-metrics 在 loading 时就渲染（Spin 内），数据断言必须等 query resolve
     await waitFor(() => {
-      expect(screen.getByTestId('agent-metrics')).toBeTruthy();
+      expect(screen.getByText('Active: 1')).toBeTruthy();
     });
-
-    // 1 enabled agent
-    expect(screen.getByText('Active: 1')).toBeTruthy();
     // 2 runs total
     expect(screen.getByText('Today Runs: 2')).toBeTruthy();
   });
@@ -188,11 +188,10 @@ describe('AgentDashboard', () => {
 
     render(<AgentDashboard />);
 
+    // agent-table 的 data-loading 可先出现，行内容要等 query resolve
     await waitFor(() => {
-      expect(screen.getByTestId('agent-table')).toBeTruthy();
+      expect(screen.getByText('Code Reviewer')).toBeTruthy();
     });
-
-    expect(screen.getByText('Code Reviewer')).toBeTruthy();
     expect(screen.getByText('Deploy Agent')).toBeTruthy();
   });
 
@@ -204,10 +203,8 @@ describe('AgentDashboard', () => {
     render(<AgentDashboard />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('agent-run-list')).toBeTruthy();
+      expect(screen.getByText('Runs: 2')).toBeTruthy();
     });
-
-    expect(screen.getByText('Runs: 2')).toBeTruthy();
     expect(screen.getByText('Approvals: 1')).toBeTruthy();
   });
 
@@ -280,6 +277,12 @@ describe('AgentDashboard', () => {
 
     await waitFor(() => {
       expect(screen.getByText('刷新')).toBeTruthy();
+    });
+    // 必须先等首次 query resolve 再点刷新：
+    // query 进行中时 refetch 会被 tanstack 去重（fetch dedupe），
+    // 导致第二次调用被合并、断言 2 次失败。
+    await waitFor(() => {
+      expect(agentsApi.getAgentProfiles).toHaveBeenCalledTimes(1);
     });
 
     fireEvent.click(screen.getByText('刷新'));
