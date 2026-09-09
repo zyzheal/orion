@@ -4129,3 +4129,139 @@ go vet ./internal/branch-policy/... ./cmd/server/...  ✅
 - **前端 6 页**：`routes.tsx` FORBIDDEN
 - **PERM-8 stage 2**：破坏性变更，需先跑 Phase F tracker 数据再切
 - **DB migration**：`migrations/dba/` FORBIDDEN
+
+---
+
+## 2026-08-26 — Phase H: AnonymousTracker 生产接线（ZapAnonymousTracker）
+
+### 上下文
+
+Phase F（`089c47e51`）在 `orion-go-common/pkg/auth/middleware.go` 引入了 `AnonymousTracker` interface + `AuthConfig.AnonymousTracker` 字段，OptionalAuth 在 4 个匿名分支（`no-authorization-header` / `non-bearer-auth-header` / `token-parse-error` / `token-blacklisted`）调用 `track(c, reason)`。但中间件不主动接具体实现——这是刻意的解耦设计，避免 middleware 与 logger / metrics 等下游绑定。
+
+问题是：`orion-platform-svc-go/cmd/server/router.go` 的 `AUTH_OPTIONAL_ENABLED=1` 分支只填了 `JWTSecret` + `RedisClient`，没有 `AnonymousTracker`，导致 hook 在生产是空指针，PERM-8 阶段 2 迁移规划没有数据可依。
+
+Phase H 补上这个缺口：实现一个生产可用的 zap logger 版本，接到 router。
+
+### 设计决策
+
+**为什么 Debug 级别而不是 Info**：每个匿名请求都打一条 Info 会淹没日志；Debug 默认在生产被过滤，需要排障时显式打开即可。
+
+**为什么 1 秒窗口而不是滑动窗口**：滑动窗口需要时间戳队列或 Redis，复杂度高；1 秒硬窗口足够抑制噪声，代码也简单（一个 `bucket{logged, windowStart}` map）。
+
+**为什么 per-(path, reason) 而不是 per-path**：reason 区分了"完全无 header" vs "header 格式错误" vs "token 解析失败" vs "token 被拉黑"，对 PERM-8 迁移评估来说，"哪些 endpoint 有人带错 token" 比 "哪些 endpoint 有人匿名访问" 更有信息量。
+
+**为什么 CleanupBuckets 不自动调用**：自动挂 goroutine 会让测试变复杂、内存生命周期难控；调用方挂 ticker 是显式契约。
+
+### 文件清单
+
+| 文件 | 行数 | 说明 |
+|------|------|------|
+| `orion-go-common/pkg/auth/anonymous_tracker_zap.go` | 98 | ZapAnonymousTracker 实现 |
+| `orion-go-common/pkg/auth/anonymous_tracker_zap_test.go` | 232 | 10 测试 |
+| `orion-platform-svc-go/cmd/server/router.go` | +14/-2 | 注入 tracker + rate env |
+
+### 关键代码
+
+```go
+// anonymous_tracker_zap.go
+type ZapAnonymousTracker struct {
+    logger    *zap.Logger
+    maxPerSec int
+    mu        sync.Mutex
+    buckets   map[string]*bucket  // key = path+"|"+reason
+}
+
+type bucket struct {
+    logged      int
+    windowStart time.Time
+}
+
+func (z *ZapAnonymousTracker) Track(c *gin.Context, method, path, reason string) {
+    if z == nil || z.logger == nil { return }
+    key := path + "|" + reason
+    now := time.Now()
+    z.mu.Lock()
+    b, ok := z.buckets[key]
+    if !ok || now.Sub(b.windowStart) >= time.Second {
+        z.buckets[key] = &bucket{windowStart: now, logged: 0}
+        b = z.buckets[key]
+    }
+    shouldLog := z.maxPerSec == 0 || b.logged < z.maxPerSec
+    if shouldLog { b.logged++ }
+    z.mu.Unlock()
+    if shouldLog {
+        z.logger.Debug("anonymous request",
+            zap.String("method", method),
+            zap.String("path", path),
+            zap.String("reason", reason),
+            zap.String("client_ip", c.ClientIP()),
+        )
+    }
+}
+```
+
+```go
+// router.go — 生产接线
+if os.Getenv("AUTH_OPTIONAL_ENABLED") == "1" || os.Getenv("AUTH_OPTIONAL_ENABLED") == "true" {
+    rate := 100
+    if v := os.Getenv("AUTH_OPTIONAL_ANON_LOG_RATE"); v != "" {
+        if n, err := strconv.Atoi(v); err == nil { rate = n }
+    }
+    api.Use(auth.OptionalAuth(auth.AuthConfig{
+        JWTSecret:        infra.ffCfg.JWTSecret,
+        RedisClient:      infra.rdb,
+        AnonymousTracker: auth.NewZapAnonymousTracker(logger, rate),
+    }))
+}
+```
+
+### 测试矩阵（10 条全过）
+
+| 测试 | 验证点 |
+|------|--------|
+| `TestZapAnonymousTracker_LogsAnonymousRequest` | 单次 Track 产出 1 条 Debug，4 字段齐全 |
+| `TestZapAnonymousTracker_NilLoggerIsNoOp` | nil logger 不 panic |
+| `TestZapAnonymousTracker_NilReceiverIsNoOp` | nil receiver 不 panic |
+| `TestZapAnonymousTracker_RateLimitCapsLogs` | maxPerSecond=3，10 次调用只 log 3 条 |
+| `TestZapAnonymousTracker_ZeroMaxUnlimited` | maxPerSecond=0 关闭限流 |
+| `TestZapAnonymousTracker_PerPathBucketsIndependent` | 两个 path 各自限流 |
+| `TestZapAnonymousTracker_WindowRollsOver` | 1s 窗口滚动后重新计数 |
+| `TestZapAnonymousTracker_CleanupBucketsDropsStale` | CleanupBuckets 按 maxAge 回收 |
+| `TestZapAnonymousTracker_CleanupBucketsNilReceiver` | nil receiver CleanupBuckets 安全 |
+| `TestZapAnonymousTracker_WiredToOptionalAuth` | 端到端：匿名请求触发 log，已认证请求静默 |
+
+### 端到端验证
+
+```
+$ cd orion-go-common && go build ./pkg/auth/...           # OK
+$ cd orion-go-common && go test ./pkg/auth/... -run TestZapAnonymousTracker -v  # 10/10 PASS
+$ cd orion-go-common && go test ./pkg/auth/...              # OK
+$ cd orion-platform-svc-go && go build ./cmd/server/...     # OK
+$ cd orion-platform-svc-go && go test ./cmd/server/...      # OK
+$ git diff --cached --name-only | grep -E "migrations/dba|orion-frontend/src/api/dba|orion-frontend/src/pages/dba|orion-frontend/src/router/routes|docs/dba" | wc -l
+0
+```
+
+### Commit
+
+```
+e2bd24b06 feat(auth): Phase H - wire AnonymousTracker into production (ZapAnonymousTracker)
+```
+
+### 累计进度（Phase A/B/C/D/E/F/G/H 全部完成）
+
+- **Phase A**（PERM-6 保守切片）：✅ `d99d06a0b`
+- **Phase B**（zap logger）：✅ `f7259c6fc`
+- **Phase C**（dead code cleanup）：✅ `3c9584c23`
+- **Phase D**（R6 接口 + builder）：✅ `089c47e51`
+- **Phase E**（3-seg colon fix）：✅ `089c47e51`
+- **Phase F**（AnonymousTracker）：✅ `089c47e51`
+- **Phase G**（R6 真实 checker + Blocking + wiring）：✅ `76e07a5f0`
+- **Phase H**（ZapAnonymousTracker 生产接线）：✅ `e2bd24b06`
+
+### 剩余任务（Phase A-H 全部深度解决后）
+
+- **AI 资源授权决策矩阵**：`llm` / `skill` / `intelligence` / `agent` 等（doc 标"决策待定"，需另开评审）
+- **前端 6 页**：`routes.tsx` FORBIDDEN
+- **PERM-8 stage 2**：破坏性变更，Phase H 的 tracker 数据已可采集，待跑一段时间再切
+- **DB migration**：`migrations/dba/` FORBIDDEN
