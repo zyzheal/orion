@@ -718,6 +718,15 @@ type GateRuleResult struct {
 	Severity GateSeverity `json:"severity"`
 }
 
+// DeployExecutionResult is the combined output of ExecuteDeploy: the gate
+// result (always present) plus the persisted DeployEvent (present only when
+// the gate passed). Handlers return this struct so callers can inspect both
+// the gate decision and the audit record in a single response.
+type DeployExecutionResult struct {
+	GateResult *PreDeployGateResult `json:"gateResult"`
+	Event      *DeployEvent         `json:"event,omitempty"`
+}
+
 // PreDeployGateResult is the aggregated output of the PreDeployGate service.
 // Passed is true only when all blocking rules pass. Blocked lists the IDs of
 // the blocking rules that failed. PreDeployGateResult is NOT persisted — it is

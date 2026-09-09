@@ -6,6 +6,7 @@ import (
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
+	"orion/platform-svc-go/internal/branch-policy/middleware"
 	"orion/platform-svc-go/internal/branch-policy/models"
 	"orion/platform-svc-go/internal/branch-policy/service"
 
@@ -87,6 +88,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.POST("/merge-preview", auth.RequirePermission("branch-policy", "write"), h.CreateMergePreview)
 	r.GET("/merge-preview/:id", auth.RequirePermission("branch-policy", "read"), h.GetMergePreview)
 	r.GET("/merge-preview", auth.RequirePermission("branch-policy", "read"), h.ListMergePreviews)
+
+	// P0-MB Phase 6 — Deploy Execution (BranchEnvGuard middleware + PreDeployGate + DeployEvent)
+	// BranchEnvGuard runs BEFORE the permission check and the handler — it
+	// validates image-tag ↔ env compatibility and aborts the request with
+	// HTTP 400 when the check fails. When the request body is not a
+	// DeployRequest (e.g. a different endpoint shape), BranchEnvGuard skips
+	// silently so the middleware can be mounted on wider route groups.
+	r.POST("/deploy", middleware.BranchEnvGuard(h.svc), auth.RequirePermission("branch-policy", "write"), h.ExecuteDeploy)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -1542,4 +1551,64 @@ func (h *Handler) ListMergePreviews(c *gin.Context) {
 		return
 	}
 	errors.WriteSuccess(c, out)
+}
+
+// ExecuteDeploy is the POST handler for /deploy. It runs through the
+// BranchEnvGuard middleware (mounted at the route level), then calls
+// ExecuteDeploy on the service, which runs PreDeployGate R1-R6 and
+// persists a DeployEvent when the gate passes.
+//
+// actorID / actorName are extracted from the auth context (user_id /
+// user_name). When auth is disabled (no user_id in context), they fall
+// back to empty strings, which the service layer rejects with a 400.
+//
+// Response codes:
+//   - 201 Created — gate passed, DeployEvent persisted
+//   - 200 OK      — gate blocked, no event written (caller inspects GateResult)
+//   - 400 Bad     — validation error (missing fields, bad JSON, service error)
+func (h *Handler) ExecuteDeploy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteDeploy")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" {
+		tenantID = c.GetHeader("X-Tenant-Id")
+	}
+	actorID := c.GetString("user_id")
+	if actorID == "" {
+		actorID = c.GetString("actor")
+	}
+	actorName := c.GetString("user_name")
+	if actorName == "" {
+		actorName = actorID
+	}
+
+	var req models.DeployRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, "invalid DeployRequest body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if req.TenantID == "" {
+		req.TenantID = tenantID
+	}
+	// Validate required fields — ShouldBindJSON does not enforce binding
+	// tags for nested structs, so we check explicitly.
+	if req.Branch == "" || req.TargetEnv == "" || req.ImageTag == "" {
+		errors.WriteError(c, errors.ErrBadRequest,
+			"DeployRequest requires branch, targetEnv, and imageTag", http.StatusBadRequest)
+		return
+	}
+
+	out, err := h.svc.ExecuteDeploy(ctx, tenantID, actorID, actorName, req)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Gate passed → 201 Created (event written). Gate blocked → 200 OK with
+	// Passed=false (no event written, caller should inspect GateResult).
+	if out.Event != nil {
+		errors.WriteCreated(c, out)
+	} else {
+		errors.WriteSuccess(c, out)
+	}
 }

@@ -3309,3 +3309,83 @@ P0-MB 5 项子任务全部完成。Phase 5 交付后：
 - **BranchEnvGuard middleware 挂载**：延后到 branch-policy handler 挂载到 production router 之后
 - **Git merge-tree 集成**：MergePreview 目前接受客户端传入的 ConflictFiles；服务端 git 集成可后续添加
 
+
+---
+
+## P0-MB Phase 6 — Deploy Execution Endpoint + BranchEnvGuard Production Mounting（2026-08-26）
+
+### 目标
+
+补齐 P0-MB 最后一块：部署执行端点 `POST /branch-policy/deploy`，在同一个 handler 中串联 `BranchEnvGuard` middleware → `PreDeployGate R1-R6` → `CreateDeployEvent` 审计写入，完成"BranchEnvGuard 中间件已挂载到部署 API"的验收标准。
+
+### 设计决策
+
+| 决策 | 理由 |
+|---|---|
+| DeployExecutionResult 组合模型 | 单一响应体携带 gate 决策 + 审计事件，客户端可一次读取 |
+| Gate blocked → 200 OK，不写 DeployEvent | 阻断的尝试不进审计流水；通过 gate 才算"部署事件" |
+| Gate passed → 201 Created | 明确表示新资源（DeployEvent）已创建 |
+| BranchEnvGuard 挂载在 /branch-policy/deploy 上 | 与 Phase 5 定义的 DeployRequest 契约（branch/env/imageTag）匹配；旧 /deploy 端点保留不动 |
+| 显式校验 branch/targetEnv/imageTag | `c.ShouldBindJSON` 对空 struct 不会报错，必须显式检查 |
+| gateResultJSON 序列化入 DeployEvent.GateResult | DeployEvent.GateResult 列为 string（JSON），序列化失败时返回 fail-closed fallback `{"passed":false,"blocked":["serialization-error"]}` |
+| TenantID/ActorID fallback | tenant 从 header 或 body；actor 从 context（user_id/actor），name 从 context（user_name），name 缺失时 fallback 到 ID |
+
+### 文件清单
+
+| 文件 | 变更 |
+|---|---|
+| `internal/branch-policy/models/models.go` | +DeployExecutionResult struct |
+| `internal/branch-policy/service/service_interface.go` | +ExecuteDeploy 方法 |
+| `internal/branch-policy/service/service.go` | +ExecuteDeploy 实现 + gateResultJSON helper + encoding/json import |
+| `internal/branch-policy/handler/handler.go` | +POST /deploy 路由 + ExecuteDeploy handler 方法 + middleware import |
+| `internal/branch-policy/service/service_test.go` | +5 ExecuteDeploy tests |
+| `internal/branch-policy/handler/handler_test.go` | +ExecuteDeploy stub + 3 handler tests + fmt import |
+| `docs/ALL_TODOS.md` | Phase 6 行标记 ✅ 已完成 + 状态更新 |
+| `docs/development-progress.md` | 本 Phase 6 章节追加 |
+
+### 关键 API
+
+```http
+POST /api/v1/branch-policy/deploy
+  - Headers: X-Tenant-Id, Authorization
+  - Body: DeployRequest { branch, targetEnv, imageTag, approvalId, artifactId, pipelineName, sourceCommit, tenantId }
+  - Middleware: BranchEnvGuard → RequirePermission("branch-policy","write")
+  - 200 OK  - Gate blocked, Event=nil
+  - 201 Created - Gate passed, Event persisted
+  - 400 Bad - Validation error
+```
+
+### 验证
+
+- `go build ./...` ✅
+- `go vet ./internal/branch-policy/...` ✅
+- `go test ./internal/branch-policy/...` ✅（5 service tests + 3 handler tests 全绿）
+
+### 已知问题
+
+1. **DB migration 未落地**：`deploy_events` 表待建；`CreateDeployEvent` Repository 目前 stub（返回 sentinel error）
+2. **Frontend 页面延后**：PreDeployGatePanel.tsx 未实现
+3. **BranchEnvGuard middleware 生产 router 挂载**：`securityBranchPolicyH` 已在 production `cmd/server/router.go` 中通过 registerRoutes 循环挂载，`POST /branch-policy/deploy` 路由随 branch-policy handler 一同生产可用
+
+### Commit
+
+```
+feat(branch-policy): P0-MB Phase 6 — Deploy Execution Endpoint + BranchEnvGuard Production Mounting
+```
+
+### 累计进度（Phase 301-306 + P0-MB Phase 1-6 全部完成）
+
+- **Phase 301-306 实施**：✅
+- **P0-MB Phase 1 实施**：✅ `5fe58f0c4`
+- **P0-MB Phase 2 实施**：✅ `49d106242`
+- **P0-MB Phase 3 实施**：✅ `9f9bc3e1b`
+- **P0-MB Phase 4 实施**：✅ `7ba5b9819`
+- **P0-MB Phase 5 实施**：✅ `2163cbd45`
+- **P0-MB Phase 6 实施**：✅ 本轮
+
+### 剩余任务（无）
+
+P0-MB 6 项子任务全部完成。Phase 6 交付后：
+- **backend**：`internal/branch-policy/` 具备完整 5 层防护 + 部署执行 + 审计写入
+- **frontend**：可基于完整 API 构建所有 6 个页面
+- **infra**：待 DB migration 落地后可启用真实数据

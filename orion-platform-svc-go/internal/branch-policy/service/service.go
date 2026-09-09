@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/fnv"
@@ -2301,6 +2302,81 @@ func (s *Service) CheckPreDeployGate(ctx context.Context, tenantID string, req m
 	}
 
 	return result, nil
+}
+
+// ExecuteDeploy runs the full deploy pipeline: PreDeployGate R1-R6, and if
+// the gate passes, persists a DeployEvent. It is the endpoint-level entry
+// point called by POST /branch-policy/deploy.
+//
+// actorID and actorName are extracted by the handler from the auth context
+// (or from explicit request fields when running without auth). They are
+// stamped onto the DeployEvent for audit purposes.
+//
+// When the gate blocks the deploy, ExecuteDeploy returns the gate result
+// with Passed=false and Event=nil — no audit record is written for blocked
+// attempts. The caller can distinguish the two cases via GateResult.Passed
+// and Event.
+func (s *Service) ExecuteDeploy(ctx context.Context, tenantID, actorID, actorName string, req models.DeployRequest) (*models.DeployExecutionResult, error) {
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+	if actorID == "" {
+		return nil, fmt.Errorf("actor_id is required")
+	}
+
+	gateResult, err := s.CheckPreDeployGate(ctx, tenantID, req)
+	if err != nil {
+		return nil, err
+	}
+
+	out := &models.DeployExecutionResult{GateResult: gateResult}
+
+	if !gateResult.Passed {
+		// Blocked — no DeployEvent written.
+		return out, nil
+	}
+
+	// Build a DeployEvent from the DeployRequest + gate result.
+	evtReq := &models.CreateDeployEventRequest{
+		ActorID:     actorID,
+		ActorName:   actorName,
+		Branch:      req.Branch,
+		Env:         req.TargetEnv,
+		FromCommit:  "", // DeployRequest does not carry FromCommit; leave empty.
+		ToCommit:    req.SourceCommit,
+		ArtifactID:  req.ArtifactID,
+		ImageDigest: "", // DeployRequest carries ImageTag, not ImageDigest; leave empty.
+		ApprovalID:  req.ApprovalID,
+		Outcome:     models.DeployOutcomeSuccess,
+		GateResult:  gateResultJSON(gateResult),
+	}
+
+	evt, err := s.CreateDeployEvent(ctx, tenantID, evtReq)
+	if err != nil {
+		// Gate passed but persistence failed. Return the gate result and the
+		// error so the caller can retry or surface the failure.
+		out.GateResult = gateResult
+		return out, fmt.Errorf("gate passed but event persistence failed: %w", err)
+	}
+
+	out.Event = evt
+	return out, nil
+}
+
+// gateResultJSON serializes a PreDeployGateResult to a compact JSON string
+// suitable for storage in the DeployEvent.GateResult column. The string is
+// stored as a free-form audit blob — callers can json.Unmarshal it back.
+func gateResultJSON(r *models.PreDeployGateResult) string {
+	if r == nil {
+		return ""
+	}
+	b, err := json.Marshal(r)
+	if err != nil {
+		// Extremely unlikely (struct has no unmarshalable fields); return a
+		// placeholder so we never lose the event.
+		return `{"passed":false,"blocked":["serialization-error"]}`
+	}
+	return string(b)
 }
 
 // runGateRule is the small helper that runs a single PreDeployGate rule and

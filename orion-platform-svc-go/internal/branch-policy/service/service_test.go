@@ -2867,3 +2867,103 @@ func TestMP_ListMergePreviews_LimitAndOrder(t *testing.T) {
 		t.Fatalf("expected 5 with default limit, got %d", len(out))
 	}
 }
+
+// ============================================================================
+// P0-MB Phase 6 — ExecuteDeploy (PreDeployGate + DeployEvent persistence)
+// ============================================================================
+
+func TestExecuteDeploy_HappyPath(t *testing.T) {
+	ctx := context.Background()
+	svc, _, req := newGateBaseline(t, "t1")
+	req.SourceCommit = "abc1234567890"
+	out, err := svc.ExecuteDeploy(ctx, "t1", "actor-1", "actor@orion", req)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if out.GateResult == nil {
+		t.Fatalf("GateResult should not be nil")
+	}
+	if !out.GateResult.Passed {
+		t.Fatalf("expected gate to pass, got Blocked=%v", out.GateResult.Blocked)
+	}
+	if out.Event == nil {
+		t.Fatalf("expected DeployEvent to be created when gate passes")
+	}
+	if out.Event.Branch != req.Branch {
+		t.Fatalf("expected event.Branch=%s, got %s", req.Branch, out.Event.Branch)
+	}
+	if out.Event.Env != req.TargetEnv {
+		t.Fatalf("expected event.Env=%s, got %s", req.TargetEnv, out.Event.Env)
+	}
+	if out.Event.ToCommit != req.SourceCommit {
+		t.Fatalf("expected event.ToCommit=%s, got %s", req.SourceCommit, out.Event.ToCommit)
+	}
+	if out.Event.ActorID != "actor-1" {
+		t.Fatalf("expected event.ActorID=actor-1, got %s", out.Event.ActorID)
+	}
+	if out.Event.ActorName != "actor@orion" {
+		t.Fatalf("expected event.ActorName=actor@orion, got %s", out.Event.ActorName)
+	}
+	if out.Event.Outcome != models.DeployOutcomeSuccess {
+		t.Fatalf("expected outcome=success, got %s", out.Event.Outcome)
+	}
+}
+
+func TestExecuteDeploy_GateBlocked_NoEventWritten(t *testing.T) {
+	ctx := context.Background()
+	svc, _, req := newGateBaseline(t, "t1")
+	req.ApprovalID = "" // R3 blocking fail
+	out, err := svc.ExecuteDeploy(ctx, "t1", "actor-1", "actor@orion", req)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if out.GateResult == nil {
+		t.Fatalf("GateResult should not be nil")
+	}
+	if out.GateResult.Passed {
+		t.Fatalf("expected gate to fail, got Blocked=%v", out.GateResult.Blocked)
+	}
+	if !containsRule(out.GateResult.Blocked, GateRuleIDApproval) {
+		t.Fatalf("expected R3 in Blocked, got %v", out.GateResult.Blocked)
+	}
+	if out.Event != nil {
+		t.Fatalf("expected Event=nil when gate blocks, got event.ID=%s", out.Event.ID)
+	}
+}
+
+func TestExecuteDeploy_MissingActorID(t *testing.T) {
+	ctx := context.Background()
+	svc, _, req := newGateBaseline(t, "t1")
+	_, err := svc.ExecuteDeploy(ctx, "t1", "", "actor@orion", req)
+	if err == nil {
+		t.Fatalf("expected error when actorID is empty")
+	}
+}
+
+func TestExecuteDeploy_MissingTenantID(t *testing.T) {
+	ctx := context.Background()
+	svc, _, req := newGateBaseline(t, "t1")
+	_, err := svc.ExecuteDeploy(ctx, "", "actor-1", "actor@orion", req)
+	if err == nil {
+		t.Fatalf("expected error when tenantID is empty")
+	}
+}
+
+func TestExecuteDeploy_R1Blocked(t *testing.T) {
+	ctx := context.Background()
+	svc, _, req := newGateBaseline(t, "t1")
+	req.ImageTag = "wrong-tag-prefix/v1.0.0" // R1 mismatch
+	out, err := svc.ExecuteDeploy(ctx, "t1", "actor-1", "actor@orion", req)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if out.GateResult.Passed {
+		t.Fatalf("expected gate to fail on R1 mismatch")
+	}
+	if !containsRule(out.GateResult.Blocked, GateRuleIDBranchEnv) {
+		t.Fatalf("expected R1 in Blocked, got %v", out.GateResult.Blocked)
+	}
+	if out.Event != nil {
+		t.Fatalf("expected Event=nil when R1 blocks")
+	}
+}

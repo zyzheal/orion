@@ -18,6 +18,15 @@ type ServiceInterface interface {
 	BatchCreate(ctx context.Context, tenantID string, reqs []models.CreateRequest) ([]models.Record, error)
 	CheckCompatibility(ctx context.Context, tenantID string) (bool, error)
 	CheckPreDeployGate(ctx context.Context, tenantID string, req models.DeployRequest) (*models.PreDeployGateResult, error)
+
+	// ExecuteDeploy runs the full deploy pipeline: PreDeployGate R1-R6, and
+	// if the gate passes, persists a DeployEvent. It is the endpoint-level
+	// entry point called by POST /branch-policy/deploy. When the gate
+	// blocks the deploy, ExecuteDeploy returns the gate result with
+	// Passed=false and Event=nil (no audit record is written for blocked
+	// attempts — the caller can distinguish the two cases via GateResult
+	// and Event).
+	ExecuteDeploy(ctx context.Context, tenantID, actorID, actorName string, req models.DeployRequest) (*models.DeployExecutionResult, error)
 	Configure(ctx context.Context, tenantID string, cfg map[string]any) error
 	Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error)
 	CreateBranchProfile(ctx context.Context, tenantID string, req *models.CreateBranchProfileRequest) (*models.BranchProfile, error)

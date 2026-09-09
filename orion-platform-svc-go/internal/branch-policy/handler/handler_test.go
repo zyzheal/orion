@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -527,6 +528,41 @@ func (f *fakeHandlerService) GetMergePreview(ctx context.Context, tenantID, id s
 
 func (f *fakeHandlerService) ListMergePreviews(ctx context.Context, tenantID string, limit int) ([]models.MergePreview, error) {
 	return []models.MergePreview{}, nil
+}
+
+// --- P0-MB Phase 6 stubs ---
+
+func (f *fakeHandlerService) ExecuteDeploy(ctx context.Context, tenantID, actorID, actorName string, req models.DeployRequest) (*models.DeployExecutionResult, error) {
+	if actorID == "" {
+		return nil, fmt.Errorf("actor_id is required")
+	}
+	return &models.DeployExecutionResult{
+		GateResult: &models.PreDeployGateResult{
+			Passed:    true,
+			RequestID: "req-test-1",
+			Branch:    req.Branch,
+			Env:       req.TargetEnv,
+			CheckedAt: time.Now(),
+			Rules: []models.GateRuleResult{
+				{RuleID: "R1", Name: "branch-env-match", Passed: true, Severity: models.GateSeverityBlocking},
+			},
+			Blocked: []string{},
+		},
+		Event: &models.DeployEvent{
+			ID:         "de-test-1",
+			TenantID:   tenantID,
+			ActorID:    actorID,
+			ActorName:  actorName,
+			Branch:     req.Branch,
+			Env:        req.TargetEnv,
+			ToCommit:   req.SourceCommit,
+			ArtifactID: req.ArtifactID,
+			ApprovalID: req.ApprovalID,
+			Outcome:    models.DeployOutcomeSuccess,
+			StartedAt:  time.Now(),
+			CreatedAt:  time.Now(),
+		},
+	}, nil
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
@@ -1466,5 +1502,57 @@ func TestBRANCH_POLICY_Handler_ListMergePreviews(t *testing.T) {
 	newHandler().ListMergePreviews(c)
 	if w.Code >= 500 {
 		t.Fatalf("ListMergePreviews: got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+// ============================================================================
+// P0-MB Phase 6 — ExecuteDeploy handler tests
+// ============================================================================
+
+func TestBRANCH_POLICY_Handler_ExecuteDeploy(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/deploy", models.DeployRequest{
+		TenantID:     "tenant-1",
+		Branch:       "release/ent",
+		TargetEnv:    "prod",
+		ImageTag:     "release-ent-2026/v1.0.0",
+		ArtifactID:   "art-1",
+		ApprovalID:   "cm-1",
+		PipelineName: "ci-prod",
+		SourceCommit: "abc1234",
+	}, nil)
+	c.Set("user_id", "actor-1")
+	c.Set("user_name", "actor@orion")
+	newHandler().ExecuteDeploy(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("ExecuteDeploy: expected 201 Created, got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestBRANCH_POLICY_Handler_ExecuteDeploy_MissingActorID(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/deploy", models.DeployRequest{
+		TenantID:     "tenant-1",
+		Branch:       "release/ent",
+		TargetEnv:    "prod",
+		ImageTag:     "release-ent-2026/v1.0.0",
+		ArtifactID:   "art-1",
+		ApprovalID:   "cm-1",
+		PipelineName: "ci-prod",
+		SourceCommit: "abc1234",
+	}, nil)
+	// No user_id set — actorID will be empty, service should reject.
+	newHandler().ExecuteDeploy(c)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("ExecuteDeploy: expected 400 for missing actor, got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestBRANCH_POLICY_Handler_ExecuteDeploy_InvalidBody(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/deploy", map[string]string{"invalid": "body"}, nil)
+	c.Set("user_id", "actor-1")
+	c.Set("user_name", "actor@orion")
+	newHandler().ExecuteDeploy(c)
+	// Invalid JSON body should return 400.
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("ExecuteDeploy: expected 400 for invalid body, got %d body=%s", w.Code, w.Body.String())
 	}
 }
