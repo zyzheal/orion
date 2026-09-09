@@ -61,29 +61,38 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
 		// 401 the entire token-less client base overnight. Switching to it is the
 		// remaining PERM-8 work and needs a client-migration plan, not a commit.
 		if os.Getenv("AUTH_OPTIONAL_ENABLED") == "1" || os.Getenv("AUTH_OPTIONAL_ENABLED") == "true" {
-			// Phase H: wire the ZapAnonymousTracker so PERM-8 stage 2 migration
-			// has real data — every anonymous hit on /api/v1 is logged at
-			// Debug level with a per-second rate cap. Rate limit is tunable via
-			// AUTH_OPTIONAL_ANON_LOG_RATE (default 100/s; 0 = unlimited).
+			// Phase H: wire anonymous traffic tracking so PERM-8 stage 2
+			// migration has real data. Two sinks, fanned out via a composite:
+			//   1. ZapAnonymousTracker — per-event Debug-level logs, rate-limited
+			//      to AUTH_OPTIONAL_ANON_LOG_RATE per second per (path, reason)
+			//      (default 100/s; 0 = unlimited). Captures client_ip.
+			//   2. PrometheusAnonymousTracker — orion_anonymous_requests_total
+			//      counter labeled by (method, path, reason). Unbounded
+			//      counting; cardinality is bounded by the API surface.
+			// Both are nil-safe and panic-free.
 			rate := 100
 			if v := os.Getenv("AUTH_OPTIONAL_ANON_LOG_RATE"); v != "" {
 				if n, err := strconv.Atoi(v); err == nil {
 					rate = n
 				}
 			}
-			tracker := auth.NewZapAnonymousTracker(logger, rate)
+			zapTracker := auth.NewZapAnonymousTracker(logger, rate)
+			promTracker := auth.NewPrometheusAnonymousTracker(nil) // nil = default registerer
+			tracker := auth.NewCompositeAnonymousTracker(zapTracker, promTracker)
 			api.Use(auth.OptionalAuth(auth.AuthConfig{
 				JWTSecret:        infra.ffCfg.JWTSecret,
 				RedisClient:      infra.rdb,
 				AnonymousTracker: tracker,
 			}))
-			// Periodically clean up stale rate-limit buckets to prevent
+			// Periodically clean up stale zap rate-limit buckets to prevent
 			// unbounded memory growth from high-cardinality path/reason keys.
+			// The Prometheus counter is bounded by API surface and needs no
+			// cleanup.
 			go func() {
 				t := time.NewTicker(10 * time.Minute)
 				defer t.Stop()
 				for range t.C {
-					tracker.CleanupBuckets(2 * time.Minute)
+					zapTracker.CleanupBuckets(2 * time.Minute)
 				}
 			}()
 		}
