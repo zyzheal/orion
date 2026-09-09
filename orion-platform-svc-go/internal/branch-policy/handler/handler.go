@@ -33,6 +33,19 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.POST("/enforce", auth.RequirePermission("branch-policy", "write"), h.EnforcePolicy)
 	r.GET("/violations", auth.RequirePermission("branch-policy", "read"), h.ListViolations)
 	r.GET("/stats", auth.RequirePermission("branch-policy", "read"), h.GetStats)
+
+	// P0-MB Phase 1 — L1 BranchProfile + L3 BuildArtifact
+	r.GET("/branch-profiles", auth.RequirePermission("branch-policy", "read"), h.ListBranchProfiles)
+	r.POST("/branch-profiles", auth.RequirePermission("branch-policy", "write"), h.CreateBranchProfile)
+	r.GET("/branch-profiles/:id", auth.RequirePermission("branch-policy", "read"), h.GetBranchProfile)
+	r.PUT("/branch-profiles/:id", auth.RequirePermission("branch-policy", "write"), h.UpdateBranchProfile)
+	r.POST("/branch-profiles/:id/archive", auth.RequirePermission("branch-policy", "write"), h.ArchiveBranchProfile)
+	r.POST("/branch-profiles/:id/activate", auth.RequirePermission("branch-policy", "write"), h.ActivateBranchProfile)
+	r.GET("/build-artifacts", auth.RequirePermission("branch-policy", "read"), h.ListBuildArtifacts)
+	r.POST("/build-artifacts", auth.RequirePermission("branch-policy", "write"), h.RegisterBuildArtifact)
+	r.GET("/build-artifacts/:id", auth.RequirePermission("branch-policy", "read"), h.GetBuildArtifact)
+	r.POST("/build-artifacts/:id/verify-signature", auth.RequirePermission("branch-policy", "write"), h.VerifyBuildArtifactSignature)
+	r.POST("/build-artifacts/:id/deprecate", auth.RequirePermission("branch-policy", "write"), h.DeprecateBuildArtifact)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -776,4 +789,209 @@ func (h *Handler) Regenerate(c *gin.Context) {
 		return
 	}
 	errors.WriteSuccess(c, gin.H{"message": "regenerated"})
+}
+
+// --- P0-MB Phase 1 — L1 BranchProfile handlers ---
+
+func (h *Handler) ListBranchProfiles(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListBranchProfiles")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	q := models.BranchProfileQuery{}
+	if v := c.Query("status"); v != "" {
+		s := models.BranchStatus(v)
+		q.Status = &s
+	}
+	if v := c.Query("semantic"); v != "" {
+		s := models.BranchSemantic(v)
+		q.Semantic = &s
+	}
+	if v := c.Query("repoId"); v != "" {
+		q.RepoID = &v
+	}
+	if v := c.Query("ownerId"); v != "" {
+		q.OwnerID = &v
+	}
+	if p := c.Query("page"); p != "" {
+		fmt.Sscanf(p, "%d", &q.Page)
+	}
+	if l := c.Query("limit"); l != "" {
+		fmt.Sscanf(l, "%d", &q.Limit)
+	}
+	out, err := h.svc.ListBranchProfiles(ctx, tenantID, q)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	errors.WriteSuccess(c, gin.H{"data": out, "total": len(out)})
+}
+
+func (h *Handler) CreateBranchProfile(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateBranchProfile")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	var req models.CreateBranchProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
+		return
+	}
+	p, err := h.svc.CreateBranchProfile(ctx, tenantID, &req)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, p)
+}
+
+func (h *Handler) GetBranchProfile(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBranchProfile")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	p, err := h.svc.GetBranchProfile(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		errors.WriteError(c, errors.ErrNotFound, "branch profile not found", http.StatusNotFound)
+		return
+	}
+	errors.WriteSuccess(c, p)
+}
+
+func (h *Handler) UpdateBranchProfile(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateBranchProfile")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	var req models.UpdateBranchProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
+		return
+	}
+	p, err := h.svc.UpdateBranchProfile(ctx, tenantID, c.Param("id"), &req)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, p)
+}
+
+func (h *Handler) ArchiveBranchProfile(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ArchiveBranchProfile")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	p, err := h.svc.ArchiveBranchProfile(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, p)
+}
+
+func (h *Handler) ActivateBranchProfile(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ActivateBranchProfile")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	p, err := h.svc.ActivateBranchProfile(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, p)
+}
+
+// --- P0-MB Phase 1 — L3 BuildArtifact handlers ---
+
+func (h *Handler) ListBuildArtifacts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListBuildArtifacts")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	q := models.ArtifactQuery{}
+	if v := c.Query("branchProfileId"); v != "" {
+		q.BranchProfileID = &v
+	}
+	if v := c.Query("branch"); v != "" {
+		q.Branch = &v
+	}
+	if v := c.Query("commitSha"); v != "" {
+		q.CommitSHA = &v
+	}
+	if v := c.Query("status"); v != "" {
+		s := models.BuildArtifactStatus(v)
+		q.Status = &s
+	}
+	if v := c.Query("signatureValid"); v == "true" || v == "false" {
+		b := v == "true"
+		q.SignatureValid = &b
+	}
+	if p := c.Query("page"); p != "" {
+		fmt.Sscanf(p, "%d", &q.Page)
+	}
+	if l := c.Query("limit"); l != "" {
+		fmt.Sscanf(l, "%d", &q.Limit)
+	}
+	out, err := h.svc.ListBuildArtifacts(ctx, tenantID, q)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	errors.WriteSuccess(c, gin.H{"data": out, "total": len(out)})
+}
+
+func (h *Handler) RegisterBuildArtifact(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RegisterBuildArtifact")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	var req models.RegisterArtifactRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
+		return
+	}
+	a, err := h.svc.RegisterBuildArtifact(ctx, tenantID, &req)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, a)
+}
+
+func (h *Handler) GetBuildArtifact(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBuildArtifact")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	a, err := h.svc.GetBuildArtifact(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		errors.WriteError(c, errors.ErrNotFound, "artifact not found", http.StatusNotFound)
+		return
+	}
+	errors.WriteSuccess(c, a)
+}
+
+func (h *Handler) VerifyBuildArtifactSignature(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "VerifyBuildArtifactSignature")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	result, err := h.svc.VerifyBuildArtifactSignature(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, result)
+}
+
+type deprecateArtifactBody struct {
+	Reason string `json:"reason" binding:"required"`
+}
+
+func (h *Handler) DeprecateBuildArtifact(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeprecateBuildArtifact")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	var body deprecateArtifactBody
+	if err := c.ShouldBindJSON(&body); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
+		return
+	}
+	a, err := h.svc.DeprecateBuildArtifact(ctx, tenantID, c.Param("id"), body.Reason)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, a)
 }

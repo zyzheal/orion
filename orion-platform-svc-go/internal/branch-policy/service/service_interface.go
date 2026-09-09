@@ -14,12 +14,15 @@ import (
 type ServiceInterface interface {
 	AddTag(ctx context.Context, tenantID string, tag string) error
 	Approve(ctx context.Context, tenantID, id string) error
+	ArchiveBranchProfile(ctx context.Context, tenantID, id string) (*models.BranchProfile, error)
 	BatchCreate(ctx context.Context, tenantID string, reqs []models.CreateRequest) ([]models.Record, error)
 	CheckCompatibility(ctx context.Context, tenantID string) (bool, error)
 	Configure(ctx context.Context, tenantID string, cfg map[string]any) error
 	Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error)
+	CreateBranchProfile(ctx context.Context, tenantID string, req *models.CreateBranchProfileRequest) (*models.BranchProfile, error)
 	Delete(ctx context.Context, tenantID, id string) error
 	DeleteTag(ctx context.Context, tenantID string, tag string) error
+	DeprecateBuildArtifact(ctx context.Context, tenantID, id, reason string) (*models.BuildArtifact, error)
 	Deploy(ctx context.Context, tenantID, id string) error
 	DeregisterModel(ctx context.Context, tenantID, id string) error
 	DisablePlugin(ctx context.Context, tenantID, id string) error
@@ -29,7 +32,9 @@ type ServiceInterface interface {
 	Evaluate(ctx context.Context, tenantID string) error
 	Forecast(ctx context.Context, tenantID string) (map[string]any, error)
 	Get(ctx context.Context, tenantID, id string) (*models.Record, error)
+	GetBranchProfile(ctx context.Context, tenantID, id string) (*models.BranchProfile, error)
 	GetBranchStatus(ctx context.Context, tenantID, id string) (string, error)
+	GetBuildArtifact(ctx context.Context, tenantID, id string) (*models.BuildArtifact, error)
 	GetByUser(ctx context.Context, tenantID, user string) ([]string, error)
 	GetConfig(ctx context.Context, tenantID string) (map[string]any, error)
 	GetCoverage(ctx context.Context, tenantID string) (map[string]any, error)
@@ -46,6 +51,8 @@ type ServiceInterface interface {
 	List(ctx context.Context, tenantID string) ([]models.Record, error)
 	ListAlerts(ctx context.Context, tenantID string) ([]string, error)
 	ListArtifacts(ctx context.Context, tenantID string) ([]string, error)
+	ListBranchProfiles(ctx context.Context, tenantID string, q models.BranchProfileQuery) ([]models.BranchProfile, error)
+	ListBuildArtifacts(ctx context.Context, tenantID string, q models.ArtifactQuery) ([]models.BuildArtifact, error)
 	ListExperiments(ctx context.Context, tenantID string) ([]string, error)
 	ListHistories(ctx context.Context, tenantID string) ([]string, error)
 	ListModels(ctx context.Context, tenantID string) ([]string, error)
@@ -57,7 +64,9 @@ type ServiceInterface interface {
 	ListTemplates2(ctx context.Context, tenantID string) ([]string, error)
 	ListViolations(ctx context.Context, tenantID string) ([]string, error)
 	Pause(ctx context.Context, tenantID, id string) error
+	ActivateBranchProfile(ctx context.Context, tenantID, id string) (*models.BranchProfile, error)
 	Regenerate(ctx context.Context, tenantID string) error
+	RegisterBuildArtifact(ctx context.Context, tenantID string, req *models.RegisterArtifactRequest) (*models.BuildArtifact, error)
 	RegisterModel(ctx context.Context, tenantID string) error
 	Reject(ctx context.Context, tenantID, id string) error
 	Restart(ctx context.Context, tenantID string) error
@@ -70,9 +79,11 @@ type ServiceInterface interface {
 	Train(ctx context.Context, tenantID string) error
 	Trigger(ctx context.Context, tenantID string) error
 	Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Record, error)
+	UpdateBranchProfile(ctx context.Context, tenantID, id string, req *models.UpdateBranchProfileRequest) (*models.BranchProfile, error)
 	UpdateConfig(ctx context.Context, tenantID string, cfg map[string]any) error
 	UpdateStatus(ctx context.Context, tenantID, id string) error
 	ValidateBranch(ctx context.Context, tenantID, branch string) (bool, error)
+	VerifyBuildArtifactSignature(ctx context.Context, tenantID, id string) (*models.SignatureVerificationResult, error)
 }
 
 // Ensure compile-time safety: *Service implements ServiceInterface.

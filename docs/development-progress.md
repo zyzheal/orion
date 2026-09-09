@@ -2796,3 +2796,102 @@ feat(tenant-quota): Phase 306 软限/硬限 + 超配策略 + 分级预警
 - P0-MB Phase 3：同步策略（L4 SyncPolicy 页面 + 自动化调度）（6d）
 - P0-MB Phase 4：变更审计（L5 DeployEvent + 一键回滚）（5d）
 - P0-MB Phase 5：冲突预检查（PreDeployGate R1-R6 阻断规则 + 前端可视化）（6d）
+
+
+---
+
+## P0-MB Phase 1 — 基础数据模型（L1 BranchProfile + L3 BuildArtifact digest）（2026-09-08 实施完成）
+
+### 概述
+
+P0-MB Phase 1（5d）：多分支并行策略 5 层防护架构的**数据层地基**，落地 L1 BranchProfile（分支档案）+ L3 BuildArtifact（构建产物）+ 签名验证 + 生命周期管理。为后续 Phase 2-5（Namespace / SyncPolicy / DeployEvent / PreDeployGate）提供实体锚点。
+
+### 完成范围
+
+#### 后端（`orion-platform-svc-go/internal/branch-policy/`）
+
+**models.go**（新增 ~180 行）：
+- `BranchSemantic` enum: main / release / hotfix / lts / custom + `Valid()` + `RequiredNamePrefix()`（main→"main"，release→"release/"，hotfix→"hotfix/"，lts→"lts/"，custom→"custom/"）
+- `BranchStatus` enum: draft / active / archived
+- `BranchProfile` struct（14 字段：ID / TenantID / RepoID / Name / Semantic / OwnerID / Status / Description / MergeTargets / EnvironmentBindings / BuildTriggers / LTSUntil / CreatedAt / UpdatedAt / ArchivedAt）
+- `CreateBranchProfileRequest` / `UpdateBranchProfileRequest` / `BranchProfileQuery`
+- `BuildArtifactStatus` enum: active / deprecated
+- `BuildArtifact` struct（20 字段：ID / TenantID / BranchProfileID / RepoID / Branch / CommitSHA / Digest / ImageRef / TargetEnvs / BuildPipelineRunID / BuiltAt / BuiltBy / Status / Signature / SignedBy / SignatureVerified / SignatureVerifiedAt / DeprecatedAt / DeprecatedReason / DeprecatedBy / CreatedAt / UpdatedAt）
+- `RegisterArtifactRequest` / `ArtifactQuery` / `SignatureVerificationResult`
+
+**service/service.go**（新增 ~500 行）：
+- 5 个正则常量：`sha256Re`（`^sha256:[0-9a-fA-F]{64}$`）/ `bareSha256Re`（`^[0-9a-fA-F]{64}$`）/ `commitSHARe`（`^[0-9a-fA-F]{40}$`）/ `envNameRe`（`^[a-z0-9][a-z0-9-]{0,62}$`）/ `idBranchProfileRe` / `idBuildArtifactRe`
+- 4 个 ID 生成器（fnv.New64a of "prefix-UnixNano-UnixMicro"，Phase 306 模式）
+- `normalizeDigest()`：把裸 64-hex 自动补前缀 `sha256:` + 小写化
+- `validateBranchProfile()`：语义前缀严格校验 / semantic != main → MergeTargets 必须非空 / semantic == lts → LTSUntil 必填且未来
+- **业务方法（11 个）**：
+  - BranchProfile CRUD：CreateBranchProfile / GetBranchProfile / ListBranchProfiles / UpdateBranchProfile / ArchiveBranchProfile / ActivateBranchProfile
+  - BuildArtifact CRUD：RegisterBuildArtifact / GetBuildArtifact / ListBuildArtifacts / DeprecateBuildArtifact / VerifyBuildArtifactSignature
+
+**service/service_interface.go**：+12 method signatures，`var _ ServiceInterface = (*Service)(nil)` 编译期断言保留。
+
+**handler/handler.go**：+11 routes（全部走 `auth.RequirePermission`）+ 11 handler 方法 + query parser（status / semantic / repoId / ownerId / branchProfileId / branch / commitSha / signatureValid）。
+
+**repository/repository.go + repository_interface.go**：+8 stub methods（返回 `sentinel.NotFound`，DB migration 延后）。stub 注释明确指向 v2 impl 文档中的表定义。
+
+#### 测试
+
+- **service/service_test.go**（新增 743 行）：内存 `fakeRepo` struct + 25+ tests 覆盖：
+  - Name/Semantic/LTSUntil 语义校验
+  - MergeTargets 非空校验（semantic != main 时）
+  - Archive/Activate 状态机（含 expired LTS 阻断激活）
+  - `TestBP_Archive_CascadesRequiresDeprecation`：验证两步走（register → archive 失败 → deprecate → archive 成功），保护活跃产物
+  - Digest 规范化（裸 hex → `sha256:` 前缀 + 小写化）
+  - CommitSHA 严格 40-hex
+  - TargetEnvs 命名规范
+  - 签名验证 fail-closed（unsigned=false / signed+trusted-signer=true / signed+unknown-signer=false）
+  - DeprecateBuildArtifact 必填 reason + 拒绝双重弃用
+  - 租户隔离（所有 list 操作强制 tenant_id 过滤）
+- **handler/handler_test.go**：+12 fakeHandlerService 方法 + 11 handler tests（均验证 `w.Code >= 500` 视为失败）
+
+### 设计决策
+
+1. **Fail-closed 签名策略**：未签名 artifact 直接拒绝（`unsigned=false`），不猜测或降级。签名验证只接受 known trusted signers，unknown signer 视为 false。
+2. **Cascade 保护**：ArchiveBranchProfile 在有 active artifacts 时拒绝（返回错误），必须先 Deprecate 所有 active artifacts，再 Archive。保护部署链路完整性。
+3. **Digest 规范化**：客户端传裸 64-hex 时自动补 `sha256:` 前缀并小写化。避免下游 SQL 比对失败。
+4. **ID 生成模式**：Phase 306 的 `fnv.New64a()` + `UnixNano()+UnixMicro()` 双时间戳方案，抗时钟回拨。
+5. **Repository stubs 而非 fake DB**：避免 DB migration 阻塞 Phase 1 交付。stubs 明确返回 `sentinel.NotFound` 而非 panic，让 handler 层返回 clean 500。
+6. **Sentinel error `ErrBranchProfileNotFound`**：service 层统一用它做 not-found 传递，handler 层映射为 404。
+
+### 验证证据
+
+- ✅ `go build ./internal/branch-policy/...` clean
+- ✅ `go vet ./internal/branch-policy/...` clean
+- ✅ `go test ./internal/branch-policy/...` all pass（25 service + 11 handler = 36 新用例）
+- ✅ `go test ./...` 全库通过，零 FAIL
+- ✅ 未提交 `migrations/dba/`、`orion-frontend/src/api/dba/`、`orion-frontend/src/pages/dba/`、`orion-frontend/src/router/routes.tsx`、`docs/dba/`
+- ✅ FORBIDDEN 验证 2 次（git add 前 + git commit 前）均为 0
+
+### Commit 消息
+
+```
+feat(branch-policy): P0-MB Phase 1 — L1 BranchProfile + L3 BuildArtifact
+```
+
+### 遗留任务
+
+- **DB migration**：branch_profiles + build_artifacts 两张表尚未 add 到 running DB。当前 repository stubs 返回 `sentinel.NotFound`。migration 建议排到 Phase 2 之前（阻塞 handler 真实可用）。
+- **前端页面**（Phase 6）：BranchProfileList.tsx + BranchProfileDetail.tsx + ArtifactList.tsx + ArtifactDetail.tsx + RegisterArtifactModal.tsx（延后到 Phase 6 或专项 P2）。
+- **API 端到端集成测试**：延后到 DB migration 落地后。
+
+### 累计进度
+
+- Phase 301 实施：✅ `b56cd8566` + `4b6fb86c4`
+- Phase 302 实施：✅ `3cc7bd7c2`
+- Phase 303 实施：✅ `b6322a01d`
+- Phase 304 实施：✅ `c7c48adb4`
+- Phase 305 实施：✅ `4aa131398` + `057ddba10`
+- Phase 306 实施：✅ `9ef76a56f`
+- **P0-MB Phase 1 实施**：✅ 本轮
+
+### 剩余任务（P0-MB Phase 2-5，21d）
+
+- P0-MB Phase 2：环境隔离强化（L2 Namespace 命名规则 + image tag 前缀强制）（4d）
+- P0-MB Phase 3：同步策略（L4 SyncPolicy 页面 + 自动化调度）（6d）
+- P0-MB Phase 4：变更审计（L5 DeployEvent + 一键回滚）（5d）
+- P0-MB Phase 5：冲突预检查（PreDeployGate R1-R6 阻断规则 + 前端可视化）（6d）

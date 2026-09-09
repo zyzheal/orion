@@ -45,3 +45,43 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, req models
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	return sentinel.NotFound
 }
+
+// --- P0-MB Phase 1 stubs ---
+//
+// The branch_profiles and build_artifacts tables are defined in the module
+// design doc (docs/flagship-review-v3.0-2026-08-25.md) but not yet added to
+// the running DB. These stubs return sentinel errors so the handler layer can
+// return a clean 500 rather than panicking on a nil table. Once the migration
+// lands, replace each stub with the real SQLX implementation.
+
+func (r *Repository) CreateBranchProfile(ctx context.Context, p *models.BranchProfile) error {
+	return sentinel.NotFound
+}
+
+func (r *Repository) GetBranchProfile(ctx context.Context, tenantID, id string) (*models.BranchProfile, error) {
+	return nil, sentinel.NotFound
+}
+
+func (r *Repository) ListBranchProfiles(ctx context.Context, tenantID string, q models.BranchProfileQuery) ([]models.BranchProfile, error) {
+	return nil, sentinel.NotFound
+}
+
+func (r *Repository) UpdateBranchProfile(ctx context.Context, tenantID, id string, p *models.BranchProfile) (*models.BranchProfile, error) {
+	return nil, sentinel.NotFound
+}
+
+func (r *Repository) CreateBuildArtifact(ctx context.Context, a *models.BuildArtifact) error {
+	return sentinel.NotFound
+}
+
+func (r *Repository) GetBuildArtifact(ctx context.Context, tenantID, id string) (*models.BuildArtifact, error) {
+	return nil, sentinel.NotFound
+}
+
+func (r *Repository) ListBuildArtifacts(ctx context.Context, tenantID string, q models.ArtifactQuery) ([]models.BuildArtifact, error) {
+	return nil, sentinel.NotFound
+}
+
+func (r *Repository) UpdateBuildArtifact(ctx context.Context, tenantID, id string, a *models.BuildArtifact) (*models.BuildArtifact, error) {
+	return nil, sentinel.NotFound
+}

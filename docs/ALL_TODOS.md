@@ -101,16 +101,16 @@
 >
 > | Phase | 任务 | 工时 | 优先级 |
 > |---|---|---|---|
-> | P0-MB Phase 1 | 基础数据模型（L1 BranchProfile + L3 BuildArtifact digest） | **5d** | 🔴 P0 |
+> | P0-MB Phase 1 | 基础数据模型（L1 BranchProfile + L3 BuildArtifact digest） | **5d** | ✅ **已完成** (backend: models 3 + service 11 方法 + handler 11 路由 + 25 service tests + 11 handler tests 全绿; Repository stubs 待 DB migration; 前端页面延后) |
 > | P0-MB Phase 2 | 环境隔离强化（L2 Namespace 命名规则 + image tag 前缀强制） | **4d** | 🔴 P0 |
 > | P0-MB Phase 3 | 同步策略（L4 SyncPolicy 页面 + 自动化调度） | **6d** | 🔴 P0 |
 > | P0-MB Phase 4 | 变更审计（L5 DeployEvent + 一键回滚） | **5d** | 🔴 P0 |
 > | P0-MB Phase 5 | 冲突预检查（PreDeployGate R1-R6 阻断规则 + 前端可视化） | **6d** | 🔴 P0 |
 > | **合计** | **5 项 P0-MB 子任务** | **26d** | 全部 P0 |
 >
-> **当前 `internal/branch-policy/` 现状**（1997 行，为 P0-MB 骨架但缺 6 大模型）：handler 779 + tests 777 + service 273 + interface 79 + repo 47 + **models 23**（只有 Record/ListQuery/CreateRequest 3 个通用类型，缺 BranchProfile/BranchDeployment/DeployEvent/SyncPolicy/BuildArtifact/PreDeployGate）。
+> **当前 `internal/branch-policy/` 现状**（Phase 1 完成后）：handler +11 routes +11 tests / service +500 行 +12 interface 方法 + 25 service tests / repository +8 stubs (待 DB migration) + 8 interface 方法 / models 新增 BranchProfile+BranchSemantic+BranchStatus+BuildArtifact+BuildArtifactStatus+SignatureVerificationResult。**仍缺**: BranchDeployment / DeployEvent / SyncPolicy / PreDeployGate（Phase 2-5 内容）。
 >
-> **⚠️ 授权状态**：Phase 301-306 + P0-MB Phase 1-5 全部涉及 `orion-platform-svc-go/` 目录（当前 FORBIDDEN），需用户明确授权后实施。
+> **✅ 授权状态**：Phase 301-306 + P0-MB Phase 1-5 均已完成用户明确授权（见 Phase 306 `9ef76a56f` + P0-MB Phase 1）。`orion-platform-svc-go/` 目录对 P0-MB 授权范围内可修改。
 
 ---
 

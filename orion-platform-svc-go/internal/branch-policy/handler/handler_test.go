@@ -2,16 +2,16 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
-	"orion/platform-svc-go/internal/branch-policy/service"
-
-	"context"
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/branch-policy/models"
+	"orion/platform-svc-go/internal/branch-policy/service"
 )
 
 func newHandler() *Handler {
@@ -280,6 +280,51 @@ func (f *fakeHandlerService) UpdateStatus(ctx context.Context, tenantID, id stri
 
 func (f *fakeHandlerService) ValidateBranch(ctx context.Context, tenantID, branch string) (bool, error) {
 	return false, nil
+}
+
+// P0-MB Phase 1 stubs.
+func (f *fakeHandlerService) ArchiveBranchProfile(ctx context.Context, tenantID, id string) (*models.BranchProfile, error) {
+	return &models.BranchProfile{ID: id}, nil
+}
+
+func (f *fakeHandlerService) ActivateBranchProfile(ctx context.Context, tenantID, id string) (*models.BranchProfile, error) {
+	return &models.BranchProfile{ID: id}, nil
+}
+
+func (f *fakeHandlerService) CreateBranchProfile(ctx context.Context, tenantID string, req *models.CreateBranchProfileRequest) (*models.BranchProfile, error) {
+	return &models.BranchProfile{ID: "bp-test"}, nil
+}
+
+func (f *fakeHandlerService) GetBranchProfile(ctx context.Context, tenantID, id string) (*models.BranchProfile, error) {
+	return &models.BranchProfile{ID: id}, nil
+}
+
+func (f *fakeHandlerService) ListBranchProfiles(ctx context.Context, tenantID string, q models.BranchProfileQuery) ([]models.BranchProfile, error) {
+	return []models.BranchProfile{}, nil
+}
+
+func (f *fakeHandlerService) UpdateBranchProfile(ctx context.Context, tenantID, id string, req *models.UpdateBranchProfileRequest) (*models.BranchProfile, error) {
+	return &models.BranchProfile{ID: id}, nil
+}
+
+func (f *fakeHandlerService) DeprecateBuildArtifact(ctx context.Context, tenantID, id, reason string) (*models.BuildArtifact, error) {
+	return &models.BuildArtifact{ID: id}, nil
+}
+
+func (f *fakeHandlerService) GetBuildArtifact(ctx context.Context, tenantID, id string) (*models.BuildArtifact, error) {
+	return &models.BuildArtifact{ID: id}, nil
+}
+
+func (f *fakeHandlerService) ListBuildArtifacts(ctx context.Context, tenantID string, q models.ArtifactQuery) ([]models.BuildArtifact, error) {
+	return []models.BuildArtifact{}, nil
+}
+
+func (f *fakeHandlerService) RegisterBuildArtifact(ctx context.Context, tenantID string, req *models.RegisterArtifactRequest) (*models.BuildArtifact, error) {
+	return &models.BuildArtifact{ID: "ba-test"}, nil
+}
+
+func (f *fakeHandlerService) VerifyBuildArtifactSignature(ctx context.Context, tenantID, id string) (*models.SignatureVerificationResult, error) {
+	return &models.SignatureVerificationResult{ArtifactID: id, Valid: true}, nil
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
@@ -773,5 +818,111 @@ func TestBRANCH_POLICY_Handler_Regenerate(t *testing.T) {
 	newHandler().Regenerate(c)
 	if w.Code >= 500 {
 		t.Fatalf("Regenerate: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_ListBranchProfiles(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/branch-profiles?status=active&semantic=release&page=1&limit=10", nil, nil)
+	newHandler().ListBranchProfiles(c)
+	if w.Code >= 500 {
+		t.Fatalf("ListBranchProfiles: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_CreateBranchProfile(t *testing.T) {
+	body := map[string]any{
+		"repoId":   "repo-1",
+		"name":     "release/enterprise-2026",
+		"semantic": "release",
+		"ownerId":  "owner-1",
+		"mergeTargets": []string{"main"},
+	}
+	c, w := makeCtx(http.MethodPost, "/branch-profiles", body, nil)
+	newHandler().CreateBranchProfile(c)
+	if w.Code >= 500 {
+		t.Fatalf("CreateBranchProfile: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_GetBranchProfile(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/branch-profiles/bp-1", nil, map[string]string{"id": "bp-1"})
+	newHandler().GetBranchProfile(c)
+	if w.Code >= 500 {
+		t.Fatalf("GetBranchProfile: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_UpdateBranchProfile(t *testing.T) {
+	body := map[string]any{"description": "updated"}
+	c, w := makeCtx(http.MethodPut, "/branch-profiles/bp-1", body, map[string]string{"id": "bp-1"})
+	newHandler().UpdateBranchProfile(c)
+	if w.Code >= 500 {
+		t.Fatalf("UpdateBranchProfile: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_ArchiveBranchProfile(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/branch-profiles/bp-1/archive", nil, map[string]string{"id": "bp-1"})
+	newHandler().ArchiveBranchProfile(c)
+	if w.Code >= 500 {
+		t.Fatalf("ArchiveBranchProfile: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_ActivateBranchProfile(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/branch-profiles/bp-1/activate", nil, map[string]string{"id": "bp-1"})
+	newHandler().ActivateBranchProfile(c)
+	if w.Code >= 500 {
+		t.Fatalf("ActivateBranchProfile: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_ListBuildArtifacts(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/build-artifacts?status=active&signatureValid=true", nil, nil)
+	newHandler().ListBuildArtifacts(c)
+	if w.Code >= 500 {
+		t.Fatalf("ListBuildArtifacts: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_RegisterBuildArtifact(t *testing.T) {
+	body := map[string]any{
+		"branchProfileId": "bp-1",
+		"branch":          "release/x",
+		"commitSha":       "abcdef0123456789abcdef0123456789abcdef01",
+		"imageDigest":     "sha256:" + strings.Repeat("a", 64),
+		"imageTag":        "v1.0.0",
+		"imageRepo":       "reg.example/app",
+		"buildPipelineId": "pipe-1",
+		"targetEnvs":      []string{"staging", "prod"},
+	}
+	c, w := makeCtx(http.MethodPost, "/build-artifacts", body, nil)
+	newHandler().RegisterBuildArtifact(c)
+	if w.Code >= 500 {
+		t.Fatalf("RegisterBuildArtifact: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_GetBuildArtifact(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/build-artifacts/ba-1", nil, map[string]string{"id": "ba-1"})
+	newHandler().GetBuildArtifact(c)
+	if w.Code >= 500 {
+		t.Fatalf("GetBuildArtifact: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_VerifyBuildArtifactSignature(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/build-artifacts/ba-1/verify-signature", nil, map[string]string{"id": "ba-1"})
+	newHandler().VerifyBuildArtifactSignature(c)
+	if w.Code >= 500 {
+		t.Fatalf("VerifyBuildArtifactSignature: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_DeprecateBuildArtifact(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/build-artifacts/ba-1/deprecate", map[string]any{"reason": "superseded"}, map[string]string{"id": "ba-1"})
+	newHandler().DeprecateBuildArtifact(c)
+	if w.Code >= 500 {
+		t.Fatalf("DeprecateBuildArtifact: got %d", w.Code)
 	}
 }
