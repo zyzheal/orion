@@ -4259,9 +4259,83 @@ e2bd24b06 feat(auth): Phase H - wire AnonymousTracker into production (ZapAnonym
 - **Phase G**（R6 真实 checker + Blocking + wiring）：✅ `76e07a5f0`
 - **Phase H**（ZapAnonymousTracker 生产接线）：✅ `e2bd24b06`
 
-### 剩余任务（Phase A-H 全部深度解决后）
+---
+
+## 2026-08-26 — Phase H.1: Prometheus + Composite AnonymousTracker
+
+### 背景
+
+Phase H（`e2bd24b06`）接上了 `ZapAnonymousTracker`，但 `OptionalAuth` 只接受一个 `AnonymousTracker`，无法同时把匿名流量聚合暴露到 `/metrics`。Prometheus 是 `orion-go-common/go.mod` 已有的依赖（`github.com/prometheus/client_golang v1.23.2`），实现一个 counter 版 tracker 是自然补全。
+
+### 设计决策
+
+| 决策 | 选择 | 原因 |
+|---|---|---|
+| Prometheus vs promauto | `prometheus.NewCounterVec` + 显式 `Registerer` | `promauto` 对 `DefaultRegisterer` 的重复注册会 panic；测试需要 `prometheus.NewRegistry()` 隔离，显式注册器让测试和产物分离 |
+| 注册失败行为 | 返回 nil（非 panic） | `OptionalAuth` 已把 nil tracker 当 "no tracking"，优雅降级而非崩进程 |
+| 限流 | 不限流 | Counter `Inc()` 是内存操作，成本极低；基数有界（method × path × reason，reason 是 4 个稳定枚举、method 是 HTTP 动词闭集、path 是 API 面本身） |
+| fan-out 模式 | `CompositeAnonymousTracker` | `OptionalAuth` 单 tracker 签名是约束，composite 是扇出点；nil tracker 自动过滤、全 nil no-op |
+| 生产接线 | `ZapAnonymousTracker` + `PrometheusAnonymousTracker` 用 composite 包装 | zap 保留 Debug 级限流日志 + client_ip，Prometheus 提供不限量聚合计数，两 sink 各取所需 |
+
+### 新增文件
+
+- `orion-go-common/pkg/auth/anonymous_tracker_prometheus.go`（81 行）：`PrometheusAnonymousTracker` + `NewPrometheusAnonymousTracker` + `Unregister` + `Counter`（测试用 getter）
+- `orion-go-common/pkg/auth/anonymous_tracker_prometheus_test.go`（199 行）：11 个测试
+- `orion-go-common/pkg/auth/anonymous_tracker_composite.go`（51 行）：`CompositeAnonymousTracker` + `NewCompositeAnonymousTracker`
+- `orion-go-common/pkg/auth/anonymous_tracker_composite_test.go`（175 行）：8 个测试（含 `fanOutTracker` 测试 double）
+
+### 关键代码
+
+```go
+// PrometheusAnonymousTracker.Track — 每次递增，不限流
+func (p *PrometheusAnonymousTracker) Track(c *gin.Context, method, path, reason string) {
+    if p == nil || p.counter == nil { return }
+    p.counter.WithLabelValues(method, path, reason).Inc()
+}
+
+// CompositeAnonymousTracker.Track — 扇出到 N 个 tracker
+func (c *CompositeAnonymousTracker) Track(ctx *gin.Context, method, path, reason string) {
+    if c == nil { return }
+    for _, t := range c.trackers {
+        if t == nil { continue }
+        t.Track(ctx, method, path, reason)
+    }
+}
+```
+
+### 测试矩阵
+
+| 文件 | 测试数 | 覆盖 |
+|---|---|---|
+| `anonymous_tracker_prometheus_test.go` | 11 | IncrementsOnTrack / LabelSetsIndependent / MultipleCallsAccumulate / NilReceiverIsNoOp / NilContextIsNoOp / NilRegistererUsesDefaultRegistry / DuplicateRegistrationReturnsNil / UnregisterDeregisters / NilCounterIsNoOp / WiredToOptionalAuth / AllReasonLabelsBounded |
+| `anonymous_tracker_composite_test.go` | 8 | FansOutToAllTrackers / FiltersNilTrackers / AllNilIsNoOp / EmptyConstructorIsNoOp / NilReceiverIsNoOp / PreservesOrder / WiredToOptionalAuth / RateLimitAppliesPerTracker |
+| `anonymous_tracker_zap_test.go`（Phase H） | 10 | 保留 |
+| `anonymous_tracker_test.go`（Phase F） | 6 | 保留 |
+| `middleware_test.go`（前置） | ~90 | 保留 |
+| **合计** | **121** | 全绿 |
+
+### 验证
+
+```
+$ go build ./pkg/auth/...          # OK
+$ go test  ./pkg/auth/...          # OK (121 pass)
+$ go build ./cmd/server/...        # OK
+$ git diff --cached --name-only | grep -E "migrations/dba|orion-frontend/src/api/dba|orion-frontend/src/pages/dba|orion-frontend/src/router/routes|docs/dba" | wc -l   # 0
+```
+
+### 累计进度
+
+- **Phase A**（ABAC 引擎）：✅ `d99d06a0b`
+- **Phase B**（branch-policy service logger 接线）：✅ `f7259c6fc`
+- **Phase C**（real SQLX repository）：✅ `3c9584c23`
+- **Phase D+E+F**（R6 接口 + 3-seg colon fix + AnonymousTracker）：✅ `089c47e51`
+- **Phase G**（R6 真实 checker + Blocking + wiring）：✅ `76e07a5f0`
+- **Phase H**（ZapAnonymousTracker 生产接线）：✅ `e2bd24b06`
+- **Phase H.1**（Prometheus + Composite AnonymousTracker）：✅ `e4ff165bf`
+
+### 剩余任务（Phase A-H.1 全部深度解决后）
 
 - **AI 资源授权决策矩阵**：`llm` / `skill` / `intelligence` / `agent` 等（doc 标"决策待定"，需另开评审）
 - **前端 6 页**：`routes.tsx` FORBIDDEN
-- **PERM-8 stage 2**：破坏性变更，Phase H 的 tracker 数据已可采集，待跑一段时间再切
+- **PERM-8 stage 2**：破坏性变更，Phase H 的 zap 日志 + Phase H.1 的 Prometheus counter 已可采集，待跑一段时间再切
 - **DB migration**：`migrations/dba/` FORBIDDEN
