@@ -3,6 +3,7 @@ package main
 
 import (
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -60,9 +61,20 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
 		// 401 the entire token-less client base overnight. Switching to it is the
 		// remaining PERM-8 work and needs a client-migration plan, not a commit.
 		if os.Getenv("AUTH_OPTIONAL_ENABLED") == "1" || os.Getenv("AUTH_OPTIONAL_ENABLED") == "true" {
+			// Phase H: wire the ZapAnonymousTracker so PERM-8 stage 2 migration
+			// has real data — every anonymous hit on /api/v1 is logged at
+			// Debug level with a per-second rate cap. Rate limit is tunable via
+			// AUTH_OPTIONAL_ANON_LOG_RATE (default 100/s; 0 = unlimited).
+			rate := 100
+			if v := os.Getenv("AUTH_OPTIONAL_ANON_LOG_RATE"); v != "" {
+				if n, err := strconv.Atoi(v); err == nil {
+					rate = n
+				}
+			}
 			api.Use(auth.OptionalAuth(auth.AuthConfig{
-				JWTSecret:   infra.ffCfg.JWTSecret,
-				RedisClient: infra.rdb,
+				JWTSecret:        infra.ffCfg.JWTSecret,
+				RedisClient:      infra.rdb,
+				AnonymousTracker: auth.NewZapAnonymousTracker(logger, rate),
 			}))
 		}
 
