@@ -174,23 +174,172 @@ func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 // Additional service methods wired from handler stubs
 
 func (s *Service) ValidateBranch(ctx context.Context, tenantID, branch string) (bool, error) {
-	return true, nil
+	if tenantID == "" || branch == "" {
+		return false, nil
+	}
+	profiles, err := s.repo.ListBranchProfiles(ctx, tenantID, models.BranchProfileQuery{})
+	if err != nil {
+		return false, err
+	}
+	// Exact match on profile name: valid iff the profile is active.
+	for _, p := range profiles {
+		if p.Name == branch {
+			return p.Status == models.BranchStatusActive, nil
+		}
+	}
+	// Match against merge targets / sources of any active profile.
+	for _, p := range profiles {
+		if p.Status != models.BranchStatusActive {
+			continue
+		}
+		for _, t := range p.MergeTargets {
+			if t == branch {
+				return true, nil
+			}
+		}
+		for _, src := range p.MergeSources {
+			if src == branch {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
 
 func (s *Service) GetCoverage(ctx context.Context, tenantID string) (map[string]interface{}, error) {
-	return make(map[string]interface{}), nil
+	if tenantID == "" {
+		return make(map[string]interface{}), nil
+	}
+	profiles, err := s.repo.ListBranchProfiles(ctx, tenantID, models.BranchProfileQuery{})
+	if err != nil {
+		return nil, err
+	}
+	total := len(profiles)
+	active, archived := 0, 0
+	semanticCounts := make(map[string]int)
+	protectedEnvCount := 0
+	for _, p := range profiles {
+		switch p.Status {
+		case models.BranchStatusActive:
+			active++
+		case models.BranchStatusArchived, models.BranchStatusRetired:
+			archived++
+		}
+		semanticCounts[string(p.Semantic)]++
+		if len(p.ProtectedEnvs) > 0 {
+			protectedEnvCount++
+		}
+	}
+	coveragePct := 0.0
+	if total > 0 {
+		coveragePct = float64(active) * 100 / float64(total)
+	}
+	return map[string]interface{}{
+		"totalProfiles":      total,
+		"activeProfiles":     active,
+		"archivedProfiles":   archived,
+		"semanticDistribution": semanticCounts,
+		"protectedEnvProfiles": protectedEnvCount,
+		"coveragePct":        coveragePct,
+	}, nil
 }
 
 func (s *Service) EnforcePolicy(ctx context.Context, tenantID string) error {
+	violations, err := s.ListViolations(ctx, tenantID)
+	if err != nil {
+		return err
+	}
+	if len(violations) > 0 && s.logger != nil {
+		s.logger.Warn("branch policy violations found",
+			zap.Int("count", len(violations)),
+			zap.Strings("violations", violations))
+	}
 	return nil
 }
 
 func (s *Service) ListViolations(ctx context.Context, tenantID string) ([]string, error) {
-	return []string{}, nil
+	if tenantID == "" {
+		return []string{}, nil
+	}
+	profiles, err := s.repo.ListBranchProfiles(ctx, tenantID, models.BranchProfileQuery{})
+	if err != nil {
+		return nil, err
+	}
+	var violations []string
+	now := time.Now()
+	for _, p := range profiles {
+		if p.Status != models.BranchStatusActive {
+			continue
+		}
+		// Non-main branches must declare merge targets.
+		if p.Semantic != models.BranchMain && len(p.MergeTargets) == 0 {
+			violations = append(violations, fmt.Sprintf("profile %s (%s): non-main branch must have merge targets", p.ID, p.Name))
+		}
+		// LTS branches must have an unexpired LTSUntil.
+		if p.Semantic == models.BranchLTS && p.LTSUntil == nil {
+			violations = append(violations, fmt.Sprintf("profile %s (%s): LTS branch must have LTSUntil set", p.ID, p.Name))
+		} else if p.Semantic == models.BranchLTS && p.LTSUntil != nil && p.LTSUntil.Before(now) {
+			violations = append(violations, fmt.Sprintf("profile %s (%s): LTSUntil %s is in the past", p.ID, p.Name, p.LTSUntil.Format("2006-01-02")))
+		}
+		// Name-prefix check: every semantic has a required prefix.
+		if prefix := p.Semantic.RequiredNamePrefix(); prefix != "" {
+			if !strings.HasPrefix(p.Name, prefix) {
+				violations = append(violations, fmt.Sprintf("profile %s (%s): name must start with %q", p.ID, p.Name, prefix))
+			}
+		}
+	}
+	return violations, nil
 }
 
 func (s *Service) GetStats(ctx context.Context, tenantID string) (map[string]interface{}, error) {
-	return make(map[string]interface{}), nil
+	if tenantID == "" {
+		return make(map[string]interface{}), nil
+	}
+	profiles, err := s.repo.ListBranchProfiles(ctx, tenantID, models.BranchProfileQuery{})
+	if err != nil {
+		return nil, err
+	}
+	artifacts, err := s.repo.ListBuildArtifacts(ctx, tenantID, models.ArtifactQuery{})
+	if err != nil {
+		return nil, err
+	}
+	syncPolicies, err := s.repo.ListSyncPolicies(ctx, tenantID, models.SyncPolicyQuery{})
+	if err != nil {
+		return nil, err
+	}
+	deployEvents, err := s.repo.ListDeployEvents(ctx, tenantID, models.DeployEventQuery{})
+	if err != nil {
+		return nil, err
+	}
+	activeProfiles, signedArtifacts, successfulDeploys, failedDeploys := 0, 0, 0, 0
+	for _, p := range profiles {
+		if p.Status == models.BranchStatusActive {
+			activeProfiles++
+		}
+	}
+	for _, a := range artifacts {
+		if a.SignatureValid {
+			signedArtifacts++
+		}
+	}
+	for _, e := range deployEvents {
+		switch e.Outcome {
+		case models.DeployOutcomeSuccess:
+			successfulDeploys++
+		case models.DeployOutcomeFailed:
+			failedDeploys++
+		}
+	}
+	return map[string]interface{}{
+		"totalProfiles":     len(profiles),
+		"activeProfiles":    activeProfiles,
+		"totalArtifacts":    len(artifacts),
+		"signedArtifacts":   signedArtifacts,
+		"totalSyncPolicies": len(syncPolicies),
+		"totalDeployEvents": len(deployEvents),
+		"successfulDeploys": successfulDeploys,
+		"failedDeploys":     failedDeploys,
+	}, nil
 }
 
 func (s *Service) RunInspection(ctx context.Context, tenantID string) error {
@@ -298,7 +447,18 @@ func (s *Service) ListExperiments(ctx context.Context, tenantID string) ([]strin
 }
 
 func (s *Service) ListArtifacts(ctx context.Context, tenantID string) ([]string, error) {
-	return []string{}, nil
+	if tenantID == "" {
+		return []string{}, nil
+	}
+	artifacts, err := s.repo.ListBuildArtifacts(ctx, tenantID, models.ArtifactQuery{})
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(artifacts))
+	for _, a := range artifacts {
+		ids = append(ids, a.ID)
+	}
+	return ids, nil
 }
 
 func (s *Service) ListModels(ctx context.Context, tenantID string) ([]string, error) {
@@ -314,7 +474,22 @@ func (s *Service) DeregisterModel(ctx context.Context, tenantID, id string) erro
 }
 
 func (s *Service) ListPipelines(ctx context.Context, tenantID string) ([]string, error) {
-	return []string{}, nil
+	if tenantID == "" {
+		return []string{}, nil
+	}
+	artifacts, err := s.repo.ListBuildArtifacts(ctx, tenantID, models.ArtifactQuery{})
+	if err != nil {
+		return nil, err
+	}
+	seen := make(map[string]bool)
+	var pipelines []string
+	for _, a := range artifacts {
+		if a.BuildPipelineID != "" && !seen[a.BuildPipelineID] {
+			seen[a.BuildPipelineID] = true
+			pipelines = append(pipelines, a.BuildPipelineID)
+		}
+	}
+	return pipelines, nil
 }
 
 func (s *Service) Trigger(ctx context.Context, tenantID string) error {

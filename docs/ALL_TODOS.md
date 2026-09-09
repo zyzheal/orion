@@ -784,8 +784,8 @@ C. 完全缺失（企业必需）
 
 | ID | 任务 | 内容 | 状态 |
 |----|------|------|------|
-| MB-P2-1 | L5 DeployEvent 审计日志 | DeployEvent 表 + 部署流水线埋点 + 双向可追溯 + 一键回滚支持 | ⬜ 未开始 |
-| MB-P2-2 | 前端 5 个新页面 | `/devops/branch-profiles` / `branch-deployments` / `sync-policies` / `merge-preview` / `deploy-audit` | ⬜ 未开始 |
+| MB-P2-1 | L5 DeployEvent 审计日志 | DeployEvent 表 + 部署流水线埋点 + 双向可追溯 + 一键回滚支持 | ✅ **已完成**（真实实现 + handler 路由 + 前端 DeployAudit 页面） |
+| MB-P2-2 | 前端 6 个新页面 + 路由 + smoke tests | `/console/devops/branch-profiles` / `namespace-matrix` / `sync-policies` / `merge-preview` / `deploy-audit` / `pre-deploy-gate` — 6 页面全部实现 + `branch-policy.ts` API 客户端 + routes.tsx 注册 + 6 smoke tests 全绿 + tsc 编译干净 | ✅ **已完成** |
 
 ### P0-MB 参考
 

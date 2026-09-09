@@ -882,6 +882,56 @@ export const routes: AppRoute[] = [
       },
     ],
   },
+  // Branch Policy (多分支策略)
+  {
+    path: '/console/devops',
+    element: React.lazy(() => import('@/pages/BranchPolicy/BranchProfileList')),
+    protected: true,
+    requiredPermission: { resource: 'branch-policy', action: 'read' },
+    children: [
+      // 默认重定向到分支画像
+      {
+        index: true,
+        element: React.createElement(Navigate, { to: '/console/devops/branch-profiles', replace: true }),
+      },
+      {
+        path: '/console/devops/branch-profiles',
+        element: React.lazy(() => import('@/pages/BranchPolicy/BranchProfileList')),
+        protected: true,
+        requiredPermission: { resource: 'branch-policy', action: 'read' },
+      },
+      {
+        path: '/console/devops/namespace-matrix',
+        element: React.lazy(() => import('@/pages/BranchPolicy/NamespaceMatrix')),
+        protected: true,
+        requiredPermission: { resource: 'branch-policy', action: 'read' },
+      },
+      {
+        path: '/console/devops/sync-policies',
+        element: React.lazy(() => import('@/pages/BranchPolicy/SyncPolicyList')),
+        protected: true,
+        requiredPermission: { resource: 'branch-policy', action: 'read' },
+      },
+      {
+        path: '/console/devops/merge-preview',
+        element: React.lazy(() => import('@/pages/BranchPolicy/MergePreview')),
+        protected: true,
+        requiredPermission: { resource: 'branch-policy', action: 'read' },
+      },
+      {
+        path: '/console/devops/deploy-audit',
+        element: React.lazy(() => import('@/pages/BranchPolicy/DeployAudit')),
+        protected: true,
+        requiredPermission: { resource: 'branch-policy', action: 'read' },
+      },
+      {
+        path: '/console/devops/pre-deploy-gate',
+        element: React.lazy(() => import('@/pages/BranchPolicy/PreDeployGate')),
+        protected: true,
+        requiredPermission: { resource: 'branch-policy', action: 'read' },
+      },
+    ],
+  },
   // AI Review
   {
     path: '/console/ai-review',
