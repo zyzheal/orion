@@ -49,6 +49,12 @@ type RepositoryInterface interface {
 	ListDeployEventsByBranch(ctx context.Context, tenantID, branch string, limit int) ([]models.DeployEvent, error)
 	ListDeployEventsByEnv(ctx context.Context, tenantID, env string, limit int) ([]models.DeployEvent, error)
 	ListDeployEventsByActor(ctx context.Context, tenantID, actorID string, limit int) ([]models.DeployEvent, error)
+
+	// P0-MB Phase 5 — MergePreview (conflict pre-check). PreDeployGateResult
+	// is NOT persisted (API response only), so only MergePreview goes in DB.
+	CreateMergePreview(ctx context.Context, p *models.MergePreview) error
+	GetMergePreview(ctx context.Context, tenantID, id string) (*models.MergePreview, error)
+	ListMergePreviews(ctx context.Context, tenantID string, limit int) ([]models.MergePreview, error)
 }
 
 // Ensure Repository implements RepositoryInterface.

@@ -81,6 +81,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.POST("/deploy-events", auth.RequirePermission("branch-policy", "write"), h.CreateDeployEvent)
 	r.GET("/deploy-events/:id", auth.RequirePermission("branch-policy", "read"), h.GetDeployEvent)
 	r.POST("/deploy-events/:id/rollback", auth.RequirePermission("branch-policy", "write"), h.RollbackDeployEvent)
+
+	// P0-MB Phase 5 — PreDeployGate + MergePreview
+	r.POST("/pre-deploy-gate/check", auth.RequirePermission("branch-policy", "read"), h.CheckPreDeployGate)
+	r.POST("/merge-preview", auth.RequirePermission("branch-policy", "write"), h.CreateMergePreview)
+	r.GET("/merge-preview/:id", auth.RequirePermission("branch-policy", "read"), h.GetMergePreview)
+	r.GET("/merge-preview", auth.RequirePermission("branch-policy", "read"), h.ListMergePreviews)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -1461,6 +1467,76 @@ func (h *Handler) GetAuditTrail(c *gin.Context) {
 		fmt.Sscanf(v, "%d", &params.Limit)
 	}
 	out, err := h.svc.GetAuditTrail(ctx, tenantID, params)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, out)
+}
+
+// CheckPreDeployGate is the POST handler for /pre-deploy-gate/check. It
+// receives a DeployRequest body, runs the R1-R6 rule suite, and returns the
+// aggregated PreDeployGateResult. The response is NOT persisted.
+func (h *Handler) CheckPreDeployGate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CheckPreDeployGate")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	var req models.DeployRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
+		return
+	}
+	res, err := h.svc.CheckPreDeployGate(ctx, tenantID, req)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, res)
+}
+
+// CreateMergePreview is the POST handler for /merge-preview.
+func (h *Handler) CreateMergePreview(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateMergePreview")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	var req models.MergePreviewRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
+		return
+	}
+	p, err := h.svc.CreateMergePreview(ctx, tenantID, &req)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, p)
+}
+
+// GetMergePreview is the GET handler for /merge-preview/:id.
+func (h *Handler) GetMergePreview(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetMergePreview")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	p, err := h.svc.GetMergePreview(ctx, tenantID, id)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, p)
+}
+
+// ListMergePreviews is the GET handler for /merge-preview. Accepts an
+// optional ?limit= query parameter.
+func (h *Handler) ListMergePreviews(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListMergePreviews")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	limit := 0
+	if v := c.Query("limit"); v != "" {
+		fmt.Sscanf(v, "%d", &limit)
+	}
+	out, err := h.svc.ListMergePreviews(ctx, tenantID, limit)
 	if err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
 		return

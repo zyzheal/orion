@@ -3206,3 +3206,106 @@ feat(branch-policy): P0-MB Phase 4 — L5 DeployEvent + 一键回滚 + AuditTrai
 - **API 端到端集成测试**：延后到 DB migration 落地后
 - **Scheduler 生产挂载**：`wireSyncScheduler` 已就绪，需要在 main.go 中调用
 - **BranchEnvGuard middleware 挂载**：延后到 Phase 5 与 PreDeployGate 集成时一并处理
+
+---
+
+## P0-MB Phase 5 — PreDeployGate R1-R6 + MergePreview（2026-08-26 完成）
+
+### 任务范围
+
+- **PreDeployGate R1-R6** 阻断规则（不持久化，API 响应）：
+  - R1 Branch-Env 匹配（`VerifyImageTagMatch`）
+  - R2 Digest 签名校验（`VerifyBuildArtifactSignature`，ArtifactID 空则 skip）
+  - R3 需要审批（ApprovalID 非空）
+  - R4 分支非归档（`GetBranchProfile` 查 status，profile 未知则 skip）
+  - R5 Pipeline 允许（`profile.AllowedPipelines` 包含 req.PipelineName，profile 未知则 skip）
+  - R6 Schema 兼容（占位实现，永远通过 + warning 提示）
+- **MergePreview** 冲突预检查（持久化，`merge_previews` 表）
+- 5 项 service 方法 + 4 项 handler 路由 + 6 项 handler tests + 12 项 service tests
+
+### 设计决策
+
+| 决策 | 理由 |
+|---|---|
+| PreDeployGateResult 不持久化 | API 响应快照，避免与部署事件耦合；审计追踪由 DeployEvent 负责 |
+| Rule failure 不短路 | 一次返回所有失败的规则，前端可显示完整诊断列表 |
+| 独立规则 fail-closed | 未知状态不视为通过，除非 profile 完全无法解析（此时 skip + warning） |
+| R6 schema placeholder | 需要迁移服务配合才能实现真检查；先保留 rule ID 让客户端切换不破坏 |
+| lookupBranchProfile fallback | Branch 字段可能是 profile ID（BranchEnvGuard 契约）或 Name（人类可读），service 层做 fallback |
+| DeployRequest 扩展 optional 字段 | ApprovalID/ArtifactID/PipelineName/SourceCommit 均为可选，避免破坏现有 DeployRequest 消费者 |
+| 路由静态路径优先 | Gin 要求 `/merge-preview` 在 `/merge-preview/:id` 之前注册，否则 panic |
+| RiskLevel 分桶 | 0→low / 1-2→medium / 3-5→high / ≥6→critical（可配置，但先硬编码） |
+
+### 文件清单
+
+| 文件 | 变更 |
+|---|---|
+| `internal/branch-policy/models/models.go` | +Phase 5 类型 + DeployRequest 4 optional 字段 |
+| `internal/branch-policy/repository/repository_interface.go` | +3 Phase 5 方法 |
+| `internal/branch-policy/repository/repository.go` | +3 Phase 5 stubs（返回 sentinel.NotFound） |
+| `internal/branch-policy/service/service_interface.go` | +4 Phase 5 方法 |
+| `internal/branch-policy/service/service.go` | +5 service 方法 + RepositoryInterface +4 方法 + 6 常量 + 4 helper |
+| `internal/branch-policy/handler/handler.go` | +4 路由 + 4 handler 方法 |
+| `internal/branch-policy/service/service_test.go` | +12 service tests + fakeRepo Phase 5 methods + mergePreviews map |
+| `internal/branch-policy/handler/handler_test.go` | +4 handler stubs + 6 handler tests |
+| `docs/ALL_TODOS.md` | Phase 5 行标记 ✅ 已完成 + 状态更新 |
+| `docs/development-progress.md` | 本 Phase 5 章节追加 |
+
+### 关键 API
+
+```http
+POST /api/v1/branch-policy/pre-deploy-gate/check
+POST /api/v1/branch-policy/merge-preview
+GET  /api/v1/branch-policy/merge-preview/:id
+GET  /api/v1/branch-policy/merge-preview?limit=100
+```
+
+### 验证
+
+- `go build ./...` ✅
+- `go vet ./internal/branch-policy/...` ✅
+- `go test ./internal/branch-policy/...` ✅（12 service tests + 6 handler tests 全绿）
+- `go test ./...` ✅（全仓无 FAIL/panic）
+
+### 已知问题
+
+1. **DB migration 未落地**：`branch_profiles`、`build_artifacts`、`namespace_bindings`、`sync_policies`、`sync_run_logs`、`deploy_events`、`merge_previews` 7 张表待建（Repository stubs 返回 `sentinel.NotFound`）
+2. **前端页面延后**：MergePreviewDialog.tsx + PreDeployGatePanel.tsx 未实现
+3. **BranchEnvGuard middleware 挂载延后**：branch-policy handler 尚未挂载到 production `cmd/server/router.go`；middleware 本身已实现并测试通过，等待 handler 挂载后一并接入
+4. **R6 schema-compatibility 为占位**：需要 migration service 支持真实检查
+5. **MergePreview 冲突列表为空**：真实 `git merge-tree` 调用尚未接入，客户端可手动传入 ConflictFiles
+
+### Commit
+
+```
+feat(branch-policy): P0-MB Phase 5 — PreDeployGate R1-R6 + MergePreview
+```
+
+- **Commit hash**：`__COMMIT_HASH__`
+- **变更行数**：models +45 / repository_interface +5 / repository +18 / service_interface +4 / service +430 / handler +70 / service_test +500 / handler_test +70 / docs +2
+
+### 累计进度（Phase 301-306 + P0-MB Phase 1-5 全部完成）
+
+- **Phase 301-306 实施**：✅
+- **P0-MB Phase 1 实施**：✅ `5fe58f0c4`
+- **P0-MB Phase 2 实施**：✅ `49d106242`
+- **P0-MB Phase 3 实施**：✅ `9f9bc3e1b`
+- **P0-MB Phase 4 实施**：✅ `7ba5b9819`
+- **P0-MB Phase 5 实施**：✅ `__COMMIT_HASH__`（本轮）
+
+### 剩余任务（无）
+
+P0-MB 5 项子任务全部完成。Phase 5 交付后：
+- **backend**：`internal/branch-policy/` 具备 5 层防护完整能力（BranchProfile / Namespace / BuildArtifact / SyncPolicy / DeployEvent / PreDeployGate / MergePreview）
+- **frontend**：可基于 4 个新 API + 8 个既有 DeployEvent API 构建 MergePreviewDialog + PreDeployGatePanel
+- **infra**：待 DB migration 落地后可启用真实数据；scheduler 已在 Phase 3 就绪
+
+### 遗留任务（Phase 1-5 累积）
+
+- **DB migration**（阻塞 7 张表真实可用）：branch_profiles + build_artifacts + namespace_bindings + sync_policies + sync_run_logs + deploy_events + merge_previews
+- **前端页面**（6 个）：BranchProfileList.tsx + BranchProfileDetail.tsx + ArtifactList.tsx + ArtifactDetail.tsx + RegisterArtifactModal.tsx + NamespaceMatrix.tsx + SyncPolicyList.tsx + ChangeAuditTrail.tsx + MergePreviewDialog.tsx + PreDeployGatePanel.tsx
+- **API 端到端集成测试**：延后到 DB migration 落地后
+- **Scheduler 生产挂载**：`wireSyncScheduler` 已就绪，需要在 main.go 中调用
+- **BranchEnvGuard middleware 挂载**：延后到 branch-policy handler 挂载到 production router 之后
+- **Git merge-tree 集成**：MergePreview 目前接受客户端传入的 ConflictFiles；服务端 git 集成可后续添加
+

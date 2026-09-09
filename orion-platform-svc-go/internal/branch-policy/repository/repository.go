@@ -190,3 +190,26 @@ func (r *Repository) ListDeployEventsByEnv(ctx context.Context, tenantID, env st
 func (r *Repository) ListDeployEventsByActor(ctx context.Context, tenantID, actorID string, limit int) ([]models.DeployEvent, error) {
 	return nil, sentinel.NotFound
 }
+
+// --- P0-MB Phase 5 stubs ---
+//
+// The merge_previews table is defined in the module design doc
+// (docs/multi-branch-strategy-design-v2-impl-2026-09-08.md §5.2) but not yet
+// added to the running DB. These stubs return sentinel errors so the handler
+// layer can return a clean 500 rather than panicking on a nil table. Once
+// the migration lands, replace each stub with the real SQLX implementation.
+//
+// PreDeployGateResult is NOT persisted — it is an API response only (see
+// design doc §5.1). Only MergePreview has DB backing.
+
+func (r *Repository) CreateMergePreview(ctx context.Context, p *models.MergePreview) error {
+	return sentinel.NotFound
+}
+
+func (r *Repository) GetMergePreview(ctx context.Context, tenantID, id string) (*models.MergePreview, error) {
+	return nil, sentinel.NotFound
+}
+
+func (r *Repository) ListMergePreviews(ctx context.Context, tenantID string, limit int) ([]models.MergePreview, error) {
+	return nil, sentinel.NotFound
+}

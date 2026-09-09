@@ -61,6 +61,12 @@ type RepositoryInterface interface {
 	ListDeployEventsByBranch(ctx context.Context, tenantID, branch string, limit int) ([]models.DeployEvent, error)
 	ListDeployEventsByEnv(ctx context.Context, tenantID, env string, limit int) ([]models.DeployEvent, error)
 	ListDeployEventsByActor(ctx context.Context, tenantID, actorID string, limit int) ([]models.DeployEvent, error)
+
+	// P0-MB Phase 5 — MergePreview (conflict pre-check). PreDeployGateResult
+	// is NOT persisted (API response only), so only MergePreview goes in DB.
+	CreateMergePreview(ctx context.Context, p *models.MergePreview) error
+	GetMergePreview(ctx context.Context, tenantID, id string) (*models.MergePreview, error)
+	ListMergePreviews(ctx context.Context, tenantID string, limit int) ([]models.MergePreview, error)
 }
 
 // ErrBranchProfileNotFound wraps repository-level not-found into a
@@ -2108,4 +2114,320 @@ func (s *Service) GetAuditTrail(ctx context.Context, tenantID string, params mod
 		ApprovalIDs: dedup(approvalIDs),
 		GeneratedAt: time.Now(),
 	}, nil
+}
+
+// ============================================================================
+// P0-MB Phase 5 — PreDeployGate (R1-R6) + MergePreview
+// ============================================================================
+
+// PreDeployGate rule IDs. These are the stable keys surfaced in the
+// PreDeployGateResult.Rules array — callers (frontend / middleware) can
+// switch on them without depending on names.
+const (
+	GateRuleIDBranchEnv     = "R1"
+	GateRuleIDDigest        = "R2"
+	GateRuleIDApproval      = "R3"
+	GateRuleIDBranchActive  = "R4"
+	GateRuleIDPipeline      = "R5"
+	GateRuleIDSchema        = "R6"
+)
+
+// containsString reports whether item is present in list. Empty item is
+// treated as "not found" so callers do not accidentally match an empty
+// allow-list entry.
+func containsString(list []string, item string) bool {
+	if item == "" {
+		return false
+	}
+	for _, v := range list {
+		if v == item {
+			return true
+		}
+	}
+	return false
+}
+
+// newMergePreviewID returns a unique id prefixed with "mp". Same scheme as
+// newDeployEventID: nanosecond timestamp + fnv hash for uniqueness without a
+// distributed UUID dependency.
+func newMergePreviewID() string {
+	now := time.Now()
+	h := fnv.New64a()
+	h.Write([]byte(fmt.Sprintf("mp-%d-%d", now.UnixNano(), now.UnixMicro())))
+	return fmt.Sprintf("mp-%x", h.Sum(nil)[:8])
+}
+
+// riskLevelForConflicts maps a conflict count to the canonical RiskLevel.
+// The buckets are chosen to align with the design doc's severity ladder:
+//  0 → low, 1-2 → medium, 3-5 → high, ≥6 → critical.
+func riskLevelForConflicts(n int) models.RiskLevel {
+	switch {
+	case n <= 0:
+		return models.RiskLevelLow
+	case n <= 2:
+		return models.RiskLevelMedium
+	case n <= 5:
+		return models.RiskLevelHigh
+	default:
+		return models.RiskLevelCritical
+	}
+}
+
+// CheckPreDeployGate runs the R1-R6 rule suite against the given deploy
+// request and returns a single PreDeployGateResult. The result is NOT
+// persisted — callers (deploy handler / BranchEnvGuard) can treat it as a
+// pure advisory snapshot.
+//
+// Rule ordering matches the rule IDs (R1..R6). Failures of independent rules
+// do not short-circuit later rules: the response enumerates every rule that
+// failed so the caller can show a full diagnostic list.
+//
+//   - R1 Branch-Env match    → VerifyImageTagMatch (blocking)
+//   - R2 Digest signature     → VerifyBuildArtifactSignature (blocking when
+//     an ArtifactID is supplied; skipped as a warning otherwise)
+//   - R3 Approval required    → ApprovalID non-empty (blocking)
+//   - R4 Branch not archived  → BranchProfile.Status (blocking; skipped as a
+//     warning when no profile lookup is possible)
+//   - R5 Pipeline allowed     → profile.AllowedPipelines (warning when no
+//     profile or empty pipeline name)
+//   - R6 Schema compatibility → placeholder until a migration-aware check
+//     lands; always passes with a warning.
+func (s *Service) CheckPreDeployGate(ctx context.Context, tenantID string, req models.DeployRequest) (*models.PreDeployGateResult, error) {
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+	if req.Branch == "" || req.TargetEnv == "" {
+		return nil, fmt.Errorf("branch and targetEnv are required")
+	}
+	result := &models.PreDeployGateResult{
+		Branch:    req.Branch,
+		Env:       req.TargetEnv,
+		CheckedAt: time.Now(),
+		Passed:    true,
+		Rules:     make([]models.GateRuleResult, 0, 6),
+		Blocked:   make([]string, 0),
+	}
+
+	// R1 — Branch-Env match.
+	if err := s.runGateRule(result, GateRuleIDBranchEnv, "branch-env-match", models.GateSeverityBlocking, func() (bool, string, error) {
+		if req.ImageTag == "" {
+			return false, "imageTag is required for R1", nil
+		}
+		ok, err := s.VerifyImageTagMatch(ctx, tenantID, req.Branch, req.TargetEnv, req.ImageTag)
+		if err != nil {
+			return false, "branch-env lookup failed: "+err.Error(), err
+		}
+		if !ok {
+			return false, "imageTag "+req.ImageTag+" does not match the binding for ("+req.Branch+", "+req.TargetEnv+")", nil
+		}
+		return true, "imageTag matches binding prefix", nil
+	}); err != nil {
+		return nil, err
+	}
+
+	// R2 — Digest signature. Skipped (warning) when ArtifactID is not supplied.
+	if err := s.runGateRule(result, GateRuleIDDigest, "digest-signature", models.GateSeverityBlocking, func() (bool, string, error) {
+		if req.ArtifactID == "" {
+			return true, "artifactId not supplied — skipping signature check", nil
+		}
+		res, err := s.VerifyBuildArtifactSignature(ctx, tenantID, req.ArtifactID)
+		if err != nil {
+			return false, "signature lookup failed: "+err.Error(), err
+		}
+		if res == nil {
+			return false, "signature result is nil", nil
+		}
+		if !res.Valid {
+			return false, "artifact signature invalid: "+res.Reason, nil
+		}
+		return true, "artifact signature valid ("+res.Reason+")", nil
+	}); err != nil {
+		return nil, err
+	}
+
+	// R3 — Approval required. Blocking when ApprovalID is empty.
+	if err := s.runGateRule(result, GateRuleIDApproval, "approval-required", models.GateSeverityBlocking, func() (bool, string, error) {
+		if req.ApprovalID == "" {
+			return false, "approvalId is required before deploy", nil
+		}
+		return true, "approvalId "+req.ApprovalID+" supplied", nil
+	}); err != nil {
+		return nil, err
+	}
+
+	// R4 — Branch not archived. Warning when the branch cannot be resolved
+	// to a BranchProfile (e.g. unknown id); blocking when the profile exists
+	// and is archived/retired.
+	profile, profileErr := s.lookupBranchProfile(ctx, tenantID, req.Branch)
+	if err := s.runGateRule(result, GateRuleIDBranchActive, "branch-active", models.GateSeverityBlocking, func() (bool, string, error) {
+		if profileErr != nil || profile == nil {
+			// Not enough info to fail the rule; downgrade to a warning.
+			return true, "branch profile not resolvable — skipping archived check", nil
+		}
+		switch profile.Status {
+		case models.BranchStatusActive:
+			return true, "branch profile status=active", nil
+		default:
+			return false, "branch profile status="+string(profile.Status), nil
+		}
+	}); err != nil {
+		return nil, err
+	}
+
+	// R5 — Pipeline allowed. Warning when the branch profile is unknown;
+	// blocking when the pipeline is not in the profile's allow-list.
+	if err := s.runGateRule(result, GateRuleIDPipeline, "pipeline-allowed", models.GateSeverityBlocking, func() (bool, string, error) {
+		if profile == nil {
+			return true, "branch profile not resolvable — skipping pipeline check", nil
+		}
+		if req.PipelineName == "" {
+			return false, "pipelineName is required", nil
+		}
+		if !containsString(profile.AllowedPipelines, req.PipelineName) {
+			return false, "pipeline "+req.PipelineName+" is not in branch's allowedPipelines", nil
+		}
+		return true, "pipeline "+req.PipelineName+" is allowed", nil
+	}); err != nil {
+		return nil, err
+	}
+
+	// R6 — Schema compatibility. Placeholder until we wire in a migration
+	// lookup; always passes with a warning so callers know the rule is
+	// implemented but not yet enforced.
+	if err := s.runGateRule(result, GateRuleIDSchema, "schema-compatibility", models.GateSeverityWarning, func() (bool, string, error) {
+		return true, "schema-compatibility check not implemented — placeholder", nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// runGateRule is the small helper that runs a single PreDeployGate rule and
+// appends the outcome to the result. The rule closure returns (passed,
+// detail, err) — err is only propagated when non-nil; failed rules do NOT
+// abort the gate.
+func (s *Service) runGateRule(result *models.PreDeployGateResult, ruleID, name string, severity models.GateSeverity, fn func() (bool, string, error)) error {
+	passed, detail, err := fn()
+	if err != nil {
+		// Treat the error as a failed rule but record the reason so the
+		// caller can surface it. Fail-closed for blocking rules.
+		passed = false
+		if detail == "" {
+			detail = "rule error: " + err.Error()
+		}
+	}
+	rule := models.GateRuleResult{RuleID: ruleID, Name: name, Passed: passed, Detail: detail, Severity: severity}
+	result.Rules = append(result.Rules, rule)
+	if !passed && severity == models.GateSeverityBlocking {
+		result.Blocked = append(result.Blocked, ruleID)
+		result.Passed = false
+	}
+	return nil
+}
+
+// lookupBranchProfile resolves the "branch" identifier in a DeployRequest
+// to a BranchProfile. It tries GetBranchProfile(id) first (the field is
+// usually the profile id, matching BranchEnvGuard's contract) and falls
+// back to ListBranchProfiles with a name filter so callers can pass the
+// human-readable branch name ("release/enterprise-2026").
+func (s *Service) lookupBranchProfile(ctx context.Context, tenantID, ref string) (*models.BranchProfile, error) {
+	if tenantID == "" || ref == "" {
+		return nil, fmt.Errorf("tenant_id and branch reference are required")
+	}
+	p, err := s.repo.GetBranchProfile(ctx, tenantID, ref)
+	if err == nil && p != nil {
+		return p, nil
+	}
+	if err != nil && !errors.Is(err, sentinelNotFound) && !errors.Is(err, ErrBranchProfileNotFound) {
+		return nil, err
+	}
+	// Fall back to a name lookup.
+	profiles, err := s.repo.ListBranchProfiles(ctx, tenantID, models.BranchProfileQuery{})
+	if err != nil {
+		return nil, err
+	}
+	for i := range profiles {
+		if profiles[i].Name == ref {
+			return &profiles[i], nil
+		}
+	}
+	return nil, ErrBranchProfileNotFound
+}
+
+// CreateMergePreview is the POST entry point for /merge-preview. It builds a
+// MergePreview from the request and persists it. The ConflictFiles/AddedFiles
+// fields are populated by the caller (they normally come from a git merge-tree
+// call in a future phase); when empty, RiskLevel is derived from ConflictCount
+// which defaults to 0 (RiskLevelLow).
+func (s *Service) CreateMergePreview(ctx context.Context, tenantID string, req *models.MergePreviewRequest) (*models.MergePreview, error) {
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+	if req == nil {
+		return nil, fmt.Errorf("request is required")
+	}
+	if req.SourceBranch == "" || req.TargetBranch == "" {
+		return nil, fmt.Errorf("sourceBranch and targetBranch are required")
+	}
+	if req.SourceBranch == req.TargetBranch {
+		return nil, fmt.Errorf("sourceBranch and targetBranch must differ")
+	}
+	// Optional commit SHA validation.
+	if req.SourceCommit != "" && !syncCommitSHARe.MatchString(req.SourceCommit) {
+		return nil, fmt.Errorf("sourceCommit is not a valid 7-40 hex sha")
+	}
+	if req.TargetCommit != "" && !syncCommitSHARe.MatchString(req.TargetCommit) {
+		return nil, fmt.Errorf("targetCommit is not a valid 7-40 hex sha")
+	}
+	conflictCount := len(req.ConflictFiles)
+	p := &models.MergePreview{
+		ID:            newMergePreviewID(),
+		TenantID:      tenantID,
+		SourceBranch:  req.SourceBranch,
+		TargetBranch:  req.TargetBranch,
+		SourceCommit:  req.SourceCommit,
+		TargetCommit:  req.TargetCommit,
+		ConflictFiles: req.ConflictFiles,
+		AddedFiles:    req.AddedFiles,
+		ModifiedFiles: req.ModifiedFiles,
+		DeletedFiles:  req.DeletedFiles,
+		ConflictCount: conflictCount,
+		RiskLevel:     riskLevelForConflicts(conflictCount),
+		PreviewedAt:   time.Now(),
+	}
+	if err := s.repo.CreateMergePreview(ctx, p); err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+// GetMergePreview returns the preview by id (tenant-scoped).
+func (s *Service) GetMergePreview(ctx context.Context, tenantID, id string) (*models.MergePreview, error) {
+	if tenantID == "" || id == "" {
+		return nil, fmt.Errorf("tenant_id and id are required")
+	}
+	p, err := s.repo.GetMergePreview(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if p == nil {
+		return nil, ErrBranchProfileNotFound
+	}
+	return p, nil
+}
+
+// ListMergePreviews returns the previews for the tenant, newest first.
+// limit defaults to 100 and is capped at 1000.
+func (s *Service) ListMergePreviews(ctx context.Context, tenantID string, limit int) ([]models.MergePreview, error) {
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+	return s.repo.ListMergePreviews(ctx, tenantID, limit)
 }

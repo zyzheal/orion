@@ -346,11 +346,28 @@ type MatrixCell struct {
 
 // DeployRequest is the body of a deploy API call, used by BranchEnvGuard
 // middleware to validate image-tag/env compatibility.
+//
+// Phase 5 adds optional fields (ApprovalID, ArtifactID, PipelineName,
+// SourceCommit) so PreDeployGate R1-R6 can consult the same request payload.
+// Empty strings are interpreted as "not supplied" — a missing field is not an
+// error at this layer; individual rules decide how to treat empties.
 type DeployRequest struct {
 	TenantID  string `json:"tenantId"`
 	Branch    string `json:"branch"`
 	TargetEnv string `json:"targetEnv"`
 	ImageTag  string `json:"imageTag"`
+	// ApprovalID is the ID of a prior approval record required for R3.
+	// Empty means no approval has been recorded — R3 fails closed.
+	ApprovalID string `json:"approvalId,omitempty"`
+	// ArtifactID is the build-artifact ID under test. R2 verifies its
+	// signature when present; when empty R2 is skipped with a warning.
+	ArtifactID string `json:"artifactId,omitempty"`
+	// PipelineName is the CI pipeline that produced the artifact. R5 allows
+	// the deploy when it is in the branch's allowedPipelines list.
+	PipelineName string `json:"pipelineName,omitempty"`
+	// SourceCommit is the SHA that the deployment is promoting. R6 (schema
+	// compatibility) uses this to look up migration diffs.
+	SourceCommit string `json:"sourceCommit,omitempty"`
 }
 
 // ============================================================================
@@ -664,4 +681,92 @@ type AuditTrailResult struct {
 	ArtifactIDs []string      `json:"artifactIds"`
 	ApprovalIDs []string      `json:"approvalIds"`
 	GeneratedAt time.Time     `json:"generatedAt"`
+}
+
+// ============================================================================
+// P0-MB Phase 5 — PreDeployGate R1-R6 + MergePreview (conflict pre-check)
+// ============================================================================
+
+// GateSeverity enumerates the severity of a PreDeployGate rule violation.
+// "blocking" rules must pass or the deploy is rejected; "warning" rules are
+// advisory only.
+type GateSeverity string
+
+const (
+	GateSeverityBlocking GateSeverity = "blocking"
+	GateSeverityWarning  GateSeverity = "warning"
+)
+
+// RiskLevel classifies the risk of a MergePreview. It is derived from the
+// number of conflict files: >10 critical, >5 high, >2 medium, else low.
+type RiskLevel string
+
+const (
+	RiskLevelLow      RiskLevel = "low"
+	RiskLevelMedium   RiskLevel = "medium"
+	RiskLevelHigh     RiskLevel = "high"
+	RiskLevelCritical RiskLevel = "critical"
+)
+
+// GateRuleResult is the outcome of a single PreDeployGate rule (R1-R6).
+// Severity "blocking" rules populate result.Blocked when they fail.
+type GateRuleResult struct {
+	RuleID   string       `json:"ruleId"`   // R1-R6
+	Name     string       `json:"name"`     // e.g. "Branch-Env 匹配"
+	Passed   bool         `json:"passed"`
+	Detail   string       `json:"detail"`
+	Severity GateSeverity `json:"severity"`
+}
+
+// PreDeployGateResult is the aggregated output of the PreDeployGate service.
+// Passed is true only when all blocking rules pass. Blocked lists the IDs of
+// the blocking rules that failed. PreDeployGateResult is NOT persisted — it is
+// an API response only.
+type PreDeployGateResult struct {
+	Passed    bool             `json:"passed"`
+	RequestID string           `json:"requestId"`
+	CheckedAt time.Time        `json:"checkedAt"`
+	Branch    string           `json:"branch"`
+	Env       string           `json:"env"`
+	Rules     []GateRuleResult `json:"rules"`
+	Blocked   []string         `json:"blocked"`
+}
+
+// MergePreviewRequest is the POST body for /merge-preview. SourceBranch and
+// TargetBranch are required; SourceCommit / TargetCommit are optional (the
+// service falls back to the branch HEADs when omitted).
+//
+// ConflictFiles / AddedFiles / ModifiedFiles / DeletedFiles are optional
+// server-side inputs: when the caller has already run git merge-tree (or a
+// similar tool) it can supply the result directly. When omitted, the service
+// persists empty slices and RiskLevel defaults to "low". The service always
+// recomputes ConflictCount from len(ConflictFiles) so the two stay in sync.
+type MergePreviewRequest struct {
+	SourceBranch  string   `json:"sourceBranch" binding:"required"`
+	TargetBranch  string   `json:"targetBranch" binding:"required"`
+	SourceCommit  string   `json:"sourceCommit"`
+	TargetCommit  string   `json:"targetCommit"`
+	ConflictFiles []string `json:"conflictFiles"`
+	AddedFiles    []string `json:"addedFiles"`
+	ModifiedFiles []string `json:"modifiedFiles"`
+	DeletedFiles  []string `json:"deletedFiles"`
+}
+
+// MergePreview is the persisted result of a merge-tree preview. ConflictFiles
+// is the primary signal — it feeds MergePreview.RiskLevel and the downstream
+// PreDeployGate R3 (conflict count) rule.
+type MergePreview struct {
+	ID            string    `json:"id" db:"id"`
+	TenantID      string    `json:"tenantId" db:"tenant_id"`
+	SourceBranch  string    `json:"sourceBranch" db:"source_branch"`
+	TargetBranch  string    `json:"targetBranch" db:"target_branch"`
+	SourceCommit  string    `json:"sourceCommit" db:"source_commit"`
+	TargetCommit  string    `json:"targetCommit" db:"target_commit"`
+	ConflictFiles []string  `json:"conflictFiles" db:"conflict_files"`
+	AddedFiles    []string  `json:"addedFiles" db:"added_files"`
+	ModifiedFiles []string  `json:"modifiedFiles" db:"modified_files"`
+	DeletedFiles  []string  `json:"deletedFiles" db:"deleted_files"`
+	ConflictCount int       `json:"conflictCount" db:"conflict_count"`
+	RiskLevel     RiskLevel `json:"riskLevel" db:"risk_level"`
+	PreviewedAt   time.Time `json:"previewedAt" db:"previewed_at"`
 }

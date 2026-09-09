@@ -19,6 +19,7 @@ type fakeRepo struct {
 	syncPolicies      map[string]*models.SyncPolicy
 	syncRunLogs       []models.SyncRunLog
 	deployEvents      map[string]*models.DeployEvent
+	mergePreviews     map[string]*models.MergePreview
 }
 
 func newFakeRepo() *fakeRepo {
@@ -28,6 +29,7 @@ func newFakeRepo() *fakeRepo {
 		namespaceBindings: make(map[string]*models.NamespaceBinding),
 		syncPolicies:      make(map[string]*models.SyncPolicy),
 		deployEvents:      make(map[string]*models.DeployEvent),
+		mergePreviews:     make(map[string]*models.MergePreview),
 	}
 }
 
@@ -378,6 +380,48 @@ func (f *fakeRepo) ListDeployEventsByActor(ctx context.Context, tenantID, actorI
 	a := actorID
 	q := models.DeployEventQuery{ActorID: &a, Limit: limit}
 	return f.ListDeployEvents(ctx, tenantID, q)
+}
+
+// --- P0-MB Phase 5 fakeRepo methods ---
+
+func (f *fakeRepo) CreateMergePreview(ctx context.Context, p *models.MergePreview) error {
+	if p == nil {
+		return fmt.Errorf("nil preview")
+	}
+	cp := *p
+	f.mergePreviews[p.ID] = &cp
+	return nil
+}
+
+func (f *fakeRepo) GetMergePreview(ctx context.Context, tenantID, id string) (*models.MergePreview, error) {
+	p, ok := f.mergePreviews[id]
+	if !ok || p.TenantID != tenantID {
+		return nil, errors.New("sentinel: not found")
+	}
+	cp := *p
+	return &cp, nil
+}
+
+func (f *fakeRepo) ListMergePreviews(ctx context.Context, tenantID string, limit int) ([]models.MergePreview, error) {
+	out := make([]models.MergePreview, 0, len(f.mergePreviews))
+	for _, p := range f.mergePreviews {
+		if p.TenantID != tenantID {
+			continue
+		}
+		out = append(out, *p)
+	}
+	// Newest first.
+	for i := 0; i < len(out); i++ {
+		for j := i + 1; j < len(out); j++ {
+			if out[j].PreviewedAt.After(out[i].PreviewedAt) {
+				out[i], out[j] = out[j], out[i]
+			}
+		}
+	}
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
 }
 
 // TestBP_Create_Validation verifies branch-profile create rejects malformed input.
@@ -2439,5 +2483,387 @@ func TestDE_GetAuditTrail_Filters(t *testing.T) {
 	// Empty tenantID.
 	if _, err := svc.GetAuditTrail(ctx, "", models.AuditTrailParams{}); err == nil {
 		t.Fatal("expected error for empty tenantID")
+	}
+}
+
+// ============================================================================
+// P0-MB Phase 5 — PreDeployGate (R1-R6) + MergePreview tests
+// ============================================================================
+
+// helper: set up a passing baseline for PreDeployGate so each test only has
+// to override the fields that matter.
+func newGateBaseline(t *testing.T, tenantID string) (*Service, *fakeRepo, models.DeployRequest) {
+	t.Helper()
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	now := time.Now()
+
+	// Branch profile: active, allowedPipelines includes "ci-prod".
+	profID := "bp-1"
+	repo.branchProfiles[profID] = &models.BranchProfile{
+		ID:               profID,
+		TenantID:         tenantID,
+		RepoID:           "r1",
+		Name:             "release/enterprise-2026",
+		Semantic:         models.BranchRelease,
+		OwnerID:          "u1",
+		Status:           models.BranchStatusActive,
+		AllowedPipelines: []string{"ci-prod", "ci-ent"},
+		CreatedAt:        now,
+		UpdatedAt:        now,
+		MergeTargets:     []string{"main"},
+	}
+	// Namespace binding for the profile+env: imageTagPrefix matches.
+	repo.namespaceBindings["nb-1"] = &models.NamespaceBinding{
+		ID:              "nb-1",
+		TenantID:        tenantID,
+		BranchProfileID: profID,
+		EnvName:         "prod",
+		K8sNamespace:    "k8s-prod",
+		ImageTagPrefix:  "release-ent-2026",
+		DBName:          "db_prod",
+		RedisKeyPrefix:  "redis_prod:",
+		CreatedAt:       now,
+	}
+	// Signed artifact.
+	repo.artifacts["art-1"] = &models.BuildArtifact{
+		ID:          "art-1",
+		TenantID:    tenantID,
+		ImageDigest: "sha256:" + strings.Repeat("a", 64),
+		ImageTag:    "release-ent-2026/v1.0.0",
+		SignedBy:    "ci-prod",
+		BuiltAt:     now,
+	}
+
+	req := models.DeployRequest{
+		TenantID:     tenantID,
+		Branch:       profID, // lookupBranchProfile resolves via GetBranchProfile(id)
+		TargetEnv:    "prod",
+		ImageTag:     "release-ent-2026/v1.0.0",
+		ArtifactID:   "art-1",
+		ApprovalID:   "cm-1",
+		PipelineName: "ci-prod",
+	}
+	return svc, repo, req
+}
+
+func TestPDG_CheckPreDeployGate_AllPass(t *testing.T) {
+	ctx := context.Background()
+	svc, _, req := newGateBaseline(t, "t1")
+	res, err := svc.CheckPreDeployGate(ctx, "t1", req)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if !res.Passed {
+		t.Fatalf("expected Passed=true, got Blocked=%v", res.Blocked)
+	}
+	if len(res.Rules) != 6 {
+		t.Fatalf("expected 6 rules, got %d", len(res.Rules))
+	}
+	for _, r := range res.Rules {
+		if !r.Passed {
+			t.Fatalf("rule %s failed unexpectedly: %s", r.RuleID, r.Detail)
+		}
+	}
+}
+
+func TestPDG_CheckPreDeployGate_R1ImageTagMismatch(t *testing.T) {
+	ctx := context.Background()
+	svc, _, req := newGateBaseline(t, "t1")
+	req.ImageTag = "wrong-tag-prefix/v1.0.0"
+	res, err := svc.CheckPreDeployGate(ctx, "t1", req)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if res.Passed {
+		t.Fatalf("expected Passed=false, got Blocked=%v", res.Blocked)
+	}
+	if !containsRule(res.Blocked, GateRuleIDBranchEnv) {
+		t.Fatalf("expected R1 in Blocked, got %v", res.Blocked)
+	}
+}
+
+func TestPDG_CheckPreDeployGate_R2UnsignedArtifact(t *testing.T) {
+	ctx := context.Background()
+	svc, repo, req := newGateBaseline(t, "t1")
+	repo.artifacts["art-1"].SignedBy = "" // unsigned
+	res, err := svc.CheckPreDeployGate(ctx, "t1", req)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if res.Passed {
+		t.Fatalf("expected Passed=false, got Blocked=%v", res.Blocked)
+	}
+	if !containsRule(res.Blocked, GateRuleIDDigest) {
+		t.Fatalf("expected R2 in Blocked, got %v", res.Blocked)
+	}
+}
+
+func TestPDG_CheckPreDeployGate_R2SkipsWhenArtifactMissing(t *testing.T) {
+	ctx := context.Background()
+	svc, _, req := newGateBaseline(t, "t1")
+	req.ArtifactID = ""
+	res, err := svc.CheckPreDeployGate(ctx, "t1", req)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if !res.Passed {
+		t.Fatalf("expected Passed=true when artifactId omitted, got Blocked=%v", res.Blocked)
+	}
+}
+
+func TestPDG_CheckPreDeployGate_R3MissingApproval(t *testing.T) {
+	ctx := context.Background()
+	svc, _, req := newGateBaseline(t, "t1")
+	req.ApprovalID = ""
+	res, err := svc.CheckPreDeployGate(ctx, "t1", req)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if res.Passed {
+		t.Fatalf("expected Passed=false, got Blocked=%v", res.Blocked)
+	}
+	if !containsRule(res.Blocked, GateRuleIDApproval) {
+		t.Fatalf("expected R3 in Blocked, got %v", res.Blocked)
+	}
+}
+
+func TestPDG_CheckPreDeployGate_R4ArchivedBranch(t *testing.T) {
+	ctx := context.Background()
+	svc, repo, req := newGateBaseline(t, "t1")
+	repo.branchProfiles["bp-1"].Status = models.BranchStatusArchived
+	res, err := svc.CheckPreDeployGate(ctx, "t1", req)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if res.Passed {
+		t.Fatalf("expected Passed=false, got Blocked=%v", res.Blocked)
+	}
+	if !containsRule(res.Blocked, GateRuleIDBranchActive) {
+		t.Fatalf("expected R4 in Blocked, got %v", res.Blocked)
+	}
+}
+
+func TestPDG_CheckPreDeployGate_R5PipelineNotAllowed(t *testing.T) {
+	ctx := context.Background()
+	svc, _, req := newGateBaseline(t, "t1")
+	req.PipelineName = "ci-evil"
+	res, err := svc.CheckPreDeployGate(ctx, "t1", req)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if res.Passed {
+		t.Fatalf("expected Passed=false, got Blocked=%v", res.Blocked)
+	}
+	if !containsRule(res.Blocked, GateRuleIDPipeline) {
+		t.Fatalf("expected R5 in Blocked, got %v", res.Blocked)
+	}
+}
+
+func TestPDG_CheckPreDeployGate_MultipleFailures(t *testing.T) {
+	ctx := context.Background()
+	svc, _, req := newGateBaseline(t, "t1")
+	req.ApprovalID = ""
+	req.PipelineName = "ci-evil"
+	req.ImageTag = "wrong"
+	res, err := svc.CheckPreDeployGate(ctx, "t1", req)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if res.Passed {
+		t.Fatalf("expected Passed=false")
+	}
+	if len(res.Blocked) != 3 {
+		t.Fatalf("expected 3 blocking failures, got %v", res.Blocked)
+	}
+}
+
+func TestPDG_CheckPreDeployGate_Validation(t *testing.T) {
+	ctx := context.Background()
+	svc, _, req := newGateBaseline(t, "t1")
+	if _, err := svc.CheckPreDeployGate(ctx, "", req); err == nil {
+		t.Fatal("expected error for empty tenantID")
+	}
+	if _, err := svc.CheckPreDeployGate(ctx, "t1", models.DeployRequest{}); err == nil {
+		t.Fatal("expected error for missing branch")
+	}
+	if _, err := svc.CheckPreDeployGate(ctx, "t1", models.DeployRequest{Branch: "b"}); err == nil {
+		t.Fatal("expected error for missing targetEnv")
+	}
+}
+
+func TestPDG_CheckPreDeployGate_UnknownBranchSkipsR4R5(t *testing.T) {
+	ctx := context.Background()
+	svc, _, req := newGateBaseline(t, "t1")
+	req.Branch = "unknown-bp-id"
+	res, err := svc.CheckPreDeployGate(ctx, "t1", req)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	// R4 and R5 should be skipped (warning) — they should NOT be in Blocked.
+	if containsRule(res.Blocked, GateRuleIDBranchActive) {
+		t.Fatalf("R4 should be skipped when profile unknown, got Blocked=%v", res.Blocked)
+	}
+	if containsRule(res.Blocked, GateRuleIDPipeline) {
+		t.Fatalf("R5 should be skipped when profile unknown, got Blocked=%v", res.Blocked)
+	}
+	// R1 may fail because we can't look up the binding for "unknown-bp-id".
+	// That is expected behavior — verifyImageTagMatch returns false for
+	// a profile that has no binding.
+	_ = res
+}
+
+// containsRule is a small test helper (mirrors containsString but keeps the
+// test file self-contained).
+func containsRule(list []string, id string) bool {
+	for _, v := range list {
+		if v == id {
+			return true
+		}
+	}
+	return false
+}
+
+func TestMP_CreateMergePreview_Validation(t *testing.T) {
+	ctx := context.Background()
+	svc := NewService(newFakeRepo())
+	if _, err := svc.CreateMergePreview(ctx, "", &models.MergePreviewRequest{SourceBranch: "a", TargetBranch: "b"}); err == nil {
+		t.Fatal("expected error for empty tenantID")
+	}
+	if _, err := svc.CreateMergePreview(ctx, "t1", nil); err == nil {
+		t.Fatal("expected error for nil req")
+	}
+	if _, err := svc.CreateMergePreview(ctx, "t1", &models.MergePreviewRequest{TargetBranch: "b"}); err == nil {
+		t.Fatal("expected error for missing sourceBranch")
+	}
+	if _, err := svc.CreateMergePreview(ctx, "t1", &models.MergePreviewRequest{SourceBranch: "a"}); err == nil {
+		t.Fatal("expected error for missing targetBranch")
+	}
+	if _, err := svc.CreateMergePreview(ctx, "t1", &models.MergePreviewRequest{SourceBranch: "a", TargetBranch: "a"}); err == nil {
+		t.Fatal("expected error when source==target")
+	}
+	if _, err := svc.CreateMergePreview(ctx, "t1", &models.MergePreviewRequest{SourceBranch: "a", TargetBranch: "b", SourceCommit: "xyz"}); err == nil {
+		t.Fatal("expected error for bad sourceCommit")
+	}
+	if _, err := svc.CreateMergePreview(ctx, "t1", &models.MergePreviewRequest{SourceBranch: "a", TargetBranch: "b", TargetCommit: "xyz"}); err == nil {
+		t.Fatal("expected error for bad targetCommit")
+	}
+}
+
+func TestMP_CreateMergePreview_HappyPath(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	req := &models.MergePreviewRequest{
+		SourceBranch: "feat/x",
+		TargetBranch: "main",
+		SourceCommit: "abcdef1234567890",
+		TargetCommit: "1234567890abcdef",
+		ConflictFiles: []string{"a.go", "b.go"},
+		AddedFiles:    []string{"new.go"},
+		ModifiedFiles: []string{"c.go"},
+		DeletedFiles:  []string{"old.go"},
+	}
+	p, err := svc.CreateMergePreview(ctx, "t1", req)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if p.ID == "" || !strings.HasPrefix(p.ID, "mp-") {
+		t.Fatalf("expected mp- prefixed id, got %q", p.ID)
+	}
+	if p.TenantID != "t1" || p.SourceBranch != "feat/x" || p.TargetBranch != "main" {
+		t.Fatalf("unexpected preview fields: %+v", p)
+	}
+	if p.ConflictCount != 2 {
+		t.Fatalf("expected ConflictCount=2, got %d", p.ConflictCount)
+	}
+	if p.RiskLevel != models.RiskLevelMedium {
+		t.Fatalf("expected RiskLevel=medium, got %s", p.RiskLevel)
+	}
+	if repo.mergePreviews[p.ID] == nil {
+		t.Fatal("expected preview to be persisted")
+	}
+}
+
+func TestMP_RiskLevelBuckets(t *testing.T) {
+	cases := []struct {
+		n    int
+		want models.RiskLevel
+	}{
+		{0, models.RiskLevelLow},
+		{1, models.RiskLevelMedium},
+		{2, models.RiskLevelMedium},
+		{3, models.RiskLevelHigh},
+		{5, models.RiskLevelHigh},
+		{6, models.RiskLevelCritical},
+		{100, models.RiskLevelCritical},
+	}
+	for _, c := range cases {
+		if got := riskLevelForConflicts(c.n); got != c.want {
+			t.Fatalf("riskLevelForConflicts(%d)=%s, want %s", c.n, got, c.want)
+		}
+	}
+}
+
+func TestMP_GetMergePreview_TenantScoped(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	repo.mergePreviews["mp-1"] = &models.MergePreview{ID: "mp-1", TenantID: "t1", SourceBranch: "a", TargetBranch: "b", PreviewedAt: time.Now()}
+	if _, err := svc.GetMergePreview(ctx, "t2", "mp-1"); err == nil {
+		t.Fatal("expected error for cross-tenant get")
+	}
+	if _, err := svc.GetMergePreview(ctx, "", "mp-1"); err == nil {
+		t.Fatal("expected error for empty tenantID")
+	}
+	if _, err := svc.GetMergePreview(ctx, "t1", ""); err == nil {
+		t.Fatal("expected error for empty id")
+	}
+	p, err := svc.GetMergePreview(ctx, "t1", "mp-1")
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if p.ID != "mp-1" {
+		t.Fatalf("unexpected preview: %+v", p)
+	}
+}
+
+func TestMP_ListMergePreviews_LimitAndOrder(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	now := time.Now()
+	for i := 0; i < 5; i++ {
+		id := fmt.Sprintf("mp-%d", i)
+		repo.mergePreviews[id] = &models.MergePreview{
+			ID:          id,
+			TenantID:    "t1",
+			SourceBranch: "a",
+			TargetBranch: "b",
+			PreviewedAt: now.Add(time.Duration(i) * time.Second),
+		}
+	}
+	// Other-tenant preview should not leak.
+	repo.mergePreviews["mp-other"] = &models.MergePreview{ID: "mp-other", TenantID: "t2", SourceBranch: "a", TargetBranch: "b", PreviewedAt: now}
+	out, err := svc.ListMergePreviews(ctx, "t1", 3)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if len(out) != 3 {
+		t.Fatalf("expected 3 previews, got %d", len(out))
+	}
+	// Newest first — mp-4 should be first.
+	if out[0].ID != "mp-4" {
+		t.Fatalf("expected mp-4 first, got %s", out[0].ID)
+	}
+	// Cap check.
+	out, _ = svc.ListMergePreviews(ctx, "t1", 5000)
+	if len(out) != 5 {
+		t.Fatalf("expected 5 (cap 1000 not hit, all returned), got %d", len(out))
+	}
+	// Default limit.
+	out, _ = svc.ListMergePreviews(ctx, "t1", 0)
+	if len(out) != 5 {
+		t.Fatalf("expected 5 with default limit, got %d", len(out))
 	}
 }

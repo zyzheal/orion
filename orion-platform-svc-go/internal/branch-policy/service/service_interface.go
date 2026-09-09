@@ -17,11 +17,13 @@ type ServiceInterface interface {
 	ArchiveBranchProfile(ctx context.Context, tenantID, id string) (*models.BranchProfile, error)
 	BatchCreate(ctx context.Context, tenantID string, reqs []models.CreateRequest) ([]models.Record, error)
 	CheckCompatibility(ctx context.Context, tenantID string) (bool, error)
+	CheckPreDeployGate(ctx context.Context, tenantID string, req models.DeployRequest) (*models.PreDeployGateResult, error)
 	Configure(ctx context.Context, tenantID string, cfg map[string]any) error
 	Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error)
 	CreateBranchProfile(ctx context.Context, tenantID string, req *models.CreateBranchProfileRequest) (*models.BranchProfile, error)
-	CreateNamespaceBinding(ctx context.Context, tenantID string, req *models.CreateNamespaceRequest) (*models.NamespaceBinding, error)
 	CreateDeployEvent(ctx context.Context, tenantID string, req *models.CreateDeployEventRequest) (*models.DeployEvent, error)
+	CreateMergePreview(ctx context.Context, tenantID string, req *models.MergePreviewRequest) (*models.MergePreview, error)
+	CreateNamespaceBinding(ctx context.Context, tenantID string, req *models.CreateNamespaceRequest) (*models.NamespaceBinding, error)
 	CreateSyncPolicy(ctx context.Context, tenantID string, req *models.CreateSyncPolicyRequest) (*models.SyncPolicy, error)
 	Delete(ctx context.Context, tenantID, id string) error
 	DeleteNamespaceBinding(ctx context.Context, tenantID, id string) error
@@ -52,6 +54,7 @@ type ServiceInterface interface {
 	GetLineage(ctx context.Context, tenantID, id string) (map[string]any, error)
 	GetLogs(ctx context.Context, tenantID, id string) ([]string, error)
 	GetMetrics(ctx context.Context, tenantID string) (map[string]any, error)
+	GetMergePreview(ctx context.Context, tenantID, id string) (*models.MergePreview, error)
 	GetNamespaceBinding(ctx context.Context, tenantID, id string) (*models.NamespaceBinding, error)
 	GetNamespaceMatrix(ctx context.Context, tenantID string) (*models.BranchEnvMatrix, error)
 	GetPlugin(ctx context.Context, tenantID, id string) (map[string]any, error)
@@ -70,6 +73,7 @@ type ServiceInterface interface {
 	ListDeployEventsByBranch(ctx context.Context, tenantID, branch string, limit int) ([]models.DeployEvent, error)
 	ListDeployEventsByEnv(ctx context.Context, tenantID, env string, limit int) ([]models.DeployEvent, error)
 	ListDeployEventsByActor(ctx context.Context, tenantID, actorID string, limit int) ([]models.DeployEvent, error)
+	ListMergePreviews(ctx context.Context, tenantID string, limit int) ([]models.MergePreview, error)
 	ListNamespaceBindings(ctx context.Context, tenantID string, q models.NamespaceBindingQuery) ([]models.NamespaceBinding, error)
 	ListExperiments(ctx context.Context, tenantID string) ([]string, error)
 	ListHistories(ctx context.Context, tenantID string) ([]string, error)

@@ -490,6 +490,45 @@ func (f *fakeHandlerService) UpdateDeployOutcome(ctx context.Context, tenantID, 
 	return &models.DeployEvent{ID: id, TenantID: tenantID, Outcome: outcome, ErrorMsg: errorMsg}, nil
 }
 
+// --- P0-MB Phase 5 stubs ---
+
+func (f *fakeHandlerService) CheckPreDeployGate(ctx context.Context, tenantID string, req models.DeployRequest) (*models.PreDeployGateResult, error) {
+	return &models.PreDeployGateResult{
+		Passed:    true,
+		RequestID: "req-test-1",
+		Branch:    req.Branch,
+		Env:       req.TargetEnv,
+		CheckedAt: time.Now(),
+		Rules: []models.GateRuleResult{
+			{RuleID: "R1", Name: "branch-env-match", Passed: true, Severity: models.GateSeverityBlocking},
+		},
+		Blocked: []string{},
+	}, nil
+}
+
+func (f *fakeHandlerService) CreateMergePreview(ctx context.Context, tenantID string, req *models.MergePreviewRequest) (*models.MergePreview, error) {
+	return &models.MergePreview{
+		ID:            "mp-test-1",
+		TenantID:      tenantID,
+		SourceBranch:  req.SourceBranch,
+		TargetBranch:  req.TargetBranch,
+		SourceCommit:  req.SourceCommit,
+		TargetCommit:  req.TargetCommit,
+		ConflictFiles: []string{},
+		ConflictCount: 0,
+		RiskLevel:     models.RiskLevelLow,
+		PreviewedAt:   time.Now(),
+	}, nil
+}
+
+func (f *fakeHandlerService) GetMergePreview(ctx context.Context, tenantID, id string) (*models.MergePreview, error) {
+	return &models.MergePreview{ID: id, TenantID: tenantID, SourceBranch: "a", TargetBranch: "b", RiskLevel: models.RiskLevelLow, PreviewedAt: time.Now()}, nil
+}
+
+func (f *fakeHandlerService) ListMergePreviews(ctx context.Context, tenantID string, limit int) ([]models.MergePreview, error) {
+	return []models.MergePreview{}, nil
+}
+
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
 
 func TestBRANCH_POLICY_Handler_RegisterRoutes(t *testing.T) {
@@ -1372,5 +1411,60 @@ func TestBRANCH_POLICY_Handler_GetAuditTrail_NoFilters(t *testing.T) {
 	newHandler().GetAuditTrail(c)
 	if w.Code >= 500 {
 		t.Fatalf("GetAuditTrail no filters: got %d", w.Code)
+	}
+}
+
+// --- P0-MB Phase 5 handler tests ---
+
+func TestBRANCH_POLICY_Handler_CheckPreDeployGate(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/pre-deploy-gate/check", models.DeployRequest{
+		Branch: "bp-1", TargetEnv: "prod", ImageTag: "release-ent-2026/v1.0.0",
+		ArtifactID: "art-1", ApprovalID: "cm-1", PipelineName: "ci-prod",
+	}, nil)
+	newHandler().CheckPreDeployGate(c)
+	if w.Code >= 500 {
+		t.Fatalf("CheckPreDeployGate: got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestBRANCH_POLICY_Handler_CheckPreDeployGate_InvalidBody(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/pre-deploy-gate/check", map[string]string{}, nil)
+	newHandler().CheckPreDeployGate(c)
+	if w.Code >= 500 {
+		t.Fatalf("expected <500 for invalid body, got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestBRANCH_POLICY_Handler_CreateMergePreview(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/merge-preview", models.MergePreviewRequest{
+		SourceBranch: "feat/x", TargetBranch: "main", SourceCommit: "abcdef1234567890",
+	}, nil)
+	newHandler().CreateMergePreview(c)
+	if w.Code >= 500 {
+		t.Fatalf("CreateMergePreview: got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestBRANCH_POLICY_Handler_CreateMergePreview_MissingFields(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/merge-preview", models.MergePreviewRequest{SourceBranch: "a"}, nil)
+	newHandler().CreateMergePreview(c)
+	if w.Code >= 500 {
+		t.Fatalf("expected <500 for missing targetBranch, got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestBRANCH_POLICY_Handler_GetMergePreview(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/merge-preview/mp-1", nil, map[string]string{"id": "mp-1"})
+	newHandler().GetMergePreview(c)
+	if w.Code >= 500 {
+		t.Fatalf("GetMergePreview: got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestBRANCH_POLICY_Handler_ListMergePreviews(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/merge-preview?limit=25", nil, nil)
+	newHandler().ListMergePreviews(c)
+	if w.Code >= 500 {
+		t.Fatalf("ListMergePreviews: got %d body=%s", w.Code, w.Body.String())
 	}
 }
