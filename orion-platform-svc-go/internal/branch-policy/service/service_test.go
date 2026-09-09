@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -15,6 +16,8 @@ type fakeRepo struct {
 	branchProfiles    map[string]*models.BranchProfile
 	artifacts         map[string]*models.BuildArtifact
 	namespaceBindings map[string]*models.NamespaceBinding
+	syncPolicies      map[string]*models.SyncPolicy
+	syncRunLogs       []models.SyncRunLog
 }
 
 func newFakeRepo() *fakeRepo {
@@ -22,6 +25,7 @@ func newFakeRepo() *fakeRepo {
 		branchProfiles:    make(map[string]*models.BranchProfile),
 		artifacts:         make(map[string]*models.BuildArtifact),
 		namespaceBindings: make(map[string]*models.NamespaceBinding),
+		syncPolicies:      make(map[string]*models.SyncPolicy),
 	}
 }
 
@@ -193,6 +197,95 @@ func (f *fakeRepo) ListNamespaceBindings(ctx context.Context, tenantID string, q
 func (f *fakeRepo) DeleteNamespaceBinding(ctx context.Context, tenantID, id string) error {
 	delete(f.namespaceBindings, id)
 	return nil
+}
+
+// --- P0-MB Phase 3 fakeRepo methods (sync_policies + sync_run_logs) ---
+
+func (f *fakeRepo) CreateSyncPolicy(ctx context.Context, p *models.SyncPolicy) error {
+	if p.ID == "" {
+		return errors.New("id required")
+	}
+	cp := *p
+	f.syncPolicies[p.ID] = &cp
+	return nil
+}
+
+func (f *fakeRepo) GetSyncPolicy(ctx context.Context, tenantID, id string) (*models.SyncPolicy, error) {
+	p, ok := f.syncPolicies[id]
+	if !ok {
+		return nil, nil
+	}
+	cp := *p
+	return &cp, nil
+}
+
+func (f *fakeRepo) ListSyncPolicies(ctx context.Context, tenantID string, q models.SyncPolicyQuery) ([]models.SyncPolicy, error) {
+	out := make([]models.SyncPolicy, 0, len(f.syncPolicies))
+	for _, p := range f.syncPolicies {
+		if p.TenantID != tenantID {
+			continue
+		}
+		if q.Enabled != nil && *q.Enabled != p.Enabled {
+			continue
+		}
+		if q.Frequency != nil && *q.Frequency != p.Frequency {
+			continue
+		}
+		if q.Strategy != nil && *q.Strategy != p.Strategy {
+			continue
+		}
+		if q.SourceBranch != nil && *q.SourceBranch != p.SourceBranch {
+			continue
+		}
+		if q.AutoResolve != nil && *q.AutoResolve != p.AutoResolve {
+			continue
+		}
+		out = append(out, *p)
+	}
+	return out, nil
+}
+
+func (f *fakeRepo) UpdateSyncPolicy(ctx context.Context, tenantID, id string, p *models.SyncPolicy) (*models.SyncPolicy, error) {
+	cp := *p
+	f.syncPolicies[id] = &cp
+	out := *p
+	return &out, nil
+}
+
+func (f *fakeRepo) DeleteSyncPolicy(ctx context.Context, tenantID, id string) error {
+	delete(f.syncPolicies, id)
+	return nil
+}
+
+func (f *fakeRepo) CreateSyncRunLog(ctx context.Context, l *models.SyncRunLog) error {
+	cp := *l
+	f.syncRunLogs = append(f.syncRunLogs, cp)
+	return nil
+}
+
+func (f *fakeRepo) UpdateSyncRunLog(ctx context.Context, tenantID, id string, l *models.SyncRunLog) (*models.SyncRunLog, error) {
+	cp := *l
+	return &cp, nil
+}
+
+func (f *fakeRepo) ListSyncRunLogs(ctx context.Context, tenantID string, q models.SyncRunLogQuery) ([]models.SyncRunLog, error) {
+	out := make([]models.SyncRunLog, 0, len(f.syncRunLogs))
+	for _, l := range f.syncRunLogs {
+		if l.TenantID != tenantID {
+			continue
+		}
+		if q.PolicyID != nil && *q.PolicyID != l.PolicyID {
+			continue
+		}
+		if q.Status != nil && *q.Status != l.Status {
+			continue
+		}
+		out = append(out, l)
+	}
+	if q.Limit > 0 && len(out) > q.Limit {
+		out = out[:q.Limit]
+	}
+	return out, nil
 }
 
 // TestBP_Create_Validation verifies branch-profile create rejects malformed input.
@@ -1146,3 +1239,551 @@ func TestGetNamespaceMatrix_Build(t *testing.T) {
 		t.Fatalf("dev cell should not exist (no binding)")
 	}
 }
+
+// ============================================================================
+// P0-MB Phase 3 — L4 SyncPolicy + SyncRunLog service tests
+// ============================================================================
+
+func TestSync_Create_Validation(t *testing.T) {
+	svc := NewService(newFakeRepo())
+	ctx := context.Background()
+	base := &models.CreateSyncPolicyRequest{
+		Name:           "daily-release",
+		SourceBranch:   "main",
+		TargetBranches: []string{"release/2026.10"},
+		Frequency:      models.SyncFrequencyDaily,
+		Strategy:       models.SyncStrategyRebase,
+		AutoResolve:    models.SyncResolveSkipConflict,
+	}
+	cases := []struct {
+		name string
+		mut  func(r *models.CreateSyncPolicyRequest)
+		want string
+	}{
+		{"empty-name", func(r *models.CreateSyncPolicyRequest) { r.Name = "" }, "name"},
+		{"bad-name-chars", func(r *models.CreateSyncPolicyRequest) { r.Name = "bad name!" }, "name"},
+		{"bad-source-branch", func(r *models.CreateSyncPolicyRequest) { r.SourceBranch = "has spaces!" }, "sourceBranch"},
+		{"empty-targets", func(r *models.CreateSyncPolicyRequest) { r.TargetBranches = nil }, "targetBranches must be non-empty"},
+		{"bad-target-branch", func(r *models.CreateSyncPolicyRequest) { r.TargetBranches = []string{"bad target!"} }, "targetBranch"},
+		{"bad-frequency", func(r *models.CreateSyncPolicyRequest) { r.Frequency = "hourly" }, "frequency"},
+		{"bad-strategy", func(r *models.CreateSyncPolicyRequest) { r.Strategy = "patch" }, "strategy"},
+		{"bad-auto-resolve", func(r *models.CreateSyncPolicyRequest) { r.AutoResolve = "auto-merge" }, "autoResolve"},
+		{"bad-webhook", func(r *models.CreateSyncPolicyRequest) { r.NotifyWebhook = "not-a-url" }, "notifyWebhook"},
+		{"bad-cron", func(r *models.CreateSyncPolicyRequest) { r.CronExpr = "1 2 3" }, "cronExpr"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := *base
+			c.mut(&req)
+			_, err := svc.CreateSyncPolicy(ctx, "t1", &req)
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", c.want)
+			}
+			if !strings.Contains(err.Error(), c.want) {
+				t.Fatalf("error %q does not contain %q", err.Error(), c.want)
+			}
+		})
+	}
+}
+
+func TestSync_Create_Success(t *testing.T) {
+	svc := NewService(newFakeRepo())
+	req := &models.CreateSyncPolicyRequest{
+		Name:           "daily-release",
+		SourceBranch:   "main",
+		TargetBranches: []string{"release/2026.10", "release/2026.11"},
+		Frequency:      models.SyncFrequencyDaily,
+		CronExpr:       "0 3 * * *",
+		Strategy:       models.SyncStrategyRebase,
+		AutoResolve:    models.SyncResolveManualRequired,
+		NotifyWebhook:  "https://hooks.slack.example/t/1",
+	}
+	p, err := svc.CreateSyncPolicy(context.Background(), "t1", req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if p.ID == "" || !strings.HasPrefix(p.ID, "sp-") {
+		t.Fatalf("expected sp- prefix id, got %q", p.ID)
+	}
+	if p.Enabled != true {
+		t.Fatalf("expected Enabled=true by default, got %v", p.Enabled)
+	}
+	if len(p.TargetBranches) != 2 {
+		t.Fatalf("expected 2 targets, got %d", len(p.TargetBranches))
+	}
+}
+
+func TestSync_Create_SourceEqualsTarget(t *testing.T) {
+	svc := NewService(newFakeRepo())
+	req := &models.CreateSyncPolicyRequest{
+		Name:           "self-sync",
+		SourceBranch:   "main",
+		TargetBranches: []string{"release/2026.10", "main"},
+		Frequency:      models.SyncFrequencyDaily,
+		Strategy:       models.SyncStrategyRebase,
+		AutoResolve:    models.SyncResolveNone,
+	}
+	_, err := svc.CreateSyncPolicy(context.Background(), "t1", req)
+	if err == nil {
+		t.Fatalf("expected error for sourceBranch == targetBranch, got nil")
+	}
+	if !strings.Contains(err.Error(), "cannot be its own target") {
+		t.Fatalf("error %q missing 'cannot be its own target'", err.Error())
+	}
+}
+
+func TestSync_Update_Validation(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+
+	seed := &models.SyncPolicy{
+		ID: "sp-1", TenantID: "t1", Name: "old", SourceBranch: "main",
+		TargetBranches: []string{"release/a"}, Frequency: models.SyncFrequencyDaily,
+		Strategy: models.SyncStrategyRebase, AutoResolve: models.SyncResolveNone, Enabled: true,
+	}
+	if err := repo.CreateSyncPolicy(ctx, seed); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	cases := []struct {
+		name string
+		req  *models.UpdateSyncPolicyRequest
+		want string
+	}{
+		{"bad-name", &models.UpdateSyncPolicyRequest{Name: strPtr("bad name!")}, "name"},
+		{"bad-frequency", &models.UpdateSyncPolicyRequest{Frequency: func() *models.SyncFrequency { f := models.SyncFrequency("hourly"); return &f }()}, "frequency"},
+		{"bad-strategy", &models.UpdateSyncPolicyRequest{Strategy: func() *models.SyncStrategy { s := models.SyncStrategy("patch"); return &s }()}, "strategy"},
+		{"bad-auto-resolve", &models.UpdateSyncPolicyRequest{AutoResolve: func() *models.SyncResolve { r := models.SyncResolve("auto-merge"); return &r }()}, "autoResolve"},
+		{"empty-targets", &models.UpdateSyncPolicyRequest{TargetBranches: &[]string{}}, "targetBranches must be non-empty"},
+		{"source-equals-target", &models.UpdateSyncPolicyRequest{TargetBranches: &[]string{"main"}}, "cannot be its own target"},
+		{"bad-webhook", &models.UpdateSyncPolicyRequest{NotifyWebhook: strPtr("not-a-url")}, "notifyWebhook"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := svc.UpdateSyncPolicy(ctx, "t1", "sp-1", c.req)
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", c.want)
+			}
+			if !strings.Contains(err.Error(), c.want) {
+				t.Fatalf("error %q does not contain %q", err.Error(), c.want)
+			}
+		})
+	}
+}
+
+func TestSync_Update_Applies(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+
+	repo.syncPolicies["sp-1"] = &models.SyncPolicy{
+		ID: "sp-1", TenantID: "t1", Name: "old", SourceBranch: "main",
+		TargetBranches: []string{"release/a"}, Frequency: models.SyncFrequencyDaily,
+		Strategy: models.SyncStrategyRebase, AutoResolve: models.SyncResolveNone, Enabled: true,
+	}
+	weekly := models.SyncFrequencyWeekly
+	disabled := false
+	p, err := svc.UpdateSyncPolicy(ctx, "t1", "sp-1", &models.UpdateSyncPolicyRequest{
+		Frequency: &weekly,
+		Enabled:   &disabled,
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if p.Frequency != models.SyncFrequencyWeekly {
+		t.Fatalf("expected weekly, got %q", p.Frequency)
+	}
+	if p.Enabled {
+		t.Fatalf("expected Enabled=false")
+	}
+	if p.Name != "old" {
+		t.Fatalf("untouched field changed: name=%q", p.Name)
+	}
+}
+
+func TestSync_Enable_Disable(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+
+	repo.syncPolicies["sp-1"] = &models.SyncPolicy{ID: "sp-1", TenantID: "t1", Enabled: false}
+
+	enabled, err := svc.EnableSyncPolicy(ctx, "t1", "sp-1")
+	if err != nil {
+		t.Fatalf("enable: %v", err)
+	}
+	if !enabled.Enabled {
+		t.Fatalf("expected Enabled=true after enable")
+	}
+
+	disabled, err := svc.DisableSyncPolicy(ctx, "t1", "sp-1")
+	if err != nil {
+		t.Fatalf("disable: %v", err)
+	}
+	if disabled.Enabled {
+		t.Fatalf("expected Enabled=false after disable")
+	}
+}
+
+func TestSync_Enable_Disable_NotFound(t *testing.T) {
+	svc := NewService(newFakeRepo())
+	_, err := svc.EnableSyncPolicy(context.Background(), "t1", "sp-none")
+	if err == nil {
+		t.Fatalf("expected error for missing policy")
+	}
+}
+
+func TestSync_ListSyncPolicies_Filters(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	enabled := true
+	disabled := false
+
+	repo.syncPolicies["sp-1"] = &models.SyncPolicy{ID: "sp-1", TenantID: "t1", Enabled: enabled, Frequency: models.SyncFrequencyDaily, Strategy: models.SyncStrategyRebase, AutoResolve: models.SyncResolveNone, SourceBranch: "main"}
+	repo.syncPolicies["sp-2"] = &models.SyncPolicy{ID: "sp-2", TenantID: "t1", Enabled: disabled, Frequency: models.SyncFrequencyWeekly, Strategy: models.SyncStrategyMerge, AutoResolve: models.SyncResolveSkipConflict, SourceBranch: "release/a"}
+	repo.syncPolicies["sp-3"] = &models.SyncPolicy{ID: "sp-3", TenantID: "t2", Enabled: enabled, Frequency: models.SyncFrequencyDaily}
+
+	out, err := svc.ListSyncPolicies(ctx, "t1", models.SyncPolicyQuery{Enabled: &enabled})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(out) != 1 {
+		t.Fatalf("expected 1 enabled t1 policy, got %d", len(out))
+	}
+	if out[0].ID != "sp-1" {
+		t.Fatalf("unexpected policy id %q", out[0].ID)
+	}
+}
+
+// stubExecutor is a fake syncExecutor that returns per-target results.
+type stubExecutor struct {
+	results map[string]models.SyncRunResult
+}
+
+func (s stubExecutor) Execute(_ context.Context, _ *models.SyncPolicy, targetBranch, _ string) models.SyncRunResult {
+	if r, ok := s.results[targetBranch]; ok {
+		return r
+	}
+	return models.SyncRunResult{TargetBranch: targetBranch, Applied: true, NewCommitSHA: "abc12345"}
+}
+
+func TestSync_RunNow_Success(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	repo.syncPolicies["sp-1"] = &models.SyncPolicy{
+		ID: "sp-1", TenantID: "t1", SourceBranch: "main",
+		TargetBranches: []string{"release/a", "release/b"},
+		Strategy: models.SyncStrategyRebase, AutoResolve: models.SyncResolveNone, Enabled: true,
+	}
+
+	log, err := svc.RunNow(ctx, "t1", "sp-1", "alice", "abcdef1234567890")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if log.Status != models.SyncStatusSuccess {
+		t.Fatalf("expected success, got %q", log.Status)
+	}
+	if log.TriggeredBy != models.SyncTriggerManual {
+		t.Fatalf("expected manual, got %q", log.TriggeredBy)
+	}
+	if log.SourceCommit != "abcdef1234567890" {
+		t.Fatalf("sourceCommit mismatch: %q", log.SourceCommit)
+	}
+	if len(repo.syncRunLogs) != 1 {
+		t.Fatalf("expected 1 run log, got %d", len(repo.syncRunLogs))
+	}
+	// Policy summary should be updated.
+	p, _ := repo.GetSyncPolicy(ctx, "t1", "sp-1")
+	if p == nil || p.LastRunAt == nil {
+		t.Fatalf("policy LastRunAt not set")
+	}
+	if p.LastRunStatus == nil || *p.LastRunStatus != models.SyncStatusSuccess {
+		t.Fatalf("policy LastRunStatus not set to success")
+	}
+}
+
+func TestSync_RunNow_HeadFallback(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	repo.syncPolicies["sp-1"] = &models.SyncPolicy{
+		ID: "sp-1", TenantID: "t1", TargetBranches: []string{"release/a"},
+		Strategy: models.SyncStrategyRebase, AutoResolve: models.SyncResolveNone, Enabled: true,
+	}
+	log, err := svc.RunNow(ctx, "t1", "sp-1", "alice", "")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if log.SourceCommit != "HEAD" {
+		t.Fatalf("expected HEAD fallback, got %q", log.SourceCommit)
+	}
+}
+
+func TestSync_RunNow_SchedulerTrigger(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	repo.syncPolicies["sp-1"] = &models.SyncPolicy{
+		ID: "sp-1", TenantID: "t1", TargetBranches: []string{"release/a"},
+		Strategy: models.SyncStrategyRebase, AutoResolve: models.SyncResolveNone, Enabled: true,
+	}
+	log, err := svc.RunNow(ctx, "t1", "sp-1", "scheduler", "")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if log.TriggeredBy != models.SyncTriggerScheduler {
+		t.Fatalf("expected scheduler trigger, got %q", log.TriggeredBy)
+	}
+}
+
+func TestSync_RunNow_BadSourceCommit(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	repo.syncPolicies["sp-1"] = &models.SyncPolicy{
+		ID: "sp-1", TenantID: "t1", TargetBranches: []string{"release/a"},
+		Strategy: models.SyncStrategyRebase, AutoResolve: models.SyncResolveNone, Enabled: true,
+	}
+	_, err := svc.RunNow(ctx, "t1", "sp-1", "alice", "zzz-not-hex")
+	if err == nil {
+		t.Fatalf("expected error for bad sourceCommit")
+	}
+	if !strings.Contains(err.Error(), "invalid") {
+		t.Fatalf("error %q missing 'invalid'", err.Error())
+	}
+}
+
+func TestSync_RunNow_MissingActor(t *testing.T) {
+	svc := NewService(newFakeRepo())
+	_, err := svc.RunNow(context.Background(), "t1", "sp-1", "", "")
+	if err == nil {
+		t.Fatalf("expected error for empty actor")
+	}
+}
+
+func TestSync_RunNow_NoTargets(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	repo.syncPolicies["sp-1"] = &models.SyncPolicy{ID: "sp-1", TenantID: "t1"}
+	_, err := svc.RunNow(ctx, "t1", "sp-1", "alice", "")
+	if err == nil {
+		t.Fatalf("expected error for empty targetBranches")
+	}
+	if !strings.Contains(err.Error(), "no target branches") {
+		t.Fatalf("error %q missing 'no target branches'", err.Error())
+	}
+}
+
+func TestSync_RunNow_ConflictManualRequired_FailClosed(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	repo.syncPolicies["sp-1"] = &models.SyncPolicy{
+		ID: "sp-1", TenantID: "t1", SourceBranch: "main",
+		TargetBranches: []string{"release/a", "release/b"},
+		Strategy: models.SyncStrategyRebase, AutoResolve: models.SyncResolveManualRequired, Enabled: true,
+	}
+	exec := stubExecutor{results: map[string]models.SyncRunResult{
+		"release/a": {TargetBranch: "release/a", ConflictFiles: []string{"file.go"}},
+		"release/b": {TargetBranch: "release/b", ConflictFiles: []string{"never-shown.go"}},
+	}}
+	log, err := svc.RunNowWithExecutor(ctx, "t1", "sp-1", "alice", "", exec)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if log.Status != models.SyncStatusConflict {
+		t.Fatalf("expected conflict, got %q", log.Status)
+	}
+	// Fail-closed: only release/a should appear (b is skipped).
+	if len(log.ConflictFiles) != 1 || log.ConflictFiles[0] != "release/a:file.go" {
+		t.Fatalf("expected 1 qualified conflict entry, got %v", log.ConflictFiles)
+	}
+}
+
+func TestSync_RunNow_ConflictSkipConflict_Continues(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	repo.syncPolicies["sp-1"] = &models.SyncPolicy{
+		ID: "sp-1", TenantID: "t1",
+		TargetBranches: []string{"release/a", "release/b", "release/c"},
+		Strategy: models.SyncStrategyRebase, AutoResolve: models.SyncResolveSkipConflict, Enabled: true,
+	}
+	exec := stubExecutor{results: map[string]models.SyncRunResult{
+		"release/a": {TargetBranch: "release/a", ConflictFiles: []string{"file.go"}},
+		"release/b": {TargetBranch: "release/b", Applied: true, NewCommitSHA: "abc12345"},
+		"release/c": {TargetBranch: "release/c", ConflictFiles: []string{"other.go"}},
+	}}
+	log, err := svc.RunNowWithExecutor(ctx, "t1", "sp-1", "alice", "", exec)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	// skip-conflict: still success, but conflicts recorded.
+	if log.Status != models.SyncStatusSuccess {
+		t.Fatalf("expected success (skip-conflict), got %q", log.Status)
+	}
+	if len(log.ConflictFiles) != 2 {
+		t.Fatalf("expected 2 conflicts recorded, got %d: %v", len(log.ConflictFiles), log.ConflictFiles)
+	}
+}
+
+func TestSync_RunNow_FirstErrorOnly(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	repo.syncPolicies["sp-1"] = &models.SyncPolicy{
+		ID: "sp-1", TenantID: "t1",
+		TargetBranches: []string{"release/a", "release/b"},
+		Strategy: models.SyncStrategyRebase, AutoResolve: models.SyncResolveNone, Enabled: true,
+	}
+	exec := stubExecutor{results: map[string]models.SyncRunResult{
+		"release/a": {TargetBranch: "release/a", Error: "network blip"},
+		"release/b": {TargetBranch: "release/b", Error: "later error"},
+	}}
+	log, err := svc.RunNowWithExecutor(ctx, "t1", "sp-1", "alice", "", exec)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if log.Status != models.SyncStatusFailed {
+		t.Fatalf("expected failed, got %q", log.Status)
+	}
+	if !strings.Contains(log.ErrorMsg, "release/a") {
+		t.Fatalf("expected first error (release/a), got %q", log.ErrorMsg)
+	}
+}
+
+func TestSync_GetEnabledPolicies_CronMatch(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	enabled := true
+
+	repo.syncPolicies["sp-1"] = &models.SyncPolicy{ID: "sp-1", TenantID: "t1", Enabled: enabled, CronExpr: "0 3 * * *"}
+	repo.syncPolicies["sp-2"] = &models.SyncPolicy{ID: "sp-2", TenantID: "t1", Enabled: enabled, CronExpr: "0 4 * * *"}
+	repo.syncPolicies["sp-3"] = &models.SyncPolicy{ID: "sp-3", TenantID: "t1", Enabled: enabled} // no cron -> always match
+	repo.syncPolicies["sp-4"] = &models.SyncPolicy{ID: "sp-4", TenantID: "t1", Enabled: false, CronExpr: "0 3 * * *"}
+
+	match := func(expr string) bool { return expr == "0 3 * * *" }
+	out, err := svc.GetEnabledPolicies(ctx, "t1", match)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	ids := map[string]bool{}
+	for _, p := range out {
+		ids[p.ID] = true
+	}
+	if !ids["sp-1"] || !ids["sp-3"] {
+		t.Fatalf("expected sp-1 and sp-3, got %v", ids)
+	}
+	if ids["sp-2"] || ids["sp-4"] {
+		t.Fatalf("unexpected: %v", ids)
+	}
+}
+
+func TestSync_GetEnabledPolicies_NilCronMatch(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	enabled := true
+
+	repo.syncPolicies["sp-1"] = &models.SyncPolicy{ID: "sp-1", TenantID: "t1", Enabled: enabled}
+	repo.syncPolicies["sp-2"] = &models.SyncPolicy{ID: "sp-2", TenantID: "t1", Enabled: enabled}
+	repo.syncPolicies["sp-3"] = &models.SyncPolicy{ID: "sp-3", TenantID: "t1", Enabled: false}
+
+	out, err := svc.GetEnabledPolicies(ctx, "t1", nil)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(out) != 2 {
+		t.Fatalf("expected 2 enabled policies, got %d", len(out))
+	}
+}
+
+func TestSync_ListRunLogs_Limit(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	for i := 0; i < 10; i++ {
+		repo.syncRunLogs = append(repo.syncRunLogs, models.SyncRunLog{
+			ID: fmt.Sprintf("sl-%d", i), TenantID: "t1", PolicyID: "sp-1", Status: models.SyncStatusSuccess,
+		})
+	}
+	out, err := svc.ListSyncRunLogs(ctx, "t1", models.SyncRunLogQuery{Limit: 5})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(out) != 5 {
+		t.Fatalf("expected 5, got %d", len(out))
+	}
+}
+
+func TestSync_ListRunLogs_DefaultAndCap(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	for i := 0; i < 200; i++ {
+		repo.syncRunLogs = append(repo.syncRunLogs, models.SyncRunLog{ID: fmt.Sprintf("sl-%d", i), TenantID: "t1", Status: models.SyncStatusSuccess})
+	}
+	// Default limit = 100.
+	out, err := svc.ListSyncRunLogs(ctx, "t1", models.SyncRunLogQuery{})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(out) != 100 {
+		t.Fatalf("expected default 100, got %d", len(out))
+	}
+	// Limit > 1000 capped to 1000.
+	out, err = svc.ListSyncRunLogs(ctx, "t1", models.SyncRunLogQuery{Limit: 5000})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(out) != 200 {
+		t.Fatalf("expected 200 (all, since < cap), got %d", len(out))
+	}
+}
+
+func TestSync_ListRunLogs_FilterByPolicy(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	repo.syncRunLogs = append(repo.syncRunLogs,
+		models.SyncRunLog{ID: "sl-1", TenantID: "t1", PolicyID: "sp-1", Status: models.SyncStatusSuccess},
+		models.SyncRunLog{ID: "sl-2", TenantID: "t1", PolicyID: "sp-2", Status: models.SyncStatusConflict},
+	)
+	pi := "sp-1"
+	out, err := svc.ListSyncRunLogs(ctx, "t1", models.SyncRunLogQuery{PolicyID: &pi})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(out) != 1 || out[0].PolicyID != "sp-1" {
+		t.Fatalf("expected 1 sp-1 log, got %v", out)
+	}
+}
+
+func TestSync_Delete(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	repo.syncPolicies["sp-1"] = &models.SyncPolicy{ID: "sp-1", TenantID: "t1"}
+	if err := svc.DeleteSyncPolicy(ctx, "t1", "sp-1"); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if _, ok := repo.syncPolicies["sp-1"]; ok {
+		t.Fatalf("sp-1 should be deleted")
+	}
+}
+
+func TestSync_Update_NotFound(t *testing.T) {
+	svc := NewService(newFakeRepo())
+	_, err := svc.UpdateSyncPolicy(context.Background(), "t1", "sp-none", &models.UpdateSyncPolicyRequest{})
+	if err == nil {
+		t.Fatalf("expected error for missing policy")
+	}
+}
+
+// strPtr is a tiny helper for pointer literals in tests.
+func strPtr(s string) *string { return &s }

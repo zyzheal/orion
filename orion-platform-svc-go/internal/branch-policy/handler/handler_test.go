@@ -360,6 +360,66 @@ func (f *fakeHandlerService) VerifyImageTagMatch(ctx context.Context, tenantID, 
 	return true, nil
 }
 
+// P0-MB Phase 3 stubs — L4 SyncPolicy + SyncRunLog.
+func (f *fakeHandlerService) ListSyncPolicies(ctx context.Context, tenantID string, q models.SyncPolicyQuery) ([]models.SyncPolicy, error) {
+	return []models.SyncPolicy{}, nil
+}
+
+func (f *fakeHandlerService) CreateSyncPolicy(ctx context.Context, tenantID string, req *models.CreateSyncPolicyRequest) (*models.SyncPolicy, error) {
+	enabled := true
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+	return &models.SyncPolicy{
+		ID:             "sp-test",
+		TenantID:       tenantID,
+		Name:           req.Name,
+		SourceBranch:   req.SourceBranch,
+		TargetBranches: req.TargetBranches,
+		Frequency:      req.Frequency,
+		CronExpr:       req.CronExpr,
+		Strategy:       req.Strategy,
+		AutoResolve:    req.AutoResolve,
+		NotifyOnConflict: req.NotifyOnConflict,
+		NotifyWebhook:  req.NotifyWebhook,
+		Enabled:        enabled,
+	}, nil
+}
+
+func (f *fakeHandlerService) GetSyncPolicy(ctx context.Context, tenantID, id string) (*models.SyncPolicy, error) {
+	return &models.SyncPolicy{ID: id, TenantID: tenantID}, nil
+}
+
+func (f *fakeHandlerService) UpdateSyncPolicy(ctx context.Context, tenantID, id string, req *models.UpdateSyncPolicyRequest) (*models.SyncPolicy, error) {
+	return &models.SyncPolicy{ID: id, TenantID: tenantID}, nil
+}
+
+func (f *fakeHandlerService) DeleteSyncPolicy(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeHandlerService) EnableSyncPolicy(ctx context.Context, tenantID, id string) (*models.SyncPolicy, error) {
+	p := &models.SyncPolicy{ID: id, TenantID: tenantID, Enabled: true}
+	return p, nil
+}
+
+func (f *fakeHandlerService) DisableSyncPolicy(ctx context.Context, tenantID, id string) (*models.SyncPolicy, error) {
+	p := &models.SyncPolicy{ID: id, TenantID: tenantID, Enabled: false}
+	return p, nil
+}
+
+func (f *fakeHandlerService) RunNow(ctx context.Context, tenantID, id, actor, sourceCommit string) (*models.SyncRunLog, error) {
+	return &models.SyncRunLog{ID: "sl-test", PolicyID: id, TenantID: tenantID, Status: models.SyncStatusSuccess}, nil
+}
+
+func (f *fakeHandlerService) ListSyncRunLogs(ctx context.Context, tenantID string, q models.SyncRunLogQuery) ([]models.SyncRunLog, error) {
+	return []models.SyncRunLog{}, nil
+}
+
+func (f *fakeHandlerService) GetEnabledPolicies(ctx context.Context, tenantID string, cronMatch func(string) bool) ([]models.SyncPolicy, error) {
+	return []models.SyncPolicy{}, nil
+}
+
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
 
 func TestBRANCH_POLICY_Handler_RegisterRoutes(t *testing.T) {
@@ -1031,5 +1091,115 @@ func TestBRANCH_POLICY_Handler_ValidateNamespaceBinding_MissingEnv(t *testing.T)
 	newHandler().ValidateNamespaceBinding(c)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 for missing envName, got %d", w.Code)
+	}
+}
+
+// ============================================================================
+// P0-MB Phase 3 — L4 SyncPolicy + SyncRunLog handler tests
+// ============================================================================
+
+func TestBRANCH_POLICY_Handler_ListSyncPolicies(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/sync-policies?enabled=true&frequency=daily", nil, nil)
+	newHandler().ListSyncPolicies(c)
+	if w.Code >= 500 {
+		t.Fatalf("ListSyncPolicies: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_CreateSyncPolicy(t *testing.T) {
+	body := map[string]any{
+		"name":           "daily-release",
+		"sourceBranch":   "main",
+		"targetBranches": []string{"release/2026.10"},
+		"frequency":      "daily",
+		"strategy":       "rebase",
+		"autoResolve":    "skip-conflict",
+	}
+	c, w := makeCtx(http.MethodPost, "/sync-policies", body, nil)
+	newHandler().CreateSyncPolicy(c)
+	if w.Code >= 500 {
+		t.Fatalf("CreateSyncPolicy: got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestBRANCH_POLICY_Handler_CreateSyncPolicy_BadBody(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/sync-policies", map[string]any{"name": "x"}, nil)
+	newHandler().CreateSyncPolicy(c)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for missing sourceBranch, got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_GetSyncPolicy(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/sync-policies/sp-1", nil, map[string]string{"id": "sp-1"})
+	newHandler().GetSyncPolicy(c)
+	if w.Code >= 500 {
+		t.Fatalf("GetSyncPolicy: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_UpdateSyncPolicy(t *testing.T) {
+	body := map[string]any{"frequency": "weekly"}
+	c, w := makeCtx(http.MethodPut, "/sync-policies/sp-1", body, map[string]string{"id": "sp-1"})
+	newHandler().UpdateSyncPolicy(c)
+	if w.Code >= 500 {
+		t.Fatalf("UpdateSyncPolicy: got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestBRANCH_POLICY_Handler_DeleteSyncPolicy(t *testing.T) {
+	c, w := makeCtx(http.MethodDelete, "/sync-policies/sp-1", nil, map[string]string{"id": "sp-1"})
+	newHandler().DeleteSyncPolicy(c)
+	if w.Code >= 500 {
+		t.Fatalf("DeleteSyncPolicy: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_EnableSyncPolicy(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/sync-policies/sp-1/enable", nil, map[string]string{"id": "sp-1"})
+	newHandler().EnableSyncPolicy(c)
+	if w.Code >= 500 {
+		t.Fatalf("EnableSyncPolicy: got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestBRANCH_POLICY_Handler_DisableSyncPolicy(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/sync-policies/sp-1/disable", nil, map[string]string{"id": "sp-1"})
+	newHandler().DisableSyncPolicy(c)
+	if w.Code >= 500 {
+		t.Fatalf("DisableSyncPolicy: got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestBRANCH_POLICY_Handler_RunSyncNow(t *testing.T) {
+	body := map[string]any{"sourceCommit": "abcdef1234567890"}
+	c, w := makeCtx(http.MethodPost, "/sync-policies/sp-1/run-now", body, map[string]string{"id": "sp-1"})
+	newHandler().RunSyncNow(c)
+	if w.Code >= 500 {
+		t.Fatalf("RunSyncNow: got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestBRANCH_POLICY_Handler_RunSyncNow_EmptyBody(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/sync-policies/sp-1/run-now", nil, map[string]string{"id": "sp-1"})
+	newHandler().RunSyncNow(c)
+	if w.Code >= 500 {
+		t.Fatalf("RunSyncNow empty body: got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestBRANCH_POLICY_Handler_ListSyncRunLogs_ByPolicy(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/sync-policies/sp-1/run-logs?status=success", nil, map[string]string{"id": "sp-1"})
+	newHandler().ListSyncRunLogs(c)
+	if w.Code >= 500 {
+		t.Fatalf("ListSyncRunLogs by policy: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_ListSyncRunLogs_All(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/sync-policies/run-logs?limit=25", nil, nil)
+	newHandler().ListSyncRunLogs(c)
+	if w.Code >= 500 {
+		t.Fatalf("ListSyncRunLogs all: got %d", w.Code)
 	}
 }

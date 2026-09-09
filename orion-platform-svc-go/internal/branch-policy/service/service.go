@@ -42,6 +42,16 @@ type RepositoryInterface interface {
 	GetNamespaceBindingByBranchEnv(ctx context.Context, tenantID, branchProfileID, envName string) (*models.NamespaceBinding, error)
 	ListNamespaceBindings(ctx context.Context, tenantID string, q models.NamespaceBindingQuery) ([]models.NamespaceBinding, error)
 	DeleteNamespaceBinding(ctx context.Context, tenantID, id string) error
+
+	// P0-MB Phase 3 — SyncPolicy (L4) + SyncRunLog
+	CreateSyncPolicy(ctx context.Context, p *models.SyncPolicy) error
+	GetSyncPolicy(ctx context.Context, tenantID, id string) (*models.SyncPolicy, error)
+	ListSyncPolicies(ctx context.Context, tenantID string, q models.SyncPolicyQuery) ([]models.SyncPolicy, error)
+	UpdateSyncPolicy(ctx context.Context, tenantID, id string, p *models.SyncPolicy) (*models.SyncPolicy, error)
+	DeleteSyncPolicy(ctx context.Context, tenantID, id string) error
+	CreateSyncRunLog(ctx context.Context, l *models.SyncRunLog) error
+	UpdateSyncRunLog(ctx context.Context, tenantID, id string, l *models.SyncRunLog) (*models.SyncRunLog, error)
+	ListSyncRunLogs(ctx context.Context, tenantID string, q models.SyncRunLogQuery) ([]models.SyncRunLog, error)
 }
 
 // ErrBranchProfileNotFound wraps repository-level not-found into a
@@ -1207,4 +1217,436 @@ func (s *Service) GetNamespaceMatrix(ctx context.Context, tenantID string) (*mod
 		Envs:        envs,
 		GeneratedAt: time.Now(),
 	}, nil
+}
+
+// ============================================================================
+// P0-MB Phase 3 — L4 SyncPolicy (branch synchronization)
+// ============================================================================
+
+// Phase 3 rules constants.
+var (
+	syncPolicyNameRe = regexp.MustCompile(`^[A-Za-z0-9_./-]{1,128}$`)
+	syncBranchNameRe = regexp.MustCompile(`^[A-Za-z0-9_./-]{1,255}$`)
+	syncCronRe       = regexp.MustCompile(`^(\S+\s+){4}\S+$`) // loose 5-field cron sanity check
+	urlRe            = regexp.MustCompile(`^https?://[^\s]+$`)
+	syncCommitSHARe  = regexp.MustCompile(`^[0-9a-fA-F]{7,40}$`)
+)
+
+// newSyncPolicyID returns a unique id prefixed with "sp".
+func newSyncPolicyID() string {
+	now := time.Now()
+	h := fnv.New64a()
+	h.Write([]byte(fmt.Sprintf("sp-%d-%d", now.UnixNano(), now.UnixMicro())))
+	return fmt.Sprintf("sp-%x", h.Sum(nil)[:8])
+}
+
+// newSyncRunLogID returns a unique id prefixed with "sl".
+func newSyncRunLogID() string {
+	now := time.Now()
+	h := fnv.New64a()
+	h.Write([]byte(fmt.Sprintf("sl-%d-%d", now.UnixNano(), now.UnixMicro())))
+	return fmt.Sprintf("sl-%x", h.Sum(nil)[:8])
+}
+
+// ListSyncPolicies returns all sync policies for the tenant, with optional
+// filters on Enabled, Frequency, Strategy, SourceBranch, AutoResolve.
+func (s *Service) ListSyncPolicies(ctx context.Context, tenantID string, q models.SyncPolicyQuery) ([]models.SyncPolicy, error) {
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+	return s.repo.ListSyncPolicies(ctx, tenantID, q)
+}
+
+// GetSyncPolicy fetches a sync policy by id (tenant-scoped).
+func (s *Service) GetSyncPolicy(ctx context.Context, tenantID, id string) (*models.SyncPolicy, error) {
+	if tenantID == "" || id == "" {
+		return nil, fmt.Errorf("tenant_id and id are required")
+	}
+	return s.repo.GetSyncPolicy(ctx, tenantID, id)
+}
+
+// CreateSyncPolicy persists a new SyncPolicy. The service layer validates
+// naming rules, frequency/strategy/resolve enums, and auto-fills the
+// cron expression if empty.
+//
+// Rules:
+//   - Name matches syncPolicyNameRe (1-128 chars, alphanumeric + / . _ -).
+//   - SourceBranch matches syncBranchNameRe.
+//   - TargetBranches non-empty, each matches syncBranchNameRe,
+//     and SourceBranch != any TargetBranch.
+//   - Frequency, Strategy, AutoResolve are valid enums.
+//   - NotifyWebhook (if provided) matches ^https?://...$.
+//   - CronExpr (if provided) passes a loose 5-field sanity check.
+func (s *Service) CreateSyncPolicy(ctx context.Context, tenantID string, req *models.CreateSyncPolicyRequest) (*models.SyncPolicy, error) {
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+	if req == nil {
+		return nil, fmt.Errorf("request is nil")
+	}
+	if !syncPolicyNameRe.MatchString(req.Name) {
+		return nil, fmt.Errorf("name %q invalid: must match %s", req.Name, syncPolicyNameRe)
+	}
+	if !syncBranchNameRe.MatchString(req.SourceBranch) {
+		return nil, fmt.Errorf("sourceBranch %q invalid: must match %s", req.SourceBranch, syncBranchNameRe)
+	}
+	if len(req.TargetBranches) == 0 {
+		return nil, fmt.Errorf("targetBranches must be non-empty")
+	}
+	for _, tb := range req.TargetBranches {
+		if !syncBranchNameRe.MatchString(tb) {
+			return nil, fmt.Errorf("targetBranch %q invalid: must match %s", tb, syncBranchNameRe)
+		}
+		if tb == req.SourceBranch {
+			return nil, fmt.Errorf("sourceBranch %q cannot be its own target", req.SourceBranch)
+		}
+	}
+	if !req.Frequency.IsValid() {
+		return nil, fmt.Errorf("frequency %q invalid: must be one of daily|weekly|monthly", req.Frequency)
+	}
+	if !req.Strategy.IsValid() {
+		return nil, fmt.Errorf("strategy %q invalid: must be one of rebase|cherry-pick|merge", req.Strategy)
+	}
+	if !req.AutoResolve.IsValid() {
+		return nil, fmt.Errorf("autoResolve %q invalid: must be one of none|skip-conflict|manual-required", req.AutoResolve)
+	}
+	if req.NotifyWebhook != "" && !urlRe.MatchString(req.NotifyWebhook) {
+		return nil, fmt.Errorf("notifyWebhook %q invalid: must be an http(s) URL", req.NotifyWebhook)
+	}
+	if req.CronExpr != "" && !syncCronRe.MatchString(req.CronExpr) {
+		return nil, fmt.Errorf("cronExpr %q invalid: expected 5 whitespace-separated fields", req.CronExpr)
+	}
+
+	enabled := true
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+	now := time.Now()
+	p := &models.SyncPolicy{
+		ID:               newSyncPolicyID(),
+		TenantID:         tenantID,
+		Name:             req.Name,
+		SourceBranch:     req.SourceBranch,
+		TargetBranches:   normalizeSlice(req.TargetBranches),
+		Frequency:        req.Frequency,
+		CronExpr:         req.CronExpr,
+		Strategy:         req.Strategy,
+		AutoResolve:      req.AutoResolve,
+		NotifyOnConflict: normalizeSlice(req.NotifyOnConflict),
+		NotifyWebhook:    req.NotifyWebhook,
+		Enabled:          enabled,
+		CreatedAt:        now,
+		UpdatedAt:        now,
+	}
+	if err := s.repo.CreateSyncPolicy(ctx, p); err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+// UpdateSyncPolicy applies non-nil fields of req to the policy. Empty
+// TargetBranches / NotifyOnConflict lists are rejected as ambiguous (use
+// a single-element list or clear via nil semantics).
+func (s *Service) UpdateSyncPolicy(ctx context.Context, tenantID, id string, req *models.UpdateSyncPolicyRequest) (*models.SyncPolicy, error) {
+	if tenantID == "" || id == "" {
+		return nil, fmt.Errorf("tenant_id and id are required")
+	}
+	if req == nil {
+		return nil, fmt.Errorf("request is nil")
+	}
+	p, err := s.repo.GetSyncPolicy(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if p == nil {
+		return nil, fmt.Errorf("sync policy %q not found", id)
+	}
+
+	if req.Name != nil {
+		if !syncPolicyNameRe.MatchString(*req.Name) {
+			return nil, fmt.Errorf("name %q invalid", *req.Name)
+		}
+		p.Name = *req.Name
+	}
+	if req.SourceBranch != nil {
+		if !syncBranchNameRe.MatchString(*req.SourceBranch) {
+			return nil, fmt.Errorf("sourceBranch %q invalid", *req.SourceBranch)
+		}
+		p.SourceBranch = *req.SourceBranch
+	}
+	if req.TargetBranches != nil {
+		if len(*req.TargetBranches) == 0 {
+			return nil, fmt.Errorf("targetBranches must be non-empty")
+		}
+		for _, tb := range *req.TargetBranches {
+			if !syncBranchNameRe.MatchString(tb) {
+				return nil, fmt.Errorf("targetBranch %q invalid", tb)
+			}
+			if tb == p.SourceBranch {
+				return nil, fmt.Errorf("sourceBranch %q cannot be its own target", p.SourceBranch)
+			}
+		}
+		p.TargetBranches = normalizeSlice(*req.TargetBranches)
+	}
+	if req.Frequency != nil && !req.Frequency.IsValid() {
+		return nil, fmt.Errorf("frequency %q invalid", *req.Frequency)
+	} else if req.Frequency != nil {
+		p.Frequency = *req.Frequency
+	}
+	if req.CronExpr != nil {
+		if *req.CronExpr != "" && !syncCronRe.MatchString(*req.CronExpr) {
+			return nil, fmt.Errorf("cronExpr %q invalid", *req.CronExpr)
+		}
+		p.CronExpr = *req.CronExpr
+	}
+	if req.Strategy != nil && !req.Strategy.IsValid() {
+		return nil, fmt.Errorf("strategy %q invalid", *req.Strategy)
+	} else if req.Strategy != nil {
+		p.Strategy = *req.Strategy
+	}
+	if req.AutoResolve != nil && !req.AutoResolve.IsValid() {
+		return nil, fmt.Errorf("autoResolve %q invalid", *req.AutoResolve)
+	} else if req.AutoResolve != nil {
+		p.AutoResolve = *req.AutoResolve
+	}
+	if req.NotifyOnConflict != nil {
+		p.NotifyOnConflict = normalizeSlice(*req.NotifyOnConflict)
+	}
+	if req.NotifyWebhook != nil {
+		if *req.NotifyWebhook != "" && !urlRe.MatchString(*req.NotifyWebhook) {
+			return nil, fmt.Errorf("notifyWebhook %q invalid", *req.NotifyWebhook)
+		}
+		p.NotifyWebhook = *req.NotifyWebhook
+	}
+	if req.Enabled != nil {
+		p.Enabled = *req.Enabled
+	}
+	p.UpdatedAt = time.Now()
+	return s.repo.UpdateSyncPolicy(ctx, tenantID, id, p)
+}
+
+// DeleteSyncPolicy removes a sync policy. Tenant-scoped.
+func (s *Service) DeleteSyncPolicy(ctx context.Context, tenantID, id string) error {
+	if tenantID == "" || id == "" {
+		return fmt.Errorf("tenant_id and id are required")
+	}
+	return s.repo.DeleteSyncPolicy(ctx, tenantID, id)
+}
+
+// EnableSyncPolicy toggles Enabled=true.
+func (s *Service) EnableSyncPolicy(ctx context.Context, tenantID, id string) (*models.SyncPolicy, error) {
+	if tenantID == "" || id == "" {
+		return nil, fmt.Errorf("tenant_id and id are required")
+	}
+	p, err := s.repo.GetSyncPolicy(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if p == nil {
+		return nil, fmt.Errorf("sync policy %q not found", id)
+	}
+	p.Enabled = true
+	p.UpdatedAt = time.Now()
+	return s.repo.UpdateSyncPolicy(ctx, tenantID, id, p)
+}
+
+// DisableSyncPolicy toggles Enabled=false.
+func (s *Service) DisableSyncPolicy(ctx context.Context, tenantID, id string) (*models.SyncPolicy, error) {
+	if tenantID == "" || id == "" {
+		return nil, fmt.Errorf("tenant_id and id are required")
+	}
+	p, err := s.repo.GetSyncPolicy(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if p == nil {
+		return nil, fmt.Errorf("sync policy %q not found", id)
+	}
+	p.Enabled = false
+	p.UpdatedAt = time.Now()
+	return s.repo.UpdateSyncPolicy(ctx, tenantID, id, p)
+}
+
+// ListSyncRunLogs returns the sync run logs for the tenant, filtered by
+// policyID, status, time range, and capped at limit (default 100).
+func (s *Service) ListSyncRunLogs(ctx context.Context, tenantID string, q models.SyncRunLogQuery) ([]models.SyncRunLog, error) {
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+	if q.Limit <= 0 {
+		q.Limit = 100
+	}
+	if q.Limit > 1000 {
+		q.Limit = 1000
+	}
+	return s.repo.ListSyncRunLogs(ctx, tenantID, q)
+}
+
+// GetEnabledPolicies returns enabled policies whose CronExpr (if present)
+// matches cronMatch. Used by wireSyncScheduler to determine which policies
+// are due to run in the current tick. Empty CronExpr always matches
+// (relies on the frequency-based interval check done by the scheduler).
+func (s *Service) GetEnabledPolicies(ctx context.Context, tenantID string, cronMatch func(string) bool) ([]models.SyncPolicy, error) {
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+	enabled := true
+	all, err := s.repo.ListSyncPolicies(ctx, tenantID, models.SyncPolicyQuery{Enabled: &enabled})
+	if err != nil {
+		return nil, err
+	}
+	if cronMatch == nil {
+		return all, nil
+	}
+	out := make([]models.SyncPolicy, 0, len(all))
+	for _, p := range all {
+		if p.CronExpr == "" || cronMatch(p.CronExpr) {
+			out = append(out, p)
+		}
+	}
+	return out, nil
+}
+
+// syncExecutor is a hook for the RunNow execution logic. The default
+// implementation is deterministic (always success) — the real executor will
+// shell out to git rebase/cherry-pick/merge and populate ConflictFiles.
+//
+// The Executor interface lets service tests inject a stub that returns
+// pre-configured results without touching the real git integration.
+type syncExecutor interface {
+	Execute(ctx context.Context, p *models.SyncPolicy, targetBranch, sourceCommit string) models.SyncRunResult
+}
+
+// defaultSyncExecutor returns a deterministic success result. It exists
+// so that the RunNow path is exercised end-to-end in tests without
+// touching a real git repo.
+type defaultSyncExecutor struct{}
+
+func (defaultSyncExecutor) Execute(_ context.Context, p *models.SyncPolicy, targetBranch, sourceCommit string) models.SyncRunResult {
+	return models.SyncRunResult{
+		TargetBranch: targetBranch,
+		Applied:      true,
+		NewCommitSHA: strings.ToLower(strings.TrimSpace(sourceCommit)),
+	}
+}
+
+// RunNow executes a single sync run for policy id and returns the resulting
+// SyncRunLog. When AutoResolve == SyncResolveManualRequired and any target
+// branch hits a conflict, the run is marked status=conflict (fail-closed)
+// and no further target branches are attempted.
+//
+// Rules:
+//   - sourceCommit must be a valid SHA prefix (7-40 hex chars) — the
+//     scheduler passes this explicitly. Empty sourceCommit (manual trigger
+//     with no commit hint) falls back to a sentinel "HEAD".
+//   - RunLog is written on start and updated on finish with DurationMs.
+//   - Success with 0 targets applied is still status=success.
+//   - Any target with ConflictFiles > 0 → status=conflict (when
+//     AutoResolve == SyncResolveManualRequired) or continue (skip-conflict).
+func (s *Service) RunNow(ctx context.Context, tenantID, id string, actor string, sourceCommit string) (*models.SyncRunLog, error) {
+	return s.RunNowWithExecutor(ctx, tenantID, id, actor, sourceCommit, defaultSyncExecutor{})
+}
+
+// RunNowWithExecutor is the internal implementation that accepts an
+// injectable executor. Exported so tests can inject stubs.
+func (s *Service) RunNowWithExecutor(ctx context.Context, tenantID, id, actor, sourceCommit string, exec syncExecutor) (*models.SyncRunLog, error) {
+	if tenantID == "" || id == "" {
+		return nil, fmt.Errorf("tenant_id and id are required")
+	}
+	if actor == "" {
+		return nil, fmt.Errorf("actor is required")
+	}
+	if sourceCommit == "" {
+		sourceCommit = "HEAD"
+	} else if !syncCommitSHARe.MatchString(sourceCommit) {
+		return nil, fmt.Errorf("sourceCommit %q invalid: expected 7-40 hex chars", sourceCommit)
+	}
+
+	p, err := s.repo.GetSyncPolicy(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if p == nil {
+		return nil, fmt.Errorf("sync policy %q not found", id)
+	}
+	if len(p.TargetBranches) == 0 {
+		return nil, fmt.Errorf("sync policy %q has no target branches", id)
+	}
+
+	triggeredAt := time.Now()
+	var triggerBy models.SyncTriggerBy
+	switch actor {
+	case "scheduler":
+		triggerBy = models.SyncTriggerScheduler
+	default:
+		triggerBy = models.SyncTriggerManual
+	}
+	log := &models.SyncRunLog{
+		ID:             newSyncRunLogID(),
+		TenantID:       tenantID,
+		PolicyID:       id,
+		TriggeredAt:    triggeredAt,
+		TriggeredBy:    triggerBy,
+		SourceCommit:   sourceCommit,
+		TargetBranches: append([]string(nil), p.TargetBranches...),
+	}
+
+	allConflicts := make([]string, 0)
+	var firstErr string
+	appliedCount := 0
+	for _, tb := range p.TargetBranches {
+		res := exec.Execute(ctx, p, tb, sourceCommit)
+		if len(res.ConflictFiles) > 0 {
+			// Merge conflict file paths qualified with the target branch
+			// so the caller can tell which branch failed.
+			for _, f := range res.ConflictFiles {
+				allConflicts = append(allConflicts, tb+":"+f)
+			}
+		} else if res.Error != "" && firstErr == "" {
+			firstErr = tb + ": " + res.Error
+		} else if res.Applied {
+			appliedCount++
+		}
+		if p.AutoResolve == models.SyncResolveManualRequired && len(res.ConflictFiles) > 0 {
+			// Fail-closed: stop immediately, don't try the next target.
+			break
+		}
+	}
+
+	elapsed := time.Since(triggeredAt).Milliseconds()
+	if len(allConflicts) > 0 && p.AutoResolve == models.SyncResolveManualRequired {
+		log.Status = models.SyncStatusConflict
+		log.ConflictFiles = allConflicts
+	} else if firstErr != "" && len(allConflicts) == 0 {
+		log.Status = models.SyncStatusFailed
+		log.ErrorMsg = firstErr
+	} else if len(allConflicts) > 0 {
+		// skip-conflict: keep the conflicts visible but mark success.
+		log.Status = models.SyncStatusSuccess
+		log.ConflictFiles = allConflicts
+	} else {
+		log.Status = models.SyncStatusSuccess
+	}
+	log.DurationMs = elapsed
+
+	if err := s.repo.CreateSyncRunLog(ctx, log); err != nil {
+		return nil, err
+	}
+
+	// Update the policy's last-run summary.
+	now := time.Now()
+	status := log.Status
+	conflicts := log.ConflictFiles
+	p.LastRunAt = &now
+	p.LastRunStatus = &status
+	p.LastRunConflictFiles = conflicts
+	p.UpdatedAt = now
+	if _, err := s.repo.UpdateSyncPolicy(ctx, tenantID, id, p); err != nil {
+		// Log-write succeeded but policy summary update failed; return the
+		// run log anyway so the caller can inspect the outcome.
+		return log, nil
+	}
+
+	_ = appliedCount // reserved for future metrics.
+	return log, nil
 }

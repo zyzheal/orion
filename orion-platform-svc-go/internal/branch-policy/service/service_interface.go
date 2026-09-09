@@ -21,14 +21,18 @@ type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error)
 	CreateBranchProfile(ctx context.Context, tenantID string, req *models.CreateBranchProfileRequest) (*models.BranchProfile, error)
 	CreateNamespaceBinding(ctx context.Context, tenantID string, req *models.CreateNamespaceRequest) (*models.NamespaceBinding, error)
+	CreateSyncPolicy(ctx context.Context, tenantID string, req *models.CreateSyncPolicyRequest) (*models.SyncPolicy, error)
 	Delete(ctx context.Context, tenantID, id string) error
 	DeleteNamespaceBinding(ctx context.Context, tenantID, id string) error
+	DeleteSyncPolicy(ctx context.Context, tenantID, id string) error
 	DeleteTag(ctx context.Context, tenantID string, tag string) error
 	DeprecateBuildArtifact(ctx context.Context, tenantID, id, reason string) (*models.BuildArtifact, error)
 	Deploy(ctx context.Context, tenantID, id string) error
 	DeregisterModel(ctx context.Context, tenantID, id string) error
 	DisablePlugin(ctx context.Context, tenantID, id string) error
+	DisableSyncPolicy(ctx context.Context, tenantID, id string) (*models.SyncPolicy, error)
 	EnablePlugin(ctx context.Context, tenantID, id string) error
+	EnableSyncPolicy(ctx context.Context, tenantID, id string) (*models.SyncPolicy, error)
 	EnforcePolicy(ctx context.Context, tenantID string) error
 	Escalate(ctx context.Context, tenantID, id string) error
 	Evaluate(ctx context.Context, tenantID string) error
@@ -38,6 +42,7 @@ type ServiceInterface interface {
 	GetBranchStatus(ctx context.Context, tenantID, id string) (string, error)
 	GetBuildArtifact(ctx context.Context, tenantID, id string) (*models.BuildArtifact, error)
 	GetByUser(ctx context.Context, tenantID, user string) ([]string, error)
+	GetEnabledPolicies(ctx context.Context, tenantID string, cronMatch func(string) bool) ([]models.SyncPolicy, error)
 	GetConfig(ctx context.Context, tenantID string) (map[string]any, error)
 	GetCoverage(ctx context.Context, tenantID string) (map[string]any, error)
 	GetHistory(ctx context.Context, tenantID string) ([]string, error)
@@ -48,6 +53,7 @@ type ServiceInterface interface {
 	GetNamespaceMatrix(ctx context.Context, tenantID string) (*models.BranchEnvMatrix, error)
 	GetPlugin(ctx context.Context, tenantID, id string) (map[string]any, error)
 	GetResults(ctx context.Context, tenantID string) ([]string, error)
+	GetSyncPolicy(ctx context.Context, tenantID, id string) (*models.SyncPolicy, error)
 	GetStats(ctx context.Context, tenantID string) (map[string]any, error)
 	GetStatus(ctx context.Context, tenantID string) (string, error)
 	GetStatusMiddleware(ctx context.Context, tenantID string) (string, error)
@@ -67,6 +73,8 @@ type ServiceInterface interface {
 	ListSchemas(ctx context.Context, tenantID string) ([]string, error)
 	ListTemplates(ctx context.Context, tenantID string) ([]string, error)
 	ListTemplates2(ctx context.Context, tenantID string) ([]string, error)
+	ListSyncPolicies(ctx context.Context, tenantID string, q models.SyncPolicyQuery) ([]models.SyncPolicy, error)
+	ListSyncRunLogs(ctx context.Context, tenantID string, q models.SyncRunLogQuery) ([]models.SyncRunLog, error)
 	ListViolations(ctx context.Context, tenantID string) ([]string, error)
 	Pause(ctx context.Context, tenantID, id string) error
 	ActivateBranchProfile(ctx context.Context, tenantID, id string) (*models.BranchProfile, error)
@@ -78,6 +86,7 @@ type ServiceInterface interface {
 	Resume(ctx context.Context, tenantID, id string) error
 	Rollback(ctx context.Context, tenantID, id string) error
 	RunInspection(ctx context.Context, tenantID string) error
+	RunNow(ctx context.Context, tenantID, id, actor, sourceCommit string) (*models.SyncRunLog, error)
 	RunPipeline(ctx context.Context, tenantID string) error
 	ScaleResource(ctx context.Context, tenantID string) error
 	Search(ctx context.Context, tenantID, q string) ([]string, error)
@@ -87,6 +96,7 @@ type ServiceInterface interface {
 	UpdateBranchProfile(ctx context.Context, tenantID, id string, req *models.UpdateBranchProfileRequest) (*models.BranchProfile, error)
 	UpdateConfig(ctx context.Context, tenantID string, cfg map[string]any) error
 	UpdateStatus(ctx context.Context, tenantID, id string) error
+	UpdateSyncPolicy(ctx context.Context, tenantID, id string, req *models.UpdateSyncPolicyRequest) (*models.SyncPolicy, error)
 	ValidateBranch(ctx context.Context, tenantID, branch string) (bool, error)
 	ValidateNamespaceBinding(ctx context.Context, tenantID, branchProfileID, envName string) (*models.NamespaceValidationResult, error)
 	VerifyBranchEnvBinding(ctx context.Context, tenantID, branch, envName string) (bool, error)

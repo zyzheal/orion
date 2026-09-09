@@ -54,6 +54,20 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.GET("/namespace-bindings/:id", auth.RequirePermission("branch-policy", "read"), h.GetNamespaceBinding)
 	r.DELETE("/namespace-bindings/:id", auth.RequirePermission("branch-policy", "delete"), h.DeleteNamespaceBinding)
 	r.POST("/namespace-bindings/:id/validate", auth.RequirePermission("branch-policy", "read"), h.ValidateNamespaceBinding)
+
+	// P0-MB Phase 3 — L4 SyncPolicy + SyncRunLog
+	// NOTE: /sync-policies/run-logs is registered BEFORE /sync-policies/:id
+	// so Gin routes to the static path (not the :id parameter).
+	r.GET("/sync-policies", auth.RequirePermission("branch-policy", "read"), h.ListSyncPolicies)
+	r.POST("/sync-policies", auth.RequirePermission("branch-policy", "write"), h.CreateSyncPolicy)
+	r.GET("/sync-policies/run-logs", auth.RequirePermission("branch-policy", "read"), h.ListSyncRunLogs)
+	r.GET("/sync-policies/:id", auth.RequirePermission("branch-policy", "read"), h.GetSyncPolicy)
+	r.PUT("/sync-policies/:id", auth.RequirePermission("branch-policy", "write"), h.UpdateSyncPolicy)
+	r.DELETE("/sync-policies/:id", auth.RequirePermission("branch-policy", "delete"), h.DeleteSyncPolicy)
+	r.POST("/sync-policies/:id/run-now", auth.RequirePermission("branch-policy", "write"), h.RunSyncNow)
+	r.POST("/sync-policies/:id/enable", auth.RequirePermission("branch-policy", "write"), h.EnableSyncPolicy)
+	r.POST("/sync-policies/:id/disable", auth.RequirePermission("branch-policy", "write"), h.DisableSyncPolicy)
+	r.GET("/sync-policies/:id/run-logs", auth.RequirePermission("branch-policy", "read"), h.ListSyncRunLogs)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -1104,4 +1118,171 @@ func (h *Handler) ValidateNamespaceBinding(c *gin.Context) {
 		return
 	}
 	errors.WriteSuccess(c, result)
+}
+
+// ============================================================================
+// P0-MB Phase 3 — L4 SyncPolicy + SyncRunLog
+// ============================================================================
+
+func (h *Handler) ListSyncPolicies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSyncPolicies")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	q := models.SyncPolicyQuery{}
+	if v := c.Query("enabled"); v != "" {
+		b := v == "true"
+		q.Enabled = &b
+	}
+	if v := c.Query("frequency"); v != "" {
+		f := models.SyncFrequency(v)
+		q.Frequency = &f
+	}
+	if v := c.Query("strategy"); v != "" {
+		s := models.SyncStrategy(v)
+		q.Strategy = &s
+	}
+	if v := c.Query("sourceBranch"); v != "" {
+		q.SourceBranch = &v
+	}
+	if v := c.Query("autoResolve"); v != "" {
+		r := models.SyncResolve(v)
+		q.AutoResolve = &r
+	}
+	out, err := h.svc.ListSyncPolicies(ctx, tenantID, q)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	errors.WriteSuccess(c, gin.H{"data": out, "total": len(out)})
+}
+
+func (h *Handler) CreateSyncPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateSyncPolicy")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	var req models.CreateSyncPolicyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
+		return
+	}
+	p, err := h.svc.CreateSyncPolicy(ctx, tenantID, &req)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, p)
+}
+
+func (h *Handler) GetSyncPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSyncPolicy")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	p, err := h.svc.GetSyncPolicy(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		errors.WriteError(c, errors.ErrNotFound, "sync policy not found", http.StatusNotFound)
+		return
+	}
+	errors.WriteSuccess(c, p)
+}
+
+func (h *Handler) UpdateSyncPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateSyncPolicy")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	var req models.UpdateSyncPolicyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
+		return
+	}
+	p, err := h.svc.UpdateSyncPolicy(ctx, tenantID, c.Param("id"), &req)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, p)
+}
+
+func (h *Handler) DeleteSyncPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteSyncPolicy")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	if err := h.svc.DeleteSyncPolicy(ctx, tenantID, c.Param("id")); err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	errors.WriteSuccess(c, gin.H{"deleted": true})
+}
+
+func (h *Handler) EnableSyncPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EnableSyncPolicy")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	p, err := h.svc.EnableSyncPolicy(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, p)
+}
+
+func (h *Handler) DisableSyncPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DisableSyncPolicy")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	p, err := h.svc.DisableSyncPolicy(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, p)
+}
+
+// runSyncNowBody is the optional POST body for /sync-policies/:id/run-now.
+// All fields are optional; empty sourceCommit falls back to "HEAD".
+type runSyncNowBody struct {
+	SourceCommit string `json:"sourceCommit"`
+}
+
+func (h *Handler) RunSyncNow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RunSyncNow")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	var body runSyncNowBody
+	_ = c.ShouldBindJSON(&body) // body is optional; ignore bind errors
+	actor := c.GetString("user_id")
+	if actor == "" {
+		actor = c.GetString("actor")
+	}
+	log, err := h.svc.RunNow(ctx, tenantID, c.Param("id"), actor, body.SourceCommit)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, log)
+}
+
+func (h *Handler) ListSyncRunLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSyncRunLogs")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	q := models.SyncRunLogQuery{}
+	// Support both /sync-policies/run-logs (no :id) and /sync-policies/:id/run-logs.
+	if id := c.Param("id"); id != "" {
+		q.PolicyID = &id
+	} else if v := c.Query("policyId"); v != "" {
+		q.PolicyID = &v
+	}
+	if v := c.Query("status"); v != "" {
+		s := models.SyncRunStatus(v)
+		q.Status = &s
+	}
+	if v := c.Query("limit"); v != "" {
+		fmt.Sscanf(v, "%d", &q.Limit)
+	}
+	out, err := h.svc.ListSyncRunLogs(ctx, tenantID, q)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	errors.WriteSuccess(c, gin.H{"data": out, "total": len(out)})
 }

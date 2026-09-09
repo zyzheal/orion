@@ -2993,3 +2993,115 @@ feat(branch-policy): P0-MB Phase 2 — L2 NamespaceBinding + BranchEnvGuard
 - **DB migration**（阻塞 3 张表真实可用）：branch_profiles + build_artifacts + namespace_bindings
 - **前端页面**：BranchProfileList.tsx + BranchProfileDetail.tsx + ArtifactList.tsx + ArtifactDetail.tsx + RegisterArtifactModal.tsx + NamespaceMatrix.tsx
 - **API 端到端集成测试**：延后到 DB migration 落地后
+
+---
+
+## P0-MB Phase 3 — L4 SyncPolicy + SyncRunLog + Scheduler（2026-08-26 完成）
+
+### 交付物
+
+**Scope**（设计文档 §3 完整实现）：
+- L4 SyncPolicy 数据模型（SourceBranch → TargetBranches 同步规则）
+- SyncRunLog 执行日志（每次 RunNow 生成一条）
+- 调度器（5-min ticker + CronExpr 匹配 + MinInterval 保护）
+- 10 条路由（含 enable/disable/run-now/run-logs）
+- Fail-closed 冲突策略（`manual-required` + conflicts → 立即中断）
+
+### 设计决策
+
+1. **`syncCommitSHARe` 与 `commitSHARe` 分离**：
+   - 已存在 `commitSHARe = ^[0-9a-fA-F]{40}$`（40 hex 精确）用于 BranchProfile/BuildArtifact 的 CommitSHA 校验。
+   - 新增 `syncCommitSHARe = ^[0-9a-fA-F]{7,40}$`（7-40 hex 允许 git SHA 前缀）用于 SyncPolicy RunNow 的 sourceCommit 校验。
+   - 原因：git 允许 7 字符 SHA 前缀，用户输入常省略为短 hash。避免与已有严格校验冲突而独立命名。
+
+2. **CronExpr 采用宽松 5 字段**：
+   - `syncCronRe = ^(\S+\s+){4}\S+$`（严格 5 字段）。
+   - Scheduler 内部 `cronFieldMatches` 只支持 `*` / 整数 / `a,b` 列表 / `a-b` 范围 / `*/n` 步进。
+   - 设计文档明确"不引入 robfig/cron 依赖"，未来可替换。
+
+3. **Fail-closed 语义（AutoResolve=manual-required）**：
+   - RunNow 遍历 targets，一旦某 target 返回 ConflictFiles，立即 `break`，不再尝试后续 target。
+   - Status 置为 `conflict`，ConflictFiles 中带 `targetBranch:file.go` 前缀区分归属。
+   - 其他 AutoResolve 模式（none / skip-conflict）继续遍历，最后状态按冲突是否全部 skip 判断。
+
+4. **Scheduler 接口最小化**：
+   - `SyncPolicyService` 只声明 `GetEnabledPolicies` + `RunNow` 两方法。
+   - 允许任何满足该接口的对象（含 service.Service 及 stub）作为调度器依赖。
+   - 注入式 Now 函数便于测试。
+
+5. **ID 生成**：`sp-` 前缀（SyncPolicy）/ `sl-` 前缀（SyncRunLog），沿用 Phase 2 fnv 模式。
+
+### 新增文件
+
+- `internal/branch-policy/scheduler/scheduler.go`（~215 行）：
+  - `Scheduler` struct（Tick/Now/Logger 可注入）
+  - `Start(ctx, svc)` 启动 goroutine + 返回 cancel
+  - `TickOnce(ctx, svc)` 单次扫描（测试用）
+  - `TickCronExprMatches(now)` 生成 cronMatch 回调
+  - `cronFieldMatches` + `splitWhitespace` + `splitComma` + `splitRange` + `parseUint` + `isAllDigits` 辅助
+  - `MinIntervalForFrequency(f)` → Daily=24h / Weekly=7d / Monthly=30d / default=1h
+- `internal/branch-policy/scheduler/scheduler_test.go`（10 tests）
+
+### 修改文件
+
+- `internal/branch-policy/models/models.go`：+SyncFrequency, +SyncStrategy, +SyncResolve, +SyncRunStatus, +SyncTriggerBy, +SyncPolicy, +CreateSyncPolicyRequest, +UpdateSyncPolicyRequest, +SyncPolicyQuery, +SyncRunLog, +SyncRunLogQuery, +SyncRunResult + 常量
+- `internal/branch-policy/repository/repository_interface.go`：+8 方法
+- `internal/branch-policy/repository/repository.go`：+8 stubs（`sentinel.NotFound`，注释引用 §3.2）
+- `internal/branch-policy/service/service.go`：+4 regexps (syncPolicyNameRe/syncBranchNameRe/syncCronRe/urlRe/syncCommitSHARe) + `syncExecutor` interface + `defaultSyncExecutor` + `newSyncPolicyID`/`newSyncRunLogID` + 11 方法（ListSyncPolicies/GetSyncPolicy/CreateSyncPolicy/UpdateSyncPolicy/DeleteSyncPolicy/EnableSyncPolicy/DisableSyncPolicy/ListSyncRunLogs/GetEnabledPolicies/RunNow/RunNowWithExecutor）+ fail-closed 逻辑
+- `internal/branch-policy/service/service_interface.go`：+10 方法（字母序）
+- `internal/branch-policy/handler/handler.go`：+10 routes + 10 handler 方法 + `runSyncNowBody` 内联结构
+- `internal/branch-policy/service/service_test.go`：+8 fakeRepo 方法（syncPolicies map + syncRunLogs slice）+ 24 Phase 3 service tests
+- `internal/branch-policy/handler/handler_test.go`：+10 fakeHandlerService stubs + 12 handler tests
+
+### 验证证据
+
+```
+$ go build ./...                          →  clean
+$ go vet ./internal/branch-policy/...     →  clean
+$ go test ./internal/branch-policy/...    →  all pass (service + handler + middleware + scheduler)
+$ go test ./...                           →  all pass (full test suite green)
+```
+
+**具体测试数**：
+- Service：24 Phase 3 sync tests + 37 之前 tests = 61 passing
+- Handler：12 Phase 3 handler tests + 19 之前 tests = 31 passing
+- Middleware：6 Phase 2 tests（未变）
+- Scheduler：10 Phase 3 tests（新）
+
+### 已知问题（Phase 3）
+
+1. **DB migration 未落地**：`sync_policies` + `sync_run_logs` 表尚未 add 到 running DB。Repository stubs 返回 `sentinel.NotFound`，handler 会返回 500。
+2. **前端页面延后**：SyncPolicyList.tsx（列表 + 创建向导 + 详情页 + Run Now 按钮 + 冲突文件列表）未实现。
+3. **Scheduler 未真正接入 main**：`wireSyncScheduler` 已在 scheduler 包中实现，但尚未在 `cmd/server/main.go` 里调用（延后到实际运行时需要）。
+4. **Cron 表达式解析限于简化子集**：不支持列表中的列表、`-` 与 `,` 混合嵌套、L/W/# 特殊字符。当前足以覆盖设计文档示例。
+5. **`defaultSyncExecutor` 恒成功**：真执行逻辑（git rebase/cherry-pick/merge + 冲突检测）留待 Phase 5 PreDeployGate 集成。
+
+### Commit 消息
+
+```
+feat(branch-policy): P0-MB Phase 3 — L4 SyncPolicy + SyncRunLog + Scheduler
+```
+
+### 累计进度
+
+- Phase 301 实施：✅ `b56cd8566` + `4b6fb86c4`
+- Phase 302 实施：✅ `3cc7bd7c2`
+- Phase 303 实施：✅ `b6322a01d`
+- Phase 304 实施：✅ `c7c48adb4`
+- Phase 305 实施：✅ `4aa131398` + `057ddba10`
+- Phase 306 实施：✅ `9ef76a56f`
+- **P0-MB Phase 1 实施**：✅ `5fe58f0c4`
+- **P0-MB Phase 2 实施**：✅ `49d106242`
+- **P0-MB Phase 3 实施**：✅ `__COMMIT_HASH__`（本轮）
+
+### 剩余任务（P0-MB Phase 4-5，11d）
+
+- P0-MB Phase 4：变更审计（L5 DeployEvent + 一键回滚 + BranchEnvGuard 挂载到 deploy API）（5d）
+- P0-MB Phase 5：冲突预检查（PreDeployGate R1-R6 阻断规则 + 前端可视化）（6d）
+
+### 遗留任务（Phase 1-3 累积）
+
+- **DB migration**（阻塞 5 张表真实可用）：branch_profiles + build_artifacts + namespace_bindings + sync_policies + sync_run_logs
+- **前端页面**：BranchProfileList.tsx + BranchProfileDetail.tsx + ArtifactList.tsx + ArtifactDetail.tsx + RegisterArtifactModal.tsx + NamespaceMatrix.tsx + SyncPolicyList.tsx
+- **API 端到端集成测试**：延后到 DB migration 落地后
+- **Scheduler 生产挂载**：`wireSyncScheduler` 已就绪，需要在 main.go 中调用

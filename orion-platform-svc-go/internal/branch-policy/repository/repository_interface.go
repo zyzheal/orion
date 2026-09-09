@@ -30,6 +30,16 @@ type RepositoryInterface interface {
 	GetNamespaceBindingByBranchEnv(ctx context.Context, tenantID, branchProfileID, envName string) (*models.NamespaceBinding, error)
 	ListNamespaceBindings(ctx context.Context, tenantID string, q models.NamespaceBindingQuery) ([]models.NamespaceBinding, error)
 	DeleteNamespaceBinding(ctx context.Context, tenantID, id string) error
+
+	// P0-MB Phase 3 — SyncPolicy (L4) + SyncRunLog
+	CreateSyncPolicy(ctx context.Context, p *models.SyncPolicy) error
+	GetSyncPolicy(ctx context.Context, tenantID, id string) (*models.SyncPolicy, error)
+	ListSyncPolicies(ctx context.Context, tenantID string, q models.SyncPolicyQuery) ([]models.SyncPolicy, error)
+	UpdateSyncPolicy(ctx context.Context, tenantID, id string, p *models.SyncPolicy) (*models.SyncPolicy, error)
+	DeleteSyncPolicy(ctx context.Context, tenantID, id string) error
+	CreateSyncRunLog(ctx context.Context, l *models.SyncRunLog) error
+	UpdateSyncRunLog(ctx context.Context, tenantID, id string, l *models.SyncRunLog) (*models.SyncRunLog, error)
+	ListSyncRunLogs(ctx context.Context, tenantID string, q models.SyncRunLogQuery) ([]models.SyncRunLog, error)
 }
 
 // Ensure Repository implements RepositoryInterface.

@@ -113,3 +113,44 @@ func (r *Repository) ListNamespaceBindings(ctx context.Context, tenantID string,
 func (r *Repository) DeleteNamespaceBinding(ctx context.Context, tenantID, id string) error {
 	return sentinel.NotFound
 }
+
+// --- P0-MB Phase 3 stubs ---
+//
+// The sync_policies and sync_run_logs tables are defined in the module
+// design doc (docs/multi-branch-strategy-design-v2-impl-2026-09-08.md
+// §3.2) but not yet added to the running DB. These stubs return sentinel
+// errors so the handler layer can return a clean 500 rather than
+// panicking on a nil table. Once the migration lands, replace each stub
+// with the real SQLX implementation.
+
+func (r *Repository) CreateSyncPolicy(ctx context.Context, p *models.SyncPolicy) error {
+	return sentinel.NotFound
+}
+
+func (r *Repository) GetSyncPolicy(ctx context.Context, tenantID, id string) (*models.SyncPolicy, error) {
+	return nil, sentinel.NotFound
+}
+
+func (r *Repository) ListSyncPolicies(ctx context.Context, tenantID string, q models.SyncPolicyQuery) ([]models.SyncPolicy, error) {
+	return nil, sentinel.NotFound
+}
+
+func (r *Repository) UpdateSyncPolicy(ctx context.Context, tenantID, id string, p *models.SyncPolicy) (*models.SyncPolicy, error) {
+	return nil, sentinel.NotFound
+}
+
+func (r *Repository) DeleteSyncPolicy(ctx context.Context, tenantID, id string) error {
+	return sentinel.NotFound
+}
+
+func (r *Repository) CreateSyncRunLog(ctx context.Context, l *models.SyncRunLog) error {
+	return sentinel.NotFound
+}
+
+func (r *Repository) UpdateSyncRunLog(ctx context.Context, tenantID, id string, l *models.SyncRunLog) (*models.SyncRunLog, error) {
+	return nil, sentinel.NotFound
+}
+
+func (r *Repository) ListSyncRunLogs(ctx context.Context, tenantID string, q models.SyncRunLogQuery) ([]models.SyncRunLog, error) {
+	return nil, sentinel.NotFound
+}

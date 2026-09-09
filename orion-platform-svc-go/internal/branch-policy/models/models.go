@@ -352,3 +352,182 @@ type DeployRequest struct {
 	TargetEnv string `json:"targetEnv"`
 	ImageTag  string `json:"imageTag"`
 }
+
+// ============================================================================
+// P0-MB Phase 3 — L4 SyncPolicy + SyncRunLog (branch synchronization)
+// ============================================================================
+
+// SyncFrequency enumerates how often a SyncPolicy should run.
+type SyncFrequency string
+
+const (
+	SyncFrequencyDaily   SyncFrequency = "daily"
+	SyncFrequencyWeekly  SyncFrequency = "weekly"
+	SyncFrequencyMonthly SyncFrequency = "monthly"
+)
+
+// IsValid reports whether f is one of the three canonical frequencies.
+func (f SyncFrequency) IsValid() bool {
+	switch f {
+	case SyncFrequencyDaily, SyncFrequencyWeekly, SyncFrequencyMonthly:
+		return true
+	}
+	return false
+}
+
+// SyncStrategy describes how source commits are applied to target branches.
+type SyncStrategy string
+
+const (
+	SyncStrategyRebase     SyncStrategy = "rebase"
+	SyncStrategyCherryPick SyncStrategy = "cherry-pick"
+	SyncStrategyMerge      SyncStrategy = "merge"
+)
+
+// IsValid reports whether s is one of the three canonical strategies.
+func (s SyncStrategy) IsValid() bool {
+	switch s {
+	case SyncStrategyRebase, SyncStrategyCherryPick, SyncStrategyMerge:
+		return true
+	}
+	return false
+}
+
+// SyncResolve describes what to do when a sync run detects conflicts.
+type SyncResolve string
+
+const (
+	SyncResolveNone           SyncResolve = "none"
+	SyncResolveSkipConflict   SyncResolve = "skip-conflict"
+	SyncResolveManualRequired SyncResolve = "manual-required"
+)
+
+// IsValid reports whether r is one of the three canonical resolve modes.
+func (r SyncResolve) IsValid() bool {
+	switch r {
+	case SyncResolveNone, SyncResolveSkipConflict, SyncResolveManualRequired:
+		return true
+	}
+	return false
+}
+
+// SyncRunStatus is the terminal status of a single sync execution.
+type SyncRunStatus string
+
+const (
+	SyncStatusSuccess  SyncRunStatus = "success"
+	SyncStatusConflict SyncRunStatus = "conflict"
+	SyncStatusFailed   SyncRunStatus = "failed"
+)
+
+// SyncTriggerBy identifies the trigger source for a SyncRunLog entry.
+type SyncTriggerBy string
+
+const (
+	SyncTriggerScheduler SyncTriggerBy = "scheduler"
+	SyncTriggerManual    SyncTriggerBy = "manual"
+)
+
+// SyncPolicy is the L4 layer of the multi-branch strategy: a rule that
+// periodically synchronizes commits from a source branch to one or more
+// target branches. Enforced by wireSyncScheduler (5-min ticker).
+type SyncPolicy struct {
+	ID                   string          `json:"id" db:"id"`
+	TenantID             string          `json:"tenantId" db:"tenant_id"`
+	Name                 string          `json:"name" db:"name"`
+	SourceBranch         string          `json:"sourceBranch" db:"source_branch"`
+	TargetBranches       []string        `json:"targetBranches" db:"target_branches"`
+	Frequency            SyncFrequency   `json:"frequency" db:"frequency"`
+	CronExpr             string          `json:"cronExpr" db:"cron_expr"`
+	Strategy             SyncStrategy    `json:"strategy" db:"strategy"`
+	AutoResolve          SyncResolve     `json:"autoResolve" db:"auto_resolve"`
+	NotifyOnConflict     []string        `json:"notifyOnConflict" db:"notify_on_conflict"`
+	NotifyWebhook        string          `json:"notifyWebhook" db:"notify_webhook"`
+	Enabled              bool            `json:"enabled" db:"enabled"`
+	LastRunAt            *time.Time      `json:"lastRunAt" db:"last_run_at"`
+	LastRunStatus        *SyncRunStatus  `json:"lastRunStatus" db:"last_run_status"`
+	LastRunConflictFiles []string        `json:"lastRunConflictFiles" db:"last_run_conflict_files"`
+	ChangeManagementID   string          `json:"changeManagementId" db:"change_management_id"`
+	CreatedAt            time.Time       `json:"createdAt" db:"created_at"`
+	UpdatedAt            time.Time       `json:"updatedAt" db:"updated_at"`
+}
+
+// CreateSyncPolicyRequest is the POST body for sync policy creation.
+// Frequency + Strategy + AutoResolve are required. TargetBranches must be
+// non-empty. SourceBranch must be a real branch name (validated against
+// models.BranchStatusActive profiles via the service layer).
+type CreateSyncPolicyRequest struct {
+	Name             string        `json:"name" binding:"required"`
+	SourceBranch     string        `json:"sourceBranch" binding:"required"`
+	TargetBranches   []string      `json:"targetBranches" binding:"required"`
+	Frequency        SyncFrequency `json:"frequency"`
+	CronExpr         string        `json:"cronExpr"`
+	Strategy         SyncStrategy  `json:"strategy"`
+	AutoResolve      SyncResolve   `json:"autoResolve"`
+	NotifyOnConflict []string      `json:"notifyOnConflict"`
+	NotifyWebhook    string        `json:"notifyWebhook"`
+	Enabled          *bool         `json:"enabled"`
+}
+
+// UpdateSyncPolicyRequest is the PUT body for sync policy updates. All
+// fields are optional; only non-nil values are applied.
+type UpdateSyncPolicyRequest struct {
+	Name             *string       `json:"name"`
+	SourceBranch     *string       `json:"sourceBranch"`
+	TargetBranches   *[]string     `json:"targetBranches"`
+	Frequency        *SyncFrequency `json:"frequency"`
+	CronExpr         *string       `json:"cronExpr"`
+	Strategy         *SyncStrategy `json:"strategy"`
+	AutoResolve      *SyncResolve  `json:"autoResolve"`
+	NotifyOnConflict *[]string     `json:"notifyOnConflict"`
+	NotifyWebhook    *string       `json:"notifyWebhook"`
+	Enabled          *bool         `json:"enabled"`
+}
+
+// SyncPolicyQuery filters the sync-policy list endpoint. Nil fields mean
+// "no filter".
+type SyncPolicyQuery struct {
+	Enabled      *bool            `json:"enabled"`
+	Frequency    *SyncFrequency   `json:"frequency"`
+	Strategy     *SyncStrategy    `json:"strategy"`
+	SourceBranch *string          `json:"sourceBranch"`
+	AutoResolve  *SyncResolve     `json:"autoResolve"`
+}
+
+// SyncRunLog is a single execution of a SyncPolicy. It is immutable once
+// written (except DurationMs which is updated at completion).
+type SyncRunLog struct {
+	ID             string          `json:"id" db:"id"`
+	TenantID       string          `json:"tenantId" db:"tenant_id"`
+	PolicyID       string          `json:"policyId" db:"policy_id"`
+	TriggeredAt    time.Time       `json:"triggeredAt" db:"triggered_at"`
+	TriggeredBy    SyncTriggerBy   `json:"triggeredBy" db:"triggered_by"`
+	SourceCommit   string          `json:"sourceCommit" db:"source_commit"`
+	TargetBranches []string        `json:"targetBranches" db:"target_branches"`
+	Status         SyncRunStatus   `json:"status" db:"status"`
+	ConflictFiles  []string        `json:"conflictFiles" db:"conflict_files"`
+	ErrorMsg       string          `json:"errorMsg" db:"error_msg"`
+	DurationMs     int64           `json:"durationMs" db:"duration_ms"`
+	ChangeID       string          `json:"changeId" db:"change_id"`
+}
+
+// SyncRunLogQuery filters the run-logs list endpoint.
+type SyncRunLogQuery struct {
+	PolicyID *string        `json:"policyId"`
+	Status   *SyncRunStatus `json:"status"`
+	From     *time.Time     `json:"from"`
+	To       *time.Time     `json:"to"`
+	Limit    int            `json:"limit"`
+}
+
+// SyncRunResult is the internal output of the sync executor. When
+// AutoResolve == SyncResolveManualRequired and Conflicts is non-empty, the
+// service layer blocks the run and returns status=conflict without
+// persisting any ChangeManagement side-effect (other than the SyncRunLog).
+type SyncRunResult struct {
+	TargetBranch   string
+	Applied        bool
+	ConflictFiles  []string
+	Error          string
+	NewCommitSHA   string
+}
