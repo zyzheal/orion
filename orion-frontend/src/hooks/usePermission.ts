@@ -26,6 +26,15 @@ const ROLE_PERMISSIONS_FALLBACK: Record<string, string[]> = {
     'ticket:read',
     'ticket:write',
     'approval:approve',
+    // PERM-6 mirror (conservative slice): matches the backend rolePermissions
+    // in orion-platform-svc-go/internal/identity/auth/handler/handler.go.
+    // security_admin owns ai-security / ai-review and needs read-only on
+    // the umbrella `ai` resource for triage. Other AI resources
+    // (llm / skill / intelligence / agent / ai-gateway / ai-cost / ...)
+    // are intentionally left out.
+    'ai:read',
+    'ai-security:*',
+    'ai-review:*',
   ],
   finops_admin: ['finops:*', 'project:read', 'deployment:read', 'pipeline:read'],
   tech_lead: [

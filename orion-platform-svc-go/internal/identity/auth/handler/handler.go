@@ -439,7 +439,16 @@ func rolePermissions(role string) []string {
 		"tenant_admin":   {"*:read", "*:write", "*:manage", "audit_log:read"},
 		"security_admin": {"audit_log:read", "config:read", "secrets:read", "user:read", "role:read",
 			"project:read", "pipeline:read", "deployment:read", "alert:read",
-			"security:manage", "ticket:read", "approval:approve"},
+			"security:manage", "ticket:read", "approval:approve",
+			// PERM-6 (conservative slice): security_admin owns the AI
+			// security/review surface, so they get read-only on the
+			// umbrella `ai` resource and full control on the two
+			// sub-modules they directly own (`ai-security`, `ai-review`).
+			// Other AI resources (`llm`, `skill`, `intelligence`, `agent`,
+			// `ai-gateway`, `ai-cost`, `ai-agent-run`, `ai_models`, ...)
+			// are intentionally left out — that scope is a separate
+			// decision.
+			"ai:read", "ai-security:*", "ai-review:*"},
 		"finops_admin": {"finops:*", "project:read", "deployment:read", "pipeline:read"},
 		"org_admin":    {"*:read", "*:write", "*:execute", "*:manage", "*:approve"},
 		"tech_lead": {"project:read", "project:write", "pipeline:*",
