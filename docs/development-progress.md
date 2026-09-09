@@ -3752,3 +3752,97 @@ d99d06a0b feat(auth): PERM-6 AI endpoint permission definitions (conservative sl
 - **DB migration**（FORBIDDEN）：7 张 P0-MB 表
 - **前端页面**（FORBIDDEN routes.tsx）：MergePreviewDialog 等 6 页
 - **R6 schema-compatibility 真实实现**：需 migration service
+
+---
+
+## 2026-08-26 — Phase B: `logGitMergeError` 接 zap logger
+
+### 上下文
+
+P0-MB Phase 5b（`22755c55d`）引入 `gitmerge.Executor` 时预留了
+`logGitMergeError(ctx, req, err)` hook 作为「未来接 logger」的占位符——
+`CreateMergePreview` 的 merge-tree dry-run 失败路径直接调用它，但由于
+`Service` 结构体上无 logger 依赖，占位符是 silent no-op（`_ = ctx;
+_ = req; _ = err`）。这意味着生产环境里 git 二进制缺失 / 工作目录未
+配置 / `--write-tree` 不兼容的整个降级路径完全不可观测——`MergePreview`
+会以空 `ConflictFiles` + `RiskLevel=low` 落库，调用方看到 201 但实际
+是「客户端传来的冲突列表」而非真实 merge-tree 结果。
+
+### 变更（3 文件，303 插入 / 27 删除）
+
+| 文件 | 变更 |
+|------|------|
+| `internal/branch-policy/service/service.go` | +`go.uber.org/zap` import / +`logger *zap.Logger` 字段 / +`NewServiceWithLogger(repo, git, logger)` 构造器（canonical） / +`(s *Service).WithLogger(logger)` 链式方法 / `NewServiceWithGit` 保留但标 Deprecated / `logGitMergeError` 从 no-op 改为 Warn 实现 |
+| `cmd/server/wiring-core-domains.go` | `NewServiceWithGit(repo, gitExec)` → `NewServiceWithLogger(repo, gitExec, logger)`；移除遗留的 `sb_scheduler` 未用 import（前次半成品改动残留）；删除 `wireSecurityDomains` 里的 `_ = logger` dummy（现在真正用了） |
+| `internal/branch-policy/service/service_logger_test.go` | **新增** 210 行 / 7 测试 |
+
+### 实现细节
+
+```go
+func (s *Service) logGitMergeError(ctx context.Context, req *models.MergePreviewRequest, err error) {
+    if s.logger == nil || err == nil {
+        return
+    }
+    _ = ctx // reserved for future trace/span propagation
+    msg := err.Error()
+    if len(msg) > 512 {
+        msg = msg[:512] + "…"
+    }
+    fields := make([]zap.Field, 0, 5)
+    fields = append(fields, zap.String("error", msg))
+    if req.SourceBranch != "" { fields = append(fields, zap.String("source_branch", req.SourceBranch)) }
+    if req.TargetBranch != "" { fields = append(fields, zap.String("target_branch", req.TargetBranch)) }
+    if req.SourceCommit != "" { fields = append(fields, zap.String("source_commit", req.SourceCommit)) }
+    if req.TargetCommit != "" { fields = append(fields, zap.String("target_commit", req.TargetCommit)) }
+    s.logger.Warn("gitmerge: merge-tree dry-run failed; using client-supplied conflicts", fields...)
+}
+```
+
+关键决策：
+
+1. **消息固定**（`gitmerge: merge-tree dry-run failed; using client-supplied conflicts`）
+   ——log aggregation 可按月桶聚合降级事件，不受 error 文本波动影响
+2. **error 消息截断到 512 字符**——git merge-tree 在 worktree 处于坏状态时
+   可 dump 完整文件 diff；`zap.String("error", msg)` 而非 `zap.Error(err)`
+   以避免无界 entry
+3. **空字段省略**——JSON entry 保持紧凑，`omitempty` 语义
+4. **纯 variadic 签名**——`Warn(msg string, fields ...Field)` 不允许
+   `Warn("msg", zap.Error(err), fields...)` 这种混合写法（Go 编译错误），
+   所以把 error 预先塞进 slice 再传 variadic
+5. **保留 nil-logger 语义**——测试 / 旧调用方零行为变化；`NewService` 与
+   `NewServiceWithGit` 仍走 silent path
+
+### 测试矩阵（7 条）
+
+| 测试 | 断言 |
+|------|------|
+| `TestLogGitMergeError_NilLoggerIsNoOp` | 默认构造器（无 logger）不 panic |
+| `TestLogGitMergeError_EmptyErrorIsNoOp` | nil error 不发日志 |
+| `TestLogGitMergeError_EmitsWarnWithFields` | 正向：msg 含 `merge-tree dry-run failed` + source_branch + target_branch + source_commit + target_commit + error |
+| `TestLogGitMergeError_OmitsEmptyBranchFields` | 空字段不进入 JSON |
+| `TestLogGitMergeError_TruncatesLongError` | >512 字符 error 以 `…` 结尾 |
+| `TestLogGitMergeError_WithLoggerChaining` | builder 链式可组合 |
+| `TestLogGitMergeError_NewServiceWithLoggerDirectConstruction` | 构造器直传 logger 生效 |
+| `TestLogGitMergeError_JSONSerializable` | observer entry 可 JSON 序列化 |
+
+### 端到端验证
+
+- `go build ./...` ✅
+- `go test ./internal/branch-policy/...` ✅（service 8 新测试 + 全部既有）
+- `go test ./cmd/server/...` ✅（wiring 变更未破坏启动测试）
+- `gofmt -l internal/branch-policy/service/service.go internal/branch-policy/service/service_logger_test.go cmd/server/wiring-core-domains.go` ✅（0 输出）
+
+### Commit
+
+```
+f7259c6fc feat(branch-policy): wire zap logger into logGitMergeError
+```
+
+### 剩余任务
+
+- **Phase C**：`internal/identity/role/` 死代码清理
+- **PERM-8 阶段 2**：`/api/v1` 切严格 `auth.Auth`（破坏性变更，需客户端迁移计划）
+- **其他 AI 资源决策**：llm / skill / intelligence / agent 等资源的授权策略
+- **DB migration**（FORBIDDEN）：7 张 P0-MB 表
+- **前端页面**（FORBIDDEN routes.tsx）：MergePreviewDialog 等 6 页
+- **R6 schema-compatibility 真实实现**：需 migration service
