@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+
 	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/branch-policy/gitmerge"
 	"orion/platform-svc-go/internal/branch-policy/models"
@@ -89,6 +91,12 @@ type Service struct {
 	// an empty list — the same behaviour as before the gitmerge package was
 	// introduced. Wired by NewServiceWithGit or WithGitExecutor.
 	gitExecutor gitmerge.Executor
+	// logger is an optional structured logger used to emit diagnostic
+	// warnings when the git merge-tree call degrades to the client-supplied
+	// fallback path. When nil (default for tests / legacy callers) the
+	// logGitMergeError hook is a silent no-op — no behaviour change.
+	// Wired by NewServiceWithLogger or WithLogger.
+	logger *zap.Logger
 }
 
 func NewService(repo RepositoryInterface) *Service {
@@ -97,8 +105,19 @@ func NewService(repo RepositoryInterface) *Service {
 
 // NewServiceWithGit is a constructor that wires a merge-tree Executor into
 // the service. Pass nil to fall back to client-supplied conflicts only.
+// Deprecated: prefer NewServiceWithLogger for production wiring so that
+// merge-tree degradation is visible in structured logs.
 func NewServiceWithGit(repo RepositoryInterface, git gitmerge.Executor) *Service {
 	return &Service{repo: repo, gitExecutor: git}
+}
+
+// NewServiceWithLogger is the canonical constructor for production wiring:
+// it takes the repository, an optional merge-tree executor (nil → client-
+// supplied fallback), and a structured logger used by logGitMergeError to
+// emit Warn entries when git merge-tree fails. A nil logger disables
+// logging (kept for tests that want the silent no-op path).
+func NewServiceWithLogger(repo RepositoryInterface, git gitmerge.Executor, logger *zap.Logger) *Service {
+	return &Service{repo: repo, gitExecutor: git, logger: logger}
 }
 
 // WithGitExecutor attaches the given merge-tree Executor to the service
@@ -106,6 +125,14 @@ func NewServiceWithGit(repo RepositoryInterface, git gitmerge.Executor) *Service
 // argument resets the executor to the client-supplied fallback.
 func (s *Service) WithGitExecutor(git gitmerge.Executor) *Service {
 	s.gitExecutor = git
+	return s
+}
+
+// WithLogger attaches a structured logger used by logGitMergeError to emit
+// Warn entries when git merge-tree degrades. Chainable; nil disables
+// logging.
+func (s *Service) WithLogger(logger *zap.Logger) *Service {
+	s.logger = logger
 	return s
 }
 
@@ -1700,7 +1727,7 @@ var (
 	// deployActorRe is the regex for actor IDs (usually user ids like
 	// "user-123" or "svc-deploy-bot"). Kept permissive — auth is done
 	// upstream; this just rejects obviously malformed ids.
-	deployActorRe  = regexp.MustCompile(`^[A-Za-z0-9._@-]{1,64}$`)
+	deployActorRe = regexp.MustCompile(`^[A-Za-z0-9._@-]{1,64}$`)
 	// deployCommitSHARe is the 7-40 hex regex reused for FromCommit/ToCommit.
 	deployCommitSHARe = syncCommitSHARe
 )
@@ -2147,12 +2174,12 @@ func (s *Service) GetAuditTrail(ctx context.Context, tenantID string, params mod
 // PreDeployGateResult.Rules array — callers (frontend / middleware) can
 // switch on them without depending on names.
 const (
-	GateRuleIDBranchEnv     = "R1"
-	GateRuleIDDigest        = "R2"
-	GateRuleIDApproval      = "R3"
-	GateRuleIDBranchActive  = "R4"
-	GateRuleIDPipeline      = "R5"
-	GateRuleIDSchema        = "R6"
+	GateRuleIDBranchEnv    = "R1"
+	GateRuleIDDigest       = "R2"
+	GateRuleIDApproval     = "R3"
+	GateRuleIDBranchActive = "R4"
+	GateRuleIDPipeline     = "R5"
+	GateRuleIDSchema       = "R6"
 )
 
 // containsString reports whether item is present in list. Empty item is
@@ -2182,7 +2209,8 @@ func newMergePreviewID() string {
 
 // riskLevelForConflicts maps a conflict count to the canonical RiskLevel.
 // The buckets are chosen to align with the design doc's severity ladder:
-//  0 → low, 1-2 → medium, 3-5 → high, ≥6 → critical.
+//
+//	0 → low, 1-2 → medium, 3-5 → high, ≥6 → critical.
 func riskLevelForConflicts(n int) models.RiskLevel {
 	switch {
 	case n <= 0:
@@ -2238,10 +2266,10 @@ func (s *Service) CheckPreDeployGate(ctx context.Context, tenantID string, req m
 		}
 		ok, err := s.VerifyImageTagMatch(ctx, tenantID, req.Branch, req.TargetEnv, req.ImageTag)
 		if err != nil {
-			return false, "branch-env lookup failed: "+err.Error(), err
+			return false, "branch-env lookup failed: " + err.Error(), err
 		}
 		if !ok {
-			return false, "imageTag "+req.ImageTag+" does not match the binding for ("+req.Branch+", "+req.TargetEnv+")", nil
+			return false, "imageTag " + req.ImageTag + " does not match the binding for (" + req.Branch + ", " + req.TargetEnv + ")", nil
 		}
 		return true, "imageTag matches binding prefix", nil
 	}); err != nil {
@@ -2255,15 +2283,15 @@ func (s *Service) CheckPreDeployGate(ctx context.Context, tenantID string, req m
 		}
 		res, err := s.VerifyBuildArtifactSignature(ctx, tenantID, req.ArtifactID)
 		if err != nil {
-			return false, "signature lookup failed: "+err.Error(), err
+			return false, "signature lookup failed: " + err.Error(), err
 		}
 		if res == nil {
 			return false, "signature result is nil", nil
 		}
 		if !res.Valid {
-			return false, "artifact signature invalid: "+res.Reason, nil
+			return false, "artifact signature invalid: " + res.Reason, nil
 		}
-		return true, "artifact signature valid ("+res.Reason+")", nil
+		return true, "artifact signature valid (" + res.Reason + ")", nil
 	}); err != nil {
 		return nil, err
 	}
@@ -2273,7 +2301,7 @@ func (s *Service) CheckPreDeployGate(ctx context.Context, tenantID string, req m
 		if req.ApprovalID == "" {
 			return false, "approvalId is required before deploy", nil
 		}
-		return true, "approvalId "+req.ApprovalID+" supplied", nil
+		return true, "approvalId " + req.ApprovalID + " supplied", nil
 	}); err != nil {
 		return nil, err
 	}
@@ -2291,7 +2319,7 @@ func (s *Service) CheckPreDeployGate(ctx context.Context, tenantID string, req m
 		case models.BranchStatusActive:
 			return true, "branch profile status=active", nil
 		default:
-			return false, "branch profile status="+string(profile.Status), nil
+			return false, "branch profile status=" + string(profile.Status), nil
 		}
 	}); err != nil {
 		return nil, err
@@ -2307,9 +2335,9 @@ func (s *Service) CheckPreDeployGate(ctx context.Context, tenantID string, req m
 			return false, "pipelineName is required", nil
 		}
 		if !containsString(profile.AllowedPipelines, req.PipelineName) {
-			return false, "pipeline "+req.PipelineName+" is not in branch's allowedPipelines", nil
+			return false, "pipeline " + req.PipelineName + " is not in branch's allowedPipelines", nil
 		}
-		return true, "pipeline "+req.PipelineName+" is allowed", nil
+		return true, "pipeline " + req.PipelineName + " is allowed", nil
 	}); err != nil {
 		return nil, err
 	}
@@ -2545,14 +2573,47 @@ func (s *Service) CreateMergePreview(ctx context.Context, tenantID string, req *
 	return p, nil
 }
 
-// logGitMergeError is a no-op placeholder for the (future) structured logger
-// hook. The current Service has no logger dependency; when one is added, this
-// method should emit a Warn with tenant_id, source_branch, target_branch, and
-// the error. Kept as a method so call sites are already wired.
+// logGitMergeError emits a structured Warn entry when the merge-tree dry-run
+// call fails and the service is falling back to client-supplied conflicts.
+// Kept as a method (not a closure) so tests can call it directly and verify
+// field emission via zaptest/observer.
+//
+// Design notes:
+//   - No-op when s.logger is nil (tests / legacy callers stay silent).
+//   - No-op when err is nil (call site already guarantees non-nil, but we
+//     double-check for future callers).
+//   - Error message is truncated to 512 chars to keep the log entry bounded;
+//     git merge-tree failures can dump full file diffs when a worktree is
+//     in a weird state, and we do not want to blow up structured logs.
+//   - Empty branch/commit fields are omitted so the JSON entry stays tight.
 func (s *Service) logGitMergeError(ctx context.Context, req *models.MergePreviewRequest, err error) {
-	_ = ctx
-	_ = req
-	_ = err
+	if s.logger == nil || err == nil {
+		return
+	}
+	_ = ctx // context is reserved for future trace/span propagation
+	msg := err.Error()
+	if len(msg) > 512 {
+		msg = msg[:512] + "…"
+	}
+	fields := make([]zap.Field, 0, 5)
+	fields = append(fields, zap.String("error", msg))
+	if req.SourceBranch != "" {
+		fields = append(fields, zap.String("source_branch", req.SourceBranch))
+	}
+	if req.TargetBranch != "" {
+		fields = append(fields, zap.String("target_branch", req.TargetBranch))
+	}
+	if req.SourceCommit != "" {
+		fields = append(fields, zap.String("source_commit", req.SourceCommit))
+	}
+	if req.TargetCommit != "" {
+		fields = append(fields, zap.String("target_commit", req.TargetCommit))
+	}
+	// Pass only the variadic — zap.Logger.Warn's signature is
+	// Warn(msg string, fields ...Field). Mixing a positional zap.Error(err)
+	// with `fields...` is a compile error; so we prepend it into the slice
+	// above and hand over just the variadic.
+	s.logger.Warn("gitmerge: merge-tree dry-run failed; using client-supplied conflicts", fields...)
 }
 
 // GetMergePreview returns the preview by id (tenant-scoped).

@@ -34,10 +34,11 @@ import (
 	ss_repo "orion/platform-svc-go/internal/security/secret/repository"
 	ss_service "orion/platform-svc-go/internal/security/secret/service"
 
+	sb_git "orion/platform-svc-go/internal/branch-policy/gitmerge"
 	sb_handler "orion/platform-svc-go/internal/branch-policy/handler"
 	sb_repo "orion/platform-svc-go/internal/branch-policy/repository"
+	sb_scheduler "orion/platform-svc-go/internal/branch-policy/scheduler"
 	sb_service "orion/platform-svc-go/internal/branch-policy/service"
-	sb_git "orion/platform-svc-go/internal/branch-policy/gitmerge"
 
 	spv_handler "orion/platform-svc-go/internal/privacy/handler"
 	spv_repo "orion/platform-svc-go/internal/privacy/repository"
@@ -97,7 +98,6 @@ func wireGovernanceDomains(db *database.DB, logger *zap.Logger) {
 }
 
 func wireSecurityDomains(db *database.DB, logger *zap.Logger) {
-	_ = logger
 	// security
 	{
 		repo := s_repo.NewRepository(db.DB)
@@ -120,8 +120,13 @@ func wireSecurityDomains(db *database.DB, logger *zap.Logger) {
 		if bp := os.Getenv("ORION_GIT_BINARY"); bp != "" {
 			gitExec.BinaryPath = bp
 		}
-		svc := sb_service.NewServiceWithGit(repo, gitExec)
+		svc := sb_service.NewServiceWithLogger(repo, gitExec, logger)
 		securityBranchPolicyH = sb_handler.NewHandler(svc)
+		// Start the periodic sync-policy scheduler (5-minute tick per design
+		// doc §3.5). It runs on a background context and self-terminates on
+		// process shutdown.
+		sbScheduler := &sb_scheduler.Scheduler{Logger: logger}
+		sbScheduler.Start(context.Background(), svc)
 	}
 	// privacy
 	{
