@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -36,6 +37,7 @@ import (
 	sb_handler "orion/platform-svc-go/internal/branch-policy/handler"
 	sb_repo "orion/platform-svc-go/internal/branch-policy/repository"
 	sb_service "orion/platform-svc-go/internal/branch-policy/service"
+	sb_git "orion/platform-svc-go/internal/branch-policy/gitmerge"
 
 	spv_handler "orion/platform-svc-go/internal/privacy/handler"
 	spv_repo "orion/platform-svc-go/internal/privacy/repository"
@@ -108,10 +110,17 @@ func wireSecurityDomains(db *database.DB, logger *zap.Logger) {
 		svc := ss_service.NewService(repo, "")
 		securitySecretH = ss_handler.NewHandler(svc)
 	}
-	// branch-policy
+	// branch-policy (Phase 5b: wire git merge-tree executor for real conflict detection)
 	{
 		repo := sb_repo.NewRepository(db.DB)
-		svc := sb_service.NewService(repo)
+		gitExec := sb_git.NewLocalExecutor()
+		if wd := os.Getenv("ORION_GIT_WORKDIR"); wd != "" {
+			gitExec.WorkDir = wd
+		}
+		if bp := os.Getenv("ORION_GIT_BINARY"); bp != "" {
+			gitExec.BinaryPath = bp
+		}
+		svc := sb_service.NewServiceWithGit(repo, gitExec)
 		securityBranchPolicyH = sb_handler.NewHandler(svc)
 	}
 	// privacy
