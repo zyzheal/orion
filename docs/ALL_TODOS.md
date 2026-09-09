@@ -101,7 +101,7 @@
 >
 > | Phase | 任务 | 工时 | 优先级 |
 > |---|---|---|---|
-> | P0-MB Phase 1 | 基础数据模型（L1 BranchProfile + L3 BuildArtifact digest） | **5d** | ✅ **已完成** (backend: models 3 + service 11 方法 + handler 11 路由 + 25 service tests + 11 handler tests 全绿; Repository stubs 待 DB migration; 前端页面延后) |
+> | P0-MB Phase 1 | 基础数据模型（L1 BranchProfile + L3 BuildArtifact digest） | **5d** | ✅ **已完成** (`5fe58f0c4`; backend: models 3 + service 11 方法 + handler 11 路由 + 25 service tests + 11 handler tests 全绿; Repository stubs 待 DB migration; 前端页面延后) |
 > | P0-MB Phase 2 | 环境隔离强化（L2 Namespace 命名规则 + image tag 前缀强制） | **4d** | 🔴 P0 |
 > | P0-MB Phase 3 | 同步策略（L4 SyncPolicy 页面 + 自动化调度） | **6d** | 🔴 P0 |
 > | P0-MB Phase 4 | 变更审计（L5 DeployEvent + 一键回滚） | **5d** | 🔴 P0 |

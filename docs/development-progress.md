@@ -2870,6 +2870,7 @@ P0-MB Phase 1（5d）：多分支并行策略 5 层防护架构的**数据层地
 ### Commit 消息
 
 ```
+# Backend (5fe58f0c4)
 feat(branch-policy): P0-MB Phase 1 — L1 BranchProfile + L3 BuildArtifact
 ```
 
@@ -2887,7 +2888,7 @@ feat(branch-policy): P0-MB Phase 1 — L1 BranchProfile + L3 BuildArtifact
 - Phase 304 实施：✅ `c7c48adb4`
 - Phase 305 实施：✅ `4aa131398` + `057ddba10`
 - Phase 306 实施：✅ `9ef76a56f`
-- **P0-MB Phase 1 实施**：✅ 本轮
+- **P0-MB Phase 1 实施**：✅ `5fe58f0c4`（本轮）
 
 ### 剩余任务（P0-MB Phase 2-5，21d）
 
