@@ -3389,3 +3389,109 @@ P0-MB 6 项子任务全部完成。Phase 6 交付后：
 - **backend**：`internal/branch-policy/` 具备完整 5 层防护 + 部署执行 + 审计写入
 - **frontend**：可基于完整 API 构建所有 6 个页面
 - **infra**：待 DB migration 落地后可启用真实数据
+
+---
+
+## P0-MB Phase 5b — git merge-tree 集成（2026-08-26）
+
+### 目标
+
+Phase 5 的 `CreateMergePreview` 目前仅接受客户端传入的冲突列表；本 Phase 补齐服务端真实 `git merge-tree` 执行能力，让 `/branch-policy/merge-preview` 端点在客户端未提供冲突时自动跑一次 dry-run 合并。
+
+### 设计决策
+
+| 决策 | 理由 |
+|---|---|
+| 独立 `gitmerge` 包 | 与 service 解耦；测试不需 git 二进制；可单独注入 mock |
+| `Executor` 接口 + `LocalExecutor` 实现 | 便于测试 mock 和后续替换（如 git-go 库 / 远程 executor） |
+| `git merge-tree --write-tree` (git ≥ 2.38) | 新语法只需 2 个 ref（无需 base），输出结构化 conflict entries |
+| 3 路径解析：client → git → empty | 向后兼容；git 缺失不阻塞 API；降级到 RiskLevel=low |
+| git 失败不 surface 为 API error | 保持 API 可用性；失败仅记 warning log（placeholder） |
+| SourceCommit 优先于 SourceBranch | 精确 ref 比分支名更可靠；分支名可能不存在 |
+| `WithGitExecutor` 链式方法 | 允许测试在构造后切换 executor；nil = 重置为 empty fallback |
+| Parser dedup + sort | 同一文件可能出现在 stage 1/2/3；输出顺序需稳定 |
+| Parser malformed lines skip | git 版本差异容忍；不因格式不符 panic |
+| 30s 默认 timeout | 大型仓库 merge-tree 可能较慢；可配置 |
+
+### 文件清单
+
+| 文件 | 变更 |
+|---|---|
+| `internal/branch-policy/gitmerge/executor.go` | 新建（Executor interface + LocalExecutor + PathExists） |
+| `internal/branch-policy/gitmerge/parser.go` | 新建（ParseMergeTreeOutput + isTreeHashLine + parseConflictEntry + isHex + splitLines + dedupeSorted + classifyAddedModifiedDeleted + validateRefs） |
+| `internal/branch-policy/gitmerge/executor_test.go` | 新建（7 parser tests + 6 executor tests = 13 tests） |
+| `internal/branch-policy/service/service.go` | +gitmerge import / +gitExecutor 字段 / +NewServiceWithGit 构造器 / +WithGitExecutor 链式方法 / CreateMergePreview 重写（3 路径解析）/ +logGitMergeError placeholder |
+| `internal/branch-policy/service/service_test.go` | +gitmerge import / +mockGitExecutor 测试替身 / +6 service integration tests |
+| `docs/ALL_TODOS.md` | Phase 5b 行标记 ✅ 已完成 + 状态更新（7/7）+ 授权状态更新 |
+| `docs/development-progress.md` | 本 Phase 5b 章节追加 |
+
+### 关键 API
+
+```go
+// gitmerge.Executor interface
+type Executor interface {
+    Run(ctx context.Context, sourceRef, targetRef string) (*Result, error)
+}
+
+// LocalExecutor (default implementation)
+e := gitmerge.NewLocalExecutor()  // BinaryPath="git", Timeout=30s
+e.WorkDir = "/path/to/repo"        // optional
+result, err := e.Run(ctx, "feature-branch", "main")
+
+// Service integration
+svc := service.NewServiceWithGit(repo, gitmerge.NewLocalExecutor())
+// or
+svc := service.NewService(repo)
+svc.WithGitExecutor(gitmerge.NewLocalExecutor())
+```
+
+### CreateMergePreview 3 路径解析逻辑
+
+```
+1. if len(req.ConflictFiles) > 0 → 使用客户端提供的（不调用 git）
+2. else if s.gitExecutor != nil → 调用 git merge-tree
+   - SourceRef = req.SourceCommit (fallback: req.SourceBranch)
+   - TargetRef = req.TargetCommit (fallback: req.TargetBranch)
+   - 成功 → 使用 git 输出
+   - 失败 → 降级到空冲突列表 + 记 warning log
+3. else → 使用空冲突列表（RiskLevel=low）
+```
+
+### 验证
+
+- `go build ./...` ✅
+- `go vet ./internal/branch-policy/...` ✅
+- `go test ./internal/branch-policy/...` ✅（13 gitmerge tests + 6 service integration tests 全绿）
+
+### 已知问题
+
+1. **git merge-tree 输出格式版本差异**：parser 针对 git ≥ 2.38 的新语法；旧版 git（< 2.38）使用 3-ref 语法（`<base> <branch1> <branch2>`），输出格式不同。当前 parser 对旧版输出会降级为空冲突列表。
+2. **AddedFiles/ModifiedFiles/DeletedFiles 未分类**：`git merge-tree --write-tree` 不输出文件变更类型；当前返回空 slice。如需真实分类，需调用 `git diff --name-status` 后再解析。
+3. **生产接线未做**：`main.go` 尚未调用 `NewServiceWithGit`；当前生产环境仍使用 `NewService(repo)`（gitExecutor=nil，降级到 empty fallback）。接线需配置 git 二进制路径和工作目录。
+4. **logGitMergeError 为 placeholder**：Service 无 logger 依赖；未来接入结构化日志时需实现。
+5. **DB migration 未落地**：`merge_previews` 表待建（Repository stub 返回 sentinel.NotFound）。
+
+### Commit
+
+```
+feat(branch-policy): P0-MB Phase 5b — git merge-tree integration
+```
+
+### 累计进度（Phase 301-306 + P0-MB Phase 1-6 + Phase 5b 全部完成）
+
+- **Phase 301-306 实施**：✅
+- **P0-MB Phase 1 实施**：✅ `5fe58f0c4`
+- **P0-MB Phase 2 实施**：✅ `49d106242`
+- **P0-MB Phase 3 实施**：✅ `9f9bc3e1b`
+- **P0-MB Phase 4 实施**：✅ `7ba5b9819`
+- **P0-MB Phase 5 实施**：✅ `2163cbd45`
+- **P0-MB Phase 6 实施**：✅ `082462c47`
+- **P0-MB Phase 5b 实施**：✅ 本轮
+
+### 剩余任务
+
+- **DB migration**（阻塞 7 张表真实可用）：branch_profiles + build_artifacts + namespace_bindings + sync_policies + sync_run_logs + deploy_events + merge_previews
+- **前端页面**（6 个）：BranchProfileList.tsx + BranchProfileDetail.tsx + ArtifactList.tsx + ArtifactDetail.tsx + RegisterArtifactModal.tsx + NamespaceMatrix.tsx + SyncPolicyList.tsx + ChangeAuditTrail.tsx + MergePreviewDialog.tsx + PreDeployGatePanel.tsx
+- **生产接线**：`main.go` 调用 `NewServiceWithGit(repo, gitmerge.NewLocalExecutor())` 并配置 WorkDir
+- **R6 schema-compatibility 真实实现**：需要 migration service 支持
+- **AddedFiles/ModifiedFiles/DeletedFiles 分类**：需调用 `git diff --name-status` 后解析

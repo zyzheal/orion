@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"orion/platform-svc-go/internal/branch-policy/gitmerge"
 	"orion/platform-svc-go/internal/branch-policy/models"
 )
 
@@ -2965,5 +2966,177 @@ func TestExecuteDeploy_R1Blocked(t *testing.T) {
 	}
 	if out.Event != nil {
 		t.Fatalf("expected Event=nil when R1 blocks")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// P0-MB Phase 5b — CreateMergePreview with GitExecutor (merge-tree integration)
+// ---------------------------------------------------------------------------
+
+// mockGitExecutor is a test double for gitmerge.Executor. It returns the
+// preconfigured result on every call and records the refs it was invoked
+// with, so tests can assert on the wire contract.
+type mockGitExecutor struct {
+	result    *gitmerge.Result
+	err       error
+	calls     int
+	lastSrc   string
+	lastTgt   string
+}
+
+func (m *mockGitExecutor) Run(ctx context.Context, sourceRef, targetRef string) (*gitmerge.Result, error) {
+	m.calls++
+	m.lastSrc = sourceRef
+	m.lastTgt = targetRef
+	return m.result, m.err
+}
+
+func TestMP_CreateMergePreview_GitExecutorRunsWhenConflictsEmpty(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepo()
+	git := &mockGitExecutor{
+		result: &gitmerge.Result{
+			ConflictFiles: []string{"a.go", "b.go"},
+			AddedFiles:    []string{"new.go"},
+			ModifiedFiles: []string{"c.go"},
+			DeletedFiles:  []string{"old.go"},
+		},
+	}
+	svc := NewServiceWithGit(repo, git)
+	req := &models.MergePreviewRequest{
+		SourceBranch: "feat/x",
+		TargetBranch: "main",
+		// No ConflictFiles supplied — service should fall through to git.
+	}
+	p, err := svc.CreateMergePreview(ctx, "t1", req)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if git.calls != 1 {
+		t.Fatalf("expected 1 git call, got %d", git.calls)
+	}
+	// Service falls back from SourceCommit/TargetCommit to SourceBranch/
+	// TargetBranch when the commit SHA is empty.
+	if git.lastSrc != "feat/x" || git.lastTgt != "main" {
+		t.Fatalf("git invoked with (%q, %q), want (feat/x, main)", git.lastSrc, git.lastTgt)
+	}
+	if p.ConflictCount != 2 {
+		t.Fatalf("expected ConflictCount=2 from git, got %d", p.ConflictCount)
+	}
+	if p.RiskLevel != models.RiskLevelMedium {
+		t.Fatalf("expected RiskLevel=medium, got %s", p.RiskLevel)
+	}
+	if len(p.ConflictFiles) != 2 || p.ConflictFiles[0] != "a.go" || p.ConflictFiles[1] != "b.go" {
+		t.Fatalf("expected git ConflictFiles to be used, got %v", p.ConflictFiles)
+	}
+}
+
+func TestMP_CreateMergePreview_GitExecutorSkippedWhenClientSuppliesConflicts(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepo()
+	git := &mockGitExecutor{result: &gitmerge.Result{ConflictFiles: []string{"should-not-be-used.go"}}}
+	svc := NewServiceWithGit(repo, git)
+	req := &models.MergePreviewRequest{
+		SourceBranch:  "feat/x",
+		TargetBranch:  "main",
+		ConflictFiles: []string{"client-supplied.go"},
+	}
+	p, err := svc.CreateMergePreview(ctx, "t1", req)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if git.calls != 0 {
+		t.Fatalf("expected 0 git calls when client supplies conflicts, got %d", git.calls)
+	}
+	if p.ConflictCount != 1 || p.ConflictFiles[0] != "client-supplied.go" {
+		t.Fatalf("expected client-supplied conflicts, got %+v", p.ConflictFiles)
+	}
+}
+
+func TestMP_CreateMergePreview_GitExecutorPrefersCommitSHAsOverBranches(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepo()
+	git := &mockGitExecutor{result: &gitmerge.Result{ConflictFiles: []string{}}}
+	svc := NewServiceWithGit(repo, git)
+	req := &models.MergePreviewRequest{
+		SourceBranch: "feat/x",
+		TargetBranch: "main",
+		SourceCommit: "abcdef1234567890",
+		TargetCommit: "1234567890abcdef",
+	}
+	if _, err := svc.CreateMergePreview(ctx, "t1", req); err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if git.lastSrc != "abcdef1234567890" || git.lastTgt != "1234567890abcdef" {
+		t.Fatalf("git invoked with (%q, %q), want commit SHAs", git.lastSrc, git.lastTgt)
+	}
+}
+
+func TestMP_CreateMergePreview_GitExecutorFailureFallsBackToEmpty(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepo()
+	git := &mockGitExecutor{err: fmt.Errorf("git: not found")}
+	svc := NewServiceWithGit(repo, git)
+	req := &models.MergePreviewRequest{
+		SourceBranch: "feat/x",
+		TargetBranch: "main",
+	}
+	p, err := svc.CreateMergePreview(ctx, "t1", req)
+	if err != nil {
+		t.Fatalf("git failure must not surface as API error: %v", err)
+	}
+	if git.calls != 1 {
+		t.Fatalf("expected 1 git call, got %d", git.calls)
+	}
+	if p.ConflictCount != 0 {
+		t.Fatalf("expected 0 conflicts on git failure, got %d", p.ConflictCount)
+	}
+	if p.RiskLevel != models.RiskLevelLow {
+		t.Fatalf("expected RiskLevel=low on git failure, got %s", p.RiskLevel)
+	}
+}
+
+func TestMP_CreateMergePreview_NoGitExecutorFallbackToEmpty(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepo()
+	svc := NewService(repo) // no git executor
+	req := &models.MergePreviewRequest{
+		SourceBranch: "feat/x",
+		TargetBranch: "main",
+	}
+	p, err := svc.CreateMergePreview(ctx, "t1", req)
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if p.ConflictCount != 0 {
+		t.Fatalf("expected 0 conflicts without git executor, got %d", p.ConflictCount)
+	}
+}
+
+func TestMP_CreateMergePreview_WithGitExecutorChain(t *testing.T) {
+	// WithGitExecutor mutates in place and returns the same pointer.
+	ctx := context.Background()
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	git := &mockGitExecutor{result: &gitmerge.Result{ConflictFiles: []string{"x.go"}}}
+	same := svc.WithGitExecutor(git)
+	if same != svc {
+		t.Fatal("WithGitExecutor should return the same pointer")
+	}
+	req := &models.MergePreviewRequest{SourceBranch: "a", TargetBranch: "b"}
+	if _, err := svc.CreateMergePreview(ctx, "t1", req); err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if git.calls != 1 {
+		t.Fatalf("expected git to be invoked after WithGitExecutor, got %d calls", git.calls)
+	}
+	// Reset to nil — subsequent calls must not invoke git.
+	svc.WithGitExecutor(nil)
+	req2 := &models.MergePreviewRequest{SourceBranch: "a", TargetBranch: "b"}
+	if _, err := svc.CreateMergePreview(ctx, "t1", req2); err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if git.calls != 1 {
+		t.Fatalf("expected no additional git calls after reset, got %d", git.calls)
 	}
 }

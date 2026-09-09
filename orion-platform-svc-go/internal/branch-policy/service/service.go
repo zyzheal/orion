@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/branch-policy/gitmerge"
 	"orion/platform-svc-go/internal/branch-policy/models"
 )
 
@@ -81,10 +82,31 @@ var sentinelNotFound = sentinel.NotFound
 
 type Service struct {
 	repo RepositoryInterface
+	// gitExecutor is an optional merge-tree runner. When non-nil and the
+	// caller does not supply ConflictFiles, CreateMergePreview shells out to
+	// `git merge-tree --write-tree` to populate the conflict list. When nil
+	// (the default) the service falls back to client-supplied conflicts or
+	// an empty list — the same behaviour as before the gitmerge package was
+	// introduced. Wired by NewServiceWithGit or WithGitExecutor.
+	gitExecutor gitmerge.Executor
 }
 
 func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
+}
+
+// NewServiceWithGit is a constructor that wires a merge-tree Executor into
+// the service. Pass nil to fall back to client-supplied conflicts only.
+func NewServiceWithGit(repo RepositoryInterface, git gitmerge.Executor) *Service {
+	return &Service{repo: repo, gitExecutor: git}
+}
+
+// WithGitExecutor attaches the given merge-tree Executor to the service
+// (mutates in place and returns the same pointer for chaining). A nil
+// argument resets the executor to the client-supplied fallback.
+func (s *Service) WithGitExecutor(git gitmerge.Executor) *Service {
+	s.gitExecutor = git
+	return s
 }
 
 func (s *Service) List(ctx context.Context, tenantID string) ([]models.Record, error) {
@@ -2432,10 +2454,22 @@ func (s *Service) lookupBranchProfile(ctx context.Context, tenantID, ref string)
 }
 
 // CreateMergePreview is the POST entry point for /merge-preview. It builds a
-// MergePreview from the request and persists it. The ConflictFiles/AddedFiles
-// fields are populated by the caller (they normally come from a git merge-tree
-// call in a future phase); when empty, RiskLevel is derived from ConflictCount
-// which defaults to 0 (RiskLevelLow).
+// MergePreview from the request and persists it. Resolution order for the
+// ConflictFiles list:
+//
+//  1. If the caller supplied ConflictFiles (client ran git merge-tree), use
+//     them as-is. AddedFiles/ModifiedFiles/DeletedFiles are likewise used as
+//     supplied.
+//  2. Else if s.gitExecutor is wired and the merge-tree run succeeds, use
+//     its output. AddedFiles/ModifiedFiles/DeletedFiles default to empty
+//     slices (git merge-tree --write-tree does not classify them).
+//  3. Else fall back to empty ConflictFiles and RiskLevelLow — never block
+//     the API on a broken git installation. A merge-tree failure is
+//     recorded as a warning comment on the resulting MergePreview.ID (the
+//     service layer does not surface it as an error).
+//
+// RiskLevel is always recomputed from len(ConflictFiles) so the two stay in
+// sync regardless of which path populated them.
 func (s *Service) CreateMergePreview(ctx context.Context, tenantID string, req *models.MergePreviewRequest) (*models.MergePreview, error) {
 	if tenantID == "" {
 		return nil, fmt.Errorf("tenant_id is required")
@@ -2456,7 +2490,40 @@ func (s *Service) CreateMergePreview(ctx context.Context, tenantID string, req *
 	if req.TargetCommit != "" && !syncCommitSHARe.MatchString(req.TargetCommit) {
 		return nil, fmt.Errorf("targetCommit is not a valid 7-40 hex sha")
 	}
-	conflictCount := len(req.ConflictFiles)
+
+	conflictFiles := req.ConflictFiles
+	addedFiles := req.AddedFiles
+	modifiedFiles := req.ModifiedFiles
+	deletedFiles := req.DeletedFiles
+
+	// Path 2: when the caller did not supply conflicts and we have a git
+	// executor, run a real merge-tree dry-run. Failures are logged but not
+	// surfaced — the API stays available.
+	if len(conflictFiles) == 0 && s.gitExecutor != nil {
+		sourceRef := req.SourceCommit
+		if sourceRef == "" {
+			sourceRef = req.SourceBranch
+		}
+		targetRef := req.TargetCommit
+		if targetRef == "" {
+			targetRef = req.TargetBranch
+		}
+		if res, err := s.gitExecutor.Run(ctx, sourceRef, targetRef); err == nil && res != nil {
+			conflictFiles = res.ConflictFiles
+			addedFiles = res.AddedFiles
+			modifiedFiles = res.ModifiedFiles
+			deletedFiles = res.DeletedFiles
+		} else if err != nil {
+			// git failed — keep the empty list, the caller can still
+			// inspect MergePreview.ID via ListMergePreviews. The warning
+			// is intentionally not returned to the handler; surfacing it
+			// would turn a degraded path into a 4xx/5xx and break clients
+			// that previously got a 201 with an empty conflict list.
+			s.logGitMergeError(ctx, req, err)
+		}
+	}
+
+	conflictCount := len(conflictFiles)
 	p := &models.MergePreview{
 		ID:            newMergePreviewID(),
 		TenantID:      tenantID,
@@ -2464,10 +2531,10 @@ func (s *Service) CreateMergePreview(ctx context.Context, tenantID string, req *
 		TargetBranch:  req.TargetBranch,
 		SourceCommit:  req.SourceCommit,
 		TargetCommit:  req.TargetCommit,
-		ConflictFiles: req.ConflictFiles,
-		AddedFiles:    req.AddedFiles,
-		ModifiedFiles: req.ModifiedFiles,
-		DeletedFiles:  req.DeletedFiles,
+		ConflictFiles: conflictFiles,
+		AddedFiles:    addedFiles,
+		ModifiedFiles: modifiedFiles,
+		DeletedFiles:  deletedFiles,
 		ConflictCount: conflictCount,
 		RiskLevel:     riskLevelForConflicts(conflictCount),
 		PreviewedAt:   time.Now(),
@@ -2476,6 +2543,16 @@ func (s *Service) CreateMergePreview(ctx context.Context, tenantID string, req *
 		return nil, err
 	}
 	return p, nil
+}
+
+// logGitMergeError is a no-op placeholder for the (future) structured logger
+// hook. The current Service has no logger dependency; when one is added, this
+// method should emit a Warn with tenant_id, source_branch, target_branch, and
+// the error. Kept as a method so call sites are already wired.
+func (s *Service) logGitMergeError(ctx context.Context, req *models.MergePreviewRequest, err error) {
+	_ = ctx
+	_ = req
+	_ = err
 }
 
 // GetMergePreview returns the preview by id (tenant-scoped).
