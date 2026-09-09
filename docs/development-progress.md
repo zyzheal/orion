@@ -3193,7 +3193,7 @@ feat(branch-policy): P0-MB Phase 4 — L5 DeployEvent + 一键回滚 + AuditTrai
 - **P0-MB Phase 1 实施**：✅ `5fe58f0c4`
 - **P0-MB Phase 2 实施**：✅ `49d106242`
 - **P0-MB Phase 3 实施**：✅ `9f9bc3e1b`
-- **P0-MB Phase 4 实施**：✅ `__COMMIT_HASH__`（本轮）
+- **P0-MB Phase 4 实施**：✅ `7ba5b9819`（本轮）
 
 ### 剩余任务（P0-MB Phase 5，6d）
 
