@@ -141,7 +141,8 @@ export function useServiceTopologyState() {
     staleTime: 30_000,
   });
 
-  const { dependencies, serviceStats } = topology;
+  const dependencies = topology?.dependencies ?? [];
+  const serviceStats = topology?.serviceStats ?? new Map();
 
   // nodes/edges 需要本地 state 以支持 ReactFlow 交互（拖拽/平移）
   const [nodes, setNodes] = useState<Node[]>([]);

@@ -39,6 +39,7 @@ export function useWebhookManagementState() {
       return (res.data as any)?.webhooks ?? [];
     },
     staleTime: 30_000,
+    retry: 0,
   });
 
   const errorState = isError ? (error as Error | null) : null;

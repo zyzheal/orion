@@ -26,7 +26,8 @@ import { buildTabItems } from './Components/TabItems';
 
 const PipelineDetail: React.FC = () => {
   const state = usePipelineDetailState();
-  const loadingState = <LoadingStates state={state} />;
+  // 直接函数调用：LoadingStates 返回 null 或 ReactNode，避免 JSX element 永远 truthy 导致空白页
+  const loadingState = LoadingStates({ state });
 
   if (loadingState) return loadingState;
 

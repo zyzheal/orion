@@ -13,6 +13,9 @@ import {
 import Table, { type TableColumn } from '@/components/Table';
 import type { InternalLibrary, LibraryLanguage, LibraryStatus } from '@/api/internal-library';
 import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+
+dayjs.extend(relativeTime);
 
 const { Text } = Typography;
 

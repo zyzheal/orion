@@ -20,7 +20,7 @@ export function useSpaceDashboardState() {
   const buildDetailRows = useMemo((): SpaceDetailRow[] => {
     if (!data) return [];
     return [
-      { key: '1', metric: '开发者满意度', current: data.satisfaction.score, target: 85, trend: data.satisfaction.trend, status: data.satisfaction.score >= 85 ? 'success' : 'warning' },
+      { key: '1', metric: '开发者满意度', current: data.satisfaction.score, target: 85, trend: `${data.satisfaction.trend > 0 ? '↑ +' : '↓ '}${Math.abs(data.satisfaction.trend)}`, status: data.satisfaction.score >= 85 ? 'success' : 'warning' },
       { key: '2', metric: '构建成功率', current: data.performance.buildSuccessRate, target: 95, trend: '↑ +2', status: data.performance.buildSuccessRate >= 95 ? 'success' : 'warning' },
       { key: '3', metric: '测试通过率', current: data.performance.testPassRate, target: 95, trend: '↑ +1', status: 'success' },
       { key: '4', metric: 'PR 审查时长(h)', current: data.communication.reviewTurnaround, target: 24, trend: '↓ -1.2h', status: data.communication.reviewTurnaround <= 24 ? 'success' : 'warning' },

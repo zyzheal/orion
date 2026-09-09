@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { message, Modal } from 'antd';
 import dayjs from 'dayjs';
-import { useQuery } from '@/providers/QueryProvider';
+import { useQuery, useQueryClient } from '@/providers/QueryProvider';
 import type { AgentProfile, AgentRun, AgentApproval } from '@/api/agents';
 import {
   getAgentProfiles,
@@ -25,12 +25,12 @@ export function useAgentDashboardState() {
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<AgentProfile | null>(null);
 
+  const queryClient = useQueryClient();
   const {
     data: agentData,
     isLoading: loading,
     error: queryError,
     isError,
-    refetch: loadData,
   } = useQuery<{ agents: AgentProfile[]; runs: AgentRun[]; approvals: AgentApproval[] }>({
     queryKey: ['agent-dashboard'],
     queryFn: async () => {
@@ -48,6 +48,12 @@ export function useAgentDashboardState() {
     staleTime: 30_000,
     retry: 0,
   });
+
+  // 用户主动操作（刷新/增删改审批后）必须强制重新拉取：
+  // staleTime 30s 内 refetch()/invalidateQueries() 默认跳过 fresh 数据。
+  // refetchQueries 的 stale:false 显式重拉所有匹配查询，确保「刷新」真正重新请求。
+  const loadData = () =>
+    queryClient.refetchQueries({ queryKey: ['agent-dashboard'], type: 'active', stale: false });
 
   const agents = agentData?.agents ?? [];
   const runs = agentData?.runs ?? [];

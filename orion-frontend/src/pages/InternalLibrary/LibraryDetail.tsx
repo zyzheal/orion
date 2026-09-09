@@ -36,7 +36,10 @@ import type {
 } from '@/api/internal-library';
 import { checkDependencies } from '@/api/internal-library';
 import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import { spacing } from '@/tokens';
+
+dayjs.extend(relativeTime);
 
 const { Text } = Typography;
 
