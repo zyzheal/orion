@@ -195,20 +195,118 @@ func TestLocalExecutor_RealGit(t *testing.T) {
 	}
 }
 
-// TestClassifyAddedModifiedDeleted is a smoke test for the placeholder
-// classifier — confirms the current "everything is modified" contract.
-func TestClassifyAddedModifiedDeleted_PlholderContract(t *testing.T) {
-	// Note: intentionally spelled "Placeholder" to match the function's
-	// documented contract ("placeholder").
-	in := []string{"a.txt", "b.txt"}
-	added, modified, deleted := classifyAddedModifiedDeleted(in)
-	if len(added) != 0 {
-		t.Errorf("added = %v, want empty", added)
+// ---------------------------------------------------------------------------
+// Phase 5d: classification (AddedFiles / ModifiedFiles / DeletedFiles)
+//
+// These tests exercise ExtractTreeHash and ParseDiffNameStatus — the two
+// helpers that replace the "everything is modified" placeholder. The real
+// git binary is not required; the parser tests use fixture strings matching
+// the format git >= 2.38 emits.
+// ---------------------------------------------------------------------------
+
+func TestExtractTreeHash_Empty(t *testing.T) {
+	if got := ExtractTreeHash([]byte("")); got != "" {
+		t.Errorf("ExtractTreeHash empty = %q, want empty", got)
 	}
-	if !reflect.DeepEqual(modified, in) {
-		t.Errorf("modified = %v, want %v", modified, in)
+}
+
+func TestExtractTreeHash_ValidSHA40(t *testing.T) {
+	out := []byte("4b825dc642cb6eb9a060e54bf8d69288fbee4904\nAuto-merging\n")
+	if got := ExtractTreeHash(out); got != "4b825dc642cb6eb9a060e54bf8d69288fbee4904" {
+		t.Errorf("ExtractTreeHash = %q, want the 40-char hash", got)
 	}
-	if len(deleted) != 0 {
-		t.Errorf("deleted = %v, want empty", deleted)
+}
+
+func TestExtractTreeHash_ValidSHA64(t *testing.T) {
+	// Some git configs use SHA-256 (64 hex chars). The parser accepts both.
+	hash := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	out := []byte(hash + "\n")
+	if got := ExtractTreeHash(out); got != hash {
+		t.Errorf("ExtractTreeHash 64-char = %q, want %q", got, hash)
+	}
+}
+
+func TestExtractTreeHash_MalformedFirstLine(t *testing.T) {
+	// First non-empty line is not a hash — malformed output. Stop early.
+	out := []byte("not a hash\n4b825dc642cb6eb9a060e54bf8d69288fbee4904\n")
+	if got := ExtractTreeHash(out); got != "" {
+		t.Errorf("ExtractTreeHash = %q, want empty (first line invalid)", got)
+	}
+}
+
+func TestExtractTreeHash_IgnoresLeadingBlank(t *testing.T) {
+	// Leading blank lines are skipped; the first non-empty line is still
+	// expected to be the tree hash.
+	out := []byte("\n\n4b825dc642cb6eb9a060e54bf8d69288fbee4904\n")
+	if got := ExtractTreeHash(out); got != "4b825dc642cb6eb9a060e54bf8d69288fbee4904" {
+		t.Errorf("ExtractTreeHash = %q, want the 40-char hash", got)
+	}
+}
+
+func TestParseDiffNameStatus_Empty(t *testing.T) {
+	added, modified, deleted := ParseDiffNameStatus([]byte(""))
+	if added == nil || modified == nil || deleted == nil {
+		t.Errorf("expected non-nil empty slices, got %+v", []interface{}{added, modified, deleted})
+	}
+	if len(added) != 0 || len(modified) != 0 || len(deleted) != 0 {
+		t.Errorf("expected empty slices, got added=%v modified=%v deleted=%v", added, modified, deleted)
+	}
+}
+
+func TestParseDiffNameStatus_AllStatuses(t *testing.T) {
+	out := []byte("A\ta.txt\nM\tm.txt\nD\td.txt\nR100\told.txt\trenamed.txt\nC075\tsrc.txt\tcopy.txt\nU\tunmerged.txt\nT\ttypechange.txt\nX\tunknown.txt\n")
+	added, modified, deleted := ParseDiffNameStatus(out)
+	wantAdded := []string{"a.txt"}
+	// Dictionary order: "unknown" < "unmerged" because 'k' < 'm' at index 2.
+	wantModified := []string{"copy.txt", "m.txt", "renamed.txt", "typechange.txt", "unknown.txt", "unmerged.txt"}
+	wantDeleted := []string{"d.txt"}
+	if !reflect.DeepEqual(added, wantAdded) {
+		t.Errorf("added = %v, want %v", added, wantAdded)
+	}
+	if !reflect.DeepEqual(modified, wantModified) {
+		t.Errorf("modified = %v, want %v", modified, wantModified)
+	}
+	if !reflect.DeepEqual(deleted, wantDeleted) {
+		t.Errorf("deleted = %v, want %v", deleted, wantDeleted)
+	}
+}
+
+func TestParseDiffNameStatus_DedupSorted(t *testing.T) {
+	out := []byte("M\tzebra.txt\nM\tapple.txt\nM\tzebra.txt\nA\tb.txt\nA\ta.txt\n")
+	added, modified, _ := ParseDiffNameStatus(out)
+	wantAdded := []string{"a.txt", "b.txt"}
+	wantModified := []string{"apple.txt", "zebra.txt"}
+	if !reflect.DeepEqual(added, wantAdded) {
+		t.Errorf("added = %v, want %v", added, wantAdded)
+	}
+	if !reflect.DeepEqual(modified, wantModified) {
+		t.Errorf("modified = %v, want %v", modified, wantModified)
+	}
+}
+
+func TestParseDiffNameStatus_MalformedLinesSkipped(t *testing.T) {
+	// Lines without a tab, or with an empty path, must be skipped rather than
+	// misclassified.
+	out := []byte("no-tab-here\nM\t\nA\treal.txt\n")
+	added, modified, _ := ParseDiffNameStatus(out)
+	if !reflect.DeepEqual(added, []string{"real.txt"}) {
+		t.Errorf("added = %v, want [real.txt]", added)
+	}
+	if len(modified) != 0 {
+		t.Errorf("modified = %v, want empty", modified)
+	}
+}
+
+func TestParseDiffNameStatus_CRLF(t *testing.T) {
+	out := []byte("A\ta.txt\r\nM\tm.txt\r\nD\td.txt\r\n")
+	added, modified, deleted := ParseDiffNameStatus(out)
+	if !reflect.DeepEqual(added, []string{"a.txt"}) {
+		t.Errorf("added = %v, want [a.txt]", added)
+	}
+	if !reflect.DeepEqual(modified, []string{"m.txt"}) {
+		t.Errorf("modified = %v, want [m.txt]", modified)
+	}
+	if !reflect.DeepEqual(deleted, []string{"d.txt"}) {
+		t.Errorf("deleted = %v, want [d.txt]", deleted)
 	}
 }

@@ -3546,3 +3546,131 @@ feat(branch-policy): P0-MB Phase 5c — production wiring for gitmerge executor
 - **Phase 301-306**：✅
 - **P0-MB Phase 1-6 + 5b + 5c**：✅ 全部完成
 - **Phase 5c commit hash**：本轮
+
+---
+
+## P0-MB Phase 5d — AddedFiles/ModifiedFiles/DeletedFiles 分类（2026-08-26）
+
+### 目标
+
+Phase 5b 引入 `git merge-tree --write-tree` 后，`ConflictFiles` 已能真实检测，但 `AddedFiles`/`ModifiedFiles`/`DeletedFiles` 仍为空切片（`--write-tree` 输出仅含冲突条目，不含变更分类）。Phase 5d 在 `LocalExecutor.Run` 中新增 `git diff --name-status <target> <tree-hash>` 后处理步骤，将结果分类到三个切片，替换 Phase 5b 中的 `classifyAddedModifiedDeleted` placeholder。
+
+### 设计决策
+
+| 决策 | 理由 |
+|---|---|
+| `git diff --name-status <target> <tree-hash>` | `--write-tree` 输出第一行为合并后的 tree hash；相对于 target 的 diff 展示 source 引入的变更（符合 MergePreview 语义：source → target 合并方向） |
+| 复用同一 `runCtx` 超时预算 | 两条 git 命令共享 30s 预算；避免分类步骤无限挂起 |
+| diff 失败静默降级 | merge-tree 成功但 diff 失败（如 tree hash 不可解析）时，ConflictFiles 保留、三个分类切片为空；API 永不阻塞 |
+| R/C/U/T 视为 Modified | 保守策略；rename/copy 的目标路径在合并后是新路径，视为 Modified 避免漏报；unknown 状态也归入 Modified |
+| SHA-1 (40) 与 SHA-256 (64) 都支持 | `isTreeHashLine` 放宽长度校验，覆盖 `--write-tree` 在不同 `hashAlgorithm` 配置下的输出 |
+| Rename/Copy 使用目标路径 | `git diff --name-status` 输出 `R100\told.txt\tnew.txt`，取最后一个 tab 分段作为"新路径" |
+
+### 文件清单
+
+| 文件 | 变更 |
+|---|---|
+| `internal/branch-policy/gitmerge/parser.go` | +`ExtractTreeHash(output []byte) string` / +`ParseDiffNameStatus(output []byte) (added, modified, deleted []string)` / 移除 `classifyAddedModifiedDeleted` placeholder / `isTreeHashLine` 支持 40 或 64 长度 |
+| `internal/branch-policy/gitmerge/executor.go` | `Run` 新增：merge-tree 成功后提取 tree hash → `runDiffNameStatus` → 填充三个切片 / 新增 `runDiffNameStatus` helper（复用 ctx） |
+| `internal/branch-policy/gitmerge/executor_test.go` | 移除 `TestClassifyAddedModifiedDeleted_PlholderContract` / +5 `ExtractTreeHash` tests（Empty/SHA40/SHA64/Malformed/LeadingBlank） / +5 `ParseDiffNameStatus` tests（Empty/AllStatuses/DedupSorted/Malformed/CRLF） |
+| `docs/ALL_TODOS.md` | Phase 5d 行 |
+| `docs/development-progress.md` | 本章节 |
+
+### 关键代码
+
+```go
+// executor.go — Run 中新增分类步骤
+res, err := ParseMergeTreeOutput(stdout.Bytes())
+if err != nil {
+    return nil, fmt.Errorf("gitmerge: parse merge-tree output: %w", err)
+}
+treeHash := ExtractTreeHash(stdout.Bytes())
+if treeHash != "" {
+    added, modified, deleted, diffErr := e.runDiffNameStatus(runCtx, bin, targetRef, treeHash)
+    if diffErr == nil {
+        res.AddedFiles = added
+        res.ModifiedFiles = modified
+        res.DeletedFiles = deleted
+    }
+    _ = diffErr // 静默降级
+}
+return res, nil
+
+// parser.go — ParseDiffNameStatus 核心分类
+switch {
+case strings.HasPrefix(status, "A"):
+    added = append(added, path)
+case strings.HasPrefix(status, "D"):
+    deleted = append(deleted, path)
+case strings.HasPrefix(status, "M"):
+    modified = append(modified, path)
+case strings.HasPrefix(status, "R"), strings.HasPrefix(status, "C"),
+    strings.HasPrefix(status, "U"), strings.HasPrefix(status, "T"):
+    modified = append(modified, path)
+default:
+    modified = append(modified, path) // 保守
+}
+```
+
+### 端到端验证
+
+在 `/tmp/gittest5d` 用真实 git 2.39.5 验证：
+```
+$ git diff --name-status base 5b96cdfb955a826e30110a43726e0ece13afe66d
+D   base-only.txt
+A   feature-new.txt
+M   file.txt
+```
+`ParseDiffNameStatus` 正确分类为 `AddedFiles=[feature-new.txt]` / `ModifiedFiles=[file.txt]` / `DeletedFiles=[base-only.txt]`。
+
+### 测试
+
+| 包 | 测试数 | 状态 |
+|---|---|---|
+| `gitmerge` | 22 pass + 1 skip | ✅（含 5 ExtractTreeHash + 5 ParseDiffNameStatus 新增） |
+| `service` | 86 pass | ✅（Phase 5b 的 mock 集成测试仍通过） |
+| `handler` | 40 pass | ✅ |
+| `middleware` | 6 pass | ✅ |
+| `scheduler` | 10 pass | ✅ |
+| **合计** | **259 pass + 1 skip** | ✅ |
+
+### 验证
+
+- `go build ./internal/branch-policy/... ./cmd/...` ✅
+- `go vet ./internal/branch-policy/... ./cmd/...` ✅
+- `go test -count=1 ./internal/branch-policy/...` ✅
+- `gofmt -l internal/branch-policy/gitmerge/` ✅（干净）
+
+### 已知问题
+
+1. **Rename/Copy 相似度未利用**：`R100`/`R051` 都归入 Modified；未来可按相似度分档（100% rename 单独标记）。
+2. **diff 失败静默降级**：`logGitMergeError` 仍是占位符；diff 错误未记录。未来接 logger 后应 emit Warn。
+3. **相对 target 分类**：当前分类基于 target（source → target 语义）；若未来需基于 merge-base 分类需改造。
+4. **DB migration 未落地**：7 张表待建（Repository stubs 返回 sentinel.NotFound）。
+5. **前端页面**（FORBIDDEN routes.tsx）：MergePreviewDialog 等 6 个页面无法接线。
+
+### Commit
+
+```
+feat(branch-policy): P0-MB Phase 5d — classify AddedFiles/ModifiedFiles/DeletedFiles via git diff --name-status
+```
+
+### 累计进度（Phase 301-306 + P0-MB Phase 1-6 + 5b + 5c + 5d 全部完成）
+
+- **Phase 301-306 实施**：✅
+- **P0-MB Phase 1 实施**：✅ `5fe58f0c4`
+- **P0-MB Phase 2 实施**：✅ `49d106242`
+- **P0-MB Phase 3 实施**：✅ `9f9bc3e1b`
+- **P0-MB Phase 4 实施**：✅ `7ba5b9819`
+- **P0-MB Phase 5 实施**：✅ `2163cbd45`
+- **P0-MB Phase 6 实施**：✅ `082462c47`
+- **P0-MB Phase 5b 实施**：✅ `22755c55d`
+- **P0-MB Phase 5c 实施**：✅ `f6b91ad88`
+- **P0-MB Phase 5d 实施**：✅ 本轮
+
+### 剩余任务（均为 FORBIDDEN 或需未来基础设施）
+
+- **DB migration**（FORBIDDEN）：branch_profiles + build_artifacts + namespace_bindings + sync_policies + sync_run_logs + deploy_events + merge_previews
+- **前端页面**（FORBIDDEN routes.tsx）：BranchProfileList + NamespaceMatrix + SyncPolicyList + ChangeAuditTrail + MergePreviewDialog + PreDeployGatePanel
+- **R6 schema-compatibility 真实实现**：需要 migration service 支持
+- **logGitMergeError 接 logger**：Service 当前无 logger 依赖；未来 Phase 增加时需回填

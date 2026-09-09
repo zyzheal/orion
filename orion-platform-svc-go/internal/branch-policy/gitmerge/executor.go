@@ -62,6 +62,14 @@ func NewLocalExecutor() *LocalExecutor {
 // the output. Git exits with code 1 when the merge produced conflicts; that
 // is not an error — it is the normal path for conflict detection. Any other
 // non-zero exit is an error.
+//
+// After the merge-tree parse, Run also invokes `git diff --name-status
+// <target> <tree-hash>` to classify the resulting files into Added / Modified
+// / Deleted buckets. A diff failure is silently degraded: the conflict list
+// is preserved and the three classification slices are left empty. This
+// matters because merge-tree can succeed while diff fails (e.g. tree hash
+// not resolvable in the local object store) — the caller still gets a
+// usable Result.
 func (e *LocalExecutor) Run(ctx context.Context, sourceRef, targetRef string) (*Result, error) {
 	if sourceRef == "" || targetRef == "" {
 		return nil, fmt.Errorf("gitmerge: sourceRef and targetRef are required")
@@ -107,7 +115,52 @@ func (e *LocalExecutor) Run(ctx context.Context, sourceRef, targetRef string) (*
 			return nil, fmt.Errorf("gitmerge: %w", err)
 		}
 	}
-	return ParseMergeTreeOutput(stdout.Bytes())
+	res, err := ParseMergeTreeOutput(stdout.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("gitmerge: parse merge-tree output: %w", err)
+	}
+
+	// Phase 5d: after merge-tree, classify changed files by running
+	// `git diff --name-status <target> <tree-hash>`. The diff is relative
+	// to the target (merge direction is source → target), so AddedFiles are
+	// files the source brings in that the target did not have, and so on.
+	treeHash := ExtractTreeHash(stdout.Bytes())
+	if treeHash != "" {
+		added, modified, deleted, diffErr := e.runDiffNameStatus(runCtx, bin, targetRef, treeHash)
+		if diffErr == nil {
+			res.AddedFiles = added
+			res.ModifiedFiles = modified
+			res.DeletedFiles = deleted
+		}
+		// diffErr is intentionally swallowed — see Run's docstring. The
+		// merge-tree step succeeded; the caller still gets a usable Result.
+		_ = diffErr
+	}
+	return res, nil
+}
+
+// runDiffNameStatus shells out to `git diff --name-status <targetRef> <treeHash>`
+// and returns the classified file lists. The ctx is reused from the outer
+// merge-tree call — the same total timeout budget applies to both git
+// invocations. A non-nil error means classification was skipped (the caller
+// leaves the classification slices empty).
+func (e *LocalExecutor) runDiffNameStatus(ctx context.Context, bin, targetRef, treeHash string) (added, modified, deleted []string, err error) {
+	cmd := exec.CommandContext(ctx, bin, "diff", "--name-status", targetRef, treeHash)
+	if e.WorkDir != "" {
+		cmd.Dir = e.WorkDir
+	}
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if runErr := cmd.Run(); runErr != nil {
+		// Distinguish "git not found" from "target ref not resolvable".
+		// Both are non-fatal for the caller, but the error string is
+		// useful for debugging degraded paths.
+		return nil, nil, nil, fmt.Errorf("gitmerge: git diff --name-status: %v: %s",
+			runErr, strings.TrimSpace(stderr.String()))
+	}
+	added, modified, deleted = ParseDiffNameStatus(stdout.Bytes())
+	return
 }
 
 // PathExists reports whether the given path exists and is executable — used

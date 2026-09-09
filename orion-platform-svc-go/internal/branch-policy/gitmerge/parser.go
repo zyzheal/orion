@@ -65,11 +65,12 @@ func ParseMergeTreeOutput(output []byte) (*Result, error) {
 	return res, nil
 }
 
-// isTreeHashLine returns true when the line is a 40-char hex SHA (the tree
-// hash emitted by --write-tree). It is heuristic but sufficient: a conflict
-// entry always contains a space followed by a tab.
+// isTreeHashLine returns true when the line is a lowercase hex OID of the
+// length emitted by the configured repository (40 for SHA-1, 64 for SHA-256).
+// It is heuristic but sufficient: a conflict entry always contains a space
+// followed by a tab, and a merge message contains punctuation.
 func isTreeHashLine(line string) bool {
-	if len(line) != 40 {
+	if len(line) != 40 && len(line) != 64 {
 		return false
 	}
 	for _, c := range line {
@@ -134,18 +135,90 @@ func dedupeSorted(in []string) []string {
 	return out
 }
 
-// classifyAddedModifiedDeleted is a best-effort splitter that takes a single
-// filename list and tries to bucket it into Added / Modified / Deleted. The
-// current git merge-tree --write-tree output does not distinguish these
-// categories, so this is a no-op placeholder that returns the conflict list
-// as ModifiedFiles (the most common case). Callers that need real
-// classification should invoke `git diff --name-status` after the merge-tree
-// run.
-func classifyAddedModifiedDeleted(conflictFiles []string) (added, modified, deleted []string) {
-	// Default: everything is "modified". This is conservative — it avoids
-	// misclassifying a rename or delete as an add.
-	modified = append(modified, conflictFiles...)
-	return nil, modified, nil
+// ExtractTreeHash returns the tree hash emitted on the first non-empty line
+// of `git merge-tree --write-tree` output, or an empty string when no valid
+// hash is present. The hash is a 40-char (or 64-char) lowercase hex OID.
+func ExtractTreeHash(output []byte) string {
+	if len(output) == 0 {
+		return ""
+	}
+	for _, raw := range strings.Split(string(output), "\n") {
+		line := strings.TrimSpace(raw)
+		if line == "" {
+			continue
+		}
+		if isTreeHashLine(line) {
+			return line
+		}
+		// First non-empty line is not a hash — malformed output, stop early.
+		return ""
+	}
+	return ""
+}
+
+// ParseDiffNameStatus parses the stdout of `git diff --name-status`. Each
+// line has the form "<status>\t<path>" where status starts with one of:
+//   - A: added file
+//   - M: modified file
+//   - D: deleted file
+//   - R: rename (RNN with similarity percentage, e.g. "R100"); treated as
+//     modified because the destination path is new.
+//   - C: copy (CNN with similarity); treated as modified.
+//   - U: unmerged (only from --name-status on index state, not from a
+//     diff between two trees); treated as modified conservatively.
+//   - T: type change (e.g. file → symlink); treated as modified.
+//
+// Unknown statuses are also treated as modified — being conservative avoids
+// silently dropping a file from the classification. Rename/copy entries
+// have a second tab-separated path; the destination (rightmost) is used.
+//
+// All returned slices are deduped and sorted. Empty input yields three
+// empty non-nil slices.
+func ParseDiffNameStatus(output []byte) (added, modified, deleted []string) {
+	added = []string{}
+	modified = []string{}
+	deleted = []string{}
+	if len(output) == 0 {
+		return added, modified, deleted
+	}
+	for _, raw := range strings.Split(string(output), "\n") {
+		line := strings.TrimRight(raw, "\r\n")
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "\t", 3)
+		if len(parts) < 2 {
+			// Malformed line — no tab. Skip rather than misclassify.
+			continue
+		}
+		status := strings.TrimSpace(parts[0])
+		// For renames/copies (R/C), parts has 3 entries: [status, fromPath, toPath].
+		// Use the destination path (last tab-separated field) as the "new" name.
+		path := parts[len(parts)-1]
+		path = strings.TrimSpace(path)
+		if path == "" {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(status, "A"):
+			added = append(added, path)
+		case strings.HasPrefix(status, "D"):
+			deleted = append(deleted, path)
+		case strings.HasPrefix(status, "M"):
+			modified = append(modified, path)
+		case strings.HasPrefix(status, "R"), strings.HasPrefix(status, "C"),
+			strings.HasPrefix(status, "U"), strings.HasPrefix(status, "T"):
+			// Rename/copy/unmerged/type-change all treated as modified —
+			// the destination path in the merged tree is the one we care
+			// about, and any content change is at least as likely as a
+			// pure rename.
+			modified = append(modified, path)
+		default:
+			// Unknown status — conservative fallback.
+			modified = append(modified, path)
+		}
+	}
+	return dedupeSorted(added), dedupeSorted(modified), dedupeSorted(deleted)
 }
 
 // validateRefs is a small guard used by tests to confirm the executor
