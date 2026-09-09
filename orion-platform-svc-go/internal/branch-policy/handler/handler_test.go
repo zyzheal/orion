@@ -327,6 +327,39 @@ func (f *fakeHandlerService) VerifyBuildArtifactSignature(ctx context.Context, t
 	return &models.SignatureVerificationResult{ArtifactID: id, Valid: true}, nil
 }
 
+// P0-MB Phase 2 stubs — L2 NamespaceBinding.
+func (f *fakeHandlerService) CreateNamespaceBinding(ctx context.Context, tenantID string, req *models.CreateNamespaceRequest) (*models.NamespaceBinding, error) {
+	return &models.NamespaceBinding{ID: "nb-test", TenantID: tenantID, BranchProfileID: req.BranchProfileID, EnvName: req.EnvName, ImageTagPrefix: req.ImageTagPrefix}, nil
+}
+
+func (f *fakeHandlerService) DeleteNamespaceBinding(ctx context.Context, tenantID, id string) error {
+	return nil
+}
+
+func (f *fakeHandlerService) GetNamespaceBinding(ctx context.Context, tenantID, id string) (*models.NamespaceBinding, error) {
+	return &models.NamespaceBinding{ID: id, TenantID: tenantID}, nil
+}
+
+func (f *fakeHandlerService) GetNamespaceMatrix(ctx context.Context, tenantID string) (*models.BranchEnvMatrix, error) {
+	return &models.BranchEnvMatrix{Branches: []models.MatrixRow{}, Envs: models.CanonicalEnvs}, nil
+}
+
+func (f *fakeHandlerService) ListNamespaceBindings(ctx context.Context, tenantID string, q models.NamespaceBindingQuery) ([]models.NamespaceBinding, error) {
+	return []models.NamespaceBinding{}, nil
+}
+
+func (f *fakeHandlerService) ValidateNamespaceBinding(ctx context.Context, tenantID, branchProfileID, envName string) (*models.NamespaceValidationResult, error) {
+	return &models.NamespaceValidationResult{BranchProfileID: branchProfileID, EnvName: envName, Valid: true, Checks: []models.NamespaceCheck{{Field: "binding", Valid: true, Message: "ok"}}}, nil
+}
+
+func (f *fakeHandlerService) VerifyBranchEnvBinding(ctx context.Context, tenantID, branch, envName string) (bool, error) {
+	return true, nil
+}
+
+func (f *fakeHandlerService) VerifyImageTagMatch(ctx context.Context, tenantID, branch, envName, imageTag string) (bool, error) {
+	return true, nil
+}
+
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
 
 func TestBRANCH_POLICY_Handler_RegisterRoutes(t *testing.T) {
@@ -924,5 +957,79 @@ func TestBRANCH_POLICY_Handler_DeprecateBuildArtifact(t *testing.T) {
 	newHandler().DeprecateBuildArtifact(c)
 	if w.Code >= 500 {
 		t.Fatalf("DeprecateBuildArtifact: got %d", w.Code)
+	}
+}
+
+// ============================================================================
+// P0-MB Phase 2 — L2 NamespaceBinding handler tests
+// ============================================================================
+
+func TestBRANCH_POLICY_Handler_ListNamespaceBindings(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/namespace-bindings?envName=prod&page=1&limit=10", nil, nil)
+	newHandler().ListNamespaceBindings(c)
+	if w.Code >= 500 {
+		t.Fatalf("ListNamespaceBindings: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_CreateNamespaceBinding(t *testing.T) {
+	body := map[string]any{
+		"branchProfileId": "bp-1",
+		"envName":         "prod",
+		"imageTagPrefix":  "myrepo/release-ent",
+	}
+	c, w := makeCtx(http.MethodPost, "/namespace-bindings", body, nil)
+	newHandler().CreateNamespaceBinding(c)
+	if w.Code >= 500 {
+		t.Fatalf("CreateNamespaceBinding: got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestBRANCH_POLICY_Handler_CreateNamespaceBinding_BadBody(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/namespace-bindings", map[string]any{"envName": "prod"}, nil)
+	newHandler().CreateNamespaceBinding(c)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for missing branchProfileId, got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_GetNamespaceMatrix(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/namespace-bindings/matrix", nil, nil)
+	newHandler().GetNamespaceMatrix(c)
+	if w.Code >= 500 {
+		t.Fatalf("GetNamespaceMatrix: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_GetNamespaceBinding(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/namespace-bindings/nb-1", nil, map[string]string{"id": "nb-1"})
+	newHandler().GetNamespaceBinding(c)
+	if w.Code >= 500 {
+		t.Fatalf("GetNamespaceBinding: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_DeleteNamespaceBinding(t *testing.T) {
+	c, w := makeCtx(http.MethodDelete, "/namespace-bindings/nb-1", nil, map[string]string{"id": "nb-1"})
+	newHandler().DeleteNamespaceBinding(c)
+	if w.Code >= 500 {
+		t.Fatalf("DeleteNamespaceBinding: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_ValidateNamespaceBinding(t *testing.T) {
+	body := map[string]any{"envName": "prod"}
+	c, w := makeCtx(http.MethodPost, "/namespace-bindings/bp-1/validate", body, map[string]string{"id": "bp-1"})
+	newHandler().ValidateNamespaceBinding(c)
+	if w.Code >= 500 {
+		t.Fatalf("ValidateNamespaceBinding: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_ValidateNamespaceBinding_MissingEnv(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/namespace-bindings/bp-1/validate", map[string]any{}, map[string]string{"id": "bp-1"})
+	newHandler().ValidateNamespaceBinding(c)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for missing envName, got %d", w.Code)
 	}
 }

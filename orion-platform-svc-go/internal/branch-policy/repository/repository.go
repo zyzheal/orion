@@ -85,3 +85,31 @@ func (r *Repository) ListBuildArtifacts(ctx context.Context, tenantID string, q 
 func (r *Repository) UpdateBuildArtifact(ctx context.Context, tenantID, id string, a *models.BuildArtifact) (*models.BuildArtifact, error) {
 	return nil, sentinel.NotFound
 }
+
+// --- P0-MB Phase 2 stubs ---
+//
+// The namespace_bindings table is defined in the module design doc
+// (docs/multi-branch-strategy-design-v2-impl-2026-09-08.md §2.2) but not yet
+// added to the running DB. These stubs return sentinel errors so the handler
+// layer can return a clean 500 rather than panicking on a nil table. Once the
+// migration lands, replace each stub with the real SQLX implementation.
+
+func (r *Repository) CreateNamespaceBinding(ctx context.Context, b *models.NamespaceBinding) error {
+	return sentinel.NotFound
+}
+
+func (r *Repository) GetNamespaceBinding(ctx context.Context, tenantID, id string) (*models.NamespaceBinding, error) {
+	return nil, sentinel.NotFound
+}
+
+func (r *Repository) GetNamespaceBindingByBranchEnv(ctx context.Context, tenantID, branchProfileID, envName string) (*models.NamespaceBinding, error) {
+	return nil, sentinel.NotFound
+}
+
+func (r *Repository) ListNamespaceBindings(ctx context.Context, tenantID string, q models.NamespaceBindingQuery) ([]models.NamespaceBinding, error) {
+	return nil, sentinel.NotFound
+}
+
+func (r *Repository) DeleteNamespaceBinding(ctx context.Context, tenantID, id string) error {
+	return sentinel.NotFound
+}

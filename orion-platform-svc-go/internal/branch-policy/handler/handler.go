@@ -46,6 +46,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.GET("/build-artifacts/:id", auth.RequirePermission("branch-policy", "read"), h.GetBuildArtifact)
 	r.POST("/build-artifacts/:id/verify-signature", auth.RequirePermission("branch-policy", "write"), h.VerifyBuildArtifactSignature)
 	r.POST("/build-artifacts/:id/deprecate", auth.RequirePermission("branch-policy", "write"), h.DeprecateBuildArtifact)
+
+	// P0-MB Phase 2 — L2 NamespaceBinding
+	r.GET("/namespace-bindings", auth.RequirePermission("branch-policy", "read"), h.ListNamespaceBindings)
+	r.POST("/namespace-bindings", auth.RequirePermission("branch-policy", "write"), h.CreateNamespaceBinding)
+	r.GET("/namespace-bindings/matrix", auth.RequirePermission("branch-policy", "read"), h.GetNamespaceMatrix)
+	r.GET("/namespace-bindings/:id", auth.RequirePermission("branch-policy", "read"), h.GetNamespaceBinding)
+	r.DELETE("/namespace-bindings/:id", auth.RequirePermission("branch-policy", "delete"), h.DeleteNamespaceBinding)
+	r.POST("/namespace-bindings/:id/validate", auth.RequirePermission("branch-policy", "read"), h.ValidateNamespaceBinding)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -994,4 +1002,106 @@ func (h *Handler) DeprecateBuildArtifact(c *gin.Context) {
 		return
 	}
 	errors.WriteSuccess(c, a)
+}
+
+// ============================================================================
+// P0-MB Phase 2 — L2 NamespaceBinding
+// ============================================================================
+
+func (h *Handler) ListNamespaceBindings(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListNamespaceBindings")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	q := models.NamespaceBindingQuery{}
+	if v := c.Query("branchProfileId"); v != "" {
+		q.BranchProfileID = &v
+	}
+	if v := c.Query("envName"); v != "" {
+		q.EnvName = &v
+	}
+	if p := c.Query("page"); p != "" {
+		fmt.Sscanf(p, "%d", &q.Page)
+	}
+	if l := c.Query("limit"); l != "" {
+		fmt.Sscanf(l, "%d", &q.Limit)
+	}
+	out, err := h.svc.ListNamespaceBindings(ctx, tenantID, q)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	errors.WriteSuccess(c, gin.H{"data": out, "total": len(out)})
+}
+
+func (h *Handler) CreateNamespaceBinding(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateNamespaceBinding")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	var req models.CreateNamespaceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
+		return
+	}
+	b, err := h.svc.CreateNamespaceBinding(ctx, tenantID, &req)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, b)
+}
+
+func (h *Handler) GetNamespaceMatrix(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetNamespaceMatrix")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	matrix, err := h.svc.GetNamespaceMatrix(ctx, tenantID)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	errors.WriteSuccess(c, matrix)
+}
+
+func (h *Handler) GetNamespaceBinding(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetNamespaceBinding")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	b, err := h.svc.GetNamespaceBinding(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		errors.WriteError(c, errors.ErrNotFound, "namespace binding not found", http.StatusNotFound)
+		return
+	}
+	errors.WriteSuccess(c, b)
+}
+
+func (h *Handler) DeleteNamespaceBinding(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteNamespaceBinding")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	if err := h.svc.DeleteNamespaceBinding(ctx, tenantID, c.Param("id")); err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	errors.WriteSuccess(c, gin.H{"deleted": true})
+}
+
+type validateNamespaceBody struct {
+	EnvName string `json:"envName" binding:"required"`
+}
+
+func (h *Handler) ValidateNamespaceBinding(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ValidateNamespaceBinding")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	var body validateNamespaceBody
+	if err := c.ShouldBindJSON(&body); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
+		return
+	}
+	result, err := h.svc.ValidateNamespaceBinding(ctx, tenantID, c.Param("id"), body.EnvName)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, result)
 }

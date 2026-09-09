@@ -2896,3 +2896,100 @@ feat(branch-policy): P0-MB Phase 1 — L1 BranchProfile + L3 BuildArtifact
 - P0-MB Phase 3：同步策略（L4 SyncPolicy 页面 + 自动化调度）（6d）
 - P0-MB Phase 4：变更审计（L5 DeployEvent + 一键回滚）（5d）
 - P0-MB Phase 5：冲突预检查（PreDeployGate R1-R6 阻断规则 + 前端可视化）（6d）
+
+---
+
+## 2026-08-26 — P0-MB Phase 2 完成（L2 NamespaceBinding + BranchEnvGuard）
+
+### 范围
+
+- **L2 NamespaceBinding**：branch × env 命名规则强制（K8s namespace / Nacos config / DB / MQ / Redis / ImageTag prefix）
+- **BranchEnvGuard middleware**：deploy API 边界 fail-closed 校验 image tag ↔ env 兼容性
+- **Namespace Matrix**：branch × env 网格视图 API
+
+### 设计要点
+
+1. **命名规则正则**（全部锚定 `^...$`，见 `service.go:813-821`）：
+   - `envNameFullRe` = `^[a-z][a-z0-9-]{0,30}$`
+   - `k8sNsRe` = `^orion-[a-z0-9-]{1,59}$`
+   - `configNsRe` = `^nacos/orion-[a-z0-9-]{1,59}$`
+   - `dbNameRe` = `^orion_[a-z0-9_-]{1,59}$`（含 hyphen，因 buildSlug 生成 kebab-case）
+   - `mqPrefixRe` = `^orion-[a-z0-9-]+-\*$`
+   - `redisPrefixRe` = `^orion:[a-z0-9-]+:\*$`
+   - `imageTagPrefixRe` = `^[a-z0-9._/-]{1,128}$`
+2. **格式化常量**（`models.go:250-257`）：`K8sNamespaceFmt=orion-%s`, `ConfigNamespaceFmt=nacos/orion-%s`, `DBNameFmt=orion_%s`, `MQTopicPrefixFmt=orion-%s-*`, `RedisKeyPrefixFmt=orion:%s:*`, `ImageTagPrefixFmt=%s/%s`。CreateNamespaceBinding 在字段空时自动填充。
+3. **buildSlug**：branch name → kebab-case（`release/enterprise-2026` → `release-enterprise-2026`），非 `[a-z0-9]` 折叠为 `-`，去首尾 `-`，超过 59 字符截断（K8s ns 63 字符上限减去 `orion-` 前缀）。
+4. **Uniqueness**：(BranchProfileID, EnvName) per tenant 唯一，通过 `GetNamespaceBindingByBranchEnv` 预检查。
+5. **VerifyImageTagMatch fail-closed**：
+   - 无 binding → `(false, nil)`
+   - prefix 为空 → `(false, nil)`
+   - 精确匹配 或 `prefix + "/"` 后缀 或 `prefix + "-"` 后缀（仅当 prefix 不以 `/` 结尾） → `(true, nil)`
+   - 其他 → `(false, nil)`
+6. **BranchEnvGuard middleware**（`middleware/branch_env_guard.go`）：
+   - 读取 body 为 `models.DeployRequest`，解析失败则跳过（允许挂在宽路由组）
+   - 用自定义 `byteReader` 实现 `io.ReadSeeker` 保留 body 供下游读取
+   - 400 `BRANCH_ENV_REQUIRED` 缺必填字段
+   - 500 `BRANCH_ENV_VERIFY_FAILED` service 报错
+   - 400 `BRANCH_ENV_MISMATCH` image tag 不匹配
+7. **GetNamespaceMatrix**：active branches × canonical envs + 已用自定义 envs，稳定排序，返回 `MatrixRow.Bindings[env]` 映射。
+
+### 新增文件
+
+- `internal/branch-policy/middleware/branch_env_guard.go`（~145 行）
+- `internal/branch-policy/middleware/branch_env_guard_test.go`（6 tests）
+
+### 修改文件
+
+- `internal/branch-policy/models/models.go`：+NamespaceBinding, +CreateNamespaceRequest, +NamespaceBindingQuery, +NamespaceValidationResult, +NamespaceCheck, +BranchEnvMatrix, +MatrixRow, +MatrixCell, +DeployRequest, +格式常量, +CanonicalEnvs
+- `internal/branch-policy/repository/repository_interface.go`：+5 方法
+- `internal/branch-policy/repository/repository.go`：+5 stubs（`sentinel.NotFound`）
+- `internal/branch-policy/service/service.go`：+7 regexps + `newNamespaceID` + `buildSlug` + 8 方法（ListNamespaceBindings / GetNamespaceBinding / CreateNamespaceBinding / DeleteNamespaceBinding / ValidateNamespaceBinding / VerifyImageTagMatch / VerifyBranchEnvBinding / GetNamespaceMatrix）
+- `internal/branch-policy/service/service_interface.go`：+8 方法（字母序插入）
+- `internal/branch-policy/handler/handler.go`：+6 routes +6 handler 方法
+- `internal/branch-policy/service/service_test.go`：+13 Phase 2 service tests
+- `internal/branch-policy/handler/handler_test.go`：+6 fakeHandlerService 方法 + 8 handler tests
+
+### 验证证据
+
+```
+$ go build ./internal/branch-policy/...  →  clean
+$ go vet ./internal/branch-policy/...    →  clean
+$ go test ./internal/branch-policy/...   →  all pass (service + handler + middleware)
+$ go test ./...                          →  all pass
+```
+
+### 已知问题（Phase 2）
+
+1. **DB migration 未落地**：namespace_bindings 表尚未 add 到 running DB。Repository stubs 返回 `sentinel.NotFound`，handler 会返回 500。
+2. **前端页面延后**：NamespaceMatrix.tsx（可视化 branch × env 网格）未实现。
+3. **`deploy` API 尚未集成 BranchEnvGuard**：middleware 已实现，需要在实际 deploy API 路由上挂载（Phase 4 DeployEvent 时一并接入）。
+4. **dbName 正则含 hyphen**：与最初设计（`^orion_[a-z0-9_]`）不符，但因 buildSlug 生成 kebab-case，hyphen 不可避免；已在正则中允许。
+
+### Commit 消息
+
+```
+feat(branch-policy): P0-MB Phase 2 — L2 NamespaceBinding + BranchEnvGuard
+```
+
+### 累计进度
+
+- Phase 301 实施：✅ `b56cd8566` + `4b6fb86c4`
+- Phase 302 实施：✅ `3cc7bd7c2`
+- Phase 303 实施：✅ `b6322a01d`
+- Phase 304 实施：✅ `c7c48adb4`
+- Phase 305 实施：✅ `4aa131398` + `057ddba10`
+- Phase 306 实施：✅ `9ef76a56f`
+- **P0-MB Phase 1 实施**：✅ `5fe58f0c4`
+- **P0-MB Phase 2 实施**：✅ `__COMMIT_HASH__`（本轮）
+
+### 剩余任务（P0-MB Phase 3-5，17d）
+
+- P0-MB Phase 3：同步策略（L4 SyncPolicy 页面 + 自动化调度）（6d）
+- P0-MB Phase 4：变更审计（L5 DeployEvent + 一键回滚 + BranchEnvGuard 挂载到 deploy API）（5d）
+- P0-MB Phase 5：冲突预检查（PreDeployGate R1-R6 阻断规则 + 前端可视化）（6d）
+
+### 遗留任务（Phase 1-2 累积）
+
+- **DB migration**（阻塞 3 张表真实可用）：branch_profiles + build_artifacts + namespace_bindings
+- **前端页面**：BranchProfileList.tsx + BranchProfileDetail.tsx + ArtifactList.tsx + ArtifactDetail.tsx + RegisterArtifactModal.tsx + NamespaceMatrix.tsx
+- **API 端到端集成测试**：延后到 DB migration 落地后

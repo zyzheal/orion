@@ -23,6 +23,13 @@ type RepositoryInterface interface {
 	GetBuildArtifact(ctx context.Context, tenantID, id string) (*models.BuildArtifact, error)
 	ListBuildArtifacts(ctx context.Context, tenantID string, q models.ArtifactQuery) ([]models.BuildArtifact, error)
 	UpdateBuildArtifact(ctx context.Context, tenantID, id string, a *models.BuildArtifact) (*models.BuildArtifact, error)
+
+	// P0-MB Phase 2 — NamespaceBinding (L2)
+	CreateNamespaceBinding(ctx context.Context, b *models.NamespaceBinding) error
+	GetNamespaceBinding(ctx context.Context, tenantID, id string) (*models.NamespaceBinding, error)
+	GetNamespaceBindingByBranchEnv(ctx context.Context, tenantID, branchProfileID, envName string) (*models.NamespaceBinding, error)
+	ListNamespaceBindings(ctx context.Context, tenantID string, q models.NamespaceBindingQuery) ([]models.NamespaceBinding, error)
+	DeleteNamespaceBinding(ctx context.Context, tenantID, id string) error
 }
 
 // Ensure Repository implements RepositoryInterface.

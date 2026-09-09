@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/branch-policy/models"
 )
 
@@ -34,11 +35,23 @@ type RepositoryInterface interface {
 	GetBuildArtifact(ctx context.Context, tenantID, id string) (*models.BuildArtifact, error)
 	ListBuildArtifacts(ctx context.Context, tenantID string, q models.ArtifactQuery) ([]models.BuildArtifact, error)
 	UpdateBuildArtifact(ctx context.Context, tenantID, id string, a *models.BuildArtifact) (*models.BuildArtifact, error)
+
+	// P0-MB Phase 2 — NamespaceBinding (L2)
+	CreateNamespaceBinding(ctx context.Context, b *models.NamespaceBinding) error
+	GetNamespaceBinding(ctx context.Context, tenantID, id string) (*models.NamespaceBinding, error)
+	GetNamespaceBindingByBranchEnv(ctx context.Context, tenantID, branchProfileID, envName string) (*models.NamespaceBinding, error)
+	ListNamespaceBindings(ctx context.Context, tenantID string, q models.NamespaceBindingQuery) ([]models.NamespaceBinding, error)
+	DeleteNamespaceBinding(ctx context.Context, tenantID, id string) error
 }
 
 // ErrBranchProfileNotFound wraps repository-level not-found into a
 // service-friendly sentinel. Handlers compare with errors.Is.
 var ErrBranchProfileNotFound = errors.New("branch profile not found")
+
+// sentinelNotFound is a local alias for the repository-level not-found
+// sentinel used by the Phase 1/2 stub methods. Using a short name keeps the
+// service code readable.
+var sentinelNotFound = sentinel.NotFound
 
 type Service struct {
 	repo RepositoryInterface
@@ -732,6 +745,7 @@ func (s *Service) GetBuildArtifact(ctx context.Context, tenantID, id string) (*m
 // real signer backend we implement deterministic fail-closed semantics:
 //   - Missing SignedBy → Valid=false, reason="unsigned artifact".
 //   - SignedBy present → Valid=true, reason="trusted-signer:<name>".
+//
 // The endpoint remains the single choke point for a future integration with
 // a real signing service (e.g. cosign).
 func (s *Service) VerifyBuildArtifactSignature(ctx context.Context, tenantID, id string) (*models.SignatureVerificationResult, error) {
@@ -788,4 +802,409 @@ func (s *Service) DeprecateBuildArtifact(ctx context.Context, tenantID, id, reas
 	a.DeprecatedAt = &now
 	a.DeprecatedReason = reason
 	return s.repo.UpdateBuildArtifact(ctx, tenantID, id, a)
+}
+
+// ============================================================================
+// P0-MB Phase 2 — L2 NamespaceBinding (environment isolation)
+// ============================================================================
+
+// Phase 2 rules constants. These regexps enforce the naming conventions
+// described in docs/multi-branch-strategy-design-v2-impl-2026-09-08.md §2.1.
+var (
+	envNameFullRe    = regexp.MustCompile(`^[a-z][a-z0-9-]{0,30}$`)
+	k8sNsRe          = regexp.MustCompile(`^orion-[a-z0-9-]{1,59}$`)
+	configNsRe       = regexp.MustCompile(`^nacos/orion-[a-z0-9-]{1,59}$`)
+	dbNameRe         = regexp.MustCompile(`^orion_[a-z0-9_-]{1,59}$`)
+	mqPrefixRe       = regexp.MustCompile(`^orion-[a-z0-9-]+-\*$`)
+	redisPrefixRe    = regexp.MustCompile(`^orion:[a-z0-9-]+:\*$`)
+	imageTagPrefixRe = regexp.MustCompile(`^[a-z0-9._/-]{1,128}$`)
+)
+
+// newNamespaceID returns a unique id prefixed with "nb".
+func newNamespaceID() string {
+	now := time.Now()
+	h := fnv.New64a()
+	h.Write([]byte(fmt.Sprintf("nb-%d-%d", now.UnixNano(), now.UnixMicro())))
+	return fmt.Sprintf("nb-%x", h.Sum(nil)[:8])
+}
+
+// buildSlug converts a branch name like "release/enterprise-2026" or "lts/2026"
+// into a lower-case kebab-case slug suitable for embedding in namespace names:
+//   - "release/enterprise-2026" -> "release-enterprise-2026"
+//   - "lts/2026"                -> "lts-2026"
+//   - "hotfix/v1.2.3"           -> "hotfix-v1-2-3"
+//
+// Non-alphanumeric runs (any char that is not [a-z0-9]) are collapsed to a
+// single "-"; leading/trailing "-" are trimmed. If the resulting slug is
+// empty (impossible with non-empty input but defensively handled), "custom"
+// is returned.
+func buildSlug(branchName string) string {
+	slug := strings.ToLower(strings.TrimSpace(branchName))
+	var out strings.Builder
+	out.Grow(len(slug))
+	prevDash := false
+	for _, r := range slug {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			out.WriteRune(r)
+			prevDash = false
+			continue
+		}
+		if !prevDash {
+			out.WriteByte('-')
+			prevDash = true
+		}
+	}
+	slug = strings.Trim(out.String(), "-")
+	if slug == "" {
+		return "custom"
+	}
+	// Cap at 63 chars to leave room for the "orion-" prefix and K8s namespace
+	// length limit of 63.
+	if len(slug) > 59 {
+		slug = slug[:59]
+	}
+	return slug
+}
+
+// ListNamespaceBindings returns all namespace bindings for the tenant, with
+// optional filters on branchProfileID and envName.
+func (s *Service) ListNamespaceBindings(ctx context.Context, tenantID string, q models.NamespaceBindingQuery) ([]models.NamespaceBinding, error) {
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+	return s.repo.ListNamespaceBindings(ctx, tenantID, q)
+}
+
+// GetNamespaceBinding fetches a namespace binding by id (tenant-scoped).
+func (s *Service) GetNamespaceBinding(ctx context.Context, tenantID, id string) (*models.NamespaceBinding, error) {
+	if tenantID == "" || id == "" {
+		return nil, fmt.Errorf("tenant_id and id are required")
+	}
+	b, err := s.repo.GetNamespaceBinding(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+// CreateNamespaceBinding persists a new NamespaceBinding. The service layer
+// validates naming rules and enforces (BranchProfileID, EnvName) uniqueness
+// per tenant. Optional name fields (K8sNamespace, ConfigNamespace, DBName,
+// MQTopicPrefix, RedisKeyPrefix) are auto-generated from the branch name
+// using the models.K8sNamespaceFmt etc. format strings if empty.
+//
+// Rules:
+//   - EnvName must match envNameFullRe.
+//   - ImageTagPrefix must match imageTagPrefixRe.
+//   - K8sNamespace (if provided) must match k8sNsRe.
+//   - ConfigNamespace (if provided) must match configNsRe.
+//   - DBName (if provided) must match dbNameRe.
+//   - MQTopicPrefix (if provided) must match mqPrefixRe.
+//   - RedisKeyPrefix (if provided) must match redisPrefixRe.
+//   - BranchProfileID must reference an existing (non-archived) BranchProfile.
+//   - (BranchProfileID, EnvName) must be unique per tenant.
+func (s *Service) CreateNamespaceBinding(ctx context.Context, tenantID string, req *models.CreateNamespaceRequest) (*models.NamespaceBinding, error) {
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+	if req == nil {
+		return nil, fmt.Errorf("request is nil")
+	}
+	req.EnvName = strings.TrimSpace(req.EnvName)
+	if !envNameFullRe.MatchString(req.EnvName) {
+		return nil, fmt.Errorf("envName %q invalid: must match %s", req.EnvName, envNameFullRe)
+	}
+	if !imageTagPrefixRe.MatchString(req.ImageTagPrefix) {
+		return nil, fmt.Errorf("imageTagPrefix %q invalid: must match %s", req.ImageTagPrefix, imageTagPrefixRe)
+	}
+
+	// Load the branch profile to derive the slug + check uniqueness.
+	bp, err := s.repo.GetBranchProfile(ctx, tenantID, req.BranchProfileID)
+	if err != nil {
+		return nil, err
+	}
+	if bp == nil {
+		return nil, fmt.Errorf("branch profile %q not found", req.BranchProfileID)
+	}
+	if bp.Status == models.BranchStatusArchived {
+		return nil, fmt.Errorf("branch profile %q is archived", req.BranchProfileID)
+	}
+
+	slug := buildSlug(bp.Name)
+
+	// Fill in auto-generated fields when the caller left them blank.
+	k8sNs := strings.TrimSpace(req.K8sNamespace)
+	if k8sNs == "" {
+		k8sNs = fmt.Sprintf(models.K8sNamespaceFmt, slug)
+	}
+	if !k8sNsRe.MatchString(k8sNs) {
+		return nil, fmt.Errorf("k8sNamespace %q invalid: must match %s", k8sNs, k8sNsRe)
+	}
+
+	configNs := strings.TrimSpace(req.ConfigNamespace)
+	if configNs == "" {
+		configNs = fmt.Sprintf(models.ConfigNamespaceFmt, slug)
+	}
+	if !configNsRe.MatchString(configNs) {
+		return nil, fmt.Errorf("configNamespace %q invalid: must match %s", configNs, configNsRe)
+	}
+
+	dbName := strings.TrimSpace(req.DBName)
+	if dbName == "" {
+		dbName = fmt.Sprintf(models.DBNameFmt, slug)
+	}
+	if !dbNameRe.MatchString(dbName) {
+		return nil, fmt.Errorf("dbName %q invalid: must match %s", dbName, dbNameRe)
+	}
+
+	mqPrefix := strings.TrimSpace(req.MQTopicPrefix)
+	if mqPrefix == "" {
+		mqPrefix = fmt.Sprintf(models.MQTopicPrefixFmt, slug)
+	}
+	if !mqPrefixRe.MatchString(mqPrefix) {
+		return nil, fmt.Errorf("mqTopicPrefix %q invalid: must match %s", mqPrefix, mqPrefixRe)
+	}
+
+	redisPrefix := strings.TrimSpace(req.RedisKeyPrefix)
+	if redisPrefix == "" {
+		redisPrefix = fmt.Sprintf(models.RedisKeyPrefixFmt, slug)
+	}
+	if !redisPrefixRe.MatchString(redisPrefix) {
+		return nil, fmt.Errorf("redisKeyPrefix %q invalid: must match %s", redisPrefix, redisPrefixRe)
+	}
+
+	// Uniqueness check: (branchProfileID, envName) must be unique per tenant.
+	existing, err := s.repo.GetNamespaceBindingByBranchEnv(ctx, tenantID, req.BranchProfileID, req.EnvName)
+	if err != nil && !errors.Is(err, sentinelNotFound) {
+		return nil, err
+	}
+	if existing != nil {
+		return nil, fmt.Errorf("namespace binding for branch %q env %q already exists", req.BranchProfileID, req.EnvName)
+	}
+
+	b := &models.NamespaceBinding{
+		ID:              newNamespaceID(),
+		TenantID:        tenantID,
+		BranchProfileID: req.BranchProfileID,
+		EnvName:         req.EnvName,
+		K8sNamespace:    k8sNs,
+		ConfigNamespace: configNs,
+		DBName:          dbName,
+		MQTopicPrefix:   mqPrefix,
+		RedisKeyPrefix:  redisPrefix,
+		ImageTagPrefix:  req.ImageTagPrefix,
+		CreatedAt:       time.Now(),
+	}
+	if err := s.repo.CreateNamespaceBinding(ctx, b); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+// DeleteNamespaceBinding removes a namespace binding. Tenant-scoped.
+func (s *Service) DeleteNamespaceBinding(ctx context.Context, tenantID, id string) error {
+	if tenantID == "" || id == "" {
+		return fmt.Errorf("tenant_id and id are required")
+	}
+	return s.repo.DeleteNamespaceBinding(ctx, tenantID, id)
+}
+
+// ValidateNamespaceBinding checks every rule that governs a (branch, env)
+// pair and returns a per-field check list plus the overall validity flag.
+// It does NOT mutate any state.
+func (s *Service) ValidateNamespaceBinding(ctx context.Context, tenantID, branchProfileID, envName string) (*models.NamespaceValidationResult, error) {
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+	if branchProfileID == "" {
+		return nil, fmt.Errorf("branchProfileId is required")
+	}
+	if envName == "" {
+		return nil, fmt.Errorf("envName is required")
+	}
+
+	result := &models.NamespaceValidationResult{
+		BranchProfileID: branchProfileID,
+		EnvName:         envName,
+		Valid:           true,
+		Checks:          []models.NamespaceCheck{},
+		ValidatedAt:     time.Now(),
+	}
+
+	addCheck := func(field string, ok bool, msg string) {
+		result.Checks = append(result.Checks, models.NamespaceCheck{Field: field, Valid: ok, Message: msg})
+		if !ok {
+			result.Valid = false
+		}
+	}
+
+	addCheck("envName", envNameFullRe.MatchString(envName), "envName format ok")
+
+	bp, err := s.repo.GetBranchProfile(ctx, tenantID, branchProfileID)
+	if err != nil {
+		return nil, err
+	}
+	if bp == nil {
+		addCheck("branchProfileId", false, fmt.Sprintf("branch profile %q not found", branchProfileID))
+		return result, nil
+	}
+	addCheck("branchProfileId", true, "branch profile exists")
+	if bp.Status == models.BranchStatusArchived {
+		addCheck("branchProfileId", false, "branch profile is archived")
+	}
+
+	b, err := s.repo.GetNamespaceBindingByBranchEnv(ctx, tenantID, branchProfileID, envName)
+	if err != nil && !errors.Is(err, sentinelNotFound) {
+		return nil, err
+	}
+	if b == nil {
+		addCheck("binding", false, "no namespace binding exists for this (branch, env)")
+		return result, nil
+	}
+	addCheck("binding", true, "binding exists")
+
+	slug := buildSlug(bp.Name)
+	addCheck("k8sNamespace", k8sNsRe.MatchString(b.K8sNamespace) && b.K8sNamespace == fmt.Sprintf(models.K8sNamespaceFmt, slug), fmt.Sprintf("k8sNamespace=%q expected=%q", b.K8sNamespace, fmt.Sprintf(models.K8sNamespaceFmt, slug)))
+	addCheck("configNamespace", configNsRe.MatchString(b.ConfigNamespace), "configNamespace format ok")
+	addCheck("dbName", dbNameRe.MatchString(b.DBName), "dbName format ok")
+	addCheck("mqTopicPrefix", mqPrefixRe.MatchString(b.MQTopicPrefix), "mqTopicPrefix format ok")
+	addCheck("redisKeyPrefix", redisPrefixRe.MatchString(b.RedisKeyPrefix), "redisKeyPrefix format ok")
+	addCheck("imageTagPrefix", imageTagPrefixRe.MatchString(b.ImageTagPrefix), "imageTagPrefix format ok")
+
+	return result, nil
+}
+
+// VerifyImageTagMatch is the fail-closed check used by BranchEnvGuard
+// middleware: it returns (true, nil) only if the given imageTag starts with
+// the imageTagPrefix of the active NamespaceBinding for (branch, targetEnv).
+//
+// Fail-closed behavior:
+//   - (false, nil) if the tag doesn't match the expected prefix.
+//   - (false, nil) if there's no binding for (branch, env).
+//   - (false, err) on storage errors.
+func (s *Service) VerifyImageTagMatch(ctx context.Context, tenantID, branch, envName, imageTag string) (bool, error) {
+	if tenantID == "" || branch == "" || envName == "" || imageTag == "" {
+		return false, fmt.Errorf("tenant_id, branch, envName and imageTag are required")
+	}
+	// The caller may pass a short branch name (e.g. "release/ent") which may
+	// not be a BranchProfileID. Look up by branchProfileID first, then fall
+	// back to listing by branchProfileID. For Phase 2 the guard expects the
+	// caller to pass the branchProfileID in the "branch" field; that keeps
+	// the middleware stateless w.r.t. branch-to-profile mapping.
+	b, err := s.repo.GetNamespaceBindingByBranchEnv(ctx, tenantID, branch, envName)
+	if err != nil && !errors.Is(err, sentinelNotFound) {
+		return false, err
+	}
+	if b == nil {
+		return false, nil
+	}
+	if b.ImageTagPrefix == "" {
+		return false, nil
+	}
+	// Compare with a "/sha..." suffix allowed (i.e. the image tag is the
+	// prefix followed by a slash and a digest or version).
+	if imageTag == b.ImageTagPrefix {
+		return true, nil
+	}
+	if strings.HasPrefix(imageTag, b.ImageTagPrefix+"/") {
+		return true, nil
+	}
+	// Some repos use "-suffix" instead of "/suffix" (e.g. tag "release-ent-1.2.3"
+	// with prefix "release-ent"). Accept that only when the prefix does not
+	// end with "/" and the next char is "-".
+	if !strings.HasSuffix(b.ImageTagPrefix, "/") && strings.HasPrefix(imageTag, b.ImageTagPrefix+"-") {
+		return true, nil
+	}
+	return false, nil
+}
+
+// VerifyBranchEnvBinding is a simpler check used by deploy-gate middleware:
+// does a NamespaceBinding exist for (branch, envName)?
+func (s *Service) VerifyBranchEnvBinding(ctx context.Context, tenantID, branch, envName string) (bool, error) {
+	if tenantID == "" || branch == "" || envName == "" {
+		return false, fmt.Errorf("tenant_id, branch and envName are required")
+	}
+	b, err := s.repo.GetNamespaceBindingByBranchEnv(ctx, tenantID, branch, envName)
+	if err != nil && !errors.Is(err, sentinelNotFound) {
+		return false, err
+	}
+	return b != nil, nil
+}
+
+// GetNamespaceMatrix builds the branch × env grid for the frontend matrix
+// view. Rows are active BranchProfiles; columns are the canonical envs +
+// any extra envs referenced by existing bindings.
+func (s *Service) GetNamespaceMatrix(ctx context.Context, tenantID string) (*models.BranchEnvMatrix, error) {
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+	profiles, err := s.repo.ListBranchProfiles(ctx, tenantID, models.BranchProfileQuery{
+		Status: func() *models.BranchStatus { s := models.BranchStatusActive; return &s }(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	bindings, err := s.repo.ListNamespaceBindings(ctx, tenantID, models.NamespaceBindingQuery{})
+	if err != nil {
+		return nil, err
+	}
+
+	envSet := make(map[string]struct{}, len(models.CanonicalEnvs))
+	for _, e := range models.CanonicalEnvs {
+		envSet[e] = struct{}{}
+	}
+	for _, b := range bindings {
+		if b.EnvName != "" {
+			envSet[b.EnvName] = struct{}{}
+		}
+	}
+	envs := make([]string, 0, len(envSet))
+	for e := range envSet {
+		envs = append(envs, e)
+	}
+	// Stable sort for deterministic output.
+	for i := 1; i < len(envs); i++ {
+		for j := i; j > 0 && envs[j] < envs[j-1]; j-- {
+			envs[j], envs[j-1] = envs[j-1], envs[j]
+		}
+	}
+
+	bindingIdx := make(map[string]*models.NamespaceBinding, len(bindings))
+	for i := range bindings {
+		key := bindings[i].BranchProfileID + "|" + bindings[i].EnvName
+		bindingIdx[key] = &bindings[i]
+	}
+
+	rows := make([]models.MatrixRow, 0, len(profiles))
+	for i := range profiles {
+		p := &profiles[i]
+		row := models.MatrixRow{
+			BranchProfileID: p.ID,
+			BranchName:      p.Name,
+			Semantic:        string(p.Semantic),
+			Status:          string(p.Status),
+			Bindings:        make(map[string]models.MatrixCell, len(envs)),
+		}
+		for _, e := range envs {
+			key := p.ID + "|" + e
+			b := bindingIdx[key]
+			if b == nil {
+				row.Bindings[e] = models.MatrixCell{Exists: false}
+			} else {
+				row.Bindings[e] = models.MatrixCell{
+					Exists:         true,
+					K8sNamespace:   b.K8sNamespace,
+					ImageTagPrefix: b.ImageTagPrefix,
+					DbName:         b.DBName,
+				}
+			}
+		}
+		rows = append(rows, row)
+	}
+
+	return &models.BranchEnvMatrix{
+		Branches:    rows,
+		Envs:        envs,
+		GeneratedAt: time.Now(),
+	}, nil
 }

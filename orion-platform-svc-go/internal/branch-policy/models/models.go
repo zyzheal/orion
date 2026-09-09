@@ -233,3 +233,122 @@ type SignatureVerificationResult struct {
 	Reason     string    `json:"reason"`
 	VerifiedAt time.Time `json:"verifiedAt"`
 }
+
+// ============================================================================
+// P0-MB Phase 2 — L2 NamespaceBinding + naming rules
+// ============================================================================
+
+// Canonical naming formats used by NamespaceBinding. Each format takes one
+// slug argument (typically the branch semantic + short name joined by "-").
+//
+//	K8sNamespaceFmt:     "orion-%s"        -> "orion-release-ent"
+//	ConfigNamespaceFmt:  "nacos/orion-%s"  -> "nacos/orion-release-ent"
+//	DBNameFmt:           "orion_%s"         -> "orion_release-ent"  (hyphens OK)
+//	MQTopicPrefixFmt:    "orion-%s-*"      -> "orion-release-ent-*"
+//	RedisKeyPrefixFmt:   "orion:%s:*"      -> "orion:release-ent:*"
+//	ImageTagPrefixFmt:   "%s/%s"           -> "myrepo/release-ent"
+const (
+	ImageTagPrefixFmt  = "%s/%s"
+	K8sNamespaceFmt    = "orion-%s"
+	ConfigNamespaceFmt = "nacos/orion-%s"
+	DBNameFmt          = "orion_%s"
+	MQTopicPrefixFmt   = "orion-%s-*"
+	RedisKeyPrefixFmt  = "orion:%s:*"
+)
+
+// Canonical env names. EnvName validation is enforced by the service layer
+// against these values; other envs can be added here if the org uses custom
+// environments (e.g. "uat", "perf", "canary").
+var CanonicalEnvs = []string{"dev", "staging", "prod"}
+
+// NamespaceBinding binds a BranchProfile to a specific environment, defining
+// the namespace/image-tag prefix/DB/MQ/Redis names that MUST be used for
+// deployments targeting that (branch, env) pair. Enforced by BranchEnvGuard
+// middleware at deploy time.
+type NamespaceBinding struct {
+	ID              string    `json:"id" db:"id"`
+	TenantID        string    `json:"tenantId" db:"tenant_id"`
+	BranchProfileID string    `json:"branchProfileId" db:"branch_profile_id"`
+	EnvName         string    `json:"envName" db:"env_name"`
+	K8sNamespace    string    `json:"k8sNamespace" db:"k8s_namespace"`
+	ConfigNamespace string    `json:"configNamespace" db:"config_namespace"`
+	DBName          string    `json:"dbName" db:"db_name"`
+	MQTopicPrefix   string    `json:"mqTopicPrefix" db:"mq_topic_prefix"`
+	RedisKeyPrefix  string    `json:"redisKeyPrefix" db:"redis_key_prefix"`
+	ImageTagPrefix  string    `json:"imageTagPrefix" db:"image_tag_prefix"`
+	CreatedAt       time.Time `json:"createdAt" db:"created_at"`
+}
+
+// CreateNamespaceRequest is the POST body for namespace binding creation.
+// BranchProfileID + EnvName must be unique per tenant. Optional fields are
+// auto-generated from the branch profile name if empty.
+type CreateNamespaceRequest struct {
+	BranchProfileID string `json:"branchProfileId" binding:"required"`
+	EnvName         string `json:"envName" binding:"required"`
+	ImageTagPrefix  string `json:"imageTagPrefix" binding:"required"`
+	K8sNamespace    string `json:"k8sNamespace"`
+	ConfigNamespace string `json:"configNamespace"`
+	DBName          string `json:"dbName"`
+	MQTopicPrefix   string `json:"mqTopicPrefix"`
+	RedisKeyPrefix  string `json:"redisKeyPrefix"`
+	ImageRepo       string `json:"imageRepo"`
+}
+
+// NamespaceBindingQuery filters the namespace binding list endpoint.
+type NamespaceBindingQuery struct {
+	BranchProfileID *string `json:"branchProfileId"`
+	EnvName         *string `json:"envName"`
+	Page            int     `json:"page"`
+	Limit           int     `json:"limit"`
+}
+
+// NamespaceValidationResult is the response for the validate action.
+type NamespaceValidationResult struct {
+	BranchProfileID string               `json:"branchProfileId"`
+	EnvName         string               `json:"envName"`
+	Valid           bool                 `json:"valid"`
+	Checks          []NamespaceCheck     `json:"checks"`
+	ValidatedAt     time.Time            `json:"validatedAt"`
+}
+
+// NamespaceCheck is a single rule check result.
+type NamespaceCheck struct {
+	Field   string `json:"field"`
+	Valid   bool   `json:"valid"`
+	Message string `json:"message"`
+}
+
+// BranchEnvMatrix is the branch × env grid used by the frontend matrix view.
+type BranchEnvMatrix struct {
+	Branches    []MatrixRow `json:"branches"`
+	Envs        []string    `json:"envs"`
+	GeneratedAt time.Time   `json:"generatedAt"`
+}
+
+// MatrixRow represents one branch in the matrix. Bindings maps envName to
+// the cell for that env; missing envs indicate the branch is not bound
+// to that environment (i.e. no NamespaceBinding exists).
+type MatrixRow struct {
+	BranchProfileID string               `json:"branchProfileId"`
+	BranchName      string               `json:"branchName"`
+	Semantic        string               `json:"semantic"`
+	Status          string               `json:"status"`
+	Bindings        map[string]MatrixCell `json:"bindings"`
+}
+
+// MatrixCell represents one (branch, env) cell in the matrix.
+type MatrixCell struct {
+	Exists         bool   `json:"exists"`
+	K8sNamespace   string `json:"k8sNamespace,omitempty"`
+	ImageTagPrefix string `json:"imageTagPrefix,omitempty"`
+	DbName         string `json:"dbName,omitempty"`
+}
+
+// DeployRequest is the body of a deploy API call, used by BranchEnvGuard
+// middleware to validate image-tag/env compatibility.
+type DeployRequest struct {
+	TenantID  string `json:"tenantId"`
+	Branch    string `json:"branch"`
+	TargetEnv string `json:"targetEnv"`
+	ImageTag  string `json:"imageTag"`
+}

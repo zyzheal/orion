@@ -20,7 +20,9 @@ type ServiceInterface interface {
 	Configure(ctx context.Context, tenantID string, cfg map[string]any) error
 	Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error)
 	CreateBranchProfile(ctx context.Context, tenantID string, req *models.CreateBranchProfileRequest) (*models.BranchProfile, error)
+	CreateNamespaceBinding(ctx context.Context, tenantID string, req *models.CreateNamespaceRequest) (*models.NamespaceBinding, error)
 	Delete(ctx context.Context, tenantID, id string) error
+	DeleteNamespaceBinding(ctx context.Context, tenantID, id string) error
 	DeleteTag(ctx context.Context, tenantID string, tag string) error
 	DeprecateBuildArtifact(ctx context.Context, tenantID, id, reason string) (*models.BuildArtifact, error)
 	Deploy(ctx context.Context, tenantID, id string) error
@@ -42,6 +44,8 @@ type ServiceInterface interface {
 	GetLineage(ctx context.Context, tenantID, id string) (map[string]any, error)
 	GetLogs(ctx context.Context, tenantID, id string) ([]string, error)
 	GetMetrics(ctx context.Context, tenantID string) (map[string]any, error)
+	GetNamespaceBinding(ctx context.Context, tenantID, id string) (*models.NamespaceBinding, error)
+	GetNamespaceMatrix(ctx context.Context, tenantID string) (*models.BranchEnvMatrix, error)
 	GetPlugin(ctx context.Context, tenantID, id string) (map[string]any, error)
 	GetResults(ctx context.Context, tenantID string) ([]string, error)
 	GetStats(ctx context.Context, tenantID string) (map[string]any, error)
@@ -53,6 +57,7 @@ type ServiceInterface interface {
 	ListArtifacts(ctx context.Context, tenantID string) ([]string, error)
 	ListBranchProfiles(ctx context.Context, tenantID string, q models.BranchProfileQuery) ([]models.BranchProfile, error)
 	ListBuildArtifacts(ctx context.Context, tenantID string, q models.ArtifactQuery) ([]models.BuildArtifact, error)
+	ListNamespaceBindings(ctx context.Context, tenantID string, q models.NamespaceBindingQuery) ([]models.NamespaceBinding, error)
 	ListExperiments(ctx context.Context, tenantID string) ([]string, error)
 	ListHistories(ctx context.Context, tenantID string) ([]string, error)
 	ListModels(ctx context.Context, tenantID string) ([]string, error)
@@ -83,7 +88,10 @@ type ServiceInterface interface {
 	UpdateConfig(ctx context.Context, tenantID string, cfg map[string]any) error
 	UpdateStatus(ctx context.Context, tenantID, id string) error
 	ValidateBranch(ctx context.Context, tenantID, branch string) (bool, error)
+	ValidateNamespaceBinding(ctx context.Context, tenantID, branchProfileID, envName string) (*models.NamespaceValidationResult, error)
+	VerifyBranchEnvBinding(ctx context.Context, tenantID, branch, envName string) (bool, error)
 	VerifyBuildArtifactSignature(ctx context.Context, tenantID, id string) (*models.SignatureVerificationResult, error)
+	VerifyImageTagMatch(ctx context.Context, tenantID, branch, envName, imageTag string) (bool, error)
 }
 
 // Ensure compile-time safety: *Service implements ServiceInterface.
