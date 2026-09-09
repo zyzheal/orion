@@ -71,11 +71,21 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
 					rate = n
 				}
 			}
+			tracker := auth.NewZapAnonymousTracker(logger, rate)
 			api.Use(auth.OptionalAuth(auth.AuthConfig{
 				JWTSecret:        infra.ffCfg.JWTSecret,
 				RedisClient:      infra.rdb,
-				AnonymousTracker: auth.NewZapAnonymousTracker(logger, rate),
+				AnonymousTracker: tracker,
 			}))
+			// Periodically clean up stale rate-limit buckets to prevent
+			// unbounded memory growth from high-cardinality path/reason keys.
+			go func() {
+				t := time.NewTicker(10 * time.Minute)
+				defer t.Stop()
+				for range t.C {
+					tracker.CleanupBuckets(2 * time.Minute)
+				}
+			}()
 		}
 
 		type routeRegistrar interface {
