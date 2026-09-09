@@ -102,7 +102,7 @@
 > | Phase | 任务 | 工时 | 优先级 |
 > |---|---|---|---|
 > | P0-MB Phase 1 | 基础数据模型（L1 BranchProfile + L3 BuildArtifact digest） | **5d** | ✅ **已完成** (`5fe58f0c4`; backend: models 3 + service 11 方法 + handler 11 路由 + 25 service tests + 11 handler tests 全绿; Repository stubs 待 DB migration; 前端页面延后) |
-> | P0-MB Phase 2 | 环境隔离强化（L2 Namespace 命名规则 + image tag 前缀强制 + BranchEnvGuard middleware） | **4d** | ✅ **已完成** (`__COMMIT_HASH__`; backend: models +NamespaceBinding+CreateNamespaceRequest+BranchEnvMatrix+MatrixRow/Cell+DeployRequest / repository +5 stubs +5 interface 方法 / service +8 方法（Create/List/Get/Delete/Validate/VerifyImageTagMatch/VerifyBranchEnvBinding/GetNamespaceMatrix） + 7 regexps + buildSlug/newNamespaceID / handler +6 路由 +6 方法 / middleware/branch_env_guard.go fail-closed / 12 service tests + 8 handler tests + 6 middleware tests 全绿; Repository stubs 待 DB migration; 前端 NamespaceMatrix.tsx 页面延后) |
+> | P0-MB Phase 2 | 环境隔离强化（L2 Namespace 命名规则 + image tag 前缀强制 + BranchEnvGuard middleware） | **4d** | ✅ **已完成** (`49d106242`; backend: models +NamespaceBinding+CreateNamespaceRequest+BranchEnvMatrix+MatrixRow/Cell+DeployRequest / repository +5 stubs +5 interface 方法 / service +8 方法（Create/List/Get/Delete/Validate/VerifyImageTagMatch/VerifyBranchEnvBinding/GetNamespaceMatrix） + 7 regexps + buildSlug/newNamespaceID / handler +6 路由 +6 方法 / middleware/branch_env_guard.go fail-closed / 14 service tests + 8 handler tests + 6 middleware tests 全绿; Repository stubs 待 DB migration; 前端 NamespaceMatrix.tsx 页面延后) |
 > | P0-MB Phase 3 | 同步策略（L4 SyncPolicy 页面 + 自动化调度） | **6d** | 🔴 P0 |
 > | P0-MB Phase 4 | 变更审计（L5 DeployEvent + 一键回滚） | **5d** | 🔴 P0 |
 > | P0-MB Phase 5 | 冲突预检查（PreDeployGate R1-R6 阻断规则 + 前端可视化） | **6d** | 🔴 P0 |
@@ -110,7 +110,7 @@
 >
 > **当前 `internal/branch-policy/` 现状**（Phase 2 完成后）：handler +17 routes +19 tests / service +1200 行 +19 interface 方法 + 37 service tests / repository +13 stubs (待 DB migration) + 13 interface 方法 / models 新增 BranchProfile+BranchSemantic+BranchStatus+BuildArtifact+BuildArtifactStatus+SignatureVerificationResult+NamespaceBinding+CreateNamespaceRequest+NamespaceBindingQuery+NamespaceValidationResult+NamespaceCheck+BranchEnvMatrix+MatrixRow+MatrixCell+DeployRequest / middleware/branch_env_guard.go（fail-closed BranchEnvGuard + byteReader）。**仍缺**: SyncPolicy / DeployEvent / PreDeployGate（Phase 3-5 内容）。
 >
-> **✅ 授权状态**：Phase 301-306 + P0-MB Phase 1-5 均已完成用户明确授权（见 Phase 306 `9ef76a56f` + P0-MB Phase 1 `5fe58f0c4` + P0-MB Phase 2 `__COMMIT_HASH__`）。`orion-platform-svc-go/` 目录对 P0-MB 授权范围内可修改。
+> **✅ 授权状态**：Phase 301-306 + P0-MB Phase 1-5 均已完成用户明确授权（见 Phase 306 `9ef76a56f` + P0-MB Phase 1 `5fe58f0c4` + P0-MB Phase 2 `49d106242`）。`orion-platform-svc-go/` 目录对 P0-MB 授权范围内可修改。
 
 ---
 

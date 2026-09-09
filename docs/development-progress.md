@@ -2946,7 +2946,7 @@ feat(branch-policy): P0-MB Phase 1 — L1 BranchProfile + L3 BuildArtifact
 - `internal/branch-policy/service/service.go`：+7 regexps + `newNamespaceID` + `buildSlug` + 8 方法（ListNamespaceBindings / GetNamespaceBinding / CreateNamespaceBinding / DeleteNamespaceBinding / ValidateNamespaceBinding / VerifyImageTagMatch / VerifyBranchEnvBinding / GetNamespaceMatrix）
 - `internal/branch-policy/service/service_interface.go`：+8 方法（字母序插入）
 - `internal/branch-policy/handler/handler.go`：+6 routes +6 handler 方法
-- `internal/branch-policy/service/service_test.go`：+13 Phase 2 service tests
+- `internal/branch-policy/service/service_test.go`：+14 Phase 2 service tests
 - `internal/branch-policy/handler/handler_test.go`：+6 fakeHandlerService 方法 + 8 handler tests
 
 ### 验证证据
@@ -2980,7 +2980,7 @@ feat(branch-policy): P0-MB Phase 2 — L2 NamespaceBinding + BranchEnvGuard
 - Phase 305 实施：✅ `4aa131398` + `057ddba10`
 - Phase 306 实施：✅ `9ef76a56f`
 - **P0-MB Phase 1 实施**：✅ `5fe58f0c4`
-- **P0-MB Phase 2 实施**：✅ `__COMMIT_HASH__`（本轮）
+- **P0-MB Phase 2 实施**：✅ `49d106242`（本轮）
 
 ### 剩余任务（P0-MB Phase 3-5，17d）
 
