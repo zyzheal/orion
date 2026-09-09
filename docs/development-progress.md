@@ -4011,8 +4011,10 @@ M  orion-platform-svc-go/internal/branch-policy/service/service.go
 ### Commit
 
 ```
-faba0a8b5 feat(branch-policy,auth,frontend): Phase D+E+F — R6 real checker + 3-seg colon fix + AnonymousTracker
+089c47e51 feat(branch-policy,auth,frontend): Phase D+E+F — R6 real checker + 3-seg colon fix + AnonymousTracker
 ```
+
+> **注**：本轮 commit 经历了 3 次 `git commit --amend` 以将真实 hash 回填到 docs，最终 hash 为 `089c47e51`。如果之后再次 amend，subject line 稳定不变，仅 hash 变。
 
 ### 剩余任务（本轮全部深度解决后）
 
