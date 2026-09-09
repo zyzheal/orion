@@ -3281,7 +3281,7 @@ GET  /api/v1/branch-policy/merge-preview?limit=100
 feat(branch-policy): P0-MB Phase 5 — PreDeployGate R1-R6 + MergePreview
 ```
 
-- **Commit hash**：`__COMMIT_HASH__`
+- **Commit hash**：`2163cbd45`
 - **变更行数**：models +45 / repository_interface +5 / repository +18 / service_interface +4 / service +430 / handler +70 / service_test +500 / handler_test +70 / docs +2
 
 ### 累计进度（Phase 301-306 + P0-MB Phase 1-5 全部完成）
@@ -3291,7 +3291,7 @@ feat(branch-policy): P0-MB Phase 5 — PreDeployGate R1-R6 + MergePreview
 - **P0-MB Phase 2 实施**：✅ `49d106242`
 - **P0-MB Phase 3 实施**：✅ `9f9bc3e1b`
 - **P0-MB Phase 4 实施**：✅ `7ba5b9819`
-- **P0-MB Phase 5 实施**：✅ `__COMMIT_HASH__`（本轮）
+- **P0-MB Phase 5 实施**：✅ `2163cbd45`（本轮）
 
 ### 剩余任务（无）
 
