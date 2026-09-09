@@ -3105,3 +3105,104 @@ feat(branch-policy): P0-MB Phase 3 — L4 SyncPolicy + SyncRunLog + Scheduler
 - **前端页面**：BranchProfileList.tsx + BranchProfileDetail.tsx + ArtifactList.tsx + ArtifactDetail.tsx + RegisterArtifactModal.tsx + NamespaceMatrix.tsx + SyncPolicyList.tsx
 - **API 端到端集成测试**：延后到 DB migration 落地后
 - **Scheduler 生产挂载**：`wireSyncScheduler` 已就绪，需要在 main.go 中调用
+
+## P0-MB Phase 4 — L5 DeployEvent + 一键回滚 + AuditTrail（2026-08-26 完成）
+
+### 交付物
+
+**Scope**（设计文档 §4 完整实现）：
+- L5 DeployEvent 数据模型（FromCommit → ToCommit delta + ArtifactID/ImageDigest 不可变 + ApprovalID 变更管理引用 + RollbackTo 回滚反向引用）
+- DeployOutcome 状态机（success/failed ↔ rolled-back 终态）
+- CanRollback()（仅 success/failed 允许；rolled-back 拒绝）
+- 一键回滚（创建新事件，不修改原事件；fail-closed）
+- AuditTrail 聚合查询（Branches/Envs/ArtifactIDs/ApprovalIDs dedup）
+- 8 条路由（含 audit-trail/by-branch/by-env/by-actor/:id/:id/rollback）
+
+### 设计决策
+
+1. **`syncCommitSHARe` 复用**：From/ToCommit 沿用 Phase 3 的 `^[0-9a-fA-F]{7,40}$`（7-40 hex 允许 git SHA 前缀），与 SyncPolicy RunNow 一致。
+2. **`sha256Re` 复用**：ImageDigest 沿用 Phase 1 的 `^sha256:[0-9a-fA-F]{64}$` 严格校验。
+3. **`deployActorRe` 与 `syncActorRe` 语义分离**：
+   - 已存在 `syncActorRe = ^[A-Za-z0-9._@-]{1,64}$` 用于 SyncPolicy 的 actor。
+   - 新增 `deployActorRe = ^[A-Za-z0-9._@-]{1,64}$` 用于 DeployEvent 的 actor（相同正则，命名分离避免耦合）。
+   - 认证由上游 middleware 完成，此处只做格式校验。
+4. **`deployEnvRe` 严格**：`^[A-Za-z0-9_-]{1,32}$`（与 L2 NamespaceBinding env 一致，禁止空格/斜杠/点）。
+5. **状态机 fail-closed**：
+   - UpdateDeployOutcome：rolled-back 是终态，任何进一步转换拒绝。
+   - UpdateDeployMetrics：rolled-back 是终态，指标不可改。
+   - Rollback：原事件必须存在 + outcome 允许回滚（success/failed）+ FromCommit/ToCommit 都非空。
+6. **回滚创建新事件（不修改原事件）**：
+   - 新事件 FromCommit = orig.ToCommit，ToCommit = orig.FromCommit。
+   - ArtifactID / ImageDigest / ApprovalID / GateResult / ActorName 从原事件复制。
+   - RollbackTo = &orig.ID（反向引用）。
+   - Outcome = rolled-back，StartedAt = CompletedAt = now。
+   - 原事件保持不动，审计链通过 RollbackTo 串联。
+7. **ID 生成**：`de-` 前缀，沿用 Phase 2/3 fnv 模式。
+8. **AuditTrail 去重 helper**：Branches/Envs/ArtifactIDs/ApprovalIDs 各自 dedup（`seen map[string]struct{}`），跳过空串。
+9. **Gin 路由顺序**：静态路径（audit-trail/by-branch/by-env/by-actor）在 `:id` 参数路由之前注册，避免路由冲突。
+10. **Rollback actor 来源**：从 `user_id` context 读取（auth middleware 注入），fallback 到 `actor` context（测试场景）。缺失时返回 400。
+
+### 修改文件
+
+- `internal/branch-policy/models/models.go`：+DeployOutcome 常量 + Valid/CanRollback 方法 + DeployEvent struct + CreateDeployEventRequest + DeployEventQuery + DeployMetrics + AuditTrailParams + AuditTrailResult（共 8 个类型/常量组）
+- `internal/branch-policy/repository/repository_interface.go`：+7 方法（CreateDeployEvent/GetDeployEvent/UpdateDeployEvent/ListDeployEvents/ListDeployEventsByBranch/ListDeployEventsByEnv/ListDeployEventsByActor）
+- `internal/branch-policy/repository/repository.go`：+7 stubs（`sentinel.NotFound`，注释引用 §4.2）
+- `internal/branch-policy/service/service.go`：+2 regexps (deployEnvRe/deployActorRe) + `newDeployEventID` + `createDeployEventRequestToModel` + `validateCreateDeployEventRequest` + 10 方法（CreateDeployEvent/RecordDeployEvent/GetDeployEvent/UpdateDeployOutcome/UpdateDeployMetrics/ListDeployEvents/ListDeployEventsByBranch/ListDeployEventsByEnv/ListDeployEventsByActor/RollbackDeployEvent/GetAuditTrail）+ 状态机 + fail-closed + dedup helper
+- `internal/branch-policy/service/service_interface.go`：+10 方法（字母序）
+- `internal/branch-policy/handler/handler.go`：+8 routes + 8 handler 方法 + `rollbackDeployEventBody` 内联结构
+- `internal/branch-policy/service/service_test.go`：+7 fakeRepo 方法（deployEvents map）+ 15 Phase 4 service tests
+- `internal/branch-policy/handler/handler_test.go`：+11 fakeHandlerService stubs + 11 Phase 4 handler tests + `time` 导入
+
+### 验证证据
+
+```
+$ go build ./internal/branch-policy/...  →  clean
+$ go vet ./internal/branch-policy/...    →  clean
+$ go test ./internal/branch-policy/...   →  all pass
+$ go test ./...                          →  all pass (full test suite green)
+```
+
+**具体测试数**：
+- Service：15 Phase 4 tests（TestDE_* 系列）+ 61 之前 tests = 76 passing
+- Handler：11 Phase 4 tests + 31 之前 tests = 42 passing
+- Middleware：6 Phase 2 tests（未变）
+- Scheduler：10 Phase 3 tests（未变）
+
+### 已知问题（Phase 4）
+
+1. **DB migration 未落地**：`deploy_events` 表尚未 add 到 running DB。Repository stubs 返回 `sentinel.NotFound`，handler 会返回 500。
+2. **前端页面延后**：ChangeAuditTrail.tsx（DeployEvent 列表 + 详情 + 回滚按钮 + AuditTrail 可视化）未实现。
+3. **BranchEnvGuard middleware 未挂载**：Phase 2 遗留的 `BranchEnvGuard` middleware 尚未挂到 deploy API（`internal/deploy-enhanced/handler/handler.go` 或 `cmd/server/router.go`）。延后到 Phase 5 PreDeployGate 集成时一并处理。
+4. **`RecordDeployEvent` 内不校验 actor/branch/env/toCommit 格式**：仅检查非空。该方法是内部辅助（deploy API 集成 + rollback 内部使用），格式校验由 `CreateDeployEvent` 完成。
+5. **AuditTrail ArtifactID 客户端过滤**：`DeployEventQuery` 未提供 ArtifactID 字段，GetAuditTrail 拉取后在内存中过滤。数据量大时可下沉到 SQL。
+
+### Commit 消息
+
+```
+feat(branch-policy): P0-MB Phase 4 — L5 DeployEvent + 一键回滚 + AuditTrail
+```
+
+### 累计进度
+
+- Phase 301 实施：✅ `b56cd8566` + `4b6fb86c4`
+- Phase 302 实施：✅ `3cc7bd7c2`
+- Phase 303 实施：✅ `b6322a01d`
+- Phase 304 实施：✅ `c7c48adb4`
+- Phase 305 实施：✅ `4aa131398` + `057ddba10`
+- Phase 306 实施：✅ `9ef76a56f`
+- **P0-MB Phase 1 实施**：✅ `5fe58f0c4`
+- **P0-MB Phase 2 实施**：✅ `49d106242`
+- **P0-MB Phase 3 实施**：✅ `9f9bc3e1b`
+- **P0-MB Phase 4 实施**：✅ `__COMMIT_HASH__`（本轮）
+
+### 剩余任务（P0-MB Phase 5，6d）
+
+- P0-MB Phase 5：冲突预检查（PreDeployGate R1-R6 阻断规则 + 前端可视化 + BranchEnvGuard middleware 挂载）（6d）
+
+### 遗留任务（Phase 1-4 累积）
+
+- **DB migration**（阻塞 6 张表真实可用）：branch_profiles + build_artifacts + namespace_bindings + sync_policies + sync_run_logs + deploy_events
+- **前端页面**：BranchProfileList.tsx + BranchProfileDetail.tsx + ArtifactList.tsx + ArtifactDetail.tsx + RegisterArtifactModal.tsx + NamespaceMatrix.tsx + SyncPolicyList.tsx + ChangeAuditTrail.tsx
+- **API 端到端集成测试**：延后到 DB migration 落地后
+- **Scheduler 生产挂载**：`wireSyncScheduler` 已就绪，需要在 main.go 中调用
+- **BranchEnvGuard middleware 挂载**：延后到 Phase 5 与 PreDeployGate 集成时一并处理

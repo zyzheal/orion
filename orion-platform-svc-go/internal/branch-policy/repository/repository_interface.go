@@ -40,6 +40,15 @@ type RepositoryInterface interface {
 	CreateSyncRunLog(ctx context.Context, l *models.SyncRunLog) error
 	UpdateSyncRunLog(ctx context.Context, tenantID, id string, l *models.SyncRunLog) (*models.SyncRunLog, error)
 	ListSyncRunLogs(ctx context.Context, tenantID string, q models.SyncRunLogQuery) ([]models.SyncRunLog, error)
+
+	// P0-MB Phase 4 — DeployEvent (L5) + rollback + audit trail
+	CreateDeployEvent(ctx context.Context, evt *models.DeployEvent) error
+	GetDeployEvent(ctx context.Context, tenantID, id string) (*models.DeployEvent, error)
+	UpdateDeployEvent(ctx context.Context, tenantID, id string, evt *models.DeployEvent) (*models.DeployEvent, error)
+	ListDeployEvents(ctx context.Context, tenantID string, q models.DeployEventQuery) ([]models.DeployEvent, error)
+	ListDeployEventsByBranch(ctx context.Context, tenantID, branch string, limit int) ([]models.DeployEvent, error)
+	ListDeployEventsByEnv(ctx context.Context, tenantID, env string, limit int) ([]models.DeployEvent, error)
+	ListDeployEventsByActor(ctx context.Context, tenantID, actorID string, limit int) ([]models.DeployEvent, error)
 }
 
 // Ensure Repository implements RepositoryInterface.

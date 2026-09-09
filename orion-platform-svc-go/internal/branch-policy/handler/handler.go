@@ -68,6 +68,19 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.POST("/sync-policies/:id/enable", auth.RequirePermission("branch-policy", "write"), h.EnableSyncPolicy)
 	r.POST("/sync-policies/:id/disable", auth.RequirePermission("branch-policy", "write"), h.DisableSyncPolicy)
 	r.GET("/sync-policies/:id/run-logs", auth.RequirePermission("branch-policy", "read"), h.ListSyncRunLogs)
+
+	// P0-MB Phase 4 — L5 DeployEvent (change audit + one-click rollback)
+	// NOTE: static paths (audit-trail, by-branch/:branch, by-env/:env,
+	// by-actor/:actor) are registered BEFORE /deploy-events/:id so Gin
+	// routes them to the static handlers (not the :id parameter).
+	r.GET("/deploy-events/audit-trail", auth.RequirePermission("branch-policy", "read"), h.GetAuditTrail)
+	r.GET("/deploy-events/by-branch/:branch", auth.RequirePermission("branch-policy", "read"), h.ListDeployEventsByBranch)
+	r.GET("/deploy-events/by-env/:env", auth.RequirePermission("branch-policy", "read"), h.ListDeployEventsByEnv)
+	r.GET("/deploy-events/by-actor/:actor", auth.RequirePermission("branch-policy", "read"), h.ListDeployEventsByActor)
+	r.GET("/deploy-events", auth.RequirePermission("branch-policy", "read"), h.ListDeployEvents)
+	r.POST("/deploy-events", auth.RequirePermission("branch-policy", "write"), h.CreateDeployEvent)
+	r.GET("/deploy-events/:id", auth.RequirePermission("branch-policy", "read"), h.GetDeployEvent)
+	r.POST("/deploy-events/:id/rollback", auth.RequirePermission("branch-policy", "write"), h.RollbackDeployEvent)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -1285,4 +1298,172 @@ func (h *Handler) ListSyncRunLogs(c *gin.Context) {
 		return
 	}
 	errors.WriteSuccess(c, gin.H{"data": out, "total": len(out)})
+}
+
+// ============================================================================
+// P0-MB Phase 4 — L5 DeployEvent (change audit + one-click rollback)
+// ============================================================================
+
+func (h *Handler) CreateDeployEvent(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateDeployEvent")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	var req models.CreateDeployEventRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
+		return
+	}
+	evt, err := h.svc.CreateDeployEvent(ctx, tenantID, &req)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, evt)
+}
+
+func (h *Handler) GetDeployEvent(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDeployEvent")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	evt, err := h.svc.GetDeployEvent(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		errors.WriteError(c, errors.ErrNotFound, "deploy event not found", http.StatusNotFound)
+		return
+	}
+	errors.WriteSuccess(c, evt)
+}
+
+func (h *Handler) ListDeployEvents(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDeployEvents")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	q := models.DeployEventQuery{}
+	if v := c.Query("branch"); v != "" {
+		q.Branch = &v
+	}
+	if v := c.Query("env"); v != "" {
+		q.Env = &v
+	}
+	if v := c.Query("actorId"); v != "" {
+		q.ActorID = &v
+	}
+	if v := c.Query("approvalId"); v != "" {
+		q.ApprovalID = &v
+	}
+	if v := c.Query("outcome"); v != "" {
+		o := models.DeployOutcome(v)
+		q.Outcome = &o
+	}
+	if v := c.Query("limit"); v != "" {
+		fmt.Sscanf(v, "%d", &q.Limit)
+	}
+	out, err := h.svc.ListDeployEvents(ctx, tenantID, q)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	errors.WriteSuccess(c, gin.H{"data": out, "total": len(out)})
+}
+
+func (h *Handler) ListDeployEventsByBranch(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDeployEventsByBranch")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	limit := 100
+	if v := c.Query("limit"); v != "" {
+		fmt.Sscanf(v, "%d", &limit)
+	}
+	out, err := h.svc.ListDeployEventsByBranch(ctx, tenantID, c.Param("branch"), limit)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, gin.H{"data": out, "total": len(out)})
+}
+
+func (h *Handler) ListDeployEventsByEnv(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDeployEventsByEnv")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	limit := 100
+	if v := c.Query("limit"); v != "" {
+		fmt.Sscanf(v, "%d", &limit)
+	}
+	out, err := h.svc.ListDeployEventsByEnv(ctx, tenantID, c.Param("env"), limit)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, gin.H{"data": out, "total": len(out)})
+}
+
+func (h *Handler) ListDeployEventsByActor(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDeployEventsByActor")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	limit := 100
+	if v := c.Query("limit"); v != "" {
+		fmt.Sscanf(v, "%d", &limit)
+	}
+	out, err := h.svc.ListDeployEventsByActor(ctx, tenantID, c.Param("actor"), limit)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, gin.H{"data": out, "total": len(out)})
+}
+
+// rollbackDeployEventBody is the optional POST body for
+// /deploy-events/:id/rollback. The actor is derived from the auth context;
+// this body is reserved for future overrides (e.g. emergency-rollback flag).
+type rollbackDeployEventBody struct{}
+
+func (h *Handler) RollbackDeployEvent(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RollbackDeployEvent")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	var body rollbackDeployEventBody
+	_ = c.ShouldBindJSON(&body) // body is optional; ignore bind errors
+	actor := c.GetString("user_id")
+	if actor == "" {
+		actor = c.GetString("actor")
+	}
+	if actor == "" {
+		errors.WriteError(c, errors.ErrBadRequest, "actor is required (X-User-Id header or actor query)", http.StatusBadRequest)
+		return
+	}
+	evt, err := h.svc.RollbackDeployEvent(ctx, tenantID, c.Param("id"), actor)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, evt)
+}
+
+func (h *Handler) GetAuditTrail(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAuditTrail")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	params := models.AuditTrailParams{}
+	if v := c.Query("branch"); v != "" {
+		params.Branch = v
+	}
+	if v := c.Query("env"); v != "" {
+		params.Env = v
+	}
+	if v := c.Query("artifactId"); v != "" {
+		params.ArtifactID = v
+	}
+	if v := c.Query("approvalId"); v != "" {
+		params.ApprovalID = v
+	}
+	if v := c.Query("limit"); v != "" {
+		fmt.Sscanf(v, "%d", &params.Limit)
+	}
+	out, err := h.svc.GetAuditTrail(ctx, tenantID, params)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
+		return
+	}
+	errors.WriteSuccess(c, out)
 }

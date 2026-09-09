@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/branch-policy/models"
@@ -418,6 +419,75 @@ func (f *fakeHandlerService) ListSyncRunLogs(ctx context.Context, tenantID strin
 
 func (f *fakeHandlerService) GetEnabledPolicies(ctx context.Context, tenantID string, cronMatch func(string) bool) ([]models.SyncPolicy, error) {
 	return []models.SyncPolicy{}, nil
+}
+
+// P0-MB Phase 4 stubs — L5 DeployEvent + one-click rollback + AuditTrail.
+func (f *fakeHandlerService) CreateDeployEvent(ctx context.Context, tenantID string, req *models.CreateDeployEventRequest) (*models.DeployEvent, error) {
+	return &models.DeployEvent{
+		ID:           "de-test",
+		TenantID:     tenantID,
+		ActorID:      req.ActorID,
+		ActorName:    req.ActorName,
+		Branch:       req.Branch,
+		Env:          req.Env,
+		FromCommit:   req.FromCommit,
+		ToCommit:     req.ToCommit,
+		ArtifactID:   req.ArtifactID,
+		ImageDigest:  req.ImageDigest,
+		ApprovalID:   req.ApprovalID,
+		Outcome:      req.Outcome,
+		StartedAt:    time.Now(),
+		CreatedAt:    time.Now(),
+	}, nil
+}
+
+func (f *fakeHandlerService) GetDeployEvent(ctx context.Context, tenantID, id string) (*models.DeployEvent, error) {
+	return &models.DeployEvent{ID: id, TenantID: tenantID}, nil
+}
+
+func (f *fakeHandlerService) GetAuditTrail(ctx context.Context, tenantID string, params models.AuditTrailParams) (*models.AuditTrailResult, error) {
+	return &models.AuditTrailResult{Events: []models.DeployEvent{}, GeneratedAt: time.Now()}, nil
+}
+
+func (f *fakeHandlerService) ListDeployEvents(ctx context.Context, tenantID string, q models.DeployEventQuery) ([]models.DeployEvent, error) {
+	return []models.DeployEvent{}, nil
+}
+
+func (f *fakeHandlerService) ListDeployEventsByBranch(ctx context.Context, tenantID, branch string, limit int) ([]models.DeployEvent, error) {
+	return []models.DeployEvent{}, nil
+}
+
+func (f *fakeHandlerService) ListDeployEventsByEnv(ctx context.Context, tenantID, env string, limit int) ([]models.DeployEvent, error) {
+	return []models.DeployEvent{}, nil
+}
+
+func (f *fakeHandlerService) ListDeployEventsByActor(ctx context.Context, tenantID, actorID string, limit int) ([]models.DeployEvent, error) {
+	return []models.DeployEvent{}, nil
+}
+
+func (f *fakeHandlerService) RecordDeployEvent(ctx context.Context, evt *models.DeployEvent) error {
+	return nil
+}
+
+func (f *fakeHandlerService) RollbackDeployEvent(ctx context.Context, tenantID, id, actorID string) (*models.DeployEvent, error) {
+	rb := "de-test-orig"
+	return &models.DeployEvent{
+		ID:         "de-rollback-test",
+		TenantID:   tenantID,
+		ActorID:    actorID,
+		Outcome:    models.DeployOutcomeRolledBack,
+		RollbackTo: &rb,
+		StartedAt:  time.Now(),
+		CreatedAt:  time.Now(),
+	}, nil
+}
+
+func (f *fakeHandlerService) UpdateDeployMetrics(ctx context.Context, tenantID, id string, m models.DeployMetrics) (*models.DeployEvent, error) {
+	return &models.DeployEvent{ID: id, TenantID: tenantID, DurationMs: m.DurationMs, ErrorRate: m.ErrorRate, P99Latency: m.P99Latency}, nil
+}
+
+func (f *fakeHandlerService) UpdateDeployOutcome(ctx context.Context, tenantID, id string, outcome models.DeployOutcome, errorMsg string) (*models.DeployEvent, error) {
+	return &models.DeployEvent{ID: id, TenantID: tenantID, Outcome: outcome, ErrorMsg: errorMsg}, nil
 }
 
 var _ service.ServiceInterface = (*fakeHandlerService)(nil)
@@ -1201,5 +1271,106 @@ func TestBRANCH_POLICY_Handler_ListSyncRunLogs_All(t *testing.T) {
 	newHandler().ListSyncRunLogs(c)
 	if w.Code >= 500 {
 		t.Fatalf("ListSyncRunLogs all: got %d", w.Code)
+	}
+}
+
+// ============================================================================
+// P0-MB Phase 4 — L5 DeployEvent + one-click rollback + AuditTrail handler tests
+// ============================================================================
+
+func TestBRANCH_POLICY_Handler_CreateDeployEvent(t *testing.T) {
+	body := map[string]any{
+		"actorId":   "actor-1",
+		"branch":    "main",
+		"env":       "prod",
+		"fromCommit": "abcdef0123456789",
+		"toCommit":  "1234567abcdef0123",
+	}
+	c, w := makeCtx(http.MethodPost, "/deploy-events", body, nil)
+	newHandler().CreateDeployEvent(c)
+	if w.Code >= 500 {
+		t.Fatalf("CreateDeployEvent: got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestBRANCH_POLICY_Handler_CreateDeployEvent_BadBody(t *testing.T) {
+	// Missing required actorId / branch / env / toCommit
+	c, w := makeCtx(http.MethodPost, "/deploy-events", map[string]any{"branch": "main"}, nil)
+	newHandler().CreateDeployEvent(c)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for missing required fields, got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestBRANCH_POLICY_Handler_GetDeployEvent(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/deploy-events/de-1", nil, map[string]string{"id": "de-1"})
+	newHandler().GetDeployEvent(c)
+	if w.Code >= 500 {
+		t.Fatalf("GetDeployEvent: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_ListDeployEvents(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/deploy-events?branch=main&env=prod&limit=50", nil, nil)
+	newHandler().ListDeployEvents(c)
+	if w.Code >= 500 {
+		t.Fatalf("ListDeployEvents: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_ListDeployEventsByBranch(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/deploy-events/by-branch/main?limit=25", nil, map[string]string{"branch": "main"})
+	newHandler().ListDeployEventsByBranch(c)
+	if w.Code >= 500 {
+		t.Fatalf("ListDeployEventsByBranch: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_ListDeployEventsByEnv(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/deploy-events/by-env/prod?limit=25", nil, map[string]string{"env": "prod"})
+	newHandler().ListDeployEventsByEnv(c)
+	if w.Code >= 500 {
+		t.Fatalf("ListDeployEventsByEnv: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_ListDeployEventsByActor(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/deploy-events/by-actor/actor-1?limit=25", nil, map[string]string{"actor": "actor-1"})
+	newHandler().ListDeployEventsByActor(c)
+	if w.Code >= 500 {
+		t.Fatalf("ListDeployEventsByActor: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_RollbackDeployEvent(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/deploy-events/de-1/rollback", nil, map[string]string{"id": "de-1"})
+	c.Set("user_id", "actor-1")
+	newHandler().RollbackDeployEvent(c)
+	if w.Code >= 500 {
+		t.Fatalf("RollbackDeployEvent: got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestBRANCH_POLICY_Handler_RollbackDeployEvent_MissingActor(t *testing.T) {
+	c, w := makeCtx(http.MethodPost, "/deploy-events/de-1/rollback", nil, map[string]string{"id": "de-1"})
+	newHandler().RollbackDeployEvent(c)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for missing actor, got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestBRANCH_POLICY_Handler_GetAuditTrail(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/deploy-events/audit-trail?branch=main&env=prod&artifactId=art-1&limit=25", nil, nil)
+	newHandler().GetAuditTrail(c)
+	if w.Code >= 500 {
+		t.Fatalf("GetAuditTrail: got %d", w.Code)
+	}
+}
+
+func TestBRANCH_POLICY_Handler_GetAuditTrail_NoFilters(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/deploy-events/audit-trail", nil, nil)
+	newHandler().GetAuditTrail(c)
+	if w.Code >= 500 {
+		t.Fatalf("GetAuditTrail no filters: got %d", w.Code)
 	}
 }

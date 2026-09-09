@@ -18,6 +18,7 @@ type fakeRepo struct {
 	namespaceBindings map[string]*models.NamespaceBinding
 	syncPolicies      map[string]*models.SyncPolicy
 	syncRunLogs       []models.SyncRunLog
+	deployEvents      map[string]*models.DeployEvent
 }
 
 func newFakeRepo() *fakeRepo {
@@ -26,6 +27,7 @@ func newFakeRepo() *fakeRepo {
 		artifacts:         make(map[string]*models.BuildArtifact),
 		namespaceBindings: make(map[string]*models.NamespaceBinding),
 		syncPolicies:      make(map[string]*models.SyncPolicy),
+		deployEvents:      make(map[string]*models.DeployEvent),
 	}
 }
 
@@ -286,6 +288,96 @@ func (f *fakeRepo) ListSyncRunLogs(ctx context.Context, tenantID string, q model
 		out = out[:q.Limit]
 	}
 	return out, nil
+}
+
+// --- P0-MB Phase 4 fakeRepo methods ---
+
+func (f *fakeRepo) CreateDeployEvent(ctx context.Context, evt *models.DeployEvent) error {
+	if evt.ID == "" {
+		return errors.New("id required")
+	}
+	cp := *evt
+	f.deployEvents[evt.ID] = &cp
+	return nil
+}
+
+func (f *fakeRepo) GetDeployEvent(ctx context.Context, tenantID, id string) (*models.DeployEvent, error) {
+	e, ok := f.deployEvents[id]
+	if !ok {
+		return nil, nil
+	}
+	if e.TenantID != tenantID {
+		return nil, nil
+	}
+	cp := *e
+	return &cp, nil
+}
+
+func (f *fakeRepo) UpdateDeployEvent(ctx context.Context, tenantID, id string, evt *models.DeployEvent) (*models.DeployEvent, error) {
+	e, ok := f.deployEvents[id]
+	if !ok {
+		return nil, nil
+	}
+	if e.TenantID != tenantID {
+		return nil, nil
+	}
+	cp := *evt
+	f.deployEvents[id] = &cp
+	out := *evt
+	return &out, nil
+}
+
+func (f *fakeRepo) ListDeployEvents(ctx context.Context, tenantID string, q models.DeployEventQuery) ([]models.DeployEvent, error) {
+	out := make([]models.DeployEvent, 0, len(f.deployEvents))
+	for _, e := range f.deployEvents {
+		if e.TenantID != tenantID {
+			continue
+		}
+		if q.Branch != nil && *q.Branch != e.Branch {
+			continue
+		}
+		if q.Env != nil && *q.Env != e.Env {
+			continue
+		}
+		if q.ActorID != nil && *q.ActorID != e.ActorID {
+			continue
+		}
+		if q.ApprovalID != nil && *q.ApprovalID != e.ApprovalID {
+			continue
+		}
+		if q.Outcome != nil && *q.Outcome != e.Outcome {
+			continue
+		}
+		if q.From != nil && e.StartedAt.Before(*q.From) {
+			continue
+		}
+		if q.To != nil && e.StartedAt.After(*q.To) {
+			continue
+		}
+		out = append(out, *e)
+	}
+	if q.Limit > 0 && len(out) > q.Limit {
+		out = out[:q.Limit]
+	}
+	return out, nil
+}
+
+func (f *fakeRepo) ListDeployEventsByBranch(ctx context.Context, tenantID, branch string, limit int) ([]models.DeployEvent, error) {
+	b := branch
+	q := models.DeployEventQuery{Branch: &b, Limit: limit}
+	return f.ListDeployEvents(ctx, tenantID, q)
+}
+
+func (f *fakeRepo) ListDeployEventsByEnv(ctx context.Context, tenantID, env string, limit int) ([]models.DeployEvent, error) {
+	e := env
+	q := models.DeployEventQuery{Env: &e, Limit: limit}
+	return f.ListDeployEvents(ctx, tenantID, q)
+}
+
+func (f *fakeRepo) ListDeployEventsByActor(ctx context.Context, tenantID, actorID string, limit int) ([]models.DeployEvent, error) {
+	a := actorID
+	q := models.DeployEventQuery{ActorID: &a, Limit: limit}
+	return f.ListDeployEvents(ctx, tenantID, q)
 }
 
 // TestBP_Create_Validation verifies branch-profile create rejects malformed input.
@@ -1787,3 +1879,565 @@ func TestSync_Update_NotFound(t *testing.T) {
 
 // strPtr is a tiny helper for pointer literals in tests.
 func strPtr(s string) *string { return &s }
+
+// ============================================================================
+// P0-MB Phase 4 — L5 DeployEvent + one-click rollback + AuditTrail tests
+// ============================================================================
+
+func TestDE_Create_Validation(t *testing.T) {
+	svc := NewService(newFakeRepo())
+	ctx := context.Background()
+	base := &models.CreateDeployEventRequest{
+		ActorID:    "actor-1",
+		Branch:     "main",
+		Env:        "prod",
+		ToCommit:   "1234567abcdef0123",
+		FromCommit: "abcdef0123456789",
+	}
+	cases := []struct {
+		name string
+		mut  func(r *models.CreateDeployEventRequest)
+		want string
+	}{
+		{"nil-request", func(r *models.CreateDeployEventRequest) { *r = models.CreateDeployEventRequest{}; _ = *r }, "actorId is required"},
+		{"empty-actor", func(r *models.CreateDeployEventRequest) { r.ActorID = "" }, "actorId is required"},
+		{"bad-actor", func(r *models.CreateDeployEventRequest) { r.ActorID = "has space!" }, "actorId"},
+		{"empty-branch", func(r *models.CreateDeployEventRequest) { r.Branch = "" }, "branch is required"},
+		{"empty-env", func(r *models.CreateDeployEventRequest) { r.Env = "" }, "env is required"},
+		{"bad-env", func(r *models.CreateDeployEventRequest) { r.Env = "has space!" }, "env"},
+		{"empty-to", func(r *models.CreateDeployEventRequest) { r.ToCommit = "" }, "toCommit is required"},
+		{"bad-to", func(r *models.CreateDeployEventRequest) { r.ToCommit = "xyz" }, "toCommit"},
+		{"bad-from", func(r *models.CreateDeployEventRequest) { r.FromCommit = "xyz" }, "fromCommit"},
+		{"bad-digest", func(r *models.CreateDeployEventRequest) { r.ImageDigest = "notsha256" }, "imageDigest"},
+		{"bad-outcome", func(r *models.CreateDeployEventRequest) { r.Outcome = "weird" }, "outcome"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := *base
+			c.mut(&req)
+			_, err := svc.CreateDeployEvent(ctx, "t1", &req)
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", c.want)
+			}
+			if !strings.Contains(err.Error(), c.want) {
+				t.Fatalf("error %q does not contain %q", err.Error(), c.want)
+			}
+		})
+	}
+}
+
+func TestDE_Create_Success(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	req := &models.CreateDeployEventRequest{
+		ActorID:    "actor-1",
+		ActorName:  "Alice",
+		Branch:     "main",
+		Env:        "prod",
+		FromCommit: "ABCDEF0123456789", // uppercase, should be normalized
+		ToCommit:   "1234567abcdef0123",
+		ArtifactID: "art-1",
+		ImageDigest: "sha256:" + strings.Repeat("a", 64),
+		ApprovalID: "cm-1",
+	}
+	evt, err := svc.CreateDeployEvent(context.Background(), "t1", req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !strings.HasPrefix(evt.ID, "de-") {
+		t.Fatalf("id %q should start with de-", evt.ID)
+	}
+	if evt.Outcome != models.DeployOutcomeSuccess {
+		t.Fatalf("outcome = %q, want success", evt.Outcome)
+	}
+	if evt.ToCommit != "1234567abcdef0123" {
+		t.Fatalf("toCommit = %q, want lowercased", evt.ToCommit)
+	}
+	if evt.FromCommit != "abcdef0123456789" {
+		t.Fatalf("fromCommit = %q, want lowercased", evt.FromCommit)
+	}
+	if evt.StartedAt.IsZero() || evt.CreatedAt.IsZero() {
+		t.Fatalf("timestamps not set")
+	}
+	if repo.deployEvents[evt.ID] == nil {
+		t.Fatal("event not persisted in repo")
+	}
+}
+
+func TestDE_Create_TenantRequired(t *testing.T) {
+	svc := NewService(newFakeRepo())
+	req := &models.CreateDeployEventRequest{
+		ActorID:  "actor-1",
+		Branch:   "main",
+		Env:      "prod",
+		ToCommit: "1234567abcdef0123",
+	}
+	_, err := svc.CreateDeployEvent(context.Background(), "", req)
+	if err == nil {
+		t.Fatal("expected error for empty tenantID")
+	}
+	if !strings.Contains(err.Error(), "tenant_id") {
+		t.Fatalf("err %q", err.Error())
+	}
+}
+
+func TestDE_Record_Success(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	evt := &models.DeployEvent{
+		TenantID: "t1",
+		ActorID:  "actor-1",
+		Branch:   "main",
+		Env:      "prod",
+		ToCommit: "1234567abcdef0123",
+	}
+	if err := svc.RecordDeployEvent(context.Background(), evt); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if evt.ID == "" || !strings.HasPrefix(evt.ID, "de-") {
+		t.Fatalf("id = %q, want de- prefix", evt.ID)
+	}
+	if evt.Outcome != models.DeployOutcomeSuccess {
+		t.Fatalf("outcome = %q, want success default", evt.Outcome)
+	}
+	if evt.StartedAt.IsZero() || evt.CreatedAt.IsZero() {
+		t.Fatal("timestamps not filled")
+	}
+	if repo.deployEvents[evt.ID] == nil {
+		t.Fatal("not persisted")
+	}
+}
+
+func TestDE_Record_Validation(t *testing.T) {
+	svc := NewService(newFakeRepo())
+	ctx := context.Background()
+	if err := svc.RecordDeployEvent(ctx, nil); err == nil {
+		t.Fatal("expected error for nil event")
+	}
+	if err := svc.RecordDeployEvent(ctx, &models.DeployEvent{}); err == nil {
+		t.Fatal("expected error for missing tenantId")
+	}
+	if err := svc.RecordDeployEvent(ctx, &models.DeployEvent{TenantID: "t1"}); err == nil {
+		t.Fatal("expected error for missing actorId")
+	}
+	if err := svc.RecordDeployEvent(ctx, &models.DeployEvent{TenantID: "t1", ActorID: "a"}); err == nil {
+		t.Fatal("expected error for missing branch/env")
+	}
+	if err := svc.RecordDeployEvent(ctx, &models.DeployEvent{TenantID: "t1", ActorID: "a", Branch: "main", Env: "prod"}); err == nil {
+		t.Fatal("expected error for missing toCommit")
+	}
+	evt := &models.DeployEvent{TenantID: "t1", ActorID: "a", Branch: "main", Env: "prod", ToCommit: "abc123", Outcome: "weird"}
+	if err := svc.RecordDeployEvent(ctx, evt); err == nil {
+		t.Fatal("expected error for invalid outcome")
+	}
+}
+
+func TestDE_UpdateOutcome_StateMachine(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	repo.deployEvents["de-1"] = &models.DeployEvent{
+		ID: "de-1", TenantID: "t1", Outcome: models.DeployOutcomeSuccess,
+		StartedAt: time.Now(), CreatedAt: time.Now(),
+	}
+	// success -> failed
+	updated, err := svc.UpdateDeployOutcome(ctx, "t1", "de-1", models.DeployOutcomeFailed, "boom")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if updated.Outcome != models.DeployOutcomeFailed {
+		t.Fatalf("outcome = %q, want failed", updated.Outcome)
+	}
+	if updated.ErrorMsg != "boom" {
+		t.Fatalf("errorMsg = %q", updated.ErrorMsg)
+	}
+	if updated.CompletedAt == nil {
+		t.Fatal("completedAt should be set for terminal outcome")
+	}
+	// failed -> success
+	updated, err = svc.UpdateDeployOutcome(ctx, "t1", "de-1", models.DeployOutcomeSuccess, "")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if updated.Outcome != models.DeployOutcomeSuccess {
+		t.Fatalf("outcome = %q, want success", updated.Outcome)
+	}
+}
+
+func TestDE_UpdateOutcome_TerminalRejection(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	repo.deployEvents["de-1"] = &models.DeployEvent{
+		ID: "de-1", TenantID: "t1", Outcome: models.DeployOutcomeRolledBack,
+		StartedAt: time.Now(), CreatedAt: time.Now(),
+	}
+	_, err := svc.UpdateDeployOutcome(ctx, "t1", "de-1", models.DeployOutcomeSuccess, "")
+	if err == nil {
+		t.Fatal("expected error for terminal outcome")
+	}
+	if !strings.Contains(err.Error(), "terminal") {
+		t.Fatalf("err %q should mention terminal", err.Error())
+	}
+}
+
+func TestDE_UpdateOutcome_NotFound(t *testing.T) {
+	svc := NewService(newFakeRepo())
+	_, err := svc.UpdateDeployOutcome(context.Background(), "t1", "de-none", models.DeployOutcomeSuccess, "")
+	if err == nil {
+		t.Fatal("expected error for missing event")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("err %q", err.Error())
+	}
+}
+
+func TestDE_UpdateOutcome_InvalidEnum(t *testing.T) {
+	svc := NewService(newFakeRepo())
+	_, err := svc.UpdateDeployOutcome(context.Background(), "t1", "de-1", models.DeployOutcome("weird"), "")
+	if err == nil {
+		t.Fatal("expected error for invalid enum")
+	}
+}
+
+func TestDE_UpdateMetrics_Partial(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	repo.deployEvents["de-1"] = &models.DeployEvent{
+		ID: "de-1", TenantID: "t1", Outcome: models.DeployOutcomeSuccess,
+		DurationMs: 5000, ErrorRate: 0.1, P99Latency: 200,
+		StartedAt: time.Now(), CreatedAt: time.Now(),
+	}
+	// Only set ErrorRate; DurationMs/P99Latency should be unchanged.
+	updated, err := svc.UpdateDeployMetrics(ctx, "t1", "de-1", models.DeployMetrics{ErrorRate: 0.25})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if updated.ErrorRate != 0.25 {
+		t.Fatalf("errorRate = %f, want 0.25", updated.ErrorRate)
+	}
+	if updated.DurationMs != 5000 {
+		t.Fatalf("durationMs = %d, want 5000 (unchanged)", updated.DurationMs)
+	}
+	if updated.P99Latency != 200 {
+		t.Fatalf("p99Latency = %d, want 200 (unchanged)", updated.P99Latency)
+	}
+}
+
+func TestDE_UpdateMetrics_TerminalRejection(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	repo.deployEvents["de-1"] = &models.DeployEvent{
+		ID: "de-1", TenantID: "t1", Outcome: models.DeployOutcomeRolledBack,
+		StartedAt: time.Now(), CreatedAt: time.Now(),
+	}
+	_, err := svc.UpdateDeployMetrics(ctx, "t1", "de-1", models.DeployMetrics{DurationMs: 100})
+	if err == nil {
+		t.Fatal("expected error for terminal outcome")
+	}
+	if !strings.Contains(err.Error(), "terminal") {
+		t.Fatalf("err %q should mention terminal", err.Error())
+	}
+}
+
+func TestDE_UpdateMetrics_Validation(t *testing.T) {
+	svc := NewService(newFakeRepo())
+	ctx := context.Background()
+	if _, err := svc.UpdateDeployMetrics(ctx, "t1", "de-1", models.DeployMetrics{ErrorRate: -0.1}); err == nil {
+		t.Fatal("expected error for negative errorRate")
+	}
+	if _, err := svc.UpdateDeployMetrics(ctx, "t1", "de-1", models.DeployMetrics{ErrorRate: 1.1}); err == nil {
+		t.Fatal("expected error for errorRate > 1")
+	}
+	if _, err := svc.UpdateDeployMetrics(ctx, "t1", "de-1", models.DeployMetrics{DurationMs: -1}); err == nil {
+		t.Fatal("expected error for negative durationMs")
+	}
+	if _, err := svc.UpdateDeployMetrics(ctx, "t1", "de-1", models.DeployMetrics{P99Latency: -1}); err == nil {
+		t.Fatal("expected error for negative p99Latency")
+	}
+}
+
+func TestDE_Rollback_CreatesNewEvent(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	origID := "de-orig"
+	repo.deployEvents[origID] = &models.DeployEvent{
+		ID: "de-orig", TenantID: "t1", ActorID: "actor-1",
+		Branch: "main", Env: "prod",
+		FromCommit: "abcdef0123456789", ToCommit: "1234567abcdef0123",
+		ArtifactID: "art-1", ApprovalID: "cm-1",
+		ImageDigest: "sha256:" + strings.Repeat("b", 64),
+		Outcome: models.DeployOutcomeSuccess,
+		StartedAt: time.Now(), CreatedAt: time.Now(),
+	}
+	rb, err := svc.RollbackDeployEvent(ctx, "t1", origID, "actor-2")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if rb.ID == origID {
+		t.Fatal("rollback id must differ from original")
+	}
+	if rb.FromCommit != "1234567abcdef0123" {
+		t.Fatalf("fromCommit = %q, want original.ToCommit", rb.FromCommit)
+	}
+	if rb.ToCommit != "abcdef0123456789" {
+		t.Fatalf("toCommit = %q, want original.FromCommit", rb.ToCommit)
+	}
+	if rb.Outcome != models.DeployOutcomeRolledBack {
+		t.Fatalf("outcome = %q, want rolled-back", rb.Outcome)
+	}
+	if rb.RollbackTo == nil || *rb.RollbackTo != origID {
+		t.Fatalf("rollbackTo = %v, want %q", rb.RollbackTo, origID)
+	}
+	if rb.ArtifactID != "art-1" || rb.ApprovalID != "cm-1" {
+		t.Fatalf("artifactId/approvalId not carried over")
+	}
+	if rb.ActorID != "actor-2" {
+		t.Fatalf("actorId = %q, want actor-2", rb.ActorID)
+	}
+	// Original must remain untouched.
+	if repo.deployEvents[origID].Outcome != models.DeployOutcomeSuccess {
+		t.Fatal("original outcome mutated by rollback")
+	}
+	// Rollback must be persisted.
+	if repo.deployEvents[rb.ID] == nil {
+		t.Fatal("rollback not persisted")
+	}
+}
+
+func TestDE_Rollback_TerminalRejection(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	repo.deployEvents["de-1"] = &models.DeployEvent{
+		ID: "de-1", TenantID: "t1",
+		FromCommit: "abcdef0123456789", ToCommit: "1234567abcdef0123",
+		Outcome: models.DeployOutcomeRolledBack,
+	}
+	_, err := svc.RollbackDeployEvent(ctx, "t1", "de-1", "actor-2")
+	if err == nil {
+		t.Fatal("expected error for terminal outcome")
+	}
+	if !strings.Contains(err.Error(), "cannot be rolled back") {
+		t.Fatalf("err %q", err.Error())
+	}
+}
+
+func TestDE_Rollback_MissingFields(t *testing.T) {
+	svc := NewService(newFakeRepo())
+	ctx := context.Background()
+	if _, err := svc.RollbackDeployEvent(ctx, "", "de-1", "actor-1"); err == nil {
+		t.Fatal("expected error for empty tenantID")
+	}
+	if _, err := svc.RollbackDeployEvent(ctx, "t1", "", "actor-1"); err == nil {
+		t.Fatal("expected error for empty id")
+	}
+	if _, err := svc.RollbackDeployEvent(ctx, "t1", "de-1", ""); err == nil {
+		t.Fatal("expected error for empty actorID")
+	}
+	if _, err := svc.RollbackDeployEvent(ctx, "t1", "de-1", "has space!"); err == nil {
+		t.Fatal("expected error for bad actorID")
+	}
+	if _, err := svc.RollbackDeployEvent(ctx, "t1", "de-none", "actor-1"); err == nil {
+		t.Fatal("expected error for missing event")
+	}
+}
+
+func TestDE_Rollback_EmptyCommits(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	// No ToCommit — nothing to roll back from.
+	repo.deployEvents["de-no-to"] = &models.DeployEvent{
+		ID: "de-no-to", TenantID: "t1", Outcome: models.DeployOutcomeSuccess,
+		FromCommit: "abcdef0123456789",
+	}
+	if _, err := svc.RollbackDeployEvent(ctx, "t1", "de-no-to", "actor-1"); err == nil {
+		t.Fatal("expected error for empty ToCommit")
+	}
+	// No FromCommit — nothing to roll back to.
+	repo.deployEvents["de-no-from"] = &models.DeployEvent{
+		ID: "de-no-from", TenantID: "t1", Outcome: models.DeployOutcomeFailed,
+		ToCommit: "1234567abcdef0123",
+	}
+	if _, err := svc.RollbackDeployEvent(ctx, "t1", "de-no-from", "actor-1"); err == nil {
+		t.Fatal("expected error for empty FromCommit")
+	}
+}
+
+func TestDE_List_Filters(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	now := time.Now()
+	repo.deployEvents["de-1"] = &models.DeployEvent{ID: "de-1", TenantID: "t1", Branch: "main", Env: "prod", ActorID: "a1", Outcome: models.DeployOutcomeSuccess, ApprovalID: "cm-1", ArtifactID: "art-1", StartedAt: now, CreatedAt: now}
+	repo.deployEvents["de-2"] = &models.DeployEvent{ID: "de-2", TenantID: "t1", Branch: "main", Env: "staging", ActorID: "a2", Outcome: models.DeployOutcomeFailed, ApprovalID: "cm-2", ArtifactID: "art-2", StartedAt: now, CreatedAt: now}
+	repo.deployEvents["de-3"] = &models.DeployEvent{ID: "de-3", TenantID: "t2", Branch: "main", Env: "prod", ActorID: "a1", Outcome: models.DeployOutcomeSuccess, StartedAt: now, CreatedAt: now} // other tenant
+	// All filters nil → all t1 events.
+	out, err := svc.ListDeployEvents(ctx, "t1", models.DeployEventQuery{})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(out) != 2 {
+		t.Fatalf("len = %d, want 2 (tenant isolation)", len(out))
+	}
+	// Branch filter.
+	out, _ = svc.ListDeployEvents(ctx, "t1", models.DeployEventQuery{Branch: strPtr("main")})
+	if len(out) != 2 {
+		t.Fatalf("branch filter len = %d, want 2", len(out))
+	}
+	// Env filter.
+	out, _ = svc.ListDeployEvents(ctx, "t1", models.DeployEventQuery{Env: strPtr("prod")})
+	if len(out) != 1 || out[0].ID != "de-1" {
+		t.Fatalf("env filter got %d events", len(out))
+	}
+	// Outcome filter.
+	failed := models.DeployOutcomeFailed
+	out, _ = svc.ListDeployEvents(ctx, "t1", models.DeployEventQuery{Outcome: &failed})
+	if len(out) != 1 || out[0].ID != "de-2" {
+		t.Fatalf("outcome filter got %d events", len(out))
+	}
+	// ApprovalID filter.
+	out, _ = svc.ListDeployEvents(ctx, "t1", models.DeployEventQuery{ApprovalID: strPtr("cm-1")})
+	if len(out) != 1 || out[0].ID != "de-1" {
+		t.Fatalf("approvalId filter got %d events", len(out))
+	}
+	// ActorID filter.
+	out, _ = svc.ListDeployEvents(ctx, "t1", models.DeployEventQuery{ActorID: strPtr("a2")})
+	if len(out) != 1 || out[0].ID != "de-2" {
+		t.Fatalf("actorId filter got %d events", len(out))
+	}
+	// Limit cap.
+	out, _ = svc.ListDeployEvents(ctx, "t1", models.DeployEventQuery{Limit: 1})
+	if len(out) != 1 {
+		t.Fatalf("limit=1 len = %d", len(out))
+	}
+	// Tenant empty → error.
+	if _, err := svc.ListDeployEvents(ctx, "", models.DeployEventQuery{}); err == nil {
+		t.Fatal("expected error for empty tenantID")
+	}
+}
+
+func TestDE_ListByBranchEnvActor(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	now := time.Now()
+	repo.deployEvents["de-1"] = &models.DeployEvent{ID: "de-1", TenantID: "t1", Branch: "main", Env: "prod", ActorID: "a1", StartedAt: now, CreatedAt: now}
+	repo.deployEvents["de-2"] = &models.DeployEvent{ID: "de-2", TenantID: "t1", Branch: "release", Env: "prod", ActorID: "a2", StartedAt: now, CreatedAt: now}
+	out, err := svc.ListDeployEventsByBranch(ctx, "t1", "main", 10)
+	if err != nil || len(out) != 1 || out[0].ID != "de-1" {
+		t.Fatalf("by-branch: len=%d err=%v", len(out), err)
+	}
+	out, err = svc.ListDeployEventsByEnv(ctx, "t1", "prod", 10)
+	if err != nil || len(out) != 2 {
+		t.Fatalf("by-env: len=%d err=%v", len(out), err)
+	}
+	out, err = svc.ListDeployEventsByActor(ctx, "t1", "a2", 10)
+	if err != nil || len(out) != 1 || out[0].ID != "de-2" {
+		t.Fatalf("by-actor: len=%d err=%v", len(out), err)
+	}
+	if _, err := svc.ListDeployEventsByBranch(ctx, "", "main", 10); err == nil {
+		t.Fatal("expected error for empty tenantID (branch)")
+	}
+	if _, err := svc.ListDeployEventsByEnv(ctx, "t1", "", 10); err == nil {
+		t.Fatal("expected error for empty env")
+	}
+	if _, err := svc.ListDeployEventsByActor(ctx, "t1", "", 10); err == nil {
+		t.Fatal("expected error for empty actorID")
+	}
+}
+
+func TestDE_GetTenantIsolation(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	repo.deployEvents["de-1"] = &models.DeployEvent{ID: "de-1", TenantID: "t1"}
+	evt, err := svc.GetDeployEvent(ctx, "t1", "de-1")
+	if err != nil || evt == nil {
+		t.Fatalf("get own tenant: evt=%v err=%v", evt, err)
+	}
+	if evt.TenantID != "t1" {
+		t.Fatalf("tenantId = %q", evt.TenantID)
+	}
+	// Other tenant sees nothing.
+	evt, err = svc.GetDeployEvent(ctx, "t2", "de-1")
+	if err != nil || evt != nil {
+		t.Fatalf("cross-tenant get: evt=%v err=%v", evt, err)
+	}
+	// Empty args.
+	if _, err := svc.GetDeployEvent(ctx, "", "de-1"); err == nil {
+		t.Fatal("expected error for empty tenantID")
+	}
+	if _, err := svc.GetDeployEvent(ctx, "t1", ""); err == nil {
+		t.Fatal("expected error for empty id")
+	}
+}
+
+func TestDE_GetAuditTrail_FullChain(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	now := time.Now()
+	// 3 events: two on main/prod (dedup should collapse envs), one on release/staging.
+	repo.deployEvents["de-1"] = &models.DeployEvent{ID: "de-1", TenantID: "t1", Branch: "main", Env: "prod", ArtifactID: "art-1", ApprovalID: "cm-1", StartedAt: now, CreatedAt: now}
+	repo.deployEvents["de-2"] = &models.DeployEvent{ID: "de-2", TenantID: "t1", Branch: "main", Env: "prod", ArtifactID: "art-2", ApprovalID: "cm-1", StartedAt: now, CreatedAt: now}
+	repo.deployEvents["de-3"] = &models.DeployEvent{ID: "de-3", TenantID: "t1", Branch: "release", Env: "staging", ArtifactID: "art-3", ApprovalID: "cm-2", StartedAt: now, CreatedAt: now}
+	res, err := svc.GetAuditTrail(ctx, "t1", models.AuditTrailParams{})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(res.Events) != 3 {
+		t.Fatalf("events = %d, want 3", len(res.Events))
+	}
+	if len(res.Branches) != 2 || res.Branches[0] != "main" || res.Branches[1] != "release" {
+		t.Fatalf("branches = %v, want [main release]", res.Branches)
+	}
+	if len(res.Envs) != 2 || res.Envs[0] != "prod" || res.Envs[1] != "staging" {
+		t.Fatalf("envs = %v, want [prod staging]", res.Envs)
+	}
+	if len(res.ArtifactIDs) != 3 {
+		t.Fatalf("artifactIds = %v, want 3 unique", res.ArtifactIDs)
+	}
+	if len(res.ApprovalIDs) != 2 {
+		t.Fatalf("approvalIds = %v, want 2 unique (dedup cm-1)", res.ApprovalIDs)
+	}
+	if res.GeneratedAt.IsZero() {
+		t.Fatal("generatedAt not set")
+	}
+}
+
+func TestDE_GetAuditTrail_Filters(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	now := time.Now()
+	repo.deployEvents["de-1"] = &models.DeployEvent{ID: "de-1", TenantID: "t1", Branch: "main", Env: "prod", ArtifactID: "art-1", ApprovalID: "cm-1", StartedAt: now, CreatedAt: now}
+	repo.deployEvents["de-2"] = &models.DeployEvent{ID: "de-2", TenantID: "t1", Branch: "release", Env: "prod", ArtifactID: "art-2", ApprovalID: "cm-1", StartedAt: now, CreatedAt: now}
+	repo.deployEvents["de-3"] = &models.DeployEvent{ID: "de-3", TenantID: "t1", Branch: "main", Env: "staging", ArtifactID: "art-1", ApprovalID: "cm-2", StartedAt: now, CreatedAt: now}
+	// ArtifactID filter (client-side, art-1 matches de-1 and de-3).
+	res, err := svc.GetAuditTrail(ctx, "t1", models.AuditTrailParams{ArtifactID: "art-1"})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(res.Events) != 2 {
+		t.Fatalf("artifactId filter len = %d, want 2", len(res.Events))
+	}
+	// Branch + Env AND.
+	res, _ = svc.GetAuditTrail(ctx, "t1", models.AuditTrailParams{Branch: "main", Env: "prod"})
+	if len(res.Events) != 1 || res.Events[0].ID != "de-1" {
+		t.Fatalf("branch+env AND len = %d", len(res.Events))
+	}
+	// ApprovalID filter.
+	res, _ = svc.GetAuditTrail(ctx, "t1", models.AuditTrailParams{ApprovalID: "cm-2"})
+	if len(res.Events) != 1 || res.Events[0].ID != "de-3" {
+		t.Fatalf("approvalId filter len = %d", len(res.Events))
+	}
+	// Empty tenantID.
+	if _, err := svc.GetAuditTrail(ctx, "", models.AuditTrailParams{}); err == nil {
+		t.Fatal("expected error for empty tenantID")
+	}
+}

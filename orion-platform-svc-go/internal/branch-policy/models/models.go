@@ -531,3 +531,137 @@ type SyncRunResult struct {
 	Error          string
 	NewCommitSHA   string
 }
+
+// ============================================================================
+// P0-MB Phase 4 — L5 DeployEvent (change audit + one-click rollback)
+// ============================================================================
+
+// DeployOutcome enumerates the terminal state of a single deploy attempt.
+// Transitions:
+//
+//	started (implicit) --success--> success     --rollback--> rolled-back
+//	started (implicit) --failed---> failed      --rollback--> rolled-back
+//	rolled-back is a terminal state (no further transitions allowed).
+type DeployOutcome string
+
+const (
+	DeployOutcomeSuccess    DeployOutcome = "success"
+	DeployOutcomeRolledBack DeployOutcome = "rolled-back"
+	DeployOutcomeFailed     DeployOutcome = "failed"
+)
+
+// AllDeployOutcomes returns every canonical outcome value (used by handlers
+// to build enum dropdowns and by tests to enumerate transitions).
+func AllDeployOutcomes() []DeployOutcome {
+	return []DeployOutcome{DeployOutcomeSuccess, DeployOutcomeRolledBack, DeployOutcomeFailed}
+}
+
+// Valid reports whether o is one of the three canonical outcomes.
+func (o DeployOutcome) Valid() bool {
+	switch o {
+	case DeployOutcomeSuccess, DeployOutcomeRolledBack, DeployOutcomeFailed:
+		return true
+	}
+	return false
+}
+
+// CanRollback reports whether the outcome permits a rollback. Both success
+// and failed deployments can be rolled back; rolled-back is terminal.
+func (o DeployOutcome) CanRollback() bool {
+	return o == DeployOutcomeSuccess || o == DeployOutcomeFailed
+}
+
+// DeployEvent is the L5 layer of the multi-branch strategy: a change audit
+// record for a single deploy attempt. Fields FromCommit/ToCommit identify
+// the delta; ArtifactID and ImageDigest identify the immutable binary;
+// ApprovalID links to ChangeManagement; RollbackTo points back to the
+// original event when this is a rollback deployment.
+//
+// Lifecycle: an event is created on deploy start with Outcome=success (best
+// guess — the caller will call UpdateOutcome later if the deploy failed) and
+// CompletedAt=nil. UpdateOutcome + UpdateMetrics then close it out. Rollback
+// creates a NEW DeployEvent with Outcome=rolled-back and RollbackTo=&id.
+type DeployEvent struct {
+	ID          string        `json:"id" db:"id"`
+	TenantID    string        `json:"tenantId" db:"tenant_id"`
+	ActorID     string        `json:"actorId" db:"actor_id"`
+	ActorName   string        `json:"actorName" db:"actor_name"`
+	Branch      string        `json:"branch" db:"branch"`
+	Env         string        `json:"env" db:"env"`
+	FromCommit  string        `json:"fromCommit" db:"from_commit"`
+	ToCommit    string        `json:"toCommit" db:"to_commit"`
+	ArtifactID  string        `json:"artifactId" db:"artifact_id"`
+	ImageDigest string        `json:"imageDigest" db:"image_digest"`
+	ApprovalID  string        `json:"approvalId" db:"approval_id"`
+	Outcome     DeployOutcome `json:"outcome" db:"outcome"`
+	RollbackTo  *string       `json:"rollbackTo" db:"rollback_to"`
+	DurationMs  int64         `json:"durationMs" db:"duration_ms"`
+	ErrorRate   float64       `json:"errorRate" db:"error_rate"`
+	P99Latency  int64         `json:"p99Latency" db:"p99_latency"`
+	StartedAt   time.Time     `json:"startedAt" db:"started_at"`
+	CompletedAt *time.Time    `json:"completedAt" db:"completed_at"`
+	GateResult  string        `json:"gateResult" db:"gate_result"`
+	ErrorMsg    string        `json:"errorMsg" db:"error_msg"`
+	CreatedAt   time.Time     `json:"createdAt" db:"created_at"`
+}
+
+// CreateDeployEventRequest is the POST body for /deploy-events. ActorID,
+// Branch, Env, ToCommit are required. Outcome defaults to success when
+// omitted (the caller is expected to call UpdateOutcome later if the deploy
+// fails).
+type CreateDeployEventRequest struct {
+	ActorID     string        `json:"actorId" binding:"required"`
+	ActorName   string        `json:"actorName"`
+	Branch      string        `json:"branch" binding:"required"`
+	Env         string        `json:"env" binding:"required"`
+	FromCommit  string        `json:"fromCommit"`
+	ToCommit    string        `json:"toCommit" binding:"required"`
+	ArtifactID  string        `json:"artifactId"`
+	ImageDigest string        `json:"imageDigest"`
+	ApprovalID  string        `json:"approvalId"`
+	Outcome     DeployOutcome `json:"outcome"`
+	GateResult  string        `json:"gateResult"`
+}
+
+// DeployEventQuery filters the deploy-events list endpoint. Nil fields
+// mean "no filter"; Limit is capped at 1000 by the service layer.
+type DeployEventQuery struct {
+	Branch     *string         `json:"branch"`
+	Env        *string         `json:"env"`
+	ActorID    *string         `json:"actorId"`
+	ApprovalID *string         `json:"approvalId"`
+	Outcome    *DeployOutcome  `json:"outcome"`
+	From       *time.Time      `json:"from"`
+	To         *time.Time      `json:"to"`
+	Limit      int             `json:"limit"`
+}
+
+// DeployMetrics is the payload for UpdateMetrics. All fields are optional —
+// zero values mean "leave unchanged".
+type DeployMetrics struct {
+	DurationMs int64
+	ErrorRate  float64
+	P99Latency int64
+}
+
+// AuditTrailParams identifies a filter set for GetAuditTrail. Zero-length
+// strings mean "no filter" for that field.
+type AuditTrailParams struct {
+	Branch     string `json:"branch"`
+	Env        string `json:"env"`
+	ArtifactID string `json:"artifactId"`
+	ApprovalID string `json:"approvalId"`
+	Limit      int    `json:"limit"`
+}
+
+// AuditTrailResult is the aggregated chain returned by GetAuditTrail. It
+// surfaces the matched events plus unique deduped lists of branches, envs,
+// artifact ids, and approval ids so callers can render a graph in the UI.
+type AuditTrailResult struct {
+	Events      []DeployEvent `json:"events"`
+	Branches    []string      `json:"branches"`
+	Envs        []string      `json:"envs"`
+	ArtifactIDs []string      `json:"artifactIds"`
+	ApprovalIDs []string      `json:"approvalIds"`
+	GeneratedAt time.Time     `json:"generatedAt"`
+}

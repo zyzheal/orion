@@ -21,6 +21,7 @@ type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error)
 	CreateBranchProfile(ctx context.Context, tenantID string, req *models.CreateBranchProfileRequest) (*models.BranchProfile, error)
 	CreateNamespaceBinding(ctx context.Context, tenantID string, req *models.CreateNamespaceRequest) (*models.NamespaceBinding, error)
+	CreateDeployEvent(ctx context.Context, tenantID string, req *models.CreateDeployEventRequest) (*models.DeployEvent, error)
 	CreateSyncPolicy(ctx context.Context, tenantID string, req *models.CreateSyncPolicyRequest) (*models.SyncPolicy, error)
 	Delete(ctx context.Context, tenantID, id string) error
 	DeleteNamespaceBinding(ctx context.Context, tenantID, id string) error
@@ -41,6 +42,8 @@ type ServiceInterface interface {
 	GetBranchProfile(ctx context.Context, tenantID, id string) (*models.BranchProfile, error)
 	GetBranchStatus(ctx context.Context, tenantID, id string) (string, error)
 	GetBuildArtifact(ctx context.Context, tenantID, id string) (*models.BuildArtifact, error)
+	GetDeployEvent(ctx context.Context, tenantID, id string) (*models.DeployEvent, error)
+	GetAuditTrail(ctx context.Context, tenantID string, params models.AuditTrailParams) (*models.AuditTrailResult, error)
 	GetByUser(ctx context.Context, tenantID, user string) ([]string, error)
 	GetEnabledPolicies(ctx context.Context, tenantID string, cronMatch func(string) bool) ([]models.SyncPolicy, error)
 	GetConfig(ctx context.Context, tenantID string) (map[string]any, error)
@@ -63,6 +66,10 @@ type ServiceInterface interface {
 	ListArtifacts(ctx context.Context, tenantID string) ([]string, error)
 	ListBranchProfiles(ctx context.Context, tenantID string, q models.BranchProfileQuery) ([]models.BranchProfile, error)
 	ListBuildArtifacts(ctx context.Context, tenantID string, q models.ArtifactQuery) ([]models.BuildArtifact, error)
+	ListDeployEvents(ctx context.Context, tenantID string, q models.DeployEventQuery) ([]models.DeployEvent, error)
+	ListDeployEventsByBranch(ctx context.Context, tenantID, branch string, limit int) ([]models.DeployEvent, error)
+	ListDeployEventsByEnv(ctx context.Context, tenantID, env string, limit int) ([]models.DeployEvent, error)
+	ListDeployEventsByActor(ctx context.Context, tenantID, actorID string, limit int) ([]models.DeployEvent, error)
 	ListNamespaceBindings(ctx context.Context, tenantID string, q models.NamespaceBindingQuery) ([]models.NamespaceBinding, error)
 	ListExperiments(ctx context.Context, tenantID string) ([]string, error)
 	ListHistories(ctx context.Context, tenantID string) ([]string, error)
@@ -79,12 +86,14 @@ type ServiceInterface interface {
 	Pause(ctx context.Context, tenantID, id string) error
 	ActivateBranchProfile(ctx context.Context, tenantID, id string) (*models.BranchProfile, error)
 	Regenerate(ctx context.Context, tenantID string) error
+	RecordDeployEvent(ctx context.Context, evt *models.DeployEvent) error
 	RegisterBuildArtifact(ctx context.Context, tenantID string, req *models.RegisterArtifactRequest) (*models.BuildArtifact, error)
 	RegisterModel(ctx context.Context, tenantID string) error
 	Reject(ctx context.Context, tenantID, id string) error
 	Restart(ctx context.Context, tenantID string) error
 	Resume(ctx context.Context, tenantID, id string) error
 	Rollback(ctx context.Context, tenantID, id string) error
+	RollbackDeployEvent(ctx context.Context, tenantID, id, actorID string) (*models.DeployEvent, error)
 	RunInspection(ctx context.Context, tenantID string) error
 	RunNow(ctx context.Context, tenantID, id, actor, sourceCommit string) (*models.SyncRunLog, error)
 	RunPipeline(ctx context.Context, tenantID string) error
@@ -95,6 +104,8 @@ type ServiceInterface interface {
 	Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Record, error)
 	UpdateBranchProfile(ctx context.Context, tenantID, id string, req *models.UpdateBranchProfileRequest) (*models.BranchProfile, error)
 	UpdateConfig(ctx context.Context, tenantID string, cfg map[string]any) error
+	UpdateDeployMetrics(ctx context.Context, tenantID, id string, m models.DeployMetrics) (*models.DeployEvent, error)
+	UpdateDeployOutcome(ctx context.Context, tenantID, id string, outcome models.DeployOutcome, errorMsg string) (*models.DeployEvent, error)
 	UpdateStatus(ctx context.Context, tenantID, id string) error
 	UpdateSyncPolicy(ctx context.Context, tenantID, id string, req *models.UpdateSyncPolicyRequest) (*models.SyncPolicy, error)
 	ValidateBranch(ctx context.Context, tenantID, branch string) (bool, error)

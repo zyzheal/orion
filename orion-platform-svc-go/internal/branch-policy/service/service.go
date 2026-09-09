@@ -52,6 +52,15 @@ type RepositoryInterface interface {
 	CreateSyncRunLog(ctx context.Context, l *models.SyncRunLog) error
 	UpdateSyncRunLog(ctx context.Context, tenantID, id string, l *models.SyncRunLog) (*models.SyncRunLog, error)
 	ListSyncRunLogs(ctx context.Context, tenantID string, q models.SyncRunLogQuery) ([]models.SyncRunLog, error)
+
+	// P0-MB Phase 4 — DeployEvent (L5) + rollback + audit trail
+	CreateDeployEvent(ctx context.Context, evt *models.DeployEvent) error
+	GetDeployEvent(ctx context.Context, tenantID, id string) (*models.DeployEvent, error)
+	UpdateDeployEvent(ctx context.Context, tenantID, id string, evt *models.DeployEvent) (*models.DeployEvent, error)
+	ListDeployEvents(ctx context.Context, tenantID string, q models.DeployEventQuery) ([]models.DeployEvent, error)
+	ListDeployEventsByBranch(ctx context.Context, tenantID, branch string, limit int) ([]models.DeployEvent, error)
+	ListDeployEventsByEnv(ctx context.Context, tenantID, env string, limit int) ([]models.DeployEvent, error)
+	ListDeployEventsByActor(ctx context.Context, tenantID, actorID string, limit int) ([]models.DeployEvent, error)
 }
 
 // ErrBranchProfileNotFound wraps repository-level not-found into a
@@ -1649,4 +1658,454 @@ func (s *Service) RunNowWithExecutor(ctx context.Context, tenantID, id, actor, s
 
 	_ = appliedCount // reserved for future metrics.
 	return log, nil
+}
+
+// ============================================================================
+// P0-MB Phase 4 — L5 DeployEvent (change audit + one-click rollback)
+// ============================================================================
+
+// Phase 4 rules constants. The commit-SHA regex is reused from Phase 3.
+var (
+	deployBranchRe = syncBranchNameRe
+	deployEnvRe    = regexp.MustCompile(`^[A-Za-z0-9_-]{1,32}$`)
+	// deployActorRe is the regex for actor IDs (usually user ids like
+	// "user-123" or "svc-deploy-bot"). Kept permissive — auth is done
+	// upstream; this just rejects obviously malformed ids.
+	deployActorRe  = regexp.MustCompile(`^[A-Za-z0-9._@-]{1,64}$`)
+	// deployCommitSHARe is the 7-40 hex regex reused for FromCommit/ToCommit.
+	deployCommitSHARe = syncCommitSHARe
+)
+
+// newDeployEventID returns a unique id prefixed with "de".
+func newDeployEventID() string {
+	now := time.Now()
+	h := fnv.New64a()
+	h.Write([]byte(fmt.Sprintf("de-%d-%d", now.UnixNano(), now.UnixMicro())))
+	return fmt.Sprintf("de-%x", h.Sum(nil)[:8])
+}
+
+// createDeployEventRequestToModel converts a request body into a
+// DeployEvent. Fills in ID, TenantID, timestamps, and Outcome default.
+func createDeployEventRequestToModel(req *models.CreateDeployEventRequest, tenantID string) *models.DeployEvent {
+	outcome := req.Outcome
+	if outcome == "" {
+		outcome = models.DeployOutcomeSuccess
+	}
+	now := time.Now()
+	return &models.DeployEvent{
+		ID:          newDeployEventID(),
+		TenantID:    tenantID,
+		ActorID:     strings.TrimSpace(req.ActorID),
+		ActorName:   strings.TrimSpace(req.ActorName),
+		Branch:      strings.TrimSpace(req.Branch),
+		Env:         strings.TrimSpace(req.Env),
+		FromCommit:  strings.ToLower(strings.TrimSpace(req.FromCommit)),
+		ToCommit:    strings.ToLower(strings.TrimSpace(req.ToCommit)),
+		ArtifactID:  strings.TrimSpace(req.ArtifactID),
+		ImageDigest: strings.TrimSpace(req.ImageDigest),
+		ApprovalID:  strings.TrimSpace(req.ApprovalID),
+		Outcome:     outcome,
+		StartedAt:   now,
+		CreatedAt:   now,
+		GateResult:  req.GateResult,
+	}
+}
+
+// validateCreateDeployEventRequest enforces the required fields + enum
+// constraints. The ActorID / Branch / Env / ToCommit regexps are used to
+// reject obviously malformed input before persisting.
+func validateCreateDeployEventRequest(req *models.CreateDeployEventRequest) error {
+	if req == nil {
+		return fmt.Errorf("request is required")
+	}
+	if req.ActorID == "" {
+		return fmt.Errorf("actorId is required")
+	}
+	if !deployActorRe.MatchString(req.ActorID) {
+		return fmt.Errorf("actorId %q invalid", req.ActorID)
+	}
+	if req.Branch == "" {
+		return fmt.Errorf("branch is required")
+	}
+	if !deployBranchRe.MatchString(req.Branch) {
+		return fmt.Errorf("branch %q invalid", req.Branch)
+	}
+	if req.Env == "" {
+		return fmt.Errorf("env is required")
+	}
+	if !deployEnvRe.MatchString(req.Env) {
+		return fmt.Errorf("env %q invalid", req.Env)
+	}
+	if req.ToCommit == "" {
+		return fmt.Errorf("toCommit is required")
+	}
+	if !syncCommitSHARe.MatchString(strings.TrimSpace(req.ToCommit)) {
+		return fmt.Errorf("toCommit %q invalid: expected 7-40 hex chars", req.ToCommit)
+	}
+	if req.FromCommit != "" && !syncCommitSHARe.MatchString(strings.TrimSpace(req.FromCommit)) {
+		return fmt.Errorf("fromCommit %q invalid: expected 7-40 hex chars", req.FromCommit)
+	}
+	if req.ImageDigest != "" && !sha256Re.MatchString(req.ImageDigest) {
+		return fmt.Errorf("imageDigest %q invalid: expected sha256:<64 hex>", req.ImageDigest)
+	}
+	if req.Outcome != "" && !req.Outcome.Valid() {
+		return fmt.Errorf("outcome %q invalid", req.Outcome)
+	}
+	return nil
+}
+
+// CreateDeployEvent is the primary entry point for recording a deploy. It
+// validates the request, fills in timestamps, and persists the event.
+// Outcome defaults to DeployOutcomeSuccess when omitted.
+func (s *Service) CreateDeployEvent(ctx context.Context, tenantID string, req *models.CreateDeployEventRequest) (*models.DeployEvent, error) {
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+	if err := validateCreateDeployEventRequest(req); err != nil {
+		return nil, err
+	}
+	evt := createDeployEventRequestToModel(req, tenantID)
+	if err := s.repo.CreateDeployEvent(ctx, evt); err != nil {
+		return nil, err
+	}
+	return evt, nil
+}
+
+// RecordDeployEvent persists a DeployEvent directly (used internally by
+// the deploy API integration and by rollback). The ID / timestamps are
+// filled in if zero; Outcome defaults to DeployOutcomeSuccess.
+func (s *Service) RecordDeployEvent(ctx context.Context, evt *models.DeployEvent) error {
+	if evt == nil {
+		return fmt.Errorf("event is required")
+	}
+	if evt.TenantID == "" {
+		return fmt.Errorf("tenantId is required")
+	}
+	if evt.ActorID == "" {
+		return fmt.Errorf("actorId is required")
+	}
+	if evt.Branch == "" || evt.Env == "" {
+		return fmt.Errorf("branch and env are required")
+	}
+	if evt.ToCommit == "" {
+		return fmt.Errorf("toCommit is required")
+	}
+	if evt.ID == "" {
+		evt.ID = newDeployEventID()
+	}
+	now := time.Now()
+	if evt.StartedAt.IsZero() {
+		evt.StartedAt = now
+	}
+	if evt.CreatedAt.IsZero() {
+		evt.CreatedAt = now
+	}
+	if evt.Outcome == "" {
+		evt.Outcome = models.DeployOutcomeSuccess
+	}
+	if !evt.Outcome.Valid() {
+		return fmt.Errorf("outcome %q invalid", evt.Outcome)
+	}
+	return s.repo.CreateDeployEvent(ctx, evt)
+}
+
+// GetDeployEvent returns the event by id (tenant-scoped).
+func (s *Service) GetDeployEvent(ctx context.Context, tenantID, id string) (*models.DeployEvent, error) {
+	if tenantID == "" || id == "" {
+		return nil, fmt.Errorf("tenant_id and id are required")
+	}
+	return s.repo.GetDeployEvent(ctx, tenantID, id)
+}
+
+// UpdateDeployOutcome transitions the outcome state machine. Allowed
+// transitions: success→success/failed, failed→success/failed, any→
+// rolled-back (terminal). Once rolled-back, no further transitions.
+func (s *Service) UpdateDeployOutcome(ctx context.Context, tenantID, id string, outcome models.DeployOutcome, errorMsg string) (*models.DeployEvent, error) {
+	if tenantID == "" || id == "" {
+		return nil, fmt.Errorf("tenant_id and id are required")
+	}
+	if !outcome.Valid() {
+		return nil, fmt.Errorf("outcome %q invalid", outcome)
+	}
+	evt, err := s.repo.GetDeployEvent(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if evt == nil {
+		return nil, fmt.Errorf("deploy event %q not found", id)
+	}
+	if evt.Outcome == models.DeployOutcomeRolledBack {
+		return nil, fmt.Errorf("deploy event %q is terminal (rolled-back); outcome cannot change", id)
+	}
+	evt.Outcome = outcome
+	evt.ErrorMsg = errorMsg
+	if outcome == models.DeployOutcomeSuccess || outcome == models.DeployOutcomeFailed {
+		now := time.Now()
+		evt.CompletedAt = &now
+	}
+	updated, err := s.repo.UpdateDeployEvent(ctx, tenantID, id, evt)
+	if err != nil {
+		return nil, err
+	}
+	if updated != nil {
+		return updated, nil
+	}
+	return evt, nil
+}
+
+// UpdateDeployMetrics updates DurationMs / ErrorRate / P99Latency. Zero
+// values leave the existing metric unchanged (partial update semantics).
+func (s *Service) UpdateDeployMetrics(ctx context.Context, tenantID, id string, m models.DeployMetrics) (*models.DeployEvent, error) {
+	if tenantID == "" || id == "" {
+		return nil, fmt.Errorf("tenant_id and id are required")
+	}
+	if m.ErrorRate < 0 || m.ErrorRate > 1 {
+		return nil, fmt.Errorf("errorRate %f out of range [0,1]", m.ErrorRate)
+	}
+	if m.DurationMs < 0 {
+		return nil, fmt.Errorf("durationMs %d must be non-negative", m.DurationMs)
+	}
+	if m.P99Latency < 0 {
+		return nil, fmt.Errorf("p99Latency %d must be non-negative", m.P99Latency)
+	}
+	evt, err := s.repo.GetDeployEvent(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if evt == nil {
+		return nil, fmt.Errorf("deploy event %q not found", id)
+	}
+	if evt.Outcome == models.DeployOutcomeRolledBack {
+		return nil, fmt.Errorf("deploy event %q is terminal (rolled-back); metrics cannot change", id)
+	}
+	if m.DurationMs > 0 {
+		evt.DurationMs = m.DurationMs
+	}
+	if m.ErrorRate > 0 {
+		evt.ErrorRate = m.ErrorRate
+	}
+	if m.P99Latency > 0 {
+		evt.P99Latency = m.P99Latency
+	}
+	updated, err := s.repo.UpdateDeployEvent(ctx, tenantID, id, evt)
+	if err != nil {
+		return nil, err
+	}
+	if updated != nil {
+		return updated, nil
+	}
+	return evt, nil
+}
+
+// ListDeployEvents returns the deploy events filtered by DeployEventQuery.
+// Limit defaults to 100 and is capped at 1000.
+func (s *Service) ListDeployEvents(ctx context.Context, tenantID string, q models.DeployEventQuery) ([]models.DeployEvent, error) {
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+	if q.Limit <= 0 {
+		q.Limit = 100
+	}
+	if q.Limit > 1000 {
+		q.Limit = 1000
+	}
+	return s.repo.ListDeployEvents(ctx, tenantID, q)
+}
+
+// ListDeployEventsByBranch returns events for a branch (limit capped at 1000).
+func (s *Service) ListDeployEventsByBranch(ctx context.Context, tenantID, branch string, limit int) ([]models.DeployEvent, error) {
+	if tenantID == "" || branch == "" {
+		return nil, fmt.Errorf("tenant_id and branch are required")
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+	return s.repo.ListDeployEventsByBranch(ctx, tenantID, branch, limit)
+}
+
+// ListDeployEventsByEnv returns events for an env (limit capped at 1000).
+func (s *Service) ListDeployEventsByEnv(ctx context.Context, tenantID, env string, limit int) ([]models.DeployEvent, error) {
+	if tenantID == "" || env == "" {
+		return nil, fmt.Errorf("tenant_id and env are required")
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+	return s.repo.ListDeployEventsByEnv(ctx, tenantID, env, limit)
+}
+
+// ListDeployEventsByActor returns events by the actor (limit capped at 1000).
+func (s *Service) ListDeployEventsByActor(ctx context.Context, tenantID, actorID string, limit int) ([]models.DeployEvent, error) {
+	if tenantID == "" || actorID == "" {
+		return nil, fmt.Errorf("tenant_id and actorId are required")
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+	return s.repo.ListDeployEventsByActor(ctx, tenantID, actorID, limit)
+}
+
+// RollbackDeployEvent creates a new DeployEvent that reverses the original
+// deployment. The new event:
+//   - has FromCommit = original.ToCommit
+//   - has ToCommit   = original.FromCommit
+//   - shares ArtifactID / ImageDigest / ApprovalID with the original
+//   - has Outcome = DeployOutcomeRolledBack
+//   - has RollbackTo = pointer to the original event id
+//   - has StartedAt = CompletedAt = now
+//
+// Fail-closed:
+//   - original must exist and be tenant-scoped
+//   - original.Outcome must be success or failed (rolled-back is terminal)
+//   - original.ToCommit must be non-empty (nothing to roll back to)
+//   - original.FromCommit must be non-empty (need a target to restore)
+//
+// The original event is left untouched — the rollback is a NEW event.
+func (s *Service) RollbackDeployEvent(ctx context.Context, tenantID, id, actorID string) (*models.DeployEvent, error) {
+	if tenantID == "" || id == "" {
+		return nil, fmt.Errorf("tenant_id and id are required")
+	}
+	if actorID == "" {
+		return nil, fmt.Errorf("actorId is required")
+	}
+	if !deployActorRe.MatchString(actorID) {
+		return nil, fmt.Errorf("actorId %q invalid", actorID)
+	}
+	orig, err := s.repo.GetDeployEvent(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if orig == nil {
+		return nil, fmt.Errorf("deploy event %q not found", id)
+	}
+	if !orig.Outcome.CanRollback() {
+		return nil, fmt.Errorf("deploy event %q outcome %q cannot be rolled back (only success/failed can rollback)", id, orig.Outcome)
+	}
+	if orig.ToCommit == "" {
+		return nil, fmt.Errorf("deploy event %q has empty ToCommit; cannot rollback", id)
+	}
+	if orig.FromCommit == "" {
+		return nil, fmt.Errorf("deploy event %q has empty FromCommit; cannot determine rollback target", id)
+	}
+
+	origID := orig.ID
+	now := time.Now()
+	rollback := &models.DeployEvent{
+		ID:          newDeployEventID(),
+		TenantID:    tenantID,
+		ActorID:     actorID,
+		ActorName:   orig.ActorName,
+		Branch:      orig.Branch,
+		Env:         orig.Env,
+		FromCommit:  orig.ToCommit,
+		ToCommit:    orig.FromCommit,
+		ArtifactID:  orig.ArtifactID,
+		ImageDigest: orig.ImageDigest,
+		ApprovalID:  orig.ApprovalID,
+		Outcome:     models.DeployOutcomeRolledBack,
+		RollbackTo:  &origID,
+		StartedAt:   now,
+		CompletedAt: &now,
+		DurationMs:  0,
+		ErrorRate:   0,
+		P99Latency:  0,
+		GateResult:  orig.GateResult,
+		CreatedAt:   now,
+	}
+	if err := s.repo.CreateDeployEvent(ctx, rollback); err != nil {
+		return nil, err
+	}
+	return rollback, nil
+}
+
+// GetAuditTrail returns the aggregated chain for the given params. All
+// filters are AND-combined: an event must match every non-empty filter to
+// appear in the result. Limit defaults to 100 and is capped at 1000.
+// The result deduplicates Branches / Envs / ArtifactIDs / ApprovalIDs so
+// the UI can render a compact graph.
+func (s *Service) GetAuditTrail(ctx context.Context, tenantID string, params models.AuditTrailParams) (*models.AuditTrailResult, error) {
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant_id is required")
+	}
+	if params.Limit <= 0 {
+		params.Limit = 100
+	}
+	if params.Limit > 1000 {
+		params.Limit = 1000
+	}
+	// Convert string filters to pointer form so the query is uniform.
+	q := models.DeployEventQuery{Limit: params.Limit}
+	if params.Branch != "" {
+		b := params.Branch
+		q.Branch = &b
+	}
+	if params.Env != "" {
+		e := params.Env
+		q.Env = &e
+	}
+	if params.ArtifactID != "" {
+		// No ArtifactID field on DeployEventQuery yet — filter client-side
+		// after fetching. See below.
+	}
+	if params.ApprovalID != "" {
+		a := params.ApprovalID
+		q.ApprovalID = &a
+	}
+	all, err := s.repo.ListDeployEvents(ctx, tenantID, q)
+	if err != nil {
+		return nil, err
+	}
+	// Client-side filter for ArtifactID (added after the design doc landed).
+	if params.ArtifactID != "" {
+		filtered := make([]models.DeployEvent, 0, len(all))
+		for _, e := range all {
+			if e.ArtifactID == params.ArtifactID {
+				filtered = append(filtered, e)
+			}
+		}
+		all = filtered
+	}
+	// Dedup helper.
+	dedup := func(vals []string) []string {
+		seen := make(map[string]struct{}, len(vals))
+		out := make([]string, 0, len(vals))
+		for _, v := range vals {
+			if v == "" {
+				continue
+			}
+			if _, ok := seen[v]; ok {
+				continue
+			}
+			seen[v] = struct{}{}
+			out = append(out, v)
+		}
+		return out
+	}
+	branches := make([]string, 0, len(all))
+	envs := make([]string, 0, len(all))
+	artIDs := make([]string, 0, len(all))
+	approvalIDs := make([]string, 0, len(all))
+	for _, e := range all {
+		branches = append(branches, e.Branch)
+		envs = append(envs, e.Env)
+		artIDs = append(artIDs, e.ArtifactID)
+		approvalIDs = append(approvalIDs, e.ApprovalID)
+	}
+	return &models.AuditTrailResult{
+		Events:      all,
+		Branches:    dedup(branches),
+		Envs:        dedup(envs),
+		ArtifactIDs: dedup(artIDs),
+		ApprovalIDs: dedup(approvalIDs),
+		GeneratedAt: time.Now(),
+	}, nil
 }

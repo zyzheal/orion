@@ -154,3 +154,39 @@ func (r *Repository) UpdateSyncRunLog(ctx context.Context, tenantID, id string, 
 func (r *Repository) ListSyncRunLogs(ctx context.Context, tenantID string, q models.SyncRunLogQuery) ([]models.SyncRunLog, error) {
 	return nil, sentinel.NotFound
 }
+
+// --- P0-MB Phase 4 stubs ---
+//
+// The deploy_events table is defined in the module design doc
+// (docs/multi-branch-strategy-design-v2-impl-2026-09-08.md §4.2) but not yet
+// added to the running DB. These stubs return sentinel errors so the handler
+// layer can return a clean 500 rather than panicking on a nil table. Once
+// the migration lands, replace each stub with the real SQLX implementation.
+
+func (r *Repository) CreateDeployEvent(ctx context.Context, evt *models.DeployEvent) error {
+	return sentinel.NotFound
+}
+
+func (r *Repository) GetDeployEvent(ctx context.Context, tenantID, id string) (*models.DeployEvent, error) {
+	return nil, sentinel.NotFound
+}
+
+func (r *Repository) UpdateDeployEvent(ctx context.Context, tenantID, id string, evt *models.DeployEvent) (*models.DeployEvent, error) {
+	return nil, sentinel.NotFound
+}
+
+func (r *Repository) ListDeployEvents(ctx context.Context, tenantID string, q models.DeployEventQuery) ([]models.DeployEvent, error) {
+	return nil, sentinel.NotFound
+}
+
+func (r *Repository) ListDeployEventsByBranch(ctx context.Context, tenantID, branch string, limit int) ([]models.DeployEvent, error) {
+	return nil, sentinel.NotFound
+}
+
+func (r *Repository) ListDeployEventsByEnv(ctx context.Context, tenantID, env string, limit int) ([]models.DeployEvent, error) {
+	return nil, sentinel.NotFound
+}
+
+func (r *Repository) ListDeployEventsByActor(ctx context.Context, tenantID, actorID string, limit int) ([]models.DeployEvent, error) {
+	return nil, sentinel.NotFound
+}
