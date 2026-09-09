@@ -3674,3 +3674,81 @@ feat(branch-policy): P0-MB Phase 5d — classify AddedFiles/ModifiedFiles/Delete
 - **前端页面**（FORBIDDEN routes.tsx）：BranchProfileList + NamespaceMatrix + SyncPolicyList + ChangeAuditTrail + MergePreviewDialog + PreDeployGatePanel
 - **R6 schema-compatibility 真实实现**：需要 migration service 支持
 - **logGitMergeError 接 logger**：Service 当前无 logger 依赖；未来 Phase 增加时需回填
+
+---
+
+## PERM-6 — AI 端点权限定义（保守切片，2026-08-26）
+
+### 目标
+
+P0-MB 后端 9/9 完成后，进入权限域。PERM-6 在 `docs/ALL_TODOS.md` 中记录为「⚠️ 决策待定：44 个角色里只有 1 个授予任何 `ai*`」——`rolePermissions` 表里 super_admin 用 `*:*` 兜底，其他 43 个角色对 AI 端点零授权。本轮采用**保守切片**：仅给 `security_admin` 授予 AI 安全/评审两个直接负责的子模块权限，其他角色的 AI 授权仍留待决策。
+
+### 设计决策
+
+| 决策 | 理由 |
+|---|---|
+| 只动 security_admin | security_admin 的现有 scope 已含 `security:manage` + `audit_log:read`；`ai-security` 和 `ai-review` 是其直接负责的子模块，授权语义自洽 |
+| 只给 `ai:read`（不给 write/execute/admin） | 读权限用于 triage；写权限属于开发者/管理员，非 security_admin 职责 |
+| 其他 AI 资源保持零授权 | `llm` / `skill` / `intelligence` / `agent` / `ai-gateway` / `ai-cost` / `ai-agent-run` / `ai_models` / `ai_decisions` / `ai_inference` 等资源的授权是独立决策，避免一次改动过大 |
+| 前后端双镜像 | 后端 `rolePermissions` 是权威来源；前端 `ROLE_PERMISSIONS_FALLBACK` 是离线兜底；两个文件必须一致，否则 fallback 触发时权限视图错误 |
+
+### 文件清单
+
+| 文件 | 变更 |
+|---|---|
+| `orion-platform-svc-go/internal/identity/auth/handler/handler.go` | `rolePermissions` 里 `security_admin` 增加 `ai:read` / `ai-security:*` / `ai-review:*`（含详细注释） |
+| `orion-frontend/src/hooks/usePermission.ts` | `ROLE_PERMISSIONS_FALLBACK` 里 `security_admin` 增加同三条权限（含 PERM-6 镜像注释） |
+| `orion-platform-svc-go/internal/identity/auth/handler/role_permissions_test.go` | 新增 4 个后端测试（正向 + 反向 + 通配兜底） |
+| `orion-frontend/src/hooks/__tests__/usePermission.test.ts` | 新增 11 个前端测试（via `checkPermission` 断言 resolve / reject） |
+| `docs/ALL_TODOS.md` | PERM-6 行标记 ✅ 已完成 |
+| `docs/development-progress.md` | 本章节追加 |
+
+### 关键代码
+
+```go
+// orion-platform-svc-go/internal/identity/auth/handler/handler.go
+"security_admin": {"audit_log:read", "config:read", "secrets:read", "user:read", "role:read",
+    "project:read", "pipeline:read", "deployment:read", "alert:read",
+    "security:manage", "ticket:read", "approval:approve",
+    // PERM-6 (conservative slice): security_admin owns the AI
+    // security/review surface, so they get read-only on the
+    // umbrella `ai` resource and full control on the two
+    // sub-modules they directly own (`ai-security`, `ai-review`).
+    "ai:read", "ai-security:*", "ai-review:*"},
+```
+
+### 端到端验证
+
+- `go test ./internal/identity/auth/handler/...` ✅（4 子测试全绿）
+- `vitest run src/hooks/__tests__/usePermission.test.ts` ✅（11/11 PASS）
+- `go build ./internal/identity/...` ✅
+- 前端 `npx tsc --noEmit` 未见新增错误（3 条 pre-existing 均在 `src/tests/setup.ts`）
+- 前端 `npx eslint src/hooks/usePermission.ts --max-warnings 0` 1 条 prettier error（`platform_admin` 单行数组），**已验证为 pre-existing**（stash 后重现）
+
+### 已知问题
+
+1. **其他 AI 资源决策待定**：`llm` / `skill` / `intelligence` / `agent` / `ai-gateway` / `ai-cost` / `ai-agent-run` / `ai_models` / `ai_decisions` / `ai_inference` / `ai_degradation` 的授权策略需单独评审
+2. **前端 oncall 3-part 拼写**：`usePermission.ts` 里 oncall 角色含 `ai:gateway:read` / `ai:trace:read` / `ai:agent:read` / `ai:agent:execute` / `ai:security:read`——3 段冒号语法与 `matchPermission` 的 2 段语法不匹配，永远解析失败；这是历史遗留，非 PERM-6 范围
+3. **logGitMergeError 仍是占位符**（Phase 5d 遗留）：Phase B 处理
+
+### Commit
+
+```
+d99d06a0b feat(auth): PERM-6 AI endpoint permission definitions (conservative slice)
+```
+
+### 累计进度（P0-MB 9/9 + PERM-6 保守切片完成）
+
+- **Phase 301-306**：✅
+- **P0-MB Phase 1-6 + 5b + 5c + 5d**：✅（9/9）
+- **PERM-6 保守切片**：✅ `d99d06a0b`
+
+### 剩余任务
+
+- **Phase B（本轮进行中）**：logGitMergeError 接 zap logger
+- **Phase C（下一任务）**：`internal/identity/role/` 死代码清理
+- **PERM-8 阶段 2**：`/api/v1` 切严格 `auth.Auth`（破坏性变更，需客户端迁移计划）
+- **其他 AI 资源决策**：llm / skill / intelligence / agent 等资源的授权策略
+- **DB migration**（FORBIDDEN）：7 张 P0-MB 表
+- **前端页面**（FORBIDDEN routes.tsx）：MergePreviewDialog 等 6 页
+- **R6 schema-compatibility 真实实现**：需 migration service
