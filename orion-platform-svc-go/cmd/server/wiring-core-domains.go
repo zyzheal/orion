@@ -121,6 +121,10 @@ func wireSecurityDomains(db *database.DB, logger *zap.Logger) {
 			gitExec.BinaryPath = bp
 		}
 		svc := sb_service.NewServiceWithLogger(repo, gitExec, logger)
+		// R6 schema-compatibility: wire the MigrationChecksum checker so the
+		// PreDeployGate can detect DB-migration downgrades (design doc L1072).
+		// It reads build_artifacts.migration_checksum + deploy_events via repo.
+		svc.WithSchemaChecker(sb_service.NewMigrationChecksumChecker(repo, 0))
 		securityBranchPolicyH = sb_handler.NewHandler(svc)
 		// Start the periodic sync-policy scheduler (5-minute tick per design
 		// doc §3.5). It runs on a background context and self-terminates on

@@ -2360,11 +2360,11 @@ func (s *Service) CheckPreDeployGate(ctx context.Context, tenantID string, req m
 	// R6 — Schema compatibility. Delegates to the SchemaCompatibilityChecker
 	// when wired (see WithSchemaChecker); otherwise falls back to a
 	// placeholder pass-with-warning so callers can distinguish "checker
-	// not wired" from "checker ran and passed". Severity stays Warning —
-	// making R6 blocking would flip behaviour for callers that have been
-	// relying on the placeholder path, so that is a separate explicit
-	// decision rather than a silent change.
-	if err := s.runGateRule(result, GateRuleIDSchema, "schema-compatibility", models.GateSeverityWarning, func() (bool, string, error) {
+	// not wired" from "checker ran and passed". Severity is Blocking per the
+	// design doc L1072: a DB-migration downgrade must block the deploy. The
+	// placeholder path (no checker wired) degrades to a pass-with-warning, so
+	// environments without a schema registry are unaffected.
+	if err := s.runGateRule(result, GateRuleIDSchema, "schema-compatibility", models.GateSeverityBlocking, func() (bool, string, error) {
 		return s.runSchemaCompatibility(ctx, &req)
 	}); err != nil {
 		return nil, err

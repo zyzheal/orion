@@ -205,21 +205,22 @@ func TestCheckPreDeployGate_R6PassesWithWiredChecker(t *testing.T) {
 	if r6.Name != "schema-compatibility" {
 		t.Errorf("r6.Name = %q, want %q", r6.Name, "schema-compatibility")
 	}
-	if r6.Severity != models.GateSeverityWarning {
-		t.Errorf("r6.Severity = %q, want Warning (still non-blocking)", r6.Severity)
+	if r6.Severity != models.GateSeverityBlocking {
+		t.Errorf("r6.Severity = %q, want %q", r6.Severity, models.GateSeverityBlocking)
 	}
 	if r6.Detail != "schema-compatible" {
 		t.Errorf("r6.Detail = %q, want %q", r6.Detail, "schema-compatible")
 	}
 }
 
-// TestCheckPreDeployGate_R6SeverityStaysWarningEvenOnFailure guards against
-// a future change that would silently escalate R6 from Warning to Blocking
-// — that would break callers relying on the non-blocking contract.
-func TestCheckPreDeployGate_R6SeverityStaysWarningEvenOnFailure(t *testing.T) {
+// TestCheckPreDeployGate_R6SeverityIsBlocking guards the design-doc L1072
+// contract: a DB-migration downgrade must block the deploy. R6 is Blocking,
+// so a Compatible=false result flips the gate to failed and puts R6 in
+// result.Blocked.
+func TestCheckPreDeployGate_R6SeverityIsBlocking(t *testing.T) {
 	checker := &fakeSchemaChecker{result: &SchemaCompatibilityResult{
 		Compatible: false,
-		Breaking:   []string{"some breaking change"},
+		Breaking:   []string{"DB migration downgrade: deploying migration v1 over currently-deployed v2"},
 	}}
 	svc := NewService(newFakeRepo()).WithSchemaChecker(checker)
 	result, err := svc.CheckPreDeployGate(context.Background(), "t1", models.DeployRequest{
@@ -228,23 +229,28 @@ func TestCheckPreDeployGate_R6SeverityStaysWarningEvenOnFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	var r6 *models.GateRuleResult
 	for i := range result.Rules {
 		if result.Rules[i].RuleID == GateRuleIDSchema {
-			if result.Rules[i].Severity != models.GateSeverityWarning {
-				t.Errorf("R6 severity changed to %q — this would silently escalate behaviour",
-					result.Rules[i].Severity)
-			}
-			if result.Rules[i].Passed {
-				t.Error("R6 should fail when checker says incompatible")
-			}
-			// Since R6 is Warning, it should NOT be in result.Blocked.
-			for _, id := range result.Blocked {
-				if id == GateRuleIDSchema {
-					t.Errorf("R6 (Warning) must not be in Blocked list")
-				}
-			}
-			return
+			r6 = &result.Rules[i]
+			break
 		}
 	}
-	t.Fatalf("R6 rule missing from result.Rules")
+	if r6 == nil {
+		t.Fatalf("R6 rule missing from result.Rules")
+	}
+	if r6.Severity != models.GateSeverityBlocking {
+		t.Errorf("R6 severity = %q, want %q (design doc requires blocking on migration downgrade)",
+			r6.Severity, models.GateSeverityBlocking)
+	}
+	if r6.Passed {
+		t.Error("R6 should fail when checker says incompatible")
+	}
+	// R6 is Blocking, so the whole gate must fail with R6 in Blocked.
+	if result.Passed {
+		t.Error("gate should fail overall when blocking R6 fails")
+	}
+	if !containsString(result.Blocked, GateRuleIDSchema) {
+		t.Errorf("R6 (Blocking) must be in result.Blocked; got %v", result.Blocked)
+	}
 }

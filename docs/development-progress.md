@@ -4031,3 +4031,101 @@ M  orion-platform-svc-go/internal/branch-policy/service/service.go
 - **Phase D**（R6 real checker）：✅ 本轮
 - **Phase E**（3-seg colon fix）：✅ 本轮
 - **Phase F**（AnonymousTracker）：✅ 本轮
+
+## 2026-08-26 — Phase G: R6 从 placeholder 到真实 checker + Warning→Blocking + 生产接线
+
+### 上下文
+
+Phase D 只落地了 `SchemaCompatibilityChecker` 接口和 builder，但生产上 R6 仍是 placeholder（`return true, "schema-compatibility checker not wired — placeholder", nil`）。Phase G 完成三件事：
+
+1. **`MigrationChecksumChecker` 具体实现**（design doc L1072 的真实意图）
+2. **R6 severity 从 Warning 升级为 Blocking**（DB migration downgrade 必须阻断）
+3. **生产接线**（`wiring-core-domains.go` 注入 checker）
+
+### 设计决策
+
+**MigrationChecksumChecker** 读取 `BuildArtifact.MigrationChecksum` 字段，从 `v<N>:` 前缀解析版本号：
+
+- `new < old` → `Compatible=false`（降级，阻断）
+- `new >= old` → `Compatible=true`（升级或同版本，通过）
+- 缺数据（nil request / 无 artifactID / artifact 缺失 / 无 checksum / 无成功部署 / 无 `v<N>:` 标记）→ nil result（信息性 pass）或带 warning 的 pass
+
+**R6 severity 升级**：design doc L1072 明确 "Schema 兼容（DB migration 不降级）" 是阻断级规则。Phase D 保守保持 Warning 是为了不静默切换行为；Phase G 在有了真实 checker 之后，升级为 Blocking。
+
+**向后兼容**：placeholder 路径（无 checker 接线）仍降级为 pass-with-warning，所以未接 schema registry 的环境不受影响。
+
+### 文件清单
+
+```
+新增  internal/branch-policy/service/schema_compat_checker.go       (174 行)
+新增  internal/branch-policy/service/schema_compat_checker_test.go  (383 行，14 测试)
+修    internal/branch-policy/service/service.go                     (R6 Warning→Blocking)
+修    internal/branch-policy/service/service_r6_test.go             (测试反向断言)
+修    cmd/server/wiring-core-domains.go                             (生产接线 +4 行)
+```
+
+### 关键代码
+
+```go
+// service.go — R6 rule
+if err := s.runGateRule(result, GateRuleIDSchema, "schema-compatibility",
+    models.GateSeverityBlocking, func() (bool, string, error) {
+    return s.runSchemaCompatibility(ctx, &req)
+}); err != nil {
+    return nil, err
+}
+
+// wiring-core-domains.go — production wiring
+svc := sb_service.NewServiceWithLogger(repo, gitExec, logger)
+svc.WithSchemaChecker(sb_service.NewMigrationChecksumChecker(repo, 0))
+securityBranchPolicyH = sb_handler.NewHandler(svc)
+```
+
+### 测试矩阵（14 条全过）
+
+1. `NilRequest` — nil deref guard
+2. `NoArtifactID` — informational pass (nil)
+3. `ArtifactNotFound` — informational pass
+4. `ArtifactNoChecksum` — informational pass
+5. `NoPriorDeploy` — no baseline → informational pass
+6. `DeployIsUpgrade` — v3 over v2 → compatible
+7. `DeployIsDowngrade` — v3 over v5 → incompatible, breaking 含 "downgrade"
+8. `SameVersion` — v3 over v3 → compatible
+9. `NoComparableMarkerOnNewChecksum` — pass + warning
+10. `NoComparableMarkerOnOldChecksum` — pass + warning
+11. `IgnoresNonSuccessDeploys` — only Outcome=success is baseline
+12. `TenantIsolation` — 不跨租户
+13. `LookbackZeroUsesDefault` — 0 → 20
+14. `RepoErrorPropagates` — DB 错误向上抛
+
+### 端到端验证
+
+```
+go build ./...                                    ✅
+go test -count=1 ./internal/branch-policy/...     ✅ (含 14 新测试)
+go test -count=1 ./cmd/server/...                 ✅ (wiring 未受影响)
+go vet ./internal/branch-policy/... ./cmd/server/...  ✅
+```
+
+### Commit
+
+```
+TBD feat(branch-policy): Phase G — R6 real checker + Blocking severity + production wiring
+```
+
+### 累计进度（Phase A/B/C/D/E/F/G 全部完成）
+
+- **Phase A**（PERM-6 保守切片）：✅ `d99d06a0b`
+- **Phase B**（zap logger）：✅ `f7259c6fc`
+- **Phase C**（dead code cleanup）：✅ `3c9584c23`
+- **Phase D**（R6 接口 + builder）：✅ `089c47e51`
+- **Phase E**（3-seg colon fix）：✅ `089c47e51`
+- **Phase F**（AnonymousTracker）：✅ `089c47e51`
+- **Phase G**（R6 真实 checker + Blocking + wiring）：✅ 本轮
+
+### 剩余任务（Phase A-G 全部深度解决后）
+
+- **AI 资源授权决策矩阵**：`llm` / `skill` / `intelligence` / `agent` 等（doc 标"决策待定"，需另开评审）
+- **前端 6 页**：`routes.tsx` FORBIDDEN
+- **PERM-8 stage 2**：破坏性变更，需先跑 Phase F tracker 数据再切
+- **DB migration**：`migrations/dba/` FORBIDDEN
