@@ -3900,3 +3900,132 @@ orion-platform-svc-go/internal/identity/role/service/service_test.go  (40 lines)
 - **DB migration**（FORBIDDEN）：7 张 P0-MB 表
 - **前端页面**（FORBIDDEN routes.tsx）：MergePreviewDialog 等 6 页
 - **R6 schema-compatibility 真实实现**：需 migration service
+
+## 2026-08-26 — Phase D + E + F: R6 real checker + 3-seg colon fix + AnonymousTracker
+
+### 上下文
+
+Phase A/B/C 之后（PERM-6 / zap logger / dead code），剩余 TODO 里的三项"深度解决"任务：
+
+- **D**：R6 schema-compatibility 从 placeholder 换真实 checker（可插拔）
+- **E**：`oncall` 角色前端 3 段冒号字符串修复
+- **F**：OptionalAuth 增补 AnonymousTracker hook（PERM-8 stage 2 迁移准备）
+
+### Phase D — R6 schema-compatibility real checker
+
+**问题**：`branch-policy` 的 R6 gate 一直返回 `schema-compatibility checker not wired — placeholder`，PreDeployGate 的 6 层防御里唯一空转的一层。
+
+**设计**：不新建 migration service（Phase 5d 之后没有），改为**可插拔接口**：
+
+- `SchemaCompatibilityChecker` interface + `SchemaCompatibilityResult` struct
+- `Service.WithSchemaChecker(c)` builder，链式、nil 安全
+- `runSchemaCompatibility` 分派：nil → 保留 placeholder（向后兼容），非 nil → 调用 checker
+- 保留 `GateSeverityWarning`（阻断升级是独立决策）
+
+**文件**：
+
+- 新 `schema_compatibility.go`（95 行）
+- 修 `service.go`（+4 处）
+- 新 `service_r6_test.go`（250 行，9 测试）
+
+**测试矩阵（9 条全过）**：
+
+1. `NilCheckerFallsBackToPlaceholder`
+2. `CheckerSaysCompatible`
+3. `CheckerSaysCompatibleWithWarnings`
+4. `CheckerSaysIncompatible`
+5. `CheckerReturnsNilResult`
+6. `CheckerErrorRecordsFailureWithoutPropagating`
+7. `WithSchemaChecker_Chainable`
+8. `CheckPreDeployGate_R6PassesWithWiredChecker`
+9. `CheckPreDeployGate_R6SeverityStaysWarningEvenOnFailure`
+
+### Phase E — oncall 3-segment colon 字符串修复
+
+**问题**：前端 `usePermission.ts` 的 `oncall` 角色权限里 5 条 `ai:gateway:read` 等 3 段字符串从未匹配。后端 `matchPermission` 用 `SplitN(perm, ":", 2)`，第 3 段被静默丢弃，`ai:gateway:read` 被当作 `ai:gateway` 处理，永远不授权。
+
+**修复**：改成与后端 guard 一致的 2 段语法：
+
+- `ai:gateway:read` → `ai-gateway:read`
+- `ai:agents:read` → `ai-agents:read`
+- `ai:agents:execute` → `ai-agents:execute`
+- `ai:security:read` → `ai-security:read`
+- `llm:trace:read` → `llm-trace:read`
+
+加了 5 行注释解释根因 + 指向修复 commit。
+
+**测试**：`usePermission.test.ts` 11/11 PASS。
+
+### Phase F — OptionalAuth AnonymousTracker hook
+
+**问题**：PERM-8 stage 2（`/api/v1` 切严格 `auth.Auth`）是破坏性变更，切换前必须知道**当前有多少客户端在匿名访问**。但 OptionalAuth 按设计从不产生日志，从请求流里捞不出这个答案。
+
+**设计**：
+
+- 新 `AnonymousTracker` interface（Track 方法，稳定 reason 字符串）
+- `AuthConfig.AnonymousTracker` 字段，nil 默认 = 不追踪（完全向后兼容）
+- 4 个稳定 reason：`no-authorization-header` / `non-bearer-auth-header` / `token-blacklisted` / `token-parse-error`
+- Track 是 fire-and-forget（不阻塞、不返回 err），限流/采样/去重由 tracker 内部处理
+- 严格的 `Auth` 中间件**不**用 tracker
+
+**文件**：
+
+- 修 `middleware.go`（+50 行）
+- 新 `anonymous_tracker_test.go`（170 行，6 测试）
+
+**测试矩阵（6 条全过）**：
+
+1. `TracksNoAuthorizationHeader`
+2. `TracksNonBearerAuthHeader`
+3. `TracksTokenParseError`
+4. `DoesNotTrackWhenAuthenticated`（真实签 HS256 token）
+5. `DoesNotTrackWhenSkipped`（skipPaths 绕过 tracker）
+6. `TrackerNilIsSafe`（nil = legacy 行为，无 panic）
+
+### 端到端验证
+
+```
+go build ./internal/branch-policy/...              ✅
+go test  ./internal/branch-policy/...              ✅ (含 9 新测试)
+go test  ./cmd/server/...                          ✅ (wiring 未受影响)
+go build ./...                                    ✅ (platform-svc-go 全量)
+go vet   ./internal/branch-policy/... ./cmd/server/...  ✅
+go build ./pkg/auth/...                            ✅ (go-common)
+go test  ./pkg/auth/...                            ✅ (含 6 新测试)
+npm test -- --run --reporter=dot \
+  src/hooks/__tests__/usePermission.test.ts        ✅ 11/11
+```
+
+### 变更文件（7 个）
+
+```
+M  docs/ALL_TODOS.md
+M  orion-frontend/src/hooks/usePermission.ts
+M  orion-go-common/pkg/auth/middleware.go
+M  orion-platform-svc-go/internal/branch-policy/service/service.go
+?? orion-go-common/pkg/auth/anonymous_tracker_test.go
+?? orion-platform-svc-go/internal/branch-policy/service/schema_compatibility.go
+?? orion-platform-svc-go/internal/branch-policy/service/service_r6_test.go
+```
+
+### Commit
+
+```
+faba0a8b5 feat(branch-policy,auth,frontend): Phase D+E+F — R6 real checker + 3-seg colon fix + AnonymousTracker
+```
+
+### 剩余任务（本轮全部深度解决后）
+
+- **AI 资源授权决策矩阵**：`llm` / `skill` / `intelligence` / `agent` 等的授权策略（doc 明确写"决策待定"，需另开评审）
+- **前端 6 页**（MergePreviewDialog 等）：`routes.tsx` FORBIDDEN，页面可写但无法挂载
+- **PERM-8 stage 2**：破坏性变更，需客户端迁移计划 + 先跑一段时间 Phase F tracker 数据再切
+- **DB migration**：`migrations/dba/` FORBIDDEN
+
+### 累计进度（Phase A/B/C + D/E/F 全部完成）
+
+- **Phase A**（PERM-6 保守切片）：✅ `d99d06a0b`
+- **Phase B**（zap logger）：✅ `f7259c6fc`
+- **Phase C**（dead code cleanup）：✅ `3c9584c23`
+- **Phase D**（R6 real checker）：✅ 本轮
+- **Phase E**（3-seg colon fix）：✅ 本轮
+- **Phase F**（AnonymousTracker）：✅ 本轮

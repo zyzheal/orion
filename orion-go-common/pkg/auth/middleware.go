@@ -40,6 +40,35 @@ type AuthConfig struct {
 	RedisClient *redis.Client
 	// SkipPaths are paths that should skip authentication (e.g., /healthz).
 	SkipPaths []string
+	// AnonymousTracker, when non-nil, is called by OptionalAuth on every
+	// request it could not authenticate. Strict Auth ignores this field.
+	//
+	// Why: the PERM-8 stage 2 migration (switch /api/v1 from OptionalAuth to
+	// strict Auth) will 401 every client that has been calling without a
+	// token. To plan that switchover safely we need to know which callers are
+	// anonymous today — the answer is not in the token log because OptionalAuth
+	// by design never emits one. Wire this field to a rate-limited logger, a
+	// Prometheus counter, or a sampling sink; nil disables tracking entirely
+	// (default for backwards compatibility).
+	AnonymousTracker AnonymousTracker
+}
+
+// AnonymousTracker is the optional hook OptionalAuth invokes when it could
+// not authenticate a request. The reason is a stable enum-like string so
+// consumers can bucket without parsing log text. Track MUST NOT block or
+// return an error — OptionalAuth never surfaces it; the contract is fire-and-
+// forget. If the tracker wants to rate-limit, dedupe, or sample, do it in the
+// tracker.
+type AnonymousTracker interface {
+	// Track fires once per anonymous request. Path is the request URL path
+	// (already normalised by Gin), Method is the HTTP verb, and Reason is
+	// one of:
+	//
+	//   - "no-authorization-header"   the request carried no Authorization
+	//   - "non-bearer-auth-header"    header did not start with "Bearer "
+	//   - "token-blacklisted"         Redis flagged the token as revoked
+	//   - "token-parse-error"         ParseClaims returned an error
+	Track(c *gin.Context, method, path, reason string)
 }
 
 // Claims is the identity extracted from a verified JWT. It is the single
@@ -186,6 +215,15 @@ func OptionalAuth(cfg AuthConfig) gin.HandlerFunc {
 		skipPaths[p] = true
 	}
 
+	// track is a small closure so we don't have to thread cfg into a method.
+	// nil-safe: returns immediately when no tracker is configured.
+	track := func(c *gin.Context, reason string) {
+		if cfg.AnonymousTracker == nil {
+			return
+		}
+		cfg.AnonymousTracker.Track(c, c.Request.Method, c.Request.URL.Path, reason)
+	}
+
 	return func(c *gin.Context) {
 		if skipPaths[c.Request.URL.Path] {
 			c.Next()
@@ -194,12 +232,14 @@ func OptionalAuth(cfg AuthConfig) gin.HandlerFunc {
 
 		authHeader := c.GetHeader("Authorization")
 		if strings.TrimSpace(authHeader) == "" {
+			track(c, "no-authorization-header")
 			c.Next()
 			return
 		}
 
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		if tokenString == authHeader {
+			track(c, "non-bearer-auth-header")
 			c.Next()
 			return
 		}
@@ -207,6 +247,7 @@ func OptionalAuth(cfg AuthConfig) gin.HandlerFunc {
 		if cfg.RedisClient != nil {
 			blocked, err := cfg.RedisClient.Exists(c.Request.Context(), "token:blacklist:"+tokenString).Result()
 			if err == nil && blocked > 0 {
+				track(c, "token-blacklisted")
 				c.Next()
 				return
 			}
@@ -214,6 +255,7 @@ func OptionalAuth(cfg AuthConfig) gin.HandlerFunc {
 
 		claims, err := ParseClaims(tokenString, cfg)
 		if err != nil {
+			track(c, "token-parse-error")
 			c.Next()
 			return
 		}

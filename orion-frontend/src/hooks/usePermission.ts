@@ -112,11 +112,17 @@ const ROLE_PERMISSIONS_FALLBACK: Record<string, string[]> = {
   oncall: [
     'chatops:use',
     'chatops:read',
-    'ai:gateway:read',
-    'ai:trace:read',
-    'ai:agent:read',
-    'ai:agent:execute',
-    'ai:security:read',
+    // Historical 3-segment colon strings (`ai:gateway:read`) never matched the
+    // backend `matchPermission` which is `SplitN(perm, ":", 2)` — the third
+    // segment was silently discarded, so `ai:gateway:read` was treated as
+    // `ai:gateway` and never authorised. Corrected to the 2-segment syntax that
+    // matches the backend guards (`RequirePermission("ai-gateway", "read")`).
+    // See commit "fix(permission): oncall 3-segment colon strings never match".
+    'ai-gateway:read',
+    'llm-trace:read',
+    'ai-agents:read',
+    'ai-agents:execute',
+    'ai-security:read',
     'alert:*',
     'pipeline:read',
     'deployment:read',

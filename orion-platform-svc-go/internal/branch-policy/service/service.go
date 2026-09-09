@@ -97,6 +97,13 @@ type Service struct {
 	// logGitMergeError hook is a silent no-op — no behaviour change.
 	// Wired by NewServiceWithLogger or WithLogger.
 	logger *zap.Logger
+	// schemaChecker is an optional SchemaCompatibilityChecker used by
+	// PreDeployGate R6. When nil (default for tests / legacy callers / pre-
+	// wiring environments) R6 falls back to the placeholder path — always
+	// passes with a "not implemented" warning so callers can distinguish
+	// "checker not wired" from "checker ran and passed".
+	// Wired by WithSchemaChecker.
+	schemaChecker SchemaCompatibilityChecker
 }
 
 func NewService(repo RepositoryInterface) *Service {
@@ -133,6 +140,14 @@ func (s *Service) WithGitExecutor(git gitmerge.Executor) *Service {
 // logging.
 func (s *Service) WithLogger(logger *zap.Logger) *Service {
 	s.logger = logger
+	return s
+}
+
+// WithSchemaChecker attaches a SchemaCompatibilityChecker used by
+// PreDeployGate R6. Chainable; nil falls back to the placeholder path
+// (always passes with a "not implemented" warning).
+func (s *Service) WithSchemaChecker(c SchemaCompatibilityChecker) *Service {
+	s.schemaChecker = c
 	return s
 }
 
@@ -2342,11 +2357,15 @@ func (s *Service) CheckPreDeployGate(ctx context.Context, tenantID string, req m
 		return nil, err
 	}
 
-	// R6 — Schema compatibility. Placeholder until we wire in a migration
-	// lookup; always passes with a warning so callers know the rule is
-	// implemented but not yet enforced.
+	// R6 — Schema compatibility. Delegates to the SchemaCompatibilityChecker
+	// when wired (see WithSchemaChecker); otherwise falls back to a
+	// placeholder pass-with-warning so callers can distinguish "checker
+	// not wired" from "checker ran and passed". Severity stays Warning —
+	// making R6 blocking would flip behaviour for callers that have been
+	// relying on the placeholder path, so that is a separate explicit
+	// decision rather than a silent change.
 	if err := s.runGateRule(result, GateRuleIDSchema, "schema-compatibility", models.GateSeverityWarning, func() (bool, string, error) {
-		return true, "schema-compatibility check not implemented — placeholder", nil
+		return s.runSchemaCompatibility(ctx, &req)
 	}); err != nil {
 		return nil, err
 	}
@@ -2427,6 +2446,31 @@ func gateResultJSON(r *models.PreDeployGateResult) string {
 		return `{"passed":false,"blocked":["serialization-error"]}`
 	}
 	return string(b)
+}
+
+// runSchemaCompatibility is the R6 rule body. It delegates to the wired
+// SchemaCompatibilityChecker (see WithSchemaChecker) and renders the result
+// as a (passed, detail) tuple for runGateRule. Nil checker → placeholder
+// pass-with-warning (preserves pre-wiring behaviour for legacy callers).
+//
+// Error handling: any error from the checker flips the rule to failed. Since
+// R6 is GateSeverityWarning, a failed rule does NOT block the deploy — the
+// result is recorded in result.Rules with the error detail so an operator can
+// surface it. This matches the fail-closed contract of runGateRule.
+func (s *Service) runSchemaCompatibility(ctx context.Context, req *models.DeployRequest) (bool, string, error) {
+	if s.schemaChecker == nil {
+		return true, "schema-compatibility checker not wired — placeholder", nil
+	}
+	res, err := s.schemaChecker.CheckSchemaCompatibility(ctx, req)
+	if err != nil {
+		return false, "schema-compatibility check failed: " + err.Error(), nil
+	}
+	if res == nil {
+		// Checker had no info to report (e.g. no schema version on the
+		// artifact). Not a failure — just record an informational pass.
+		return true, "schema-compatibility checker returned nil result", nil
+	}
+	return res.Compatible, schemaCompatDetail(res), nil
 }
 
 // runGateRule is the small helper that runs a single PreDeployGate rule and
