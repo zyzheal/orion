@@ -3840,7 +3840,61 @@ f7259c6fc feat(branch-policy): wire zap logger into logGitMergeError
 
 ### 剩余任务
 
-- **Phase C**：`internal/identity/role/` 死代码清理
+- **PERM-8 阶段 2**：`/api/v1` 切严格 `auth.Auth`（破坏性变更，需客户端迁移计划）
+- **其他 AI 资源决策**：llm / skill / intelligence / agent 等资源的授权策略
+- **DB migration**（FORBIDDEN）：7 张 P0-MB 表
+- **前端页面**（FORBIDDEN routes.tsx）：MergePreviewDialog 等 6 页
+- **R6 schema-compatibility 真实实现**：需 migration service
+
+---
+
+## 2026-08-26 — Phase C: `internal/identity/role/` 死代码清理
+
+### 上下文
+
+`internal/identity/role/` 是 `internal/role/` 的完全冗余副本：
+
+| 位置 | 状态 |
+|------|------|
+| `internal/role/handler/handler.go:59` | ✅ 真实实现，`core_infra_wiring.go:15-17` 已接线，挂 `GET /roles/permissions-map` |
+| `internal/identity/role/handler/handler.go` | ❌ 死代码，`NewRoleHandler` / `RegisterRoutes` 全仓库零调用 |
+| `internal/identity/role/service/service.go` | ❌ 死代码，`NewRoleService` 全仓库零调用 |
+| `internal/identity/role/models/models.go` | ❌ 仅被上面两个死文件互引 |
+| `internal/identity/role/service/service_test.go` | ❌ 仅测试那个从未实例化的 service |
+
+历史上 `development-progress.md` 第 351 行记录了一次踩坑：本轮之前
+误把 PERM-7 的改动加到了死包上，grep 引用后才发现真正挂线的是
+`internal/role/`。响应形状不匹配（`identity/role` 用
+`{"code":0,"data":...}`，前端期望 `{"success":true,"data":...}`）让
+"改错包" 变得难以察觉——静默回落 fallback。
+
+### 变更
+
+`git rm` 4 个文件，共 **256 LOC 删除**：
+
+```
+orion-platform-svc-go/internal/identity/role/handler/handler.go      (91 lines)
+orion-platform-svc-go/internal/identity/role/models/models.go         (50 lines)
+orion-platform-svc-go/internal/identity/role/service/service.go       (75 lines)
+orion-platform-svc-go/internal/identity/role/service/service_test.go  (40 lines)
+```
+
+### 验证
+
+- `go build ./...` ✅（0 输出）
+- `go test ./cmd/server/...` ✅（wiring 未受影响）
+- `go test ./internal/role/...` ✅（真正的 role 包不受影响）
+- `go test ./internal/identity/auth/...` ✅（认证域无依赖）
+- `git ls-files internal/identity/role/` 空（目录已清理）
+
+### Commit
+
+```
+3c9584c23 chore(identity): delete dead internal/identity/role/ package (256 LOC)
+```
+
+### 剩余任务
+
 - **PERM-8 阶段 2**：`/api/v1` 切严格 `auth.Auth`（破坏性变更，需客户端迁移计划）
 - **其他 AI 资源决策**：llm / skill / intelligence / agent 等资源的授权策略
 - **DB migration**（FORBIDDEN）：7 张 P0-MB 表
