@@ -4412,3 +4412,4 @@ $ git diff --cached --name-only | grep -E "migrations/dba|orion-frontend/src/api
 - **Stub Scan Round 2**（code/build 8 stubs + handler wiring）：✅ `08ddd44c2`
 - **Stub Scan Round 3**（test-selector GetImpactAnalysis）：✅ `c825eea6c`
 - **Stub Scan Round 4**（notification table name 对齐 + sqlmock 测试修复）：✅
+- **Stub Scan Round 5**（pipeline StartRun/StopRun 真实 DB 实现）：✅ `a8f1c71f8`
