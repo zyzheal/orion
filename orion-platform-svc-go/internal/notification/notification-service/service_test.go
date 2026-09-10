@@ -207,7 +207,7 @@ func TestServiceStats(t *testing.T) {
 
 func TestServiceCreateTemplate(t *testing.T) {
 	svc, mock := newMockService(t)
-	mock.ExpectExec("INSERT INTO notification_templates").
+	mock.ExpectExec("INSERT INTO notification_template_definitions").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	err := svc.CreateTemplate(context.Background(), "t1", &models.NotificationTemplate{})
@@ -218,7 +218,7 @@ func TestServiceCreateTemplate(t *testing.T) {
 
 func TestServiceListTemplates(t *testing.T) {
 	svc, mock := newMockService(t)
-	mock.ExpectQuery("SELECT \\* FROM notification_templates WHERE tenant_id=\\$1").
+	mock.ExpectQuery("SELECT \\* FROM notification_template_definitions WHERE tenant_id=\\$1").
 		WithArgs("t1").
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "tenant_id", "name", "channel", "subject", "body",
@@ -233,7 +233,7 @@ func TestServiceListTemplates(t *testing.T) {
 
 func TestServiceGetTemplate(t *testing.T) {
 	svc, mock := newMockService(t)
-	mock.ExpectQuery("SELECT \\* FROM notification_templates WHERE id=\\$1 AND tenant_id=\\$2").
+	mock.ExpectQuery("SELECT \\* FROM notification_template_definitions WHERE id=\\$1 AND tenant_id=\\$2").
 		WithArgs("tpl-1", "t1").
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "tenant_id", "name", "channel", "subject", "body",
@@ -248,7 +248,7 @@ func TestServiceGetTemplate(t *testing.T) {
 
 func TestServiceDeleteTemplate(t *testing.T) {
 	svc, mock := newMockService(t)
-	mock.ExpectExec("DELETE FROM notification_templates WHERE id=\\$1 AND tenant_id=\\$2").
+	mock.ExpectExec("DELETE FROM notification_template_definitions WHERE id=\\$1 AND tenant_id=\\$2").
 		WithArgs("tpl-1", "t1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
@@ -260,7 +260,7 @@ func TestServiceDeleteTemplate(t *testing.T) {
 
 func TestServiceCreateChannel(t *testing.T) {
 	svc, mock := newMockService(t)
-	mock.ExpectExec("INSERT INTO notification_channels").
+	mock.ExpectExec("INSERT INTO notification_channel_configs").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	err := svc.CreateChannel(context.Background(), "t1", &models.NotificationChannel{})
@@ -271,7 +271,7 @@ func TestServiceCreateChannel(t *testing.T) {
 
 func TestServiceListChannels(t *testing.T) {
 	svc, mock := newMockService(t)
-	mock.ExpectQuery("SELECT \\* FROM notification_channels WHERE tenant_id=\\$1").
+	mock.ExpectQuery("SELECT \\* FROM notification_channel_configs WHERE tenant_id=\\$1").
 		WithArgs("t1").
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "tenant_id", "name", "type", "config", "enabled",
@@ -287,7 +287,7 @@ func TestServiceListChannels(t *testing.T) {
 func TestServiceGetChannel(t *testing.T) {
 	svc, mock := newMockService(t)
 	// ChannelService.GetChannel delegates to repo.GetChannel
-	mock.ExpectQuery("SELECT \\* FROM notification_channels WHERE id=\\$1 AND tenant_id=\\$2").
+	mock.ExpectQuery("SELECT \\* FROM notification_channel_configs WHERE id=\\$1 AND tenant_id=\\$2").
 		WithArgs("ch-1", "t1").
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "tenant_id", "name", "type", "config", "enabled",

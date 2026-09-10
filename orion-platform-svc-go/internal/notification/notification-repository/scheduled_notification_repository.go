@@ -24,7 +24,7 @@ func NewScheduledNotificationRepository(db *sqlx.DB) *ScheduledNotificationRepos
 // Create inserts a new scheduled notification.
 func (r *ScheduledNotificationRepository) Create(ctx context.Context, n *models.ScheduledNotification) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO scheduled_notifications (
+		`INSERT INTO scheduled_notification_instances (
 			id, tenant_id, user_id, template_id, type, title, message, channel,
 			scheduled_at, status, created_at, updated_at
 		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
@@ -38,7 +38,7 @@ func (r *ScheduledNotificationRepository) Create(ctx context.Context, n *models.
 func (r *ScheduledNotificationRepository) FindByID(ctx context.Context, tenantID, id string) (*models.ScheduledNotification, error) {
 	var n models.ScheduledNotification
 	err := r.db.GetContext(ctx, &n,
-		`SELECT * FROM scheduled_notifications WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+		`SELECT * FROM scheduled_notification_instances WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (r *ScheduledNotificationRepository) FindAll(ctx context.Context, tenantID 
 
 	// Count total
 	var total int
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM scheduled_notifications %s", where)
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM scheduled_notification_instances %s", where)
 	if err := r.db.GetContext(ctx, &total, countQuery, args...); err != nil {
 		return nil, 0, err
 	}
@@ -79,7 +79,7 @@ func (r *ScheduledNotificationRepository) FindAll(ctx context.Context, tenantID 
 	offset := opts.Offset
 	limit := opts.Limit
 	args = append(args, offset, limit)
-	query := fmt.Sprintf("SELECT * FROM scheduled_notifications %s ORDER BY scheduled_at ASC OFFSET $%d LIMIT $%d", where, argIdx, argIdx+1)
+	query := fmt.Sprintf("SELECT * FROM scheduled_notification_instances %s ORDER BY scheduled_at ASC OFFSET $%d LIMIT $%d", where, argIdx, argIdx+1)
 
 	var items []models.ScheduledNotification
 	if err := r.db.SelectContext(ctx, &items, query, args...); err != nil {
@@ -92,7 +92,7 @@ func (r *ScheduledNotificationRepository) FindAll(ctx context.Context, tenantID 
 func (r *ScheduledNotificationRepository) FindPendingByTimeRange(ctx context.Context, tenantID string, start, end time.Time) ([]models.ScheduledNotification, error) {
 	var items []models.ScheduledNotification
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM scheduled_notifications
+		`SELECT * FROM scheduled_notification_instances
 		 WHERE tenant_id=$1 AND status=$2 AND scheduled_at >= $3 AND scheduled_at <= $4
 		 ORDER BY scheduled_at ASC`,
 		tenantID, string(models.ScheduledStatusPending), start, end)
@@ -115,7 +115,7 @@ func (r *ScheduledNotificationRepository) Update(ctx context.Context, tenantID, 
 	}
 
 	args = append(args, id, tenantID)
-	query := fmt.Sprintf("UPDATE scheduled_notifications SET %s WHERE id=$%d AND tenant_id=$%d RETURNING *",
+	query := fmt.Sprintf("UPDATE scheduled_notification_instances SET %s WHERE id=$%d AND tenant_id=$%d RETURNING *",
 		joinSetParts(setParts), argIdx, argIdx+1)
 
 	var n models.ScheduledNotification
@@ -129,7 +129,7 @@ func (r *ScheduledNotificationRepository) Update(ctx context.Context, tenantID, 
 func (r *ScheduledNotificationRepository) MarkAsSent(ctx context.Context, tenantID, id string) (*models.ScheduledNotification, error) {
 	var n models.ScheduledNotification
 	err := r.db.GetContext(ctx, &n,
-		"UPDATE scheduled_notifications SET status='sent', sent_at=NOW(), updated_at=NOW() WHERE id=$1 AND tenant_id=$2 RETURNING *",
+		"UPDATE scheduled_notification_instances SET status='sent', sent_at=NOW(), updated_at=NOW() WHERE id=$1 AND tenant_id=$2 RETURNING *",
 		id, tenantID)
 	if err != nil {
 		return nil, err
@@ -140,7 +140,7 @@ func (r *ScheduledNotificationRepository) MarkAsSent(ctx context.Context, tenant
 // Cancel cancels a pending scheduled notification.
 func (r *ScheduledNotificationRepository) Cancel(ctx context.Context, tenantID, id string) (bool, error) {
 	result, err := r.db.ExecContext(ctx,
-		"UPDATE scheduled_notifications SET status='cancelled', updated_at=NOW() WHERE id=$1 AND tenant_id=$2 AND status='pending'",
+		"UPDATE scheduled_notification_instances SET status='cancelled', updated_at=NOW() WHERE id=$1 AND tenant_id=$2 AND status='pending'",
 		id, tenantID)
 	if err != nil {
 		return false, err
@@ -152,7 +152,7 @@ func (r *ScheduledNotificationRepository) Cancel(ctx context.Context, tenantID, 
 // Delete removes a scheduled notification.
 func (r *ScheduledNotificationRepository) Delete(ctx context.Context, tenantID, id string) (bool, error) {
 	result, err := r.db.ExecContext(ctx,
-		"DELETE FROM scheduled_notifications WHERE id=$1 AND tenant_id=$2", id, tenantID)
+		"DELETE FROM scheduled_notification_instances WHERE id=$1 AND tenant_id=$2", id, tenantID)
 	if err != nil {
 		return false, err
 	}
@@ -163,7 +163,7 @@ func (r *ScheduledNotificationRepository) Delete(ctx context.Context, tenantID, 
 // Count returns the count of scheduled notifications, optionally filtered.
 func (r *ScheduledNotificationRepository) Count(ctx context.Context, tenantID string, userID string, status models.ScheduledNotificationStatus) (int, error) {
 	var count int
-	query := `SELECT COUNT(*) FROM scheduled_notifications WHERE tenant_id=$1`
+	query := `SELECT COUNT(*) FROM scheduled_notification_instances WHERE tenant_id=$1`
 	args := []interface{}{tenantID}
 	argIdx := 2
 

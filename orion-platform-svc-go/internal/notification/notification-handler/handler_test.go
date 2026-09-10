@@ -235,7 +235,7 @@ func TestScheduledNotificationHandler_Create(t *testing.T) {
 	svc := service.NewScheduledNotificationService(repo, zap.NewNop())
 	h := NewScheduledNotificationHandler(svc)
 
-	mock.ExpectExec("INSERT INTO scheduled_notifications").
+	mock.ExpectExec("INSERT INTO scheduled_notification_instances").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	// Use snake_case JSON keys matching CreateScheduledNotificationInput

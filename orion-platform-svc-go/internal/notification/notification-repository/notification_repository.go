@@ -176,7 +176,7 @@ func (r *Repository) NotificationStatsCount(ctx context.Context, tenantID string
 // CreateTemplate inserts a new notification template.
 func (r *Repository) CreateTemplate(ctx context.Context, t *models.NotificationTemplate) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO notification_templates (id, tenant_id, name, channel, subject, body)
+		`INSERT INTO notification_template_definitions (id, tenant_id, name, channel, subject, body)
 		 VALUES ($1,$2,$3,$4,$5,$6)`,
 		t.ID, t.TenantID, t.Name, t.Channel, t.Subject, t.Body,
 	)
@@ -187,7 +187,7 @@ func (r *Repository) CreateTemplate(ctx context.Context, t *models.NotificationT
 func (r *Repository) ListTemplates(ctx context.Context, tenantID string) ([]models.NotificationTemplate, error) {
 	var items []models.NotificationTemplate
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM notification_templates WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID,
+		`SELECT * FROM notification_template_definitions WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID,
 	)
 	return items, err
 }
@@ -196,7 +196,7 @@ func (r *Repository) ListTemplates(ctx context.Context, tenantID string) ([]mode
 func (r *Repository) GetTemplate(ctx context.Context, tenantID, id string) (*models.NotificationTemplate, error) {
 	var t models.NotificationTemplate
 	err := r.db.GetContext(ctx, &t,
-		`SELECT * FROM notification_templates WHERE id=$1 AND tenant_id=$2`, id, tenantID,
+		`SELECT * FROM notification_template_definitions WHERE id=$1 AND tenant_id=$2`, id, tenantID,
 	)
 	if err != nil {
 		return nil, err
@@ -207,7 +207,7 @@ func (r *Repository) GetTemplate(ctx context.Context, tenantID, id string) (*mod
 // DeleteTemplate removes a template.
 func (r *Repository) DeleteTemplate(ctx context.Context, tenantID, id string) error {
 	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM notification_templates WHERE id=$1 AND tenant_id=$2`, id, tenantID,
+		`DELETE FROM notification_template_definitions WHERE id=$1 AND tenant_id=$2`, id, tenantID,
 	)
 	return err
 }
@@ -215,7 +215,7 @@ func (r *Repository) DeleteTemplate(ctx context.Context, tenantID, id string) er
 // UpdateTemplate updates an existing notification template.
 func (r *Repository) UpdateTemplate(ctx context.Context, tenantID, id string, t *models.NotificationTemplate) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE notification_templates SET name=$1, channel=$2, subject=$3, body=$4 WHERE id=$5 AND tenant_id=$6`,
+		`UPDATE notification_template_definitions SET name=$1, channel=$2, subject=$3, body=$4 WHERE id=$5 AND tenant_id=$6`,
 		t.Name, t.Channel, t.Subject, t.Body, id, tenantID,
 	)
 	return err
@@ -226,7 +226,7 @@ func (r *Repository) UpdateTemplate(ctx context.Context, tenantID, id string, t 
 // CreateChannel inserts a new notification channel configuration.
 func (r *Repository) CreateChannel(ctx context.Context, c *models.NotificationChannel) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO notification_channels (id, tenant_id, name, type, config, enabled)
+		`INSERT INTO notification_channel_configs (id, tenant_id, name, type, config, enabled)
 		 VALUES ($1,$2,$3,$4,$5,$6)`,
 		c.ID, c.TenantID, c.Name, c.Type, c.Config, c.Enabled,
 	)
@@ -237,7 +237,7 @@ func (r *Repository) CreateChannel(ctx context.Context, c *models.NotificationCh
 func (r *Repository) ListChannels(ctx context.Context, tenantID string) ([]models.NotificationChannel, error) {
 	var items []models.NotificationChannel
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM notification_channels WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID,
+		`SELECT * FROM notification_channel_configs WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID,
 	)
 	return items, err
 }
@@ -246,7 +246,7 @@ func (r *Repository) ListChannels(ctx context.Context, tenantID string) ([]model
 func (r *Repository) GetChannel(ctx context.Context, tenantID, id string) (*models.NotificationChannel, error) {
 	var c models.NotificationChannel
 	err := r.db.GetContext(ctx, &c,
-		`SELECT * FROM notification_channels WHERE id=$1 AND tenant_id=$2`, id, tenantID,
+		`SELECT * FROM notification_channel_configs WHERE id=$1 AND tenant_id=$2`, id, tenantID,
 	)
 	if err != nil {
 		return nil, err
@@ -258,7 +258,7 @@ func (r *Repository) GetChannel(ctx context.Context, tenantID, id string) (*mode
 func (r *Repository) GetEnabledChannels(ctx context.Context, tenantID string) ([]models.NotificationChannel, error) {
 	var items []models.NotificationChannel
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM notification_channels WHERE tenant_id=$1 AND enabled=true ORDER BY created_at DESC`, tenantID,
+		`SELECT * FROM notification_channel_configs WHERE tenant_id=$1 AND enabled=true ORDER BY created_at DESC`, tenantID,
 	)
 	return items, err
 }
@@ -266,7 +266,7 @@ func (r *Repository) GetEnabledChannels(ctx context.Context, tenantID string) ([
 // UpdateChannel updates an existing channel configuration.
 func (r *Repository) UpdateChannel(ctx context.Context, c *models.NotificationChannel) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE notification_channels SET name=$1, type=$2, config=$3, enabled=$4
+		`UPDATE notification_channel_configs SET name=$1, type=$2, config=$3, enabled=$4
 		 WHERE id=$5 AND tenant_id=$6`,
 		c.Name, c.Type, c.Config, c.Enabled, c.ID, c.TenantID,
 	)
@@ -276,7 +276,7 @@ func (r *Repository) UpdateChannel(ctx context.Context, c *models.NotificationCh
 // DeleteChannel removes a channel configuration.
 func (r *Repository) DeleteChannel(ctx context.Context, tenantID, id string) error {
 	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM notification_channels WHERE id=$1 AND tenant_id=$2`, id, tenantID,
+		`DELETE FROM notification_channel_configs WHERE id=$1 AND tenant_id=$2`, id, tenantID,
 	)
 	return err
 }

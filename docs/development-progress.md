@@ -4342,3 +4342,65 @@ $ git diff --cached --name-only | grep -E "migrations/dba|orion-frontend/src/api
 - **前端 6 页**：`routes.tsx` FORBIDDEN
 - **PERM-8 stage 2**：破坏性变更，Phase H 的 zap 日志 + Phase H.1 的 Prometheus counter 已可采集，待跑一段时间再切
 - **DB migration**：`migrations/dba/` FORBIDDEN
+
+---
+
+### 2026-08-26 — 深度 Stub 扫描 & 修复（续）
+
+本轮完成对 `internal/` 全树 live stub 的深度扫描与修复。核心区分：**guard clause**（nil 检查、条件检查等防御性编程）vs **live stub**（有注册路由但返回 nil/空值，无真实工作）。
+
+#### 本轮修复（3 commits）
+
+| Commit | 模块 | Stubs 修复数 | 变更量 |
+|---|---|---|---|
+| `48407dad9` | notification | 31 service + 57 repo + 8 action | 删除 stub 文件 + 修复 import + 实现 ChannelService/DnD/Template + table name 对齐迁移 + sqlmock 测试 |
+| `08ddd44c2` | code/build + code/internal/build | 8 (4 service + 4 handler) | 335 insertions, 17 deletions |
+| `c825eea6c` | test-selector | 1 (GetImpactAnalysis) | 31 insertions, 1 deletion |
+| (table fix) | notification repo | 3 文件表名对齐 | `notification_templates`→`notification_template_definitions`、`notification_channels`→`notification_channel_configs`、`scheduled_notifications`→`scheduled_notification_instances` |
+
+#### 已消除的 live stubs
+
+- ✅ **notification 模块**：service.go 31 方法 + repository.go 57 方法 + 6 handler 签名不匹配 → 全部修复
+- ✅ **code/build**：service 4 方法 `return nil,nil` + handler 5 方法返回静态 `gin.H` → 真实 SQL + handler wiring
+- ✅ **code/internal/build**：同步修复（镜像模块）
+- ✅ **test-selector GetImpactAnalysis**：空对象 → 真实文件路径匹配 + 影响评分
+
+#### 剩余 live stubs（需 DB/引擎基础设施）
+
+| 模块 | Stubs | 阻塞原因 | 估算 |
+|---|---|---|---|
+| artifact-version | 28 方法 | 需新增 DB 表（templates/schemas/plugins/alerts/violations）+ Repository 方法 | 5-10d |
+| pipeline StartRun/StopRun | 2 方法 | 需 pipeline run 表 + run executor 引擎 | 3-5d |
+
+#### 误报排除（非 stub）
+
+- **graph 模块**：35 方法全真实现（service 通过 `s.nodeRepo`/`s.relRepo` 走 PG + `NewServiceInMemory()` 内存回退，repository 有 7 条真实 SQL）
+- **domain 模块**：7 方法全真实现（通过 `s.bus`/`s.publisher`/`s.eventStore`/`s.proj` 委托），但接线缺陷已修复（`wireDomainCQRS` 传入 nil → 接上 PG event store）
+- **job-actions stubHandler**：intentional no-op（代表无真实 executor 的 action 类型，仅用于验证）
+
+#### 验证
+
+```
+$ go build ./...                          # OK
+$ go test ./internal/notification/...     # OK (全绿)
+$ go test ./internal/code/...             # OK (cached)
+$ go test ./internal/test-selector/...    # OK (cached)
+$ git diff --cached --name-only | grep -E "migrations/dba|orion-frontend/src/api/dba|orion-frontend/src/pages/dba|orion-frontend/src/router/routes|docs/dba" | wc -l   # 0
+```
+
+### 累计进度（更新）
+
+- **Phase A**（ABAC 引擎）：✅ `d99d06a0b`
+- **Phase B**（branch-policy service logger 接线）：✅ `f7259c6fc`
+- **Phase C**（real SQLX repository）：✅ `3c9584c23`
+- **Phase D+E+F**（R6 接口 + 3-seg colon fix + AnonymousTracker）：✅ `089c47e51`
+- **Phase G**（R6 真实 checker + Blocking + wiring）：✅ `76e07a5f0`
+- **Phase H**（ZapAnonymousTracker 生产接线）：✅ `e2bd24b06`
+- **Phase H.1**（Prometheus + Composite AnonymousTracker）：✅ `e4ff165bf`
+- **Phase MB-P2-2**（前端 6 页面 + service 7 stub 真实实现）：✅ `17e0bc130`
+- **Phase MB-P2-2-fix**（test 文件 2 bug 修复）：✅ `3ce2410e1`
+- **Phase MB-P2-2-flaky**（GetAuditTrail map 迭代 flaky 修复 + assertUnorderedStrings helper）：✅
+- **Stub Scan Round 1**（notification 31+57 stubs 修复）：✅ `48407dad9`
+- **Stub Scan Round 2**（code/build 8 stubs + handler wiring）：✅ `08ddd44c2`
+- **Stub Scan Round 3**（test-selector GetImpactAnalysis）：✅ `c825eea6c`
+- **Stub Scan Round 4**（notification table name 对齐 + sqlmock 测试修复）：✅

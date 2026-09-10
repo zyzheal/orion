@@ -47,7 +47,7 @@ func TestScheduledNotificationRepository_Create(t *testing.T) {
 		UpdatedAt:   now,
 	}
 
-	mock.ExpectExec("INSERT INTO scheduled_notifications").
+	mock.ExpectExec("INSERT INTO scheduled_notification_instances").
 		WithArgs(n.ID, n.TenantID, n.UserID, *n.TemplateID, n.Type, n.Title, n.Message,
 			n.Channel, n.ScheduledAt, n.Status, n.CreatedAt, n.UpdatedAt).
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -74,7 +74,7 @@ func TestScheduledNotificationRepository_FindByID(t *testing.T) {
 	repo := NewScheduledNotificationRepository(sqlxDB)
 
 	now := time.Now()
-	mock.ExpectQuery("SELECT \\* FROM scheduled_notifications WHERE id=\\$1 AND tenant_id=\\$2").
+	mock.ExpectQuery("SELECT \\* FROM scheduled_notification_instances WHERE id=\\$1 AND tenant_id=\\$2").
 		WithArgs("sn-abc123", "tenant-1").
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "tenant_id", "user_id", "template_id", "type", "title", "message", "channel",
@@ -106,7 +106,7 @@ func TestScheduledNotificationRepository_FindByID_NotFound(t *testing.T) {
 	sqlxDB := sqlx.NewDb(mockDB, "sqlmock")
 	repo := NewScheduledNotificationRepository(sqlxDB)
 
-	mock.ExpectQuery("SELECT \\* FROM scheduled_notifications WHERE id=\\$1 AND tenant_id=\\$2").
+	mock.ExpectQuery("SELECT \\* FROM scheduled_notification_instances WHERE id=\\$1 AND tenant_id=\\$2").
 		WithArgs("sn-missing", "tenant-1").
 		WillReturnError(sql.ErrNoRows)
 
@@ -129,11 +129,11 @@ func TestScheduledNotificationRepository_FindAll(t *testing.T) {
 
 	now := time.Now()
 
-	mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM scheduled_notifications").
+	mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM scheduled_notification_instances").
 		WithArgs("tenant-1").
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 
-	mock.ExpectQuery("SELECT \\* FROM scheduled_notifications").
+	mock.ExpectQuery("SELECT \\* FROM scheduled_notification_instances").
 		WithArgs("tenant-1", 0, 20).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "tenant_id", "user_id", "template_id", "type", "title", "message", "channel",
@@ -169,7 +169,7 @@ func TestScheduledNotificationRepository_FindPendingByTimeRange(t *testing.T) {
 	start := now
 	end := now.Add(1 * time.Hour)
 
-	mock.ExpectQuery("SELECT \\* FROM scheduled_notifications").
+	mock.ExpectQuery("SELECT \\* FROM scheduled_notification_instances").
 		WithArgs("tenant-1", "pending", start, end).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "tenant_id", "user_id", "template_id", "type", "title", "message", "channel",
@@ -201,7 +201,7 @@ func TestScheduledNotificationRepository_Update(t *testing.T) {
 	newTitle := "Updated Title"
 	repo.NowFunc = func() time.Time { return now }
 
-	mock.ExpectQuery("UPDATE scheduled_notifications").
+	mock.ExpectQuery("UPDATE scheduled_notification_instances").
 		WithArgs(now, newTitle, "sn-1", "tenant-1").
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "tenant_id", "user_id", "template_id", "type", "title", "message", "channel",
@@ -235,7 +235,7 @@ func TestScheduledNotificationRepository_MarkAsSent(t *testing.T) {
 
 	now := time.Now()
 
-	mock.ExpectQuery("UPDATE scheduled_notifications").
+	mock.ExpectQuery("UPDATE scheduled_notification_instances").
 		WithArgs("sn-1", "tenant-1").
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "tenant_id", "user_id", "template_id", "type", "title", "message", "channel",
@@ -264,7 +264,7 @@ func TestScheduledNotificationRepository_Cancel(t *testing.T) {
 	repo := NewScheduledNotificationRepository(sqlxDB)
 
 	t.Run("success", func(t *testing.T) {
-		mock.ExpectExec("UPDATE scheduled_notifications SET status='cancelled'").
+		mock.ExpectExec("UPDATE scheduled_notification_instances SET status='cancelled'").
 			WithArgs("sn-1", "tenant-1").
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
@@ -279,7 +279,7 @@ func TestScheduledNotificationRepository_Cancel(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		mock.ExpectExec("UPDATE scheduled_notifications SET status='cancelled'").
+		mock.ExpectExec("UPDATE scheduled_notification_instances SET status='cancelled'").
 			WithArgs("sn-missing", "tenant-1").
 			WillReturnResult(sqlmock.NewResult(1, 0))
 
@@ -309,7 +309,7 @@ func TestScheduledNotificationRepository_Delete(t *testing.T) {
 	repo := NewScheduledNotificationRepository(sqlxDB)
 
 	t.Run("success", func(t *testing.T) {
-		mock.ExpectExec("DELETE FROM scheduled_notifications").
+		mock.ExpectExec("DELETE FROM scheduled_notification_instances").
 			WithArgs("sn-1", "tenant-1").
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
@@ -324,7 +324,7 @@ func TestScheduledNotificationRepository_Delete(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		mock.ExpectExec("DELETE FROM scheduled_notifications").
+		mock.ExpectExec("DELETE FROM scheduled_notification_instances").
 			WithArgs("sn-missing", "tenant-1").
 			WillReturnResult(sqlmock.NewResult(1, 0))
 
@@ -354,7 +354,7 @@ func TestScheduledNotificationRepository_Count(t *testing.T) {
 	repo := NewScheduledNotificationRepository(sqlxDB)
 
 	t.Run("no filters", func(t *testing.T) {
-		mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM scheduled_notifications WHERE tenant_id=\\$1").
+		mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM scheduled_notification_instances WHERE tenant_id=\\$1").
 			WithArgs("tenant-1").
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(10))
 
@@ -369,7 +369,7 @@ func TestScheduledNotificationRepository_Count(t *testing.T) {
 	})
 
 	t.Run("with user_id filter", func(t *testing.T) {
-		mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM scheduled_notifications").
+		mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM scheduled_notification_instances").
 			WithArgs("tenant-1", "user-1").
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(5))
 
@@ -384,7 +384,7 @@ func TestScheduledNotificationRepository_Count(t *testing.T) {
 	})
 
 	t.Run("with status filter", func(t *testing.T) {
-		mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM scheduled_notifications").
+		mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM scheduled_notification_instances").
 			WithArgs("tenant-1", "user-1", "pending").
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(3))
 

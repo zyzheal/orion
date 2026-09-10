@@ -192,13 +192,13 @@ func (r *DashboardRepository) DashboardStatsCount(ctx context.Context, tenantID 
 	}
 
 	err = r.db.GetContext(ctx, &channelsEnabled,
-		`SELECT COUNT(*) FROM notification_channels WHERE tenant_id=$1 AND enabled=true`, tenantID)
+		`SELECT COUNT(*) FROM notification_channel_configs WHERE tenant_id=$1 AND enabled=true`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
 	err = r.db.GetContext(ctx, &templatesActive,
-		`SELECT COUNT(*) FROM notification_templates WHERE tenant_id=$1`, tenantID)
+		`SELECT COUNT(*) FROM notification_template_definitions WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return nil, err
 	}
