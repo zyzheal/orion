@@ -3,7 +3,7 @@ package handler
 import (
 	"testing"
 
-	"orion/platform-svc-go/internal/notification/service"
+	"orion/platform-svc-go/internal/notification/notification-service"
 )
 
 func TestNewTemplateHandler(t *testing.T) {
@@ -55,7 +55,7 @@ func TestNewDashboardHandler(t *testing.T) {
 }
 
 func TestNewHandler(t *testing.T) {
-	svc := service.New(nil)
+	svc := service.NewService(nil)
 	h := NewHandler(svc)
 	if h == nil {
 		t.Fatal("NewHandler returned nil")

@@ -3,7 +3,7 @@ package handler
 import (
 	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/notification/models"
-	"orion/platform-svc-go/internal/notification/service"
+	"orion/platform-svc-go/internal/notification/notification-service"
 
 	"orion/go-common/pkg/auth"
 

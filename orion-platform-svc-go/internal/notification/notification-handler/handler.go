@@ -3,7 +3,7 @@ package handler
 import (
 	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/notification/models"
-	"orion/platform-svc-go/internal/notification/service"
+	"orion/platform-svc-go/internal/notification/notification-service"
 
 	"orion/go-common/pkg/auth"
 
@@ -157,12 +157,12 @@ func (h *Handler) Broadcast(c *gin.Context) {
 		return
 	}
 
-	err := h.svc.Broadcast(ctx, tenantID, &req)
+	sent, err := h.svc.Broadcast(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"sent": 0})
+	respondCreated(c, gin.H{"sent": sent})
 }
 
 // Delete handles DELETE /notifications/:id.

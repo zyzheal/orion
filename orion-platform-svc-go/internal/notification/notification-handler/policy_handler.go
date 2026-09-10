@@ -6,7 +6,7 @@ import (
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/notification/models"
-	"orion/platform-svc-go/internal/notification/service"
+	"orion/platform-svc-go/internal/notification/notification-service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -69,7 +69,7 @@ func (h *PolicyHandler) CreatePolicy(c *gin.Context) {
 		return
 	}
 
-	policy, err := h.policySvc.CreatePolicy(ctx, tenantID, &req)
+	policy, err := h.policySvc.CreatePolicy(ctx, tenantID, userID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -196,7 +196,7 @@ func (h *PolicyHandler) CreateWorkflow(c *gin.Context) {
 		}
 	}
 
-	workflow, err := h.policySvc.CreateWorkflow(ctx, tenantID, &req)
+	workflow, err := h.policySvc.CreateWorkflow(ctx, tenantID, userID, &req)
 	if err != nil {
 		if err == service.ErrPolicyNotFound {
 			respondBadRequest(c, "policy not found: "+req.PolicyID)

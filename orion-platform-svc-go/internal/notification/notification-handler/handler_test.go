@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"orion/platform-svc-go/internal/notification/repository"
-	"orion/platform-svc-go/internal/notification/service"
+	"orion/platform-svc-go/internal/notification/notification-repository"
+	"orion/platform-svc-go/internal/notification/notification-service"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
@@ -67,9 +67,22 @@ func TestDeliveryHandler_List(t *testing.T) {
 	}
 }
 
+// deliveryRows returns a mock.Rows with NotificationDelivery columns.
+func deliveryRows(id string) *sqlmock.Rows {
+	now := time.Now()
+	return sqlmock.NewRows([]string{
+		"id", "tenant_id", "notification_id", "recipient", "subject", "body",
+		"channel", "status", "error_message", "response_status", "response_body",
+		"attempt_number", "max_attempts", "next_retry_at", "sent_at",
+		"fallback_channel", "metadata", "created_at", "updated_at",
+	}).AddRow(id, "tenant-1", "notif-1", "u@e.com", "s", "b",
+		"email", "sent", nil, nil, nil, 1, 3, nil, now,
+		nil, nil, now, now)
+}
+
 // TestDeliveryHandler_Get tests the Get endpoint.
 func TestDeliveryHandler_Get(t *testing.T) {
-	mockDB, _, err := sqlmock.New()
+	mockDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create sqlmock: %v", err)
 	}
@@ -80,11 +93,14 @@ func TestDeliveryHandler_Get(t *testing.T) {
 	svc := service.NewDeliveryService(repo, nil)
 	h := NewDeliveryHandler(svc)
 
+	mock.ExpectQuery("SELECT \\* FROM notification_deliveries WHERE id=\\$1 AND tenant_id=\\$2").
+		WithArgs("del-1", "tenant-1").
+		WillReturnRows(deliveryRows("del-1"))
+
 	c, w := setupTestContext("GET", "/deliveries/del-1", "")
 	c.Params = gin.Params{{Key: "id", Value: "del-1"}}
 	h.Get(c)
 
-	// Service stub returns nil, nil → handler returns 200
 	if w.Code != http.StatusOK {
 		t.Errorf("Get status = %d, want 200", w.Code)
 	}
@@ -92,7 +108,7 @@ func TestDeliveryHandler_Get(t *testing.T) {
 
 // TestDeliveryHandler_Retry tests the Retry endpoint.
 func TestDeliveryHandler_Retry(t *testing.T) {
-	mockDB, _, err := sqlmock.New()
+	mockDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create sqlmock: %v", err)
 	}
@@ -103,11 +119,14 @@ func TestDeliveryHandler_Retry(t *testing.T) {
 	svc := service.NewDeliveryService(repo, nil)
 	h := NewDeliveryHandler(svc)
 
+	mock.ExpectQuery("SELECT \\* FROM notification_deliveries WHERE id=\\$1 AND tenant_id=\\$2").
+		WithArgs("del-1", "tenant-1").
+		WillReturnRows(deliveryRows("del-1"))
+
 	c, w := setupTestContext("POST", "/deliveries/del-1/retry", "")
 	c.Params = gin.Params{{Key: "id", Value: "del-1"}}
 	h.Retry(c)
 
-	// Service stub returns nil, nil → handler returns 200
 	if w.Code != http.StatusOK {
 		t.Errorf("Retry status = %d, want 200", w.Code)
 	}
@@ -148,7 +167,7 @@ func TestDNDHandler_Set(t *testing.T) {
 
 // TestDNDHandler_Clear tests the Clear DND endpoint.
 func TestDNDHandler_Clear(t *testing.T) {
-	mockDB, _, err := sqlmock.New()
+	mockDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("failed to create sqlmock: %v", err)
 	}
@@ -159,11 +178,15 @@ func TestDNDHandler_Clear(t *testing.T) {
 	svc := service.NewDNDService(repo, zap.NewNop())
 	h := NewDNDHandler(svc)
 
+	// DeleteByUser expects rows affected > 0 to return ok=true
+	mock.ExpectExec("DELETE FROM do_not_disturb WHERE user_id=\\$1 AND tenant_id=\\$2").
+		WithArgs("user-1", "tenant-1").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
 	c, w := setupTestContext("DELETE", "/dnd/user-1", "")
 	c.Params = gin.Params{{Key: "user_id", Value: "user-1"}}
 	h.Clear(c)
 
-	// Service stub returns nil → handler returns 200
 	if w.Code != http.StatusOK {
 		t.Errorf("Clear status = %d, want 200", w.Code)
 	}

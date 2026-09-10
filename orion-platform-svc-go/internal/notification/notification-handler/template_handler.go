@@ -3,7 +3,7 @@ package handler
 import (
 	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/notification/models"
-	"orion/platform-svc-go/internal/notification/service"
+	"orion/platform-svc-go/internal/notification/notification-service"
 
 	"orion/go-common/pkg/auth"
 
@@ -89,7 +89,6 @@ func (h *TemplateHandler) Update(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	_ = id
 
 	var t models.NotificationTemplate
 	if err := c.ShouldBindJSON(&t); err != nil {
@@ -97,7 +96,7 @@ func (h *TemplateHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if err := h.templateSvc.CreateTemplate(ctx, tenantID, &t); err != nil {
+	if err := h.templateSvc.UpdateTemplate(ctx, tenantID, id, &t); err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -120,14 +119,19 @@ func (h *TemplateHandler) Delete(c *gin.Context) {
 func (h *TemplateHandler) Preview(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationPreview")
 	defer span.End()
-	_ = c.GetString("tenant_id")
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
 	var input models.TemplatePreviewInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
 
-	result := h.templateSvc.PreviewTemplate(ctx, &input)
+	result, err := h.templateSvc.Preview(ctx, tenantID, id, &input)
+	if err != nil {
+		respondNotFound(c, "template not found")
+		return
+	}
 	respondSuccess(c, result)
 }
 
@@ -135,6 +139,13 @@ func (h *TemplateHandler) Preview(c *gin.Context) {
 func (h *TemplateHandler) RenderVariables(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationRenderVariables")
 	defer span.End()
-	vars := h.templateSvc.PreviewTemplate(ctx, nil)
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+
+	vars, err := h.templateSvc.RenderVariables(ctx, tenantID, id)
+	if err != nil {
+		respondNotFound(c, "template not found")
+		return
+	}
 	respondSuccess(c, vars)
 }

@@ -3,7 +3,7 @@ package handler
 import (
 	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/notification/models"
-	"orion/platform-svc-go/internal/notification/service"
+	"orion/platform-svc-go/internal/notification/notification-service"
 
 	"orion/go-common/pkg/auth"
 
@@ -46,12 +46,7 @@ func (h *DNDHandler) Set(c *gin.Context) {
 	}
 	req.UserID = userID
 
-	input := &models.CreateDoNotDisturbInput{
-		StartTime: req.StartTime,
-		EndTime:   req.EndTime,
-		Reason:    req.Reason,
-	}
-	dnd, err := h.dndSvc.SetDND(ctx, tenantID, req.UserID, input)
+	dnd, err := h.dndSvc.SetDND(ctx, tenantID, userID, req.StartTime, req.EndTime, req.Reason)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return

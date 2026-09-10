@@ -3,7 +3,7 @@ package handler
 import (
 	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/notification/models"
-	"orion/platform-svc-go/internal/notification/service"
+	"orion/platform-svc-go/internal/notification/notification-service"
 
 	"orion/go-common/pkg/auth"
 
@@ -42,13 +42,8 @@ func (h *DeliveryHandler) List(c *gin.Context) {
 	var items []models.NotificationDelivery
 	var err error
 
-	if notificationID != "" {
-		items, err = h.deliverySvc.ListDeliveries(ctx, tenantID, notificationID)
-	} else {
-		// For now, return all deliveries; in production add pagination
-		items, err = h.deliverySvc.ListDeliveries(ctx, tenantID, "")
-		_ = status
-	}
+	items, err = h.deliverySvc.GetDeliveryHistory(ctx, tenantID, notificationID)
+	_ = status
 
 	if err != nil {
 		respondInternalError(c, err.Error())
@@ -64,7 +59,7 @@ func (h *DeliveryHandler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	delivery, err := h.deliverySvc.GetDelivery(ctx, tenantID, id)
+	delivery, err := h.deliverySvc.GetDeliveryByID(ctx, tenantID, id)
 	if err != nil {
 		respondNotFound(c, "delivery not found")
 		return
@@ -79,7 +74,7 @@ func (h *DeliveryHandler) Retry(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	delivery, err := h.deliverySvc.GetDelivery(ctx, tenantID, id)
+	delivery, err := h.deliverySvc.GetDeliveryByID(ctx, tenantID, id)
 	if err != nil {
 		if err == service.ErrDeliveryNotFound {
 			respondNotFound(c, err.Error())

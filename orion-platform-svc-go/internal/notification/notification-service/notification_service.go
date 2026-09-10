@@ -10,7 +10,7 @@ import (
 
 	"orion/go-common/pkg/otel"
 	"orion/platform-svc-go/internal/notification/models"
-	"orion/platform-svc-go/internal/notification/repository"
+	"orion/platform-svc-go/internal/notification/notification-repository"
 
 	"github.com/google/uuid"
 )

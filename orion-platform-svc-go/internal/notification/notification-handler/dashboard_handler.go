@@ -3,7 +3,7 @@ package handler
 import (
 	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/notification/models"
-	"orion/platform-svc-go/internal/notification/service"
+	"orion/platform-svc-go/internal/notification/notification-service"
 
 	"orion/go-common/pkg/auth"
 
@@ -146,7 +146,7 @@ func (h *DashboardHandler) ListWidgets(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NotificationListWidgets")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	widgets, err := h.dashboardSvc.ListWidgets(ctx, tenantID)
+	widgets, err := h.dashboardSvc.ListWidgets(ctx, tenantID, c.Param("dashboard_id"))
 	if err != nil {
 		if err == service.ErrDashboardNotFound {
 			respondNotFound(c, "dashboard not found")
@@ -168,7 +168,7 @@ func (h *DashboardHandler) CreateWidget(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.dashboardSvc.CreateWidget(ctx, tenantID, &w); err != nil {
+	if err := h.dashboardSvc.CreateWidget(ctx, tenantID, c.Param("dashboard_id"), &w); err != nil {
 		if err == service.ErrDashboardNotFound {
 			respondNotFound(c, "dashboard not found")
 			return
