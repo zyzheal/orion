@@ -8,19 +8,18 @@ package service
 import (
 	"context"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/metadata/models"
 )
 
 // ServiceInterface defines the interface for the metadata service.
 type ServiceInterface interface {
-	BatchCreate(ctx context.Context, tenantID string) error
+	BatchCreate(ctx context.Context, tenantID string, req models.BatchCreateRequest) ([]models.Record, error)
 	Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error)
 	Delete(ctx context.Context, tenantID, id string) error
 	Get(ctx context.Context, tenantID, id string) (*models.Record, error)
-	GetStats(ctx context.Context, tenantID string) (gin.H, error)
+	GetStats(ctx context.Context, tenantID string) (*models.Stats, error)
 	List(ctx context.Context, tenantID string) ([]models.Record, error)
-	Search(ctx context.Context, tenantID string) ([]string, error)
+	Search(ctx context.Context, tenantID string, q models.SearchQuery) ([]models.Record, error)
 	Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Record, error)
 }
 

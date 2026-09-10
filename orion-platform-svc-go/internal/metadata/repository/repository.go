@@ -151,3 +151,104 @@ func marshalMeta(m map[string]interface{}) ([]byte, error) {
 	}
 	return json.Marshal(m)
 }
+
+// BatchCreate inserts multiple records in a single call.
+func (r *Repository) BatchCreate(ctx context.Context, tenantID string, items []models.CreateRequest) ([]models.Record, error) {
+	out := make([]models.Record, 0, len(items))
+	now := time.Now().UTC()
+	for _, req := range items {
+		id := uuid.New().String()
+		status := req.Status
+		if status == "" {
+			status = models.StatusActive
+		}
+		meta, err := marshalMeta(req.Config)
+		if err != nil {
+			return nil, err
+		}
+		_, err = r.db.ExecContext(ctx,
+			"INSERT INTO metadata_records (id, tenant_id, name, status, metadata, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $6)",
+			id, tenantID, req.Name, status, meta, now)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, models.Record{
+			ID:        id,
+			TenantID:  tenantID,
+			Name:      req.Name,
+			Status:    status,
+			Metadata:  req.Config,
+			CreatedAt: now,
+			UpdatedAt: now,
+		})
+	}
+	return out, nil
+}
+
+// Search returns records matching the query (name LIKE and/or status filter).
+func (r *Repository) Search(ctx context.Context, tenantID string, q models.SearchQuery) ([]models.Record, error) {
+	var rows []recordRow
+	switch {
+	case q.Query != "" && q.Status != "":
+		err := r.db.SelectContext(ctx, &rows,
+			"SELECT * FROM metadata_records WHERE tenant_id=$1 AND deleted_at IS NULL AND name ILIKE $2 AND status=$3 ORDER BY created_at DESC",
+			tenantID, "%"+q.Query+"%", q.Status)
+		if err != nil {
+			return nil, err
+		}
+	case q.Query != "":
+		err := r.db.SelectContext(ctx, &rows,
+			"SELECT * FROM metadata_records WHERE tenant_id=$1 AND deleted_at IS NULL AND name ILIKE $2 ORDER BY created_at DESC",
+			tenantID, "%"+q.Query+"%")
+		if err != nil {
+			return nil, err
+		}
+	case q.Status != "":
+		err := r.db.SelectContext(ctx, &rows,
+			"SELECT * FROM metadata_records WHERE tenant_id=$1 AND deleted_at IS NULL AND status=$2 ORDER BY created_at DESC",
+			tenantID, q.Status)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		err := r.db.SelectContext(ctx, &rows,
+			"SELECT * FROM metadata_records WHERE tenant_id=$1 AND deleted_at IS NULL ORDER BY created_at DESC",
+			tenantID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	out := make([]models.Record, len(rows))
+	for i, row := range rows {
+		out[i] = *row.toModel()
+	}
+	return out, nil
+}
+
+// GetStats returns aggregate counts grouped by status.
+func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.Stats, error) {
+	var total, active, pending int
+	err := r.db.GetContext(ctx, &total,
+		"SELECT COUNT(*) FROM metadata_records WHERE tenant_id=$1 AND deleted_at IS NULL",
+		tenantID)
+	if err != nil {
+		return nil, err
+	}
+	err = r.db.GetContext(ctx, &active,
+		"SELECT COUNT(*) FROM metadata_records WHERE tenant_id=$1 AND deleted_at IS NULL AND status='active'",
+		tenantID)
+	if err != nil {
+		return nil, err
+	}
+	err = r.db.GetContext(ctx, &pending,
+		"SELECT COUNT(*) FROM metadata_records WHERE tenant_id=$1 AND deleted_at IS NULL AND status='pending'",
+		tenantID)
+	if err != nil {
+		return nil, err
+	}
+	return &models.Stats{
+		Total:        total,
+		ActiveCount:  active,
+		PendingCount: pending,
+	}, nil
+}

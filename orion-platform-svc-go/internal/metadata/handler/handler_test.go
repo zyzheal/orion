@@ -1,15 +1,17 @@
 package handler
 
 import (
+	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"orion/platform-svc-go/internal/metadata/models"
 	"orion/platform-svc-go/internal/metadata/service"
 
-	"context"
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/metadata/models"
 )
 
 func newHandler() *Handler {
@@ -27,8 +29,8 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 
 type fakeHandlerService struct{}
 
-func (f *fakeHandlerService) BatchCreate(ctx context.Context, tenantID string) error {
-	return nil
+func (f *fakeHandlerService) BatchCreate(ctx context.Context, tenantID string, req models.BatchCreateRequest) ([]models.Record, error) {
+	return []models.Record{}, nil
 }
 
 func (f *fakeHandlerService) Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error) {
@@ -43,16 +45,16 @@ func (f *fakeHandlerService) Get(ctx context.Context, tenantID, id string) (*mod
 	return &models.Record{}, nil
 }
 
-func (f *fakeHandlerService) GetStats(ctx context.Context, tenantID string) (gin.H, error) {
-	return gin.H{}, nil
+func (f *fakeHandlerService) GetStats(ctx context.Context, tenantID string) (*models.Stats, error) {
+	return &models.Stats{}, nil
 }
 
 func (f *fakeHandlerService) List(ctx context.Context, tenantID string) ([]models.Record, error) {
 	return []models.Record{}, nil
 }
 
-func (f *fakeHandlerService) Search(ctx context.Context, tenantID string) ([]string, error) {
-	return []string{}, nil
+func (f *fakeHandlerService) Search(ctx context.Context, tenantID string, q models.SearchQuery) ([]models.Record, error) {
+	return []models.Record{}, nil
 }
 
 func (f *fakeHandlerService) Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Record, error) {
@@ -106,7 +108,9 @@ func TestHandler_METADATA_Delete(t *testing.T) {
 }
 
 func TestHandler_METADATA_BatchCreate(t *testing.T) {
-	c, w := makeCtx(http.MethodGet, "/")
+	c, w := makeCtx(http.MethodPost, "/")
+	body := `{"items":[{"name":"test1","status":"active"},{"name":"test2","status":"pending"}]}`
+	c.Request.Body = io.NopCloser(strings.NewReader(body))
 	newHandler().BatchCreate(c)
 	if w.Code >= 500 {
 		t.Fatalf("BatchCreate: got %d", w.Code)

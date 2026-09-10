@@ -114,18 +114,28 @@ func (h *Handler) BatchCreate(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BatchCreate")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.BatchCreate(ctx, tenantID); err != nil {
+	var req models.BatchCreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, "invalid request: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	records, err := h.svc.BatchCreate(ctx, tenantID, req)
+	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	errors.WriteSuccess(c, gin.H{"status": "ok"})
+	errors.WriteSuccess(c, gin.H{"data": records, "total": len(records)})
 }
 
 func (h *Handler) Search(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Search")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	results, err := h.svc.Search(ctx, tenantID)
+	q := models.SearchQuery{
+		Query:  c.Query("query"),
+		Status: c.Query("status"),
+	}
+	results, err := h.svc.Search(ctx, tenantID, q)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -142,5 +152,5 @@ func (h *Handler) GetStats(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	errors.WriteSuccess(c, gin.H{"stats": stats})
+	errors.WriteSuccess(c, stats)
 }

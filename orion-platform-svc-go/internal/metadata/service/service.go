@@ -8,15 +8,17 @@ import (
 
 	"orion/platform-svc-go/internal/metadata/models"
 
-	"github.com/gin-gonic/gin"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
+	BatchCreate(ctx context.Context, tenantID string, items []models.CreateRequest) ([]models.Record, error)
 	Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error)
 	Delete(ctx context.Context, tenantID, id string) error
 	GetByID(ctx context.Context, tenantID, id string) (*models.Record, error)
+	GetStats(ctx context.Context, tenantID string) (*models.Stats, error)
 	List(ctx context.Context, tenantID string) ([]models.Record, error)
+	Search(ctx context.Context, tenantID string, q models.SearchQuery) ([]models.Record, error)
 	Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Record, error)
 }
 
@@ -48,14 +50,17 @@ func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 	return s.repo.Delete(ctx, tenantID, id)
 }
 
-func (s *Service) BatchCreate(ctx context.Context, tenantID string) error {
-	return nil
+func (s *Service) BatchCreate(ctx context.Context, tenantID string, req models.BatchCreateRequest) ([]models.Record, error) {
+	if len(req.Items) == 0 {
+		return []models.Record{}, nil
+	}
+	return s.repo.BatchCreate(ctx, tenantID, req.Items)
 }
 
-func (s *Service) Search(ctx context.Context, tenantID string) ([]string, error) {
-	return []string{}, nil
+func (s *Service) Search(ctx context.Context, tenantID string, q models.SearchQuery) ([]models.Record, error) {
+	return s.repo.Search(ctx, tenantID, q)
 }
 
-func (s *Service) GetStats(ctx context.Context, tenantID string) (gin.H, error) {
-	return gin.H{}, nil
+func (s *Service) GetStats(ctx context.Context, tenantID string) (*models.Stats, error) {
+	return s.repo.GetStats(ctx, tenantID)
 }

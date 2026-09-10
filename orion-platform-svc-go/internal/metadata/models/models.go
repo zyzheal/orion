@@ -27,3 +27,18 @@ type CreateRequest struct {
 	Status string                 `json:"status"`
 	Config map[string]interface{} `json:"config"`
 }
+
+type BatchCreateRequest struct {
+	Items []CreateRequest `json:"items" binding:"required"`
+}
+
+type SearchQuery struct {
+	Query  string `form:"query"`
+	Status string `form:"status"`
+}
+
+type Stats struct {
+	Total       int    `json:"total"`
+	ActiveCount int    `json:"activeCount"`
+	PendingCount int   `json:"pendingCount"`
+}

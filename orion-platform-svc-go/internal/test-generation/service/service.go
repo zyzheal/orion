@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/test-generation/models"
@@ -48,14 +49,83 @@ func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 }
 
 func (s *Service) GenerateTests(ctx context.Context, tenantID, id string) (gin.H, error) {
-	return gin.H{"status": "generated"}, nil
+	rec, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	// Update status to indicate test generation is in progress
+	req := models.CreateRequest{
+		Name:   rec.Name,
+		Status: "generating",
+		Config: rec.Metadata,
+	}
+	updated, err := s.repo.Update(ctx, tenantID, id, req)
+	if err != nil {
+		return nil, err
+	}
+	return gin.H{
+		"id":         updated.ID,
+		"name":       updated.Name,
+		"status":     updated.Status,
+		"updatedAt":  updated.UpdatedAt,
+	}, nil
 }
+
 func (s *Service) GetResults(ctx context.Context, tenantID, id string) ([]string, error) {
-	return []string{}, nil
+	rec, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	// Extract results from metadata
+	results := []string{}
+	if rec.Metadata != nil {
+		if v, ok := rec.Metadata["results"]; ok {
+			if slice, ok := v.([]interface{}); ok {
+				for _, item := range slice {
+					results = append(results, fmt.Sprintf("%v", item))
+		}
+			} else if s, ok := v.(string); ok {
+				results = append(results, s)
+			}
+		}
+	}
+	return results, nil
 }
+
 func (s *Service) ListTemplates(ctx context.Context, tenantID string) (map[string]interface{}, error) {
-	return gin.H{"data": []string{}, "total": 0}, nil
+	records, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, len(records))
+	for i, r := range records {
+		names[i] = r.Name
+	}
+	return map[string]interface{}{
+		"data":  names,
+		"total": len(names),
+	}, nil
 }
+
 func (s *Service) Regenerate(ctx context.Context, tenantID, id string) (gin.H, error) {
-	return gin.H{"message": "regenerated"}, nil
+	rec, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	req := models.CreateRequest{
+		Name:   rec.Name,
+		Status: "regenerating",
+		Config: rec.Metadata,
+	}
+	updated, err := s.repo.Update(ctx, tenantID, id, req)
+	if err != nil {
+		return nil, err
+	}
+	return gin.H{
+		"id":        updated.ID,
+		"name":      updated.Name,
+		"status":    updated.Status,
+		"updatedAt": updated.UpdatedAt,
+		"message":   "regenerated",
+	}, nil
 }
