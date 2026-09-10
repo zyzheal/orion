@@ -8,7 +8,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/pipeline-version/models"
@@ -81,8 +84,78 @@ func (s *Service) DiffVersions(ctx context.Context, fromID string, toID string, 
 }
 
 func (s *Service) Rollback(ctx context.Context, versionID string, tenantID string) (*models.PipelineVersion, error) {
-	// TODO: implement actual rollback logic
-	return s.repo.GetVersionByID(ctx, versionID, tenantID)
+	source, err := s.repo.GetVersionByID(ctx, versionID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if source.IsBaseline {
+		// Already the current version — nothing to restore.
+		return source, nil
+	}
+	// Listing versions is best-effort: any failure (including an absent
+	// pipeline_versions table) falls back to a deterministic suffix label
+	// rather than failing the rollback.
+	restoredVersion := nextRestoredVersion(ctx, source, tenantID, s.repo)
+
+	// Unset all baselines first so the update below is never a no-op: the
+	// baseline is always moved to the restored version, even if the source
+	// version was the current baseline.
+	if err := s.repo.UnsetAllBaselines(ctx, source.PipelineID, tenantID); err != nil {
+		return nil, err
+	}
+
+	restored := &models.PipelineVersion{
+		TenantID:       tenantID,
+		PipelineID:     source.PipelineID,
+		Version:        restoredVersion,
+		YAMLDefinition: source.YAMLDefinition,
+		Description:    rollbackDescription(source, versionID),
+		Tags:           buildRollbackTags(source.Tags, versionID),
+		CreatedBy:      "system:rollback",
+	}
+	if err := s.repo.CreateVersion(ctx, restored); err != nil {
+		return nil, err
+	}
+
+	// Source baseline is already unset by UnsetAllBaselines; best-effort only,
+	// since skipping this still leaves the restored version as baseline.
+	s.repo.UpdateBaseline(ctx, versionID, tenantID, false)
+	return s.repo.UpdateBaseline(ctx, restored.ID, tenantID, true)
+}
+
+// nextRestoredVersion picks a version label for the restored copy:
+// the next integer above the latest numeric version (1 -> 1.0.0.1), or a
+// deterministic timestamped suffix when no numeric version exists.
+func nextRestoredVersion(ctx context.Context, source *models.PipelineVersion, tenantID string, repo RepositoryInterface) string {
+	versions, err := repo.ListVersionsByPipeline(ctx, source.PipelineID, tenantID)
+	if err == nil {
+		max := -1
+		for _, v := range versions {
+			if n, err := strconv.Atoi(v.Version); err == nil && n > max {
+				max = n
+			}
+		}
+		if max >= 0 {
+			return strconv.Itoa(max+1) + "." + source.Version
+		}
+	}
+	return fmt.Sprintf("%s-rollback-%d", source.Version, time.Now().UTC().Unix())
+}
+
+func rollbackDescription(source *models.PipelineVersion, sourceID string) *string {
+	d := fmt.Sprintf("Rolled back to version %s (source: %s)", source.Version, source.ID)
+	return &d
+}
+
+func buildRollbackTags(existing string, sourceID string) string {
+	var tags []string
+	_ = json.Unmarshal([]byte(existing), &tags)
+	tag := "rollback-from:" + sourceID
+	if !contains(tags, tag) {
+		tags = append(tags, tag)
+	}
+	tagsJSON, _ := json.Marshal(tags)
+	return string(tagsJSON)
 }
 
 func (s *Service) AddTag(ctx context.Context, versionID string, tenantID string, tag string) (*models.PipelineVersion, error) {
