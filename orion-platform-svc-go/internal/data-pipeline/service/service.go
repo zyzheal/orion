@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"orion/platform-svc-go/internal/data-pipeline/models"
 )
@@ -15,6 +16,7 @@ type RepositoryInterface interface {
 	Delete(ctx context.Context, tenantID, id string) error
 	GetByID(ctx context.Context, tenantID, id string) (*models.Pipeline, error)
 	List(ctx context.Context, tenantID string) ([]models.Pipeline, error)
+	ListRuns(ctx context.Context, tenantID, pipelineID string) ([]models.PipelineRun, error)
 	Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Pipeline, error)
 	UpdateStatus(ctx context.Context, tenantID, id, status string) (*models.Pipeline, error)
 }
@@ -71,19 +73,40 @@ func (s *Service) Resume(ctx context.Context, tenantID, id string) error {
 }
 
 func (s *Service) GetLogs(ctx context.Context, tenantID, id string) ([]string, error) {
-	// Verify pipeline exists and is accessible; logs would be stored in a
-	// separate run-log table (future).
-	_, err := s.repo.GetByID(ctx, tenantID, id)
+	pipeline, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
-	return []string{}, nil
+	runs, err := s.repo.ListRuns(ctx, tenantID, pipeline.ID)
+	if err != nil {
+		return nil, err
+	}
+	logs := make([]string, 0, len(runs))
+	for _, run := range runs {
+		logs = append(logs, fmt.Sprintf("run %s: status=%s started=%s", run.ID, run.Status, run.StartedAt.Format("2006-01-02T15:04:05Z")))
+	}
+	return logs, nil
 }
 
 func (s *Service) ListSchemas(ctx context.Context, tenantID string) ([]string, error) {
-	// Schemas are managed per-tenant by the DBA / data-platform service; no
-	// direct table in data_pipelines. Return empty for now.
-	return []string{}, nil
+	pipelines, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	schemas := make(map[string]bool)
+	for _, p := range pipelines {
+		if p.SourceTable != "" {
+			schemas[p.SourceTable] = true
+		}
+		if p.TargetTable != "" {
+			schemas[p.TargetTable] = true
+		}
+	}
+	out := make([]string, 0, len(schemas))
+	for s := range schemas {
+		out = append(out, s)
+	}
+	return out, nil
 }
 
 func (s *Service) GetLineage(ctx context.Context, tenantID, id string) (map[string]interface{}, error) {
