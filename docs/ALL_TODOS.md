@@ -2,6 +2,16 @@
 
 > 最后更新: 2026-09-08 (Phase 303) | 分支: `feat/wave2-parallel-execution`
 >
+> ## ⚠️ Stub 误报更正 + domain 接线修复（2026-09-10）
+>
+> 此前记录的「3 个模块 service 层仍为 stub（0 repo 调用）」是**检测误报**——扫描用了 `s.repo.` 字段名，与 domain/graph 的实际字段不匹配。逐项复核：
+>
+> | 模块 | 复核结论 | 依据 |
+> |------|---------|------|
+> | domain | ❌ **误报**，代码全真实现，但有**接线缺陷** | service.go 7 个方法全部委托 `s.bus`/`s.publisher`/`s.eventStore`/`s.proj`（14 处调用），字段名不是 `repo`。但 `wireDomainCQRS` 传入 `(nil, nil)`，读侧从未运行，`GetEventHistory`/`GetLatestVersion`/`RebuildReadModel` 静默返回空。**本轮已修**：接上 `NewPostgreSQLEventStore(db.DB)` + `NewPostgresReadModelProjector(db.DB, eventStore)` |
+> | graph | ❌ **误报**，35 方法已实现 | service.go 通过 `s.nodeRepo`/`s.relRepo` 走 PG（31 处调用）+ `NewServiceInMemory()` 内存回退（26 处）；repository.go 有 7 条真实 SQL；迁移 `253_create_graph_nodes.sql` 存在（graph_nodes + graph_relationships + GIN 索引）。双路径设计，repo 为 nil 时降级内存，不是 stub |
+> | notification | ✅ **真 stub**，service + repository **双层**全 stub | service.go 构造器 `New(_ interface{})` 丢弃依赖，31 个方法全 `return nil, nil`；repository.go 8 个 Repository 类型全为空 struct，57 个方法全 `return nil`。迁移 `migrations/notification/001-009` 定义了 `notifications` 表等，但位于**嵌套目录**，loader `config.go:83` 只扫扁平 `migrations/`，表未被创建。另有平行的 `notification-management` 模块（5 条 SQL + 迁移 149 `notification_managements`）实现度同样低。**尚未实施**，估算 3-5 人日（需先补 loader 递归扫描或迁移文件重编号） |
+>
 > ## ✅ Phase MB-P1-1 canonical 路径已完成（2026-09-10，commit `3d4a6ef4d`）
 >
 > BranchProfile 6 条路由此前仅注册在 `/branch-policy` 分组下（实际 `/api/v1/branch-policy/branch-profiles`），与设计文档 v2 L173-180 及本表 MB-P1-1 规格的 `/api/v1/branch-profiles` 不符，canonical 路径 404。`RegisterRoutes` 末尾补挂 flat 路由，两层路径同指同一 handler，既有消费者不受影响。branch-policy 56 条路由 0 PANIC，路由冲突扫描通过。
