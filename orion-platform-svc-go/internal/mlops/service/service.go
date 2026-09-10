@@ -192,7 +192,18 @@ func (s *Service) RecordMetric(ctx context.Context, tenantID, modelID string, re
 // ==================== Legacy CRUD compatibility ====================
 
 func (s *Service) List(ctx context.Context, tenantID string) ([]models.Record, error) {
-	return nil, nil
+	if !s.hasRepo() {
+		return []models.Record{}, nil
+	}
+	items, err := s.repo.ListModels(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]models.Record, len(items))
+	for i, m := range items {
+		out[i] = models.Record{ID: m.ID, TenantID: m.TenantID, Name: m.Name, Status: m.Status, CreatedAt: m.CreatedAt}
+	}
+	return out, nil
 }
 
 func (s *Service) Get(ctx context.Context, tenantID, id string) (*models.Record, error) {
