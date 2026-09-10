@@ -2,6 +2,10 @@
 
 > 最后更新: 2026-09-08 (Phase 303) | 分支: `feat/wave2-parallel-execution`
 >
+> ## ✅ Phase MB-P2-2-flaky 已完成（2026-09-08）
+>
+> `TestDE_GetAuditTrail_FullChain` 约 20% flake：`Branches` / `Envs` 来自 `fakeRepo.deployEvents`（map）迭代，Go map 顺序不确定，测试硬编码 `[main release]` / `[prod staging]`。改为 `assertUnorderedStrings` 集合断言，50 次 `-count=50` 全绿。新增 helper `assertUnorderedStrings`（`service_test.go:1927`）。
+>
 > ## ✅ Phase MB-P2-2-fix 已完成（2026-09-08，commit `3ce2410e1`）
 >
 > Phase MB-P2-2（commit `17e0bc130`）已交付前端 6 页面 + service 7 stub 真实实现，但其 test 文件 `service_stub_implementations_test.go` 含 2 bug 导致编译失败。本 commit 修复：

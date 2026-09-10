@@ -1925,6 +1925,31 @@ func TestSync_Update_NotFound(t *testing.T) {
 // strPtr is a tiny helper for pointer literals in tests.
 func strPtr(s string) *string { return &s }
 
+// assertUnorderedStrings checks that got and want contain the same
+// elements regardless of order. Used for slices built from map iteration
+// (e.g. fakeRepo.deployEvents), whose order is non-deterministic.
+func assertUnorderedStrings(t *testing.T, got, want []string) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("len(got) = %d (%v), want %d (%v)", len(got), got, len(want), want)
+	}
+	wantSet := make(map[string]int, len(want))
+	for _, w := range want {
+		wantSet[w]++
+	}
+	for _, g := range got {
+		wantSet[g]--
+		if wantSet[g] < 0 {
+			t.Fatalf("unexpected element %q in got %v", g, got)
+		}
+	}
+	for w, n := range wantSet {
+		if n > 0 {
+			t.Fatalf("missing %d× %q in got %v", n, w, got)
+		}
+	}
+}
+
 // ============================================================================
 // P0-MB Phase 4 — L5 DeployEvent + one-click rollback + AuditTrail tests
 // ============================================================================
@@ -2438,12 +2463,10 @@ func TestDE_GetAuditTrail_FullChain(t *testing.T) {
 	if len(res.Events) != 3 {
 		t.Fatalf("events = %d, want 3", len(res.Events))
 	}
-	if len(res.Branches) != 2 || res.Branches[0] != "main" || res.Branches[1] != "release" {
-		t.Fatalf("branches = %v, want [main release]", res.Branches)
-	}
-	if len(res.Envs) != 2 || res.Envs[0] != "prod" || res.Envs[1] != "staging" {
-		t.Fatalf("envs = %v, want [prod staging]", res.Envs)
-	}
+	// Branches and Envs come from map iteration (fakeRepo.deployEvents),
+	// so order is non-deterministic — assert as a set instead.
+	assertUnorderedStrings(t, res.Branches, []string{"main", "release"})
+	assertUnorderedStrings(t, res.Envs, []string{"prod", "staging"})
 	if len(res.ArtifactIDs) != 3 {
 		t.Fatalf("artifactIds = %v, want 3 unique", res.ArtifactIDs)
 	}

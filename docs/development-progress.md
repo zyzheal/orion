@@ -4334,6 +4334,7 @@ $ git diff --cached --name-only | grep -E "migrations/dba|orion-frontend/src/api
 - **Phase H.1**（Prometheus + Composite AnonymousTracker）：✅ `e4ff165bf`
 - **Phase MB-P2-2**（前端 6 页面 + service 7 stub 真实实现）：✅ `17e0bc130`
 - **Phase MB-P2-2-fix**（test 文件 2 bug 修复）：✅ `3ce2410e1`
+- **Phase MB-P2-2-flaky**（GetAuditTrail map 迭代 flaky 修复 + assertUnorderedStrings helper）：✅
 
 ### 剩余任务（Phase A-H.1 全部深度解决后）
 
