@@ -2,6 +2,5 @@
 
 -- WARNING: Data loss may occur. Backup is taken automatically by RunMigrationsDown.
 
-DROP INDEX IF EXISTS "idx_records_created";
-
-DROP INDEX IF EXISTS "idx_records_tenant";
+-- No-op: the data_pipelines table is managed by migrations 237/249.
+-- The generic 'records' table was removed from this migration.

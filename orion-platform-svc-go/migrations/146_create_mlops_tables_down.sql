@@ -2,6 +2,5 @@
 
 -- WARNING: Data loss may occur. Backup is taken automatically by RunMigrationsDown.
 
-DROP INDEX IF EXISTS "idx_records_created";
-
-DROP INDEX IF EXISTS "idx_records_tenant";
+-- No-op: the mlops_models table is managed by migration 375.
+-- The generic 'records' table was removed from this migration.

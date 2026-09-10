@@ -1,16 +1,5 @@
--- Mlops module tables (auto-generated)
-
-CREATE TABLE IF NOT EXISTS records (
-    id VARCHAR(36) PRIMARY KEY,
-    tenant_id VARCHAR(36) NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    status VARCHAR(255) NOT NULL,
-    metadata JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
-);
-
-CREATE INDEX IF NOT EXISTS idx_records_tenant ON records(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_records_created ON records(created_at DESC);
+-- Mlops module tables
+-- The actual mlops_models table is created in migration 375 (mlops_tables.sql)
+-- with a dedicated domain-specific schema. This migration no longer creates the
+-- generic 'records' table (which was shared across 12+ modules).
 

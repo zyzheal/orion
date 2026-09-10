@@ -2,12 +2,17 @@ package models
 
 import "time"
 
+const StatusActive = "active"
+
 type Record struct {
-	ID        string    `json:"id" db:"id"`
-	TenantID  string    `json:"tenantId" db:"tenant_id"`
-	Name      string    `json:"name" db:"name"`
-	Status    string    `json:"status" db:"status"`
-	CreatedAt time.Time `json:"createdAt" db:"created_at"`
+	ID        string                 `json:"id" db:"id"`
+	TenantID  string                 `json:"tenantId" db:"tenant_id"`
+	Name      string                 `json:"name" db:"name"`
+	Status    string                 `json:"status" db:"status"`
+	Metadata  map[string]interface{} `json:"metadata" db:"-"`
+	CreatedAt time.Time              `json:"createdAt" db:"created_at"`
+	UpdatedAt time.Time              `json:"updatedAt" db:"updated_at"`
+	DeletedAt *time.Time             `json:"-" db:"deleted_at"`
 }
 
 type ListQuery struct {
