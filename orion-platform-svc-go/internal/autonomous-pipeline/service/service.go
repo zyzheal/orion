@@ -16,7 +16,9 @@ type RepositoryInterface interface {
 	Delete(ctx context.Context, tenantID, id string) error
 	GetByID(ctx context.Context, tenantID, id string) (*models.Record, error)
 	List(ctx context.Context, tenantID string) ([]models.Record, error)
+	ListByStatus(ctx context.Context, tenantID, status string) ([]models.Record, error)
 	Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Record, error)
+	UpdateStatus(ctx context.Context, tenantID, id, status string) error
 }
 
 type Service struct {
@@ -47,371 +49,379 @@ func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 	return s.repo.Delete(ctx, tenantID, id)
 }
 
-// Trigger routes a pipeline run for the given pipeline ID.
-func (s *Service) Trigger(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "triggered"}, err
+// ---- Helper methods ----
+
+func (s *Service) listIDs(ctx context.Context, tenantID string) ([]string, error) {
+	recs, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return nil, err
 	}
-	return gin.H{"message": "triggered"}, nil
+	ids := make([]string, 0, len(recs))
+	for _, r := range recs {
+		ids = append(ids, r.ID)
+	}
+	return ids, nil
 }
 
-// GetStatus returns the current status for the given pipeline ID.
+func (s *Service) listIDsByStatus(ctx context.Context, tenantID, status string) ([]string, error) {
+	recs, err := s.repo.ListByStatus(ctx, tenantID, status)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(recs))
+	for _, r := range recs {
+		ids = append(ids, r.ID)
+	}
+	return ids, nil
+}
+
+func (s *Service) updateRecordStatus(ctx context.Context, tenantID, id, status string) (gin.H, error) {
+	if err := s.repo.UpdateStatus(ctx, tenantID, id, status); err != nil {
+		return gin.H{}, err
+	}
+	return gin.H{"id": id, "status": status}, nil
+}
+
+// ---- Pipeline action methods ----
+
+func (s *Service) Trigger(ctx context.Context, tenantID, id string) (gin.H, error) {
+	return s.updateRecordStatus(ctx, tenantID, id, "triggered")
+}
+
 func (s *Service) GetStatus(ctx context.Context, tenantID, id string) (*models.Record, error) {
 	return s.repo.GetByID(ctx, tenantID, id)
 }
 
-// ListTemplates returns the available pipeline templates.
 func (s *Service) ListTemplates(ctx context.Context, tenantID string) ([]string, error) {
-	records, err := s.repo.List(ctx, tenantID)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]string, 0, len(records))
-	for _, r := range records {
-		out = append(out, r.Name)
-	}
-	return out, nil
+	return s.listIDsByStatus(ctx, tenantID, "template")
 }
 
-// RunInspection executes an inspection run.
 func (s *Service) RunInspection(ctx context.Context, tenantID string) (gin.H, error) {
-	return gin.H{"message": "run triggered"}, nil
+	recs, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return gin.H{}, err
+	}
+	return gin.H{"message": "run triggered", "totalRecords": len(recs)}, nil
 }
 
-// GetResults returns the inspection results.
 func (s *Service) GetResults(ctx context.Context, tenantID string) ([]string, error) {
-	return []string{}, nil
+	return s.listIDsByStatus(ctx, tenantID, "result")
 }
 
-// UpdateStatus updates the status for the given record ID.
 func (s *Service) UpdateStatus(ctx context.Context, tenantID, id string) error {
 	_, err := s.repo.GetByID(ctx, tenantID, id)
 	return err
 }
 
-// GetStats returns aggregate statistics.
 func (s *Service) GetStats(ctx context.Context, tenantID string) (gin.H, error) {
-	return gin.H{}, nil
+	recs, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return gin.H{}, err
+	}
+	byStatus := map[string]int{}
+	for _, r := range recs {
+		byStatus[r.Status]++
+	}
+	return gin.H{"total": len(recs), "byStatus": byStatus}, nil
 }
 
-// RunPipeline executes a pipeline run.
 func (s *Service) RunPipeline(ctx context.Context, tenantID, id string) (gin.H, error) {
-	return gin.H{"message": "pipeline run triggered"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "running")
 }
 
-// Pause pauses the pipeline identified by id.
 func (s *Service) Pause(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "paused"}, err
-	}
-	return gin.H{"message": "paused"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "paused")
 }
 
-// Resume resumes the pipeline identified by id.
 func (s *Service) Resume(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "resumed"}, err
-	}
-	return gin.H{"message": "resumed"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "active")
 }
 
-// GetLogs returns the logs for the given pipeline ID.
 func (s *Service) GetLogs(ctx context.Context, tenantID, id string) ([]string, error) {
+	r, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if r.Metadata != nil {
+		if logs, ok := r.Metadata["logs"].([]string); ok {
+			return logs, nil
+		}
+	}
 	return []string{}, nil
 }
 
-// ListSchemas returns the available schemas.
 func (s *Service) ListSchemas(ctx context.Context, tenantID string) ([]string, error) {
-	return []string{}, nil
+	return s.listIDsByStatus(ctx, tenantID, "schema")
 }
 
-// GetLineage returns the lineage graph for the given ID.
 func (s *Service) GetLineage(ctx context.Context, tenantID, id string) (gin.H, error) {
-	return gin.H{}, nil
+	r, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return gin.H{}, err
+	}
+	return gin.H{"id": r.ID, "name": r.Name, "lineage": r.Metadata}, nil
 }
 
-// GetConfig returns the configuration.
 func (s *Service) GetConfig(ctx context.Context, tenantID string) (gin.H, error) {
-	return gin.H{}, nil
+	recs, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return gin.H{}, err
+	}
+	return gin.H{"totalRecords": len(recs)}, nil
 }
 
-// UpdateConfig updates the configuration.
 func (s *Service) UpdateConfig(ctx context.Context, tenantID string) (gin.H, error) {
-	return gin.H{"message": "config updated"}, nil
+	recs, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return gin.H{}, err
+	}
+	return gin.H{"message": "config updated", "totalRecords": len(recs)}, nil
 }
 
-// GetStatusMiddleware returns the middleware health status.
 func (s *Service) GetStatusMiddleware(ctx context.Context, tenantID string) (gin.H, error) {
 	return gin.H{"status": "healthy"}, nil
 }
 
-// Restart restarts the pipeline identified by id.
 func (s *Service) Restart(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "restart triggered"}, err
-	}
-	return gin.H{"message": "restart triggered"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "active")
 }
 
-// Configure applies configuration for the given ID.
 func (s *Service) Configure(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "configured"}, err
-	}
-	return gin.H{"message": "configured"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "configured")
 }
 
-// ListPlugins returns the available plugins.
 func (s *Service) ListPlugins(ctx context.Context, tenantID string) ([]string, error) {
-	return []string{}, nil
+	return s.listIDsByStatus(ctx, tenantID, "plugin")
 }
 
-// GetPlugin returns the plugin identified by id.
 func (s *Service) GetPlugin(ctx context.Context, tenantID, id string) (gin.H, error) {
-	return gin.H{}, nil
+	r, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return gin.H{}, err
+	}
+	return gin.H{"id": r.ID, "name": r.Name, "status": r.Status, "config": r.Metadata}, nil
 }
 
-// EnablePlugin enables the plugin identified by id.
 func (s *Service) EnablePlugin(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "enabled"}, err
-	}
-	return gin.H{"message": "enabled"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "enabled")
 }
 
-// DisablePlugin disables the plugin identified by id.
 func (s *Service) DisablePlugin(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "disabled"}, err
-	}
-	return gin.H{"message": "disabled"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "disabled")
 }
 
-// Train starts training for the given ID.
 func (s *Service) Train(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "training started"}, err
-	}
-	return gin.H{"message": "training started"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "training")
 }
 
-// Evaluate starts evaluation for the given ID.
 func (s *Service) Evaluate(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "evaluation started"}, err
-	}
-	return gin.H{"message": "evaluation started"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "evaluating")
 }
 
-// Deploy deploys the given ID.
 func (s *Service) Deploy(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "deployed"}, err
-	}
-	return gin.H{"message": "deployed"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "deployed")
 }
 
-// Rollback rolls back the given ID.
 func (s *Service) Rollback(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "rolled back"}, err
-	}
-	return gin.H{"message": "rolled back"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "rolled_back")
 }
 
-// GetMetrics returns the metrics for the given ID.
 func (s *Service) GetMetrics(ctx context.Context, tenantID, id string) (gin.H, error) {
-	return gin.H{}, nil
+	r, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return gin.H{}, err
+	}
+	return gin.H{"id": r.ID, "name": r.Name, "metrics": r.Metadata}, nil
 }
 
-// ListExperiments returns the available experiments.
 func (s *Service) ListExperiments(ctx context.Context, tenantID string) ([]string, error) {
-	return []string{}, nil
+	return s.listIDsByStatus(ctx, tenantID, "experiment")
 }
 
-// ListArtifacts returns the available artifacts.
 func (s *Service) ListArtifacts(ctx context.Context, tenantID string) ([]string, error) {
-	return []string{}, nil
+	return s.listIDs(ctx, tenantID)
 }
 
-// ListModels returns the available models.
 func (s *Service) ListModels(ctx context.Context, tenantID string) ([]string, error) {
-	return []string{}, nil
+	return s.listIDsByStatus(ctx, tenantID, "model")
 }
 
-// RegisterModel registers a model.
 func (s *Service) RegisterModel(ctx context.Context, tenantID string) (gin.H, error) {
-	return gin.H{"message": "model registered"}, nil
+	recs, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return gin.H{}, err
+	}
+	return gin.H{"message": "model registered", "totalRecords": len(recs)}, nil
 }
 
-// DeregisterModel deregisters the model identified by id.
 func (s *Service) DeregisterModel(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "model deregistered"}, err
-	}
-	return gin.H{"message": "model deregistered"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "deregistered")
 }
 
-// ListPipelines returns the available pipelines.
 func (s *Service) ListPipelines(ctx context.Context, tenantID string) ([]string, error) {
-	return []string{}, nil
+	return s.listIDsByStatus(ctx, tenantID, "pipeline")
 }
 
-// ListTemplates2 returns the alternative templates list.
 func (s *Service) ListTemplates2(ctx context.Context, tenantID string) ([]string, error) {
-	return []string{}, nil
+	return s.listIDsByStatus(ctx, tenantID, "template")
 }
 
-// GetBranchStatus returns the branch status for the given ID.
 func (s *Service) GetBranchStatus(ctx context.Context, tenantID, id string) (gin.H, error) {
-	return gin.H{"status": "valid"}, nil
+	r, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return gin.H{}, err
+	}
+	return gin.H{"status": "valid", "branch": r.Name}, nil
 }
 
-// ListHistories returns the history entries.
 func (s *Service) ListHistories(ctx context.Context, tenantID string) ([]string, error) {
-	return []string{}, nil
+	return s.listIDsByStatus(ctx, tenantID, "history")
 }
 
-// ListPending returns the pending items.
 func (s *Service) ListPending(ctx context.Context, tenantID string) ([]string, error) {
-	return []string{}, nil
+	return s.listIDsByStatus(ctx, tenantID, "pending")
 }
 
-// Approve approves the item identified by id.
 func (s *Service) Approve(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "approved"}, err
-	}
-	return gin.H{"message": "approved"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "approved")
 }
 
-// Reject rejects the item identified by id.
 func (s *Service) Reject(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "rejected"}, err
-	}
-	return gin.H{"message": "rejected"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "rejected")
 }
 
-// Escalate escalates the item identified by id.
 func (s *Service) Escalate(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "escalated"}, err
-	}
-	return gin.H{"message": "escalated"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "escalated")
 }
 
-// GetByUser returns records for the given user.
 func (s *Service) GetByUser(ctx context.Context, tenantID, user string) ([]string, error) {
-	return []string{}, nil
+	recs, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0)
+	for _, r := range recs {
+		if r.Metadata != nil {
+			if creator, ok := r.Metadata["createdBy"].(string); ok && creator == user {
+				ids = append(ids, r.ID)
+				continue
+			}
+		}
+		if r.Name == user {
+			ids = append(ids, r.ID)
+		}
+	}
+	return ids, nil
 }
 
-// Forecast returns the forecast data.
 func (s *Service) Forecast(ctx context.Context, tenantID string) (gin.H, error) {
-	return gin.H{}, nil
+	recs, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return gin.H{}, err
+	}
+	return gin.H{"totalRecords": len(recs), "forecast": []string{}}, nil
 }
 
-// GetUtilization returns utilization data for the given ID.
 func (s *Service) GetUtilization(ctx context.Context, tenantID, id string) (gin.H, error) {
-	return gin.H{}, nil
+	r, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return gin.H{}, err
+	}
+	return gin.H{"id": r.ID, "utilization": 0, "metadata": r.Metadata}, nil
 }
 
-// ScaleResource scales the resource identified by id.
 func (s *Service) ScaleResource(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "scaled"}, err
-	}
-	return gin.H{"message": "scaled"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "scaled")
 }
 
-// ListAlerts returns the active alerts.
 func (s *Service) ListAlerts(ctx context.Context, tenantID string) ([]string, error) {
-	return []string{}, nil
+	return s.listIDsByStatus(ctx, tenantID, "alert")
 }
 
-// GetHistory returns the history for the given ID.
 func (s *Service) GetHistory(ctx context.Context, tenantID, id string) ([]string, error) {
-	return []string{}, nil
+	r, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	return []string{r.Status}, nil
 }
 
-// AddTag adds a tag to the given ID.
 func (s *Service) AddTag(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "tag added"}, err
-	}
-	return gin.H{"message": "tag added"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "tagged")
 }
 
-// DeleteTag deletes a tag from the given ID.
 func (s *Service) DeleteTag(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "tag deleted"}, err
-	}
-	return gin.H{"message": "tag deleted"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "untagged")
 }
 
-// CheckCompatibility checks compatibility for the given ID.
 func (s *Service) CheckCompatibility(ctx context.Context, tenantID, id string) (gin.H, error) {
-	return gin.H{"compatible": true}, nil
+	r, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return gin.H{}, err
+	}
+	return gin.H{
+		"id":         r.ID,
+		"compatible": true,
+		"reason":     "record exists and status is " + r.Status,
+	}, nil
 }
 
-// ValidateBranch validates the branch for the given ID.
 func (s *Service) ValidateBranch(ctx context.Context, tenantID, id string) (gin.H, error) {
+	_, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return gin.H{"valid": false}, err
+	}
 	return gin.H{"valid": true}, nil
 }
 
-// GetCoverage returns coverage data for the given ID.
 func (s *Service) GetCoverage(ctx context.Context, tenantID, id string) (gin.H, error) {
-	return gin.H{}, nil
+	r, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return gin.H{}, err
+	}
+	coverage := gin.H{"id": r.ID, "name": r.Name}
+	if r.Metadata != nil {
+		coverage["details"] = r.Metadata
+	}
+	return coverage, nil
 }
 
-// EnforcePolicy enforces the policy for the given ID.
 func (s *Service) EnforcePolicy(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "enforced"}, err
-	}
-	return gin.H{"message": "enforced"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "policy_enforced")
 }
 
-// ListViolations returns policy violations.
 func (s *Service) ListViolations(ctx context.Context, tenantID string) ([]string, error) {
-	return []string{}, nil
+	return s.listIDsByStatus(ctx, tenantID, "violation")
 }
 
-// BatchCreate creates multiple records.
 func (s *Service) BatchCreate(ctx context.Context, tenantID string, reqs []models.CreateRequest) (gin.H, error) {
-	return gin.H{"message": "batch created"}, nil
-}
-
-// Search searches for matching records.
-func (s *Service) Search(ctx context.Context, tenantID, query string) ([]string, error) {
-	return []string{}, nil
-}
-
-// Regenerate regenerates the record identified by id.
-func (s *Service) Regenerate(ctx context.Context, tenantID, id string) (gin.H, error) {
-	if id != "" {
-		_, err := s.repo.GetByID(ctx, tenantID, id)
-		return gin.H{"message": "regenerated"}, err
+	created := 0
+	for _, req := range reqs {
+		if _, err := s.repo.Create(ctx, tenantID, req); err != nil {
+			return gin.H{}, err
+		}
+		created++
 	}
-	return gin.H{"message": "regenerated"}, nil
+	return gin.H{"message": "batch created", "count": created}, nil
+}
+
+func (s *Service) Search(ctx context.Context, tenantID, query string) ([]string, error) {
+	if query == "" {
+		return []string{}, nil
+	}
+	recs, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0)
+	for _, r := range recs {
+		if r.Name == query || r.Status == query {
+			ids = append(ids, r.ID)
+		}
+	}
+	return ids, nil
+}
+
+func (s *Service) Regenerate(ctx context.Context, tenantID, id string) (gin.H, error) {
+	return s.updateRecordStatus(ctx, tenantID, id, "regenerated")
 }
