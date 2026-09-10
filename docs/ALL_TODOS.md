@@ -1,6 +1,15 @@
 # Orion 平台 — 所有待办汇总（单一权威来源）
 
 > 最后更新: 2026-09-08 (Phase 303) | 分支: `feat/wave2-parallel-execution`
+>
+> ## ✅ Phase MB-P2-2-fix 已完成（2026-09-08，commit `3ce2410e1`）
+>
+> Phase MB-P2-2（commit `17e0bc130`）已交付前端 6 页面 + service 7 stub 真实实现，但其 test 文件 `service_stub_implementations_test.go` 含 2 bug 导致编译失败。本 commit 修复：
+>
+> 1. **TestGetCoverage_ComputesCountsAndPct**：`got` 变量在 `if` 块内声明但在块外使用 → `undefined: got` 编译错误。拆成 `coveragePctRaw` 包级变量。
+> 2. **TestListViolations_NoViolationsWhenAllGood**：LTS profile 缺少 `MergeTargets`，违反「non-main branch must have merge targets」规则 → 测试期望"无违规"但实际产生 1 违规。补 `MergeTargets=[main]`。
+>
+> `go test ./internal/branch-policy/service/` 全绿。
 > 数据来源: `architecture-review-2026-08-01.md` + `CROSS_VALIDATION_REPORT.md` + `merged-action-items-2026-07-27.md` + `structure-overlap-verification-2026-08-01.md` + `three-domain-depth-analysis-2026-08-01.md` + `flagship-review-v3.6-delta-2026-09-08.md`
 > 状态: ✅ **已通过专家评审核实** (2026-08-01)，以下为**当前有效清单**
 >
