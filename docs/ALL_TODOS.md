@@ -1,6 +1,27 @@
 # Orion 平台 — 所有待办汇总（单一权威来源）
 
-> 最后更新: 2026-09-08 (Phase 303) | 分支: `feat/wave2-parallel-execution`
+> 最后更新: 2026-08-26 (Stub Elimination Wave 2) | 分支: `feat/wave2-parallel-execution`
+>
+> ## ✅ Stub Elimination Wave 2 已完成（2026-08-26）
+>
+> 本轮完成 3 个模块的 live stub 消除，所有 service 方法均已用真实实现替换：
+>
+> | 模块 | Stub 数量 | 修复方式 | Commit |
+> |------|----------|---------|--------|
+> | autonomous-pipeline | 24 | ListByStatus + UpdateStatus + 辅助方法 | cd7d431dc |
+> | branch-policy | ~40 | ListByStatus + UpdateStatus + 辅助方法 + fakeRepo 更新 | bc707d2fe |
+> | mlops | 1 (List) | 委托 ListModels + Record 转换 | a49787d56 |
+> | data-pipeline | 2 (GetLogs, ListSchemas) | PipelineRun 查询 + SourceTable/TargetTable 收集 | 217288f82 |
+>
+> 全面扫描确认：325 个 service.go 文件中无残留 stub（`return gin.H{}, nil` / `return nil, nil` 模式均为 guard clause 或错误处理）。
+>
+> ## ⚠️ 已知技术债（非 stub）
+>
+> - **domain**：接线缺陷已修复（PostgresEventStore + ReadModelProjector）
+> - **notification**：service + repository 双层全 stub，需先补 migration loader 递归扫描
+>
+> 数据来源: `architecture-review-2026-08-01.md` + `CROSS_VALIDATION_REPORT.md` + `merged-action-items-2026-07-27.md`
+> 状态: ✅ **Stub 消除已完成**
 >
 > ## ⚠️ Stub 误报更正 + domain 接线修复（2026-09-10）
 >
