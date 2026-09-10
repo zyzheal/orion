@@ -13,6 +13,8 @@ type RepositoryInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error)
 	Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Record, error)
 	Delete(ctx context.Context, tenantID, id string) error
+	ListByStatus(ctx context.Context, tenantID, status string) ([]models.Record, error)
+	UpdateStatus(ctx context.Context, tenantID, id, status string) error
 }
 
 // Ensure Repository implements RepositoryInterface.
