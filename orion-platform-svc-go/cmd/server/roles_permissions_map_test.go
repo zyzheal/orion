@@ -79,7 +79,19 @@ func TestRolesPermissionsMapServed(t *testing.T) {
 	}
 	t.Logf("permissions-map served %d roles", len(env.Data))
 
-	// 2. The static sibling must not have displaced the /roles/:id wildcard.
+	// 2. PERM-7 regression guard: /roles/permissions-map must stay UNGUARDED.
+	// This endpoint exists so usePermission.ts derives menu locks from the live
+	// permission table instead of a hardcoded client copy. Under the current
+	// wiring (OptionalAuth off by default) a guard would 403 every caller and
+	// the client would silently fall back to its stale copy, undoing PERM-7.
+	// PERM-8 stage 2 must handle this endpoint deliberately — e.g. keep it
+	// unguarded or exempt it — rather than mounting a blanket guard.
+	wMap := do(http.MethodGet, "/api/v1/roles/permissions-map", "")
+	if wMap.Code != http.StatusOK {
+		t.Fatalf("GET /roles/permissions-map = %d, want 200 — it must stay unguarded to keep PERM-7 working: %s", wMap.Code, wMap.Body.String())
+	}
+
+	// 3. The static sibling must not have displaced the /roles/:id wildcard.
 	w = do(http.MethodGet, "/api/v1/roles", "")
 	if w.Code == http.StatusForbidden {
 		t.Fatalf("GET /roles answered 403 — the unguarded list endpoint is now behind a guard")

@@ -2,6 +2,19 @@
 
 > 最后更新: 2026-09-08 (Phase 303) | 分支: `feat/wave2-parallel-execution`
 >
+> ## ✅ Phase MB-P1-1 canonical 路径已完成（2026-09-10，commit `3d4a6ef4d`）
+>
+> BranchProfile 6 条路由此前仅注册在 `/branch-policy` 分组下（实际 `/api/v1/branch-policy/branch-profiles`），与设计文档 v2 L173-180 及本表 MB-P1-1 规格的 `/api/v1/branch-profiles` 不符，canonical 路径 404。`RegisterRoutes` 末尾补挂 flat 路由，两层路径同指同一 handler，既有消费者不受影响。branch-policy 56 条路由 0 PANIC，路由冲突扫描通过。
+>
+> ## ✅ Phase PERM-8 阶段 2 铺路已完成（2026-09-10）
+>
+> 阶段 2（切严格 `auth.Auth`）是破坏性变更，仍需客户端迁移计划；本轮完成两项非破坏性铺路：
+>
+> 1. **PERM-7 回归保护**：`roles_permissions_map_test.go` 新增断言 2，把 `/roles/permissions-map` 必须返回 200 显式钉住。该端点是 PERM-7 修复的核心（前端 `usePermission.ts` 从此接口取活权限表，不维护硬编码副本），若加 `RequirePermission` 守卫会在当前接线下一律 403 并回退到过期硬编码副本。**阶段 2 落地时必须对此端点做显式决策**（保持无守卫或豁免），不能靠批量加守卫带过。`optional_auth_test.go:141-147` 已覆盖「开认证模式」下的同断言，两者互补覆盖开/关两种接线。
+> 2. **不补守卫的理由归档**：handler.go L53-58 的刻意无守卫注释已核实有效，PERM-8 阶段 2 的守卫补齐应排除该端点。
+>
+> 追踪基础设施（阶段 2 迁移数据源）已就位：`OptionalAuth` + `AnonymousTracker` 双写（`orion_anonymous_requests_total` Prometheus counter + 限流 Zap 日志，10 分钟桶清理），见 router.go L64-97。阶段 2 切换前应先从该 counter 导出**未认证端点清单**作为豁免/迁移输入。
+>
 > ## ✅ Phase MB-P2-2-flaky 已完成（2026-09-08）
 >
 > `TestDE_GetAuditTrail_FullChain` 约 20% flake：`Branches` / `Envs` 来自 `fakeRepo.deployEvents`（map）迭代，Go map 顺序不确定，测试硬编码 `[main release]` / `[prod staging]`。改为 `assertUnorderedStrings` 集合断言，50 次 `-count=50` 全绿。新增 helper `assertUnorderedStrings`（`service_test.go:1927`）。
@@ -755,7 +768,7 @@ C. 完全缺失（企业必需）
 | ~~PERM-6~~ | AI 端点权限定义（新增 `:ai` action） | 🟡 中 | ✅ 2026-08-26 — **保守切片**：security_admin 授予 `ai:read` + `ai-security:*` + `ai-review:*`（安全域直接负责的子模块）；其他角色**保持零 `ai:*` 授权**（决策待定：是否给 developer/tech_lead/sre/viewer 授予 AI 使用权需单独评审）。后端 `rolePermissions` + 前端 `ROLE_PERMISSIONS_FALLBACK` 双镜像；新增 `role_permissions_test.go` 4 个后端测试 + `usePermission.test.ts` 11 个前端测试；`llm` / `skill` / `intelligence` / `agent` / `ai-gateway` / `ai-cost` / `ai-agent-run` / `ai_models` 等资源仍在「决策待定」清单 |
 | ~~PERM-7~~ | 后端补 `GET /roles/permissions-map` | 🟡 中 | ✅ 2026-08-29 — 见上方已完成清单（路由 3446→3447） |
 | ~~PERM-8 阶段 1~~ | **可选认证中间件上线（默认关闭）** — 抽出 `ParseClaims` / `jwtKeyfunc` / `applyClaims`，`Auth` 改薄封装且 7 条 401 文案逐字保留；新增 `auth.OptionalAuth`（**从不 abort / 401 / 403**）；`router.go` 按 `AUTH_OPTIONAL_ENABLED` 挂载 | 🔴 高 | ✅ 2026-08-29 — `OptionalAuth` 让带 token 的调用方获得真实身份、守卫真正生效；无 token 调用方逐字不变（同一 403、同一 `no role assigned` 响应体），带守卫请求**只能 403→200、不可能 200→401**；严格 `auth.Auth` 刻意不挂（会 401 整个无 token 客户端盘）；`optional_auth_test.go` 3 个测试 + 4 处 `auth.Auth` LIVE 调用点全部兼容 |
-| **PERM-8 阶段 2** | **切严格 `auth.Auth`** — 平台服务从未挂过 `auth.Auth`，`c.Set("role", …)` 全仓库只有 `pkg/auth/middleware.go` 一处且在 `auth.Auth` 内，导致 **3640 处守卫对每个调用方都 403**（`GET /roles` 无守卫→500 可达，`POST /roles` 有守卫→403 "no role assigned"） | 🔴 高 | ⬜ 待做（**破坏性变更，需客户端迁移计划**：接上后所有无 token 调用立刻 401，且 `auth.Auth` 强制要求 `tenant_id` claim；落地后要补 `/roles/permissions-map` 守卫并翻转 `roles_permissions_map_test.go` 第 3 条断言） |
+| **PERM-8 阶段 2** | **切严格 `auth.Auth`** — 平台服务从未挂过 `auth.Auth`，`c.Set("role", …)` 全仓库只有 `pkg/auth/middleware.go` 一处且在 `auth.Auth` 内，导致 **3640 处守卫对每个调用方都 403**（`GET /roles` 无守卫→500 可达，`POST /roles` 有守卫→403 "no role assigned"） | 🔴 高 | ⬜ 待做（**破坏性变更，需客户端迁移计划**：接上后所有无 token 调用立刻 401，且 `auth.Auth` 强制要求 `tenant_id` claim）。**2026-09-10 铺路 + 修正**：原计划「补 `/roles/permissions-map` 守卫」已证伪——该端点是 PERM-7 修复的核心，加守卫会在当前接线下一律 403，前端 `usePermission.ts` 静默回退到过期硬编码副本，直接回退 PERM-7；阶段 2 必须**排除**该端点。`roles_permissions_map_test.go` 第 3 条断言（`POST /roles` = 403）已存在且正确，无需翻转，已在其后新增断言 2 钉住 permissions-map = 200 作为回归保护（`optional_auth_test.go:141-147` 覆盖开认证模式下的同断言，两者互补）。切换前应先从 `orion_anonymous_requests_total` counter 导出未认证端点清单作为豁免/迁移输入 |
 | ~~PERM-9~~ | **多角色语义对齐** — 四个守卫原先只读单角色 `c.Get("role")`，忽略 `auth.Auth` 与 `auth.OptionalAuth` 都已写进 context 的 `c.Set("roles", …)` 多角色数组；前端 `matchPermission` 是多角色遍历，两边语义不一致 | 🟡 中 | ✅ 2026-08-29 — 见上方已完成清单；四个守卫全改走 `GetRoles(c)`，并集语义与前端对齐；`GetRoles` 加固（`roles` 存在但为空也回退单 `role`）；两条 403 文案逐字保留；认证默认关闭时行为零变化；守卫层 8 子测试 + 端到端 1 测试，变异验证已做 |
 
 ### 前端工作台（UI，6 阶段 19 人天）
