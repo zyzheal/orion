@@ -27,6 +27,13 @@
 - ✅ mlops: 1 stub (List) → ListModels delegation (commit a49787d56)
 - ✅ data-pipeline: 2 stubs (GetLogs, ListSchemas) → real implementations (commit 217288f82)
 - 📊 全面扫描: 325 service.go 文件，0 残留 stub
+- ✅ pipeline-version: Rollback 实现 + 162 migration 语法修复 (commit 1864c371f)
+- ✅ **复核补充** (commit 7a8dd0618)：middleware-ops 6 个「连通性检查 + 空 map 返回」stub → 记录派生实现（GetStats/GetConfig/GetMetrics/Forecast/GetUtilization/GetCoverage）+ 11 个新测试
+- 🐛 修复 pipeline-version `truncateVersionLabel`：超长版本标签原先从右侧截断，削掉 `-rollback-<unix>` 标记；现优先截断源标签、保留标记
+- 🐛 修复 pipeline-version `Rollback` 基线顺序：无事务下先清基线再插入，插入失败会使流水线零基线；改为先插入克隆
+- 🐛 修复 `fakePipelineVersionRepo.createFn` 钩子提前 return 未持久化，导致 `UpdateBaseline` 误报 NotFound
+- 📊 全量验证: `go build ./...` 通过，558 测试包全部通过，0 失败
+- ✅ FORBIDDEN 验证: staged 文件 0 命中禁提交路径（git add 前 + commit 前各验一次）
 
 ### 2026-08-26
 

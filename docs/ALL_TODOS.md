@@ -15,6 +15,24 @@
 >
 > 全面扫描确认：325 个 service.go 文件中无残留 stub（`return gin.H{}, nil` / `return nil, nil` 模式均为 guard clause 或错误处理）。
 >
+> ### ✅ Stub Elimination Wave 2 复核补充（2026-08-26，commit `7a8dd0618`）
+>
+> 首轮的「guard clause 排除」正则漏判了一类模式：**方法主体只有连通性检查 + 返回空容器**（`s.repo.List` 成功后 `return map[string]interface{}{}, nil`）。这类调用真实 DB 但产出 0 信息，按 stub 定义应消除。复核命中并修复：
+>
+> | 模块 | Stub 数量 | 方法 | 修复方式 |
+> |------|----------|------|---------|
+> | middleware-ops | 6 | GetStats, GetConfig, GetMetrics, Forecast, GetUtilization, GetCoverage | 从记录集派生真实指标（总数/状态分布/存活年龄均值/创建速率线性外推/利用率/覆盖率） |
+>
+> 新增 `countByStatus` / `statusOf` / `activeShare` / `recordNames` / `rfc3339OrEmpty` 共享辅助函数，新增 `service_test.go`（11 用例，含空仓库防除零回归）。
+>
+> 同期发现并修复 pipeline-version 两个真实缺陷（非 stub，由 CI 红灯暴露）：
+>
+> - **`truncateVersionLabel` 截断位置错误**：250 字符源标签生成的 `270` 字符回滚标签被 `label[:255]` 从右侧截断，`-rollback-<unix>` 标记被削掉，导致每次调用生成的标签形态不同（无法按前缀识别回滚版本）。现改为优先截断源标签、保留完整标记。
+> - **`Rollback` 基线顺序不安全**：`RepositoryInterface` 无事务，先 `UnsetAllBaselines` 再 `CreateVersion` 时若插入失败（如版本标签超 VARCHAR(255)），整条流水线会失去全部基线。现改为先插入克隆、再清基线，配套 `TestRollback_CreateFailureKeepsExistingBaseline` 回归测试。
+> - **测试 harness 缺陷**：`fakePipelineVersionRepo.createFn` 校验钩子提前 `return` 未持久化版本，使依赖回读的 `UpdateBaseline` 误报 NotFound。现改为校验通过后仍走默认存储路径。
+>
+> 复核后全部 558 个测试包通过，0 失败。
+>
 > ## ⚠️ 已知技术债（非 stub）
 >
 > - **domain**：接线缺陷已修复（PostgresEventStore + ReadModelProjector）
