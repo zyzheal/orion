@@ -18,6 +18,7 @@ import (
 type fakePipelineVersionRepo struct {
 	versions map[string]*models.PipelineVersion
 	nextID   int
+	createFn func(ctx context.Context, v *models.PipelineVersion) error
 }
 
 func newFakeRepo(vs ...*models.PipelineVersion) *fakePipelineVersionRepo {
@@ -29,6 +30,14 @@ func newFakeRepo(vs ...*models.PipelineVersion) *fakePipelineVersionRepo {
 }
 
 func (f *fakePipelineVersionRepo) CreateVersion(ctx context.Context, v *models.PipelineVersion) error {
+	// createFn is a validation hook: it may reject the insert, but on success
+	// the fake still persists the version so callers that read it back by ID
+	// (Rollback's final UpdateBaseline) behave like the real repository.
+	if f.createFn != nil {
+		if err := f.createFn(ctx, v); err != nil {
+			return err
+		}
+	}
 	if v.ID == "" {
 		f.nextID++
 		v.ID = "gen-id-" + string(rune('a'+f.nextID-1))
@@ -198,6 +207,55 @@ func TestRollback_CompactVersionFallsBackToTimestampedSuffix(t *testing.T) {
 	}
 	if !strings.HasPrefix(restored.Version, "1.2.3-rollback-") {
 		t.Errorf("restored.Version = %q, want prefix %q", restored.Version, "1.2.3-rollback-")
+	}
+}
+
+func TestRollback_CreateFailureKeepsExistingBaseline(t *testing.T) {
+	// The clone must be created BEFORE any baseline is cleared. Repository
+	// methods are all auto-commit, so an insert failure after an
+	// UnsetAllBaselines would leave the pipeline with no baseline at all.
+	// This assertion fails against the old (Unset -> Create) ordering.
+	current := &models.PipelineVersion{
+		ID: "v2", TenantID: "t1", PipelineID: "p1", Version: "2",
+		YAMLDefinition: "yaml-v2", IsBaseline: true,
+	}
+	hist := &models.PipelineVersion{
+		ID: "v1", TenantID: "t1", PipelineID: "p1", Version: "1",
+		YAMLDefinition: "yaml-v1",
+	}
+	repo := newFakeRepo(current, hist)
+	repo.createFn = func(ctx context.Context, v *models.PipelineVersion) error {
+		return sentinel.NotFound
+	}
+	svc := service.NewService(repo)
+
+	if _, err := svc.Rollback(context.Background(), "v1", "t1"); err == nil {
+		t.Fatal("expected CreateVersion failure to propagate")
+	}
+	if !current.IsBaseline {
+		t.Fatal("existing baseline was lost on create failure")
+	}
+	if len(repo.versions) != 2 {
+		t.Errorf("no version should have been created on failure, got %d", len(repo.versions))
+	}
+}
+
+func TestRollback_TruncatesOverlongVersionLabel(t *testing.T) {
+	// The version column is VARCHAR(255); a long source label must not overflow.
+	source := &models.PipelineVersion{
+		ID: "v1", TenantID: "t1", PipelineID: "p1", Version: strings.Repeat("x", 250),
+		YAMLDefinition: "yaml",
+	}
+	repo := newFakeRepo(source)
+	repo.createFn = func(ctx context.Context, v *models.PipelineVersion) error {
+		if len(v.Version) > 255 {
+			t.Errorf("rollback produced an over-long version label (%d): %q", len(v.Version), v.Version)
+		}
+		return nil
+	}
+	svc := service.NewService(repo)
+	if _, err := svc.Rollback(context.Background(), "v1", "t1"); err != nil {
+		t.Fatalf("Rollback: %v", err)
 	}
 }
 

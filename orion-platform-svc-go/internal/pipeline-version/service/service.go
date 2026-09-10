@@ -97,13 +97,10 @@ func (s *Service) Rollback(ctx context.Context, versionID string, tenantID strin
 	// rather than failing the rollback.
 	restoredVersion := nextRestoredVersion(ctx, source, tenantID, s.repo)
 
-	// Unset all baselines first so the update below is never a no-op: the
-	// baseline is always moved to the restored version, even if the source
-	// version was the current baseline.
-	if err := s.repo.UnsetAllBaselines(ctx, source.PipelineID, tenantID); err != nil {
-		return nil, err
-	}
-
+	// Create the clone BEFORE touching any baselines. There is no transaction
+	// support in RepositoryInterface, so if the insert fails (e.g. version
+	// label exceeds VARCHAR(255)) the previous baseline is left intact rather
+	// than the pipeline being left with no baseline at all.
 	restored := &models.PipelineVersion{
 		TenantID:       tenantID,
 		PipelineID:     source.PipelineID,
@@ -117,9 +114,9 @@ func (s *Service) Rollback(ctx context.Context, versionID string, tenantID strin
 		return nil, err
 	}
 
-	// Source baseline is already unset by UnsetAllBaselines; best-effort only,
-	// since skipping this still leaves the restored version as baseline.
-	s.repo.UpdateBaseline(ctx, versionID, tenantID, false)
+	if err := s.repo.UnsetAllBaselines(ctx, source.PipelineID, tenantID); err != nil {
+		return nil, err
+	}
 	return s.repo.UpdateBaseline(ctx, restored.ID, tenantID, true)
 }
 
@@ -136,14 +133,44 @@ func nextRestoredVersion(ctx context.Context, source *models.PipelineVersion, te
 			}
 		}
 		if max >= 0 {
-			return strconv.Itoa(max+1) + "." + source.Version
+			return truncateVersionLabel(strconv.Itoa(max+1) + "." + source.Version)
 		}
 	}
-	return fmt.Sprintf("%s-rollback-%d", source.Version, time.Now().UTC().Unix())
+	return truncateVersionLabel(fmt.Sprintf("%s-rollback-%d", source.Version, time.Now().UTC().Unix()))
 }
 
+// maxColumnLen mirrors the VARCHAR(255) width shared by pipeline_versions.
+// version and pipeline_versions.description — keeping it explicit avoids a
+// silent insert failure for long source labels.
+const maxColumnLen = 255
+
+// truncateVersionLabel keeps a generated label within the column limit. The
+// head (source label or generation prefix) absorbs the cut so the "-rollback-<unix>"
+// marker survives intact: truncating the marker would leave a label that no
+// longer reads as a rollback and that changes shape on every call.
+func truncateVersionLabel(label string) string {
+	if len(label) <= maxColumnLen {
+		return label
+	}
+	idx := strings.LastIndex(label, "-rollback-")
+	if idx < 0 {
+		return label[:maxColumnLen]
+	}
+	tail := label[idx:]
+	head := label[:idx]
+	if len(tail) >= maxColumnLen {
+		return tail[:maxColumnLen]
+	}
+	return head[:maxColumnLen-len(tail)] + tail
+}
+
+// rollbackDescription stays within description VARCHAR(255) — the verbose form
+// would otherwise overflow and abort the insert.
 func rollbackDescription(source *models.PipelineVersion, sourceID string) *string {
-	d := fmt.Sprintf("Rolled back to version %s (source: %s)", source.Version, source.ID)
+	d := fmt.Sprintf("Rollback of %s (from %s)", source.Version, source.ID)
+	if len(d) > maxColumnLen {
+		d = d[:maxColumnLen-3] + "..."
+	}
 	return &d
 }
 

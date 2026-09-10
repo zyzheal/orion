@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"orion/platform-svc-go/internal/middleware-ops/models"
 )
@@ -83,10 +84,18 @@ func (s *Service) ListTemplates(ctx context.Context, tenantID string) ([]string,
 }
 
 func (s *Service) GetStats(ctx context.Context, tenantID string) (map[string]interface{}, error) {
-	if _, err := s.repo.List(ctx, tenantID); err != nil {
+	records, err := s.repo.List(ctx, tenantID)
+	if err != nil {
 		return nil, err
 	}
-	return map[string]interface{}{}, nil
+	byStatus, active := countByStatus(records)
+	return map[string]interface{}{
+		"total":    len(records),
+		"active":   active,
+		"inactive": len(records) - active,
+		"byStatus": byStatus,
+		"names":    recordNames(records),
+	}, nil
 }
 
 func (s *Service) RunPipeline(ctx context.Context, tenantID string) (string, error) {
@@ -151,10 +160,30 @@ func (s *Service) GetLineage(ctx context.Context, tenantID, id string) (map[stri
 }
 
 func (s *Service) GetConfig(ctx context.Context, tenantID string) (map[string]interface{}, error) {
-	if _, err := s.repo.List(ctx, tenantID); err != nil {
+	records, err := s.repo.List(ctx, tenantID)
+	if err != nil {
 		return nil, err
 	}
-	return map[string]interface{}{}, nil
+	entries := make(map[string]interface{})
+	var latest time.Time
+	for _, r := range records {
+		if len(r.Metadata) > 0 {
+			entries[r.Name] = r.Metadata
+		}
+		if r.UpdatedAt.After(latest) {
+			latest = r.UpdatedAt
+		}
+	}
+	updated := ""
+	if !latest.IsZero() {
+		updated = latest.UTC().Format(time.RFC3339)
+	}
+	return map[string]interface{}{
+		"entries": entries,
+		"count":   len(entries),
+		"updated": updated,
+		"source":  "middleware_ops_records",
+	}, nil
 }
 
 func (s *Service) UpdateConfig(ctx context.Context, tenantID string, cfg map[string]interface{}) (string, error) {
@@ -249,10 +278,43 @@ func (s *Service) Rollback(ctx context.Context, tenantID string) (string, error)
 }
 
 func (s *Service) GetMetrics(ctx context.Context, tenantID string) (map[string]interface{}, error) {
-	if _, err := s.repo.List(ctx, tenantID); err != nil {
+	records, err := s.repo.List(ctx, tenantID)
+	if err != nil {
 		return nil, err
 	}
-	return map[string]interface{}{}, nil
+	byStatus, active := countByStatus(records)
+	now := time.Now()
+	var ages []float64
+	var latest, oldest time.Time
+	for _, r := range records {
+		if r.CreatedAt.IsZero() {
+			continue
+		}
+		ages = append(ages, now.Sub(r.CreatedAt).Seconds())
+		if r.CreatedAt.After(latest) {
+			latest = r.CreatedAt
+		}
+		if oldest.IsZero() || r.CreatedAt.Before(oldest) {
+			oldest = r.CreatedAt
+		}
+	}
+	avg := 0.0
+	if len(ages) > 0 {
+		sum := 0.0
+		for _, a := range ages {
+			sum += a
+		}
+		avg = sum / float64(len(ages))
+	}
+	return map[string]interface{}{
+		"total":         len(records),
+		"active":        active,
+		"inactive":      len(records) - active,
+		"byStatus":      byStatus,
+		"avgAgeSeconds": avg,
+		"latestCreated": rfc3339OrEmpty(latest),
+		"oldestCreated": rfc3339OrEmpty(oldest),
+	}, nil
 }
 
 func (s *Service) ListExperiments(ctx context.Context, tenantID string) ([]string, error) {
@@ -389,17 +451,55 @@ func (s *Service) GetByUser(ctx context.Context, tenantID, user string) ([]strin
 }
 
 func (s *Service) Forecast(ctx context.Context, tenantID string) (map[string]interface{}, error) {
-	if _, err := s.repo.List(ctx, tenantID); err != nil {
+	records, err := s.repo.List(ctx, tenantID)
+	if err != nil {
 		return nil, err
 	}
-	return map[string]interface{}{}, nil
+	byStatus, active := countByStatus(records)
+	// Derive a creation rate from the observed record window, then project a
+	// linear count for the next 24h. A zero-width window yields a zero rate.
+	var oldest time.Time
+	for _, r := range records {
+		if r.CreatedAt.IsZero() {
+			continue
+		}
+		if oldest.IsZero() || r.CreatedAt.Before(oldest) {
+			oldest = r.CreatedAt
+		}
+	}
+	rate := 0.0
+	if len(records) > 0 && !oldest.IsZero() {
+		if span := time.Since(oldest); span > 0 {
+			rate = float64(len(records)) / span.Hours()
+		}
+	}
+	next24h := int(rate)
+	return map[string]interface{}{
+		"current":     len(records),
+		"active":      active,
+		"perDay":      rate,
+		"next24h":     next24h,
+		"projected":   len(records) + next24h,
+		"activeShare": activeShare(records, active),
+		"byStatus":    byStatus,
+		"windowHours": 24,
+	}, nil
 }
 
 func (s *Service) GetUtilization(ctx context.Context, tenantID string) (map[string]interface{}, error) {
-	if _, err := s.repo.List(ctx, tenantID); err != nil {
+	records, err := s.repo.List(ctx, tenantID)
+	if err != nil {
 		return nil, err
 	}
-	return map[string]interface{}{}, nil
+	byStatus, active := countByStatus(records)
+	return map[string]interface{}{
+		"total":       len(records),
+		"active":      active,
+		"inactive":    len(records) - active,
+		"utilization": activeShare(records, active),
+		"byStatus":    byStatus,
+		"names":       recordNames(records),
+	}, nil
 }
 
 func (s *Service) ScaleResource(ctx context.Context, tenantID, id string) (string, error) {
@@ -462,10 +562,25 @@ func (s *Service) ValidateBranch(ctx context.Context, tenantID string) (bool, er
 }
 
 func (s *Service) GetCoverage(ctx context.Context, tenantID string) (map[string]interface{}, error) {
-	if _, err := s.repo.List(ctx, tenantID); err != nil {
+	records, err := s.repo.List(ctx, tenantID)
+	if err != nil {
 		return nil, err
 	}
-	return map[string]interface{}{}, nil
+	byStatus, active := countByStatus(records)
+	var uncovered []string
+	for _, r := range records {
+		if statusOf(r) != models.StatusActive {
+			uncovered = append(uncovered, r.Name)
+		}
+	}
+	return map[string]interface{}{
+		"total":          len(records),
+		"covered":        active,
+		"uncovered":      len(records) - active,
+		"coverage":       activeShare(records, active),
+		"uncoveredNames": uncovered,
+		"byStatus":       byStatus,
+	}, nil
 }
 
 func (s *Service) EnforcePolicy(ctx context.Context, tenantID string) (string, error) {
@@ -511,4 +626,59 @@ func (s *Service) Regenerate(ctx context.Context, tenantID string) (string, erro
 		return "", err
 	}
 	return "regenerated", nil
+}
+
+// ---------------------------------------------------------------------------
+// Record-derived helpers
+// ---------------------------------------------------------------------------
+
+// statusOf returns the effective status of a record, defaulting unset values
+// to the canonical active status so derived aggregates are never skewed.
+func statusOf(r models.Record) string {
+	if r.Status == "" {
+		return models.StatusActive
+	}
+	return r.Status
+}
+
+// countByStatus buckets records by their effective status and reports how many
+// are active. Always returns a non-nil map so JSON encoding yields {}.
+func countByStatus(records []models.Record) (map[string]int, int) {
+	byStatus := make(map[string]int)
+	active := 0
+	for _, r := range records {
+		status := statusOf(r)
+		byStatus[status]++
+		if status == models.StatusActive {
+			active++
+		}
+	}
+	return byStatus, active
+}
+
+// activeShare is the fraction of records in the active status, rounded to four
+// decimals. An empty set reports 0 rather than dividing by zero.
+func activeShare(records []models.Record, active int) float64 {
+	if len(records) == 0 {
+		return 0
+	}
+	share := float64(active) / float64(len(records))
+	return float64(int(share*10000)) / 10000
+}
+
+func recordNames(records []models.Record) []string {
+	names := make([]string, 0, len(records))
+	for _, r := range records {
+		if r.Name != "" {
+			names = append(names, r.Name)
+		}
+	}
+	return names
+}
+
+func rfc3339OrEmpty(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(time.RFC3339)
 }
