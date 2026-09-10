@@ -7,20 +7,23 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
+	"github.com/google/uuid"
 	"orion/platform-svc-go/internal/pipeline/models"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreatePipelineRequest) (*models.Pipeline, error)
+	CreateRun(ctx context.Context, tenantID string, run *models.PipelineRun) error
 	Delete(ctx context.Context, tenantID, id string) (bool, error)
 	GetByID(ctx context.Context, tenantID, id string) (*models.Pipeline, error)
+	GetRun(ctx context.Context, tenantID, runID string) (*models.PipelineRun, error)
 	GetStats(ctx context.Context, tenantID, pipelineID string) (*models.PipelineStats, error)
 	GetVersions(ctx context.Context, tenantID, pipelineID string) ([]models.PipelineVersion, error)
 	List(ctx context.Context, tenantID string, opt models.ListPipelinesOptions) ([]models.Pipeline, int, error)
 	Update(ctx context.Context, tenantID, id string, req models.UpdatePipelineRequest) (*models.Pipeline, error)
+	UpdateRun(ctx context.Context, tenantID, runID, status string) error
 }
 
 var (
@@ -97,18 +100,32 @@ func (s *Service) StartRun(ctx context.Context, tenantID, id string) (*models.Pi
 	if pipeline.Status != models.PipelineStatusActive {
 		return nil, fmt.Errorf("%w: pipeline must be active to start", ErrInvalidState)
 	}
-	// In a real implementation, this would trigger the pipeline engine
-	// For now, return a placeholder result
+
+	run := &models.PipelineRun{
+		ID:              uuid.New().String(),
+		TenantID:        tenantID,
+		PipelineID:      id,
+		PipelineVersion: fmt.Sprintf("%d", pipeline.Version),
+		TriggerType:     string(pipeline.TriggerType),
+		Status:          "PENDING",
+		Context:         "{}",
+	}
+	if err := s.repo.CreateRun(ctx, tenantID, run); err != nil {
+		return nil, fmt.Errorf("failed to create pipeline run: %w", err)
+	}
 	return &models.PipelineRunResult{
-		ID:         fmt.Sprintf("run-%d", time.Now().UnixMilli()),
+		ID:         run.ID,
 		PipelineID: id,
-		Status:     "pending",
+		Status:     run.Status,
 	}, nil
 }
 
 func (s *Service) StopRun(ctx context.Context, tenantID, runID string) error {
-	// In a real implementation, this would cancel a running pipeline
-	return nil
+	_, err := s.repo.GetRun(ctx, tenantID, runID)
+	if err != nil {
+		return fmt.Errorf("pipeline run %s not found: %w", runID, err)
+	}
+	return s.repo.UpdateRun(ctx, tenantID, runID, "CANCELLED")
 }
 
 // === Batch Operations ===

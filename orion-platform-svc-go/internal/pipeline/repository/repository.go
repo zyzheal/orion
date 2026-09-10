@@ -181,6 +181,36 @@ func (r *Repository) GetStats(ctx context.Context, tenantID, pipelineID string) 
 	return &stats, err
 }
 
+func (r *Repository) CreateRun(ctx context.Context, tenantID string, run *models.PipelineRun) error {
+	run.TenantID = tenantID
+	run.CreatedAt = time.Now().UTC()
+	run.UpdatedAt = run.CreatedAt
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO pipeline_runs (id, tenant_id, pipeline_id, pipeline_version, trigger_type, status, context, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	`, run.ID, run.TenantID, run.PipelineID, run.PipelineVersion, run.TriggerType, run.Status, run.Context, run.CreatedAt, run.UpdatedAt)
+	return err
+}
+
+func (r *Repository) GetRun(ctx context.Context, tenantID, runID string) (*models.PipelineRun, error) {
+	var run models.PipelineRun
+	err := r.db.GetContext(ctx, &run, `SELECT * FROM pipeline_runs WHERE id=$1 AND tenant_id=$2`, runID, tenantID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, sentinel.NotFound
+		}
+		return nil, err
+	}
+	return &run, nil
+}
+
+func (r *Repository) UpdateRun(ctx context.Context, tenantID, runID, status string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE pipeline_runs SET status=$1, updated_at=NOW() WHERE id=$2 AND tenant_id=$3
+	`, status, runID, tenantID)
+	return err
+}
+
 func stringToJSON(s string) string {
 	b, _ := json.Marshal(s)
 	return string(b)
