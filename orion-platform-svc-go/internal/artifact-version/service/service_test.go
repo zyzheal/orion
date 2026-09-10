@@ -116,6 +116,34 @@ func (r *fakeRepo) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
+func (r *fakeRepo) ListByStatus(ctx context.Context, tenantID, status string) ([]models.Record, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]models.Record, 0)
+	for _, id := range r.order {
+		rec := r.records[id]
+		if rec == nil || rec.TenantID != tenantID || rec.DeletedAt != nil {
+			continue
+		}
+		if rec.Status == status {
+			out = append(out, *rec)
+		}
+	}
+	return out, nil
+}
+
+func (r *fakeRepo) UpdateStatus(ctx context.Context, tenantID, id, status string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	rec := r.records[id]
+	if rec == nil || rec.TenantID != tenantID || rec.DeletedAt != nil {
+		return sentinel.NotFound
+	}
+	rec.Status = status
+	rec.UpdatedAt = r.now()
+	return nil
+}
+
 func (r *fakeRepo) ListTags(ctx context.Context, tenantID, recordID string) ([]models.Tag, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

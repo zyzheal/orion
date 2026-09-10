@@ -160,6 +160,38 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
+func (r *Repository) ListByStatus(ctx context.Context, tenantID, status string) ([]models.Record, error) {
+	var rows []recordRow
+	err := r.db.SelectContext(ctx, &rows,
+		`SELECT * FROM artifact_version_records
+		 WHERE tenant_id=$1 AND status=$2 AND deleted_at IS NULL
+		 ORDER BY created_at DESC`,
+		tenantID, status)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]models.Record, len(rows))
+	for i, row := range rows {
+		out[i] = *row.toModel()
+	}
+	return out, nil
+}
+
+func (r *Repository) UpdateStatus(ctx context.Context, tenantID, id, status string) error {
+	result, err := r.db.ExecContext(ctx,
+		`UPDATE artifact_version_records
+		 SET status=$3, updated_at=NOW()
+		 WHERE id=$1 AND tenant_id=$2 AND deleted_at IS NULL`,
+		id, tenantID, status)
+	if err != nil {
+		return err
+	}
+	if affected, _ := result.RowsAffected(); affected == 0 {
+		return sentinel.NotFound
+	}
+	return nil
+}
+
 // ---- Tags CRUD ----
 
 func (r *Repository) ListTags(ctx context.Context, tenantID, recordID string) ([]models.Tag, error) {

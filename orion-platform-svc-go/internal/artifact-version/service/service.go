@@ -17,7 +17,9 @@ type RepositoryInterface interface {
 	Delete(ctx context.Context, tenantID, id string) error
 	GetByID(ctx context.Context, tenantID, id string) (*models.Record, error)
 	List(ctx context.Context, tenantID string) ([]models.Record, error)
+	ListByStatus(ctx context.Context, tenantID, status string) ([]models.Record, error)
 	Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Record, error)
+	UpdateStatus(ctx context.Context, tenantID, id, status string) error
 
 	// Tags
 	ListTags(ctx context.Context, tenantID, id string) ([]models.Tag, error)
@@ -95,6 +97,15 @@ func (s *Service) DeleteTag(ctx context.Context, tenantID, id, tag string) error
 // ---- Derived queries backed by the record store ----
 
 func (s *Service) GetResults(ctx context.Context, tenantID, id string) ([]string, error) {
+	r, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if r.Metadata != nil {
+		if results, ok := r.Metadata["results"].([]string); ok {
+			return results, nil
+		}
+	}
 	return []string{}, nil
 }
 
@@ -188,7 +199,19 @@ func (s *Service) CheckCompatibility(ctx context.Context, tenantID, id string) (
 }
 
 func (s *Service) GetBranchStatus(ctx context.Context, tenantID, branch string) (string, error) {
-	return "valid", nil
+	if branch == "" {
+		return "invalid", nil
+	}
+	recs, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return "unknown", err
+	}
+	for _, r := range recs {
+		if r.Name == branch {
+			return "valid", nil
+		}
+	}
+	return "unknown", nil
 }
 
 func (s *Service) ValidateBranch(ctx context.Context, tenantID, branch string) (bool, error) {
@@ -199,75 +222,275 @@ func (s *Service) GetStatusMiddleware(ctx context.Context, tenantID string) (str
 	return "healthy", nil
 }
 
-// ---- Slice-returning service methods (unchanged graceful empty) ----
+// ---- Helper methods for stub-backed queries ----
 
-func (s *Service) ListTemplates(ctx context.Context, tenantID string) ([]string, error)      { return nil, nil }
-func (s *Service) ListSchemas(ctx context.Context, tenantID string) ([]string, error)        { return nil, nil }
-func (s *Service) GetLogs(ctx context.Context, tenantID, id string) ([]string, error)        { return nil, nil }
-func (s *Service) ListPlugins(ctx context.Context, tenantID string) ([]string, error)        { return nil, nil }
-func (s *Service) ListExperiments(ctx context.Context, tenantID string) ([]string, error)    { return nil, nil }
-func (s *Service) ListArtifacts(ctx context.Context, tenantID string) ([]string, error)      { return nil, nil }
-func (s *Service) ListModels(ctx context.Context, tenantID string) ([]string, error)         { return nil, nil }
-func (s *Service) ListPipelines(ctx context.Context, tenantID string) ([]string, error)      { return nil, nil }
-func (s *Service) ListTemplates2(ctx context.Context, tenantID string) ([]string, error)     { return nil, nil }
-func (s *Service) ListHistories(ctx context.Context, tenantID string) ([]string, error)      { return nil, nil }
-func (s *Service) ListPending(ctx context.Context, tenantID string) ([]string, error)        { return nil, nil }
-func (s *Service) GetByUser(ctx context.Context, tenantID, user string) ([]string, error)    { return nil, nil }
-func (s *Service) ListAlerts(ctx context.Context, tenantID string) ([]string, error)         { return nil, nil }
-func (s *Service) ListViolations(ctx context.Context, tenantID string) ([]string, error)     { return nil, nil }
-
-// ---- Detail / map-returning service methods ----
-
-func (s *Service) GetLineage(ctx context.Context, tenantID, id string) (gin.H, error) {
-	return gin.H{}, nil
+func (s *Service) listIDsByStatus(ctx context.Context, tenantID, status string) ([]string, error) {
+	recs, err := s.repo.ListByStatus(ctx, tenantID, status)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(recs))
+	for _, r := range recs {
+		ids = append(ids, r.ID)
+	}
+	return ids, nil
 }
 
-func (s *Service) GetCoverage(ctx context.Context, tenantID, id string) (gin.H, error)  { return gin.H{}, nil }
-func (s *Service) GetPlugin(ctx context.Context, tenantID, id string) (gin.H, error)    { return gin.H{}, nil }
-func (s *Service) Forecast(ctx context.Context, tenantID string) (gin.H, error)         { return gin.H{}, nil }
-func (s *Service) GetUtilization(ctx context.Context, tenantID string) (gin.H, error)   { return gin.H{}, nil }
+func (s *Service) listAllIDs(ctx context.Context, tenantID string) ([]string, error) {
+	recs, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(recs))
+	for _, r := range recs {
+		ids = append(ids, r.ID)
+	}
+	return ids, nil
+}
 
-// ---- Action service methods ----
-// These are all "idempotent ok" style actions that don't yet have a dedicated
-// audit/log table. Kept consistent (status:ok) so handlers remain stable.
+func (s *Service) updateRecordStatus(ctx context.Context, tenantID, id, status string) (gin.H, error) {
+	if err := s.repo.UpdateStatus(ctx, tenantID, id, status); err != nil {
+		return gin.H{}, err
+	}
+	return gin.H{"id": id, "status": status}, nil
+}
+
+// ---- Slice-returning service methods (backed by record store) ----
+
+func (s *Service) ListTemplates(ctx context.Context, tenantID string) ([]string, error) {
+	return s.listIDsByStatus(ctx, tenantID, "template")
+}
+
+func (s *Service) ListSchemas(ctx context.Context, tenantID string) ([]string, error) {
+	return s.listIDsByStatus(ctx, tenantID, "schema")
+}
+
+func (s *Service) GetLogs(ctx context.Context, tenantID, id string) ([]string, error) {
+	r, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if r.Metadata != nil {
+		if logs, ok := r.Metadata["logs"].([]string); ok {
+			return logs, nil
+		}
+	}
+	return []string{}, nil
+}
+
+func (s *Service) ListPlugins(ctx context.Context, tenantID string) ([]string, error) {
+	return s.listIDsByStatus(ctx, tenantID, "plugin")
+}
+
+func (s *Service) ListExperiments(ctx context.Context, tenantID string) ([]string, error) {
+	return s.listIDsByStatus(ctx, tenantID, "experiment")
+}
+
+func (s *Service) ListArtifacts(ctx context.Context, tenantID string) ([]string, error) {
+	return s.listAllIDs(ctx, tenantID)
+}
+
+func (s *Service) ListModels(ctx context.Context, tenantID string) ([]string, error) {
+	return s.listIDsByStatus(ctx, tenantID, "model")
+}
+
+func (s *Service) ListPipelines(ctx context.Context, tenantID string) ([]string, error) {
+	return s.listIDsByStatus(ctx, tenantID, "pipeline")
+}
+
+func (s *Service) ListTemplates2(ctx context.Context, tenantID string) ([]string, error) {
+	return s.listIDsByStatus(ctx, tenantID, "template")
+}
+
+func (s *Service) ListHistories(ctx context.Context, tenantID string) ([]string, error) {
+	return s.listIDsByStatus(ctx, tenantID, "history")
+}
+
+func (s *Service) ListPending(ctx context.Context, tenantID string) ([]string, error) {
+	return s.listIDsByStatus(ctx, tenantID, "pending")
+}
+
+func (s *Service) GetByUser(ctx context.Context, tenantID, user string) ([]string, error) {
+	recs, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0)
+	for _, r := range recs {
+		if r.Metadata != nil {
+			if creator, ok := r.Metadata["createdBy"].(string); ok && creator == user {
+				ids = append(ids, r.ID)
+				continue
+			}
+		}
+		if r.Name == user {
+			ids = append(ids, r.ID)
+		}
+	}
+	return ids, nil
+}
+
+func (s *Service) ListAlerts(ctx context.Context, tenantID string) ([]string, error) {
+	return s.listIDsByStatus(ctx, tenantID, "alert")
+}
+
+func (s *Service) ListViolations(ctx context.Context, tenantID string) ([]string, error) {
+	return s.listIDsByStatus(ctx, tenantID, "violation")
+}
+
+// ---- Detail / map-returning service methods (backed by record store) ----
+
+func (s *Service) GetLineage(ctx context.Context, tenantID, id string) (gin.H, error) {
+	r, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return gin.H{}, err
+	}
+	return gin.H{"id": r.ID, "name": r.Name, "lineage": r.Metadata}, nil
+}
+
+func (s *Service) GetCoverage(ctx context.Context, tenantID, id string) (gin.H, error) {
+	r, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return gin.H{}, err
+	}
+	coverage := gin.H{"id": r.ID, "name": r.Name}
+	if r.Metadata != nil {
+		coverage["details"] = r.Metadata
+	}
+	return coverage, nil
+}
+
+func (s *Service) GetPlugin(ctx context.Context, tenantID, id string) (gin.H, error) {
+	r, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return gin.H{}, err
+	}
+	return gin.H{"id": r.ID, "name": r.Name, "status": r.Status, "config": r.Metadata}, nil
+}
+
+func (s *Service) Forecast(ctx context.Context, tenantID string) (gin.H, error) {
+	recs, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return gin.H{}, err
+	}
+	return gin.H{"totalRecords": len(recs), "forecast": []string{}}, nil
+}
+
+func (s *Service) GetUtilization(ctx context.Context, tenantID string) (gin.H, error) {
+	recs, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return gin.H{}, err
+	}
+	return gin.H{"totalRecords": len(recs), "utilization": 0}, nil
+}
+
+// ---- Action service methods (backed by record store status updates) ----
 
 func (s *Service) RunInspection(ctx context.Context, tenantID, id string) (gin.H, error) {
-	return gin.H{"status": "ok"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "inspecting")
 }
 
 func (s *Service) UpdateStatus(ctx context.Context, tenantID, id string) (gin.H, error) {
-	return gin.H{"status": "ok"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "updated")
 }
 
-func (s *Service) RunPipeline(ctx context.Context, tenantID, id string) (gin.H, error)  { return gin.H{"status": "ok"}, nil }
-func (s *Service) Pause(ctx context.Context, tenantID, id string) (gin.H, error)        { return gin.H{"status": "ok"}, nil }
-func (s *Service) Resume(ctx context.Context, tenantID, id string) (gin.H, error)       { return gin.H{"status": "ok"}, nil }
-func (s *Service) UpdateConfig(ctx context.Context, tenantID, id string) (gin.H, error) { return gin.H{"status": "ok"}, nil }
-func (s *Service) Restart(ctx context.Context, tenantID string) (gin.H, error)          { return gin.H{"status": "ok"}, nil }
-func (s *Service) Configure(ctx context.Context, tenantID, id string) (gin.H, error)    { return gin.H{"status": "ok"}, nil }
-func (s *Service) EnablePlugin(ctx context.Context, tenantID, id string) (gin.H, error) { return gin.H{"status": "ok"}, nil }
+func (s *Service) RunPipeline(ctx context.Context, tenantID, id string) (gin.H, error) {
+	return s.updateRecordStatus(ctx, tenantID, id, "running")
+}
+
+func (s *Service) Pause(ctx context.Context, tenantID, id string) (gin.H, error) {
+	return s.updateRecordStatus(ctx, tenantID, id, "paused")
+}
+
+func (s *Service) Resume(ctx context.Context, tenantID, id string) (gin.H, error) {
+	return s.updateRecordStatus(ctx, tenantID, id, "active")
+}
+
+func (s *Service) UpdateConfig(ctx context.Context, tenantID, id string) (gin.H, error) {
+	return s.updateRecordStatus(ctx, tenantID, id, "configured")
+}
+
+func (s *Service) Restart(ctx context.Context, tenantID string) (gin.H, error) {
+	recs, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return gin.H{}, err
+	}
+	count := 0
+	for _, r := range recs {
+		_ = s.repo.UpdateStatus(ctx, tenantID, r.ID, "active")
+		count++
+	}
+	return gin.H{"status": "ok", "restarted": count}, nil
+}
+
+func (s *Service) Configure(ctx context.Context, tenantID, id string) (gin.H, error) {
+	return s.updateRecordStatus(ctx, tenantID, id, "configured")
+}
+
+func (s *Service) EnablePlugin(ctx context.Context, tenantID, id string) (gin.H, error) {
+	return s.updateRecordStatus(ctx, tenantID, id, "enabled")
+}
+
 func (s *Service) DisablePlugin(ctx context.Context, tenantID, id string) (gin.H, error) {
-	return gin.H{"status": "ok"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "disabled")
 }
-func (s *Service) Train(ctx context.Context, tenantID, id string) (gin.H, error)        { return gin.H{"status": "ok"}, nil }
-func (s *Service) Evaluate(ctx context.Context, tenantID, id string) (gin.H, error)     { return gin.H{"status": "ok"}, nil }
-func (s *Service) Deploy(ctx context.Context, tenantID, id string) (gin.H, error)       { return gin.H{"status": "ok"}, nil }
-func (s *Service) Rollback(ctx context.Context, tenantID, id string) (gin.H, error)     { return gin.H{"status": "ok"}, nil }
+
+func (s *Service) Train(ctx context.Context, tenantID, id string) (gin.H, error) {
+	return s.updateRecordStatus(ctx, tenantID, id, "training")
+}
+
+func (s *Service) Evaluate(ctx context.Context, tenantID, id string) (gin.H, error) {
+	return s.updateRecordStatus(ctx, tenantID, id, "evaluating")
+}
+
+func (s *Service) Deploy(ctx context.Context, tenantID, id string) (gin.H, error) {
+	return s.updateRecordStatus(ctx, tenantID, id, "deployed")
+}
+
+func (s *Service) Rollback(ctx context.Context, tenantID, id string) (gin.H, error) {
+	return s.updateRecordStatus(ctx, tenantID, id, "rolled_back")
+}
+
 func (s *Service) RegisterModel(ctx context.Context, tenantID, id string) (gin.H, error) {
-	return gin.H{"status": "ok"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "registered")
 }
+
 func (s *Service) DeregisterModel(ctx context.Context, tenantID, id string) (gin.H, error) {
-	return gin.H{"status": "ok"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "deregistered")
 }
-func (s *Service) Trigger(ctx context.Context, tenantID, id string) (gin.H, error)      { return gin.H{"status": "ok"}, nil }
-func (s *Service) Approve(ctx context.Context, tenantID, id string) (gin.H, error)       { return gin.H{"status": "ok"}, nil }
-func (s *Service) Reject(ctx context.Context, tenantID, id string) (gin.H, error)        { return gin.H{"status": "ok"}, nil }
-func (s *Service) Escalate(ctx context.Context, tenantID, id string) (gin.H, error)      { return gin.H{"status": "ok"}, nil }
+
+func (s *Service) Trigger(ctx context.Context, tenantID, id string) (gin.H, error) {
+	return s.updateRecordStatus(ctx, tenantID, id, "triggered")
+}
+
+func (s *Service) Approve(ctx context.Context, tenantID, id string) (gin.H, error) {
+	return s.updateRecordStatus(ctx, tenantID, id, "approved")
+}
+
+func (s *Service) Reject(ctx context.Context, tenantID, id string) (gin.H, error) {
+	return s.updateRecordStatus(ctx, tenantID, id, "rejected")
+}
+
+func (s *Service) Escalate(ctx context.Context, tenantID, id string) (gin.H, error) {
+	return s.updateRecordStatus(ctx, tenantID, id, "escalated")
+}
+
 func (s *Service) ScaleResource(ctx context.Context, tenantID, id string) (gin.H, error) {
-	return gin.H{"status": "ok"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "scaled")
 }
+
 func (s *Service) EnforcePolicy(ctx context.Context, tenantID, id string) (gin.H, error) {
-	return gin.H{"status": "ok"}, nil
+	return s.updateRecordStatus(ctx, tenantID, id, "policy_enforced")
 }
-func (s *Service) BatchCreate(ctx context.Context, tenantID string) (gin.H, error)      { return gin.H{"status": "ok"}, nil }
-func (s *Service) Regenerate(ctx context.Context, tenantID, id string) (gin.H, error)    { return gin.H{"status": "ok"}, nil }
+
+func (s *Service) BatchCreate(ctx context.Context, tenantID string) (gin.H, error) {
+	recs, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return gin.H{}, err
+	}
+	return gin.H{"status": "ok", "totalRecords": len(recs)}, nil
+}
+
+func (s *Service) Regenerate(ctx context.Context, tenantID, id string) (gin.H, error) {
+	return s.updateRecordStatus(ctx, tenantID, id, "regenerated")
+}
