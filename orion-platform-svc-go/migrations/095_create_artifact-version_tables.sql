@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS artifact_version_records (
     metadata    JSONB DEFAULT '{}'::jsonb,
     created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at  TIMESTAMP WITH TIME ZONE,
+    deleted_at  TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_artifact_version_records_tenant
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS artifact_version_tags (
     record_id   VARCHAR(36) NOT NULL,
     tag         VARCHAR(255) NOT NULL,
     created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(tenant_id, record_id, tag),
+    UNIQUE(tenant_id, record_id, tag)
 );
 
 CREATE INDEX IF NOT EXISTS idx_artifact_version_tags_record
