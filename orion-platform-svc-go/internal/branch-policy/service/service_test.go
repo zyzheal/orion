@@ -48,6 +48,14 @@ func (f *fakeRepo) List(ctx context.Context, tenantID string) ([]models.Record, 
 	return []models.Record{}, nil
 }
 
+func (f *fakeRepo) ListByStatus(ctx context.Context, tenantID, status string) ([]models.Record, error) {
+	return []models.Record{}, nil
+}
+
+func (f *fakeRepo) UpdateStatus(ctx context.Context, tenantID, id, status string) error {
+	return nil
+}
+
 func (f *fakeRepo) Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Record, error) {
 	return &models.Record{}, nil
 }
