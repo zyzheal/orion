@@ -274,7 +274,37 @@ func (s *Service) GetImpactAnalysis(ctx context.Context, tenantID, file string) 
 	if file == "" {
 		return &models.ImpactAnalysisResult{}, nil
 	}
-	return &models.ImpactAnalysisResult{}, nil
+	cases, err := s.GetCases(ctx, tenantID, nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load test cases: %w", err)
+	}
+
+	var affectedTests []string
+	totalDuration := 0.0
+	for _, tc := range cases {
+		if strings.Contains(tc.FilePath, file) || strings.Contains(file, tc.FilePath) {
+			affectedTests = append(affectedTests, tc.ID)
+			totalDuration += tc.AvgDuration
+		}
+	}
+
+	impact := models.TestImpact{
+		ChangedFile:       file,
+		ChangeType:        models.ChangeModified,
+		AffectedTests:     affectedTests,
+		Priority:          s.assessPriority(float64(len(affectedTests))*5, models.ChangedFile{Path: file, ChangeType: models.ChangeModified}),
+		EstimatedDuration: totalDuration,
+		ImpactScore:       float64(len(affectedTests)) * 5,
+	}
+	if impact.ImpactScore > 100 {
+		impact.ImpactScore = 100
+	}
+
+	return &models.ImpactAnalysisResult{
+		Impacts:                []models.TestImpact{impact},
+		AllAffectedTestIDs:     affectedTests,
+		TotalEstimatedDuration: totalDuration,
+	}, nil
 }
 
 // GetRecommendations returns test execution recommendations for changed files.
