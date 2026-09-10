@@ -27,28 +27,67 @@ func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{db: db}
 }
 
+// recordRow is the DB-facing shape. JSONB columns are scanned as []byte by
+// sqlx+pgx, so we unmarshal them into a map before returning models.Record.
+type recordRow struct {
+	ID        string     `db:"id"`
+	TenantID  string     `db:"tenant_id"`
+	Name      string     `db:"name"`
+	Status    string     `db:"status"`
+	Metadata  []byte     `db:"metadata"`
+	CreatedAt time.Time  `db:"created_at"`
+	UpdatedAt time.Time  `db:"updated_at"`
+	DeletedAt *time.Time `db:"deleted_at"`
+}
+
+func (r recordRow) toModel() *models.Record {
+	out := &models.Record{
+		ID:        r.ID,
+		TenantID:  r.TenantID,
+		Name:      r.Name,
+		Status:    r.Status,
+		CreatedAt: r.CreatedAt,
+		UpdatedAt: r.UpdatedAt,
+		DeletedAt: r.DeletedAt,
+	}
+	if len(r.Metadata) > 0 {
+		_ = json.Unmarshal(r.Metadata, &out.Metadata)
+	}
+	return out
+}
+
 // ---- Records CRUD ----
 
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.Record, error) {
-	var records []models.Record
-	err := r.db.SelectContext(ctx, &records,
+	var rows []recordRow
+	err := r.db.SelectContext(ctx, &rows,
 		`SELECT * FROM artifact_version_records
 		 WHERE tenant_id=$1 AND deleted_at IS NULL
 		 ORDER BY created_at DESC`,
 		tenantID)
-	return records, err
+	if err != nil {
+		return nil, err
+	}
+	out := make([]models.Record, len(rows))
+	for i, row := range rows {
+		out[i] = *row.toModel()
+	}
+	return out, nil
 }
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.Record, error) {
-	var record models.Record
-	err := r.db.GetContext(ctx, &record,
+	var row recordRow
+	err := r.db.GetContext(ctx, &row,
 		`SELECT * FROM artifact_version_records
 		 WHERE id=$1 AND tenant_id=$2 AND deleted_at IS NULL`,
 		id, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sentinel.NotFound
 	}
-	return &record, err
+	if err != nil {
+		return nil, err
+	}
+	return row.toModel(), nil
 }
 
 func (r *Repository) Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error) {
@@ -144,7 +183,6 @@ func (r *Repository) AddTag(ctx context.Context, tenantID, recordID, tag string)
 	if err != nil {
 		return nil, err
 	}
-	// Fetch the canonical row (either newly inserted or the pre-existing duplicate).
 	var t models.Tag
 	if err := r.db.GetContext(ctx, &t,
 		`SELECT * FROM artifact_version_tags WHERE tenant_id=$1 AND record_id=$2 AND tag=$3`,
@@ -169,8 +207,8 @@ func (r *Repository) DeleteTag(ctx context.Context, tenantID, recordID, tag stri
 
 // ---- Helpers ----
 
-// marshalMeta converts a metadata map to JSONB. Empty maps still yield "{}"
-// so the column is never NULL (matches the NOT NULL DEFAULT in the migration).
+// marshalMeta converts a metadata map to JSONB bytes. Empty maps still yield
+// "{}" so the column is never NULL (matches the DEFAULT '{}' in the migration).
 func marshalMeta(m map[string]interface{}) ([]byte, error) {
 	if m == nil {
 		m = map[string]interface{}{}

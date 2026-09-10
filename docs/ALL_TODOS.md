@@ -214,6 +214,7 @@
 | ID | 任务 | 解决缺口 | 优先级 | 工作量 |
 |----|------|---------|--------|--------|
 | ✅ **ARCH-0.10b** | **备份/恢复引擎真实现** — `ExecuteBackup`/`ExecuteRestore` 接入 `infrastructure/backup/executor` 系统（pg_dump/mysqldump/ob-loader-dumper），通过 `ConnInfoResolver` 从 `internal/datasource` 解析连接信息，`SetExecutorRegistry`/`SetConnResolver`/`SetBackupDir` 注入，`canExecute()` 判断启用。真实执行产出 `OutputPath`/`ChecksumSHA256`，失败置 `failed` 并返回 error。优雅降级：executor nil 时保持占位行为。**13 条新测试**（真实执行成功/失败、conn resolver error、无 executor、缺 backup_path、无效 PITR 时间、canExecute 表驱动、SetBackupDir 空值保护）。`go build ./...` 干净，21/21 测试 PASS | R5-3（备份/恢复桩实现） | ✅ **完成 2026-08-30** | 1.5d |
+| ✅ | **artifact-version 模块 P0 修复** — 修复 3 个 foundational bug: (1) migration 095 创建 `records` 表（12+ 模块共享同一表名，无模块区分）改为 `artifact_version_records` 独占表 + 新增 `artifact_version_tags` 表；(2) repository JSONB scanning bug（sqlx+pgx 将 JSONB 扫为 []byte，直接扫入 map 会失败）新增 `recordRow` 中间结构 + `toModel()` JSON 反序列化；(3) repository Create/Update/Delete 从 `sentinel.NotFound` 占位改为真实 SQL 实现（INSERT/UPDATE+RowsAffected 检查/软删除）。`go build ./...` + `go test ./internal/artifact-version/...` 全绿 | 深度 stub 扫描 | ✅ **完成 2026-08-26** | 0.5d |
 
 ---
 
