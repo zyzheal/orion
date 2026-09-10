@@ -65,6 +65,10 @@ func (s *Service) CreateChangeRequest(ctx context.Context, tenantID string, req 
 		RiskLevel:   req.RiskLevel,
 		AssignedTo:  req.AssignedTo,
 		RequesterID: requesterID,
+		Branch:      req.Branch,
+		TargetEnv:   req.TargetEnv,
+		ImageDigest: req.ImageDigest,
+		ApprovalID:  req.ApprovalID,
 		CreatedBy:   userID,
 		Status:      "draft",
 	}
@@ -101,6 +105,18 @@ func (s *Service) UpdateChangeRequest(ctx context.Context, tenantID, id string, 
 	}
 	if req.AssignedTo != nil {
 		updates["assigned_to"] = *req.AssignedTo
+	}
+	if req.Branch != nil {
+		updates["branch"] = *req.Branch
+	}
+	if req.TargetEnv != nil {
+		updates["target_env"] = *req.TargetEnv
+	}
+	if req.ImageDigest != nil {
+		updates["image_digest"] = *req.ImageDigest
+	}
+	if req.ApprovalID != nil {
+		updates["approval_id"] = *req.ApprovalID
 	}
 	if req.Status != nil {
 		updates["status"] = *req.Status

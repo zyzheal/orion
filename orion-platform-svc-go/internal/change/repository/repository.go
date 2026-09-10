@@ -37,8 +37,8 @@ func (r *Repository) CreateChangeRequest(ctx context.Context, m *models.ChangeRe
 	if m.Status == "" {
 		m.Status = "draft"
 	}
-	query := `INSERT INTO change_requests (id, tenant_id, title, description, status, change_type, priority, risk_level, assigned_to, requester_id, created_by, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+	query := `INSERT INTO change_requests (id, tenant_id, title, description, status, change_type, priority, risk_level, assigned_to, requester_id, branch, target_env, image_digest, approval_id, created_by, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`
 	_, err := r.db.NamedExecContext(ctx, query, m)
 	return err
 }
@@ -75,6 +75,8 @@ func (r *Repository) ListChangeRequests(ctx context.Context, tenantID string, q 
 		{"risk_level", q.RiskLevel},
 		{"assigned_to", q.AssignedTo},
 		{"requester_id", q.RequesterID},
+		{"branch", q.Branch},
+		{"target_env", q.TargetEnv},
 	} {
 		if pair.val != nil && *pair.val != "" {
 			conditions = append(conditions, fmt.Sprintf("%s=$%d", pair.col, argCount))
@@ -107,13 +109,63 @@ func (r *Repository) ListChangeRequests(ctx context.Context, tenantID string, q 
 }
 
 func (r *Repository) UpdateChangeRequest(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.ChangeRequest, error) {
-	updates["updated_at"] = time.Now().UTC()
+	if len(updates) > 0 {
+		sets := []string{"updated_at=NOW()"}
+		args := []interface{}{}
+		argCount := 1
+		for k, v := range updates {
+			col := updateColumnName(k)
+			if col == "" {
+				continue
+			}
+			sets = append(sets, fmt.Sprintf("%s=$%d", col, argCount))
+			args = append(args, v)
+			argCount++
+		}
+		args = append(args, id, tenantID)
+		query := fmt.Sprintf(`UPDATE change_requests SET %s WHERE id=$%d AND tenant_id=$%d`,
+			joinSets(sets), argCount, argCount+1)
+		if _, err := r.db.ExecContext(ctx, query, args...); err != nil {
+			return nil, err
+		}
+		return r.GetChangeRequest(ctx, tenantID, id)
+	}
+
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE change_requests SET updated_at = NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	return r.GetChangeRequest(ctx, tenantID, id)
+}
+
+// updateColumnName maps JSON/camelCase update keys to change_requests columns.
+// Unknown keys are skipped (return "") to avoid SQL injection via key interpolation.
+var updateColumnMap = map[string]string{
+	"title":        "title",
+	"description":  "description",
+	"status":       "status",
+	"change_type":  "change_type",
+	"priority":     "priority",
+	"risk_level":   "risk_level",
+	"assigned_to":  "assigned_to",
+	"requester_id": "requester_id",
+	"branch":       "branch",
+	"target_env":   "target_env",
+	"image_digest": "image_digest",
+	"approval_id":  "approval_id",
+}
+
+func updateColumnName(key string) string {
+	return updateColumnMap[key]
+}
+
+func joinSets(sets []string) string {
+	result := sets[0]
+	for _, s := range sets[1:] {
+		result += ", " + s
+	}
+	return result
 }
 
 func (r *Repository) DeleteChangeRequest(ctx context.Context, tenantID, id string) error {

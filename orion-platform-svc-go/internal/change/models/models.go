@@ -18,6 +18,10 @@ type ChangeRequest struct {
 	RiskLevel   string    `json:"risk_level" db:"risk_level"`   // low, medium, high
 	AssignedTo  string    `json:"assigned_to" db:"assigned_to"`
 	RequesterID string    `json:"requester_id" db:"requester_id"`
+	Branch      string    `json:"branch" db:"branch"`
+	TargetEnv   string    `json:"target_env" db:"target_env"`
+	ImageDigest string    `json:"image_digest" db:"image_digest"`
+	ApprovalID  string    `json:"approval_id" db:"approval_id"`
 	CreatedBy   string    `json:"created_by" db:"created_by"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
@@ -31,6 +35,10 @@ type CreateChangeRequestRequest struct {
 	RiskLevel   string `json:"risk_level"`
 	AssignedTo  string `json:"assigned_to"`
 	RequesterID string `json:"requester_id"`
+	Branch      string `json:"branch"`
+	TargetEnv   string `json:"target_env"`
+	ImageDigest string `json:"image_digest"`
+	ApprovalID  string `json:"approval_id"`
 }
 
 type UpdateChangeRequestRequest struct {
@@ -41,6 +49,10 @@ type UpdateChangeRequestRequest struct {
 	Priority    *string `json:"priority"`
 	RiskLevel   *string `json:"risk_level"`
 	AssignedTo  *string `json:"assigned_to"`
+	Branch      *string `json:"branch"`
+	TargetEnv   *string `json:"target_env"`
+	ImageDigest *string `json:"image_digest"`
+	ApprovalID  *string `json:"approval_id"`
 }
 
 type ChangeRequestListQuery struct {
@@ -50,6 +62,8 @@ type ChangeRequestListQuery struct {
 	RiskLevel   *string `json:"risk_level"`
 	AssignedTo  *string `json:"assigned_to"`
 	RequesterID *string `json:"requester_id"`
+	Branch      *string `json:"branch"`
+	TargetEnv   *string `json:"target_env"`
 	Limit       int     `json:"limit"`
 	Offset      int     `json:"offset"`
 }

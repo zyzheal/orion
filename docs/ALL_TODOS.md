@@ -779,7 +779,7 @@ C. 完全缺失（企业必需）
 | MB-P0-1 | L3 BuildArtifact 模型 + 制品签名强制 | `BuildArtifact` Go 结构 + SHA256 digest + GPG 签名校验 + `imageDigest` 字段入 pipeline 产物表 | ⬜ 未开始 |
 | MB-P0-2 | L2 Namespace 强制绑定 | Image tag 前缀校验中间件 + K8s namespace 命名规则 `orion-${branch}` + 部署 API 前置 gate | ⬜ 未开始 |
 | MB-P0-3 | Pre-deploy Gate 6 条阻断规则 (R1-R6) | 分支-环境匹配 / digest 完整性 / 变更单审批 / 分支状态 / Pipeline 匹配 / Schema 兼容 | ✅ **已完成**（R1-R5 `2163cbd45`；R6 schema-compat 真实 `MigrationChecksumChecker` + severity Blocking + 生产 wiring，16 checker tests 全绿） |
-| MB-P0-4 | ChangeManagement 分支字段扩展 | `ChangeRequest` 新增 `branch` / `targetEnv` / `imageDigest` / `approvalId` 字段 + migration | ⬜ 未开始 |
+| MB-P0-4 | ChangeManagement 分支字段扩展 | `ChangeRequest` 新增 `branch` / `targetEnv` / `imageDigest` / `approvalId` 字段 + migration | ✅ 已完成 |
 
 ### P0-MB Phase 2 — 分支语义 + 同步策略（第 3-6 周）
 

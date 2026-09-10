@@ -83,6 +83,12 @@ func (h *Handler) ListChangeRequests(c *gin.Context) {
 	if req := c.Query("requester_id"); req != "" {
 		q.RequesterID = &req
 	}
+	if b := c.Query("branch"); b != "" {
+		q.Branch = &b
+	}
+	if e := c.Query("target_env"); e != "" {
+		q.TargetEnv = &e
+	}
 	if l := c.DefaultQuery("limit", "20"); l != "" {
 		q.Limit, _ = strconv.Atoi(l)
 	}
