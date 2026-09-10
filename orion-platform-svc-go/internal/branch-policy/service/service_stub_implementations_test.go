@@ -250,12 +250,13 @@ func TestGetCoverage_ComputesCountsAndPct(t *testing.T) {
 		t.Errorf("protectedEnvProfiles = %v, want 1", got)
 	}
 	// 2/3 = 66.67%
-	if got := coverage["coveragePct"]; got == nil {
+	coveragePctRaw, ok := coverage["coveragePct"]
+	if !ok {
 		t.Fatal("coveragePct missing")
 	}
-	pct, ok := got.(float64)
+	pct, ok := coveragePctRaw.(float64)
 	if !ok {
-		t.Fatalf("coveragePct not float64: %T", got)
+		t.Fatalf("coveragePct not float64: %T", coveragePctRaw)
 	}
 	if pct < 66.6 || pct > 66.7 {
 		t.Errorf("coveragePct = %v, want ~66.67", pct)
@@ -309,10 +310,11 @@ func TestListViolations_NoViolationsWhenAllGood(t *testing.T) {
 	rel.MergeTargets = []string{"main"}
 	repo.CreateBranchProfile(context.Background(), rel)
 
-	// LTS with future LTSUntil.
+	// LTS with future LTSUntil and a merge target (non-main rule).
 	future := time.Now().Add(365 * 24 * time.Hour)
 	lts := makeBranchProfile("p3", "lts/2026", models.BranchLTS, models.BranchStatusActive)
 	lts.LTSUntil = &future
+	lts.MergeTargets = []string{"main"}
 	repo.CreateBranchProfile(context.Background(), lts)
 
 	violations, err := svc.ListViolations(context.Background(), "t1")
