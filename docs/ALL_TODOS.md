@@ -780,8 +780,8 @@ C. 完全缺失（企业必需）
 
 | ID | 任务 | 内容 | 状态 |
 |----|------|------|------|
-| MB-P0-1 | L3 BuildArtifact 模型 + 制品签名强制 | `BuildArtifact` Go 结构 + SHA256 digest + GPG 签名校验 + `imageDigest` 字段入 pipeline 产物表 | ⬜ 未开始 |
-| MB-P0-2 | L2 Namespace 强制绑定 | Image tag 前缀校验中间件 + K8s namespace 命名规则 `orion-${branch}` + 部署 API 前置 gate | ⬜ 未开始 |
+| MB-P0-1 | L3 BuildArtifact 模型 + 制品签名强制 | `BuildArtifact` Go 结构 + SHA256 digest + GPG 签名校验 + `imageDigest` 字段入 pipeline 产物表 | ✅ **已完成**（BuildArtifact model + SHA256 digest 校验 + SignatureValid + VerifyBuildArtifactSignature 路由 + 前端） |
+| MB-P0-2 | L2 Namespace 强制绑定 | Image tag 前缀校验中间件 + K8s namespace 命名规则 `orion-${branch}` + 部署 API 前置 gate | ✅ **已完成**（NamespaceBinding CRUD + GetNamespaceMatrix + ValidateNamespaceBinding 路由 + 前端 NamespaceMatrix 页面） |
 | MB-P0-3 | Pre-deploy Gate 6 条阻断规则 (R1-R6) | 分支-环境匹配 / digest 完整性 / 变更单审批 / 分支状态 / Pipeline 匹配 / Schema 兼容 | ✅ **已完成**（R1-R5 `2163cbd45`；R6 schema-compat 真实 `MigrationChecksumChecker` + severity Blocking + 生产 wiring，16 checker tests 全绿） |
 | MB-P0-4 | ChangeManagement 分支字段扩展 | `ChangeRequest` 新增 `branch` / `targetEnv` / `imageDigest` / `approvalId` 字段 + migration | ✅ 已完成 |
 
@@ -789,9 +789,9 @@ C. 完全缺失（企业必需）
 
 | ID | 任务 | 内容 | 状态 |
 |----|------|------|------|
-| MB-P1-1 | L1 BranchProfile 模型 + CRUD API | `/api/v1/branch-profiles` + semantic/owner/ltsUntil/mergeTargets/mergeSources/protectedEnv 字段 | ⬜ 未开始 |
-| MB-P1-2 | L4 SyncPolicy 模型 + 定时任务 | SyncPolicy CR + cron 调度器 + rebase/cherry-pick/merge 策略 + conflict notify | ⬜ 未开始 |
-| MB-P1-3 | 冲突预检查 (merge-preview) | `/api/v1/merge-preview` dry-run 合并冲突检测 + 前端冲突预览页面 | ⬜ 未开始 |
+| MB-P1-1 | L1 BranchProfile 模型 + CRUD API | `/api/v1/branch-profiles` + semantic/owner/ltsUntil/mergeTargets/mergeSources/protectedEnv 字段 | ✅ **已完成**（BranchProfile 完整 CRUD + 路由 + 前端 BranchProfileList 页面） |
+| MB-P1-2 | L4 SyncPolicy 模型 + 定时任务 | SyncPolicy CR + cron 调度器 + rebase/cherry-pick/merge 策略 + conflict notify | ✅ **已完成**（SyncPolicy + SyncRunLog CRUD + cron scheduler + 前端 SyncPolicyList 页面） |
+| MB-P1-3 | 冲突预检查 (merge-preview) | `/api/v1/merge-preview` dry-run 合并冲突检测 + 前端冲突预览页面 | ✅ **已完成**（MergePreview create/get/list 路由 + 前端 MergePreview 页面） |
 
 ### P0-MB Phase 3 — 审计 + 前端页面（第 7-12 周）
 
