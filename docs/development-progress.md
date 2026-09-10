@@ -4365,12 +4365,20 @@ $ git diff --cached --name-only | grep -E "migrations/dba|orion-frontend/src/api
 - ✅ **code/internal/build**：同步修复（镜像模块）
 - ✅ **test-selector GetImpactAnalysis**：空对象 → 真实文件路径匹配 + 影响评分
 
-#### 剩余 live stubs（需 DB/引擎基础设施）
+#### ✅ **pipeline StartRun/StopRun 修复** (`a8f1c71f8`)
+
+`pipeline_runs` 表已由 migration 002 创建，无需新 migration。
+- `models.go` +PipelineRun 结构体（对齐 pipeline_runs schema）
+- `RepositoryInterface` +CreateRun/GetRun/UpdateRun
+- `repository.go` +3 方法（INSERT INTO pipeline_runs、SELECT * WHERE id、UPDATE status）
+- `StartRun` 重写：验证 pipeline active → 创建真实 run 记录 → 返回带 UUID 的 PipelineRunResult
+- `StopRun` 重写：查 run → UPDATE status='CANCELLED'
+
+#### 剩余 live stubs（需 DB 表 + Repository 方法）
 
 | 模块 | Stubs | 阻塞原因 | 估算 |
 |---|---|---|---|
 | artifact-version | 28 方法 | 需新增 DB 表（templates/schemas/plugins/alerts/violations）+ Repository 方法 | 5-10d |
-| pipeline StartRun/StopRun | 2 方法 | 需 pipeline run 表 + run executor 引擎 | 3-5d |
 
 #### 误报排除（非 stub）
 
