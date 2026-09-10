@@ -789,7 +789,7 @@ C. 完全缺失（企业必需）
 
 | ID | 任务 | 内容 | 状态 |
 |----|------|------|------|
-| MB-P1-1 | L1 BranchProfile 模型 + CRUD API | `/api/v1/branch-profiles` + semantic/owner/ltsUntil/mergeTargets/mergeSources/protectedEnv 字段 | ✅ **已完成**（BranchProfile 完整 CRUD + 路由 + 前端 BranchProfileList 页面） |
+| MB-P1-1 | L1 BranchProfile 模型 + CRUD API | `/api/v1/branch-profiles` + semantic/owner/ltsUntil/mergeTargets/mergeSources/protectedEnv 字段 | ✅ **已完成**（BranchProfile 完整 CRUD + 路由 + 前端 BranchProfileList 页面；2026-09-10 补 canonical 路径：此前 6 条路由仅挂在 `/branch-policy` 分组下（实际为 `/api/v1/branch-policy/branch-profiles`），与设计文档 v2 L173-180 的 `/api/v1/branch-profiles` 不符，已在 `RegisterRoutes` 补挂 flat 路由，双路径同指 handler，56 条路由 0 冲突） |
 | MB-P1-2 | L4 SyncPolicy 模型 + 定时任务 | SyncPolicy CR + cron 调度器 + rebase/cherry-pick/merge 策略 + conflict notify | ✅ **已完成**（SyncPolicy + SyncRunLog CRUD + cron scheduler + 前端 SyncPolicyList 页面） |
 | MB-P1-3 | 冲突预检查 (merge-preview) | `/api/v1/merge-preview` dry-run 合并冲突检测 + 前端冲突预览页面 | ✅ **已完成**（MergePreview create/get/list 路由 + 前端 MergePreview 页面） |
 

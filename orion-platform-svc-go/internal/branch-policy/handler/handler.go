@@ -96,6 +96,19 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// DeployRequest (e.g. a different endpoint shape), BranchEnvGuard skips
 	// silently so the middleware can be mounted on wider route groups.
 	r.POST("/deploy", middleware.BranchEnvGuard(h.svc), auth.RequirePermission("branch-policy", "write"), h.ExecuteDeploy)
+
+	// P0-MB Phase 1 — L1 BranchProfile canonical paths.
+	// The multi-branch design doc v2 (§API, L173-180) specifies
+	// /api/v1/branch-profiles flat on the api group. They are also
+	// registered under /branch-policy above; both paths hit the same
+	// handlers so existing consumers keep working while the spec path
+	// is available.
+	rg.GET("/branch-profiles", auth.RequirePermission("branch-policy", "read"), h.ListBranchProfiles)
+	rg.POST("/branch-profiles", auth.RequirePermission("branch-policy", "write"), h.CreateBranchProfile)
+	rg.GET("/branch-profiles/:id", auth.RequirePermission("branch-policy", "read"), h.GetBranchProfile)
+	rg.PUT("/branch-profiles/:id", auth.RequirePermission("branch-policy", "write"), h.UpdateBranchProfile)
+	rg.POST("/branch-profiles/:id/archive", auth.RequirePermission("branch-policy", "write"), h.ArchiveBranchProfile)
+	rg.POST("/branch-profiles/:id/activate", auth.RequirePermission("branch-policy", "write"), h.ActivateBranchProfile)
 }
 
 func (h *Handler) List(c *gin.Context) {
