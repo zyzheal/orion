@@ -14,7 +14,7 @@ import (
 
 // ServiceInterface defines the interface for the artifact-version service.
 type ServiceInterface interface {
-	AddTag(ctx context.Context, tenantID, id string) (*models.Record, error)
+	AddTag(ctx context.Context, tenantID, id, tag string) (*models.Tag, error)
 	Approve(ctx context.Context, tenantID, id string) (gin.H, error)
 	BatchCreate(ctx context.Context, tenantID string) (gin.H, error)
 	CheckCompatibility(ctx context.Context, tenantID, id string) (gin.H, error)

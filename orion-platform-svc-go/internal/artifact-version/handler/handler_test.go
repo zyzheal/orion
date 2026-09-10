@@ -38,8 +38,8 @@ func makeCtx(method string, path string, body interface{}, params map[string]str
 
 type fakeHandlerService struct{}
 
-func (f *fakeHandlerService) AddTag(ctx context.Context, tenantID, id string) (*models.Record, error) {
-	return &models.Record{}, nil
+func (f *fakeHandlerService) AddTag(ctx context.Context, tenantID, id, tag string) (*models.Tag, error) {
+	return &models.Tag{Tag: tag}, nil
 }
 
 func (f *fakeHandlerService) Approve(ctx context.Context, tenantID, id string) (gin.H, error) {

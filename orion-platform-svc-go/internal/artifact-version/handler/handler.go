@@ -299,7 +299,21 @@ func (h *Handler) listTags(c *gin.Context) {
 func (h *Handler) addTag(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ArtifactVersionaddTag")
 	defer span.End()
-	data, err := h.svc.AddTag(ctx, h.tenantID(c), h.id(c))
+	// Tag is supplied in the request body as either {tag: "..."} or {name: "..."}.
+	var req models.AddTagRequest
+	_ = c.ShouldBindJSON(&req)
+	if req.Tag == "" {
+		var fallback struct {
+			Name string `json:"name"`
+		}
+		_ = c.ShouldBindJSON(&fallback)
+		req.Tag = fallback.Name
+	}
+	if req.Tag == "" {
+		c.JSON(400, gin.H{"status": "error", "message": "tag is required"})
+		return
+	}
+	data, err := h.svc.AddTag(ctx, h.tenantID(c), h.id(c), req.Tag)
 	if err != nil {
 		fail(c, err)
 		return
