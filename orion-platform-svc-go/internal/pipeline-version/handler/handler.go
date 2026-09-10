@@ -82,7 +82,7 @@ func (h *Handler) Rollback(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Rollback")
 	defer span.End()
 	tenantID := h.getTenantID(c)
-	_, err := h.svc.Rollback(ctx, c.Param("versionId"), tenantID)
+	restored, err := h.svc.Rollback(ctx, c.Param("versionId"), tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "version not found")
@@ -91,7 +91,9 @@ func (h *Handler) Rollback(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.RespondSuccess(c, nil)
+	// Return the restored version so callers can see the new version label and
+	// baseline state; the service already returns it.
+	middleware.RespondSuccess(c, restored)
 }
 
 func (h *Handler) AddTag(c *gin.Context) {

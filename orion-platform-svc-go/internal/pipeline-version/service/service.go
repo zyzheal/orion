@@ -98,9 +98,10 @@ func (s *Service) Rollback(ctx context.Context, versionID string, tenantID strin
 	restoredVersion := nextRestoredVersion(ctx, source, tenantID, s.repo)
 
 	// Create the clone BEFORE touching any baselines. There is no transaction
-	// support in RepositoryInterface, so if the insert fails (e.g. version
-	// label exceeds VARCHAR(255)) the previous baseline is left intact rather
-	// than the pipeline being left with no baseline at all.
+	// support in RepositoryInterface, so if the insert fails (e.g. the table
+	// is absent, or YAMLDefinition exceeds its column) the previous baseline
+	// is left intact rather than the pipeline being left with no baseline at
+	// all. Labels themselves are pre-truncated to the column width.
 	restored := &models.PipelineVersion{
 		TenantID:       tenantID,
 		PipelineID:     source.PipelineID,
