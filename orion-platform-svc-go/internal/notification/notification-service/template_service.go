@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"orion/go-common/pkg/otel"
 	"orion/platform-svc-go/internal/notification/models"
@@ -89,10 +90,43 @@ func (s *TemplateService) RenderVariables(ctx context.Context, tenantID, id stri
 	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "TemplateService.RenderVariables")
 	defer span.End()
 
-	_, err := s.GetTemplate(ctx, tenantID, id)
+	t, err := s.GetTemplate(ctx, tenantID, id)
 	if err != nil {
 		return nil, fmt.Errorf("template not found")
 	}
 
-	return nil, nil
+	vars := extractPlaceholders(t.Subject)
+	for _, v := range extractPlaceholders(t.Body) {
+		if !stringSliceContains(vars, v) {
+			vars = append(vars, v)
+		}
+	}
+	return vars, nil
+}
+
+var placeholderRe = regexp.MustCompile(`\{\{\.?(\w+)(?:\.\w+)*\}\}`)
+
+// extractPlaceholders finds all Go template variable placeholders in text.
+func extractPlaceholders(text string) []string {
+	if text == "" {
+		return nil
+	}
+	matches := placeholderRe.FindAllStringSubmatch(text, -1)
+	vars := make([]string, 0, len(matches))
+	for _, m := range matches {
+		if len(m) > 1 {
+			vars = append(vars, m[1])
+		}
+	}
+	return vars
+}
+
+// stringSliceContains checks if a string slice contains a value.
+func stringSliceContains(s []string, v string) bool {
+	for _, item := range s {
+		if item == v {
+			return true
+		}
+	}
+	return false
 }

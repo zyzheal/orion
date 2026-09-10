@@ -4,8 +4,8 @@ import (
 	"orion/go-common/pkg/database"
 
 	notification_handler "orion/platform-svc-go/internal/notification/notification-handler"
-	notification_repo "orion/platform-svc-go/internal/notification/repository"
-	notification_service "orion/platform-svc-go/internal/notification/service"
+	notification_repo "orion/platform-svc-go/internal/notification/notification-repository"
+	notification_service "orion/platform-svc-go/internal/notification/notification-service"
 
 	notification_policy_handler "orion/platform-svc-go/internal/notification-policy/handler"
 	notification_policy_repo "orion/platform-svc-go/internal/notification-policy/repository"
@@ -82,8 +82,8 @@ import (
 // wiring-channel.go to avoid registering their routes twice.
 func wireNotificationModules(db *database.DB) {
 	// notification services
-	notificationRepo := notification_repo.NewRepository(db)
-	notificationSvc := notification_service.New(notificationRepo)
+	notificationRepo := notification_repo.NewRepository(db.DB)
+	notificationSvc := notification_service.NewService(notificationRepo)
 	notificationH = notification_handler.NewHandler(notificationSvc)
 
 	// notification-policy services
