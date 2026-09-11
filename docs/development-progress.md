@@ -5039,3 +5039,102 @@ pq: unexpected transaction status idle
   `internal/notification/chatops/` 27 文件 / 4523 行、`internal/identity/auth/`
   7 个死包、`internal/auth-enhanced/` 2 个、`internal/devops/migration_runner.go`、
   3 个 vet 波及的死包）；步骤 6（4 处 SMTP/SMS 桩 + `excelize` 依赖）
+
+---
+
+## 第十轮：Stub Scan Round 10 — 死包清理第一批（授权序第 4 步）
+
+### 10.1 判定方法必须先修正，否则结论完全错误
+
+旧扫描的 `imports` 字典用**完整 import 路径**（`orion/platform-svc-go/internal/x`）作键，
+而包集合用**相对路径**（`internal/x`）作键。两者永不相等，于是「包是否被 import」
+恒为假，扫描报出 **1874 个包全部死亡** —— 一个显然荒谬、但形式上自洽的结论。
+
+修正：import 键剥离 `orion/platform-svc-go/` 前缀；且不以「是否被 import」为终判，
+而以 **`cmd/` 下 `package main`（`cmd/server`、`cmd/pipeline-engine`）为根做传递闭包
+可达性分析** —— 因为「被某个死包 import」不是活证据。
+
+真实数字：**1874 个包中 505 个传递性死亡**。此前记录的 492 亦不准。
+
+**方法反向校验**（已知活包必须判 LIVE）：
+
+| 包 | 判定 |
+|---|---|
+| `internal/infrastructure/backup/repository` | LIVE ✓（Round 9 已确认的活代码） |
+| `internal/alert-adapter-v2/handler` | LIVE ✓ |
+| `internal/cron/service` | LIVE ✓ |
+| `internal/chatops/service` | LIVE ✓ —— 确证活模块是 `internal/chatops/` |
+| `internal/notification/chatops/service` | DEAD ✓ —— 确证它是 stale fork |
+| `internal/identity/auth/service` | DEAD ✓ |
+
+`internal/chatops` 判 LIVE、`internal/notification/chatops` 判 DEAD 这一对结果同时
+印证了删除决策本身，故方法可信。
+
+### 10.2 删除清单（77 文件 / 14916 行）
+
+删除前对每棵树做三项确认：传递性死亡、无 NATS `Subscribe`、无 `init()` 副作用
+（后两项 grep 全部返回 0，故无运行时注册路径可绕过静态分析）。
+
+| 目标 | 规模 | 性质 |
+|---|---|---|
+| `internal/notification/chatops/` | 6 包 / 27 文件 / 4523 行 | `internal/chatops/` 的 stale fork（27 个分散文件 vs 活模块的生成式接口结构），0 外部引用 |
+| `internal/identity/auth/` | **全树 15 包** / 31 文件 / 6284 行 | 此前记录为 7 个死包，实际**整树死亡** |
+| `internal/auth-enhanced/{fieldencryption,loginattempt,wechat}` | 3 包 / 7 文件 / 1266 行 | 7 个包中仅 3 个死；`handler`/`models`/`repository`/`service` 判 LIVE 故保留 |
+| `internal/devops/` | 1 包 / 5 文件 / 754 行 | 「Plan 09 数据库 DevOps 框架」手工复制粘贴模板 |
+| `internal/import-export/handlers` | 1 包 / 4 文件 | 活的是同名单数 `internal/import-export/handler` |
+| `internal/auto-exec/param-plugins` | 1 包 / 1 文件 | |
+| `internal/ci-cd/canary/handler` | 1 包 / 2 文件 | 活的是 `internal/ci-cd/canary` 本身 |
+
+两处需要点明的更正：`internal/identity/auth/` 是**整树 15 包**而非 7 个；
+`internal/auth-enhanced/` 是 **3/7** 而非 2 个。此前的数字来自未修正的扫描。
+
+`internal/devops/` 的文件头自述「用法: 1. 复制本文件到目标模块」—— 它是给开发者
+手工复制的样板，不是生成器输入（全仓库 0 处按路径引用）。其中 `migration_runner.go`
+重复实现了 `orion-go-common` 的 `database.RunMigrations`，正是 Round 9 在全新 PG15 上
+实测通过的那条活路径；删掉它消除了「有两条迁移路径，哪条是真的」的歧义。
+
+### 10.3 实质影响：JWT 密钥轮换能力完全不存在
+
+删掉的 `internal/identity/auth/keyrotation` 是仓库内**唯一**的 JWT 密钥轮换实现。
+活路径 `orion-go-common/pkg/auth/middleware.go` 支持 HS256 + RS256 双算法（
+`JWTSecret` + 可选 `JWTPublicKey`），但只有**静态单钥**、无 `kid` 头查找、无密钥集。
+
+结论：密钥轮换目前是**完全不存在**，而非「有实现但没接线」。删除死代码不改变今天的
+运行行为，但将来若要做密钥轮换需从零实现。`pkg/auth` 虽在授权范围内（Phase F/H/H.1），
+但新增轮换基础设施属功能开发而非桩修复，故本轮只记录不动手。
+
+### 10.4 保留：16 个 NATS 订阅者
+
+NATS 订阅者按事件名在运行时驱动，静态 import 分析天然看不见，是误删的主要风险面。
+已 grep 确认本轮删除的 4 棵树内无任何 `Subscribe` 调用，故无订阅者损失。
+
+### 10.5 验证
+
+- `go build ./...` EXIT=0
+- `go vet ./internal/...` EXIT=0，输出 0 行
+- `go test -count=1 ./...` EXIT=0，**0 FAIL / 562 个 ok 包**
+- 相邻子树定向测试（`auth-enhanced`、`import-export`、`ci-cd/canary`、`chatops`、
+  `identity`、`notification`）21 个 ok
+- 死包数 505 → 477
+
+### 10.6 未做：剩余 477 个死包
+
+剩余 477 个死包**未删**。理由：一次性删除近半 `internal/`（多为两套迁移流整并遗留的
+模块 fork）风险面过大、diff 不可评审，且部分可能是并行分支正在建设的目标。已导出
+完整清单（传递闭包算法可复现），建议后续按业务域分批决策，每批独立验证。
+
+### 累计进度（更新）
+
+- **Stub Scan Round 6**：✅
+- **Stub Scan Round 7**（始终 404 的活路由 + 3 处零调用死桩 + cmd 导入图判据）：✅ `c8eb9c8ab`
+- **Stub Scan Round 8**（杂物清理 + 假阳性桩删除 + `go vet` 20→0 含 3 处活缺陷 +
+  7 个变异验证测试 + `ProcessInstance` tag 清理）：✅ `1c4ab25c8`
+- **Stub Scan Round 9**（迁移：全新库 167/327 → 328/328 全通过；22 组重复版本号、
+  12 处内嵌事务包装、403 死 DDL、4 个整并迁移后移、236/243/254 内容缺陷）：
+  ✅ `489f26086` + `ec6e468c4` + `3f922132f`
+- **Stub Scan Round 10**（死包清理第一批 77 文件 / 14916 行；修正死包判定方法
+  505/1874 传递性死亡；`identity/auth` 整树、`notification/chatops` 整树、
+  `auth-enhanced` 3/7、`devops` 模板、3 个 vet 波及死包；确认密钥轮换能力完全不存在）：
+  ✅ 本批
+- **待办**：步骤 6（4 处 SMTP/SMS 发送桩 + `excelize` 依赖）；步骤 4 收尾
+  （剩余 477 个死包按域分批）
