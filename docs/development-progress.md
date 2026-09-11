@@ -4916,3 +4916,126 @@ $ go test   ./internal/ci-cd/deploy/repository/ ./internal/cron/service/ \
   `pgcrypto`，而原来的 `uuid_generate_v4()` 需 `uuid-ossp` 扩展，二者不等价）；
   步骤 4（492 个死包，含本轮新增的 `internal/identity/auth/` 7 包与
   `auth-enhanced` 2 包）；步骤 6（4 处 SMTP/SMS 桩 + `excelize` 依赖）
+
+---
+
+## Stub Scan Round 9 — 全新库迁移从「死在 migration 1」到 328/328 全通过（2026-08-26）
+
+步骤 1（迁移）完成。判定结论：**此前任何全新部署都无法启动。**
+
+### 9.1 最终结果（生产代码路径，非复刻 harness）
+
+`database.RunMigrations` 在一次性 `postgres:15-alpine` 容器上真实执行：
+
+```
+LOADED=328   RUNMIGRATIONS_OK   RECORDED=328   BASE_TABLES=622
+```
+
+对同一个已迁移库重跑一次（幂等性）：同样 `RUNMIGRATIONS_OK`、`RECORDED=328`，
+328 条按已记录版本跳过，退出码 0。
+
+### 9.2 根因：22 个版本号被 2–8 个文件同时占用
+
+`schema_migrations.version` 是 `INT PRIMARY KEY`，但目录里 **22 个版本号各有
+2–8 个同名前缀文件**（版本号 1 独占 8 个文件）。这是两套独立迁移流被合并进
+同一个目录的结果：`NNN_create_*_tables.sql` 流与 `NNN_ai_*` / `NNN_p0_domains.sql`
+流。任一组里的第二个文件写入 `schema_migrations` 就撞主键，实测输出：
+
+```
+failed to record migration 1: pq: duplicate key value violates
+unique constraint "schema_migrations_pkey"
+RECORDED=2
+```
+
+`sort.Slice` 对相等版本号是不稳定的，所以重复组内的执行顺序本身也是未定义的。
+另外因为已应用迁移按 int 版本号索引，**已迁移库上版本号冲突的后序文件会被
+静默跳过、永不执行** —— 不只是全新库坏，存量库也在静默缺表。
+
+修复：18 个冲突文件改号到空闲槽位 243–276（其 12 个 `_down` 配对文件随行）。
+改号后 328 个 up 迁移版本号全部唯一，0 组重复。
+
+### 9.3 四个 schema 级整并迁移后移到 570–573
+
+`add_foreign_keys` / `add_soft_delete` / `add_audit_columns` /
+`add_cross_table_foreign_keys` 跨全库 `ALTER` + `ADD CONSTRAINT`，引用的是
+在其之后才创建的表；在 240–246 位置永远解析不出来。移到 570–573 后所有父表
+都已存在，891 / 1010 条语句全部通过。
+
+**重要限制**：已应用迁移按 int 版本索引，改号只对全新库生效。存量库上这些
+文件要么已按旧号位失败、要么已被跳过，需要人工补跑。
+
+### 9.4 内嵌 `BEGIN;`/`COMMIT;` 包装 —— 掩盖真实错误的元凶（12 文件）
+
+12 个文件（6 个 up + 6 个 down）自带字面量 `BEGIN;` … `COMMIT;`。runner
+本来就为每个文件开一个事务，内层 `COMMIT` 提前释放了 runner 的事务，随后
+`tx.Commit()` 报：
+
+```
+pq: unexpected transaction status idle
+```
+
+这个信息**完全不含真实原因**，把 260 / 276 / 570 / 571 / 572 / 573 六个失败
+全伪装成"事务状态异常"，直接导致本轮一度误判为状态依赖问题、走了错误排查路径。
+剥掉包装后六者全部通过，并暴露出下游的真实错误（9.5）。
+
+### 9.5 403 的死 DDL：`backup_recovery` / `backup_plan`
+
+403 对 `backup_recovery` 做 5 次 `ALTER` 并给 `backup_plan` 建索引，但**这两个表
+没有任何迁移创建、也没有任何 Go 代码引用**。活代码
+（`internal/infrastructure/backup/repository`）实际使用的是 `recovery_records` 和
+`backup_plans`（复数）。因为迁移遇首个错误即中止，这 8 条死 DDL 让 403 永久不可
+应用，并连带阻塞其后 125 个迁移。
+
+修复：删除死 DDL，改为按 repository 实际 SQL 创建 `backup_plans` /
+`backup_records` / `recovery_records` / `verification_results` / `backup_archive`。
+这同时补上了一个此前完全缺失的能力 —— 这些表原先在整个 migrations 目录里
+根本不存在，即全新部署下 backup 模块所有调用都会在运行时炸掉。
+
+### 9.6 另外三处内容缺陷
+
+| 文件 | 缺陷 | 修复 |
+|------|------|------|
+| 236 | `CREATE INDEX ... ON approvals(_source)` —— 表名错。正确表是 `change_approvals`（文件自己的注释也这么写）。`CREATE INDEX` 没有表存在性守卫，错名直接中止整文件 | 改索引到 `change_approvals` |
+| 243 | `pipeline_stages.run_id` / `pipeline_stage_runs.run_id` 用 `UUID` 引用 `pipeline_runs(id)`，但 157 先跑且 `id VARCHAR(36)` 胜出 `IF NOT EXISTS`，`foreign key constraint cannot be implemented` | FK 列类型改为 `VARCHAR(36)` |
+| 254 | `ON CONFLICT ON CONSTRAINT uq_global_search_configs_module` —— 目标是**部分唯一索引**而非约束，既不能用 `ON CONSTRAINT`，也必须重复 `WHERE` 子句 | 改为 `ON CONFLICT (module) WHERE deleted_at IS NULL` |
+
+### 9.7 验证方法论（本轮的教训）
+
+两个非权威 harness 给出了误导性结论：
+
+- **逐文件 harness**：每个文件独立开事务、跑完回滚 → 后序文件看不到前序文件建
+  的表，凡是"依赖前序状态"的文件必然误报失败。
+- **语句切分 harness**：全部不 commit → 同上，且 570 会误报 `relation does not
+  exist`。
+
+**唯一权威判据**是拿真实 `database.RunMigrations` 在全新容器上跑（每轮一个
+一次性容器），它复现生产路径：`LoadMigrations` → 每文件一个 `Beginx()` →
+`tx.Exec` 全量 → `tx.Commit()` → 写 `schema_migrations`。诊断时才对首个失败
+文件做语句级二分，且此时前序文件全部已真实 commit。
+
+诊断用的临时 harness（`tmp_real/`）与调试容器已全部删除。
+
+### 9.8 遗留（跨仓，本次未改）
+
+- `V20260724__graphviz.sql` 不匹配 `%03d_` 解析，被 `LoadMigrations` **静默跳过、
+  永不应用**（LOADED=328 = 329 个 up 文件 − 这 1 个）。
+- `orion-go-common/pkg/database/migrate.go` 以 int 版本号作为 `schema_migrations`
+  主键，是重复版本号能造成 P0 的结构性原因；理想修法是改用文件名作为键。该文件
+  在独立仓库、不在授权范围内，本轮以目录内改号的方式在范围内解决。
+- 目标 PG 版本已确认：`docker-compose.yml:5` 与两个 CI workflow 均为
+  `postgres:15-alpine`，故 `gen_random_uuid()` 内建可用，`uuid_generate_v4()`
+  需 `uuid-ossp` 扩展（全目录仅 048/064/253 声明）—— Round 8 该替换是真实缺陷修复。
+
+### 累计进度（更新）
+
+- **Stub Scan Round 6**：✅
+- **Stub Scan Round 7**（始终 404 的活路由 + 3 处零调用死桩 + cmd 导入图判据）：✅ `c8eb9c8ab`
+- **Stub Scan Round 8**（杂物清理 + 假阳性桩删除 + `go vet` 20→0 含 3 处活缺陷 +
+  7 个变异验证测试 + `ProcessInstance` tag 清理）：✅ `1c4ab25c8`
+- **Stub Scan Round 9**（迁移：全新库 167/327 → 328/328 全通过；22 组重复版本号、
+  12 处内嵌事务包装、403 死 DDL、4 个整并迁移后移、236/243/254 内容缺陷）：
+  ✅ `489f26086` + `ec6e468c4` + `3f922132f`
+- **待办**：步骤 4（492 个死包，保留 16 个 NATS 订阅者；删
+  `internal/notification/chatops/` 27 文件 / 4523 行、`internal/identity/auth/`
+  7 个死包、`internal/auth-enhanced/` 2 个、`internal/devops/migration_runner.go`、
+  3 个 vet 波及的死包）；步骤 6（4 处 SMTP/SMS 桩 + `excelize` 依赖）
