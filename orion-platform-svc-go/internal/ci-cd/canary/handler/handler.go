@@ -235,7 +235,6 @@ func (h *Handler) ConfigureTraffic(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	req.Strategy = req.Strategy // "istio" or "nginx"
 
 	result, err := h.svc.ConfigureTraffic(ctx, id, req.Strategy, req.Host, req.Upstream, req.CanaryPercent)
 	if err != nil {

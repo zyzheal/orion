@@ -20,6 +20,7 @@ vendor/
 
 # Backup files
 *.bak
+*.tmp
 
 # Grok cache
 .grok/

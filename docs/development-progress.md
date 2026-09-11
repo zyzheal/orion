@@ -4714,3 +4714,205 @@ $ go test ./internal/... -count=1                                          # GO_
 - **Stub Scan Round 5**（pipeline StartRun/StopRun 真实 DB 实现）：✅ `a8f1c71f8`
 - **Stub Scan Round 6**（BatchStrategy/cron engine 数据竞争 + 全局渠道工厂空接线 + 删除 notification-models 死包）：✅
 - **Stub Scan Round 7**（始终 404 的活路由修复 + 3 处零调用死桩删除 + cmd 导入图活/死判据落地）：✅ `c8eb9c8ab`（Round 6+7 合并提交，19 文件 +1696/-989）
+
+---
+
+## Stub Scan Round 8 — vet 全量清零 + 3 处活缺陷修复（2026-08-26）
+
+执行顺序 2 → 5 → 3 → 1 → 4 → 6 → 7。本轮完成 **2 / 5 / 3 / 7**，
+1 / 4 / 6 待后续轮次（迁移提交需先确认目标 PG 版本）。
+
+### 8.1 步骤 2：杂物文件清理（4 文件）
+
+| 文件 | 行数 | 处置 |
+|---|---|---|
+| `internal/tenant/handler/handler_test.go.bak` | 311 | `git rm` |
+| `internal/extension-point/service/service.go.bak` | 272 | `git rm` |
+| `internal/ai/decisions/service/service.go.tmp` | 0 | `git rm` |
+| `cmd/server/wiring.go.tmp` | 0 | `rm`（被 `.gitignore` 忽略） |
+
+`.gitignore` 在 `# Backup files` 段新增 `*.tmp`。
+
+**新发现的隐患（仅记录，未改）**：`.gitignore:6` 的 `cmd/server`
+把整个源码目录排除了 —— 该目录下**新增的** `.go` 文件永远不会进入版本库。
+
+### 8.2 步骤 5：假阳性桩类型删除（5 文件 / 1017 行）
+
+| 文件 | 行数 |
+|---|---|
+| `internal/auth-enhanced/keyrotation/keyrotation.go` | 370 |
+| `internal/auth-enhanced/repository/jwt_key_repository.go` | 47 |
+| `internal/ticketing/service/automation_rule.go` | 185 |
+| `internal/ticketing/handler/automation_rule_handler.go` | 135 |
+| `internal/ticketing/repository/interfaces.go` | 214 → 174（删 `AutomationRuleRepository` 块） |
+
+#### 上轮结论的更正
+
+上轮称二者为"零调用桩"，**措辞不准确**：
+两个类型都被其所在子树的代码**类型引用**过，只是整棵子树从 `cmd/` 不可达。
+删除因此必须连同依赖方一起删，而不是只删接口文件。
+
+**重要推论**：`internal/identity/auth/` 与 `internal/auth-enhanced/` 的
+JWT key rotation / SSO / 微信登录 / 权限 / token 黑名单共 9 个包**全部死亡**
+（import 图 0 个可达导入方），代码库中**不存在活的 JWT key 轮转实现**。
+这比"接口没接线"严重：不是缺一处 wiring，是整棵树没人引用。
+已并入步骤 4 的删除候选清单。
+
+### 8.3 步骤 3：`go vet` 20 → 0，其中 3 处是活缺陷
+
+`go vet ./internal/...` 20 条告警全部修复，`VET_EXIT=0` / `WARNINGS=0`。
+按 import 图判活/死后，10 个受影响包中 3 个是死亡包
+（`import-export/handlers`、`auto-exec/param-plugins`、`ci-cd/canary/handler`），
+其修复属清理；其余 7 处是活路径，其中 3 处是**真缺陷**。
+
+#### 8.3.1 P0：cron 调度器从未能触发任何任务（`internal/cron/service`，2 个活导入方）
+
+`runTask` 的循环体开头是一个阻塞式 `select`，两个 case 全部 `return`。
+Go 编译器因此把下方所有语句判为不可达 —— `startTask` 起了 goroutine，
+但它既不读任务定义、不持久化 `next_run_at`、不写执行日志、**也从不触发任务**。
+
+`go vet` 只报了"不可达代码"，真正的语义后果（整个循环体是死代码）需要读上下文才能发现。
+
+```go
+select {
+case <-t.quit:
+    return
+case <-m.stopCh:
+    return
+default:          // 修复：非阻塞轮询，循环体得以执行
+}
+```
+
+**测试**：`scheduler_run_task_test.go`（新增，3 个用例，全绿 0.321s）。
+其中 `TestRunTaskScheduleLoopIsReachable` 的判据是确定性的
+（循环体可达 → SELECT 被发出 → `ExpectationsWereMet` 通过；不可达 → 期望永不被消费），
+**不依赖 sleep 等待**。
+
+测试里有一条必须遵守的注释约束：**绝不能先 close `t.quit`**。
+修复后开头的 select 是轮询，quit 通道已关闭会让 goroutine 在做任何事之前就退出，
+恰好掩盖本用例要固定的那个 bug。
+
+**变异验证**：删掉 `default:` 后
+`TestRunTaskScheduleLoopIsReachable` 失败
+（"loop body never reached the job definition read"），
+`TestRunTaskFiresJobOnStop` 失败（"job never fired; execs=0"）。修复已还原。
+
+#### 8.3.2 活缺陷：alert-adapter-v2 创建适配器永远 400（1 个活导入方）
+
+`CreateAdapter` 的请求结构体把三个字段挂在同一个 tag 上：
+
+```go
+Name, Channel, Config string `json:"name,omitempty"`   // 一个 tag 作用于三个字段
+```
+
+Go 解码器把共享 tag 的 key 交给**第一个声明**的字段，
+所以 `name` 进入 `Name`，`channel` 与 `config` **恒为空**，
+`CreateAdapter` 对**每一个**请求都返回 `400 invalid notification channel: `。
+
+变异输出证明了我最初的判断是错的：错误消息里的 channel 是**空串**，
+不是从 name 取来的值。错误码 `invalid notification channel: ` 的空尾巴
+就是这条 bug 的指纹。
+
+顺带修掉了 `_ = c.ShouldBindJSON(&req)` 这个被丢弃的绑定错误
+（畸形 JSON 会一路跌到同一个 channel 400，报的是错的错）。
+
+**测试**：`handler_test.go`（新增，2 个用例，全绿）。
+`TestCreateAdapterBindsAllFields` 断言请求体三字段齐全时返回码不是 channel 400、
+且 `INSERT INTO alert_notification_adapters` 真的被消费。
+**变异验证**：还原成共享 tag + `_ =` 后两个用例都失败
+（输出 `"invalid notification channel: "`）。
+
+注：同文件 `CreateTemplate` 从没用 tag，靠大小写不敏感匹配**本来就正常工作** ——
+这也反向证实了显式 tag 才是元凶。
+
+#### 8.3.3 活缺陷：deploy window 落库值与返回值不一致（2 个活导入方）
+
+`Create` 把 `w.Timezone` 的默认值写在 **INSERT 之后**：
+
+```go
+err := r.db.QueryRowContext(ctx, query, ..., w.Timezone, ...)   // 传的是空串
+if w.Timezone == "" { w.Timezone = "Asia/Shanghai" }             // 库外才补默认
+```
+
+数据库里存的是空 timezone，返回给调用方的对象却是 `Asia/Shanghai`
+—— 调用方和数据库互相不一致。同时 `w.Timezone = w.Timezone` 这条
+自赋值也一并删除，且把默认值前置到查询之前。
+
+**测试**：`deploy_window_repository_test.go`（新增，2 个用例，全绿）。
+判别点是 `WithArgs(..., "Asia/Shanghai", ...)` 而不是返回值本身 ——
+后补默认值同样能让 `w.Timezone` 看起来正确，只有绑定参数能抓住它。
+第二个用例断言调用方显式传入的 `Europe/Berlin` 不被默认值覆盖。
+
+**变异验证**：把默认值挪回 INSERT 之后，
+`TestDeployWindowCreateDefaultsBeforeInsert` 失败
+`argument 5 expected [string - Asia/Shanghai] does not match actual [string - ]`。
+
+#### 8.3.4 其余修复
+
+| 文件 | 状态 | 修复 |
+|---|---|---|
+| `internal/cache-monitor/repository/repository.go` | 活（2 导入方） | 删 `m.Name = m.Name` 等 3 处自赋值 |
+| `internal/execution-mode-engine/repository/repository.go` | 活（2 导入方） | 删 `config.TenantID = config.TenantID` |
+| `internal/policy/engine/rego.go` | 活（1 导入方） | 删 `return` 后不可达的 `_ = t` |
+| `internal/ci-cd/canary/handler/handler.go` | **死** | 删 `req.Strategy = req.Strategy` |
+| `internal/auto-exec/param-plugins/plugins.go` | **死** | 删 `switch default` 后不可达的 `return nil` |
+| `internal/import-export/handlers/ticket.go` | **死**（0 导入方 / 0 测试） | 删不可达 `return nil, nil`；未知的 excel 格式原来静默返回 0 行"导入成功"，改为返回错误 |
+
+`import-export` 的 `excel` 分支仍是 `TODO`（需引入 `excelize` 依赖），
+已并入步骤 6 的外部依赖清单。
+
+### 8.4 步骤 7：`ProcessInstance` 的装饰性 json tag 移除
+
+`internal/process-step/service/engine.go` 的 8 个未导出字段带着 json tag。
+字段未导出时 tag 是死代码；保留又会诱导"顺手导出即可序列化"的写法。
+已删除全部 tag，并在类型注释里写明理由：**所有读取都走持锁的 accessor**，
+导出字段（或加回 tag）会引入绕过 `mu` 的访问路径。
+
+### 8.5 方法论更正（本轮）
+
+1. **`grep | head` 截断**导致上一轮少报了 2 处死桩 —— 必须用完整计数而非前几行。
+2. **zsh 下 `${PIPESTATUS[0]}` 为空**，`go vet | head` 的 exit 0 不能证明 vet 通过。
+   统一改为 `> /tmp/out 2>&1; echo "EXIT=$?"` 直接取工具自身退出码。
+3. **`2>&1 > file` 是错的顺序**（重定向覆盖到重定向之前）。
+4. `go test ./internal/...` 与 `go vet ./internal/...` **必须在
+   `orion-platform-svc-go/` 下运行**；在 repo 根目录运行时模块匹配 0 个包，
+   退出码 0 会给出误导性的"全绿"。
+
+#### 验证
+
+```
+$ cd orion-platform-svc-go
+$ go build  ./...                              # BUILD_EXIT=0
+$ go vet    ./internal/...                     # VET_EXIT=0, WARNINGS=0   （原 20）
+$ go test   ./internal/ci-cd/deploy/repository/ ./internal/cron/service/ \
+            ./internal/alert-adapter-v2/... -count=1                        # 全 ok
+    # 5 个新用例全部 PASS：
+    #   TestDeployWindowCreateDefaultsBeforeInsert        PASS
+    #   TestDeployWindowCreateKeepsExplicitTimezone       PASS
+    #   TestRunTaskScheduleLoopIsReachable                PASS
+    #   TestRunTaskFiresJobOnStop                         PASS
+    #   TestExecuteJobPersistsLog                         PASS
+    #   TestCreateAdapterBindsAllFields                   PASS
+    #   TestCreateAdapterRejectsMalformedBody             PASS
+```
+
+三个新测试文件**每个都做过变异验证**：还原原始缺陷后测试必然失败，
+不是"什么都能过"的空测。
+
+### 8.6 新增覆盖空白记录
+
+修复前 `internal/cron/` **整个子树 0 个测试文件**，且全仓没有任何 sqlmock 用法。
+该包是活的、有 2 个导入方、含一条永不触发的调度路径 —— 本轮补上了第一个测试。
+
+### 累计进度（更新）
+
+- **Stub Scan Round 6**：✅
+- **Stub Scan Round 7**（始终 404 的活路由 + 3 处零调用死桩 + cmd 导入图判据）：✅ `c8eb9c8ab`
+- **Stub Scan Round 8**（杂物清理 + 假阳性桩删除 + `go vet` 20→0
+  含 cron 调度器 P0 / alert-adapter-v2 绑定 / deploy window 落库分歧 3 处活缺陷 +
+  7 个变异验证测试 + `ProcessInstance` tag 清理）：✅
+- **待办**：步骤 1（159 个迁移文件提交 + `000_bootstrap` 归属决策，
+  前置条件是确认目标 PG 版本 —— `gen_random_uuid()` 需 PG13+ 内建或 PG<13 装
+  `pgcrypto`，而原来的 `uuid_generate_v4()` 需 `uuid-ossp` 扩展，二者不等价）；
+  步骤 4（492 个死包，含本轮新增的 `internal/identity/auth/` 7 包与
+  `auth-enhanced` 2 包）；步骤 6（4 处 SMTP/SMS 桩 + `excelize` 依赖）

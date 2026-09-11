@@ -203,7 +203,6 @@ func (p *IntegerPlugin) Validate(value any) error {
 	default:
 		return fmt.Errorf("expected integer, got %T", value)
 	}
-	return nil
 }
 func (p *IntegerPlugin) Coerce(raw json.RawMessage) (any, error) {
 	var i int64

@@ -318,11 +318,17 @@ func (m *SchedulerManager) runTask(t *schedTask) {
 	defer close(t.done)
 
 	for {
+		// Non-blocking shutdown check. The previous code had a blocking select
+		// whose only two cases both `return`, which made every statement below
+		// unreachable: startTask spawned the goroutine but the job never fired,
+		// the next-run timestamp was never persisted, and no execution log was
+		// ever written. `default` makes this a poll so the loop body runs.
 		select {
 		case <-t.quit:
 			return
 		case <-m.stopCh:
 			return
+		default:
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

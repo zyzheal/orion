@@ -27,10 +27,7 @@ func (r *Repository) SaveMetrics(ctx context.Context, m *models.CacheMetrics) er
 	}
 	id := uuid.New().String()
 	now := time.Now().UTC()
-	m.Name = m.Name
-	m.Type = m.Type
 	m.LastCollectedAt = now
-	m.Status = m.Status
 	if m.Status == "" {
 		m.Status = "unknown"
 	}

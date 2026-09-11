@@ -32,9 +32,14 @@ func (h *Handler) CreateAdapter(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertAdapterCreateAdapter")
 	defer span.End()
 	var req struct {
-		Name, Channel, Config string `json:"name,omitempty"`
+		Name    string `json:"name"`
+		Channel string `json:"channel"`
+		Config  string `json:"config"`
 	}
-	_ = c.ShouldBindJSON(&req)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
 	a, err := h.factory.CreateAdapter(ctx, c.GetString("tenant_id"), req.Name, req.Channel, req.Config)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())

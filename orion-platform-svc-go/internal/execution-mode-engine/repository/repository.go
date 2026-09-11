@@ -32,7 +32,6 @@ func (r *executionModeRepo) Create(ctx context.Context, config *models.Execution
 	if config.ID == "" {
 		config.ID = uuid.New().String()
 	}
-	config.TenantID = config.TenantID
 	_, err := r.db.NamedExecContext(ctx, `
 		INSERT INTO execution_modes (id, tenant_id, name, mode, timeout_ms, retries, worker_pool, enabled, created_at, updated_at)
 		VALUES (:id, :tenant_id, :name, :mode, :timeout_ms, :retries, :worker_pool, :enabled, NOW(), NOW())`,

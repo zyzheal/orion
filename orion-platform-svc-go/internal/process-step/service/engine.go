@@ -13,15 +13,20 @@ import (
 
 // ProcessInstance represents a single running instance of a process, tracking
 // which steps have been executed, in-flight state, and accumulated workflow data.
+//
+// All fields are unexported on purpose: every read goes through an accessor that
+// takes mu, so exporting them (or giving them json tags that tempt marshalling)
+// would invite access that bypasses the lock. Nothing marshals this type — the
+// process-step handlers build their own response models.
 type ProcessInstance struct {
-	id            string                 `json:"id"`
-	tenantID      string                 `json:"tenant_id"`
-	processID     string                 `json:"process_id"`
-	defID         string                 `json:"definition_id"` // process definition ID
-	status        string                 `json:"status"`        // running, completed, failed, paused
-	data          map[string]interface{} `json:"data"`          // aggregated state across steps
-	stepsExecuted int                    `json:"steps_executed"`
-	stepsFailed   int                    `json:"steps_failed"`
+	id            string
+	tenantID      string
+	processID     string
+	defID         string                       // process definition ID
+	status        string                       // running, completed, failed, paused
+	data          map[string]interface{}       // aggregated state across steps
+	stepsExecuted int
+	stepsFailed   int
 	mu            sync.RWMutex
 }
 

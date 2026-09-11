@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"strings"
 	"time"
@@ -145,11 +146,10 @@ func (h *TicketHandler) parseRows(source io.Reader, format string, hasHeader boo
 		return formatters.FromCSVRows(source, hasHeader)
 	case "excel":
 		// TODO: wire excelize once the dependency is added.
-		return nil, nil
+		return nil, fmt.Errorf("import format %q is not supported yet", format)
 	default:
-		return nil, nil
+		return nil, fmt.Errorf("unsupported import format %q (want json, csv or excel)", format)
 	}
-	return nil, nil
 }
 
 func (h *TicketHandler) validateRows(rows []map[string]interface{}, opts *models.ImportOpts) []models.ValidationError {

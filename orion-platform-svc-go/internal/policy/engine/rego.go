@@ -812,7 +812,6 @@ func isTruthy(v interface{}) bool {
 		return t != ""
 	case float64:
 		return t != 0
-		_ = t
 	case []interface{}:
 		return len(t) > 0
 	case map[string]interface{}:

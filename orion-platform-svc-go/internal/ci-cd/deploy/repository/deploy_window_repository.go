@@ -100,6 +100,12 @@ RETURNING id, created_at, updated_at`
 	if duration == 0 {
 		duration = 60
 	}
+	// The default must be applied before the INSERT. Defaulting after the query
+	// left the stored row with an empty timezone while the returned object
+	// carried "Asia/Shanghai" — the caller and the database disagreed.
+	if w.Timezone == "" {
+		w.Timezone = "Asia/Shanghai"
+	}
 	err := r.db.QueryRowContext(ctx, query,
 		w.TenantID, w.EnvironmentID, w.Name, w.CronExpression, duration, w.Timezone, w.CreatedBy,
 	).Scan(&w.ID, &w.CreatedAt, &w.UpdatedAt)
@@ -107,10 +113,6 @@ RETURNING id, created_at, updated_at`
 		return err
 	}
 	w.DurationMinutes = duration
-	w.Timezone = w.Timezone
-	if w.Timezone == "" {
-		w.Timezone = "Asia/Shanghai"
-	}
 	w.Status = "active"
 	return nil
 }
