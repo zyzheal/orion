@@ -2,7 +2,10 @@
 -- Description: Rollback audit columns
 -- Phase: 5.6
 
-BEGIN;
+-- NOTE: the migration runner (database.RunMigrations) already wraps each
+-- file in its own transaction, so a literal BEGIN;/COMMIT; here commits the
+-- runner's transaction early and makes tx.Commit() fail with
+-- "pq: unexpected transaction status idle".
 
 DO $$ BEGIN
   IF EXISTS (
@@ -9069,4 +9072,3 @@ END $$;
 
 SELECT 'Removed audit columns from 438 tables' AS migration_result;
 
-COMMIT;

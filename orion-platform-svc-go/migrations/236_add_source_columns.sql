@@ -13,8 +13,9 @@ ALTER TABLE IF EXISTS tickets
 ALTER TABLE IF EXISTS pipeline_runs
     ADD COLUMN IF NOT EXISTS _source TEXT DEFAULT 'ts' NOT NULL;
 
--- approvals (Approval workflow)
-ALTER TABLE IF EXISTS approvals
+-- change_approvals (Approval workflow). The table is named change_approvals,
+-- not approvals -- see 018_create_change_request_tables.sql.
+ALTER TABLE IF EXISTS change_approvals
     ADD COLUMN IF NOT EXISTS _source TEXT DEFAULT 'ts' NOT NULL;
 
 -- feature_flags
@@ -51,7 +52,7 @@ ALTER TABLE IF EXISTS notifications
 ALTER TABLE IF EXISTS webhooks
     ADD COLUMN IF NOT EXISTS _source TEXT DEFAULT 'ts' NOT NULL;
 
--- index for fast source-based queries
+-- indexes for fast source-based queries
 CREATE INDEX IF NOT EXISTS idx_tickets_source ON tickets(_source);
 CREATE INDEX IF NOT EXISTS idx_pipeline_runs_source ON pipeline_runs(_source);
-CREATE INDEX IF NOT EXISTS idx_approvals_source ON approvals(_source);
+CREATE INDEX IF NOT EXISTS idx_change_approvals_source ON change_approvals(_source);

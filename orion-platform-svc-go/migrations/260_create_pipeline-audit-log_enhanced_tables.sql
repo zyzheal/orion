@@ -1,6 +1,9 @@
 -- Migration 260: Rename audit_logs -> pipeline_audit_logs and add enhanced columns
 
-BEGIN;
+-- NOTE: the migration runner (database.RunMigrations) already wraps each
+-- file in its own transaction, so a literal BEGIN;/COMMIT; here commits the
+-- runner's transaction early and makes tx.Commit() fail with
+-- "pq: unexpected transaction status idle".
 
 -- Rename existing table to match code expectations
 ALTER TABLE IF EXISTS audit_logs RENAME TO pipeline_audit_logs;
@@ -25,4 +28,3 @@ CREATE INDEX IF NOT EXISTS idx_pipeline_audit_logs_resource
 CREATE INDEX IF NOT EXISTS idx_pipeline_audit_logs_action
     ON pipeline_audit_logs(tenant_id, action);
 
-COMMIT;

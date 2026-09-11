@@ -44,4 +44,4 @@ VALUES
     ('ticket', 'ticket_v1', true, 'title', '5s'),
     ('alert', 'alert_v1', true, 'title', '3s'),
     ('cmdb', 'cmdb_v1', true, 'name', '30s')
-ON CONFLICT ON CONSTRAINT uq_global_search_configs_module DO NOTHING;
+ON CONFLICT (module) WHERE deleted_at IS NULL DO NOTHING;

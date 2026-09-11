@@ -5,7 +5,10 @@
 -- Notes: Uses NOT VALID + VALIDATE pattern to avoid table locks during migration
 --         Requires migration 239 (tenant_id UUID unification) to have been applied first
 
-BEGIN;
+-- NOTE: the migration runner (database.RunMigrations) already wraps each
+-- file in its own transaction, so a literal BEGIN;/COMMIT; here commits the
+-- runner's transaction early and makes tx.Commit() fail with
+-- "pq: unexpected transaction status idle".
 
 DO $$ BEGIN
   IF NOT EXISTS (
@@ -9334,4 +9337,3 @@ END $$;
 -- Migration complete
 SELECT 'Added 444 foreign key constraints' AS migration_result;
 
-COMMIT;

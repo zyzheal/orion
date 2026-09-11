@@ -12,12 +12,10 @@ CREATE TABLE IF NOT EXISTS data_pipelines (
     schedule VARCHAR(100) DEFAULT '',
     status VARCHAR(50) DEFAULT 'active',
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT fk_data_pipelines_tenant
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 );
-
--- Foreign key to tenants table (tenant_id)
-ALTER TABLE data_pipelines ADD CONSTRAINT fk_data_pipelines_tenant
-    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
 
 CREATE TABLE IF NOT EXISTS data_pipeline_runs (
     id UUID PRIMARY KEY,

@@ -31,9 +31,13 @@ CREATE TABLE IF NOT EXISTS startup_dependencies (
     tenant_id   VARCHAR(64) NOT NULL DEFAULT 'default',
     module_id   VARCHAR(128) NOT NULL,  -- references startup_modules.name
     depends_on  VARCHAR(128) NOT NULL,  -- name of module it depends on
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    FOREIGN KEY (tenant_id) REFERENCES startup_modules(tenant_id)
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- No FK from startup_dependencies(tenant_id) to startup_modules(tenant_id): that
+-- column has no unique constraint (it is a tenant discriminator and repeats for
+-- every module of the tenant), so the FK cannot be implemented. The real module
+-- reference is module_id; tenant scoping is enforced by the repository, which
+-- always filters on tenant_id.
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_startup_dependencies
     ON startup_dependencies(tenant_id, module_id, depends_on);

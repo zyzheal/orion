@@ -23,7 +23,7 @@ ALTER TABLE pipeline_runs ADD COLUMN IF NOT EXISTS metadata JSONB, ADD COLUMN IF
 
 CREATE TABLE IF NOT EXISTS pipeline_stages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    run_id UUID NOT NULL REFERENCES pipeline_runs(id),
+    run_id VARCHAR(36) NOT NULL REFERENCES pipeline_runs(id),  -- 157 wins: id is VARCHAR(36)
     name VARCHAR(255) NOT NULL,
     sequence INT NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS pipeline_stages (
 
 CREATE TABLE IF NOT EXISTS pipeline_tasks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    stage_id UUID NOT NULL REFERENCES pipeline_stages(id),
+    stage_id UUID NOT NULL REFERENCES pipeline_stages(id),     -- pipeline_stages.id is UUID (created here)
     name VARCHAR(255) NOT NULL,
     type VARCHAR(255) NOT NULL,
     sequence INT NOT NULL,
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS pipeline_tasks (
 
 CREATE TABLE IF NOT EXISTS pipeline_checkpoints (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    run_id UUID NOT NULL REFERENCES pipeline_runs(id),
+    run_id VARCHAR(36) NOT NULL REFERENCES pipeline_runs(id),  -- 157 wins: id is VARCHAR(36)
     stage_name VARCHAR(255) NOT NULL,
     task_name VARCHAR(255),
     state JSONB NOT NULL,

@@ -1,6 +1,9 @@
 -- Migration 261: Add semantic_search_config table for hybrid search tuning
 
-BEGIN;
+-- NOTE: the migration runner (database.RunMigrations) already wraps each
+-- file in its own transaction, so a literal BEGIN;/COMMIT; here commits the
+-- runner's transaction early and makes tx.Commit() fail with
+-- "pq: unexpected transaction status idle".
 
 CREATE TABLE IF NOT EXISTS semantic_search_config (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -22,4 +25,3 @@ INSERT INTO semantic_search_config (id, tenant_id)
 VALUES ('00000000-0000-0000-0000-000000000001', 'default')
 ON CONFLICT (tenant_id) DO NOTHING;
 
-COMMIT;

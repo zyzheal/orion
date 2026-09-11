@@ -5,7 +5,10 @@
 -- Notes: deleted_at DEFAULT NULL means records are active by default
 --         Partial index (WHERE deleted_at IS NULL) optimizes active-record queries
 
-BEGIN;
+-- NOTE: the migration runner (database.RunMigrations) already wraps each
+-- file in its own transaction, so a literal BEGIN;/COMMIT; here commits the
+-- runner's transaction early and makes tx.Commit() fail with
+-- "pq: unexpected transaction status idle".
 
 DO $$ BEGIN
   IF NOT EXISTS (
@@ -6214,4 +6217,3 @@ END $$;
 -- Migration complete
 SELECT 'Added soft delete to 282 tables' AS migration_result;
 
-COMMIT;

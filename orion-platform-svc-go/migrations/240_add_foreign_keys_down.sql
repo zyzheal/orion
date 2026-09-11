@@ -2,7 +2,10 @@
 -- Description: Rollback foreign key constraints for tenant_id and user_id
 -- Phase: 5.4
 
-BEGIN;
+-- NOTE: the migration runner (database.RunMigrations) already wraps each
+-- file in its own transaction, so a literal BEGIN;/COMMIT; here commits the
+-- runner's transaction early and makes tx.Commit() fail with
+-- "pq: unexpected transaction status idle".
 
 DO $$ BEGIN
   IF EXISTS (
@@ -3558,4 +3561,3 @@ END $$;
 
 SELECT 'Dropped 444 foreign key constraints' AS migration_result;
 
-COMMIT;

@@ -12,7 +12,10 @@
 --   SET NULL  when child can live without parent (nullable columns).
 --   CASCADE   when child logically belongs to parent lifecycle (QUOTA, link rows).
 
-BEGIN;
+-- NOTE: the migration runner (database.RunMigrations) already wraps each
+-- file in its own transaction, so a literal BEGIN;/COMMIT; here commits the
+-- runner's transaction early and makes tx.Commit() fail with
+-- "pq: unexpected transaction status idle".
 
 -- ============================================================================
 -- plugin_audit_entries.plugin_id -> plugins(id)
@@ -100,9 +103,15 @@ END $$;
 -- ============================================================================
 -- Validate all newly added constraints (safe to re-run: validates, skips existing)
 -- ============================================================================
-DO $$ BEGIN
-  FOR conname IN SELECT conname FROM pg_constraint
-    WHERE conname IN (
+DO $$
+DECLARE
+  v_conname text;
+BEGIN
+  -- A DO block has no implicit DECLARE section, so the loop variable must be
+  -- declared explicitly; and the SELECT column is qualified because it shares
+  -- the variable's name (unqualified 'conname' is ambiguous).
+  FOR v_conname IN SELECT c.conname FROM pg_constraint c
+    WHERE c.conname IN (
         'fk_plugin_audit_entries_plugin_id',
         'fk_plugin_security_events_plugin_id',
         'fk_plugin_resource_quotas_plugin_id',
@@ -112,11 +121,10 @@ DO $$ BEGIN
     )
   LOOP
     BEGIN
-      EXECUTE format('ALTER TABLE %I VALIDATE CONSTRAINT %I', (SELECT relname FROM pg_constraint c JOIN pg_class r ON c.conrelid = r.oid WHERE c.conname = conname), conname);
+      EXECUTE format('ALTER TABLE %I VALIDATE CONSTRAINT %I', (SELECT r.relname FROM pg_constraint c JOIN pg_class r ON c.conrelid = r.oid WHERE c.conname = v_conname), v_conname);
     EXCEPTION WHEN OTHERS THEN
-      RAISE NOTICE 'Could not validate constraint %: %', conname, SQLERRM;
+      RAISE NOTICE 'Could not validate constraint %: %', v_conname, SQLERRM;
     END;
   END LOOP;
 END $$;
 
-COMMIT;

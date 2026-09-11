@@ -9,7 +9,10 @@
 -- Notes: created_by/updated_by are UUID FK references to users(id)
 --         created_at/updated_at default to NOW()
 
-BEGIN;
+-- NOTE: the migration runner (database.RunMigrations) already wraps each
+-- file in its own transaction, so a literal BEGIN;/COMMIT; here commits the
+-- runner's transaction early and makes tx.Commit() fail with
+-- "pq: unexpected transaction status idle".
 
 -- Table: a_b_a_c_policies
 DO $$ BEGIN
@@ -13543,4 +13546,3 @@ END $$;
 -- Migration complete
 SELECT 'Added audit columns to 438 tables (created_by:390, updated_by:438, created_at:34, updated_at:145)' AS migration_result;
 
-COMMIT;
