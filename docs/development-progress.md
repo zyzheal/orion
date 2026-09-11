@@ -4529,7 +4529,7 @@ $ go vet <本轮触碰包>                                     # OK
 
 - **Stub Scan Round 5**（pipeline StartRun/StopRun 真实 DB 实现）：✅ `a8f1c71f8`
 - **Stub Scan Round 6**（BatchStrategy/cron engine 数据竞争 + 全局渠道工厂空接线 + 删除 notification-models 死包）：✅
-- **Stub Scan Round 7**（始终 404 的活路由修复 + 3 处零调用死桩删除 + cmd 导入图活/死判据落地）：✅
+- **Stub Scan Round 7**（始终 404 的活路由修复 + 3 处零调用死桩删除 + cmd 导入图活/死判据落地）：✅ `c8eb9c8ab`（Round 6+7 合并提交，19 文件 +1696/-989）
 
 ---
 
@@ -4698,4 +4698,4 @@ $ go test ./internal/... -count=1                                          # GO_
 
 - **Stub Scan Round 5**（pipeline StartRun/StopRun 真实 DB 实现）：✅ `a8f1c71f8`
 - **Stub Scan Round 6**（BatchStrategy/cron engine 数据竞争 + 全局渠道工厂空接线 + 删除 notification-models 死包）：✅
-- **Stub Scan Round 7**（始终 404 的活路由修复 + 3 处零调用死桩删除 + cmd 导入图活/死判据落地）：✅
+- **Stub Scan Round 7**（始终 404 的活路由修复 + 3 处零调用死桩删除 + cmd 导入图活/死判据落地）：✅ `c8eb9c8ab`（Round 6+7 合并提交，19 文件 +1696/-989）

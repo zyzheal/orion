@@ -41,7 +41,7 @@
 > 数据来源: `architecture-review-2026-08-01.md` + `CROSS_VALIDATION_REPORT.md` + `merged-action-items-2026-07-27.md`
 > 状态: ✅ **Stub 消除已完成**
 >
-> ## ✅ Stub Scan Round 7 已完成（2026-08-26）
+> ## ✅ Stub Scan Round 7 已完成（2026-08-26，commit `c8eb9c8ab`）
 >
 > **生产缺陷：`GET /compliance/evaluations/:id` 永远 404。**
 > `security/service.GetComplianceEvaluation` 无条件 `return nil, ErrPolicyNotFound`，
