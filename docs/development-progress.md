@@ -4510,9 +4510,24 @@ $ git diff --cached --name-only | grep -E "migrations/dba|orion-frontend/src/api
 
 ### 6.7 预存在 `go vet` 告警（20 条，未修）
 
-全部位于本轮未触碰的模块，`git diff --stat` 为空可证属预存在：unreachable code 4 处、
-self-assignment 5 处、重复 json tag 1 处、unexported 字段带 json tag 8 处。
+全部位于本轮未触碰的模块，`git diff --stat` 为空可证属预存在。
+**计数修正（2026-08-26 复核）**：unreachable code **4**、self-assignment **6**、
+重复 json tag **2**（非 1）、unexported 字段带 json tag **8** = **20** 条。
+此前记为 5+1，实为 6+2（`handler.go:35` 同行有两个重复 tag：Channel 与 Config 都写了 `"name"`）。
 本轮触碰的包：0 告警。
+
+| 包 | 告警 | 位置 |
+|---|---|---|
+| `process-step/service` | unexported 字段带 json tag ×8 | `engine.go:17-24` |
+| `cache-monitor/repository` | self-assignment ×3 | `repository.go:30-33` |
+| `alert-adapter-v2/handler` | 重复 json tag `"name"` ×2 | `handler.go:35` |
+| `auto-exec/param-plugins` | unreachable code | `plugins.go:206` |
+| `cron/service` | unreachable code | `scheduler.go:328` |
+| `import-export/handlers` | unreachable code | `ticket.go:152` |
+| `policy/engine` | unreachable code | `rego.go:815` |
+| `ci-cd/canary/handler` | self-assignment | `handler.go:238` |
+| `ci-cd/deploy/repository` | self-assignment | `deploy_window_repository.go:110` |
+| `execution-mode-engine/repository` | self-assignment | `repository.go:35` |
 
 #### 验证
 
