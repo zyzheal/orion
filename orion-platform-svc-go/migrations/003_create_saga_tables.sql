@@ -3,7 +3,7 @@
 -- 用于 SagaCoordinator 协调跨服务的分布式事务
 
 CREATE TABLE IF NOT EXISTS saga_transactions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id TEXT NOT NULL,
     saga_name TEXT NOT NULL,
     request_id TEXT NOT NULL,
@@ -24,7 +24,7 @@ CREATE INDEX idx_saga_transactions_status ON saga_transactions(status);
 CREATE INDEX idx_saga_transactions_saga_name ON saga_transactions(saga_name);
 
 CREATE TABLE IF NOT EXISTS saga_steps (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id TEXT NOT NULL,
     transaction_id UUID NOT NULL REFERENCES saga_transactions(id) ON DELETE CASCADE,
     step_name TEXT NOT NULL,

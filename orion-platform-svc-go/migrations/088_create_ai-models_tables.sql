@@ -13,10 +13,9 @@ CREATE TABLE IF NOT EXISTS a_i_models (
     tags VARCHAR(255) NOT NULL,
     metadata VARCHAR(255) NOT NULL,
     created_by VARCHAR(255) NOT NULL,
-    metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_a_i_models_tenant ON a_i_models(tenant_id);
@@ -39,7 +38,7 @@ CREATE TABLE IF NOT EXISTS model_versions (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_model_versions_tenant ON model_versions(tenant_id);
@@ -62,7 +61,7 @@ CREATE TABLE IF NOT EXISTS canary_configs (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_canary_configs_tenant ON canary_configs(tenant_id);

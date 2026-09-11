@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS lowcode_flows (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_lowcode_flows_tenant ON lowcode_flows(tenant_id);
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS lowcode_instances (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_lowcode_instances_tenant ON lowcode_instances(tenant_id);

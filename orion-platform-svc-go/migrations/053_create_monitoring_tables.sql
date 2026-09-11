@@ -65,6 +65,9 @@ CREATE TABLE IF NOT EXISTS notification_channels (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
+-- 补齐 notification_channels：108_create_channel_tables.sql 的定义晚于 053_create_monitoring_tables.sql，按序执行时表已存在
+ALTER TABLE notification_channels ADD COLUMN IF NOT EXISTS secret VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS retry BIGINT NOT NULL, ADD COLUMN IF NOT EXISTS metadata JSONB, ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE;
+
 
 CREATE INDEX IF NOT EXISTS idx_notification_channels_tenant_id ON notification_channels(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_notification_channels_type ON notification_channels(type);

@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS u_e_b_a_alerts (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_u_e_b_a_alerts_tenant ON u_e_b_a_alerts(tenant_id);
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS u_e_b_a_profiles (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_u_e_b_a_profiles_tenant ON u_e_b_a_profiles(tenant_id);

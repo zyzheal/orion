@@ -14,10 +14,10 @@ CREATE TABLE IF NOT EXISTS tenant_quota_plan (
     max_alerts_per_day INT NOT NULL DEFAULT 10000,
     sla_tier VARCHAR(20) NOT NULL DEFAULT 'standard',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_tenant (tenant_id),
-    INDEX idx_sla (sla_tier)
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX IF NOT EXISTS idx_tenant_tenant_quota_plan ON tenant_quota_plan(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_sla_tenant_quota_plan ON tenant_quota_plan(sla_tier);
 
 CREATE TABLE IF NOT EXISTS tenant_quota_usage (
     id VARCHAR(36) NOT NULL PRIMARY KEY,
@@ -28,10 +28,10 @@ CREATE TABLE IF NOT EXISTS tenant_quota_usage (
     window_start TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     window_end TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     reset_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_tenant_metric (tenant_id, metric),
-    INDEX idx_reset (reset_at)
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX IF NOT EXISTS idx_tenant_metric_tenant_quota_usage ON tenant_quota_usage(tenant_id, metric);
+CREATE INDEX IF NOT EXISTS idx_reset_tenant_quota_usage ON tenant_quota_usage(reset_at);
 
 CREATE TABLE IF NOT EXISTS tenant_quota_alert (
     id VARCHAR(36) NOT NULL PRIMARY KEY,
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS tenant_quota_alert (
     limit_value BIGINT NOT NULL,
     usage_pct DECIMAL(5,2) NOT NULL DEFAULT 0,
     alert_level VARCHAR(20) NOT NULL DEFAULT 'warning',
-    notified_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_tenant (tenant_id),
-    INDEX idx_metric (metric)
+    notified_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX IF NOT EXISTS idx_tenant_tenant_quota_alert ON tenant_quota_alert(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_metric_tenant_quota_alert ON tenant_quota_alert(metric);

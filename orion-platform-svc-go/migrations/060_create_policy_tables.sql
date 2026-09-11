@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS policies (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
+-- 补齐 policies：150_create_notification-policy_tables.sql 的定义晚于 060_create_policy_tables.sql，按序执行时表已存在
+ALTER TABLE policies ADD COLUMN IF NOT EXISTS user_id VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS conditions VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS actions VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS priority BIGINT NOT NULL, ADD COLUMN IF NOT EXISTS "order" BIGINT NOT NULL, ADD COLUMN IF NOT EXISTS metadata JSONB, ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE;
+
 
 CREATE INDEX IF NOT EXISTS idx_policies_tenant_id ON policies(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_policies_enabled ON policies(enabled);

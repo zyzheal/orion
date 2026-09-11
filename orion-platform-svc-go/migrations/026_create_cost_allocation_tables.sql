@@ -2,7 +2,7 @@
 -- Cost allocation tables
 
 CREATE TABLE IF NOT EXISTS cost_allocations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS cost_allocations (
 );
 
 CREATE TABLE IF NOT EXISTS cost_allocation_rules (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     allocation_id UUID NOT NULL REFERENCES cost_allocations(id) ON DELETE CASCADE,
     condition_type VARCHAR(50) NOT NULL, -- tag, label, regex
     condition_value JSONB NOT NULL,
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS cost_allocation_rules (
 );
 
 CREATE TABLE IF NOT EXISTS cost_allocation_reports (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     allocation_id UUID NOT NULL REFERENCES cost_allocations(id),
     period_start DATE NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS cost_allocation_reports (
 );
 
 CREATE TABLE IF NOT EXISTS cost_allocation_tags (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     tag_key VARCHAR(255) NOT NULL,
     tag_value VARCHAR(255) NOT NULL,

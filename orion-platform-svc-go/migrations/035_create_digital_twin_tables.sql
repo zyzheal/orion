@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS digital_twins (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
+-- 补齐 digital_twins：123_create_digital-twin-simulation_tables.sql 的定义晚于 035_create_digital_twin_tables.sql，按序执行时表已存在
+ALTER TABLE digital_twins ADD COLUMN IF NOT EXISTS description VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS entity_type VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS source_id VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS config VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS metadata VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS sync_policy VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS last_sync_time BIGINT, ADD COLUMN IF NOT EXISTS sync_health VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE;
+
 
 CREATE INDEX IF NOT EXISTS idx_digital_twins_tenant_id ON digital_twins(tenant_id);
 

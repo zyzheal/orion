@@ -31,5 +31,5 @@ CREATE TABLE IF NOT EXISTS test_cases (
     error_msg TEXT,
     stack_trace TEXT
 );
-CREATE INDEX idx_test_cases_tenant ON test_cases(tenant_id);
-CREATE INDEX idx_test_cases_suite ON test_cases(tenant_id, suite_id);
+CREATE INDEX IF NOT EXISTS idx_test_cases_tenant ON test_cases(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_test_cases_suite ON test_cases(tenant_id, suite_id);

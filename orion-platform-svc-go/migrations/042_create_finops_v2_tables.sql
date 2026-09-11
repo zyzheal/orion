@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS cost_entries (
     period_end VARCHAR(50) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
+-- 补齐 cost_entries：131_create_finops-v2_tables.sql 的定义晚于 042_create_finops_v2_tables.sql，按序执行时表已存在
+ALTER TABLE cost_entries ADD COLUMN IF NOT EXISTS metadata JSONB, ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE;
+
 
 CREATE INDEX IF NOT EXISTS idx_cost_entries_tenant_id ON cost_entries(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_cost_entries_entity_id ON cost_entries(entity_id);
@@ -28,6 +31,9 @@ CREATE TABLE IF NOT EXISTS chargeback_entries (
     period VARCHAR(50) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
+-- 补齐 chargeback_entries：131_create_finops-v2_tables.sql 的定义晚于 042_create_finops_v2_tables.sql，按序执行时表已存在
+ALTER TABLE chargeback_entries ADD COLUMN IF NOT EXISTS metadata JSONB, ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE;
+
 
 CREATE INDEX IF NOT EXISTS idx_chargeback_entries_tenant_id ON chargeback_entries(tenant_id);
 
@@ -46,6 +52,9 @@ CREATE TABLE IF NOT EXISTS budgets (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
+-- 补齐 budgets：131_create_finops-v2_tables.sql 的定义晚于 042_create_finops_v2_tables.sql，按序执行时表已存在
+ALTER TABLE budgets ADD COLUMN IF NOT EXISTS metadata JSONB, ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE;
+
 
 CREATE INDEX IF NOT EXISTS idx_budgets_tenant_id ON budgets(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_budgets_status ON budgets(status);
@@ -64,6 +73,9 @@ CREATE TABLE IF NOT EXISTS recommendations (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
+-- 补齐 recommendations：131_create_finops-v2_tables.sql 的定义晚于 042_create_finops_v2_tables.sql，按序执行时表已存在
+ALTER TABLE recommendations ADD COLUMN IF NOT EXISTS metadata JSONB, ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE;
+
 
 CREATE INDEX IF NOT EXISTS idx_recommendations_tenant_id ON recommendations(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_recommendations_status ON recommendations(status);

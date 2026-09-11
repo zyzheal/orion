@@ -24,6 +24,9 @@ CREATE TABLE IF NOT EXISTS compliance_reports (
     failures TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
+-- 补齐 compliance_reports：114_create_compliance_tables.sql 的定义晚于 066_create_security_compliance_tables.sql，按序执行时表已存在
+ALTER TABLE compliance_reports ADD COLUMN IF NOT EXISTS name VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS description VARCHAR(255), ADD COLUMN IF NOT EXISTS framework VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS triggered_by VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS schedule_id VARCHAR(255), ADD COLUMN IF NOT EXISTS metadata JSONB, ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE;
+
 
 CREATE INDEX IF NOT EXISTS idx_compliance_reports_tenant_id ON compliance_reports(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_compliance_reports_policy_id ON compliance_reports(policy_id);

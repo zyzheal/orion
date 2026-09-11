@@ -10,5 +10,5 @@ CREATE TABLE IF NOT EXISTS alert_rules (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-CREATE INDEX idx_alert_rules_tenant ON alert_rules(tenant_id);
-CREATE INDEX idx_alert_rules_group ON alert_rules(tenant_id, "group");
+CREATE INDEX IF NOT EXISTS idx_alert_rules_tenant ON alert_rules(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_alert_rules_group ON alert_rules(tenant_id, "group");

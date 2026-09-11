@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS inception_configs (
   tenant_id       UUID NOT NULL UNIQUE,
   host            VARCHAR(255) NOT NULL,
   port            INTEGER NOT NULL DEFAULT 6669,
-  user            VARCHAR(100) NOT NULL,
+  "user"          VARCHAR(100) NOT NULL,
   encrypted_password VARCHAR(500),
   default_db      VARCHAR(100),
   timeout_ms      INTEGER DEFAULT 30000,
@@ -77,6 +77,9 @@ CREATE TABLE IF NOT EXISTS audit_reports (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   expires_at      TIMESTAMPTZ
 );
+-- 补齐 audit_reports：066_create_security_compliance_tables.sql 的定义晚于 048_create_inception_tables.sql，按序执行时表已存在
+ALTER TABLE audit_reports ADD COLUMN IF NOT EXISTS execution_id VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS summary TEXT, ADD COLUMN IF NOT EXISTS findings_count INTEGER DEFAULT 0;
+
 
 CREATE INDEX idx_audit_reports_tenant ON audit_reports(tenant_id);
 CREATE INDEX idx_audit_reports_status ON audit_reports(status);

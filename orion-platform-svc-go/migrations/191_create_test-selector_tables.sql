@@ -13,8 +13,11 @@ CREATE TABLE IF NOT EXISTS test_suites (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
+-- 补齐 test_suites：373_create_test_suites_table.sql 的定义晚于 191_create_test-selector_tables.sql，按序执行时表已存在
+ALTER TABLE test_suites ADD COLUMN IF NOT EXISTS execution_id VARCHAR(36) NOT NULL, ADD COLUMN IF NOT EXISTS tests INTEGER DEFAULT 0, ADD COLUMN IF NOT EXISTS passed INTEGER DEFAULT 0, ADD COLUMN IF NOT EXISTS failed INTEGER DEFAULT 0, ADD COLUMN IF NOT EXISTS skipped INTEGER DEFAULT 0, ADD COLUMN IF NOT EXISTS duration_ms BIGINT DEFAULT 0;
+
 
 CREATE INDEX IF NOT EXISTS idx_test_suites_tenant ON test_suites(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_test_suites_created ON test_suites(created_at DESC);
@@ -32,8 +35,11 @@ CREATE TABLE IF NOT EXISTS test_cases (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
+-- 补齐 test_cases：369_create_test_execution_tables.sql 的定义晚于 191_create_test-selector_tables.sql，按序执行时表已存在
+ALTER TABLE test_cases ADD COLUMN IF NOT EXISTS status VARCHAR(32), ADD COLUMN IF NOT EXISTS duration_ms BIGINT, ADD COLUMN IF NOT EXISTS class_name VARCHAR(256), ADD COLUMN IF NOT EXISTS error_msg TEXT, ADD COLUMN IF NOT EXISTS stack_trace TEXT;
+
 
 CREATE INDEX IF NOT EXISTS idx_test_cases_tenant ON test_cases(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_test_cases_created ON test_cases(created_at DESC);
@@ -51,7 +57,7 @@ CREATE TABLE IF NOT EXISTS test_execution_records (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_test_execution_records_tenant ON test_execution_records(tenant_id);
@@ -67,7 +73,7 @@ CREATE TABLE IF NOT EXISTS p_r_test_results (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_p_r_test_results_tenant ON p_r_test_results(tenant_id);
@@ -82,7 +88,7 @@ CREATE TABLE IF NOT EXISTS test_code_mappings (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_test_code_mappings_tenant ON test_code_mappings(tenant_id);

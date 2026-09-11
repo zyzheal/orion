@@ -15,10 +15,9 @@ CREATE TABLE IF NOT EXISTS governance_policies (
     applied_count BIGINT NOT NULL,
     violation_count BIGINT NOT NULL,
     metadata VARCHAR(255) NOT NULL,
-    metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_governance_policies_tenant ON governance_policies(tenant_id);

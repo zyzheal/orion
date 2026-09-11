@@ -1,6 +1,6 @@
 -- 001_create_api_consumption_tables.sql
 CREATE TABLE IF NOT EXISTS api_consumptions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     api_key_id UUID NOT NULL,
     endpoint_path VARCHAR(500) NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS api_consumptions (
 );
 
 CREATE TABLE IF NOT EXISTS usage_limits (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     api_key_id UUID NOT NULL,
     endpoint_path VARCHAR(500),

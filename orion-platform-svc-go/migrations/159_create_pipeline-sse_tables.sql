@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS s_s_e_log_event_records (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_s_s_e_log_event_records_tenant ON s_s_e_log_event_records(tenant_id);
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS s_s_e_status_event_records (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_s_s_e_status_event_records_tenant ON s_s_e_status_event_records(tenant_id);

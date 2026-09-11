@@ -26,6 +26,9 @@ CREATE TABLE IF NOT EXISTS oncall_schedules (
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
+-- 补齐 oncall_schedules：056_create_oncall_tables.sql 的定义晚于 004_p0_domains.sql，按序执行时表已存在
+ALTER TABLE oncall_schedules ADD COLUMN IF NOT EXISTS timezone        VARCHAR(50) NOT NULL DEFAULT 'UTC', ADD COLUMN IF NOT EXISTS rotation_type   VARCHAR(50) NOT NULL DEFAULT 'daily', ADD COLUMN IF NOT EXISTS start_date      DATE, ADD COLUMN IF NOT EXISTS end_date        DATE, ADD COLUMN IF NOT EXISTS status          VARCHAR(50) NOT NULL DEFAULT 'active';
+
 
 CREATE TABLE IF NOT EXISTS oncall_rotations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

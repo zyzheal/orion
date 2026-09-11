@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS eval_runs (
     report TEXT DEFAULT '',                          -- JSON summary
     created_by VARCHAR(100) DEFAULT '',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP NULL,
-    INDEX idx_eval_runs_set (set_id),
-    INDEX idx_eval_runs_tenant (tenant_id)
+    completed_at TIMESTAMP NULL
 );
+CREATE INDEX IF NOT EXISTS idx_eval_runs_set_eval_runs ON eval_runs(set_id);
+CREATE INDEX IF NOT EXISTS idx_eval_runs_tenant_eval_runs ON eval_runs(tenant_id);

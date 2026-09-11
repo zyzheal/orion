@@ -10,8 +10,11 @@ BEGIN;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ai_decision_feedback' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ai_decision_feedback' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ai_decision_feedback'
+) THEN
     ALTER TABLE ai_decision_feedback ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ai_decision_feedback.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -29,8 +32,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ai_decision_traces' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ai_decision_traces' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ai_decision_traces'
+) THEN
     ALTER TABLE ai_decision_traces ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ai_decision_traces.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -48,8 +54,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ai_decisions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ai_decisions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ai_decisions'
+) THEN
     ALTER TABLE ai_decisions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ai_decisions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -67,8 +76,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ai_gateway_requests' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ai_gateway_requests' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ai_gateway_requests'
+) THEN
     ALTER TABLE ai_gateway_requests ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ai_gateway_requests.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -86,8 +98,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'alert_known_issues' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'alert_known_issues' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'alert_known_issues'
+) THEN
     ALTER TABLE alert_known_issues ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN alert_known_issues.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -105,8 +120,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'alert_maintenance_windows' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'alert_maintenance_windows' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'alert_maintenance_windows'
+) THEN
     ALTER TABLE alert_maintenance_windows ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN alert_maintenance_windows.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -124,8 +142,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'alert_node_health' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'alert_node_health' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'alert_node_health'
+) THEN
     ALTER TABLE alert_node_health ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN alert_node_health.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -143,8 +164,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'alert_topologies' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'alert_topologies' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'alert_topologies'
+) THEN
     ALTER TABLE alert_topologies ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN alert_topologies.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -162,8 +186,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'alerts' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'alerts' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'alerts'
+) THEN
     ALTER TABLE alerts ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN alerts.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -181,8 +208,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_consumptions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'api_consumptions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'api_consumptions'
+) THEN
     ALTER TABLE api_consumptions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN api_consumptions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -200,8 +230,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_contracts' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'api_contracts' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'api_contracts'
+) THEN
     ALTER TABLE api_contracts ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN api_contracts.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -219,8 +252,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_governance_contracts' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'api_governance_contracts' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'api_governance_contracts'
+) THEN
     ALTER TABLE api_governance_contracts ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN api_governance_contracts.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -238,8 +274,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_governance_rules' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'api_governance_rules' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'api_governance_rules'
+) THEN
     ALTER TABLE api_governance_rules ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN api_governance_rules.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -257,8 +296,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_governance_verification_history' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'api_governance_verification_history' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'api_governance_verification_history'
+) THEN
     ALTER TABLE api_governance_verification_history ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN api_governance_verification_history.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -276,8 +318,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_governance_versions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'api_governance_versions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'api_governance_versions'
+) THEN
     ALTER TABLE api_governance_versions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN api_governance_versions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -295,8 +340,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_governance_violations' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'api_governance_violations' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'api_governance_violations'
+) THEN
     ALTER TABLE api_governance_violations ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN api_governance_violations.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -314,8 +362,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_keys' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'api_keys' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'api_keys'
+) THEN
     ALTER TABLE api_keys ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN api_keys.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -333,8 +384,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_market_apps' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'api_market_apps' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'api_market_apps'
+) THEN
     ALTER TABLE api_market_apps ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN api_market_apps.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -352,8 +406,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_market_keys' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'api_market_keys' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'api_market_keys'
+) THEN
     ALTER TABLE api_market_keys ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN api_market_keys.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -371,8 +428,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_market_products' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'api_market_products' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'api_market_products'
+) THEN
     ALTER TABLE api_market_products ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN api_market_products.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -390,8 +450,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_market_subscriptions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'api_market_subscriptions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'api_market_subscriptions'
+) THEN
     ALTER TABLE api_market_subscriptions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN api_market_subscriptions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -409,8 +472,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'approval_gates' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'approval_gates' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'approval_gates'
+) THEN
     ALTER TABLE approval_gates ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN approval_gates.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -428,8 +494,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'approval_history' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'approval_history' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'approval_history'
+) THEN
     ALTER TABLE approval_history ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN approval_history.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -447,8 +516,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'approval_levels' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'approval_levels' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'approval_levels'
+) THEN
     ALTER TABLE approval_levels ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN approval_levels.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -466,8 +538,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'approval_requests' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'approval_requests' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'approval_requests'
+) THEN
     ALTER TABLE approval_requests ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN approval_requests.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -485,8 +560,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'approval_templates' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'approval_templates' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'approval_templates'
+) THEN
     ALTER TABLE approval_templates ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN approval_templates.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -504,8 +582,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'artifact_downloads' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'artifact_downloads' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'artifact_downloads'
+) THEN
     ALTER TABLE artifact_downloads ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN artifact_downloads.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -523,8 +604,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'artifact_operations' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'artifact_operations' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'artifact_operations'
+) THEN
     ALTER TABLE artifact_operations ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN artifact_operations.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -542,8 +626,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'artifact_promotions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'artifact_promotions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'artifact_promotions'
+) THEN
     ALTER TABLE artifact_promotions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN artifact_promotions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -561,8 +648,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'artifact_scans' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'artifact_scans' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'artifact_scans'
+) THEN
     ALTER TABLE artifact_scans ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN artifact_scans.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -580,8 +670,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'artifact_tags' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'artifact_tags' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'artifact_tags'
+) THEN
     ALTER TABLE artifact_tags ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN artifact_tags.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -599,8 +692,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'audit_executions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'audit_executions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'audit_executions'
+) THEN
     ALTER TABLE audit_executions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN audit_executions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -618,8 +714,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'audit_findings' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'audit_findings' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'audit_findings'
+) THEN
     ALTER TABLE audit_findings ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN audit_findings.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -637,8 +736,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'audit_plans' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'audit_plans' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'audit_plans'
+) THEN
     ALTER TABLE audit_plans ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN audit_plans.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -656,8 +758,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'audit_reports' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'audit_reports' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'audit_reports'
+) THEN
     ALTER TABLE audit_reports ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN audit_reports.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -675,8 +780,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'audit_rules' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'audit_rules' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'audit_rules'
+) THEN
     ALTER TABLE audit_rules ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN audit_rules.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -694,8 +802,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'backup_jobs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'backup_jobs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'backup_jobs'
+) THEN
     ALTER TABLE backup_jobs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN backup_jobs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -713,8 +824,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'backup_policies' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'backup_policies' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'backup_policies'
+) THEN
     ALTER TABLE backup_policies ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN backup_policies.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -732,8 +846,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'backup_restores' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'backup_restores' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'backup_restores'
+) THEN
     ALTER TABLE backup_restores ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN backup_restores.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -751,8 +868,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'backup_storages' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'backup_storages' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'backup_storages'
+) THEN
     ALTER TABLE backup_storages ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN backup_storages.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -770,8 +890,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'billing_accounts' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'billing_accounts' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'billing_accounts'
+) THEN
     ALTER TABLE billing_accounts ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN billing_accounts.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -789,8 +912,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'billing_invoices' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'billing_invoices' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'billing_invoices'
+) THEN
     ALTER TABLE billing_invoices ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN billing_invoices.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -808,8 +934,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'billing_line_items' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'billing_line_items' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'billing_line_items'
+) THEN
     ALTER TABLE billing_line_items ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN billing_line_items.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -827,8 +956,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'billing_subscriptions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'billing_subscriptions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'billing_subscriptions'
+) THEN
     ALTER TABLE billing_subscriptions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN billing_subscriptions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -846,8 +978,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'build_cache_configs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'build_cache_configs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'build_cache_configs'
+) THEN
     ALTER TABLE build_cache_configs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN build_cache_configs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -865,8 +1000,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'build_cache_entries' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'build_cache_entries' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'build_cache_entries'
+) THEN
     ALTER TABLE build_cache_entries ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN build_cache_entries.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -884,8 +1022,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'build_images' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'build_images' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'build_images'
+) THEN
     ALTER TABLE build_images ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN build_images.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -903,8 +1044,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'build_logs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'build_logs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'build_logs'
+) THEN
     ALTER TABLE build_logs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN build_logs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -922,8 +1066,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'canary_deployments' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'canary_deployments' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'canary_deployments'
+) THEN
     ALTER TABLE canary_deployments ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN canary_deployments.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -941,8 +1088,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'capabilities' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'capabilities' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'capabilities'
+) THEN
     ALTER TABLE capabilities ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN capabilities.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -960,8 +1110,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'capability_audit_logs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'capability_audit_logs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'capability_audit_logs'
+) THEN
     ALTER TABLE capability_audit_logs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN capability_audit_logs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -979,8 +1132,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'change_approvals' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'change_approvals' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'change_approvals'
+) THEN
     ALTER TABLE change_approvals ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN change_approvals.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -998,8 +1154,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'change_executions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'change_executions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'change_executions'
+) THEN
     ALTER TABLE change_executions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN change_executions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1017,8 +1176,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_alert_states' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'chatops_alert_states' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'chatops_alert_states'
+) THEN
     ALTER TABLE chatops_alert_states ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN chatops_alert_states.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1036,8 +1198,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_approval_configs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'chatops_approval_configs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'chatops_approval_configs'
+) THEN
     ALTER TABLE chatops_approval_configs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN chatops_approval_configs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1055,8 +1220,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_audit_logs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'chatops_audit_logs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'chatops_audit_logs'
+) THEN
     ALTER TABLE chatops_audit_logs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN chatops_audit_logs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1074,8 +1242,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_capability_mappings' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'chatops_capability_mappings' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'chatops_capability_mappings'
+) THEN
     ALTER TABLE chatops_capability_mappings ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN chatops_capability_mappings.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1093,8 +1264,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_command_configs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'chatops_command_configs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'chatops_command_configs'
+) THEN
     ALTER TABLE chatops_command_configs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN chatops_command_configs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1112,8 +1286,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_command_permissions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'chatops_command_permissions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'chatops_command_permissions'
+) THEN
     ALTER TABLE chatops_command_permissions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN chatops_command_permissions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1131,8 +1308,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_command_versions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'chatops_command_versions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'chatops_command_versions'
+) THEN
     ALTER TABLE chatops_command_versions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN chatops_command_versions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1150,8 +1330,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_commands' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'chatops_commands' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'chatops_commands'
+) THEN
     ALTER TABLE chatops_commands ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN chatops_commands.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1169,8 +1352,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_dnd_settings' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'chatops_dnd_settings' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'chatops_dnd_settings'
+) THEN
     ALTER TABLE chatops_dnd_settings ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN chatops_dnd_settings.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1188,8 +1374,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_environment_permissions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'chatops_environment_permissions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'chatops_environment_permissions'
+) THEN
     ALTER TABLE chatops_environment_permissions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN chatops_environment_permissions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1207,8 +1396,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_executions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'chatops_executions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'chatops_executions'
+) THEN
     ALTER TABLE chatops_executions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN chatops_executions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1226,8 +1418,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_messages' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'chatops_messages' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'chatops_messages'
+) THEN
     ALTER TABLE chatops_messages ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN chatops_messages.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1245,8 +1440,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_notification_preferences' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'chatops_notification_preferences' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'chatops_notification_preferences'
+) THEN
     ALTER TABLE chatops_notification_preferences ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN chatops_notification_preferences.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1264,8 +1462,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_permission_roles' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'chatops_permission_roles' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'chatops_permission_roles'
+) THEN
     ALTER TABLE chatops_permission_roles ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN chatops_permission_roles.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1283,8 +1484,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_platform_configs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'chatops_platform_configs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'chatops_platform_configs'
+) THEN
     ALTER TABLE chatops_platform_configs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN chatops_platform_configs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1302,8 +1506,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_question_configs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'chatops_question_configs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'chatops_question_configs'
+) THEN
     ALTER TABLE chatops_question_configs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN chatops_question_configs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1321,8 +1528,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_rate_limits' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'chatops_rate_limits' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'chatops_rate_limits'
+) THEN
     ALTER TABLE chatops_rate_limits ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN chatops_rate_limits.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1340,8 +1550,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_sessions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'chatops_sessions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'chatops_sessions'
+) THEN
     ALTER TABLE chatops_sessions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN chatops_sessions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1359,8 +1572,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_webhooks' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'chatops_webhooks' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'chatops_webhooks'
+) THEN
     ALTER TABLE chatops_webhooks ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN chatops_webhooks.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1378,8 +1594,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ci_relations' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ci_relations' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ci_relations'
+) THEN
     ALTER TABLE ci_relations ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ci_relations.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1397,8 +1616,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ci_type_attributes' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ci_type_attributes' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ci_type_attributes'
+) THEN
     ALTER TABLE ci_type_attributes ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ci_type_attributes.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1416,8 +1638,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ci_type_versions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ci_type_versions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ci_type_versions'
+) THEN
     ALTER TABLE ci_type_versions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ci_type_versions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1435,8 +1660,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ci_types' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ci_types' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ci_types'
+) THEN
     ALTER TABLE ci_types ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ci_types.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1454,8 +1682,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ci_versions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ci_versions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ci_versions'
+) THEN
     ALTER TABLE ci_versions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ci_versions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1473,8 +1704,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'circuit_breaker_events' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'circuit_breaker_events' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'circuit_breaker_events'
+) THEN
     ALTER TABLE circuit_breaker_events ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN circuit_breaker_events.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1492,8 +1726,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cis' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'cis' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'cis'
+) THEN
     ALTER TABLE cis ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN cis.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1511,8 +1748,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'code_repo_adapters' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'code_repo_adapters' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'code_repo_adapters'
+) THEN
     ALTER TABLE code_repo_adapters ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN code_repo_adapters.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1530,8 +1770,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'code_repos' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'code_repos' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'code_repos'
+) THEN
     ALTER TABLE code_repos ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN code_repos.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1549,8 +1792,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'collection_schedules' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'collection_schedules' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'collection_schedules'
+) THEN
     ALTER TABLE collection_schedules ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN collection_schedules.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1568,8 +1814,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'command_log_details' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'command_log_details' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'command_log_details'
+) THEN
     ALTER TABLE command_log_details ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN command_log_details.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1587,8 +1836,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'command_logs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'command_logs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'command_logs'
+) THEN
     ALTER TABLE command_logs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN command_logs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1606,8 +1858,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'comments' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'comments' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'comments'
+) THEN
     ALTER TABLE comments ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN comments.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1625,8 +1880,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'compliance_evidence' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'compliance_evidence' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'compliance_evidence'
+) THEN
     ALTER TABLE compliance_evidence ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN compliance_evidence.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1644,8 +1902,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'compliance_frameworks' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'compliance_frameworks' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'compliance_frameworks'
+) THEN
     ALTER TABLE compliance_frameworks ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN compliance_frameworks.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1663,8 +1924,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'compliance_policies' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'compliance_policies' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'compliance_policies'
+) THEN
     ALTER TABLE compliance_policies ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN compliance_policies.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1682,8 +1946,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'config_audit_entries' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'config_audit_entries' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'config_audit_entries'
+) THEN
     ALTER TABLE config_audit_entries ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN config_audit_entries.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1701,8 +1968,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'config_snapshots' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'config_snapshots' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'config_snapshots'
+) THEN
     ALTER TABLE config_snapshots ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN config_snapshots.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1720,8 +1990,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'config_template_versions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'config_template_versions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'config_template_versions'
+) THEN
     ALTER TABLE config_template_versions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN config_template_versions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1739,8 +2012,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'config_templates' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'config_templates' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'config_templates'
+) THEN
     ALTER TABLE config_templates ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN config_templates.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1758,8 +2034,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'config_versions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'config_versions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'config_versions'
+) THEN
     ALTER TABLE config_versions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN config_versions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1777,8 +2056,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'config_webhooks' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'config_webhooks' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'config_webhooks'
+) THEN
     ALTER TABLE config_webhooks ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN config_webhooks.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1796,8 +2078,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'configs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'configs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'configs'
+) THEN
     ALTER TABLE configs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN configs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1815,8 +2100,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'contract_endpoints' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'contract_endpoints' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'contract_endpoints'
+) THEN
     ALTER TABLE contract_endpoints ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN contract_endpoints.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1834,8 +2122,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cost_allocation_reports' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'cost_allocation_reports' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'cost_allocation_reports'
+) THEN
     ALTER TABLE cost_allocation_reports ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN cost_allocation_reports.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1853,8 +2144,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cost_allocation_rules' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'cost_allocation_rules' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'cost_allocation_rules'
+) THEN
     ALTER TABLE cost_allocation_rules ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN cost_allocation_rules.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1872,8 +2166,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cost_allocation_tags' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'cost_allocation_tags' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'cost_allocation_tags'
+) THEN
     ALTER TABLE cost_allocation_tags ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN cost_allocation_tags.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1891,8 +2188,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cost_allocations' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'cost_allocations' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'cost_allocations'
+) THEN
     ALTER TABLE cost_allocations ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN cost_allocations.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1910,8 +2210,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cron_job_executions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'cron_job_executions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'cron_job_executions'
+) THEN
     ALTER TABLE cron_job_executions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN cron_job_executions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1929,8 +2232,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cron_job_logs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'cron_job_logs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'cron_job_logs'
+) THEN
     ALTER TABLE cron_job_logs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN cron_job_logs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1948,8 +2254,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cron_jobs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'cron_jobs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'cron_jobs'
+) THEN
     ALTER TABLE cron_jobs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN cron_jobs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1967,8 +2276,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'data_lineages' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'data_lineages' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'data_lineages'
+) THEN
     ALTER TABLE data_lineages ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN data_lineages.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -1986,8 +2298,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'data_pipelines' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'data_pipelines' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'data_pipelines'
+) THEN
     ALTER TABLE data_pipelines ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN data_pipelines.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2005,8 +2320,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'data_quality_rules' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'data_quality_rules' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'data_quality_rules'
+) THEN
     ALTER TABLE data_quality_rules ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN data_quality_rules.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2024,8 +2342,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'data_sources' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'data_sources' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'data_sources'
+) THEN
     ALTER TABLE data_sources ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN data_sources.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2043,8 +2364,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'deploy_audit_entries' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'deploy_audit_entries' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'deploy_audit_entries'
+) THEN
     ALTER TABLE deploy_audit_entries ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN deploy_audit_entries.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2062,8 +2386,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'deploy_windows' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'deploy_windows' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'deploy_windows'
+) THEN
     ALTER TABLE deploy_windows ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN deploy_windows.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2081,8 +2408,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'deployments' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'deployments' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'deployments'
+) THEN
     ALTER TABLE deployments ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN deployments.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2100,8 +2430,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'developer_portals' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'developer_portals' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'developer_portals'
+) THEN
     ALTER TABLE developer_portals ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN developer_portals.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2119,8 +2452,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'diagnostic_patterns' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'diagnostic_patterns' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'diagnostic_patterns'
+) THEN
     ALTER TABLE diagnostic_patterns ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN diagnostic_patterns.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2138,8 +2474,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'diagnostic_reports' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'diagnostic_reports' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'diagnostic_reports'
+) THEN
     ALTER TABLE diagnostic_reports ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN diagnostic_reports.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2157,8 +2496,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'diagnostic_sessions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'diagnostic_sessions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'diagnostic_sessions'
+) THEN
     ALTER TABLE diagnostic_sessions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN diagnostic_sessions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2176,8 +2518,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'diagnostic_symptoms' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'diagnostic_symptoms' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'diagnostic_symptoms'
+) THEN
     ALTER TABLE diagnostic_symptoms ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN diagnostic_symptoms.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2195,8 +2540,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'document_versions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'document_versions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'document_versions'
+) THEN
     ALTER TABLE document_versions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN document_versions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2214,8 +2562,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'domain_events' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'domain_events' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'domain_events'
+) THEN
     ALTER TABLE domain_events ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN domain_events.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2233,8 +2584,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'domain_snapshots' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'domain_snapshots' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'domain_snapshots'
+) THEN
     ALTER TABLE domain_snapshots ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN domain_snapshots.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2252,8 +2606,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'efficiency_metrics' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'efficiency_metrics' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'efficiency_metrics'
+) THEN
     ALTER TABLE efficiency_metrics ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN efficiency_metrics.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2271,8 +2628,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'efficiency_recommendations' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'efficiency_recommendations' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'efficiency_recommendations'
+) THEN
     ALTER TABLE efficiency_recommendations ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN efficiency_recommendations.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2290,8 +2650,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'efficiency_scores' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'efficiency_scores' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'efficiency_scores'
+) THEN
     ALTER TABLE efficiency_scores ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN efficiency_scores.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2309,8 +2672,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'emergency_deploys' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'emergency_deploys' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'emergency_deploys'
+) THEN
     ALTER TABLE emergency_deploys ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN emergency_deploys.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2328,8 +2694,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'escalation_policies' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'escalation_policies' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'escalation_policies'
+) THEN
     ALTER TABLE escalation_policies ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN escalation_policies.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2347,8 +2716,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'event_triggers' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'event_triggers' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'event_triggers'
+) THEN
     ALTER TABLE event_triggers ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN event_triggers.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2366,8 +2738,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'events' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'events' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'events'
+) THEN
     ALTER TABLE events ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN events.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2385,8 +2760,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'experiment_runs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'experiment_runs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'experiment_runs'
+) THEN
     ALTER TABLE experiment_runs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN experiment_runs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2404,8 +2782,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'feature_flags' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'feature_flags' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'feature_flags'
+) THEN
     ALTER TABLE feature_flags ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN feature_flags.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2423,8 +2804,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'federated_clusters' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'federated_clusters' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'federated_clusters'
+) THEN
     ALTER TABLE federated_clusters ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN federated_clusters.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2442,8 +2826,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'finops_anomalies' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'finops_anomalies' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'finops_anomalies'
+) THEN
     ALTER TABLE finops_anomalies ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN finops_anomalies.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2461,8 +2848,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'finops_budget_guards' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'finops_budget_guards' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'finops_budget_guards'
+) THEN
     ALTER TABLE finops_budget_guards ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN finops_budget_guards.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2480,8 +2870,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'finops_cost_items' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'finops_cost_items' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'finops_cost_items'
+) THEN
     ALTER TABLE finops_cost_items ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN finops_cost_items.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2499,8 +2892,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'finops_reports' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'finops_reports' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'finops_reports'
+) THEN
     ALTER TABLE finops_reports ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN finops_reports.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2518,8 +2914,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'flag_toggle_history' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'flag_toggle_history' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'flag_toggle_history'
+) THEN
     ALTER TABLE flag_toggle_history ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN flag_toggle_history.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2537,8 +2936,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'gateway_routes' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'gateway_routes' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'gateway_routes'
+) THEN
     ALTER TABLE gateway_routes ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN gateway_routes.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2556,8 +2958,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'git_changelog_entries' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'git_changelog_entries' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'git_changelog_entries'
+) THEN
     ALTER TABLE git_changelog_entries ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN git_changelog_entries.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2575,8 +2980,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'gitops_configs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'gitops_configs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'gitops_configs'
+) THEN
     ALTER TABLE gitops_configs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN gitops_configs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2594,8 +3002,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'gitops_sync_statuses' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'gitops_sync_statuses' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'gitops_sync_statuses'
+) THEN
     ALTER TABLE gitops_sync_statuses ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN gitops_sync_statuses.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2613,8 +3024,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'handler_registries' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'handler_registries' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'handler_registries'
+) THEN
     ALTER TABLE handler_registries ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN handler_registries.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2632,8 +3046,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'handler_registry_entries' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'handler_registry_entries' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'handler_registry_entries'
+) THEN
     ALTER TABLE handler_registry_entries ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN handler_registry_entries.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2651,8 +3068,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'hook_chains' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'hook_chains' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'hook_chains'
+) THEN
     ALTER TABLE hook_chains ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN hook_chains.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2670,8 +3090,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'hotfix_channels' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'hotfix_channels' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'hotfix_channels'
+) THEN
     ALTER TABLE hotfix_channels ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN hotfix_channels.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2689,8 +3112,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'i18n_translations' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'i18n_translations' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'i18n_translations'
+) THEN
     ALTER TABLE i18n_translations ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN i18n_translations.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2708,8 +3134,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'iac_plans' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'iac_plans' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'iac_plans'
+) THEN
     ALTER TABLE iac_plans ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN iac_plans.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2727,8 +3156,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'iac_resources' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'iac_resources' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'iac_resources'
+) THEN
     ALTER TABLE iac_resources ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN iac_resources.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2746,8 +3178,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'iac_state_versions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'iac_state_versions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'iac_state_versions'
+) THEN
     ALTER TABLE iac_state_versions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN iac_state_versions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2765,8 +3200,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'iac_workspace_modules' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'iac_workspace_modules' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'iac_workspace_modules'
+) THEN
     ALTER TABLE iac_workspace_modules ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN iac_workspace_modules.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2784,8 +3222,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'iac_workspaces' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'iac_workspaces' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'iac_workspaces'
+) THEN
     ALTER TABLE iac_workspaces ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN iac_workspaces.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2803,8 +3244,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'inception_configs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'inception_configs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'inception_configs'
+) THEN
     ALTER TABLE inception_configs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN inception_configs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2822,8 +3266,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'incident_escalations' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'incident_escalations' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'incident_escalations'
+) THEN
     ALTER TABLE incident_escalations ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN incident_escalations.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2841,8 +3288,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'incident_postmortems' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'incident_postmortems' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'incident_postmortems'
+) THEN
     ALTER TABLE incident_postmortems ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN incident_postmortems.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2860,8 +3310,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'incident_timeline_events' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'incident_timeline_events' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'incident_timeline_events'
+) THEN
     ALTER TABLE incident_timeline_events ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN incident_timeline_events.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2879,8 +3332,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'incidents' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'incidents' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'incidents'
+) THEN
     ALTER TABLE incidents ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN incidents.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2898,8 +3354,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'infrastructure_connectors' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'infrastructure_connectors' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'infrastructure_connectors'
+) THEN
     ALTER TABLE infrastructure_connectors ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN infrastructure_connectors.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2917,8 +3376,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'infrastructure_sandboxes' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'infrastructure_sandboxes' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'infrastructure_sandboxes'
+) THEN
     ALTER TABLE infrastructure_sandboxes ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN infrastructure_sandboxes.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2936,8 +3398,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'internal_libraries' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'internal_libraries' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'internal_libraries'
+) THEN
     ALTER TABLE internal_libraries ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN internal_libraries.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2955,8 +3420,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'knowledge_doc_versions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'knowledge_doc_versions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'knowledge_doc_versions'
+) THEN
     ALTER TABLE knowledge_doc_versions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN knowledge_doc_versions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2974,8 +3442,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'knowledge_documents' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'knowledge_documents' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'knowledge_documents'
+) THEN
     ALTER TABLE knowledge_documents ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN knowledge_documents.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -2993,8 +3464,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'knowledge_spaces' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'knowledge_spaces' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'knowledge_spaces'
+) THEN
     ALTER TABLE knowledge_spaces ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN knowledge_spaces.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3012,8 +3486,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'knowledge_sync_logs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'knowledge_sync_logs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'knowledge_sync_logs'
+) THEN
     ALTER TABLE knowledge_sync_logs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN knowledge_sync_logs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3031,8 +3508,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'library_dependents' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'library_dependents' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'library_dependents'
+) THEN
     ALTER TABLE library_dependents ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN library_dependents.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3050,8 +3530,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'library_versions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'library_versions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'library_versions'
+) THEN
     ALTER TABLE library_versions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN library_versions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3069,8 +3552,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'lineage_nodes' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'lineage_nodes' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'lineage_nodes'
+) THEN
     ALTER TABLE lineage_nodes ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN lineage_nodes.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3088,8 +3574,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'lineage_relationships' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'lineage_relationships' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'lineage_relationships'
+) THEN
     ALTER TABLE lineage_relationships ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN lineage_relationships.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3107,8 +3596,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'locales' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'locales' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'locales'
+) THEN
     ALTER TABLE locales ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN locales.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3126,8 +3618,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'lowcode_workflow_definition' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'lowcode_workflow_definition' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'lowcode_workflow_definition'
+) THEN
     ALTER TABLE lowcode_workflow_definition ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN lowcode_workflow_definition.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3145,8 +3640,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'lowcode_workflow_instance' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'lowcode_workflow_instance' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'lowcode_workflow_instance'
+) THEN
     ALTER TABLE lowcode_workflow_instance ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN lowcode_workflow_instance.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3164,8 +3662,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'mock_rules' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'mock_rules' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'mock_rules'
+) THEN
     ALTER TABLE mock_rules ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN mock_rules.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3183,8 +3684,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'monitoring_alert_rules' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'monitoring_alert_rules' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'monitoring_alert_rules'
+) THEN
     ALTER TABLE monitoring_alert_rules ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN monitoring_alert_rules.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3202,8 +3706,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'monitoring_alerts' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'monitoring_alerts' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'monitoring_alerts'
+) THEN
     ALTER TABLE monitoring_alerts ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN monitoring_alerts.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3221,8 +3728,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'monitoring_anomalies' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'monitoring_anomalies' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'monitoring_anomalies'
+) THEN
     ALTER TABLE monitoring_anomalies ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN monitoring_anomalies.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3240,8 +3750,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'monitoring_metrics' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'monitoring_metrics' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'monitoring_metrics'
+) THEN
     ALTER TABLE monitoring_metrics ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN monitoring_metrics.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3259,8 +3772,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'namespace_allocations' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'namespace_allocations' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'namespace_allocations'
+) THEN
     ALTER TABLE namespace_allocations ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN namespace_allocations.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3278,8 +3794,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'notification_records' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'notification_records' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'notification_records'
+) THEN
     ALTER TABLE notification_records ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN notification_records.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3297,8 +3816,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'notification_templates' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'notification_templates' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'notification_templates'
+) THEN
     ALTER TABLE notification_templates ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN notification_templates.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3316,8 +3838,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'oncall_assignments' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'oncall_assignments' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'oncall_assignments'
+) THEN
     ALTER TABLE oncall_assignments ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN oncall_assignments.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3335,8 +3860,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'oncall_overrides' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'oncall_overrides' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'oncall_overrides'
+) THEN
     ALTER TABLE oncall_overrides ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN oncall_overrides.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3354,8 +3882,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'oncall_schedules' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'oncall_schedules' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'oncall_schedules'
+) THEN
     ALTER TABLE oncall_schedules ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN oncall_schedules.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3373,8 +3904,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'page_registries' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'page_registries' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'page_registries'
+) THEN
     ALTER TABLE page_registries ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN page_registries.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3392,8 +3926,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'page_registry_histories' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'page_registry_histories' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'page_registry_histories'
+) THEN
     ALTER TABLE page_registry_histories ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN page_registry_histories.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3411,8 +3948,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'permission_requests' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'permission_requests' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'permission_requests'
+) THEN
     ALTER TABLE permission_requests ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN permission_requests.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3430,8 +3970,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'permissions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'permissions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'permissions'
+) THEN
     ALTER TABLE permissions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN permissions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3449,8 +3992,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'pipeline_checkpoints' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'pipeline_checkpoints' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'pipeline_checkpoints'
+) THEN
     ALTER TABLE pipeline_checkpoints ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN pipeline_checkpoints.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3468,8 +4014,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'pipeline_stages' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'pipeline_stages' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'pipeline_stages'
+) THEN
     ALTER TABLE pipeline_stages ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN pipeline_stages.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3487,8 +4036,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'pipeline_tasks' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'pipeline_tasks' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'pipeline_tasks'
+) THEN
     ALTER TABLE pipeline_tasks ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN pipeline_tasks.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3506,8 +4058,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'playground_requests' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'playground_requests' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'playground_requests'
+) THEN
     ALTER TABLE playground_requests ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN playground_requests.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3525,8 +4080,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'plugin_audit_entries' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'plugin_audit_entries' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'plugin_audit_entries'
+) THEN
     ALTER TABLE plugin_audit_entries ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN plugin_audit_entries.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3544,8 +4102,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'plugin_executions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'plugin_executions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'plugin_executions'
+) THEN
     ALTER TABLE plugin_executions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN plugin_executions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3563,8 +4124,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'plugin_resource_quotas' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'plugin_resource_quotas' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'plugin_resource_quotas'
+) THEN
     ALTER TABLE plugin_resource_quotas ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN plugin_resource_quotas.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3582,8 +4146,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'plugin_security_events' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'plugin_security_events' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'plugin_security_events'
+) THEN
     ALTER TABLE plugin_security_events ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN plugin_security_events.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3601,8 +4168,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'plugin_tenant_quotas' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'plugin_tenant_quotas' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'plugin_tenant_quotas'
+) THEN
     ALTER TABLE plugin_tenant_quotas ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN plugin_tenant_quotas.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3620,8 +4190,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'plugins' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'plugins' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'plugins'
+) THEN
     ALTER TABLE plugins ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN plugins.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3639,8 +4212,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'policy_bundles' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'policy_bundles' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'policy_bundles'
+) THEN
     ALTER TABLE policy_bundles ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN policy_bundles.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3658,8 +4234,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'policy_evaluations' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'policy_evaluations' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'policy_evaluations'
+) THEN
     ALTER TABLE policy_evaluations ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN policy_evaluations.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3677,8 +4256,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'policy_exemptions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'policy_exemptions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'policy_exemptions'
+) THEN
     ALTER TABLE policy_exemptions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN policy_exemptions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3696,8 +4278,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'policy_overrides' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'policy_overrides' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'policy_overrides'
+) THEN
     ALTER TABLE policy_overrides ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN policy_overrides.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3715,8 +4300,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'policy_violations' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'policy_violations' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'policy_violations'
+) THEN
     ALTER TABLE policy_violations ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN policy_violations.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3734,8 +4322,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'portal_documents' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'portal_documents' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'portal_documents'
+) THEN
     ALTER TABLE portal_documents ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN portal_documents.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3753,8 +4344,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'problem_change_links' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'problem_change_links' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'problem_change_links'
+) THEN
     ALTER TABLE problem_change_links ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN problem_change_links.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3772,8 +4366,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'problem_incident_links' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'problem_incident_links' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'problem_incident_links'
+) THEN
     ALTER TABLE problem_incident_links ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN problem_incident_links.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3791,8 +4388,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'problem_known_errors' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'problem_known_errors' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'problem_known_errors'
+) THEN
     ALTER TABLE problem_known_errors ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN problem_known_errors.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3810,8 +4410,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'problem_problems' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'problem_problems' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'problem_problems'
+) THEN
     ALTER TABLE problem_problems ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN problem_problems.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3829,8 +4432,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'product_lines' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'product_lines' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'product_lines'
+) THEN
     ALTER TABLE product_lines ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN product_lines.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3848,8 +4454,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'progressive_deploys' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'progressive_deploys' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'progressive_deploys'
+) THEN
     ALTER TABLE progressive_deploys ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN progressive_deploys.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3867,8 +4476,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'project_members' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'project_members' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'project_members'
+) THEN
     ALTER TABLE project_members ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN project_members.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3886,8 +4498,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'pull_requests' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'pull_requests' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'pull_requests'
+) THEN
     ALTER TABLE pull_requests ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN pull_requests.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3905,8 +4520,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'quality_alerts' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'quality_alerts' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'quality_alerts'
+) THEN
     ALTER TABLE quality_alerts ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN quality_alerts.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3924,8 +4542,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'quality_scan_results' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'quality_scan_results' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'quality_scan_results'
+) THEN
     ALTER TABLE quality_scan_results ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN quality_scan_results.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3943,8 +4564,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'query_execution_records' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'query_execution_records' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'query_execution_records'
+) THEN
     ALTER TABLE query_execution_records ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN query_execution_records.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3962,8 +4586,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'recording_sessions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'recording_sessions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'recording_sessions'
+) THEN
     ALTER TABLE recording_sessions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN recording_sessions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -3981,8 +4608,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'release_notes' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'release_notes' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'release_notes'
+) THEN
     ALTER TABLE release_notes ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN release_notes.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4000,8 +4630,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'release_trains' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'release_trains' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'release_trains'
+) THEN
     ALTER TABLE release_trains ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN release_trains.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4019,8 +4652,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'replay_sessions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'replay_sessions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'replay_sessions'
+) THEN
     ALTER TABLE replay_sessions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN replay_sessions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4038,8 +4674,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'report_datasources' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'report_datasources' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'report_datasources'
+) THEN
     ALTER TABLE report_datasources ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN report_datasources.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4057,8 +4696,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'report_definitions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'report_definitions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'report_definitions'
+) THEN
     ALTER TABLE report_definitions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN report_definitions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4076,8 +4718,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'report_executions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'report_executions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'report_executions'
+) THEN
     ALTER TABLE report_executions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN report_executions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4095,8 +4740,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'report_schedules' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'report_schedules' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'report_schedules'
+) THEN
     ALTER TABLE report_schedules ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN report_schedules.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4114,8 +4762,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'response_history' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'response_history' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'response_history'
+) THEN
     ALTER TABLE response_history ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN response_history.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4133,8 +4784,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'retention_policies' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'retention_policies' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'retention_policies'
+) THEN
     ALTER TABLE retention_policies ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN retention_policies.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4152,8 +4806,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'reviews' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'reviews' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'reviews'
+) THEN
     ALTER TABLE reviews ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN reviews.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4171,8 +4828,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'roi_entries' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'roi_entries' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'roi_entries'
+) THEN
     ALTER TABLE roi_entries ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN roi_entries.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4190,8 +4850,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'roles' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'roles' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'roles'
+) THEN
     ALTER TABLE roles ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN roles.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4209,8 +4872,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'rollbacks' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'rollbacks' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'rollbacks'
+) THEN
     ALTER TABLE rollbacks ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN rollbacks.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4228,8 +4894,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'saga_instances' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'saga_instances' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'saga_instances'
+) THEN
     ALTER TABLE saga_instances ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN saga_instances.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4247,8 +4916,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'saga_steps' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'saga_steps' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'saga_steps'
+) THEN
     ALTER TABLE saga_steps ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN saga_steps.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4266,8 +4938,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'saga_transactions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'saga_transactions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'saga_transactions'
+) THEN
     ALTER TABLE saga_transactions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN saga_transactions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4285,8 +4960,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sandbox_network_policies' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'sandbox_network_policies' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'sandbox_network_policies'
+) THEN
     ALTER TABLE sandbox_network_policies ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN sandbox_network_policies.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4304,8 +4982,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'scan_reports' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'scan_reports' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'scan_reports'
+) THEN
     ALTER TABLE scan_reports ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN scan_reports.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4323,8 +5004,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'script_templates' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'script_templates' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'script_templates'
+) THEN
     ALTER TABLE script_templates ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN script_templates.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4342,8 +5026,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sdk_tasks' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'sdk_tasks' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'sdk_tasks'
+) THEN
     ALTER TABLE sdk_tasks ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN sdk_tasks.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4361,8 +5048,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'serverless_deployments' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'serverless_deployments' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'serverless_deployments'
+) THEN
     ALTER TABLE serverless_deployments ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN serverless_deployments.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4380,8 +5070,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'serverless_function_logs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'serverless_function_logs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'serverless_function_logs'
+) THEN
     ALTER TABLE serverless_function_logs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN serverless_function_logs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4399,8 +5092,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'serverless_functions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'serverless_functions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'serverless_functions'
+) THEN
     ALTER TABLE serverless_functions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN serverless_functions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4418,8 +5114,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'serverless_triggers' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'serverless_triggers' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'serverless_triggers'
+) THEN
     ALTER TABLE serverless_triggers ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN serverless_triggers.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4437,8 +5136,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'service_registries' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'service_registries' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'service_registries'
+) THEN
     ALTER TABLE service_registries ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN service_registries.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4456,8 +5158,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sessions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'sessions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'sessions'
+) THEN
     ALTER TABLE sessions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN sessions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4475,8 +5180,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sla_breach_events' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'sla_breach_events' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'sla_breach_events'
+) THEN
     ALTER TABLE sla_breach_events ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN sla_breach_events.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4494,8 +5202,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sla_definitions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'sla_definitions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'sla_definitions'
+) THEN
     ALTER TABLE sla_definitions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN sla_definitions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4513,8 +5224,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sla_trackings' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'sla_trackings' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'sla_trackings'
+) THEN
     ALTER TABLE sla_trackings ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN sla_trackings.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4532,8 +5246,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'smart_deploy_audit' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'smart_deploy_audit' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'smart_deploy_audit'
+) THEN
     ALTER TABLE smart_deploy_audit ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN smart_deploy_audit.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4551,8 +5268,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'smart_deploy_deployments' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'smart_deploy_deployments' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'smart_deploy_deployments'
+) THEN
     ALTER TABLE smart_deploy_deployments ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN smart_deploy_deployments.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4570,8 +5290,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'smart_deploy_rollbacks' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'smart_deploy_rollbacks' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'smart_deploy_rollbacks'
+) THEN
     ALTER TABLE smart_deploy_rollbacks ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN smart_deploy_rollbacks.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4589,8 +5312,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'snapshots' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'snapshots' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'snapshots'
+) THEN
     ALTER TABLE snapshots ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN snapshots.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4608,8 +5334,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sprint_tickets' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'sprint_tickets' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'sprint_tickets'
+) THEN
     ALTER TABLE sprint_tickets ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN sprint_tickets.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4627,8 +5356,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sprints' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'sprints' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'sprints'
+) THEN
     ALTER TABLE sprints ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN sprints.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4646,8 +5378,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sql_audit_history' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'sql_audit_history' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'sql_audit_history'
+) THEN
     ALTER TABLE sql_audit_history ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN sql_audit_history.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4665,8 +5400,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sql_blacklist' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'sql_blacklist' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'sql_blacklist'
+) THEN
     ALTER TABLE sql_blacklist ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN sql_blacklist.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4684,8 +5422,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sql_orders' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'sql_orders' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'sql_orders'
+) THEN
     ALTER TABLE sql_orders ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN sql_orders.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4703,8 +5444,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'subapp_config_histories' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'subapp_config_histories' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'subapp_config_histories'
+) THEN
     ALTER TABLE subapp_config_histories ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN subapp_config_histories.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4722,8 +5466,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'subapp_configs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'subapp_configs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'subapp_configs'
+) THEN
     ALTER TABLE subapp_configs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN subapp_configs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4741,8 +5488,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'subscriptions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'subscriptions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'subscriptions'
+) THEN
     ALTER TABLE subscriptions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN subscriptions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4760,8 +5510,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'team_members' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'team_members' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'team_members'
+) THEN
     ALTER TABLE team_members ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN team_members.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4779,8 +5532,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'team_roles' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'team_roles' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'team_roles'
+) THEN
     ALTER TABLE team_roles ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN team_roles.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4798,8 +5554,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'teams' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'teams' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'teams'
+) THEN
     ALTER TABLE teams ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN teams.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4817,8 +5576,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'temporary_permissions' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'temporary_permissions' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'temporary_permissions'
+) THEN
     ALTER TABLE temporary_permissions ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN temporary_permissions.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4836,8 +5598,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'tenant_invites' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'tenant_invites' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'tenant_invites'
+) THEN
     ALTER TABLE tenant_invites ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN tenant_invites.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4855,8 +5620,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'tenant_quota_alerts' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'tenant_quota_alerts' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'tenant_quota_alerts'
+) THEN
     ALTER TABLE tenant_quota_alerts ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN tenant_quota_alerts.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4874,8 +5642,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'tenant_quotas' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'tenant_quotas' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'tenant_quotas'
+) THEN
     ALTER TABLE tenant_quotas ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN tenant_quotas.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4893,8 +5664,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'tenant_users' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'tenant_users' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'tenant_users'
+) THEN
     ALTER TABLE tenant_users ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN tenant_users.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4912,8 +5686,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_assignment_rules' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ticket_assignment_rules' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ticket_assignment_rules'
+) THEN
     ALTER TABLE ticket_assignment_rules ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ticket_assignment_rules.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4931,8 +5708,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_assignments' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ticket_assignments' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ticket_assignments'
+) THEN
     ALTER TABLE ticket_assignments ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ticket_assignments.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4950,8 +5730,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_automation_rules' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ticket_automation_rules' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ticket_automation_rules'
+) THEN
     ALTER TABLE ticket_automation_rules ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ticket_automation_rules.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4969,8 +5752,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_dispatch_engineers' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ticket_dispatch_engineers' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ticket_dispatch_engineers'
+) THEN
     ALTER TABLE ticket_dispatch_engineers ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ticket_dispatch_engineers.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -4988,8 +5774,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_dispatch_rules' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ticket_dispatch_rules' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ticket_dispatch_rules'
+) THEN
     ALTER TABLE ticket_dispatch_rules ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ticket_dispatch_rules.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -5007,8 +5796,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_relations' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ticket_relations' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ticket_relations'
+) THEN
     ALTER TABLE ticket_relations ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ticket_relations.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -5026,8 +5818,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_sla_breaches' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ticket_sla_breaches' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ticket_sla_breaches'
+) THEN
     ALTER TABLE ticket_sla_breaches ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ticket_sla_breaches.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -5045,8 +5840,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_sla_policies' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ticket_sla_policies' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ticket_sla_policies'
+) THEN
     ALTER TABLE ticket_sla_policies ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ticket_sla_policies.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -5064,8 +5862,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_sla_targets' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ticket_sla_targets' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ticket_sla_targets'
+) THEN
     ALTER TABLE ticket_sla_targets ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ticket_sla_targets.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -5083,8 +5884,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_sla_tracking' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ticket_sla_tracking' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ticket_sla_tracking'
+) THEN
     ALTER TABLE ticket_sla_tracking ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ticket_sla_tracking.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -5102,8 +5906,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_suspends' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ticket_suspends' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ticket_suspends'
+) THEN
     ALTER TABLE ticket_suspends ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ticket_suspends.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -5121,8 +5928,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_transfers' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ticket_transfers' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ticket_transfers'
+) THEN
     ALTER TABLE ticket_transfers ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ticket_transfers.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -5140,8 +5950,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_workflow_history' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ticket_workflow_history' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ticket_workflow_history'
+) THEN
     ALTER TABLE ticket_workflow_history ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ticket_workflow_history.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -5159,8 +5972,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticketing_dispatch_weights' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ticketing_dispatch_weights' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ticketing_dispatch_weights'
+) THEN
     ALTER TABLE ticketing_dispatch_weights ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ticketing_dispatch_weights.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -5178,8 +5994,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticketing_service_state' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'ticketing_service_state' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'ticketing_service_state'
+) THEN
     ALTER TABLE ticketing_service_state ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN ticketing_service_state.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -5197,8 +6016,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'tickets' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'tickets' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'tickets'
+) THEN
     ALTER TABLE tickets ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN tickets.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -5216,8 +6038,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'traffic_records' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'traffic_records' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'traffic_records'
+) THEN
     ALTER TABLE traffic_records ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN traffic_records.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -5235,8 +6060,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'upload_tasks' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'upload_tasks' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'upload_tasks'
+) THEN
     ALTER TABLE upload_tasks ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN upload_tasks.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -5254,8 +6082,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'usage_limits' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'usage_limits' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'usage_limits'
+) THEN
     ALTER TABLE usage_limits ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN usage_limits.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -5273,8 +6104,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'usage_records' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'usage_records' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'usage_records'
+) THEN
     ALTER TABLE usage_records ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN usage_records.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -5292,8 +6126,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'users' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'users'
+) THEN
     ALTER TABLE users ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN users.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -5311,8 +6148,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'webhooks_secrets' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'webhooks_secrets' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'webhooks_secrets'
+) THEN
     ALTER TABLE webhooks_secrets ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN webhooks_secrets.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -5330,8 +6170,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'widget_configs' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'widget_configs' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'widget_configs'
+) THEN
     ALTER TABLE widget_configs ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN widget_configs.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;
@@ -5349,8 +6192,11 @@ END $$;
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'workbenches' AND column_name = 'deleted_at'
-  ) THEN
+    WHERE table_schema = 'public' AND table_name = 'workbenches' AND column_name = 'deleted_at'
+) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'workbenches'
+) THEN
     ALTER TABLE workbenches ADD COLUMN deleted_at TIMESTAMPTZ DEFAULT NULL;
     COMMENT ON COLUMN workbenches.deleted_at IS 'Soft delete timestamp; NULL means active';
   END IF;

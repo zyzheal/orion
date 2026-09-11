@@ -10,6 +10,6 @@ ALTER TABLE config_item
     ADD COLUMN override_of VARCHAR(36) DEFAULT NULL,
     ADD COLUMN priority INT NOT NULL DEFAULT 50;
 
-ALTER TABLE config_item
-    ADD INDEX idx_level (level),
-    ADD INDEX idx_override_of (override_of);
+-- PostgreSQL 不支持 ALTER TABLE ... ADD INDEX；拆成独立 CREATE INDEX。
+CREATE INDEX IF NOT EXISTS idx_config_item_level ON config_item(level);
+CREATE INDEX IF NOT EXISTS idx_config_item_override_of ON config_item(override_of);

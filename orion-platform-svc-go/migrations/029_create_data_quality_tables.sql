@@ -1,6 +1,6 @@
 -- 001_create_data_quality_tables.sql
 CREATE TABLE IF NOT EXISTS data_quality_rules (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS data_quality_rules (
 );
 
 CREATE TABLE IF NOT EXISTS quality_scan_results (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     rule_id UUID NOT NULL REFERENCES data_quality_rules(id),
     scan_date DATE NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS quality_scan_results (
 );
 
 CREATE TABLE IF NOT EXISTS quality_alerts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     rule_id UUID NOT NULL REFERENCES data_quality_rules(id),
     scan_result_id UUID NOT NULL REFERENCES quality_scan_results(id),

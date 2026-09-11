@@ -15,10 +15,9 @@ CREATE TABLE IF NOT EXISTS degradation_configs (
     enabled BOOLEAN NOT NULL,
     last_triggered_at BIGINT,
     trigger_count BIGINT NOT NULL,
-    metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_degradation_configs_tenant ON degradation_configs(tenant_id);
@@ -39,7 +38,7 @@ CREATE TABLE IF NOT EXISTS degradation_histories (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_degradation_histories_tenant ON degradation_histories(tenant_id);

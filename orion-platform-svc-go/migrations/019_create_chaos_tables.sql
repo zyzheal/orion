@@ -14,6 +14,9 @@ CREATE TABLE IF NOT EXISTS experiments (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
+-- 补齐 experiments：109_create_chaos-enhanced_tables.sql 的定义晚于 019_create_chaos_tables.sql，按序执行时表已存在
+ALTER TABLE experiments ADD COLUMN IF NOT EXISTS environment_id VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS fault_spec VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS target_id VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS start_time TIMESTAMP WITH TIME ZONE, ADD COLUMN IF NOT EXISTS end_time TIMESTAMP WITH TIME ZONE, ADD COLUMN IF NOT EXISTS recovery_info VARCHAR(255), ADD COLUMN IF NOT EXISTS metadata JSONB, ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE;
+
 
 CREATE INDEX IF NOT EXISTS idx_experiments_tenant_id ON experiments(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_experiments_status ON experiments(status);

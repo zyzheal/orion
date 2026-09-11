@@ -37,6 +37,9 @@ CREATE TABLE IF NOT EXISTS alerts (
     resolved_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT NOW()
 );
+-- 补齐 alerts：005_create_alert_tables.sql 的定义晚于 001_create_monitor_tables.sql，按序执行时表已存在
+ALTER TABLE alerts ADD COLUMN IF NOT EXISTS name VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS fingerprint VARCHAR(255) NOT NULL, ADD COLUMN IF NOT EXISTS source_type VARCHAR(100), ADD COLUMN IF NOT EXISTS source_id VARCHAR(255), ADD COLUMN IF NOT EXISTS source_name VARCHAR(255), ADD COLUMN IF NOT EXISTS labels JSONB, ADD COLUMN IF NOT EXISTS annotations JSONB, ADD COLUMN IF NOT EXISTS value DOUBLE PRECISION DEFAULT 0, ADD COLUMN IF NOT EXISTS threshold DOUBLE PRECISION DEFAULT 0, ADD COLUMN IF NOT EXISTS metric VARCHAR(255), ADD COLUMN IF NOT EXISTS is_duplicate BOOLEAN DEFAULT FALSE, ADD COLUMN IF NOT EXISTS group_id VARCHAR(255), ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE NOT NULL;
+
 
 -- Alert rules table for monitoring rule definitions
 CREATE TABLE IF NOT EXISTS alert_rules (
@@ -51,6 +54,9 @@ CREATE TABLE IF NOT EXISTS alert_rules (
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
+-- 补齐 alert_rules：363_create_alert_rules.sql 的定义晚于 001_create_monitor_tables.sql，按序执行时表已存在
+ALTER TABLE alert_rules ADD COLUMN IF NOT EXISTS expression TEXT, ADD COLUMN IF NOT EXISTS priority INTEGER DEFAULT 0, ADD COLUMN IF NOT EXISTS enabled BOOLEAN DEFAULT TRUE, ADD COLUMN IF NOT EXISTS "group" VARCHAR(128);
+
 
 -- Indexes for tenant-scoped queries
 CREATE INDEX IF NOT EXISTS idx_metrics_tenant_ts ON metrics(tenant_id, timestamp DESC);

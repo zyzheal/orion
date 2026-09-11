@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS a_b_a_c_policies (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_a_b_a_c_policies_tenant ON a_b_a_c_policies(tenant_id);

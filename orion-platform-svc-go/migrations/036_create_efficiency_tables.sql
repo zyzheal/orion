@@ -2,7 +2,7 @@
 -- Efficiency metrics and optimization tables
 
 CREATE TABLE IF NOT EXISTS efficiency_metrics (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS efficiency_metrics (
 );
 
 CREATE TABLE IF NOT EXISTS efficiency_scores (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     metric_id UUID NOT NULL REFERENCES efficiency_metrics(id),
     score DECIMAL(5,2) NOT NULL,
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS efficiency_scores (
 );
 
 CREATE TABLE IF NOT EXISTS efficiency_recommendations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     metric_id UUID REFERENCES efficiency_metrics(id),
     title VARCHAR(255) NOT NULL,

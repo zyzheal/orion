@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS cloud_accounts (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
+-- 补齐 cloud_accounts：147_create_multi-cloud_tables.sql 的定义晚于 054_create_multi_cloud_tables.sql，按序执行时表已存在
+ALTER TABLE cloud_accounts ADD COLUMN IF NOT EXISTS metadata JSONB, ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE;
+
 
 CREATE INDEX IF NOT EXISTS idx_cloud_accounts_tenant_id ON cloud_accounts(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_cloud_accounts_provider_id ON cloud_accounts(provider_id);
@@ -35,6 +38,9 @@ CREATE TABLE IF NOT EXISTS cloud_resources (
     monthly_cost DOUBLE PRECISION DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
+-- 补齐 cloud_resources：147_create_multi-cloud_tables.sql 的定义晚于 054_create_multi_cloud_tables.sql，按序执行时表已存在
+ALTER TABLE cloud_resources ADD COLUMN IF NOT EXISTS metadata JSONB, ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE;
+
 
 CREATE INDEX IF NOT EXISTS idx_cloud_resources_tenant_id ON cloud_resources(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_cloud_resources_account_id ON cloud_resources(account_id);
@@ -51,6 +57,9 @@ CREATE TABLE IF NOT EXISTS scheduling_policies (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
+-- 补齐 scheduling_policies：147_create_multi-cloud_tables.sql 的定义晚于 054_create_multi_cloud_tables.sql，按序执行时表已存在
+ALTER TABLE scheduling_policies ADD COLUMN IF NOT EXISTS metadata JSONB, ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE;
+
 
 CREATE INDEX IF NOT EXISTS idx_scheduling_policies_tenant_id ON scheduling_policies(tenant_id);
 
@@ -69,6 +78,9 @@ CREATE TABLE IF NOT EXISTS migration_plans (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
+-- 补齐 migration_plans：147_create_multi-cloud_tables.sql 的定义晚于 054_create_multi_cloud_tables.sql，按序执行时表已存在
+ALTER TABLE migration_plans ADD COLUMN IF NOT EXISTS metadata JSONB, ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE;
+
 
 CREATE INDEX IF NOT EXISTS idx_migration_plans_tenant_id ON migration_plans(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_migration_plans_status ON migration_plans(status);

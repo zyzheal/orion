@@ -8,10 +8,10 @@ CREATE TABLE IF NOT EXISTS escalation_policy (
     rules JSON NOT NULL,
     created_by VARCHAR(100) DEFAULT '',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_tenant (tenant_id),
-    INDEX idx_severity (severity)
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX IF NOT EXISTS idx_tenant_escalation_policy ON escalation_policy(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_severity_escalation_policy ON escalation_policy(severity);
 
 CREATE TABLE IF NOT EXISTS escalation_trigger (
     id VARCHAR(36) NOT NULL PRIMARY KEY,
@@ -24,11 +24,11 @@ CREATE TABLE IF NOT EXISTS escalation_trigger (
     message TEXT DEFAULT '',
     triggered_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
-    resolved_at TIMESTAMP DEFAULT NULL,
-    INDEX idx_policy (policy_id),
-    INDEX idx_alert (alert_id),
-    INDEX idx_status (status)
+    resolved_at TIMESTAMP DEFAULT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_policy_escalation_trigger ON escalation_trigger(policy_id);
+CREATE INDEX IF NOT EXISTS idx_alert_escalation_trigger ON escalation_trigger(alert_id);
+CREATE INDEX IF NOT EXISTS idx_status_escalation_trigger ON escalation_trigger(status);
 
 CREATE TABLE IF NOT EXISTS alert_closure (
     id VARCHAR(36) NOT NULL PRIMARY KEY,
@@ -42,11 +42,11 @@ CREATE TABLE IF NOT EXISTS alert_closure (
     resolution_note TEXT DEFAULT '',
     mttr_seconds BIGINT DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_alert (alert_id),
-    INDEX idx_tenant (tenant_id),
-    INDEX idx_status (status)
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX IF NOT EXISTS idx_alert_alert_closure ON alert_closure(alert_id);
+CREATE INDEX IF NOT EXISTS idx_tenant_alert_closure ON alert_closure(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_status_alert_closure ON alert_closure(status);
 
 CREATE TABLE IF NOT EXISTS alert_metrics (
     id VARCHAR(36) NOT NULL PRIMARY KEY,
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS alert_metrics (
     sla_breach_count INT NOT NULL DEFAULT 0,
     auto_remediation_success INT NOT NULL DEFAULT 0,
     auto_remediation_failed INT NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_date (metric_date),
-    INDEX idx_tenant (tenant_id)
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX IF NOT EXISTS idx_date_alert_metrics ON alert_metrics(metric_date);
+CREATE INDEX IF NOT EXISTS idx_tenant_alert_metrics ON alert_metrics(tenant_id);

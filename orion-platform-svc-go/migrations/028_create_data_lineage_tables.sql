@@ -1,6 +1,6 @@
 -- 001_create_data_lineage_tables.sql
 CREATE TABLE IF NOT EXISTS data_lineages (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS data_lineages (
 );
 
 CREATE TABLE IF NOT EXISTS lineage_nodes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     lineage_id UUID NOT NULL REFERENCES data_lineages(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     type VARCHAR(50) NOT NULL, -- table, column, dataset, api, event
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS lineage_nodes (
 );
 
 CREATE TABLE IF NOT EXISTS lineage_relationships (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     lineage_id UUID NOT NULL REFERENCES data_lineages(id) ON DELETE CASCADE,
     source_node_id UUID NOT NULL REFERENCES lineage_nodes(id),
     target_node_id UUID NOT NULL REFERENCES lineage_nodes(id),

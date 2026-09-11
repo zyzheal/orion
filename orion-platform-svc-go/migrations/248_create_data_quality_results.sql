@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS quality_results (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     rule_id UUID NOT NULL REFERENCES data_quality_rules(id),
     table_name VARCHAR(255) NOT NULL,

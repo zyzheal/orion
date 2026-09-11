@@ -26,10 +26,9 @@ CREATE TABLE IF NOT EXISTS l_l_m_traces (
     error_message VARCHAR(255) NOT NULL,
     request_context VARCHAR(255) NOT NULL,
     metadata VARCHAR(255) NOT NULL,
-    metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_l_l_m_traces_tenant ON l_l_m_traces(tenant_id);

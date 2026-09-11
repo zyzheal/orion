@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS a_i_agents (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_a_i_agents_tenant ON a_i_agents(tenant_id);
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS agent_audit_logs (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_agent_audit_logs_tenant ON agent_audit_logs(tenant_id);

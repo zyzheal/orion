@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS permissions (
     code VARCHAR(255) NOT NULL UNIQUE,
     resource VARCHAR(255) NOT NULL,
     action VARCHAR(255) NOT NULL,
-    desc TEXT,
+    "desc" TEXT,
     tenant_id UUID NOT NULL,
     user_id UUID NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

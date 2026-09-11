@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS multi_modal_triggers (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_multi_modal_triggers_tenant ON multi_modal_triggers(tenant_id);

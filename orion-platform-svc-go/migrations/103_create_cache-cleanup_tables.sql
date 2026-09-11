@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS cache_cleanups (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_cache_cleanups_tenant ON cache_cleanups(tenant_id);

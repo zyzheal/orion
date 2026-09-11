@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS pipeline_runs (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+-- 补齐 pipeline_runs：157_create_pipeline-engine_tables.sql 的定义晚于 002_create_pipeline_engine_tables.sql，按序执行时表已存在
+ALTER TABLE pipeline_runs ADD COLUMN IF NOT EXISTS metadata JSONB, ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE;
+
 
 CREATE TABLE IF NOT EXISTS pipeline_stages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS trace_spans (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_trace_spans_tenant ON trace_spans(tenant_id);
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS trace_sampling_configs (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_trace_sampling_configs_tenant ON trace_sampling_configs(tenant_id);
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS otel_collector_configs (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_otel_collector_configs_tenant ON otel_collector_configs(tenant_id);

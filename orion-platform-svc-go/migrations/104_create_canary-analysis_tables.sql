@@ -6,10 +6,9 @@ CREATE TABLE IF NOT EXISTS analysises (
     name VARCHAR(255) NOT NULL,
     status VARCHAR(255) NOT NULL,
     metadata VARCHAR(255) NOT NULL,
-    metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_analysises_tenant ON analysises(tenant_id);

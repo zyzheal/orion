@@ -13,10 +13,9 @@ CREATE TABLE IF NOT EXISTS digital_twins (
     sync_policy VARCHAR(255) NOT NULL,
     last_sync_time BIGINT,
     sync_health VARCHAR(255) NOT NULL,
-    metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_digital_twins_tenant ON digital_twins(tenant_id);
@@ -38,7 +37,7 @@ CREATE TABLE IF NOT EXISTS simulations (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_simulations_tenant ON simulations(tenant_id);

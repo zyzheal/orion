@@ -22,6 +22,12 @@ CREATE TABLE IF NOT EXISTS cache_configs (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- 补齐 cache_configs：378_create_cache_monitor_tables.sql 的定义晚于 255_create_cache_mgmt_tables.sql，按序执行时表已存在
+ALTER TABLE cache_configs ADD COLUMN IF NOT EXISTS cache_name VARCHAR(128) NOT NULL UNIQUE, ADD COLUMN IF NOT EXISTS cache_type VARCHAR(32) NOT NULL, ADD COLUMN IF NOT EXISTS host VARCHAR(255), ADD COLUMN IF NOT EXISTS port INTEGER DEFAULT 0, ADD COLUMN IF NOT EXISTS collection_interval_sec INTEGER DEFAULT 30, ADD COLUMN IF NOT EXISTS is_enabled BOOLEAN DEFAULT TRUE;
+
+-- 补齐 cache_configs：364_create_cache_monitoring_tables.sql 的定义晚于 255_create_cache_mgmt_tables.sql，按序执行时表已存在
+ALTER TABLE cache_configs ADD COLUMN IF NOT EXISTS type VARCHAR(64), ADD COLUMN IF NOT EXISTS host VARCHAR(256), ADD COLUMN IF NOT EXISTS port INTEGER, ADD COLUMN IF NOT EXISTS collection_interval_sec INTEGER DEFAULT 60, ADD COLUMN IF NOT EXISTS is_enabled BOOLEAN DEFAULT TRUE;
+
 CREATE INDEX idx_cache_configs_tenant ON cache_configs(tenant_id);
 CREATE INDEX idx_cache_configs_enabled ON cache_configs(enabled);
 CREATE INDEX idx_cache_configs_name ON cache_configs(name);

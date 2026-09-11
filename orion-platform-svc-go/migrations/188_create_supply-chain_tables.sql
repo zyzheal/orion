@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS artifacts (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_artifacts_tenant ON artifacts(tenant_id);
@@ -24,10 +24,9 @@ CREATE TABLE IF NOT EXISTS s_b_o_ms (
     dependencies VARCHAR(255) NOT NULL,
     vulnerabilities VARCHAR(255) NOT NULL,
     metadata VARCHAR(255) NOT NULL,
-    metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_s_b_o_ms_tenant ON s_b_o_ms(tenant_id);
@@ -46,10 +45,9 @@ CREATE TABLE IF NOT EXISTS artifact_signatures (
     verified BOOLEAN NOT NULL,
     verified_at TIMESTAMP WITH TIME ZONE,
     metadata VARCHAR(255) NOT NULL,
-    metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_artifact_signatures_tenant ON artifact_signatures(tenant_id);

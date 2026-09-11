@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS s_l_o_definitions (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_s_l_o_definitions_tenant ON s_l_o_definitions(tenant_id);
@@ -32,10 +32,9 @@ CREATE TABLE IF NOT EXISTS s_l_i_measurements (
     success BIGINT NOT NULL,
     error_count BIGINT NOT NULL,
     metadata VARCHAR(255) NOT NULL,
-    metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_s_l_i_measurements_tenant ON s_l_i_measurements(tenant_id);
@@ -55,7 +54,7 @@ CREATE TABLE IF NOT EXISTS error_budgets (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_error_budgets_tenant ON error_budgets(tenant_id);

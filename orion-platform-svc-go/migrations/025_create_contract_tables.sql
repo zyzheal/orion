@@ -1,6 +1,6 @@
 -- 001_create_contract_tables.sql
 CREATE TABLE IF NOT EXISTS api_contracts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS api_contracts (
 );
 
 CREATE TABLE IF NOT EXISTS contract_endpoints (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     contract_id UUID NOT NULL REFERENCES api_contracts(id) ON DELETE CASCADE,
     path VARCHAR(500) NOT NULL,
     method VARCHAR(10) NOT NULL,

@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS resilience_histories (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_resilience_histories_tenant ON resilience_histories(tenant_id);
@@ -30,11 +30,11 @@ CREATE TABLE IF NOT EXISTS resilience_recommendations (
     effort VARCHAR(255) NOT NULL,
     impact VARCHAR(255) NOT NULL,
     actions VARCHAR(255) NOT NULL,
-    references VARCHAR(255) NOT NULL,
+    "references" VARCHAR(255) NOT NULL,
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_resilience_recommendations_tenant ON resilience_recommendations(tenant_id);
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS resilience_benchmarks (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_resilience_benchmarks_tenant ON resilience_benchmarks(tenant_id);

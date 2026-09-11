@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS s_s_o_configs (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_s_s_o_configs_tenant ON s_s_o_configs(tenant_id);

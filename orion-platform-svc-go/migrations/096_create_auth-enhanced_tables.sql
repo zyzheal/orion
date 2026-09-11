@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS auth_keies (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_auth_keies_tenant ON auth_keies(tenant_id);
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS auth_token_blacklists (
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX IF NOT EXISTS idx_auth_token_blacklists_tenant ON auth_token_blacklists(tenant_id);

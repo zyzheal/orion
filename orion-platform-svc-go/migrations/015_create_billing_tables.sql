@@ -2,7 +2,7 @@
 -- Billing management tables
 
 CREATE TABLE IF NOT EXISTS billing_accounts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
     billing_email VARCHAR(255),
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS billing_accounts (
 );
 
 CREATE TABLE IF NOT EXISTS billing_invoices (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     account_id UUID NOT NULL REFERENCES billing_accounts(id),
     invoice_number VARCHAR(50) NOT NULL,
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS billing_invoices (
 );
 
 CREATE TABLE IF NOT EXISTS billing_line_items (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     invoice_id UUID NOT NULL REFERENCES billing_invoices(id) ON DELETE CASCADE,
     description TEXT NOT NULL,
     quantity DECIMAL(10,2) DEFAULT 1,
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS billing_line_items (
 );
 
 CREATE TABLE IF NOT EXISTS billing_subscriptions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     plan_name VARCHAR(100) NOT NULL,
     amount DECIMAL(12,2) NOT NULL,

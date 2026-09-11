@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS cache_metrics (
     last_collected_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+-- 补齐 cache_metrics：378_create_cache_monitor_tables.sql 的定义晚于 364_create_cache_monitoring_tables.sql，按序执行时表已存在
+ALTER TABLE cache_metrics ADD COLUMN IF NOT EXISTS cache_name VARCHAR(128) NOT NULL, ADD COLUMN IF NOT EXISTS cache_type VARCHAR(32) NOT NULL, ADD COLUMN IF NOT EXISTS expiration_count BIGINT DEFAULT 0;
+
 CREATE INDEX idx_cache_metrics_name ON cache_metrics(name);
 
 CREATE TABLE IF NOT EXISTS cache_configs (

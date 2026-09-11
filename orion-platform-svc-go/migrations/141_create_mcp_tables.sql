@@ -9,8 +9,7 @@ CREATE TABLE IF NOT EXISTS m_c_p_servers (
     deleted_at TIMESTAMP WITH TIME ZONE,
     metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    deleted_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_m_c_p_servers_tenant ON m_c_p_servers(tenant_id);
