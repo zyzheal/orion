@@ -8,8 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"orion/platform-svc-go/internal/notification/notification-engine"
 	"orion/platform-svc-go/internal/notification/models"
+	"orion/platform-svc-go/internal/notification/notification-engine"
 )
 
 // ---------------------------------------------------------------------------
@@ -272,6 +272,12 @@ type ScheduledTrigger struct {
 	oneShot  bool
 	stopChan chan struct{}
 	stopOnce sync.Once
+	// wg tracks in-flight ExecFunc runs so Stop can wait them out instead of
+	// returning while a send is still touching the resources ExecFunc holds.
+	// Add and Wait both happen in the schedule goroutine: calling Add from
+	// there while Wait runs in Stop would itself be a data race.
+	wg       sync.WaitGroup
+	done     chan struct{}
 	execFunc func(ctx context.Context) ([]*engine.NotifyMessage, error)
 	logger   Logger
 }
@@ -296,6 +302,7 @@ func NewScheduledTrigger(cfg ScheduledTriggerConfig) *ScheduledTrigger {
 		interval: cfg.Interval,
 		oneShot:  cfg.OneShot,
 		stopChan: make(chan struct{}),
+		done:     make(chan struct{}),
 		execFunc: cfg.ExecFunc,
 		logger:   cfg.Logger,
 	}
@@ -324,15 +331,52 @@ func (t *ScheduledTrigger) Fire(ctx context.Context) ([]*engine.NotifyMessage, e
 	return t.execFunc(ctx)
 }
 
+// Stop halts the scheduler and waits for in-flight executions to finish, so a
+// caller can safely release whatever the ExecFunc was holding. It is idempotent
+// and blocks for the duration of the current execution; an ExecFunc that itself
+// calls Stop deadlocks, and must instead cancel through its context.
 func (t *ScheduledTrigger) Stop() error {
 	t.stopOnce.Do(func() {
 		close(t.stopChan)
 	})
+	<-t.done
 	return nil
+}
+
+// runExec dispatches one execution asynchronously, registering it first so
+// the schedule loop can drain it even if it exits in the same instant. A panic
+// inside ExecFunc is contained and logged: a misbehaving delivery callback must
+// not take the platform down with it.
+func (t *ScheduledTrigger) runExec() {
+	t.wg.Add(1)
+	go func() {
+		defer t.wg.Done()
+		defer func() {
+			if r := recover(); r != nil {
+				t.logger.Error("scheduled trigger execution panicked",
+					"trigger", t.name, "error", fmt.Sprintf("%v", r))
+			}
+		}()
+		if err := t.execOnce(); err != nil {
+			t.logger.Error("scheduled trigger execution failed",
+				"trigger", t.name, "error", err.Error())
+		}
+	}()
+}
+
+func (t *ScheduledTrigger) execOnce() error {
+	_, err := t.execFunc(context.Background())
+	return err
 }
 
 // schedule runs the trigger loop based on cron expression or simple interval.
 func (t *ScheduledTrigger) schedule() {
+	// Drain in-flight executions before signalling Stop, so Stop blocks until
+	// every dispatched send has actually returned.
+	defer func() {
+		t.wg.Wait()
+		close(t.done)
+	}()
 	if t.oneShot && t.interval > 0 {
 		// One-shot delay
 		timer := time.NewTimer(t.interval)
@@ -341,14 +385,9 @@ func (t *ScheduledTrigger) schedule() {
 			timer.Stop()
 		case <-timer.C:
 			t.logger.Info("scheduled trigger one-shot fired", "trigger", t.name)
-			// Fire the exec function in a background context
-			go func() {
-				_, err := t.execFunc(context.Background())
-				if err != nil {
-					t.logger.Error("scheduled trigger one-shot execution failed",
-						"trigger", t.name, "error", err.Error())
-				}
-			}()
+			// Dispatch asynchronously so the timer goroutine can exit, but
+			// register the run so Stop still waits for it.
+			t.runExec()
 		}
 		return
 	}
@@ -371,13 +410,7 @@ func (t *ScheduledTrigger) schedule() {
 			return
 		case <-ticker.C:
 			t.logger.Info("scheduled trigger tick", "trigger", t.name)
-			go func() {
-				_, err := t.execFunc(context.Background())
-				if err != nil {
-					t.logger.Error("scheduled trigger execution failed",
-						"trigger", t.name, "error", err.Error())
-				}
-			}()
+			t.runExec()
 		}
 	}
 }

@@ -2,12 +2,13 @@ package trigger
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"orion/platform-svc-go/internal/notification/models"
 	"orion/platform-svc-go/internal/notification/notification-engine"
 	"orion/platform-svc-go/internal/notification/notification-engine/testutil"
-	"orion/platform-svc-go/internal/notification/models"
 )
 
 // ---------------------------------------------------------------------------
@@ -104,24 +105,121 @@ func TestScheduledTrigger_OneShot(t *testing.T) {
 }
 
 func TestScheduledTrigger_Periodic(t *testing.T) {
-	counter := 0
+	// ExecFunc is dispatched from the ticker goroutine, so the counter must be
+	// atomic; a plain int would race with the assertion read below.
+	var counter atomic.Int32
 
 	cfg := ScheduledTriggerConfig{
 		Name:     "test-periodic",
 		Interval: 50 * time.Millisecond,
 		ExecFunc: func(ctx context.Context) ([]*engine.NotifyMessage, error) {
-			counter++
+			counter.Add(1)
+			return nil, nil
+		},
+		Logger: NoopLogger{},
+	}
+	tt := NewScheduledTrigger(cfg)
+	time.Sleep(200 * time.Millisecond)
+	tt.Stop()
+
+	if n := counter.Load(); n < 2 {
+		t.Errorf("expected at least 2 periodic firings, got %d", n)
+	}
+}
+
+func TestScheduledTrigger_StopWaitsForInFlightExec(t *testing.T) {
+	// Stop is a barrier: it must not return while an execution is still running.
+	var fired atomic.Bool
+	started := make(chan struct{})
+	release := make(chan struct{})
+	cfg := ScheduledTriggerConfig{
+		Name:     "test-barrier",
+		Interval: 10 * time.Millisecond,
+		ExecFunc: func(ctx context.Context) ([]*engine.NotifyMessage, error) {
+			if fired.CompareAndSwap(false, true) {
+				close(started)
+			}
+			<-release
 			return nil, nil
 		},
 		Logger: NoopLogger{},
 	}
 	tt := NewScheduledTrigger(cfg)
 
-	time.Sleep(200 * time.Millisecond)
-	tt.Stop()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("trigger never fired")
+	}
 
-	if counter < 2 {
-		t.Errorf("expected at least 2 periodic firings, got %d", counter)
+	stopDone := make(chan struct{})
+	go func() {
+		if err := tt.Stop(); err != nil {
+			t.Errorf("Stop: %v", err)
+		}
+		close(stopDone)
+	}()
+	select {
+	case <-stopDone:
+		t.Fatal("Stop returned before the in-flight execution finished")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(release)
+	select {
+	case <-stopDone:
+	case <-time.After(time.Second):
+		t.Fatal("Stop did not return after the execution finished")
+	}
+}
+
+// captureLogger records Error calls so tests can assert on logged failures.
+type captureLogger struct {
+	errFn func(msg string, fields ...any)
+}
+
+func (l captureLogger) Info(string, ...any) {}
+func (l captureLogger) Warn(string, ...any) {}
+func (l captureLogger) Error(msg string, f ...any) {
+	if l.errFn != nil {
+		l.errFn(msg, f...)
+	}
+}
+
+func TestScheduledTrigger_PanickingExecDoesNotEscape(t *testing.T) {
+	// A panicking ExecFunc must be contained, not crash the process.
+	var panics int32
+	release := make(chan struct{})
+	logger := captureLogger{errFn: func(msg string, kv ...any) {
+		if msg == "scheduled trigger execution panicked" {
+			atomic.AddInt32(&panics, 1)
+		}
+	}}
+	cfg := ScheduledTriggerConfig{
+		Name:     "test-panic",
+		Interval: 10 * time.Millisecond,
+		ExecFunc: func(ctx context.Context) ([]*engine.NotifyMessage, error) {
+			close(release)
+			panic("boom")
+		},
+		Logger: logger,
+	}
+	tt := NewScheduledTrigger(cfg)
+	select {
+	case <-release:
+	case <-time.After(time.Second):
+		t.Fatal("panicking trigger never fired")
+	}
+	// Stop drains the panicked run and returns without hanging.
+	done := make(chan struct{})
+	go func() { tt.Stop(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("Stop hung after a panicking execution")
+	}
+	if atomic.LoadInt32(&panics) != 1 {
+		t.Errorf("panics logged = %d, want 1", panics)
 	}
 }
 

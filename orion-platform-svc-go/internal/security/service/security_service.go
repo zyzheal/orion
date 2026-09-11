@@ -394,10 +394,6 @@ func (s *Service) EvaluateCompliance(ctx context.Context, tenantID, policyID str
 	return updated, nil
 }
 
-func (s *Service) GetComplianceEvaluation(ctx context.Context, id string) (*models.ComplianceEvaluation, error) {
-	return nil, ErrPolicyNotFound
-}
-
 func (s *Service) GetLatestEvaluation(ctx context.Context, policyID string) (*models.ComplianceEvaluation, error) {
 	return s.repo.FindLatestEvaluationByPolicy(ctx, policyID)
 }
@@ -663,13 +659,6 @@ func (s *Service) stringSimilarity(a, b string) float32 {
 		maxLen = float32(lenB)
 	}
 	return float32(matches) / maxLen
-}
-
-// ==================== Supply Chain Aggregates ====================
-
-func (s *Service) GetSupplyChainReport(ctx context.Context, tenantID string) (*models.SupplyChainSBOM, error) {
-	// Placeholder: returns aggregate info via summary in handler
-	return nil, nil
 }
 
 // GetPoisoningSummary returns aggregate poisoning scan counts.

@@ -2,9 +2,12 @@ package testutil
 
 import (
 	"context"
+	"fmt"
+	"sync"
+	"sync/atomic"
 
-	"orion/platform-svc-go/internal/notification/notification-engine"
 	"orion/platform-svc-go/internal/notification/models"
+	"orion/platform-svc-go/internal/notification/notification-engine"
 )
 
 // ---------------------------------------------------------------------------
@@ -14,11 +17,16 @@ import (
 // 与 channels_test.go 中的 TestHandler 共享相同接口。
 // ---------------------------------------------------------------------------
 
-// TestHandler is a configurable test double for NotifyChannel.
+// TestHandler is a configurable test double for NotifyChannel. Every field it
+// mutates is guarded: BatchStrategy fans a handler out across goroutines, so a
+// plain counter or health flag races the moment a test runs with -race.
 type TestHandler struct {
 	TypeField models.ChannelType
-	healthy   bool
-	CallCount int
+
+	mu      sync.Mutex
+	healthy bool
+	calls   atomic.Int32
+	fail    atomic.Pointer[error]
 }
 
 // NewTestHandler creates a handler for testing.
@@ -26,7 +34,6 @@ func NewTestHandler(chType models.ChannelType) *TestHandler {
 	return &TestHandler{
 		TypeField: chType,
 		healthy:   true,
-		CallCount: 0,
 	}
 }
 
@@ -38,19 +45,27 @@ func NewUnhealthyTestHandler(chType models.ChannelType) *TestHandler {
 	}
 }
 
-// NewFailingTestHandler creates a handler that always returns an error.
+// NewFailingTestHandler creates a handler that returns errMsg on every call.
+// Previously the error was dropped and the handler reported success, which made
+// any "delivery failed" test assert on a handler that never failed.
 func NewFailingTestHandler(chType models.ChannelType, errMsg string) *TestHandler {
-	return &TestHandler{
-		TypeField: chType,
-		healthy:   true,
-	}
+	h := NewTestHandler(chType)
+	err := fmt.Errorf("%s", errMsg)
+	h.fail.Store(&err)
+	return h
 }
 
 func (h *TestHandler) Type() models.ChannelType { return h.TypeField }
 
+// Calls returns the number of Execute invocations observed.
+func (h *TestHandler) Calls() int32 { return h.calls.Load() }
+
 func (h *TestHandler) Execute(_ context.Context, msg *engine.NotifyMessage) (*engine.SendResult, error) {
-	h.CallCount++
-	if !h.healthy {
+	h.calls.Add(1)
+	if errPtr := h.fail.Load(); errPtr != nil {
+		return nil, *errPtr
+	}
+	if !h.Healthy() {
 		return nil, engine.ErrNoChannelConfigured
 	}
 	return &engine.SendResult{
@@ -59,11 +74,18 @@ func (h *TestHandler) Execute(_ context.Context, msg *engine.NotifyMessage) (*en
 	}, nil
 }
 
-func (h *TestHandler) Healthy() bool { return h.healthy }
+// Healthy reports whether the handler accepts sends.
+func (h *TestHandler) Healthy() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.healthy
+}
 
 // SetHealthy sets the health status.
 func (h *TestHandler) SetHealthy(healthy bool) {
+	h.mu.Lock()
 	h.healthy = healthy
+	h.mu.Unlock()
 }
 
 // NewTestMessage creates a standard test NotifyMessage.

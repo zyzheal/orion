@@ -4428,3 +4428,274 @@ $ git diff --cached --name-only | grep -E "migrations/dba|orion-frontend/src/api
 - **Stub Scan Round 3**（test-selector GetImpactAnalysis）：✅ `c825eea6c`
 - **Stub Scan Round 4**（notification table name 对齐 + sqlmock 测试修复）：✅
 - **Stub Scan Round 5**（pipeline StartRun/StopRun 真实 DB 实现）：✅ `a8f1c71f8`
+
+---
+
+## Round 6（2026-08-26）：零调用/零接线死代码 + 生产数据竞争修复
+
+针对"是否所有任务已完成开发无剩余"的深度复查，本轮回扫全部 `internal/` 包，
+按**有路由注册的 service 方法是否零信息返回** + **声明行为是否可能成立** + **是否有真实调用方**三条判据筛选，
+共发现并修复 4 类问题。
+
+### 6.1 生产数据竞争：`notification-engine/strategy` `BatchStrategy.Execute`
+
+- 原实现：多个 goroutine 并发 `results = append(results, ...)`，`mu.Lock()` 只保护了成功路径，
+  "channel not registered" / "unhealthy" / "retry 失败" 三条失败路径裸写共享 slice。
+- 同时 `sem <- struct{}{}` 写在 goroutine **内部**，长 chain 会先起 N 个 goroutine 再全部卡在 sem 上。
+- 竞争表现：归因到 `TestBatchStrategy_PartialFailure`；notification suite 3/3 复现，
+  但单包隔离跑、甚至一次全量包跑都能通过 —— 典型的时序性假阴性。
+- 修复：`results` 预分配 `len(chain)`，每个 goroutine 只写自己的 `results[i]`（槽位不相交 → 无需锁，
+  `mu sync.Mutex` 整个删除）；sem 令牌改为在 `go` 之前获取；预分配还顺带让 `results[i]` 与 `chain[i]` 对齐
+  （`SendResult` 自身不含 channel 字段，调用方此前无法把失败归因到具体渠道）。
+- 回归测试 `TestBatchStrategy_AllChannelsFailIsRaceFree`：空工厂 + 6 渠道全走裸写路径，循环 50 次，
+  断言长度、非 nil、错误文案。`TestBatchStrategy_PartialFailure` 断言改为确定性 chain 对齐检查。
+- **非空洞证明**：临时把并发 append 复原 → 两个 `WARNING: DATA RACE`（strategy.go:273/300）；
+  复原修复 → `ok`。
+
+### 6.2 关键接线缺陷：全局渠道工厂恒为空
+
+- `notification-engine/channels` 的 `init()` 是 7 个渠道 handler **唯一**注册点，
+  但全仓无任何文件 import 该包 → `init()` 从不执行 → `engine.GlobalHandlerFactory` 运行时恒为空。
+- 后果：每次 `DeliverNotification` 都因 "no channel handler registered" 失败，fallback 也一并失败。
+  `EngineAdapter` 同样走空工厂，等于整条投递链路从未真正工作过。
+- 修复：`delivery_service.go` 加 blank import（`channels` 只 import `engine` + `models`，无环）。
+- 回归测试：`TestGlobalChannelFactoryIsPopulated`（6 个已注册渠道逐个 `Get`）、
+  `TestDeliverNotification_EndToEndViaGlobalFactory`（走真实 `InAppHandler` 端到端，
+  断言 status=sent / channel=in_app / 持久化 1 条）。
+- **非空洞证明**：删除 blank import → 两个测试同时失败
+  （`channel handlers not registered ... [email slack webhook dingtalk wechat in_app]`；`status = "failed", want sent`）。
+
+### 6.3 生产数据竞争 + 丢错：`cron/engine` `ExecutionEngine.Execute`
+
+- 原实现：`attDone := make(chan struct{})`，goroutine 写共享 `out`/`err` 后 `close(attDone)`；
+  主 goroutine `select` 的超时分支直接读这两个变量 → 超时后 handler 仍在写，读写竞争。
+- 丢错：handler 超时后返回 `ctx.Err()` 会覆盖映射好的 `"job attempt timed out"`，
+  实测失败信息变成 `error = "context deadline exceeded"`（`TestEngineExecuteTimeout` 间歇失败）。
+- 修复：`attemptDone := make(chan attemptOutcome, 1)`，结果经缓冲 1 的 channel 单次读出；
+  超时分支只置 `timedOut = true` 不读共享变量，channel 缓冲保证迟到的 handler 不阻塞、其结果按设计丢弃；
+  `ctx.Done()` 取消分支显式 `<-attemptDone` 后再返回。
+- 验证：`-count=20 -race` 稳定通过（此前在套件负载下失败、隔离跑 5/5 通过）。
+
+### 6.4 删除零引用重复包：`internal/notification/notification-models/`
+
+- 3 文件 860 行，全仓零引用（含测试）。与规范的 `internal/notification/models/`（35 处 import）重复。
+- 且带有一个**静默错误常量**：`ChannelInApp = "in-app"`（连字符）、`DeliveryChannelInApp = "in-app"`，
+  而规范值是全仓实际使用并注册的 `"in_app"`
+  （`alert-adapter-v2/models` 的 `IsSupportedChannel`、`InAppHandler.Channel()` 均用 `"in_app"`）。
+  一旦接线会产生一个永远匹配不到 handler 的渠道值。
+- 结论：按"零信息 + 零调用方"判据删除，不接线。
+
+### 6.5 附带修复
+
+- `notification-engine/testutil.NewTestHandler`：残留的 `CallCount: 0` 字段已不存在，编译失败 → 删除该行。
+  `TestHandler` 本身并发安全（`mu` 护 `healthy`、`atomic.Int32` 计数、`atomic.Pointer[error]` 注错），
+  `NewFailingTestHandler` 确实返回其错误。
+
+### 6.6 保留项（功能完整、仅零接线，报告未删）
+
+以下 `internal/notification/` 子树无任何 import，但属功能实现而非"重复且数据错误"，故报告而非删除：
+
+- `notification/chatops/`（27 文件 4523 行）：stale fork，活模块是 `internal/chatops/`（已在 `cmd/server/cicd_domain_wiring.go` 接线）
+- ~~`notification-handler/`（1740 行含测试）：完整 HTTP handler 层，从未注册路由~~ → **更正（2026-08-26 导入图复扫）**：已接线 ——
+  `cmd/server/notification_auth_wiring.go:87` 调用 `notificationhandler.NewHandler(notificationSvc)`，
+  `cmd/server/router.go:128` 传入并 `RegisterRoutes`；15 个 handler 方法均为真实实现，0 个桩返回。
+  此前"从未注册路由"的说法有误，已纠正。
+- `notification-config/`（56 行）
+- `notification-engine/strategy/`（423 行）：`ChannelRouter.Route` 的语义重复
+- `notification-engine/trigger/`：功能性调度器，不在活路由上
+- `notification-engine/testutil/`：仅测试用
+
+设计意图保留：`EventTrigger.Fire` 文档声明的无状态 no-op；各渠道 `Execute` 为 log-only
+（`EmailHandler` 带 `// TODO: Integrate with SMTP relay in production`）；`SMSHandler` 返回 "not implemented yet"。
+
+### 6.7 预存在 `go vet` 告警（20 条，未修）
+
+全部位于本轮未触碰的模块，`git diff --stat` 为空可证属预存在：unreachable code 4 处、
+self-assignment 5 处、重复 json tag 1 处、unexported 字段带 json tag 8 处。
+本轮触碰的包：0 告警。
+
+#### 验证
+
+```
+$ go build ./...                                        # OK
+$ go test ./internal/cron/engine/ -count=20 -race       # ok 1.145s
+$ go test ./internal/notification/notification-service/... -count=1 -race   # 57 PASS
+$ go test ./internal/notification/notification-engine/strategy/... -count=1 -race   # 23 PASS
+$ go test ./internal/... -count=1                       # 全绿
+$ go vet <本轮触碰包>                                     # OK
+```
+
+### 累计进度（更新）
+
+- **Stub Scan Round 5**（pipeline StartRun/StopRun 真实 DB 实现）：✅ `a8f1c71f8`
+- **Stub Scan Round 6**（BatchStrategy/cron engine 数据竞争 + 全局渠道工厂空接线 + 删除 notification-models 死包）：✅
+- **Stub Scan Round 7**（始终 404 的活路由修复 + 3 处零调用死桩删除 + cmd 导入图活/死判据落地）：✅
+
+---
+
+## Round 7（2026-08-26）：始终 404 的活路由 + 3 处零调用死桩删除
+
+### 7.1 生产缺陷：`GET /compliance/evaluations/:id` 永远返回 404
+
+这是本轮唯一一个"已注册路由 + 真实桩"叠加造成的生产级静默故障。
+
+**成因链**（两个条件缺一不可）：
+
+1. `internal/security/service/security_service.go` 里 `GetComplianceEvaluation(ctx, id)`
+   的函数体只有一行 `return nil, ErrPolicyNotFound` —— **无条件**返回错误，从不查库。
+2. `internal/security/handler/handler.go` 的 handler 写成"先查单条、失败再退化到最新一条"，
+   但用 `_, err := h.svc.GetComplianceEvaluation(...)` **丢弃了返回值**：
+
+   ```go
+   _, err := h.svc.GetComplianceEvaluation(ctx, c.Param("id"))
+   if err != nil {
+       respondNotFound(c, err.Error())   // 每次都进这里
+       return                            // 下面的真实查询永远不可达
+   }
+   d, err := h.svc.GetLatestEvaluation(ctx, c.Param("id"))   // 死代码
+   ```
+
+   组合结果：`handler.go:66` 注册的真实路由对**任意 id** 一律回 404
+   `{"success":false,"error":"compliance policy not found","code":"NOT_FOUND",...}`，
+   而它本该返回该策略的最新一次合规评估。
+
+**修复**：删除桩方法，handler 直接执行唯一正确的查询
+（`GetLatestEvaluation` → `repo.FindLatestEvaluationByPolicy` →
+`SELECT * FROM compliance_evaluations WHERE policy_id=$1 ORDER BY created_at DESC LIMIT 1`）。
+保留注释说明为何不恢复"先查后退化"结构。
+
+### 7.2 回归测试（变异证明非空转）
+
+新增 `internal/security/handler/compliance_evaluation_route_test.go`。
+security 模块此前**完全没有测试文件**（`sed` 通配失败即证），因此这是新文件。
+
+handler 持有具体类型 `svc *service.Service`、Service 持有具体类型
+`repo *repository.Repository` —— 无接口，无法注入假实现，故用
+`sqlmock.New()` + `sqlx.NewDb(db, "sqlmock")` 从底层注入假 DB。
+注意 sqlmock 默认 `QueryMatcherRegexp` 把期望当**正则**匹配，
+SQL 里的 `*` 与 `$1` 必须转义为 `\*` / `\$1`。
+
+**变异证明**（恢复桩 + 恢复丢弃结果的调用后测试失败）：
+
+```
+status = 404, want 200 (route short-circuited to 404:
+body="{\"success\":false,\"error\":\"compliance policy not found\",\"code\":\"NOT_FOUND\",...}")
+```
+
+恢复修复后 PASS，且断言 `"policy_id":"pol-1"` / `"id":"eval-1"` / `"status":"completed"`
+三个响应体片段 + `mock.ExpectationsWereMet()`（SQL 必须真的被执行），
+所以它同时挡"桩复活"和"查库被绕过"两类回退。
+
+### 7.3 删除 3 处零调用死桩
+
+判据：零信息返回 **且** 全仓（含测试）零调用方 → 删除，不接线。
+
+| 位置 | 桩体 | 说明 |
+|---|---|---|
+| `security/service/security_service.go` `GetSupplyChainReport` | `return nil, nil` | 连注释都写着 `Placeholder`；连带删掉它独占的分节横幅 |
+| `ticketing/service/transfer_service.go` `GetMostTransferredTickets` | `return nil, nil` | 签名收 `limit` 却完全忽略 |
+| `ticket/service/transfer_service.go` `GetMostTransferredTickets` | `return nil, nil` | 注释里甚至写好了正确的 SQL，但因无调用方，注释中的 SQL 也一并是死代码 |
+
+删除后 `gofmt -w internal/ticket/service/transfer_service.go`（去掉一处尾部空行）。
+`ErrPolicyNotFound` 在 service:368 仍有使用，`models.SupplyChainSBOM` 仍被 repository 使用 ——
+两处均非孤儿符号。
+
+### 7.4 活/死判据落地：cmd 导入图前向闭包
+
+从 `cmd/**` 全部包出发，沿 internal import 边做前向闭包，得到唯一权威的活/死划分
+（比"有没有 import 这个目录"更准，因为它跟随真实编译器语义）：
+
+- `cmd` 包：6
+- internal 包总数：1858
+- **cmd 可达（活）：1366**
+- **cmd 不可达（死代码）：492**
+
+该判据本轮纠正了一个误报：`notification-handler` 被 Round 6 记为"从未注册路由"，
+实为可达（见 7.6）。
+
+### 7.5 复扫确认的死代码（报告，未删 —— 属产品决策）
+
+**a) 18 个 NATS subscriber 包里 16 个零 import**。仅
+`internal/incident/nats`、`internal/self-healing/nats` 被
+`cmd/server/wiring.go:20-21` 接线（分别用于 253、275 行）。
+其余 16 个（`ci-cd/{build,canary,deploy,pipeline,pipeline-template,runner}/nats`、
+`code/pkg/nats`、`config/pkg/nats`、`eventbus/internal/nats`、
+`finops/efficiency/pkg/nats`、`finops/report-designer/nats`、`identity/user/nats`、
+`monitoring/pkg/nats`、`pandawiki/{internal/,}nats`、`visor/pkg/nats`）
+其 `handle*Event` 是 TODO no-op 但 `msg.Ack()` —— 因零接线，属死代码而非活桩。
+
+**b) 两个"在可达包里但桩类型零调用"的假阳性**：
+
+- `internal/auth-enhanced/repository/jwt_key_repository.go`
+  （`JwtKeyRepository struct{}`，6 个桩方法，行 25/29/33/37/41/45）——
+  唯一消费方 `internal/auth-enhanced/keyrotation` 不可达；
+  真实实现是 `internal/identity/auth/repository/jwt_key_repository.go`。
+- `internal/ticketing/repository/interfaces.go` `AutomationRuleRepository`
+  （6 个桩方法忽略其包裹的 repo，行 187/192/197/202/207/212）——
+  `NewAutomationRuleRepository` 全仓零调用；
+  真实实现是 `internal/ticket/repository/automation_rule.go`。
+
+两者所在包可达，但桩**类型**无任何调用点，故导入图判据会误判为"活桩"。
+保留原因同 Round 6：删与不删是产品决策，本轮只报告。
+
+**c) `notification-engine/strategy/` 确认为死包**（零非测试 import），
+但 Round 6.1 的 `BatchStrategy.Execute` 数据竞争修复予以保留 ——
+修复本身正确且有 23 条 `-race` 测试覆盖，接线前修好可避免回归。
+
+### 7.6 更正：`notification-handler` 已接线
+
+Round 6.6 的"从未注册路由"说法有误，已就地更正。实际接线链：
+
+- `cmd/server/notification_auth_wiring.go:87` → `NewHandler(notificationSvc)`
+- 构造结果存入 wiring 结构体字段（`:193`）
+- `cmd/server/router.go:128` → 传入并调用 `RegisterRoutes`
+- `handler.go` 内 15 个 `Handler` 方法（1 个 `RegisterRoutes` + 14 个端点：
+  `Send`/`List`/`Get`/`MarkAsRead`/`GetUnreadCount`/`Broadcast`/`Delete`/`Count`/`Stats`/
+  `GetSettings`/`UpdateSettings`/`GetSubscriptions`/`Subscribe`/`Unsubscribe`），
+  全部真实实现，桩返回扫描（`return nil, nil` / `not implemented` / `TODO` /
+  `Placeholder` / `for now`）**零命中**。
+
+### 7.7 设计意图保留（外部依赖未接，非未完成）
+
+以下桩的方法签名与前置校验都是真实的，缺的只是外部出口，已逐一确认并记录：
+
+- `alert-adapter` `emailHandler.Send`：解析 title/message/severity 后 `_ =` 丢弃，
+  注释 `TODO: in production, open SMTP connection`。
+- `alert-adapter` `smsHandler.Send`：`TODO: call SMS gateway API`。
+- `notification-engine/channels` `SMSHandler`：返回 "not implemented yet"。
+- `notification-engine/channels` `EmailHandler`：`TODO: Integrate with SMTP relay in production`。
+- **对照**：同目录 `webhookHandler.Send` 与 `wechatHandler.Send` **是真实实现**
+  （校验配置 + 实际发送），证明该目录不是整体桩，只有两个通道缺外部出口。
+
+### 7.8 附带发现的未追踪杂物（未处理）
+
+`cmd/server/wiring.go.tmp`（0 字节，被 `orion-platform-svc-go/.gitignore:6` 的
+`cmd/server` 规则忽略）、`internal/tenant/handler/handler_test.go.bak`、
+`internal/extension-point/service/service.go.bak`、`internal/ai/decisions/service/service.go.tmp`。
+
+#### 验证
+
+```
+$ go build ./...                                                          # BUILD_OK
+$ go vet ./internal/security/... ./internal/ticket/service/... \
+         ./internal/ticketing/service/...                                  # VET_OK
+$ go test ./internal/security/handler/ -run TestGetComplianceEvaluationRoute \
+         -count=1 -race -v                                                 # PASS 1.018s
+$ go test ./internal/security/... ./internal/ticket/service/... \
+         ./internal/ticketing/service/... -count=1 -race                   # 无非 ok 行
+$ go test ./internal/... -count=1                                          # GO_TEST_EXIT=0
+    # 560 个含测试包全部 ok，1316 个 [no test files]，0 条其他行
+    # （无 FAIL / panic / DATA RACE）
+```
+
+注：本轮同时解决了前一轮遗留的两处方法论瑕疵 ——
+`${PIPESTATUS[0]}` 是 bash 专有，在 zsh 下打印为空，
+因此上一轮"wrapper exit 0"并不能证明 `go test` 的退出码；
+本轮改用重定向 + `$?` 直接取 `go test` 自身退出码，得 `GO_TEST_EXIT=0`。
+560 即"含测试文件的包数"，与上一轮的 1509 是不同口径的计数，非失败。
+
+### 累计进度（更新）
+
+- **Stub Scan Round 5**（pipeline StartRun/StopRun 真实 DB 实现）：✅ `a8f1c71f8`
+- **Stub Scan Round 6**（BatchStrategy/cron engine 数据竞争 + 全局渠道工厂空接线 + 删除 notification-models 死包）：✅
+- **Stub Scan Round 7**（始终 404 的活路由修复 + 3 处零调用死桩删除 + cmd 导入图活/死判据落地）：✅

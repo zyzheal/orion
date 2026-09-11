@@ -178,10 +178,6 @@ func (s *TransferService) GetTransferStats(ctx context.Context, start, end time.
 	return stats, nil
 }
 
-func (s *TransferService) GetMostTransferredTickets(ctx context.Context, limit int) ([]string, error) {
-	return nil, nil
-}
-
 func (s *TransferService) autoTransferTicket(ctx context.Context, ticketID, tenantID, priority, reason string) (*models.TransferRecord, error) {
 	engineers, err := s.dispatchRepo.ListEngineers(ctx, tenantID)
 	if err != nil {

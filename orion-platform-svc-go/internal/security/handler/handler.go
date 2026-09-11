@@ -427,12 +427,11 @@ func (h *Handler) GetLatestEvaluation(c *gin.Context) {
 func (h *Handler) GetComplianceEvaluation(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterGetComplianceEvaluation")
 	defer span.End()
-	_, err := h.svc.GetComplianceEvaluation(ctx, c.Param("id"))
-	if err != nil {
-		respondNotFound(c, err.Error())
-		return
-	}
-	// Fallback to latest evaluation for simplicity
+	// The :id param is a policy id; the latest evaluation for that policy is
+	// what this route serves. The previous code called GetComplianceEvaluation
+	// first and discarded its result — that method unconditionally returned
+	// ErrPolicyNotFound, so this route always answered 404 and the real lookup
+	// below was unreachable.
 	d, err := h.svc.GetLatestEvaluation(ctx, c.Param("id"))
 	if err != nil {
 		respondNotFound(c, err.Error())

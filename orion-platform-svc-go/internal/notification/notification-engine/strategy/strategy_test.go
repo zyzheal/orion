@@ -2,13 +2,14 @@ package strategy
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"orion/platform-svc-go/internal/notification/models"
 	"orion/platform-svc-go/internal/notification/notification-engine"
 	"orion/platform-svc-go/internal/notification/notification-engine/testutil"
-	"orion/platform-svc-go/internal/notification/models"
 )
 
 // ---------------------------------------------------------------------------
@@ -174,21 +175,17 @@ func TestBatchStrategy_PartialFailure(t *testing.T) {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
 
-	// Results are parallel — count success/failure regardless of order
-	successCount := 0
-	failCount := 0
-	for _, r := range results {
-		if r.Success {
-			successCount++
-		} else {
-			failCount++
-		}
+	// results is chain-aligned: chain is {email, slack}, so index 0 is the
+	// healthy email delivery and index 1 the unhealthy slack delivery. This is
+	// what lets a caller attribute a failure to a specific channel.
+	if !results[0].Success {
+		t.Error("results[0] should be the successful email delivery")
 	}
-	if successCount != 1 {
-		t.Errorf("expected 1 success, got %d", successCount)
+	if results[1].Success {
+		t.Error("results[1] should be the failed slack delivery")
 	}
-	if failCount != 1 {
-		t.Errorf("expected 1 failure, got %d", failCount)
+	if !strings.Contains(results[1].Error, "unhealthy") {
+		t.Errorf("results[1].Error = %q, want the unhealthy reason", results[1].Error)
 	}
 }
 
@@ -377,6 +374,45 @@ func TestBatchStrategy_ConcurrentStress(t *testing.T) {
 	}
 	if len(errs) > 0 {
 		t.Errorf("unexpected errors during stress test: %v", errs[0])
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Race regression: every results slot must be written exactly once
+// ---------------------------------------------------------------------------
+
+func TestBatchStrategy_AllChannelsFailIsRaceFree(t *testing.T) {
+	// The factory registers nothing, so every goroutine takes the unguarded
+	// "channel not registered" append path. With N channels that is N
+	// concurrent writes to results, which panics or loses entries when they
+	// are not disjoint. Run repeatedly so the race detector has contention.
+	s := NewBatchStrategyWithOptions(BatchOptions{
+		Factory: newTestFactory(),
+		Logger:  NoopLogger{},
+	})
+	chain := []models.ChannelType{
+		models.ChannelEmail, models.ChannelSlack, models.ChannelWebhook,
+		models.ChannelInApp, models.ChannelDingtalk, models.ChannelWechat,
+	}
+	for i := 0; i < 50; i++ {
+		results, err := s.Execute(context.Background(), testutil.NewTestMessage(), chain)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(results) != len(chain) {
+			t.Fatalf("expected %d results, got %d (entries lost to a concurrent write)", len(chain), len(results))
+		}
+		for j, r := range results {
+			if r == nil {
+				t.Fatalf("results[%d] is nil: a slot was never written", j)
+			}
+			if r.Success {
+				t.Fatalf("results[%d] unexpectedly succeeded with no registered handlers", j)
+			}
+			if !strings.Contains(r.Error, "not registered") {
+				t.Fatalf("results[%d].Error = %q, want not registered", j, r.Error)
+			}
+		}
 	}
 }
 

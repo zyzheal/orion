@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"orion/platform-svc-go/internal/notification/notification-engine"
 	"orion/platform-svc-go/internal/notification/models"
+	"orion/platform-svc-go/internal/notification/notification-engine"
 )
 
 // ---------------------------------------------------------------------------
@@ -250,53 +250,52 @@ func (s *BatchStrategy) Execute(ctx context.Context, msg *engine.NotifyMessage, 
 		return nil, fmt.Errorf("empty channel chain for batch strategy")
 	}
 
-	// Limit parallelism
+	// Limit parallelism. The token is taken before launching so at most
+	// maxWorkers goroutines exist at once instead of one per chain entry.
 	sem := make(chan struct{}, s.maxWorkers)
 
-	var (
-		wg      sync.WaitGroup
-		mu      sync.Mutex
-		results []*engine.SendResult
-	)
+	var wg sync.WaitGroup
+	// Each goroutine writes its own slot, so no lock is needed: slice slots
+	// are disjoint. Pre-sizing also keeps result[i] aligned with chain[i],
+	// which SendResult itself cannot express (it carries no channel field).
+	results := make([]*engine.SendResult, len(chain))
 
-	for _, chType := range chain {
+	for i, chType := range chain {
 		wg.Add(1)
-		go func(ct models.ChannelType) {
+		sem <- struct{}{}
+		go func(ct models.ChannelType, i int) {
 			defer wg.Done()
-			sem <- struct{}{}
 			defer func() { <-sem }()
 
 			handler, ok := s.factory.Get(ct)
 			if !ok {
 				s.logger.Warn("batch: channel not registered", "channel", ct)
-				results = append(results, &engine.SendResult{
+				results[i] = &engine.SendResult{
 					Success: false,
 					Error:   fmt.Sprintf("channel not registered: %s", ct),
-				})
+				}
 				return
 			}
 			if !handler.Healthy() {
 				s.logger.Warn("batch: channel unhealthy, skipping", "channel", ct)
-				results = append(results, &engine.SendResult{
+				results[i] = &engine.SendResult{
 					Success: false,
 					Error:   fmt.Sprintf("channel unhealthy: %s", ct),
-				})
+				}
 				return
 			}
 
 			result, err := s.executeWithRetry(ctx, handler, msg)
 			if err != nil {
 				s.logger.Error("batch: delivery failed after retries", "channel", ct, "error", err.Error())
-				results = append(results, &engine.SendResult{
+				results[i] = &engine.SendResult{
 					Success: false,
 					Error:   err.Error(),
-				})
+				}
 				return
 			}
-			mu.Lock()
-			results = append(results, result)
-			mu.Unlock()
-		}(chType)
+			results[i] = result
+		}(chType, i)
 	}
 
 	wg.Wait()

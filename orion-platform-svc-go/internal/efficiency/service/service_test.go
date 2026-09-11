@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,6 +23,12 @@ type mockEfficiencyRepo struct {
 	globalDeployments map[string][]models.GlobalDeployment      // key: tenantID
 	globalPipelines   map[string][]models.GlobalPipeline        // key: tenantID
 	dbErr             error
+
+	// mu guards every map above: saveSnapshot writes snapshots from a
+	// fire-and-forget goroutine while the caller reads the same maps, so the
+	// mock must tolerate concurrent access or the test binary dies with a
+	// "concurrent map writes" fatal.
+	mu sync.Mutex
 }
 
 func newMockEfficiencyRepo() *mockEfficiencyRepo {
@@ -36,6 +43,8 @@ func newMockEfficiencyRepo() *mockEfficiencyRepo {
 }
 
 func (m *mockEfficiencyRepo) CreateSnapshot(_ context.Context, s *models.MetricSnapshot) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.dbErr != nil {
 		return m.dbErr
 	}
@@ -44,6 +53,8 @@ func (m *mockEfficiencyRepo) CreateSnapshot(_ context.Context, s *models.MetricS
 }
 
 func (m *mockEfficiencyRepo) ListSnapshotsByTenant(_ context.Context, tenantID string, _limit int) ([]models.MetricSnapshot, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.dbErr != nil {
 		return nil, m.dbErr
 	}
@@ -61,6 +72,8 @@ func (m *mockEfficiencyRepo) PruneOldSnapshots(_ context.Context, _tenantID stri
 }
 
 func (m *mockEfficiencyRepo) CreateReportHistory(_ context.Context, e *models.ReportHistoryEntry) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.dbErr != nil {
 		return m.dbErr
 	}
@@ -70,6 +83,8 @@ func (m *mockEfficiencyRepo) CreateReportHistory(_ context.Context, e *models.Re
 }
 
 func (m *mockEfficiencyRepo) ListReportHistory(_ context.Context, tenantID string, _limit int) ([]models.ReportHistoryEntry, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.dbErr != nil {
 		return nil, m.dbErr
 	}
@@ -80,6 +95,8 @@ func (m *mockEfficiencyRepo) ListReportHistory(_ context.Context, tenantID strin
 }
 
 func (m *mockEfficiencyRepo) CreateTeamData(_ context.Context, t *models.TeamData) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.dbErr != nil {
 		return m.dbErr
 	}
@@ -91,6 +108,8 @@ func (m *mockEfficiencyRepo) CreateTeamData(_ context.Context, t *models.TeamDat
 }
 
 func (m *mockEfficiencyRepo) GetTeamData(_ context.Context, tenantID, teamID string) (*models.TeamData, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.dbErr != nil {
 		return nil, m.dbErr
 	}
@@ -103,6 +122,8 @@ func (m *mockEfficiencyRepo) GetTeamData(_ context.Context, tenantID, teamID str
 }
 
 func (m *mockEfficiencyRepo) ListTeamData(_ context.Context, tenantID string) ([]models.TeamData, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.dbErr != nil {
 		return nil, m.dbErr
 	}
@@ -119,6 +140,8 @@ func (m *mockEfficiencyRepo) ListTeamData(_ context.Context, tenantID string) ([
 }
 
 func (m *mockEfficiencyRepo) CreateProjectData(_ context.Context, p *models.ProjectData) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.dbErr != nil {
 		return m.dbErr
 	}
@@ -130,6 +153,8 @@ func (m *mockEfficiencyRepo) CreateProjectData(_ context.Context, p *models.Proj
 }
 
 func (m *mockEfficiencyRepo) GetProjectData(_ context.Context, tenantID, projectID string) (*models.ProjectData, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.dbErr != nil {
 		return nil, m.dbErr
 	}
@@ -142,6 +167,8 @@ func (m *mockEfficiencyRepo) GetProjectData(_ context.Context, tenantID, project
 }
 
 func (m *mockEfficiencyRepo) ListProjectData(_ context.Context, tenantID string) ([]models.ProjectData, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.dbErr != nil {
 		return nil, m.dbErr
 	}
@@ -157,6 +184,8 @@ func (m *mockEfficiencyRepo) ListProjectData(_ context.Context, tenantID string)
 }
 
 func (m *mockEfficiencyRepo) CreateGlobalDeployment(_ context.Context, d *models.GlobalDeployment) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.dbErr != nil {
 		return m.dbErr
 	}
@@ -165,6 +194,8 @@ func (m *mockEfficiencyRepo) CreateGlobalDeployment(_ context.Context, d *models
 }
 
 func (m *mockEfficiencyRepo) ListGlobalDeployments(_ context.Context, tenantID string) ([]models.GlobalDeployment, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.dbErr != nil {
 		return nil, m.dbErr
 	}
@@ -179,6 +210,8 @@ func (m *mockEfficiencyRepo) DeleteGlobalDeploymentsByTenant(_ context.Context, 
 }
 
 func (m *mockEfficiencyRepo) CreateGlobalPipeline(_ context.Context, p *models.GlobalPipeline) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.dbErr != nil {
 		return m.dbErr
 	}
@@ -187,6 +220,8 @@ func (m *mockEfficiencyRepo) CreateGlobalPipeline(_ context.Context, p *models.G
 }
 
 func (m *mockEfficiencyRepo) ListGlobalPipelines(_ context.Context, tenantID string) ([]models.GlobalPipeline, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.dbErr != nil {
 		return nil, m.dbErr
 	}

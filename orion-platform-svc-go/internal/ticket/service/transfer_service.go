@@ -230,13 +230,6 @@ func (s *TransferService) GetTransferStats(ctx context.Context, start, end time.
 	return stats, nil
 }
 
-// GetMostTransferredTickets returns tickets with the most transfers
-func (s *TransferService) GetMostTransferredTickets(ctx context.Context, limit int) ([]string, error) {
-	// This would require a more complex query; return empty for now
-	// In production, this would query: SELECT ticket_id, COUNT(*) FROM ticket_transfers GROUP BY ticket_id ORDER BY COUNT(*) DESC LIMIT $1
-	return nil, nil
-}
-
 // autoTransferTicket finds the best available engineer and transfers the ticket
 func (s *TransferService) autoTransferTicket(ctx context.Context, ticketID, tenantID, priority, reason string) (*models.TransferRecord, error) {
 	engineers, err := s.dispatchRepo.ListEngineers(ctx)

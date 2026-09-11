@@ -106,6 +106,13 @@ func NewExecutionEngine(repo LogPersister, logger *zap.Logger) *ExecutionEngine 
 //   - Between failed attempts the engine sleeps BackoffDelay(retry#).
 //   - If any attempt succeeds, remaining retries are skipped.
 //   - Once MaxAttempts is exhausted the job is considered failed.
+//
+// attemptOutcome carries a handler's result out of the goroutine that ran it.
+type attemptOutcome struct {
+	out string
+	err error
+}
+
 func (e *ExecutionEngine) Execute(ctx context.Context, job *types.CronJob, handler Job) *Execution {
 	deadline := time.Now().UTC()
 	result := &Execution{
@@ -137,26 +144,39 @@ func (e *ExecutionEngine) Execute(ctx context.Context, job *types.CronJob, handl
 		attCtx, cancel := context.WithTimeout(ctx, job.Timeout)
 		attemptStart := time.Now().UTC()
 
-		attDone := make(chan struct{})
-		var out string
-		var err error
+		// The handler runs in its own goroutine so a timeout can fire without
+		// waiting for it. Its result travels over a buffered channel and is
+		// read exactly once. Sharing out/err with the goroutine is a data
+		// race, and a handler that returns just after the timeout fires would
+		// clobber the mapped "job attempt timed out" error with its own raw
+		// context.DeadlineExceeded — which is what made this test flake.
+		attemptDone := make(chan attemptOutcome, 1)
 		go func() {
-			out, err = handler.Execute(attCtx)
-			close(attDone)
+			o, e := handler.Execute(attCtx)
+			attemptDone <- attemptOutcome{out: o, err: e}
 		}()
 
+		var outcome attemptOutcome
+		timedOut := false
 		select {
-		case <-attDone:
+		case outcome = <-attemptDone:
 		case <-attCtx.Done():
-			err = errors.New("job attempt timed out")
+			timedOut = true
 		case <-ctx.Done():
 			cancel()
-			<-attDone
+			<-attemptDone
 			result.Status = "skipped"
 			result.Error = "context cancelled"
 			return e.persist(ctx, job, result)
 		}
 		cancel()
+
+		if timedOut {
+			// The handler is still running; its eventual result is discarded.
+			// The channel buffer keeps that goroutine from blocking.
+			outcome = attemptOutcome{err: errors.New("job attempt timed out")}
+		}
+		out, err := outcome.out, outcome.err
 
 		elapsed := time.Since(attemptStart)
 		result.DurationMs = elapsed.Milliseconds()

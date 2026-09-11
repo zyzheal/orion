@@ -36,10 +36,52 @@
 > ## ⚠️ 已知技术债（非 stub）
 >
 > - **domain**：接线缺陷已修复（PostgresEventStore + ReadModelProjector）
-> - **notification**：service + repository 双层全 stub，需先补 migration loader 递归扫描
+> - ~~**notification**：service + repository 双层全 stub，需先补 migration loader 递归扫描~~ → ✅ **已消除 2026-08-26**（见下表 notification 行）
 >
 > 数据来源: `architecture-review-2026-08-01.md` + `CROSS_VALIDATION_REPORT.md` + `merged-action-items-2026-07-27.md`
 > 状态: ✅ **Stub 消除已完成**
+>
+> ## ✅ Stub Scan Round 7 已完成（2026-08-26）
+>
+> **生产缺陷：`GET /compliance/evaluations/:id` 永远 404。**
+> `security/service.GetComplianceEvaluation` 无条件 `return nil, ErrPolicyNotFound`，
+> 而 handler 用 `_, err :=` 丢弃其返回值后 `return`，使下方真实的
+> `GetLatestEvaluation` 查询不可达 → 任意 id 一律回
+> `{"error":"compliance policy not found","code":"NOT_FOUND"}`。
+> 桩已删除，handler 直接执行真实 SQL
+> （`SELECT * FROM compliance_evaluations WHERE policy_id=$1 ORDER BY created_at DESC LIMIT 1`）。
+> 新增 `internal/security/handler/compliance_evaluation_route_test.go`
+> （security 模块此前零测试文件），用 sqlmock 注入 `sqlx.DB` 绕过具体类型依赖；
+> **变异证明**：恢复桩后测试失败
+> `status = 404, want 200 (route short-circuited to 404)`，恢复修复后 PASS。
+>
+> **删除 3 处零调用死桩**（零信息 + 全仓含测试零调用方）：
+> `security.Service.GetSupplyChainReport`、`ticketing.TransferService.GetMostTransferredTickets`、
+> `ticket.TransferService.GetMostTransferredTickets`（后者注释里写好的 SQL 同样无调用方）。
+>
+> **活/死判据落地**：从 `cmd/**` 沿 internal import 边做前向闭包 →
+> cmd 包 6 / internal 包 1858 / **可达 1366 / 死代码 492**。
+>
+> **判据纠正一处误报**：`notification-handler` 并非"从未注册路由"——
+> `cmd/server/notification_auth_wiring.go:87` 构造、`:193` 存字段、
+> `router.go:128` 传入并 `RegisterRoutes`；15 个 handler 方法全真实实现，
+> 桩返回扫描零命中。
+>
+> **确认死代码（报告未删，属产品决策）**：18 个 NATS subscriber 包里 16 个零 import
+> （仅 `incident/nats`、`self-healing/nats` 经 `cmd/server/wiring.go:20-21` 接线）；
+> 2 个"包可达但桩类型零调用"的假阳性
+> （`auth-enhanced/repository/jwt_key_repository.go` 6 个桩方法、
+> `ticketing/repository/interfaces.go` `AutomationRuleRepository` 6 个桩方法，
+> 真实实现分别在 `identity/auth/repository/` 与 `ticket/repository/automation_rule.go`）。
+>
+> **设计意图保留（外部出口未接，非未完成）**：`alert-adapter` email/sms Send、
+> `notification-engine/channels` SMSHandler/EmailHandler 均带 TODO 指向 SMTP/SMS 网关；
+> 同目录 `webhookHandler.Send` 与 `wechatHandler.Send` 是真实实现，证明非整体桩。
+>
+> 验证：`go build ./...` OK；`go vet` 触碰包 OK；
+> `go test ./internal/... -count=1` → **`GO_TEST_EXIT=0`**
+> （560 个含测试包全部 ok，1316 个 `[no test files]`，0 条 FAIL/panic/DATA RACE）。
+> 详见 `docs/development-progress.md` Round 7。
 >
 > ## ⚠️ Stub 误报更正 + domain 接线修复（2026-09-10）
 >
@@ -49,7 +91,7 @@
 > |------|---------|------|
 > | domain | ❌ **误报**，代码全真实现，但有**接线缺陷** | service.go 7 个方法全部委托 `s.bus`/`s.publisher`/`s.eventStore`/`s.proj`（14 处调用），字段名不是 `repo`。但 `wireDomainCQRS` 传入 `(nil, nil)`，读侧从未运行，`GetEventHistory`/`GetLatestVersion`/`RebuildReadModel` 静默返回空。**本轮已修**：接上 `NewPostgreSQLEventStore(db.DB)` + `NewPostgresReadModelProjector(db.DB, eventStore)` |
 > | graph | ❌ **误报**，35 方法已实现 | service.go 通过 `s.nodeRepo`/`s.relRepo` 走 PG（31 处调用）+ `NewServiceInMemory()` 内存回退（26 处）；repository.go 有 7 条真实 SQL；迁移 `253_create_graph_nodes.sql` 存在（graph_nodes + graph_relationships + GIN 索引）。双路径设计，repo 为 nil 时降级内存，不是 stub |
-> | notification | ✅ **真 stub**，service + repository **双层**全 stub | service.go 构造器 `New(_ interface{})` 丢弃依赖，31 个方法全 `return nil, nil`；repository.go 8 个 Repository 类型全为空 struct，57 个方法全 `return nil`。迁移 `migrations/notification/001-009` 定义了 `notifications` 表等，但位于**嵌套目录**，loader `config.go:83` 只扫扁平 `migrations/`，表未被创建。另有平行的 `notification-management` 模块（5 条 SQL + 迁移 149 `notification_managements`）实现度同样低。**尚未实施**，估算 3-5 人日（需先补 loader 递归扫描或迁移文件重编号） |
+> | notification | ✅ **真 stub**，service + repository **双层**全 stub | service.go 构造器 `New(_ interface{})` 丢弃依赖，31 个方法全 `return nil, nil`；repository.go 8 个 Repository 类型全为空 struct，57 个方法全 `return nil`。迁移 `migrations/notification/001-009` 定义了 `notifications` 表等，但位于**嵌套目录**，loader `config.go:83` 只扫扁平 `migrations/`，表未被创建。另有平行的 `notification-management` 模块（5 条 SQL + 迁移 149 `notification_managements`）实现度同样低。**本轮已完成（2026-08-26）**：stub `service.go`/`repository.go` 已删除，`notification-service` + `notification-repository` 全真实现，`DeliverNotification` 落地完整投递链路（查通知→构建消息→主渠道投递→fallback→两步持久化 CreateDelivery+UpdateStatus），25 条单测覆盖含租户隔离负测；`ResolveFallbackChannel` 原映射把 email 指向未注册的 "push" 渠道（零调用死代码），现修正为 in_app 并接入真实投递路径；**另发现并修复生产缺陷**：`notification-engine/channels` 的 `init()` 是渠道 handler 唯一注册点却无任何 import，导致运行时 `engine.GlobalHandlerFactory` 恒为空、每次投递必失败——已在 `delivery_service.go` 加 blank import 并配 `TestGlobalChannelFactoryIsPopulated` + 端到端真 handler 回归测试；删除零引用的 `notification-models/`（860 行，与 `notification/models` 重复且 `ChannelInApp="in-app"` 与已注册 `"in_app"` 不一致） |
 >
 > ## ✅ Phase MB-P1-1 canonical 路径已完成（2026-09-10，commit `3d4a6ef4d`）
 >
