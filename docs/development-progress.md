@@ -5264,3 +5264,288 @@ notification-engine 定向测试全绿。
   触发 3/2/1 个测试失败，证明测试非空洞）：✅ `df3a8a3f9` + `cb24ba8dc`
   （无独立 commit，被并行 agent 的全量暂存扫走，归属见 11.6）
 - **待办**：步骤 4 收尾（剩余 477 个死包按域分批）
+
+---
+
+## 第十二轮：Stub Scan Round 12 — pipeline-engine 子流水线静默成功 + 自愈幽灵契约
+
+本轮从零开始在新 HEAD（`5ad3abb9a`）上重新扫描，共撞出 **3 处未完成代码**（1 处真实现、
+2 处删除）+ **1 处误报**，并**第二次**更正了死包判定方法本身。
+
+### 12.1 Finding B — sub-pipeline 任务从不执行却判绿（真实现）
+
+**位置**：`internal/pipeline-engine/service/StageExecutor.go` → `executeSubPipelineTask`
+
+**修复前的行为**：
+
+```go
+return &ExecuteResult{
+    Success: true,
+    Outputs: map[string]string{"sub_pipeline": pipelineID, "status": "skipped"},
+}
+```
+
+什么都不跑，直接 `Success: true`。`ExecuteTask` 看到 `Success` 就把任务写成
+`TaskStatusSuccess`，stage 因此判绿，**整个父流水线在子流水线从未执行的情况下通过**。
+对一个 CI 门禁来说，这是比响亮失败糟糕得多的失败模式：静默通过。
+
+**为什么是「实现」而不是「删除」**：判据是「基础设施存在则实现，否则删除」。这里的
+基础设施齐备——`EngineInterface` 早已存在（`engine_interface.go`，6 个方法，
+`var _ EngineInterface = (*PipelineEngine)(nil)`），且 `PipelineEngine.Execute` 是
+**同步执行到终态才返回**的（CreateRun → createStageWithTasks → UpdateRunStatus RUNNING
+→ buildStageMap → `orchestrator.Execute` → 最终 UpdateRunStatus → `repo.GetRun`），
+所以子流水线任务可以直接拿到子 run 的真实终态。删掉它只会让 YAML 里写
+`type: sub-pipeline` 的流水线永远报「缺参数」，而不是得到真实能力。
+
+**实现要点**：
+
+1. **新增触发类型** `models.TriggerSubPipeline = "sub_pipeline"`。与 git/api/event/
+   schedule/manual 分开，是为了在审计一棵 run 树时能把机器触发的子 run 与
+   人/API/git 触发的 run 区分开。
+
+2. **引擎回指接线**：`NewPipelineEngine` 末尾加 `exec.WithEngine(e)`。
+   **缺这一行的话，任何 sub-pipeline 任务永远跑不了**——它没有任何东西可以调用，
+   所以唯一能做的就是假装成功。这一行是整个功能唯一的接线点，因此单独有一条
+   接线级测试守着它（见 12.4）。
+
+3. **嵌套深度走 context，不走结构体字段**。这是本轮最容易做错的一处：
+   `StageOrchestrator` 对兄弟 stage 用 `var wg sync.WaitGroup` + `go func(...)`
+   开并行 goroutine，而这些 goroutine 共享**同一个** `*StageExecutor`。把深度存成
+   结构体字段就是数据竞争。改为 `subPipelineDepthKey` +
+   `context.WithValue(childCtx, subPipelineDepthKey{}, depth+1)`，每个子 run 拿到
+   自己的深度，互不干扰。默认上限 `defaultMaxSubPipelineDepth = 5`，够容纳任何
+   合法的 build-test-deploy 链，能挡住流水线（传递地）触发自己导致的无限循环。
+
+4. **结果由子 run 的终态决定**，并且**失败要留线索**。这一点是从测试里逼出来的：
+   一开始写的是
+
+   ```go
+   return &ExecuteResult{Success: run.Status == models.RunStatusSuccess, Error: "", ...}
+   ```
+
+   结果测试断言 `res.Outputs["status"]` 恒为 `""`。追查发现 `markTaskFailed`
+   返回的是**全新的** `ExecuteResult{Outputs: make(map[string]string)}`，而
+   `ExecuteTask` 的失败分支直接 return 它、**从不拷贝** `result.Outputs`——
+   诊断信息在失败路径上被丢弃了，只有 `Error` 能透传。于是把失败分支改成
+   `fmt.Sprintf("sub-pipeline %s@%s ended with status %s (run %s)", ...)`，
+   点明子 run 的 ID 与终态。原先的 `Error: ""` 会把任务标成 FAILED 却不留任何
+   线索，运维只能挨个打开子 run 去猜哪里坏了。
+
+5. **变量转发**：父级 `variables` 灌入 `req.Context`，子流水线通过
+   `context_json` 拿到；超时用 `context.WithTimeout` 作用在子调用上，
+   `defer cancel()` 避免泄漏；`trigger_by` 缺省为 `sub-pipeline:<pipelineID>`
+   ——流水线触发子流水线是匿名主体，归属给子流水线自身的身份而不是空字符串。
+
+
+### 12.2 Finding C — `PassUpstreamArtifacts`：自述 no-op 的活调用点（删除）
+
+**位置**：`StageExecutor.go` 方法定义 + `StageOrchestrator.go:213` 调用点
+
+```go
+// PassUpstreamArtifacts transfers artifacts from upstream stages to a target stage.
+// Currently a no-op placeholder; production would transfer files/logs between
+// stage workspaces via the artifact management system.
+func (s *StageExecutor) PassUpstreamArtifacts(...) error {
+    _ = ctx; _ = tenantID; _ = runID
+    _ = upstreamStageNames; _ = targetStageID
+    return nil
+}
+```
+
+它有两个叠加的问题：
+
+- 方法是空的，5 个参数全部 `_ =` 掉，`return nil`。**一个返回 nil error 的空方法，
+  读代码的人会以为「上游产物交接已完成」**——这正是「静默成功而不干活」的模式，
+  只是它没有 pass/fail 语义，所以危害比 Finding B 小、但仍然是一个谎。
+- 唯一的调用点传的是**空切片** `[]string{}`：
+
+  ```go
+  if !taskFailed && stage.DependsOn != "" {
+      o.executor.PassUpstreamArtifacts(ctx, execution.TenantID, execution.ID, []string{}, stageID)
+  }
+  ```
+
+  即使方法真的实现了，这里也永远没有东西可交接。整段调用是空操作。
+
+**处理**：删除方法定义 + 删除调用点。行为零变化（原来就什么都不做），纯删死逻辑。
+按判据它连「有调用者」都不算——调用者传的是空输入。
+
+**留下什么**：删掉之后在 `StageExecutor.go` 原地写了一段注释，把**真实缺口**变成
+可见的、可追踪的限制，而不是藏在一个占位符后面：
+
+> 上游 task outputs 目前**不会**传播给依赖它的 stage。一个 stage 的变量只来自
+> pipeline spec 的 `variables` 块 + **本 stage 自身**的 task outputs（在
+> `StageOrchestrator` 里扁平为 `tasks.<task>.<key>`）。补齐需要把 task outputs
+> 持久化到 `pipeline_tasks.result` 列（该列在模型里已存在但从未写入），再按
+> `stage.DependsOn` 逐个加载上游 stage 的任务结果。这是执行语义的独立工作，
+> 不属于「执行任务」本身。
+
+### 12.3 Finding A — 自愈域的两个「幽灵契约」（删除）
+
+**位置**：`internal/self-healing/service/service_interface.go`、
+`internal/self-healing/repository/repository_interface.go`
+
+两个文件都打着「Code generated / DO NOT EDIT」的头，合计声明约 **26 个方法**：
+
+- `service.ServiceInterface`（11 个）：CreateIncident / GetApproval / GetEffectiveness
+  / GetIncident / GetStrategy / ListApprovals / ListHistory / ListStrategies /
+  RegisterStrategy / RespondApproval / ToggleStrategy
+- `repository.RepositoryInterface`（16 个）：CreateStrategy / ToggleStrategy /
+  CreateIncident / UpdateIncident / CountForEffectiveness / ListForEffectiveness /
+  CreateApprovalRequest / MarkExpiredApprovals / GetIncidentByApprovalID …
+
+**这些方法没有任何类型实现。** 真实的 `SelfHealingService` 有 8 个 HealingAction 系列
+方法（CreateHealingAction / QueryHealingActions / GetHealingAction /
+UpdateHealingAction / DeleteHealingAction / ExecuteAction / executeSingleAttempt /
+QueryHealingHistory）；真实生效的契约是
+`repository/action_repository_interface.go` 里的 `HealingActionRepository`（8 个
+uuid-based 方法 + **生效的** `var _ HealingActionRepository = (*SelfHealingRepository)(nil)`）。
+
+关键之处在于它们**为什么能活着**——编译期断言被刻意注释掉了：
+
+```go
+// Ensure compile-time safety: *Service implements ServiceInterface.
+// compile check disabled: CreateIncident not yet implemented
+// compile check disabled: CreateIncident not yet implemented
+// var _ ServiceInterface = (*SelfHealingService)(nil)
+```
+
+于是代码库**编译全绿，却在公开广告一个完全不存在的 API**。这正是「被命名的接口，
+其声明行为不可能成立，即属未完成」的判据所针对的情形：留着它，读代码的人会以为
+`CreateIncident` 是可用能力，去调用时才发现连编译都过不了。
+
+**为什么是删除而不是实现**：生成这些文件的工具
+`tools/generate_service_interface.go` **已经不存在了**，全模块对这两个接口名
+**零引用**（grep 全模块为空）。没有一个调用方、没有生成工具，这是纯粹的整并遗留。
+实现它等于凭空发明一个 26 方法的 API 再实现一遍，而它描述的那套 incident / approval /
+effectiveness 模型和这个域现在实际做的 HealingAction 是两回事。
+
+**同批顺手清理**：`internal/code-repo/service/service.go` 里零调用的
+`ErrNotImplemented`（sentinel）与 `ErrNotImplementedMsg(action)` 两个死 helper，
+以及夹在它们中间的一行**重复的** `// IsNotFound returns true if err indicates a
+resource was not found.` 文档注释（真属于 `IsNotFound` 的那行在上方还有一份）。
+
+### 12.4 新增 8 个回归测试（`sub_pipeline_executor_test.go`）
+
+`package service`（内部测试），可以直接读未导出的 `e.executor.engine` /
+`subPipelineDepth` / `subPipelineDepthKey`，不需要开 accessor。全部用
+`go-sqlmock` 打桩，`t.Setenv` 不需要（不碰 config）。
+
+| 测试 | 守住的不变量 |
+|------|-------------|
+| `TestSubPipelineTaskFailsLoudlyWithoutEngine` | 无 engine 时必须**响亮失败**并点名缺失的 engine 与被触发的子流水线（修复前这里是 `Success: true`） |
+| `TestSubPipelineTaskRunsChildAndReportsItsStatus` | 真的调了 engine 一次；`PipelineID`/`PipelineVersion` 传对；`TriggerType` 是 `sub_pipeline`；父级变量被转发进 `Context`；`Outputs["sub_pipeline_run"]` 是子 run ID；`Outputs["status"]` 是子 run 终态；子 ctx 深度递进到 1 |
+| `TestSubPipelineTaskFailsWhenChildRunFails` | 子 run 失败 ⇒ 任务失败，且错误信息点名 `run-child-2` 与终态 `FAILED` |
+| `TestSubPipelineTaskFailsWhenEngineReturnsError` | engine 启动失败 ⇒ 任务失败 |
+| `TestSubPipelineTaskFailsWhenEngineReturnsNilRun` | engine 返回 nil run ⇒ 任务失败（不 panic） |
+| `TestSubPipelineTaskRequiresPipelineID` | 缺 `pipeline_id` ⇒ 任务失败，不构造空请求 |
+| `TestSubPipelineDepthGuardBlocksCycle` | 超过嵌套上限时在**执行前**拒绝：`res.Success == false` 且 `engine.Execute calls == 0` |
+| `TestNewPipelineEngineWiresEngineIntoItsExecutor` | **接线级**：`NewPipelineEngine` 之后 `executor.engine` 非 nil 且就是那个 engine 自己 |
+
+两个测试写作的坑记一下：`ExecuteTask` 会解引用
+`task.StartedAt`（`time.Since(time.Unix(*runningTask.StartedAt, 0))`），所以测试
+构造的 `models.Task` **必须**设 `StartedAt`，否则 nil 解引用 panic；而
+`TriggerRequest.Environment` 是 `string` 不是 `*string`（和 `PipelineRun.Environment`
+的 `*string` 不同），第一个版本在这里编译失败。
+
+
+### 12.5 突变验证（非空洞证明）
+
+原始文件先备份到 `/tmp/mutB/*.good`，逐个回灌缺陷，确认测试**真的会红**，再还原。
+
+| 突变 | 做法 | 结果 |
+|------|------|------|
+| **M1** | 把 `executeSubPipelineTask` 回灌为旧的静默成功 noop（在取出 `pipelineVersion` 之后立即 `return &ExecuteResult{Success: true, Outputs:{"status":"skipped"}}`） | **8/8 个 sub-pipeline 测试全部失败**：无 engine 那个报 `sub-pipeline task succeeded with no engine wired`、运行那个报 `engine.Execute calls = 0, want 1`、缺参数/返回 nil/深度守卫全部变成「不该成功却成功」 |
+| **M2** | 从 `NewPipelineEngine` 删掉 `exec.WithEngine(e)` 那一行 | `TestNewPipelineEngineWiresEngineIntoItsExecutor` 失败：`executor has no engine: sub-pipeline tasks could never run` |
+| **M3** | 删掉 `depth+1 > s.subPipelineDepthLimit()` 整个守卫块 | `TestSubPipelineDepthGuardBlocksCycle` 失败：`task succeeded past the sub-pipeline depth limit`，且 `engine.Execute calls = 1, want 0` —— 同时证明了守卫是在**执行前**拒绝，不是执行后补救 |
+
+三处均从 `/tmp/mutB/*.good` 还原，`diff -q` 确认与工作区逐字节一致，复跑全绿。
+
+### 12.6 误报消除 — `branch-policy` 的 schema checker
+
+此前扫描把 `internal/branch-policy` 记为「总是通过 + not implemented 警告」。核实后
+这是**过期文档，不是代码**：`schemaChecker SchemaCompatibilityChecker` 是可选字段
+配 `WithSchemaChecker`，而接线在 `cmd/server/wiring-core-domains.go:127`
+
+```go
+svc.WithSchemaChecker(sb_service.NewMigrationChecksumChecker(repo, 0))
+```
+
+真实实现在 `internal/branch-policy/service/schema_compat_checker.go`
+（`MigrationChecksumChecker`），有 `schema_compat_checker_test.go:350+` 的测试覆盖。
+**未做任何改动** —— 只把结论纠正过来。这类「注释声称未实现、代码实际已实现」的
+反向误报，和 Finding A 那种「代码声称已实现、注释承认没做」是同一个扫描器的两个方向，
+都得逐条核实而不能信注释。
+
+### 12.7 方法更正（第二次）— 死包判定必须用 `go list -deps`
+
+本轮一开始用 Python 重写扫描器，结果错了三次：
+
+1. **用 `ast.parse` 解析 Go 源码**。Go 的 `//` 注释在 Python 里是**整除运算符**，
+   于是**每个文件都解析失败**（`invalid character '—'`、`invalid decimal literal`），
+   扫描器报出 `live: 2, dead: 1654`。这个错法非常安静——它没有崩溃，而是给出一个
+   看起来完全合理的数字。
+2. **模块前缀比对漏了尾部 `/`**：写成 `grep -qxF "orion/platform-svc-go${p#./}"`，
+   拼出 `orion/platform-svc-gointernal/config`，恒不匹配，于是把整棵
+   `internal/config` 误报为死亡。**漏一个斜杠就是静默全错**。
+3. **只列了 2 个 `package main` 根**（漏 `cmd/audit-cli`），死包数被高估
+   （279 vs 255，live 1370 vs 1373）。
+
+正确做法：
+
+```bash
+go list -deps ./cmd/server ./cmd/audit-cli ./cmd/pipeline-engine   # 3 个 main 根，全部
+go list ./...                                                      # 全部模块包
+# 前缀必须带尾部斜杠：M="orion/platform-svc-go/"
+```
+
+结论：**1608 个模块包中 235 个传递性死亡**。本轮会话开头测得 255，差异来自并行 agent
+在此之后又删了三批（`0bd35548d` ci-cd 21 个、`4c2c6afc4` infrastructure 17 个、
+`5ad3abb9a` finops 19 个）。当前死包集中在：`internal/code` 17、`internal/security` 15、
+`internal/pandawiki` 9、`internal/global-search` 9、`internal/graphviz` 7、
+`internal/config` 7、`internal/cmdb-attr-handler` 7、`internal/llm` 6、
+`internal/intelligence` 6、`internal/cmdb` 6、`internal/assignee` 6、
+`internal/visor` 5、`internal/integration-handler` 5。
+
+### 12.8 遗留（仅记录，本轮未动）
+
+- **`internal/config/internal/` 是整棵重复副本**：6 个包、29 个 Go 文件、4117 行，
+  包路径形如 `internal/config/internal/config/config`，**模块内零 importer**。
+  它不只是「没人用」——受 Go 的 `internal/` 可见性规则约束
+  （`internal/config/internal/config` 只能被 `internal/config/` **下**的包 import），
+  它在**结构上永远无法**被模块其余部分消费。这是整并遗留的 fork，活的是顶层
+  `internal/config`（8 个包活、7 个死）。属步骤 4 的领域，且并行 agent 正在按域
+  清理死包，本轮不与其抢同一批文件。
+- **跨 stage 的 task outputs 不向下游传播**（见 12.2）。这是删掉占位符之后暴露出的
+  真实功能缺口，需要新增持久化路径，不在「修桩」范围内。
+- **JWT 密钥轮换完全不存在**（Round 10 已记录，`internal/identity/auth/keyrotation`
+  已作为死代码删除；活路径 `orion-go-common/pkg/auth` 只有静态单钥，无 kid 查找）。
+- **SMTP/SMS 外部凭证仍待运维提供**（Round 11 已记录，发送路径已就绪但端到端未联调）。
+- `internal/cmdb-import` 的 `SFTPHandler.Parse` 返回显式错误
+  `"...: sftp import not implemented; configure remote host/port/user/key in config"`。
+  这是**诚实的失败**而非静默成功，本轮接受现状；但没有 `pkg/sftp` 集成。
+
+### 12.9 验证
+
+| 检查 | 结果 |
+|------|------|
+| `go build ./...` | EXIT=0 |
+| `go vet ./internal/... ./cmd/...` | 0 行输出 |
+| `go test -count=1 ./internal/pipeline-engine/...` | ok（handler / service） |
+| `go test -count=1 ./internal/self-healing/...` | 5 ok（删除幽灵契约后） |
+| `go test -count=1 ./internal/code-repo/...` | 2 ok（删除死 helper 后） |
+| `go test -count=1 ./...` | **EXIT=0 / 0 FAIL** |
+| 突变后还原 `diff -q` | 逐字节一致 |
+
+### 累计进度（更新）
+
+- **步骤 4**（死包清理）：第一批 77 文件 / 14916 行 ✅ `08ddd44c2` 等；
+  本轮并行 agent 续删 ci-cd 21 + infrastructure 17 + finops 19 个包
+  ✅ `0bd35548d` / `4c2c6afc4` / `5ad3abb9a`；**死包数 505 → 477 → 255 → 235**
+  （判定方法两轮更正后，数字才可信）
+- **Round 12**：sub-pipeline 静默成功真实现（含引擎接线 + context 深度守卫 +
+  子 run 终态驱动 + 8 个回归测试 + 3 组突变验证）、`PassUpstreamArtifacts`
+  no-op 钩子删除、self-healing 两个幽灵契约文件删除、code-repo 死 helper 删除、
+  branch-policy 误报消除、死包判定方法第二次更正
+- **待办**：步骤 4 收尾（剩余 235 个死包按域分批，含 `internal/config/internal/`
+  整棵 4117 行的结构性死 fork）

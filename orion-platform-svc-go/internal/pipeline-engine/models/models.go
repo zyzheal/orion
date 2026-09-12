@@ -35,6 +35,10 @@ const (
 	TriggerEvent    TriggerType = "event"
 	TriggerSchedule TriggerType = "schedule"
 	TriggerManual   TriggerType = "manual"
+	// TriggerSubPipeline marks a run started by a "sub-pipeline" task of a
+	// parent pipeline. Kept distinct from the other types so a child run can be
+	// told apart from a human/API/git-triggered one when auditing a run tree.
+	TriggerSubPipeline TriggerType = "sub_pipeline"
 )
 
 // --- Core entities ---

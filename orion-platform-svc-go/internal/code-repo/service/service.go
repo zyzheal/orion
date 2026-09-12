@@ -250,19 +250,12 @@ var (
 	ErrInvalidPR      = errors.New("invalid pull request")
 	ErrInvalidRef     = errors.New("invalid ref")
 	ErrInvalidSecret  = errors.New("invalid secret")
-	ErrNotImplemented = errors.New("not implemented")
 	ErrInvalidRepo    = errors.New("invalid repository")
 )
 
 // IsNotFound returns true if err indicates a resource was not found.
 func IsNotFound(err error) bool {
 	return errors.Is(err, sentinel.NotFound)
-}
-
-// IsNotFound returns true if the error indicates a resource was not found.
-// ErrNotImplementedMsg creates a not-implemented error.
-func ErrNotImplementedMsg(action string) error {
-	return fmt.Errorf("%s: %w", action, ErrNotImplemented)
 }
 
 // randomHex generates a lowercase hex string of n bytes using crypto/rand.

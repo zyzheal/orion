@@ -11,10 +11,35 @@ import (
 	"orion/platform-svc-go/internal/pipeline-engine/repository"
 )
 
+// defaultMaxSubPipelineDepth bounds how deeply a pipeline may trigger child
+// pipelines. It exists to stop a pipeline that (transitively) triggers itself
+// from running forever; the limit is deep enough that any legitimate
+// build-test-deploy chain fits.
+const defaultMaxSubPipelineDepth = 5
+
+// subPipelineDepthKey carries the sub-pipeline nesting level in the request
+// context. Depth is threaded through the context rather than stored on the
+// executor because StageOrchestrator runs sibling stages in parallel goroutines
+// on a single shared *StageExecutor, so a struct field would race.
+type subPipelineDepthKey struct{}
+
+func subPipelineDepth(ctx context.Context) int {
+	if n, ok := ctx.Value(subPipelineDepthKey{}).(int); ok {
+		return n
+	}
+	return 0
+}
+
 // StageExecutor executes tasks within a stage.
 type StageExecutor struct {
 	repo    *repository.Repository
 	timeout time.Duration
+	// engine, when non-nil, is what "sub-pipeline" tasks call to trigger a real
+	// child pipeline run. Wired by NewPipelineEngine. When nil a sub-pipeline
+	// task fails loudly instead of reporting success.
+	engine EngineInterface
+	// maxSubPipelineDepth overrides defaultMaxSubPipelineDepth when > 0.
+	maxSubPipelineDepth int
 }
 
 // NewStageExecutor creates a new StageExecutor.
@@ -23,6 +48,28 @@ func NewStageExecutor(repo *repository.Repository) *StageExecutor {
 		repo:    repo,
 		timeout: 3600 * time.Second, // default 1h
 	}
+}
+
+// WithEngine attaches the engine that executes "sub-pipeline" tasks. Chainable.
+func (s *StageExecutor) WithEngine(e EngineInterface) *StageExecutor {
+	s.engine = e
+	return s
+}
+
+// WithMaxSubPipelineDepth overrides the sub-pipeline nesting limit. Values <= 0
+// keep the default.
+func (s *StageExecutor) WithMaxSubPipelineDepth(n int) *StageExecutor {
+	if n > 0 {
+		s.maxSubPipelineDepth = n
+	}
+	return s
+}
+
+func (s *StageExecutor) subPipelineDepthLimit() int {
+	if s.maxSubPipelineDepth > 0 {
+		return s.maxSubPipelineDepth
+	}
+	return defaultMaxSubPipelineDepth
 }
 
 // SetTimeout sets the task execution timeout.
@@ -45,7 +92,9 @@ type ExecuteResult struct {
 // Supported task types:
 //   - "shell": execute a shell command via LocalSpawnExecutor
 //   - "docker": run a command inside a Docker container
-//   - "sub-pipeline": invoke a child pipeline (not yet implemented, treated as noop)
+//   - "sub-pipeline": trigger a child pipeline run through the wired engine
+//     (needs pipeline_id / pipeline_version params; fails loudly when no engine
+//     is wired or the nesting limit is exceeded)
 //   - any other: treated as shell with default echo
 //
 // Variables are injected into both environment variables and command strings.
@@ -258,13 +307,15 @@ func (s *StageExecutor) executeDockerTask(ctx context.Context, params map[string
 	return result
 }
 
-// executeSubPipelineTask handles sub-pipeline tasks (deferred to future implementation).
+// executeSubPipelineTask triggers a child pipeline run for a "sub-pipeline"
+// task and reports the child run's outcome.
+//
+// It used to return Success: true with "status: skipped", which marked the task
+// — and therefore the whole parent run — as green while no child pipeline ever
+// executed. A silent pass on a CI gate is worse than a loud failure, so a
+// missing engine or a missing child spec now fails the task.
 func (s *StageExecutor) executeSubPipelineTask(ctx context.Context, tenantID, stageID string, params map[string]interface{}, variables map[string]string, timeout time.Duration) *ExecuteResult {
-	_ = ctx
-	_ = tenantID
 	_ = stageID
-	_ = variables
-	_ = timeout
 
 	pipelineID := getStringParam(params, "pipeline_id")
 	pipelineVersion := getStringParam(params, "pipeline_version")
@@ -276,19 +327,118 @@ func (s *StageExecutor) executeSubPipelineTask(ctx context.Context, tenantID, st
 			Outputs: map[string]string{},
 		}
 	}
-
-	// Sub-pipeline execution is deferred to a separate engine call.
-	// For now, return a structured result indicating the task would
-	// invoke pipelineID@pipelineVersion.
-	return &ExecuteResult{
-		Success: true,
-		Outputs: map[string]string{
-			"sub_pipeline": pipelineID,
-			"version":      pipelineVersion,
-			"status":       "skipped",
-			"reason":       "sub-pipeline execution not yet implemented",
-		},
+	if s.engine == nil {
+		return &ExecuteResult{
+			Success: false,
+			Error: fmt.Sprintf("sub-pipeline %s@%s not executed: this StageExecutor has no pipeline engine wired", pipelineID, pipelineVersion),
+			Outputs: map[string]string{
+				"sub_pipeline": pipelineID,
+				"version":      pipelineVersion,
+				"status":       "failed",
+			},
+		}
 	}
+
+	// Guard against a pipeline triggering itself, directly or through a cycle.
+	depth := subPipelineDepth(ctx)
+	if depth+1 > s.subPipelineDepthLimit() {
+		return &ExecuteResult{
+			Success: false,
+			Error: fmt.Sprintf("sub-pipeline nesting limit exceeded: %s@%s would be depth %d, max %d",
+				pipelineID, pipelineVersion, depth+1, s.subPipelineDepthLimit()),
+			Outputs: map[string]string{
+				"sub_pipeline": pipelineID,
+				"version":      pipelineVersion,
+				"status":       "failed",
+			},
+		}
+	}
+
+	req := models.TriggerRequest{
+		PipelineID:      pipelineID,
+		PipelineVersion: pipelineVersion,
+		TriggerType:     string(models.TriggerSubPipeline),
+		TriggerBy:       subPipelineTriggerBy(params, pipelineID),
+		Environment:     getStringParam(params, "environment"),
+	}
+	if variables != nil {
+		req.Context = make(map[string]interface{}, len(variables))
+		for k, v := range variables {
+			req.Context[k] = v
+		}
+	}
+
+	childCtx := ctx
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		childCtx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
+	childCtx = context.WithValue(childCtx, subPipelineDepthKey{}, depth+1)
+
+	run, err := s.engine.Execute(childCtx, tenantID, req)
+	if err != nil {
+		return &ExecuteResult{
+			Success: false,
+			Error:   fmt.Sprintf("sub-pipeline %s@%s failed to start: %v", pipelineID, pipelineVersion, err),
+			Outputs: map[string]string{
+				"sub_pipeline": pipelineID,
+				"version":      pipelineVersion,
+				"status":       "failed",
+			},
+		}
+	}
+	if run == nil {
+		return &ExecuteResult{
+			Success: false,
+			Error:   fmt.Sprintf("sub-pipeline %s@%s returned no run", pipelineID, pipelineVersion),
+			Outputs: map[string]string{
+				"sub_pipeline": pipelineID,
+				"version":      pipelineVersion,
+				"status":       "failed",
+			},
+		}
+	}
+
+	outputs := map[string]string{
+		"sub_pipeline":     pipelineID,
+		"version":          pipelineVersion,
+		"sub_pipeline_run": run.ID,
+		"status":           string(run.Status),
+	}
+	if run.DurationMs != nil {
+		outputs["duration_ms"] = fmt.Sprintf("%d", *run.DurationMs)
+	}
+
+	if run.Status != models.RunStatusSuccess {
+		// An empty Error would mark the parent task FAILED with no explanation,
+		// leaving an operator to open every child run to find out what broke.
+		return &ExecuteResult{
+			Success: false,
+			Error: fmt.Sprintf("sub-pipeline %s@%s ended with status %s (run %s)",
+				pipelineID, pipelineVersion, run.Status, run.ID),
+			Outputs: outputs,
+		}
+	}
+
+	return &ExecuteResult{
+		// The child run already reached its final state: Execute only returns
+		// after every stage of the child has been executed and the run status
+		// has been finalised, so the child's own status decides the outcome.
+		Success: true,
+		Error:   "",
+		Outputs: outputs,
+	}
+}
+
+// subPipelineTriggerBy names the child run's initiator. A pipeline triggering a
+// child is an anonymous actor, so attribute it to the child's own identity
+// unless the task supplies an explicit trigger_by.
+func subPipelineTriggerBy(params map[string]interface{}, pipelineID string) string {
+	if tb := getStringParam(params, "trigger_by"); tb != "" {
+		return tb
+	}
+	return "sub-pipeline:" + pipelineID
 }
 
 // markTaskFailed updates a task's status to FAILED and returns the result.
@@ -350,22 +500,15 @@ func (s *StageExecutor) parseResourceLimit(params map[string]interface{}) *Resou
 	return rl
 }
 
-// PassUpstreamArtifacts transfers artifacts from upstream stages to a target stage.
-// Currently a no-op placeholder; production would transfer files/logs between
-// stage workspaces via the artifact management system.
-func (s *StageExecutor) PassUpstreamArtifacts(
-	ctx context.Context,
-	tenantID, runID string,
-	upstreamStageNames []string,
-	targetStageID string,
-) error {
-	_ = ctx
-	_ = tenantID
-	_ = runID
-	_ = upstreamStageNames
-	_ = targetStageID
-	return nil
-}
+// Note on upstream artifacts: this executor deliberately does not expose a
+// "pass upstream artifacts" hook. It would have been a no-op that returned nil,
+// which reads as "the handoff happened" when nothing was ever transferred, so
+// the hook was removed rather than shipped as a placeholder. Upstream task
+// outputs are not yet propagated to dependent stages: a stage's variables come
+// from the pipeline spec's `variables` block plus that stage's own task
+// outputs, flattened as tasks.<task>.<key>. Closing the gap needs task outputs
+// persisted to pipeline_tasks.result and loaded per dependency, which is
+// separate work from execution itself.
 
 // --- helpers ---
 

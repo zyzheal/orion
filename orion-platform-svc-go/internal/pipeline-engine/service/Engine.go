@@ -38,12 +38,17 @@ func NewPipelineEngine(repo *repository.Repository) *PipelineEngine {
 	orch := NewStageOrchestrator(repo)
 	exec := NewStageExecutor(repo)
 	orch.SetExecutor(exec)
-	return &PipelineEngine{
+	e := &PipelineEngine{
 		repo:         repo,
 		orchestrator: orch,
 		executor:     exec,
 		specStore:    make(map[string]string),
 	}
+	// Give the task executor a path back to this engine so "sub-pipeline" tasks
+	// can trigger a real child run. Without this, a sub-pipeline task would have
+	// nothing to call and could only report success without running anything.
+	exec.WithEngine(e)
+	return e
 }
 
 // SetSagaCoordinator injects a SagaCoordinator for distributed transaction management.

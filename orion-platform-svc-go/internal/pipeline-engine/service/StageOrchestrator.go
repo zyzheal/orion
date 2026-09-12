@@ -207,11 +207,6 @@ func (o *StageOrchestrator) ExecuteStage(ctx context.Context, execution *Executi
 		if !taskResult.Success {
 			taskFailed = true
 		}
-
-		// Pass upstream artifacts on success
-		if !taskFailed && stage.DependsOn != "" {
-			o.executor.PassUpstreamArtifacts(ctx, execution.TenantID, execution.ID, []string{}, stageID)
-		}
 	}
 
 	// Update stage status
