@@ -156,10 +156,7 @@ func (r *Repository) UpdateAction(ctx context.Context, tenantID, id string, fiel
 	set := buildNamedSet(fields)
 	_, err := r.db.NamedExecContext(ctx,
 		`UPDATE job_actions SET `+set+` WHERE id=:id AND tenant_id=:tenant_id`,
-		map[string]interface{}{
-			"id":        id,
-			"tenant_id": tenantID,
-		},
+		namedUpdateArgs(fields, map[string]interface{}{"id": id, "tenant_id": tenantID}),
 	)
 	if err != nil {
 		return nil, err
@@ -213,13 +210,13 @@ func (r *Repository) GetExecution(ctx context.Context, tenantID, id string) (*mo
 }
 
 func (r *Repository) UpdateExecution(ctx context.Context, tenantID, id string, fields map[string]interface{}) error {
+	if len(fields) == 0 {
+		return nil
+	}
 	set := buildNamedSet(fields)
 	_, err := r.db.NamedExecContext(ctx,
 		`UPDATE job_action_executions SET `+set+` WHERE id=:id AND tenant_id=:tenant_id`,
-		map[string]interface{}{
-			"id":        id,
-			"tenant_id": tenantID,
-		},
+		namedUpdateArgs(fields, map[string]interface{}{"id": id, "tenant_id": tenantID}),
 	)
 	return err
 }
@@ -240,6 +237,24 @@ func (r *Repository) ListHistory(ctx context.Context, actionID string, limit, of
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
+
+// namedUpdateArgs merges the SET fields with the WHERE-clause keys.
+//
+// The SET clause is generated from the field names, so every field must also be
+// present in the argument map. It used to be called with only the WHERE keys,
+// which made sqlx fail with `could not find name status in map[string]...`
+// before the UPDATE was issued - so every UPDATE in this repository was a no-op
+// that the caller logged and swallowed.
+func namedUpdateArgs(fields, where map[string]interface{}) map[string]interface{} {
+	args := make(map[string]interface{}, len(fields)+len(where))
+	for k, v := range fields {
+		args[k] = v
+	}
+	for k, v := range where {
+		args[k] = v
+	}
+	return args
+}
 
 func buildNamedSet(fields map[string]interface{}) string {
 	var parts []string

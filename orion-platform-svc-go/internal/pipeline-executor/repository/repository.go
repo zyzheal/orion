@@ -158,10 +158,7 @@ func (r *Repository) UpdatePipeline(ctx context.Context, tenantID, id string, fi
 	set := buildNamedSet(fields)
 	_, err := r.db.NamedExecContext(ctx,
 		`UPDATE pipelines SET `+set+` WHERE id=:id AND tenant_id=:tenant_id`,
-		map[string]interface{}{
-			"id":        id,
-			"tenant_id": tenantID,
-		},
+		namedUpdateArgs(fields, map[string]interface{}{"id": id, "tenant_id": tenantID}),
 	)
 	if err != nil {
 		return nil, err
@@ -267,10 +264,7 @@ func (r *Repository) UpdateStep(ctx context.Context, tenantID, stepID string, fi
 	set := buildNamedSet(fields)
 	_, err := r.db.NamedExecContext(ctx,
 		`UPDATE pipeline_steps SET `+set+` WHERE id=:id AND tenant_id=:tenant_id`,
-		map[string]interface{}{
-			"id":        stepID,
-			"tenant_id": tenantID,
-		},
+		namedUpdateArgs(fields, map[string]interface{}{"id": stepID, "tenant_id": tenantID}),
 	)
 	if err != nil {
 		return nil, err
@@ -372,6 +366,24 @@ func (r *Repository) pipelineExists(ctx context.Context, tenantID, pipelineID st
 	var exists bool
 	_ = r.db.GetContext(ctx, &exists, `SELECT EXISTS(SELECT 1 FROM pipelines WHERE id=$1 AND tenant_id=$2)`, pipelineID, tenantID)
 	return exists
+}
+
+// namedUpdateArgs merges the SET fields with the WHERE-clause keys.
+//
+// The SET clause is generated from the field names, so every field must also be
+// present in the argument map. It used to be called with only the WHERE keys,
+// which made sqlx fail with `could not find name status in map[string]...`
+// before the UPDATE was issued - so every UPDATE in this repository was a no-op
+// that the caller logged and swallowed.
+func namedUpdateArgs(fields, where map[string]interface{}) map[string]interface{} {
+	args := make(map[string]interface{}, len(fields)+len(where))
+	for k, v := range fields {
+		args[k] = v
+	}
+	for k, v := range where {
+		args[k] = v
+	}
+	return args
 }
 
 func buildNamedSet(fields map[string]interface{}) string {

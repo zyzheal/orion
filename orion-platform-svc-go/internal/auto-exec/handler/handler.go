@@ -126,8 +126,13 @@ func (h *Handler) RunTask(c *gin.Context) {
 	defer span.End()
 	taskID := c.Param("id")
 	var req models.RunTaskRequest
-	_ = bindJSON(c, &req)
-	task, err := h.svc.ExecuteTask(ctx, taskID, &req)
+	// A malformed body used to be ignored (the error was discarded), which ran
+	// the task with no overrides and reported 200.
+	if err := bindJSON(c, &req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
+		return
+	}
+	task, err := h.svc.ExecuteTask(ctx, tenantID(c), taskID, &req)
 	if err != nil {
 		if stderrors.Is(err, engine.ErrTaskAlreadyRunning) {
 			errors.WriteError(c, errors.ErrConflict, "task is already running", 409)

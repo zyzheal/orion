@@ -80,10 +80,18 @@ import (
 // notification-policy, notification-template, scheduled-notification, webhook.
 // do-not-disturb and channel are wired in wiring-do-not-disturb.go /
 // wiring-channel.go to avoid registering their routes twice.
+// notificationSvc is exposed so the wiring regression tests can prove that a
+// channel dispatcher is attached: without one, SendNotification persists the
+// record, marks it sent and never delivers it.
+var notificationSvc *notification_service.Service
+
 func wireNotificationModules(db *database.DB) {
-	// notification services
+	// notification services. WithDispatcher is mandatory: without it
+	// Service.deliverAsync returns before reaching any channel, so every
+	// notification would be marked sent while never being delivered.
 	notificationRepo := notification_repo.NewRepository(db.DB)
-	notificationSvc := notification_service.NewService(notificationRepo)
+	notificationSvc = notification_service.NewService(notificationRepo).WithDispatcher(
+		notification_service.NewMultiChannelDispatcher(nil))
 	notificationH = notification_handler.NewHandler(notificationSvc)
 
 	// notification-policy services

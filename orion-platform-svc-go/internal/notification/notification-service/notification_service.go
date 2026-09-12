@@ -1,11 +1,16 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"net/smtp"
+	"strconv"
 	"time"
 
 	"orion/go-common/pkg/otel"
@@ -66,6 +71,11 @@ func (s *Service) WithDispatcher(d ChannelDispatcher) *Service {
 	s.dispatcher = d
 	return s
 }
+
+// Dispatcher returns the configured channel dispatcher, or nil when direct
+// delivery is disabled. Exposed so the wiring tests can prove that
+// notifications are actually delivered instead of only being marked sent.
+func (s *Service) Dispatcher() ChannelDispatcher { return s.dispatcher }
 
 // ---- Core Notification Operations ----
 
@@ -491,14 +501,11 @@ func (d *SlackWebhookDispatcher) Dispatch(ctx context.Context, channel models.Ch
 		return fmt.Errorf("failed to marshal slack payload: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", webhookURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "POST", webhookURL, bytes.NewReader(jsonPayload))
 	if err != nil {
 		return fmt.Errorf("failed to create slack request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-
-	// Use a simplified approach - in production, use proper HTTP body
-	_ = jsonPayload
 
 	resp, err := d.HTTPClient.Do(req)
 	if err != nil {
@@ -539,13 +546,11 @@ func (d *WebhookDispatcher) Dispatch(ctx context.Context, channel models.Channel
 		return fmt.Errorf("failed to marshal webhook payload: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", webhookURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "POST", webhookURL, bytes.NewReader(jsonPayload))
 	if err != nil {
 		return fmt.Errorf("failed to create webhook request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	_ = jsonPayload
-
 	resp, err := d.HTTPClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("webhook delivery failed: %w", err)
@@ -589,33 +594,145 @@ func (d *MultiChannelDispatcher) Dispatch(ctx context.Context, channel models.Ch
 	return dispatcher.Dispatch(ctx, channel, recipient, subject, body, config)
 }
 
-// EmailDispatcher queues an email notification via SMTP config.
-// In production this integrates with an SMTP relay; here we log and succeed.
+// EmailDispatcher delivers an email notification over SMTP.
+//
+// Relay settings come from the channel config. The smtp_* keys match the
+// notification-engine email channel; the short host/port/from aliases are
+// accepted for channels created before that naming convention existed.
+// Recognised keys: smtp_host or host (required), smtp_from or from (required),
+// smtp_port or port (default 587), smtp_user / smtp_pass (optional basic
+// auth), smtp_starttls (default false), smtp_insecure_skip_verify (default
+// false).
 type EmailDispatcher struct {
 	HTTPClient *http.Client
+	// dialer overrides the TCP connect used to reach the relay. Nil in
+	// production (net.DialTimeout with 10s); tests point it at a local SMTP
+	// stub so real delivery can be asserted without a relay.
+	dialer func(ctx context.Context, network, addr string) (net.Conn, error)
 }
 
-// Dispatch implements ChannelDispatcher for email channel.
+// Dispatch implements ChannelDispatcher for the email channel.
 func (d *EmailDispatcher) Dispatch(ctx context.Context, channel models.ChannelType, recipient string, subject, body string, config models.JSONB) error {
 	if channel != models.ChannelEmail {
 		return nil
 	}
 
-	host, _ := config["host"].(string)
-	port, _ := config["port"].(float64)
-	from, _ := config["from"].(string)
+	host := jsonbString(config, "smtp_host", "host")
+	if host == "" {
+		return fmt.Errorf("email smtp_host not configured")
+	}
+	from := jsonbString(config, "smtp_from", "from")
+	if from == "" {
+		return fmt.Errorf("email from not configured")
+	}
+	if recipient == "" {
+		return fmt.Errorf("email notification has no recipient")
+	}
+	port := jsonbInt(config, "smtp_port", "port", 587)
+	user := jsonbString(config, "smtp_user", "username")
+	pass := jsonbString(config, "smtp_pass", "password")
+	startTLS := jsonbBool(config, "smtp_starttls", false)
+	insecure := jsonbBool(config, "smtp_insecure_skip_verify", false)
 	messageID := fmt.Sprintf("email-%d-%s", time.Now().UnixNano(), recipient)
 
-	// Log delivery attempt; real SMTP integration would go here.
-	_ = host
-	_ = port
-	_ = from
-	_ = messageID
-	_ = recipient
-	_ = subject
-	_ = body
+	addr := fmt.Sprintf("%s:%d", host, port)
+	dial := d.dialer
+	if dial == nil {
+		dial = func(ctx context.Context, network, a string) (net.Conn, error) {
+			return net.DialTimeout(network, a, 10*time.Second)
+		}
+	}
 
+	conn, err := dial(ctx, "tcp", addr)
+	if err != nil {
+		return fmt.Errorf("email connect to %s failed: %w", addr, err)
+	}
+	defer conn.Close()
+
+	smtpConn, err := smtp.NewClient(conn, host)
+	if err != nil {
+		return fmt.Errorf("email smtp hello failed: %w", err)
+	}
+	defer smtpConn.Close()
+
+	if startTLS {
+		if err := smtpConn.StartTLS(&tls.Config{ServerName: host, InsecureSkipVerify: insecure}); err != nil {
+			return fmt.Errorf("email smtp starttls failed: %w", err)
+		}
+	}
+	if user != "" && pass != "" {
+		if err := smtpConn.Auth(smtp.PlainAuth("", user, pass, host)); err != nil {
+			return fmt.Errorf("email smtp auth failed: %w", err)
+		}
+	}
+	if err := smtpConn.Mail(from); err != nil {
+		return fmt.Errorf("email smtp mail from failed: %w", err)
+	}
+	if err := smtpConn.Rcpt(recipient); err != nil {
+		return fmt.Errorf("email smtp rcpt for %s failed: %w", recipient, err)
+	}
+	w, err := smtpConn.Data()
+	if err != nil {
+		return fmt.Errorf("email smtp data failed: %w", err)
+	}
+	mail := fmt.Sprintf("Message-ID: %s\r\nDate: %s\r\nFrom: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s",
+		messageID, time.Now().UTC().Format(time.RFC1123), from, recipient, subject, body)
+	if _, err := w.Write([]byte(mail)); err != nil {
+		return fmt.Errorf("email write failed: %w", err)
+	}
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("email delivery failed: %w", err)
+	}
+
+	log.Printf("[notification-svc] email %s delivered to %s via %s", messageID, recipient, addr)
 	return nil
+}
+
+// jsonbString returns the first config key that holds a non-empty string.
+func jsonbString(cfg models.JSONB, keys ...string) string {
+	for _, k := range keys {
+		if v, ok := cfg[k].(string); ok && v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// jsonbInt returns the first config key that holds a number, decoded as an
+// int, else the trailing fallback. JSONB values decoded from JSON arrive as
+// float64, so both float64 and int shapes are accepted.
+func jsonbInt(cfg models.JSONB, keys ...interface{}) int {
+	fallback := 0
+	if n, ok := keys[len(keys)-1].(int); ok {
+		fallback = n
+	}
+	for _, k := range keys[:len(keys)-1] {
+		ks, ok := k.(string)
+		if !ok {
+			continue
+		}
+		switch v := cfg[ks].(type) {
+		case float64:
+			return int(v)
+		case int:
+			return v
+		case int64:
+			return int(v)
+		case string:
+			if n, err := strconv.Atoi(v); err == nil {
+				return n
+			}
+		}
+	}
+	return fallback
+}
+
+// jsonbBool returns the config value for key, else the fallback.
+func jsonbBool(cfg models.JSONB, key string, fallback bool) bool {
+	if v, ok := cfg[key].(bool); ok {
+		return v
+	}
+	return fallback
 }
 
 // DingtalkDispatcher delivers messages to Dingtalk via incoming webhook.
@@ -645,13 +762,11 @@ func (d *DingtalkDispatcher) Dispatch(ctx context.Context, channel models.Channe
 		return fmt.Errorf("failed to marshal dingtalk payload: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", webhookURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "POST", webhookURL, bytes.NewReader(jsonPayload))
 	if err != nil {
 		return fmt.Errorf("failed to create dingtalk request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Body = http.NoBody
-	_ = jsonPayload
 
 	resp, err := d.HTTPClient.Do(req)
 	if err != nil {
@@ -692,13 +807,11 @@ func (d *WechatDispatcher) Dispatch(ctx context.Context, channel models.ChannelT
 		return fmt.Errorf("failed to marshal wechat payload: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", webhookURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "POST", webhookURL, bytes.NewReader(jsonPayload))
 	if err != nil {
 		return fmt.Errorf("failed to create wechat request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Body = http.NoBody
-	_ = jsonPayload
 
 	resp, err := d.HTTPClient.Do(req)
 	if err != nil {

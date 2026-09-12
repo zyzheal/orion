@@ -5756,3 +5756,124 @@ M-E 做了**双向**验证：先证明「runner 不注入」被抓，再把旧 s
 - `internal/config/internal/` 4117 行结构性死 fork（Go 的 `internal/` 可见性规则
   使其永远无法被模块其余部分消费）。
 - 跨 stage 的 task outputs 不向下游传播（Round 12 已在 `StageExecutor.go` 留注释）。
+
+---
+
+## 第十四轮：Stub Scan Round 14 — 通知 3 处桩 + auto-exec 5 处缺陷 + 同型 UPDATE 全仓扫描
+
+全新扫描（HEAD 已推进到 `ee4d73d6c`）。本轮共修 **8 处未完成代码**，新增 **15 条回归测试**，
+全部经突变验证证明非空洞。
+
+### 14.1 Finding A — webhook 三个分发器发空 body
+
+`internal/notification/notification-service/notification_service.go` 的 Slack / DingTalk /
+Wechat webhook 分发器构造好 JSON 却从不发送：`http.Post(url, "application/json", nil)` 类写法。
+调用方拿到 200，以为投递成功，实际上收方收到空 body。改为 `bytes.NewReader(jsonPayload)`，
+非 2xx 返回错误。
+
+### 14.2 Finding B — EmailDispatcher 是 stub
+
+`EmailDispatcher` 从不连 SMTP。实现为真实 `net/smtp`：
+`dialer` 钩子（测试可注入）、STARTTLS、可选 basic auth（`smtp_username`/`smtp_password`）、
+`smtp_host`/`smtp_port`/`smtp_from` 及短别名 `host`/`port`/`from`、SMTP 回复码校验
+（认证路径要求 `235 Authentication successful`）。配置缺失或 relay 不可达一律 fail-closed。
+新增 `jsonbString`/`jsonbInt`/`jsonbBool` 处理 JSONB 通知元数据。
+
+### 14.3 Finding C — 接线注入 nil dispatcher
+
+`cmd/server/notification_auth_wiring.go` 原先 `NewMultiChannelDispatcher(nil)` 或直接留空，
+service 有路由但投递永远空转。改为注入真实 `MultiChannelDispatcher`，并新增导出的
+`Service.Dispatcher()` 供接线层与测试观测。
+
+### 14.4 Finding E — ExecuteTask 的租户恒为 "system"（高危，跨租户）
+
+`engine.ExecuteTask` 从 `ctx.Value("tenant_id")` 解析租户。全平台**没有任何地方**
+`context.WithValue(..., "tenant_id", ...)`（真正写入是 gin 的 `c.Set("tenant_id", claims.TenantID)`，
+`orion-go-common/pkg/auth/middleware.go:189`），于是 `tenantID` 恒为 `""` → 回落到 `"system"`：
+
+- 任务查询 `WHERE id=$1 AND tenant_id=$2` 只能命中属于 `"system"` 的任务，
+  在册路由 `POST /tasks/:id/run` **跑不了任何真实租户的任务**；
+- 未认证调用同样落到 `"system"`，可跨租户执行。
+
+改为 handler（`c.GetString("tenant_id")`）→ service → engine 逐层显式透传。
+
+### 14.5 Finding F — CreateTask 丢掉 MaxRetries / Timeout
+
+`service.CreateTask` 只转发 `req.Name`、`req.Plugin`、`req.PluginParams`。repository 的
+`Timeout` 走 `clampInt(req.Timeout, 1, 3600)`，把 0 当成"未设置"clamp 成 **1 秒**；
+`MaxRetries` 的 0 则等于**永不重试**。所以每个创建请求都静默变成
+"1 秒超时、永不重试"的任务。改为整对象透传 `&req`。
+
+同批修掉 `RunTask` 两处：bind 错误原先被丢弃（坏 body 也报 200 并按无覆盖运行），
+`RunTaskRequest.Params` 读完即弃（`_ = req`），per-run 覆盖完全无效。
+
+### 14.6 Finding G — 每个 auto-exec UPDATE 都是静默 no-op（本轮最大）
+
+`repository.UpdateTask` / `UpdatePlugin` 用字段名生成 SET 子句，参数 map 却只带 WHERE 键：
+
+```go
+`UPDATE execution_tasks SET `+set+` WHERE id=:id AND tenant_id=:tenant_id`,
+map[string]interface{}{"id": id, "tenant_id": tenantID},   // 缺 status/updated_at/...
+```
+
+sqlx 在**发起 SQL 之前**就失败：`could not find name status in map[string]interface{}{"id":...}`。
+engine 只 `logger.Error` 并继续 → 后果：
+
+- 任务**永远停在 `pending`**，没有 output、没有 error、没有 finished_at；
+- `PUT /plugins/:id`（唯一在册的 auto-exec 写端点）**恒 500**，插件编辑静默丢失。
+
+新增 `namedUpdateArgs(fields, where)` 合并 SET 字段与 WHERE 键。
+
+### 14.7 同型全仓扫描 — 另外 2 个包同样中招
+
+全仓仅 3 个包定义 `buildNamedSet`；另外两个**同样的缺陷**：
+
+| 包 | 方法 | 后果 |
+|---|---|---|
+| `job-actions` | `UpdateAction`、`UpdateExecution` | `UpdateExecution` 无空 map 守卫，空集产出 `UPDATE ... SET  WHERE` 语法错误；`finalizeExecution` 只 log，**执行记录永远到不了终态** |
+| `pipeline-executor` | `UpdatePipeline`、`UpdateStep` | `PUT /pipelines/:id` 与 `PUT /pipelines/:id/steps/:stepId` **两条在册路由恒 500** |
+
+其余 SET 构造点逐一核对为**位置参数在同一循环内追加**（`$3`,`$4`… 与值同步），无此缺陷：
+`sla-engine`、`data-masking`、`cluster`、`mcp`、`rule-engine`、`sso`、`artifact`、
+`tenant-gateway`、`cache-mgmt`。
+
+### 14.8 突变验证（9/9，非空洞证明）
+
+| # | 回退 | 期望失败 |
+|---|---|---|
+| N4 | `service.CreateTask` 改回字段挑选 | `stored MaxRetries = 0, want 7` |
+| N5 | engine 恢复 `ctx.Value("tenant_id")` / `"system"` | `argument 1 expected [tenant-a] does not match actual [system]` |
+| N6 | `namedUpdateArgs` 回退为仅 WHERE 键 | 复现原始 `could not find name status in map[...]` |
+| N7 | engine 丢弃 `paramOverrides` | `override env = "dev", want prod` |
+| N8/N9 | 两个新包回退为仅 WHERE 键 | 5 条测试失败（`retry_count` / `error` / `name` / `config`） |
+
+空 map 守卫亦有覆盖：N8 突变下 `TestUpdateExecutionWithNoFieldsIsANoOp` 报出
+`call to ExecQuery 'UPDATE job_action_executions SET  WHERE ...'`，直接证明语法错误路径。
+
+### 14.9 测试与验证
+
+新增：`internal/auto-exec/service/service_test.go`（3）、`internal/auto-exec/repository/repository_test.go`
+（4）、`internal/job-actions/repository/repository_test.go`（4）、
+`internal/pipeline-executor/repository/repository_test.go`（5）、
+`internal/notification/notification-service/dispatcher_test.go`（11）、
+`cmd/server` 接线测试（2）。全部 sqlmock 按**真实 SQL 顺序**排期
+（`ExecuteTask` 实际是 SELECT→UPDATE→SELECT→UPDATE→SELECT→INSERT 六连），
+并记录一条 sqlmock 陷阱：**乱序匹配不区分语句类型** —— 模式相同的多个期望会被
+SELECT 或 Exec 交叉消费，必须按真实调用顺序 + 可区分模式排期。
+
+`go build ./...` 干净；`go vet -overlay` 仅剩并行 agent 遗留的 `internal/backup/service`
+缺包；四域 `go test -count=1` 全绿；`cmd/server` 接线测试全绿；改动文件 `gofmt` 干净。
+
+### 14.10 仍未解决（跨轮遗留 + 本轮新增记录）
+
+- auto-exec **7 个 handler 方法无路由**（`/tasks`、`/plugins/:id` 命名空间与
+  `internal/ai/intelligence`、`internal/ci-cd/runner`、pluginH 的 `GET /plugins/:id` 冲突，
+  属 API 设计而非补桩），补路由前**没有 HTTP 路径可以创建任务**。
+- `internal/execution-mode-engine/engine/engine.go:203` 同样读 `ctx.Value("tenant_id")`，
+  但有 `if t, ok := ...; ok && t != ""` 守卫，风险低一档，未动。
+- JWT 密钥轮换**完全不存在**；SMTP / SMS 外部凭证待运维提供。
+- 剩余约 235 个传递性死包按域分批清理（并行 agent 正在进行）。
+- `internal/config/internal/` 4117 行结构性死 fork。
+- 跨 stage 的 task outputs 不向下游传播。
+- 134 个 `internal/*/handler/handler_test.go` 含未解决冲突标记（并行 agent 的树），
+  本轮全程用 `-overlay /tmp/orion_overlay.json` 绕过。

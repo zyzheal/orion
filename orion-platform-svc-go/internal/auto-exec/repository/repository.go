@@ -153,10 +153,7 @@ func (r *Repository) UpdateTask(ctx context.Context, tenantID, id string, fields
 	set := buildNamedSet(fields)
 	_, err := r.db.NamedExecContext(ctx,
 		`UPDATE execution_tasks SET `+set+` WHERE id=:id AND tenant_id=:tenant_id`,
-		map[string]interface{}{
-			"id":        id,
-			"tenant_id": tenantID,
-		},
+		namedUpdateArgs(fields, map[string]interface{}{"id": id, "tenant_id": tenantID}),
 	)
 	if err != nil {
 		return nil, err
@@ -320,10 +317,7 @@ func (r *Repository) UpdatePlugin(ctx context.Context, tenantID, name string, fi
 	set := buildNamedSet(fields)
 	_, err := r.db.NamedExecContext(ctx,
 		`UPDATE plugin_spi SET `+set+` WHERE name=:name AND tenant_id=:tenant_id`,
-		map[string]interface{}{
-			"name":      name,
-			"tenant_id": tenantID,
-		},
+		namedUpdateArgs(fields, map[string]interface{}{"name": name, "tenant_id": tenantID}),
 	)
 	if err != nil {
 		return nil, err
@@ -342,6 +336,24 @@ func buildNamedSet(fields map[string]interface{}) string {
 		parts = append(parts, fmt.Sprintf("%s=:%s", k, k))
 	}
 	return joinStrings(parts, ", ")
+}
+
+// namedUpdateArgs merges the SET fields with the WHERE-clause keys.
+//
+// The SET clause is generated from the field names, so every field must also be
+// present in the argument map. It used to be called with only the WHERE keys,
+// which made sqlx fail with `could not find name status in map[string]...` —
+// so every UPDATE in this repository was a no-op that the engine logged and
+// swallowed: tasks never left "pending" and plugin edits were silently lost.
+func namedUpdateArgs(fields, where map[string]interface{}) map[string]interface{} {
+	args := make(map[string]interface{}, len(fields)+len(where))
+	for k, v := range fields {
+		args[k] = v
+	}
+	for k, v := range where {
+		args[k] = v
+	}
+	return args
 }
 
 func buildTaskQueries(status, tenantID string, limit, offset int) (string, string, []interface{}, []interface{}) {

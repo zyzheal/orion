@@ -15,7 +15,7 @@ type ServiceInterface interface {
 	GetTask(ctx context.Context, tenantID string, id string) (*models.ExecutionTask, error)
 	ListTasks(ctx context.Context, tenantID string, status string, limit, offset int) (*models.TaskListResponse, error)
 	DeleteTask(ctx context.Context, tenantID string, id string) error
-	ExecuteTask(ctx context.Context, taskID string, req *models.RunTaskRequest) (*models.ExecutionTask, error)
+	ExecuteTask(ctx context.Context, tenantID, taskID string, req *models.RunTaskRequest) (*models.ExecutionTask, error)
 	GetHistory(ctx context.Context, tenantID string, taskID string, limit, offset int) (*models.HistoryListResponse, error)
 
 	RegisterPlugin(ctx context.Context, tenantID string, req models.RegisterPluginRequest) (*models.PluginSPI, error)

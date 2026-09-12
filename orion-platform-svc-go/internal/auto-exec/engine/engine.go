@@ -76,23 +76,30 @@ func (e *AutoExecEngine) ListPlugins() []models.PluginSPI {
 // CreateTask
 // ---------------------------------------------------------------------------
 
-func (e *AutoExecEngine) CreateTask(ctx context.Context, tenantID string, name, plugin string, params map[string]string) (*models.ExecutionTask, error) {
+// CreateTask persists a new execution task.
+//
+// The full request is forwarded, not just its name/plugin/params: silently
+// dropping MaxRetries and Timeout would store a task the engine later runs
+// with MaxRetries=0 and a 1-second timeout, because the repository clamps a
+// zero timeout into [1, 3600] instead of treating it as "unset".
+func (e *AutoExecEngine) CreateTask(ctx context.Context, tenantID string, req *models.CreateTaskRequest) (*models.ExecutionTask, error) {
+	if req == nil {
+		return nil, errors.New("create task request is nil")
+	}
 	// Validate plugin exists
-	if _, ok := e.plugins[plugin]; !ok {
-		return nil, fmt.Errorf("plugin not registered: %s", plugin)
+	if _, ok := e.plugins[req.Plugin]; !ok {
+		return nil, fmt.Errorf("plugin not registered: %s", req.Plugin)
 	}
 
-	req := &models.CreateTaskRequest{
-		Name:         name,
-		Type:         "plugin",
-		Plugin:       plugin,
-		PluginParams: params,
+	if req.Type == "" {
+		req.Type = "plugin"
 	}
 	task, err := e.repo.CreateTask(ctx, tenantID, req)
 	if err != nil {
+		// req, not task: the repository returns nil on error.
 		e.logger.Error("failed to create task",
-			zap.String("name", name),
-			zap.String("plugin", plugin),
+			zap.String("name", req.Name),
+			zap.String("plugin", req.Plugin),
 			zap.Error(err),
 		)
 		return nil, err
@@ -100,7 +107,7 @@ func (e *AutoExecEngine) CreateTask(ctx context.Context, tenantID string, name, 
 	e.logger.Info("task created",
 		zap.String("taskId", task.ID),
 		zap.String("name", task.Name),
-		zap.String("plugin", plugin),
+		zap.String("plugin", task.Plugin),
 	)
 	return task, nil
 }
@@ -109,13 +116,14 @@ func (e *AutoExecEngine) CreateTask(ctx context.Context, tenantID string, name, 
 // ExecuteTask — run a task with retry, timeout, and history logging
 // ---------------------------------------------------------------------------
 
-func (e *AutoExecEngine) ExecuteTask(ctx context.Context, taskID string) (*models.ExecutionTask, error) {
-	// Resolve tenant from context (set by auth middleware)
-	tenantID, _ := ctx.Value("tenant_id").(string)
-	if tenantID == "" {
-		tenantID = "system"
-	}
-
+// ExecuteTask runs a task with retry, timeout, and history logging.
+//
+// tenantID is passed by the caller (the handler, which reads it from the JWT
+// middleware). It was once resolved from ctx.Value("tenant_id"), a key nothing
+// in the platform ever sets, so every execution ran under tenant "system": the
+// task lookup could only find tasks owned by "system" and an unauthenticated
+// call would cross tenant boundaries.
+func (e *AutoExecEngine) ExecuteTask(ctx context.Context, tenantID, taskID string, paramOverrides map[string]string) (*models.ExecutionTask, error) {
 	// Load task
 	task, err := e.repo.GetTask(ctx, tenantID, taskID)
 	if err != nil {
@@ -143,11 +151,21 @@ func (e *AutoExecEngine) ExecuteTask(ctx context.Context, taskID string) (*model
 		return task, ErrPluginNotRegistered
 	}
 
-	// Build runtime params
+	// Build runtime params. ParamOverrides carries the per-run overrides sent
+	// in POST /tasks/:id/run; without the merge below the request body was read
+	// and then discarded, so the advertised override had no effect.
 	params := make(map[string]string)
 	if task.PluginParams != "" {
 		if jerr := json.Unmarshal([]byte(task.PluginParams), &params); jerr != nil {
 			e.logger.Warn("invalid plugin_params JSON", zap.Error(jerr))
+		}
+	}
+	if len(paramOverrides) > 0 {
+		if params == nil {
+			params = make(map[string]string)
+		}
+		for k, v := range paramOverrides {
+			params[k] = v
 		}
 	}
 

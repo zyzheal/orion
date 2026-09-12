@@ -31,7 +31,10 @@ func NewService(eng *engine.AutoExecEngine, repo *repository.Repository) *Servic
 // ---- Tasks ----
 
 func (s *Service) CreateTask(ctx context.Context, tenantID string, req models.CreateTaskRequest) (*models.ExecutionTask, error) {
-	return s.eng.CreateTask(ctx, tenantID, req.Name, req.Plugin, req.PluginParams)
+	// Forward the whole request: picking out individual fields dropped
+	// MaxRetries and Timeout, which the repository then clamped into a 1-second,
+	// never-retrying task.
+	return s.eng.CreateTask(ctx, tenantID, &req)
 }
 
 func (s *Service) GetTask(ctx context.Context, tenantID string, id string) (*models.ExecutionTask, error) {
@@ -46,10 +49,12 @@ func (s *Service) DeleteTask(ctx context.Context, tenantID string, id string) er
 	return s.repo.DeleteTask(ctx, tenantID, id)
 }
 
-func (s *Service) ExecuteTask(ctx context.Context, taskID string, req *models.RunTaskRequest) (*models.ExecutionTask, error) {
-	// Validate request params if provided; engine.ExecuteTask only uses taskID
-	_ = req // req reserved for future validation; currently engine.ExecuteTask ignores body
-	return s.eng.ExecuteTask(ctx, taskID)
+func (s *Service) ExecuteTask(ctx context.Context, tenantID, taskID string, req *models.RunTaskRequest) (*models.ExecutionTask, error) {
+	var paramOverrides map[string]string
+	if req != nil {
+		paramOverrides = req.Params
+	}
+	return s.eng.ExecuteTask(ctx, tenantID, taskID, paramOverrides)
 }
 
 func (s *Service) GetHistory(ctx context.Context, tenantID string, taskID string, limit, offset int) (*models.HistoryListResponse, error) {
