@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"errors"
+	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -14,6 +17,33 @@ import (
 type Handler struct{ factory *service.NotificationFactory }
 
 func NewHandler(factory *service.NotificationFactory) *Handler { return &Handler{factory: factory} }
+
+// Channels returns the channel types this handler can actually dispatch on.
+// Callers can compare it against models.ValidChannels to see which advertised
+// channels have no implementation yet.
+func (h *Handler) Channels() []string { return h.factory.RegisteredChannels() }
+
+// sendErrorStatus maps a factory error to the status it deserves. An
+// unimplemented channel, a disabled adapter and a cross-tenant adapter ID are
+// caller/ops mistakes, not internal failures — 500s for them hide the real
+// problem behind a retry storm.
+func sendErrorStatus(err error) int {
+	if errors.Is(err, service.ErrNoHandler) ||
+		errors.Is(err, service.ErrAdapterDisabled) ||
+		errors.Is(err, service.ErrTenantMismatch) {
+		return http.StatusBadRequest
+	}
+	return http.StatusInternalServerError
+}
+
+// noHandlerMessage adds the live channel list to the ErrNoHandler error so an
+// operator sees what to configure instead of guessing.
+func noHandlerMessage(err error, live []string) string {
+	if !errors.Is(err, service.ErrNoHandler) {
+		return err.Error()
+	}
+	return err.Error() + " (live channels: " + strings.Join(live, ", ") + ")"
+}
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	g := rg.Group("/alert-adapters/v2")
@@ -148,7 +178,7 @@ func (h *Handler) SendNotification(c *gin.Context) {
 	}
 	ev, err := h.factory.SendNotification(ctx, c.GetString("tenant_id"), c.Param("id"), req.TemplateID, req.AlertID, req.Variables)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		c.JSON(sendErrorStatus(err), gin.H{"error": noHandlerMessage(err, h.Channels())})
 		return
 	}
 	middleware.RespondSuccess(c, ev)

@@ -5140,3 +5140,100 @@ NATS 订阅者按事件名在运行时驱动，静态 import 分析天然看不�
   factory.go 错误链 `%w:%v`→`%w:%w` 与 repository.go nil 指针 panic 两个活缺陷）：
   ✅ `511e4e31b`
 - **待办**：步骤 4 收尾（剩余 477 个死包按域分批）
+
+## 第十一轮：Stub Scan Round 11 — 步骤 6 接线回归护栏 + 发送错误语义修正
+
+### 11.1 缺口：单元层证据 ≠ 接线证据
+
+步骤 6 主体（commit `511e4e31b`）已经实现了 4 处发送桩并注册了 11 个 live handler，
+但当时的验证全部是**单元层**的：
+
+- `handlers/live_test.go` 证明 `RegisterLiveHandlers` **会**注册 11 个频道；
+- `factory_test.go` 证明 `SendNotification` **会**初始化 handler 并传递配置。
+
+**没有任何一条测试证明生产接线真的调用了 `RegisterLiveHandlers`。** 把
+`cmd/server/wiring-wave4-unwired.go` 里那一行删掉，`go build` / `go vet` /
+`go test ./...` 全套仍然全绿——这是真空洞。后果不是编译失败，而是运行时
+`/alert-adapters/v2` 路由在线但永远无法投递：`CreateAdapter` 一律报
+"invalid notification channel"，`SendNotification` 一律报 `ErrNoHandler`。
+
+这正是本项目反复出现的失败模式：**路由注册了、handler 实现了、接线漏了一行，
+静态分析全部无感**。
+
+### 11.2 修复
+
+**A. 接线回归护栏** — `cmd/server/wiring_alert_adapter_v2_test.go`（新增）
+
+复用 `boot_test.go` 已有的 `stubDriver` / `stubConnector` / `stubInfrastructure`
+（`sql.OpenDB` 绑失败驱动，零网络 I/O、零真实依赖），直接调用
+`wireAlertAdapterV2(infra.db, logger)`，然后断言：
+
+1. `alertAdapterV2H` 非 nil；
+2. `alertAdapterV2H.Channels()` 非空；
+3. 实际注册集合与 `handlers.LiveChannels` **双向**相等（多注册、漏注册都能抓到）；
+4. `StubbyChannels`（push / kafka）与 `HandlerlessChannels`（phone / rabbitmq）
+   一个都不在 live 集合里。
+
+**B. 只读 introspection 访问器** — `handler.Handler.Channels()`
+
+`alertAdapterV2H` 的 `factory` 字段是私有的，测试无法直接看注册表。加一个只读
+委托方法 `Channels() []string { return h.factory.RegisteredChannels() }`。
+它是**测试与生产共用**的：见下一条。
+
+**C. 发送错误语义修正（顺带修掉一个真实缺陷）**
+
+`handler.SendNotification` 原先把 `factory.SendNotification` 的**所有**错误都
+用 `RespondInternalError` 返回 500。但其中三类根本不是内部故障：
+
+| 错误 | 性质 | 原先 | 现在 |
+|------|------|------|------|
+| `ErrNoHandler` | 频道未实现（运维/调用方配置问题） | 500 | 400 + live 频道清单 |
+| `ErrAdapterDisabled` | 适配器被禁用（调用方传错 ID 或状态） | 500 | 400 |
+| `ErrTenantMismatch` | 跨租户 adapter ID | 500 | 400 |
+
+500 会给上游重试风暴一个错误信号，也把真因埋在"内部错误"里。新增
+`sendErrorStatus(err)` 做映射，`noHandlerMessage(err, live)` 在报错里附上 live
+频道清单，让运维直接知道该配什么而不是猜。
+
+### 11.3 突变验证（非空洞证明）
+
+把三个缺陷分别回灌，确认新测试**真的会失败**：
+
+| 突变 | 回灌内容 | 失败数 | 失败信息 |
+|------|---------|--------|---------|
+| A1 | 删掉 `SendNotification` 里的 `parseConfig` + `Initialize`（即修复前的原始代码） | **3** | `handler was initialised 0 times, want exactly 1` / `want 2` / `want 3` |
+| A2 | `getHandler` 退回只查 `handlers` 单例注册表，丢弃 `ctors` 查找 | **2** | `no handler registered for channel: email`（单例表为空，构造器注册的频道直接不可达） |
+| A3 | 删掉 `wireAlertAdapterV2` 里的 `aa2_handlers.RegisterLiveHandlers(factory)` | **1** | `the wired factory has no handlers: /alert-adapters/v2 could never deliver` |
+
+A2 有个值得记的细节：`TestSharedSingletonAccumulatesOtherAdaptersConfig` 在 A2 下
+**仍然通过**，因为它是用 `Register`（单例路径）注册的，本来就该走单例。这不是测试
+失效，而是它恰好证明了单例路径本身没坏——两个路径各自的测试各自负责。
+
+三处突变均从 `/tmp/mutA/*.good` 还原后复跑全绿，工作树与 HEAD 一致（`git diff` 为空）。
+
+### 11.4 验证
+
+- `go build ./...` EXIT=0
+- `go vet ./internal/... ./cmd/...` EXIT=0 / 0 行
+- `go test -count=1 ./...` EXIT=0，**0 FAIL / 564 个 ok 包**（较步骤 6 的 562+ 增加，
+  含新增 `cmd/server` 接线测试）
+
+### 11.5 注意：`cmd/server` 被 gitignore 但仍需 `git add -f`
+
+`orion-platform-svc-go/.gitignore:6` 是 `cmd/server`，**整目录被忽略**。但目录内
+68 个文件历史上是强制跟踪的——`cmd/server/wiring-wave4-unwired.go` 本身就带着本轮
+之前的修改进了 `511e4e31b`。
+
+因此新增的 `wiring_alert_adapter_v2_test.go` **必须**用 `git add -f` 才会进版本库。
+不加的话工作区看起来干干净净、`git status` 无输出，实际代码根本没提交。
+
+### 累计进度（更新）
+
+- **步骤 6**（4 处 SMTP/SMS 发送桩全部实现 + `excelize` 依赖修正为 direct；顺带修复
+  factory.go 错误链 `%w:%v`→`%w:%w` 与 repository.go nil 指针 panic 两个活缺陷）：
+  ✅ `511e4e31b` + docs `852e59ef0`
+- **步骤 6 收尾 / Round 11**（接线回归护栏 `wiring_alert_adapter_v2_test.go` +
+  `Handler.Channels()` introspection + `ErrNoHandler`/`ErrAdapterDisabled`/
+  `ErrTenantMismatch` 由 500 改 400 并附 live 频道清单；A1/A2/A3 三个突变分别
+  触发 3/2/1 个测试失败，证明测试非空洞）：✅ 本批
+- **待办**：步骤 4 收尾（剩余 477 个死包按域分批）
