@@ -140,6 +140,13 @@ type WorkflowInstance struct {
 	UpdatedAt            time.Time      `db:"updated_at" json:"updated_at"`
 }
 
+// TerminateWorkflowResult reports what a workflow termination did: the disabled
+// definition and how many running instances were cancelled.
+type TerminateWorkflowResult struct {
+	Definition *WorkflowDefinition `json:"definition"`
+	Cancelled  int64               `json:"cancelled_instances"`
+}
+
 type CreateInstanceRequest struct {
 	TriggeredBy  string                 `json:"triggered_by"`
 	InitialInput map[string]interface{} `json:"initialInput"`

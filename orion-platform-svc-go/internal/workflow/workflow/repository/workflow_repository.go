@@ -173,6 +173,23 @@ func (r *Repository) ListInstancesByWorkflow(ctx context.Context, workflowID str
 	return items, err
 }
 
+// CancelRunningInstances moves every non-terminal instance of the workflow to
+// "cancelled" and returns how many were affected. The table defaults new rows to
+// 'pending' even though the model has no such constant, so that state is covered
+// explicitly.
+func (r *Repository) CancelRunningInstances(ctx context.Context, tenantID, workflowID string) (int64, error) {
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE workflow_instances SET status=$1, updated_at=NOW()
+		 WHERE workflow_id=$2 AND tenant_id=$3 AND status IN ($4,$5,$6)`,
+		models.InstanceCancelled, workflowID, tenantID,
+		models.InstanceRunning, models.InstancePaused, "pending",
+	)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 func (r *Repository) GetInstanceByID(ctx context.Context, id string) (*models.WorkflowInstance, error) {
 	var inst models.WorkflowInstance
 	err := r.db.GetContext(ctx, &inst, `SELECT * FROM workflow_instances WHERE id=$1`, id)

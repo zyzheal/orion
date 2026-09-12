@@ -141,6 +141,28 @@ func (s *Service) DeleteDefinition(ctx context.Context, tenantID, id string) err
 	return s.repo.DeleteDefinition(ctx, tenantID, id)
 }
 
+// Terminate cancels every live instance of the workflow and disables the
+// definition so its triggers stop firing. The definition is loaded first so a
+// wrong or foreign id is a 404 instead of a silent success, and the cancellation
+// runs before the disable so a cancelled instance can never be resurrected by a
+// trigger that fires in between.
+func (s *Service) Terminate(ctx context.Context, tenantID, id string) (*models.TerminateWorkflowResult, error) {
+	if _, err := s.repo.GetDefinitionByID(ctx, tenantID, id); err != nil {
+		return nil, ErrWorkflowNotFound
+	}
+
+	cancelled, err := s.repo.CancelRunningInstances(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+
+	def, err := s.repo.UpdateDefinition(ctx, tenantID, id, map[string]interface{}{"enabled": false})
+	if err != nil {
+		return nil, err
+	}
+	return &models.TerminateWorkflowResult{Definition: def, Cancelled: cancelled}, nil
+}
+
 // ====== Workflow Instance ======
 
 func (s *Service) CreateInstance(ctx context.Context, tenantID, definitionID string, req *models.CreateInstanceRequest) (*models.WorkflowInstance, error) {

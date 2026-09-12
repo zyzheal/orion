@@ -135,9 +135,23 @@ func (h *ExtraHandler) Resume(c *gin.Context) {
 	respondSuccess(c, def)
 }
 
-// Terminate — no-op for now (placeholder)
+// Terminate — cancel the live instances and disable the definition.
+//
+// It used to answer `{"message":"terminated"}` without doing anything: it never
+// read the path parameter or the tenant, so the endpoint reported success while
+// the workflow kept running and kept firing its triggers.
 func (h *ExtraHandler) Terminate(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "WorkflowEngineTerminate")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "WorkflowEngineTerminate")
 	defer span.End()
-	respondSuccess(c, gin.H{"message": "terminated"})
+	tenantID := c.GetString("tenantID")
+	if tenantID == "" {
+		tenantID = c.GetString("tenant_id")
+	}
+	id := c.Param("id")
+	result, err := h.svc.Terminate(ctx, tenantID, id)
+	if err != nil {
+		respondNotFound(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
 }

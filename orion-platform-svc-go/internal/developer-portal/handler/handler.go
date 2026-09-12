@@ -456,7 +456,6 @@ func (h *Handler) RejectReview(c *gin.Context) {
 		Reason string `json:"reason"`
 	}
 	c.ShouldBindJSON(&req)
-	_ = req
 	doc, err := h.svc.RejectReview(ctx, tenantID, id, userId, req.Reason)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())

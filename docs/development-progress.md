@@ -5877,3 +5877,166 @@ SELECT 或 Exec 交叉消费，必须按真实调用顺序 + 可区分模式排�
 - 跨 stage 的 task outputs 不向下游传播。
 - 134 个 `internal/*/handler/handler_test.go` 含未解决冲突标记（并行 agent 的树），
   本轮全程用 `-overlay /tmp/orion_overlay.json` 绕过。
+
+## 第十五轮：Stub Scan Round 15 — incident 知识推荐 + workflow 终止
+
+全新扫描（HEAD 已推进到 `0f7d45cd2`）。本轮共修 **2 处在册桩 + 2 处陈旧代码**，
+新增 **8 条回归测试**（仓库 3 + 服务 3 + HTTP 2），两处桩均经突变验证证明非空洞。
+
+### 15.1 Finding A — incident 知识推荐是硬编码空返回（含租户越权）
+
+`internal/incident/repository.GetKnowledgeRecommendations` 挂在 `GET /:id/knowledge`
+（`incident/handler` → `incident/service` → repo）背后无条件
+`return []models.KnowledgeRecommendation{}, nil`，而且**完全不读 `incidentID` 和
+`tenantID`**。两个问题叠在一起：
+
+1. 端点永远返回空数组 —— 前端「相关知识」面板永远是空的；
+2. 一个租户作用域端点**没有任何归属校验**，谁调用都成功。
+
+实现（保持签名不变，handler / service / 接口层零改动）：
+
+- `GetByID` 载入事件；不存在时 `errors.Is(err, sql.ErrNoRows)` → `incident not found`，
+  不再让别人的 id 静默返回空。
+- `knowledgeTerms(inc)` 从 `Service` / `Environment` / `Type` / **`Tags`** / `Title` /
+  `AffectedServices` 派生检索词。分词器 `incidentTokens` 保留 `-` 与 `_`（`api-gateway`
+  不会被拆成 `api` + `gateway`，那会把检索词数从 8 撑到 10、直接破坏 ILIKE 参数个数）。
+  小写、去首尾 `-`/`_`、长度 ≥ 3、去重、**最长优先**、上限 `knowledgeMaxTerms=12`，
+  最后按字典序排稳（参数顺序确定，测试才能钉死 `WithArgs`）。
+- **`Tags` 而不是 `TagsRaw`**：模型里 `TagsRaw []string` 带 `db:"tags_raw"` 但
+  **DDL 里根本没有这一列**，只有 `tags JSONB` 被读进 `Tags string`。原先唯一依赖
+  `TagsRaw` 的代码路径等于永远拿到 nil。所以这里走 `incidentTokens(inc.Tags)`，
+  `TagsRaw` 也一并兜住（调用方可能在内存里预解析）。
+- 查询 `kb_docs`（只读跨模块查询，沿用 chatops 的先例），`tenant_id` +
+  `status='published'` + 一个 OR 链 `ILIKE`，预取 `min(limit×10, 200)` 行。
+- Go 侧覆盖度打分 `knowledgeRelevance`：标题命中 +0.5、正文命中 +1.0，除以满分并归一到
+  0..1（四位小数），零命中过滤掉。稳定排序后截断到 limit（默认 5、上限 50）。
+- `knowledgeSnippet`：空白归一 + 160 字截断，作为 recommendation 的 description。
+
+**刻意不用 `similarity()`**：`pg_trgm` 扩展没有任何迁移创建，而同模块
+`knowledge.Repository.Retrieve` 的 `ORDER BY similarity(content,$N)` 在线上必然报
+「function similarity(text, text) does not exist」。这是既有 bug，本轮只记录不修 ——
+新知识检索代码不走它。
+
+测试 `internal/incident/repository/repository_test.go`（12 条）：ranked 返回
+（8 个检索词 + `WithArgs` 钉死 9 个参数 + 期望 ID 顺序 `doc-1,doc-2,doc-3` +
+相关性 0.2917 / 0.125 / 0.0833 ±1e-4）、未知事件返回 not found 且只发 1 条 SQL、
+DB 错误上抛、零检索词不发文档查询、limit 生效、limit 钳制（0/-7/100000 → 50/50/200）、
+`knowledgeTerms` 的词源与上限、短词与空输入拒绝、JSON 数组分词保留连字符、
+相关性标题权重高于正文、snippet 截断。
+
+**突变验证**：回灌 `return []models.KnowledgeRecommendation{}, nil` → **8 条断言失败**。
+（第一次尝试回灌时把 `math`/`sort` 也删了，那些 helper 还在用，直接编译失败，证明的是
+编译期而非断言期；第二次只回灌桩本体，拿到 8 条断言级失败。）
+
+### 15.2 Finding B — workflow Terminate 是不读参数的 no-op
+
+`internal/workflow/workflow/handler/handler_extra.go` 的 `Terminate` 原来是
+`respondSuccess(c, gin.H{"message": "terminated"})` —— **不读 path 参数，也不读租户**。
+`POST /workflows/:id/terminate` 挂在 `RegisterRoutes` 上，恒 200，而 workflow 继续跑、
+触发器继续发。前端 `orion-frontend/src/api/workflow.ts` 的 `terminateWorkflow` 自己也是
+桩（注释「后端暂无 terminate 端点，预留接口」），所以**没有任何响应契约要兼容**。
+
+实现沿用同模块 `Pause` / `Resume` 的约定：
+
+```go
+func (s *Service) Terminate(ctx, tenantID, id) (*models.TerminateWorkflowResult, error) {
+    if _, err := s.repo.GetDefinitionByID(ctx, tenantID, id); err != nil {
+        return nil, ErrWorkflowNotFound          // 别人的 id 是 404，不是「成功」
+    }
+    cancelled, err := s.repo.CancelRunningInstances(ctx, tenantID, id)
+    if err != nil { return nil, err }
+    def, err := s.repo.UpdateDefinition(ctx, tenantID, id, map[string]interface{}{"enabled": false})
+    if err != nil { return nil, err }
+    return &models.TerminateWorkflowResult{Definition: def, Cancelled: cancelled}, nil
+}
+```
+
+两个刻意之处：
+
+- **状态集是 `running` / `paused` 外加 `"pending"`**。`workflow_instances` 的 DDL 把新行
+  默认成 `'pending'`，但 `models` 里**没有这个常量**。只写 `InstanceRunning` +
+  `InstancePaused` 就永远取消不掉刚创建的实例。
+- **先取消、后禁用**。反过来会让「取消过程中被触发器新建的实例」活下来 —— 定义还开着，
+  触发器还能发，新建的实例不在刚才那次 UPDATE 的扫描范围内。
+
+`CancelRunningInstances` 返回 `RowsAffected()`，所以响应体 `cancelled_instances` 是真数。
+
+测试三层：
+
+- 仓库 3 条（`workflow_repository_test.go`）：只取消 live 三态（`ExpectExec` 用
+  `WithArgs(models.InstanceCancelled, "wf-1", "tenant-a", models.InstanceRunning,
+  models.InstancePaused, "pending")` + `NewResult(0, 3)` 断言 3）、全终态返回 0、
+  DB 错误上抛且返回 0。
+- 服务 3 条（`workflow_service_terminate_test.go`）：完整终止（`Cancelled == 3` 且
+  `Definition.Enabled == false`）、定义缺失 → `ErrWorkflowNotFound` 且**不发后续 SQL**、
+  取消失败即中止（禁用 UPDATE 未发出）。
+- HTTP 2 条（`handler_extra_test.go`）：200 + body 含 `"cancelled_instances":3` 与
+  `"enabled":false`；未知 id → 404。
+
+两个踩到的坑，值得记下来：
+
+- **sqlmock 对具名 string 类型的参数匹配**：`driver.DefaultParameterConverter` 拒绝
+  `InstanceStatus` 这类具名类型（`unsupported type`），于是 sqlmock 回退到
+  `satisfyUsingReflect` = `reflect.DeepEqual`。而
+  `reflect.DeepEqual(models.InstanceCancelled, "cancelled")` 是 **false**。所以期望侧必须
+  写同一个具名常量，写字符串字面量就匹配不上。
+- **`sqlmock.NewRows.AddRow` 不做类型转换**：mock 把 `driver.Value` 原样交给 `Scan`，
+  所以时间戳必须传 `time.Time`，传 RFC3339 字符串会直接
+  `unsupported Scan, storing driver.Value type string into type *time.Time`。
+  `models.JSONB` 是 `map[string]interface{}`，DDL 默认值是 `'[]'`（JSON 数组）会解析失败，
+  测试行里必须给对象 JSON 字符串。
+
+handler 测试**不走 `RegisterRoutes`**（会套上真实 `auth.RequirePermission`），而是
+`gin.CreateTestContext(httptest.NewRecorder())` 直调 `h.Terminate(c)`，手工填
+`c.Params = gin.Params{{Key:"id", Value:"wf-1"}}` 与 `c.Set("tenant_id","tenant-a")`。
+注意这个 gin 版本（v1.10.0）的 `CreateTestContext` 返回 **两个**值 `(c, engine)`。
+
+**突变验证**：把 handler 回灌成原来的 `gin.H{"message":"terminated"}` → **4 条断言失败**
+（3 条 body 断言 + 1 条 404），且 sqlmock 期望**全部未被消费**，精确证明旧实现一条 SQL
+都没发。
+
+（回灌时第一次用 `defer span.End()` 当锚点，误命中了 `Pause` —— 它的 body 也是
+`defer span.End()` 紧跟 `tenantID := c.GetString("tenantID")`。改成用函数签名做锚点。）
+
+### 15.3 顺带清理
+
+- `internal/branch-policy/service/service.go` 的 R6 摘要注释陈旧：写着
+  「placeholder until a migration-aware check lands; always passes with a warning」，
+  实际 R6 早已由 `cmd/server/wiring-core-domains.go` 的
+  `WithSchemaChecker(NewMigrationChecksumChecker(repo, 0))` 接上真实 checker，严重级
+  **Blocking**（降级路径仅在未接线时生效）。注释改成描述现状。
+- `internal/developer-portal/handler/handler.go` 的 `RejectReview` 里 `_ = req` 是死丢弃
+  （下一行就在用 `req.Reason`），删除。
+
+### 15.4 测试与验证
+
+- `go build ./...` 干净（除并行 agent 遗留的 134 个 merge-conflict 测试文件）。
+- `go vet -overlay /tmp/orion_overlay.json ./...` 仅剩遗留的 `internal/backup/service`
+  缺包。
+- incident / workflow / developer-portal 三域 + `branch-policy/service`
+  `go test -count=1` 全绿；`go test -overlay ./cmd/server/` 全绿。
+- 本轮改动文件 `gofmt` 干净。`branch-policy/service/service.go` 在改动**前**就已
+  gofmt 不干净（行 237 的 map 对齐），用 `gofmt 前版本` 与 `gofmt 后版本` 比对确认
+  差异只有本轮那 3 行注释，非本轮引入。
+
+### 15.5 仍未解决（本轮新增记录）
+
+- **performance 模块整体 schema 不匹配（最大）**：Go repository 按 `service_name` /
+  `metric` / `threshold` / `window_days` / `status` 读写，而实际 DDL
+  （legacy `117_create_performance_tables.sql`）是 `service` / `metrics JSONB` /
+  `thresholds JSONB` / `version`。`performance_test_results` 的 INSERT 列
+  `service_name` **在表中不存在**（真列名 `service`）→ 在册写端点恒 500；
+  `performance_evaluations` 的 `value` / `status` / `timestamp` / `created_at` 与
+  `performance_profiles` 的 `timestamp` 同样不存在。同文件 `GetTestResults` 还是本轮
+  唯一「return 硬编码空」型桩 —— 写路径真、读路径假。修需重排整模块 SQL + model
+  + handler 测试替身，另立一轮。
+- **alert-adapter 接口强制**：`Receive` 被强加到 6 个只推送的 notification / export
+  适配器（webhook / email / sms / wechat / slack / pagerduty）上，只能 `return nil, nil`；
+  4 个 source 适配器是真实现（drain 本地 `alertQueue`）。修法是把接口拆成
+  `SourceAdapter` / `NotificationAdapter`，属设计改动。
+- `pipeline-template InstantiateTemplate` 丢弃 `Parameters` / `Environment`
+  （`pipelines` 表无承载列、无迁移；`_ = req.Environment` 那句注释是误导）。
+- `ticketing/testutil/mocks.go` 未覆盖的接口方法返回 `nil, nil`（测试替身，非生产桩）。
+- 跨轮遗留不变：JWT 密钥轮换完全不存在；SMTP / SMS 外部凭证待运维提供；
+  `knowledge.Repository.Retrieve` 依赖未创建的 `pg_trgm`；
+  auto-exec 7 个 handler 方法无路由；134 个 `handler_test.go` 含未解决冲突标记。

@@ -2577,8 +2577,9 @@ func riskLevelForConflicts(n int) models.RiskLevel {
 //     warning when no profile lookup is possible)
 //   - R5 Pipeline allowed     → profile.AllowedPipelines (warning when no
 //     profile or empty pipeline name)
-//   - R6 Schema compatibility → placeholder until a migration-aware check
-//     lands; always passes with a warning.
+//   - R6 Schema compatibility → MigrationChecksumChecker when wired through
+//     WithSchemaChecker (blocks on a migration downgrade); falls back to a
+//     pass-with-warning placeholder when no checker is configured.
 func (s *Service) CheckPreDeployGate(ctx context.Context, tenantID string, req models.DeployRequest) (*models.PreDeployGateResult, error) {
 	if tenantID == "" {
 		return nil, fmt.Errorf("tenant_id is required")
