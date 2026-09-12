@@ -5136,5 +5136,7 @@ NATS 订阅者按事件名在运行时驱动，静态 import 分析天然看不�
   505/1874 传递性死亡；`identity/auth` 整树、`notification/chatops` 整树、
   `auth-enhanced` 3/7、`devops` 模板、3 个 vet 波及死包；确认密钥轮换能力完全不存在）：
   ✅ 本批
-- **待办**：步骤 6（4 处 SMTP/SMS 发送桩 + `excelize` 依赖）；步骤 4 收尾
-  （剩余 477 个死包按域分批）
+- **步骤 6**（4 处 SMTP/SMS 发送桩全部实现 + `excelize` 依赖修正为 direct；顺带修复
+  factory.go 错误链 `%w:%v`→`%w:%w` 与 repository.go nil 指针 panic 两个活缺陷）：
+  ✅ `511e4e31b`
+- **待办**：步骤 4 收尾（剩余 477 个死包按域分批）
