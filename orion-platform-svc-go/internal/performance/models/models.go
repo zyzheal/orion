@@ -2,6 +2,15 @@ package models
 
 import "time"
 
+// Baseline status set by Repository.CreateBaseline for a newly created row.
+const StatusActive = "active"
+
+// Evaluation statuses recorded by Service.EvaluatePerformance.
+const (
+	EvalStatusOK       = "ok"
+	EvalStatusExceeded = "exceeded"
+)
+
 // Baseline represents a performance baseline for a service.
 type Baseline struct {
 	ID          string    `db:"id" json:"id"`
@@ -61,6 +70,20 @@ type RegressionResult struct {
 	Previous    float64   `db:"previous" json:"previous"`
 	Current     float64   `db:"current" json:"current"`
 	ChangePct   float64   `db:"change_pct" json:"changePct"`
+	Timestamp   time.Time `db:"timestamp" json:"timestamp"`
+}
+
+// TestResult is a recorded test-run outcome, one row per run.
+//
+// It used to be absent from this package: GetTestResults was declared to return
+// []Baseline, so a test-results endpoint could never have held a test result.
+type TestResult struct {
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenantId"`
+	ServiceName string    `db:"service_name" json:"serviceName"`
+	TestName    string    `db:"test_name" json:"testName"`
+	Duration    int64     `db:"duration" json:"duration"`
+	Status      string    `db:"status" json:"status"`
 	Timestamp   time.Time `db:"timestamp" json:"timestamp"`
 }
 

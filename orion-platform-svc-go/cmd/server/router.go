@@ -312,6 +312,12 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
 		// internal/skill owns /skill; ai_skillH above owns the plural /skills.
 		// serviceCatalogH is NOT registered: a second service-catalog handler object
 		// (wiring-service-catalog.go) whose route set duplicates service_catalogH above.
+		// perfH is registered in the registerRoutes list above, not here: a second
+		// call would panic Gin with "handlers are already registered". The eleven
+		// /performance endpoints reach production through that shared list; nothing
+		// else in this function registers them. TestPerformanceRoutesAreMounted
+		// asserts they stay mounted, because dropping perfH from that list is a
+		// failure the build and the route-conflict tests cannot see.
 		api.GET("/routes", func(c *gin.Context) {
 			var routes []gin.RouteInfo
 			for _, route := range r.Routes() {

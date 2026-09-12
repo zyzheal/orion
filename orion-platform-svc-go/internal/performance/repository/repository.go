@@ -13,6 +13,19 @@ import (
 	"orion/go-common/pkg/sentinel"
 )
 
+// Table names are deliberately mixed, and not by accident:
+//
+//	baselines / evaluations / profiles
+//	    Migration 152 created these under bare names and that migration has
+//	    already run in every deployed database, so the repository must use the
+//	    names that actually exist. Referencing performance_baselines and the
+//	    like is what made every call in this file fail with
+//	    `relation does not exist`.
+//	performance_bottlenecks / performance_suggestions /
+//	    performance_regressions / performance_test_results
+//	    Migration 575 creates these tables under the module-prefixed
+//	    convention used by 100/106/145 (branch_policy_records,
+//	    capacity_records, middleware_ops_records).
 type Repository struct {
 	db *sqlx.DB
 }
@@ -24,12 +37,12 @@ func NewRepository(db *sqlx.DB) *Repository {
 func (r *Repository) CreateBaseline(ctx context.Context, tenantID string, b *models.Baseline) (*models.Baseline, error) {
 	b.ID = uuid.New().String()
 	b.TenantID = tenantID
-	b.Status = "active"
+	b.Status = models.StatusActive
 	b.CreatedAt = time.Now().UTC()
 	if b.WindowDays <= 0 {
 		b.WindowDays = 7
 	}
-	_, err := r.db.ExecContext(ctx, `INSERT INTO performance_baselines (id, tenant_id, service_name, metric, threshold, window_days, status, created_at)
+	_, err := r.db.ExecContext(ctx, `INSERT INTO baselines (id, tenant_id, service_name, metric, threshold, window_days, status, created_at)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
 		b.ID, b.TenantID, b.ServiceName, b.Metric, b.Threshold, b.WindowDays, b.Status, b.CreatedAt)
 	if err != nil {
@@ -42,7 +55,7 @@ func (r *Repository) ListBaselines(ctx context.Context, tenantID string) ([]mode
 	var baselines []models.Baseline
 	err := r.db.SelectContext(ctx, &baselines,
 		`SELECT id, tenant_id, service_name, metric, threshold, window_days, status, created_at
-		 FROM performance_baselines WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
+		 FROM baselines WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +69,7 @@ func (r *Repository) GetBaselineByID(ctx context.Context, id string, tenantID st
 	var b models.Baseline
 	err := r.db.GetContext(ctx, &b,
 		`SELECT id, tenant_id, service_name, metric, threshold, window_days, status, created_at
-		 FROM performance_baselines WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+		 FROM baselines WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sentinel.NotFound
 	}
@@ -67,7 +80,7 @@ func (r *Repository) GetEvaluationHistory(ctx context.Context, baselineID string
 	var evaluations []models.Evaluation
 	err := r.db.SelectContext(ctx, &evaluations,
 		`SELECT id, tenant_id, baseline_id, value, status, timestamp, created_at
-		 FROM performance_evaluations WHERE baseline_id=$1 AND tenant_id=$2 ORDER BY timestamp DESC`,
+		 FROM evaluations WHERE baseline_id=$1 AND tenant_id=$2 ORDER BY timestamp DESC`,
 		baselineID, tenantID)
 	if err != nil {
 		return nil, err
@@ -78,19 +91,36 @@ func (r *Repository) GetEvaluationHistory(ctx context.Context, baselineID string
 	return evaluations, nil
 }
 
-func (r *Repository) RecordEvaluation(ctx context.Context, tenantID string, baselineID string, value float64, status string) error {
+// RecordEvaluation returns the row it just inserted. The service used to build
+// its own reply with no ID, no baseline_id and no timestamp -- a record that
+// matched nothing in the database -- so returning the stored row is what makes
+// POST /performance/evaluate traceable to a row.
+func (r *Repository) RecordEvaluation(ctx context.Context, tenantID, baselineID string, value float64, status string) (*models.Evaluation, error) {
+	now := time.Now().UTC()
+	e := &models.Evaluation{
+		ID:         uuid.New().String(),
+		TenantID:   tenantID,
+		BaselineID: baselineID,
+		Value:      value,
+		Status:     status,
+		Timestamp:  now,
+		CreatedAt:  now,
+	}
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO performance_evaluations (id, tenant_id, baseline_id, value, status, timestamp, created_at)
+		`INSERT INTO evaluations (id, tenant_id, baseline_id, value, status, timestamp, created_at)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-		uuid.New().String(), tenantID, baselineID, value, status, time.Now().UTC(), time.Now().UTC())
-	return err
+		e.ID, e.TenantID, e.BaselineID, e.Value, e.Status, e.Timestamp, e.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return e, nil
 }
 
 func (r *Repository) ProfileService(ctx context.Context, tenantID string, serviceName string) (*models.Profile, error) {
 	var p models.Profile
 	err := r.db.GetContext(ctx, &p,
 		`SELECT id, tenant_id, service_name, timestamp, created_at
-		 FROM performance_profiles WHERE tenant_id=$1 AND service_name=$2 ORDER BY timestamp DESC LIMIT 1`,
+		 FROM profiles WHERE tenant_id=$1 AND service_name=$2 ORDER BY timestamp DESC LIMIT 1`,
 		tenantID, serviceName)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -98,12 +128,16 @@ func (r *Repository) ProfileService(ctx context.Context, tenantID string, servic
 	return &p, err
 }
 
-func (r *Repository) GetBottlenecks(ctx context.Context, tenantID string, profileID string) ([]models.Bottleneck, error) {
+// GetBottlenecks scopes by service_name because that is what the route supplies:
+// GET /performance/profile/:serviceName/bottlenecks. It used to bind that path
+// value into profile_id, a UUID column, so the WHERE clause could never match
+// and the endpoint was structurally incapable of returning a row.
+func (r *Repository) GetBottlenecks(ctx context.Context, tenantID, serviceName string) ([]models.Bottleneck, error) {
 	var bottlenecks []models.Bottleneck
 	err := r.db.SelectContext(ctx, &bottlenecks,
 		`SELECT id, profile_id, service_name, type, description, score
-		 FROM performance_bottlenecks WHERE profile_id=$1 AND tenant_id=$2 ORDER BY score DESC`,
-		profileID, tenantID)
+		 FROM performance_bottlenecks WHERE service_name=$1 AND tenant_id=$2 ORDER BY score DESC`,
+		serviceName, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +147,7 @@ func (r *Repository) GetBottlenecks(ctx context.Context, tenantID string, profil
 	return bottlenecks, nil
 }
 
-func (r *Repository) GetSuggestions(ctx context.Context, tenantID string, serviceName string) ([]models.Suggestion, error) {
+func (r *Repository) GetSuggestions(ctx context.Context, tenantID, serviceName string) ([]models.Suggestion, error) {
 	var suggestions []models.Suggestion
 	err := r.db.SelectContext(ctx, &suggestions,
 		`SELECT id, service_name, type, description, priority
@@ -153,15 +187,41 @@ func (r *Repository) DetectRegression(ctx context.Context, tenantID string, req 
 	return result, nil
 }
 
-func (r *Repository) RecordTestResult(ctx context.Context, tenantID string, req *models.TestResultRequest) error {
+// RecordTestResult hands back the stored row. The handler used to answer
+// `{"message":"test result recorded"}` with no identifier, so a client could
+// record a run and never correlate it with the list it just populated.
+func (r *Repository) RecordTestResult(ctx context.Context, tenantID string, req *models.TestResultRequest) (*models.TestResult, error) {
+	now := time.Now().UTC()
+	t := &models.TestResult{
+		ID:          uuid.New().String(),
+		TenantID:    tenantID,
+		ServiceName: req.ServiceName,
+		TestName:    req.TestName,
+		Duration:    req.Duration,
+		Status:      req.Status,
+		Timestamp:   now,
+	}
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO performance_test_results (id, tenant_id, service_name, test_name, duration, status, timestamp)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-		uuid.New().String(), tenantID, req.ServiceName, req.TestName, req.Duration, req.Status, time.Now().UTC())
-	return err
+		t.ID, t.TenantID, t.ServiceName, t.TestName, t.Duration, t.Status, t.Timestamp)
+	if err != nil {
+		return nil, err
+	}
+	return t, nil
 }
 
-func (r *Repository) GetTestResults(ctx context.Context, tenantID string, serviceName string) ([]models.Baseline, error) {
-	// Simplified - returns empty list for now
-	return []models.Baseline{}, nil
+func (r *Repository) GetTestResults(ctx context.Context, tenantID, serviceName string) ([]models.TestResult, error) {
+	var results []models.TestResult
+	err := r.db.SelectContext(ctx, &results,
+		`SELECT id, tenant_id, service_name, test_name, duration, status, timestamp
+		 FROM performance_test_results WHERE tenant_id=$1 AND service_name=$2 ORDER BY timestamp DESC`,
+		tenantID, serviceName)
+	if err != nil {
+		return nil, err
+	}
+	if results == nil {
+		results = []models.TestResult{}
+	}
+	return results, nil
 }

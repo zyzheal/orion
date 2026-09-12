@@ -110,6 +110,12 @@ func (h *Handler) EvaluatePerformance(c *gin.Context) {
 	}
 	result, err := h.svc.EvaluatePerformance(ctx, tenantID, &req)
 	if err != nil {
+		if service.IsNotFound(err) {
+			// No baseline owns this service/metric pair. A 500 here would
+			// misreport a missing prerequisite as a server fault.
+			middleware.RespondNotFound(c, err.Error())
+			return
+		}
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -182,12 +188,15 @@ func (h *Handler) RecordTestResult(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	err := h.svc.RecordTestResult(ctx, tenantID, &req)
+	result, err := h.svc.RecordTestResult(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.RespondCreated(c, gin.H{"message": "test result recorded"})
+	// Echo the stored row. It used to answer {"message":"test result recorded"}
+	// with no identifier, so a client could record a run and then have nothing
+	// tying it to what GET /test-results/:service returned.
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) GetTestResults(c *gin.Context) {

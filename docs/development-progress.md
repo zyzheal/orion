@@ -6479,3 +6479,307 @@ EnablePlugin/DisablePlugin）。
   `ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换不存在、SMTP/SMS 凭证待运维、
   134 个 `handler_test.go` 冲突标记（并行 agent 工作树，故意不碰；本轮所有测试一律走 overlay）。
 
+
+---
+
+## 第十八轮：Stub Scan Round 18 — performance 模块 4 处在册缺陷（表名错位 + 孤儿评估行 + UUID 列绑定 + 读路径桩）
+
+HEAD `1150bb8f9`。本轮只做 performance 一个模块，因为它在前几轮被反复标记为
+**「剩余任务里价值最高的一项」**，但——**前两轮的诊断是错的**，这一点必须先写清楚。
+
+**诊断更正（两次）**：第十五至十七轮把本模块记录为「整体 schema 不匹配」，
+引用 `117_create_performance_tables.sql`，声称真列是 `service` / `metrics JSONB` /
+`thresholds JSONB` / `version`，而 Go 读写 `service_name` / `metric` / `threshold`。
+读了实际 DDL 之后这个说法**不成立**：`baselines` 表的列与 Go 的 SELECT/INSERT 列表
+**逐列吻合**。真实的缺陷是**表名**，不是列名——三张表引用了带前缀的名字而迁移建的是裸名，
+另外四张表**没有任何迁移创建过**。前几轮报的「在册写端点恒 500」结论碰巧正确，
+但原因写错了，这个错误不能带进后续轮次。
+
+本轮共 **4 处真修复 + 1 处接线确认 + 1 处撤回**，29 条测试（14 仓库 + 14 服务 + 1 路由护栏），
+**8 次变异全部杀死测试，1 次等价变异按预期存活**。
+
+### 18.1 Finding ① — 7 个错误表名 + 4 张从未创建的表（本轮最大，且唯一影响面全覆盖）
+
+`internal/performance/repository/repository.go` 里每一个 SQL 都错了：
+
+| 代码引用 | 数据库实际存在 | 结果 |
+|---|---|---|
+| `performance_baselines` | `baselines`（migration 152） | `relation does not exist` |
+| `performance_evaluations` | `evaluations`（migration 152） | 同上 |
+| `performance_profiles` | `profiles`（migration 152） | 同上 |
+| `performance_bottlenecks` | **无迁移** | 同上 |
+| `performance_suggestions` | **无迁移** | 同上 |
+| `performance_regressions` | **无迁移** | 同上 |
+| `performance_test_results` | **无迁移** | 同上 |
+
+前三张的列与 DDL 逐列吻合（就是名字不对），后四张连名字都找不到归属。
+`go build` / `go vet` 对此**完全不可见**——字符串里的表名不参与类型检查。
+
+**修法**：新增 `migrations/575_create_performance_missing_tables.sql`（4042 B）+
+`_down.sql`（693 B）。列名取自代码里**实际的** INSERT/SELECT 列表（不是反向发明 schema）：
+
+```sql
+CREATE TABLE IF NOT EXISTS performance_test_results (
+    id VARCHAR(36) PRIMARY KEY,
+    tenant_id VARCHAR(36) NOT NULL,
+    service_name VARCHAR(255) NOT NULL,
+    test_name VARCHAR(255) NOT NULL,
+    duration BIGINT NOT NULL DEFAULT 0,
+    status VARCHAR(255) NOT NULL,
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+```
+
+10 个索引：`idx_perf_bottlenecks_tenant` / `_service (tenant_id, service_name)`、
+`idx_perf_suggestions_tenant` / `_service`、`idx_perf_regressions_tenant` / `_service`、
+`idx_perf_test_results_tenant` / `_service`。
+`created_at` / `updated_at` / `deleted_at` **显式写入**每张新表：571（软删除）与 572（审计列）
+的自动补齐**编号在 575 之前**，对新建表无效，必须自带。
+migration 编号 575：574（`pg_trgm`，第十六轮）已占用，575 空闲，
+`migrate.go` 的 `Sscanf(name, "%03d_", &v)` 要求恰好 3 位零填充前缀，合规。
+
+### 18.2 Finding ② — `EvaluatePerformance` 写孤儿行，且读侧永远读不到它
+
+service 层原实现（三个叠加 bug）：
+
+```go
+if _, err := s.repo.GetBaselineByID(ctx, "", tenantID); err != nil {
+    return nil, err
+}
+return s.repo.RecordEvaluation(ctx, tenantID, "", req.Value, "ok")
+```
+
+(a) `GetBaselineByID(ctx, "", tenantID)` **绑定空 id**——它只可能 miss；
+(b) **返回值和错误都被丢弃**（`if _, err` 之后 `return nil, err` 只处理错误分支，
+命中成功分支时 `baseline` 直接没用）；(c) `RecordEvaluation` **传空 `baseline_id`**。
+而 `GetEvaluationHistory` 的 SQL 是 `WHERE baseline_id=$1`。
+所以 `POST /performance/evaluate` → `GET /performance/baselines/:id/evaluations`
+**是一个恒返回空的往返**：写进去了，但没有一条历史记录能取回。
+同时 service 自己造的 `Evaluation` 响应**没有 id、没有 baseline_id、没有 timestamp**——
+一个在数据库里找不到对应行的回复。
+
+**修法**（签名级，`repository.go` / `service.go` / `service_interface.go` 三处同步）：
+
+```go
+func (s *Service) EvaluatePerformance(ctx context.Context, tenantID string, req *models.EvaluateRequest) (*models.Evaluation, error) {
+	baselines, err := s.repo.ListBaselines(ctx, tenantID)
+	if err != nil { return nil, err }
+	var baseline *models.Baseline
+	for i := range baselines {
+		if baselines[i].ServiceName == req.ServiceName && baselines[i].Metric == req.Metric {
+			baseline = &baselines[i]
+			break
+		}
+	}
+	if baseline == nil {
+		return nil, fmt.Errorf("no baseline for service %q metric %q, create one first: %w",
+			req.ServiceName, req.Metric, sentinel.NotFound)
+	}
+	status := models.EvalStatusOK
+	if baseline.Threshold > 0 && req.Value > baseline.Threshold {
+		status = models.EvalStatusExceeded
+	}
+	return s.repo.RecordEvaluation(ctx, tenantID, baseline.ID, req.Value, status)
+}
+```
+
+**契约不是发明的**：`models.Baseline` 同时有 `ServiceName` 与 `Metric`，
+一个 service 的多个 metric 各有自己的 baseline，所以匹配必须**两个字段都相等**
+（只按 service 匹配会把 latency 的读数记到 throughput 的 baseline 下）。
+`GetBaselineByID(ctx, "", …)` 这条调用**整条删掉**——它是零信息调用：
+参数是常量空串，返回值被丢弃，唯一的副作用是查一次不存在的主键。
+按准则 (b) 零信息 + 零调用方 = 死代码，删。
+
+**无 baseline 时的语义**：不是 500，也不是「照写一条孤儿行」。没有可比对的基线
+就没有评估可言，所以返回 `sentinel.NotFound`；handler 用 `service.IsNotFound(err)`
+映射为 `RespondNotFound`（404），因为**缺失前置条件不是服务器故障**。
+status 只在 `Threshold > 0 && Value > Threshold` 时才是 `exceeded`——
+`Threshold == 0`（未设阈值）时没有「超限」这回事，
+阈值 0 时把任何读数判成 exceeded 会让每个新 baseline 立刻全部报警。
+
+### 18.3 Finding ③ — `GetBottlenecks` 把路径参数绑进 UUID 列，结构上不可能返回任何行
+
+`GET /performance/profile/:serviceName/bottlenecks`，原 SQL：
+
+```go
+`SELECT ... FROM performance_bottlenecks WHERE profile_id=$1 AND tenant_id=$2 ...`,
+profileID, tenantID   // profileID 来自 c.Param("serviceName")
+```
+
+`:serviceName` 是服务名字符串，`profile_id` 是 UUID 列。
+这个 WHERE 子句**永远匹配不上任何行**——不是偶发空结果，是结构性不可能。
+handler 调用点**本来就在传 `c.Param("serviceName")`**，是 repository 把它当成 UUID 用。
+
+**修法**是签名改名而不是改 SQL：`profileID` → `serviceName`，跨
+`repository.go` / `service.go` / `service_interface.go` 三处，
+**handler 一行没改**。`GetSuggestions` 同型（同样是服务名作用域），一并改掉。
+
+### 18.4 Finding ④ — `GetTestResults` 是唯一在册的「return 硬编码空」型桩，且返回类型错了
+
+```go
+func (r *Repository) GetTestResults(ctx context.Context, tenantID, serviceName string) ([]models.Baseline, error) {
+	// Simplified - returns empty list for now
+	return []models.Baseline{}, nil
+}
+```
+
+两层缺陷：(a) **完全不做数据库调用**，注释自称 simplified——写路径真、读路径假，
+`POST /test-results` 记多少条，`GET /test-results/:service` 都返回空；
+(b) 更根本的是**返回类型是 `[]models.Baseline`**——
+`TestResult` 这个类型**在 models 包里根本不存在**，
+所以 test-results 端点**在类型层面就承载不了测试结果**，
+修 SQL 不够，得先补类型。
+
+**修法**：`models.go` 新增 `TestResult`（id/tenant_id/service_name/test_name/duration/status/timestamp，
+`db` 与 `json` 双 tag，列名对齐 575 的 DDL）；
+repository 换成真实 `SELECT ... FROM performance_test_results WHERE tenant_id=$1 AND service_name=$2 ORDER BY timestamp DESC`
++ nil→空切片；service 与 `service_interface.go` 的返回类型同步为 `[]models.TestResult`。
+这个缺陷在 `go build` 下**同样完全不可见**：旧签名是自洽的。
+
+### 18.5 Finding ⑤ — 两个写端点回一个数据库里不存在的回复
+
+- `RecordEvaluation` 原来在 service 里自己造 `Evaluation{Value, Status}` 返回：
+  **无 id、无 baseline_id、无 timestamp**。现在 repository 插入后**把存下的行返回**
+  （uuid + tenant + baseline_id + value + status + timestamp + created_at 全部真实）。
+- `RecordTestResult` 原来 handler 回 `{"message":"test result recorded"}`：
+  客户端能记录一次运行，却**没有任何标识符**把它和
+  `GET /test-results/:service` 列出来的行对上。现在 `RespondCreated(c, result)`
+  回带 id 的真实行。
+- 顺带 `CreateBaseline` 补 `b.Status = models.StatusActive`（原来写零值 status，
+  与「从未被激活的 baseline」无法区分）、`WindowDays <= 0` 时给默认 7。
+- `models.go` 新增 `StatusActive` / `EvalStatusOK` / `EvalStatusExceeded` 三个常量，
+  消除散落的字符串字面量。
+
+### 18.6 撤回：路由并不是死的（本轮最该写下来的一条）
+
+本轮一开始判定 `perfH` 在 `wireObservabilityWaveModules` 里被构造却**从未被路由**，
+「全部 11 个端点不可达」，并在 `router.go` 里加了 `perfH.RegisterRoutes(api)`。
+**这是错的。** 真实的接线在 `router.go:130`——`perfH` 就在
+`registerRoutes(api, ..., perfH, permH, pgraphH, ...)` 这个共享列表里。
+证据是加完后 Gin 直接 panic：
+
+```
+panic: handlers are already registered for path '/api/v1/performance/baselines'
+```
+
+`TestSetupRouterFullRegistration` 走的是**真实的** `initWiring` + `setupRouter`，
+而此前用来验证「无 Gin trie 冲突」的 `TestRouteDump` / `TestRouteConflict`
+**根本不调用 `setupRouter`**——所以那个「已确认无冲突」的结论是从一条
+从未走过我新增代码路径的测试里得出的。**教训：验证路由改动必须跑会装配真实 engine 的那条测试。**
+
+已把 `router.go` 的改动撤销，只留下注释说明 perfH 走共享列表、
+以及为什么不能在别处再注册一次。11 个端点一直是可达的——
+本轮修的是它们**运行时全部 500**，不是它们不可达。
+
+### 18.7 命名决策：混合命名是决定，不是 bug
+
+repository 里现在有**两套**表名风格，`Repository` 的文档注释写明理由：
+
+- `baselines` / `evaluations` / `profiles`——migration 152 用的是裸名，
+  **且这个迁移已经在每个部署库里跑过了**，改名字是数据迁移不是补桩，
+  本轮不动（同第十六轮对 `service` 列的处理方式：与 DDL 对齐，不改 DDL）。
+- `performance_bottlenecks` / `performance_suggestions` / `performance_regressions` /
+  `performance_test_results`——这是**新建**的表，按仓库惯例用模块前缀
+  （先例：100 `branch_policy_records`、106 `capacity_records`、145 `middleware_ops_records`）。
+
+不改 152 的另一个理由：它是全仓库唯一一个用裸名的迁移，
+把这一处「修正」掉会让本轮从补桩变成迁移治理。
+
+### 18.8 测试与变异（29 条，8/8 变异被杀死）
+
+**仓库层 14 条**（`internal/performance/repository/repository_test.go`，新建；
+该模块此前**零仓库测试**）。沿用第十七轮验证过的 sqlmock v1.5.2 用法：
+`QueryMatcherRegexp` + `WithArgs` 真比较参数 + 未预期调用直接报错。
+期望的正则**都带上前置定界符**（`FROM baselines WHERE` / `INSERT INTO baselines (`），
+所以退回 `performance_baselines` 时不会误匹配（`FROM performance_baselines`
+不含子串 `FROM baselines`）。带 `$1` 的地方必须写成 `\$1`——
+正则里 `$` 是行尾锚点，不转义会让「期望」变成「必须以 `$1` 结尾」而永不匹配。
+`time.Time` 用 `sqlmock.AnyArg()`（driver 无 `CheckNamedValue`，时间值原样通过，无法预测精确值）。
+
+关键两条：
+- `TestRecordEvaluation_BindsTheBaselineIDItWasGiven` 用 `WithArgs(AnyArg, "t1", "b-123", …)`
+  ——**字面量钉死 baseline_id 非空**，孤儿行回归直接失败。
+- `TestGetTestResults_ReadsTheRowsItWasWritten` ——桩实现会让 SELECT 期望**不被消费**
+  （`ExpectationsWereMet` 失败），且空切片让 `len == 1` 断言失败，**双重失败**。
+
+**服务层 14 条**（`internal/performance/service/service_test.go`，新建）。
+`fakeRepo` 记录每次调用的实参，所以能断言「服务层**决定**持久化什么」而不只是返回值：
+记录 baseline_id、tenant、value、status、调用次数；记录最后转发的 serviceName。
+覆盖：按 service+metric 精确匹配（**metric 必须参与匹配**那条单列一个测试）、
+阈值语义 5 例表驱动（超阈值/等于阈值/略低于/阈值为 0/阈值为负）、
+无 baseline → `sentinel.NotFound` 且**不写任何行**、`ListBaselines` 与
+`RecordEvaluation` 错误上抛、`GetBottlenecks` 空服务名短路（`bottleneckCalls == 0`）
+与正常转发、`GetTestResults` 返回 `[]models.TestResult`
+（这条在旧签名下**编译不过**，是返回类型修复的编译期锚点）。
+
+**路由护栏 1 条**（`cmd/server/performance_routes_test.go`，新建）：
+`TestPerformanceRoutesAreMounted` 装配真实 engine 后遍历 `r.Routes()`，
+断言 11 条路径全部在册、没有 `/performance/performance` 双前缀、
+且没有顶掉既有的 `POST /performance/vitals`。
+这条的价值来自 18.6：**把 `perfH` 从共享列表里删掉是编译合法、静默删掉 11 个端点**，
+`go build`、`go vet` 和路由冲突测试全都看不见，只有遍历装配结果能抓到。
+
+**8 次变异，全部能编译，全部被 1 条测试杀死**（基线先跑：三处 rc=0 / 0 失败）：
+
+| # | 变异 | 结果 |
+|---|---|---|
+| M1 | `ListBaselines` 退回 `performance_baselines` | 1 fail（`could not match actual sql ... FROM performance_baselines ...`） |
+| M2 | `GetBottlenecks` 退回 `profile_id=$1` | 1 fail（实际 SQL 与期望正则不匹配） |
+| M3 | `GetTestResults` 退回 `return []models.TestResult{}, nil` | 1 fail（`got 0 results, want 1`） |
+| M4 | `RecordEvaluation` 的 `e.BaselineID` 绑定换成 `""` | 1 fail（WithArgs 参数不符） |
+| M5 | 删掉 `CreateBaseline` 的 `b.Status = models.StatusActive` | 1 fail（status 参数不符） |
+| M6 | service 传空 `baseline_id` 给 `RecordEvaluation` | 1 fail（`recorded baseline_id = "", want b-latency`） |
+| M7 | 删掉 exceeded 判定 | 1 fail（`status = "ok", want "exceeded"`） |
+| M8 | 无 baseline 时改走 `RecordEvaluation("")` | 1 fail（`err = <nil>, want errors.Is(err, sentinel.NotFound)`） |
+| M9 | 从共享注册列表删掉 `perfH` | 1 fail（11 条 `route ... is not registered`） |
+
+**1 次等价变异按预期存活（不是测试空洞）**：把无 baseline 分支的错误改成
+裸 `sentinel.NotFound`（去掉「create one first」的文案）后测试**仍然全绿**——
+行为等价，`errors.Is` 仍为真，且两条路径都不写行。这是**预期结果**而非漏网。
+
+**两次假通过已排除**：M8 的第一次做法是单独删掉 `"fmt"` import，
+编译失败 → `rc=1` 但 `kills=0`，**这不是「测试无牙」而是「套件根本没跑」**。
+拆成 M8/M8b 两步后各自都编译失败，只有**合并**才构成合法变异。
+教训重申（第十七轮已记）：变异必须能编译。
+
+### 18.9 验证
+
+| 命令 | 结果 |
+|---|---|
+| `go build -overlay /tmp/orion_overlay.json ./...` | rc=0 |
+| `go vet -overlay ./internal/performance/... ./cmd/server/` | rc=0，无输出 |
+| `go test -overlay -count=1 ./internal/performance/...` | handler / repository / service 全 ok（29 条 PASS，models 无测试文件） |
+| `go test -overlay -count=1 -run 'TestPerformanceRoutesAreMounted\|TestSetupRouterFullRegistration\|TestRouteDump\|TestRouteConflict' ./cmd/server/` | ok（含真实 engine 装配，无 Gin panic） |
+| gofmt（本轮 6 个改动/新增 Go 文件） | 干净（`handler/handler_test.go` 是冲突标记文件，由 overlay 替换，未格式也未提交） |
+| migration 编号 | 575 up + down 各一份；574 已占用；前缀 3 位零填充合规 |
+
+### 18.10 仍未解决（本轮新增记录）
+
+- **三个 profile 类端点只能返回诚实的空**：`GET /performance/profile/:serviceName`、
+  `/profile/:serviceName/bottlenecks`、`/profile/:serviceName/suggestions`
+  背后的 `profiles` / `performance_bottlenecks` / `performance_suggestions`
+  **全仓库没有任何写方**（无 profiler、无 analyzer）。575 建了表，但表会永远是空的。
+  `GET /profile/:serviceName` 已把 nil 映射成 404，这是**诚实的**空，不是桩——
+  修它需要造一个性能剖析引擎，属功能开发，本轮只记录。
+- 第十四轮起反复记录的条件式安全门谎报（`CheckCompatibility`→`true`、
+  `ValidateBranch`→`true`、`GetBranchStatus`→`"valid"`，branch-policy/confirmation）。
+  **注**：此前记录的「branch-policy 11 个裸 ping 桩」与
+  「confirmation 11 个裸 ping 桩」两条数字**未重新核实**
+  （当时用的 `if _, err := s.repo.(GetByID|List)` 模式 grep 对两者都返回 0），
+  引用前必须用不同模式重扫。
+- `branch-policy/handler.go:582` `RegisterModel` 不解析请求体且无条件写
+  `{"message":"model registered"}`；`GetStatusMiddleware`→`"healthy"` 无 DB 调用；
+  `GetMetrics` 硬编码 `"metrics":[]string{}`。
+- `autonomous-pipeline` 的 RegisterModel/RunInspection/UpdateConfig 返回
+  `gin.H{"message":...}`；`capacity` 的 Configure/RunInspection；`artifact-version` 的 BatchCreate。
+- 与 performance 同批接线的 5 个 Wave-6 handler 同为「已构造、未路由」形态
+  （tracingH / hcH / pecH / ciH 等）——但**本轮已证明这类判断容易出错**
+  （见 18.6），逐个核实前不得当作缺陷引用。
+- 跨轮遗留不变：alert-adapter 接口强制 `Receive` 到 6 个只推送适配器、
+  `pipeline-template InstantiateTemplate` 丢弃 `Parameters`/`Environment`、
+  `ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换不存在、
+  SMTP/SMS 凭证待运维、134 个 `handler_test.go` 冲突标记（并行 agent 工作树，
+  故意不碰，本轮所有测试一律走 overlay）。

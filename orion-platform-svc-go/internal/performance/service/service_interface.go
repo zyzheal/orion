@@ -16,13 +16,13 @@ type ServiceInterface interface {
 	DetectRegression(ctx context.Context, tenantID string, req *models.DetectRegressionRequest) (*models.RegressionResult, error)
 	EvaluatePerformance(ctx context.Context, tenantID string, req *models.EvaluateRequest) (*models.Evaluation, error)
 	GetBaselineByID(ctx context.Context, id string, tenantID string) (*models.Baseline, error)
-	GetBottlenecks(ctx context.Context, tenantID string, profileID string) ([]models.Bottleneck, error)
+	GetBottlenecks(ctx context.Context, tenantID, serviceName string) ([]models.Bottleneck, error)
 	GetEvaluationHistory(ctx context.Context, id string, tenantID string) ([]models.Evaluation, error)
-	GetSuggestions(ctx context.Context, tenantID string, serviceName string) ([]models.Suggestion, error)
-	GetTestResults(ctx context.Context, tenantID string, serviceName string) ([]models.Baseline, error)
+	GetSuggestions(ctx context.Context, tenantID, serviceName string) ([]models.Suggestion, error)
+	GetTestResults(ctx context.Context, tenantID, serviceName string) ([]models.TestResult, error)
 	ListBaselines(ctx context.Context, tenantID string) ([]models.Baseline, error)
 	ProfileService(ctx context.Context, tenantID string, serviceName string) (*models.Profile, error)
-	RecordTestResult(ctx context.Context, tenantID string, req *models.TestResultRequest) error
+	RecordTestResult(ctx context.Context, tenantID string, req *models.TestResultRequest) (*models.TestResult, error)
 }
 
 // Ensure compile-time safety: *Service implements ServiceInterface.
