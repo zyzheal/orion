@@ -152,8 +152,9 @@ func (e *AutoExecEngine) ExecuteTask(ctx context.Context, tenantID, taskID strin
 	}
 
 	// Build runtime params. ParamOverrides carries the per-run overrides sent
-	// in POST /tasks/:id/run; without the merge below the request body was read
-	// and then discarded, so the advertised override had no effect.
+	// in POST /auto-exec/tasks/:id/run; without the merge below the request
+	// body was read and then discarded, so the advertised override had no
+	// effect.
 	params := make(map[string]string)
 	if task.PluginParams != "" {
 		if jerr := json.Unmarshal([]byte(task.PluginParams), &params); jerr != nil {

@@ -33,17 +33,47 @@ func NewHandler(svc service.ServiceInterface) *Handler {
 	return &Handler{svc: svc}
 }
 
+// RegisterRoutes mounts auto-exec on /auto-exec, a namespace no other module
+// registers.
+//
+// The module used to expose only three routes, and it put them straight on
+// /tasks and /plugins. That is the root cause of the seven dead handlers below:
+// /api/v1/tasks is already owned by ai-intelligence (POST/GET/GET:id/DELETE:id/
+// GET count) and /api/v1/plugins by internal/plugin (POST/GET/GET:id/
+// DELETE:id/PATCH:id/GET count plus actions), so the remaining (method, path)
+// pairs had nowhere to go — Gin panics on a duplicate registration, and the
+// three that did fit sat next to a foreign domain's collection routes under a
+// path that was not the module's. Three other handlers in this codebase hit the
+// same wall and resolved it by deleting the route rather than moving the
+// namespace, which is why CreateTask and friends had no caller at all: nothing
+// could address them.
+//
+// Every handler method in this file now has a route.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	tracer := "orion-auto-exec"
-	tasks := rg.Group("/tasks")
+	ae := rg.Group("/auto-exec")
+
+	tasks := ae.Group("/tasks")
+	tasks.POST("", auth.RequirePermission("auto-exec", "write"),
+		withSpan(tracer, "CreateTask", h.CreateTask))
+	tasks.GET("", auth.RequirePermission("auto-exec", "read"),
+		withSpan(tracer, "ListTasks", h.ListTasks))
+	tasks.GET("/:id", auth.RequirePermission("auto-exec", "read"),
+		withSpan(tracer, "GetTask", h.GetTask))
+	tasks.DELETE("/:id", auth.RequirePermission("auto-exec", "delete"),
+		withSpan(tracer, "DeleteTask", h.DeleteTask))
 	tasks.POST("/:id/run", auth.RequirePermission("auto-exec", "execute"),
 		withSpan(tracer, "RunTask", h.RunTask))
 	tasks.GET("/:id/history", auth.RequirePermission("auto-exec", "read"),
 		withSpan(tracer, "GetHistory", h.GetHistory))
 
-	plugins := rg.Group("/plugins")
-	// GET /plugins/:id is served by pluginH (registered first); the duplicate
-	// registration was removed because Gin panics on a second (method, path) pair.
+	plugins := ae.Group("/plugins")
+	plugins.POST("", auth.RequirePermission("auto-exec", "write"),
+		withSpan(tracer, "RegisterPlugin", h.RegisterPlugin))
+	plugins.GET("", auth.RequirePermission("auto-exec", "read"),
+		withSpan(tracer, "ListPlugins", h.ListPlugins))
+	plugins.GET("/:id", auth.RequirePermission("auto-exec", "read"),
+		withSpan(tracer, "GetPlugin", h.GetPlugin))
 	plugins.PUT("/:id", auth.RequirePermission("auto-exec", "write"),
 		withSpan(tracer, "UpdatePlugin", h.UpdatePlugin))
 }
