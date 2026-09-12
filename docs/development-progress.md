@@ -5549,3 +5549,210 @@ go list ./...                                                      # 全部模�
   branch-policy 误报消除、死包判定方法第二次更正
 - **待办**：步骤 4 收尾（剩余 235 个死包按域分批，含 `internal/config/internal/`
   整棵 4117 行的结构性死 fork）
+
+---
+
+## 第十三轮：Stub Scan Round 13 — auto-exec 插件系统 6 处桩 + pipeline-engine 零值接线
+
+本轮从零开始在新 HEAD（`cd1b61483`）上重新扫描，扫描范围是 `internal/auto-exec/`
+全模块 + `cmd/server` 接线层，共撞出 **6 处未完成代码**（5 处真实现/删除 + 1 处接线
+补漏）。整组缺陷的共同特征是：**编译全绿、`go vet` 全绿，但每一处都在运行时撒谎**。
+
+### 13.1 Finding A — 零值 PipelineEngine 交给带 6 条活路由的 handler
+
+**位置**：`cmd/server/wiring-inline-handlers.go`
+
+```go
+// 修复前
+peH = pe_handler.NewHandler(&pe_service.PipelineEngine{})
+```
+
+`&PipelineEngine{}` 的 `repo`/`orchestrator`/`executor` 全是 nil，而 handler 背后挂着
+6 条 `/pipeline-engine` 路由。`registerRoutes` 只跳过 **nil** handler，不跳过零值
+handler，于是 6 条路由全部挂载，**每一条在 HTTP handler 里 nil 指针 panic**。
+
+这条 bug `go build` 和 `go vet` 都查不出来：`go vet` 不检查 HTTP handler 里的
+nil-deref panic，也不检查「用零值 struct 代替构造函数」这种接线错误。
+
+**修复**：走构造函数 `pe_service.NewPipelineEngine(pe_repo.NewRepository(db.DB))`。
+`NewPipelineEngine` 还会把 engine 回指进它自己的 `StageExecutor`，子流水线任务依赖这行。
+
+### 13.2 Finding B — 进程插件把失败塞进 ErrorMessage，每条坏命令都记成完成
+
+**位置**：`internal/auto-exec/plugins/plugins.go`
+
+```go
+// 修复前（shell 与 python 两条路径）
+if runErr != nil {
+    result.ErrorMessage = runErr.Error()
+}
+return result, nil      // err 永远是 nil
+```
+
+`engine.go` 只判 `err`：`err == nil` 就写 `StatusCompleted`。所以一条 `exit 3` 的 CI
+步骤会被记录为**已完成**，失败信息躺在 `ErrorMessage` 里没人读。这是「静默判绿」的
+经典形状，对一个执行引擎来说比响亮失败危险得多。
+
+**修复**：抽出统一的 `runProcess(ctx, name, args...)`：
+
+- 用 `errors.As(runErr, &exec.ExitError)` 识别非零退出，返回 `*ProcessExitError`，
+  `Error()` 里带上退出码 + stderr 尾部（`maxDiagOutput = 1024`）；
+- stdout/stderr 仍然保留在 `result` 里（诊断信息不丢）；
+- 顺带补掉一个真 panic：`cmd.ProcessState == nil` 时调用 `ExitCode()` 会 panic。
+  二进制不存在/无权限这条路径 `ProcessState` 就是 nil，而 `ExitCode` 零值恰好也是 0，
+  于是「进程根本没起来」会被记成「退出码 0 成功」。
+
+### 13.3 Finding C — adapter 完全丢弃 ExitCode
+
+**位置**：`internal/auto-exec/engine/adapter.go`
+
+`executorPluginAdapter` 是 `interfaces.ExecutorPlugin`（返回 `*models.Result`）到
+`PluginHandler` SPI（返回 `string`）的桥。旧实现把 `result` 渲染成字符串后直接
+`return out, nil` —— **`result.ExitCode` 从没被读过**。任何只设 ExitCode、不返回
+error 的第三方插件都会被判绿。
+
+**修复**：`pluginOutcome(result, err)` 三态判定：
+
+1. `err != nil` → `plugin %q execution failed: %w`
+2. `err == nil && ExitCode != 0` → `plugin %q exited with code %d`
+3. 其余 → 成功
+
+同时修掉 doc 注释：原文写「discards the task pointer」，实际上 `task.Timeout` 一直在用。
+
+### 13.4 Finding D — HTTP / Webhook 插件是字面量 stub；SQL 插件删除
+
+**位置**：`internal/auto-exec/plugins/plugins.go`
+
+```go
+// 修复前
+func (p *HTTPExecutorPlugin) Execute(...) (*models.Result, error) {
+    return &models.Result{Stdout: "HTTP plugin (stub)"}, nil
+}
+```
+
+两个插件都没有碰网络。实现为真实 `net/http`：`http.NewRequestWithContext`、method
+（默认 GET / POST）、headers、body、`io.LimitReader` 1 MiB 响应上限、非 2xx →
+`ExitCode 1` + error、`Output` 里带 status_code/status/method/url 结构化结果。
+`Validate` 也补上必填 `url` 校验。
+
+**`SQLEXecutorPlugin` 删除而非实现**。它原本 `return "(stub)"` + `ExitCode: 0`。
+要把它做成真的，唯一的合理接线是把平台自己的**主库连接**交给一个任意 SQL 执行器 ——
+「让外部插件对主库跑任意 SQL」是一个独立且风险高得多的功能，不该在「补桩」时顺手
+上线。按判据（基础设施存在则实现，否则删除）删除，并在文件里留注释写明理由，避免
+下一个人当桩再补回来。
+
+### 13.5 Finding E — DefaultPipelineRunner 用 "stubbed" 假装触发成功
+
+**位置**：`internal/auto-exec/plugins/pipeline_plugin.go` + `cmd/server/wiring-auto-exec.go`
+
+```go
+// 修复前
+func (d *DefaultPipelineRunner) RunPipeline(...) (*PipelineRunResult, error) {
+    return &PipelineRunResult{Status: "stubbed"}, nil   // nil error = 成功
+}
+```
+
+一个从未执行的流水线被记成成功任务。更糟的是 `SetTriggerPipelineRunner` **除了测试
+从没人调用**，所以 `pipeline-trigger` 插件在线、注册在工厂里、出现在插件 API 里，
+但触发不了任何东西。
+
+**修复**：删除 `DefaultPipelineRunner` 类型（nil runner 时 `TriggerPipeline` /
+`Execute` 本来就会响亮报 `pipeline runner not configured`，不需要 stub 兜底），
+在 `wiring-auto-exec.go` 新增 `pipelineEngineRunner` 适配 `PipelineEngine.Execute`
+到 `PipelineRunner`，并把**非 SUCCESS 的终态当错误上抛** —— 旧行为是红色子流水线
+被记成完成、状态只是写进输出字符串。
+
+### 13.6 Finding F — engine 的插件注册表从来没人填
+
+**位置**：`internal/auto-exec/engine/engine.go` + `cmd/server/wiring-auto-exec.go`
+
+`AutoExecEngine` 的 `plugins` map 起始为空。`factory.init()` 确实注册了 4 个插件，
+但填的是**另一张** `sync.Map`（工厂自己的 registry），**从没有人读过**。结果：
+
+- 每次跑任务都 `plugin not registered`；
+- `CreateTask` 拒绝所有插件名。
+
+两个事实都无声无息：编译通过，启动不报错，注册表空着也没人提醒。
+
+**修复**：`wireAutoExec` 把 `Factory().All()` + `NewPipelinePlugin(runner)` 注册进
+engine。同时暴露 `autoExecEng` 供接线回归测试断言 —— engine 从 `autoExecH` 不可达，
+service 把它存在未导出字段里。
+
+### 13.7 突变验证（5/5，非空洞证明）
+
+每一个修复都回灌旧行为，确认回归测试真的会失败：
+
+| 突变 | 回灌内容 | 失败证据 |
+|------|---------|---------|
+| M-B | `runProcess` 吞掉非零退出 | `TestShellExecutorPluginFailsOnNonZeroExit`：`error = "failed to start /bin/sh: exit status 3", want it to name the exit code` |
+| M-C | `pluginOutcome` 忽略 `ExitCode` | `TestExecutorPluginAdapterFailsOnNonZeroExitCode`：`expected error for exit code 7, got nil; out="partial output"` |
+| M-D | HTTP/Webhook 回退为 stub 字面量 | 5 个测试失败，含 `server hits = 0, want 1: the plugin did not perform an HTTP request` |
+| M-E | 不注入 runner | `TestAutoExecPipelineRunnerIsReal`：`trigger pipeline runner is nil: pipeline-trigger cannot trigger anything` |
+| M-E′ | 把 `DefaultPipelineRunner` stub 加回来接线 | 同一测试：`expected an error for a nonexistent pipeline, got a success with status "stubbed"` |
+| M-F | `wireAutoExec` 不注册插件 | `TestAutoExecEngineRegistersBundledPlugins`：`engine plugin registry is missing "python"; got [shell pipeline-trigger]` |
+
+M-E 做了**双向**验证：先证明「runner 不注入」被抓，再把旧 stub 类型原样加回来接线，
+证明同一个测试能抓住旧 bug 的精确形状（`status "stubbed"`）。
+
+五处均从 `/tmp/r13good/*.good` 还原，`cmp` 确认 **6 个文件全部 byte-identical**，
+复跑全绿。
+
+### 13.8 测试与验证
+
+**新增 19 个测试**：
+
+- `internal/auto-exec/plugins/plugins_exec_test.go`（10）：shell/python 非零退出与零退出、
+  缺失二进制不 panic、真实 HTTP 请求（`httptest` 命中计数必须恰好 1 + header 透传 + 204）、
+  非 2xx、不可达主机、webhook 默认 POST + body、403、URL 校验。
+- `internal/auto-exec/engine/adapter_test.go`（6）：非零退出失败 / 零退出成功 /
+  包装插件错误 / nil result 两条路径 / 参数透传 / Category 表驱动。
+- `cmd/server/autoexec_wiring_test.go`（2）：接线后 engine 注册表含
+  `{shell, python, http, webhook, pipeline-trigger}`；runner 非 nil 且触发真实失败。
+- `cmd/server/pipeline_engine_wiring_test.go`（1）：零值 engine 在这里 panic，
+  修好后返回 handler 映射的 404。
+
+**改动的既有测试**：`factory_test.go` 期望值改为 `["shell","python","http","webhook"]`
+并新增断言 `pipeline-trigger` **不得**自动注册；`pipeline_plugin_test.go` 7 处
+`&DefaultPipelineRunner{}` → `&mockPipelineRunner{}`、删除 `TestDefaultPipelineRunner`。
+
+**环境限制（重要，本轮实测）**：并行 agent 的工作区里有 **134 个
+`internal/*/handler/handler_test.go` 带未解决的合并冲突标记**
+（`<<<<<<< Updated upstream` / `>>>>>>> Stashed changes`）。实测发现 Go 会把
+**依赖包的 `_test.go` 也拉进 `cmd/server` 测试二进制的构建**：逐个移动验证
+（移走 1 个 → 错误数 131 → 129）确认了这一点。因此 `go test -c ./cmd/server/`
+和 `go vet ./cmd/server/` 在当前工作区**必然失败**，与本轮改动无关，也不可用
+`-vet=off` 绕过（不是 vet 的问题，是构建图的问题）。
+
+处理方式：用 `go build -overlay /tmp/orion_overlay.json` 把这 134 个文件在**编译期**
+替换成一个最小合法 stub（`package handler` + 一个空测试），工作区文件一个字节都没改，
+也不碰并行 agent 的暂存区。overlay 条目数 134，清单在 `/tmp/broken_handlers.txt`。
+
+**验证结果**（overlay 下）：
+
+- `go build ./...` EXIT=0，过滤后 0 行
+- `go vet ./internal/auto-exec/... ./cmd/server/` 过滤后 0 行
+- `go test -overlay ... -count=1 ./cmd/server/ ./internal/auto-exec/...` 全绿
+  （`cmd/server` ok / `engine` ok / `factory` ok / `plugins` ok）
+- `gofmt -l` 对全部改动文件干净
+
+### 13.9 顺带发现（仅记录，未动）
+
+`internal/auto-exec/handler` 只注册了 3 条路由（`POST /tasks/:id/run`、
+`GET /tasks/:id/history`、`PUT /plugins/:id`），但有 11 个 handler 方法，其中 8 个
+没有路由：`CreateTask` / `GetTask` / `ListTasks` / `DeleteTask` / `RegisterPlugin` /
+`ListPlugins` / `GetPlugin` / `RegisterRoutes`。
+
+**没有 HTTP 路径可以创建任务**，所以 `POST /tasks/:id/run` 只能跑已经存在于表里的
+任务 —— 结合 Finding F（注册表从来没填过），这个模块对外实际是不可用的：既建不了
+任务，跑已有的也会 `plugin not registered`。本轮修好了执行路径，但补路由属于功能开发
+而不是补桩（要决定任务创建入参契约、权限、幂等语义），留待决策。
+
+### 13.10 仍未解决（跨轮遗留）
+
+- JWT 密钥轮换**完全不存在**（Round 10 记录，本轮删除的 `internal/identity/auth/keyrotation`
+  是仓库内唯一实现，活路径 `pkg/auth` 只有静态单钥）。
+- SMTP / SMS 外部凭证待运维提供（Round 11 已把发送路径接通）。
+- 剩余约 235 个传递性死包按域分批清理（并行 agent 正在进行）。
+- `internal/config/internal/` 4117 行结构性死 fork（Go 的 `internal/` 可见性规则
+  使其永远无法被模块其余部分消费）。
+- 跨 stage 的 task outputs 不向下游传播（Round 12 已在 `StageExecutor.go` 留注释）。

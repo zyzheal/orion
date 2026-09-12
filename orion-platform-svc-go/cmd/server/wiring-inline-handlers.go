@@ -34,6 +34,7 @@ import (
 	infraCap_repo "orion/platform-svc-go/internal/infrastructure/capacity/repository"
 	infraCap_service "orion/platform-svc-go/internal/infrastructure/capacity/service"
 	pe_handler "orion/platform-svc-go/internal/pipeline-engine/handler"
+	pe_repo "orion/platform-svc-go/internal/pipeline-engine/repository"
 	pe_service "orion/platform-svc-go/internal/pipeline-engine/service"
 	ps_handler "orion/platform-svc-go/internal/prompt-security/handler"
 	rate_limit_handler "orion/platform-svc-go/internal/rate-limiting/handler"
@@ -97,7 +98,13 @@ func wireInlineHandlers(db *database.DB, logger *zap.Logger) {
 	// Group B: Special handlers
 	// selfHealing requires pgxpool (not available from sqlx.DB),
 	// defer to infrastructure layer wiring. Keep nil so router guard skips it.
-	peH = pe_handler.NewHandler(&pe_service.PipelineEngine{})
+	//
+	// peH must go through NewPipelineEngine, not the zero literal
+	// &pe_service.PipelineEngine{}: the zero value has a nil repo, so every one
+	// of the /pipeline-engine routes panic in an HTTP handler with a nil
+	// pointer dereference. NewPipelineEngine also wires the engine back into its
+	// own StageExecutor, which sub-pipeline tasks need.
+	peH = pe_handler.NewHandler(pe_service.NewPipelineEngine(pe_repo.NewRepository(db.DB)))
 	infraCapPoolRepo := infraCap_repo.NewPoolRepository(db.DB)
 	infraCapForecastRepo := infraCap_repo.NewForecastRepository(db.DB)
 	infraCapPolicyRepo := infraCap_repo.NewPolicyRepository(db.DB)

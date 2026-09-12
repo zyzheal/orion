@@ -35,21 +35,21 @@ func (m *mockPipelineRunner) RunPipeline(ctx context.Context, tenantID, pipeline
 // ---------------------------------------------------------------------------
 
 func TestPipelinePluginName(t *testing.T) {
-	p := &PipelineExecutorPlugin{runner: &DefaultPipelineRunner{}}
+	p := &PipelineExecutorPlugin{runner: &mockPipelineRunner{}}
 	if got := p.Name(); got != PluginTypePipeline {
 		t.Fatalf("expected Name()=%q, got %q", PluginTypePipeline, got)
 	}
 }
 
 func TestPipelinePluginDescription(t *testing.T) {
-	p := &PipelineExecutorPlugin{runner: &DefaultPipelineRunner{}}
+	p := &PipelineExecutorPlugin{runner: &mockPipelineRunner{}}
 	if p.Description() == "" {
 		t.Fatal("expected non-empty Description()")
 	}
 }
 
 func TestPipelinePluginDefaultTimeout(t *testing.T) {
-	p := &PipelineExecutorPlugin{runner: &DefaultPipelineRunner{}}
+	p := &PipelineExecutorPlugin{runner: &mockPipelineRunner{}}
 	d := p.DefaultTimeout()
 	if d <= 0 {
 		t.Fatal("expected positive DefaultTimeout()")
@@ -72,7 +72,7 @@ func TestPipelinePluginValidateNilRunner(t *testing.T) {
 }
 
 func TestPipelinePluginValidateMissingPipelineID(t *testing.T) {
-	p := &PipelineExecutorPlugin{runner: &DefaultPipelineRunner{}}
+	p := &PipelineExecutorPlugin{runner: &mockPipelineRunner{}}
 	err := p.Validate(map[string]interface{}{})
 	if err == nil {
 		t.Fatal("expected error when pipeline_id is missing")
@@ -80,7 +80,7 @@ func TestPipelinePluginValidateMissingPipelineID(t *testing.T) {
 }
 
 func TestPipelinePluginValidateEmptyPipelineID(t *testing.T) {
-	p := &PipelineExecutorPlugin{runner: &DefaultPipelineRunner{}}
+	p := &PipelineExecutorPlugin{runner: &mockPipelineRunner{}}
 	err := p.Validate(map[string]interface{}{"pipeline_id": ""})
 	if err == nil {
 		t.Fatal("expected error when pipeline_id is empty")
@@ -88,7 +88,7 @@ func TestPipelinePluginValidateEmptyPipelineID(t *testing.T) {
 }
 
 func TestPipelinePluginValidateWrongType(t *testing.T) {
-	p := &PipelineExecutorPlugin{runner: &DefaultPipelineRunner{}}
+	p := &PipelineExecutorPlugin{runner: &mockPipelineRunner{}}
 	err := p.Validate(map[string]interface{}{"pipeline_id": 123})
 	if err == nil {
 		t.Fatal("expected error when pipeline_id is not a string")
@@ -96,7 +96,7 @@ func TestPipelinePluginValidateWrongType(t *testing.T) {
 }
 
 func TestPipelinePluginValidateSuccess(t *testing.T) {
-	p := &PipelineExecutorPlugin{runner: &DefaultPipelineRunner{}}
+	p := &PipelineExecutorPlugin{runner: &mockPipelineRunner{}}
 	err := p.Validate(map[string]interface{}{"pipeline_id": "pl-001"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -231,22 +231,6 @@ func TestPipelinePluginExecuteRunnerError(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// DefaultPipelineRunner
-// ---------------------------------------------------------------------------
-
-func TestDefaultPipelineRunner(t *testing.T) {
-	r := NewDefaultPipelineRunner()
-	ctx := context.Background()
-	res, err := r.RunPipeline(ctx, "tenant-1", "pl-1", map[string]interface{}{"x": 1})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if res.PipelineID != "pl-1" {
-		t.Fatalf("expected PipelineID=pl-1, got %s", res.PipelineID)
-	}
-}
-
-// ---------------------------------------------------------------------------
 // Package-level TriggerPipeline
 // ---------------------------------------------------------------------------
 
@@ -291,7 +275,7 @@ func TestTriggerPipelineWithRunner(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestNewPipelinePlugin(t *testing.T) {
-	runner := NewDefaultPipelineRunner()
+	runner := &mockPipelineRunner{}
 	p := NewPipelinePlugin(runner)
 	if p == nil {
 		t.Fatal("expected non-nil plugin")

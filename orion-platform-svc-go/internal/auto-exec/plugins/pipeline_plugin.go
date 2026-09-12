@@ -31,8 +31,8 @@ type PipelineRunResult struct {
 }
 
 // PipelineRunner abstracts the act of triggering a pipeline execution.
-// The default implementation delegates to the pipeline-executor service;
-// tests inject a mock implementation.
+// Production wiring supplies the real implementation via
+// SetTriggerPipelineRunner; tests inject a mock.
 type PipelineRunner interface {
 	RunPipeline(ctx context.Context, tenantID, pipelineID string, inputs map[string]interface{}) (*PipelineRunResult, error)
 }
@@ -148,31 +148,13 @@ var triggerPipelineRunner PipelineRunner
 
 // SetTriggerPipelineRunner allows the engine layer to inject a runner at
 // startup (called from cmd/server or a dependency-injection wire file).
+//
+// There is deliberately no default runner: an implementation that returned a
+// "stubbed" status and a nil error recorded a successful task for a pipeline
+// that never ran. When no runner is wired, TriggerPipeline and
+// PipelineExecutorPlugin.Execute both fail instead of reporting success.
 func SetTriggerPipelineRunner(r PipelineRunner) {
 	triggerPipelineRunner = r
-}
-
-// ---------------------------------------------------------------------------
-// DefaultPipelineRunner — a no-op runner used as the factory default.
-// It records that a pipeline was "triggered" without actually executing it,
-// returning a stub result.  Production code MUST replace it via
-// SetTriggerPipelineRunner or by constructing the plugin with a real runner.
-// ---------------------------------------------------------------------------
-
-// DefaultPipelineRunner implements PipelineRunner as a stub.
-type DefaultPipelineRunner struct{}
-
-func (r *DefaultPipelineRunner) RunPipeline(ctx context.Context, tenantID, pipelineID string, inputs map[string]interface{}) (*PipelineRunResult, error) {
-	return &PipelineRunResult{
-		ExecutionID: "stub",
-		PipelineID:  pipelineID,
-		Status:      "stubbed",
-	}, nil
-}
-
-// NewDefaultPipelineRunner returns a new DefaultPipelineRunner instance.
-func NewDefaultPipelineRunner() PipelineRunner {
-	return &DefaultPipelineRunner{}
 }
 
 // GetTriggerPipelineRunner returns the currently configured runner, or nil.

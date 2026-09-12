@@ -46,9 +46,8 @@ func (a *executorPluginAdapter) Category() string {
 }
 
 // Execute adapts the ExecutorPlugin signature to the PluginHandler signature.
-// Converts map[string]string → map[string]interface{}, discards the task
-// pointer (ExecutorPlugin does not need it), and wraps the result as a
-// string.
+// Converts map[string]string → map[string]interface{} and wraps the result
+// as a string. The task is used for its timeout.
 func (a *executorPluginAdapter) Execute(ctx context.Context, params map[string]string, task *models.ExecutionTask) (string, error) {
 	conv := make(map[string]interface{}, len(params))
 	for k, v := range params {
@@ -65,13 +64,21 @@ func (a *executorPluginAdapter) Execute(ctx context.Context, params map[string]s
 	}
 
 	result, err := a.plugin.Execute(ctx, conv)
-	if err != nil {
-		return "", fmt.Errorf("plugin %q execution failed: %w", a.plugin.Name(), err)
-	}
 	if result == nil {
+		if err != nil {
+			return "", fmt.Errorf("plugin %q execution failed: %w", a.plugin.Name(), err)
+		}
 		return "", nil
 	}
-	// Build result string from plugin output: stdout + stderr + error message.
+	return a.pluginOutcome(result, err)
+}
+
+// pluginOutcome renders a plugin result and decides whether the task succeeded.
+//
+// An error and a non-zero exit code both mean failure: the process plugins
+// signal a non-zero exit through ExitCode with err == nil, and ignoring it
+// marked every broken command as completed.
+func (a *executorPluginAdapter) pluginOutcome(result *models.Result, err error) (string, error) {
 	var resultStr strings.Builder
 	if result.Stdout != "" {
 		resultStr.WriteString(result.Stdout)
@@ -95,6 +102,13 @@ func (a *executorPluginAdapter) Execute(ctx context.Context, params map[string]s
 		if b, jerr := json.Marshal(result.Output); jerr == nil {
 			resultStr.WriteString(string(b))
 		}
+	}
+
+	if err != nil {
+		return resultStr.String(), fmt.Errorf("plugin %q execution failed: %w", a.plugin.Name(), err)
+	}
+	if result.ExitCode != 0 {
+		return resultStr.String(), fmt.Errorf("plugin %q exited with code %d", a.plugin.Name(), result.ExitCode)
 	}
 	return resultStr.String(), nil
 }

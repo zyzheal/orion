@@ -7,8 +7,10 @@
 //	    ├── Plugin: ShellExecutorPlugin
 //	    ├── Plugin: PythonExecutorPlugin
 //	    ├── Plugin: HTTPExecutorPlugin
-//	    ├── Plugin: SQLEXecutorPlugin
 //	    └── Plugin: WebhookExecutorPlugin
+//
+// pipeline-trigger is not bundled: it needs a PipelineRunner, which is injected
+// by the wiring layer.
 //
 // Usage:
 //
@@ -123,7 +125,6 @@ func init() {
 		plugins.NewShellPlugin(),
 		plugins.NewPythonPlugin(),
 		plugins.NewHTTPPlugin(),
-		plugins.NewSQLPlugin(),
 		plugins.NewWebhookPlugin(),
 	}
 
@@ -133,15 +134,10 @@ func init() {
 		}
 	}
 
-	// Pipeline plugin — registered with a default no-op runner.  Production
-	// deployments should call plugins.SetTriggerPipelineRunner(...) at startup
-	// to inject the real pipeline-executor service.
-	pipelinePlugin := plugins.NewPipelinePlugin(
-		plugins.NewDefaultPipelineRunner(),
-	)
-	if err := f.Register(pipelinePlugin); err != nil {
-		_ = pipelinePlugin.Name() // registration error logged
-	}
+	// The pipeline-trigger plugin is registered by the caller, not here: it
+	// needs a real PipelineRunner, and the factory has no way to obtain one.
+	// Registering it with a stub runner recorded "triggered" for pipelines that
+	// never executed, which is worse than not advertising the plugin at all.
 }
 
 // ---------------------------------------------------------------------------

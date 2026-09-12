@@ -98,11 +98,17 @@ func TestAllAndMetadata(t *testing.T) {
 }
 
 func TestGlobalFactoryAutoRegistration(t *testing.T) {
-	// The global factory registers 6 plugins via init(): shell, python, http, sql, webhook, pipeline-trigger.
+	// init() bundles only the plugins that need no external dependency.
+	// pipeline-trigger is deliberately absent: it requires a PipelineRunner,
+	// which only the wiring layer can supply. Bundling it would mean shipping
+	// a stub runner that reported success for pipelines that never executed.
 	global := Factory()
-	for _, name := range []string{"shell", "python", "http", "sql", "webhook", "pipeline-trigger"} {
+	for _, name := range []string{"shell", "python", "http", "webhook"} {
 		if _, ok := global.Get(name); !ok {
 			t.Errorf("expected plugin %q to be auto-registered", name)
 		}
+	}
+	if _, ok := global.Get("pipeline-trigger"); ok {
+		t.Error("pipeline-trigger must not be auto-registered without a PipelineRunner")
 	}
 }
