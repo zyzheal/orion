@@ -5227,6 +5227,32 @@ A2 有个值得记的细节：`TestSharedSingletonAccumulatesOtherAdaptersConfig
 因此新增的 `wiring_alert_adapter_v2_test.go` **必须**用 `git add -f` 才会进版本库。
 不加的话工作区看起来干干净净、`git status` 无输出，实际代码根本没提交。
 
+### 11.6 提交归属（重要）
+
+本轮改动**没有**独立的 commit。`git add -f` 之后暂存区被并行的另一个 agent 的全量
+暂存扫走，Round 11 的 4 个文件分别落在它自己的两个提交里：
+
+| 文件 | 落在哪个 commit | 该 commit 的原始标题 |
+|------|----------------|---------------------|
+| `internal/alert-adapter-v2/handler/handler.go` | `df3a8a3f9` | 删除 internal/identity 死代码子树 |
+| `cmd/server/wiring_alert_adapter_v2_test.go` | `cb24ba8dc` | 删除死代码 pkg/nats / pkg/idempotency / pkg/common |
+| `docs/ALL_TODOS.md` | `df3a8a3f9` | 同上 |
+| `docs/development-progress.md` | `df3a8a3f9` | 同上 |
+
+内容已验证全部在 HEAD 内（`git show HEAD:cmd/server/wiring_alert_adapter_v2_test.go`
+能检出接线测试全文，含 `the wired factory has no handlers` 断言）。两个并行提交里
+FORBIDDEN 路径检查均为 0。并行删除 `internal/identity`、`pkg/nats`、
+`pkg/idempotency`、`pkg/common` 后重新验证：`go build ./...` EXIT=0、
+`go vet ./internal/... ./cmd/...` 0 行、alert-adapter-v2 + cmd/server +
+notification-engine 定向测试全绿。
+
+**教训**：在有多 agent 并行提交的仓库里，"stage 完再 commit" 不是原子操作——中间隔一个
+并行提交就把你的暂存区带走了。要么抢在并行提交前立刻 commit，要么接受被裹进别人的
+提交并在 docs 里留归属说明（本批采用了后者）。
+
+**教训 2**：`git commit --amend` 被当前环境的自动模式分类器拒绝，且并行 agent 正在
+往前推新提交，重写历史风险更高——所以不做历史修正，只在这里记录。
+
 ### 累计进度（更新）
 
 - **步骤 6**（4 处 SMTP/SMS 发送桩全部实现 + `excelize` 依赖修正为 direct；顺带修复
@@ -5235,5 +5261,6 @@ A2 有个值得记的细节：`TestSharedSingletonAccumulatesOtherAdaptersConfig
 - **步骤 6 收尾 / Round 11**（接线回归护栏 `wiring_alert_adapter_v2_test.go` +
   `Handler.Channels()` introspection + `ErrNoHandler`/`ErrAdapterDisabled`/
   `ErrTenantMismatch` 由 500 改 400 并附 live 频道清单；A1/A2/A3 三个突变分别
-  触发 3/2/1 个测试失败，证明测试非空洞）：✅ 本批
+  触发 3/2/1 个测试失败，证明测试非空洞）：✅ `df3a8a3f9` + `cb24ba8dc`
+  （无独立 commit，被并行 agent 的全量暂存扫走，归属见 11.6）
 - **待办**：步骤 4 收尾（剩余 477 个死包按域分批）
