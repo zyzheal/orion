@@ -5,6 +5,9 @@ import "time"
 // StatusActive is the default status assigned to new records.
 const StatusActive = "active"
 
+// StatusDisabled is applied to a record when its plugin endpoint is disabled.
+const StatusDisabled = "disabled"
+
 type Record struct {
 	ID        string                 `json:"id" db:"id"`
 	TenantID  string                 `json:"tenantId" db:"tenant_id"`

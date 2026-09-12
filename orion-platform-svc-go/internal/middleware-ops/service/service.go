@@ -5,8 +5,10 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/middleware-ops/models"
 )
 
@@ -105,12 +107,26 @@ func (s *Service) RunPipeline(ctx context.Context, tenantID string) (string, err
 	return "pipeline run triggered", nil
 }
 
+// GetStatus derives the tenant's state from its records. It used to answer
+// "running" for anyone who could reach the table, so an empty tenant and a
+// fully-stopped one looked identical.
 func (s *Service) GetStatus(ctx context.Context, tenantID string) (string, error) {
-	_, err := s.repo.List(ctx, tenantID)
+	records, err := s.repo.List(ctx, tenantID)
 	if err != nil {
 		return "unknown", err
 	}
-	return "running", nil
+	if len(records) == 0 {
+		return "idle", nil
+	}
+	_, active := countByStatus(records)
+	switch {
+	case active == len(records):
+		return "running", nil
+	case active == 0:
+		return "stopped", nil
+	default:
+		return "degraded", nil
+	}
 }
 
 func (s *Service) Pause(ctx context.Context, tenantID, id string) (string, error) {
@@ -186,33 +202,97 @@ func (s *Service) GetConfig(ctx context.Context, tenantID string) (map[string]in
 	}, nil
 }
 
+// UpdateConfig persists the tenant config.
+//
+// Each key becomes one record whose metadata is the value, which is exactly the
+// shape GetConfig reads back (entries[name] = record.Metadata), so a PUT
+// followed by a GET returns what was PUT. Existing records are updated in place
+// and new keys are inserted, so nothing is dropped and nothing is duplicated.
+//
+// It used to call repo.List only to check that the table was reachable and then
+// return "config updated" with the payload still sitting in memory, so every
+// write to PUT /middleware-ops/config was silently discarded. The handler had
+// already bound the JSON body correctly; the body threw it away.
 func (s *Service) UpdateConfig(ctx context.Context, tenantID string, cfg map[string]interface{}) (string, error) {
-	if _, err := s.repo.List(ctx, tenantID); err != nil {
-		return "", err
+	if len(cfg) == 0 {
+		return "", fmt.Errorf("config update requires at least one key")
 	}
-	return "config updated", nil
-}
-
-func (s *Service) GetStatusMiddleware(ctx context.Context, tenantID string) (string, error) {
-	_, err := s.repo.List(ctx, tenantID)
+	records, err := s.repo.List(ctx, tenantID)
 	if err != nil {
-		return "unhealthy", err
+		return "", err
 	}
-	return "healthy", nil
+	existing := make(map[string]*models.Record, len(records))
+	for i := range records {
+		existing[records[i].Name] = &records[i]
+	}
+	created, updated := 0, 0
+	for key, value := range cfg {
+		meta, ok := value.(map[string]interface{})
+		if !ok {
+			return "", fmt.Errorf("config key %q must be an object, got %T", key, value)
+		}
+		if rec, found := existing[key]; found {
+			status := statusOf(*rec)
+			if _, err := s.repo.Update(ctx, tenantID, rec.ID, models.CreateRequest{Name: key, Status: status, Config: meta}); err != nil {
+				return "", fmt.Errorf("update config %q: %w", key, err)
+			}
+			updated++
+			continue
+		}
+		if _, err := s.repo.Create(ctx, tenantID, models.CreateRequest{Name: key, Status: models.StatusActive, Config: meta}); err != nil {
+			return "", fmt.Errorf("create config %q: %w", key, err)
+		}
+		created++
+	}
+	return fmt.Sprintf("config updated (%d created, %d updated)", created, updated), nil
 }
 
+// GetStatusMiddleware reports the same derived status as GetStatus. It used to
+// answer "healthy" for anyone who could reach the table.
+func (s *Service) GetStatusMiddleware(ctx context.Context, tenantID string) (string, error) {
+	return s.GetStatus(ctx, tenantID)
+}
+
+// Restart marks the record it was aimed at with the request time.
+//
+// There is no process manager or restart-event table behind this module, so the
+// only thing a restart call can truthfully do is leave an auditable mark on the
+// record. Before this it pinged GetByID and returned "restart triggered" without
+// writing anything, so the endpoint advertised an action the system never
+// performed or recorded.
 func (s *Service) Restart(ctx context.Context, tenantID, id string) (string, error) {
-	if _, err := s.repo.GetByID(ctx, tenantID, id); err != nil {
-		return "", err
-	}
-	return "restart triggered", nil
+	return s.stampAction(ctx, tenantID, id, "lastRestartRequestedAt", "restart requested")
 }
 
+// Configure marks the record it was aimed at with the configuration time, for the
+// same reason as Restart.
 func (s *Service) Configure(ctx context.Context, tenantID, id string) (string, error) {
-	if _, err := s.repo.GetByID(ctx, tenantID, id); err != nil {
+	return s.stampAction(ctx, tenantID, id, "lastConfiguredAt", "configured")
+}
+
+// stampAction writes one timestamp into the record's metadata so that the request
+// is visible to a later read instead of leaving only a success string. The rest of
+// the metadata is preserved, and the record's own status and name are kept.
+func (s *Service) stampAction(ctx context.Context, tenantID, id, field, verb string) (string, error) {
+	rec, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
 		return "", err
 	}
-	return "configured", nil
+	if rec == nil {
+		return "", sentinel.NotFound
+	}
+	meta := rec.Metadata
+	if meta == nil {
+		meta = map[string]interface{}{}
+	}
+	whent := time.Now().UTC().Format(time.RFC3339)
+	meta[field] = whent
+	if _, err := s.repo.Update(ctx, tenantID, rec.ID, models.CreateRequest{
+		Name: rec.Name, Status: statusOf(*rec), Config: meta,
+	}); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s at %s", verb, whent), nil
 }
 
 func (s *Service) ListPlugins(ctx context.Context, tenantID string) ([]string, error) {
@@ -228,25 +308,56 @@ func (s *Service) ListPlugins(ctx context.Context, tenantID string) ([]string, e
 }
 
 func (s *Service) GetPlugin(ctx context.Context, tenantID, name string) (map[string]interface{}, error) {
-	_, err := s.repo.GetByID(ctx, tenantID, name)
+	rec, err := s.pluginByName(ctx, tenantID, name)
 	if err != nil {
 		return nil, err
 	}
-	return map[string]interface{}{"name": name}, nil
+	return map[string]interface{}{
+		"name":     rec.Name,
+		"status":   rec.Status,
+		"metadata": rec.Metadata,
+		"updated":  rfc3339OrEmpty(rec.UpdatedAt),
+	}, nil
 }
 
 func (s *Service) EnablePlugin(ctx context.Context, tenantID, name string) (string, error) {
-	if _, err := s.repo.GetByID(ctx, tenantID, name); err != nil {
-		return "", err
-	}
-	return "enabled", nil
+	return s.setPluginStatus(ctx, tenantID, name, models.StatusActive, "enabled")
 }
 
 func (s *Service) DisablePlugin(ctx context.Context, tenantID, name string) (string, error) {
-	if _, err := s.repo.GetByID(ctx, tenantID, name); err != nil {
+	return s.setPluginStatus(ctx, tenantID, name, models.StatusDisabled, "disabled")
+}
+
+// pluginByName looks a record up by name. The plugin endpoints take a name in the
+// path, but the old code passed it to repo.GetByID, which matches the primary key
+// -- so every call missed and the plugin was reported as not found.
+func (s *Service) pluginByName(ctx context.Context, tenantID, name string) (*models.Record, error) {
+	records, err := s.repo.List(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	for i := range records {
+		if records[i].Name == name {
+			return &records[i], nil
+		}
+	}
+	return nil, sentinel.NotFound
+}
+
+// setPluginStatus flips the record a plugin is stored as. An already-applied
+// transition still reports cleanly without issuing a write.
+func (s *Service) setPluginStatus(ctx context.Context, tenantID, name, status, verb string) (string, error) {
+	rec, err := s.pluginByName(ctx, tenantID, name)
+	if err != nil {
 		return "", err
 	}
-	return "disabled", nil
+	if rec.Status == status {
+		return fmt.Sprintf("%s already", verb), nil
+	}
+	if _, err := s.repo.Update(ctx, tenantID, rec.ID, models.CreateRequest{Name: rec.Name, Status: status, Config: rec.Metadata}); err != nil {
+		return "", err
+	}
+	return verb, nil
 }
 
 func (s *Service) Train(ctx context.Context, tenantID string) (string, error) {

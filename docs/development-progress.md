@@ -6262,3 +6262,220 @@ migration_extension_test.go:68: 3 Go files call similarity() but no forward
   2 个有 1 段）。HEAD 在我们下面还在动，**故意不碰**。所有本轮测试一律走
   `-overlay /tmp/orion_overlay.json`（17682 B，`replace` 键下 134 条绝对路径）。
 
+## 第十七轮：Stub Scan Round 17 — middleware-ops 4 处在册桩（写路径整体丢弃）
+
+HEAD `9bcdb4ba4`（并行 agent 在 Round 16 的 `bbaa8c1e7` 之后提交了 5 个死代码清理，无冲突）。
+本轮扫出 **4 处未完成，全在同一个文件** `internal/middleware-ops/service/service.go`，
+共 19 条新测试 + 9 次变异证明。
+
+**为什么挑这个模块**：它是匹配簇里最自包含、且**唯一不需要改签名 / 改 handler / 改 schema /
+加迁移**就能就地修完的 —— 它的 handler 已经正确解析请求体，它的 repository 已经有真实的
+Create/Update/Delete（`recordRow` JSONB 中间结构 + `RowsAffected` 检查 + 软删除）。
+也就是说**桩在 service 层把真东西扔掉了**，不是在缺基础设施。对比 `internal/branch-policy` 与
+`internal/confirmation`：那两个模块的签名把 payload 整个吞掉
+（`UpdateConfig(ctx, tenantID) (string, error)` 没有 cfg 参数），修必须同时动 handler + service，
+所以本轮只记录。
+
+### 17.1 Finding ① — `PUT /middleware-ops/config` 把已解析的请求体整个扔掉（本轮最大）
+
+handler 是**对的**：`ShouldBindJSON(&req.Config)` 之后调 `svc.UpdateConfig(ctx, tenantID, req.Config)`。
+service 是错的：
+
+```go
+func (s *Service) UpdateConfig(ctx context.Context, tenantID string, cfg map[string]interface{}) (string, error) {
+	if _, err := s.repo.List(ctx, tenantID); err != nil {
+		return "", err
+	}
+	return "config updated", nil
+}
+```
+
+`cfg` **完全没被读**。`repo.List` 是一次连通性检查，然后返回 `"config updated"`。
+所以每次 `PUT /config` 都返回 200 + "config updated"，而数据库里什么都没变 —— (a) 类桩的标准形态，
+而且是最坏的一种：**客户端会以为配置生效了**。
+
+**契约不是发明的，是从既有通过的测试里推出来的**：`TestGetConfig_AggregatesMetadata` 早已钉死
+`entries["gateway"] = {"replicas": 3}`（一条 name 为 `gateway`、metadata 为 `{"replicas":3}` 的 record）。
+既然 `GetConfig` 读的是 `entries[r.Name] = r.Metadata`，那么一个「value 是对象」的配置 map
+按「每个 key 一条 record，metadata 是 value」写入就能**精确往返**。
+
+```go
+for key, value := range cfg {
+	meta, ok := value.(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("config key %q must be an object, got %T", key, value)
+	}
+	if rec, found := existing[key]; found { /* repo.Update 就地改 */ updated++ } else { /* repo.Create */ created++ }
+}
+return fmt.Sprintf("config updated (%d created, %d updated)", created, updated)
+```
+
+**非对象 value 是报错而非静默重塑**（`{"limit": 100}` → `config key "limit" must be an object, got int`）：
+拒绝一个坏请求优于静默损坏数据，而且**任何能工作的客户端都比之前「写全被丢」的客户端强**。
+空 map 也报错（`config update requires at least one key`），避免一次 no-op 冒充实写。
+响应从 `"config updated"` 改成 `"config updated (1 created, 0 updated)"` —— 客户端能看到实际发生了什么。
+
+### 17.2 Finding ② — plugin 启用/禁用是 no-op，而且查名字查的是主键
+
+**(a) 查找错了列。** plugin 端点的路径参数是**名字**（`GET /plugins/:name`），旧代码却调
+`s.repo.GetByID(ctx, tenantID, name)`，而 `GetByID` 的 SQL 是 `WHERE id=$1 AND tenant_id=$2` ——
+匹配**主键**。所以**每一次 plugin 查找都 miss**，插件永远 not found。
+修法：`pluginByName` 遍历 `List` 按 `Name` 匹配，找不到返回 `sentinel.NotFound`。
+
+**(b) 就算查到了，record 也被扔了。** `GetPlugin` 旧实现 ping 一次 `GetByID` 然后
+`return map[string]interface{}{"name": name}, nil` —— **原样回显输入**。
+现在返回体带 `status` / `metadata` / `updated`（`rfc3339OrEmpty`），是这条记录的真实内容。
+
+**(c) enable/disable 恒报成功。** 旧 `EnablePlugin` ping 一次 `GetByID` 然后 `return "enabled", nil`，
+**不写任何东西**。现在 `setPluginStatus` 走 `repo.Update` 改 `status` 字段；已经处于目标态时
+返回 `"enabled already"` 且**不发写**（幂等，不制造无意义 UPDATE）。
+顺带在 `models.go` 加了 `StatusDisabled = "disabled"`（原来只有 `StatusActive`）。
+
+### 17.3 Finding ③ — `Restart` / `Configure` 报了成功但什么都没持久化
+
+```go
+func (s *Service) Restart(ctx context.Context, tenantID, id string) (string, error) {
+	if _, err := s.repo.GetByID(ctx, tenantID, id); err != nil { return "", err }
+	return "restart triggered", nil     // 只读，不写
+}
+```
+挂在 `POST /:id/restart`（`write` 权限）上，却只发一条 SELECT。
+
+**这个模块背后没有进程管理器、没有 restart 事件表**，按准则 (e) 本应只记录。
+但没有停在那儿 —— 「不做任何事」和「留下可审计痕迹」之间有一条诚实的路：
+把请求时间戳写进该记录的 metadata。`stampAction` 保留原有 metadata、name、status，只加一个字段：
+
+```go
+func (s *Service) stampAction(ctx context.Context, tenantID, id, field, verb string) (string, error) {
+	rec, err := s.repo.GetByID(ctx, tenantID, id)   // 归属校验
+	if err != nil { return "", err }
+	if rec == nil { return "", sentinel.NotFound }  // 别人的 id 不再报成功
+	meta := rec.Metadata; if meta == nil { meta = map[string]interface{}{} }
+	whent := time.Now().UTC().Format(time.RFC3339)
+	meta[field] = whent
+	// repo.Update 回写 name/status/config，全部保留
+	return fmt.Sprintf("%s at %s", verb, whent), nil
+}
+```
+
+`Restart` → `lastRestartRequestedAt`，`Configure` → `lastConfiguredAt`。
+**刻意不声称系统重启了** —— 响应是 `"restart requested at 2026-08-26T..."`，
+不是原来的 `"restart triggered"`。这是把「虚报一个动作」换成「如实记录一个请求」。
+
+### 17.4 Finding ④ — `GetStatus` 恒 "running"、`GetStatusMiddleware` 恒 "healthy"
+
+```go
+func (s *Service) GetStatus(ctx context.Context, tenantID string) (string, error) {
+	_, err := s.repo.List(ctx, tenantID)
+	if err != nil { return "unknown", err }
+	return "running", nil
+}
+```
+只要表可达就是 "running" —— **空租户和满租户完全无法区分**。
+
+现在从 record 推导，复用既有 helper `countByStatus`：空 → `idle`、全 active → `running`、
+全非 active → `stopped`、混合 → `degraded`。`GetStatusMiddleware` 原来无条件 `"healthy"`，
+现在直接 `return s.GetStatus(...)`，两个端点给同一个真相。
+
+### 17.5 测试：19 条，两层，9 次变异全部杀死测试
+
+**服务层 13 条**（`service_test.go`，加在既有 12 条之后）。其中一条是**测试替身本身的加固**：
+`fakeRepo.Update` 原来只写 name（`rec.Name = req.Name`），所以**没有任何测试能区分
+「真的写了」和「被丢弃了」** —— 而 `UpdateConfig` 恰好就是把 payload 丢弃的那个函数。
+先把替身升级成持久化 Status/Metadata/UpdatedAt，新测试才有意义（这也正是 M5 变异要验证的）。
+
+**仓库层 6 条**（`repository/repository_test.go`，**新建文件**）。该模块**此前零仓库测试**，
+所以「配置被持久化了」这个论断以前只能对着内存 fake 说。用 sqlmock 把写路径钉在真实 SQL 上：
+`TestCreate_SendsTheConfigAsMetadata`、`TestUpdate_SendsNameStatusAndMetadata`、
+`TestUpdate_ReturnsNotFoundWhenNoRowMatched`、`TestDelete_SoftDeletesWithAnUpdate`、
+`TestGetByID_MapsNoRowToNotFound`、`TestList_DecodesMetadataFromJSONB`。
+
+`TestDelete_SoftDeletesWithAnUpdate` 利用了 sqlmock 的严格性 —— **未预期的调用会被拒绝**，
+所以如果 repository 走了硬 `DELETE`，测试会因错误失败而不是静默通过。
+
+**9 次变异证明**（每换一个都杀死测试，基线恢复 0 失败）：
+
+| # | 变异 | 结果 |
+|---|---|---|
+| M1 | `UpdateConfig` 换回原始 stub | 5 fails |
+| M2 | `GetStatus` 换回恒 `"running"` | 5 fails |
+| M3 | `Restart`/`Configure` 换回 ping | 3 fails |
+| M4 | plugins 换回原始 stub | 3 fails |
+| M5 | `fakeRepo.Update` 降级回 name-only（证明替身不够弱） | 3 fails |
+| R1 | `Create` 忽略 `req.Config` | 1 fail：`TestCreate_SendsTheConfigAsMetadata` |
+| R2 | `Update` 把 no-op 当成功（`affected < 0`） | 1 fail：`TestUpdate_ReturnsNotFoundWhenNoRowMatched` |
+| R3 | `Delete` 改成硬 `DELETE` | 1 fail：`TestDelete_SoftDeletesWithAnUpdate` |
+| R4 | `List` 跳过 JSONB 反序列化 | 1 fail：`TestList_DecodesMetadataFromJSONB` |
+
+**两次假通过**（`rc=1` 但 `kills=0`，即**编译失败**而非测试失败，会误判为测试有效）：
+
+- M4 第一次：替换串把额外 key 注入一个**已存在的**复合字面量 → 重复 key → 编译错。
+  重做为原封不动的原始 stub 函数体后正确杀死 3 条。
+- R1/R3 第一次：`meta` / `now` 变成未使用变量 → `is declared but not used`。
+  R1 重做成在**源头**丢配置（`marshalMeta(map[string]interface{}{})`，`meta` 仍被使用）；
+  R3 重做成自然写法（写硬 DELETE 时开发者本来就会删掉 `now := time.Now().UTC()` 那行）。
+  教训：变异必须**能编译**，否则 `kills=0` 不代表测试无牙。
+
+**sqlmock v1.5.2 API 核实**（读模块源码，不是猜）：`ExpectationsWereMet` 存在；
+**`ExpectedArgs` 不存在**；`WithArgs` **确实比较参数**（go1.8+ 的 `argsMatches`，经
+`converter.ConvertValue()` 后走 `reflect.DeepEqual`）；`Argument` 匹配器（`sqlmock.AnyArg()`）
+先检查、绕开序号检查；sqlmock driver 无 `CheckNamedValue` → `driver.DefaultParameterConverter`
+让 `[]byte` 仍是 `[]byte`、`time.Time` 仍是 `time.Time`。
+
+### 17.6 仓库层暴露的一个真实不对等（服务层 fake 看不见）
+
+仓库层测试的第一个失败不是代码错，是**我的断言类型错**：
+
+```
+Metadata[replicas] = 3, want 3 decoded from the JSONB column
+```
+
+打印是 `3`，比较却失败 —— `json.Unmarshal` 到 `map[string]interface{}` 时数字是 **`float64(3)`**，
+而 Go 里 `float64` 与**非具名** `int` 字面量**永远不相等**。`%v` 把 `float64(3)` 打印成 `3`，
+正好把类型差异藏起来。
+
+顺出仓库自己的**真实不对等**：`Create` 返回 `Metadata: req.Config`（原始内存 map，**没有 SELECT**），
+所以那里 `3` 仍是 `int`；而 `Update`（走 `GetByID` → `row.toModel()` → `json.Unmarshal`）和
+`List`（同样）都给 `float64`。**`Create` 的返回值不是它刚写入那行数据的 DB 表示**。
+服务层的 `fakeRepo` 存的是同一个指针、不做 JSON 往返，所以服务层测试可以断言裸 `int` ——
+这恰好说明服务层 fake 比真实仓库**更宽松**，两层必须分开看待。已在三处断言各加注释。
+
+### 17.7 路由覆盖确认
+
+`RegisterRoutes` 共 **14 条**路由，本轮修完的 4 处覆盖其中全部涉桩方法（List/Get/Create/
+Update/Delete/GetConfig/UpdateConfig/GetStatus/Restart/Configure/ListPlugins/GetPlugin/
+EnablePlugin/DisablePlugin）。
+
+**判为合法、刻意不修**：`GetConfig`（计算聚合）、`ListPlugins`（映射真实名字）、
+`GetStats`/`GetMetrics`/`GetCoverage`/`GetUtilization`/`Forecast`（派生读）。
+
+### 17.8 验证
+
+| 检查 | 结果 |
+|---|---|
+| `go build -overlay /tmp/orion_overlay.json ./...` | rc=0，无输出 |
+| `go vet -overlay ./internal/middleware-ops/...` | rc=0，无输出 |
+| `go test -overlay -count=1 ./internal/middleware-ops/...` | rc=0（handler / repository / service 全 ok，models 无测试） |
+| 服务层测试 | 25/25 PASS（12 既有 + 13 新） |
+| 仓库层测试 | 6/6 PASS（新建文件） |
+| gofmt（4 个改动 Go 文件） | 干净 |
+
+### 17.9 仍未解决（本轮新增记录）
+
+- **middleware-ops 43 个 handler 方法零路由**（57 个方法 / 14 条路由）：
+  `RunInspection`、`RunPipeline`、`UpdateStatus`、`Pause`、`Resume`、`GetLineage` 等全部零调用方。
+  与第十六轮 auto-exec 同类（命名空间污染），但数量大得多，且这些方法背后**没有任何基础设施**
+  （无 inspection runner、无 pipeline runner），所以不是「迁命名空间就能修」，属更大的一项。
+- **无条件的安全门谎报**：`CheckCompatibility` → `true`、`ValidateBranch` → `true`、
+  `GetBranchStatus` → `"valid"`（branch-policy / confirmation），永远放行。
+- `internal/branch-policy/service.go` 11 个裸 ping 桩；`GetStatusMiddleware` → `"healthy"`
+  且无 DB 调用；`GetMetrics` 硬编码 `"metrics": []string{}`；`handler.go:582` 的 `RegisterModel`
+  不解析请求体且无条件写 `{"message":"model registered"}`。
+- `internal/confirmation/service.go` 11 个裸 ping 桩（含 `UpdateConfig` → `"healthy"`）。
+- `autonomous-pipeline` 的 RegisterModel/RunInspection/UpdateConfig 返回 `gin.H{"message": ...}`；
+  `capacity` 的 Configure/RunInspection；`artifact-version` 的 BatchCreate。
+- 跨轮遗留不变：performance 模块整体 schema 不匹配、alert-adapter 接口强制、
+  `pipeline-template InstantiateTemplate` 丢弃 Parameters/Environment、
+  `ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换不存在、SMTP/SMS 凭证待运维、
+  134 个 `handler_test.go` 冲突标记（并行 agent 工作树，故意不碰；本轮所有测试一律走 overlay）。
+

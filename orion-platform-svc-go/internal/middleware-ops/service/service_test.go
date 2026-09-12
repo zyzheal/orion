@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -64,10 +65,16 @@ func (f *fakeRepo) List(ctx context.Context, tenantID string) ([]models.Record, 
 	return out, nil
 }
 
+// Update used to persist only the name, so no test could distinguish a real
+// write from a dropped one. Status and metadata are the two fields this round's
+// fixes depend on, so they have to land.
 func (f *fakeRepo) Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Record, error) {
 	for i := range f.records {
 		if f.records[i].ID == id {
 			f.records[i].Name = req.Name
+			f.records[i].Status = req.Status
+			f.records[i].Metadata = req.Config
+			f.records[i].UpdatedAt = time.Now().UTC()
 			return &f.records[i], nil
 		}
 	}
@@ -353,5 +360,309 @@ func TestDerivedMethods_SafeOnEmptyRepo(t *testing.T) {
 	}
 	if _, err := svc.GetConfig(ctx, "t1"); err != nil {
 		t.Fatalf("GetConfig on empty repo: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Round 17: the routed write endpoints used to discard their input.
+// ---------------------------------------------------------------------------
+
+func TestUpdateConfig_WritesNewKeys(t *testing.T) {
+	repo := &fakeRepo{}
+	svc := service.NewService(repo)
+
+	msg, err := svc.UpdateConfig(context.Background(), "t1", map[string]interface{}{
+		"gateway": map[string]interface{}{"replicas": 3, "timeout": 30},
+	})
+	if err != nil {
+		t.Fatalf("UpdateConfig: %v", err)
+	}
+	if msg != "config updated (1 created, 0 updated)" {
+		t.Errorf("message = %q, want config updated (1 created, 0 updated)", msg)
+	}
+	if len(repo.records) != 1 {
+		t.Fatalf("records = %d, want 1: the config must be persisted", len(repo.records))
+	}
+	rec := repo.records[0]
+	if rec.Name != "gateway" {
+		t.Errorf("name = %q, want gateway", rec.Name)
+	}
+	if rec.Status != models.StatusActive {
+		t.Errorf("status = %q, want %q", rec.Status, models.StatusActive)
+	}
+	if rec.Metadata["replicas"] != 3 || rec.Metadata["timeout"] != 30 {
+		t.Errorf("metadata = %v, want the submitted config", rec.Metadata)
+	}
+}
+
+func TestUpdateConfig_UpdatesExistingKeyWithoutInserting(t *testing.T) {
+	repo := &fakeRepo{}
+	now := time.Now().UTC()
+	repo.seed(models.Record{
+		ID: "r1", TenantID: "t1", Name: "gateway", Status: models.StatusActive,
+		Metadata: map[string]interface{}{"replicas": 1}, CreatedAt: now, UpdatedAt: now,
+	})
+	svc := service.NewService(repo)
+
+	msg, err := svc.UpdateConfig(context.Background(), "t1", map[string]interface{}{
+		"gateway": map[string]interface{}{"replicas": 9},
+	})
+	if err != nil {
+		t.Fatalf("UpdateConfig: %v", err)
+	}
+	if msg != "config updated (0 created, 1 updated)" {
+		t.Errorf("message = %q, want config updated (0 created, 1 updated)", msg)
+	}
+	if len(repo.records) != 1 {
+		t.Fatalf("records = %d, want 1: an existing key must not be re-inserted", len(repo.records))
+	}
+	if got := repo.records[0].Metadata["replicas"]; got != 9 {
+		t.Errorf("replicas = %v, want 9", got)
+	}
+}
+
+func TestUpdateConfig_RoundTripsThroughGetConfig(t *testing.T) {
+	repo := &fakeRepo{}
+	svc := service.NewService(repo)
+	submitted := map[string]interface{}{
+		"gateway": map[string]interface{}{"replicas": 3},
+		"queue":   map[string]interface{}{"workers": 2},
+	}
+	if _, err := svc.UpdateConfig(context.Background(), "t1", submitted); err != nil {
+		t.Fatalf("UpdateConfig: %v", err)
+	}
+
+	cfg, err := svc.GetConfig(context.Background(), "t1")
+	if err != nil {
+		t.Fatalf("GetConfig: %v", err)
+	}
+	if cfg["count"] != 2 {
+		t.Errorf("count = %v, want 2", cfg["count"])
+	}
+	entries, ok := cfg["entries"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("entries type = %T", cfg["entries"])
+	}
+	gw, ok := entries["gateway"].(map[string]interface{})
+	if !ok || gw["replicas"] != 3 {
+		t.Errorf("entries[gateway] = %v, want replicas=3", entries["gateway"])
+	}
+	q, ok := entries["queue"].(map[string]interface{})
+	if !ok || q["workers"] != 2 {
+		t.Errorf("entries[queue] = %v, want workers=2", entries["queue"])
+	}
+}
+
+func TestUpdateConfig_RejectsNonObjectValuesWithoutWriting(t *testing.T) {
+	repo := &fakeRepo{}
+	svc := service.NewService(repo)
+
+	_, err := svc.UpdateConfig(context.Background(), "t1", map[string]interface{}{"limit": 100})
+	if err == nil {
+		t.Fatal("UpdateConfig must reject a scalar value, not silently reshape it")
+	}
+	if !strings.Contains(err.Error(), "must be an object") {
+		t.Errorf("error = %v, want it to name the offending shape", err)
+	}
+	if len(repo.records) != 0 {
+		t.Errorf("records = %d, want 0: validation must not leave a partial write", len(repo.records))
+	}
+}
+
+func TestUpdateConfig_RejectsEmptyMap(t *testing.T) {
+	repo := &fakeRepo{}
+	svc := service.NewService(repo)
+	if _, err := svc.UpdateConfig(context.Background(), "t1", map[string]interface{}{}); err == nil {
+		t.Fatal("UpdateConfig must reject an empty config")
+	}
+	if len(repo.records) != 0 {
+		t.Errorf("records = %d, want 0", len(repo.records))
+	}
+}
+
+func TestGetStatus_DerivesFromRecords(t *testing.T) {
+	cases := []struct {
+		name string
+		recs []models.Record
+		want string
+	}{
+		{"empty tenant is idle", nil, "idle"},
+		{"all active is running", []models.Record{
+			{TenantID: "t1", Name: "a", Status: models.StatusActive},
+		}, "running"},
+		{"all inactive is stopped", []models.Record{
+			{TenantID: "t1", Name: "a", Status: "down"},
+			{TenantID: "t1", Name: "b", Status: "paused"},
+		}, "stopped"},
+		{"mixed is degraded", []models.Record{
+			{TenantID: "t1", Name: "a", Status: models.StatusActive},
+			{TenantID: "t1", Name: "b", Status: "down"},
+		}, "degraded"},
+		{"blank status counts as active", []models.Record{
+			{TenantID: "t1", Name: "a", Status: ""},
+		}, "running"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &fakeRepo{}
+			repo.seed(tc.recs...)
+			svc := service.NewService(repo)
+			got, err := svc.GetStatus(context.Background(), "t1")
+			if err != nil {
+				t.Fatalf("GetStatus: %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("GetStatus = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestGetStatusMiddleware_FollowsTheDerivedStatus(t *testing.T) {
+	svc := service.NewService(&fakeRepo{})
+	got, err := svc.GetStatusMiddleware(context.Background(), "t1")
+	if err != nil {
+		t.Fatalf("GetStatusMiddleware: %v", err)
+	}
+	if got != "idle" {
+		t.Errorf("GetStatusMiddleware = %q, want idle for an empty tenant, not an unconditional healthy", got)
+	}
+}
+
+func TestRestart_StampsTheRecordItWasAimedAt(t *testing.T) {
+	repo := &fakeRepo{}
+	now := time.Now().UTC()
+	repo.seed(models.Record{
+		ID: "r1", TenantID: "t1", Name: "gateway", Status: models.StatusActive,
+		Metadata: map[string]interface{}{"replicas": 3}, CreatedAt: now, UpdatedAt: now,
+	})
+	svc := service.NewService(repo)
+
+	msg, err := svc.Restart(context.Background(), "t1", "r1")
+	if err != nil {
+		t.Fatalf("Restart: %v", err)
+	}
+	if !strings.Contains(msg, "restart requested at ") {
+		t.Errorf("message = %q, want a timestamped restart confirmation", msg)
+	}
+	meta := repo.records[0].Metadata
+	if _, ok := meta["lastRestartRequestedAt"]; !ok {
+		t.Fatalf("metadata = %v, want a lastRestartRequestedAt stamp", meta)
+	}
+	if meta["replicas"] != 3 {
+		t.Errorf("replicas = %v, want 3: existing metadata must be preserved", meta["replicas"])
+	}
+	if repo.records[0].Name != "gateway" || repo.records[0].Status != models.StatusActive {
+		t.Errorf("name/status = %q/%q, want gateway/%s", repo.records[0].Name, repo.records[0].Status, models.StatusActive)
+	}
+}
+
+func TestConfigure_StampsTheRecordItWasAimedAt(t *testing.T) {
+	repo := &fakeRepo{}
+	now := time.Now().UTC()
+	repo.seed(models.Record{ID: "r1", TenantID: "t1", Name: "queue", Status: models.StatusActive, CreatedAt: now, UpdatedAt: now})
+	svc := service.NewService(repo)
+
+	msg, err := svc.Configure(context.Background(), "t1", "r1")
+	if err != nil {
+		t.Fatalf("Configure: %v", err)
+	}
+	if !strings.Contains(msg, "configured at ") {
+		t.Errorf("message = %q, want a timestamped configuration confirmation", msg)
+	}
+	if _, ok := repo.records[0].Metadata["lastConfiguredAt"]; !ok {
+		t.Fatalf("metadata = %v, want a lastConfiguredAt stamp", repo.records[0].Metadata)
+	}
+}
+
+func TestRestart_FailsOnUnknownRecord(t *testing.T) {
+	svc := service.NewService(&fakeRepo{})
+	if _, err := svc.Restart(context.Background(), "t1", "ghost"); err == nil {
+		t.Fatal("Restart on an unknown record must fail, not report success")
+	}
+	if _, err := svc.Configure(context.Background(), "t1", "ghost"); err == nil {
+		t.Fatal("Configure on an unknown record must fail, not report success")
+	}
+}
+
+func TestEnablePlugin_PersistsActive(t *testing.T) {
+	repo := &fakeRepo{}
+	now := time.Now().UTC()
+	repo.seed(models.Record{
+		ID: "r1", TenantID: "t1", Name: "tracing", Status: models.StatusDisabled,
+		Metadata: map[string]interface{}{"endpoint": "otel"}, CreatedAt: now, UpdatedAt: now,
+	})
+	svc := service.NewService(repo)
+
+	msg, err := svc.EnablePlugin(context.Background(), "t1", "tracing")
+	if err != nil {
+		t.Fatalf("EnablePlugin: %v", err)
+	}
+	if msg != "enabled" {
+		t.Errorf("message = %q, want enabled", msg)
+	}
+	if repo.records[0].Status != models.StatusActive {
+		t.Errorf("status = %q, want %q", repo.records[0].Status, models.StatusActive)
+	}
+	if repo.records[0].Metadata["endpoint"] != "otel" {
+		t.Errorf("metadata = %v, want the plugin config preserved", repo.records[0].Metadata)
+	}
+
+	if _, err := svc.DisablePlugin(context.Background(), "t1", "tracing"); err != nil {
+		t.Fatalf("DisablePlugin: %v", err)
+	}
+	if repo.records[0].Status != models.StatusDisabled {
+		t.Errorf("status = %q, want %q", repo.records[0].Status, models.StatusDisabled)
+	}
+
+	// A repeat of the already-applied transition reports cleanly and writes nothing.
+	if msg, err := svc.EnablePlugin(context.Background(), "t1", "tracing"); err != nil {
+		t.Fatalf("EnablePlugin: %v", err)
+	} else if msg != "enabled" {
+		t.Errorf("message = %q, want enabled", msg)
+	}
+	if msg, err := svc.EnablePlugin(context.Background(), "t1", "tracing"); err != nil {
+		t.Fatalf("EnablePlugin: %v", err)
+	} else if msg != "enabled already" {
+		t.Errorf("message = %q, want enabled already", msg)
+	}
+}
+
+func TestGetPlugin_ReturnsTheRecordItFound(t *testing.T) {
+	repo := &fakeRepo{}
+	now := time.Now().UTC()
+	repo.seed(models.Record{
+		ID: "r1", TenantID: "t1", Name: "tracing", Status: models.StatusActive,
+		Metadata: map[string]interface{}{"endpoint": "otel"}, CreatedAt: now, UpdatedAt: now,
+	})
+	svc := service.NewService(repo)
+
+	p, err := svc.GetPlugin(context.Background(), "t1", "tracing")
+	if err != nil {
+		t.Fatalf("GetPlugin: %v", err)
+	}
+	if p["name"] != "tracing" || p["status"] != models.StatusActive {
+		t.Errorf("name/status = %v/%v", p["name"], p["status"])
+	}
+	md, ok := p["metadata"].(map[string]interface{})
+	if !ok || md["endpoint"] != "otel" {
+		t.Errorf("metadata = %v, want the record's metadata, not just its name", p["metadata"])
+	}
+	if p["updated"] == "" {
+		t.Error("updated should be set from the record's UpdatedAt")
+	}
+}
+
+func TestPluginLookupsFailForUnknownNames(t *testing.T) {
+	svc := service.NewService(&fakeRepo{})
+	ctx := context.Background()
+	if _, err := svc.GetPlugin(ctx, "t1", "ghost"); err == nil {
+		t.Error("GetPlugin on an unknown name must fail")
+	}
+	if _, err := svc.EnablePlugin(ctx, "t1", "ghost"); err == nil {
+		t.Error("EnablePlugin on an unknown name must fail")
+	}
+	if _, err := svc.DisablePlugin(ctx, "t1", "ghost"); err == nil {
+		t.Error("DisablePlugin on an unknown name must fail")
 	}
 }
