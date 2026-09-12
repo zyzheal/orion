@@ -178,8 +178,17 @@ func (r *Repository) CreateEvent(ctx context.Context, event *models.AlertNotific
 		event.Status = "queued"
 	}
 	now := sql.NullTime{Time: nowUTC(), Valid: true}
-	sentAt := sql.NullTime{Time: event.SentAt.UTC(), Valid: event.SentAt != nil}
-	deliveredAt := sql.NullTime{Time: event.DeliveredAt.UTC(), Valid: event.DeliveredAt != nil}
+	// A composite literal evaluates all its fields, so "event.SentAt.UTC()"
+	// panics when SentAt is nil — which is the normal case for a freshly
+	// queued event. Build the nullables explicitly.
+	var sentAt sql.NullTime
+	if event.SentAt != nil {
+		sentAt = sql.NullTime{Time: event.SentAt.UTC(), Valid: true}
+	}
+	var deliveredAt sql.NullTime
+	if event.DeliveredAt != nil {
+		deliveredAt = sql.NullTime{Time: event.DeliveredAt.UTC(), Valid: true}
+	}
 	query := `INSERT INTO alert_notification_events (id, tenant_id, adapter_id, alert_id, payload, status, error, sent_at, delivered_at, created_at)
 		VALUES (:id, :tenant_id, :adapter_id, :alert_id, :payload, :status, :error, :sent_at, :delivered_at, :created_at)`
 	e := &createEventRow{

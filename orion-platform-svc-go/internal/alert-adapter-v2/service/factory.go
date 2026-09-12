@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -82,11 +83,26 @@ var (
 // Factory
 // ---------------------------------------------------------------------------
 
+// HandlerConstructor builds a fresh, unconfigured INotificationHandler for a
+// single channel. Registered constructors are the preferred registration form:
+// the factory materialises one handler per adapter, so two adapters on the same
+// channel never share a config.
+type HandlerConstructor func() INotificationHandler
+
 // NotificationFactory manages the channel handler registry and notification
 // adapter lifecycle.
 //
-// Thread-safe: Register and SendNotification are safe for concurrent use.
+// Thread-safe: Register, RegisterConstructor and SendNotification are safe for
+// concurrent use.
 type NotificationFactory struct {
+	// ctors holds per-channel constructors. Preferred over handlers because a
+	// handler keeps its per-adapter config in its own fields, so a shared
+	// instance would leak one adapter's credentials into another adapter's
+	// dispatch.
+	ctors map[string]HandlerConstructor
+	// handlers holds pre-built singleton instances. Retained only as a
+	// convenience for tests that inject a fixed double; ctors take precedence
+	// for the same channel.
 	handlers map[string]INotificationHandler
 	repo     *repository.Repository
 	logger   *zap.Logger
@@ -94,17 +110,39 @@ type NotificationFactory struct {
 }
 
 // NewFactory creates a new NotificationFactory with the given repository and
-// logger. Call Register on it to add channel handlers.
+// logger. Register constructors on it to enable channels.
 func NewFactory(repo *repository.Repository, logger *zap.Logger) *NotificationFactory {
 	return &NotificationFactory{
 		repo:     repo,
 		logger:   logger,
+		ctors:    make(map[string]HandlerConstructor),
 		handlers: make(map[string]INotificationHandler),
 	}
 }
 
+// RegisterConstructor registers a per-adapter handler constructor for a
+// channel. This is the form production wiring should use; see Register for the
+// singleton alternative.
+func (f *NotificationFactory) RegisterConstructor(ch string, ctor HandlerConstructor) {
+	if ctor == nil || strings.TrimSpace(ch) == "" {
+		return
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	key := strings.ToLower(strings.TrimSpace(ch))
+	f.ctors[key] = ctor
+	f.logger.Info("registered notification handler constructor",
+		zap.String("channel", key),
+	)
+}
+
 // Register registers a typed notification handler with the factory.
+//
 // Subsequent Register calls for the same channel overwrite the previous one.
+// Prefer RegisterConstructor: a handler stores its per-adapter config in its own
+// fields, so registering one shared instance means the last adapter created on
+// that channel overwrites the previous adapter's settings, and every send uses
+// whatever the most recent Initialize left behind.
 func (f *NotificationFactory) Register(h INotificationHandler) {
 	if h == nil || h.Channel() == "" {
 		return
@@ -118,16 +156,42 @@ func (f *NotificationFactory) Register(h INotificationHandler) {
 	)
 }
 
-// getHandler returns a fresh handler instance for the given channel.
+// RegisteredChannels returns the sorted set of channels that can currently be
+// dispatched on, covering both constructor- and instance-based registrations.
+func (f *NotificationFactory) RegisteredChannels() []string {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	seen := make(map[string]struct{}, len(f.ctors)+len(f.handlers))
+	for ch := range f.ctors {
+		seen[ch] = struct{}{}
+	}
+	for ch := range f.handlers {
+		seen[ch] = struct{}{}
+	}
+	out := make([]string, 0, len(seen))
+	for ch := range seen {
+		out = append(out, ch)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// getHandler returns a handler instance for the given channel.
+//
+// A constructor-registered channel yields a fresh instance on every call, so
+// the adapter config loaded in SendNotification is never shared between
+// adapters. Instance-registered channels fall back to their shared singleton.
 func (f *NotificationFactory) getHandler(ch string) (INotificationHandler, error) {
 	ch = strings.ToLower(strings.TrimSpace(ch))
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	h, ok := f.handlers[ch]
-	if !ok {
-		return nil, fmt.Errorf("%w: %s", ErrNoHandler, ch)
+	if ctor, ok := f.ctors[ch]; ok {
+		return ctor(), nil
 	}
-	return h, nil
+	if h, ok := f.handlers[ch]; ok {
+		return h, nil
+	}
+	return nil, fmt.Errorf("%w: %s", ErrNoHandler, ch)
 }
 
 // parseConfig unmarshals a JSON config string into a string map.
@@ -187,7 +251,10 @@ func (f *NotificationFactory) CreateAdapter(
 		_, _ = f.repo.UpdateAdapter(ctx, tenantID, a.ID, &models.UpdateAdapterRequest{
 			Status: strPtr("error"),
 		})
-		return nil, fmt.Errorf("%w: %v", ErrInitFailed, err)
+		// %w on both sides so errors.Is(err, ErrNoHandler) still works past this
+		// wrap — callers need to tell an unimplemented channel apart from a
+		// malformed config.
+		return nil, fmt.Errorf("%w: %w", ErrInitFailed, err)
 	}
 
 	if err := h.ValidateConfig(ctx, cfgMap); err != nil {
@@ -342,11 +409,25 @@ func (f *NotificationFactory) SendNotification(
 		return nil, fmt.Errorf("create event failed: %w", err)
 	}
 
-	// 5. Dispatch via handler
+	// 5. Dispatch via handler.
+	//
+	// getHandler materialises a fresh handler for constructor-registered
+	// channels, so it arrives unconfigured: Initialize it from this adapter's
+	// own stored config before sending. Skipping this step made every send fail
+	// with ErrMissingRequiredConfig even for correctly configured adapters.
 	h, err := f.getHandler(a.Channel)
 	if err != nil {
 		_ = f.repo.MarkEventFailed(ctx, event.ID, err.Error())
-		return nil, fmt.Errorf("%w: %v", ErrInitFailed, err)
+		return nil, fmt.Errorf("%w: %w", ErrInitFailed, err)
+	}
+	cfgMap, err := parseConfig(a.Config)
+	if err != nil {
+		_ = f.repo.MarkEventFailed(ctx, event.ID, err.Error())
+		return nil, fmt.Errorf("%w: %w", ErrInvalidConfig, err)
+	}
+	if err := h.Initialize(ctx, cfgMap); err != nil {
+		_ = f.repo.MarkEventFailed(ctx, event.ID, err.Error())
+		return nil, fmt.Errorf("%w: %w", ErrInitFailed, err)
 	}
 
 	if err := h.Send(ctx, rendered, variables); err != nil {

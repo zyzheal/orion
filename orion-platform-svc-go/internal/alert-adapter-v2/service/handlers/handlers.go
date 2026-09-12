@@ -4,21 +4,27 @@
 // Each handler targets a specific channel and knows how to validate its config,
 // initialize runtime state, and dispatch a rendered notification.
 //
-// Channels implemented:
+// Channels implemented (see LiveChannels for the authoritative list):
 //
 //	email, sms, wechat, dingtalk, feishu, slack, telegram, pagerduty,
-//	opsgenie, webhook, push, in_app, kafka
+//	opsgenie, webhook, in_app
 //
-// Phone and rabbitmq are reserved for future implementation.
+// push and kafka carry handler shells whose Send is not implemented; they are
+// deliberately left unregistered so they fail loudly instead of silently
+// succeeding. phone and rabbitmq are reserved for future implementation.
 package handlers
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/smtp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -65,18 +71,30 @@ func severityBadge(severity string) string {
 // EmailHandler
 // ---------------------------------------------------------------------------
 
+// EmailHandler delivers a rendered notification over SMTP.
+//
+// Config keys: smtp_host, smtp_port (default 587), username, password, from,
+// to (semicolon-separated), subject (optional; defaults to the adapter name
+// hint below), starttls (default true), tls_skip_verify (default false).
 type EmailHandler struct {
-	smtpHost   string
-	smtpPort   string
-	username   string
-	password   string
-	fromAddr   string
-	toAddrs    []string
-	configured bool
+	smtpHost      string
+	smtpPort      string
+	username      string
+	password      string
+	fromAddr      string
+	toAddrs       []string
+	subject       string
+	startTLS      bool
+	skipTLSVerify bool
+	configured    bool
+	// dialer overrides the TCP connect used to reach the relay. Nil in
+	// production (net.Dialer, 10s timeout); settable from this package's
+	// tests to point at a local SMTP stub.
+	dialer func(ctx context.Context, network, addr string) (net.Conn, error)
 }
 
 func NewEmailHandler() *EmailHandler {
-	return &EmailHandler{smtpPort: "587"}
+	return &EmailHandler{smtpPort: "587", startTLS: true}
 }
 
 func (h *EmailHandler) Channel() string { return "email" }
@@ -95,27 +113,132 @@ func (h *EmailHandler) ValidateConfig(_ context.Context, config map[string]strin
 }
 
 func (h *EmailHandler) Initialize(_ context.Context, config map[string]string) error {
-	h.smtpHost = config["smtp_host"]
-	if config["smtp_port"] != "" {
-		h.smtpPort = config["smtp_port"]
+	h.smtpHost = strings.TrimSpace(config["smtp_host"])
+	if port := strings.TrimSpace(config["smtp_port"]); port != "" {
+		h.smtpPort = port
 	}
 	h.username = config["username"]
 	h.password = config["password"]
-	h.fromAddr = config["from"]
+	h.fromAddr = strings.TrimSpace(config["from"])
+	h.toAddrs = nil
 	if to := config["to"]; to != "" {
-		h.toAddrs = strings.Split(to, ";")
+		for _, a := range strings.Split(to, ";") {
+			if a = strings.TrimSpace(a); a != "" {
+				h.toAddrs = append(h.toAddrs, a)
+			}
+		}
 	}
+	h.subject = strings.TrimSpace(config["subject"])
+	h.startTLS = configBool(config, "starttls", true)
+	h.skipTLSVerify = configBool(config, "tls_skip_verify", false)
 	h.configured = true
 	return nil
 }
 
-func (h *EmailHandler) Send(_ context.Context, _ string, _ map[string]string) error {
-	// TODO: in production, open SMTP connection via net/smtp and send MIME message.
-	// h.configured must be true and h.smtpHost/h.fromAddr/h.toAddrs populated.
+func (h *EmailHandler) Send(ctx context.Context, template string, variables map[string]string) error {
 	if !h.configured {
 		return ErrMissingRequiredConfig
 	}
+	if h.smtpHost == "" || h.fromAddr == "" || len(h.toAddrs) == 0 {
+		return fmt.Errorf("%w: smtp_host, from and to are all required", ErrMissingRequiredConfig)
+	}
+	if h.smtpPort == "" {
+		h.smtpPort = "587"
+	}
+
+	port := h.smtpPort
+	if _, err := strconv.Atoi(port); err != nil {
+		return fmt.Errorf("invalid smtp_port %q: %v", h.smtpPort, err)
+	}
+	addr := net.JoinHostPort(h.smtpHost, port)
+
+	dial := h.dialer
+	if dial == nil {
+		d := &net.Dialer{Timeout: 10 * time.Second}
+		dial = d.DialContext
+	}
+	conn, err := dial(ctx, "tcp", addr)
+	if err != nil {
+		return fmt.Errorf("smtp connect to %s failed: %w", addr, err)
+	}
+	defer conn.Close()
+
+	smtpConn, err := smtp.NewClient(conn, h.smtpHost)
+	if err != nil {
+		return fmt.Errorf("smtp hello failed: %w", err)
+	}
+	defer smtpConn.Close()
+
+	if h.startTLS {
+		if err := smtpConn.StartTLS(&tls.Config{
+			ServerName:         h.smtpHost,
+			InsecureSkipVerify: h.skipTLSVerify,
+		}); err != nil {
+			return fmt.Errorf("smtp starttls failed: %w", err)
+		}
+	}
+	if h.username != "" && h.password != "" {
+		if err := smtpConn.Auth(smtp.PlainAuth("", h.username, h.password, h.smtpHost)); err != nil {
+			return fmt.Errorf("smtp auth failed: %w", err)
+		}
+	}
+	if err := smtpConn.Mail(h.fromAddr); err != nil {
+		return fmt.Errorf("smtp mail from failed: %w", err)
+	}
+	for _, to := range h.toAddrs {
+		if err := smtpConn.Rcpt(to); err != nil {
+			return fmt.Errorf("smtp rcpt for %s failed: %w", to, err)
+		}
+	}
+
+	subject := h.subject
+	if subject == "" {
+		subject = subjectFromVariables(variables)
+	}
+	w, err := smtpConn.Data()
+	if err != nil {
+		return fmt.Errorf("smtp data failed: %w", err)
+	}
+	msg := new(strings.Builder)
+	fmt.Fprintf(msg, "From: %s\r\n", h.fromAddr)
+	fmt.Fprintf(msg, "To: %s\r\n", strings.Join(h.toAddrs, ", "))
+	fmt.Fprintf(msg, "Subject: %s\r\n", subject)
+	msg.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
+	msg.WriteString("MIME-Version: 1.0\r\n")
+	msg.WriteString("\r\n")
+	msg.WriteString(template)
+	if _, err := io.WriteString(w, msg.String()); err != nil {
+		_ = w.Close()
+		return fmt.Errorf("smtp write message failed: %w", err)
+	}
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("smtp data terminated: %w", err)
+	}
+	if err := smtpConn.Quit(); err != nil {
+		return fmt.Errorf("smtp quit failed: %w", err)
+	}
 	return nil
+}
+
+// configBool reads a boolean config flag, accepting bool-ish strings and
+// defaulting when the key is absent.
+func configBool(config map[string]string, key string, def bool) bool {
+	v := strings.TrimSpace(strings.ToLower(config[key]))
+	if v == "" {
+		return def
+	}
+	return v == "true" || v == "1" || v == "yes" || v == "on"
+}
+
+// subjectFromVariables derives an email subject from the rendered variables,
+// preferring an explicit subject, then title, then a generic default.
+func subjectFromVariables(variables map[string]string) string {
+	for _, key := range []string{"subject", "title", "alert_name"} {
+		if v := strings.TrimSpace(variables[key]); v != "" {
+			return v
+		}
+	}
+	return "Orion alert notification"
 }
 
 // ---------------------------------------------------------------------------
@@ -125,6 +248,7 @@ func (h *EmailHandler) Send(_ context.Context, _ string, _ map[string]string) er
 type SMSHandler struct {
 	gateway    string
 	apiKey     string
+	signature  string
 	phones     []string
 	configured bool
 }
@@ -143,23 +267,57 @@ func (h *SMSHandler) ValidateConfig(_ context.Context, config map[string]string)
 }
 
 func (h *SMSHandler) Initialize(_ context.Context, config map[string]string) error {
-	h.gateway = config["gateway"]
+	h.gateway = strings.TrimSpace(config["gateway"])
 	h.apiKey = config["api_key"]
+	h.signature = strings.TrimSpace(config["signature"])
+	h.phones = nil
 	if phones := config["phones"]; phones != "" {
-		h.phones = strings.Split(phones, ";")
+		for _, p := range strings.Split(phones, ";") {
+			if p = strings.TrimSpace(p); p != "" {
+				h.phones = append(h.phones, p)
+			}
+		}
 	}
 	h.configured = true
 	return nil
 }
 
-func (h *SMSHandler) Send(_ context.Context, template string, _ map[string]string) error {
+// Send posts the rendered message to the configured SMS gateway.
+//
+// The gateway contract is the same as the notification-engine SMS channel: a
+// JSON POST with a "phones" array and a "message" string, an optional
+// "signature" prefix, and an optional Bearer credential. Returns
+// ErrMissingRequiredConfig rather than silently succeeding when the gateway or
+// the recipient list is absent.
+func (h *SMSHandler) Send(ctx context.Context, template string, variables map[string]string) error {
 	if !h.configured {
 		return ErrMissingRequiredConfig
 	}
-	// TODO: in production, call SMS gateway API (Twilio, Alibaba SMS, etc.).
-	// Build payload: { "to": h.phones, "body": template, "apiKey": h.apiKey }
-	_ = template
-	return nil
+	if h.gateway == "" {
+		return fmt.Errorf("%w: gateway is required", ErrMissingRequiredConfig)
+	}
+	if len(h.phones) == 0 {
+		return fmt.Errorf("%w: phones is required", ErrMissingRequiredConfig)
+	}
+	if strings.TrimSpace(template) == "" {
+		return fmt.Errorf("%w: rendered message is empty", ErrMissingRequiredConfig)
+	}
+
+	body := map[string]interface{}{
+		"to":      h.phones,
+		"body":    template,
+		"sentAt":  time.Now().UTC().Format(time.RFC3339),
+		"source":  "orion-alert-adapter-v2",
+		"tenant":  variables["tenant_id"],
+		"alertId": variables["alert_id"],
+	}
+	if h.signature != "" {
+		body["signature"] = h.signature
+	}
+	if h.apiKey != "" {
+		return postJSONWithHeader(ctx, h.gateway, body, "Authorization", "Bearer "+h.apiKey)
+	}
+	return postJSON(ctx, h.gateway, body)
 }
 
 // ---------------------------------------------------------------------------

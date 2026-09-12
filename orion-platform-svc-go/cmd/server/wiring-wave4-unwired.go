@@ -7,6 +7,7 @@ import (
 	aa2_handler "orion/platform-svc-go/internal/alert-adapter-v2/handler"
 	aa2_repo "orion/platform-svc-go/internal/alert-adapter-v2/repository"
 	aa2_service "orion/platform-svc-go/internal/alert-adapter-v2/service"
+	aa2_handlers "orion/platform-svc-go/internal/alert-adapter-v2/service/handlers"
 
 	ar_handler "orion/platform-svc-go/internal/auto-recovery/handler"
 	ar_repo "orion/platform-svc-go/internal/auto-recovery/repository"
@@ -37,6 +38,11 @@ var (
 func wireAlertAdapterV2(db *database.DB, logger *zap.Logger) {
 	repo := aa2_repo.NewRepository(db.DB)
 	factory := aa2_service.NewFactory(repo, logger)
+	// Register every implemented channel. Without this the factory had no
+	// handlers at all, so CreateAdapter rejected every channel as invalid and
+	// SendNotification failed with ErrNoHandler — the /alert-adapters/v2 routes
+	// were live but could never deliver anything.
+	aa2_handlers.RegisterLiveHandlers(factory)
 	alertAdapterV2H = aa2_handler.NewHandler(factory)
 }
 
