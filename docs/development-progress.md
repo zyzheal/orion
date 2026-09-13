@@ -7173,3 +7173,129 @@ M8 能成立是因为 `TestHandler_SandboxHealth_NotHealthyAfterStop` 先 stop �
 `chaos-enhanced` `getTenantID` 注释与实现不符、裸 ping 桩数字未核实、alert-adapter 接口强制 `Receive`、
 `InstantiateTemplate` 丢弃 `Parameters`/`Environment`、`ticketing/testutil/mocks.go` 兜底 `nil,nil`、
 JWT 密钥轮换、SMTP/SMS 凭证、134 个 `handler_test.go` 冲突标记（并行 agent 工作树，仍不碰）。
+
+## 第二十二轮：roweditor 17 处未完成全部修复 + 94 条测试 + 24/24 变异证明（2026-08-26）
+
+- **基线 HEAD**：`bc32a4b9b`（第二十一轮提交之后）
+- **目标模块**：`internal/roweditor`（roweditor.go / operations.go / db.go / service / repository / handler / handler/models）
+- **结论**：**17 处未完成，全部修复；6 个测试文件 94 个顶层测试函数 / 122 条 `--- PASS`；24 个变异体全部被杀死（0 survived / 0 invalid / 0 anchor errors）**
+
+### 22.1 为什么选它
+
+上一轮确立的高信号标记是「未使用参数」，而**租户参数在写路径里被静默丢弃是最危险的一种形式**。
+`service.CreateRow(ctx, tenantID, editorName, db, req)` 收下 `tenantID` 却在整条写路径里一次都没有用到——
+8 条路由全部挂载且有 `auth.RequirePermission("roweditor", …)` 守卫，所以每一处空动作都是**活桩**。
+
+### 22.2 十七处缺陷
+
+| # | 层 | 缺陷 | 修复 |
+|---|----|------|------|
+| **F17** | **roweditor + service** | **P0**：`ColumnSpec.Validate` 是 `func(any) error` 字段。`encoding/json` 对 func 类型的 struct 字段一律返回 `json: unsupported type: func(interface {}) error`——判断的是 reflect Kind 而**不是**值是否为 nil，所以**即使 Validate 是 nil 也无法 marshal**。而 `cmd/server/wiring-roweditor.go` 传的是非 nil 仓库 → **生产环境每一个 `POST /row-editors/register` 都返回 500，spec 从未被持久化过** | `Required bool` 承载 `is_required` 的持久形态，`Validate func(any) error \`json:"-"\`` 排除出 wire format；`RowSpec.AttachRequiredValidators()` 从 `Required` 重建校验器，在 `RegisterEditor` 与 `GetEditor` 两处调用 |
+| F1 | service | `EditOptions{TenantID: req.RowID[:8], …}`——租户由主键前 8 个字符**伪造**；`RowID` 短于 8 字符时**切片越界 panic** | 直接用调用方 `tenantID` |
+| F2 | service + roweditor | BatchUpdate 只传 `Version` 不传租户 → `buildWhere` 丢掉 `tenant_id` 谓词 → **完全无作用域的跨租户批量 UPDATE** | `EditOptions{TenantID: tenantID, Version: req.Version}`；`buildWhere` 租户块保留 |
+| F3 | service + models | Create / BatchCreate 从**请求体**读 `req.TenantID`（`binding:"required"`）→ 租户伪造，JWT 里的真值就在手上却不用 | 删掉 body 字段，一律用认证租户 |
+| F4 | operations | `Create`/`BatchCreate` 收 `tenantID` 却从不写入 → **写路径无作用域而读/改/删有作用域** → 跨租户行注入 | `buildInsertColumnArgs` 丢弃调用方自带的 `tenant_id` 与只读列，按调用方租户打戳；租户列标只读时不打（触发器拥有该列的表） |
+| F5 | roweditor + operations | `buildDeleteQuery` 从不绑定 `rowID`（`args := []any{}`）→ 硬删命中未绑定占位符的驱动错误；而 `DeleteRow` 硬编码 `softDelete=false` → `DELETE /rows/:editor/:row_id` **永远 500** | `args := []any{rowID}; idx := 2`，与 `buildWhere` 一致的编号 |
+| F6 | roweditor | `buildUpdateSetClause` 的 version `+1` 子句被追加在 `BatchUpdate` 的**行循环内部** → version 每行 +1，批量一次涨 N 版，**乐观锁静默失效** | SET 子句在循环外构建一次；`buildUpdateSetClause` 注释锁定「每个 statement 只调一次」 |
+| F7 | service | `service.editors` 只以 `name` 为键（**跨租户全局**）而 `repo.Save` 是租户作用域 → 租户 B 注册 `users` 就进程级接管租户 A 的编辑器；且 `repo.Get/List/Exists/Delete` **零调用者**，持久化的 spec 从不被读回，**重启后编辑器全部蒸发** | `editorKey(tenant, name) = tenant + "\x00" + name`；`GetEditor` 加缓存未命中→`repo.Get`→`NewRowEditor`→回填缓存的加载路径 |
+| F8 | repository | `Get`/`List`/`Delete`/`Exists` 全部缺 `tenant_id` 谓词，而表唯一索引是 `(tenant_id, key)` 且 `Save` 按该键 upsert | 四条 SQL 统一补 `tenant_id` 谓词 |
+| F9 | db | `DBOperations.BeginTxx` 返回具体 `*sqlx.Tx` → 批量路径无法注入 fake，`TxOperations` 声明了却无人实现 | 返回 `TxOperations` 接口 |
+| F10 | handler | 从不校验租户 → 空 `c.GetString("tenant_id")` 直接流入无作用域查询，而不是 401 | `tenantID(c)` 失败即拒：写 `RespondUnauthorized(c, "tenant_id required")` 并返回 false，**零 SQL 发出** |
+| F11 | service + models | `RegisterEditor` 丢掉 `req.IsRequired` 与 `req.SoftDelete`；`RowUpdateRequest.NewRow`、`RowEditorResponse.OldRow`/`Version` 从不填充 | `col.Required`、`spec.SoftDelete` 透传；`DeleteRow` 从 `ed.Spec().SoftDelete` 取值（删除路由只从 path 拿行 id，**没有 body**） |
+| F12 | roweditor | `validateRow` 只在键**存在**时跑 `Validate` → 省略必填列即绕过规则（「省略」是绕规则最省事的方式） | 缺席列以 `nil` 为值照样校验 |
+| F13 | repository | `Get` 对 `sql.ErrNoRows` 与损坏 JSON 都返回**零值 `RowSpec`**（两者不可区分）；`List` 用 `_ = json.Unmarshal(...)`，损坏行变成空 spec 被静默接受 | `ErrNoRows → nil, nil`；损坏 JSON 上抛 `roweditor repository: corrupt spec for %q: %w`；`List` 损坏行 `continue` 跳过 |
+| F14 | roweditor | `buildWhere` 从 `$1` 编号，而 SET 子句已占用 `$1..$N` → `UPDATE items SET name=$1, updated_at=now(), version=version+1 WHERE id=$1 AND tenant_id=$2`：**行 id 与 SET 值绑到同一参数** | `buildWhere` 加尾部 `base int`；`Update`/`BatchUpdate`/`UpdateCell`/`Delete` 各传自己的 base |
+| F15 | operations | `Create` 忽略 `result.RowsAffected()` 的错误 → 元数据失败看起来像插入成功 | 上抛该错误 |
+| F16 | operations | `Read` 总是给 `GetContext` 传 `(rowID, tenantID)`，而空租户时 `buildSelectQuery` **不发** `tenant_id` 占位符 → Postgres `cannot use $2: no such placeholder` | 条件式 `args`：只有租户非空才 append |
+
+**F17 的两条连带后果**：(a) `json.Marshal` 拒绝的是**整个 spec**，所以注册接口在生产环境 100% 失败；
+(b) 由于 spec 从未落库，**F7 的仓库往返整条不可达**——两个缺陷互相掩盖，F17 不先修就没有任何东西能证明 F7 修好了。
+
+### 22.3 变异证明：24 个变异体全部被杀死
+
+每个变异体先断言锚点文本在**目标文件中恰好出现 1 次**，再确认变异后**能编译**（非编译失败的变异不算 kill），
+最后从 `/tmp/mut/` 备份按字节校验还原。结果：**killed 24/24；survived=[] invalid=[] anchor-errors=[]**。
+
+| 变异 | 对应 | 文件 | 锚点改动 | 杀死它的测试 |
+|------|------|------|---------|-------------|
+| M01 | F17 | roweditor.go | `Validate` 的 `json:"-"` tag 移除 | handler `TestRegisterEditorPersistsSpecAndReturns201` |
+| M02 | F17 | service.go | 删 `RegisterEditor` 里的 `AttachRequiredValidators()` | handler `TestCreateRowMissingRequiredColumnIs400` |
+| M03 | F17 | service.go | 删 `GetEditor` 里的 `AttachRequiredValidators()` | handler `TestEditorSurvivesRestart` |
+| M04 | F11 | service.go | 删 `col.Required = true` | handler `TestRegisterEditorPersistsSpecAndReturns201` |
+| M05 | F7 | service.go | `editorKey` → `return name` | service `TestEditorCacheIsTenantScoped` |
+| M05b | F7 | service.go | `keySep "\x00"` → `"."` | service `TestEditorKeyDoesNotCollide` |
+| M06 | F10 | handler.go | `tenantID` 失败开 → `return "default", true` | handler `TestMissingTenantIsRejectedBeforeSQL` |
+| M07 | — | handler.go | 错误映射 `case errors.Is(...), errors.Is(...):` → `case false:` | handler `TestReadRowMissingIs404` / `TestUpdateRowMissingIs404` / `TestDeleteRowMissingIs404` |
+| M08 | F16 | operations.go | `args := []any{rowID, tenantID}` 无条件 | parent `TestStrictReadWithoutTenantPassesOneArg` |
+| M09 | F14 | operations.go | `Update` 的 `buildWhere` base `len(setArgs)+1` → `1` | parent `TestStrictUpdateBindsRowIDAndTenant` |
+| M10 | F14 | operations.go | `BatchUpdate` 的 `buildWhere` base → `1` | parent `TestStrictBatchUpdateBumpsVersionOnce` |
+| M11 | F5 | operations.go | 软删 `buildWhere` base `1` → `2` | parent `TestStrictSoftDeleteNumbersFromOne` |
+| M12 | F4 | operations.go | 删 `buildInsertColumnArgs` 的租户打戳块 | parent `TestStrictCreateStampsAuthenticatedTenant` |
+| M13 | F5 | roweditor.go | `buildDeleteQuery` `args := []any{rowID}; idx := 2` → `args := []any{}; idx := 1` | parent `TestBuildDeleteQueryBindsRowID` |
+| M14 | F2 | roweditor.go | 删 `buildWhere` 的租户块 | parent `TestStrictBatchUpdateIsTenantScoped` |
+| M15 | F6 | roweditor.go | `buildUpdateSetClause` 把 version 自增**发两遍** | parent `TestBuildUpdateSetClauseIncrementsVersionOnce` |
+| M16 | F12 | roweditor.go | `validateRow` 缺席列 → `continue` 而非 `v = nil` | parent `TestValidateRowRunsValidatorOnAbsentColumn` |
+| M17 | F11 | service.go | `DeleteRow` → `ed.Delete(..., false)` | service `TestDeleteRowHonoursSpecSoftDelete` |
+| M18 | F7 | service.go | `GetEditor` 绕过缓存 `var ed *roweditor.RowEditor; ok := false` | service `TestGetEditorLoadsFromRepository` |
+| M19 | F1 | service.go | `EditOptions{TenantID: req.RowID[:8], ...}` | service `TestUpdateRowUsesCallerTenant` |
+| M20–M23 | F8 | repository.go | `Get`/`List`/`Delete`/`Exists` 的 SQL 各自退化成 `WHERE key=$2`（`List` 退化成只剩 `ORDER BY key`） | repository `TestRepositoryGetIsTenantScoped` / `...ListIsTenantScopedAndSkipsCorruptRows` / `...DeleteIsTenantScoped` / `...ExistsIsTenantScoped` |
+
+### 22.4 两个必须排除的假通过
+
+1. **定义类型断言永不匹配**。`roweditor.Row` 是 `type Row map[string]any`，**定义类型**；
+   值类型断言 `dest.(map[string]any)` 检查的是**精确动态类型**，所以 `Row` 值永远不满足它。
+   handler 与 service 两个 fake 的 `GetContext` 里那段填行代码**都是死代码**，
+   `TestReadRowBindsTenantAndReturnsRow` 因此空跑（`body = {"success":true,"data":{"affected":1}}`，行缺失却不报错）。
+   改成 `dest.(roweditor.Row)`，并在 service 层补 `TestReadRowBindsTenantAndReturnsTheRow` + `TestReadRowWithoutTenantBindsOnePlaceholder`
+   两条测试，使该分支不再空转。
+2. **锚点写错了目标文件**。M13 的 `buildDeleteQuery` 变异最初挂在 `operations.go`，而该函数实际在 `roweditor.go`——
+   anchor count 0 把错误暴露了（这正是「锚点必须唯一**且**必须在真正包含它的文件里」这条纪律存在的理由）。改对后重跑全绿。
+
+### 22.5 断言方式的选择
+
+sqlmock v1.5.2 没有参数匹配器、没有 `NewArgument`、也没有参数捕获——参数只能靠 `WithArgs` 的字面值钉住。
+因此 `TestRegisterEditorPersistsSpecAndReturns201` 与 `TestEditorSurvivesRestart` 用
+**`json.Marshal` 对 service 构建的 spec 产出的逐字节 JSON 字面量**作为 `WithArgs` 字面量：
+这一个断言同时证明了 `Required:true` 真的到了持久化载荷里，且 `Validate` **不在** wire format 里
+（F17 修复前的行为是 `json.Marshal` 直接拒绝整个结构、handler 答 500）。该字面量一次通过。
+
+handler 层用 `gin.New()` **不加 recovery middleware**，所以任何 handler panic 会直接崩掉测试进程，
+而不是被洗成一个普通的 500。拒绝类测试用两道闸门：`len(env.db.statements()) == 0`（行表 fake）
+加 `env.check(t)` 且未注册任何期望（repository），保证「拒绝发生在 SQL 之前」。
+
+### 22.6 验证
+
+| 命令 | 结果 |
+|------|------|
+| `gofmt -l internal/roweditor/` | 空 |
+| `go vet ./internal/roweditor/...` | 干净 |
+| `go test -count=1 ./internal/roweditor/...` | 4 包全 ok（handler/models 无测试文件） |
+| `grep -rnE '^[=<>]{{7}}' internal/roweditor/ | wc -l` | **0** |
+| `go build -overlay /tmp/orion_overlay.json ./...` | rc=0，零输出 |
+| `go test -overlay ... ./cmd/server/ -run TestStartupRoutesAreMounted` | ok |
+| `python3 /tmp/mut_r22.py` | **killed 24/24；survived=[] invalid=[] anchor-errors=[]** |
+
+测试分布：`db_test.go` 4、`operations_regression_test.go` 26、`roweditor_test.go` 15、
+`handler/handler_test.go` 26、`repository/repository_test.go` 9、`service/service_test.go` 14 ——
+**94 个顶层测试函数 / 122 条 `--- PASS`**（含子测试）。
+
+### 22.7 只记录不修（基础设施不存在，不假装）
+
+1. `RowSpec` 没有 `TenantColumn`/`StatusColumn`：`buildWhere`/`buildSelectQuery`/`buildDeleteQuery`
+   硬编码 `tenant_id` 与 `status!='deleted'`，任何列名不同的表都用不了。
+   请求级的 `tenant_column`/`status_column` 字段是**删掉**而非假装支持。
+2. 5 条 update/delete 路径仍 `affected, _ :=`（本轮只修了 `Create`）。
+3. `Stats` 用 `make([]string, 0)` 而非 `make([]string, 0, len(spec.Columns))`。
+4. `ColumnSpec.Type` 被 service 硬编码为 `"string"`，请求里没有类型字段可用。
+
+### 22.8 跨轮遗留（不变）
+
+`internal/security-compliance` 硬编码演示数据（`ListFindings` → `defaultFindings()`、`PassRate: 85.0`、
+`rulesCount = 50`、`CreateBaseline` 不落库、`ScanBaseline` 评测失败仍报 `completed`）；
+裸 map 缺 `driver.Valuer` 的模式值得在其他模块机械重扫（第二十一轮记录）；
+`internal/startup` `ListModulesByStatus` nil 切片一致性欠账、条件式安全门谎报
+（`confirmation/service.go:269,359,367`、`branch-policy/service.go:199,204,517,585,684,1518,1521`）、
+`chaos-enhanced` `getTenantID` 注释与实现不符、裸 ping 桩数字未核实、alert-adapter 接口强制 `Receive`、
+`InstantiateTemplate` 丢弃 `Parameters`/`Environment`、`ticketing/testutil/mocks.go` 兜底 `nil,nil`、
+JWT 密钥轮换、SMTP/SMS 凭证、134 个 `handler_test.go` 冲突标记（并行 agent 工作树，仍不碰；
+本轮 `internal/roweditor/` 下冲突标记为 **0**，所以该模块测试不需要 overlay）。
