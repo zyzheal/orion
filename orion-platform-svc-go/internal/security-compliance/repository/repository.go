@@ -115,21 +115,40 @@ func (r *Repository) InsertEvaluation(ctx context.Context, tenantID string, resu
 	return err
 }
 
+// evalRow mirrors the four scalar columns of compliance_evaluation_results.
+// models.ComplianceEvaluationResult declares no db tags, and sqlx's default
+// NameMapper lowercases a field name without touching the underscores, so
+// PolicyID resolves to "policyid" rather than "policy_id". Scanning the model
+// directly therefore failed on the first column with
+// "missing destination name policy_id", and that error is not sentinel.NotFound,
+// so GetLastEvaluation returned it to the handler and GET /baselines answered 500
+// for every tenant that had at least one policy.
+type evalRow struct {
+	PolicyID    string    `db:"policy_id"`
+	Status      string    `db:"status"`
+	Score       float64   `db:"score"`
+	EvaluatedAt time.Time `db:"evaluated_at"`
+}
+
 // LatestEvaluationByPolicy returns the most recent evaluation of one policy.
 // Only the columns a baseline view needs are selected: failures and warnings are
 // TEXT in the table and []string in the model, so pulling them would fail the
 // scan. Score and evaluated_at are what the frontend passRate / lastScan come
 // from, and those are the fields this method feeds.
 func (r *Repository) LatestEvaluationByPolicy(ctx context.Context, tenantID, policyID string) (*models.ComplianceEvaluationResult, error) {
-	var result models.ComplianceEvaluationResult
-	err := r.getOne(ctx, &result,
+	var row evalRow
+	if err := r.getOne(ctx, &row,
 		`SELECT policy_id, status, score, evaluated_at
 			FROM compliance_evaluation_results WHERE policy_id=$1 AND tenant_id=$2 ORDER BY evaluated_at DESC LIMIT 1`,
-		policyID, tenantID)
-	if err != nil {
+		policyID, tenantID); err != nil {
 		return nil, err
 	}
-	return &result, nil
+	return &models.ComplianceEvaluationResult{
+		PolicyID:    row.PolicyID,
+		Status:      row.Status,
+		Score:       row.Score,
+		EvaluatedAt: row.EvaluatedAt,
+	}, nil
 }
 
 // --- Compliance Report ---
