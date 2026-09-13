@@ -7690,3 +7690,80 @@ service 抽出三个接口（`ToolRepositoryInterface`/`InvocationRepositoryInte
 ### 26.6 跨轮遗留（更新后）
 
 `internal/startup` `ListModulesByStatus` nil 切片一致性欠账、条件式安全门谎报（`confirmation/service.go:269,359,367`、`branch-policy/service.go:199,204,517,585,684,1518,1521`）、`chaos-enhanced` `getTenantID` 注释与实现不符、裸 ping 桩数字未核实、alert-adapter 接口强制 `Receive`、`InstantiateTemplate` 丢弃 `Parameters`/`Environment`、`ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换、SMTP/SMS 凭证、134 个 `handler_test.go` 冲突标记（并行 agent 工作树，仍不碰；本轮 `internal/tool/` 与 `internal/security-compliance/` 下冲突标记均为 **0**）。
+
+## 第二十七轮：security-compliance repository 层 1 处新缺陷 + 34 条仓库回归测试 + 8/8 变异证明（2026-09-13）
+
+### 27.1 为什么选它
+
+扫描起点 HEAD `36073b7b4`。第二十六轮把模块存储从写死的演示数据换成真实持久化，也补了 **service 40 条 + handler 28 条**测试——但这两层测试驱动的都是 **fake**：`repoFake` 是记录型假仓库，`fakeService` 是假服务。**真正持有全部 SQL 文本的 repository 包在此之前一个测试文件都没有**，25 个方法驱动 6 张表 + 3 个 join 助手，一条语句都没有被执行过。Round 26 修的 3 处缺陷全靠通读代码发现，这正是本层缺测试的直接后果。
+
+### 27.2 本轮唯一新缺陷：sqlx mapper key `policyid` ≠ `policy_id`
+
+**症状**：`LatestEvaluationByPolicy` 把 `SELECT policy_id, status, score, evaluated_at` 直接扫进 `models.ComplianceEvaluationResult`，而该模型**没有声明任何 `db` tag**。sqlx v1.4.0 装的是 `reflectx.NewMapperFunc("db", NameMapper)`，`NameMapper` 就是 `strings.ToLower`——**小写化从不碰下划线**，于是 `PolicyID` 解析成 `policyid`、`EvaluatedAt` 解析成 `evaluatedat`，与列名 `policy_id` 对不上，sqlx 抛 `missing destination name policy_id in *models.ComplianceEvaluationResult`。
+
+**放大路径**：该错误**不是** `sql.ErrNoRows`，所以 `getOne` 原样返回，`service.GetLastEvaluation` 只吞 `IsNotFound` 也原样返回，`handler.ListBaselines` 于是走 `middleware.RespondInternalError`。结论：**`GET /api/v1/compliance/baselines`（`handler.go:86`，挂 `auth.RequirePermission("security_compliance","read")`，是已挂载的活路由）对任何拥有 ≥1 条 policy 的租户恒 500**——而它是前端基线列表的唯一数据源。有 policy 的租户一个列表都看不到，一条报错都拿不到。
+
+**修法**：加 db-tagged 中间行结构 `evalRow`（只 4 个标量列），扫完再重建模型。列注释写清根因，避免下一位照原样改回去。
+
+**先验证再改**：用一次性探针测试（随后删除）实测 mapper 键——无 tag 的 `ComplianceEvaluationResult` 得 `policyid`/`evaluatedat`，有 tag 的 `ComplianceReport` 得 `policy_id`/`report_id`。确认规则后才动手，不是猜。
+
+**同类范围**：本模块 6 个映射表的模型里，只有 `ComplianceEvaluationResult` / `ComplianceScore` / `Remediation*` / `GapAnalysis*` / `FrameworkList` / `EvidenceCollection` 缺 db tag，其余（`CompliancePolicy` / `ComplianceReport` / `AuditPlan` / `AuditExecution` / `AuditReport` / `AuditFinding` / `ComplianceFramework` / `Evidence`）都有——所以另外 19 条 SELECT 都正常，只有这一条一直在 500。
+
+### 27.3 补录：Round 26 已落库但未记明影响的 2 处同类缺陷
+
+两处修复确实在 `e07534f37` 里（§26.2 第 3、4 条只提了手法），但**坏的是哪些路由、影响谁**当时没记。本轮用回归测试钉住并补上影响面：
+
+**(a) `GetLatestScore` 扫 `category_scores` 恒失败**：577 里 `category_scores` 是 **TEXT**（存 `joinStringsForMap` 的 JSON），而 sqlx 的 `convertAssign` **没有 `map[string]float64` 这一支**，所以旧代码直接扫模型时对**每一个曾经被评分过的租户**都失败。因为该错误不是 `sentinel.NotFound`，`EvaluateCompliance` 在**已经插入 evaluation 行之后**才失败 → 分数写入成了这条流程里唯一被静默丢掉的一步，租户留下了 `compliance_evaluation_results` 行却在 `compliance_scores` 里什么都没有。修：`scoreRow` 以 TEXT 承接 + `json.Unmarshal`，容许 `""` 与 `"null"`（后者是 `joinStringsForMap(nil)` 的产物）。
+
+**(b) `GetAuditFindings` 严重度按字母序**：`severity` 是自由文本，`ORDER BY severity` 得到 `critical, high, low, medium` → **审计详情页（`GET /api/v1/audit/:id/findings`，`handler.go:96`）把 medium 排在 high 之上**。修：CASE 数值序（critical 4 / high 3 / medium 2 / low 1 / 其余 0）再按 `created_at DESC`。
+
+### 27.4 测试（34 条，repository 包首个测试文件）
+
+`sqlmock`（`github.com/DATA-DOG/go-sqlmock v1.5.2`）+ `sqlx.NewDb(raw, "postgres")` + 自定义 `QueryMatcherFunc`：先把空白归一化再**逐字符比较 SQL**，所以删掉任何 tenant 谓词、退回 `SELECT *`、或把 CASE 排序改回字母序，都是查询不匹配直接 FAIL，而不是静默通过。
+
+- **25 个接口方法全覆盖** + 3 个 join 助手；每条 SQL 期望都写成**编译后的 `$N` 形式**（不是 `:name`），所以命名参数编译这一步本身也被钉住。
+- 逐语句断言 **tenant 被绑定**；仓库生成的 UUID 与 `time.Time` 用 `sqlmock.AnyArg()`（驱动转换让精确比较不可靠）；`RowsAffected` 语义用 `sqlmock.NewResult(0,0)`；`sql.ErrNoRows` → `sentinel.NotFound` 对 `errors.Is` 可见；默认填充（`status=open` / `created_at` / report id 保留）；`CloseFinding` 的期望显式包含 `resolution=$1`，所以丢掉 reason 绑定会表现为查询不匹配。
+- `TestGetLatestScoreDecodesTheCategoryScoresText` 三子例（`{"access":75.5,"logging":82}` / `null` / `""`）——三者都必须返回**非 nil** map；这个非 nil 断言正是下面 M1 变异被杀死的地方。
+- `TestLatestEvaluationByPolicyLeavesTheTextColumnsOut` 同时断言标量字段到达、以及 `Failures`/`Warnings` 保持空（拉 TEXT 列会让 scan 失败）。
+- `TestNoStatementSelectsStar` 读 `repository.go` 自身，遍历含 `FROM` 的反引号片段，命中 `SELECT *` 即 FAIL。**要求 `FROM` 是刻意的**：文件头注释里也用了反引号提到 `SELECT *`，不能误伤。
+
+### 27.5 变异证明 8/8
+
+约束：锚点先在**含该行的那个文件**里断言恰好出现 1 次；变异就地应用；跑定向测试（`go test -run <Test>`）；从字节副本还原并断言 sha256 相等；前后基线均为 PASS；`no tests to run` 记为 SURVIVED；编译不过的变异记为 INVALID（不算 kill）。
+
+| 变异 | 杀死它的测试 | 观测 |
+|---|---|---|
+| M1 `CategoryScores: map[string]float64{}` → `nil` | `TestGetLatestScoreDecodesTheCategoryScoresText` | FAIL（`null`/`""` 子例返回 nil map） |
+| M2 `var row evalRow` → `var row models.ComplianceEvaluationResult` | `TestLatestEvaluationByPolicyLeavesTheTextColumnsOut` | FAIL（`missing destination name policy_id`） |
+| M3 CASE 排序 → `ORDER BY severity` | `TestGetAuditFindingsRanksSeverityInsteadOfSortingItAlphabetically` | FAIL，sqlmock 打印了期望的 CASE SQL 与实际 `ORDER BY severity` 的对照 |
+| M4 CloseFinding `if n == 0` → `if n == 1` | `TestCloseFindingReturnsNotFoundForAnUnknownFinding` | FAIL |
+| M5 CreateAuditReport 无条件 `uuid.New()` | `TestCreateAuditReportKeepsACallerSuppliedID` | FAIL |
+| M6 删 nil-warnings 守卫 | `TestEvaluateDoesNotPanicWhenAControlHasNoWarningText` | **panic**：index out of range [0] with length 0 |
+| M7 CreateAuditReport 挪到 findings 循环之前 | `TestExecuteAuditFailureLeavesNoReport` | FAIL |
+| M8 `if score == nil` → `if false` | `TestGetComplianceScoreReportsNewWhenTheTenantHasNeverBeenMeasured` | **panic**：nil pointer dereference |
+
+**8/8 杀死，0 survived，0 invalid，0 anchor error，全部还原字节校验通过。** M6、M8 是**靠 panic 而非断言**被杀死的——这正是要点：如果那两个测试只是重复断言一个已断言过的字段，它们会放过这两个变异。
+
+**锚点计数断言是承重的**：M3 首次锚点用了 3 个 tab 缩进，而该查询在 `fmt.Sprintf(` 下是 2 个 tab → 计数 0 → **变异根本没被写入**（文件未被触碰），随后用修正锚点重跑。锚点不匹配不等于「变异存活」，所以 harness 拒绝给它打分。
+
+### 27.6 验证
+
+- `gofmt -l ./internal/security-compliance/` → 0 文件
+- `go build ./...` 无输出；`go vet ./...` 无输出
+- `go test ./internal/security-compliance/...` 3/3 ok（repository 0.024s，handler / service 缓存命中）
+- `go test ./...` **exit 0**，1384 行输出，0 FAIL
+- 模块 + 迁移 577 冲突标记 `grep -rnE '^(<<<<<<<|=======|>>>>>>>)'` = **0**
+
+### 27.7 只记录不修
+
+1. **`internal/security` 与本模块共享 `audit_plans` / `audit_executions` 且形状不同**：`internal/security/repository/security_repository.go:229/236/322/328/338/345` 用 `SELECT *`，其中 322、328 是 `SELECT * FROM audit_executions WHERE id=$1` **连 tenant_id 谓词都没有**（跨租户读）。571/572 加列后这两个模块的读路径很可能同样 `missing destination name`。留独立一轮（本轮授权范围只含本模块）。
+2. **反向孤儿**：findings 全部写入成功后 `CreateAuditReport` 失败 → 留下 `report_id` 指向不存在 report 的 findings 行。需要事务或 findings 删除方法，模块两者都没有（`RepositoryInterface` 无 DeleteFinding）。
+3. `ExecuteAudit` 的 report 与 findings 是两次独立连接写（§26.5 已记，仍未动）。
+4. 全部 6 表都无 `deleted_at IS NULL` 过滤，而 571 加过 `deleted_at`——但**没有任何代码写入它**（模块内 `deleted_at` 只出现在注释里），此时加过滤是纯噪音；等有写入方再补。
+5. `severity` 仍是自由文本（无 CHECK）；CASE 排序对未列出的标签一律归 0（排最后）。
+6. `GetAuditFindings` / `GetAuditReport` 任何错误（含 DB 故障）都 → 500，not-found 与故障不可区分，与 Round 23 rca 同型；需要仓库区分 `sql.ErrNoRows` 与驱动错误。
+7. `ListFindings`（`GET /api/v1/compliance/findings`）只按 `created_at DESC` 排序、不做严重度排序——审计详情页有严重度序而列表页没有，前端若按严重度期望会错位；是否统一由产品决定。
+
+### 27.8 跨轮遗留（更新后）
+
+§26.6 全部保留：`internal/startup` `ListModulesByStatus` nil 切片一致性欠账、条件式安全门谎报（`confirmation/service.go:269,359,367`、`branch-policy/service.go:199,204,517,585,684,1518,1521`）、`chaos-enhanced` `getTenantID` 注释与实现不符、裸 ping 桩数字未核实、alert-adapter 接口强制 `Receive`、`InstantiateTemplate` 丢弃 `Parameters`/`Environment`、`ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换、SMTP/SMS 凭证、134 个 `handler_test.go` 冲突标记（并行 agent 工作树，仍不碰）。**新增**：`internal/security` 的 `audit_*` `SELECT *` 与无租户谓词读（§27.7 第 1 条）。本轮 `internal/security-compliance/` 与迁移 577 冲突标记均为 **0**。
