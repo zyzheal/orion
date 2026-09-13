@@ -2,8 +2,11 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/startup/models"
 
 	"github.com/jmoiron/sqlx"
@@ -43,10 +46,7 @@ func (r *Repository) GetModuleByID(ctx context.Context, tenantID, id string) (*m
 	var m models.StartupModule
 	err := r.db.GetContext(ctx, &m,
 		`SELECT * FROM startup_modules WHERE id=$1 AND tenant_id=$2`, id, tenantID)
-	if err != nil {
-		return nil, err
-	}
-	return &m, nil
+	return scanOne(&m, err)
 }
 
 // GetModuleByName retrieves a single startup module by name and tenant_id.
@@ -55,16 +55,27 @@ func (r *Repository) GetModuleByName(ctx context.Context, tenantID, name string)
 	var m models.StartupModule
 	err := r.db.GetContext(ctx, &m,
 		`SELECT * FROM startup_modules WHERE name=$1 AND tenant_id=$2`, name, tenantID)
+	return scanOne(&m, err)
+}
+
+// scanOne maps sql.ErrNoRows to sentinel.NotFound so a caller can tell a missing
+// row apart from a failed query. Without this the handler answered 500 for an
+// unknown id and the service converted every database outage into "not found".
+func scanOne(m *models.StartupModule, err error) (*models.StartupModule, error) {
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, sentinel.NotFound
+		}
 		return nil, err
 	}
-	return &m, nil
+	return m, nil
 }
 
 // ListModules retrieves startup modules for a tenant, ordered by priority descending.
 // SQL Call #4
 func (r *Repository) ListModules(ctx context.Context, tenantID string, offset, limit int) ([]models.StartupModule, error) {
-	var items []models.StartupModule
+	// Non-nil so an empty tenant serialises as [] rather than null.
+	items := make([]models.StartupModule, 0)
 	err := r.db.SelectContext(ctx, &items,
 		`SELECT * FROM startup_modules WHERE tenant_id=$1 ORDER BY priority DESC, name OFFSET $2 LIMIT $3`,
 		tenantID, offset, limit)
@@ -109,10 +120,23 @@ func (r *Repository) UpdateModuleStatus(ctx context.Context, id, tenantID, statu
 
 // DeleteModule removes a startup module by id and tenant_id.
 // SQL Call #8
+//
+// A DELETE that matches nothing returns sentinel.NotFound. Without this a
+// DELETE for an unknown or foreign-tenant id looked like success.
 func (r *Repository) DeleteModule(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	res, err := r.db.ExecContext(ctx,
 		`DELETE FROM startup_modules WHERE id=$1 AND tenant_id=$2`, id, tenantID)
-	return err
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sentinel.NotFound
+	}
+	return nil
 }
 
 // CountModules returns the total number of startup modules for a tenant.
@@ -142,7 +166,8 @@ func (r *Repository) CreateDependency(ctx context.Context, d *models.StartupDepe
 // ListDependencies retrieves all dependencies for a given module.
 // SQL Call #11
 func (r *Repository) ListDependencies(ctx context.Context, tenantID, moduleID string) ([]models.StartupDependency, error) {
-	var items []models.StartupDependency
+	// Non-nil so an empty dependency set serialises as [] rather than null.
+	items := make([]models.StartupDependency, 0)
 	err := r.db.SelectContext(ctx, &items,
 		`SELECT * FROM startup_dependencies WHERE tenant_id=$1 AND module_id=$2`, tenantID, moduleID)
 	return items, err

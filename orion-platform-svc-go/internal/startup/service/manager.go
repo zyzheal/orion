@@ -2,12 +2,14 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
 	"sync"
 	"time"
 
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/startup/models"
 	"orion/platform-svc-go/internal/startup/repository"
 
@@ -16,13 +18,46 @@ import (
 )
 
 var (
-	ErrModuleNotFound    = errors.New("startup module not found")
-	ErrDuplicateModule   = errors.New("startup module with this name already exists")
-	ErrDependencyMissing = errors.New("module dependency not found")
-	ErrCircularDep       = errors.New("circular dependency detected")
-	ErrAlreadyStarted    = errors.New("module already started")
-	ErrNotRunning        = errors.New("module is not running")
+	ErrModuleNotFound      = errors.New("startup module not found")
+	ErrDuplicateModule     = errors.New("startup module with this name already exists")
+	ErrDuplicateDependency = errors.New("startup dependency already exists")
+	ErrDependencyMissing   = errors.New("module dependency not found")
+	ErrCircularDep         = errors.New("circular dependency detected")
+	ErrAlreadyStarted      = errors.New("module already started")
+	ErrNotRunning          = errors.New("module is not running")
+	ErrModuleUnhealthy     = errors.New("startup module health check failed")
 )
+
+// IsNotFound reports whether err means the requested module does not exist.
+// Handlers answer 404 for these and 500 for anything else.
+func IsNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	return errors.Is(err, ErrModuleNotFound) || errors.Is(err, sentinel.NotFound)
+}
+
+// IsUnhealthy reports whether err means the module answered "not healthy" — the
+// manager has not started, the module is stopped, or its own HealthCheck failed
+// — as opposed to the check being unable to run. The handler answers 200 with
+// healthy=false in the first case and 500 in the second.
+func IsUnhealthy(err error) bool {
+	if err == nil {
+		return false
+	}
+	return errors.Is(err, ErrNotRunning) || errors.Is(err, ErrModuleUnhealthy)
+}
+
+// IsConflict reports whether err means the request contradicts existing state:
+// a duplicate module name, a duplicate dependency edge, or a dependency cycle.
+func IsConflict(err error) bool {
+	if err == nil {
+		return false
+	}
+	return errors.Is(err, ErrDuplicateModule) ||
+		errors.Is(err, ErrDuplicateDependency) ||
+		errors.Is(err, ErrCircularDep)
+}
 
 // IStartup is the interface that all startup modules must implement.
 type IStartup interface {
@@ -62,6 +97,13 @@ func NewStartupManager(repo *repository.Repository, logger *zap.Logger) *Startup
 	}
 }
 
+// The three classifiers below delegate to the package-level functions so the
+// handler can route errors to HTTP statuses through the Service interface
+// without importing this package.
+func (m *StartupManager) IsNotFound(err error) bool  { return IsNotFound(err) }
+func (m *StartupManager) IsUnhealthy(err error) bool { return IsUnhealthy(err) }
+func (m *StartupManager) IsConflict(err error) bool  { return IsConflict(err) }
+
 // -------------------------------------------------------
 // Registration
 // -------------------------------------------------------
@@ -84,7 +126,10 @@ func (m *StartupManager) Register(s IStartup) {
 // Start initializes all registered modules in priority order, respecting
 // dependencies. Modules with higher Priority() values start first.
 // Circular dependencies are detected and cause the entire start to fail.
-func (m *StartupManager) Start(ctx context.Context) error {
+//
+// tenantID scopes the config lookup: startup_modules.config is stored per
+// tenant, so this must not be a constant.
+func (m *StartupManager) Start(ctx context.Context, tenantID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -107,7 +152,7 @@ func (m *StartupManager) Start(ctx context.Context) error {
 
 	for _, name := range order {
 		module := m.modules[name]
-		if err := m.startModuleLocked(ctx, module); err != nil {
+		if err := m.startModuleLocked(ctx, module, tenantID); err != nil {
 			m.logger.Error("startup failed during module init",
 				zap.String("name", name),
 				zap.Error(err),
@@ -125,7 +170,7 @@ func (m *StartupManager) Start(ctx context.Context) error {
 }
 
 // StartModule initializes a single module by name, respecting its dependencies.
-func (m *StartupManager) StartModule(ctx context.Context, name string) error {
+func (m *StartupManager) StartModule(ctx context.Context, tenantID, name string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -141,10 +186,10 @@ func (m *StartupManager) StartModule(ctx context.Context, name string) error {
 		}
 	}
 
-	return m.startModuleLocked(ctx, module)
+	return m.startModuleLocked(ctx, module, tenantID)
 }
 
-func (m *StartupManager) startModuleLocked(ctx context.Context, module IStartup) error {
+func (m *StartupManager) startModuleLocked(ctx context.Context, module IStartup, tenantID string) error {
 	name := module.Name()
 	if m.running[name] {
 		return ErrAlreadyStarted
@@ -152,14 +197,21 @@ func (m *StartupManager) startModuleLocked(ctx context.Context, module IStartup)
 
 	m.logger.Info("initializing module", zap.String("name", name))
 
-	// Fetch config from the module repository row.
-	cfg, err := m.repo.GetModuleByName(ctx, "default", name)
-	var moduleConfig map[string]string
+	// Fetch config from the module repository row. A missing row means the
+	// module was registered in code without a persisted configuration entry.
+	cfg, err := m.repo.GetModuleByName(ctx, tenantID, name)
+	moduleConfig := make(map[string]string)
 	if err == nil && cfg != nil && cfg.Config != "" {
-		// Config is stored as a JSON string in the DB.
-		moduleConfig = parseConfigString(cfg.Config)
-	} else {
-		moduleConfig = make(map[string]string)
+		moduleConfig, err = parseConfigString(cfg.Config)
+		if err != nil {
+			m.running[name] = false
+			return fmt.Errorf("module %q config: %w", name, err)
+		}
+	} else if err != nil {
+		m.logger.Warn("module config lookup failed; starting with empty config",
+			zap.String("name", name),
+			zap.Error(err),
+		)
 	}
 
 	start := time.Now()
@@ -226,8 +278,10 @@ func (m *StartupManager) Stop(ctx context.Context) error {
 // Status / Progress
 // -------------------------------------------------------
 
-// GetModuleStatus returns the status string of a module.
-// Returns one of "running", "pending", "error", or "unknown".
+// GetModuleStatus returns the lifecycle status of a registered module by name.
+// It returns "active" while the module is running, "pending" before Start has
+// ever completed, "initialized" once Start completed but the module is not
+// running, and "unknown" when no IStartup implementation is registered.
 func (m *StartupManager) GetModuleStatus(name string) string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -324,10 +378,17 @@ func (m *StartupManager) CreateModuleRow(ctx context.Context, tenantID string, r
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Check for duplicate name.
+	// Check for duplicate name. Only a definitive "no such row" may fall
+	// through to the INSERT; any other error is a real failure and must not be
+	// reported as a duplicate name, which is what `if err == nil` used to do.
 	_, err := m.repo.GetModuleByName(ctx, tenantID, req.Name)
-	if err == nil {
+	switch {
+	case err == nil:
 		return nil, ErrDuplicateModule
+	case errors.Is(err, sentinel.NotFound):
+		// No existing row with this name: proceed to the INSERT below.
+	default:
+		return nil, fmt.Errorf("failed to check for an existing module: %w", err)
 	}
 
 	now := time.Now()
@@ -354,7 +415,13 @@ func (m *StartupManager) CreateModuleRow(ctx context.Context, tenantID string, r
 func (m *StartupManager) UpdateModuleRow(ctx context.Context, tenantID, id string, req *models.UpdateModuleRequest) (*models.StartupModule, error) {
 	mod, err := m.repo.GetModuleByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrModuleNotFound
+		// Only a missing row becomes ErrModuleNotFound; a database outage used to
+		// be reported as "module not found", which made an outage look like a
+		// bad id in every client.
+		if !errors.Is(err, sentinel.NotFound) {
+			return nil, fmt.Errorf("failed to load module: %w", err)
+		}
+		return nil, fmt.Errorf("%w: %q", ErrModuleNotFound, id)
 	}
 
 	if req.Type != nil {
@@ -381,11 +448,20 @@ func (m *StartupManager) UpdateModuleRow(ctx context.Context, tenantID, id strin
 func (m *StartupManager) InitModule(ctx context.Context, tenantID, id string) (*models.StartupModule, error) {
 	mod, err := m.repo.GetModuleByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrModuleNotFound
+		if !errors.Is(err, sentinel.NotFound) {
+			return nil, fmt.Errorf("failed to load module: %w", err)
+		}
+		return nil, fmt.Errorf("%w: %q", ErrModuleNotFound, id)
 	}
 
+	m.mu.Lock()
+	if m.running[mod.Name] {
+		m.mu.Unlock()
+		return nil, fmt.Errorf("%w: %q", ErrAlreadyStarted, mod.Name)
+	}
 	// Find the corresponding IStartup by name.
 	startupMod, exists := m.modules[mod.Name]
+	m.mu.Unlock()
 	if !exists {
 		return nil, fmt.Errorf("%w: no IStartup implementation registered for %q", ErrModuleNotFound, mod.Name)
 	}
@@ -394,11 +470,17 @@ func (m *StartupManager) InitModule(ctx context.Context, tenantID, id string) (*
 	start := time.Now()
 	mod.Status = models.StatusInitialized
 
-	var moduleConfig map[string]string
+	moduleConfig := make(map[string]string)
 	if mod.Config != "" {
-		moduleConfig = parseConfigString(mod.Config)
-	} else {
-		moduleConfig = make(map[string]string)
+		moduleConfig, err = parseConfigString(mod.Config)
+		if err != nil {
+			mod.Status = models.StatusError
+			mod.Error = err.Error()
+			if updateErr := m.repo.UpdateModule(ctx, mod); updateErr != nil {
+				m.logger.Error("failed to update module error state", zap.Error(updateErr))
+			}
+			return mod, fmt.Errorf("failed to initialize module %q: %w", mod.Name, err)
+		}
 	}
 
 	err = startupMod.Initialize(ctx, moduleConfig)
@@ -406,6 +488,9 @@ func (m *StartupManager) InitModule(ctx context.Context, tenantID, id string) (*
 	initAt := time.Now()
 
 	if err != nil {
+		m.mu.Lock()
+		m.running[mod.Name] = false
+		m.mu.Unlock()
 		mod.Status = models.StatusError
 		mod.Error = err.Error()
 		mod.DurationMs = durationMs
@@ -415,6 +500,16 @@ func (m *StartupManager) InitModule(ctx context.Context, tenantID, id string) (*
 		return mod, fmt.Errorf("failed to initialize module %q: %w", mod.Name, err)
 	}
 
+	m.mu.Lock()
+	// Without this, InitModule activated the module in the database while
+	// GetModuleStatus and HealthCheckModule still reported it as pending, so a
+	// successful initialisation was immediately reported as unhealthy.
+	m.running[mod.Name] = true
+	if m.started.IsZero() {
+		m.started = time.Now()
+	}
+	m.mu.Unlock()
+
 	mod.Status = models.StatusActive
 	mod.DurationMs = durationMs
 	mod.InitializedAt = &initAt
@@ -422,6 +517,127 @@ func (m *StartupManager) InitModule(ctx context.Context, tenantID, id string) (*
 		m.logger.Error("failed to update module active state", zap.Error(updateErr))
 	}
 	return mod, nil
+}
+
+// -------------------------------------------------------
+// Module queries and dependency edges
+// -------------------------------------------------------
+
+// ListModules returns the persisted module rows for a tenant in priority order
+// together with the total count for pagination.
+func (m *StartupManager) ListModules(ctx context.Context, tenantID string, offset, limit int) ([]models.StartupModule, int, error) {
+	items, err := m.repo.ListModules(ctx, tenantID, offset, limit)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list modules: %w", err)
+	}
+	total, err := m.repo.CountModules(ctx, tenantID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count modules: %w", err)
+	}
+	return items, total, nil
+}
+
+// GetModuleByID returns one module row for a tenant, or sentinel.NotFound.
+func (m *StartupManager) GetModuleByID(ctx context.Context, tenantID, id string) (*models.StartupModule, error) {
+	mod, err := m.repo.GetModuleByID(ctx, tenantID, id)
+	if err != nil {
+		if errors.Is(err, sentinel.NotFound) {
+			return nil, fmt.Errorf("%w: %q", ErrModuleNotFound, id)
+		}
+		return nil, fmt.Errorf("failed to load module: %w", err)
+	}
+	return mod, nil
+}
+
+// DeleteModule removes a module row for a tenant, or returns sentinel.NotFound
+// when nothing was deleted.
+func (m *StartupManager) DeleteModule(ctx context.Context, tenantID, id string) error {
+	if err := m.repo.DeleteModule(ctx, tenantID, id); err != nil {
+		if errors.Is(err, sentinel.NotFound) {
+			return fmt.Errorf("%w: %q", ErrModuleNotFound, id)
+		}
+		return fmt.Errorf("failed to delete module: %w", err)
+	}
+	return nil
+}
+
+// HealthCheckModule reports whether one module, addressed by row id, is
+// running and passes its own HealthCheck.
+//
+// Every failure mode returns healthy=false with a classifiable error: the
+// manager has never started (ErrNotRunning), the module is stopped (ErrNotRunning),
+// or the module's own check failed (ErrModuleUnhealthy). Only a missing row
+// and a repository failure escape as not-found / internal respectively.
+func (m *StartupManager) HealthCheckModule(ctx context.Context, tenantID, id string) (bool, error) {
+	mod, err := m.repo.GetModuleByID(ctx, tenantID, id)
+	if err != nil {
+		if errors.Is(err, sentinel.NotFound) {
+			return false, fmt.Errorf("%w: %q", ErrModuleNotFound, id)
+		}
+		return false, fmt.Errorf("failed to load module: %w", err)
+	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.started.IsZero() {
+		return false, fmt.Errorf("%w: manager has not started", ErrNotRunning)
+	}
+	if !m.running[mod.Name] {
+		return false, fmt.Errorf("%w: %q is not running", ErrNotRunning, mod.Name)
+	}
+	impl, ok := m.modules[mod.Name]
+	if !ok {
+		return false, fmt.Errorf("%w: %q has no registered implementation", ErrModuleUnhealthy, mod.Name)
+	}
+	if err := impl.HealthCheck(); err != nil {
+		return false, fmt.Errorf("%w: %s", ErrModuleUnhealthy, err.Error())
+	}
+	return true, nil
+}
+
+// AddDependency records a startup dependency edge.
+//
+// startup_dependencies.module_id stores startup_modules.name (see migration
+// 275), so the route's :id is resolved to a name before the INSERT. The target
+// must be a module name that exists for the same tenant and the same edge may
+// not already be recorded.
+func (m *StartupManager) AddDependency(ctx context.Context, tenantID, id, dependsOn string) (*models.StartupDependency, error) {
+	source, err := m.repo.GetModuleByID(ctx, tenantID, id)
+	if err != nil {
+		if errors.Is(err, sentinel.NotFound) {
+			return nil, fmt.Errorf("%w: %q", ErrModuleNotFound, id)
+		}
+		return nil, fmt.Errorf("failed to load module: %w", err)
+	}
+
+	if dependsOn == source.Name {
+		return nil, fmt.Errorf("%w: module %q cannot depend on itself", ErrCircularDep, source.Name)
+	}
+
+	target, err := m.repo.GetModuleByName(ctx, tenantID, dependsOn)
+	if err != nil {
+		if errors.Is(err, sentinel.NotFound) {
+			return nil, fmt.Errorf("%w: dependency target %q", ErrModuleNotFound, dependsOn)
+		}
+		return nil, fmt.Errorf("failed to load dependency target: %w", err)
+	}
+
+	if m.repo.HasDependency(ctx, tenantID, source.Name, dependsOn) {
+		return nil, ErrDuplicateDependency
+	}
+
+	dep := &models.StartupDependency{
+		ID:        uuid.New().String(),
+		TenantID:  tenantID,
+		ModuleID:  source.Name,
+		DependsOn: target.Name,
+		CreatedAt: time.Now(),
+	}
+	if err := m.repo.CreateDependency(ctx, dep); err != nil {
+		return nil, fmt.Errorf("failed to create dependency: %w", err)
+	}
+	return dep, nil
 }
 
 // -------------------------------------------------------
@@ -484,15 +700,20 @@ func (m *StartupManager) topologicalSortLocked() ([]string, error) {
 // Config helpers
 // -------------------------------------------------------
 
-// parseConfigString attempts to parse a JSON string stored in the DB as a
-// flat map[string]string. Returns a plain map if parsing fails.
-func parseConfigString(raw string) map[string]string {
+// parseConfigString decodes startup_modules.config, which is a JSON object of
+// string values, into the map handed to IStartup.Initialize.
+//
+// An empty raw returns an empty map. Malformed JSON is returned as an error:
+// the previous implementation stored the whole payload under the key "raw" and
+// returned it as if it were parsed, so every module silently received
+// {"raw": "<json>"} instead of its real configuration.
+func parseConfigString(raw string) (map[string]string, error) {
 	cfg := make(map[string]string)
-	// Best-effort: treat as JSON map[string]string.
-	// In production this would use json.Unmarshal; for now split on "," or return as single key.
 	if raw == "" {
-		return cfg
+		return cfg, nil
 	}
-	cfg["raw"] = raw
-	return cfg
+	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+		return cfg, fmt.Errorf("module config is not a JSON object of strings: %w", err)
+	}
+	return cfg, nil
 }

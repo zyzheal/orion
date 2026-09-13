@@ -6783,3 +6783,141 @@ repository 里现在有**两套**表名风格，`Repository` 的文档注释写�
   `ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换不存在、
   SMTP/SMS 凭证待运维、134 个 `handler_test.go` 冲突标记（并行 agent 工作树，
   故意不碰，本轮所有测试一律走 overlay）。
+
+## 第十九轮：Stub Scan Round 19 — internal/startup 9 个在册桩（Service 接口丢弃 context + 模块零测试）
+
+全新扫描（HEAD `71d2eccc1`）。这一轮的目标模块是 `internal/startup` —— **平台自身的模块启动编排器**。
+先说结论：这是近几轮里**基础设施最完整、桩最集中**的一个模块，因为它的 service 层是真的、
+repository 层是真的、migration 是真的，但 handler 层 11 个方法里有 9 个是桩，
+**整棵树一个测试文件都没有**，所以 `go build` / `go vet` 一路绿灯。
+
+### 19.1 为什么选它
+
+- `StartupManager` 是真实现：Kahn 拓扑排序、依赖图、生命周期状态机、健康探针、
+  错误分类器、config JSON 解析（720 行）。
+- `Repository` 有 **13 条真实 SQL**（`startup_modules` / `startup_dependencies`），
+  migration 275 建这两张表。
+- `startupH` **在 `cmd/server/router.go:153` 的共享 `registerRoutes` 列表里是活的**——
+  这一点必须先核实，因为上一轮刚把 `perfH` 误判成「已构造未路由」（见 18 撤回）。
+- handler 的 `Service` 接口把 `ctx` 声明成 `interface{}`、返回值声明成 `interface{}`，
+  于是 `cmd/server/wiring-startup.go` 里有一个 **adapter 类型的唯一存在理由就是把这个断开的接口糊上**。
+  一个只有 adapter 能用的接口，本身就是一个「未完成」信号。
+
+### 19.2 Findings（全部真实现，零删除）
+
+**Finding ①（接线/契约缺陷）** `Service` 接口用 `ctx interface{}` + `interface{}` 返回值。
+**每个请求的 deadline 与取消都被类型断言之前的包装吞掉**——一条慢 SQL 永远不会被 `ctx` 掐断。
+修法：接口全量换成 `context.Context` + 具名返回类型，并在接口里补 3 个
+`IsNotFound` / `IsUnhealthy` / `IsConflict` 分类器（错误分类是 service 自己的语义，
+handler 不该 import 具体包），`CreateModuleRow`/`UpdateModuleRow` 的 `interface{}` 换成
+`*models.StartupModule`。adapter 整个删掉，改为编译期断言
+`var _ startup_handler.Service = (*startup_svc.StartupManager)(nil)`。
+
+**Finding ②（最大，读路径与写路径同时造假）** 9 个 handler 方法逐个钉住：
+
+| 端点 | 桩行为 | 修法 |
+|---|---|---|
+| `GET /modules` | 返回 `GetStartupProgress()`（**运行时状态，不是模块列表**），`page` 参数被完全丢弃 | 真实分页读 + `RespondPaginated` |
+| `GET /modules/:id` | 回显 `c.Param("id")` + `GetModuleStatus(id)`——**后者从不碰数据库** | 真实查找，缺失 → 404 |
+| `DELETE /modules/:id` | `_ = c.GetString("tenant_id")` + `{"message":"deleted"}`——**什么都没删，且租户被显式丢弃**（跨租户删除也报 200） | 真实删除 → 204，缺失 → 404 |
+| `POST /modules/:id/health` | **对任意 id 返回字面量 `"healthy": true`** | 真实探针：404 未知 / 200 `healthy:false`+reason / 500 探针失败 |
+| `POST /modules/:id/depends` | 把请求原样回显，**不写任何边** | 真实插入，重复/自依赖/目标缺失 → 409 |
+| `POST /start`、`POST /stop` | 固定消息，**忽略 service 返回的错误** | 真实生命周期 + 回显实际 progress |
+| `POST /modules/:id/init` | `{"message":"module initialized"}` | 真实 init，返回模块行 |
+
+`HealthCheckModule` 这条最值得单独写：**一个恒报健康的路由是 (a) 类桩最危险的一种**——
+它不是「没数据」，而是「数据存在且被谎报」。修复后不健康的模块是 **200 + `healthy:false` + reason**
+而不是 500，因为「模块不健康」是**被正常观测到的事实**，「探针本身跑不动」才是服务器故障。
+
+**Finding ③（service 层 5 个方法缺失）** manager 没有 `ListModules` / `GetModuleByID` /
+`DeleteModule` / `HealthCheckModule` / `AddDependency`，handler 想干活也无人可调。
+全部补上并委托既有 repository（无需新 SQL），顺带补包级错误分类器。
+
+**Finding ④（repository 3 处静默语义错）**
+`scanOne` 原本把 `sql.ErrNoRows` 原样上抛（handler 只能映射成 500，**缺资源被当成服务器故障**）→
+现在映射 `sentinel.NotFound`；`DeleteModule` 原本裸 `DELETE`，**不存在的行也报成功** →
+检查 `RowsAffected()`，0 行 → `sentinel.NotFound`；`ListModules` / `ListDependencies` 原本
+`var items []T`（零行时为 **nil**，JSON 序列化成 `null` 而非 `[]`，前端遍历直接炸）→
+`make([]T, 0)`。
+
+**Finding ⑤（路由权限审计，仅记录不修）** 11 条路由中只有 5 条挂了
+`RequirePermission`：5 条写路由（create/update/delete/init/depends）已守，
+6 条未守的**全部是只读**（status、progress、get、health、list、start/stop 的状态回显）——
+**这是合理的**，本轮不为「数字好看」加守卫，而是用测试把这个分布钉死。
+
+### 19.3 测试（86 条，全部新建，该模块此前零测试）
+
+- `repository/repository_test.go`（13 条，sqlmock v1.5.2）：`ErrNoRows`→sentinel 映射、
+  真实错误透传、精确 SQL + 裸表名钉死、两个 list 方法的「空但不是 nil」、
+  `RowsAffected` 驱动的删除、`HasDependency` 真/假两支。
+- `service/manager_test.go`（21 条）：生命周期、Kahn 顺序、config 解析、
+  健康检查分支矩阵、依赖校验（自依赖/重复/目标缺失）。
+- `handler/startup_handler_test.go`（~770 行）：`fakeService` **记录每一次调用的实参**
+  （租户、id、分页推导、依赖方向），故能断言 handler **决定**传什么而不只是「不报错」；
+  信封级断言（`Success`/`Data`/`Error`/`Code`）、10 例分页 clamp 表驱动、
+  5 条守卫路由 403 且**零 service 调用**、6 条未守路由 200 且 8 次调用的多重集核对。
+- `cmd/server/startup_routes_test.go`（路由护栏）：装配真实 engine 后遍历 `r.Routes()`
+  断言 **11 条** `/api/v1/startup` 路径全在册、无 `/startup/startup` 双前缀。
+
+### 19.4 变异验证：7/7 能编译且被杀死
+
+基线先跑三处 rc=0 / 0 失败，之后每次回灌单点缺陷：
+
+| 变异 | 结果 |
+|---|---|
+| handler `"healthy": healthy` → `healthy == healthy \|\| true` | **KILLED**（2 fails） |
+| `startModuleLocked` 租户 → `"default"` | KILLED（1 fail） |
+| `parseConfigString` → `_ = err` | KILLED（1 fail） |
+| `DeleteModule` 丢掉 `RowsAffected` 检查 | KILLED（1 fail） |
+| `scanOne` 返回裸 `err` 而非 `sentinel.NotFound` | KILLED（7 fails） |
+| `ListModules` `make([]T,0)` → `var items []T` | KILLED（1 fail） |
+| 从共享注册列表删掉 `startupH` | KILLED（1 fail） |
+
+全部从 `/tmp/r19orig/` 还原，`diff -q` 确认 byte-identical。
+
+**本轮最关键的一条方法学发现**：第一条变异**一开始存活**（全绿）。handler 测试里明明有断言
+`"healthy"` 的用例，为什么没抓到？因为 service 的 `HealthCheckModule` 签名是 `bool`，
+而 manager 里 `(false, nil)` 这个组合**从公开 API 到达不了**——所有「未运行/缺失」的路径
+都带 error 返回。测试只覆盖了「有 error 的负向」和「正向 true」，**从未产生过 `(false, nil)`**，
+所以那条断言对 `(false, nil)` 是**真空洞**。补了 `negative_verdict_without_error_stays_negative`
+子测后，该变异立刻被杀死。**教训：断言看起来在测某个值，不代表它能构造出那个值。**
+
+**3 次假通过已排除**（`rc=1` 但 `kills=0` = **编译失败**而非测试失败，会误判测试有效）：
+丢掉 `ErrNoRows` 分支使 `sql`/`sentinel` 变成未使用；`healthy == healthy || true` 的另一变体
+使 `healthy` 变成未使用；`if false {` 死分支带出 `undefined: err`。重做成能编译的等价变异后各杀死 ≥1 条。
+
+### 19.5 sqlmock 踩坑（值得留档）
+
+- **`*sqlmock.Rows` 只会被消费一次**：`Rows.Next()` 推进 `index` 且从不回退，
+  把同一个 Rows 值塞给两个 expectation，第二个查找会静默变成 `sql.ErrNoRows`。
+  本轮我自己的两个测试因此报错（`unregistered module = false, module is not running`），
+  修法是每个 expectation 一个 `rowsOf()` 闭包，不是产品缺陷。
+- `WithArgs` / `WillReturnError` / `WillReturnRows` 都返回 `*ExpectedQuery`——
+  方法集在**指针**上，链式调用时把返回类型写成值 `sqlmock.ExpectedQuery` 会编译失败。
+- `m.running[name]` 只能由 `startModuleLocked` 置 true，且只覆盖 Start 时**DB 行解析成功**的名字；
+  `Stop` 只遍历 `m.modules` 的键，故「不在 registry 里的名字」永远清不掉。生产代码从不删
+  `m.modules`，所以「无注册实现」这一分支**经公开 API 不可达**——包内测试用
+  `delete(m.modules, "ghost")` 的白盒访问到达，属正当的白盒测试。
+
+### 19.6 验证
+
+- `go build -overlay /tmp/orion_overlay.json ./...` → **rc=0**
+- `go test ./internal/startup/... -count=1` → **rc=0**（handler 0.013s / repository 0.007s /
+  service 0.009s，`models` 无测试文件；86 条 `=== RUN`）
+- `go test -overlay /tmp/orion_overlay.json ./cmd/server/ -run TestStartupRoutesAreMounted -v` → **rc=0 PASS**
+- 注：`internal/startup` 下**原本零测试文件**，故 overlay 对它不生效——本轮只有 `cmd/server`
+  仍需 `-overlay`。
+
+### 19.7 仍未解决（本轮新增记录）
+
+- `Repository.ListModulesByStatus` 仍是 `var items []models.StartupModule`（零行时为 nil），
+  而 `ListModules` / `ListDependencies` 已修为空切片。**它没有任何 handler 路由**，
+  故不是活桩，仅作为同文件一致性欠账记录，留待下一轮顺手统一。
+- `internal/backup/` 出现一个未跟踪的空目录（只有 `handler/` 子目录，`git check-ignore`
+  报 not ignored、`git ls-files` 为空）——并行 agent 的产物，**不属于本轮，未暂存未提交**。
+- 跨轮遗留不变：条件式安全门谎报（branch-policy/confirmation）、
+  `branch-policy`/`confirmation`「11 个裸 ping 桩」两条数字**仍未核实**（引用前必须换模式重扫）、
+  performance 三个 profile 端点只能返回诚实的空、alert-adapter 接口强制 `Receive` 到
+  只推送适配器、`InstantiateTemplate` 丢弃 `Parameters`/`Environment`、
+  `ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换不存在、SMTP/SMS 凭证待运维、
+  134 个 `handler_test.go` 冲突标记（并行 agent 工作树，故意不碰，本轮测试一律走 overlay）。
