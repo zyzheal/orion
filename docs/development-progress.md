@@ -7585,3 +7585,108 @@ func (r *Repository) GetCacheMetrics(ctx context.Context, tenantID string, cache
 ### 24.7 跨轮遗留（不变）
 
 `internal/security-compliance` 硬编码演示数据（`ListFindings` → `defaultFindings()`、`PassRate: 85.0`、`rulesCount = 50`、`CreateBaseline` 不落库、`ScanBaseline` 评测失败仍报 `completed`）；裸 map 缺 `driver.Valuer` 的模式值得在其他模块机械重扫；`internal/startup` `ListModulesByStatus` nil 切片一致性欠账、条件式安全门谎报（`confirmation/service.go:269,359,367`、`branch-policy/service.go:199,204,517,585,684,1518,1521`）、`chaos-enhanced` `getTenantID` 注释与实现不符、裸 ping 桩数字未核实、alert-adapter 接口强制 `Receive`、`InstantiateTemplate` 丢弃 `Parameters`/`Environment`、`ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换、SMTP/SMS 凭证、134 个 `handler_test.go` 冲突标记（并行 agent 工作树，仍不碰；本轮 `internal/build-env/` 下冲突标记为 **0**）。
+
+## 第二十五轮：tool 8 处未完成全部修复 + 47 条测试 + 7/7 变异证明（2026-09-13）
+
+### 25.1 为什么选它
+
+全新扫描（HEAD `5b43c1b68`）命中最后一个「活桩 + 零测试」模块 `internal/tool`：**16 条路由**（`/api/v1/tools` 14 条 + `/categories` + `/invocations/:id`）全部经 `registerRoutes` 挂载（`cmd/server/router.go:134` `toolH,`）且**此前无一 `auth.RequirePermission`**——任何认证调用方都能读写删任意租户的工具；更糟的是 repository 直接写四张**迁移中从未创建**的表（`tools`/`tool_categories`/`tool_versions`/`tool_invocations` 在 576 个迁移里零 CREATE）——比 build-env 更彻底的空心。模块此前**零测试文件**。
+
+### 25.2 八处 Finding
+
+**Finding ①（16 路由全部无权限守卫）**。修：16 处 `auth.RequirePermission("tool", read|write|execute)`。org_admin 的 `*:read/write/execute` 覆盖全部三种 action，sre 仅有 `*:read` 故写路由 403，无角色 403 `no role assigned`。`permission_guard_audit_test` R1 通过。
+
+**Finding ②（四表零迁移，全模块恒 500）**。repository 照写不存在的表 → 每端点 driver `relation does not exist`。修：**迁移 578** 建四表：
+- `tools`：id/tenant_id UUID（service 用 `uuid.New().String()` 生成，PG 隐式转 UUID）、name/display_name/category/type/version/status VARCHAR、config/auth_config/tags TEXT 存 JSON、created_by、时间戳、`deprecated_at`；4 索引（tenant、tenant+name、tenant+category、tenant+status）。
+- `tool_categories`：tenant_id UUID + 名称/描述/icon/sort_order。
+- `tool_versions`：**无 tenant_id 列**——经父工具作用域（service 用租户作用域 GetByID 先解析工具），`tool_id UUID REFERENCES tools ON DELETE CASCADE`。
+- `tool_invocations`：tool_id/tenant_id UUID、input/output TEXT JSON、status/error/duration/called_by、`ON DELETE CASCADE` + 3 索引（tenant、tenant+tool、created_at DESC）。
+
+**Finding ③（api_key 认证桩）**。service.go:297-300：
+```go
+if tool.AuthType == "api_key" && tool.AuthConfig != "{}" {
+    // TODO: read actual key from secrets store
+    authHeader = ""
+}
+```
+api_key 工具被**无认证**调用。修 `toolAuthHeader(tool)`：从 `auth_config` JSON 解出 `api_key` 才返回它（`Authorization: Bearer <key>`），oauth2/basic 明示不支持（模块无 token 交换机制）；超时从 `getToolTimeout` 取（context deadline 或默认 30s）。
+
+**Finding ④（请求体丢失）**。`callToolEndpoint` POST 传 `nil` body，注释自嘲 `// input passed as body in production`——但这里就是生产代码，工具永远收不到输入。修：`strings.NewReader(payload)`（input 是原始 JSON 字符串，直接发，空则 `{}`）；顺带修响应读取：旧 `io.ReadFull(buf)` 在 body 不足 64KB 时 `bytes` 短读，改 `io.ReadAll(io.LimitReader(body, 64KB+1))` 截断到 64KB。
+
+**Finding ⑤（SELECT* 列映射风险）**。5 处 `SELECT *`（tools GetByID/List/Search、tool_categories、tool_invocations GetByID/ListByTool、tool_versions ListByTool），遇迁移加列即全 500。修：`toolCols`/`categoryCols`/`invocationCols`/`versionCols` 显式列常量 + `TestNoToolStatementUsesSelectStar` 在 SQL 文本层钉死。
+
+**Finding ⑥（错误码混淆）**。`GetInvocationDetail` 任何错误（包括 DB 故障）恒 404；`DeleteTool` 任何错误恒 500。修：Detail 区分 `"invocation not found"`(/404) 与其余(/500)；Delete 区分 `ErrToolNotFound`(/404) 与其余(/500)。
+
+**Finding ⑦（ToolStats/ToolUsageRank 缺 db tag，统计接口恒 500）**。sqlx 按字段小写名匹配列——`total_invocations` ≠ `TotalInvocations`(totalinvocations) → `missing destination name`。`GetStats`/`GetToolStats`/`GetTopTools` 三条统计路由原本全 500。修：给两 struct 全部加 `db` tags。
+
+**Finding ⑧（user 从 X-User-ID header 而非 context）**。`CreateVersion`/`InvokeTool` 读 `c.GetHeader("X-User-ID")`——header 是调用方可伪造的，且 JWT 中间件写的是 `user_id`，两者脱节。修：`auth.GetUserID(c)`；校验消息改为 `"tenant_id and user_id required"`。
+
+### 25.3 测试（47 条全新建）
+
+service 抽出三个接口（`ToolRepositoryInterface`/`InvocationRepositoryInterface`/`VersionRepositoryInterface`）+ 记录型 fake 使断言可达：
+- **repository 22**（tool 9 + invocation/version 13）：sqlmock + 归一化空格后**逐字符 SQL 匹配**（`QueryMatcherFunc`）；`Create` 断言 NamedExec 展开后的 `$1..$15` 顺序与每个绑值；`GetByID` 租户作用域 + 显式列逐字段映射；`List` count + 分页绑定；`Update` 断言 `WHERE id=$N AND tenant_id=$M`（租户谓词在）；`Search`/`GetCategories` 租户绑定；`StatsByPeriod` 聚合列；`TopTools` JOIN;`Version.ListByTool` 仅 tool_id 作用域（无 tenant 列）；`TestNoToolStatementUsesSelectStar`。
+- **service 17**：`TestCreatePropagatesTenantAndDefaults`（tenant/created_by/status/auth_type/config 默认）+ 重复名拒绝；`Get`/`Update`/`Delete` 租户作用域（跨租户 not-found）；`InvokeTool` 5 例（api_key 认证头、无认证、endpoint 失败状态、无 endpoint 跳过、跨租户）；`GetInvocationDetail` not-found + repo 错误透传；`GetVersions`/`CreateVersion` 租户先解析；`toolAuthHeader` 5 例表驱动；UUID id 不 Atoi。
+- **handler 16**：真实 `*gin.Engine` 经 `ServeHTTP` 同步驱动（中间件写 `tenant_id`/`user_id` + `[]string` 型 `roles`）；**16 条路由无角色全部 403**；`TestCreateToolBindsTenantAndUserFromContext`（响应 envelope + data.tenant_id）；缺 name 400；Get/Delete 缺失 404；`TestInvokeToolReadsUserFromContextNotHeader` + `TestInvokeToolRejectsMissingUser`；search 单字符 400；`TestRoutesAreMounted` 16 条逐一确认；`TestGuardedRoutesReturnRoleErrorsPinned`（sre 写路由 403 `insufficient permissions`）；`TestUnknownInvocationErrorIs500` + `TestMissingInvocationIs404`（错误映射两半）。
+
+### 25.4 变异证明 7/7
+
+| # | 变异 | 杀死它的测试 |
+|---|------|------------|
+| M1 | 移除 POST /tools 守卫 | `TestEveryRouteRequiresARole` |
+| M2 | api_key 恒空（`var authHeader = ""`） | `TestInvokeToolSendsBodyAndAuthAndRecords` |
+| M3 | 请求体恒空（`strings.NewReader("")`） | 同上 |
+| M4 | Delete 恒 500 | `TestDeleteToolMissingIs404` |
+| M5 | Detail not-found 恒 500（首跑**漏网**） | 补 `TestMissingInvocationIs404` 后捕获 |
+| M6 | `GetCategories` 去租户谓词 | `TestToolGetCategoriesIsTenantScoped` |
+| M7 | Create 租户写空串 | `TestCreatePropagatesTenantAndDefaults` |
+
+**M5 漏网复盘**：`TestUnknownInvocationErrorIs500` 只断言「未知错误 → 500」，没有断言「not-found → 404」半支；变异把 not-found 判定改成恒 false 后所有错误都走 500，现有测试恰好期望 500 所以必然通过。补 `TestMissingInvocationIs404`（missing repo 返回 `(nil,nil)` → service 报 `"invocation not found"` → 404）后捕获。**教训：错误映射类测试必须覆盖分支两侧。**
+
+### 25.5 验证
+
+`go build ./internal/tool/...` 无输出；`go vet ./internal/tool/...` 无输出；`go test -count=1 ./internal/tool/...` 3/3 包全绿（47 条）；`go test ./...` 全仓 0 FAIL；`go test ./cmd/server/ -run TestPermissionGuardAudit` 通过（"tool" 资源解析到 org_admin 通配符）；模块内冲突标记 0。
+
+### 25.6 只记录不修
+
+1. `tools` 无唯一约束——重名靠 service 先 `Search + 循环相等` 检查，并发下仍可能重复。
+2. `tool_versions` 无 (tool_id, version) 唯一约束——service 先 `ListByTool` 查重，并发下重复。
+3. 无软删——`Delete` 改 status 而非物理删行（features 合理，但 `tools.status` 无 CHECK 约束枚举）。
+4. api_key 明文存 `auth_config`——模块无 secrets store 基础设施；发送时按 Bearer 直发，非 `X-API-Key`，若工具端是 query param 需扩展。
+
+## 第二十六轮：security-compliance 硬编码倒桩清理 + 三表迁移 577 + 68 测试 + 3 处崩溃/孤儿缺陷修复（2026-09-13）
+
+### 26.1 为什么选它
+
+收尾跨轮遗留首项。模块此前存储全是**写死的**：`ListFindings` 直接 return `defaultFindings()`、`PassRate 85.0`、`rulesCount 50`、`auditFindings` 常量数组、`CreateBaseline` 不落库——而 577 之前的 repository 却照常写**三张不存在的表**（`compliance_scores`/`compliance_evaluation_results`/`gap_analysis_results`）→ 每条写路径 driver `relation does not exist`；达标/分数/审计全是演示数字而非真实持久化。
+
+### 26.2 修复
+
+1. **service 全部改经 repository 读写真实表**：EvaluateCompliance → InsertEvaluation + persistReportAndScore（UpsertScore）；GetComplianceReport/GetComplianceScore 读真实行（迁移前每读恒 500）；ExecuteAudit 写 audit_reports/audit_findings；ListFindings 读 audit_findings；PerformGapAnalysis → InsertGapAnalysis。handler 873 行断言由假成功转真实。`resolveFramework`/`auditFindings`/`evaluateTargetAgainstRules` 归入 catalog（规则来源单一）。
+2. **models 补齐列**：`AuditFinding.Target/Resolution` + `ComplianceReport` 扩展列（name/description/framework/triggered_by/updated_at，与 571/572 迁移加列对齐）。
+3. **迁移 577 新建三表**：`compliance_evaluation_results`（id/tenant_id UUID 对齐 066 与 239、policy_id VARCHAR、failures/warnings TEXT 存 join 后扁平串）；`compliance_scores`（tenant_id 唯一 + `ON CONFLICT(tenant_id) DO UPDATE` 版本化）；`gap_analysis_results` 同样式 + `audit_findings` ALTER 补 `target`/`resolution` 列 + severity 权重排序（critical/high/medium/low 数值序而非字母序）。
+4. **repository 34 方法驱动 6 表**；`scoreRow` 中间扫描目标——`compliance_scores.category_scores` 是 TEXT，sqlx 轮不到 `map[string]float64` 转换，旧代码直接扫模型逐租户 500。
+
+### 26.3 本轮修 3 处预存缺陷
+
+**①　`evaluator.go:177` 越界 panic**：`evaluateTargetAgainstRules` 的 partial 分支无条件 `fmt.Sprintf("...%s", r.warnings[0])`，而 iso27001 A.5.2 / nist-csf GV.OC 声明 nil warnings——一次目录编辑即可让整服务进程 panic。修：`len(r.warnings) > 0` 才取 `[0]`，否则只拼 `controlID controlName`。
+
+**②　`ExecuteAudit` 孤儿 report**：原顺序 CreateAuditReport → 循环 CreateFinding；finding 失败时 report 已落库但无 findings。修：report 预生成 `uuid.New()` ID → 先写全部 findings（引用该 ID）→ 最后才 CreateAuditReport；真 repo `CreateAuditReport` 改为支持外部 ID（`if report.ID == ""` 才生成）。
+
+**③　`service_test` 伪造 not-found 方式与契约不符**：`errors.New("x: " + sentinel.NotFound.Error())` 字符串拼接对 `errors.Is` 不可见（没有 `%w` 链），而真 repo 用 `fmt.Errorf("... %w", sentinel.NotFound)`。修：测试改 `fmt.Errorf("x: %w", sentinel.NotFound)`。
+
+### 26.4 测试（68 条）
+
+- **service 40**（新建）：记录型 fake`repoFake` 每个方法 `sawTenant` 记录 + `assertTenant` 断言每次调用租户一致；Evaluate 打分/评估、GetComplianceReport/Score 真实行、ExecuteAudit 成功/失败（`TestExecuteAuditFailureLeavesNoReport`）、CloseFinding 记录 reason、PerformGapAnalysis 统计、错误注入逐路径。
+- **handler 28**：路由守卫 + envelope + CRUD 状态码。
+
+`go test -count=1 ./internal/security-compliance/...` 3/3 绿（68 条）；`go build ./...` 无输出；`go test ./...` 全仓 0 FAIL；`go vet` 无输出；`permission_guard_audit` 通过。
+
+### 26.5 只记录不修
+
+1. `audit_findings.severity` 无 CHECK 约束（自由文本，排序靠 CASE）。
+2. `ExecuteAudit` 无事务——report 与 findings 分两次连接写，中途崩溃仍可能部分持久化（需要仓库层事务）。
+3. 无 `%w` 链式封装统一策略——模块内部分错误用 `%v` 包装，`IsNotFound` 依赖错误链。
+
+### 26.6 跨轮遗留（更新后）
+
+`internal/startup` `ListModulesByStatus` nil 切片一致性欠账、条件式安全门谎报（`confirmation/service.go:269,359,367`、`branch-policy/service.go:199,204,517,585,684,1518,1521`）、`chaos-enhanced` `getTenantID` 注释与实现不符、裸 ping 桩数字未核实、alert-adapter 接口强制 `Receive`、`InstantiateTemplate` 丢弃 `Parameters`/`Environment`、`ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换、SMTP/SMS 凭证、134 个 `handler_test.go` 冲突标记（并行 agent 工作树，仍不碰；本轮 `internal/tool/` 与 `internal/security-compliance/` 下冲突标记均为 **0**）。
