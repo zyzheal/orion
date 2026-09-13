@@ -1,11 +1,15 @@
 package models
 
+// RowEditorSpecRequest is the body of POST /row-editors/register.
+//
+// tenant_id deliberately does not appear here. Tenant came from the request
+// body with binding:"required" before, which let any caller claim any tenant id
+// while registering an editor — and registration is what decides which table a
+// tenant may write. The handler takes it from the JWT-verified Gin context.
 type RowEditorSpecRequest struct {
 	TableName     string       `json:"table_name" binding:"required"`
 	PrimaryKey    string       `json:"primary_key" binding:"required"`
-	TenantColumn  string       `json:"tenant_column"`
 	VersionColumn string       `json:"version_column"`
-	StatusColumn  string       `json:"status_column"`
 	SoftDelete    bool         `json:"soft_delete"`
 	Columns       []ColumnSpec `json:"columns" binding:"required"`
 }
@@ -16,22 +20,22 @@ type ColumnSpec struct {
 	IsRequired bool   `json:"is_required"`
 }
 
+// RowCreateRequest is the body of POST /rows/:editor/create. See
+// RowEditorSpecRequest for why tenant_id is not accepted here.
 type RowCreateRequest struct {
-	TenantID string                 `json:"tenant_id" binding:"required"`
-	Row      map[string]interface{} `json:"row" binding:"required"`
+	Row map[string]interface{} `json:"row" binding:"required"`
 }
 
 type RowUpdateRequest struct {
-	RowID      string                 `json:"row_id" binding:"required"`
-	Changes    map[string]interface{} `json:"changes"`
-	NewRow     map[string]interface{} `json:"new_row"`
-	Version    int64                  `json:"version"`
-	SoftDelete bool                   `json:"soft_delete"`
+	RowID   string                 `json:"row_id" binding:"required"`
+	Changes map[string]interface{} `json:"changes"`
+	Version int64                  `json:"version"`
 }
 
+// BatchCreateRequest is the body of POST /rows/:editor/batch-create. See
+// RowEditorSpecRequest for why tenant_id is not accepted here.
 type BatchCreateRequest struct {
-	TenantID string                   `json:"tenant_id" binding:"required"`
-	Rows     []map[string]interface{} `json:"rows" binding:"required"`
+	Rows []map[string]interface{} `json:"rows" binding:"required"`
 }
 
 type BatchUpdateRequest struct {
@@ -42,9 +46,7 @@ type BatchUpdateRequest struct {
 
 type RowEditorResponse struct {
 	Affected int                    `json:"affected"`
-	OldRow   map[string]interface{} `json:"old_row,omitempty"`
 	NewRow   map[string]interface{} `json:"new_row,omitempty"`
-	Version  int64                  `json:"version"`
 }
 
 type RowEditorStats struct {

@@ -30,28 +30,42 @@ type DBOperations interface {
 	NamedExecContext(ctx context.Context, query string, arg any) (sql.Result, error)
 
 	// BeginTxx starts a transaction (nil config = defaults).
-	BeginTxx(ctx context.Context, cfg *sql.TxOptions) (*sqlx.Tx, error)
+	//
+	// The return type is TxOperations rather than *sqlx.Tx. Returning the
+	// concrete transaction type made BatchUpdate and BatchCreate impossible to
+	// exercise in a test — no fake can supply a *sqlx.Tx — and it left
+	// TxOperations declared but never implemented. The batch paths are the ones
+	// that changed the most in the tenant-scoping pass, so they have to be
+	// testable.
+	BeginTxx(ctx context.Context, cfg *sql.TxOptions) (TxOperations, error)
 }
 
 // TxOperations mirrors DBOperations but operates on an in-flight transaction.
+// *sqlx.Tx satisfies it, which is what lets DBFromGoCommon return the real
+// transaction through BeginTxx.
 type TxOperations interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	GetContext(ctx context.Context, dest any, query string, args ...any) error
 	SelectContext(ctx context.Context, dest any, query string, args ...any) error
 	NamedExecContext(ctx context.Context, query string, arg any) (sql.Result, error)
 	Commit() error
-	Rollback()
+	Rollback() error
 }
 
-// DBFromGoCommon wraps an orion/go-common/pkg/database.DB to satisfy
-// DBOperations.  It is a thin adapter so the editor does not hard-code the
-// shared package.
+// DBFromGoCommon wraps the sqlx connection held by orion/go-common/pkg/database.DB
+// and satisfies DBOperations. It is a thin adapter so the editor does not
+// hard-code the shared package.
+//
+// The field is *sqlx.DB rather than DBOperations because BeginTxx returns
+// TxOperations, which *sqlx.DB does not satisfy — its BeginTxx hands back a
+// concrete *sqlx.Tx. Holding the connection directly keeps the adapter in step
+// with the interface.
 type DBFromGoCommon struct {
-	db DBOperations
+	db *sqlx.DB
 }
 
 // NewDBFromGoCommon builds the adapter.
-func NewDBFromGoCommon(db DBOperations) *DBFromGoCommon {
+func NewDBFromGoCommon(db *sqlx.DB) *DBFromGoCommon {
 	return &DBFromGoCommon{db: db}
 }
 
@@ -75,7 +89,8 @@ func (w *DBFromGoCommon) NamedExecContext(ctx context.Context, query string, arg
 	return w.db.NamedExecContext(ctx, query, arg)
 }
 
-// BeginTxx delegates to the wrapped DB.
-func (w *DBFromGoCommon) BeginTxx(ctx context.Context, cfg *sql.TxOptions) (*sqlx.Tx, error) {
+// BeginTxx delegates to the wrapped DB. *sqlx.Tx implements TxOperations, so
+// the concrete transaction can be returned through the interface.
+func (w *DBFromGoCommon) BeginTxx(ctx context.Context, cfg *sql.TxOptions) (TxOperations, error) {
 	return w.db.BeginTxx(ctx, cfg)
 }

@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"errors"
+
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
@@ -11,12 +13,12 @@ import (
 )
 
 type Handler struct {
-	svc  roweditor.DBOperations
-	svc2 *service.Service
+	svc *service.Service
+	db  roweditor.DBOperations
 }
 
 func NewHandler(svc *service.Service, db roweditor.DBOperations) *Handler {
-	return &Handler{svc: db, svc2: svc}
+	return &Handler{svc: svc, db: db}
 }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
@@ -34,6 +36,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) RegisterEditor(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RegisterRowEditor")
 	defer span.End()
+	tenantID, ok := h.tenantID(c)
+	if !ok {
+		return
+	}
 	var req models.RowEditorSpecRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -43,7 +49,7 @@ func (h *Handler) RegisterEditor(c *gin.Context) {
 	if name == "" {
 		name = req.TableName
 	}
-	if err := h.svc2.RegisterEditor(ctx, c.GetString("tenant_id"), name, &req); err != nil {
+	if err := h.svc.RegisterEditor(ctx, tenantID, name, &req); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -53,9 +59,19 @@ func (h *Handler) RegisterEditor(c *gin.Context) {
 func (h *Handler) Stats(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRowEditorStats")
 	defer span.End()
-	stats, err := h.svc2.Stats(ctx, c.Param("name"))
+	tenantID, ok := h.tenantID(c)
+	if !ok {
+		return
+	}
+	stats, err := h.svc.Stats(ctx, tenantID, c.Param("name"))
 	if err != nil {
-		middleware.RespondNotFound(c, err.Error())
+		// A missing editor is a 404; anything else is a server fault. Reporting
+		// every error as 404 hid database failures behind the wrong status code.
+		if errors.Is(err, roweditor.ErrEditorNotFound) {
+			middleware.RespondNotFound(c, "row editor not registered")
+		} else {
+			middleware.RespondInternalError(c, err.Error())
+		}
 		return
 	}
 	middleware.RespondSuccess(c, stats)
@@ -64,14 +80,18 @@ func (h *Handler) Stats(c *gin.Context) {
 func (h *Handler) CreateRow(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateRowEditorRow")
 	defer span.End()
+	tenantID, ok := h.tenantID(c)
+	if !ok {
+		return
+	}
 	var req models.RowCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	resp, err := h.svc2.CreateRow(ctx, c.Param("editor"), h.svc, &req)
+	resp, err := h.svc.CreateRow(ctx, tenantID, c.Param("editor"), h.db, &req)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		h.respondEditError(c, err)
 		return
 	}
 	middleware.RespondCreated(c, resp)
@@ -80,9 +100,13 @@ func (h *Handler) CreateRow(c *gin.Context) {
 func (h *Handler) ReadRow(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ReadRowEditorRow")
 	defer span.End()
-	resp, err := h.svc2.ReadRow(ctx, c.Param("editor"), h.svc, c.GetString("tenant_id"), c.Param("row_id"))
+	tenantID, ok := h.tenantID(c)
+	if !ok {
+		return
+	}
+	resp, err := h.svc.ReadRow(ctx, tenantID, c.Param("editor"), h.db, c.Param("row_id"))
 	if err != nil {
-		middleware.RespondNotFound(c, err.Error())
+		h.respondEditError(c, err)
 		return
 	}
 	middleware.RespondSuccess(c, resp)
@@ -91,14 +115,18 @@ func (h *Handler) ReadRow(c *gin.Context) {
 func (h *Handler) UpdateRow(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateRowEditorRow")
 	defer span.End()
+	tenantID, ok := h.tenantID(c)
+	if !ok {
+		return
+	}
 	var req models.RowUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	resp, err := h.svc2.UpdateRow(ctx, c.Param("editor"), h.svc, &req)
+	resp, err := h.svc.UpdateRow(ctx, tenantID, c.Param("editor"), h.db, &req)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		h.respondEditError(c, err)
 		return
 	}
 	middleware.RespondSuccess(c, resp)
@@ -107,9 +135,13 @@ func (h *Handler) UpdateRow(c *gin.Context) {
 func (h *Handler) DeleteRow(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteRowEditorRow")
 	defer span.End()
-	resp, err := h.svc2.DeleteRow(ctx, c.Param("editor"), h.svc, c.GetString("tenant_id"), c.Param("row_id"))
+	tenantID, ok := h.tenantID(c)
+	if !ok {
+		return
+	}
+	resp, err := h.svc.DeleteRow(ctx, tenantID, c.Param("editor"), h.db, c.Param("row_id"))
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		h.respondEditError(c, err)
 		return
 	}
 	middleware.RespondSuccess(c, resp)
@@ -118,14 +150,18 @@ func (h *Handler) DeleteRow(c *gin.Context) {
 func (h *Handler) BatchCreate(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BatchCreateRows")
 	defer span.End()
+	tenantID, ok := h.tenantID(c)
+	if !ok {
+		return
+	}
 	var req models.BatchCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	resp, err := h.svc2.BatchCreate(ctx, c.Param("editor"), h.svc, &req)
+	resp, err := h.svc.BatchCreate(ctx, tenantID, c.Param("editor"), h.db, &req)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		h.respondEditError(c, err)
 		return
 	}
 	middleware.RespondCreated(c, resp)
@@ -134,15 +170,51 @@ func (h *Handler) BatchCreate(c *gin.Context) {
 func (h *Handler) BatchUpdate(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BatchUpdateRows")
 	defer span.End()
+	tenantID, ok := h.tenantID(c)
+	if !ok {
+		return
+	}
 	var req models.BatchUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	resp, err := h.svc2.BatchUpdate(ctx, c.Param("editor"), h.svc, &req)
+	resp, err := h.svc.BatchUpdate(ctx, tenantID, c.Param("editor"), h.db, &req)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		h.respondEditError(c, err)
 		return
 	}
 	middleware.RespondSuccess(c, resp)
+}
+
+// tenantID returns the caller's tenant id from the Gin context. It fails
+// closed: the JWT middleware populates tenant_id, and when it has not, every
+// query would run without a tenant predicate. The SQL helpers silently drop an
+// empty tenant id, so an unauthenticated request would have read and written
+// across all tenants. Callers must stop when ok is false — the 401 is already
+// written.
+func (h *Handler) tenantID(c *gin.Context) (string, bool) {
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" {
+		middleware.RespondUnauthorized(c, "tenant_id required")
+		return "", false
+	}
+	return tenantID, true
+}
+
+// respondEditError maps a service error to a status code. Not-found conditions
+// are 404, an optimistic-lock conflict is 409, and validation failures are 400 —
+// before every one of them came back as a 500, which turned a caller's mistake
+// into a server incident.
+func (h *Handler) respondEditError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, roweditor.ErrRowNotFound), errors.Is(err, roweditor.ErrEditorNotFound):
+		middleware.RespondNotFound(c, err.Error())
+	case errors.Is(err, roweditor.ErrOptimisticLock):
+		middleware.RespondConflict(c, err.Error())
+	case errors.Is(err, roweditor.ErrValidationError), errors.Is(err, roweditor.ErrReadOnlyField), errors.Is(err, roweditor.ErrNoChanges):
+		middleware.RespondBadRequest(c, err.Error())
+	default:
+		middleware.RespondInternalError(c, err.Error())
+	}
 }

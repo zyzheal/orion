@@ -4,17 +4,23 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"strings"
 )
 
 // Create inserts a new row into the target table and returns the persisted row.
 func (e *RowEditor) Create(ctx context.Context, db DBOperations, tenantID string, row Row) (*Row, error) {
+	if len(row) == 0 {
+		return nil, ErrNoChanges
+	}
 	if err := e.validateRow(row); err != nil {
 		return nil, fmt.Errorf("create row validation: %w", err)
 	}
 
-	// Build column/value list.
-	keys, vals, args := e.buildInsertColumnArgs(row)
+	// Build column/value list. buildInsertColumnArgs stamps tenant_id from
+	// tenantID, so the caller cannot attribute the new row to a different
+	// tenant by putting its own value in the row map.
+	keys, vals, args := e.buildInsertColumnArgs(row, tenantID)
 	if len(keys) == 0 {
 		return nil, ErrNoChanges
 	}
@@ -31,13 +37,21 @@ func (e *RowEditor) Create(ctx context.Context, db DBOperations, tenantID string
 		return nil, fmt.Errorf("roweditor create: %w", err)
 	}
 
-	// Try to retrieve the last insert id; if not supported return the inserted row.
-	rowsAffected, _ := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("roweditor create: rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return nil, fmt.Errorf("roweditor create: no rows inserted")
 	}
 
-	return &row, nil
+	// Return the row as it was actually written, tenant stamp included, rather
+	// than echoing the caller's input.
+	inserted := make(Row, len(args))
+	for k, v := range args {
+		inserted[k] = v
+	}
+	return &inserted, nil
 }
 
 // Read retrieves a single row by primary key.  Returns ErrRowNotFound when
@@ -49,8 +63,16 @@ func (e *RowEditor) Read(ctx context.Context, db DBOperations, tenantID, rowID s
 
 	query := buildSelectQuery(e.spec.TableName, e.spec.PrimaryKey, rowID, tenantID)
 
+	// The query binds tenant_id only when tenantID is non-empty, so the argument
+	// list must match. Passing the empty string anyway sent an argument to a
+	// placeholder that does not exist, and Postgres rejects the statement.
+	args := []any{rowID}
+	if tenantID != "" {
+		args = append(args, tenantID)
+	}
+
 	dest := make(Row)
-	err := db.GetContext(ctx, dest, query, rowID, tenantID)
+	err := db.GetContext(ctx, dest, query, args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrRowNotFound
@@ -70,6 +92,9 @@ func (e *RowEditor) Update(ctx context.Context, db DBOperations, opts EditOption
 		return nil, err
 	}
 
+	// The SET clause is built before the WHERE clause because the WHERE
+	// placeholders start after the ones the SET clause consumed.
+	setClause, setArgs := buildUpdateSetClause(change.Columns, opts.Version, e.spec.VersionColumn)
 	where, whereArgs, _ := buildWhere(
 		e.spec.PrimaryKey,
 		change.RowID,
@@ -77,17 +102,11 @@ func (e *RowEditor) Update(ctx context.Context, db DBOperations, opts EditOption
 		opts.Version,
 		e.spec.VersionColumn,
 		true, // include status!='deleted'
+		len(setArgs)+1,
 	)
-
-	setClause, setArgs := buildSetClause(change.Columns)
-	// Append updated_at bump.
-	setClause += ", updated_at=now()"
-
-	allArgs := append(setArgs, whereArgs...)
-	if opts.Version > 0 && e.spec.VersionColumn != "" {
-		// Bump version too.
-		setClause = fmt.Sprintf("%s, %s=%s+1", setClause, e.spec.VersionColumn, e.spec.VersionColumn)
-	}
+	// New backing array: appending into setArgs would risk mutating the slice
+	// buildUpdateSetClause handed over.
+	allArgs := append(append([]any{}, setArgs...), whereArgs...)
 
 	query := fmt.Sprintf(
 		"UPDATE %s SET %s WHERE %s",
@@ -123,6 +142,7 @@ func (e *RowEditor) UpdateCell(ctx context.Context, db DBOperations, opts EditOp
 		return nil, err
 	}
 
+	// The cell value owns $1, so the WHERE clause starts at $2.
 	where, whereArgs, _ := buildWhere(
 		e.spec.PrimaryKey,
 		change.RowID,
@@ -130,6 +150,7 @@ func (e *RowEditor) UpdateCell(ctx context.Context, db DBOperations, opts EditOp
 		opts.Version,
 		e.spec.VersionColumn,
 		true,
+		2,
 	)
 
 	setClause := fmt.Sprintf("%s=$1", change.Column)
@@ -178,6 +199,7 @@ func (e *RowEditor) Delete(ctx context.Context, db DBOperations, opts EditOption
 	}
 
 	if softDelete {
+		// base=1: SET status='deleted' binds no placeholder of its own.
 		where, whereArgs, _ := buildWhere(
 			e.spec.PrimaryKey,
 			rowID,
@@ -185,6 +207,7 @@ func (e *RowEditor) Delete(ctx context.Context, db DBOperations, opts EditOption
 			opts.Version,
 			e.spec.VersionColumn,
 			true,
+			1,
 		)
 		query := fmt.Sprintf(
 			"UPDATE %s SET status='deleted', updated_at=now() WHERE %s",
@@ -213,6 +236,7 @@ func (e *RowEditor) Delete(ctx context.Context, db DBOperations, opts EditOption
 	query, args := buildDeleteQuery(
 		e.spec.TableName,
 		e.spec.PrimaryKey,
+		rowID,
 		opts.TenantID,
 		opts.Version,
 		e.spec.VersionColumn,
@@ -249,8 +273,10 @@ func (e *RowEditor) BatchUpdate(ctx context.Context, db DBOperations, opts EditO
 	defer tx.Rollback()
 
 	var results []Result
-	setClause, setArgs := buildSetClause(change.Columns)
-	setClause += ", updated_at=now()"
+	// The SET clause is built once for the whole batch. The version increment
+	// belongs to the statement, not to the row: appending it inside the loop
+	// bumped version by one per row of the batch.
+	setClause, setArgs := buildUpdateSetClause(change.Columns, opts.Version, e.spec.VersionColumn)
 
 	for _, rowID := range change.RowIDs {
 		where, whereArgs, _ := buildWhere(
@@ -260,17 +286,18 @@ func (e *RowEditor) BatchUpdate(ctx context.Context, db DBOperations, opts EditO
 			opts.Version,
 			e.spec.VersionColumn,
 			true,
+			len(setArgs)+1,
 		)
-		if opts.Version > 0 && e.spec.VersionColumn != "" {
-			setClause = fmt.Sprintf("%s, %s=%s+1", setClause, e.spec.VersionColumn, e.spec.VersionColumn)
-		}
 		query := fmt.Sprintf(
 			"UPDATE %s SET %s WHERE %s",
 			e.spec.TableName,
 			setClause,
 			where,
 		)
-		allArgs := append(setArgs, whereArgs...)
+		// Fresh slice per row: the args differ only in rowID, and reusing a
+		// backing array across iterations would let a later row's id overwrite
+		// an earlier one in place.
+		allArgs := append(append([]any{}, setArgs...), whereArgs...)
 
 		result, err := tx.ExecContext(ctx, query, allArgs...)
 		if err != nil {
@@ -307,7 +334,9 @@ func (e *RowEditor) BatchCreate(ctx context.Context, db DBOperations, tenantID s
 
 	count := 0
 	for _, row := range rows {
-		keys, vals, args := e.buildInsertColumnArgs(row)
+		// Tenant stamping happens here for every row, the same way Create does
+		// it, so a batch cannot smuggle rows into another tenant.
+		keys, vals, args := e.buildInsertColumnArgs(row, tenantID)
 		if len(keys) == 0 {
 			continue
 		}
@@ -345,6 +374,7 @@ func (e *RowEditor) BatchDelete(ctx context.Context, db DBOperations, opts EditO
 
 	var results []Result
 	for _, rowID := range rowIDs {
+		// base=1: SET status='deleted' binds no placeholder of its own.
 		where, whereArgs, _ := buildWhere(
 			e.spec.PrimaryKey,
 			rowID,
@@ -352,6 +382,7 @@ func (e *RowEditor) BatchDelete(ctx context.Context, db DBOperations, opts EditO
 			opts.Version,
 			e.spec.VersionColumn,
 			true,
+			1,
 		)
 		query := fmt.Sprintf(
 			"UPDATE %s SET status='deleted', updated_at=now() WHERE %s",
@@ -379,21 +410,39 @@ func (e *RowEditor) BatchDelete(ctx context.Context, db DBOperations, opts EditO
 
 // buildInsertColumnArgs builds the column list, value placeholders, and args
 // map for an INSERT statement.
-func (e *RowEditor) buildInsertColumnArgs(row Row) (keys, vals string, args map[string]any) {
-	columnKeys := make([]string, 0, len(row))
-	valPlaceholders := make([]string, 0, len(row))
-	args = make(map[string]any)
-
+//
+// tenant_id is the editor's own bookkeeping column. A value the caller placed
+// in the row map is discarded and replaced with tenantID, which is the value
+// authenticated upstream. Without that the INSERT would have been written
+// without a tenant at all while every read and update was tenant-scoped — the
+// write side of a split-brain tenancy, letting a caller land rows into a
+// tenant it does not belong to.
+//
+// Column order is sorted so the generated SQL is deterministic; map iteration
+// order is not, and a non-deterministic INSERT would make the SQL assertions
+// in the tests flaky.
+func (e *RowEditor) buildInsertColumnArgs(row Row, tenantID string) (keys, vals string, args map[string]any) {
+	args = make(map[string]any, len(row)+1)
 	for k, v := range row {
-		// Skip read-only columns.
-		if e.isReadOnly(k) {
+		if k == TenantColumn || e.isReadOnly(k) {
 			continue
 		}
-		columnKeys = append(columnKeys, k)
-		valPlaceholders = append(valPlaceholders, fmt.Sprintf(":%s", k))
 		args[k] = v
 	}
+	if tenantID != "" && !e.isReadOnly(TenantColumn) {
+		args[TenantColumn] = tenantID
+	}
 
+	columnKeys := make([]string, 0, len(args))
+	for k := range args {
+		columnKeys = append(columnKeys, k)
+	}
+	slices.Sort(columnKeys)
+
+	valPlaceholders := make([]string, 0, len(columnKeys))
+	for _, k := range columnKeys {
+		valPlaceholders = append(valPlaceholders, ":"+k)
+	}
 	return strings.Join(columnKeys, ", "), strings.Join(valPlaceholders, ", "), args
 }
 

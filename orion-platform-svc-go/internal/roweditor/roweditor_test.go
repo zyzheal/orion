@@ -301,7 +301,7 @@ func TestBuildSetClause(t *testing.T) {
 }
 
 func TestBuildWhere(t *testing.T) {
-	where, args, idx := buildWhere("id", "r1", "t1", 5, "version", true)
+	where, args, idx := buildWhere("id", "r1", "t1", 5, "version", true, 1)
 
 	if len(args) != 3 {
 		t.Fatalf("buildWhere() args length = %d, want 3", len(args))
@@ -311,6 +311,31 @@ func TestBuildWhere(t *testing.T) {
 	}
 	if len(where) == 0 {
 		t.Fatal("buildWhere() returned empty WHERE")
+	}
+	// base=1 keeps the row id in $1, so the conditions read back in bind order.
+	want := "id=$1 AND tenant_id=$2 AND version=$3 AND status!='deleted'"
+	if where != want {
+		t.Fatalf("buildWhere() = %q, want %q", where, want)
+	}
+	if len(args) != 3 || args[0] != "r1" || args[1] != "t1" || args[2] != int64(5) {
+		t.Fatalf("buildWhere() args = %#v, want [r1 t1 5]", args)
+	}
+}
+
+func TestBuildWhereOffsetBySetClause(t *testing.T) {
+	// A SET clause over two columns owns $1..$2, so the first WHERE condition
+	// must be $3. Numbering from $1 bound the row id and the first SET value to
+	// the same argument.
+	where, args, idx := buildWhere("id", "r1", "t1", 5, "version", true, 3)
+	want := "id=$3 AND tenant_id=$4 AND version=$5 AND status!='deleted'"
+	if where != want {
+		t.Fatalf("buildWhere() = %q, want %q", where, want)
+	}
+	if idx != 6 {
+		t.Fatalf("buildWhere() next idx = %d, want 6", idx)
+	}
+	if len(args) != 3 || args[0] != "r1" || args[1] != "t1" || args[2] != int64(5) {
+		t.Fatalf("buildWhere() args = %#v, want [r1 t1 5]", args)
 	}
 }
 

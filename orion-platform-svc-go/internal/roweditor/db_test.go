@@ -6,8 +6,6 @@ import (
 	"errors"
 	"sync"
 	"testing"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // mockDB implements DBOperations for testing row operations.
@@ -170,14 +168,20 @@ func (m *mockDB) NamedExecContext(ctx context.Context, query string, arg any) (s
 	return &mockResult{rowsAffected: m.rowsAffected}, nil
 }
 
-func (m *mockDB) BeginTxx(ctx context.Context, cfg *sql.TxOptions) (*sqlx.Tx, error) {
+func (m *mockDB) BeginTxx(ctx context.Context, cfg *sql.TxOptions) (TxOperations, error) {
 	if m.errToReturn != nil {
 		err := m.errToReturn
 		m.errToReturn = nil
 		return nil, err
 	}
-	return nil, nil // Batch operations are not fully mocked here
+	return m, nil
 }
+
+// mockTx lets the transaction paths be exercised without a real sqlx.Tx, which
+// cannot be constructed outside the sqlx package.
+func (m *mockDB) Commit() error { return nil }
+
+func (m *mockDB) Rollback() error { return nil }
 
 func (m *mockDB) Clear() {
 	m.mu.Lock()

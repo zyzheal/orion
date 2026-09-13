@@ -22,6 +22,10 @@ var (
 	// ErrValidationError is returned when pre-save validation fails.
 	ErrValidationError = errors.New("validation failed")
 
+	// ErrEditorNotFound is returned when no editor is registered for the caller's
+	// tenant under the requested name.
+	ErrEditorNotFound = errors.New("row editor not registered")
+
 	// ErrReadOnlyField is returned when an attempt is made to edit a
 	// read-only field.
 	ErrReadOnlyField = errors.New("read-only field")
