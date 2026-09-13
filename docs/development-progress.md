@@ -7492,3 +7492,96 @@ grep -rnE '^(<<<<<<<|=======|>>>>>>>)' internal/rca/ | wc -l → 0
 `ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换、SMTP/SMS 凭证、
 134 个 `handler_test.go` 冲突标记（并行 agent 工作树，仍不碰；本轮 `internal/rca/` 下
 冲突标记为 **0**，该模块测试不需要 overlay）。
+
+## 第二十四轮：build-env 9 处未完成全部修复 + 108 条测试 + 10/10 变异证明（2026-08-26）
+
+### 24.1 为什么选它
+
+延续第三轮选定的判据：**「未使用参数」是最高信号的桩标记，而「租户参数被静默丢弃」是最危险的一种**（第三轮由此选中 `internal/rca`）。全新扫描（HEAD `5b43c1b68`）在 `internal/build-env/` 命中同一形态但更彻底：**22 个已注册路由**（`handler.RegisterRoutes`，`/api/v1/build-env` 下每条都挂 `auth.RequirePermission("build_env", read|write|delete)`，即**全部为活桩**）+ `service.RepositoryInterface` **22 个方法**（其中 19 个带 `tenantID` 形参），而模块此前**零测试文件**，仅有一个 309 行的自动生成 `handler_test.go`——它用**不存在的** `gin.CreateTestContext(w)` 第二返回值、手工 append `c.Params`、22 个方法全部返回 `&models.Build{}, nil`，每条测试只断言 `w.Code < 500`，**401/403/404/500/200 一律通过**。
+
+### 24.2 九处 Finding
+
+**① 三个 UPDATE 的字段被完全丢弃，且永不报错** — `setClause(updates, buildUpdatable)` 算出 SET 子句并绑定参数，随后 `args = append(args, id, tenantID)` **整个丢弃**：
+```go
+set, args, n := setClause(updates, buildUpdatable)
+if n == 0 { return nil }
+args = append(args, id, tenantID)
+_, _ = r.db.ExecContext(ctx, fmt.Sprintf("UPDATE builds SET %s WHERE id=$%d AND tenant_id=$%d",
+    "updated_at=NOW()", 1, 2), tenantID)
+```
+`PUT /builds/:id` 携带真实字段时**什么都不写，只刷 `updated_at`，然后返回 200 与一个未变更的行**；空 body 时**同样返回 200**。builds / build_images / build_cache_configs 三处同型。
+**修法**：SET 列表与绑定参数真正使用——`setClause` 按白名单过滤、`sort.Strings` 稳定渲染、追加 `updated_at=NOW()`、**绝不改写输入 map**（旧代码 `updates["updated_at"] = time.Now()`）；空 map → `sentinel.BadRequest`；service 层的 `updateBuildFields`/`updateImageFields`/`updateConfigFields` 为纯函数，指针字段为 nil 则不进 map。
+
+**② 6 个写操作全部忽略 `RowsAffected`** — 语句键为 `WHERE id=$1 AND tenant_id=$2`，零行既可能是「无此 id」也可能是「id 属于别的租户」；忽略后**删除别的租户的行报 204 成功**，**更新不存在的行报 200 并继续 re-read 一次拿 `sql.ErrNoRows` → 500**。三处 UPDATE + 三处 DELETE 全中。
+**修法**：`requireRow(result, what)` 把零行转为 `fmt.Errorf("%s not found: %w", what, sentinel.NotFound)`；`notFound(what, id, err)` 把 `sql.ErrNoRows` 包成 `sentinel.NotFound`（旧代码直接返回驱动错误，handler 的 `service.IsNotFound` 分支是死的，每个缺失 id 都以 500 + 数据库错误串呈现）。6 处写 + 4 处读全部接入。
+
+**③ 所有 SELECT 都是 `SELECT *`，每张表都读失败** — 016 的「补齐 builds」ALTER 给 `builds` 加 14 列，571 加 `deleted_at`，572 加 `created_by`/`updated_by`；而 struct 只映射 8 列。sqlx 按**字段名/tag** 匹配列，多出来的列在**每一行**上报 `missing destination name X in models.Build`，且 `.Unsafe()` 从未调用。8 条读路径（4 个 Get + 4 个 List）每条请求 500。
+**修法**：`buildCols`/`imageCols`/`configCols`/`logCols` 显式列常量，全部查询按名选取；另加 `TestNoStatementUsesSelectStar` 在 SQL 文本层面钉住「无 `*`、且不出现 `deleted_at`/`created_by`/`updated_by`」。
+
+**④ 4 条缓存聚合完全忽略全部参数** — `SELECT COUNT(*) FROM cache_events` 无 `tenant_id`、无 `cache_id`：
+```go
+func (r *Repository) GetCacheMetrics(ctx context.Context, tenantID string, cacheID string) (*models.CacheMetrics, error) {
+	return &models.CacheMetrics{CacheID: cacheID}, nil
+}
+```
+`GET /metrics/:cacheId` 恒 `Hits:0`、`AssessCacheHealth` 恒 `Healthy:true`、`GetCacheDashboard` 恒 `0.0`、`AnalyzePerformanceImpact` 恒空结构。**更危险的是没有 WHERE**：一个租户的命中率会被报到**所有**租户的仪表盘上。
+**修法**：`WITH probes AS (SELECT COUNT(*) ... WHERE tenant_id=$1 AND cache_id=$2)` CTE + `CASE WHEN p.n = 0 THEN NULL` + 标量子查询，按 `hit/miss/evict` 与 `latency_saved_ms` 真实聚合；无探针时**返回 `NULL` 而非 `0.0`**（`sql.NullFloat64` → 仅在 `.Valid` 时复制为指针）——报 0.0 等于伪造「无流量但有健康缓存」的读数。
+
+**⑤ `AssessCacheHealth` 恒 `Healthy: true`** — 无探针的缓存报健康、命中率 5% 报健康、最后一次探针一年前也报健康。
+**修法**：`healthThresholdHitRate = 0.50`、`healthStaleAfter = 7*24*time.Hour`；三档各自返回原因——`"no cache events recorded: health cannot be assessed"` / `"hit rate %.2f is below the %.2f threshold"` / `"last probe was %s ago, outside the %s freshness window"`，让调用方能把「无数据」与「数据差」区分开。
+
+**⑥ `event_type` 从不校验** — `POST /cache-monitor/event` 携带 `event_type:"probe"` 会被 `INSERT` 成功，而**每个聚合都是 `COUNT(*) FILTER (WHERE event_type = 'hit'|'miss')`，这条记录立刻对所有指标不可见**——一次静默 no-op 写。
+**修法**：`models.ValidEventType`（仅 `hit`/`miss`/`evict`，区分大小写）→ service 先校验后落库 → `sentinel.BadRequest` → handler 400；迁移 576 在表上加 `CHECK (event_type IN ('hit','miss','evict'))` 双保险。
+
+**⑦ 22 个 handler 全部没有租户守卫** — `c.GetString("tenant_id")` 缺失时返回 `""`，于是**每个请求都以空字符串租户运行**：拿到空结果、看起来像「没有记录」。`tenant_id` 缺失（未认证）与「该租户下无数据」在此不可区分。
+**修法**：`requireTenant(c)` fail-closed，缺失即 401 `"tenant_id required"`；22 个 handler 首行全部调用；分页统一（`offset` 为主，`page` 仅作 offset 缺席时的 1-based 别名，两者同给时 offset 胜；默认 limit 一个常量 `defaultListLimit = 50`——旧实现 ListBuilds 用 `page` 且默认 20，其余三个用 `offset` 默认 50）。
+
+**⑧ UUID 形 id 被 `strconv.Atoi` 拒绝** — `BuildCacheConfig.ID` 与 `BuildLog.ID` 曾是 `int`（`builds`/`build_images` 早就用 string），service 对路径参数 `strconv.Atoi` → 任何真实 UUID 以 400 `"invalid config id"` 被拒；repository 又把整数绑到 `WHERE id=$1`，而 Postgres 没有 `uuid = integer` 运算符。**GET/PUT/DELETE `/build-env/build-cache/:id` 与 GET `/build-logs/:id` 四端点结构性只可能答 400。**
+**修法**：两个 model 的 `ID` 改 `string`（tag 不变），id 原样透传，不转换。
+
+**⑨ 缓存事件缺 pipeline/build 归因** — `/cache-monitor/impact/:pipelineId` 按 `pipeline_id` 对 cache_events 分组，而 `RecordCacheEventRequest` 从不接受 pipeline_id/build_id，**影响分析结构性算不出来**。
+**修法**：请求体新增可选且非破坏的 `PipelineID *string` / `BuildID *string` / `LatencySavedMs *float64`；迁移 576 新增 `cache_events` 表（此前**没有任何迁移创建它**，repository 却照写，POST 恒在驱动层失败）含 `pipeline_id`/`build_id` + `idx_cache_events_tenant_pipeline`；repository `RecordCacheEvent` 七参数绑定；service/handler 全链路透传。
+
+### 24.3 测试（108 条，全部新建；替换 309 行空转自动生成桩）
+
+- **models 2** — `ValidEventType` 接受三种、拒绝 `""`/`"HIT"`/`"Hit"`/`"hits"`/`"probe"`/`"cache-hit"`/`"unknown"`/`"evicts"`。
+- **repository 40** — sqlmock + 归一化空格后的**逐字符 SQL 匹配**（期望 SQL 由 `buildCols`/`hitCount`/`probesCount` 等本仓库常量拼出，避免与实现漂移），DB 用 `sqlx.NewDb(raw, "postgres")`（sqlx 以 field name 为 tag，故 `db:"tenant_id"` 生效）：
+  `setClause` 排序列 + `updated_at=NOW()` + 白名单丢弃 + 空 → `("", nil, 0)`；三个 UPDATE 绑定白名单与租户、空 map → `sentinel.BadRequest` 且**零 mock 期望**、零行 → `sentinel.NotFound`、失败写后**不 re-read**；DELETE 零行 → `NotFound`；四条 Get/List 显式列 SELECT 逐字段映射、`sql.ErrNoRows` → `sentinel.NotFound`；limit/offset 钳制（0/-3 → 50/0）；配置可选过滤；dashboard 无探针 vs 有探针（`NULL` vs 真实值）；metrics/health/impact 各绑定双参；health 三分支 + 20 探针 0.90 现在 → `Healthy:true`；`RecordCacheEvent` 带与不带归因指针；`TestNoStatementUsesSelectStar`；`TestEveryMonitorQueryReadsCacheEventsScopedByTenant`；`TestHealthThresholdConstants`。
+- **service 20** — 记录型 fake：空 map → `sentinel.BadRequest` 且 **`f.calls == 0`**（三种更新）；`reflect.DeepEqual` 断言只发送真正设置的字段（配置五种全覆盖）；UUID 形 id 不转换（`strconv.Atoi` 回归，5 处）；默认值 `queued`/`active` 与显式值保留；非法 `event_type` → `BadRequest` 且零调用；归因指针透传 / 缺席传 nil；**`TestTenantReachesEveryCall`** 一张 22 行的表（repository 每个方法各一行）逐条断言 `f.lastTenant == testTenant`；更新返回 re-read 行且恰好 2 次调用；写错误上报且跳过 re-read（1 次）；包 `sentinel.NotFound` 的写错误 → `IsNotFound`；接口断言。
+- **handler 46** — **真实 `*gin.Engine` 经 `ServeHTTP` 同步驱动**（`gin.New()` + 自定义 header 中间件写 `tenant_id`/`user_id` 与**`[]string` 型 `roles`**，避开 `httptest.Server` 的 `Handler` 字段与 `gin.CreateTestContext` 的不存在第二返回值）：路由数 22；**22 条路由无租户全部 401 且 `f.calls == 0`**；无角色 403 `"no role assigned"`；`admin` 角色（→ `*:*`）22 条全通；envelope 形状（`success`/`data`/`timestamp`）；分页绑定与 `page` 别名/`offset` 优先/共享默认 limit；缓存配置过滤；四个列表各自的 key（`builds`/`images`/`configs`/`logs`）；create 201 与 `queued` 默认；缺 `name` 400；三个 update 200 返回变更行；三个空 body 400；缺失行 404；delete 204 且**响应体长度 0**；dashboard/metrics/health/impact 各 200；record 201 且转发归因、非法类型 400、缺 `cache_id` 400；五处 service 错误 → 500；handler 可由接口构造。
+
+### 24.4 变异证明 10/10
+
+纪律同 20–23 轮：**锚点唯一性**（目标文件内锚点出现次数 == 1）、**编译有效性**（`go build ./internal/build-env/...` 通过才算一次有意义的变异，编译不过的变异作废——本轮 M4 首次尝试因 `_ = result` 缺失被判 COMPILE-INVALID 后修正重跑）、**逐字节还原**（`cmp` 比对）+ 前后各跑一次基线。
+
+| # | 变异 | 杀死它的测试 |
+|---|------|------------|
+| M1 | `builds` 读查询退回 `SELECT *` | `TestGetBuildSelectsEveryMappedColumn`、`TestGetBuildMapsErrNoRowsToNotFound` |
+| M2 | `ListBuilds` 去掉租户谓词 | `TestListBuildsBindsTenantLimitAndOffset`、`TestListBuildsClampsLimitAndOffset` |
+| M3 | `AssessCacheHealth` 健康分支取反 | `TestAssessCacheHealthMeetingTheThresholdIsHealthy` |
+| M3b | 删除「无探针即不健康」分支 | `TestAssessCacheHealthWithNoEventsIsUnhealthy` |
+| M4 | `DeleteBuild` 去掉 `requireRow`（零行也成功） | `TestDeleteBuildZeroRowsIsNotFound` |
+| M5 | service 恢复 `strconv.Atoi`（UUID id 被拒） | `TestUUIDShapedIDsAreNotParedToIntegers`、`TestTenantReachesEveryCall` |
+| M6 | service 去掉 `event_type` 校验 | `TestRecordCacheEventRejectsAnUnknownType` |
+| M7 | handler 去掉 `requireTenant` | `TestEveryRouteRequiresATenant` |
+| M8 | `UpdateBuild` 忽略传入的更新 map | `TestUpdateBuildBindsWhitelistedColumnsAndTenant`、`TestUpdateBuildEmptyMapIsBadRequest`、`TestUpdateBuildZeroRowsIsNotFound` |
+| — | 基线 | 变异前 PASS、逐字节还原后 PASS |
+
+两个最容易被「空断言」骗过去的点：空 body / 非法 `event_type` 的测试都额外断言**服务层零调用**（`f.calls == 0` / 无 mock 期望被消费），一个返回假成功的桩依然会过 `status==400` 但过不了零调用；`TestNoStatementUsesSelectStar` 与 `TestEveryMonitorQueryReadsCacheEventsScopedByTenant` 在 SQL 文本层面把整模块两类缺陷（`SELECT *`、聚合未加租户作用域）钉死，不依赖数据库即可发现回退。
+
+### 24.5 验证
+
+`go test ./internal/build-env/...` 4/4 包全绿（108 条）；`go test ./...` **exit 0**（488 包行，0 FAIL）；`go build ./...` 无输出；`go vet ./internal/build-env/... ./cmd/...` 无输出；`gofmt -l` 空；`internal/build-env/` 下冲突标记 **0**（工作树其余 134 处 `handler_test.go` 冲突标记仍属并行 agent 工作树，未触碰）。
+
+### 24.6 只记录不修（基础设施缺口，猜就是引入缺陷）
+
+1. **`builds` INSERT 与 016 自己的 ALTER 不一致** — INSERT 只列 8 列（id/tenant_id/name/status/pipeline_id/product_line_id/created_at/updated_at），而 016 的「补齐 builds」ALTER 另加 14 列，其中约 10 列 `NOT NULL` 且无默认值（product_id/trigger_type/build_number/branch/artifact_id/artifact_path/artifact_size/artifact_hash/commit_hash/duration/triggered_by 等）→ `POST /build-env/builds` 会因 NOT NULL 违反而失败。修法须跨迁移对齐（补齐默认值或改列），属跨迁移决定。
+2. **`tenant_id UUID` vs Go `string`** — 全模块如此，绑定处由驱动转换；模块内无统一策略。
+3. **`build_cache_entries.config_id BIGINT` vs `build_cache_configs.id UUID`** — 两者不能 JOIN/比较；`BuildCacheEntry` 无任何 repository 方法读写。不猜意图关系，`models.go` 注释已标注为 schema debt。
+4. **`BuildCacheEntry.ID int` vs 表 `id UUID`**（同上一条）。
+5. **所有 DELETE 是硬删，且无查询过滤 `deleted_at IS NULL`** — 571 加的软删列对本模块无意义。
+6. **`pkg/auth/permission.go` 的 `build_env` 显式授权**：`admin`/`super_admin` → `*:*` 已覆盖 `build_env`，故无缺口可修（该缺口本身自 23 轮记录）。
+
+### 24.7 跨轮遗留（不变）
+
+`internal/security-compliance` 硬编码演示数据（`ListFindings` → `defaultFindings()`、`PassRate: 85.0`、`rulesCount = 50`、`CreateBaseline` 不落库、`ScanBaseline` 评测失败仍报 `completed`）；裸 map 缺 `driver.Valuer` 的模式值得在其他模块机械重扫；`internal/startup` `ListModulesByStatus` nil 切片一致性欠账、条件式安全门谎报（`confirmation/service.go:269,359,367`、`branch-policy/service.go:199,204,517,585,684,1518,1521`）、`chaos-enhanced` `getTenantID` 注释与实现不符、裸 ping 桩数字未核实、alert-adapter 接口强制 `Receive`、`InstantiateTemplate` 丢弃 `Parameters`/`Environment`、`ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换、SMTP/SMS 凭证、134 个 `handler_test.go` 冲突标记（并行 agent 工作树，仍不碰；本轮 `internal/build-env/` 下冲突标记为 **0**）。
