@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -114,6 +115,10 @@ func (h *ToolHandler) DeleteTool(c *gin.Context) {
 	id := c.Param("id")
 
 	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
+		if errors.Is(err, models.ErrToolNotFound) {
+			respondNotFound(c, "tool not found")
+			return
+		}
 		respondInternalError(c, "internal error")
 		return
 	}
@@ -197,11 +202,11 @@ func (h *ToolHandler) CreateVersion(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToolCreateVersion")
 	defer span.End()
 	tenantID := auth.GetTenantID(c)
-	userID := c.GetHeader("X-User-ID")
+	userID := auth.GetUserID(c)
 	toolID := c.Param("id")
 
 	if tenantID == "" || userID == "" {
-		respondBadRequest(c, "X-Tenant-ID and X-User-ID headers required")
+		respondBadRequest(c, "tenant_id and user_id required")
 		return
 	}
 
@@ -232,7 +237,11 @@ func (h *ToolHandler) GetInvocationDetail(c *gin.Context) {
 
 	inv, err := h.svc.GetInvocationDetail(ctx, tenantID, id)
 	if err != nil {
-		respondNotFound(c, "invocation not found")
+		if strings.Contains(err.Error(), "invocation not found") {
+			respondNotFound(c, "invocation not found")
+			return
+		}
+		respondInternalError(c, "internal error")
 		return
 	}
 	respondSuccess(c, inv)
@@ -243,12 +252,12 @@ func (h *ToolHandler) InvokeTool(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToolInvoke")
 	defer span.End()
 	tenantID := auth.GetTenantID(c)
-	userID := c.GetHeader("X-User-ID")
+	userID := auth.GetUserID(c)
 	toolID := c.Param("id")
 	version := c.Query("version")
 
 	if tenantID == "" || userID == "" {
-		respondBadRequest(c, "X-Tenant-ID and X-User-ID headers required")
+		respondBadRequest(c, "tenant_id and user_id required")
 		return
 	}
 
@@ -365,24 +374,32 @@ func respondInternalError(c *gin.Context, message string) {
 }
 
 // RegisterRoutes registers all tool routes on the given gin group.
+//
+// Every route is guarded with auth.RequirePermission("tool", ...) so the caller
+// must hold a role that grants the matching action on the "tool" resource.
+// org_admin (via *:read/*:write/*:execute), platform_admin and super_admin
+// resolve these; a caller with no role or a role that lacks the grant gets 403
+// before the handler runs. The previous version registered every route
+// unguarded, so any authenticated caller could read, write and delete every
+// tenant's tools.
 func (h *ToolHandler) RegisterRoutes(g *gin.RouterGroup) {
 	tools := g.Group("/tools")
 	{
-		tools.POST("", h.CreateTool)
-		tools.GET("", h.ListTools)
-		tools.GET("/search", h.SearchTools)
-		tools.GET("/market", h.MarketSearch)
-		tools.GET("/top", h.GetTopTools)
-		tools.GET("/stats", h.GetStats)
-		tools.GET("/:id", h.GetTool)
-		tools.PUT("/:id", h.UpdateTool)
-		tools.DELETE("/:id", h.DeleteTool)
-		tools.POST("/:id/invocations", h.InvokeTool)
-		tools.GET("/:id/invocations", h.GetInvocations)
-		tools.GET("/:id/versions", h.GetVersions)
-		tools.POST("/:id/versions", h.CreateVersion)
-		tools.GET("/:id/stats", h.GetToolStats)
+		tools.POST("", auth.RequirePermission("tool", "write"), h.CreateTool)
+		tools.GET("", auth.RequirePermission("tool", "read"), h.ListTools)
+		tools.GET("/search", auth.RequirePermission("tool", "read"), h.SearchTools)
+		tools.GET("/market", auth.RequirePermission("tool", "read"), h.MarketSearch)
+		tools.GET("/top", auth.RequirePermission("tool", "read"), h.GetTopTools)
+		tools.GET("/stats", auth.RequirePermission("tool", "read"), h.GetStats)
+		tools.GET("/:id", auth.RequirePermission("tool", "read"), h.GetTool)
+		tools.PUT("/:id", auth.RequirePermission("tool", "write"), h.UpdateTool)
+		tools.DELETE("/:id", auth.RequirePermission("tool", "write"), h.DeleteTool)
+		tools.POST("/:id/invocations", auth.RequirePermission("tool", "execute"), h.InvokeTool)
+		tools.GET("/:id/invocations", auth.RequirePermission("tool", "read"), h.GetInvocations)
+		tools.GET("/:id/versions", auth.RequirePermission("tool", "read"), h.GetVersions)
+		tools.POST("/:id/versions", auth.RequirePermission("tool", "write"), h.CreateVersion)
+		tools.GET("/:id/stats", auth.RequirePermission("tool", "read"), h.GetToolStats)
 	}
-	g.GET("/categories", h.GetCategories)
-	g.GET("/invocations/:id", h.GetInvocationDetail)
+	g.GET("/categories", auth.RequirePermission("tool", "read"), h.GetCategories)
+	g.GET("/invocations/:id", auth.RequirePermission("tool", "read"), h.GetInvocationDetail)
 }

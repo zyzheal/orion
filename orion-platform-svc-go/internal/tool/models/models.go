@@ -129,23 +129,30 @@ const (
 )
 
 // ToolStats contains aggregated usage statistics for a tool or tenant.
+// The db tags are required: sqlx maps a column to a destination field by its
+// db tag (or, absent one, its lowercased field name), and the aggregate query
+// aliases the columns total_invocations / successful_calls / ... which neither
+// matches the camelCase field names nor anything else, so without the tags
+// every stats read fails with "missing destination name".
 type ToolStats struct {
-	TotalInvocations int64   `json:"total_invocations"`
-	SuccessfulCalls  int64   `json:"successful_calls"`
-	FailedCalls      int64   `json:"failed_calls"`
-	SuccessRate      float64 `json:"success_rate"`    // 0.0 - 1.0
-	AvgDurationMs    float64 `json:"avg_duration_ms"` // milliseconds
-	P95DurationMs    float64 `json:"p95_duration_ms"` // milliseconds
-	P99DurationMs    float64 `json:"p99_duration_ms"` // milliseconds
-	ActiveUsers      int64   `json:"active_users"`    // unique callers in period
+	TotalInvocations int64   `db:"total_invocations" json:"total_invocations"`
+	SuccessfulCalls  int64   `db:"successful_calls" json:"successful_calls"`
+	FailedCalls      int64   `db:"failed_calls" json:"failed_calls"`
+	SuccessRate      float64 `db:"success_rate" json:"success_rate"`    // 0.0 - 1.0
+	AvgDurationMs    float64 `db:"avg_duration_ms" json:"avg_duration_ms"` // milliseconds
+	P95DurationMs    float64 `db:"p95_duration_ms" json:"p95_duration_ms"` // milliseconds
+	P99DurationMs    float64 `db:"p99_duration_ms" json:"p99_duration_ms"` // milliseconds
+	ActiveUsers      int64   `db:"active_users" json:"active_users"`       // unique callers in period
 }
 
 // ToolUsageRank represents a tool's position in usage rankings.
+// Same db-tag requirement as ToolStats: the aggregates alias tool_id,
+// tool_name, category and invocation_count.
 type ToolUsageRank struct {
-	ToolID          string `json:"tool_id"`
-	ToolName        string `json:"tool_name"`
-	Category        string `json:"category"`
-	InvocationCount int64  `json:"invocation_count"`
+	ToolID          string `db:"tool_id" json:"tool_id"`
+	ToolName        string `db:"tool_name" json:"tool_name"`
+	Category        string `db:"category" json:"category"`
+	InvocationCount int64  `db:"invocation_count" json:"invocation_count"`
 }
 
 // MarketSearchParams contains query parameters for marketplace search.

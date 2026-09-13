@@ -3,32 +3,67 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 
 	"orion/platform-svc-go/internal/tool/models"
-	"orion/platform-svc-go/internal/tool/repository"
 )
 
 const defaultSearchLimit = 20
 
+// ToolRepositoryInterface is the subset of ToolRepository the service uses. It
+// exists so the service can be tested with a recording fake: every method takes
+// tenantID, and the fake proves the caller's tenant reaches each statement.
+// *repository.ToolRepository satisfies it, so wiring is unchanged.
+type ToolRepositoryInterface interface {
+	Create(ctx context.Context, tool *models.Tool) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.Tool, error)
+	List(ctx context.Context, tenantID string, params models.ToolListParams) ([]models.Tool, int, error)
+	Update(ctx context.Context, tool *models.Tool) error
+	GetCategories(ctx context.Context, tenantID string) ([]models.ToolCategory, error)
+	Search(ctx context.Context, tenantID, query string, limit int) ([]models.Tool, error)
+}
+
+// InvocationRepositoryInterface is the subset of InvocationRepository the
+// service uses, same recording-fake rationale as ToolRepositoryInterface.
+type InvocationRepositoryInterface interface {
+	Create(ctx context.Context, inv *models.ToolInvocation) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.ToolInvocation, error)
+	ListByTool(ctx context.Context, tenantID, toolID string, limit, offset int) ([]models.ToolInvocation, error)
+	CountByTool(ctx context.Context, tenantID, toolID string) (int, error)
+	StatsByPeriod(ctx context.Context, tenantID, period string) (*models.ToolStats, error)
+	StatsByTool(ctx context.Context, tenantID, toolID string) (*models.ToolStats, error)
+	TopToolsByInvocations(ctx context.Context, tenantID string, limit int) ([]models.ToolUsageRank, error)
+}
+
+// VersionRepositoryInterface is the subset of VersionRepository the service
+// uses. ListByTool takes no tenantID by design: tool_versions has no tenant
+// column and is reached only through a parent tool that the service already
+// resolved with a tenant-scoped GetByID.
+type VersionRepositoryInterface interface {
+	Create(ctx context.Context, v *models.ToolVersion) error
+	ListByTool(ctx context.Context, toolID string) ([]models.ToolVersion, error)
+}
+
 // ToolService handles tool business logic.
 type ToolService struct {
-	toolRepo    *repository.ToolRepository
-	invRepo     *repository.InvocationRepository
-	versionRepo *repository.VersionRepository
+	toolRepo    ToolRepositoryInterface
+	invRepo     InvocationRepositoryInterface
+	versionRepo VersionRepositoryInterface
 }
 
 func NewToolService(
-	toolRepo *repository.ToolRepository,
-	invRepo *repository.InvocationRepository,
-	versionRepo *repository.VersionRepository,
+	toolRepo ToolRepositoryInterface,
+	invRepo InvocationRepositoryInterface,
+	versionRepo VersionRepositoryInterface,
 ) *ToolService {
 	return &ToolService{
 		toolRepo:    toolRepo,
@@ -292,12 +327,13 @@ func (s *ToolService) InvokeTool(ctx context.Context, tenantID, userID, toolID, 
 		inv.Status = "success"
 		inv.Error = sql.NullString{}
 
-		// Build auth headers based on tool auth config
-		var authHeader string
-		if tool.AuthType == "api_key" && tool.AuthConfig != "{}" {
-			// TODO: read actual key from secrets store
-			authHeader = ""
-		}
+		// Build auth headers based on tool auth config. The api_key is read from
+		// the tool's own auth_config JSON blob ({"api_key": "..."}): this module
+		// has no external secrets store, and the tool was registered with the key
+		// inline, so the honest behaviour is to send it. The previous code
+		// discarded the key entirely and always sent an empty Authorization
+		// header, so any tool that relied on api_key auth was called unauthenticated.
+		authHeader := toolAuthHeader(tool)
 
 		response, execErr = callToolEndpoint(ctx, tool.Endpoint, req.Input, authHeader, getToolTimeout(ctx, tool))
 		if execErr != nil {
@@ -320,6 +356,22 @@ func (s *ToolService) InvokeTool(ctx context.Context, tenantID, userID, toolID, 
 	return inv, nil
 }
 
+// toolAuthHeader derives the Authorization value for a tool invocation. The
+// only auth type with an inline credential today is api_key; oauth2 and basic
+// need a token exchange the tool module has no mechanism for, so they are
+// documented as unsupported rather than silently unauthenticated.
+func toolAuthHeader(tool *models.Tool) string {
+	if tool.AuthType == "api_key" && tool.AuthConfig != "" && tool.AuthConfig != "{}" {
+		var cfg struct {
+			APIKey string `json:"api_key"`
+		}
+		if err := json.Unmarshal([]byte(tool.AuthConfig), &cfg); err == nil && cfg.APIKey != "" {
+			return cfg.APIKey
+		}
+	}
+	return ""
+}
+
 func getToolTimeout(ctx context.Context, tool *models.Tool) time.Duration {
 	// Check context timeout if set
 	if dl, ok := ctx.Deadline(); ok {
@@ -332,13 +384,20 @@ func getToolTimeout(ctx context.Context, tool *models.Tool) time.Duration {
 	return 30 * time.Second
 }
 
+// callToolEndpoint posts the invocation input as a JSON body to the tool's
+// endpoint. The input is a raw JSON string ("{\"query\": \"...\"}") supplied by
+// the caller, so it is sent as-is without re-marshalling. The previous code
+// built the request with a nil body, so every tool invocation reached the
+// endpoint with an empty POST body and the tool could never see its input.
 func callToolEndpoint(ctx context.Context, endpoint, input, authHeader string, timeout time.Duration) ([]byte, error) {
 	reqCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	// Note: This uses the standard library http package to avoid adding extra dependencies.
-	// In production, this should support auth, retries, and proper error handling.
-	req, err := http.NewRequestWithContext(reqCtx, "POST", endpoint, nil) // input passed as body in production
+	payload := input
+	if payload == "" {
+		payload = "{}"
+	}
+	req, err := http.NewRequestWithContext(reqCtx, "POST", endpoint, strings.NewReader(payload))
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}
@@ -358,9 +417,16 @@ func callToolEndpoint(ctx context.Context, endpoint, input, authHeader string, t
 		return nil, fmt.Errorf("tool returned HTTP %d", resp.StatusCode)
 	}
 
-	buf := make([]byte, 64*1024) // 64KB max response
-	n, _ := io.ReadFull(resp.Body, buf)
-	return buf[:n], nil
+	// Read up to 64KB. A larger body is truncated rather than accumulated: the
+	// invocation record stores output as TEXT and 64KB is the documented cap.
+	buf, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024+1))
+	if err != nil {
+		return nil, fmt.Errorf("read tool response: %w", err)
+	}
+	if len(buf) > 64*1024 {
+		return buf[:64*1024], nil
+	}
+	return buf, nil
 }
 
 // GetStats returns overall usage statistics for a tenant.

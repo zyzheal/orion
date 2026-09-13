@@ -8,6 +8,15 @@ import (
 	"orion/platform-svc-go/internal/tool/models"
 )
 
+// invocationCols is the SELECT list for tool_invocations, written by name so a
+// table migration that adds columns later cannot break every read via sqlx's
+// strict "missing destination name" error.
+const invocationCols = `id, tool_id, tenant_id, input, output, status, error, duration, called_by, created_at`
+
+// versionCols is the SELECT list for tool_versions, same discipline as
+// invocationCols.
+const versionCols = `id, tool_id, version, config, changelog, created_by, created_at`
+
 // InvocationRepository handles tool invocation records.
 type InvocationRepository struct {
 	db *database.DB
@@ -26,7 +35,7 @@ func (r *InvocationRepository) Create(ctx context.Context, inv *models.ToolInvoc
 
 func (r *InvocationRepository) GetByID(ctx context.Context, tenantID, id string) (*models.ToolInvocation, error) {
 	var inv models.ToolInvocation
-	err := r.db.GetContext(ctx, &inv, `SELECT * FROM tool_invocations WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.db.GetContext(ctx, &inv, `SELECT `+invocationCols+` FROM tool_invocations WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -39,7 +48,7 @@ func (r *InvocationRepository) ListByTool(ctx context.Context, tenantID, toolID 
 	}
 	var invs []models.ToolInvocation
 	err := r.db.SelectContext(ctx, &invs,
-		`SELECT * FROM tool_invocations WHERE tenant_id=$1 AND tool_id=$2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`,
+		`SELECT `+invocationCols+` FROM tool_invocations WHERE tenant_id=$1 AND tool_id=$2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`,
 		tenantID, toolID, limit, offset)
 	return invs, err
 }
@@ -151,6 +160,6 @@ func (r *VersionRepository) Create(ctx context.Context, v *models.ToolVersion) e
 
 func (r *VersionRepository) ListByTool(ctx context.Context, toolID string) ([]models.ToolVersion, error) {
 	var versions []models.ToolVersion
-	err := r.db.SelectContext(ctx, &versions, `SELECT * FROM tool_versions WHERE tool_id=$1 ORDER BY created_at DESC`, toolID)
+	err := r.db.SelectContext(ctx, &versions, `SELECT `+versionCols+` FROM tool_versions WHERE tool_id=$1 ORDER BY created_at DESC`, toolID)
 	return versions, err
 }

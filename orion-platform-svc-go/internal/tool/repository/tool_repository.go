@@ -10,6 +10,16 @@ import (
 	"orion/platform-svc-go/internal/tool/models"
 )
 
+// toolCols is the SELECT list for the tools table. The statement is written by
+// name so a table migration that adds columns later cannot break every read via
+// sqlx's strict "missing destination name" error; the columns are exactly the
+// fields models.Tool maps, nothing more.
+const toolCols = `id, tenant_id, name, display_name, description, category, type, version, config, endpoint, auth_type, auth_config, tags, status, created_by, created_at, updated_at, deprecated_at`
+
+// categoryCols is the SELECT list for tool_categories, same discipline as
+// toolCols.
+const categoryCols = `id, tenant_id, name, display_name, description, icon, sort_order, created_at`
+
 // ToolRepository handles tool data access.
 type ToolRepository struct {
 	db *database.DB
@@ -28,7 +38,7 @@ func (r *ToolRepository) Create(ctx context.Context, tool *models.Tool) error {
 
 func (r *ToolRepository) GetByID(ctx context.Context, tenantID, id string) (*models.Tool, error) {
 	var tool models.Tool
-	err := r.db.GetContext(ctx, &tool, `SELECT * FROM tools WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.db.GetContext(ctx, &tool, `SELECT `+toolCols+` FROM tools WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -77,7 +87,7 @@ func (r *ToolRepository) List(ctx context.Context, tenantID string, params model
 	}
 	offset := (params.Page - 1) * params.PageSize
 
-	query := fmt.Sprintf("SELECT * FROM tools WHERE %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d", whereClause, argIdx, argIdx+1)
+	query := fmt.Sprintf("SELECT "+toolCols+" FROM tools WHERE %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d", whereClause, argIdx, argIdx+1)
 	args = append(args, params.PageSize, offset)
 
 	var tools []models.Tool
@@ -95,7 +105,7 @@ func (r *ToolRepository) Update(ctx context.Context, tool *models.Tool) error {
 
 func (r *ToolRepository) GetCategories(ctx context.Context, tenantID string) ([]models.ToolCategory, error) {
 	var cats []models.ToolCategory
-	err := r.db.SelectContext(ctx, &cats, `SELECT * FROM tool_categories WHERE tenant_id=$1 ORDER BY sort_order`, tenantID)
+	err := r.db.SelectContext(ctx, &cats, `SELECT `+categoryCols+` FROM tool_categories WHERE tenant_id=$1 ORDER BY sort_order`, tenantID)
 	return cats, err
 }
 
@@ -105,7 +115,7 @@ func (r *ToolRepository) Search(ctx context.Context, tenantID, query string, lim
 	}
 	var tools []models.Tool
 	err := r.db.SelectContext(ctx, &tools,
-		`SELECT * FROM tools WHERE tenant_id=$1 AND status='active' AND (name ILIKE $2 ESCAPE '\' OR display_name ILIKE $2 ESCAPE '\' OR description ILIKE $2 ESCAPE '\') ORDER BY name LIMIT $3`,
+		`SELECT `+toolCols+` FROM tools WHERE tenant_id=$1 AND status='active' AND (name ILIKE $2 ESCAPE '\' OR display_name ILIKE $2 ESCAPE '\' OR description ILIKE $2 ESCAPE '\') ORDER BY name LIMIT $3`,
 		tenantID, "%"+escapeILIKE(query)+"%", limit)
 	return tools, err
 }
