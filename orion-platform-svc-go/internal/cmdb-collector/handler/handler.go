@@ -99,14 +99,23 @@ func (h *Handler) GetCollector(c *gin.Context) {
 func (h *Handler) ListTargets(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTargets")
 	defer span.End()
-	tenantID := h.tenantID(c)
+	tenantID, ok := h.tenantID(c)
+	if !ok {
+		return
+	}
 	collectorName := c.Param("name")
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	if limit <= 0 || limit > 500 {
 		limit = 50
 	}
-	targets, err := h.svc.ListTargets(ctx, tenantID, collectorName, offset, limit)
+	// The route carries an adapter name, but cmdb_targets has no adapter or
+	// collector column — targets are typed network|server|database|… and carry
+	// a protocol tag. Passing :name through as a target-type filter therefore
+	// matched nothing for every real target and this endpoint always answered
+	// an empty page. List the tenant's targets; per-adapter scoping needs a
+	// schema column first.
+	targets, err := h.svc.ListTargets(ctx, tenantID, "", offset, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -135,7 +144,10 @@ func (h *Handler) CreateTarget(c *gin.Context) {
 		return
 	}
 
-	tenantID := h.tenantID(c)
+	tenantID, ok := h.tenantID(c)
+	if !ok {
+		return
+	}
 	if req.Port == 0 {
 		req.Port = 161 // default SNMP
 	}
@@ -168,8 +180,12 @@ func (h *Handler) CreateTarget(c *gin.Context) {
 func (h *Handler) DeleteTarget(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteTarget")
 	defer span.End()
+	tenantID, ok := h.tenantID(c)
+	if !ok {
+		return
+	}
 	id := c.Param("id")
-	if err := h.svc.Repository().DeleteTarget(ctx, id); err != nil {
+	if err := h.svc.Repository().DeleteTarget(ctx, tenantID, id); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "target not found")
 		} else {
@@ -191,7 +207,10 @@ func (h *Handler) Discover(c *gin.Context) {
 		return
 	}
 	collectorName := c.Param("name")
-	tenantID := h.tenantID(c)
+	tenantID, ok := h.tenantID(c)
+	if !ok {
+		return
+	}
 
 	result, err := h.svc.RunDiscovery(ctx, tenantID, req.TargetID, collectorName, req.Config)
 	if err != nil {
@@ -210,7 +229,10 @@ func (h *Handler) Collect(c *gin.Context) {
 		return
 	}
 	collectorName := c.Param("name")
-	tenantID := h.tenantID(c)
+	tenantID, ok := h.tenantID(c)
+	if !ok {
+		return
+	}
 
 	result, err := h.svc.RunCollection(ctx, tenantID, req.DeviceID, collectorName, req.Config)
 	if err != nil {
@@ -225,7 +247,10 @@ func (h *Handler) Collect(c *gin.Context) {
 func (h *Handler) ListCollections(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCollections")
 	defer span.End()
-	tenantID := h.tenantID(c)
+	tenantID, ok := h.tenantID(c)
+	if !ok {
+		return
+	}
 	collectorName := c.Query("collector")
 	deviceID := c.Query("device_id")
 	status := c.Query("status")
@@ -248,9 +273,13 @@ func (h *Handler) ListCollections(c *gin.Context) {
 func (h *Handler) GetCollection(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCollection")
 	defer span.End()
+	tenantID, ok := h.tenantID(c)
+	if !ok {
+		return
+	}
 	collectionID := c.Param("collectionId")
 
-	collection, err := h.svc.Repository().GetCollection(ctx, collectionID)
+	collection, err := h.svc.Repository().GetCollection(ctx, tenantID, collectionID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "collection not found")
@@ -267,7 +296,10 @@ func (h *Handler) GetCollection(c *gin.Context) {
 func (h *Handler) ListDevices(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDevices")
 	defer span.End()
-	tenantID := h.tenantID(c)
+	tenantID, ok := h.tenantID(c)
+	if !ok {
+		return
+	}
 	deviceType := c.Query("type")
 	vendor := c.Query("vendor")
 	offset := h.queryInt(c.Query("offset"), 0)
@@ -289,9 +321,13 @@ func (h *Handler) ListDevices(c *gin.Context) {
 func (h *Handler) GetDevice(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDevice")
 	defer span.End()
+	tenantID, ok := h.tenantID(c)
+	if !ok {
+		return
+	}
 	id := c.Param("id")
 
-	device, err := h.svc.Repository().GetDevice(ctx, id)
+	device, err := h.svc.Repository().GetDevice(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "device not found")
@@ -313,12 +349,19 @@ func (h *Handler) Health(c *gin.Context) {
 
 // ---------- Helpers ----------
 
-func (h *Handler) tenantID(c *gin.Context) string {
+// tenantID returns the caller's tenant id from the Gin context. It fails
+// closed: when the JWT middleware did not populate tenant_id the request is
+// rejected with 401 instead of being folded into the
+// 00000000-0000-0000-0000-000000000000 bucket, which would have shared every
+// tenant-less request's targets, devices and collections with each other.
+// Callers must stop when ok is false — the 401 has already been written.
+func (h *Handler) tenantID(c *gin.Context) (string, bool) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		tenantID = "00000000-0000-0000-0000-000000000000"
+		middleware.RespondUnauthorized(c, "tenant_id required")
+		return "", false
 	}
-	return tenantID
+	return tenantID, true
 }
 
 func (h *Handler) queryInt(value string, defaultVal int) int {

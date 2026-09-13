@@ -116,28 +116,17 @@ func (r *Registry) Names() []string {
 // ---------------------------------------------------------------------------
 // Default registry
 //
-// Default() is the registry used by the collector service unless the caller
-// supplies its own.  It is populated at startup by RegisterBuiltinAdapters().
+// Default() is a process-wide registry available to code that has no injection
+// point.  It is EMPTY: no Adapter implementation is registered anywhere in
+// this repository, so Default().Count() is 0.  Adapters must be added by
+// Register()-ing them explicitly at wiring time; ListCollectors will report an
+// empty catalog until then.
 // ---------------------------------------------------------------------------
 
 var defaultRegistry = NewRegistry()
 
-// Default returns the package-level registry.
+// Default returns the package-level registry. See the note above: it starts
+// empty and nothing populates it automatically.
 func Default() *Registry {
 	return defaultRegistry
-}
-
-// RegisterBuiltinAdapters registers the built-in stub adapters that ship with
-// this package (Cisco SNMP, Huawei SNMP, MySQL JDBC, PostgreSQL JDBC, generic
-// Linux SSH server).
-//
-// Call this once at application startup — typically from cmd/server/wiring.go.
-func RegisterBuiltinAdapters() {
-	// Adapters are initialised from adapters/*.go.  Each adapter's init()
-	// registers itself into the defaultRegistry via a factory helper.
-	//
-	// This function is deliberately a no-op: the adapters register themselves
-	// in their own package init().  The function is provided as a
-	// no-op marker / integration hook so callers can verify the adapters were
-	// loaded (e.g. assert Registry.Count() >= 5).
 }

@@ -67,15 +67,17 @@ func (r *Repository) CreateTarget(ctx context.Context, t *models.Target) error {
 	return err
 }
 
-// GetTarget returns the target with the given id.
-func (r *Repository) GetTarget(ctx context.Context, id string) (*models.Target, error) {
+// GetTarget returns the target with the given id only when it belongs to the
+// calling tenant. The tenant predicate is what stops a caller from resolving —
+// and therefore probing or driving — another tenant's target by id alone.
+func (r *Repository) GetTarget(ctx context.Context, tenantID, id string) (*models.Target, error) {
 	var t models.Target
 	err := r.db.GetContext(ctx, &t,
 		`SELECT id, name, host, port, "type", protocol, tenant_id, config,
 		        metadata, created_at, updated_at
 		 FROM cmdb_targets
-		 WHERE id = $1`,
-		id,
+		 WHERE id = $1 AND tenant_id = $2`,
+		id, tenantID,
 	)
 	if err != nil {
 		return nil, err
@@ -129,12 +131,15 @@ func (r *Repository) ListTargets(ctx context.Context, tenantID, targetType strin
 // backward compatibility with the platform pattern this method marks the target
 // as deleted by deleting the row (hard delete); a soft-delete can be added
 // later if needed.
-func (r *Repository) DeleteTarget(ctx context.Context, id string) error {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM cmdb_targets WHERE id = $1`, id)
+func (r *Repository) DeleteTarget(ctx context.Context, tenantID, id string) error {
+	res, err := r.db.ExecContext(ctx, `DELETE FROM cmdb_targets WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return err
 	}
-	rows, _ := res.RowsAffected()
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
 	if rows == 0 {
 		return ErrNotFound
 	}
@@ -197,16 +202,17 @@ func (r *Repository) UpsertDevice(ctx context.Context, d *models.Device) error {
 	return err
 }
 
-// GetDevice returns the device with the given id.
-func (r *Repository) GetDevice(ctx context.Context, id string) (*models.Device, error) {
+// GetDevice returns the device with the given id only when it belongs to the
+// calling tenant, so device ids are not enumerable across tenants.
+func (r *Repository) GetDevice(ctx context.Context, tenantID, id string) (*models.Device, error) {
 	var d models.Device
 	err := r.db.GetContext(ctx, &d,
 		`SELECT id, device_id, name, "type", vendor, model, ip, serial_number,
 		        tenant_id, target_id, adapter, last_seen_at, attributes, status, metadata,
 		        created_at, updated_at
 		 FROM cmdb_devices
-		 WHERE id = $1`,
-		id,
+		 WHERE id = $1 AND tenant_id = $2`,
+		id, tenantID,
 	)
 	if err != nil {
 		return nil, err
@@ -268,19 +274,6 @@ func (r *Repository) ListDevices(ctx context.Context, tenantID, deviceType, vend
 	return items, nil
 }
 
-// DeleteDevice removes a device.
-func (r *Repository) DeleteDevice(ctx context.Context, id string) error {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM cmdb_devices WHERE id = $1`, id)
-	if err != nil {
-		return err
-	}
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		return ErrNotFound
-	}
-	return nil
-}
-
 // ===========================================================================
 // Collection CRUD
 // ===========================================================================
@@ -308,15 +301,17 @@ func (r *Repository) CreateCollection(ctx context.Context, c *models.Collection)
 	return err
 }
 
-// GetCollection returns the collection with the given collection_id.
-func (r *Repository) GetCollection(ctx context.Context, collectionID string) (*models.Collection, error) {
+// GetCollection returns the collection with the given collection_id only when
+// it belongs to the calling tenant, so collection ids are not enumerable
+// across tenants.
+func (r *Repository) GetCollection(ctx context.Context, tenantID, collectionID string) (*models.Collection, error) {
 	var c models.Collection
 	err := r.db.GetContext(ctx, &c,
 		`SELECT id, collection_id, collector, device_id, target_id, tenant_id, phase,
 		        status, attribute_count, attributes, error, duration_ms, created_at
 		 FROM cmdb_collections
-		 WHERE collection_id = $1`,
-		collectionID,
+		 WHERE collection_id = $1 AND tenant_id = $2`,
+		collectionID, tenantID,
 	)
 	if err != nil {
 		return nil, err

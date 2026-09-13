@@ -7050,3 +7050,126 @@ M8 能成立是因为 `TestHandler_SandboxHealth_NotHealthyAfterStop` 先 stop �
   裸 ping 桩数字未核实、alert-adapter 接口强制 `Receive`、`InstantiateTemplate` 丢弃参数、
   `ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换、SMTP/SMS 凭证、
   134 个 `handler_test.go` 冲突标记（并行 agent 工作树，仍不碰）。
+
+---
+
+## 第二十一轮：cmdb-collector 跨租户修复 + JSONB 双向接线 + nil 注册表（2026-08-26）
+
+- **基线 HEAD**：`bbc13a268`（第二十轮提交 `902fbca3c` 之后）
+- **目标模块**：`internal/cmdb-collector`（models / interfaces / registry / repository / service / handler）
+- **结论**：**7 处未完成，全部修复；48 条新测试 + 13 次变异证明（13/13 被杀死且全部能编译）**
+
+### 21.1 为什么选它
+
+12 条路由**全部已挂载**且经 `auth.RequirePermission("cmdb", read|write|delete)` 守卫（`cmd/server` wiring → `router.go`，`cmd/server` 的
+`TestStartupRoutesAreMounted` 在册断言）。因此这里的每个空响应都是**活桩**——必须实现，不能像无路由的方法那样删掉。
+同时该模块**零 `interfaces.Adapter` 实现**，所以 `/collectors`、`/collectors/:name`、`/discover`、`/collect` 只能返回空目录或报错；
+目录类端点必须如实回答「空」而不是 panic。
+
+### 21.2 七处缺陷
+
+| # | 层 | 缺陷 | 修复 |
+|---|----|------|------|
+| ① | repository | `DELETE /collectors/:name/targets/:id` 走 `DeleteTarget(id)`，**只按主键删、完全不带租户参数**；`res.RowsAffected()` 错误被 `_` 丢弃、零行也返回 nil → 猜 id 即可删除别的租户的 target，且对不存在的 id 报 200 | `DELETE FROM cmdb_targets WHERE id=$1 AND tenant_id=$2`，参数序 `(id, tenantID)`，`RowsAffected` 错误上抛，`rows==0` → `ErrNotFound`（handler 映射 404） |
+| ② | repository | `GET /devices/:id`、`GET /collections/:collectionId` 拿 id 直查，SQL **无 `tenant_id` 谓词** → id 可跨租户枚举 | `GetDevice` / `GetCollection` 补 `AND tenant_id=$2` |
+| ③ | service | `RunDiscovery` 用 `GetTarget(ctx, "", targetID)`、`RunCollection` 用 `GetDevice(ctx, "", deviceID)` —— **硬编码空租户**，把调用方租户丢掉再交给 collector，等于按 id 探测任意租户端点并把属性落库 | 透传 `tenantID`；service 另加 `tenantID==""` → `ErrMissingTenant` 前置校验 |
+| ④ | handler | `tenantID()` 对无租户请求**回退 `00000000-0000-0000-0000-000000000000`**，所有未打租户口令的请求共用同一桶 | 9 个调用点改为 `tenantID, ok := h.tenantID(c); if !ok { return }`；`tenantID(c) (string, bool)` 缺失时写 401 并返回 false —— **失败即拒且不再发 SQL** |
+| ④ | service | `ListTargets` 对空租户无校验，repo 的 else 分支会退化成**无过滤 SELECT**（返回全部租户 target） | `svc.ListTargets` 空租户 → `ErrMissingTenant` |
+| ⑤ | handler | `GET /collectors/:name/targets` 把 `:name` 当 target-type 过滤器，而 `cmdb_targets` **没有 adapter/collector 列** → 对每个真实 target 都匹配不上，**恒返空页** | 按租户列出全部 target，adapter 名仅回显为上下文；handler 注释说明 per-adapter 作用域需先加 schema 列 |
+| ⑥ | service | `cmd/server` 以 `nil` 注册表装配，`svc.reg.List()`/`Get()` 直接解引用 → **进程级空指针崩溃** | `NewService` 把 nil 换成空注册表；`ListCollectors` 答空目录，`RunDiscovery`/`RunCollection` 答 `ErrCollectorNotFound` |
+| ⑥ | registry | `RegisterBuiltinAdapters()` 零调用零信息量，注释声称注册 Cisco SNMP / Huawei SNMP / MySQL JDBC / PostgreSQL JDBC / generic Linux SSH 五个适配器，**实际一个都不存在** | 删除；`Default()` 头注改为如实说明注册表为空、无任何代码填充它 |
+| ⑦ | models | `models.JSONB`（自带 `Value()`/`Scan()`）**定义了却从未被引用** —— `Target.Config`/`Target.Metadata`/`Device.Attributes`/`Device.Metadata`/`Collection.Attributes` 全是裸 `map[string]interface{}` | 五个字段统一改为 `JSONB`（底层类型与 JSON tag 完全不变，仅补两个接口） |
+
+**Finding ⑦ 的三条后果**（本轮新增测试才逼出来）：
+
+- (a) 裸 map **没有 `driver.Valuer`** → `CreateTarget`/`CreateDevice`/`UpsertDevice`/`CreateCollection` 一旦带非空 map 参数就被驱动拒绝，**写入路径静默坏**；
+- (b) 裸 `*map[string]interface{}` **扫不进 `nil`/`[]byte`/`string` 任何来源**（sqlmock 与真实 pg 都报 `unsupported Scan, storing driver.Value type <nil> into type *map[string]interface{}`），**读路径同样坏**；
+- (c) 全仓 `sqlx.RegisterConverter|TypeConverter|MapperFunc|NameMapper` 零注册，**没有兜底**。
+
+改动编译安全性已逐项核验：`handler.go` 把匿名 `map[string]interface{}` 赋进具名类型字段（赋值兼容成立，源是无名类型），
+`service.mapToAttributes(result.Attributes, …)` 参数本就是匿名 map，`json.Marshal` 不受影响（只有 `MarshalJSON` 会改变行为）。
+同型约定全仓约 30 个模块（`internal/runner/models`、`internal/inception/models`、`internal/extension-point/models` 等）。
+
+### 21.3 测试
+
+新建 3 个测试文件 + 重写 repository 测试（原 44 行只有 6 条变量断言）。
+
+- **repository 19 条**：`exactMatcher` 归一化空白后做**精确字符串**比较，因此删掉任何 tenant 谓词直接失败。
+  钉住租户谓词、**参数顺序**（`WithArgs("t-1","tenant-1")` 反向必须被拒）、`RowsAffected` 检查、
+  零行 → `ErrNotFound`、exec 错误与 RowsAffected 错误各自上抛、list 谓词位序。
+- **service 14 条**：以 `NewService(repo, nil, nil)` **复现 `cmd/server` 的真实装配**（不是测试便利装配），
+  钉住 `(id, tenantID)` 顺序、`sql.ErrNoRows` → sentinel、空租户前置拒绝、
+  **nil 注册表答 `ErrCollectorNotFound` 而非 panic**、collector 超时默认值。
+- **handler 14 条**：走**真实 `RegisterRoutes`** + 真实 HTTP（`httptest`），中间件顶替 JWT 写入 `tenant_id`/`roles`。
+  `gin.New()` 故意**不挂 recovery** —— handler 里的空指针会崩成测试二进制崩溃，而不是被吞成一个看起来像正常失败路径的 500。
+- **models 7 条**：`JSONB` 的 `Value`（nil → NULL / 非 nil → `[]byte` JSON）与 `Scan`（NULL → nil / `[]byte` / `string` / 非法源报错），
+  外加 `TestJSONBColumnsAreBidirectional` 逐一断言五个字段同时实现 `driver.Valuer` 与 `sql.Scanner`
+  —— **这是防止字段回退成裸 map 的回归护栏**（变异 M13 就靠它被杀）。
+
+模块内共 **63 条测试**（含原有 `factory_test.go` 9 条），`go test ./internal/cmdb-collector/...` 全绿，
+**不需要 overlay** —— 本模块零冲突标记，是本轮唯一直接可跑的模块。
+
+### 21.4 变异证明（13/13 被杀死，全部能编译）
+
+| 变异 | 注入 | 结果 |
+|------|------|------|
+| M1 | `GetTarget` 参数序 `(tenantID, id)` | 2 fails |
+| M2 | `GetDevice` 参数序反转 | 2 fails |
+| M3 | `GetCollection` 删 tenant 谓词 | 2 fails |
+| M4 | `rows == 0` → `rows == -1` | 杀死（保留变量使用、语义恒假，避免编译失败型假杀死） |
+| M5 | `ListCollections` 删 tenant 谓词 | 杀死 |
+| M6 | `RunDiscovery` 空租户查 target | 2 fails |
+| M7 | `RunCollection` 空租户查 device | 2 fails |
+| M8 | `NewService` 保留 nil 注册表 | **崩溃** |
+| M9 | `ListTargets` 接受空租户 | 杀死 |
+| M10 | handler `DeleteTarget` 绕过租户检查 | 2 fails |
+| M11 | `tenantID()` 回退零 UUID | **3 条 401 测试全失败** |
+| M12 | `ListTargets` 重新按 adapter 名过滤 | 杀死 |
+| M13 | `Target.Config` 回退裸 map | 杀死（Valuer 护栏） |
+
+### 21.5 本轮踩到的坑（可复用）
+
+1. **sqlmock 扫不进裸 map** —— `nil`、`[]byte`、`string` 三种来源**全部**报
+   `unsupported Scan, storing driver.Value type <nil> into type *map[string]interface{}`。
+   只有实现了 `sql.Scanner` 的类型可行。这条把测试阻塞变成了生产修复（Finding ⑦）。
+2. **`mock.ExpectationsWereMet()` 不能用来断言「没跑 SQL」** —— 它把**未匹配的剩余期望**也报成错误。
+   正确做法：不注册任何期望，断言短路的 401；若 handler 真发了 SQL，sqlmock 会返回 driver 错误使端点落到 500，
+   因此 **401 本身就是短路的证明**。
+3. **`httptest.Request` 不存在** —— 用 `*http.Request` + `httptest.NewRequest`。
+4. **变异锚点必须唯一** —— `\tid := c.Param("id")` 在 `DeleteTarget` 与 `GetDevice` 各出现一次，
+   锚点必须扩到 `func (h *Handler) DeleteTarget(c *gin.Context) {` 才行；且锚点要含中间的
+   `otel.Tracer(...).Start(...)` 行，否则计数为 0。
+5. **gofmt 会折叠结构体字段注释对齐**（`JSONB                  ` → `JSONB     `），使依赖对齐空白的锚点失效。
+6. **`go test` 跑 vet** —— `t.Fatal`/`Fatalf` 配 `%+v` 会失败，必须用 `Errorf`；格式串里的裸 `%` 要写 `%%`。
+7. **SQL 语句缩进是两制表符不是三制表符**；变异锚点写错缩进会让 5/13 个锚点静默 SKIP，
+   看起来像「变异没被杀死」实则根本没注入。
+8. **`cmp` 逐个生产文件与 `/tmp/mut/` 备份比对**，确认全部还原干净后再进提交流程。
+
+### 21.6 验证
+
+- `gofmt -l internal/cmdb-collector/` 空
+- `go build -overlay /tmp/orion_overlay.json ./...` rc=0
+- `go test -overlay -count=1 ./cmd/server/ -run TestStartupRoutesAreMounted` ok
+- `go test -count=1 ./internal/cmdb-collector/...` rc=0（63 `--- PASS`）
+- 行首锚定的冲突标记扫描（`grep -rnE '^(<<<<<<<|=======|>>>>>>>)'`）：本模块**无**
+
+### 21.7 遗留债务（本轮新增，仅记录）
+
+1. **schema 漂移**：`cmdb_targets` **没有 adapter/collector 列**，故 `GET /collectors/:name/targets` 无法按 adapter 作用域过滤
+   （已在 `handler.go` 注释说明）。
+2. **零 adapter 实现**：`internal/cmdb-collector` 不提供任何 `interfaces.Adapter` 实现，
+   因此 `/collectors`、`/collectors/:name`、`/discover`、`/collect` 只能返回空目录或 `ErrCollectorNotFound`。
+   接口形状与注册机制已就绪（且不再 panic），缺的是真实适配器代码。
+3. **JSONB 坏模式可能在别处存在**：本轮修的是「裸 `map[string]interface{}` 字段 + 无 converter 注册」这一模式；
+   该模式同样会同时打断写入与读取两条路径，值得在其他模块机械重扫一遍。
+4. `internal/security-compliance` 硬编码演示数据（`ListFindings` → `defaultFindings()`、`PassRate: 85.0`、
+   `rulesCount = 50`（即使 `p.Rules == ""`）、`CreateBaseline` 不落库、`ScanBaseline` 评测失败仍报 `completed`）
+   —— 本轮判定**无承载基础设施，只记录不修**。
+
+### 21.8 跨轮遗留（不变）
+
+`internal/startup` `ListModulesByStatus` nil 切片一致性欠账、条件式安全门谎报
+（`confirmation/service.go:269,359,367`、`branch-policy/service.go:199,204,517,585,684,1518,1521`）、
+`chaos-enhanced` `getTenantID` 注释与实现不符、裸 ping 桩数字未核实、alert-adapter 接口强制 `Receive`、
+`InstantiateTemplate` 丢弃 `Parameters`/`Environment`、`ticketing/testutil/mocks.go` 兜底 `nil,nil`、
+JWT 密钥轮换、SMTP/SMS 凭证、134 个 `handler_test.go` 冲突标记（并行 agent 工作树，仍不碰）。

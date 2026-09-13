@@ -39,8 +39,15 @@ type ServiceOptions struct {
 	CollectorTimeout time.Duration
 }
 
-// NewService creates a new CollectorService.  Pass nil for opts to use defaults.
+// NewService creates a new CollectorService.  Pass nil for reg or opts to use
+// defaults.  A nil registry is replaced by an empty registry rather than left
+// nil: cmd/server wires nil because no adapter implementations ship with this
+// module, and an empty registry answers "collector adapter not found" instead
+// of a nil-pointer panic on ListCollectors / RunDiscovery / RunCollection.
 func NewService(repo *repository.Repository, reg *registry.Registry, opts *ServiceOptions) *Service {
+	if reg == nil {
+		reg = registry.NewRegistry()
+	}
 	s := &Service{
 		repo:             repo,
 		reg:              reg,
@@ -88,8 +95,11 @@ func (s *Service) RunDiscovery(ctx context.Context, tenantID, targetID, collecto
 		return nil, ErrMissingTarget
 	}
 
-	// 1. Resolve target.
-	target, err := s.repo.GetTarget(ctx, targetID)
+	// 1. Resolve target.  Scoped to the caller's tenant: a target that belongs
+	// to another tenant must not be discoverable by its id alone, otherwise the
+	// sweep below would read that tenant's endpoint and persist collection
+	// records that quote it.
+	target, err := s.repo.GetTarget(ctx, tenantID, targetID)
 	if err != nil {
 		if IsNotFound(err) {
 			return nil, ErrMissingTarget
@@ -182,8 +192,10 @@ func (s *Service) RunCollection(ctx context.Context, tenantID, deviceID, collect
 		return nil, ErrMissingDevice
 	}
 
-	// 1. Resolve device.
-	device, err := s.repo.GetDevice(ctx, deviceID)
+	// 1. Resolve device.  Scoped to the caller's tenant for the same reason as
+	// RunDiscovery: an unscoped lookup lets a caller point the collector at a
+	// device that is not theirs.
+	device, err := s.repo.GetDevice(ctx, tenantID, deviceID)
 	if err != nil {
 		if IsNotFound(err) {
 			return nil, ErrMissingDevice
@@ -268,10 +280,15 @@ type CollectorInfo struct {
 	Schema map[string]interface{} `json:"schema"`
 }
 
-// ListTargets returns targets for a tenant, optionally filtered by collector name.
+// ListTargets returns the targets owned by a tenant, optionally filtered by
+// target type. An empty tenantID is rejected: the repository would otherwise
+// fall through to an unfiltered SELECT and return every tenant's targets.
 func (s *Service) ListTargets(ctx context.Context, tenantID, targetType string, offset, limit int) ([]models.Target, error) {
 	if s.repo == nil {
 		return nil, nil
+	}
+	if tenantID == "" {
+		return nil, ErrMissingTenant
 	}
 	return s.repo.ListTargets(ctx, tenantID, targetType, offset, limit)
 }

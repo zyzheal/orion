@@ -50,17 +50,17 @@ const (
 // community strings, connection pools, etc.  Each adapter documents its
 // own required keys via ConfigSchema().
 type Target struct {
-	ID         string                 `db:"id" json:"id"`
-	Name       string                 `db:"name" json:"name"`
-	Host       string                 `db:"host" json:"host"`
-	Port       int                    `db:"port" json:"port"`
-	TargetType string                 `db:"type" json:"type"`         // network | server | database | …
-	Protocol   string                 `db:"protocol" json:"protocol"` // snmp | ssh | jdbc | api | wmi
-	TenantID   string                 `db:"tenant_id" json:"tenant_id"`
-	Config     map[string]interface{} `db:"config" json:"config"` // vendor-specific (JSONB)
-	Metadata   map[string]interface{} `db:"metadata" json:"metadata"`
-	CreatedAt  time.Time              `db:"created_at" json:"created_at"`
-	UpdatedAt  time.Time              `db:"updated_at" json:"updated_at"`
+	ID         string    `db:"id" json:"id"`
+	Name       string    `db:"name" json:"name"`
+	Host       string    `db:"host" json:"host"`
+	Port       int       `db:"port" json:"port"`
+	TargetType string    `db:"type" json:"type"`         // network | server | database | …
+	Protocol   string    `db:"protocol" json:"protocol"` // snmp | ssh | jdbc | api | wmi
+	TenantID   string    `db:"tenant_id" json:"tenant_id"`
+	Config     JSONB     `db:"config" json:"config"`     // vendor-specific (JSONB)
+	Metadata   JSONB     `db:"metadata" json:"metadata"` // JSONB
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at" json:"updated_at"`
 }
 
 // ---- Device ----
@@ -71,23 +71,23 @@ type Target struct {
 // devices are seeded manually or synced from another system.  The adapter
 // maps its own vendor-specific attributes into this normalised shape.
 type Device struct {
-	ID           string                 `db:"id" json:"id"`
-	DeviceID     string                 `db:"device_id" json:"device_id"` // external canonical ID (e.g. MAC, serial)
-	Name         string                 `db:"name" json:"name"`
-	DeviceType   string                 `db:"type" json:"type"` // network | server | database | …
-	Vendor       string                 `db:"vendor" json:"vendor"`
-	Model        string                 `db:"model" json:"model"`
-	IP           string                 `db:"ip" json:"ip"`
-	SerialNumber string                 `db:"serial_number" json:"serial_number"`
-	TenantID     string                 `db:"tenant_id" json:"tenant_id"`
-	TargetID     *string                `db:"target_id" json:"target_id"` // FK → cmdb_targets.id (nullable)
-	Adapter      string                 `db:"adapter" json:"adapter"`     // which adapter last reported
-	LastSeenAt   *time.Time             `db:"last_seen_at" json:"last_seen_at"`
-	Attributes   map[string]interface{} `db:"attributes" json:"attributes"` // current metrics (JSONB)
-	Status       string                 `db:"status" json:"status"`         // active | stale | decommissioned
-	Metadata     map[string]interface{} `db:"metadata" json:"metadata"`
-	CreatedAt    time.Time              `db:"created_at" json:"created_at"`
-	UpdatedAt    time.Time              `db:"updated_at" json:"updated_at"`
+	ID           string     `db:"id" json:"id"`
+	DeviceID     string     `db:"device_id" json:"device_id"` // external canonical ID (e.g. MAC, serial)
+	Name         string     `db:"name" json:"name"`
+	DeviceType   string     `db:"type" json:"type"` // network | server | database | …
+	Vendor       string     `db:"vendor" json:"vendor"`
+	Model        string     `db:"model" json:"model"`
+	IP           string     `db:"ip" json:"ip"`
+	SerialNumber string     `db:"serial_number" json:"serial_number"`
+	TenantID     string     `db:"tenant_id" json:"tenant_id"`
+	TargetID     *string    `db:"target_id" json:"target_id"` // FK → cmdb_targets.id (nullable)
+	Adapter      string     `db:"adapter" json:"adapter"`     // which adapter last reported
+	LastSeenAt   *time.Time `db:"last_seen_at" json:"last_seen_at"`
+	Attributes   JSONB      `db:"attributes" json:"attributes"` // current metrics (JSONB)
+	Status       string     `db:"status" json:"status"`         // active | stale | decommissioned
+	Metadata     JSONB      `db:"metadata" json:"metadata"`     // JSONB
+	CreatedAt    time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time  `db:"updated_at" json:"updated_at"`
 }
 
 // ---- Collection ----
@@ -96,19 +96,19 @@ type Device struct {
 // discovery sweep against a target).  Each collection is a time-stamped
 // snapshot of attributes.
 type Collection struct {
-	ID             string                 `db:"id" json:"id"`
-	CollectionID   string                 `db:"collection_id" json:"collection_id"` // external, stable ID
-	Collector      string                 `db:"collector" json:"collector"`         // adapter name
-	DeviceID       *string                `db:"device_id" json:"device_id"`         // FK → cmdb_devices.id (nullable for discovery)
-	TargetID       *string                `db:"target_id" json:"target_id"`         // FK → cmdb_targets.id
-	TenantID       string                 `db:"tenant_id" json:"tenant_id"`
-	Phase          string                 `db:"phase" json:"phase"`   // discover | collect
-	Status         string                 `db:"status" json:"status"` // pending | running | success | failed | skipped
-	AttributeCount int                    `db:"attribute_count" json:"attribute_count"`
-	Attributes     map[string]interface{} `db:"attributes" json:"attributes"` // full attribute payload (JSONB)
-	Error          *string                `db:"error" json:"error"`
-	DurationMs     int                    `db:"duration_ms" json:"duration_ms"`
-	CreatedAt      time.Time              `db:"created_at" json:"created_at"`
+	ID             string    `db:"id" json:"id"`
+	CollectionID   string    `db:"collection_id" json:"collection_id"` // external, stable ID
+	Collector      string    `db:"collector" json:"collector"`         // adapter name
+	DeviceID       *string   `db:"device_id" json:"device_id"`         // FK → cmdb_devices.id (nullable for discovery)
+	TargetID       *string   `db:"target_id" json:"target_id"`         // FK → cmdb_targets.id
+	TenantID       string    `db:"tenant_id" json:"tenant_id"`
+	Phase          string    `db:"phase" json:"phase"`   // discover | collect
+	Status         string    `db:"status" json:"status"` // pending | running | success | failed | skipped
+	AttributeCount int       `db:"attribute_count" json:"attribute_count"`
+	Attributes     JSONB     `db:"attributes" json:"attributes"` // full attribute payload (JSONB)
+	Error          *string   `db:"error" json:"error"`
+	DurationMs     int       `db:"duration_ms" json:"duration_ms"`
+	CreatedAt      time.Time `db:"created_at" json:"created_at"`
 }
 
 // ---- Attribute ----
