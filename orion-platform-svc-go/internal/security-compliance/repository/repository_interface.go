@@ -4,8 +4,9 @@ package repository
 
 import (
 	"context"
-	"orion/platform-svc-go/internal/security-compliance/models"
 	"time"
+
+	"orion/platform-svc-go/internal/security-compliance/models"
 )
 
 // RepositoryInterface defines the data access contract.
@@ -14,17 +15,21 @@ type RepositoryInterface interface {
 	GetPolicy(ctx context.Context, tenantID, id string) (*models.CompliancePolicy, error)
 	ListPolicies(ctx context.Context, tenantID string, limit, offset int) ([]models.CompliancePolicy, error)
 	InsertEvaluation(ctx context.Context, tenantID string, result *models.ComplianceEvaluationResult) error
+	LatestEvaluationByPolicy(ctx context.Context, tenantID, policyID string) (*models.ComplianceEvaluationResult, error)
 	CreateReport(ctx context.Context, report *models.ComplianceReport) error
 	GetReportByPolicy(ctx context.Context, tenantID, policyID string) (*models.ComplianceReport, error)
 	GetLatestScore(ctx context.Context, tenantID string) (*models.ComplianceScore, error)
 	UpsertScore(ctx context.Context, tenantID string, score *models.ComplianceScore) error
 	CreateAuditPlan(ctx context.Context, plan *models.AuditPlan) error
+	GetAuditPlan(ctx context.Context, tenantID, id string) (*models.AuditPlan, error)
 	ListAuditPlans(ctx context.Context, tenantID string, limit, offset int) ([]models.AuditPlan, error)
 	CreateAuditExecution(ctx context.Context, exec *models.AuditExecution) error
 	UpdateAuditExecution(ctx context.Context, tenantID, id string, status, result string, endedAt *time.Time) error
 	CreateAuditReport(ctx context.Context, report *models.AuditReport) error
 	GetAuditReport(ctx context.Context, tenantID, executionID string) (*models.AuditReport, error)
+	CreateFinding(ctx context.Context, f *models.AuditFinding) error
 	GetAuditFindings(ctx context.Context, tenantID, reportID string) ([]models.AuditFinding, error)
+	ListFindings(ctx context.Context, tenantID string, limit, offset int) ([]models.AuditFinding, error)
 	CloseFinding(ctx context.Context, tenantID, id string, reason string) error
 	ListFrameworks(ctx context.Context, tenantID string) ([]models.ComplianceFramework, error)
 	GetFramework(ctx context.Context, tenantID, id string) (*models.ComplianceFramework, error)
@@ -32,3 +37,6 @@ type RepositoryInterface interface {
 	GetEvidence(ctx context.Context, tenantID, policyID string) ([]models.Evidence, error)
 	InsertGapAnalysis(ctx context.Context, tenantID string, result *models.GapAnalysisResult) error
 }
+
+// Ensure Repository implements RepositoryInterface.
+var _ RepositoryInterface = (*Repository)(nil)

@@ -5,24 +5,33 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 
 	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/security-compliance/models"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
+// The service does not import the repository package, so this list is what keeps
+// the two sides in step: cmd/server wires *repository.Repository here, and a
+// method added to this interface that the repository lacks fails that compile.
 type RepositoryInterface interface {
 	CloseFinding(ctx context.Context, tenantID, id string, reason string) error
 	CollectEvidence(ctx context.Context, evidence *models.Evidence) error
 	CreateAuditExecution(ctx context.Context, exec *models.AuditExecution) error
 	CreateAuditPlan(ctx context.Context, plan *models.AuditPlan) error
 	CreateAuditReport(ctx context.Context, report *models.AuditReport) error
+	CreateFinding(ctx context.Context, f *models.AuditFinding) error
 	CreatePolicy(ctx context.Context, p *models.CompliancePolicy) error
+	CreateReport(ctx context.Context, report *models.ComplianceReport) error
 	GetAuditFindings(ctx context.Context, tenantID, reportID string) ([]models.AuditFinding, error)
+	GetAuditPlan(ctx context.Context, tenantID, id string) (*models.AuditPlan, error)
 	GetAuditReport(ctx context.Context, tenantID, executionID string) (*models.AuditReport, error)
 	GetEvidence(ctx context.Context, tenantID, policyID string) ([]models.Evidence, error)
 	GetFramework(ctx context.Context, tenantID, id string) (*models.ComplianceFramework, error)
@@ -31,9 +40,13 @@ type RepositoryInterface interface {
 	GetReportByPolicy(ctx context.Context, tenantID, policyID string) (*models.ComplianceReport, error)
 	InsertEvaluation(ctx context.Context, tenantID string, result *models.ComplianceEvaluationResult) error
 	InsertGapAnalysis(ctx context.Context, tenantID string, result *models.GapAnalysisResult) error
+	LatestEvaluationByPolicy(ctx context.Context, tenantID, policyID string) (*models.ComplianceEvaluationResult, error)
 	ListAuditPlans(ctx context.Context, tenantID string, limit, offset int) ([]models.AuditPlan, error)
+	ListFindings(ctx context.Context, tenantID string, limit, offset int) ([]models.AuditFinding, error)
 	ListFrameworks(ctx context.Context, tenantID string) ([]models.ComplianceFramework, error)
 	ListPolicies(ctx context.Context, tenantID string, limit, offset int) ([]models.CompliancePolicy, error)
+	UpdateAuditExecution(ctx context.Context, tenantID, id string, status, result string, endedAt *time.Time) error
+	UpsertScore(ctx context.Context, tenantID string, score *models.ComplianceScore) error
 }
 
 type Service struct {
@@ -70,9 +83,10 @@ func (s *Service) GetPolicy(ctx context.Context, tenantID, id string) (*models.C
 // --- Compliance Evaluation ---
 
 func (s *Service) EvaluateCompliance(ctx context.Context, tenantID string, req models.EvaluateComplianceRequest) (*models.ComplianceEvaluationResult, error) {
-	if _, err := s.GetPolicy(ctx, tenantID, req.PolicyID); err != nil {
+	policy, err := s.GetPolicy(ctx, tenantID, req.PolicyID)
+	if err != nil {
 		if IsNotFound(err) {
-			return nil, fmt.Errorf("policy %q not found: %w", req.PolicyID, sentinel.NotFound)
+			return nil, fmt.Errorf("policy %q: %w", req.PolicyID, ErrPolicyNotExists)
 		}
 		return nil, err
 	}
@@ -83,18 +97,9 @@ func (s *Service) EvaluateCompliance(ctx context.Context, tenantID string, req m
 		targets = defaultTargets
 	}
 
-	// Resolve the framework: use the request framework, then fall back to the
-	// framework encoded in the policy, then default to SOC2.
-	frameworkName := req.Framework
-	if frameworkName == "" {
-		frameworkName = builtInFrameworks["soc2"].name
-	}
-
-	fw, ok := builtInFrameworks[strings.ToLower(frameworkName)]
-	if !ok {
-		// Fall back to SOC2 if the named framework is not in the built-in catalog.
-		fw = builtInFrameworks["soc2"]
-	}
+	// Resolve the framework: use the request framework, then the framework
+	// encoded in the policy, then default to SOC2.
+	fw := resolveFramework(strings.ToLower(firstNonEmpty(req.Framework, policy.Framework)))
 
 	// Evaluate every target against every control in the framework.
 	var failures, warnings []string
@@ -148,7 +153,81 @@ func (s *Service) EvaluateCompliance(ctx context.Context, tenantID string, req m
 	if err := s.repo.InsertEvaluation(ctx, tenantID, result); err != nil {
 		return nil, err
 	}
+
+	// Persist the report and the tenant score as well. Without them
+	// GET /compliance/report/:policyId could never stop returning 404 and
+	// GET /compliance/score always answered with an invented "stable" tenant.
+	if err := s.persistReportAndScore(ctx, tenantID, policy, result); err != nil {
+		return nil, err
+	}
 	return result, nil
+}
+
+// persistReportAndScore writes the two aggregates an evaluation feeds: one
+// compliance report per policy and the tenant's rolled-up score with a trend
+// relative to the previous overall score.
+func (s *Service) persistReportAndScore(ctx context.Context, tenantID string, policy *models.CompliancePolicy, result *models.ComplianceEvaluationResult) error {
+	report := &models.ComplianceReport{
+		TenantID:    tenantID,
+		PolicyID:    policy.ID,
+		Name:        policy.Name,
+		Description: fmt.Sprintf("Evaluation of %s against %s", policy.Name, policy.Framework),
+		Framework:   policy.Framework,
+		TriggeredBy: "evaluate",
+		Status:      result.Status,
+		Score:       result.Score,
+		Failures:    joinEvaluation(result.Failures, result.Warnings),
+	}
+	if err := s.repo.CreateReport(ctx, report); err != nil {
+		return err
+	}
+
+	prev, err := s.repo.GetLatestScore(ctx, tenantID)
+	if err != nil && !IsNotFound(err) {
+		return err
+	}
+	trend := "new"
+	if prev != nil {
+		switch {
+		case result.Score > prev.OverallScore:
+			trend = "improving"
+		case result.Score < prev.OverallScore:
+			trend = "declining"
+		default:
+			trend = "stable"
+		}
+	}
+	return s.repo.UpsertScore(ctx, tenantID, &models.ComplianceScore{
+		OverallScore: result.Score,
+		CategoryScores: map[string]float64{
+			result.Status: result.Score,
+		},
+		Trend:       trend,
+		LastUpdated: result.EvaluatedAt,
+	})
+}
+
+// firstNonEmpty returns the first argument that is not the empty string.
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// joinEvaluation renders the report's failures column: hard failures first, then
+// the partial-implementation warnings that an evaluation always produces.
+func joinEvaluation(failures, warnings []string) string {
+	if len(failures) == 0 && len(warnings) == 0 {
+		return ""
+	}
+	b, err := json.Marshal(append(append([]string{}, failures...), warnings...))
+	if err != nil {
+		return ""
+	}
+	return string(b)
 }
 
 // --- Compliance Report ---
@@ -169,16 +248,23 @@ func (s *Service) GetComplianceReport(ctx context.Context, tenantID, policyID st
 
 func (s *Service) GetComplianceScore(ctx context.Context, tenantID string) (*models.ComplianceScore, error) {
 	score, err := s.repo.GetLatestScore(ctx, tenantID)
-	if err != nil {
-		if IsNotFound(err) {
-			return &models.ComplianceScore{
-				OverallScore:   0,
-				CategoryScores: make(map[string]float64),
-				Trend:          "stable",
-				LastUpdated:    time.Now().UTC(),
-			}, nil
-		}
+	if err != nil && !IsNotFound(err) {
 		return nil, err
+	}
+	if score == nil {
+		// "new", not "stable": the tenant has no recorded evaluation yet, so any
+		// trend would be an invention. The frontend renders whatever it receives
+		// and a caller comparing two tenants should be able to tell the
+		// never-measured one apart. The nil check covers both the not-found error
+		// and a repository that answers (nil, nil) — which is the default the
+		// generated mock_repository.go returns, and a nil pointer here used to
+		// crash the route.
+		return &models.ComplianceScore{
+			OverallScore:   0,
+			CategoryScores: make(map[string]float64),
+			Trend:          "new",
+			LastUpdated:    time.Now().UTC(),
+		}, nil
 	}
 	if score.CategoryScores == nil {
 		score.CategoryScores = make(map[string]float64)
@@ -191,7 +277,7 @@ func (s *Service) GetComplianceScore(ctx context.Context, tenantID string) (*mod
 func (s *Service) AutoRemediateCompliance(ctx context.Context, tenantID string, req models.RemediationRequest) (*models.RemediationResult, error) {
 	if _, err := s.GetPolicy(ctx, tenantID, req.PolicyID); err != nil {
 		if IsNotFound(err) {
-			return nil, fmt.Errorf("policy %q not found: %w", req.PolicyID, sentinel.NotFound)
+			return nil, fmt.Errorf("policy %q: %w", req.PolicyID, ErrPolicyNotExists)
 		}
 		return nil, err
 	}
@@ -275,34 +361,164 @@ func (s *Service) ListAuditPlans(ctx context.Context, tenantID string, limit, of
 
 // --- Audit Execution ---
 
+// ExecuteAudit runs the plan: one evaluation per policy in the tenant, a
+// findings row per in-scope control, and an execution row that reports what
+// actually happened.
+//
+// The previous version called ListAuditPlans and threw the result away, so a
+// caller-supplied plan id was never validated and any id produced a
+// "completed" execution with a zero-finding report. It also never evaluated
+// anything, which is why the audit endpoints existed but no audit ever produced
+// data.
 func (s *Service) ExecuteAudit(ctx context.Context, tenantID, planID string) (*models.AuditExecution, error) {
-	// Validate plan exists
-	_, err := s.repo.ListAuditPlans(ctx, tenantID, 1000, 0)
+	plan, err := s.repo.GetAuditPlan(ctx, tenantID, planID)
 	if err != nil {
+		if IsNotFound(err) {
+			return nil, fmt.Errorf("plan %q: %w", planID, ErrPlanNotExists)
+		}
 		return nil, err
 	}
+
 	exec := &models.AuditExecution{
-		PlanID:   planID,
+		PlanID:   plan.ID,
 		TenantID: tenantID,
-		Status:   "completed",
-		Result:   `{"status":"completed"}`,
+		Status:   "running",
+		Result:   "{}",
 	}
-	now := time.Now().UTC()
-	exec.EndedAt = &now
 	if err := s.repo.CreateAuditExecution(ctx, exec); err != nil {
 		return nil, err
 	}
-	// Create audit report
-	report := &models.AuditReport{
-		ExecutionID:   exec.ID,
-		TenantID:      tenantID,
-		Summary:       `{"summary":"audit completed successfully"}`,
-		FindingsCount: 0,
+	// markExec writes the terminal state onto the execution row. Without it an
+	// error halfway through the flow leaves a "running" row behind, which reads
+	// as an audit that is still in progress rather than one that died.
+	markExec := func(status string) {
+		now := time.Now().UTC()
+		summary, _ := json.Marshal(map[string]string{"status": status, "plan": plan.Name})
+		_ = s.repo.UpdateAuditExecution(ctx, tenantID, exec.ID, status, string(summary), &now)
 	}
-	if err := s.repo.CreateAuditReport(ctx, report); err != nil {
+
+	policies, err := s.repo.ListPolicies(ctx, tenantID, 1000, 0)
+	if err != nil {
+		markExec("failed")
 		return nil, err
 	}
+
+	var (
+		allFindings  []models.AuditFinding
+		evalWarnings []string
+	)
+	for _, p := range policies {
+		res, err := s.EvaluateCompliance(ctx, tenantID, models.EvaluateComplianceRequest{
+			PolicyID:  p.ID,
+			Framework: p.Framework,
+		})
+		if err != nil {
+			markExec("failed")
+			return nil, fmt.Errorf("evaluate policy %q: %w", p.ID, err)
+		}
+		if len(res.Warnings) > 0 {
+			evalWarnings = append(evalWarnings, fmt.Sprintf("%s: %d open controls", p.Name, len(res.Warnings)))
+		}
+		findings := auditFindings(resolveFramework(p.Framework), defaultTargets)
+		for i := range findings {
+			findings[i].TenantID = tenantID
+		}
+		allFindings = append(allFindings, findings...)
+	}
+
+	summary, err := json.Marshal(map[string]any{
+		"plan":      plan.Name,
+		"policies":  len(policies),
+		"findings":  len(allFindings),
+		"warnings":  len(evalWarnings),
+		"completed": true,
+	})
+	if err != nil {
+		markExec("failed")
+		return nil, err
+	}
+
+	// The report id is generated up front so findings can reference it, but the
+	// row is only persisted after every finding write succeeds: a finding that
+	// fails mid-way used to leave an orphan audit_reports row with no findings
+	// behind it.
+	report := &models.AuditReport{
+		ID:            uuid.New().String(),
+		ExecutionID:   exec.ID,
+		TenantID:      tenantID,
+		Summary:       string(summary),
+		FindingsCount: len(allFindings),
+	}
+	for i := range allFindings {
+		f := allFindings[i]
+		f.ReportID = report.ID
+		if err := s.repo.CreateFinding(ctx, &f); err != nil {
+			markExec("failed")
+			return nil, fmt.Errorf("create finding %q: %w", f.Title, err)
+		}
+	}
+	if err := s.repo.CreateAuditReport(ctx, report); err != nil {
+		markExec("failed")
+		return nil, err
+	}
+
+	now := time.Now().UTC()
+	if err := s.repo.UpdateAuditExecution(ctx, tenantID, exec.ID, "completed", string(summary), &now); err != nil {
+		return nil, err
+	}
+	exec.Status = "completed"
+	exec.Result = string(summary)
+	exec.EndedAt = &now
 	return exec, nil
+}
+
+// auditFindings derives one finding per framework control that applies to at
+// least one target. evaluateTargetAgainstRules marks every applicable control
+// "partial" with an empty failures slice, so ComplianceEvaluationResult.Failures
+// is always nil and cannot be the finding source — the control catalog is.
+func auditFindings(fw frameworkDefinition, targets []string) []models.AuditFinding {
+	var out []models.AuditFinding
+	for _, r := range fw.controls {
+		var matched []string
+		for _, target := range targets {
+			if isRuleApplicableToTarget(r, target) {
+				matched = append(matched, target)
+			}
+		}
+		if len(matched) == 0 {
+			continue
+		}
+		severity := "low"
+		if r.verdict == "not_implemented" {
+			severity = "high"
+		}
+		desc := ""
+		if len(r.warnings) > 0 {
+			desc = r.warnings[0]
+		}
+		out = append(out, models.AuditFinding{
+			Target:      strings.Join(matched, ","),
+			Severity:    severity,
+			Title:       r.controlID + " " + r.controlName,
+			Description: desc,
+			Status:      "open",
+		})
+	}
+	return out
+}
+
+// resolveFramework maps a caller-supplied name onto its built-in control
+// catalog. The empty name and unknown names both resolve to SOC2, so an
+// evaluation of a policy that never named a framework scores against real
+// controls instead of an empty set.
+func resolveFramework(name string) frameworkDefinition {
+	if name == "" {
+		name = "soc2"
+	}
+	if fw, ok := builtInFrameworks[strings.ToLower(name)]; ok {
+		return fw
+	}
+	return builtInFrameworks["soc2"]
 }
 
 // --- Audit Report ---
@@ -322,6 +538,41 @@ func (s *Service) GetAuditReport(ctx context.Context, tenantID, executionID stri
 
 func (s *Service) GetAuditFindings(ctx context.Context, tenantID, reportID string) ([]models.AuditFinding, error) {
 	return s.repo.GetAuditFindings(ctx, tenantID, reportID)
+}
+
+// ListFindings returns the tenant's findings across every report. It is the
+// backend for the compliance scan view; before it existed that view answered
+// with eight hard-coded demo findings on every request.
+func (s *Service) ListFindings(ctx context.Context, tenantID string, limit, offset int) ([]models.AuditFinding, error) {
+	return s.repo.ListFindings(ctx, tenantID, limit, offset)
+}
+
+// GetLastEvaluation returns the most recent evaluation of one policy, or
+// (nil, nil) when the policy has never been evaluated. The handler needs the
+// empty case to be distinguishable from an error, because a tenant with one
+// unmeasured policy should see a baseline row with no last scan rather than a
+// 500.
+func (s *Service) GetLastEvaluation(ctx context.Context, tenantID, policyID string) (*models.ComplianceEvaluationResult, error) {
+	result, err := s.repo.LatestEvaluationByPolicy(ctx, tenantID, policyID)
+	if err != nil {
+		if IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return result, nil
+}
+
+// FrameworkControlIDs lists the control ids a framework ships with, so a policy
+// created from that framework carries a rule set whose length matches what the
+// UI will show as its rule count.
+func FrameworkControlIDs(framework string) []string {
+	fw := resolveFramework(framework)
+	ids := make([]string, 0, len(fw.controls))
+	for _, c := range fw.controls {
+		ids = append(ids, c.controlID)
+	}
+	return ids
 }
 
 func (s *Service) CloseFinding(ctx context.Context, tenantID, findingID string, reason string) error {
@@ -357,7 +608,7 @@ func (s *Service) GetFramework(ctx context.Context, tenantID, id string) (*model
 func (s *Service) CollectEvidence(ctx context.Context, tenantID string, req models.CollectEvidenceRequest) (*models.EvidenceCollection, error) {
 	if _, err := s.GetPolicy(ctx, tenantID, req.PolicyID); err != nil {
 		if IsNotFound(err) {
-			return nil, fmt.Errorf("policy %q not found: %w", req.PolicyID, sentinel.NotFound)
+			return nil, fmt.Errorf("policy %q: %w", req.PolicyID, ErrPolicyNotExists)
 		}
 		return nil, err
 	}
@@ -393,14 +644,17 @@ func (s *Service) GenerateEvidenceCollection(ctx context.Context, tenantID strin
 // --- Gap Analysis ---
 
 func (s *Service) PerformGapAnalysis(ctx context.Context, tenantID string, req models.GapAnalysisRequest) (*models.GapAnalysisResult, error) {
+	// Both are caller errors, so both are sentinel.BadRequest. As plain errors
+	// they surfaced as 500s, which told the operator the platform was broken
+	// when the request was.
 	if req.Framework == "" {
-		return nil, fmt.Errorf("framework is required for gap analysis")
+		return nil, fmt.Errorf("gap analysis: framework is required: %w", sentinel.BadRequest)
 	}
-
-	fw, ok := builtInFrameworks[strings.ToLower(req.Framework)]
-	if !ok {
-		return nil, fmt.Errorf("unknown framework %q; supported: %s", req.Framework, strings.Join(builtInFrameworkNames(), ", "))
+	name := strings.ToLower(req.Framework)
+	if _, ok := builtInFrameworks[name]; !ok {
+		return nil, fmt.Errorf("unknown framework %q (supported: %s): %w", req.Framework, strings.Join(builtInFrameworkNames(), ", "), sentinel.BadRequest)
 	}
+	fw := resolveFramework(name)
 
 	targets := req.Targets
 	if len(targets) == 0 {
@@ -476,9 +730,13 @@ func (s *Service) PerformGapAnalysis(ctx context.Context, tenantID string, req m
 
 // --- Errors ---
 
+// Both wrap sentinel.NotFound so a caller can match the specific sentinel
+// (errors.Is(err, ErrPlanNotExists)) or the generic one (IsNotFound(err)) —
+// as plain errors.New they matched neither and every 404 branch downstream was
+// dead.
 var (
-	ErrPolicyNotExists = errors.New("policy does not exist")
-	ErrPlanNotExists   = errors.New("audit plan does not exist")
+	ErrPolicyNotExists = fmt.Errorf("policy does not exist: %w", sentinel.NotFound)
+	ErrPlanNotExists   = fmt.Errorf("audit plan does not exist: %w", sentinel.NotFound)
 )
 
 func IsNotFound(err error) bool {

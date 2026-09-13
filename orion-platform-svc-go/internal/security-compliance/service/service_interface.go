@@ -27,8 +27,10 @@ type ServiceInterface interface {
 	GetEvidence(ctx context.Context, tenantID, policyID string) ([]models.Evidence, error)
 	GetFramework(ctx context.Context, tenantID, id string) (*models.ComplianceFramework, error)
 	GetFrameworks(ctx context.Context, tenantID string) (*models.FrameworkList, error)
+	GetLastEvaluation(ctx context.Context, tenantID, policyID string) (*models.ComplianceEvaluationResult, error)
 	GetPolicy(ctx context.Context, tenantID, id string) (*models.CompliancePolicy, error)
 	ListAuditPlans(ctx context.Context, tenantID string, limit, offset int) ([]models.AuditPlan, error)
+	ListFindings(ctx context.Context, tenantID string, limit, offset int) ([]models.AuditFinding, error)
 	ListPolicies(ctx context.Context, tenantID string, limit, offset int) ([]models.CompliancePolicy, error)
 	PerformGapAnalysis(ctx context.Context, tenantID string, req models.GapAnalysisRequest) (*models.GapAnalysisResult, error)
 }

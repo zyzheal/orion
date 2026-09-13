@@ -41,13 +41,18 @@ type ComplianceEvaluationResult struct {
 // --- Compliance Report ---
 
 type ComplianceReport struct {
-	ID        string    `json:"id" db:"id"`
-	TenantID  string    `json:"tenant_id" db:"tenant_id"`
-	PolicyID  string    `json:"policy_id" db:"policy_id"`
-	Status    string    `json:"status" db:"status"`
-	Score     float64   `json:"score" db:"score"`
-	Failures  string    `json:"failures" db:"failures"` // JSON
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID          string    `json:"id" db:"id"`
+	TenantID    string    `json:"tenant_id" db:"tenant_id"`
+	PolicyID    string    `json:"policy_id" db:"policy_id"`
+	Name        string    `json:"name" db:"name"`
+	Description string    `json:"description,omitempty" db:"description"`
+	Framework   string    `json:"framework" db:"framework"`
+	TriggeredBy string    `json:"triggered_by" db:"triggered_by"`
+	Status      string    `json:"status" db:"status"`
+	Score       float64   `json:"score" db:"score"`
+	Failures    string    `json:"failures" db:"failures"` // JSON
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // --- Compliance Score ---
@@ -120,10 +125,12 @@ type AuditFinding struct {
 	ID          string     `json:"id" db:"id"`
 	ReportID    string     `json:"report_id" db:"report_id"`
 	TenantID    string     `json:"tenant_id" db:"tenant_id"`
+	Target      string     `json:"target" db:"target"`
 	Severity    string     `json:"severity" db:"severity"` // low, medium, high, critical
 	Title       string     `json:"title" db:"title"`
 	Description string     `json:"description" db:"description"`
 	Status      string     `json:"status" db:"status"` // open, in_progress, closed
+	Resolution  string     `json:"resolution,omitempty" db:"resolution"`
 	ClosedAt    *time.Time `json:"closed_at,omitempty" db:"closed_at"`
 	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
 }

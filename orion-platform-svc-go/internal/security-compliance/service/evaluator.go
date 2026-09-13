@@ -174,7 +174,15 @@ func evaluateTargetAgainstRules(target string, rules []rule) (score float64, fai
 				score += 100.0
 			case "partial":
 				score += 50.0
-				warnings = append(warnings, fmt.Sprintf("%s %s: %s", r.controlID, r.controlName, r.warnings[0]))
+				// r.warnings can be nil; auditFindings already guards the same
+				// access, this path used to index [0] unconditionally and died
+				// with index-out-of-range the moment a catalog control declared
+				// no warning text (iso27001 A.5.2, nist-csf GV.OC).
+				if len(r.warnings) > 0 {
+					warnings = append(warnings, fmt.Sprintf("%s %s: %s", r.controlID, r.controlName, r.warnings[0]))
+				} else {
+					warnings = append(warnings, fmt.Sprintf("%s %s", r.controlID, r.controlName))
+				}
 			case "not_implemented":
 				failures = append(failures, fmt.Sprintf("%s %s", r.controlID, r.controlName))
 			}
