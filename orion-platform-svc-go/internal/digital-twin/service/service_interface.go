@@ -16,25 +16,25 @@ type ServiceInterface interface {
 	CreateSandbox(ctx context.Context, tenantID string, req models.CreateSandboxRequest) (*models.Sandbox, error)
 	CreateSnapshot(ctx context.Context, twinID, name string) (*models.Snapshot, error)
 	CreateTwin(ctx context.Context, tenantID string, req models.CreateDigitalTwinRequest) (*models.DigitalTwin, error)
-	DestroySandbox(id string) (*models.Sandbox, error)
+	DestroySandbox(ctx context.Context, tenantID, id string) (*models.Sandbox, error)
 	FindTwin(ctx context.Context, tenantID, id string) (*models.DigitalTwin, error)
-	GetRecordingDetail(recordingID string) *RecordingDetail
-	GetRecordingRecords(recordingID string) []any
-	GetReplayReport(ctx context.Context, replayID string) (*ReplayReport, error)
-	GetReplayStatus(ctx context.Context, replayID string) (*ReplayStatusDetail, error)
+	GetRecordingDetail(ctx context.Context, tenantID, recordingID string) (*RecordingDetail, error)
+	GetRecordingRecords(ctx context.Context, tenantID, recordingID string) ([]any, error)
+	GetReplayReport(ctx context.Context, tenantID, replayID string) (*ReplayReport, error)
+	GetReplayStatus(ctx context.Context, tenantID, replayID string) (*ReplayStatusDetail, error)
 	GetTwinState(ctx context.Context, tenantID, twinID string) (*TwinState, error)
-	ListRecordingSessions(ctx context.Context, twinID string) ([]RecordingSessionSummary, error)
-	ListReplaySessions(ctx context.Context, twinID string) ([]ReplaySessionSummary, error)
-	ListSandboxes(ctx context.Context) []models.Sandbox
+	ListRecordingSessions(ctx context.Context, tenantID, twinID string) ([]RecordingSessionSummary, error)
+	ListReplaySessions(ctx context.Context, tenantID, twinID string) ([]ReplaySessionSummary, error)
+	ListSandboxes(ctx context.Context, tenantID string) []models.Sandbox
 	ListTwins(ctx context.Context, tenantID string) ([]models.DigitalTwin, error)
-	PauseRecording(recordingID string) *RecordingResult
+	PauseRecording(ctx context.Context, tenantID, recordingID string) (*RecordingResult, error)
 	RecordTraffic(ctx context.Context, twinID string) (*models.TrafficRecord, error)
 	ReplayTraffic(ctx context.Context, twinID string) (*ReplayTrafficResult, error)
-	SandboxHealth(id string) (*models.Sandbox, error)
-	StartRecording(twinID, name string) *models.RecordingSession
+	SandboxHealth(ctx context.Context, tenantID, id string) (*models.Sandbox, error)
+	StartRecording(ctx context.Context, tenantID, twinID, name string) *models.RecordingSession
 	StartReplay(ctx context.Context, twinID string, req models.CreateReplayStartRequest) (*models.ReplaySession, error)
-	StopRecording(recordingID string) *RecordingResult
-	StopSandbox(id string) (*models.Sandbox, error)
+	StopRecording(ctx context.Context, tenantID, recordingID string) (*RecordingResult, error)
+	StopSandbox(ctx context.Context, tenantID, id string) (*models.Sandbox, error)
 }
 
 // Ensure compile-time safety: *Service implements ServiceInterface.

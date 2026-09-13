@@ -37,6 +37,8 @@ type CreateSnapshotRequest struct {
 // --- Sandbox ---
 
 type Sandbox struct {
+	ID         string `json:"id"`
+	TenantID   string `json:"tenant_id"`
 	TwinID     string `json:"twin_id"`
 	Name       string `json:"name"`
 	SnapshotID string `json:"snapshot_id"`
@@ -74,6 +76,7 @@ type CreateTrafficRecordInput struct {
 
 type RecordingSession struct {
 	ID          string     `json:"id"`
+	TenantID    string     `json:"tenantId"`
 	TwinID      string     `json:"twinId"`
 	Name        string     `json:"name"`
 	Status      string     `json:"status"` // recording, paused, completed

@@ -23,7 +23,7 @@ type RepositoryInterface interface {
 	FindAllTwins(ctx context.Context, tenantID string) ([]models.DigitalTwin, error)
 	FindReplaySessionById(ctx context.Context, tenantID, id string) (*models.ReplaySession, error)
 	FindReplaySessionsByTwinID(ctx context.Context, tenantID string, twinID string) ([]models.ReplaySession, error)
-	GetRecordingRecordsBySessionID(ctx context.Context, id string) ([]interface{}, error)
+	GetRecordingRecordsBySessionID(ctx context.Context, tenantID, id string) ([]interface{}, error)
 	FindTrafficRecordsByTwinID(ctx context.Context, tenantID string, twinID string) ([]models.TrafficRecord, error)
 	FindTwinByID(ctx context.Context, tenantID, id string) (*models.DigitalTwin, error)
 	UpdateReplaySession(ctx context.Context, tenantID, id, status string) (*models.ReplaySession, error)
@@ -118,6 +118,8 @@ func (s *Service) CreateSandbox(ctx context.Context, tenantID string, req models
 	}
 	id := "sb-" + fmt.Sprintf("%d-%s", time.Now().UnixNano(), randString(4))
 	sb := &models.Sandbox{
+		ID:         id,
+		TenantID:   tenantID,
 		TwinID:     req.TwinID,
 		Name:       req.Name,
 		SnapshotID: req.SnapshotID,
@@ -127,31 +129,52 @@ func (s *Service) CreateSandbox(ctx context.Context, tenantID string, req models
 	return sb, nil
 }
 
-func (s *Service) ListSandboxes(ctx context.Context) []models.Sandbox {
+func (s *Service) ListSandboxes(ctx context.Context, tenantID string) []models.Sandbox {
 	result := make([]models.Sandbox, 0)
 	for _, sb := range s.sandboxStore {
+		if sb.TenantID != tenantID {
+			continue
+		}
 		result = append(result, *sb)
 	}
 	return result
 }
 
-func (s *Service) StopSandbox(id string) (*models.Sandbox, error) {
+// sandboxForTenant returns the sandbox with the given id only when it belongs to
+// the calling tenant. A missing or foreign entry yields sentinel.NotFound so
+// callers cannot probe another tenant's sandbox ids.
+func (s *Service) sandboxForTenant(tenantID, id string) (*models.Sandbox, error) {
 	sb, ok := s.sandboxStore[id]
-	if !ok {
-		// Return a stub even if not in store (legacy map behavior).
-		return &models.Sandbox{Status: "stopped"}, nil
+	if !ok || sb.TenantID != tenantID {
+		return nil, ErrNotFound
+	}
+	return sb, nil
+}
+
+func (s *Service) StopSandbox(ctx context.Context, tenantID, id string) (*models.Sandbox, error) {
+	sb, err := s.sandboxForTenant(tenantID, id)
+	if err != nil {
+		return nil, err
 	}
 	sb.Status = "stopped"
 	return sb, nil
 }
 
-func (s *Service) DestroySandbox(id string) (*models.Sandbox, error) {
+func (s *Service) DestroySandbox(ctx context.Context, tenantID, id string) (*models.Sandbox, error) {
+	sb, err := s.sandboxForTenant(tenantID, id)
+	if err != nil {
+		return nil, err
+	}
 	delete(s.sandboxStore, id)
-	return &models.Sandbox{Status: "destroyed"}, nil
+	sb.Status = "destroyed"
+	return sb, nil
 }
 
-func (s *Service) SandboxHealth(id string) (*models.Sandbox, error) {
-	return &models.Sandbox{Status: "healthy"}, nil
+// SandboxHealth returns the sandbox with its current status so the caller can
+// derive health from it. A sandbox that is no longer "running" (e.g. already
+// stopped) is not reported as healthy.
+func (s *Service) SandboxHealth(ctx context.Context, tenantID, id string) (*models.Sandbox, error) {
+	return s.sandboxForTenant(tenantID, id)
 }
 
 // --- Traffic Recording ---
@@ -166,10 +189,11 @@ func (s *Service) RecordTraffic(ctx context.Context, twinID string) (*models.Tra
 }
 
 // StartRecording creates a recording session (managed by TrafficRecorderService).
-func (s *Service) StartRecording(twinID, name string) *models.RecordingSession {
+func (s *Service) StartRecording(ctx context.Context, tenantID, twinID, name string) *models.RecordingSession {
 	id := "rec-" + fmt.Sprintf("%d-%s", time.Now().UnixNano(), randString(4))
 	session := &models.RecordingSession{
 		ID:        id,
+		TenantID:  tenantID,
 		TwinID:    twinID,
 		Name:      name,
 		Status:    "recording",
@@ -180,9 +204,20 @@ func (s *Service) StartRecording(twinID, name string) *models.RecordingSession {
 	return session
 }
 
+// recordingForTenant returns the recording session with the given id only when
+// it belongs to the calling tenant. Missing or foreign ids yield
+// sentinel.NotFound instead of an unconditional success reply.
+func (s *Service) recordingForTenant(tenantID, recordingID string) (*models.RecordingSession, error) {
+	session, ok := s.recordingStore[recordingID]
+	if !ok || session.TenantID != tenantID {
+		return nil, ErrNotFound
+	}
+	return session, nil
+}
+
 // ListRecordingSessions returns recording sessions for a twin.
-func (s *Service) ListRecordingSessions(ctx context.Context, twinID string) ([]RecordingSessionSummary, error) {
-	records, err := s.repo.FindTrafficRecordsByTwinID(ctx, "", twinID)
+func (s *Service) ListRecordingSessions(ctx context.Context, tenantID, twinID string) ([]RecordingSessionSummary, error) {
+	records, err := s.repo.FindTrafficRecordsByTwinID(ctx, tenantID, twinID)
 	if err != nil {
 		return nil, err
 	}
@@ -207,47 +242,62 @@ func (s *Service) ListRecordingSessions(ctx context.Context, twinID string) ([]R
 	return sessions, nil
 }
 
-func (s *Service) StopRecording(recordingID string) *RecordingResult {
-	if session, ok := s.recordingStore[recordingID]; ok {
-		session.Status = "completed"
+func (s *Service) StopRecording(ctx context.Context, tenantID, recordingID string) (*RecordingResult, error) {
+	session, err := s.recordingForTenant(tenantID, recordingID)
+	if err != nil {
+		return nil, err
 	}
-	return &RecordingResult{ID: recordingID, Status: "completed"}
+	now := time.Now().UTC()
+	session.Status = "completed"
+	session.CompletedAt = &now
+	session.RecordCount = len(session.Records)
+	return &RecordingResult{ID: session.ID, Status: session.Status}, nil
 }
 
-func (s *Service) PauseRecording(recordingID string) *RecordingResult {
-	if session, ok := s.recordingStore[recordingID]; ok {
-		session.Status = "paused"
+func (s *Service) PauseRecording(ctx context.Context, tenantID, recordingID string) (*RecordingResult, error) {
+	session, err := s.recordingForTenant(tenantID, recordingID)
+	if err != nil {
+		return nil, err
 	}
-	return &RecordingResult{ID: recordingID, Status: "paused"}
+	session.Status = "paused"
+	return &RecordingResult{ID: session.ID, Status: session.Status}, nil
 }
 
-func (s *Service) GetRecordingDetail(recordingID string) *RecordingDetail {
-	// Try in-memory store first, then fall back to DB.
-	if session, ok := s.recordingStore[recordingID]; ok {
+// GetRecordingDetail reads the live in-memory session first, then falls back to
+// the recording_sessions.records JSONB column. Repository failures and
+// not-found results are returned to the caller instead of being collapsed into
+// an empty detail object.
+func (s *Service) GetRecordingDetail(ctx context.Context, tenantID, recordingID string) (*RecordingDetail, error) {
+	if session, err := s.recordingForTenant(tenantID, recordingID); err == nil {
 		return &RecordingDetail{
 			ID:          recordingID,
 			RecordCount: len(session.Records),
 			Records:     session.Records,
-		}
+		}, nil
 	}
-	// Query the recording_sessions.records JSONB column.
-	records, err := s.repo.GetRecordingRecordsBySessionID(context.Background(), recordingID)
+	records, err := s.repo.GetRecordingRecordsBySessionID(ctx, tenantID, recordingID)
 	if err != nil {
-		return &RecordingDetail{ID: recordingID, RecordCount: 0, Records: []any{}}
+		return nil, err
+	}
+	if records == nil {
+		records = []any{}
 	}
 	return &RecordingDetail{
 		ID:          recordingID,
 		RecordCount: len(records),
 		Records:     records,
-	}
+	}, nil
 }
 
-func (s *Service) GetRecordingRecords(recordingID string) []any {
-	detail := s.GetRecordingDetail(recordingID)
-	if detail == nil {
-		return []any{}
+func (s *Service) GetRecordingRecords(ctx context.Context, tenantID, recordingID string) ([]any, error) {
+	detail, err := s.GetRecordingDetail(ctx, tenantID, recordingID)
+	if err != nil {
+		return nil, err
 	}
-	return detail.Records
+	if detail.Records == nil {
+		return []any{}, nil
+	}
+	return detail.Records, nil
 }
 
 // --- Traffic Replay ---
@@ -285,8 +335,8 @@ func (s *Service) StartReplay(ctx context.Context, twinID string, req models.Cre
 	})
 }
 
-func (s *Service) ListReplaySessions(ctx context.Context, twinID string) ([]ReplaySessionSummary, error) {
-	sessions, err := s.repo.FindReplaySessionsByTwinID(ctx, "", twinID)
+func (s *Service) ListReplaySessions(ctx context.Context, tenantID, twinID string) ([]ReplaySessionSummary, error) {
+	sessions, err := s.repo.FindReplaySessionsByTwinID(ctx, tenantID, twinID)
 	if err != nil {
 		return nil, err
 	}
@@ -305,8 +355,8 @@ func (s *Service) ListReplaySessions(ctx context.Context, twinID string) ([]Repl
 	return summaries, nil
 }
 
-func (s *Service) GetReplayStatus(ctx context.Context, replayID string) (*ReplayStatusDetail, error) {
-	session, err := s.repo.FindReplaySessionById(ctx, "", replayID)
+func (s *Service) GetReplayStatus(ctx context.Context, tenantID, replayID string) (*ReplayStatusDetail, error) {
+	session, err := s.repo.FindReplaySessionById(ctx, tenantID, replayID)
 	if err != nil {
 		return nil, err
 	}
@@ -334,8 +384,8 @@ func (s *Service) CancelReplay(ctx context.Context, tenantID, replayID string) (
 	}, nil
 }
 
-func (s *Service) GetReplayReport(ctx context.Context, replayID string) (*ReplayReport, error) {
-	session, err := s.repo.FindReplaySessionById(ctx, "", replayID)
+func (s *Service) GetReplayReport(ctx context.Context, tenantID, replayID string) (*ReplayReport, error) {
+	session, err := s.repo.FindReplaySessionById(ctx, tenantID, replayID)
 	if err != nil {
 		return nil, err
 	}

@@ -2,7 +2,9 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -49,6 +51,9 @@ func (r *Repository) FindTwinByID(ctx context.Context, tenantID, id string) (*mo
 	err := r.db.GetContext(ctx, &twin,
 		`SELECT * FROM digital_twins WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFoundMsg("digital twin not found")
+		}
 		return nil, err
 	}
 	return &twin, nil
@@ -159,16 +164,34 @@ func (r *Repository) FindReplaySessionById(ctx context.Context, tenantID, id str
 		 INNER JOIN digital_twins t ON s.twin_id = t.id
 		 WHERE s.id=$1 AND t.tenant_id=$2`, id, tenantID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFoundMsg("replay session not found")
+		}
 		return nil, err
 	}
 	return &s, nil
 }
 
+// UpdateReplaySession changes a replay session's status only when the owning
+// twin belongs to the calling tenant. The UPDATE is scoped through the twin's
+// tenant so a caller cannot cancel another tenant's replay by id alone; a zero
+// affected-row count means the id is unknown or foreign and is reported as a
+// not-found error rather than a silent success.
 func (r *Repository) UpdateReplaySession(ctx context.Context, tenantID, id, status string) (*models.ReplaySession, error) {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE digital_twin_replay_sessions SET status=$1, updated_at=NOW() WHERE id=$2`, status, id)
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE digital_twin_replay_sessions s SET s.status=$1, s.updated_at=NOW()
+		 WHERE s.id=$2
+		   AND s.twin_id IN (SELECT t.id FROM digital_twins t WHERE t.tenant_id=$3)`,
+		status, id, tenantID)
 	if err != nil {
 		return nil, err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return nil, ErrNotFoundMsg("replay session not found")
 	}
 	return r.FindReplaySessionById(ctx, tenantID, id)
 }
@@ -179,36 +202,18 @@ func ErrNotFoundMsg(msg string) error {
 	return fmt.Errorf("%s: %w", msg, sentinel.NotFound)
 }
 
-// FindRecordingSessionByID reads a recording session by id, scanning the JSONB records column.
-type recordingSessionRow struct {
-	ID          string     `db:"id"`
-	TwinID      string     `db:"twin_id"`
-	Name        string     `db:"name"`
-	Status      string     `db:"status"`
-	RecordCount int64      `db:"record_count"`
-	RecordsJSON []byte     `db:"records"`
-	StartedAt   time.Time  `db:"started_at"`
-	CompletedAt *time.Time `db:"completed_at"`
-	UpdatedAt   time.Time  `db:"updated_at"`
-}
-
-func (r *Repository) FindRecordingSessionByID(ctx context.Context, id string) (*recordingSessionRow, error) {
-	var row recordingSessionRow
-	err := r.db.GetContext(ctx, &row,
-		`SELECT id, twin_id, name, status, record_count, records, started_at, completed_at, updated_at
-		 FROM recording_sessions WHERE id=$1`, id)
-	if err != nil {
-		return nil, err
-	}
-	return &row, nil
-}
-
-// GetRecordingRecordsBySessionID returns the parsed records array for a recording session.
-func (r *Repository) GetRecordingRecordsBySessionID(ctx context.Context, id string) ([]interface{}, error) {
+// GetRecordingRecordsBySessionID returns the parsed records array for a
+// recording session. The SELECT is scoped to the caller's tenant so recording
+// ids are not enumerable across tenants, and a missing row is surfaced as a
+// not-found error instead of an empty slice.
+func (r *Repository) GetRecordingRecordsBySessionID(ctx context.Context, tenantID, id string) ([]interface{}, error) {
 	var recordsJSON []byte
 	err := r.db.GetContext(ctx, &recordsJSON,
-		`SELECT records FROM recording_sessions WHERE id=$1`, id)
+		`SELECT records FROM recording_sessions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFoundMsg("recording session not found")
+		}
 		return nil, err
 	}
 	if recordsJSON == nil || len(recordsJSON) == 0 {

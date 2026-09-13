@@ -10,20 +10,36 @@ import (
 )
 
 // mockDigitalTwinRepo is an in-memory mock implementing DigitalTwinRepo.
+//
+// Every read method is tenant-aware: it rejects (returns empty / not found) for
+// rows owned by a different tenant. This mirrors the real repository's JOIN on
+// digital_twins.tenant_id so a service that stops forwarding the tenant id
+// fails these tests instead of silently passing.
 type mockDigitalTwinRepo struct {
 	dbErr     error
 	twins     map[string]*models.DigitalTwin
 	snapshots map[string]*models.Snapshot
 	records   map[string][]models.TrafficRecord // keyed by twinID
-	replays   map[string]*models.ReplaySession
+	// recordTenant maps twinID -> owning tenantID.
+	recordTenant map[string]string
+	replays      map[string]*models.ReplaySession
+	// replayTenant maps replay session id -> owning tenantID.
+	replayTenant map[string]string
+	// recordingRecords maps session id -> persisted records (tenant-scoped by recordingTenant).
+	recordingRecords map[string][]interface{}
+	recordingTenant  map[string]string
 }
 
 func newMockRepo() *mockDigitalTwinRepo {
 	return &mockDigitalTwinRepo{
-		twins:     make(map[string]*models.DigitalTwin),
-		snapshots: make(map[string]*models.Snapshot),
-		records:   make(map[string][]models.TrafficRecord),
-		replays:   make(map[string]*models.ReplaySession),
+		twins:            make(map[string]*models.DigitalTwin),
+		snapshots:        make(map[string]*models.Snapshot),
+		records:          make(map[string][]models.TrafficRecord),
+		recordTenant:     make(map[string]string),
+		replays:          make(map[string]*models.ReplaySession),
+		replayTenant:     make(map[string]string),
+		recordingRecords: make(map[string][]interface{}),
+		recordingTenant:  make(map[string]string),
 	}
 }
 
@@ -64,6 +80,9 @@ func (m *mockDigitalTwinRepo) FindAllTwins(ctx context.Context, tenantID string)
 	}
 	result := make([]models.DigitalTwin, 0)
 	for _, t := range m.twins {
+		if t.TenantID != tenantID {
+			continue
+		}
 		result = append(result, *t)
 	}
 	return result, nil
@@ -102,18 +121,43 @@ func (m *mockDigitalTwinRepo) CreateTrafficRecord(ctx context.Context, in models
 	return record, nil
 }
 
+// seedRecords stores traffic records for a twin under the given tenant.
+func (m *mockDigitalTwinRepo) seedRecords(tenantID, twinID string, recs ...models.TrafficRecord) {
+	m.recordTenant[twinID] = tenantID
+	m.records[twinID] = append(m.records[twinID], recs...)
+}
+
 func (m *mockDigitalTwinRepo) FindTrafficRecordsByTwinID(ctx context.Context, tenantID, twinID string) ([]models.TrafficRecord, error) {
 	if m.dbErr != nil {
 		return nil, m.dbErr
 	}
-	return m.records[twinID], nil
+	if m.recordTenant[twinID] != tenantID {
+		return []models.TrafficRecord{}, nil
+	}
+	recs, ok := m.records[twinID]
+	if !ok {
+		return []models.TrafficRecord{}, nil
+	}
+	return recs, nil
 }
 
-func (m *mockDigitalTwinRepo) GetRecordingRecordsBySessionID(ctx context.Context, id string) ([]interface{}, error) {
+func (m *mockDigitalTwinRepo) GetRecordingRecordsBySessionID(ctx context.Context, tenantID, id string) ([]interface{}, error) {
 	if m.dbErr != nil {
 		return nil, m.dbErr
 	}
+	if m.recordingTenant[id] != tenantID {
+		return nil, ErrNotFound
+	}
+	if recs, ok := m.recordingRecords[id]; ok {
+		return recs, nil
+	}
 	return []interface{}{}, nil
+}
+
+// seedRecordingRecords stores persisted records for a session under a tenant.
+func (m *mockDigitalTwinRepo) seedRecordingRecords(tenantID, id string, recs []interface{}) {
+	m.recordingTenant[id] = tenantID
+	m.recordingRecords[id] = recs
 }
 
 func (m *mockDigitalTwinRepo) CreateReplaySession(ctx context.Context, in models.CreateReplaySessionInput) (*models.ReplaySession, error) {
@@ -131,6 +175,29 @@ func (m *mockDigitalTwinRepo) CreateReplaySession(ctx context.Context, in models
 		TotalRequests:      100,
 	}
 	m.replays[id] = session
+	// CreateReplaySession carries no tenant, so the session is attributed to the
+	// mock's default tenant. Tests that need another tenant use
+	// CreateReplaySessionForTenant.
+	m.replayTenant[id] = "t1"
+	return session, nil
+}
+
+func (m *mockDigitalTwinRepo) CreateReplaySessionForTenant(ctx context.Context, tenantID string, in models.CreateReplaySessionInput) (*models.ReplaySession, error) {
+	if m.dbErr != nil {
+		return nil, m.dbErr
+	}
+	id := "replay-" + in.TwinID
+	session := &models.ReplaySession{
+		ID:                 id,
+		TwinID:             in.TwinID,
+		RecordingSessionID: in.RecordingSessionID,
+		SandboxEndpoint:    in.SandboxEndpoint,
+		Status:             in.Status,
+		StartedAt:          in.StartedAt,
+		TotalRequests:      100,
+	}
+	m.replays[id] = session
+	m.replayTenant[id] = tenantID
 	return session, nil
 }
 
@@ -138,9 +205,9 @@ func (m *mockDigitalTwinRepo) FindReplaySessionsByTwinID(ctx context.Context, te
 	if m.dbErr != nil {
 		return nil, m.dbErr
 	}
-	var result []models.ReplaySession
+	result := make([]models.ReplaySession, 0)
 	for _, s := range m.replays {
-		if s.TwinID == twinID {
+		if s.TwinID == twinID && m.replayTenant[s.ID] == tenantID {
 			result = append(result, *s)
 		}
 	}
@@ -152,7 +219,7 @@ func (m *mockDigitalTwinRepo) FindReplaySessionById(ctx context.Context, tenantI
 		return nil, m.dbErr
 	}
 	s, ok := m.replays[id]
-	if !ok {
+	if !ok || m.replayTenant[id] != tenantID {
 		return nil, ErrReplayNotFound
 	}
 	return s, nil
@@ -163,7 +230,7 @@ func (m *mockDigitalTwinRepo) UpdateReplaySession(ctx context.Context, tenantID,
 		return nil, m.dbErr
 	}
 	s, ok := m.replays[id]
-	if !ok {
+	if !ok || m.replayTenant[id] != tenantID {
 		return nil, ErrReplayNotFound
 	}
 	s.Status = status
@@ -367,51 +434,174 @@ func TestCreateSandbox_TwinNotFound(t *testing.T) {
 	}
 }
 
-func TestStopSandbox_Found(t *testing.T) {
+// createRunningSandbox provisions a twin plus a running sandbox owned by tenant.
+func createRunningSandbox(t *testing.T, m *mockDigitalTwinRepo, svc *Service, ctx context.Context, tenantID, name string) *models.Sandbox {
+	t.Helper()
+	_, err := m.CreateTwin(ctx, tenantID, models.CreateDigitalTwinRequest{Name: name, ServiceType: "api", SourceService: "s"})
+	if err != nil {
+		t.Fatalf("seed twin: %v", err)
+	}
+	twinID := "twin-" + tenantID + "-" + name
+	sb, err := svc.CreateSandbox(ctx, tenantID, models.CreateSandboxRequest{TwinID: twinID, Name: name})
+	if err != nil {
+		t.Fatalf("create sandbox: %v", err)
+	}
+	return sb
+}
+
+func TestCreateSandbox_RecordsTenantAndID(t *testing.T) {
 	m := newMockRepo()
 	svc := NewService(m)
-	sb, err := svc.StopSandbox("sb-1")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	sb := createRunningSandbox(t, m, svc, context.Background(), "t1", "sb-1")
+	if sb.TenantID != "t1" {
+		t.Errorf("expected tenant t1, got %q", sb.TenantID)
 	}
-	if sb.Status != "stopped" {
-		t.Errorf("expected stopped, got %s", sb.Status)
+	if sb.ID == "" {
+		t.Error("expected a non-empty sandbox id")
+	}
+	if sb.Status != "running" {
+		t.Errorf("expected running, got %s", sb.Status)
 	}
 }
 
-func TestStopSandbox_NotFoundReturnsStub(t *testing.T) {
+func TestStopSandbox_Found(t *testing.T) {
 	m := newMockRepo()
 	svc := NewService(m)
-	sb, err := svc.StopSandbox("nonexistent")
+	sb := createRunningSandbox(t, m, svc, context.Background(), "t1", "sb-1")
+
+	out, err := svc.StopSandbox(context.Background(), "t1", sb.ID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if sb.Status != "stopped" {
-		t.Errorf("expected stopped stub, got %s", sb.Status)
+	if out.Status != "stopped" {
+		t.Errorf("expected stopped, got %s", out.Status)
+	}
+}
+
+func TestStopSandbox_NotFound(t *testing.T) {
+	m := newMockRepo()
+	svc := NewService(m)
+	sb, err := svc.StopSandbox(context.Background(), "t1", "nonexistent")
+	if err == nil {
+		t.Fatal("expected not-found error, got nil")
+	}
+	if !IsNotFound(err) {
+		t.Fatalf("expected sentinel not-found, got %v", err)
+	}
+	if sb != nil {
+		t.Errorf("expected nil sandbox, got %+v", sb)
+	}
+}
+
+func TestStopSandbox_OtherTenantSandboxIsNotFound(t *testing.T) {
+	m := newMockRepo()
+	svc := NewService(m)
+	sb := createRunningSandbox(t, m, svc, context.Background(), "t1", "sb-1")
+
+	_, err := svc.StopSandbox(context.Background(), "t2", sb.ID)
+	if err == nil {
+		t.Fatalf("expected not-found error for foreign tenant, got nil")
+	}
+	if !IsNotFound(err) {
+		t.Fatalf("expected sentinel not-found, got %v", err)
+	}
+	if sb.Status != "running" {
+		t.Errorf("foreign tenant must not alter the sandbox; status=%s", sb.Status)
 	}
 }
 
 func TestDestroySandbox(t *testing.T) {
 	m := newMockRepo()
 	svc := NewService(m)
-	sb, err := svc.DestroySandbox("sb-1")
+	sb := createRunningSandbox(t, m, svc, context.Background(), "t1", "sb-1")
+
+	out, err := svc.DestroySandbox(context.Background(), "t1", sb.ID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if sb.Status != "destroyed" {
-		t.Errorf("expected destroyed, got %s", sb.Status)
+	if out.Status != "destroyed" {
+		t.Errorf("expected destroyed, got %s", out.Status)
+	}
+	if _, err := svc.SandboxHealth(context.Background(), "t1", sb.ID); err == nil {
+		t.Error("expected destroyed sandbox to be gone, got nil error")
+	}
+}
+
+func TestDestroySandbox_NotFound(t *testing.T) {
+	m := newMockRepo()
+	svc := NewService(m)
+	out, err := svc.DestroySandbox(context.Background(), "t1", "nonexistent")
+	if err == nil {
+		t.Fatal("expected not-found error, got nil")
+	}
+	if !IsNotFound(err) {
+		t.Fatalf("expected sentinel not-found, got %v", err)
+	}
+	if out != nil {
+		t.Fatal("expected nil sandbox")
 	}
 }
 
 func TestSandboxHealth(t *testing.T) {
 	m := newMockRepo()
 	svc := NewService(m)
-	sb, err := svc.SandboxHealth("sb-1")
+	sb := createRunningSandbox(t, m, svc, context.Background(), "t1", "sb-1")
+
+	out, err := svc.SandboxHealth(context.Background(), "t1", sb.ID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if sb.Status != "healthy" {
-		t.Errorf("expected healthy, got %s", sb.Status)
+	if out.Status != "running" {
+		t.Errorf("expected running (healthy), got %s", out.Status)
+	}
+}
+
+func TestSandboxHealth_NotRunningIsNotHealthy(t *testing.T) {
+	m := newMockRepo()
+	svc := NewService(m)
+	ctx := context.Background()
+	sb := createRunningSandbox(t, m, svc, ctx, "t1", "sb-1")
+
+	if _, err := svc.StopSandbox(ctx, "t1", sb.ID); err != nil {
+		t.Fatalf("stop: %v", err)
+	}
+	out, err := svc.SandboxHealth(ctx, "t1", sb.ID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if out.Status != "stopped" {
+		t.Errorf("expected stopped, got %s", out.Status)
+	}
+}
+
+func TestSandboxHealth_NotFound(t *testing.T) {
+	m := newMockRepo()
+	svc := NewService(m)
+	out, err := svc.SandboxHealth(context.Background(), "t1", "nonexistent")
+	if err == nil {
+		t.Fatal("expected not-found error, got nil")
+	}
+	if !IsNotFound(err) {
+		t.Fatalf("expected sentinel not-found, got %v", err)
+	}
+	if out != nil {
+		t.Fatal("expected nil sandbox")
+	}
+}
+
+func TestListSandboxes_ScopedToTenant(t *testing.T) {
+	m := newMockRepo()
+	svc := NewService(m)
+	ctx := context.Background()
+	sb1 := createRunningSandbox(t, m, svc, ctx, "t1", "a")
+	createRunningSandbox(t, m, svc, ctx, "t2", "b")
+
+	got := svc.ListSandboxes(ctx, "t1")
+	if len(got) != 1 {
+		t.Fatalf("expected 1 sandbox for t1, got %d", len(got))
+	}
+	if got[0].TenantID != "t1" || got[0].ID != sb1.ID {
+		t.Errorf("unexpected sandbox: %+v", got[0])
 	}
 }
 
@@ -516,12 +706,32 @@ func TestListReplaySessions_Success(t *testing.T) {
 
 	// Pre-populate
 	_, _ = m.CreateReplaySession(ctx, models.CreateReplaySessionInput{TwinID: "twin-1", Status: "running", StartedAt: time.Now().UTC()})
-	sessions, err := svc.ListReplaySessions(ctx, "twin-1")
+	sessions, err := svc.ListReplaySessions(ctx, "t1", "twin-1")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(sessions) != 1 {
 		t.Fatalf("expected 1 session, got %d", len(sessions))
+	}
+}
+
+func TestListReplaySessions_ForwardsTenant(t *testing.T) {
+	m := newMockRepo()
+	svc := NewService(m)
+	ctx := context.Background()
+
+	_, _ = m.CreateReplaySessionForTenant(ctx, "t2", models.CreateReplaySessionInput{TwinID: "twin-2", Status: "running", StartedAt: time.Now().UTC()})
+	if _, err := svc.ListReplaySessions(ctx, "t2", "twin-2"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// The mock rejects rows owned by another tenant, so this only passes when
+	// the service forwards the caller's tenant id.
+	sessions, err := svc.ListReplaySessions(ctx, "t1", "twin-2")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(sessions) != 0 {
+		t.Fatalf("expected no sessions for a foreign tenant, got %d", len(sessions))
 	}
 }
 
@@ -532,7 +742,7 @@ func TestGetReplayStatus_Success(t *testing.T) {
 
 	// Pre-populate
 	s, _ := m.CreateReplaySession(ctx, models.CreateReplaySessionInput{TwinID: "twin-1", Status: "running", StartedAt: time.Now().UTC()})
-	status, err := svc.GetReplayStatus(ctx, s.ID)
+	status, err := svc.GetReplayStatus(ctx, "t1", s.ID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -546,12 +756,27 @@ func TestGetReplayStatus_NotFound(t *testing.T) {
 	svc := NewService(m)
 	ctx := context.Background()
 
-	status, err := svc.GetReplayStatus(ctx, "nonexistent")
+	status, err := svc.GetReplayStatus(ctx, "t1", "nonexistent")
 	if err == nil {
 		t.Fatal("expected error")
 	}
 	if status != nil {
 		t.Fatal("expected nil status")
+	}
+}
+
+func TestGetReplayStatus_OtherTenantSessionIsNotFound(t *testing.T) {
+	m := newMockRepo()
+	svc := NewService(m)
+	ctx := context.Background()
+
+	s, _ := m.CreateReplaySessionForTenant(ctx, "t2", models.CreateReplaySessionInput{TwinID: "twin-9", Status: "running", StartedAt: time.Now().UTC()})
+	status, err := svc.GetReplayStatus(ctx, "t1", s.ID)
+	if err == nil {
+		t.Fatalf("expected not-found error for a foreign tenant's session, got nil")
+	}
+	if status != nil {
+		t.Fatalf("expected nil status, got %+v", status)
 	}
 }
 
@@ -561,7 +786,7 @@ func TestCancelReplay_Success(t *testing.T) {
 	ctx := context.Background()
 
 	s, _ := m.CreateReplaySession(ctx, models.CreateReplaySessionInput{TwinID: "twin-1", Status: "running", StartedAt: time.Now().UTC()})
-	summary, err := svc.CancelReplay(ctx, "tenant-1", s.ID)
+	summary, err := svc.CancelReplay(ctx, "t1", s.ID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -575,7 +800,7 @@ func TestCancelReplay_NotFound(t *testing.T) {
 	svc := NewService(m)
 	ctx := context.Background()
 
-	summary, err := svc.CancelReplay(ctx, "tenant-1", "nonexistent")
+	summary, err := svc.CancelReplay(ctx, "t1", "nonexistent")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -592,7 +817,7 @@ func TestGetReplayReport_Success(t *testing.T) {
 	s, _ := m.CreateReplaySession(ctx, models.CreateReplaySessionInput{TwinID: "twin-1", Status: "completed", StartedAt: time.Now().UTC()})
 	s.TotalRequests = 100
 	s.MatchedRequests = 80
-	report, err := svc.GetReplayReport(ctx, s.ID)
+	report, err := svc.GetReplayReport(ctx, "t1", s.ID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -607,29 +832,263 @@ func TestGetReplayReport_Success(t *testing.T) {
 	}
 }
 
+func TestGetReplayReport_OtherTenantReportIsNotFound(t *testing.T) {
+	m := newMockRepo()
+	svc := NewService(m)
+	ctx := context.Background()
+
+	s, _ := m.CreateReplaySessionForTenant(ctx, "t2", models.CreateReplaySessionInput{TwinID: "twin-8", Status: "completed", StartedAt: time.Now().UTC()})
+	report, err := svc.GetReplayReport(ctx, "t1", s.ID)
+	if err == nil {
+		t.Fatalf("expected not-found error for a foreign tenant's report, got nil")
+	}
+	if report != nil {
+		t.Fatalf("expected nil report, got %+v", report)
+	}
+}
+
+func TestCancelReplay_OtherTenantSessionCannotBeCancelled(t *testing.T) {
+	m := newMockRepo()
+	svc := NewService(m)
+	ctx := context.Background()
+
+	s, _ := m.CreateReplaySessionForTenant(ctx, "t2", models.CreateReplaySessionInput{TwinID: "twin-7", Status: "running", StartedAt: time.Now().UTC()})
+	summary, err := svc.CancelReplay(ctx, "t1", s.ID)
+	if err == nil {
+		t.Fatalf("expected not-found error, got nil")
+	}
+	if summary != nil {
+		t.Fatalf("expected nil summary, got %+v", summary)
+	}
+	if s.Status != "running" {
+		t.Errorf("foreign tenant must not change the session status; got %s", s.Status)
+	}
+}
+
 func TestStartRecording(t *testing.T) {
 	m := newMockRepo()
 	svc := NewService(m)
-	session := svc.StartRecording("twin-1", "rec-1")
+	session := svc.StartRecording(context.Background(), "t1", "twin-1", "rec-1")
 	if session.Status != "recording" {
 		t.Errorf("expected recording, got %s", session.Status)
+	}
+	if session.TenantID != "t1" {
+		t.Errorf("expected tenant t1, got %q", session.TenantID)
+	}
+	if len(session.Records) != 0 {
+		t.Errorf("expected empty records, got %v", session.Records)
 	}
 }
 
 func TestStopRecording(t *testing.T) {
 	m := newMockRepo()
 	svc := NewService(m)
-	result := svc.StopRecording("rec-1")
+	ctx := context.Background()
+	session := svc.StartRecording(ctx, "t1", "twin-1", "rec-1")
+	session.Records = []any{map[string]any{"method": "GET"}, map[string]any{"method": "POST"}}
+
+	result, err := svc.StopRecording(ctx, "t1", session.ID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if result.Status != "completed" {
 		t.Errorf("expected completed, got %s", result.Status)
+	}
+	if session.CompletedAt == nil {
+		t.Error("expected completed_at to be set")
+	}
+	if session.RecordCount != 2 {
+		t.Errorf("expected record_count 2, got %d", session.RecordCount)
+	}
+}
+
+func TestStopRecording_NotFound(t *testing.T) {
+	m := newMockRepo()
+	svc := NewService(m)
+	result, err := svc.StopRecording(context.Background(), "t1", "nonexistent")
+	if err == nil {
+		t.Fatal("expected not-found error, got nil")
+	}
+	if !IsNotFound(err) {
+		t.Fatalf("expected sentinel not-found, got %v", err)
+	}
+	if result != nil {
+		t.Fatal("expected nil result")
+	}
+}
+
+func TestStopRecording_OtherTenantRecordingCannotBeStopped(t *testing.T) {
+	m := newMockRepo()
+	svc := NewService(m)
+	ctx := context.Background()
+	session := svc.StartRecording(ctx, "t2", "twin-1", "rec-1")
+
+	result, err := svc.StopRecording(ctx, "t1", session.ID)
+	if err == nil {
+		t.Fatalf("expected not-found error, got nil")
+	}
+	if result != nil {
+		t.Fatalf("expected nil result, got %+v", result)
+	}
+	if session.Status != "recording" {
+		t.Errorf("foreign tenant must not change the session; got %s", session.Status)
 	}
 }
 
 func TestPauseRecording(t *testing.T) {
 	m := newMockRepo()
 	svc := NewService(m)
-	result := svc.PauseRecording("rec-1")
+	ctx := context.Background()
+	session := svc.StartRecording(ctx, "t1", "twin-1", "rec-1")
+
+	result, err := svc.PauseRecording(ctx, "t1", session.ID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if result.Status != "paused" {
 		t.Errorf("expected paused, got %s", result.Status)
+	}
+	if session.CompletedAt != nil {
+		t.Error("pausing must not mark the session completed")
+	}
+}
+
+func TestPauseRecording_NotFound(t *testing.T) {
+	m := newMockRepo()
+	svc := NewService(m)
+	result, err := svc.PauseRecording(context.Background(), "t1", "nonexistent")
+	if err == nil {
+		t.Fatal("expected not-found error, got nil")
+	}
+	if !IsNotFound(err) {
+		t.Fatalf("expected sentinel not-found, got %v", err)
+	}
+	if result != nil {
+		t.Fatal("expected nil result")
+	}
+}
+
+func TestGetRecordingDetail_FromMemory(t *testing.T) {
+	m := newMockRepo()
+	svc := NewService(m)
+	ctx := context.Background()
+	session := svc.StartRecording(ctx, "t1", "twin-1", "rec-1")
+	session.Records = []any{"payload"}
+
+	detail, err := svc.GetRecordingDetail(ctx, "t1", session.ID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if detail.RecordCount != 1 {
+		t.Errorf("expected 1 record, got %d", detail.RecordCount)
+	}
+	if len(detail.Records) != 1 {
+		t.Errorf("expected 1 record item, got %d", len(detail.Records))
+	}
+}
+
+func TestGetRecordingDetail_FallsBackToRepository(t *testing.T) {
+	m := newMockRepo()
+	svc := NewService(m)
+	ctx := context.Background()
+	persisted := []interface{}{"p1", "p2"}
+	m.seedRecordingRecords("t1", "rec-persisted", persisted)
+
+	detail, err := svc.GetRecordingDetail(ctx, "t1", "rec-persisted")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if detail.RecordCount != 2 {
+		t.Errorf("expected 2 records, got %d", detail.RecordCount)
+	}
+}
+
+func TestGetRecordingDetail_OtherTenantIsNotFound(t *testing.T) {
+	m := newMockRepo()
+	svc := NewService(m)
+	ctx := context.Background()
+	m.seedRecordingRecords("t2", "rec-foreign", []interface{}{"x"})
+
+	detail, err := svc.GetRecordingDetail(ctx, "t1", "rec-foreign")
+	if err == nil {
+		t.Fatalf("expected not-found error for a foreign tenant, got nil")
+	}
+	if !IsNotFound(err) {
+		t.Fatalf("expected sentinel not-found, got %v", err)
+	}
+	if detail != nil {
+		t.Fatalf("expected nil detail, got %+v", detail)
+	}
+}
+
+func TestGetRecordingDetail_RepositoryErrorIsPropagated(t *testing.T) {
+	m := newMockRepo()
+	m.dbErr = errors.New("db down")
+	svc := NewService(m)
+
+	detail, err := svc.GetRecordingDetail(context.Background(), "t1", "rec-1")
+	if err == nil {
+		t.Fatal("expected repository error to be propagated, got nil")
+	}
+	if detail != nil {
+		t.Fatalf("expected nil detail, got %+v", detail)
+	}
+}
+
+func TestGetRecordingRecords(t *testing.T) {
+	m := newMockRepo()
+	svc := NewService(m)
+	ctx := context.Background()
+	session := svc.StartRecording(ctx, "t1", "twin-1", "rec-1")
+	session.Records = []any{"a"}
+
+	records, err := svc.GetRecordingRecords(ctx, "t1", session.ID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(records) != 1 {
+		t.Errorf("expected 1 record, got %d", len(records))
+	}
+}
+
+func TestGetRecordingRecords_NotFound(t *testing.T) {
+	m := newMockRepo()
+	svc := NewService(m)
+	records, err := svc.GetRecordingRecords(context.Background(), "t1", "nonexistent")
+	if err == nil {
+		t.Fatal("expected not-found error, got nil")
+	}
+	if records != nil {
+		t.Fatalf("expected nil records, got %v", records)
+	}
+}
+
+func TestListRecordingSessions_ForwardsTenant(t *testing.T) {
+	m := newMockRepo()
+	svc := NewService(m)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	m.seedRecords("t1", "twin-1", models.TrafficRecord{
+		ID: "tr-1", TwinID: "twin-1", Type: "record", RequestCount: 7, StartedAt: now,
+	})
+
+	sessions, err := svc.ListRecordingSessions(ctx, "t1", "twin-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(sessions) != 1 {
+		t.Fatalf("expected 1 session, got %d", len(sessions))
+	}
+	if sessions[0].RecordCount != 7 {
+		t.Errorf("expected 7 records, got %d", sessions[0].RecordCount)
+	}
+
+	// The mock only returns the row for t1, so a foreign tenant must see none.
+	empty, err := svc.ListRecordingSessions(ctx, "t2", "twin-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(empty) != 0 {
+		t.Fatalf("expected no sessions for a foreign tenant, got %d", len(empty))
 	}
 }

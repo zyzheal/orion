@@ -155,44 +155,60 @@ func (h *Handler) CreateSandbox(c *gin.Context) {
 func (h *Handler) ListSandboxes(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSandboxes")
 	defer span.End()
-	items := h.svc.ListSandboxes(ctx)
+	tenantID := c.GetString("tenant_id")
+	items := h.svc.ListSandboxes(ctx, tenantID)
 	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) StopSandbox(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopSandbox")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopSandbox")
 	defer span.End()
+	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	_, err := h.svc.StopSandbox(id)
+	sb, err := h.svc.StopSandbox(ctx, tenantID, id)
 	if err != nil {
+		if dt_service.IsNotFound(err) {
+			middleware.RespondNotFound(c, "sandbox not found")
+			return
+		}
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.RespondSuccess(c, gin.H{"id": id, "stopped": true})
+	middleware.RespondSuccess(c, gin.H{"id": id, "stopped": sb.Status == "stopped"})
 }
 
 func (h *Handler) DestroySandbox(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DestroySandbox")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DestroySandbox")
 	defer span.End()
+	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	_, err := h.svc.DestroySandbox(id)
+	sb, err := h.svc.DestroySandbox(ctx, tenantID, id)
 	if err != nil {
+		if dt_service.IsNotFound(err) {
+			middleware.RespondNotFound(c, "sandbox not found")
+			return
+		}
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.RespondSuccess(c, gin.H{"id": id, "destroyed": true})
+	middleware.RespondSuccess(c, gin.H{"id": id, "destroyed": sb.Status == "destroyed"})
 }
 
 func (h *Handler) SandboxHealth(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SandboxHealth")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SandboxHealth")
 	defer span.End()
+	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	_, err := h.svc.SandboxHealth(id)
+	sb, err := h.svc.SandboxHealth(ctx, tenantID, id)
 	if err != nil {
+		if dt_service.IsNotFound(err) {
+			middleware.RespondNotFound(c, "sandbox not found")
+			return
+		}
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.RespondSuccess(c, gin.H{"id": id, "healthy": true})
+	middleware.RespondSuccess(c, gin.H{"id": id, "healthy": sb.Status == "running", "status": sb.Status})
 }
 
 // --- Traffic Recording ---
@@ -239,7 +255,7 @@ func (h *Handler) StartRecording(c *gin.Context) {
 		middleware.RespondNotFound(c, "digital twin not found")
 		return
 	}
-	session := h.svc.StartRecording(id, body.Name)
+	session := h.svc.StartRecording(ctx, tenantID, id, body.Name)
 	middleware.RespondCreated(c, session)
 }
 
@@ -253,7 +269,7 @@ func (h *Handler) ListRecordingSessions(c *gin.Context) {
 		middleware.RespondNotFound(c, "digital twin not found")
 		return
 	}
-	sessions, err := h.svc.ListRecordingSessions(ctx, id)
+	sessions, err := h.svc.ListRecordingSessions(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -262,34 +278,70 @@ func (h *Handler) ListRecordingSessions(c *gin.Context) {
 }
 
 func (h *Handler) StopRecording(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopRecording")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopRecording")
 	defer span.End()
+	tenantID := c.GetString("tenant_id")
 	recordingID := c.Param("recordingId")
-	result := h.svc.StopRecording(recordingID)
+	result, err := h.svc.StopRecording(ctx, tenantID, recordingID)
+	if err != nil {
+		if dt_service.IsNotFound(err) {
+			middleware.RespondNotFound(c, "recording session not found")
+			return
+		}
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
 	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) PauseRecording(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PauseRecording")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PauseRecording")
 	defer span.End()
+	tenantID := c.GetString("tenant_id")
 	recordingID := c.Param("recordingId")
-	result := h.svc.PauseRecording(recordingID)
+	result, err := h.svc.PauseRecording(ctx, tenantID, recordingID)
+	if err != nil {
+		if dt_service.IsNotFound(err) {
+			middleware.RespondNotFound(c, "recording session not found")
+			return
+		}
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
 	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetRecordingDetail(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRecordingDetail")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRecordingDetail")
 	defer span.End()
+	tenantID := c.GetString("tenant_id")
 	recordingID := c.Param("recordingId")
-	detail := h.svc.GetRecordingDetail(recordingID)
+	detail, err := h.svc.GetRecordingDetail(ctx, tenantID, recordingID)
+	if err != nil {
+		if dt_service.IsNotFound(err) {
+			middleware.RespondNotFound(c, "recording session not found")
+			return
+		}
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
 	middleware.RespondSuccess(c, detail)
 }
 
 func (h *Handler) GetRecordingRecords(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRecordingRecords")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRecordingRecords")
 	defer span.End()
+	tenantID := c.GetString("tenant_id")
 	recordingID := c.Param("recordingId")
-	records := h.svc.GetRecordingRecords(recordingID)
+	records, err := h.svc.GetRecordingRecords(ctx, tenantID, recordingID)
+	if err != nil {
+		if dt_service.IsNotFound(err) {
+			middleware.RespondNotFound(c, "recording session not found")
+			return
+		}
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
 	middleware.RespondSuccess(c, records)
 }
 
@@ -339,8 +391,9 @@ func (h *Handler) StartReplay(c *gin.Context) {
 func (h *Handler) ListReplaySessions(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListReplaySessions")
 	defer span.End()
+	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	sessions, err := h.svc.ListReplaySessions(ctx, id)
+	sessions, err := h.svc.ListReplaySessions(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -351,8 +404,9 @@ func (h *Handler) ListReplaySessions(c *gin.Context) {
 func (h *Handler) GetReplayStatus(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReplayStatus")
 	defer span.End()
+	tenantID := c.GetString("tenant_id")
 	replayID := c.Param("replayId")
-	status, err := h.svc.GetReplayStatus(ctx, replayID)
+	status, err := h.svc.GetReplayStatus(ctx, tenantID, replayID)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "replay session not found")
@@ -384,8 +438,9 @@ func (h *Handler) CancelReplay(c *gin.Context) {
 func (h *Handler) GetReplayReport(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReplayReport")
 	defer span.End()
+	tenantID := c.GetString("tenant_id")
 	replayID := c.Param("replayId")
-	report, err := h.svc.GetReplayReport(ctx, replayID)
+	report, err := h.svc.GetReplayReport(ctx, tenantID, replayID)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "replay session not found")

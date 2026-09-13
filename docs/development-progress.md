@@ -6921,3 +6921,132 @@ handler 不该 import 具体包），`CreateModuleRow`/`UpdateModuleRow` 的 `in
   只推送适配器、`InstantiateTemplate` 丢弃 `Parameters`/`Environment`、
   `ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换不存在、SMTP/SMS 凭证待运维、
   134 个 `handler_test.go` 冲突标记（并行 agent 工作树，故意不碰，本轮测试一律走 overlay）。
+
+---
+
+## 第二十轮：digital-twin 桩清理 + 跨租户写修复 + 变异验证（2026-08-26）
+
+扫描目标：`internal/digital-twin`（models / service / repository / handler 四层）。
+该模块 54 条路由全部经 `auth.RequirePermission` 守卫并已挂载（`cmd/server/cicd_domain_wiring.go:206`、
+`cmd/server/router.go:122`、`cmd/server/route_dump_test.go:394`），因此其中每个空响应都是**活桩**，
+不是死代码，必须实现而不是删除。
+
+### 20.1 发现的问题
+
+| # | 位置 | 性质 |
+|---|------|------|
+| 1 | `service.CreateSandbox` 建 sandbox 时不记 tenant、`ListSandboxes` 全表返回 | 跨租户数据泄漏：任何租户能看到并停掉别人的 sandbox |
+| 2 | `service.StopSandbox` / `DestroySandbox` / `SandboxHealth` 对不存在或他人 id 一律返回 nil 沙箱 + 200 | 3 个常量响应桩，且构成 id 枚举面 |
+| 3 | `repository.UpdateReplaySession` 只按 `s.id` 做 UPDATE | **跨租户写**：猜 id 即可取消别的租户的 replay |
+| 4 | `service` 中 5 个方法对 repo 调用硬编码 `tenantID = ""`（`ListRecordingSessions` / `ListReplaySessions` / `GetReplayStatus` / `GetReplayReport` / `CancelReplay`） | 4 条路由永久返回空/报错，租户过滤条件等于 `tenant_id=''` |
+| 5 | `repository.GetRecordingRecordsBySessionID` 查询无 tenant 谓词，且把 `sql.ErrNoRows` 原样上抛 | 跨租户读取 + 缺失资源答 500 |
+| 6 | `repository.FindTwinByID` / `FindReplaySessionById` 把 `sql.ErrNoRows` 原样上抛 | **新发现**：`GetTwinState`/`CreateSnapshot`/`RecordTraffic`/`StartRecording`/`StartReplay`/`ReplayTraffic`、`GetReplayStatus`/`GetReplayReport` 对缺失资源答 500 而非 404 |
+| 7 | `repository.recordingSessionRow` / `FindRecordingSessionByID` | 死代码（零调用者、零路由），删除 |
+
+第 1–2、5、7 项属"返回常量/空容器"型活桩；第 3、4、6 项是真缺陷（安全 + HTTP 语义），
+第 6 项是本轮新增 repository 测试**意外揪出**的——写桩测试时才发现 ErrNoRows 从未被映射。
+
+### 20.2 修复
+
+**模型层**（`models.go`）：`Sandbox` 补 `TenantID`，`RecordingSession` 补 `TenantID`
+（`json:"tenantId"`），使内存态与 DB 态的租户归属一致。
+
+**服务层**（`service.go`）：
+- `CreateSandbox` 写入 `ID` 与 `TenantID`；`ListSandboxes` 逐条 `if sb.TenantID != tenantID { continue }`。
+- 新增 `sandboxForTenant(tenantID, id)`：`!ok || sb.TenantID != tenantID` → `ErrNotFound`，
+  `StopSandbox` / `DestroySandbox` / `SandboxHealth` 三个方法共用，缺失与越权**同一错误**（不区分，避免 id 枚举）。
+- 新增 `recordingForTenant(tenantID, recordingID)`，`StartRecording` 写入 `TenantID`，
+  `StopRecording` / `PauseRecording` / `GetRecordingDetail` 共用。
+- `GetRecordingDetail` 先读内存态，缺失再回退 `repo.GetRecordingRecordsBySessionID`；
+  **repo 错误与 not-found 一律上抛**，不再折叠成空 detail；nil records 归一为 `[]any{}`。
+- 全部 5 个硬编码 `""` 改为透传 `tenantID`；`CancelReplay` 经 `UpdateReplaySession` 走租户作用域写。
+- `SandboxHealth` **不改写** sandbox 状态，只返回原对象——健康判定由 handler 从 status 推导。
+
+**仓储层**（`repository.go`，236 行）：
+- `UpdateReplaySession` 改为
+  `UPDATE ... SET s.status=$1, s.updated_at=NOW() WHERE s.id=$2 AND s.twin_id IN (SELECT t.id FROM digital_twins t WHERE t.tenant_id=$3)`，
+  并在 `RowsAffected() == 0` 时返回 `ErrNotFoundMsg("replay session not found")`
+  （原先零行也报成功）；写成功后 `FindReplaySessionById` 回读，保证返回的是**已更新**的行。
+- `GetRecordingRecordsBySessionID`：`SELECT records FROM recording_sessions WHERE id=$1 AND tenant_id=$2`；
+  `sql.ErrNoRows` → sentinel not-found；nil/空 JSON → 非 nil 空切片；`json.Unmarshal` 错误原样返回
+  （**不得**被误报为 not-found）。
+- `FindTwinByID` / `FindReplaySessionById` 补 `errors.Is(err, sql.ErrNoRows)` → `ErrNotFoundMsg(...)`。
+- 删除死代码 `recordingSessionRow` / `FindRecordingSessionByID`。
+- 保留既有 JOIN 作用域（`FindTrafficRecordsByTwinID`、`FindReplaySessionsByTwinID`）并新增测试钉住其参数顺序。
+- `repository_interface.go` 头注 "DO NOT MODIFY: auto-generated" 且其方法集未含新方法，**故意不动**。
+
+**处理器层**（`handler.go`，467 行）：13 处改动。所有 sandbox/recording/replay handler 统一
+`tenantID := c.GetString("tenant_id")`，经 `otel.Tracer("orion-platform-svc").Start(c.Request.Context(), …)`
+取 ctx，并把 `dt_service.IsNotFound(err)` 映射为 `middleware.RespondNotFound`（envelope `code: NOT_FOUND`）。
+
+### 20.3 测试
+
+三个测试文件，共 **111 条** `=== RUN`（service 51 / repository 19 / handler 41）：
+
+- `service/service_test.go`（1094 行）：mock 全面租户感知——`recordTenant` / `replayTenant` /
+  `recordingRecords` / `recordingTenant`，读方法拒绝越权租户。**关键顺序**：mock 的委托方法
+  必须**先**转发 `tenantID` 再补租户断言，否则租户断言空转通过。
+  新增 `TestStopSandbox_OtherTenantSandboxIsNotFound`（并断言他人 sandbox 仍是 `"running"`）、
+  `TestStopRecording_OtherTenantRecordingCannotBeStopped`、`TestCancelReplay_OtherTenantSessionCannotBeCancelled`、
+  `TestGetReplayReport_OtherTenantReportIsNotFound`、`TestGetRecordingDetail_FallsBackToRepository` /
+  `_RepositoryErrorIsPropagated` 等。
+- `handler/handler_test.go`：mock 六个委托字段改为带 tenant 签名；`performRequest` 委托给
+  `performRequestAs("tenant-1", …)`；新增 `decodeEnvelope` / `decodeErrorEnvelope(t, w, wantCode)` /
+  `newSandbox` 助手。所有 200 路径重新播种（不再空转），跨租户路径断言 404 + `NOT_FOUND`。
+- `repository/repository_test.go`（**新建** 448 行）：仿 `internal/startup` 模式，
+  `exactMatcher` 在归一化空白后做**精确字符串**比较，因此删掉任何 tenant 谓词都会直接失败。
+  钉住：租户谓词、**参数顺序**（`WithArgs("cancelled","tenant-1","rp-1")` 错误顺序必须被拒）、
+  `RowsAffected` 检查、sentinel 映射、"DB 错误不得伪装成 not-found"。
+
+### 20.4 变异验证（9 个变异体，全部编译通过且全部被杀死）
+
+| ID | 变异 | 杀死的测试 |
+|----|------|-----------|
+| M1 | UPDATE 的 `AND s.twin_id IN (...tenant_id=$3)` → `AND 1=1` | `TestUpdateReplaySession_TenantScopedWriteAndReadBack`、`_ZeroRowsIsNotFound` |
+| M2 | `if affected == 0` → `if affected == -1` | `TestUpdateReplaySession_ZeroRowsIsNotFound` |
+| M3 | 录制查询删 `AND tenant_id=$2` | `TestGetRecordingRecordsBySessionID_TenantScopedAndParsed`、`_NoRowsIsNotFound` |
+| M4 | 删除 `FindTwinByID` 的 ErrNoRows 映射块 | `TestFindTwinByID_NoRowsIsNotFound` |
+| M5 | `if !ok \|\| sb.TenantID != tenantID` → `if !ok` | `TestStopSandbox_OtherTenantSandboxIsNotFound` |
+| M6 | `if !ok \|\| session.TenantID != tenantID` → `if !ok` | `TestStopRecording_OtherTenantRecordingCannotBeStopped` |
+| M7 | handler `StopSandbox` 的 `c.GetString("tenant_id")` → `""` | `TestHandler_StopSandbox_Success`（收到 404） |
+| M8 | `"healthy": sb.Status == "running"` → `"healthy": true` | `TestHandler_SandboxHealth_NotHealthyAfterStop` |
+| M9 | `UpdateReplaySession` 实参 `status, id, tenantID` → `status, tenantID, id` | `TestUpdateReplaySession_TenantCannotBeSwappedWithID` |
+
+两次踩坑记录（均为**假通过**，已替换）：
+1. M2 最初用 `if false {` → `affected` 变成未使用变量，**编译失败**，`rc=1 kills=0` 是无效结果；
+   改为 `if affected == -1`（保留变量使用、语义等价于恒假）后才成立。
+2. M3 最初的锚点 `AND tenant_id=$2\`, id, tenantID)` 同时匹配 `FindTwinByID`，
+   而 `-run` 只筛录制用例，于是变异体安然通过 → 锚点改为含 `recording_sessions` 的整行。
+
+**诚实说明（不声称的部分）**：handler 里
+`gin.H{"stopped": sb.Status == "stopped"}` 与 `gin.H{"destroyed": sb.Status == "destroyed"}`
+**未做变异证明**。服务层保证返回的 status 就是 `stopped` / `destroyed`，因此把比较式改成
+`true` 在 handler 层测试中无法区分——这正是第十九轮那种"看似测了值其实构造不出反例"的陷阱。
+M8 能成立是因为 `TestHandler_SandboxHealth_NotHealthyAfterStop` 先 stop 再查，确实构造出了非 running 状态。
+
+### 20.5 验证
+
+- `gofmt -l internal/digital-twin/` → 空输出（rc=0）
+- `go test -count=1 ./internal/digital-twin/...` → **rc=0**（handler / repository / service 全部 ok；
+  该模块测试文件无冲突标记，**不需要 overlay**）
+- `go build -overlay /tmp/orion_overlay.json ./...` → **rc=0**
+- `go test -overlay /tmp/orion_overlay.json ./cmd/server/ -run TestStartupRoutesAreMounted` → **rc=0 PASS**
+- 9 个变异体执行后已逐一从 `/tmp/mut/` 还原，`cmp` 三个文件均 clean
+
+### 20.6 仍未解决（本轮新增记录）
+
+- **schema 漂移（阻塞项，需迁移）**：`migrations/035_create_digital_twin_tables.sql` 建的是
+  `digital_twins` / `snapshots` / `traffic_records` / `recording_sessions` / `replay_sessions`
+  （`recording_sessions` 有 `records JSONB` 和 `tenant_id`，但**无 `updated_at`**）；
+  `migrations/123_create_digital-twin-simulation_tables.sql` 又建了一个 `digital_twins`（tenant 为 VARCHAR）+ `simulations`。
+  而 `repository.go` 实际引用的 `digital_twin_snapshots`、`digital_twin_traffic_records`、
+  `digital_twin_replay_sessions` **在任何迁移里都不存在**。本轮不改 schema。
+- 因此 `CreateReplaySession` / `CreateTrafficRecord` / `CreateSnapshot` 的 INSERT **不带 tenant 列**
+  （这些表没有 tenant 列）；它们的租户归属目前靠**读侧 JOIN `digital_twins`** 保证。
+  要做写侧租户隔离必须先加迁移。
+- `TwinState` 的 `Replicas`/`CPUUsage`/`MemoryUsage`/`NetworkIO` 仍是硬编码零值
+  （`service.GetTwinState` 注释已声明"尚未接指标后端"）——诚实的空，非桩。
+- 第十九轮遗留不变：`ListModulesByStatus` nil 切片一致性欠账、条件式安全门谎报、
+  裸 ping 桩数字未核实、alert-adapter 接口强制 `Receive`、`InstantiateTemplate` 丢弃参数、
+  `ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换、SMTP/SMS 凭证、
+  134 个 `handler_test.go` 冲突标记（并行 agent 工作树，仍不碰）。
