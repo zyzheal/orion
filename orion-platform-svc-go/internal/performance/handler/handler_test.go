@@ -55,8 +55,8 @@ func (f *fakePerformanceService) GetSuggestions(ctx context.Context, tenantID st
 	return []models.Suggestion{}, nil
 }
 
-func (f *fakePerformanceService) GetTestResults(ctx context.Context, tenantID string, serviceName string) ([]models.Baseline, error) {
-	return []models.Baseline{}, nil
+func (f *fakePerformanceService) GetTestResults(ctx context.Context, tenantID string, serviceName string) ([]models.TestResult, error) {
+	return []models.TestResult{}, nil
 }
 
 func (f *fakePerformanceService) ListBaselines(ctx context.Context, tenantID string) ([]models.Baseline, error) {
@@ -67,8 +67,8 @@ func (f *fakePerformanceService) ProfileService(ctx context.Context, tenantID st
 	return &models.Profile{}, nil
 }
 
-func (f *fakePerformanceService) RecordTestResult(ctx context.Context, tenantID string, req *models.TestResultRequest) error {
-	return nil
+func (f *fakePerformanceService) RecordTestResult(ctx context.Context, tenantID string, req *models.TestResultRequest) (*models.TestResult, error) {
+	return &models.TestResult{}, nil
 }
 
 var _ service.ServiceInterface = (*fakePerformanceService)(nil)
