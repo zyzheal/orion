@@ -165,7 +165,7 @@ func wireCICDModules(db *database.DB) {
 
 	// build-env services
 	build_envRepo := build_env_repo.NewRepository(db.DB)
-	build_envSvc := build_env_service.NewService(build_envRepo, db.DB.DB)
+	build_envSvc := build_env_service.NewService(build_envRepo)
 	build_envH = build_env_handler.NewHandler(build_envSvc)
 
 	// Build service

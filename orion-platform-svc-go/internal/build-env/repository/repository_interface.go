@@ -19,17 +19,16 @@ type RepositoryInterface interface {
 	UpdateBuildImage(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 	DeleteBuildImage(ctx context.Context, tenantID, id string) error
 	CreateCacheConfig(ctx context.Context, tenantID string, name string, level string, status string, cacheDir string, ttlHours int) (*models.BuildCacheConfig, error)
-	GetCacheConfig(ctx context.Context, tenantID string, id int) (*models.BuildCacheConfig, error)
+	GetCacheConfig(ctx context.Context, tenantID string, id string) (*models.BuildCacheConfig, error)
 	ListCacheConfigs(ctx context.Context, tenantID, level, status string, limit, offset int) ([]models.BuildCacheConfig, error)
-	UpdateCacheConfig(ctx context.Context, tenantID string, id int, updates map[string]interface{}) (*models.BuildCacheConfig, error)
-	DeleteCacheConfig(ctx context.Context, tenantID string, id int) error
-	CreateBuildLog(ctx context.Context, tenantID, buildID, logData string) error
-	GetBuildLog(ctx context.Context, tenantID string, id int) (*models.BuildLog, error)
+	UpdateCacheConfig(ctx context.Context, tenantID string, id string, updates map[string]interface{}) (*models.BuildCacheConfig, error)
+	DeleteCacheConfig(ctx context.Context, tenantID string, id string) error
+	GetBuildLog(ctx context.Context, tenantID string, id string) (*models.BuildLog, error)
 	ListBuildLogs(ctx context.Context, tenantID string, limit, offset int) ([]models.BuildLog, error)
 	GetCacheDashboard(ctx context.Context, tenantID string) (*models.CacheDashboard, error)
 	GetCacheMetrics(ctx context.Context, tenantID string, cacheID string) (*models.CacheMetrics, error)
 	AssessCacheHealth(ctx context.Context, tenantID string, cacheID string) (*models.CacheHealth, error)
-	RecordCacheEvent(ctx context.Context, tenantID, cacheID, eventType string, latencySavedMs *float64) error
+	RecordCacheEvent(ctx context.Context, tenantID, cacheID, eventType string, pipelineID, buildID *string, latencySavedMs *float64) error
 	AnalyzePerformanceImpact(ctx context.Context, tenantID, pipelineID string) (*models.CachePerformanceImpact, error)
 }
 

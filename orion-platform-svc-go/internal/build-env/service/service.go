@@ -5,18 +5,16 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
-	"strconv"
-	"strings"
-	"time"
 
 	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/build-env/models"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
+// Every method takes tenantID; the service never derives it, so a test with a
+// recording fake can assert the caller's tenant reaches each statement.
 type RepositoryInterface interface {
 	AnalyzePerformanceImpact(ctx context.Context, tenantID, pipelineID string) (*models.CachePerformanceImpact, error)
 	AssessCacheHealth(ctx context.Context, tenantID string, cacheID string) (*models.CacheHealth, error)
@@ -25,30 +23,29 @@ type RepositoryInterface interface {
 	CreateCacheConfig(ctx context.Context, tenantID string, name string, level string, status string, cacheDir string, ttlHours int) (*models.BuildCacheConfig, error)
 	DeleteBuild(ctx context.Context, tenantID, id string) error
 	DeleteBuildImage(ctx context.Context, tenantID, id string) error
-	DeleteCacheConfig(ctx context.Context, tenantID string, id int) error
+	DeleteCacheConfig(ctx context.Context, tenantID string, id string) error
 	GetBuild(ctx context.Context, tenantID, id string) (*models.Build, error)
 	GetBuildImage(ctx context.Context, tenantID, id string) (*models.BuildImage, error)
-	GetBuildLog(ctx context.Context, tenantID string, id int) (*models.BuildLog, error)
-	GetCacheConfig(ctx context.Context, tenantID string, id int) (*models.BuildCacheConfig, error)
+	GetBuildLog(ctx context.Context, tenantID string, id string) (*models.BuildLog, error)
+	GetCacheConfig(ctx context.Context, tenantID string, id string) (*models.BuildCacheConfig, error)
 	GetCacheDashboard(ctx context.Context, tenantID string) (*models.CacheDashboard, error)
 	GetCacheMetrics(ctx context.Context, tenantID string, cacheID string) (*models.CacheMetrics, error)
 	ListBuildImages(ctx context.Context, tenantID string, limit, offset int) ([]models.BuildImage, error)
 	ListBuildLogs(ctx context.Context, tenantID string, limit, offset int) ([]models.BuildLog, error)
 	ListBuilds(ctx context.Context, tenantID string, limit, offset int) ([]models.Build, error)
 	ListCacheConfigs(ctx context.Context, tenantID, level, status string, limit, offset int) ([]models.BuildCacheConfig, error)
-	RecordCacheEvent(ctx context.Context, tenantID, cacheID, eventType string, latencySavedMs *float64) error
+	RecordCacheEvent(ctx context.Context, tenantID, cacheID, eventType string, pipelineID, buildID *string, latencySavedMs *float64) error
 	UpdateBuild(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 	UpdateBuildImage(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
-	UpdateCacheConfig(ctx context.Context, tenantID string, id int, updates map[string]interface{}) (*models.BuildCacheConfig, error)
+	UpdateCacheConfig(ctx context.Context, tenantID string, id string, updates map[string]interface{}) (*models.BuildCacheConfig, error)
 }
 
 type Service struct {
 	repo RepositoryInterface
-	db   *sql.DB
 }
 
-func NewService(repo RepositoryInterface, db *sql.DB) *Service {
-	return &Service{repo: repo, db: db}
+func NewService(repo RepositoryInterface) *Service {
+	return &Service{repo: repo}
 }
 
 // --- Build CRUD ---
@@ -78,7 +75,11 @@ func (s *Service) ListBuilds(ctx context.Context, tenantID string, limit, offset
 	return s.repo.ListBuilds(ctx, tenantID, limit, offset)
 }
 
-func (s *Service) UpdateBuild(ctx context.Context, tenantID, id string, req models.UpdateBuildRequest) (*models.Build, error) {
+// updateBuildFields collects the fields a caller actually set. An empty result
+// is sentinel.BadRequest rather than an update that changes nothing: the old
+// repository ran SET updated_at = NOW() on an unmodified row and reported
+// success, so PUT /build-env/builds/:id with an empty body looked like a write.
+func updateBuildFields(req models.UpdateBuildRequest) map[string]interface{} {
 	updates := make(map[string]interface{})
 	if req.Name != nil {
 		updates["name"] = *req.Name
@@ -91,6 +92,14 @@ func (s *Service) UpdateBuild(ctx context.Context, tenantID, id string, req mode
 	}
 	if req.ProductLineID != nil {
 		updates["product_line_id"] = *req.ProductLineID
+	}
+	return updates
+}
+
+func (s *Service) UpdateBuild(ctx context.Context, tenantID, id string, req models.UpdateBuildRequest) (*models.Build, error) {
+	updates := updateBuildFields(req)
+	if len(updates) == 0 {
+		return nil, fmt.Errorf("update build: %w", sentinel.BadRequest)
 	}
 	if err := s.repo.UpdateBuild(ctx, tenantID, id, updates); err != nil {
 		return nil, err
@@ -126,7 +135,7 @@ func (s *Service) ListBuildImages(ctx context.Context, tenantID string, limit, o
 	return s.repo.ListBuildImages(ctx, tenantID, limit, offset)
 }
 
-func (s *Service) UpdateBuildImage(ctx context.Context, tenantID, id string, req models.UpdateBuildImageRequest) (*models.BuildImage, error) {
+func updateImageFields(req models.UpdateBuildImageRequest) map[string]interface{} {
 	updates := make(map[string]interface{})
 	if req.Name != nil {
 		updates["name"] = *req.Name
@@ -140,6 +149,14 @@ func (s *Service) UpdateBuildImage(ctx context.Context, tenantID, id string, req
 	if req.Dockerfile != nil {
 		updates["dockerfile"] = *req.Dockerfile
 	}
+	return updates
+}
+
+func (s *Service) UpdateBuildImage(ctx context.Context, tenantID, id string, req models.UpdateBuildImageRequest) (*models.BuildImage, error) {
+	updates := updateImageFields(req)
+	if len(updates) == 0 {
+		return nil, fmt.Errorf("update build image: %w", sentinel.BadRequest)
+	}
 	if err := s.repo.UpdateBuildImage(ctx, tenantID, id, updates); err != nil {
 		return nil, err
 	}
@@ -151,6 +168,12 @@ func (s *Service) DeleteBuildImage(ctx context.Context, tenantID, id string) err
 }
 
 // --- Build Cache Config CRUD ---
+//
+// The config and log ids in the path are UUIDs, so they pass through as strings.
+// They used to be strconv.Atoi'd first, which rejected every real UUID-shaped
+// id with "invalid config id" and turned GET / PUT / DELETE
+// /build-env/build-cache/:id and GET /build-logs/:id into endpoints that could
+// only ever answer 400.
 
 func (s *Service) CreateCacheConfig(ctx context.Context, tenantID string, req models.CreateBuildCacheConfigRequest) (*models.BuildCacheConfig, error) {
 	status := req.Status
@@ -161,22 +184,14 @@ func (s *Service) CreateCacheConfig(ctx context.Context, tenantID string, req mo
 }
 
 func (s *Service) GetCacheConfig(ctx context.Context, tenantID string, id string) (*models.BuildCacheConfig, error) {
-	parsed, err := strconv.Atoi(id)
-	if err != nil {
-		return nil, ErrInvalidConfigID
-	}
-	return s.repo.GetCacheConfig(ctx, tenantID, parsed)
+	return s.repo.GetCacheConfig(ctx, tenantID, id)
 }
 
 func (s *Service) ListCacheConfigs(ctx context.Context, tenantID string, level, status string, limit, offset int) ([]models.BuildCacheConfig, error) {
 	return s.repo.ListCacheConfigs(ctx, tenantID, level, status, limit, offset)
 }
 
-func (s *Service) UpdateCacheConfig(ctx context.Context, tenantID string, id string, req models.UpdateBuildCacheConfigRequest) (*models.BuildCacheConfig, error) {
-	parsed, err := strconv.Atoi(id)
-	if err != nil {
-		return nil, ErrInvalidConfigID
-	}
+func updateConfigFields(req models.UpdateBuildCacheConfigRequest) map[string]interface{} {
 	updates := make(map[string]interface{})
 	if req.Name != nil {
 		updates["name"] = *req.Name
@@ -193,15 +208,19 @@ func (s *Service) UpdateCacheConfig(ctx context.Context, tenantID string, id str
 	if req.TTLHours != nil {
 		updates["ttl_hours"] = *req.TTLHours
 	}
-	return s.repo.UpdateCacheConfig(ctx, tenantID, parsed, updates)
+	return updates
+}
+
+func (s *Service) UpdateCacheConfig(ctx context.Context, tenantID string, id string, req models.UpdateBuildCacheConfigRequest) (*models.BuildCacheConfig, error) {
+	updates := updateConfigFields(req)
+	if len(updates) == 0 {
+		return nil, fmt.Errorf("update cache config: %w", sentinel.BadRequest)
+	}
+	return s.repo.UpdateCacheConfig(ctx, tenantID, id, updates)
 }
 
 func (s *Service) DeleteCacheConfig(ctx context.Context, tenantID string, id string) error {
-	parsed, err := strconv.Atoi(id)
-	if err != nil {
-		return ErrInvalidConfigID
-	}
-	return s.repo.DeleteCacheConfig(ctx, tenantID, parsed)
+	return s.repo.DeleteCacheConfig(ctx, tenantID, id)
 }
 
 // --- Build Log ---
@@ -211,11 +230,7 @@ func (s *Service) ListBuildLogs(ctx context.Context, tenantID string, limit, off
 }
 
 func (s *Service) GetBuildLog(ctx context.Context, tenantID string, id string) (*models.BuildLog, error) {
-	parsed, err := strconv.Atoi(id)
-	if err != nil {
-		return nil, ErrInvalidLogID
-	}
-	return s.repo.GetBuildLog(ctx, tenantID, parsed)
+	return s.repo.GetBuildLog(ctx, tenantID, id)
 }
 
 // --- Cache Monitor ---
@@ -232,8 +247,15 @@ func (s *Service) AssessCacheHealth(ctx context.Context, tenantID string, cacheI
 	return s.repo.AssessCacheHealth(ctx, tenantID, cacheID)
 }
 
+// RecordCacheEvent records one cache probe. The event type is validated here as
+// well as by the table's CHECK constraint: cache_events only understands hit,
+// miss and evict, and every aggregate counts just those three, so an unknown
+// type would insert and then be invisible to the metrics — a silent no-op write.
 func (s *Service) RecordCacheEvent(ctx context.Context, tenantID string, req models.RecordCacheEventRequest) error {
-	return s.repo.RecordCacheEvent(ctx, tenantID, req.CacheID, req.EventType, req.LatencySavedMs)
+	if !models.ValidEventType(req.EventType) {
+		return fmt.Errorf("invalid event type %q: %w", req.EventType, sentinel.BadRequest)
+	}
+	return s.repo.RecordCacheEvent(ctx, tenantID, req.CacheID, req.EventType, req.PipelineID, req.BuildID, req.LatencySavedMs)
 }
 
 func (s *Service) AnalyzePerformanceImpact(ctx context.Context, tenantID, pipelineID string) (*models.CachePerformanceImpact, error) {
@@ -242,37 +264,9 @@ func (s *Service) AnalyzePerformanceImpact(ctx context.Context, tenantID, pipeli
 
 // --- Errors ---
 
-var (
-	ErrInvalidConfigID    = errors.New("invalid config id")
-	ErrInvalidLogID       = errors.New("invalid log id")
-	ErrConflict           = errors.New("conflict")
-	ErrServiceUnavailable = errors.New("service unavailable")
-)
-
+// IsNotFound reports whether err is a not-found from the repository. The
+// repository wraps sql.ErrNoRows in sentinel.NotFound, so the handlers' 404
+// branches are live rather than dead.
 func IsNotFound(err error) bool {
 	return errors.Is(err, sentinel.NotFound)
-}
-
-func IsInvalidID(err error) bool {
-	return errors.Is(err, ErrInvalidConfigID) || errors.Is(err, ErrInvalidLogID)
-}
-
-func parseID(id string) (int, error) {
-	val, err := strconv.Atoi(id)
-	if err != nil {
-		return 0, ErrInvalidConfigID
-	}
-	return val, nil
-}
-
-// Ensure time and strings are used to avoid unused import warnings.
-var _ = time.Now()
-var _ = strings.Join([]string{}, "")
-
-// Sentinel for DB errors.
-func WrapDBError(err error) error {
-	if err != nil && strings.Contains(err.Error(), "no such table") {
-		return fmt.Errorf("table not yet created: %w", err)
-	}
-	return err
 }
