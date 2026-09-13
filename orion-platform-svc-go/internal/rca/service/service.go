@@ -19,7 +19,15 @@ type RCAService struct {
 	logger *zap.Logger
 }
 
+// NewRCAService builds the RCA service. A nil logger is replaced with a no-op
+// logger rather than stored: Analyze logs on every call, so a nil logger
+// dereferences inside zap and panics the first time an analysis runs. The rest
+// of the platform follows the same guard, so a caller that omits the logger does
+// not take the process down with it.
 func NewRCAService(repo repository.Repository, logger *zap.Logger) *RCAService {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
 	return &RCAService{repo: repo, logger: logger}
 }
 

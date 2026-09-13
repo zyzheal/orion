@@ -122,6 +122,19 @@ func analyzeReq(include, exclude []string) *models.AnalyzeRequest {
 	}
 }
 
+func TestNewServiceSurvivesANilLogger(t *testing.T) {
+	// Analyze logs unconditionally, so a stored nil logger dereferences inside
+	// zap and panics the first time an analysis runs. The constructor substitutes
+	// a no-op logger, which is the convention the rest of the platform follows.
+	svc := NewRCAService(&fakeRepo{}, nil)
+	if svc.logger == nil {
+		t.Fatal("NewRCAService stored a nil logger")
+	}
+	if _, err := svc.Analyze(context.Background(), tenantA, analyzeReq(nil, nil), "u"); err != nil {
+		t.Fatalf("Analyze() with a substituted logger: %v", err)
+	}
+}
+
 func TestAnalyzePassesCallerTenantAndActingUser(t *testing.T) {
 	repo := &fakeRepo{}
 	svc := newSvc(repo)

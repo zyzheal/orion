@@ -18,10 +18,14 @@ import (
 // c.Set("tenant_id", …)). Nothing in the platform copies them into camelCase.
 //
 // This handler used to read "tenantId" and "userId". c.GetString on a missing key
-// returns "", and uuid.Parse("") yields the zero UUID with no error, so every
-// request silently ran as tenant 00000000-0000-0000-0000-000000000000. All tenants
-// then shared one rca_analyses bucket, so any caller holding monitor:read could read
-// every other tenant's RCA history, and triggered_by was hardcoded to "manual".
+// returns "", the old code discarded the error uuid.Parse returns for that and
+// used the zero value, so every request silently ran as tenant
+// 00000000-0000-0000-0000-000000000000. All tenants then shared one rca_analyses
+// bucket, so any caller holding monitor:read could read every other tenant's RCA
+// history, and triggered_by was hardcoded to "manual".
+//
+// uuid.Parse("") does return an error ("invalid UUID length: 0"); the bug was the
+// dropped error, not a permissive parser.
 const (
 	tenantKey = "tenant_id"
 	userKey   = "user_id"

@@ -7299,3 +7299,196 @@ handler 层用 `gin.New()` **不加 recovery middleware**，所以任何 handler
 `InstantiateTemplate` 丢弃 `Parameters`/`Environment`、`ticketing/testutil/mocks.go` 兜底 `nil,nil`、
 JWT 密钥轮换、SMTP/SMS 凭证、134 个 `handler_test.go` 冲突标记（并行 agent 工作树，仍不碰；
 本轮 `internal/roweditor/` 下冲突标记为 **0**，所以该模块测试不需要 overlay）。
+
+---
+
+## 第二十三轮：rca 6 处未完成全部修复 + 48 条测试 + 12/12 变异证明（2026-08-26）
+
+### 23.1 为什么选它
+
+「**未使用参数是最高信号的桩标记**」是贯穿多轮的选择依据，`internal/rca` 正中：
+`UpdateAnalysis` 收 `tenantID`、`GetFixSuggestionsByRootCauseID` 收 `tenantID`，两处都从不使用。
+同时它满足「活桩」的全部条件——5 条路由全部经 `auth.RequirePermission("monitor", read|execute)`
+守卫且**已挂载**（`cmd/server/wiring-rca.go` 建 handler → `router.go` 共享注册列表 →
+`route_dump_test.go:739` / `route_conflict_scan_test.go:698` 两处在册断言），所以空响应不能靠删路由
+规避；而模块此前**零测试文件**，repository 又依赖 sqlx 的列名推导，两条都注定在运行时才炸。
+
+### 23.2 六处 Finding
+
+**F1 跨租户泄漏（handler，最危险）** — handler 读 `c.GetString("tenantId")` / `"userId"`，
+而 `orion-go-common/pkg/auth/middleware.go` 写的是 `c.Set("tenant_id", …)` / `c.Set("user_id", …)`。
+`GetString` 对缺失 key 返回 `""`，旧代码**丢弃了 `uuid.Parse` 的错误**并采用返回的零值 →
+每个请求都静默以租户 `00000000-0000-0000-0000-000000000000` 运行，**所有租户共用一个
+`rca_analyses` 桶**，任何持 `monitor:read` 的调用方能读全部租户的 RCA 历史；
+`triggered_by` 因为同一个缺失 key 恒为硬编码 `"manual"`，审计字段全程说谎。
+
+修法：`tenantKey`/`userKey` 常量（包注释记录机理）+ `tenantID(c) (uuid.UUID, bool)`
+**fail-closed**——缺失或解析失败返回 `false`，handler 统一答 401，绝不回退零 UUID；
+acting user 从 `user_id` 取，仅在确实缺失时才回退 `"manual"`。
+
+**F2 sqlx 列名推导（2 条 GET 路由每请求 500）** — `GetAnalysis` / `QueryAnalysisHistory`
+把结果直接扫进 `models.RCAAnalysis`。sqlx 按**字段名小写**匹配列名，不认 snake_case：
+`tenant_id` ≠ `TenantID`（`tenantid`）、`started_at` ≠ `StartedAt`，而 `root_causes`
+是 `[]models.RootCause`，**根本不是 `sql.Scanner`**。任一列缺 destination 即整条查询报错。
+
+修法：新增 `analysisRow` 中间扫描目标（显式 `db:"snake_case"` tags + `sql.NullString` 接
+`root_causes`、`sql.NullTime` 接可空 `completed_at`）+ `analysis()` 转换 +
+`decodeRootCauses`（**损坏 JSON 报错**而非静默给空切片）。
+
+**F3 死 category table（每次分析都答 unknown）** — `performAnalysis` 用
+`strings.Contains(req.IncidentID, keyword)` 匹配。`IncidentID` 是**标识符**（UUID 形状），
+不是内容 → 任何关键词都永不命中，整个 category table 是死代码，**无论输入如何每次都返回
+category `"unknown"` + confidence `0.05`**；无信号时也不诚实地返回空，而是照造一条根因。
+
+修法：`selectedCategories(include, exclude)`（空 include = 全量 5 类；类别名或关键词命中即纳入；
+**exclude 永远胜出**；`sort.Strings` 保证确定性——旧实现直接迭代 map，同一次分析的优先级顺序
+每次运行都不同）+ `normalizeSet`（lowercase/trim）+ 置信度
+`min(len(categories)/len(categoryTable), 0.95)`（点名 1 类的信号强于点名全部 5 类）+
+evidence 用 `Format(time.RFC3339)`（旧的 `%s` 输出 `time.Time.String()` 格式，人读不了）。
+
+**F4 analysis id 误传 incident 谓词（两条路由永久空）** — `GetTimeline` 把路径参数
+（**analysis id**）传给 `rca_timeline_events` 的 `incident_id` 谓词；`SuggestFixes` 传给
+`rca_root_causes.id` 谓词。两者结构上不可能匹配任何行，路由永远返回空数组。
+
+修法：两者都先经**租户作用域** `GetAnalysis` 加载分析——`GetTimeline` 用解析出的
+`analysis.IncidentID` 查 timeline（**他人的 analysis id → not-found，而非跨租户读**）；
+`SuggestFixes` 从 analysis 自身的 `RootCauses[].Fixes` 聚合、回填 `RootCauseID`、
+按 Priority `sort.SliceStable`。
+
+**F5 UPDATE 只按 id 键控 + 2 条死路径删除** — `UpdateAnalysis` 的 `WHERE id=$5` 没有租户谓词，
+猜 id 即可覆盖别的租户的分析。另两条：`CreateTimelineEvent` INSERT 一个**不存在的
+`created_at` 列**；`GetFixSuggestionsByRootCauseID` 在一个**没有 tenant 列**的表上收 `tenantID`
+却从不使用。
+
+修法：UPDATE 补 `AND tenant_id=$6`；两条死路径**删除**（零调用者、零承载基础设施，
+按本轮准则删除而非留空实现）；`Repository` 接口收 `tenantID` 到每个方法，service 编程到接口
+而非具体类型，使记录型 fake 能证明租户真的到达每条语句。
+
+**F6 nil logger panic（测试阶段才发现）** — `NewRCAService` 原样存下 nil logger，而 `Analyze`
+无条件 `s.logger.Info(...)`。`zap.(*Logger).Info` 在 `logger.go:331` 的 `check` 里解引用 `l.core`，
+nil receiver 直接**进程级崩溃**。修法：`if logger == nil { logger = zap.NewNop() }`，与仓库内
+10+ 处构造函数（datasource、notification、dba/osc、alert-pipeline、disaster-recovery…）惯例一致。
+
+### 23.3 测试（48 条，全部新建）
+
+`repository` 11 / `service` 20 / `handler` 17，共 **48 条 `--- PASS`**。
+
+- **repository** 用 sqlmock，`QueryMatcherFunc` 先把 `\s+` 归一化为单空格再**精确字符串比较**，
+  因此删掉任何 tenant 谓词、交换任何参数都会 FAIL。`TestGetAnalysisIsTenantScopedAndMapsEveryColumn`
+  钉死 9 列全映射；`TestUpdateAnalysisIsTenantScoped` 字面量钉住 `AND tenant_id=$6`；
+  另有 NULL `root_causes` → 空切片、损坏 JSON 报错、`ErrNoRows` → not found、
+  history 分页/incident 过滤/空切片非 nil、timeline 租户作用域。
+- **service** 用记录型 `fakeRepo`（`repository.Repository` 接口），钉住租户到达每条语句、
+  `triggered_by` 来自调用方而非字面量、置信度 5 例表驱动（1 类→0.2、全 5 类→0.95、
+  exclude 胜出→0.6）、**200 次运行**的确定性排序、evidence 含 RFC3339 窗口、
+  跨租户 timeline 不触发任何查询、空分析返回空切片而非 nil。
+- **handler** 走**真实 `RegisterRoutes`** + 真实 HTTP 请求，一个中间件顶替 JWT 层写入
+  `tenant_id`/`user_id`/`roles`。
+
+两处工具链事实决定了 handler 测试的形状：
+
+1. **Go 1.25 的 `httptest.Server` 没有 `Handler` 字段**（handler 现在在 `s.Config.Handler`），
+   也没有 `ServeHTTP` 方法。因此改用 `gin.New()` + `e.ServeHTTP(rr, req)` **同步驱动**——
+   无端口分配、无 goroutine、无竞态，走的是同一路由器与同一中间件链。
+2. `gin.CreateTestContext` 在此模块缓存下第二个返回值是伪错误，`gin.Context.Init` 也不可用。
+   所以「只读中间件那个 key」这个断言改用一个**探针路由**：同时设 `tenantId`=tenantB 与
+   `tenant_id`=tenantA，报告 `tenantID()` 取到了谁。这是**正向判定**——把 key 改回
+   `c.GetString("tenantId")` 会因 `picked != tenantA` 而失败，不会空转通过。
+
+`fakeRepo.GetAnalysis` 做成**租户感知**（镜像仓库的 `WHERE id=$1 AND tenant_id=$2`），
+否则跨租户隔离在 handler 层根本无法构造用例。`TestFailedLookupIsNotFound` 单独钉住
+「仓库失败一律映射 404」这一**已知谎言**（DB 故障被隐藏成 not-found），改动者必然察觉。
+
+### 23.4 变异证明 12/12
+
+```
+M01 handler 读 "tenantId" 而非 "tenant_id"          → 4 fails
+M02 triggered_by 回退硬编码 "manual"                → 1 fail
+M03 Analyze 的租户守卫删除                           → 1 fail
+M04 UPDATE 删掉 AND tenant_id=$6                    → 2 fails
+M05 analysisRow 去掉 tenant_id 的 db tag            → 3 fails
+M06 history 删掉租户谓词                             → 3 fails
+M07 timeline 回退按 analysis id 查询                 → 4 fails
+M08 无信号时照造 unknown 根因                        → 2 fails
+M09 置信度回退硬编码 0.05                            → 2 fails
+M10 evidence 回退 time.Time.String()                → 1 fail
+M11 删掉 nil logger 守卫                             → 1 fail（panic）
+M12 exclude 不再胜出                                 → 3 fails
+RESULT kills=12 survived=0 invalid=0 anchor_errors=0
+```
+
+每个变异先断言锚点在目标文件中**恰好出现 1 次**（且确认锚点落在真正含该行的文件里），
+再确认变异体**能编译**，最后从备份按字节校验还原。
+
+**两处假失败已排除**（编译失败的变异不算 kill）：M03 最初写 `if false {`，使 `ok` 变成
+「declared and not used」；M07 最初只改最后 1 行，使 `analysis` 同样未使用。两者都改成
+保持可编译的语义等价变异（M03 用 `tenantID, _ :=`；M07 直接删除整个 `GetAnalysis` 前置查找）
+后才成立。还原后基线 `rc=0`。
+
+### 23.5 新增测试揪出的 3 个测试自身缺陷
+
+写 handler 测试本身就是有价值的：3 个断言在第一次跑的时候是**错的**，而它们错的方式恰好
+说明了「空转通过」的常见来源。
+
+1. `fakeRepo.CreateAnalysis` 没回显 `TriggeredBy`（真实仓库会）→ `triggered_by` 的断言
+   实际测的是 fake 而非 handler。补齐后断言才真正有语义。
+2. `analyzeBody` 的 JSON 括号错位，`include_patterns`/`exclude_patterns` **落进了
+   `time_range` 对象内部**，被 binding 静默丢弃——请求按「全量无过滤」执行且仍返回 200。
+   修好括号后补上真断言（命中 2 类、排除 1 类、置信度 0.4）。
+3. `mustStr(data["offset"])` 对 JSON 数字失败（`10` 是 `float64`）→ 改为直接断言
+   offset/limit/total 的实际数值 `10/5/2`，顺带证明了分页参数真的穿过了 envelope。
+
+### 23.6 一处事实纠正
+
+本轮早前记录（含上一版 §23 与 `ALL_TODOS.md`）称「`uuid.Parse("")` 返回零 UUID **且不报错**」。
+实测（`go run` 探针）：
+
+```
+Parse("")                -> id=00000000-0000-0000-0000-000000000000  err=invalid UUID length: 0
+Parse("not-a-uuid")      -> id=00000000-0000-0000-0000-000000000000  err=invalid UUID length: 10
+Parse("11111111-…-1111") -> id=11111111-1111-1111-1111-111111111111  err=<nil>
+```
+
+**会报错**。漏洞在于错误被丢弃，不在解析器宽松。`handler.go` 的包注释与 `handler_test.go`
+的注释已改正，不再引用错误机理。顺带说明：`tenantID(c)` 里那条 `raw == ""` 快速失败守卫
+在语义上其实是**冗余的**（`Parse("")` 已报错），保留它只是把「先判空再解析」的意图显式化；
+因此没有为它单列变异（删除后行为不变，任何测试都无法区分）。
+
+### 23.7 验证
+
+```
+gofmt -l internal/rca/                     → 空
+go vet ./internal/rca/...                  → 干净
+go build ./...                             → rc=0
+go test -count=1 ./internal/rca/...        → 3 包全 ok，48 条 --- PASS
+grep -rnE '^(<<<<<<<|=======|>>>>>>>)' internal/rca/ | wc -l → 0
+```
+
+### 23.8 只记录不修
+
+1. **`monitor:execute` 的授权缺口** — `pkg/auth/permission.go` 里 `monitor:read` 授予
+   admin / super_admin / platform_admin / tenant_admin / org_admin / sre / auditor，
+   而 `monitor:execute` 只授予 admin / super_admin / platform_admin / org_admin
+   ——**SRE 与 tenant_admin 今天无法发起 RCA 分析**。本轮**故意不动 `pkg/auth`**（本轮范围限定
+   `internal/rca`），handler 测试因此选用 `org_admin` 以同时解析两种守卫。
+2. `GetAnalysis` 失败一律映射 404：DB 故障被隐藏成 not-found。修复需要仓库层 sentinel，
+   让 service 能区分 `sql.ErrNoRows` 与驱动错误；已用 `TestFailedLookupIsNotFound` 钉住现状。
+3. `UpdateAnalysis` 忽略 `RowsAffected()` 的错误，零行匹配也报成功。
+4. `repository.RCARespository.logger` 存而不用（唯一一处；service 的 logger 有守卫且在用）。
+5. `rca_root_causes` 表无 tenant 列，根因挂在 analysis 上经 analysis id 解析，无独立租户隔离；
+   也没有任何代码读它，故仓库不暴露对应方法（`TestRootCauseResponseShapeIsStable` 钉住该形状）。
+6. `triggered_by` 在无任何 auth 上下文时回退 `"manual"`（合理默认，且 handler 有单独测试覆盖）。
+7. timeout/context 未接入 repository 的查询参数（沿用模块既有风格）。
+
+### 23.9 跨轮遗留（不变）
+
+`internal/security-compliance` 硬编码演示数据（`ListFindings` → `defaultFindings()`、
+`PassRate: 85.0`、`rulesCount = 50`、`CreateBaseline` 不落库、`ScanBaseline` 评测失败仍报
+`completed`）；裸 map 缺 `driver.Valuer` 的模式值得在其他模块机械重扫；
+`internal/startup` `ListModulesByStatus` nil 切片一致性欠账、条件式安全门谎报
+（`confirmation/service.go:269,359,367`、`branch-policy/service.go:199,204,517,585,684,1518,1521`）、
+`chaos-enhanced` `getTenantID` 注释与实现不符、裸 ping 桩数字未核实、alert-adapter 接口强制
+`Receive`、`InstantiateTemplate` 丢弃 `Parameters`/`Environment`、
+`ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换、SMTP/SMS 凭证、
+134 个 `handler_test.go` 冲突标记（并行 agent 工作树，仍不碰；本轮 `internal/rca/` 下
+冲突标记为 **0**，该模块测试不需要 overlay）。
