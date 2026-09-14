@@ -9363,3 +9363,230 @@ up 168 行 / down 34 行，创建 6 张表：`sla_profiles`、`sla_trackers`、`
 
 **扫描规模**：全仓 152 处 map 驱动的 SET 构造器 / 114 文件，其中 105 个按 ±40 行启发式判定为无白名单（`/tmp/r37/dyn_files.txt`）。本轮修了 3 个模块的 4 处。
 
+
+## 第三十八轮：internal/approval ＋ internal/worker-dispatcher ＋ internal/pipeline-executor 三模块「错误被静默丢弃」修复（审批统计 6 条真实 COUNT 全被 `_ =` 丢弃、worker 负载查询的错误无处可去逼出贯穿 5 处的签名改造、pipeline 存在性探针的错误被报成 "pipeline not found"）＋13 个测试＋9/9 变异证明（2026-09-14）
+
+- HEAD 起点 `855a74fbf`（R37 docs）。代码提交 **`236008a3e`**：5 个生产文件，63 增 / 26 删。测试提交 **`7950d9a54`**：5 个测试文件（3 新增 289 行 ＋ 2 追加 156 行），445 增 / 4 删。合计 10 文件，508 增 / 30 删。
+- 本轮不做新功能、不补迁移：**三个模块的表都存在**（approval_requests / worker_assignments / pipelines 均由既有迁移创建）。要修的是纯逻辑缺陷——真实的错误被丢掉，然后被读成结论。
+- 本轮的扫描是可执行的：`grep` 出全仓 13 处 `_ = r.db.GetContext(`，逐一定性。**13 处里 3 处挂在已注册路由上，10 处零调用方。**
+
+### 38.1 判据：活死由 wiring 决定，不由代码质量决定
+
+同一段丢弃写法，后果完全不同：
+
+| 判据 | 后果 | 本轮处置 |
+| --- | --- | --- |
+| 方法挂在已注册路由上，错误被丢 | 生产事故：客户端拿到一个看起来合法的错误答案 | 修（本轮 3 处） |
+| 方法零调用方，错误被丢 | 死代码：永远不会被执行 | 记录为删除候选，不动 |
+
+这一条把 R37 在 sla-engine 上确认的定性判据（「连通性检查 + 空/常量容器返回」就是缺陷）变成了一条能跑的命令：先 grep 出全部丢弃点，再用 wiring（是否有接口、是否有 handler、是否有调用方）分活死。分完之后**修哪几个不再需要主观挑选**——挂路由的 3 处全修，不挂路由的 10 处全记。
+
+### 38.2 缺陷 A：approval GetStatistics —— 失败方向是乐观误读
+
+`GET /approvals/statistics` 挂 `auth.RequirePermission("approval","read")`，是审批量看板。旧实现：
+
+```go
+func (r *Repository) GetStatistics(ctx context.Context, tenantID string) (models.ApprovalStatistics, error) {
+	var stats models.ApprovalStatistics
+	_ = r.db.GetContext(ctx, &stats.Total,     `SELECT COUNT(*) FROM approval_requests WHERE tenant_id=$1`, tenantID)
+	_ = r.db.GetContext(ctx, &stats.Pending,   `SELECT COUNT(*) ... AND status=$2`, tenantID, "pending")
+	_ = r.db.GetContext(ctx, &stats.Approved,  ...)
+	_ = r.db.GetContext(ctx, &stats.Rejected,  ...)
+	_ = r.db.GetContext(ctx, &stats.Withdrawn, ...)
+	_ = r.db.GetContext(ctx, &stats.Cancelled, ...)
+	return stats, nil
+}
+```
+
+6 条真实 COUNT，6 个 `_ =`，`err` 永远 nil，handler 照答 200。**数据库宕机时看板显示「0 个审批、0 个待批」——而那正是「租户健康、没有积压」的答案。** 这是本仓库出现过的最隐蔽的一种失败：错误与结论指向同一个方向，所以没有任何告警能抓它，只能靠读代码。
+
+修复：
+
+```go
+for _, probe := range []struct {
+	target *int
+	status string
+	label  string
+}{
+	{&stats.Total, "", "total"},
+	{&stats.Pending, "pending", "pending"},
+	// ...
+} {
+	query := `SELECT COUNT(*) FROM approval_requests WHERE tenant_id=$1`
+	args := []interface{}{tenantID}
+	if probe.status != "" {
+		query = `SELECT COUNT(*) FROM approval_requests WHERE tenant_id=$1 AND status=$2`
+		args = append(args, probe.status)
+	}
+	if err := r.db.GetContext(ctx, probe.target, query, args...); err != nil {
+		return models.ApprovalStatistics{}, fmt.Errorf("approval statistics %s: %w", probe.label, err)
+	}
+}
+```
+
+**为何失败时返回空结构体，而不是补零、也不是发布已算出的部分**：部分统计比空统计更坏——它有 5 个真数配 1 个未知数，读起来像真数据，而且它会让看板上一个数字「看起来在动」；空结构体至少能被显式地识别为「没查到」。错误信息带 label（`approval statistics total: ...`），因为 6 条 COUNT 是逐条发的，不带 label 就得靠日志上下文猜是哪条失败。
+
+### 38.3 缺陷 B：worker-dispatcher —— 错误无处可去，本轮唯一需要改签名的一处
+
+```go
+func (r *Repository) GetActiveAssignments(ctx context.Context, tenantID, workerID string) int {
+	var count int
+	_ = r.db.GetContext(ctx, &count,
+		`SELECT COUNT(*) FROM worker_assignments WHERE worker_id=$1 AND tenant_id=$2 AND status IN ($3, $4)`,
+		workerID, tenantID, "assigned", "in_progress")
+	return count
+}
+```
+
+`SELECT` 是真的，`_ =` 是真的，但**函数签名是 `int`——结构上就没有地方放错误**。这不是写法问题，是接口契约问题：调用方连 `if err != nil` 的机会都没有。
+
+失败方向是本轮三处里最危险的。`GET /workers/:workerId/load` 挂 `auth.RequirePermission("worker","read")`，宕机时答：
+
+```json
+{"success": true, "data": {"worker_id": "w-1", "current_load": 0}}
+```
+
+`current_load: 0` 是调度器读到「这个 worker 空闲、可以继续派活」的信号。**失败指向超配**：数据库越不可用，系统越倾向于认为所有 worker 都空闲，然后越派活。三个模块的失败方向各不相同——A 指向乐观、B 指向超配、C 指向用户输入——没有一种是「指向自己出错」，所以都没有自动告警。
+
+签名从 repo 接口（第 30 行）到 repo 实现、service 接口（第 59 行）到 `WorkerDispatcher.GetWorkerLoad`、到 handler 的错误分支，共 **5 处**统一改为 `(int, error)`：
+
+```go
+// repository
+func (r *Repository) GetActiveAssignments(ctx context.Context, tenantID, workerID string) (int, error) {
+	var count int
+	if err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM worker_assignments WHERE worker_id=$1 AND tenant_id=$2 AND status IN ($3, $4)`,
+		workerID, tenantID, "assigned", "in_progress"); err != nil {
+		return 0, fmt.Errorf("worker active assignments for %q: %w", workerID, err)
+	}
+	return count, nil
+}
+
+// service
+func (d *WorkerDispatcher) GetWorkerLoad(ctx context.Context, tenantID, workerID string) (int, error) {
+	return d.repo.GetActiveAssignments(ctx, tenantID, workerID)
+}
+
+// handler
+load, err := h.svc.GetWorkerLoad(ctx, tenantID, workerID)
+if err != nil {
+	middleware.RespondInternalError(c, err.Error())
+	return
+}
+middleware.RespondSuccess(c, gin.H{"worker_id": workerID, "current_load": load})
+```
+
+handler 的错误分支此前不存在，因为签名保证 `err` 永远是 nil——**改签名的代价是 5 处，收益是一条从仓储到 HTTP 响应都不再静默的路径**。
+
+### 38.4 缺陷 C：pipeline-executor —— 把基础设施事故伪装成用户输入错误
+
+`SELECT EXISTS(SELECT 1 FROM pipelines WHERE id=$1 AND tenant_id=$2)` 的错误丢进 `_ =`，`exists` 保持 false，两个调用点 `CreateStep` / `ListSteps` 都把它读成 pipeline 不存在：
+
+```go
+// 旧
+_ = r.db.GetContext(ctx, &exists, `SELECT EXISTS(...)`, pipelineID, tenantID)
+if !exists {
+	return nil, fmt.Errorf("pipeline not found: %s", pipelineID)
+}
+```
+
+**用户收到一个指向自己输入的 404 式错误，而真实原因是数据库不可用。** 错误信息越像用户错误，越不会有人去查基础设施——这是三种失败方向里最会骗人的一种。
+
+```go
+func (r *Repository) pipelineExists(ctx context.Context, tenantID, pipelineID string) (bool, error) {
+	var exists bool
+	if err := r.db.GetContext(ctx, &exists,
+		`SELECT EXISTS(SELECT 1 FROM pipelines WHERE id=$1 AND tenant_id=$2)`, pipelineID, tenantID); err != nil {
+		return false, fmt.Errorf("pipeline ownership check for %s: %w", pipelineID, err)
+	}
+	return exists, nil
+}
+
+// 两个调用点
+exists, err := r.pipelineExists(ctx, tenantID, pipelineID)
+if err != nil {
+	return nil, err
+}
+if !exists {
+	return nil, fmt.Errorf("pipeline not found: %s", pipelineID)
+}
+```
+
+`UpdatePipeline` / `UpdateStep` 保持原状（见 38.7）。
+
+### 38.5 回归测试：13 个，全部落在错误传播路径上
+
+新增 3 个测试文件 289 行，追加 2 个测试文件 156 行。
+
+**approval repository `statistics_test.go`（3 个）**
+- `TestGetStatisticsReturnsEveryCount`：六条 COUNT 各返回 12/3/5/2/1/1，断言结构体完全相等 ＋ `ExpectationsWereMet`（少发一条就 fail）。
+- `TestGetStatisticsPropagatesAFailedFirstCount`：第一条 COUNT 报错 → 断言返回的是 `models.ApprovalStatistics{}` 且错误信息含 `total`。
+- `TestGetStatisticsDoesNotPublishPartialStatistics`：total 与 4 个状态成功、`cancelled` 失败 → **断言返回空结构体**（部分统计是本轮特意禁止的第二种错误答案）且错误点名 `cancelled`。
+
+**worker-dispatcher repository `active_assignments_test.go`（2 个）**
+- `TestGetActiveAssignmentsReturnsTheCount`：COUNT 返回 7，并断言四个绑定参数 `"w-1","t-1","assigned","in_progress"` 全对。
+- `TestGetActiveAssignmentsPropagatesAFailedCount`：报错 → count 保持 0 ＋ 错误点名 `w-1`（0 与 `nil` 同时返回是可辨别的，0 与错误并存才是危险组合）。
+
+**worker-dispatcher handler `handler_test.go`（2 个端到端）**
+- `TestGetWorkerLoadAnswersInternalErrorForARepositoryOutage`：注入宕机 → **500 且 body 含 `connection refused`**。这个断言直接钉住了「不许答 `current_load: 0`」这条契约。
+- `TestGetWorkerLoadReturnsTheActiveAssignmentCount`：真实 `repository.NewRepository(sqlx.NewDb(raw,"postgres"))` ＋ sqlmock 返回 4 → **200 且 body 含 `"current_load":4`**（正向对照，防止只拦错误不保成功）。
+
+注入方式：`type assignmentOutageRepo struct{ *repository.Repository }` 覆写单个方法——嵌入指针到具体类型会提升其方法，所以该类型天然满足 `service.RepositoryInterface`，只改 `GetActiveAssignments` 一处。
+
+**追加 6 个**：service 2 个（`GetActiveAssignments` 改签名后的接口契约；宕机错误必须上抛，两个既有 fake 同步改签名为 `return 0, nil`）；pipeline-executor repository 4 个（CreateStep / ListSteps 各两条——探针报错时**报的是宕机**而不是 pipeline not found；探针返回不存在时在 INSERT 之前就被拒，CreateStep 额外断言 `db.records()` 长度为 0）。
+
+### 38.6 变异证明：9 个变异，9 个被杀死
+
+全部可编译，无「编译就能证明」的假证明。
+
+| # | 变异 | 杀死者 |
+| --- | --- | --- |
+| 1 | approval：把每条 COUNT 错误重新丢回 `_ =` | 3 个测试 |
+| 2 | approval：失败时仍发布部分统计体而非空结构体 | 1 |
+| 3 | approval：错误里丢掉失败的那个计数名 | 2 |
+| 4 | approval：不再执行 total 那条 COUNT | 1 |
+| 5 | worker-dispatcher repo：把 COUNT 错误重新丢回 `_ =` | 2 |
+| 6 | worker-dispatcher service：丢弃仓储返回的错误 | 2 |
+| 7 | worker-dispatcher handler：忽略 load 错误 | 1 |
+| 8 | pipeline-executor：两个调用点都丢弃探针错误 | 2 |
+| 9 | pipeline-executor：把探针错误当 "pipeline not found" 报 | 2 |
+
+第 8、9 两个变异最初设计成「删行」，会触发 Go 未使用变量编译错误（`declared and not used`），那是无效证明。改为「删错误分支块 ＋ 删赋值行」两处上下文锚定的单点编辑后全部可编译——锚点分别是紧跟其后的 `configJSON, err := json.Marshal(req.Config)` 与 `limit = clamp(limit, 1, 100)` 两行，各自唯一。
+
+### 38.7 记录不删 / 刻意不修
+
+**finops v1 —— 13 处扫描命中里的多数派，但零调用方（规则 e）**
+
+`internal/finops/repository/repository.go` 的 `GetROISummary`（4 处丢弃）与 `GetCostBreakdown`（1 处丢弃）共 5 处，是全仓 13 处 `_ = r.db.GetContext(` 的多数派。它们零调用方：无接口、无 handler、无测试、全仓 `grep` 无任何调用点，已被活跃的 `finops-v2` 取代。
+
+按「零信息方法且零调用方＝死代码」的判据本应删除；但它们是**有信息的**——返回真实的字段名（totalCost / averageROI / averagePaybackMonths / totalSavings），只是错误被丢，与 R37 里「连通性检查 + 常量容器」的零信息方法是两种东西。而且 `internal/finops` 还有约 25 个同样不可达的仓储方法——**只挑这两个改是任意折腾**。记录为删除候选 / 待办，不动。
+
+**`buildNamedSet` 家族（3 处）**：`internal/pipeline-executor/repository/repository.go:389`、`internal/job-actions/repository/repository.go:285`、`internal/auto-exec/repository/repository.go:333`。无白名单、无排序，但其键名来自类型化请求模型的**硬编码字面量**——`internal/pipeline-executor/handler/handler.go` 的 `UpdatePipeline`（84–115 行）与 `UpdateStep`（159–200 行）从 `UpdatePipelineRequest` / `UpdateStepRequest` 的非 nil 字段构建 map，键名不可能来自 HTTP body。与 R37 的 map 属同一信任面，不是 roweditor 那种原始 `map[string]interface{}` body 拼接（R36 修的那个）。故不修。
+
+**pipeline-executor `UpdatePipeline` / `UpdateStep`**：原地改写调用方 map、跳过 `RowsAffected` 检查。但两个 handler 每次新分配 map（不是像 sla-engine calculator 那样跨调用复用），无可观察危害。
+
+**R37 遗留记录项**（本轮未触碰，原样结转）：sla `handler.GetProfile` 与 storage `handler.Get` 把一切错误都答 404；两个 handler 对 `sentinel.BadRequest` 答 500 而非 400（`TestUpdateAnswersInternalErrorForARepositoryRejection` 钉住现状）；vulnerability 的 `ErrBadRequest` ≠ `sentinel.BadRequest`；sla 的 `updateRows` 静默丢弃 `id`/`tenant_id` 与 vuln/storage 拒绝它们之间的刻意不对称；sqlmock v1.5.2 的 `NewResult` 无法让 `RowsAffected()` 报错，3 处该分支不可单测。
+
+**R35/R36 遗留记录项**：roweditor 的 `validateRows` / `validateMode` 零调用方零测试；`buildUpdateSetClause` 在 spec 同时声明 `version` 可写且调用方传值时渲染重复赋值；`NamedExecContext` 不走 `strictDB.check`；user 模块 `ChangePassword` 的 bcrypt 路径与 `Create` 校验无覆盖；前端不调用 `PUT /users/:id`。
+
+### 38.8 sqlmock 三条新教训（已写进测试注释）
+
+1. **期望按 FIFO 顺序匹配**，必须按代码实际发语句的顺序入队。`TestGetStatisticsDoesNotPublishPartialStatistics` 最初用 `map[string]int` 遍历入队，随机顺序下 sqlmock 报的是「`pending` 失败了」而代码失败的是 `cancelled`——把 map 换成有序 `[]struct{status string; n int}` 后通过。这条教训是**测试失败暴露的**，不是读文档读出来的。
+2. **默认正则匹配器会把期望里的字面 `COUNT(*)` 当成正则**，报 `missing argument to repetition operator: *`，handler 测试返回 500。改为期望 `SELECT COUNT`，完整语句由 repository 层用精确匹配器钉住（注释里注明这一分工）。
+3. **`QueryMatcherRegexp` 实为 `strings.Contains`**，会放行列序不同或漏列的 SQL。新增测试统一换用空白归一化的精确 `QueryMatcherFunc`（`normSQL` / `ws` / `mockDB(t)`），且 `sqlx.NewDb` 从不走 `Unsafe`。pipeline-executor 的既有 `newMockRepo` 用的是 `QueryMatcherRegexp`，本轮不动它，另建 `exactMockRepo(t)` 服务新测试。
+
+### 38.9 验证
+
+- `go build ./...` 干净
+- `go vet ./internal/approval/... ./internal/worker-dispatcher/... ./internal/pipeline-executor/...` 干净
+- `gofmt -l internal/approval internal/worker-dispatcher internal/pipeline-executor` 为空
+- `go test -count=1` 三个模块 11 个包全过
+
+### 38.10 扫描遗留（未处理，结转）
+
+- `/tmp/r38/A.txt`：50 处 `Sprintf("%s=$%d` 形式的动态 SET 构造器。
+- `/tmp/r38/C.txt`：301 处被丢弃的 `RowsAffected()` 错误。
+- `/tmp/r33/hits.txt`、`/tmp/r34/stubs2.txt`、`/tmp/r32scan/up3.txt`（178 个死参数）。
+- 无白名单的 map 驱动 SET 构造器：R37 的清单 `/tmp/r37/dyn_files.txt` 已失效（152 处 / 114 文件 / 105 判定无白名单需重新推导）。
+- 22 个 model 缺 `tenant_id` 而其表有该列；12 个 LEAK 模块；25 个未加 json tag 的多单词字段。
+- 零调用方的 `NotYetImplemented`：`internal/serverless/repository/repository.go:273`、`internal/visor-exec/repository/repository.go:343`、`internal/cmdb/repository/repository.go:561`。
+- 本轮新增：finops v1 的 5 处丢弃（随其一起不可达）＋约 25 个不可达仓储方法；`buildNamedSet` 家族 3 处无白名单。
