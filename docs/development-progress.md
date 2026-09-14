@@ -8236,3 +8236,235 @@ R30 扫的是 `internal/code-scan`——一个有 56 个测试函数、能真跑
 **本轮自查的文档数字（全部从源码 grep 得出）**：46 个 `Type*` 常量 / 46 处 `unimplementedHandler` 构造 / 6 个 `Category*` 常量 / repository.go 内 `SELECT *` 0 处 / 5 处数据行 SELECT 已改显式列名 / 2 处 `WHERE tenant_id=$1 AND action_id=$2` / 22 个测试函数（service 8 / repository 8 / handler 6）/ 8 个变异全杀、18 次测试失败 / 提交 `9340a4416` 8 文件 821 增 99 删 / `jobActionsH` 在 `router.go:133` / `stubHandler` 全仓仅剩 1 处，是 `executor.go:371` 记录旧行为的注释。
 
 **调试记录（写进文档以免下轮重复踩）**：`TestGetHistoryScopesByTenant` 最初断言 body 含 `":restart_service"`，而实际输出是 `action not implemented: restart_service`——`fmt.Errorf("%w: %s", …)` 输出的是冒号**加空格**。查了几轮非 ASCII 字节、隐藏字符、过期二进制才发现是断言少了个空格。**教训：断言字符串失败时先逐字符读打印出来的实际值，再怀疑工具或正则。**
+
+## 第三十二轮：internal/artifact 20 条 SQL 重建 + internal/audit 4 条读路径恒 500 + internal/permission 3 条恒 500（含 desc 保留字解析错误）+ 全库 267 处 wildcard SELECT 清点（2026-09-14）
+
+- HEAD 起点 `6fda2cb49`（R31 docs）。代码提交 **`7db9c18c0`**：12 文件，1864 行新增 / 229 行删除。文档：`docs/ALL_TODOS.md` 第 359 行 + 本节。
+- 文档：`docs/ALL_TODOS.md` 第 359 行 + 本节。
+- 本轮的结论不是「修了三个模块」，而是**证明了一整类缺陷**：`SELECT *` 在 sqlx safe mode 下是一颗定时炸弹，而且它已经全库引爆。全库 **267 处** wildcard SELECT、跨 **219 张表**、**118 个模块**。本轮只修了 3 个模块、7 处 SQL，其余**全部记录**（§32.8 / §32.10）。
+
+### 32.1 选这三个模块的理由
+
+R30 在 `internal/code-scan`、R31 在 `internal/job-actions` 各撞了一次同一类缺陷。本轮不再按「哪个模块最像活桩」挑，改成**按缺陷类定向**：找出「读路径有 wildcard SELECT + 迁移在之后加过列」的模块，按表的风险排序选。排在前面的三个是 `internal/artifact`（制品仓，20 条 SQL）、`internal/audit`（审计日志，4 条读路径）、`internal/permission`（**权限表**，3 条）。
+
+`internal/permission` 优先级最高，理由只有一条：**它是访问控制表**。读写它失败不是「功能不可用」，是**鉴权依据读不出来**。
+
+### 32.2 缺陷类 A：`SELECT *` 在 sqlx safe mode 下必然 500
+
+**A1｜机理**
+`orion-go-common/pkg/database` 的 `db.Connect` 走 `sqlx.Open`，**从不调 `Unsafe`**，所以 sqlx 全程在 safe mode 扫描。safe mode 的行为是：先从 `rows.Columns()` 建列名→结构体字段映射，再逐行扫描；映射表里出现一个模型没声明的列，就在**第一行**抛 `missing destination name <col>`。
+
+关键在最后这一点：这个错误**不是 `sql.ErrNoRows`**。它一路穿过 repository → service → handler，端点回答 **500 而不是数据**。任何 `if err == sql.ErrNoRows` 的翻译逻辑都不会接住它。
+
+**A2｜已触发的迁移**
+`571_add_soft_delete.sql` 给一批表加 `deleted_at`，`572_add_audit_columns.sql` 加 `created_by` / `updated_by`。三张表都中招：
+
+| 表 | 加进来的列 | 模型是否映射 |
+|---|---|---|
+| `permissions` | `deleted_at`、`created_by`、`updated_by` | 全未映射 |
+| `audit_logs` | 迁移 013 改出 12 个 pipeline 列 + `created_by` / `updated_by` | 全未映射 |
+| `artifacts` / `artifact_tags` / `artifact_downloads` / `artifact_promotions` | `deleted_at`、`created_by`、`updated_by` | 全未映射 |
+
+**A3｜端到端实测（这是本轮最重要的一条）**
+静态审查看不出任何错——SQL 合法、列名对、模型字段对。本轮起了一次一次性 PostgreSQL 16.14 实例（`initdb` + `pg_ctl` + 裸 socket），**用真实的 `internal/permission` 包**打真实数据库：
+
+```
+SELECT * FROM permissions WHERE tenant_id=$1
+→ missing destination name deleted_at in *models.Permission
+```
+
+**A4｜严重性升级：空表也炸**
+一开始以为是「表里有数据才炸」。实测**表里一行都没有也炸**——因为 sqlx 在建映射表时只看 `rows.Columns()`，还没扫到任何行。**一个新租户、权限表 0 行，第一个读权限请求就是 500。** 这一条把缺陷从「功能不可用」推到「多租户冷启动必然失败」。
+
+**A5｜为什么前 31 轮一次都没抓到**
+三层护栏全不报：`go build` 通过（SQL 是字符串，不参与类型检查）；`go vet` 通过；`go test ./...` 通过——sqlmock 不校验列名和模型是否一致，mock 返回什么列就是什么列。**wildcard SELECT 的正确性依赖数据库 schema 与 Go 模型的持续同步，而这个仓库没有任何测试覆盖这条同步关系。**
+
+### 32.3 缺陷类 B：`desc` 是 PostgreSQL 硬保留字（permission 独有）
+
+同一张 `permissions` 表还有第二个、完全独立的缺陷。`models.Permission.Desc` 的 `db` tag 是 `desc`，DDL 里也写的是 `"desc"`。SQL 里 `desc` 没加引号——**它不是软关键字，是硬保留字**。
+
+一次性 PG16 实例上的实测矩阵：
+
+| # | 语句 | 结果 |
+|---|---|---|
+| A | `INSERT INTO perm_probe (id, desc, tenant_id) VALUES (...)` | `ERROR: syntax error at or near "desc"` |
+| B | `UPDATE perm_probe SET desc='x' WHERE id='...'` | `ERROR: syntax error at or near "desc"` |
+| C | 同上两条，列名改成 `"desc"` | 解析通过 |
+
+**A 和 B 都解析失败**，意味着：
+
+- `Create` **每次调用都 500**——权限写从来没成功过。
+- `Update` 在描述字段非空时 **500**；描述为空时走空 SET 列表分支，**静默 no-op 还回 nil error**（调用方以为改成功了）。
+
+**静态审查同样抓不到**：tag 对、列名对、参数绑定对、占位符编号对。这类缺陷只会在真数据库上以「语法错误」的形式出现，而且和缺陷类 A 的 500 在监控里长得一模一样——都叫 500。
+
+**全库排雷（本轮做完的）**：全仓扫描 SQL 字符串字面量里的裸 `desc`，**修完后剩 0 处**。扫描器本身经过对照验证——喂给它修复前的 HEAD 版本能准确报出 `repository.go:38` 的 INSERT 列清单那一处。扫描器有一个已知盲区：`fmt.Sprintf("desc=$%d")` 这种「拼接后才成形」的 SQL，其字面量里没有 `desc` 前后带引号的形态，全库扫描器看的是 SQL 关键字上下文因此漏掉——**但包内守卫测试 `TestDescIsAlwaysQuoted` 是逐 `desc` token 检查两侧是否都是引号，无 SQL 上下文要求，因此更强，M4 就是它杀的**（§32.7）。
+
+另外查了全库的动态 SET 构造器，结果记在 §32.10 第 4 条：全仓 4 个列白名单 map 里**只有 `permission.allowedColumns` 含保留字**，所以缺陷类 B 在权限表是唯一的活实例；但有 **5 个方法是完全无白名单**的拼接式 SET，属于另一类风险。
+
+### 32.4 internal/artifact：20 条 SQL 全重建
+
+制品仓是全库 SQL 数量最多的模块之一，20 条语句**条条有问题**，分四类：
+
+**B1｜wildcard SELECT（4 条）**
+`GetByID`、`List`、`GetDownloadHistory`、`GetPromotionHistory` 全是 `SELECT *`。四张表都被 571/572 加过列，全部是定时炸弹。
+
+**修法**：新增 `artifactColumns` / `downloadColumns` / `promotionColumns` 三个常量，四条改成显式列名。
+
+**B2｜租户参数静默丢弃（9 条）**
+`GetTags` / `AddTags` / `RemoveTags` / `GetDownloadHistory` / `RecordDownload` / `GetPromotionHistory` / `CreatePromotion` / `SoftDelete` / `Update` 全部只按 `artifact_id` 绑定，`tenant_id` 绑了但**不参与过滤**。这是本轮最危险的形态：**参数签名看起来正确，行为完全不分租户**。`go vet` 不报（参数被引用了），`go test` 用 `AnyArg` 也不报。
+
+**修法**：`repository_interface.go` 把 `tenantID` 穿到每一个方法签名；9 条 SQL 全部加 `AND tenant_id=$N` 并重排占位符编号。
+
+**B3｜伪造审计历史（1 条）**
+`Promote` 里 `FromStage` 硬编码成字符串 `"current"`。`current` 不是任何一个阶段名——**每一条晋升记录都在声称制品来自一个叫 "current" 的阶段**。审计表从此永久说谎，和 R31 在 job-actions 撞到的「声明即成功」是同一性质。
+
+**修法**：`repo.GetCurrentStage(ctx, tenantID, id)` 真查最新一条 promotion 的 `to_stage`；从未晋升过的制品记 `"default"`（空字符串无法表达「无历史」，`"default"` 是阶段列表里的真实首值，不虚构）。
+
+**B4｜聚合查询的 wildcard（3 条）**
+`GetStats` / `GetTypeStats` / `GetNamespaces` 用 `SELECT * ... GROUP BY` 直接塞进结构体。三条都建了命名列的 `countRow` 承接（`SELECT COUNT(*) AS total ...`），不再依赖列序。
+
+**B5｜模型层（`models.go`）**
+`ArtifactTag` / `ArtifactDownload` / `ArtifactPromotion` 补 `TenantID string`（`db:"tenant_id"`）；`ArtifactStats` / `ArtifactTypeStat` / `NamespaceStat` 补 `db` tag。
+
+### 32.5 internal/audit：4 条读路径 + 3 个附带项 + 删 1 个死方法
+
+**C1｜4 条 wildcard 读路径恒 500**
+`GetByID`、`List`（数据查询那条）、`Export`、`GetLatest` 全是 `SELECT * FROM audit_logs`。审计表被迁移 013 改出 12 个 pipeline 列，加 572 的两列，模型一个都没映射——**`GET /audit/logs`、日志导出、`GET /audit/logs/:id` 三个端点全部 500**。
+
+**修法**：新增 `auditLogColumns`（16 列）常量，四处替换。`List` 的 count 查询和 Export 都是显式列名。
+
+**C2｜`sql.ErrNoRows` 直达 handler = 500**
+`GetByID` 与 `GetLatest` 直接 `return (&m, err)`。handler 只对 `errors.Is(err, sentinel.NotFound)` 回 404，所以查不存在的 id 返回的是 **500 "sql: no rows"**，不是 404。
+
+**修法**：两处都加 `errors.Is(err, sql.ErrNoRows)` → `sentinel.NotFound`。
+
+**C3｜错误时返回半填充模型**
+`return (&m, err)` 意味着调用方拿到一个 error **和一个非 nil 指针**。`m` 是函数内零值变量，字段全零但指针非空——任何 `if m != nil` 的调用方都会去用这份假数据。
+
+**修法**：错误分支一律 `return nil, err`。
+
+**C4｜删掉死方法 `CoverageStats`**
+`Repository.CoverageStats(ctx, tenantID)` 返回 `models.AuditCoverageStats{}`——**零值返回**，挂在 `RepositoryInterface` 上，而 service 的真实覆盖率是从 `ComplianceReport` 聚合出来的，**从来没调用过它**。
+
+按「零信息量的方法且零调用方 = 死代码，基础设施存在就实现、不存在就删」的准则：覆盖率聚合必须遍历每个框架的合规报告，那是 **service 层职责**，在 repository 复制一份只会产生两个互相漂移的数字。**因此删**，不是修：`repository.go`、`repository_interface.go`、`service_test.go` 里的 mock 实现和那个必绿的空测试（共 18 行）一起删掉。
+
+### 32.6 internal/permission：3 条恒 500
+
+**D1｜`permissionColumns` 常量**
+`id, name, code, resource, action, "desc", tenant_id, user_id, created_at, updated_at`——恰好 `models.Permission` 映射的全部列。注释里写明了为什么必须显式（§32.2 A1–A4）和为什么 `"desc"` 必须带引号（§32.3）。
+
+**D2｜两条读路径**
+`GetByID` 与 `List` 从 `SELECT *` 改成 `SELECT `+`permissionColumns`。`GetByID` 同时补 `sql.ErrNoRows` → `errNotFound`（原来直达 500）。
+
+**D3｜两条写路径的保留字**
+`Create` 的 INSERT 列清单 `desc` → `"desc"`；`Update` 的动态 SET `fmt.Sprintf("desc=$%d")` → `fmt.Sprintf("\"desc\"=$%d")`。
+
+**不动的部分**：`Count`（`SELECT COUNT(*)`，聚合单值，safe mode 不受列名影响，合法）、`Delete`、`allowedColumns` 白名单、`errNotFound`。
+
+### 32.7 测试与变异证明
+
+**新增 58 个测试函数，1496 行**：
+
+| 文件 | 行数 | 测试数 |
+|---|---|---|
+| `internal/artifact/repository/repository_test.go` | 585 | 30 |
+| `internal/artifact/service/service_test.go` | 240 | 5 |
+| `internal/audit/repository/repository_test.go` | 349 | 12 |
+| `internal/permission/repository/repository_test.go` | 322 | 11 |
+
+（`internal/artifact/handler` 20 个、`internal/audit/service` 71 个、`internal/audit/handler` 32 个、`internal/permission/handler` 7 个是本轮之前就有的，未改。）
+
+**每一处修复都同时钉两层**——一层源码守卫（防 wildcard 回来），一层行为测试（钉驱动实际收到的 SQL 文本）。列清单在测试里**独立再写一份** `wantColumns`，和生产的 `permissionColumns` / `auditLogColumns` 常量做相等断言：如果某次变异把常量清空，两边不会一起变。
+
+**三个本轮踩出并写进测试注释的坑**：
+
+1. **`QueryMatcherRegexp` 把 `$` 当成行尾锚点** —— sqlmock v1.5.2 的默认匹配器拿期望字符串当正则用，`$1` 里的 `$` 是「匹配到字符串结尾」。结果：**任何包含 `$1` 的期望永远匹配不上，测试一路绿灯但其实空跑**。本轮把三个包的匹配器全部换成 `sqlmock.QueryMatcherFunc` + 空白归一化后精确相等比较，并且**每条期望都钉占位符编号**（`$1`…`$10`）而不是用正则。这个坑意味着历史上任何「期望里带 `$1`」的 sqlmock 测试都可能一直是空跑的。
+2. **`QueryMatcherOption` 收的是 `QueryMatcher` 接口**，不是函数——得包成 `QueryMatcherFunc`，而且返回值必须是 `error`。
+3. **`ExpectedQuery` 没有 `WillReturnResult`** —— UPDATE/DELETE 必须用 `mock.ExpectExec(...).WillReturnResult(...)`；用 `ExpectQuery` 会编译失败。
+
+**`TestRepositoryMethodsAreImplemented`（audit）的结构性守卫**：正则抽出每个 `(r *Repository)` 方法体，断言体内必须含 `SELECT` / `INSERT` / `UPDATE` / `DELETE` 之一。它专门盯「整个方法体就是一个零值返回」这个形态——`CoverageStats` 正好是那样。0 个方法时 `t.Fatal`，防止守卫自己空跑。方法块切分时会**从末尾剥掉空行和注释行**，否则下一个方法的 doc 注释会漏进来，替上一个方法满足断言。
+
+**单边引号守卫太弱（M4 的教训）**
+`TestDescIsAlwaysQuoted` 第一版只检查 `desc` **前**一个字符是不是引号。M4（把 SET 子句的 `desc` 引号去掉）没被它杀掉——因为 `fmt.Sprintf("desc=$%d")` 里 `desc` 的**前一个字符也是引号**（`"` 后紧跟 `desc`）。第一版只靠行为测试接住了 M4。
+
+修法：先把 Go 转义归一（`strings.ReplaceAll(..., `\"`, `"`）），再要求 `desc` **前后两侧**都是引号。同时加 `if len(matches) == 0 { t.Fatal }`——守卫自己空跑必须炸。
+
+**14 个变异，全部被杀（artifact 3 + audit 4 + permission 7）**。每个变异先断言锚点出现次数 == 1，先确认能编译再计分，跑完测试后从 `/tmp/good_*.go` 备份逐字节恢复。
+
+| # | 变异 | 杀它的测试 |
+|---|---|---|
+| P-M1 | `permissionColumns = "*"` | `TestColumnConstantsMatchThePinnedExpectation` + `TestPermissionIsNotWildcarded` + `TestGetByIDSelectsTheMappedColumnsOnly` |
+| P-M2 | `List` 去掉 `WHERE tenant_id` 子句 | `TestListBindsTenantAndFilters` |
+| P-M3 | `Update` 的 SET 复用占位符编号 | `TestUpdateRendersDistinctPlaceholders` |
+| P-M4 | SET 子句里 `desc` 去掉引号 | `TestDescIsAlwaysQuoted` + `TestUpdateRendersDistinctPlaceholders` |
+| P-M5 | INSERT 列清单里 `desc` 去掉引号 | `TestDescIsAlwaysQuoted` + `TestCreateQuotesTheReservedColumn` |
+| P-M6 | 去掉 `GetByID` 的 `ErrNoRows` 翻译 | `TestGetByIDMissingPermissionReportsNotFound` |
+| P-M7 | 从 SELECT 列清单里删一列 | `TestColumnConstantsMatchThePinnedExpectation` |
+
+**P-M3 是最值得记的一条**：`UPDATE ... SET name=$1 ... WHERE id=$1` 不会报错，PostgreSQL 会照字面执行——`WHERE id=$1` 解析成第一个 SET 值，语句**一行都没匹配上，返回 `nil` error**。调用方收到成功，数据没变。**这是静默 no-op 返回 200 的典型形态，任何只看状态码的测试都抓不到。**
+
+### 32.8 全库 267 处 wildcard SELECT 清点（系统性问题）
+
+本轮把扫描器（`/tmp/r33/scan2.py`，要求模块内模型与 DDL 列名重叠度 ≥ 0.5，且打印 DDL 有而模型没有的列）跑完全仓：
+
+- **267 处** `SELECT * FROM <table>`，跨 **219 张表**、**118 个模块**。
+- 非测试 Go 代码里 `SELECT *` 出现 **1349 次**（含 `SELECT * FROM table.a`、`SELECT * INTO` 等其它形态）。
+- **模型缺失列 Top 12**：`deleted_at` 245、`updated_by` 238、`created_by` 193、`updated_at` 96、`metadata` 78、`if` 41、`created_at` 24、**`tenant_id` 22**、`status` 14、`_source` 12、`description` 9、`config` 8。
+  - `if` 41 次是**扫描器假阳性**：DDL 解析把 `CREATE INDEX IF NOT EXISTS` 里的 `IF` 当成列名。其余项也需要按表逐个核对 DDL 才能判定。
+  - **`tenant_id` 缺失 22 处是另一类风险**：那 22 个模型不映射 `tenant_id`，意味着按表读出来之后没有租户字段可用——不是 500，是**越权读**的候选面，比缺陷类 A 更严重，单独列为 §32.11 的头号遗留项。
+- **模块分布**：10 个模块 ≥ 5 处（infrastructure 17 / config 12 / governance 11 / ticketing 9 / monitoring 8 / ai 7 / plugin 6 / skill 5 / policy 5 / approval 5），10 个模块恰好 4 处（alert / serverless / diagnostic / capability / multi-cloud / iac / report-designer / workflow / api-governance / ticket），其余 98 个模块每个 ≤ 3 处。
+
+**处置决定：只修 3 个、记录 264 处。** 理由：
+
+1. 单点修法（显式列名常量 + 独立钉死的 `wantColumns` + 迁移列校验测试）在这三个模块上各花了一个模块的量，267 处按同法铺完是**上百个模块级改动**，且每一次都要跑变异证明。
+2. 更省事的全局修法是 `db.Unsafe()`——**明确拒绝**，见 §32.10 第 1 条。
+3. 真正缺的是一条**跨模块的 schema 同步测试**（见 §32.10 第 2 条），它比逐个改 267 处更能防住这一类缺陷。
+
+### 32.9 验证
+
+- `go build ./...` → 通过。
+- `go vet ./internal/artifact/... ./internal/audit/repository/... ./internal/permission/...` → 通过。
+- `gofmt -l` 本轮触碰的 5 个目录 → 空。
+- `go test ./...` → **503 个包 ok / 0 FAIL**。
+- 触碰包测试数（`grep -c '^--- PASS'`）：artifact/repository 30、artifact/service 5、artifact/handler 20、audit/repository 12、audit/service 71、audit/handler 32、permission/repository 11、permission/handler 7。
+- 真库证明：一次性 PostgreSQL 16.14 实例上的真实 `internal/permission` 包，Create / Update（含描述）/ GetByID / List / Count / Delete 全部成功，删除后计数正确；同一实例上缺陷类 A、B 的三条失败语句各复现一次。实例已停，探针目录已删。
+
+**本轮自查的文档数字（全部现测，不凭记忆）**：267 处 / 219 表 / 118 模块 / 1349 次 `SELECT *` / 58 个新测试 / 1496 行新测试代码 / 14 个变异 / 503 包 / 4 个列白名单 map / 5 个无白名单 SET 构造器 / 全库裸 `desc` in SQL = 0。
+
+**顺手发现的既有格式漂移（非本轮引入，未改）**：`gofmt -l internal/audit/` 报 4 个文件未格式化——`handler/handler_test.go`、`models/models.go`、`service/compliance_test.go`、`service/service.go`。这 4 个文件在工作区**没有任何改动**（`git diff --stat` 为空），是 HEAD 里就有的漂移。本轮不碰，避免把格式化噪声混进一次功能性提交。
+
+### 32.10 只记录不修
+
+1. **拒绝 `db.Unsafe()`** —— 全库 267 处 wildcard SELECT 一句话就能「修好」，但代价是**永久失去列漂移的可见性**：以后每次迁移加列都会静默变成「模型少个字段」，而不是编译期或测试期的报错。现在这 267 处会 500，至少 500 是显式的；改成 `Unsafe` 之后它会变成**空字段静默返回 200**，那才是不可发现的风险。而且 `orion-go-common/`（除 `pkg/auth/`）不在本轮授权范围内。
+2. **缺一条跨模块的 schema 同步测试** —— 真正该补的是：读每个模块的 DDL，与同名模型的 `db` tag 集合做差集，差集非空就 fail。它比改 267 处更有杠杆，但需要 DDL 归一化（ALTER 累积、`IF NOT EXISTS` 噪声、多语句文件），本轮不做。
+3. **`permissions` 硬删除、且不过滤 `deleted_at IS NULL`** —— 迁移 571 给这张表加了软删除列，但 `Delete` 是 `DELETE FROM`，读路径也没有 `AND deleted_at IS NULL`。**这是安全关键路径，语义变更需要更深的评审**（软删除会让「已撤销的权限」在读取时被忽略，也可能让「已撤销」变成「仍然生效」，取决于读路径），本轮只改 500 不改语义。
+4. **5 个无白名单的动态 SET 构造器** —— `sla-engine` 的 `UpdateProfile` / `UpdateTracker`、`storage.Update`、`user.Update`、`vulnerability.Update` 都是 `for k := range updates { Sprintf("%s=$%d", k, ...) }`，**列名直接来自调用方传入的 map key**。这既是 SQL 注入面，也是缺陷类 B 的潜在载体（调用方哪天传 `desc` / `order` / `status` 进来就会炸）。全库只有 4 个带白名单的同类构造器（`permission.allowedColumns`、`artifact.updateableColumns`、`change.updateColumnMap`、`governance.allowedPolicyColumns`），其中只有 permission 含保留字——说明带白名单的那 3 个目前是安全的。修这 5 个需要确定每个调用方的合法列集合，本轮记录。
+5. **audit `Count` / `GetLatest` 无生产调用方** —— 两者都做真实查询、租户隔离正确，按「基础设施存在就不要删被测试的不可达代码，记录它」的准则保留。
+6. **12 个 LEAK 模块的 `tenant_id` 缺失**（developer-portal / chatops / form / deploy / api-governance / ci-cd-artifact-registry / skill / vector / apm / pipeline-engine / subapp / ticketing）—— 每个都要先查 DDL 确认表里真有 `tenant_id` 列，再决定是「补模型字段」还是「表本身缺列」。本轮不动。
+7. **`Count` / 聚合类的 `SELECT *` 形态** —— `SELECT COUNT(*)` 不受 safe mode 影响（单列聚合，列名是 `count`），全库合法，不计入 267。
+
+### 32.11 跨轮遗留（更新后）
+
+§31.8 全部保留。
+
+**本轮作废的历史条目**：无（R31 作废的 Phase H.1「job-actions stubHandler：intentional no-op」条目本轮复核后确认仍然作废）。
+
+**新增跨轮遗留（按优先级）**：
+1. **22 处模型不映射 `tenant_id`**（§32.8）—— 潜在越权读，优先级高于缺陷类 A。
+2. **267 处 wildcard SELECT / 219 张表**（§32.8）—— 已按模块分布列全，头号是 infrastructure 17、config 12、governance 11、ticketing 9、monitoring 8。
+3. **5 个无白名单的动态 SET 构造器**（§32.10 第 4 条）—— SQL 注入面。
+4. **`permissions` 软删除语义未接入**（§32.10 第 3 条）—— 安全关键路径，需评审。
+5. **跨模块 schema 同步测试缺失**（§32.10 第 2 条）—— 本轮 3 个模块的修法无法自动推广的根本原因。
+6. **67 个无 SQL 的委托方法**（`/tmp/r32scan/ts.txt`）、**178 个其它非租户死参数**（`/tmp/r32scan/up3.txt`）、**104 个 stub 标记文件** —— 前几轮的扫描队列，本轮未推进。
+
+**下一轮的入口**：`/tmp/r33/hits.txt`（267 行，已刷新）+ `/tmp/r32scan/ts.txt` + `/tmp/r32scan/up3.txt`。
+
+**调试记录（写进文档以免下轮重复踩）**：
+
+1. **`go-sqlmock` 的 `$` 是行尾锚点** —— 期望字符串里写 `$1` 会导致期望永远匹配不上，测试空跑但全绿。这是本轮三个包全部换成精确匹配器的原因，也是**历史 sqlmock 测试可信度需要复查**的原因。凡是「期望里带占位符编号、测试却绿」的，先怀疑匹配器。
+2. **`gofmt` 之后 Go 源码的二元 `+` 两侧有空格、结构体字面量 key 对齐** —— 用不带空格的模式去做精确字符串替换会静默失败（python 的 `assert` 不报错，脚本也没写文件）。**改源码前先 `sed -n` 读一遍 gofmt 后的实际文本**，用单行锚点。
+3. **`awk length()` 按字节计** —— 一条 3387 个字符的中文表格行在 awk 里是 5492。别把它当行损坏。
+4. **`grep -c` 返回 0 匹配时退出码是 1** —— 在 `&&` 链里会让后续步骤静默不执行。
+5. **Bash 的 CWD 在命令之间会重置到 `/Users/heal/orion-design`** —— 本轮 `go build ./internal/permission/...` 因为跑在仓库根而不是模块根，报 `lstat ./internal/permission/: no such file or directory`。每次都要显式 `cd`。
+6. **临时 PostgreSQL 的 socket 目录必须先建** —— `pg_ctl -o "-k /tmp/r32pg/sock"` 但 `/tmp/r32pg/sock` 不存在时，postgres 直接 `FATAL: could not create lock file`。`mkdir -p` 放在 `initdb` 之前。
