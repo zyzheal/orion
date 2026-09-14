@@ -8855,3 +8855,142 @@ go test ./...                    -> 503 ok / 0 FAIL
 模块内测试函数合计 **77 个**：handler 43 / service 17 / repository_sql 15 / repository 2。
 
 迁移 583 的交互规则：复合外键与 `tenant_id` 谓词**必须同批落地**。这两条跨租户通道**目前因为缺列而失效**（表根本不存在），是「死」的；如果只补表而不补谓词和外键，等于把它们当场转成**真实的权限提升**。所以迁移与类 C 的修复写在同一个提交里。
+
+## 第三十五轮：internal/user 三条读写路径整体修复（`Update` 的 `%v` 渲染 SET 列表＝新缺陷类「SQL 文本形状损坏」＋列白名单＋`RowsAffected` 检查＋平台 sentinel 统一＋handler 5 处错误类塌陷拆分＋26 个测试函数＋11/11 变异证明）（2026-09-14）
+
+- HEAD 起点 `43061e769`（R34 docs）。代码提交 **`5eb8d5663`**：3 文件，135 行新增 / 22 行删除。测试提交 **`ed49a5a68`**：3 文件，630 行新增 / 1 行删除。合计 6 文件，765 行新增 / 23 行删除。
+- 本轮命中的是**身份模块**，性质与 R30–R34 都不同：R30–R33 是「能跑但语义错」，R34 是「表不存在所以跑不通」，本轮是「**语句每次都执行，每次都语法错误，而调用方收到的是 404**」。`PUT /users/:id` 已注册、挂着 `auth.RequirePermission("user","write")` 守卫，从路由角度看完全合法；但 `repository.Update` 每次调用渲染出的 SQL 都是硬语法错误，行始终原地不动，调用方却被告知「用户不存在」。
+
+### 35.1 缺陷一：SQL 文本形状损坏（本轮新增缺陷类）
+
+`repository.Update` 原先用 `fmt.Sprintf("%v", fields)` 渲染 SET 列表。`%v` 作用于 `[]string` 的输出是**方括号＋空格分隔＋无逗号**：
+
+```go
+fields := []string{"full_name=$3", "updated_at=NOW()"}
+fmt.Sprintf("%v", fields)
+// "[full_name=$3 updated_at=NOW()]"
+```
+
+于是实际执行的语句是：
+
+```sql
+UPDATE users SET [full_name=$3 updated_at=NOW()] WHERE id=$1 AND tenant_id=$2
+```
+
+这是**语法错误**，不是「写错了列」。修法是 `strings.Join(parts, ", ")`，并按键升序排序保证渲染结果可复现。
+
+**这一类缺陷与类 U（占位符 off-by-one）的差别是本轮最重要的方法论收获：** 类 U 里参数个数是错的，sqlmock 的 `WithArgs` arity 检查立刻能抓；而这一类的**参数个数完全正确**、绑定值也在、列名也在，错的只有把它们拼起来的标点。所以任何只看「有几条语句、几个参数」的测试框架都会放过它，**只有比对渲染出来的 SQL 文本才能发现**。这解释了为什么它能带着硬语法错误活过 R1–R34：全库的仓储测试都是 sqlmock 驱动的，而 sqlmock 关心的是语句是否被调用、参数是否匹配，不关心语句文本是否合法。
+
+### 35.2 缺陷二：动态 SET 无白名单、未检查 RowsAffected
+
+`Update` 从 `map[string]interface{}` 的键直接拼列名。键来自请求模型（只有 6 个字段），所以在当前调用链上还没变成注入；但一旦有任何调用方传入 `id` / `tenant_id` / `password` / `created_at`，结果分别是：改写主键、**把用户搬进另一个租户**、直接改密码哈希、改写审计时间。四处后果里有一处是越权。
+
+修复沿用 build-env 的既有先例：
+
+- `usersUpdatable` 白名单，只放行请求模型暴露的 6 个字段；列名来自常量集合，**不来自 map**，值一律作为参数绑定。
+- `updated_at` 由 `NOW()` 追加，不从 map 取——调用方不能显式写审计列。
+- `sort.Strings(keys)`：Go 的 map 迭代顺序未定义，不排序则每次渲染出的 SQL 都不同，语句不可复现、测试不稳定、慢查询日志也无法聚合。
+- 无白名单键时返回 `errNoUpdatableFields`，**不发语句**（原实现会发出 `UPDATE users SET updated_at=NOW() WHERE ...`，一个静默的空写）。
+- `RowsAffected == 0 → errNotFound`。语句以 id **和** tenant_id 为键，所以零行有两种含义：无此用户，或这是别人的用户。两种都该是 404，而不是「成功」。
+
+占位符约定收在一处：`id=$1, tenant_id=$2`，SET 值从 `$3` 起。放在 `setClause` 的注释里而不是散在调用点，是为了让占位符序号和 args 切片不会各走各的。
+
+### 35.3 缺陷三：错误类塌陷，以及它为什么能藏住缺陷一
+
+handler 原先对 5 个端点的错误分支各写一个常量状态码：Get / Update / Delete 恒 404，Authenticate 与 ChangePassword 恒 401。**任何**错误——缺表、连接被拒、schema 不匹配、语法错误——都得到同一个答复。这正是缺陷一能藏起来的第二个原因：语法错误被 handler 翻译成了「用户不存在」，一个语义上听起来很合理的解释。
+
+R34 的 finops-v2 里出现过同样的塌陷（4 处），R35 在 user 里是 5 处。修法分三层，因为**三层各自的可见性边界不同**：
+
+1. **repository**：`errNotFound` 从包私有 `errors.New("user not found")` 换为 `sentinel.NotFound`。sentinel 包的文档明确要求这一点——*"Prefer returning sentinel.NotFound (or fmt.Errorf(..., sentinel.NotFound)) instead of defining a per-module ErrNotFound."* 私有 sentinel 在本包之上不可见，`errors.Is` 跨包永远返回 false。**这是错误类塌陷得以长期存在的物理原因**：不是 handler 写错了，是它拿到的错误从结构上就无法分类。R35 修的是这两层，而不是只改 handler。
+2. **service**：新增 `IsNotFound(err)`，认 `sentinel.NotFound` 与 `sql.ErrNoRows`（后者兜住未包装的驱动错误，让它仍映射 404 而非 500）。
+3. **handler**：新增 `writeUserError`，Get / Update / Delete 共用；Authenticate 与 ChangePassword 因为语义更细，各自显式分支。
+
+| 端点 | 修复前 | 修复后 |
+|---|---|---|
+| Get / Update / Delete | 一切错误 → 404 | not-found → 404，其余 → 500 |
+| Authenticate | 一切错误 → 401 | `ErrInvalidPassword` → 401，其余 → 500 |
+| ChangePassword | 一切错误 → 401 | 旧密码错 → 401 / not-found → 404 / 其余 → 500 |
+
+Authenticate 的拆分发回一个**产品级后果**：修复前，整库宕机会让**每一次登录**都显示「invalid password」。用户会去改密码、会去找管理员解锁账号、会以为被盗号——而真实情况是数据库连不上。未知用户与密码错误仍然对调用方不可区分（这是刻意的，避免用户枚举），但宕机不再伪装成拒绝登录。
+
+### 35.4 26 个测试函数的分布
+
+| 包 | 数量 | 钉住的东西 |
+|---|---|---|
+| repository | 12 | SET 形状、白名单、排序确定性、tenant 作用域、零行语义、白名单 ⊆ 真实 schema、跨包 sentinel 契约 |
+| service | 6 | `IsNotFound` 的 6 个输入类、Authenticate 的两条错误路径、Update 包装后可见性与空密码 |
+| handler | 8 | 5 个端点的状态码映射（401 / 404 / 500 三分支） |
+
+两处**测试写法**的坑，值得记进流程：
+
+**一、读 body 的 handler 测试必须送真实 JSON。** gin 的 `ShouldBindJSON` 在 service 调用**之前**执行：空 body → 400，`binding:"required"` 的 `string` 字段拒绝空串 → 400。所以一条「outage → 500」的断言会先拿到 400，**根本没走到被测分支**，看起来像测试失败了，实际上是测试没测。本轮的 Get / Delete 不读 body，用 `makeCtx` 即可；Update 用 `{}`，Authenticate 与 ChangePassword 必须送完整字段。新增的 `makeCtxWithBody` 就是为这个区分的。
+
+**二、sqlmock 的 matcher 是精确比较，不是正则。** 全库先例（finops-v2，`repository_sql_test.go:43`）装的是自定义 `QueryMatcherFunc`，做空白归一化的**字符串相等**比较。所以期望串里的 `.*` 和 `\` 会被逐字比较、永远匹配不上——本轮第一次写测试时照正则的写法写了 4 条 `ExpectExec`，静默地全都匹配失败。每条期望现在都写成字面 SQL。反过来，`WithArgs` 严格校验个数与顺序，能抓到真 PostgreSQL 会静默接受的缺陷，这一层保留。
+
+另算错一次占位符顺序：`setClause` 按键升序排序，所以两个键时是 `email=$3, full_name=$4`（不是先 full_name），**绑定值也按同一个排序顺序发出**（`"ada@x.io"` 在 `"Ada"` 之前）。测试期望必须对着排序后的顺序写。
+
+### 35.5 变异验证 11/11（全部实测非空，全部即时还原）
+
+规则 d 要求每个修复都有非空回归证明。本轮 11 个变异全部被杀：
+
+| # | 变异 | 被谁杀 | 失败数 |
+|---|---|---|---|
+| 1 | `strings.Join(parts, ", ")` → `"["+strings.Join(parts," ")+"]"`（原样复现 `%v` 形状） | `TestSetClauseRendersACommaSeparatedSetList`（第 62 行）＋ 4 条字面 SQL 端到端测试 | 7 |
+| 2 | 白名单失效（`if allowed[k]` 去掉） | SkipsKeysOutsideWhitelist / RejectsAMapWithNoSettableKeys / UpdateDropsUnwhitelisted / UpdateRefusesAMap | 4 |
+| 3 | `sort.Strings` → 逆序 | 确定性断言（500 次迭代）＋ 3 条字面 SQL 测试 | 4 |
+| 4 | `affected == 0` → `affected < 0`（零行写报成功） | `TestUpdateReportsNotFoundWhenNoRowWasTouched`（`want errNotFound, got <nil>`） | 1 |
+| 5 | 丢掉 `tenant_id=$2` 及其绑定参数 | UpdateIsScopedToTheTenant ＋ 3 条字面 SQL 测试 | 4 |
+| 6 | 零行写返回 `errNoUpdatableFields` 而非 `errNotFound` | 同上测试（`got no updatable fields supplied`） | 1 |
+| 7 | Get/Update/Delete 恒 404 | 三条 `*MapsAnOutageTo500` | 3 |
+| 8 | Authenticate 恒 401 | `unknown user` 与 `outage` 两例 | 2 |
+| 9 | ChangePassword 恒 401 | `unknown user`（404）与 `outage`（500）两例 | 2 |
+| 10 | service.Authenticate 把仓储宕机吞成 `ErrInvalidPassword` | `TestAuthenticatePropagatesARepositoryOutage` | 1 |
+| 11 | `IsNotFound` 丢掉 sentinel 析取项 | 3 个 service 测试（sentinel / 包装 sentinel / 未知用户） | 3 |
+
+另有 3 个**无效变异被重设计**——规则是编译失败的变异不算数，因为它证明的是「编译器在」而不是「测试在」：
+
+- 删掉 `strings.Join` → `"strings" imported and not used`
+- 删掉 `sort.Strings` → `"sort" imported and not used`
+- 删掉 RowsAffected 块 → `declared and not used: result`
+
+三个都被换成能编译的等价缺陷：`"["+strings.Join(parts," ")+"]"`、`sort.Sort(sort.Reverse(...))`、`if affected < 0 {`，各自复现同一种行为缺陷。
+
+sentinel 交换（repository 的私有错误 → `sentinel.NotFound`）的变异**只有编译失败这一个形态**：换成私有错误后 `sentinel` 变成未使用导入，编译不过。这本身说明该引用是**承重**的——没有死代码兜着它。为让契约显式，另加 `TestErrNotFoundIsThePlatformSentinel` 直接断言 `errors.Is(errNotFound, sentinel.NotFound)`。
+
+### 35.6 本轮唯一一次回头改测试
+
+`TestHandler_USER_UpdateMapsAnOutageTo500` 首版写反了断言方向：`if w.Code != http.StatusNotFound` 会**在返回 500 时也失败**（500 ≠ 404），于是这条测试无论修复在不在都会红。改为 `if w.Code == http.StatusNotFound` 才是「宕机不该被答成缺行」。这类错误的特征是**测试自己永远为假**，不修的话会把后续每一次全绿都弄坏。
+
+### 35.7 全库跟进项（本轮只记录，未改）
+
+**三个模块的所有表在任何迁移中都不存在**（与 R34 的 finops-v2 同类，属规则 e 的 record-only——DDL 是基础设施，不是代码）：
+
+- `internal/sla-engine`：`sla_profiles` / `sla_trackers` / `sla_holidays`
+- `internal/storage`：`storage_entries`
+- `internal/vulnerability`：`vulnerabilities`
+
+每个仓储方法都失败于 `relation does not exist`，三个模块**没有任何仓储测试**。它们的 4 个动态 SET 构造器同样没有白名单：
+
+- sla-engine 的 `UpdateProfile` / `UpdateTracker` **原地改写调用方的 map**，且忽略 `RowsAffected`
+- `storage.Update` 里有一行 no-op：`attrs[k] = v`
+- `vulnerability.Update` 忽略 `RowsAffected`
+
+user 模块自身的剩余空白：`ChangePassword` 的 bcrypt 路径与 `Create` 的校验无测试覆盖。
+
+前端不调用 `PUT /users/:id`——本轮按「不为没有前端调用方的路由加东西」的约束，只修了服务端已经注册的路由，没有新增路由。`c.GetString("user_id")` 是合法的平台约定：`orion-go-common/pkg/auth/middleware.go:188` 从 JWT claim 写入该键，全库 237 处生产代码这样读。
+
+### 35.8 验证
+
+```
+gofmt -l internal/user/          -> (empty)
+go vet ./internal/user/...       -> clean
+go test -count=1 ./internal/user/...
+    ok  internal/user/handler
+    ok  internal/user/repository
+    ok  internal/user/service
+go test ./...                    -> 505 ok / 0 FAIL
+```
+
+模块内测试函数合计 **17 + 12 + 6 = 35 个**，其中本轮新增 26 个（handler 8 / repository 12 / service 6）。505 是 R34 的 503 加上本轮新增的 service 测试包与 repository 测试文件的两个 ok 包计数变化。
+
+**与 R34 的差别**：R34 修的是「表不存在」，靠迁移就能让整个模块活过来；R35 修的是「语句每次都执行但每次都错」，没有任何迁移可以修它——必须改代码，而且必须改到**渲染出 SQL 的那一行**。这也是为什么本轮的测试全部落在语句文本层（`setClause` 的直接断言 ＋ 4 条字面 SQL 的端到端匹配），而不是只放在参数层。
