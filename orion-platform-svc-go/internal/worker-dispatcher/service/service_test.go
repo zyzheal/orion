@@ -2,7 +2,9 @@ package service_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 
@@ -121,8 +123,8 @@ func (r *fakeWorkerRepo) GetAssignmentByID(ctx context.Context, tenantID, id str
 func (r *fakeWorkerRepo) UpdateAssignmentStatus(ctx context.Context, tenantID, id, status string, completedAt interface{}) error {
 	return nil
 }
-func (r *fakeWorkerRepo) GetActiveAssignments(ctx context.Context, tenantID, workerID string) int {
-	return 0
+func (r *fakeWorkerRepo) GetActiveAssignments(ctx context.Context, tenantID, workerID string) (int, error) {
+	return 0, nil
 }
 func (r *fakeWorkerRepo) CreateCapability(ctx context.Context, m *models.WorkerCapability) error {
 	return nil
@@ -475,8 +477,8 @@ func (r *failingRepo) GetAssignmentByID(ctx context.Context, tenantID, id string
 func (r *failingRepo) UpdateAssignmentStatus(ctx context.Context, tenantID, id, status string, completedAt interface{}) error {
 	return nil
 }
-func (r *failingRepo) GetActiveAssignments(ctx context.Context, tenantID, workerID string) int {
-	return 0
+func (r *failingRepo) GetActiveAssignments(ctx context.Context, tenantID, workerID string) (int, error) {
+	return 0, nil
 }
 func (r *failingRepo) CreateCapability(ctx context.Context, m *models.WorkerCapability) error {
 	return nil
@@ -498,3 +500,43 @@ func (r *failingRepo) ListAssignmentsByWorker(ctx context.Context, tenantID, wor
 }
 
 var _ service.RepositoryInterface = (*failingRepo)(nil)
+
+type activeAssignmentOutageRepo struct {
+	*fakeWorkerRepo
+}
+
+func (r *activeAssignmentOutageRepo) GetActiveAssignments(ctx context.Context, tenantID, workerID string) (int, error) {
+	return 0, errors.New("connection refused")
+}
+
+var _ service.RepositoryInterface = (*activeAssignmentOutageRepo)(nil)
+
+// GetWorkerLoad used to return a bare int, so the repository's discarded
+// GetContext error could never reach the handler: an unreachable
+// worker_assignments table read as "worker is idle".
+func TestGetWorkerLoadSurfacesARepositoryOutage(t *testing.T) {
+	d := service.NewService(&activeAssignmentOutageRepo{&fakeWorkerRepo{}})
+
+	load, err := d.GetWorkerLoad(context.Background(), "t-1", "w-1")
+	if err == nil {
+		t.Fatalf("a repository outage must not be reported as an idle worker, load = %d", load)
+	}
+	if load != 0 {
+		t.Fatalf("load = %d, want 0 alongside the error", load)
+	}
+	if !strings.Contains(err.Error(), "connection refused") {
+		t.Fatalf("error %q does not carry the repository failure", err.Error())
+	}
+}
+
+func TestGetWorkerLoadReturnsTheActiveAssignmentCount(t *testing.T) {
+	d := service.NewService(&fakeWorkerRepo{})
+
+	load, err := d.GetWorkerLoad(context.Background(), "t-1", "w-1")
+	if err != nil {
+		t.Fatalf("GetWorkerLoad: %v", err)
+	}
+	if load != 0 {
+		t.Fatalf("load = %d, want the repository's count", load)
+	}
+}

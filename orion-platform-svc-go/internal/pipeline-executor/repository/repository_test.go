@@ -2,8 +2,14 @@ package repository
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
+
+	"orion/platform-svc-go/internal/pipeline-executor/models"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jmoiron/sqlx"
@@ -139,5 +145,109 @@ func TestUpdateStepWithNoFieldsRereads(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unexpected SQL: %v", err)
+	}
+}
+
+// newMockRepo above uses sqlmock's regexp matcher, which is a substring test.
+// The probe tests need an exact comparison so that a statement sending the
+// pipeline id in the wrong placeholder cannot satisfy the expectation.
+
+var probeWS = regexp.MustCompile(`\s+`)
+
+func exactMockRepo(t *testing.T) (sqlmock.Sqlmock, *Repository) {
+	t.Helper()
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherFunc(func(expected, actual string) error {
+		e := strings.TrimSpace(probeWS.ReplaceAllString(expected, " "))
+		a := strings.TrimSpace(probeWS.ReplaceAllString(actual, " "))
+		if e != a {
+			return fmt.Errorf("sql mismatch: want %q got %q", e, a)
+		}
+		return nil
+	})))
+	if err != nil {
+		t.Fatalf("sqlmock: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	return mock, NewRepository(sqlx.NewDb(db, "postgres"))
+}
+
+const pipelineExistsQuery = `SELECT EXISTS(SELECT 1 FROM pipelines WHERE id=$1 AND tenant_id=$2)`
+
+// pipelineExists used to drop the GetContext error into `_ =` and return the
+// zero value. Every caller then read that as "pipeline not found", so an
+// outage was answered with a 404-style message and no step was ever created
+// while the pipeline it belonged to existed all along.
+func TestCreateStepReportsAProbeOutageAsAnOutage(t *testing.T) {
+	mock, repo := exactMockRepo(t)
+	mock.ExpectQuery(pipelineExistsQuery).
+		WithArgs("pl-1", "tenant-a").
+		WillReturnError(errors.New("connection refused"))
+
+	_, err := repo.CreateStep(context.Background(), "tenant-a", "pl-1",
+		&models.AddStepRequest{Name: "build", Type: "build", Priority: 10})
+	if err == nil {
+		t.Fatalf("a failed ownership probe must not be treated as a missing pipeline")
+	}
+	if strings.Contains(err.Error(), "pipeline not found") {
+		t.Fatalf("an outage was reported as a missing pipeline: %v", err)
+	}
+	// ExpectationsWereMet doubles as proof that no INSERT was issued.
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("%v", err)
+	}
+}
+
+func TestCreateStepRejectsAMissingPipelineBeforeInserting(t *testing.T) {
+	mock, repo := exactMockRepo(t)
+	mock.ExpectQuery(pipelineExistsQuery).
+		WithArgs("pl-1", "tenant-a").
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+
+	_, err := repo.CreateStep(context.Background(), "tenant-a", "pl-1",
+		&models.AddStepRequest{Name: "build", Type: "build", Priority: 10})
+	if err == nil {
+		t.Fatalf("a step must not be created for a pipeline the tenant does not own")
+	}
+	if !strings.Contains(err.Error(), "pipeline not found: pl-1") {
+		t.Fatalf("error %q must name the missing pipeline", err.Error())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("the probe must not have been followed by an INSERT: %v", err)
+	}
+}
+
+func TestListStepsReportsAProbeOutageAsAnOutage(t *testing.T) {
+	mock, repo := exactMockRepo(t)
+	mock.ExpectQuery(pipelineExistsQuery).
+		WithArgs("pl-1", "tenant-a").
+		WillReturnError(errors.New("connection refused"))
+
+	_, err := repo.ListSteps(context.Background(), "tenant-a", "pl-1", 10, 0)
+	if err == nil {
+		t.Fatalf("a failed ownership probe must not be treated as a missing pipeline")
+	}
+	if strings.Contains(err.Error(), "pipeline not found") {
+		t.Fatalf("an outage was reported as a missing pipeline: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("no step list must be issued for a probe that failed: %v", err)
+	}
+}
+
+func TestListStepsRejectsAMissingPipeline(t *testing.T) {
+	mock, repo := exactMockRepo(t)
+	mock.ExpectQuery(pipelineExistsQuery).
+		WithArgs("pl-1", "tenant-a").
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+
+	_, err := repo.ListSteps(context.Background(), "tenant-a", "pl-1", 10, 0)
+	if err == nil {
+		t.Fatalf("steps must not be listed for a pipeline the tenant does not own")
+	}
+	if !strings.Contains(err.Error(), "pipeline not found: pl-1") {
+		t.Fatalf("error %q must name the missing pipeline", err.Error())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("%v", err)
 	}
 }
