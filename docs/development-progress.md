@@ -10492,3 +10492,129 @@ NOT NULL 集合按表钉死：`form_definition` 8 列、`form_field` 12 列、`f
 - 硬编码成功标记的分诊未完成（按 R38 规则每个先确认是否挂了路由）：`internal/health-check/service/service.go`（上次死于 `sed` 的 division by zero，需先用 `grep -n "success"` 拿行号）、`pipeline_executor.go` 5 处、`internal/assistant/service/actions.go:42` 与 `internal/assistant/handler/handler.go:78`（失败分支答 `Status: "executed"` 加 HTTP 201）、`internal/multi-cloud/service.go:354`（先设 `Status: "passed"` 再判断，自我满足）、`internal/tool/service.go:318`、`internal/chaos-gateway/service.go:294`、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`、`internal/workflow-webhook/handler.go:144`、`internal/cmdb/service.go:465`、`internal/serverless/service.go:152`、`internal/data-catalog/service.go:166`。
 - 尚未扫描的模块：`internal/notification`、`internal/file-handler`、`internal/job-source`、`internal/alert-escalation`、`internal/security`、`internal/infrastructure/*`、`internal/config-mgmt-enhanced`、`internal/cache`、`internal/apm`、`internal/cron`。
 - 结转不变：visor-exec 的租户贯穿（`visorTenantBridge` 里 15 个以上 `""` 占位、`POST /commands` 从不设 `CommandLog.TenantID`）；`runner_repository.go:73` 在活路由上丢弃一条引用不存在列的 DELETE（274 的真实外键是 `agent_id`，`:542` / `:563` 同一错误列）；`pipeline-templates` 的 `Delete` 丢弃一条 DELETE 且 handler 未注册；`vector/repository.go:68` 的 `DeleteStore` 没有 `vector_record` 迁移；schema-registry 的 best-effort `GetSchema` 快照（已被测试钉住）；`EnsureTable` 在约 15 个模块声明而 `cmd/server` 零调用方；`internal/schema-registry/models/models.go` 的既存 gofmt 债；`buildNamedSet` 在 pipeline-executor:401 / job-actions:285 / auto-exec:333 未加白名单；roweditor 的 `validateRows` / `validateMode` 死代码；`buildUpdateSetClause` 里重复的 `version=` / `updated_at=`；finops v1 的不可达方法；user 模块 `ChangePassword` 的 bcrypt 路径无覆盖、前端不调 `PUT /users/:id`；`monitor:execute` 未授予 `sre` / `tenant_admin`（`pkg/auth/permission.go`，有意不动）；`internal/pipeline-template` 与 `internal/pipeline-templates` 都注册 `/pipeline-templates`，疑似同名路由组冲突，未调查。
+
+## 第四十五轮：internal/distributed-config 八张 config_* 表全无 DDL、四条 history 写入吞错、`toDBValue` 把 bool 写成 Postgres 拒收的文本、UPDATE 白名单允许 tenant_id 与不存在的列（Round 45）
+
+### 45.1 扫描起点与选点理由
+
+- 起点 HEAD `593ebbd70`（Round 44 收尾）。
+- 选它的理由：模块每次启动都接线，`rg.Group("/config")` 下注册 21 条路由，repository 457 行直接读写 8 张表，但 576 个迁移里这 8 张表**一张都没有 CREATE**。`config_namespace` / `config_group` / `config_item` / `config_item_history` / `config_snapshot` / `config_release` / `config_release_history` / `config_audit` 全部命中「规划期即失败」，21 个端点无一能返回真实数据。
+- 第二个理由：这是 395 之外的又一处带 JSON 列的迁移，命中 R42 归纳的缺陷 C——JSON 列绑定空串在 lib/pq 侧立刻失败。
+
+### 45.2 repository.go
+
+| 编号 | 修复 | 说明 |
+|------|------|------|
+| A | 迁移 395 建 8 张表 | `encrypted SMALLINT NOT NULL DEFAULT 0`、`labels JSON DEFAULT NULL`、`data JSON NOT NULL`、`detail JSON DEFAULT NULL` 四类约束各自独立成条；`config_item` 12 个 NOT NULL（含 406 补的 `level` 与 `priority`） |
+| B | 迁移 406 补三层 Level | `level VARCHAR(20) NOT NULL DEFAULT 'tenant'`、`override_of VARCHAR(36) DEFAULT NULL`、`priority INT NOT NULL DEFAULT 50`，另加两个 `CREATE INDEX IF NOT EXISTS` |
+| C | INSERT 统一为双引号字面量 | 列名常量加 `$N` 占位符，`config_item` 15 列对 15 个实参逐一对齐 |
+| D | `toDBValue` 的 bool 分支 | 返回 `int64(1)` / `int64(0)` 而不是 Go bool。lib/pq v1.10.9 的 `encode.go` 把 bool 渲染成文本 `true` / `false`，Postgres 对 `SMALLINT` 目标列直接报错；读方向 `int64` 扫进 Go bool 是通的，所以只改写方向 |
+| E | `buildSET` 白名单 | 未知列返回 `column "X" is not updatable`，租户与归属列永不进白名单 |
+| F | `RowsAffected` 错误上抛 | 原来 `rows, _ :=` 静默丢弃，行数异常不可观测 |
+| G | audit 分页 limit | 收敛到 1 到 500，默认 50 |
+
+### 45.3 service.go
+
+- **G 类守卫补齐**：`CreateGroup` 与 `CreateItem` 校验 `group.NamespaceID` 必须等于请求的 namespace。原代码缺这一层，跨命名空间的 group 能被建进不属于它的命名空间，随后被命名空间级 resolver 拾起。
+- **四路 history 失败改为致命**：create / update / release / rollback 的 `CreateHistory` 错误原来被吞掉并返回成功，调用方拿到的是「已记录审计」的假象。
+- **版本号一律取自仓库侧**：`GetItemLatestVersion` / `GetLatestSnapshotVersion` / `GetLatestReleaseVersion` 的返回值直接决定下一行版本号，查询失败向上传播，不再在本地从 0 起算。这一点是本轮变异测试里杀伤力最大的一组（svc2、svc7、svc8、svc9）。
+- **Level 归一化集中**：`NormalizeLevel` 加 `IsValid`，非法 level 走 `ErrInvalidLevel`。
+
+### 45.4 handler.go
+
+- `UpdateItem` 把 `ErrInvalidLevel` 映射为 400、其余保持 404。原实现把所有错误折成 404，非法 level 看起来像 item 不存在，把调用方引去找一个确实存在的东西。
+- `ListAudit` 的 limit 用 `strconv.Atoi` 解析，非数字返回 400。原实现用 `Sscanf`，它自己吞掉错误值，非数字静默回落成 0，查询直接返回空列表。
+
+### 45.5 models.go 与 service_interface.go
+
+- 三层 Level 枚举、`IsValid`、`NormalizeLevel`。
+- `UpdateItemRequest` 补齐 history 链路需要的字段。
+- `service_interface.go` 同步声明，保住 handler DI 的编译期约束。
+
+### 45.6 测试侧的关键解析经验
+
+这一轮真正花掉时间的不是业务代码，而是测试侧的 DDL 解析。四条经验值得沉淀：
+
+1. **括号组数陷阱**：`reDCAddColumns` 若写成 `ALTER TABLE (` + 交替 + `)`，由于交替本身是捕获型，会造出三个组——外层、内层交替（同一个表名）、语句体。语句体因此在第 3 组，而代码读第 2 组，折叠永远看不到 `ADD COLUMN`。R42 踩过「少一对括号把组静默合并并 panic」，这一轮是反向的「多一对括号把组号静默后移且不报错」。诊断手段是把它单独拿出来跑、把每个组打出来看。
+2. **交替后要紧跟空白边界**：`config_snapshot` 会前缀匹配 `config_snapshots`，`config_audit` 会前缀匹配 `config_audit_entries`（迁移 571 / 572）。交替后加 `\s` 是安全的，因为长名字的下一个字符是字母不是空白。
+3. **`ExecContext` 的参数切分从 0 层深度找逗号**：SQL 字符串里的 `VALUES ($1, ...)` 被字面量状态机跳过，真正的第一个代码层逗号出现在括号深度 1，因为调用自身的右括号在最后实参之后。要求深度 1 才找逗号，切分会跑过整个文件——一条 7 列 INSERT 被数出 63 个「实参」。
+4. **`entriesInMigrationsDir()` 不排序**：406 可能先于 395 被遍历，把 `ADD COLUMN` 折到尚不存在的 `CREATE` 上会直接 `continue`。所以 ADD 的折叠必须是独立第二遍，不能塞进同一个按文件循环。
+5. **约束过滤器要带词边界**：`HasPrefix(line, "CHECK")` 会把名为 `checksum` 的列当成 CHECK 约束吃掉。R44 的 `lcdIsColumnLine` 前缀过滤器有同样的病，`reDCConstraint` 的 `(\s|\(|$)` 形式是要回移的修正。
+6. **单条 `ALTER TABLE` 可以带多个 `ADD COLUMN`**：只锚 ALTER 行永远只能看到第一个，必须按每个 `ADD COLUMN` 出现的位置切语句体，各自解析自己的类型与 NOT NULL。
+7. **`for i++ < n; i++` 每轮自增两次**，隔行跳行，这一轮排查时踩过一次。
+
+### 45.7 变异证明
+
+23 个变异，全部由断言杀死，无一编译击杀、无一存活。变异脚本 `/tmp/r45_mut.py`，锚点先跑 `verify` 模式核对（`ANCHORS_BAD=0`），再 `go clean -testcache` 后跑 `run`。
+
+| 变异 | 位置 | 变异方式 | 击杀方 |
+|------|------|----------|--------|
+| svc1 | service.go | 命名空间守卫条件取反 | `TestDC_CreateItem_rejectsANamespaceTheGroupIsNotIn` 等 5 个 |
+| svc2 | service.go | item 历史版本号改为常量 | `TestDC_UpdateItem_tracksHistory`、`..._ReportsAHistoryLookupFailure` |
+| svc3 | service.go | create history 失败返回成功 | 失败路径断言 |
+| svc4 | service.go | update history 失败返回成功 | 失败路径断言 |
+| svc5 | service.go | release history 失败返回成功 | 失败路径断言 |
+| svc6 | service.go | rollback history 失败返回成功 | 失败路径断言 |
+| svc7 | service.go | snapshot 版本号改为常量 | `TestDC_PublishSnapshot_UsesTheSnapshotVersionCounter` |
+| svc8 | service.go | publish release 版本号改为常量 | 版本号断言 |
+| svc9 | service.go | rollback release 版本号改为常量 | `TestDC_RollbackRelease_UsesTheSnapshotGroupAndEnvironment` |
+| hdl1 | handler.go | `ErrInvalidLevel` 分支条件改恒假 | 400 映射断言 |
+| hdl2 | handler.go | limit 解析对象改成空串 | 400 解析断言 |
+| repo1 | repository.go | bool 直接透传而非转 smallint | `WithArgs` 实参断言 |
+| repo2 | repository.go | 未知列白名单检查改恒假 | `column "X" is not updatable` 断言 |
+| repo3 | repository.go | 丢弃 `RowsAffected` 错误 | `rowCountFailure` 断言 |
+| repo4 | repository.go | `config_item` 列常量删一列 | 列名断言 |
+| repo5 | repository.go | INSERT 实参删一个 | 实参个数断言 |
+| repo6 | repository.go | INSERT 多写一列 | 列名与迁移比对断言 |
+| repo7 | repository.go | 白名单加入 `tenant_id` | 白名单断言 |
+| repo8 | repository.go | 占位符改成问号 | `TestDistributedConfigStatementsUsePostgresPlaceholders` |
+| m395a | 迁移 395 | `encrypted` 去掉 NOT NULL | `TestDistributedConfigInsertsFitTheMigratedSchema` |
+| m395b | 迁移 395 | `data` 改为可空 | 同上 |
+| m406a | 迁移 406 | `priority` 去掉 NOT NULL | 同上（`config_item has 11 NOT NULL columns, want 12`） |
+| m406b | 迁移 406 | 删掉 `override_of` | `TestDistributedConfigColumnListsMatchMigration395` |
+
+**变异脚本本身的两个坑，都记录在此以免下轮重踩：**
+
+- 原地变异、只在整轮末尾恢复，会让后面的变异测的是前面变异的累积栈。必须在每个变异后用 `finally` 立刻还原。
+- 分类器不能用「build failed」「could not import」「syntax error」这类子串——23 个变异全部被报成编译击杀，而手工复现一条纯 SQL 变异明明是 rc=1 的干净断言失败。必须以 `FAIL <pkg> [build failed]` 这个标记为准，其余非零退出都算断言击杀。
+- 另一个分类口径：一个变异只要**任一**套件失败就算被杀死。不覆盖该变异的套件会通过，不能把「另一套件通过了」读成存活。
+- 两个编译型变异已改造为语义变异：`if false {` 会让 `group` 变成未使用变量，改成条件取反；`:= 0, nil` 报「use of untyped nil in assignment」，改成 `:= int(0), error(nil)`。
+
+### 45.8 验证
+
+- `go list ./... | grep -v '/docs/deliverables/' | xargs go build` 退出码 0（1387 个包）
+- `go vet ./cmd/server/` 退出码 0
+- `gofmt -l cmd/server internal/distributed-config` 无输出
+- `go test -count=1 ./internal/distributed-config/...` 全部 ok（handler、repository、service；models 无测试文件）
+- `go test -count=1 ./cmd/server/` ok
+- `go test -count=1 -run 'DistributedConfig|MigrationsCreateEveryDistributedConfig' -v ./cmd/server/` 6 项全 PASS
+- 变异 23/23 全部由断言击杀，无一编译击杀、无一存活，工作树已按字节恢复
+- 三个独立提交：代码、测试、文档
+- 提交前后各跑一次 FORBIDDEN 校验，均为 0
+
+### 45.9 记录不修
+
+1. `CreateItem` / `UpdateItem` / `PublishRelease` / `RollbackRelease` 都不是事务：history 插入失败时父行已经提交。本轮失败路径测试把这个行为钉住了，但真正的修法要在 repository 层引入事务贯通，超出本轮范围。
+2. JSON 列与 `override_of` 以文本写入而非 SQL NULL。406 的注释写明「NULL 表示该行不是 override」，当前实现写空串，语义与注释不一致。
+3. `createAudit` 是 void，且在 8 处丢弃 `CreateAudit` 的返回值——审计写失败对调用方完全不可见。
+4. `handler.getTenantID` 在 `RespondUnauthorized` 之后返回空串且不中断，缺租户会在约 12 个调用点发出第二个响应。
+5. `UpdateItemRequest.Labels` 是 map 而非指针，缺省与显式空无法区分，标签清不掉。
+6. `GetItemsFilter.UserID` 在 `ResolveEffectiveConfig` 里被 `_ =` 丢弃。
+7. `GetItemHistory` 硬编码 limit 50，无分页参数。
+8. `PublishSnapshot` 把 `config_snapshot.namespace_id` 写成空串而不是 group 的 namespace。
+9. `config_release` 无 `updated_at`，且 `(group_id, environment, release_version)` 没有唯一索引，版本号递增只靠应用层。
+10. `fakeDCRepo.ListAudit` 忽略 limit（测试替身限制，记一笔）。
+11. `internal/distributed-config/migrations/001_create_distributed_config.sql` 是含 MySQL 语法的死内容，runner 只加载顶层 `migrations/*.sql`，永远不被执行。
+12. 395 无 `_down`。
+
+### 45.10 扫描遗留（未处理，结转）
+
+- 下一个目标已在册：`internal/alert-escalation`（182 行 repository，`UpdatePolicy` / `UpdateTrigger` / `UpdateClosure` 注入，表来自 397）；`internal/infrastructure/dr`（`SELECT *` 加 `RETURNING *`）；`internal/config-mgmt-enhanced`（显式 set 切片，待核）。
+- `/tmp/r41/dyn.txt`（约 57 处 `Sprintf("UPDATE` / 40 文件）；`/tmp/r38/A.txt`（50 处 `Sprintf("%s=$%d`）；`/tmp/r33/hits.txt`、`/tmp/r34/stubs2.txt`；`/tmp/r32scan/up3.txt`（178 个死参数）。
+- 22 个 model 缺 `tenant_id`；12 个 LEAK 模块；25 个未加 tag 的多单词字段结构体（三条具体后果：sqlx v1.4.0 不剥下划线、`db:"-"` 的字段让同名列拖垮整次读取、`NameMapper` 全库只有 `strings.ToLower`）。
+- 全仓结构债：1302 行代码里的 `SELECT *` 对 1007 张被迁移 572 改过的表。runbook（R41）、tracing（R42）、tenant-quota（R43）、lowcode-designer（R44）、distributed-config（R45）是这条很长列表上的五个点，只能逐模块来。
+- **共享测试基建债，待回移**：`cmd/server/migration_runbook_tables_test.go:42` 的 `reNotNullColumn` 仍不认 BIGINT / INT / DECIMAL / 裸 TIMESTAMP；`lcdIsColumnLine` 的前缀过滤器会丢掉名为 `checksum` 或任何以 SQL 关键字开头的列，`reDCConstraint` 的 `(\s|\(|$)` 词边界形式是修正方案。
+- **新的跨轮经验**：`entriesInMigrationsDir()` 不排序，任何把后续 `ALTER TABLE` 折回先前 `CREATE TABLE` 的迁移测试都必须在独立第二遍里做，不能塞进同一个按文件循环。
+- 硬编码成功标记的分诊未完成（按 R38 规则每个先确认是否挂了路由）：`internal/health-check/service/service.go`（上次死于 `sed` 的 division by zero，需先用 `grep -n "success"` 拿行号）、`pipeline_executor.go` 5 处、`internal/assistant/service/actions.go:42` 与 `internal/assistant/handler/handler.go:78`（失败分支答 `Status: "executed"` 加 HTTP 201）、`internal/multi-cloud/service.go:354`（先设 `Status: "passed"` 再判断，自我满足）、`internal/tool/service.go:318`、`internal/chaos-gateway/service.go:294`、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`、`internal/workflow-webhook/handler.go:144`、`internal/cmdb/service.go:465`、`internal/serverless/service.go:152`、`internal/data-catalog/service.go:166`。
+- 尚未扫描的模块：`internal/notification`、`internal/file-handler`、`internal/job-source`、`internal/alert-escalation`、`internal/security`、`internal/infrastructure/*`、`internal/config-mgmt-enhanced`、`internal/cache`、`internal/apm`、`internal/cron`。
+- 结转不变：visor-exec 的租户贯穿（`visorTenantBridge` 里 15 个以上 `""` 占位、`POST /commands` 从不设 `CommandLog.TenantID`）；`runner_repository.go:73` 在活路由上丢弃一条引用不存在列的 DELETE（274 的真实外键是 `agent_id`，`:542` / `:563` 同一错误列）；`pipeline-templates` 的 `Delete` 丢弃一条 DELETE 且 handler 未注册；`vector/repository.go:68` 的 `DeleteStore` 没有 `vector_record` 迁移；schema-registry 的 best-effort `GetSchema` 快照（已被测试钉住）；`EnsureTable` 在约 15 个模块声明而 `cmd/server` 零调用方；`internal/schema-registry/models/models.go` 的既存 gofmt 债；`buildNamedSet` 在 pipeline-executor:401 / job-actions:285 / auto-exec:333 未加白名单；roweditor 的 `validateRows` / `validateMode` 死代码；`buildUpdateSetClause` 里重复的 `version=` / `updated_at=`；finops v1 的不可达方法；user 模块 `ChangePassword` 的 bcrypt 路径无覆盖、前端不调 `PUT /users/:id`；`monitor:execute` 未授予 `sre` / `tenant_admin`（`pkg/auth/permission.go`，有意不动）；`internal/pipeline-template` 与 `internal/pipeline-templates` 都注册 `/pipeline-templates`，疑似同名路由组冲突，未调查。
