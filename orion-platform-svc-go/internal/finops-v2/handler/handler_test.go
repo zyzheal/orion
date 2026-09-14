@@ -2,17 +2,35 @@ package handler
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"orion/platform-svc-go/internal/finops-v2/models"
+	"orion/platform-svc-go/internal/finops-v2/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 // fakeFinopsV2Service implements service.ServiceInterface for testing.
-type fakeFinopsV2Service struct{}
+type fakeFinopsV2Service struct {
+	getBudgetErr       error
+	getBudgetStatusErr error
+	getScheduleErr     error
+	healthOK           bool
+	healthErr          error
+	triggers           []models.AlertTrigger
+	alerts             []models.BudgetAlert
+	lastAlertsEntity   string
+	lastAlertsType     string
+	lastAlertsTenant   string
+	lastTriggersTenant string
+	lastAlertsBody     []byte
+}
 
 func (f *fakeFinopsV2Service) TrackProjectCost(ctx context.Context, tenantID string, req models.TrackCostRequest) (*models.CostEntry, error) {
 	return &models.CostEntry{}, nil
@@ -45,7 +63,7 @@ func (f *fakeFinopsV2Service) CreateBudget(ctx context.Context, tenantID string,
 	return &models.Budget{}, nil
 }
 func (f *fakeFinopsV2Service) GetBudget(ctx context.Context, tenantID, id string) (*models.Budget, error) {
-	return &models.Budget{}, nil
+	return &models.Budget{}, f.getBudgetErr
 }
 func (f *fakeFinopsV2Service) UpdateBudget(ctx context.Context, tenantID, id string, req models.UpdateBudgetRequest) (*models.Budget, error) {
 	return &models.Budget{}, nil
@@ -54,16 +72,24 @@ func (f *fakeFinopsV2Service) DeleteBudget(ctx context.Context, tenantID, id str
 	return nil
 }
 func (f *fakeFinopsV2Service) GetBudgetStatus(ctx context.Context, tenantID, id string) (*models.BudgetStatusResponse, error) {
-	return &models.BudgetStatusResponse{}, nil
+	return &models.BudgetStatusResponse{}, f.getBudgetStatusErr
 }
 func (f *fakeFinopsV2Service) ForecastBudget(ctx context.Context, tenantID, id string) (*models.BudgetForecastResponse, error) {
 	return &models.BudgetForecastResponse{}, nil
 }
 func (f *fakeFinopsV2Service) CheckBudgetAlerts(ctx context.Context, tenantID, entityID, entityType string) ([]models.BudgetAlert, error) {
-	return []models.BudgetAlert{}, nil
+	f.lastAlertsTenant, f.lastAlertsEntity, f.lastAlertsType = tenantID, entityID, entityType
+	if f.alerts == nil {
+		return []models.BudgetAlert{}, nil
+	}
+	return f.alerts, nil
 }
-func (f *fakeFinopsV2Service) GetAlertTriggers(ctx context.Context) ([]models.AlertTrigger, error) {
-	return []models.AlertTrigger{}, nil
+func (f *fakeFinopsV2Service) GetAlertTriggers(ctx context.Context, tenantID string) ([]models.AlertTrigger, error) {
+	f.lastTriggersTenant = tenantID
+	if f.triggers == nil {
+		return []models.AlertTrigger{}, nil
+	}
+	return f.triggers, nil
 }
 func (f *fakeFinopsV2Service) GetCostForecast(ctx context.Context, tenantID, entityType, entityID, period string) (*models.CostForecast, error) {
 	return &models.CostForecast{}, nil
@@ -98,24 +124,28 @@ func (f *fakeFinopsV2Service) GetROISummary(ctx context.Context, tenantID string
 func (f *fakeFinopsV2Service) GetMetrics(ctx context.Context, tenantID string) (*models.FinOpsMetricsResponse, error) {
 	return &models.FinOpsMetricsResponse{}, nil
 }
-func (f *fakeFinopsV2Service) GetRegisteredProviders(ctx context.Context) ([]models.CloudProviderEntry, error) {
+func (f *fakeFinopsV2Service) GetRegisteredProviders(ctx context.Context, tenantID string) ([]models.CloudProviderEntry, error) {
 	return []models.CloudProviderEntry{}, nil
 }
 func (f *fakeFinopsV2Service) SetSchedule(ctx context.Context, provider, cronExpression string, enabled bool) error {
 	return nil
 }
 func (f *fakeFinopsV2Service) GetSchedule(ctx context.Context, provider string) (*models.CollectionSchedule, error) {
-	return &models.CollectionSchedule{}, nil
+	return &models.CollectionSchedule{}, f.getScheduleErr
 }
 func (f *fakeFinopsV2Service) CollectCost(ctx context.Context, tenantID string, req models.CollectCostRequest) (*models.CollectCostResponse, error) {
 	return &models.CollectCostResponse{}, nil
 }
 func (f *fakeFinopsV2Service) HealthCheck(ctx context.Context) (bool, error) {
-	return false, nil
+	return f.healthOK, f.healthErr
 }
 
 func newHandler() *Handler {
-	return NewHandler(&fakeFinopsV2Service{})
+	return NewHandler(&fakeFinopsV2Service{healthOK: true})
+}
+
+func newHandlerWith(f *fakeFinopsV2Service) *Handler {
+	return NewHandler(f)
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {
@@ -360,5 +390,140 @@ func TestHandler_FINOPS_V2_GetSchedule(t *testing.T) {
 	newHandler().GetSchedule(c)
 	if w.Code >= 500 {
 		t.Fatalf("GetSchedule: got %d", w.Code)
+	}
+}
+
+// --- 404 must mean "no such row", not "the database failed" ---
+
+func TestHandler_FINOPS_V2_GetBudgetMapsNotFoundTo404(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/budgets/9")
+	c.Params = gin.Params{{Key: "id", Value: "9"}}
+	h := newHandlerWith(&fakeFinopsV2Service{getBudgetErr: service.ErrBudgetNotFound, healthOK: true})
+	h.GetBudget(c)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("want 404, got %d", w.Code)
+	}
+}
+
+func TestHandler_FINOPS_V2_GetBudgetMapsAnOutageTo500(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/budgets/9")
+	c.Params = gin.Params{{Key: "id", Value: "9"}}
+	h := newHandlerWith(&fakeFinopsV2Service{getBudgetErr: errors.New("pq: connection refused"), healthOK: true})
+	h.GetBudget(c)
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("an outage is not 404: got %d", w.Code)
+	}
+}
+
+func TestHandler_FINOPS_V2_GetBudgetStatusMapsNotFoundAndOutage(t *testing.T) {
+	for name, tc := range map[string]struct {
+		err  error
+		want int
+	}{
+		"not found": {sql.ErrNoRows, http.StatusNotFound},
+		"outage":    {errors.New("pq: canceling statement due to user request"), http.StatusInternalServerError},
+	} {
+		c, w := makeCtx(http.MethodGet, "/budgets/9/status")
+		c.Params = gin.Params{{Key: "id", Value: "9"}}
+		h := newHandlerWith(&fakeFinopsV2Service{getBudgetStatusErr: tc.err, healthOK: true})
+		h.GetBudgetStatus(c)
+		if w.Code != tc.want {
+			t.Errorf("%s: want %d, got %d", name, tc.want, w.Code)
+		}
+	}
+}
+
+func TestHandler_FINOPS_V2_GetScheduleMapsNotFoundAndOutage(t *testing.T) {
+	for name, tc := range map[string]struct {
+		err  error
+		want int
+	}{
+		"not found": {sql.ErrNoRows, http.StatusNotFound},
+		"outage":    {errors.New("pq: connection refused"), http.StatusInternalServerError},
+	} {
+		c, w := makeCtx(http.MethodGet, "/providers/aws/schedule")
+		c.Params = gin.Params{{Key: "provider", Value: "aws"}}
+		h := newHandlerWith(&fakeFinopsV2Service{getScheduleErr: tc.err, healthOK: true})
+		h.GetSchedule(c)
+		if w.Code != tc.want {
+			t.Errorf("%s: want %d, got %d", name, tc.want, w.Code)
+		}
+	}
+}
+
+// --- malformed JSON is a 400, not a swallowed 500 ---
+
+func TestHandler_FINOPS_V2_CheckBudgetAlertsRejectsMalformedJSON(t *testing.T) {
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("tenant_id", "tenant-1")
+	c.Request = httptest.NewRequest(http.MethodPost, "/budgets/check-alerts",
+		strings.NewReader(`{"entity_id": "proj-1", `))
+	h := newHandlerWith(&fakeFinopsV2Service{healthOK: true})
+	h.CheckBudgetAlerts(c)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("malformed body: want 400, got %d", w.Code)
+	}
+}
+
+// --- the tenant id must reach the service ---
+
+func TestHandler_FINOPS_V2_CheckBudgetAlertsForwardsTenantAndBody(t *testing.T) {
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("tenant_id", "tenant-1")
+	c.Request = httptest.NewRequest(http.MethodPost, "/budgets/check-alerts",
+		strings.NewReader(`{"entity_id":"proj-1","entity_type":"project"}`))
+	f := &fakeFinopsV2Service{healthOK: true, alerts: []models.BudgetAlert{{BudgetID: 3}}}
+	newHandlerWith(f).CheckBudgetAlerts(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("want 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if f.lastAlertsTenant != "tenant-1" || f.lastAlertsEntity != "proj-1" || f.lastAlertsType != "project" {
+		t.Fatalf("got tenant=%q entity=%q type=%q", f.lastAlertsTenant, f.lastAlertsEntity, f.lastAlertsType)
+	}
+}
+
+func TestHandler_FINOPS_V2_GetAlertTriggersForwardsTheTenant(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/budgets/alert-triggers")
+	f := &fakeFinopsV2Service{healthOK: true, triggers: []models.AlertTrigger{{BudgetID: 5}}}
+	newHandlerWith(f).GetAlertTriggers(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("want 200, got %d", w.Code)
+	}
+	if f.lastTriggersTenant != "tenant-1" {
+		t.Fatalf("tenant=%q, want tenant-1", f.lastTriggersTenant)
+	}
+}
+
+// --- the health answer must be honoured ---
+
+func TestHandler_FINOPS_V2_HealthCheckHonoursTheAnswer(t *testing.T) {
+	for name, tc := range map[string]struct {
+		ok   bool
+		want int
+	}{
+		"healthy":   {true, http.StatusOK},
+		"unhealthy": {false, http.StatusServiceUnavailable},
+	} {
+		c, w := makeCtx(http.MethodGet, "/health")
+		h := newHandlerWith(&fakeFinopsV2Service{healthOK: tc.ok})
+		h.HealthCheck(c)
+		if w.Code != tc.want {
+			t.Errorf("%s: want %d, got %d", name, tc.want, w.Code)
+		}
+	}
+}
+
+func TestHandler_FINOPS_V2_HealthCheckMapsAnErrorTo500(t *testing.T) {
+	c, w := makeCtx(http.MethodGet, "/health")
+	h := newHandlerWith(&fakeFinopsV2Service{healthErr: errors.New("pq: relation does not exist")})
+	h.HealthCheck(c)
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("want 500, got %d", w.Code)
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("response is not JSON: %v (%s)", err, w.Body.String())
 	}
 }
