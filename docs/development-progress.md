@@ -10040,3 +10040,135 @@ WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3
 - 硬编码成功标记的 grep 命中尚未分诊：`internal/assistant/service/actions.go:42`、`pipeline_executor.go` 5 处、`internal/data-catalog/service/service.go:166`、`internal/serverless/service/service.go:152`、`internal/multi-cloud/service/service.go:354`、`internal/health-check/service/service.go` 4 处、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`、`internal/chaos-gateway/service/service.go:294`、`internal/workflow-webhook/handler/handler.go:144`、`internal/cmdb/service/service.go:465`、`internal/tool/service/service.go:318`，以及 visor-exec 的 5 处。
 - `/tmp/r41/scan_tables.py` 仍有 678 个建表命中（253 模块、498 报缺）——英文散文漏进来，识别过滤器需再加「必须含下划线且 snake_case」的约束。172 这类「更老的自动生成迁移占有表名」的模式可能还有其他模块，是 R42 的一个入口。
 - 结转不变：`runner_jobs.runner_id` 列不存在（活路由）；`internal/pipeline-template` 与 `internal/pipeline-templates` 疑似同名路由组冲突；`vector_record` / `vector_index` 无迁移；sla 与 storage 的 handler 把全部错误折叠成 404；`buildNamedSet` 在 pipeline-executor:401 / job-actions:285 / auto-exec:333 未加白名单。
+
+## 第四十二轮：internal/tracing 十个活路由的读写在 SQL 层全部死掉（camelCase 命名参数永不匹配 snake_case db tag、五处 SELECT * 撞上迁移 572 加的审计列、`UpdateOtelConfig` 用未白名单的调用方 map key 直插 SET、`UpsertSamplingConfig` 回读陈旧行并把每个错误折成 `sentinel.NotFound`、`SearchTraces` 丢弃两个时间参数、两个 `VARCHAR(255)` 装不下 JSON 标签与 collector YAML）＋迁移 587 放宽两列＋29 个测试＋12/12 变异证明（2026-09-14）
+
+### 42.1 选它的理由
+
+扫描起点 HEAD `fe32bf8ae`。模块完全接线——`wireTracing` 每次启动都跑、`internal/tracing/handler/handler.go` 注册了十条路由并挂了 `auth.RequirePermission("tracing","read"|"update")`、`internal/tracing/repository/` 此前零测试。而且与 R40 的 visor-exec、R41 的 runbook 不同，这里**表是存在的**：195_create_tracing_tables.sql 确实创建了三张表。表在、路由在、代码在，`go build` 与 `go vet` 仍然一个字都看不见它的七个运行时缺陷——这正是选它的理由：DDL 齐全时，剩下的失败全部只发生在语句层与绑定层。
+
+另外 R41 的遗留清单里点过名：`/tmp/r41/dyn.txt` 的无白名单 map 驱动 SET 候选里就有 `internal/tracing` 的 `UpdateOtelConfig`，挂在 `PUT /tracing/otel/configs/:id` 上。那是本轮的第二个入口。
+
+### 42.2 缺陷 A：camelCase 命名参数永不匹配 snake_case db tag
+
+`CreateSpan` 的 INSERT 写成 `VALUES (:id, :tenantId, :trace_id, ...)`，绑定的是带 `db` tag 的 `*models.TraceSpan`。sqlx v1.4.0 的 named 绑定走 `named.go` 的 `parseName`，它返回 **db tag 的原文** `tenant_id`，从不把字段名 `TenantID` 转成下划线（`reflectx/reflect.go:282`）。于是每个 camelCase 占位符都找不到 key，insert 在**发出 SQL 之前**就报 `could not find name tenantId in ...`。
+
+修法不是改 tag、也不是给占位符换写法，而是 `bindSpan(span) map[string]interface{}` 显式给出 snake_case 的 map：`named.go` 对 `map[string]interface{}` 走 `bindMapArgs`，做**直接** `arg[name]` 查找，完全不经过 NameMapper。
+
+### 42.3 缺陷 B：五处 `SELECT *` 撞上迁移 572 加的审计列
+
+`GetTrace`、`SearchTraces`、`GetAllSamplingConfigs`、`GetOtelConfig`、`GetOtelConfigs` 全部 `SELECT *`。195 已经声明 `metadata JSONB` 与 `deleted_at`，572_add_audit_columns.sql 又给这三张表各加了 `created_by` 与 `updated_by`（六条 `ADD COLUMN`，全库唯一来源）。safe-mode sqlx（go-common 用 `sqlx.Open`，从不 `Unsafe`）下一个没有字段声明的结果列会让**整次读取**报 `missing destination name created_by in *[]repository.spanRow`——列名来自 `rows.Columns()`，表里有没有行都一样。
+
+改为三个显式列清单常量 `spanColumns` / `samplingColumns` / `otelColumns`，配 `spanRow` / `samplingRow` / `otelRow` 三个带 db tag 的行结构。`db` tag 在这里是**强制**的：`sqlx.go:26` 是 `var NameMapper = strings.ToLower`，只转小写不剥下划线，字段 `TenantID` 映射成 `tenantid` 永不匹配列 `tenant_id`。
+
+### 42.4 缺陷 C：`UpdateOtelConfig` 把调用方 map key 原样拼进 SET（注入点）
+
+原实现把 `map[string]interface{}` 的 key 直接 `Sprintf` 进 `SET %s`，没有白名单。`PUT /tracing/otel/configs/:id` 已注册、已鉴权、已接线，所以这是一个活着的 SQL 注入 sink，且不是「死代码」——调用方能控制 map 的 key。
+
+改为 `otelConfigUpdatable = []string{"name","description","config_type","config_yaml","enabled"}` 加 `buildOtelConfigSET(updates)`：先校验每个 key 都在白名单内（否则报 `column %q is not updatable`，不拼进 SQL），再**遍历白名单而非 map** 生成 `col = $n`——Go map 无序，遍历顺序不稳定的生成 SQL 会让任何精确 SQL 断言都无法成立。`updated_at` 故意不在白名单里，UPDATE 自己 SET 它。
+
+### 42.5 缺陷 D：`Tags map[string]string` 对 text 列
+
+`models.TraceSpan.Tags` 是 `map[string]string`，列是 text。`database/sql` 的 `convertAssign` 只能把 `[]byte` 扫进 `string` 或 `[]byte`，扫不进 map，所以任何 `SELECT ... tags` 都失败。`spanRow` 保留 `TagsRaw []byte \`db:"tags"\``，`decodeSpan` 反序列化；损坏 JSON 只让该字段留空，不拖垮整次读取（与 R41 `decodeRunbook` 同一模式）。
+
+写侧的 `encodeTags(tags)`：nil 返回 `"{}"`、marshal 失败返回 `"{}"`、否则 JSON 文本。195 给 `tags` 加了 `NOT NULL` 且无默认值，所以这个函数**不能**返回空串——测试直接钉住 `src` 里存在 `return "{}"`。
+
+### 42.6 缺陷 E：`UpsertSamplingConfig` 回读陈旧行，并把每个错误折成 `NotFound`
+
+两个叠加的错误。第一，它先 `SELECT` 出该服务的配置行，`UPDATE` 之后再返回**SELECT 到的那一行**，调用方永远看到更新前的 `sample_rate` / `max_spans_per_sec` / `enabled`。第二，`if err != nil { return nil, sentinel.NotFound }` 把**每一个**查找错误都折成 `sentinel.NotFound`，于是数据库宕机或语句写错时，service 层以为「行不存在」，转而调 `repo.CreateSamplingConfig`——**制造一条已经存在的重复行**。
+
+改为：`errors.Is(err, sql.ErrNoRows)` 才映射成 `sentinel.NotFound`，其它错误原样返回；UPDATE 成功后把刚写入的值填回 row 并返回。
+
+### 42.7 缺陷 F：`SearchTraces` 收了两个时间参数却从未使用
+
+`TraceSearchRequest.StartTime` 与 `EndTime` 从来不出现在任何语句里。这是「未使用的参数是最高信号 stub 标记」里最危险的一种：过滤请求发出去了，接口答 200，结果没有按时间窗过滤，调用方无从察觉。
+
+加 `parseSearchTime(field, raw)` 用 `time.RFC3339` 解析，失败时报出**具体字段名与收到的原值**（`startTime must be an RFC3339 timestamp, got "yesterday"`）——handler 把每个仓储错误都映成 500，所以这段文案是调用方唯一能拿到的信息。成功时生成 `created_at >=` 与 `created_at <=` 两条谓词，占位符编号顺延。
+
+### 42.8 缺陷 H：本轮新写代码自己的 FROM 漏写（由新测试抓到）
+
+重写后的 `SearchTraces` 把语句拼成 `"SELECT "+spanColumns+" "+where`，而 `where` 以 `WHERE` 开头，于是发出：
+
+```
+SELECT id, tenant_id, trace_id, ..., created_at WHERE tenant_id = $1 ORDER BY created_at DESC
+```
+
+没有 FROM 子句，每次搜索都是语法错误。这与 R41 runbook `List` 的 `cond+" ORDER BY ..."` 是**完全同一形状**的错误——而且这一次不是遗留代码，是本轮自己新写的。
+
+抓住它的是测试里那份**手工抄写**的 SELECT 列清单（`spanList` 常量逐字写出 11 个列名，不引用生产代码的 `spanColumns`）。期望串里自然没有 FROM，一个真没有 FROM 的语句满足不了它，测试带着精确 want/got diff 失败，而不是被 `strings.Contains` 语义的默认 matcher 空过。生产代码里加了一段四行注释记录这个缺陷类。
+
+### 42.9 迁移 587：两列 VARCHAR(255) 装不下它们的载荷
+
+- `trace_spans.tags VARCHAR(255) NOT NULL`：存的是 span 属性的 JSON 对象，十几个属性就超过 255 字符。
+- `otel_collector_configs.config_yaml VARCHAR(255) NOT NULL`：存的是一份 collector 配置，几百行的 YAML 文档。
+
+任何非平凡写入都报 `pq: value too long for type character varying(255)`，调用方拿到 500。587 用 `ALTER COLUMN ... TYPE TEXT USING <col>` 放宽两列。TEXT 扫进 `[]byte` 与 VARCHAR 完全一样，所以 Go 侧无需改动，这是一个纯放宽；`NOT NULL` 约束继续成立，因为 `encodeTags` 永不返回空串。
+
+down 用 `USING LEFT(<col>, 255)` 截断，而不是裸 `TYPE VARCHAR(255)`——Postgres 在无法保证长度时拒绝 TEXT 转 VARCHAR(255)，所以必须给一个表达式；LEFT 截断是唯一可逆的选择。
+
+### 42.10 测试 29 个（全部新增）
+
+- `internal/tracing/repository/repository_test.go`（666 行 / 25 个）。`sqlmock` 一律替换默认 matcher：v1.5.2 的 `QueryMatcherRegexp` 是 `strings.Contains`，一个缺了 FROM 的语句会被「`SELECT id` 被包含于期望串」放过。改为 `QueryMatcherFunc` 做空白归一化后的精确比较，并用闭包把每条真实下发的语句追加进 `seen`——这样能断言「某语句从未被发出」（`len(seen) == 0` 或 `== 1`），而 `mock.ExpectationsWereMet()` 对一条从未注册的期望无能为力。
+- 列清单与期望行都是**手工抄写**的（`spanList` 11 列、`samplingList` 8 列、`otelList` 9 列），不引用生产常量，所以生产代码漂移时测试会失败而不是跟着一起错。
+- `TestCreateSpanFailsWhenANamedPlaceholderIsCamelCase` 直接调 `db.NamedExecContext` 用 `VALUES (:id, :tenantId, ...)` 绑一个探针 struct，钉住 `could not find name tenantId`——命名参数修复的独立实证，不依赖 sqlmock 的期望。
+- `TestExplicitColumnListSurvivesTheAuditColumns` 用带 `created_by` 列的结果集，钉住 `missing destination name created_by`，证明显式列清单是必要而不是可选。
+- `TestUpsertSamplingConfigReturnsTheValuesItJustWrote` 用陈旧行 `0.1/100/false`、写入 `0.8/5000/true`，断言返回值是**新**值且保持身份字段不变；`TestUpsertSamplingConfigReturnsNotFoundOnlyForAnAbsentRow` 与 `TestUpsertSamplingConfigPropagatesAStatementFailure` 分别钉住 `sql.ErrNoRows` 与真实语句失败的分叉（后者同时断言 `!errors.Is(err, sentinel.NotFound)`）。
+- 失败路径一律双断言（R39.7）：`err != nil` 且 `resp == nil`；`TestUpdateOtelConfigRejectsAColumnItWillNotWrite` 额外钉住 `column "tenant_id" is not updatable` 这段文案，因为只断言 `err != nil` 时 sqlmock 的「no expectation」错误就能满足它（R40 的教训）。
+- `TestGetOtelConfigsIssuesOneStatementEitherWay` 两个分支各断言 `len(seen) == 1`，杀掉了重写前的无限递归。
+- `cmd/server/migration_tracing_tables_test.go`（357 行 / 4 个）：195 是每张表的唯一创建者；572 是唯一加列者且共六条；三张表都声明 `created_by` / `updated_by` / `metadata` / `deleted_at`；三个列清单常量一个都不选这四列；模块源码里再没有 `SELECT *`（**跳过注释行**——`spanColumns` 的文档写着「显式而非 SELECT *」这句散文，不跳就会误报）；587 只放宽这两列且必须是 TEXT；down 逐条反向且带 `LEFT(<col>, 255)`。
+- 本文件的 `reTracingNotNullColumn` 比共享的 `reNotNullColumn` 多认 `BIGINT`：`status_code` 与 `max_spans_per_sec` 是 `BIGINT NOT NULL`，共享模式对它们是隐形的。93 个前向迁移用 BIGINT，改共享模式面太宽，所以加的是本地副本。
+
+### 42.11 变异证明 12/12（全部由测试击杀）
+
+快照在 `/tmp/r42/mut/`，每个 mutant 前后都从快照恢复（`finally` 里 restore，结束时逐个与快照比对），每次运行前 `go clean -testcache`。变异器**先跑一次基线**并检查包路径解析（输出里不得出现 `not in std`）再开始改——缺 `./` 前缀时 `go` 报 not in std，每个 mutant 都会「假死」。
+
+| # | mutant | 击杀测试 |
+| --- | --- | --- |
+| 1 | `SearchTraces` 去掉 FROM 子句 | TestSearchTracesDefaultsThePage 等 3 个 |
+| 2 | `CreateSpan` 换回 `:tenantId` 占位符 | TestCreateSpanBindsSnakeCaseColumns |
+| 3 | `GetTrace` 换回 `SELECT *` | TestGetTraceUsesAnExplicitColumnListAndDecodesTags |
+| 4 | `Upsert` 改回返回 SELECT 到的陈旧行 | TestUpsertSamplingConfigReturnsTheValuesItJustWrote |
+| 5 | `Upsert` 删掉 ErrNoRows 之外的错误分支 | TestUpsertSamplingConfigPropagatesAStatementFailure |
+| 6 | `Upsert` 把 ErrNoRows 映射成 `sentinel.Conflict` | TestUpsertSamplingConfigReturnsNotFoundOnlyForAnAbsentRow |
+| 7 | `SearchTraces` 删掉时间边界两条谓词 | TestSearchTracesNumbersEveryFilterIncludingTheTimeBounds 等 2 个 |
+| 8 | `SearchTraces` 删掉 limit 默认值 | TestSearchTracesDefaultsThePage |
+| 9 | `buildOtelConfigSET` 删掉白名单守卫 | TestUpdateOtelConfigRejectsAColumnItWillNotWrite 等 2 个 |
+| 10 | `encodeTags` 对 nil 返回空串 | TestEncodeTagsKeepsTheNotNullColumnNonEmpty |
+| 11 | 587 删掉 config_yaml 那条 ALTER | TestMigration587WidensTheTwoPayloadColumns |
+| 12 | down 去掉 `LEFT` 截断 | TestMigration587WidensTheTwoPayloadColumns |
+
+存活数 0；恢复后 `./internal/tracing/...` 与 `./cmd/server/ -run 'Tracing|587'` 均 rc=0。
+
+### 42.12 变异过程暴露的三个问题
+
+- **两个 mutant 第一次是被编译错误击杀的，不是被测试击杀**，证明力不足，已重做：一个 mutant 把 ErrNoRows 检查换成不存在于 Go 1.25 的 `sql.ErrTxClosed`（该常量已移入 internal，编译期就炸），另一个的替换串漏掉了 `if errors.Is(...)` 那一行，留下了 `return nil, ...` 悬在函数体之外（`syntax error: non-declaration statement outside function body`）。变异报告里加了一列 `detected by test|compile`，凡 `compile` 一律重做，最终 12/12 都是 test。
+- **锚点必须包含完整的 if 头**。只替换 `return` 那两行而不带上 `if errors.Is(err, sql.ErrNoRows) {`，替换后就是语法错误。教训记入锚点写作规范：替换一个分支体时，把分支头一起放进锚点。
+- **`SELECT *` 的静态检查必须跳过注释行**：`spanColumns` 的文档里写着「显式而非 SELECT *」，第一次运行时这条散文被当成缺陷报出。按行跳过 `//` 开头的行后，真实代码行里的 `SELECT *` 仍然会被抓到。
+
+### 42.13 记录未改（八项）
+
+1. `CreateSpan` 全库零调用方（按规则 (b) 是死代码），但按规则 (c) 仍修：它声明的行为在当时的实现下不可能实现，且基础设施齐全。它复用了 `spanColumns` / `spanRow` / `encodeTags`，修不修的成本几乎相同。
+2. `GetOtelConfig` 把每个错误都折成 `sentinel.NotFound`——与 R41 runbook `GetByID`、sla、storage 同一模式，属有意不修，已由 `TestGetOtelConfigMapsAnyFailureToNotFound` 钉住这个契约。
+3. handler 把每个仓储错误都映成 500，所以 `parseSearchTime` 的描述性文案与 `sentinel.NotFound` 在响应上看不出区别。改 handler 会影响十条路由的既有语义，本轮不动。
+4. `UpsertSamplingConfig` 至今不 insert，由 `internal/tracing/service/service.go` 在收到 `sentinel.NotFound` 后调 `repo.CreateSamplingConfig` 补偿——方法名说 upsert、行为只 up，命名与行为不一致，仅记录。
+5. 三张表的 `deleted_at` 与 `metadata JSONB` 从未被这个模块读写；`trace_spans.updated_at` 也从不写。软删除与审计元数据在这个模块里是纯表结构。
+6. `orion-frontend/src/api/trace.ts` 文件头写着「当前为 mock 实现」，从不调用后端——这个模块缺的是前端调用方而不是接线，所以「没有前端调用方」不构成排除它的理由（路由确实注册了，缺陷 C 是安全 sink，与有无调用方无关）。
+7. `internal/apm/repository/repository_interface.go:15` 只在注释里提到 `trace_spans`，没有真实 DDL 重叠，不需要处理。
+8. 共享的 `reNotNullColumn`（`cmd/server/migration_runbook_tables_test.go:42`）不认 `BIGINT`，对 runbook 的 NOT NULL 检查是隐形的。93 个前向迁移用 BIGINT，改动面太宽，本轮改为在 tracing 的测试里加本地副本 `reTracingNotNullColumn`。
+
+### 42.14 验证
+
+- `gofmt -l cmd/server/ internal/tracing/` 干净
+- `go build`（1387 个包，排除 `docs/deliverables/`）通过
+- `go vet ./cmd/server/ ./internal/tracing/...` 干净
+- `go test ./cmd/server/ ./internal/tracing/...` 全部 ok（cmd/server、tracing/handler、tracing/repository）
+- 变异 12/12 全部由测试击杀，工作树已按快照恢复，恢复后两个套件 rc=0
+
+### 42.15 扫描遗留（未处理，结转）
+
+- 无白名单的 map 驱动 SET 构造器：`/tmp/r41/dyn.txt` 约 57 处 `Sprintf("UPDATE` / 40 文件。本轮清掉了 `internal/tracing` 的那一处，其余候选仍是 `internal/notification`、`internal/file-handler`、`internal/job-source`、`internal/lowcode-designer`、`internal/alert-escalation`、`internal/security`、`internal/infrastructure/*`、`internal/config-mgmt-enhanced`、`internal/cache`、`internal/apm`、`internal/cron`。
+- `/tmp/r38/A.txt`（50 处 `Sprintf("%s=$%d`）；`/tmp/r33/hits.txt`、`/tmp/r34/stubs2.txt`；`/tmp/r32scan/up3.txt`（178 个死参数）。
+- 22 个 model 缺 `tenant_id`；12 个 LEAK 模块；25 个未加 tag 的多单词字段结构体（现在多了一条具体后果：sqlx v1.4.0 不剥下划线，无 tag 的多单词字段读不出来）。
+- 硬编码成功标记的分诊未完成：`internal/health-check/service/service.go`（上一次死于 `sed` 的 division by zero，需先用 `grep -n "success\|Success"` 拿行号）、`pipeline_executor.go` 5 处、`internal/assistant/service/actions.go:42` 与 `internal/assistant/handler/handler.go:78`（失败分支答 `Status: "executed"` 加 HTTP 201）、`internal/multi-cloud/service.go:354`（先设 `Status: "passed"` 再 `if result.Status == "passed"`，自我满足）、`internal/tool/service.go:318`（`Output: "{}"`, `Duration: 0`, `Status: "success"`）、`internal/chaos-gateway/service.go:294`、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`、`internal/workflow-webhook/handler.go:144`、`internal/cmdb/service.go:465`、`internal/serverless/service.go:152`、`internal/data-catalog/service.go:166`。按 R38 规则每个先确认是否挂了路由。
+- 尚未扫描的模块：`internal/notification`、`internal/file-handler`、`internal/job-source`、`internal/lowcode-designer`、`internal/alert-escalation`、`internal/security`、`internal/infrastructure/*`、`internal/config-mgmt-enhanced`、`internal/cache`、`internal/apm`、`internal/cron`。
+- 结转不变：visor-exec 的租户贯穿（`visorTenantBridge` 里 15 个以上 `""` 占位、`POST /commands` 从不设 `CommandLog.TenantID`）；`runner_repository.go:73` 在活路由上丢弃一条引用不存在列的 `DELETE FROM runner_jobs WHERE runner_id=$1`（274 的真实外键是 `agent_id`，`:542` / `:563` 同一错误列）；`pipeline-templates` 的 `Delete` 丢弃 `DELETE FROM template_versions` 且 handler 未注册；`vector/repository.go:68` 的 `DeleteStore` 没有 `vector_record` 迁移；schema-registry 的 best-effort `GetSchema` 快照（已被测试钉住）；`EnsureTable` 在约 15 个模块声明而 `cmd/server` 零调用方；`internal/schema-registry/models/models.go` 的既存 gofmt 债；`buildNamedSet` 在 pipeline-executor:401 / job-actions:285 / auto-exec:333 未加白名单；roweditor 的 `validateRows` / `validateMode` 死代码；`buildUpdateSetClause` 里重复的 `version=` / `updated_at=`；finops v1 的不可达方法；user 模块 `ChangePassword` 的 bcrypt 路径无覆盖、前端不调 `PUT /users/:id`；`monitor:execute` 未授予 `sre` / `tenant_admin`（`pkg/auth/permission.go`，有意不动）；`internal/pipeline-template` 与 `internal/pipeline-templates` 都注册 `/pipeline-templates`，疑似同名路由组冲突，未调查。
