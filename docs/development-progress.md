@@ -9197,3 +9197,169 @@ go test ./...                       → 505 ok / 0 FAIL
 **刻意不修**：spec 若把 `version` / `updated_at` 声明为可写且调用方也传了值，`buildUpdateSetClause` 会渲染重复赋值（`SET version=$1, ..., version=version+1`）。Postgres 按最后一个取值解析，可观察行为与安全性均无变化，纯 SQL 观感问题——修它要动渲染顺序，风险大于收益。
 
 **扫描规模**：全仓 152 处 map 驱动的 SET 构造器，分布 114 个文件，其中 105 个按 ±40 行关键词启发式判定为**无白名单**。绝大多数键名来自类型化的请求模型字段（`req.Field`），不是原始 body，属潜伏风险。`roweditor` 是唯一键名直接来自未结构化 `map[string]interface{}` 请求体的一个，故本轮只修它——这是「先修可达的、再清潜伏的」的取舍，不是扫描不彻底。
+
+## 第三十七轮：internal/sla-engine ＋ internal/vulnerability ＋ internal/storage 三模块修复（map 驱动动态 SET 的白名单与行标识列拒绝、调用方 map 被原地改、SQL 列序非确定、`RowsAffected` 静默丢弃、`UpdateStatus` 的 nil 解引用、两个统计方法 10 条 COUNT 错误全被 `_ =` 丢弃、仓储错误类塌陷＝新缺陷类第二个命中模块）＋迁移 584 补齐 6 张表＋7 个测试文件 1336 行新增＋16/17 变异证明（2026-09-14）
+
+- HEAD 起点 `da39719e6`（R36 docs）。代码提交 **`61f33acd8`**：8 文件，565 增 / 110 删（6 个生产文件 363 增 / 110 删 ＋ 迁移 584 up 168 行 / down 34 行）。测试提交 **`0e62ed5a5`**：7 文件，1336 行新增。合计 15 文件，1901 增 / 110 删。
+- 本轮**一次命中三个模块**，三者性质各不相同：sla-engine 是「查询是真的，错误被丢掉」；vulnerability 是「错误是真的，被答错类」；storage 是「错误是真的，但 handler 拿不到能比较的值」。
+- 三个模块的仓储共引用 6 张表，**没有任何一张被任何迁移创建过**。迁移 584 补齐的 6 张恰好等于该集合（引用计数：vulnerabilities 29 / sla_trackers 18 / storage_entries 14 / sla_violations 12 / sla_profiles 6 / sla_holidays 4）。
+
+### 37.1 缺陷一：map 驱动动态 SET —— 同一模式，三种严重度
+
+R35 给 `internal/user` 补了列白名单，本轮把同一家族在另外三个模块补齐。三个旧实现的差别比共性更值得记。
+
+**sla-engine（`UpdateProfile` / `UpdateTracker`）**——原地改调用方 map，`RowsAffected` 从未被读：
+
+```go
+updates["updated_at"] = time.Now().UTC()
+delete(updates, "id")
+delete(updates, "tenant_id")
+if len(updates) == 0 {   // 死代码：上一行刚塞进 updated_at，map 不可能为空
+    return nil
+}
+...
+_, err := r.db.ExecContext(ctx, query, args...)
+return err               // RowsAffected 从未被读
+```
+
+`calculator` 的 tracker 生命周期复用同一张 map，会看见自己的 `id` / `tenant_id` 键消失、`updated_at` 已被填。`len(updates)==0` 是**死代码**——检查发生在 `updated_at` 被塞进去之后。
+
+**vulnerability（`Update`）**——**连 `id` / `tenant_id` 都没删**，也没有白名单：
+
+```go
+updates["updated_at"] = time.Now().UTC()
+for key := range updates {                 // id、tenant_id 原样拼进 SET
+    setParts = append(setParts, fmt.Sprintf("%s=$%d", key, argIdx))
+```
+
+Postgres 先求值 SET 再求值 WHERE，所以 `SET id=$1 WHERE id=$2 AND tenant_id=$3` 能改写正在匹配的主键、命中另一行。三者中最尖的一例。
+
+**storage（`Update`）**——三个问题叠一个：
+
+```go
+if len(attrs) == 0 {
+    return nil, sentinel.NotFound          // 空更新是调用方 bug，不是「行不存在」
+}
+...
+n, _ := result.RowsAffected()              // 错误被丢弃
+if n == 0 {
+    return nil, ErrStorageEntryNotFound    // 包私有，handler 比不了
+}
+```
+
+`attrs[k] = v` 是自赋值（无害），真正改调用方 map 的是 `attrs["updated_at"] = ...`。
+
+**修复**（三处统一）：白名单 `map[string]bool`，非成员返回 `sentinel.BadRequest` 并在错误文本点名该列；复制调用方 map 再改；键 `slices.Sort` 后渲染（Go map 迭代序不确定，不排序就是同一请求不同 SQL 文本）；显式检查 `RowsAffected()` 的返回值错误；0 行命中返回 `sentinel.NotFound`（vulnerability 返回 `sql.ErrNoRows`，由其 service 转换）。
+
+vulnerability 额外加了一条：`id` / `tenant_id` / `created_at` 作为行标识列**直接拒绝**，而不是像 sla 那样静默丢弃。两种行为都各有测试钉住，见 37.9。
+
+### 37.2 缺陷二：vulnerability service 的错误类塌陷（新缺陷类第二个命中模块）
+
+R35 在 `internal/user` 拆了 5 处错误类塌陷。本轮是同一家族、但**更彻底**的一例：6 个方法里每一个都把**任何**错误答成 `sentinel.NotFound`：
+
+```go
+vuln, err := s.repo.GetByID(ctx, tenantID, id)
+if err != nil {
+    return nil, sentinel.NotFound      // 旧：GetVulnerability / UpdateVulnerability(×2) /
+                                       //       UpdateStatus(×2) / DeleteVulnerability
+}
+```
+
+仓储对真正的不存在返回 `sql.ErrNoRows`，所以数据库宕机、连接重置、拼错的 id 三者无法区分，全部塌成 404「不存在」。后果是**客户端既不重试**（404 没有重试语义），**也不知道记录其实还在**。修复是一个 8 行的 `mapRepositoryError`：`sql.ErrNoRows` → `sentinel.NotFound`，其余原样透传。
+
+### 37.3 缺陷三：两个统计方法的 10 条 COUNT 错误全被 `_ =` 丢弃
+
+不是「连通性检查＋返回空结构」——查询本来就是真的 COUNT，问题在错误被**显式丢弃**：
+
+```go
+_ = r.db.GetContext(ctx, &stats.Total,
+    `SELECT COUNT(*) FROM sla_trackers WHERE tenant_id=$1`, tenantID)
+```
+
+`GetTrackerStatistics` 6 条、`GetViolationStatistics` 4 条，共 10 条，全部 `_ =`。表不可达时返回的是「total 0、BreachRate 0.0、nil error」——**SLA 看板在宕机期间显示「完全达标」**。修复改成带标签的探针循环，任一失败返回 `sla tracker statistics <label>: <err>` / `sla violation statistics <label>: <err>`，错误文本点名是哪一条计数失败。
+
+### 37.4 缺陷四：storage 的 `ErrStorageEntryNotFound` 与 `PUT` 的 500
+
+`ErrStorageEntryNotFound` 是仓储包里的未导出约定错误，handler 跨包**无法与它比较**，所以 `Update` 只能一律答 500。同一个 id 在 `GET` 答 404、`DELETE` 答 404、`PUT` 答 500。修复：仓储改返回 `sentinel.NotFound`，删掉 `ErrStorageEntryNotFound`；handler 增加 `errors.Is(err, sentinel.NotFound)` 分支答 404。
+
+顺带修掉一个静默遮蔽：handler 原来把 `orion/go-common/pkg/errors` 以裸名 `errors` 导入，**遮蔽了标准库**。要加 `errors.Is` 就必须重命名为 `goerr`——不改名的话 `errors.Is` 根本不存在。
+
+### 37.5 缺陷五：`UpdateStatus` 的 nil 解引用
+
+```go
+args = []interface{}{string(status), *notes, time.Now().UTC(), id, tenantID}
+```
+
+方法签名是 `notes *string`，`*notes` 却无条件解引用。今天 service 恒传非 nil（`notes := ""; if input.RemediationNotes != nil { notes = *input.RemediationNotes }`），所以这是**潜在**缺陷而非活缺陷——但接口允许 nil，任何新实现或新调用方都会 panic。修复：nil 时绑定空串。
+
+`UpdateStatus` 的 `rows == 0 → sql.ErrNoRows` 本来就有，未改动。
+
+### 37.6 迁移 584
+
+up 168 行 / down 34 行，创建 6 张表：`sla_profiles`、`sla_trackers`、`sla_holidays`、`sla_violations`、`storage_entries`、`vulnerabilities`。这是三模块引用的**全集**——`grep` 出的引用计数与迁移清单逐一对上，没有多建也没有漏建。
+
+`migration_columns_test.go` 反射读 6 个 model 的 `db` tag 与 DDL 逐列交叉比对，迁移与模型漂移时点名缺哪一列。已在活体 PostgreSQL 16.14 上跑过 up ＋ down。
+
+> 注：提交 `61f33acd8` 的说明文字写了「7 张表」并列了 `sla_breaches` / `storage_entries_tags`，两者都不存在，实际是 6 张。该提交未 amend（分类器拒绝 `git commit --amend`），以本节为准。
+
+### 37.7 回归测试
+
+7 个文件 1336 行新增，51 个测试函数，`go clean -testcache` 后 **112 `--- PASS` / 0 FAIL**。
+
+三个仓储测试共用同一套 sqlmock 约定，但**必须换掉默认 matcher**：sqlmock 默认是 `QueryMatcherRegexp` = `strings.Contains`，会让「列序不同」「列被删」的 SQL 仍然通过。新 matcher 是空白归一化后的逐字比较。
+
+**40 轮循环**是这套测试的必要条件：Go map 迭代序随机，单次通过可能恰好落在排序后的顺序上，排序断言就形同虚设。三个排序断言测试各跑 40 轮。
+
+- `sla-engine/repository/repository_test.go`（＋249）：排序 SET ＋ `WithArgs` 逐位 ＋ tenant 作用域；调用方 map 不被改；白名单拒绝 4 列；空 map 不写库；0 行 → `sentinel.NotFound` 且错误文本点名 id 与 tenant；统计错误不被吞；6 计数 ＋ BreachRate 2/7；空租户 BreachRate 为 0 且非 NaN/Inf（JSON 可编码）。
+- `sla-engine/repository/violations_test.go`（64，新）：4 计数逐条断言参数（`"response"` / `"resolution"` / `true`）。
+- `sla-engine/repository/migration_columns_test.go`（117，新）：DDL ↔ model `db` tag 交叉比对。
+- `vulnerability/repository/repository_test.go`（289，新）：排序 SET；调用方 map；白名单拒绝；**行标识列拒绝**（`id` / `tenant_id` / `created_at` 每列一子测试）；0 行 → `sql.ErrNoRows`；Exec 错误透传；nil notes 绑定空串；`remediatedAt` 提供时走 6 占位符变体；重复键查询错误透传（文本含 CVE 与 "duplicate lookup"）。
+- `vulnerability/service/service_test.go`（240，新）：`mapRepositoryError` 4 子测试（含 `%w` 包裹）；4 个 ErrNoRows → NotFound；**4 个 outage 透传**（宕机不能被答成 404）；合法转换成功并断言 repo 收到 title / severity / cvss_score / affected_component（反向守卫：防止 `mapRepositoryError` 被改得过于严格而把合法写库拦掉）；非法转换在触碰仓储前拒绝（`statusCalls == 0`）。
+- `storage/repository/repository_test.go`（171，新）：排序 SET ＋ reload；调用方 map（含 key 数不变）；白名单拒绝 5 列；空 map → `sentinel.BadRequest` 且明确断言它**不是** `sentinel.NotFound`；0 行 → `sentinel.NotFound` 且不触发 reload；Exec 错误透传且不塌成 NotFound。
+- `storage/handler/handler_test.go`（206，新）：fakeRepo 走完整 gin context，断言响应信封 `success` / `code` / `error` / `data`。缺失 → 404 `NOT_FOUND`；宕机 → 500 `INTERNAL_ERROR` 且文本保留 "connection refused"；成功 → 200；畸形 JSON → 400 `BAD_REQUEST`；无 key → 500。
+
+### 37.8 变异证明：17 个变异，16 个被杀死
+
+全部在 `go clean -testcache` 后重跑。
+
+| 判定 | 变异 | 杀死它的测试 |
+|---|---|---|
+| DETECTED | sla：删白名单检查 | `TestUpdateProfileRejectsAColumnOutsideTheWhitelist` |
+| DETECTED | sla：改回原地改调用方 map | `TestUpdateRowsDoesNotMutateTheCallerMap` |
+| DETECTED | sla：SET 子句倒序 | `TestUpdateProfile_RendersSortedSetClauseScopedToTheTenant`（另 2 个） |
+| DETECTED | sla：忽略 `RowsAffected==0` | `TestUpdateRowsReportsAMissingRowAsNotFound` |
+| DETECTED | sla：吞 tracker 统计错误 | `TestGetTrackerStatisticsPropagatesAFailedCount` |
+| DETECTED | sla：吞 violation 统计错误 | `TestGetViolationStatisticsPropagatesAFailedCount` |
+| SUBSUMED | vuln：删行标识列拒绝循环 | 无——被白名单包含 |
+| DETECTED | vuln：删 nil notes 守卫 | `TestUpdateStatusBindsAnEmptyNoteInsteadOfDereferencingNil`（panic） |
+| DETECTED | vuln：吞重复键查询错误 | `TestImportScanResultsPropagatesADuplicateLookupError` |
+| DETECTED | vuln：改回原地改调用方 map | `TestUpdateDoesNotMutateTheCallerMap` |
+| DETECTED | vuln service：非 miss 错误也塌成 NotFound | `TestDeleteVulnerabilityPropagatesAnOutageUnchanged` |
+| DETECTED | storage：空 map 改答 NotFound | `TestUpdateRejectsAnEmptyMap` |
+| DETECTED | storage：删白名单检查 | `TestUpdateRejectsAColumnOutsideTheWhitelist` |
+| DETECTED | storage：忽略 `RowsAffected==0` | `TestUpdateReportsAMissingRowAsNotFound` |
+| DETECTED | storage：改回原地改调用方 map | `TestUpdateDoesNotMutateTheCallerMap` |
+| DETECTED | storage handler：NotFound 不再答 404 | `TestUpdateAnswersNotFoundForAMissingEntry` |
+| DETECTED | 迁移 584 对 model（`business_hours`→`business_hourz`） | `TestMigration584_DefinesEveryColumnTheModelsDeclare` |
+
+**本轮被流程咬了一口的两处**：
+
+1. **`go test` 缓存**。删掉 `n == 0` 分支后报告 MISSED，`go test` 输出里的 `(cached)` 当时没被注意到。重跑发现是缓存，而真正的原因是**那条测试根本不存在**——交接摘要说它已经写了，`grep "^func Test"` 证明没有。补写后变异才被杀死。**交接摘要里的「已写」必须用 `grep` 验一遍。**
+2. **编译失败的变异不算杀死**。第一次把 SET 倒序的变异写成 `slices.SortFunc(keys, func(a, b string) bool { return b < a })`——编译不过。编译失败不是有效的「杀死」，等于没测。改用 `slices.SortStableFunc` ＋ `strings.Compare` 重写成能编译的形式后才有效。
+
+**唯一未被杀死**：vulnerability 的行标识列拒绝循环。`id` / `tenant_id` / `created_at` 三者都不在 `vulnerabilityColumns` 里，白名单已用**同样的错误**拒绝它们，所以该循环今天被白名单完全包含，任何变异都无法单独区分它。没有伪造假的区分性测试；保留为日后白名单扩大时的安全网，并在 `TestUpdateRejectsAReservedRowIdentityColumn` 的注释里如实写了这一冗余。
+
+### 37.9 记录不删 / 刻意不修
+
+**记录不删**：
+- `RowsAffected()` 的**错误分支**在 `updateRows` / vulnerability `Update` / storage `Update` 三处不可单测。sqlmock v1.5.2 的 `NewResult(lastInsertID, rowsAffected)` 让 `RowsAffected()` 恒返回 `(rowsAffected, nil)`——没有任何方式让它报错。检查代码保留。
+- vulnerability `ErrBadRequest`（`errors.New("bad request")`）≠ `sentinel.BadRequest`，两个错误值并存，handler 只判后者。
+- sla 的 `updateRows` 对 `id` / `tenant_id` 是**静默丢弃**，vulnerability / storage 是**拒绝**。有意的不对称，两行为都各有测试钉住。
+- sla `handler.GetProfile` 把任何错误（含宕机）塌成 404；storage `handler.Get` 同样（仓储返回 `sql.ErrNoRows`）。两处都在本轮范围之外。
+
+**刻意不修**：
+- sla 与 storage 的 handler 对仓储返回的 `sentinel.BadRequest` 仍答 **500 而非 400**——状态行与其错误类不一致。storage 有 `TestUpdateAnswersInternalErrorForARepositoryRejection` 专门钉住这一点，注释里写了「状态行在撒谎，这条测试让它可见」。不改是为了避免把 400 的分歧扩散到本轮范围外的其他 handler。
+- `validateCreateInput` 等校验失败仍走 service 私有值 `ErrBadRequest`，不转成 `sentinel.BadRequest`。
+
+**扫描规模**：全仓 152 处 map 驱动的 SET 构造器 / 114 文件，其中 105 个按 ±40 行启发式判定为无白名单（`/tmp/r37/dyn_files.txt`）。本轮修了 3 个模块的 4 处。
+
