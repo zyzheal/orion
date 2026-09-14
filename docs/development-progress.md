@@ -9590,3 +9590,289 @@ if !exists {
 - 22 个 model 缺 `tenant_id` 而其表有该列；12 个 LEAK 模块；25 个未加 json tag 的多单词字段。
 - 零调用方的 `NotYetImplemented`：`internal/serverless/repository/repository.go:273`、`internal/visor-exec/repository/repository.go:343`、`internal/cmdb/repository/repository.go:561`。
 - 本轮新增：finops v1 的 5 处丢弃（随其一起不可达）＋约 25 个不可达仓储方法；`buildNamedSet` 家族 3 处无白名单。
+
+## 第三十九轮：internal/schema-registry 版本历史从未被记录（3 处 discard 挂在 2 条活路由上：`Register` 两处 `_ = s.repo.AppendVersion(...)` ＋ 仓储唯一约束分支 `_, _ = UPDATE` 后 `return nil`，`POST /schemas` 与 `PUT /schemas/:ns/:name` 照答 200 加 version 1/2 而 `GET /versions` 恒答空列表）＋10 个测试＋9/9 变异证明（2026-09-14）
+
+- HEAD 起点 `e696e8df0`（R38 docs）。代码提交 **`ef933e061`**：2 个生产文件，44 增 / 28 删。测试提交 **`f82e54c37`**：3 个测试文件（1 新增 192 行 ＋ 2 追加 202 行），394 增 / 8 删。合计 5 文件，438 增 / 36 删。
+- 本轮不做新功能、不补迁移：`schema_registry_versions` 由迁移 404 创建，且其唯一索引与代码的列清单**完全对齐**。要修的是纯逻辑缺陷——真实的错误被丢掉，然后被读成「这个 schema 从未发布过」。
+- 本轮的扫描是 R38 判据的第二次执行：`grep` 出全仓 18 处 `_ = r.db.*` 形式的丢弃（`/tmp/r39/D1.txt`），逐一定性——4 处合法、5 处已在 R37 记录（finops v1 不可达）、`internal/dba/` 授权范围外，其余即 schema-registry 的 3 处。
+
+### 39.1 三处 discard：两处在 service，一处在仓储内部
+
+旧实现（`service.go` 的两个分支）：
+
+```go
+// 新 schema 分支
+_ = s.repo.AppendVersion(ctx, req.Namespace, req.Name, &models.SchemaVersion{
+    Version: 1, ReleasedAt: time.Now(), ReleasedBy: req.Owner,
+})
+return &models.RegisterResponse{Schema: schema, Version: 1}, nil
+
+// 演进分支
+existing.Version++
+// ...
+_ = s.repo.AppendVersion(ctx, req.Namespace, req.Name, &models.SchemaVersion{
+    Version: existing.Version, ReleasedAt: time.Now(),
+    ReleasedBy: req.Owner, Changes: result.Changes,
+})
+return &models.RegisterResponse{Schema: existing, Version: existing.Version}, nil
+```
+
+旧实现（`repository/postgres.go` 的唯一约束分支）：
+
+```go
+if err != nil {
+    if !isUniqueViolation(err) {
+        return err
+    }
+    _, _ = r.db.ExecContext(ctx, `UPDATE schema_registry_versions SET ...`)
+    return nil        // UPDATE 成不成功都返回 nil
+}
+return nil
+```
+
+前两处是「服务层把持久化结果丢进空标识符」；第三处更隐蔽——**整个分支以 `return nil` 收尾**，唯一约束冲突后的就地 UPDATE 成不成功都对上层报成功。三处合起来的效果是：`AppendVersion` 在任何后端上都不可能报失败。
+
+### 39.2 失败方向：第四个先例，读作「从未发布」
+
+| 判据 | 本轮的表现 |
+| --- | --- |
+| 客户端拿到什么 | `POST /schemas` → 200，`version: 1`；`PUT /schemas/:ns/:name` → 200，`version: 2` |
+| 版本历史答什么 | `GET /schemas/:ns/:name/versions` → **恒为空列表**（表从建表那天起就是空的） |
+| 谁读这个信号 | 依赖版本历史判断「这个 schema 发布过没有」的消费者 |
+| 失败被读成 | 「这个 schema 从未被发布过」 |
+| 有告警吗 | 没有——没有任何信号指向服务端，所有信号都指向「租户没有发布任何东西」 |
+
+这是本仓库出现的**第四个**"失败方向与结论同向"的先例（前三个：approval 统计答 `total 0`＝「租户无积压」；worker 负载答 `current_load: 0`＝「该 worker 空闲」；pipeline 探针把错误答成 `pipeline not found`＝「流水线不存在」）。共同特征都是：**下游拿到的是一个看起来合法的、且指向"什么都没有"的答案**，而"什么都没有"恰好是这些查询最常用的合法结果。
+
+### 39.3 Wiring 三重证明：三处都活，第三处尤其需要证明
+
+R38 的判据是"活死由 wiring 决定"。前两处显然活（handler 直接调用 `svc.Register`），但第三处是**仓储内部**的丢弃，需要三条证据才能确认它不是死代码：
+
+**① 路由与 handler 都是好的。** `handler.go:35` `POST /schemas` → `h.Register`、`:38` `PUT /schemas/:namespace/:name` → `h.Update`、`:41` `GET /schemas/:namespace/:name/versions` → `h.VersionHistory`。`Register`（47-63）与 `Update`（97-118）都调用 `h.svc.Register`，且**都已经有** `if err != nil { handleError(c, err); return }`；`handleError`（211-217）把 `repository.ErrSchemaNotFound` 映射成 404、其余映射成 500。所以 handler 侧没有任何东西要改——它一直在正确地处理错误，只是 service 从没返回过。
+
+**② 两个后端都活。** `cmd/server/wiring-blueprint-infraops.go:128-136`：
+
+```go
+if db == nil {
+    schemaRegRepo = schemaReg_repository.NewInMemory()
+} else {
+    schemaRegRepo = schemaReg_repository.NewPostgres(db.DB)
+}
+schemaRegSvc := schemaReg_service.New(schemaRegRepo, logger)
+infraSchemaRegH := schemaReg_handler.New(schemaRegSvc, schemaRegRepo)
+```
+
+`router.go:159` 挂载该 handler。带 DB 的部署走 `Postgres`——所以仓储内部那处 discard 在有数据库的环境里每次唯一约束冲突都会执行，不是死代码。
+
+**③ 接口契约让"失败"为真。** 若 `AppendVersion` 在所有实现上都不可能失败，那么 `error` 返回值本身就是一个撒谎的接口声明。核对 `inmemory.go:139`：
+
+```go
+func (r *Repository) AppendVersion(ctx context.Context, ns, name string, v *models.SchemaVersion) error {
+	if v == nil {
+		return errors.New("version is nil")
+	}
+	key := ns + ":" + name
+	if _, ok := r.schemas[key]; !ok {
+		return ErrSchemaNotFound
+	}
+```
+
+接口确实声明了两种可失败情形，所以"忽略它的错误"是有实际后果的丢弃，而不是防御性冗余。
+
+### 39.4 修复
+
+`service.go` 两处——新版本分支固定 version 1，演进分支用 `existing.Version`（即**实际已推进到**的版本号），错误消息点名 namespace/name 与版本：
+
+```go
+if err := s.repo.AppendVersion(ctx, req.Namespace, req.Name, &models.SchemaVersion{
+    Version: 1, ReleasedAt: time.Now(), ReleasedBy: req.Owner,
+}); err != nil {
+    return nil, fmt.Errorf("persist version 1 for %s/%s: %w", req.Namespace, req.Name, err)
+}
+return &models.RegisterResponse{Schema: schema, Version: 1}, nil
+// ...
+if err := s.repo.AppendVersion(ctx, req.Namespace, req.Name, &models.SchemaVersion{
+    Version: existing.Version, ReleasedAt: time.Now(),
+    ReleasedBy: req.Owner, Changes: result.Changes,
+}); err != nil {
+    return nil, fmt.Errorf("persist version %d for %s/%s: %w",
+        existing.Version, req.Namespace, req.Name, err)
+}
+```
+
+演进分支的错误消息用 `existing.Version` 而不是写死 `2` 是有意的：`existing.Version++` 已经执行、`UpdateSchema` 已经成功，schema 行此时确实停在 2。若写死 `2` 会在任何非"1→2"的路径上给出错误信息；若省略版本号则退回到"没有信号"。
+
+`repository/postgres.go` 唯一约束分支——UPDATE 的错误改为返回，并保留原始错误供 `errors.Is` 识别：
+
+```go
+if _, uerr := r.db.ExecContext(ctx, `
+    UPDATE schema_registry_versions
+	 SET schema_json=$1, changes=$2, released_at=$3, released_by=$4
+	 WHERE tenant_id = 'default' AND namespace = $5 AND name = $6 AND version = $7`,
+    schemaRaw, changesRaw, releasedAt, v.ReleasedBy, namespace, name, v.Version); uerr != nil {
+    return fmt.Errorf("schema version %d for %s/%s already exists and the update failed: %w",
+        v.Version, namespace, name, uerr)
+}
+return nil
+```
+
+`isUniqueViolation` 匹配 `"duplicate key"` / `"23505"` / `"unique_violation"` 三种形式，不用改。
+
+### 39.5 迁移核对：无需迁移
+
+`migrations/404_create_schema_registry.sql:40-54`：
+
+```sql
+CREATE TABLE IF NOT EXISTS schema_registry_versions (
+    id VARCHAR(36) PRIMARY KEY,
+    tenant_id VARCHAR(64) NOT NULL DEFAULT 'default',
+    namespace VARCHAR(128) NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    version INTEGER NOT NULL,
+    schema_json JSONB NULL,
+    changes JSONB NULL,
+    released_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    released_by VARCHAR(128) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX uq_schema_registry_versions
+    ON schema_registry_versions (tenant_id, namespace, name, version);
+```
+
+INSERT 的 10 列（`id, tenant_id, namespace, name, version, schema_json, changes, released_at, released_by, created_at`）与 UPDATE 的 4 列（`schema_json, changes, released_at, released_by`）全部落在表定义内；WHERE 的 `(tenant_id, namespace, name, version)` 与唯一索引 `(tenant_id, namespace, name, version)` 完全同形，所以冲突分支的 UPDATE 必然命中恰好一行。**表结构从来就是对的，错的只是没人检查错误。**
+
+### 39.6 测试：10 个（service 3 / repository 5 / handler 2）
+
+该模块此前**零 handler 测试、零仓储测试**（只有 service 层的演进分类测试）。
+
+**service 层**——新增 `appendFailRepo`。它嵌 `*fakeRepo` 以满足 `repository.Interface`（指针嵌入提升方法），只覆盖 `AppendVersion`，并**记录实际收到的版本**：
+
+```go
+type appendFailRepo struct {
+	*fakeRepo
+	err      error
+	appended []*models.SchemaVersion
+}
+
+var _ repository.Interface = (*appendFailRepo)(nil)
+
+func (r *appendFailRepo) AppendVersion(ctx context.Context, ns, name string, v *models.SchemaVersion) error {
+	if r.err != nil {
+		return r.err
+	}
+	r.appended = append(r.appended, v)
+	return r.fakeRepo.AppendVersion(ctx, ns, name, v)
+}
+```
+
+- `TestRegisterNewSchemaRecordsItsFirstVersion`：**正向**断言恰好记了 1 个版本、`Version == 1`、`ReleasedBy == "alice"`。这一条与错误路径测试成对——只有错误路径测试时，"把 AppendVersion 整个删掉"能通过所有测试，因为错误永远不会触发。
+- `TestRegisterNewSchemaReportsAVersionsTableFailure`：`err != nil`、**`resp == nil`**、消息含 `persist version 1 for commerce/order`。
+- `TestRegisterEvolutionReportsAVersionsTableFailure`：先用健康 repo 注册（`repo.err` 仍为 nil），再翻转 `repo.err`，断言 `err != nil`、`resp == nil`、消息含 `persist version 2 for app/user`，并额外断言 `repo.fakeRepo.schemas["app:user"].Version == 2`——**确认错误消息点名的版本号与 schema 行的实际状态一致**。
+
+`err` 可翻转的设计让一个 repo 实例既能播种又能制造失败，不必为每个测试新建两个 repo。
+
+**repository 层**（`postgres_test.go` 全新，192 行）——sqlmock v1.5.2，精确匹配：
+
+```go
+const insertVersionSQL = `
+    INSERT INTO schema_registry_versions
+		(id, tenant_id, namespace, name, version, schema_json, changes, released_at, released_by, created_at)
+	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`
+
+const updateVersionSQL = `
+    UPDATE schema_registry_versions
+	 SET schema_json=$1, changes=$2, released_at=$3, released_by=$4
+	 WHERE tenant_id = 'default' AND namespace = $5 AND name = $6 AND version = $7`
+```
+
+- `TestAppendVersionInsertsTheVersionRow`：全参断言（`ns1`, `users`, `7`, `alice`, `releasedAt`，UUID / `created_at` / `schema_json` 用 `AnyArg`）＋ `ExpectationsWereMet`。
+- `TestAppendVersionUpgradesAnExistingVersionInPlace`：INSERT 报 `duplicate key value violates unique constraint uq_schema_registry_versions` → 期望 UPDATE → 成功；断言 `err == nil`，且 `ExpectationsWereMet` 保证**UPDATE 没发出就失败**。这是直接针对原始 bug 的测试。
+- `TestAppendVersionReportsAFailedInPlaceUpdate`：UPDATE 报 `deadlock` → 断言 `errors.Is(err, deadlock)` 且消息含 `version 3` 与 `ns1/users`。
+- `TestAppendVersionKeepsTheReleasedAtTheCallerSent`：钉住 `v.ReleasedAt = now` 只改零值——若无条件覆盖，调用方传入的时间戳会被静默改写。
+- `TestAppendVersionStillRecordsTheVersionWithoutASchemaSnapshot`：SELECT 报 `sql.ErrNoRows` → 版本行仍然写入。这一条把 `if s, err := r.GetSchema(...); err == nil && s != nil` 的 best-effort 语义**钉成契约**，防止后续有人把它改成硬失败。
+
+**handler 层**——用 `RegisterRoutesWithoutAuth` 装配，避免给测试引入鉴权依赖。`appendFailRepo` 在此处嵌 `*repository.InMemory`，同样靠指针嵌入满足接口：
+
+- `TestRegisterAnswers500WhenTheVersionRowFails`：`POST /api/v1/schema-registry/schemas` → **500**（不是 200），body 含 `disk full`。
+- `TestUpdateAnswers500WhenTheVersionRowFails`：先用健康 repo 注册（200），翻转 `repo.err`，`PUT /api/v1/schema-registry/schemas/ns1/users`（加一个 nullable 字段构成兼容演进）→ **500**，body 含 `deadlock detected`。
+
+两个 handler 测试的意义在于：service 层返回的错误**真的变成了 HTTP 500**，不是被某层吃掉又变成 200。这同时验证了 39.3 的证据①。
+
+### 39.7 变异证明：9/9 killed，全部可编译
+
+`/tmp/r39/mut`，每个 mutant 前后都 `restore()`，每次 `go test` 前 `go clean -testcache`，锚点用 `s.count(old) == n` 断言后才写入。无一处靠"编译不过"作弊。
+
+| # | 变异 | 杀它的断言 |
+| --- | --- | --- |
+| ① | 新版本分支把版本行丢回 `_ =` | 正向测试 `len(repo.appended) != 1` |
+| ② | 新版本分支丢弃版本与 schema 上下文（`fmt.Errorf("%w", err)`） | 消息含 `persist version 1 for commerce/order` |
+| ③ | 新版本分支**错误与成功响应同时返回** | `resp == nil` |
+| ④ | 新版本分支无论成败都答成功 | `err == nil` 失败 |
+| ⑤ | 演进分支把版本行丢回 `_ =` | 演进失败测试的 `err == nil` 失败 |
+| ⑥ | 演进分支丢弃已发布版本号 | 消息含 `persist version 2 for app/user` |
+| ⑦ | 演进分支**错误与成功响应同时返回** | `resp == nil` |
+| ⑧ | 唯一约束分支丢弃 UPDATE 答 nil（**即原始 bug**） | `ExpectationsWereMet` 缺 UPDATE |
+| ⑨ | 唯一约束分支丢失版本与 schema 上下文 | `errors.Is(err, deadlock)` ＋ `version 3` / `ns1/users` |
+
+**新判据洞察（本轮最大收获）：错误传播测试必须断言返回值为 nil，光断言 err 非 nil 不够。**
+
+变异 ③/⑦ 是"同时返回错误和成功响应"——这是丢弃类缺陷最自然的修法（`return resp, err` 而不是 `return nil, err`）。它之所以必须靠 `resp == nil` 抓住，是因为 **handler 在 `err != nil` 时完全忽略 `resp`**：
+
+```go
+resp, err := h.svc.Register(c.Request.Context(), &req)
+if err != nil {
+    handleError(c, err)
+    return
+}
+```
+
+所以 handler 层的 500 断言抓不到它——HTTP 层看到的依然是 500，成功响应从未被序列化。**只有 service 层直接断言 `resp == nil` 才能看到这个半答状态。** 这条要加进判断清单：对任何返回 `(T, error)` 的方法，失败路径的测试必须同时断言 `err != nil` 与 `resp == nil`；只断言前者时，"顺手把返回值也交回去"这种半答变体是静默通过。
+
+### 39.8 sqlmock 两条新教训
+
+1. **精确匹配器是逐字节比对，不是子串匹配。** 本轮第一版测试写的是 `mock.ExpectExec(normSQL("INSERT INTO schema_registry_versions"))`，五个测试全挂。默认的 `QueryMatcherRegexp` 是 `strings.Contains`，所以"前缀期望"在默认匹配器下能过、换成精确 `QueryMatcherFunc` 后永远不匹配。**换成精确匹配器的同时必须把语句写全。** 本轮把两条语句提成 `insertVersionSQL` / `updateVersionSQL` 常量——既是精确匹配的要求，也顺手让 SQL 文本成为可读的断言对象。
+2. **带 `$1`/`$2` 占位的 SELECT 期望必须带 `.WithArgs(...)`。** `TestAppendVersionStillRecordsTheVersionWithoutASchemaSnapshot` 的 SELECT 若不带 `WithArgs("ns1", "users")`，sqlmock 报的是"not expected"而不是参数不匹配——看起来像 SQL 写错了，实际是期望不完整。
+
+`sqlmock.NewResult(lastInsertID, rowsAffected)` 让 `RowsAffected()` 返回 `(rowsAffected, nil)`，无法让它报错——这个限制本轮不涉及，`AppendVersion` 走 `ExecContext` 不检查行数。
+
+### 39.9 仅记录 4 项（按 §38.1 判据：不挂路由即死代码，或基础设施不存在）
+
+**① `ci-cd/runner/repository/runner_repository.go:73` —— 活的 DELETE 报告成功，但被删的列不存在。**
+
+```go
+_, _ = r.db.ExecContext(ctx, `DELETE FROM runner_jobs WHERE runner_id=$1`, id)
+```
+
+它在 `Delete` 里，`Delete` 挂在**已注册**的 `DELETE /runners/:id`（`handler.go:34`）上——按判据应当修。但读迁移后不能修：`migrations/274_create_runner_tables.sql:34-52` 建的 `runner_jobs` **没有 `runner_id` 列**，真实 FK 是 `agent_id UUID NOT NULL REFERENCES runner_agents(id) ON DELETE CASCADE`；`grep -rn "runner_id" migrations/` 零命中。同一错误列还被用于 `:542` 的 INSERT 与 `:563` 的 SELECT。
+
+结论：这条 DELETE **从来不可能删到任何东西**（会报列不存在），丢弃它的错误恰好掩盖了这个事实，于是活的 DELETE 端点对一个永远跑不成的清理报成功。修它需要一次迁移加一次设计决策（到底该按 `agent_id` 级联还是给 `runner_jobs` 加 `runner_id` 冗余列），不是删个 discard 能解决的。→ 记录。
+
+**② `pipeline-templates/repository/repository.go:177-183` —— 死代码。** `Delete` 丢弃 `DELETE FROM template_versions WHERE template_id = $1`；`Handler.Delete` 存在于 `handler.go:229-244`，但路由块（`handler.go:66-99`）里只有一条注释 `// Item: DELETE /pipeline-templates/:templateId`，从未注册；`service.go:189` 只是透传。零调用方 → 记录不修。
+
+附带发现（未调查）：`internal/pipeline-template`（单数，`handler.go:36`）与 `internal/pipeline-templates`（复数，`handler.go:45`）**都注册了 `/pipeline-templates` 组**。两个模块同时挂载同名路径组，可能是路由冲突或重复注册，本轮未展开。
+
+**③ `vector/repository/repository.go:68` —— 基础设施不存在。** `DeleteStore` 丢弃 `DELETE FROM vector_record WHERE store_id=$1`；路由存在（`handler.go:28`），但 `vector_record` / `vector_index` **完全没有迁移**（`grep` 确认）。按规则 e（表都不存在），只记录。
+
+**④ `repository/postgres.go:271` best-effort 快照是刻意的。** `AppendVersion` 里的 `if s, err := r.GetSchema(...); err == nil && s != nil` 在 schema 快照取不到时仍然写版本行。这是有意的降级（历史可追溯比完整快照更重要），本轮**已用 `TestAppendVersionStillRecordsTheVersionWithoutASchemaSnapshot` 钉成契约**，避免后续被"顺手改成硬失败"。
+
+**gofmt 顺带变更**：`postgres.go` 既有的 `row` 结构体因 `RelationshipsRaw *[]byte` 比其他字段宽而未对齐，`gofmt -w` 一并重排——diff 确认唯一的语义变更是本轮的 hunk。`internal/schema-registry/models/models.go` 与 `internal/schema-registry/repository/inmemory_test.go` 的既有格式债**不动**（本轮未编辑这两个文件）。
+
+### 39.10 验证
+
+- `go build ./...` 干净
+- `go vet ./internal/schema-registry/...` 干净
+- `go test -count=1 ./internal/schema-registry/...` handler / repository / service 3 包全过（models 无测试）
+- `go test -count=1 ./cmd/server/` 过 1.330s（`route_dump` / `route_conflict_scan` 仍在）
+- `gofmt -l internal/schema-registry` 仅剩 `models/models.go` 与 `repository/inmemory_test.go`（既有债）
+- 变异证明 9/9 killed，工作树已恢复（`git diff` 中 `persist version` 两处消息仍在）
+
+### 39.11 扫描遗留（未处理，结转）
+
+- `/tmp/r39/D1.txt`：18 处 `_ = r.db.*` 形式的丢弃——4 处合法、5 处已在 R37 记录（finops v1 不可达）、`internal/dba/` 授权范围外、schema-registry 3 处本轮已修。
+- `/tmp/r38/A.txt`（50 处 `Sprintf("%s=$%d`）、`/tmp/r38/C.txt`（301 处被丢弃的 `RowsAffected()` 错误）。
+- 无白名单的 map 驱动 SET 构造器：`/tmp/r37/dyn_files.txt` 已失效（152 处 / 114 文件 / 105 判定无白名单需重新推导）。
+- `/tmp/r33/hits.txt`、`/tmp/r34/stubs2.txt`、`/tmp/r32scan/up3.txt`（178 个死参数）。
+- 22 个 model 缺 `tenant_id` 而其表有该列；12 个 LEAK 模块；25 个未加 json tag 的多单词字段。
+- 零调用方的 `NotYetImplemented`：`internal/serverless/repository/repository.go:273`、`internal/visor-exec/repository/repository.go:343`、`internal/cmdb/repository/repository.go:561`。
+- 本轮新增 3 项：`runner_jobs.runner_id` 列不存在（活路由，需迁移＋设计决策）；`internal/pipeline-template` 与 `internal/pipeline-templates` 疑似同名路由组冲突；`vector_record` / `vector_index` 无迁移。
