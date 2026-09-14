@@ -9954,3 +9954,89 @@ _, _ = r.db.ExecContext(ctx, `DELETE FROM runner_jobs WHERE runner_id=$1`, id)
 - 22 个 model 缺 `tenant_id` 而其表有该列；12 个 LEAK 模块；25 个未加 json tag 的多单词字段。
 - 零调用方的 `NotYetImplemented`：`internal/serverless/repository/repository.go:273`、`internal/visor-exec/repository/repository.go:403`、`internal/cmdb/repository/repository.go:561`。
 - 结转：`runner_jobs.runner_id` 列不存在（活路由）；`internal/pipeline-template` 与 `internal/pipeline-templates` 疑似同名路由组冲突；`vector_record` / `vector_index` 无迁移；sla 与 storage 的 handler 把全部错误折叠成 404；`internal/cron` 与 `internal/visor-exec` 抢 `cron_jobs` 名字的根因（本轮用 585 迁移绕开，`078_create_visor_exec_tables.sql` 仍在库里建无前缀表）。
+
+## 第四十一轮：internal/runbook 列表端点从未返回任何数据、两张执行表从无 DDL、`Update` 用未白名单的列名插值（2026-09-14）
+
+### 41.1 选它的理由
+
+扫描起点 HEAD `a1d0d1133`。模块完全接线——`wireRunbook` 每次启动都跑、7 条路由注册在 `/runbooks` 下、`internal/runbook/repository/` 此前零测试——但 `go build` 与 `go vet` 都看不见它的四个运行时缺陷。而且 COUNT 查询是好的：总数正常返回、明细行永远不返回，这正是缺陷 A 能一直活下来的原因。
+
+### 41.2 缺陷 A：`List` 的明细查询不是 SQL 语句
+
+`List` 先把过滤条件累加成 `cond = "WHERE tenant_id = $1"`，然后明细查询写成 `cond+" ORDER BY created_at DESC LIMIT $2 OFFSET $3"`。`cond` 以 `WHERE` 开头，于是发给 Postgres 的是：
+
+```
+WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3
+```
+
+没有 SELECT、没有 FROM，每次调用都是语法错误，`GET /runbooks` 从未返回过任何 runbook。直接上方的 COUNT 查询 `"SELECT COUNT(*) FROM runbooks "+cond` 是完整的语句，所以 total 正常、rows 恒空。修复：`"SELECT "+runbookColumns+" FROM runbooks "+cond+" ORDER BY ..."`。
+
+### 41.3 缺陷 B：两张执行表从无 DDL，`runbooks` 的 DDL 是另一个 schema
+
+- `runbook_executions` 与 `runbook_execution_steps` 在整个 `migrations/` 目录里没有任何 DDL。
+- `runbooks` 唯一的 DDL 是 `172_create_runbook_tables.sql`：`id VARCHAR(36)`、`name VARCHAR(255) NOT NULL`、`value VARCHAR(255) NOT NULL`、`metadata JSONB`——与代码写的 13 列完全不是一套。`name` 与 `value` 是 NOT NULL 且无默认值，而 `Create` 从不写入它们，所以即使前三个缺陷不存在，`POST /runbooks` 也不可能成功。
+
+新增 `migrations/586_align_runbook_tables.sql`（83 行）而不是改 172：8 个 `ADD COLUMN IF NOT EXISTS`（title/description/category/severity/steps/tags/owner/approved）、2 个 `DROP NOT NULL`（name/value）、2 条 `CREATE TABLE IF NOT EXISTS`、4 个索引，另附 `_down.sql`。`enabled` 已在 172 里故不重复加；租户 ID 用 `UUID`，因为迁移 239 已把 `runbooks.tenant_id` 转成 UUID。
+
+### 41.4 缺陷 C：`Update` 用调用方的 map key 当列名插值
+
+原实现走 `sqlx.Named` 配 `@:updates`，把 map 的 key 原样当列名。改为 `runbookUpdatable`（9 列）加 `buildRunbookSET`：遍历白名单而非 map（Go map 无序，遍历顺序不稳定的生成 SQL 会让任何精确 SQL 断言都无法成立）；白名单外的 key 报 `column "x" is not updatable` 而不是静默丢弃，也不拼进 SQL。JSONB 列经 `encodeJSONColumn` 转字符串。空更新不是更新——只回读现有行，不发一个 SET 子句为空的 UPDATE。
+
+### 41.5 缺陷 D：`SELECT *` 扫进 JSONB 列
+
+明细与执行列表都用 `SELECT *`，目标是带 `db:"..."` tag 的 `[]models.RunbookStep` 与 `[]string`。`database/sql` 的 `convertAssign` 只能把 `[]byte` 扫进 `string` 或 `[]byte`，扫不进切片，所以这条路径每次必败。更糟的是迁移 572 已经给这张表加了 `created_by` 与 `updated_by`，safe-mode sqlx（go-common 走 `sqlx.Open`，从不 `Unsafe`）下一个没有字段声明的列会让整次读取报 `missing destination name`。改为显式列清单 `runbookColumns` / `executionColumns`，`runbookRow` 原样持有两段 JSONB 字节，`decodeRunbook` 反序列化——JSON 损坏时该字段留空，不再拖垮整次读取。
+
+### 41.6 测试 18 个（全部新增）
+
+- `internal/runbook/repository/repository_test.go`（14 个）：`sqlmock` 配 `QueryMatcherFunc` 做空白归一化后的精确比较（默认 `QueryMatcherRegexp` 是 `strings.Contains`，会放过不同的 SET 子句）。`TestListBuildsASelectableStatement` 用闭包记录真实下发的语句文本，断言以 `SELECT ` 开头且含 `FROM runbooks WHERE`——只断言 sqlmock 接受了这个语句不够，因为 matcher 本身被替换过了；全 9 列 SET 逐值绑定；白名单拒绝时同时断言 `got == nil` 并钉住错误文案；失败路径用 `errors.Is` 断言原始错误且 `resp == nil`（R39 的 `(T, error)` 双断言）；`Delete` 用 `ExpectBegin` 加三条 `ExpectExec` 加 `ExpectCommit` 证明三张表在一个事务内。
+- `cmd/server/migration_runbook_tables_test.go`（4 个）：关系名与列集全部从 Go 源码反推（`reRunbookRel` 限定 `runbook[a-z0-9_]*` 前缀，把注释里的英文散文排除）；INSERT 列必须被迁移声明、NOT NULL 列要么被 INSERT 要么被放松；列覆盖检查只看目标表自己的 `CREATE TABLE (...)` 块（R40 的教训：跨表同名列会蒙混过关）；down 逐条反向上迁的 ADD COLUMN / CREATE TABLE / CREATE INDEX / DROP NOT NULL。
+
+### 41.7 变异证明 6/6
+
+快照在 `/tmp/r41/mut/` 的镜像路径，每个 mutant 前后都从快照恢复，每次运行前 `go clean -testcache`：
+
+| mutant | 击杀测试 |
+| --- | --- |
+| 1 明细查询改回 `cond+" ORDER BY ..."` | TestListBuildsASelectableStatement |
+| 2 剥掉 `runbookRow` 全部 db tag | TestGetByIDUsesAnExplicitColumnListAndDecodesJSON |
+| 3 UPDATE 恢复常量 SET | TestUpdateWritesEveryRequestedColumn |
+| 4 删光 586 的 8 个 ADD COLUMN | TestRunbookStatementsFitTheMigratedSchema |
+| 5 删一条 down 反向语句 | TestMigration586DownReversesItsForwardStatements |
+| 6 白名单改为静默跳过 | TestUpdateRejectsAColumnItWillNotWrite |
+
+存活数 0；恢复后 `./internal/runbook/...` 与 `./cmd/server/` 全部 rc=0。
+
+### 41.8 变异过程暴露了变异器自己与 sqlx 的两个真实缺陷
+
+- **变异器一度给出空证明**：测试命令末尾管道到 `tail -40`，退出码变成 `tail` 的（恒 0），于是每个 mutant 都「存活」；同时包路径写成 `internal/runbook/repository/` 缺 `./` 前缀，`go` 报 `package ... is not in std`，于是每个 mutant 又都「杀死」。两个 bug 方向相反、互相抵消，变异报告看着像 12/12 killed 而实际上什么都没断言。修法是 `set -o pipefail` 加上包路径前缀。
+- **sqlx v1.4.0 的 `NameMapper` 只转小写，不剥下划线**：`sqlx.go:26` 是 `var NameMapper = strings.ToLower`，`reflectx.Mapper` 再对原始列名做 map 直查。所以无 tag 的字段 `TenantID` 映射成 `tenantid`，永不匹配列 `tenant_id`，每次读取都报 `missing destination name tenant_id in *[]repository.runbookRow`。这个 mutant 是在写 db tag 之前跑出来的，才抓到的；本轮因此改成了「显式列名加 db tag」而非 R40 的 `AS tenantid` 别名写法（两种写法在 v1.4.0 下都成立）。这是一个全库潜伏陷阱：其余仍用无 tag 结构体扫下划线列的模块都会踩同一个坑，本轮只记录。
+- **sqlmock v1.5.2 的 `AnyArg` 是函数类型**：`AnyArg` 声明为 `func() Argument`，必须写成 `sqlmock.AnyArg()`；传裸标识符会以 `unsupported type func() sqlmock.Argument, a func` 失败。R40 的测试从未用到 `AnyArg`，所以这一条是本轮才暴露的。
+- 附带一次 `'''` 序列事故：Python 补丁里一个裸 `'` 提前闭合了 `'''` 字符串，把 `strings.Trim(raw, "\"' ")` 写成了 `strings.Trim(raw, ""' ")`，Go 报 `rune literal not terminated`。已改用 `chr()` 构造引号。
+
+### 41.9 记录未改（七项）
+
+1. `EnsureTable` 在约 15 个模块声明（service-topology、param-types、privacy、user-token、user-status、apk-upload-history、user-activity、runbook、observability、user-profile、ai/cost、ai/gateway、project-member、canary-traffic）而 `cmd/server` 零调用方——全库级的死模式，本轮不为 runbook 单独接线（那会是第一个不一致的启动模式），持久修复是迁移 586。
+2. `Delete` 的两条子表删除（`runbook_executions` 按 `runbook_id`、`runbook_execution_steps` 按 `execution_id IN (...)`）没有租户谓词：跨租户调用方能删掉别人的执行历史，而 `runbooks` 那一条本身会因租户不匹配而失败。UUID 主键使 id 碰撞可忽略，故仅记录。
+3. `GetByID` 把每个错误都折成 `sentinel.NotFound`——sla/storage 早已记录为有意不修的模式。
+4. handler 把每个错误映射成 404 `not found`。
+5. `CreateExecution` 虚构 `Status: "running"`，全库没有执行引擎（规则 e：只记录）。
+6. `172_create_runbook_tables_down.sql` 只删两个索引，从不删 `runbooks` 表。
+7. 172 声明 `id VARCHAR(36)` 而 `EnsureTable` 声明 `id UUID`——UUID 字符串装得下 36 字符所以没有运行时故障，但类型不一致是潜伏问题。
+
+### 41.10 验证
+
+- `gofmt -l internal/runbook/ cmd/server/` 干净
+- `go build`（1387 个包，排除 `docs/deliverables/`）通过
+- `go vet ./internal/runbook/... ./cmd/server/` 干净
+- `go clean -testcache && go test -count=1 ./internal/runbook/... ./cmd/server/` 全部 ok（runbook/handler、runbook/repository、cmd/server 均 ok）
+- 变异 6/6 killed，工作树已按快照恢复，恢复后两次测试 rc=0
+
+### 41.11 扫描遗留（未处理，结转）
+
+- `/tmp/r38/A.txt`（50 处 `Sprintf("%s=$%d`）。
+- 无白名单的 map 驱动 SET 构造器（`/tmp/r41/dyn.txt`，约 57 处 `Sprintf("UPDATE` / 40 文件）；已确认无白名单且挂了路由的候选：`internal/tracing`（`UpdateOtelConfig`，`PUT /otel/configs/:id`）、`internal/notification`、`internal/file-handler`、`internal/job-source`、`internal/lowcode-designer`、`internal/alert-escalation`、`internal/security`、`internal/infrastructure/*`、`internal/config-mgmt-enhanced`、`internal/cache`、`internal/apm`、`internal/cron`。
+- `/tmp/r33/hits.txt`、`/tmp/r34/stubs2.txt`。
+- 22 个 model 缺 `tenant_id` 而其表有该列；12 个 LEAK 模块；25 个未加 tag 的多单词字段结构体——现在多了一条具体后果：sqlx v1.4.0 不剥下划线，无 tag 的多单词字段读不出来（41.8）。
+- 硬编码成功标记的 grep 命中尚未分诊：`internal/assistant/service/actions.go:42`、`pipeline_executor.go` 5 处、`internal/data-catalog/service/service.go:166`、`internal/serverless/service/service.go:152`、`internal/multi-cloud/service/service.go:354`、`internal/health-check/service/service.go` 4 处、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`、`internal/chaos-gateway/service/service.go:294`、`internal/workflow-webhook/handler/handler.go:144`、`internal/cmdb/service/service.go:465`、`internal/tool/service/service.go:318`，以及 visor-exec 的 5 处。
+- `/tmp/r41/scan_tables.py` 仍有 678 个建表命中（253 模块、498 报缺）——英文散文漏进来，识别过滤器需再加「必须含下划线且 snake_case」的约束。172 这类「更老的自动生成迁移占有表名」的模式可能还有其他模块，是 R42 的一个入口。
+- 结转不变：`runner_jobs.runner_id` 列不存在（活路由）；`internal/pipeline-template` 与 `internal/pipeline-templates` 疑似同名路由组冲突；`vector_record` / `vector_index` 无迁移；sla 与 storage 的 handler 把全部错误折叠成 404；`buildNamedSet` 在 pipeline-executor:401 / job-actions:285 / auto-exec:333 未加白名单。
