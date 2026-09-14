@@ -25,7 +25,7 @@ type ServiceInterface interface {
 	GetItemHistory(ctx context.Context, itemID, tenantID string) ([]models.ConfigItemHistory, error)
 	PublishSnapshot(ctx context.Context, groupID, environment, operator string, tenantID string) (*models.ConfigSnapshot, error)
 	ListSnapshots(ctx context.Context, tenantID, groupID, environment string) ([]models.ConfigSnapshot, error)
-	GetSnapshotData(ctx context.Context, id string) (map[string]interface{}, error)
+	GetSnapshotData(ctx context.Context, id, tenantID string) (map[string]interface{}, error)
 	PublishRelease(ctx context.Context, req *models.PublishReleaseRequest, tenantID string) (*models.ConfigRelease, error)
 	RollbackRelease(ctx context.Context, req *models.RollbackReleaseRequest, tenantID string) (*models.ConfigRelease, error)
 	GetRelease(ctx context.Context, id, tenantID string) (*models.ConfigRelease, error)

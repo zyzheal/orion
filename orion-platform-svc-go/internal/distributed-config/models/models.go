@@ -1,6 +1,39 @@
 package models
 
-import "time"
+import (
+	"database/sql/driver"
+	"fmt"
+	"time"
+)
+
+// Text is a column value that 395 or 406 allows to be NULL. A plain string
+// field cannot receive a NULL: database/sql refuses the scan before sqlx
+// ever sees the row, so one NULL anywhere in the result set fails the whole
+// read and the route answers 500. Text accepts the NULL and stores it as the
+// zero string, which is what the rest of the module already treats as absent.
+type Text string
+
+func (t *Text) Scan(src interface{}) error {
+	if src == nil {
+		*t = ""
+		return nil
+	}
+	switch v := src.(type) {
+	case string:
+		*t = Text(v)
+	case []byte:
+		*t = Text(v)
+	default:
+		return fmt.Errorf("cannot scan %T into Text", src)
+	}
+	return nil
+}
+
+// Value is mandatory as well as Scan: without it lib/pq would hit its
+// unknown-type branch and fail the write.
+func (t Text) Value() (driver.Value, error) {
+	return string(t), nil
+}
 
 type ConfigValueType string
 
@@ -69,7 +102,7 @@ type ConfigNamespace struct {
 	ID          string          `db:"id" json:"id"`
 	TenantID    string          `db:"tenant_id" json:"tenantId"`
 	Name        string          `db:"name" json:"name"`
-	Description string          `db:"description" json:"description"`
+	Description Text            `db:"description" json:"description"`
 	Status      NamespaceStatus `db:"status" json:"status"`
 	CreatedAt   time.Time       `db:"created_at" json:"createdAt"`
 	UpdatedAt   time.Time       `db:"updated_at" json:"updatedAt"`
@@ -82,7 +115,7 @@ type ConfigGroup struct {
 	TenantID    string    `db:"tenant_id" json:"tenantId"`
 	NamespaceID string    `db:"namespace_id" json:"namespaceId"`
 	Name        string    `db:"name" json:"name"`
-	Description string    `db:"description" json:"description"`
+	Description Text      `db:"description" json:"description"`
 	CreatedAt   time.Time `db:"created_at" json:"createdAt"`
 	UpdatedAt   time.Time `db:"updated_at" json:"updatedAt"`
 }
@@ -98,14 +131,14 @@ type ConfigItem struct {
 	Value       string          `db:"value" json:"value"`
 	ValueType   ConfigValueType `db:"value_type" json:"valueType"`
 	Encrypted   bool            `db:"encrypted" json:"encrypted"`
-	Description string          `db:"description" json:"description"`
-	Labels      string          `db:"labels" json:"-"`
+	Description Text            `db:"description" json:"description"`
+	Labels      Text            `db:"labels" json:"-"`
 	CreatedAt   time.Time       `db:"created_at" json:"createdAt"`
 	UpdatedAt   time.Time       `db:"updated_at" json:"updatedAt"`
 
 	// Phase 302: 三层覆盖字段
 	Level      ConfigLevel `db:"level" json:"level"`            // platform|tenant|user，默认 tenant
-	OverrideOf string      `db:"override_of" json:"overrideOf"` // 被覆盖的 platform/tenant item ID（可空）
+	OverrideOf Text        `db:"override_of" json:"overrideOf"` // 被覆盖的 platform/tenant item ID（可空）
 	Priority   int         `db:"priority" json:"priority"`      // 数值越大越优先（platform=100, tenant=50, user=10）
 
 	LabelsMap map[string]string `json:"labels,omitempty"`
@@ -118,10 +151,10 @@ type ConfigItemHistory struct {
 	TenantID  string    `db:"tenant_id" json:"tenantId"`
 	ItemID    string    `db:"item_id" json:"itemId"`
 	Version   int       `db:"version" json:"version"`
-	OldValue  string    `db:"old_value" json:"oldValue,omitempty"`
+	OldValue  Text      `db:"old_value" json:"oldValue,omitempty"`
 	NewValue  string    `db:"new_value" json:"newValue"`
 	Operator  string    `db:"operator" json:"operator"`
-	Reason    string    `db:"reason" json:"reason"`
+	Reason    Text      `db:"reason" json:"reason"`
 	CreatedAt time.Time `db:"created_at" json:"createdAt"`
 }
 
@@ -159,10 +192,10 @@ type ConfigRelease struct {
 	Environment          string        `db:"environment" json:"environment"`
 	ReleaseVersion       int           `db:"release_version" json:"releaseVersion"`
 	Status               ReleaseStatus `db:"status" json:"status"`
-	ReleaseNote          string        `db:"release_note" json:"releaseNote"`
+	ReleaseNote          Text          `db:"release_note" json:"releaseNote"`
 	ReleasedAt           *time.Time    `db:"released_at" json:"releasedAt"`
-	ReleasedBy           string        `db:"released_by" json:"releasedBy"`
-	RollbackToSnapshotID string        `db:"rollback_to_snapshot_id" json:"rollbackToSnapshotId,omitempty"`
+	ReleasedBy           Text          `db:"released_by" json:"releasedBy"`
+	RollbackToSnapshotID Text          `db:"rollback_to_snapshot_id" json:"rollbackToSnapshotId,omitempty"`
 	CreatedAt            time.Time     `db:"created_at" json:"createdAt"`
 }
 
@@ -173,9 +206,9 @@ type ConfigReleaseHistory struct {
 	GroupID     string    `db:"group_id" json:"groupId"`
 	Environment string    `db:"environment" json:"environment"`
 	Version     int       `db:"version" json:"version"`
-	Operator    string    `db:"operator" json:"operator"`
+	Operator    Text      `db:"operator" json:"operator"`
 	Action      string    `db:"action" json:"action"`
-	Detail      string    `db:"detail" json:"detail"`
+	Detail      Text      `db:"detail" json:"detail"`
 	CreatedAt   time.Time `db:"created_at" json:"createdAt"`
 }
 
@@ -188,9 +221,9 @@ type ConfigAudit struct {
 	Action     string    `db:"action" json:"action"`
 	TargetType string    `db:"target_type" json:"targetType"`
 	TargetID   string    `db:"target_id" json:"targetId"`
-	Detail     string    `db:"detail" json:"-"`
-	IPAddress  string    `db:"ip_address" json:"ipAddress"`
-	UserAgent  string    `db:"user_agent" json:"userAgent"`
+	Detail     Text      `db:"detail" json:"-"`
+	IPAddress  Text      `db:"ip_address" json:"ipAddress"`
+	UserAgent  Text      `db:"user_agent" json:"userAgent"`
 	CreatedAt  time.Time `db:"created_at" json:"createdAt"`
 
 	DetailMap map[string]interface{} `json:"detail,omitempty"`

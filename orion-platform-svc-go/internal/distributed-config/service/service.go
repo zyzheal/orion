@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"sort"
@@ -10,7 +11,14 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/distributed-config/models"
+
+	"github.com/google/uuid"
 )
+
+// ErrInvalidLevel is returned when a request carries a level that is neither
+// platform, tenant nor user. The handler maps it to 400 so it is not confused
+// with the 404 the same PUT route returns for an item that does not exist.
+var ErrInvalidLevel = errors.New("invalid config level")
 
 type RepositoryInterface interface {
 	CreateNamespace(ctx context.Context, ns *models.ConfigNamespace) error
@@ -28,21 +36,22 @@ type RepositoryInterface interface {
 	ListOverrides(ctx context.Context, tenantID, itemID string) ([]models.ConfigItem, error)
 	UpdateItemValue(ctx context.Context, id, tenantID string, attrs map[string]interface{}) (*models.ConfigItem, error)
 	DeleteItem(ctx context.Context, id, tenantID string) (bool, error)
-	GetItemLatestVersion(ctx context.Context, itemID string) (int, error)
+	GetItemLatestVersion(ctx context.Context, tenantID, itemID string) (int, error)
 
 	CreateHistory(ctx context.Context, h *models.ConfigItemHistory) error
 	GetItemHistory(ctx context.Context, itemID, tenantID string, limit int) ([]models.ConfigItemHistory, error)
 
 	CreateSnapshot(ctx context.Context, snap *models.ConfigSnapshot) error
 	ListSnapshots(ctx context.Context, tenantID, groupID, env string) ([]models.ConfigSnapshot, error)
-	GetSnapshot(ctx context.Context, id string) (*models.ConfigSnapshot, error)
-	GetLatestSnapshot(ctx context.Context, tenantID, groupID, env string) (*models.ConfigSnapshot, error)
-	GetSnapshotData(ctx context.Context, id string) (map[string]interface{}, error)
+	GetSnapshot(ctx context.Context, id, tenantID string) (*models.ConfigSnapshot, error)
+	GetLatestSnapshotVersion(ctx context.Context, tenantID, groupID, env string) (int, error)
+	GetSnapshotData(ctx context.Context, id, tenantID string) (map[string]interface{}, error)
 
 	CreateRelease(ctx context.Context, r *models.ConfigRelease) error
 	GetRelease(ctx context.Context, id, tenantID string) (*models.ConfigRelease, error)
 	ListReleases(ctx context.Context, tenantID, groupID, env string) ([]models.ConfigRelease, error)
 	UpdateRelease(ctx context.Context, id, tenantID string, attrs map[string]interface{}) (*models.ConfigRelease, error)
+	GetLatestReleaseVersion(ctx context.Context, tenantID, groupID, env string) (int, error)
 
 	CreateReleaseHistory(ctx context.Context, h *models.ConfigReleaseHistory) error
 	ListReleaseHistory(ctx context.Context, releaseID, tenantID string) ([]models.ConfigReleaseHistory, error)
@@ -63,10 +72,10 @@ func NewService(repo RepositoryInterface) *Service {
 
 func (s *Service) CreateNamespace(ctx context.Context, req *models.CreateNamespaceRequest, tenantID string) (*models.ConfigNamespace, error) {
 	ns := &models.ConfigNamespace{
-		ID:          generateID("ns"),
+		ID:          newID(),
 		TenantID:    tenantID,
 		Name:        req.Name,
-		Description: req.Description,
+		Description: models.Text(req.Description),
 		Status:      models.NamespaceActive,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -105,11 +114,11 @@ func (s *Service) CreateGroup(ctx context.Context, req *models.CreateGroupReques
 	}
 
 	g := &models.ConfigGroup{
-		ID:          generateID("grp"),
+		ID:          newID(),
 		TenantID:    tenantID,
 		NamespaceID: req.NamespaceID,
 		Name:        req.Name,
-		Description: req.Description,
+		Description: models.Text(req.Description),
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
@@ -138,34 +147,45 @@ func (s *Service) ListGroups(ctx context.Context, tenantID, namespaceID string) 
 // --- Item ---
 
 func (s *Service) CreateItem(ctx context.Context, req *models.CreateItemRequest, tenantID string) (*models.ConfigItem, error) {
-	_, err := s.repo.GetGroup(ctx, req.GroupID, tenantID)
+	group, err := s.repo.GetGroup(ctx, req.GroupID, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("group not found: %w", err)
+	}
+	// config_item.namespace_id is a denormalised copy of the group's namespace.
+	// Trusting the caller to repeat it correctly produced items that listed
+	// under a namespace they did not belong to, and that the namespace-scoped
+	// resolver then picked up.
+	ns, err := s.repo.GetNamespace(ctx, req.NamespaceID, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("namespace not found: %w", err)
+	}
+	if group.NamespaceID != req.NamespaceID {
+		return nil, fmt.Errorf("group %s does not belong to namespace %s", req.GroupID, req.NamespaceID)
 	}
 
 	// Phase 302: Level 归一化与校验
 	level := models.NormalizeLevel(req.Level)
 	if !req.Level.IsValid() && req.Level != "" {
-		return nil, fmt.Errorf("invalid config level: %q (must be platform/tenant/user)", req.Level)
+		return nil, fmt.Errorf("%w: %q (must be platform/tenant/user)", ErrInvalidLevel, req.Level)
 	}
 
-	labelsJSON, _ := json.Marshal(req.Labels)
 	item := &models.ConfigItem{
-		ID:          generateID("ci"),
+		ID:          newID(),
 		TenantID:    tenantID,
 		GroupID:     req.GroupID,
-		NamespaceID: req.NamespaceID,
+		NamespaceID: ns.ID,
 		KeyName:     req.KeyName,
 		Value:       req.Value,
 		ValueType:   req.ValueType,
 		Encrypted:   req.Encrypted,
-		Description: req.Description,
-		Labels:      string(labelsJSON),
+		Description: models.Text(req.Description),
+		Labels:      encodeJSON(req.Labels),
 		Level:       level,
-		OverrideOf:  req.OverrideOf,
+		OverrideOf:  models.Text(req.OverrideOf),
 		Priority:    level.Priority(),
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
+		LabelsMap:   req.Labels,
 	}
 	if item.ValueType == "" {
 		item.ValueType = models.ValueTypeString
@@ -175,21 +195,44 @@ func (s *Service) CreateItem(ctx context.Context, req *models.CreateItemRequest,
 		return nil, err
 	}
 
-	h := &models.ConfigItemHistory{
-		ID:        generateID("ch"),
+	if err := s.repo.CreateHistory(ctx, &models.ConfigItemHistory{
+		ID:        newID(),
 		TenantID:  tenantID,
 		ItemID:    item.ID,
 		Version:   1,
 		NewValue:  item.Value,
 		CreatedAt: time.Now(),
+	}); err != nil {
+		return nil, fmt.Errorf("writing create history for item %s: %w", item.ID, err)
 	}
-	s.repo.CreateHistory(ctx, h)
 	s.createAudit(ctx, tenantID, "create", "item", item.ID, map[string]interface{}{"key": item.KeyName, "groupId": item.GroupID})
 	return item, nil
 }
 
+// GetItem decodes the labels payload and normalises the level, exactly like
+// ListItems and ListOverrides do. Returning the raw row meant the labels of a
+// single item came back empty while the same item listed under labels filled in.
 func (s *Service) GetItem(ctx context.Context, id, tenantID string) (*models.ConfigItem, error) {
-	return s.repo.GetItem(ctx, id, tenantID)
+	item, err := s.repo.GetItem(ctx, id, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	return decodeItem(item), nil
+}
+
+func decodeItem(item *models.ConfigItem) *models.ConfigItem {
+	if item == nil {
+		return nil
+	}
+	if item.Labels != "" {
+		json.Unmarshal([]byte(item.Labels), &item.LabelsMap)
+	}
+	// 兼容旧数据：Level 为空时归一化为 tenant
+	if item.Level == "" {
+		item.Level = models.ConfigLevelTenant
+		item.Priority = models.ConfigLevelTenant.Priority()
+	}
+	return item
 }
 
 func (s *Service) ListItems(ctx context.Context, tenantID string, filter *models.GetItemsFilter) ([]models.ConfigItem, error) {
@@ -201,14 +244,7 @@ func (s *Service) ListItems(ctx context.Context, tenantID string, filter *models
 		return []models.ConfigItem{}, nil
 	}
 	for i := range items {
-		if items[i].Labels != "" {
-			json.Unmarshal([]byte(items[i].Labels), &items[i].LabelsMap)
-		}
-		// 兼容旧数据：Level 为空时归一化为 tenant
-		if items[i].Level == "" {
-			items[i].Level = models.ConfigLevelTenant
-			items[i].Priority = models.ConfigLevelTenant.Priority()
-		}
+		decodeItem(&items[i])
 	}
 	return items, nil
 }
@@ -228,13 +264,12 @@ func (s *Service) UpdateItem(ctx context.Context, id, tenantID, operator string,
 		attrs["description"] = *req.Description
 	}
 	if req.Labels != nil {
-		labelsJSON, _ := json.Marshal(req.Labels)
-		attrs["labels"] = string(labelsJSON)
+		attrs["labels"] = string(encodeJSON(req.Labels))
 	}
 	// Phase 302: Level / OverrideOf 更新
 	if req.Level != nil {
 		if !req.Level.IsValid() {
-			return nil, fmt.Errorf("invalid config level: %q (must be platform/tenant/user)", *req.Level)
+			return nil, fmt.Errorf("%w: %q (must be platform/tenant/user)", ErrInvalidLevel, *req.Level)
 		}
 		attrs["level"] = string(*req.Level)
 		attrs["priority"] = (*req.Level).Priority()
@@ -249,17 +284,23 @@ func (s *Service) UpdateItem(ctx context.Context, id, tenantID, operator string,
 	}
 
 	if req.Value != nil {
-		latestVer, _ := s.repo.GetItemLatestVersion(ctx, id)
-		h := &models.ConfigItemHistory{
-			ID:        generateID("ch"),
+		// A discarded lookup error reset the history counter to one on every
+		// failed query, so the next row's version collided with the create row.
+		latestVer, err := s.repo.GetItemLatestVersion(ctx, tenantID, id)
+		if err != nil {
+			return nil, fmt.Errorf("looking up the latest version of item %s: %w", id, err)
+		}
+		if err := s.repo.CreateHistory(ctx, &models.ConfigItemHistory{
+			ID:        newID(),
 			TenantID:  tenantID,
 			ItemID:    id,
 			Version:   latestVer + 1,
 			NewValue:  *req.Value,
 			Operator:  operator,
 			CreatedAt: time.Now(),
+		}); err != nil {
+			return nil, fmt.Errorf("writing update history for item %s: %w", id, err)
 		}
-		s.repo.CreateHistory(ctx, h)
 	}
 
 	s.createAudit(ctx, tenantID, "update", "item", id, map[string]interface{}{
@@ -305,9 +346,6 @@ func (s *Service) ResolveEffectiveConfig(ctx context.Context, tenantID, namespac
 	}
 
 	// 按 KeyName 分组，每组内按 Priority DESC 排序，取第一个作为生效值
-	type bucket struct {
-		items []models.ConfigItem
-	}
 	buckets := make(map[string][]models.ConfigItem)
 	for _, it := range items {
 		// 归一化 Level（兼容旧数据）
@@ -350,13 +388,7 @@ func (s *Service) ListOverrides(ctx context.Context, tenantID, itemID string) ([
 		return []models.ConfigItem{}, nil
 	}
 	for i := range items {
-		if items[i].Labels != "" {
-			json.Unmarshal([]byte(items[i].Labels), &items[i].LabelsMap)
-		}
-		if items[i].Level == "" {
-			items[i].Level = models.ConfigLevelTenant
-			items[i].Priority = models.ConfigLevelTenant.Priority()
-		}
+		decodeItem(&items[i])
 	}
 	return items, nil
 }
@@ -373,16 +405,24 @@ func (s *Service) PublishSnapshot(ctx context.Context, groupID, environment, ope
 	for _, item := range items {
 		data[item.KeyName] = item.Value
 	}
-	dataJSON, _ := json.Marshal(data)
+	dataJSON := encodeJSON(data)
 	checksum := computeChecksum(string(dataJSON))
 
+	// config_snapshot.version is NOT NULL with no default, so the insert supplies
+	// it, and it used to be hardcoded zero: every snapshot in a group shared
+	// version one and the version index could not distinguish them.
+	latestVer, err := s.repo.GetLatestSnapshotVersion(ctx, tenantID, groupID, environment)
+	if err != nil {
+		return nil, err
+	}
+
 	snap := &models.ConfigSnapshot{
-		ID:          generateID("snap"),
+		ID:          newID(),
 		TenantID:    tenantID,
 		GroupID:     groupID,
 		NamespaceID: "",
 		Environment: environment,
-		Version:     0,
+		Version:     latestVer + 1,
 		Data:        string(dataJSON),
 		Checksum:    checksum,
 		CreatedAt:   time.Now(),
@@ -410,14 +450,14 @@ func (s *Service) ListSnapshots(ctx context.Context, tenantID, groupID, environm
 	return snaps, nil
 }
 
-func (s *Service) GetSnapshotData(ctx context.Context, id string) (map[string]interface{}, error) {
-	return s.repo.GetSnapshotData(ctx, id)
+func (s *Service) GetSnapshotData(ctx context.Context, id, tenantID string) (map[string]interface{}, error) {
+	return s.repo.GetSnapshotData(ctx, id, tenantID)
 }
 
 // --- Release ---
 
 func (s *Service) PublishRelease(ctx context.Context, req *models.PublishReleaseRequest, tenantID string) (*models.ConfigRelease, error) {
-	snap, err := s.repo.GetSnapshot(ctx, req.SnapshotID)
+	snap, err := s.repo.GetSnapshot(ctx, req.SnapshotID, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("snapshot not found: %w", err)
 	}
@@ -425,22 +465,22 @@ func (s *Service) PublishRelease(ctx context.Context, req *models.PublishRelease
 		return nil, fmt.Errorf("snapshot group missing")
 	}
 
-	latest, _ := s.repo.GetLatestSnapshot(ctx, tenantID, snap.GroupID, req.Environment)
-	nextVer := 1
-	if latest != nil {
-		nextVer = latest.Version + 1
+	latestVer, err := s.repo.GetLatestReleaseVersion(ctx, tenantID, snap.GroupID, req.Environment)
+	if err != nil {
+		return nil, err
 	}
+	nextVer := latestVer + 1
 
 	release := &models.ConfigRelease{
-		ID:             generateID("rel"),
+		ID:             newID(),
 		TenantID:       tenantID,
 		SnapshotID:     req.SnapshotID,
 		GroupID:        snap.GroupID,
 		Environment:    req.Environment,
 		ReleaseVersion: nextVer,
 		Status:         models.ReleaseReleased,
-		ReleaseNote:    req.ReleaseNote,
-		ReleasedBy:     req.Operator,
+		ReleaseNote:    models.Text(req.ReleaseNote),
+		ReleasedBy:     models.Text(req.Operator),
 		CreatedAt:      time.Now(),
 	}
 	now := time.Now()
@@ -449,18 +489,20 @@ func (s *Service) PublishRelease(ctx context.Context, req *models.PublishRelease
 		return nil, err
 	}
 
-	s.repo.CreateReleaseHistory(ctx, &models.ConfigReleaseHistory{
-		ID:          generateID("rh"),
+	if err := s.repo.CreateReleaseHistory(ctx, &models.ConfigReleaseHistory{
+		ID:          newID(),
 		TenantID:    tenantID,
 		ReleaseID:   release.ID,
 		GroupID:     snap.GroupID,
 		Environment: req.Environment,
 		Version:     nextVer,
-		Operator:    req.Operator,
+		Operator:    models.Text(req.Operator),
 		Action:      "publish",
-		Detail:      req.ReleaseNote,
+		Detail:      models.Text(req.ReleaseNote),
 		CreatedAt:   time.Now(),
-	})
+	}); err != nil {
+		return nil, fmt.Errorf("writing release history for %s: %w", release.ID, err)
+	}
 
 	s.createAudit(ctx, tenantID, "release", "group", snap.GroupID, map[string]interface{}{
 		"environment":    req.Environment,
@@ -472,27 +514,32 @@ func (s *Service) PublishRelease(ctx context.Context, req *models.PublishRelease
 }
 
 func (s *Service) RollbackRelease(ctx context.Context, req *models.RollbackReleaseRequest, tenantID string) (*models.ConfigRelease, error) {
-	snap, err := s.repo.GetSnapshot(ctx, req.SnapshotID)
+	snap, err := s.repo.GetSnapshot(ctx, req.SnapshotID, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("snapshot not found: %w", err)
 	}
+	if snap.GroupID == "" {
+		return nil, fmt.Errorf("snapshot group missing")
+	}
 
-	latest, _ := s.repo.GetLatestSnapshot(ctx, tenantID, snap.GroupID, "")
-	if latest == nil {
-		return nil, fmt.Errorf("no current release found")
+	// The rollback used to read config_snapshot to number the new release row,
+	// so group, environment and version all came out of a different relation.
+	latestVer, err := s.repo.GetLatestReleaseVersion(ctx, tenantID, snap.GroupID, snap.Environment)
+	if err != nil {
+		return nil, err
 	}
 
 	release := &models.ConfigRelease{
-		ID:                   generateID("rel"),
+		ID:                   newID(),
 		TenantID:             tenantID,
 		SnapshotID:           req.SnapshotID,
-		GroupID:              latest.GroupID,
-		Environment:          latest.Environment,
-		ReleaseVersion:       latest.Version + 1,
+		GroupID:              snap.GroupID,
+		Environment:          snap.Environment,
+		ReleaseVersion:       latestVer + 1,
 		Status:               models.ReleaseRollback,
-		RollbackToSnapshotID: req.SnapshotID,
-		ReleasedBy:           req.Operator,
-		ReleaseNote:          req.Reason,
+		RollbackToSnapshotID: models.Text(req.SnapshotID),
+		ReleasedBy:           models.Text(req.Operator),
+		ReleaseNote:          models.Text(req.Reason),
 		CreatedAt:            time.Now(),
 	}
 	now := time.Now()
@@ -501,18 +548,20 @@ func (s *Service) RollbackRelease(ctx context.Context, req *models.RollbackRelea
 		return nil, err
 	}
 
-	s.repo.CreateReleaseHistory(ctx, &models.ConfigReleaseHistory{
-		ID:          generateID("rh"),
+	if err := s.repo.CreateReleaseHistory(ctx, &models.ConfigReleaseHistory{
+		ID:          newID(),
 		TenantID:    tenantID,
 		ReleaseID:   release.ID,
-		GroupID:     latest.GroupID,
-		Environment: latest.Environment,
-		Version:     latest.Version + 1,
-		Operator:    req.Operator,
+		GroupID:     snap.GroupID,
+		Environment: snap.Environment,
+		Version:     latestVer + 1,
+		Operator:    models.Text(req.Operator),
 		Action:      "rollback",
-		Detail:      fmt.Sprintf("Rollback to snapshot %s: %s", req.SnapshotID, req.Reason),
+		Detail:      models.Text(fmt.Sprintf("Rollback to snapshot %s: %s", req.SnapshotID, req.Reason)),
 		CreatedAt:   time.Now(),
-	})
+	}); err != nil {
+		return nil, fmt.Errorf("writing rollback history for %s: %w", release.ID, err)
+	}
 
 	s.createAudit(ctx, tenantID, "rollback", "release", release.ID, map[string]interface{}{
 		"snapshotId": req.SnapshotID,
@@ -572,26 +621,41 @@ func (s *Service) ListAudit(ctx context.Context, tenantID string, limit int) ([]
 
 // --- Helper ---
 
+// encodeJSON renders a value for a JSON column. Every caller passes a map or a
+// slice whose fields all carry json tags, so Marshal cannot fail; the helper
+// exists so no call site repeats the discarded-error pattern.
+func encodeJSON(v interface{}) models.Text {
+	return models.Text(mustJSON(v))
+}
+
+func mustJSON(v interface{}) string {
+	b, _ := json.Marshal(v)
+	return string(b)
+}
+
 func (s *Service) createAudit(ctx context.Context, tenantID, action, targetType, targetID string, detail map[string]interface{}) {
 	if detail == nil {
 		detail = map[string]interface{}{}
 	}
-	detailJSON, _ := json.Marshal(detail)
 	s.repo.CreateAudit(ctx, &models.ConfigAudit{
-		ID:         generateID("aud"),
+		ID:         newID(),
 		TenantID:   tenantID,
 		Action:     action,
 		TargetType: targetType,
 		TargetID:   targetID,
-		Detail:     string(detailJSON),
+		Detail:     encodeJSON(detail),
 		CreatedAt:  time.Now(),
 	})
 }
 
-func generateID(prefix string) string {
-	h := fnv.New64a()
-	h.Write([]byte(prefix + "-" + time.Now().Format("20060102150405") + "-" + fmt.Sprintf("%d", time.Now().UnixNano()%100000)))
-	return fmt.Sprintf("%s-%x", prefix, h.Sum(nil)[:8])
+// newID is a UUID rendered as a string, which is exactly the 36 characters the
+// VARCHAR(36) primary keys allow. The previous implementation mixed a prefix, a
+// per-second timestamp and four random bytes through FNV and kept eight hex
+// characters of the digest, so the entropy was capped at 32 bits within any one
+// second and two entities created in the same second collided with probability
+// about one in six hundred thousand.
+func newID() string {
+	return uuid.New().String()
 }
 
 func computeChecksum(data string) string {
@@ -600,10 +664,14 @@ func computeChecksum(data string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
+// getChangedFields names the attributes that were set, in a stable order. The
+// audit detail went through a Go map, so the same request logged a different
+// field string on every call and the audit log was not diffable.
 func getChangedFields(attrs map[string]interface{}) string {
-	var fields []string
+	fields := make([]string, 0, len(attrs))
 	for k := range attrs {
 		fields = append(fields, k)
 	}
+	sort.Strings(fields)
 	return strings.Join(fields, ",")
 }

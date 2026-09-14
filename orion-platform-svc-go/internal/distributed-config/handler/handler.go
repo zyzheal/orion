@@ -1,7 +1,8 @@
 package handler
 
 import (
-	"fmt"
+	"errors"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -9,6 +10,11 @@ import (
 	"orion/platform-svc-go/internal/distributed-config/models"
 	"orion/platform-svc-go/internal/distributed-config/service"
 	"orion/platform-svc-go/internal/middleware"
+)
+
+const (
+	minAuditLimit = 1
+	maxAuditLimit = 500
 )
 
 type Handler struct {
@@ -116,7 +122,10 @@ func (h *Handler) ListGroups(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigListGroups")
 	defer span.End()
 	f := models.GetItemsFilter{}
-	c.ShouldBindQuery(&f)
+	if err := c.ShouldBindQuery(&f); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
 	groups, err := h.svc.ListGroups(ctx, h.getTenantID(c), f.NamespaceID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -158,7 +167,10 @@ func (h *Handler) ListItems(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigListItems")
 	defer span.End()
 	f := models.GetItemsFilter{}
-	c.ShouldBindQuery(&f)
+	if err := c.ShouldBindQuery(&f); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
 	items, err := h.svc.ListItems(ctx, h.getTenantID(c), &f)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -208,6 +220,12 @@ func (h *Handler) UpdateItem(c *gin.Context) {
 	}
 	item, err := h.svc.UpdateItem(ctx, c.Param("id"), h.getTenantID(c), operator, &req)
 	if err != nil {
+		// Every service error used to map to 404, so an invalid level looked like
+		// a missing item and the caller was sent looking for an item that existed.
+		if errors.Is(err, service.ErrInvalidLevel) {
+			middleware.RespondBadRequest(c, err.Error())
+			return
+		}
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -308,7 +326,7 @@ func (h *Handler) ListSnapshots(c *gin.Context) {
 func (h *Handler) GetSnapshotData(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigGetSnapshotData")
 	defer span.End()
-	data, err := h.svc.GetSnapshotData(ctx, c.Param("id"))
+	data, err := h.svc.GetSnapshotData(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -365,7 +383,10 @@ func (h *Handler) ListReleases(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DistributedConfigListReleases")
 	defer span.End()
 	f := models.GetReleasesFilter{}
-	c.ShouldBindQuery(&f)
+	if err := c.ShouldBindQuery(&f); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
 	releases, err := h.svc.ListReleases(ctx, h.getTenantID(c), &f)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -392,7 +413,20 @@ func (h *Handler) ListAudit(c *gin.Context) {
 	defer span.End()
 	limit := 50
 	if v := c.Query("limit"); v != "" {
-		fmt.Sscanf(v, "%d", &limit)
+		// Sscanf discards its own error, so a non-numeric limit silently fell
+		// back to the zero value and the query returned nothing at all.
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			middleware.RespondBadRequest(c, "limit must be an integer")
+			return
+		}
+		if n < minAuditLimit {
+			n = minAuditLimit
+		}
+		if n > maxAuditLimit {
+			n = maxAuditLimit
+		}
+		limit = n
 	}
 	audits, err := h.svc.ListAudit(ctx, h.getTenantID(c), limit)
 	if err != nil {
