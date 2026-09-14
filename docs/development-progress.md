@@ -10325,3 +10325,170 @@ service 的 `CheckQuota` 与 `CheckQuotaWithPolicy` 都写了 `if usage != nil`�
 - 硬编码成功标记的分诊未完成（按 R38 规则每个先确认是否挂了路由）：`internal/health-check/service/service.go`（上次死于 `sed` 的 division by zero，需先用 `grep -n "success"` 拿行号）、`pipeline_executor.go` 5 处、`internal/assistant/service/actions.go:42` 与 `internal/assistant/handler/handler.go:78`、`internal/multi-cloud/service.go:354`（先设 `Status: "passed"` 再判断，自我满足）、`internal/tool/service.go:318`、`internal/chaos-gateway/service.go:294`、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`、`internal/workflow-webhook/handler.go:144`、`internal/cmdb/service.go:465`、`internal/serverless/service.go:152`、`internal/data-catalog/service.go:166`。
 - 尚未扫描的模块：`internal/notification`、`internal/file-handler`、`internal/job-source`、`internal/lowcode-designer`、`internal/alert-escalation`、`internal/security`、`internal/infrastructure/*`、`internal/config-mgmt-enhanced`、`internal/cache`、`internal/apm`、`internal/cron`。
 - 结转不变：visor-exec 的租户贯穿（`visorTenantBridge` 里 15 个以上 `""` 占位、`POST /commands` 从不设 `CommandLog.TenantID`）；`runner_repository.go:73` 在活路由上丢弃一条引用不存在列的 DELETE（274 的真实外键是 `agent_id`，`:542` / `:563` 同一错误列）；`pipeline-templates` 的 `Delete` 丢弃一条 DELETE 且 handler 未注册；`vector/repository.go:68` 的 `DeleteStore` 没有 `vector_record` 迁移；schema-registry 的 best-effort `GetSchema` 快照（已被测试钉住）；`EnsureTable` 在约 15 个模块声明而 `cmd/server` 零调用方；`internal/schema-registry/models/models.go` 的既存 gofmt 债；`buildNamedSet` 在 pipeline-executor:401 / job-actions:285 / auto-exec:333 未加白名单；roweditor 的 `validateRows` / `validateMode` 死代码；`buildUpdateSetClause` 里重复的 `version=` / `updated_at=`；finops v1 的不可达方法；user 模块 `ChangePassword` 的 bcrypt 路径无覆盖、前端不调 `PUT /users/:id`；`monitor:execute` 未授予 `sre` / `tenant_admin`（`pkg/auth/permission.go`，有意不动）；`internal/pipeline-template` 与 `internal/pipeline-templates` 都注册 `/pipeline-templates`，疑似同名路由组冲突，未调查。
+
+## 第四十四轮：internal/lowcode-designer 二十一条语句全部在驱动层报错、三处 SET 以调用方 map key 拼接、JSON 列绑定空串（Round 44）
+
+### 44.1 选它的理由
+
+扫描起点 HEAD `593ebbd70`。模块完全接线——`cmd/server/wiring.go:135` 调 `wireLowcodeDesigner`，`/lowcode-designer` 下注册了 20 条路由，表也真的存在：`396_create_lowcode_designer.sql` 创建了五张表。repository 此前零测试。
+
+所以与 R40、R41、R42、R43 同构：接线在、DDL 在、编译在，而十个运行时缺陷一个都看不见。
+
+### 44.2 缺陷 A：二十一条语句全用 MySQL 占位符，驱动是 Postgres
+
+`internal/lowcode-designer/repository/repository.go` 的二十一条语句全部用 `?`。而 `orion-go-common/pkg/database/db.go` import `github.com/lib/pq`、`ConnectContext(ctx, "postgres", cfg.DSN)`。Postgres 只认 `$n`，`?` 直接报语法错误。
+
+这与 R43 同构但范围更大：不是九条是二十一条，覆盖了模块的 20 个方法。`go build`、`go vet`、以及只看 service 层的代码评审都不会有任何线索——service 层写的九条业务分支一次都没机会执行。改为 `$1…$n`。收尾验证：`grep -rn '?' internal/lowcode-designer`（排除注释）返回 0。
+
+### 44.3 缺陷 B：三处 SET 拿调用方 map key 直插（注入点）
+
+原实现 `fmt.Sprintf("%s=?", k)` 直接遍历调用方的 map。`PUT /forms/:id`、`PUT /fields/:id`、`PUT /instances/:id` 都已注册、已接线、调用方能控制 map 的 key，这是三个活着的 SQL 注入 sink。
+
+改为三份白名单（`formUpdatable` 12 列、`fieldUpdatable` 13 列、`instanceUpdatable` 6 列，全部按 DDL 顺序，故意排除 `id` / `tenant_id` / `created_at` / `updated_at`；`fieldUpdatable` 额外排除 `key` 与 `form_id`——`key` 是 `UNIQUE(form_id, key)` 的一半，也是 `form_definition.fields` 里内嵌字段的引用名，改名会让表单的嵌入副本指向一个不存在的 key）加 `buildSET`：先校验每个 key 都在白名单内（否则 `column %q is not updatable`，且不拼进 SQL），再**遍历白名单而非 map** 生成 `col = $n`。与 R42、R43 同一个理由：Go map 无序，遍历顺序不稳定的生成 SQL 会让任何精确 SQL 断言都无法成立。
+
+### 44.4 缺陷 C：五个 JSON 列绑定空串
+
+`CreateField` 往 `form_field` 的 `default_val`、`options`、`rules`、`meta`、`layout_config` 五个列绑定 `field.DefaultVal` 等，而 `models.FormField` 的这五个字段是 `string`，未设置时就是 `""`。`pq` 报：
+
+```
+pq: invalid input syntax for type json: ""
+```
+
+396 这五列全是 `JSON DEFAULT NULL`，也就是允许 NULL。SQL 侧的 `nullif($N, '')` **不是**可行的修法：`nullif` 返回的是空串类型，`''::json` 在 Postgres 里立刻失败，`$N` 非空也一样失败。正确的修法是 Go 侧绑定 `nil`：lib/pq v1.10.9 的 `conn.go:1715 sendBinaryParameters` 对 nil 的 `driver.Value` 写 `b.int32(-1)`，即 extended query 协议里长度减一的 NULL 标记，Postgres 读成 NULL。`database/sql` 的 `defaultConverter.ConvertValue` 对 nil 走 `IsValue(nil) == true` 直通，不改类型。
+
+新增 `jsonArg(v interface{}) interface{}`：`""` 与 `"null"` 转 Go nil，其余原样返回。这一层有个**方向不对称**值得记进测试：写入侧绑定 nil 是对的，但读取侧的 sqlmock fixture 不能给 SQL NULL——`sqlmock` 无法把 SQL NULL 扫进 Go 的 `string` 字段（`converting NULL to string is unsupported`），fixture 必须给 `""` 或 JSON 文本。两个方向故意不同，测试要分别断言。
+
+### 44.5 缺陷 D：`ApproveInstance` 的未知 action 生成 `SET ,`
+
+原实现 `approve` 与 `reject` 之外的 action 会走到一个空 attrs map，仓库层拼出 `UPDATE form_instance SET , updated_at = NOW()`——SET 子句以逗号开头，语法错误，`PATCH /instances/:id/approve` 返回 500。
+
+改为 `switch req.Action` 加 `default` 分支返回 `fmt.Errorf("%w: %q", ErrInvalidAction, req.Action)`；仓库层把「空 attrs」当作重读（返回现有行而非报错）；handler 用 `errors.Is(err, service.ErrInvalidAction)` 映射 `RespondBadRequest`，其他错误仍映射 404——否则「instance 不存在」与「action 不认识」在同一个路由上无法区分。
+
+### 44.6 缺陷 E：`GetTemplate` 与 `GetComponent` 丢掉租户
+
+两处的 repo 方法签名是 `GetTemplate(ctx, id)` / `GetComponent(ctx, id)`，SQL 里没有 tenant_id 子句，而同一张表的 `ListTemplates` / `ListComponents` 都是租户隔离的。单条读接口可以跨租户取任意模板与组件。租户参数贯穿 repo → `RepositoryInterface` → service → handler → 两个测试替身，两处都加了真实的租户断言。
+
+### 44.7 缺陷 F 与 G：两个被折叠的错误
+
+`CreateForm` 的字段循环里 `s.repo.CreateField(...)` 的错误被丢弃，`POST /forms` 会为字段从未落库的表单返回 201。现在用 `fmt.Errorf("creating field %q of form %s: %w", req.Fields[i].Key, f.ID, err)` 传播。
+
+`getMaxFieldIndex` 里 `fields, err := ...` 之后只用了 `fields`，`err` 被折叠成 0。后果：查询失败时新字段的 `SortableIndex` 被重置成 1，与已有行冲突。现在传播。
+
+### 44.8 缺陷 H：`UpdateTemplateUsage` 拿了一个类型错的 id
+
+`SubmitInstance` 提交实例后调 `s.repo.UpdateTemplateUsage(ctx, formID, ...)`，而 `formID` 是 `fd-` 前缀的 `form_definition.id`，`UpdateTemplateUsage` 却在 `form_template` 上 `WHERE id = $1`。两个表的主键空间不同，这次 UPDATE 永远是零行命中、静默空操作。
+
+396 里五张表**都没有** `template_id` 列，`form_instance` 与 `form_template` 之间没有任何外键或关联列，所以「哪个模板产生了这次提交」这个归属在现有 schema 下不可实现。按 R38 的判据（零调用方的丢弃是死代码）——但这个方法有调用方，只是参数是错的，所以不记录、直接删除：从 repo、`RepositoryInterface`、service 与两个测试替身全部移除。`usage_count` 因此永远是 0，而 `ListTemplates` 仍按 `ORDER BY usage_count DESC` 排——这条常量排序留作记录。
+
+### 44.9 缺陷 I 与 J：行计数丢弃、主键熵不足
+
+`DeleteForm` / `DeleteField` 用 `rows, _ := result.RowsAffected()`，行数查询本身失败被当成功。现在包装成错误。
+
+`generateID` 把 `id-` 前缀、每秒钟级时间戳与四个随机字节过 FNV，只留摘要的 8 个十六进制字符——同一秒内熵上限 32 位，生日碰撞约在每秒 6.5 万个实体时发生，而主键是 `VARCHAR(36) NOT NULL PRIMARY KEY`。改为 `uuid.New().String()`，正好 36 字符，不溢出也不缩短。
+
+### 44.10 缺陷 K：十处 SELECT * 改五个显式列常量
+
+模块有十处 `SELECT *`。全仓 572 号迁移给约 1007 张表加了审计列，`SELECT *` 在 sqlx 的安全模式下会遇到模型未声明的列，整次读取失败（`missing destination name <col>`）。
+
+改为五个显式列常量（`formColumns` 17 列、`fieldColumns` 19 列、`templateColumns` 11 列、`instanceColumns` 11 列、`componentColumns` 11 列），**直接扫进既有 db-tag 模型，不引入 row struct**。这是与 R42 的关键差别：R42 的教训是测试里手工转录一份 SELECT 列清单时漏抄了 `FROM`；这里测试从 396 的 `CREATE TABLE` 块推导期望值，不转录，所以转录漂移这个失败模式整个消失。
+
+### 44.11 缺陷 L：`PUT /fields/:id` 复用创建请求 + `visible` 默认值不可达
+
+`UpdateField` 复用 `CreateFieldRequest`，后者的 `binding:"required"` 挂在 `key`、`label`、`type` 三个字段上。所以一次只改 label 的 PUT 直接被 400 拒绝；而调用方绕过校验时（比如直接调 service），写入路径把每个省略属性的零值都塞进 SET——一次「只改名」会同时清空 placeholder、把 required 与 disabled 置 false、把 visible 置 false、把 sortable_index 置 0。
+
+改为新增全可选的 `UpdateFieldRequest`（Label / Type / Placeholder / ParentKey 是 `*string`，Required / Visible / Disabled 是 `*bool`，SortableIndex 是 `*int`），service 侧每个属性都过 nil 判断。
+
+同批还有一个更难查的：`CreateFieldRequest.Visible` 原本是 `bool`，而 396 声明的是 `visible SMALLINT NOT NULL DEFAULT 1`。因为 INSERT 显式命名了 `visible` 这一列，数据库默认值**永不生效**——所有经 `POST /fields` 创建的字段此前都不可见。改为 `*bool`，service 里 `visible := true; if req.Visible != nil { visible = *req.Visible }`。`models.FormField.Visible` 仍是 `bool`（读模型不需要区分缺省与 false）。
+
+### 44.12 本轮不需要迁移
+
+396 已经声明了模块用到的全部列，缺陷全是代码侧的：占位符、SET 拼接、JSON 绑定、错误折叠、租户隔离、请求形状。这是继「修代码不动 schema」的若干轮之后又一次纯代码轮——不需要新迁移，也不需要 `_down`。
+
+### 44.13 测试
+
+新增 `cmd/server/migration_lowcode_designer_tables_test.go`（6 项，`package main`），以及 repository 40 项、service 24 项、handler 19 项。
+
+迁移侧的核心手法是 `lcdDDL`：一遍扫过 396 的 `CREATE TABLE` 块，同时产出三个视图——按声明顺序的列名、列类型的归一大写、NOT NULL 集合。三者来自同一次解析，所以互相不会矛盾。`lcdIsColumnLine` 按前缀跳过 `PRIMARY KEY`、`UNIQUE`、`CONSTRAINT`、`CHECK`、`CREATE INDEX`、`FOREIGN KEY` 行。
+
+五个 `INSERT` 的绑定值检查走的是 `lcdArgsAfterStatement`：**绑定表达式不是 SQL 字面量里的 `$N` 列表，而是 `ExecContext` 调用中反引号之后的 Go 参数**。这只能取到 Go 侧，所以 JSON 方向（哪个 JSON 列必须走 `jsonArg`、哪个必须不走）由 396 自己的 NOT NULL 集合判定：可空 JSON 列的绑定表达式必须以 `jsonArg(` 开头，NOT NULL 的 JSON 列不得如此。
+
+NOT NULL 集合按表钉死：`form_definition` 8 列、`form_field` 12 列、`form_template` 8 列、`form_instance` 7 列、`component_registry` 8 列。手工钉这个集合时漏掉了 `component_registry.is_builtin`，而 396 里它是 `SMALLINT NOT NULL DEFAULT 0`——**带 DEFAULT 的 NOT NULL 列仍然是 NOT NULL**，测试把它抓了出来。`category VARCHAR(50) NOT NULL DEFAULT 'basic'` 同理。
+
+白名单拒绝测试必须先注册一条期望：sqlmock v1.5.2 只在**存在已注册期望**时才调用 `QueryMatcherFunc`。所以「用闭包记录所有语句、最后断言 `len(*seen) == 0`」这个惯用法在零期望时永远看不到任何语句——那条断言是空的，白名单旁路的突变量因此存活（见 44.15）。修法是为「旁路会发出的那条 UPDATE」注册期望并让它返回错误，再断言错误文案是白名单自己的 `column "X" is not updatable` 而不是 sqlmock 的 `not expected`。四条拒绝测试全部这么改，其中两条此前只断言 `err != nil`。
+
+### 44.14 变异：23 个突变量全部由断言击杀
+
+| # | mutant | 击杀测试 |
+| --- | --- | --- |
+| 1 | `formColumns` 删掉 `meta` | TestLowcodeDesignerColumnListsMatchMigration396 |
+| 2 | `fieldColumns` 删掉 `parent_key` | TestLowcodeDesignerColumnListsMatchMigration396 |
+| 3 | `componentColumns` 删掉 `icon` | TestLowcodeDesignerColumnListsMatchMigration396 |
+| 4 | `jsonArg` 永不返回 SQL NULL | TestCreateFieldBindsNullForAnAbsentJSONAttribute |
+| 5 | `CreateField` 把空串绑进 JSON | TestCreateFieldBindsNullForAnAbsentJSONAttribute |
+| 6 | `CreateTemplate` 改回 `?` 占位符 | TestNoStatementUsesAMySQLPlaceholder |
+| 7 | `buildSET` 绕过白名单 | TestUpdateFormRejectsAColumnItWillNotWrite |
+| 8 | `buildSET` 遍历调用方 map | TestUpdateFormPinsEveryAttributeInWhitelistOrder |
+| 9 | `fieldUpdatable` 允许 `key` | TestUpdateFieldRejectsTheUniqueKeyPair |
+| 10 | `UpdateForm` 不再更新 `updated_at` | TestUpdateFormPinsEveryAttributeInWhitelistOrder |
+| 11 | `UpdateForm` 跳过空 attrs 守卫 | TestUpdateFormWithNoColumnsReturnsTheExistingRow |
+| 12 | `DeleteForm` 丢弃行数错误 | TestDeleteFormReportsARowCountFailure |
+| 13 | `GetTemplate` 丢掉租户子句 | TestGetTemplateRequiresATenant |
+| 14 | `GetComponent` 丢掉租户子句 | TestGetComponentRequiresATenant |
+| 15 | `ApproveInstance` 吞掉未知 action | TestApproveInstanceRejectsAnUnknownAction |
+| 16 | `CreateField` 默认隐藏新字段 | TestCreateFieldDefaultsVisibleToTrue |
+| 17 | `CreateField` 复用最高索引 | TestCreateField_setsSortableIndex |
+| 18 | `CreateForm` 丢弃字段插入错误 | TestCreateFormReportsAFieldInsertFailure |
+| 19 | `getMaxFieldIndex` 把查找失败折成 0 | TestCreateFieldReportsAFieldLookupFailure |
+| 20 | `UpdateField` 丢掉 required 的 nil 判断 | TestUpdateFieldLeavesOmittedAttributesAlone |
+| 21 | `newID` 把 UUID 塞到主键之外 | TestNewIDFitsThePrimaryKeyAndDoesNotCollide |
+| 22 | `ApproveInstance` 把所有错误映成 404 | TestDesigner_ApproveInstance_RejectsAnUnknownAction |
+| 23 | 396 去掉 `form_definition.fields` 的 NOT NULL | TestLowcodeDesignerInsertsFitTheMigratedSchema |
+
+存活数 0，编译击杀数 0。基线：83 项模块测试 PASS、6 项迁移测试 PASS、build 退出码 0/0。恢复后 `go test ./internal/lowcode-designer/... ./cmd/server/` 全部 ok。
+
+### 44.15 变异过程暴露的六个问题
+
+- **sqlmock 的 `QueryMatcherFunc` 只对被注册的期望触发**。这是本轮最重要的一条：`fieldUpdatable allows key` 首次存活，根因不是生产代码而是测试——零期望时 sqlmock 对未预期的 Exec 返回 `not expected` 错误，这个错误足以满足 `err != nil` 的断言，同时记录闭包从不追加，`len(*seen) == 0` 永不触发。修法是注册旁路会发出的那条期望。这比「套件有缺口」更隐蔽：套件本身没错，是断言的形状让它不可能失败。
+- **`if false {` 会杀掉 `errors` 的唯一引用**，`errors.Is(err, service.ErrInvalidAction)` 改成 `if false` 之后编译器报 `"errors" imported and not used`（`service` 仍被 `service.ServiceInterface` 引用，所以不报错）。编译击杀证明力不足，改成 `errors.Is(err, nil)`——永远为假但保留导入，让断言来杀。
+- **`(?s)CREATE TABLE ... (TABLEALT)\s*\(([^;]+?)\);` 里的表名备选组不加括号会静默丢列**。未加括号的 `(form_definition|form_field|...|\s*\()` 把表名并进第一个捕获组，`m[1]` 拿到的是列块、`m[2]` 越界 panic `index out of range [2]`。需要捕获时表名备选组必须自己带一层括号。
+- **`FindAllStringSubmatchIndex` 先返回整体匹配，组 1 是 `m[2]:m[3]`、组 2 是 `m[4]:m[5]`**。误用 `m[0]:m[1]` 作为表名时拿到的是整个匹配，报 `INSERT names 1 columns, 396 declares 0`。
+- **锚点不唯一会静默失败**：`tags, layout, fields, meta, created_by` 在 `formColumns` 常量与 `CreateForm` 的 INSERT 里各出现一次，`count == 1` 守卫报错但文件未变。锚点带上尾随的反引号才唯一。另一个是 `\t\t\tSortableIndex: maxIdx + 1,` 三个 tab，实际缩进是两个 tab，匹配 0 次。
+- **共享的 `reNotNullColumn`（`cmd/server/migration_runbook_tables_test.go:42`）不认 BIGINT、INT、DECIMAL 与裸 TIMESTAMP**，而 396 的 `sortable_index INT` 与 `required SMALLINT` 都用了。按行只认 NOT NULL 的正则永远不会给出可空列的类型，所以按类型建图时会静默返回空串；改成 `reLCDColumnDecl`（宽松的列声明正则）加同行的 NOT NULL 存在性判断，本地副本不共享。
+
+### 44.16 记录未改（十五项）
+
+1. `396_create_lowcode_designer.sql` 没有 `_down` 迁移。
+2. `internal/lowcode-designer/migrations/001_create_lowcode_designer.sql` 是含 MySQL 语法的死内容（行内 `INDEX idx_tenant (tenant_id)`、`TINYINT` 对 `SMALLINT`），且迁移加载器只读顶层 `migrations/*.sql`，从不执行。
+3. `CreateFormRequest.Fields` 是 `[]models.FormField`，而 `FormField.Visible` 是 `bool`，所以 POST /forms 里内嵌字段的 `visible` / `required` / `disabled` 省略与显式 false 区分不开。`visible DEFAULT 1` 这个默认值在这条路径上不可达，要修得动共享的读模型。
+4. `CreateForm` 先插 `form_definition` 再逐条插字段，非事务。字段失败现在会上抛错误，但表单行已经孤立留在库里。
+5. `form_field` 有 `UNIQUE(form_id, key)`，所以同一个 `CreateForm` 请求里重复的 key 现在直接报错（之前是静默插到一半）。
+6. `SortableIndex` 在 `CreateForm` 的循环里是 0 基（`i`），在 `CreateField` 里是 1 基（`maxIdx + 1`），不一致但无害。
+7. `usage_count` 因删除 `UpdateTemplateUsage` 永远是 0，而 `ListTemplates` 仍按 `ORDER BY usage_count DESC` 排序，这条排序是常量。
+8. `UpdateFieldRequest.DefaultVal` 是 `interface{}`，「没给」与「显式 null」区分不开，JSON 默认值无法清空。
+9. `UpdateFormRequest` 的 Tags / Layout / Fields / Meta 用切片与 map 而非指针，「给了空值」与「没给」同样区分不开。
+10. `UpdateForm` 里 `updated.FieldsList, _ = s.GetFieldsByForm(...)` 仍是尽力而为的丢弃（表单行已更新，列表失败不应把成功改成错误）。
+11. 没有任何前端页面调用 `createForm` / `createField` / `updateField` / `deleteField` / `listFormTemplates` / `getFormTemplate`。
+12. `UpdateForm` 即使 attrs 为空也总是发送 `updated_by`。
+13. 共享的 `reNotNullColumn` 仍未修，本轮照 R42、R43 的做法加了本地副本 `reLCDNotNullColumn`。
+14. `UpdateField` 的 `key` 与 `form_id` 不在 `fieldUpdatable` 里，但 repo 层没有对应的方法层守卫——handler 只接受 `UpdateFieldRequest`，所以注入面已经闭合，这里只是记一笔。
+15. 五个 JSON 列的读取侧 fixture 不能给 SQL NULL（sqlmock 无法把 NULL 扫进 `string`），与写入侧绑定 nil 的方向相反，这个不对称只能靠测试注释维持。
+
+### 44.17 验证
+
+- `go build`（1387 个包，排除 `docs/deliverables/`）退出码 0
+- `go vet ./internal/lowcode-designer/...` 干净
+- `go test ./internal/lowcode-designer/...` 全部 ok（handler、repository、service；models 无测试文件）
+- `go test -v -run 'TestLowcodeDesigner|Migration396|MigrationsCreateEveryLowcode' ./cmd/server` 6 项全 PASS
+- 变异 23/23 全部由断言击杀，无一编译击杀、无一存活，工作树已按字节恢复（`git status` 只列本轮七个源文件与一个新测试文件）
+- 三个独立提交：代码、测试、文档
+- 提交前后各跑一次 FORBIDDEN 校验，均为 0
+
+### 44.18 扫描遗留（未处理，结转）
+
+- 下一个目标已在册：`internal/distributed-config`（341 行 repository，`UpdateItemValue` / `UpdateRelease` 注入，表来自 395）、`internal/alert-escalation`（182 行 repository，`UpdatePolicy` / `UpdateTrigger` / `UpdateClosure` 注入，表来自 397）——**395 与 397 是另外两个带 JSON 列的迁移，会命中同样的缺陷 C**；`internal/infrastructure/dr`（`SELECT *` 加 `RETURNING *`）；`internal/config-mgmt-enhanced`（显式 set 切片，待核）。
+- `/tmp/r41/dyn.txt`（约 57 处 `Sprintf("UPDATE` / 40 文件）；`/tmp/r38/A.txt`（50 处 `Sprintf("%s=$%d`）；`/tmp/r33/hits.txt`、`/tmp/r34/stubs2.txt`；`/tmp/r32scan/up3.txt`（178 个死参数）。
+- 22 个 model 缺 `tenant_id`；12 个 LEAK 模块；25 个未加 tag 的多单词字段结构体（现在有三条具体后果：sqlx v1.4.0 不剥下划线、`db:"-"` 的字段让同名列拖垮整次读取、`NameMapper` 全库只有 `strings.ToLower`）。
+- 全仓结构债：1302 行代码里的 `SELECT *` 对 1007 张被迁移 572 改过的表——`SELECT *` 几乎在整个仓库都是结构性坏的。runbook（R41）、tracing（R42）、tenant-quota（R43）、lowcode-designer（R44）是这条很长列表上的四个点，只能逐模块来。
+- 硬编码成功标记的分诊未完成（按 R38 规则每个先确认是否挂了路由）：`internal/health-check/service/service.go`（上次死于 `sed` 的 division by zero，需先用 `grep -n "success"` 拿行号）、`pipeline_executor.go` 5 处、`internal/assistant/service/actions.go:42` 与 `internal/assistant/handler/handler.go:78`（失败分支答 `Status: "executed"` 加 HTTP 201）、`internal/multi-cloud/service.go:354`（先设 `Status: "passed"` 再判断，自我满足）、`internal/tool/service.go:318`、`internal/chaos-gateway/service.go:294`、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`、`internal/workflow-webhook/handler.go:144`、`internal/cmdb/service.go:465`、`internal/serverless/service.go:152`、`internal/data-catalog/service.go:166`。
+- 尚未扫描的模块：`internal/notification`、`internal/file-handler`、`internal/job-source`、`internal/alert-escalation`、`internal/security`、`internal/infrastructure/*`、`internal/config-mgmt-enhanced`、`internal/cache`、`internal/apm`、`internal/cron`。
+- 结转不变：visor-exec 的租户贯穿（`visorTenantBridge` 里 15 个以上 `""` 占位、`POST /commands` 从不设 `CommandLog.TenantID`）；`runner_repository.go:73` 在活路由上丢弃一条引用不存在列的 DELETE（274 的真实外键是 `agent_id`，`:542` / `:563` 同一错误列）；`pipeline-templates` 的 `Delete` 丢弃一条 DELETE 且 handler 未注册；`vector/repository.go:68` 的 `DeleteStore` 没有 `vector_record` 迁移；schema-registry 的 best-effort `GetSchema` 快照（已被测试钉住）；`EnsureTable` 在约 15 个模块声明而 `cmd/server` 零调用方；`internal/schema-registry/models/models.go` 的既存 gofmt 债；`buildNamedSet` 在 pipeline-executor:401 / job-actions:285 / auto-exec:333 未加白名单；roweditor 的 `validateRows` / `validateMode` 死代码；`buildUpdateSetClause` 里重复的 `version=` / `updated_at=`；finops v1 的不可达方法；user 模块 `ChangePassword` 的 bcrypt 路径无覆盖、前端不调 `PUT /users/:id`；`monitor:execute` 未授予 `sre` / `tenant_admin`（`pkg/auth/permission.go`，有意不动）；`internal/pipeline-template` 与 `internal/pipeline-templates` 都注册 `/pipeline-templates`，疑似同名路由组冲突，未调查。
