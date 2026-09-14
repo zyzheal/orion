@@ -3,8 +3,11 @@ package repository
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/sla-engine/models"
 
 	"github.com/google/uuid"
@@ -17,6 +20,112 @@ type Repository struct {
 
 func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{db: db}
+}
+
+// profileColumns and trackerColumns list the columns a caller may write on
+// sla_profiles and sla_trackers.
+//
+// UpdateProfile and UpdateTracker rendered every key of a caller-supplied map
+// into "UPDATE <table> SET <key>=$N WHERE id=$1 AND tenant_id=$2". id and
+// tenant_id were deleted before the walk, but nothing else was filtered: a
+// typo'd column name, created_at, or any other real column of the table was
+// spliced into the statement. Every key that reaches these two methods today is
+// a hardcoded literal in service code, so this is the trust-seam check rather
+// than the only check, and it also makes the row-identity columns impossible to
+// touch instead of merely being deleted from the map first.
+var profileColumns = map[string]bool{
+	"name":              true,
+	"type":              true,
+	"priority":          true,
+	"response_sla":      true,
+	"resolution_sla":    true,
+	"business_hours":    true,
+	"weekends_included": true,
+	"holidays_excluded": true,
+	"working_days":      true,
+	"working_hours":     true,
+	"description":       true,
+	"status":            true,
+	"updated_at":        true,
+}
+
+var trackerColumns = map[string]bool{
+	"sla_profile_id":      true,
+	"target_id":           true,
+	"target_type":         true,
+	"opened_at":           true,
+	"response_deadline":   true,
+	"resolution_deadline": true,
+	"response_time":       true,
+	"resolution_time":     true,
+	"paused_at":           true,
+	"paused_reason":       true,
+	"resumed_at":          true,
+	"status":              true,
+	"breach_reason":       true,
+	"updated_at":          true,
+}
+
+// updateRows renders an UPDATE for table from updates and reports whether a row
+// was actually changed.
+//
+// updates is copied before it is mutated: the previous version stamped
+// updated_at and deleted id and tenant_id in the caller's map, so a caller that
+// reused the map (calculator's tracker lifecycle does) would have seen its own
+// id and tenant_id keys disappear between calls.
+//
+// Keys are sorted before the SET clause is built because Go maps iterate in
+// unspecified order; unsorted, the same input rendered a different statement on
+// every call and the placeholder order was unreproducible.
+//
+// RowsAffected is checked because Postgres evaluates SET before WHERE, so an
+// UPDATE that matched nothing still returned a nil error and the caller reported
+// a successful write for an id that does not exist.
+func updateRows(ctx context.Context, db *sqlx.DB, table string, allowed map[string]bool, tenantID, id string, updates map[string]interface{}) error {
+	set := make(map[string]interface{}, len(updates)+1)
+	for k, v := range updates {
+		set[k] = v
+	}
+	delete(set, "id")
+	delete(set, "tenant_id")
+
+	keys := make([]string, 0, len(set))
+	for k := range set {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	for _, k := range keys {
+		if !allowed[k] {
+			return fmt.Errorf("%w: column %q is not updatable on %s", sentinel.BadRequest, k, table)
+		}
+	}
+
+	set["updated_at"] = time.Now().UTC()
+	keys = append(keys, "updated_at")
+	slices.Sort(keys)
+
+	parts := make([]string, 0, len(keys))
+	args := make([]interface{}, 0, len(keys)+2)
+	for i, k := range keys {
+		parts = append(parts, fmt.Sprintf("%s=$%d", k, i+1))
+		args = append(args, set[k])
+	}
+	args = append(args, id, tenantID)
+	query := fmt.Sprintf("UPDATE %s SET %s WHERE id=$%d AND tenant_id=$%d",
+		table, strings.Join(parts, ", "), len(args)-1, len(args))
+
+	result, err := db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("%s rows affected: %w", table, err)
+	}
+	if n == 0 {
+		return fmt.Errorf("%w: no %s row with id %q in tenant %q", sentinel.NotFound, table, id, tenantID)
+	}
+	return nil
 }
 
 // --- SLA Profiles ---
@@ -90,28 +199,10 @@ func (r *Repository) ListProfiles(ctx context.Context, tenantID string, q models
 }
 
 func (r *Repository) UpdateProfile(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
-	updates["updated_at"] = time.Now().UTC()
-	delete(updates, "id")
-	delete(updates, "tenant_id")
 	if len(updates) == 0 {
 		return nil
 	}
-	var parts []string
-	args := []interface{}{id, tenantID}
-	idx := 3
-	for k := range updates {
-		parts = append(parts, fmt.Sprintf("%s=$%d", k, idx))
-		// sqlx column names use underscore; map keys may use snake_case which matches
-		args = append(args, updates[k])
-		idx++
-	}
-	set := parts[0]
-	for i := 1; i < len(parts); i++ {
-		set += ", " + parts[i]
-	}
-	query := "UPDATE sla_profiles SET " + set + " WHERE id=$1 AND tenant_id=$2"
-	_, err := r.db.ExecContext(ctx, query, args...)
-	return err
+	return updateRows(ctx, r.db, "sla_profiles", profileColumns, tenantID, id, updates)
 }
 
 func (r *Repository) DeleteProfile(ctx context.Context, tenantID, id string) error {
@@ -184,27 +275,10 @@ func (r *Repository) ListTrackers(ctx context.Context, tenantID string, q models
 }
 
 func (r *Repository) UpdateTracker(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
-	updates["updated_at"] = time.Now().UTC()
-	delete(updates, "id")
-	delete(updates, "tenant_id")
 	if len(updates) == 0 {
 		return nil
 	}
-	var parts []string
-	args := []interface{}{id, tenantID}
-	idx := 3
-	for k := range updates {
-		parts = append(parts, fmt.Sprintf("%s=$%d", k, idx))
-		args = append(args, updates[k])
-		idx++
-	}
-	set := parts[0]
-	for i := 1; i < len(parts); i++ {
-		set += ", " + parts[i]
-	}
-	query := "UPDATE sla_trackers SET " + set + " WHERE id=$1 AND tenant_id=$2"
-	_, err := r.db.ExecContext(ctx, query, args...)
-	return err
+	return updateRows(ctx, r.db, "sla_trackers", trackerColumns, tenantID, id, updates)
 }
 
 func (r *Repository) DeleteTracker(ctx context.Context, tenantID, id string) error {
@@ -249,18 +323,35 @@ func (r *Repository) GetActiveTrackersByProfile(ctx context.Context, tenantID, p
 
 func (r *Repository) GetTrackerStatistics(ctx context.Context, tenantID string) (models.TrackerStatistics, error) {
 	var stats models.TrackerStatistics
-	_ = r.db.GetContext(ctx, &stats.Total,
-		`SELECT COUNT(*) FROM sla_trackers WHERE tenant_id=$1`, tenantID)
-	_ = r.db.GetContext(ctx, &stats.Active,
-		`SELECT COUNT(*) FROM sla_trackers WHERE tenant_id=$1 AND status=$2`, tenantID, "active")
-	_ = r.db.GetContext(ctx, &stats.Responded,
-		`SELECT COUNT(*) FROM sla_trackers WHERE tenant_id=$1 AND status=$2`, tenantID, "responded")
-	_ = r.db.GetContext(ctx, &stats.Resolved,
-		`SELECT COUNT(*) FROM sla_trackers WHERE tenant_id=$1 AND status=$2`, tenantID, "resolved")
-	_ = r.db.GetContext(ctx, &stats.Breached,
-		`SELECT COUNT(*) FROM sla_trackers WHERE tenant_id=$1 AND status=$2`, tenantID, "breached")
-	_ = r.db.GetContext(ctx, &stats.Paused,
-		`SELECT COUNT(*) FROM sla_trackers WHERE tenant_id=$1 AND status=$2`, tenantID, "paused")
+	// Each count is its own statement and can fail on its own. Discarding every
+	// error reported a tenant with no trackers at all while the database was
+	// down, so the SLA dashboard showed total 0 and a 0.0 breach rate -
+	// fully compliant - during the outage.
+	for _, probe := range []struct {
+		target *int
+		status string
+		label  string
+	}{
+		{&stats.Total, "", "total"},
+		{&stats.Active, "active", "active"},
+		{&stats.Responded, "responded", "responded"},
+		{&stats.Resolved, "resolved", "resolved"},
+		{&stats.Breached, "breached", "breached"},
+		{&stats.Paused, "paused", "paused"},
+	} {
+		var query string
+		var args []interface{}
+		if probe.status == "" {
+			query = `SELECT COUNT(*) FROM sla_trackers WHERE tenant_id=$1`
+			args = []interface{}{tenantID}
+		} else {
+			query = `SELECT COUNT(*) FROM sla_trackers WHERE tenant_id=$1 AND status=$2`
+			args = []interface{}{tenantID, probe.status}
+		}
+		if err := r.db.GetContext(ctx, probe.target, query, args...); err != nil {
+			return models.TrackerStatistics{}, fmt.Errorf("sla tracker statistics %s: %w", probe.label, err)
+		}
+	}
 	totalResolved := stats.Resolved + stats.Breached
 	if totalResolved > 0 {
 		stats.BreachRate = float64(stats.Breached) / float64(totalResolved)

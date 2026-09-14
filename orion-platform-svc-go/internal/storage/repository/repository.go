@@ -2,20 +2,38 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
-	"orion/platform-svc-go/internal/storage/models"
-
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/storage/models"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
-var ErrStorageEntryNotFound = errors.New("storage entry not found")
+// entryColumns lists the columns Update may set on storage_entries.
+//
+// Update did not filter anything at all: every key of the caller map was
+// rendered into "UPDATE storage_entries SET <key>=$N WHERE id=$M AND
+// tenant_id=$M+1", so id, tenant_id, created_at and a typo'd column were all
+// spliced in. Because Postgres evaluates SET before WHERE, "SET id=$1 WHERE
+// id=$2" could have rewritten the very primary key the statement was matching
+// on and touched a different row.
+//
+// ErrStorageEntryNotFound is gone: it was a package-private-by-convention error
+// the handler could not compare against, which is how PUT answered 500 for a
+// missing entry. sentinel.NotFound is the canonical value the handler switches
+// on.
+var entryColumns = map[string]bool{
+	"bucket":     true,
+	"key":        true,
+	"size":       true,
+	"provider":   true,
+	"updated_at": true,
+}
 
 // Repository handles persistent storage entry metadata.
 type Repository struct {
@@ -75,32 +93,53 @@ func (r *Repository) List(ctx context.Context, tenantID string, limit, offset in
 }
 
 // Update modifies an existing storage entry.
+//
+// attrs is copied before it is mutated: the previous version stamped updated_at
+// into the caller's map, so service.Update handed back a map that no longer
+// described the request it was sent with.
 func (r *Repository) Update(ctx context.Context, id, tenantID string, attrs map[string]interface{}) (*models.StorageEntry, error) {
 	if len(attrs) == 0 {
-		return nil, sentinel.NotFound
+		// Nothing to write is a caller bug, not a missing row: answering not
+		// found here hid the mistake behind the handler's 404 branch.
+		return nil, fmt.Errorf("%w: no fields to update", sentinel.BadRequest)
 	}
-	attrs["updated_at"] = time.Now().UTC()
-	set := make([]string, 0, len(attrs))
-	args := make([]interface{}, 0, len(attrs)+2)
-	i := 1
+	set := make(map[string]interface{}, len(attrs)+1)
 	for k, v := range attrs {
-		set = append(set, fmt.Sprintf("%s=$%d", k, i))
-		attrs[k] = v
-		args = append(args, v)
-		i++
+		set[k] = v
 	}
-	idIdx := i
-	tenantIdx := i + 1
+	keys := make([]string, 0, len(set))
+	for k := range set {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	for _, k := range keys {
+		if !entryColumns[k] {
+			return nil, fmt.Errorf("%w: column %q is not updatable on storage_entries", sentinel.BadRequest, k)
+		}
+	}
+	set["updated_at"] = time.Now().UTC()
+	keys = append(keys, "updated_at")
+	slices.Sort(keys)
+
+	setParts := make([]string, 0, len(keys))
+	args := make([]interface{}, 0, len(keys)+2)
+	for i, k := range keys {
+		setParts = append(setParts, fmt.Sprintf("%s=$%d", k, i+1))
+		args = append(args, set[k])
+	}
 	args = append(args, id, tenantID)
 	query := fmt.Sprintf("UPDATE storage_entries SET %s WHERE id=$%d AND tenant_id=$%d",
-		strings.Join(set, ", "), idIdx, tenantIdx)
+		strings.Join(setParts, ", "), len(args)-1, len(args))
 	result, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
-	n, _ := result.RowsAffected()
+	n, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
 	if n == 0 {
-		return nil, ErrStorageEntryNotFound
+		return nil, sentinel.NotFound
 	}
 	return r.GetByID(ctx, id, tenantID)
 }

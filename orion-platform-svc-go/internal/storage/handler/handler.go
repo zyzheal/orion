@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"errors"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
-	"orion/go-common/pkg/errors"
+	goerr "orion/go-common/pkg/errors"
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/storage/models"
 	"orion/platform-svc-go/internal/storage/service"
 
@@ -37,10 +39,10 @@ func (h *Handler) List(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.Query("offset"))
 	items, err := h.svc.List(ctx, tenantID, limit, offset)
 	if err != nil {
-		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
+		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
 	}
-	errors.WriteSuccess(c, gin.H{"data": items, "total": len(items)})
+	goerr.WriteSuccess(c, gin.H{"data": items, "total": len(items)})
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -49,10 +51,10 @@ func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	item, err := h.svc.GetByID(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		errors.WriteError(c, errors.ErrNotFound, "not found", 404)
+		goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 		return
 	}
-	errors.WriteSuccess(c, item)
+	goerr.WriteSuccess(c, item)
 }
 
 func (h *Handler) Create(c *gin.Context) {
@@ -61,15 +63,15 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateStorageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
+		goerr.WriteError(c, goerr.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	item, err := h.svc.Create(ctx, tenantID, req.Bucket, req.Key, req.Provider)
 	if err != nil {
-		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
+		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
 	}
-	errors.WriteCreated(c, item)
+	goerr.WriteCreated(c, item)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -78,15 +80,23 @@ func (h *Handler) Update(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateStorageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
+		goerr.WriteError(c, goerr.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	item, err := h.svc.Update(ctx, tenantID, c.Param("id"), req.Key)
 	if err != nil {
-		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
+		// The repository answers sentinel.NotFound when the row does not exist
+		// in this tenant. Collapsing it into 500 told the client the server was
+		// broken instead of the entry missing, and it hid the same id that
+		// GET and DELETE report as 404.
+		if errors.Is(err, sentinel.NotFound) {
+			goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
+			return
+		}
+		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
 	}
-	errors.WriteSuccess(c, item)
+	goerr.WriteSuccess(c, item)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
@@ -95,12 +105,12 @@ func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	deleted, err := h.svc.Delete(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
+		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
 	}
 	if !deleted {
-		errors.WriteError(c, errors.ErrNotFound, "not found", 404)
+		goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 		return
 	}
-	errors.WriteSuccess(c, gin.H{"message": "deleted"})
+	goerr.WriteSuccess(c, gin.H{"message": "deleted"})
 }

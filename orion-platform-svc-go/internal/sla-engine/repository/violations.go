@@ -145,14 +145,31 @@ func (r *Repository) GetViolationsByTracker(ctx context.Context, trackerID strin
 // GetViolationStatistics returns a count summary of violations for a tenant.
 func (r *Repository) GetViolationStatistics(ctx context.Context, tenantID string) (models.ViolationStatistics, error) {
 	var stats models.ViolationStatistics
-	_ = r.db.GetContext(ctx, &stats.TotalViolations,
-		`SELECT COUNT(*) FROM sla_violations WHERE tenant_id=$1`, tenantID)
-	_ = r.db.GetContext(ctx, &stats.ResponseBreach,
-		`SELECT COUNT(*) FROM sla_violations WHERE tenant_id=$1 AND violation_type=$2`, tenantID, "response")
-	_ = r.db.GetContext(ctx, &stats.ResolutionBreach,
-		`SELECT COUNT(*) FROM sla_violations WHERE tenant_id=$1 AND violation_type=$2`, tenantID, "resolution")
-	_ = r.db.GetContext(ctx, &stats.Notified,
-		`SELECT COUNT(*) FROM sla_violations WHERE tenant_id=$1 AND notified=$2`, tenantID, true)
+	// All four counts were swallowed with "_ =". A down database answered with
+	// a zero struct and a nil error, so GET /violation-statistics reported that
+	// the tenant had never breached an SLA while the table was unreachable.
+	for _, probe := range []struct {
+		target *int
+		query  string
+		args   []interface{}
+		label  string
+	}{
+		{&stats.TotalViolations,
+			`SELECT COUNT(*) FROM sla_violations WHERE tenant_id=$1`, []interface{}{tenantID}, "total"},
+		{&stats.ResponseBreach,
+			`SELECT COUNT(*) FROM sla_violations WHERE tenant_id=$1 AND violation_type=$2`,
+			[]interface{}{tenantID, "response"}, "response"},
+		{&stats.ResolutionBreach,
+			`SELECT COUNT(*) FROM sla_violations WHERE tenant_id=$1 AND violation_type=$2`,
+			[]interface{}{tenantID, "resolution"}, "resolution"},
+		{&stats.Notified,
+			`SELECT COUNT(*) FROM sla_violations WHERE tenant_id=$1 AND notified=$2`,
+			[]interface{}{tenantID, true}, "notified"},
+	} {
+		if err := r.db.GetContext(ctx, probe.target, probe.query, probe.args...); err != nil {
+			return models.ViolationStatistics{}, fmt.Errorf("sla violation statistics %s: %w", probe.label, err)
+		}
+	}
 	return stats, nil
 }
 
