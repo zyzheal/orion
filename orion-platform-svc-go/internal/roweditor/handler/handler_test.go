@@ -635,6 +635,47 @@ func TestUpdateRowReadOnlyColumnIs400(t *testing.T) {
 	env.check(t)
 }
 
+// The row editor is generic: the caller registers a table and the column names
+// it then submits are spliced into "UPDATE <table> SET <keys>=$N WHERE ...".
+// itemsReq() declares only id and name, so tenant_id is not in the spec. Before
+// the whitelist an authenticated caller could have moved a row into another
+// tenant through this route, because the value was bound straight into the SET
+// clause and the WHERE clause still matched the original row.
+func TestUpdateRowRejectsAColumnOutsideTheSpec(t *testing.T) {
+	env := newEnv(t, tenant)
+	env.register(t, itemsReq())
+
+	w := do(env.e, http.MethodPut, "/api/v1/rows/items", `{
+		"row_id": "r1", "changes": {"name": "n", "tenant_id": "other"}, "version": 3
+	}`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body = %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "tenant_id") {
+		t.Fatalf("body = %s, want the rejected column named", w.Body.String())
+	}
+	if n := len(env.db.statements()); n != 0 {
+		t.Fatalf("a rejected edit must not reach the database, got %d statements", n)
+	}
+	env.check(t)
+}
+
+func TestBatchUpdateRejectsAColumnOutsideTheSpec(t *testing.T) {
+	env := newEnv(t, tenant)
+	env.register(t, itemsReq())
+
+	w := do(env.e, http.MethodPost, "/api/v1/rows/items/batch-update", `{
+		"row_ids": ["r1", "r2"], "changes": {"name": "bulk", "tenant_id": "other"}, "version": 1
+	}`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body = %s", w.Code, w.Body.String())
+	}
+	if n := len(env.db.statements()); n != 0 {
+		t.Fatalf("a rejected batch must not open a transaction or write, got %d statements", n)
+	}
+	env.check(t)
+}
+
 // ==================== delete ====================
 
 func TestDeleteRowUsesSpecSoftDelete(t *testing.T) {
