@@ -46,22 +46,22 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 	// Categories (no id, no pagination query required)
 	r.GET("/categories",
-		auth.RequirePermission("pipeline_templates", "read"),
+		auth.RequirePermission("pipeline", "read"),
 		h.Categories)
 
 	// Search (GET with query params)
 	r.GET("/search",
-		auth.RequirePermission("pipeline_templates", "read"),
+		auth.RequirePermission("pipeline", "read"),
 		h.Search)
 
 	// Collection: GET /pipeline-templates (list)
 	r.GET("",
-		auth.RequirePermission("pipeline_templates", "read"),
+		auth.RequirePermission("pipeline", "read"),
 		h.List)
 
 	// Collection: POST /pipeline-templates (create)
 	r.POST("",
-		auth.RequirePermission("pipeline_templates", "write"),
+		auth.RequirePermission("pipeline", "write"),
 		h.Create)
 
 	// Item: GET /pipeline-templates/:templateId
@@ -72,28 +72,28 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 	// Actions on :id (specific endpoints, mount before :id variants with trailing paths)
 	r.POST("/:templateId/publish",
-		auth.RequirePermission("pipeline_templates", "write"),
+		auth.RequirePermission("pipeline", "write"),
 		h.Publish)
 
 	r.POST("/:templateId/deprecate",
-		auth.RequirePermission("pipeline_templates", "write"),
+		auth.RequirePermission("pipeline", "write"),
 		h.Deprecate)
 
 	// Versions: GET /pipeline-templates/:templateId/versions
 	r.GET("/:templateId/versions",
-		auth.RequirePermission("pipeline_templates", "read"),
+		auth.RequirePermission("pipeline", "read"),
 		h.Versions)
 
 	// Instantiate: POST /pipeline-templates/:templateId/instantiate
 
 	// Star: POST /pipeline-templates/:templateId/star
 	r.POST("/:templateId/star",
-		auth.RequirePermission("pipeline_templates", "write"),
+		auth.RequirePermission("pipeline", "write"),
 		h.Star)
 
 	// Unstar: DELETE /pipeline-templates/:templateId/star
 	r.DELETE("/:templateId/star",
-		auth.RequirePermission("pipeline_templates", "write"),
+		auth.RequirePermission("pipeline", "write"),
 		h.Unstar)
 }
 
