@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -35,6 +36,17 @@ type Service struct {
 }
 
 var ErrInvalidPassword = errors.New("invalid password")
+
+// IsNotFound reports whether err is a "no such user" from the repository. The
+// repository returns sentinel.NotFound, and sql.ErrNoRows is accepted too so an
+// unwrapped driver error still maps to 404 rather than 500.
+//
+// The handlers need this to split their error branches: before it existed,
+// Get/Update/Delete answered 404 for every failure and Authenticate answered
+// 401, so a database outage looked like a missing row or a rejected login.
+func IsNotFound(err error) bool {
+	return errors.Is(err, sentinel.NotFound) || errors.Is(err, sql.ErrNoRows)
+}
 
 // NewService creates a new Service instance.
 func NewService(repo RepositoryInterface) *Service {
@@ -102,7 +114,12 @@ func (s *Service) Authenticate(ctx context.Context, req *models.AuthenticateRequ
 
 	user, err := s.repo.GetByUsername(ctx, req.Username)
 	if err != nil {
-		return nil, ErrInvalidPassword
+		if IsNotFound(err) {
+			// Unknown username and wrong password are deliberately indistinguishable
+			// to a caller, so both are rejected the same way.
+			return nil, ErrInvalidPassword
+		}
+		return nil, err
 	}
 
 	if user.Status != "active" {

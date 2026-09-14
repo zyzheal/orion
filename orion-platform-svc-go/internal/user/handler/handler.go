@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	stderrors "errors"
 	"net/http"
 	"strconv"
 
@@ -24,6 +25,19 @@ type Service interface {
 	Update(ctx context.Context, tenantID, id string, req *models.UpdateUserRequest) (*models.User, error)
 	ChangePassword(ctx context.Context, tenantID, userID string, req *models.ChangePasswordRequest) error
 	Delete(ctx context.Context, tenantID, id string) error
+}
+
+// writeUserError maps a service error to a status without collapsing every
+// failure into one class. Not-found answers 404; anything else -- a missing
+// relation, a connection refused, a schema mismatch -- is a 500. The handlers
+// used to answer 404 for every error, which is exactly how a hard SQL syntax
+// error in repository.Update was read as "user not found".
+func writeUserError(c *gin.Context, err error) {
+	if service.IsNotFound(err) {
+		errors.WriteError(c, errors.ErrNotFound, err.Error(), http.StatusNotFound)
+		return
+	}
+	errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 }
 
 // Handler exposes HTTP endpoints for user management.
@@ -116,7 +130,7 @@ func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	user, err := h.svc.GetByID(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		errors.WriteError(c, errors.ErrNotFound, err.Error(), http.StatusNotFound)
+		writeUserError(c, err)
 		return
 	}
 	errors.WriteSuccess(c, user)
@@ -136,7 +150,7 @@ func (h *Handler) Update(c *gin.Context) {
 
 	user, err := h.svc.Update(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
-		errors.WriteError(c, errors.ErrNotFound, err.Error(), http.StatusNotFound)
+		writeUserError(c, err)
 		return
 	}
 	errors.WriteSuccess(c, user)
@@ -148,7 +162,7 @@ func (h *Handler) Delete(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
-		errors.WriteError(c, errors.ErrNotFound, err.Error(), http.StatusNotFound)
+		writeUserError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -179,7 +193,13 @@ func (h *Handler) Authenticate(c *gin.Context) {
 
 	user, err := h.svc.Authenticate(ctx, &req)
 	if err != nil {
-		errors.WriteError(c, errors.ErrUnauthorized, err.Error(), http.StatusUnauthorized)
+		// ErrInvalidPassword covers both a wrong password and an unknown username,
+		// so both stay 401. Anything else is an outage, not a rejected login.
+		if stderrors.Is(err, service.ErrInvalidPassword) {
+			errors.WriteError(c, errors.ErrUnauthorized, err.Error(), http.StatusUnauthorized)
+			return
+		}
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	user.Password = ""
@@ -200,7 +220,16 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	}
 
 	if err := h.svc.ChangePassword(ctx, tenantID, userID, &req); err != nil {
-		errors.WriteError(c, errors.ErrUnauthorized, err.Error(), http.StatusUnauthorized)
+		// Three different failures, three different statuses: a wrong old
+		// password, an unknown user, and a database that will not answer.
+		switch {
+		case stderrors.Is(err, service.ErrInvalidPassword):
+			errors.WriteError(c, errors.ErrUnauthorized, err.Error(), http.StatusUnauthorized)
+		case service.IsNotFound(err):
+			errors.WriteError(c, errors.ErrNotFound, err.Error(), http.StatusNotFound)
+		default:
+			errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		}
 		return
 	}
 	errors.WriteSuccess(c, gin.H{"ok": true})

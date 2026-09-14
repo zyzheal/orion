@@ -5,13 +5,22 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/user/models"
 
 	"github.com/jmoiron/sqlx"
 )
 
-var errNotFound = errors.New("user not found")
+// All four lookups and the zero-row Update return sentinel.NotFound, the
+// platform-wide not-found sentinel, instead of a package-private error. The
+// handler has to tell "no such user" from "the database failed" to answer 404
+// versus 500; a private sentinel was invisible above this package, so every
+// error the service returned became a 404 -- including the syntax error that
+// made PUT /users/:id unreachable.
+var errNotFound = sentinel.NotFound
 
 // Repository provides PostgreSQL-backed persistence for users.
 type Repository struct {
@@ -131,25 +140,83 @@ func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
 }
 
 // Update modifies an existing user.
+// usersUpdatable whitelists the columns Update may set. Only the fields the
+// request models expose are settable, and only through this table: the SET list
+// is rendered from caller-supplied map keys, so the column names come from this
+// constant set rather than from the map. A stray key would otherwise be spliced
+// straight into the statement — a typo, or "id" / "tenant_id" / "password" /
+// "created_at", each of which would either be a hard syntax error or would let a
+// caller overwrite an identifier or an immutable column. Values are always bound
+// as arguments.
+var usersUpdatable = map[string]bool{
+	"full_name": true, "email": true, "role": true,
+	"status": true, "avatar_url": true, "settings": true,
+}
+
+var errNoUpdatableFields = errors.New("no updatable fields supplied")
+
+// setClause renders an updates map as a SQL SET list, dropping keys that are not
+// in allowed and sorting the rest so the rendered statement is stable across map
+// iterations — an unordered SET list made every call's SQL non-reproducible.
+// updated_at is appended as NOW() rather than taken from the map, so a caller
+// cannot write it explicitly and the map is never mutated in place.
+//
+// The statement binds id as $1 and tenant_id as $2, so the SET values start at
+// $3. Holding that convention in one place keeps the placeholder indexes from
+// drifting out of step with the args slice.
+//
+// It returns (setList, boundArgs, columnCount); columnCount 0 means the caller
+// asked for an update with no settable fields.
+func setClause(updates map[string]interface{}, allowed map[string]bool) (string, []interface{}, int) {
+	keys := make([]string, 0, len(updates))
+	for k := range updates {
+		if allowed[k] {
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) == 0 {
+		return "", nil, 0
+	}
+	sort.Strings(keys)
+
+	parts := make([]string, 0, len(keys)+1)
+	args := make([]interface{}, 0, len(keys))
+	for i, k := range keys {
+		parts = append(parts, fmt.Sprintf("%s=$%d", k, i+3))
+		args = append(args, updates[k])
+	}
+	parts = append(parts, "updated_at=NOW()")
+	return strings.Join(parts, ", "), args, len(keys)
+}
+
+// Update patches the settable fields of an existing user.
+//
+// The previous implementation rendered the SET list with
+// fmt.Sprintf("%v", fields). %v on a []string emits "[a=$1 b=$2]", square
+// brackets separated by spaces and no commas, so every call executed
+// "UPDATE users SET [full_name=$3 updated_at=NOW()] WHERE ..." — a syntax
+// error. PUT /users/:id was registered and permission-guarded but could never
+// succeed; because the handler maps every error to 404, it reported the user as
+// not found while the row sat there untouched.
 func (r *Repository) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
-	if len(updates) == 0 {
-		return nil
+	set, setArgs, n := setClause(updates, usersUpdatable)
+	if n == 0 {
+		return errNoUpdatableFields
 	}
-	fields := make([]string, 0, len(updates))
-	args := []interface{}{id, tenantID}
-	argIdx := 3
+	args := append([]interface{}{id, tenantID}, setArgs...)
+	query := `UPDATE users SET ` + set + ` WHERE id=$1 AND tenant_id=$2`
 
-	for k, v := range updates {
-		fields = append(fields, fmt.Sprintf("%s=$%d", k, argIdx))
-		args = append(args, v)
-		argIdx++
+	result, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
 	}
-
-	fields = append(fields, "updated_at=NOW()")
-	query := fmt.Sprintf(`UPDATE users SET %s WHERE id=$1 AND tenant_id=$2`, fmt.Sprintf("%v", fields))
-
-	_, err := r.db.ExecContext(ctx, query, args...)
-	return err
+	affected, _ := result.RowsAffected()
+	if affected == 0 {
+		// The statement is keyed on id AND tenant_id, so zero affected rows means
+		// either "no such user" or "a user in another tenant".
+		return errNotFound
+	}
+	return nil
 }
 
 // UpdatePassword updates the password hash for a user.
