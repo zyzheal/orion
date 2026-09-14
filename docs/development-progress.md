@@ -10172,3 +10172,156 @@ down 用 `USING LEFT(<col>, 255)` 截断，而不是裸 `TYPE VARCHAR(255)`—�
 - 硬编码成功标记的分诊未完成：`internal/health-check/service/service.go`（上一次死于 `sed` 的 division by zero，需先用 `grep -n "success\|Success"` 拿行号）、`pipeline_executor.go` 5 处、`internal/assistant/service/actions.go:42` 与 `internal/assistant/handler/handler.go:78`（失败分支答 `Status: "executed"` 加 HTTP 201）、`internal/multi-cloud/service.go:354`（先设 `Status: "passed"` 再 `if result.Status == "passed"`，自我满足）、`internal/tool/service.go:318`（`Output: "{}"`, `Duration: 0`, `Status: "success"`）、`internal/chaos-gateway/service.go:294`、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`、`internal/workflow-webhook/handler.go:144`、`internal/cmdb/service.go:465`、`internal/serverless/service.go:152`、`internal/data-catalog/service.go:166`。按 R38 规则每个先确认是否挂了路由。
 - 尚未扫描的模块：`internal/notification`、`internal/file-handler`、`internal/job-source`、`internal/lowcode-designer`、`internal/alert-escalation`、`internal/security`、`internal/infrastructure/*`、`internal/config-mgmt-enhanced`、`internal/cache`、`internal/apm`、`internal/cron`。
 - 结转不变：visor-exec 的租户贯穿（`visorTenantBridge` 里 15 个以上 `""` 占位、`POST /commands` 从不设 `CommandLog.TenantID`）；`runner_repository.go:73` 在活路由上丢弃一条引用不存在列的 `DELETE FROM runner_jobs WHERE runner_id=$1`（274 的真实外键是 `agent_id`，`:542` / `:563` 同一错误列）；`pipeline-templates` 的 `Delete` 丢弃 `DELETE FROM template_versions` 且 handler 未注册；`vector/repository.go:68` 的 `DeleteStore` 没有 `vector_record` 迁移；schema-registry 的 best-effort `GetSchema` 快照（已被测试钉住）；`EnsureTable` 在约 15 个模块声明而 `cmd/server` 零调用方；`internal/schema-registry/models/models.go` 的既存 gofmt 债；`buildNamedSet` 在 pipeline-executor:401 / job-actions:285 / auto-exec:333 未加白名单；roweditor 的 `validateRows` / `validateMode` 死代码；`buildUpdateSetClause` 里重复的 `version=` / `updated_at=`；finops v1 的不可达方法；user 模块 `ChangePassword` 的 bcrypt 路径无覆盖、前端不调 `PUT /users/:id`；`monitor:execute` 未授予 `sre` / `tenant_admin`（`pkg/auth/permission.go`，有意不动）；`internal/pipeline-template` 与 `internal/pipeline-templates` 都注册 `/pipeline-templates`，疑似同名路由组冲突，未调查。
+
+## 第四十三轮：internal/tenant-quota 十二条语句全部在驱动层报错、四个策略列从无 DDL、`UpdatePlan` 拿调用方 map key 拼进 SET（Round 43）
+
+### 43.1 选它的理由
+
+扫描起点 HEAD `5db5ae81d`。模块完全接线——`cmd/server/wiring-tenant-quota.go` 的 `wireTenantQuota` 由 `wiring.go:137` 调用、`tqH` 传给 `router.go:113`、十三条路由全部挂了 `auth.RequirePermission("quota", …)`。表也真的存在：`398_create_tenant_quota.sql` 创建了三张表。repository 此前零测试。
+
+所以与 R40、R41、R42 同构：接线在、DDL 在、编译在，而九个运行时缺陷一个都看不见。这一轮和它们唯一的区别是**缺陷 A 在最底层**——不是绑定层、不是语句拼装层，是驱动层。Postgres 根本不认 `?` 占位符，所以 service 层写的九条业务分支一次都没机会执行，任何「service 逻辑看起来是对的」的静态结论都是空中楼阁。
+
+### 43.2 缺陷 A：十二条语句全用 MySQL 占位符，驱动是 Postgres
+
+原实现的十二处 DB 调用全部用 `?`。而 `orion-go-common/pkg/database/db.go` import `github.com/lib/pq`、`ConnectContext(ctx, "postgres", cfg.DSN)`。Postgres 的 `$n` 才是占位符，`?` 直接报语法错误。
+
+这意味着这不是「某个参数没绑上」，而是**每一次调用**在 `ExecContext` 里就死掉，`go build`、`go vet`、以及只看 service 层的代码评审都不会有任何线索。改为 `$1…$n`。收尾验证：`grep -rn '?' internal/tenant-quota`（排除注释）返回 0。
+
+### 43.3 缺陷 B：service 写的四个策略列从无迁移
+
+`internal/tenant-quota/service/service.go` 的 `UpdatePlan` 往 attrs map 里放 `soft_limit`、`hard_limit`、`over_limit_action`、`warn_thresholds` 四个键，而 398 声明的十六列里一个都没有。任何设置策略的请求都报：
+
+```
+pq: column "soft_limit" of relation "tenant_quota_plan" does not exist
+```
+
+`CreatePlan` 的 INSERT 同样不写这四列，所以一个带 `SoftLimit` 创建的计划落库之后读回来就丢了——写路径静默截断，比报错更难查。
+
+### 43.4 迁移 588：四条 ADD COLUMN，全部 NOT NULL 且带 DEFAULT
+
+`migrations/588_add_tenant_quota_plan_policy.sql` 加四条 `ADD COLUMN IF NOT EXISTS`：
+
+- `soft_limit BIGINT NOT NULL DEFAULT 0`
+- `hard_limit BIGINT NOT NULL DEFAULT 0`
+- `over_limit_action VARCHAR(20) NOT NULL DEFAULT 'block'`
+- `warn_thresholds VARCHAR(255) NOT NULL DEFAULT ''`
+
+两个设计选择值得记一笔。
+
+**第一，NOT NULL 且带默认值**。既有行必须保持「未配置策略」的语义：`soft_limit = hard_limit = 0` 表示无上限，`over_limit_action` 默认 `block` 是 `normalizeOverLimitAction` 对未知动作的返回值，`warn_thresholds` 默认空串表示无阈值。这一条还有一个副作用值得写进测试：**NOT NULL 但带 DEFAULT 的列从 INSERT 里省略是合法 SQL**（默认值非空），所以迁移闭环测试只把「NOT NULL 且无默认值且 INSERT 没给」判成缺陷，另外单独钉住 588 这四条必须同时满足 NOT NULL 与 DEFAULT。
+
+**第二，`warn_thresholds` 存逗号分隔字符串而不是 JSONB**。service 已经用 `joinInts` 序列化、用 `parseThresholds` 反序列化，列里再存一份 JSONB 就是同一份数据的第二种表示。`normalizeWarnThresholds` 把列表压到三条以内，所以 VARCHAR(255) 放得下。仓库侧相应新增 `decodeThresholds` / `encodeThresholds`：解码时**丢弃**非数字片段而不是失败（行结构保留原始串，一行被手改坏的数据不应拖垮整次读取），结果归一成升序、去重、夹进 0 到 100——否则手改出来的计划可能带着未排序的警告带。
+
+`_down.sql` 反向 DROP 这四列。它不是数据无损的「无损」：服务层 `resolveSoftLimit` 回退到 hard × 0.8、`resolveHardLimit` 回退到每个指标的 limit，所以丢列之后只是退化而不是报错。
+
+### 43.5 缺陷 C：`UpdatePlan` 拿调用方 map key 直插 SET（注入点）
+
+原实现 `fmt.Sprintf("%s=?", k)` 直接遍历调用方的 map key。`PUT /tenant-quota/plans/:id` 已注册、已鉴权、已接线，调用方能控制 map 的 key，这是一个活着的 SQL 注入 sink，不是死代码。
+
+改为 `planUpdatable`（16 列，按 DDL 顺序，故意排除 `id` / `tenant_id` / `created_at` / `updated_at`）加 `buildPlanSET`：先校验每个 key 都在白名单内（否则 `column %q is not updatable`，且不拼进 SQL），再**遍历白名单而非 map** 生成 `col = $n`。这里和 R42 是同一个理由：Go map 无序，遍历顺序不稳定的生成 SQL 会让任何精确 SQL 断言都无法成立。
+
+### 43.6 缺陷 D：`IncrementUsage` 插入空主键
+
+原实现造 `models.QuotaUsage{}` 时不设 `ID`，空串插进 `id VARCHAR(36) NOT NULL PRIMARY KEY`。所以每个租户每种指标的**第一次**计数必然失败。改为 `uuid.New().String()`。
+
+### 43.7 缺陷 E：`IncrementUsage` 把任何查找错误都折成「行不存在」
+
+原实现 `if err != nil` 就跳到创建分支。后果是一条失败路径上的竞态：读失败 → 以为不存在 → INSERT 一条，而那条行其实存在，于是同一个 (tenant_id, metric) 长出两行。改为只在 `existing == nil` 时走创建，其余错误原样上抛。
+
+### 43.8 缺陷 F：`createUsage` / `updateUsage` 丢弃调用方的 ctx
+
+两者都用 `context.Background()`，调用方的取消与超时被静默丢掉。改为接收 `ctx`。这是「参数被静默丢弃」里最危险的一支——ctx 不产生任何编译错误。
+
+### 43.9 缺陷 G：`DeletePlan` 丢弃行数错误
+
+原实现拿 `result.RowsAffected()` 但不管它的 error。行数就是「删没删掉」这个答案的来源，读不到它必须算失败，否则一个真实的语句错误会被报成「没删掉」而不是浮上来。包成 `counting deleted quota plans: %w`。测试用一个自造的 `driver.Result` 双替身——它的 `RowsAffected()` 直接返回错误。`sqlmock` 自己的 `NewResult` 拿不到 driver.Result，造不出这条分支。
+
+### 43.10 缺陷 H：`GetUsage` 对不存在的行返回 `(nil, sql.ErrNoRows)`
+
+后果有两个，第二个更隐蔽。第一，POST `/tenant-quota/check` 与 `/check-with-policy` 对任何**还没有用过量**的租户都返回 500——新租户的第一次配额检查是坏的。第二，`handler.go` 里 `if u == nil { … currentValue: 0 }` 那一支变成了永远走不到的死代码。
+
+service 的 `CheckQuota` 与 `CheckQuotaWithPolicy` 都写了 `if usage != nil`，所以 `nil` 才是文档化的答案。改为 `errors.Is(err, sql.ErrNoRows)` 时返回 `(nil, nil)`，其它错误照旧。
+
+### 43.11 缺陷 I（被迫改 SELECT *）：`db:"-"` 的字段撞上新增列
+
+`WarnThresholds` 在 `models.QuotaPlan` 上是 `db:"-"`（它以逗号分隔字符串存在列里）。588 又新加了 `warn_thresholds` 列——`db:"-"` 的字段被排除在 reflectx 的字段表之外，所以 safe-mode sqlx 下一个名叫 `warn_thresholds` 的结果列会报 `missing destination name warn_thresholds`，而这是**整次读取失败**，不是丢掉一个字段。
+
+改为三个显式列清单常量 `planColumns`（20）、`usageColumns`（9）、`alertColumns`（8）加三个带 db tag 的行结构 `planRow` / `usageRow` / `alertRow`。tag 是强制的：`sqlx.go:26` 是 `var NameMapper = strings.ToLower`，只转小写不剥下划线，字段 `TenantID` 映射成 `tenantid` 永不匹配列 `tenant_id`。
+
+### 43.12 测试 35 个（全部新增）
+
+- `internal/tenant-quota/repository/repository_test.go`（787 行 / 30 个）。
+- `sqlmock` 一律替换默认 matcher：v1.5.2 的 `QueryMatcherRegexp` 是 `strings.Contains`，改为 `QueryMatcherFunc` 做空白归一化后的精确比较，并用闭包把每条真实下发的语句追加进 `seen`，从而能断言「某语句从未被发出」（`len(*seen) == 0`）——`mock.ExpectationsWereMet()` 对一条从未注册的期望无能为力。
+- **记录用的切片必须按指针返回**（`*[]string` / `&seen`）。按值返回会复制一个 len-0 的 header，闭包里随后的 `append` 触发再分配后调用方那份永远为空，于是「没发过语句」这个断言变成空过——它看起来像通过了，其实是没在检查任何东西。
+- 三个列清单与三份 INSERT 都是**手工抄写**的，不引用生产常量，生产代码漂移时测试失败而不是跟着一起错。
+- 失败路径一律双断言（R39.7）：`err != nil` 且 `resp == nil`；`TestUpdatePlanRejectsAColumnItWillNotWrite` 额外钉住 `column "tenant_id" is not updatable` 这段文案与 `len(*seen) == 0`，因为只断言 `err != nil` 时 sqlmock 的「no expectation」错误就能满足它（R40 的教训）。
+- `TestGetUsageReturnsNilForAnAbsentRow` 断言 `err == nil` 且 `u == nil`——`(nil, sql.ErrNoRows)` 的回归。
+- `TestDeletePlanReportsARowCountFailure` 断言错误信息里含 `counting deleted quota plans`。
+- `TestListPlansNormalisesAMalformedThresholdList` 用 `"150, -3, 42, garbage, 42"` 钉出 `[0 42 100]`：夹边、丢弃非数字、去重、升序，一条测试覆盖 `decodeThresholds` 的全部四条规则。
+- `cmd/server/migration_tenant_quota_tables_test.go`（394 行 / 5 个）：398 是三张表各自的**唯一**创建者；588 是唯一加列者且正好四条；四条策略列在 398 里**都不存在**（这一条证明 588 确实在补洞，而不是重复声明）；三个列清单常量与对应表的声明列**集合相等**（缺一列报错、多一列报错、数量不符报错）；`planUpdatable` 是声明列的子集；模块源码里没有 `?`；`SELECT *` 的静态检查**跳过注释行**（`planColumns` 的文档写着「显式而非 SELECT *」这句散文，不跳就误报）；588 每条列必须同时带 NOT NULL 与 DEFAULT、`warn_thresholds` 必须是 VARCHAR(255)；down 逐条反向且双向都没有字面事务语句。
+- 本文件的 `reTQNotNullColumn` 比共享的 `reNotNullColumn` 多认 `BIGINT`、`INT`、`DECIMAL` 与裸 `TIMESTAMP`：398 四种都用了。共享 helper 仍然只认一部分，本轮照 R42 的做法加本地副本。
+
+### 43.13 变异证明 17/17（全部由测试击杀）
+
+每次运行前 `go clean -testcache`，包路径带 `./` 前缀，用 `-v` 让 `--- FAIL:` 可归类，改前快照、改后按字节比对恢复，变异器**先跑一次基线**确认两个套件都有 PASS 再开始改。
+
+| # | mutant | 击杀测试 |
+| --- | --- | --- |
+| 1 | `planColumns` 删掉 `soft_limit` | TestGetPlanDecodesTheThresholdList |
+| 2 | `planColumns` 删掉 `warn_thresholds` | TestListPlansUsesAnExplicitColumnListAndSkipsEmptyStrings |
+| 3 | `decodeThresholds` 夹到 200 | TestListPlansNormalisesAMalformedThresholdList |
+| 4 | `decodeThresholds` 关闭去重 | TestEncodeThresholdsRoundTripsThroughDecode |
+| 5 | `encodeThresholds` 换成分号 | TestEncodeThresholdsRoundTripsThroughDecode |
+| 6 | `GetUsage` 改回返回 `ErrNoRows` | TestGetUsageReturnsNilForAnAbsentRow |
+| 7 | `IncrementUsage` 把查找错误折成创建 | TestIncrementUsagePropagatesALookupFailure |
+| 8 | `IncrementUsage` 插入空 ID | TestIncrementUsageCreatesARowWithAnID |
+| 9 | `planUpdatable` 删掉 `soft_limit` | TestUpdatePlanWritesEveryPolicyColumn |
+| 10 | `buildPlanSET` 绕过白名单 | TestUpdatePlanRejectsAColumnItWillNotWrite |
+| 11 | `UpdatePlan` 跳过空 attrs 守卫 | TestUpdatePlanWithNoColumnsReturnsTheExistingRow |
+| 12 | `UpdatePlan` 不再更新 `updated_at` | TestUpdatePlanWritesEveryPolicyColumn |
+| 13 | `DeletePlan` 丢弃行数错误 | TestDeletePlanReportsARowCountFailure |
+| 14 | `ResetUsage` 不归零 | TestResetUsageClearsCurrentValue |
+| 15 | 588 删掉 `soft_limit` 那条 ADD | TestTenantQuotaStatementsFitTheMigratedSchema |
+| 16 | 588 把 VARCHAR(255) 缩成 20 | TestMigration588DownReversesItsForwardStatements |
+| 17 | 588 去掉 `soft_limit` 的 NOT NULL | TestMigration588DownReversesItsForwardStatements |
+
+存活数 0，编译击杀数 0。基线：repository 30 个 PASS、迁移 5 个 PASS、build 退出码 0/0。恢复后 `go test ./cmd/server/ ./internal/tenant-quota/...` 全部 ok。
+
+### 43.14 变异过程暴露的五个问题
+
+- **Go 的 `regexp` 是 RE2，没有负向前瞻**。`(?![a-z0-9_])` 写在包级 `var` 里会在 `regexp.MustCompile` panic，整个测试二进制在 `init()` 阶段就死掉——**一条测试都没跑**，报告里连 FAIL 都不会出现。改为「后一字符不是字母数字或下划线，或是行尾」。而且只在正则本身没有限制后一字符的地方才需要这个边界：`\s*\(`、`ADD COLUMN`、`DROP COLUMN` 都已经排除了尾随的 `s`，多加边界反而漏匹配。
+- **锚点不唯一会静默退化成 ANCHOR**：`sla_tier, soft_limit, hard_limit` 在 `planColumns` 常量与 `CreatePlan` 的 INSERT 里各出现一次。锚点带上尾随的反引号才唯一。
+- **run target 选错会把真缺陷报成测试通过**：把 `encodeThresholds` 的 mutant 指向 `TestUpdatePlanWritesEveryPolicyColumn` 报告 SURVIVED，而 UpdatePlan 拿的是 service 预先拼好的串、根本不调 `encodeThresholds`（它只在 `bindPlan` 路径上跑）。SURVIVED 看起来像测试套件有缺口，其实是变异器在跑一个跑不到被改函数的测试——**这比 mutant 存活更隐蔽**，因为套件本身没错。
+- **两个 mutant 第一次是被编译器杀的**，证明力不足，已重做：`if dup && false {` 是未定义标识符；`ID: ""` 让 `uuid` 变成未使用导入。分别改成删除 `seen[v] = struct{}{}`（`seen` 仍被前一行的 `if _, dup := seen[v]; dup {` 引用，编译通过）与改成 `uuid.New().String()[:0]`（保留 `uuid` 引用、仍得到空串），让编译通过、由断言来杀。
+- **`reTQDropColumn` 的分组 1 是表名、分组 2 才是列名**。用 `m[1]` 会把表名当成被 drop 的列，down 迁移的测试误报「只 drop 了 1 列，期望 4 列」。
+
+### 43.15 记录未改（九项）
+
+1. 570、571、572 三个迁移的目标是复数 `tenant_quota_alerts` 与 `tenant_quotas`，而真表是单数。但三个都在 `DO $` 块里先查 `information_schema.tables`，探查返回零行所以整块不执行——这是**静默空操作**而不是部署破坏，模块因此从没拿到 `deleted_at`、`created_by`、`updated_by` 与外键，与仓库侧的显式列清单一致（570 的外键块还额外要求 `data_type = 'uuid'`，而 398 声明的是 `VARCHAR(36)`，双重守卫）。
+2. `398_create_tenant_quota.sql` 没有 `_down` 迁移。
+3. service 有 `ListAlertsByLevel`，但 `RepositoryInterface` 里没有它（在内存里过滤）。
+4. handler 把每个 service 错误都映成 500。
+5. service 的 `parseThresholds`（`service.go:571`）在仓库自带 `decodeThresholds` 之后似乎已无调用方，是重复的解码器。
+6. `UpdatePlanRequest.WarnThresholds` 是 `[]int` 而非 `*[]int`，「给了空列表」与「没给」区分不开。
+7. `IncrementUsage` 不校验 `amount` 的符号，一个负的初始增量会把负值存进 `peak_value`。
+8. `GetUsage` 的 `ORDER BY window_start DESC LIMIT 1` 意味着并发的 `IncrementUsage` 仍可能为同一 (tenant_id, metric) 创建重复行——398 在 (tenant_id, metric) 上没有唯一索引。
+9. 共享的 `reNotNullColumn`（`cmd/server/migration_runbook_tables_test.go:42`）不认 `BIGINT`、`INT`、`DECIMAL` 与裸 `TIMESTAMP`，而 398 四种都用了。本轮照 R42 的做法加本地副本，共享 helper 本身仍未修。
+
+### 43.16 验证
+
+- `gofmt -l` 四个 Go 文件干净（顺带修掉 `encodeThresholds` 注释里一个 UTF-8 破损字符——gofmt 会把注释里的 `''` 还原成弯引号，所以改成不含引号的措辞）
+- `go build`（1387 个包，排除 `docs/deliverables/`）退出码 0
+- `go vet ./cmd/server/ ./internal/tenant-quota/...` 干净
+- `go test ./cmd/server/ ./internal/tenant-quota/...` 全部 ok（cmd/server、handler、repository、service）
+- 变异 17/17 全部由测试断言击杀，无一编译击杀、无一存活，工作树已按字节恢复
+- 两个 588 文件里没有 `|` 字符（SQL 注释里的 `block | warn | allow` 改写为 `block / warn / allow`）
+
+### 43.17 扫描遗留（未处理，结转）
+
+- 下一个目标已在册：`internal/lowcode-designer`（**已确认接线**：`wiring.go:135`；`?` 占位符、`UpdateForm` / `UpdateField` / `UpdateInstance` 的 map-key 注入、`SELECT *`、表来自 `396_create_lowcode_designer.sql`、repository 零测试）、`internal/distributed-config`（341 行 repository，`UpdateItemValue` / `UpdateRelease` 注入，表来自 395）、`internal/alert-escalation`（182 行 repository，`UpdatePolicy` / `UpdateTrigger` / `UpdateClosure` 注入，表来自 397）、`internal/infrastructure/dr`（`SELECT *` 加 `RETURNING *`）、`internal/config-mgmt-enhanced`（显式 set 切片，待核）。
+- `/tmp/r41/dyn.txt`（约 57 处 `Sprintf("UPDATE` / 40 文件）；`/tmp/r38/A.txt`（50 处 `Sprintf("%s=$%d`）；`/tmp/r33/hits.txt`、`/tmp/r34/stubs2.txt`；`/tmp/r32scan/up3.txt`（178 个死参数）。
+- 22 个 model 缺 `tenant_id`；12 个 LEAK 模块；25 个未加 tag 的多单词字段结构体（现在有三条具体后果：sqlx v1.4.0 不剥下划线、`db:"-"` 的字段让同名列拖垮整次读取、`NameMapper` 全库只有 `strings.ToLower`）。
+- 全仓结构债：1302 行代码里的 `SELECT *` 对 1007 张被迁移 572 改过的表——`SELECT *` 几乎在整个仓库都是结构性坏的。runbook（R41）、tracing（R42）、tenant-quota（R43）是这条很长列表上的三个点，只能逐模块来。
+- 硬编码成功标记的分诊未完成（按 R38 规则每个先确认是否挂了路由）：`internal/health-check/service/service.go`（上次死于 `sed` 的 division by zero，需先用 `grep -n "success"` 拿行号）、`pipeline_executor.go` 5 处、`internal/assistant/service/actions.go:42` 与 `internal/assistant/handler/handler.go:78`、`internal/multi-cloud/service.go:354`（先设 `Status: "passed"` 再判断，自我满足）、`internal/tool/service.go:318`、`internal/chaos-gateway/service.go:294`、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`、`internal/workflow-webhook/handler.go:144`、`internal/cmdb/service.go:465`、`internal/serverless/service.go:152`、`internal/data-catalog/service.go:166`。
+- 尚未扫描的模块：`internal/notification`、`internal/file-handler`、`internal/job-source`、`internal/lowcode-designer`、`internal/alert-escalation`、`internal/security`、`internal/infrastructure/*`、`internal/config-mgmt-enhanced`、`internal/cache`、`internal/apm`、`internal/cron`。
+- 结转不变：visor-exec 的租户贯穿（`visorTenantBridge` 里 15 个以上 `""` 占位、`POST /commands` 从不设 `CommandLog.TenantID`）；`runner_repository.go:73` 在活路由上丢弃一条引用不存在列的 DELETE（274 的真实外键是 `agent_id`，`:542` / `:563` 同一错误列）；`pipeline-templates` 的 `Delete` 丢弃一条 DELETE 且 handler 未注册；`vector/repository.go:68` 的 `DeleteStore` 没有 `vector_record` 迁移；schema-registry 的 best-effort `GetSchema` 快照（已被测试钉住）；`EnsureTable` 在约 15 个模块声明而 `cmd/server` 零调用方；`internal/schema-registry/models/models.go` 的既存 gofmt 债；`buildNamedSet` 在 pipeline-executor:401 / job-actions:285 / auto-exec:333 未加白名单；roweditor 的 `validateRows` / `validateMode` 死代码；`buildUpdateSetClause` 里重复的 `version=` / `updated_at=`；finops v1 的不可达方法；user 模块 `ChangePassword` 的 bcrypt 路径无覆盖、前端不调 `PUT /users/:id`；`monitor:execute` 未授予 `sre` / `tenant_admin`（`pkg/auth/permission.go`，有意不动）；`internal/pipeline-template` 与 `internal/pipeline-templates` 都注册 `/pipeline-templates`，疑似同名路由组冲突，未调查。
