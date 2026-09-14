@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"orion/platform-svc-go/internal/distributed-config/models"
+	"orion/platform-svc-go/internal/distributed-config/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -22,6 +23,17 @@ type mockConfigSvc struct {
 	items      map[string]*models.ConfigItem
 	snaps      map[string]*models.ConfigSnapshot
 	releases   []models.ConfigRelease
+
+	// Test knobs. updateItemErr forces the failure branches of the handler's
+	// error mapping, which no happy-path test can reach through the mock's own
+	// logic.
+	updateItemErr error
+
+	// What the handlers decided, not what the caller sent: the audit limit
+	// assertions compare these against the clamp constants.
+	auditLimit  int
+	auditCalled bool
+	snapTenant  string
 }
 
 func newMockConfigSvc() *mockConfigSvc {
@@ -105,6 +117,9 @@ func (m *mockConfigSvc) ListItems(ctx context.Context, tenantID string, filter *
 	return items, nil
 }
 func (m *mockConfigSvc) UpdateItem(ctx context.Context, id, tenantID, operator string, req *models.UpdateItemRequest) (*models.ConfigItem, error) {
+	if m.updateItemErr != nil {
+		return nil, m.updateItemErr
+	}
 	item, ok := m.items[id]
 	if !ok {
 		return nil, errNotFoundDC
@@ -139,7 +154,13 @@ func (m *mockConfigSvc) ListSnapshots(ctx context.Context, tenantID, groupID, en
 	}
 	return items, nil
 }
-func (m *mockConfigSvc) GetSnapshotData(ctx context.Context, id string) (map[string]interface{}, error) {
+func (m *mockConfigSvc) GetSnapshotData(ctx context.Context, id, tenantID string) (map[string]interface{}, error) {
+	m.snapTenant = tenantID
+	if snap, ok := m.snaps[id]; ok {
+		if snap.Data == "" {
+			return nil, nil
+		}
+	}
 	return map[string]interface{}{"key": "value"}, nil
 }
 func (m *mockConfigSvc) PublishRelease(ctx context.Context, req *models.PublishReleaseRequest, tenantID string) (*models.ConfigRelease, error) {
@@ -165,10 +186,12 @@ func (m *mockConfigSvc) GetReleaseHistory(ctx context.Context, releaseID, tenant
 	return nil, nil
 }
 func (m *mockConfigSvc) ListAudit(ctx context.Context, tenantID string, limit int) ([]models.ConfigAudit, error) {
+	m.auditCalled = true
+	m.auditLimit = limit
 	return nil, nil
 }
 
-// Phase 302: 三层 Level 覆盖 mock 方法
+// Phase 302: three-level override mocks
 func (m *mockConfigSvc) ResolveEffectiveConfig(ctx context.Context, tenantID, namespaceID, userID string) (map[string]models.ConfigValue, error) {
 	return map[string]models.ConfigValue{}, nil
 }
@@ -242,6 +265,46 @@ func TestConfig_DeleteItem(t *testing.T) {
 	}
 }
 
+// The two UpdateItem error mappings have to be tested as a pair: a mutant that
+// maps every error to 400 is killed by the second test and one that maps every
+// error to 404 is killed by the first.
+func TestConfig_UpdateItem_MapsAnInvalidLevelTo400(t *testing.T) {
+	svc := newMockConfigSvc()
+	svc.updateItemErr = service.ErrInvalidLevel
+	h := NewHandler(svc)
+	c, w := makeCtx(http.MethodPut, "/items/:id", map[string]interface{}{"level": "galaxy"})
+	h.UpdateItem(c)
+	if w.Code != 400 {
+		t.Fatalf("UpdateItem status = %d, want 400 for an invalid level", w.Code)
+	}
+}
+
+func TestConfig_UpdateItem_MapsAnUnknownItemTo404(t *testing.T) {
+	svc := newMockConfigSvc()
+	svc.updateItemErr = errNotFoundDC
+	h := NewHandler(svc)
+	c, w := makeCtx(http.MethodPut, "/items/:id", map[string]interface{}{"level": "tenant"})
+	h.UpdateItem(c)
+	if w.Code != 404 {
+		t.Fatalf("UpdateItem status = %d, want 404 for an unknown item", w.Code)
+	}
+}
+
+func TestConfig_UpdateItem_UsestheCallerAsOperator(t *testing.T) {
+	svc := newMockConfigSvc()
+	svc.items["item-1"] = &models.ConfigItem{ID: "item-1"}
+	h := NewHandler(svc)
+	v := "new-value"
+	c, w := makeCtx(http.MethodPut, "/items/:id", map[string]interface{}{"value": "new-value"})
+	h.UpdateItem(c)
+	if w.Code != 200 {
+		t.Fatalf("UpdateItem status = %d, want 200", w.Code)
+	}
+	if got := svc.items["item-1"].Value; got != v {
+		t.Fatalf("item value = %q, want %q", got, v)
+	}
+}
+
 func TestConfig_PublishSnapshot(t *testing.T) {
 	h := NewHandler(newMockConfigSvc())
 	c, w := makeCtx(http.MethodPost, "/snapshots?groupId=grp-1", map[string]interface{}{
@@ -253,6 +316,17 @@ func TestConfig_PublishSnapshot(t *testing.T) {
 	}
 }
 
+func TestConfig_PublishSnapshot_RequiresAGroupID(t *testing.T) {
+	h := NewHandler(newMockConfigSvc())
+	c, w := makeCtx(http.MethodPost, "/snapshots", map[string]interface{}{
+		"environment": "staging", "operator": "admin",
+	})
+	h.PublishSnapshot(c)
+	if w.Code != 400 {
+		t.Fatalf("PublishSnapshot status = %d, want 400 without a groupId", w.Code)
+	}
+}
+
 func TestConfig_PublishRelease(t *testing.T) {
 	h := NewHandler(newMockConfigSvc())
 	c, w := makeCtx(http.MethodPost, "/releases", map[string]interface{}{
@@ -261,5 +335,80 @@ func TestConfig_PublishRelease(t *testing.T) {
 	h.PublishRelease(c)
 	if w.Code != 201 {
 		t.Fatalf("PublishRelease status = %d, want 201", w.Code)
+	}
+}
+
+func TestConfig_GetSnapshotData_PassesTheTenant(t *testing.T) {
+	svc := newMockConfigSvc()
+	svc.snapTenant = "unset"
+	h := NewHandler(svc)
+	c, w := makeCtx(http.MethodGet, "/snapshots/:id/data", nil)
+	h.GetSnapshotData(c)
+	if w.Code != 200 {
+		t.Fatalf("GetSnapshotData status = %d, want 200", w.Code)
+	}
+	if svc.snapTenant != "t1" {
+		t.Fatalf("tenant passed to GetSnapshotData = %q, want t1", svc.snapTenant)
+	}
+}
+
+func TestConfig_ListAudit_ClampsTheLimit(t *testing.T) {
+	svc := newMockConfigSvc()
+	h := NewHandler(svc)
+	c, w := makeCtx(http.MethodGet, "/audit?limit=9999", nil)
+	h.ListAudit(c)
+	if w.Code != 200 {
+		t.Fatalf("ListAudit status = %d, want 200", w.Code)
+	}
+	if svc.auditLimit != maxAuditLimit {
+		t.Fatalf("audit limit = %d, want %d", svc.auditLimit, maxAuditLimit)
+	}
+}
+
+func TestConfig_ListAudit_ClampsTheLowerBound(t *testing.T) {
+	svc := newMockConfigSvc()
+	h := NewHandler(svc)
+	c, w := makeCtx(http.MethodGet, "/audit?limit=0", nil)
+	h.ListAudit(c)
+	if w.Code != 200 {
+		t.Fatalf("ListAudit status = %d, want 200", w.Code)
+	}
+	if svc.auditLimit != minAuditLimit {
+		t.Fatalf("audit limit = %d, want %d", svc.auditLimit, minAuditLimit)
+	}
+}
+
+func TestConfig_ListAudit_UsesTheDefaultLimit(t *testing.T) {
+	svc := newMockConfigSvc()
+	h := NewHandler(svc)
+	c, w := makeCtx(http.MethodGet, "/audit", nil)
+	h.ListAudit(c)
+	if w.Code != 200 {
+		t.Fatalf("ListAudit status = %d, want 200", w.Code)
+	}
+	if svc.auditLimit != 50 {
+		t.Fatalf("audit limit = %d, want the default 50", svc.auditLimit)
+	}
+}
+
+func TestConfig_ListAudit_RejectsANonIntegerLimit(t *testing.T) {
+	svc := newMockConfigSvc()
+	h := NewHandler(svc)
+	c, w := makeCtx(http.MethodGet, "/audit?limit=abc", nil)
+	h.ListAudit(c)
+	if w.Code != 400 {
+		t.Fatalf("ListAudit status = %d, want 400 for a non-integer limit", w.Code)
+	}
+	if svc.auditCalled {
+		t.Fatalf("the service was called for an unparsable limit")
+	}
+}
+
+func TestConfig_ListItems_RejectsABadBooleanFilter(t *testing.T) {
+	h := NewHandler(newMockConfigSvc())
+	c, w := makeCtx(http.MethodGet, "/items?overrideOnly=xyz", nil)
+	h.ListItems(c)
+	if w.Code != 400 {
+		t.Fatalf("ListItems status = %d, want 400 for a non-boolean overrideOnly", w.Code)
 	}
 }
