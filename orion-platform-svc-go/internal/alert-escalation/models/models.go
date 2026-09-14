@@ -108,16 +108,3 @@ type ResolveRequest struct {
 	Operator       string `json:"operator" binding:"required"`
 	ResolutionNote string `json:"resolutionNote"`
 }
-
-type GetMetricsFilter struct {
-	From string `form:"from"`
-	To   string `form:"to"`
-}
-
-type PolicyStats struct {
-	PolicyID         string     `json:"policyId"`
-	TotalTriggers    int        `json:"totalTriggers"`
-	PendingTriggers  int        `json:"pendingTriggers"`
-	ResolvedTriggers int        `json:"resolvedTriggers"`
-	LastTriggered    *time.Time `json:"lastTriggered"`
-}

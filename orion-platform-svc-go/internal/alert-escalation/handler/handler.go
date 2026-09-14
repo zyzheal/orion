@@ -1,14 +1,16 @@
 package handler
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
+
+	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/alert-escalation/models"
 	"orion/platform-svc-go/internal/alert-escalation/service"
 	"orion/platform-svc-go/internal/middleware"
-
-	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel"
 )
 
 type Handler struct {
@@ -91,7 +93,14 @@ func (h *Handler) GetPolicy(c *gin.Context) {
 	defer span.End()
 	p, err := h.svc.GetPolicy(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil {
-		middleware.RespondNotFound(c, err.Error())
+		// A corrupt rules column is a storage problem, not a missing policy. It
+		// used to come back as a 404, sending the caller hunting for a policy
+		// that exists.
+		if errors.Is(err, sql.ErrNoRows) {
+			middleware.RespondNotFound(c, "policy not found")
+			return
+		}
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	middleware.RespondSuccess(c, p)
@@ -107,7 +116,17 @@ func (h *Handler) UpdatePolicy(c *gin.Context) {
 	}
 	p, err := h.svc.UpdatePolicy(ctx, c.Param("id"), h.getTenantID(c), &req)
 	if err != nil {
-		middleware.RespondNotFound(c, err.Error())
+		// Every error used to be a 404. An empty body hit Postgres as
+		// "UPDATE escalation_policy SET  WHERE ..." and the caller was told the
+		// policy did not exist.
+		switch {
+		case errors.Is(err, service.ErrEmptyUpdate):
+			middleware.RespondBadRequest(c, err.Error())
+		case errors.Is(err, sql.ErrNoRows):
+			middleware.RespondNotFound(c, "policy not found")
+		default:
+			middleware.RespondInternalError(c, err.Error())
+		}
 		return
 	}
 	middleware.RespondSuccess(c, p)
@@ -117,7 +136,13 @@ func (h *Handler) DeletePolicy(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertEscDeletePolicy")
 	defer span.End()
 	deleted, err := h.svc.DeletePolicy(ctx, c.Param("id"), h.getTenantID(c))
-	if err != nil || !deleted {
+	if err != nil {
+		// A failed DELETE used to be reported as "policy not found", which made
+		// a database outage look like an already-deleted policy.
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	if !deleted {
 		middleware.RespondNotFound(c, "policy not found")
 		return
 	}
@@ -162,7 +187,11 @@ func (h *Handler) ResolveTrigger(c *gin.Context) {
 	defer span.End()
 	t, err := h.svc.ResolveTrigger(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil {
-		middleware.RespondNotFound(c, err.Error())
+		if errors.Is(err, sql.ErrNoRows) {
+			middleware.RespondNotFound(c, "trigger not found")
+			return
+		}
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	middleware.RespondSuccess(c, t)
@@ -187,7 +216,11 @@ func (h *Handler) GetClosure(c *gin.Context) {
 	defer span.End()
 	closure, err := h.svc.GetClosure(ctx, c.Param("alertId"), h.getTenantID(c))
 	if err != nil {
-		middleware.RespondNotFound(c, err.Error())
+		if errors.Is(err, sql.ErrNoRows) {
+			middleware.RespondNotFound(c, "closure not found")
+			return
+		}
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	middleware.RespondSuccess(c, closure)
@@ -203,7 +236,10 @@ func (h *Handler) AcknowledgeAlert(c *gin.Context) {
 	}
 	closure, err := h.svc.AcknowledgeAlert(ctx, req.AlertID, h.getTenantID(c), req.Operator)
 	if err != nil {
-		middleware.RespondBadRequest(c, err.Error())
+		// There is no validation failure left in this path, so a 400 here meant
+		// a failed closure read or write: a database outage wearing the clothes
+		// of a malformed request.
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	middleware.RespondSuccess(c, closure)
@@ -219,7 +255,9 @@ func (h *Handler) ResolveAlert(c *gin.Context) {
 	}
 	closure, err := h.svc.ResolveAlert(ctx, &req, h.getTenantID(c))
 	if err != nil {
-		middleware.RespondBadRequest(c, err.Error())
+		// Same as AcknowledgeAlert: nothing in this path is caller-supplied and
+		// invalid, so every error is a storage failure.
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	middleware.RespondSuccess(c, closure)
@@ -235,16 +273,31 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	total := len(closures)
-	var ackCount, resolvedCount int
+	// alert_closure has no unique constraint on alert_id, so one alert can sit
+	// in more than one row. The list is newest first, so the first row wins.
+	seen := make(map[string]bool)
+	var total, ackCount, resolvedCount, openCount int
 	var totalMTTR int64
-	for _, c := range closures {
-		if c.AcknowledgedAt != nil {
-			ackCount++
+	for _, cl := range closures {
+		if seen[cl.AlertID] {
+			continue
 		}
-		if c.Status == "resolved" {
+		seen[cl.AlertID] = true
+		total++
+		// The card shows 待确认 / 已确认 / 已解决 as three disjoint buckets, so
+		// all three are counted from status and the three always sum to
+		// totalAlerts. Counting acknowledgedCount from acknowledged_at instead
+		// would also count alerts that were acknowledged and then resolved, and
+		// subtracting both counters from the total would drop them twice, which
+		// let openCount go negative.
+		switch cl.Status {
+		case "acknowledged":
+			ackCount++
+		case "resolved":
 			resolvedCount++
-			totalMTTR += c.MTTRSeconds
+			totalMTTR += cl.MTTRSeconds
+		default:
+			openCount++
 		}
 	}
 	var avgMTTR int64
@@ -255,7 +308,7 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 		"totalAlerts":       total,
 		"acknowledgedCount": ackCount,
 		"resolvedCount":     resolvedCount,
-		"openCount":         total - ackCount - resolvedCount,
+		"openCount":         openCount,
 		"avgMTTRSeconds":    avgMTTR,
 		"avgMTTRFormatted":  formatSeconds(avgMTTR),
 	})
