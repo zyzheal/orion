@@ -1,9 +1,12 @@
-// Package service provides the JobActionExecutor and the 42 built-in action handlers.
+// Package service provides the JobActionExecutor and the 46 built-in action handlers.
+//
+// None of the 46 has a working backend: see unimplementedHandler below. The
+// registration is real, the capability is not, and ExecuteAction records
+// the difference in job_action_executions instead of claiming success.
 package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -19,6 +22,11 @@ var (
 	ErrActionNotFound  = errors.New("action not found")
 	ErrHandlerNotFound = errors.New("action handler not registered")
 	ErrActionDisabled  = errors.New("action is disabled")
+	// ErrActionNotImplemented means the action type is in the registry but no
+	// backend can carry it out. It is a permanent condition: retrying it cannot
+	// succeed, so runWithRetries stops at the first attempt instead of burning
+	// RetryCount+1 attempts and RetryCount+1 warning lines on it.
+	ErrActionNotImplemented = errors.New("action not implemented")
 )
 
 // ---------------------------------------------------------------------------
@@ -52,7 +60,12 @@ type JobActionExecutor struct {
 	mu       sync.RWMutex
 }
 
+// NewJobActionExecutor wires the registry and the audit repository. A nil
+// logger is tolerated so a test or an embedder can pass a real repository only.
 func NewJobActionExecutor(repo *repository.Repository, logger *zap.Logger) *JobActionExecutor {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
 	e := &JobActionExecutor{
 		handlers: make(map[string]IJobActionHandler),
 		repo:     repo,
@@ -111,12 +124,15 @@ func (e *JobActionExecutor) ExecuteAction(ctx context.Context, tenantID string, 
 		return nil, ErrActionDisabled
 	}
 
-	// Build execution record
+	// One clock origin for the audit row and the duration counter, so
+	// duration_ms is measured from the instant the database claims the run
+	// started.
+	start := time.Now().UTC()
 	ex := &models.JobActionExecution{
 		TenantID:  tenantID,
 		ActionID:  action.ID,
 		Status:    models.StatusPending,
-		StartedAt: time.Now().UTC(),
+		StartedAt: start,
 	}
 	if err := e.repo.CreateExecution(ctx, ex); err != nil {
 		return nil, err
@@ -132,7 +148,6 @@ func (e *JobActionExecutor) ExecuteAction(ctx context.Context, tenantID string, 
 		return ex, err
 	}
 
-	start := time.Now()
 	timeout := action.Timeout
 	if timeout <= 0 {
 		timeout = 300
@@ -146,6 +161,11 @@ func (e *JobActionExecutor) ExecuteAction(ctx context.Context, tenantID string, 
 		ctx2, cancel = context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
 		defer cancel()
 	}
+
+	// Work genuinely begins here, so this is the moment the row leaves 'pending'.
+	// Recording 'running' is what makes a crash mid-execution distinguishable
+	// from a request that never started.
+	e.markRunning(ctx, ex, start)
 
 	result, execErr := e.runWithRetries(ctx2, handler, params, retryCount)
 
@@ -169,19 +189,21 @@ func (e *JobActionExecutor) executeByType(ctx context.Context, tenantID string, 
 		return nil, fmt.Errorf("%w: %s", ErrHandlerNotFound, actionType)
 	}
 
+	start := time.Now().UTC()
 	ex := &models.JobActionExecution{
 		TenantID:  tenantID,
 		ActionID:  actionType, // use type as id for ad-hoc execution
 		Status:    models.StatusPending,
-		StartedAt: time.Now().UTC(),
+		StartedAt: start,
 	}
 	if err := e.repo.CreateExecution(ctx, ex); err != nil {
 		return nil, err
 	}
 
-	start := time.Now()
 	ctx2, cancel := context.WithTimeout(ctx, 300*time.Second)
 	defer cancel()
+
+	e.markRunning(ctx, ex, start)
 
 	result, execErr := e.runWithRetries(ctx2, handler, params, 0)
 	durationMs := time.Since(start).Milliseconds()
@@ -213,6 +235,9 @@ func (e *JobActionExecutor) runWithRetries(ctx context.Context, h IJobActionHand
 		if err == nil {
 			return result, nil
 		}
+		if errors.Is(err, ErrActionNotImplemented) {
+			return nil, err
+		}
 		lastErr = err
 		e.logger.Warn("action handler attempt failed",
 			zap.String("type", h.Type()),
@@ -226,6 +251,26 @@ func (e *JobActionExecutor) runWithRetries(ctx context.Context, h IJobActionHand
 // ---------------------------------------------------------------------------
 // finalize
 // ---------------------------------------------------------------------------
+
+// markRunning moves a recorded execution out of 'pending' at the moment its
+// handler actually starts. started_at is written too, so the row carries the
+// same instant the executor used as its duration origin.
+func (e *JobActionExecutor) markRunning(ctx context.Context, ex *models.JobActionExecution, startedAt time.Time) {
+	ex.Status = models.StatusRunning
+	e.errIf(e.repo.UpdateExecution(ctx, ex.TenantID, ex.ID, map[string]any{
+		"status":     models.StatusRunning,
+		"started_at": startedAt,
+	}))
+}
+
+// errIf centralises the "log and move on" behaviour of the finalize path. The
+// audit write must not fail the caller: the execution already happened.
+func (e *JobActionExecutor) errIf(err error) {
+	if err == nil {
+		return
+	}
+	e.logger.Error("failed to update job-action execution", zap.Error(err))
+}
 
 func (e *JobActionExecutor) finalizeExecution(ctx context.Context, ex *models.JobActionExecution, status, output, er string, durationMs int64) {
 	now := time.Now().UTC()
@@ -241,12 +286,7 @@ func (e *JobActionExecutor) finalizeExecution(ctx context.Context, ex *models.Jo
 		"duration_ms": durationMs,
 		"finished_at": &now,
 	}
-	if ferr := e.repo.UpdateExecution(ctx, ex.TenantID, ex.ID, fields); ferr != nil {
-		e.logger.Error("failed to finalize job-action execution",
-			zap.String("id", ex.ID),
-			zap.Error(ferr),
-		)
-	}
+	e.errIf(e.repo.UpdateExecution(ctx, ex.TenantID, ex.ID, fields))
 	e.logger.Info("job-action execution finished",
 		zap.String("id", ex.ID),
 		zap.String("actionID", ex.ActionID),
@@ -316,216 +356,229 @@ func (e *JobActionExecutor) registerBuiltinHandlers() {
 }
 
 // ---------------------------------------------------------------------------
-// stub helper
+// Unimplemented action backends
 // ---------------------------------------------------------------------------
 
-// stubHandler is a minimal implementation that logs and returns success.
-type stubHandler struct {
+// unimplementedHandler is the backend for every built-in action type.
+//
+// It exists because the registry has to advertise the 46 declared types so a
+// persisted definition can be created for each of them, while this repository
+// owns no SSH client, Kubernetes client, database driver, message broker or
+// object store that could actually carry any of them out. Executing
+// 'kubectl_apply' or 'shell_command' from an HTTP endpoint would also be a
+// security decision, not a stub fix, so it is deliberately not made here.
+//
+// The previous implementation was a stubHandler whose Execute returned
+// Success: true, Output "[<type>] executed" and a ~0 ms duration. ExecuteAction
+// then called finalizeExecution with models.StatusCompleted, so the audit table
+// asserted a completed deployment for work that never happened at all -- a
+// pipeline that read the row back would have skipped its real restart step.
+//
+// Now the request still flows through timeout, retry and audit recording, but
+// it ends status='failed' with ErrActionNotImplemented in the error column.
+// "This platform cannot run this action" is a real, queryable result.
+type unimplementedHandler struct {
 	name     string
 	typ      string
 	category string
 }
 
-func (s *stubHandler) Name() string                                      { return s.name }
-func (s *stubHandler) Type() string                                      { return s.typ }
-func (s *stubHandler) Category() string                                  { return s.category }
-func (s *stubHandler) Validate(context.Context, map[string]string) error { return nil }
-func (s *stubHandler) Execute(ctx context.Context, params map[string]string) (*ActionResult, error) {
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
-	paramsJSON, _ := json.Marshal(params)
-	return &ActionResult{
-		Success: true,
-		Output:  fmt.Sprintf("[%s] executed", s.typ),
-		Data:    map[string]any{"action": s.typ, "params": string(paramsJSON)},
-	}, nil
+func (s *unimplementedHandler) Name() string { return s.name }
+
+func (s *unimplementedHandler) Type() string { return s.typ }
+
+func (s *unimplementedHandler) Category() string { return s.category }
+
+func (s *unimplementedHandler) Validate(context.Context, map[string]string) error { return nil }
+
+func (s *unimplementedHandler) Execute(context.Context, map[string]string) (*ActionResult, error) {
+	return nil, fmt.Errorf("%w: %s", ErrActionNotImplemented, s.typ)
 }
 
 // ---------------------------------------------------------------------------
-// Concrete handler constructors — each 42 type
+// Concrete handler constructors — one per declared type
 // ---------------------------------------------------------------------------
 
 func NewRestartServiceHandler() IJobActionHandler {
-	return &stubHandler{name: "RestartService", typ: models.TypeRestartService, category: models.CategoryDeployment}
+	return &unimplementedHandler{name: "RestartService", typ: models.TypeRestartService, category: models.CategoryDeployment}
 }
 
 func NewDeployCodeHandler() IJobActionHandler {
-	return &stubHandler{name: "DeployCode", typ: models.TypeDeployCode, category: models.CategoryDeployment}
+	return &unimplementedHandler{name: "DeployCode", typ: models.TypeDeployCode, category: models.CategoryDeployment}
 }
 
 func NewBackupDBHandler() IJobActionHandler {
-	return &stubHandler{name: "BackupDB", typ: models.TypeBackupDB, category: models.CategoryData}
+	return &unimplementedHandler{name: "BackupDB", typ: models.TypeBackupDB, category: models.CategoryData}
 }
 
 func NewRestoreDBHandler() IJobActionHandler {
-	return &stubHandler{name: "RestoreDB", typ: models.TypeRestoreDB, category: models.CategoryData}
+	return &unimplementedHandler{name: "RestoreDB", typ: models.TypeRestoreDB, category: models.CategoryData}
 }
 
 func NewScaleInstanceHandler() IJobActionHandler {
-	return &stubHandler{name: "ScaleInstance", typ: models.TypeScaleInstance, category: models.CategoryInfrastructure}
+	return &unimplementedHandler{name: "ScaleInstance", typ: models.TypeScaleInstance, category: models.CategoryInfrastructure}
 }
 
 func NewSendEmailHandler() IJobActionHandler {
-	return &stubHandler{name: "SendEmail", typ: models.TypeSendEmail, category: models.CategoryNotification}
+	return &unimplementedHandler{name: "SendEmail", typ: models.TypeSendEmail, category: models.CategoryNotification}
 }
 
 func NewSendSMSHandler() IJobActionHandler {
-	return &stubHandler{name: "SendSMS", typ: models.TypeSendSMS, category: models.CategoryNotification}
+	return &unimplementedHandler{name: "SendSMS", typ: models.TypeSendSMS, category: models.CategoryNotification}
 }
 
 func NewSendWebhookHandler() IJobActionHandler {
-	return &stubHandler{name: "SendWebhook", typ: models.TypeSendWebhook, category: models.CategoryNotification}
+	return &unimplementedHandler{name: "SendWebhook", typ: models.TypeSendWebhook, category: models.CategoryNotification}
 }
 
 func NewRunScriptHandler() IJobActionHandler {
-	return &stubHandler{name: "RunScript", typ: models.TypeRunScript, category: models.CategoryInfrastructure}
+	return &unimplementedHandler{name: "RunScript", typ: models.TypeRunScript, category: models.CategoryInfrastructure}
 }
 
 func NewExecuteSQLHandler() IJobActionHandler {
-	return &stubHandler{name: "ExecuteSQL", typ: models.TypeExecuteSQL, category: models.CategoryData}
+	return &unimplementedHandler{name: "ExecuteSQL", typ: models.TypeExecuteSQL, category: models.CategoryData}
 }
 
 func NewFileCopyHandler() IJobActionHandler {
-	return &stubHandler{name: "FileCopy", typ: models.TypeFileCopy, category: models.CategoryInfrastructure}
+	return &unimplementedHandler{name: "FileCopy", typ: models.TypeFileCopy, category: models.CategoryInfrastructure}
 }
 
 func NewFileDeleteHandler() IJobActionHandler {
-	return &stubHandler{name: "FileDelete", typ: models.TypeFileDelete, category: models.CategoryInfrastructure}
+	return &unimplementedHandler{name: "FileDelete", typ: models.TypeFileDelete, category: models.CategoryInfrastructure}
 }
 
 func NewGitPullHandler() IJobActionHandler {
-	return &stubHandler{name: "GitPull", typ: models.TypeGitPull, category: models.CategoryDeployment}
+	return &unimplementedHandler{name: "GitPull", typ: models.TypeGitPull, category: models.CategoryDeployment}
 }
 
 func NewGitPushHandler() IJobActionHandler {
-	return &stubHandler{name: "GitPush", typ: models.TypeGitPush, category: models.CategoryDeployment}
+	return &unimplementedHandler{name: "GitPush", typ: models.TypeGitPush, category: models.CategoryDeployment}
 }
 
 func NewDockerPullHandler() IJobActionHandler {
-	return &stubHandler{name: "DockerPull", typ: models.TypeDockerPull, category: models.CategoryDeployment}
+	return &unimplementedHandler{name: "DockerPull", typ: models.TypeDockerPull, category: models.CategoryDeployment}
 }
 
 func NewDockerPushHandler() IJobActionHandler {
-	return &stubHandler{name: "DockerPush", typ: models.TypeDockerPush, category: models.CategoryDeployment}
+	return &unimplementedHandler{name: "DockerPush", typ: models.TypeDockerPush, category: models.CategoryDeployment}
 }
 
 func NewDockerRestartHandler() IJobActionHandler {
-	return &stubHandler{name: "DockerRestart", typ: models.TypeDockerRestart, category: models.CategoryInfrastructure}
+	return &unimplementedHandler{name: "DockerRestart", typ: models.TypeDockerRestart, category: models.CategoryInfrastructure}
 }
 
 func NewDockerComposeUpHandler() IJobActionHandler {
-	return &stubHandler{name: "DockerComposeUp", typ: models.TypeDockerComposeUp, category: models.CategoryInfrastructure}
+	return &unimplementedHandler{name: "DockerComposeUp", typ: models.TypeDockerComposeUp, category: models.CategoryInfrastructure}
 }
 
 func NewDockerComposeDownHandler() IJobActionHandler {
-	return &stubHandler{name: "DockerComposeDown", typ: models.TypeDockerComposeDown, category: models.CategoryInfrastructure}
+	return &unimplementedHandler{name: "DockerComposeDown", typ: models.TypeDockerComposeDown, category: models.CategoryInfrastructure}
 }
 
 func NewKubectlApplyHandler() IJobActionHandler {
-	return &stubHandler{name: "KubectlApply", typ: models.TypeKubectlApply, category: models.CategoryInfrastructure}
+	return &unimplementedHandler{name: "KubectlApply", typ: models.TypeKubectlApply, category: models.CategoryInfrastructure}
 }
 
 func NewKubectlDeleteHandler() IJobActionHandler {
-	return &stubHandler{name: "KubectlDelete", typ: models.TypeKubectlDelete, category: models.CategoryInfrastructure}
+	return &unimplementedHandler{name: "KubectlDelete", typ: models.TypeKubectlDelete, category: models.CategoryInfrastructure}
 }
 
 func NewCurlRequestHandler() IJobActionHandler {
-	return &stubHandler{name: "CurlRequest", typ: models.TypeCurlRequest, category: models.CategoryInfrastructure}
+	return &unimplementedHandler{name: "CurlRequest", typ: models.TypeCurlRequest, category: models.CategoryInfrastructure}
 }
 
 func NewShellCommandHandler() IJobActionHandler {
-	return &stubHandler{name: "ShellCommand", typ: models.TypeShellCommand, category: models.CategoryInfrastructure}
+	return &unimplementedHandler{name: "ShellCommand", typ: models.TypeShellCommand, category: models.CategoryInfrastructure}
 }
 
 func NewArchiveFileHandler() IJobActionHandler {
-	return &stubHandler{name: "ArchiveFile", typ: models.TypeArchiveFile, category: models.CategoryData}
+	return &unimplementedHandler{name: "ArchiveFile", typ: models.TypeArchiveFile, category: models.CategoryData}
 }
 
 func NewExtractFileHandler() IJobActionHandler {
-	return &stubHandler{name: "ExtractFile", typ: models.TypeExtractFile, category: models.CategoryData}
+	return &unimplementedHandler{name: "ExtractFile", typ: models.TypeExtractFile, category: models.CategoryData}
 }
 
 func NewCreateDirectoryHandler() IJobActionHandler {
-	return &stubHandler{name: "CreateDirectory", typ: models.TypeCreateDirectory, category: models.CategoryInfrastructure}
+	return &unimplementedHandler{name: "CreateDirectory", typ: models.TypeCreateDirectory, category: models.CategoryInfrastructure}
 }
 
 func NewDeleteDirectoryHandler() IJobActionHandler {
-	return &stubHandler{name: "DeleteDirectory", typ: models.TypeDeleteDirectory, category: models.CategoryInfrastructure}
+	return &unimplementedHandler{name: "DeleteDirectory", typ: models.TypeDeleteDirectory, category: models.CategoryInfrastructure}
 }
 
 func NewModifyFileHandler() IJobActionHandler {
-	return &stubHandler{name: "ModifyFile", typ: models.TypeModifyFile, category: models.CategoryData}
+	return &unimplementedHandler{name: "ModifyFile", typ: models.TypeModifyFile, category: models.CategoryData}
 }
 
 func NewCreateUserHandler() IJobActionHandler {
-	return &stubHandler{name: "CreateUser", typ: models.TypeCreateUser, category: models.CategoryAdmin}
+	return &unimplementedHandler{name: "CreateUser", typ: models.TypeCreateUser, category: models.CategoryAdmin}
 }
 
 func NewDeleteUserHandler() IJobActionHandler {
-	return &stubHandler{name: "DeleteUser", typ: models.TypeDeleteUser, category: models.CategoryAdmin}
+	return &unimplementedHandler{name: "DeleteUser", typ: models.TypeDeleteUser, category: models.CategoryAdmin}
 }
 
 func NewGrantPermissionHandler() IJobActionHandler {
-	return &stubHandler{name: "GrantPermission", typ: models.TypeGrantPermission, category: models.CategoryAdmin}
+	return &unimplementedHandler{name: "GrantPermission", typ: models.TypeGrantPermission, category: models.CategoryAdmin}
 }
 
 func NewRevokePermissionHandler() IJobActionHandler {
-	return &stubHandler{name: "RevokePermission", typ: models.TypeRevokePermission, category: models.CategoryAdmin}
+	return &unimplementedHandler{name: "RevokePermission", typ: models.TypeRevokePermission, category: models.CategoryAdmin}
 }
 
 func NewRotateKeyHandler() IJobActionHandler {
-	return &stubHandler{name: "RotateKey", typ: models.TypeRotateKey, category: models.CategoryAdmin}
+	return &unimplementedHandler{name: "RotateKey", typ: models.TypeRotateKey, category: models.CategoryAdmin}
 }
 
 func NewEnableFeatureHandler() IJobActionHandler {
-	return &stubHandler{name: "EnableFeature", typ: models.TypeEnableFeature, category: models.CategoryAdmin}
+	return &unimplementedHandler{name: "EnableFeature", typ: models.TypeEnableFeature, category: models.CategoryAdmin}
 }
 
 func NewDisableFeatureHandler() IJobActionHandler {
-	return &stubHandler{name: "DisableFeature", typ: models.TypeDisableFeature, category: models.CategoryAdmin}
+	return &unimplementedHandler{name: "DisableFeature", typ: models.TypeDisableFeature, category: models.CategoryAdmin}
 }
 
 func NewClearCacheHandler() IJobActionHandler {
-	return &stubHandler{name: "ClearCache", typ: models.TypeClearCache, category: models.CategoryInfrastructure}
+	return &unimplementedHandler{name: "ClearCache", typ: models.TypeClearCache, category: models.CategoryInfrastructure}
 }
 
 func NewSendNotificationHandler() IJobActionHandler {
-	return &stubHandler{name: "SendNotification", typ: models.TypeSendNotification, category: models.CategoryNotification}
+	return &unimplementedHandler{name: "SendNotification", typ: models.TypeSendNotification, category: models.CategoryNotification}
 }
 
 func NewCreateTicketHandler() IJobActionHandler {
-	return &stubHandler{name: "CreateTicket", typ: models.TypeCreateTicket, category: models.CategoryAdmin}
+	return &unimplementedHandler{name: "CreateTicket", typ: models.TypeCreateTicket, category: models.CategoryAdmin}
 }
 
 func NewCloseTicketHandler() IJobActionHandler {
-	return &stubHandler{name: "CloseTicket", typ: models.TypeCloseTicket, category: models.CategoryAdmin}
+	return &unimplementedHandler{name: "CloseTicket", typ: models.TypeCloseTicket, category: models.CategoryAdmin}
 }
 
 func NewUpdateTicketHandler() IJobActionHandler {
-	return &stubHandler{name: "UpdateTicket", typ: models.TypeUpdateTicket, category: models.CategoryAdmin}
+	return &unimplementedHandler{name: "UpdateTicket", typ: models.TypeUpdateTicket, category: models.CategoryAdmin}
 }
 
 func NewRunHealthCheckHandler() IJobActionHandler {
-	return &stubHandler{name: "RunHealthCheck", typ: models.TypeRunHealthCheck, category: models.CategoryMonitoring}
+	return &unimplementedHandler{name: "RunHealthCheck", typ: models.TypeRunHealthCheck, category: models.CategoryMonitoring}
 }
 
 func NewStopServiceHandler() IJobActionHandler {
-	return &stubHandler{name: "StopService", typ: models.TypeStopService, category: models.CategoryDeployment}
+	return &unimplementedHandler{name: "StopService", typ: models.TypeStopService, category: models.CategoryDeployment}
 }
 
 func NewStartServiceHandler() IJobActionHandler {
-	return &stubHandler{name: "StartService", typ: models.TypeStartService, category: models.CategoryDeployment}
+	return &unimplementedHandler{name: "StartService", typ: models.TypeStartService, category: models.CategoryDeployment}
 }
 
 func NewChangeConfigHandler() IJobActionHandler {
-	return &stubHandler{name: "ChangeConfig", typ: models.TypeChangeConfig, category: models.CategoryAdmin}
+	return &unimplementedHandler{name: "ChangeConfig", typ: models.TypeChangeConfig, category: models.CategoryAdmin}
 }
 
 func NewSnapshotHandler() IJobActionHandler {
-	return &stubHandler{name: "Snapshot", typ: models.TypeSnapshot, category: models.CategoryData}
+	return &unimplementedHandler{name: "Snapshot", typ: models.TypeSnapshot, category: models.CategoryData}
 }
 
 func NewRollbackHandler() IJobActionHandler {
-	return &stubHandler{name: "Rollback", typ: models.TypeRollback, category: models.CategoryDeployment}
+	return &unimplementedHandler{name: "Rollback", typ: models.TypeRollback, category: models.CategoryDeployment}
 }

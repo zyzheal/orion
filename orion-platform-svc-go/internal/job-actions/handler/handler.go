@@ -47,7 +47,7 @@ func (h *Handler) CreateAction(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	if _, ok := containsActionType(req.Type); !ok {
+	if !containsActionType(req.Type) {
 		respondBadRequest(c, "unsupported action type: "+req.Type)
 		return
 	}
@@ -100,7 +100,13 @@ func (h *Handler) ExecuteAction(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "JobActionsExecuteAction")
 	defer span.End()
 	var req models.ExecuteActionRequest
-	_ = c.ShouldBindJSON(&req)
+	// A malformed body is a caller error, not a missing-params request. The
+	// bind result used to be discarded with "_ =", so "paramas: oops" silently
+	// executed with no params at all and the audit row recorded success.
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, "invalid execute request: "+err.Error())
+		return
+	}
 
 	// Resolve the action name: prefer the persisted action's name; fall back
 	// to using the param :id as the action type directly.
@@ -120,6 +126,13 @@ func (h *Handler) ExecuteAction(c *gin.Context) {
 			respondNotFound(c, err.Error())
 			return
 		}
+		// The executor recorded this execution as 'failed' before returning.
+		// 501 says "the server cannot do this" rather than 500 "something broke",
+		// which is what a caller reading the error needs to know.
+		if errors.Is(err, service.ErrActionNotImplemented) {
+			respondNotImplemented(c, err.Error())
+			return
+		}
 		respondInternalError(c, err.Error())
 		return
 	}
@@ -134,14 +147,16 @@ func (h *Handler) GetHistory(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "JobActionsGetHistory")
 	defer span.End()
 	actionID := c.Param("id")
-	// Verify action belongs to tenant
-	if _, terr := h.repo.GetAction(ctx, h.tenantID(c), actionID); terr != nil {
+	tenant := h.tenantID(c)
+	// The owner check is the tenancy gate for this endpoint; ListHistory also
+	// scopes by tenant itself, so the audit table cannot be probed by id guess.
+	if _, terr := h.repo.GetAction(ctx, tenant, actionID); terr != nil {
 		respondNotFound(c, terr.Error())
 		return
 	}
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	resp, err := h.repo.ListHistory(ctx, actionID, limit, offset)
+	resp, err := h.repo.ListHistory(ctx, tenant, actionID, limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -153,11 +168,17 @@ func (h *Handler) GetHistory(c *gin.Context) {
 // helpers
 // ---------------------------------------------------------------------------
 
-func containsActionType(t string) (map[string]struct{}, bool) {
-	registry := make(map[string]struct{})
+// allActionTypes is built once. The previous version allocated a fresh map on
+// every call and returned it to the caller, which discarded it.
+var allActionTypes = func() map[string]struct{} {
+	set := make(map[string]struct{}, len(models.AllActionTypes))
 	for _, typ := range models.AllActionTypes {
-		registry[typ] = struct{}{}
+		set[typ] = struct{}{}
 	}
-	_, ok := registry[t]
-	return registry, ok
+	return set
+}()
+
+func containsActionType(t string) bool {
+	_, ok := allActionTypes[t]
+	return ok
 }

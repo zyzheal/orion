@@ -16,6 +16,21 @@ import (
 	"orion/platform-svc-go/internal/job-actions/models"
 )
 
+// Each SELECT below names its columns explicitly instead of using *.
+//
+// go-common's database.Connect goes through sqlx.Open and never calls
+// Unsafe, so sqlx scans in safe mode and a wildcard select dies on the
+// first row as soon as a migration adds a column the models do not
+// declare -- 'missing destination name <col>'. That error is not
+// sql.ErrNoRows, so it walks repository -> service -> handler and the
+// endpoint answers 500 instead of data. Naming the columns returns
+// exactly what the models declare.
+const (
+	actionColumns = "id, tenant_id, name, type, description, params, category, timeout, retry_count, enabled, created_at, updated_at"
+
+	executionColumns = "id, tenant_id, action_id, params, status, output, error, duration_ms, started_at, finished_at, created_at"
+)
+
 type Repository struct {
 	db *sqlx.DB
 }
@@ -123,7 +138,7 @@ func (r *Repository) CreateAction(ctx context.Context, tenantID string, req *mod
 
 func (r *Repository) GetAction(ctx context.Context, tenantID, id string) (*models.JobAction, error) {
 	var a models.JobAction
-	err := r.db.GetContext(ctx, &a, `SELECT * FROM job_actions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.db.GetContext(ctx, &a, `SELECT `+actionColumns+` FROM job_actions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("action not found: %s", id)
@@ -199,7 +214,7 @@ func (r *Repository) CreateExecution(ctx context.Context, e *models.JobActionExe
 
 func (r *Repository) GetExecution(ctx context.Context, tenantID, id string) (*models.JobActionExecution, error) {
 	var e models.JobActionExecution
-	err := r.db.GetContext(ctx, &e, `SELECT * FROM job_action_executions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.db.GetContext(ctx, &e, `SELECT `+executionColumns+` FROM job_action_executions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("execution not found: %s", id)
@@ -221,14 +236,25 @@ func (r *Repository) UpdateExecution(ctx context.Context, tenantID, id string, f
 	return err
 }
 
-func (r *Repository) ListHistory(ctx context.Context, actionID string, limit, offset int) (*models.HistoryListResponse, error) {
+// ListHistory returns one action's executions for one tenant.
+//
+// tenantID is a parameter, not just a pre-check in the handler: the
+// handler verifies that the action id belongs to the tenant before
+// calling here, but ad-hoc executions write action_id as the raw type
+// string and job_action_executions has no foreign key back to
+// job_actions, so an id that one tenant owns is still addressable from
+// another tenant's call unless the predicate is in the query itself.
+func (r *Repository) ListHistory(ctx context.Context, tenantID, actionID string, limit, offset int) (*models.HistoryListResponse, error) {
 	limit = clamp(limit, 1, 100)
 	resp := &models.HistoryListResponse{}
-	if err := r.db.GetContext(ctx, &resp.Total, `SELECT COUNT(*) FROM job_action_executions WHERE action_id=$1`, actionID); err != nil {
+	if err := r.db.GetContext(ctx, &resp.Total,
+		`SELECT COUNT(*) FROM job_action_executions WHERE tenant_id=$1 AND action_id=$2`, tenantID, actionID); err != nil {
 		return nil, err
 	}
+	resp.Data = make([]models.JobActionExecution, 0, limit)
 	if err := r.db.SelectContext(ctx, &resp.Data,
-		`SELECT * FROM job_action_executions WHERE action_id=$1 ORDER BY started_at DESC LIMIT $2 OFFSET $3`, actionID, limit, offset); err != nil {
+		`SELECT `+executionColumns+` FROM job_action_executions WHERE tenant_id=$1 AND action_id=$2 ORDER BY started_at DESC LIMIT $3 OFFSET $4`,
+		tenantID, actionID, limit, offset); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -267,13 +293,13 @@ func buildNamedSet(fields map[string]interface{}) string {
 func buildActionQueries(category, tenantID string, limit, offset int) (countQ, listQ string, countArgs, listArgs []interface{}) {
 	if category != "" {
 		countQ = `SELECT COUNT(*) FROM job_actions WHERE tenant_id=$1 AND category=$2`
-		listQ = `SELECT * FROM job_actions WHERE tenant_id=$1 AND category=$2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`
+		listQ = `SELECT ` + actionColumns + ` FROM job_actions WHERE tenant_id=$1 AND category=$2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`
 		countArgs = []interface{}{tenantID, category}
 		listArgs = []interface{}{tenantID, category, limit, offset}
 		return countQ, listQ, countArgs, listArgs
 	}
 	countQ = `SELECT COUNT(*) FROM job_actions WHERE tenant_id=$1`
-	listQ = `SELECT * FROM job_actions WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
+	listQ = `SELECT ` + actionColumns + ` FROM job_actions WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
 	countArgs = []interface{}{tenantID}
 	listArgs = []interface{}{tenantID, limit, offset}
 	return countQ, listQ, countArgs, listArgs

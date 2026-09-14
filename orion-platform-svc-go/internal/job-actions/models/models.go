@@ -2,8 +2,13 @@
 //
 // Job actions are atomic, reusable operations that can be executed
 // programmatically (e.g. by auto-exec tasks) or via the REST API.
-// 42 action types spanning deployment, infrastructure, data,
+// 46 action types spanning deployment, infrastructure, data,
 // notification, admin and monitoring categories.
+//
+// Declaring a type here only registers it: it makes the type creatable
+// as a persisted definition. Executing it is a separate question that
+// service.unimplementedHandler answers honestly -- all 46 currently do
+// not have a backend.
 package models
 
 import "time"
