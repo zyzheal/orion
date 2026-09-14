@@ -8110,3 +8110,129 @@ R28 把它记为「整体未挂载的死代码」，R27 把它的 `SELECT *` 记
 6. `branch` 归一化不含「小写」——`normaliseBranch` 只做 `TrimSpace` + 空值默认 + 128 截断，**没有 `ToLower`**。
 
 **教训**：断言一个模块「有 N 条规则 / M 个索引 / K 条测试」时，先 `grep -c` 再落笔。§29 的 R29 行同样存在「32 条新测试」这类未从源码核对的数字，本轮未回溯修订（前几轮的数字由当时的 grep 得出，本轮不重验以免引入新的不确定）。
+
+## 第三十一轮：internal/job-actions 46 个动作桩全部改为诚实失败 + ListHistory 补租户隔离（2026-09-14）
+
+- HEAD 起点 `27f04470a`（R30 docs）。代码提交 **`9340a4416`**：8 文件，821 行新增 / 99 行删除。文档：`docs/ALL_TODOS.md` 第 358 行 + 本节。
+- 模块：`internal/job-actions`（handler / service / repository / models 四层，`router.go:133` 生产注册）。
+- 本轮**没有新增任何生产代码路径**，只把已有的失败路径打通。
+
+### 31.1 选它的理由
+
+R30 扫的是 `internal/code-scan`——一个有 56 个测试函数、能真跑的模块。本轮换到 `internal/job-actions`，因为它是全仓**最大的一处「声明即成功」面**：
+
+1. **46 个动作类型**全部由 `stubHandler` 承接，其 `Execute` 返回 `Success: true, Output: "[restart_service] executed", nil`。`ExecuteAction` 拿到这个返回值后落库 `status='completed'` + `duration_ms` ≈ 0。任何调用方看审计记录都会相信 `kubectl_apply` 真的执行了，而服务没碰过任何一个 SSH / Kubernetes / DB / broker / 对象存储。
+2. **它是唯一注册进路由的 46 连桩**：5 条路由、4 条 `auth.RequirePermission` 守卫，生产上完全可用。不是死代码，是活桩。
+3. **`ListHistory` 静默丢弃租户参数**——本轮最高危的一条（见 §31.2 D）。
+4. `UpdateExecution` 的同型 `buildNamedSet` 缺陷 R14 已修（§14.7），但**执行记录到不了终态**这一半是 R14 的修法；本轮发现 `StatusRunning` 这个常量从没有任何写入点。
+
+### 31.2 缺陷
+
+**A｜46 个动作假成功（主缺陷）**
+`stubHandler.Execute` 返回 `Success: true`，`ExecuteAction` / `executeByType` 走成功分支，落库 `status='completed'`、`output='[<type>] executed'`、`duration_ms` 约 0。审计表从此永久说谎。
+
+**B｜重试放大**
+`runWithRetries` 只对 `err != nil` 判断可重试，而桩返回 `nil`——所以重试路径其实**根本没跑**。反过来看：一旦换成真实后端且返回永久错误，`retries=5` 会重试 6 次，每次都先 UPDATE 一次行。
+
+**C｜`StatusRunning` 永远写不进去**
+`models.StatusRunning = "running"` 是 4 个状态常量之一，但**整个模块没有任何写入点**。行从 `pending` 直接跳到 `completed` / `failed`，`started_at` 从不写，`duration_ms` 从一个稍晚的 `time.Now()` 起算——**行声称的起点和实际计时的起点不是同一个瞬间**。
+
+**D｜`ListHistory` 静默丢弃租户参数（最高危）**
+签名是 `ListHistory(ctx, tenantID, actionID, limit, offset)`，但两条 SQL 只有 `WHERE action_id=$1`。参数被绑定却从不参与过滤。这是「参数签名看起来正确、行为完全不分租户」的经典形态：`go vet` 不报（参数用了），单测用 `AnyArg` 也不报。
+
+**D2｜sqlx safe mode 下的 5 处 `SELECT *`**
+`database.Connect` 走 `sqlx.Open` 从不调 `Unsafe`，wildcard select 在迁移首次加入模型未声明的列时**第一行数据就死**，报 `missing destination name <col>`。该错误不是 `sql.ErrNoRows`，一路传到 handler 变成 **500 而不是数据**（R30 在 code-scan 发现的是同一类缺陷）。
+
+**E｜文档漂移**
+`models.go` 与 `executor.go` 的包注释都写「42 个动作类型」，实际 `Type*` 常量 **46** 个、`AllActionTypes` 46 项、构造 46 处。
+
+**F｜`containsActionType` 返回被丢弃的 map**
+`CreateAction` 调用后只用 `ok`，`m` 每次调用新建一张 46 项 map 然后丢弃。
+
+**G｜`ShouldBindJSON` 的错误被丢弃**
+`CreateAction` 与 `ExecuteAction` 都是 `_ = c.ShouldBindJSON(&req)`。畸形 JSON 绑定失败后继续用零值请求体往下走：`CreateAction` 用 `name=""`、`type=""` 建动作。
+
+### 31.3 修复
+
+| 项 | 修法 |
+|---|---|
+| A | `stubHandler` → `unimplementedHandler`，`Execute` 返回 `fmt.Errorf("%w: %s", ErrActionNotImplemented, s.typ)`，46 处全改。走既有失败分支落库 `status='failed'` + `error='action not implemented: <type>'`。 |
+| B | `runWithRetries` 首行加 `errors.Is(err, ErrActionNotImplemented)` 短路 `return nil, err`。该哨兵错误的文档注释写明「重试它不可能成功」。 |
+| C | 新增 `markRunning(ctx, ex, start)` 写 `status='running'` + `started_at`，在 `runWithRetries` 之前调用（两处）。时钟原点 hoist 成 `start := time.Now().UTC()`，审计行与耗时计数共用同一个瞬间。 |
+| D | `ListHistory` 两条 SQL 都加 `WHERE tenant_id=$1 AND action_id=$2`；handler 把 `tenant := h.tenantID(c)` 提到前面一次取，同时喂 `GetAction` 与 `ListHistory`。 |
+| D2 | 新增 `actionColumns`（12 列）/ `executionColumns`（11 列）两个常量，5 处数据行 SELECT 全改显式列名。3 处 `COUNT(*)` 保留（合法）。repository.go 内 `SELECT *` **0** 处。 |
+| E | 三处注释 42 → 46，并加一句说明「声明类型只是注册，执行会由 `unimplementedHandler` 诚实回答」。 |
+| F | `containsActionType` 改成包级懒初始化 map + 纯 `bool` 返回，三行。 |
+| G | 两处都改成 `if err := c.ShouldBindJSON(&req); err != nil { respondBadRequest(...) }`。 |
+| — | `NewJobActionExecutor` 加 `logger == nil` 守卫（`zap.NewNop()`），与 code-scan service 一致。 |
+| — | `handler.go` 新增 `errors.Is(err, service.ErrActionNotImplemented)` 分支 → `respondNotImplemented` → **501**；`response_writer.go` 新增 `codeNotImplemented = "NOT_IMPLEMENTED"` 与 `respondNotImplemented`。 |
+| — | `ListHistory` 入口 `limit = clamp(limit, 1, 100)`，调用方不能要无限响应。 |
+
+### 31.4 测试（22 个测试函数，全绿）
+
+`executor_test.go` 280 行 / 8 个测试，`handler_test.go` 208 行 / 6 个测试，`repository_test.go` +127 行（8 个测试，含原 4 个）。
+
+**结构性钉（防回退测试，不是行为测试）**：
+- `TestBuiltinHandlersNeverClaimSuccess`：在 `mu.RLock` 下快照 `exec.handlers`，断言条数 `== len(models.AllActionTypes)` 且**每一个** handler 的 `Execute` 都返回 `errors.Is(err, ErrActionNotImplemented)` 为真的错误。将来有人真接一个 SSH 后端，**这个测试立刻红**——设计意图，不是误报。
+- `TestEveryDeclaredTypeIsRegisteredAndViceVersa`：双向断言 `AllActionTypes` ↔ handler map 键。
+- `TestNoWildcardSelectInTheRepository`：`filepath.Glob("*.go")` 遍历本目录非测试文件，任何 `SELECT *` 直接 `t.Error`；0 个文件时 `t.Fatal`（防测试自身空跑）。
+- `TestColumnConstantsMatchTheModels`：正则从源码抽出两个列常量，按逗号切分计数，期望 12 与 11（对应 `JobAction` 12 个 `db` tag、`JobActionExecution` 11 个，合计 23）。
+- `TestAllActionTypesAreUniquelyDeclared`。
+- `TestExecuteActionRejectsUnknownTypeWithoutRecording` / `TestExecuteActionFailsForPersistedActionWithoutBackend`。
+
+**全链路 handler 测试**（`gin.TestMode` + `sqlmock` + 中间件设 `c.Set("roles", []string{"admin"})`——不设就被 `RequirePermission` 403 掉，这是本会话踩出的坑）：
+- `TestExecuteActionAnswersNotImplemented`：2 条查询 → INSERT → 2 条 UPDATE → **501**，`code == NOT_IMPLEMENTED`，body 含 `"not implemented: restart_service"`。
+- `TestExecuteActionRejectsMalformedBody`：400 + `"invalid execute request"`，**零 DB 期望**，所以多打一条查询会 500 而不是静默通过。
+- `TestGetHistoryScopesByTenant`：三条查询都用 `WithArgs("t1","a-1",…)` 钉死精确值，断言 body 含 `"tenant_id":"t1"`。
+- `TestListHistoryClampsTheLimit`：`WithArgs("tenant-a","a-1",100,0)`——见 §31.5 M8。
+
+**sqlmock 的两个坑（本轮踩出并写进注释）**：
+1. v1.5.2 的 `QueryMatcherRegexp` 把期望与实际都用 `regexp.MustCompile("\\s+")` 归一成单空格后做 `re.MatchString(actual)`——**未锚定，但必须是连续子串**。写 `SELECT id, tenant_id, name, type FROM job_actions` 匹配不上真实查询，因为它隐含「type FROM」，而实际是「type, description, params…」。必须写完整连续列名。
+2. `buildNamedSet` 遍历 Go map，**SET 子句列顺序每次调用都不同**，所以 UPDATE 不能用 `WithArgs` 钉顺序，只能靠查询正则区分（`started_at` 只出现在 markRunning 的 UPDATE，`finished_at` 只出现在 finalizeExecution 的）。v1.5.2 没有 `ExpectedSQL` / `ActualArgs` 结构，事后无法查参数——因此**必须**用 `WithArgs` 钉精确值来证明测试不空。
+
+### 31.5 变异证明 8/8
+
+每个变异先断言锚点出现次数 == 1，应用后跑测试，恢复后 `sha256sum -c` 校验源码逐字节一致。共 **18 次测试失败，0 个存活，0 个无效（编译失败）**：
+
+| # | 变异 | 杀它的测试数 | 具体 |
+|---|---|---|---|
+| M1 | `unimplementedHandler.Execute` 恢复 `Success:true, Output "[<type>] executed", nil` | 4 | 3 个 service 测试 + `TestExecuteActionAnswersNotImplemented` |
+| M2 | 删掉 `runWithRetries` 的 `ErrActionNotImplemented` 早退 | 1 | `TestRunWithRetriesStopsOnPermanentError`（**配对测试 `TestRunWithRetriesStillRetriesTransientErrors` 仍绿**，证明早退只影响永久错误） |
+| M3 | 删掉两处 `e.markRunning(...)` 调用 | 3 | — |
+| M4 | 保留 `tenantID` 参数但两条查询都去掉 `tenant_id` 谓词 | 3 | `TestGetHistoryScopesByTenant` + 2 个 repository 测试 |
+| M5 | 恢复 `_ = c.ShouldBindJSON(&req)` | 1 | `TestExecuteActionRejectsMalformedBody` |
+| M6 | `GetAction` 恢复 `SELECT *` | 3 | 2 个 repository 测试 + `TestNoWildcardSelectInTheRepository` |
+| M7 | `containsActionType` 对任何输入返回 `true` | 2 | `TestCreateActionRejectsUnknownType` + `TestContainsActionType` |
+| M8 | 删掉 `limit = clamp(limit, 1, 100)` | 1 | `TestListHistoryClampsTheLimit` |
+
+**M8 是本轮最值的一条——它杀的是我自己写的测试**：`TestListHistoryClampsTheLimit` 最初用 `sqlmock.AnyArg()` 接 limit，删掉 clamp 后测试照样绿。把 `AnyArg()` 换成精确的 `100, 0` 之后，M8 立刻报 `argument 2 expected [int64 - 100] does not match actual [int64 - 99999]`。**教训：本轮新写的每个测试都要被一个变异杀死一次才算数；`AnyArg` 默认视为可疑。**
+
+### 31.6 验证
+
+- `gofmt -l internal/job-actions/` → 空。
+- `go build ./...` → 通过。
+- `go vet ./internal/job-actions/...` → 通过。
+- `go test -count=5 -race ./internal/job-actions/...` → 全绿（handler 1.093s / repository 1.070s / service 1.071s）。
+- `go test ./...` → exit 0，`grep -cE '^(FAIL|--- FAIL)'` == 0。
+
+### 31.7 只记录不修
+
+1. **46 个动作依然没有真实实现**——这是本轮的处置结论，不是遗漏。本仓库没有任何 SSH client、Kubernetes client、DB 驱动、消息 broker 或对象存储；从 HTTP 端点执行 `kubectl_apply` / `shell_command` 是**安全决策**，不是桩修复，属于产品与安全评审的范畴。按「基础设施确实不存在时只记录」的准则，诚实的修法是**停止宣称成功**：行落 `failed`、原因写进 `error` 列、端点回 501。
+2. **不提供 `IsImplemented` / `ImplementedTypes`**：零生产调用方，零信息量的方法是死代码。`TestBuiltinHandlersNeverClaimSuccess` 的逐 handler 断言是能力发现的替代品——真后端一出现它就红，提示同步更新。
+3. **不新增路由**：501 走既有的 `POST /api/job-actions/:id/execute`。前端零调用方（`grep -rln 'job-actions\|jobActions' orion-frontend/src` == 0）。
+4. **go-common `pkg/errors` 无 `NOT_IMPLEMENTED` 常量**：全仓 grep 不到，加常量超出授权范围（`orion-go-common/` 除 `pkg/auth/` 外不动）。`WriteError` 接受任意字符串，所以字面量 `codeNotImplemented = "NOT_IMPLEMENTED"` 就放在唯一发射点旁边。
+5. **`CreateAction` 的 400 消息没有 `invalid action request:` 前缀而 `ExecuteAction` 的有**——纯文案不一致，未改。
+6. **3 处 `COUNT(*)` 保留**：合法（`ListHistory` 的 total + `buildActionQueries` 两处分页计数），不是 wildcard select。
+7. **审计行的 `output` 列对失败动作为空**：真实后端接入后才有意义。
+
+### 31.8 跨轮遗留（更新后）
+
+§30.8 全部保留。
+
+**本轮作废的历史条目**：Phase H.1 记录的「job-actions stubHandler：intentional no-op（代表无真实 executor 的 action 类型，仅用于验证）」（本文 line 4402）——**这条是错的**。桩返回 `Success: true` 且落库 `completed`，不是「no-op」，是**假成功**，而且路由在生产上真的注册了。本轮改成诚实失败后该条目整体失效。
+
+**新增跨轮遗留**：仅 §31.7 第 1 条（46 个动作无真实实现），它同时是模块当前的已知状态——**除非真后端出现，否则不要把它当作新发现重报**。
+
+**本轮自查的文档数字（全部从源码 grep 得出）**：46 个 `Type*` 常量 / 46 处 `unimplementedHandler` 构造 / 6 个 `Category*` 常量 / repository.go 内 `SELECT *` 0 处 / 5 处数据行 SELECT 已改显式列名 / 2 处 `WHERE tenant_id=$1 AND action_id=$2` / 22 个测试函数（service 8 / repository 8 / handler 6）/ 8 个变异全杀、18 次测试失败 / 提交 `9340a4416` 8 文件 821 增 99 删 / `jobActionsH` 在 `router.go:133` / `stubHandler` 全仓仅剩 1 处，是 `executor.go:371` 记录旧行为的注释。
+
+**调试记录（写进文档以免下轮重复踩）**：`TestGetHistoryScopesByTenant` 最初断言 body 含 `":restart_service"`，而实际输出是 `action not implemented: restart_service`——`fmt.Errorf("%w: %s", …)` 输出的是冒号**加空格**。查了几轮非 ASCII 字节、隐藏字符、过期二进制才发现是断言少了个空格。**教训：断言字符串失败时先逐字符读打印出来的实际值，再怀疑工具或正则。**
