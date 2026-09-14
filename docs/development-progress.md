@@ -8468,3 +8468,181 @@ SELECT * FROM permissions WHERE tenant_id=$1
 4. **`grep -c` 返回 0 匹配时退出码是 1** —— 在 `&&` 链里会让后续步骤静默不执行。
 5. **Bash 的 CWD 在命令之间会重置到 `/Users/heal/orion-design`** —— 本轮 `go build ./internal/permission/...` 因为跑在仓库根而不是模块根，报 `lstat ./internal/permission/: no such file or directory`。每次都要显式 `cd`。
 6. **临时 PostgreSQL 的 socket 目录必须先建** —— `pg_ctl -o "-k /tmp/r32pg/sock"` 但 `/tmp/r32pg/sock` 不存在时，postgres 直接 `FATAL: could not create lock file`。`mkdir -p` 放在 `initdb` 之前。
+
+## 第三十三轮：internal/capability 仓储层 33 个方法全量重写 + 迁移 582 补齐 4 张表 + 新增缺陷类 U（IN 占位符 off-by-one 导致的静默鉴权拒绝）+ 67 个新测试 + 4/4 变异证明（2026-09-14）
+
+- HEAD 起点 `1c39fad95`（R32 docs）。代码提交 **`cb59929ed`**：11 文件，2108 行新增 / 403 行删除。追加代码提交 **`8e04810bb`**：1 文件，175 行新增 / 16 行删除（handler 404 翻译的补覆盖，见 §33.6）。合计 12 文件，2283 行新增 / 419 行删除。文档：`docs/ALL_TODOS.md` 第 360 行 + 本节。
+- 本轮和前三轮的性质不同：R30–R32 都是「一个模块撞一次同一类缺陷」，**本轮是一个模块撞了 9 类缺陷**。原因是这个模块的数据库层**从头到尾没有被任何迁移创建过**——33 个仓储方法里几乎每一个在真实数据库上执行到就报错。其余轮次的模块是「能跑但语义错」，这个模块是「一个都跑不通」。
+
+### 33.1 为什么这个模块
+
+三个理由，按权重排序：
+
+1. **它是唯一「审计链路实际不存在」的模块。** `InsertAuditLog` 的目标表 `permission_audit_logs` **从未被任何迁移创建**。所以授权、撤销、审批这些动作真实发生了，但 `capability_audit_logs` 永远为空，平台里查不到任何一条授权记录。对一个做权限管理的模块来说，这不是「功能缺失」，是**这个模块的核心契约从未被履行过**。
+2. **它撞的缺陷类最全。** 本轮一个模块里同时触到了 §33.2 列的 9 类缺陷中的 9 类。修一次等于把这一类问题的完整解法都立起来了，后面 263 处可以照着套。
+3. **它在 R32 的队列里排第 12 位**（4 处 wildcard SELECT），不算最高，但它的 4 行里有 3 行的 `missing=` 列表暴露出**代码引用的表根本不存在**（`permission_audit_logs`、`permission_requests`），这比「模型少个字段」严重一个量级。
+
+### 33.2 九个缺陷类
+
+**S｜schema 漂移** —— 代码引用 `capability_audit_logs` / `temporary_permissions` / `permission_requests` 的列，但**没有任何迁移创建这三张表**。这是本轮最根上的问题，其余多数错误都是它的地震余波：只要表不存在，后面所有 SQL 都在报错前先挂在 `relation does not exist` 上。**处置：新增迁移 582**（149 行 up + 27 行 down，共 176 行），创建 4 张表（`capabilities` / `temporary_permissions` / `permission_requests` / `capability_audit_logs`）+ 索引 + `gen_random_uuid()` 默认值。
+
+**A｜sqlx safe mode** —— `orion-go-common/pkg/database` 的 `db.Connect` 走 `sqlx.Open`，**从不调 `Unsafe`**，所以全程 safe mode 扫描。safe mode 的机制是先用 `rows.Columns()` 建列名→字段映射，再逐行扫描；映射表里出现一个模型没声明的列，就在**第一行**抛 `missing destination name <col>`。
+
+本轮的 4 个 model 全都缺列（`tenant_id` 首当其冲）。关键的性质是：**这个错误与表里有没有数据无关**，因为列名来自 `rows.Columns()`。所以「空表」给不出任何安慰——空表照样 500。
+
+**T｜UUID vs int** —— ID 字段用 `int`，driver 在**发出 SQL 之前**就报 `pq: invalid input syntax for type uuid: "1"`。这条错误有一个重要推论：**任何 `strconv.Atoi` 层面的修复都修不到这一层**，必须在 model 字段类型上改。本轮把 `TemporaryPermission.ID`、`AuditLog.ID`、`PermissionRequest.ID` 全部改为 `string`，handler 里对应删掉 5 处 `Atoi`。
+
+**E｜Update 接受 map 却完全无视** —— `Update(ctx, tenantID, id, updates)` 里 `updates` 参数被完全忽略，SQL 是写死的常量列表，调用方传什么进去都是**静默空操作后返回 nil**。这是「报告成功但什么都没改」的最坏形态：调用方无法从返回值判断操作是否生效，只有人工核对数据才能发现。处置：按白名单列名动态构造 `SET`，空字段集返回 `ErrNoUpdatableFields`，handler 翻译为 400。
+
+**N｜NULL 写入 NOT NULL** —— `temporary_permissions.granted_at` 在 INSERT 里漏写，而该列是 NOT NULL 且**无默认值**，报 `pq: null value in column "granted_at"`。活体实证：同一条 INSERT 加上 `granted_at=NOW()` 立刻返回 `<nil>`，两条只差一个字段，因果清楚（§33.8 第 4 条）。
+
+**C｜越权** —— 所有 UPDATE / DELETE 只按 `id` 定位，没有 `tenant_id` 谓词。修完这一项之后由 `TestWriteStatementsAreTenantBound` 永久钉住。
+
+**B｜保留字** —— `desc` 是 PostgreSQL 硬保留字，作为列名必须加双引号才能用；本轮直接改名为 `details`，避免留一个需要引号包裹的列。
+
+**D｜map 扫描取不到行** —— `SelectContext` 扫进 `[]map[string]interface{}` **无法返回任何行**（sqlx 的列→map 映射对这种目标不生效）。改为类型化的 `[]models.AuditLog`。
+
+**U｜IN 占位符 off-by-one —— 本轮新发现，静默鉴权拒绝**
+
+见 §33.3 单独一节。这是本轮唯一一处**不报错、数据也不错、但结论错**的缺陷，也是最难发现的一类。
+
+### 33.3 缺陷类 U：`CheckPermission` 的占位符错位
+
+修复前：
+
+```go
+placeholders := make([]string, len(userRoles))
+args := make([]interface{}, 3+len(userRoles))   // ← 多了 1
+args[0] = tenantID
+args[1] = capabilityID
+for i, role := range userRoles {
+    placeholders[i] = fmt.Sprintf("$%d", i+3)
+    args[i+3] = role                            // ← 下标从 3 开始
+}
+```
+
+两处各错一点，合起来是：**`args[2]` 从未被赋值**（切片长度是 `3+len`，但赋值从下标 3 开始），于是 SQL 渲染成 `role_name IN ($3, $4)` 时，`$3` 绑定的是 `interface{}(nil)`、末角色整个丢掉。
+
+后果在 SQL 语义上非常明确：`role_name IN (NULL, 'auditor')` 里**与 NULL 的比较永远是 unknown，永不相配**。所以第一个角色形同虚设，最后一个角色不存在。
+
+修复后：切片改为 `2+len`，赋值下标 `args[i+2]`，占位符 `fmt.Sprintf("$%d", i+3)` 保持不动。
+
+**为什么它危险**：
+
+- `err` 返回 `nil`，所以不会有任何 500、任何日志、任何告警。
+- 返回 `allowed=false`，`granted_via="no permission found"` —— **对调用方来说这是一个合法的正常结果**。一个真实有权限的用户会被判成「没权限」，他的唯一体验是「这个平台权限有问题」。
+- 反方向（本该拒绝的人被放行）不成立，所以它不会造成提权，只会造成**合法访问被拦**。但「合法用户被静默拒绝」在权限系统里和「未授权用户被放行」同样严重：前者让所有人认为授权配置失效，然后开始绕开它。
+
+**为什么单测能抓到、live 探针抓不到**：go-sqlmock 会**严格校验参数个数**（`arguments do not match: expected 4, but got 5`），错位立刻显形；而真实 PG 只检查「被引用的占位符是否存在」，`$3` 存在、绑定 NULL，完全合法。所以这个 bug 在真库里跑了多久都不会自己暴露。
+
+### 33.4 类 C 与类 S 必须同批落地
+
+这两处越权通道**目前是「死」的**——因为表不存在，任何写操作都失败在 `relation does not exist` 上，还没到「能不能跨租户」那一步。
+
+如果只补列、不补 `tenant_id` 谓词，等于把这两个**死通道当场转成真实权限提升**。所以迁移 582 和仓储层的租户谓词写在同一个提交里，中间没有可发布状态。这是一条通用规则：**给一张表补列时，先确认这张表所有写路径的租户谓词都在，再让补列的迁移上线。**
+
+### 33.5 测试写法：列契约必须独立于生产常量
+
+`repository_test.go` 从 27 行重写为 **1423 行 / 60 个测试**。核心设计只有一条：**列契约写在测试里，不引用生产代码的常量**。
+
+如果测试写 `want := capabilityColumns`（引用生产常量），那么代码和测试会**一起错**：把生产常量删掉一列，测试跟着变绿，缺陷就再也抓不到了。所以测试里手写了四份固定的列字符串（`wantCapabilityColumns` 等），再单独有一个测试断言「生产常量 == 我手写的那份」。这样两边任一边被改，另一个断言就会失败——**测试和生产常量互为镜像**。
+
+第二个手段更硬：**直接从 `migrations/` 解析真实 schema**（`schemaFromMigrations`，非递归遍历 `*.sql`、跳过 `*_down.sql`、解析 `CREATE TABLE` 与 `ALTER TABLE ADD COLUMN`），然后：
+
+- `TestRepositoryTablesExistInMigrations` —— 代码引用的每张表都必须真存在；
+- `TestRepositoryColumnsExistInMigrations` —— 每条 SELECT 列表、每个 SET 目标、每个 WHERE 谓词里的列都必须真存在（带 `checked >= 60` 下限，防止解析退化后空跑通过）；
+- `TestWriteStatementsAreTenantBound` —— 每条 UPDATE / DELETE 必须含 `tenant_id`；
+- `TestCapabilityIsNotWildcarded` —— 四张主表不得再出现 `SELECT * FROM`。
+
+这四条合起来是缺陷类 **S / A / C** 的通用解法，也是本轮能「一次修完 33 个方法」的原因：**守卫是跨方法的，不是逐方法补测试**。
+
+### 33.6 handler 侧：一个名字叫 NotFound、断言 500 的空测试
+
+主提交给 handler 加了 7 处 `service.IsNotFound(err)` 分支，但 `handler_test.go` 只有 1 处覆盖，而且**那一处是错的**：
+
+```go
+func TestHandler_Get_NotFound(t *testing.T) {
+    getFn: func(...) (*models.Capability, error) {
+        return nil, errors.New("capability not found")
+    },
+    ...
+    if w.Code != http.StatusInternalServerError { ... }   // 断言 500
+}
+```
+
+`errors.New("capability not found")` 造出的错误与 `ErrCapabilityNotFound` / `sentinel.NotFound` **不是同一个实例**，`errors.Is` 匹配不上，所以 `IsNotFound` 分支不触发、确实返回 500，测试因此全绿。
+
+它名字叫 NotFound，**钉住的却是「未找到也返回 500」这个正是要修的缺陷**。这是空测试最典型的一种形态：**名称与断言方向相反**，读起来像在测对的东西，实际在把 bug 固化成期望行为。
+
+处置：改为 `sentinel.NotFound` + 断言 404，并新增 `TestHandler_Get_NonSentinelErrorStays500` 把另一侧单独钉住——两个断言互相约束，防止有人为了改一侧而松掉另一侧。再补 6 个测试覆盖其余 6 处（5 处 → 404，`RequestPermission` 的无效 capability → 400，是 7 处中唯一返回 400 的）。同时把 mockSvc 的 6 个硬编码 `return nil` 桩改成可注入的函数字段，否则 mock 根本无法返回哨兵错误。每个新断言都校验了**路径参数被原样传递**，所以把 UUID 参数退回 `Atoi` 这类回退也会失败。
+
+### 33.7 变异证明 4/4（全部实测非空）
+
+| # | 变异 | 被谁杀死 |
+|---|---|---|
+| 1 | `List` 的 WHERE 去掉 `tenant_id`，换成 `name IS NOT NULL` | `TestListBindsTenantAndPaginates`、`TestListDefaultLimitApplies` |
+| 2 | 全局 `capability_audit_logs` → `permission_audit_logs` | **6 个**测试：`TestRepositoryTablesExistInMigrations`、`TestRepositoryColumnsExistInMigrations`、`TestAuditUsesTheTableThatHasTheColumns`、`TestListAuditLogsReturnsTypedRows`、`TestListAuditLogsFiltersBindAsParameters`、`TestInsertAuditLogTargetsTheCapabilityAuditTable` |
+| 3 | 删除 handler 全部 7 个 `IsNotFound` 分支 | **7 个新测试 1:1 全部杀死**（断言 404/400，实际返回 500） |
+| 4 | `GetTemporaryPermissionByID` 去掉 `AND tenant_id=$2`（跨租户越权读） | `TestGetTemporaryPermissionByID`、`TestGetTemporaryPermissionByIDMissingIsNotFound` |
+
+第 3 条的 1:1 对应关系值得单独说一句：**7 个分支 → 7 个测试，一一对应，没有冗余也没有空洞**。这意味着以后任何一个人删掉其中一处分支，都能立刻定位到是哪一条端点。
+
+### 33.8 活体证明
+
+一次性 PostgreSQL 16.14 实例 + 迁移 582，直连执行重写后的仓储：
+
+1. **38 PASS / 2 FAIL** —— 那 2 个「FAIL」是探针的预期：传入不存在的 id，仓储返回 `sentinel.NotFound`，探针把它们计为失败项。全部 4 个 NotFound 路径实测确认是 `sentinel.NotFound`（`errors.Is(err, sentinel.NotFound)` 为真），不是 `sql.ErrNoRows`、不是 nil。
+2. **跨租户隔离双向成立** —— 本租户 `List` 返回 8 行、外租户 0 行；临时权限本租户 5 条、外租户 0 条；**外租户拿本租户的 id 去读 → `sentinel.NotFound`**（而不是返回别人的数据，也不是 500）。
+3. **三处 `ON CONFLICT ... DO NOTHING` 全部触发** —— 重复 grant 到同一角色/用户不报错、不产生第二行，且标量 `SELECT ... INTO` 不会因多行而炸。
+4. **类 N 的直接实证** —— 同一条 INSERT 去掉 `granted_at` 报 `pq: null value in column "granted_at" of relation "temporary_permissions" violates not-null constraint`；**加上 `granted_at=NOW()` 立刻 `<nil>`**。两条只差一个字段。
+5. **类 U 专项 6 组 0 mismatch** —— 单角色精确匹配 / 两角色首中 / 两角色末中 / 三角色首位 / 全错角色 / 无角色，期望 `true,true,true,true,false,false`，实际全对，`via` 分别是 `"role-based grant"` 与 `"no permission found"`。修复前这 6 组里**有 4 组会判错**（首个角色绑 NULL 永不相配，末角色被丢）。
+6. 迁移可逆性：forward 20 → down → forward 再次执行，全部干净。
+
+实例已停、探针目录已删。
+
+### 33.9 验证
+
+- `go build ./...` → 通过（探针目录删除后重跑一次确认）。
+- `go vet ./internal/capability/...` → 通过。
+- `gofmt -l internal/capability/` → 空。
+- `go test ./...` → **503 个包 ok / 0 FAIL**。
+- capability 三包合计 **96 个测试**：repository **60**（本轮从 0 新增）、handler **23**（16 → 23）、service **13**。
+- 本轮新增测试 **67 个**（repository 60 + handler 7），新增测试代码约 1590 行。
+
+**本轮自查的文档数字（全部现测）**：12 文件 / 2283 增 / 419 删 / 176 行迁移 / 9 个缺陷类 / 60 仓储测试 / 23 handler 测试 / 96 合计 / 67 新增 / 4/4 变异 / 503 包 / 0 FAIL / 类 U 专项 6 组 0 mismatch / 队列 267→263 行、219→217 表、118→117 模块、capability 4→0 行。
+
+### 33.10 只记录不修
+
+1. **两个 `*_interface.go` 是手工编辑，不是工具再生。** `tools/generate_service_interface.go` 的 glob 只覆盖 `internal/**/repository/repository.go`，且 `SKIP_EXISTS` 拒绝覆盖任何已存在的 `*_interface.go`。强行删掉重生成会丢掉所有注释并造成上千行噪音 diff。文件头的「DO NOT EDIT」注释仍在，本轮**刻意偏离**并在此登记。若日后要改回自动生成，正确做法是改工具的 glob 与 `SKIP_EXISTS`，而不是手工删文件。
+2. **service 本地的 `RepositoryInterface` 有 31 个方法，不是 33。** 它没有 `GetParent` 和 `HasChildren` —— 这两个方法只在仓储层存在、service 没调。按「基础设施存在就不要删被测试的不可达代码，记录它」的准则保留。**但这也是一个真实的技术债**：service 的接口与仓储的接口已经不同步，测试里的 mock 必须精确实现 31 个方法（少一个多一个都编译不过），这是隐形的维护成本。
+3. **`ListAuditLogs` 把 `q.CapabilityID` 和 `q.TargetID` 都映射到 `target_id` 这一列。** 同时传这两个字段且值不同，会得到空结果——不是报错，是静默空集。本轮用 `TestListAuditLogsFiltersBindAsParameters` **把当前行为钉住**（`AND target_id=$2 AND target_id=$3`），但**该不该改还没定**：如果调用方确实只传一个，就无需改；如果要支持两个，需要加一列或改语义。
+4. **`verifyCapabilityExists` 对格式错误的 capability UUID 返回 500。** 传一个不是 UUID 的字符串，driver 报错，handler 没有翻译。记录，不修——它不是桩，也不会造成越权，只是错误码不够精细。
+5. §32.10 全部保留：拒绝 `db.Unsafe()`、缺跨模块 schema 同步测试、`permissions` 软删除语义未接入、5 个无白名单动态 SET 构造器、12 个 LEAK 模块、`Count`/聚合类 wildcard 合法、audit `Count`/`GetLatest` 无生产调用方。
+
+### 33.11 跨轮遗留（更新后）
+
+§32.11 全部保留，**新增两项、作废一项**。
+
+**本轮作废的历史条目**：`/tmp/r33/hits.txt` 里的 **capability 4 行全部作废**（队列刷新为 263 行 / 217 表 / 117 模块，capability 已归零）。这 4 行里有 3 行其实是**扫描器的假信号**——`permission_audit_logs` 和 `permission_requests` 两行标注的是「模型缺 capability_id / status / reason 等列」，实际是**这些表根本不存在**，扫描器把它当成「列不匹配」报出来了。这个教训值得记一笔：**当 `missing=` 列表里同时出现一大片业务主键时，先怀疑表不存在，而不是怀疑模型写漏了字段。**
+
+**新增跨轮遗留（按优先级）**：
+1. **`ListAuditLogs` 双字段映射同一列**（§33.10 第 3 条）—— 静默空集，需产品确认。
+2. **service / repository 接口不同步**（§33.10 第 2 条）—— mock 必须精确实现 31 个方法。
+3. **§32.11 第 1 项：22 处模型不映射 `tenant_id`** —— 本轮又验证一次它的严重性（类 C），优先级仍高于缺陷类 A。
+4. **263 处 wildcard SELECT / 217 张表 / 117 模块**（§32.8，队列已刷新）—— 头号仍是 infrastructure 17、config 12、governance 11、ticketing 9、monitoring 8。
+5. **5 个无白名单的动态 SET 构造器** —— SQL 注入面。
+6. **`permissions` 软删除语义未接入** —— 安全关键路径，需评审。
+7. **跨模块 schema 同步测试缺失** —— 本轮把 §32.10 第 2 条的那条建议实现了 70%（在 capability 一个模块内做成 `schemaFromMigrations`），**但它是逐模块手写的，没有做成跨模块的共享工具**。这正是推广到 263 处的最大障碍，也说明该工具化。
+8. **67 个无 SQL 的委托方法**、**178 个其它非租户死参数** —— `/tmp/r32scan/ts.txt`、`/tmp/r32scan/up3.txt`。
+
+**下一轮的入口**：`/tmp/r33/hits.txt`（**已刷新**为 263 行）+ `/tmp/r32scan/ts.txt` + `/tmp/r32scan/up3.txt`。
+
+**调试记录（写进文档以免下轮重复踩）**：
+
+1. **`errors.New("...")` 造出的错误不等于同名的 `var Err = errors.New("...")`。** `errors.Is` 是按**指针身份**匹配的，不是按消息文本。所以「用字符串造个错误来模拟 NotFound」这类测试写起来一行，实际测的是「非哨兵错误」分支，而且**测试名会骗人**。这是 §33.6 那个空测试的根因，也是所有 handler 层 404 测试必须用真哨兵的原因。
+2. **go-sqlmock 严格校验参数个数，真实 PG 不校验。** `WithArgs` 的元数不匹配会报 `arguments do not match: expected 4, but got 5`，而 `make([]interface{}, 3+n)` 这种多一格的错位在真库里完全合法（PG 只检查被引用的占位符是否存在）。**类 U 这类 bug 只能靠 mock 抓到**——所以凡是动态拼 `IN (...)` 的地方，单测里必须校验 `WithArgs` 的完整列表。
+3. **`SelectContext` 扫进 `[]map[string]interface{}` 取不到任何行。** 不是报错，是安静地返回空。想拿原始行要用 `Select` + 显式列，或改成类型化结构体。
+4. **Go 里 `` `\+` `` 是非法转义（双引号字符串），`` `\+`([^`]*)` `` 又是未闭合的原始字符串（原始字符串不能含反引号）。** 需要混用时拆成两段：`regexp.MustCompile("`([^`]*)`\\+" + regexp.QuoteMeta(k) + `\+` + "`([^`]*)`")` —— 双引号字符串可以含字面反引号，这是绕开这个组合坑的唯一干净写法。
+5. **python 补丁里 `assert` 写在 `open(p,"w")` 之前，断言一炸就是整个脚本什么都没写。** 本轮踩了四次。多文件补丁要拆成「每个文件先写盘、再校验下一个文件」。
+6. **`rm -rf` 跑在错误的 CWD 上会静默成功。** 本轮删探针目录时，命令实际跑在仓库根，`rm -rf` 对不存在的目录返回 0，然后 `git status` 仍显示探针目录还在。删目录后要**立刻 `git status` 复核**，不能只看命令退出码。
+7. **迁移目录里有子目录**（`cmdb-import` / `dba` / `file-handler` / `governance` / `notification` / `security` / `workflow`），`ls migrations/*.sql` 不受影响，但任何递归查找都要排除 `*_down.sql`。
