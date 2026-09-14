@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/security/models"
@@ -125,6 +126,10 @@ func (h *Handler) GetScan(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.GetByID(ctx, tenantID, c.Param("id"))
 	if err != nil {
+		if !service.IsNotFound(err) {
+			respondInternalError(c, err.Error())
+			return
+		}
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -136,6 +141,10 @@ func (h *Handler) DeleteScan(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
+		if !service.IsNotFound(err) {
+			respondInternalError(c, err.Error())
+			return
+		}
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -180,6 +189,10 @@ func (h *Handler) ListFindings(c *gin.Context) {
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	severity := c.Query("severity")
 	items, err := h.svc.ListFindings(ctx, tenantID, (page-1)*ps, ps, severity)
+	if errors.Is(err, service.ErrInvalidSeverity) {
+		respondBadRequest(c, err.Error())
+		return
+	}
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -193,6 +206,10 @@ func (h *Handler) GetFinding(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.GetFinding(ctx, tenantID, c.Param("id"))
 	if err != nil {
+		if !service.IsNotFound(err) {
+			respondInternalError(c, err.Error())
+			return
+		}
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -210,6 +227,10 @@ func (h *Handler) UpdateFinding(c *gin.Context) {
 	}
 	d, err := h.svc.UpdateFinding(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
+		if !service.IsNotFound(err) {
+			respondInternalError(c, err.Error())
+			return
+		}
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -219,7 +240,8 @@ func (h *Handler) UpdateFinding(c *gin.Context) {
 func (h *Handler) FindingsByScanID(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterFindingsByScanID")
 	defer span.End()
-	items, err := h.svc.FindingsByScanID(ctx, c.Param("scan_id"))
+	tenantID := c.GetString("tenant_id")
+	items, err := h.svc.FindingsByScanID(ctx, tenantID, c.Param("scan_id"))
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -276,6 +298,10 @@ func (h *Handler) GetAuditPlan(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.GetAuditPlan(ctx, tenantID, c.Param("id"))
 	if err != nil {
+		if !service.IsNotFound(err) {
+			respondInternalError(c, err.Error())
+			return
+		}
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -293,6 +319,10 @@ func (h *Handler) UpdateAuditPlan(c *gin.Context) {
 	}
 	d, err := h.svc.UpdateAuditPlan(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
+		if !service.IsNotFound(err) {
+			respondInternalError(c, err.Error())
+			return
+		}
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -304,6 +334,10 @@ func (h *Handler) DeleteAuditPlan(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.DeleteAuditPlan(ctx, tenantID, c.Param("id")); err != nil {
+		if !service.IsNotFound(err) {
+			respondInternalError(c, err.Error())
+			return
+		}
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -327,7 +361,8 @@ func (h *Handler) ExecuteAudit(c *gin.Context) {
 func (h *Handler) ListExecutions(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterListExecutions")
 	defer span.End()
-	items, err := h.svc.ListExecutions(ctx, c.Param("plan_id"))
+	tenantID := c.GetString("tenant_id")
+	items, err := h.svc.ListExecutions(ctx, tenantID, c.Param("plan_id"))
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -338,8 +373,13 @@ func (h *Handler) ListExecutions(c *gin.Context) {
 func (h *Handler) GetExecution(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterGetExecution")
 	defer span.End()
-	d, err := h.svc.GetExecution(ctx, c.Param("id"))
+	tenantID := c.GetString("tenant_id")
+	d, err := h.svc.GetExecution(ctx, tenantID, c.Param("id"))
 	if err != nil {
+		if !service.IsNotFound(err) {
+			respondInternalError(c, err.Error())
+			return
+		}
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -381,8 +421,13 @@ func (h *Handler) ListCompliancePolicies(c *gin.Context) {
 func (h *Handler) GetCompliancePolicy(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterGetCompliancePolicy")
 	defer span.End()
-	d, err := h.svc.GetCompliancePolicy(ctx, c.Param("id"))
+	tenantID := c.GetString("tenant_id")
+	d, err := h.svc.GetCompliancePolicy(ctx, tenantID, c.Param("id"))
 	if err != nil {
+		if !service.IsNotFound(err) {
+			respondInternalError(c, err.Error())
+			return
+		}
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -392,7 +437,12 @@ func (h *Handler) GetCompliancePolicy(c *gin.Context) {
 func (h *Handler) DeleteCompliancePolicy(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterDeleteCompliancePolicy")
 	defer span.End()
-	if err := h.svc.DeleteCompliancePolicy(ctx, c.Param("id")); err != nil {
+	tenantID := c.GetString("tenant_id")
+	if err := h.svc.DeleteCompliancePolicy(ctx, tenantID, c.Param("id")); err != nil {
+		if !service.IsNotFound(err) {
+			respondInternalError(c, err.Error())
+			return
+		}
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -416,8 +466,13 @@ func (h *Handler) EvaluateCompliance(c *gin.Context) {
 func (h *Handler) GetLatestEvaluation(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterGetLatestEvaluation")
 	defer span.End()
-	d, err := h.svc.GetLatestEvaluation(ctx, c.Param("policy_id"))
+	tenantID := c.GetString("tenant_id")
+	d, err := h.svc.GetLatestEvaluation(ctx, tenantID, c.Param("policy_id"))
 	if err != nil {
+		if !service.IsNotFound(err) {
+			respondInternalError(c, err.Error())
+			return
+		}
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -432,8 +487,13 @@ func (h *Handler) GetComplianceEvaluation(c *gin.Context) {
 	// first and discarded its result — that method unconditionally returned
 	// ErrPolicyNotFound, so this route always answered 404 and the real lookup
 	// below was unreachable.
-	d, err := h.svc.GetLatestEvaluation(ctx, c.Param("id"))
+	tenantID := c.GetString("tenant_id")
+	d, err := h.svc.GetLatestEvaluation(ctx, tenantID, c.Param("id"))
 	if err != nil {
+		if !service.IsNotFound(err) {
+			respondInternalError(c, err.Error())
+			return
+		}
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -488,8 +548,13 @@ func (h *Handler) ListSBOMs(c *gin.Context) {
 func (h *Handler) GetSBOM(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterGetSBOM")
 	defer span.End()
-	d, err := h.svc.GetSBOM(ctx, c.Param("id"))
+	tenantID := c.GetString("tenant_id")
+	d, err := h.svc.GetSBOM(ctx, tenantID, c.Param("id"))
 	if err != nil {
+		if !service.IsNotFound(err) {
+			respondInternalError(c, err.Error())
+			return
+		}
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -533,6 +598,10 @@ func (h *Handler) GetDependencyGraph(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.GetDependencyGraph(ctx, tenantID, c.Param("package_name"), c.Param("package_version"))
 	if err != nil {
+		if !service.IsNotFound(err) {
+			respondInternalError(c, err.Error())
+			return
+		}
 		respondNotFound(c, err.Error())
 		return
 	}

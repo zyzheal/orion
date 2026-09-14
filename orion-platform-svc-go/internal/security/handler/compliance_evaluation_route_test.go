@@ -16,6 +16,17 @@ import (
 	"orion/platform-svc-go/internal/security/service"
 )
 
+// withTenant mounts the tenant the production middleware puts in the context.
+// gin reads c.GetString("tenant_id") from c.Keys, not from the request context,
+// so a bare httptest request would hand every handler an empty tenant and
+// silently scope the query at "".
+func withTenant(tenantID string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Set("tenant_id", tenantID)
+		c.Next()
+	}
+}
+
 // TestGetComplianceEvaluationRouteServesLatestEvaluation guards the
 // GET /compliance/evaluations/:id route against a regression in which it
 // always answers 404.
@@ -35,10 +46,13 @@ func TestGetComplianceEvaluationRouteServesLatestEvaluation(t *testing.T) {
 	defer db.Close()
 
 	now := time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)
-	// QueryMatcherRegexp treats the expectation as a regexp, so the * and $ are
+	// The lookup is tenant-scoped: the :id path param is a policy id taken from
+	// the URL, so without tenant_id in the predicate a caller who learned any
+	// policy id could read another tenant's evaluation.
+	// QueryMatcherRegexp treats the expectation as a regexp, so the $ is
 	// escaped.
-	mock.ExpectQuery(`SELECT \* FROM compliance_evaluations WHERE policy_id=\$1 ORDER BY created_at DESC LIMIT 1`).
-		WithArgs("pol-1").
+	mock.ExpectQuery(`^SELECT [^*]+ FROM compliance_evaluations WHERE tenant_id=\$1 AND policy_id=\$2 ORDER BY created_at DESC LIMIT 1$`).
+		WithArgs("t1", "pol-1").
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "tenant_id", "policy_id", "status", "score",
 			"total_checks", "passed_checks", "failed_checks", "gaps",
@@ -53,6 +67,7 @@ func TestGetComplianceEvaluationRouteServesLatestEvaluation(t *testing.T) {
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
+	r.Use(withTenant("t1"))
 	ce := r.Group("/compliance/evaluations")
 	ce.GET("/:id", h.GetComplianceEvaluation)
 

@@ -293,9 +293,13 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
 		// own registration contains a trie conflict (`:id` vs `:workspaceId` under
 		// /api/v1/iac/workspaces) that Gin would panic on.
 		if securityH != nil {
-			// Namespaced: this handler owns /audit/plans, already taken by
-			// security_complianceH, and /scans and /findings collide with other
-			// scan-oriented handlers. code_scanH already uses /security/code-scan.
+			// Not namespaced and not a duplicate. This group owns
+			// /security/{scans,findings,audit,compliance,sbom,dependency,poisoning};
+			// code_scanH above owns /security/code-scan/*; securitySecretH below
+			// owns /security/secrets/*; and security_complianceH registers under
+			// /compliance at the api root, never under /security. The prefixes are
+			// disjoint, so the three registrations coexist without a trie conflict.
+			// Removing one of them would delete live endpoints.
 			securityH.RegisterRoutes(api.Group("/security"))
 		}
 		if securitySecretH != nil {

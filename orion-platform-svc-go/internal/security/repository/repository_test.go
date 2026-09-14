@@ -5,8 +5,8 @@ import "testing"
 func TestIsValidSeverity(t *testing.T) {
 	valid := []string{"critical", "high", "medium", "low", "info"}
 	for _, s := range valid {
-		if !isValidSeverity(s) {
-			t.Errorf("isValidSeverity(%q) = false, want true", s)
+		if !IsValidSeverity(s) {
+			t.Errorf("IsValidSeverity(%q) = false, want true", s)
 		}
 	}
 
@@ -22,8 +22,8 @@ func TestIsValidSeverity(t *testing.T) {
 		"$1 OR 1=1",
 	}
 	for _, s := range invalid {
-		if isValidSeverity(s) {
-			t.Errorf("isValidSeverity(%q) = true, want false", s)
+		if IsValidSeverity(s) {
+			t.Errorf("IsValidSeverity(%q) = true, want false", s)
 		}
 	}
 }
@@ -38,8 +38,8 @@ func TestIsValidSeverityRejectsSQLInjection(t *testing.T) {
 		"high' AND '1'='1",
 	}
 	for _, s := range attackStrings {
-		if isValidSeverity(s) {
-			t.Errorf("isValidSeverity should reject injection: %q", s)
+		if IsValidSeverity(s) {
+			t.Errorf("IsValidSeverity should reject injection: %q", s)
 		}
 	}
 }

@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/security/models"
 	"orion/platform-svc-go/internal/security/repository"
 	"strings"
@@ -19,6 +19,11 @@ var (
 	ErrFindingNotFound      = errors.New("finding not found")
 	ErrPolicyNotFound       = errors.New("compliance policy not found")
 	ErrSBOMNotFound         = errors.New("SBOM not found")
+	// ErrInvalidSeverity is what ListFindings answers when the caller filtered by
+	// a severity that does not exist. The repository used to return an empty list
+	// for that, which is indistinguishable from a clean scan and makes the filter
+	// look silently ignored.
+	ErrInvalidSeverity = errors.New("invalid severity")
 )
 
 type Service struct {
@@ -27,6 +32,27 @@ type Service struct {
 
 func NewService(repo *repository.Repository) *Service {
 	return &Service{repo: repo}
+}
+
+// IsNotFound is the one predicate the handlers switch on to choose between 404
+// and 500. The repository answers sentinel.NotFound (wrapped from the driver's
+// sql.ErrNoRows or from a zero-row UPDATE/DELETE); this module re-expresses that
+// as its own per-entity sentinels in the three methods that used to collapse any
+// repository error into them. Without the helper every read error was answered
+// as 404, so a database outage presented itself as "row not found" and the
+// 500 branches in the handler files were unreachable.
+func IsNotFound(err error) bool {
+	switch {
+	case errors.Is(err, sentinel.NotFound):
+		return true
+	case errors.Is(err, ErrSecurityScanNotFound),
+		errors.Is(err, ErrAuditPlanNotFound),
+		errors.Is(err, ErrFindingNotFound),
+		errors.Is(err, ErrPolicyNotFound),
+		errors.Is(err, ErrSBOMNotFound):
+		return true
+	}
+	return false
 }
 
 // ==================== Security Scans ====================
@@ -84,7 +110,10 @@ func (s *Service) CountByStatus(ctx context.Context, tenantID, status string) (i
 func (s *Service) UpdateScanStatus(ctx context.Context, tenantID, id string, update map[string]interface{}) (*models.SecurityScan, error) {
 	scan, err := s.repo.GetScanByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrSecurityScanNotFound
+		if IsNotFound(err) {
+			return nil, ErrSecurityScanNotFound
+		}
+		return nil, err
 	}
 
 	if st, ok := update["status"]; ok {
@@ -128,8 +157,10 @@ func (s *Service) UpdateScanStatus(ctx context.Context, tenantID, id string, upd
 		}
 	}
 
-	// Re-insert (idempotent via application logic)
-	return scan, nil
+	// Persist. The previous code answered with the mutated in-memory copy and
+	// never wrote the row, so the endpoint reported a scan whose stored record
+	// was still "pending" and GET /scans/:id disagreed with it.
+	return scan, s.repo.UpdateScan(ctx, tenantID, scan)
 }
 
 // ==================== Security Findings ====================
@@ -159,6 +190,9 @@ func (s *Service) BatchCreateFindings(ctx context.Context, tenantID string, find
 }
 
 func (s *Service) ListFindings(ctx context.Context, tenantID string, offset, limit int, severity string) ([]models.SecurityFinding, error) {
+	if severity != "" && !repository.IsValidSeverity(severity) {
+		return nil, ErrInvalidSeverity
+	}
 	return s.repo.ListFindings(ctx, tenantID, offset, limit, severity)
 }
 
@@ -170,8 +204,8 @@ func (s *Service) UpdateFinding(ctx context.Context, tenantID, id string, req *m
 	return s.repo.UpdateFinding(ctx, tenantID, id, req)
 }
 
-func (s *Service) FindingsByScanID(ctx context.Context, scanID string) ([]models.SecurityFinding, error) {
-	return s.repo.FindingsByScanID(ctx, scanID)
+func (s *Service) FindingsByScanID(ctx context.Context, tenantID, scanID string) ([]models.SecurityFinding, error) {
+	return s.repo.FindingsByScanID(ctx, tenantID, scanID)
 }
 
 func (s *Service) CountFindings(ctx context.Context, tenantID string) (int, error) {
@@ -236,11 +270,18 @@ func (s *Service) DeleteAuditPlan(ctx context.Context, tenantID, id string) erro
 func (s *Service) ExecuteAudit(ctx context.Context, tenantID, planID string) (*models.AuditExecution, error) {
 	plan, err := s.repo.GetAuditPlanByID(ctx, tenantID, planID)
 	if err != nil {
-		return nil, ErrAuditPlanNotFound
+		if IsNotFound(err) {
+			return nil, ErrAuditPlanNotFound
+		}
+		return nil, err
 	}
 
-	// Update plan status to active
-	_ = s.repo.UpdateAuditPlanStatus(ctx, planID, "active")
+	// Mark the plan active. The repository error used to be discarded, so an
+	// audit could run against a plan that had been deleted between the read and
+	// the write and still report success.
+	if err := s.repo.UpdateAuditPlanStatus(ctx, tenantID, planID, "active"); err != nil {
+		return nil, err
+	}
 
 	now := time.Now()
 	exec := &models.AuditExecution{
@@ -273,23 +314,23 @@ func (s *Service) ExecuteAudit(ctx context.Context, tenantID, planID string) (*m
 	exec.Status = "completed"
 	exec.FindingsCount = len(findings)
 
-	updated, err := s.repo.UpdateAuditExecution(ctx, exec.ID, "completed", len(findings))
+	updated, err := s.repo.UpdateAuditExecution(ctx, tenantID, exec.ID, "completed", len(findings))
 	if err != nil {
 		return nil, err
 	}
 	return updated, nil
 }
 
-func (s *Service) GetExecution(ctx context.Context, id string) (*models.AuditExecution, error) {
-	return s.repo.GetAuditExecutionByID(ctx, id)
+func (s *Service) GetExecution(ctx context.Context, tenantID, id string) (*models.AuditExecution, error) {
+	return s.repo.GetAuditExecutionByID(ctx, tenantID, id)
 }
 
-func (s *Service) ListExecutions(ctx context.Context, planID string) ([]models.AuditExecution, error) {
-	return s.repo.ListAuditExecutions(ctx, planID)
+func (s *Service) ListExecutions(ctx context.Context, tenantID, planID string) ([]models.AuditExecution, error) {
+	return s.repo.ListAuditExecutions(ctx, tenantID, planID)
 }
 
-func (s *Service) GetLatestExecution(ctx context.Context, planID string) (*models.AuditExecution, error) {
-	return s.repo.FindLatestExecutionByPlan(ctx, planID)
+func (s *Service) GetLatestExecution(ctx context.Context, tenantID, planID string) (*models.AuditExecution, error) {
+	return s.repo.FindLatestExecutionByPlan(ctx, tenantID, planID)
 }
 
 // runAuditChecks generates findings based on the audit plan type.
@@ -352,20 +393,23 @@ func (s *Service) ListCompliancePolicies(ctx context.Context, tenantID, framewor
 	return s.repo.ListCompliancePolicies(ctx, tenantID, frameworkType)
 }
 
-func (s *Service) GetCompliancePolicy(ctx context.Context, id string) (*models.CompliancePolicy, error) {
-	return s.repo.GetCompliancePolicyByID(ctx, id)
+func (s *Service) GetCompliancePolicy(ctx context.Context, tenantID, id string) (*models.CompliancePolicy, error) {
+	return s.repo.GetCompliancePolicyByID(ctx, tenantID, id)
 }
 
-func (s *Service) DeleteCompliancePolicy(ctx context.Context, id string) error {
-	return s.repo.DeleteCompliancePolicy(ctx, id)
+func (s *Service) DeleteCompliancePolicy(ctx context.Context, tenantID, id string) error {
+	return s.repo.DeleteCompliancePolicy(ctx, tenantID, id)
 }
 
 // ==================== Compliance Evaluations ====================
 
 func (s *Service) EvaluateCompliance(ctx context.Context, tenantID, policyID string) (*models.ComplianceEvaluation, error) {
-	policy, err := s.repo.GetCompliancePolicyByID(ctx, policyID)
+	policy, err := s.repo.GetCompliancePolicyByID(ctx, tenantID, policyID)
 	if err != nil {
-		return nil, ErrPolicyNotFound
+		if IsNotFound(err) {
+			return nil, ErrPolicyNotFound
+		}
+		return nil, err
 	}
 
 	now := time.Now()
@@ -386,7 +430,7 @@ func (s *Service) EvaluateCompliance(ctx context.Context, tenantID, policyID str
 	score := s.calculateScore(gaps)
 	completed := time.Now()
 
-	updated, err := s.repo.UpdateComplianceEvaluation(ctx, eval.ID, "completed", score, len(gaps), len(gaps)-len(gaps), len(gaps), gaps)
+	updated, err := s.repo.UpdateComplianceEvaluation(ctx, tenantID, eval.ID, "completed", score, len(gaps), len(gaps)-len(gaps), len(gaps), gaps)
 	if err != nil {
 		return nil, err
 	}
@@ -394,8 +438,8 @@ func (s *Service) EvaluateCompliance(ctx context.Context, tenantID, policyID str
 	return updated, nil
 }
 
-func (s *Service) GetLatestEvaluation(ctx context.Context, policyID string) (*models.ComplianceEvaluation, error) {
-	return s.repo.FindLatestEvaluationByPolicy(ctx, policyID)
+func (s *Service) GetLatestEvaluation(ctx context.Context, tenantID, policyID string) (*models.ComplianceEvaluation, error) {
+	return s.repo.FindLatestEvaluationByPolicy(ctx, tenantID, policyID)
 }
 
 func (s *Service) ListComplianceEvaluations(ctx context.Context, tenantID string) ([]models.ComplianceEvaluation, error) {
@@ -421,19 +465,26 @@ func (s *Service) GetComplianceScore(ctx context.Context, tenantID string) (*mod
 	criticalGaps := 0
 
 	for _, p := range policies {
-		eval, err := s.repo.FindLatestEvaluationByPolicy(ctx, p.ID)
+		eval, err := s.repo.FindLatestEvaluationByPolicy(ctx, tenantID, p.ID)
 		if err != nil {
-			// No evaluation yet, treat as 100% compliant
+			if !IsNotFound(err) {
+				return nil, err
+			}
+			// No evaluation yet, treat as 100% compliant. Anything other than a
+			// missing row is a real failure: collapsing it into "fully compliant"
+			// is what the database-outage-to-100-percent bug was.
 			byFramework[p.FrameworkType] += 100
 			totalScore += 100
 			continue
 		}
 		byFramework[p.FrameworkType] += eval.Score
 		totalScore += eval.Score
-		if eval.CompletedAt != nil {
-			gaps, _ := json.Marshal(eval.Gaps)
-			_ = gaps // counted via evaluation
+		for _, g := range eval.Gaps {
+			if m, ok := g.(map[string]interface{}); ok && m["severity"] == "critical" {
+				criticalGaps++
+			}
 		}
+		openGaps += len(eval.Gaps)
 	}
 
 	avgScore := totalScore / float32(len(policies))
@@ -465,7 +516,10 @@ func (s *Service) calculateScore(gaps []models.ComplianceGap) float32 {
 	if len(gaps) == 0 {
 		return 100
 	}
-	return 100 - float32(len(gaps))*10
+	// Each gap costs ten points, floored at zero. Unguarded the formula went
+	// negative once a policy had more than ten gaps, so the worst possible
+	// compliance looked like a clean bill of health.
+	return repository.ClampFloat32(100-float32(len(gaps))*10, 0, 100)
 }
 
 // ==================== Supply Chain SBOM ====================
@@ -496,8 +550,8 @@ func (s *Service) CreateSBOM(ctx context.Context, tenantID string, req *models.C
 	return d, s.repo.CreateSBOM(ctx, d)
 }
 
-func (s *Service) GetSBOM(ctx context.Context, id string) (*models.SupplyChainSBOM, error) {
-	return s.repo.GetSBOMByID(ctx, id)
+func (s *Service) GetSBOM(ctx context.Context, tenantID, id string) (*models.SupplyChainSBOM, error) {
+	return s.repo.GetSBOMByID(ctx, tenantID, id)
 }
 
 func (s *Service) ListSBOMs(ctx context.Context, tenantID string, offset, limit int) ([]models.SupplyChainSBOM, error) {
@@ -513,7 +567,15 @@ func (s *Service) CountSBOMs(ctx context.Context, tenantID string) (int, error) 
 func (s *Service) AnalyzeDependency(ctx context.Context, tenantID string, req *models.AnalyzeDependencyRequest) (*models.DependencyGraph, error) {
 	// Check if already analyzed
 	existing, err := s.repo.FindDependencyGraph(ctx, tenantID, req.PackageName, req.PackageVersion)
-	if err == nil && existing != nil {
+	if err != nil {
+		if !IsNotFound(err) {
+			return nil, err
+		}
+		// Absence is the expected "not analyzed yet" answer; any other error is a
+		// failure the previous `err == nil && existing != nil` guard hid, which
+		// made the method re-analyze and write a duplicate row on every database
+		// hiccup.
+	} else if existing != nil {
 		return existing, nil
 	}
 
@@ -659,9 +721,4 @@ func (s *Service) stringSimilarity(a, b string) float32 {
 		maxLen = float32(lenB)
 	}
 	return float32(matches) / maxLen
-}
-
-// GetPoisoningSummary returns aggregate poisoning scan counts.
-func (s *Service) GetPoisoningSummary(ctx context.Context, tenantID string) (total, critical int, err error) {
-	return s.repo.PoisoningScanCounts(ctx, tenantID)
 }
