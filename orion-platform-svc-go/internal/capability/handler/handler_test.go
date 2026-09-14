@@ -125,7 +125,7 @@ func (m *mockSvc) GrantTemporaryPermission(ctx context.Context, req models.Grant
 func (m *mockSvc) GetActiveTemporaryPermissions(ctx context.Context, tenantID, userID string) ([]models.TemporaryPermission, error) {
 	return nil, nil
 }
-func (m *mockSvc) RevokeTemporaryPermission(ctx context.Context, tenantID string, id int, revokedBy string, reason string) (*models.TemporaryPermission, error) {
+func (m *mockSvc) RevokeTemporaryPermission(ctx context.Context, tenantID string, id string, revokedBy string, reason string) (*models.TemporaryPermission, error) {
 	return nil, nil
 }
 func (m *mockSvc) GetAuditLogs(ctx context.Context, tenantID string, q models.AuditLogQuery) ([]models.AuditLog, error) {
@@ -134,13 +134,13 @@ func (m *mockSvc) GetAuditLogs(ctx context.Context, tenantID string, q models.Au
 func (m *mockSvc) CreatePermissionRequest(ctx context.Context, tenantID, userID, capabilityID string, body models.CreatePermissionRequestBody) (*models.PermissionRequest, error) {
 	return nil, nil
 }
-func (m *mockSvc) GetPermissionRequestByTicket(ctx context.Context, tenantID string, ticketID int) (*models.PermissionRequest, error) {
+func (m *mockSvc) GetPermissionRequestByTicket(ctx context.Context, tenantID string, ticketID string) (*models.PermissionRequest, error) {
 	return nil, nil
 }
-func (m *mockSvc) ApproveRequest(ctx context.Context, tenantID string, ticketID int, approverID string, approverRoles []string) (*models.PermissionRequest, error) {
+func (m *mockSvc) ApproveRequest(ctx context.Context, tenantID string, ticketID string, approverID string, approverRoles []string) (*models.PermissionRequest, error) {
 	return nil, nil
 }
-func (m *mockSvc) RejectRequest(ctx context.Context, tenantID string, ticketID int, rejecterID string, reason string) (bool, error) {
+func (m *mockSvc) RejectRequest(ctx context.Context, tenantID string, ticketID string, rejecterID string, reason string) (bool, error) {
 	return false, nil
 }
 func (m *mockSvc) CleanupExpiredTemporaryPermissions(ctx context.Context, tenantID string) (*models.CleanupResult, error) {
@@ -152,7 +152,7 @@ func (m *mockSvc) RequestPermission(ctx context.Context, tenantID string, body m
 func (m *mockSvc) GrantSimplified(ctx context.Context, req models.GrantSimplifiedRequest) (*models.TemporaryPermission, error) {
 	return nil, nil
 }
-func (m *mockSvc) RevokeSimplified(ctx context.Context, tenantID string, id int, revokedBy string) (*models.TemporaryPermission, error) {
+func (m *mockSvc) RevokeSimplified(ctx context.Context, tenantID string, id string, revokedBy string) (*models.TemporaryPermission, error) {
 	return nil, nil
 }
 

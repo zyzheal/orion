@@ -32,16 +32,16 @@ type Service interface {
 	CheckPermission(ctx context.Context, tenantID string, req models.CheckPermissionRequest) (*models.CheckPermissionResult, error)
 	GrantTemporaryPermission(ctx context.Context, req models.GrantTemporaryRequest) (*models.TemporaryPermission, error)
 	GetActiveTemporaryPermissions(ctx context.Context, tenantID, userID string) ([]models.TemporaryPermission, error)
-	RevokeTemporaryPermission(ctx context.Context, tenantID string, id int, revokedBy string, reason string) (*models.TemporaryPermission, error)
+	RevokeTemporaryPermission(ctx context.Context, tenantID string, id string, revokedBy string, reason string) (*models.TemporaryPermission, error)
 	GetAuditLogs(ctx context.Context, tenantID string, q models.AuditLogQuery) ([]models.AuditLog, error)
 	CreatePermissionRequest(ctx context.Context, tenantID, userID, capabilityID string, body models.CreatePermissionRequestBody) (*models.PermissionRequest, error)
-	GetPermissionRequestByTicket(ctx context.Context, tenantID string, ticketID int) (*models.PermissionRequest, error)
-	ApproveRequest(ctx context.Context, tenantID string, ticketID int, approverID string, approverRoles []string) (*models.PermissionRequest, error)
-	RejectRequest(ctx context.Context, tenantID string, ticketID int, rejecterID string, reason string) (bool, error)
+	GetPermissionRequestByTicket(ctx context.Context, tenantID string, ticketID string) (*models.PermissionRequest, error)
+	ApproveRequest(ctx context.Context, tenantID string, ticketID string, approverID string, approverRoles []string) (*models.PermissionRequest, error)
+	RejectRequest(ctx context.Context, tenantID string, ticketID string, rejecterID string, reason string) (bool, error)
 	CleanupExpiredTemporaryPermissions(ctx context.Context, tenantID string) (*models.CleanupResult, error)
 	RequestPermission(ctx context.Context, tenantID string, body models.RequestPermissionBody) (*models.PermissionRequest, error)
 	GrantSimplified(ctx context.Context, req models.GrantSimplifiedRequest) (*models.TemporaryPermission, error)
-	RevokeSimplified(ctx context.Context, tenantID string, id int, revokedBy string) (*models.TemporaryPermission, error)
+	RevokeSimplified(ctx context.Context, tenantID string, id string, revokedBy string) (*models.TemporaryPermission, error)
 	GetUserEffectiveCapabilities(ctx context.Context, tenantID, userID string, roles []string) ([]string, error)
 	GetUserPermissionRequests(ctx context.Context, tenantID, userID string) ([]models.PermissionRequest, error)
 }
@@ -419,17 +419,19 @@ func (h *Handler) RevokeTemporary(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RevokeTemporary")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		middleware.RespondBadRequest(c, "invalid id")
-		return
-	}
+	// The id is a UUID path parameter, so it is not parsed with Atoi: a
+	// legitimate id would fail Atoi and answer 400 instead of the row.
+	id := c.Param("id")
 	var body struct {
 		Reason string `json:"reason"`
 	}
 	c.ShouldBindJSON(&body)
 	revoked, err := h.svc.RevokeTemporaryPermission(ctx, tenantID, id, c.GetString("user_id"), body.Reason)
 	if err != nil {
+		if service.IsNotFound(err) {
+			middleware.RespondNotFound(c, "temporary permission not found")
+			return
+		}
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -513,13 +515,13 @@ func (h *Handler) GetPermissionRequest(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPermissionRequest")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ticketID, err := strconv.Atoi(c.Param("ticketId"))
-	if err != nil {
-		middleware.RespondBadRequest(c, "invalid ticket id")
-		return
-	}
+	ticketID := c.Param("ticketId")
 	req, err := h.svc.GetPermissionRequestByTicket(ctx, tenantID, ticketID)
 	if err != nil {
+		if service.IsNotFound(err) {
+			middleware.RespondNotFound(c, "permission request not found")
+			return
+		}
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -535,11 +537,7 @@ func (h *Handler) ApproveRequest(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApproveRequest")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ticketID, err := strconv.Atoi(c.Param("ticketId"))
-	if err != nil {
-		middleware.RespondBadRequest(c, "invalid ticket id")
-		return
-	}
+	ticketID := c.Param("ticketId")
 	var body models.ApproveRequestBody
 	c.ShouldBindJSON(&body)
 	if body.TenantID == "" {
@@ -547,6 +545,10 @@ func (h *Handler) ApproveRequest(c *gin.Context) {
 	}
 	result, err := h.svc.ApproveRequest(ctx, body.TenantID, ticketID, c.GetString("user_id"), body.ApproverRoles)
 	if err != nil {
+		if service.IsNotFound(err) {
+			middleware.RespondNotFound(c, "permission request not found")
+			return
+		}
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -558,15 +560,15 @@ func (h *Handler) RejectRequest(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RejectRequest")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ticketID, err := strconv.Atoi(c.Param("ticketId"))
-	if err != nil {
-		middleware.RespondBadRequest(c, "invalid ticket id")
-		return
-	}
+	ticketID := c.Param("ticketId")
 	var body models.RejectRequestBody
 	c.ShouldBindJSON(&body)
 	success, err := h.svc.RejectRequest(ctx, tenantID, ticketID, c.GetString("user_id"), body.Reason)
 	if err != nil {
+		if service.IsNotFound(err) {
+			middleware.RespondNotFound(c, "permission request not found")
+			return
+		}
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -639,13 +641,13 @@ func (h *Handler) RevokeSimplified(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RevokeSimplified")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		middleware.RespondBadRequest(c, "invalid id")
-		return
-	}
+	id := c.Param("id")
 	revoked, err := h.svc.RevokeSimplified(ctx, tenantID, id, c.GetString("user_id"))
 	if err != nil {
+		if service.IsNotFound(err) {
+			middleware.RespondNotFound(c, "permission not found")
+			return
+		}
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -699,10 +701,6 @@ func (h *Handler) GetUserPermissionRequests(c *gin.Context) {
 }
 
 // --- Helpers ---
-
-func stringPtr(s string) string {
-	return s
-}
 
 func splitQuery(roles string) []string {
 	if roles == "" {

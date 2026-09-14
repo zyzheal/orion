@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -12,15 +13,16 @@ import (
 
 type mockCapabilityRepo struct {
 	capabilities map[string]*models.Capability
-	tperms       map[int]*models.TemporaryPermission
-	tpermID      int
+	tperms       map[string]*models.TemporaryPermission
+	tpermSeq     int
+	prSeq        int
 	dbErr        error
 }
 
 func newMockCapRepo() *mockCapabilityRepo {
 	return &mockCapabilityRepo{
 		capabilities: map[string]*models.Capability{},
-		tperms:       map[int]*models.TemporaryPermission{},
+		tperms:       map[string]*models.TemporaryPermission{},
 	}
 }
 
@@ -137,16 +139,19 @@ func (m *mockCapabilityRepo) CheckPermission(_ context.Context, tenantID, capabi
 	return true, "role", nil
 }
 
-func (m *mockCapabilityRepo) GrantTemporaryPermission(_ context.Context, tenantID, userID, capabilityID, grantedBy string, envSuffix *string, expires int) error {
+func (m *mockCapabilityRepo) GrantTemporaryPermission(_ context.Context, tenantID, userID, capabilityID, grantedBy, reason string, envSuffix *string, expires int) error {
 	if m.dbErr != nil {
 		return m.dbErr
 	}
-	m.tpermID++
-	m.tperms[m.tpermID] = &models.TemporaryPermission{
-		ID:           m.tpermID,
+	m.tpermSeq++
+	id := fmt.Sprintf("tp%08d", m.tpermSeq)
+	m.tperms[id] = &models.TemporaryPermission{
+		ID:           id,
+		TenantID:     tenantID,
 		UserID:       userID,
 		CapabilityID: capabilityID,
 		GrantedBy:    grantedBy,
+		Reason:       reason,
 		ExpiresAt:    time.Now().UTC().Add(time.Duration(expires) * time.Hour),
 		GrantedAt:    time.Now().UTC(),
 	}
@@ -156,7 +161,7 @@ func (m *mockCapabilityRepo) GrantTemporaryPermission(_ context.Context, tenantI
 func (m *mockCapabilityRepo) GetActiveTemporaryPermissions(_ context.Context, tenantID, userID string) ([]models.TemporaryPermission, error) {
 	var out []models.TemporaryPermission
 	for _, t := range m.tperms {
-		if t.UserID == userID {
+		if t.UserID == userID && t.TenantID == tenantID {
 			out = append(out, *t)
 		}
 	}
@@ -168,17 +173,20 @@ func (m *mockCapabilityRepo) GetActiveTempExpiry(_ context.Context, tenantID, ca
 	return &exp, nil
 }
 
-func (m *mockCapabilityRepo) GetTemporaryPermissionByID(_ context.Context, tenantID string, id int) (*models.TemporaryPermission, error) {
+func (m *mockCapabilityRepo) GetTemporaryPermissionByID(_ context.Context, tenantID string, id string) (*models.TemporaryPermission, error) {
 	t, ok := m.tperms[id]
+	if ok && t.TenantID != tenantID {
+		return nil, sql.ErrNoRows
+	}
 	if !ok {
 		return nil, sql.ErrNoRows
 	}
 	return t, nil
 }
 
-func (m *mockCapabilityRepo) RevokeTemporaryPermissionByID(_ context.Context, id int, revokedBy string) error {
-	_, ok := m.tperms[id]
-	if !ok {
+func (m *mockCapabilityRepo) RevokeTemporaryPermissionByID(_ context.Context, tenantID, id string) error {
+	t, ok := m.tperms[id]
+	if !ok || t.TenantID != tenantID {
 		return sql.ErrNoRows
 	}
 	delete(m.tperms, id)
@@ -189,26 +197,30 @@ func (m *mockCapabilityRepo) CleanupExpiredTemporaryPermissions(_ context.Contex
 	return 0, nil
 }
 
-func (m *mockCapabilityRepo) CreatePermissionRequest(_ context.Context, tenantID, userID, capabilityID, reason string, duration int, envSuffix *string) error {
+func (m *mockCapabilityRepo) CreatePermissionRequest(_ context.Context, tenantID, userID, capabilityID, reason string, duration *int, envSuffix *string) error {
 	return nil
 }
 
-func (m *mockCapabilityRepo) GetPermissionRequestByID(_ context.Context, tenantID string, ticketID int) (*models.PermissionRequest, error) {
+func (m *mockCapabilityRepo) GetPermissionRequestByID(_ context.Context, tenantID string, ticketID string) (*models.PermissionRequest, error) {
+	m.prSeq++
+	if ticketID == "" {
+		ticketID = fmt.Sprintf("pr%08d", m.prSeq)
+	}
 	return &models.PermissionRequest{
 		ID:            ticketID,
 		TenantID:      tenantID,
 		Status:        "pending",
 		UserID:        "u1",
 		CapabilityID:  "c1",
-		DurationHours: 8,
+		DurationHours: intPtr(8),
 	}, nil
 }
 
-func (m *mockCapabilityRepo) ApprovePermissionRequest(_ context.Context, ticketID int, approverID string) error {
+func (m *mockCapabilityRepo) ApprovePermissionRequest(_ context.Context, tenantID, ticketID, approverID string) error {
 	return nil
 }
 
-func (m *mockCapabilityRepo) RejectPermissionRequest(_ context.Context, ticketID int, rejecterID string, reason *string) error {
+func (m *mockCapabilityRepo) RejectPermissionRequest(_ context.Context, tenantID, ticketID, rejecterID string, reason *string) error {
 	return nil
 }
 
@@ -220,9 +232,19 @@ func (m *mockCapabilityRepo) InsertAuditLog(_ context.Context, tenantID, action,
 	return nil
 }
 
-func (m *mockCapabilityRepo) ListAuditLogs(_ context.Context, tenantID string, q *models.AuditLogQuery) ([]map[string]interface{}, error) {
-	return nil, nil
+func (m *mockCapabilityRepo) ListAuditLogs(_ context.Context, tenantID string, q *models.AuditLogQuery) ([]models.AuditLog, error) {
+	return []models.AuditLog{{
+		ID: "log-1", TenantID: tenantID, Action: "grant",
+		UserID: "u1", TargetType: "capability", TargetID: "c1", Details: "{}",
+		CreatedAt: time.Now().UTC(),
+	}}, nil
 }
+
+// The mock must satisfy the interface the service actually uses. If a method
+// signature changes on one side only, this line is what makes the build fail.
+var _ RepositoryInterface = (*mockCapabilityRepo)(nil)
+
+func intPtr(i int) *int { return &i }
 
 func newTestCapService(repo *mockCapabilityRepo) *Service {
 	return &Service{repo: repo}

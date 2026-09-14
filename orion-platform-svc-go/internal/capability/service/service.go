@@ -5,7 +5,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -19,36 +18,36 @@ var ErrNotFound = sentinel.NotFound
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
-	ApprovePermissionRequest(ctx context.Context, ticketID int, approverID string) error
+	ApprovePermissionRequest(ctx context.Context, tenantID, ticketID, approverID string) error
 	CheckPermission(ctx context.Context, tenantID, capabilityID, userID string, userRoles []string) (bool, string, error)
 	CleanupExpiredTemporaryPermissions(ctx context.Context, tenantID string) (int, error)
 	Create(ctx context.Context, m *models.Capability) error
-	CreatePermissionRequest(ctx context.Context, tenantID string, userID, capabilityID, reason string, durationHours int, envSuffix *string) error
+	CreatePermissionRequest(ctx context.Context, tenantID string, userID, capabilityID, reason string, durationHours *int, envSuffix *string) error
 	Delete(ctx context.Context, tenantID, id string) error
 	GetActiveTempExpiry(ctx context.Context, tenantID, capabilityID, userID string) (*time.Time, error)
 	GetActiveTemporaryPermissions(ctx context.Context, tenantID, userId string) ([]models.TemporaryPermission, error)
 	GetByID(ctx context.Context, tenantID, id string) (*models.Capability, error)
 	GetCapabilityIDForCommand(ctx context.Context, tenantID, command, action, env string) (string, error)
-	GetPermissionRequestByID(ctx context.Context, tenantID string, ticketID int) (*models.PermissionRequest, error)
-	GetTemporaryPermissionByID(ctx context.Context, tenantID string, id int) (*models.TemporaryPermission, error)
+	GetPermissionRequestByID(ctx context.Context, tenantID string, ticketID string) (*models.PermissionRequest, error)
+	GetTemporaryPermissionByID(ctx context.Context, tenantID string, id string) (*models.TemporaryPermission, error)
 	GetUserGrantExpiry(ctx context.Context, tenantID, capabilityID, userID string) (*time.Time, error)
 	GetUserPermissionRequests(ctx context.Context, tenantID, userId string) ([]models.PermissionRequest, error)
 	GrantCapabilityToRole(ctx context.Context, tenantID string, capabilityID, roleName string) error
 	GrantCapabilityToUser(ctx context.Context, tenantID string, capabilityID, userId, grantedBy string, expiresInHours *int) error
-	GrantTemporaryPermission(ctx context.Context, tenantID string, userID, capabilityID, grantedBy string, envSuffix *string, expiresInHours int) error
+	GrantTemporaryPermission(ctx context.Context, tenantID string, userID, capabilityID, grantedBy, reason string, envSuffix *string, expiresInHours int) error
 	InsertAuditLog(ctx context.Context, tenantID, action, userID, targetType, targetID, details string) error
 	InsertCommandMapping(ctx context.Context, tenantID string, capID string, cmdName, cmdAction string, envSuffix *string) error
 	List(ctx context.Context, tenantID string, limit, offset int) ([]models.Capability, error)
-	ListAuditLogs(ctx context.Context, tenantID string, q *models.AuditLogQuery) ([]map[string]interface{}, error)
+	ListAuditLogs(ctx context.Context, tenantID string, q *models.AuditLogQuery) ([]models.AuditLog, error)
 	ListByCategory(ctx context.Context, tenantID, category string, limit, offset int) ([]models.Capability, error)
 	ListByParent(ctx context.Context, tenantID, parentCapabilityID string) ([]models.Capability, error)
 	ListCapabilityIDsByRole(ctx context.Context, tenantID, role string) ([]string, error)
 	ListCapabilityIDsByUser(ctx context.Context, tenantID, userID string) ([]string, error)
 	ListRoot(ctx context.Context, tenantID string) ([]models.Capability, error)
-	RejectPermissionRequest(ctx context.Context, ticketID int, rejecterID string, reason *string) error
-	RevokeCapabilityFromRole(ctx context.Context, tenantID string, capabilityID, roleName string) error
-	RevokeCapabilityFromUser(ctx context.Context, tenantID string, capabilityID, userId string) error
-	RevokeTemporaryPermissionByID(ctx context.Context, id int, byUserID string) error
+	RejectPermissionRequest(ctx context.Context, tenantID, ticketID, rejecterID string, reason *string) error
+	RevokeCapabilityFromRole(ctx context.Context, tenantID, capabilityID, roleName string) error
+	RevokeCapabilityFromUser(ctx context.Context, tenantID, capabilityID, userId string) error
+	RevokeTemporaryPermissionByID(ctx context.Context, tenantID, id string) error
 	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 }
 
@@ -79,6 +78,12 @@ func (s *Service) List(ctx context.Context, tenantID string, limit, offset int) 
 	return s.repo.List(ctx, tenantID, limit, offset)
 }
 
+// Update renames a capability.
+//
+// The repository returns ErrNoUpdatableFields when the update set carries no
+// whitelisted column, so a rename with an empty body is reported rather than
+// silently answered as success -- which is what a zero field-set produced
+// before the repository honoured its map.
 func (s *Service) Update(ctx context.Context, tenantID, id string, req models.UpdateCapabilityRequest) (*models.Capability, error) {
 	updates := make(map[string]interface{})
 	if req.Name != nil {
@@ -221,14 +226,10 @@ func (s *Service) MapCommandToCapability(ctx context.Context, tenantID, commandN
 // GetCapabilityForCommand resolves which capability a command action requires.
 // It first looks for an environment-specific mapping, then falls back to a generic one.
 func (s *Service) GetCapabilityForCommand(ctx context.Context, tenantID, command, action, environment string) (*string, error) {
-	var env *string
-	if environment != "" {
-		env = &environment
-	}
 	var capabilityID string
 	var err error
-	if env != nil {
-		capabilityID, err = s.repo.GetCapabilityIDForCommand(ctx, tenantID, command, action, *env)
+	if environment != "" {
+		capabilityID, err = s.repo.GetCapabilityIDForCommand(ctx, tenantID, command, action, environment)
 	} else {
 		capabilityID, err = s.repo.GetCapabilityIDForCommand(ctx, tenantID, command, action, "")
 	}
@@ -295,19 +296,19 @@ func (s *Service) GrantTemporaryPermission(ctx context.Context, req models.Grant
 	if req.EnvironmentSuffix != "" {
 		envSuffix = &req.EnvironmentSuffix
 	}
-	if err := s.repo.GrantTemporaryPermission(ctx, tenantID, req.UserID, req.CapabilityID, req.GrantedBy, envSuffix, req.ExpiresInHours); err != nil {
+	if err := s.repo.GrantTemporaryPermission(ctx, tenantID, req.UserID, req.CapabilityID, req.GrantedBy, req.Reason, envSuffix, req.ExpiresInHours); err != nil {
 		return nil, err
 	}
-	expiredAt := time.Now().UTC().Add(time.Duration(req.ExpiresInHours) * time.Hour)
-	s.recordAudit(ctx, tenantID, "grant_temporary_permission", req.GrantedBy, "temporary_permission", req.UserID, fmt.Sprintf("capability=%q expires=%s reason=%s", req.CapabilityID, expiredAt.Format(time.RFC3339), req.Reason))
+	grantedAt := time.Now().UTC()
 	return &models.TemporaryPermission{
+		TenantID:          tenantID,
 		UserID:            req.UserID,
 		CapabilityID:      req.CapabilityID,
 		EnvironmentSuffix: req.EnvironmentSuffix,
 		Reason:            req.Reason,
 		GrantedBy:         req.GrantedBy,
-		ExpiresAt:         expiredAt,
-		GrantedAt:         time.Now().UTC(),
+		ExpiresAt:         grantedAt.Add(time.Duration(req.ExpiresInHours) * time.Hour),
+		GrantedAt:         grantedAt,
 	}, nil
 }
 
@@ -317,92 +318,29 @@ func (s *Service) GetActiveTemporaryPermissions(ctx context.Context, tenantID, u
 }
 
 // RevokeTemporaryPermission revokes a temporary permission by ID.
-func (s *Service) RevokeTemporaryPermission(ctx context.Context, tenantID string, id int, revokedBy string, reason string) (*models.TemporaryPermission, error) {
+func (s *Service) RevokeTemporaryPermission(ctx context.Context, tenantID string, id string, revokedBy string, reason string) (*models.TemporaryPermission, error) {
 	perm, err := s.repo.GetTemporaryPermissionByID(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.repo.RevokeTemporaryPermissionByID(ctx, id, revokedBy); err != nil {
+	if err := s.repo.RevokeTemporaryPermissionByID(ctx, tenantID, id); err != nil {
 		return nil, err
 	}
-	s.recordAudit(ctx, tenantID, "revoke_temporary_permission", revokedBy, "temporary_permission", fmt.Sprintf("%d", id), fmt.Sprintf("reason=%s", reason))
-	perm.RevokedAt = func() *time.Time { now := time.Now().UTC(); return &now }()
+	s.recordAudit(ctx, tenantID, "revoke_temporary_permission", revokedBy, "temporary_permission", id, fmt.Sprintf("reason=%s", reason))
+	now := time.Now().UTC()
+	perm.RevokedAt = &now
 	return perm, nil
 }
 
 // --- Permission audit ---
 
 // GetAuditLogs returns permission audit log entries.
+//
+// The repository returns typed rows now, so there is no map conversion here:
+// the old SelectContext into []map[string]interface{} could never return a row
+// and every audit read answered an empty list while claiming success.
 func (s *Service) GetAuditLogs(ctx context.Context, tenantID string, q models.AuditLogQuery) ([]models.AuditLog, error) {
-	rows, err := s.repo.ListAuditLogs(ctx, tenantID, &q)
-	if err != nil {
-		return nil, err
-	}
-	logs := make([]models.AuditLog, 0, len(rows))
-	for _, r := range rows {
-		logs = append(logs, mapRowToAuditLog(r))
-	}
-	return logs, nil
-}
-
-// mapRowToAuditLog converts a raw map row from ListAuditLogs into an AuditLog struct.
-func mapRowToAuditLog(r map[string]interface{}) models.AuditLog {
-	return models.AuditLog{
-		ID:         toInt64(r["id"]),
-		TenantID:   toString(r["tenant_id"]),
-		Action:     toString(r["action"]),
-		UserID:     toString(r["user_id"]),
-		TargetType: toString(r["target_type"]),
-		TargetID:   toString(r["target_id"]),
-		Details:    toString(r["details"]),
-		CreatedAt:  toTime(r["created_at"]),
-	}
-}
-
-func toInt64(v interface{}) int {
-	if v == nil {
-		return 0
-	}
-	switch val := v.(type) {
-	case int64:
-		return int(val)
-	case int:
-		return val
-	case float64:
-		return int(val)
-	case sql.NullInt64:
-		if val.Valid {
-			return int(val.Int64)
-		}
-		return 0
-	}
-	return 0
-}
-
-func toString(v interface{}) string {
-	if v == nil {
-		return ""
-	}
-	if s, ok := v.(string); ok {
-		return s
-	}
-	if b, ok := v.([]byte); ok {
-		return string(b)
-	}
-	return fmt.Sprintf("%v", v)
-}
-
-func toTime(v interface{}) time.Time {
-	if t, ok := v.(time.Time); ok {
-		return t
-	}
-	if nilVal, ok := v.(sql.NullTime); ok {
-		if nilVal.Valid {
-			return nilVal.Time
-		}
-		return time.Time{}
-	}
-	return time.Time{}
+	return s.repo.ListAuditLogs(ctx, tenantID, &q)
 }
 
 // --- Permission request (legacy API) ---
@@ -413,21 +351,24 @@ func (s *Service) CreatePermissionRequest(ctx context.Context, tenantID, userID,
 		return nil, err
 	}
 	duration := 8
+	var durationPtr *int
 	if body.DurationHours != nil && *body.DurationHours > 0 {
 		duration = *body.DurationHours
 	}
-	var envSuffix *string
-	if err := s.repo.CreatePermissionRequest(ctx, tenantID, userID, capabilityID, body.Reason, duration, envSuffix); err != nil {
+	durationPtr = &duration
+	now := time.Now().UTC()
+	if err := s.repo.CreatePermissionRequest(ctx, tenantID, userID, capabilityID, body.Reason, durationPtr, nil); err != nil {
 		return nil, err
 	}
 	pr := &models.PermissionRequest{
-		CapabilityID: capabilityID,
-		UserID:       userID,
-		TenantID:     tenantID,
-		Reason:       body.Reason,
-		Status:       "pending",
-		CreatedAt:    time.Now().UTC(),
-		UpdatedAt:    time.Now().UTC(),
+		CapabilityID:  capabilityID,
+		UserID:        userID,
+		TenantID:      tenantID,
+		Reason:        body.Reason,
+		Status:        "pending",
+		DurationHours: durationPtr,
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}
 	s.recordAudit(ctx, tenantID, "create_permission_request", userID, "permission_request", permissionRequestIDString(pr), fmt.Sprintf("capability=%q reason=%s", capabilityID, body.Reason))
 	return pr, nil
@@ -436,14 +377,14 @@ func (s *Service) CreatePermissionRequest(ctx context.Context, tenantID, userID,
 // permissionRequestIDString returns a stable string key for a PermissionRequest
 // (used by audit logging before the row ID is known).
 func permissionRequestIDString(pr *models.PermissionRequest) string {
-	if pr.ID != 0 {
-		return fmt.Sprintf("%d", pr.ID)
+	if pr.ID != "" {
+		return pr.ID
 	}
 	return "pending"
 }
 
-// GetPermissionRequestByTicket retrieves a request by ticket ID.
-func (s *Service) GetPermissionRequestByTicket(ctx context.Context, tenantID string, ticketID int) (*models.PermissionRequest, error) {
+// GetPermissionRequestByTicket retrieves a request by its id.
+func (s *Service) GetPermissionRequestByTicket(ctx context.Context, tenantID string, ticketID string) (*models.PermissionRequest, error) {
 	return s.repo.GetPermissionRequestByID(ctx, tenantID, ticketID)
 }
 
@@ -470,30 +411,36 @@ func (s *Service) RequestPermission(ctx context.Context, tenantID string, body m
 	if duration <= 0 {
 		duration = 8
 	}
+	durationPtr := duration
 	var envSuffix *string
 	if body.EnvironmentSuffix != "" {
 		envSuffix = &body.EnvironmentSuffix
 	}
-	if err := s.repo.CreatePermissionRequest(ctx, tenantID, body.UserID, body.CapabilityID, body.Reason, duration, envSuffix); err != nil {
+	if err := s.repo.CreatePermissionRequest(ctx, tenantID, body.UserID, body.CapabilityID, body.Reason, &durationPtr, envSuffix); err != nil {
 		return nil, err
 	}
+	now := time.Now().UTC()
 	pr := &models.PermissionRequest{
 		CapabilityID:      body.CapabilityID,
 		UserID:            body.UserID,
 		TenantID:          tenantID,
 		Status:            "pending",
 		Reason:            body.Reason,
-		CreatedAt:         time.Now().UTC(),
-		UpdatedAt:         time.Now().UTC(),
+		CreatedAt:         now,
+		UpdatedAt:         now,
 		EnvironmentSuffix: body.EnvironmentSuffix,
-		DurationHours:     duration,
+		DurationHours:     &durationPtr,
 	}
 	s.recordAudit(ctx, tenantID, "request_permission", body.UserID, "permission_request", permissionRequestIDString(pr), fmt.Sprintf("capability=%q reason=%s duration=%d", body.CapabilityID, body.Reason, duration))
 	return pr, nil
 }
 
 // ApproveRequest approves a permission request and auto-grants a temporary permission.
-func (s *Service) ApproveRequest(ctx context.Context, tenantID string, ticketID int, approverID string, approverRoles []string) (*models.PermissionRequest, error) {
+//
+// The auto-grant error is propagated: an approval that silently failed to grant
+// the requested capability would leave a ticket marked approved while the user
+// still cannot perform the action.
+func (s *Service) ApproveRequest(ctx context.Context, tenantID string, ticketID, approverID string, approverRoles []string) (*models.PermissionRequest, error) {
 	if approverID == "" {
 		return nil, errors.New("approver_id is required")
 	}
@@ -507,39 +454,55 @@ func (s *Service) ApproveRequest(ctx context.Context, tenantID string, ticketID 
 	if pr.Status != "pending" {
 		return nil, errors.New("request is not in pending status")
 	}
-	if err := s.repo.ApprovePermissionRequest(ctx, ticketID, approverID); err != nil {
+	if err := s.repo.ApprovePermissionRequest(ctx, tenantID, ticketID, approverID); err != nil {
 		return nil, err
 	}
 	pr.Status = "approved"
-	pr.ApproverID = approverID
+	pr.ApproverID = &approverID
 	pr.UpdatedAt = time.Now().UTC()
 	// Auto-grant a temporary permission for the requested capability.
-	duration := pr.DurationHours
-	if duration <= 0 {
-		duration = 8
+	duration := 8
+	if pr.DurationHours != nil && *pr.DurationHours > 0 {
+		duration = *pr.DurationHours
 	}
 	var envSuffix *string
 	if pr.EnvironmentSuffix != "" {
 		envSuffix = &pr.EnvironmentSuffix
 	}
-	s.repo.GrantTemporaryPermission(ctx, tenantID, pr.UserID, pr.CapabilityID, approverID, envSuffix, duration)
-	s.recordAudit(ctx, tenantID, "approve_permission_request", approverID, "permission_request", fmt.Sprintf("%d", ticketID), fmt.Sprintf("granted capability=%q for user=%s", pr.CapabilityID, pr.UserID))
+	if err := s.repo.GrantTemporaryPermission(ctx, tenantID, pr.UserID, pr.CapabilityID, approverID, pr.Reason, envSuffix, duration); err != nil {
+		return nil, err
+	}
+	s.recordAudit(ctx, tenantID, "approve_permission_request", approverID, "permission_request", ticketID, fmt.Sprintf("granted capability=%q for user=%s", pr.CapabilityID, pr.UserID))
 	return pr, nil
 }
 
 // RejectRequest rejects a permission request.
-func (s *Service) RejectRequest(ctx context.Context, tenantID string, ticketID int, rejecterID string, reason string) (bool, error) {
+//
+// The read is tenant-scoped and the request must be pending, mirroring
+// ApproveRequest: rejecting by bare id let any tenant close another tenant's
+// open ticket.
+func (s *Service) RejectRequest(ctx context.Context, tenantID, ticketID, rejecterID, reason string) (bool, error) {
 	if rejecterID == "" {
 		return false, errors.New("rejecter_id is required")
+	}
+	pr, err := s.repo.GetPermissionRequestByID(ctx, tenantID, ticketID)
+	if err != nil {
+		return false, err
+	}
+	if pr == nil {
+		return false, sentinel.NotFound
+	}
+	if pr.Status != "pending" {
+		return false, errors.New("request is not in pending status")
 	}
 	var reasonPtr *string
 	if reason != "" {
 		reasonPtr = &reason
 	}
-	if err := s.repo.RejectPermissionRequest(ctx, ticketID, rejecterID, reasonPtr); err != nil {
+	if err := s.repo.RejectPermissionRequest(ctx, tenantID, ticketID, rejecterID, reasonPtr); err != nil {
 		return false, err
 	}
-	s.recordAudit(ctx, tenantID, "reject_permission_request", rejecterID, "permission_request", fmt.Sprintf("%d", ticketID), fmt.Sprintf("reason=%s", reason))
+	s.recordAudit(ctx, tenantID, "reject_permission_request", rejecterID, "permission_request", ticketID, fmt.Sprintf("reason=%s", reason))
 	return true, nil
 }
 
@@ -562,33 +525,34 @@ func (s *Service) GrantSimplified(ctx context.Context, req models.GrantSimplifie
 	if req.EnvironmentSuffix != "" {
 		envSuffix = &req.EnvironmentSuffix
 	}
-	if err := s.repo.GrantTemporaryPermission(ctx, tenantID, req.UserID, req.CapabilityID, req.GrantorId, envSuffix, req.DurationHours); err != nil {
+	if err := s.repo.GrantTemporaryPermission(ctx, tenantID, req.UserID, req.CapabilityID, req.GrantorId, req.Reason, envSuffix, req.DurationHours); err != nil {
 		return nil, err
 	}
-	expiredAt := time.Now().UTC().Add(time.Duration(req.DurationHours) * time.Hour)
-	s.recordAudit(ctx, tenantID, "grant_temporary_permission", req.GrantorId, "temporary_permission", req.UserID, fmt.Sprintf("capability=%q expires=%s reason=%s", req.CapabilityID, expiredAt.Format(time.RFC3339), req.Reason))
+	grantedAt := time.Now().UTC()
 	return &models.TemporaryPermission{
+		TenantID:          tenantID,
 		UserID:            req.UserID,
 		CapabilityID:      req.CapabilityID,
 		EnvironmentSuffix: req.EnvironmentSuffix,
 		Reason:            req.Reason,
 		GrantedBy:         req.GrantorId,
-		ExpiresAt:         expiredAt,
-		GrantedAt:         time.Now().UTC(),
+		ExpiresAt:         grantedAt.Add(time.Duration(req.DurationHours) * time.Hour),
+		GrantedAt:         grantedAt,
 	}, nil
 }
 
 // RevokeSimplified revokes a simplified temporary permission by ID.
-func (s *Service) RevokeSimplified(ctx context.Context, tenantID string, id int, revokedBy string) (*models.TemporaryPermission, error) {
+func (s *Service) RevokeSimplified(ctx context.Context, tenantID string, id string, revokedBy string) (*models.TemporaryPermission, error) {
 	perm, err := s.repo.GetTemporaryPermissionByID(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.repo.RevokeTemporaryPermissionByID(ctx, id, revokedBy); err != nil {
+	if err := s.repo.RevokeTemporaryPermissionByID(ctx, tenantID, id); err != nil {
 		return nil, err
 	}
-	perm.RevokedAt = func() *time.Time { now := time.Now().UTC(); return &now }()
-	s.recordAudit(ctx, tenantID, "revoke_temporary_permission", revokedBy, "temporary_permission", fmt.Sprintf("%d", id), "revoked simplified")
+	now := time.Now().UTC()
+	perm.RevokedAt = &now
+	s.recordAudit(ctx, tenantID, "revoke_temporary_permission", revokedBy, "temporary_permission", id, "revoked simplified")
 	return perm, nil
 }
 
@@ -644,6 +608,12 @@ func (s *Service) verifyCapabilityExists(ctx context.Context, tenantID, capabili
 }
 
 // recordAudit writes an audit log entry for a permission action.
+//
+// The error is deliberately discarded: an audit write must not fail the action
+// it records, and the caller has already committed the primary write. The defect
+// that made this a no-op was structural -- InsertAuditLog targeted
+// permission_audit_logs, which has no target_type, target_id or details column,
+// so every call failed at parse and this module never wrote a single audit row.
 func (s *Service) recordAudit(ctx context.Context, tenantID, action, userID, targetType, targetID, details string) {
 	_ = s.repo.InsertAuditLog(ctx, tenantID, action, userID, targetType, targetID, details)
 }
