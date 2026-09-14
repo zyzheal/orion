@@ -27,7 +27,7 @@ import (
 // Service defines the methods the handler calls on the service layer.
 type Service interface {
 	CreateJob(ctx context.Context, tenantID, name, sourceType, sourcePath, targetType, mode string, mapping map[string]string) (*models.CMDBImportJob, error)
-	StartJob(ctx context.Context, jobID string) error
+	StartJob(ctx context.Context, tenantID, jobID string) error
 	GetJob(ctx context.Context, tenantID, jobID string) (*models.CMDBImportJob, error)
 	ListJobs(ctx context.Context, tenantID, status string, offset, limit int) ([]models.CMDBImportJob, error)
 	ListRecordsByJob(ctx context.Context, jobID string, offset, limit int) ([]models.CMDBImportRecord, error)
@@ -135,8 +135,9 @@ func (h *Handler) StartJob(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartImportJob")
 	defer span.End()
 
+	tenantID := c.GetString("tenant_id")
 	jobID := c.Param("id")
-	err := h.svc.StartJob(ctx, jobID)
+	err := h.svc.StartJob(ctx, tenantID, jobID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

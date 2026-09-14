@@ -44,6 +44,25 @@ var (
 )
 
 // ===========================================================================
+// RepositoryInterface — repository methods used by the manager
+// ===========================================================================
+
+// RepositoryInterface defines the repository methods used by the service.
+// Following the build-env and vulnerability precedent, the manager holds the
+// interface rather than the concrete *repository.Repository so service-layer
+// tests can inject a recording fake and assert the caller's tenant/args reach
+// every statement.
+type RepositoryInterface interface {
+	CreateJob(ctx context.Context, j *models.CMDBImportJob) error
+	GetJob(ctx context.Context, id string) (*models.CMDBImportJob, error)
+	UpdateJobStatus(ctx context.Context, id string, status string, errMsg *string, startedAt *time.Time, finishedAt *time.Time) (*models.CMDBImportJob, error)
+	UpdateJobCounts(ctx context.Context, id string, totalCount, successCount, errorCount int) error
+	CreateRecord(ctx context.Context, rec *models.CMDBImportRecord) error
+	ListRecordsByJob(ctx context.Context, jobID string, offset, limit int) ([]models.CMDBImportRecord, error)
+	ListJobs(ctx context.Context, tenantID, status string, offset, limit int) ([]models.CMDBImportJob, error)
+}
+
+// ===========================================================================
 // IImportHandler — pluggable source parser interface
 // ===========================================================================
 
@@ -398,8 +417,14 @@ func (h *SFTPHandler) Parse(sourcePath string, config map[string]string) ([]map[
 	return nil, fmt.Errorf("%w: sftp import not implemented; configure remote host/port/user/key in config", ErrParseFailed)
 }
 
+// Validate delegates to the shared validateMapping, matching every other
+// handler. It cannot diverge in practice — Parse above always fails, so no
+// caller ever reaches Validate with rows — but the old hard-coded
+// "sftp not implemented" string would surface as a validation error on the
+// hypothetical path where Parse succeeds, and left SFTP the only handler
+// with a non-uniform contract.
 func (h *SFTPHandler) Validate(rows []map[string]interface{}, mapping map[string]string) ([]string, []string) {
-	return nil, []string{"sftp not implemented"}
+	return validateMapping(rows, mapping)
 }
 
 // ===========================================================================
@@ -409,12 +434,12 @@ func (h *SFTPHandler) Validate(rows []map[string]interface{}, mapping map[string
 // CMDBImportManager manages CMDB import jobs and dispatches to handlers.
 type CMDBImportManager struct {
 	handlers map[string]IImportHandler
-	repo     *repository.Repository
+	repo     RepositoryInterface
 	mu       sync.RWMutex
 }
 
 // NewCMDBImportManager creates a new CMDBImportManager.
-func NewCMDBImportManager(repo *repository.Repository) *CMDBImportManager {
+func NewCMDBImportManager(repo RepositoryInterface) *CMDBImportManager {
 	m := &CMDBImportManager{
 		repo:     repo,
 		handlers: make(map[string]IImportHandler),
@@ -499,13 +524,19 @@ func (m *CMDBImportManager) CreateJob(ctx context.Context, tenantID, name, sourc
 }
 
 // StartJob starts an import job (transitions pending → running, parses, processes).
-func (m *CMDBImportManager) StartJob(ctx context.Context, jobID string) error {
+func (m *CMDBImportManager) StartJob(ctx context.Context, tenantID, jobID string) error {
 	j, err := m.repo.GetJob(ctx, jobID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, repository.ErrNotFound) {
 			return fmt.Errorf("%w: %s", ErrJobNotFound, jobID)
 		}
 		return err
+	}
+	// Cross-tenant isolation: a caller may only start its own job. The empty
+	// tenantID guard mirrors GetJob so system context (no tenant) can still
+	// operate while a real tenant cannot touch another tenant's job.
+	if tenantID != "" && j.TenantID != tenantID {
+		return fmt.Errorf("%w: job %s", ErrJobNotFound, jobID)
 	}
 	if m.isValidStatusTxn(j.Status, string(models.JobStatusRunning)) {
 		return fmt.Errorf("%w: %s → running", ErrInvalidStatusTxn, j.Status)
@@ -524,7 +555,12 @@ func (m *CMDBImportManager) StartJob(ctx context.Context, jobID string) error {
 		return err
 	}
 
-	// Parse
+	// Parse. config is deliberately nil here: CreateImportJobRequest.Config is
+	// never persisted, because cmdb_import_jobs has no config column and the
+	// only schema for it (migrations/cmdb-import/) is never loaded by the
+	// top-level migrator, which skips subdirectories. The config path therefore
+	// only exists through ValidateSource, and the stored job re-parses the file
+	// with defaults.
 	rows, err := handler.Parse(j.SourcePath, nil)
 	if err != nil {
 		m.markFailed(ctx, j, err)
@@ -593,14 +629,19 @@ func (m *CMDBImportManager) StartJob(ctx context.Context, jobID string) error {
 		})
 	}
 
-	// Update job counts
+	// Update job counts. The rows were already processed and recorded, so a
+	// count write failure must not silently pass — surface it so the caller sees
+	// the job reached a terminal state but the counts are stale.
 	if err := m.repo.UpdateJobCounts(ctx, j.ID, totalCount, successCount, errorCount); err != nil {
-		m.loggerError("update counts failed: %v", err)
+		return fmt.Errorf("update counts failed: %w", err)
 	}
 
-	// Finalize status
+	// Finalize status. Every row carries a `__error__` key or not, so the
+	// all-failed case is errorCount == totalCount, not `>`. With `>` a job whose
+	// rows all failed was marked completed while a partially-failed job was
+	// correctly marked failed — the edge case was inverted.
 	finishedAt := time.Now().UTC()
-	if errorCount > totalCount {
+	if errorCount >= totalCount {
 		// All failed
 		_, err := m.repo.UpdateJobStatus(ctx, j.ID, string(models.JobStatusFailed), nil, nil, &finishedAt)
 		return err
@@ -658,7 +699,12 @@ func (m *CMDBImportManager) CancelJob(ctx context.Context, tenantID, jobID strin
 	if err != nil {
 		return err
 	}
-	if !m.isValidStatusTxn(j.Status, string(models.JobStatusCancelled)) {
+	// isValidStatusTxn returns true when the transition is INVALID, so the
+	// guard rejects exactly the disallowed states (completed/failed/cancelled)
+	// and lets pending → cancelled and running → cancelled through. The previous
+	// `!` inverted this and rejected every legitimate cancel while passing the
+	// invalid ones.
+	if m.isValidStatusTxn(j.Status, string(models.JobStatusCancelled)) {
 		return fmt.Errorf("%w: %s → cancelled (not running or pending)", ErrInvalidStatusTxn, j.Status)
 	}
 	finishedAt := time.Now().UTC()
@@ -725,8 +771,3 @@ func validateMapping(rows []map[string]interface{}, mapping map[string]string) (
 	return hints, errs
 }
 
-// loggerError is a no-op logger placeholder (service is logger-free per runner pattern).
-func (m *CMDBImportManager) loggerError(format string, args ...interface{}) {
-	// In production this would use zap; following runner service pattern.
-	_ = fmt.Sprintf(format, args...)
-}
