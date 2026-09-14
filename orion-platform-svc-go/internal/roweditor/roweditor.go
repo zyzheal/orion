@@ -239,6 +239,9 @@ func (e *RowEditor) validateRow(row Row) error {
 	if len(row) == 0 {
 		return nil
 	}
+	if err := e.rejectUndeclaredColumn(row, true); err != nil {
+		return err
+	}
 	for _, c := range e.spec.Columns {
 		if c.ReadOnly {
 			if _, ok := row[c.Name]; ok {
@@ -303,6 +306,55 @@ func (e *RowEditor) validateMode(mode Mode) error {
 	}
 }
 
+// specColumn reports whether name is declared in the editor's spec and returns
+// its definition.
+//
+// It is the single membership check the edit paths funnel through. Every edit
+// path renders a caller-supplied column name into SQL -- UPDATE takes it from a
+// change map, INSERT from a row map, EditCell from a request field -- so a name
+// the registered spec does not declare has to be refused before it reaches a
+// builder. Before this, validateCell was the only path that checked: validateEdit,
+// validateBatch and validateRow iterated the spec looking for the caller's keys
+// but never rejected a key they did not find, which is how an undeclared column
+// reached the SET clause of a generic, caller-registered table.
+func (e *RowEditor) specColumn(name string) (ColumnSpec, bool) {
+	for _, c := range e.spec.Columns {
+		if c.Name == name {
+			return c, true
+		}
+	}
+	return ColumnSpec{}, false
+}
+
+// rejectUndeclaredColumn refuses the first key of columns that the spec does not
+// declare.
+//
+// allowTenant exempts tenant_id, and only the insert path passes true: there
+// buildInsertColumnArgs discards a caller-supplied value and stamps the tenant
+// that was authenticated upstream, so the value is inert. On an UPDATE a caller
+// tenant_id would be bound straight into the SET clause and move the row into a
+// tenant it does not belong to, so validateEdit and validateBatch refuse it.
+//
+// Keys are sorted first so the reported column is deterministic; Go maps iterate
+// in unspecified order and a random error message makes a caller's mistake hard
+// to reproduce.
+func (e *RowEditor) rejectUndeclaredColumn(columns map[string]any, allowTenant bool) error {
+	keys := make([]string, 0, len(columns))
+	for k := range columns {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	for _, k := range keys {
+		if allowTenant && k == TenantColumn {
+			continue
+		}
+		if _, ok := e.specColumn(k); !ok {
+			return fmt.Errorf("%w: column %q is not in the editor spec", ErrValidationError, k)
+		}
+	}
+	return nil
+}
+
 // validateCell validates that a cell change references a known, writable column.
 func (e *RowEditor) validateCell(change CellChange) error {
 	if change.RowID == "" {
@@ -311,20 +363,23 @@ func (e *RowEditor) validateCell(change CellChange) error {
 	if change.Column == "" {
 		return fmt.Errorf("row editor cell: column is empty")
 	}
-	for _, c := range e.spec.Columns {
-		if c.Name == change.Column {
-			if c.ReadOnly {
-				return fmt.Errorf("%w: %s", ErrReadOnlyField, c.Name)
-			}
-			if c.Validate != nil {
-				if err := c.Validate(change.Value); err != nil {
-					return fmt.Errorf("validateCell column %s: %w", c.Name, err)
-				}
-			}
-			return nil
+	c, ok := e.specColumn(change.Column)
+	if !ok {
+		// Wrapped, not bare: respondEditError maps ErrValidationError to 400 and
+		// everything else to 500. The bare error fell through to the default
+		// branch, so a caller's typo answered 500 -- the collapse
+		// respondEditError exists to prevent.
+		return fmt.Errorf("%w: column %q is not in the editor spec", ErrValidationError, change.Column)
+	}
+	if c.ReadOnly {
+		return fmt.Errorf("%w: %s", ErrReadOnlyField, c.Name)
+	}
+	if c.Validate != nil {
+		if err := c.Validate(change.Value); err != nil {
+			return fmt.Errorf("validateCell column %s: %w", c.Name, err)
 		}
 	}
-	return fmt.Errorf("row editor cell: unknown column %q", change.Column)
+	return nil
 }
 
 // validateEdit validates the edit options and row change.
@@ -334,6 +389,11 @@ func (e *RowEditor) validateEdit(opts EditOptions, change RowChange) error {
 	}
 	if len(change.Columns) == 0 {
 		return ErrNoChanges
+	}
+	// The SET clause is rendered from these keys, so an undeclared column would
+	// be spliced into "UPDATE <spec.Table> SET <caller key>=$N WHERE ...".
+	if err := e.rejectUndeclaredColumn(change.Columns, false); err != nil {
+		return err
 	}
 	for _, c := range e.spec.Columns {
 		if v, ok := change.Columns[c.Name]; ok {
@@ -357,6 +417,11 @@ func (e *RowEditor) validateBatch(change BatchChange) error {
 	}
 	if len(change.Columns) == 0 {
 		return ErrNoChanges
+	}
+	// Same sink as validateEdit: one undeclared column here would be bound into
+	// every statement of the batch, inside the transaction's rollback window.
+	if err := e.rejectUndeclaredColumn(change.Columns, false); err != nil {
+		return err
 	}
 	for _, c := range e.spec.Columns {
 		if v, ok := change.Columns[c.Name]; ok {

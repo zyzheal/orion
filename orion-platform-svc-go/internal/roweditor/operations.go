@@ -424,7 +424,17 @@ func (e *RowEditor) BatchDelete(ctx context.Context, db DBOperations, opts EditO
 func (e *RowEditor) buildInsertColumnArgs(row Row, tenantID string) (keys, vals string, args map[string]any) {
 	args = make(map[string]any, len(row)+1)
 	for k, v := range row {
-		if k == TenantColumn || e.isReadOnly(k) {
+		// tenant_id is the editor's bookkeeping column: a caller value is
+		// discarded here and the authenticated tenant is stamped below.
+		if k == TenantColumn {
+			continue
+		}
+		c, declared := e.specColumn(k)
+		// The validators refuse undeclared keys before they get here, so this is
+		// the second check. Keeping it at the sink means a future caller that
+		// reaches buildInsertColumnArgs without a validator still cannot name a
+		// column the spec never declared.
+		if !declared || c.ReadOnly {
 			continue
 		}
 		args[k] = v
@@ -447,10 +457,6 @@ func (e *RowEditor) buildInsertColumnArgs(row Row, tenantID string) (keys, vals 
 }
 
 func (e *RowEditor) isReadOnly(column string) bool {
-	for _, c := range e.spec.Columns {
-		if c.Name == column && c.ReadOnly {
-			return true
-		}
-	}
-	return false
+	c, ok := e.specColumn(column)
+	return ok && c.ReadOnly
 }
