@@ -7756,7 +7756,7 @@ service 抽出三个接口（`ToolRepositoryInterface`/`InvocationRepositoryInte
 
 ### 27.7 只记录不修
 
-1. **`internal/security` 与本模块共享 `audit_plans` / `audit_executions` 且形状不同**：`internal/security/repository/security_repository.go:229/236/322/328/338/345` 用 `SELECT *`，其中 322、328 是 `SELECT * FROM audit_executions WHERE id=$1` **连 tenant_id 谓词都没有**（跨租户读）。571/572 加列后这两个模块的读路径很可能同样 `missing destination name`。留独立一轮（本轮授权范围只含本模块）。
+1. ~~**`internal/security` 与本模块共享 `audit_plans` / `audit_executions` 且形状不同**：`security_repository.go` 用 `SELECT *`，其中两处 `SELECT * FROM audit_executions WHERE id=$1` **连 tenant_id 谓词都没有**（跨租户读）。~~ **已修于第二十九轮**：10 个 column 常量显式列名（`TestSource_NoStarSelectForTypedModel` + 10 个逐常量 pinning）、所有语句租户谓词（`TestSource_EveryStatementIsTenantScoped` + handler 层 `TestFindingsByScanIDRoute_TenantScopesTheScanIDFromTheURL`）、缺的 DDL 由迁移 580 补齐。详见 §29。
 2. **反向孤儿**：findings 全部写入成功后 `CreateAuditReport` 失败 → 留下 `report_id` 指向不存在 report 的 findings 行。需要事务或 findings 删除方法，模块两者都没有（`RepositoryInterface` 无 DeleteFinding）。
 3. `ExecuteAudit` 的 report 与 findings 是两次独立连接写（§26.5 已记，仍未动）。
 4. 全部 6 表都无 `deleted_at IS NULL` 过滤，而 571 加过 `deleted_at`——但**没有任何代码写入它**（模块内 `deleted_at` 只出现在注释里），此时加过滤是纯噪音；等有写入方再补。
@@ -7766,7 +7766,7 @@ service 抽出三个接口（`ToolRepositoryInterface`/`InvocationRepositoryInte
 
 ### 27.8 跨轮遗留（更新后）
 
-§26.6 全部保留：`internal/startup` `ListModulesByStatus` nil 切片一致性欠账、条件式安全门谎报（`confirmation/service.go:269,359,367`、`branch-policy/service.go:199,204,517,585,684,1518,1521`）、`chaos-enhanced` `getTenantID` 注释与实现不符、裸 ping 桩数字未核实、alert-adapter 接口强制 `Receive`、`InstantiateTemplate` 丢弃 `Parameters`/`Environment`、`ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换、SMTP/SMS 凭证、134 个 `handler_test.go` 冲突标记（并行 agent 工作树，仍不碰）。**新增**：`internal/security` 的 `audit_*` `SELECT *` 与无租户谓词读（§27.7 第 1 条）。本轮 `internal/security-compliance/` 与迁移 577 冲突标记均为 **0**。
+§26.6 全部保留：`internal/startup` `ListModulesByStatus` nil 切片一致性欠账、条件式安全门谎报（`confirmation/service.go:269,359,367`、`branch-policy/service.go:199,204,517,585,684,1518,1521`）、`chaos-enhanced` `getTenantID` 注释与实现不符、裸 ping 桩数字未核实、alert-adapter 接口强制 `Receive`、`InstantiateTemplate` 丢弃 `Parameters`/`Environment`、`ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换、SMTP/SMS 凭证、134 个 `handler_test.go` 冲突标记（并行 agent 工作树，仍不碰）。**新增**：`internal/security` 的 `audit_*` `SELECT *` 与无租户谓词读（§27.7 第 1 条；**已于第二十九轮修复**）。本轮 `internal/security-compliance/` 与迁移 577 冲突标记均为 **0**。
 
 
 ## 第二十八轮：chatops 5 处未完成全部修复（含 2 处**跨全部 handler 的死分支**）+ 103 条测试 + 7/7 变异证明（2026-09-14）
@@ -7876,7 +7876,7 @@ GetContext    map 2col:  scannable dest type map with >1 columns (2) in result
 1. **缺陷 D 的 14 处跨模块残留**（§28.5）——单行可换，但需要先在模块外建公共工具包，本轮超范围。已用上面的 file:line 清单可直接照抄。
 2. **`chatops_approvers`（`GET /admin/approvers`）与 `chatops_knowledge_recommendations`（`GET /knowledge`）全仓无写入方**——579 建了表、读端能返回真空切片（不再 500），但**永远不会出现数据**。不伪造写入方。
 3. **`Repository.ListAuditLogs` / `ExportAuditLogs` 对 `q` 无 nil 守卫**（repository.go:216）——从路由不可达（`command_handler.go:467/495` 都构造了值、`service.go:233/241` 传 `&q`），留待有人补 nil 调用方再处理。
-4. **`internal/security` + `internal/security/secret`（3547 行）整体未挂载的死代码**，其 audit 子 API 写 7 个迁移中不存在的列（`findings_count` / `completed_at` / `execution_id` / `category` / `evidence` / `recommendation` / `assigned_to`）——规则 (b)：基础设施不存在，仅记。
+4. ~~**`internal/security` + `internal/security/secret`（3547 行）整体未挂载的死代码**~~ — **该结论错误，已在第二十九轮纠正并修复**。事实：`internal/security` 一直挂在 `cmd/server/router.go:299`（45 条 `/security/{scans,findings,audit,compliance,sbom,dependency,poisoning}` 路由），`internal/security/secret` 挂在 :304（`/security/secrets/*`），是活代码不是死代码；它写的那些在迁移里不存在的列（`findings_count` / `completed_at` / `execution_id` / `category` / `evidence` / `recommendation` / `assigned_to`）缺的可运行 DDL 由迁移 580 补齐。判「未挂载」的错误说法与 `securityH` 就在 router.go:299 直接矛盾。教训：宣布一个模块是死代码前必须追到 `RegisterRoutes` 的实际调用点，而 `securityH` 的构造在 `wiring-core-domains.go:100-107`（不在 router.go），只 grep 构造调用会漏掉 :299 那处注册。详见 §29.2。
 5. **可空字符串列 + 非指针 `string` 模型字段**：若将来任何写入方真产生 NULL，扫进 `string` 会 `converting NULL to string`。当前潜伏，因为本应用的写入方绑定的是 Go string，驱动发的是 `''`。
 6. **测试用 mock 与真实契约的一致性**已修（`service_test.go` 里 3 处 `sql.ErrNoRows` 改成 `sentinel.NotFound`，让 mock 反映修好后的 repository 契约）。
 
@@ -7884,8 +7884,91 @@ GetContext    map 2col:  scannable dest type map with >1 columns (2) in result
 
 §27.8 全部保留：`internal/startup` `ListModulesByStatus` nil 切片一致性欠账、条件式安全门谎报（`confirmation/service.go:269,359,367`、`branch-policy/service.go:199,204,517,585,684,1518,1521`）、`chaos-enhanced` `getTenantID` 注释与实现不符、裸 ping 桩数字未核实、alert-adapter 接口强制 `Receive`、`InstantiateTemplate` 丢弃 `Parameters`/`Environment`、`ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换、SMTP/SMS 凭证、134 个 `handler_test.go` 冲突标记（并行 agent 工作树，仍不碰）。
 
-**§27.7 第 1 条（`internal/security` 的 `audit_*` `SELECT *` 与无租户谓词读）本轮升级为 §28.10 第 4 条**：确认该模块连同 `internal/security/secret` 共 3547 行**整体未挂载**（`cmd/server/router.go` 无引用），从「留独立一轮修」降级为「仅记不修」——修它意味着先决定是挂载还是删除。
+**§27.7 第 1 条（`internal/security` 的 `audit_*` `SELECT *` 与无租户谓词读）已在第二十九轮修复**：10 个显式列名常量、全语句租户谓词、迁移 580 补齐缺的可运行 DDL，另加 14 个新回归测试。当时本条把它归到「§28.10 第 4 条：整体未挂载的死代码」——**那个归类是错误的**，`securityH` 一直挂在 `cmd/server/router.go:299`。§28.10 第 4 条与本节已一并纠正，误判风险见 §29.2。
 
 **新增**：缺陷 D 的 14 处跨模块残留（§28.5 的 file:line 清单）；`chatops_approvers` / `chatops_knowledge_recommendations` 无写入方（§28.10 第 2 条）。
 
 **本轮已修完的跨轮遗留**：Round 24 记的「chatops 读路径 `SELECT *` + 缺表」在 A、B 两处彻底落地；Round 27 §27.7 第 6 条「`GetAuditFindings`/`GetAuditReport` 任何错误 → 500，not-found 与故障不可区分，需要仓库区分 `sql.ErrNoRows` 与驱动错误」在 chatops 落地（缺陷 E 的 `getOne`），并顺手把 `security-compliance` 同名的 `getOne` 契约对齐（本模块 repository 测试里 mock 已改）。
+
+
+## 第二十九轮：internal/security 4 处未完成全部修复（含 2 处**跨全模块的死分支**）+ 32 条新测试 + 11/11 变异证明 + 纠正 R27/R28 两处误判（2026-09-14）
+
+扫描起点 HEAD `54dc63fbc`。修复 commit `ccacd16e2`。
+
+### 29.1 选它的理由
+
+R28 把它记为「整体未挂载的死代码」，R27 把它的 `SELECT *` 记为跨轮遗留——两个判断都建立在同一个前提上，而这个前提是错的（§29.5）。按「未使用参数是最高信号」「租户参数被静默丢弃最危险」两条标准，它同时命中：45 条读语句 + 8 个单行读 + 14 处 not-found 分支。
+
+### 29.2 缺陷
+
+**缺陷 A（全模块级，45 条读语句）**：`security_repository.go` 全部读语句用 `SELECT *`。571 给 066 共享的 4 张表加 `deleted_at`、572 加 `created_by`/`updated_by`、577 加 `audit_findings.resolution`/`.target`，580 再加本模块模型声明的那些列。go-common 的 `database.Connect` 走 `sqlx.Open` 且**从不调用 `Unsafe`**，safe mode 在生产连接上同样生效，所以每个读端点都在第一行抛 `missing destination name <col>`。该错误**不是** `sql.ErrNoRows`，不被任何一层吞掉，原样穿 repository → service → handler，全部 `/security` 读路由恒 500。修：**10 个显式列名常量**（`scanColumns` / `findingColumns` / `auditPlanColumns` / `auditExecutionColumns` / `auditFindingColumns` / `compliancePolicyColumns` / `evaluationColumns` / `sbomColumns` / `dependencyGraphColumns` / `poisoningScanColumns`），**没有改模型**（给模型加 `DeletedAt` 会让 `NamedExecContext` 的列数与写语句对不上，那是同时改 40 条写语句的连锁修改；显式列名只动读路径）。
+
+**缺陷 B（8 个单行读，本轮最危险）**：repository **从不**返回 `sentinel.NotFound`，把驱动的 `sql.ErrNoRows` 原样外抛。handler 有 **14 处** `service.IsNotFound(err)` 分支，而 `errors.Is` 恒 false，**一处都没跑到过**——缺 id 回 **500 + "sql: no rows"** 而不是 404。修：`getOne` 映射 `sql.ErrNoRows` → `sentinel.NotFound`（`GetScanByID` / `GetFinding` / `GetAuditPlan` / `GetExecution` / `GetCompliancePolicy` / `GetSBOM` / `GetDependencyGraph` + 2 个 evaluation 读）。**同一轮第二半**：id 键的 `Update*`/`Delete*` 写成 `_, err := r.db.ExecContext(...)`，`RowsAffected()` **被丢弃** → 删已删的 id 报成功、改不存在的 id 报「已更新」。新增 `oneRow(res sql.Result, id string)`：`RowsAffected()==0` → `fmt.Errorf("security %s: %w", id, sentinel.NotFound)`（`%w` 让 `errors.Is` 可见且消息带 id）。**例外**：`FindingsByScanID` 是列表语义，缺 scan 返回空切片而非 404，不包哨兵。
+
+**缺陷 C（DB 故障伪装成满分合规）**：`service.GetComplianceScore` 把策略读取失败当成空策略集，返回 100 分摘要——**数据库一停，合规 API 就报全部通过**。这是比 500 更糟的一类：500 至少暴露故障，100 分是主动谎报。修为 `(nil, err)`，handler 回 500。`TestComplianceScoreRoute_DatabaseFailureIsNotFullCompliance` 额外断言响应体**既不含** `"score":100` **也不含** `"success":true`——只断状态码会漏掉「500 但 body 里塞了满分摘要」这种半吊子实现。
+
+**缺陷 D（DDL 缺口，迁移层面）**：`migrations/security/001` 定义了 6 张表，但 `LoadMigrations` **跳过子目录**，所以那 6 张表从未被创建，读写全报 `relation does not exist`。另 066 拥有 `audit_plans`/`audit_executions`/`audit_findings`/`compliance_policies`，列形状与本模块不同，它写的 `findings_count`/`completed_at`/`execution_id`/`category`/`evidence`/`recommendation`/`assigned_to`/`scope`/`audit_type`/`schedule_type`/`cron_expression`/`reviewers`/`framework_type`/`requirements`/`severity_threshold`/`enabled` **在任何可运行 DDL 里都不存在**，每次 `ExecuteAudit` 都在第一条 finding 上失败。修：迁移 **580**（353 行）—— 6 个 `CREATE TABLE IF NOT EXISTS` + **15 个幂等 `DO $$` ALTER**，与 066 的列并存（`security-compliance` 的 repository 用显式列名，永远看不到新列），up/down 成对，**不出现 `BEGIN;`/`COMMIT;`**（runner 每文件包一层事务）。
+
+### 29.3 迁移与驱动细节
+
+- **`LoadMigrations` 只读扁平目录、只收三位数版本号、跳过 `_down.`**：`migrations/` 下 7 个子目录（cmdb-import / dba / file-handler / governance / notification / security / workflow）**从未被执行过**。本轮只补 580，不改 runner（超范围）。
+- **UUID 列取值路径核实（原注释有误，已改）**：repository 头注释原先写「pgx 解 uuid 成 16 字节二进制值」。查驱动源码，两个候选驱动**都不成立**：
+  - `lib/pq` v1.10.9（go-common `pkg/database/db.go:11` 注册的就是它）：`oid.T_uuid = 2950`，`decodeUUIDBinary` 把 16 字节转成 **36 字符文本**，其自带 `uuid_test.go` 的 `TestDecodeUUIDBackend` 断言的结果就是 `[]byte("a0ecc91d-a13f-...")`——**文本形式**，`database/sql` 再转 `string`。
+  - `pgx` v5.10.0（部分模块注册 `stdlib`）：`UUIDCodec.DecodeDatabaseSQLValue` 走 `database/sql` 桥时返回 `encodeUUID(uuid.Bytes)`，**字符串**。只有原生 pgx 行 API 的 `DecodeValue` 返回 16 字节 `uuid.Bytes`，sqlx 走不到那条路。
+  - 结论：`tenant_id string` 模型字段正确，**不是缺陷**。`created_by::text as created_by` 保留——它今天是无操作，但换成原生 pgx 行 API 会立刻咬人，作为前向兼容护栏留着，注释已改为如实描述。
+
+### 29.4 测试（4 个新文件 32 条 + 重写 service_test.go 17 条，模块测试函数 57 条）
+
+- `handler/notfound_test.go`（4 条，全栈：真 gin + 真 service + 真 repository + sqlmock，`RegisterRoutes` 注册整个组，不手工挂 handler）：`TestReadRoutes_DiscriminateNotFoundFromDatabaseError` = **8 条读路由 × 2 种结果 = 16 个子测试**，缺行断 404 + `"code":"NOT_FOUND"`，驱动错误断 500 + `"code":"INTERNAL_ERROR"`，都校验 `ExpectationsWereMet`；`TestListFindingsRoute_BadSeverityIsBadRequestWithoutQuerying` **不注册任何 SQL 期望**——severity 真到了仓库，sqlmock 会拒、路由回 500，所以 **400 状态本身即证明守卫先于查询执行**；`TestFindingsByScanIDRoute_TenantScopesTheScanIDFromTheURL` 钉住唯一一个外键来自 URL 的路由（`:scan_id` 直取路径，无租户谓词 = 跨租户读）；`TestComplianceScoreRoute_DatabaseFailureIsNotFullCompliance`。
+- `repository/select_star_test.go`（18 条）：机制测试**故意绕过 repository** 自己发 `SELECT *` 扫进模型，所以 repository 怎么改它都不会跟着漂；10 个 column 常量**逐常量 pinning**（正则 `[^*]+` 禁止退回通配符）；2 条源级护栏（含 `FROM` 的反引号片段命中 `SELECT *` 即 FAIL、每条语句必须有 tenant 谓词）；2 条迁移测试——其中 `TestMigration_DefinesEverySelectedColumn` 扫 `migrations/` 的可运行 DDL，断言**每个被 SELECT 的列都有人建过**（缺陷 D 的护栏）。
+- `repository/notfound_test.go`（9 条）：`getOne` 映射 + 驱动错误**不**逃逸；`oneRow` 的 0 行 / 1 行 / `RowsAffected()` 自身报错三分支（sqlmock v1.5.2 没有 `RowsAffectedError`，用本地 `driver.Result` 直接测）；`ListFindings` 非法 severity 在查询前失败；`UpdateScan` 逐字段写入；`UpdateAuditFinding` 写 `assigned_to`。
+- `handler/compliance_evaluation_route_test.go`（1 条）：持有全 handler 包共用的 `withTenant`（gin 读 `c.Keys` 不读 request context，裸请求会把租户变成 `""` 并静默按空串作用域）。
+- `service/service_test.go`（17 条，重写）：`TestUpdateScanStatus_Persists`、`TestGetComplianceScore_DatabaseErrorIsNotFullCompliance`、`TestExecuteAudit_LookupErrorIsNotNotFound` 等。
+- **sqlmock 三个坑（本轮踩过）**：默认 `QueryMatcherRegexp` 把期望当正则，`\$1` 必须转义 `$`；`AddRow` 收 `...driver.Value`，NULL 要传 `nil`；`WillReturnError(fmt.Errorf("sql: no rows"))` **不是** `sql.ErrNoRows`，必须用真哨兵（否则测的是 500 分支而不是 404 分支）。
+- **gin 路径段计数**：`/dependency/:package_name/:package_version` 是 2 段，写 `/dependency/npm/left-pad/v1.3.0` 这种 3 段路径时 gin 自己回「404 page not found」而不是走到 handler——测试会假绿，包名里不能带斜杠。
+
+### 29.5 变异证明 11/11 有效变异全部杀死（0 survived）+ 1 个按规则拒绝打分
+
+| # | 变异 | 杀它的测试 |
+|---|------|-----------|
+| A1 | handler `IsNotFound(err)` 判死 | `TestReadRoutes_DiscriminateNotFoundFromDatabaseError`（status=500 want 404） |
+| A2 | 删仓库层 severity 守卫 | `TestListFindings_InvalidSeverityFailsBeforeQuerying` |
+| A2b | 删 service 层 severity 守卫 | `TestListFindingsRoute_BadSeverityIsBadRequestWithoutQuerying`（回 500 + 原始 "unsupported severity"） |
+| A3 | 删 `/findings/scan/:scan_id` 租户谓词 | handler + repository 两条测试同时死 |
+| A4 | `GetComplianceScore` 吞错误回 100 分 | `TestComplianceScoreRoute_DatabaseFailureIsNotFullCompliance`（200 + `"overall_score":100`）+ service 同名测试 |
+| B1 | 删 580 的 `assigned_to` DO 块 | `TestMigration_DefinesEverySelectedColumn`（"1 selected column(s) that no loadable migration defines: [audit_findings.assigned_to]"） |
+| B2 | 删迁移 580 | 2 条迁移测试同时死 |
+| C1 | 退回 `SELECT *` | `TestSource_NoStarSelectForTypedModel` + `TestGetScanByID_SelectsTheModelColumns` |
+| C2 | 删某处租户谓词 | `TestSource_EveryStatementIsTenantScoped` |
+| D1 | 删 `oneRow` 的 `RowsAffected` 检查 | `TestOneRow_ZeroRowsIsNotFound` + `TestOneRow_ReportsRowsAffectedFailures` |
+| D2 | `getOne` 改成回 `sql.ErrNoRows` | `TestGetOne_NoRowsIsNotFound` + handler 测试（body `"error":"sql: no rows in result set","code":"INTERNAL_ERROR"`） |
+
+**两条 harness 教训**：
+1. **A2 在 handler 测试里杀不死**——仓库层的守卫被删了，400 还在。原因：`service.ListFindings` 有**同一个守卫**（`security_service.go:193`）。改测 service 层才杀死（A2b），并把测试注释改准：400 由 service 守卫产生，仓库守卫是第二道防线，由 `TestListFindings_InvalidSeverityFailsBeforeQuerying` 钉住。**先跑变异再写注释，不要先写注释再跑变异。**
+2. **D2v1 编译不过**：删掉整个 `errors.Is(err, sql.ErrNoRows)` 块后 `errors` 变成未使用 import，`"errors" imported and not used` → `[build failed]`。**编译不过的变异无效、不能打分**（R28 已立的规则），改成保留 `errors` 的 D2v2（`return sentinel.NotFound` → `return sql.ErrNoRows`），两层同时杀死。
+
+**另：R27/R28 两处误判，本轮纠正**
+- `internal/security` + `internal/security/secret` 被记为「整体未挂载的死代码」——**错**。`securityH` 一直挂在 `cmd/server/router.go:299`（45 条路由），`securitySecretH` 在 :304，是活代码。误判来源：只 grep 了构造调用，而 `securityH` 的构造在 `wiring-core-domains.go:105`（`wireSecurityDomains`，由 `wiring-core-domains.go:65` 调用），不在 router.go 里；`security_complianceH` 挂在 `/compliance` 而**不在** `/security` 下，所以 :296-298 那条「`/audit/plans` 已被占用、`/scans`/`/findings` 有冲突」的注释也是错的——三组前缀互不相交（`/security/code-scan/*` / `/security/{scans,findings,audit,compliance,sbom,dependency,poisoning}` / `/security/secrets/*`）。两处都已改成正确描述。**教训：宣布一个模块是死代码之前，必须追到 `RegisterRoutes` 的实际调用点，而不是只看构造点。** 已同步修正 §27.7 第 1 条、§28.10 第 4 条、§28.11、R28 的 ALL_TODOS 行。
+
+### 29.6 验证
+
+`gofmt -l ./internal/security/ cmd/server/router.go` 无输出、`go build ./...` 无输出、`go vet ./internal/security/...` 无输出、`go test ./internal/security/... ./cmd/server/...` 全 ok、`go test ./...` **exit 0（0 FAIL）**。
+
+### 29.7 只记录不修
+
+1. **10 个已测但不可达的方法**（有真实实现、有基础设施、有测试，只是没路由）：
+   - repository 层 5 个：`ListAuditFindings` / `GetAuditFindingByID` / `UpdateAuditFinding` / `CountAuditFindingsByExecution` / `SumSBOMVulnerabilities`
+   - service 层 5 个：`CountByStatus` / `UpdateScanStatus` / `BatchCreateFindings` / `GetLatestExecution` / `ListComplianceEvaluations`
+   - 连带效应：`ExecuteAudit`（活的，`POST /audit/executions/plan/:plan_id`）会**写** audit findings，但 API **读不回来**——`ListAuditFindings` / `GetAuditFindingByID` / `UpdateAuditFinding` / `CountAuditFindingsByExecution` 全都不可达。这是**信息黑洞，不是桩**：数据真的写进去了，只是没出口。不删（规则：基础设施存在就不删），也不加路由（规则：无前端调用方不加路由）。
+2. **`UpdateScanStatus → repo.UpdateScan` 是死的成对方法**，零调用方，也是 `repo.UpdateScan` 唯一调用方。`Service.Create` 把状态设成 `"pending"` 而**没有任何东西会把它转走**——扫描永远停在 pending。这是真实实现、有测试（`TestUpdateScanStatus_Persists`）、缺的只是路由。
+3. **`internal/code-scan` 的 `ListScans` 返回 `defaultScans()` 常量**（`internal/code-scan/handler/handler.go:30`）——真桩，但属 `/security/code-scan/*`，不在本轮授权模块内。
+4. **`code_scanH` 的 3 条路由挂 `auth.RequirePermission`，`securityH` 的 45 条不带**：同一 `/security` 前缀下两套鉴权语义。是否统一由产品决定。
+5. 可空字符串列 + 非指针 `string` 模型字段：若将来任何写入方真产生 NULL，扫进 `string` 会 `converting NULL to string`。当前潜伏，因为本应用写入方绑定的是 Go string、驱动发 `''`。
+
+### 29.8 跨轮遗留（更新后）
+
+§28.11 全部保留：`internal/startup` `ListModulesByStatus` nil 切片一致性欠账、条件式安全门谎报（`confirmation/service.go:269,359,367`、`branch-policy/service.go:199,204,517,585,684,1518,1521`）、`chaos-enhanced` `getTenantID` 注释与实现不符、裸 ping 桩数字未核实、alert-adapter 接口强制 `Receive`、`InstantiateTemplate` 丢弃 `Parameters`/`Environment`、`ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换、SMTP/SMS 凭证、134 个 `handler_test.go` 冲突标记（并行 agent 工作树，仍不碰）。
+
+**新增**：`internal/code-scan` `ListScans` 常量桩（§29.7 第 3 条）；同一 `/security` 前缀两套鉴权语义（§29.7 第 4 条）。
+
+**本轮已修完的跨轮遗留**：§27.7 第 1 条（`internal/security` 的 `audit_*` `SELECT *` 与无租户谓词读）在 A、B 两处彻底落地；R27 第 6 条「not-found 与故障不可区分」在 security 落地（缺陷 B 的 `getOne`/`oneRow`）。
