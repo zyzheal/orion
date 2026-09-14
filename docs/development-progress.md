@@ -7767,3 +7767,125 @@ service 抽出三个接口（`ToolRepositoryInterface`/`InvocationRepositoryInte
 ### 27.8 跨轮遗留（更新后）
 
 §26.6 全部保留：`internal/startup` `ListModulesByStatus` nil 切片一致性欠账、条件式安全门谎报（`confirmation/service.go:269,359,367`、`branch-policy/service.go:199,204,517,585,684,1518,1521`）、`chaos-enhanced` `getTenantID` 注释与实现不符、裸 ping 桩数字未核实、alert-adapter 接口强制 `Receive`、`InstantiateTemplate` 丢弃 `Parameters`/`Environment`、`ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换、SMTP/SMS 凭证、134 个 `handler_test.go` 冲突标记（并行 agent 工作树，仍不碰）。**新增**：`internal/security` 的 `audit_*` `SELECT *` 与无租户谓词读（§27.7 第 1 条）。本轮 `internal/security-compliance/` 与迁移 577 冲突标记均为 **0**。
+
+
+## 第二十八轮：chatops 5 处未完成全部修复（含 2 处**跨全部 handler 的死分支**）+ 103 条测试 + 7/7 变异证明（2026-09-14）
+
+### 28.1 为什么选它
+
+扫描起点 HEAD `926578e69`。第七十三轮起 chatops 一直是「路由最多、测试最少」的模块之一：**73 条已挂载路由**、repository **85 个方法**驱动 **29 张表**，而 repository 包此前**一个测试文件都没有**——和 Round 27 撞上的 `security-compliance` 是同一个缺口，那轮把 25 个方法的 SQL 全部钉住之后，同样的形状在 chatops 里必然还有货。这次一次挖出 **5 处未完成**，其中 **2 处（A、E）是全模块级的：不是某个端点坏，是整个模块的读路径恒 500**。
+
+选它的第二个理由：chatops 是**活的**（`cmd/server/router.go:118` 挂载，73 条路由挂 `auth.RequirePermission`），且它的 repository 是本轮**唯一**同时具备「大量 SQL + 零测试 + 已挂载」三条件的模块。
+
+### 28.2 缺陷 A（全模块级）：45 处 `SELECT *` 扫进类型化模型 → 每个读端点恒 500
+
+**机制**：迁移 **571** 给全部 chatops 表加了 `deleted_at`，**572** 加了 `created_by` / `updated_by`。而 chatops 的 22 个模型**没有一个**声明这两个字段。sqlx v1.4.0 在 safe mode 下扫 `SELECT *` 时，遇到模型没有的列直接抛 `missing destination name deleted_at in *models.ChatOpsCommand`。
+
+**为什么是恒 500 而不是「软删行被过滤」**：go-common 的 `database.ConnectContext` 走 `sqlx.Open` 且**从不调用 `Unsafe`**（`database.DB` 是 `*sqlx.DB` 类型），所以 safe mode 在生产连接上同样生效。该错误**不是** `sql.ErrNoRows`，因此不会在任何一层被吞掉——它原样穿 repository → service → handler，`RespondInternalError` 兜底成 500。
+
+**修法**：**显式列名**，22 个 `*Columns` 常量，45 条语句全部改写。**没有改模型**——因为 `NamedExecContext` 会绑定结构体所有导出字段，给模型加 `DeletedAt` 会让 INSERT 语句的列数与 SQL 里的列数不再对应，那是要同时改 40 条写语句的连锁修改；而显式列名只动读路径、不碰任何写语句。
+
+**先验证再改**：一次性探针测试（随后删掉）实测 sqlx 对 `SELECT *` 的行为，确认是 `missing destination name deleted_at` 而不是别的错误，才动手。探针结论被固化成 `TestSelectStarIntoTypedModelFailsOnSoftDeleteColumn`——这个测试**故意绕过 repository** 自己发 `SELECT *` 扫进模型，所以 repository 怎么改它都不会跟着漂。
+
+**范围钉死**：`TestSource_NoStarSelectForTypedModels` 读 `repository.go` 自身、遍历含 `FROM` 的反引号片段，命中 `SELECT *` 即 FAIL。文件里只剩 2 处 `SELECT *`：一处是文件头注释在**描述**这个缺陷，另一处是 `GetUserPermissionRequests` 对 `permission_requests` 的 map-scan（该表由 017 创建，模型无对应结构，走 `selectMaps`）。
+
+### 28.3 缺陷 B：7 张关系缺失 → 6 张建迁移 579 + 1 处表名错位
+
+repository 引用的 29 张表里，**7 张没有任何迁移创建**。6 张是 020 漏建（`chatops_approvers` / `chatops_approver_schedule` / `chatops_command_version_tags` / `chatops_global_approval_config` / `chatops_knowledge_recommendations` / `chatops_webhook_logs`）→ **迁移 579** 建齐，6 表 + 8 索引，列名与 22 个常量逐一对齐，id / tenant_id 用 `uuid.New().String()` 的形态与 020 一致。
+
+第 7 张是**表名写错**：代码写 `chatops_roles`，而 020 早就建了 `chatops_permission_roles`，列形状完全一致（`id, tenant_id, name, description, permissions`），且**全仓无任何引用**。于是 5 条角色语句改指真表，**真表因此一直是空的**——`GET /admin/roles` 恒 500，不是空列表。579 刻意**不**建 `chatops_roles`，只在注释里说明这个分叉，避免下一位照旧名再建一张空表。
+
+### 28.4 缺陷 C：`TestWebhook` 是「连通性检查 + 常量返回」倒桩
+
+`POST /admin/webhooks/:id/test` 挂的是 `Repository.TestWebhook`，原实现只取 webhook 行、拼一句 "reachable" 常量返回，**一个字节都没发出去**。这正是 `chatops_webhook_logs` 只有读端（`GetWebhookLogs`）而全仓**零写入方**的原因——日志表有读没写。
+
+修法：service 层真的发 POST（`postWebhookTest`），并在 service 层写入交付行（`InsertWebhookLog`）。payload `{"event":"webhook_test","webhook_id","tenant_id","sent_at"}`，header 带 `X-Orion-Webhook-Event` 与（secret_key 非空时）`X-Orion-Webhook-Signature`，加上租户自存的 headers；timeout 下限 10s、上限 60s；`LimitReader` 截断 4KB 响应体；非 2xx 记 `failed` 并把 `HTTP <code>` 放进 error 字段。写日志失败**不隐藏探针本身的结果**——只在 `result.Message` 尾部追加 `"; delivery log not written: …"`，下一次日志查询仍能看出到那一步发生了什么。
+
+### 28.5 缺陷 D：`SelectContext` 扫 `[]map[string]interface{}` **根本不可能返回行**
+
+这是本轮最隐蔽的一处，也是**跨模块**的。sqlx v1.4.0 源码里 `Select`/`SelectContext` 先把元素类型记进 `isScannable`，而 `isScannable` **对任何非结构体类型都返回 true**——`map[string]interface{}` 不是结构体，所以被认为可扫；接着 `scanAll` 遇到「非结构体目的地 + 列数 > 1」直接拒绝：
+
+```
+non-struct dest type map with >1 columns (2)
+```
+
+也就是说：**任何 ≥2 列的 SELECT 扫进 `[]map[string]interface{}` 一律失败**。单列 SELECT 扫进 `[]string` 是合法的（`GetUserAllowedCommands` 就在这么用，repository.go:1092）。
+
+**独立探针验证**（`/tmp/sqlxprobe`，与仓库无关）：
+```
+SelectContext []map 2col: non-struct dest type map with >1 columns (2)
+Select       []map 2col: non-struct dest type map with >1 columns (2)
+SelectContext []map 1col: unsupported Scan, storing driver.Value type string into type *map[string]interface{}
+GetContext    map 2col:  scannable dest type map with >1 columns (2) in result
+```
+
+**修法**：手写 `QueryxContext` + `rows.MapScan(dest)` 的 `selectMaps` 助手，4 个函数 / 5 个调用点转换。映射名会过 sqlx 的 `strings.ToLower` Mapper，而 db 列名本来就是小写，**JSON 形状保持不变**（前端不用动）。
+
+**非空返回是刻意的**：`selectMaps` 空结果返回 `[]map[string]interface{}` 而不是 `nil`——`[]` 而不是 `null`，JSON 形状稳定。
+
+**全仓残留（本轮不改，见 §28.10）**：树内还有 **14 处**同型调用，分布在 5 个模块——`multi-cloud` 7（repository.go:211/212、224、237、288/289、301、313、349/350）、`condition` 2（110/111、243/244）、`artifact` 2（267/268、279/280）、`escalation` 2（200/201、210/211）、`capability` 1（506/507）。每处一行可换，但**没有共享工具包**可放 `selectMaps`（五个模块各自一个 repository 包，无公共 `pkg`），要跨模块得先建包；本轮授权范围只含 chatops。
+
+### 28.6 缺陷 E（全 handler 级）：`sql.ErrNoRows` 从未映射 → 21 处 `IsNotFound` 分支全死 + 16 处写丢弃 `RowsAffected`
+
+**机制**：chatops 的 4 个 handler 文件里共 **21 处** `service.IsNotFound(err)` 分支（`command_handler` 4、`admin_capability` 5、`admin_role_permission` 7、`admin_rate_limit` 5），而 `IsNotFound` 就是 `errors.Is(err, sentinel.NotFound)`（`service.go:1094`），`sentinel.NotFound = errors.New("not found")`（go-common）。repository **从不**返回这个哨兵——它把驱动的 `sql.ErrNoRows` 原样往外抛。`errors.Is` 对两个不同 sentinel 恒 false，所以这 21 处分支**一处都没跑到过**：
+
+- 缺行 → **500** + `"sql: no rows"`，而不是 404。
+- 最典型的是**新租户的第一次请求**：`GET /notification-preferences` 和 `GET /dnd-settings` 本来就是「没有行就返回零值」的设计（handler 里 `RespondSuccess(c, gin.H{})`），但第一次请求必然没有行，于是**新租户打开通知设置页就是一屏 500**。
+
+**修法**：`getOne` 把 `sql.ErrNoRows` 换成 `sentinel.NotFound`；**13 个**单行读转换。
+
+**同一轮的第二半**：16 个 id 键的 `Update*` / `Delete*` 全写成 `_, err := r.db.ExecContext(...)`——`sql.NamedExecContext` / `ExecContext` 返回的是 `(sql.Result, error)`，`RowsAffected()` 就在手上，**全部被丢弃**。结果：删一个已经删掉的 id 报成功（handler 回 200），改一个不存在的 id 报「已更新」，而 service 紧接着去读这一行又读不到。修法：`oneRow(res sql.Result, id string)` 检查 `RowsAffected()==0` → `fmt.Errorf("chatops %s: %w", id, sentinel.NotFound)`（`%w` 让 `errors.Is` 可见，消息里带 id 便于运维定位）。
+
+**刻意保留的两类**：统计类 `GetContext`（`&total` / `&ping` 等，本来就不可能 NoRows）与 upsert（`ON CONFLICT`，零行不代表错）不动；`RemoveTag` 是模块里**唯一**被设计成幂等的 id 键 DELETE（标签不存在 = 已经删了，回 200 才对），代码注释里写明，并靠 `TestSource_EveryIDScopedWriteChecksRowsAffected` 把其余 16 处钉住。
+
+### 28.7 迁移 579 与 runner 的一个坑
+
+`cmd/server/config.go:83` 设 `"migrations"`、`:109` 调 `RunMigrations`，而 go-common 的 `LoadMigrations(dir)` **跳过子目录、只收三位数版本号**。所以 `migrations/{notification,security,governance,cmdb-import,workflow,file-handler,dba}/` 里的迁移**从未被执行过**——本轮不修 runner（超范围），但 579 必须是三位数且必须在顶层：`579` 是下一个空号，up/down 成对，**不出现 `BEGIN;` / `COMMIT;`**（runner 每文件包一层事务，自己写 BEGIN 会直接报错）。
+
+### 28.8 测试与变异证明
+
+**新增 4 个测试文件 / 103 条**（repository 45、service 14、handler 24，chatops 三层全绿）：
+
+| 文件 | 条数 | 钉住的机制 |
+|---|---|---|
+| `repository/select_star_test.go` | 30 | `sqlmock` + 自定义 `QueryMatcherFunc` 归一化空白后**逐字符比较 SQL**；删 tenant 谓词、退回 `SELECT *`、把 `chatops_permission_roles` 改回 `chatops_roles` 都是查询不匹配直接 FAIL。22 常量全覆盖 + `InsertWebhookLog` 断言写入行 + 3 条 `selectMaps` 机制/护栏测试 + 2 条文本层护栏 |
+| `repository/notfound_test.go` | 9 | 缺陷 E：`getOne` 映射（并断言驱动错误**不**逃逸）、设置类读的首请求语义、真实错误原样通过、活行不被包、`oneRow` 的 0 行 / 1 行 / 跨租户三种语义、2 条文本层护栏 |
+| `service/webhook_test.go` | 14 | 缺陷 C：真发 POST（httptest 服务器校验 path / `Content-Type` / 两个 `X-Orion-*` header / 租户自存 header / payload 四字段）、非 2xx、不可达、畸形 URL、**尊重调用方 ctx 截止时间**（50ms 父 ctx vs 1s 挂起服务器）、写日志失败保留答案、缺 webhook 的 not-found、仓库错误上浮、header 解析容错 |
+| `handler/notfound_test.go` | 4 | 缺陷 E 端到端：缺行 **404**、真实错误 **500**、**裸驱动错误仍 500**（改回旧行为不会被放过）、新租户首请求 **200 + 空对象** |
+
+**变异证明 7/7 全部杀死（0 survived / 0 invalid）**，每条都带锚点唯一性断言（计数 ≠ 1 则**拒绝打分**）、逐字节还原校验、前后基线 PASS：
+
+| 变异 | 锚点 | 杀死它的测试 |
+|---|---|---|
+| M1 缺陷 A：`SELECT `+commandColumns → `SELECT *` | 1 | `TestGetCommand_SelectsTheModelColumns` |
+| M2 缺陷 B：`chatops_permission_roles` → `chatops_roles` | 1 | `TestGetRole_UsesTheTable020Created` |
+| M3 缺陷 C：删掉 `InsertWebhookLog` 调用 | 1 | `TestTestWebhook_PostsThenLogs` |
+| M4 缺陷 D：`selectMaps` 换回 `SelectContext` | 1 | `TestGetWebhookLogs_SelectsTheModelColumns` |
+| M5 缺陷 E：`errors.Is(err, sql.ErrNoRows)` → `errors.Is(err, sentinel.NotFound)` | 1 | `TestGetOne_MapsTheDriverMissToNotFound` + `TestGetOne_SettingsReaders…` |
+| M6 缺陷 E：`DeleteWebhook` 丢掉 `oneRow`（`res` → `_`） | 1 | `TestOneRow_ADeleteThatMatchedNothingIsNotFound` |
+| M7 缺陷 E：handler `IsNotFound(err)` → `IsNotFound(nil)` | 1 | `TestHandler_DeleteRole_MissingRoleAnswers404` |
+
+**两条 harness 教训（都实打实踩过）**：(1) M3 第一版把日志调用替换成 `nil`，变异**编译不过**（`status`/`body`/`errMsg`/`durationMS` 变成未使用），分类器一开始把它误判成 KILLED——**编译不过的变异无效**，改成保留四个变量的等价空操作后重跑；(2) harness 曾把 `go` 拼成 `go go test`（命令列表里已含 `go`，外层又前缀了一次），7 条基线全部「不 PASS」→ 全部拒绝打分。拒绝打分是对的，但根因在 harness 自身。
+
+### 28.9 验证
+
+`gofmt -l ./internal/chatops/` **0 文件**；`go build ./...` 无输出；`go vet ./...` 无输出；`go test ./internal/chatops/...` 4/4 ok（handler / repository / service 绿，models 无测试文件）；`go test ./...` **exit 0，0 FAIL**；本轮触碰文件冲突标记 **0**。
+
+### 28.10 仅记不修
+
+1. **缺陷 D 的 14 处跨模块残留**（§28.5）——单行可换，但需要先在模块外建公共工具包，本轮超范围。已用上面的 file:line 清单可直接照抄。
+2. **`chatops_approvers`（`GET /admin/approvers`）与 `chatops_knowledge_recommendations`（`GET /knowledge`）全仓无写入方**——579 建了表、读端能返回真空切片（不再 500），但**永远不会出现数据**。不伪造写入方。
+3. **`Repository.ListAuditLogs` / `ExportAuditLogs` 对 `q` 无 nil 守卫**（repository.go:216）——从路由不可达（`command_handler.go:467/495` 都构造了值、`service.go:233/241` 传 `&q`），留待有人补 nil 调用方再处理。
+4. **`internal/security` + `internal/security/secret`（3547 行）整体未挂载的死代码**，其 audit 子 API 写 7 个迁移中不存在的列（`findings_count` / `completed_at` / `execution_id` / `category` / `evidence` / `recommendation` / `assigned_to`）——规则 (b)：基础设施不存在，仅记。
+5. **可空字符串列 + 非指针 `string` 模型字段**：若将来任何写入方真产生 NULL，扫进 `string` 会 `converting NULL to string`。当前潜伏，因为本应用的写入方绑定的是 Go string，驱动发的是 `''`。
+6. **测试用 mock 与真实契约的一致性**已修（`service_test.go` 里 3 处 `sql.ErrNoRows` 改成 `sentinel.NotFound`，让 mock 反映修好后的 repository 契约）。
+
+### 28.11 跨轮遗留（更新后）
+
+§27.8 全部保留：`internal/startup` `ListModulesByStatus` nil 切片一致性欠账、条件式安全门谎报（`confirmation/service.go:269,359,367`、`branch-policy/service.go:199,204,517,585,684,1518,1521`）、`chaos-enhanced` `getTenantID` 注释与实现不符、裸 ping 桩数字未核实、alert-adapter 接口强制 `Receive`、`InstantiateTemplate` 丢弃 `Parameters`/`Environment`、`ticketing/testutil/mocks.go` 兜底 `nil,nil`、JWT 密钥轮换、SMTP/SMS 凭证、134 个 `handler_test.go` 冲突标记（并行 agent 工作树，仍不碰）。
+
+**§27.7 第 1 条（`internal/security` 的 `audit_*` `SELECT *` 与无租户谓词读）本轮升级为 §28.10 第 4 条**：确认该模块连同 `internal/security/secret` 共 3547 行**整体未挂载**（`cmd/server/router.go` 无引用），从「留独立一轮修」降级为「仅记不修」——修它意味着先决定是挂载还是删除。
+
+**新增**：缺陷 D 的 14 处跨模块残留（§28.5 的 file:line 清单）；`chatops_approvers` / `chatops_knowledge_recommendations` 无写入方（§28.10 第 2 条）。
+
+**本轮已修完的跨轮遗留**：Round 24 记的「chatops 读路径 `SELECT *` + 缺表」在 A、B 两处彻底落地；Round 27 §27.7 第 6 条「`GetAuditFindings`/`GetAuditReport` 任何错误 → 500，not-found 与故障不可区分，需要仓库区分 `sql.ErrNoRows` 与驱动错误」在 chatops 落地（缺陷 E 的 `getOne`），并顺手把 `security-compliance` 同名的 `getOne` 契约对齐（本模块 repository 测试里 mock 已改）。
