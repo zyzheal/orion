@@ -144,7 +144,7 @@ type CreateFieldRequest struct {
 	Label         string                 `json:"label" binding:"required"`
 	Type          string                 `json:"type" binding:"required"`
 	Required      bool                   `json:"required"`
-	Visible       bool                   `json:"visible"`
+	Visible       *bool                  `json:"visible"`
 	Disabled      bool                   `json:"disabled"`
 	Placeholder   string                 `json:"placeholder"`
 	DefaultVal    interface{}            `json:"defaultVal"`
@@ -154,6 +154,29 @@ type CreateFieldRequest struct {
 	LayoutConfig  map[string]interface{} `json:"layoutConfig"`
 	SortableIndex int                    `json:"sortableIndex"`
 	ParentKey     string                 `json:"parentKey"`
+}
+
+// UpdateFieldRequest is the partial-update shape for PUT /fields/:id. Every
+// attribute is optional so an omitted one is left alone: the previous code
+// reused CreateFieldRequest, which required key, label and type, so a request
+// that only renamed a field was rejected outright. And the write path put the
+// zero value of every omitted attribute into the SET clause, so that same
+// rename silently cleared the placeholder, the required and disabled flags,
+// the visibility, and the sort position in one call.
+type UpdateFieldRequest struct {
+	Label         *string                `json:"label"`
+	Type          *string                `json:"type"`
+	Required      *bool                  `json:"required"`
+	Visible       *bool                  `json:"visible"`
+	Disabled      *bool                  `json:"disabled"`
+	Placeholder   *string                `json:"placeholder"`
+	DefaultVal    interface{}            `json:"defaultVal"`
+	Options       []interface{}          `json:"options"`
+	Rules         []interface{}          `json:"rules"`
+	Meta          map[string]interface{} `json:"meta"`
+	LayoutConfig  map[string]interface{} `json:"layoutConfig"`
+	SortableIndex *int                   `json:"sortableIndex"`
+	ParentKey     *string                `json:"parentKey"`
 }
 
 type SubmitInstanceRequest struct {

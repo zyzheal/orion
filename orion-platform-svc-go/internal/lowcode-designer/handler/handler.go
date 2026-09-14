@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"errors"
+
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
@@ -163,7 +165,7 @@ func (h *Handler) GetFieldsByForm(c *gin.Context) {
 func (h *Handler) UpdateField(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignUpdateField")
 	defer span.End()
-	var req models.CreateFieldRequest
+	var req models.UpdateFieldRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -204,7 +206,7 @@ func (h *Handler) ListTemplates(c *gin.Context) {
 func (h *Handler) GetTemplate(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignGetTemplate")
 	defer span.End()
-	t, err := h.svc.GetTemplate(ctx, c.Param("id"))
+	t, err := h.svc.GetTemplate(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -285,7 +287,11 @@ func (h *Handler) ApproveInstance(c *gin.Context) {
 	}
 	inst, err := h.svc.ApproveInstance(ctx, c.Param("id"), h.getTenantID(c), &req)
 	if err != nil {
-		middleware.RespondNotFound(c, err.Error())
+		if errors.Is(err, service.ErrInvalidAction) {
+			middleware.RespondBadRequest(c, err.Error())
+		} else {
+			middleware.RespondNotFound(c, err.Error())
+		}
 		return
 	}
 	middleware.RespondSuccess(c, inst)
@@ -308,7 +314,7 @@ func (h *Handler) ListComponents(c *gin.Context) {
 func (h *Handler) GetComponent(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LowcodeDesignGetComponent")
 	defer span.End()
-	c2, err := h.svc.GetComponent(ctx, c.Param("id"))
+	c2, err := h.svc.GetComponent(ctx, c.Param("id"), h.getTenantID(c))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return

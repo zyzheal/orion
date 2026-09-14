@@ -18,12 +18,12 @@ type ServiceInterface interface {
 	DeleteForm(ctx context.Context, id, tenantID string) (bool, error)
 
 	CreateField(ctx context.Context, formID, tenantID string, req *models.CreateFieldRequest) (*models.FormField, error)
-	UpdateField(ctx context.Context, id, tenantID string, req *models.CreateFieldRequest) (*models.FormField, error)
+	UpdateField(ctx context.Context, id, tenantID string, req *models.UpdateFieldRequest) (*models.FormField, error)
 	DeleteField(ctx context.Context, id, tenantID string) (bool, error)
 	GetFieldsByForm(ctx context.Context, formID, tenantID string) ([]models.FormField, error)
 
 	ListTemplates(ctx context.Context, tenantID, category string) ([]models.FormTemplate, error)
-	GetTemplate(ctx context.Context, id string) (*models.FormTemplate, error)
+	GetTemplate(ctx context.Context, id, tenantID string) (*models.FormTemplate, error)
 	CreateTemplate(ctx context.Context, tenantID, name, description, category string, schema map[string]interface{}) (*models.FormTemplate, error)
 
 	SubmitInstance(ctx context.Context, formID, tenantID string, req *models.SubmitInstanceRequest) (*models.FormInstance, error)
@@ -32,7 +32,7 @@ type ServiceInterface interface {
 	ApproveInstance(ctx context.Context, id, tenantID string, req *models.ApproveInstanceRequest) (*models.FormInstance, error)
 
 	ListComponents(ctx context.Context, tenantID, category string) ([]models.ComponentRegistry, error)
-	GetComponent(ctx context.Context, id string) (*models.ComponentRegistry, error)
+	GetComponent(ctx context.Context, id, tenantID string) (*models.ComponentRegistry, error)
 	CreateComponent(ctx context.Context, tenantID, name, displayName, category, version string, propsSchema map[string]interface{}, defaultConfig map[string]interface{}, icon string) (*models.ComponentRegistry, error)
 }
 

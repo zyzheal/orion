@@ -2,15 +2,28 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"hash/fnv"
 	"time"
 
 	"orion/platform-svc-go/internal/lowcode-designer/models"
+
+	"github.com/google/uuid"
 )
+
+// ErrInvalidAction is returned when an approve request carries an action that is
+// neither approve nor reject. The handler maps it to 400 so it is not confused
+// with the 404 the same route returns for an instance that does not exist.
+var ErrInvalidAction = errors.New("unknown approval action")
+
+// encodeJSON renders a value for a JSON column. Every caller passes a map, a
+// slice or a scalar whose fields all carry json tags, so Marshal cannot fail;
+// the helper exists so no call site repeats the discarded-error pattern.
+func encodeJSON(v interface{}) string {
+	b, _ := json.Marshal(v)
+	return string(b)
+}
 
 type RepositoryInterface interface {
 	CreateForm(ctx context.Context, f *models.FormDefinition) error
@@ -26,8 +39,7 @@ type RepositoryInterface interface {
 
 	CreateTemplate(ctx context.Context, t *models.FormTemplate) error
 	ListTemplates(ctx context.Context, tenantID, category string) ([]models.FormTemplate, error)
-	GetTemplate(ctx context.Context, id string) (*models.FormTemplate, error)
-	UpdateTemplateUsage(ctx context.Context, id string) error
+	GetTemplate(ctx context.Context, id, tenantID string) (*models.FormTemplate, error)
 
 	CreateInstance(ctx context.Context, inst *models.FormInstance) error
 	GetInstance(ctx context.Context, id, tenantID string) (*models.FormInstance, error)
@@ -36,7 +48,7 @@ type RepositoryInterface interface {
 
 	CreateComponent(ctx context.Context, c *models.ComponentRegistry) error
 	ListComponents(ctx context.Context, tenantID, category string) ([]models.ComponentRegistry, error)
-	GetComponent(ctx context.Context, id string) (*models.ComponentRegistry, error)
+	GetComponent(ctx context.Context, id, tenantID string) (*models.ComponentRegistry, error)
 }
 
 type Service struct {
@@ -50,13 +62,8 @@ func NewService(repo RepositoryInterface) *Service {
 // --- Form Definition CRUD ---
 
 func (s *Service) CreateForm(ctx context.Context, req *models.CreateFormRequest, tenantID, operator string) (*models.FormDefinition, error) {
-	fieldsJSON, _ := json.Marshal(req.Fields)
-	layoutJSON, _ := json.Marshal(req.Layout)
-	tagsJSON, _ := json.Marshal(req.Tags)
-	metaJSON, _ := json.Marshal(req.Meta)
-
 	f := &models.FormDefinition{
-		ID:          generateID("fd"),
+		ID:          newID(),
 		TenantID:    tenantID,
 		Name:        req.Name,
 		Title:       req.Title,
@@ -65,10 +72,10 @@ func (s *Service) CreateForm(ctx context.Context, req *models.CreateFormRequest,
 		Status:      "draft",
 		Category:    req.Category,
 		ModuleName:  req.ModuleName,
-		Tags:        string(tagsJSON),
-		Layout:      string(layoutJSON),
-		FieldsJSON:  string(fieldsJSON),
-		Meta:        string(metaJSON),
+		Tags:        encodeJSON(req.Tags),
+		Layout:      encodeJSON(req.Layout),
+		FieldsJSON:  encodeJSON(req.Fields),
+		Meta:        encodeJSON(req.Meta),
 		CreatedBy:   operator,
 		UpdatedBy:   operator,
 		CreatedAt:   time.Now(),
@@ -83,7 +90,7 @@ func (s *Service) CreateForm(ctx context.Context, req *models.CreateFormRequest,
 	}
 	for i := range req.Fields {
 		field := &models.FormField{
-			ID:            generateID("ff"),
+			ID:            newID(),
 			TenantID:      tenantID,
 			FormID:        f.ID,
 			Key:           req.Fields[i].Key,
@@ -93,21 +100,21 @@ func (s *Service) CreateForm(ctx context.Context, req *models.CreateFormRequest,
 			Visible:       req.Fields[i].Visible,
 			Disabled:      req.Fields[i].Disabled,
 			Placeholder:   req.Fields[i].Placeholder,
+			DefaultVal:    encodeJSON(req.Fields[i].DefaultValData),
+			Options:       encodeJSON(req.Fields[i].OptionsList),
+			Rules:         encodeJSON(req.Fields[i].RulesList),
+			Meta:          encodeJSON(req.Fields[i].MetaData),
+			LayoutConfig:  encodeJSON(req.Fields[i].LayoutData),
 			SortableIndex: i,
 			ParentKey:     req.Fields[i].ParentKey,
 			CreatedAt:     time.Now(),
 			UpdatedAt:     time.Now(),
 		}
-		if opts, _ := json.Marshal(req.Fields[i].Options); len(opts) > 0 {
-			field.Options = string(opts)
+		// The loop previously ignored this error, so POST /forms answered 201 for
+		// a form whose fields never reached the database.
+		if err := s.repo.CreateField(ctx, field); err != nil {
+			return nil, fmt.Errorf("creating field %q of form %s: %w", req.Fields[i].Key, f.ID, err)
 		}
-		if rules, _ := json.Marshal(req.Fields[i].Rules); len(rules) > 0 {
-			field.Rules = string(rules)
-		}
-		if meta, _ := json.Marshal(req.Fields[i].Meta); len(meta) > 0 {
-			field.Meta = string(meta)
-		}
-		s.repo.CreateField(ctx, field)
 	}
 	return f, nil
 }
@@ -169,20 +176,16 @@ func (s *Service) UpdateForm(ctx context.Context, id, tenantID, operator string,
 		attrs["module_name"] = *req.ModuleName
 	}
 	if req.Tags != nil {
-		tagsJSON, _ := json.Marshal(req.Tags)
-		attrs["tags"] = string(tagsJSON)
+		attrs["tags"] = encodeJSON(req.Tags)
 	}
 	if req.Layout != nil {
-		layoutJSON, _ := json.Marshal(req.Layout)
-		attrs["layout"] = string(layoutJSON)
+		attrs["layout"] = encodeJSON(req.Layout)
 	}
 	if req.Fields != nil {
-		fieldsJSON, _ := json.Marshal(req.Fields)
-		attrs["fields"] = string(fieldsJSON)
+		attrs["fields"] = encodeJSON(req.Fields)
 	}
 	if req.Meta != nil {
-		metaJSON, _ := json.Marshal(req.Meta)
-		attrs["meta"] = string(metaJSON)
+		attrs["meta"] = encodeJSON(req.Meta)
 	}
 	attrs["updated_by"] = operator
 
@@ -190,7 +193,8 @@ func (s *Service) UpdateForm(ctx context.Context, id, tenantID, operator string,
 	if err != nil {
 		return nil, err
 	}
-	// Refresh fields list
+	// Best effort: the form row is already updated, so a failure listing its
+	// fields should not turn a successful update into an error.
 	updated.FieldsList, _ = s.GetFieldsByForm(ctx, id, tenantID)
 	return updated, nil
 }
@@ -202,16 +206,25 @@ func (s *Service) DeleteForm(ctx context.Context, id, tenantID string) (bool, er
 // --- Field ---
 
 func (s *Service) CreateField(ctx context.Context, formID, tenantID string, req *models.CreateFieldRequest) (*models.FormField, error) {
-	maxIdx, _ := s.getMaxFieldIndex(ctx, formID, tenantID)
+	maxIdx, err := s.getMaxFieldIndex(ctx, formID, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("counting fields of form %s: %w", formID, err)
+	}
+	// form_field.visible is NOT NULL DEFAULT 1, and the INSERT names the column,
+	// so the default never applies: a plain text field came back hidden.
+	visible := true
+	if req.Visible != nil {
+		visible = *req.Visible
+	}
 	field := &models.FormField{
-		ID:            generateID("ff"),
+		ID:            newID(),
 		TenantID:      tenantID,
 		FormID:        formID,
 		Key:           req.Key,
 		Label:         req.Label,
 		Type:          req.Type,
 		Required:      req.Required,
-		Visible:       req.Visible,
+		Visible:       visible,
 		Disabled:      req.Disabled,
 		Placeholder:   req.Placeholder,
 		SortableIndex: maxIdx + 1,
@@ -220,28 +233,23 @@ func (s *Service) CreateField(ctx context.Context, formID, tenantID string, req 
 		UpdatedAt:     time.Now(),
 	}
 	if req.Options != nil {
-		optsJSON, _ := json.Marshal(req.Options)
-		field.Options = string(optsJSON)
+		field.Options = encodeJSON(req.Options)
 		field.OptionsList = req.Options
 	}
 	if req.Rules != nil {
-		rulesJSON, _ := json.Marshal(req.Rules)
-		field.Rules = string(rulesJSON)
+		field.Rules = encodeJSON(req.Rules)
 		field.RulesList = req.Rules
 	}
 	if req.Meta != nil {
-		metaJSON, _ := json.Marshal(req.Meta)
-		field.Meta = string(metaJSON)
+		field.Meta = encodeJSON(req.Meta)
 		field.MetaData = req.Meta
 	}
 	if req.LayoutConfig != nil {
-		layoutJSON, _ := json.Marshal(req.LayoutConfig)
-		field.LayoutConfig = string(layoutJSON)
+		field.LayoutConfig = encodeJSON(req.LayoutConfig)
 		field.LayoutData = req.LayoutConfig
 	}
 	if req.DefaultVal != nil {
-		defJSON, _ := json.Marshal(req.DefaultVal)
-		field.DefaultVal = string(defJSON)
+		field.DefaultVal = encodeJSON(req.DefaultVal)
 		field.DefaultValData = req.DefaultVal
 	}
 
@@ -251,45 +259,46 @@ func (s *Service) CreateField(ctx context.Context, formID, tenantID string, req 
 	return field, nil
 }
 
-func (s *Service) UpdateField(ctx context.Context, id, tenantID string, req *models.CreateFieldRequest) (*models.FormField, error) {
+func (s *Service) UpdateField(ctx context.Context, id, tenantID string, req *models.UpdateFieldRequest) (*models.FormField, error) {
 	attrs := make(map[string]interface{})
-	if req.Label != "" {
-		attrs["label"] = req.Label
+	if req.Label != nil {
+		attrs["label"] = *req.Label
 	}
-	if req.Type != "" {
-		attrs["type"] = req.Type
+	if req.Type != nil {
+		attrs["type"] = *req.Type
 	}
-	attrs["required"] = req.Required
-	attrs["visible"] = req.Visible
-	attrs["disabled"] = req.Disabled
-	if req.Placeholder != "" {
-		attrs["placeholder"] = req.Placeholder
+	if req.Required != nil {
+		attrs["required"] = *req.Required
 	}
-	if req.SortableIndex >= 0 {
-		attrs["sortable_index"] = req.SortableIndex
+	if req.Visible != nil {
+		attrs["visible"] = *req.Visible
 	}
-	if req.ParentKey != "" {
-		attrs["parent_key"] = req.ParentKey
+	if req.Disabled != nil {
+		attrs["disabled"] = *req.Disabled
+	}
+	if req.Placeholder != nil {
+		attrs["placeholder"] = *req.Placeholder
+	}
+	if req.SortableIndex != nil {
+		attrs["sortable_index"] = *req.SortableIndex
+	}
+	if req.ParentKey != nil {
+		attrs["parent_key"] = *req.ParentKey
 	}
 	if req.Options != nil {
-		optsJSON, _ := json.Marshal(req.Options)
-		attrs["options"] = string(optsJSON)
+		attrs["options"] = encodeJSON(req.Options)
 	}
 	if req.Rules != nil {
-		rulesJSON, _ := json.Marshal(req.Rules)
-		attrs["rules"] = string(rulesJSON)
+		attrs["rules"] = encodeJSON(req.Rules)
 	}
 	if req.Meta != nil {
-		metaJSON, _ := json.Marshal(req.Meta)
-		attrs["meta"] = string(metaJSON)
+		attrs["meta"] = encodeJSON(req.Meta)
 	}
 	if req.LayoutConfig != nil {
-		layoutJSON, _ := json.Marshal(req.LayoutConfig)
-		attrs["layout_config"] = string(layoutJSON)
+		attrs["layout_config"] = encodeJSON(req.LayoutConfig)
 	}
 	if req.DefaultVal != nil {
-		defJSON, _ := json.Marshal(req.DefaultVal)
-		attrs["default_val"] = string(defJSON)
+		attrs["default_val"] = encodeJSON(req.DefaultVal)
 	}
 
 	return s.repo.UpdateField(ctx, id, tenantID, attrs)
@@ -342,8 +351,8 @@ func (s *Service) ListTemplates(ctx context.Context, tenantID, category string) 
 	return templates, nil
 }
 
-func (s *Service) GetTemplate(ctx context.Context, id string) (*models.FormTemplate, error) {
-	t, err := s.repo.GetTemplate(ctx, id)
+func (s *Service) GetTemplate(ctx context.Context, id, tenantID string) (*models.FormTemplate, error) {
+	t, err := s.repo.GetTemplate(ctx, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -354,15 +363,14 @@ func (s *Service) GetTemplate(ctx context.Context, id string) (*models.FormTempl
 }
 
 func (s *Service) CreateTemplate(ctx context.Context, tenantID, name, description, category string, schema map[string]interface{}) (*models.FormTemplate, error) {
-	schemaJSON, _ := json.Marshal(schema)
 	t := &models.FormTemplate{
-		ID:             generateID("ft"),
+		ID:             newID(),
 		TenantID:       tenantID,
 		Name:           name,
 		Description:    description,
 		Category:       category,
 		IsBuiltin:      false,
-		FormSchema:     string(schemaJSON),
+		FormSchema:     encodeJSON(schema),
 		UsageCount:     0,
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
@@ -377,12 +385,11 @@ func (s *Service) CreateTemplate(ctx context.Context, tenantID, name, descriptio
 // --- Instance ---
 
 func (s *Service) SubmitInstance(ctx context.Context, formID, tenantID string, req *models.SubmitInstanceRequest) (*models.FormInstance, error) {
-	dataJSON, _ := json.Marshal(req.Data)
 	inst := &models.FormInstance{
-		ID:          generateID("fi"),
+		ID:          newID(),
 		TenantID:    tenantID,
 		FormID:      formID,
-		Data:        string(dataJSON),
+		Data:        encodeJSON(req.Data),
 		Status:      "submitted",
 		SubmittedBy: req.SubmitBy,
 		CreatedAt:   time.Now(),
@@ -394,7 +401,6 @@ func (s *Service) SubmitInstance(ctx context.Context, formID, tenantID string, r
 	if err := s.repo.CreateInstance(ctx, inst); err != nil {
 		return nil, err
 	}
-	s.repo.UpdateTemplateUsage(ctx, formID)
 	return inst, nil
 }
 
@@ -427,15 +433,21 @@ func (s *Service) ListInstances(ctx context.Context, tenantID, formID, status st
 
 func (s *Service) ApproveInstance(ctx context.Context, id, tenantID string, req *models.ApproveInstanceRequest) (*models.FormInstance, error) {
 	attrs := map[string]interface{}{}
-	var now time.Time
-	if req.Action == "approve" {
+	switch req.Action {
+	case "approve":
 		attrs["status"] = "approved"
 		attrs["approved_by"] = req.Approver
-		now = time.Now()
+		now := time.Now()
 		attrs["approved_at"] = &now
-	} else if req.Action == "reject" {
+	case "reject":
 		attrs["status"] = "rejected"
 		attrs["approved_by"] = req.Approver
+	default:
+		// Without this branch every other action produced an empty attribute map
+		// and the repository built an UPDATE whose SET clause began with a
+		// comma, so the approve route answered 500 instead of telling the caller
+		// that the workflow supports only approve and reject.
+		return nil, fmt.Errorf("%w: %q", ErrInvalidAction, req.Action)
 	}
 	return s.repo.UpdateInstance(ctx, id, tenantID, attrs)
 }
@@ -461,8 +473,8 @@ func (s *Service) ListComponents(ctx context.Context, tenantID, category string)
 	return comps, nil
 }
 
-func (s *Service) GetComponent(ctx context.Context, id string) (*models.ComponentRegistry, error) {
-	c, err := s.repo.GetComponent(ctx, id)
+func (s *Service) GetComponent(ctx context.Context, id, tenantID string) (*models.ComponentRegistry, error) {
+	c, err := s.repo.GetComponent(ctx, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -476,17 +488,15 @@ func (s *Service) GetComponent(ctx context.Context, id string) (*models.Componen
 }
 
 func (s *Service) CreateComponent(ctx context.Context, tenantID, name, displayName, category, version string, propsSchema map[string]interface{}, defaultConfig map[string]interface{}, icon string) (*models.ComponentRegistry, error) {
-	propsJSON, _ := json.Marshal(propsSchema)
-	defConfigJSON, _ := json.Marshal(defaultConfig)
 	c := &models.ComponentRegistry{
-		ID:            generateID("cr"),
+		ID:            newID(),
 		TenantID:      tenantID,
 		Name:          name,
 		DisplayName:   displayName,
 		Category:      category,
 		Version:       version,
-		PropsSchema:   string(propsJSON),
-		DefaultConfig: string(defConfigJSON),
+		PropsSchema:   encodeJSON(propsSchema),
+		DefaultConfig: encodeJSON(defaultConfig),
 		Icon:          icon,
 		CreatedAt:     time.Now(),
 	}
@@ -496,10 +506,13 @@ func (s *Service) CreateComponent(ctx context.Context, tenantID, name, displayNa
 	return c, nil
 }
 
+// getMaxFieldIndex returns the highest sortable_index already used by the form.
+// A lookup failure is an error, not zero: folding it into zero reset the sort
+// position of the new field to one and collided with an existing row.
 func (s *Service) getMaxFieldIndex(ctx context.Context, formID, tenantID string) (int, error) {
 	fields, err := s.repo.GetFieldsByForm(ctx, formID, tenantID)
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 	max := 0
 	for _, f := range fields {
@@ -510,10 +523,12 @@ func (s *Service) getMaxFieldIndex(ctx context.Context, formID, tenantID string)
 	return max, nil
 }
 
-func generateID(prefix string) string {
-	b := make([]byte, 4)
-	rand.Read(b)
-	h := fnv.New64a()
-	h.Write([]byte(prefix + "-" + time.Now().Format("20060102150405") + "-" + hex.EncodeToString(b)))
-	return fmt.Sprintf("%s-%x", prefix, h.Sum(nil)[:8])
+// newID is a UUID rendered as a string, which is exactly the 36 characters the
+// VARCHAR(36) primary keys allow. The previous implementation mixed a prefix, a
+// per-second timestamp and four random bytes through FNV and kept eight hex
+// characters of the digest, so the entropy was capped at 32 bits within any one
+// second and two entities created in the same second collided with probability
+// about one in six hundred thousand.
+func newID() string {
+	return uuid.New().String()
 }
