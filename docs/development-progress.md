@@ -8994,3 +8994,206 @@ go test ./...                    -> 505 ok / 0 FAIL
 模块内测试函数合计 **17 + 12 + 6 = 35 个**，其中本轮新增 26 个（handler 8 / repository 12 / service 6）。505 是 R34 的 503 加上本轮新增的 service 测试包与 repository 测试文件的两个 ok 包计数变化。
 
 **与 R34 的差别**：R34 修的是「表不存在」，靠迁移就能让整个模块活过来；R35 修的是「语句每次都执行但每次都错」，没有任何迁移可以修它——必须改代码，而且必须改到**渲染出 SQL 的那一行**。这也是为什么本轮的测试全部落在语句文本层（`setClause` 的直接断言 ＋ 4 条字面 SQL 的端到端匹配），而不是只放在参数层。
+
+## 第三十六轮：internal/roweditor 通用行编辑器越权写入（请求体列名直接拼进 `UPDATE <表> SET <调用方键>=$N WHERE ...` 与 `INSERT INTO <表> (<调用方键>) VALUES (...)`，`tenant_id` 入体可跨租户搬行）＋`validateCell` 未知列错误未包哨兵致 400 塌陷成 500＋11 个测试函数＋6/6 变异证明（2026-09-14）
+
+- HEAD 起点 `25016ab19`（R35 docs）。代码提交 **`0c3f2c3ee`**：2 文件，90 行新增 / 19 行删除。测试提交 **`9f8b0ce5c`**：2 文件，246 行新增。合计 4 文件，336 行新增 / 19 行删除。
+- 本轮命中的是一个**调用方注册的通用编辑器**，性质与 R30–R35 的所有目标都不同：前面几轮修的都是某个模块的私有仓库，表名和列名写在常量里，白名单可以直接写成 `var usersUpdatable = map[string]bool{...}`（R35）。这里没有常量可用——`RowSpec` 是调用方在运行时通过 `POST /row-editors/register` 注册的，**白名单只能来自 `e.spec.Columns`**。
+
+### 36.1 缺陷一：请求体列名直达 SQL 文本（本轮最高危）
+
+`internal/roweditor` 的两条写路由挂着 `auth.RequirePermission("roweditor","write")`：
+
+```go
+rg.PUT("/rows/:editor",         auth.RequirePermission("roweditor", "write"), h.UpdateRow)
+rg.POST("/rows/:editor/batch-update", auth.RequirePermission("roweditor", "write"), h.BatchUpdateRow)
+```
+
+三个请求模型的载荷全是未结构化的 map，键名逐字来自 HTTP body：
+
+```go
+type RowUpdateRequest    struct { RowID string                 `json:"row_id"`; Changes map[string]interface{} `json:"changes"`; Version int64 `json:"version"` }
+type BatchUpdateRequest  struct { RowIDs []string              `json:"row_ids"`; Changes map[string]interface{} `json:"changes"`; Version int64 `json:"version"` }
+type RowCreateRequest    struct { Row    map[string]interface{} `json:"row"` }
+```
+
+这些键随后被两个构造器渲染成 SQL 文本，而不是作为参数绑定：
+
+```go
+clauses = append(clauses, fmt.Sprintf("%s=$%d", k, i+1))   // buildSetClause
+return strings.Join(columnKeys, ", "), strings.Join(valPlaceholders, ", "), args  // buildInsertColumnArgs
+```
+
+于是执行的语句形状是 `UPDATE <spec.Table> SET <调用方键>=$N WHERE id=$N AND tenant_id=$N`。
+
+**作者本意有直接证据**：同一个文件里四处校验函数，只有 `validateCell` 检查「列是否在 spec 里」，`validateEdit` / `validateBatch` / `validateRow` 都是遍历 spec、拿 spec 的列名去查调用方的 map（`change.Columns[c.Name]`），**找不到就静默跳过**。四处校验三处放行，这个不对称本身就是缺陷的指纹。
+
+**为什么最高危**：`items` 这类表真的有 `tenant_id` 列（566/567 等迁移加的全局列），但某个编辑器的 spec 未必声明它。请求体塞 `{"tenant_id":"other"}` 时：
+
+```sql
+UPDATE items SET tenant_id=$1, ... WHERE id=$2 AND tenant_id=$3 ...
+```
+
+SET 子句写新租户，WHERE 子句用的是**原始行**的租户——两条谓词都成立，行被整行搬到调用方不属于的租户。**不需要越权**：任何持有合法 `write` 权限的租户都可以对任意行做这件事，因为权限检查是模块级的（`roweditor`/`write`），不是行级的。
+
+修复：新增 `specColumn(name)` 与 `rejectUndeclaredColumn(columns, allowTenant)`，接入三处：
+
+```go
+func (e *RowEditor) specColumn(name string) (ColumnSpec, bool) {
+	for _, c := range e.spec.Columns {
+		if c.Name == name {
+			return c, true
+		}
+	}
+	return ColumnSpec{}, false
+}
+
+func (e *RowEditor) rejectUndeclaredColumn(columns map[string]any, allowTenant bool) error {
+	keys := make([]string, 0, len(columns))
+	for k := range columns {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)                       // ← 见 36.3 确定性
+	for _, k := range keys {
+		if allowTenant && k == TenantColumn {
+			continue
+		}
+		if _, ok := e.specColumn(k); !ok {
+			return fmt.Errorf("%w: column %q is not in the editor spec", ErrValidationError, k)
+		}
+	}
+	return nil
+}
+```
+
+- `validateEdit` → `rejectUndeclaredColumn(change.Columns, false)`
+- `validateBatch` → `rejectUndeclaredColumn(change.Columns, false)`
+- `validateRow`  → `rejectUndeclaredColumn(row, true)`
+
+**拒绝而非静默丢弃**：拼错列名的调用方拿到 400 并被告知哪一列，而不是静默变成空操作——一个 `namne` 的 typo 静默消失，比报错糟糕得多。
+
+**`allowTenant` 的边界（本轮唯一需要按路径分叉的地方）**：只有 insert 路径传 `true`。`buildInsertColumnArgs` 本来就丢弃调用方的 `tenant_id` 并盖上游鉴权得到的租户，所以那个值是**惰性的**，不是 SQL 逃逸。但 UPDATE 路径上同一个键会被原样绑进 SET 子句。如果不做豁免，客户端回显整行（`{"id","name","tenant_id"}`）这种常见模式会变成硬失败——5 个既有测试断言的契约会直接被打断。所以按路径区分，并在函数 doc 里写明理由。
+
+### 36.2 缺陷二：INSERT 汇点的第二道闸
+
+`buildInsertColumnArgs` 原先只滤 `tenant_id` 与只读列：
+
+```go
+for k, v := range row {
+	if k == TenantColumn || e.isReadOnly(k) {   // 修前
+		continue
+	}
+	args[k] = v
+}
+```
+
+现在同时跳过 spec 未声明的列：
+
+```go
+	c, declared := e.specColumn(k)
+	if !declared || c.ReadOnly {
+		continue
+	}
+	args[k] = v
+```
+
+校验器之外再设一道的原因不是防御性编程洁癖：这条编辑器的定位就是被复用，`Create` 不是唯一的入口（`BatchCreate` 走同一条）。将来任何绕过校验器的调用方到达汇点，仍然命名不了 spec 从未声明的列。**两道闸的行为不同**：校验器拒绝（400，告诉调用方哪一列错了），汇点静默丢弃（保住已鉴权的租户盖章不被绕过去）。`isReadOnly` 顺带去重到 `specColumn`。
+
+### 36.3 确定性：为什么先 `slices.Sort`
+
+Go map 迭代顺序未定义。如果不排序，300 次调用可能 300 次报不同的列名——调用方照着错误消息改代码，下一次报错指向另一列，**报错不可复现**。`rejectUndeclaredColumn` 先排序再遍历，保证永远点名字典序第一个未声明的列。这个契约用 300 次循环断言钉住（`TestValidateEditNamesTheLexicographicallyFirstUndeclaredColumn` 断言永远是 `"alpha"`，不是 `"middle"` 或 `"zebra"`）。
+
+`buildSetClause` / `buildInsertColumnArgs` 里已有的 `slices.Sort` 保的是 SQL 文本确定性——同一条断言在 R35 的 `TestSetClauseIsDeterministicAcrossMapIterations` 里跑过 500 次。
+
+### 36.4 缺陷三：错误类塌陷（同 R34 / R35 的类，第五个实例）
+
+`validateCell` 未知列原先返回裸错误：
+
+```go
+return fmt.Errorf("row editor cell: unknown column %q", change.Column)   // 无 %w
+```
+
+handler 的 `respondEditError` 用 `errors.Is` 分流，裸错误恒不匹配 `ErrValidationError`，走 default 分支回 **500**：
+
+```go
+func respondEditError(c *gin.Context, err error) {
+	if errors.Is(err, ErrRowNotFound) {            // 404
+	...
+	if errors.Is(err, ErrOptimisticLock) {         // 409
+	...
+	if errors.Is(err, ErrValidationError) || ... {  // 400
+	...
+	errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)  // 500
+}
+```
+
+该函数的 doc comment 原文写着「before every one of them came back as a 500, which turned a caller's mistake into a server incident」——**它明确说要防止的塌陷，正发生在这个函数下游的一个校验函数里**。R34 在 finops-v2 里修了 4 处，R35 在 user 里修了 5 处，本轮是第 10 处实例，全部是同一个形状：`fmt.Errorf` 漏了 `%w`，于是 `errors.Is` 看不见哨兵，调用方的拼写错误变成服务端事故。
+
+改为 `%w: ErrValidationError` 后，**handler 原本就有 `ErrValidationError` → 400 的映射**，一行 handler 都不用改。这也是本轮唯一一个「修一处、两个症状同时消失」的例子。
+
+### 36.5 测试（11 个，全部落在语句文本层）
+
+`internal/roweditor/row_spec_whitelist_test.go`（205 行，9 个）：
+
+| 测试 | 钉住什么 |
+|------|---------|
+| `TestUpdateRejectsAColumnOutsideTheSpec` | 4 个坏列名（`namne` typo、`tenant_id`、`password`、`created_at`）→ `ErrValidationError`、错误点名该列、`db.records()` 为 0 |
+| `TestBatchUpdateRejectsAColumnOutsideTheSpecAndNeverOpensATransaction` | 校验先于 `BeginTxx`：事务未开、三行一个没动 |
+| `TestCreateRejectsAColumnOutsideTheSpec` | create 路径同一守卫 |
+| `TestValidateRowRejectsAColumnOutsideTheSpec` | 校验器直调 |
+| `TestValidateRowToleratesACallerTenantID` | `allowTenant` 豁免不被悄悄收回 |
+| `TestValidateCellReportsAnUnknownColumnAsAValidationError` | 缺陷三；另含 `name` 的正向对照 |
+| `TestValidateEditAcceptsEveryDeclaredWritableColumn` | 防白名单过严；断言完整字面 SQL 与参数顺序 |
+| `TestBuildInsertColumnArgsDropsColumnsOutsideTheSpec` | 缺陷二，直接调汇点 |
+| `TestValidateEditNamesTheLexicographicallyFirstUndeclaredColumn` | 300 次断言，钉住排序 |
+
+正向对照的完整断言：
+
+```go
+want := "UPDATE items SET name=$1, note=$2, tags=$3, updated_at=now() WHERE id=$4 AND tenant_id=$5 AND status!='deleted'"
+wantArgs := []any{"n", "x", "a,b", "r1", "t1"}
+```
+
+汇点断言：`keys == "id, name, note, tenant_id"`、`vals == ":id, :name, :note, :tenant_id"`、`args["tenant_id"] == "t1"`（不是 `"attacker"`）、无 `password` / `created_at`。
+
+`internal/roweditor/handler/handler_test.go`（+41 行，2 个端到端）：`tenant_id` 入体 → **400** 且 body 点名该列、`env.db.statements()` 为 0。batch 版本额外断言未开事务。**为什么这两个断言不是恒真的**：`env.register` 走 sqlmock 而非 fakeDB，所以 `env.db.statements()` 在操作前**真的**是空的，计数不为 0 就一定是被测代码写的。
+
+**测试基建备忘**：`strictDB` 记录器返回 `{sql, args}`，`check()` 用 `placeholderMax` 断言占位符个数等于参数个数，本轮全部断言走这条通道。已知缺口未修：`NamedExecContext` 不走 `check`（直接 append），named 占位符与参数个数的一致性因此没有自动校验——本轮 2 个端到端测试手工断言了 `args[0]` 是 map 且 `tenant_id` 已盖章。
+
+### 36.6 6/6 变异证明
+
+| # | mutant | 被谁杀 |
+|---|--------|--------|
+| M1 | 删 `validateEdit` 的成员检查 | `TestUpdateRejectsAColumnOutsideTheSpec` |
+| M2 | 删 `validateBatch` 的成员检查 | `TestBatchUpdateRejectsAColumnOutsideTheSpecAndNeverOpensATransaction` |
+| M3 | 回退 INSERT 汇点为「只滤只读」 | `TestBuildInsertColumnArgsDropsColumnsOutsideTheSpec` |
+| M4 | `validateEdit` 的 `false` 翻成 `true`（保持拒绝但让 `tenant_id` 可通过） | `TestUpdateRowRejectsAColumnOutsideTheSpec`（端到端） |
+| M5 | 去掉 `validateCell` 的 `%w` | `TestValidateCellReportsAnUnknownColumnAsAValidationError` |
+| M6 | 删 `slices.Sort(keys)` | `TestValidateEditNamesTheLexicographicallyFirstUndeclaredColumn` 第 0 次即杀（报 `zebra` 而非 `alpha`） |
+
+六个 mutant **全部可编译**——没有「编译就能证明、测试只是摆设」的假证明。M4 是最有价值的一个：它保留拒绝行为、只让一个具体键可绕过，只有同时断言「400」和「`tenant_id` 被点名」的端到端测试才杀得掉它，单看校验器单测是看不出来的。
+
+**过程教训（锚点唯一性）**：M4 的首版锚点 `e.rejectUndeclaredColumn(change.Columns, false)` 在 `validateEdit` 和 `validateBatch` 各出现一次，`assert s.count(old) == 1` 挡住写入——**断言在 `open(p,"w")` 之前，所以什么都没写**，树保持原样。收窄到带前一行注释的三行锚点后唯一，重跑通过。
+
+### 36.7 验证
+
+```
+gofmt -l internal/roweditor/        → 空
+go vet ./internal/roweditor/...     → 干净
+go test -count=1 ./internal/roweditor/...  → 4 包全过
+go test ./...                       → 505 ok / 0 FAIL
+```
+
+全仓 505 ok 与 R35 基线完全一致——新文件落在既有包内，不新增包计数。**改动前基线同样全过**，这条是 `allowTenant` 豁免保留既有租户盖章契约的独立证据：5 个既有测试断言的「调用方回显 `tenant_id` 仍要成功、且被盖成 JWT 值」全部未被触碰。
+
+### 36.8 记录不删 / 刻意不修
+
+**记录不删**：
+- `validateRows`（roweditor.go:227，返回 `[]error`）——零调用方、零测试。
+- `validateMode`（roweditor.go:300）——仅被 `roweditor_test.go` 引用。
+
+两者基础设施都在，按既定规则记录而非删除。
+
+**刻意不修**：spec 若把 `version` / `updated_at` 声明为可写且调用方也传了值，`buildUpdateSetClause` 会渲染重复赋值（`SET version=$1, ..., version=version+1`）。Postgres 按最后一个取值解析，可观察行为与安全性均无变化，纯 SQL 观感问题——修它要动渲染顺序，风险大于收益。
+
+**扫描规模**：全仓 152 处 map 驱动的 SET 构造器，分布 114 个文件，其中 105 个按 ±40 行关键词启发式判定为**无白名单**。绝大多数键名来自类型化的请求模型字段（`req.Field`），不是原始 body，属潜伏风险。`roweditor` 是唯一键名直接来自未结构化 `map[string]interface{}` 请求体的一个，故本轮只修它——这是「先修可达的、再清潜伏的」的取舍，不是扫描不彻底。
