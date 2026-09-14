@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"go.opentelemetry.io/otel"
 	"strconv"
 
@@ -18,6 +19,43 @@ type Handler struct {
 
 func NewHandler(svc *service.Service) *Handler {
 	return &Handler{svc: svc}
+}
+
+// maxPageSize caps page_size so one request cannot pull the whole table.
+const maxPageSize = 100
+
+// parsePagination turns the page and page_size query strings into the offset and
+// limit the repository takes. Both list handlers used to discard the Atoi error,
+// so page=abc meant page 0 and page_size=0 meant no LIMIT at all.
+func (h *Handler) parsePagination(c *gin.Context) (offset, limit int, ok bool) {
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page < 1 {
+		respondBadRequest(c, "page must be an integer >= 1")
+		return 0, 0, false
+	}
+	size, err := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	if err != nil || size < 1 || size > maxPageSize {
+		respondBadRequest(c, "page_size must be an integer between 1 and "+strconv.Itoa(maxPageSize))
+		return 0, 0, false
+	}
+	return (page - 1) * size, size, true
+}
+
+// respondServiceError maps the service sentinels onto HTTP statuses. Collapsing
+// every error into one status meant a malformed request, a missing row and a
+// database outage all came back with the same code.
+func respondServiceError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, service.ErrInvalidInput):
+		respondBadRequest(c, err.Error())
+	case errors.Is(err, service.ErrDRPlanNotFound),
+		errors.Is(err, service.ErrFailoverTestNotFound),
+		errors.Is(err, service.ErrBackupConfigNotFound),
+		errors.Is(err, service.ErrPolicyNotFound):
+		respondNotFound(c, err.Error())
+	default:
+		respondInternalError(c, err.Error())
+	}
 }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
@@ -90,7 +128,7 @@ func (h *Handler) CreatePlan(c *gin.Context) {
 	}
 	plan, err := h.svc.CreatePlan(ctx, tenantID, &req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	respondCreated(c, plan)
@@ -100,20 +138,24 @@ func (h *Handler) ListPlans(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDRListPlans")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	offset := (page - 1) * ps
-	if offset < 0 {
-		offset = 0
+	offset, limit, ok := h.parsePagination(c)
+	if !ok {
+		return
 	}
 
-	items, err := h.svc.ListPlans(ctx, tenantID, offset, ps)
+	items, err := h.svc.ListPlans(ctx, tenantID, offset, limit)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
 
-	count, _ := h.svc.CountPlans(ctx, tenantID)
+	count, err := h.svc.CountPlans(ctx, tenantID)
+	if err != nil {
+		// A discarded count error answered total: 0 with a full data array,
+		// which read as an empty store in a UI bound to total.
+		respondInternalError(c, err.Error())
+		return
+	}
 	respondSuccess(c, gin.H{"data": items, "total": count})
 }
 
@@ -123,7 +165,7 @@ func (h *Handler) GetPlan(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	plan, err := h.svc.GetPlan(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	respondSuccess(c, plan)
@@ -140,7 +182,7 @@ func (h *Handler) UpdatePlan(c *gin.Context) {
 	}
 	plan, err := h.svc.UpdatePlan(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	respondSuccess(c, plan)
@@ -151,7 +193,7 @@ func (h *Handler) DeletePlan(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.DeletePlan(ctx, tenantID, c.Param("id")); err != nil {
-		respondNotFound(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	respondSuccess(c, gin.H{"message": "deleted"})
@@ -180,7 +222,7 @@ func (h *Handler) TriggerFailover(c *gin.Context) {
 
 	result, err := h.svc.TriggerFailover(ctx, tenantID, c.Param("id"), req.TriggeredBy)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	respondCreated(c, result)
@@ -195,7 +237,7 @@ func (h *Handler) TestFailover(c *gin.Context) {
 
 	result, err := h.svc.TestFailover(ctx, tenantID, c.Param("id"), req.TestName, req.TestedBy)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	respondCreated(c, result)
@@ -224,7 +266,7 @@ func (h *Handler) GetFailoverTest(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	test, err := h.svc.GetFailoverTest(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	respondSuccess(c, test)
@@ -242,7 +284,7 @@ func (h *Handler) CompleteFailoverTest(c *gin.Context) {
 
 	test, err := h.svc.CompleteFailoverTest(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	respondSuccess(c, test)
@@ -261,7 +303,7 @@ func (h *Handler) CreateBackupConfig(c *gin.Context) {
 	}
 	bc, err := h.svc.CreateBackupConfig(ctx, tenantID, &req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	respondCreated(c, bc)
@@ -271,20 +313,22 @@ func (h *Handler) ListBackupConfigs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDRListBackupConfigs")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	offset := (page - 1) * ps
-	if offset < 0 {
-		offset = 0
+	offset, limit, ok := h.parsePagination(c)
+	if !ok {
+		return
 	}
 
-	items, err := h.svc.ListBackupConfigs(ctx, tenantID, offset, ps)
+	items, err := h.svc.ListBackupConfigs(ctx, tenantID, offset, limit)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
 
-	count, _ := h.svc.CountBackupConfigs(ctx, tenantID)
+	count, err := h.svc.CountBackupConfigs(ctx, tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
 	respondSuccess(c, gin.H{"data": items, "total": count})
 }
 
@@ -294,7 +338,7 @@ func (h *Handler) GetBackupConfig(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	bc, err := h.svc.GetBackupConfig(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	respondSuccess(c, bc)
@@ -323,7 +367,7 @@ func (h *Handler) UpdateBackupConfig(c *gin.Context) {
 	}
 	bc, err := h.svc.UpdateBackupConfig(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	respondSuccess(c, bc)
@@ -334,7 +378,7 @@ func (h *Handler) DeleteBackupConfig(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.DeleteBackupConfig(ctx, tenantID, c.Param("id")); err != nil {
-		respondNotFound(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	respondSuccess(c, gin.H{"message": "deleted"})
@@ -379,7 +423,7 @@ func (h *Handler) ScheduleDrill(c *gin.Context) {
 	}
 	test, err := h.svc.ScheduleDrill(ctx, tenantID, &req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	respondCreated(c, test)
@@ -410,7 +454,7 @@ func (h *Handler) CreatePolicy(c *gin.Context) {
 	}
 	policy, err := h.svc.CreatePolicy(ctx, tenantID, &req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	respondCreated(c, policy)
@@ -420,20 +464,22 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDRListPolicies")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	offset := (page - 1) * ps
-	if offset < 0 {
-		offset = 0
+	offset, limit, ok := h.parsePagination(c)
+	if !ok {
+		return
 	}
 
-	items, err := h.svc.ListPolicies(ctx, tenantID, offset, ps)
+	items, err := h.svc.ListPolicies(ctx, tenantID, offset, limit)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
 
-	count, _ := h.svc.CountPolicies(ctx, tenantID)
+	count, err := h.svc.CountPolicies(ctx, tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
 	respondSuccess(c, gin.H{"data": items, "total": count})
 }
 
@@ -443,7 +489,7 @@ func (h *Handler) GetPolicy(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	policy, err := h.svc.GetPolicy(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	respondSuccess(c, policy)
@@ -472,7 +518,7 @@ func (h *Handler) UpdatePolicy(c *gin.Context) {
 	}
 	policy, err := h.svc.UpdatePolicy(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	respondSuccess(c, policy)
@@ -483,7 +529,7 @@ func (h *Handler) DeletePolicy(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.DeletePolicy(ctx, tenantID, c.Param("id")); err != nil {
-		respondNotFound(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	respondSuccess(c, gin.H{"message": "deleted"})
@@ -501,7 +547,7 @@ func (h *Handler) CanFailover(c *gin.Context) {
 
 	policy, err := h.svc.GetPolicy(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 
@@ -534,7 +580,7 @@ func (h *Handler) CheckPolicyCompliance(c *gin.Context) {
 
 	policy, err := h.svc.GetPolicy(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 

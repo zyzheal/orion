@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -20,6 +19,24 @@ func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{db: db}
 }
 
+// The column lists mirror the db tags in models.go exactly. They are spelled out
+// instead of SELECT * so that migration 572's style audit sweep cannot add a
+// column and silently break every read in this file.
+const planColumns = "id, tenant_id, name, plan_type, rpo, rto, status, priority, " +
+	"failover_strategy, backup_regions, services, last_tested, config, " +
+	"created_by, created_at, updated_at"
+
+const failoverTestColumns = "id, tenant_id, plan_id, test_name, test_type, started_at, " +
+	"completed_at, scheduled_at, actual_rto, actual_rpo, result, affected_services, " +
+	"findings, created_by, created_at"
+
+const backupConfigColumns = "id, tenant_id, source_type, source_id, backup_schedule, " +
+	"retention_days, storage_location, encryption, compression, last_backup_at, " +
+	"last_backup_size, enabled, created_by, created_at, updated_at"
+
+const policyColumns = "id, tenant_id, name, description, services, strategy, rpo, rto, " +
+	"priority, status, project_id, config, created_by, created_at, updated_at"
+
 // ─── DR Plans ────────────────────────────────────────────────────────────────
 
 func (r *Repository) CreatePlan(ctx context.Context, p *models.DRPlan) error {
@@ -36,7 +53,7 @@ func (r *Repository) CreatePlan(ctx context.Context, p *models.DRPlan) error {
 func (r *Repository) GetPlanByID(ctx context.Context, tenantID, id string) (*models.DRPlan, error) {
 	var p models.DRPlan
 	err := r.db.GetContext(ctx, &p,
-		`SELECT * FROM dr_plans WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+		"SELECT "+planColumns+" FROM dr_plans WHERE id=$1 AND tenant_id=$2", id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +63,7 @@ func (r *Repository) GetPlanByID(ctx context.Context, tenantID, id string) (*mod
 func (r *Repository) ListPlans(ctx context.Context, tenantID string, offset, limit int) ([]models.DRPlan, error) {
 	var items []models.DRPlan
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM dr_plans WHERE tenant_id=$1 ORDER BY created_at DESC OFFSET $2 LIMIT $3`,
+		"SELECT "+planColumns+" FROM dr_plans WHERE tenant_id=$1 ORDER BY created_at DESC OFFSET $2 LIMIT $3",
 		tenantID, offset, limit)
 	return items, err
 }
@@ -92,15 +109,16 @@ func (r *Repository) UpdatePlan(ctx context.Context, tenantID, id string, req *m
 		idx++
 	}
 	if req.BackupRegions != nil {
-		regionsJSON, _ := json.Marshal(req.BackupRegions)
+		// Binding the model type lets the driver marshal it, so a marshal failure
+		// reaches the caller. json.Marshal here discarded the error and wrote a
+		// silent NULL into a NOT NULL column.
 		setClauses = append(setClauses, fmt.Sprintf("backup_regions=$%d", idx))
-		args = append(args, regionsJSON)
+		args = append(args, models.StringArray(req.BackupRegions))
 		idx++
 	}
 	if req.Services != nil {
-		servicesJSON, _ := json.Marshal(req.Services)
 		setClauses = append(setClauses, fmt.Sprintf("services=$%d", idx))
-		args = append(args, servicesJSON)
+		args = append(args, models.JSONArray(req.Services))
 		idx++
 	}
 	if req.Config != nil {
@@ -117,8 +135,8 @@ func (r *Repository) UpdatePlan(ctx context.Context, tenantID, id string, req *m
 	args = append(args, time.Now())
 	idx++
 
-	query := fmt.Sprintf("UPDATE dr_plans SET %s WHERE id=$%d AND tenant_id=$%d RETURNING *",
-		strings.Join(setClauses, ", "), idx, idx+1)
+	query := fmt.Sprintf("UPDATE dr_plans SET %s WHERE id=$%d AND tenant_id=$%d RETURNING %s",
+		strings.Join(setClauses, ", "), idx, idx+1, planColumns)
 	args = append(args, id, tenantID)
 
 	var p models.DRPlan
@@ -160,10 +178,10 @@ func (r *Repository) CountPlans(ctx context.Context, tenantID string) (int, erro
 
 func (r *Repository) CreateFailoverTest(ctx context.Context, t *models.FailoverTest) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO dr_failover_tests (id, tenant_id, plan_id, test_name, test_type, started_at, result, affected_services, created_by, created_at)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+		`INSERT INTO dr_failover_tests (id, tenant_id, plan_id, test_name, test_type, started_at, scheduled_at, result, affected_services, created_by, created_at)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
 		t.ID, t.TenantID, t.PlanID, t.TestName, t.TestType, t.StartedAt,
-		t.Result, t.AffectedServices, t.CreatedBy, t.CreatedAt,
+		t.ScheduledAt, t.Result, t.AffectedServices, t.CreatedBy, t.CreatedAt,
 	)
 	return err
 }
@@ -171,7 +189,7 @@ func (r *Repository) CreateFailoverTest(ctx context.Context, t *models.FailoverT
 func (r *Repository) GetFailoverTestByID(ctx context.Context, tenantID, id string) (*models.FailoverTest, error) {
 	var t models.FailoverTest
 	err := r.db.GetContext(ctx, &t,
-		`SELECT * FROM dr_failover_tests WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+		"SELECT "+failoverTestColumns+" FROM dr_failover_tests WHERE id=$1 AND tenant_id=$2", id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -182,12 +200,12 @@ func (r *Repository) ListFailoverTests(ctx context.Context, tenantID string, pla
 	var items []models.FailoverTest
 	if planID != nil {
 		err := r.db.SelectContext(ctx, &items,
-			`SELECT * FROM dr_failover_tests WHERE tenant_id=$1 AND plan_id=$2 ORDER BY created_at DESC`,
+			"SELECT "+failoverTestColumns+" FROM dr_failover_tests WHERE tenant_id=$1 AND plan_id=$2 ORDER BY created_at DESC",
 			tenantID, *planID)
 		return items, err
 	}
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM dr_failover_tests WHERE tenant_id=$1 ORDER BY created_at DESC`,
+		"SELECT "+failoverTestColumns+" FROM dr_failover_tests WHERE tenant_id=$1 ORDER BY created_at DESC",
 		tenantID)
 	return items, err
 }
@@ -220,7 +238,7 @@ func (r *Repository) CreateBackupConfig(ctx context.Context, b *models.BackupCon
 func (r *Repository) GetBackupConfigByID(ctx context.Context, tenantID, id string) (*models.BackupConfig, error) {
 	var b models.BackupConfig
 	err := r.db.GetContext(ctx, &b,
-		`SELECT * FROM dr_backup_configs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+		"SELECT "+backupConfigColumns+" FROM dr_backup_configs WHERE id=$1 AND tenant_id=$2", id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +248,7 @@ func (r *Repository) GetBackupConfigByID(ctx context.Context, tenantID, id strin
 func (r *Repository) ListBackupConfigs(ctx context.Context, tenantID string, offset, limit int) ([]models.BackupConfig, error) {
 	var items []models.BackupConfig
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM dr_backup_configs WHERE tenant_id=$1 ORDER BY created_at DESC OFFSET $2 LIMIT $3`,
+		"SELECT "+backupConfigColumns+" FROM dr_backup_configs WHERE tenant_id=$1 ORDER BY created_at DESC OFFSET $2 LIMIT $3",
 		tenantID, offset, limit)
 	return items, err
 }
@@ -286,8 +304,8 @@ func (r *Repository) UpdateBackupConfig(ctx context.Context, tenantID, id string
 	args = append(args, time.Now())
 	idx++
 
-	query := fmt.Sprintf("UPDATE dr_backup_configs SET %s WHERE id=$%d AND tenant_id=$%d RETURNING *",
-		strings.Join(setClauses, ", "), idx, idx+1)
+	query := fmt.Sprintf("UPDATE dr_backup_configs SET %s WHERE id=$%d AND tenant_id=$%d RETURNING %s",
+		strings.Join(setClauses, ", "), idx, idx+1, backupConfigColumns)
 	args = append(args, id, tenantID)
 
 	var b models.BackupConfig
@@ -320,7 +338,7 @@ func (r *Repository) CreatePolicy(ctx context.Context, p *models.DRPolicy) error
 func (r *Repository) GetPolicyByID(ctx context.Context, tenantID, id string) (*models.DRPolicy, error) {
 	var p models.DRPolicy
 	err := r.db.GetContext(ctx, &p,
-		`SELECT * FROM dr_policies WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+		"SELECT "+policyColumns+" FROM dr_policies WHERE id=$1 AND tenant_id=$2", id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +348,7 @@ func (r *Repository) GetPolicyByID(ctx context.Context, tenantID, id string) (*m
 func (r *Repository) ListPolicies(ctx context.Context, tenantID string, offset, limit int) ([]models.DRPolicy, error) {
 	var items []models.DRPolicy
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM dr_policies WHERE tenant_id=$1 ORDER BY priority, created_at DESC OFFSET $2 LIMIT $3`,
+		"SELECT "+policyColumns+" FROM dr_policies WHERE tenant_id=$1 ORDER BY priority, created_at DESC OFFSET $2 LIMIT $3",
 		tenantID, offset, limit)
 	return items, err
 }
@@ -338,7 +356,7 @@ func (r *Repository) ListPolicies(ctx context.Context, tenantID string, offset, 
 func (r *Repository) ListPoliciesByStrategy(ctx context.Context, tenantID, strategy string) ([]models.DRPolicy, error) {
 	var items []models.DRPolicy
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM dr_policies WHERE tenant_id=$1 AND strategy=$2 ORDER BY priority`,
+		"SELECT "+policyColumns+" FROM dr_policies WHERE tenant_id=$1 AND strategy=$2 ORDER BY priority",
 		tenantID, strategy)
 	return items, err
 }
@@ -346,7 +364,7 @@ func (r *Repository) ListPoliciesByStrategy(ctx context.Context, tenantID, strat
 func (r *Repository) ListPoliciesByStatus(ctx context.Context, tenantID, status string) ([]models.DRPolicy, error) {
 	var items []models.DRPolicy
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM dr_policies WHERE tenant_id=$1 AND status=$2 ORDER BY priority`,
+		"SELECT "+policyColumns+" FROM dr_policies WHERE tenant_id=$1 AND status=$2 ORDER BY priority",
 		tenantID, status)
 	return items, err
 }
@@ -374,9 +392,8 @@ func (r *Repository) UpdatePolicy(ctx context.Context, tenantID, id string, req 
 		idx++
 	}
 	if req.Services != nil {
-		servicesJSON, _ := json.Marshal(req.Services)
 		setClauses = append(setClauses, fmt.Sprintf("services=$%d", idx))
-		args = append(args, servicesJSON)
+		args = append(args, models.JSONArray(req.Services))
 		idx++
 	}
 	if req.Strategy != nil {
@@ -418,8 +435,8 @@ func (r *Repository) UpdatePolicy(ctx context.Context, tenantID, id string, req 
 	args = append(args, time.Now())
 	idx++
 
-	query := fmt.Sprintf("UPDATE dr_policies SET %s WHERE id=$%d AND tenant_id=$%d RETURNING *",
-		strings.Join(setClauses, ", "), idx, idx+1)
+	query := fmt.Sprintf("UPDATE dr_policies SET %s WHERE id=$%d AND tenant_id=$%d RETURNING %s",
+		strings.Join(setClauses, ", "), idx, idx+1, policyColumns)
 	args = append(args, id, tenantID)
 
 	var p models.DRPolicy

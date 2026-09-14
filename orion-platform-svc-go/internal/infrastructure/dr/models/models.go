@@ -139,6 +139,7 @@ type FailoverTest struct {
 	TestType         string      `db:"test_type" json:"test_type"`
 	StartedAt        time.Time   `db:"started_at" json:"started_at"`
 	CompletedAt      *time.Time  `db:"completed_at" json:"completed_at,omitempty"`
+	ScheduledAt      *time.Time  `db:"scheduled_at" json:"scheduled_at,omitempty"`
 	ActualRTO        *int        `db:"actual_rto" json:"actual_rto,omitempty"`
 	ActualRPO        *int        `db:"actual_rpo" json:"actual_rpo,omitempty"`
 	Result           string      `db:"result" json:"result"`

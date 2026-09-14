@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"math"
@@ -28,11 +29,57 @@ var (
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
+}
+
+// RepositoryInterface is the surface the service actually uses. The concrete
+// repository implements it, and the tests inject a fake, so a service change
+// cannot silently stop calling a method that only the compiled wiring would have
+// noticed.
+type RepositoryInterface interface {
+	CreatePlan(ctx context.Context, p *models.DRPlan) error
+	GetPlanByID(ctx context.Context, tenantID, id string) (*models.DRPlan, error)
+	ListPlans(ctx context.Context, tenantID string, offset, limit int) ([]models.DRPlan, error)
+	UpdatePlan(ctx context.Context, tenantID, id string, req *models.UpdateDRPlanRequest) (*models.DRPlan, error)
+	UpdatePlanStatus(ctx context.Context, tenantID, id, status string) error
+	UpdatePlanLastTested(ctx context.Context, tenantID, id string, testedAt time.Time) error
+	DeletePlan(ctx context.Context, tenantID, id string) error
+	CountPlans(ctx context.Context, tenantID string) (int, error)
+	CreateFailoverTest(ctx context.Context, t *models.FailoverTest) error
+	GetFailoverTestByID(ctx context.Context, tenantID, id string) (*models.FailoverTest, error)
+	ListFailoverTests(ctx context.Context, tenantID string, planID *string) ([]models.FailoverTest, error)
+	CompleteFailoverTest(ctx context.Context, tenantID, id string, req *models.CompleteFailoverTestRequest) (*models.FailoverTest, error)
+	CreateBackupConfig(ctx context.Context, b *models.BackupConfig) error
+	GetBackupConfigByID(ctx context.Context, tenantID, id string) (*models.BackupConfig, error)
+	ListBackupConfigs(ctx context.Context, tenantID string, offset, limit int) ([]models.BackupConfig, error)
+	UpdateBackupConfig(ctx context.Context, tenantID, id string, req *models.UpdateBackupConfigRequest) (*models.BackupConfig, error)
+	DeleteBackupConfig(ctx context.Context, tenantID, id string) error
+	CountBackupConfigs(ctx context.Context, tenantID string) (int, error)
+	CreatePolicy(ctx context.Context, p *models.DRPolicy) error
+	GetPolicyByID(ctx context.Context, tenantID, id string) (*models.DRPolicy, error)
+	ListPolicies(ctx context.Context, tenantID string, offset, limit int) ([]models.DRPolicy, error)
+	CountPolicies(ctx context.Context, tenantID string) (int, error)
+	UpdatePolicy(ctx context.Context, tenantID, id string, req *models.UpdatePolicyRequest) (*models.DRPolicy, error)
+	DeletePolicy(ctx context.Context, tenantID, id string) error
+}
+
+func init() {
+	// Compile-time proof that the wired repository still satisfies the surface.
+	var _ RepositoryInterface = (*repository.Repository)(nil)
+}
+
+// mapRead separates "the row is missing" from "the database failed". Wrapping
+// every error from a read as ErrNotFound made a connection refusal report as a
+// 404, which hid outages behind the shape of an empty response.
+func mapRead(sentinel error, op, id string, err error) error {
+	if errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("%w: %s", sentinel, id)
+	}
+	return fmt.Errorf("%s: %w", op, err)
 }
 
 // ─── DR Plan Management ──────────────────────────────────────────────────────
@@ -114,7 +161,7 @@ func (s *Service) GetPlan(ctx context.Context, tenantID, id string) (*models.DRP
 
 	plan, err := s.repo.GetPlanByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrDRPlanNotFound, id)
+		return nil, mapRead(ErrDRPlanNotFound, "get plan", id, err)
 	}
 	return plan, nil
 }
@@ -136,7 +183,7 @@ func (s *Service) UpdatePlan(ctx context.Context, tenantID, id string, req *mode
 
 	// Verify plan exists
 	if _, err := s.repo.GetPlanByID(ctx, tenantID, id); err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrDRPlanNotFound, id)
+		return nil, mapRead(ErrDRPlanNotFound, "check plan exists", id, err)
 	}
 
 	plan, err := s.repo.UpdatePlan(ctx, tenantID, id, req)
@@ -152,7 +199,7 @@ func (s *Service) DeletePlan(ctx context.Context, tenantID, id string) error {
 
 	// Verify plan exists
 	if _, err := s.repo.GetPlanByID(ctx, tenantID, id); err != nil {
-		return fmt.Errorf("%w: %s", ErrDRPlanNotFound, id)
+		return mapRead(ErrDRPlanNotFound, "check plan exists", id, err)
 	}
 
 	if err := s.repo.DeletePlan(ctx, tenantID, id); err != nil {
@@ -169,7 +216,7 @@ func (s *Service) TriggerFailover(ctx context.Context, tenantID, planID, trigger
 
 	plan, err := s.repo.GetPlanByID(ctx, tenantID, planID)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrDRPlanNotFound, planID)
+		return nil, mapRead(ErrDRPlanNotFound, "get plan", planID, err)
 	}
 
 	if triggeredBy == "" {
@@ -212,7 +259,7 @@ func (s *Service) TestFailover(ctx context.Context, tenantID, planID, testName, 
 
 	plan, err := s.repo.GetPlanByID(ctx, tenantID, planID)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrDRPlanNotFound, planID)
+		return nil, mapRead(ErrDRPlanNotFound, "get plan", planID, err)
 	}
 
 	if testedBy == "" {
@@ -260,7 +307,7 @@ func (s *Service) CompleteFailoverTest(ctx context.Context, tenantID, testID str
 	// Verify test exists
 	test, err := s.repo.GetFailoverTestByID(ctx, tenantID, testID)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrFailoverTestNotFound, testID)
+		return nil, mapRead(ErrFailoverTestNotFound, "get failover test", testID, err)
 	}
 
 	completed, err := s.repo.CompleteFailoverTest(ctx, tenantID, testID, req)
@@ -280,7 +327,7 @@ func (s *Service) GetFailoverTest(ctx context.Context, tenantID, id string) (*mo
 
 	test, err := s.repo.GetFailoverTestByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrFailoverTestNotFound, id)
+		return nil, mapRead(ErrFailoverTestNotFound, "get failover test", id, err)
 	}
 	return test, nil
 }
@@ -353,7 +400,7 @@ func (s *Service) GetBackupConfig(ctx context.Context, tenantID, id string) (*mo
 
 	bc, err := s.repo.GetBackupConfigByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrBackupConfigNotFound, id)
+		return nil, mapRead(ErrBackupConfigNotFound, "get backup config", id, err)
 	}
 	return bc, nil
 }
@@ -375,7 +422,7 @@ func (s *Service) UpdateBackupConfig(ctx context.Context, tenantID, id string, r
 
 	// Verify exists
 	if _, err := s.repo.GetBackupConfigByID(ctx, tenantID, id); err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrBackupConfigNotFound, id)
+		return nil, mapRead(ErrBackupConfigNotFound, "check backup config exists", id, err)
 	}
 
 	bc, err := s.repo.UpdateBackupConfig(ctx, tenantID, id, req)
@@ -390,7 +437,7 @@ func (s *Service) DeleteBackupConfig(ctx context.Context, tenantID, id string) e
 	defer span.End()
 
 	if _, err := s.repo.GetBackupConfigByID(ctx, tenantID, id); err != nil {
-		return fmt.Errorf("%w: %s", ErrBackupConfigNotFound, id)
+		return mapRead(ErrBackupConfigNotFound, "check backup config exists", id, err)
 	}
 
 	if err := s.repo.DeleteBackupConfig(ctx, tenantID, id); err != nil {
@@ -414,7 +461,7 @@ func (s *Service) GetRTOStatus(ctx context.Context, tenantID string) ([]models.R
 	for _, plan := range plans {
 		tests, err := s.repo.ListFailoverTests(ctx, tenantID, &plan.ID)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("list failover tests for plan %s: %w", plan.ID, err)
 		}
 
 		result := models.RTOResult{
@@ -462,7 +509,7 @@ func (s *Service) GetRPOStatus(ctx context.Context, tenantID string) ([]models.R
 	for _, plan := range plans {
 		tests, err := s.repo.ListFailoverTests(ctx, tenantID, &plan.ID)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("list failover tests for plan %s: %w", plan.ID, err)
 		}
 
 		result := models.RPOResult{
@@ -540,7 +587,7 @@ func (s *Service) ScheduleDrill(ctx context.Context, tenantID string, req *model
 	// Verify plan exists
 	plan, err := s.repo.GetPlanByID(ctx, tenantID, planID)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrDRPlanNotFound, planID)
+		return nil, mapRead(ErrDRPlanNotFound, "get plan", planID, err)
 	}
 
 	testType := req.TestType
@@ -555,6 +602,17 @@ func (s *Service) ScheduleDrill(ctx context.Context, tenantID string, req *model
 	now := time.Now()
 	testName := fmt.Sprintf("Scheduled Drill - %s - %s", req.ComponentType, now.Format(time.RFC3339))
 
+	var scheduledAt *time.Time
+	if req.ScheduledAt != "" {
+		// The request accepted a scheduled_at and the insert dropped it, so
+		// a caller could schedule a drill and read back no schedule at all.
+		parsed, perr := time.Parse(time.RFC3339, req.ScheduledAt)
+		if perr != nil {
+			return nil, fmt.Errorf("%w: scheduled_at must be RFC3339, got %q", ErrInvalidInput, req.ScheduledAt)
+		}
+		scheduledAt = &parsed
+	}
+
 	test := &models.FailoverTest{
 		ID:               uuid.New().String(),
 		TenantID:         tenantID,
@@ -562,13 +620,12 @@ func (s *Service) ScheduleDrill(ctx context.Context, tenantID string, req *model
 		TestName:         testName,
 		TestType:         testType,
 		StartedAt:        now,
+		ScheduledAt:      scheduledAt,
 		Result:           "scheduled",
 		AffectedServices: models.StringArray{req.ComponentType},
 		CreatedBy:        createdBy,
 		CreatedAt:        now,
 	}
-
-	_ = plan // plan validated
 
 	if err := s.repo.CreateFailoverTest(ctx, test); err != nil {
 		return nil, fmt.Errorf("create drill: %w", err)
@@ -639,7 +696,7 @@ func (s *Service) GetPolicy(ctx context.Context, tenantID, id string) (*models.D
 
 	policy, err := s.repo.GetPolicyByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrPolicyNotFound, id)
+		return nil, mapRead(ErrPolicyNotFound, "get policy", id, err)
 	}
 	return policy, nil
 }
@@ -660,7 +717,7 @@ func (s *Service) UpdatePolicy(ctx context.Context, tenantID, id string, req *mo
 	defer span.End()
 
 	if _, err := s.repo.GetPolicyByID(ctx, tenantID, id); err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrPolicyNotFound, id)
+		return nil, mapRead(ErrPolicyNotFound, "check policy exists", id, err)
 	}
 
 	policy, err := s.repo.UpdatePolicy(ctx, tenantID, id, req)
@@ -675,7 +732,7 @@ func (s *Service) DeletePolicy(ctx context.Context, tenantID, id string) error {
 	defer span.End()
 
 	if _, err := s.repo.GetPolicyByID(ctx, tenantID, id); err != nil {
-		return fmt.Errorf("%w: %s", ErrPolicyNotFound, id)
+		return mapRead(ErrPolicyNotFound, "check policy exists", id, err)
 	}
 
 	if err := s.repo.DeletePolicy(ctx, tenantID, id); err != nil {
