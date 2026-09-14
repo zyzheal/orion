@@ -10618,3 +10618,149 @@ NOT NULL 集合按表钉死：`form_definition` 8 列、`form_field` 12 列、`f
 - 硬编码成功标记的分诊未完成（按 R38 规则每个先确认是否挂了路由）：`internal/health-check/service/service.go`（上次死于 `sed` 的 division by zero，需先用 `grep -n "success"` 拿行号）、`pipeline_executor.go` 5 处、`internal/assistant/service/actions.go:42` 与 `internal/assistant/handler/handler.go:78`（失败分支答 `Status: "executed"` 加 HTTP 201）、`internal/multi-cloud/service.go:354`（先设 `Status: "passed"` 再判断，自我满足）、`internal/tool/service.go:318`、`internal/chaos-gateway/service.go:294`、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`、`internal/workflow-webhook/handler.go:144`、`internal/cmdb/service.go:465`、`internal/serverless/service.go:152`、`internal/data-catalog/service.go:166`。
 - 尚未扫描的模块：`internal/notification`、`internal/file-handler`、`internal/job-source`、`internal/alert-escalation`、`internal/security`、`internal/infrastructure/*`、`internal/config-mgmt-enhanced`、`internal/cache`、`internal/apm`、`internal/cron`。
 - 结转不变：visor-exec 的租户贯穿（`visorTenantBridge` 里 15 个以上 `""` 占位、`POST /commands` 从不设 `CommandLog.TenantID`）；`runner_repository.go:73` 在活路由上丢弃一条引用不存在列的 DELETE（274 的真实外键是 `agent_id`，`:542` / `:563` 同一错误列）；`pipeline-templates` 的 `Delete` 丢弃一条 DELETE 且 handler 未注册；`vector/repository.go:68` 的 `DeleteStore` 没有 `vector_record` 迁移；schema-registry 的 best-effort `GetSchema` 快照（已被测试钉住）；`EnsureTable` 在约 15 个模块声明而 `cmd/server` 零调用方；`internal/schema-registry/models/models.go` 的既存 gofmt 债；`buildNamedSet` 在 pipeline-executor:401 / job-actions:285 / auto-exec:333 未加白名单；roweditor 的 `validateRows` / `validateMode` 死代码；`buildUpdateSetClause` 里重复的 `version=` / `updated_at=`；finops v1 的不可达方法；user 模块 `ChangePassword` 的 bcrypt 路径无覆盖、前端不调 `PUT /users/:id`；`monitor:execute` 未授予 `sre` / `tenant_admin`（`pkg/auth/permission.go`，有意不动）；`internal/pipeline-template` 与 `internal/pipeline-templates` 都注册 `/pipeline-templates`，疑似同名路由组冲突，未调查。
+
+## 第四十六轮：internal/alert-escalation 十二条语句全部在驱动层报错、三处 SET 以调用方 map key 拼接、四张表读全靠 SELECT 星号（Round 46）
+
+### 46.1 扫描起点与选点理由
+
+- 起点 HEAD `93416fd1a`（Round 45 收尾）。
+- 选它的理由：这个模块是 R45 收尾时在册的下一个目标，完全接线（`rg.Group("/alert-escalation")` 下注册 15 条路由，service 446 行、repository 244 行），但 repository 十二条语句**全部使用 MySQL 风格的问号占位符**。驱动是 lib/pq 加 Postgres，问号在协议层就是语法错误——不是逻辑错、不是数据错，而是**每一次执行都失败**。一个模块、十二条语句、同一个缺陷，这是全仓最集中的单点失败，`go build` 与 `go vet` 都看不见。
+- 第二个理由：三处 UPDATE 的 SET 子句是 `fmt.Sprintf("%s=?", key)` 遍历调用方 map 的 key，与 R40 的 tracing、R43 的 tenant-quota、R44 的 lowcode-designer、R45 的 distributed-config 是同一个模式——这是第五次出现，说明该模式值得一条固定的判据。
+
+### 46.2 repository.go
+
+| 编号 | 修复 | 说明 |
+|------|------|------|
+| A | 十二条语句改为 `$N` 位置参数 | 占位符数量与 Go 实参数量逐条对齐。`ListMetrics` 的 `BETWEEN $2 AND $3` 绑定格式化后的日期串 |
+| B | 9 处 SELECT 星号改为四个显式列常量 | `policyColumns` 10 列、`triggerColumns` 11 列、`closureColumns` 12 列、`metricsColumns` 15 列，全部按迁移 397 的声明顺序排列并直接扫进既有 db tag 模型，不做任何列名映射 |
+| C | 三条按表区分的白名单加共用 `buildSET` | `policyUpdatable` / `triggerUpdatable` / `closureUpdatable`。SET 顺序由白名单决定而非 map 遍历顺序（SQL 与绑定顺序因此确定），占位符编号随子集正确重排，未知 key 返回 `column "X" is not updatable on <table>`，空 map 返回 `no updatable columns supplied for <table>` |
+| D | 身份列不进任何白名单 | `id`、`tenant_id`、`policy_id` 是身份不是数据。旧写法可让调用方写 `id`（破坏主键与全部索引）、`tenant_id`（把行搬到别人的命名空间）、`policy_id`（把升级挂到别的策略下） |
+| E | `RowsAffected` 的 error 上抛 | 原来 `rows, _ :=` 静默丢弃，行数异常不可观测 |
+| F | 删掉只为维持 import 而存在的 `init()` | 里面的 `encoding/json` 是死引用 |
+| G | 空 SET 在到达数据库之前被拦下 | 旧代码会发出 `UPDATE escalation_policy SET  WHERE ...`，Postgres 答语法错误，而旧 handler 把它报成 404 policy not found |
+
+### 46.3 service.go
+
+七处仓储错误原先被吞后仍返回成功，这是本轮变异测试里杀伤力最大的一组（svc1 到 svc5、svc8）。
+
+- **三处损坏 rules 列的 JSON 解码错误**（`GetPolicy` / `ListPolicies` / `EvaluatePolicy`）改为向上传播并点名是哪条策略。`rules` 是 `JSON NOT NULL`，一旦被写坏，旧实现会让端点报成功并返回一个空规则集。
+- **`EvaluatePolicy` 的 trigger 插入失败**原为 `continue`：端点报成功，但升级条数少于策略要求。现在返回 `creating escalation trigger for policy %s`。
+- **`AcknowledgeAlert` 的 closure 插入失败**原被忽略，改为致命。
+- **`GetClosure` 的读取失败被当作查无此记录**——这是本轮最危险的一处。`AcknowledgeAlert` 与 `ResolveAlert` 都以「读不到就新建」为逻辑，于是数据库故障时会创建**重复的 closure 行**。现在用 `errors.Is(err, sql.ErrNoRows)` 精确区分「查无此记录」与「读失败」。
+- **已解决的告警被再次确认会降级**：确认时原先无条件写 `status = acknowledged`，把 `resolved` 改回 `acknowledged`，同时返回对象与库里那行从此不一致。现在只有 `status == "open"` 时才置 `acknowledged`。
+- **负数 MTTR 被原样持久化**：时钟回拨或字段错位会算出负值。现在钳到 0。
+- **`UpdatePolicy` 空更新**原先直接落到数据库，现在返回哨兵 `ErrEmptyUpdate`。哨兵放在 service 而不是 handler：未知列是仓库层才能产生的条件，没有路由可达（按 R38 不为不可达条件加 handler 分支）。
+- **两个百分位数永远为 0**：`metricBindings` 缺 `p95ResponseSeconds` 与 `p95ResolutionSeconds` 两个 key，绑定表按 key 查找，缺 key 就被跳过。`toInt64` 也不认 Go 原生 `int`，调用方用 map 字面量传整数会被静默跳过。
+- **8 位十六进制 FNV 摘要换成 UUID**：原实现按秒级时间戳取模，同一秒内两次升级可撞主键。id 列是 VARCHAR(36)，正好装 UUID，`github.com/google/uuid` 已在 go.mod。
+- **删掉两个零引用模型** `GetMetricsFilter` 与 `PolicyStats`。
+
+### 46.4 handler.go
+
+`UpdatePolicy` 原先所有错误都是 404。空 body 到达 Postgres 变成 `UPDATE escalation_policy SET  WHERE ...`，调用方被告知策略不存在。现在按 `service.ErrEmptyUpdate` 报 400、`sql.ErrNoRows` 报 404、其余报 500。
+
+`DeletePolicy` 原先把失败删除报成 not found——数据库故障看起来像策略已被删掉。现在先判 err 报 500，再判 `deleted` 报 404。
+
+`GetPolicy`、`GetClosure`、`ResolveTrigger` 统一 404 对 500。损坏的 rules 列是存储问题不是策略不存在。
+
+`AcknowledgeAlert` 与 `ResolveAlert` 不再把存储故障报成 400——这两条路径上没有任何调用方可控字段，400 必然意味着数据库故障。
+
+### 46.5 GetMetrics 的分区语义
+
+`alert_closure` 没有 `unique(alert_id)`，所以同一告警可以占两行。列表按 `created_at DESC` 排序，因此**第一行必须赢**——本轮在读侧按 `alert_id` 去重。
+
+三个生命周期计数原先混用两个来源：`acknowledgedCount` 从 `acknowledged_at != nil` 计，其余从 status 计。这把「确认后已解决」的告警重复计一次；再从 total 里减这两个计数会让 `openCount` 变负——一个全部已解决的日期会报出负数待处理。
+
+前端 `MTTRMetricsCard.tsx` 把 待确认 / 已确认 / 已解决 显示为三张互斥卡片，所以三个计数必须全部改从 `status` 取，并保留 `default` 桶接住未知状态。不变式：`open + acknowledged + resolved == total`。
+
+### 46.6 本轮不需要迁移
+
+397 已有四表 DDL（10 索引、无 `_down`），本轮只把它钉进测试：列集、NOT NULL 集合、JSON 列的 Go 字段类型、`resolution_note` 的声明全部由静态检查比对。
+
+### 46.7 测试
+
+共 75 个：handler 21、repository 23、service 23、`cmd/server` 迁移交叉核对 8。
+
+- **repository 23 个**：精确 SQL matcher（空白归一后全串比对）逐条断言占位符编号与实参对齐；两个 UPDATE 用 `sqlmock.NewErrorResult` 让 Exec 成功而 `RowsAffected()` 失败，专测那一条传播分支。
+- **service 23 个**：所有 `(T, error)` 方法的失败路径同时断言 `err != nil` 与 `resp == nil`（只断言前者是空洞的，仓库没设期望时 sqlmock 的「no expectation」错误也能满足）。
+- **handler 21 个**：8 条状态码分派测试，另加 `TestAlert_GetMetrics_DedupsAndPartitions` 与 `TestAlert_GetMetrics_OpenCountNeverNegative`。后者用两条都带 `acknowledged_at` 的已解决告警复现负数 openCount。
+- **迁移交叉核对 8 个**：`TestMigrationsCreateEveryAlertEscalationRelation` 钉住 397 是四张表的唯一创建者且后续无 `ALTER TABLE`；`TestAlertEscalationColumnListsMatchMigration397` 按位置逐一比对四个列常量；`TestAlertEscalationInsertsFitTheMigratedSchema` 断言 INSERT 列集逐位置包含 397 的声明、每个 NOT NULL 列都有实参、钉住每张表的 NOT NULL 集合；`TestAlertEscalationUpdateWhitelistsNameOnlyRealColumns` 断言身份列永不在白名单内；`TestAlertEscalationModelFieldsCoverEveryColumn` 双向比对字段数与列数；`TestAlertEscalationJSONColumnsMatchTheirModelFields`；`TestAlertEscalationStatementsUsePostgresPlaceholders`（跳过注释行）；`TestAlertEscalationMetricBindingsCoverEveryNumericColumn`。
+
+### 46.8 变异：30 个突变量全部由断言击杀
+
+`SURVIVED=0 COMPILE=0 TOTAL=30`。
+
+```
+KILLED(assertion)  svc1 empty update is rejected              KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc2 GetPolicy decodes rules               KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc3 ListPolicies decodes rules            KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc4 EvaluatePolicy decodes rules          KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc5 trigger insert failure is fatal       KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc6 ack read failure is not missing       KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc7 resolve read failure is not missing   KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc8 ack create failure is fatal           KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc9 acknowledging resolved keeps resolved KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc10 negative MTTR is clamped             KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc11 p95 response is bound                KILLED(assertion)
+KILLED(assertion)  svc12 toInt64 accepts Go int               KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc13 id is a UUID                         KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc14 nil row becomes ErrNoRows            KILLED(assertion)/SURVIVED
+KILLED(assertion)  hdl1 empty update is a 400                 KILLED(assertion)/SURVIVED
+KILLED(assertion)  hdl2 delete failure is a 500               KILLED(assertion)/SURVIVED
+KILLED(assertion)  hdl3 closure no rows is a 404              KILLED(assertion)/SURVIVED
+KILLED(assertion)  hdl4 metrics dedup by alert id             KILLED(assertion)/SURVIVED
+KILLED(assertion)  hdl5 lifecycle buckets are disjoint        KILLED(assertion)/SURVIVED
+KILLED(assertion)  hdl6 MTTR sums only resolved rows          KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo1 postgres placeholders only           KILLED(assertion)
+KILLED(assertion)  repo2 unknown column is rejected           KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo3 empty set is an error                KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo4 affected rows error is returned      KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo5 metrics column list is complete      KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo6 whitelist keeps identity out         KILLED(assertion)
+KILLED(assertion)  repo7 no SELECT star on a real line        KILLED(assertion)
+KILLED(assertion)  mdl1 p95 db tag matches 397                KILLED(assertion)
+KILLED(assertion)  m397 rules is NOT NULL                     KILLED(assertion)/SURVIVED
+KILLED(assertion)  m397 closure declares resolution_note      KILLED(assertion)/SURVIVED
+SURVIVED=0 COMPILE=0 TOTAL=30
+```
+
+聚合规则照旧：一个突变量被**任一**套件杀死即算击杀，另一套件通过不代表存活。仓库常量、白名单、db tag、397 约束这五个突变量是依赖 `cmd/server` 静态套件才死的，单跑模块测试杀不掉——这正是两套件的分工。
+
+### 46.9 变异过程暴露的三个问题
+
+1. **Go 的 regexp 展开器把 `$1_` 读成组名 `1_`**。迁移测试的 `aeSnake` 用替换串 `$1_$2` 把 camelCase 转 snake_case，结果 `totalAlerts` 变成 `totaalerts`（A 前面的 l 丢了）、`p95ResponseSeconds` 变成 `p9responsseconds`。原因：展开器读组引用时，字母与数字延伸**组名**，下划线终结组号，所以 `$1_` 被当作名为 `1_` 的组名；没有闭合大括号的组名按字面量输出并吞掉匹配，替换结果是空串。安全写法是 `${1}_${2}`。这一类错误很阴：`aeSnake` 仍然工作，只是把每对驼峰拆错，测试全绿。
+2. **结构体字段正则的字符类漏掉了整型宽度与指针**。类型类写成 `[A-Za-z.]+`，不含数字也不含星号，于是 `int64` 被截成 `int` 后要求紧跟空白、在 `6` 处失配，`AlertMetrics` 的四个 int64 字段全被漏掉；`*time.Time` 同理，`AlertClosure` 与 `EscalationTrigger` 各丢两三个字段。补上 `0-9` 与前导星号、并把 db tag 字符类扩到 `[a-z0-9_]+`（`p95_response_seconds` 含数字）之后才恢复。
+3. **突变锚点必须包含注释行**。三处锚点写在错误分支的 header 与 return 之间不含注释，而实际源码在两者之间有解释性注释，`count == 1` 的守护静默失败、该突变量根本没被应用。修复方法是补全注释行，不是放宽断言。另有一条经验沿用：`case "acknowledged", "resolved":` 会造成重复 case 标签而编译失败，改成分派到另一个桶（`case "resolved", "open":`）才是一个真正可编译的语义突变。
+
+### 46.10 记录不修（十项）
+
+1. `alert_closure` 无 `unique(alert_id)`，重复行仍可能在写入侧产生。本轮只在读侧去重，修根本要加唯一索引，但那会拒掉既有的重复数据，需要单独的数据清理迁移。
+2. `UpdateClosure` 更新该告警的**全部**行，而 `GetClosure` 只读最新一行——扇出写、单读。
+3. `CreateAlertClosure`、`svc.GetMetrics`、`svc.RecordMetric` 没有 handler 调用方（按 R38 记一笔，不删）。
+4. `handler.getTenantID` 在 `RespondUnauthorized` 之后返回空串且不中断，缺租户会在若干调用点发出第二个响应。
+5. `RecordMetric` 静默丢弃 `toInt64` 不认的类型的值。
+6. 397 无 `_down`。
+7. `alert_metrics` 只有写入路径，没有任何读取端点。
+8. `GET /metrics` 无时间边界，是一次无上界的整表读取。加 `from` 与 `to` 会是无前端调用方的路由参数，按约束不加。
+9. `CreatePolicy` 仍把所有错误报成 400。
+10. `service.RepositoryInterface` 与 handler 用的 `ServiceInterface` 各自维护一遍方法清单。
+
+### 46.11 验证
+
+- `go test -count=1 ./internal/alert-escalation/...` → 0（handler 21、repository 23、service 23 全 PASS）。
+- `go test -count=1 -run 'AlertEscalation|MigrationsCreateEveryAlertEscalation' ./cmd/server/` → 0（8 个迁移交叉核对全 PASS）。
+- `go vet ./internal/alert-escalation/...` → 0。
+- `go list ./... | grep -v '/docs/deliverables/' | xargs go build` → 0（1387 包）。
+- `gofmt -l internal/alert-escalation/ cmd/server/` → 空。
+- 变异扫描结束后 `find . -name "*.r46bak"` → 0，五个被改文件全部还原。
+
+### 46.12 扫描遗留（未处理，结转）
+
+- 下一个目标已在册：`internal/infrastructure/dr`（`SELECT *` 加 `RETURNING *`）；`internal/config-mgmt-enhanced`（显式 set 切片，待核）。
+- `/tmp/r41/dyn.txt`（约 57 处 `Sprintf("UPDATE` / 40 文件）；`/tmp/r38/A.txt`（50 处 `Sprintf("%s=$%d`）；`/tmp/r33/hits.txt`、`/tmp/r34/stubs2.txt`；`/tmp/r32scan/up3.txt`（178 个死参数）。
+- 22 个 model 缺 `tenant_id`；12 个 LEAK 模块；25 个未加 tag 的多单词字段结构体（三条具体后果：sqlx v1.4.0 不剥下划线、`db:"-"` 的字段让同名列拖垮整次读取、`NameMapper` 全库只有 `strings.ToLower`）。
+- 全仓结构债：1302 行代码里的 SELECT 星号对 1007 张被迁移 572 改过的表。runbook（R41）、tracing（R42）、tenant-quota（R43）、lowcode-designer（R44）、distributed-config（R45）、alert-escalation（R46）是这条很长列表上的六个点，只能逐模块来。
+- **共享测试基建债，待回移**：`cmd/server/migration_runbook_tables_test.go:42` 的 `reNotNullColumn` 仍不认 BIGINT / INT / DECIMAL / 裸 TIMESTAMP；`lcdIsColumnLine` 的前缀过滤器会丢掉名为 `checksum` 或任何以 SQL 关键字开头的列，R46 新写的 `reAEConstraint` 的 `(\s|\(|$)` 词边界形式与 R45 的 `reDCConstraint` 是修正方案；R46 的 `reAEField` 字符类补齐（类型含数字与前导星号、db tag 含数字）也应回移。
+- **新的跨轮经验**：Go 的 regexp 展开器里 `$1_` 会被读成组名，替换串必须写成 `${1}_${2}`；结构体字段正则的类型字符类必须含数字与星号否则漏掉 `int64` 与 `*time.Time`；突变量锚点要跨注释行时不能省略注释，否则 `count == 1` 静默失败而该突变量从未被应用。
+- 硬编码成功标记的分诊未完成（按 R38 规则每个先确认是否挂了路由）：`internal/health-check/service/service.go`、`pipeline_executor.go` 5 处、`internal/assistant/service/actions.go:42` 与 `internal/assistant/handler/handler.go:78`、`internal/multi-cloud/service.go:354`、`internal/tool/service.go:318`、`internal/chaos-gateway/service.go:294`、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`、`internal/workflow-webhook/handler.go:144`、`internal/cmdb/service.go:465`、`internal/serverless/service.go:152`、`internal/data-catalog/service.go:166`。
+- 尚未扫描的模块：`internal/notification`、`internal/file-handler`、`internal/job-source`、`internal/security`、`internal/infrastructure/*`、`internal/config-mgmt-enhanced`、`internal/cache`、`internal/apm`、`internal/cron`。
+- 结转不变：visor-exec 的租户贯穿；`runner_repository.go:73` 在活路由上丢弃一条引用不存在列的 DELETE；`pipeline-templates` 的 `Delete` 丢弃一条 DELETE 且 handler 未注册；`vector/repository.go:68` 的 `DeleteStore` 没有 `vector_record` 迁移；schema-registry 的 best-effort `GetSchema` 快照；`EnsureTable` 在约 15 个模块声明而 `cmd/server` 零调用方；`internal/schema-registry/models/models.go` 的既存 gofmt 债；`buildNamedSet` 在 pipeline-executor:401 / job-actions:285 / auto-exec:333 未加白名单；roweditor 的 `validateRows` 与 `validateMode` 死代码；`buildUpdateSetClause` 里重复的 `version=` 与 `updated_at=`；finops v1 的不可达方法；user 模块 `ChangePassword` 的 bcrypt 路径无覆盖、前端不调 `PUT /users/:id`；`monitor:execute` 未授予 `sre` 与 `tenant_admin`；`internal/pipeline-template` 与 `internal/pipeline-templates` 都注册 `/pipeline-templates`。
