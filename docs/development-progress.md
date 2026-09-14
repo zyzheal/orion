@@ -10764,3 +10764,135 @@ SURVIVED=0 COMPILE=0 TOTAL=30
 - 硬编码成功标记的分诊未完成（按 R38 规则每个先确认是否挂了路由）：`internal/health-check/service/service.go`、`pipeline_executor.go` 5 处、`internal/assistant/service/actions.go:42` 与 `internal/assistant/handler/handler.go:78`、`internal/multi-cloud/service.go:354`、`internal/tool/service.go:318`、`internal/chaos-gateway/service.go:294`、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`、`internal/workflow-webhook/handler.go:144`、`internal/cmdb/service.go:465`、`internal/serverless/service.go:152`、`internal/data-catalog/service.go:166`。
 - 尚未扫描的模块：`internal/notification`、`internal/file-handler`、`internal/job-source`、`internal/security`、`internal/infrastructure/*`、`internal/config-mgmt-enhanced`、`internal/cache`、`internal/apm`、`internal/cron`。
 - 结转不变：visor-exec 的租户贯穿；`runner_repository.go:73` 在活路由上丢弃一条引用不存在列的 DELETE；`pipeline-templates` 的 `Delete` 丢弃一条 DELETE 且 handler 未注册；`vector/repository.go:68` 的 `DeleteStore` 没有 `vector_record` 迁移；schema-registry 的 best-effort `GetSchema` 快照；`EnsureTable` 在约 15 个模块声明而 `cmd/server` 零调用方；`internal/schema-registry/models/models.go` 的既存 gofmt 债；`buildNamedSet` 在 pipeline-executor:401 / job-actions:285 / auto-exec:333 未加白名单；roweditor 的 `validateRows` 与 `validateMode` 死代码；`buildUpdateSetClause` 里重复的 `version=` 与 `updated_at=`；finops v1 的不可达方法；user 模块 `ChangePassword` 的 bcrypt 路径无覆盖、前端不调 `PUT /users/:id`；`monitor:execute` 未授予 `sre` 与 `tenant_admin`；`internal/pipeline-template` 与 `internal/pipeline-templates` 都注册 `/pipeline-templates`。
+
+## 第四十七轮：internal/infrastructure/dr 四张 dr_* 表从无 DDL、二十五条活路由第一次执行即报 relation does not exist（Round 47）
+
+### 47.1 扫描起点与选点理由
+
+扫描起点 HEAD `975eeaf59`（Round 46 收尾）。**选它的理由**：模块每次启动都接线（`wireBlueprintInfraOps` 无条件构造 repo、service、handler），`RegisterRoutes` 注册 25 条路由，但 `migrations/` 下**没有任何一条**建 `dr_plans`、`dr_failover_tests`、`dr_backup_configs`、`dr_policies` 的语句。与 R46 的形状正好相反：R46 有 DDL（397）却没有一条能执行的语句；R47 有能执行的语句却没有 DDL。后果相同——25 个端点无一能在第一次执行时成功，报的都是 `relation "dr_plans" does not exist`。这是与 R45（distributed-config 八张表全无 DDL）同类的结构性缺陷，但更严重：R45 的表至少有上游模块在用，R47 的表是这个模块唯一的存储。
+
+### 47.2 主项：新增迁移 589 与回滚文件
+
+`589_create_dr_tables.sql`（118 行）建 4 张表、16 个索引；`589_create_dr_tables_down.sql`（22 行）先删 16 个索引、再按反序删 4 张表。列集按 models.go 的 db tag 逐一对齐。`dr_policies` 的 `rpo`、`rto` 是 VARCHAR——`DRPolicy.RPO` 与 `DRPolicy.RTO` 是时长字符串（形如 `30m`），而 `DRPlan.RPO` 与 `DRPlan.RTO` 是 INTEGER；同列名不同类型是本模块最容易写错的一处。`dr_plans.priority` 是 VARCHAR、`dr_policies.priority` 是 INTEGER，同一分裂再出现一次。`last_tested`、`scheduled_at`、`completed_at`、`last_backup_at`、`project_id`、`description`、`findings` 七列可空——服务层写入 nil 或指针为空，NOT NULL 会直接拒收。`dr_plans` 额外有 status、plan_type、created_at 三个组合索引，`dr_policies` 有 strategy、status、priority 三个。迁移 572 的 1007 条 ALTER 对本模块不感知，所以每一列必须自己声明。
+
+### 47.3 repository.go：六处丢失租户边界
+
+三个 GetByID（plan、backup config、policy）把 tenant_id 从 WHERE 里丢了，只按 id 查——任意租户可以用任意 id 读到别人的 DR 计划、备份配置与策略。`UpdatePlanStatus`、`DeletePlan`、`CountPlans` 各丢一处 tenant 过滤。`CreateFailoverTest` 把 `ScheduledAt` 绑在 `t.Result` 的位置上，定时演练的时间落到了结果列。`ListPlans` 与 `ListBackupConfigs` 的 offset 与 limit 绑定顺序错。`ListPolicies` 丢掉 priority 排序。`UpdatePlan` 与 `UpdatePolicy` 的 RETURNING 少一列。`UpdatePlan` 的空更新直接落到数据库（空 SET 是语法错误），改为回读该行。16 处 MySQL 问号占位符全部改为 `$N`，9 处 SELECT 星号与 RETURNING 星号改为四个显式列常量并直接扫入既有 db-tag 模型。
+
+### 47.4 service.go：连接被拒报成 404
+
+九处读错误原先一律包成 `ErrXxxNotFound`，于是**连接被拒、死锁、断线全部报成 404**，把数据库故障藏在空响应的形状里。新增 `mapRead` 只把 `sql.ErrNoRows` 映射到 sentinel，其余错误保留操作标签并继续用 `%w` 包装存储错误，`errors.Is` 能穿透到原始错误。`Service.repo` 同时从具体类型 `*repository.Repository` 收窄成接口 `RepositoryInterface`（24 个方法）加 `init()` 的编译期断言，测试才能注入替身。
+
+### 47.5 handler.go
+
+`parsePagination` 原先丢弃 `Atoi` 的 error：`page=abc` 变成 page 0、`page_size=0` 让 LIMIT 完全不生效。现拒绝非整数、小于 1、超过 100，offset 按 `(page-1)*size` 算。`ListPlans` 与 `ListPolicies` 丢掉 count 的 error，用 `total: 0` 配一个完整的 data 数组——绑定 total 的界面会读成空库。`CanFailover` 原先丢掉 region、`CheckPolicyCompliance` 丢掉两个参数，两者都会拿零值算一个看起来真实的答案。`GetCostEstimate` 丢掉 otel 的 ctx。
+
+### 47.6 本轮的边界
+
+按 R38 与前端约束收了三处手：五个 policy CRUD handler（Create、List、Get、Update、Delete）没有前端调用方（前端对任何 `dr/*` 路径的 grep 为零），**不注册路由**；`ListPoliciesByStrategy` 与 `ListPoliciesByStatus` 零调用方且不在接口里；`ListFailoverTests` 在活路由上没有 LIMIT，但加分页参数等于加无调用方的路由参数，只记录。
+
+### 47.7 测试
+
+service 34 个、handler 30 个、repository 27 个、models 2 个、cmd/server 迁移交叉核对 8 个，共 101 个测试函数。仓库层用 sqlmock 加逐字比对 matcher，行构造器与列常量同文件；模型层用真模型加 db tag 直接扫。cmd/server 的八个静态检查里，一个把 migrations 目录的 CREATE TABLE 与 ALTER TABLE ADD COLUMN 折叠成完整列集（ADD 折成第二遍，因为 `entriesInMigrationsDir` 不排序），一个把折叠结果与四个列常量逐列比对，一个把列常量与 db tag 逐列比对，一个验证 NOT NULL 且无 DEFAULT 的列在每个 INSERT 的实参里都有值，一个验证占位符编号连续且与实参数量相等，一个验证没有问号占位符、SELECT 星号与 RETURNING 星号，一个验证 down 文件删掉了 forward 创建的全部对象，一个验证每张表至少有一个 tenant 维度索引。失败路径统一按 R39.7 同时断言 `err != nil` 与 `resp == nil`。
+
+### 47.8 变异：47 个突变量全部由断言击杀
+
+`SURVIVED=0 COMPILE=0 TOTAL=47`。
+
+```
+KILLED(assertion)  svc1 plan name is required                   KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc2 zero RTO is rejected                    KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc3 missing row is not an outage            KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc4 drill timestamp must parse              KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc5 warm standby base cost                  KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc6 minutes are sixty seconds               KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc7 active-active always allowed            KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc8 compliance means under target           KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc9 plan starts active                      KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc10 empty actor becomes system             KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc11 drill keeps its schedule               KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc12 policy starts active                   KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc13 service assigns the tenant             KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc14 actual RTO compared to target          KILLED(assertion)/SURVIVED
+KILLED(assertion)  svc15 unknown service is named unknown       KILLED(assertion)/SURVIVED
+KILLED(assertion)  hdl1 page two starts at size                 KILLED(assertion)/SURVIVED
+KILLED(assertion)  hdl2 page size cap is 100                    KILLED(assertion)/SURVIVED
+KILLED(assertion)  hdl3 not found maps to 404                   KILLED(assertion)/SURVIVED
+KILLED(assertion)  hdl4 invalid input maps to 400               KILLED(assertion)/SURVIVED
+KILLED(assertion)  hdl5 region is required                      KILLED(assertion)/SURVIVED
+KILLED(assertion)  hdl6 both compliance params required         KILLED(assertion)/SURVIVED
+KILLED(assertion)  hdl7 count error fails the list              KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo1 plan read scopes the tenant            KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo2 id and tenant bind in order            KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo3 offset and limit bind in order         KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo4 empty set reads the row                KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo5 scheduled time binds before result     KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo6 complete rereads the row               KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo7 status update scopes the tenant        KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo8 delete scopes the tenant               KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo9 count filters the tenant               KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo10 plan filter narrows the list          KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo11 plan update returns all columns       KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo12 backup offset and limit in order      KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo13 policies sort by priority             KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo14 policy update returns all columns     KILLED(assertion)/SURVIVED
+KILLED(assertion)  repo15 plan column list is complete          KILLED(assertion)
+KILLED(assertion)  mdl1 scheduled_at db tag                     KILLED(assertion)
+KILLED(assertion)  mdl2 last_backup_size db tag                 KILLED(assertion)
+KILLED(assertion)  m589 last_tested is nullable                 KILLED(assertion)/SURVIVED
+KILLED(assertion)  m589 failover tests declare scheduled_at     KILLED(assertion)/SURVIVED
+KILLED(assertion)  m589 plans declare priority                  KILLED(assertion)/SURVIVED
+KILLED(assertion)  m589 policies get a priority index           KILLED(assertion)/SURVIVED
+KILLED(assertion)  m589 creates dr_policies                     KILLED(assertion)/SURVIVED
+KILLED(assertion)  mdn drops the plans tenant index             KILLED(assertion)/SURVIVED
+KILLED(assertion)  mdn drops dr_policies                        KILLED(assertion)/SURVIVED
+KILLED(assertion)  mdn drops tables in reverse order            KILLED(assertion)/SURVIVED
+SURVIVED=0 COMPILE=0 TOTAL=47
+```
+
+聚合规则照旧：一个突变量被**任一**套件杀死即算击杀，另一套件通过不代表存活。`repo15`（planColumns 丢 priority）是唯一被两个套件同时杀死的突变量——列常量、sqlmock 行构造器、迁移三处独立发现同一处漂移，是本轮最强的一条证据。模型 db tag、迁移约束、down 文件这十七个突变量只被 cmd/server 静态套件杀死，模块测试杀不掉。
+
+### 47.9 变异过程暴露的五个问题
+
+1. **去掉一个变量的最后一次读取是编译击杀。** `ScheduledAt: nil` 让 `var scheduledAt *time.Time` 变成只赋值不读取，svc11 报 declared and not used。按 R45 的规则改写成取反赋值条件（非空判断改成空判断），变量仍然被读。
+2. **去掉一个 import 的最后一次使用同样是编译击杀。** `mapRead` 是全模块唯一用 `database/sql` 的地方，把 ErrNoRows 的判断换成 `errors.Is(err, nil)` 让 sql 的 import 失效，svc3 编译击杀。改写为改另一个分支的 `%w` 为 `%s`——语义突变、可编译，由「存储错误不得解包成计划不存在」那条测试击杀。
+3. **只改用户可见消息文本的突变量，在测试只断言 HTTP 状态码时必然存活。** hdl5 就是这样活下来的：handler 测试只断 400，消息从 required 改成 optional 全绿。这正是 R40 立的那条——错误路径测试只断言 err 非空或只断状态码就是空测试，必须钉住消息前缀。本模块的消息不含尖括号与和号，gin 的 HTML 转义不构成干扰。
+4. **两条件 OR 改 AND 的突变量，在测试只覆盖两者皆空时同样存活**，因为两种运算符在那个输入上行为完全一致。hdl6 的合规校验补了两个只缺一边的子用例才杀掉。修的是测试，不是突变。
+5. **锚点校验必须在多分钟扫描之前单独跑一遍。** `count == 1` 的守护在扫描中段失败时整个突变量静默跳过，日志仍会打印全绿。本轮 47 个锚点先跑 verify 模式全过（ANCHORS_BAD=0）才启动扫描；扫描结束后 `find . -name '*.r47bak'` 为空。
+
+### 47.10 记录不修（十五项）
+
+1. `ErrPlanNotDeletable` 与 `ErrBackupNotReady` 两个 sentinel 从未被任何路径返回。
+2. 四处 best-effort 丢弃（`UpdatePlanStatus`、`UpdatePlanLastTested`）：演练触发后计划状态更新失败不应让主流程失败，由独立注入字段驱动的一条测试覆盖。
+3. `CanFailover` 忽略 `blocked_regions`，落到 `policy.Strategy != "active-passive"` 的兜底判断。
+4. `GetFailoverCostEstimate` 对未知策略返回 base 0。
+5. `parseDuration` 对无法解析的字符串返回 0（保守），`CheckCompliance` 因此把任何目标当合规。
+6. `PaginatedRequest.Offset()` 与 `Limit()` 会改接收者，且没有 handler 调用。
+7. `respondConflict` 与 `respondForbidden` 未使用。
+8. `ListFailoverTests` 在活路由上没有 LIMIT，整表读取。
+9. 合规端点对每个计划各发一次 `ListFailoverTests`，是 N+1。
+10. `CompleteFailoverTest` 先读测试只为拿 PlanID，不检查测试是否已完成。
+11. `GetRTOStatus` 与 `GetRPOStatus` 里的 `t.Result != "cancelled"` 是死条件——本模块只写 running 与 scheduled。
+12. `CreatePlan` 把 FailoverStrategy 默认成 manual，而 `CanFailover` 与 `GetFailoverCostEstimate` 都不认这个值；`CreatePolicy` 的 Priority 没有默认值。
+13. `TestServiceCreatePlanDefaultsAndFields` 不断言 RPO 与 RTO，该透传不在变异覆盖内。
+14. lib/pq 的 `binaryEncode` 没有 case int，裸 int 实参之所以合法，是因为 database/sql 的 `DefaultParameterConverter` 先把 int 转 int64；谁在裸 driver.Conn 上调 Exec 就会拿到 unknown type for int。同一条推理也让 `models.StringArray` 与预序列化 []byte 的绑定差异在 sqlmock 下不可观测，该不变式只靠代码审查。
+15. 五个未注册的 policy handler 及其 service 与 repo 方法整体不可达（ListPolicies 的 handler 已按统一口径修好分页与 count 处理，但同样未注册）。
+
+### 47.11 验证
+
+- `go test -count=1 ./internal/infrastructure/dr/...` → 0（service 34、handler 30、repository 27、models 2 全 PASS）。
+- `go test -count=1 -run 'TestDr' ./cmd/server/` → 0（8 个迁移交叉核对全 PASS）。
+- `go vet ./cmd/server/` → 0；`go list ./internal/infrastructure/dr/... | xargs go vet` → 0。
+- `go list ./internal/infrastructure/dr/... | xargs go build` → 0。
+- `gofmt -l internal/infrastructure/dr/ cmd/server/migration_dr_tables_test.go` → 空。
+- `python3 -u /tmp/r47_mut.py verify` → ANCHORS_BAD=0（47/47 全部 count=1）。
+
+### 47.12 扫描遗留（未处理，结转）
+
+- 下一个目标已在册：`internal/config-mgmt-enhanced`；`internal/notification`、`internal/file-handler`、`internal/job-source`、`internal/security`、`internal/cache`、`internal/apm`、`internal/cron` 尚未扫描。
+- `/tmp/r41/dyn.txt`（约 57 处 Sprintf UPDATE / 40 文件）；`/tmp/r38/A.txt`（50 处 Sprintf 占位符拼接）；`/tmp/r32scan/up3.txt`（178 个死参数）。
+- 全仓结构债：1302 行代码里的 SELECT 星号对 1007 张被迁移 572 改过的表。runbook（R41）、tracing（R42）、tenant-quota（R43）、lowcode-designer（R44）、distributed-config（R45）、alert-escalation（R46）、dr（R47）是这条很长列表上的七个点，只能逐模块来。
+- **共享测试基建债，待回移**：`cmd/server/migration_runbook_tables_test.go:42` 的 `reNotNullColumn` 仍不认 BIGINT、INT、DECIMAL 与裸 TIMESTAMP（R47 因此自带一份宽松的列声明正则）；`lcdIsColumnLine` 的前缀过滤器会丢掉名为 checksum 或任何以 SQL 关键字开头的列；`entriesInMigrationsDir()` 不排序，任何把后续 ALTER TABLE ADD COLUMN 折到早期 CREATE TABLE 上的测试都必须把 ADD 折成独立的第二遍。
+- **新的跨轮经验**：去掉变量最后一次读取、或去掉 import 最后一次使用，都是编译击杀，必须改写成条件取反；只改用户可见消息文本的突变在只断状态码的测试下必然存活；两条件 OR 改 AND 在只覆盖两者皆空的测试下必然存活。
+- 硬编码成功标记的分诊未完成（按 R38 规则每个先确认是否挂了路由）：`internal/health-check/service/service.go`、`pipeline_executor.go` 5 处、`internal/assistant/service/actions.go:42` 与 `internal/assistant/handler/handler.go:78`、`internal/cmdb/service.go:465`、`internal/data-catalog/service.go:166`、`internal/serverless/service.go:152`、`internal/multi-cloud/service.go:354`、`internal/tool/service.go:318`、`internal/workflow-webhook/handler.go:144`、`internal/chaos-gateway/service.go:294`、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`。
+- 结转不变：visor-exec 的租户贯穿；`runner_repository.go:73` 在活路由上丢弃一条引用不存在列的 DELETE；`pipeline-templates` 的 Delete 丢弃一条 DELETE 且 handler 未注册；`vector/repository.go:68` 的 DeleteStore 没有 vector_record 迁移；schema-registry 的 best-effort GetSchema 快照；EnsureTable 在约 15 个模块声明而 cmd/server 零调用方；`internal/schema-registry/models/models.go` 的既存 gofmt 债；sqlx v1.4.0 的 `NameMapper` 只认小写；buildNamedSet 在 pipeline-executor:401 / job-actions:285 / auto-exec:333 未加白名单；roweditor 的 validateRows 与 validateMode 死代码；buildUpdateSetClause 里重复的 version 与 updated_at；finops v1 的不可达方法；user 模块 ChangePassword 的 bcrypt 路径无覆盖；`monitor:execute` 未授予 sre 与 tenant_admin；internal/pipeline-template 与 internal/pipeline-templates 都注册 /pipeline-templates。
