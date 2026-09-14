@@ -8646,3 +8646,212 @@ func TestHandler_Get_NotFound(t *testing.T) {
 5. **python 补丁里 `assert` 写在 `open(p,"w")` 之前，断言一炸就是整个脚本什么都没写。** 本轮踩了四次。多文件补丁要拆成「每个文件先写盘、再校验下一个文件」。
 6. **`rm -rf` 跑在错误的 CWD 上会静默成功。** 本轮删探针目录时，命令实际跑在仓库根，`rm -rf` 对不存在的目录返回 0，然后 `git status` 仍显示探针目录还在。删目录后要**立刻 `git status` 复核**，不能只看命令退出码。
 7. **迁移目录里有子目录**（`cmdb-import` / `dba` / `file-handler` / `governance` / `notification` / `security` / `workflow`），`ls migrations/*.sql` 不受影响，但任何递归查找都要排除 `*_down.sql`。
+
+## 第三十四轮：internal/finops-v2 模块整体从「恒 500」改为真实可运行（迁移 583 补齐 8 张表 + 9 类缺陷 + 新增 schema 级类 C + 77 个测试函数 + 10/10 变异证明 + 活体 PostgreSQL 16.14 全方法验证）（2026-09-14）
+
+- HEAD 起点 `646117fd8`（R33 docs）。代码提交 **`3a1f237da`**：7 文件，423 行新增 / 222 行删除（含新迁移 583 up 155 行 + down 24 行）。测试提交 **`d8023936e`**：4 文件，1178 行新增 / 32 行删除。合计 11 文件，1601 行新增 / 254 行删除。文档：`docs/ALL_TODOS.md` 第 361 行 + 本节。
+- 本轮和前三轮的**性质不同**：R30–R33 是「一个模块能跑但语义错」，本模块是「**一个都跑不通**」。仓储引用的 **8 张表没有任何一张被任何迁移创建过**，所以全部 ~28 个端点在业务逻辑之前就挂在 `pq: relation "finops_v2_costs" does not exist`。更糟的是仓储里带了一个私有 `initTables()`，它本该建表，但**零调用者**——DDL 永远不会执行。
+
+### 34.1 为什么这个模块
+
+三个理由：
+
+1. **它是唯一一个「数据库层从头到尾不存在」的模块。** 不是「表缺几列」，是「表本身不存在」。这意味着每一个仓储方法都是死代码——它们写的 SQL 语法可能完全正确，但在真实数据库上执行不到一行。
+2. **它撞出了本轮最重要的一个根因发现**（§34.2 类 A）：`NameMapper = strings.ToLower`，不是 snake_case。这一条对**全库**都有意义，而且它是**静默的**——不加 tag 不报错，只是永远绑不上。
+3. **它把类 C 推到了 schema 级**（§34.2 类 C 第三处）：一个跨租户引用可以在写入时永远成功、在读取时永远为空，而且不会有任何错误告诉你出事了。这是本轮最阴的一类缺陷。
+
+### 34.2 九个缺陷类
+
+**S｜schema 漂移** —— 代码引用 `finops_v2_costs` / `finops_v2_budgets` / `finops_v2_chargebacks` / `finops_v2_recommendations` / `finops_v2_reports` / `finops_v2_roi` / `finops_v2_collection_schedules` / `finops_v2_alert_triggers`，**没有一张被任何迁移创建**。处置：新增**迁移 583**（155 行 up + 24 行 down，8 张表 + 14 个索引），并删掉零调用者的 `initTables()`。
+
+表名**刻意**带 `v2` 前缀，三个原因：
+
+- `internal/finops`（v1）已占用 `finops_budgets`，且写入完全不同的列集（alerts / environment / description / UUID id），无法与 v2 的 schema（SERIAL id / category / alert_threshold / status）共享一张表。
+- 042/131 用的是 UUID id + UUID tenant_id，与本模块的 SERIAL id + VARCHAR(128) tenant_id 不兼容。
+- 042 的 `finops_reports` 保留在库中但本模块**不使用**：往它的 UUID tenant_id 列插入 VARCHAR 租户 id 在**行生成之前**就会失败。这个表本来就没法写进任何东西。
+
+**A｜sqlx safe mode（本轮最重的根因）** —— go-common 的 `db.Connect` 走 `sqlx.Open`，**从不调 `Unsafe`**，全程 safe mode。safe mode 先用 `rows.Columns()` 建列名→字段映射，映射表里出现一个模型没声明的列，就在第一行抛 `missing destination name <col>`。
+
+**根因是 sqlx v1.4.0 把 `NameMapper` 设为 `strings.ToLower`（`sqlx.go:26`），不是 snake_case。** 未打 tag 的多词字段只映射到**小写后的字段名**：`UsedCost` → `usedcost`，**永远不会**等于 `used_cost`。
+
+这一条有两个重要推论：
+
+- 它是**静默的**。不加 tag 不会报错，只是永远绑不上——表现是一个字段永远是零值，而不是一个 500。
+- `SELECT *` 只要表里多一列模型没声明的字段，就报错。而列名来自 `rows.Columns()`，**与表里有没有数据无关**——所以「空表」给不出任何安慰，空表照样 500。
+
+本轮三处实例：
+
+| # | 实例 | 现象 | 处置 |
+|---|------|------|------|
+| 1 | `AlertTrigger` 无 `id` 字段 | wildcard SELECT 报 `missing destination name id` | 补 `db:"id"` |
+| 2 | `CollectionSchedule` 无 `id` 字段 | 同上 | `GetSchedule` 改为**显式列名**（该表 model 只暴露 4 个字段，`id` 是外部的） |
+| 3 | `BudgetAlert.UsedCost` 无 `db` tag | `AS used_cost` 永远绑不上 | 补 `db:"used_cost"`，并在 model 上写注释说明 NameMapper 是 `strings.ToLower` |
+
+**B｜保留字** —— `desc` 是 PostgreSQL 硬保留字，未加引号会直接报语法错误 → 列名改为 `details`。
+
+**C｜越权** —— 本轮把这个类推到三个层次：
+
+1. **语句级**：所有 UPDATE / DELETE / SELECT 只按数字 id 定位，没有 `tenant_id` 谓词。跨租户 `UpdateBudget` 现在是一条 0 行的 no-op（活体验证过）。
+2. **JOIN 级**：`GetAlertTriggers` 的 JOIN 改为 `ON b.id = a.budget_id AND b.tenant_id = a.tenant_id`。
+3. **schema 级（本轮新发现）**：`finops_v2_alert_triggers.budget_id` 原先**没有任何外键**。租户 2 可以对租户 1 的预算 id 记一条 trigger，写入**永远成功**；然后那一行孤儿数据被第 2 条的 JOIN 谓词**永久隐藏**，读取**永远为空**。没有任何错误会告诉你出事了——这是一个自我隐藏的越权通道。
+
+处置：改为**复合外键** `FOREIGN KEY (tenant_id, budget_id) REFERENCES finops_v2_budgets (tenant_id, id)`，让它在**插入时**失败（活体验证：`SQLSTATE 23503`）。
+
+这里撞出一个**非显而易见的规则**：PostgreSQL 拒绝引用列不是唯一约束的复合外键——
+
+```
+ERROR: there is no unique constraint matching given keys for referenced table "finops_v2_budgets"
+```
+
+所以 `finops_v2_budgets` 还得补一条 `UNIQUE (tenant_id, id)`。`id` 本来就是主键，这条约束**不增加真实唯一性**，只是满足外键建表的前提。这条规则值得记住：**给一张表加复合外键时，被引用侧往往需要一条看似多余的唯一约束。**
+
+**U｜动态子句占位符 off-by-one（本轮 2 处镜像）** —— 与 R33 发现的类 U 同源，方向相反：
+
+- `CollectCost`：`AND provider=$%d` 用的是**陈旧的下标**（append 之前算好的）。
+- `UpdateBudget`：预置了 `args := []interface{}{time.Now().UTC()}` 作为 `updated_at` 的值，但**忘了对首个占位符做相应位移**，于是后续每个 `$n` 都比它绑定的参数早一位。
+
+**真实 PostgreSQL 对这两类错误静默接受**——它只校验参数条数，不校验语义。所以只能靠 sqlmock 严格校验参数元数钉住，这也是本轮所有 sqlmock 测试都写 `WithArgs` 的原因。
+
+**错误分类塌缩（4 处）** —— handler 对**所有**错误都回 404：
+
+- `GetBudget`、`GetBudgetStatus`、`GetSchedule` 改为 `if service.IsNotFound(err)` 才 404，其余 500。
+- `Handler.HealthCheck` 更极端：**丢弃了 bool 返回值，恒回 `{"status":"ok"}`**。数据库不可达时也报健康——而它掩盖的正是本组其他端点报的**同一个 schema 缺失故障**。改为不健康回 503、出错回 500。
+
+**panic-on-error（KPI 聚合）** —— `GetMetrics` 聚合三个仓储调用，其中任何一个返回错误就**解引用 nil**，落到**已注册的路由**上变成 500。改为三处错误全部 `%w` 传播（`cost summary: %w` / `roi summary: %w` / `savings estimate: %w`）。
+
+**死参数** —— 删除零信息的 `period` 参数（传入后完全没进 SQL）。
+
+### 34.3 列契约测试：独立于生产常量
+
+`repository_sql_test.go`（595 行新文件，15 个测试）的核心设计原则是**不能引用生产代码的常量来声明契约**——否则测试会自动跟着代码一起错，变成同义反复。所以：
+
+- 期望列清单**手写**在测试里。
+- 实际列清单**直接从 `migrations/` 解析真实 schema**，反向校验代码引用的每张表、每一列都真的存在。
+- `TestEverySelectStarModelCoversEveryTableColumn` 专门守护类 A：遍历每张表，比对 `SELECT *` 的目标 model 的 db tag 集合，**任何一列模型没声明，就断言会报 `missing destination name`**。这条测试的价值在于它把类 A 从一个「本轮修掉的 3 处」变成一条**永久防线**：以后有人给表加列、给 model 删字段，它会立刻叫。
+- `TestAlertTriggersReferenceTheBudgetInTheSameTenant` 守护类 C 的 schema 级新增：解析 `FOREIGN KEY (...) REFERENCES finops_v2_budgets (...)`，断言 FK 列集**两边都覆盖** `tenant_id` + `budget_id`，且被引用侧存在对应的 `UNIQUE` 约束（否则 PostgreSQL 直接拒绝建表）。
+- sqlmock **全部**用 `QueryMatcherFunc` + 归一化精确比较，**不用默认 `QueryMatcherRegexp`**——后者把期望文本结尾的 `$` 当成**结尾锚点**，导致大量虚假通过。
+
+### 34.4 变异验证 10/10（全部实测非空）
+
+每个突变体都**编译通过**，无无效突变；每个都在运行中被对应的测试杀死；每次突变后都立刻还原，工作树 diff 完整性已确认。
+
+| # | 突变体 | 杀它的测试 |
+|---|--------|-----------|
+| 1 | 仓储表名去 `v2` 前缀（45 处，`finops_v2_*` → `finops_*`） | `TestMigrationCreatesEveryTableTheRepositoryReferences` |
+| 2 | `GetAlertTriggers` JOIN 去租户谓词 | `TestGetAlertTriggersIsTenantScoped` |
+| 3 | `CollectCost` 用陈旧参数下标 | `TestCollectCostBindsTheProviderFilter` |
+| 4 | `UpdateBudget` 预置 `args` 却不移位 | `TestUpdateBudgetBindsOnePlaceholderPerSetEntry` |
+| 5 | `BudgetAlert.UsedCost` 去掉 db tag | `TestCheckBudgetAlertsBindsTheEntityFilter` |
+| 6 | `Handler.HealthCheck` 去掉 `!healthy` 分支 | `TestHealthCheckHonoursTheAnswer` |
+| 7 | `GetMetrics` 去掉错误传播 | `TestGetMetricsPropagatesEveryRepositoryError` |
+| 8 | `GetSchedule` 去掉显式列名 | `TestGetScheduleSelectsOnlyMappedColumns` |
+| 9 | 复合外键降级为裸 `budget_id` 外键 | `TestAlertTriggersReferenceTheBudgetInTheSameTenant` |
+| 10 | 迁移列 `details` 改回保留字 `desc` | `TestEverySelectStarModelCoversEveryTableColumn` |
+
+第 1 项有个过程细节：全局表名重命名有 45 处，而补丁 harness 要求锚点 `count == 1`，所以第一次跑被拒（正确地拒绝了一个模糊的全局替换），改为单独用 `str.replace` 不带计数限制执行。这个拒绝是对的——它防止了一次会污染整个文件的重命名。
+
+第 9 项的突变体输出值得记住：
+
+```
+repository_sql_test.go:119: FK must cover both tenant_id and budget_id, got map[budget_id:true]:
+  a bare budget_id FK still permits a cross-tenant reference
+```
+
+即：外键本身在、表能建、数据能写——**只有语义是错的**。这正是「死」的跨租户通道长什么样。
+
+第 10 项的输出：
+
+```
+repository_sql_test.go:189: SELECT * from finops_v2_costs into models.CostEntry:
+  table column "desc" has no db field, sqlx safe mode returns 'missing destination name'
+```
+
+### 34.5 活体证明（PostgreSQL 16.14）
+
+一次性 PostgreSQL 16.14 实例（port 54333）+ 迁移 583 up **干净应用 21 条语句**，8 张表全部存在。然后**逐方法实跑**，用真实数据断言语义（sqlmock 只能证明参数元数，不能证明语义）：
+
+| 方法 | 断言结果 |
+|------|---------|
+| `TrackCost` | 10 列全部落库，含 `details` |
+| `GetCostByEntity` / `GetEntityCostTrend` | wildcard SELECT 在 safe mode 下正常返回行 |
+| `GetCostSummary` | `TotalCost 1500`，`ForecastCost 1300` |
+| `CreateBudget` / `GetBudget` / `ListBudgets` | CRUD 正常 |
+| `UpdateBudget` | 3 字段动态 SET 全部生效，`status` 未被触碰 |
+| 跨租户 `UpdateBudget` | **0 行 no-op** |
+| `GetBudgetStatus` | used 1200 / allocated 2000 / `warning` |
+| `ForecastBudget` | 2200 / 10.0 |
+| `CheckBudgetAlerts` | `used_cost 1200` 正确绑定 |
+| `GetAlertTriggers` | JOIN 返回正确租户的预算名；租户 2 看到**自己的**名字 |
+| 跨租户 trigger 插入 | **被拒 `SQLSTATE 23503`** |
+| `EstimateSavings` | 210 / AVG 75 / 2 个 category |
+| `SetSchedule` | upsert 覆盖 cron + enabled |
+| `GetSchedule` | 显式列正常；缺失 provider → `sql.ErrNoRows` |
+| `GetRegisteredProviders` | 租户 1 **看不到**租户 2 的 gcp |
+| `CollectCost` | 1 行 / 1000.0 |
+| `CreateReport` / `GetReportHistory` | `generated_at` 默认值生效 |
+| `CreateROI` / `GetROIHistory` / `GetROISummary` | `CurrentROI 25.0` |
+| `GetChargebackReport` | 正常 |
+| `HealthCheck` | `true` |
+| `583_down.sql` | **干净回滚**（14 个 DROP INDEX + 8 个 DROP TABLE，外键随表一起删除） |
+
+`ForecastCost 1300` 这个断言值得单独说：它证明 forecast 用的是**尾部 30 天窗口**，而不是「总额 × 系数」。第一次跑探针时我期望 1500、实际 1300，排查发现是**我的测试数据错了**——`created_at` 默认 `NOW()`，所以一个 `period_start` 为 2026-07-01 的行仍落在 30 天窗口内。补了一条 `UPDATE ... SET created_at = NOW() - INTERVAL '60 days'` 之后期望值改为 1300，`ProjectedTotalCost` 2200、`OverrunLikelihood` 10.0。
+
+**同类教训出现两次**：跨租户 trigger 断言第一次也失败（`got 0, want 1`），同样是数据错了——租户 2 指向租户 1 预算 id 的 trigger 被 JOIN 谓词**正确地**丢弃了。重构为租户 2 有自己的 budget + trigger（保证 JOIN 不是空转），再单独断言跨租户插入被拒。两次都是探针数据的问题、不是产品代码的问题，但两次都证明**探针必须自己先自证数据正确**。
+
+探针目录放在 `<module>/probe_live_r34/` 而不是模块外：Go 的 `internal/` 导入规则不允许模块外的包导入 `internal/`。实例已停、探针目录已删、无残留进程。
+
+### 34.6 一个测试辅助函数的坑（本轮唯一一次回头改测试）
+
+新增的 FK 解释性注释放在 `finops_v2_budgets` 的 CREATE TABLE 体内，把已有的 `TestEverySelectStarModelCoversEveryTableColumn` 弄坏了：
+
+```
+table column "--" has no db field, ...
+```
+
+第一次修法 `strings.Fields(strings.TrimPrefix(line, "--"))` **不成立**，因为 `TrimPrefix` 只在位置 0 剥离，而 `Fields` 先执行已经丢掉了前导空格——注释续行 `    -- budget_id). id is already...` 仍然解析出列名 `--`。改成 `strings.Fields(strings.TrimPrefix(strings.TrimSpace(line), "--"))` 之后**还是不成立**：`TrimPrefix` 只剥掉了 `--` 标记，注释正文留在了后面，于是解析出列名 `Carries`。
+
+正确做法是**整行跳过**：
+
+```go
+line = strings.TrimSpace(line)
+if strings.HasPrefix(line, "--") {
+	continue
+}
+tok := strings.Fields(line)
+```
+
+两次失败都是同一个根因的两种表现：**注释处理必须在切分 token 之前完成**。
+
+### 34.7 全库跟进项（本轮只记录，未改）
+
+**25 个 struct 混用 `db:"..."` tag 与未打 tag 的多词字段**（类 A 的潜在面）。本轮范围内只有 finops-v2 的 `BudgetAlert` 会被真实扫描命中；其余**大多是假阳性**，需对照实际的扫描目标再验证：
+
+- `internal/middleware/repository/repository.go`：`TenantConfig.RateLimits`
+- `internal/config-mgmt-enhanced/models/models.go`：`ChangeRequest.ApprovalsList`、`DriftReport`（`DriftItemsList` / `RemediationLogList` / `ExpectedConfigData` / `ActualConfigData`）
+- `internal/efficiency/models/models.go`：`DeploymentFrequency` / `LeadTimeForChanges` / `ChangeFailureRate` / `MeanTimeToRecovery` / `DoraMetricsReport`
+- `internal/serverless/models/models.go`：`FunctionMetric`（`AvgDurationMs` / `ErrorCount` / `ErrorRate` / `MemoryUsageMB`）
+- `internal/file-handler/service/metadata.go`：`FileMetadata.FileType`
+- `internal/dba/approval/models.go`：`ApprovalStepDef.TimeoutHours`（**OFF LIMITS**）
+- `internal/lowcode-designer/models/models.go`：`FormDefinition` / `FormField` / `FormTemplate` / `FormInstance` / `ComponentRegistry`
+- `internal/alert-escalation/models/models.go`：`EscalationPolicy.RulesList`
+- `internal/distributed-config/models/models.go`：`ConfigItem.LabelsMap`、`ConfigAudit.DetailMap`
+- `internal/governance/risk/repository/risk_repository.go`：`PredictionStats.ByLevel`
+- `internal/alert-deduplication/models/models.go`：`DeduplicationConfig`（`IsEnabled` / `WindowSec` / `FieldMask` / `CreatedAt`）
+- `internal/artifact/models/models.go`：`ArtifactStats`（`ByType` / `ByStatus`）
+- `internal/incident/models/models.go`：`Incident`（`AffectedServicesRaw` / `TagsRaw`）
+- `internal/supply-chain/models/models.go`：`SupplyChainReport`（`PipelineID` / `ArtifactID` / `SBOMCount` / `ComponentCount` / `SignatureCount` / `VulnerabilitySummary` / `ComplianceStatus` / `RiskScore` / `GeneratedAt`）
+
+其他待办：5 个未加白的动态 SET 构造器（sla-engine `UpdateProfile`/`UpdateTracker`、`storage.Update`、`user.Update`、`vulnerability.Update`）；178 个死参数；22 个有 `tenant_id` 列但 model 缺字段的表；`NotYetImplemented` 且零调用者的 `internal/serverless/repository/repository.go:273`、`internal/visor-exec/repository/repository.go:343`、`internal/cmdb/repository/repository.go:561`。
+
+### 34.8 验证
+
+```
+gofmt -l internal/finops-v2/     -> (empty)
+go vet ./internal/finops-v2/...  -> clean
+go build ./...                   -> clean
+go test ./...                    -> 503 ok / 0 FAIL
+```
+
+模块内测试函数合计 **77 个**：handler 43 / service 17 / repository_sql 15 / repository 2。
+
+迁移 583 的交互规则：复合外键与 `tenant_id` 谓词**必须同批落地**。这两条跨租户通道**目前因为缺列而失效**（表根本不存在），是「死」的；如果只补表而不补谓词和外键，等于把它们当场转成**真实的权限提升**。所以迁移与类 C 的修复写在同一个提交里。
