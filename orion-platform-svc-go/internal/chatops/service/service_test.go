@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/chatops/models"
 )
 
@@ -36,7 +36,7 @@ func (m *mockChatOpsRepo) GetCommand(_ context.Context, tenantID, id string) (*m
 	}
 	c, ok := m.commands[tenantID+":"+id]
 	if !ok {
-		return nil, sql.ErrNoRows
+		return nil, sentinel.NotFound
 	}
 	return c, nil
 }
@@ -54,7 +54,7 @@ func (m *mockChatOpsRepo) ListCommands(_ context.Context, tenantID string, permL
 func (m *mockChatOpsRepo) UpdateCommand(_ context.Context, tenantID, id string, updates map[string]interface{}) error {
 	c, ok := m.commands[tenantID+":"+id]
 	if !ok {
-		return sql.ErrNoRows
+		return sentinel.NotFound
 	}
 	if v, ok := updates["name"]; ok {
 		c.Name = v.(string)
@@ -68,7 +68,7 @@ func (m *mockChatOpsRepo) UpdateCommand(_ context.Context, tenantID, id string, 
 func (m *mockChatOpsRepo) DeleteCommand(_ context.Context, tenantID, id string) error {
 	_, ok := m.commands[tenantID+":"+id]
 	if !ok {
-		return sql.ErrNoRows
+		return sentinel.NotFound
 	}
 	delete(m.commands, tenantID+":"+id)
 	return nil
@@ -306,8 +306,8 @@ func (m *mockChatOpsRepo) UpdateWebhook(_ context.Context, tenantID, id string, 
 	return nil
 }
 func (m *mockChatOpsRepo) DeleteWebhook(_ context.Context, tenantID, id string) error { return nil }
-func (m *mockChatOpsRepo) TestWebhook(_ context.Context, tenantID, webhookID string) (*models.TestWebhookResult, error) {
-	return nil, nil
+func (m *mockChatOpsRepo) InsertWebhookLog(_ context.Context, tenantID, webhookID, status, responseBody, errMsg string, durationMS int64) error {
+	return nil
 }
 func (m *mockChatOpsRepo) GetWebhookLogs(_ context.Context, tenantID, webhookID string, limit int) ([]map[string]interface{}, error) {
 	return nil, nil

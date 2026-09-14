@@ -4,11 +4,15 @@ package service
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"orion/platform-svc-go/internal/chatops/models"
@@ -82,7 +86,7 @@ type RepositoryInterface interface {
 	ListCommands(ctx context.Context, tenantID string, permissionLevel, name *string, limit, offset int) ([]models.ChatOpsCommand, error)
 	ListExecutions(ctx context.Context, tenantID string, commandID, userID, status *string, limit, offset int) ([]models.Execution, error)
 	RemoveTag(ctx context.Context, tenantID, versionID, tagName string) error
-	TestWebhook(ctx context.Context, tenantID, webhookID string) (*models.TestWebhookResult, error)
+	InsertWebhookLog(ctx context.Context, tenantID, webhookID, status, responseBody, errMsg string, durationMS int64) error
 	UpdateAlertState(ctx context.Context, tenantID, userID, alertID, status string) error
 	UpdateApproverSchedule(ctx context.Context, tenantID string, schedule []models.ApproverSchedule) error
 	UpdateCapabilityMapping(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
@@ -885,8 +889,114 @@ func (s *Service) DeleteWebhook(ctx context.Context, tenantID, id string) error 
 	return s.repo.DeleteWebhook(ctx, tenantID, id)
 }
 
+// TestWebhook fires a probe at the stored URL and records the attempt. The
+// repository used to answer it with "Webhook <id> test passed" for any value,
+// after merely loading the row, so a webhook pointing at a host that does not
+// exist reported success to the admin UI and nothing was ever logged.
 func (s *Service) TestWebhook(ctx context.Context, tenantID, id string) (*models.TestWebhookResult, error) {
-	return s.repo.TestWebhook(ctx, tenantID, id)
+	wh, err := s.repo.GetWebhook(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if wh == nil {
+		return nil, ErrNotFoundMsg("webhook " + id)
+	}
+
+	result, status, body, errMsg, durationMS := postWebhookTest(ctx, wh, tenantID)
+	// A failed log write must not hide the answer the probe actually got. The
+	// next log query still shows what happened up to this point.
+	if logErr := s.repo.InsertWebhookLog(ctx, tenantID, wh.ID, status, body, errMsg, durationMS); logErr != nil {
+		result.Message = result.Message + "; delivery log not written: " + logErr.Error()
+	}
+	return result, nil
+}
+
+// webhookTestClient is package-level so a test can swap in a transport that
+// never opens a socket. The per-request timeout comes from the stored
+// timeout_seconds, so the client-level default is only the floor for rows that
+// left it at zero.
+var webhookTestClient = &http.Client{Timeout: 10 * time.Second}
+
+// postWebhookTest sends the probe and returns both the human-readable result and
+// the four fields a chatops_webhook_logs row is built from. Keeping them
+// together means TestWebhook cannot report one outcome and log another.
+func postWebhookTest(ctx context.Context, wh *models.Webhook, tenantID string) (*models.TestWebhookResult, string, string, string, int64) {
+	payload, err := json.Marshal(map[string]string{
+		"event":      "webhook_test",
+		"webhook_id": wh.ID,
+		"tenant_id":  tenantID,
+		"sent_at":    time.Now().UTC().Format(time.RFC3339),
+	})
+	if err != nil {
+		return &models.TestWebhookResult{Success: false, Message: "encode webhook test payload: " + err.Error()},
+			"failed", "", err.Error(), 0
+	}
+
+	timeout := time.Duration(wh.TimeoutSeconds) * time.Second
+	if timeout <= 0 {
+		timeout = 10 * time.Second
+	}
+	if timeout > 60*time.Second {
+		timeout = 60 * time.Second
+	}
+	reqCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, wh.URL, bytes.NewReader(payload))
+	if err != nil {
+		return &models.TestWebhookResult{Success: false, Message: "build webhook request: " + err.Error()},
+			"failed", "", err.Error(), 0
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Orion-Webhook-Event", "webhook_test")
+	if strings.TrimSpace(wh.SecretKey) != "" {
+		req.Header.Set("X-Orion-Signature", wh.SecretKey)
+	}
+	for key, value := range webhookHeaderMap(wh.Headers) {
+		req.Header.Set(key, value)
+	}
+
+	started := time.Now()
+	resp, err := webhookTestClient.Do(req)
+	durationMS := time.Since(started).Milliseconds()
+	if err != nil {
+		return &models.TestWebhookResult{Success: false, Message: "webhook unreachable: " + err.Error()},
+			"failed", "", err.Error(), durationMS
+	}
+	defer resp.Body.Close()
+
+	body, readErr := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return &models.TestWebhookResult{
+				Success: true,
+				Message: fmt.Sprintf("webhook answered HTTP %d in %dms", resp.StatusCode, durationMS),
+			},
+			"delivered", string(body), "", durationMS
+	}
+	if readErr != nil {
+		return &models.TestWebhookResult{
+				Success: false,
+				Message: fmt.Sprintf("webhook answered HTTP %d but the response body could not be read: %v", resp.StatusCode, readErr),
+			},
+			"failed", string(body), readErr.Error(), durationMS
+	}
+	return &models.TestWebhookResult{Success: false, Message: fmt.Sprintf("webhook answered HTTP %d", resp.StatusCode)},
+		"failed", string(body), fmt.Sprintf("HTTP %d", resp.StatusCode), durationMS
+}
+
+// webhookHeaderMap turns the stored JSONB headers into request headers. CreateWebhook
+// marshals a map[string]string, so an unmarshal error means the column holds
+// something that was never a header map - skipping the extras is the only
+// reading of it that keeps the probe going.
+func webhookHeaderMap(raw string) map[string]string {
+	out := map[string]string{}
+	if strings.TrimSpace(raw) == "" {
+		return out
+	}
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		return map[string]string{}
+	}
+	return out
 }
 
 func (s *Service) GetWebhookLogs(ctx context.Context, tenantID, webhookID string, limit int) ([]map[string]interface{}, error) {

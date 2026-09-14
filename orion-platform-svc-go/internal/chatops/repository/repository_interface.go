@@ -79,7 +79,7 @@ type RepositoryInterface interface {
 	UpdateWebhook(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 	DeleteWebhook(ctx context.Context, tenantID, id string) error
 	GetWebhookLogs(ctx context.Context, tenantID, webhookID string, limit int) ([]map[string]interface{}, error)
-	TestWebhook(ctx context.Context, tenantID, webhookID string) (*models.TestWebhookResult, error)
+	InsertWebhookLog(ctx context.Context, tenantID, webhookID, status, responseBody, errMsg string, durationMS int64) error
 	GetDashboardStats(ctx context.Context, tenantID string, days int) (*models.DashboardStatsResult, error)
 	GetUserAllowedCommands(ctx context.Context, tenantID, userID string) ([]string, error)
 	HealthCheck(ctx context.Context) (*models.HealthCheckResult, error)
