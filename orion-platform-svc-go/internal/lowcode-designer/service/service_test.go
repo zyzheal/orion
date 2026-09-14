@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"orion/platform-svc-go/internal/lowcode-designer/models"
@@ -18,6 +19,14 @@ type fakeDesignerRepo struct {
 	tmpls     map[string]*models.FormTemplate
 	instances map[string]*models.FormInstance
 	comps     map[string]*models.ComponentRegistry
+
+	// The hooks below let a test force the one failure the service must not
+	// swallow. Without them an error-path test could only assert err != nil,
+	// which sqlmock's no-expectation error satisfies just as well.
+	createFieldErr      error
+	listFieldsErr       error
+	updateInstanceCalls int
+	lastFieldAttrs      map[string]interface{}
 }
 
 func newFakeDesignerRepo() *fakeDesignerRepo {
@@ -102,6 +111,9 @@ func (f *fakeDesignerRepo) DeleteForm(ctx context.Context, id, tenantID string) 
 }
 
 func (f *fakeDesignerRepo) CreateField(ctx context.Context, ff *models.FormField) error {
+	if f.createFieldErr != nil {
+		return f.createFieldErr
+	}
 	f.fields[ff.ID] = ff
 	return nil
 }
@@ -111,6 +123,9 @@ func (f *fakeDesignerRepo) UpdateField(ctx context.Context, id, tenantID string,
 	if !ok || ff.TenantID != tenantID {
 		return nil, errNotFound
 	}
+	// Recorded so a test can assert which attributes the service actually sent:
+	// an omitted attribute must not reach the write path at all.
+	f.lastFieldAttrs = attrs
 	if v, ok := attrs["label"]; ok {
 		ff.Label = v.(string)
 	}
@@ -139,6 +154,9 @@ func (f *fakeDesignerRepo) DeleteField(ctx context.Context, id, tenantID string)
 }
 
 func (f *fakeDesignerRepo) GetFieldsByForm(ctx context.Context, formID, tenantID string) ([]models.FormField, error) {
+	if f.listFieldsErr != nil {
+		return nil, f.listFieldsErr
+	}
 	var items []models.FormField
 	for _, ff := range f.fields {
 		if ff.FormID == formID && ff.TenantID == tenantID {
@@ -167,16 +185,15 @@ func (f *fakeDesignerRepo) ListTemplates(ctx context.Context, tenantID, category
 	return items, nil
 }
 
-func (f *fakeDesignerRepo) GetTemplate(ctx context.Context, id string) (*models.FormTemplate, error) {
+func (f *fakeDesignerRepo) GetTemplate(ctx context.Context, id, tenantID string) (*models.FormTemplate, error) {
 	t, ok := f.tmpls[id]
 	if !ok {
 		return nil, errNotFound
 	}
+	if t.TenantID != tenantID {
+		return nil, errNotFound
+	}
 	return t, nil
-}
-
-func (f *fakeDesignerRepo) UpdateTemplateUsage(ctx context.Context, id string) error {
-	return nil
 }
 
 func (f *fakeDesignerRepo) CreateInstance(ctx context.Context, inst *models.FormInstance) error {
@@ -187,6 +204,9 @@ func (f *fakeDesignerRepo) CreateInstance(ctx context.Context, inst *models.Form
 func (f *fakeDesignerRepo) GetInstance(ctx context.Context, id, tenantID string) (*models.FormInstance, error) {
 	inst, ok := f.instances[id]
 	if !ok {
+		return nil, errNotFound
+	}
+	if inst.TenantID != tenantID {
 		return nil, errNotFound
 	}
 	return inst, nil
@@ -210,8 +230,9 @@ func (f *fakeDesignerRepo) ListInstances(ctx context.Context, tenantID, formID, 
 }
 
 func (f *fakeDesignerRepo) UpdateInstance(ctx context.Context, id, tenantID string, attrs map[string]interface{}) (*models.FormInstance, error) {
+	f.updateInstanceCalls++
 	inst, ok := f.instances[id]
-	if !ok {
+	if !ok || inst.TenantID != tenantID {
 		return nil, errNotFound
 	}
 	if v, ok := attrs["status"]; ok {
@@ -242,9 +263,12 @@ func (f *fakeDesignerRepo) ListComponents(ctx context.Context, tenantID, categor
 	return items, nil
 }
 
-func (f *fakeDesignerRepo) GetComponent(ctx context.Context, id string) (*models.ComponentRegistry, error) {
+func (f *fakeDesignerRepo) GetComponent(ctx context.Context, id, tenantID string) (*models.ComponentRegistry, error) {
 	c, ok := f.comps[id]
 	if !ok {
+		return nil, errNotFound
+	}
+	if c.TenantID != tenantID {
 		return nil, errNotFound
 	}
 	return c, nil
@@ -529,5 +553,272 @@ func TestListTemplates_filtered(t *testing.T) {
 	filtered, _ := svc.ListTemplates(context.Background(), "t1", "auth")
 	if len(filtered) != 1 {
 		t.Errorf("ListTemplates(auth) = %d, want 1", len(filtered))
+	}
+}
+
+func TestApproveInstanceRejectsAnUnknownAction(t *testing.T) {
+	repo := newFakeDesignerRepo()
+	svc := NewService(repo)
+	inst, _ := svc.SubmitInstance(context.Background(), "form-1", "t1", &models.SubmitInstanceRequest{
+		Data: map[string]interface{}{"x": 1}, SubmitBy: "user-1",
+	})
+
+	got, err := svc.ApproveInstance(context.Background(), inst.ID, "t1",
+		&models.ApproveInstanceRequest{Approver: "manager", Action: "escalate"})
+	if err == nil {
+		t.Fatalf("ApproveInstance accepted an action the workflow does not know")
+	}
+	if !errors.Is(err, ErrInvalidAction) {
+		t.Fatalf("error %q is not ErrInvalidAction", err)
+	}
+	if got != nil {
+		t.Fatalf("ApproveInstance returned %v for an invalid action", got)
+	}
+	if repo.updateInstanceCalls != 0 {
+		t.Fatalf("an invalid action still wrote the instance %d times", repo.updateInstanceCalls)
+	}
+}
+
+// A field insert failure must reach the caller. Before the error was propagated,
+// POST /forms answered 201 for a form whose fields never landed.
+func TestCreateFormReportsAFieldInsertFailure(t *testing.T) {
+	repo := newFakeDesignerRepo()
+	repo.createFieldErr = errors.New("duplicate key value violates unique constraint")
+	svc := NewService(repo)
+
+	req := &models.CreateFormRequest{
+		Name:   "burst",
+		Fields: []models.FormField{{Key: "email", Label: "Email", Type: "text"}},
+	}
+	got, err := svc.CreateForm(context.Background(), req, "t1", "admin")
+	if err == nil {
+		t.Fatalf("CreateForm succeeded although the field insert failed")
+	}
+	if !errors.Is(err, repo.createFieldErr) {
+		t.Fatalf("error %q does not wrap the repository failure", err)
+	}
+	if !strings.Contains(err.Error(), `field "email"`) {
+		t.Fatalf("error %q does not name the field that failed", err)
+	}
+	if got != nil {
+		t.Fatalf("CreateForm returned %v for a failed insert", got)
+	}
+}
+
+// A failed field lookup must not look like an empty form: folding the error
+// into zero reset the sort position to one and collided with an existing row.
+func TestCreateFieldReportsAFieldLookupFailure(t *testing.T) {
+	repo := newFakeDesignerRepo()
+	repo.listFieldsErr = errors.New("relation form_field does not exist")
+	svc := NewService(repo)
+
+	got, err := svc.CreateField(context.Background(), "form-1", "t1", &models.CreateFieldRequest{
+		Key: "email", Label: "Email", Type: "text",
+	})
+	if err == nil {
+		t.Fatalf("CreateField succeeded although the lookup failed")
+	}
+	if !errors.Is(err, repo.listFieldsErr) {
+		t.Fatalf("error %q does not wrap the repository failure", err)
+	}
+	if !strings.Contains(err.Error(), "counting fields of form form-1") {
+		t.Fatalf("error %q does not name the failing lookup", err)
+	}
+	if got != nil {
+		t.Fatalf("CreateField returned %v for a failed lookup", got)
+	}
+}
+
+func TestCreateFieldDefaultsVisibleToTrue(t *testing.T) {
+	repo := newFakeDesignerRepo()
+	svc := NewService(repo)
+	fd, _ := svc.CreateForm(context.Background(), &models.CreateFormRequest{
+		Name: "f", Fields: []models.FormField{{Key: "x", Label: "x", Type: "text"}},
+	}, "t1", "admin")
+
+	field, err := svc.CreateField(context.Background(), fd.ID, "t1", &models.CreateFieldRequest{
+		Key: "email", Label: "Email", Type: "text",
+	})
+	if err != nil {
+		t.Fatalf("CreateField: %v", err)
+	}
+	// form_field.visible is NOT NULL DEFAULT 1 and the INSERT names the column,
+	// so the default never applies: every created field came back hidden.
+	if !field.Visible {
+		t.Fatalf("a created field defaulted to invisible: %+v", field)
+	}
+	hidden := false
+	field2, err := svc.CreateField(context.Background(), fd.ID, "t1", &models.CreateFieldRequest{
+		Key: "opt", Label: "Optional", Type: "text", Visible: &hidden,
+	})
+	if err != nil {
+		t.Fatalf("CreateField: %v", err)
+	}
+	if field2.Visible {
+		t.Fatalf("an explicit false was ignored: %+v", field2)
+	}
+}
+
+// PUT /fields/:id must not write the zero value of an attribute the caller left
+// out: that is what cleared placeholder, visibility and sort position at once.
+func TestUpdateFieldLeavesOmittedAttributesAlone(t *testing.T) {
+	repo := newFakeDesignerRepo()
+	svc := NewService(repo)
+	fd, _ := svc.CreateForm(context.Background(), &models.CreateFormRequest{
+		Name: "f", Fields: []models.FormField{{Key: "x", Label: "x", Type: "text"}},
+	}, "t1", "admin")
+	field, _ := svc.CreateField(context.Background(), fd.ID, "t1", &models.CreateFieldRequest{
+		Key: "email", Label: "Email", Type: "text", Placeholder: "you@x",
+	})
+
+	label := "E-mail"
+	updated, err := svc.UpdateField(context.Background(), field.ID, "t1",
+		&models.UpdateFieldRequest{Label: &label})
+	if err != nil {
+		t.Fatalf("UpdateField: %v", err)
+	}
+	if updated.Label != "E-mail" {
+		t.Fatalf("Label = %q, want E-mail", updated.Label)
+	}
+	if got := len(repo.lastFieldAttrs); got != 1 {
+		t.Fatalf("the service sent %d attributes for one changed field: %v", got, repo.lastFieldAttrs)
+	}
+	for _, key := range []string{"placeholder", "required", "visible", "disabled", "sortable_index"} {
+		if _, ok := repo.lastFieldAttrs[key]; ok {
+			t.Errorf("the omitted attribute %q reached the write path: %v", key, repo.lastFieldAttrs)
+		}
+	}
+	// The read-back must still show the values the request did not touch.
+	reloaded, err := svc.GetFieldsByForm(context.Background(), fd.ID, "t1")
+	if err != nil {
+		t.Fatalf("GetFieldsByForm: %v", err)
+	}
+	if len(reloaded) != 2 {
+		t.Fatalf("the form lost a field: %+v", reloaded)
+	}
+	// The placeholder is the attribute the previous code cleared: it put the
+	// zero value of every attribute the request did not send into the SET clause.
+	for i := range reloaded {
+		if reloaded[i].Key == "email" && reloaded[i].Placeholder != "you@x" {
+			t.Fatalf("the omitted placeholder was cleared to %q", reloaded[i].Placeholder)
+		}
+	}
+}
+
+func TestUpdateFieldWrapsEveryAttributeItIsGiven(t *testing.T) {
+	repo := newFakeDesignerRepo()
+	svc := NewService(repo)
+	fd, _ := svc.CreateForm(context.Background(), &models.CreateFormRequest{
+		Name: "f", Fields: []models.FormField{{Key: "x", Label: "x", Type: "text"}},
+	}, "t1", "admin")
+	field, _ := svc.CreateField(context.Background(), fd.ID, "t1", &models.CreateFieldRequest{
+		Key: "email", Label: "Email", Type: "text",
+	})
+
+	label, typ, parent := "E-mail", "select", "section"
+	required, visible, disabled := false, false, false
+	sortIdx := 9
+	_, err := svc.UpdateField(context.Background(), field.ID, "t1", &models.UpdateFieldRequest{
+		Label: &label, Type: &typ, Required: &required, Visible: &visible,
+		Disabled: &disabled, SortableIndex: &sortIdx, ParentKey: &parent,
+		Options: []interface{}{"a", "b"}, Rules: []interface{}{map[string]interface{}{"min": 1}},
+		Meta: map[string]interface{}{"hint": 1}, LayoutConfig: map[string]interface{}{"col": 2},
+		DefaultVal: map[string]interface{}{"hex": "#000"},
+	})
+	if err != nil {
+		t.Fatalf("UpdateField: %v", err)
+	}
+	want := map[string]bool{
+		"label": true, "type": true, "required": true, "visible": true,
+		"disabled": true, "sortable_index": true, "parent_key": true,
+		"options": true, "rules": true, "meta": true, "layout_config": true,
+		"default_val": true,
+	}
+	if len(repo.lastFieldAttrs) != len(want) {
+		t.Fatalf("the service sent %d attributes, want %d: %v", len(repo.lastFieldAttrs), len(want), repo.lastFieldAttrs)
+	}
+	for key := range want {
+		if _, ok := repo.lastFieldAttrs[key]; !ok {
+			t.Errorf("attribute %q was not forwarded: %v", key, repo.lastFieldAttrs)
+		}
+	}
+	// Identity and the form link are never updatable.
+	for _, key := range []string{"id", "tenant_id", "form_id", "key", "created_at", "updated_at"} {
+		if _, ok := repo.lastFieldAttrs[key]; ok {
+			t.Errorf("attribute %q reached the write path: %v", key, repo.lastFieldAttrs)
+		}
+	}
+}
+
+func TestGetTemplateFiltersByTenant(t *testing.T) {
+	repo := newFakeDesignerRepo()
+	svc := NewService(repo)
+	repo.tmpls["ft-1"] = &models.FormTemplate{ID: "ft-1", TenantID: "t1", Name: "tpl"}
+
+	if _, err := svc.GetTemplate(context.Background(), "ft-1", "t-other"); !errors.Is(err, errNotFound) {
+		t.Fatalf("another tenant's template was returned: err = %v", err)
+	}
+	got, err := svc.GetTemplate(context.Background(), "ft-1", "t1")
+	if err != nil {
+		t.Fatalf("GetTemplate: %v", err)
+	}
+	if got.Name != "tpl" {
+		t.Fatalf("unexpected template: %+v", got)
+	}
+}
+
+func TestGetComponentFiltersByTenant(t *testing.T) {
+	repo := newFakeDesignerRepo()
+	svc := NewService(repo)
+	repo.comps["cr-1"] = &models.ComponentRegistry{ID: "cr-1", TenantID: "t1", Name: "btn"}
+
+	got, err := svc.GetComponent(context.Background(), "cr-1", "t-other")
+	if err == nil {
+		t.Fatalf("another tenant's component was returned: %+v", got)
+	}
+	if !errors.Is(err, errNotFound) {
+		t.Fatalf("error %v is not the tenant boundary", err)
+	}
+	got, err = svc.GetComponent(context.Background(), "cr-1", "t1")
+	if err != nil {
+		t.Fatalf("GetComponent: %v", err)
+	}
+	if got.Name != "btn" {
+		t.Fatalf("unexpected component: %+v", got)
+	}
+}
+
+func TestSubmitInstanceNoLongerTouchesTheTemplateUsageCount(t *testing.T) {
+	// The deleted UpdateTemplateUsage call passed a form id to a method that
+	// keyed form_template by template id, so it always updated zero rows and
+	// silently discarded the result. 396 has no template_id column anywhere, so
+	// the attribution is unimplementable and the method is gone.
+	repo := newFakeDesignerRepo()
+	svc := NewService(repo)
+	repo.tmpls["ft-1"] = &models.FormTemplate{ID: "ft-1", TenantID: "t1", Name: "tpl", UsageCount: 0}
+
+	if _, err := svc.SubmitInstance(context.Background(), "form-1", "t1",
+		&models.SubmitInstanceRequest{Data: map[string]interface{}{"x": 1}, SubmitBy: "u-1"}); err != nil {
+		t.Fatalf("SubmitInstance: %v", err)
+	}
+	if repo.tmpls["ft-1"].UsageCount != 0 {
+		t.Fatalf("the usage count changed without a template_id link: %d", repo.tmpls["ft-1"].UsageCount)
+	}
+}
+
+func TestNewIDFitsThePrimaryKeyAndDoesNotCollide(t *testing.T) {
+	// The primary keys are VARCHAR(36) and uuid.New().String() is exactly 36.
+	// The previous implementation capped its entropy at 32 bits per second, so a
+	// burst of creations in one second collided.
+	seen := make(map[string]bool, 4096)
+	for i := 0; i < 4096; i++ {
+		id := newID()
+		if len(id) != 36 {
+			t.Fatalf("id %q is %d characters, the key column allows 36", id, len(id))
+		}
+		if seen[id] {
+			t.Fatalf("newID produced a duplicate: %s", id)
+		}
+		seen[id] = true
 	}
 }

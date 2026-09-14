@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"orion/platform-svc-go/internal/lowcode-designer/models"
+	"orion/platform-svc-go/internal/lowcode-designer/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -90,13 +92,22 @@ func (m *mockDesignerSvc) CreateField(ctx context.Context, formID, tenantID stri
 	return ff, nil
 }
 
-func (m *mockDesignerSvc) UpdateField(ctx context.Context, id, tenantID string, req *models.CreateFieldRequest) (*models.FormField, error) {
+func (m *mockDesignerSvc) UpdateField(ctx context.Context, id, tenantID string, req *models.UpdateFieldRequest) (*models.FormField, error) {
 	ff, ok := m.fields[id]
 	if !ok {
 		return nil, errNotFound
 	}
-	if req.Label != "" {
-		ff.Label = req.Label
+	if req.Label != nil {
+		ff.Label = *req.Label
+	}
+	if req.SortableIndex != nil {
+		ff.SortableIndex = *req.SortableIndex
+	}
+	if req.Placeholder != nil {
+		ff.Placeholder = *req.Placeholder
+	}
+	if req.Visible != nil {
+		ff.Visible = *req.Visible
 	}
 	return ff, nil
 }
@@ -133,9 +144,12 @@ func (m *mockDesignerSvc) ListTemplates(ctx context.Context, tenantID, category 
 	return items, nil
 }
 
-func (m *mockDesignerSvc) GetTemplate(ctx context.Context, id string) (*models.FormTemplate, error) {
+func (m *mockDesignerSvc) GetTemplate(ctx context.Context, id, tenantID string) (*models.FormTemplate, error) {
 	t, ok := m.tmpls[id]
 	if !ok {
+		return nil, errNotFound
+	}
+	if t.TenantID != tenantID {
 		return nil, errNotFound
 	}
 	return t, nil
@@ -180,7 +194,14 @@ func (m *mockDesignerSvc) ApproveInstance(ctx context.Context, id, tenantID stri
 	if !ok {
 		return nil, errNotFound
 	}
-	inst.Status = req.Action
+	switch req.Action {
+	case "approve":
+		inst.Status = "approved"
+	case "reject":
+		inst.Status = "rejected"
+	default:
+		return nil, fmt.Errorf("%w: %q", service.ErrInvalidAction, req.Action)
+	}
 	return inst, nil
 }
 
@@ -195,9 +216,12 @@ func (m *mockDesignerSvc) ListComponents(ctx context.Context, tenantID, category
 	return items, nil
 }
 
-func (m *mockDesignerSvc) GetComponent(ctx context.Context, id string) (*models.ComponentRegistry, error) {
+func (m *mockDesignerSvc) GetComponent(ctx context.Context, id, tenantID string) (*models.ComponentRegistry, error) {
 	c, ok := m.comps[id]
 	if !ok {
+		return nil, errNotFound
+	}
+	if c.TenantID != tenantID {
 		return nil, errNotFound
 	}
 	return c, nil
@@ -340,7 +364,7 @@ func TestDesigner_CreateTemplate(t *testing.T) {
 
 func TestDesigner_GetTemplate(t *testing.T) {
 	svc := newMockDesignerSvc()
-	svc.tmpls["item-1"] = &models.FormTemplate{ID: "item-1", Name: "tpl"}
+	svc.tmpls["item-1"] = &models.FormTemplate{ID: "item-1", Name: "tpl", TenantID: "tenant-1"}
 	h := NewHandler(svc)
 
 	c, w := makeCtx(http.MethodGet, "/templates/:id", nil)
@@ -404,5 +428,90 @@ func TestDesigner_GetComponent_NotFound(t *testing.T) {
 	h.GetComponent(c)
 	if w.Code != 404 {
 		t.Fatalf("GetComponent status = %d, want 404", w.Code)
+	}
+}
+
+// R44: GET /templates/:id and GET /components/:id threaded no tenant before,
+// so a template belonging to another tenant was returned to the caller. The
+// handler must pass the resolved tenant, and a cross-tenant read must 404
+// rather than leak the row.
+func TestDesigner_GetTemplate_RejectsAnotherTenantsTemplate(t *testing.T) {
+	svc := newMockDesignerSvc()
+	svc.tmpls["item-1"] = &models.FormTemplate{ID: "item-1", Name: "tpl", TenantID: "tenant-other"}
+	h := NewHandler(svc)
+
+	c, w := makeCtx(http.MethodGet, "/templates/:id", nil)
+	h.GetTemplate(c)
+	if w.Code != 404 {
+		t.Fatalf("GetTemplate status = %d, want 404", w.Code)
+	}
+}
+
+func TestDesigner_GetComponent_RejectsAnotherTenantsComponent(t *testing.T) {
+	svc := newMockDesignerSvc()
+	svc.comps["item-1"] = &models.ComponentRegistry{ID: "item-1", Name: "btn", TenantID: "tenant-other"}
+	h := NewHandler(svc)
+
+	c, w := makeCtx(http.MethodGet, "/components/:id", nil)
+	h.GetComponent(c)
+	if w.Code != 404 {
+		t.Fatalf("GetComponent status = %d, want 404", w.Code)
+	}
+}
+
+func TestDesigner_GetComponent(t *testing.T) {
+	svc := newMockDesignerSvc()
+	svc.comps["item-1"] = &models.ComponentRegistry{ID: "item-1", Name: "btn", TenantID: "tenant-1"}
+	h := NewHandler(svc)
+
+	c, w := makeCtx(http.MethodGet, "/components/:id", nil)
+	h.GetComponent(c)
+	if w.Code != 200 {
+		t.Fatalf("GetComponent status = %d, want 200", w.Code)
+	}
+}
+
+// R44: PUT /fields/:id bound CreateFieldRequest, which requires key, label and
+// type. A caller renaming a single field was rejected, and an omitted attribute
+// wrote the Go zero value, clearing placeholder and sort position.
+func TestDesigner_UpdateField_AcceptsAPartialBody(t *testing.T) {
+	svc := newMockDesignerSvc()
+	svc.fields["item-1"] = &models.FormField{ID: "item-1", Label: "Old", Placeholder: "keep", SortableIndex: 3}
+	h := NewHandler(svc)
+
+	name := "New"
+	c, w := makeCtx(http.MethodPut, "/fields/:id", map[string]interface{}{"label": &name})
+	h.UpdateField(c)
+	if w.Code != 200 {
+		t.Fatalf("UpdateField status = %d, want 200", w.Code)
+	}
+	f := svc.fields["item-1"]
+	if f.Label != "New" {
+		t.Errorf("Label = %q, want New", f.Label)
+	}
+	if f.Placeholder != "keep" {
+		t.Errorf("Placeholder = %q, want keep (omitted attributes are left alone)", f.Placeholder)
+	}
+	if f.SortableIndex != 3 {
+		t.Errorf("SortableIndex = %d, want 3 (omitted attributes are left alone)", f.SortableIndex)
+	}
+}
+
+// R44: any action other than approve or reject reached the repository as an
+// empty attrs map, producing UPDATE form_instance SET , updated_at = NOW(), so
+// the caller got a 500. It is a bad request, not a missing instance.
+func TestDesigner_ApproveInstance_RejectsAnUnknownAction(t *testing.T) {
+	svc := newMockDesignerSvc()
+	svc.instances["item-1"] = &models.FormInstance{ID: "item-1", Status: "submitted", TenantID: "tenant-1"}
+	h := NewHandler(svc)
+
+	c, w := makeCtx(http.MethodPost, "/instances/:id/approve",
+		map[string]interface{}{"approver": "mgr", "action": "escalate"})
+	h.ApproveInstance(c)
+	if w.Code != 400 {
+		t.Fatalf("ApproveInstance status = %d, want 400", w.Code)
+	}
+	if svc.instances["item-1"].Status != "submitted" {
+		t.Errorf("Status = %q, want submitted (an invalid action changes nothing)", svc.instances["item-1"].Status)
 	}
 }
