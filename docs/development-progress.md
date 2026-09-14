@@ -7972,3 +7972,141 @@ R28 把它记为「整体未挂载的死代码」，R27 把它的 `SELECT *` 记
 **新增**：`internal/code-scan` `ListScans` 常量桩（§29.7 第 3 条）；同一 `/security` 前缀两套鉴权语义（§29.7 第 4 条）。
 
 **本轮已修完的跨轮遗留**：§27.7 第 1 条（`internal/security` 的 `audit_*` `SELECT *` 与无租户谓词读）在 A、B 两处彻底落地；R27 第 6 条「not-found 与故障不可区分」在 security 落地（缺陷 B 的 `getOne`/`oneRow`）。
+
+
+## 第三十轮：internal/code-scan 4 条在册桩全部改为真实实现（常量返回改数据库 + 新建规则扫描引擎 + 迁移 581 补可运行 DDL + 修 sqlx NameMapper 绑定缺陷）+ 56 个测试函数 + 11/11 变异证明（2026-09-14）
+
+提交 `4466798b2`，14 文件，+2919 / −80（其中 10 个新文件）。扫描起点 HEAD `2ab3b1fb8`。
+
+### 30.1 选它的理由
+
+§29.7 第 3 条把本模块列为「真桩，但属 `/security/code-scan/*`，不在本轮授权模块内」。它不是「桩多但基础设施齐全」——恰恰相反：模块里**没有任何检测逻辑、没有数据访问层、没有任何可运行 DDL**。三个前置条件全缺，所以前几轮只能记不能修。本轮基础设施全部新建，故 4 条桩一次收齐。
+
+模块在册的 4 条桩：
+
+| # | 位置 | 症状 |
+|---|------|------|
+| 1 | `handler.ListScans` | 直接 return 包级写死样例集（5 个 run + 10 个 finding），每个租户、每次部署看到的都是同一份 |
+| 2 | `POST /scans` | 不写任何行，POST 完页面刷新列表还是那 5 个样例 |
+| 3 | `POST /scans/:id/run` | 从 URL 拼一个假 id 回显，不落库 |
+| 4 | 整个模块 | 无扫描引擎、无 repository、无迁移 |
+
+**为什么这个桩从未被任何断言抓到**：前端过滤 `status === 'completed'`（`orion-frontend/src/pages/security/CodeScan/types.ts:7` 的 `ScanStatus` union + `constants.ts` 的过滤逻辑），而写死的样例集**恰好全部是 `completed`**——桩的输出和真实数据长得一模一样，只有真的去点「新建扫描」才会露馅。这是一个**与消费方契约共谋**的桩：断言页面无异常永远绿。
+
+### 30.2 缺陷
+
+**A（恒 200 但恒假数据）**：见上表 1–3。修：三条读路径全部改读数据库，POST 真正写入 `pending` 行，重跑真正重扫。
+
+**B（扫描引擎根本不存在）**：模块里没有任何检测逻辑。新建 `internal/code-scan/scan/scanner.go`（480 行）。
+- **16 条规则分 6 类**：`sensitive_data` 7（私钥块 / AWS access key id / GitHub token / Google API key / Stripe live key / Slack token / 硬编码凭证）、`injection` 3（`go-sql-sprintf` 字符串拼接 / shell 注入 / 动态 `eval`）、`xss` 1（dom-xss）、`security_misconfig` 3（TLS 跳过校验 / 通配 CORS / Gin debug 模式）、`integrity` 1（弱哈希）、`logging` 1（secret 落日志）。
+- **severity 分布 critical 5 / high 7 / medium 4**（16 = 5+7+4，由 `TestScan_DetectsEachRuleAtTheRightLine` 逐条断言，不是抽样）。
+- **6 类全部在前端 `VulnCategory` union 内**（`types.ts:9-19`：`injection` / `auth` / `xss` / `csrf` / `security_misconfig` / `sensitive_data` / `aam` / `vulnerable_components` / `integrity` / `logging`）。后端只发射这 union 的子集，前端不会渲染出未知类目标签。
+- **不调外部工具**：trivy / semgrep / grep 二进制都不在服务镜像里，exec 型扫描器会在每台宿主机上失败并报 0 条发现——那和回常量是同一个病。规则刻意窄而高精确：每条只抓「出现即为缺陷」的字面形态，不做宽启发式。
+- `filepath.WalkDir` 递归，行号从 1 起；`MaxDepth` 10 / `MaxFiles` 5000 / `MaxFileSize` 1MiB / `MaxFindings` 1000；跳过 **20 个目录名**（`.git` / `node_modules` / `vendor` / `third_party` / `third-party` / `thirdparty` / `__pycache__` / `.venv` / `venv` / `.tox` / `dist` / `build` / `coverage` / `.nuxt` / `.next` / `.cache` / `.idea` / `.vscode` / `target` / `.gradle`）与二进制扩展；超深/超量/超大/超上限分别用 `TruncatedFiles` 标记，让报告知道自己是半张图。
+- `NewRule` **编译失败即 panic**：规则集是编译期常量，正则打错字就是构建失败，而不是运行时静默匹配不到东西的扫描器。
+- 占位符抑制：`SkipPlaceholders` 让凭证规则忽略 `example` / `changeme` / `${ENV}` 之类的值——不开这个，全仓库每份 config 模板都会被命中。
+- 输出确定性：发现按 (file, line, ruleID) 排序，同一棵树两次扫描得到同一报告（`TestScan_OutputIsDeterministic`）。
+
+**C（完全没有数据访问层）**：新增 `internal/code-scan/repository`。
+- **全部语句显式列名，不用 `SELECT *`**：go-common 的 `database.Connect` 走 `sqlx.Open` 且**从不调用 `Unsafe`**，所以 safe mode 在生产连接上同样生效；表加一列模型没声明，`SELECT *` 扫第一行就死在 `missing destination name <col>`。这个错误**不是** `sql.ErrNoRows`，于是 repository → service → handler 一路穿透，每个读端点恒 500 而不是返回数据。
+- **所有读语句绑定 `tenant_id`**：`code_scan_runs` 是全平台共享的表，不加租户谓词就是把 A 租户的扫描目标交给 B 租户。
+- **单行读与 0 行 UPDATE 统一映射 `sentinel.NotFound`**（`getOne` + `RowsAffected()==0` 时 `fmt.Errorf("code-scan %s: %w", id, sentinel.NotFound)`，`%w` 让 `errors.Is` 穿透且带上 id）。否则缺 id 回 **500 + `"sql: no rows in result set"`** 而不是 404。
+- **`StartScan` / `FinishScan` 各自单事务，先 DELETE 旧 findings 再写新状态**：重跑一个已变干净的树必须报 **0** 条发现，不能把上次那 47 条顶着新的 `completed` 状态顶出来。
+- `error` 与 `completed_at` 都是可空列：`FailScan` 只写 `status='failed', completed_at=NOW(), error=$3`，`FinishScan` 写 `error=''`；模型里 `CompletedAt`/`StartedAt` 是 `*time.Time` 以承载 NULL（详见 §30.3）。
+
+**D（迁移层：这个模块从来没有可运行 DDL）**：`migrations/` 下没有任何 `code_scan_*` 文件，子目录里的也读不到（`LoadMigrations` 只读扁平目录）。即使只补 repository 也是 `relation "code_scan_runs" does not exist`。**迁移 581** 建 `code_scan_runs`（15 列）+ `code_scan_findings`（10 列）+ **5 个索引**，`CREATE TABLE IF NOT EXISTS` 幂等，up/down 成对（579=R28、580=R29、581=R30）。
+
+**E（sqlx NameMapper 绑定缺陷——本轮靠变异证明才坐实的隐雷）**：sqlx 默认 `NameMapper` 是 `DatabaseNameMapper` = `strings.ToLower`，**小写化从不碰下划线**。于是 `TotalVulns` 绑到 `"totalvulns"`：既匹配不到 INSERT 的 `:total_vulns` 占位符，也匹配不到 SELECT 的 `total_vulns` 列。
+- 写侧：`could not find name total_vulns in &models.ScanRecord{...}`
+- 读侧：`missing destination name total_vulns in *[]models.ScanRecord`
+
+**`go build` 与 `go vet` 完全看不到**（标签是反射期的事），只有测试能抓住。变异 M5 删掉 `db:"total_vulns"` 后**复现出这两条运行时错误原文**，确认缺陷真实存在。模型现在每个字段都带 `db` tag。
+
+### 30.3 迁移与驱动细节
+
+- **迁移文件不出现字面 `BEGIN;` / `COMMIT;`**：runner（`pkg/database/migrate.go`）每个文件各包一层自己的事务，文件里出现字面 `BEGIN` 会提前结束 runner 的事务，后续语句再无回滚；字面 `COMMIT` 之后 `tx.Commit()` 报 `pq: unexpected transaction status idle`。这条护栏由 `cmd/server` 的迁移测试用正则 `(?i)(^|\n)\s*(BEGIN|COMMIT)\s*;\s*(--.*)?$` 钉住。
+- **可空列的类型选择**：`error TEXT`（可空）、`started_at` / `completed_at TIMESTAMPTZ`（可空）、`fix TEXT`（可空）。前两个在模型里是 `*time.Time`；`fix` 用非指针 `string` + `omitempty`——但 `fix` 的写入方永远给 Go string、驱动发 `''` 而不是 NULL，所以今天不咬人（潜伏项见 §30.7 第 7 条）。
+- **`error` 列的语义**：`StartScan` 与 `FinishScan` 都写 `error=''` 清空旧值；`FailScan` 写原始错误文本。
+- **json 契约不动**：`ScanRecord` 的 json 名沿用前端已读的 `totalVulns` / `critical` / `high` / `medium` / `low` / `duration`（秒，前端渲染成 `"Ns"`）/ `startedAt`；`TenantID` / `Error` / `CompletedAt` / `CreatedAt` 是纯增量，页面忽略未知 key。`Counts` 复用同一套 json 名，便于不逐字段拷贝地套用到 `ScanRecord`。
+- **wire**：`cmd/server/cicd_domain_wiring.go:344-346` 构造（`NewRepository(db.DB)` → `NewService(repo, logger)` → `NewHandler(svc)`），`wiring.go:623` 字段，`router.go:219-220` 挂在 `api.Group("/security")` 下，`RegisterRoutes` 内自建 `/code-scan` 子组，4 条路径：`GET /scans`、`POST /scans`、`GET /findings`、`POST /scans/:id/run`。
+
+### 30.4 测试（56 个测试函数，四层 + 迁移闭环）
+
+`scan` 14 / `repository` 16 / `service` 11 / `handler` 13 / `cmd/server` 2（service 与 handler 各含一个表驱动 `t.Run`）。
+
+- **`scan/scanner_test.go`（14）**：`TestScan_DetectsEachRuleAtTheRightLine` **16 条规则每条一个正反例**并断言 ruleID + severity + category + 行号；目录跳过、符号链接与二进制与超大文件跳过、`MaxDepth` / `MaxFiles` / `MaxFindings` 三个上限各一条、占位符抑制、零值 `Option` 仍能扫、输出确定性、**未知 severity 不能藏起发现**（`TestScan_UnknownSeverityCannotHideAFinding`：一个 severity 打错的规则如果只被统计器丢弃，报告就谎报 0）、不可读文件跳过而非致命、坏正则 panic。
+- **`repository/repository_test.go`（16）**：`TestCreate_BindsEveryRunColumn` 把 **15 个参数逐个按占位符顺序钉住**——这是缺陷 E 的护栏；跨租户不串、`List` 绑定租户与 limit 且不用通配符、count 列正确映射到模型、`GetByID` 的 `ErrNoRows → sentinel.NotFound` 与**其它错误不伪装成 not-found**、`StartScan` 重置计数器并清旧 findings、两处 `RowsAffected()==0 → NotFound`、`FailScan` 绑定错误文本、`FinishScan` 单事务写计数与发现且 0 行时**不插入任何 finding**、`ListFindings` 有/无 `scanID` 两分支都带租户谓词、DB 错误原样上浮。
+- **`service/service_test.go`（11）**：空 target 与不存在 target 在**写库前**失败（用例不注册任何 SQL 期望——真查了 sqlmock 会拒）、走完整棵树并把发现落库、`branch` 默认 `main`、**重跑报 0**、缺 id → NotFound、不可扫 target → `ErrInvalidTarget`、`ListScans` 夹取 limit、`ListFindings` 透传过滤器、`normaliseBranch` / `clampLimit` / `newID` 单测。
+- **`handler/handler_test.go`（13）**：真 gin + 真 service + 真 repository + sqlmock，`RegisterRoutes` 注册整个组不手工挂 handler；信封契约 `"success":true` / `201` / `400` + `"code":"BAD_REQUEST"` / `404` + `"code":"NOT_FOUND"`；**400 路径不注册 SQL 期望，状态码本身即证明校验先于查询**；响应体断言 `totalVulns` **不含 47**（样例数据的指纹）；`TestRoutesAreMountedUnderTheSecurityGroup` 用 `r.Routes()` 断言 4 条路径在册。
+- **`cmd/server/migration_code_scan_tables_test.go`（2，新文件，`git add -f`）**：`TestMigrationsCreateTheCodeScanTables` 扫 `internal/` 的非测试 Go 文件数出引用了这两张表的文件数（当前 1），为 0 则 `t.Skip`，否则**必须**有前向迁移建两张表、该文件不得含字面事务、**重复三位版本号报错**（runner 按版本顺序读扁平目录，同一版本会应用两个文件、后一个静默覆盖前一个）；`TestMigrationColumnsMatchTheRepositoryNames` 从 repository 源码正则抽出 `runColumns` / `findingColumns`，断言**每个点名的列**真以独立词出现在 `code_scan` 迁移的 DDL 里（`(?m)^\s*<col>\s+[^,\n]+`，所以 `status` 不能冒充 `audit_status`）。这是缺陷 C/D/E 共同的「`go build` 看不见」类缺陷的闭环。
+
+**sqlmock v1.5.2 踩坑（本轮新增，与 §29.4 的三条不同）**：
+1. **没有 `Option` 类型、没有 `NewWithOptions`**——放宽顺序的唯一开关是**方法** `mock.MatchExpectationsInOrder(false)`。
+2. **同步读与 worker 会交错**：`RerunScan` 的响应 `GetByID` 与 `go s.execute()` 的语句顺序取决于调度，该用例必须无序匹配。而且仓库里有 **2 条相同前缀的 `DELETE FROM code_scan_findings`**（`StartScan` 与 `FinishScan` 各一条），靠 `WithArgs` 区分：run 迁移是 `(AnyArg, "t1", AnyArg)`，完成是 `(total, critical, 0, 0, 0, AnyArg, AnyArg, "t1", AnyArg)`。
+3. `WithArgs` 过 `driver.DefaultParameterConverter`（int → int64），`time.Now()` 的产物一律用 `sqlmock.AnyArg()`。
+
+### 30.5 变异证明 11/11 有效变异全部杀死（0 survived / 0 invalid / 0 锚点错误）
+
+锚点唯一性断言（计数必须为 1，**计数 0 意味着变异根本没写进去**）+ 编译有效性门 + 逐字节还原（`sha256sum -c` 五个源文件全 OK）+ 前后基线 PASS。
+
+| # | 变异 | 杀它的测试 |
+|---|------|-----------|
+| M1 | 删一条规则 | `TestScan_DetectsEachRuleAtTheRightLine`（缺一条 ruleID） |
+| M2 | AWS 正则 `{16}` → `{15}` | 同上（真实密钥样例不再命中） |
+| M3 | 删 `normalise()`（路径归一化） | `TestScan_OutputIsDeterministic` |
+| M4 | 退回 `SELECT *` | `TestList_BindsTenantAndLimitAndNamesItsColumns` + 列名断言 |
+| **M5** | **删 `db:"total_vulns"` tag** | **复现缺陷 E 的两个运行时错误原文**：`could not find name total_vulns`（写）/ `missing destination name total_vulns`（读） |
+| M6 | 删 `RowsAffected` 检查 | `TestStartScan_NoRowsAffectedIsNotFound` |
+| M7 | 删哨兵映射 | `TestGetByID_NoRowsIsNotFound` |
+| M8 | 删 `wg.Add(1)` | worker 用例的 `ExpectationsWereMet`（`Wait()` 立刻返回，worker 的 SQL 期望全没被消费） |
+| M9 | `List` 丢 `tenant_id=$1` | `TestList_BindsTenantAndLimitAndNamesItsColumns`（`WithArgs` 数量与值全错） |
+| M10 | handler 丢 `ErrInvalidTarget` → 400 | `TestCreateScanRoute_BadTargetIsBadRequestWithoutWriting`（回 500） |
+| M11 | handler 丢 `c.Query("scanId")` | `TestListFindingsRoute_ScanIDFromTheQueryScopesTheTenant`（走了不带 `scan_id` 谓词的查询） |
+
+**M5 是本轮最重要的一条**：它是唯一能证明缺陷 E 真实存在的证据——把 tag 删掉，测试立刻报出生产环境会看到的那两条错误字符串。这类缺陷的完整特征是：**编译期、vet 期、运行时启动期都正常，第一条真实请求才炸**。
+
+**两条 harness 教训（同 R28/R29）**：
+1. **M6 / M7 首版各删一个 import 使其编译不过**（`rc=1 kills=0`）。**编译不过的变异无效、不能打分**——改成保留 import 的语义等价变异后各杀死 ≥1 条。
+2. **两个 inline `python3 -c` 补丁把锚点改花**（shell + 反引号转义吞掉引号，锚点计数 0 = 变异从未写入）。改用 `python3 - <<'PY'` heredoc + 反引号 raw string。
+
+**另修测试自身 3 处误断言**（把「应非 nil」误写成含 nil 的析取、把「应为空」误写成 `!= nil`）——**先跑测试再写断言，不要先写断言再跑测试**。
+
+### 30.6 验证
+
+`gofmt -l` 本轮触碰文件无输出、`go build ./...` 无输出、`go vet ./internal/code-scan/... ./cmd/server/` 无输出、`go test ./internal/code-scan/... ./cmd/server/...` 全 ok、`go test -count=5 -race` 同上全绿（handler 1.9s / repository 1.1s / scan 1.6s / service 1.8s / cmd/server 17.6s）、`go test ./...` **exit 0（497 包 ok / 0 FAIL）**。
+
+**FORBIDDEN 检查 3 次全部返回 0**（git add 前、add 后 / commit 前、commit 前一刻）；`cmdb-import` 两个文件全程未 stage。
+
+**两个环境坑（本轮踩过）**：
+1. **`cmd/server/` 在 `.gitignore:6`**：新建的 `cmd/server/migration_code_scan_tables_test.go` 是 untracked 文件，被忽略后 `git status` 根本看不到它（`git check-ignore -v` 定位到 `orion-platform-svc-go/.gitignore:6:cmd/server`，`git ls-files` 返回 0）。必须 `git add -f`。已在 `4466798b2` 内。已跟踪的 `cmd/server/*.go` 不受影响。
+2. **`gofmt -l cmd/server` 列出 38 个文件**（`ai_wiring.go` / `config.go` / `core_infra_wiring.go` / `main.go` / `openapi.go` / `pipeline_wave_wiring.go` / `wiring-*.go` ×32）——用 `git diff --name-only` 交叉核对，**没有一个是我改的、没有一个属于本轮**，是历史遗留格式债。不动它们（本轮重新格式化 38 个文件会淹没 diff 并把 R30 的审查面从 14 个文件变成 52 个）。
+
+### 30.7 只记录不修
+
+1. **扫描目标只能是服务器本机路径**：无 git clone、无远端仓库拉取、无容器化扫描器。`branch` 只是元数据——**没有任何查询读它、也不会据它选 revision**，改 branch 重跑扫的还是同一个本地目录。要接 CI 得先建 fetch/checkout 基础设施。
+2. **worker 进程内、无队列**：`wg.Add(1); go s.execute()` 与 HTTP 同进程，进程中途重启会把 row 永久留在 `running`，无 orphan reaper。
+3. **4 条 code-scan 路由无 `auth.RequirePermission`**（`router.go:220`）——与 `securityH` 的 45 条一致，同 `/security` 前缀下都是无守卫组。本轮不加（当前无任何角色设置方，加了会 403 掉整个活页面）。是否统一由产品决定。
+4. **扫描器纯正则、无 AST**：无数据流 / 污点跟踪，`go-sql-sprintf` 只抓直接拼接形态，跨函数传播不可见。
+5. **`error` 列是 TEXT 且存原始 walk 错误**：会随 `GET /scans` 把**本机绝对路径**回给任何认证调用方（`operation error: open /Users/heal/...: permission denied`）。
+6. **`FailScan` 忽略 `RowsAffected`**：row 在 `StartScan` 与 `FailScan` 之间消失时是静默 no-op，row 停在 `running`。
+7. 可空字符串列 + 非指针 `string` 模型字段：若将来任何写入方真产生 NULL，扫进 `string` 会 `converting NULL to string`。当前潜伏（本应用写入方绑定 Go string、驱动发 `''`）。
+
+### 30.8 跨轮遗留（更新后）
+
+§29.8 全部保留。
+
+**本轮已修完的跨轮遗留**：§29.7 第 3 条（`internal/code-scan` `ListScans` 常量桩）——连同模块另 3 条在册桩、扫描引擎、数据访问层、迁移 DDL 一次收齐。**§29.7 第 4 条同时作废**：见下。
+
+**纠正 R29 一处误记（本轮实测）**：§29.7 第 4 条称「`code_scanH` 的 3 条路由挂 `auth.RequirePermission`，`securityH` 的 45 条不带」——**错**。实测 `router.go:219-220` 是 `code_scanH.RegisterRoutes(api.Group("/security"))`，**不带守卫**，与 `securityH` 一致。误记来源与 R29 纠正的死代码误判同源：只看构造点没追 `RegisterRoutes` 的实际调用点。已同步修正 R30 的 ALL_TODOS 行。
+
+**新增**：`error` 列回传本机绝对路径（§30.7 第 5 条）、worker 无 orphan reaper（第 2 条）、扫描器无 AST（第 4 条）、`FailScan` 忽略 `RowsAffected`（第 6 条）。
+
+**本轮自查并修正 6 处文档数字**（本轮写文档时才发现，写文档的数字必须从源码 grep 出来而不是从记忆写）：
+1. 测试数 50 → **56 个测试函数**（`grep -c '^func Test'` 实测：scan 14 / repository **16** / service 11 / handler **13** / cmd/server 2）。
+2. 规则枚举整段重写：原写「secret-leak 5 / code-injection 3 / xss 2 / misconfiguration 2 / crypto-weak 2 / unsafe-http 1」，**实际类名与计数都对不上**（实为 `sensitive_data` 7 / `injection` 3 / `xss` 1 / `security_misconfig` 3 / `integrity` 1 / `logging` 1；不存在模板注入、innerHTML、unsafe-http 三类，MD5 与 SHA1 是同一条 `weak-hash` 规则）。**唯一对的是 severity 分布 5/7/4**。
+3. 索引数 8 → **5**。
+4. 单文件上限 20MiB → **1MiB**。
+5. findings 封顶 500 → **1000**（并补 `MaxDepth` 10 / `MaxFiles` 5000）。
+6. `branch` 归一化不含「小写」——`normaliseBranch` 只做 `TrimSpace` + 空值默认 + 128 截断，**没有 `ToLower`**。
+
+**教训**：断言一个模块「有 N 条规则 / M 个索引 / K 条测试」时，先 `grep -c` 再落笔。§29 的 R29 行同样存在「32 条新测试」这类未从源码核对的数字，本轮未回溯修订（前几轮的数字由当时的 grep 得出，本轮不重验以免引入新的不确定）。
