@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -43,10 +45,10 @@ func (h *Handler) RegisterRoutesWithoutAuth(rg *gin.RouterGroup) {
 
 func validBody() []byte {
 	b, _ := json.Marshal(models.RegisterRequest{
-		Name:     "users",
+		Name:      "users",
 		Namespace: "ns1",
-		Type:     models.SchemaTypeProtobuf,
-		Owner:    "alice",
+		Type:      models.SchemaTypeProtobuf,
+		Owner:     "alice",
 		Fields: []models.SchemaField{
 			{Name: "id", Type: "int64", PrimaryKey: true},
 			{Name: "email", Type: "string"},
@@ -178,11 +180,11 @@ func TestRegister_EvolutionRejectsBreaking(t *testing.T) {
 
 	// Remove a field — that is breaking under backward-compat.
 	breaking := models.RegisterRequest{
-		Name:      "users",
-		Namespace: "ns1",
-		Type:      models.SchemaTypeProtobuf,
-		Owner:     "alice",
-		Fields:    []models.SchemaField{{Name: "id", Type: "int64", PrimaryKey: true}},
+		Name:          "users",
+		Namespace:     "ns1",
+		Type:          models.SchemaTypeProtobuf,
+		Owner:         "alice",
+		Fields:        []models.SchemaField{{Name: "id", Type: "int64", PrimaryKey: true}},
 		Compatibility: models.CompatibilityBackward,
 	}
 	body, _ := json.Marshal(breaking)
@@ -316,5 +318,84 @@ func TestCompatibility_ReturnsMode(t *testing.T) {
 	}
 	if got.Data["compatibility"] != "backward" {
 		t.Fatalf("expected backward, got %v", got.Data)
+	}
+}
+
+// appendFailRepo fails on AppendVersion and nowhere else, so the two endpoints
+// that call it (POST /schemas and PUT /schemas/:namespace/:name) are the only
+// ones affected. err can be flipped from nil to an error between requests so a
+// single repository can be used to seed a schema and then fail it.
+type appendFailRepo struct {
+	*repository.InMemory
+	err error
+}
+
+var _ repository.Interface = (*appendFailRepo)(nil)
+
+func (r *appendFailRepo) AppendVersion(context.Context, string, string, *models.SchemaVersion) error {
+	return r.err
+}
+
+func TestRegisterAnswers500WhenTheVersionRowFails(t *testing.T) {
+	repo := &appendFailRepo{InMemory: repository.NewInMemory(), err: errors.New("disk full")}
+	svc := service.New(repo, nil)
+	h := New(svc, repo)
+	r := newTestRouter(h)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/schema-registry/schemas", strings.NewReader(string(validBody())))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Before the fix this was 200: the schema row was written and the version
+	// row was dropped into a blank identifier, so the caller believed version 1
+	// had been released.
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 for an unrecorded version, got %d body=%s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "disk full") {
+		t.Fatalf("the response must carry the repository error: %s", w.Body.String())
+	}
+}
+
+func TestUpdateAnswers500WhenTheVersionRowFails(t *testing.T) {
+	repo := &appendFailRepo{InMemory: repository.NewInMemory()}
+	svc := service.New(repo, nil)
+	h := New(svc, repo)
+	r := newTestRouter(h)
+
+	// Seed the schema through a healthy repository, then break it.
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/schema-registry/schemas", strings.NewReader(string(validBody())))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("seed register: %d %s", w.Code, w.Body.String())
+	}
+	repo.err = errors.New("deadlock detected")
+
+	// A compatible evolution (one extra nullable field) is enough to reach the
+	// second AppendVersion call: the schema row moves to version 2 while the
+	// version row is refused.
+	evolveBody, _ := json.Marshal(models.RegisterRequest{
+		Type:          models.SchemaTypeProtobuf,
+		Owner:         "bob",
+		Compatibility: models.CompatibilityBackward,
+		Fields: []models.SchemaField{
+			{Name: "id", Type: "int64", PrimaryKey: true},
+			{Name: "email", Type: "string"},
+			{Name: "phone", Type: "string", Nullable: true},
+		},
+	})
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/schema-registry/schemas/ns1/users", strings.NewReader(string(evolveBody)))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 for an unrecorded version, got %d body=%s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "deadlock detected") {
+		t.Fatalf("the response must carry the repository error: %s", w.Body.String())
 	}
 }

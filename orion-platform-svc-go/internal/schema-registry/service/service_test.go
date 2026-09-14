@@ -2,11 +2,14 @@ package service
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 
 	"go.uber.org/zap/zaptest"
 
 	"orion/platform-svc-go/internal/schema-registry/models"
+	"orion/platform-svc-go/internal/schema-registry/repository"
 )
 
 type fakeRepo struct {
@@ -361,5 +364,115 @@ func TestValidateFields_DuplicateName(t *testing.T) {
 	})
 	if len(errors) == 0 {
 		t.Error("expected duplicate name error")
+	}
+}
+
+// --- version recording ------------------------------------------------------
+//
+// Register used to discard both AppendVersion calls into a blank identifier.
+// The handler answered 200 with "version 1" while GET /versions kept returning
+// an empty list, so a schema whose version row could not be written looked to
+// every consumer like a schema that had simply never been released.
+
+// appendFailRepo succeeds on every operation except AppendVersion, which always
+// fails. It also records what it was sent so the positive tests can assert that
+// a version really was recorded instead of only trusting the error path.
+type appendFailRepo struct {
+	*fakeRepo
+	err      error
+	appended []*models.SchemaVersion
+}
+
+var _ repository.Interface = (*appendFailRepo)(nil)
+
+func (r *appendFailRepo) AppendVersion(ctx context.Context, ns, name string, v *models.SchemaVersion) error {
+	if r.err != nil {
+		return r.err
+	}
+	r.appended = append(r.appended, v)
+	return r.fakeRepo.AppendVersion(ctx, ns, name, v)
+}
+
+func TestRegisterNewSchemaRecordsItsFirstVersion(t *testing.T) {
+	repo := &appendFailRepo{fakeRepo: newFakeRepo()}
+	svc := New(repo, zaptest.NewLogger(t))
+
+	_, err := svc.Register(context.Background(), &models.RegisterRequest{
+		Name: "order", Namespace: "commerce", Type: models.SchemaTypePostgreSQL,
+		Owner:  "alice",
+		Fields: []models.SchemaField{{Name: "id", Type: "int8", PrimaryKey: true}},
+	})
+	if err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	if len(repo.appended) != 1 {
+		t.Fatalf("the first register recorded %d versions, want 1", len(repo.appended))
+	}
+	if repo.appended[0].Version != 1 || repo.appended[0].ReleasedBy != "alice" {
+		t.Fatalf("unexpected first version: %+v", repo.appended[0])
+	}
+}
+
+func TestRegisterNewSchemaReportsAVersionsTableFailure(t *testing.T) {
+	repo := &appendFailRepo{fakeRepo: newFakeRepo(), err: errors.New("disk full")}
+	svc := New(repo, zaptest.NewLogger(t))
+
+	resp, err := svc.Register(context.Background(), &models.RegisterRequest{
+		Name: "order", Namespace: "commerce", Type: models.SchemaTypePostgreSQL,
+		Owner:  "alice",
+		Fields: []models.SchemaField{{Name: "id", Type: "int8", PrimaryKey: true}},
+	})
+	if err == nil {
+		t.Fatalf("Register answered success although the version row was never written")
+	}
+	if resp != nil {
+		t.Fatalf("a failed version insert must not hand back a success response: %+v", resp)
+	}
+	if !strings.Contains(err.Error(), "persist version 1 for commerce/order") {
+		t.Fatalf("error %q does not name the version and schema that were not recorded", err.Error())
+	}
+}
+
+func TestRegisterEvolutionReportsAVersionsTableFailure(t *testing.T) {
+	repo := &appendFailRepo{fakeRepo: newFakeRepo()}
+	svc := New(repo, zaptest.NewLogger(t))
+
+	first := &models.RegisterRequest{
+		Name: "user", Namespace: "app", Type: models.SchemaTypePostgreSQL,
+		Owner: "alice",
+		Fields: []models.SchemaField{
+			{Name: "id", Type: "int8", PrimaryKey: true},
+			{Name: "name", Type: "varchar(128)", Nullable: true},
+		},
+	}
+	if _, err := svc.Register(context.Background(), first); err != nil {
+		t.Fatalf("first register: %v", err)
+	}
+
+	// The schema row is already at version 2 when the version row fails: the
+	// error must name the version that was actually published rather than
+	// pretending nothing happened.
+	repo.err = errors.New("deadlock detected")
+	second := &models.RegisterRequest{
+		Name: "user", Namespace: "app", Type: models.SchemaTypePostgreSQL,
+		Owner: "bob",
+		Fields: []models.SchemaField{
+			{Name: "id", Type: "int8", PrimaryKey: true},
+			{Name: "name", Type: "varchar(128)", Nullable: true},
+			{Name: "phone", Type: "varchar(20)", Nullable: true},
+		},
+	}
+	resp, err := svc.Register(context.Background(), second)
+	if err == nil {
+		t.Fatalf("Register answered success although version 2 was never recorded")
+	}
+	if resp != nil {
+		t.Fatalf("a failed version insert must not hand back a success response: %+v", resp)
+	}
+	if !strings.Contains(err.Error(), "persist version 2 for app/user") {
+		t.Fatalf("error %q does not name the published version 2", err.Error())
+	}
+	if repo.fakeRepo.schemas["app:user"].Version != 2 {
+		t.Fatalf("the schema row was not advanced to version 2: %d", repo.fakeRepo.schemas["app:user"].Version)
 	}
 }
