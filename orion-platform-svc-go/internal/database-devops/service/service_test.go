@@ -290,14 +290,14 @@ func TestNewServiceNilDBIsTolerated(t *testing.T) {
 // fakeExecutor implements executor.BackupExecutor and executor.RestoreExecutor
 // for testing real backup/restore without invoking pg_dump or mysqldump.
 type fakeExecutor struct {
-	dialect         executor.Dialect
-	backupOutput    string
-	backupSize      int64
-	backupChecksum  string
-	backupError     error
-	restoreError    error
+	dialect           executor.Dialect
+	backupOutput      string
+	backupSize        int64
+	backupChecksum    string
+	backupError       error
+	restoreError      error
 	restoreBackupPath string
-	restoreOpts     *executor.RestoreOptions
+	restoreOpts       *executor.RestoreOptions
 }
 
 func (f *fakeExecutor) Dialect() executor.Dialect { return f.dialect }
@@ -341,8 +341,8 @@ func TestExecuteBackup_RealExecutor_Success(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	exe := &fakeExecutor{
-		dialect:      executor.DialectPostgreSQL,
-		backupSize:   2048,
+		dialect:        executor.DialectPostgreSQL,
+		backupSize:     2048,
 		backupChecksum: "abc123",
 	}
 	reg := executor.NewEmptyRegistry()

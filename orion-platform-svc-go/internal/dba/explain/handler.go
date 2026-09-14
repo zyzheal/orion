@@ -23,8 +23,9 @@ func NewHandler(svc *Service) *Handler {
 // RegisterRoutes mounts the explain endpoints under /dba/explain.
 //
 // Routes:
-//   POST /dba/explain/analyze  — run EXPLAIN + suggestions
-//   GET  /dba/explain/history  — recent explain jobs for the tenant
+//
+//	POST /dba/explain/analyze  — run EXPLAIN + suggestions
+//	GET  /dba/explain/history  — recent explain jobs for the tenant
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f := rg.Group("/dba/explain")
 	f.POST("/analyze", auth.RequirePermission("dba", "execute"), h.Analyze)

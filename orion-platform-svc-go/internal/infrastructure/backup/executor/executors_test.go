@@ -40,7 +40,7 @@ func TestBuildPGDumpArgs(t *testing.T) {
 
 func TestBuildPGDumpArgs_Defaults(t *testing.T) {
 	got := buildPGDumpArgs(BackupOptions{
-		OutputPath: "/tmp/x.dump",
+		OutputPath:  "/tmp/x.dump",
 		Compression: -1, // should clamp to 0
 	})
 	joined := strings.Join(got, " ")

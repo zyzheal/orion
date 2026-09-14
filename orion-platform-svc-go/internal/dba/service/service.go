@@ -617,7 +617,7 @@ func containsSQLKeyword(sql, keyword string) bool {
 
 // stripSQLComments removes -- single-line and /* */ block comments
 // (because a DB parser would ignore them), and replaces string
-// literals with '' (because their contents never execute as SQL).
+// literals with ” (because their contents never execute as SQL).
 // The result is what the parser actually evaluates — the keyword
 // scan below runs on this stripped text so a caller cannot hide
 // "DROP" in a comment or a string.
@@ -672,7 +672,9 @@ func stripSQLComments(sql string) string {
 
 // normalizeDBType maps any user-supplied DataSource.Type string onto a
 // canonical engine key used for connection dispatch. Recognised keys:
-//   "postgres", "mysql".
+//
+//	"postgres", "mysql".
+//
 // Unknown or empty types return "" so callers can fall through to an
 // "unsupported" error branch instead of guessing.
 func normalizeDBType(t string) string {

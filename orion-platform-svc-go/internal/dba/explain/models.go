@@ -11,15 +11,15 @@ import "time"
 // nodes (tables, indexes, function calls). Cost is nil when the engine
 // did not produce one (MySQL JSON sometimes omits it).
 type ExplainNode struct {
-	NodeType  string          `json:"node_type"`
-	Relation  string          `json:"relation,omitempty"`
-	Index     string          `json:"index,omitempty"`
-	ScanType  string          `json:"scan_type,omitempty"` // "Seq" | "Index" | "Bitmap" | ""
-	Cost      *PlanCost       `json:"cost,omitempty"`
-	Rows      *int64          `json:"rows,omitempty"`
-	TimeMs    *float64        `json:"actual_time_ms,omitempty"`
-	Children  []ExplainNode   `json:"children,omitempty"`
-	Raw       string          `json:"raw"`
+	NodeType string        `json:"node_type"`
+	Relation string        `json:"relation,omitempty"`
+	Index    string        `json:"index,omitempty"`
+	ScanType string        `json:"scan_type,omitempty"` // "Seq" | "Index" | "Bitmap" | ""
+	Cost     *PlanCost     `json:"cost,omitempty"`
+	Rows     *int64        `json:"rows,omitempty"`
+	TimeMs   *float64      `json:"actual_time_ms,omitempty"`
+	Children []ExplainNode `json:"children,omitempty"`
+	Raw      string        `json:"raw"`
 }
 
 // PlanCost mirrors PG's cost=... line. Total is the sum, Start is the
@@ -33,14 +33,14 @@ type PlanCost struct {
 // ExplainResult is the full response of AnalyzePlan. PlanText keeps
 // the raw engine output for debugging; Plan is the parsed tree.
 type ExplainResult struct {
-	SQL       string      `json:"sql"`
-	DBType    string      `json:"db_type"`
-	PlanText  string      `json:"plan_text"`
-	Plan      ExplainNode `json:"plan"`
+	SQL         string       `json:"sql"`
+	DBType      string       `json:"db_type"`
+	PlanText    string       `json:"plan_text"`
+	Plan        ExplainNode  `json:"plan"`
 	Suggestions []Suggestion `json:"suggestions"`
-	Passed    bool        `json:"passed"`
-	DurationMs int64      `json:"duration_ms"`
-	AnalyzedAt time.Time  `json:"analyzed_at"`
+	Passed      bool         `json:"passed"`
+	DurationMs  int64        `json:"duration_ms"`
+	AnalyzedAt  time.Time    `json:"analyzed_at"`
 }
 
 // Suggestion is one optimization hint. The severity set matches the
@@ -60,9 +60,9 @@ type Suggestion struct {
 type ExplainRequest struct {
 	SQL          string `json:"sql" binding:"required"`
 	DataSourceID string `json:"data_source_id" binding:"required"`
-	DBType       string `json:"db_type"`       // "postgres" | "mysql"
+	DBType       string `json:"db_type"` // "postgres" | "mysql"
 	Schema       string `json:"schema"`
-	Analyze      bool   `json:"analyze"`       // run EXPLAIN ANALYZE instead of EXPLAIN
+	Analyze      bool   `json:"analyze"` // run EXPLAIN ANALYZE instead of EXPLAIN
 }
 
 // ExplainJob is the persisted row in dba_explain_history. Kept short —

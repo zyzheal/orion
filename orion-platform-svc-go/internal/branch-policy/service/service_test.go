@@ -737,13 +737,13 @@ func TestBA_Digest_MustBeSha256(t *testing.T) {
 	ctx := context.Background()
 	repo := svc.repo.(*fakeRepo)
 	repo.branchProfiles["bp-1"] = &models.BranchProfile{
-		ID:       "bp-1",
-		TenantID: "t1",
-		Name:     "release/x",
-		Semantic: models.BranchRelease,
-		OwnerID:  "u1",
+		ID:           "bp-1",
+		TenantID:     "t1",
+		Name:         "release/x",
+		Semantic:     models.BranchRelease,
+		OwnerID:      "u1",
 		MergeTargets: []string{"main"},
-		Status: models.BranchStatusActive,
+		Status:       models.BranchStatusActive,
 	}
 	badDigests := []string{"md5:abc", "sha256:zzzz", "notadigest", "", "sha256:" + strings.Repeat("a", 63)}
 	for _, d := range badDigests {
@@ -768,13 +768,13 @@ func TestBA_Digest_AutoPromotesBareHex(t *testing.T) {
 	ctx := context.Background()
 	repo := svc.repo.(*fakeRepo)
 	repo.branchProfiles["bp-1"] = &models.BranchProfile{
-		ID:       "bp-1",
-		TenantID: "t1",
-		Name:     "release/x",
-		Semantic: models.BranchRelease,
-		OwnerID:  "u1",
+		ID:           "bp-1",
+		TenantID:     "t1",
+		Name:         "release/x",
+		Semantic:     models.BranchRelease,
+		OwnerID:      "u1",
 		MergeTargets: []string{"main"},
-		Status: models.BranchStatusActive,
+		Status:       models.BranchStatusActive,
 	}
 	bare := strings.Repeat("C", 64) // uppercase — should be normalized
 	art, err := svc.RegisterBuildArtifact(ctx, "t1", &models.RegisterArtifactRequest{
@@ -801,13 +801,13 @@ func TestBA_CommitSHA_MustBe40Hex(t *testing.T) {
 	ctx := context.Background()
 	repo := svc.repo.(*fakeRepo)
 	repo.branchProfiles["bp-1"] = &models.BranchProfile{
-		ID:       "bp-1",
-		TenantID: "t1",
-		Name:     "release/x",
-		Semantic: models.BranchRelease,
-		OwnerID:  "u1",
+		ID:           "bp-1",
+		TenantID:     "t1",
+		Name:         "release/x",
+		Semantic:     models.BranchRelease,
+		OwnerID:      "u1",
 		MergeTargets: []string{"main"},
-		Status: models.BranchStatusActive,
+		Status:       models.BranchStatusActive,
 	}
 	badSHAs := []string{"abc", strings.Repeat("a", 39), strings.Repeat("a", 41), strings.Repeat("g", 40)}
 	for _, s := range badSHAs {
@@ -832,13 +832,13 @@ func TestBA_TargetEnvs_ValidatesNames(t *testing.T) {
 	ctx := context.Background()
 	repo := svc.repo.(*fakeRepo)
 	repo.branchProfiles["bp-1"] = &models.BranchProfile{
-		ID:       "bp-1",
-		TenantID: "t1",
-		Name:     "release/x",
-		Semantic: models.BranchRelease,
-		OwnerID:  "u1",
+		ID:           "bp-1",
+		TenantID:     "t1",
+		Name:         "release/x",
+		Semantic:     models.BranchRelease,
+		OwnerID:      "u1",
 		MergeTargets: []string{"main"},
-		Status: models.BranchStatusActive,
+		Status:       models.BranchStatusActive,
 	}
 	for _, env := range []string{"UPPER", "has spaces", "-bad", "a" + strings.Repeat("b", 65), ""} {
 		_, err := svc.RegisterBuildArtifact(ctx, "t1", &models.RegisterArtifactRequest{
@@ -862,13 +862,13 @@ func TestBA_Register_OnInactiveProfileRejects(t *testing.T) {
 	ctx := context.Background()
 	repo := svc.repo.(*fakeRepo)
 	repo.branchProfiles["bp-arch"] = &models.BranchProfile{
-		ID:       "bp-arch",
-		TenantID: "t1",
-		Name:     "release/x",
-		Semantic: models.BranchRelease,
-		OwnerID:  "u1",
+		ID:           "bp-arch",
+		TenantID:     "t1",
+		Name:         "release/x",
+		Semantic:     models.BranchRelease,
+		OwnerID:      "u1",
 		MergeTargets: []string{"main"},
-		Status: models.BranchStatusArchived,
+		Status:       models.BranchStatusArchived,
 	}
 	_, err := svc.RegisterBuildArtifact(ctx, "t1", &models.RegisterArtifactRequest{
 		BranchProfileID: "bp-arch",
@@ -893,11 +893,11 @@ func TestBA_VerifySignature_Unsigned(t *testing.T) {
 	ctx := context.Background()
 	repo := svc.repo.(*fakeRepo)
 	repo.artifacts["ba-1"] = &models.BuildArtifact{
-		ID:         "ba-1",
-		TenantID:   "t1",
+		ID:              "ba-1",
+		TenantID:        "t1",
 		BranchProfileID: "bp-1",
-		SignedBy: "",
-		Status: models.ArtifactStatusActive,
+		SignedBy:        "",
+		Status:          models.ArtifactStatusActive,
 	}
 	res, err := svc.VerifyBuildArtifactSignature(ctx, "t1", "ba-1")
 	if err != nil {
@@ -921,10 +921,10 @@ func TestBA_VerifySignature_Signed(t *testing.T) {
 	ctx := context.Background()
 	repo := svc.repo.(*fakeRepo)
 	repo.artifacts["ba-1"] = &models.BuildArtifact{
-		ID:         "ba-1",
-		TenantID:   "t1",
-		SignedBy:   "cosign",
-		Status:     models.ArtifactStatusActive,
+		ID:       "ba-1",
+		TenantID: "t1",
+		SignedBy: "cosign",
+		Status:   models.ArtifactStatusActive,
 	}
 	res, err := svc.VerifyBuildArtifactSignature(ctx, "t1", "ba-1")
 	if err != nil {
@@ -943,9 +943,9 @@ func TestBA_Deprecate_RequiresReason(t *testing.T) {
 	ctx := context.Background()
 	repo := svc.repo.(*fakeRepo)
 	repo.artifacts["ba-1"] = &models.BuildArtifact{
-		ID:     "ba-1",
+		ID:       "ba-1",
 		TenantID: "t1",
-		Status: models.ArtifactStatusActive,
+		Status:   models.ArtifactStatusActive,
 	}
 	_, err := svc.DeprecateBuildArtifact(ctx, "t1", "ba-1", "   ")
 	if err == nil {
@@ -959,10 +959,10 @@ func TestBA_Deprecate_DoubleRejected(t *testing.T) {
 	repo := svc.repo.(*fakeRepo)
 	now := time.Now()
 	repo.artifacts["ba-1"] = &models.BuildArtifact{
-		ID:             "ba-1",
-		TenantID:       "t1",
-		Status:         models.ArtifactStatusDeprecated,
-		DeprecatedAt:   &now,
+		ID:               "ba-1",
+		TenantID:         "t1",
+		Status:           models.ArtifactStatusDeprecated,
+		DeprecatedAt:     &now,
 		DeprecatedReason: "already",
 	}
 	_, err := svc.DeprecateBuildArtifact(ctx, "t1", "ba-1", "again")
@@ -976,9 +976,9 @@ func TestBA_Deprecate_Success(t *testing.T) {
 	ctx := context.Background()
 	repo := svc.repo.(*fakeRepo)
 	repo.artifacts["ba-1"] = &models.BuildArtifact{
-		ID:     "ba-1",
+		ID:       "ba-1",
 		TenantID: "t1",
-		Status: models.ArtifactStatusActive,
+		Status:   models.ArtifactStatusActive,
 	}
 	a, err := svc.DeprecateBuildArtifact(ctx, "t1", "ba-1", "superseded by v2")
 	if err != nil {
@@ -1621,7 +1621,7 @@ func TestSync_RunNow_Success(t *testing.T) {
 	repo.syncPolicies["sp-1"] = &models.SyncPolicy{
 		ID: "sp-1", TenantID: "t1", SourceBranch: "main",
 		TargetBranches: []string{"release/a", "release/b"},
-		Strategy: models.SyncStrategyRebase, AutoResolve: models.SyncResolveNone, Enabled: true,
+		Strategy:       models.SyncStrategyRebase, AutoResolve: models.SyncResolveNone, Enabled: true,
 	}
 
 	log, err := svc.RunNow(ctx, "t1", "sp-1", "alice", "abcdef1234567890")
@@ -1730,7 +1730,7 @@ func TestSync_RunNow_ConflictManualRequired_FailClosed(t *testing.T) {
 	repo.syncPolicies["sp-1"] = &models.SyncPolicy{
 		ID: "sp-1", TenantID: "t1", SourceBranch: "main",
 		TargetBranches: []string{"release/a", "release/b"},
-		Strategy: models.SyncStrategyRebase, AutoResolve: models.SyncResolveManualRequired, Enabled: true,
+		Strategy:       models.SyncStrategyRebase, AutoResolve: models.SyncResolveManualRequired, Enabled: true,
 	}
 	exec := stubExecutor{results: map[string]models.SyncRunResult{
 		"release/a": {TargetBranch: "release/a", ConflictFiles: []string{"file.go"}},
@@ -1756,7 +1756,7 @@ func TestSync_RunNow_ConflictSkipConflict_Continues(t *testing.T) {
 	repo.syncPolicies["sp-1"] = &models.SyncPolicy{
 		ID: "sp-1", TenantID: "t1",
 		TargetBranches: []string{"release/a", "release/b", "release/c"},
-		Strategy: models.SyncStrategyRebase, AutoResolve: models.SyncResolveSkipConflict, Enabled: true,
+		Strategy:       models.SyncStrategyRebase, AutoResolve: models.SyncResolveSkipConflict, Enabled: true,
 	}
 	exec := stubExecutor{results: map[string]models.SyncRunResult{
 		"release/a": {TargetBranch: "release/a", ConflictFiles: []string{"file.go"}},
@@ -1783,7 +1783,7 @@ func TestSync_RunNow_FirstErrorOnly(t *testing.T) {
 	repo.syncPolicies["sp-1"] = &models.SyncPolicy{
 		ID: "sp-1", TenantID: "t1",
 		TargetBranches: []string{"release/a", "release/b"},
-		Strategy: models.SyncStrategyRebase, AutoResolve: models.SyncResolveNone, Enabled: true,
+		Strategy:       models.SyncStrategyRebase, AutoResolve: models.SyncResolveNone, Enabled: true,
 	}
 	exec := stubExecutor{results: map[string]models.SyncRunResult{
 		"release/a": {TargetBranch: "release/a", Error: "network blip"},
@@ -2008,15 +2008,15 @@ func TestDE_Create_Success(t *testing.T) {
 	repo := newFakeRepo()
 	svc := NewService(repo)
 	req := &models.CreateDeployEventRequest{
-		ActorID:    "actor-1",
-		ActorName:  "Alice",
-		Branch:     "main",
-		Env:        "prod",
-		FromCommit: "ABCDEF0123456789", // uppercase, should be normalized
-		ToCommit:   "1234567abcdef0123",
-		ArtifactID: "art-1",
+		ActorID:     "actor-1",
+		ActorName:   "Alice",
+		Branch:      "main",
+		Env:         "prod",
+		FromCommit:  "ABCDEF0123456789", // uppercase, should be normalized
+		ToCommit:    "1234567abcdef0123",
+		ArtifactID:  "art-1",
 		ImageDigest: "sha256:" + strings.Repeat("a", 64),
-		ApprovalID: "cm-1",
+		ApprovalID:  "cm-1",
 	}
 	evt, err := svc.CreateDeployEvent(context.Background(), "t1", req)
 	if err != nil {
@@ -2248,8 +2248,8 @@ func TestDE_Rollback_CreatesNewEvent(t *testing.T) {
 		FromCommit: "abcdef0123456789", ToCommit: "1234567abcdef0123",
 		ArtifactID: "art-1", ApprovalID: "cm-1",
 		ImageDigest: "sha256:" + strings.Repeat("b", 64),
-		Outcome: models.DeployOutcomeSuccess,
-		StartedAt: time.Now(), CreatedAt: time.Now(),
+		Outcome:     models.DeployOutcomeSuccess,
+		StartedAt:   time.Now(), CreatedAt: time.Now(),
 	}
 	rb, err := svc.RollbackDeployEvent(ctx, "t1", origID, "actor-2")
 	if err != nil {
@@ -2787,10 +2787,10 @@ func TestMP_CreateMergePreview_HappyPath(t *testing.T) {
 	repo := newFakeRepo()
 	svc := NewService(repo)
 	req := &models.MergePreviewRequest{
-		SourceBranch: "feat/x",
-		TargetBranch: "main",
-		SourceCommit: "abcdef1234567890",
-		TargetCommit: "1234567890abcdef",
+		SourceBranch:  "feat/x",
+		TargetBranch:  "main",
+		SourceCommit:  "abcdef1234567890",
+		TargetCommit:  "1234567890abcdef",
 		ConflictFiles: []string{"a.go", "b.go"},
 		AddedFiles:    []string{"new.go"},
 		ModifiedFiles: []string{"c.go"},
@@ -2868,11 +2868,11 @@ func TestMP_ListMergePreviews_LimitAndOrder(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		id := fmt.Sprintf("mp-%d", i)
 		repo.mergePreviews[id] = &models.MergePreview{
-			ID:          id,
-			TenantID:    "t1",
+			ID:           id,
+			TenantID:     "t1",
 			SourceBranch: "a",
 			TargetBranch: "b",
-			PreviewedAt: now.Add(time.Duration(i) * time.Second),
+			PreviewedAt:  now.Add(time.Duration(i) * time.Second),
 		}
 	}
 	// Other-tenant preview should not leak.
@@ -3008,11 +3008,11 @@ func TestExecuteDeploy_R1Blocked(t *testing.T) {
 // preconfigured result on every call and records the refs it was invoked
 // with, so tests can assert on the wire contract.
 type mockGitExecutor struct {
-	result    *gitmerge.Result
-	err       error
-	calls     int
-	lastSrc   string
-	lastTgt   string
+	result  *gitmerge.Result
+	err     error
+	calls   int
+	lastSrc string
+	lastTgt string
 }
 
 func (m *mockGitExecutor) Run(ctx context.Context, sourceRef, targetRef string) (*gitmerge.Result, error) {

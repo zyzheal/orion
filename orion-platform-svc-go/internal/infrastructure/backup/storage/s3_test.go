@@ -59,10 +59,10 @@ func TestNewS3_HappyPathReturnsInstance(t *testing.T) {
 func TestS3_NormalizePathStripsLeadingSlashAndSpaces(t *testing.T) {
 	s := &S3{bucket: "b"}
 	cases := map[string]string{
-		"/backup/2026/01.dump":  "backup/2026/01.dump",
-		"  /foo":                "foo",
-		"no-slash/foo":          "no-slash/foo",
-		"   ":                   "",
+		"/backup/2026/01.dump": "backup/2026/01.dump",
+		"  /foo":               "foo",
+		"no-slash/foo":         "no-slash/foo",
+		"   ":                  "",
 	}
 	for in, want := range cases {
 		if got := s.normalizePath(in); got != want {

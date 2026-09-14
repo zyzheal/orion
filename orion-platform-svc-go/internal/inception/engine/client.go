@@ -105,13 +105,13 @@ type TaskRequest struct {
 // Result is the response envelope returned by Inception's /check and
 // /execute endpoints.
 type Result struct {
-	Success      bool              `json:"success"`
-	Message      string            `json:"message,omitempty"`
-	AffectedRows int               `json:"affected_rows,omitempty"`
-	Errors       []string          `json:"errors,omitempty"`
-	Warnings     []string          `json:"warnings,omitempty"`
-	DurationMS   int64             `json:"duration_ms,omitempty"`
-	Raw          json.RawMessage   `json:"-"`
+	Success      bool            `json:"success"`
+	Message      string          `json:"message,omitempty"`
+	AffectedRows int             `json:"affected_rows,omitempty"`
+	Errors       []string        `json:"errors,omitempty"`
+	Warnings     []string        `json:"warnings,omitempty"`
+	DurationMS   int64           `json:"duration_ms,omitempty"`
+	Raw          json.RawMessage `json:"-"`
 }
 
 // ParseResultResponse decodes a raw JSON body into a Result.

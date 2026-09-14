@@ -84,10 +84,10 @@ func (s *ArchiveScheduler) AddPlan(spec *ArchivePlanSpec) {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 			defer cancel()
 			res, err := s.archiver.ArchiveWindow(ctx, ArchiveOptions{
-				SourceDir:   sp.SourceDir,
-				PlanID:      sp.PlanID,
-				TenantID:    sp.TenantID,
-				ArchiveType: sp.ArchiveType,
+				SourceDir:     sp.SourceDir,
+				PlanID:        sp.PlanID,
+				TenantID:      sp.TenantID,
+				ArchiveType:   sp.ArchiveType,
 				EncryptionKey: sp.EncryptionKey,
 			})
 			if err != nil {

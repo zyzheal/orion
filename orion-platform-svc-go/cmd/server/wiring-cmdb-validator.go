@@ -6,8 +6,8 @@ import (
 	"orion/go-common/pkg/database"
 
 	cmdb_validator_handler "orion/platform-svc-go/internal/cmdb-validator/handler"
-	cmdb_validator_service "orion/platform-svc-go/internal/cmdb-validator/service"
 	cmdb_validator_repo "orion/platform-svc-go/internal/cmdb-validator/repository"
+	cmdb_validator_service "orion/platform-svc-go/internal/cmdb-validator/service"
 )
 
 func wireCmdbValidator(db *database.DB, logger *zap.Logger) {

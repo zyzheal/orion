@@ -19,21 +19,21 @@ import (
 // --- mock service (implements Service interface) ---
 
 type mockSvc struct {
-	listFn             func(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogListResult, error)
-	getFn              func(ctx context.Context, tenantID, id string) (*models.AuditLogEntry, error)
-	createFn           func(ctx context.Context, tenantID string, req models.AuditLogCreateRequest) (*models.AuditLogEntry, error)
-	verifySingleFn     func(ctx context.Context, tenantID, id string) (*models.AuditLogEntry, bool, error)
-	verifyChainFn      func(ctx context.Context, tenantID string) (*models.ChainVerifyResult, error)
-	getActionsFn       func(ctx context.Context, tenantID string) ([]string, error)
-	getResourceTypesFn func(ctx context.Context, tenantID string) ([]string, error)
-	complianceReportFn     func(ctx context.Context, tenantID string, framework string) (*models.ComplianceReport, error)
-	coverageStatsFn        func(ctx context.Context, tenantID string) (*models.AuditCoverageStats, error)
-	dashboardOverviewFn    func(ctx context.Context, tenantID string) (*models.ComplianceDashboardOverview, error)
-	riskMatrixFn           func(ctx context.Context, tenantID string) (*models.ComplianceRiskMatrix, error)
-	scoreTrendFn           func(ctx context.Context, tenantID string, days int) (*models.ComplianceScoreTrend, error)
-	chainInfoFn            func(ctx context.Context, tenantID string) (*models.ChainInfo, error)
-	storageStatsFn         func(ctx context.Context, tenantID string) (*models.StorageStats, error)
-	exportFn               func(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogExportResult, error)
+	listFn              func(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogListResult, error)
+	getFn               func(ctx context.Context, tenantID, id string) (*models.AuditLogEntry, error)
+	createFn            func(ctx context.Context, tenantID string, req models.AuditLogCreateRequest) (*models.AuditLogEntry, error)
+	verifySingleFn      func(ctx context.Context, tenantID, id string) (*models.AuditLogEntry, bool, error)
+	verifyChainFn       func(ctx context.Context, tenantID string) (*models.ChainVerifyResult, error)
+	getActionsFn        func(ctx context.Context, tenantID string) ([]string, error)
+	getResourceTypesFn  func(ctx context.Context, tenantID string) ([]string, error)
+	complianceReportFn  func(ctx context.Context, tenantID string, framework string) (*models.ComplianceReport, error)
+	coverageStatsFn     func(ctx context.Context, tenantID string) (*models.AuditCoverageStats, error)
+	dashboardOverviewFn func(ctx context.Context, tenantID string) (*models.ComplianceDashboardOverview, error)
+	riskMatrixFn        func(ctx context.Context, tenantID string) (*models.ComplianceRiskMatrix, error)
+	scoreTrendFn        func(ctx context.Context, tenantID string, days int) (*models.ComplianceScoreTrend, error)
+	chainInfoFn         func(ctx context.Context, tenantID string) (*models.ChainInfo, error)
+	storageStatsFn      func(ctx context.Context, tenantID string) (*models.StorageStats, error)
+	exportFn            func(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogExportResult, error)
 }
 
 func (m *mockSvc) List(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogListResult, error) {

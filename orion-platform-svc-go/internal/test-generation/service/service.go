@@ -64,10 +64,10 @@ func (s *Service) GenerateTests(ctx context.Context, tenantID, id string) (gin.H
 		return nil, err
 	}
 	return gin.H{
-		"id":         updated.ID,
-		"name":       updated.Name,
-		"status":     updated.Status,
-		"updatedAt":  updated.UpdatedAt,
+		"id":        updated.ID,
+		"name":      updated.Name,
+		"status":    updated.Status,
+		"updatedAt": updated.UpdatedAt,
 	}, nil
 }
 
@@ -83,7 +83,7 @@ func (s *Service) GetResults(ctx context.Context, tenantID, id string) ([]string
 			if slice, ok := v.([]interface{}); ok {
 				for _, item := range slice {
 					results = append(results, fmt.Sprintf("%v", item))
-		}
+				}
 			} else if s, ok := v.(string); ok {
 				results = append(results, s)
 			}

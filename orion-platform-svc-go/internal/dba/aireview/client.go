@@ -38,11 +38,11 @@ func loadDefaultAIModel() string {
 
 // aiChatRequest mirrors the OpenAI-compatible chat completion body.
 type aiChatRequest struct {
-	Model       string       `json:"model"`
-	Messages    []aiMessage  `json:"messages"`
-	Temperature float64      `json:"temperature,omitempty"`
-	MaxTokens   int          `json:"max_tokens,omitempty"`
-	Stream      bool         `json:"stream"`
+	Model       string      `json:"model"`
+	Messages    []aiMessage `json:"messages"`
+	Temperature float64     `json:"temperature,omitempty"`
+	MaxTokens   int         `json:"max_tokens,omitempty"`
+	Stream      bool        `json:"stream"`
 }
 
 type aiMessage struct {
@@ -66,17 +66,17 @@ type aiChoice struct {
 // wider llm-provider stack. Wire it via NewAIClient(baseURL, apiKey, model);
 // pass empty baseURL/apiKey to disable the AI path entirely.
 type AIClient struct {
-	baseURL      string
-	apiKey       string
-	model        string
-	httpClient   *http.Client
-	timeout      time.Duration
-	maxTokens    int
-	temperature  float64
+	baseURL     string
+	apiKey      string
+	model       string
+	httpClient  *http.Client
+	timeout     time.Duration
+	maxTokens   int
+	temperature float64
 
-	mu             sync.Mutex
-	tenantCalls    map[string]int64
-	rateLimit      int
+	mu              sync.Mutex
+	tenantCalls     map[string]int64
+	rateLimit       int
 	lastSweepMinute int64 // epoch minute of the last stale-key cleanup
 }
 
@@ -194,7 +194,7 @@ func (c *AIClient) reviewWithTenant(ctx context.Context, prompt, tenantID string
 	defer cancel()
 
 	body := aiChatRequest{
-		Model:       c.model,
+		Model: c.model,
 		Messages: []aiMessage{
 			{Role: "user", Content: prompt},
 		},

@@ -337,19 +337,19 @@ func (s *Service) CheckQuotaWithPolicy(ctx context.Context, tenantID string, req
 	}
 
 	result := &models.CheckWithPolicyResult{
-		Metric:             req.Metric,
-		CurrentValue:       current,
-		ProjectedValue:     projected,
-		SoftLimit:          softLimit,
-		HardLimit:          hardLimit,
-		UsagePct:           usagePct,
-		OverLimitAction:    plan.OverLimitAction,
-		WarnThresholds:     plan.WarnThresholds,
-		WarnThresholdsHit:  computeThresholdHits(plan.WarnThresholds, projected, hardLimit),
-		PlanID:             plan.ID,
-		Allowed:            true,
-		Blocking:           false,
-		Warning:            make([]string, 0),
+		Metric:            req.Metric,
+		CurrentValue:      current,
+		ProjectedValue:    projected,
+		SoftLimit:         softLimit,
+		HardLimit:         hardLimit,
+		UsagePct:          usagePct,
+		OverLimitAction:   plan.OverLimitAction,
+		WarnThresholds:    plan.WarnThresholds,
+		WarnThresholdsHit: computeThresholdHits(plan.WarnThresholds, projected, hardLimit),
+		PlanID:            plan.ID,
+		Allowed:           true,
+		Blocking:          false,
+		Warning:           make([]string, 0),
 	}
 
 	// Hard-cap decision.

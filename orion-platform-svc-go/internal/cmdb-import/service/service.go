@@ -770,4 +770,3 @@ func validateMapping(rows []map[string]interface{}, mapping map[string]string) (
 	}
 	return hints, errs
 }
-

@@ -105,12 +105,12 @@ func TestPipelineExecutor_CRUD(t *testing.T) {
 	}
 
 	type Step struct {
-		ID        string `db:"id"`
+		ID         string `db:"id"`
 		PipelineID string `db:"pipeline_id"`
-		Name      string `db:"name"`
-		Type      string `db:"type"`
-		Order     int    `db:"order"`
-		Status    string `db:"status"`
+		Name       string `db:"name"`
+		Type       string `db:"type"`
+		Order      int    `db:"order"`
+		Status     string `db:"status"`
 	}
 	var stepsList []Step
 	err = db.SelectContext(ctx, &stepsList,
@@ -161,7 +161,9 @@ func TestPipelineExecutor_CRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("insert tenant-2: %v", err)
 	}
-	var t1pipes []struct{ TenantID string `db:"tenant_id"` }
+	var t1pipes []struct {
+		TenantID string `db:"tenant_id"`
+	}
 	db.SelectContext(ctx, &t1pipes, `SELECT tenant_id FROM pipelines WHERE tenant_id = $1`, "tenant-1")
 	if len(t1pipes) != 1 {
 		t.Errorf("tenant-1: expected 1 pipeline")
@@ -619,10 +621,10 @@ func TestDeveloperPortal_Access(t *testing.T) {
 	}
 
 	type Access struct {
-		ID      string `db:"id"`
+		ID       string `db:"id"`
 		PortalID string `db:"portal_id"`
-		UserID  string `db:"user_id"`
-		Role    string `db:"role"`
+		UserID   string `db:"user_id"`
+		Role     string `db:"role"`
 	}
 	var accesses []Access
 	err = db.SelectContext(ctx, &accesses,
@@ -712,7 +714,7 @@ func TestDigitalTwin_Snapshot(t *testing.T) {
 
 	// Take 3 snapshots at different times
 	for i := 0; i < 3; i++ {
-	 snapID := fmt.Sprintf("snap-%d", time.Now().UnixNano()+int64(i))
+		snapID := fmt.Sprintf("snap-%d", time.Now().UnixNano()+int64(i))
 		_, err = db.ExecContext(ctx,
 			`INSERT INTO digital_twin_snapshots (id, twin_id, tenant_id, serial, snapshot_data)
 			 VALUES ($1, $2, $3, $4, $5)`,
@@ -973,12 +975,12 @@ func TestTicketing_Workflow(t *testing.T) {
 	}
 
 	type Ticket struct {
-		ID       string `db:"id"`
-		TenantID string `db:"tenant_id"`
-		Title    string `db:"title"`
-		Status   string `db:"status"`
-		Priority string `db:"priority"`
-		Assignee string `db:"assignee"`
+		ID        string `db:"id"`
+		TenantID  string `db:"tenant_id"`
+		Title     string `db:"title"`
+		Status    string `db:"status"`
+		Priority  string `db:"priority"`
+		Assignee  string `db:"assignee"`
 		CreatedBy string `db:"created_by"`
 	}
 	var ticket Ticket
@@ -1023,11 +1025,11 @@ func TestTicketing_Workflow(t *testing.T) {
 
 	// List transitions
 	type Transition struct {
-		ID        string `db:"id"`
-		TicketID  string `db:"ticket_id"`
+		ID         string `db:"id"`
+		TicketID   string `db:"ticket_id"`
 		FromStatus string `db:"from_status"`
-		ToStatus  string `db:"to_status"`
-		Actor     string `db:"actor"`
+		ToStatus   string `db:"to_status"`
+		Actor      string `db:"actor"`
 	}
 	var trans []Transition
 	err = db.SelectContext(ctx, &trans,

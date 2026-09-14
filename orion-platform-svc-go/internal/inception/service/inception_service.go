@@ -34,7 +34,7 @@ type EngineClient interface {
 
 // Service provides business logic for the inception SQL audit engine.
 type Service struct {
-	repo  *repository.Repository
+	repo   *repository.Repository
 	client EngineClient // may be nil when no engine is wired
 }
 

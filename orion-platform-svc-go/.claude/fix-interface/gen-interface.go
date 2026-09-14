@@ -6,10 +6,10 @@ import (
 	"go/parser"
 	"go/token"
 	"log"
+	"orion/go-common/pkg/sentinel"
 	"os"
 	"regexp"
 	"strings"
-	"orion/go-common/pkg/sentinel"
 )
 
 func main() {

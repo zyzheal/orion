@@ -198,6 +198,6 @@ type SchemaVersion struct {
 }
 
 type VersionHistoryResponse struct {
-	Schema   string              `json:"schema"`
+	Schema   string           `json:"schema"`
 	Versions []*SchemaVersion `json:"versions"`
 }

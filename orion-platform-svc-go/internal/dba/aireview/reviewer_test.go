@@ -181,8 +181,8 @@ func TestComputeVerdictAllClean(t *testing.T) {
 
 func TestComputeVerdictWarnOnly(t *testing.T) {
 	local := &engine.AuditReport{
-		Passed: false,
-		Rules:  []engine.AuditResult{{Level: engine.LevelWarn, RuleID: "w"}},
+		Passed:   false,
+		Rules:    []engine.AuditResult{{Level: engine.LevelWarn, RuleID: "w"}},
 		ParsedOK: true,
 	}
 	v, s := computeVerdict(local, nil)

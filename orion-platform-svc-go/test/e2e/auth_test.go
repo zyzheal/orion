@@ -2,11 +2,13 @@
 // live Orion Platform Service instance.
 //
 // Run:
-//   go test ./test/e2e/... -v -run TestE2E
+//
+//	go test ./test/e2e/... -v -run TestE2E
 //
 // Skip (no server available):
-//   go test ./test/e2e/... -short
-//   go test ./test/e2e/... -v -run TestE2E -skip-short
+//
+//	go test ./test/e2e/... -short
+//	go test ./test/e2e/... -v -run TestE2E -skip-short
 //
 // Requirements:
 //   - A running Orion Platform Service at E2E_BASE_URL (default: localhost:8080)

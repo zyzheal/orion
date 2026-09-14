@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"orion/platform-svc-go/internal/visor-exec/models"
@@ -170,9 +171,21 @@ func (r *Repository) GetTemplateByID(ctx context.Context, tenantID, id string) (
 }
 
 func (r *Repository) UpdateTemplate(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
-	updates["updated_at"] = time.Now().UTC()
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE visor_exec_templates SET updated_at = NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	setClause, args, err := buildWhitelistedSET(updates, templateUpdatable)
+	if err != nil {
+		return fmt.Errorf("template %s: %w", id, err)
+	}
+	if setClause == "" {
+		return fmt.Errorf("template %s: no column to update", id)
+	}
+	args = append(args, id, tenantID)
+	// The SET clause used to be a constant "updated_at = NOW()", so PUT
+	// /templates/:id answered 200 and the service's follow-up read handed back
+	// the unchanged row: the only observable effect of an edit was a bumped
+	// timestamp.
+	query := fmt.Sprintf("UPDATE visor_exec_templates SET %s, updated_at = NOW() WHERE id = $%d AND tenant_id = $%d",
+		setClause, len(args)-1, len(args))
+	_, err = r.db.ExecContext(ctx, query, args...)
 	return err
 }
 

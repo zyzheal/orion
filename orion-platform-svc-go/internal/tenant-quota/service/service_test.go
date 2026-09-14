@@ -302,10 +302,10 @@ func TestTQ_CheckWithPolicy_UnderSoft(t *testing.T) {
 	svc := NewService(repo)
 
 	svc.CreatePlan(context.Background(), &models.CreatePlanRequest{
-		Name:          "test",
-		MaxUsers:      100,
-		SoftLimit:     80,
-		HardLimit:     100,
+		Name:            "test",
+		MaxUsers:        100,
+		SoftLimit:       80,
+		HardLimit:       100,
 		OverLimitAction: "block",
 	}, "t1")
 	repo.usages["t1/users"] = &models.QuotaUsage{TenantID: "t1", Metric: "users", CurrentValue: 10}
@@ -332,10 +332,10 @@ func TestTQ_CheckWithPolicy_BetweenSoftAndHard(t *testing.T) {
 	svc := NewService(repo)
 
 	svc.CreatePlan(context.Background(), &models.CreatePlanRequest{
-		Name:          "test",
-		MaxUsers:      100,
-		SoftLimit:     80,
-		HardLimit:     100,
+		Name:            "test",
+		MaxUsers:        100,
+		SoftLimit:       80,
+		HardLimit:       100,
 		OverLimitAction: "block",
 	}, "t1")
 	repo.usages["t1/users"] = &models.QuotaUsage{TenantID: "t1", Metric: "users", CurrentValue: 85}
@@ -359,10 +359,10 @@ func TestTQ_CheckWithPolicy_OverHard_Block(t *testing.T) {
 	svc := NewService(repo)
 
 	svc.CreatePlan(context.Background(), &models.CreatePlanRequest{
-		Name:          "test",
-		MaxUsers:      100,
-		SoftLimit:     80,
-		HardLimit:     100,
+		Name:            "test",
+		MaxUsers:        100,
+		SoftLimit:       80,
+		HardLimit:       100,
 		OverLimitAction: "block",
 	}, "t1")
 	repo.usages["t1/users"] = &models.QuotaUsage{TenantID: "t1", Metric: "users", CurrentValue: 90}
@@ -383,10 +383,10 @@ func TestTQ_CheckWithPolicy_OverHard_Warn(t *testing.T) {
 	svc := NewService(repo)
 
 	svc.CreatePlan(context.Background(), &models.CreatePlanRequest{
-		Name:          "test",
-		MaxUsers:      100,
-		SoftLimit:     80,
-		HardLimit:     100,
+		Name:            "test",
+		MaxUsers:        100,
+		SoftLimit:       80,
+		HardLimit:       100,
 		OverLimitAction: "warn",
 	}, "t1")
 	repo.usages["t1/users"] = &models.QuotaUsage{TenantID: "t1", Metric: "users", CurrentValue: 95}
@@ -410,10 +410,10 @@ func TestTQ_CheckWithPolicy_OverHard_Allow(t *testing.T) {
 	svc := NewService(repo)
 
 	svc.CreatePlan(context.Background(), &models.CreatePlanRequest{
-		Name:          "test",
-		MaxUsers:      100,
-		SoftLimit:     80,
-		HardLimit:     100,
+		Name:            "test",
+		MaxUsers:        100,
+		SoftLimit:       80,
+		HardLimit:       100,
 		OverLimitAction: "allow",
 	}, "t1")
 	repo.usages["t1/users"] = &models.QuotaUsage{TenantID: "t1", Metric: "users", CurrentValue: 95}
@@ -438,8 +438,8 @@ func TestTQ_CheckWithPolicy_DefaultSoftAt80PctOfHard(t *testing.T) {
 
 	// No SoftLimit set — should default to hard*0.8.
 	svc.CreatePlan(context.Background(), &models.CreatePlanRequest{
-		Name:          "test",
-		MaxUsers:      100,
+		Name:            "test",
+		MaxUsers:        100,
 		OverLimitAction: "block",
 	}, "t1")
 	repo.usages["t1/users"] = &models.QuotaUsage{TenantID: "t1", Metric: "users", CurrentValue: 10}
@@ -465,10 +465,10 @@ func TestTQ_CheckWithPolicy_PlanHardOverrideWinsOverMetricLimit(t *testing.T) {
 
 	// Plan hard limit 50 is lower than MaxUsers=100; 50 should win.
 	svc.CreatePlan(context.Background(), &models.CreatePlanRequest{
-		Name:          "test",
-		MaxUsers:      100,
-		SoftLimit:     40,
-		HardLimit:     50,
+		Name:            "test",
+		MaxUsers:        100,
+		SoftLimit:       40,
+		HardLimit:       50,
 		OverLimitAction: "block",
 	}, "t1")
 	repo.usages["t1/users"] = &models.QuotaUsage{TenantID: "t1", Metric: "users", CurrentValue: 45}
@@ -545,12 +545,12 @@ func TestTQ_CheckWithPolicy_WarnThresholdsHitMultiple(t *testing.T) {
 	svc := NewService(repo)
 
 	svc.CreatePlan(context.Background(), &models.CreatePlanRequest{
-		Name:          "test",
-		MaxUsers:      100,
-		SoftLimit:     80,
-		HardLimit:     100,
+		Name:            "test",
+		MaxUsers:        100,
+		SoftLimit:       80,
+		HardLimit:       100,
 		OverLimitAction: "block",
-		WarnThresholds: []int{50, 80, 95},
+		WarnThresholds:  []int{50, 80, 95},
 	}, "t1")
 	// 96 / 100 = 96% → crosses 50, 80, 95.
 	repo.usages["t1/users"] = &models.QuotaUsage{TenantID: "t1", Metric: "users", CurrentValue: 90}
@@ -577,12 +577,12 @@ func TestTQ_CheckWithPolicy_WarnThresholdsHitPartial(t *testing.T) {
 	svc := NewService(repo)
 
 	svc.CreatePlan(context.Background(), &models.CreatePlanRequest{
-		Name:          "test",
-		MaxUsers:      100,
-		SoftLimit:     80,
-		HardLimit:     100,
+		Name:            "test",
+		MaxUsers:        100,
+		SoftLimit:       80,
+		HardLimit:       100,
 		OverLimitAction: "block",
-		WarnThresholds: []int{50, 80, 95},
+		WarnThresholds:  []int{50, 80, 95},
 	}, "t1")
 	// 60 / 100 = 60% → only crosses 50.
 	repo.usages["t1/users"] = &models.QuotaUsage{TenantID: "t1", Metric: "users", CurrentValue: 55}
@@ -652,7 +652,7 @@ func TestTQ_CheckWithPolicy_UnknownMetricFallsThrough(t *testing.T) {
 	svc := NewService(repo)
 
 	svc.CreatePlan(context.Background(), &models.CreatePlanRequest{
-		Name:          "test",
+		Name:            "test",
 		OverLimitAction: "block",
 	}, "t1")
 	// metric "weird_metric" has no per-metric limit mapping → getLimitForMetric=0, no plan hard → no cap.

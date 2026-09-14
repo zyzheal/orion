@@ -343,14 +343,14 @@ func TestStatus_FromHTTPAPI(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"Running":       true,
-			"Completed":     false,
-			"Error":         false,
-			"total_rows":    1000,
-			"rows_copied":   500,
-			"lag":           123,
+			"Running":        true,
+			"Completed":      false,
+			"Error":          false,
+			"total_rows":     1000,
+			"rows_copied":    500,
+			"lag":            123,
 			"current_schema": "app",
-			"current_table": "orders",
+			"current_table":  "orders",
 		})
 	}))
 	defer server.Close()

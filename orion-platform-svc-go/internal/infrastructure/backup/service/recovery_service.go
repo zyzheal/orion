@@ -571,8 +571,6 @@ func (s *RecoveryService) resolveArchiveArtifact(ctx context.Context, rec *model
 	return localPath, cleanup, nil
 }
 
-
-
 // markFailed persists a failed status and returns the error the caller
 // should surface to the API. Both the DB and the API response show the
 // same reason so there is no drift.

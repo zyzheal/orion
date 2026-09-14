@@ -415,13 +415,13 @@ func TestAutoExecTask_CRUD(t *testing.T) {
 
 	// Get task
 	type Task struct {
-		ID      string `db:"id"`
+		ID       string `db:"id"`
 		TenantID string `db:"tenant_id"`
-		Name    string `db:"name"`
-		Type    string `db:"type"`
-		Plugin  string `db:"plugin"`
-		Status  string `db:"status"`
-		Timeout int    `db:"timeout"`
+		Name     string `db:"name"`
+		Type     string `db:"type"`
+		Plugin   string `db:"plugin"`
+		Status   string `db:"status"`
+		Timeout  int    `db:"timeout"`
 	}
 	var task Task
 	err = db.GetContext(ctx, &task, `SELECT * FROM execution_tasks WHERE id = $1`, taskID)
@@ -615,11 +615,11 @@ func TestJobActions_CRUD(t *testing.T) {
 	}
 
 	type Exec struct {
-		ID        string `db:"id"`
-		ActionID  string `db:"action_id"`
-		Status    string `db:"status"`
-		Output    string `db:"output"`
-		DurationMs int64 `db:"duration_ms"`
+		ID         string `db:"id"`
+		ActionID   string `db:"action_id"`
+		Status     string `db:"status"`
+		Output     string `db:"output"`
+		DurationMs int64  `db:"duration_ms"`
 	}
 	var exec Exec
 	err = db.GetContext(ctx, &exec, `SELECT * FROM job_action_executions WHERE id = $1`, execID)
@@ -725,12 +725,12 @@ func TestJobProcessor_Chain(t *testing.T) {
 	}
 
 	type Op struct {
-		ID     string `db:"id"`
+		ID      string `db:"id"`
 		ChainID string `db:"chain_id"`
-		Type   string `db:"type"`
-		Target string `db:"target"`
-		Status string `db:"status"`
-		Order  int    `db:"order"`
+		Type    string `db:"type"`
+		Target  string `db:"target"`
+		Status  string `db:"status"`
+		Order   int    `db:"order"`
 	}
 	var ops []Op
 	err = db.SelectContext(ctx, &ops, `SELECT * FROM job_operations WHERE chain_id = $1 ORDER BY "order"`, chainID)
@@ -776,7 +776,7 @@ func TestJobProcessor_Chain(t *testing.T) {
 		t.Fatalf("insert tenant-2 chain: %v", err)
 	}
 	var chains []struct {
-		ID    string `db:"id"`
+		ID       string `db:"id"`
 		TenantID string `db:"tenant_id"`
 	}
 	db.SelectContext(ctx, &chains, `SELECT id, tenant_id FROM job_operation_chains WHERE tenant_id = $1`, "tenant-2")

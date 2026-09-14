@@ -16,8 +16,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"go.uber.org/zap"
 	_ "github.com/go-sql-driver/mysql"
+	"go.uber.org/zap"
 )
 
 // DefaultGhOstBinary is the standard install location for gh-ost.
@@ -49,13 +49,13 @@ var registerSeq atomic.Int64
 
 // GhOstConfig is the runtime configuration of a single gh-ost invocation.
 type GhOstConfig struct {
-	Host      string
-	Port      int
-	User      string
-	Password  string
-	DBName    string
-	Table     string
-	AlterSQL  string
+	Host     string
+	Port     int
+	User     string
+	Password string
+	DBName   string
+	Table    string
+	AlterSQL string
 	// GhostTable is optional; gh-ost defaults to gho_<table>.
 	GhostTable string
 	// DryRun omits --execute; gh-ost prints the migration plan and exits.
@@ -82,32 +82,32 @@ type GhOstConfig struct {
 // All fields are pointers because gh-ost's JSON is deeply optional and we
 // want to distinguish "field absent" from "field is zero".
 type GhOstStatus struct {
-	Running        bool    `json:"Running"`
-	Error          bool    `json:"Error"`
-	Completed      bool    `json:"Completed"`
-	Progress       *int64  `json:"progress,omitempty"`
-	TotalRows      *int64  `json:"total_rows,omitempty"`
-	RowsCopied     *int64  `json:"rows_copied,omitempty"`
-	Lag            *int64  `json:"lag,omitempty"`
-	CPUUsage       *float64 `json:"cpu_usage,omitempty"`
-	CurrentSchema  *string `json:"current_schema,omitempty"`
-	CurrentTable   *string `json:"current_table,omitempty"`
-	CurrentTableRows *int64 `json:"current_table_rows,omitempty"`
+	Running          bool     `json:"Running"`
+	Error            bool     `json:"Error"`
+	Completed        bool     `json:"Completed"`
+	Progress         *int64   `json:"progress,omitempty"`
+	TotalRows        *int64   `json:"total_rows,omitempty"`
+	RowsCopied       *int64   `json:"rows_copied,omitempty"`
+	Lag              *int64   `json:"lag,omitempty"`
+	CPUUsage         *float64 `json:"cpu_usage,omitempty"`
+	CurrentSchema    *string  `json:"current_schema,omitempty"`
+	CurrentTable     *string  `json:"current_table,omitempty"`
+	CurrentTableRows *int64   `json:"current_table_rows,omitempty"`
 }
 
 // GhOstResult is the post-mortem payload of a Start() call. It is
 // intentionally flat (no gh-ost API data embedded) because the caller is
 // expected to persist it in dba_osc_jobs.
 type GhOstResult struct {
-	JobID      string
-	Success    bool
-	Lag        int64
-	Rows       int64
-	Duration   time.Duration
-	ExitCode   int
-	Error      string
-	Log        []string
-	StatusURL  string
+	JobID     string
+	Success   bool
+	Lag       int64
+	Rows      int64
+	Duration  time.Duration
+	ExitCode  int
+	Error     string
+	Log       []string
+	StatusURL string
 }
 
 // GhOstEngine launches gh-ost processes and talks to the local gh-ost
@@ -119,8 +119,8 @@ type GhOstEngine struct {
 	httpClient *http.Client
 	log        *zap.Logger
 
-	mu    sync.Mutex
-	runs  map[string]*runningJob
+	mu   sync.Mutex
+	runs map[string]*runningJob
 }
 
 // NewGhOstEngine constructs the engine. binaryPath may be empty to fall

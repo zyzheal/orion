@@ -185,8 +185,8 @@ type ComplianceDashboardOverview struct {
 // FrameworkScore is the per-framework roll-up surfaced on the dashboard.
 type FrameworkScore struct {
 	Framework      string  `json:"framework"`
-	Score          float64 `json:"score"`         // 0-100
-	Rating         string  `json:"rating"`        // compliant / partial / non-compliant
+	Score          float64 `json:"score"`  // 0-100
+	Rating         string  `json:"rating"` // compliant / partial / non-compliant
 	TotalControls  int     `json:"totalControls"`
 	PassedControls int     `json:"passedControls"`
 	FailedControls int     `json:"failedControls"`
@@ -196,10 +196,10 @@ type FrameworkScore struct {
 // of finding counts. Findings are derived from a single COMBINED report so
 // each control's findings are attributed to its own framework category.
 type ComplianceRiskMatrix struct {
-	FrameworkRows []FrameworkRiskRow `json:"frameworkRows"`
-	SeverityBuckets []string         `json:"severityBuckets"` // ordered low → critical
-	TotalFindings   int              `json:"totalFindings"`
-	AssessedAt      string           `json:"assessedAt"`
+	FrameworkRows   []FrameworkRiskRow `json:"frameworkRows"`
+	SeverityBuckets []string           `json:"severityBuckets"` // ordered low → critical
+	TotalFindings   int                `json:"totalFindings"`
+	AssessedAt      string             `json:"assessedAt"`
 }
 
 // FrameworkRiskRow holds the severity-bucket finding counts for one framework.

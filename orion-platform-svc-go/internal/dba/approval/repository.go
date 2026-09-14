@@ -74,11 +74,11 @@ func (r *Repository) CreateWorkflow(ctx context.Context, w *ApprovalWorkflow) er
 		 VALUES
 		   (:id, :tenant_id, :name, :steps, :enabled, :created_at, :updated_at)`,
 		struct {
-			ID        string `db:"id"`
-			TenantID  string `db:"tenant_id"`
-			Name      string `db:"name"`
-			Steps     string `db:"steps"`
-			Enabled   bool   `db:"enabled"`
+			ID        string    `db:"id"`
+			TenantID  string    `db:"tenant_id"`
+			Name      string    `db:"name"`
+			Steps     string    `db:"steps"`
+			Enabled   bool      `db:"enabled"`
 			CreatedAt time.Time `db:"created_at"`
 			UpdatedAt time.Time `db:"updated_at"`
 		}{w.ID, w.TenantID, w.Name, stepsJSON, w.Enabled, w.CreatedAt, w.UpdatedAt})
@@ -125,13 +125,13 @@ func (r *Repository) GetWorkflow(ctx context.Context, id string) (*ApprovalWorkf
 // created_at DESC so newest workflows appear first.
 func (r *Repository) ListWorkflows(ctx context.Context, tenantID string) ([]ApprovalWorkflow, error) {
 	type row struct {
-		ID        string      `db:"id"`
-		TenantID  string      `db:"tenant_id"`
-		Name      string      `db:"name"`
-		Steps     []byte      `db:"steps"`
-		Enabled   bool        `db:"enabled"`
-		CreatedAt time.Time   `db:"created_at"`
-		UpdatedAt time.Time   `db:"updated_at"`
+		ID        string    `db:"id"`
+		TenantID  string    `db:"tenant_id"`
+		Name      string    `db:"name"`
+		Steps     []byte    `db:"steps"`
+		Enabled   bool      `db:"enabled"`
+		CreatedAt time.Time `db:"created_at"`
+		UpdatedAt time.Time `db:"updated_at"`
 	}
 	var rows []row
 	err := r.db.SelectContext(ctx, &rows,
@@ -186,17 +186,17 @@ func (r *Repository) CreateInstance(ctx context.Context, inst *ApprovalInstance)
 		 VALUES
 		   (:id, :tenant_id, :order_id, :workflow_id, :workflow_name, :current_step, :status, :steps, :created_at, :updated_at, :finished_at)`,
 		struct {
-			ID           string       `db:"id"`
-			TenantID     string       `db:"tenant_id"`
-			OrderID      string       `db:"order_id"`
-			WorkflowID   string       `db:"workflow_id"`
-			WorkflowName string       `db:"workflow_name"`
-			CurrentStep  int          `db:"current_step"`
-			Status       string       `db:"status"`
-			Steps        string       `db:"steps"`
-			CreatedAt    time.Time    `db:"created_at"`
-			UpdatedAt    time.Time    `db:"updated_at"`
-			FinishedAt   interface{}  `db:"finished_at"`
+			ID           string      `db:"id"`
+			TenantID     string      `db:"tenant_id"`
+			OrderID      string      `db:"order_id"`
+			WorkflowID   string      `db:"workflow_id"`
+			WorkflowName string      `db:"workflow_name"`
+			CurrentStep  int         `db:"current_step"`
+			Status       string      `db:"status"`
+			Steps        string      `db:"steps"`
+			CreatedAt    time.Time   `db:"created_at"`
+			UpdatedAt    time.Time   `db:"updated_at"`
+			FinishedAt   interface{} `db:"finished_at"`
 		}{inst.ID, inst.TenantID, inst.OrderID, inst.WorkflowID,
 			inst.WorkflowName, inst.CurrentStep, inst.Status, stepsJSON,
 			inst.CreatedAt, inst.UpdatedAt, finAt})

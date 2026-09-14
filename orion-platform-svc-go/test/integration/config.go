@@ -3,9 +3,10 @@
 // Docker Compose or local PostgreSQL deployment.
 //
 // Usage:
-//   cd orion-platform-svc-go
-//   export ORION_TEST_DSN="postgres://user:pass@localhost:5432/orion_test?sslmode=disable"
-//   go test ./test/integration/... -v -run TestAuth
+//
+//	cd orion-platform-svc-go
+//	export ORION_TEST_DSN="postgres://user:pass@localhost:5432/orion_test?sslmode=disable"
+//	go test ./test/integration/... -v -run TestAuth
 //
 // Requirements:
 //   - A PostgreSQL instance reachable via ORION_TEST_DSN
@@ -13,9 +14,10 @@
 //   - Tables tested: users, refresh_tokens, pipelines, tenant_users
 //
 // Short mode:
-//   Use `testing.Short()` to skip tests when no DB is available:
-//     go test ./test/integration/... -short
-//   Tests gracefully skip when ORION_TEST_DSN is empty or DB is unreachable.
+//
+//	Use `testing.Short()` to skip tests when no DB is available:
+//	  go test ./test/integration/... -short
+//	Tests gracefully skip when ORION_TEST_DSN is empty or DB is unreachable.
 package integration
 
 import (

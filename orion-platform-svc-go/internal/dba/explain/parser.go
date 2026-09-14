@@ -20,13 +20,13 @@ type stackNode struct {
 // PG's plan output has three structural forms:
 //
 //  1. A single-line leaf:
-//         Seq Scan on orders (cost=...)
+//     Seq Scan on orders (cost=...)
 //
 //  2. A parent with indented children prefixed by "->":
-//         Hash Join (cost=...)
-//            ->  Seq Scan on orders
-//            ->  Hash
-//                  ->  Seq Scan on customers
+//     Hash Join (cost=...)
+//     ->  Seq Scan on orders
+//     ->  Hash
+//     ->  Seq Scan on customers
 //
 //  3. A parent followed by un-arrowed lines at the same indent
 //     (which are actually children — this is what PG emits for
@@ -194,11 +194,11 @@ func parseNodeLine(
 func ParseMySQL(raw string) ExplainNode {
 	var payload struct {
 		QueryBlock struct {
-			SelectID     int                 `json:"select_id"`
-			CostInfo     map[string]string   `json:"cost_info"`
-			Table        map[string]any      `json:"table"`
-			PruneCond    string              `json:"pruning_condition,omitempty"`
-			AttachedSubqueries []map[string]any `json:"attached_subqueries,omitempty"`
+			SelectID           int               `json:"select_id"`
+			CostInfo           map[string]string `json:"cost_info"`
+			Table              map[string]any    `json:"table"`
+			PruneCond          string            `json:"pruning_condition,omitempty"`
+			AttachedSubqueries []map[string]any  `json:"attached_subqueries,omitempty"`
 		} `json:"query_block"`
 		CostInfo map[string]string `json:"cost_info"`
 	}
@@ -272,9 +272,9 @@ func walk(node ExplainNode, out *[]Suggestion) {
 	}
 	if node.Cost != nil && node.Cost.Total > 10000 {
 		*out = append(*out, Suggestion{
-			Category:    "cost",
-			Severity:    "medium",
-			Title:       "总成本偏高",
+			Category: "cost",
+			Severity: "medium",
+			Title:    "总成本偏高",
 			Description: fmt.Sprintf("节点 %s 的总成本 %g 超过 10000，考虑改写或添加索引。",
 				node.NodeType, node.Cost.Total),
 			NodeID: node.NodeType,
@@ -282,9 +282,9 @@ func walk(node ExplainNode, out *[]Suggestion) {
 	}
 	if node.Rows != nil && *node.Rows > 1000000 {
 		*out = append(*out, Suggestion{
-			Category:    "rows",
-			Severity:    "high",
-			Title:       "扫描行数超过 100 万",
+			Category: "rows",
+			Severity: "high",
+			Title:    "扫描行数超过 100 万",
 			Description: fmt.Sprintf("节点 %s 预估扫描 %d 行，可能引发全表扫描。",
 				node.NodeType, *node.Rows),
 			NodeID: node.Relation,
@@ -300,7 +300,7 @@ func walk(node ExplainNode, out *[]Suggestion) {
 			Severity:    "medium",
 			Title:       "哈希连接构建大表",
 			Description: "哈希连接将大表放入内存构建哈希表，可能引发内存压力。考虑调整 join order 或添加索引以走 nested loop。",
-			NodeID: node.NodeType,
+			NodeID:      node.NodeType,
 		})
 	}
 	for _, c := range node.Children {

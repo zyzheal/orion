@@ -75,10 +75,10 @@ const ConcurrentExportLimit = 10
 // map — the SQL itself is stateless and executes against whatever
 // DataSource the caller picked.
 type Service struct {
-	repo      Repository
-	runner    QueryRunner
-	store     ExportStore
-	auditor   AuditChecker
+	repo    Repository
+	runner  QueryRunner
+	store   ExportStore
+	auditor AuditChecker
 	// jobs tracks in-flight export jobs. ExportResult is written
 	// exactly once per status transition; readers always see either
 	// pending/running or a terminal state, never a half-written
@@ -86,7 +86,7 @@ type Service struct {
 	jobs   map[string]*ExportResult
 	jobsMu sync.RWMutex
 	// running tracks per-tenant concurrent job count for rate limiting.
-	running map[string]int
+	running   map[string]int
 	runningMu sync.Mutex
 }
 
@@ -238,9 +238,9 @@ func (s *Service) ExecutePagedQuery(ctx context.Context, tenantID, userID string
 	}
 
 	result := &PagedQueryResult{
-		Columns: columns,
-		Rows:    out,
-		QueryMs: elapsed.Milliseconds(),
+		Columns:   columns,
+		Rows:      out,
+		QueryMs:   elapsed.Milliseconds(),
 		Truncated: truncated,
 	}
 	// Only offer a next page if we filled the current one AND the
@@ -592,12 +592,12 @@ func inferDataType(cols []string, _ int) string {
 // ---- exported sentinel errors ----
 
 var (
-	ErrQueryValidation    = errors.New("query validation failed")
-	ErrNoDataSource       = errors.New("data source not found")
-	ErrNoRunner           = errors.New("query runner not configured")
-	ErrAuditRejected      = errors.New("audit engine rejected the SQL")
+	ErrQueryValidation       = errors.New("query validation failed")
+	ErrNoDataSource          = errors.New("data source not found")
+	ErrNoRunner              = errors.New("query runner not configured")
+	ErrAuditRejected         = errors.New("audit engine rejected the SQL")
 	ErrConcurrentExportLimit = errors.New("concurrent export limit reached")
-	ErrJobNotFound        = errors.New("export job not found")
+	ErrJobNotFound           = errors.New("export job not found")
 )
 
 // DefaultQueryRunner is the production QueryRunner implementation.

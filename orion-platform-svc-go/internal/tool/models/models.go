@@ -138,7 +138,7 @@ type ToolStats struct {
 	TotalInvocations int64   `db:"total_invocations" json:"total_invocations"`
 	SuccessfulCalls  int64   `db:"successful_calls" json:"successful_calls"`
 	FailedCalls      int64   `db:"failed_calls" json:"failed_calls"`
-	SuccessRate      float64 `db:"success_rate" json:"success_rate"`    // 0.0 - 1.0
+	SuccessRate      float64 `db:"success_rate" json:"success_rate"`       // 0.0 - 1.0
 	AvgDurationMs    float64 `db:"avg_duration_ms" json:"avg_duration_ms"` // milliseconds
 	P95DurationMs    float64 `db:"p95_duration_ms" json:"p95_duration_ms"` // milliseconds
 	P99DurationMs    float64 `db:"p99_duration_ms" json:"p99_duration_ms"` // milliseconds

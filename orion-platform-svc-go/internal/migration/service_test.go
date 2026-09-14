@@ -58,15 +58,15 @@ func TestCreatePlan(t *testing.T) {
 		Name: "Test Migration",
 		Type: MigrationSchema,
 		Source: MigrationEndpoint{
-			Name: "source-db",
-			Host: "10.0.1.10",
-			Port: 5432,
+			Name:     "source-db",
+			Host:     "10.0.1.10",
+			Port:     5432,
 			Database: "prod_db",
 		},
 		Target: MigrationEndpoint{
-			Name: "target-db",
-			Host: "10.0.2.20",
-			Port: 5432,
+			Name:     "target-db",
+			Host:     "10.0.2.20",
+			Port:     5432,
 			Database: "new_db",
 		},
 		Direction: DirectionForward,
@@ -108,10 +108,10 @@ func TestCreatePlanDefaultBatchSize(t *testing.T) {
 	ctx := context.Background()
 
 	plan, err := svc.CreatePlan(ctx, CreatePlanInput{
-		Name: "Batch Test",
-		Type: MigrationSchema,
-		Source: MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
-		Target: MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
+		Name:      "Batch Test",
+		Type:      MigrationSchema,
+		Source:    MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
+		Target:    MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
 		Direction: DirectionForward,
 	})
 	if err != nil {
@@ -127,10 +127,10 @@ func TestGetPlan(t *testing.T) {
 	ctx := context.Background()
 
 	created, _ := svc.CreatePlan(ctx, CreatePlanInput{
-		Name: "GetPlan Test",
-		Type: MigrationSchema,
-		Source: MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
-		Target: MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
+		Name:      "GetPlan Test",
+		Type:      MigrationSchema,
+		Source:    MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
+		Target:    MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
 		Direction: DirectionForward,
 	})
 
@@ -158,17 +158,17 @@ func TestListPlans(t *testing.T) {
 	ctx := context.Background()
 
 	svc.CreatePlan(ctx, CreatePlanInput{
-		Name: "Plan 1",
-		Type: MigrationSchema,
-		Source: MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
-		Target: MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
+		Name:      "Plan 1",
+		Type:      MigrationSchema,
+		Source:    MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
+		Target:    MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
 		Direction: DirectionForward,
 	})
 	svc.CreatePlan(ctx, CreatePlanInput{
-		Name: "Plan 2",
-		Type: MigrationData,
-		Source: MigrationEndpoint{Host: "10.0.3.30", Port: 8080},
-		Target: MigrationEndpoint{Host: "10.0.4.40", Port: 8080},
+		Name:      "Plan 2",
+		Type:      MigrationData,
+		Source:    MigrationEndpoint{Host: "10.0.3.30", Port: 8080},
+		Target:    MigrationEndpoint{Host: "10.0.4.40", Port: 8080},
 		Direction: DirectionRollback,
 	})
 
@@ -186,10 +186,10 @@ func TestUpdatePlan(t *testing.T) {
 	ctx := context.Background()
 
 	created, _ := svc.CreatePlan(ctx, CreatePlanInput{
-		Name: "Update Test",
-		Type: MigrationSchema,
-		Source: MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
-		Target: MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
+		Name:      "Update Test",
+		Type:      MigrationSchema,
+		Source:    MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
+		Target:    MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
 		Direction: DirectionForward,
 		BatchSize: 100,
 	})
@@ -197,7 +197,7 @@ func TestUpdatePlan(t *testing.T) {
 	name := "Updated Name"
 	batch := 500
 	updated, err := svc.UpdatePlan(ctx, "", created.ID, UpdatePlanInput{
-		Name: &name,
+		Name:      &name,
 		BatchSize: &batch,
 	})
 	if err != nil {
@@ -216,10 +216,10 @@ func TestDeletePlan(t *testing.T) {
 	ctx := context.Background()
 
 	created, _ := svc.CreatePlan(ctx, CreatePlanInput{
-		Name: "Delete Test",
-		Type: MigrationSchema,
-		Source: MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
-		Target: MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
+		Name:      "Delete Test",
+		Type:      MigrationSchema,
+		Source:    MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
+		Target:    MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
 		Direction: DirectionForward,
 	})
 
@@ -238,10 +238,10 @@ func TestExecute(t *testing.T) {
 	ctx := context.Background()
 
 	plan, _ := svc.CreatePlan(ctx, CreatePlanInput{
-		Name: "Execute Test",
-		Type: MigrationSchema,
-		Source: MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
-		Target: MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
+		Name:      "Execute Test",
+		Type:      MigrationSchema,
+		Source:    MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
+		Target:    MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
 		Direction: DirectionForward,
 		SqlStatements: []string{
 			"CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)",
@@ -280,11 +280,11 @@ func TestExecuteAlreadyCompleted(t *testing.T) {
 	ctx := context.Background()
 
 	plan, _ := svc.CreatePlan(ctx, CreatePlanInput{
-		Name: "Already Completed",
-		Type: MigrationSchema,
-		Source: MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
-		Target: MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
-		Direction: DirectionForward,
+		Name:          "Already Completed",
+		Type:          MigrationSchema,
+		Source:        MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
+		Target:        MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
+		Direction:     DirectionForward,
 		SqlStatements: []string{"SELECT 1"},
 	})
 
@@ -301,11 +301,11 @@ func TestValidate(t *testing.T) {
 	ctx := context.Background()
 
 	plan, _ := svc.CreatePlan(ctx, CreatePlanInput{
-		Name: "Validate Test",
-		Type: MigrationSchema,
-		Source: MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
-		Target: MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
-		Direction: DirectionForward,
+		Name:          "Validate Test",
+		Type:          MigrationSchema,
+		Source:        MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
+		Target:        MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
+		Direction:     DirectionForward,
 		SqlStatements: []string{"CREATE TABLE test (id INT)"},
 	})
 
@@ -323,10 +323,10 @@ func TestValidateNoStatements(t *testing.T) {
 	ctx := context.Background()
 
 	plan, _ := svc.CreatePlan(ctx, CreatePlanInput{
-		Name: "Validate No SQL",
-		Type: MigrationSchema,
-		Source: MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
-		Target: MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
+		Name:      "Validate No SQL",
+		Type:      MigrationSchema,
+		Source:    MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
+		Target:    MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
 		Direction: DirectionForward,
 	})
 
@@ -344,11 +344,11 @@ func TestRollback(t *testing.T) {
 	ctx := context.Background()
 
 	plan, _ := svc.CreatePlan(ctx, CreatePlanInput{
-		Name: "Rollback Test",
-		Type: MigrationSchema,
-		Source: MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
-		Target: MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
-		Direction: DirectionForward,
+		Name:          "Rollback Test",
+		Type:          MigrationSchema,
+		Source:        MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
+		Target:        MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
+		Direction:     DirectionForward,
 		SqlStatements: []string{"CREATE TABLE test (id INT)"},
 	})
 
@@ -379,11 +379,11 @@ func TestRollbackNotCompleted(t *testing.T) {
 	ctx := context.Background()
 
 	plan, _ := svc.CreatePlan(ctx, CreatePlanInput{
-		Name: "Rollback Not Completed",
-		Type: MigrationSchema,
-		Source: MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
-		Target: MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
-		Direction: DirectionForward,
+		Name:          "Rollback Not Completed",
+		Type:          MigrationSchema,
+		Source:        MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
+		Target:        MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
+		Direction:     DirectionForward,
 		SqlStatements: []string{"SELECT 1"},
 	})
 
@@ -398,11 +398,11 @@ func TestSchemaDiff(t *testing.T) {
 	ctx := context.Background()
 
 	plan, _ := svc.CreatePlan(ctx, CreatePlanInput{
-		Name: "SchemaDiff Test",
-		Type: MigrationSchema,
-		Source: MigrationEndpoint{Name: "source-db", Host: "10.0.1.10", Port: 5432},
-		Target: MigrationEndpoint{Name: "target-db", Host: "10.0.2.20", Port: 5432},
-		Direction: DirectionForward,
+		Name:          "SchemaDiff Test",
+		Type:          MigrationSchema,
+		Source:        MigrationEndpoint{Name: "source-db", Host: "10.0.1.10", Port: 5432},
+		Target:        MigrationEndpoint{Name: "target-db", Host: "10.0.2.20", Port: 5432},
+		Direction:     DirectionForward,
 		SqlStatements: []string{"CREATE TABLE test (id INT)"},
 	})
 
@@ -426,10 +426,10 @@ func TestSchemaDiffRollback(t *testing.T) {
 	ctx := context.Background()
 
 	plan, _ := svc.CreatePlan(ctx, CreatePlanInput{
-		Name: "SchemaDiff Rollback",
-		Type: MigrationSchema,
-		Source: MigrationEndpoint{Name: "source-db", Host: "10.0.1.10", Port: 5432},
-		Target: MigrationEndpoint{Name: "target-db", Host: "10.0.2.20", Port: 5432},
+		Name:      "SchemaDiff Rollback",
+		Type:      MigrationSchema,
+		Source:    MigrationEndpoint{Name: "source-db", Host: "10.0.1.10", Port: 5432},
+		Target:    MigrationEndpoint{Name: "target-db", Host: "10.0.2.20", Port: 5432},
 		Direction: DirectionRollback,
 	})
 
@@ -447,11 +447,11 @@ func TestGetSteps(t *testing.T) {
 	ctx := context.Background()
 
 	plan, _ := svc.CreatePlan(ctx, CreatePlanInput{
-		Name: "Steps Test",
-		Type: MigrationSchema,
-		Source: MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
-		Target: MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
-		Direction: DirectionForward,
+		Name:          "Steps Test",
+		Type:          MigrationSchema,
+		Source:        MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
+		Target:        MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
+		Direction:     DirectionForward,
 		SqlStatements: []string{"SELECT 1", "SELECT 2"},
 	})
 
@@ -471,11 +471,11 @@ func TestGetStats(t *testing.T) {
 	ctx := context.Background()
 
 	svc.CreatePlan(ctx, CreatePlanInput{
-		Name: "Stats Plan 1",
-		Type: MigrationSchema,
-		Source: MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
-		Target: MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
-		Direction: DirectionForward,
+		Name:          "Stats Plan 1",
+		Type:          MigrationSchema,
+		Source:        MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
+		Target:        MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
+		Direction:     DirectionForward,
 		SqlStatements: []string{"SELECT 1"},
 	})
 
@@ -490,10 +490,10 @@ func TestGetPlanPhase(t *testing.T) {
 	ctx := context.Background()
 
 	plan, _ := svc.CreatePlan(ctx, CreatePlanInput{
-		Name: "Phase Test",
-		Type: MigrationSchema,
-		Source: MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
-		Target: MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
+		Name:      "Phase Test",
+		Type:      MigrationSchema,
+		Source:    MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
+		Target:    MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
 		Direction: DirectionForward,
 	})
 
@@ -511,11 +511,11 @@ func TestTenantIsolation(t *testing.T) {
 	ctx := context.Background()
 
 	svc.CreatePlan(ctx, CreatePlanInput{
-		TenantID: "tenant-a",
-		Name: "Tenant A Plan",
-		Type: MigrationSchema,
-		Source: MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
-		Target: MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
+		TenantID:  "tenant-a",
+		Name:      "Tenant A Plan",
+		Type:      MigrationSchema,
+		Source:    MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
+		Target:    MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
 		Direction: DirectionForward,
 	})
 
@@ -531,10 +531,10 @@ func TestExecuteWithNoStatements(t *testing.T) {
 	ctx := context.Background()
 
 	plan, _ := svc.CreatePlan(ctx, CreatePlanInput{
-		Name: "No Statements",
-		Type: MigrationSchema,
-		Source: MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
-		Target: MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
+		Name:      "No Statements",
+		Type:      MigrationSchema,
+		Source:    MigrationEndpoint{Host: "10.0.1.10", Port: 5432},
+		Target:    MigrationEndpoint{Host: "10.0.2.20", Port: 5432},
 		Direction: DirectionForward,
 	})
 

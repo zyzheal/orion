@@ -28,9 +28,9 @@ func TestBuildOracleEnv(t *testing.T) {
 // the artifact is addressed inside the Oracle DIRECTORY (= parent dir).
 func TestBuildOracleDumpArgs(t *testing.T) {
 	got := buildOracleDumpArgs(BackupOptions{
-		OutputPath:    "/tmp/backups/app.dmp",
-		Compression:   3,
-		Tables:        []string{"users"},
+		OutputPath:     "/tmp/backups/app.dmp",
+		Compression:    3,
+		Tables:         []string{"users"},
 		MaxRowsPerFile: 4,
 	}, ConnInfo{Host: "h", Port: "1521", DB: "orcl", User: "u"})
 	joined := strings.Join(got, " ")

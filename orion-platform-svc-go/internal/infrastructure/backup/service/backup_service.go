@@ -55,11 +55,11 @@ type BackupService struct {
 // SetStorageBackend after construction.
 func NewBackupService(repo *repository.BackupRepository, logger *zap.Logger) *BackupService {
 	svc := &BackupService{
-		repo:          repo,
-		logger:        logger,
-		execRegistry:  executor.NewRegistry(),
+		repo:            repo,
+		logger:          logger,
+		execRegistry:    executor.NewRegistry(),
 		storageBackends: map[string]storage.StorageBackend{},
-		baseBackupDir: "/var/backups/orion",
+		baseBackupDir:   "/var/backups/orion",
 	}
 	svc.scheduler = NewScheduler(svc, logger)
 	svc.verifier = NewVerifier(svc, logger)

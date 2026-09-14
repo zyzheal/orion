@@ -12,10 +12,10 @@ import (
 
 // Repository stores migration plans and steps in memory (phase 1).
 type Repository struct {
-	mu      sync.RWMutex
-	plans   map[string]*MigrationPlan
-	steps   map[string][]*MigrationStep // planID -> steps
-	rowLog  int64 // cumulative rows migrated
+	mu     sync.RWMutex
+	plans  map[string]*MigrationPlan
+	steps  map[string][]*MigrationStep // planID -> steps
+	rowLog int64                       // cumulative rows migrated
 }
 
 func NewRepository() *Repository {

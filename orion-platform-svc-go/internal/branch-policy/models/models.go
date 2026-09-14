@@ -141,15 +141,15 @@ type CreateBranchProfileRequest struct {
 // Pointers distinguish "not provided" from "empty value" so callers can clear
 // a field by sending an empty slice wrapped in a pointer.
 type UpdateBranchProfileRequest struct {
-	Name             *string        `json:"name"`
-	Description      *string        `json:"description"`
-	OwnerID          *string        `json:"ownerId"`
-	OwnerName        *string        `json:"ownerName"`
-	LTSUntil         *time.Time     `json:"ltsUntil"`
-	MergeTargets     *[]string      `json:"mergeTargets"`
-	MergeSources     *[]string      `json:"mergeSources"`
-	ProtectedEnvs    *[]string      `json:"protectedEnvs"`
-	AllowedPipelines *[]string      `json:"allowedPipelines"`
+	Name             *string    `json:"name"`
+	Description      *string    `json:"description"`
+	OwnerID          *string    `json:"ownerId"`
+	OwnerName        *string    `json:"ownerName"`
+	LTSUntil         *time.Time `json:"ltsUntil"`
+	MergeTargets     *[]string  `json:"mergeTargets"`
+	MergeSources     *[]string  `json:"mergeSources"`
+	ProtectedEnvs    *[]string  `json:"protectedEnvs"`
+	AllowedPipelines *[]string  `json:"allowedPipelines"`
 }
 
 // BranchProfileQuery filters the branch-profile list endpoint. Nil fields are
@@ -184,7 +184,7 @@ type BuildArtifact struct {
 	BranchProfileID   string              `json:"branchProfileId" db:"branch_profile_id"`
 	Branch            string              `json:"branch" db:"branch"`
 	CommitSHA         string              `json:"commitSha" db:"commit_sha"`
-	ImageDigest       string              `json:"imageDigest" db:"image_digest"`       // sha256:xxx
+	ImageDigest       string              `json:"imageDigest" db:"image_digest"` // sha256:xxx
 	ImageTag          string              `json:"imageTag" db:"image_tag"`
 	ImageRepo         string              `json:"imageRepo" db:"image_repo"`
 	BuildPipelineID   string              `json:"buildPipelineId" db:"build_pipeline_id"`
@@ -309,11 +309,11 @@ type NamespaceBindingQuery struct {
 
 // NamespaceValidationResult is the response for the validate action.
 type NamespaceValidationResult struct {
-	BranchProfileID string               `json:"branchProfileId"`
-	EnvName         string               `json:"envName"`
-	Valid           bool                 `json:"valid"`
-	Checks          []NamespaceCheck     `json:"checks"`
-	ValidatedAt     time.Time            `json:"validatedAt"`
+	BranchProfileID string           `json:"branchProfileId"`
+	EnvName         string           `json:"envName"`
+	Valid           bool             `json:"valid"`
+	Checks          []NamespaceCheck `json:"checks"`
+	ValidatedAt     time.Time        `json:"validatedAt"`
 }
 
 // NamespaceCheck is a single rule check result.
@@ -334,10 +334,10 @@ type BranchEnvMatrix struct {
 // the cell for that env; missing envs indicate the branch is not bound
 // to that environment (i.e. no NamespaceBinding exists).
 type MatrixRow struct {
-	BranchProfileID string               `json:"branchProfileId"`
-	BranchName      string               `json:"branchName"`
-	Semantic        string               `json:"semantic"`
-	Status          string               `json:"status"`
+	BranchProfileID string                `json:"branchProfileId"`
+	BranchName      string                `json:"branchName"`
+	Semantic        string                `json:"semantic"`
+	Status          string                `json:"status"`
 	Bindings        map[string]MatrixCell `json:"bindings"`
 }
 
@@ -454,24 +454,24 @@ const (
 // periodically synchronizes commits from a source branch to one or more
 // target branches. Enforced by wireSyncScheduler (5-min ticker).
 type SyncPolicy struct {
-	ID                   string          `json:"id" db:"id"`
-	TenantID             string          `json:"tenantId" db:"tenant_id"`
-	Name                 string          `json:"name" db:"name"`
-	SourceBranch         string          `json:"sourceBranch" db:"source_branch"`
-	TargetBranches       []string        `json:"targetBranches" db:"target_branches"`
-	Frequency            SyncFrequency   `json:"frequency" db:"frequency"`
-	CronExpr             string          `json:"cronExpr" db:"cron_expr"`
-	Strategy             SyncStrategy    `json:"strategy" db:"strategy"`
-	AutoResolve          SyncResolve     `json:"autoResolve" db:"auto_resolve"`
-	NotifyOnConflict     []string        `json:"notifyOnConflict" db:"notify_on_conflict"`
-	NotifyWebhook        string          `json:"notifyWebhook" db:"notify_webhook"`
-	Enabled              bool            `json:"enabled" db:"enabled"`
-	LastRunAt            *time.Time      `json:"lastRunAt" db:"last_run_at"`
-	LastRunStatus        *SyncRunStatus  `json:"lastRunStatus" db:"last_run_status"`
-	LastRunConflictFiles []string        `json:"lastRunConflictFiles" db:"last_run_conflict_files"`
-	ChangeManagementID   string          `json:"changeManagementId" db:"change_management_id"`
-	CreatedAt            time.Time       `json:"createdAt" db:"created_at"`
-	UpdatedAt            time.Time       `json:"updatedAt" db:"updated_at"`
+	ID                   string         `json:"id" db:"id"`
+	TenantID             string         `json:"tenantId" db:"tenant_id"`
+	Name                 string         `json:"name" db:"name"`
+	SourceBranch         string         `json:"sourceBranch" db:"source_branch"`
+	TargetBranches       []string       `json:"targetBranches" db:"target_branches"`
+	Frequency            SyncFrequency  `json:"frequency" db:"frequency"`
+	CronExpr             string         `json:"cronExpr" db:"cron_expr"`
+	Strategy             SyncStrategy   `json:"strategy" db:"strategy"`
+	AutoResolve          SyncResolve    `json:"autoResolve" db:"auto_resolve"`
+	NotifyOnConflict     []string       `json:"notifyOnConflict" db:"notify_on_conflict"`
+	NotifyWebhook        string         `json:"notifyWebhook" db:"notify_webhook"`
+	Enabled              bool           `json:"enabled" db:"enabled"`
+	LastRunAt            *time.Time     `json:"lastRunAt" db:"last_run_at"`
+	LastRunStatus        *SyncRunStatus `json:"lastRunStatus" db:"last_run_status"`
+	LastRunConflictFiles []string       `json:"lastRunConflictFiles" db:"last_run_conflict_files"`
+	ChangeManagementID   string         `json:"changeManagementId" db:"change_management_id"`
+	CreatedAt            time.Time      `json:"createdAt" db:"created_at"`
+	UpdatedAt            time.Time      `json:"updatedAt" db:"updated_at"`
 }
 
 // CreateSyncPolicyRequest is the POST body for sync policy creation.
@@ -494,43 +494,43 @@ type CreateSyncPolicyRequest struct {
 // UpdateSyncPolicyRequest is the PUT body for sync policy updates. All
 // fields are optional; only non-nil values are applied.
 type UpdateSyncPolicyRequest struct {
-	Name             *string       `json:"name"`
-	SourceBranch     *string       `json:"sourceBranch"`
-	TargetBranches   *[]string     `json:"targetBranches"`
+	Name             *string        `json:"name"`
+	SourceBranch     *string        `json:"sourceBranch"`
+	TargetBranches   *[]string      `json:"targetBranches"`
 	Frequency        *SyncFrequency `json:"frequency"`
-	CronExpr         *string       `json:"cronExpr"`
-	Strategy         *SyncStrategy `json:"strategy"`
-	AutoResolve      *SyncResolve  `json:"autoResolve"`
-	NotifyOnConflict *[]string     `json:"notifyOnConflict"`
-	NotifyWebhook    *string       `json:"notifyWebhook"`
-	Enabled          *bool         `json:"enabled"`
+	CronExpr         *string        `json:"cronExpr"`
+	Strategy         *SyncStrategy  `json:"strategy"`
+	AutoResolve      *SyncResolve   `json:"autoResolve"`
+	NotifyOnConflict *[]string      `json:"notifyOnConflict"`
+	NotifyWebhook    *string        `json:"notifyWebhook"`
+	Enabled          *bool          `json:"enabled"`
 }
 
 // SyncPolicyQuery filters the sync-policy list endpoint. Nil fields mean
 // "no filter".
 type SyncPolicyQuery struct {
-	Enabled      *bool            `json:"enabled"`
-	Frequency    *SyncFrequency   `json:"frequency"`
-	Strategy     *SyncStrategy    `json:"strategy"`
-	SourceBranch *string          `json:"sourceBranch"`
-	AutoResolve  *SyncResolve     `json:"autoResolve"`
+	Enabled      *bool          `json:"enabled"`
+	Frequency    *SyncFrequency `json:"frequency"`
+	Strategy     *SyncStrategy  `json:"strategy"`
+	SourceBranch *string        `json:"sourceBranch"`
+	AutoResolve  *SyncResolve   `json:"autoResolve"`
 }
 
 // SyncRunLog is a single execution of a SyncPolicy. It is immutable once
 // written (except DurationMs which is updated at completion).
 type SyncRunLog struct {
-	ID             string          `json:"id" db:"id"`
-	TenantID       string          `json:"tenantId" db:"tenant_id"`
-	PolicyID       string          `json:"policyId" db:"policy_id"`
-	TriggeredAt    time.Time       `json:"triggeredAt" db:"triggered_at"`
-	TriggeredBy    SyncTriggerBy   `json:"triggeredBy" db:"triggered_by"`
-	SourceCommit   string          `json:"sourceCommit" db:"source_commit"`
-	TargetBranches []string        `json:"targetBranches" db:"target_branches"`
-	Status         SyncRunStatus   `json:"status" db:"status"`
-	ConflictFiles  []string        `json:"conflictFiles" db:"conflict_files"`
-	ErrorMsg       string          `json:"errorMsg" db:"error_msg"`
-	DurationMs     int64           `json:"durationMs" db:"duration_ms"`
-	ChangeID       string          `json:"changeId" db:"change_id"`
+	ID             string        `json:"id" db:"id"`
+	TenantID       string        `json:"tenantId" db:"tenant_id"`
+	PolicyID       string        `json:"policyId" db:"policy_id"`
+	TriggeredAt    time.Time     `json:"triggeredAt" db:"triggered_at"`
+	TriggeredBy    SyncTriggerBy `json:"triggeredBy" db:"triggered_by"`
+	SourceCommit   string        `json:"sourceCommit" db:"source_commit"`
+	TargetBranches []string      `json:"targetBranches" db:"target_branches"`
+	Status         SyncRunStatus `json:"status" db:"status"`
+	ConflictFiles  []string      `json:"conflictFiles" db:"conflict_files"`
+	ErrorMsg       string        `json:"errorMsg" db:"error_msg"`
+	DurationMs     int64         `json:"durationMs" db:"duration_ms"`
+	ChangeID       string        `json:"changeId" db:"change_id"`
 }
 
 // SyncRunLogQuery filters the run-logs list endpoint.
@@ -547,11 +547,11 @@ type SyncRunLogQuery struct {
 // service layer blocks the run and returns status=conflict without
 // persisting any ChangeManagement side-effect (other than the SyncRunLog).
 type SyncRunResult struct {
-	TargetBranch   string
-	Applied        bool
-	ConflictFiles  []string
-	Error          string
-	NewCommitSHA   string
+	TargetBranch  string
+	Applied       bool
+	ConflictFiles []string
+	Error         string
+	NewCommitSHA  string
 }
 
 // ============================================================================
@@ -648,14 +648,14 @@ type CreateDeployEventRequest struct {
 // DeployEventQuery filters the deploy-events list endpoint. Nil fields
 // mean "no filter"; Limit is capped at 1000 by the service layer.
 type DeployEventQuery struct {
-	Branch     *string         `json:"branch"`
-	Env        *string         `json:"env"`
-	ActorID    *string         `json:"actorId"`
-	ApprovalID *string         `json:"approvalId"`
-	Outcome    *DeployOutcome  `json:"outcome"`
-	From       *time.Time      `json:"from"`
-	To         *time.Time      `json:"to"`
-	Limit      int             `json:"limit"`
+	Branch     *string        `json:"branch"`
+	Env        *string        `json:"env"`
+	ActorID    *string        `json:"actorId"`
+	ApprovalID *string        `json:"approvalId"`
+	Outcome    *DeployOutcome `json:"outcome"`
+	From       *time.Time     `json:"from"`
+	To         *time.Time     `json:"to"`
+	Limit      int            `json:"limit"`
 }
 
 // DeployMetrics is the payload for UpdateMetrics. All fields are optional —
@@ -716,8 +716,8 @@ const (
 // GateRuleResult is the outcome of a single PreDeployGate rule (R1-R6).
 // Severity "blocking" rules populate result.Blocked when they fail.
 type GateRuleResult struct {
-	RuleID   string       `json:"ruleId"`   // R1-R6
-	Name     string       `json:"name"`     // e.g. "Branch-Env 匹配"
+	RuleID   string       `json:"ruleId"` // R1-R6
+	Name     string       `json:"name"`   // e.g. "Branch-Env 匹配"
 	Passed   bool         `json:"passed"`
 	Detail   string       `json:"detail"`
 	Severity GateSeverity `json:"severity"`

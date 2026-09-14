@@ -175,7 +175,7 @@ func TestToolUpdateIsTenantScopedAndIncludesWhereTenant(t *testing.T) {
 
 func TestToolGetCategoriesIsTenantScoped(t *testing.T) {
 	repo, mock := newToolMock(t)
-	mock.ExpectQuery(`SELECT `+categoryCols+` FROM tool_categories WHERE tenant_id=$1 ORDER BY sort_order`).
+	mock.ExpectQuery(`SELECT ` + categoryCols + ` FROM tool_categories WHERE tenant_id=$1 ORDER BY sort_order`).
 		WithArgs(testTenant).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "tenant_id", "name", "display_name", "description", "icon", "sort_order", "created_at"}).
 			AddRow(testCatID, testTenant, "ci", "CI/CD", "cicd", "icon", 1, time.Now()))

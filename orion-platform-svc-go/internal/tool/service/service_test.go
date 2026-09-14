@@ -48,9 +48,9 @@ type fakeToolRepo struct {
 	found        []models.Tool
 	searchErr    error
 
-	createCalls int
+	createCalls  int
 	createTenant string
-	created     *models.Tool
+	created      *models.Tool
 
 	getCalls  int
 	getTenant string
@@ -114,10 +114,10 @@ func (f *fakeToolRepo) Search(_ context.Context, tenantID, query string, limit i
 }
 
 type fakeInvRepo struct {
-	createCalls int
+	createCalls  int
 	createTenant string
-	createdID   string
-	createErr   error
+	createdID    string
+	createErr    error
 
 	detailTenant string
 	detailID     string
@@ -153,7 +153,9 @@ func (f *fakeInvRepo) ListByTool(_ context.Context, tenantID, toolID string, lim
 	return f.list, f.listErr
 }
 
-func (f *fakeInvRepo) CountByTool(_ context.Context, tenantID, toolID string) (int, error) { return 0, nil }
+func (f *fakeInvRepo) CountByTool(_ context.Context, tenantID, toolID string) (int, error) {
+	return 0, nil
+}
 
 func (f *fakeInvRepo) StatsByPeriod(_ context.Context, tenantID, period string) (*models.ToolStats, error) {
 	return &models.ToolStats{}, nil
@@ -168,11 +170,11 @@ func (f *fakeInvRepo) TopToolsByInvocations(_ context.Context, tenantID string, 
 }
 
 type fakeVerRepo struct {
-	createCalls int
+	createCalls  int
 	createTenant string
 	createToolID string
-	versions    []models.ToolVersion
-	listErr     error
+	versions     []models.ToolVersion
+	listErr      error
 }
 
 func (f *fakeVerRepo) Create(_ context.Context, v *models.ToolVersion) error {
@@ -191,11 +193,11 @@ func (f *fakeVerRepo) ListByTool(_ context.Context, toolID string) ([]models.Too
 // It is driven separately from the repository fakes: an endpoint invocation
 // happens inside InvokeTool, and the test asserts on what the endpoint saw.
 type fakeToolServer struct {
-	srv         *httptest.Server
-	gotBody     string
-	gotAuth     string
-	gotMethod   string
-	statusCode  int
+	srv        *httptest.Server
+	gotBody    string
+	gotAuth    string
+	gotMethod  string
+	statusCode int
 }
 
 func (s *fakeToolServer) start(t *testing.T) {
@@ -251,8 +253,8 @@ func TestCreateRejectsDuplicateNameWithinTenant(t *testing.T) {
 
 func TestGetTenantScopedLookup(t *testing.T) {
 	svc := &ToolService{
-		toolRepo:    &fakeToolRepo{get: &models.Tool{ID: toolID, TenantID: toolTenantA, Name: "tool-a"}},
-		invRepo:     &fakeInvRepo{}, versionRepo: &fakeVerRepo{},
+		toolRepo: &fakeToolRepo{get: &models.Tool{ID: toolID, TenantID: toolTenantA, Name: "tool-a"}},
+		invRepo:  &fakeInvRepo{}, versionRepo: &fakeVerRepo{},
 	}
 	got, err := svc.Get(context.Background(), toolTenantA, toolID)
 	if err != nil {
@@ -328,8 +330,8 @@ func TestInvokeToolSendsNoAuthWhenNoneConfigured(t *testing.T) {
 	srv := &fakeToolServer{statusCode: http.StatusOK}
 	srv.start(t)
 	svc := &ToolService{
-		toolRepo:    &fakeToolRepo{get: &models.Tool{ID: toolID, TenantID: toolTenantA, Name: "tool-a", Status: "active", Version: "1.0", Endpoint: srv.url(), AuthType: "none"}},
-		invRepo:     &fakeInvRepo{}, versionRepo: &fakeVerRepo{},
+		toolRepo: &fakeToolRepo{get: &models.Tool{ID: toolID, TenantID: toolTenantA, Name: "tool-a", Status: "active", Version: "1.0", Endpoint: srv.url(), AuthType: "none"}},
+		invRepo:  &fakeInvRepo{}, versionRepo: &fakeVerRepo{},
 	}
 	if _, err := svc.InvokeTool(context.Background(), toolTenantA, "u-1", toolID, "", models.InvokeToolRequest{Input: "{}"}); err != nil {
 		t.Fatalf("InvokeTool() error = %v", err)
@@ -344,8 +346,8 @@ func TestInvokeToolRecordsErrorStateOnEndpointFailure(t *testing.T) {
 	srv.start(t)
 	invRepo := &fakeInvRepo{}
 	svc := &ToolService{
-		toolRepo:    &fakeToolRepo{get: &models.Tool{ID: toolID, TenantID: toolTenantA, Name: "tool-a", Status: "active", Endpoint: srv.url()}},
-		invRepo:     invRepo, versionRepo: &fakeVerRepo{},
+		toolRepo: &fakeToolRepo{get: &models.Tool{ID: toolID, TenantID: toolTenantA, Name: "tool-a", Status: "active", Endpoint: srv.url()}},
+		invRepo:  invRepo, versionRepo: &fakeVerRepo{},
 	}
 	inv, err := svc.InvokeTool(context.Background(), toolTenantA, "u-1", toolID, "", models.InvokeToolRequest{Input: "{}"})
 	if err != nil {
@@ -362,8 +364,8 @@ func TestInvokeToolRecordsErrorStateOnEndpointFailure(t *testing.T) {
 func TestInvokeToolWithoutEndpointSkipsCall(t *testing.T) {
 	invRepo := &fakeInvRepo{}
 	svc := &ToolService{
-		toolRepo:    &fakeToolRepo{get: &models.Tool{ID: toolID, TenantID: toolTenantA, Name: "tool-a", Status: "active"}},
-		invRepo:     invRepo, versionRepo: &fakeVerRepo{},
+		toolRepo: &fakeToolRepo{get: &models.Tool{ID: toolID, TenantID: toolTenantA, Name: "tool-a", Status: "active"}},
+		invRepo:  invRepo, versionRepo: &fakeVerRepo{},
 	}
 	inv, err := svc.InvokeTool(context.Background(), toolTenantA, "u-1", toolID, "", models.InvokeToolRequest{Input: "{}"})
 	if err != nil {
@@ -408,8 +410,8 @@ func TestGetInvocationDetailSurfacesRepoErrors(t *testing.T) {
 func TestGetVersionsResolvesTenantFirst(t *testing.T) {
 	verRepo := &fakeVerRepo{versions: []models.ToolVersion{{ID: versionID, ToolID: toolID, Version: "1.0"}}}
 	svc := &ToolService{
-		toolRepo:    &fakeToolRepo{get: &models.Tool{ID: toolID, TenantID: toolTenantA, Name: "tool-a"}},
-		invRepo:     &fakeInvRepo{}, versionRepo: verRepo,
+		toolRepo: &fakeToolRepo{get: &models.Tool{ID: toolID, TenantID: toolTenantA, Name: "tool-a"}},
+		invRepo:  &fakeInvRepo{}, versionRepo: verRepo,
 	}
 	versions, err := svc.GetVersions(context.Background(), toolTenantA, toolID)
 	if err != nil {
@@ -441,8 +443,8 @@ func TestUUIDShapedIDsAreNotParsedToIntegers(t *testing.T) {
 	// real UUID-shaped id was rejected before it ever reached the repository.
 	// The tool service takes ids as strings and passes them through untouched.
 	svc := &ToolService{
-		toolRepo:    &fakeToolRepo{get: &models.Tool{ID: toolID, TenantID: toolTenantA, Name: "tool-a"}},
-		invRepo:     &fakeInvRepo{}, versionRepo: &fakeVerRepo{},
+		toolRepo: &fakeToolRepo{get: &models.Tool{ID: toolID, TenantID: toolTenantA, Name: "tool-a"}},
+		invRepo:  &fakeInvRepo{}, versionRepo: &fakeVerRepo{},
 	}
 	if _, err := svc.Get(context.Background(), toolTenantA, toolID); err != nil {
 		t.Fatalf("Get() with a UUID id = %v, want no parsing error", err)

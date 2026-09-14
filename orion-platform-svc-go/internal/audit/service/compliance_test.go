@@ -727,11 +727,11 @@ func TestDashboardOverview_AllFiveFrameworks(t *testing.T) {
 	}
 	// Each framework should have a well-known totalControls count.
 	wantCounts := map[string]int{
-		"SOC2":    6,
+		"SOC2":     6,
 		"ISO27001": 13,
-		"PCI-DSS": 36,
-		"MLPS2":   21,
-		"PDPA":    12,
+		"PCI-DSS":  36,
+		"MLPS2":    21,
+		"PDPA":     12,
 	}
 	byFw := make(map[string]models.FrameworkScore, len(ov.FrameworkScores))
 	for _, s := range ov.FrameworkScores {

@@ -309,11 +309,11 @@ func TestPromptSecurity_Config(t *testing.T) {
 	}
 
 	type Scan struct {
-		TenantID   string  `db:"tenant_id"`
-		Prompt     string  `db:"prompt_preview"`
-		Score      float64 `db:"score"`
-		IsSafe     bool    `db:"is_safe"`
-		Severity   int     `db:"severity"`
+		TenantID string  `db:"tenant_id"`
+		Prompt   string  `db:"prompt_preview"`
+		Score    float64 `db:"score"`
+		IsSafe   bool    `db:"is_safe"`
+		Severity int     `db:"severity"`
 	}
 	var scans []Scan
 	err = db.SelectContext(ctx, &scans,
@@ -424,9 +424,9 @@ func TestGlobalSearch_Config(t *testing.T) {
 	}
 
 	type GSS struct {
-		Module    string `db:"module"`
-		DocCount  int64  `db:"doc_count"`
-		Healthy   bool   `db:"healthy"`
+		Module   string `db:"module"`
+		DocCount int64  `db:"doc_count"`
+		Healthy  bool   `db:"healthy"`
 	}
 	var status GSS
 	err = db.GetContext(ctx, &status, `SELECT * FROM global_search_statuses WHERE module = $1`, "pipeline")
@@ -663,9 +663,9 @@ func TestIAC_Workspace(t *testing.T) {
 	}
 
 	type StateVersion struct {
-		ID        string `db:"id"`
+		ID          string `db:"id"`
 		WorkspaceID string `db:"workspace_id"`
-		Serial    int    `db:"serial"`
+		Serial      int    `db:"serial"`
 	}
 	var sv StateVersion
 	err = db.GetContext(ctx, &sv, `SELECT * FROM iac_state_versions WHERE id = $1`, stateID)
@@ -687,12 +687,12 @@ func TestIAC_Workspace(t *testing.T) {
 	}
 
 	type Resource struct {
-		ID        string `db:"id"`
+		ID          string `db:"id"`
 		WorkspaceID string `db:"workspace_id"`
-		Type      string `db:"type"`
-		Name      string `db:"name"`
-		Provider  string `db:"provider"`
-		Status    string `db:"status"`
+		Type        string `db:"type"`
+		Name        string `db:"name"`
+		Provider    string `db:"provider"`
+		Status      string `db:"status"`
 	}
 	var res Resource
 	err = db.GetContext(ctx, &res, `SELECT * FROM iac_resources WHERE id = $1`, resID)
@@ -783,12 +783,12 @@ func TestChatOps_Session(t *testing.T) {
 	}
 
 	type Cmd struct {
-		ID       string `db:"id"`
+		ID        string `db:"id"`
 		SessionID string `db:"session_id"`
-		Command  string `db:"command"`
-		Args     string `db:"arguments"`
-		Status   string `db:"status"`
-		Output   string `db:"output"`
+		Command   string `db:"command"`
+		Args      string `db:"arguments"`
+		Status    string `db:"status"`
+		Output    string `db:"output"`
 	}
 	var cmd Cmd
 	err = db.GetContext(ctx, &cmd, `SELECT * FROM chatops_commands WHERE id = $1`, cmdID)

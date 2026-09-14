@@ -373,18 +373,18 @@ func (f *fakeHandlerService) CreateSyncPolicy(ctx context.Context, tenantID stri
 		enabled = *req.Enabled
 	}
 	return &models.SyncPolicy{
-		ID:             "sp-test",
-		TenantID:       tenantID,
-		Name:           req.Name,
-		SourceBranch:   req.SourceBranch,
-		TargetBranches: req.TargetBranches,
-		Frequency:      req.Frequency,
-		CronExpr:       req.CronExpr,
-		Strategy:       req.Strategy,
-		AutoResolve:    req.AutoResolve,
+		ID:               "sp-test",
+		TenantID:         tenantID,
+		Name:             req.Name,
+		SourceBranch:     req.SourceBranch,
+		TargetBranches:   req.TargetBranches,
+		Frequency:        req.Frequency,
+		CronExpr:         req.CronExpr,
+		Strategy:         req.Strategy,
+		AutoResolve:      req.AutoResolve,
 		NotifyOnConflict: req.NotifyOnConflict,
-		NotifyWebhook:  req.NotifyWebhook,
-		Enabled:        enabled,
+		NotifyWebhook:    req.NotifyWebhook,
+		Enabled:          enabled,
 	}, nil
 }
 
@@ -425,20 +425,20 @@ func (f *fakeHandlerService) GetEnabledPolicies(ctx context.Context, tenantID st
 // P0-MB Phase 4 stubs — L5 DeployEvent + one-click rollback + AuditTrail.
 func (f *fakeHandlerService) CreateDeployEvent(ctx context.Context, tenantID string, req *models.CreateDeployEventRequest) (*models.DeployEvent, error) {
 	return &models.DeployEvent{
-		ID:           "de-test",
-		TenantID:     tenantID,
-		ActorID:      req.ActorID,
-		ActorName:    req.ActorName,
-		Branch:       req.Branch,
-		Env:          req.Env,
-		FromCommit:   req.FromCommit,
-		ToCommit:     req.ToCommit,
-		ArtifactID:   req.ArtifactID,
-		ImageDigest:  req.ImageDigest,
-		ApprovalID:   req.ApprovalID,
-		Outcome:      req.Outcome,
-		StartedAt:    time.Now(),
-		CreatedAt:    time.Now(),
+		ID:          "de-test",
+		TenantID:    tenantID,
+		ActorID:     req.ActorID,
+		ActorName:   req.ActorName,
+		Branch:      req.Branch,
+		Env:         req.Env,
+		FromCommit:  req.FromCommit,
+		ToCommit:    req.ToCommit,
+		ArtifactID:  req.ArtifactID,
+		ImageDigest: req.ImageDigest,
+		ApprovalID:  req.ApprovalID,
+		Outcome:     req.Outcome,
+		StartedAt:   time.Now(),
+		CreatedAt:   time.Now(),
 	}, nil
 }
 
@@ -1069,10 +1069,10 @@ func TestBRANCH_POLICY_Handler_ListBranchProfiles(t *testing.T) {
 
 func TestBRANCH_POLICY_Handler_CreateBranchProfile(t *testing.T) {
 	body := map[string]any{
-		"repoId":   "repo-1",
-		"name":     "release/enterprise-2026",
-		"semantic": "release",
-		"ownerId":  "owner-1",
+		"repoId":       "repo-1",
+		"name":         "release/enterprise-2026",
+		"semantic":     "release",
+		"ownerId":      "owner-1",
 		"mergeTargets": []string{"main"},
 	}
 	c, w := makeCtx(http.MethodPost, "/branch-profiles", body, nil)
@@ -1355,11 +1355,11 @@ func TestBRANCH_POLICY_Handler_ListSyncRunLogs_All(t *testing.T) {
 
 func TestBRANCH_POLICY_Handler_CreateDeployEvent(t *testing.T) {
 	body := map[string]any{
-		"actorId":   "actor-1",
-		"branch":    "main",
-		"env":       "prod",
+		"actorId":    "actor-1",
+		"branch":     "main",
+		"env":        "prod",
 		"fromCommit": "abcdef0123456789",
-		"toCommit":  "1234567abcdef0123",
+		"toCommit":   "1234567abcdef0123",
 	}
 	c, w := makeCtx(http.MethodPost, "/deploy-events", body, nil)
 	newHandler().CreateDeployEvent(c)

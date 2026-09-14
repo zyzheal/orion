@@ -41,7 +41,7 @@ const (
 	aeadHeaderLen    = 5          // magic(4) + version(1)
 	aeadFrameHdrLen  = 4          // uint32 BE chunk length preceding a frame
 	aeadMaxCipherLen = aeadChunkSize + aeadTagOverhead
-	aeadMaxKeyIDLen  = 255        // 1-byte length prefix => max 255-byte key ids
+	aeadMaxKeyIDLen  = 255 // 1-byte length prefix => max 255-byte key ids
 
 	// defaultKeyID is the id recorded by the raw-key EncryptFile path. It is
 	// resolved through the provider on decrypt so old default-keyed artifacts

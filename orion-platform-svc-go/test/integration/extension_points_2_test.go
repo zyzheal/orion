@@ -65,13 +65,13 @@ func TestAlertPipeline_Result(t *testing.T) {
 	}
 
 	type Result struct {
-		ID       string `db:"id"`
-		TenantID string `db:"tenant_id"`
-		AlertID  string `db:"alert_id"`
+		ID        string `db:"id"`
+		TenantID  string `db:"tenant_id"`
+		AlertID   string `db:"alert_id"`
 		AlertName string `db:"alert_name"`
-		Severity string `db:"severity"`
-		Stages   []byte `db:"stages"`
-		Status   string `db:"status"`
+		Severity  string `db:"severity"`
+		Stages    []byte `db:"stages"`
+		Status    string `db:"status"`
 	}
 	var r Result
 	err = db.GetContext(ctx, &r, `SELECT * FROM alert_pipeline_results WHERE id = $1`, resultID)
@@ -196,11 +196,11 @@ func TestDomainCQRS_EventSourcing(t *testing.T) {
 
 	// Verify aggregate state
 	type Agg struct {
-		ID           string `db:"id"`
+		ID            string `db:"id"`
 		AggregateType string `db:"aggregate_type"`
-		AggregateID  string `db:"aggregate_id"`
-		Version      int    `db:"version"`
-		State        []byte `db:"state"`
+		AggregateID   string `db:"aggregate_id"`
+		Version       int    `db:"version"`
+		State         []byte `db:"state"`
 	}
 	var agg Agg
 	err = db.GetContext(ctx, &agg,
@@ -387,7 +387,9 @@ func TestWorkerDispatcher_Worker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("insert tenant-2: %v", err)
 	}
-	var tenants []struct{ TenantID string `db:"tenant_id"` }
+	var tenants []struct {
+		TenantID string `db:"tenant_id"`
+	}
 	db.SelectContext(ctx, &tenants, `SELECT tenant_id FROM workers WHERE tenant_id = $1`, "tenant-2")
 	if len(tenants) != 1 {
 		t.Errorf("tenant-2: expected 1 worker")
@@ -464,13 +466,13 @@ func TestCMDBImport_Job(t *testing.T) {
 	}
 
 	type Job struct {
-		ID             string `db:"id"`
-		TenantID       string `db:"tenant_id"`
-		Name           string `db:"name"`
-		Source         string `db:"source"`
-		Status         string `db:"status"`
-		TotalRecords   int    `db:"total_records"`
-		ImportedRecords int   `db:"imported_records"`
+		ID              string `db:"id"`
+		TenantID        string `db:"tenant_id"`
+		Name            string `db:"name"`
+		Source          string `db:"source"`
+		Status          string `db:"status"`
+		TotalRecords    int    `db:"total_records"`
+		ImportedRecords int    `db:"imported_records"`
 	}
 	var job Job
 	err = db.GetContext(ctx, &job, `SELECT * FROM cmdb_import_jobs WHERE id = $1`, jobID)
@@ -617,12 +619,12 @@ func TestCMDBCollector_Collector(t *testing.T) {
 	}
 
 	type Target struct {
-		ID         string `db:"id"`
+		ID          string `db:"id"`
 		CollectorID string `db:"collector_id"`
-		TargetType string `db:"target_type"`
-		TargetName string `db:"target_name"`
-		Endpoint   string `db:"endpoint"`
-		Status     string `db:"status"`
+		TargetType  string `db:"target_type"`
+		TargetName  string `db:"target_name"`
+		Endpoint    string `db:"endpoint"`
+		Status      string `db:"status"`
 	}
 	var targets []Target
 	err = db.SelectContext(ctx, &targets,
@@ -748,7 +750,9 @@ func TestProductLine_CRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("insert tenant-2: %v", err)
 	}
-	var plTenant1 []struct{ TenantID string `db:"tenant_id"` }
+	var plTenant1 []struct {
+		TenantID string `db:"tenant_id"`
+	}
 	db.SelectContext(ctx, &plTenant1, `SELECT tenant_id FROM product_lines WHERE tenant_id = $1`, "tenant-1")
 	if len(plTenant1) != 1 {
 		t.Errorf("tenant-1: expected 1 product-line")

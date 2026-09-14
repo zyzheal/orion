@@ -149,7 +149,7 @@ func TestAIClientRateLimitPerTenant(t *testing.T) {
 
 	c := NewAIClientWithConfig(AIClientConfig{
 		BaseURL: srv.URL, APIKey: "k", Model: "m",
-		Timeout: 2 * time.Second,
+		Timeout:            2 * time.Second,
 		RateLimitPerTenant: 3,
 	})
 	ctx := context.Background()

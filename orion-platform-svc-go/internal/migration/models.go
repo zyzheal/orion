@@ -6,9 +6,9 @@ import "time"
 type MigrationType string
 
 const (
-	MigrationSchema   MigrationType = "schema"
-	MigrationData     MigrationType = "data"
-	MigrationHybrid   MigrationType = "hybrid"
+	MigrationSchema MigrationType = "schema"
+	MigrationData   MigrationType = "data"
+	MigrationHybrid MigrationType = "hybrid"
 )
 
 // MigrationDirection is forward or rollback.
@@ -33,19 +33,19 @@ const (
 
 // MigrationPlan describes a requested migration.
 type MigrationPlan struct {
-	ID              string             `json:"id"`
-	TenantID        string             `json:"tenant_id"`
-	Name            string             `json:"name"`
-	Type            MigrationType      `json:"type"`
-	Source          MigrationEndpoint  `json:"source"`
-	Target          MigrationEndpoint  `json:"target"`
-	Direction       MigrationDirection `json:"direction"`
-	SqlStatements   []string           `json:"sql_statements,omitempty"`
-	DataFilter      string             `json:"data_filter,omitempty"`
-	BatchSize       int                `json:"batch_size,omitempty"`
-	CreatedAt       time.Time          `json:"created_at"`
-	UpdatedAt       time.Time          `json:"updated_at"`
-	phase           MigrationPhase     // unexported; managed by service
+	ID            string             `json:"id"`
+	TenantID      string             `json:"tenant_id"`
+	Name          string             `json:"name"`
+	Type          MigrationType      `json:"type"`
+	Source        MigrationEndpoint  `json:"source"`
+	Target        MigrationEndpoint  `json:"target"`
+	Direction     MigrationDirection `json:"direction"`
+	SqlStatements []string           `json:"sql_statements,omitempty"`
+	DataFilter    string             `json:"data_filter,omitempty"`
+	BatchSize     int                `json:"batch_size,omitempty"`
+	CreatedAt     time.Time          `json:"created_at"`
+	UpdatedAt     time.Time          `json:"updated_at"`
+	phase         MigrationPhase     // unexported; managed by service
 }
 
 // Phase returns the current lifecycle phase of the plan.
@@ -110,40 +110,40 @@ type MigrationPlanStats struct {
 
 // CreatePlanInput is the request body for POST /migration/plans.
 type CreatePlanInput struct {
-	TenantID      string            `json:"-"`
-	Name          string            `json:"name"`
-	Type          MigrationType     `json:"type"`
-	Source        MigrationEndpoint `json:"source"`
-	Target        MigrationEndpoint `json:"target"`
+	TenantID      string             `json:"-"`
+	Name          string             `json:"name"`
+	Type          MigrationType      `json:"type"`
+	Source        MigrationEndpoint  `json:"source"`
+	Target        MigrationEndpoint  `json:"target"`
 	Direction     MigrationDirection `json:"direction,omitempty"`
-	SqlStatements []string          `json:"sql_statements,omitempty"`
-	DataFilter    string            `json:"data_filter,omitempty"`
-	BatchSize     int               `json:"batch_size,omitempty"`
+	SqlStatements []string           `json:"sql_statements,omitempty"`
+	DataFilter    string             `json:"data_filter,omitempty"`
+	BatchSize     int                `json:"batch_size,omitempty"`
 }
 
 // UpdatePlanInput is the request body for PUT /migration/plans/:id.
 type UpdatePlanInput struct {
-	Name          *string            `json:"name,omitempty"`
-	Type          *MigrationType     `json:"type,omitempty"`
+	Name          *string             `json:"name,omitempty"`
+	Type          *MigrationType      `json:"type,omitempty"`
 	Direction     *MigrationDirection `json:"direction,omitempty"`
-	SqlStatements *[]string          `json:"sql_statements,omitempty"`
-	BatchSize     *int               `json:"batch_size,omitempty"`
+	SqlStatements *[]string           `json:"sql_statements,omitempty"`
+	BatchSize     *int                `json:"batch_size,omitempty"`
 }
 
 // SchemaDiff is the output of a schema comparison.
 type SchemaDiff struct {
-	SourceEndpoint string        `json:"source"`
-	TargetEndpoint string        `json:"target"`
+	SourceEndpoint string         `json:"source"`
+	TargetEndpoint string         `json:"target"`
 	Additions      []SchemaObject `json:"additions,omitempty"`
 	Removals       []SchemaObject `json:"removals,omitempty"`
 	Modifications  []SchemaObject `json:"modifications,omitempty"`
-	CheckedAt      time.Time     `json:"checked_at"`
+	CheckedAt      time.Time      `json:"checked_at"`
 }
 
 // SchemaObject describes a single schema entity.
 type SchemaObject struct {
-	Name   string       `json:"name"`
-	Type   string       `json:"type"` // "table" | "view" | "index" | "column"
-	DDL    string       `json:"ddl,omitempty"`
-	Change string       `json:"change"` // "added" | "removed" | "modified"
+	Name   string `json:"name"`
+	Type   string `json:"type"` // "table" | "view" | "index" | "column"
+	DDL    string `json:"ddl,omitempty"`
+	Change string `json:"change"` // "added" | "removed" | "modified"
 }

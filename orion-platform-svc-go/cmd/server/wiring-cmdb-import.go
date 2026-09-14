@@ -6,8 +6,8 @@ import (
 	"orion/go-common/pkg/database"
 
 	cmdb_import_handler "orion/platform-svc-go/internal/cmdb-import/handler"
-	cmdb_import_service "orion/platform-svc-go/internal/cmdb-import/service"
 	cmdb_import_repo "orion/platform-svc-go/internal/cmdb-import/repository"
+	cmdb_import_service "orion/platform-svc-go/internal/cmdb-import/service"
 )
 
 func wireCmdbImport(db *database.DB, logger *zap.Logger) {

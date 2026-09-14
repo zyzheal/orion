@@ -38,7 +38,7 @@ type SearchQuery struct {
 }
 
 type Stats struct {
-	Total       int    `json:"total"`
-	ActiveCount int    `json:"activeCount"`
-	PendingCount int   `json:"pendingCount"`
+	Total        int `json:"total"`
+	ActiveCount  int `json:"activeCount"`
+	PendingCount int `json:"pendingCount"`
 }

@@ -80,10 +80,10 @@ func TestExecute_SuccessfulMultiStatement(t *testing.T) {
 	ctx := context.Background()
 
 	plan, err := svc.CreatePlan(ctx, CreatePlanInput{
-		Name:   "Exec OK",
-		Type:   MigrationSchema,
-		Source: MigrationEndpoint{Host: "src", Type: "postgresql", Port: 5432, Database: "d"},
-		Target: MigrationEndpoint{Host: "tgt", Type: "postgresql", Port: 5432, Database: "d"},
+		Name:      "Exec OK",
+		Type:      MigrationSchema,
+		Source:    MigrationEndpoint{Host: "src", Type: "postgresql", Port: 5432, Database: "d"},
+		Target:    MigrationEndpoint{Host: "tgt", Type: "postgresql", Port: 5432, Database: "d"},
 		Direction: DirectionForward,
 		SqlStatements: []string{
 			"INSERT INTO users (id) VALUES (1)",
@@ -138,10 +138,10 @@ func TestExecute_MidExecutionFailureMarksFailedAndStops(t *testing.T) {
 
 	ctx := context.Background()
 	plan, err := svc.CreatePlan(ctx, CreatePlanInput{
-		Name:   "Exec Fail",
-		Type:   MigrationSchema,
-		Source: MigrationEndpoint{Host: "src", Type: "postgresql", Port: 5432, Database: "d"},
-		Target: MigrationEndpoint{Host: "tgt", Type: "postgresql", Port: 5432, Database: "d"},
+		Name:      "Exec Fail",
+		Type:      MigrationSchema,
+		Source:    MigrationEndpoint{Host: "src", Type: "postgresql", Port: 5432, Database: "d"},
+		Target:    MigrationEndpoint{Host: "tgt", Type: "postgresql", Port: 5432, Database: "d"},
 		Direction: DirectionForward,
 		SqlStatements: []string{
 			"INSERT INTO t (id) VALUES (1)",
@@ -206,10 +206,10 @@ func TestExecute_EmptyStatementsReturnsSuccess(t *testing.T) {
 	ctx := context.Background()
 
 	plan, err := svc.CreatePlan(ctx, CreatePlanInput{
-		Name:   "Empty",
-		Type:   MigrationSchema,
-		Source: MigrationEndpoint{Host: "src", Type: "postgresql", Port: 5432, Database: "d"},
-		Target: MigrationEndpoint{Host: "tgt", Type: "postgresql", Port: 5432, Database: "d"},
+		Name:      "Empty",
+		Type:      MigrationSchema,
+		Source:    MigrationEndpoint{Host: "src", Type: "postgresql", Port: 5432, Database: "d"},
+		Target:    MigrationEndpoint{Host: "tgt", Type: "postgresql", Port: 5432, Database: "d"},
 		Direction: DirectionForward,
 	})
 	if err != nil {
@@ -242,11 +242,11 @@ func TestExecute_MissingConfigFailsCleanly(t *testing.T) {
 
 	ctx := context.Background()
 	plan, err := svc.CreatePlan(ctx, CreatePlanInput{
-		Name:   "No DB",
-		Type:   MigrationSchema,
-		Source: MigrationEndpoint{Host: "src", Type: "postgresql", Port: 5432, Database: "d"},
-		Target: MigrationEndpoint{Host: "tgt", Type: "postgresql", Port: 5432, Database: "d"},
-		Direction: DirectionForward,
+		Name:          "No DB",
+		Type:          MigrationSchema,
+		Source:        MigrationEndpoint{Host: "src", Type: "postgresql", Port: 5432, Database: "d"},
+		Target:        MigrationEndpoint{Host: "tgt", Type: "postgresql", Port: 5432, Database: "d"},
+		Direction:     DirectionForward,
 		SqlStatements: []string{"SELECT 1"},
 	})
 	if err != nil {
@@ -278,11 +278,11 @@ func TestExecute_ContextCancelled(t *testing.T) {
 	cancel()
 
 	plan, err := svc.CreatePlan(ctx, CreatePlanInput{
-		Name:   "Cancelled",
-		Type:   MigrationSchema,
-		Source: MigrationEndpoint{Host: "src", Type: "postgresql", Port: 5432, Database: "d"},
-		Target: MigrationEndpoint{Host: "tgt", Type: "postgresql", Port: 5432, Database: "d"},
-		Direction: DirectionForward,
+		Name:          "Cancelled",
+		Type:          MigrationSchema,
+		Source:        MigrationEndpoint{Host: "src", Type: "postgresql", Port: 5432, Database: "d"},
+		Target:        MigrationEndpoint{Host: "tgt", Type: "postgresql", Port: 5432, Database: "d"},
+		Direction:     DirectionForward,
 		SqlStatements: []string{"SELECT 1"},
 	})
 	if err != nil {
@@ -306,10 +306,10 @@ func TestExecute_RollbackWithFactory(t *testing.T) {
 	_ = ctx
 
 	plan, err := svc.CreatePlan(ctx, CreatePlanInput{
-		Name:   "Rollback real",
-		Type:   MigrationSchema,
-		Source: MigrationEndpoint{Host: "src", Type: "postgresql", Port: 5432, Database: "d"},
-		Target: MigrationEndpoint{Host: "tgt", Type: "postgresql", Port: 5432, Database: "d"},
+		Name:      "Rollback real",
+		Type:      MigrationSchema,
+		Source:    MigrationEndpoint{Host: "src", Type: "postgresql", Port: 5432, Database: "d"},
+		Target:    MigrationEndpoint{Host: "tgt", Type: "postgresql", Port: 5432, Database: "d"},
 		Direction: DirectionForward,
 		SqlStatements: []string{
 			"INSERT INTO t (id) VALUES (10)",

@@ -106,7 +106,7 @@ func TestListPipelines_DedupsAndSkipsEmpty(t *testing.T) {
 	repo.CreateBuildArtifact(context.Background(), makeArtifact("a1", "p1", true))
 	repo.CreateBuildArtifact(context.Background(), makeArtifact("a2", "p1", true)) // dup
 	repo.CreateBuildArtifact(context.Background(), makeArtifact("a3", "p2", false))
-	repo.CreateBuildArtifact(context.Background(), makeArtifact("a4", "", false))   // empty pipeline
+	repo.CreateBuildArtifact(context.Background(), makeArtifact("a4", "", false)) // empty pipeline
 
 	pipelines, err := svc.ListPipelines(context.Background(), "t1")
 	if err != nil {

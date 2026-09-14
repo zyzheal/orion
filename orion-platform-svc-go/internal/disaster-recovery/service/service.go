@@ -145,13 +145,13 @@ func convertSteps(stepsJSON string) []orchestrator.DRStep {
 	steps := make([]orchestrator.DRStep, 0, len(raw))
 	for i, cmd := range raw {
 		steps = append(steps, orchestrator.DRStep{
-			ID:          fmt.Sprintf("step-%d", i+1),
-			Name:        fmt.Sprintf("Step %d: %s", i+1, truncate(cmd, 64)),
-			Phase:       orchestrator.PhasePreflight,
-			Command:     cmd,
-			Timeout:     60 * time.Second,
-			OnFail:      "abort",
-			MaxRetries:  1,
+			ID:         fmt.Sprintf("step-%d", i+1),
+			Name:       fmt.Sprintf("Step %d: %s", i+1, truncate(cmd, 64)),
+			Phase:      orchestrator.PhasePreflight,
+			Command:    cmd,
+			Timeout:    60 * time.Second,
+			OnFail:     "abort",
+			MaxRetries: 1,
 		})
 	}
 	return steps

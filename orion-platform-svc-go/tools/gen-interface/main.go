@@ -169,4 +169,3 @@ func astToString(expr ast.Expr) string {
 	printer.Fprint(&buf, token.NewFileSet(), expr)
 	return buf.String()
 }
-

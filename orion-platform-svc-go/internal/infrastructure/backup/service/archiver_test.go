@@ -318,17 +318,17 @@ func TestArchiveTypeFileMatchers(t *testing.T) {
 
 func TestArchiveTypeForPITRMode(t *testing.T) {
 	cases := map[string]models.ArchiveType{
-		"wal":         models.ArchiveTypeWAL,
-		"WAL":         models.ArchiveTypeWAL,
-		"binlog":      models.ArchiveTypeBinlog,
-		"BINLOG":      models.ArchiveTypeBinlog,
-		"archivelog":  models.ArchiveTypeArchivelog,
-		"redolog":     models.ArchiveTypeRedolog,
-		"log_backup":  models.ArchiveTypeLogBackup,
-		"logbackup":   models.ArchiveTypeLogBackup,
-		"clog":        models.ArchiveTypeClog,
-		"":            models.ArchiveTypeWAL, // default
-		"unknown":     models.ArchiveTypeWAL, // default
+		"wal":        models.ArchiveTypeWAL,
+		"WAL":        models.ArchiveTypeWAL,
+		"binlog":     models.ArchiveTypeBinlog,
+		"BINLOG":     models.ArchiveTypeBinlog,
+		"archivelog": models.ArchiveTypeArchivelog,
+		"redolog":    models.ArchiveTypeRedolog,
+		"log_backup": models.ArchiveTypeLogBackup,
+		"logbackup":  models.ArchiveTypeLogBackup,
+		"clog":       models.ArchiveTypeClog,
+		"":           models.ArchiveTypeWAL, // default
+		"unknown":    models.ArchiveTypeWAL, // default
 	}
 	for in, want := range cases {
 		if got := archiveTypeForPITRMode(in); got != want {

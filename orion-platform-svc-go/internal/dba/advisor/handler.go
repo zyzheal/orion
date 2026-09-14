@@ -21,7 +21,8 @@ func NewHandler(svc *IndexAdvisorService) *Handler {
 // RegisterRoutes mounts the advisor endpoints under /dba/advisor.
 //
 // Routes:
-//   POST /dba/advisor/indexes    — suggest CREATE INDEX statements
+//
+//	POST /dba/advisor/indexes    — suggest CREATE INDEX statements
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f := rg.Group("/dba/advisor")
 	f.POST("/indexes", auth.RequirePermission("dba", "write"), h.SuggestIndexes)

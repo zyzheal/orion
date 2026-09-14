@@ -78,6 +78,7 @@ func wireAIModules(db *database.DB, logger *zap.Logger) {
 	ai_intelligenceSvc := ai_intelligence_service.NewService(ai_intelligenceRepo)
 	ai_intelligenceH = ai_intelligence_handler.NewHandler(ai_intelligenceSvc)
 }
+
 // Handler variables for ai_wiring (moved from central wiring.go var block)
 var (
 	ai_aicostH        *ai_aicost_handler.Handler

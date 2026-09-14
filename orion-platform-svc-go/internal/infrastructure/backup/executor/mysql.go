@@ -13,9 +13,9 @@ import (
 // MySQLExecutor implements BackupExecutor and RestoreExecutor for MySQL and
 // MariaDB using the official mysqldump / mysql / mysqlbinlog clients.
 type MySQLExecutor struct {
-	DumpBin    string
-	ClientBin  string
-	BinlogBin  string
+	DumpBin   string
+	ClientBin string
+	BinlogBin string
 }
 
 // NewMySQLExecutor returns a MySQL executor with production defaults.

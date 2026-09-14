@@ -75,14 +75,14 @@ func (s *Service) Explain(ctx context.Context, tenantID string, req ExplainReque
 	passed := len(suggestions) == 0
 
 	result := &ExplainResult{
-		SQL:          req.SQL,
-		DBType:       dbType,
-		PlanText:     raw,
-		Plan:         plan,
-		Suggestions:  suggestions,
-		Passed:       passed,
-		DurationMs:   elapsed.Milliseconds(),
-		AnalyzedAt:   time.Now().UTC(),
+		SQL:         req.SQL,
+		DBType:      dbType,
+		PlanText:    raw,
+		Plan:        plan,
+		Suggestions: suggestions,
+		Passed:      passed,
+		DurationMs:  elapsed.Milliseconds(),
+		AnalyzedAt:  time.Now().UTC(),
 	}
 
 	// Persist for audit; failures are non-fatal — the caller still gets

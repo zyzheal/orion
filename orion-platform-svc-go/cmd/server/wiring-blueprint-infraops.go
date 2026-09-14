@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"orion/go-common/pkg/database"
-	migration "orion/platform-svc-go/internal/migration"
 	infraBackup_handler "orion/platform-svc-go/internal/infrastructure/backup/handler"
 	infraBackup_repo "orion/platform-svc-go/internal/infrastructure/backup/repository"
 	infraBackup_service "orion/platform-svc-go/internal/infrastructure/backup/service"
@@ -41,6 +40,7 @@ import (
 	infraServerless_handler "orion/platform-svc-go/internal/infrastructure/serverless/handler"
 	infraServerless_repo "orion/platform-svc-go/internal/infrastructure/serverless/repository"
 	infraServerless_service "orion/platform-svc-go/internal/infrastructure/serverless/service"
+	migration "orion/platform-svc-go/internal/migration"
 	schemaReg_handler "orion/platform-svc-go/internal/schema-registry/handler"
 	schemaReg_repo "orion/platform-svc-go/internal/schema-registry/repository"
 	schemaReg_service "orion/platform-svc-go/internal/schema-registry/service"

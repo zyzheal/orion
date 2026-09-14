@@ -330,7 +330,7 @@ func (s *StageExecutor) executeSubPipelineTask(ctx context.Context, tenantID, st
 	if s.engine == nil {
 		return &ExecuteResult{
 			Success: false,
-			Error: fmt.Sprintf("sub-pipeline %s@%s not executed: this StageExecutor has no pipeline engine wired", pipelineID, pipelineVersion),
+			Error:   fmt.Sprintf("sub-pipeline %s@%s not executed: this StageExecutor has no pipeline engine wired", pipelineID, pipelineVersion),
 			Outputs: map[string]string{
 				"sub_pipeline": pipelineID,
 				"version":      pipelineVersion,

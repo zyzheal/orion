@@ -22,9 +22,9 @@ type ProcessInstance struct {
 	id            string
 	tenantID      string
 	processID     string
-	defID         string                       // process definition ID
-	status        string                       // running, completed, failed, paused
-	data          map[string]interface{}       // aggregated state across steps
+	defID         string                 // process definition ID
+	status        string                 // running, completed, failed, paused
+	data          map[string]interface{} // aggregated state across steps
 	stepsExecuted int
 	stepsFailed   int
 	mu            sync.RWMutex

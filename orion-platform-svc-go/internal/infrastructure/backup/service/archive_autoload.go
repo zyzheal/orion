@@ -40,11 +40,11 @@ var autoloadTracer = otel.Tracer("orion-backup-svc/archive-autoload")
 // overrides the plan-level key for archive encryption only. This lets
 // operators rotate archive keys independently of backup artifact keys.
 type ArchiveAutoloadConfig struct {
-	Schedule      string              `json:"schedule"`
-	SourceDir     string              `json:"source_dir"`
-	ArchiveType   models.ArchiveType  `json:"archive_type"`
-	Enabled       *bool               `json:"enabled"`
-	EncryptionKey string              `json:"encryption_key,omitempty"`
+	Schedule      string             `json:"schedule"`
+	SourceDir     string             `json:"source_dir"`
+	ArchiveType   models.ArchiveType `json:"archive_type"`
+	Enabled       *bool              `json:"enabled"`
+	EncryptionKey string             `json:"encryption_key,omitempty"`
 }
 
 // StorageConfigWithArchive is the unmarshalled shape of a plan's

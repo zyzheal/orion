@@ -219,4 +219,3 @@ func (s *BackupService) PurgeAllWithOptions(ctx context.Context, opts PurgeAllOp
 	}
 	return out
 }
-

@@ -129,7 +129,7 @@ func TestServiceGetHistory(t *testing.T) {
 func TestServiceGetHistoryDefaultLimit(t *testing.T) {
 	repo := newFakeRepo()
 	for i := 0; i < 30; i++ {
-		_ = repo.Insert(context.Background(), &ReviewRecord{ID: string(rune('a' + i)) + string(rune('0'+i%10)), TenantID: "t"})
+		_ = repo.Insert(context.Background(), &ReviewRecord{ID: string(rune('a'+i)) + string(rune('0'+i%10)), TenantID: "t"})
 	}
 	svc := NewService(nil, repo, nil)
 	got, _ := svc.GetReviewHistory(context.Background(), "t", 0)

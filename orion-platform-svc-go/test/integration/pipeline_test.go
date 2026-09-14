@@ -2,10 +2,12 @@
 // database. Each test runs in isolation via schema setup in the DB provider.
 //
 // Run:
-//   go test ./test/integration/... -v -run TestPipeline
+//
+//	go test ./test/integration/... -v -run TestPipeline
 //
 // Skip (no DB available):
-//   go test ./test/integration/... -short
+//
+//	go test ./test/integration/... -short
 package integration
 
 import (
@@ -178,7 +180,7 @@ func TestPipelineRepository_List(t *testing.T) {
 
 	// List all
 	all, total, err := repo.List(ctx, "tenant1", models.ListPipelinesOptions{
-		Page: 1,
+		Page:  1,
 		Limit: 20,
 	})
 	if err != nil {
@@ -193,7 +195,7 @@ func TestPipelineRepository_List(t *testing.T) {
 
 	// Pagination: page 1 with limit 2
 	page1, _, err := repo.List(ctx, "tenant1", models.ListPipelinesOptions{
-		Page: 1,
+		Page:  1,
 		Limit: 2,
 	})
 	if err != nil {

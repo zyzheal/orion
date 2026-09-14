@@ -22,7 +22,10 @@ type E2EClient struct {
 
 // NewE2EClient creates a new E2E client with the given base URL.
 // Passes the testing.T so the client can skip tests when the server is unavailable.
-func NewE2EClient(t interface{ Helper(); Skipf(format string, args ...any) }, baseURL string) *E2EClient {
+func NewE2EClient(t interface {
+	Helper()
+	Skipf(format string, args ...any)
+}, baseURL string) *E2EClient {
 	t.Helper()
 	cfg := NewConfig()
 	if baseURL != "" {

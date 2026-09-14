@@ -379,7 +379,7 @@ func (o *DROrchestrator) rollbackSteps(ctx context.Context, steps []DRStep, resu
 // Behaviour:
 //   - plan not found        → wrapped sentinel error
 //   - endpoints empty       → SourceHealthy/TargetHealthy=false,
-//                             lag=0, SentinelError="unconfigured"
+//     lag=0, SentinelError="unconfigured"
 //   - DB unreachable        → SentinelError="unreachable:<reason>"
 //   - replicas reported     → SentinelError="healthy" or "degraded"
 //     based on the lag threshold (10s warn, 60s fail)
@@ -484,7 +484,7 @@ var queryReplicaLag = func(ctx context.Context, conn *sql.DB) (float64, error) {
 	row := conn.QueryRowContext(ctx, `
 SELECT COALESCE(MAX(
     EXTRACT(EPOCH FROM (pg_now() - pg_last_xact_replay_timestamp()))
-) FILTER (WHERE state = 'streaming' OR state = 'catchup'), 0)` +
+) FILTER (WHERE state = 'streaming' OR state = 'catchup'), 0)`+
 		" FROM pg_stat_replication")
 	var lag float64
 	if err := row.Scan(&lag); err != nil {

@@ -81,15 +81,15 @@ type BackupResult struct {
 type RestoreOptions struct {
 	// BackupID identifies the source backup artifact. Required when the
 	// engine's PITR path produces a recovery plan (see PGExecutor.Restore).
-	BackupID    string
-	BackupPath  string
-	TargetConn  ConnInfo
-	Format      string
-	Clean       bool
-	IfExists    bool
-	Parallel    int
-	DecryptKey  []byte // when non-nil, decrypts the artifact before restore
-	TargetTime  *time.Time // when non-nil triggers PITR (only honored by engines with WAL/binlog capture)
+	BackupID   string
+	BackupPath string
+	TargetConn ConnInfo
+	Format     string
+	Clean      bool
+	IfExists   bool
+	Parallel   int
+	DecryptKey []byte     // when non-nil, decrypts the artifact before restore
+	TargetTime *time.Time // when non-nil triggers PITR (only honored by engines with WAL/binlog capture)
 	// ArchivePaths is the ordered list of WAL/binlog files to replay after
 	// the base backup is restored. Engines must honour the ordering —
 	// WAL segments are monotonic in PostgreSQL, binlog index is monotonic

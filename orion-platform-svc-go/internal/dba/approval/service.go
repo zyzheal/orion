@@ -38,9 +38,9 @@ type Repo interface {
 // to verify orders at submit time. All state transitions run through
 // EvaluateStep so the DAG semantics are centralized.
 type Service struct {
-	repo  Repo
-	cfg   Config
-	now   func() time.Time
+	repo   Repo
+	cfg    Config
+	now    func() time.Time
 	orders OrderLookup
 }
 

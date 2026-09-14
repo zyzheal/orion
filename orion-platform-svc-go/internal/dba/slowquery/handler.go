@@ -24,10 +24,11 @@ func NewHandler(svc *Service) *Handler {
 // RegisterRoutes mounts the slowquery endpoints under /dba/slowquery.
 //
 // Routes:
-//   POST /dba/slowquery/collect        — kick off a collection pass
-//   GET  /dba/slowquery/top            — Top N slow queries
-//   POST /dba/slowquery/analyze        — heuristic analysis on one SQL
-//   GET  /dba/slowquery/stats          — aggregate counts
+//
+//	POST /dba/slowquery/collect        — kick off a collection pass
+//	GET  /dba/slowquery/top            — Top N slow queries
+//	POST /dba/slowquery/analyze        — heuristic analysis on one SQL
+//	GET  /dba/slowquery/stats          — aggregate counts
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f := rg.Group("/dba/slowquery")
 	f.POST("/collect", auth.RequirePermission("dba", "execute"), h.Collect)

@@ -106,23 +106,23 @@ const (
 
 // Category constants.
 const (
-	CategoryPerformance  = "performance"
-	CategorySecurity     = "security"
-	CategoryCorrectness  = "correctness"
-	CategoryStyle        = "style"
+	CategoryPerformance = "performance"
+	CategorySecurity    = "security"
+	CategoryCorrectness = "correctness"
+	CategoryStyle       = "style"
 )
 
 // ReviewRecord is the persistence record for review history.
 type ReviewRecord struct {
-	ID           string    `json:"id" db:"id"`
-	TenantID     string    `json:"tenant_id" db:"tenant_id"`
-	SQL          string    `json:"sql" db:"sql_text"`
-	DBType       string    `json:"db_type" db:"db_type"`
-	Verdict      string    `json:"verdict" db:"verdict"`
-	Score        int       `json:"score" db:"score"`
-	ModelUsed    string    `json:"model_used" db:"model_used"`
-	DurationMs   int64     `json:"duration_ms" db:"duration_ms"`
-	LocalAudit   string    `json:"local_audit,omitempty" db:"local_audit"`
-	AISuggestions string   `json:"ai_suggestions,omitempty" db:"ai_suggestions"`
-	CreatedAt    time.Time `json:"created_at" db:"created_at"`
+	ID            string    `json:"id" db:"id"`
+	TenantID      string    `json:"tenant_id" db:"tenant_id"`
+	SQL           string    `json:"sql" db:"sql_text"`
+	DBType        string    `json:"db_type" db:"db_type"`
+	Verdict       string    `json:"verdict" db:"verdict"`
+	Score         int       `json:"score" db:"score"`
+	ModelUsed     string    `json:"model_used" db:"model_used"`
+	DurationMs    int64     `json:"duration_ms" db:"duration_ms"`
+	LocalAudit    string    `json:"local_audit,omitempty" db:"local_audit"`
+	AISuggestions string    `json:"ai_suggestions,omitempty" db:"ai_suggestions"`
+	CreatedAt     time.Time `json:"created_at" db:"created_at"`
 }

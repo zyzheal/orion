@@ -5,9 +5,9 @@ import (
 
 	"orion/go-common/pkg/database"
 
-	ie_handler "orion/platform-svc-go/internal/import-export/handler"
 	ie_async "orion/platform-svc-go/internal/import-export/async"
 	ie_factory "orion/platform-svc-go/internal/import-export/factory"
+	ie_handler "orion/platform-svc-go/internal/import-export/handler"
 	ie_repo "orion/platform-svc-go/internal/import-export/repository"
 	ie_service "orion/platform-svc-go/internal/import-export/service"
 )

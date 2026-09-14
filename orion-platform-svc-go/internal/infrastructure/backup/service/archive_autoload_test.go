@@ -25,10 +25,10 @@ func TestParseArchiveSpec_WellFormed(t *testing.T) {
 	dir := t.TempDir()
 	cfg := map[string]interface{}{
 		"archive": map[string]interface{}{
-			"schedule":    "* * * * * *",
-			"source_dir":  dir,
+			"schedule":     "* * * * * *",
+			"source_dir":   dir,
 			"archive_type": "wal",
-			"enabled":     true,
+			"enabled":      true,
 		},
 	}
 	b, _ := json.Marshal(cfg)
@@ -49,7 +49,7 @@ func TestParseArchiveSpec_MissingSchedule(t *testing.T) {
 	dir := t.TempDir()
 	cfg := map[string]interface{}{
 		"archive": map[string]interface{}{
-			"source_dir":  dir,
+			"source_dir":   dir,
 			"archive_type": "wal",
 		},
 	}
@@ -72,8 +72,8 @@ func TestParseArchiveSpec_InvalidJSON(t *testing.T) {
 func TestParseArchiveSpec_MissingDir(t *testing.T) {
 	cfg := map[string]interface{}{
 		"archive": map[string]interface{}{
-			"schedule":    "* * * * * *",
-			"source_dir":  "/definitely/does/not/exist",
+			"schedule":     "* * * * * *",
+			"source_dir":   "/definitely/does/not/exist",
 			"archive_type": "wal",
 		},
 	}
@@ -89,10 +89,10 @@ func TestParseArchiveSpec_DisabledReturnsNil(t *testing.T) {
 	dir := t.TempDir()
 	cfg := map[string]interface{}{
 		"archive": map[string]interface{}{
-			"schedule":    "* * * * * *",
-			"source_dir":  dir,
+			"schedule":     "* * * * * *",
+			"source_dir":   dir,
 			"archive_type": "wal",
-			"enabled":     false,
+			"enabled":      false,
 		},
 	}
 	b, _ := json.Marshal(cfg)
@@ -108,12 +108,12 @@ func TestParseArchiveSpec_DisabledReturnsNil(t *testing.T) {
 
 func TestInferArchiveType(t *testing.T) {
 	cases := map[string]models.ArchiveType{
-		"/var/lib/postgresql/15/main/pg_wal":         models.ArchiveTypeWAL,
-		"/data/mysql-bin.000123":                       models.ArchiveTypeBinlog,
-		"/data/mysql-data-binlog":                      models.ArchiveTypeBinlog,
-		"/data/ob_clog/seg-1":                          models.ArchiveTypeClog,
-		"/data/oceanbase/log":                          models.ArchiveTypeClog,
-		"/var/data/unknown":                            "",
+		"/var/lib/postgresql/15/main/pg_wal": models.ArchiveTypeWAL,
+		"/data/mysql-bin.000123":             models.ArchiveTypeBinlog,
+		"/data/mysql-data-binlog":            models.ArchiveTypeBinlog,
+		"/data/ob_clog/seg-1":                models.ArchiveTypeClog,
+		"/data/oceanbase/log":                models.ArchiveTypeClog,
+		"/var/data/unknown":                  "",
 	}
 	for in, want := range cases {
 		if got := inferArchiveType(in); got != want {

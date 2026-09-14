@@ -28,11 +28,11 @@ import (
 
 // Handler variables for Wave 4 unwired modules
 var (
-	alertAdapterV2H   *aa2_handler.Handler
-	autoRecoveryH     *ar_handler.AutoRecoveryHandler
-	capacityH         *cap_handler.Handler
-	middlewareOpsH    *mwops_handler.Handler
-	orchestrationH    *orch_handler.OrchestrationHandler
+	alertAdapterV2H *aa2_handler.Handler
+	autoRecoveryH   *ar_handler.AutoRecoveryHandler
+	capacityH       *cap_handler.Handler
+	middlewareOpsH  *mwops_handler.Handler
+	orchestrationH  *orch_handler.OrchestrationHandler
 )
 
 func wireAlertAdapterV2(db *database.DB, logger *zap.Logger) {

@@ -39,26 +39,26 @@ import (
 // ---------------------------------------------------------------------------
 
 const (
-	RuleDropTableNoIfExists     = "drop_table_no_if_exists"
-	RuleTruncateTable           = "truncate_table"
-	RuleGrantAll                = "grant_all"
-	RuleDeleteDB                = "drop_database"
-	RuleMissingWhereUpdate      = "missing_where_update"
-	RuleMissingWhereDelete      = "missing_where_delete"
-	RuleSelectStar              = "select_star"
-	RuleMissingLimit            = "missing_limit_select"
-	RuleLockTable               = "lock_table"
-	RuleCrossDBQuery            = "cross_db_query"
-	RuleNonStandardChars        = "non_standard_chars"
-	RuleLargeDMLOneStatement    = "large_dml_no_limit"
-	RuleRowThresholdDDL         = "row_threshold_ddl"
-	RuleDDLWithoutBackup        = "ddl_without_backup"
-	RuleDropIndex               = "drop_index"
-	RuleAlterTableAddPK         = "alter_add_primary_key"
-	RuleMultiStatement          = "multi_statement"
-	RuleCommentedSQL            = "commented_sql"
-	RuleUnparameterizedInsert   = "unparameterized_insert"
-	RuleRenameTable             = "rename_table"
+	RuleDropTableNoIfExists   = "drop_table_no_if_exists"
+	RuleTruncateTable         = "truncate_table"
+	RuleGrantAll              = "grant_all"
+	RuleDeleteDB              = "drop_database"
+	RuleMissingWhereUpdate    = "missing_where_update"
+	RuleMissingWhereDelete    = "missing_where_delete"
+	RuleSelectStar            = "select_star"
+	RuleMissingLimit          = "missing_limit_select"
+	RuleLockTable             = "lock_table"
+	RuleCrossDBQuery          = "cross_db_query"
+	RuleNonStandardChars      = "non_standard_chars"
+	RuleLargeDMLOneStatement  = "large_dml_no_limit"
+	RuleRowThresholdDDL       = "row_threshold_ddl"
+	RuleDDLWithoutBackup      = "ddl_without_backup"
+	RuleDropIndex             = "drop_index"
+	RuleAlterTableAddPK       = "alter_add_primary_key"
+	RuleMultiStatement        = "multi_statement"
+	RuleCommentedSQL          = "commented_sql"
+	RuleUnparameterizedInsert = "unparameterized_insert"
+	RuleRenameTable           = "rename_table"
 )
 
 // AuditLevel enumerates the severity levels a rule finding may carry.
@@ -167,12 +167,12 @@ type LocalConfig struct {
 // rule set (built-ins + any injected extras), the config, and an
 // optional row-count prober for the DDL threshold rule.
 type LocalAuditEngine struct {
-	cfg          LocalConfig
-	mu           sync.RWMutex
-	extraRules   []*ruleDef
-	rowCounter   RowCounter // optional; see RowCounter
-	preBackupOK  bool
-	preBackupMu  sync.RWMutex
+	cfg         LocalConfig
+	mu          sync.RWMutex
+	extraRules  []*ruleDef
+	rowCounter  RowCounter // optional; see RowCounter
+	preBackupOK bool
+	preBackupMu sync.RWMutex
 }
 
 // RowCounter is an optional probe that returns the estimated row count
@@ -240,11 +240,11 @@ func (e *LocalAuditEngine) Check(ctx context.Context, sqlStr string, dbType stri
 	input := strings.TrimSpace(sqlStr)
 
 	report := &AuditReport{
-		Passed:      true,
-		Rules:       []AuditResult{},
-		ParsedOK:    true,
-		DBType:      dbType,
-		Duration:    0,
+		Passed:        true,
+		Rules:         []AuditResult{},
+		ParsedOK:      true,
+		DBType:        dbType,
+		Duration:      0,
 		StatementType: "empty",
 	}
 	if input == "" {
@@ -365,8 +365,8 @@ func (e *LocalAuditEngine) Execute(ctx context.Context, db *sql.DB, sqlStr strin
 // ruleDef is the internal, evaluated form of a rule. External callers
 // see AuditRuleDef (in models); internal rules ship as ruleDef literals.
 type ruleDef struct {
-	id   string
-	sev  string
+	id      string
+	sev     string
 	match   func(ctx context.Context, e *LocalAuditEngine, p *parsedStmt, raw string) []AuditResult
 	dbTypes []string
 }
@@ -414,8 +414,8 @@ func matchesList(list []string, v string) bool {
 func builtInRules() []*ruleDef {
 	return []*ruleDef{
 		{
-			id:   RuleMultiStatement,
-			sev:  LevelError,
+			id:  RuleMultiStatement,
+			sev: LevelError,
 			match: func(_ context.Context, _ *LocalAuditEngine, p *parsedStmt, raw string) []AuditResult {
 				if p.statementCount > 1 {
 					return []AuditResult{{
@@ -427,8 +427,8 @@ func builtInRules() []*ruleDef {
 			},
 		},
 		{
-			id:   RuleDropTableNoIfExists,
-			sev:  LevelError,
+			id:  RuleDropTableNoIfExists,
+			sev: LevelError,
 			match: func(_ context.Context, _ *LocalAuditEngine, p *parsedStmt, raw string) []AuditResult {
 				if p.kind != "ddl" {
 					return nil
@@ -447,8 +447,8 @@ func builtInRules() []*ruleDef {
 			},
 		},
 		{
-			id:   RuleTruncateTable,
-			sev:  LevelError,
+			id:  RuleTruncateTable,
+			sev: LevelError,
 			match: func(_ context.Context, _ *LocalAuditEngine, _ *parsedStmt, raw string) []AuditResult {
 				if reTruncate.MatchString(normalizeSQL(raw)) {
 					return []AuditResult{{
@@ -462,8 +462,8 @@ func builtInRules() []*ruleDef {
 			},
 		},
 		{
-			id:   RuleDeleteDB,
-			sev:  LevelError,
+			id:  RuleDeleteDB,
+			sev: LevelError,
 			match: func(_ context.Context, _ *LocalAuditEngine, _ *parsedStmt, raw string) []AuditResult {
 				if reDropDatabase.MatchString(normalizeSQL(raw)) {
 					return []AuditResult{{
@@ -476,8 +476,8 @@ func builtInRules() []*ruleDef {
 			},
 		},
 		{
-			id:   RuleDropIndex,
-			sev:  LevelWarn,
+			id:  RuleDropIndex,
+			sev: LevelWarn,
 			match: func(_ context.Context, _ *LocalAuditEngine, _ *parsedStmt, raw string) []AuditResult {
 				if reDropIndex.MatchString(normalizeSQL(raw)) {
 					return []AuditResult{{
@@ -490,8 +490,8 @@ func builtInRules() []*ruleDef {
 			},
 		},
 		{
-			id:   RuleRenameTable,
-			sev:  LevelWarn,
+			id:  RuleRenameTable,
+			sev: LevelWarn,
 			match: func(_ context.Context, _ *LocalAuditEngine, _ *parsedStmt, raw string) []AuditResult {
 				if reRenameTable.MatchString(normalizeSQL(raw)) {
 					return []AuditResult{{
@@ -504,8 +504,8 @@ func builtInRules() []*ruleDef {
 			},
 		},
 		{
-			id:   RuleGrantAll,
-			sev:  LevelError,
+			id:  RuleGrantAll,
+			sev: LevelError,
 			match: func(_ context.Context, _ *LocalAuditEngine, _ *parsedStmt, raw string) []AuditResult {
 				if reGrantAll.MatchString(normalizeSQL(raw)) {
 					return []AuditResult{{
@@ -519,8 +519,8 @@ func builtInRules() []*ruleDef {
 			},
 		},
 		{
-			id:   RuleLockTable,
-			sev:  LevelWarn,
+			id:  RuleLockTable,
+			sev: LevelWarn,
 			match: func(_ context.Context, _ *LocalAuditEngine, _ *parsedStmt, raw string) []AuditResult {
 				if reLockTable.MatchString(normalizeSQL(raw)) {
 					return []AuditResult{{
@@ -533,8 +533,8 @@ func builtInRules() []*ruleDef {
 			},
 		},
 		{
-			id:   RuleMissingWhereUpdate,
-			sev:  LevelError,
+			id:  RuleMissingWhereUpdate,
+			sev: LevelError,
 			match: func(_ context.Context, _ *LocalAuditEngine, p *parsedStmt, raw string) []AuditResult {
 				if p.kind != "update" {
 					return nil
@@ -552,8 +552,8 @@ func builtInRules() []*ruleDef {
 			},
 		},
 		{
-			id:   RuleMissingWhereDelete,
-			sev:  LevelError,
+			id:  RuleMissingWhereDelete,
+			sev: LevelError,
 			match: func(_ context.Context, _ *LocalAuditEngine, p *parsedStmt, raw string) []AuditResult {
 				if p.kind != "delete" {
 					return nil
@@ -571,8 +571,8 @@ func builtInRules() []*ruleDef {
 			},
 		},
 		{
-			id:   RuleSelectStar,
-			sev:  LevelWarn,
+			id:  RuleSelectStar,
+			sev: LevelWarn,
 			match: func(_ context.Context, e *LocalAuditEngine, p *parsedStmt, raw string) []AuditResult {
 				if p.kind != "select" {
 					return nil
@@ -594,8 +594,8 @@ func builtInRules() []*ruleDef {
 			},
 		},
 		{
-			id:   RuleMissingLimit,
-			sev:  LevelWarn,
+			id:  RuleMissingLimit,
+			sev: LevelWarn,
 			match: func(_ context.Context, _ *LocalAuditEngine, p *parsedStmt, raw string) []AuditResult {
 				if p.kind != "select" {
 					return nil
@@ -604,16 +604,16 @@ func builtInRules() []*ruleDef {
 					return nil
 				}
 				return []AuditResult{{
-					Level:      LevelWarn,
-					RuleID:     RuleMissingLimit,
-					Message:    "SELECT without LIMIT may return unbounded rows; add a bounded LIMIT",
-					FixSQL:     raw + " LIMIT 100",
+					Level:   LevelWarn,
+					RuleID:  RuleMissingLimit,
+					Message: "SELECT without LIMIT may return unbounded rows; add a bounded LIMIT",
+					FixSQL:  raw + " LIMIT 100",
 				}}
 			},
 		},
 		{
-			id:   RuleCrossDBQuery,
-			sev:  LevelWarn,
+			id:  RuleCrossDBQuery,
+			sev: LevelWarn,
 			match: func(_ context.Context, _ *LocalAuditEngine, p *parsedStmt, raw string) []AuditResult {
 				if p.kind == "empty" {
 					return nil
@@ -630,8 +630,8 @@ func builtInRules() []*ruleDef {
 			},
 		},
 		{
-			id:   RuleNonStandardChars,
-			sev:  LevelError,
+			id:  RuleNonStandardChars,
+			sev: LevelError,
 			match: func(_ context.Context, _ *LocalAuditEngine, _ *parsedStmt, raw string) []AuditResult {
 				for i, r := range raw {
 					if r > 0x7F {
@@ -647,8 +647,8 @@ func builtInRules() []*ruleDef {
 			},
 		},
 		{
-			id:   RuleLargeDMLOneStatement,
-			sev:  LevelWarn,
+			id:  RuleLargeDMLOneStatement,
+			sev: LevelWarn,
 			match: func(ctx context.Context, e *LocalAuditEngine, p *parsedStmt, raw string) []AuditResult {
 				if p.kind != "delete" && p.kind != "update" {
 					return nil
@@ -664,15 +664,15 @@ func builtInRules() []*ruleDef {
 					return nil
 				}
 				return []AuditResult{{
-					Level:      LevelWarn,
-					RuleID:     RuleLargeDMLOneStatement,
-					Message:    fmt.Sprintf("%s without WHERE/LIMIT may affect a very large row set (> %d expected rows)", strings.ToUpper(p.kind), limit),
+					Level:   LevelWarn,
+					RuleID:  RuleLargeDMLOneStatement,
+					Message: fmt.Sprintf("%s without WHERE/LIMIT may affect a very large row set (> %d expected rows)", strings.ToUpper(p.kind), limit),
 				}}
 			},
 		},
 		{
-			id:   RuleDDLWithoutBackup,
-			sev:  LevelWarn,
+			id:  RuleDDLWithoutBackup,
+			sev: LevelWarn,
 			match: func(ctx context.Context, e *LocalAuditEngine, p *parsedStmt, raw string) []AuditResult {
 				if p.kind != "ddl" {
 					return nil
@@ -689,8 +689,8 @@ func builtInRules() []*ruleDef {
 			},
 		},
 		{
-			id:   RuleRowThresholdDDL,
-			sev:  LevelWarn,
+			id:  RuleRowThresholdDDL,
+			sev: LevelWarn,
 			match: func(ctx context.Context, e *LocalAuditEngine, p *parsedStmt, raw string) []AuditResult {
 				if p.kind != "ddl" {
 					return nil
@@ -724,8 +724,8 @@ func builtInRules() []*ruleDef {
 			},
 		},
 		{
-			id:   RuleAlterTableAddPK,
-			sev:  LevelWarn,
+			id:  RuleAlterTableAddPK,
+			sev: LevelWarn,
 			match: func(_ context.Context, _ *LocalAuditEngine, _ *parsedStmt, raw string) []AuditResult {
 				if !reAlterAddPK.MatchString(normalizeSQL(raw)) {
 					return nil
@@ -738,8 +738,8 @@ func builtInRules() []*ruleDef {
 			},
 		},
 		{
-			id:   RuleCommentedSQL,
-			sev:  LevelInfo,
+			id:  RuleCommentedSQL,
+			sev: LevelInfo,
 			match: func(_ context.Context, _ *LocalAuditEngine, _ *parsedStmt, raw string) []AuditResult {
 				// Single-line trailing comment at end of statement.
 				if !reTrailingComment.MatchString(raw) {
@@ -770,9 +770,9 @@ type parsedStmt struct {
 }
 
 var (
-	reStatementEnd = regexp.MustCompile(`;\s*(--|#|\*/)?.*`)
-	reDropTable = regexp.MustCompile(`(?i)\bDROP\s+TABLE\b`)
-	reIfExists  = regexp.MustCompile(`(?i)\bIF\s+EXISTS\b`)
+	reStatementEnd    = regexp.MustCompile(`;\s*(--|#|\*/)?.*`)
+	reDropTable       = regexp.MustCompile(`(?i)\bDROP\s+TABLE\b`)
+	reIfExists        = regexp.MustCompile(`(?i)\bIF\s+EXISTS\b`)
 	reTruncate        = regexp.MustCompile(`(?i)\bTRUNCATE\b`)
 	reDropDatabase    = regexp.MustCompile(`(?i)\bDROP\s+DATABASE\b`)
 	reDropIndex       = regexp.MustCompile(`(?i)\bDROP\s+INDEX\b`)
@@ -1034,4 +1034,3 @@ func normalizeDBType(t string) string {
 		return strings.ToLower(strings.TrimSpace(t))
 	}
 }
-

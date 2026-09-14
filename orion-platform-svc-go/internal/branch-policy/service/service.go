@@ -237,12 +237,12 @@ func (s *Service) GetCoverage(ctx context.Context, tenantID string) (map[string]
 		coveragePct = float64(active) * 100 / float64(total)
 	}
 	return map[string]interface{}{
-		"totalProfiles":      total,
-		"activeProfiles":     active,
-		"archivedProfiles":   archived,
+		"totalProfiles":        total,
+		"activeProfiles":       active,
+		"archivedProfiles":     archived,
 		"semanticDistribution": semanticCounts,
 		"protectedEnvProfiles": protectedEnvCount,
-		"coveragePct":        coveragePct,
+		"coveragePct":          coveragePct,
 	}, nil
 }
 

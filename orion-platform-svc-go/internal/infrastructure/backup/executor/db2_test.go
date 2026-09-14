@@ -28,7 +28,7 @@ func TestBuildDB2Env(t *testing.T) {
 // into the parent directory of the output path.
 func TestBuildDB2BackupArgs(t *testing.T) {
 	got := buildDB2BackupArgs(BackupOptions{
-		OutputPath: "/tmp/backups/sample.bak",
+		OutputPath:  "/tmp/backups/sample.bak",
 		Compression: 2,
 	}, ConnInfo{DB: "SAMPLE"})
 	joined := strings.Join(got, " ")

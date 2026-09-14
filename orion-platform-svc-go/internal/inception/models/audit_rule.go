@@ -24,18 +24,18 @@ import "time"
 //   - BuiltIn: whether the rule ships with the engine (built-ins are
 //     shipped as defaults and can be disabled/overridden via this table).
 type AuditRuleDef struct {
-	ID        string            `db:"id" json:"id"`
-	Name      string            `db:"name" json:"name"`
-	Severity  string            `db:"severity" json:"severity"` // error / warn / info
-	Pattern   string            `db:"pattern" json:"pattern"`
-	Message   string            `db:"message" json:"message"`
-	Fix       string            `db:"fix" json:"fix,omitempty"`
-	Params    JSONB             `db:"params" json:"params,omitempty"`
-	DBTypes   []string          `db:"db_types" json:"db_types,omitempty"`
-	Enabled   bool              `db:"enabled" json:"enabled"`
-	BuiltIn   bool              `db:"built_in" json:"built_in"`
-	CreatedAt time.Time         `db:"created_at" json:"created_at"`
-	UpdatedAt time.Time         `db:"updated_at" json:"updated_at"`
+	ID        string    `db:"id" json:"id"`
+	Name      string    `db:"name" json:"name"`
+	Severity  string    `db:"severity" json:"severity"` // error / warn / info
+	Pattern   string    `db:"pattern" json:"pattern"`
+	Message   string    `db:"message" json:"message"`
+	Fix       string    `db:"fix" json:"fix,omitempty"`
+	Params    JSONB     `db:"params" json:"params,omitempty"`
+	DBTypes   []string  `db:"db_types" json:"db_types,omitempty"`
+	Enabled   bool      `db:"enabled" json:"enabled"`
+	BuiltIn   bool      `db:"built_in" json:"built_in"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
 }
 
 // AuditSeverity is the enum of valid severity strings.
@@ -68,4 +68,3 @@ func (r *AuditRuleDef) MatchesDBType(dbType string) bool {
 	}
 	return false
 }
-

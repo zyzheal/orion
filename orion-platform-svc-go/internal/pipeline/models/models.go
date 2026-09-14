@@ -83,20 +83,20 @@ type PipelineValidationResult struct {
 
 // PipelineRun represents a single pipeline execution record.
 type PipelineRun struct {
-	ID             string     `json:"id" db:"id"`
-	TenantID       string     `json:"tenantId" db:"tenant_id"`
-	PipelineID     string     `json:"pipelineId" db:"pipeline_id"`
-	PipelineVersion string    `json:"pipelineVersion" db:"pipeline_version"`
-	TriggerType    string     `json:"triggerType" db:"trigger_type"`
-	TriggerBy      string     `json:"triggerBy" db:"trigger_by"`
-	Status         string     `json:"status" db:"status"`
-	Environment    string     `json:"environment" db:"environment"`
-	StartedAt      *time.Time `json:"startedAt" db:"started_at"`
-	CompletedAt    *time.Time `json:"completedAt" db:"completed_at"`
-	DurationMs     int64      `json:"durationMs" db:"duration_ms"`
-	Context        string     `json:"context" db:"context"`
-	CreatedAt      time.Time  `json:"createdAt" db:"created_at"`
-	UpdatedAt      time.Time  `json:"updatedAt" db:"updated_at"`
+	ID              string     `json:"id" db:"id"`
+	TenantID        string     `json:"tenantId" db:"tenant_id"`
+	PipelineID      string     `json:"pipelineId" db:"pipeline_id"`
+	PipelineVersion string     `json:"pipelineVersion" db:"pipeline_version"`
+	TriggerType     string     `json:"triggerType" db:"trigger_type"`
+	TriggerBy       string     `json:"triggerBy" db:"trigger_by"`
+	Status          string     `json:"status" db:"status"`
+	Environment     string     `json:"environment" db:"environment"`
+	StartedAt       *time.Time `json:"startedAt" db:"started_at"`
+	CompletedAt     *time.Time `json:"completedAt" db:"completed_at"`
+	DurationMs      int64      `json:"durationMs" db:"duration_ms"`
+	Context         string     `json:"context" db:"context"`
+	CreatedAt       time.Time  `json:"createdAt" db:"created_at"`
+	UpdatedAt       time.Time  `json:"updatedAt" db:"updated_at"`
 }
 
 // PipelineRunResult is the result of triggering a run.

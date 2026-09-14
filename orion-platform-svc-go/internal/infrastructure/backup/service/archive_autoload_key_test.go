@@ -129,4 +129,3 @@ func TestParseArchiveSpec_NoKeyProducesUnencryptedArchive(t *testing.T) {
 		t.Fatalf("expected nil key, got %q", string(spec.EncryptionKey))
 	}
 }
-

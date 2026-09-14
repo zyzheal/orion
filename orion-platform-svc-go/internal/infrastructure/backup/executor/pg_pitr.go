@@ -30,22 +30,22 @@ func PITRScriptPath(scratchDir, backupID string) string {
 // PGRecoveryPlan is the structured plan emitted by PreparePGRecoveryPlan.
 // Operators can read it directly, or use the generated shell script.
 type PGRecoveryPlan struct {
-	BackupID    string    `json:"backupId"`
-	BackupPath  string    `json:"backupPath"`
-	TargetTime  *time.Time `json:"targetTime,omitempty"`
-	ArchiveDir  string    `json:"archiveDir"`
-	ArchiveFiles []ArchiveFileInfo `json:"archiveFiles"`
-	ManifestSHA256 string `json:"manifestSha256"`
-	ScriptPath  string    `json:"scriptPath"`
-	GeneratedAt time.Time `json:"generatedAt"`
+	BackupID       string            `json:"backupId"`
+	BackupPath     string            `json:"backupPath"`
+	TargetTime     *time.Time        `json:"targetTime,omitempty"`
+	ArchiveDir     string            `json:"archiveDir"`
+	ArchiveFiles   []ArchiveFileInfo `json:"archiveFiles"`
+	ManifestSHA256 string            `json:"manifestSha256"`
+	ScriptPath     string            `json:"scriptPath"`
+	GeneratedAt    time.Time         `json:"generatedAt"`
 }
 
 // ArchiveFileInfo describes one WAL segment in the PITR plan.
 type ArchiveFileInfo struct {
-	Path     string `json:"path"`
-	Size     int64  `json:"size"`
-	SHA256   string `json:"sha256"`
-	ModTime  time.Time `json:"modTime"`
+	Path    string    `json:"path"`
+	Size    int64     `json:"size"`
+	SHA256  string    `json:"sha256"`
+	ModTime time.Time `json:"modTime"`
 }
 
 // PreparePGRecoveryPlan builds a PITR manifest + runbook script for the
@@ -108,13 +108,13 @@ func PreparePGRecoveryPlan(ctx context.Context, opts PGRecoveryOptions, log *zap
 
 	scriptPath := PITRScriptPath(opts.ScratchDir, opts.BackupID)
 	script := buildPGRecoveryScript(PGRecoveryPlan{
-		BackupID:   opts.BackupID,
-		BackupPath: opts.BackupPath,
-		TargetTime: opts.TargetTime,
-		ArchiveDir: destDir,
+		BackupID:     opts.BackupID,
+		BackupPath:   opts.BackupPath,
+		TargetTime:   opts.TargetTime,
+		ArchiveDir:   destDir,
 		ArchiveFiles: files,
-		ScriptPath: scriptPath,
-		GeneratedAt: time.Now().UTC(),
+		ScriptPath:   scriptPath,
+		GeneratedAt:  time.Now().UTC(),
 	})
 	if err := os.WriteFile(scriptPath, []byte(script), 0o700); err != nil {
 		return nil, fmt.Errorf("write script: %w", err)
@@ -123,13 +123,13 @@ func PreparePGRecoveryPlan(ctx context.Context, opts PGRecoveryOptions, log *zap
 	// 2. Manifest JSON for programmatic inspection — written to disk so the
 	// plan is fully self-contained (runbook + manifest), not just in-memory.
 	manifest := PGRecoveryPlan{
-		BackupID:   opts.BackupID,
-		BackupPath: opts.BackupPath,
-		TargetTime: opts.TargetTime,
-		ArchiveDir: destDir,
+		BackupID:     opts.BackupID,
+		BackupPath:   opts.BackupPath,
+		TargetTime:   opts.TargetTime,
+		ArchiveDir:   destDir,
 		ArchiveFiles: files,
-		ScriptPath: scriptPath,
-		GeneratedAt: time.Now().UTC(),
+		ScriptPath:   scriptPath,
+		GeneratedAt:  time.Now().UTC(),
 	}
 	manifest.ManifestSHA256 = hashString(fmt.Sprintf("%s|%d", script, len(files)))
 
@@ -152,11 +152,11 @@ func PreparePGRecoveryPlan(ctx context.Context, opts PGRecoveryOptions, log *zap
 
 // PGRecoveryOptions controls the PITR plan generation.
 type PGRecoveryOptions struct {
-	BackupID   string
-	BackupPath string
+	BackupID     string
+	BackupPath   string
 	ArchivePaths []string
-	TargetTime  *time.Time
-	ScratchDir  string
+	TargetTime   *time.Time
+	ScratchDir   string
 }
 
 // buildPGRecoveryScript emits a bash script that a DBA runs as the

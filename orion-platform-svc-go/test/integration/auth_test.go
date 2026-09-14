@@ -3,10 +3,12 @@
 // persists between runs.
 //
 // Run:
-//   go test ./test/integration/... -v -run TestAuth
+//
+//	go test ./test/integration/... -v -run TestAuth
 //
 // Skip (no DB available):
-//   go test ./test/integration/... -short
+//
+//	go test ./test/integration/... -short
 package integration
 
 import (

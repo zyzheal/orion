@@ -33,10 +33,10 @@ type QuotaPlan struct {
 	//   "warn"   = 允许但返回 Blocking=false, Warning 说明已超配
 	//   "allow"  = 允许且不再发 warning（等价于忽略 hard limit）
 	// WarnThresholds: 分档 warning 百分比（相对 HardLimit）。默认 [50, 80, 95]。
-	SoftLimit       int64    `db:"soft_limit" json:"softLimit"`
-	HardLimit       int64    `db:"hard_limit" json:"hardLimit"`
-	OverLimitAction string   `db:"over_limit_action" json:"overLimitAction"`
-	WarnThresholds  []int    `db:"-" json:"warnThresholds"` // stored as JSON string in migration
+	SoftLimit       int64  `db:"soft_limit" json:"softLimit"`
+	HardLimit       int64  `db:"hard_limit" json:"hardLimit"`
+	OverLimitAction string `db:"over_limit_action" json:"overLimitAction"`
+	WarnThresholds  []int  `db:"-" json:"warnThresholds"` // stored as JSON string in migration
 }
 
 // --- Quota Usage ---
@@ -77,23 +77,23 @@ type QuotaAlert struct {
 // --- Request/Response types ---
 
 type CreatePlanRequest struct {
-	Name                string  `json:"name" binding:"required"`
-	Description         string  `json:"description"`
-	APIRateLimitPerMin  int     `json:"apiRateLimitPerMin"`
-	APIRateLimitPerHour int     `json:"apiRateLimitPerHour"`
-	MaxCIs              int     `json:"maxCIs"`
-	MaxUsers            int     `json:"maxUsers"`
-	MaxStorageMB        int64   `json:"maxStorageMB"`
-	MaxPipelines        int     `json:"maxPipelines"`
-	MaxConcurrentJobs   int     `json:"maxConcurrentJobs"`
-	MaxAlertsPerDay     int     `json:"maxAlertsPerDay"`
-	SLATier             string  `json:"slaTier"`
+	Name                string `json:"name" binding:"required"`
+	Description         string `json:"description"`
+	APIRateLimitPerMin  int    `json:"apiRateLimitPerMin"`
+	APIRateLimitPerHour int    `json:"apiRateLimitPerHour"`
+	MaxCIs              int    `json:"maxCIs"`
+	MaxUsers            int    `json:"maxUsers"`
+	MaxStorageMB        int64  `json:"maxStorageMB"`
+	MaxPipelines        int    `json:"maxPipelines"`
+	MaxConcurrentJobs   int    `json:"maxConcurrentJobs"`
+	MaxAlertsPerDay     int    `json:"maxAlertsPerDay"`
+	SLATier             string `json:"slaTier"`
 
 	// Phase 306 additions
-	SoftLimit       int64 `json:"softLimit"`
-	HardLimit       int64 `json:"hardLimit"`
-	OverLimitAction string  `json:"overLimitAction"` // block|warn|allow, default "block"
-	WarnThresholds  []int   `json:"warnThresholds"`  // e.g. [50, 80, 95], default when nil
+	SoftLimit       int64  `json:"softLimit"`
+	HardLimit       int64  `json:"hardLimit"`
+	OverLimitAction string `json:"overLimitAction"` // block|warn|allow, default "block"
+	WarnThresholds  []int  `json:"warnThresholds"`  // e.g. [50, 80, 95], default when nil
 }
 
 type UpdatePlanRequest struct {
@@ -111,8 +111,8 @@ type UpdatePlanRequest struct {
 	SLATier             *string `json:"slaTier"`
 
 	// Phase 306 additions
-	SoftLimit       *int64 `json:"softLimit"`
-	HardLimit       *int64 `json:"hardLimit"`
+	SoftLimit       *int64  `json:"softLimit"`
+	HardLimit       *int64  `json:"hardLimit"`
 	OverLimitAction *string `json:"overLimitAction"`
 	WarnThresholds  []int   `json:"warnThresholds"`
 }
@@ -158,17 +158,17 @@ type CheckWithPolicyRequest struct {
 // WarningThresholdsHit is populated for every WarnThresholds percentage crossed
 // by `projected / HardLimit * 100` (in ascending order).
 type CheckWithPolicyResult struct {
-	Metric             string   `json:"metric"`
-	CurrentValue       int64    `json:"currentValue"`
-	ProjectedValue     int64    `json:"projectedValue"`
-	SoftLimit          int64    `json:"softLimit"`
-	HardLimit          int64    `json:"hardLimit"`
-	UsagePct           float64  `json:"usagePct"`
-	Allowed            bool     `json:"allowed"`
-	Blocking           bool     `json:"blocking"`
-	OverLimitAction    string   `json:"overLimitAction"`
-	WarnThresholds     []int    `json:"warnThresholds"`
-	WarnThresholdsHit  []int    `json:"warnThresholdsHit"`
-	Warning            []string `json:"warning"`
-	PlanID             string   `json:"planId"`
+	Metric            string   `json:"metric"`
+	CurrentValue      int64    `json:"currentValue"`
+	ProjectedValue    int64    `json:"projectedValue"`
+	SoftLimit         int64    `json:"softLimit"`
+	HardLimit         int64    `json:"hardLimit"`
+	UsagePct          float64  `json:"usagePct"`
+	Allowed           bool     `json:"allowed"`
+	Blocking          bool     `json:"blocking"`
+	OverLimitAction   string   `json:"overLimitAction"`
+	WarnThresholds    []int    `json:"warnThresholds"`
+	WarnThresholdsHit []int    `json:"warnThresholdsHit"`
+	Warning           []string `json:"warning"`
+	PlanID            string   `json:"planId"`
 }

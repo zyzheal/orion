@@ -22,18 +22,18 @@ import "sort"
 
 const (
 	// --- CategoryAPI ---
-	BuiltinPreRequest     = "pre_request"      // API 前置钩子（可修改 request 上下文）
-	BuiltinPostRequest    = "post_request"     // API 后置钩子（可修改 response）
-	BuiltinAuthMiddleware = "auth_middleware"  // 认证中间件注入点
+	BuiltinPreRequest     = "pre_request"     // API 前置钩子（可修改 request 上下文）
+	BuiltinPostRequest    = "post_request"    // API 后置钩子（可修改 response）
+	BuiltinAuthMiddleware = "auth_middleware" // 认证中间件注入点
 
 	// --- CategoryHandler ---
 	BuiltinBeforeHandler = "before_handler" // Handler 执行前
 	BuiltinAfterHandler  = "after_handler"  // Handler 执行后
 
 	// --- CategoryService ---
-	BuiltinPreSave    = "pre_save"     // 实体保存前（校验/默认值/脱敏）
-	BuiltinPostSave   = "post_save"    // 实体保存后（副作用/事件广播）
-	BuiltinDeleteHook = "delete_hook"  // 实体删除前（级联/软删/审计）
+	BuiltinPreSave    = "pre_save"    // 实体保存前（校验/默认值/脱敏）
+	BuiltinPostSave   = "post_save"   // 实体保存后（副作用/事件广播）
+	BuiltinDeleteHook = "delete_hook" // 实体删除前（级联/软删/审计）
 
 	// --- CategoryListener ---
 	BuiltinAuditHook       = "audit_hook"       // 审计日志钩子
@@ -54,11 +54,11 @@ const (
 // GET /extension-points/builtins so the console / SDK can render a stable
 // catalog. All fields are read-only at runtime.
 type BuiltinPointMeta struct {
-	ID           string `json:"id"`                       // unique id (snake_case)
-	Category     string `json:"category"`                 // startup|api|handler|service|listener
-	Description  string `json:"description"`              // 一句话语义
-	DefaultOrder int    `json:"defaultOrder"`             // 默认 priority（越小越先执行）
-	BuiltIn      bool   `json:"builtin"`                  // 恒为 true；用于 UI 区分内置 vs 用户注册
+	ID           string `json:"id"`           // unique id (snake_case)
+	Category     string `json:"category"`     // startup|api|handler|service|listener
+	Description  string `json:"description"`  // 一句话语义
+	DefaultOrder int    `json:"defaultOrder"` // 默认 priority（越小越先执行）
+	BuiltIn      bool   `json:"builtin"`      // 恒为 true；用于 UI 区分内置 vs 用户注册
 }
 
 // BuiltinPointRegistry is the source of truth for the 15 builtin extension

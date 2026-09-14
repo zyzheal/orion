@@ -131,7 +131,7 @@ func analyzeSQL(sql, dbType string, rowsRead int64) *AnalysisResult {
 // ---- Rule helpers ----
 
 var (
-	selectAllRe = regexp.MustCompile(`(?i)\bselect\s+\*`)
+	selectAllRe   = regexp.MustCompile(`(?i)\bselect\s+\*`)
 	leadingLikeRe = regexp.MustCompile(`(?i)\blike\s+'%`)
 	// OR in WHERE/HAVING is the common case; a bare OR outside is
 	// rare and typically a UNION candidate, so we restrict the search.

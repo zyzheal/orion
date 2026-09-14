@@ -10,9 +10,9 @@ import (
 
 	"context"
 
+	"go.uber.org/zap"
 	orionlog "orion/go-common/pkg/logger"
 	"orion/platform-svc-go/internal/middleware"
-	"go.uber.org/zap"
 )
 
 func main() {

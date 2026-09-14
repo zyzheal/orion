@@ -6,8 +6,8 @@ import (
 	"orion/go-common/pkg/database"
 
 	cmdb_relationship_handler "orion/platform-svc-go/internal/cmdb-relationship/handler"
-	cmdb_relationship_service "orion/platform-svc-go/internal/cmdb-relationship/service"
 	cmdb_relationship_repo "orion/platform-svc-go/internal/cmdb-relationship/repository"
+	cmdb_relationship_service "orion/platform-svc-go/internal/cmdb-relationship/service"
 )
 
 func wireCmdbRelationship(db *database.DB, logger *zap.Logger) {

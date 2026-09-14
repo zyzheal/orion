@@ -25,8 +25,8 @@ type S3Config struct {
 // official minio-go client. It is used for both AWS S3 and MinIO since they
 // speak the same protocol.
 type S3 struct {
-	client  *minio.Client
-	bucket  string
+	client *minio.Client
+	bucket string
 }
 
 // NewS3 constructs an S3 backend. The bucket must exist beforehand; NewS3

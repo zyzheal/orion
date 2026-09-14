@@ -9,9 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sync"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"orion/go-common/pkg/sentinel"

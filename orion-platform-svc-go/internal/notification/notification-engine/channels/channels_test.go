@@ -2,8 +2,8 @@ package channels
 
 import (
 	"context"
-	"orion/platform-svc-go/internal/notification/notification-engine"
 	"orion/platform-svc-go/internal/notification/models"
+	"orion/platform-svc-go/internal/notification/notification-engine"
 )
 
 // ---------------------------------------------------------------------------

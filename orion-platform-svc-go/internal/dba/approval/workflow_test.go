@@ -98,7 +98,7 @@ func TestEvaluateStep_UnanimousThreshold(t *testing.T) {
 	start := now.Add(-time.Hour)
 
 	step := ApprovalStep{
-		Status: StatusInProgress,
+		Status:    StatusInProgress,
 		StartedAt: &start,
 		Approvals: []ApprovalRecord{
 			{UserID: "a", Action: ActionApprove},
@@ -284,7 +284,7 @@ func TestEvaluateStep_AlreadyTerminal(t *testing.T) {
 	now := time.Date(2026, 9, 6, 12, 0, 0, 0, time.UTC)
 
 	step := ApprovalStep{
-		Status: StatusApproved,
+		Status:    StatusApproved,
 		Approvals: []ApprovalRecord{{UserID: "a", Action: ActionApprove}},
 	}
 	ev := EvaluateStep(step, def, cfg, now)

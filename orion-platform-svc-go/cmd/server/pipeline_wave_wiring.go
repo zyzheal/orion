@@ -3,66 +3,66 @@ package main
 import (
 	"orion/go-common/pkg/database"
 
-	pb_repo "orion/platform-svc-go/internal/pipeline-batch/repository"
-	pb_service "orion/platform-svc-go/internal/pipeline-batch/service"
-	pb_handler "orion/platform-svc-go/internal/pipeline-batch/handler"
-	pal_repo "orion/platform-svc-go/internal/pipeline-audit-log/repository"
-	pal_service "orion/platform-svc-go/internal/pipeline-audit-log/service"
-	pal_handler "orion/platform-svc-go/internal/pipeline-audit-log/handler"
-	ptmpl_repo "orion/platform-svc-go/internal/pipeline-template/repository"
-	ptmpl_service "orion/platform-svc-go/internal/pipeline-template/service"
-	ptmpl_handler "orion/platform-svc-go/internal/pipeline-template/handler"
-	pver_repo "orion/platform-svc-go/internal/pipeline-version/repository"
-	pver_service "orion/platform-svc-go/internal/pipeline-version/service"
-	pver_handler "orion/platform-svc-go/internal/pipeline-version/handler"
-	phist_repo "orion/platform-svc-go/internal/pipeline-run-history/repository"
-	phist_service "orion/platform-svc-go/internal/pipeline-run-history/service"
-	phist_handler "orion/platform-svc-go/internal/pipeline-run-history/handler"
-	pbo_repo "orion/platform-svc-go/internal/pipeline-batch-operations/repository"
-	pbo_service "orion/platform-svc-go/internal/pipeline-batch-operations/service"
-	pbo_handler "orion/platform-svc-go/internal/pipeline-batch-operations/handler"
-	psse_repo "orion/platform-svc-go/internal/pipeline-sse/repository"
-	psse_service "orion/platform-svc-go/internal/pipeline-sse/service"
-	psse_handler "orion/platform-svc-go/internal/pipeline-sse/handler"
-	pec_repo "orion/platform-svc-go/internal/pipeline-execution-control/repository"
-	pec_service "orion/platform-svc-go/internal/pipeline-execution-control/service"
-	pec_handler "orion/platform-svc-go/internal/pipeline-execution-control/handler"
-	pgraph_repo "orion/platform-svc-go/internal/pipeline-graph/repository"
-	pgraph_service "orion/platform-svc-go/internal/pipeline-graph/service"
-	pgraph_handler "orion/platform-svc-go/internal/pipeline-graph/handler"
-	ptrend_repo "orion/platform-svc-go/internal/pipeline-trend/repository"
-	ptrend_service "orion/platform-svc-go/internal/pipeline-trend/service"
-	ptrend_handler "orion/platform-svc-go/internal/pipeline-trend/handler"
+	ci_handler "orion/platform-svc-go/internal/change-intelligence/handler"
 	ci_repo "orion/platform-svc-go/internal/change-intelligence/repository"
 	ci_service "orion/platform-svc-go/internal/change-intelligence/service"
-	ci_handler "orion/platform-svc-go/internal/change-intelligence/handler"
-	tracing_repo "orion/platform-svc-go/internal/tracing/repository"
-	tracing_service "orion/platform-svc-go/internal/tracing/service"
-	tracing_handler "orion/platform-svc-go/internal/tracing/handler"
-	slo_repo "orion/platform-svc-go/internal/slo/repository"
-	slo_service "orion/platform-svc-go/internal/slo/service"
-	slo_handler "orion/platform-svc-go/internal/slo/handler"
-	perf_repo "orion/platform-svc-go/internal/performance/repository"
-	perf_service "orion/platform-svc-go/internal/performance/service"
-	perf_handler "orion/platform-svc-go/internal/performance/handler"
-	hc_repo "orion/platform-svc-go/internal/health-check/repository"
-	hc_service "orion/platform-svc-go/internal/health-check/service"
-	hc_handler "orion/platform-svc-go/internal/health-check/handler"
-	supply_chain_repo "orion/platform-svc-go/internal/supply-chain/repository"
-	supply_chain_service "orion/platform-svc-go/internal/supply-chain/service"
-	supply_chain_handler "orion/platform-svc-go/internal/supply-chain/handler"
-	secret_repo "orion/platform-svc-go/internal/secret/repository"
-	secret_service "orion/platform-svc-go/internal/secret/service"
-	secret_handler "orion/platform-svc-go/internal/secret/handler"
+	chaos_enhanced_handler "orion/platform-svc-go/internal/chaos-enhanced/handler"
 	chaos_enhanced_repo "orion/platform-svc-go/internal/chaos-enhanced/repository"
 	chaos_enhanced_service "orion/platform-svc-go/internal/chaos-enhanced/service"
-	chaos_enhanced_handler "orion/platform-svc-go/internal/chaos-enhanced/handler"
-	ueba_repo "orion/platform-svc-go/internal/ueba/repository"
-	ueba_service "orion/platform-svc-go/internal/ueba/service"
-	ueba_handler "orion/platform-svc-go/internal/ueba/handler"
+	hc_handler "orion/platform-svc-go/internal/health-check/handler"
+	hc_repo "orion/platform-svc-go/internal/health-check/repository"
+	hc_service "orion/platform-svc-go/internal/health-check/service"
+	perf_handler "orion/platform-svc-go/internal/performance/handler"
+	perf_repo "orion/platform-svc-go/internal/performance/repository"
+	perf_service "orion/platform-svc-go/internal/performance/service"
+	pal_handler "orion/platform-svc-go/internal/pipeline-audit-log/handler"
+	pal_repo "orion/platform-svc-go/internal/pipeline-audit-log/repository"
+	pal_service "orion/platform-svc-go/internal/pipeline-audit-log/service"
+	pbo_handler "orion/platform-svc-go/internal/pipeline-batch-operations/handler"
+	pbo_repo "orion/platform-svc-go/internal/pipeline-batch-operations/repository"
+	pbo_service "orion/platform-svc-go/internal/pipeline-batch-operations/service"
+	pb_handler "orion/platform-svc-go/internal/pipeline-batch/handler"
+	pb_repo "orion/platform-svc-go/internal/pipeline-batch/repository"
+	pb_service "orion/platform-svc-go/internal/pipeline-batch/service"
+	pec_handler "orion/platform-svc-go/internal/pipeline-execution-control/handler"
+	pec_repo "orion/platform-svc-go/internal/pipeline-execution-control/repository"
+	pec_service "orion/platform-svc-go/internal/pipeline-execution-control/service"
+	pgraph_handler "orion/platform-svc-go/internal/pipeline-graph/handler"
+	pgraph_repo "orion/platform-svc-go/internal/pipeline-graph/repository"
+	pgraph_service "orion/platform-svc-go/internal/pipeline-graph/service"
+	phist_handler "orion/platform-svc-go/internal/pipeline-run-history/handler"
+	phist_repo "orion/platform-svc-go/internal/pipeline-run-history/repository"
+	phist_service "orion/platform-svc-go/internal/pipeline-run-history/service"
+	psse_handler "orion/platform-svc-go/internal/pipeline-sse/handler"
+	psse_repo "orion/platform-svc-go/internal/pipeline-sse/repository"
+	psse_service "orion/platform-svc-go/internal/pipeline-sse/service"
+	ptmpl_handler "orion/platform-svc-go/internal/pipeline-template/handler"
+	ptmpl_repo "orion/platform-svc-go/internal/pipeline-template/repository"
+	ptmpl_service "orion/platform-svc-go/internal/pipeline-template/service"
+	ptrend_handler "orion/platform-svc-go/internal/pipeline-trend/handler"
+	ptrend_repo "orion/platform-svc-go/internal/pipeline-trend/repository"
+	ptrend_service "orion/platform-svc-go/internal/pipeline-trend/service"
+	pver_handler "orion/platform-svc-go/internal/pipeline-version/handler"
+	pver_repo "orion/platform-svc-go/internal/pipeline-version/repository"
+	pver_service "orion/platform-svc-go/internal/pipeline-version/service"
+	problem_handler "orion/platform-svc-go/internal/problem/handler"
 	problem_repo "orion/platform-svc-go/internal/problem/repository"
 	problem_service "orion/platform-svc-go/internal/problem/service"
-	problem_handler "orion/platform-svc-go/internal/problem/handler"
+	secret_handler "orion/platform-svc-go/internal/secret/handler"
+	secret_repo "orion/platform-svc-go/internal/secret/repository"
+	secret_service "orion/platform-svc-go/internal/secret/service"
+	slo_handler "orion/platform-svc-go/internal/slo/handler"
+	slo_repo "orion/platform-svc-go/internal/slo/repository"
+	slo_service "orion/platform-svc-go/internal/slo/service"
+	supply_chain_handler "orion/platform-svc-go/internal/supply-chain/handler"
+	supply_chain_repo "orion/platform-svc-go/internal/supply-chain/repository"
+	supply_chain_service "orion/platform-svc-go/internal/supply-chain/service"
+	tracing_handler "orion/platform-svc-go/internal/tracing/handler"
+	tracing_repo "orion/platform-svc-go/internal/tracing/repository"
+	tracing_service "orion/platform-svc-go/internal/tracing/service"
+	ueba_handler "orion/platform-svc-go/internal/ueba/handler"
+	ueba_repo "orion/platform-svc-go/internal/ueba/repository"
+	ueba_service "orion/platform-svc-go/internal/ueba/service"
 )
 
 // wirePipelineAssistantModules wires Wave 5: Pipeline Assistant modules.
@@ -160,25 +160,25 @@ func wireP2Modules(db *database.DB) {
 
 // Handler variables for pipeline_wave_wiring (moved from central wiring.go var block)
 var (
-	chaos_enhancedH     *chaos_enhanced_handler.Handler
-	ciH                 *ci_handler.Handler
+	chaos_enhancedH *chaos_enhanced_handler.Handler
+	ciH             *ci_handler.Handler
 	// complianceH removed — merged into governance/compliance (P2-01)
-	hcH                 *hc_handler.Handler
-	palH                *pal_handler.Handler
-	pbH                 *pb_handler.Handler
-	pboH                *pbo_handler.Handler
-	pecH                *pec_handler.Handler
-	perfH               *perf_handler.Handler
-	pgraphH             *pgraph_handler.Handler
-	phistH              *phist_handler.Handler
-	problemH            *problem_handler.Handler
-	psseH               *psse_handler.Handler
-	ptmplH              *ptmpl_handler.Handler
-	ptrendH             *ptrend_handler.Handler
-	pverH               *pver_handler.Handler
-	secretH             *secret_handler.Handler
-	sloH                *slo_handler.Handler
-	supply_chainH       *supply_chain_handler.Handler
-	tracingH            *tracing_handler.Handler
-	uebaH               *ueba_handler.Handler
+	hcH           *hc_handler.Handler
+	palH          *pal_handler.Handler
+	pbH           *pb_handler.Handler
+	pboH          *pbo_handler.Handler
+	pecH          *pec_handler.Handler
+	perfH         *perf_handler.Handler
+	pgraphH       *pgraph_handler.Handler
+	phistH        *phist_handler.Handler
+	problemH      *problem_handler.Handler
+	psseH         *psse_handler.Handler
+	ptmplH        *ptmpl_handler.Handler
+	ptrendH       *ptrend_handler.Handler
+	pverH         *pver_handler.Handler
+	secretH       *secret_handler.Handler
+	sloH          *slo_handler.Handler
+	supply_chainH *supply_chain_handler.Handler
+	tracingH      *tracing_handler.Handler
+	uebaH         *ueba_handler.Handler
 )

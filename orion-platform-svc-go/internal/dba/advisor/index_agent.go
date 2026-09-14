@@ -37,11 +37,11 @@ type SlowQueryLookup interface {
 // SlowQueryRow is the narrow shape the advisor consumes. Kept as a
 // local struct to avoid importing slowquery.
 type SlowQueryRow struct {
-	Query      string
-	DBType     string
-	CallCount  int64
-	TotalTime  float64
-	RowsRead   int64
+	Query     string
+	DBType    string
+	CallCount int64
+	TotalTime float64
+	RowsRead  int64
 }
 
 // NewIndexAdvisorService constructs an IndexAdvisorService.

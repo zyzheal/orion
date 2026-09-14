@@ -192,15 +192,15 @@ type PipelineRequest struct {
 
 // PipelineResponse is the JSON response containing a created pipeline.
 type PipelineResponse struct {
-	ID             string `json:"id"`
-	Name           string `json:"name"`
-	Description    string `json:"description"`
-	Status         string `json:"status"`
-	Version        int    `json:"version"`
-	TriggerType    string `json:"triggerType"`
-	ProjectID      string `json:"projectId"`
-	CreatedAt      string `json:"createdAt"`
-	UpdatedAt      string `json:"updatedAt"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Status      string `json:"status"`
+	Version     int    `json:"version"`
+	TriggerType string `json:"triggerType"`
+	ProjectID   string `json:"projectId"`
+	CreatedAt   string `json:"createdAt"`
+	UpdatedAt   string `json:"updatedAt"`
 }
 
 // ResponseEnvelope is a generic API response envelope.

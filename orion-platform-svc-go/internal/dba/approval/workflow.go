@@ -122,8 +122,8 @@ func EvaluateStep(step ApprovalStep, def ApprovalStepDef, cfg Config, now time.T
 	rejections := countDistinctUsers(step.Approvals, ActionReject)
 
 	ev := StepEvaluation{
-		ApprovalsNeeded:   needed,
-		ApprovalsObtained: approvals,
+		ApprovalsNeeded:    needed,
+		ApprovalsObtained:  approvals,
 		RejectionsObtained: rejections,
 	}
 

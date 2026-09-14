@@ -271,8 +271,8 @@ func RedactSQL(sqlStr string) string {
 }
 
 // redactQuotedLiterals scans s and replaces the contents of every
-// single- or double-quoted literal with '?'. Escaped quotes (`` '' `` or
-// `` "" ``) inside the literal do not terminate it.
+// single- or double-quoted literal with '?'. Escaped quotes (“ ” “ or
+// “ "" “) inside the literal do not terminate it.
 func redactQuotedLiterals(s string) string {
 	out := make([]byte, 0, len(s))
 	i := 0

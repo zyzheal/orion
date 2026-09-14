@@ -29,7 +29,7 @@ var ErrNoArchiveFiles = errors.New("no archive files in window")
 // precise time window. Phase 2 lands the directory scanner and the record
 // persistence path.
 type Archiver struct {
-	repo   ArchiveRepository
+	repo ArchiveRepository
 	// resolver maps (storage config, optional key) to a StorageBackend.
 	// It wraps the BackupService's private resolver so unit tests can
 	// inject a fake without exposing the service's internals.
@@ -70,16 +70,16 @@ func (a *Archiver) SetResolver(r func(models.BackupStorageConfig) storage.Storag
 
 // ArchiveOptions controls one ArchiveWindow run.
 type ArchiveOptions struct {
-	SourceDir    string             // local WAL/binlog directory
-	PlanID       string
-	TenantID     string
-	ArchiveType  models.ArchiveType
-	StorageConfig models.BackupStorageConfig
-	EncryptionKey []byte            // when non-empty, AES-256-GCM encrypt each file
-	WindowStart  time.Time          // inclusive; zero = no filter
-	WindowEnd    time.Time          // inclusive; zero = no filter
-	DryRun       bool               // scan and compute, but do not upload/persist
-	StoragePathPrefix string         // optional key prefix override; defaults to <plan>/<type>
+	SourceDir         string // local WAL/binlog directory
+	PlanID            string
+	TenantID          string
+	ArchiveType       models.ArchiveType
+	StorageConfig     models.BackupStorageConfig
+	EncryptionKey     []byte    // when non-empty, AES-256-GCM encrypt each file
+	WindowStart       time.Time // inclusive; zero = no filter
+	WindowEnd         time.Time // inclusive; zero = no filter
+	DryRun            bool      // scan and compute, but do not upload/persist
+	StoragePathPrefix string    // optional key prefix override; defaults to <plan>/<type>
 }
 
 // ArchiveResult reports what ArchiveWindow actually uploaded.

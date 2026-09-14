@@ -6,12 +6,14 @@
 // requests through the router.
 //
 // Usage:
-//   cd orion-platform-svc-go
-//   export E2E_BASE_URL="http://localhost:8080"
-//   go test ./test/e2e/... -v -run TestE2E
+//
+//	cd orion-platform-svc-go
+//	export E2E_BASE_URL="http://localhost:8080"
+//	go test ./test/e2e/... -v -run TestE2E
 //
 // Skip (no server available):
-//   go test ./test/e2e/... -short
+//
+//	go test ./test/e2e/... -short
 //
 // Requirements:
 //   - A running Orion Platform Service instance (E2E_BASE_URL)

@@ -12,17 +12,17 @@ import (
 
 func newSchema(ns, name string, version int) *models.Schema {
 	return &models.Schema{
-		ID:          ns + "/" + name,
-		Name:        name,
-		Namespace:   ns,
-		Type:        models.SchemaTypeProtobuf,
-		Version:     version,
-		Status:      models.SchemaActive,
-		Owner:       "owner",
-		Fields:      []models.SchemaField{{Name: "id", Type: "int64", PrimaryKey: true}},
+		ID:            ns + "/" + name,
+		Name:          name,
+		Namespace:     ns,
+		Type:          models.SchemaTypeProtobuf,
+		Version:       version,
+		Status:        models.SchemaActive,
+		Owner:         "owner",
+		Fields:        []models.SchemaField{{Name: "id", Type: "int64", PrimaryKey: true}},
 		Compatibility: models.CompatibilityBackward,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	}
 }
 

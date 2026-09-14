@@ -67,7 +67,12 @@ func buildSQLServerEnv(conn ConnInfo) []string {
 // the T-SQL batch fails, which RunCommand surfaces as an error.
 func buildSQLServerBackupArgs(opts BackupOptions, conn ConnInfo) []string {
 	args := []string{
-		"-S", conn.Host + (func() string { if conn.Port != "" { return "," + conn.Port }; return "" })(),
+		"-S", conn.Host + (func() string {
+			if conn.Port != "" {
+				return "," + conn.Port
+			}
+			return ""
+		})(),
 		"-U", conn.User,
 		"-b",
 		"-Q", fmt.Sprintf("BACKUP DATABASE [%s] TO DISK = '%s' WITH INIT", conn.DB, opts.OutputPath),

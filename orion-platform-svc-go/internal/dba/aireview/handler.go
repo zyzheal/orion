@@ -23,9 +23,10 @@ func NewHandler(svc *Service) *Handler {
 // RegisterRoutes mounts the aireview endpoints under the given group.
 //
 // Routes:
-//   POST /db/aireview/review  — submit a SQL review
-//   GET  /db/aireview/history — list recent reviews for the caller's tenant
-//   GET  /db/aireview/:id     — fetch a single review record
+//
+//	POST /db/aireview/review  — submit a SQL review
+//	GET  /db/aireview/history — list recent reviews for the caller's tenant
+//	GET  /db/aireview/:id     — fetch a single review record
 //
 // Auth uses the same dba permissions as the rest of the DBA module.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {

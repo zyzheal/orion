@@ -132,17 +132,17 @@ func (s *Service) recordFromResult(r *SQLReviewResult, req SQLReviewRequest) (*R
 		return nil, fmt.Errorf("aireview: marshal ai suggestions: %w", err)
 	}
 	rec := &ReviewRecord{
-		ID:           r.ID,
-		TenantID:     r.TenantID,
-		SQL:          req.SQL,
-		DBType:       req.DBType,
-		Verdict:      r.Verdict,
-		Score:        r.Score,
-		ModelUsed:    r.ModelUsed,
-		DurationMs:   r.Duration.Milliseconds(),
-		LocalAudit:   localJSON,
+		ID:            r.ID,
+		TenantID:      r.TenantID,
+		SQL:           req.SQL,
+		DBType:        req.DBType,
+		Verdict:       r.Verdict,
+		Score:         r.Score,
+		ModelUsed:     r.ModelUsed,
+		DurationMs:    r.Duration.Milliseconds(),
+		LocalAudit:    localJSON,
 		AISuggestions: aiJSON,
-		CreatedAt:    time.Now().UTC(),
+		CreatedAt:     time.Now().UTC(),
 	}
 	return rec, nil
 }

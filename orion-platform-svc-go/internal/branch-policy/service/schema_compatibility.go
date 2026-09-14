@@ -21,10 +21,10 @@ import (
 //     req.ArtifactID (or req.SourceCommit when only a commit SHA is known).
 //     Empty when the artifact carries no schema version.
 type SchemaCompatibilityResult struct {
-	Compatible                 bool
-	Breaking                   []string
-	Warnings                   []string
-	CheckedAgainstSchemaVersion string
+	Compatible                          bool
+	Breaking                            []string
+	Warnings                            []string
+	CheckedAgainstSchemaVersion         string
 	CheckedAgainstArtifactSchemaVersion string
 }
 

@@ -3,10 +3,10 @@ package main
 import (
 	"go.uber.org/zap"
 	"orion/go-common/pkg/database"
+	re_roweditor "orion/platform-svc-go/internal/roweditor"
 	re_handler "orion/platform-svc-go/internal/roweditor/handler"
 	re_repo "orion/platform-svc-go/internal/roweditor/repository"
 	re_service "orion/platform-svc-go/internal/roweditor/service"
-	re_roweditor "orion/platform-svc-go/internal/roweditor"
 )
 
 var roweditorH *re_handler.Handler

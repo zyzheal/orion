@@ -51,8 +51,8 @@ type PagedQueryRequest struct {
 // column names can be shared once at the top level and memory per row
 // is minimal.
 type PagedQueryResult struct {
-	Columns       []QueryColumn  `json:"columns"`
-	Rows          [][]interface{} `json:"rows"`
+	Columns []QueryColumn   `json:"columns"`
+	Rows    [][]interface{} `json:"rows"`
 	// Total is an estimated row count. It is only populated when the
 	// caller passes a SQL pattern the module can wrap in a count()
 	// probe; otherwise it is 0 and callers must rely on NextPageToken.

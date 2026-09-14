@@ -52,12 +52,12 @@ type ServiceInterface interface {
 
 // Service is the concrete ServiceInterface implementation.
 type Service struct {
-	engine  *GhOstEngine
-	repo    *Repository
-	ds      DataSourceProvider
-	log     *zap.Logger
+	engine *GhOstEngine
+	repo   *Repository
+	ds     DataSourceProvider
+	log    *zap.Logger
 
-	mu    sync.Mutex
+	mu     sync.Mutex
 	active map[string]context.CancelFunc // jobID -> cancel
 }
 
@@ -322,16 +322,16 @@ func (s *Service) DryRun(ctx context.Context, tenantID string, req DryRunRequest
 	pingCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	cfg := GhOstConfig{
-		Host:       ds.Host,
-		Port:       ds.Port,
-		User:       ds.User,
-		Password:   ds.Password,
-		DBName:     ds.Database,
-		Table:      req.Table,
-		AlterSQL:   req.AlterSQL,
-		DryRun:     true,
+		Host:         ds.Host,
+		Port:         ds.Port,
+		User:         ds.User,
+		Password:     ds.Password,
+		DBName:       ds.Database,
+		Table:        req.Table,
+		AlterSQL:     req.AlterSQL,
+		DryRun:       true,
 		MaxLagMillis: DefaultMaxLagMillis,
-		ChunkSize:  DefaultChunkSize,
+		ChunkSize:    DefaultChunkSize,
 	}
 	if err := PingMySQL(pingCtx, cfg); err != nil {
 		return &DryRunResult{
@@ -478,5 +478,5 @@ func validateAlterSQL(alter string) error {
 	return nil
 }
 
-func strPtr(s string) *string   { return &s }
-func intPtr(i int) *int         { return &i }
+func strPtr(s string) *string { return &s }
+func intPtr(i int) *int       { return &i }

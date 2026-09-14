@@ -64,7 +64,11 @@ type fakeToolRepo struct {
 	tool   *models.Tool
 }
 
-func (f *fakeToolRepo) Create(_ context.Context, tool *models.Tool) error { f.tenant = tool.TenantID; f.tool = tool; return nil }
+func (f *fakeToolRepo) Create(_ context.Context, tool *models.Tool) error {
+	f.tenant = tool.TenantID
+	f.tool = tool
+	return nil
+}
 func (f *fakeToolRepo) GetByID(_ context.Context, tenantID, id string) (*models.Tool, error) {
 	if f.tool != nil && f.tool.TenantID == tenantID && f.tool.ID == id {
 		return f.tool, nil
@@ -78,9 +82,19 @@ func (f *fakeToolRepo) List(_ context.Context, tenantID string, params models.To
 	}
 	return nil, 0, nil
 }
-func (f *fakeToolRepo) Update(_ context.Context, tool *models.Tool) error { f.tenant = tool.TenantID; f.tool = tool; return nil }
-func (f *fakeToolRepo) GetCategories(_ context.Context, tenantID string) ([]models.ToolCategory, error) { f.tenant = tenantID; return nil, nil }
-func (f *fakeToolRepo) Search(_ context.Context, tenantID, query string, limit int) ([]models.Tool, error) { f.tenant = tenantID; return nil, nil }
+func (f *fakeToolRepo) Update(_ context.Context, tool *models.Tool) error {
+	f.tenant = tool.TenantID
+	f.tool = tool
+	return nil
+}
+func (f *fakeToolRepo) GetCategories(_ context.Context, tenantID string) ([]models.ToolCategory, error) {
+	f.tenant = tenantID
+	return nil, nil
+}
+func (f *fakeToolRepo) Search(_ context.Context, tenantID, query string, limit int) ([]models.Tool, error) {
+	f.tenant = tenantID
+	return nil, nil
+}
 
 type fakeInvRepo struct{}
 
@@ -88,16 +102,28 @@ func (f *fakeInvRepo) Create(_ context.Context, inv *models.ToolInvocation) erro
 func (f *fakeInvRepo) GetByID(_ context.Context, tenantID, id string) (*models.ToolInvocation, error) {
 	return &models.ToolInvocation{ID: id, TenantID: tenantID}, nil
 }
-func (f *fakeInvRepo) ListByTool(_ context.Context, tenantID, toolID string, limit, offset int) ([]models.ToolInvocation, error) { return nil, nil }
-func (f *fakeInvRepo) CountByTool(_ context.Context, tenantID, toolID string) (int, error) { return 0, nil }
-func (f *fakeInvRepo) StatsByPeriod(_ context.Context, tenantID, period string) (*models.ToolStats, error) { return &models.ToolStats{}, nil }
-func (f *fakeInvRepo) StatsByTool(_ context.Context, tenantID, toolID string) (*models.ToolStats, error) { return &models.ToolStats{}, nil }
-func (f *fakeInvRepo) TopToolsByInvocations(_ context.Context, tenantID string, limit int) ([]models.ToolUsageRank, error) { return nil, nil }
+func (f *fakeInvRepo) ListByTool(_ context.Context, tenantID, toolID string, limit, offset int) ([]models.ToolInvocation, error) {
+	return nil, nil
+}
+func (f *fakeInvRepo) CountByTool(_ context.Context, tenantID, toolID string) (int, error) {
+	return 0, nil
+}
+func (f *fakeInvRepo) StatsByPeriod(_ context.Context, tenantID, period string) (*models.ToolStats, error) {
+	return &models.ToolStats{}, nil
+}
+func (f *fakeInvRepo) StatsByTool(_ context.Context, tenantID, toolID string) (*models.ToolStats, error) {
+	return &models.ToolStats{}, nil
+}
+func (f *fakeInvRepo) TopToolsByInvocations(_ context.Context, tenantID string, limit int) ([]models.ToolUsageRank, error) {
+	return nil, nil
+}
 
 type fakeVerRepo struct{}
 
 func (f *fakeVerRepo) Create(_ context.Context, v *models.ToolVersion) error { return nil }
-func (f *fakeVerRepo) ListByTool(_ context.Context, toolID string) ([]models.ToolVersion, error) { return nil, nil }
+func (f *fakeVerRepo) ListByTool(_ context.Context, toolID string) ([]models.ToolVersion, error) {
+	return nil, nil
+}
 
 func newHandler(t *testing.T) (*ToolHandler, *fakeToolRepo) {
 	t.Helper()
@@ -390,32 +416,64 @@ func (f *missingInvRepo) Create(_ context.Context, inv *models.ToolInvocation) e
 func (f *missingInvRepo) GetByID(_ context.Context, tenantID, id string) (*models.ToolInvocation, error) {
 	return nil, nil
 }
-func (f *missingInvRepo) ListByTool(_ context.Context, tenantID, toolID string, limit, offset int) ([]models.ToolInvocation, error) { return nil, nil }
-func (f *missingInvRepo) CountByTool(_ context.Context, tenantID, toolID string) (int, error) { return 0, nil }
-func (f *missingInvRepo) StatsByPeriod(_ context.Context, tenantID, period string) (*models.ToolStats, error) { return &models.ToolStats{}, nil }
-func (f *missingInvRepo) StatsByTool(_ context.Context, tenantID, toolID string) (*models.ToolStats, error) { return &models.ToolStats{}, nil }
-func (f *missingInvRepo) TopToolsByInvocations(_ context.Context, tenantID string, limit int) ([]models.ToolUsageRank, error) { return nil, nil }
+func (f *missingInvRepo) ListByTool(_ context.Context, tenantID, toolID string, limit, offset int) ([]models.ToolInvocation, error) {
+	return nil, nil
+}
+func (f *missingInvRepo) CountByTool(_ context.Context, tenantID, toolID string) (int, error) {
+	return 0, nil
+}
+func (f *missingInvRepo) StatsByPeriod(_ context.Context, tenantID, period string) (*models.ToolStats, error) {
+	return &models.ToolStats{}, nil
+}
+func (f *missingInvRepo) StatsByTool(_ context.Context, tenantID, toolID string) (*models.ToolStats, error) {
+	return &models.ToolStats{}, nil
+}
+func (f *missingInvRepo) TopToolsByInvocations(_ context.Context, tenantID string, limit int) ([]models.ToolUsageRank, error) {
+	return nil, nil
+}
 
 type failingRepo struct{}
 
 func (f *failingRepo) Create(_ context.Context, tool *models.Tool) error { return nil }
-func (f *failingRepo) GetByID(_ context.Context, tenantID, id string) (*models.Tool, error) { return nil, errors.New("db down") }
-func (f *failingRepo) List(_ context.Context, tenantID string, params models.ToolListParams) ([]models.Tool, int, error) { return nil, 0, errors.New("db down") }
+func (f *failingRepo) GetByID(_ context.Context, tenantID, id string) (*models.Tool, error) {
+	return nil, errors.New("db down")
+}
+func (f *failingRepo) List(_ context.Context, tenantID string, params models.ToolListParams) ([]models.Tool, int, error) {
+	return nil, 0, errors.New("db down")
+}
 func (f *failingRepo) Update(_ context.Context, tool *models.Tool) error { return nil }
-func (f *failingRepo) GetCategories(_ context.Context, tenantID string) ([]models.ToolCategory, error) { return nil, errors.New("db down") }
-func (f *failingRepo) Search(_ context.Context, tenantID, query string, limit int) ([]models.Tool, error) { return nil, errors.New("db down") }
+func (f *failingRepo) GetCategories(_ context.Context, tenantID string) ([]models.ToolCategory, error) {
+	return nil, errors.New("db down")
+}
+func (f *failingRepo) Search(_ context.Context, tenantID, query string, limit int) ([]models.Tool, error) {
+	return nil, errors.New("db down")
+}
 
 type failingInvRepo struct{}
 
 func (f *failingInvRepo) Create(_ context.Context, inv *models.ToolInvocation) error { return nil }
-func (f *failingInvRepo) GetByID(_ context.Context, tenantID, id string) (*models.ToolInvocation, error) { return nil, errors.New("db down") }
-func (f *failingInvRepo) ListByTool(_ context.Context, tenantID, toolID string, limit, offset int) ([]models.ToolInvocation, error) { return nil, errors.New("db down") }
-func (f *failingInvRepo) CountByTool(_ context.Context, tenantID, toolID string) (int, error) { return 0, errors.New("db down") }
-func (f *failingInvRepo) StatsByPeriod(_ context.Context, tenantID, period string) (*models.ToolStats, error) { return nil, errors.New("db down") }
-func (f *failingInvRepo) StatsByTool(_ context.Context, tenantID, toolID string) (*models.ToolStats, error) { return nil, errors.New("db down") }
-func (f *failingInvRepo) TopToolsByInvocations(_ context.Context, tenantID string, limit int) ([]models.ToolUsageRank, error) { return nil, errors.New("db down") }
+func (f *failingInvRepo) GetByID(_ context.Context, tenantID, id string) (*models.ToolInvocation, error) {
+	return nil, errors.New("db down")
+}
+func (f *failingInvRepo) ListByTool(_ context.Context, tenantID, toolID string, limit, offset int) ([]models.ToolInvocation, error) {
+	return nil, errors.New("db down")
+}
+func (f *failingInvRepo) CountByTool(_ context.Context, tenantID, toolID string) (int, error) {
+	return 0, errors.New("db down")
+}
+func (f *failingInvRepo) StatsByPeriod(_ context.Context, tenantID, period string) (*models.ToolStats, error) {
+	return nil, errors.New("db down")
+}
+func (f *failingInvRepo) StatsByTool(_ context.Context, tenantID, toolID string) (*models.ToolStats, error) {
+	return nil, errors.New("db down")
+}
+func (f *failingInvRepo) TopToolsByInvocations(_ context.Context, tenantID string, limit int) ([]models.ToolUsageRank, error) {
+	return nil, errors.New("db down")
+}
 
 type failingVerRepo struct{}
 
 func (f *failingVerRepo) Create(_ context.Context, v *models.ToolVersion) error { return nil }
-func (f *failingVerRepo) ListByTool(_ context.Context, toolID string) ([]models.ToolVersion, error) { return nil, errors.New("db down") }
+func (f *failingVerRepo) ListByTool(_ context.Context, toolID string) ([]models.ToolVersion, error) {
+	return nil, errors.New("db down")
+}

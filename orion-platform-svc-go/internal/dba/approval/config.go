@@ -10,10 +10,11 @@ import (
 // vars directly without pre-validating.
 //
 // Recognised keys:
-//   DBA_APPROVAL_DEFAULT_TIMEOUT_HOURS
-//   DBA_APPROVAL_DEFAULT_TIMEOUT_ACTION
-//   DBA_APPROVAL_MAX_STEPS
-//   DBA_APPROVAL_MAX_APPROVERS
+//
+//	DBA_APPROVAL_DEFAULT_TIMEOUT_HOURS
+//	DBA_APPROVAL_DEFAULT_TIMEOUT_ACTION
+//	DBA_APPROVAL_MAX_STEPS
+//	DBA_APPROVAL_MAX_APPROVERS
 func LoadConfig(timeoutHours, timeoutAction, maxSteps, maxApprovers string) Config {
 	c := Defaults()
 

@@ -35,26 +35,26 @@ const (
 // snapshot credentials onto the job record because gh-ost is short-lived
 // and re-fetching credentials per job keeps secret rotation safe.
 type OSCJob struct {
-	ID             string         `json:"id" db:"id"`
-	TenantID       string         `json:"tenant_id" db:"tenant_id"`
-	UserID         string         `json:"user_id" db:"user_id"`
-	DataSourceID   string         `json:"data_source_id" db:"data_source_id"`
-	Table          string         `json:"table" db:"table"`
-	AlterSQL       string         `json:"alter_sql" db:"alter_sql"`
-	Status         string         `json:"status" db:"status"`
-	DryRun         bool           `json:"dry_run" db:"dry_run"`
-	CutoverMode    string         `json:"cutover_mode" db:"cutover_mode"`
-	MaxLagMillis   int            `json:"max_lag_millis" db:"max_lag_millis"`
-	ChunkSize      int            `json:"chunk_size" db:"chunk_size"`
-	ErrorMessage   *string        `json:"error_message,omitempty" db:"error_message"`
-	Log            string         `json:"log" db:"log"`
-	RowsAffected   *int64         `json:"rows_affected,omitempty" db:"rows_affected"`
-	MaxLagObserved *int64         `json:"max_lag_observed,omitempty" db:"max_lag_observed"`
-	Duration       *int64         `json:"duration_ms,omitempty" db:"duration_ms"`
-	CreatedAt      time.Time      `json:"created_at" db:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at" db:"updated_at"`
-	StartedAt      *time.Time     `json:"started_at,omitempty" db:"started_at"`
-	FinishedAt     *time.Time     `json:"finished_at,omitempty" db:"finished_at"`
+	ID             string     `json:"id" db:"id"`
+	TenantID       string     `json:"tenant_id" db:"tenant_id"`
+	UserID         string     `json:"user_id" db:"user_id"`
+	DataSourceID   string     `json:"data_source_id" db:"data_source_id"`
+	Table          string     `json:"table" db:"table"`
+	AlterSQL       string     `json:"alter_sql" db:"alter_sql"`
+	Status         string     `json:"status" db:"status"`
+	DryRun         bool       `json:"dry_run" db:"dry_run"`
+	CutoverMode    string     `json:"cutover_mode" db:"cutover_mode"`
+	MaxLagMillis   int        `json:"max_lag_millis" db:"max_lag_millis"`
+	ChunkSize      int        `json:"chunk_size" db:"chunk_size"`
+	ErrorMessage   *string    `json:"error_message,omitempty" db:"error_message"`
+	Log            string     `json:"log" db:"log"`
+	RowsAffected   *int64     `json:"rows_affected,omitempty" db:"rows_affected"`
+	MaxLagObserved *int64     `json:"max_lag_observed,omitempty" db:"max_lag_observed"`
+	Duration       *int64     `json:"duration_ms,omitempty" db:"duration_ms"`
+	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`
+	StartedAt      *time.Time `json:"started_at,omitempty" db:"started_at"`
+	FinishedAt     *time.Time `json:"finished_at,omitempty" db:"finished_at"`
 }
 
 // CreateOSCJobInput is the request payload for creating a new OSC job.
@@ -79,20 +79,20 @@ type DryRunRequest struct {
 
 // DryRunResult is the response payload for a dry-run.
 type DryRunResult struct {
-	Success   bool     `json:"success"`
-	Message   string   `json:"message"`
-	Duration  int64    `json:"duration_ms"`
-	Log       []string `json:"log"`
-	ExitCode  *int     `json:"exit_code,omitempty"`
+	Success  bool     `json:"success"`
+	Message  string   `json:"message"`
+	Duration int64    `json:"duration_ms"`
+	Log      []string `json:"log"`
+	ExitCode *int     `json:"exit_code,omitempty"`
 }
 
 // OSCStatus is the state snapshot returned by the service layer.
 // Unlike GhOstStatus (raw gh-ost API data) it carries tenant-scoped context.
 type OSCStatus struct {
-	Job       OSCJob            `json:"job"`
-	GhOst     *GhOstStatus      `json:"gh_ost,omitempty"`
-	Reachable bool              `json:"reachable"`
-	ReachableError string        `json:"reachable_error,omitempty"`
+	Job            OSCJob       `json:"job"`
+	GhOst          *GhOstStatus `json:"gh_ost,omitempty"`
+	Reachable      bool         `json:"reachable"`
+	ReachableError string       `json:"reachable_error,omitempty"`
 }
 
 // OSCJobListResult wraps the paginated response.

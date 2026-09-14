@@ -28,9 +28,9 @@ func TestEncodeDecodeCursor_RoundTrip(t *testing.T) {
 
 func TestEncodeCursor_RejectsBadValues(t *testing.T) {
 	cases := []Cursor{
-		{Version: 0, Offset: 5, Limit: 0},              // non-positive limit
-		{Version: 0, Offset: -1, Limit: 10},             // negative offset
-		{Version: 2, Offset: 0, Limit: 10},              // unsupported version
+		{Version: 0, Offset: 5, Limit: 0},                    // non-positive limit
+		{Version: 0, Offset: -1, Limit: 10},                  // negative offset
+		{Version: 2, Offset: 0, Limit: 10},                   // unsupported version
 		{Version: 0, Offset: MaxCursorOffset + 1, Limit: 10}, // too large
 	}
 	for _, c := range cases {
@@ -45,7 +45,7 @@ func TestDecodeCursor_RejectsMalformed(t *testing.T) {
 		"",
 		"not-base64-!!!",
 		"eyJ2IjoxLCJvIjotMSwibCI6MTB9", // base64 of JSON with negative offset
-		"eyJ2IjoyLCJvIjowLCJsIjoxMH0",    // version 2
+		"eyJ2IjoyLCJvIjowLCJsIjoxMH0",  // version 2
 	}
 	for _, s := range cases {
 		if _, err := DecodeCursor(s); err == nil {

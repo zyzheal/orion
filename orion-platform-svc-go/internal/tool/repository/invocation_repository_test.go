@@ -168,7 +168,7 @@ func TestVersionListIsScopedByTool(t *testing.T) {
 	// owned by the caller's tenant (the service resolves the tool with a
 	// tenant-scoped GetByID before this runs), so the query is scoped by
 	// tool_id alone.
-	mock.ExpectQuery(`SELECT `+versionCols+` FROM tool_versions WHERE tool_id=$1 ORDER BY created_at DESC`).
+	mock.ExpectQuery(`SELECT ` + versionCols + ` FROM tool_versions WHERE tool_id=$1 ORDER BY created_at DESC`).
 		WithArgs(testToolID).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "tool_id", "version", "config", "changelog", "created_by", "created_at"}).
 			AddRow(testVerID, testToolID, "1.0", "{}", "init", "u-1", time.Now()))

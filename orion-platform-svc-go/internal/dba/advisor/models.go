@@ -39,11 +39,11 @@ type SuggestIndexesRequest struct {
 // ---- Suggestion result ----
 
 type SuggestIndexesResult struct {
-	DataSourceID string           `json:"data_source_id"`
-	DBType       string           `json:"db_type"`
-	Schema       string           `json:"schema"`
+	DataSourceID string            `json:"data_source_id"`
+	DBType       string            `json:"db_type"`
+	Schema       string            `json:"schema"`
 	Suggestions  []IndexSuggestion `json:"suggestions"`
-	AnalyzedAt   time.Time        `json:"analyzed_at"`
+	AnalyzedAt   time.Time         `json:"analyzed_at"`
 }
 
 // ---- Existing index inventory ----

@@ -3,10 +3,10 @@
 // legacy pattern of "read slow_log manually from a shell" with a
 // governed service that:
 //
-//   1. pulls rows from pg_stat_statements / mysql.slow_log,
-//   2. dedupes by a stable SQL signature (normalized whitespace),
-//   3. exposes Top-N endpoints for DBA review, and
-//   4. runs a rule-based analyzer that suggests concrete optimizations.
+//  1. pulls rows from pg_stat_statements / mysql.slow_log,
+//  2. dedupes by a stable SQL signature (normalized whitespace),
+//  3. exposes Top-N endpoints for DBA review, and
+//  4. runs a rule-based analyzer that suggests concrete optimizations.
 //
 // The analyzer is intentionally heuristic (regex + keyword checks) so
 // it works with no external dependencies. LLM-based analysis is added
@@ -54,12 +54,12 @@ type Suggestion struct {
 // AnalysisResult is the full output of Analyze. Suggestion count is
 // stable so callers can rely on len(Suggestions) for progress meters.
 type AnalysisResult struct {
-	SQL          string       `json:"sql"`
-	QueryHash    string       `json:"query_hash"`
-	DBType       string       `json:"db_type"`
-	Suggestions  []Suggestion `json:"suggestions"`
-	Passed       bool         `json:"passed"`
-	AnalyzedAt   time.Time    `json:"analyzed_at"`
+	SQL         string       `json:"sql"`
+	QueryHash   string       `json:"query_hash"`
+	DBType      string       `json:"db_type"`
+	Suggestions []Suggestion `json:"suggestions"`
+	Passed      bool         `json:"passed"`
+	AnalyzedAt  time.Time    `json:"analyzed_at"`
 }
 
 // ---- Requests ----
