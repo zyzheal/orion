@@ -9,26 +9,33 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/capability/models"
 
 	"github.com/gin-gonic/gin"
 )
 
 type mockSvc struct {
-	createFn          func(ctx context.Context, tenantID string, req models.CreateCapabilityRequest) (*models.Capability, error)
-	getFn             func(ctx context.Context, tenantID, id string) (*models.Capability, error)
-	listFn            func(ctx context.Context, tenantID string, limit, offset int) ([]models.Capability, error)
-	updateFn          func(ctx context.Context, tenantID, id string, req models.UpdateCapabilityRequest) (*models.Capability, error)
-	deleteFn          func(ctx context.Context, tenantID, id string) error
-	getTreeFn         func(ctx context.Context, tenantID string) ([]models.Capability, error)
-	grantToRoleFn     func(ctx context.Context, tenantID, capabilityID, roleName, grantedBy string) error
-	revokeFromRoleFn  func(ctx context.Context, tenantID, capabilityID, roleName string) error
-	grantToUserFn     func(ctx context.Context, tenantID, capabilityID, targetUserID, grantedBy string, expiresInHours *int) error
-	revokeFromUserFn  func(ctx context.Context, tenantID, capabilityID, targetUserID string) error
-	mapCommandFn      func(ctx context.Context, tenantID, commandName, commandAction, capabilityID, environmentSuffix string) error
-	getCapabilityFn   func(ctx context.Context, tenantID, command, action, environment string) (*string, error)
-	checkPermissionFn func(ctx context.Context, tenantID string, req models.CheckPermissionRequest) (*models.CheckPermissionResult, error)
-	getEffectiveFn    func(ctx context.Context, tenantID, userID string, roles []string) ([]string, error)
+	createFn           func(ctx context.Context, tenantID string, req models.CreateCapabilityRequest) (*models.Capability, error)
+	getFn              func(ctx context.Context, tenantID, id string) (*models.Capability, error)
+	listFn             func(ctx context.Context, tenantID string, limit, offset int) ([]models.Capability, error)
+	updateFn           func(ctx context.Context, tenantID, id string, req models.UpdateCapabilityRequest) (*models.Capability, error)
+	deleteFn           func(ctx context.Context, tenantID, id string) error
+	getTreeFn          func(ctx context.Context, tenantID string) ([]models.Capability, error)
+	grantToRoleFn      func(ctx context.Context, tenantID, capabilityID, roleName, grantedBy string) error
+	revokeFromRoleFn   func(ctx context.Context, tenantID, capabilityID, roleName string) error
+	grantToUserFn      func(ctx context.Context, tenantID, capabilityID, targetUserID, grantedBy string, expiresInHours *int) error
+	revokeFromUserFn   func(ctx context.Context, tenantID, capabilityID, targetUserID string) error
+	mapCommandFn       func(ctx context.Context, tenantID, commandName, commandAction, capabilityID, environmentSuffix string) error
+	getCapabilityFn    func(ctx context.Context, tenantID, command, action, environment string) (*string, error)
+	checkPermissionFn  func(ctx context.Context, tenantID string, req models.CheckPermissionRequest) (*models.CheckPermissionResult, error)
+	getEffectiveFn     func(ctx context.Context, tenantID, userID string, roles []string) ([]string, error)
+	revokeTempFn       func(ctx context.Context, tenantID, id, revokedBy, reason string) (*models.TemporaryPermission, error)
+	createReqFn        func(ctx context.Context, tenantID, userID, capabilityID string, body models.CreatePermissionRequestBody) (*models.PermissionRequest, error)
+	getReqFn           func(ctx context.Context, tenantID, ticketID string) (*models.PermissionRequest, error)
+	approveReqFn       func(ctx context.Context, tenantID, ticketID, approverID string, approverRoles []string) (*models.PermissionRequest, error)
+	rejectReqFn        func(ctx context.Context, tenantID, ticketID, rejecterID, reason string) (bool, error)
+	revokeSimplifiedFn func(ctx context.Context, tenantID, id, revokedBy string) (*models.TemporaryPermission, error)
 }
 
 func (m *mockSvc) Create(ctx context.Context, tenantID string, req models.CreateCapabilityRequest) (*models.Capability, error) {
@@ -126,21 +133,36 @@ func (m *mockSvc) GetActiveTemporaryPermissions(ctx context.Context, tenantID, u
 	return nil, nil
 }
 func (m *mockSvc) RevokeTemporaryPermission(ctx context.Context, tenantID string, id string, revokedBy string, reason string) (*models.TemporaryPermission, error) {
+	if m.revokeTempFn != nil {
+		return m.revokeTempFn(ctx, tenantID, id, revokedBy, reason)
+	}
 	return nil, nil
 }
 func (m *mockSvc) GetAuditLogs(ctx context.Context, tenantID string, q models.AuditLogQuery) ([]models.AuditLog, error) {
 	return nil, nil
 }
 func (m *mockSvc) CreatePermissionRequest(ctx context.Context, tenantID, userID, capabilityID string, body models.CreatePermissionRequestBody) (*models.PermissionRequest, error) {
+	if m.createReqFn != nil {
+		return m.createReqFn(ctx, tenantID, userID, capabilityID, body)
+	}
 	return nil, nil
 }
 func (m *mockSvc) GetPermissionRequestByTicket(ctx context.Context, tenantID string, ticketID string) (*models.PermissionRequest, error) {
+	if m.getReqFn != nil {
+		return m.getReqFn(ctx, tenantID, ticketID)
+	}
 	return nil, nil
 }
 func (m *mockSvc) ApproveRequest(ctx context.Context, tenantID string, ticketID string, approverID string, approverRoles []string) (*models.PermissionRequest, error) {
+	if m.approveReqFn != nil {
+		return m.approveReqFn(ctx, tenantID, ticketID, approverID, approverRoles)
+	}
 	return nil, nil
 }
 func (m *mockSvc) RejectRequest(ctx context.Context, tenantID string, ticketID string, rejecterID string, reason string) (bool, error) {
+	if m.rejectReqFn != nil {
+		return m.rejectReqFn(ctx, tenantID, ticketID, rejecterID, reason)
+	}
 	return false, nil
 }
 func (m *mockSvc) CleanupExpiredTemporaryPermissions(ctx context.Context, tenantID string) (*models.CleanupResult, error) {
@@ -153,6 +175,9 @@ func (m *mockSvc) GrantSimplified(ctx context.Context, req models.GrantSimplifie
 	return nil, nil
 }
 func (m *mockSvc) RevokeSimplified(ctx context.Context, tenantID string, id string, revokedBy string) (*models.TemporaryPermission, error) {
+	if m.revokeSimplifiedFn != nil {
+		return m.revokeSimplifiedFn(ctx, tenantID, id, revokedBy)
+	}
 	return nil, nil
 }
 
@@ -275,13 +300,38 @@ func TestHandler_Get_Success(t *testing.T) {
 	}
 }
 
+// A missing capability is a 404, not a 500. Before the handler translated
+// not-found errors this exact call returned 500, which made "the row does not
+// exist" indistinguishable from "the database is broken".
+//
+// The error must be sentinel.NotFound: a plain errors.New("not found") does not
+// match IsNotFound and still answers 500, so this assertion is what proves the
+// translation is actually wired.
 func TestHandler_Get_NotFound(t *testing.T) {
 	h := newHandlerWithSvc(&mockSvc{
-		getFn: func(ctx context.Context, _, _ string) (*models.Capability, error) {
-			return nil, errors.New("capability not found")
+		getFn: func(ctx context.Context, tenantID, id string) (*models.Capability, error) {
+			if tenantID != "test-tenant" {
+				t.Errorf("expected test-tenant, got %s", tenantID)
+			}
+			if id != "nonexistent" {
+				t.Errorf("expected the path id to be passed through, got %s", id)
+			}
+			return nil, sentinel.NotFound
 		},
 	})
 	w := performRequest(h, h.Get, "GET", nil, map[string]string{"id": "nonexistent"}, nil)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d (body %s)", w.Code, w.Body.String())
+	}
+}
+
+func TestHandler_Get_NonSentinelErrorStays500(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{
+		getFn: func(ctx context.Context, _, _ string) (*models.Capability, error) {
+			return nil, errors.New("db connection refused")
+		},
+	})
+	w := performRequest(h, h.Get, "GET", nil, map[string]string{"id": "cap-1"}, nil)
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("expected 500, got %d", w.Code)
 	}
@@ -424,5 +474,114 @@ func TestHandler_GetEffectiveCapabilities_Success(t *testing.T) {
 	w := performRequest(h, h.GetEffectiveCapabilities, "GET", nil, nil, map[string]string{"user_id": "user-1"})
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", w.Code)
+	}
+}
+
+// --- Not-found translation, one test per site in the handler ---
+//
+// Every handler method below used to answer 500 for "the row does not exist",
+// which is indistinguishable from a broken database. Each test asserts 404 so
+// removing the IsNotFound branch (or swapping sentinel.NotFound for a plain
+// error) fails the suite instead of passing it silently.
+
+func TestHandler_RevokeTemporary_NotFound(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{
+		revokeTempFn: func(ctx context.Context, tenantID, id, revokedBy, reason string) (*models.TemporaryPermission, error) {
+			if id != "tp-1" {
+				t.Errorf("expected the UUID path param to be passed through verbatim, got %q", id)
+			}
+			return nil, sentinel.NotFound
+		},
+	})
+	w := performRequest(h, h.RevokeTemporary, "DELETE",
+		map[string]interface{}{"reason": "done"}, map[string]string{"id": "tp-1"}, nil)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d (body %s)", w.Code, w.Body.String())
+	}
+}
+
+func TestHandler_GetPermissionRequest_NotFound(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{
+		getReqFn: func(ctx context.Context, tenantID, ticketID string) (*models.PermissionRequest, error) {
+			if ticketID != "pr-1" {
+				t.Errorf("expected the ticketId path param, got %q", ticketID)
+			}
+			return nil, sentinel.NotFound
+		},
+	})
+	w := performRequest(h, h.GetPermissionRequest, "GET", nil, map[string]string{"ticketId": "pr-1"}, nil)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d (body %s)", w.Code, w.Body.String())
+	}
+}
+
+func TestHandler_ApproveRequest_NotFound(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{
+		approveReqFn: func(ctx context.Context, tenantID, ticketID, approverID string, roles []string) (*models.PermissionRequest, error) {
+			if ticketID != "pr-1" {
+				t.Errorf("expected the ticketId path param, got %q", ticketID)
+			}
+			if tenantID != "test-tenant" {
+				t.Errorf("body with an empty tenant_id must fall back to the context tenant, got %q", tenantID)
+			}
+			return nil, sentinel.NotFound
+		},
+	})
+	w := performRequest(h, h.ApproveRequest, "POST",
+		map[string]interface{}{"approver_roles": []string{"admin"}}, map[string]string{"ticketId": "pr-1"}, nil)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d (body %s)", w.Code, w.Body.String())
+	}
+}
+
+func TestHandler_RejectRequest_NotFound(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{
+		rejectReqFn: func(ctx context.Context, tenantID, ticketID, rejecterID, reason string) (bool, error) {
+			if ticketID != "pr-1" {
+				t.Errorf("expected the ticketId path param, got %q", ticketID)
+			}
+			if reason != "nope" {
+				t.Errorf("expected the request reason to be passed through, got %q", reason)
+			}
+			return false, sentinel.NotFound
+		},
+	})
+	w := performRequest(h, h.RejectRequest, "POST",
+		map[string]interface{}{"reason": "nope"}, map[string]string{"ticketId": "pr-1"}, nil)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d (body %s)", w.Code, w.Body.String())
+	}
+}
+
+func TestHandler_RevokeSimplified_NotFound(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{
+		revokeSimplifiedFn: func(ctx context.Context, tenantID, id, revokedBy string) (*models.TemporaryPermission, error) {
+			if tenantID != "test-tenant" {
+				t.Errorf("expected test-tenant, got %s", tenantID)
+			}
+			return nil, sentinel.NotFound
+		},
+	})
+	w := performRequest(h, h.RevokeSimplified, "DELETE", nil, map[string]string{"id": "tp-9"}, nil)
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d (body %s)", w.Code, w.Body.String())
+	}
+}
+
+// An unknown capability on POST /request is a client error, so this site
+// answers 400 rather than 404 -- the only one of the seven that differs.
+func TestHandler_RequestPermission_InvalidCapability(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{
+		getFn: func(ctx context.Context, tenantID, capabilityID string) (*models.Capability, error) {
+			if capabilityID != "ghost-cap" {
+				t.Errorf("expected the submitted capability_id to be looked up, got %q", capabilityID)
+			}
+			return nil, sentinel.NotFound
+		},
+	})
+	w := performRequest(h, h.RequestPermission, "POST",
+		map[string]interface{}{"capability_id": "ghost-cap", "reason": "need access"}, nil, nil)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d (body %s)", w.Code, w.Body.String())
 	}
 }
