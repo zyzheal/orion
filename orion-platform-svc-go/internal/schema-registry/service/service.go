@@ -69,9 +69,15 @@ func (s *Service) Register(ctx context.Context, req *models.RegisterRequest) (*m
 		if err := s.repo.CreateSchema(ctx, schema); err != nil {
 			return nil, fmt.Errorf("persist schema: %w", err)
 		}
-		_ = s.repo.AppendVersion(ctx, req.Namespace, req.Name, &models.SchemaVersion{
+		// The version row was discarded into a blank identifier, so a tenant whose
+		// schema_registry_versions insert failed still got "200, version 1" while
+		// GET /versions kept answering an empty list: the failure read as "this
+		// schema has never been released", not as a broken server.
+		if err := s.repo.AppendVersion(ctx, req.Namespace, req.Name, &models.SchemaVersion{
 			Version: 1, ReleasedAt: time.Now(), ReleasedBy: req.Owner,
-		})
+		}); err != nil {
+			return nil, fmt.Errorf("persist version 1 for %s/%s: %w", req.Namespace, req.Name, err)
+		}
 		return &models.RegisterResponse{Schema: schema, Version: 1}, nil
 	}
 
@@ -106,10 +112,13 @@ func (s *Service) Register(ctx context.Context, req *models.RegisterRequest) (*m
 	if err := s.repo.UpdateSchema(ctx, existing); err != nil {
 		return nil, fmt.Errorf("persist updated schema: %w", err)
 	}
-	_ = s.repo.AppendVersion(ctx, req.Namespace, req.Name, &models.SchemaVersion{
+	if err := s.repo.AppendVersion(ctx, req.Namespace, req.Name, &models.SchemaVersion{
 		Version: existing.Version, ReleasedAt: time.Now(),
 		ReleasedBy: req.Owner, Changes: result.Changes,
-	})
+	}); err != nil {
+		return nil, fmt.Errorf("persist version %d for %s/%s: %w",
+			existing.Version, req.Namespace, req.Name, err)
+	}
 
 	return &models.RegisterResponse{Schema: existing, Version: existing.Version}, nil
 }

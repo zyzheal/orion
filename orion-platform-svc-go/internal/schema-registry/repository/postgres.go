@@ -67,22 +67,22 @@ const versionColumns = `
 // row is the scan shape for schema_registry. JSONB columns come back as
 // []byte and are decoded after the scan.
 type row struct {
-	ID            string
-	TenantID      string
-	Namespace     string
-	Name          string
-	Type          string
-	Version       int
-	Status        string
-	Owner         string
-	Description   string
-	FieldsRaw     []byte
+	ID               string
+	TenantID         string
+	Namespace        string
+	Name             string
+	Type             string
+	Version          int
+	Status           string
+	Owner            string
+	Description      string
+	FieldsRaw        []byte
 	RelationshipsRaw *[]byte
-	IndexesRaw    *[]byte
-	Compatibility string
-	MetadataRaw   *[]byte
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	IndexesRaw       *[]byte
+	Compatibility    string
+	MetadataRaw      *[]byte
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 // rowVersion is the scan shape for schema_registry_versions.
@@ -285,16 +285,23 @@ func (r *Postgres) AppendVersion(ctx context.Context, namespace, name string, v 
 		id, "default", namespace, name, v.Version,
 		schemaRaw, changesRaw, releasedAt, v.ReleasedBy, now)
 	if err != nil {
-		if isUniqueViolation(err) {
-			// Version already exists — update in place.
-			_, _ = r.db.ExecContext(ctx, `
-				UPDATE schema_registry_versions
-				 SET schema_json=$1, changes=$2, released_at=$3, released_by=$4
-				 WHERE tenant_id = 'default' AND namespace = $5 AND name = $6 AND version = $7`,
-				schemaRaw, changesRaw, releasedAt, v.ReleasedBy, namespace, name, v.Version)
-			return nil
+		if !isUniqueViolation(err) {
+			return err
 		}
-		return err
+		// Version already exists — update in place. The UPDATE used to be
+		// discarded into two blank identifiers, so the whole branch ended in
+		// "return nil": a schema_registry_versions insert that collided and
+		// whose in-place update then failed still reported success to the
+		// service, which reported success to the client.
+		if _, uerr := r.db.ExecContext(ctx, `
+			UPDATE schema_registry_versions
+			 SET schema_json=$1, changes=$2, released_at=$3, released_by=$4
+			 WHERE tenant_id = 'default' AND namespace = $5 AND name = $6 AND version = $7`,
+			schemaRaw, changesRaw, releasedAt, v.ReleasedBy, namespace, name, v.Version); uerr != nil {
+			return fmt.Errorf("schema version %d for %s/%s already exists and the update failed: %w",
+				v.Version, namespace, name, uerr)
+		}
+		return nil
 	}
 	return nil
 }
