@@ -1,19 +1,28 @@
 package handler
 
 import (
-	"time"
+	"errors"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
+
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/code-scan/models"
+	"orion/platform-svc-go/internal/code-scan/service"
 	"orion/platform-svc-go/internal/middleware"
 )
 
-type Handler struct{}
+// Handler serves the code-scan routes. Every response comes from the database:
+// ListScans and ListFindings used to return a hardcoded sample set, so the page
+// showed the same five scans and ten findings for every tenant and every
+// deployment, and a scan created by POST never appeared in the list.
+type Handler struct {
+	svc *service.Service
+}
 
-func NewHandler() *Handler {
-	return &Handler{}
+func NewHandler(svc *service.Service) *Handler {
+	return &Handler{svc: svc}
 }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
@@ -24,77 +33,87 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	codeScan.POST("/scans/:id/run", h.RerunScan)
 }
 
+// ListScans returns the tenant's scan runs, newest first.
 func (h *Handler) ListScans(c *gin.Context) {
 	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCodeScans")
 	defer span.End()
-	middleware.RespondSuccess(c, defaultScans())
-}
 
-func (h *Handler) CreateScan(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateCodeScan")
-	defer span.End()
-	var req models.CreateScanRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		middleware.RespondBadRequest(c, err.Error())
+	items, err := h.svc.ListScans(c.Request.Context(), c.GetString("tenant_id"), queryLimit(c))
+	if err != nil {
+		middleware.RespondInternalError(c, "failed to list code scans")
 		return
 	}
-
-	branch := req.Branch
-	if branch == "" {
-		branch = "main"
-	}
-
-	now := time.Now().UTC()
-	scan := models.ScanRecord{
-		ID:         "scan-" + uuid.New().String()[:8],
-		Target:     req.Target,
-		Branch:     branch,
-		Status:     "pending",
-		TotalVulns: 0,
-		StartedAt:  now,
-	}
-	middleware.RespondCreated(c, scan)
+	middleware.RespondSuccess(c, items)
 }
 
-func (h *Handler) RerunScan(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RerunCodeScan")
-	defer span.End()
-	scanID := c.Param("id")
-	middleware.RespondSuccess(c, gin.H{
-		"id":      scanID,
-		"status":  "running",
-		"message": "scan rerun initiated",
-	})
-}
-
+// ListFindings returns the tenant's findings, optionally restricted to one scan
+// with ?scanId=.
 func (h *Handler) ListFindings(c *gin.Context) {
 	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCodeScanFindings")
 	defer span.End()
-	middleware.RespondSuccess(c, defaultFindings())
+
+	items, err := h.svc.ListFindings(c.Request.Context(), c.GetString("tenant_id"), c.Query("scanId"), queryLimit(c))
+	if err != nil {
+		middleware.RespondInternalError(c, "failed to list code scan findings")
+		return
+	}
+	middleware.RespondSuccess(c, items)
 }
 
-func defaultScans() []models.ScanRecord {
-	now := time.Now().UTC()
-	return []models.ScanRecord{
-		{ID: "scan-001", Target: "orion-frontend", Branch: "main", Status: "completed", TotalVulns: 12, Critical: 1, High: 3, Medium: 5, Low: 3, Duration: 45, StartedAt: now.Add(-2 * time.Hour)},
-		{ID: "scan-002", Target: "orion-platform-svc-go", Branch: "main", Status: "completed", TotalVulns: 7, Critical: 0, High: 2, Medium: 3, Low: 2, Duration: 30, StartedAt: now.Add(-4 * time.Hour)},
-		{ID: "scan-003", Target: "orion-agent", Branch: "develop", Status: "completed", TotalVulns: 3, Critical: 0, High: 0, Medium: 1, Low: 2, Duration: 22, StartedAt: now.Add(-6 * time.Hour)},
-		{ID: "scan-004", Target: "shared-lib", Branch: "main", Status: "running", TotalVulns: 0, Critical: 0, High: 0, Medium: 0, Low: 0, Duration: 0, StartedAt: now.Add(-10 * time.Minute)},
-		{ID: "scan-005", Target: "orion-frontend", Branch: "release/v2.0", Status: "completed", TotalVulns: 18, Critical: 2, High: 5, Medium: 7, Low: 4, Duration: 60, StartedAt: now.Add(-24 * time.Hour)},
+// CreateScan records a run and starts the worker that walks the target tree.
+func (h *Handler) CreateScan(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateCodeScan")
+	defer span.End()
+
+	var req models.CreateScanRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondBadRequest(c, "invalid scan request: "+err.Error())
+		return
 	}
+
+	rec, err := h.svc.CreateScan(c.Request.Context(), c.GetString("tenant_id"), req.Target, req.Branch)
+	if errors.Is(err, service.ErrInvalidTarget) {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	if err != nil {
+		middleware.RespondInternalError(c, "failed to create code scan")
+		return
+	}
+	middleware.RespondCreated(c, rec)
 }
 
-func defaultFindings() []models.VulnFinding {
-	return []models.VulnFinding{
-		{ID: "vuln-001", Category: "injection", Severity: "critical", File: "src/api/user.ts", Line: 45, Description: "SQL injection via unsanitised user input in search query", Fix: "Use parameterised queries", ScanID: "scan-001"},
-		{ID: "vuln-002", Category: "xss", Severity: "high", File: "src/pages/Dashboard.tsx", Line: 128, Description: "Reflected XSS in dashboard widget title via innerHTML", Fix: "Use sanitised rendering", ScanID: "scan-001"},
-		{ID: "vuln-003", Category: "auth", Severity: "high", File: "internal/auth/middleware.go", Line: 67, Description: "JWT token not validated against revocation list", Fix: "Check token revocation status", ScanID: "scan-002"},
-		{ID: "vuln-004", Category: "sensitive_data", Severity: "medium", File: "src/config/env.ts", Line: 23, Description: "API key hardcoded in client-side source code", Fix: "Move secrets to environment variables", ScanID: "scan-001"},
-		{ID: "vuln-005", Category: "security_misconfig", Severity: "medium", File: "nginx.conf", Line: 15, Description: "CORS allows wildcard origin in production", Fix: "Restrict CORS to trusted domains", ScanID: "scan-001"},
-		{ID: "vuln-006", Category: "aam", Severity: "high", File: "internal/permission/handler.go", Line: 92, Description: "Missing tenant isolation check in batch API", Fix: "Add tenant_id verification", ScanID: "scan-002"},
-		{ID: "vuln-007", Category: "vulnerable_components", Severity: "medium", File: "package.json", Line: 45, Description: "lodash@4.17.15 has known prototype pollution", Fix: "Upgrade lodash to >= 4.17.21", ScanID: "scan-001"},
-		{ID: "vuln-008", Category: "logging", Severity: "low", File: "internal/logging/handler.go", Line: 34, Description: "Sensitive fields not redacted from error logs", Fix: "Apply log sanitisation filter", ScanID: "scan-003"},
-		{ID: "vuln-009", Category: "integrity", Severity: "medium", File: "internal/artifact/verify.go", Line: 56, Description: "Artifact integrity check skips verification when checksum missing", Fix: "Require checksum verification", ScanID: "scan-005"},
-		{ID: "vuln-010", Category: "csrf", Severity: "medium", File: "src/pages/Settings.tsx", Line: 89, Description: "Form submission lacks CSRF token validation", Fix: "Include CSRF token in form submissions", ScanID: "scan-005"},
+// RerunScan restarts an existing run, dropping the previous attempt's findings.
+func (h *Handler) RerunScan(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RerunCodeScan")
+	defer span.End()
+
+	rec, err := h.svc.RerunScan(c.Request.Context(), c.GetString("tenant_id"), c.Param("id"))
+	if errors.Is(err, service.ErrInvalidTarget) {
+		middleware.RespondBadRequest(c, err.Error())
+		return
 	}
+	if errors.Is(err, sentinel.NotFound) {
+		middleware.RespondNotFound(c, "code scan not found")
+		return
+	}
+	if err != nil {
+		middleware.RespondInternalError(c, "failed to rerun code scan")
+		return
+	}
+	middleware.RespondSuccess(c, rec)
+}
+
+// queryLimit reads ?limit= with the service's own bounds applied, so a caller
+// cannot request an unbounded response.
+func queryLimit(c *gin.Context) int {
+	raw := c.Query("limit")
+	if raw == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n <= 0 {
+		return 0
+	}
+	return n
 }

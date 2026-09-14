@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+
 	agent_run_models "orion/platform-svc-go/internal/ai-agent-run/models"
 	agent_run_repo "orion/platform-svc-go/internal/ai-agent-run/repository"
 	agent_run_service "orion/platform-svc-go/internal/ai-agent-run/service"
@@ -81,6 +83,8 @@ import (
 	cit_repo "orion/platform-svc-go/internal/ci-type/repository"
 	cit_service "orion/platform-svc-go/internal/ci-type/service"
 	code_scan_handler "orion/platform-svc-go/internal/code-scan/handler"
+	code_scan_repo "orion/platform-svc-go/internal/code-scan/repository"
+	code_scan_service "orion/platform-svc-go/internal/code-scan/service"
 	diagnostic_handler "orion/platform-svc-go/internal/diagnostic/handler"
 	diagnostic_repo "orion/platform-svc-go/internal/diagnostic/repository"
 	diagnostic_service "orion/platform-svc-go/internal/diagnostic/service"
@@ -138,7 +142,7 @@ var incidentSvc *incident_service.Service
 // wireCICDModules wires the CI/CD and deployment modules: chatops, code-repo,
 // approval, audit, incident, build-env, build, pipeline, dba, runner, deploy,
 // deploy-enhanced, digital-twin.
-func wireCICDModules(db *database.DB) {
+func wireCICDModules(db *database.DB, logger *zap.Logger) {
 	chatopsRepo := chatops_repo.NewRepository(db.DB)
 	chatopsSvc := chatops_service.NewService(chatopsRepo)
 	chatopsH = chatops_handler.NewHandler(chatopsSvc)
@@ -210,7 +214,7 @@ func wireCICDModules(db *database.DB) {
 // knowledge, security-compliance, tenant, ticketing, change, skill, sla,
 // visor, change-request, report-designer, oncall, diagnostic, api-market,
 // ci-type, backup, lowcode, session.
-func wireDomainModules(db *database.DB) {
+func wireDomainModules(db *database.DB, logger *zap.Logger) {
 	// finops services
 	finopsRepo := finops_repo.NewRepository(db.DB)
 	finopsSvc := finops_service.NewService(finopsRepo)
@@ -333,8 +337,13 @@ func wireDomainModules(db *database.DB) {
 	security_complianceSvc := security_compliance_service.NewService(security_complianceRepo)
 	security_complianceH = security_compliance_handler.NewHandler(security_complianceSvc)
 
-	// code-scan handler (SAST scanning)
-	code_scanH = code_scan_handler.NewHandler()
+	// code-scan (SAST): the handler needs the service, and the service needs
+	// the repository, so the whole stack is constructed here. The service owns
+	// the scan worker, which is why the handler must exist before the routes
+	// are mounted in router.go.
+	code_scanRepo := code_scan_repo.NewRepository(db.DB)
+	code_scanSvc := code_scan_service.NewService(code_scanRepo, logger)
+	code_scanH = code_scan_handler.NewHandler(code_scanSvc)
 
 	// tenant services
 	tenantRepo := tenant_repo.NewRepository(db.DB)

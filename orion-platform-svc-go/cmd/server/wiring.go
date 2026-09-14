@@ -82,8 +82,8 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	// finops, knowledge, security-compliance, tenant, ticketing, change, skill,
 	// sla, visor, change-request, report-designer, oncall, diagnostic, api-market,
 	// ci-type, backup, lowcode
-	wireCICDModules(db)
-	wireDomainModules(db)
+	wireCICDModules(db, logger)
+	wireDomainModules(db, logger)
 	wireCoreDomains(db, logger)
 	// Notification & channel modules
 	wireNotificationModules(db)
