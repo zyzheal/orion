@@ -56,7 +56,7 @@ type RepositoryInterface interface {
 	GetAssignment(ctx context.Context, tenantID, targetID string) (*models.WorkerAssignment, error)
 	GetAssignmentByID(ctx context.Context, tenantID, id string) (*models.WorkerAssignment, error)
 	UpdateAssignmentStatus(ctx context.Context, tenantID, id string, status string, completedAt interface{}) error
-	GetActiveAssignments(ctx context.Context, tenantID, workerID string) int
+	GetActiveAssignments(ctx context.Context, tenantID, workerID string) (int, error)
 
 	CreateCapability(ctx context.Context, m *models.WorkerCapability) error
 	GetCapabilities(ctx context.Context, tenantID string) ([]models.WorkerCapability, error)
@@ -184,7 +184,7 @@ func (d *WorkerDispatcher) ListPolicies(ctx context.Context, tenantID string, po
 }
 
 // GetWorkerLoad returns the current active load for a worker.
-func (d *WorkerDispatcher) GetWorkerLoad(ctx context.Context, tenantID, workerID string) int {
+func (d *WorkerDispatcher) GetWorkerLoad(ctx context.Context, tenantID, workerID string) (int, error) {
 	return d.repo.GetActiveAssignments(ctx, tenantID, workerID)
 }
 

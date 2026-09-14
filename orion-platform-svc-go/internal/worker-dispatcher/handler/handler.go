@@ -247,6 +247,15 @@ func (h *Handler) GetWorkerLoad(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	workerID := c.Param("workerId")
-	load := h.svc.GetWorkerLoad(ctx, tenantID, workerID)
+	load, err := h.svc.GetWorkerLoad(ctx, tenantID, workerID)
+	if err != nil {
+		// The repository used to return a bare int and drop the GetContext
+		// error, so an unreachable worker_assignments table answered
+		// current_load: 0. That is exactly the "worker is idle" signal a
+		// scheduler reads to hand this worker more work: the failure pointed
+		// at oversubscription.
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
 	middleware.RespondSuccess(c, gin.H{"worker_id": workerID, "current_load": load})
 }

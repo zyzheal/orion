@@ -27,7 +27,7 @@ type RepositoryInterface interface {
 	GetAssignmentByID(ctx context.Context, tenantID, id string) (*models.WorkerAssignment, error)
 	UpdateAssignmentStatus(ctx context.Context, tenantID, id string, status string, completedAt interface{}) error
 	ListAssignmentsByWorker(ctx context.Context, tenantID, workerID string) ([]models.WorkerAssignment, error)
-	GetActiveAssignments(ctx context.Context, tenantID, workerID string) int
+	GetActiveAssignments(ctx context.Context, tenantID, workerID string) (int, error)
 
 	// --- WorkerCapability ---
 	CreateCapability(ctx context.Context, m *models.WorkerCapability) error
@@ -180,12 +180,14 @@ func (r *Repository) ListAssignmentsByWorker(ctx context.Context, tenantID, work
 	return items, err
 }
 
-func (r *Repository) GetActiveAssignments(ctx context.Context, tenantID, workerID string) int {
+func (r *Repository) GetActiveAssignments(ctx context.Context, tenantID, workerID string) (int, error) {
 	var count int
-	_ = r.db.GetContext(ctx, &count,
+	if err := r.db.GetContext(ctx, &count,
 		`SELECT COUNT(*) FROM worker_assignments WHERE worker_id=$1 AND tenant_id=$2 AND status IN ($3, $4)`,
-		workerID, tenantID, "assigned", "in_progress")
-	return count
+		workerID, tenantID, "assigned", "in_progress"); err != nil {
+		return 0, fmt.Errorf("worker active assignments for %q: %w", workerID, err)
+	}
+	return count, nil
 }
 
 // --- WorkerCapability ---

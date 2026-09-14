@@ -183,7 +183,11 @@ func (r *Repository) DeletePipeline(ctx context.Context, tenantID, id string) er
 // ---------------------------------------------------------------------------
 
 func (r *Repository) CreateStep(ctx context.Context, tenantID, pipelineID string, req *models.AddStepRequest) (*models.PipelineStep, error) {
-	if !r.pipelineExists(ctx, tenantID, pipelineID) {
+	exists, err := r.pipelineExists(ctx, tenantID, pipelineID)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
 		return nil, fmt.Errorf("pipeline not found: %s", pipelineID)
 	}
 	configJSON, err := json.Marshal(req.Config)
@@ -226,8 +230,13 @@ func (r *Repository) GetStep(ctx context.Context, tenantID, stepID string) (*mod
 }
 
 func (r *Repository) ListSteps(ctx context.Context, tenantID, pipelineID string, limit, offset int) (*models.StepListResponse, error) {
-	// Verify pipeline ownership
-	if !r.pipelineExists(ctx, tenantID, pipelineID) {
+	// Verify pipeline ownership: a failed probe is an outage and must not be
+	// reported as "pipeline not found".
+	exists, err := r.pipelineExists(ctx, tenantID, pipelineID)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
 		return nil, fmt.Errorf("pipeline not found: %s", pipelineID)
 	}
 	limit = clamp(limit, 1, 100)
@@ -362,10 +371,13 @@ func pipelineQueries(status, tenantID string, limit, offset int) (countQ, listQ 
 	return
 }
 
-func (r *Repository) pipelineExists(ctx context.Context, tenantID, pipelineID string) bool {
+func (r *Repository) pipelineExists(ctx context.Context, tenantID, pipelineID string) (bool, error) {
 	var exists bool
-	_ = r.db.GetContext(ctx, &exists, `SELECT EXISTS(SELECT 1 FROM pipelines WHERE id=$1 AND tenant_id=$2)`, pipelineID, tenantID)
-	return exists
+	if err := r.db.GetContext(ctx, &exists,
+		`SELECT EXISTS(SELECT 1 FROM pipelines WHERE id=$1 AND tenant_id=$2)`, pipelineID, tenantID); err != nil {
+		return false, fmt.Errorf("pipeline ownership check for %s: %w", pipelineID, err)
+	}
+	return exists, nil
 }
 
 // namedUpdateArgs merges the SET fields with the WHERE-clause keys.

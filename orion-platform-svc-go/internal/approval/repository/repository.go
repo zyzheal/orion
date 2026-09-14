@@ -208,19 +208,33 @@ func (r *Repository) GetGateByStage(ctx context.Context, tenantID, runID, stageI
 // --- Statistics ---
 
 func (r *Repository) GetStatistics(ctx context.Context, tenantID string) (models.ApprovalStatistics, error) {
+	// Every count used to be dropped into `_ =`, so the handler answered 200
+	// with a zero-valued body on a database outage. GET /approvals/statistics
+	// is the approval-volume feed, and "zero approvals" is the answer of a
+	// healthy, unburdened tenant - the error became an optimistic reading.
 	var stats models.ApprovalStatistics
-	_ = r.db.GetContext(ctx, &stats.Total,
-		`SELECT COUNT(*) FROM approval_requests WHERE tenant_id=$1`, tenantID)
-	_ = r.db.GetContext(ctx, &stats.Pending,
-		`SELECT COUNT(*) FROM approval_requests WHERE tenant_id=$1 AND status=$2`, tenantID, "pending")
-	_ = r.db.GetContext(ctx, &stats.Approved,
-		`SELECT COUNT(*) FROM approval_requests WHERE tenant_id=$1 AND status=$2`, tenantID, "approved")
-	_ = r.db.GetContext(ctx, &stats.Rejected,
-		`SELECT COUNT(*) FROM approval_requests WHERE tenant_id=$1 AND status=$2`, tenantID, "rejected")
-	_ = r.db.GetContext(ctx, &stats.Withdrawn,
-		`SELECT COUNT(*) FROM approval_requests WHERE tenant_id=$1 AND status=$2`, tenantID, "withdrawn")
-	_ = r.db.GetContext(ctx, &stats.Cancelled,
-		`SELECT COUNT(*) FROM approval_requests WHERE tenant_id=$1 AND status=$2`, tenantID, "cancelled")
+	for _, probe := range []struct {
+		target *int
+		status string
+		label  string
+	}{
+		{&stats.Total, "", "total"},
+		{&stats.Pending, "pending", "pending"},
+		{&stats.Approved, "approved", "approved"},
+		{&stats.Rejected, "rejected", "rejected"},
+		{&stats.Withdrawn, "withdrawn", "withdrawn"},
+		{&stats.Cancelled, "cancelled", "cancelled"},
+	} {
+		query := `SELECT COUNT(*) FROM approval_requests WHERE tenant_id=$1`
+		args := []interface{}{tenantID}
+		if probe.status != "" {
+			query = `SELECT COUNT(*) FROM approval_requests WHERE tenant_id=$1 AND status=$2`
+			args = append(args, probe.status)
+		}
+		if err := r.db.GetContext(ctx, probe.target, query, args...); err != nil {
+			return models.ApprovalStatistics{}, fmt.Errorf("approval statistics %s: %w", probe.label, err)
+		}
+	}
 	return stats, nil
 }
 
