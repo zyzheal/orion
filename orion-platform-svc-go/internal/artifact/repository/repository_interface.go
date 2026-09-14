@@ -15,11 +15,11 @@ type RepositoryInterface interface {
 	Count(ctx context.Context, tenantID string, q models.ListArtifactsQuery) (int, error)
 	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 	SoftDelete(ctx context.Context, tenantID, id string) error
-	AddTags(ctx context.Context, artifactID string, tags []string) error
-	RemoveTags(ctx context.Context, artifactID string, tags []string) error
-	GetTags(ctx context.Context, artifactID string) ([]string, error)
-	RecordDownload(ctx context.Context, artifactID string, req models.DownloadArtifactRequest) error
-	GetDownloadHistory(ctx context.Context, artifactID string) ([]models.ArtifactDownload, error)
+	AddTags(ctx context.Context, tenantID, artifactID string, tags []string) error
+	RemoveTags(ctx context.Context, tenantID, artifactID string, tags []string) error
+	GetTags(ctx context.Context, tenantID, artifactID string) ([]string, error)
+	RecordDownload(ctx context.Context, tenantID, artifactID string, req models.DownloadArtifactRequest) error
+	GetDownloadHistory(ctx context.Context, tenantID, artifactID string) ([]models.ArtifactDownload, error)
 	Search(ctx context.Context, tenantID string, query string, limit, offset int) ([]models.Artifact, error)
 	CreatePromotion(ctx context.Context, p *models.ArtifactPromotion) error
 	GetCurrentStage(ctx context.Context, tenantID, id string) (string, error)

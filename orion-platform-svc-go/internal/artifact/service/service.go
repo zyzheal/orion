@@ -15,22 +15,22 @@ import (
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
-	AddTags(ctx context.Context, artifactID string, tags []string) error
+	AddTags(ctx context.Context, tenantID, artifactID string, tags []string) error
 	Count(ctx context.Context, tenantID string, q models.ListArtifactsQuery) (int, error)
 	Create(ctx context.Context, m *models.Artifact) error
 	CreatePromotion(ctx context.Context, p *models.ArtifactPromotion) error
 	ExistsByNamespaceNameVersion(ctx context.Context, tenantID, namespace, name, version string) (bool, error)
 	GetByID(ctx context.Context, tenantID, id string) (*models.Artifact, error)
 	GetCurrentStage(ctx context.Context, tenantID, id string) (string, error)
-	GetDownloadHistory(ctx context.Context, artifactID string) ([]models.ArtifactDownload, error)
+	GetDownloadHistory(ctx context.Context, tenantID, artifactID string) ([]models.ArtifactDownload, error)
 	GetNamespaces(ctx context.Context, tenantID string) ([]models.NamespaceStat, error)
 	GetPromotionHistory(ctx context.Context, tenantID, id string) ([]models.ArtifactPromotion, error)
 	GetStats(ctx context.Context, tenantID string) (*models.ArtifactStats, error)
-	GetTags(ctx context.Context, artifactID string) ([]string, error)
+	GetTags(ctx context.Context, tenantID, artifactID string) ([]string, error)
 	GetTypeStats(ctx context.Context, tenantID string) ([]models.ArtifactTypeStat, error)
 	List(ctx context.Context, tenantID string, q models.ListArtifactsQuery) ([]models.Artifact, error)
-	RecordDownload(ctx context.Context, artifactID string, req models.DownloadArtifactRequest) error
-	RemoveTags(ctx context.Context, artifactID string, tags []string) error
+	RecordDownload(ctx context.Context, tenantID, artifactID string, req models.DownloadArtifactRequest) error
+	RemoveTags(ctx context.Context, tenantID, artifactID string, tags []string) error
 	Search(ctx context.Context, tenantID string, query string, limit, offset int) ([]models.Artifact, error)
 	SoftDelete(ctx context.Context, tenantID, id string) error
 	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
@@ -121,15 +121,15 @@ func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 // --- Tag operations ---
 
 func (s *Service) AddTags(ctx context.Context, tenantID, id string, tags []string) error {
-	return s.repo.AddTags(ctx, id, tags)
+	return s.repo.AddTags(ctx, tenantID, id, tags)
 }
 
 func (s *Service) RemoveTags(ctx context.Context, tenantID, id string, tags []string) error {
-	return s.repo.RemoveTags(ctx, id, tags)
+	return s.repo.RemoveTags(ctx, tenantID, id, tags)
 }
 
 func (s *Service) GetTags(ctx context.Context, tenantID, id string) ([]string, error) {
-	return s.repo.GetTags(ctx, id)
+	return s.repo.GetTags(ctx, tenantID, id)
 }
 
 // --- Download ---
@@ -143,14 +143,14 @@ func (s *Service) Download(ctx context.Context, tenantID, id string, req models.
 		return nil, fmt.Errorf("artifact not available: %s: %w", artifact.Status, ErrNotAvailable)
 	}
 	// Record the download.
-	if err := s.repo.RecordDownload(ctx, id, req); err != nil {
+	if err := s.repo.RecordDownload(ctx, tenantID, id, req); err != nil {
 		return nil, err
 	}
 	return artifact, nil
 }
 
 func (s *Service) GetDownloadHistory(ctx context.Context, tenantID, id string) ([]models.ArtifactDownload, error) {
-	return s.repo.GetDownloadHistory(ctx, id)
+	return s.repo.GetDownloadHistory(ctx, tenantID, id)
 }
 
 // --- Search ---
@@ -166,15 +166,24 @@ func (s *Service) Promote(ctx context.Context, tenantID, id string, req models.P
 	if err != nil {
 		return nil, err
 	}
-	var promotedBy string
-	if req.PromotedBy != "" {
-		promotedBy = req.PromotedBy
+	// Resolve the real current stage. The previous version hardcoded "current",
+	// which is not a stage name, so every promotion row claimed the artifact had
+	// come from a stage called "current" -- the audit trail was fiction.
+	// A never-promoted artifact is unstaged; "default" says that without
+	// inventing history.
+	current, err := s.repo.GetCurrentStage(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if current == "" {
+		current = "default"
 	}
 	promotion := &models.ArtifactPromotion{
+		TenantID:   tenantID,
 		ArtifactID: id,
-		FromStage:  "current",
+		FromStage:  current,
 		ToStage:    req.Stage,
-		PromotedBy: promotedBy,
+		PromotedBy: req.PromotedBy,
 		ApprovedBy: req.ApprovedBy,
 		Reason:     req.Reason,
 	}

@@ -17,7 +17,6 @@ type RepositoryInterface interface {
 	GetResourceTypes(ctx context.Context, tenantID string) ([]string, error)
 	GetLatest(ctx context.Context, tenantID string) (*models.AuditLog, error)
 	VerifyChain(ctx context.Context, tenantID string) (int, bool, error)
-	CoverageStats(ctx context.Context, tenantID string) (models.AuditCoverageStats, error)
 }
 
 // Ensure Repository implements RepositoryInterface.

@@ -134,13 +134,6 @@ func (m *mockAuditRepo) VerifyChain(_ context.Context, tenantID string) (int, bo
 	return total, true, nil
 }
 
-func (m *mockAuditRepo) CoverageStats(_ context.Context, tenantID string) (models.AuditCoverageStats, error) {
-	if m.err != nil {
-		return models.AuditCoverageStats{}, m.err
-	}
-	return models.AuditCoverageStats{}, nil
-}
-
 func (m *mockAuditRepo) key(tenantID, id string) string { return tenantID + ":" + id }
 
 func newMockAuditRepo() *mockAuditRepo {
@@ -401,17 +394,6 @@ func TestMockAuditRepoExport_Success(t *testing.T) {
 	if len(logs) != 1 {
 		t.Errorf("expected 1, got %d", len(logs))
 	}
-}
-
-// --- CoverageStats ---
-
-func TestMockAuditRepoCoverageStats_Success(t *testing.T) {
-	repo := &mockAuditRepo{logs: map[string]*models.AuditLog{}}
-	stats, err := repo.CoverageStats(context.Background(), "t1")
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	_ = stats
 }
 
 // --- GenesisHash ---

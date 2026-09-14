@@ -17,6 +17,25 @@ var errNotFound = errors.New("permission not found")
 // allowedColumns defines the whitelist of column names that can be used in dynamic SQL SET clauses.
 var allowedColumns = map[string]bool{"name": true, "code": true, "resource": true, "action": true, "desc": true}
 
+// permissionColumns names exactly the columns models.Permission maps.
+//
+// go-common opens the pool with sqlx.Open and never calls Unsafe, so sqlx scans
+// in safe mode and a wildcard select dies on the first row the moment a
+// migration adds a column the model does not map --
+// "missing destination name <col>". That error is not sql.ErrNoRows, so it
+// walks repository -> service -> handler and the endpoint answers 500 instead
+// of data. Migration 571 adds deleted_at and migration 572 adds created_by and
+// updated_by to permissions, none of which the model maps, so every permission
+// read was a 500 -- the access-control table itself was unreadable.
+//
+// "desc" stays quoted because desc is a hard PostgreSQL reserved word: against
+// PostgreSQL 16 a bare column list -- INSERT INTO permissions (id, desc, ...)
+// -- and a bare SET target -- UPDATE permissions SET desc=... -- both answer
+// "syntax error at or near \"desc\"". The model maps the column, but the
+// statement never parsed, so Create and every Update that carried a description
+// were 500s on the access-control table. Quoting is required, not stylistic.
+const permissionColumns = "id, name, code, resource, action, \"desc\", tenant_id, user_id, created_at, updated_at"
+
 // Repository provides PostgreSQL-backed persistence for permissions.
 type Repository struct {
 	db *sqlx.DB
@@ -31,7 +50,7 @@ func NewRepository(db *sqlx.DB) *Repository {
 func (r *Repository) Create(ctx context.Context, p *models.Permission) error {
 	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO permissions (
-			id, name, code, resource, action, desc,
+			id, name, code, resource, action, "desc",
 			tenant_id, user_id, created_at, updated_at
 		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
 		p.ID, p.Name, p.Code, p.Resource, p.Action,
@@ -44,7 +63,7 @@ func (r *Repository) Create(ctx context.Context, p *models.Permission) error {
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.Permission, error) {
 	var p models.Permission
 	err := r.db.GetContext(ctx, &p,
-		`SELECT * FROM permissions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+		`SELECT `+permissionColumns+` FROM permissions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err == sql.ErrNoRows {
 		return nil, errNotFound
 	}
@@ -58,7 +77,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 func (r *Repository) List(ctx context.Context, tenantID string, filter *models.ListFilter, offset, limit int) ([]models.Permission, error) {
 	var items []models.Permission
 
-	query := "SELECT * FROM permissions WHERE tenant_id=$1"
+	query := "SELECT " + permissionColumns + " FROM permissions WHERE tenant_id=$1"
 	args := []interface{}{tenantID}
 	argIdx := 2
 
@@ -120,7 +139,7 @@ func (r *Repository) Update(ctx context.Context, p *models.Permission) error {
 		idx++
 	}
 	if p.Desc != "" && allowedColumns["desc"] {
-		setClauses = append(setClauses, fmt.Sprintf("desc=$%d", idx))
+		setClauses = append(setClauses, fmt.Sprintf("\"desc\"=$%d", idx))
 		args = append(args, p.Desc)
 		idx++
 	}

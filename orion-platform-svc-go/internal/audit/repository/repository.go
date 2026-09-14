@@ -3,16 +3,33 @@ package repository
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/audit/models"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
+
+// auditLogColumns names exactly the columns models.AuditLog maps.
+//
+// go-common opens the pool with sqlx.Open and never calls Unsafe, so sqlx scans
+// in safe mode and a wildcard select dies on the first row the moment a
+// migration adds a column the model does not declare --
+// "missing destination name <col>". That error is not sql.ErrNoRows, so it
+// walks repository -> service -> handler and every read endpoint answers 500
+// instead of data. Migration 013 alters audit_logs with twelve pipeline columns
+// and migration 572 adds created_by/updated_by, none of which the model maps,
+// so GET /audit/logs, the log export and GET /audit/logs/:id were all 500s.
+const auditLogColumns = "id, tenant_id, user_id, action, resource_type, resource_id, " +
+	"request_method, request_path, request_body, response_code, response_body, " +
+	"ip_address, user_agent, prev_hash, hash, created_at"
 
 type Repository struct {
 	db *sqlx.DB
@@ -76,14 +93,21 @@ func (r *Repository) Create(ctx context.Context, tenantID string, req models.Aud
 }
 
 // GetByID retrieves a single audit log.
+//
+// sql.ErrNoRows is translated to sentinel.NotFound: the handler answers 404 only
+// for errors.Is(err, sentinel.NotFound), so a missing id would otherwise answer
+// 500 "sql: no rows".
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.AuditLog, error) {
-	var m models.AuditLog
-	err := r.db.GetContext(ctx, &m,
-		`SELECT * FROM audit_logs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	m := &models.AuditLog{}
+	err := r.db.GetContext(ctx, m,
+		`SELECT `+auditLogColumns+` FROM audit_logs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, sentinel.NotFound
+		}
 		return nil, err
 	}
-	return &m, nil
+	return m, nil
 }
 
 // List returns paginated audit logs filtered by the given criteria.
@@ -125,8 +149,8 @@ func (r *Repository) List(ctx context.Context, tenantID string, q models.AuditLo
 	}
 
 	// Data query
-	dataSQL := fmt.Sprintf("SELECT * FROM audit_logs %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d",
-		cond, len(args)+1, len(args)+2)
+	dataSQL := fmt.Sprintf("SELECT %s FROM audit_logs %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d",
+		auditLogColumns, cond, len(args)+1, len(args)+2)
 	args = append(args, limit, offset)
 
 	var items []models.AuditLog
@@ -197,7 +221,7 @@ func (r *Repository) Export(ctx context.Context, tenantID string, q models.Audit
 		args = append(args, q.DateTo)
 	}
 
-	sql := fmt.Sprintf("SELECT * FROM audit_logs %s ORDER BY created_at DESC LIMIT 10000", cond)
+	sql := fmt.Sprintf("SELECT %s FROM audit_logs %s ORDER BY created_at DESC LIMIT 10000", auditLogColumns, cond)
 	var items []models.AuditLog
 	err := r.db.SelectContext(ctx, &items, sql, args...)
 	return items, err
@@ -220,12 +244,19 @@ func (r *Repository) GetResourceTypes(ctx context.Context, tenantID string) ([]s
 }
 
 // GetLatest returns the most recent audit log for a tenant.
-// Tenant filter is always enforced; empty tenantID returns not found.
+// Tenant filter is always enforced; a tenant with no logs gets sentinel.NotFound
+// instead of sql.ErrNoRows, which the handler would answer as 500.
 func (r *Repository) GetLatest(ctx context.Context, tenantID string) (*models.AuditLog, error) {
-	var m models.AuditLog
-	err := r.db.GetContext(ctx, &m,
-		`SELECT * FROM audit_logs WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 1`, tenantID)
-	return &m, err
+	m := &models.AuditLog{}
+	err := r.db.GetContext(ctx, m,
+		`SELECT `+auditLogColumns+` FROM audit_logs WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 1`, tenantID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, sentinel.NotFound
+		}
+		return nil, err
+	}
+	return m, nil
 }
 
 // VerifyChain checks hash continuity for a tenant. Returns total verified and first break.
@@ -251,12 +282,6 @@ func (r *Repository) VerifyChain(ctx context.Context, tenantID string) (int, boo
 		verified++
 	}
 	return verified, true, nil
-}
-
-// CoverageStats returns basic coverage counts.
-func (r *Repository) CoverageStats(ctx context.Context, tenantID string) (models.AuditCoverageStats, error) {
-	// Placeholder: implement full coverage logic if needed
-	return models.AuditCoverageStats{}, nil
 }
 
 // FormatCSV serializes audit logs to CSV string.

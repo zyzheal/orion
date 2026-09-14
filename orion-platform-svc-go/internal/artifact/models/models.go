@@ -48,8 +48,12 @@ type Artifact struct {
 }
 
 // ArtifactTag represents a tag attached to an artifact.
+//
+// TenantID is present because the tags table is shared by every tenant and is
+// foreign-keyed to tenants(id), so an insert without it is rejected outright.
 type ArtifactTag struct {
 	ID         string    `json:"id" db:"id"`
+	TenantID   string    `json:"tenantId,omitempty" db:"tenant_id"`
 	ArtifactID string    `json:"artifact_id" db:"artifact_id"`
 	Tag        string    `json:"tag" db:"tag"`
 	CreatedAt  time.Time `json:"created_at" db:"created_at"`
@@ -58,6 +62,7 @@ type ArtifactTag struct {
 // ArtifactDownload represents a download history record.
 type ArtifactDownload struct {
 	ID           string    `json:"id" db:"id"`
+	TenantID     string    `json:"tenantId,omitempty" db:"tenant_id"`
 	ArtifactID   string    `json:"artifact_id" db:"artifact_id"`
 	DownloadedBy string    `json:"downloaded_by" db:"downloaded_by"`
 	DownloadedAt time.Time `json:"downloaded_at" db:"downloaded_at"`
@@ -68,6 +73,7 @@ type ArtifactDownload struct {
 // ArtifactPromotion represents a promotion record.
 type ArtifactPromotion struct {
 	ID         string    `json:"id" db:"id"`
+	TenantID   string    `json:"tenantId,omitempty" db:"tenant_id"`
 	ArtifactID string    `json:"artifact_id" db:"artifact_id"`
 	FromStage  string    `json:"from_stage" db:"from_stage"`
 	ToStage    string    `json:"to_stage" db:"to_stage"`
@@ -149,20 +155,26 @@ type ArtifactTagResponse struct {
 	Tags       []string `json:"tags"`
 }
 
+// ArtifactStats aggregates the tenant's artifact set.
+//
+// TotalSize carries a db tag because sqlx's default NameMapper lowercases Go
+// field names: TotalSize would bind to "totalsize", which matches no column
+// alias, so every stats query died with "missing destination name
+// total_size_bytes" and GET /artifacts/stats answered 500.
 type ArtifactStats struct {
-	Total     int            `json:"total"`
+	Total     int            `json:"total" db:"total"`
 	ByType    map[string]int `json:"by_type"`
 	ByStatus  map[string]int `json:"by_status"`
-	TotalSize int64          `json:"total_size_bytes"`
+	TotalSize int64          `json:"total_size_bytes" db:"total_size_bytes"`
 }
 
 type ArtifactTypeStat struct {
-	Type  string `json:"type"`
-	Count int    `json:"count"`
-	Size  int64  `json:"total_size_bytes"`
+	Type  string `json:"type" db:"type"`
+	Count int    `json:"count" db:"count"`
+	Size  int64  `json:"total_size_bytes" db:"size"`
 }
 
 type NamespaceStat struct {
-	Namespace string `json:"namespace"`
-	Count     int    `json:"count"`
+	Namespace string `json:"namespace" db:"namespace"`
+	Count     int    `json:"count" db:"count"`
 }
