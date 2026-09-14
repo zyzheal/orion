@@ -241,8 +241,17 @@ func (r *Repository) GetCronJobByID(ctx context.Context, tenantID, id string) (*
 }
 
 func (r *Repository) UpdateCronJob(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE visor_exec_cron_jobs SET updated_at = NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	setClause, args, err := buildWhitelistedSET(updates, cronUpdatable)
+	if err != nil {
+		return fmt.Errorf("cron job %s: %w", id, err)
+	}
+	if setClause == "" {
+		return fmt.Errorf("cron job %s: no column to update", id)
+	}
+	args = append(args, id, tenantID)
+	query := fmt.Sprintf("UPDATE visor_exec_cron_jobs SET %s, updated_at = NOW() WHERE id = $%d AND tenant_id = $%d",
+		setClause, len(args)-1, len(args))
+	_, err = r.db.ExecContext(ctx, query, args...)
 	return err
 }
 
@@ -350,6 +359,44 @@ func (r *Repository) UpdateUploadTask(ctx context.Context, tenantID, id string, 
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE visor_exec_upload_tasks SET status=$1 WHERE id=$2 AND tenant_id=$3`, updates["status"], id, tenantID)
 	return err
+}
+
+// templateUpdatable and cronUpdatable are the only columns a partial update may
+// touch, listed in a fixed order. updated_at is deliberately absent: it is set
+// by the UPDATE itself, and letting a caller override it would let one rewrite
+// when a record was last changed.
+var (
+	templateUpdatable = []string{"name", "description", "content", "category"}
+	cronUpdatable     = []string{"name", "command", "host_ids", "hostnames", "cron_expression", "enabled"}
+)
+
+// buildWhitelistedSET renders "col = $1, col = $2, ..." for the entries of
+// updates that are allowed, in allowed's order, and returns the values to bind.
+// Walking allowed rather than the map makes the generated SQL deterministic,
+// because Go maps have no iteration order. A key outside the whitelist is an
+// error instead of being dropped, since silently ignoring a caller's field is
+// the defect this helper exists to remove.
+func buildWhitelistedSET(updates map[string]interface{}, allowed []string) (string, []interface{}, error) {
+	ok := make(map[string]bool, len(allowed))
+	for _, col := range allowed {
+		ok[col] = true
+	}
+	for k := range updates {
+		if !ok[k] {
+			return "", nil, fmt.Errorf("column %q is not updatable", k)
+		}
+	}
+	clauses := make([]string, 0, len(updates))
+	args := make([]interface{}, 0, len(updates))
+	for _, col := range allowed {
+		v, exists := updates[col]
+		if !exists {
+			continue
+		}
+		clauses = append(clauses, fmt.Sprintf("%s = $%d", col, len(args)+1))
+		args = append(args, v)
+	}
+	return strings.Join(clauses, ", "), args, nil
 }
 
 // Helper to check if repository errors indicate not found (unused sentinel for future)
