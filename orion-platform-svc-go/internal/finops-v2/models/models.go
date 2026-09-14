@@ -24,6 +24,7 @@ type CostEntry struct {
 	Currency    string    `json:"currency" db:"currency"`
 	Category    string    `json:"category" db:"category"`
 	Provider    string    `json:"provider" db:"provider"`
+	Details     string    `json:"details" db:"details"`
 	PeriodStart string    `json:"period_start" db:"period_start"`
 	PeriodEnd   string    `json:"period_end" db:"period_end"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
@@ -140,9 +141,12 @@ type CheckBudgetAlertsRequest struct {
 }
 
 type BudgetAlert struct {
-	BudgetID  int     `json:"budget_id" db:"budget_id"`
-	Name      string  `json:"name" db:"name"`
-	UsedCost  float64 `json:"used_cost"`
+	BudgetID int    `json:"budget_id" db:"budget_id"`
+	Name     string `json:"name" db:"name"`
+	// sqlx v1.4.0 maps an untagged field with strings.ToLower, so UsedCost would
+	// only ever match a column named "usedcost". The tag is what makes the
+	// `AS used_cost` alias in CheckBudgetAlerts bind to this field.
+	UsedCost  float64 `json:"used_cost" db:"used_cost"`
 	Threshold float64 `json:"threshold"`
 	Severity  string  `json:"severity"` // warning, critical
 }

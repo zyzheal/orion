@@ -245,7 +245,11 @@ func (h *Handler) GetBudget(c *gin.Context) {
 	id := c.Param("id")
 	budget, err := h.svc.GetBudget(ctx, tenantID, id)
 	if err != nil {
-		middleware.RespondNotFound(c, "budget not found")
+		if service.IsNotFound(err) {
+			middleware.RespondNotFound(c, "budget not found")
+			return
+		}
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	middleware.RespondSuccess(c, gin.H{"budget": budget})
@@ -287,7 +291,11 @@ func (h *Handler) GetBudgetStatus(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	status, err := h.svc.GetBudgetStatus(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		middleware.RespondNotFound(c, err.Error())
+		if service.IsNotFound(err) {
+			middleware.RespondNotFound(c, err.Error())
+			return
+		}
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	middleware.RespondSuccess(c, status)
@@ -312,7 +320,10 @@ func (h *Handler) CheckBudgetAlerts(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body models.CheckBudgetAlertsRequest
-	c.ShouldBindJSON(&body)
+	if err := c.ShouldBindJSON(&body); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
 	alerts, err := h.svc.CheckBudgetAlerts(ctx, tenantID, body.EntityID, body.EntityType)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -324,7 +335,8 @@ func (h *Handler) CheckBudgetAlerts(c *gin.Context) {
 func (h *Handler) GetAlertTriggers(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAlertTriggers")
 	defer span.End()
-	triggers, err := h.svc.GetAlertTriggers(ctx)
+	tenantID := c.GetString("tenant_id")
+	triggers, err := h.svc.GetAlertTriggers(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -487,9 +499,16 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 func (h *Handler) HealthCheck(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "HealthCheck")
 	defer span.End()
-	_, err := h.svc.HealthCheck(ctx)
+	healthy, err := h.svc.HealthCheck(ctx)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	if !healthy {
+		// A negative answer means the finops tables are not reachable. Reporting
+		// that as ok would hide the same missing-schema failure every other
+		// endpoint in this group returns.
+		middleware.RespondServiceUnavailable(c, "finops v2 tables are not available")
 		return
 	}
 	middleware.RespondSuccess(c, gin.H{"status": "ok"})
@@ -524,7 +543,7 @@ func (h *Handler) CollectCost(c *gin.Context) {
 func (h *Handler) GetProviders(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetProviders")
 	defer span.End()
-	providers, err := h.svc.GetRegisteredProviders(ctx)
+	providers, err := h.svc.GetRegisteredProviders(ctx, c.GetString("tenant_id"))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -557,7 +576,11 @@ func (h *Handler) GetSchedule(c *gin.Context) {
 	provider := c.Param("provider")
 	schedule, err := h.svc.GetSchedule(ctx, provider)
 	if err != nil {
-		middleware.RespondNotFound(c, "schedule not found for provider: "+provider)
+		if service.IsNotFound(err) {
+			middleware.RespondNotFound(c, "schedule not found for provider: "+provider)
+			return
+		}
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	middleware.RespondSuccess(c, schedule)

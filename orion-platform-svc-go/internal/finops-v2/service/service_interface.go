@@ -26,7 +26,7 @@ type ServiceInterface interface {
 	GetBudgetStatus(ctx context.Context, tenantID, id string) (*models.BudgetStatusResponse, error)
 	ForecastBudget(ctx context.Context, tenantID, id string) (*models.BudgetForecastResponse, error)
 	CheckBudgetAlerts(ctx context.Context, tenantID, entityID, entityType string) ([]models.BudgetAlert, error)
-	GetAlertTriggers(ctx context.Context) ([]models.AlertTrigger, error)
+	GetAlertTriggers(ctx context.Context, tenantID string) ([]models.AlertTrigger, error)
 	GetCostForecast(ctx context.Context, tenantID, entityType, entityID, period string) (*models.CostForecast, error)
 	ListRecommendations(ctx context.Context, tenantID string) ([]models.Recommendation, error)
 	UpdateRecommendationStatus(ctx context.Context, tenantID, id string, req models.UpdateRecommendationRequest) error
@@ -38,7 +38,7 @@ type ServiceInterface interface {
 	GetROIHistory(ctx context.Context, tenantID string) ([]models.ROIEntry, error)
 	GetROISummary(ctx context.Context, tenantID string) (*models.ROISummary, error)
 	GetMetrics(ctx context.Context, tenantID string) (*models.FinOpsMetricsResponse, error)
-	GetRegisteredProviders(ctx context.Context) ([]models.CloudProviderEntry, error)
+	GetRegisteredProviders(ctx context.Context, tenantID string) ([]models.CloudProviderEntry, error)
 	SetSchedule(ctx context.Context, provider, cronExpression string, enabled bool) error
 	GetSchedule(ctx context.Context, provider string) (*models.CollectionSchedule, error)
 	CollectCost(ctx context.Context, tenantID string, req models.CollectCostRequest) (*models.CollectCostResponse, error)

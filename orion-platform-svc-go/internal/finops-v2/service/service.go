@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -14,29 +15,29 @@ import (
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
-	CheckBudgetAlerts(ctx context.Context, tenantID string) ([]models.BudgetAlert, error)
+	CheckBudgetAlerts(ctx context.Context, tenantID, entityID, entityType string) ([]models.BudgetAlert, error)
 	CreateBudget(ctx context.Context, budget *models.Budget) (int, error)
 	DeleteBudget(ctx context.Context, tenantID, id string) error
 	DeleteRecommendation(ctx context.Context, tenantID string, id string) error
 	DetectUnusedResources(ctx context.Context, tenantID string) ([]models.Recommendation, error)
 	EstimateSavings(ctx context.Context, tenantID string) (*models.SavingsEstimate, error)
 	ForecastBudget(ctx context.Context, tenantID, id string) (*models.BudgetForecastResponse, error)
-	GetAlertTriggers(ctx context.Context) ([]models.AlertTrigger, error)
+	GetAlertTriggers(ctx context.Context, tenantID string) ([]models.AlertTrigger, error)
 	GetBudget(ctx context.Context, tenantID, id string) (*models.Budget, error)
 	GetBudgetStatus(ctx context.Context, tenantID, id string) (*models.BudgetStatusResponse, error)
 	GetChargebackReport(ctx context.Context, tenantID string) ([]models.ChargebackEntry, error)
 	GetCostBreakdown(ctx context.Context, tenantID, dimension string) ([]models.CostBreakdownItem, error)
 	GetCostByEntity(ctx context.Context, tenantID, entityType, entityID string) ([]models.CostEntry, error)
-	GetCostSummary(ctx context.Context, tenantID, period string) (*models.CostSummary, error)
-	GetEntityCostTrend(ctx context.Context, tenantID, entityType, entityID, period string) ([]models.CostTrendPoint, error)
+	GetCostSummary(ctx context.Context, tenantID string) (*models.CostSummary, error)
+	GetEntityCostTrend(ctx context.Context, tenantID, entityType, entityID string) ([]models.CostTrendPoint, error)
 	GetROIHistory(ctx context.Context, tenantID string) ([]models.ROIEntry, error)
 	GetROISummary(ctx context.Context, tenantID string) (*models.ROISummary, error)
-	GetRegisteredProviders(ctx context.Context) ([]string, error)
+	GetRegisteredProviders(ctx context.Context, tenantID string) ([]string, error)
 	GetReportHistory(ctx context.Context, tenantID string) ([]models.Report, error)
 	GetRightSizingRecommendations(ctx context.Context, tenantID string) ([]models.Recommendation, error)
 	GetSchedule(ctx context.Context, provider string) (*models.CollectionSchedule, error)
 	CollectCost(ctx context.Context, tenantID string, provider string, days int) (*models.CollectCostResponse, error)
-	HealthCheckAlways(ctx context.Context) (bool, error)
+	HealthCheck(ctx context.Context) (bool, error)
 	ListBudgets(ctx context.Context, tenantID string, limit, offset int) ([]models.Budget, error)
 	ListRecommendations(ctx context.Context, tenantID string, limit, offset int) ([]models.Recommendation, error)
 	SetSchedule(ctx context.Context, provider, cronExpression string, enabled bool) error
@@ -80,6 +81,7 @@ func (s *Service) trackCost(ctx context.Context, tenantID, entityType string, re
 		Currency:    req.Currency,
 		Category:    req.Category,
 		Provider:    req.Provider,
+		Details:     req.Details,
 		PeriodStart: req.PeriodStart,
 		PeriodEnd:   req.PeriodEnd,
 		CreatedAt:   time.Now().UTC(),
@@ -97,11 +99,13 @@ func (s *Service) GetCostByEntity(ctx context.Context, tenantID, entityType, ent
 }
 
 func (s *Service) GetEntityCostTrend(ctx context.Context, tenantID, entityType, entityID, period string) (*models.CostTrend, error) {
-	points, err := s.repo.GetEntityCostTrend(ctx, tenantID, entityType, entityID, period)
+	points, err := s.repo.GetEntityCostTrend(ctx, tenantID, entityType, entityID)
 	if err != nil {
 		return nil, err
 	}
-	return computeTrend(entityType, entityID, points), nil
+	trend := computeTrend(entityType, entityID, points)
+	trend.Period = period
+	return trend, nil
 }
 
 func computeTrend(entityType, entityID string, points []models.CostTrendPoint) *models.CostTrend {
@@ -114,11 +118,10 @@ func computeTrend(entityType, entityID string, points []models.CostTrendPoint) *
 		return t
 	}
 	total := 0.0
-	var min, max, prev float64
+	var min, max float64
 	for i, p := range points {
 		total += p.Cost
 		if i == 0 {
-			prev = p.Cost
 			max, min = p.Cost, p.Cost
 		} else {
 			if p.Cost > max {
@@ -140,12 +143,16 @@ func computeTrend(entityType, entityID string, points []models.CostTrendPoint) *
 			t.OverallChangeRate = ((last - first) / first) * 100
 		}
 	}
-	_ = prev
 	return t
 }
 
 func (s *Service) GetCostSummary(ctx context.Context, tenantID, period string) (*models.CostSummary, error) {
-	return s.repo.GetCostSummary(ctx, tenantID, period)
+	cs, err := s.repo.GetCostSummary(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	cs.Period = period
+	return cs, nil
 }
 
 func (s *Service) GetCostBreakdown(ctx context.Context, tenantID, dimension string) (*models.CostBreakdownResponse, error) {
@@ -196,7 +203,11 @@ func (s *Service) CreateBudget(ctx context.Context, tenantID string, req models.
 }
 
 func (s *Service) GetBudget(ctx context.Context, tenantID, id string) (*models.Budget, error) {
-	return s.repo.GetBudget(ctx, tenantID, id)
+	b, err := s.repo.GetBudget(ctx, tenantID, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrBudgetNotFound
+	}
+	return b, err
 }
 
 func (s *Service) UpdateBudget(ctx context.Context, tenantID, id string, req models.UpdateBudgetRequest) (*models.Budget, error) {
@@ -234,11 +245,11 @@ func (s *Service) ForecastBudget(ctx context.Context, tenantID, id string) (*mod
 // --- Budget alerts ---
 
 func (s *Service) CheckBudgetAlerts(ctx context.Context, tenantID string, entityID, entityType string) ([]models.BudgetAlert, error) {
-	return s.repo.CheckBudgetAlerts(ctx, tenantID)
+	return s.repo.CheckBudgetAlerts(ctx, tenantID, entityID, entityType)
 }
 
-func (s *Service) GetAlertTriggers(ctx context.Context) ([]models.AlertTrigger, error) {
-	return s.repo.GetAlertTriggers(ctx)
+func (s *Service) GetAlertTriggers(ctx context.Context, tenantID string) ([]models.AlertTrigger, error) {
+	return s.repo.GetAlertTriggers(ctx, tenantID)
 }
 
 // --- Forecasts ---
@@ -343,9 +354,21 @@ func (s *Service) GetROISummary(ctx context.Context, tenantID string) (*models.R
 // --- Metrics (KPIs) ---
 
 func (s *Service) GetMetrics(ctx context.Context, tenantID string) (*models.FinOpsMetricsResponse, error) {
-	summary, _ := s.GetCostSummary(ctx, tenantID, "monthly")
-	roi, _ := s.GetROISummary(ctx, tenantID)
-	savings, _ := s.EstimateSavings(ctx, tenantID)
+	// Each of these can fail independently. Swallowing the error and dereferencing
+	// the nil pointer turned a database outage into a panic-induced 500 on a
+	// registered route.
+	summary, err := s.GetCostSummary(ctx, tenantID, "monthly")
+	if err != nil {
+		return nil, fmt.Errorf("cost summary: %w", err)
+	}
+	roi, err := s.GetROISummary(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("roi summary: %w", err)
+	}
+	savings, err := s.EstimateSavings(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("savings estimate: %w", err)
+	}
 	return &models.FinOpsMetricsResponse{
 		CostMetrics:    *summary,
 		ROIMetrics:     *roi,
@@ -355,14 +378,18 @@ func (s *Service) GetMetrics(ctx context.Context, tenantID string) (*models.FinO
 
 // --- Cost collection ---
 
-func (s *Service) GetRegisteredProviders(ctx context.Context) ([]models.CloudProviderEntry, error) {
-	providers, err := s.repo.GetRegisteredProviders(ctx)
+func (s *Service) GetRegisteredProviders(ctx context.Context, tenantID string) ([]models.CloudProviderEntry, error) {
+	providers, err := s.repo.GetRegisteredProviders(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}
-	var items []models.CloudProviderEntry
+	items := make([]models.CloudProviderEntry, 0, len(providers))
 	for _, p := range providers {
-		items = append(items, models.CloudProviderEntry{Name: p, Enabled: true})
+		entry := models.CloudProviderEntry{Name: p}
+		if schedule, err := s.repo.GetSchedule(ctx, p); err == nil {
+			entry.Enabled = schedule.Enabled
+		}
+		items = append(items, entry)
 	}
 	return items, nil
 }
@@ -392,16 +419,14 @@ func (s *Service) CollectCost(ctx context.Context, tenantID string, req models.C
 // --- Health check ---
 
 func (s *Service) HealthCheck(ctx context.Context) (bool, error) {
-	return s.repo.HealthCheckAlways(ctx)
+	return s.repo.HealthCheck(ctx)
 }
 
 // Sentinel errors
 var ErrBudgetNotFound = errors.New("budget not found")
 
+// IsNotFound reports whether the error means "no such row". A deadline is not a
+// 404: answering one with 404 makes a database outage look like missing data.
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrBudgetNotFound) || errors.Is(err, context.DeadlineExceeded)
-}
-
-func ErrNotFoundResource(name, id string) error {
-	return fmt.Errorf("%s %q not found", name, id)
+	return errors.Is(err, ErrBudgetNotFound) || errors.Is(err, sql.ErrNoRows)
 }
