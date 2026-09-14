@@ -3,7 +3,9 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"orion/platform-svc-go/internal/runbook/models"
@@ -67,6 +69,69 @@ func (r *Repository) EnsureTable(ctx context.Context) error {
 	return err
 }
 
+// runbookColumns is the canonical SELECT list. It is explicit rather than
+// "SELECT *" for two reasons:
+//
+//   - steps and tags are JSONB and come back as []byte, which database/sql can
+//     scan into []byte but not into []models.RunbookStep or []string. runbookRow
+//     therefore holds the raw bytes and decodeRunbook unmarshals them.
+//   - a column no field declares fails the whole read under safe-mode sqlx with
+//     "missing destination name". Migration 572 already adds created_by and
+//     updated_by to this table, so "SELECT *" would have broken every read once
+//     it ran.
+const runbookColumns = `id, tenant_id, title, description, category, severity, steps, tags, owner, approved, enabled, created_at, updated_at`
+
+// executionColumns mirrors models.RunbookExecution exactly.
+const executionColumns = `id, tenant_id, runbook_id, incident_id, executor_id, status, started_at, completed_at, created_at`
+
+// runbookRow is the scan shape for runbooks: models.Runbook with the two JSONB
+// columns held as raw bytes until decodeRunbook. The db tags are mandatory
+// rather than optional -- sqlx's default NameMapper is strings.ToLower, which
+// maps the column "tenant_id" to "tenant_id" but the field TenantID to
+// "tenantid", so without tags every read failed with
+// "missing destination name tenant_id".
+type runbookRow struct {
+	ID          string    `db:"id"`
+	TenantID    string    `db:"tenant_id"`
+	Title       string    `db:"title"`
+	Description string    `db:"description"`
+	Category    string    `db:"category"`
+	Severity    string    `db:"severity"`
+	StepsRaw    []byte    `db:"steps"`
+	TagsRaw     []byte    `db:"tags"`
+	Owner       string    `db:"owner"`
+	Approved    bool      `db:"approved"`
+	Enabled     bool      `db:"enabled"`
+	CreatedAt   time.Time `db:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at"`
+}
+
+func decodeRunbook(row *runbookRow) *models.Runbook {
+	m := &models.Runbook{
+		ID:          row.ID,
+		TenantID:    row.TenantID,
+		Title:       row.Title,
+		Description: row.Description,
+		Category:    row.Category,
+		Severity:    row.Severity,
+		Owner:       row.Owner,
+		Approved:    row.Approved,
+		Enabled:     row.Enabled,
+		CreatedAt:   row.CreatedAt,
+		UpdatedAt:   row.UpdatedAt,
+	}
+	// Malformed JSON in either column should not fail the whole read: the row is
+	// still usable with an empty slice, and the write path is the only place that
+	// can repair the value.
+	if len(row.StepsRaw) > 0 {
+		_ = json.Unmarshal(row.StepsRaw, &m.Steps)
+	}
+	if len(row.TagsRaw) > 0 {
+		_ = json.Unmarshal(row.TagsRaw, &m.Tags)
+	}
+	return m
+}
+
 func (r *Repository) Create(ctx context.Context, tenantID string, m *models.Runbook) error {
 	m.ID = uuid.New().String()
 	m.TenantID = tenantID
@@ -96,13 +161,13 @@ func (r *Repository) Create(ctx context.Context, tenantID string, m *models.Runb
 }
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.Runbook, error) {
-	var m models.Runbook
-	err := r.db.GetContext(ctx, &m,
-		`SELECT * FROM runbooks WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	var row runbookRow
+	err := r.db.GetContext(ctx, &row,
+		`SELECT `+runbookColumns+` FROM runbooks WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return nil, sentinel.NotFound
 	}
-	return &m, nil
+	return decodeRunbook(&row), nil
 }
 
 func (r *Repository) List(ctx context.Context, tenantID string, q models.ListQuery) ([]models.Runbook, int, error) {
@@ -141,34 +206,87 @@ func (r *Repository) List(ctx context.Context, tenantID string, q models.ListQue
 		return nil, 0, err
 	}
 
-	var items []models.Runbook
-	err = r.db.SelectContext(ctx, &items, cond+" ORDER BY created_at DESC LIMIT $"+strconv.Itoa(idx)+" OFFSET $"+strconv.Itoa(idx+1),
+	var rows []runbookRow
+	// cond starts with "WHERE", so the statement must supply its own
+	// "SELECT ... FROM runbooks". Building the query as cond+" ORDER BY ..."
+	// sent
+	//   WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3
+	// to the database: no SELECT, no FROM, a syntax error on every call, so
+	// GET /runbooks never returned a runbook.
+	err = r.db.SelectContext(ctx, &rows,
+		"SELECT "+runbookColumns+" FROM runbooks "+cond+" ORDER BY created_at DESC LIMIT $"+strconv.Itoa(idx)+" OFFSET $"+strconv.Itoa(idx+1),
 		append(args, limit, offset)...)
+	if err != nil {
+		return nil, 0, err
+	}
+	items := make([]models.Runbook, 0, len(rows))
+	for i := range rows {
+		items = append(items, *decodeRunbook(&rows[i]))
+	}
 	return items, total, err
+}
+
+// runbookUpdatable lists the columns a partial update may touch, in a fixed
+// order. updated_at is deliberately absent: it is set by the UPDATE itself.
+var runbookUpdatable = []string{
+	"title", "description", "category", "severity", "steps", "tags", "owner", "approved", "enabled",
+}
+
+// buildRunbookSET renders "col = $1, col = $2, ..." for the entries of updates
+// that are allowed, in allowed's order, and returns the values to bind. Walking
+// the whitelist rather than the map keeps the generated SQL deterministic,
+// because Go maps have no iteration order. A key outside the whitelist is an
+// error instead of being interpolated into the SQL as a column name.
+func buildRunbookSET(updates map[string]interface{}) (string, []interface{}, error) {
+	ok := make(map[string]bool, len(runbookUpdatable))
+	for _, col := range runbookUpdatable {
+		ok[col] = true
+	}
+	for k := range updates {
+		if !ok[k] {
+			return "", nil, fmt.Errorf("column %q is not updatable", k)
+		}
+	}
+	clauses := make([]string, 0, len(updates))
+	args := make([]interface{}, 0, len(updates))
+	for _, col := range runbookUpdatable {
+		v, exists := updates[col]
+		if !exists {
+			continue
+		}
+		args = append(args, encodeJSONColumn(v))
+		clauses = append(clauses, fmt.Sprintf("%s = $%d", col, len(args)))
+	}
+	return strings.Join(clauses, ", "), args, nil
+}
+
+// encodeJSONColumn turns the two JSONB columns into the string form Postgres
+// expects. Any other value is passed through untouched.
+func encodeJSONColumn(v interface{}) interface{} {
+	switch t := v.(type) {
+	case []models.RunbookStep:
+		b, _ := json.Marshal(t)
+		return string(b)
+	case []string:
+		b, _ := json.Marshal(t)
+		return string(b)
+	default:
+		return v
+	}
 }
 
 func (r *Repository) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Runbook, error) {
 	if len(updates) == 0 {
 		return r.GetByID(ctx, tenantID, id)
 	}
-	updates["updated_at"] = time.Now().UTC()
-	for k, v := range updates {
-		switch t := v.(type) {
-		case []models.RunbookStep:
-			b, _ := json.Marshal(t)
-			updates[k] = string(b)
-		case []string:
-			b, _ := json.Marshal(t)
-			updates[k] = string(b)
-		}
-	}
-	query, args, err := sqlx.Named(`UPDATE runbooks SET @:updates WHERE id = :id AND tenant_id = :tenant_id`,
-		map[string]interface{}{"updates": updates, "id": id, "tenant_id": tenantID})
+	setClause, args, err := buildRunbookSET(updates)
 	if err != nil {
 		return nil, err
 	}
-	_, err = r.db.ExecContext(ctx, query, args...)
-	if err != nil {
+	args = append(args, id, tenantID)
+	query := fmt.Sprintf("UPDATE runbooks SET %s, updated_at = NOW() WHERE id = $%d AND tenant_id = $%d",
+		setClause, len(args)-1, len(args))
+	if _, err = r.db.ExecContext(ctx, query, args...); err != nil {
 		return nil, err
 	}
 	return r.GetByID(ctx, tenantID, id)
@@ -207,7 +325,7 @@ func (r *Repository) CreateExecution(ctx context.Context, tenantID string, ex *m
 func (r *Repository) ListExecutions(ctx context.Context, tenantID, runbookID string, limit int) ([]models.RunbookExecution, error) {
 	var items []models.RunbookExecution
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM runbook_executions WHERE tenant_id = $1 AND runbook_id = $2 ORDER BY started_at DESC LIMIT $3`,
+		`SELECT `+executionColumns+` FROM runbook_executions WHERE tenant_id = $1 AND runbook_id = $2 ORDER BY started_at DESC LIMIT $3`,
 		tenantID, runbookID, limit)
 	return items, err
 }
