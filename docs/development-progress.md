@@ -9876,3 +9876,81 @@ _, _ = r.db.ExecContext(ctx, `DELETE FROM runner_jobs WHERE runner_id=$1`, id)
 - 22 个 model 缺 `tenant_id` 而其表有该列；12 个 LEAK 模块；25 个未加 json tag 的多单词字段。
 - 零调用方的 `NotYetImplemented`：`internal/serverless/repository/repository.go:273`、`internal/visor-exec/repository/repository.go:343`、`internal/cmdb/repository/repository.go:561`。
 - 本轮新增 3 项：`runner_jobs.runner_id` 列不存在（活路由，需迁移＋设计决策）；`internal/pipeline-template` 与 `internal/pipeline-templates` 疑似同名路由组冲突；`vector_record` / `vector_index` 无迁移。
+
+## 第四十轮：internal/visor-exec 两个活 PUT 路由丢弃调用方字段，且六张 visor_exec_* 表从未建表（2026-09-14）
+
+### 40.1 选它的理由
+
+扫描起点 HEAD `e696e8df0`。这个模块完全接线——`wireVisorExec` 每次启动都跑、`visorExecH` 挂在 router、28 条路由注册在 `/visor-exec` 下——却有两类「注册是真的、能力不是」的缺陷，而且 `go build` 与 `go vet` 都看不见。
+
+### 40.2 缺陷 A：两个活 PUT 路由的 SET 子句是常量
+
+`PUT /visor-exec/templates/:id` 与 `PUT /visor-exec/cron-jobs/:id` 的 repository 更新方法把 SET 子句写成常量 `updated_at = NOW()`，调用方提交的字段全部先落进 `updates` map 再被丢弃。service 随后回读该行并原样返回，所以一次编辑唯一可观测的效果是时间戳被顶了一次。附带一条死代码：`updates["updated_at"] = time.Now().UTC()` 写了值但那个键从未进 SQL，已删除。
+
+### 40.3 缺陷 B：六张表从未建表
+
+模块写的所有六张 `visor_exec_*` 关系（command_logs、command_log_details、templates、cron_jobs、cron_job_logs、upload_tasks）都不存在，每个端点都在业务逻辑跑起来之前以 `pq: relation ... does not exist` 死掉。
+
+### 40.4 为什么新建迁移而不是把代码改回无前缀名字
+
+`078_create_visor_exec_tables.sql` 是意图中的 DDL，但它建的是无前缀的名字。`internal/cron/repository/repository.go` 用完全不同的列集（schedule、task、description、status）写同名 `cron_jobs`，改代码回名字会让两个模块互相破坏。代码里的 `visor_exec_` 前缀才是正确的命名空间决策，只是 DDL 从未被写出来。于是新增 `migrations/585_create_visor_exec_tables.sql` 加 `_down.sql`：六表、16 索引，下迁完整回滚（先 16 个 DROP INDEX 再 6 个 DROP TABLE）。列清单取自 repository 的 INSERT 与 UPDATE 语句，因为 sqlx 的 `NamedExecContext` 会拒绝 DDL 没声明的列。
+
+### 40.5 白名单驱动的 SET 构造器
+
+`templateUpdatable` 与 `cronUpdatable` 列出允许改动的列（`updated_at` 故意缺席——它由 UPDATE 自己设置，让调用方覆盖等于能改写「何时被最后修改」）；共用 helper `buildWhitelistedSET` 按白名单而非 map 遍历生成 `col = $1, col = $2, ...`，保证 SQL 与绑定顺序确定（Go map 无迭代顺序）。未知键报错而不是静默丢弃，空更新报错而不是发出空 UPDATE，per-table 错误前缀让失败消息带上 id。两个更新方法变成 `UPDATE visor_exec_<table> SET %s, updated_at = NOW() WHERE id = $N-1 AND tenant_id = $N`。
+
+这与 `internal/tracing`、`internal/webhook`、`internal/scheduled-notification` 的既有习惯不同——那几处把原始 key 不加白名单地插进 SQL（R37 已记录该问题）。
+
+### 40.6 测试
+
+13 个，全部新增：
+
+- `internal/visor-exec/repository/repository_test.go`（9 个，此前该包零测试）：精确 SQL matcher（默认 `QueryMatcherRegexp` 是 `strings.Contains`，会放过不同 SET 子句）断言每个请求列都真的进了 SET 子句且参数位次正确；两条语句失败路径用 `errors.Is` 断言原始错误；拒绝 `password` 与 `last_run_at` 两个不允许的列（后者在表上存在，但只能由 cron 调度器自己写，否则调用方能回填 cron 判定「是否逾期」依据的运行历史）；直测 helper 的编号与白名单顺序。
+- `cmd/server/migration_visor_exec_tables_test.go`（4 个）：每张被 Go 代码引用的 `visor_exec_*` 表恰由一个前向迁移创建、无重复版本号、建这些表的迁移不含字面 `BEGIN` 与 `COMMIT`；INSERT 列加 UPDATE SET 左值加两个白名单变量的列集全部存在于目标表**自己**的 `CREATE TABLE (...)` 块内；白名单与 service 的 `updates["..."]` 双向集合相等（缺一列与多死列都失败）；下迁删除全部上迁创建的表。
+
+### 40.7 变异证明 12/12
+
+快照放在 `/tmp/r40/mut/` 的镜像路径，每个 mutant 前后都从快照恢复：
+
+| mutant | 击杀测试 |
+| --- | --- |
+| 1 两个更新恢复常量 SET | WritesEveryRequestedColumn 加 ReturnsAStatementFailure 各 1 |
+| 2 未知列不再拒绝 | RejectsAColumnItWillNotWrite 2 |
+| 3 删两处空更新 guard | RejectsAnEmptyUpdate 2 |
+| 4 两处吞错 | ReturnsAStatementFailure 2 |
+| 5 白名单各删一列 | WritesEveryRequestedColumn 2 加 WhitelistsMatchTheService 2 |
+| 6 service 停发一列 | WhitelistsMatchTheService 1 |
+| 7 迁移删 `last_run_at` | ColumnsCoverEveryVisorExecStatement 1 |
+| 8 迁移删 upload_tasks 的 `hostnames` | ColumnsCoverEveryVisorExecStatement 1 |
+| 9 迁移停建 `visor_exec_upload_tasks` | CreateTheVisorExecTables 1 加 ColumnsCover 1 |
+
+### 40.8 变异过程暴露了自己测试的两个真实缺陷
+
+- **列覆盖检查可以跨表蒙混**：原本把整个迁移文件拼进 `ddl[table]`，于是 `visor_exec_cron_jobs.hostnames` 替 `visor_exec_upload_tasks.hostnames` 蒙混过关，mutant 11 未杀死。改为只取 `reVisorExecCreate` 捕获的该表自己的括号块（`(?s)CREATE TABLE(?:\s+IF NOT EXISTS)? (visor_exec_[a-z_]+) \(([^;]+?)\);` 的第 2 组）后才杀掉。
+- **只断言 `err != nil` 是空洞的**：空更新测试原本只检查 `err != nil`，而 sqlmock 的「call to Exec query ... was not expected」错误同样能满足它，于是 mutant 4（删 guard）可以存活。改为钉住 guard 自己产生的 `no column to update` 文本。这与 R39 的 `(T, error)` 双断言规则同源：失败路径测试必须钉住该 guard 实际产生的错误文本。
+
+### 40.9 记录未改（六项）
+
+1. **tenant 线程传递**（最危险，规则 b 与 e 都不适用）：`cmd/server/wiring-visor-exec.go` 的 `visorTenantBridge` 里有 15 处以上 `""` 占位；`POST /visor-exec/commands` 从不设置 `CommandLog.TenantID`；`GET /commands` 与 `/commands/count` 按调用方真实租户过滤故永久为空，而 `GET /commands/:id` 与 `/commands/:id/details` 用 `""` 查询造成跨租户读；template、cron、upload 的 by-ID 读同样跨租户。修复需改约 20 个 `ServiceInterface` 方法、生成的 `service_interface.go`、15 处 handler 调用点与 bridge——模块级签名变更，值得独立一轮。
+2. `ExecuteCommand` 无 SSH、agent、runner 基础设施却伪造 `Status: "success"`、`Output: "Command executed successfully on %s"`、`ExitCode: 0`（规则 e：只记录）。
+3. 零调用方的 `NotYetImplemented`（规则 b：死代码；基础设施不存在故仅记录）。
+4. `ListCronJobLogsByJobID` 里重复的 `pageSize = 20`（行为无影响，留待顺手清理）。
+5. `UpdateUploadTask` 接受 `updates` map 却只写 `status=$1`，忽略其余键，既无白名单也无拒绝——同缺陷的更安静形式；handler 只传 `status` 故无实际数据丢失，仅记录。
+6. 已删掉的死代码 `updates["updated_at"] = time.Now().UTC()`。
+
+### 40.10 验证
+
+- `gofmt -l internal/visor-exec/ cmd/server/` 干净
+- `go build ./...` 通过
+- `go vet ./internal/visor-exec/... ./cmd/server/` 干净
+- `go clean -testcache && go test -count=1 ./internal/visor-exec/... ./cmd/server/` 全部 ok（handler 0.015s / repository 0.010s / cmd server 1.468s）
+- 变异 12/12 killed，工作树已按快照恢复（三个文件的 `diff -q` 均 RESTORED）
+
+### 40.11 扫描遗留（未处理，结转）
+
+- `/tmp/r38/A.txt`（50 处 `Sprintf("%s=$%d`）、`/tmp/r38/C.txt`（301 处被丢弃的 `RowsAffected()` 错误）。
+- 无白名单的 map 驱动 SET 构造器：`/tmp/r37/dyn_files.txt` 已失效（152 处 / 114 文件 / 105 判定无白名单需重新推导）；`internal/tracing`、`internal/webhook`、`internal/scheduled-notification` 等已确认无白名单。
+- `/tmp/r33/hits.txt`、`/tmp/r34/stubs2.txt`、`/tmp/r32scan/up3.txt`（178 个死参数）。
+- 22 个 model 缺 `tenant_id` 而其表有该列；12 个 LEAK 模块；25 个未加 json tag 的多单词字段。
+- 零调用方的 `NotYetImplemented`：`internal/serverless/repository/repository.go:273`、`internal/visor-exec/repository/repository.go:403`、`internal/cmdb/repository/repository.go:561`。
+- 结转：`runner_jobs.runner_id` 列不存在（活路由）；`internal/pipeline-template` 与 `internal/pipeline-templates` 疑似同名路由组冲突；`vector_record` / `vector_index` 无迁移；sla 与 storage 的 handler 把全部错误折叠成 404；`internal/cron` 与 `internal/visor-exec` 抢 `cron_jobs` 名字的根因（本轮用 585 迁移绕开，`078_create_visor_exec_tables.sql` 仍在库里建无前缀表）。
