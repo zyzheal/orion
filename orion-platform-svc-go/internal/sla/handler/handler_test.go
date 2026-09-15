@@ -39,7 +39,7 @@ func (f *fakeSlaService) DetectBreaches(ctx context.Context, tenantID string) (*
 	return &models.DetectionResult{}, nil
 }
 
-func (f *fakeSlaService) GetBreachEvents(ctx context.Context, trackingID string) ([]models.SLABreachEvent, error) {
+func (f *fakeSlaService) GetBreachEvents(ctx context.Context, tenantID, trackingID string) ([]models.SLABreachEvent, error) {
 	return []models.SLABreachEvent{}, nil
 }
 

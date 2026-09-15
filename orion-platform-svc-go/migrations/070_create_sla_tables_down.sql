@@ -27,3 +27,5 @@ DROP INDEX IF EXISTS "idx_sla_definitions_status";
 DROP INDEX IF EXISTS "idx_sla_definitions_type";
 
 DROP INDEX IF EXISTS "idx_sla_definitions_tenant_id";
+
+DROP TABLE IF EXISTS "sla_definitions" CASCADE;
