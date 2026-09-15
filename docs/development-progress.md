@@ -10897,11 +10897,11 @@ SURVIVED=0 COMPILE=0 TOTAL=47
 - 硬编码成功标记的分诊未完成（按 R38 规则每个先确认是否挂了路由）：`internal/health-check/service/service.go`、`pipeline_executor.go` 5 处、`internal/assistant/service/actions.go:42` 与 `internal/assistant/handler/handler.go:78`、`internal/cmdb/service.go:465`、`internal/data-catalog/service.go:166`、`internal/serverless/service.go:152`、`internal/multi-cloud/service.go:354`、`internal/tool/service.go:318`、`internal/workflow-webhook/handler.go:144`、`internal/chaos-gateway/service.go:294`、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`。
 - 结转不变：visor-exec 的租户贯穿；`runner_repository.go:73` 在活路由上丢弃一条引用不存在列的 DELETE；`pipeline-templates` 的 Delete 丢弃一条 DELETE 且 handler 未注册；`vector/repository.go:68` 的 DeleteStore 没有 vector_record 迁移；schema-registry 的 best-effort GetSchema 快照；EnsureTable 在约 15 个模块声明而 cmd/server 零调用方；`internal/schema-registry/models/models.go` 的既存 gofmt 债；sqlx v1.4.0 的 `NameMapper` 只认小写；buildNamedSet 在 pipeline-executor:401 / job-actions:285 / auto-exec:333 未加白名单；roweditor 的 validateRows 与 validateMode 死代码；buildUpdateSetClause 里重复的 version 与 updated_at；finops v1 的不可达方法；user 模块 ChangePassword 的 bcrypt 路径无覆盖；`monitor:execute` 未授予 sre 与 tenant_admin；internal/pipeline-template 与 internal/pipeline-templates 都注册 /pipeline-templates。
 
-## 第四十八轮：internal/config-mgmt-enhanced 迁移 115 四张表名整体错位、sqlx v1.4.0 全小写 NameMapper 让四条 NamedExecContext 在驱动层报错、ApproveRequest 的 Approver 字段被服务端静默丢弃（Round 48）
+## 第四十八轮：internal/config-mgmt-enhanced 迁移 115 四张表名整体错位、sqlx v1.4.0 命名参数按 db tag 原值查找让四条 NamedExecContext 在驱动层报错（§49.5 已修正此处的 NameMapper 措辞）、ApproveRequest 的 Approver 字段被服务端静默丢弃（Round 48）
 
 ### 48.1 扫描起点与选点理由
 
-扫描起点 HEAD `b9a8adf47`（Round 47 收尾）。**选它的理由**：模块 13 条路由全部在册，接线无条件执行，但 `migrations/` 下与模块代码查的表名**一张都对不上**——迁移 115 建的是 `config_mgmts`、`change_requests`、`change_histories`、`drift_reports`（复数），仓库查的全是单数。后果与 R45、R47 同型但更隐蔽：表存在（115 建了），只是名字差一个字母，所以第一次执行报的是 `relation "config_mgmt" does not exist` 而不是列缺失。同一模块里还压着第二个独立的驱动层阻断：**sqlx v1.4.0 的 `NameMapper` 就是 `strings.ToLower`**（`sqlx.go:26`），`TenantID` 被解析成 `tenantid`，而 4 处 `NamedExecContext` 用的是 `:tenantId` 这类驼峰命名参数——`strings.ToLower` 之后永远匹配不上。两个问题叠加，模块 13 条路由无一能在第一次执行时成功，且第二个问题只会在**运行到那一行时**才炸，静态检查完全看不见。
+扫描起点 HEAD `b9a8adf47`（Round 47 收尾）。**选它的理由**：模块 13 条路由全部在册，接线无条件执行，但 `migrations/` 下与模块代码查的表名**一张都对不上**——迁移 115 建的是 `config_mgmts`、`change_requests`、`change_histories`、`drift_reports`（复数），仓库查的全是单数。后果与 R45、R47 同型但更隐蔽：表存在（115 建了），只是名字差一个字母，所以第一次执行报的是 `relation "config_mgmt" does not exist` 而不是列缺失。同一模块里还压着第二个独立的驱动层阻断：**sqlx v1.4.0 的 `NameMapper` 就是 `strings.ToLower`**（`sqlx.go:26`），`TenantID` 被解析成 `tenantid`，而 4 处 `NamedExecContext` 用的是 `:tenantId` 这类驼峰命名参数，与模型的 `db:"tenant_id"` tag 原值不等——sqlx 对 map 参数做的是**直接 `arg[name]` 查找**，占位符要与 tag 原值逐字符相等，于是四条在驱动层直接报 `could not find name tenantId`。（本节此处把根因写成「全小写 NameMapper」，措辞不精确；修正后的规则、源码位置与四路探针证据见 §49.5。）两个问题叠加，模块 13 条路由无一能在第一次执行时成功，且第二个问题只会在**运行到那一行时**才炸，静态检查完全看不见。
 
 ### 48.2 主项：新增迁移 590 与回滚文件
 
@@ -11006,7 +11006,7 @@ KILLED(assertion)  X01  ConfigMgmt 的 db:updated_at 标签删除 KILLED(asserti
 7. `ChangeHistoryFilter` 的 Limit 与 Offset 被仓库忽略。
 8. `CreateChangeRequest`、`ListChangeRequests`、`DeleteChangeRequest` 有测试但无路由。
 9. 迁移 115 的四张复数表保持原样（239、570、572 仍在改 `config_mgmts`）。
-10. sqlx v1.4.0 的全小写 NameMapper 是全仓陷阱，任何 `:CamelCase` 命名参数都会失败。
+10. sqlx v1.4.0 的命名参数绑定规则不是「全小写」，而是「占位符必须与 `db:` tag 原值逐字符相等，`strings.ToLower` 只在无 tag 时兜底」（§49.5 有源码与四路探针证据）。风险面因此不是「用命名参数的模块」，而是「占位符与 tag 不一致的模块」，不能按「用了 `:CamelCase`」一刀切筛查。
 11. `internal/middleware/response.go` 从不调 `c.Abort()`，是所有「返回 bool 后靠中间件短路」护栏的全仓陷阱。
 12. 前端 `orion-frontend/src/router/routes.tsx:2305` 懒加载不存在的 `@/pages/config-mgmt/ConfigMgmtPage`（FORBIDDEN 路径，仅记录）。
 13. 已知的不可杀突变：`deserializeDriftReport` 四处与 `deserializeApprovals` 一处的 `%w`→`%s`（不包 sentinel，文本断言无法区分）；down 文件相邻 DROP INDEX 互换（测试比对的是索引集合与表删除顺序）。
@@ -11030,3 +11030,126 @@ go test -count=1 -run 'TestCfg'    ./cmd/server/                                
 ### 48.13 扫描遗留（未处理，结转）
 
 `internal/notification`、`internal/file-handler`、`internal/job-source`、`internal/security`、`internal/infrastructure/*`（其余子模块）、`internal/cache`、`internal/apm`、`internal/cron` 尚未按本轮口径扫描。`/tmp/r41/dyn.txt` 记录约 57 处 `Sprintf("UPDATE` 站点（40 个文件），`/tmp/r38/A.txt` 记录 50 处 `Sprintf("%s=$%d` 站点，是下一轮同型缺陷的候选池。硬编码成功标记待按 R38 逐条确认路由可达性后再判定：`internal/health-check/service/service.go`、`pipeline_executor.go`（5 处）、`internal/assistant/service/actions.go:42`、`internal/assistant/handler/handler.go:78`、`internal/cmdb/service.go:465`、`internal/data-catalog/service.go:166`、`internal/serverless/service.go:152`、`internal/multi-cloud/service.go:354`、`internal/tool/service.go:318`、`internal/workflow-webhook/handler.go:144`、`internal/chaos-gateway/service.go:294`、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`。全仓结构性债务：1007 张表被迁移 572 改过之后，代码里仍有 1302 处 SELECT 星号。
+
+## 第四十九轮：internal/chatops 十五处 repository 调用点的租户隔离静默失效——命名参数与字面 $N 混排让 WHERE 子句重绑到 SET 值（Round 49）
+
+### 49.1 扫描起点与选点理由
+
+扫描起点 HEAD `2a51f7c6f`（Round 48 文档提交 `1ab35d7e5` 之后，其他 agent 的提交夹在中间）。**选它的理由**：全仓按 `NamedExecContext` 站点数排序，`internal/chatops` 以 **30 处**居首，且是**唯一**一个把 `COALESCE(:named, col)` 形式的命名参数与字面 `$N` 位置参数**放在同一条语句里**的模块。R48 刚修完「命名参数与 db tag 不一致」这类缺陷，本轮顺这条线往下查，查出来的却是另一个独立机理：不是占位符匹配不上，而是**占位符全都能匹配上、语句合法、执行成功**——只是 WHERE 子句绑到了错的参数上。
+
+### 49.2 机理：命名参数按出现顺序重编号，字面 $N 原样直通
+
+sqlx 的 `compileNamedQuery`（`bind.go`）把命名参数按**在语句中出现的顺序**重编号为 `$1..$N`；`defaultBinds` 把 `DOLLAR` 绑定到 `postgres` 系驱动。语句里**字面写死的 `$1` `$2`** 不参与重编号，原样交给驱动。于是这种写法
+
+```
+UPDATE t SET name=COALESCE(:name, name), desc=COALESCE(:desc, desc) WHERE id=$1 AND tenant_id=$2
+```
+
+到达 Postgres 时是
+
+```
+UPDATE t SET name=COALESCE($1, name), desc=COALESCE($2, desc) WHERE id=$1 AND tenant_id=$2
+```
+
+`id` 与 `tenant_id` 被绑到**新的列值**上，map 里那两条 `"id"` / `"tenant_id"` 被静默忽略。而仓库的 `oneRow`（repository.go:47）在 `RowsAffected()==0` 时返回 `sentinel.NotFound`，所以这类更新在**行确实存在时返回 404**，写入被静默丢弃——调用方看到的是一个「资源不存在」的假象，而不是一个错误。
+
+第二种形状更直白：位置参数占位符配 map 参数。`named.go:199` 的 `bindMapArgs` 收到一个空的 `names` 切片就返回**零个**绑定值，语句带着 `$1 $2 $3` 原文到达驱动，报 `can't use $1 in a query with zero bound parameters`。
+
+### 49.3 七处修复
+
+`internal/chatops/repository/repository.go` 共 7 处：5 处把 WHERE 子句从字面 `$N` 改为命名占位符（`UpdateCommandPermission`、`UpdateEnvironmentPermission`、`UpdateRole`、`UpdateRateLimit`、`UpdateWebhook`），`UpdateCapabilityMapping` 整条从位置 `$1/$2/$3` 改为 `:updated_at/:id/:tenant_id`，`UpdateCommand` 整体重写——原来它把调用方传入的 `updates` map **整个丢弃**，只写 `updated_at`，顺手删掉了那行永远写不进去的 `updates["updated_at"] = time.Now().UTC()`。
+
+**健壮性属性**：7 个 map 字面量都**显式列出全部 key**（包括 `id` 与 `tenant_id`）。这不是风格问题——sqlx 对 map 参数做的是直接 `arg[name]` 查找，**缺 key 是硬错误**（`could not find name b in map[...]`），不会被当成 NULL 绑定。探针已确认这一点，见 §49.4。
+
+### 49.4 稀疏 map 是真需求，不是防御性假设
+
+`UpdateRateLimit`（service.go:839）与 `UpdateWebhook`（service.go:882）把 HTTP body 的 `map[string]interface{}` **原样转发**给仓库，没有像另外 4 个方法那样从指针字段构造 map。所以一个只改一个字段的 PUT 就是只带一个 key 的 map。仓库的显式字面量写法为缺失字段绑定 `nil`，`COALESCE(NULL, col)` 保留库里的值。两个探针结论支撑这个设计：
+
+- sqlmock 对「key 存在但值为 nil」与期望值 `nil` **互相匹配**（`argument.go` 的 nil 分支）。
+- 「key 根本不存在」是 sqlx 硬错误，不是 nil 绑定。
+
+固定这个行为的测试是 `TestUpdateRateLimit_APartialBodyLeavesTheOtherColumnsAlone`（`WithArgs(nil, nil, nil, nil, 99, nil, nil, "rl-1", "t-1")`）与 `TestUpdateCommand_AnEmptyUpdatesMapClearsNothing`。
+
+### 49.5 sqlx 命名参数的准确规则（修正 R48 措辞）
+
+R48 把根因写成「`NameMapper` 是 `strings.ToLower`，驼峰占位符永远匹配不上」，**措辞不精确**。源码与四路探针的结论是：
+
+- `sqlx.go:26` 确实是 `var NameMapper = strings.ToLower`，`mapper()` 构造 `reflectx.NewMapperFunc("db", NameMapper)`。
+- 但 fork 出来的 `reflectx/reflect.go:282` 的 `parseName` 是**先**赋 `fieldName = mapFunc(field.Name)`，**然后**若该字段的 tag 里有 `db:`，就用 `strings.Split(field.Tag.Get("db"), ",")[0]` **覆盖** `fieldName`——原值，**从不**转小写。`TraversalsByNameFunc`（:184）按这个 name 做 `tm.Names[name]` 精确查表。
+
+四路探针结果：
+
+| 占位符 | 字段有 `db:"tenant_id"` tag | 字段无 tag |
+|---|---|---|
+| `:tenant_id`（snake） | 成功 | — |
+| `:tenantId`（camel） | 失败 `could not find name tenantId` | 失败 `could not find name tenantId` |
+| 小写拼接名 | — | 成功 |
+
+**准确的规则是：命名占位符必须与 map 的 key、或字段的 `db:` tag 原值逐字符相等；`strings.ToLower` 只在无 tag 时作为兜底，且只转小写、不剥下划线。**
+
+**对全仓筛查的直接后果**：只有「占位符与 `db:` tag 不一致」的模块才有风险，**不能**按「用了命名参数」或「用了 `:CamelCase`」一刀切筛。R48 的代码修法（改位置 `$N`）依然成立，只有措辞需要软化；R48 的 §48.1、§48.11 第 10 条、`ALL_TODOS` 第 48 轮行已按此修正并指回本节。扫描方向（行→结构体、**无 tag** 字段）的 ToLower 结论不受影响，那些写法是正确的。
+
+### 49.6 顺手修掉的两个测试基础设施缺陷
+
+- **`loadSQL` 的反引号配对**：原实现按行判断「本行含反引号则切换状态」，对**单行** raw string（两个反引号都在同一行）判断错误。本轮给 `UpdateCommand` 加了多行查询后，它把后续状态整体错位，把 repository.go:1087 的注释当成 SQL 泄漏出去，触发迁移守卫在 `[a isScannable]` 上误报。改为从左到右、按配对奇偶扫描。该文件的 5 个调用点（notfound_test.go:171、:214；select_star_test.go:384、:426、:531）全部受益。
+- **守卫正则过窄**：`TestSource_EveryIDScopedWriteChecksRowsAffected` 的 `reIDScoped` 只认 `\bid=\$`，只匹配到 16 处写中的 9 处，`checked < 16` 断言报「detector matched only 9 writes」。改为 `\bid=(\$|:)` 覆盖两种占位符风格，并把阳性对照改成两分支表（位置式 + 命名式），否则将来有人把检测器改宽了也不会报错。
+
+### 49.7 路由可达性
+
+按 R38，7 处里 **6 处挂在活的 admin 路由上**：`PUT /admin/roles/:id`、`PUT /admin/command-permissions/:id`、`PUT /admin/environment-permissions/:id`、`PUT /admin/rate-limits/:id`、`PUT /admin/webhooks/:id`，以及 `UpdateCapabilityMapping`。只有 `UpdateCommand` 不可达——仓库里不存在 `PUT /commands/:id` 路由。它的基建齐全（表、模型、INSERT 都在），按既定规则是**实现而非删除或仅记录**：方法签名接收 `updates` map，现在真的会用到它了。
+
+### 49.8 十三处变异，十三处被杀，零存活，零编译击杀
+
+每一处都只替换了一个方法体内的锚点（`scoped()` 在每次调用时重新推导函数边界表，因为前几处补丁会改变偏移），打印出现次数，断言 `== 1`，跑完即还原。
+
+| 变异 | 次数 | 结果 |
+|---|---|---|
+| UpdateRole：WHERE 命名→位置 | 1 | 被杀（BindsIdentityInItsOwnSlots、AZeroRowUpdateIsNotFound） |
+| UpdateCommandPermission：WHERE 命名→位置 | 1 | 被杀 |
+| UpdateEnvironmentPermission：WHERE 命名→位置 | 1 | 被杀 |
+| UpdateRateLimit：WHERE 命名→位置 | 1 | 被杀（含 APartialBody） |
+| UpdateWebhook：WHERE 命名→位置 | 1 | 被杀 |
+| UpdateCapabilityMapping：命名→位置 | 1 | 被杀（BindsAllThreeArguments） |
+| UpdateCommand：丢掉 updates map | 1 | 被杀（两个 UpdateCommand 测试） |
+| UpdateRole：交换 id 与 tenant_id 的取值 | 1 | 被杀（两个 UpdateRole 测试） |
+| UpdateWebhook：`:tenant_id` → `:tenantId` | 1 | 被杀 |
+| UpdateRateLimit：删掉 RowsAffected 检查 | 1 | 被杀（源级守卫） |
+| UpdateRole：从 map 里删掉 id key | 1 | 被杀 |
+| UpdateWebhook：调换 SET 列顺序 | 1 | 被杀 |
+| 守卫：正则收窄回只认 `$` | 1 | 被杀（detector matched only 9 writes） |
+
+**最值得记的一条**：`UpdateCapabilityMapping` 修复前后的**编译后 SQL 逐字节相同**（位置 `$1/$2/$3` 与命名 `:updated_at/:id/:tenant_id` 编译出来一模一样），任何 SQL 形状断言都分不开两者，只有**参数个数**能分——所以那个测试用 `WithArgs(sqlmock.AnyArg(), "cm-1", "t-1")` 钉参数个数，`AnyArg` 只放过第一个，后两个必须精确匹配。
+
+**编译击杀改写**：`return r.oneRow(res, id)` → `return nil` 会让 `res` 变成未使用变量（`declared and not used: res`），属编译击杀。改为两点语义变异：`res, err := r.db.NamedExecContext` → `_, err := ...`，同时删掉 `oneRow` 调用——这正是 R47 之前的历史形状。
+
+### 49.9 记录不修：同型缺陷在八个模块十五处
+
+按 R38，只有挂路由的才算缺陷；这 15 处在各自模块里都是路由可达的，但**不在本轮授权模块内**，逐条记录、下轮再动：
+
+- `internal/policy/repository/repository.go:55`（`UpdatePolicy`，结构体参数）与 :76（enable/disable 变体）
+- `internal/sla/repository/repository.go:99`（`UpdateDefinition`，纯位置式）
+- `internal/artifact-lifecycle/repository/repository.go:70`
+- `internal/disaster-recovery/repository/repository.go:62`（`UpdatePlan`）
+- `internal/ephemeral-env/repository/repository.go:62`（`UpdateEnv`）
+- `internal/iac/repository/repository.go:152`（`UpdateWorkspace`）
+- `internal/dba/osc/repository.go:126`（`UpdateJob`）——**不可动**，`migrations/dba/` 属 FORBIDDEN 路径
+
+**按 §49.5 修正后的规则，下轮筛查必须先比对占位符与 `db:` tag 是否逐字符相等，再判定是否报错**；不能只看「是否用了命名参数」。
+
+### 49.10 验证
+
+```
+gofmt -l internal/chatops/                                          → （空）
+go test -count=1 ./internal/chatops/...                             → handler ok / models 无测试 / repository ok / service ok
+go build ./...                                                      → BUILD OK
+go test -count=1 -run TestCfgRepo ./internal/config-mgmt-enhanced/repository/      → ok
+go test -count=1 -run TestCfgService ./internal/config-mgmt-enhanced/service/      → ok
+go test -count=1 -run 'TestCfgHandler|TestCfgRespondServiceError' ./internal/config-mgmt-enhanced/handler/ → ok
+go test -count=1 -run TestCfg ./cmd/server/                         → ok
+```
+
+chatops 测试计数：repository 55（新增 10）、service 14、handler 24，合计 93。变异跑完后用 `diff` 核对备份，`repository.go` 与 `notfound_test.go` 均确认已还原。提交分三笔（代码、测试、文档），每笔前后各跑一次 FORBIDDEN 校验（须输出 0）。
+
+### 49.11 扫描遗留（未处理，结转）
+
+本轮授权的 chatops 之外的 8 个模块 15 处（§49.9）是 Round 50 的候选池。`/tmp/r41/dyn.txt`（约 57 处 `Sprintf("UPDATE`，40 个文件）与 `/tmp/r38/A.txt`（50 处 `Sprintf("%s=$%d`）仍是同型缺陷的候选。尚未按本轮口径扫描的模块：`internal/notification`、`internal/file-handler`、`internal/job-source`、`internal/security`、`internal/infrastructure/*`（其余子模块）、`internal/cache`、`internal/apm`、`internal/cron`。硬编码成功标记待按 R38 逐条确认路由可达性：`internal/health-check/service/service.go`、`pipeline_executor.go`（5 处）、`internal/assistant/service/actions.go:42`、`internal/assistant/handler/handler.go:78`、`internal/cmdb/service.go:465`、`internal/data-catalog/service.go:166`、`internal/serverless/service.go:152`、`internal/multi-cloud/service.go:354`、`internal/tool/service.go:318`、`internal/workflow-webhook/handler.go:144`、`internal/chaos-gateway/service.go:294`、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`。全仓结构性债务不变：1007 张表被迁移 572 改过之后，代码里仍有 1302 处 SELECT 星号。
