@@ -162,10 +162,26 @@ func (r *Repository) ListCommands(ctx context.Context, tenantID string, permissi
 }
 
 func (r *Repository) UpdateCommand(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
-	updates["updated_at"] = time.Now().UTC()
 	res, err := r.db.NamedExecContext(ctx,
-		`UPDATE chatops_commands SET updated_at=NOW() WHERE id=$1 AND tenant_id=$2`,
-		map[string]interface{}{"id": id, "tenant_id": tenantID})
+		`UPDATE chatops_commands SET
+			name=COALESCE(:name, name),
+			subcommand=COALESCE(:subcommand, subcommand),
+			description=COALESCE(:description, description),
+			permission_level=COALESCE(:permission_level, permission_level),
+			schema=COALESCE(:schema, schema),
+			examples=COALESCE(:examples, examples),
+			updated_at=NOW()
+		 WHERE id=:id AND tenant_id=:tenant_id`,
+		map[string]interface{}{
+			"name":             updates["name"],
+			"subcommand":       updates["subcommand"],
+			"description":      updates["description"],
+			"permission_level": updates["permission_level"],
+			"schema":           updates["schema"],
+			"examples":         updates["examples"],
+			"id":               id,
+			"tenant_id":        tenantID,
+		})
 	if err != nil {
 		return err
 	}
@@ -522,7 +538,7 @@ func (r *Repository) GetCapabilityMapping(ctx context.Context, tenantID, id stri
 func (r *Repository) UpdateCapabilityMapping(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
 	now := time.Now().UTC()
 	res, err := r.db.NamedExecContext(ctx,
-		`UPDATE chatops_capability_mappings SET updated_at=$1 WHERE id=$2 AND tenant_id=$3`,
+		`UPDATE chatops_capability_mappings SET updated_at=:updated_at WHERE id=:id AND tenant_id=:tenant_id`,
 		map[string]interface{}{"updated_at": now, "id": id, "tenant_id": tenantID})
 	if err != nil {
 		return err
@@ -698,7 +714,7 @@ func (r *Repository) GetRole(ctx context.Context, tenantID, id string) (*models.
 func (r *Repository) UpdateRole(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
 	res, err := r.db.NamedExecContext(ctx,
 		`UPDATE chatops_permission_roles SET name=COALESCE(:name, name), description=COALESCE(:description, description), permissions=COALESCE(:permissions, permissions)
-		 WHERE id=$1 AND tenant_id=$2`,
+		 WHERE id=:id AND tenant_id=:tenant_id`,
 		map[string]interface{}{
 			"name":        updates["name"],
 			"description": updates["description"],
@@ -759,7 +775,7 @@ func (r *Repository) UpdateCommandPermission(ctx context.Context, tenantID, id s
 			risk_level=COALESCE(:risk_level, risk_level),
 			requires_approval=COALESCE(:requires_approval, requires_approval),
 			role_ids=COALESCE(:role_ids, role_ids)
-		 WHERE id=$1 AND tenant_id=$2`,
+		 WHERE id=:id AND tenant_id=:tenant_id`,
 		map[string]interface{}{
 			"description":       updates["description"],
 			"capability":        updates["capability"],
@@ -823,7 +839,7 @@ func (r *Repository) UpdateEnvironmentPermission(ctx context.Context, tenantID, 
 			allowed_commands=COALESCE(:allowed_commands, allowed_commands),
 			denied_commands=COALESCE(:denied_commands, denied_commands),
 			role_ids=COALESCE(:role_ids, role_ids)
-		 WHERE id=$1 AND tenant_id=$2`,
+		 WHERE id=:id AND tenant_id=:tenant_id`,
 		map[string]interface{}{
 			"description":      updates["description"],
 			"rate_limit":       updates["rate_limit"],
@@ -968,7 +984,7 @@ func (r *Repository) UpdateRateLimit(ctx context.Context, tenantID, id string, u
 			limit_count=COALESCE(:limit_count, limit_count),
 			window_seconds=COALESCE(:window_seconds, window_seconds),
 			description=COALESCE(:description, description)
-		 WHERE id=$1 AND tenant_id=$2`,
+		 WHERE id=:id AND tenant_id=:tenant_id`,
 		map[string]interface{}{
 			"target_type":    updates["target_type"],
 			"target_id":      updates["target_id"],
@@ -1038,7 +1054,7 @@ func (r *Repository) UpdateWebhook(ctx context.Context, tenantID, id string, upd
 			timeout_seconds=COALESCE(:timeout_seconds, timeout_seconds),
 			headers=COALESCE(:headers, headers),
 			description=COALESCE(:description, description)
-		 WHERE id=$1 AND tenant_id=$2`,
+		 WHERE id=:id AND tenant_id=:tenant_id`,
 		map[string]interface{}{
 			"name":            updates["name"],
 			"url":             updates["url"],
