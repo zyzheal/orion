@@ -349,6 +349,13 @@ func TestInsertWebhookLog_WritesTheDeliveryRow(t *testing.T) {
 
 // loadSQL strips Go line comments without touching backtick string literals, so
 // a mention of a table in prose cannot satisfy the migration pin below.
+//
+// A raw string may span many lines, and one line may hold an entire one-line
+// string. "Does this line contain a backtick" is therefore the wrong test: a
+// line such as `SELECT id FROM t` holds two backticks and crosses no
+// boundary, so that heuristic believed every later comment was still inside a
+// string and left it in the SQL. The scanner walks each line left to right and
+// strips comments only from the parts that are code.
 func loadSQL(t *testing.T, path string) string {
 	t.Helper()
 	b, err := os.ReadFile(path)
@@ -358,21 +365,29 @@ func loadSQL(t *testing.T, path string) string {
 	var out strings.Builder
 	inBack := false
 	for _, line := range strings.Split(string(b), "\n") {
+		rest := line
 		if inBack {
-			out.WriteString(line + "\n")
-			if strings.Contains(line, "`") {
+			out.WriteString(rest)
+			if strings.Count(rest, "`")%2 == 1 {
 				inBack = false
 			}
+			out.WriteString("\n")
 			continue
 		}
-		idx := strings.Index(line, "//")
-		if idx >= 0 {
-			line = line[:idx]
+		bt := strings.Index(rest, "`")
+		if ci := strings.Index(rest, "//"); ci >= 0 && (bt < 0 || ci < bt) {
+			out.WriteString(rest[:ci] + "\n")
+			continue
 		}
-		if strings.Contains(line, "`") {
-			inBack = true
+		if bt < 0 {
+			out.WriteString(rest + "\n")
+			continue
 		}
-		out.WriteString(line + "\n")
+		// The string opens here. An odd number of backticks in the remainder
+		// means it is still open at the end of the line.
+		tail := rest[bt:]
+		out.WriteString(rest[:bt] + tail + "\n")
+		inBack = strings.Count(tail, "`")%2 == 1
 	}
 	return out.String()
 }

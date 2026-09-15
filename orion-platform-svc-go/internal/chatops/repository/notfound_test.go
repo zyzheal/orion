@@ -171,8 +171,11 @@ func TestSource_EveryIDScopedWriteChecksRowsAffected(t *testing.T) {
 	src := loadSQL(t, "repository.go")
 	reFunc := regexp.MustCompile(`(?m)^func \(r \*Repository\) (\w+)\(`)
 	// tenant_id and version_id are scoping columns, not identity, so only a
-	// WHERE clause keyed on id itself counts
-	reIDScoped := regexp.MustCompile(`(?:DELETE FROM|UPDATE) chatops_[a-z_]+[\s\S]*?\bid=\$`)
+	// WHERE clause keyed on id itself counts. The placeholder may be positional
+	// ($1) or named (:id): a NamedExecContext call compiles its named args to
+	// $1..$N, so leaving a literal $1 next to them rebinds id to the first SET
+	// value instead of the id the caller passed.
+	reIDScoped := regexp.MustCompile(`(?:DELETE FROM|UPDATE) chatops_[a-z_]+[\s\S]*?\bid=(\$|:)`)
 	missing := []string{}
 	checked := 0
 	for _, m := range reFunc.FindAllStringSubmatchIndex(src, -1) {
@@ -193,18 +196,29 @@ func TestSource_EveryIDScopedWriteChecksRowsAffected(t *testing.T) {
 		t.Fatalf("detector matched only %d writes; the pattern is too narrow", checked)
 	}
 
-	// positive control: dropping the RowsAffected check must flag the function
-	fixture := `func (r *Repository) DeleteX(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM chatops_commands WHERE id=$1 AND tenant_id=$2", id, tenantID)
-	if err != nil { return err }
-	return nil
-}`
-	body := functionBody(fixture, "func (r *Repository) DeleteX(")
-	if reIDScoped.FindString(body) == "" {
-		t.Fatal("detector did not match the fixture statement")
-	}
-	if strings.Contains(body, "oneRow(res,") {
-		t.Fatal("fixture wrongly counted as checked")
+	// positive controls: dropping the RowsAffected check must flag a function
+	// in either bindvar style. The named form is the one that regressed, so
+	// both branches of the alternation above have to be seen here or a future
+	// edit to the detector could go wide without anything failing.
+	for _, tc := range []struct {
+		name     string
+		funcName string
+		fixture  string
+	}{
+		{"positional", "DeleteX", "func (r *Repository) DeleteX(ctx context.Context, tenantID, id string) error {\n" +
+			"_, err := r.db.ExecContext(ctx, \"DELETE FROM chatops_commands WHERE id=$1 AND tenant_id=$2\", id, tenantID)\n" +
+			"if err != nil { return err }\nreturn nil\n}"},
+		{"named", "UpdateX", "func (r *Repository) UpdateX(ctx context.Context, tenantID, id string, u map[string]interface{}) error {\n" +
+			"_, err := r.db.NamedExecContext(ctx, \"UPDATE chatops_roles SET name=:name WHERE id=:id AND tenant_id=:tenant_id\", u)\n" +
+			"if err != nil { return err }\nreturn nil\n}"},
+	} {
+		body := functionBody(tc.fixture, "func (r *Repository) "+tc.funcName+"(")
+		if reIDScoped.FindString(body) == "" {
+			t.Fatalf("detector did not match the %s fixture statement", tc.name)
+		}
+		if strings.Contains(body, "oneRow(res,") {
+			t.Fatalf("%s fixture wrongly counted as checked", tc.name)
+		}
 	}
 }
 
