@@ -1,9 +1,12 @@
 # Compiled binaries
 main
-server
+./server
 pipeline-engine
 test_*
-cmd/server
+# Not `cmd/server` (a directory of source): a bare `server` matches any path
+# component named `server`, so it ignored the whole cmd/server/ source tree.
+# 86 files there are tracked in git (config.go, openapi.go, wiring-*.go) — the
+# intent is to track the source, not the binary, so only the binary is ignored.
 cmd/pipeline-engine
 
 # Go build artifacts
