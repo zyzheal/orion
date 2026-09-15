@@ -61,7 +61,17 @@ orion-cmdb-service/bin/cmdbd
 orion-ai-service/src/data/
 
 # Build artifacts
-**/server
+# `**/server` was too broad — it matched every path component named `server`,
+# including the cmd/server/ source directories. 8 actual binaries were the
+# intended targets; list them explicitly so source stays tracked.
+/server
+orion-platform-svc-go/server
+blueprints/orion-inspection-svc-go.archived/server
+blueprints/orion-lowcode-svc-go.archived/server
+blueprints/orion-security-svc-go.archived/server
+docs/archives/blueprints-legacy/orion-inspection-svc-go/server
+docs/archives/blueprints-legacy/orion-lowcode-svc-go/server
+docs/archives/blueprints-legacy/orion-security-svc-go/server
 **/*.bak
 
 # Claude worktrees
