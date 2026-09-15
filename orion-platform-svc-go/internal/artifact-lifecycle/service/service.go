@@ -79,6 +79,12 @@ func (s *Service) List(ctx context.Context, tenantID string, limit, offset int) 
 func (s *Service) AdvanceStage(ctx context.Context, tenantID, id string, req models.AdvanceStageRequest) (*models.ArtifactLifecycle, error) {
 	_, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
+		// sentinel.NotFound only when the row is genuinely absent. A driver error
+		// here was reported as "not found" on PUT /artifact-lifecycle/:id/stage,
+		// so a down database answered as if the artifact had no lifecycle.
+		if !errors.Is(err, sentinel.NotFound) {
+			return nil, err
+		}
 		return nil, sentinel.NotFound
 	}
 	updates := map[string]interface{}{
@@ -93,6 +99,11 @@ func (s *Service) AdvanceStage(ctx context.Context, tenantID, id string, req mod
 func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 	_, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
+		// Delete answered "not found" for a database outage too, which is the
+		// difference between a missing row and a missing database.
+		if !errors.Is(err, sentinel.NotFound) {
+			return err
+		}
 		return sentinel.NotFound
 	}
 	return s.repo.Delete(ctx, tenantID, id)
@@ -105,14 +116,13 @@ func (s *Service) GetStageHistory(ctx context.Context, tenantID, artifactID stri
 func (s *Service) Archive(ctx context.Context, tenantID, id string) (*models.ArtifactLifecycle, error) {
 	_, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
+		if !errors.Is(err, sentinel.NotFound) {
+			return nil, err
+		}
 		return nil, sentinel.NotFound
 	}
 	if err := s.repo.Archive(ctx, tenantID, id); err != nil {
 		return nil, err
 	}
 	return s.repo.GetByID(ctx, tenantID, id)
-}
-
-func IsNotFound(err error) bool {
-	return errors.Is(err, sentinel.NotFound) || errors.Is(err, sentinel.NotFound)
 }
