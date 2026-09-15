@@ -11568,9 +11568,127 @@ gofmt -l internal/artifact-lifecycle/                 → 空
 go test -count=1 ./internal/artifact-lifecycle/...    → exit 0，39 PASS（handler 8 + repository 20 + service 11）
 go test -count=1 -run 'TestMigration_ArtifactLifecycle|...DoNotAlwaysDropThem' ./cmd/server/
                                                       → exit 0，5 PASS
+# 下面三条必须在模块根目录 orion-platform-svc-go/ 下执行（CWD 不是仓库根）。
+# 从仓库根执行会扫到 /Users/heal/orion-design/migrations/——那里只有 2 个遗留文件，
+# 会打印 0 看起来正确，其实一行真实的 766 条迁移都没扫到。
 grep -rEln 'artifact_lifecycle([^s]|$)' migrations/   → 0（没有任何迁移创建单数名）
 grep -rn 'artifact_lifecycle\b' internal/ cmd/ --include='*.go' | grep -v _test.go
                                                       → 0（代码里不再有单数）
 grep -c 'artifact_lifecycles' internal/artifact-lifecycle/repository/repository.go
                                                       → 9
+```
+
+## 第五十三轮：internal/disaster-recovery 六条在册路由在 SQL 层有缺陷——UpdatePlan 命名 SET 占位符与字面 $1/$2 的 WHERE 混排、recovery_run 从无 DDL 且缺 ended_at/error_message、RunPlan 二次 INSERT 并丢弃错误、sentinel.NotFound 从未被生产（Round 53）
+
+扫描起点 HEAD `e99f8b5cb`。**选它的理由**：模块接线完整——`cmd/server/wiring-disaster-recovery.go` 无条件构造 repo/service/orch/handler，`internal/disaster-recovery/handler/handler.go:25-31` 注册 **6 条在册路由**（`GET /disaster-recovery/plans`、`GET /plans/:id`、`POST /plans`、`PUT /plans/:id`、`POST /plans/:id/run`、`GET /plans/:id/runs`），前端有活调用方。但 repository 与 service 此前**零测试**，`go build`、`go vet` 与任何只看语句是否执行的测试都看不见下面的缺陷。R52 的收尾把本模块的 `disaster-recovery:62` 列进「同型缺陷记录不修（不在授权模块内）」——这一轮把它从记录变成修复。
+
+### 53.1 F1 —— 10 条语句指向从未被任何迁移创建的 disaster_plan（单数）
+
+124 建的是 `disaster_plans`，**没有任何迁移创建单数名**——`drCreators("disaster_plan")` 返回空，`TestMigration_DisasterRecovery_BothRelationsHaveExactlyOneOwner` 把它钉成 `!= 0` 即失败。（`grep -rEln 'disaster_plan([^s]|$)' migrations/` 现在返回 1 个文件，但那只是 673 自己那条「修复前代码用的是单数」的注释，不是 DDL；所以这条断言走解析器而不是走文本 grep。）本轮与 R52 F1 方向**相反**：不是「DDL 全是复数、只有代码是单数」，而是**除 124 之外还有 239、570、572 持有复数关系**——239 把它的 `tenant_id` cast 成 UUID、570 加 `fk_disaster_plans_tenant`、572 加 `created_by`/`updated_by`。所以还是改代码：改成复数只留一个关系，加改名迁移会留下两个同形关系并让这三条后续迁移去改一张空表。
+
+### 53.2 F2 —— UpdatePlan 命名 SET 占位符与字面 $1/$2 的 WHERE 混排
+
+与 R49 机理 A 同形。sqlx 的 `compileNamedQuery` 按出现顺序把命名参数重编号为 `$1..$5`，不触碰语句里的字面 `$N`，于是 `id=$1` 拿到的是 name 的值、`tenant_id=$2` 拿到的是 description 的值——**WHERE 既不指名任何一行，也不做租户约束**。修复后 bind map 与 SET 子句**同源构造**：两者都遍历 `updates` 的同一组 key，因此永不失配——命名占位符没有绑定值是 sqlx 的硬错误，绑了值却没人引用的键会被丢弃。
+
+### 53.3 F3 —— 动态 SET 与 nil 值（两个子类）
+
+pre-fix 无条件写全部四列，缺键的 map 取值返回零值 `nil`，把 NULL 写进 name/description/steps/status——124 声明这四列**全部 NOT NULL**，所以每次部分更新都报 not-null violation。改为白名单动态 SET：列名只来自方法内的字面量 map（调用方永远拼不进标识符），`id`/`tenant_id` 不在 map 里、只约束 WHERE；`len(fields) == 0` 守卫放在注入 `updated_at` **之前**（否则只传白名单外键的请求会退化成「只挪时间戳」的静默空写）；`containsField` 去重；`sort.Strings(fields)` 让编译出的语句稳定。
+
+**A5 变异存活暴露了第二个子类**：把「白名单外键绑成 nil」当作修复是**不可观测的**——动态 SET 子句从不命名白名单外键，sqlx 静默丢弃多余的 bind 键，于是 A5c/A5d 两个变异存活、没有任何断言能看见。真正可观测的守卫是字段循环里的 **nil 值跳过**（A5b，被 2 个测试杀死）：请求体里显式出现的 nil 字段会被 bind 成 NULL，而 `status` 这一列甚至没有任何请求字段能给它供值。
+
+### 53.4 F4 —— sentinel.NotFound 从未被生产出来过
+
+`GetPlan` 与 `GetRun` 返回 sqlx 的 `sql.ErrNoRows`，service 检查的是 `sentinel.NotFound`，`errors.Is` 按身份判断两者不同——整个模块里 `sentinel.NotFound` 从未被生产出来过，两处检查全是死代码。最具体的后果：`RunPlan` 用 `GetPlan` 的 error 判缺行，缺行落入「其他错误」分支，**`POST /disaster-recovery/plans/:id/run` 对不存在的 plan 答 500 报 `sql: no rows in result set`**。改法与 R52 F4 一致：仓库层包装 `sql.ErrNoRows`。
+
+### 53.5 F5 —— UpdatePlan / RunPlan 把一切 GetPlan 错误折叠成 sentinel.NotFound
+
+修复前这个缺陷**不可观测**——所有错误都是 `sql.ErrNoRows`，被吞与否没有差别；**F4 之后才变得可达**。症状：数据库宕机时 `PUT /disaster-recovery/plans/:id` 答「不存在」，而这是**缺行与缺库的区别**。service 改为用 `errors.Is` 门控，非 NotFound 的 error 原样返回。
+
+### 53.6 F6 / F7 —— RunPlan 二次 INSERT 并丢弃错误、编排错误无处安放
+
+`RunPlan` 跑完编排后调 `CreateRun` **第二次**、且把 error 丢弃（`_ = s.repo.CreateRun(ctx, run)`），而 `CreateRun` 每次调用都重新赋 `run.ID`——原行永远停在 `status='running'`，一次执行追加两行。仓库两个接口文件新增 `UpdateRun`（`PUT ... FROM disaster_plans p WHERE ... p.tenant_id=$6`，租户经 JOIN 传达），路由 handler 无需改动。同时 `result, _ := s.orch.Run(ctx, plan)` 丢弃编排 error、`DRResult.Error` 没有地方接收：`models.RecoveryRun` 新增 `ErrorMessage string db:"error_message" json:"errorMessage,omitempty"`，取值次序是 `result.Error` 优先、否则 `execErr`，`UpdateRun` 的 error 原样返回。`CreateRun` 保持「唯一 recovery_run INSERT」由源码检测器钉住。
+
+### 53.7 F8 / F9 —— 死代码删除（R52 F6 同形）
+
+`service.IsNotFound` 是零调用方的重言式并列（与 R52 F6 逐字节同形），`ErrAlreadyExists` 零调用方且**没有唯一索引可检测重复**——两者都删除而不是发明基础设施。由 `TestSource_NoTautologicalDisjunction` 与 `TestFakeRepo_CreateRunIsNotAnUpsert` 守卫。
+
+### 53.8 F10 / F11 —— DDL 缺口、列约束冲突、时间戳形状
+
+`recovery_run` 在全部迁移里**零命中**，`POST /:id/run` 在规划期报 `pq: relation "recovery_run" does not exist`，连 `disaster_plans.last_run` 的更新都跑不到；`ended_at` 与 `error_message` 也没有列。新增迁移建该表（7 列 + 2 索引），末尾再用 `IF NOT EXISTS` 顺序无关地补 `ended_at`/`error_message`。
+
+124 声明 `steps VARCHAR(255) NOT NULL` 与 `last_run TIMESTAMP WITH TIME ZONE NOT NULL`，两处都与代码不符：steps 存 shell 命令数组的 JSON、255 会溢出；`LastRun` 在计划首次运行前是 nil。同一条迁移在 `DO` 块里（先查 `information_schema.tables` 再改）把 steps 拓宽成 TEXT、把 `last_run` 的 NOT NULL 去掉。
+
+**时间戳形状值得单记一条**：`CreatePlan` 原本丢弃 `json.Marshal` 的 error 并写 `LastRun: time.Time{}`——`time.Time{}` **不是 nil**，是公元 1 年的垃圾值，不是 not-null 违规（124 当时的 NOT NULL 反而「挡住」了它）。改为 `LastRun *time.Time` 且创建时保持 nil，测试 `WithArgs` 第 7 参从 `sqlmock.AnyArg()` 钉成 `nil`（A4 变异被杀）。另有一条列类型一致性缺陷：`UpdatePlan` 原本把 `steps` 绑定成 Go 的 `[]string`，而 `CreatePlan` 存的是 JSON 字符串——两条路径现在都存 JSON。
+
+**迁移编号冲突（须记档）**：本轮迁移最初取编号 666，被并行工作的另一 agent **改名为 673**（666 现归属其 `666_create_policy_and_canary_missing_tables.sql`）。血统可证：673 的 `_down.sql` 注释仍写着「Reversal of 666_create_disaster_recovery_missing_tables.sql.」，且 673 正文与本轮编写的 666 正文逐字节相同。**决定**：随代码一起提交 673 两个文件——提交一张查询不存在表的代码会产出 P0；**不改 673 本身**，down 文件里那条过期的「666」注释归对方修。**测试因此不硬编码 673**：创建者由 `drCreators()` 现场发现（`disaster_plans` 恰 1 个且必须是 124、`recovery_run` 恰 1 个、单数 `disaster_plan` 必须为 0），down 文件名由 up 名派生。这一条与 R52 的教训同源——**检测器要读现场状态，不要读编号**。
+
+### 53.9 测试 63 个新用例（repository 25、service 28、cmd/server 10）
+
+- **repository 25**：sqlmock 加字段折叠的 SQL matcher 逐条钉编译后的语句与参数个数，含 `UPDATE disaster_plans SET name=$1, updated_at=$2 WHERE id=$3 AND tenant_id=$4` 与 `UPDATE recovery_run r SET status=$1, ended_at=$2, error_message=$3 FROM disaster_plans p WHERE r.id=$4 AND r.plan_id=$5 AND p.id=r.plan_id AND p.tenant_id=$6`；白名单外键与 nil 值与全 nil map 与空 map 四种「不应碰 SQL」的情形都用**不注册任何期望**来断言（sqlmock 在无期望时任何调用都报错，所以「无期望仍无错」证明了方法根本没碰 SQL）；NOT NULL 之外的 driver error 不被吞成 NotFound；5 个源码检测器全带阳性对照，`checked == 10` 条语句、`checked == 2` 处 ErrNoRows 包装。
+- **service 28**：driver error 原样返回、缺行才 NotFound、`(T, error)` 失败路径**同时**断言 `err != nil` 与 `resp == nil`（R39.7）、steps 走 JSON 线格式、`PUT` 在缺行时不落任何更新、`RunPlan` 缺行时 `len(repo.runs) == 0`、tautological disjunction 与 discarded error assignment 两个源码检测。
+- **cmd/server 10**：两关系各有唯一创建者且单数拼写零创建者、仓库只碰已建关系、INSERT 的 plan 9 列与 run 5 列对 DDL、`UpdateRun` 的 status/ended_at/error_message 三列对 DDL、两个 model 共 16 个 `db:` tag 对 DDL、recovery_run 保持无租户列且仓库必须过滤 `p.tenant_id` 而**不得**过滤 `r.tenant_id`、steps 拓宽与 last_run 放宽**各恰由 1 条迁移**完成且 124 的原始声明被钉死作为 rationale 基线、239/570/572 持有 plans 关系、down 逐个索引名与两张表的反转（**索引名从 up 文件解析出来**而非硬编码——加一个索引即失败，而不是静默超期；`columnsNotDeclared` 另带双向对照测试）。
+
+### 53.10 变异 14 个：12 杀、0 编译击杀、2 存活（已记录）
+
+清扫前**先断言基线全绿**，每处打印补丁点数，每次还原经 sha256 逐字节校验。下表 14 个变异 = repository 7（A1–A5d）+ service 4（B1–B4）+ cmd/server 3（C1–C3），其中 12 个被断言杀死、2 个存活且已记录为不可观测而非缺陷。（第一笔提交的信息里把总数写成 16、杀数写成 16，是抄 R52 的收尾句时没改；正确数字是本节的 14 / 12 / 2。）
+
+| 编号 | 变异 | 结果 |
+|---|---|---|
+| A1 | `UpdateRun` 的 JOIN 去掉 `p.tenant_id` | 杀（2 测） |
+| A2 | 白名单去掉 `status` | 杀（3 测） |
+| A3 | `GetPlan` 不包装 `sql.ErrNoRows` | 杀（1 测） |
+| A4 | `CreatePlan` 的 `last_run` 改成硬编码哨兵时间戳 | 杀（1 测，`WithArgs` 第 7 参 = nil） |
+| A5b | nil 值不再跳过 | 杀（2 测） |
+| A5c / A5d | bind 循环改遍历白名单 / 加一个多余 key | **存活 ×2，记录不修** |
+| B1 | `RunPlan` 丢弃 `UpdateRun` error | 杀（2 测，含源码级） |
+| B2 | `run.Status = result.Status` 删除 | 杀（3 测） |
+| B3 | `steps` 存成 JSON 加尾部换行 | 杀（1 测） |
+| B4 | `GetPlan` 的 driver error 折叠成 NotFound | 杀（1 测） |
+| C1 | 迁移测试 `hits != 1` 改成 `!= 2` | 杀（1 测） |
+| C2 | `columnsNotDeclared` 失效 | 杀（对照测试） |
+| C3 | 单数拼写检查改弱成 `!= 1` | 杀（1 测） |
+
+**2 个存活都不是缺陷**：A5c 与 A5d 证明的是「**bind map 由哪个 map 迭代构造**」在 SQL 层不可观测——sqlx 静默丢弃多余的 bind 键，唯一可观测的不变量是 A5b 的 nil 跳过。bind 循环已改成与 SET 子句同源迭代以消除双源，但**这一半无法由测试证明**，只能由代码审查。这一条要并入 R47 的规则集：**`buildNamedSet` 型帮助函数若遍历白名单而非调用方 map，SQL 层永远抓不到它，nil 跳过是唯一可观测的护栏**。
+
+**2 个变异原本编译击杀、按 R45/R47 改写成语义变异后重跑**：B2 原写法（删除 `run.EndedAt = &end`）会让 `end` 变量变成未使用、在 handler 与 service 两处同时编译失败；B3 原写法（`updates["steps"] = req.Steps`）会让 `stepsJSON` 变成未使用。编译击杀不算杀死变异。
+
+### 53.11 记录不修（已逐一验证非缺陷，结转 Round 54）
+
+- 124 的 `tenant_id` 被 239 cast 成 UUID，而 Go 侧传普通 string（全平台 schema 级决定，不是一个模块的补丁）。
+- `disaster_plans.deleted_at` 存在但无任何过滤，也无软删 API。
+- `CreateRun` 不接 tenantID 且 `recovery_run` 无 tenant_id 列——租户只经 JOIN 传达；`RunPlan` 在插入前用 `GetPlan(tenantID, planID)` 校验归属，由 driver-error 测试里 `len(repo.runs) == 0` 钉住。
+- `NewDROrchestrator(nil, ...)` 的 nil repo 只被**未接线**的 `Failover`/`HealthCheck` 解引用，按 R38 只记录不修。
+- `ListPlans` 丢弃两个 `strconv.Atoi` error（limit 回落 50，无害）。
+- handler 把所有错误映射成 500、**无 404 映射**（全平台一致，非本模块缺陷）。
+- 仓库惯例是裸 `error TEXT`，本模块选 `error_message` 是为了避免 SQL 里加引号。
+- 124 的 `metadata JSONB` 列 model 未使用，无害。
+
+### 53.12 下一轮候选池
+
+代码侧优先（DDL 缺口那一半已被另一 agent 独立推进到 600–677，为避免编号碰撞，本轮起**改攻代码侧**）：`internal/ticket`（`sla_records` 28 处、`sla_policies` 18、`sla_targets` 12、`suspend_records` 14）、`internal/ticketing`（65 go / 122 路由）、`internal/llm-trace`、`internal/ci-cd`（`builder_images` 19 + 8 张）、`internal/governance`（9 表）、`internal/infrastructure`（15 表）、`internal/job-source`、`internal/health-check`、`internal/file-handler`、`internal/notification`、`internal/security`、`internal/cache`、`internal/apm`、`internal/cron`。**结构级**：`migrations/security/` 等 7 个子目录的迁移是否真的被执行（`entriesInMigrationsDir()` 只读顶层）；**106 条 down 文件该反转 CREATE TABLE 却零 DROP TABLE**（本轮的 `TestMigration_DisasterRecovery_DownReversesTheUp` 就是为此而写）；硬编码成功标记的分诊（每条先按 R38 确认挂在在册路由上）。
+
+### 53.13 验证
+
+```
+go build ./...                                                   → exit 0
+go vet ./internal/disaster-recovery/... ./cmd/server/            → exit 0
+gofmt -l internal/disaster-recovery/ cmd/server/migration_disaster_recovery_test.go
+                                                                   → 空
+go test -count=1 ./internal/disaster-recovery/...                 → exit 0
+go test -count=1 ./cmd/server/                                    → exit 0
+go test -count=1 -run 'TestSource' ./internal/disaster-recovery/... -v
+                                                                   → 7/7 PASS
+                                                                     （repository 5 + service 2，均含阳性对照）
+go test -count=1 -run 'TestMigration_DisasterRecovery' ./cmd/server/ -v
+                                                                   → 10/10 PASS
+# 以下 grep 必须在模块根目录 orion-platform-svc-go/ 下执行（CWD 不是仓库根）。
+# 从仓库根执行会扫到 /Users/heal/orion-design/migrations/——那里只有 2 个遗留文件，
+# 会打印 0 看起来正确，其实一行真实的 766 条迁移都没扫到（与 §52.13 同一陷阱）。
+grep -rEln 'disaster_plan([^s]|$)' migrations/   → 1，且只是 673 里那条说明修复前
+                                                  单数拼写的注释，不是任何 DDL；真正的断言是
+                                                  测试里的 drCreators("disaster_plan") == 0
+grep -c 'disaster_plans' internal/disaster-recovery/repository/repository.go
+                                                  → 9（6 条 plans 语句 + 3 处 recovery_run
+                                                     的 FROM/JOIN）
+grep -rl 'recovery_run' migrations/              → 仅 673 与其 down
 ```
