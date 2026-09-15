@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -14,6 +15,19 @@ import (
 	"go.uber.org/zap"
 )
 
+// ErrNoFieldsToUpdate means the caller sent a body with nothing to change. It
+// is a client error: PUT /job-sources/:id with an empty body answered 500
+// before this sentinel existed, because the handler mapped every service error
+// to RespondInternalError and a 400 with the exact reason was impossible to
+// reach.
+var ErrNoFieldsToUpdate = errors.New("no fields to update")
+
+// ErrSourceDisabled means the trigger hit a source that was switched off. It is
+// a conflict with the current server state, not a fault: POST /:id/trigger
+// answered 500 for it before this sentinel existed, so an operator was sent
+// looking for a driver error while the real cause was a switch.
+var ErrSourceDisabled = errors.New("source is disabled")
+
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
 	Create(ctx context.Context, m *models.JobSource) error
@@ -21,7 +35,6 @@ type RepositoryInterface interface {
 	GetByID(ctx context.Context, tenantID, id string) (*models.JobSource, error)
 	List(ctx context.Context, tenantID string, limit, offset int) ([]models.JobSource, error)
 	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
-	UpdatePartial(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 	CreateEvent(ctx context.Context, e *models.JobSourceEvent) error
 	UpdateEventStatus(ctx context.Context, tenantID, id string, status string, jobID string, err string) error
 	ListEvents(ctx context.Context, tenantID, sourceID string, limit, offset int) ([]models.JobSourceEvent, error)
@@ -128,7 +141,7 @@ func (s *Service) UpdateSource(ctx context.Context, tenantID, id string, req mod
 		}
 	}
 	if len(updates) == 0 {
-		return nil, fmt.Errorf("no fields to update")
+		return nil, ErrNoFieldsToUpdate
 	}
 	if err := s.repo.Update(ctx, tenantID, id, updates); err != nil {
 		return nil, err
@@ -148,7 +161,15 @@ func (s *Service) TriggerSource(ctx context.Context, tenantID, id string, payloa
 		return nil, err
 	}
 	if !src.Enabled {
-		return nil, fmt.Errorf("source %s is disabled", id)
+		return nil, ErrSourceDisabled
+	}
+	if payload == nil {
+		// json.Marshal(nil) returns the two-character string "null", which
+		// would have been stored as the event payload and read back as an
+		// opaque literal. An empty object is the honest form of "triggered
+		// with no payload", so the invariant lives here rather than in every
+		// caller that knows to pass a non-nil map.
+		payload = map[string]interface{}{}
 	}
 	ps, err := json.Marshal(payload)
 	if err != nil {

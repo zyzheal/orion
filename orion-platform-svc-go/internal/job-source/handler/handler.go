@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"errors"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/job-source/models"
 	"orion/platform-svc-go/internal/job-source/service"
 
@@ -88,7 +90,17 @@ func (h *Handler) Update(c *gin.Context) {
 	}
 	m, err := h.svc.UpdateSource(ctx, tenantID, id, req)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		// Every one of these branches was a 500 before: the handler mapped all
+		// service errors to RespondInternalError, so a client that sent an empty
+		// body and a client that guessed a wrong id got identical answers.
+		switch {
+		case errors.Is(err, service.ErrNoFieldsToUpdate):
+			middleware.RespondBadRequest(c, err.Error())
+		case errors.Is(err, sentinel.NotFound):
+			middleware.RespondNotFound(c, err.Error())
+		default:
+			middleware.RespondInternalError(c, err.Error())
+		}
 		return
 	}
 	middleware.RespondSuccess(c, m)
@@ -112,14 +124,28 @@ func (h *Handler) Trigger(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.TriggerRequest
-	if c.Request.Body == nil {
-		req.Payload = make(map[string]interface{})
-	} else {
-		_ = c.ShouldBindJSON(&req)
+	if c.Request.ContentLength > 0 {
+		// The pre-fix branch discarded the bind error, so a malformed body was
+		// accepted and the trigger still persisted an event. ContentLength is
+		// used rather than errors.Is(err, io.EOF): ShouldBindJSON on an empty
+		// body returns a json.SyntaxError, not EOF, so error identity would be
+		// version-fragile. A zero-length body is a legitimate manual trigger
+		// with no payload; the service normalizes the nil to an empty object.
+		if err := c.ShouldBindJSON(&req); err != nil {
+			middleware.RespondBadRequest(c, err.Error())
+			return
+		}
 	}
 	event, err := h.svc.TriggerSource(ctx, tenantID, id, req.Payload)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		switch {
+		case errors.Is(err, sentinel.NotFound):
+			middleware.RespondNotFound(c, err.Error())
+		case errors.Is(err, service.ErrSourceDisabled):
+			middleware.RespondConflict(c, err.Error())
+		default:
+			middleware.RespondInternalError(c, err.Error())
+		}
 		return
 	}
 	middleware.RespondSuccess(c, event)

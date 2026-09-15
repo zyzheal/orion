@@ -4,9 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/job-source/models"
 
 	"github.com/google/uuid"
@@ -44,6 +48,14 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 	err := r.db.GetContext(ctx, &m,
 		`SELECT * FROM job_sources WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
+		// sqlx reports an empty result set as sql.ErrNoRows, which is a
+		// different error from the sentinel every caller compares with.
+		// Without the wrap, an absent source and a down database looked
+		// identical, and PUT /job-sources/:id plus POST /:id/trigger
+		// answered 500 for every id that had never existed.
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, sentinel.NotFound
+		}
 		return nil, err
 	}
 	return &m, nil
@@ -68,27 +80,51 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 	return r.update(ctx, tenantID, id, updates)
 }
 
-func (r *Repository) UpdatePartial(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
-	updates["updated_at"] = time.Now().UTC()
-	return r.update(ctx, tenantID, id, updates)
-}
-
 func (r *Repository) update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
-	setClauses := []string{}
-	args := []interface{}{}
-	argIdx := 1
-	for k, v := range updates {
-		setClauses = append(setClauses, fmt.Sprintf("%s = $%d", k, argIdx))
-		args = append(args, v)
-		argIdx++
+	// Column names come from the literal in this map, never from the caller,
+	// so no map key can inject an identifier into the SET clause. id and
+	// tenant_id are deliberately absent: they scope the WHERE clause and must
+	// not be settable through the statement that names the row.
+	columns := map[string]string{
+		"name":       "name",
+		"type":       "type",
+		"config":     "config",
+		"enabled":    "enabled",
+		"status":     "status",
+		"updated_at": "updated_at",
+	}
+	// Only the keys this statement knows about reach SQL. A nil value means
+	// "the caller did not send this field"; binding it would write NULL, which
+	// job_sources rejects for name, type, status, created_at and updated_at.
+	keys := []string{}
+	for key, value := range updates {
+		if _, ok := columns[key]; !ok {
+			continue
+		}
+		if value == nil {
+			continue
+		}
+		keys = append(keys, key)
+	}
+	if len(keys) == 0 {
+		// The pre-fix body indexed setClauses[0] without a length guard, so a
+		// map whose only entry was filtered out here would panic instead of
+		// being a no-op.
+		return nil
+	}
+	// Map iteration is unordered; sorting keeps the compiled statement stable
+	// so an expectation written against it does not depend on the scheduler.
+	sort.Strings(keys)
+	fields := make([]string, len(keys))
+	args := make([]interface{}, 0, len(keys)+2)
+	for i, key := range keys {
+		fields[i] = fmt.Sprintf("%s = $%d", columns[key], i+1)
+		args = append(args, updates[key])
 	}
 	args = append(args, id, tenantID)
-
+	idArg := len(args) - 1
 	q := fmt.Sprintf("UPDATE job_sources SET %s WHERE id=$%d AND tenant_id=$%d",
-		setClauses[0], argIdx, argIdx+1)
-	for _, clause := range setClauses[1:] {
-		q += ", " + clause
-	}
+		strings.Join(fields, ", "), idArg, idArg+1)
 
 	_, err := r.db.ExecContext(ctx, q, args...)
 	if err != nil {
@@ -105,6 +141,13 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 func (r *Repository) CreateEvent(ctx context.Context, e *models.JobSourceEvent) error {
 	e.ID = uuid.New().String()
 	e.CreatedAt = time.Now().UTC()
+	if e.ReceivedAt.IsZero() {
+		// 685 declares received_at TIMESTAMPTZ NOT NULL and ORDER BY received_at
+		// DESC sorts on it, so an unset value had to be filled: time.Time is
+		// never nil, so IsZero is the only way to tell "the caller left it" from
+		// a real timestamp, and the zero value would have been written as year 1.
+		e.ReceivedAt = time.Now().UTC()
+	}
 	if e.Status == "" {
 		e.Status = "received"
 	}
