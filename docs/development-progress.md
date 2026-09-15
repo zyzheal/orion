@@ -10896,3 +10896,137 @@ SURVIVED=0 COMPILE=0 TOTAL=47
 - **新的跨轮经验**：去掉变量最后一次读取、或去掉 import 最后一次使用，都是编译击杀，必须改写成条件取反；只改用户可见消息文本的突变在只断状态码的测试下必然存活；两条件 OR 改 AND 在只覆盖两者皆空的测试下必然存活。
 - 硬编码成功标记的分诊未完成（按 R38 规则每个先确认是否挂了路由）：`internal/health-check/service/service.go`、`pipeline_executor.go` 5 处、`internal/assistant/service/actions.go:42` 与 `internal/assistant/handler/handler.go:78`、`internal/cmdb/service.go:465`、`internal/data-catalog/service.go:166`、`internal/serverless/service.go:152`、`internal/multi-cloud/service.go:354`、`internal/tool/service.go:318`、`internal/workflow-webhook/handler.go:144`、`internal/chaos-gateway/service.go:294`、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`。
 - 结转不变：visor-exec 的租户贯穿；`runner_repository.go:73` 在活路由上丢弃一条引用不存在列的 DELETE；`pipeline-templates` 的 Delete 丢弃一条 DELETE 且 handler 未注册；`vector/repository.go:68` 的 DeleteStore 没有 vector_record 迁移；schema-registry 的 best-effort GetSchema 快照；EnsureTable 在约 15 个模块声明而 cmd/server 零调用方；`internal/schema-registry/models/models.go` 的既存 gofmt 债；sqlx v1.4.0 的 `NameMapper` 只认小写；buildNamedSet 在 pipeline-executor:401 / job-actions:285 / auto-exec:333 未加白名单；roweditor 的 validateRows 与 validateMode 死代码；buildUpdateSetClause 里重复的 version 与 updated_at；finops v1 的不可达方法；user 模块 ChangePassword 的 bcrypt 路径无覆盖；`monitor:execute` 未授予 sre 与 tenant_admin；internal/pipeline-template 与 internal/pipeline-templates 都注册 /pipeline-templates。
+
+## 第四十八轮：internal/config-mgmt-enhanced 迁移 115 四张表名整体错位、sqlx v1.4.0 全小写 NameMapper 让四条 NamedExecContext 在驱动层报错、ApproveRequest 的 Approver 字段被服务端静默丢弃（Round 48）
+
+### 48.1 扫描起点与选点理由
+
+扫描起点 HEAD `b9a8adf47`（Round 47 收尾）。**选它的理由**：模块 13 条路由全部在册，接线无条件执行，但 `migrations/` 下与模块代码查的表名**一张都对不上**——迁移 115 建的是 `config_mgmts`、`change_requests`、`change_histories`、`drift_reports`（复数），仓库查的全是单数。后果与 R45、R47 同型但更隐蔽：表存在（115 建了），只是名字差一个字母，所以第一次执行报的是 `relation "config_mgmt" does not exist` 而不是列缺失。同一模块里还压着第二个独立的驱动层阻断：**sqlx v1.4.0 的 `NameMapper` 就是 `strings.ToLower`**（`sqlx.go:26`），`TenantID` 被解析成 `tenantid`，而 4 处 `NamedExecContext` 用的是 `:tenantId` 这类驼峰命名参数——`strings.ToLower` 之后永远匹配不上。两个问题叠加，模块 13 条路由无一能在第一次执行时成功，且第二个问题只会在**运行到那一行时**才炸，静态检查完全看不见。
+
+### 48.2 主项：新增迁移 590 与回滚文件
+
+`590_create_config_mgmt_enhanced_tables.sql`（115 行）按仓库实际查询的单数表名建 4 张表（`config_mgmt`、`config_change_requests`、`config_change_history`、`config_drift_reports`）、17 个索引，其中 4 个是租户维度索引。`590_create_config_mgmt_enhanced_tables_down.sql`（19 行）先删 13 个索引、再按反序删 4 张表。**迁移 115 保持原样不动**：239、570、572 仍在改 `config_mgmts`，直接删它会断掉那三条迁移的语义，而本模块从不读那批表。`config_change_requests.required_approvals` 是 `BIGINT NOT NULL`——service 从不写入，靠 DDL 默认值撑着，这一点在 48.11 记录。`config_drift_reports` 额外有 `updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()` 与 `NOT NULL` 的 `created_at`，与模型 db tag 逐列对齐。
+
+### 48.3 repository.go：把命名参数改成位置参数
+
+4 处 `NamedExecContext` 全部改为显式列名加 `$N` 位置参数，并抽出 4 个列常量（`configMgmtColumns`、`changeRequestColumns`、`changeHistoryColumns`、`driftReportColumns`），INSERT 与 UPDATE 共用同一份列集。`updateSet` 增加白名单校验，调用方的 map key 不再直插 SET 子句。`updateSet` 的占位符编号从写死的 `$1` 改为 `i+1`——原先只有第一列是对的。`GetByID` 补回 tenant 谓词。`Update` 在空 attrs 时回读该行而不是把空 SET 交给数据库。`GetChangeHistory` 保留 `histories == nil` 转空片段的护栏（48.9 的 R09 证明它不可删）。`CreateDriftReport` 对空 `DriftItems` 与 `RemediationLog` 兜底为 `[]`，并逐列核对 14 列位置 INSERT。`deserializeApprovals` 对 `""` 与 `[]` 两种空形态都放行（空审批是合法行，不是损坏数据），只对真正解析失败的列报错。
+
+### 48.4 service.go：mapRead 的 nil 陷阱，以及写进被丢弃局部的三个写入
+
+`mapRead` 原先是 `fmt.Errorf("%s: %w", op, err)` 直接包住 `err`——而 `fmt.Errorf` 对 `%w` 包裹 nil 返回的是**非 nil** 错误，文本是 `<op>: %!w(<nil>)`。于是**每一次成功的读取都变成失败**，13 条路由读路径全部报 500。补 `if err == nil { return nil }` 短路之后才轮到 `sql.ErrNoRows` 映射到 `sentinel.NotFound`；其余错误保留操作标签继续用 `%w` 包装，`errors.Is` 能穿透到原始驱动错误。**这一点与 48.9 的 R13 是同一枚硬币的两面**：`mapRead` 的 `%w` 换成 `%s` 是**可杀**的（测试能持有原始错误引用），而 `deserializeDriftReport` 的 `%w` 换成 `%s` **不可杀**（`json.Unmarshal` 的错误身份没有任何测试能持有），差别只在于测试能否拿到原始错误的引用。
+
+第二个问题更隐蔽：`ApproveChangeRequest` 里 `cr.Status`、`cr.ApprovedAt`、`cr.ApprovedBy` 三个写入作用于**读出来就被 UPDATE 重读覆盖的局部副本**——`UpdateChangeRequest` 末尾是 `return r.GetChangeRequest(...)`。这三个写入看着像状态机的真相来源，实际是死写。变异体 S07（把 `cr.ApprovedBy = &approver` 改成 `nil`）**存活**，暴露的正是这一点；本轮没有为它补测试，而是把三个写入**删掉**并留下注释说明持久化列才是真相来源，真正的审批人由 `f.lastCRAttrs["approved_by"]` 在 `TestCfgServiceApprove` 里钉死。
+
+`service/change.go` 里的旧实现遮蔽了已修好的逻辑，整文件删到只剩 `var _ = ErrInvalidState`。`RemediateDrift` 与 `DriftDetect` 的语义见 48.6。
+
+### 48.5 models.go 与 handler.go
+
+`ApproveRequest.Approver` **删除**。它声明在请求体里，handler 却从中间件上下文取身份、完全忽略这个字段——一个服务端静默丢弃的输入字段，客户端读起来像被接受。删除之后 handler 侧的注释说明身份只能来自认证上下文，并用「body 里塞 `approver: someone-else` 仍然写入上下文身份 `u1`」的测试把这次删除钉死（变异体 H04 因此退化为编译错误）。
+
+`List` 的租户解析改为显式 bail：`middleware.Respond*` **从不调用 `c.Abort()`**（全仓陷阱，见 48.11），所以 `getTenantID (string, bool)` 返回 false 时 handler 必须自己 return，否则缺租户照样打库。`respondServiceError` 保留 `sentinel.NotFound` → 404 与 `ErrInvalidState`、`ErrInvalidInput` → 400 的两条分支，且按 R40/R47 的做法钉住错误文本，避免只断状态码而放过分支互换。
+
+### 48.6 DriftDetect 不再编造漂移
+
+原先 `DriftDetect` 只要请求里报了至少一个 target 就返回 `drift_detected`，并给每条漂移填上 `<expected for scope: X>` 与 `<actual value>` 这种占位文本——客户端会据此发起修复。现在只落 `in_sync` 且 `total_drifts = 0`，返回体回显 `targets` 与 `scope`，让「扫了 3 个没发现」与「根本没扫」在响应上可区分。这是 R38 判定规则的直接应用：模块没有配置对照源，所以不可能真比对，**唯一诚实的做法是别声称比对过**。
+
+### 48.7 本轮的边界
+
+按 R38 与前端约束收手：**不新增**创建 change-request 的路由——没有它，Approve、Execute、Rollback、GetChangeHistory 在实际部署里只会 404，加路由等于制造不可达端点。`RemediateDrift` 的 `Success: true` 属记录不修：模块里没有修复执行器，写成 false 同样是编造。`PaginatedResponse.PageSize` 仍被伪造为 `len(entities)`，`List` 仍无 LIMIT，`ChangeHistoryFilter` 的 Limit 与 Offset 仍被仓库忽略——三者都需要前端调用方或新路由参数才能有意义地修，一律结转。
+
+### 48.8 测试：89 条
+
+repository 35 条、service 20 条、handler 22 条、cmd/server 迁移交叉校验 12 条。仓库层用 sqlmock 加正则 matcher，`QueryMatcher` 是接口需用 `QueryMatcherFunc` 包装，`sqlmock.New` 返回 `*sql.DB` 要用 `sqlx.NewDb` 转；每个 `ExpectExec` 都要 `WillReturnResult(sqlmock.NewResult(0,0))`。handler 层用真 Gin engine，测试体必须满足 `binding` 标签才能走到服务错误注入路径。失败路径统一按 R39.7 同时断言 `err != nil` 与 `resp == nil`。
+
+cmd/server 的 12 条静态检查把迁移与代码逐层交叉核对：折叠 CREATE TABLE 与 ALTER TABLE ADD COLUMN 成完整列集（ADD 折第二遍，因为 `entriesInMigrationsDir` 不排序）、列集对列常量逐列比对、列常量对模型 db tag 逐列比对、NOT NULL 且无 DEFAULT 的列在每个 INSERT 实参里都有值、占位符编号连续且与实参数量相等、无问号占位符与 SELECT 星号、down 文件删掉 forward 创建的全部对象且表删除顺序与 forward 建表顺序相反、每张表至少一个 tenant 维度索引。
+
+### 48.9 变异：35 个突变量，33 击杀、2 存活
+
+```
+KILLED(assertion)  R01  INSERT 列清单位置互换              KILLED(assertion)/SURVIVED
+KILLED(assertion)  R02  updateSet 白名单校验删除            KILLED(assertion)/SURVIVED
+KILLED(assertion)  R03  updateSet 占位符写死 $1             KILLED(assertion)/SURVIVED
+KILLED(assertion)  R04  Update 空 attrs 回读条件取反        KILLED(assertion)/SURVIVED
+KILLED(assertion)  R05  Update 丢弃 updated_at 盖章         KILLED(assertion)/SURVIVED
+KILLED(assertion)  R06  Update 行数比较 n==0 变 n==1        KILLED(assertion)/SURVIVED
+KILLED(assertion)  R07  GetByID 丢弃租户谓词                KILLED(assertion)/SURVIVED
+KILLED(assertion)  R08  deserializeApprovals 吞掉解析错误   KILLED(assertion)/SURVIVED
+KILLED(assertion)  R09  GetChangeHistory 空片护栏删除       KILLED(assertion)/SURVIVED
+KILLED(assertion)  R10  CreateDriftReport 空列表条件取反    KILLED(assertion)/SURVIVED
+KILLED(assertion)  R11  deserializeApprovals 删空串合取项   KILLED(assertion)/SURVIVED
+SURVIVED           R12  deserializeApprovals 删空数组合取项 KILLED(assertion)/SURVIVED
+SURVIVED           R13  drift 反序列化器 %w 换成 %s         KILLED(assertion)/SURVIVED
+KILLED(assertion)  S01  mapRead 的 nil 直通删除             KILLED(assertion)/SURVIVED
+KILLED(assertion)  S02  mapRead %w 换成 %s                  KILLED(assertion)/SURVIVED
+KILLED(assertion)  S03  mapRead 映射错误的 sentinel          KILLED(assertion)/SURVIVED
+KILLED(assertion)  S13  mapList %w 换成 %s                  KILLED(assertion)/SURVIVED
+KILLED(assertion)  S04  Approve 的 caller 护栏删除          KILLED(assertion)/SURVIVED
+KILLED(assertion)  S05  审计行改到状态翻转之后写            KILLED(assertion)/SURVIVED
+KILLED(assertion)  S06  审批人写错字段                      KILLED(assertion)/SURVIVED
+KILLED(assertion)  S08  DriftDetect 落成漂移状态            KILLED(assertion)/SURVIVED
+KILLED(assertion)  S09  空结果集返回 nil                    KILLED(assertion)/SURVIVED
+KILLED(assertion)  S10  Drifts 返回 nil 而非空片            KILLED(assertion)/SURVIVED
+KILLED(assertion)  S11  total_drifts 由 target 数编造       KILLED(assertion)/SURVIVED
+KILLED(assertion)  S12  审批列表重置后追加                  KILLED(assertion)/SURVIVED
+KILLED(assertion)  H01  List 在租户存在时 bail              KILLED(assertion)/SURVIVED
+KILLED(assertion)  H02  sentinel.NotFound 映射成 400        KILLED(assertion)/SURVIVED
+KILLED(assertion)  H03  两个 400 分支删除                   KILLED(assertion)/SURVIVED
+KILLED(BY-COMPILE) H04  body approver 取代上下文身份        KILLED(assertion)/SURVIVED
+KILLED(assertion)  M01  config_mgmt 租户索引被删            KILLED(assertion)/SURVIVED
+KILLED(assertion)  M02  required_approvals 列被删          KILLED(assertion)/SURVIVED
+KILLED(assertion)  M03  config_drift_reports 的 updated_at 被删 KILLED(assertion)/SURVIVED
+KILLED(assertion)  M04  down 文件表名写错                   KILLED(assertion)/SURVIVED
+KILLED(assertion)  M05  forward 建表顺序互换                KILLED(assertion)/SURVIVED
+KILLED(assertion)  X01  ConfigMgmt 的 db:updated_at 标签删除 KILLED(assertion)/SURVIVED
+```
+
+结果 `killed=33 survived=2 other=0`，每个突变体在应用前都打印了实际替换次数（`applied=1`），恢复后逐字节校验与备份一致。
+
+四个新增回归测试各杀一个突变体，证明它们不是空转：**R11** 死于新增的 `emptyString` 子测试（`[]` 与 `""` 是两种不同的空形态，删任一合取项都会挂掉其中一种）；**S11** 死于新增的 `f.lastDrift.TotalDrifts != 0` 断言；**S12** 死于新增的 `TestCfgServiceApproveAppendsWithExistingApprovals`（approvals 列每次整列重写，重置后追加会把上一个审批人从持久化行里抹掉）；**S13** 死于新增的 `errors.Is(wrappedList, origList)` 断言。
+
+两个存活体都是**可解释的不可观测**，全部记录不修：R12 删掉 `== "[]"` 合取项后，`json.Unmarshal("[]")` 得到的空非 nil 切片与原 nil 切片在 JSON 上同形，API 层无法区分；R13 把 `deserializeDriftReport` 的 `%w` 换成 `%s` 后没有任何断言能发现，因为 `json.Unmarshal` 返回的错误身份不在测试可达范围内。
+
+### 48.10 变异过程暴露的四个问题
+
+**一、Go 检查 range 循环变量**。R03 原写成「把 `i+1` 改成 `1`」，结果**编译杀掉**——`declared and not used: i`。先前默认只有局部变量被检查，实测证明 range 变量同样被检查。按 R45/R47 的规则把编译杀改成语义突变 `i+2`（偏移一列），随后死于四条独立断言。
+
+**二、`append(nil, struct)` 推断成 `[]any`**。S12 原写成 `append(nil, record)`，推断出的 `[]any` 无法赋给 `[]models.ApprovalRecord`，同样是编译杀。改为显式字面量 `[]models.ApprovalRecord{record}` 后成为真正的重置-追加语义突变。
+
+**三、`go test` 的断言失败长得像编译失败**。断言失败输出形如 `file.go:LINE: msg`，正好撞上 `\.go:\d+:\d+:` 正则，分类器把测试失败误判成编译杀。改为只认 `[build failed]` 或 `# orion/`。
+
+**四、S07 存活暴露的是死代码而不是缺测试**。见 48.4：不是补测试能解决的事，正确动作是删掉三个不可观测写入。这印证了本轮的判定口径——**突变存活有三种可能，缺测试、不可观测、死代码，第三种的唯一正解是删除**。
+
+### 48.11 记录不修
+
+1. 无创建 change-request 的路由，Approve、Execute、Rollback、GetChangeHistory 实际只会 404。
+2. 无配置对照源，DriftDetect 无法真比对，只落 in_sync。
+3. 无修复执行器，RemediateDrift 的 `Success: true` 属记录。
+4. `required_approvals` 从无写入，无多审批约束。
+5. `PaginatedResponse.PageSize` 伪造为 `len(entities)`。
+6. `List` 无 LIMIT。
+7. `ChangeHistoryFilter` 的 Limit 与 Offset 被仓库忽略。
+8. `CreateChangeRequest`、`ListChangeRequests`、`DeleteChangeRequest` 有测试但无路由。
+9. 迁移 115 的四张复数表保持原样（239、570、572 仍在改 `config_mgmts`）。
+10. sqlx v1.4.0 的全小写 NameMapper 是全仓陷阱，任何 `:CamelCase` 命名参数都会失败。
+11. `internal/middleware/response.go` 从不调 `c.Abort()`，是所有「返回 bool 后靠中间件短路」护栏的全仓陷阱。
+12. 前端 `orion-frontend/src/router/routes.tsx:2305` 懒加载不存在的 `@/pages/config-mgmt/ConfigMgmtPage`（FORBIDDEN 路径，仅记录）。
+13. 已知的不可杀突变：`deserializeDriftReport` 四处与 `deserializeApprovals` 一处的 `%w`→`%s`（不包 sentinel，文本断言无法区分）；down 文件相邻 DROP INDEX 互换（测试比对的是索引集合与表删除顺序）。
+
+### 48.12 验证
+
+```
+gofmt -l internal/config-mgmt-enhanced/ cmd/server/migration_config_mgmt_tables_test.go   → 空
+go vet ./internal/config-mgmt-enhanced/...                                                → exit 0
+go test -count=1 -run 'TestCfgRepo'   ./internal/config-mgmt-enhanced/repository/          → ok 0.009s
+go test -count=1 -run 'TestCfgService' ./internal/config-mgmt-enhanced/service/            → ok 0.006s
+go test -count=1 -run 'TestCfgHandler|TestCfgRespondServiceError' ./internal/config-mgmt-enhanced/handler/ → ok 0.014s
+go test -count=1 -run 'TestCfg'    ./cmd/server/                                           → ok 0.204s
+/tmp/r48_mut.py --verify        → VERIFY SUMMARY: 35 mutants, 0 problems
+/tmp/r48_mut.py                 → killed=33 survived=2 other=0
+*.r48bak 残留                                                           → 无
+```
+
+提交分三笔（代码、测试、文档），每笔前后各跑一次 FORBIDDEN 校验（须输出 0）。`cmd/server/migration_config_mgmt_tables_test.go` 被 `.gitignore` 的 `**/server` 规则忽略，需要 `git add -f`。其他 agent 的 `migrations/591_pipeline_templates_defaults*.sql`、`orion-platform-svc-go/.gitignore`（被改写成含 `**/server` 的新版）、`orion-platform-svc-go/pipeline-engine` 二进制一律不纳入本次提交。
+
+### 48.13 扫描遗留（未处理，结转）
+
+`internal/notification`、`internal/file-handler`、`internal/job-source`、`internal/security`、`internal/infrastructure/*`（其余子模块）、`internal/cache`、`internal/apm`、`internal/cron` 尚未按本轮口径扫描。`/tmp/r41/dyn.txt` 记录约 57 处 `Sprintf("UPDATE` 站点（40 个文件），`/tmp/r38/A.txt` 记录 50 处 `Sprintf("%s=$%d` 站点，是下一轮同型缺陷的候选池。硬编码成功标记待按 R38 逐条确认路由可达性后再判定：`internal/health-check/service/service.go`、`pipeline_executor.go`（5 处）、`internal/assistant/service/actions.go:42`、`internal/assistant/handler/handler.go:78`、`internal/cmdb/service.go:465`、`internal/data-catalog/service.go:166`、`internal/serverless/service.go:152`、`internal/multi-cloud/service.go:354`、`internal/tool/service.go:318`、`internal/workflow-webhook/handler.go:144`、`internal/chaos-gateway/service.go:294`、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`。全仓结构性债务：1007 张表被迁移 572 改过之后，代码里仍有 1302 处 SELECT 星号。
