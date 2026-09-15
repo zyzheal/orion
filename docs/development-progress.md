@@ -11153,3 +11153,128 @@ chatops 测试计数：repository 55（新增 10）、service 14、handler 24，
 ### 49.11 扫描遗留（未处理，结转）
 
 本轮授权的 chatops 之外的 8 个模块 15 处（§49.9）是 Round 50 的候选池。`/tmp/r41/dyn.txt`（约 57 处 `Sprintf("UPDATE`，40 个文件）与 `/tmp/r38/A.txt`（50 处 `Sprintf("%s=$%d`）仍是同型缺陷的候选。尚未按本轮口径扫描的模块：`internal/notification`、`internal/file-handler`、`internal/job-source`、`internal/security`、`internal/infrastructure/*`（其余子模块）、`internal/cache`、`internal/apm`、`internal/cron`。硬编码成功标记待按 R38 逐条确认路由可达性：`internal/health-check/service/service.go`、`pipeline_executor.go`（5 处）、`internal/assistant/service/actions.go:42`、`internal/assistant/handler/handler.go:78`、`internal/cmdb/service.go:465`、`internal/data-catalog/service.go:166`、`internal/serverless/service.go:152`、`internal/multi-cloud/service.go:354`、`internal/tool/service.go:318`、`internal/workflow-webhook/handler.go:144`、`internal/chaos-gateway/service.go:294`、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`。全仓结构性债务不变：1007 张表被迁移 572 改过之后，代码里仍有 1302 处 SELECT 星号。
+
+## 第五十轮：internal/policy 一张 policy_definitions 表从无 DDL、两条定义 UPDATE 把身份字段重绑到 SET 值、ListExemptions 的两个查询过滤器被读入后被丢弃且请求结构体缺 form tag（Round 50）
+
+扫描起点 HEAD `5f1568a4c`（Round 49 收尾）。目标模块 `internal/policy`：27 条在册 `/policies` 路由，handler 里全模块**唯一一处** `c.ShouldBindQuery`。
+
+### 50.1 Finding 1 —— policy_definitions 零 DDL，整模块运行期死亡
+
+仓库的 6 个定义方法（CreatePolicy、GetPolicy、ListPolicies、UpdatePolicy、DeletePolicy、TogglePolicy）全部读写 `policy_definitions`，而 `grep -rn 'policy_definitions' migrations/` 在 576 个迁移文件里**零命中**。另外 `service.EvaluatePolicy` 在跑 rego 前按 id 查一次策略，也落在同一张表上。所以 27 条在册 `/policies` 路由里有 9 条在 Postgres 的规划期就报 `pq: relation "policy_definitions" does not exist`——6 条定义路由加 `/evaluate-policy`、`/evaluate`、`/:id/evaluate`，业务逻辑一行都跑不到；其余 18 条落在 060 已建的 6 张关系上，能正常执行。这是与 Round 47 相同的形状（有能执行的语句、无 DDL），但范围更集中：一个表名、一个模块、9 条路由。
+
+**修复**：新增 `migrations/592_create_policy_definitions.sql`，8 列与 `models.Policy` 的 8 个 db tag 逐列对齐，3 个索引（`tenant_id`、`enabled`、`created_at DESC`），对应 `_down` 先删 3 个索引再删表。
+
+**刻意不改名 060 的 `policies`**：迁移 239 把它的 `tenant_id` 转成 UUID，570 加 `fk_policies_tenant` 与 `fk_policies_user`，572 加 `created_by` 与 `updated_by`。改名等于让这三条迁移去改一张空表，所以 592 选择「建对名字」而不是「移动旧表」的遮蔽策略。这一点被 `TestPolicyLegacyMigration060StillOwnsItsRelations` 双向钉住：060 仍独占它的 6 张关系，且没有任何迁移重命名 `policies` 或 `policy_definitions`，模块也不查询 `policies`。
+
+### 50.2 Finding 2 —— 混排占位符让 PUT /policies/:id 变成静默空写
+
+`UpdatePolicy` 与 `TogglePolicy` 的 SET 用命名占位符、WHERE 用字面 `$1` `$2`。sqlx 的 `compileNamedQuery` 按出现顺序把命名参数重编号为 `$1..$N`，语句里字面写死的 `$N` 不参与重编号，于是：
+
+```
+UPDATE policy_definitions SET name=:name WHERE id=$1 AND tenant_id=$2
+    ↓
+UPDATE policy_definitions SET name=$1 WHERE id=$1 AND tenant_id=$2
+```
+
+`id` 与 `tenant_id` 绑到**新的列值**上，map 里的身份项被静默忽略，WHERE 匹配零行。
+
+**这一处在 policy 里比 Round 49 的 chatops 更糟**：chatops 的 `oneRow` 在 `RowsAffected()==0` 时返回 `sentinel.NotFound`，所以行存在也报 404（错误但至少是错误）。policy 的六个 id 作用域写全部只返回 `err` 且**从不读 `RowsAffected`**，所以零行更新返回 `nil`——`PUT /policies/:id` 更新不了任何东西、回读未改动的行、答 HTTP 200 和旧值。写操作被完全吞掉，调用方看到的是成功。
+
+**修复**：两处 WHERE 改为命名占位符 `WHERE id=:id AND tenant_id=:tenant_id`。编译后的 SQL 文本与参数个数同时改变（5→7、2→4），`bindvar_test.go` 逐条钉死。
+
+### 50.3 Finding 3 —— 过滤器被丢弃，且结构体缺 form tag 让修复不可观测
+
+两层缺陷叠加。
+
+**第一层**：`ListExemptionsRequest` 的 `RequestedBy` 与 `Category` 由 handler 绑进结构体，service 却没有把它们转发给仓库。`GET /policies/exemptions?category=business` 返回该租户的**全量**豁免列表。
+
+**修复**：仓库 `ListExemptions` 改为动态子句构建器——`tenant_id=$1` 作为固定起点，四个过滤器各占一个由计数器生成的占位符，列名来自各分支的**硬编码字面量**而非调用方输入，所以恶意值只能落在数据位上、无法注入标识符（`TestListExemptions_AFilterValueCannotInjectAColumn` 用 `category=$99; DROP TABLE policy_exemptions` 作实参验证）。
+
+**第二层**：这层修复在结构体补上 form tag 之前**不可观测**。读 gin v1.10.0 自己的 `binding/form_mapping.go` 里 `tryToSetValue`：
+
+```go
+tagValue = field.Tag.Get(tag)
+tagValue, opts := head(tagValue, ",")
+if tagValue == "" { // default value is FieldName
+    tagValue = field.Name
+}
+```
+
+规则是「form tag，为空则回落成 Go 字段名」，不做小写化、不做 snake_case 转换。所以只有 json tag 的查询绑定结构体只接受 `Status`、`PolicyID`、`RequestedBy`、`Category`、`Limit`、`Offset`（大驼峰），而模块其余端点与 `PaginatedQuery` 读的全是小写下划线（`limit`、`offset`、`source_url`）。
+
+**修复**：六个字段各补 form tag。副作用是失去大驼峰接受能力——前端 `src/api/policies.ts` 没有任何 `/policies/exemptions` 调用方，因此无实际影响，已在测试里显式钉住这个方向（`TestHandler_ListExemptions_PascalCaseKeysNoLongerBind`）。
+
+### 50.4 测试 25 个
+
+| 文件 | 数量 | 要点 |
+|------|------|------|
+| `cmd/server/migration_policy_tables_test.go` | 11 | 关系创建者唯一性；模型 db tag 与迁移列集**双向**相等；592 之后无人再加列；INSERT 占位符与 db tag 逐字对齐；NOT NULL 无默认列必须被 INSERT 供值；down 与 forward 的索引和表集合完全往返；060 仍独占其 6 张关系且无人重命名；索引只指向已声明列且 `tenant_id` 必被索引；唯一排序读有对应索引；非注释行无问号；**语句级**租户谓词覆盖全部 6 张关系 |
+| `internal/policy/repository/bindvar_test.go` | 10 | sqlmock 加逐字段折叠的 SQL matcher；逐条钉编译后语句与参数个数（`UpdatePolicy` 7 参、`TogglePolicy` 4 参）；四个过滤器各自独占一个占位符且单过滤器仍生效；恶意值只能落进数据位；源码级混排检测含阳性对照；过滤器、列、实参三段互相绑定；未查 `RowsAffected` 的 id 作用域写钉死在 6 个方法的集合上 |
+| `internal/policy/handler/exemption_filter_test.go` | 4 | 走 gin 真实绑定，断言六键全部落到**服务实际收到**的结构体；用只有 json tag 的同类结构体做阳性对照；大驼峰键确认不再绑定；源码级断言每个字段都有 form tag 且等于线上键名 |
+
+前两个文件的所有 helper 均以 `pol` 前缀命名（`polFile`、`polSourceFiles`、`polSchema`、`polStatements`…），避免与本包既有的 `cfg`、`dr`、`runbook`、`scan` 系列冲突。
+
+### 50.5 变异 13 个：12 杀 1 存活，0 编译击杀
+
+| 突变量 | occurrences | 结果 |
+|--------|------------|------|
+| `UpdatePolicy` WHERE 命名→位置 | 1 | 杀 |
+| `TogglePolicy` WHERE 命名→位置 | 1 | 杀 |
+| 删 `requestedBy` 分支 | 1 | 杀 |
+| 删 `category` 分支 | 1 | 杀 |
+| `status` / `requested_by` 列名互换 | 2 | 杀 |
+| 删一个 `next++`（占位符编号错位） | 3 | 杀 |
+| 删租户谓词 | 1 | 杀 |
+| 删 Status 的 form tag | 1 | 杀 |
+| 删全部 6 个 form tag | 6 | 杀 |
+| 删 `created_at DESC` 索引 | 1 | 杀 |
+| `tenant_id` 列改名 | 1 | 杀 |
+| 加第 9 列 | 1 | 杀 |
+| 删 `description` 的 `DEFAULT ''` | 1 | **存活（记录不修）** |
+
+每个突变量都先打印 occurrences 再启动，跑完立刻 `cp` 还原，结束后用 `diff` 逐个核对三份备份——全部 `RESTORED`。
+
+**存活的那个已定性为记录项而非缺陷**：`description` 本就是 `NOT NULL`，仓库唯一的 INSERT 又显式供值（由 `TestPolicyNotNullColumnsAreSuppliedByTheInsert` 钉住），所以默认值并非承重要素。它只决定「省略该列的 INSERT」是落空串还是直接报 NOT NULL 违规——后者更严格，也更符合本模块的取向，因此不加测试，理由已写进迁移测试的注释。
+
+### 50.6 变异与收尾过程暴露的四个自己的缺陷
+
+1. **语句级租户检查最初写成按源行检查**，于是把 WHERE 写在第二条源行的 `UpdatePolicy` 误报为无租户谓词——**正是带绑定变量缺陷的那个方法**。改为按语句切分后恢复；且反引号 raw string 与带引号字面量两类**都必须收**，后者才能看到 `fmt.Sprintf` 的模板（否则 `ListExemptions` 的 SELECT 对租户检查完全不可见）。
+
+2. **抓 db tag 的正则写成「反引号紧贴 `db:`」**，结果永远零命中：Go 的 tag 形如 `` `json:"id" db:"id"` ``，`db:` 前面是空格。零命中的失败模式是「看起来什么都没声明」而不是报错。用两个独立 `go run` 探针才定位到（第一次误判是我的调试输入缺反引号，第二次把 `sed` 的 1 起始行号当成 Go 的 0 起始下标）。
+
+3. **Finding 1 的计数抄错，且结论比证据强**。「26 条在册路由」与「26 个定义方法」是同一个数字被复制了两次：`RegisterRoutes` 实际注册 27 条，定义方法只有 6 个。更要紧的是「所有 `/policies` 路由都死」这句过头了——只有 9 条真正落在 `policy_definitions` 上（6 条定义路由，加 `/evaluate-policy`、`/evaluate`、`/:id/evaluate`，因为 `service.EvaluatePolicy` 在跑 rego 前按 id 查一次策略），其余 18 条落在 060 已建的 6 张关系上能正常执行。迁移 592 的注释原本写的是「all 25 registered /policies routes」，是同一处误记的第三个副本。已全部改为按源码数出来的 27 / 6 / 9 / 18。
+
+4. **gofmt 的注释重排会把相邻的两个 ASCII 单引号改写成 U+201D**。迁移测试里想引用 SQL 的空串字面量 `''`，`gofmt -l` 报错；`gofmt -d` 显示它要改成 `”`；外面套反引号也没有用，`gofmt -d` 依旧输出 `”`。最终改成文字描述「the empty string」。**教训**：Go 注释里不要出现成对的 ASCII 引号，需要引用字面量就用文字或改成不成对的写法。这条与第 1、2 条同类——都是「工具静默改写，不报错」。
+
+### 50.7 记录不修（结转 Round 51）
+
+- 全模块 6 个 id 作用域写（`UpdatePolicy`、`TogglePolicy`、`DeletePolicy`、`UpdateViolationStatus`、`UpdateBundle`、`UpdateExemption`）**全部不查 `RowsAffected`**，已用 `TestSource_UncheckedWritesAreTheDocumentedSet` 钉死在这个集合上——新增第 7 个或修掉其中任何一个都必须是一次显式决策。
+- `DeletePolicy` 对不存在的 id 答 200；`UpdateViolationStatus`、`UpdateBundle`、`UpdateExemption` 同形（Waive、Resolve、Review、Revoke 先调 `Get*`，所以缺行会在那里暴露）。
+- `GetEvaluation`、`GetViolation`、`GetBundle`、`GetExemption` 返回**非 nil 指针加错误**。
+- 10 个 handler 里只有 4 个检查 `service.IsNotFound`，因此 `Toggle`、`Update`、`Delete`、`GetBundle`、`WaiveViolation`、`ResolveViolation` 对缺行答 500。
+- 12 处 `SELECT *`；7 个 list 方法空结果返回 nil 切片，JSON 序列化成 `null`。
+- `repo.UpdateBundle` 无 service 调用方（死方法）；`TogglePolicy` 先 SELECT 后 UPDATE 的 TOCTOU 在并发删除下返回内存里的更新前副本；`ErrNotFoundPolicy` 声明后未被使用；service 143 与 257 两处 `_ = s.repo.CreateEvaluation(...)` 尽力而为。
+- 592 的 `description` / `rego` 的 `DEFAULT ''` 非承重（§50.5）。
+
+### 50.8 前后端契约漂移（记录，非代码修复）
+
+- `PolicyInput` 与 `UpdatePolicyInput` 发送的 `category`、`regoPath`、`gateId`、`severity` 在 `policy_definitions` 上**根本没有对应列**，所以 `getPolicies` 的 category、severity、enabled 过滤在不加列的前提下无法满足——这是 schema 缺口，不是代码修复。
+- `getPolicies` 发送 `page` 与 `pageSize`，而 handler 读的是 `limit` 与 `offset`：键名不匹配，不只是缺过滤器。
+- `ListRootEvaluations` 丢掉前端的 `runId`（`run_id` 列**存在**，可修，但属独立 Finding）；违规列表丢掉 `status`、`severity`、`policyId`。
+- `ShouldBindQuery` 在全模块只出现一次，其余端点一律用 `c.DefaultQuery("limit", "50")` / `c.DefaultQuery("source_url", "")` 或 `c.Param` 逐参读取——两种风格并存。
+
+### 50.9 下一轮候选池
+
+Round 49 记录的 8 模块 15 处同型混排缺陷里，`policy:55` 与 `policy:76` 已在 50.2 修复；仍在候选池的：`artifact-lifecycle:70`、`disaster-recovery:62`、`ephemeral-env:62`、`iac:152`（均为 MIXED、占位符与 key 一致，故只有字面 `$N` 的 WHERE 是绑定缺陷）、`sla:99`（POSITIONAL-ONLY 且丢弃调用方的 `updates` map）、`dba/osc:126`（**FORBIDDEN，不可动**）。`/tmp/r41/dyn.txt`（约 57 处 `Sprintf("UPDATE`，40 个文件）与 `/tmp/r38/A.txt`（50 处 `Sprintf("%s=$%d`）未变。尚未按本轮口径扫描的模块：`internal/notification`、`internal/file-handler`、`internal/job-source`、`internal/security`、`internal/infrastructure/*`（其余子模块）、`internal/cache`、`internal/apm`、`internal/cron`。
+
+### 50.10 验证
+
+```
+gofmt -l cmd/server/ internal/policy/            → （空）
+go vet ./cmd/server/ ./internal/policy/...       → exit 0
+go build ./...                                   → BUILD OK
+go test -count=1 ./internal/policy/...           → engine ok / handler ok / repository ok / models 无测试 / service 无测试
+go test -count=1 -run TestPolicy ./cmd/server/   → ok（11 项）
+```
+
+policy 测试计数：handler 4（新增）、repository 10（新增），cmd/server 迁移交叉核对 11（新增），合计 25。提交分三笔（代码、测试、文档），每笔前后各跑一次 FORBIDDEN 校验（须输出 0）。

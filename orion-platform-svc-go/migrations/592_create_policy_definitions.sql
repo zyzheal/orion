@@ -2,12 +2,14 @@
 --
 -- Migration 060_create_policy_tables.sql creates policies, policy_evaluations,
 -- policy_violations, policy_overrides, policy_bundles and policy_exemptions.
--- It does NOT create policy_definitions. The policy repository reads and writes
+-- It does NOT create policy_definitions. The repository reads and writes
 -- policy_definitions for every definition method (CreatePolicy, GetPolicy,
--- ListPolicies, UpdatePolicy, DeletePolicy, TogglePolicy), so before this
--- migration all 25 registered /policies routes failed at the SQL layer with
--- `pq: relation "policy_definitions" does not exist` before any business logic
--- could run.
+-- ListPolicies, UpdatePolicy, DeletePolicy, TogglePolicy), and service.EvaluatePolicy
+-- looks the policy up by id before running the rego, so before this migration
+-- nine of the twenty-seven registered /policies routes failed at the SQL layer
+-- with `pq: relation "policy_definitions" does not exist` before any business
+-- logic could run: the six definition routes plus /evaluate-policy, /evaluate
+-- and /:id/evaluate. The other eighteen live on the six relations 060 created.
 --
 -- 060's `policies` table is not renamed. `grep -rn 'policy_definitions'
 -- migrations/` returned zero matches, and 060's `policies` is the relation the
