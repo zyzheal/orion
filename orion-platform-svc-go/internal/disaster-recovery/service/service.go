@@ -26,11 +26,8 @@ type RepositoryInterface interface {
 	ListRuns(ctx context.Context, tenantID, planID string) ([]models.RecoveryRun, error)
 	UpdatePlan(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 	UpdatePlanLastRun(ctx context.Context, tenantID, id string, lastRun time.Time) error
+	UpdateRun(ctx context.Context, tenantID string, run *models.RecoveryRun) error
 }
-
-var (
-	ErrAlreadyExists = errors.New("disaster plan already exists")
-)
 
 type Service struct {
 	repo RepositoryInterface
@@ -49,14 +46,18 @@ func (s *Service) SetOrchestrator(orch *orchestrator.DROrchestrator) {
 }
 
 func (s *Service) CreatePlan(ctx context.Context, tenantID string, req models.CreateDisasterPlanRequest) (*models.DisasterPlan, error) {
-	stepsJSON, _ := json.Marshal(req.Steps)
+	// Marshal failure used to be discarded, which stored "null" as the steps
+	// column and made RunPlan silently execute zero steps.
+	stepsJSON, err := json.Marshal(req.Steps)
+	if err != nil {
+		return nil, err
+	}
 	p := &models.DisasterPlan{
 		TenantID:    tenantID,
 		Name:        req.Name,
 		Description: req.Description,
 		Steps:       string(stepsJSON),
 		Status:      "active",
-		LastRun:     time.Time{},
 	}
 	if err := s.repo.CreatePlan(ctx, p); err != nil {
 		return nil, err
@@ -83,6 +84,12 @@ func (s *Service) ListPlans(ctx context.Context, tenantID string, limit, offset 
 func (s *Service) UpdatePlan(ctx context.Context, tenantID, id string, req models.UpdateDisasterPlanRequest) (*models.DisasterPlan, error) {
 	_, err := s.repo.GetPlan(ctx, tenantID, id)
 	if err != nil {
+		// sentinel.NotFound only when the row is genuinely absent. A driver
+		// error here answered 404-ish "not found" on PUT /disaster-recovery/
+		// plans/:id, so a down database looked like a deleted plan.
+		if !errors.Is(err, sentinel.NotFound) {
+			return nil, err
+		}
 		return nil, sentinel.NotFound
 	}
 	updates := make(map[string]interface{})
@@ -93,7 +100,15 @@ func (s *Service) UpdatePlan(ctx context.Context, tenantID, id string, req model
 		updates["description"] = *req.Description
 	}
 	if req.Steps != nil {
-		updates["steps"] = req.Steps
+		// CreatePlan stores the steps column as a JSON string, so the update
+		// path must send the same wire format. Binding the []string directly
+		// made the two paths disagree and turned convertSteps into a parser of
+		// a Go %q dump.
+		stepsJSON, err := json.Marshal(req.Steps)
+		if err != nil {
+			return nil, err
+		}
+		updates["steps"] = string(stepsJSON)
 	}
 	if err := s.repo.UpdatePlan(ctx, tenantID, id, updates); err != nil {
 		return nil, err
@@ -104,6 +119,9 @@ func (s *Service) UpdatePlan(ctx context.Context, tenantID, id string, req model
 func (s *Service) RunPlan(ctx context.Context, tenantID, planID string) (*models.RecoveryRun, error) {
 	plan, err := s.repo.GetPlan(ctx, tenantID, planID)
 	if err != nil {
+		if !errors.Is(err, sentinel.NotFound) {
+			return nil, err
+		}
 		return nil, sentinel.NotFound
 	}
 	now := time.Now().UTC()
@@ -111,7 +129,6 @@ func (s *Service) RunPlan(ctx context.Context, tenantID, planID string) (*models
 		PlanID:    planID,
 		Status:    "running",
 		StartedAt: now,
-		EndedAt:   time.Time{},
 	}
 	if err := s.repo.CreateRun(ctx, run); err != nil {
 		return nil, err
@@ -123,12 +140,25 @@ func (s *Service) RunPlan(ctx context.Context, tenantID, planID string) (*models
 	// If an orchestrator is injected, actually execute the plan's steps.
 	if s.orch != nil {
 		drSteps := convertSteps(plan.Steps)
-		result, _ := s.orch.ExecuteSteps(ctx, planID, drSteps, true)
+		// ExecuteSteps never returns a nil result: it builds result before any
+		// return. What the pre-fix code discarded was the error, and with it
+		// the reason the run failed.
+		result, execErr := s.orch.ExecuteSteps(ctx, planID, drSteps, true)
 		end := time.Now().UTC()
 		run.Status = result.Status
-		run.EndedAt = end
-		// Persist the updated run status.
-		_ = s.repo.CreateRun(ctx, run)
+		run.EndedAt = &end
+		if result.Error != "" {
+			run.ErrorMessage = result.Error
+		}
+		if execErr != nil {
+			run.ErrorMessage = execErr.Error()
+		}
+		// UpdateRun, not a second CreateRun: CreateRun assigns a fresh id on
+		// every call, so re-inserting appended a duplicate row and left the
+		// original one at status='running' forever.
+		if err := s.repo.UpdateRun(ctx, tenantID, run); err != nil {
+			return nil, err
+		}
 	}
 
 	return s.repo.GetRun(ctx, tenantID, planID, run.ID)
@@ -167,8 +197,4 @@ func truncate(s string, n int) string {
 
 func (s *Service) ListRuns(ctx context.Context, tenantID, planID string) ([]models.RecoveryRun, error) {
 	return s.repo.ListRuns(ctx, tenantID, planID)
-}
-
-func IsNotFound(err error) bool {
-	return errors.Is(err, sentinel.NotFound) || errors.Is(err, sentinel.NotFound)
 }

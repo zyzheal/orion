@@ -16,6 +16,7 @@ type RepositoryInterface interface {
 	UpdatePlan(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 	UpdatePlanLastRun(ctx context.Context, tenantID, id string, lastRun time.Time) error
 	CreateRun(ctx context.Context, run *models.RecoveryRun) error
+	UpdateRun(ctx context.Context, tenantID string, run *models.RecoveryRun) error
 	ListRuns(ctx context.Context, tenantID, planID string) ([]models.RecoveryRun, error)
 	GetRun(ctx context.Context, tenantID, planID, runID string) (*models.RecoveryRun, error)
 }
