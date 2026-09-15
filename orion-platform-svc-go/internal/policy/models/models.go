@@ -202,13 +202,20 @@ type ReviewExemptionRequest struct {
 	Reviewer string          `json:"reviewer" binding:"required"`
 }
 
+// ListExemptionsRequest is bound with c.ShouldBindQuery, which reads the form
+// tag and falls back to the Go field name when it is absent. Without the form
+// tags below the endpoint accepted only Status, PolicyID, RequestedBy,
+// Category, Limit and Offset -- PascalCase, while every other policy endpoint
+// and PaginatedQuery read limit, offset and source_url. The filters this round
+// threaded through to the repository were bound by ShouldBindQuery and then
+// dropped, which is why they silently did nothing.
 type ListExemptionsRequest struct {
-	Status      ExemptionStatus   `json:"status"`
-	PolicyID    string            `json:"policy_id"`
-	RequestedBy string            `json:"requested_by"`
-	Category    ExemptionCategory `json:"category"`
-	Limit       int               `json:"limit"`
-	Offset      int               `json:"offset"`
+	Status      ExemptionStatus   `json:"status" form:"status"`
+	PolicyID    string            `json:"policy_id" form:"policy_id"`
+	RequestedBy string            `json:"requested_by" form:"requested_by"`
+	Category    ExemptionCategory `json:"category" form:"category"`
+	Limit       int               `json:"limit" form:"limit"`
+	Offset      int               `json:"offset" form:"offset"`
 }
 
 type ListExemptionsResponse struct {

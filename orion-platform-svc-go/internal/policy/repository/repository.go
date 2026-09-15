@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"orion/platform-svc-go/internal/policy/models"
@@ -54,7 +56,7 @@ func (r *Repository) UpdatePolicy(ctx context.Context, tenantID, id string, m *m
 	m.UpdatedAt = time.Now().UTC()
 	_, err := r.db.NamedExecContext(ctx,
 		`UPDATE policy_definitions SET name=:name, description=:description, rego=:rego, enabled=:enabled, updated_at=:updated_at
-			WHERE id=$1 AND tenant_id=$2`, m)
+			WHERE id=:id AND tenant_id=:tenant_id`, m)
 	return err
 }
 
@@ -74,7 +76,7 @@ func (r *Repository) TogglePolicy(ctx context.Context, tenantID, id string, enab
 	m.Enabled = enabled
 	m.UpdatedAt = time.Now().UTC()
 	_, err = r.db.NamedExecContext(ctx,
-		`UPDATE policy_definitions SET enabled=:enabled, updated_at=:updated_at WHERE id=$1 AND tenant_id=$2`, m)
+		`UPDATE policy_definitions SET enabled=:enabled, updated_at=:updated_at WHERE id=:id AND tenant_id=:tenant_id`, m)
 	if err != nil {
 		return nil, err
 	}
@@ -227,29 +229,49 @@ func (r *Repository) GetExemption(ctx context.Context, tenantID, id string) (*mo
 	return &e, err
 }
 
-func (r *Repository) ListExemptions(ctx context.Context, tenantID string, status models.ExemptionStatus, policyID string, limit, offset int) ([]models.Exemption, error) {
+func (r *Repository) ListExemptions(ctx context.Context, tenantID string, status models.ExemptionStatus, policyID, requestedBy string, category models.ExemptionCategory, limit, offset int) ([]models.Exemption, error) {
 	if limit <= 0 {
 		limit = 50
 	}
-	var sql string
-	var args []interface{}
-
-	if policyID != "" && status != "" {
-		sql = `SELECT * FROM policy_exemptions WHERE tenant_id=$1 AND policy_id=$2 AND status=$3 ORDER BY created_at DESC LIMIT $4 OFFSET $5`
-		args = []interface{}{tenantID, policyID, status, limit, offset}
-	} else if policyID != "" {
-		sql = `SELECT * FROM policy_exemptions WHERE tenant_id=$1 AND policy_id=$2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`
-		args = []interface{}{tenantID, policyID, limit, offset}
-	} else if status != "" {
-		sql = `SELECT * FROM policy_exemptions WHERE tenant_id=$1 AND status=$2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`
-		args = []interface{}{tenantID, status, limit, offset}
-	} else {
-		sql = `SELECT * FROM policy_exemptions WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
-		args = []interface{}{tenantID, limit, offset}
+	// The handler binds status, policy_id, requested_by and category from the
+	// query string and the service forwards all four, so every one of them must
+	// narrow the result. This method used to accept only status and policy_id;
+	// ?requestedBy= and ?category= on GET /policies/exemptions were read into
+	// the request struct and then discarded, so a caller filtering by category
+	// received the tenant's whole exemption list.
+	//
+	// The column names come from the literal in each branch below, never from the
+	// caller, so no input value can inject an identifier.
+	conds := []string{"tenant_id=$1"}
+	args := []interface{}{tenantID}
+	next := 2
+	if policyID != "" {
+		conds = append(conds, fmt.Sprintf("policy_id=$%d", next))
+		args = append(args, policyID)
+		next++
 	}
+	if status != "" {
+		conds = append(conds, fmt.Sprintf("status=$%d", next))
+		args = append(args, status)
+		next++
+	}
+	if requestedBy != "" {
+		conds = append(conds, fmt.Sprintf("requested_by=$%d", next))
+		args = append(args, requestedBy)
+		next++
+	}
+	if category != "" {
+		conds = append(conds, fmt.Sprintf("category=$%d", next))
+		args = append(args, category)
+		next++
+	}
+	query := fmt.Sprintf(
+		"SELECT * FROM policy_exemptions WHERE %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d",
+		strings.Join(conds, " AND "), next, next+1)
+	args = append(args, limit, offset)
 
 	var items []models.Exemption
-	err := r.db.SelectContext(ctx, &items, sql, args...)
+	err := r.db.SelectContext(ctx, &items, query, args...)
 	return items, err
 }
 

@@ -35,7 +35,7 @@ type RepositoryInterface interface {
 	ListBundles(ctx context.Context, tenantID string) ([]models.PolicyBundle, error)
 	ListEvaluationHistory(ctx context.Context, tenantID, policyID string, limit, offset int) ([]models.PolicyEvaluation, error)
 	ListEvaluations(ctx context.Context, tenantID string, limit, offset int) ([]models.PolicyEvaluation, error)
-	ListExemptions(ctx context.Context, tenantID string, status models.ExemptionStatus, policyID string, limit, offset int) ([]models.Exemption, error)
+	ListExemptions(ctx context.Context, tenantID string, status models.ExemptionStatus, policyID, requestedBy string, category models.ExemptionCategory, limit, offset int) ([]models.Exemption, error)
 	ListOverrides(ctx context.Context, tenantID string, limit, offset int) ([]models.PolicyOverride, error)
 	ListPolicies(ctx context.Context, tenantID string, limit, offset int) ([]models.Policy, error)
 	ListViolations(ctx context.Context, tenantID string, limit, offset int) ([]models.Violation, error)
@@ -499,7 +499,7 @@ func (s *Service) GetExemption(ctx context.Context, tenantID, id string) (*model
 }
 
 func (s *Service) ListExemptions(ctx context.Context, tenantID string, req models.ListExemptionsRequest) (*models.ListExemptionsResponse, error) {
-	exemptions, err := s.repo.ListExemptions(ctx, tenantID, req.Status, req.PolicyID, req.Limit, req.Offset)
+	exemptions, err := s.repo.ListExemptions(ctx, tenantID, req.Status, req.PolicyID, req.RequestedBy, req.Category, req.Limit, req.Offset)
 	if err != nil {
 		return nil, err
 	}
