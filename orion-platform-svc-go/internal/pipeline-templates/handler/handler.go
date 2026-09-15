@@ -65,10 +65,18 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		h.Create)
 
 	// Item: GET /pipeline-templates/:templateId
+	// NOT registered here: the singular module internal/pipeline-template
+	// owns this route (same path, same `pipeline` permission domain). Registering
+	// it here too would panic gin with "handlers are already registered for path".
+	// The two modules are complementary — singular handles item CRUD + instantiate,
+	// plural handles collection + categories/search/publish/deprecate/versions/star.
+	// See cmd/server/router.go:134 (ptmplH) and :161 (pipelineTemplatesH).
 
 	// Item: PUT /pipeline-templates/:templateId
+	// See note above: owned by singular module.
 
 	// Item: DELETE /pipeline-templates/:templateId
+	// See note above: owned by singular module.
 
 	// Actions on :id (specific endpoints, mount before :id variants with trailing paths)
 	r.POST("/:templateId/publish",
@@ -85,6 +93,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		h.Versions)
 
 	// Instantiate: POST /pipeline-templates/:templateId/instantiate
+	// See note above: owned by singular module.
 
 	// Star: POST /pipeline-templates/:templateId/star
 	r.POST("/:templateId/star",
