@@ -11692,3 +11692,122 @@ grep -c 'disaster_plans' internal/disaster-recovery/repository/repository.go
                                                      的 FROM/JOIN）
 grep -rl 'recovery_run' migrations/              → 仅 673 与其 down
 ```
+
+## 第五十四轮：internal/job-source 七条在册路由首次执行即在驱动层报错——job_sources 与 job_source_events 从无 DDL、Update 把调用方 map key 直接拼进 SET、四个 client 错误全部折成 500（Round 54）
+
+扫描起点 HEAD `384e980a2`。模块接线完整：`wireJobSource` 每次启动都跑，`RegisterRoutes` 挂 **7 条在册路由**（`POST /job-sources`、`GET /job-sources`、`GET /:id`、`PUT /:id`、`DELETE /:id`、`POST /:id/trigger`、`GET /:id/events`），全部带 `auth.RequirePermission`。**选它的理由**：handler 层此前零测试，而 service 包虽然有 42 个既有测试，却**全部落在未接线的适配与调度层**（`WebhookAdapter`、`CronAdapter`、`EventAdapter`、`APIAdapter`、`Dispatcher`、`SourceComposer`、`SourceCombinator`、`SourcePipeline`、`ChainExecutor`、`EventRecorder`、`BridgeConsumer`）——七条在册路由背后的六个 service 方法零覆盖。**测试恰好覆盖了死代码而跳过了活路由**，这是与 R51/R52/R53「repository 零测试」相反的失败模式，`go build`、`go vet`、以及任何只看 service 层方法的扫描都看不见下面的缺陷。
+
+### 54.1 F1 —— 两张表从无 DDL；模块自带的 DDL 永不被读取
+
+`job_sources` 与 `job_source_events` 在整个 applied set 里**没有任何 CREATE TABLE**。模块其实自带了 DDL，在 `internal/job-source/migrations/001_create_job_source_tables.sql`——但 `database.LoadMigrations` 只读 flat 顶层目录（`cmd/server/config.go:83` 传 `"migrations"`）并跳过目录项，所以那份文件从未被执行，七条路由全部在驱动层以 `relation "job_sources" does not exist` 失败，业务逻辑一行都跑不到。
+
+新增 `migrations/685_create_job_source_missing_tables.sql`：`job_sources`（9 列：`id TEXT PRIMARY KEY`、`tenant_id TEXT NOT NULL`、`name TEXT NOT NULL`、`type TEXT NOT NULL`、`config TEXT`、`enabled BOOLEAN DEFAULT TRUE`、`status TEXT DEFAULT 'active'`、`created_at` / `updated_at` 均 `TIMESTAMPTZ NOT NULL`）加 4 个索引，`job_source_events`（10 列：`source_id TEXT NOT NULL REFERENCES job_sources(id)`、`payload`、`status DEFAULT 'received'`、`job_id`、`error`、`received_at TIMESTAMPTZ NOT NULL`、`processed_at`、`created_at`）加 4 个索引。**不改模块自带那份文件**（`AppliedDDLMatchesTheStrandedModuleDDL` 以它为复制源读它），也不改名字提升它。
+
+### 54.2 迁移编号漂移 —— 678 被并发占用，改号 685
+
+`001_` 前缀不能直接提升：`LoadMigrations` 用 `fmt.Sscanf(name, "%03d_")` 解析版本，`001_` 会得到 version 1，撞掉已在册的 `001_xxx.sql`。这对文件最初写成 **678**，写测试的过程中另一个 agent 占用了 678（`678_create_dba_ai_reviews_table.sql`），于是改号 **685**。
+
+**这个撞号能从测试里漏过去的根因**：版本号原先在两个迁移文件和两条断言里各自硬编码了 4 次，唯一性断言检查的是自己写死的那个数字。改为从 `const jsMigrationVersion = "685"` 读取前缀，再保留 `VersionIsUnique` 断言「恰好 1 个前向 + 1 个 down」，下次撞号必须改测试本身才会通过。`ModulePrefix001WouldCollide` 反向钉住「直接改名 001_ 会撞 version 1」这个决定，避免后来者按字面意思把文件改名提上去。
+
+### 54.3 F2 —— update() 把调用方 map key 直接拼进 SET（注入 + 越界 panic）
+
+pre-fix 的 SET 子句是 `fmt.Sprintf("%s = $%d", key, i+1)`，`key` 来自调用方 map——`PUT /job-sources/:id` 是一个**已注册、已鉴权**的 SQL 注入点。同一方法还直接取 `setClauses[0]` 而没有长度守卫，长度为零时越界 panic 而不是空操作。
+
+修复后与 R53 F2 / R52 F3 同一形状：`columns` 白名单让列名只来自方法内的字面量 map（调用方永远拼不进标识符），`sort.Strings(keys)` 让编译出的语句稳定（Go map 无序，不排序则写在断言里的期望依赖调度器）；**`id` 与 `tenant_id` 故意不进白名单**——它们在 WHERE 里指行，不该由指行的那条语句来改（跨租户改名与重新归属就是这两种键一旦可写能做的事）。编译出的形状被断言钉死：`UPDATE job_sources SET name = $1, updated_at = $2 WHERE id=$3 AND tenant_id=$4`（SET 子句带空格、WHERE 不带；实参次序为排序后的 SET 列，然后 id、tenant）。
+
+### 54.4 F3 —— nil 值绑成 NULL 写进 NOT NULL 列
+
+白名单之外的 key 丢弃，**值为 nil 的 key 也丢弃**。nil 表示「调用方没发这个字段」；绑上去会往 `name`、`type`、`status`、`created_at`、`updated_at` 写 NULL，而这些列 685 声明为 NOT NULL，整条 update 会被拒。不编造替代值。
+
+`len(keys) == 0` 的守卫单独保留，因为它防的是另一条路径的 panic——**它只能从 `update()` 本身触发**：`Update()` 总会先注入一个白名单内且非 nil 的 `updated_at`，所以公开方法永远留着一个 key。测试因此直接调未导出的 `update()`，并断言 `sqlText == ""`（独立证明「什么都没编译」而不是「编译了一条更新零行的语句」）。
+
+### 54.5 F4 / F5 / F6 —— 四个 client 错误全部折成 500
+
+`GetByID` 返回裸 `sql.ErrNoRows`，而每个调用方都用 `errors.Is(err, sentinel.NotFound)` 判断——两者是不同的 error，身份比较不匹配，**`PUT /:id` 与 `POST /:id/trigger` 对每一个从未存在过的 id 都回 500**（仓库层包成 `sentinel.NotFound` 后 handler 在两处映射到 404）。
+
+`UpdateSource` 空请求原先是 `fmt.Errorf`，handler 把所有 service 错误一律 `RespondInternalError`，所以「发了空 body」和「数据库挂了」得到同一个回答——改为哨兵 `ErrNoFieldsToUpdate` → 400，文案 `no fields to update`。`TriggerSource` 的禁用分支同理：`fmt.Errorf("source %s is disabled", id)` 被映射成 500，运维会去找驱动错误而真正原因是开关——改为 `ErrSourceDisabled` → 409，文案 `source is disabled`。两处都按 R40/R47 钉精确文案，因为同一分支的两个变体可以产出不同的 error 文本。
+
+### 54.6 F7 —— POST /:id/trigger 丢弃绑定错误
+
+pre-fix 是 `_ = c.ShouldBindJSON(&req)`：畸形 body 被接受且照样落一条事件（事件表是审计轨迹，多一行是假投递）。改为 `ContentLength > 0` 才绑定，错误 → 400。
+
+**故意不用 `errors.Is(err, io.EOF)`**：gin 的 `ShouldBindJSON` 遇到空 body 返回的是 `json.SyntaxError("unexpected end of JSON input")` 而非 EOF，error 身份会随版本漂移，而 `ContentLength` 稳定且能用 `httptest.NewRequest` 直接构造。零长度 body 本身是合法的「无 payload 手工触发」，所以不把它当错误。
+
+### 54.7 F8 / F9 —— received_at 零值写库、UpdatePartial 死代码
+
+`CreateEvent` 不填 `ReceivedAt` 而 685 声明它 NOT NULL 且事件列表按 `received_at DESC` 排序。`time.Time` 永不为 nil，`IsZero()` 是区分「调用方没设」与「真实时间戳」的唯一办法，零值会被写成公元 1 年。**`source_id` 故意不填**——它是 NOT NULL 且没有诚实的默认值，编一个值比响亮地失败更糟；测试反向断言仓储层从不给 `SourceID` 赋值（`reMust("(?is)SourceID\\s*=\\s*")` 不匹配源码）。
+
+`UpdatePartial` 与 `Update` 逐字节相同且零调用方，从 `Repository` 与 `RepositoryInterface` 同时删除（接口从 10 个方法降到 9 个）——按 R38 的判定规则，零调用方的重复方法属于死代码，删除而不是发明基础设施。
+
+### 54.8 测试 50 个新用例
+
+| 文件 | 新用例 | 说明 |
+| --- | --- | --- |
+| `internal/job-source/repository/repository_test.go` | 19 | go-sqlmock 逐条钉编译后的语句与参数个数 |
+| `internal/job-source/service/service_sql_test.go` | 11 | 手写 `fakeRepo` 记录每次 `Update` 收到的 map |
+| `internal/job-source/handler/handler_test.go` | 11 | 直接注册 handler 方法，不经 `RegisterRoutes` |
+| `cmd/server/migration_job_source_tables_test.go` | 9 | repository 源码与 applied DDL 双向交叉核对 |
+| **合计** | **50** | service 包合计 53（既有 42 + 本轮 11）；job-source 三包合计 83 |
+
+**两个测试基础设施事实**：
+
+（a）**go-sqlmock v1.5.2 没有 `ExecutedSQL()` 也没有 `QueriedSQL()`**。捕获编译后 SQL 文本的唯一办法是构造时传 `sqlmock.QueryMatcherOption`：matcher 把 `actualSQL` 写进闭包变量且**总是返回 nil**（期望值仍由 `ExpectExec` 提供契约，sink 只负责记录）。v1.5.2 的 `QueryMatcherFunc` 签名返回 `error` 而非 `bool`；默认 matcher 是 `QueryMatcherRegexp`，两侧都做 `strings.TrimSpace(regexp.MustCompile("\\s+").ReplaceAllString(q, " "))`，所以期望对空白与缩进不敏感。
+
+（b）**handler 测试不能走 `RegisterRoutes`**：`auth.RequirePermission` 在 `GetRoles(c)` 为空时返回 403 `no role assigned`。改为直接注册 `h.Update` / `h.Delete` / `h.Trigger`，而注册断言单独用 `engine.Routes()` 完成（不发请求，中间件不跑），两个关注点各自独立可证。
+
+（c）**`(T, error)` 的失败路径同时断言 `err != nil` 与 `resp == nil`**（R39.7）：service 层每个失败用例都这么写，否则「返回了错值」和「返回了 nil 值」无法区分。
+
+repository 的 19 个里有两个是负控：`TestRepository_Update_IgnoresColumnsTheStatementDoesNotOwn` 断言 `evil_col` 与 `DROP TABLE` 都不出现在编译后的 SQL 里；`TestRepository_Update_RowIdentityIsNotSettable` 断言没有 `id = $` / `tenant_id = $` 且 WHERE 仍是 `id=$3 AND tenant_id=$4`。`TestRepository_Update_DriverErrorIsWrapped` 同时断言 `errors.Is(err, want)` **和** `strings.Contains(err.Error(), "failed to update job source")`——后者是 M6 变异存活后补上的（只查 `errors.Is` 时包装与否不可观测）。
+
+handler 的 11 个里两个是 DELETE 路径（`TestHandler_Delete_RepositoryFaultReturns500`、`TestHandler_Delete_AbsentSourceIsIdempotentSuccess`），由变异 M19 暴露的覆盖缺口补出；后者钉住「删除不存在的行仍回 200 `deleted`」这个**当前的幂等设计**，避免后来者把它误改成 404。注意成功响应是信封式的：`b["success"]` 为 true 且 `b["data"].(map[string]any)["message"] == "deleted"`，不是顶层平铺。
+
+### 54.9 变异清扫 19 个：19 杀、0 存活、0 编译击杀
+
+流程按 R45/R47：先断言基线 PASS（**直接取 `go test` 的返回码，不经管道**——R52 已确认 `$?` 经管道取到的是 grep 的状态），再逐个改生产代码，**打印每处 patch 命中数**（`assert count == 1` 失败才看得见 NO MATCH），每个变异体恢复后用 `cmp` 逐字节比对备份，清扫结束后重新断言基线。
+
+**仓储层 7 个**：M1 去掉白名单、M2b 反转 nil 判断、M3 去掉 `len(keys) == 0` 守卫、M4 去掉 `ErrNoRows` 包装、M5 去掉 `received_at` 默认值、M6 丢弃驱动错误上下文、M7 不再填 `updated_at`。
+
+**service 层 5 个**：M8 去掉空请求守卫、M9 去掉 nil payload 归一、M10 把禁用报成泛化 `fmt.Errorf`、M11 不再同步 `status` 与 `enabled`、M12 不再回读行。
+
+**handler 层 7 个**：M14 去掉 `ErrNoFieldsToUpdate` 分支、M15 去掉 `Update` 的 404 分支、M16b 把 `Trigger` 的 404 改判 `sentinel.Unauthorized`、M17 去掉 `ContentLength` 守卫、M18 去掉 409 分支、M19b 丢弃 `Delete` 的 error、M20 交换 `Update` 里两个映射分支。
+
+**三个原本编译即失败的变异体改写成语义变异后重跑**：M2 去掉 nil 跳过 → **M2b** 反转为 `if value != nil { continue }`；M16 去掉 `Trigger` 的 NotFound 分支 → **M16b** 改判 `sentinel.Unauthorized`（`sentinel` 仍被引用，故不是编译杀死）；M19 去掉 `Delete` 的错误检查 → **M19b** `_ = h.svc.DeleteSource(...)`（去掉错误检查会让 `err` 未使用）。另有一个刻意的 no-op 对照 M13，正确报告 `patch-hits=0`。
+
+**M19 暴露了一个真实覆盖缺口**：`DELETE /job-sources/:id` 的 error→500 映射此前零测试。补出两个用例后 M19b 被杀死。
+
+**变异覆盖率诚实缺口（记录）**：M4（去掉 `ErrNoRows` 包装）是编译击杀——由未使用的 import 杀死而非由行为杀死。它的语义替身（返回**另一个** sentinel）本轮未跑；M15 与 M20 覆盖了「NotFound 分支存在且位置正确」这个行为，但「包装的具体 sentinel 身份」只有 `TestRepository_GetByID_EmptyResultSetReturnsNotFoundSentinel` 断言 `errors.Is(err, sentinel.NotFound)` 与 `!errors.Is(err, sql.ErrNoRows)` 两条，足以杀死「改成 `ErrSourceDisabled`」这类变异，未穷尽所有 sentinel 组合。
+
+### 54.10 记录不修（R38：丢弃只在挂到在册路由上才是缺陷）
+
+- **`JobSourceManager.Get` 零调用方**，因此四个 `*Source` 实现（`ManualSource`、`ScheduleSource`、`WebhookSource`、`EventTriggerSource`）的 `StartListening` 从未被调用。其中 `WebhookSource` 的注释明写 placeholder 且从不启动服务器、`EventTriggerSource` 的 goroutine 只 `<-ctx.Done()` 从不调用 handler 且 `event_type` 未使用、`ScheduleSource` 忽略 `cronExpr` 改成固定每小时——三者都是**具名桩且声明行为不可能成立**，但零接线，故按 R38 只记录。
+- **第二个死族是四个 `*Adapter`**——既有 42 个测试恰好全在测这一族，但 `WebhookAdapter` / `CronAdapter` / `EventAdapter` / `APIAdapter` 与 `AdapterFactory` 在 `internal/job-source` 之外零调用方（`AdapterFactory` 同名命中的 `internal/cmdb-collector` 是不相干的另一个类型）。**「测得多」不等于「接得上」**。
+- **整个 dispatch 与 compose 层**（`Dispatcher`、`EventRecorder`、`BridgeConsumer`、`SourceComposer`、`SourceCombinator`、`SourcePipeline`、`ChainExecutor`）内部与外部调用方均为零；`SourceCombinator` 的 AND 模式是显式 Placeholder 返回 nil；`ChainExecutor.ExecuteChain` 把 `payload.Source` 设成 `link.DownstreamID`（源 **ID**）而 `Dispatch` 按源 **type** 索引——是真实缺陷但未接线。
+- `Service.RegisterSource` 零调用方，`Service.mgr` 从不读；`repository.NullTime` 与 `repository.UnmarshalJSONConfig` 零调用方。
+- `Get` 把所有错误折成 404（平台级统一映射，与 R52 / R53 记录一致）；`List` 与 `ListEvents` 忽略非法负 `offset`；handler 丢弃两处 `strconv.Atoi` 错误回落到 50/0。
+- `error` 用作不加引号的列名——PostgreSQL 里 `ERROR` 是非保留字，合法（R53 本模块选 `error_message` 是为了避免引号，此处沿用既有列名）。
+- 全仓仍有 **24 份 per-module 迁移无人读取**，其中 16 份在顶层无对应；job-source 那一份是本轮修掉的（已进 685，stranded 文件保留作复制源）。
+
+### 54.11 下一轮候选池
+
+按信号强度排序：`internal/ticketing`（65 个 go 文件、122 条路由，路由最多的模块）、`internal/ticket`（56 个 go 文件）、`internal/governance`、`internal/ci-cd`、`internal/infrastructure`（15 张表）、`internal/llm-trace`、`internal/notification`、`internal/security`、`internal/file-handler`、`internal/cache`、`internal/apm`、`internal/cron`。**优先顺序建议**：先看 `migrations/security/` 子目录——`entriesInMigrationsDir()` 只读顶层，只建在那个子目录里的表可能从未被应用（与本轮 F1 同形，但方向是「DDL 存在却不被读取」）。
+
+### 54.12 验证
+
+```
+go build ./...                                                   → exit 0
+gofmt -l internal/job-source/ cmd/server/migration_job_source_tables_test.go
+                                                                   → 空
+go test -count=1 ./internal/job-source/...                         → exit 0
+   handler    11 PASS
+   repository 19 PASS
+   service    53 PASS   （既有 42 + 本轮 11）
+   models     [no test files]
+go test -count=1 ./cmd/server/                                     → exit 0
+go test -count=1 -run 'Migration_JobSource' ./cmd/server/          → exit 0，9 PASS
+ls migrations/ | grep -c '^685_'                                   → 2（本轮前向 + down，独占该号）
+# 以下命令必须在模块根 orion-platform-svc-go/ 下执行（CWD 不是仓库根）；
+# 从仓库根执行会扫到 /Users/heal/orion-design/migrations/，那里只有 2 个遗留文件，
+# 会打印 0 看起来正确，其实一行真实的数百条迁移都没扫到（与 §52.13、§53.13 同一陷阱）。
+```
+
+三个生产文件在变异清扫前后经 `cmp` 逐字节校验一致；清扫后仅有一处注释字符串改动（`repository.go` 里一条过期注释把迁移号 `678` 改成 `685`），该改动不改变任何可执行行为，且改后四套测试仍全绿。三个 pathspec 限定的提交，FORBIDDEN 校验（`migrations/dba`、`orion-frontend/src/api/dba`、`orion-frontend/src/pages/dba`、`orion-frontend/src/router/routes`、`docs/dba` 的 `wc -l`）在每次提交前后各打印一次、均输出 0。
