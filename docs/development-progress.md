@@ -11278,3 +11278,172 @@ go test -count=1 -run TestPolicy ./cmd/server/   → ok（11 项）
 ```
 
 policy 测试计数：handler 4（新增）、repository 10（新增），cmd/server 迁移交叉核对 11（新增），合计 25。提交分三笔（代码、测试、文档），每笔前后各跑一次 FORBIDDEN 校验（须输出 0）。
+
+## 第五十一轮：internal/sla 全部 17 条 /sla 路由在 SQL 层有缺陷——18 条语句指向从未被任何迁移创建的 sla_tracking、CreateDefinition 写不存在的 definition_type 列、UpdateDefinition 丢弃调用方整个 map、breach 事件读取无租户谓词、UpdateTracking 把 SET 子句用 AND 拼接且字段未排序、迁移 070 回滚漏删 sla_definitions（Round 51）
+
+扫描起点 HEAD `52515b8fe`（Round 50 的三笔提交之后）。
+
+**为什么选它**：模块完全接线——`cmd/server/cicd_domain_wiring.go:526` 无条件构造 `slaH = sla_handler.NewHandler(slaSvc)`，`router.go` 的单例 `registerRoutes` 循环把它挂上，共 **17 条注册的 `/sla` 路由**（`/definitions` ×2、`/definitions/:id` ×3、`/tracking` ×2、`/tracking/:id` ×3、`/tracking/:id/met`、`/tracking/:id/breached`、`/tracking/:id/pause`、`/tracking/:id/resume`、`/tracking/:id/breaches`、`/breaches`、`/detect`、`/stats`），前端 `orion-frontend/src/api/sla.ts` 是活的客户端。但 repository 层此前**零测试、sqlmock 一个也没有**，所以 `go build`、`go vet`、以及任何只看「语句有没有执行」的测试都看不见它的七个运行时缺陷。
+
+### 51.1 Finding 1 —— 18 条语句指向从未存在的 sla_tracking（单数）
+
+repository 的 tracking 语句全部写 `sla_tracking`，而 `migrations/070_create_sla_tables.sql` 建的是 `sla_trackings`，`570`（租户外键）、`571`（`deleted_at`）、`572`（`created_by`/`updated_by`）及其 down 文件拿到的也都是复数。`grep -rn 'sla_tracking' migrations/` 里**没有任何一处创建单数名**，于是九个 tracking 路由加上 `/sla/detect`、`/sla/stats` 第一次执行就报 `pq: relation "sla_tracking" does not exist`。
+
+`repository.go` 里共 19 个 `sla_trackings` 词，**18 条是真语句**（168、179、216、222、267、270、279、284、291、299、306、313、364、373、409、415、421、428、433 行；其中第 267 个词是本轮新加的注释），全部已改正。
+
+**改代码而不是加迁移**：DDL 是权威——models 的 `db:` 标签和三份后来的迁移都持有复数关系，代码改成复数只留下一个关系；反过来加一个改名迁移会同时留下两个同形关系，并让 570/571/572 的外键与列迁移指向一个被重命名的对象。**这一判断与 Round 50 的 592 相反**：那轮是 repository 与三份迁移都持有 060 的 `policies`，所以必须给 repository 那侧补表；这轮反过来，迁移侧三方一致，所以改代码。
+
+### 51.2 Finding 2 —— 三处写着 definition_type，而 070 声明的是 type
+
+`CreateDefinition` 的 INSERT 列列表、`ListDefinitions` 的 `fmt.Sprintf("type=$%d", pos)` 过滤器、以及 `service.go` 的 `updates["definition_type"]` 映射键，三处都写 `definition_type`。070 声明的是 `type VARCHAR(100)` 并在其上建 `idx_sla_definitions_type`；`grep` 全迁移目录，**没有任何迁移添加 `definition_type`**。三处全改为 `type`。
+
+**第三处只有源码检测器找得到**：前两个检测器（列名对 DDL 交叉核对、复数关系钉死）读的都是 SQL 字面量，而 service 层是把键塞进 map 再交给 repository，那个字符串永远不会出现在 SQL 里。所以补了第 4 个检测器 `TestSource_NoGoSourceNamesDefinitionType`，用 `filepath.WalkDir` 扫整个 `internal/sla/`（排除 `_test.go`），`scanned == 0` 即 `t.Fatal`。
+
+### 51.3 Finding 3 —— UpdateDefinition 丢弃调用方整个 map，PUT /sla/definitions/:id 静默空写
+
+service 的 `UpdateDefinition` 按请求体的每个非空指针字段往 `updates` 里放一个键。repository 侧原先只做 `updates["updated_at"] = time.Now()`，然后跑一条写死的：
+
+```sql
+UPDATE sla_definitions SET updated_at = NOW() WHERE id=$1 AND tenant_id=$2
+```
+
+map 被整个丢掉。更麻烦的是这条语句以 `NamedExecContext` 发出，而**它一个命名占位符都没有**——sqlx 的 `extractNamedArgs` 返回空切片，`bindMapArgs` 因此绑定**零个参数**，语句却照样带着字面 `$1`/`$2` 出闸。所以 `PUT /sla/definitions/:id` 既报错又什么都不改。
+
+修复是白名单动态 SET 构造，四条约束各自独立：
+
+1. **列名只来自方法内的字面量 map**（`columns map[string]string`，12 个键），调用方永远拼不进标识符。
+2. **`len(fields) == 0` 守卫在注入 `updated_at` 之前**。否则只传白名单外键的请求会退化成「只挪时间戳」的静默空写——和修复前的整体空写是同一个症状，只是范围小一点。
+3. **WHERE 子句带 `tenant_id` 约束**，且 `id`、`tenant_id` 刻意不是 map 的键：它们是定位行用的，不能由同一条语句设置。
+4. **`sort.Strings(fields)`**。map 迭代无序，不排序的话每次调用编译出的语句都不同，任何期望或预处理语句都无法固定它（这条约束在 Finding 5 里被同一个方法第二次需要）。
+
+### 51.4 Finding 4 —— GetBreachEventsByTracking 没有租户谓词
+
+原来只有 `WHERE tracking_id=$1`。而 `tracking_id` 是 `StartTracking` 调用方为自己实体自己选的 **VARCHAR(255)**，不是 UUID，两个租户完全可以持有同一个值——`GET /sla/tracking/:id/breaches` 会返回**任何**创建过该 id 的租户的数据。
+
+租户 ID 从 `c.GetString("tenant_id")` 一路透传：handler → service → 两个接口文件（`repository_interface.go`、`service_interface.go`）→ repository → 测试里的 fake。WHERE 变成 `tracking_id=$1 AND tenant_id=$2`。两个接口文件都标着 `DO NOT EDIT`（生成产物），这一处是**有意**改的——签名改了，生成文件不改就编译不过。
+
+### 51.5 Findings 5 + 6 —— 由测试先发现的两个 UpdateTracking 缺陷
+
+第一个 sqlmock 断言期望：
+
+```go
+mock.ExpectExec(`UPDATE sla_trackings SET notes=\$1, updated_at=\$2, status=\$3 WHERE id=\$4 AND tenant_id=\$5`).
+	WithArgs("marked met by hand", sqlmock.AnyArg(), "met", "trk-1", "t-1")
+```
+
+它报出的错就是生产代码的错：
+
+**Finding 5 —— SET 子句用 AND 拼接**。`UpdateTracking` 把收集到的 SET 字段交给 `joinWhereParts`，而那个 helper 用 ` AND ` 连接——它只该用于 WHERE 子句。所以任何一个多字段的 `PATCH /sla/tracking/:id` 都是 `UPDATE sla_trackings SET notes=$1 AND status=$2 WHERE ...`，不是合法 SQL，在驱动层每次必败。改为 `strings.Join(fields, ", ")`，并新增 `containsField` 帮助函数避免重复注入 `updated_at`；`joinWhereParts` 现在只服务两处 WHERE（79、212 行）。
+
+**Finding 6 —— SET 字段顺序取决于 map 迭代**。`fields` 从 Go map 收集而来，未排序，编译出的语句每次调用都不同。改为 `sort.Strings(fields)`。
+
+这两个都是「测试先于代码」的典型：不是先看到坏代码想到坏结果，而是先写期望，让期望去撞生产代码。
+
+### 51.6 Finding 7 —— 迁移 070 的回滚漏删 sla_definitions
+
+070 的前向脚本建 **3 张表、11 个索引**。它的 down 文件删了 11 个索引和另外两张表（`sla_breach_events`、`sla_trackings`），**唯独漏了**：
+
+```sql
+DROP TABLE IF EXISTS "sla_definitions" CASCADE;
+```
+
+回滚后留下一张索引已被全删的孤儿 `sla_definitions`。文件头是 `-- Auto-generated rollback for version 070. Review before use.`——生成器漏了一行。补上后 down 从 11 条 `DROP INDEX` + 2 条 `DROP TABLE` 变成 11 + 3。
+
+### 51.7 测试 20 个新用例
+
+`internal/sla/repository/repository_test.go`（新建，**16 个**）：
+
+- 12 个 sqlmock 语句与参数计数钉死。`mockDB` 用一个把字段折叠掉的 `normSQL` matcher；三组列名常量 `definitionColumns`（16）、`trackingColumns`（13）、`breachColumns`（6）保证 SELECT 的返回列与 models 的 `db:` 标签同步。
+  - `TestCreateDefinition_UsesTheTypeColumn`、`TestListDefinitions_TypeFilterBindsTheTypeColumn`
+  - `TestUpdateDefinition_EveryCallerKeyReachesASetClause`、`TestUpdateDefinition_UnlistedKeysNeverReachSQL`、`TestUpdateDefinition_EmptyMapIsANoOp`、`TestUpdateDefinition_ReturnsTheDriverError`
+  - `TestCreateTracking_WritesToSlaTrackings`、`TestGetTrackingByID_ReadsSlaTrackings`、`TestListTracking_UsesSlaTrackingsInBothStatements`、`TestUpdateTracking_WritesToSlaTrackings`
+  - `TestGetBreachEventsByTracking_ScopesByTenant`、`TestGetBreachEventsByTracking_ReturnsNilWithTheError`（R39.7：`err != nil` 与 `resp == nil` 都要断言）
+- 4 个源码检测器：`TestSource_NamedExecStatementsBindNamedArgs`、`TestSource_NoStatementMixesNamedAndPositionalPlaceholders`、`TestSource_TrackingStatementsAddressSlaTrackings`、`TestSource_NoGoSourceNamesDefinitionType`。
+
+`cmd/server/migration_sla_tables_test.go`（新建，`package main`，**4 个**，需要 `git add -f`）：
+
+- `TestMigration_SLA_RelationsNamedByTheRepositoryAreCreated` —— 关系名交叉核对，带正控（`schema["sla_tracking"]` 必须不存在）。
+- `TestMigration_SLA_InsertColumnsExistInTheDDL` —— 解析每条 INSERT 的列列表与每条 UPDATE 的 SET 子句，逐列对 DDL，`checked 39 insert/update columns`；正控两条：`definition_type` 必须判缺失、`type` 必须判存在。
+- `TestMigration_SLA_TrackingRelationIsPlural` —— 创建者必须恰好是 `070_create_sla_tables.sql`，且全迁移目录不得出现单数名；两个正控（单数样例必须命中、复数样例必须不命中）。
+- `TestMigration_SLA_DownReversesUp` —— 070 建 3 张表，down 必须逐张 `DROP TABLE`；11 个索引逐个 `DROP INDEX`。
+
+计数：`internal/sla` 合计 **34**；`./internal/sla/... ./cmd/server/` 合计 **129 PASS**。handler 的 18 个冒烟测试因租户签名改动而调整（`fakeSlaService.GetBreachEvents(ctx, tenantID, trackingID string)`）。
+
+### 51.8 变异 15 个：15 杀 0 存活 0 编译击杀
+
+每个变异都打印补丁数（`assert count == 1`，全局改名用 `global_replace=True` 断言 `c > 0`），每次还原都经 `cmp` 对 `/tmp/r51mut/` 逐字节校验。
+
+| # | 变异 | 补丁数 | 结果 |
+|---|------|-------|------|
+| M1 | `UpdateTracking` 退回 `joinWhereParts` | 2 | 杀 |
+| M2 | `UpdateTracking` 去掉字段排序 | 1 | 杀 |
+| M3 | `GetBreachEventsByTracking` 去掉租户谓词 | 1 | 杀 |
+| M4 | `GetTrackingByID` 退回单数 | 1 | 杀 |
+| M5 | `CreateDefinition` 退回 `definition_type` | 2 | 杀 |
+| M6 | `UpdateDefinition` 白名单去掉 `type` | 2 | 杀 |
+| M7 | `UpdateDefinition` 去掉空 map 守卫 | 1 | 杀 |
+| M8 | 070 down 省略 `DROP TABLE` | 1 | 杀 |
+| M9 | 070 前向全局单数改名 | 9 | 杀 |
+| M10 | 070 前向列退回 `definition_type` | 1 | 杀 |
+| M11 | `slaSchema` 返回空 | 1 | 杀 |
+| M12 | 关系提取器返回空 | 1 | 杀 |
+| M13 | `parseCreateTables` 不产出列 | 1 | 杀 |
+| M14 | `namedExecBodies` 返回空 | 1 | 杀 |
+| M15 | `definition_type` 扫描跳过所有文件（`if true {`） | 1 | 杀 |
+
+M1 的补丁数是 2：`strings.Join(fields, ", ")` 同时出现在 `UpdateDefinition` 和 `UpdateTracking` 里，`assert count == 1` 直接报出 2。若只 `grep` 到匹配就替换，会把两个方法一起改回 `joinWhereParts`，M1 就变成无法归因的复合变异；改用 `fmt.Sprintf("UPDATE sla_trackings SET ...")` 整块做锚点。M9 是反方向的教训：那一处本来就是全局改名，`assert count == 1` 反而挡住了它，所以加了 `global_replace=True` 分支（断言 `c > 0`）。两个分支都在，才不会出现「打印不出补丁数的变异」。
+
+### 51.9 变异与收尾过程暴露的四个自己的缺陷
+
+这轮写了两个新的检测器（关系名、列名对 DDL），两个都在第一遍就静默空转过：
+
+**(a) 为错误的缺陷类写了正控。** 修复前的 `UpdateDefinition` 语句**一个命名参数都没有**，所以「同一语句混用命名与字面 `$N` 占位符」这个夹具对它返回假——正控是绿的，缺陷是活的。换成 `TestSource_NamedExecStatementsBindNamedArgs`：遍历每个含 `NamedExecContext` 的函数体，断言语句里出现 `$N` 时必须有同名占位符与之对应。
+
+**(b) `filepath.Glob("**/*.go")` 静默扫了零个文件。** Go 的 `path.Match` 不支持 `**`。换成 `filepath.WalkDir`，加 `scanned == 0` 即 `t.Fatal`。
+
+**(c) `reFuncBody` 的 `[^)]*` 跨不过 `map[string]interface{}` 自己的括号。** `[^)]*` 在第一个 `)` 处就终止，而参数列表自带 `)`；`[^{]*\{` 又停在签名的第一个 `{` 上。换成 `strings.Index` 定界：以 `func (r *Repository) ` 为头，找下一个 `\nfunc ` 为界。含 `NamedExecContext` 判断前要先跳过不含它的文件（接口文件），并加 `checked != 0` 守卫与 `t.Logf("checked %d ...")`。死掉的 `reFuncBody` 声明一并删除。
+
+**(d) `definition_type` 文本检测器报了它自己产出的文本。** 第一次它报 `repository_test.go:523`——它自己测试的错误信息字面量；排除 `_test.go` 后，它又报 `service.go`——**我刚为修复加的那句注释里含有被禁的字面量**。注释改写掉字面标识符之后才过。**一个扫文本的检测器也会扫到自己产出的文本。**
+
+连同 Round 50 的四个（§50.6）——按源行做租户谓词检查把跨行语句误判、抓 `db` tag 的正则零命中、计数抄错且结论比证据强、`gofmt` 把注释里的成对 ASCII 引号改写——「工具或检测器静默空转」这一族**累计 8 例**。前 7 例的共同点是「跑了、绿了、什么都没检查」；第 8 例（本条 d）是它的镜像——**跑得太勤，把自己产出的东西当成待检对象**。
+
+### 51.10 记录不修（结转 Round 52）
+
+- **070 的 `tenant_id UUID NOT NULL` 与 Go string**。`d.ID`/`t.ID` 是 `uuid.New().String()`，能隐式转型；但 `tenant_id` 来自 `orion-go-common/pkg/auth/middleware.go:189` 的 `c.Set("tenant_id", claims.TenantID)`，repository 自己的夹具用的是 `"t1"`/`"tenant-1"`——一个非 UUID 的租户 id 会在驱动层转型失败。修它意味着把 070 的租户键类型改成 VARCHAR，而 570 又把它 cast 成 UUID 去连 users 外键。**这是全平台 schema 级决定，不是一个模块的补丁。**
+- **`DetectBreaches` 造重复事件**。它先 UPDATE 出 breached 行，再 `SELECT status='breached' AND updated_at >= NOW() - INTERVAL '1 minute'` 逐行插入事件，所以重跑和手工 `MarkBreached` 的行会造出重复事件；那条 INSERT 也不写 `breach_details`。**压制事件对合法的多违约 SLA 是错的**，按 tracking 冷却是产品决定。
+- **`GetStats` 把 met/breached 的 COUNT 算了两遍**（第 3、4 条与第 5、6 条语句完全相同）——活路由上的冗余往返，不是 stub。
+- **`ListBreachEvents`** 在带 error 时返回 `events`（error 来自 COUNT 查询）。
+- **`UpdateTracking` 的 `if len(fields) == 0 { return nil }` 是死代码**——`updated_at` 总是先被注入。
+- **`UpdateTrackingStatus` 零调用方**（两个接口都声明、也已实现），`models.UpdateTrackingStatusRequest` 同为孤儿 → 死代码。
+- **`IsNotFound`/`ErrNotFoundSLA`** 在 repository 与 service 各存一份（service 侧叫 `IsNotFound`/`ErrNotFoundSlaEntity`）。
+- **`MarkBreached`/`PauseTracking`** handler 忽略 `c.ShouldBindJSON(&body)` 的 error。
+
+### 51.11 前后端契约漂移（记录，非代码修复）
+
+`orion-frontend/src/api/sla.ts:156` 调 `/sla/tracking/${id}/breach`，后端注册的是 `/sla/tracking/:id/breached`。前端在 FORBIDDEN 范围内，只记录。
+
+### 51.12 下一轮候选池
+
+按 51.x 这轮的判据（先确认接到在册路由，再动代码）：
+
+- `artifact-lifecycle:70`、`disaster-recovery:62`、`ephemeral-env:62`（类 2 DDL 缺口仍开着：`artifact_lifecycle`、`disaster_plan`、`ephemeral_env`、`ephemeral_env_logs`、`recovery_run`）。
+- `iac:152`（MIXED；占位符与键名对得上，**唯一绑定性缺陷是字面 `$N` 的 WHERE**）。
+- `sla:99` —— **本轮关闭**。
+- `dba/osc:126` —— **FORBIDDEN，只记录**。
+- 未扫到本轮标准的模块：`internal/notification`、`internal/file-handler`、`internal/job-source`、`internal/security`、`internal/infrastructure/*`（剩余）、`internal/cache`、`internal/apm`、`internal/cron`。
+- `iac_modules` 只在 iac 自己的 Go `EnsureTable` 里，`cmd/server` 零调用方。
+
+### 51.13 验证
+
+```
+gofmt -l internal/sla/ cmd/server/                      → （空）
+go vet ./internal/sla/... ./cmd/server/                 → exit 0
+go build ./...                                          → BUILD OK
+go test -count=1 ./internal/sla/... ./cmd/server/       → 全部 ok（129 PASS）
+grep -rn definition_type internal/sla/ --include='*.go' | grep -v _test.go   → 0
+grep -E 'sla_tracking([^s]|$)' internal/sla/repository/repository.go        → 0
+```
+
+sla 测试计数：repository 16（新增）、handler 18（因租户签名调整）、cmd/server 迁移交叉核对 4（新增），**新用例合计 20**。
+
+本轮扫描前先把三个要写进文档的数字核了一遍，因为 Round 50 已经为一个抄错的计数赔过一轮：在册路由数是 **17** 不是 16；`sla_trackings` 是 **19 个词**（18 条真语句 + 1 条注释），不是 18；070 有 **11 个索引** 不是 9。
