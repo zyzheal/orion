@@ -6,9 +6,9 @@ import (
 )
 
 type ServiceInterface interface {
-	ApproveChangeRequest(ctx context.Context, tenantID, id string, req *models.ApproveRequest) (*models.ChangeRequest, error)
-	ExecuteChangeRequest(ctx context.Context, tenantID, id string) (*models.ChangeRequest, error)
-	RollbackChangeRequest(ctx context.Context, tenantID, id string, req *models.RollbackRequest) (*models.ChangeRequest, error)
+	ApproveChangeRequest(ctx context.Context, tenantID, id, caller string, req *models.ApproveRequest) (*models.ChangeRequest, error)
+	ExecuteChangeRequest(ctx context.Context, tenantID, id, actor string) (*models.ChangeRequest, error)
+	RollbackChangeRequest(ctx context.Context, tenantID, id, actor string, req *models.RollbackRequest) (*models.ChangeRequest, error)
 	GetChangeHistory(ctx context.Context, tenantID, id string) ([]models.ChangeHistoryEntry, error)
 	DriftDetect(ctx context.Context, tenantID string, req *models.DriftDetectRequest) (*models.DriftDetectResult, error)
 	RemediateDrift(ctx context.Context, tenantID, id string, req *models.RemediateRequest) (*models.DriftReport, error)

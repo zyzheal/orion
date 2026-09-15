@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"errors"
+
 	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/config-mgmt-enhanced/models"
 	"orion/platform-svc-go/internal/config-mgmt-enhanced/service"
 
@@ -39,22 +42,51 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.POST("/drift/:id/remediate", auth.RequirePermission("config_mgmt_enhanced", "write"), h.RemediateDrift)
 }
 
-func (h *Handler) getTenantID(c *gin.Context) string {
+// getTenantID returns the caller's tenant. The bool matters:
+// RespondUnauthorized does not call c.Abort(), so without it all 13 handlers
+// kept running after the 401 with an empty tenant_id and the repository matched
+// every row keyed on the empty string.
+func (h *Handler) getTenantID(c *gin.Context) (string, bool) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondUnauthorized(c, "tenant_id required")
-		return ""
+		return "", false
 	}
-	return tenantID
+	return tenantID, true
+}
+
+// actor is the authenticated identity the service records in the audit trail.
+// The service used to write the literal string "system" for approved_by,
+// executed_by and rolled_back_by, so the audit columns never named a person.
+func actorFromContext(c *gin.Context) string {
+	return c.GetString("user_id")
+}
+
+// respondServiceError maps service sentinels onto HTTP statuses. Every handler
+// used to pick one status for every error: Get answered 500 for a deleted row
+// and 400 for a database outage, Update answered 404 for an invalid state
+// transition, and Approve/Execute/Rollback answered 400 for a missing row.
+func respondServiceError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, sentinel.NotFound):
+		middleware.RespondNotFound(c, err.Error())
+	case errors.Is(err, service.ErrInvalidState), errors.Is(err, service.ErrInvalidInput):
+		middleware.RespondBadRequest(c, err.Error())
+	default:
+		middleware.RespondInternalError(c, err.Error())
+	}
 }
 
 func (h *Handler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
 	defer span.End()
-	tenantID := h.getTenantID(c)
+	tenantID, ok := h.getTenantID(c)
+	if !ok {
+		return
+	}
 	entities, err := h.svc.List(ctx, tenantID)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	middleware.RespondSuccess(c, models.PaginatedResponse{Data: entities, Total: len(entities), Page: 1, PageSize: len(entities)})
@@ -68,10 +100,13 @@ func (h *Handler) Create(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	tenantID := h.getTenantID(c)
+	tenantID, ok := h.getTenantID(c)
+	if !ok {
+		return
+	}
 	entity, err := h.svc.Create(ctx, &req, tenantID)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	middleware.RespondCreated(c, entity)
@@ -81,10 +116,13 @@ func (h *Handler) Get(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
 	defer span.End()
 	id := c.Param("id")
-	tenantID := h.getTenantID(c)
+	tenantID, ok := h.getTenantID(c)
+	if !ok {
+		return
+	}
 	entity, err := h.svc.Get(ctx, id, tenantID)
 	if err != nil {
-		middleware.RespondNotFound(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	middleware.RespondSuccess(c, entity)
@@ -99,10 +137,13 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	tenantID := h.getTenantID(c)
+	tenantID, ok := h.getTenantID(c)
+	if !ok {
+		return
+	}
 	entity, err := h.svc.Update(ctx, id, tenantID, &req)
 	if err != nil {
-		middleware.RespondNotFound(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	middleware.RespondSuccess(c, entity)
@@ -112,10 +153,13 @@ func (h *Handler) Delete(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
 	defer span.End()
 	id := c.Param("id")
-	tenantID := h.getTenantID(c)
+	tenantID, ok := h.getTenantID(c)
+	if !ok {
+		return
+	}
 	deleted, err := h.svc.Delete(ctx, id, tenantID)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	if !deleted {
@@ -135,11 +179,16 @@ func (h *Handler) ApproveChangeRequest(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	id := c.Param("id")
-	tenantID := h.getTenantID(c)
-	cr, err := h.svc.ApproveChangeRequest(ctx, tenantID, id, &req)
+	tenantID, ok := h.getTenantID(c)
+	if !ok {
+		return
+	}
+	// The identity comes from the authenticated context, never the body: an
+	// Approver field here would let a client approve another user's change and
+	// claim someone else's signature.
+	cr, err := h.svc.ApproveChangeRequest(ctx, tenantID, c.Param("id"), actorFromContext(c), &req)
 	if err != nil {
-		middleware.RespondBadRequest(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	middleware.RespondSuccess(c, cr)
@@ -148,11 +197,13 @@ func (h *Handler) ApproveChangeRequest(c *gin.Context) {
 func (h *Handler) ExecuteChangeRequest(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteChangeRequest")
 	defer span.End()
-	id := c.Param("id")
-	tenantID := h.getTenantID(c)
-	cr, err := h.svc.ExecuteChangeRequest(ctx, tenantID, id)
+	tenantID, ok := h.getTenantID(c)
+	if !ok {
+		return
+	}
+	cr, err := h.svc.ExecuteChangeRequest(ctx, tenantID, c.Param("id"), actorFromContext(c))
 	if err != nil {
-		middleware.RespondBadRequest(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	middleware.RespondSuccess(c, cr)
@@ -166,11 +217,13 @@ func (h *Handler) RollbackChangeRequest(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	id := c.Param("id")
-	tenantID := h.getTenantID(c)
-	cr, err := h.svc.RollbackChangeRequest(ctx, tenantID, id, &req)
+	tenantID, ok := h.getTenantID(c)
+	if !ok {
+		return
+	}
+	cr, err := h.svc.RollbackChangeRequest(ctx, tenantID, c.Param("id"), actorFromContext(c), &req)
 	if err != nil {
-		middleware.RespondBadRequest(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	middleware.RespondSuccess(c, cr)
@@ -179,11 +232,13 @@ func (h *Handler) RollbackChangeRequest(c *gin.Context) {
 func (h *Handler) GetChangeHistory(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetChangeHistory")
 	defer span.End()
-	id := c.Param("id")
-	tenantID := h.getTenantID(c)
-	entries, err := h.svc.GetChangeHistory(ctx, tenantID, id)
+	tenantID, ok := h.getTenantID(c)
+	if !ok {
+		return
+	}
+	entries, err := h.svc.GetChangeHistory(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		middleware.RespondNotFound(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	middleware.RespondSuccess(c, entries)
@@ -199,10 +254,13 @@ func (h *Handler) DriftDetect(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	tenantID := h.getTenantID(c)
+	tenantID, ok := h.getTenantID(c)
+	if !ok {
+		return
+	}
 	result, err := h.svc.DriftDetect(ctx, tenantID, &req)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	middleware.RespondSuccess(c, result)
@@ -216,11 +274,13 @@ func (h *Handler) RemediateDrift(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	id := c.Param("id")
-	tenantID := h.getTenantID(c)
-	dr, err := h.svc.RemediateDrift(ctx, tenantID, id, &req)
+	tenantID, ok := h.getTenantID(c)
+	if !ok {
+		return
+	}
+	dr, err := h.svc.RemediateDrift(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		respondServiceError(c, err)
 		return
 	}
 	middleware.RespondSuccess(c, dr)

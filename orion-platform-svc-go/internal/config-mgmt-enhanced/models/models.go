@@ -220,6 +220,15 @@ type DetectDriftInput struct {
 // ==================== Business Endpoint Models ====================
 
 // ApproveRequest is the request body for approving a change request.
+//
+// The approver is deliberately not a field of this body. The handler stamps it
+// from the authenticated user and the service rejects an empty caller, so the
+// identity travels through the middleware context instead of the request JSON.
+// The service once hardcoded a fixed value for both the approved_by column and
+// the approval record, which made the audit trail name the process rather than
+// the person who clicked approve. A caller-supplied approver field sat next to
+// that logic and was ignored by the handler; it is deleted now because an input
+// field the server silently drops reads to the client as one it accepts.
 type ApproveRequest struct {
 	Comment string `json:"comment"`
 }
@@ -236,9 +245,15 @@ type DriftDetectRequest struct {
 }
 
 // DriftDetectResult is the response from drift detection.
+//
+// Targets and Scope echo what the caller asked to scan. They exist so a client
+// can tell "the scan ran over three targets and found nothing" from "the scan
+// ran over nothing and found nothing".
 type DriftDetectResult struct {
-	Status string       `json:"status"`
-	Drifts []DriftEntry `json:"drifts"`
+	Status  string       `json:"status"`
+	Drifts  []DriftEntry `json:"drifts"`
+	Targets int          `json:"targets"`
+	Scope   string       `json:"scope"`
 }
 
 // DriftEntry represents a single detected drift.
