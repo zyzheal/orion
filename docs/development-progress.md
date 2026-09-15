@@ -11447,3 +11447,130 @@ grep -E 'sla_tracking([^s]|$)' internal/sla/repository/repository.go        → 
 sla 测试计数：repository 16（新增）、handler 18（因租户签名调整）、cmd/server 迁移交叉核对 4（新增），**新用例合计 20**。
 
 本轮扫描前先把三个要写进文档的数字核了一遍，因为 Round 50 已经为一个抄错的计数赔过一轮：在册路由数是 **17** 不是 16；`sla_trackings` 是 **19 个词**（18 条真语句 + 1 条注释），不是 18；070 有 **11 个索引** 不是 9。
+
+## 第五十二轮：internal/artifact-lifecycle 全部 7 条在册路由在 SQL 层有缺陷——9 条语句指向从未被任何迁移创建的 artifact_lifecycle（单数）、Update 把命名 SET 占位符与字面 $1/$2 的 WHERE 混排、Go 的 map 缺键取值把 NOT NULL 的 stage_status 绑成 SQL NULL、sql.ErrNoRows 从不被包装成 sentinel.NotFound（Round 52）
+
+扫描起点 HEAD `2abc563ff`（Round 51 的三笔提交之后）。
+
+**为什么选它**：模块完全接线——`cmd/server/wiring-artifact-lifecycle.go` 无条件构造 handler，`handler.go:25-34` 用 `r := rg.Group("/artifact-lifecycle")` 注册 **7 条在册路由**（`GET ""`、`GET "/:artifactId"`、`POST ""`、`PUT "/:id/stage"`、`DELETE "/:id"`、`GET "/stages"`、`PUT "/:id/archive"`），前端有活的调用方。但 repository 与 service 两层此前**零测试、sqlmock 一个也没有**，所以 `go build`、`go vet` 以及任何只看「语句有没有执行」的测试都看不见它的六个运行时缺陷。
+
+### 52.1 Finding 1 —— 9 条语句指向从未被任何迁移创建的 artifact_lifecycle（单数）
+
+repository 的 9 条语句全部写 `artifact_lifecycle`，而 `migrations/094_create_artifact-lifecycle_tables.sql` 建的是 `artifact_lifecycles`。复数关系的持有者是 **094（CREATE，up 3 处 / down 2 处）、239（tenant cast，3 处）、570（`fk_artifact_lifecycles_tenant`，up 6 / down 2）、572（`created_by`/`updated_by`，up 9 / down 4）**。`grep -rEln 'artifact_lifecycle([^s]|$)' migrations/` **零命中**——没有任何迁移创建单数名，于是 7 条路由第一次执行就在规划期报 `pq: relation "artifact_lifecycle" does not exist`。
+
+**改代码而不是加改名迁移**：DDL 是权威——四份迁移都持有复数关系，代码改成复数只留下一个关系；反过来加一个改名迁移会同时留下两个同形关系，并让 239/570/572 的列迁移与外键指向一个被重命名的对象。`repository.go` 9 处改名后共 **165 行**。
+
+**与 Round 50 的 592 方向相反**：那轮是 repository 与三份迁移都持有 060 的 `policies`，所以必须给 repository 那侧补表；这轮反过来，迁移侧四方一致，所以改代码。
+
+### 52.2 Finding 2 —— Update 把命名 SET 占位符与字面 $1/$2 的 WHERE 混排
+
+pre-fix 的 `Update` 全文（`/tmp/r52/repository.go.bak:68-75`，已删）：
+
+```go
+func (r *Repository) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
+    updates["updated_at"] = time.Now().UTC()
+    _, err := r.db.NamedExecContext(ctx,
+        `UPDATE artifact_lifecycle SET stage=:stage, stage_status=:stage_status, updated_at=:updated_at
+        WHERE id=$1 AND tenant_id=$2`,
+        map[string]interface{}{"id": id, "tenant_id": tenantID, "stage": updates["stage"], "stage_status": updates["stage_status"], "updated_at": updates["updated_at"]})
+    return err
+}
+```
+
+sqlx 的 `compileNamedQuery` 按**出现顺序**把命名占位符重编号为 `$1..$N`，**不触碰字面的 `$N` 文本**。于是 SET 变成 `stage=$1, stage_status=$2, updated_at=$3`，而 WHERE 里的 `id=$1` 拿到的是 stage 的值、`tenant_id=$2` 拿到的是 stage_status 的值——**WHERE 子句既不指名任何一行，也不做租户约束**。这是 Round 49 的机理 A 在本模块的又一实例，但更坏：那几处是「参数错位」，这里是「WHERE 完全无名」。
+
+修法：整条语句全部改用命名占位符，`WHERE id=:id AND tenant_id=:tenant_id`，并把 SET 子句改成从方法内的字面量白名单 map 动态拼出——列名只可能来自字面量（调用方永远拼不进标识符），`id` 与 `tenant_id` 刻意不在白名单里（它们只约束 WHERE，不能由同一条语句既指名又改写）。`len(fields) == 0` 的守卫放在注入 `updated_at` **之前**；`updated_at` 有去重守卫；`sort.Strings(fields)` 让 map 的无序遍历不传染到编译出的语句（否则对它的 sqlmock 期望要赌调度器）；`bind["updated_at"]` **总是覆盖**调用方塞进来的值，防写入投毒。
+
+### 52.3 Finding 3 —— Go 的 map 缺键取值把 NOT NULL 的 stage_status 绑成 SQL NULL
+
+上面那段的第三处 key——`"stage_status": updates["stage_status"]`——是本轮最隐蔽的一处。`models.AdvanceStageRequest` 只有 `Stage` 一个字段，service 的 `AdvanceStage` 也只塞 `stage` 一个键，所以 `updates["stage_status"]` 是一个**不存在的 key**。
+
+Go 的 map 对缺失 key 取下标返回零值，`interface{}` 的零值是 `nil`。所以 bind map 里 `stage_status` 这一项是**存在、值为 nil**，而不是不存在。用临时探针（`probe_tmp_test.go`，跑完删除）实测并钉下三条：
+
+- `val, present := updates["stage_status"]` → `present=false value=<nil>`；
+- 这个 key 进了 bind map 之后，sqlx 返回 `err=<nil>`，把 NULL 原样交给驱动；
+- 094 声明的是 `stage_status VARCHAR(255) NOT NULL`，于是 **每一次 stage 推进都报 not-null violation**。
+
+**与「key 整个缺失」的对比值得记一笔**：如果 bind map 里根本没有 `stage_status` 这个 key，sqlx 会硬报错 `could not find name stage_status in map[string]interface {}{...}`——失败更早、更响亮。pre-fix 的代码恰恰显式写死了这个 key，绕开了那条会大声报错的路径，走的是静默绑定 NULL 的那条。
+
+**刻意不发明 `stage_status = stage`**：请求体表达不了状态，写它等于让 `PUT /artifact-lifecycle/:id/stage` 声称调用方发了它没发的数据。正确的表达是「只 SET 调用方点名的列」，而 `stage_status` 只在调用方真的点名时才会出现在 SET 里。
+
+### 52.4 Finding 4 —— sentinel.NotFound 从未被生产出来过，Create 的两分支判断全是死代码
+
+`GetByID` 与 `GetByArtifactID` 把 sqlx 的 `sql.ErrNoRows` 原样返回，而 service 检查的是 `sentinel.NotFound`。`orion-go-common/pkg/sentinel/errors.go:21` 是 `var NotFound = errors.New("not found")`——一个普通 error，`errors.Is` 按**身份**判断，所以 `sql.ErrNoRows` 永远匹配不上它。**整个 module 里 `sentinel.NotFound` 从未被生产出来过一次，service 里的这些检查全是死代码**，no-row 读取被当成 driver error 上报。
+
+最具体的后果落在 `Create`：它先用 `GetByArtifactID` 判重复，缺行才是「可以建」，其余一律当别的错误返回。缺行永远不被识别，于是 **`POST /artifact-lifecycle` 对每个全新的 `artifact_id` 都答 500 报 `sql: no rows in result set`，一行都不建**——一个创建接口，在唯一该创建的路径上不创建。
+
+修法与仓库既有模式一致（`internal/webhook/repository/repository.go:50-55`、`internal/pipeline-templates/repository/repository.go:60-65`）：在两个单记录读取方法里把 `sql.ErrNoRows` 包装成 `sentinel.NotFound`，其它错误原样返回。
+
+### 52.5 Finding 5 —— AdvanceStage / Delete / Archive 把 GetByID 的一切错误折叠成 sentinel.NotFound
+
+三个方法原先都是 `if err != nil { return nil, sentinel.NotFound }`（`Delete` 是 `return sentinel.NotFound`），把 driver error 一并翻成「不存在」。
+
+**修复顺序上有意义**：F4 之前这条不可观测——那时 `GetByID` 只会返回 `sql.ErrNoRows`，吞成 NotFound 与否，行为看不出差别。F4 之后 driver error 才第一次能到达这个分支，缺陷才变得可达。所以 F5 是 F4 的**后继暴露**，不是并列缺陷。
+
+症状：数据库宕机时 `PUT /artifact-lifecycle/:id/stage`、`DELETE /artifact-lifecycle/:id`、`PUT /artifact-lifecycle/:id/archive` 都答「这个 artifact 没有生命周期」。**这是缺行与缺库的区别**——前者该 404，后者该 500。
+
+### 52.6 Finding 6 —— service.IsNotFound 是自并或的死代码，零调用方
+
+`func IsNotFound(err error) bool { return errors.Is(err, sentinel.NotFound) || errors.Is(err, sentinel.NotFound) }`——两个操作数是同一个表达式，整个函数等同它的左半，而且**零调用方**（`internal/artifact` 里有一个名字相同但内容不相干的函数）。零调用方的零信息方法按约定是死代码，基础设施也不缺，所以直接删除。`service.go` 118 → 128 行（F4/F5 的注释与分支占去净增量）。
+
+### 52.7 gin 路由碰撞：已实测，非缺陷
+
+`GET "/:artifactId"` 与 `GET "/stages"` 注册在同一树位置，属于典型的「该报的错」候选，于是用临时 in-module 测试实测（跑完删除）：gin v1.10.0 **不 panic，且静态路由优先**——`/artifact-lifecycle/stages` → 200 "static"、`/artifact-lifecycle/abc-123` → 200 "param:abc-123"、`/artifact-lifecycle/` → 404。记录为非缺陷，不改动。
+
+### 52.8 测试 36 个新用例
+
+`./internal/artifact-lifecycle/...` 合计 **39 PASS**：handler 8（原有）、**repository 20（新增）、service 11（新增）**；`cmd/server` 迁移交叉核对 **5 PASS（新增）**。新用例合计 **36**。
+
+repository 20：`mockDB(t)` 用 `sqlmock.QueryMatcherOption(sqlmock.QueryMatcherFunc(...))` 做**字段折叠**的 SQL 比较（语句里的空白与缩进不参与比较），逐条钉编译后的语句与参数个数——`UPDATE artifact_lifecycles SET stage=$1, updated_at=$2 WHERE id=$3 AND tenant_id=$4`（4 参，只推 stage 时**没有** stage_status 槽位）、`stage=$1, stage_status=$2, updated_at=$3`（5 参，三个白名单列各占自己的槽位）。白名单外的 key 用「**不注册任何期望**」来断言：`sqlmock.New()` 对没有期望的任何调用都报错，所以「无期望注册仍然 `err == nil`」就证明方法根本没碰 SQL；空 map 是 no-op；`GetByID`/`GetByArtifactID` 的 no-row 返回 sentinel、driver error 不被吞成 NotFound，各自独立成测。另有 **4 个源码检测器**，全部带**正控**（对 pre-fix 文本必须命中）：语句不混排命名与位置占位符（打 `checked 9 statements`）、语句只指向 `artifact_lifecycles`、`sql.ErrNoRows` 不泄漏出仓库层（并钉死「单记录读取方法恰好 2 个」）、仓库层确实产出 sentinel.NotFound。
+
+service 11：手写 `recordingRepo` 实现整个 `RepositoryInterface`（不上 mockgen，接口共 9 个方法），`var _ RepositoryInterface = (*recordingRepo)(nil)` 断言接口没漂移。`AdvanceStage`/`Delete`/`Archive` 的 driver error 原样返回、缺行才 NotFound；`(T, error)` 的失败路径**同时**断言 `err != nil` 与 `resp == nil`；`AdvanceStage` 只发 `stage` 一个键并逐个拒绝 `stage_status`/`status`/`id`/`tenant_id`；`Create` 的重复与新建两分支都钉（后者正是 F4 修的那条）；外加 1 个源码检测器（自并或）。
+
+`cmd/server` 迁移交叉核对 5：关系创建者唯一且必须是 094、repository 只指向复数（先 mask 掉复数再扫单数，因为 Go 的 regexp 没有 lookahead）、INSERT 的 **7 列**与 model 的 **7 个 `db:` tag** 逐列对 DDL 相等、`stage_status VARCHAR(255) NOT NULL` 钉死（日志打 `stage_status is VARCHAR(255) NOT NULL`）、239/570/572 持有该关系且 570 与 572 必须存在，以及一个**永不失败**的 down 迁移测量。
+
+### 52.9 变异 16 个：16 杀 0 存活 0 编译击杀
+
+repository 10：Create 退回单数关系、Update 的 WHERE 退回字面 `$1`/`$2`、白名单去掉改回直接用 key 当列名、无条件写 stage_status、`GetByID` 的 ErrNoRows 包装删除、`GetByArtifactID` 的包装删除、去掉 `sort.Strings`（跑 `-count=30`，**这个杀是概率性的**）、`updated_at` 去重守卫删除、空 SET 守卫删除、`GetByID` 缺行返回零值指针。
+
+service 6：`AdvanceStage`/`Delete`/`Archive` 各自的 driver-error 折叠、`AdvanceStage` 发明 `stage_status`、死 `IsNotFound` 分别以**单行体**与**多行体**两种写法重新加回（M15 / M15b）。
+
+纪律：**每处 patch count 打印并断言为 1**（M04 的 count 打印过 4，暴露了重复匹配）；**每次还原用 `cmp` 对 `/tmp/r52mut/` 做逐字节校验**；**清扫前断言两个包的基线都是 PASS**；**直接取 `go test` 的 return code**，不经过管道。
+
+M04（无条件写 `stage_status`）被 4 个测试杀掉，捕获到的输出正是 F3 的机理：`could not find name stage_status in map[string]interface {}{"id":"lc-1", "stage":"deploy", "tenant_id":"t-1", "updated_at":...}`，外加 SQL 不匹配 `stage_status=$2, stage_status=$3, updated_at=$4`。这条输出本身就是「变异比想象更吵，因为 mutant 用的是 key 缺失路径」的证据。
+
+### 52.10 变异与收尾过程暴露的两个自己的缺陷
+
+「工具或检测器静默空转」这一族累计 **10 例**（Round 50 的 4 例 + Round 51 的 4 例 + 本轮 2 例）。
+
+**(a) 检测器只认行首前缀，单行函数体逃过。** `TestSource_NoTautologicalDisjunction` 的第一版只在**行首**剥离 `return ` 与 `if `，于是 `func IsNotFound(err error) bool { return X || X }` 这种签名、return 与并或同处一行的写法整个逃过检测，变异 M15 存活。第一版修正思路（后缀比较 + 操作数首字符必须是标识符首字符）在跑之前就被自己推翻了：右半边被 `TrimSpace` 后还留着单行体尾部的 ` }`，`HasSuffix` 永远匹配不上。最终改成**从并或运算符两侧向外做括号配对的 operand 提取**（`leftOperand` / `rightOperand`，识别 `()`、`[]`、`{}` 与顶层分隔符），形状无关。阳性对照扩成 4 种形状（`return X || X`、行首 `if X || X {`、单行函数体、单行 `if X || X { return Y }`），每种断言恰好 1 命中；再加 4 个负控，其中「`foo.bar` 与 `bar`」（字段访问）和「`foo.Bar()` 与 `Bar()`」（方法调用）这两个形状会让朴素的 suffix 比较误报——左操作数确实以右操作数的文本结尾，但语义完全不同。
+
+**(b) `go test` 的退出码被管道吞掉。** 之前的做法是 `go test ... | grep -c '^--- PASS'` 并把 `$?` 当成功判据，而 `$?` 取到的是 **grep 的状态**。结果那个检测器测试**一直在 FAIL，而我读到的是 PASS**——于是 M15 与 M15b 的两次「KILL」都是变异因为**别的原因**失败（它的正控本身坏了），而不是被变异杀死。这轮改为直接捕获 `go test` 的 return code（重定向到文件、单独读取），并在清扫前断言两个包的基线都是 PASS，然后**整轮 16 个变异从头重跑一遍**。
+
+### 52.11 记录不修（结转 Round 53）
+
+- **094 的 down 文件删了 2 个索引但不删任何表**，属**系统性生成器遗漏**而非本模块孤例：`TestMigration_DownMigrationsThatCreateTablesDoNotAlwaysDropThem` 实测，创建了至少一张表的前向迁移里有 **106 条**其 down 文件一条 `DROP TABLE` 都没有。这个测试**永不失败**（只在退化时 fail），数字留在测试日志里而不是文档里手抄。核数时发现分母是 **249** 而不是上一轮记的 244；本轮收尾时工作树里另有 14 个其他 agent 的未跟踪迁移（600–613），分母变成 **254**、分子仍是 106——所以这个数字是随仓库走的，文档里只记口径。全平台的修复需要单独一轮。
+- **handler 把所有错误都映射成 `errors.ErrInternal` 500，没有 404 映射**（全平台一致，非本模块缺陷）。F4/F5 修好之后 sentinel 能正确产生，但客户端仍只能收到 500。
+- **094 声明了 `deleted_at` 但 model 没有对应字段**，repository 的 `Delete` 是硬 DELETE。软删需要 model 与 repository 两侧同时补，且要决定恢复语义。
+- **`ListLifecycle` 丢弃 `strconv.Atoi` 的错误**（limit 回落 50，无害，且无跨租户风险）。
+- **同型缺陷记录不修（不在授权模块内）**：`disaster-recovery:62`、`ephemeral-env:62`、`iac:152`（MIXED，唯一绑定性缺陷是字面 `$N` 的 WHERE）、`dba/osc:126`（`internal/dba/**` 不可动，`migrations/dba/` 属 FORBIDDEN）。
+
+### 52.12 下一轮候选池
+
+`internal/artifact-lifecycle` 本轮**关闭**（7 条在册路由、repository 与 service 两层、迁移交叉核对全部有测试）。尚未达到本轮标准的模块：`internal/notification`（45 go / 15 test）、`internal/file-handler`、`internal/job-source`、`internal/security`（19 / 9）、`internal/infrastructure/*`（剩余部分）、`internal/cache`、`internal/apm`、`internal/cron`。class-2 DDL 缺口仍未闭合：`disaster_plan`、`ephemeral_env`、`ephemeral_env_logs`、`recovery_run`；`iac_modules` 只出现在 iac 的 Go `EnsureTable` 里、`cmd/server` 零调用方。硬编码成功标记的分诊（每条都要先按 R38 确认是否挂在在册路由上）：`internal/health-check/service/service.go`、`pipeline_executor.go` ×5、`internal/assistant/service/actions.go:42`、`internal/assistant/handler/handler.go:78`、`internal/cmdb/service.go:465`、`internal/data-catalog/service.go:166`、`internal/serverless/service.go:152`、`internal/multi-cloud/service.go:354`、`internal/tool/service.go:318`、`internal/workflow-webhook/handler.go:144`、`internal/chaos-gateway/service.go:294`、`internal/multi-modal-trigger/service/business.go:20`、`internal/ticket/service/automation_rule.go:174`。结构性债务已量化：1302 处代码行 `SELECT *`，对应 572 改过的 1007 张表。
+
+### 52.13 验证
+
+```
+go build ./...                                        → exit 0
+go vet ./internal/artifact-lifecycle/...              → exit 0
+gofmt -l internal/artifact-lifecycle/                 → 空
+go test -count=1 ./internal/artifact-lifecycle/...    → exit 0，39 PASS（handler 8 + repository 20 + service 11）
+go test -count=1 -run 'TestMigration_ArtifactLifecycle|...DoNotAlwaysDropThem' ./cmd/server/
+                                                      → exit 0，5 PASS
+grep -rEln 'artifact_lifecycle([^s]|$)' migrations/   → 0（没有任何迁移创建单数名）
+grep -rn 'artifact_lifecycle\b' internal/ cmd/ --include='*.go' | grep -v _test.go
+                                                      → 0（代码里不再有单数）
+grep -c 'artifact_lifecycles' internal/artifact-lifecycle/repository/repository.go
+                                                      → 9
+```
