@@ -15,7 +15,7 @@ type ServiceInterface interface {
 	CreateDefinition(ctx context.Context, tenantID string, req models.CreateDefinitionRequest) (*models.SLADefinition, error)
 	DeleteDefinition(ctx context.Context, tenantID, id string) error
 	DetectBreaches(ctx context.Context, tenantID string) (*models.DetectionResult, error)
-	GetBreachEvents(ctx context.Context, trackingID string) ([]models.SLABreachEvent, error)
+	GetBreachEvents(ctx context.Context, tenantID, trackingID string) ([]models.SLABreachEvent, error)
 	GetDefinition(ctx context.Context, tenantID, id string) (*models.SLADefinition, error)
 	GetStats(ctx context.Context, tenantID string) (*models.StatsResult, error)
 	GetTracking(ctx context.Context, tenantID, id string) (*models.SLATracking, error)

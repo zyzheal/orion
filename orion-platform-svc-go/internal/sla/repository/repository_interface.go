@@ -24,7 +24,7 @@ type RepositoryInterface interface {
 	PauseTracking(ctx context.Context, tenantID, id, reason string) error
 	ResumeTracking(ctx context.Context, tenantID, id string) error
 	CreateBreachEvent(ctx context.Context, e *models.SLABreachEvent) error
-	GetBreachEventsByTracking(ctx context.Context, trackingID string) ([]models.SLABreachEvent, error)
+	GetBreachEventsByTracking(ctx context.Context, tenantID, trackingID string) ([]models.SLABreachEvent, error)
 	ListBreachEvents(ctx context.Context, tenantID string, limit, offset int) ([]models.SLABreachEvent, int, error)
 	DetectBreaches(ctx context.Context, tenantID string) (int, int, error)
 	GetStats(ctx context.Context, tenantID string) (*models.StatsResult, error)

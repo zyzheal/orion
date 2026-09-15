@@ -20,7 +20,7 @@ type RepositoryInterface interface {
 	CreateTracking(ctx context.Context, t *models.SLATracking) error
 	DeleteDefinition(ctx context.Context, tenantID, id string) error
 	DetectBreaches(ctx context.Context, tenantID string) (int, int, error)
-	GetBreachEventsByTracking(ctx context.Context, trackingID string) ([]models.SLABreachEvent, error)
+	GetBreachEventsByTracking(ctx context.Context, tenantID, trackingID string) ([]models.SLABreachEvent, error)
 	GetDefinitionByID(ctx context.Context, tenantID, id string) (*models.SLADefinition, error)
 	GetStats(ctx context.Context, tenantID string) (*models.StatsResult, error)
 	GetTrackingByID(ctx context.Context, tenantID, id string) (*models.SLATracking, error)
@@ -110,7 +110,9 @@ func (s *Service) UpdateDefinition(ctx context.Context, tenantID, id string, req
 		updates["description"] = *req.Description
 	}
 	if req.Type != nil {
-		updates["definition_type"] = *req.Type
+		// 070 declares the column `type`; the pre-fix code named a column that no
+		// migration ever created, so a type change in the PUT body was dropped.
+		updates["type"] = *req.Type
 	}
 	if req.TargetValue != nil {
 		updates["target_value"] = *req.TargetValue
@@ -262,8 +264,8 @@ func (s *Service) ResumeTracking(ctx context.Context, tenantID, trackingID strin
 
 // --- Breach Events ---
 
-func (s *Service) GetBreachEvents(ctx context.Context, trackingID string) ([]models.SLABreachEvent, error) {
-	events, err := s.repo.GetBreachEventsByTracking(ctx, trackingID)
+func (s *Service) GetBreachEvents(ctx context.Context, tenantID, trackingID string) ([]models.SLABreachEvent, error) {
+	events, err := s.repo.GetBreachEventsByTracking(ctx, tenantID, trackingID)
 	if err != nil {
 		return nil, err
 	}

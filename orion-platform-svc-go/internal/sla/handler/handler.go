@@ -300,7 +300,8 @@ func (h *Handler) GetBreachEvents(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBreachEvents")
 	defer span.End()
 	trackingID := c.Param("id")
-	events, err := h.svc.GetBreachEvents(ctx, trackingID)
+	tenantID := c.GetString("tenant_id")
+	events, err := h.svc.GetBreachEvents(ctx, tenantID, trackingID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
