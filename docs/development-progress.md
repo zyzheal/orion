@@ -11945,3 +11945,217 @@ ls migrations/ | grep -c '^686_'                          → 2（前向 + down�
 ```
 
 三个 pathspec 限定的提交，FORBIDDEN 校验（`migrations/dba`、`orion-frontend/src/api/dba`、`orion-frontend/src/pages/dba`、`orion-frontend/src/router/routes`、`docs/dba` 的 `wc -l`）在每次提交前后各打印一次、均输出 0。
+
+## 第五十六轮：internal/llm-trace 全 11 条在册路由在绑定层或驱动层即死——`/api/v1/api/v1/llm/...` 前缀重复、`CreateTrace` 两处彼此独立的绑定失败、`UpdateTrace` 把调用方 map key 原样拼进 SET、`CompleteTrace` 吞掉定价查询故障后把错价持久化、`GetModuleCostDashboard` 单 trace 单场景即 nil map 恐慌（Round 56）
+
+扫描起点 HEAD `169995926`。选它的理由：前几轮的教训是「`go build`、`go vet` 全绿 ≠ 可用」，而 `internal/llm-trace` 恰好是这个判定的极端样本——模块接线完整（`cmd/server/wiring.go:170` 的 `wirellmtrace(db, logger)`、`wiring-llm-trace.go:16` 的 `llmtrace_repo.NewRepository(db.DB)`），11 条路由全部在册，四个生产文件无一编译错误，却没有任何一条在册路由能真正服务一次请求。扫描中没有发现新的 DDL 缺口需要补（见 §56.6），本轮产出全部是代码与测试。
+
+### 56.1 F0 —— 全 11 条端点挂在 `/api/v1/api/v1/llm`，而全库 `grep` 零命中
+
+`cmd/server/router.go:48` 已经建好 `api := r.Group("/api/v1")`，所有 handler 由 `registerRoutes(api, ...)` 注入这个分组。而 `internal/llm-trace/handler/handler.go` 的 `RegisterRoutes` 内部又写了一次前缀。改动前：
+
+```go
+f := rg.Group("/api/v1/llm")
+```
+
+`TestDumpRoutesPerHandler`（`cmd/server/route_dump_test.go`）把每个 handler 单独挂进 `gin.New()` 的空引擎再套 `r.Group("/api/v1")`——**刻意复现生产装配**，逐 handler 落盘 3525 行到 `/tmp/perhandler.tsv`。改动前 `ai_llmtraceH` 的 11 行全部是 `/api/v1/api/v1/llm/...`；改动后（`rg.Group("/llm")`）重跑 dump，11 行全部变成 `/api/v1/llm/...`。
+
+这个缺陷有一个致命的隐蔽性：`grep -rn 'api/v1/api/v1' --include='*.go'` 全库**零命中**。前缀是在运行期由 Gin 拼接出来的，源码里任何一处都不出现这个字符串，所以基于源码扫描的审计完全看不见它，只有把路由真正注册进引擎再读出 `r.Routes()` 才能看见。
+
+对应测试 `TestHandler_LLM_TRACE_RegisterRoutes_ResolvedPaths` 断言的是一张 11 条 `(method, path)` 全量期望集，外加两个非空真手段：
+
+- `strings.Contains(route, "/api/v1/api/v1")` 的直接字符串守卫；
+- `len(got) != len(want)` 的数量断言——单独断言「期望集里的每一条都在 got 里」是不够的，因为旧代码对**空引擎**做同样断言也会通过（旧注册返回 0 条路由，空集子集断言空真）。必须同时断言 got 的数量与期望集相等，才能区分「全中」与「全无」。
+
+### 56.2 F1 —— `createTraceSQL` 两处彼此独立的绑定失败，任一处都足以让 POST 全死
+
+这一节是本轮最重要的发现，因为两处失败**互不相关**：修掉一处之后，请求会死于另一处。
+
+#### 56.2.1 camelCase 参数名匹配不到 `db:` tag
+
+`go.mod` 锁 `sqlx@v1.4.0`。决定名字解析的不是 `sqlx.go` 的 `NameMapper`，而是 `reflectx/reflect.go:282` 的 `parseName`：
+
+```go
+if tag := f.Tag.Get(dbTag); tag != "" {
+    parts := strings.Split(tag, ",")
+    fieldName = parts[0]        // db tag 名覆盖一切
+}
+```
+
+也就是说：字段有 `db:` tag 时，`Names` 里注册的键是 **tag 名**，`NameMapper` 里的小写化根本走不到。旧语句写的是 `:tenantId`，而结构体字段是 `TenantID \`db:"tenant_id"\``——键空间里只有 `tenant_id`，没有 `tenantId`。
+
+缺失的具名参数不是警告。`named.go:175` 的 `bindArgs` 直接返回硬错误。经验证的真实输出：
+
+```
+camelCase: could not find name tenantId in &main.row{TenantID:""}
+snake:     err=<nil> bound="INSERT INTO llm_traces (tenant_id) VALUES (?)" args=1
+```
+
+#### 56.2.2 `::jsonb` 是第二处独立失败
+
+旧语句为了让 jsonb 列「看起来正确」写了 `:requestContext::jsonb` 与 `:metadata::jsonb`。`named.go:334` 的 `compileNamedQuery` 在读完参数名后遇到第二个冒号直接中止，合法绑定字符只有 `unicode.Letter`、`unicode.Digit` 加 `_` 与 `.`：
+
+```
+casted:    unexpected `:` while reading named param at 64
+```
+
+这两个修复都**不需要**在语句里保留 cast：Postgres 对 `text → jsonb` 是隐式可赋值的，INSERT 里的目标列类型来自 DDL，绑定值按文本送入后由驱动协商。
+
+#### 56.2.3 为什么这个缺陷在 SQL 层测不出来
+
+`sqlx.Named(query, arg)` 是一个**不需要数据库的纯函数**——它只做具名参数替换，`QUESTION` 形式，返回 `(bound string, args []interface{}, err error)`。所以这三条测试全部在没有任何 mock 的情况下就把绑定失败钉死了：
+
+- `TestCreateTraceSQL_BindsAgainstModelsLLMTrace`：`sqlx.Named(createTraceSQL, tr)` 必须 `err == nil`、`bound` 里不得残留任何 `:`、`?` 的数量与具名参数数量相等、`args` 长度相等。
+- `TestCreateTraceSQL_ColumnsLineUpWithPlaceholders`：`INSERT INTO llm_traces (...)` 的列列表与 `VALUES` 里的占位符必须逐位同名。
+- `TestCreateTraceSQL_EveryParameterIsAnLLMTraceDbTag`：反射遍历 `models.LLMTrace` 的全部字段，收集 `db` tag 集合，然后**双向**断言——每个参数都在集合里，每个列名也在集合里，且 `len(tags) == len(cols)`。
+
+第三条是 §55.8 方法论 (1)（sqlx 安全模式下 SELECT 星号的双向唯一对应）在 **INSERT 方向的移植**：把「SELECT 的列必须与结构体字段双向一一对应」推广为「INSERT 的列与参数必须与结构体 db tag 双向一一对应」。它的副产品是不需要写死 `26` 这个魔数——断言写成集合相等与数量相等，将来加列时测试会自己指出哪里漏了。
+
+### 56.3 F2 —— `UpdateTrace` 把调用方 map key 原样拼进 SET
+
+改动前 `UpdateTrace` 把 `fields` 的 key 直接 `fmt.Sprintf` 进 `SET %s = $%d`。这不是「可能」出问题：`CompleteTrace` 传的 key 恰好都是合法列，所以生产路径上碰巧安全——但方法签名是公开的 `map[string]interface{}`，任何调用方都能写 `id` 或 `tenant_id`，把一行 trace 的身份字段改掉、并悄悄把它划归到另一个租户。这是 R40 定义的「参数被静默丢弃/滥用」里最危险的一种变体：参数没被丢弃，而是被当成可执行的 SQL 文本。
+
+修复的三条决定，每条都有断言钉住：
+
+1. **闭集白名单** `traceUpdateColumns`，12 个键，恰好是 `CompleteTrace` 实际发送的键。
+2. **拒绝时返回错误，不跳过**。跳过会产出一条「请求了 5 个字段、只落了 4 个」的 trace，且返回 nil——调用方无从得知。测试 `TestUpdateTrace_RejectsUnwritableColumns` 用 5 个坏键（`foo`、`id`、`tenant_id`、`created_at`、`prompt_content`）循环断言 `err != nil` 且错误信息里点名了那个键。
+3. **先校验、再排序**。map 迭代顺序随机，而 `$n` 槽位是按迭代顺序分配的，不排序会让同一次调用在不同进程里发出不同的语句。`TestUpdateTrace_WritesEveryAllowedColumnInSortedOrder` 故意传入乱序 map，断言执行语句是确定的字母序 14 槽位形式。
+
+另加 `TestUpdateTrace_WhitelistMatchesTheColumnsCompleteTraceSends` 把白名单与 `CompleteTrace` 实际发送的键集合锁在一起：白名单里多一个键是死代码，少一个键会让每条完成请求失败。这条断言就是防止「白名单随代码演进而漂移」的那道闸。
+
+### 56.4 F3 —— `GetModuleCostDashboard` 写入 nil map
+
+`moduleCostAccum` 的 `ByDay` 字段在分组创建时未初始化，同场景下第一条 trace 就写 `g.ByDay[day]` 触发 nil map assignment 恐慌。修复是内联初始化 `ByDay: map[string]ModuleDayUsage{}`。
+
+这一处值得记下的不是修复本身，而是**测试必须真的构造出那个崩溃路径**：`TestGetModuleCostDashboard_SingleTracePerScenarioDoesNotPanic` 恰好放两条 trace——一条属于 `pipeline` 场景且完成，一条场景为空且失败。如果两条 trace 落在同一场景，分组会被复用，`ByDay` 依然为 nil 但被写入两次，**仍然会恐慌**；如果只有零条 trace，循环不进入。所以「每场景恰好一条 + 另建一个空场景分组」才是唯一能同时覆盖「nil map 写入」与「空场景兜底」的最小输入。
+
+顺带把 `SuccessRate` 的两种取值都钉住了：`pipeline` 场景 1 条完成 → `SuccessRate == 1.0`，未知场景 `SuccessRate == 0`。
+
+### 56.5 F4 —— `CompleteTrace` 吞掉定价查询故障，把错价持久化
+
+这是本轮语义上最严重的一处，因为它不崩溃、不报错、返回 200。
+
+改动前的 `getPricing` 忽略 repository 返回的 error，直接回落到 `models.DefaultModelPricing`。对 `CalculateCost` / `CalculateBatchCost` 这两个**只返回值**的调用方这是无害的降级；但 `CompleteTrace` 是唯二把算出来的成本**写回 `llm_traces`** 的调用方。于是当定价表不可达时，会发生：
+
+1. 请求 200；
+2. `total_cost`、`input_cost`、`output_cost` 三个字段被写入**内置价表**算出的值，而不是该租户自定义价表算出的值；
+3. 数据库里留下一条看起来完全正常的已定价 trace，事后无法区分它是真定价还是降级定价。
+
+修法是**改签名而不是改语义**：把 `getPricing(ctx, modelID) models.ModelPricing` 拆成 `resolvePricing(ctx, modelID) (models.ModelPricing, error)`，repository 故障包成 `fmt.Errorf("custom pricing for %s: %w", modelID, err)` 向上传，两个纯估算调用方各自 `return nil, err`。
+
+为什么不改成「CompleteTrace 里降级、其余照常」：那仍然是静默错价，只是错价的产生地换了个位置。为什么不改成「CompleteTrace 里回退到 gpt-4 默认价」：那会把 `gpt-4` 的价格强加给一个明明有自定义价格的模型，等于用错误的数据回答正确的问题。唯一诚实的行为是报错，让调用方知道这一条 trace 还没被定价。
+
+对应测试 `TestService_CompleteTrace_PropagatesPricingFaultWithoutWriting` 同时断言三件事：`err != nil`、返回的 trace 为 nil（R39.7 要求 `(T, error)` 方法的失败路径两侧都断言）、以及 `f.updateCalls == 0`——第三条才是关键，它证明故障发生在写入**之前**，而不是「写完了才报错」。
+
+定价的正确性本身另有一条正向测试 `TestService_CompleteTrace_PersistsCostFromCustomPricing`：自定义价 `{Input: 2.0, Output: 8.0}`、token 1000/500，断言落库的 `input_cost == 2000.0`、`output_cost == 4000.0`、`total_cost == 6000.0`、`total_tokens == 1500`、`status == "completed"`、**没有** `error_message` 键、`output_hash` 是 64 字符 sha256。配套的失败路径 `TestService_CompleteTrace_FailedTraceCarriesTheErrorMessage` 断言 `status == "failed"` 且 `error_message == "boom"`。
+
+未知模型的回退是刻意保留的合法行为，`TestService_CalculateCost_UnknownModelFallsBackToDefault` 钉住它，并且刻意用 `float64(1000) * models.DefaultModelPricing["gpt-4"].Input` 而不是写死字面量来比较——价表是配置，测试不该和配置漂移着死。
+
+### 56.6 F5（记录不改）—— `llm_traces` 的 schema 归属冲突，`llm_model_pricing` 全库零 DDL
+
+这一轮**没有**新增迁移，理由与前几轮「补 DDL 让路由可用」的做法相反，而判断依据是明确的：
+
+- `internal/ai/migrations/001_ai_tables.sql` 已经声明了 `llm_traces`，且它的形态与本模块的模型**直接矛盾**：那里是 `id BIGSERIAL` 加 `trace_id TEXT UNIQUE`，本模块的 `models.LLMTrace.ID` 是 `string`（UUID），仓库层把 `id` 当主键读。两个模块不可能共享这一列。
+- `internal/ai/migrations` 里的定价表叫 `model_custom_pricing(input_price, output_price)`，本模块读的是 `llm_model_pricing(input, output)`——表名和列名都不一样。
+- `grep -rn 'llm_model_pricing' --include='*.sql'` **全库零命中**：这张表没有任何 DDL，也没有任何模块声明过它。
+
+在这种状态下编写竞争 DDL 是净伤害：会造出两个都声称拥有 `llm_traces` 的迁移，下一个接手的人无法判断哪一个是权威。正确的动作是记录冲突并交给拥有这两个模块的评审去裁决，而不是在本模块这边单方面补一份可能永远不被应用的 DDL。
+
+### 56.7 F6（记录不改）—— `GetAllPricing` 只返内置价表
+
+`GetAllPricing` 现在只返回 `models.DefaultModelPricing` 的副本，不合并数据库里的自定义行。合并需要一个「列出 `llm_model_pricing` 全表」的 repository 方法，而该表连 DDL 都没有（§56.6），仓库层只有一个点查 `GetCustomPricing`。
+
+依据 R38.1 的判定规则，这属于**基础设施不存在**的记录项而非缺陷，处理方式是在方法的 doc comment 里把「这是刻意留的缺口、缺什么、为什么现在不做」写清楚，而不是留一个会假装成功的方法。
+
+### 56.8 测试方法论 —— 三个坑，其中一个是测试自己的
+
+#### 56.8.1 `$n` 与 `?`：`sqlx.Named` 的结果不能直接喂给 `ExpectExec`
+
+`sqlx.NewDb(raw, "postgres")` 按驱动名解析占位符形式，所以实际执行的语句是 `INSERT ... VALUES ($1, ..., $26)`，而 `sqlx.Named` 返回的是 `QUESTION` 形式 `VALUES (?, ...)`。测试里用 `placeholdersToDollar` 把绑定结果转成 `$n` 再与录制到的语句比较，否则会出现「语句明明对了却报不一致」。
+
+#### 56.8.2 绑定发生在 UUID 生成之前
+
+`CreateTrace` 的第一行是 `t.ID = uuid.New().String()`，但它是**先**给结构体赋值、**再** `NamedExecContext`。而测试里的 `sqlx.Named(createTraceSQL, tr)` 是用测试构造的结构体绑定的，此时 `tr.ID` 还是空串。所以 `TestCreateTrace_SendsThePinnedStatement` 只比较语句文本与参数**数量**，不比较参数**值**——比较第 0 个参数必然失败，而原因是装配顺序而非缺陷。
+
+这里做了一个明确的可测性决策并写进了测试注释：**拒绝**为此在生产加一个 `NewRepositoryWithIDFn` 注入缝。为一个测试值改生产构造函数是反向的复杂度债务；断言「执行的语句 == 绑定的语句」加「参数数量 == 声明的参数数量」已经足以覆盖这一类缺陷（列在 const 与执行语句之间不一致）。
+
+#### 56.8.3 闭包捕获让 `assertNoStatements` 空真 —— 测试自身的缺陷
+
+这是本轮最需要记录的一条，因为它说明**测试通过了不代表测试在看**。
+
+改动前的 harness 是这样写的：
+
+```go
+seen := make([]string, 0)
+raw, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherFunc(func(expected, actual string) error {
+    seen = append(seen, normSQL(actual))
+    ...
+})))
+return &harness{mock: mock, seen: seen, ...}
+```
+
+`harness.seen` 拿到的是构造那一刻 slice header 的**拷贝**。闭包 append 的是它自己的 `seen` 局部变量，可能重新分配底层数组——结构体字段指向的仍是原来那个空数组，长度永远为 0。
+
+后果：所有 `assertNoStatements`（断言 `len(h.seen) == 0`）**空真**，等于断言 `0 == 0`。而当时有一条 `TestUpdateTrace_EmptyFieldsIsANoOp` 依赖它证明「空 map 不发 SQL」——那条证明是无效的。更糟的是它表现为一个下标恐慌：`h.seen[0]` 在长度为 0 的 slice 上抛 `index out of range`，看着像测试写错了下标。
+
+修复是 append 走结构体指针：`h := &harness{}` 先建对象，闭包里 `h.seen = append(h.seen, normSQL(actual))`。
+
+但仅修复捕获还不足以让断言可信，因为无法从外部区分「recorder 正常工作且没看到语句」和「recorder 坏了」。所以加了两层非空真手段：
+
+1. **失败前的守卫**：`TestCreateTrace_SendsThePinnedStatement` 在访问 `h.seen[0]` 之前先断言 `len(h.seen) == 0` 时 `t.Fatalf("no statement was recorded, so the harness is not observing the database")`。recorder 失效现在是一个可读的失败信息，而不是下标恐慌。
+2. **正向对照**：`TestUpdateTrace_RejectsUnwritableColumns` 在跑完 5 个坏键循环、断言完 `assertNoStatements` 之后，**再**发一条合法更新，断言 `len(h.seen) == 1`。这是让 `assertNoStatements` 非空真的关键一步：它证明了同一个 recorder 在同一测试里确实能观测到语句，所以前面那个「看不到」才是有意义的否定证据。
+
+#### 56.8.4 变异清扫里的两个坑
+
+- **Bash `case` 前缀通配吃掉了 restore 映射**。清扫脚本用 `case "$m" in M1*|M2*|...)` 决定用哪个备份还原。`M1*` 同时匹配 `M10-*` 和 `M11-*`，而 `case` 取第一个匹配的分支，于是 M10（`handler.go`）与 M11（`repository_test.go`）的变异**从未被还原**。症状极其迷惑：handler 包在「干净的树上」20/20 全部 panic（正是 M10 的症状），而 repository 的变异不可能影响 handler 包（handler 不 import repository）——正是这个不可能的跨包影响暴露了还原失败。修复是从 `/tmp/mut/*.bak` 还原全部五个文件并逐个校验 md5，然后改用**精确名字**的映射表重跑。
+- **`new` 忘记带上 `old` 消费掉的行**。修一个补丁锚点时只改了 `old`，`new` 漏掉了 `old` 里的 `t.Errorf(...)` 与两个右花括号，文件被写成解析错误。教训是补丁的 `old` 与 `new` 必须成对审。
+
+### 56.9 变异验证 —— 13/13 全灭
+
+基线先确认通过（`go test ./internal/llm-trace/... -count=1` 返回码直接捕获为 0，不经管道），然后逐个应用变异、跑全套、按精确名字还原并校验 md5。
+
+| 变异 | 文件 | 击杀它的测试 |
+|---|---|---|
+| M1 参数改回 camelCase（`:tenant_id`→`:tenantId`） | repository.go | 3× `TestCreateTraceSQL_*` |
+| M2 白名单删掉 `output_content` | repository.go | `WritesEveryAllowedColumnInSortedOrder`、`WhitelistMatches...` |
+| M3 白名单加入 `tenant_id` | repository.go | `WhitelistMatches...`、`RejectsUnwritableColumns` |
+| M4 拒绝改成 `continue` 静默跳过 | repository.go | `RejectsUnwritableColumns` |
+| M5 吞掉定价故障回退默认价 | service.go | `CompleteTrace_PropagatesPricingFaultWithoutWriting` |
+| M6 `errors.Is(err, sql.ErrNoRows)` 改成 `err != nil` | service.go | `GetTrace_PassesThroughDriverFault` |
+| M7 不初始化 `ByDay` map | module_cost.go | `SingleTracePerScenarioDoesNotPanic` |
+| M8 日期格式 `2006-01-02`→`2006/01/02` | module_cost.go | 2× `GetModuleCostDashboard_*` |
+| M9 路由前缀改回 `/api/v1/llm` | handler.go | `RegisterRoutes_ResolvedPaths` |
+| M10 `EstimateCost` 故障分支被掏空成 `_ = err` | handler.go | `EstimateCost_PricingFaultIsNot200` |
+| M11 删掉 recorder 的 `h.seen = append(...)` | repository_test.go | `SendsThePinnedStatement`、`RejectsUnwritableColumns` |
+| M12 `GetTrace` 的 `errors.Is` 退化为 `err == sql.ErrNoRows` | service.go | `GetTrace_RecognisesWrappedNoRows` |
+| M13 `CompleteTrace` 的 `errors.Is` 退化为 `err == sql.ErrNoRows` | service.go | `CompleteTrace_RecognisesWrappedNoRows` |
+
+M5 与 M10 刻意写成**语义**变异而不是编译错误（`pricing = defaultPricing(...)`、`_ = err`），遵循既有的规则：编译期就能杀死的变异不证明任何事。
+
+M11 是自指的：它变异的是**测试自己的** recorder。它能被杀掉，正是 §56.8.3 那个正向对照在起作用——没有它，删掉 append 之后 `assertNoStatements` 依然会通过，这个变异就会存活。
+
+M12 与 M13 是本轮新增的。原有的 `fakeRepo` 只会返回未包装的 sentinel，无法区分 `errors.Is` 与 `==`，所以补了两条用例：`getTraceErr: fmt.Errorf("query failed: %w", sql.ErrNoRows)`，断言最终 `errors.Is(err, ErrTraceNotFound)` 成立且（对 `CompleteTrace`）`updateCalls == 0`。驱动实际会包装 `sql.ErrNoRows`，身份比较会让一次数据库故障被当成「trace 不存在」，返回 404 而不写任何东西。
+
+清扫结束后的最终校验：五个文件 md5 全部与 `/tmp/mut/*.bak` 逐字节一致，全套测试返回码 0。
+
+### 56.10 验证命令
+
+```
+cd orion-platform-svc-go
+go build  ./internal/llm-trace/...            → rc=0
+go vet    ./internal/llm-trace/...            → rc=0
+go test   ./internal/llm-trace/... -count=1   → rc=0（handler / repository / service 三个包全绿）
+gofmt -l  internal/llm-trace/                 → 空
+go test   ./cmd/server/ -run TestDumpRoutesPerHandler -count=1   → rc=0
+grep -c 'api/v1/api/v1' /tmp/perhandler.tsv                            → 14
+awk -F'\t' '$4 ~ /api\/v1\/api\/v1/ {print $1}' /tmp/perhandler.tsv | sort | uniq -c → "14 aiModelsH"
+grep -c '^func Test' internal/llm-trace/*/*_test.go                    → 15 / 9 / 18 / 9 / 3 = 54
+```
+
+第 14 行是最重要的一条负向结论：全库 route dump 里剩下的双前缀路径共 14 条，**全部**属于 `aiModelsH`。也就是说修完本模块后，`/api/v1/api/v1` 这一类缺陷在整个服务里只剩一个实例。
+
+### 56.11 下一轮候选
+
+`internal/ai/models` 的 `RegisterRoutes` 第一行就是 `r := rg.Group("/api/v1/ai/models")`，与本轮修的 `internal/llm-trace` 是**逐字相同**的缺陷形态（`internal/ai/llm` 同属一组，需要一并确认）。修法与 §56.1 完全一致：删掉第二层前缀，然后把「14 条路径的数量断言 + `api/v1/api/v1` 子串守卫」补进该包的 handler 测试。这是全库唯一剩余的双前缀实例，且 `grep -rn 'api/v1/api/v1' --include='*.go'` 零命中意味着它同样逃过所有源码扫描。
+
+其余候选池不变：code-repo（5 表）、config（4）、eventbus（3）、gateway-dynamic（1）、queue（1）；STRANDED 集合（`internal/ai/migrations/001_ai_tables.sql` 覆盖 6 表含 `llm_traces`，alert-adapter、cmdb-drift、cmdb-relationship、cron、degradation）；`internal/ticketing` 的 17 张前缀表；`internal/governance`、`internal/ci-cd`、`internal/notification`、`internal/security`、`internal/file-handler`、`internal/cache`、`internal/apm`、`internal/cron`。
