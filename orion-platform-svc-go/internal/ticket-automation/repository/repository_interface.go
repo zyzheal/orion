@@ -9,9 +9,9 @@ import (
 
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
-	Create(ctx context.Context, tenantID string, e *models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error)
-	GetByID(ctx context.Context, tenantID, id string) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error)
-	List(ctx context.Context, tenantID string) ([]models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error)
-	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error)
+	Create(ctx context.Context, tenantID string, e *models.AutomationRule) (*models.AutomationRule, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.AutomationRule, error)
+	List(ctx context.Context, tenantID string) ([]models.AutomationRule, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.AutomationRule, error)
 	Delete(ctx context.Context, tenantID, id string) error
 }

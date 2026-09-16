@@ -27,24 +27,24 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 
 type fakeIncident_actionService struct{}
 
-func (f *fakeIncident_actionService) Create(ctx context.Context, tenantID string, e *models.LILNLCLILDLELNLTLuLALCLTLILOLN) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error) {
-	return &models.LILNLCLILDLELNLTLuLALCLTLILOLN{}, nil
+func (f *fakeIncident_actionService) Create(ctx context.Context, tenantID string, e *models.IncidentAction) (*models.IncidentAction, error) {
+	return &models.IncidentAction{}, nil
 }
 
 func (f *fakeIncident_actionService) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
-func (f *fakeIncident_actionService) Get(ctx context.Context, tenantID, id string) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error) {
-	return &models.LILNLCLILDLELNLTLuLALCLTLILOLN{}, nil
+func (f *fakeIncident_actionService) Get(ctx context.Context, tenantID, id string) (*models.IncidentAction, error) {
+	return &models.IncidentAction{}, nil
 }
 
-func (f *fakeIncident_actionService) List(ctx context.Context, tenantID string) ([]models.LILNLCLILDLELNLTLuLALCLTLILOLN, error) {
-	return []models.LILNLCLILDLELNLTLuLALCLTLILOLN{}, nil
+func (f *fakeIncident_actionService) List(ctx context.Context, tenantID string) ([]models.IncidentAction, error) {
+	return []models.IncidentAction{}, nil
 }
 
-func (f *fakeIncident_actionService) Update(ctx context.Context, tenantID, id string, updates map[string]any) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error) {
-	return &models.LILNLCLILDLELNLTLuLALCLTLILOLN{}, nil
+func (f *fakeIncident_actionService) Update(ctx context.Context, tenantID, id string, updates map[string]any) (*models.IncidentAction, error) {
+	return &models.IncidentAction{}, nil
 }
 
 var _ service.ServiceInterface = (*fakeIncident_actionService)(nil)

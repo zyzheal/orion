@@ -11,11 +11,11 @@ import (
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
-	Create(ctx context.Context, tenantID string, e *models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error)
+	Create(ctx context.Context, tenantID string, e *models.AutomationRule) (*models.AutomationRule, error)
 	Delete(ctx context.Context, tenantID, id string) error
-	GetByID(ctx context.Context, tenantID, id string) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error)
-	List(ctx context.Context, tenantID string) ([]models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error)
-	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.AutomationRule, error)
+	List(ctx context.Context, tenantID string) ([]models.AutomationRule, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.AutomationRule, error)
 }
 
 // Service handles ticket automation business logic.
@@ -27,19 +27,19 @@ func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) Create(ctx context.Context, tenantID string, e *models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error) {
+func (s *Service) Create(ctx context.Context, tenantID string, e *models.AutomationRule) (*models.AutomationRule, error) {
 	return s.repo.Create(ctx, tenantID, e)
 }
 
-func (s *Service) Get(ctx context.Context, tenantID, id string) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error) {
+func (s *Service) Get(ctx context.Context, tenantID, id string) (*models.AutomationRule, error) {
 	return s.repo.GetByID(ctx, tenantID, id)
 }
 
-func (s *Service) List(ctx context.Context, tenantID string) ([]models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error) {
+func (s *Service) List(ctx context.Context, tenantID string) ([]models.AutomationRule, error) {
 	return s.repo.List(ctx, tenantID)
 }
 
-func (s *Service) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error) {
+func (s *Service) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.AutomationRule, error) {
 	return s.repo.Update(ctx, tenantID, id, updates)
 }
 

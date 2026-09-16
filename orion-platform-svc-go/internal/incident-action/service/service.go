@@ -11,11 +11,11 @@ import (
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
-	Create(ctx context.Context, tenantID string, e *models.LILNLCLILDLELNLTLuLALCLTLILOLN) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error)
+	Create(ctx context.Context, tenantID string, e *models.IncidentAction) (*models.IncidentAction, error)
 	Delete(ctx context.Context, tenantID, id string) error
-	GetByID(ctx context.Context, tenantID, id string) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error)
-	List(ctx context.Context, tenantID string) ([]models.LILNLCLILDLELNLTLuLALCLTLILOLN, error)
-	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.IncidentAction, error)
+	List(ctx context.Context, tenantID string) ([]models.IncidentAction, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.IncidentAction, error)
 }
 
 // Service handles incident action business logic.
@@ -27,19 +27,19 @@ func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) Create(ctx context.Context, tenantID string, e *models.LILNLCLILDLELNLTLuLALCLTLILOLN) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error) {
+func (s *Service) Create(ctx context.Context, tenantID string, e *models.IncidentAction) (*models.IncidentAction, error) {
 	return s.repo.Create(ctx, tenantID, e)
 }
 
-func (s *Service) Get(ctx context.Context, tenantID, id string) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error) {
+func (s *Service) Get(ctx context.Context, tenantID, id string) (*models.IncidentAction, error) {
 	return s.repo.GetByID(ctx, tenantID, id)
 }
 
-func (s *Service) List(ctx context.Context, tenantID string) ([]models.LILNLCLILDLELNLTLuLALCLTLILOLN, error) {
+func (s *Service) List(ctx context.Context, tenantID string) ([]models.IncidentAction, error) {
 	return s.repo.List(ctx, tenantID)
 }
 
-func (s *Service) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error) {
+func (s *Service) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.IncidentAction, error) {
 	return s.repo.Update(ctx, tenantID, id, updates)
 }
 

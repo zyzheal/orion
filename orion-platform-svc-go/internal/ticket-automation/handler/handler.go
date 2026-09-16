@@ -1,6 +1,8 @@
 package handler
 
 import (
+	stderrors "errors"
+
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/ticket-automation/models"
@@ -34,7 +36,7 @@ func (h *Handler) Create(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	var req models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN
+	var req models.AutomationRule
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
@@ -82,6 +84,13 @@ func (h *Handler) Update(c *gin.Context) {
 	}
 	result, err := h.svc.Update(ctx, tenantID, c.Param("id"), updates)
 	if err != nil {
+		// A request that names a non-writable column is caller error, not a
+		// server fault: the generic 500 below would hide that the body was
+		// malformed and would leave the caller guessing.
+		if stderrors.Is(err, models.ErrUnknownUpdateField) {
+			errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
+			return
+		}
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}

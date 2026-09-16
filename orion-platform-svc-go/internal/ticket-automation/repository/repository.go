@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -15,8 +17,8 @@ import (
 )
 
 var (
-	ErrLTLILCLKLELTLuLALULTLOLMLALTLILOLNNotFound  = errors.New("ticket automation not found")
-	ErrLTLILCLKLELTLuLALULTLOLMLALTLILOLNDuplicate = errors.New("ticket automation already exists")
+	ErrAutomationRuleNotFound  = errors.New("ticket automation not found")
+	ErrAutomationRuleDuplicate = errors.New("ticket automation already exists")
 )
 
 // Repository handles ticket automation DB operations.
@@ -28,7 +30,7 @@ func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) Create(ctx context.Context, tenantID string, e *models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error) {
+func (r *Repository) Create(ctx context.Context, tenantID string, e *models.AutomationRule) (*models.AutomationRule, error) {
 	e.ID = uuid.New().String()
 	now := time.Now().UTC()
 	e.CreatedAt = now
@@ -36,7 +38,7 @@ func (r *Repository) Create(ctx context.Context, tenantID string, e *models.LTLI
 	e.TenantID = tenantID
 
 	_, err := r.db.NamedExecContext(ctx, `
-		INSERT INTO ticket-automation (id, tenant_id, name, value, enabled, created_at, updated_at)
+		INSERT INTO ticket_automation (id, tenant_id, name, value, enabled, created_at, updated_at)
 		VALUES (:id, :tenant_id, :name, :value, :enabled, :created_at, :updated_at)`, e)
 	if err != nil {
 		return nil, err
@@ -44,12 +46,12 @@ func (r *Repository) Create(ctx context.Context, tenantID string, e *models.LTLI
 	return e, nil
 }
 
-func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error) {
-	var e models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN
+func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.AutomationRule, error) {
+	var e models.AutomationRule
 	err := r.db.GetContext(ctx, &e,
-		"SELECT * FROM ticket-automation WHERE id = $1 AND tenant_id = $2", id, tenantID)
+		"SELECT * FROM ticket_automation WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	if err == sql.ErrNoRows {
-		return nil, ErrLTLILCLKLELTLuLALULTLOLMLALTLILOLNNotFound
+		return nil, ErrAutomationRuleNotFound
 	}
 	if err != nil {
 		return nil, err
@@ -57,33 +59,68 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 	return &e, nil
 }
 
-func (r *Repository) List(ctx context.Context, tenantID string) ([]models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error) {
-	var entities []models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN
+func (r *Repository) List(ctx context.Context, tenantID string) ([]models.AutomationRule, error) {
+	var entities []models.AutomationRule
 	err := r.db.SelectContext(ctx, &entities,
-		"SELECT * FROM ticket-automation WHERE tenant_id = $1 ORDER BY created_at DESC", tenantID)
+		"SELECT * FROM ticket_automation WHERE tenant_id = $1 ORDER BY created_at DESC", tenantID)
 	if err != nil {
 		return nil, err
 	}
 	return entities, nil
 }
 
-func (r *Repository) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error) {
+// allowedUpdateCols is models.UpdateableColumns as a lookup set.
+func allowedUpdateCols() map[string]bool {
+	m := make(map[string]bool, len(models.UpdateableColumns))
+	for _, c := range models.UpdateableColumns {
+		m[c] = true
+	}
+	return m
+}
+
+// Update writes only the columns listed in models.UpdateableColumns. The map
+// keys arrive from a JSON body, so they must never be interpolated into the SET
+// clause as-is: an unfiltered key such as "tenant_id" would relocate the row
+// into another tenant, and an arbitrary key would be parsed as SQL. The SET
+// clause is built from the whitelist in a fixed order so the positional
+// argument numbering is deterministic; id and tenant_id are bound last.
+func (r *Repository) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.AutomationRule, error) {
 	if len(updates) == 0 {
 		return r.GetByID(ctx, tenantID, id)
 	}
-	updates["updated_at"] = time.Now().UTC()
-	setParts := make([]string, 0, len(updates))
-	args := make([]interface{}, 0, len(updates)+2)
+
+	allowed := allowedUpdateCols()
+	keys := make([]string, 0, len(updates))
+	for k := range updates {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		if !allowed[k] {
+			return nil, fmt.Errorf("%w: %q", models.ErrUnknownUpdateField, k)
+		}
+	}
+
+	setParts := make([]string, 0, len(models.UpdateableColumns)+1)
+	args := make([]interface{}, 0, len(models.UpdateableColumns)+3)
 	idx := 1
-	for k, v := range updates {
-		setParts = append(setParts, k+" = $"+strconv.Itoa(idx))
+	for _, col := range models.UpdateableColumns {
+		v, ok := updates[col]
+		if !ok {
+			continue
+		}
+		setParts = append(setParts, col+" = $"+strconv.Itoa(idx))
 		args = append(args, v)
 		idx++
 	}
+	setParts = append(setParts, "updated_at = $"+strconv.Itoa(idx))
+	args = append(args, time.Now().UTC())
+	idx++
 	args = append(args, id, tenantID)
+
 	_, err := r.db.ExecContext(ctx,
-		"UPDATE ticket-automation SET "+strings.Join(setParts, ", ")+
-			" WHERE id = $"+strconv.Itoa(idx-2)+" AND tenant_id = $"+strconv.Itoa(idx-1), args...)
+		"UPDATE ticket_automation SET "+strings.Join(setParts, ", ")+
+			" WHERE id = $"+strconv.Itoa(idx)+" AND tenant_id = $"+strconv.Itoa(idx+1), args...)
 	if err != nil {
 		return nil, err
 	}
@@ -92,6 +129,6 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	_, err := r.db.ExecContext(ctx,
-		"DELETE FROM ticket-automation WHERE id = $1 AND tenant_id = $2", id, tenantID)
+		"DELETE FROM ticket_automation WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	return err
 }

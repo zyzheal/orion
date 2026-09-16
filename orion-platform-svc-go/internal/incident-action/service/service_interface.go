@@ -12,11 +12,11 @@ import (
 
 // ServiceInterface defines the interface for the incident-action service.
 type ServiceInterface interface {
-	Create(ctx context.Context, tenantID string, e *models.LILNLCLILDLELNLTLuLALCLTLILOLN) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error)
+	Create(ctx context.Context, tenantID string, e *models.IncidentAction) (*models.IncidentAction, error)
 	Delete(ctx context.Context, tenantID, id string) error
-	Get(ctx context.Context, tenantID, id string) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error)
-	List(ctx context.Context, tenantID string) ([]models.LILNLCLILDLELNLTLuLALCLTLILOLN, error)
-	Update(ctx context.Context, tenantID, id string, updates map[string]any) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error)
+	Get(ctx context.Context, tenantID, id string) (*models.IncidentAction, error)
+	List(ctx context.Context, tenantID string) ([]models.IncidentAction, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]any) (*models.IncidentAction, error)
 }
 
 // Ensure compile-time safety: *Service implements ServiceInterface.

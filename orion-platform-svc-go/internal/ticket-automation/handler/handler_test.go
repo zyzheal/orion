@@ -27,24 +27,24 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 
 type fakeTicket_automationService struct{}
 
-func (f *fakeTicket_automationService) Create(ctx context.Context, tenantID string, e *models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error) {
-	return &models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN{}, nil
+func (f *fakeTicket_automationService) Create(ctx context.Context, tenantID string, e *models.AutomationRule) (*models.AutomationRule, error) {
+	return &models.AutomationRule{}, nil
 }
 
 func (f *fakeTicket_automationService) Delete(ctx context.Context, tenantID, id string) error {
 	return nil
 }
 
-func (f *fakeTicket_automationService) Get(ctx context.Context, tenantID, id string) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error) {
-	return &models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN{}, nil
+func (f *fakeTicket_automationService) Get(ctx context.Context, tenantID, id string) (*models.AutomationRule, error) {
+	return &models.AutomationRule{}, nil
 }
 
-func (f *fakeTicket_automationService) List(ctx context.Context, tenantID string) ([]models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error) {
-	return []models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN{}, nil
+func (f *fakeTicket_automationService) List(ctx context.Context, tenantID string) ([]models.AutomationRule, error) {
+	return []models.AutomationRule{}, nil
 }
 
-func (f *fakeTicket_automationService) Update(ctx context.Context, tenantID, id string, updates map[string]any) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error) {
-	return &models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN{}, nil
+func (f *fakeTicket_automationService) Update(ctx context.Context, tenantID, id string, updates map[string]any) (*models.AutomationRule, error) {
+	return &models.AutomationRule{}, nil
 }
 
 var _ service.ServiceInterface = (*fakeTicket_automationService)(nil)
