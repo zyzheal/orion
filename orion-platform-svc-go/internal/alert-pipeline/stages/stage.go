@@ -83,6 +83,13 @@ func (c *Chain) Execute(ctx context.Context, alertCtx *models.AlertContext) *mod
 		if err := st.Process(ctx, alertCtx); err != nil {
 			alertCtx.Stage.ExitCode = "error"
 			alertCtx.Stage.ExitMsg = err.Error()
+			// ctx.Error is the pipeline-wide error channel: both
+			// PipelineService.Execute and the track stage read it to decide the
+			// result status. Recording the failure only on alertCtx.Stage made
+			// every aborted run report status "success" -- the chain stops here,
+			// the remaining stages never run, and nothing downstream could tell
+			// that the pipeline had been truncated.
+			alertCtx.Error = err.Error()
 			span.RecordError(err)
 			c.logger.Error("stage failed",
 				zap.String("stage", name),

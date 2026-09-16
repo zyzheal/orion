@@ -85,18 +85,27 @@ func (h *Handler) GetConfig(c *gin.Context) {
 }
 
 // UpdateConfig handles PUT /alerts/pipeline/config - update pipeline configuration.
+//
+// This used to bind the config, fill a nil stage list, and echo the request
+// body back as "config accepted" without ever touching the service. The seven
+// config fields a caller sent were all discarded and the response promised an
+// update that did not happen. The service now owns both validation and the
+// empty-field fallback, so the handler stays thin and has one source of truth
+// for the default stage list.
 func (h *Handler) UpdateConfig(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertPipelineUpdateConfig")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertPipelineUpdateConfig")
 	defer span.End()
 	var cfg models.PipelineConfig
 	if err := c.ShouldBindJSON(&cfg); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	if cfg.Stages == nil || len(cfg.Stages) == 0 {
-		cfg.Stages = models.DefaultPipelineConfig("default").Stages
+	applied, err := h.svc.UpdateConfig(ctx, &cfg)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
+		return
 	}
-	middleware.RespondSuccess(c, gin.H{"message": "config accepted", "config": cfg})
+	middleware.RespondSuccess(c, gin.H{"message": "config updated", "config": applied})
 }
 
 // Toggle handles PUT /alerts/pipeline/:tenantId/enable - toggle pipeline on/off.
