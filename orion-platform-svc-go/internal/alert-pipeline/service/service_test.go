@@ -77,12 +77,13 @@ func durp(v time.Duration) *time.Duration { return &v }
 // assertStagesExecuted proves Execute ran exactly the configured stage list, in
 // order, without an early stop.
 //
-// Chain.Execute snapshots the stage that just completed before running the next
-// one, so the recorded history is
+// Chain.Execute snapshots the stage that just completed before starting the next
+// one, and skips that snapshot for the very first stage (see Chain.Execute). So
+// on a run that completes all N stages the history is
 //
-//	[seeded "receive", c0, c1, ..., cN-1]
+//	[c0, c1, ..., cN-1]
 //
-// and Stages[i+1] is the i-th configured stage. The count catches a chain that
+// and Stages[i] is the i-th configured stage: the count catches a chain that
 // stops early (any stage returning an error) and the name comparison catches a
 // chain that ran different stages in a different order.
 func assertStagesExecuted(t *testing.T, got *models.PipelineResult, configured []string) {
@@ -90,13 +91,13 @@ func assertStagesExecuted(t *testing.T, got *models.PipelineResult, configured [
 	if got == nil {
 		t.Fatal("Execute returned nil")
 	}
-	if len(got.Stages) != len(configured)+1 {
+	if len(got.Stages) != len(configured) {
 		t.Fatalf("stages recorded = %v (count %d), want %d for configured %v; a stage failed: %v",
-			got.Stages, len(got.Stages), len(configured)+1, configured, got.Errors)
+			got.Stages, len(got.Stages), len(configured), configured, got.Errors)
 	}
 	for i, want := range configured {
-		if got.Stages[i+1] != want {
-			t.Fatalf("stage %d = %q, want %q (configured %v)", i+1, got.Stages[i+1], want, configured)
+		if got.Stages[i] != want {
+			t.Fatalf("stage %d = %q, want %q (configured %v)", i, got.Stages[i], want, configured)
 		}
 	}
 }
@@ -227,6 +228,16 @@ func TestPipelineServiceExecuteRejectsAlertWithoutSourceID(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(got.Errors, " "), "sourceId") {
 		t.Fatalf("errors = %v, want the validate stage to name the missing field", got.Errors)
+	}
+	// An aborted run must name the stage that stopped it. Chain.Execute snapshots
+	// a stage only before running the next one, so without the explicit append
+	// this is ["receive"] -- indistinguishable from a pipeline configured with a
+	// single stage.
+	if len(got.Stages) != 2 || got.Stages[0] != "receive" || got.Stages[1] != "validate" {
+		t.Fatalf("stages = %v, want [receive validate]; the aborted stage must be reported", got.Stages)
+	}
+	if got.StageCount != 2 {
+		t.Errorf("StageCount = %d, want 2", got.StageCount)
 	}
 }
 

@@ -62,11 +62,21 @@ func (c *Chain) Execute(ctx context.Context, alertCtx *models.AlertContext) *mod
 	defer span.End()
 
 	span.SetAttributes()
-	for _, st := range c.stages {
+	for i, st := range c.stages {
 		name := st.Name()
 
-		// Record entry
-		alertCtx.Snapshot(alertCtx.Stage.ExitCode, alertCtx.Stage.ExitMsg)
+		// Record the stage that just finished, except before the first one runs.
+		//
+		// NewAlertContext seeds ctx.Stage with "receive" as a placeholder, so an
+		// unconditional Snapshot here captured that placeholder as if it had
+		// completed. Every successful run then reported [receive, receive, ...]
+		// and StageCount was one higher than the number of stages configured --
+		// a 6-stage pipeline reported 7 stages, with the first one twice. The
+		// track stage, which reports History plus the current stage, inherited
+		// the same off-by-one.
+		if i > 0 {
+			alertCtx.Snapshot(alertCtx.Stage.ExitCode, alertCtx.Stage.ExitMsg)
+		}
 		alertCtx.Stage = models.AlertStage{
 			Stage:   name,
 			Entered: time.Now().UTC(),

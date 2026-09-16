@@ -135,21 +135,28 @@ func (s *PipelineService) Execute(ctx context.Context, tenantID string, alert mo
 	// Execute pipeline
 	resultCtx := chain.Execute(ctx, alertCtx)
 
-	// Build result
+	// Build result.
+	//
+	// ctx.Error is the one source of truth for a failed run: Chain.Execute
+	// writes it the moment a stage returns an error, and both this method and
+	// the track stage read it to set the result status. This used to also
+	// collect the failure from Stage.ExitCode, which Chain.Execute sets in the
+	// same branch -- so deleting the ctx.Error write still produced status
+	// "error" and the test suite stayed green. Two writers of the same fact
+	// hide the regression in either one; that is how the truncation hid.
 	errors := make([]string, 0)
 	if resultCtx.Error != "" {
 		errors = append(errors, resultCtx.Error)
 	}
-	for _, h := range resultCtx.History {
-		if h.ExitCode == "error" {
-			errors = append(errors, fmt.Sprintf("%s: %s", h.Stage, h.ExitMsg))
-		}
-	}
-	// Chain.Execute records a failing stage into Stage but returns without
-	// Snapshotting it, so the erroring stage is not in History. Collect it here
-	// or the pipeline reports "success" while an alert failed validation.
-	if resultCtx.Stage.ExitCode == "error" {
-		errors = append(errors, fmt.Sprintf("%s: %s", resultCtx.Stage.Stage, resultCtx.Stage.ExitMsg))
+
+	// Chain.Execute snapshots a stage only before running the next one, so a
+	// run that stops early never records the stage that stopped it. Without this
+	// the result for an aborted run looks like a short pipeline rather than a
+	// truncated one: 1 of 6 stages instead of 6, with no sign that validate
+	// refused the alert.
+	stages := stageNames(resultCtx.History)
+	if resultCtx.Error != "" && resultCtx.Stage.Stage != "" {
+		stages = append(stages, resultCtx.Stage.Stage)
 	}
 
 	status := "success"
@@ -162,8 +169,8 @@ func (s *PipelineService) Execute(ctx context.Context, tenantID string, alert mo
 	return &models.PipelineResult{
 		AlertID:    alert.ID,
 		Status:     status,
-		Stages:     stageNames(resultCtx.History),
-		StageCount: len(resultCtx.History),
+		Stages:     stages,
+		StageCount: len(stages),
 		Errors:     errors,
 	}
 }

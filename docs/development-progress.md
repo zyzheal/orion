@@ -12432,3 +12432,133 @@ cmdb 的 `GetCIByID` 从 `c.Query("tenantId")` 取租户而不是 `c.GetString("
 
 其余候选池不变（见 §58.9 末段）。
 
+## 第五十九轮：alert-pipeline 五层丢字段 + 阶段记账 off-by-one（Round 59）
+
+### 59.1 摘要
+
+本轮在 `internal/alert-pipeline` 一个模块里连出五个真实缺陷，全部挂在已注册路由上、全部有对外可见面，**没有一个是读代码第一眼能看到的**：第一个是 handler 测试发现的，第二个是 service 测试发现的，第五个是**被我自己刚写下的断言反打出来的**。
+
+同一根因在四个不同深度各出现一次——**绑定的字段被静默丢弃**：handler 回显请求体；`Execute` 丢 `sourceId`；`UpdateConfig` 整体替换配置；`Chain.Execute` 快照了一个从未执行过的占位阶段。加上「链错误被丢弃」共五条。
+
+变异矩阵 10 条全灭、0 存活、0 编译击杀（后两项是在把两个编译击杀改写成语义变异之后才成立的，见 §59.8）。
+
+### 59.2 第 1 层：handler 回显请求体
+
+`PUT /alerts/pipeline/config` 原本是绑定 `models.PipelineConfig`、补一个 nil 阶段列表、再把请求体原样回显成 "config accepted"，**完全没碰 service**。调用方发来的配置字段全部丢弃，响应却承诺了一次没发生的更新。
+
+这类 stub 的判定要点：**回显请求体意味着任何针对响应体的断言都必然通过**。所以回归只能断言 service 自己的状态——即管道实际会跑的那份配置。`handler_test.go` 的头部注释把这条钉在代码旁边了。
+
+### 59.3 第 2 层：Execute 丢 sourceId，管道截断到第 2 段
+
+validate 阶段要求 `sourceId`，而 `Execute` 构造的 `alertMap` 里没有这个键。`AlertEvent` 的 JSON tag 明写着 `sourceId`/`sourceName`，所以**按文档形状调用的调用方照样被拒**——handler 收下了这个字段，这一层把它扔掉了。
+
+后果不是报错，是**静默截断**：6 段管道每次都停在第 2 段，dedup、enrich、route、notify 从未执行。
+
+回归测试不能只断言段数——「跑 1 段」和「跑 6 段」都能通过任何只数条目的断言。所以 `TestPipelineServiceExecuteRunsEveryConfiguredStage` 钉住整份配置列表。
+
+### 59.4 第 3 层：Chain.Execute 丢弃阶段错误
+
+阶段失败时 `Chain.Execute` 只在 `alertCtx.Stage.ExitCode` 上记了 `"error"`，没写 `alertCtx.Error`。而下游判断结果状态靠的是 `ctx.Error`，于是**每一次被截断的运行都上报 `status: "success"`**——链在这里停了，后面 4 段根本没跑，但没有任何下游能察觉管道被截断了。
+
+修法是写 `alertCtx.Error = err.Error()`，**不是**对失败的阶段再补一次 `Snapshot`：`Snapshot` 会把当前阶段挪进 History 并把 `Stage` 重置成 `"unknown"`，反而把「哪一段停下的」这条信息洗掉。失败的阶段名改由 `Execute` 单独补进结果（§59.6）。
+
+validate 阶段的错误本身已带阶段前缀（`fmt.Errorf("validate: missing required field sourceId")`），所以 `Execute` **不再**叠第二层前缀——叠了会变成 `validate: validate: ...`。
+
+### 59.5 第 4、5 层：整体替换配置 + 幻影种子快照
+
+**第 4 层**：`UpdateConfig` 原本是拿绑定结果整体覆盖 `s.cfg`，调用方没发的键全部归零。只发 `{"stages":["route"]}` 就能把 MaxRetries、RetryDelay、StageTimeout 清成 0，并**通过 `Enabled` 的零值把整条告警管道关掉**——调用方从头到尾没提过 enabled。
+
+**第 5 层**：`Chain.Execute` 在每次迭代开头无条件 `Snapshot(alertCtx.Stage...)`，而 `NewAlertContext` 会播下一颗占位种子 `Stage: AlertStage{Stage: "receive"}`。于是循环第 0 次就把这颗种子当成「已完成的阶段」记进了 History。
+
+每一次成功运行都上报 `[receive, receive, validate, ...]`——首段重复一次，`StageCount` 比配置的段数多 1：**6 段管道报 7 段**。
+
+这一条是**被断言反打出来的**：我加了「被中断的运行必须报出停下那一段」的断言，跑出来 `stages = [receive receive validate]`。我当时的解释是错的（以为种子只被快照一次），而且我**刚写下**的那句注释「history 已经带上了失败阶段的退出码」也是错的——**一句错误的注释会把真实缺陷藏起来**，这比测试挂了更贵。
+
+### 59.6 阶段记账：修复前后
+
+| 情形 | 修复前 | 修复后 |
+|---|---|---|
+| 成功跑完 N 段 | 种子 + 前 N-1 段 + 末尾快照 → N+1 条，首段出现两次 | `[c0, c1, …, cN-1]` → N 条 |
+| 第 k 段中止 | 只报跑完的段，看不出被截断 | `[c0, …, c_k]`，多出停下那一段 |
+
+改法是把迭代开头的 `Snapshot` 加 `if i > 0` 守卫；末尾那次保留，负责记录最后一段。
+
+`track.buildResult` 用 `len(ctx.History) + 1` 并把当前阶段补进结果——它继承的是**同一个** off-by-one，不是独立缺陷。`track` 不在默认 6 段链里，只通过 `knownStageNames`/`newStage` 触达，所以这条只能在阅读中确认，默认路径上没有测试覆盖它。
+
+`assertStagesExecuted` 相应改成断言 `len(configured)` 与 `Stages[i] == configured[i]`：条数抓「早停」，逐位名称抓「跑了别的段或顺序不同」。
+
+### 59.7 双写者删除：mutant G 迫使的清理
+
+`Execute` 原本从**三个地方**收集失败：`ctx.Error`、`History` 里的 `ExitCode`、`Stage.ExitCode`。而 `Chain.Execute` 在**同一个分支**里既写 `ctx.Error` 又写 `Stage.ExitCode`——所以删掉 `ctx.Error` 的写入，`status` 照样是 `"error"`，测试全绿。
+
+**同一个事实有两个写者，会在任一个身上隐藏回归**：这正是「截断但报 success」能被藏起来的原因。保留那两处冗余只是把一个不可观测的写入换成另一个。
+
+修法：只留 `ctx.Error` 一个来源。已 grep 确认整个 `internal/alert-pipeline/` 内**只有 `Chain.Execute` 写**这个字段，`PipelineService.Execute` 与 `track.buildResult` 是唯二读者。
+
+我原本**预测** mutant G 会存活，预测错了。这不是测试弱，是我读代码读错了——存活或意外的信号可能证明工具太弱，**也可能证明我的阅读错了**，后者更贵，因为它会落成一句错误注释（§59.5）。
+
+### 59.8 变异矩阵：10 条全灭，0 编译击杀
+
+| 变异 | 内容 | 命中数 | 结果 |
+|---|---|---|---|
+| A | 删掉 `s.chains = make(...)` 缓存失效 | 1 | KILLED |
+| B | `UpdateConfig` 返回 `nil, nil` | 1 | KILLED |
+| C | `if !knownStageNames[name]` → `if false` | 1 | KILLED |
+| D | 删掉三个负值检查 | 3 | KILLED |
+| E | `current := *s.cfg` → 空结构体（整体替换） | 1 | KILLED |
+| F | 删掉 `"sourceId": alert.SourceID` | 1 | KILLED |
+| G | 删掉 `alertCtx.Error = err.Error()` | 1 | KILLED |
+| H | 响应回显 patch 而非 applied | 1 | KILLED |
+| I | `if i > 0` → `if i >= 0`（复活幻影种子） | 1 | KILLED |
+| J | 删掉被中断阶段的补记 | 1 | KILLED |
+
+基线 rc=0 的断言出现在任何变异**之前**；每处打印 patch 命中数，D 单独断言 `count == 3`；每次还原后断言「期望的修复片段在文件中」，不用 md5（§58.7 的教训）。
+
+**C 和 H 第一次是编译击杀**：C 删掉整段循环后 `knownStageNames` 变成未使用变量，H 用 patch 替换 applied 后 `applied` 变成未使用变量——两者都死在编译期，**测试根本没跑，什么都没证明**。改写成语义变异：C 改成 `if false`（变量仍被引用，包仍能编译，缺陷必须靠测试语义抓）；H 改成把返回值赋给 `_` 并回显 patch（继承字段回零，`MaxRetries == 3` 断言抓到）。为此给脚本加了编译击杀检测（`[build failed]`/`undefined:`/`declared and not used`），并在 summary 里单独计数、有编译击杀就 exit 1。
+
+**G 只有在删掉双写者之后才死**——变异矩阵在这件事上做了阅读代码做不到的工作。
+
+### 59.9 ConfigPatch：显式零值必须与缺失可区分
+
+- 指针字段是契约而非风格：值字段无法表达「没发」与「发了零」，而这正是 stages-only PUT 能关掉管道的原因。
+- JSON tag 放在 patch 上而不是 `models.PipelineConfig` 上：线上形状是局部更新，存储形状是完整配置。
+- `TestPipelineServiceUpdateConfigAppliesExplicitZero` 与 `...StagesOnlyKeepsEverythingElse` 是成对反向断言，防止把「保守合并」做成「忽略零值」。
+- `TestPipelineServiceUpdateConfigCopiesTheStageSlice` 断言 patch 不能别名调用方的切片。
+- handler 侧 `TestHandlerUpdateConfigAppliesToTheService` 额外断言**请求体没提 enabled 时管道仍然开着**——这就是第 4 层的直接回归。
+
+### 59.10 newStage 的 no-op 兜底陷阱
+
+`newStage` 对未知名称兜底成 `noopStage`，理由是「手改配置文件里的错别字不该让整条管道起不来」。但 `UpdateConfig` **不能继承这个宽容**：从 PUT 收到 `recieve` 并静默跑一个 no-op 阶段，在行为上跟「丢弃了这个字段」不可区分。
+
+所以 `knownStageNames` 独立维护 7 个名字，注释写死「两处列表必须一起动」；`ErrUnknownStage` 用 `%w` 包裹并把肇事名回显进消息，handler 测试断言 400 且响应体含 `recieve`。被拒的更新**不得部分生效**：测试断言拒绝后 `Config().Stages` 仍是原 6 段、`MaxRetries` 仍是 3。
+
+### 59.11 分析器自身的缺陷：恒等排除把负结果做成构造性必然
+
+本轮最大的产出不是修代码，是修**分析器**，两次。
+
+**AST 扫描器替换正则扫描器**：198 条未解析全部消除（198 → 0），3619 条注册全部解析——0 个函数字面量残留、0 个未解析、0 个参数不匹配；同时消掉四个假阳性工厂。规模 2378 文件 / 1380 import 路径 / 4861 handler / 3619 注册。
+
+**「绑定的字段被丢弃」这条结果是空白的**：分析器把「整个结构体被转发」算作「字段已消费」，而 handler 恰好把整个绑定结构体转成 `gin.H` 回显——于是所有真阳性被这条恒等式排除了。这是**分析器把负结果做成了构造性必然**，比漏报更危险，因为它看起来像「检查过了，没问题」。修法是删掉这条排除、改成打印覆盖率页脚（bind 调用 1345 / 类型未解析 176 / <2 字段 199 / 整结构体转发 855 / 实际分析 970），让「没检查」可见。
+
+triage 过程中又找到三种消费形状（别名、对结构体调方法、结构体自方法内的字段读），候选 28 → 23，删掉 5 条假阳性——**缺陷在分析器里，不在代码里**。
+
+### 59.12 验证
+
+`gofmt -l internal/alert-pipeline/` 干净；`go test ./internal/alert-pipeline/...` rc=0；`go test -race ./internal/alert-pipeline/...` rc=0；`go vet ./internal/alert-pipeline/...` rc=0；`go build ./...` rc=0。
+
+grep 确认 `internal/` 内除 `internal/alert-pipeline/` 之外没有代码消费 `StageCount` 或 `PipelineResult`，`test/integration/extension_points_2_test.go` 只通过 repository 触达 `alert_pipeline_results`——这次记账改动没有别的调用方会被连带影响。
+
+### 59.13 只记录、不动手
+
+- **21 条「绑定的字段被丢弃」仍待逐条核**：distributed-config `ListGroups`（GroupID/Level/OverrideOnly/UserID）、cron `Create`（MaxRetries/TimeoutSec/Enabled）、cache-mgmt `Get/Set/DeleteCachedValue`（Value/Method）、cmdb 五条（全部丢 TenantID）、condition `CreateGroup`/`CreateExpression`、form `CreateForm`/`SubmitForm`、cmdb-collector `Discover`/`Collect`、cmdb-import `CreateJob`（Config）、internal-library `Deprecate`、mlops `UpdateModel`（ArtifactPath）、pipeline-executor `CreatePipeline`、security-compliance `CreateBaseline`。其中 5 条 cmdb 全是 TenantID，只有在「租户取自 auth context」的语境下才站得住，需要逐条核来源。
+- **ticketing `AssignTicket` 的 Comment**（`ticket.go:151`）：注册路由里不存在，按 R38 判据属死代码，只记录。
+- **AST 扫描器本身未提交**：3619 注册守卫与「绑定的字段被丢弃」守卫都没有回归测试——本轮的 `UpdateConfig` 改动值得落一条由扫描器派生的守卫。
+- capacity handler 52 个在册外方法；`internal/autonomous-pipeline/handler/handler.go:378 Rollback` 无注册；5 张 stranded 表 + 24 个 stranded 模块级 migration；249 个 down 文件里 106 个零 `DROP TABLE`；service-catalog requests 子系统；gateway-routes 无 `service` 包；659/668/669 留下的 5 张双引号表；`alert-pipeline RepositoryInterface` 只有 `Save` 在运行时被用。
+- `docs/deliverables/plan-*` 包 `go test ./...` 失败（缺第三方模块 + darwin 不支持的 `syscall.CLONE_*`），本轮之前即存在，不在范围内。
+
+### 59.14 下一轮候选
+
+**「绑定的字段被丢弃」这 21 条是唯一还有高产出密度的方向**，而且它现在有了可复算的守卫（覆盖率页脚 + LIVE/DEAD 判据）。优先级：cmdb 那 5 条 TenantID 先核来源（同一根因、同一结论，一次核完）；其次是 cron `Create` 的三字段与 distributed-config `ListGroups` 的四字段——这两处是真丢查询参数，改起来是签名加宽，需要动 service 层。
+
+第二条方向：把 AST 扫描器落进仓库，让「3619 条注册全部解析」和「绑定的字段被丢弃」两条守卫变成有回归测试的资产。当前它只活在 `/tmp`，这轮五个缺陷里第一个和第四个就是它的产出。
+
