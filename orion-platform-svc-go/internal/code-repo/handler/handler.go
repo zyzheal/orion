@@ -246,26 +246,24 @@ func (h *Handler) UpdatePullRequestByID(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdatePullRequestByID")
 	defer span.End()
 	adapterID := c.Param("adapterId")
-	repoID := c.Query("repoId")
-	if repoID == "" {
-		repoID = c.Param("repoId")
-	}
-	if repoID == "" {
-		middleware.RespondBadRequest(c, "repoId is required in query or request body")
-		return
-	}
 	prID := c.Param("prId")
+
+	// Bind the body before checking repoId: repoId may arrive only in the body,
+	// so a missing-repoId guard placed before ShouldBindJSON made the body
+	// fallback unreachable and the "query or request body" message below promised
+	// something the code could not deliver. A body parse error fails either way,
+	// so resolving repoId afterwards cannot hide one.
 	var req models.UpdatePullRequestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	// Allow repoId from body
-	if repoID == "" && req.RepoID != "" {
+	repoID := c.Query("repoId")
+	if repoID == "" {
 		repoID = req.RepoID
 	}
 	if repoID == "" {
-		middleware.RespondBadRequest(c, "repoId is required")
+		middleware.RespondBadRequest(c, "repoId is required in query or request body")
 		return
 	}
 	pr, err := h.svc.UpdatePullRequest(ctx, adapterID, repoID, prID, req)

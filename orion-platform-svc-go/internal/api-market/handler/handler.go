@@ -58,8 +58,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.GET("/subscriptions/check", h.CheckSubscription)
 	// POST /market/subscriptions - Subscribe to product
 	f.POST("/subscriptions", auth.RequirePermission("api_market", "write"), h.Subscribe)
-	// GET /market/subscriptions/:appId - List subscriptions
-	f.GET("/subscriptions/:appId", h.ListSubscriptions)
+	// GET /market/subscriptions/:id - List subscriptions
+	// The param name must stay ":id" to match the c.Param("id") in
+	// ListSubscriptions; gin resolves params positionally but names the
+	// captured value after the template, so ":appId" left the handler reading
+	// an empty id and made the route 404 for every caller.
+	f.GET("/subscriptions/:id", h.ListSubscriptions)
 }
 
 // getTenantID extracts tenant_id from Gin context, falling back to a zero UUID.

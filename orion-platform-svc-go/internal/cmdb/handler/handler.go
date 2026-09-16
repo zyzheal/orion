@@ -31,8 +31,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.POST("/cis", auth.RequirePermission("cmdb", "write"), h.CreateCI)
 	// GET /cmdb/cis/:ciID - Get CI by ID
 	f.GET("/cis/:ciID", auth.RequirePermission("cmdb", "read"), h.GetCI)
-	// GET /cmdb/cis/by-id/:ciId - Get CI by CI ID
-	f.GET("/cis/by-id/:ciId", auth.RequirePermission("cmdb", "read"), h.GetCIByID)
+	// GET /cmdb/cis/by-id/:ciID - Get CI by CI ID
+	// The param name must stay ":ciID": gin binds params positionally, so the
+	// spelling here has to match the c.Param("ciID") in GetCIByID, and this file
+	// spells the CI id ":ciID" everywhere else (":ciId" never resolved and the
+	// handler always saw an empty id).
+	f.GET("/cis/by-id/:ciID", auth.RequirePermission("cmdb", "read"), h.GetCIByID)
 	// PUT /cmdb/cis/:ciID - Update CI
 	f.PUT("/cis/:ciID", auth.RequirePermission("cmdb", "write"), h.UpdateCI)
 	// DELETE /cmdb/cis/:ciID - Delete CI

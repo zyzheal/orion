@@ -21,6 +21,10 @@ func NewHandler(svc service.ServiceInterface) *Handler {
 	return &Handler{svc: svc}
 }
 
+// RegisterRoutes registers the metadata endpoints. The three per-record routes
+// all name their param ":key", so Get, Update and Delete must read
+// c.Param("key"): c.Param returns "" for a name no route provides, and each of
+// those three handlers previously read c.Param("id") on a ":key" route.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r := rg.Group("/metadata")
 	r.GET("", auth.RequirePermission("metadata", "read"), h.List)
@@ -56,7 +60,7 @@ func (h *Handler) Get(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	record, err := h.svc.Get(ctx, tenantID, c.Param("id"))
+	record, err := h.svc.Get(ctx, tenantID, c.Param("key"))
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
 		return
@@ -90,7 +94,7 @@ func (h *Handler) Update(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
 		return
 	}
-	record, err := h.svc.Update(ctx, tenantID, c.Param("id"), req)
+	record, err := h.svc.Update(ctx, tenantID, c.Param("key"), req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -102,7 +106,7 @@ func (h *Handler) Delete(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	err := h.svc.Delete(ctx, tenantID, c.Param("id"))
+	err := h.svc.Delete(ctx, tenantID, c.Param("key"))
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return

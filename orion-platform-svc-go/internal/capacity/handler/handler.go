@@ -30,7 +30,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.DELETE("/:id", auth.RequirePermission("capacity", "delete"), h.Delete)
 	r.GET("/forecast", auth.RequirePermission("capacity", "read"), h.Forecast)
 	r.GET("/utilization", auth.RequirePermission("capacity", "read"), h.GetUtilization)
-	r.POST("/scale", auth.RequirePermission("capacity", "write"), h.ScaleResource)
+		// The scale target is a path param: ScaleResource forwards the id straight
+	// to the record store, and c.Param("id") on a "/scale" route is always "".
+	r.POST("/scale/:id", auth.RequirePermission("capacity", "write"), h.ScaleResource)
 	r.GET("/alerts", auth.RequirePermission("capacity", "read"), h.ListAlerts)
 	r.GET("/history", auth.RequirePermission("capacity", "read"), h.GetHistory)
 }
