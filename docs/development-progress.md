@@ -11811,3 +11811,137 @@ ls migrations/ | grep -c '^685_'                                   → 2（本�
 ```
 
 三个生产文件在变异清扫前后经 `cmp` 逐字节校验一致；清扫后仅有一处注释字符串改动（`repository.go` 里一条过期注释把迁移号 `678` 改成 `685`），该改动不改变任何可执行行为，且改后四套测试仍全绿。三个 pathspec 限定的提交，FORBIDDEN 校验（`migrations/dba`、`orion-frontend/src/api/dba`、`orion-frontend/src/pages/dba`、`orion-frontend/src/router/routes`、`docs/dba` 的 `wc -l`）在每次提交前后各打印一次、均输出 0。
+
+
+## 第五十五轮：internal/ticket 八张无前缀表从无 DDL、24 条在册路由在驱动层报 relation does not exist、sqlx 安全模式下 SELECT 星号要求结果列与 db 字段双向唯一对应、两处 repository 错误被丢弃（Round 55）
+
+扫描起点 HEAD `43bd69eab`。选它的理由：`internal/ticket` 是除 `internal/ticketing` 之外仓库层最密的模块，而上一轮 §54.11 把它列为候选池第二；扫描中发现**测试恰好覆盖了死代码而跳过了活路由**的反向情形——两个仓库包合计 34 个 go 文件，`go build`、`go vet` 全绿，因为缺陷全在 SQL 层与错误处理层。
+
+### 55.1 F1 —— 两组仓库语句字节相同，却用 `076` 从不创建的无前缀表名
+
+`internal/ticket/repository` 与 `internal/ticketing/repository` 的仓库语句经逐条比对确认**字节相同**，但内部模块用的是无前缀表名，而 `076_create_ticketing_tables.sql` 只建 17 张 `ticketing_` 前缀的表。于是这 8 张表在整个 applied set 里没有任何 CREATE TABLE：
+
+| 表 | 挂载的在册路由 |
+|----|----------------|
+| `ticket_comments` | GET /tickets/:id/comments、POST /tickets/:id/comments |
+| `sla_targets` | POST /tickets/sla/targets、GET /tickets/sla/compliance |
+| `sla_records` | GET /tickets/sla/breaches |
+| `dispatch_engineers` | GET /tickets/dispatch/balancing/{report,suggestions,available} |
+| `dispatch_queue` | GET /tickets/dispatch/queue/{sla-status,sla-entries,sla-alerts}、POST .../reprioritize |
+| `dispatch_records` | POST /tickets/:id/dispatch/{auto,manual} |
+| `dispatch_rules` | （规则管理） |
+| `suspend_records` | POST /tickets/transfer/suspend/:suspendId |
+
+新增 `migrations/686_create_ticket_domain_missing_tables.sql`（8 表 21 索引）与其 down。down 的删除顺序是 `suspend_records; dispatch_queue; dispatch_rules; dispatch_records; dispatch_engineers; ticket_comments; sla_records; sla_targets;`——`sla_records` 在 `sla_targets` 之前，因为前者持外键，反序删除会先在约束上失败。
+
+三条刻意的建模决定，每条都由一条断言钉住：
+
+- **`created_at`/`updated_at` 必须 `DEFAULT NOW()`**。这 8 张表的每一条 INSERT 都故意不写这两列（`comment.Create` 只写 5 列、`sla.CreateTarget` 只写 6 列、`suspend.Create` 只写 11 列），仓库层也不填充它们。声明 NOT NULL 而不给 DEFAULT 会让每条在册路由的 INSERT 直接 500。测试 `OmittedNotNullColumnsHaveADefault` 穷举 13 个这样的列。
+- **`dispatch_queue` 主键是 `ticket_id` 而非 `id`**。`models.DispatchQueueEntry` 没有 `id` 字段，且 `Enqueue` 用 `ON CONFLICT (ticket_id) DO NOTHING`——该子句要求 `ticket_id` 上有唯一约束，否则驱动直接报 no unique or exclusion constraint。两个独立信号指向同一个主键。
+- **不向 `tickets(id)` 建外键**。`tickets.id` 是 UUID 而模型里的 id 全是 `string`（TEXT），类型不匹配会让建表直接失败。断言用列类型位置正则 `(?im)^\s*[a-z_][a-z0-9_]*\s+uuid\b` 而非裸词匹配——文件头用散文说明了这个刻意决定，裸 `\buuid\b` 会误报注释。已验证该正则在 686 上为假、在合成列行上为真、在注释行与 `IF NOT EXISTS` 行上均为假。
+
+### 55.2 F2 —— `sla_policy.go` 的 JOIN 引用了一个无人写入的列，sqlx 安全模式让两个方向都致命
+
+这是本轮最新发现，也是最容易被 `go build` 与 `go vet` 漏掉的：`sla_policy.go` 的合规 JOIN 以 `t.tenant_id = $1` 过滤，该列全代码库无人写入却被真实 SQL 引用。
+
+`go.mod` 锁 `sqlx@v1.4.0`。其 `sqlx.go` 的 `StructScan`（约 609 行）与 `mapScan`（约 937 行）都是同一个模式：
+
+```go
+r.fields = m.TraversalsByName(v.Type(), columns)   // 遍历结果列，找结构体字段
+if f, err := missingFields(r.fields); err != nil && !r.unsafe {
+    return fmt.Errorf("missing destination name %s in %T", columns[f], dest)
+}
+```
+
+关键在方向：**遍历的是结果列，不是结构体字段**。`missingFields` 返回第一列空遍历的下标。
+
+于是：
+
+- 缺列 → JOIN 查询报 `column t.tenant_id does not exist`。
+- 补列而不补字段 → 两条已挂载的 `SELECT *`（`sla.go:34`、`sla.go:41`）报 `missing destination name tenant_id in models.SLATarget`，POST/GET /tickets/sla/* 全部 500。
+
+全仓（含 `orion-go-common/`）`.Unsafe()` 出现零次，所以安全模式恒开，没有后门。结论：缺列和补列而不补字段都失败，只有把字段也加上才能同时满足两个方向。INSERT 不写该字段，所以它保持空串而非 NULL——与「不编造写入者」一致。
+
+反向也成立：结构体里多一个没有 DDL 列的字段无害（只是保持零值）。所以断言必须做**两个方向**：`InsertColumnsExistInTheDDL` 查正向，`SelectStarColumnsAllHaveADestinationField` 查反向。
+
+`dispatch_engineers` 从反向断言中**刻意排除**：`dispatch.go:70` 与 `:91` 用显式 `.Scan(...)` 读它而非 `SELECT *`，那里多一列无害，断言它会写出错误断言。已核实它有 15 列不是 14 列。
+
+### 55.3 F3 / F4 —— 两处 repository 错误被丢弃，两处都挂在册路由上
+
+`queue_manager.go` 的 `GetRecordByTicket` 错误被丢弃，「该工单没有 SLA 记录」与「数据库拒绝应答」给出同一个答案。只吞 `sql.ErrNoRows` 这一个信号——用 `errors.Is` 而非 `==`，让包装过驱动错误的实现走同一路径；其余一律上浮。否则 GET /tickets/dispatch/queue/sla-entries 会在数据库不可达时回 200 加无 deadline 的陈旧条目。
+
+`transfer_service.go` 的 `CountPendingByEngineer` 错误被丢弃更糟：`database/sql` 对失败的 COUNT 返回 0，数据库宕机在此读作「该工程师无待处理工单」，POST /tickets/transfer/suspend/:suspendId 回 200 加 `{"transfers":null,"count":0}`——而休假仍生效、工单仍派给不可用的人，客户端却被告知无事可做。
+
+两处均改为上浮，且**合法的空结果仍回 `(nil, nil)`**。测试里专门有一个 `LegitimatelyEmptyCountReturnsNil`，钉住的是「不要把安静工程师变成 500」。
+
+### 55.4 仅记录不修（R38：丢弃只在挂到在册路由上才是缺陷；零调用方即死代码）
+
+`internal/ticketing/repository/` 的九个**子**仓库构造函数——`sla`、`dispatch`、`suspend`、`transfer`、`comment`、`sla_policy`、`analytics`、`assignment_rule`、`workflow`——在生产接线中零调用方。唯一被接线的是 `ticketing_repo.NewRepository(db.DB)`（`cicd_domain_wiring.go:354`），而它是**聚合体**，碰的是 655 建的 `ticketing_sla_targets` 而非 `sla_targets`。
+
+由此得到本轮第二条死代码结论：`ticketing/repository/sla.go` 里 `NewSLARepository` 的 `ID int` 与 686 的 `sla_targets.id TEXT` 冲突，看着像缺陷，实际是死代码冲突，按 R38 只记录。（顺带：`ticketing/models.SLATarget` 多出的 `db:"response_hours"`、`db:"resolve_hours"` tag 在 sqlx 下无害——多余字段只是永远不被填充。）
+
+其余：`sla_records`、`suspend_records`、`ticket_comments` **故意不加 `tenant_id`**——全代码库无任何写入者且无仓库方法带 tenantID 参数，加一个永远为 NULL 的列再加 WHERE 谓词会把每个合法调用变成 not found，是行为破坏不是修复（`ticket_comments` 的租户隔离已通过父工单实现）。`ReprioritizeAll` 不写任何东西且无仓库方法写 `priority`；`TransferDueToSuspend` 用 `pending-%s-%d` 伪造工单 ID 而仓储层无 `ListByAssignee`；`CheckAndAutoTransfer` 收 `tenantID` 但 `Dequeue` 不做租户过滤；`dispatch.go:252` 的 `SuccessRate = 100.0 // simplified` 未挂载；`transfer_service.go:225,230,233` 的未守卫 `.(int)` 断言未挂载；`ticket.go:81` 的 `rule, _ :=` 为死代码。
+
+`assignment_rules`、`automation_rules`、`automation_rule_executions`、`sla_policies` 四张表**无人拥有 CREATE**，686 刻意不认领——测试 `RecordOnlyRelationsAreNotClaimed` 钉住这个边界：认领了它们，就等于把「路由未挂载」伪装成「路由修好了」。
+
+### 55.5 测试：25 个新用例
+
+`internal/ticket/service/error_discard_test.go` 10 个。仓储构造函数收 `*database.DB`（`orion/go-common/pkg/database`）而非 `*sqlx.DB`，所以 **go-sqlmock 在此不可用**；改经 `internal/ticket/repository/interfaces.go` 声明的接口驱动 service——那本就是生产接线所用的接缝。含一个 `errors.Join(errors.New("wrapper"), sql.ErrNoRows)` 用例证明 `errors.Is` 分支真的被走到。
+
+`cmd/server/migration_ticket_tables_test.go` 15 个，复用既有共享助手 `migrationBody`、`parseCreateTables`、`reMust`、`entriesInMigrationsDir`，新增助手全用 `tk` 前缀（已 grep 确认该前缀在 17 个既有迁移测试中未被占用）：双向唯一对应（`tkColumnsWithoutDestination`，`dispatch_engineers` 排除）、每张表恰一个 owner 且 owner 必须是 686、8 张表精确集合、仓库只碰已建关系、record-only 四表不被认领、8 处 INSERT 列全部已声明、`db:` tag 全部可解析、被 INSERT 省略的 NOT NULL 列必须有 DEFAULT、无 tickets 引用且无 uuid 列类型、`dispatch_queue` 主键、租户列只在有写入者或有 JOIN 谓词处存在、down 按依赖序删全 8 张、686 唯一、外加两个非空自测。
+
+`tkInsertStatements` 取**全部**匹配而非首个——既有共享助手 `insertColumns` 只取首个，8 处 INSERT 里有 7 张表各只有一条语句，用首个也能过，但取全部才让「漏解析一条」可被发现，并由非空自测兜底。
+
+### 55.6 变异清扫 4 个：4 杀、1 次编译击杀改写
+
+基线先断言 PASS，直接取 `go test` 返回码不经管道；每个变异体打印 patch 命中数，恢复后按 md5 逐字节比对。
+
+| 变异体 | patch | 测试 rc | 被谁杀死 | 恢复后 md5 |
+|--------|-------|---------|----------|------------|
+| F-A：`pendingCount, _ :=` + 删上浮块 | 1 | 1 | `TestTransferDueToSuspend_CountFailureIsNotSilent` | `81a5e0b2a33f7ac124fde0496b55648c` ✓ |
+| F-B：`slaRecord, _ :=` + 删上浮块 + 去两个 import | 1 + import 1 | 1 | `TestGetSLAQueueEntries_SLARepositoryFaultSurfaces` | `355b6b102bcd19f0bfa526204def8340` ✓ |
+| F-B2：`slaErr != sql.ErrNoRows` + 去 `errors` import | 1 + import 1 | 1 | `TestGetSLAQueueEntries_WrappedNoRowsIsStillNotAFault` | `355b6b102bcd19f0bfa526204def8340` ✓ |
+| F-C：从 `models.SLATarget` 删 `TenantID` 字段 | 1 | 1 | `TestMigration_TicketDomain_SelectStarColumnsAllHaveADestinationField` | `ab58b14d97198f6ce9053a42acdb345b` ✓ |
+
+F-C 的输出是 `SELECT * FROM sla_targets into models.SLATarget: column(s) [tenant_id] have no db destination field`——§55.2 双向断言的存活证据。
+
+F-B2 第一次尝试写成调 `errors.Unwrap` 的助手，仍留下 `"errors" imported and not used` 导致 `[build failed]`。那是编译击杀，不算关于断言的证据，改写成语义上的恒等比较后才有效。
+
+### 55.7 顺手修正 `**/server` 遮蔽源码目录
+
+`./.gitignore` 原来的 `**/server` 模式匹配了**任何**名为 `server` 的路径组件，连带遮蔽了 `cmd/server/` 源码目录。已改为 `/server` 加显式二进制路径，并留下注释说明原因（原意是 8 个真实二进制）。`git check-ignore` 对新的测试路径返回 1，`git ls-files cmd/server/` 返回 145——该目录不再需要 `git add -f`。
+
+### 55.8 下一轮候选池
+
+按信号强度：`internal/ticketing`（122 条路由，本轮只证实它是「用聚合体、碰前缀表」的一条路，17 张前缀表本身未审）、`internal/governance`、`internal/ci-cd`、`internal/llm-trace`、`internal/notification`、`internal/security`、`internal/file-handler`、`internal/cache`、`internal/apm`、`internal/cron`。
+
+两个本轮确立的方法论可直接复用：（1）§55.2 的 sqlx 安全模式双向唯一对应断言适用于**每一个**用 `SELECT *` 进结构体的仓库包——全仓 `SELECT *` 有 1302 处、1007 张表被迁移 572 改过，任何新增列都可能正在制造同类 500；（2）「两组语句字节相同但表名不同」这个模式值得全仓搜一次。
+
+### 55.9 验证
+
+```
+# 以下命令必须在模块根 orion-platform-svc-go/ 下执行（CWD 不是仓库根）；
+# 从仓库根执行会扫到 /Users/heal/orion-design/migrations/，那里只有 2 个遗留文件。
+
+go build ./internal/ticket/... ./cmd/server/                          → exit 0
+go vet   ./internal/ticket/... ./cmd/server/                          → exit 0
+go test  ./internal/ticket/... ./cmd/server/ -count=1                 → exit 0
+   internal/ticket/repository  ok
+   internal/ticket/service     ok（既有 0 + 本轮 10）
+   cmd/server                  ok（本轮新增 15 个 TicketDomain 用例）
+go test ./cmd/server/ -run 'TestMigration_TicketDomain'               → exit 0，15 PASS
+gofmt -l internal/ticket/ cmd/server/                                 → 空
+
+# 非 ASCII 扫描（防 gofmt 注释回流把相邻 ASCII 单引号换成 U+201D）
+5 个改动 Go 文件全部 clean；迁移 686 中 13 处非 CJK 非 ASCII 全是
+中文注释头的句号（0x3002）与破折号（0x2014），无 0x201D。
+
+# 变异体基线 md5 与恢复后 md5 逐一比对
+internal/ticket/service/queue_manager.go      355b6b102bcd19f0bfa526204def8340
+internal/ticket/service/transfer_service.go   81a5e0b2a33f7ac124fde0496b55648c
+internal/ticket/models/sla.go                 ab58b14d97198f6ce9053a42acdb345b
+
+ls migrations/ | grep -c '^686_'                          → 2（前向 + down，独占该号）
+```
+
+三个 pathspec 限定的提交，FORBIDDEN 校验（`migrations/dba`、`orion-frontend/src/api/dba`、`orion-frontend/src/pages/dba`、`orion-frontend/src/router/routes`、`docs/dba` 的 `wc -l`）在每次提交前后各打印一次、均输出 0。
