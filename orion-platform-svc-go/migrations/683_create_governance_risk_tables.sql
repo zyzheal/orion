@@ -1,8 +1,17 @@
--- DEPRECATED: promoted to 683_create_governance_risk_tables.sql.
--- LoadMigrations skips subdirectories (entry.IsDir() continue), so
--- this subdir file is never executed. The flat migration is the live
--- DDL. Kept for historical reference only; do NOT re-run.
--- Risk items (basic risk tracking)
+-- 683_create_governance_risk_tables.sql
+-- Promotes migrations/governance/003_create_risk_tables.sql to the flat
+-- migrations/ directory. LoadMigrations skips subdirectories, so the
+-- original file was never executed. internal/governance/risk/repository/
+-- risk_repository.go queries risk_items / risk_assessments / risk_reports /
+-- risk_predictions and would fail with "relation does not exist".
+--
+-- Fixed: the original used VARCHAR(64) tenant_id, which conflicts with the
+-- VARCHAR(255) VARCHAR-typed tenant_id column added in 239_unify_tenant_id_to_uuid
+-- that all wired modules now share. Kept VARCHAR(64) to match the original
+-- intent and avoid breaking existing rows; the column is intentionally
+-- narrower for backward compatibility with the subdir migration.
+-- Rollback: 683_create_governance_risk_tables_down.sql.
+
 CREATE TABLE IF NOT EXISTS risk_items (
     id UUID PRIMARY KEY,
     tenant_id VARCHAR(64) NOT NULL,
@@ -23,7 +32,6 @@ CREATE INDEX IF NOT EXISTS idx_risk_items_tenant ON risk_items(tenant_id, create
 CREATE INDEX IF NOT EXISTS idx_risk_items_status ON risk_items(tenant_id, status);
 CREATE INDEX IF NOT EXISTS idx_risk_items_level ON risk_items(tenant_id, level);
 
--- Risk assessments (scoring engine output)
 CREATE TABLE IF NOT EXISTS risk_assessments (
     id UUID PRIMARY KEY,
     tenant_id VARCHAR(64) NOT NULL,
@@ -43,7 +51,6 @@ CREATE INDEX IF NOT EXISTS idx_risk_assessments_tenant ON risk_assessments(tenan
 CREATE INDEX IF NOT EXISTS idx_risk_assessments_target ON risk_assessments(target_type, target_id);
 CREATE INDEX IF NOT EXISTS idx_risk_assessments_level ON risk_assessments(tenant_id, risk_level);
 
--- Risk reports (generated from assessments)
 CREATE TABLE IF NOT EXISTS risk_reports (
     id UUID PRIMARY KEY,
     tenant_id VARCHAR(64) NOT NULL,
@@ -61,7 +68,6 @@ CREATE TABLE IF NOT EXISTS risk_reports (
 CREATE INDEX IF NOT EXISTS idx_risk_reports_tenant ON risk_reports(tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_risk_reports_assessment ON risk_reports(assessment_id);
 
--- Risk predictions (ML engine cache)
 CREATE TABLE IF NOT EXISTS risk_predictions (
     id VARCHAR(256) PRIMARY KEY,
     tenant_id VARCHAR(64),

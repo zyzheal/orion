@@ -1,7 +1,10 @@
--- DEPRECATED: promoted to 678_create_dba_ai_reviews_table.sql.
--- LoadMigrations skips subdirectories (entry.IsDir() continue), so
--- this subdir file is never executed. The flat migration is the live
--- DDL. Kept for historical reference only; do NOT re-run.
+-- 678_create_dba_ai_reviews_table.sql
+-- Promotes migrations/dba/aireviews.sql to the flat migrations/ directory.
+-- LoadMigrations skips subdirectories (entry.IsDir() continue), so the original
+-- file was never executed. internal/dba/aireview/repository.go queries
+-- dba_ai_reviews and would fail with "relation does not exist".
+-- Rollback: 678_create_dba_ai_reviews_table_down.sql.
+
 CREATE TABLE IF NOT EXISTS dba_ai_reviews (
     id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id      TEXT        NOT NULL,

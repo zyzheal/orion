@@ -1,12 +1,15 @@
--- DEPRECATED: promoted to 680_create_dba_explain_history_table.sql.
--- LoadMigrations skips subdirectories (entry.IsDir() continue), so
--- this subdir file is never executed. The flat migration is the live
--- DDL. Kept for historical reference only; do NOT re-run.
+-- 680_create_dba_explain_history_table.sql
+-- Promotes migrations/dba/explain_history.sql to the flat migrations/ directory.
+-- LoadMigrations skips subdirectories, so the original file was never
+-- executed. internal/dba/explain/repository.go queries dba_explain_history
+-- and would fail with "relation does not exist".
+-- Rollback: 680_create_dba_explain_history_table_down.sql.
+
 CREATE TABLE IF NOT EXISTS dba_explain_history (
     id              UUID PRIMARY KEY,
     tenant_id       UUID NOT NULL,
     data_source_id  TEXT NOT NULL,
-    db_type         TEXT NOT NULL,              -- 'postgres' | 'mysql'
+    db_type         TEXT NOT NULL,
     sql             TEXT NOT NULL,
     plan_text       TEXT NOT NULL,
     passed          BOOLEAN NOT NULL DEFAULT FALSE,

@@ -1,7 +1,11 @@
--- DEPRECATED: promoted to 682_create_dba_approval_tables.sql.
--- LoadMigrations skips subdirectories (entry.IsDir() continue), so
--- this subdir file is never executed. The flat migration is the live
--- DDL. Kept for historical reference only; do NOT re-run.
+-- 682_create_dba_approval_tables.sql
+-- Promotes migrations/dba/approval_workflows.sql to the flat migrations/
+-- directory. LoadMigrations skips subdirectories, so the original file was
+-- never executed. internal/dba/approval/repository.go queries
+-- dba_approval_workflows / dba_approval_instances / dba_approval_records and
+-- would fail with "relation does not exist".
+-- Rollback: 682_create_dba_approval_tables_down.sql.
+
 CREATE TABLE IF NOT EXISTS dba_approval_workflows (
     id          UUID PRIMARY KEY,
     tenant_id   UUID NOT NULL,

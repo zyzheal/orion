@@ -1,0 +1,10 @@
+-- Reverse 684_workflow_approval_tables_noop.sql.
+--
+-- This up migration is intentionally a no-op (it creates no tables and
+-- performs no schema changes), so its reverse is also a no-op. The file
+-- exists only so RunMigrationsDown can find a _down.sql pair and does
+-- not abort with "no _down.sql file found for version 684".
+--
+-- See 684_workflow_approval_tables_noop.sql for the full rationale on
+-- why migrations/workflow/approval_001_create_approval_tables.sql was
+-- not promoted.

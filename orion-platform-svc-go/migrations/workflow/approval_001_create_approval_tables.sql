@@ -1,3 +1,8 @@
+-- NOT PROMOTED: see 684_workflow_approval_tables_noop.sql for the
+-- reason. This subdir file is dead code (no repository file in
+-- internal/ references the bare `approvals` / `approval_steps`
+-- tables); the wired module uses `approval_requests` instead. Kept
+-- for historical reference only.
 CREATE TABLE IF NOT EXISTS approvals (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,

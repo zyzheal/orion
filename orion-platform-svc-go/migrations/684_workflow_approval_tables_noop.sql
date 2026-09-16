@@ -1,0 +1,25 @@
+-- 684_workflow_approval_tables_noop.sql
+--
+-- Subdirectory migration migrations/workflow/approval_001_create_approval_tables.sql
+-- was NOT promoted to the flat directory because the tables it creates are
+-- dead code: no repository file in internal/ references the bare `approvals`
+-- or `approval_steps` tables.
+--
+-- The wired approval module (internal/approval/repository/repository.go) uses
+-- `approval_requests` (created by 358_create_approval_tables.sql), not
+-- `approvals`. The other approval-related tables it uses — `approval_gates`,
+-- `approval_history`, `approval_levels`, `approval_templates` — are also
+-- created by 358.
+--
+-- The `approvals` table that 018_create_change_request_tables.sql defines is
+-- an unrelated workflow-level approval (single tenant_id UUID, current_step,
+-- total_steps), distinct from the per-request tables above. Nothing in
+-- internal/workflow/ references it either (internal/workflow/ has no
+-- repository.go).
+--
+-- This file is intentionally a no-op; it exists only so the flat migrations/
+-- directory has an explicit record that the subdir file was reviewed and
+-- deliberately not promoted. If a future workflow module wires up to the
+-- `approvals` / `approval_steps` schema, copy the original file from
+-- migrations/workflow/approval_001_create_approval_tables.sql into a new
+-- numbered migration with proper quoting.
