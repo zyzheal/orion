@@ -26,7 +26,7 @@ func NewHandler(svc service.ServiceInterface) *Handler {
 
 // RegisterRoutes mounts all ai-models routes.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	r := rg.Group("/api/v1/ai/models")
+	r := rg.Group("/ai/models")
 
 	// GET /api/v1/ai/models - List models
 	r.GET("",

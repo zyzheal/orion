@@ -41,8 +41,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	d.GET("/:id/versions", auth.RequirePermission("pandawiki", "read"), h.GetDocVersions)
 
 	// Document Center
-	d.GET("/docs/tags", auth.RequirePermission("pandawiki", "read"), h.GetDocTags)
-	d.GET("/docs/toc", auth.RequirePermission("pandawiki", "read"), h.GetDocToc)
+	d.GET("/tags", auth.RequirePermission("pandawiki", "read"), h.GetDocTags)
+	d.GET("/toc", auth.RequirePermission("pandawiki", "read"), h.GetDocToc)
 
 	// Sync
 	d.POST("/sync", auth.RequirePermission("pandawiki", "write"), h.TriggerSync)

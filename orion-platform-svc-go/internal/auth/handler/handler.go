@@ -38,18 +38,18 @@ func NewHandler(svc service.ServiceInterface) *Handler {
 // Protected routes are mounted on a group with JWT middleware.
 func (h *Handler) RegisterRoutes(public *gin.RouterGroup, protected *gin.RouterGroup) {
 	// Public endpoints (no JWT required)
-	public.POST("/auth/login", h.Login)
-	public.POST("/auth/register", h.Register)
-	public.POST("/auth/refresh", h.Refresh)
+	public.POST("/login", h.Login)
+	public.POST("/register", h.Register)
+	public.POST("/refresh", h.Refresh)
 
 	// Protected endpoints (JWT required)
-	protected.POST("/auth/logout", h.Logout)
-	protected.GET("/auth/me", h.Me)
+	protected.POST("/logout", h.Logout)
+	protected.GET("/me", h.Me)
 
 	// Auth config endpoints (JWT required)
-	protected.GET("/auth/providers", h.ListProviders)
-	protected.GET("/auth/policies", h.ListPolicies)
-	protected.POST("/auth/providers", h.CreateProvider)
+	protected.GET("/providers", h.ListProviders)
+	protected.GET("/policies", h.ListPolicies)
+	protected.POST("/providers", h.CreateProvider)
 }
 
 // Login authenticates a user and returns tokens.

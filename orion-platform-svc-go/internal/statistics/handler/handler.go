@@ -20,6 +20,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	g.POST("/aggregate", auth.RequirePermission("stats", "read"), h.Aggregate)
 	g.GET("/aggregate-all", auth.RequirePermission("stats", "read"), h.AggregateAll)
 	g.POST("/prune", auth.RequirePermission("stats", "manage"), h.Prune)
+	// eventbusH owns /api/v1/stats (it mounts on api with no sub-group), so
+	// "" here would panic at startup with "handlers are already registered for
+	// path '/api/v1/stats'". The doubled form is ugly but is the only
+	// collision-free spelling under the current ownership split.
 	g.GET("/stats", auth.RequirePermission("stats", "read"), h.Stats)
 }
 
