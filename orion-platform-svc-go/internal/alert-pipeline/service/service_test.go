@@ -70,6 +70,10 @@ func makeAlert(id string) models.AlertEvent {
 // "validate", so the two must not be conflated.
 var defaultPipelineStages = []string{"receive", "validate", "dedup", "enrich", "route", "notify"}
 
+func boolp(v bool) *bool                  { return &v }
+func intp(v int) *int                     { return &v }
+func durp(v time.Duration) *time.Duration { return &v }
+
 // assertStagesExecuted proves Execute ran exactly the configured stage list, in
 // order, without an early stop.
 //
@@ -177,9 +181,7 @@ func TestPipelineServiceUpdateConfigChangesTheStagesExecuteRuns(t *testing.T) {
 			before.Status, before.Errors)
 	}
 
-	cfg := *svc.Config()
-	cfg.Stages = []string{"receive", "validate"}
-	applied, err := svc.UpdateConfig(ctx, &cfg)
+	applied, err := svc.UpdateConfig(ctx, &ConfigPatch{Stages: []string{"receive", "validate"}})
 	if err != nil {
 		t.Fatalf("UpdateConfig returned err %v", err)
 	}
@@ -228,19 +230,24 @@ func TestPipelineServiceExecuteRejectsAlertWithoutSourceID(t *testing.T) {
 	}
 }
 
-// Empty fields keep their current value: a caller sending only maxRetries must
-// not lose its name or stage list.
+// A field the caller does not send keeps its current value, a field it does
+// send replaces it. This is the partial-PUT contract; the first real
+// implementation replaced the whole stored config with the bound request, which
+// could not express it.
 func TestPipelineServiceUpdateConfigKeepsUnsetFields(t *testing.T) {
 	svc := NewPipelineService(zap.NewNop(), &mockRepo{})
 	ctx := context.Background()
 	name := svc.Config().Name
 
-	applied, err := svc.UpdateConfig(ctx, &models.PipelineConfig{MaxRetries: 5})
+	applied, err := svc.UpdateConfig(ctx, &ConfigPatch{MaxRetries: intp(5)})
 	if err != nil {
 		t.Fatalf("UpdateConfig returned err %v", err)
 	}
 	if applied == nil {
 		t.Fatal("UpdateConfig returned a nil config without an error")
+	}
+	if applied.MaxRetries != 5 {
+		t.Errorf("MaxRetries = %d, want 5", applied.MaxRetries)
 	}
 	if applied.Name != name {
 		t.Errorf("name = %q, want %q (unset field must keep the current value)", applied.Name, name)
@@ -248,11 +255,89 @@ func TestPipelineServiceUpdateConfigKeepsUnsetFields(t *testing.T) {
 	if len(applied.Stages) == 0 {
 		t.Error("stages became empty; an unset stage list must keep the current one")
 	}
-	if applied.MaxRetries != 5 {
-		t.Errorf("MaxRetries = %d, want 5", applied.MaxRetries)
-	}
 	if applied.Enabled != svc.Config().Enabled {
 		t.Error("Enabled was changed by an update that did not mention it")
+	}
+	if applied.RetryDelay != time.Second {
+		t.Errorf("RetryDelay = %v, want the inherited 1s", applied.RetryDelay)
+	}
+	if applied.StageTimeout != 5*time.Second {
+		t.Errorf("StageTimeout = %v, want the inherited 5s", applied.StageTimeout)
+	}
+	if !applied.DeadLetterEnabled {
+		t.Error("DeadLetterEnabled was cleared by an update that did not mention it")
+	}
+}
+
+// The regression that pointed the way to ConfigPatch: a caller changing only the
+// stage list must not zero the retry knobs or, worse, switch the pipeline off
+// through the zero value of Enabled. A pointer-free patch produces exactly this.
+func TestPipelineServiceUpdateConfigStagesOnlyKeepsEverythingElse(t *testing.T) {
+	svc := NewPipelineService(zap.NewNop(), &mockRepo{})
+	before := svc.Config()
+	if !before.Enabled {
+		t.Fatal("precondition: the pipeline starts enabled")
+	}
+
+	applied, err := svc.UpdateConfig(context.Background(),
+		&ConfigPatch{Stages: []string{"receive", "validate"}})
+	if err != nil {
+		t.Fatalf("UpdateConfig returned err %v", err)
+	}
+	if applied == nil {
+		t.Fatal("UpdateConfig returned a nil config without an error")
+	}
+	if len(applied.Stages) != 2 {
+		t.Fatalf("stages = %v, want the requested two", applied.Stages)
+	}
+	if !applied.Enabled {
+		t.Error("a stages-only update disabled the pipeline; Enabled's zero value was applied")
+	}
+	if applied.MaxRetries != before.MaxRetries {
+		t.Errorf("MaxRetries = %d, want %d", applied.MaxRetries, before.MaxRetries)
+	}
+	if applied.RetryDelay != before.RetryDelay {
+		t.Errorf("RetryDelay = %v, want %v", applied.RetryDelay, before.RetryDelay)
+	}
+	if applied.StageTimeout != before.StageTimeout {
+		t.Errorf("StageTimeout = %v, want %v", applied.StageTimeout, before.StageTimeout)
+	}
+	if applied.DeadLetterEnabled != before.DeadLetterEnabled {
+		t.Errorf("DeadLetterEnabled = %v, want %v", applied.DeadLetterEnabled, before.DeadLetterEnabled)
+	}
+}
+
+// Zero values sent explicitly are still applied: a pointer distinguishes absent
+// from zero, so this must not be confused with the previous test.
+func TestPipelineServiceUpdateConfigAppliesExplicitZero(t *testing.T) {
+	svc := NewPipelineService(zap.NewNop(), &mockRepo{})
+	applied, err := svc.UpdateConfig(context.Background(),
+		&ConfigPatch{MaxRetries: intp(0), DeadLetterEnabled: boolp(false)})
+	if err != nil {
+		t.Fatalf("UpdateConfig returned err %v", err)
+	}
+	if applied == nil {
+		t.Fatal("UpdateConfig returned a nil config without an error")
+	}
+	if applied.MaxRetries != 0 {
+		t.Errorf("MaxRetries = %d, want 0; an explicit zero is not an absent field", applied.MaxRetries)
+	}
+	if applied.DeadLetterEnabled {
+		t.Error("DeadLetterEnabled = true, want the explicitly sent false")
+	}
+}
+
+// The patch must not be able to alias the caller's stage slice: a later edit by
+// the caller must not change what the pipeline runs.
+func TestPipelineServiceUpdateConfigCopiesTheStageSlice(t *testing.T) {
+	svc := NewPipelineService(zap.NewNop(), &mockRepo{})
+	sent := []string{"receive", "validate"}
+	if _, err := svc.UpdateConfig(context.Background(), &ConfigPatch{Stages: sent}); err != nil {
+		t.Fatalf("UpdateConfig returned err %v", err)
+	}
+	sent = append(sent, "route")
+	if got := svc.Config().Stages; len(got) != 2 || got[0] != "receive" || got[1] != "validate" {
+		t.Fatalf("Config() stages = %v after the caller mutated its own slice", got)
 	}
 }
 
@@ -271,7 +356,7 @@ func TestPipelineServiceUpdateConfigRejectsNilConfig(t *testing.T) {
 
 func TestPipelineServiceUpdateConfigRejectsUnknownStage(t *testing.T) {
 	svc := NewPipelineService(zap.NewNop(), &mockRepo{})
-	applied, err := svc.UpdateConfig(context.Background(), &models.PipelineConfig{
+	applied, err := svc.UpdateConfig(context.Background(), &ConfigPatch{
 		Stages: []string{"receive", "recieve"},
 	})
 	if err == nil {
@@ -295,15 +380,15 @@ func TestPipelineServiceUpdateConfigRejectsUnknownStage(t *testing.T) {
 func TestPipelineServiceUpdateConfigRejectsNegativeValues(t *testing.T) {
 	svc := NewPipelineService(zap.NewNop(), &mockRepo{})
 	cases := []struct {
-		name string
-		cfg  *models.PipelineConfig
+		name  string
+		patch *ConfigPatch
 	}{
-		{"MaxRetries", &models.PipelineConfig{MaxRetries: -1}},
-		{"RetryDelay", &models.PipelineConfig{RetryDelay: -1 * time.Second}},
-		{"StageTimeout", &models.PipelineConfig{StageTimeout: -1 * time.Second}},
+		{"MaxRetries", &ConfigPatch{MaxRetries: intp(-1)}},
+		{"RetryDelay", &ConfigPatch{RetryDelay: durp(-1 * time.Second)}},
+		{"StageTimeout", &ConfigPatch{StageTimeout: durp(-1 * time.Second)}},
 	}
 	for _, tc := range cases {
-		applied, err := svc.UpdateConfig(context.Background(), tc.cfg)
+		applied, err := svc.UpdateConfig(context.Background(), tc.patch)
 		if err == nil {
 			t.Errorf("%s: UpdateConfig accepted a negative value", tc.name)
 			continue
@@ -328,9 +413,7 @@ func TestPipelineServiceUpdateConfigAppliesToOtherTenantsToo(t *testing.T) {
 	_ = svc.Execute(ctx, "t1", makeAlert("w1"))
 	_ = svc.Execute(ctx, "t2", makeAlert("w2"))
 
-	cfg := *svc.Config()
-	cfg.Stages = []string{"route"}
-	if _, err := svc.UpdateConfig(ctx, &cfg); err != nil {
+	if _, err := svc.UpdateConfig(ctx, &ConfigPatch{Stages: []string{"route"}}); err != nil {
 		t.Fatalf("UpdateConfig returned err %v", err)
 	}
 	for _, tenant := range []string{"t1", "t2"} {

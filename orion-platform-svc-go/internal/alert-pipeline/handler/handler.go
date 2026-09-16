@@ -95,12 +95,12 @@ func (h *Handler) GetConfig(c *gin.Context) {
 func (h *Handler) UpdateConfig(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertPipelineUpdateConfig")
 	defer span.End()
-	var cfg models.PipelineConfig
-	if err := c.ShouldBindJSON(&cfg); err != nil {
+	var patch service.ConfigPatch
+	if err := c.ShouldBindJSON(&patch); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	applied, err := h.svc.UpdateConfig(ctx, &cfg)
+	applied, err := h.svc.UpdateConfig(ctx, &patch)
 	if err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return

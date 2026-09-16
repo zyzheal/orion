@@ -215,15 +215,37 @@ func (s *PipelineService) Enable(tenantID string, enabled bool) {
 	}
 }
 
-// UpdateConfig validates cfg and installs it as the active pipeline
-// configuration, returning the config actually applied.
+// ConfigPatch is a partial pipeline config update.
 //
-// Fields the caller leaves empty keep their current value: an empty Name keeps
-// the existing name and an empty Stages keeps the current stage list. That is
-// the PUT contract -- a caller sending only {"maxRetries":5} must not lose its
-// stage list -- and it is also why the handler no longer substitutes
-// DefaultPipelineConfig's stages locally, which would have made two sources of
-// truth for what the default is.
+// Every scalar field is a pointer so the service can tell "the caller did not
+// send this key" from "the caller sent a zero value". A plain struct cannot make
+// that distinction, and the endpoint's first real implementation replaced the
+// whole stored config with the bound request, so a caller sending only
+// {"stages":["route"]} silently took MaxRetries to 0, RetryDelay to 0,
+// StageTimeout to 0 and DeadLetterEnabled to false -- and, through Enabled,
+// switched the alert pipeline off without ever asking for it.
+//
+// JSON tags live here rather than on models.PipelineConfig because the handler
+// binds a patch, not a config: the wire shape is a partial update while the
+// stored shape is a complete one.
+type ConfigPatch struct {
+	Name              *string        `json:"name"`
+	TenantID          *string        `json:"tenant_id"`
+	Enabled           *bool          `json:"enabled"`
+	Stages            []string       `json:"stages"`
+	MaxRetries        *int           `json:"maxRetries"`
+	RetryDelay        *time.Duration `json:"retryDelay"`
+	StageTimeout      *time.Duration `json:"stageTimeout"`
+	DeadLetterEnabled *bool          `json:"deadLetterEnabled"`
+}
+
+// UpdateConfig validates patch, merges it into the active pipeline
+// configuration and returns the config actually applied.
+//
+// A field the caller does not send keeps its current value; a field the caller
+// does send -- including one sent as a zero value -- replaces it. That is the
+// partial-PUT contract, and it is why the patch uses pointers rather than
+// models.PipelineConfig's value fields.
 //
 // The stage list is enforced against knownStageNames. newStage substitutes a
 // no-op stage for an unknown name so that a broken config file cannot stop the
@@ -236,14 +258,20 @@ func (s *PipelineService) Enable(tenantID string, enabled bool) {
 // time, so without invalidation a stage-list change would be accepted and then
 // ignored by every subsequent Execute -- the update would mutate memory the
 // pipeline never reads again.
-func (s *PipelineService) UpdateConfig(ctx context.Context, cfg *models.PipelineConfig) (*models.PipelineConfig, error) {
-	if cfg == nil {
+func (s *PipelineService) UpdateConfig(ctx context.Context, patch *ConfigPatch) (*models.PipelineConfig, error) {
+	if patch == nil {
 		return nil, ErrNilConfig
 	}
-	if cfg.MaxRetries < 0 || cfg.RetryDelay < 0 || cfg.StageTimeout < 0 {
+	if patch.MaxRetries != nil && *patch.MaxRetries < 0 {
 		return nil, ErrInvalidConfigValue
 	}
-	for _, name := range cfg.Stages {
+	if patch.RetryDelay != nil && *patch.RetryDelay < 0 {
+		return nil, ErrInvalidConfigValue
+	}
+	if patch.StageTimeout != nil && *patch.StageTimeout < 0 {
+		return nil, ErrInvalidConfigValue
+	}
+	for _, name := range patch.Stages {
 		if !knownStageNames[name] {
 			return nil, fmt.Errorf("%w %q", ErrUnknownStage, name)
 		}
@@ -253,13 +281,32 @@ func (s *PipelineService) UpdateConfig(ctx context.Context, cfg *models.Pipeline
 	defer s.mu.Unlock()
 
 	current := *s.cfg
-	if cfg.Name == "" {
-		cfg.Name = current.Name
+	if patch.Name != nil {
+		current.Name = *patch.Name
 	}
-	if len(cfg.Stages) == 0 {
-		cfg.Stages = current.Stages
+	if patch.TenantID != nil {
+		current.TenantID = *patch.TenantID
 	}
-	*s.cfg = *cfg
+	if patch.Enabled != nil {
+		current.Enabled = *patch.Enabled
+	}
+	if len(patch.Stages) > 0 {
+		current.Stages = append([]string(nil), patch.Stages...)
+	}
+	if patch.MaxRetries != nil {
+		current.MaxRetries = *patch.MaxRetries
+	}
+	if patch.RetryDelay != nil {
+		current.RetryDelay = *patch.RetryDelay
+	}
+	if patch.StageTimeout != nil {
+		current.StageTimeout = *patch.StageTimeout
+	}
+	if patch.DeadLetterEnabled != nil {
+		current.DeadLetterEnabled = *patch.DeadLetterEnabled
+	}
+
+	*s.cfg = current
 	s.chains = make(map[string]*stages_pkg.Chain)
 	return s.cfg, nil
 }

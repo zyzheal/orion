@@ -48,6 +48,11 @@ func TestHandlerUpdateConfigAppliesToTheService(t *testing.T) {
 	if cfg.MaxRetries != 7 {
 		t.Errorf("service MaxRetries = %d, want 7", cfg.MaxRetries)
 	}
+	// The body never mentions "enabled", so its absence must not disable the
+	// pipeline through Enabled's zero value.
+	if !cfg.Enabled {
+		t.Error("a request body that omits \"enabled\" disabled the pipeline")
+	}
 }
 
 // An update that only mentions maxRetries must not wipe the stage list, and it
