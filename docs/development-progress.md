@@ -12159,3 +12159,145 @@ grep -c '^func Test' internal/llm-trace/*/*_test.go                    → 15 / 
 `internal/ai/models` 的 `RegisterRoutes` 第一行就是 `r := rg.Group("/api/v1/ai/models")`，与本轮修的 `internal/llm-trace` 是**逐字相同**的缺陷形态（`internal/ai/llm` 同属一组，需要一并确认）。修法与 §56.1 完全一致：删掉第二层前缀，然后把「14 条路径的数量断言 + `api/v1/api/v1` 子串守卫」补进该包的 handler 测试。这是全库唯一剩余的双前缀实例，且 `grep -rn 'api/v1/api/v1' --include='*.go'` 零命中意味着它同样逃过所有源码扫描。
 
 其余候选池不变：code-repo（5 表）、config（4）、eventbus（3）、gateway-dynamic（1）、queue（1）；STRANDED 集合（`internal/ai/migrations/001_ai_tables.sql` 覆盖 6 表含 `llm_traces`，alert-adapter、cmdb-drift、cmdb-relationship、cron、degradation）；`internal/ticketing` 的 17 张前缀表；`internal/governance`、`internal/ci-cd`、`internal/notification`、`internal/security`、`internal/file-handler`、`internal/cache`、`internal/apm`、`internal/cron`。
+
+## 第五十七轮：四个 handler 的 25 条在册路由前缀重复——全部不可达，且其中 1 条的重复形态是**必需的**（`/api/v1/stats` 已被 eventbus 占用，改成空路径会让进程启动即恐慌）（Round 57）
+
+### 57.1 缺陷类从单一实例泛化为四种变体
+
+第五十六轮修的是 `internal/llm-trace`：`RegisterRoutes` 收到的是 `*gin.RouterGroup`（已带 `/api/v1`），第一行却写 `rg.Group("/api/v1/llm")`，于是 11 条路由全部解析成 `/api/v1/api/v1/llm/...`。本轮把同一形态全库扫了一遍，发现它不是孤立笔误，而是一个可预测的编码习惯错误：**handler 作者假设自己注入的 group 是 gin 引擎根**。它有四种表现：
+
+| 变体 | 位置 | 注入的 group 实际已带 | handler 又写 |
+|---|---|---|---|
+| A. 重加版本前缀 | `internal/ai/models/handler/handler.go` | `/api/v1` | `"/api/v1/ai/models"` |
+| B. 重加已带前缀组自身的名字 | `internal/auth/handler/handler.go` | `/auth` 与 `/api/v1/auth` | `"/auth/login"` 等 8 条 |
+| C. 在自己的子组上重复子组前缀 | `internal/pandawiki/handler/handler.go` | `d = rg.Group("/docs")` | `d.GET("/docs/tags")`、`"/docs/toc"` |
+| D. 在自己的组上重复组前缀 | `internal/statistics/handler/handler.go` | `g = rg.Group("/stats")` | `g.GET("/stats")` |
+
+### 57.2 定量
+
+`cmd/server` 的 3578 条生产路由里，**25 条注册**带重复段——约每 143 条就有 1 条是死路由。按 handler 分布：
+
+| handler | 受影响 | 该 handler 总注册数 | 占比 |
+|---|---|---|---|
+| `aiModelsH` | 14 | 14 | 100% |
+| `authH` | 8 | 8 | 100% |
+| `pandawikiH` | 2 | 18 | 11% |
+| `statisticsH` | 1 | 6 | 17% |
+
+`aiModelsH` 与 `authH` 是**整组不可达**：这两个模块的每一个在册端点在部署后都不存在。
+
+### 57.3 为什么这类缺陷逃过所有既有检查
+
+四个原因叠加：
+
+1. **源码扫描看不到**。重复前缀被拆成两个字符串字面量，分别位于不同行（`rg.Group("/api/v1")` 在 `cmd/server/router.go`，`"/api/v1/ai/models"` 在 handler 包里）。`grep -rn 'api/v1/api/v1' --include='*.go'` 零命中。
+2. **相邻段启发式有盲区**。`/api/v1/api/v1/ai/models` 的段序列是 `api,v1,api,v1,ai,models`，任意相邻两段都不相等。若只检查 `seg[i] == seg[i+1]`，四个变体里 A 会**整组漏掉**——本轮第一次用 awk 做相邻检查时只找到 11 行，漏掉了 `aiModelsH` 的全部 14 行，正是因为这个原因。
+3. **`route_dump_test.go` 的镜像是忠实的但不完整**。它确实复现了四个 handler 的注册，所以能看到同样的 25 条；但它只覆盖 3525 条生产路由，缺 53 条（`setupRouter` 的直接注册、ticket 域路由、`cqrsHandler`，以及 router.go:112 注释里点明的「10 handlers skipped - no RegisterRoutes method」）。镜像不能当路由形状不变量的权威。
+4. **既有测试是空的**。`internal/ai/models/handler/handler_test.go` 里本来就有 `TestAI_MODELS_Handler_RegisterRoutes`，函数体只有一句 `newHandler().RegisterRoutes(gin.New().Group("/api/v1"))`——**零断言**。它调用 `RegisterRoutes` 却不检查任何结果，所以 14 条重复路由一路绿灯。这是本轮的 F4：一个名为回归测试的桩。
+
+### 57.4 F0——`aiModelsH` 14 条（变体 A）
+
+```go
+r := rg.Group("/api/v1/ai/models")   // rg 已是 /api/v1
+```
+
+改为 `r := rg.Group("/ai/models")`。注意函数体内 14 行注释本来就写着 `// GET /api/v1/ai/models - List models` 等——注释自始就是对的，只有注册是错的。这本身就是「注释即文档、实现背离文档」的最干净样本。
+
+### 57.5 F1——`authH` 8 条（变体 B）
+
+`cmd/server/router.go:170-173`：
+
+```go
+public := r.Group("/auth")
+protected := api.Group("/auth")
+authH.RegisterRoutes(public, protected)
+```
+
+handler 里 8 条路径全部以 `"/auth/..."` 开头，于是解析成 `/auth/auth/login` 与 `/api/v1/auth/auth/me`。8 条全部剥掉首段。
+
+前端证据支撑了修法方向：`vite.config` 里 `'/api/v1/auth': { target: 'http://localhost:3001' }`，注释写着「Orion 认证 - 指向平台服务」——文档意图就是 `/api/v1/auth`。同时 `grep -rn 'auth/auth'` 在 Go 与前端两侧**零命中**，说明错误路径从来没有任何调用方，改动不会打断现有客户端。
+
+### 57.6 F2——`pandawikiH` 2 条（变体 C）
+
+`d := rg.Group("/docs")` 之后写 `d.GET("/docs/tags")`、`d.GET("/docs/toc")`。同一函数内的兄弟注册 `d.GET("/:id/versions")`、`d.POST("/sync")` 都是相对路径，意图无歧义。
+
+同形状的正确实例在 `internal/knowledge/handler/handler.go`：那里的组是 `rg.Group("/knowledge")`，所以 `f.GET("/docs/tags")` 解析成 `/api/v1/knowledge/docs/tags`，是**对**的。pandawiki 显然照抄了 knowledge 的字面路径，却没有照抄组前缀——这是「复制粘贴把绝对路径当成了相对路径」的教科书样本。顺带排除了两个同字面量但正确的实例：`internal/api-market` 的 `f.POST("/auth/token")`（组是 `/market`）与 `internal/knowledge` 的两条。
+
+### 57.7 F3——`statisticsH` 1 条（变体 D），以及本轮最重要的反向发现
+
+`g := rg.Group("/stats")` 之后写 `g.GET("/stats")`，看似应改成 `g.GET("")`。改了之后**进程启动即恐慌**：
+
+```
+panic: handlers are already registered for path '/api/v1/stats'
+```
+
+`/api/v1/stats` 已被 `internal/eventbus` 占用——`eventbusH.RegisterRoutes` 直接挂在 `api` 上、不带任何子组，因此它的 `rg.GET("/stats")` 就是 `/api/v1/stats`（同族还有 `/api/v1/events`、`/api/v1/status`、`/api/v1/dlq` 等）。
+
+结论：这条重复**不是可修笔误，而是当前归属划分下的唯一无冲突写法**。改它会用一次启动恐慌换掉一次命名难看，是净损失。本轮的处置是：还原注册，在其上方写明为什么不能改，并用两条测试把这个「不可改」钉死（见 §57.9）。`statisticsH` 的这一个案例说明：重复前缀缺陷有一个「偶然起到了防冲突作用」的子类，扫描器不能对它一概开方。
+
+### 57.8 修复后的生产路由表
+
+| 项 | 修复前 | 修复后 |
+|---|---|---|
+| 生产路由总数 | 3578 | 3578（注册数不变，只是路径变了） |
+| 带重复段的注册 | 25 | **1**（`GET /api/v1/stats/stats`，见 §57.7） |
+| `/api/v1/api/v1` 路径 | 14 | 0 |
+| `/auth/auth` 路径 | 8 | 0 |
+| `/docs/docs` 路径 | 2 | 0 |
+
+### 57.9 测试：四层，其中生产级那层是本轮的承重墙
+
+1. **每个 handler 一个精确路径集测试**（`internal/ai/models/handler/handler_test.go`、`internal/{auth,pandawiki,statistics}/handler/route_test.go`）。每个测试先断言 `len(got) == len(want)` 再逐条比对，并按字典序固定——第五十六轮的教训：只比数量会放过「一条少一条多」的等量置换。
+2. **生产级路由表测试**（`cmd/server/route_prefix_test.go`）。用 `stubInfrastructure` + `initWiring` + `setupRouter` 组装**真实**生产路由表并遍历 `r.Routes()`。这是唯一能看见解析后路径的检查——源码扫描与镜像 dump 都做不到。三条断言：
+   - 全表重复段注册集合**恰好等于** `{"GET /api/v1/stats/stats"}`；
+   - `GET /api/v1/stats` 的 handler 是 `internal/eventbus` 而非 `internal/statistics`（把 §57.7 的归属事实钉死，将来归属一旦调整，测试会先叫停任何「顺手清理」）；
+   - 四个修复族的 16 条路径在册、4 条旧拼写不在册、全表无 `/api/v1/api/v1`。
+3. **空测试被填实**：`TestAI_MODELS_Handler_RegisterRoutes` 从一句无断言调用变成 14 条精确路径 + 重复段检查 + `/api/v1/api/v1` 子串守卫。
+4. **`TestProductionRoutes_FourFixedFamiliesAreMounted`** 单独防「handler 从 `registerRoutes` 列表里被删掉」——per-handler 测试看不见 router.go 层面的移除。
+
+### 57.10 变异矩阵（6 条，全部通过 `go test` 返回码判定）
+
+| 变异 | 内容 | 结果 |
+|---|---|---|
+| M1 | `aiModelsH` 重新加回 `/api/v1` | KILLED（handler 测试 + 生产级测试） |
+| M2 | `authH` 给 `/login` 加回 `/auth` | KILLED（`route 5 = "POST /auth/auth/login"`） |
+| M3 | `pandawikiH` 给 `/tags` 加回 `/docs` | KILLED（两路同时） |
+| M4 | `statisticsH` 改成 `g.GET("")` | KILLED（`GET /api/v1/stats` 顶替 + 生产级测试启动恐慌） |
+| M6 | 生产级测试把 `want` 置空（声称不该有幸存者） | KILLED（`found 1, want exactly 0`）——证明那条幸存者是真的被观测到的，不是占位符 |
+| M5 | 生产级扫描器只检查相邻段（`k <= 1`） | **SURVIVED**（如预期） |
+
+M5 是刻意的「存活」变异：把 §57.3 第 2 条的盲区在测试代码里重演一遍，证明 k 段滑窗（k=1..4）是必要的，而不是可以简化的多余代码。
+
+变异执行的三条纪律，本轮全部照做并各踩了一次：
+- **先断言基线绿**，且 `go test` 的返回码直接捕获，不经管道（本轮基线 5 个包全部 rc=0 才开跑）。
+- **每个变异都要还原并 md5 校验**；打印补丁命中数，`assert count == 1` 让「没打上」可见。
+- **写文件前先构建好完整内容，再一次写入**。本轮第一次跑变异脚本时在还原分支写了 `io.open(p, "w").write(io.open(p).read().replace(...))`——Python 先求值外层 open 并**立刻截断文件为 0 字节**，再求值内层 read 读到空串，五个文件被同时清空。已按备份逐个字节还原并 md5 校验通过，脚本改为先构造字符串再单次写入。
+
+### 57.11 验证命令
+
+```bash
+cd /Users/heal/orion-design/orion-platform-svc-go
+gofmt -l internal/ai/models/handler/ internal/auth/handler/ internal/pandawiki/handler/ \
+          internal/statistics/handler/ cmd/server/
+go vet ./internal/ai/models/handler/ ./internal/auth/handler/ ./internal/pandawiki/handler/ \
+        ./internal/statistics/handler/ ./cmd/server/
+go build ./...
+go test -count=1 ./internal/ai/models/handler/ ./internal/auth/handler/ \
+             ./internal/pandawiki/handler/ ./internal/statistics/handler/
+go test -count=1 ./cmd/server/ -run TestProductionRoutes   # 生产级三条
+go test -count=1 ./cmd/server/                              # 全包
+```
+
+新增/改写测试：`TestAI_MODELS_Handler_RegisterRoutes`（1）、`TestHandler_RegisterRoutes_PinsBothGroups`（1）、`TestHandler_RegisterRoutes_PinsAllEighteen`（1）、`TestHandler_RegisterRoutes_PinsAllSix`（1）、`TestProductionRoutes_HaveNoPrefixDoubling`（1）、`TestProductionRoutes_StatsOwnershipForcesTheDoubling`（1）、`TestProductionRoutes_FourFixedFamiliesAreMounted`（1）= **7 个测试函数**（其中 1 个是把原本零断言的 `TestAI_MODELS_Handler_RegisterRoutes` 填实，另 6 个是新增）。
+
+### 57.12 只记录、不动手
+
+- **`buildDumpEntries()` 的 53 条覆盖缺口**（3525 / 3578）。缺口来自 `setupRouter` 的直接注册（`/performance/vitals`、`/routes`）、`RegisterTicketDomainRoutes`、`cqrsHandler`，以及 router.go:112 点名的 10 个无 `RegisterRoutes` 的 handler。镜像对「重复段」这一类是忠实的，但作为完整性的权威不够——本轮已改用生产级遍历，缺口本身另行记录。
+- **前后端 auth 前缀三方不一致**。后端（修后）提供 `/auth/*` 与 `/api/v1/auth/*`；前端 `client.ts:18` 是 `VITE_API_BASE_URL || '/api/v1'`，`.env` 里却是 `/api`，`.env.production` 是 `https://api.orion-platform.com`；`src/api/auth.ts` 调的是 `/auth/login`、`/auth/logout`、`/auth/me` 等裸路径。三处口径都不一致，本轮**不修**：router.go 属于另一个 agent 的文件，前端在授权范围之外。
+- **修后的四个族没有已知前端调用方**。`grep` 在前后端两侧对 `ai/models`、`docs/docs`、`stats/stats`、`api/v1/auth`、`auth/auth` 均零命中；`orion-frontend/src/api/pandawiki.ts` 也没有 `/docs/tags`、`/docs/toc`（第 274 行的 `/knowledge/spaces/${spaceId}/tags` 属于另一个模块）。修「已注册但拼错的路径」与「新增无调用方的路由」是两回事：本轮只改路径，不新增端点。
+
+### 57.13 下一轮候选
+
+`eventbusH` 直接挂在 `api` 上、不带子组，把 `/api/v1/events`、`/api/v1/status`、`/api/v1/subscriptions`、`/api/v1/dlq`、`/api/v1/stats` 全部占在 API 顶层。这既与 §57.7 的冲突直接相关，又是一个未授权模块（`internal/eventbus`）的顶层命名空间污染问题：`/api/v1/status` 与 `/api/v1/dlq` 这类名字未来几乎必然与其他模块撞名。是否收敛为 `/api/v1/eventbus/*` 属于接口破坏性变更，需要与调用方一起评估。
+
+其余候选池不变：code-repo（5 表）、config（4）、eventbus（3）、gateway-dynamic（1）、queue（1）；STRANDED 集合（`internal/ai/migrations/001_ai_tables.sql` 覆盖 6 表含 `llm_traces`，alert-adapter、cmdb-drift、cmdb-relationship、cron、degradation）；`internal/ticketing` 的 17 张前缀表；`internal/governance`、`internal/ci-cd`、`internal/notification`、`internal/security`、`internal/file-handler`、`internal/cache`、`internal/apm`、`internal/cron`。
