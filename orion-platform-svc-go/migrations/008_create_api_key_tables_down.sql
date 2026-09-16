@@ -2,18 +2,9 @@
 
 -- WARNING: Data loss may occur. Backup is taken automatically by RunMigrationsDown.
 
--- REVIEW: unknown or non-reversible statement:
---   RETURN NEW
--- REVIEW: unknown or non-reversible statement:
---   END
--- REVIEW: unknown or non-reversible statement:
---   $$ LANGUAGE plpgsql
--- REVIEW: unknown or non-reversible statement:
---   CREATE TRIGGER trigger_update_api_keys_updated_at
-    BEFORE UPDATE ON api_keys
-    FOR EACH ROW
-    EXECUTE FUNCTION update_api_keys_updated_at()
+-- Fixed: trigger + function cleanup (auto-generator had left CREATE body in down file)
+DROP TRIGGER IF EXISTS trigger_update_api_keys_updated_at ON api_keys;
+DROP FUNCTION IF EXISTS update_api_keys_updated_at();
 
 DROP INDEX IF EXISTS "idx_api_keys_key_hash";
-
 DROP INDEX IF EXISTS "idx_api_keys_user_id";
