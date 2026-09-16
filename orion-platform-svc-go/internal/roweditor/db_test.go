@@ -86,7 +86,10 @@ func (m *mockDB) ExecContext(ctx context.Context, query string, args ...any) (sq
 	return &mockResult{}, nil
 }
 
-func (m *mockDB) GetContext(ctx context.Context, dest any, query string, args ...any) error {
+// SelectRowMap serves Read from the in-memory table. It returns sql.ErrNoRows
+// rather than an empty Row when the lookup misses so a test that expects a row
+// still fails when the id stops matching.
+func (m *mockDB) SelectRowMap(ctx context.Context, query string, args ...any) (Row, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -96,44 +99,21 @@ func (m *mockDB) GetContext(ctx context.Context, dest any, query string, args ..
 	if m.errToReturn != nil {
 		err := m.errToReturn
 		m.errToReturn = nil
-		return err
+		return nil, err
 	}
 
-	// dest can be Row, *Row, or *map[string]any
 	rowID := args[0].(string)
 	r, found := m.rows[rowID]
 	if !found {
-		return sql.ErrNoRows
+		return nil, sql.ErrNoRows
 	}
-	switch d := dest.(type) {
-	case Row:
-		for k, v := range r {
-			d[k] = v
-		}
-	case *Row:
-		*d = r
-	case *map[string]any:
-		*d = r
-	default:
-		return errors.New("mock: dest must be Row, *Row or *map[string]any")
+	// Copy rather than handing back the stored map: a caller that edits the
+	// result would otherwise mutate the table the mock keeps.
+	row := make(Row, len(r))
+	for k, v := range r {
+		row[k] = v
 	}
-	return nil
-}
-
-func (m *mockDB) SelectContext(ctx context.Context, dest any, query string, args ...any) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.lastSQL = query
-	m.lastArgs = args
-
-	if m.errToReturn != nil {
-		err := m.errToReturn
-		m.errToReturn = nil
-		return err
-	}
-	// Not used in current operations, so just return no rows.
-	return nil
+	return row, nil
 }
 
 func (m *mockDB) NamedExecContext(ctx context.Context, query string, arg any) (sql.Result, error) {

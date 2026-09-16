@@ -12,9 +12,16 @@ type CostRecord struct {
 	CreatedAt        time.Time `json:"createdAt" db:"created_at"`
 }
 
+// CostSummary is filled by an aggregate SELECT, so its scanned fields need db
+// tags: sqlx maps a returned column against db:"...", falling back to the Go
+// field name only when no tag exists. Untagged, TotalCost looked for the column
+// "totalcost" while GetSummary aliases SUM(cost) as "total_cost", so
+// GET /ai/cost/summary failed in sqlx safe mode with
+// "missing destination name total_cost". The untagged fields are set in Go
+// rather than scanned, so they need no tag.
 type CostSummary struct {
-	TotalCost     float64            `json:"totalCost"`
-	TotalRequests int64              `json:"totalRequests"`
+	TotalCost     float64            `json:"totalCost" db:"total_cost"`
+	TotalRequests int64              `json:"totalRequests" db:"total_requests"`
 	AvgCost       float64            `json:"avgCost"`
 	ByModel       map[string]float64 `json:"byModel"`
 	ByDate        map[string]float64 `json:"byDate"`

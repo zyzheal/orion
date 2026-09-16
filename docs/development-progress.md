@@ -12562,3 +12562,163 @@ grep 确认 `internal/` 内除 `internal/alert-pipeline/` 之外没有代码消�
 
 第二条方向：把 AST 扫描器落进仓库，让「3619 条注册全部解析」和「绑定的字段被丢弃」两条守卫变成有回归测试的资产。当前它只活在 `/tmp`，这轮五个缺陷里第一个和第四个就是它的产出。
 
+
+---
+
+## 第六十轮：ticketing 仪表盘把数据库错误折成「空数据、全绿」——73 条变异全灭，中间撞出一条被双重读取救活的真空测试（Round 60）
+
+### 60.1 摘要
+
+扫描起点 HEAD `36707d62b`。本轮的产出集中在一个此前只被读过、没被验证过的模块：`internal/ticketing`。它是并行建出来的**第二个** ticket 域（另一个是 `internal/ticket`），`cmd/server/cicd_domain_wiring.go` 只接了**这一条**线：
+
+```
+ticketingRepo := ticketing_repo.NewRepository(db.DB)   // :354
+ticketingSvc  := ticketing_service.NewService(repo)    // :355
+ticketingH    := ticketing_handler.NewHandler(svc)     // :356
+```
+
+这条模块里的 `SLAService`、`SLAHandler`、`*SLARepository`、`AnalyticsHandler`、`SuspendService`、`TransferService`、`AnalyzerService`、`TicketService`、`AnalyticsService` **生产代码从不构造**。这决定了本轮的范围：`analytics.go`、`analytics_enhanced.go`、`analyzer.go`、`suspend.go`、`transfer_service.go`、`ticket.go`、`handler/analytics.go` 里那 18 处 `, _ :=` 丢弃不是活桩，是死代码里的死丢弃——按规则 (b) 只记录，改它们不会改变今天任何一个请求。
+
+活表面因此从 34 处收窄到 7 个方法，而它们有**同一个**症状：把 repository 的错误折成零值，而零值在这些仪表盘上长得完全像「健康的空租户」。
+
+最终账目：`ticketing` 42 条变异全灭（40 条语义击杀 + 2 条崩溃击杀）、0 存活、0 编译击杀；加上 `observability` 11、`ai/cost` 7、`ai/gateway` 13，本轮共 **73 条变异全灭、0 存活、0 编译击杀**。
+
+### 60.2 收窄：同名方法不构成证据，必须按类型走构造链
+
+`handler.go:117-118` 把 `/tickets/transfer/:ticketId/history` 与 `/tickets/transfer/stats` 注册在**活的** `*Handler` 上，活实现在 `handler_transfer.go`；而 `handler/analytics.go:238-257` 上有两个同名方法，它们属于 `*AnalyticsHandler`——那个类型从未被构造。只看方法名会得出「这两个路由有实现」的结论，但实现的其实不是它们。
+
+### 60.3 七个活方法：丢弃的错误与它们各自制造的误读
+
+- **`GetExecutiveDashboard`** — 5 处丢弃。最贵的一处是 `compliance, _ := s.GetSLACompliance(...)`：那个方法出错时返回 `(nil, err)`，所以丢弃错误之后紧跟的 `compliance.ComplianceRate` 会**空指针 panic**——一次数据库故障被升级成 panic 而不是一个可报告的错误。`CountTickets` 的丢弃更阴险：它让方法返回一份 `TotalTickets: 0` 的报告且错误为 nil，**一个坏掉的数据库读起来像一个没有工单的租户**。
+- **`GetStatistics`** — 4 处。报表全零、错误为 nil：一个坏数据库读起来像一个空而健康的队列。
+- **`GetManagerDashboard`** — 2 处（`ListEngineers`、`ListTickets`）。
+- **`GetEfficiencyScore`** — 3 处丢弃，外加三个语义缺陷（见 60.4）。
+- **`GetTransferStats`** — 2 处。吞掉 `CountTickets` 的错误会让 `AvgTransfers` 停在 0，而 0 恰好是「没有转移过」的样子。
+- **`GetEngineerDashboard`** — 1 处。
+- **`GetEngineerEfficiency`** — 1 处。吞掉之后返回 `TicketsResolved: 0, AvgResolveH: 0`——**一个查不到的人读起来像一个零产出的人**。
+
+### 60.4 `GetEfficiencyScore`：三个「写死」比丢弃更危险
+
+- `Ranking` 原来是一个**字面量 `1`**——每个调用 `GET /tickets/bi/score/:engineerId` 的人都读起来是第一名。现在按 `ListEngineers` 算真实名次，平手同名次，所以不需要 tie-break 规则就有稳定顺序。
+- 三个分量（volume / speed / load）算完就扔，而 `models.EfficiencyScore.Components` 本来就存在来装它们。现在 `engineerScore` 抽出来，同时返回分数与分量映射。
+- `gradeFor` 用 `internal/ticket` 已用的 A/B/C/D/F 同一套分档，两个模块给同一个分数同一个等级。
+
+### 60.5 变异矩阵 42 条：两条靠崩溃死，判定顺序必须 `is_crash` 先于 `is_build_failure`
+
+T1–T42 覆盖 repository 层与 service 层。两条**预测中**的崩溃击杀如约落地：
+
+- `T30` 丢弃合规错误 → `TestGetExecutiveDashboardPropagatesEachFailure/sla` → `panic: runtime error: invalid memory address or nil pointer dereference [recovered, repanicked]`。
+- `T35` 丢弃工程师查询 → `TestGetEfficiencyScorePropagatesEachFailure/engineer` → 同样的 nil 解引用（`*eng`）。
+
+这两条必须在**读取时**就分开，不能等到读报告：崩溃是真实的击杀，编译失败不是。所以判定分支里 `is_crash()` 必须先于 `is_build_failure()`——否则一个为了正确理由被杀死的变异会被记成 COMPILE-KILL，harness 会在**正确的结果上**报告 FAIL。`failure_lines()` 相应地在 `--- FAIL` 之前先判定 `panic:` 并保留该行，因为 recovered 再 repanic 会打印两遍，只有第一遍带原因。
+
+### 60.6 harness 自己的判据也必须被证明
+
+`_classifier_selftest()` 从 8 条扩到 **18 条**：把四种 transcript（panic / build failure / test failure / green）分别在 **stdout 与 stderr 上各跑一遍**，因为 `go test` 会把同一份记录劈成两路输出。没有这个正向对照，harness 自己的结论只是假设；而这个 harness 是唯一的硬门——**一个错的结论穿在硬门外面，看起来和「通过」一模一样**。
+
+第一次写这个自检时它自己崩了：`TypeError: is_crash() missing 1 required positional argument`，因为我按单参数写的调用，而两个 helper 都是 `(out, err)`。修复同时是改进——新版本证明了每种判据在两条流上各成立一次，而不是只证明它在「假设的输出」上成立。
+
+### 60.7 隔离自检的可复用配方
+
+要只跑 harness 的自检而不真跑 42 条变异，得把源文件切到主循环之前、再喂一个 `__file__`：
+
+```python
+exec(compile(src.split('baseline_rc, _, baseline_err = suite()')[0],
+             '/tmp/r60/mutate_tkt.py', 'exec'),
+     {'__file': '/tmp/r60/mutate_tkt.py'})
+```
+
+两个失败变体各有教训：切成 `'MUTANTS = {'` 会在第 23 行切断、落在函数定义（:372–518）**之前** → `KeyError`；不喂 `__file__` 会在 :433 的 `BACKUP = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backup_tkt")` 上 `NameError`。
+
+### 60.8 编译击杀的三种绕法
+
+一条编译不通过的变异等于**零证据**——测试根本没跑。本轮有三条差点犯这个错，各自的绕法：
+
+| 原计划 | 为什么是编译击杀 | 改写 |
+|---|---|---|
+| 恢复 `Ranking: 1` | `engineers` 变成未使用变量 | T38 改成「恢复字面量 **＋** 删掉那次 `ListEngineers` 读取」的**单次编辑** |
+| 删掉 `Grade` 字段 | `gradeFor` 变成未使用函数 | T39 改成改分档分支本身（`case score >= 90: return "F"`） |
+| 删掉 `Components` | `components` 变成未使用变量 | T40 改成 `engineerScore` 返回 `score, nil` |
+
+### 60.9 T28：本轮唯一的存活，证明的是测试弱，不是修复弱
+
+`T28` 丢弃 `GetExecutiveDashboard` 里的 `ListTickets`，第一次全跑时 `SURVIVED (rc=0)`。
+
+原因是这个方法**读了两次**同一个 repository 方法：直接在 `ticket_bi_analytics.go:32` 读一次，又通过 `GetSLACompliance`（`ticket_sla_report.go:50`）读一次。只设 `ticketsErr` 时，丢弃掉这次直接读取的变异仍然会被合规那次读取抓到、抛出**同一个**错误——`err != nil`、`got == nil`、消息断言全部通过，**但通过的理由是错的**。
+
+修法：那个 case 同时设上 `breachesErr`。这样一旦这次读取被丢弃，冒出来的就是 breach 的错误，既有的 `strings.Contains` 断言会把它拒掉。判别力没有增加，只是**改变了「丢弃之后谁会赢」**。
+
+**结论要写进测试旁边的注释**：case 表原来那句话「每个 case 只让一次失败发生，所以每次迭代都证明了一个具体的调用被检查」对 tickets 这一条是**假的**。例外必须在例外所在的位置说明，否则下一个读者会按错误的不变式去读整张表。
+
+**两条被拒绝的替代方案**：
+
+- 在 `statsRepo.ListTickets` 里做一个 fail-first 调用计数——引入可变的每次调用状态，而且**同样**与调用顺序耦合：如果将来改了读取顺序，这个断言会静默失效，跟现在的问题一模一样。
+- 断言响应为 nil——变异体也返回 nil 响应，没有判别力。
+
+**推论（一般化）**：当一个 `(T, error)` 方法**两次**触达同一个 repository 方法时，只断言 `err != nil` / `resp == nil` / 消息包含的传播子测试**不足以**证明「这一次调用被检查了」。必须让丢弃改变**哪个**错误赢。
+
+### 60.10 锚点歧义与预检
+
+`ticket_bi_analytics.go` 里 `tickets, err := s.repo.ListTickets(ctx, tenantID, models.TicketListQuery{})` 出现 **9 次**。凡是锚在这一行上的变异必须带一个**唯一**的邻行：`\n\tbyStatus`、`today := time.Now().UTC().Format("2006-01-02")`、`teamLoad := make(map[string]int)`、`overdue := 0`、`myTickets := 0`、`var resolvedHours []float64`、`// Ranking needs the rest of the team`、`score, components := engineerScore(*eng, tickets)`。
+
+锚点预检本身也犯过同类错误：一个子串预检报出 T10 命中，实际命中的是另一个变异的邻行文本。所以预检必须带邻行，并且是**不写入**的形式（只 `exec` 模块前缀的代码，不落到磁盘）。这一步现在可以重复执行了。
+
+`FIXED_SNIPPETS` 把 `("\tengineers, err := s.repo.ListEngineers(ctx, tenantID)", 3)` 钉在 BI 文件上：T38 会删掉三次调用之一，所以 **T38 的还原失败会被这个计数抓住，而不是靠运气**。基线检查报 `none` 缺失。
+
+### 60.11 夹具：让「漏写覆盖」变成 panic 而不是 nil
+
+`statsRepo` 内嵌 `RepositoryInterface`，**故意留成 nil**。于是任何没被覆盖的方法一旦被调用就 panic，而不是静默返回 nil 让测试通过。`statistics_test.go` 的 15 条测试函数、`GetExecutiveDashboard` 的 5 个子测试表（count / status / tickets / engineers / sla）、`GetEfficiencyScore` 的 3 个子测试表、`GetTransferStats` 的 2 个子测试表都靠这一点保住。
+
+`TestGetEfficiencyScoreGradesB` 需要自己的夹具（`engineer: {...ID: "e2"...}`），因为 `GetEfficiencyScore` 给的是 `GetEngineer` **返回**的那个工程师打分与排名，而不是它的 `engineerID` 实参——实参只是查找键。这不是生产缺陷，但夹具必须照着实现来写，否则第二档断言会断在错的人身上。
+
+### 60.12 方法论（本轮教训）
+
+- **compaction 之后 Edit 缓存是空的**：回放进来的 Read 结果不算数，bash 的查看也不算数——同一轮里每个要改的文件都得重新**完整**读一遍。
+- **`cd X && cmd` 会静默不换目录**：实测 `cd /Users/heal/orion-design/orion-platform-svc-go && pwd` 打印的是 `/Users/heal/orion-design`；而 `cd X; cmd` 正常。相对路径因此整体不可靠：`gofmt -l internal cmd migrations` 在没换进模块目录时以 `stat internal: no such file or directory` 死掉；`cmp` 用相对路径会把 5 个文件全报 DIFFERED。**bash 里一律用绝对路径**。
+- **同名文件歧义**：`docs/development-progress.md` 有两个——仓库根的 12564 行 / 1078007 字节是轮次日志（本轮写在这里），`orion-platform-svc-go/docs/development-progress.md` 是 83 行的 P0-MB Phase 5c 副本。`wc -l` 与 Read 工具曾分别指向不同的那个。
+- **`go mod tidy -diff | head` 返回 rc=141**（SIGPIPE），该 rc 无意义——需要 rc 时不要接管道。
+- **崩溃击杀与语义击杀要分开计数**：`KILLED=42 (by crash=2)` 这个括号不是装饰，它标记了「测试在进程死掉之前没有断言任何东西」的那两条。
+
+### 60.13 只记录、不动手
+
+- **`ExecutiveDashboard.Escalations` 恒为 0**：读的是 `byStatus["escalated"]`，而 `status` 是自由文本（迁移 076:8，无 CHECK），`validTransitions` 里没有 `"escalated"`，`TicketService.Escalate`（`ticket.go:208`，死代码）只提升优先级。要修需要一个新的 workflow-history 查询。
+- **`EfficiencyScore.PeriodStart` / `PeriodEnd` 留零**：路由 `/tickets/bi/score/:engineerId` 不传周期，方法遍历**全部**工单；填上会是谎报。
+- **`TransferTicket` 的 `_ = s.repo.AddWorkflowHistory(...)`**：尽力而为的审计写入，与 `ticket_workflow.go:104/120`（有检查）和 `ticket.go` 的 `Escalate`（不检查）不一致。
+- **剩下 18 处 `, _ :=` 丢弃**：`analytics.go`(5)、`analytics_enhanced.go`(8)、`analyzer.go`(2)、`suspend.go`(2)、`transfer_service.go`(2)、`ticket.go:80`(1)——全部落在生产代码从不构造的类型上，是死代码，不是活桩。
+- **`GetExecutiveDashboard` 把整个工单列表取了两遍**（直接一次 ＋ 经 `GetSLACompliance` 一次）——潜在的低效，不是桩；本轮**刻意不动**，因为改了就会改变 T26–T30 现在所保护的那个调用结构。
+- **`orion-platform-svc-go/go.sum` 在工作树里被删了 407 行，归因不到任何操作**，且 `go mod tidy -diff` 显示被裁剪后的文件对完整模块图**不完整**（它从为 gin、gorm、prometheus、otel、nats、k8s 找包开始）。**未纳入暂存**。同类的 `go.work.sum` 有 200 行纯新增（模块图扩张）。两个都是校验和文件，都不是本轮的产物——留待决定，不在本轮提交里。
+- **carry-forward（本轮不变）**：`SLARepositoryInterface`（internal/ticketing）无具体实现；`CreateRecordForTicket` 有声明无实现；`SLAService` / `SLAHandler` / `*SLARepository` 生产从不构造；`SLAService.CreateTarget` 按幽灵签名写；`models.SLARecord.ResponseOK` / `ResolutionOK` 的 db tag 指向不存在的列所以恒为零；`ticketing` ↔ `ticket` 两模块重复且有漂移（`internal/ticket` 有编译期断言，`internal/ticketing` 没有，只有 mock 断言）；`internal/ticket` 的 `SLARecord.ID` 是 `string` 而 `internal/ticketing` 的是 `int`（**不要把 `CreateRecordForTicket` 移植过去**）；`RecordSLABreach`（`repository.go:707`）零生产调用方，所以 `ticket_sla_breaches` 永不写入、`GetSLACompliance.breached` 恒为 0；`ticket_sla_tracking.response_breached` 与 `first_response_at`（迁移 245:27-28）全库无写入方，使 `TicketSLAStatus.ResponseOK` 无法计算；`GetTrendReport.Escalated` 无数据源；`handler/analytics.go` 的 `AnalyticsHandler` 从未构造（按 3 参 `*service.AnalyticsService` 写，而活的 `handler_bi.go` 用 2 参 `*service.Service`）。
+- **其余不变**：capacity handler 52 个在册外方法；`internal/autonomous-pipeline/handler/handler.go:378 Rollback` 无注册；5 张 stranded 表 + 24 个 stranded 模块级 migration；249 个 down 文件里 106 个零 `DROP TABLE`；`docs/deliverables/plan-*` 包 `go test ./...` 失败（缺第三方模块 + darwin 不支持的 `syscall.CLONE_*`），本轮之前即存在、不在范围内。
+
+### 60.14 验证
+
+```
+gofmt -l internal cmd migrations          → 0 行
+go build ./...                            → rc=0
+go vet ./...                              → rc=0，0 行
+go test -count=1 八个改动树               → rc=0，25 个包全 ok
+go test -race -count=1 ./internal/roweditor/... → rc=0，4 个包全 ok
+```
+
+harness 最终输出：
+
+```
+BASELINE rc=0
+RESTORE-HELPER SELFTEST PASS
+CLASSIFIER SELFTEST PASS (18 checks)
+BACKUP of 5 files taken
+MISSING FIXED SNIPPETS at baseline: none
+POST_REVERT rc=0
+KILLED=42 (by crash=2) SURVIVED=0 COMPILE_KILL=0
+HARNESS=PASS
+```
+
+40 条 `KILLED rc=1`，2 条 `KILLED-BY-CRASH`（T30、T35），0 条 COMPILE-KILL，0 条 INTACT-FAIL。被 harness 触碰的 5 个生产文件与 `/tmp/r60/backup_tkt/` **逐字节相同**——还原源是变异前的备份，不是 git。
+
+### 60.15 下一轮候选
+
+**第一优先：`ticketing` ↔ `ticket` 的去重决策。** 本轮已经证明两个模块对同一件事有两套实现、分档规则要靠人工同步、`SLARecord.ID` 的 `string` / `int` 差异会让移植静默错。这一轮不碰，因为它需要一次跨模块的类型决策，不是一个修补。
+
+**第二：`ticket_sla_breaches` 永不写入。** `RecordSLABreach` 有实现、零调用方，于是 `GetSLACompliance.breached` 恒为 0——仪表盘上的「SLA 违约数」是一个常数。这是本轮唯一还留着一条**可修**的「恒为零」的字段（`Escalations` 那条需要新查询，已记录）。
+
+**第三：把 harness 的三件事落进仓库。** `_classifier_selftest()` 的正向对照、`FIXED_SNIPPETS` 的计数不变式、以及 T28 那条「双重读取」的推论（凡方法两次触达同一 repository 方法，传播子测试必须让丢弃改变谁赢）——目前它们只活在 `/tmp/r60/`，而这轮 42 条里唯一那条存活正是靠它被发现的。

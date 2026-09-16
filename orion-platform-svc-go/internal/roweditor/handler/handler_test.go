@@ -68,7 +68,7 @@ type fakeDB struct {
 	mu       sync.Mutex
 	stmts    []stmtRecord
 	affected int64
-	// getNoRows makes GetContext return sql.ErrNoRows, which the editor turns
+	// getNoRows makes SelectRowMap return sql.ErrNoRows, which the editor turns
 	// into ErrRowNotFound.
 	getNoRows bool
 }
@@ -89,21 +89,12 @@ func (f *fakeDB) NamedExecContext(_ context.Context, query string, arg any) (sql
 	return fakeResult{affected: f.affected}, nil
 }
 
-func (f *fakeDB) GetContext(_ context.Context, dest any, query string, args ...any) error {
+func (f *fakeDB) SelectRowMap(_ context.Context, query string, args ...any) (roweditor.Row, error) {
 	f.record(query, args)
 	if f.getNoRows {
-		return sql.ErrNoRows
+		return nil, sql.ErrNoRows
 	}
-	if row, ok := dest.(roweditor.Row); ok {
-		row["id"] = "r1"
-		row["name"] = "hello"
-	}
-	return nil
-}
-
-func (f *fakeDB) SelectContext(_ context.Context, _ any, query string, args ...any) error {
-	f.record(query, args)
-	return nil
+	return roweditor.Row{"id": "r1", "name": "hello"}, nil
 }
 
 func (f *fakeDB) BeginTxx(context.Context, *sql.TxOptions) (roweditor.TxOperations, error) {

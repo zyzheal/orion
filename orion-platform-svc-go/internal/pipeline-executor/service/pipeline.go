@@ -62,15 +62,19 @@ func (e *PipelineExecutor) RegisterStep(h StepHandler) {
 // Pipeline management
 // ---------------------------------------------------------------------------
 
-func (e *PipelineExecutor) CreatePipeline(ctx context.Context, tenantID, name, category string) (*models.Pipeline, error) {
-	req := &models.CreatePipelineRequest{
-		Name:     name,
-		Category: category,
-	}
+// CreatePipeline persists a pipeline. It takes the request struct rather than
+// positional name/category strings because the decomposed form lost fields: the
+// handler bound Name, Description and Category, then passed only two of them,
+// so a caller's description never reached the repository even though
+// Repository.CreatePipeline already mapped req.Description into an 8-column
+// INSERT. Rebuilding the request from scalars here reproduced the same gap a
+// second time. Passing the struct through removes both copy points and makes
+// the repository the single place that decides what a request contains.
+func (e *PipelineExecutor) CreatePipeline(ctx context.Context, tenantID string, req *models.CreatePipelineRequest) (*models.Pipeline, error) {
 	p, err := e.repo.CreatePipeline(ctx, tenantID, req)
 	if err != nil {
 		e.logger.Error("failed to create pipeline",
-			zap.String("name", name),
+			zap.String("name", req.Name),
 			zap.Error(err),
 		)
 		return nil, err

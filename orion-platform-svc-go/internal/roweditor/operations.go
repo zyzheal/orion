@@ -71,16 +71,20 @@ func (e *RowEditor) Read(ctx context.Context, db DBOperations, tenantID, rowID s
 		args = append(args, tenantID)
 	}
 
-	dest := make(Row)
-	err := db.GetContext(ctx, dest, query, args...)
+	// SELECT * returns whatever columns the table has, so the destination is
+	// decided by the driver rather than by the editor. A row map has no sqlx
+	// destination type that works at any column count — see
+	// DBOperations.SelectRowMap — and the old GetContext(dest any) call passed a
+	// bare Row by value, which sqlx refused on every read while every test double
+	// accepted it. GET /rows/:editor/:row_id answered 500 on every request.
+	row, err := db.SelectRowMap(ctx, query, args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrRowNotFound
 		}
 		return nil, fmt.Errorf("roweditor read: %w", err)
 	}
-
-	return &dest, nil
+	return &row, nil
 }
 
 // Update performs an inline edit on a single row.  It validates the change,

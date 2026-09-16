@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"orion/platform-svc-go/internal/observability/models"
@@ -45,6 +46,10 @@ func (r *Repository) GetMetric(ctx context.Context, tenantID, name string) (*mod
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sentinel.NotFound
 	}
+	if err != nil {
+		return nil, err
+	}
+	hydrateTags(&m)
 	return &m, err
 }
 
@@ -52,32 +57,59 @@ func (r *Repository) ListMetrics(ctx context.Context, tenantID string, q models.
 	query := "SELECT * FROM observability_metrics WHERE tenant_id=$1"
 	args := []interface{}{tenantID}
 	idx := 2
+	// The index is a number, not a rune, and it carries no trailing "s". The
+	// old " AND name = $" + string(rune(idx)) + "s" emitted U+0002 (STX) rather
+	// than the digit "2" and then the stray "s", so the query read
+	// " AND name = $\x02s": GET /observability/metrics?name=... answered 500
+	// for every filtered request. Past idx 9 string(rune(idx)) is a visible
+	// character or a newline, never the digits.
 	if q.Name != "" {
-		query += " AND name = $" + string(rune(idx)) + "s"
+		query += fmt.Sprintf(" AND name = $%d", idx)
 		args = append(args, q.Name)
 		idx++
 	}
 	if q.From != "" {
-		query += " AND timestamp >= $" + string(rune(idx)) + "s"
+		query += fmt.Sprintf(" AND timestamp >= $%d", idx)
 		args = append(args, q.From)
 		idx++
 	}
 	if q.To != "" {
-		query += " AND timestamp <= $" + string(rune(idx)) + "s"
+		query += fmt.Sprintf(" AND timestamp <= $%d", idx)
 		args = append(args, q.To)
 	}
 	query += " ORDER BY timestamp DESC"
 	var metrics []models.Metric
 	err := r.db.SelectContext(ctx, &metrics, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	for i := range metrics {
+		hydrateTags(&metrics[i])
+	}
 	return metrics, err
 }
 
 func (r *Repository) CreateAlertRule(ctx context.Context, tenantID string, rule *models.AlertRule) (*models.AlertRule, error) {
 	rule.ID = uuid.New().String()
+	// The placeholder names the db tag, not the json tag, and the tenant comes
+	// from the request context rather than the request body. Before this the
+	// statement bound :tenantId (the json tag) to nothing, so POST
+	// /observability/alerts failed every request with "could not find name
+	// tenantId", and the tenantID parameter was never used at all.
+	rule.TenantID = tenantID
 	_, err := r.db.NamedExecContext(ctx,
-		"INSERT INTO observability_alert_rules (id, tenant_id, metric, operator, threshold, severity, enabled) VALUES (:id, :tenantId, :metric, :operator, :threshold, :severity, :enabled)",
+		"INSERT INTO observability_alert_rules (id, tenant_id, metric, operator, threshold, severity, enabled) VALUES (:id, :tenant_id, :metric, :operator, :threshold, :severity, :enabled)",
 		rule)
 	return rule, err
+}
+
+// hydrateTags unmarshals the JSONB column into Tags. A corrupt value must not
+// fail the whole list, so the error is ignored and Tags stays empty for that row.
+func hydrateTags(m *models.Metric) {
+	if len(m.TagsJSON) == 0 {
+		return
+	}
+	_ = json.Unmarshal(m.TagsJSON, &m.Tags)
 }
 
 func (r *Repository) ListAlertRules(ctx context.Context, tenantID string) ([]models.AlertRule, error) {

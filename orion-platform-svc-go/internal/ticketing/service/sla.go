@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 
@@ -36,49 +37,58 @@ func (s *SLAService) CreateRecordForTicket(ctx context.Context, ticketID, priori
 	return s.slaRepo.CreateRecordForTicket(ctx, ticketID, priority)
 }
 
-// GetTicketSLA returns the SLA record for a ticket
+// GetTicketSLA returns the SLA record for a ticket.
+//
+// sla_records holds the deadlines. The old implementation read
+// ticket_sla_tracking through GetSLATracking and returned a synthetic
+// models.SLARecord carrying only TicketID and Priority, with SLATargetID: 0 and
+// every deadline left zero, so a caller could never tell whether the ticket was
+// inside its SLA. It also passed ticketID into the tenantID slot, and it checked
+// tracking == nil before err != nil, so a query failure was answered with "not
+// found" instead of the real error. internal/ticket's parallel GetTicketSLA
+// reads the real record.
 func (s *SLAService) GetTicketSLA(ctx context.Context, ticketID string) (*models.SLARecord, error) {
-	tracking, err := s.slaRepo.GetSLATracking(ctx, ticketID, ticketID)
-	if tracking == nil {
-		return nil, errors.New("sla record not found")
-	}
+	record, err := s.slaRepo.GetRecordByTicket(ctx, ticketID)
 	if err != nil {
+		// sql.ErrNoRows means the ticket has no sla_records row at all, which is
+		// normal for a priority with no SLA target. Keep the sentinel-free error
+		// text the handler answers 404 with; anything else is a real failure.
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("sla record not found")
+		}
 		return nil, err
 	}
-	return &models.SLARecord{
-		TicketID:    ticketID,
-		SLATargetID: 0,
-		Priority:    tracking.Priority,
-	}, nil
+	return record, nil
 }
 
 // MarkResponded marks a ticket as responded (SLA response met)
 func (s *SLAService) MarkResponded(ctx context.Context, ticketID string) error {
-	return s.slaRepo.UpdateSLATracking(ctx, ticketID, map[string]interface{}{
-		"response_ok": true,
-	})
+	record, err := s.slaRepo.GetRecordByTicket(ctx, ticketID)
+	if err != nil {
+		return nil // no SLA record
+	}
+	record.RespondedAt = timePtr(time.Now())
+	return s.slaRepo.UpdateRecord(ctx, record)
 }
 
 // MarkResolved marks a ticket as resolved (SLA resolution met)
 func (s *SLAService) MarkResolved(ctx context.Context, ticketID string) error {
-	return s.slaRepo.UpdateSLATracking(ctx, ticketID, map[string]interface{}{
-		"resolution_ok": true,
-	})
+	record, err := s.slaRepo.GetRecordByTicket(ctx, ticketID)
+	if err != nil {
+		return nil
+	}
+	record.ResolvedAt = timePtr(time.Now())
+	return s.slaRepo.UpdateRecord(ctx, record)
 }
 
 // PauseSLA pauses SLA tracking for a ticket
 func (s *SLAService) PauseSLA(ctx context.Context, ticketID, reason string) error {
-	return s.slaRepo.UpdateSLATracking(ctx, ticketID, map[string]interface{}{
-		"paused":        true,
-		"paused_reason": reason,
-	})
+	return s.slaRepo.PauseRecord(ctx, ticketID, reason)
 }
 
 // UnpauseSLA resumes SLA tracking
 func (s *SLAService) UnpauseSLA(ctx context.Context, ticketID string) error {
-	return s.slaRepo.UpdateSLATracking(ctx, ticketID, map[string]interface{}{
-		"paused": false,
-	})
+	return s.slaRepo.UnpauseRecord(ctx, ticketID)
 }
 
 // CheckBreaches checks all pending SLA records for breaches
@@ -86,12 +96,20 @@ func (s *SLAService) CheckBreaches(ctx context.Context) ([]models.SLARecord, err
 	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "SLAService.CheckBreaches")
 	defer span.End()
 
-	records, err := s.slaRepo.FindBreachedRecords(ctx)
+	// FindPendingRecords, not FindBreachedRecords: the breached query already
+	// filters "WHERE breached = true", so it can only re-stamp rows that are
+	// already marked and can never surface a record whose deadline just
+	// passed. It also excludes paused records, which must not accrue breach
+	// time. This is what internal/ticket's parallel CheckBreaches does.
+	records, err := s.slaRepo.FindPendingRecords(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	now := time.Time{}
+	// The zero time makes every now.After(...) call false, so the loop never
+	// marked anything and GET /tickets/sla/breaches always answered
+	// {"breaches": [], "count": 0} no matter how many records were overdue.
+	now := time.Now().UTC()
 	var breached []models.SLARecord
 	for _, rec := range records {
 		if rec.ResolutionDeadlineAt != nil && now.After(*rec.ResolutionDeadlineAt) {

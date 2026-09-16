@@ -85,6 +85,13 @@ type SLARepositoryInterface interface {
 	UpdateRecord(ctx context.Context, rec *models.SLARecord) error
 	GetComplianceReport(ctx context.Context, start, end time.Time) (*models.SLAComplianceReport, error)
 	CreateRecordForTicket(ctx context.Context, ticketID, priority string) error
+	// sla_records access used by GetTicketSLA, MarkResponded, MarkResolved,
+	// PauseSLA and UnpauseSLA. The concrete *SLARepository implements these
+	// against the sla_records table (see repository/sla.go), which is the only
+	// place responded_at / resolved_at / paused live.
+	GetRecordByTicket(ctx context.Context, ticketID string) (*models.SLARecord, error)
+	PauseRecord(ctx context.Context, ticketID, reason string) error
+	UnpauseRecord(ctx context.Context, ticketID string) error
 }
 
 // DispatchRepositoryInterface defines the interface for dispatch operations.

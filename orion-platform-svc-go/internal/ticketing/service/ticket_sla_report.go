@@ -194,9 +194,22 @@ func (s *Service) GetStatistics(ctx context.Context, tenantID string) (*models.S
 	if err != nil {
 		return nil, err
 	}
-	byStatus, _ := s.repo.CountTicketsByStatus(ctx, tenantID)
-	byPriority, _ := s.repo.CountTicketsByPriority(ctx, tenantID)
-	byCategory, _ := s.repo.CountTicketsByCategory(ctx, tenantID)
+	// Each of these must propagate. GET /tickets/reports/statistics answers 200
+	// from this method, and a swallowed COUNT error is indistinguishable from a
+	// tenant with zero open tickets: the report comes back all zeros with a nil
+	// error, so a broken database reads as an empty, healthy queue.
+	byStatus, err := s.repo.CountTicketsByStatus(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	byPriority, err := s.repo.CountTicketsByPriority(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	byCategory, err := s.repo.CountTicketsByCategory(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
 	return &models.StatisticsReport{
 		Total:      count,
 		Open:       byStatus["open"],

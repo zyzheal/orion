@@ -53,7 +53,9 @@ func (h *Handler) CreateGroup(c *gin.Context) {
 		middleware.RespondBadRequest(c, bindErr.Error())
 		return
 	}
-	group, createErr := h.eng.CreateGroup(ctx, tenantID, req.Name, req.Type, req.Children)
+	// The whole request is forwarded: the engine previously took name/type/
+	// children positionally, which dropped req.Enabled and req.Description.
+	group, createErr := h.eng.CreateGroup(ctx, tenantID, &req)
 	if createErr != nil {
 		if errors.Is(createErr, service.ErrInvalidGroupType) {
 			middleware.RespondBadRequest(c, createErr.Error())
@@ -126,9 +128,13 @@ func (h *Handler) CreateExpression(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	expr, err := h.eng.CreateExpression(ctx, tenantID, groupID, req.Field, req.Operator, req.Value)
+	// The whole request is forwarded: the engine previously took field/operator/
+	// value positionally, which dropped req.ValueType (stored as a hardcoded
+	// "string") and req.Enabled (stored as a hardcoded true).
+	expr, err := h.eng.CreateExpression(ctx, tenantID, groupID, &req)
 	if err != nil {
-		if errors.Is(err, service.ErrInvalidOperator) || errors.Is(err, service.ErrInvalidField) {
+		if errors.Is(err, service.ErrInvalidOperator) || errors.Is(err, service.ErrInvalidField) ||
+			errors.Is(err, service.ErrInvalidValueType) {
 			middleware.RespondBadRequest(c, err.Error())
 			return
 		}

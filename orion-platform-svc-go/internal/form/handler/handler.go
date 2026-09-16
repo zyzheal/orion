@@ -49,7 +49,11 @@ func (h *Handler) CreateForm(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
 		return
 	}
-	form, err := h.engine.CreateForm(ctx, tenantID, req.Name, req.Code, req.Category, req.Layout, nil)
+	// The whole bound request goes down, not a hand-picked field list. The old
+	// positional call dropped Description and passed a literal nil for Fields,
+	// so POST /forms created empty forms while binding:"required" on Fields
+	// made the client believe the data had been sent.
+	form, err := h.engine.CreateForm(ctx, tenantID, &req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return

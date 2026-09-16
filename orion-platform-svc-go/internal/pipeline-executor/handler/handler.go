@@ -48,7 +48,12 @@ func (h *Handler) CreatePipeline(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	p, err := h.exec.CreatePipeline(ctx, h.tenantID(c), req.Name, req.Category)
+	// The whole request goes through: CreatePipeline used to take name and
+	// category separately, which dropped the bound description at the seam and
+	// again inside the service. The repository already reads req.Description, so
+	// the only reason a caller's description vanished was the positional
+	// decomposition here.
+	p, err := h.exec.CreatePipeline(ctx, h.tenantID(c), &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

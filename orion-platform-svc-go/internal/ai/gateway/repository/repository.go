@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"orion/platform-svc-go/internal/ai/gateway/models"
 
@@ -23,8 +24,15 @@ func NewRepository(db *sqlx.DB) *Repository {
 
 func (r *Repository) Create(ctx context.Context, tenantID string, resp *models.GatewayResponse) (*models.GatewayResponse, error) {
 	resp.ID = uuid.New().String()
+	// The placeholders name the db tag, not the json tag, and the tenant comes
+	// from the request context rather than the request body. Before this the
+	// statement bound :tenantId, :latencyMs and :createdAt — the json tags —
+	// to nothing, so POST /ai-gateway failed every request with "could not find
+	// name tenantId", and the tenantID parameter was never used at all: the
+	// NOT NULL tenant column would have been written as the empty string.
+	resp.TenantID = tenantID
 	_, err := r.db.NamedExecContext(ctx,
-		"INSERT INTO ai_gateway_requests (id, tenant_id, model, provider, input, output, tokens, latency_ms, created_at) VALUES (:id, :tenantId, :model, :provider, :input, :output, :tokens, :latencyMs, :createdAt)",
+		"INSERT INTO ai_gateway_requests (id, tenant_id, model, provider, input, output, tokens, latency_ms, created_at) VALUES (:id, :tenant_id, :model, :provider, :input, :output, :tokens, :latency_ms, :created_at)",
 		resp)
 	return resp, err
 }
@@ -43,18 +51,32 @@ func (r *Repository) List(ctx context.Context, tenantID string, q models.ListQue
 	args := []interface{}{tenantID}
 	idx := 2
 	if q.Provider != "" {
-		where += " AND provider = $" + string(rune(idx)) + "s"
+		// The index is a number, not a rune, and it carries no trailing "s".
+		// The old " AND provider = $" + string(rune(idx)) + "s" emitted U+0002
+		// (STX) rather than the digit "2" and then the stray "s", so the query
+		// read " AND provider = $\x02s" and GET /ai-gateway?provider=...
+		// answered 500 for every filtered request.
+		where += fmt.Sprintf(" AND provider = $%d", idx)
 		args = append(args, q.Provider)
+		idx++
 	}
 	limit := 20
 	if q.Limit > 0 {
 		limit = q.Limit
 	}
 	args = append(args, limit)
+
+	// COUNT reuses the where clause but not the LIMIT, so it takes every arg
+	// except the trailing limit. Its error must propagate: all four list routes
+	// answer {"data": items, "total": total}, so swallowing it would report
+	// total: 0 while still returning rows.
 	var total int
-	r.db.GetContext(ctx, &total, "SELECT COUNT(*) FROM ai_gateway_requests WHERE "+where, args[:len(args)-1]...)
+	if err := r.db.GetContext(ctx, &total, "SELECT COUNT(*) FROM ai_gateway_requests WHERE "+where, args[:len(args)-1]...); err != nil {
+		return nil, 0, err
+	}
+	itemsQuery := fmt.Sprintf("SELECT * FROM ai_gateway_requests WHERE %s ORDER BY created_at DESC LIMIT $%d", where, len(args))
 	var items []models.GatewayResponse
-	err := r.db.SelectContext(ctx, &items, "SELECT * FROM ai_gateway_requests WHERE "+where+" ORDER BY created_at DESC LIMIT $"+string(rune(len(args))), args...)
+	err := r.db.SelectContext(ctx, &items, itemsQuery, args...)
 	return items, total, err
 }
 

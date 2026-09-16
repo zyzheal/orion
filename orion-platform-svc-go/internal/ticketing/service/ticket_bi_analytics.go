@@ -16,9 +16,23 @@ import (
 // GetExecutiveDashboard returns high-level KPIs: total/open/resolved tickets,
 // active engineers, SLA compliance, and escalation count. Mirrors TS ExecutiveDashboardBuilder.
 func (s *Service) GetExecutiveDashboard(ctx context.Context, tenantID string) (*models.ExecutiveDashboard, error) {
-	count, _ := s.repo.CountTickets(ctx, tenantID)
-	byStatus, _ := s.repo.CountTicketsByStatus(ctx, tenantID)
-	tickets, _ := s.repo.ListTickets(ctx, tenantID, models.TicketListQuery{})
+	// Every one of these must propagate. GET /tickets/bi/dashboard/executive
+	// answers 200 from this method, and GetSLACompliance hands back a nil
+	// report alongside its error, so the old "compliance, _ := ..." line
+	// dereferenced nil and panicked the request instead of returning 500. A
+	// swallowed CountTickets error would read as a tenant with zero tickets.
+	count, err := s.repo.CountTickets(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	byStatus, err := s.repo.CountTicketsByStatus(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	tickets, err := s.repo.ListTickets(ctx, tenantID, models.TicketListQuery{})
+	if err != nil {
+		return nil, err
+	}
 	today := time.Now().UTC().Format("2006-01-02")
 	resolvedToday := 0
 	for _, t := range tickets {
@@ -26,8 +40,14 @@ func (s *Service) GetExecutiveDashboard(ctx context.Context, tenantID string) (*
 			resolvedToday++
 		}
 	}
-	engineers, _ := s.repo.ListEngineers(ctx, tenantID)
-	compliance, _ := s.GetSLACompliance(ctx, tenantID)
+	engineers, err := s.repo.ListEngineers(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	compliance, err := s.GetSLACompliance(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
 	return &models.ExecutiveDashboard{
 		TotalTickets:    count,
 		OpenTickets:     byStatus["open"] + byStatus["assigned"] + byStatus["in-progress"],
@@ -41,12 +61,18 @@ func (s *Service) GetExecutiveDashboard(ctx context.Context, tenantID string) (*
 // GetManagerDashboard returns team load, overdue tickets, and new tickets this week.
 // Mirrors TS ManagerDashboardBuilder.
 func (s *Service) GetManagerDashboard(ctx context.Context, tenantID string) (*models.ManagerDashboard, error) {
-	engineers, _ := s.repo.ListEngineers(ctx, tenantID)
+	engineers, err := s.repo.ListEngineers(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
 	teamLoad := make(map[string]int)
 	for _, e := range engineers {
 		teamLoad[e.Name] = e.CurrentLoad
 	}
-	tickets, _ := s.repo.ListTickets(ctx, tenantID, models.TicketListQuery{})
+	tickets, err := s.repo.ListTickets(ctx, tenantID, models.TicketListQuery{})
+	if err != nil {
+		return nil, err
+	}
 	overdue := 0
 	newThisWeek := 0
 	weekStart := time.Now().UTC().AddDate(0, 0, -7)
@@ -74,7 +100,10 @@ func (s *Service) GetManagerDashboard(ctx context.Context, tenantID string) (*mo
 // GetEngineerDashboard returns the engineer's personal workload and upcoming deadlines.
 // Mirrors TS EngineerDashboardBuilder.
 func (s *Service) GetEngineerDashboard(ctx context.Context, tenantID, engineerID string) (*models.EngineerDashboard, error) {
-	tickets, _ := s.repo.ListTickets(ctx, tenantID, models.TicketListQuery{})
+	tickets, err := s.repo.ListTickets(ctx, tenantID, models.TicketListQuery{})
+	if err != nil {
+		return nil, err
+	}
 	myTickets := 0
 	openTickets := 0
 	upcoming := make([]string, 0)
@@ -105,7 +134,10 @@ func (s *Service) GetEngineerDashboard(ctx context.Context, tenantID, engineerID
 // GetEngineerEfficiency returns resolved count and average resolution hours for an engineer.
 // Mirrors TS EngineerMetricsCalculator.
 func (s *Service) GetEngineerEfficiency(ctx context.Context, tenantID, engineerID string) (*models.EngineerEfficiency, error) {
-	tickets, _ := s.repo.ListTickets(ctx, tenantID, models.TicketListQuery{})
+	tickets, err := s.repo.ListTickets(ctx, tenantID, models.TicketListQuery{})
+	if err != nil {
+		return nil, err
+	}
 	var resolvedHours []float64
 	for _, t := range tickets {
 		if t.AssigneeID == nil || *t.AssigneeID != engineerID {
@@ -133,46 +165,99 @@ func (s *Service) GetEfficiencyScore(ctx context.Context, tenantID, engineerID s
 	if err != nil {
 		return nil, err
 	}
-	tickets, _ := s.repo.ListTickets(ctx, tenantID, models.TicketListQuery{})
+	tickets, err := s.repo.ListTickets(ctx, tenantID, models.TicketListQuery{})
+	if err != nil {
+		return nil, err
+	}
+	// Ranking needs the rest of the team, which is the same table the manager
+	// dashboard already reads.
+	engineers, err := s.repo.ListEngineers(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	score, components := engineerScore(*eng, tickets)
+	// Ranking was a literal 1, so every engineer on
+	// GET /tickets/bi/score/:engineerId read as the top performer. Ties keep the
+	// same rank, so the ordering is stable without a tie-break rule.
+	ranking := 1
+	for i := range engineers {
+		if engineers[i].ID == eng.ID {
+			continue
+		}
+		if s, _ := engineerScore(engineers[i], tickets); s > score {
+			ranking++
+		}
+	}
+	return &models.EfficiencyScore{
+		EngineerID: eng.ID,
+		Score:      score,
+		Ranking:    ranking,
+		Grade:      gradeFor(score),
+		Components: components,
+	}, nil
+}
+
+// engineerScore computes the 0-100 score and its three components for one
+// engineer from the tenant's full ticket list. The math is unchanged from the
+// inline version; the components were previously computed and discarded even
+// though models.EfficiencyScore.Components exists to carry them.
+func engineerScore(eng models.DispatchEngineer, tickets []models.Ticket) (float64, map[string]float64) {
 	var resolvedHours []float64
 	for _, t := range tickets {
-		if t.AssigneeID != nil && *t.AssigneeID == engineerID {
+		if t.AssigneeID != nil && *t.AssigneeID == eng.ID {
 			if t.Status == "resolved" || t.Status == "closed" {
-				dur := t.UpdatedAt.Sub(t.CreatedAt).Hours()
-				if dur > 0 {
+				if dur := t.UpdatedAt.Sub(t.CreatedAt).Hours(); dur > 0 {
 					resolvedHours = append(resolvedHours, dur)
 				}
 			}
 		}
 	}
-	score := float64(len(resolvedHours)) * 20
+	volume := float64(len(resolvedHours)) * 20
+	speed := 0.0
 	if len(resolvedHours) > 0 {
-		avg := average(resolvedHours)
-		if avg <= 4 {
-			score += 30
-		} else if avg <= 12 {
-			score += 20
-		} else {
-			score += 10
+		switch avg := average(resolvedHours); {
+		case avg <= 4:
+			speed = 30
+		case avg <= 12:
+			speed = 20
+		default:
+			speed = 10
 		}
 	}
-	loadRatio := 0.0
+	loadBonus := 0.0
 	if eng.MaxTickets > 0 {
-		loadRatio = float64(eng.CurrentLoad) / float64(eng.MaxTickets)
+		if ratio := float64(eng.CurrentLoad) / float64(eng.MaxTickets); ratio < 0.5 {
+			loadBonus = 30
+		} else if ratio < 0.8 {
+			loadBonus = 15
+		}
 	}
-	if loadRatio < 0.5 {
-		score += 30
-	} else if loadRatio < 0.8 {
-		score += 15
-	}
+	score := volume + speed + loadBonus
 	if score > 100 {
 		score = 100
 	}
-	return &models.EfficiencyScore{
-		EngineerID: engineerID,
-		Score:      score,
-		Ranking:    1,
-	}, nil
+	return score, map[string]float64{
+		"resolution_volume": volume,
+		"resolution_speed":  speed,
+		"load_balance":      loadBonus,
+	}
+}
+
+// gradeFor applies the A/B/C/D/F rubric that internal/ticket's
+// GetEfficiencyScore already uses, so the two modules grade the same score the
+// same way.
+func gradeFor(score float64) string {
+	switch {
+	case score >= 90:
+		return "A"
+	case score >= 80:
+		return "B"
+	case score >= 70:
+		return "C"
+	case score >= 60:
+		return "D"
+	}
+	return "F"
 }
 
 // ComparePeriods compares ticket volume between two date ranges.

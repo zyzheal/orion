@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"orion/platform-svc-go/internal/ticketing/models"
@@ -93,11 +94,13 @@ func (r *Repository) ListTickets(ctx context.Context, tenantID string, q models.
 	}
 
 	where := "WHERE " + joinSQL(whereClauses, " AND ")
-	placeholders := make([]string, len(args))
-	for i := range args {
-		placeholders[i] = "$" + string(rune(i+1))
-	}
-	sql := `SELECT * FROM tickets ` + where + ` ORDER BY created_at DESC LIMIT $` + string(rune(len(args)+'1')) + ` OFFSET $` + string(rune(len(args)+2))
+	// The index is a number, not a rune. string(rune(len(args)+1)) without the
+	// '+'0' would emit U+0002 (STX) instead of the digit "2", so the query read
+	// "LIMIT $\x02" and GET /tickets answered 500 for every request. The LIMIT
+	// and OFFSET come after every filter arg, so their positions are len(args)+1
+	// and len(args)+2. An earlier draft built a `placeholders` slice for these
+	// positions and never read it; that dead code is gone.
+	sql := fmt.Sprintf("SELECT * FROM tickets %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d", where, len(args)+1, len(args)+2)
 	args = append(args, q.Limit, q.Offset)
 
 	var items []models.Ticket
@@ -685,8 +688,13 @@ func (r *Repository) UpdateSLATracking(ctx context.Context, ticketID string, upd
 	}
 	set := make([]string, 0, len(keys))
 	args := make([]interface{}, 0, len(keys)+1)
+	// The index is a number, not a rune: string(rune(i+2)) emitted U+0002 (STX)
+	// rather than the digit "2", so the SET clause read "breached=$\x02" and every
+	// SLA update answered a Postgres syntax error. ticket_workflow and sla.go all
+	// call this, so every workflow transition that touched SLA tracking failed.
+	// ticket_id takes $1, so the first SET arg is $2.
 	for i, k := range keys {
-		set = append(set, k+"=$"+string(rune(i+2)))
+		set = append(set, fmt.Sprintf("%s=$%d", k, i+2))
 		args = append(args, updates[k])
 	}
 	sql := "UPDATE ticket_sla_tracking SET " + joinSQL(set, ", ") + " WHERE ticket_id=$1"

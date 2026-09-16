@@ -11,16 +11,23 @@ type GatewayRequest struct {
 	Temperature float64 `json:"temperature"`
 }
 
-// GatewayResponse represents a persisted gateway response.
+// GatewayResponse is scanned from SELECT *, so every returned column needs a
+// destination and its db tag must be the snake_case column name. sqlx v1.4.0
+// resolves a field by its db tag and otherwise by the LOWERCASED Go field
+// name, so untagged LatencyMs looked for the column "latencyms" and CreatedAt
+// for "createdat" while the table holds "latency_ms" and "created_at" — every
+// read of ai_gateway_requests failed with "missing destination name". tenant_id
+// is NOT NULL and Create is its only writer, so it needs a field as well.
 type GatewayResponse struct {
-	ID        string    `json:"id"`
-	Model     string    `json:"model"`
-	Provider  string    `json:"provider"`
-	Input     string    `json:"input"`
-	Output    string    `json:"output"`
-	Tokens    int       `json:"tokens"`
-	LatencyMs int64     `json:"latencyMs"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID        string    `json:"id" db:"id"`
+	TenantID  string    `json:"tenantId" db:"tenant_id"`
+	Model     string    `json:"model" db:"model"`
+	Provider  string    `json:"provider" db:"provider"`
+	Input     string    `json:"input" db:"input"`
+	Output    string    `json:"output" db:"output"`
+	Tokens    int       `json:"tokens" db:"tokens"`
+	LatencyMs int64     `json:"latencyMs" db:"latency_ms"`
+	CreatedAt time.Time `json:"createdAt" db:"created_at"`
 }
 
 // ListQuery holds pagination/filtering parameters for listing requests.

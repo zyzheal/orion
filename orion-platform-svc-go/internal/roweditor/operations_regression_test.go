@@ -66,6 +66,10 @@ type strictDB struct {
 	mu       *sync.Mutex
 	recorder []execRec
 	result   sql.Result
+	// readRow is what SelectRowMap returns. Left nil it answers sql.ErrNoRows,
+	// so a test that expects a row has to set it instead of relying on a silent
+	// success.
+	readRow Row
 }
 
 // mockTx shares strictDB's recorder so transactional statements are counted
@@ -112,14 +116,20 @@ func (d *strictDB) NamedExecContext(ctx context.Context, query string, arg any) 
 	return d.result, nil
 }
 
-func (d *strictDB) GetContext(ctx context.Context, dest any, query string, args ...any) error {
+func (d *strictDB) SelectRowMap(ctx context.Context, query string, args ...any) (Row, error) {
 	d.record(query, args)
-	return nil
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.readRow == nil {
+		return nil, sql.ErrNoRows
+	}
+	return d.readRow, nil
 }
 
-func (d *strictDB) SelectContext(ctx context.Context, dest any, query string, args ...any) error {
-	d.record(query, args)
-	return nil
+func (d *strictDB) setReadRow(row Row) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.readRow = row
 }
 
 func (d *strictDB) BeginTxx(ctx context.Context, cfg *sql.TxOptions) (TxOperations, error) {
@@ -540,10 +550,17 @@ func TestStrictUpdateOffsetsWithTwoSetColumns(t *testing.T) {
 func TestStrictReadBindsTenant(t *testing.T) {
 	db := newStrictDB(t)
 	ed := mustEditor(t, simpleSpec())
+	db.setReadRow(Row{"id": "r1"})
 
-	_, err := ed.Read(context.Background(), db, "t1", "r1")
+	row, err := ed.Read(context.Background(), db, "t1", "r1")
 	if err != nil {
 		t.Fatalf("Read() error = %v", err)
+	}
+	if row == nil {
+		t.Fatal("Read returned a nil row without an error")
+	}
+	if (*row)["id"] != "r1" {
+		t.Fatalf("Read row id = %v, want the row the database returned", (*row)["id"])
 	}
 	got := db.records()[0]
 	wantSQL := "SELECT * FROM items WHERE id=$1 AND tenant_id=$2 AND status!='deleted'"
@@ -558,13 +575,20 @@ func TestStrictReadBindsTenant(t *testing.T) {
 func TestStrictReadWithoutTenantPassesOneArg(t *testing.T) {
 	db := newStrictDB(t)
 	ed := mustEditor(t, simpleSpec())
+	db.setReadRow(Row{"id": "r1"})
 
 	// buildSelectQuery binds tenant_id only when the tenant is non-empty, so the
 	// argument list must drop it too. Sending the empty string anyway handed the
 	// driver an argument for a placeholder that does not exist.
-	_, err := ed.Read(context.Background(), db, "", "r1")
+	row, err := ed.Read(context.Background(), db, "", "r1")
 	if err != nil {
 		t.Fatalf("Read() error = %v", err)
+	}
+	if row == nil {
+		t.Fatal("Read returned a nil row without an error")
+	}
+	if (*row)["id"] != "r1" {
+		t.Fatalf("Read row id = %v, want the row the database returned", (*row)["id"])
 	}
 	got := db.records()[0]
 	wantSQL := "SELECT * FROM items WHERE id=$1 AND status!='deleted'"

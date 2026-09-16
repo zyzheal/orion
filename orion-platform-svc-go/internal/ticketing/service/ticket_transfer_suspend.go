@@ -20,7 +20,13 @@ func (s *Service) GetTransferStats(ctx context.Context, tenantID string) (*model
 	if err != nil {
 		return nil, err
 	}
-	count, _ := s.repo.CountTickets(ctx, tenantID)
+	// Propagated: GET /tickets/transfer/stats answers 200 from here, and a
+	// swallowed COUNT leaves AvgTransfers at 0 -- exactly what a tenant with no
+	// transfers looks like.
+	count, err := s.repo.CountTickets(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
 	if count > 0 {
 		stats.AvgTransfers = float64(stats.TotalTransfers) / float64(count)
 	}

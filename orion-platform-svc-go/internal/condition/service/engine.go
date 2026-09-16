@@ -442,22 +442,47 @@ func (e *ConditionEngine) jsonPath(fieldValue interface{}, valueStr string) (boo
 // === CRUD ===
 
 // CreateGroup creates a new condition group.
-func (e *ConditionEngine) CreateGroup(ctx context.Context, tenantID, name, groupType string, children []map[string]interface{}) (*models.ConditionGroup, error) {
-	if err := validateGroupType(groupType); err != nil {
+//
+// The old signature took name/type/children positionally and called the
+// repository with enabled=nil and description="", so a caller that sent
+// {"name":"x","type":"and","enabled":false,"description":"..."} got back an
+// enabled group with no description and no way to tell that the body had been
+// read at all. The repository already accepted both values; the engine was the
+// single copy point throwing them away. Taking the request makes the handler
+// the only place that decides what the body contains.
+func (e *ConditionEngine) CreateGroup(ctx context.Context, tenantID string, req *models.CreateGroupRequest) (*models.ConditionGroup, error) {
+	if err := validateGroupType(req.Type); err != nil {
 		return nil, err
 	}
-	return e.repo.CreateGroup(ctx, tenantID, name, groupType, children, nil, "")
+	return e.repo.CreateGroup(ctx, tenantID, req.Name, req.Type, req.Children, req.Enabled, req.Description)
 }
 
 // CreateExpression adds a condition expression to a group.
-func (e *ConditionEngine) CreateExpression(ctx context.Context, tenantID, groupID string, field, operator, value string) (*models.ConditionExpression, error) {
-	if err := validateOperator(operator); err != nil {
+//
+// The old signature took field/operator/value positionally and called the
+// repository with value_type="string" and enabled=nil. Both were load-bearing:
+// value_type selects the numeric and boolean branches of normalizeValue, so a
+// caller declaring a number or boolean comparison was silently stored as a
+// string comparison, and enabled=false at create time was silently flipped to
+// enabled. The repository already accepted both; only the engine hardcoded them.
+func (e *ConditionEngine) CreateExpression(ctx context.Context, tenantID, groupID string, req *models.CreateExpressionRequest) (*models.ConditionExpression, error) {
+	if err := validateOperator(req.Operator); err != nil {
 		return nil, err
 	}
-	if err := validateField(field); err != nil {
+	if err := validateField(req.Field); err != nil {
 		return nil, err
 	}
-	return e.repo.CreateExpression(ctx, tenantID, groupID, field, operator, value, "string", nil)
+	valueType := strings.ToLower(strings.TrimSpace(req.ValueType))
+	if valueType == "" {
+		// Omitted is the pre-existing behaviour: comparisons default to string.
+		// Kept deliberately permissive so callers that never send value_type are
+		// unaffected; a value that IS sent must be in the documented vocabulary.
+		valueType = "string"
+	}
+	if err := validateValueType(valueType); err != nil {
+		return nil, err
+	}
+	return e.repo.CreateExpression(ctx, tenantID, groupID, req.Field, req.Operator, req.Value, valueType, req.Enabled)
 }
 
 // ListGroups lists condition groups for a tenant.
@@ -502,6 +527,18 @@ func validateOperator(op string) error {
 	}
 	if !valid[strings.ToLower(op)] {
 		return fmt.Errorf("%w: %q", ErrInvalidOperator, op)
+	}
+	return nil
+}
+
+func validateValueType(t string) error {
+	valid := map[string]bool{
+		"string": true, "number": true, "boolean": true,
+		"array": true, "object": true,
+	}
+	if !valid[t] {
+		return fmt.Errorf("%w: %q. Must be one of 'string', 'number', 'boolean', 'array', or 'object'",
+			ErrInvalidValueType, t)
 	}
 	return nil
 }
@@ -620,4 +657,5 @@ var (
 	ErrInvalidGroupType   = errors.New("invalid group type")
 	ErrInvalidOperator    = errors.New("invalid operator")
 	ErrInvalidField       = errors.New("invalid field")
+	ErrInvalidValueType   = errors.New("invalid value type")
 )

@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -43,9 +42,16 @@ func (r *Repository) CreateForm(ctx context.Context, tenantID string, req models
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
+	// The placeholders name the db tag, not the json tag. sqlx resolves :name
+	// against the struct's db tag, falling back to the Go field name only when
+	// no tag exists, so :tenantId bound to nothing and POST /forms failed every
+	// request with "could not find name tenantId in &models.FormDefinition{...}".
+	// The camelCase is the json tag (tenantId), which is what makes the mistake
+	// read as plausible, and why sqlmock never caught it: sqlmock does not run
+	// sqlx's named-arg resolution at all.
 	_, err := r.db.NamedExecContext(ctx,
 		`INSERT INTO forms (id, tenant_id, name, code, category, description, layout, fields, status, version, created_at, updated_at)
-		 VALUES (:id, :tenantId, :name, :code, :category, :description, :layout, :fields, :status, :version, :createdAt, :updatedAt)`,
+		 VALUES (:id, :tenant_id, :name, :code, :category, :description, :layout, :fields, :status, :version, :created_at, :updated_at)`,
 		form)
 	return form, err
 }
@@ -131,9 +137,11 @@ func (r *Repository) CreateFormField(ctx context.Context, tenantID string, formI
 	now := time.Now().UTC()
 	field.CreatedAt = now
 	field.UpdatedAt = now
+	// Same db-tag rule. CreateFormField/FormField is not on a route (there is
+	// no POST for fields), so this was latent rather than user-visible.
 	_, err := r.db.NamedExecContext(ctx,
 		`INSERT INTO form_fields (id, form_id, field_id, label, type, placeholder, required, visible, read_only, validation, options, default_value, dependency, priority, created_at, updated_at)
-		 VALUES (:id, :formId, :fieldId, :label, :type, :placeholder, :required, :visible, :readOnly, :validation, :options, :defaultValue, :dependency, :priority, :createdAt, :updatedAt)`,
+		 VALUES (:id, :form_id, :field_id, :label, :type, :placeholder, :required, :visible, :read_only, :validation, :options, :default_value, :dependency, :priority, :created_at, :updated_at)`,
 		field)
 	return err
 }
@@ -199,9 +207,11 @@ func (r *Repository) CreateSubmission(ctx context.Context, tenantID, formID, sub
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
+	// Same db-tag rule as CreateForm. POST /forms/{id}/submit answered 400 with
+	// "could not find name tenantId" for every submission.
 	_, err := r.db.NamedExecContext(ctx,
 		`INSERT INTO form_submissions (id, tenant_id, form_id, data, submitted_by, status, created_at, updated_at)
-		 VALUES (:id, :tenantId, :formId, :data, :submittedBy, :status, :createdAt, :updatedAt)`,
+		 VALUES (:id, :tenant_id, :form_id, :data, :submitted_by, :status, :created_at, :updated_at)`,
 		sub)
 	return sub, err
 }
@@ -232,16 +242,4 @@ func (r *Repository) UpdateSubmissionStatus(ctx context.Context, tenantID, id, s
 		return nil, err
 	}
 	return r.GetSubmission(ctx, tenantID, id)
-}
-
-// marshalMap marshals a map[string]interface{} to JSON string.
-func marshalMap(v map[string]interface{}) (string, error) {
-	if v == nil {
-		return "{}", nil
-	}
-	b, err := json.Marshal(v)
-	if err != nil {
-		return "", err
-	}
-	return string(b), nil
 }

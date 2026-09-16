@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 
@@ -125,9 +126,25 @@ func (r *MockTicketRepository) Count(ctx context.Context, tenantID string) (int,
 // MockSLARepository
 // ---------------------------------------------------------------------------
 
+// Compile-time proof that the mock still covers the whole interface. No
+// production type satisfies SLARepositoryInterface yet, so this assertion is
+// the only thing that would notice the mock drifting from the contract.
+var _ repository.SLARepositoryInterface = (*MockSLARepository)(nil)
+
 type MockSLARepository struct {
 	Targets []models.SLATarget
 	Records []models.SLARecord
+	// FindErr, when set, makes FindPendingRecords fail so a caller's error path
+	// can be exercised; nil is the usual no-op success.
+	FindErr error
+	// GetErr / UpdateErr / PauseErr / UnpauseErr are the same hooks for the
+	// sla_records methods. Without them every error-path test in the SLA
+	// service would fail at baseline, because a mock that cannot fail makes a
+	// propagation assertion vacuous in the opposite direction.
+	GetErr     error
+	UpdateErr  error
+	PauseErr   error
+	UnpauseErr error
 }
 
 func NewMockSLARepository() *MockSLARepository {
@@ -198,6 +215,9 @@ func (r *MockSLARepository) CreateTarget(ctx context.Context, req *models.Create
 }
 
 func (r *MockSLARepository) FindPendingRecords(ctx context.Context) ([]models.SLARecord, error) {
+	if r.FindErr != nil {
+		return nil, r.FindErr
+	}
 	return r.Records, nil
 }
 
@@ -205,7 +225,67 @@ func (r *MockSLARepository) FindBreachedRecords(ctx context.Context) ([]models.S
 	return nil, nil
 }
 
+// UpdateRecord persists back into Records, matching Postgres semantics where an
+// UPDATE that matches no row is not an error. The caller must write the change
+// back explicitly; see GetRecordByTicket, which hands out a copy.
 func (r *MockSLARepository) UpdateRecord(ctx context.Context, rec *models.SLARecord) error {
+	if r.UpdateErr != nil {
+		return r.UpdateErr
+	}
+	for i := range r.Records {
+		if r.Records[i].ID == rec.ID {
+			r.Records[i] = *rec
+			return nil
+		}
+	}
+	return nil
+}
+
+// GetRecordByTicket returns a copy of the row, not a pointer into Records. A
+// pointer would let MarkResponded look correct without UpdateRecord ever
+// running, which is exactly the vacuity the SLA service tests guard against.
+// A missing ticket is sql.ErrNoRows, as the real repository returns it.
+func (r *MockSLARepository) GetRecordByTicket(ctx context.Context, ticketID string) (*models.SLARecord, error) {
+	if r.GetErr != nil {
+		return nil, r.GetErr
+	}
+	for i := range r.Records {
+		if r.Records[i].TicketID == ticketID {
+			rec := r.Records[i]
+			return &rec, nil
+		}
+	}
+	return nil, sql.ErrNoRows
+}
+
+func (r *MockSLARepository) PauseRecord(ctx context.Context, ticketID, reason string) error {
+	if r.PauseErr != nil {
+		return r.PauseErr
+	}
+	for i := range r.Records {
+		if r.Records[i].TicketID == ticketID {
+			now := time.Now()
+			r.Records[i].Paused = true
+			r.Records[i].PausedAt = &now
+			r.Records[i].PausedReason = reason
+			return nil
+		}
+	}
+	return nil
+}
+
+func (r *MockSLARepository) UnpauseRecord(ctx context.Context, ticketID string) error {
+	if r.UnpauseErr != nil {
+		return r.UnpauseErr
+	}
+	for i := range r.Records {
+		if r.Records[i].TicketID == ticketID {
+			r.Records[i].Paused = false
+			r.Records[i].PausedAt = nil
+			r.Records[i].PausedReason = ""
+			return nil
+		}
+	}
 	return nil
 }
 

@@ -35,7 +35,7 @@ type fakeDB struct {
 	mu       sync.Mutex
 	stmts    []stmtRecord
 	affected int64
-	failGet  bool
+	failGet  bool // SelectRowMap fails, driving the read-failure path
 }
 
 func (f *fakeDB) record(sqlText string, args []any) {
@@ -54,22 +54,12 @@ func (f *fakeDB) NamedExecContext(_ context.Context, query string, arg any) (sql
 	return fakeResult{affected: f.affected}, nil
 }
 
-func (f *fakeDB) GetContext(_ context.Context, dest any, query string, args ...any) error {
+func (f *fakeDB) SelectRowMap(_ context.Context, query string, args ...any) (roweditor.Row, error) {
 	f.record(query, args)
 	if f.failGet {
-		return errors.New("get failed")
+		return nil, errors.New("get failed")
 	}
-	// dest is a roweditor.Row, which is a defined type: asserting on
-	// map[string]any would not match it and this branch would be dead code.
-	if row, ok := dest.(roweditor.Row); ok {
-		row["id"] = "r1"
-	}
-	return nil
-}
-
-func (f *fakeDB) SelectContext(_ context.Context, _ any, query string, args ...any) error {
-	f.record(query, args)
-	return nil
+	return roweditor.Row{"id": "r1"}, nil
 }
 
 func (f *fakeDB) BeginTxx(context.Context, *sql.TxOptions) (roweditor.TxOperations, error) {
@@ -504,6 +494,32 @@ func TestReadRowWithoutTenantBindsOnePlaceholder(t *testing.T) {
 	}
 	if len(recs[0].args) != 1 || recs[0].args[0] != "r1" {
 		t.Fatalf("select args = %v, want [r1]", recs[0].args)
+	}
+}
+
+// A database failure must stay a failure. Reporting it as ErrRowNotFound would
+// have the handler answer 404 for a broken database.
+func TestReadRowPropagatesDatabaseError(t *testing.T) {
+	svc := NewService(nil)
+	if err := svc.RegisterEditor(context.Background(), "t1", "items", &models.RowEditorSpecRequest{
+		TableName: "items", PrimaryKey: "id", Columns: reqColumns(),
+	}); err != nil {
+		t.Fatalf("RegisterEditor() error = %v", err)
+	}
+	db := &fakeDB{affected: 1, failGet: true}
+
+	resp, err := svc.ReadRow(context.Background(), "t1", "items", db, "r1")
+	if err == nil {
+		t.Fatal("ReadRow() returned no error when the query failed")
+	}
+	if resp != nil {
+		t.Fatalf("ReadRow returned %+v with an error", resp)
+	}
+	if errors.Is(err, roweditor.ErrRowNotFound) {
+		t.Fatalf("a driver failure was reported as a missing row: %v", err)
+	}
+	if got := len(db.statements()); got != 1 {
+		t.Fatalf("statements = %d, want 1: the failure must not retry or re-read", got)
 	}
 }
 

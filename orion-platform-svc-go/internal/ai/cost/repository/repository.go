@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"orion/platform-svc-go/internal/ai/cost/models"
@@ -23,8 +24,14 @@ func NewRepository(db *sqlx.DB) *Repository {
 
 func (r *Repository) Create(ctx context.Context, tenantID string, record *models.CostRecord) (*models.CostRecord, error) {
 	record.ID = uuid.New().String()
+	// The placeholders name the db tag, not the json tag. sqlx binds :name
+	// against db:"...", so :tenantId bound to nothing and every cost record
+	// write failed with "could not find name tenantId in &models.CostRecord{...}".
+	// The camelCase is the json tag, which is what makes the mistake read as
+	// plausible, and why sqlmock-based tests can never see it: sqlmock does not
+	// run sqlx's named-arg resolution.
 	_, err := r.db.NamedExecContext(ctx,
-		"INSERT INTO ai_cost_records (id, tenant_id, model_id, prompt_tokens, completion_tokens, cost, created_at) VALUES (:id, :tenantId, :modelId, :promptTokens, :completionTokens, :cost, :createdAt)",
+		"INSERT INTO ai_cost_records (id, tenant_id, model_id, prompt_tokens, completion_tokens, cost, created_at) VALUES (:id, :tenant_id, :model_id, :prompt_tokens, :completion_tokens, :cost, :created_at)",
 		record)
 	return record, err
 }
@@ -43,7 +50,13 @@ func (r *Repository) List(ctx context.Context, tenantID string, f models.CostFil
 	args := []interface{}{tenantID}
 	idx := 2
 	if f.ModelID != "" {
-		query += " AND model_id = $" + string(rune(idx)) + "s"
+		// The index is a number, not a rune. The old concatenation
+		// " AND model_id = $" + string(rune(idx)) + "s" emitted U+0002 (STX)
+		// rather than the digit "2", then the stray "s", so the query read
+		// " AND model_id = $\x02s" and GET /ai-cost?modelId=... answered 500 for
+		// every filtered request. At idx >= 10 string(rune(idx)) is a visible
+		// character or a newline, never the digits.
+		query += fmt.Sprintf(" AND model_id = $%d", idx)
 		args = append(args, f.ModelID)
 		idx++
 	}

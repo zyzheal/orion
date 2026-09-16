@@ -46,32 +46,36 @@ func NewFormEngine(repo RepositoryInterface, logger *zap.Logger) *FormEngine {
 
 // --- Form CRUD ---
 
-func (e *FormEngine) CreateForm(ctx context.Context, tenantID string, name, code, category string, layout, fields map[string]interface{}) (*models.FormDefinition, error) {
-	e.logger.Info("CreateForm", zap.String("tenantID", tenantID), zap.String("code", code))
+// CreateForm persists a form definition.
+//
+// The old signature took name/code/category/layout/fields positionally and
+// reassembled the request inside the engine with Description hardcoded to "".
+// The handler was the only place that knew the body, and it passed a literal
+// nil for the fields: POST /forms wrote "{}" to forms.fields and "" to
+// forms.description on every request, while CreateFormRequest.Fields carried
+// binding:"required" -- the client was forced to send data that was then
+// thrown away. forms.fields is a JSON array: ValidateSubmission and
+// SubmissionDraft both unmarshal it into []FormFieldRaw, so "{}" made every
+// submission of a form created through this route fail validation before a
+// single field was checked. Taking the request makes the handler the only copy
+// point, the same shape the condition engine settled on.
+func (e *FormEngine) CreateForm(ctx context.Context, tenantID string, req *models.CreateFormRequest) (*models.FormDefinition, error) {
+	e.logger.Info("CreateForm", zap.String("tenantID", tenantID), zap.String("code", req.Code))
 
-	layoutJSON, err := marshalJSON(layout)
+	layoutJSON, err := marshalJSON(req.Layout)
 	if err != nil {
 		return nil, fmt.Errorf("invalid layout: %w", err)
 	}
-	fieldsJSON, err := marshalJSON(fields)
+	fieldsJSON, err := marshalFieldSlice(req.Fields)
 	if err != nil {
 		return nil, fmt.Errorf("invalid fields: %w", err)
 	}
 
-	req := models.CreateFormRequest{
-		Name:        name,
-		Code:        code,
-		Category:    category,
-		Layout:      layout,
-		Fields:      toFieldSlice(fields),
-		Description: "",
-	}
-
-	form, err := e.repo.CreateForm(ctx, tenantID, req, layoutJSON, fieldsJSON)
+	form, err := e.repo.CreateForm(ctx, tenantID, *req, layoutJSON, fieldsJSON)
 	if err != nil {
 		return nil, err
 	}
-	e.logger.Info("Form created", zap.String("id", form.ID), zap.String("code", code))
+	e.logger.Info("Form created", zap.String("id", form.ID), zap.String("code", req.Code))
 	return form, nil
 }
 
@@ -165,10 +169,30 @@ func (e *FormEngine) ValidateSubmission(data map[string]interface{}, form *model
 
 	errors := []string{}
 	for _, f := range fields {
-		fieldID := f["field_id"].(string)
+		// The field id is looked up with a comma-ok assertion. The bare
+		// f["field_id"].(string) panicked with "interface conversion: interface
+		// {} is nil, not string" for every field that did not carry a field_id
+		// key -- and the frontend does not send one: api/forms.ts FormField
+		// declares name, label, type, required. So POST /forms/{id}/submit
+		// panicked on every submission of a form the UI created.
+		fieldID, ok := stringField(f, "field_id")
+		if !ok {
+			// "name" is the key the API contract actually uses.
+			fieldID, ok = stringField(f, "name")
+		}
+		if !ok {
+			// An unidentifiable field cannot be matched against the payload, so
+			// it cannot be validated. Skipping it would silently bypass the
+			// required check, which is the worse failure.
+			return sentinel.BadRequest
+		}
 		required, _ := f["required"].(bool)
-		visible, _ := f["visible"].(bool)
-		if !visible {
+		// Missing means visible, matching form_fields.visible's DDL default of
+		// TRUE. The old _ := read defaulted a missing key to false, so a field
+		// the client never marked visible was skipped and its required check
+		// never ran.
+		visible, visOK := f["visible"].(bool)
+		if visOK && !visible {
 			continue
 		}
 		if required {
@@ -349,7 +373,16 @@ func (e *FormEngine) SubmissionDraft(form *models.FormDefinition) map[string]int
 		return draft
 	}
 	for _, f := range fields {
-		fieldID, _ := f["field_id"].(string)
+		// Same id resolution as ValidateSubmission, so a draft key and the key
+		// the validator checks are the same string. Resolving field_id alone
+		// wrote draft[""] for every field in the frontend shape.
+		fieldID, ok := stringField(f, "field_id")
+		if !ok {
+			fieldID, ok = stringField(f, "name")
+		}
+		if !ok {
+			continue
+		}
 		typ, _ := f["type"].(string)
 		draft[fieldID] = defaultForType(typ)
 	}
@@ -364,6 +397,14 @@ func marshalJSON(v interface{}) (string, error) {
 	if v == nil {
 		return "{}", nil
 	}
+	// A typed nil does not satisfy v == nil: map[string]interface{}(nil) carries
+	// a type, so it fell through to json.Marshal, which wrote "null" into a
+	// JSONB column whose readers treat it as an object (forms.layout,
+	// form_submissions.data). Both columns default to '{}', so the serialized
+	// form must match.
+	if m, ok := v.(map[string]interface{}); ok && m == nil {
+		return "{}", nil
+	}
 	b, err := json.Marshal(v)
 	if err != nil {
 		return "", err
@@ -371,12 +412,31 @@ func marshalJSON(v interface{}) (string, error) {
 	return string(b), nil
 }
 
-func toFieldSlice(fields map[string]interface{}) []map[string]interface{} {
-	slice := make([]map[string]interface{}, 0)
-	if raw, ok := fields["items"].([]map[string]interface{}); ok {
-		slice = raw
+// marshalFieldSlice serializes the form's field definitions for forms.fields,
+// which is a JSON array.
+//
+// marshalJSON would turn a nil slice into "null": jsonb performs no shape check,
+// so it would have been written to the column and only surfaced later as a
+// validation error at submission time, in ValidateSubmission and SubmissionDraft
+// -- both of which unmarshal the column into []FormFieldRaw. An empty slice and
+// a nil slice must both become "[]".
+func marshalFieldSlice(fields []map[string]interface{}) (string, error) {
+	if len(fields) == 0 {
+		return "[]", nil
 	}
-	return slice
+	b, err := json.Marshal(fields)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+// stringField reads a string-valued key from a raw field definition. Both keys
+// must be present and be a non-empty string: an empty id would validate and
+// draft against the literal empty string.
+func stringField(f FormFieldRaw, key string) (string, bool) {
+	s, ok := f[key].(string)
+	return s, ok && s != ""
 }
 
 // time helpers for tests

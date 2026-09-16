@@ -24,21 +24,6 @@ func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{db: db}
 }
 
-// rowToGroup converts a database row to a ConditionGroup.
-func (r *Repository) rowToGroup(row map[string]interface{}) *models.ConditionGroup {
-	return &models.ConditionGroup{
-		ID:          toString(row["id"]),
-		TenantID:    toString(row["tenant_id"]),
-		Name:        toString(row["name"]),
-		Type:        toString(row["type"]),
-		Children:    toString(row["children"]),
-		Enabled:     toBool(row["enabled"]),
-		Description: toString(row["description"]),
-		CreatedAt:   toTime(row["created_at"]),
-		UpdatedAt:   toTime(row["updated_at"]),
-	}
-}
-
 // CreateGroup inserts a new condition group.
 func (r *Repository) CreateGroup(ctx context.Context, tenantID, name, groupType string, children []map[string]interface{}, enabled *bool, description string) (*models.ConditionGroup, error) {
 	id := uuid.New().String()
@@ -85,14 +70,20 @@ func (r *Repository) CreateGroup(ctx context.Context, tenantID, name, groupType 
 }
 
 // GetGroup retrieves a group by ID and tenant.
+//
+// The destination is the model struct, not a map. sqlx treats any non-struct
+// kind as scannable and then refuses a multi-column result ("scannable dest
+// type map with >1 columns"), so this method errored on every call and the whole
+// condition read path returned 500. The struct's db tags cover the table's nine
+// columns exactly, so sqlx maps them directly and no conversion helper is needed.
 func (r *Repository) GetGroup(ctx context.Context, tenantID, id string) (*models.ConditionGroup, error) {
-	var row map[string]interface{}
-	err := r.db.GetContext(ctx, &row,
+	var g models.ConditionGroup
+	err := r.db.GetContext(ctx, &g,
 		`SELECT * FROM condition_groups WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
-	return r.rowToGroup(row), nil
+	return &g, nil
 }
 
 // ListGroups returns groups for a tenant with optional type filter.
@@ -107,17 +98,12 @@ func (r *Repository) ListGroups(ctx context.Context, tenantID string, groupType 
 
 	query += ` ORDER BY created_at DESC`
 
-	var rows []map[string]interface{}
-	err := r.db.SelectContext(ctx, &rows, query, args...)
-	if err != nil {
-		return nil, err
-	}
-
-	groups := make([]models.ConditionGroup, 0, len(rows))
-	for _, row := range rows {
-		groups = append(groups, *r.rowToGroup(row))
-	}
-	return groups, nil
+	// Same reason as GetGroup: []map[string]interface{} is a scannable
+	// destination, which Select rejects for a multi-column result. The struct
+	// scan replaces both the map and the rowToGroup conversion loop.
+	var groups []models.ConditionGroup
+	err := r.db.SelectContext(ctx, &groups, query, args...)
+	return groups, err
 }
 
 // UpdateGroup applies partial updates to a group.
@@ -156,12 +142,14 @@ func (r *Repository) UpdateGroup(ctx context.Context, tenantID, id string, name,
 	query := fmt.Sprintf(`UPDATE condition_groups SET %s WHERE id=$%d AND tenant_id=$%d RETURNING *`,
 		strings.Join(updates, ", "), idx, idx+1)
 
-	var row map[string]interface{}
-	err := r.db.GetContext(ctx, &row, query, args...)
+	// RETURNING * yields the same nine columns as SELECT *, so the map
+	// destination had the same failure mode as GetGroup.
+	var g models.ConditionGroup
+	err := r.db.GetContext(ctx, &g, query, args...)
 	if err != nil {
 		return nil, err
 	}
-	return r.rowToGroup(row), nil
+	return &g, nil
 }
 
 // DeleteGroup deletes a group by ID and tenant.
@@ -224,14 +212,19 @@ func (r *Repository) CreateExpression(ctx context.Context, tenantID, groupID str
 }
 
 // GetExpression retrieves an expression by ID, scoped to the given tenant.
+//
+// e.* is the eight columns of condition_expressions; e.* FROM ... was scanned
+// into a map here too, which failed the same way GetGroup did. The tenant scope
+// comes from the join, not from a column on condition_expressions, so it is not
+// expected on the destination.
 func (r *Repository) GetExpression(ctx context.Context, tenantID, id string) (*models.ConditionExpression, error) {
-	var row map[string]interface{}
-	err := r.db.GetContext(ctx, &row,
+	var expr models.ConditionExpression
+	err := r.db.GetContext(ctx, &expr,
 		`SELECT e.* FROM condition_expressions e JOIN condition_groups g ON e.group_id = g.id WHERE e.id=$1 AND g.tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
-	return rowToExpression(row), nil
+	return &expr, nil
 }
 
 // ListExpressions returns expressions for a group, scoped to the given tenant.
@@ -240,18 +233,10 @@ func (r *Repository) ListExpressions(ctx context.Context, tenantID, groupID stri
 	if _, err := r.GetGroup(ctx, tenantID, groupID); err != nil {
 		return nil, fmt.Errorf("group %q not found or not accessible: %w", groupID, err)
 	}
-	var rows []map[string]interface{}
-	err := r.db.SelectContext(ctx, &rows,
+	var exprs []models.ConditionExpression
+	err := r.db.SelectContext(ctx, &exprs,
 		`SELECT * FROM condition_expressions WHERE group_id=$1 ORDER BY created_at DESC`, groupID)
-	if err != nil {
-		return nil, err
-	}
-
-	exprs := make([]models.ConditionExpression, 0, len(rows))
-	for _, row := range rows {
-		exprs = append(exprs, *rowToExpression(row))
-	}
-	return exprs, nil
+	return exprs, err
 }
 
 // DeleteExpression deletes an expression by ID, scoped to the given tenant.
@@ -277,62 +262,4 @@ func (r *Repository) GroupExists(ctx context.Context, tenantID, groupID string) 
 		return false, err
 	}
 	return exists, nil
-}
-
-// --- Helpers ---
-
-func toString(v interface{}) string {
-	if v == nil {
-		return ""
-	}
-	if s, ok := v.(string); ok {
-		return s
-	}
-	if b, ok := v.([]byte); ok {
-		return string(b)
-	}
-	return fmt.Sprintf("%v", v)
-}
-
-func toTime(v interface{}) time.Time {
-	if v == nil {
-		return time.Time{}
-	}
-	if t, ok := v.(time.Time); ok {
-		return t
-	}
-	if s, ok := v.(string); ok {
-		t, _ := time.Parse("2006-01-02 15:04:05", s)
-		return t
-	}
-	return time.Time{}
-}
-
-func toBool(v interface{}) bool {
-	if v == nil {
-		return false
-	}
-	if b, ok := v.(bool); ok {
-		return b
-	}
-	if s, ok := v.(string); ok {
-		return s == "true" || s == "1"
-	}
-	if i, ok := v.(int64); ok {
-		return i == 1
-	}
-	return false
-}
-
-func rowToExpression(row map[string]interface{}) *models.ConditionExpression {
-	return &models.ConditionExpression{
-		ID:        toString(row["id"]),
-		GroupID:   toString(row["group_id"]),
-		Field:     toString(row["field"]),
-		Operator:  toString(row["operator"]),
-		Value:     toString(row["value"]),
-		ValueType: toString(row["value_type"]),
-		Enabled:   toBool(row["enabled"]),
-		CreatedAt: toTime(row["created_at"]),
-	}
 }
