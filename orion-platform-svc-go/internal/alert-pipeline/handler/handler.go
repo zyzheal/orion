@@ -87,11 +87,16 @@ func (h *Handler) GetConfig(c *gin.Context) {
 // UpdateConfig handles PUT /alerts/pipeline/config - update pipeline configuration.
 //
 // This used to bind the config, fill a nil stage list, and echo the request
-// body back as "config accepted" without ever touching the service. The seven
-// config fields a caller sent were all discarded and the response promised an
-// update that did not happen. The service now owns both validation and the
-// empty-field fallback, so the handler stays thin and has one source of truth
-// for the default stage list.
+// body back as "config accepted" without ever touching the service. The config
+// fields a caller sent were all discarded and the response promised an update
+// that did not happen.
+//
+// The body binds to a ConfigPatch, not to models.PipelineConfig, because a PUT
+// here is a partial update: the service must be able to tell "not sent" from
+// "sent as zero". Binding the config type instead would let a caller sending
+// only {"stages":["route"]} take the pipeline off through Enabled's zero value.
+// Validation and the merge live in the service, so the handler has one source
+// of truth for both.
 func (h *Handler) UpdateConfig(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertPipelineUpdateConfig")
 	defer span.End()
