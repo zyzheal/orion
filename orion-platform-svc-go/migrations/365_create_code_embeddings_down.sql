@@ -1,0 +1,5 @@
+-- Reverse 365_create_code_embeddings.sql.
+-- Note: this migration was superseded by 376_create_code_embeddings_table.sql
+-- which creates the same table (code_embeddings) with the authoritative schema.
+-- The table is therefore NOT dropped here; 376's down owns the rollback. This
+-- file is a no-op kept for migration numbering continuity.

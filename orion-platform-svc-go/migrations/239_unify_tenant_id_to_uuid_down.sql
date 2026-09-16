@@ -1,0 +1,18 @@
+-- Reverse 239_unify_tenant_id_to_uuid.sql.
+--
+-- INTENTIONALLY EMPTY: this migration performs a destructive type conversion
+-- (tenant_id VARCHAR(255)/VARCHAR(36) -> UUID) on 171 tables. Reverting it
+-- would require casting UUID values back to VARCHAR, which:
+--
+--   1. Is not lossless: 22-character UUIDs fit in VARCHAR(255), but any
+--      column declared shorter than 36 chars would silently truncate.
+--   2. Breaks downstream migrations: 570, 572 and 599 all reference tenant_id
+--      as UUID and add FKs to tenants(id) UUID. Reverting 239 would leave
+--      those FKs dangling.
+--   3. Loses comment metadata: each ALTER COLUMN added a COMMENT ON COLUMN
+--      marker ('Tenant ID (UUID) - unified type') that documents the
+--      conversion; reverting would erase that provenance.
+--
+-- If a rollback is ever required, restore from a pre-239 backup and re-apply
+-- migrations 240+ with the original VARCHAR schema. Do NOT run this file in
+-- isolation.

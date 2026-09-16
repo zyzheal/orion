@@ -1,0 +1,6 @@
+-- Reverse 249_create_extension_point_tables.sql.
+-- Note: this migration was superseded by 383_create_extension_point_tables.sql
+-- which creates the same tables (extension_points, startup_tasks) with the
+-- authoritative schema. The tables are therefore NOT dropped here; 383's down
+-- owns the rollback. This file is a no-op kept for migration numbering
+-- continuity.

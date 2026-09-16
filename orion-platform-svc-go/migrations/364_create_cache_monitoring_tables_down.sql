@@ -1,0 +1,6 @@
+-- Reverse 364_create_cache_monitoring_tables.sql.
+-- Note: this migration was superseded by 378_create_cache_monitor_tables.sql
+-- which creates the same tables (cache_metrics, cache_configs) with the
+-- authoritative schema. The tables are therefore NOT dropped here; 378's down
+-- owns the rollback. This file is a no-op kept for migration numbering
+-- continuity.
