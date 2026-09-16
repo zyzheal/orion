@@ -12301,3 +12301,134 @@ go test -count=1 ./cmd/server/                              # 全包
 `eventbusH` 直接挂在 `api` 上、不带子组，把 `/api/v1/events`、`/api/v1/status`、`/api/v1/subscriptions`、`/api/v1/dlq`、`/api/v1/stats` 全部占在 API 顶层。这既与 §57.7 的冲突直接相关，又是一个未授权模块（`internal/eventbus`）的顶层命名空间污染问题：`/api/v1/status` 与 `/api/v1/dlq` 这类名字未来几乎必然与其他模块撞名。是否收敛为 `/api/v1/eventbus/*` 属于接口破坏性变更，需要与调用方一起评估。
 
 其余候选池不变：code-repo（5 表）、config（4）、eventbus（3）、gateway-dynamic（1）、queue（1）；STRANDED 集合（`internal/ai/migrations/001_ai_tables.sql` 覆盖 6 表含 `llm_traces`，alert-adapter、cmdb-drift、cmdb-relationship、cron、degradation）；`internal/ticketing` 的 17 张前缀表；`internal/governance`、`internal/ci-cd`、`internal/notification`、`internal/security`、`internal/file-handler`、`internal/cache`、`internal/apm`、`internal/cron`。
+
+## 第五十八轮：五个 handler 读取 c.Param 时用了没有路由提供的参数名——gin 静默返回空串，五条在册路由按空身份跑到底（Round 58）
+
+### 58.1 缺陷类：与第五十七轮的错误形态不同，危害更隐蔽
+
+第五十七轮修的是「路由路径拼重复导致整条不可达」——调用方立刻拿到 404，错误当场暴露。本轮的缺陷形态是**路由可达、参数名对不上**：`c.Param("id")` 在匹配到的模板里没有 `:id` 时返回 `""`，不 panic、不返回 error，handler 拿着空身份把整个流程走完。
+
+后果分两种，第二种更坏：
+
+- **可见失败**：`Get(ctx, "", tenantID)` 查不到记录，返回 404。调用方以为是自己传错了 id。
+- **静默错数据**：`updateRecordStatus(ctx, tenant, "", "scaled")` 更新 0 行，仍返回 `gin.H{"id":"","status":"scaled"}` 加 200。调用方以为扩容成功了。
+
+`c.Param` 大小写敏感：`:ciId` 不满足 `c.Param("ciID")`。这一条让「只差一个字母大小写」的笔误变得完全不可见。
+
+同一缺陷家族里最危险的一种是**租户参数被静默丢弃**——本轮没发现这种，但 D2 的 tenant 走的是 query 而不是 context（§58.8），说明这条边界的实际宽度。
+
+另一个关键事实：**gin 按位置匹配命名参数**，参数名在运行时只是查找键。所以改路由的 `:x` 与改 handler 的 `c.Param("x")` 在行为上完全等价——本轮据此逐条决定改哪一侧（§58.4）。
+
+### 58.2 定量，以及两条最有价值的反向发现
+
+扫描 `internal/**/handler/*.go` 里全部 **3837** 条注册，修正扫描器后最终 **0 条不符**，198 条未解析（5.2%）。
+
+第一轮命中 9 条：5 条是真缺陷（本轮修复）、4 条是假阳性。剩下的两条假阳性属于**同一类**，也是本轮最有价值的反向发现：
+
+| handler | 两条注册 | 参数 | 为何是正确代码 |
+|---|---|---|---|
+| `branch-policy.ListSyncRunLogs` | `GET /sync-policies/run-logs` 与 `GET /sync-policies/:id/run-logs` | `id` | 无 `:id` 时回落 `c.Query("policyId")` |
+| `import-export.ImportHistory` | `GET /import/history` 与 `GET /import/history/:operation` | `operation` | 空串即「不过滤」，list-all 语义 |
+
+同一个 handler 挂在多条路由上、只有部分模板提供某参数、handler 容忍空值——这是**合法模式**（`branch-policy` 的 `handler_test.go:1337` 已经在驱动 `/sync-policies/sp-1/run-logs`，另有 `:1345` 驱动不带参数的形态）。扫描器原本按「handler 的**定义**」判碰撞，没按「同一 handler 的**注册**」判，于是把这两条误报成缺陷。修正见 §58.3 第 4 条。
+
+未解析 198 条的构成：96 条是多行调用的括号配平失败，101 条是闭包或委托 handler（含 14 条 `h.chaosH.*`、`h.enhancedH.*`，源码扫描追不进闭包体），1 条是方法名在全包索引里不存在（`cmd/server/router.go:255` 的 `WebVitalsHandler`）。按本轮实测 5/3837 ≈ 0.13% 的真实命中率估算，未解析区里隐藏的缺陷 **<1 条**。
+
+### 58.3 扫描器自身的四个假阳性工厂
+
+这一轮真正的成本不在五处修复，而在扫描器连错三轮。四个根因都记下来，因为都是「源码扫描」这个方法的固有边界：
+
+1. **单遍解析解析不出 handler→函数体**。注册在第 27 行、方法定义在第 55 行，单遍向前扫只能看到注册而看不到体，于是把大量正确代码报成缺参数。必须两遍：第一遍建「包内**所有**定义」索引，第二遍才判匹配。
+2. **宽松的向前看一眼污染了 join 窗口**。`(?=[,)\s])` 会把 `c.Request.Context()` 里的 `Context()` 当成参数名读进来，一次引入 40 多条假命中。改成 `(?=[,)])` 并额外要求该引用名在包方法索引里存在，才收敛。
+3. **「首个定义即权威」的索引会制造假阳性**。同名方法在本包可能属于不同 receiver：`internal/config/handler` 里 `Get` 有多个定义，`internal/ticketing/handler` 里 `AutoDispatch`/`ManualDispatch` 同时属于 `DispatchHandler` 与 `Handler`。必须索引**所有**定义，且只有当**每一个**定义都缺某参数时才判缺陷。
+4. **（本轮新增）按 handler 定义判碰撞 ≠ 按注册判碰撞**。见 §58.2：同一 handler 的多条注册中只要有一条模板提供该参数，读侧容忍空串就是正确的。已修正——先累计每个「包、方法」组合的全部模板并集，再据此剔除。
+
+### 58.4 五处修复，以及「改哪一侧」的判定规则
+
+判定规则两条，逐条应用：**跟文件内既有约定一致**，**对外契约影响最小**。
+
+| 编号 | 模块 | 缺陷 | 改哪一侧 | 理由 |
+|---|---|---|---|---|
+| D1 | metadata | 3 条路由都是 `/:key`，`Get`/`Update`/`Delete` 却读 `c.Param("id")`，永久按空 key 运行 | **改 handler**（3 行） | 路由路径不变，调用方零影响；service 接口形参仍叫 `id`，纯命名，不动 |
+| D2 | cmdb | 路由 `/cis/by-id/:ciId`，handler 读 `c.Param("ciID")`，大小写不匹配 | **改路由** | 同文件内 8 处兄弟路由都拼 `:ciID` |
+| D3 | api-market | 路由 `/market/subscriptions/:appId`，handler 读 `c.Param("id")`，`GetApp(ctx, "", tenantID)` 对每个调用方 404 | **改路由** | 全文件约定 `:id`；gin 允许静态兄弟 `/subscriptions/check` 与参数同级共存（原本就已共存） |
+| D4 | capacity | 路由 `/capacity/scale` 没有 `:id` 槽位，handler 也不绑 body，`c.Param("id")` 恒为 `""` | **改路由** | `ScaleResource` 一行转发 `updateRecordStatus(ctx, t, id, "scaled")`，id 是承重参数；`grep -rn Scale internal/capacity/models/` 零命中，**没有** `ScaleRequest` 类型，走 body 方案等于凭空发明 model |
+| D5 | code-repo | `UpdatePullRequestByID` 三处缺陷叠加（见下） | **改 handler 顺序** | 错误文案已经承诺了 body 契约，改路由解决不了 |
+
+D5 值得单独记，因为它在一处叠了三层：
+
+- `c.Param("repoId")` 回落——路由是 `/code-repo/:adapterId/pull-requests/:prId`，**没有** `:repoId`，这个回落永远返回空串，是死分支。
+- 缺 `repoId` 的守卫放在 `ShouldBindJSON` **之前**，于是请求体里带 `repo_id` 的调用方直接被 400，而错误文案是 `"repoId is required in query or request body"`——承诺了一个代码当时根本还没读过的契约。
+- `ShouldBindJSON` 之后的 `if repoID == "" && req.RepoID != ""` 完全不可达：`repoID` 到不了那一行必然是非空，否则早已 return。
+
+也就是说请求体**从来**无法提供 repoId，而错误文案一直在说可以。修法是把 body 绑定移到守卫之前，顺带删掉死分支。有一处行为有意改变：body 非法时即使带了 `?repoId=` 也返回 400——这是对的，handler 必须要 body 才能干活。body 的 key 是 `repo_id`（`models.UpdatePullRequestRequest.RepoID` 的 json tag）。
+
+### 58.5 为什么既有测试一条都抓不到：handler 测试的集体空真
+
+五个包的 `handler_test.go` 形态高度一致：手工构造 `gin.Context` 并直接 `c.Params = gin.Params{...}`，直接调 handler 方法，断言只有 `w.Code < 500` 之类。
+
+这有三重致命：
+
+1. 手工设置 `c.Params` **完全绕过路由模板**，参数名对不上这件事根本不会发生；
+2. 直接调 handler 绕过了 `RegisterRoutes`，路由那一侧的拼写错误不可见；
+3. `< 500` 的断言对「返回 404 但流程完整跑完」毫无约束力。
+
+所以这一类缺陷的**唯一**有效回归是引擎级测试：走真实的 `RegisterRoutes`、发真实 HTTP 请求、断言**服务实际收到的值**而不是状态码。
+
+实现上两个技巧：
+
+- **嵌入式 fake 录制器**：`type recordingMetaSvc struct { *fakeHandlerService; got []string }`——嵌入把其余 30 到 62 个方法全部提升，接口仍然满足，只需覆写被测的那几个方法，不必复制整个接口。
+- **免基建过权限**：`RequirePermission(resource, action)` 经 `GetRoles(c)` 读 `c.Get("roles")`，空则 403；而 `allRolePermissions["admin"] = {"*:*"}` 且 `HasPermission` 有 `*:*` 分支，所以 `c.Set("roles", []string{"admin"})` 能过所有 `RequirePermission`。`permission_test.go:296` 已是本仓库既有约定。
+
+新增五个 `param_wiring_test.go`、7 个测试函数、共 10 条断言路径。
+
+### 58.6 变异矩阵：5 条全灭，每灭一由一条测试击杀
+
+| 变异 | 内容 | 命中数 | 结果 | 击杀信号 |
+|---|---|---|---|---|
+| M1 | metadata 三处 `c.Param("key")` 退回 `c.Param("id")` | 3 处各 1 | rc=1 KILLED | `TestMETADATA_RouteKeyReachesEveryPerRecordHandler` 三个子测试全挂：`handler received "Get=", want "Get=m-1"` |
+| M2 | cmdb 路由 `:ciID` 退回 `:ciId` | 1 | rc=1 KILLED | `TestCMDB_ByIDRouteParamReachesTheHandler`：`GetByCIByID received ciID="", want "ci-42"` |
+| M3 | api-market 路由 `:id` 退回 `:appId` | 1 | rc=1 KILLED | `TestAPIMarket_SubscriptionsRouteParamReachesBothServiceCalls`：`GetApp received id="", want "app-9"` |
+| M4 | capacity `/scale/:id` 退回 `/scale` | 1 | rc=1 KILLED | `TestCAPACITY_ScaleRouteCarriesTheTargetID`：`POST /capacity/scale/inst-7 -> 404` |
+| M5 | code-repo 删掉 body 回落 | 1 | rc=1 KILLED | `TestCODEREPO_UpdatePullRequestByID_ResolvesRepoFromBody`：`code=400 … want 200` |
+
+基线先断言 rc=0 再动文件；打印每处 patch 命中数，`assert count == 1` 让「没打上」可见（M1 第一次报 4——`RegisterRoutes` 的注释里也含 `c.Param("key")` 字面量，改为按三处 `h.svc.*` 调用精确命中）。
+
+### 58.7 变异还原环节自毁一次，以及由此立下的纪律
+
+**事故**：变异脚本的备份键写成 `basename(dirname(f)) + '_' + basename(f)`，五个文件全都落在 `.../handler/handler.go`，于是全部映射成同一个 `handler_handler.go`。备份循环自己覆盖了自己四次，幸存的备份是 code-repo 的内容。之后每一次还原都把 code-repo 的 511 行写进其他四个模块，而脚本打印 `restored byte-identical: True`——**对着一份坏备份做 md5 校验等于零校验**。
+
+**检测手段**：五个文件的 `md5 -q` 只剩一个摘要值；`ls` 备份目录里只有一个文件；`git diff --stat` 显示 code-repo 只多 20 行而其他四个是 500 到 900 行的重写。脚本同时打印出互相矛盾的 `BASELINE STILL GREEN: 1` 与 `ALL_MUTANTS_KILLED_NOT_FAILED: True`，这是最危险的信号——**基线绿与变异全灭这两句话同时出现时，先怀疑校验逻辑，不要相信它**。
+
+**修复**：只对那五个路径 `git checkout --`（会话开始时它们确实都未改动），再用全上下文替换重打一遍，8 处 patch 全部 `count == 1` 才写盘。
+
+**变异结论仍然有效**：五个变异体都是打在真正修复后的文件上，且各自被本测试以预期断言击杀，只有**还原**坏了。
+
+**由此改立的纪律**（重试版脚本已落实）：
+
+1. 备份键用**相对全路径**替换分隔符，绝不用 `basename(dirname)+basename`；
+2. 还原优先用 `git checkout -- <path>`——修复已提交时这是零歧义的还原源，备份文件这类东西根本不该存在；
+3. 还原后做**语义**断言（期望的修复片段必须在文件中），而不只是 `md5(live) == md5(bak)`；
+4. 打印 patch 命中数，且基线 rc=0 的断言必须出现在任何变异之前。
+
+重试结果：`BASELINE rc=0` 在前，五个变异全灭、每次 `fix present=True`，结尾 `git diff --stat` 为空。
+
+### 58.8 auth.OptionalAuth：解释 cmdb 的 tenant 从 query 取
+
+cmdb 的 `GetCIByID` 从 `c.Query("tenantId")` 取租户而不是 `c.GetString("tenant_id")`，乍看像漏了。查到底层：`cmd/server/router.go:82` 显式挂的是 `auth.OptionalAuth`，注释明写严格模式「deliberately NOT mounted here」。所以 `/api/v1` 下的未认证调用方在 context 里**根本没有** `tenant_id`，query 是唯一的来源。
+
+这属于设计选择而非笔误，本轮**只记录不改**——把租户作用域改成调用方可指定是另一类问题（越权面），不该跟参数名接线混在一个 commit 里。新测试按实际契约发 `?tenantId=tenant-1` 并断言，用注释把这条契约钉在代码旁边。
+
+### 58.9 只记录、不动手
+
+- **capacity handler 有 52 个在册外的方法**（定义 62 个、注册 10 个）：plugins、models、pipelines、experiments、tags、branch policy、schemas、lineages、webhooks——明显是照抄其他模块 handler 的目录。基础设施存在，但注册 52 条路由等于凭空加 API 面且无前端调用方，按既定约束不动。
+- **cmdb `GetCIByID` 的租户来源**（§58.8）：仅在 `auth.OptionalAuth` 的语境下可辩护；把租户作用域做成调用方可指定是独立的越权面问题。
+- **扫描器剩余的 198 条未解析**：96 条多行调用括号配平失败（源码扫描的固有边界，需要真正的 AST），101 条闭包或委托 handler，1 条索引里不存在的方法名。按 0.13% 的真实命中率，隐藏缺陷 <1 条。
+- 其余候选池不变：code-repo（5 表）、config（4）、eventbus（3）、gateway-dynamic（1）、queue（1）；STRANDED 集合（`internal/ai/migrations/001_ai_tables.sql` 覆盖 6 表含 `llm_traces`，alert-adapter、cmdb-drift、cmdb-relationship、cron、degradation）；`internal/ticketing` 的 17 张前缀表；`internal/governance`、`internal/ci-cd`、`internal/notification`、`internal/security`、`internal/file-handler`、`internal/cache`、`internal/apm`、`internal/cron`。
+
+### 58.10 下一轮候选
+
+**扫描器那 96 条「括号配不平」是唯一还有产出的方向**：这类全是多行注册调用（`internal/build` 11 条、`internal/smart-deploy` 9 条最集中）。手写括号配平在字符串跨行时必然失败，换成 `go/parser` 走 AST 可以一次性消掉这 96 条，还能顺带覆盖那 101 条闭包委托。这是把「3837 条里 5.2% 不可见」压到接近 0 的唯一办法，也是这一类缺陷的长期解——本轮的五条修复本质上都是同一个扫描器在假阳性耗尽之后剩下的真阳性。
+
+其余候选池不变（见 §58.9 末段）。
+
