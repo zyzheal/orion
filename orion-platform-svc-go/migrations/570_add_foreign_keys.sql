@@ -15,7 +15,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_a_b_a_c_policies_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'a_b_a_c_policies' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'a_b_a_c_policies' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY a_b_a_c_policies
       ADD CONSTRAINT fk_a_b_a_c_policies_tenant
@@ -36,7 +36,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_a_i_agents_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'a_i_agents' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'a_i_agents' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY a_i_agents
       ADD CONSTRAINT fk_a_i_agents_tenant
@@ -57,7 +57,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_a_i_decisions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'a_i_decisions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'a_i_decisions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY a_i_decisions
       ADD CONSTRAINT fk_a_i_decisions_tenant
@@ -78,7 +78,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_a_i_models_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'a_i_models' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'a_i_models' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY a_i_models
       ADD CONSTRAINT fk_a_i_models_tenant
@@ -99,7 +99,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_agent_audit_logs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'agent_audit_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'agent_audit_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY agent_audit_logs
       ADD CONSTRAINT fk_agent_audit_logs_tenant
@@ -120,7 +120,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_agents_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'agents' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'agents' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY agents
       ADD CONSTRAINT fk_agents_tenant
@@ -141,7 +141,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ai_decision_feedback_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ai_decision_feedback' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ai_decision_feedback' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ai_decision_feedback
       ADD CONSTRAINT fk_ai_decision_feedback_tenant
@@ -162,7 +162,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ai_decision_traces_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ai_decision_traces' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ai_decision_traces' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ai_decision_traces
       ADD CONSTRAINT fk_ai_decision_traces_tenant
@@ -183,7 +183,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ai_decisions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ai_decisions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ai_decisions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ai_decisions
       ADD CONSTRAINT fk_ai_decisions_tenant
@@ -204,7 +204,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ai_gateway_requests_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ai_gateway_requests' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ai_gateway_requests' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ai_gateway_requests
       ADD CONSTRAINT fk_ai_gateway_requests_tenant
@@ -225,7 +225,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_alert_breakers_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'alert_breakers' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'alert_breakers' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY alert_breakers
       ADD CONSTRAINT fk_alert_breakers_tenant
@@ -246,7 +246,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_alert_known_issues_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'alert_known_issues' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'alert_known_issues' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY alert_known_issues
       ADD CONSTRAINT fk_alert_known_issues_tenant
@@ -267,7 +267,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_alert_maintenance_windows_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'alert_maintenance_windows' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'alert_maintenance_windows' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY alert_maintenance_windows
       ADD CONSTRAINT fk_alert_maintenance_windows_tenant
@@ -288,7 +288,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_alert_node_health_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'alert_node_health' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'alert_node_health' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY alert_node_health
       ADD CONSTRAINT fk_alert_node_health_tenant
@@ -309,7 +309,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_alert_topologies_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'alert_topologies' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'alert_topologies' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY alert_topologies
       ADD CONSTRAINT fk_alert_topologies_tenant
@@ -330,7 +330,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_alerts_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'alerts' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'alerts' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY alerts
       ADD CONSTRAINT fk_alerts_tenant
@@ -351,7 +351,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_analysises_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'analysises' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'analysises' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY analysises
       ADD CONSTRAINT fk_analysises_tenant
@@ -372,7 +372,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_api_consumptions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_consumptions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'api_consumptions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY api_consumptions
       ADD CONSTRAINT fk_api_consumptions_tenant
@@ -393,7 +393,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_api_contracts_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_contracts' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'api_contracts' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY api_contracts
       ADD CONSTRAINT fk_api_contracts_tenant
@@ -414,7 +414,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_api_governance_contracts_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_governance_contracts' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'api_governance_contracts' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY api_governance_contracts
       ADD CONSTRAINT fk_api_governance_contracts_tenant
@@ -435,7 +435,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_api_governance_rules_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_governance_rules' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'api_governance_rules' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY api_governance_rules
       ADD CONSTRAINT fk_api_governance_rules_tenant
@@ -456,7 +456,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_api_governance_versions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_governance_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'api_governance_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY api_governance_versions
       ADD CONSTRAINT fk_api_governance_versions_tenant
@@ -477,7 +477,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_api_market_apps_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_market_apps' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'api_market_apps' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY api_market_apps
       ADD CONSTRAINT fk_api_market_apps_tenant
@@ -498,7 +498,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_api_market_keys_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_market_keys' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'api_market_keys' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY api_market_keys
       ADD CONSTRAINT fk_api_market_keys_tenant
@@ -519,7 +519,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_api_market_products_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'api_market_products' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'api_market_products' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY api_market_products
       ADD CONSTRAINT fk_api_market_products_tenant
@@ -540,7 +540,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_apk_upload_records_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'apk_upload_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'apk_upload_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY apk_upload_records
       ADD CONSTRAINT fk_apk_upload_records_tenant
@@ -561,7 +561,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_apm_entries_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'apm_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'apm_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY apm_entries
       ADD CONSTRAINT fk_apm_entries_tenant
@@ -582,7 +582,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_approval_gates_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'approval_gates' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'approval_gates' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY approval_gates
       ADD CONSTRAINT fk_approval_gates_tenant
@@ -603,7 +603,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_approval_history_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'approval_history' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'approval_history' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY approval_history
       ADD CONSTRAINT fk_approval_history_tenant
@@ -624,7 +624,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_approval_levels_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'approval_levels' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'approval_levels' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY approval_levels
       ADD CONSTRAINT fk_approval_levels_tenant
@@ -645,7 +645,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_approval_requests_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'approval_requests' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'approval_requests' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY approval_requests
       ADD CONSTRAINT fk_approval_requests_tenant
@@ -666,7 +666,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_approval_templates_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'approval_templates' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'approval_templates' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY approval_templates
       ADD CONSTRAINT fk_approval_templates_tenant
@@ -687,7 +687,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_artifact_downloads_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'artifact_downloads' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'artifact_downloads' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY artifact_downloads
       ADD CONSTRAINT fk_artifact_downloads_tenant
@@ -708,7 +708,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_artifact_lifecycles_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'artifact_lifecycles' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'artifact_lifecycles' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY artifact_lifecycles
       ADD CONSTRAINT fk_artifact_lifecycles_tenant
@@ -729,7 +729,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_artifact_operations_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'artifact_operations' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'artifact_operations' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY artifact_operations
       ADD CONSTRAINT fk_artifact_operations_tenant
@@ -750,7 +750,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_artifact_promotions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'artifact_promotions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'artifact_promotions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY artifact_promotions
       ADD CONSTRAINT fk_artifact_promotions_tenant
@@ -771,7 +771,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_artifact_scans_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'artifact_scans' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'artifact_scans' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY artifact_scans
       ADD CONSTRAINT fk_artifact_scans_tenant
@@ -792,7 +792,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_artifact_signatures_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'artifact_signatures' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'artifact_signatures' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY artifact_signatures
       ADD CONSTRAINT fk_artifact_signatures_tenant
@@ -813,7 +813,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_artifact_tags_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'artifact_tags' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'artifact_tags' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY artifact_tags
       ADD CONSTRAINT fk_artifact_tags_tenant
@@ -834,7 +834,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_artifacts_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'artifacts' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'artifacts' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY artifacts
       ADD CONSTRAINT fk_artifacts_tenant
@@ -855,7 +855,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_audit_executions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'audit_executions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'audit_executions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY audit_executions
       ADD CONSTRAINT fk_audit_executions_tenant
@@ -876,7 +876,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_audit_findings_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'audit_findings' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'audit_findings' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY audit_findings
       ADD CONSTRAINT fk_audit_findings_tenant
@@ -897,7 +897,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_audit_logs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'audit_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'audit_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY audit_logs
       ADD CONSTRAINT fk_audit_logs_tenant
@@ -918,7 +918,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_audit_plans_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'audit_plans' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'audit_plans' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY audit_plans
       ADD CONSTRAINT fk_audit_plans_tenant
@@ -939,7 +939,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_audit_reports_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'audit_reports' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'audit_reports' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY audit_reports
       ADD CONSTRAINT fk_audit_reports_tenant
@@ -960,7 +960,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_audit_rules_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'audit_rules' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'audit_rules' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY audit_rules
       ADD CONSTRAINT fk_audit_rules_tenant
@@ -981,7 +981,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_auth_keies_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'auth_keies' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'auth_keies' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY auth_keies
       ADD CONSTRAINT fk_auth_keies_tenant
@@ -1002,7 +1002,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_auth_token_blacklists_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'auth_token_blacklists' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'auth_token_blacklists' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY auth_token_blacklists
       ADD CONSTRAINT fk_auth_token_blacklists_tenant
@@ -1023,7 +1023,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_backup_jobs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'backup_jobs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'backup_jobs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY backup_jobs
       ADD CONSTRAINT fk_backup_jobs_tenant
@@ -1044,7 +1044,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_backup_policies_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'backup_policies' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'backup_policies' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY backup_policies
       ADD CONSTRAINT fk_backup_policies_tenant
@@ -1065,7 +1065,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_backup_restores_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'backup_restores' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'backup_restores' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY backup_restores
       ADD CONSTRAINT fk_backup_restores_tenant
@@ -1086,7 +1086,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_backup_storages_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'backup_storages' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'backup_storages' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY backup_storages
       ADD CONSTRAINT fk_backup_storages_tenant
@@ -1107,7 +1107,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_baselines_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'baselines' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'baselines' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY baselines
       ADD CONSTRAINT fk_baselines_tenant
@@ -1128,7 +1128,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_batch_runs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'batch_runs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'batch_runs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY batch_runs
       ADD CONSTRAINT fk_batch_runs_tenant
@@ -1149,7 +1149,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_bi_dashboards_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'bi_dashboards' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'bi_dashboards' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY bi_dashboards
       ADD CONSTRAINT fk_bi_dashboards_tenant
@@ -1170,7 +1170,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_billing_accounts_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'billing_accounts' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'billing_accounts' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY billing_accounts
       ADD CONSTRAINT fk_billing_accounts_tenant
@@ -1191,7 +1191,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_billing_invoices_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'billing_invoices' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'billing_invoices' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY billing_invoices
       ADD CONSTRAINT fk_billing_invoices_tenant
@@ -1212,7 +1212,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_billing_subscriptions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'billing_subscriptions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'billing_subscriptions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY billing_subscriptions
       ADD CONSTRAINT fk_billing_subscriptions_tenant
@@ -1233,7 +1233,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_budget_configs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'budget_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'budget_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY budget_configs
       ADD CONSTRAINT fk_budget_configs_tenant
@@ -1254,7 +1254,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_budget_history_records_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'budget_history_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'budget_history_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY budget_history_records
       ADD CONSTRAINT fk_budget_history_records_tenant
@@ -1275,7 +1275,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_budgets_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'budgets' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'budgets' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY budgets
       ADD CONSTRAINT fk_budgets_tenant
@@ -1296,7 +1296,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_build_cache_configs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'build_cache_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'build_cache_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY build_cache_configs
       ADD CONSTRAINT fk_build_cache_configs_tenant
@@ -1317,7 +1317,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_build_environments_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'build_environments' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'build_environments' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY build_environments
       ADD CONSTRAINT fk_build_environments_tenant
@@ -1338,7 +1338,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_build_images_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'build_images' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'build_images' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY build_images
       ADD CONSTRAINT fk_build_images_tenant
@@ -1359,7 +1359,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_build_logs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'build_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'build_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY build_logs
       ADD CONSTRAINT fk_build_logs_tenant
@@ -1380,7 +1380,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_builds_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'builds' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'builds' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY builds
       ADD CONSTRAINT fk_builds_tenant
@@ -1401,7 +1401,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_cache_cleanups_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cache_cleanups' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'cache_cleanups' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY cache_cleanups
       ADD CONSTRAINT fk_cache_cleanups_tenant
@@ -1422,7 +1422,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_cache_entries_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cache_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'cache_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY cache_entries
       ADD CONSTRAINT fk_cache_entries_tenant
@@ -1443,7 +1443,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_canary_configs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'canary_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'canary_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY canary_configs
       ADD CONSTRAINT fk_canary_configs_tenant
@@ -1464,7 +1464,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_canary_deployments_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'canary_deployments' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'canary_deployments' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY canary_deployments
       ADD CONSTRAINT fk_canary_deployments_tenant
@@ -1485,7 +1485,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_canary_traffics_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'canary_traffics' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'canary_traffics' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY canary_traffics
       ADD CONSTRAINT fk_canary_traffics_tenant
@@ -1506,7 +1506,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_capabilities_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'capabilities' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'capabilities' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY capabilities
       ADD CONSTRAINT fk_capabilities_tenant
@@ -1527,7 +1527,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_capability_audit_logs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'capability_audit_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'capability_audit_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY capability_audit_logs
       ADD CONSTRAINT fk_capability_audit_logs_tenant
@@ -1548,7 +1548,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_change_analysises_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'change_analysises' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'change_analysises' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY change_analysises
       ADD CONSTRAINT fk_change_analysises_tenant
@@ -1569,7 +1569,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_change_histories_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'change_histories' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'change_histories' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY change_histories
       ADD CONSTRAINT fk_change_histories_tenant
@@ -1590,7 +1590,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_change_requests_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'change_requests' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'change_requests' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY change_requests
       ADD CONSTRAINT fk_change_requests_tenant
@@ -1611,7 +1611,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chaos_experiments_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chaos_experiments' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chaos_experiments' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chaos_experiments
       ADD CONSTRAINT fk_chaos_experiments_tenant
@@ -1632,7 +1632,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chargeback_entries_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chargeback_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chargeback_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chargeback_entries
       ADD CONSTRAINT fk_chargeback_entries_tenant
@@ -1653,7 +1653,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_alert_states_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_alert_states' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_alert_states' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_alert_states
       ADD CONSTRAINT fk_chatops_alert_states_tenant
@@ -1674,7 +1674,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_approval_configs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_approval_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_approval_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_approval_configs
       ADD CONSTRAINT fk_chatops_approval_configs_tenant
@@ -1695,7 +1695,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_audit_logs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_audit_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_audit_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_audit_logs
       ADD CONSTRAINT fk_chatops_audit_logs_tenant
@@ -1716,7 +1716,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_capability_mappings_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_capability_mappings' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_capability_mappings' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_capability_mappings
       ADD CONSTRAINT fk_chatops_capability_mappings_tenant
@@ -1737,7 +1737,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_command_configs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_command_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_command_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_command_configs
       ADD CONSTRAINT fk_chatops_command_configs_tenant
@@ -1758,7 +1758,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_command_permissions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_command_permissions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_command_permissions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_command_permissions
       ADD CONSTRAINT fk_chatops_command_permissions_tenant
@@ -1779,7 +1779,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_command_versions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_command_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_command_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_command_versions
       ADD CONSTRAINT fk_chatops_command_versions_tenant
@@ -1800,7 +1800,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_commands_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_commands' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_commands' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_commands
       ADD CONSTRAINT fk_chatops_commands_tenant
@@ -1821,7 +1821,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_dnd_settings_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_dnd_settings' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_dnd_settings' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_dnd_settings
       ADD CONSTRAINT fk_chatops_dnd_settings_tenant
@@ -1842,7 +1842,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_environment_permissions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_environment_permissions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_environment_permissions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_environment_permissions
       ADD CONSTRAINT fk_chatops_environment_permissions_tenant
@@ -1863,7 +1863,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_executions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_executions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_executions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_executions
       ADD CONSTRAINT fk_chatops_executions_tenant
@@ -1884,7 +1884,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_messages_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_messages' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_messages' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_messages
       ADD CONSTRAINT fk_chatops_messages_tenant
@@ -1905,7 +1905,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_notification_preferences_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_notification_preferences' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_notification_preferences' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_notification_preferences
       ADD CONSTRAINT fk_chatops_notification_preferences_tenant
@@ -1926,7 +1926,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_permission_roles_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_permission_roles' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_permission_roles' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_permission_roles
       ADD CONSTRAINT fk_chatops_permission_roles_tenant
@@ -1947,7 +1947,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_platform_configs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_platform_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_platform_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_platform_configs
       ADD CONSTRAINT fk_chatops_platform_configs_tenant
@@ -1968,7 +1968,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_question_configs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_question_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_question_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_question_configs
       ADD CONSTRAINT fk_chatops_question_configs_tenant
@@ -1989,7 +1989,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_rate_limits_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_rate_limits' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_rate_limits' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_rate_limits
       ADD CONSTRAINT fk_chatops_rate_limits_tenant
@@ -2010,7 +2010,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_sessions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_sessions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_sessions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_sessions
       ADD CONSTRAINT fk_chatops_sessions_tenant
@@ -2031,7 +2031,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_webhooks_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_webhooks' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_webhooks' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_webhooks
       ADD CONSTRAINT fk_chatops_webhooks_tenant
@@ -2052,7 +2052,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_checkpoints_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'checkpoints' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'checkpoints' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY checkpoints
       ADD CONSTRAINT fk_checkpoints_tenant
@@ -2073,7 +2073,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ci_relations_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ci_relations' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ci_relations' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ci_relations
       ADD CONSTRAINT fk_ci_relations_tenant
@@ -2094,7 +2094,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ci_types_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ci_types' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ci_types' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ci_types
       ADD CONSTRAINT fk_ci_types_tenant
@@ -2115,7 +2115,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ci_versions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ci_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ci_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ci_versions
       ADD CONSTRAINT fk_ci_versions_tenant
@@ -2136,7 +2136,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_circuit_breaker_events_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'circuit_breaker_events' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'circuit_breaker_events' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY circuit_breaker_events
       ADD CONSTRAINT fk_circuit_breaker_events_tenant
@@ -2157,7 +2157,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_circuit_breakers_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'circuit_breakers' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'circuit_breakers' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY circuit_breakers
       ADD CONSTRAINT fk_circuit_breakers_tenant
@@ -2178,7 +2178,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_cis_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cis' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'cis' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY cis
       ADD CONSTRAINT fk_cis_tenant
@@ -2199,7 +2199,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_cloud_accounts_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cloud_accounts' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'cloud_accounts' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY cloud_accounts
       ADD CONSTRAINT fk_cloud_accounts_tenant
@@ -2220,7 +2220,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_cloud_resources_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cloud_resources' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'cloud_resources' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY cloud_resources
       ADD CONSTRAINT fk_cloud_resources_tenant
@@ -2241,7 +2241,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_code_repo_adapters_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'code_repo_adapters' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'code_repo_adapters' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY code_repo_adapters
       ADD CONSTRAINT fk_code_repo_adapters_tenant
@@ -2262,7 +2262,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_code_repos_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'code_repos' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'code_repos' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY code_repos
       ADD CONSTRAINT fk_code_repos_tenant
@@ -2283,7 +2283,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_command_log_details_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'command_log_details' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'command_log_details' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY command_log_details
       ADD CONSTRAINT fk_command_log_details_tenant
@@ -2304,7 +2304,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_command_logs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'command_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'command_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY command_logs
       ADD CONSTRAINT fk_command_logs_tenant
@@ -2325,7 +2325,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_comments_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'comments' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'comments' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY comments
       ADD CONSTRAINT fk_comments_tenant
@@ -2346,7 +2346,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_communities_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'communities' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'communities' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY communities
       ADD CONSTRAINT fk_communities_tenant
@@ -2367,7 +2367,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_community_advanceds_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'community_advanceds' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'community_advanceds' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY community_advanceds
       ADD CONSTRAINT fk_community_advanceds_tenant
@@ -2388,7 +2388,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_compliance_evidence_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'compliance_evidence' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'compliance_evidence' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY compliance_evidence
       ADD CONSTRAINT fk_compliance_evidence_tenant
@@ -2409,7 +2409,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_compliance_frameworks_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'compliance_frameworks' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'compliance_frameworks' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY compliance_frameworks
       ADD CONSTRAINT fk_compliance_frameworks_tenant
@@ -2430,7 +2430,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_compliance_policies_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'compliance_policies' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'compliance_policies' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY compliance_policies
       ADD CONSTRAINT fk_compliance_policies_tenant
@@ -2451,7 +2451,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_compliance_reports_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'compliance_reports' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'compliance_reports' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY compliance_reports
       ADD CONSTRAINT fk_compliance_reports_tenant
@@ -2472,7 +2472,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_compliance_schedules_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'compliance_schedules' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'compliance_schedules' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY compliance_schedules
       ADD CONSTRAINT fk_compliance_schedules_tenant
@@ -2493,7 +2493,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_config_audit_entries_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'config_audit_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'config_audit_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY config_audit_entries
       ADD CONSTRAINT fk_config_audit_entries_tenant
@@ -2514,7 +2514,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_config_mgmts_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'config_mgmts' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'config_mgmts' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY config_mgmts
       ADD CONSTRAINT fk_config_mgmts_tenant
@@ -2535,7 +2535,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_config_snapshots_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'config_snapshots' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'config_snapshots' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY config_snapshots
       ADD CONSTRAINT fk_config_snapshots_tenant
@@ -2556,7 +2556,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_config_template_versions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'config_template_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'config_template_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY config_template_versions
       ADD CONSTRAINT fk_config_template_versions_tenant
@@ -2577,7 +2577,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_config_templates_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'config_templates' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'config_templates' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY config_templates
       ADD CONSTRAINT fk_config_templates_tenant
@@ -2598,7 +2598,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_config_versions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'config_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'config_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY config_versions
       ADD CONSTRAINT fk_config_versions_tenant
@@ -2619,7 +2619,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_config_webhooks_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'config_webhooks' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'config_webhooks' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY config_webhooks
       ADD CONSTRAINT fk_config_webhooks_tenant
@@ -2640,7 +2640,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_configs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY configs
       ADD CONSTRAINT fk_configs_tenant
@@ -2661,7 +2661,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_cost_allocation_reports_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cost_allocation_reports' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'cost_allocation_reports' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY cost_allocation_reports
       ADD CONSTRAINT fk_cost_allocation_reports_tenant
@@ -2682,7 +2682,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_cost_allocation_tags_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cost_allocation_tags' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'cost_allocation_tags' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY cost_allocation_tags
       ADD CONSTRAINT fk_cost_allocation_tags_tenant
@@ -2703,7 +2703,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_cost_allocations_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cost_allocations' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'cost_allocations' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY cost_allocations
       ADD CONSTRAINT fk_cost_allocations_tenant
@@ -2724,7 +2724,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_cost_entries_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cost_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'cost_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY cost_entries
       ADD CONSTRAINT fk_cost_entries_tenant
@@ -2745,7 +2745,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_cost_records_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cost_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'cost_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY cost_records
       ADD CONSTRAINT fk_cost_records_tenant
@@ -2766,7 +2766,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_cron_job_executions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cron_job_executions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'cron_job_executions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY cron_job_executions
       ADD CONSTRAINT fk_cron_job_executions_tenant
@@ -2787,7 +2787,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_cron_job_logs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cron_job_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'cron_job_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY cron_job_logs
       ADD CONSTRAINT fk_cron_job_logs_tenant
@@ -2808,7 +2808,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_cron_jobs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cron_jobs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'cron_jobs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY cron_jobs
       ADD CONSTRAINT fk_cron_jobs_tenant
@@ -2829,7 +2829,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_cross_domains_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'cross_domains' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'cross_domains' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY cross_domains
       ADD CONSTRAINT fk_cross_domains_tenant
@@ -2850,7 +2850,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_data_lineages_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'data_lineages' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'data_lineages' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY data_lineages
       ADD CONSTRAINT fk_data_lineages_tenant
@@ -2871,7 +2871,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_data_pipelines_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'data_pipelines' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'data_pipelines' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY data_pipelines
       ADD CONSTRAINT fk_data_pipelines_tenant
@@ -2892,7 +2892,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_data_quality_rules_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'data_quality_rules' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'data_quality_rules' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY data_quality_rules
       ADD CONSTRAINT fk_data_quality_rules_tenant
@@ -2913,7 +2913,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_data_sources_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'data_sources' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'data_sources' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY data_sources
       ADD CONSTRAINT fk_data_sources_tenant
@@ -2934,7 +2934,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_decision_explanations_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'decision_explanations' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'decision_explanations' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY decision_explanations
       ADD CONSTRAINT fk_decision_explanations_tenant
@@ -2955,7 +2955,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_decision_feedbacks_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'decision_feedbacks' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'decision_feedbacks' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY decision_feedbacks
       ADD CONSTRAINT fk_decision_feedbacks_tenant
@@ -2976,7 +2976,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_decision_traces_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'decision_traces' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'decision_traces' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY decision_traces
       ADD CONSTRAINT fk_decision_traces_tenant
@@ -2997,7 +2997,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_decisions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'decisions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'decisions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY decisions
       ADD CONSTRAINT fk_decisions_tenant
@@ -3018,7 +3018,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_degradation_configs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'degradation_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'degradation_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY degradation_configs
       ADD CONSTRAINT fk_degradation_configs_tenant
@@ -3039,7 +3039,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_degradation_histories_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'degradation_histories' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'degradation_histories' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY degradation_histories
       ADD CONSTRAINT fk_degradation_histories_tenant
@@ -3060,7 +3060,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_degradations_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'degradations' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'degradations' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY degradations
       ADD CONSTRAINT fk_degradations_tenant
@@ -3081,7 +3081,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_dependency_coordinations_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'dependency_coordinations' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'dependency_coordinations' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY dependency_coordinations
       ADD CONSTRAINT fk_dependency_coordinations_tenant
@@ -3102,7 +3102,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_deploy_audit_entries_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'deploy_audit_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'deploy_audit_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY deploy_audit_entries
       ADD CONSTRAINT fk_deploy_audit_entries_tenant
@@ -3123,7 +3123,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_deploy_windows_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'deploy_windows' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'deploy_windows' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY deploy_windows
       ADD CONSTRAINT fk_deploy_windows_tenant
@@ -3144,7 +3144,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_deployment_triggers_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'deployment_triggers' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'deployment_triggers' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY deployment_triggers
       ADD CONSTRAINT fk_deployment_triggers_tenant
@@ -3165,7 +3165,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_deployments_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'deployments' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'deployments' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY deployments
       ADD CONSTRAINT fk_deployments_tenant
@@ -3186,7 +3186,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_developer_portals_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'developer_portals' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'developer_portals' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY developer_portals
       ADD CONSTRAINT fk_developer_portals_tenant
@@ -3207,7 +3207,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_diagnostic_patterns_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'diagnostic_patterns' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'diagnostic_patterns' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY diagnostic_patterns
       ADD CONSTRAINT fk_diagnostic_patterns_tenant
@@ -3228,7 +3228,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_diagnostic_sessions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'diagnostic_sessions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'diagnostic_sessions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY diagnostic_sessions
       ADD CONSTRAINT fk_diagnostic_sessions_tenant
@@ -3249,7 +3249,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_digital_twins_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'digital_twins' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'digital_twins' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY digital_twins
       ADD CONSTRAINT fk_digital_twins_tenant
@@ -3270,7 +3270,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_disaster_plans_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'disaster_plans' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'disaster_plans' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY disaster_plans
       ADD CONSTRAINT fk_disaster_plans_tenant
@@ -3291,7 +3291,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_do_not_disturbs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'do_not_disturbs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'do_not_disturbs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY do_not_disturbs
       ADD CONSTRAINT fk_do_not_disturbs_tenant
@@ -3312,7 +3312,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_document_versions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'document_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'document_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY document_versions
       ADD CONSTRAINT fk_document_versions_tenant
@@ -3333,7 +3333,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_domain_events_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'domain_events' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'domain_events' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY domain_events
       ADD CONSTRAINT fk_domain_events_tenant
@@ -3354,7 +3354,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_domain_snapshots_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'domain_snapshots' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'domain_snapshots' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY domain_snapshots
       ADD CONSTRAINT fk_domain_snapshots_tenant
@@ -3375,7 +3375,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_drift_reports_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'drift_reports' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'drift_reports' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY drift_reports
       ADD CONSTRAINT fk_drift_reports_tenant
@@ -3396,7 +3396,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_dual_engines_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'dual_engines' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'dual_engines' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY dual_engines
       ADD CONSTRAINT fk_dual_engines_tenant
@@ -3417,7 +3417,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_efficiency_metrics_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'efficiency_metrics' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'efficiency_metrics' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY efficiency_metrics
       ADD CONSTRAINT fk_efficiency_metrics_tenant
@@ -3438,7 +3438,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_efficiency_recommendations_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'efficiency_recommendations' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'efficiency_recommendations' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY efficiency_recommendations
       ADD CONSTRAINT fk_efficiency_recommendations_tenant
@@ -3459,7 +3459,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_efficiency_scores_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'efficiency_scores' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'efficiency_scores' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY efficiency_scores
       ADD CONSTRAINT fk_efficiency_scores_tenant
@@ -3480,7 +3480,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_emergency_deploys_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'emergency_deploys' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'emergency_deploys' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY emergency_deploys
       ADD CONSTRAINT fk_emergency_deploys_tenant
@@ -3501,7 +3501,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_env_lifecycles_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'env_lifecycles' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'env_lifecycles' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY env_lifecycles
       ADD CONSTRAINT fk_env_lifecycles_tenant
@@ -3522,7 +3522,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_env_profiles_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'env_profiles' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'env_profiles' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY env_profiles
       ADD CONSTRAINT fk_env_profiles_tenant
@@ -3543,7 +3543,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_environments_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'environments' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'environments' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY environments
       ADD CONSTRAINT fk_environments_tenant
@@ -3564,7 +3564,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ephemeral_envs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ephemeral_envs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ephemeral_envs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ephemeral_envs
       ADD CONSTRAINT fk_ephemeral_envs_tenant
@@ -3585,7 +3585,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_error_budgets_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'error_budgets' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'error_budgets' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY error_budgets
       ADD CONSTRAINT fk_error_budgets_tenant
@@ -3606,7 +3606,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_escalation_policies_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'escalation_policies' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'escalation_policies' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY escalation_policies
       ADD CONSTRAINT fk_escalation_policies_tenant
@@ -3627,7 +3627,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_evaluations_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'evaluations' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'evaluations' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY evaluations
       ADD CONSTRAINT fk_evaluations_tenant
@@ -3648,7 +3648,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_execution_control_logs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'execution_control_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'execution_control_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY execution_control_logs
       ADD CONSTRAINT fk_execution_control_logs_tenant
@@ -3669,7 +3669,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_experiment_logs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'experiment_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'experiment_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY experiment_logs
       ADD CONSTRAINT fk_experiment_logs_tenant
@@ -3690,7 +3690,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_experiment_results_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'experiment_results' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'experiment_results' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY experiment_results
       ADD CONSTRAINT fk_experiment_results_tenant
@@ -3711,7 +3711,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_experiment_runs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'experiment_runs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'experiment_runs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY experiment_runs
       ADD CONSTRAINT fk_experiment_runs_tenant
@@ -3732,7 +3732,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_experiments_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'experiments' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'experiments' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY experiments
       ADD CONSTRAINT fk_experiments_tenant
@@ -3753,7 +3753,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_fault_injections_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'fault_injections' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'fault_injections' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY fault_injections
       ADD CONSTRAINT fk_fault_injections_tenant
@@ -3774,7 +3774,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_feature_flags_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'feature_flags' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'feature_flags' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY feature_flags
       ADD CONSTRAINT fk_feature_flags_tenant
@@ -3795,7 +3795,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_federated_clusters_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'federated_clusters' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'federated_clusters' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY federated_clusters
       ADD CONSTRAINT fk_federated_clusters_tenant
@@ -3816,7 +3816,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_finops_anomalies_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'finops_anomalies' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'finops_anomalies' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY finops_anomalies
       ADD CONSTRAINT fk_finops_anomalies_tenant
@@ -3837,7 +3837,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_finops_budget_guards_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'finops_budget_guards' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'finops_budget_guards' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY finops_budget_guards
       ADD CONSTRAINT fk_finops_budget_guards_tenant
@@ -3858,7 +3858,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_finops_cost_items_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'finops_cost_items' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'finops_cost_items' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY finops_cost_items
       ADD CONSTRAINT fk_finops_cost_items_tenant
@@ -3879,7 +3879,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_finops_reports_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'finops_reports' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'finops_reports' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY finops_reports
       ADD CONSTRAINT fk_finops_reports_tenant
@@ -3900,7 +3900,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_gateway_routes_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'gateway_routes' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'gateway_routes' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY gateway_routes
       ADD CONSTRAINT fk_gateway_routes_tenant
@@ -3921,7 +3921,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_git_changelog_entries_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'git_changelog_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'git_changelog_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY git_changelog_entries
       ADD CONSTRAINT fk_git_changelog_entries_tenant
@@ -3942,7 +3942,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_gitops_configs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'gitops_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'gitops_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY gitops_configs
       ADD CONSTRAINT fk_gitops_configs_tenant
@@ -3963,7 +3963,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_gitops_sync_statuses_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'gitops_sync_statuses' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'gitops_sync_statuses' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY gitops_sync_statuses
       ADD CONSTRAINT fk_gitops_sync_statuses_tenant
@@ -3984,7 +3984,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_global_params_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'global_params' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'global_params' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY global_params
       ADD CONSTRAINT fk_global_params_tenant
@@ -4005,7 +4005,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_governance_policies_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'governance_policies' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'governance_policies' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY governance_policies
       ADD CONSTRAINT fk_governance_policies_tenant
@@ -4026,7 +4026,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_handler_registries_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'handler_registries' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'handler_registries' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY handler_registries
       ADD CONSTRAINT fk_handler_registries_tenant
@@ -4047,7 +4047,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_handler_registry_entries_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'handler_registry_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'handler_registry_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY handler_registry_entries
       ADD CONSTRAINT fk_handler_registry_entries_tenant
@@ -4068,7 +4068,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_healing_incidents_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'healing_incidents' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'healing_incidents' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY healing_incidents
       ADD CONSTRAINT fk_healing_incidents_tenant
@@ -4089,7 +4089,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_health_checks_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'health_checks' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'health_checks' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY health_checks
       ADD CONSTRAINT fk_health_checks_tenant
@@ -4110,7 +4110,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_hotfix_channels_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'hotfix_channels' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'hotfix_channels' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY hotfix_channels
       ADD CONSTRAINT fk_hotfix_channels_tenant
@@ -4131,7 +4131,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_i18n_translations_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'i18n_translations' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'i18n_translations' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY i18n_translations
       ADD CONSTRAINT fk_i18n_translations_tenant
@@ -4152,7 +4152,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_iac_plans_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'iac_plans' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'iac_plans' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY iac_plans
       ADD CONSTRAINT fk_iac_plans_tenant
@@ -4173,7 +4173,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_iac_resources_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'iac_resources' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'iac_resources' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY iac_resources
       ADD CONSTRAINT fk_iac_resources_tenant
@@ -4194,7 +4194,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_iac_state_versions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'iac_state_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'iac_state_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY iac_state_versions
       ADD CONSTRAINT fk_iac_state_versions_tenant
@@ -4215,7 +4215,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_iac_workspace_modules_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'iac_workspace_modules' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'iac_workspace_modules' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY iac_workspace_modules
       ADD CONSTRAINT fk_iac_workspace_modules_tenant
@@ -4236,7 +4236,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_iac_workspaces_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'iac_workspaces' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'iac_workspaces' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY iac_workspaces
       ADD CONSTRAINT fk_iac_workspaces_tenant
@@ -4257,7 +4257,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_inception_configs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'inception_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'inception_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY inception_configs
       ADD CONSTRAINT fk_inception_configs_tenant
@@ -4278,7 +4278,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_incident_escalations_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'incident_escalations' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'incident_escalations' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY incident_escalations
       ADD CONSTRAINT fk_incident_escalations_tenant
@@ -4299,7 +4299,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_incident_postmortems_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'incident_postmortems' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'incident_postmortems' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY incident_postmortems
       ADD CONSTRAINT fk_incident_postmortems_tenant
@@ -4320,7 +4320,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_incident_timeline_events_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'incident_timeline_events' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'incident_timeline_events' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY incident_timeline_events
       ADD CONSTRAINT fk_incident_timeline_events_tenant
@@ -4341,7 +4341,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_incidents_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'incidents' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'incidents' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY incidents
       ADD CONSTRAINT fk_incidents_tenant
@@ -4362,7 +4362,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_infrastructure_connectors_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'infrastructure_connectors' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'infrastructure_connectors' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY infrastructure_connectors
       ADD CONSTRAINT fk_infrastructure_connectors_tenant
@@ -4383,7 +4383,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_infrastructure_sandboxes_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'infrastructure_sandboxes' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'infrastructure_sandboxes' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY infrastructure_sandboxes
       ADD CONSTRAINT fk_infrastructure_sandboxes_tenant
@@ -4404,7 +4404,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_integrations_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'integrations' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'integrations' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY integrations
       ADD CONSTRAINT fk_integrations_tenant
@@ -4425,7 +4425,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_internal_libraries_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'internal_libraries' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'internal_libraries' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY internal_libraries
       ADD CONSTRAINT fk_internal_libraries_tenant
@@ -4446,7 +4446,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_knowledge_documents_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'knowledge_documents' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'knowledge_documents' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY knowledge_documents
       ADD CONSTRAINT fk_knowledge_documents_tenant
@@ -4467,7 +4467,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_knowledge_spaces_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'knowledge_spaces' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'knowledge_spaces' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY knowledge_spaces
       ADD CONSTRAINT fk_knowledge_spaces_tenant
@@ -4488,7 +4488,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_knowledge_sync_logs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'knowledge_sync_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'knowledge_sync_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY knowledge_sync_logs
       ADD CONSTRAINT fk_knowledge_sync_logs_tenant
@@ -4509,7 +4509,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_l_i_l_n_l_c_l_i_l_d_l_e_l_n_l_t_lu_l_a_l_c_l_t_l_i_l_o_l_ns_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'l_i_l_n_l_c_l_i_l_d_l_e_l_n_l_t_lu_l_a_l_c_l_t_l_i_l_o_l_ns' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'l_i_l_n_l_c_l_i_l_d_l_e_l_n_l_t_lu_l_a_l_c_l_t_l_i_l_o_l_ns' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY l_i_l_n_l_c_l_i_l_d_l_e_l_n_l_t_lu_l_a_l_c_l_t_l_i_l_o_l_ns
       ADD CONSTRAINT fk_l_i_l_n_l_c_l_i_l_d_l_e_l_n_l_t_lu_l_a_l_c_l_t_l_i_l_o_l_ns_tenant
@@ -4530,7 +4530,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_l_l_m_traces_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'l_l_m_traces' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'l_l_m_traces' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY l_l_m_traces
       ADD CONSTRAINT fk_l_l_m_traces_tenant
@@ -4551,7 +4551,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_l_t_l_i_l_c_l_k_l_e_l_t_lu_l_a_l_u_l_t_l_o_l_m_l_a_l_t_l_i_l_o_l_ns_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'l_t_l_i_l_c_l_k_l_e_l_t_lu_l_a_l_u_l_t_l_o_l_m_l_a_l_t_l_i_l_o_l_ns' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'l_t_l_i_l_c_l_k_l_e_l_t_lu_l_a_l_u_l_t_l_o_l_m_l_a_l_t_l_i_l_o_l_ns' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY l_t_l_i_l_c_l_k_l_e_l_t_lu_l_a_l_u_l_t_l_o_l_m_l_a_l_t_l_i_l_o_l_ns
       ADD CONSTRAINT fk_l_t_l_i_l_c_l_k_l_e_l_t_lu_l_a_l_u_l_t_l_o_l_m_l_a_l_t_l_i_l_o_l_ns_tenant
@@ -4572,7 +4572,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_locales_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'locales' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'locales' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY locales
       ADD CONSTRAINT fk_locales_tenant
@@ -4593,7 +4593,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_lowcode_flows_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'lowcode_flows' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'lowcode_flows' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY lowcode_flows
       ADD CONSTRAINT fk_lowcode_flows_tenant
@@ -4614,7 +4614,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_lowcode_instances_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'lowcode_instances' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'lowcode_instances' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY lowcode_instances
       ADD CONSTRAINT fk_lowcode_instances_tenant
@@ -4635,7 +4635,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_lowcode_workflow_definition_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'lowcode_workflow_definition' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'lowcode_workflow_definition' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY lowcode_workflow_definition
       ADD CONSTRAINT fk_lowcode_workflow_definition_tenant
@@ -4656,7 +4656,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_m_c_p_servers_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'm_c_p_servers' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'm_c_p_servers' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY m_c_p_servers
       ADD CONSTRAINT fk_m_c_p_servers_tenant
@@ -4677,7 +4677,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_m_f_a_devices_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'm_f_a_devices' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'm_f_a_devices' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY m_f_a_devices
       ADD CONSTRAINT fk_m_f_a_devices_tenant
@@ -4698,7 +4698,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_maintenance_windows_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'maintenance_windows' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'maintenance_windows' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY maintenance_windows
       ADD CONSTRAINT fk_maintenance_windows_tenant
@@ -4719,7 +4719,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_message_queues_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'message_queues' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'message_queues' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY message_queues
       ADD CONSTRAINT fk_message_queues_tenant
@@ -4740,7 +4740,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_metricses_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'metricses' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'metricses' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY metricses
       ADD CONSTRAINT fk_metricses_tenant
@@ -4761,7 +4761,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_migration_plans_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'migration_plans' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'migration_plans' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY migration_plans
       ADD CONSTRAINT fk_migration_plans_tenant
@@ -4782,7 +4782,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_mock_rules_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'mock_rules' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'mock_rules' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY mock_rules
       ADD CONSTRAINT fk_mock_rules_tenant
@@ -4803,7 +4803,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_model_versions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'model_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'model_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY model_versions
       ADD CONSTRAINT fk_model_versions_tenant
@@ -4824,7 +4824,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_monitoring_alert_rules_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'monitoring_alert_rules' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'monitoring_alert_rules' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY monitoring_alert_rules
       ADD CONSTRAINT fk_monitoring_alert_rules_tenant
@@ -4845,7 +4845,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_monitoring_alerts_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'monitoring_alerts' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'monitoring_alerts' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY monitoring_alerts
       ADD CONSTRAINT fk_monitoring_alerts_tenant
@@ -4866,7 +4866,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_monitoring_anomalies_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'monitoring_anomalies' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'monitoring_anomalies' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY monitoring_anomalies
       ADD CONSTRAINT fk_monitoring_anomalies_tenant
@@ -4887,7 +4887,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_monitoring_metrics_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'monitoring_metrics' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'monitoring_metrics' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY monitoring_metrics
       ADD CONSTRAINT fk_monitoring_metrics_tenant
@@ -4908,7 +4908,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_multi_modal_triggers_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'multi_modal_triggers' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'multi_modal_triggers' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY multi_modal_triggers
       ADD CONSTRAINT fk_multi_modal_triggers_tenant
@@ -4929,7 +4929,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_namespace_allocations_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'namespace_allocations' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'namespace_allocations' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY namespace_allocations
       ADD CONSTRAINT fk_namespace_allocations_tenant
@@ -4950,7 +4950,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_notification_channels_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'notification_channels' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'notification_channels' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY notification_channels
       ADD CONSTRAINT fk_notification_channels_tenant
@@ -4971,7 +4971,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_notification_managements_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'notification_managements' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'notification_managements' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY notification_managements
       ADD CONSTRAINT fk_notification_managements_tenant
@@ -4992,7 +4992,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_notification_records_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'notification_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'notification_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY notification_records
       ADD CONSTRAINT fk_notification_records_tenant
@@ -5013,7 +5013,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_notification_templates_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'notification_templates' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'notification_templates' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY notification_templates
       ADD CONSTRAINT fk_notification_templates_tenant
@@ -5034,7 +5034,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_oci_registries_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'oci_registries' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'oci_registries' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY oci_registries
       ADD CONSTRAINT fk_oci_registries_tenant
@@ -5055,7 +5055,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_oncall_schedules_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'oncall_schedules' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'oncall_schedules' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY oncall_schedules
       ADD CONSTRAINT fk_oncall_schedules_tenant
@@ -5076,7 +5076,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_otel_collector_configs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'otel_collector_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'otel_collector_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY otel_collector_configs
       ADD CONSTRAINT fk_otel_collector_configs_tenant
@@ -5097,7 +5097,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_p_r_test_results_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'p_r_test_results' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'p_r_test_results' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY p_r_test_results
       ADD CONSTRAINT fk_p_r_test_results_tenant
@@ -5118,7 +5118,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_page_registries_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'page_registries' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'page_registries' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY page_registries
       ADD CONSTRAINT fk_page_registries_tenant
@@ -5139,7 +5139,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_page_registry_histories_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'page_registry_histories' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'page_registry_histories' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY page_registry_histories
       ADD CONSTRAINT fk_page_registry_histories_tenant
@@ -5160,7 +5160,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_permission_audit_logs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'permission_audit_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'permission_audit_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY permission_audit_logs
       ADD CONSTRAINT fk_permission_audit_logs_tenant
@@ -5181,7 +5181,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_permission_requests_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'permission_requests' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'permission_requests' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY permission_requests
       ADD CONSTRAINT fk_permission_requests_tenant
@@ -5202,7 +5202,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_phase_groups_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'phase_groups' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'phase_groups' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY phase_groups
       ADD CONSTRAINT fk_phase_groups_tenant
@@ -5223,7 +5223,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_pipeline_runs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'pipeline_runs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'pipeline_runs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY pipeline_runs
       ADD CONSTRAINT fk_pipeline_runs_tenant
@@ -5244,7 +5244,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_pipeline_stages_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'pipeline_stages' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'pipeline_stages' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY pipeline_stages
       ADD CONSTRAINT fk_pipeline_stages_tenant
@@ -5265,7 +5265,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_pipeline_tasks_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'pipeline_tasks' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'pipeline_tasks' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY pipeline_tasks
       ADD CONSTRAINT fk_pipeline_tasks_tenant
@@ -5286,7 +5286,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_pipeline_templates_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'pipeline_templates' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'pipeline_templates' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY pipeline_templates
       ADD CONSTRAINT fk_pipeline_templates_tenant
@@ -5307,7 +5307,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_pipeline_versions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'pipeline_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'pipeline_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY pipeline_versions
       ADD CONSTRAINT fk_pipeline_versions_tenant
@@ -5328,7 +5328,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_playground_requests_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'playground_requests' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'playground_requests' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY playground_requests
       ADD CONSTRAINT fk_playground_requests_tenant
@@ -5349,7 +5349,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_plugin_audit_entries_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'plugin_audit_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'plugin_audit_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY plugin_audit_entries
       ADD CONSTRAINT fk_plugin_audit_entries_tenant
@@ -5370,7 +5370,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_plugin_executions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'plugin_executions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'plugin_executions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY plugin_executions
       ADD CONSTRAINT fk_plugin_executions_tenant
@@ -5391,7 +5391,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_plugin_hotreloads_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'plugin_hotreloads' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'plugin_hotreloads' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY plugin_hotreloads
       ADD CONSTRAINT fk_plugin_hotreloads_tenant
@@ -5412,7 +5412,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_plugin_resource_quotas_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'plugin_resource_quotas' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'plugin_resource_quotas' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY plugin_resource_quotas
       ADD CONSTRAINT fk_plugin_resource_quotas_tenant
@@ -5433,7 +5433,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_plugin_security_events_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'plugin_security_events' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'plugin_security_events' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY plugin_security_events
       ADD CONSTRAINT fk_plugin_security_events_tenant
@@ -5454,7 +5454,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_plugin_tenant_quotas_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'plugin_tenant_quotas' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'plugin_tenant_quotas' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY plugin_tenant_quotas
       ADD CONSTRAINT fk_plugin_tenant_quotas_tenant
@@ -5475,7 +5475,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_plugins_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'plugins' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'plugins' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY plugins
       ADD CONSTRAINT fk_plugins_tenant
@@ -5496,7 +5496,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_policies_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'policies' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'policies' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY policies
       ADD CONSTRAINT fk_policies_tenant
@@ -5517,7 +5517,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_policy_bundles_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'policy_bundles' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'policy_bundles' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY policy_bundles
       ADD CONSTRAINT fk_policy_bundles_tenant
@@ -5538,7 +5538,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_policy_evaluations_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'policy_evaluations' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'policy_evaluations' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY policy_evaluations
       ADD CONSTRAINT fk_policy_evaluations_tenant
@@ -5559,7 +5559,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_policy_exemptions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'policy_exemptions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'policy_exemptions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY policy_exemptions
       ADD CONSTRAINT fk_policy_exemptions_tenant
@@ -5580,7 +5580,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_policy_overrides_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'policy_overrides' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'policy_overrides' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY policy_overrides
       ADD CONSTRAINT fk_policy_overrides_tenant
@@ -5601,7 +5601,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_policy_violations_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'policy_violations' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'policy_violations' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY policy_violations
       ADD CONSTRAINT fk_policy_violations_tenant
@@ -5622,7 +5622,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_policy_workflows_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'policy_workflows' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'policy_workflows' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY policy_workflows
       ADD CONSTRAINT fk_policy_workflows_tenant
@@ -5643,7 +5643,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_portal_documents_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'portal_documents' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'portal_documents' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY portal_documents
       ADD CONSTRAINT fk_portal_documents_tenant
@@ -5664,7 +5664,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_privacy_configs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'privacy_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'privacy_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY privacy_configs
       ADD CONSTRAINT fk_privacy_configs_tenant
@@ -5685,7 +5685,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_problem_problems_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'problem_problems' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'problem_problems' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY problem_problems
       ADD CONSTRAINT fk_problem_problems_tenant
@@ -5706,7 +5706,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_process_steps_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'process_steps' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'process_steps' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY process_steps
       ADD CONSTRAINT fk_process_steps_tenant
@@ -5727,7 +5727,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_product_lines_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'product_lines' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'product_lines' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY product_lines
       ADD CONSTRAINT fk_product_lines_tenant
@@ -5748,7 +5748,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_profiles_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'profiles' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY profiles
       ADD CONSTRAINT fk_profiles_tenant
@@ -5769,7 +5769,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_progressive_deploys_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'progressive_deploys' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'progressive_deploys' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY progressive_deploys
       ADD CONSTRAINT fk_progressive_deploys_tenant
@@ -5790,7 +5790,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_progressives_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'progressives' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'progressives' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY progressives
       ADD CONSTRAINT fk_progressives_tenant
@@ -5811,7 +5811,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_project_members_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'project_members' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'project_members' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY project_members
       ADD CONSTRAINT fk_project_members_tenant
@@ -5832,7 +5832,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_projects_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'projects' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'projects' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY projects
       ADD CONSTRAINT fk_projects_tenant
@@ -5853,7 +5853,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_pull_requests_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'pull_requests' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'pull_requests' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY pull_requests
       ADD CONSTRAINT fk_pull_requests_tenant
@@ -5874,7 +5874,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_quality_alerts_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'quality_alerts' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'quality_alerts' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY quality_alerts
       ADD CONSTRAINT fk_quality_alerts_tenant
@@ -5895,7 +5895,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_quality_scan_results_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'quality_scan_results' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'quality_scan_results' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY quality_scan_results
       ADD CONSTRAINT fk_quality_scan_results_tenant
@@ -5916,7 +5916,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_query_execution_records_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'query_execution_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'query_execution_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY query_execution_records
       ADD CONSTRAINT fk_query_execution_records_tenant
@@ -5937,7 +5937,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_queues_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'queues' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'queues' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY queues
       ADD CONSTRAINT fk_queues_tenant
@@ -5958,7 +5958,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_r_o_i_entries_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'r_o_i_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'r_o_i_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY r_o_i_entries
       ADD CONSTRAINT fk_r_o_i_entries_tenant
@@ -5979,7 +5979,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_recommendations_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'recommendations' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'recommendations' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY recommendations
       ADD CONSTRAINT fk_recommendations_tenant
@@ -6000,7 +6000,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_recording_sessions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'recording_sessions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'recording_sessions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY recording_sessions
       ADD CONSTRAINT fk_recording_sessions_tenant
@@ -6021,7 +6021,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_records_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'records' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'records' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY records
       ADD CONSTRAINT fk_records_tenant
@@ -6042,7 +6042,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_release_notes_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'release_notes' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'release_notes' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY release_notes
       ADD CONSTRAINT fk_release_notes_tenant
@@ -6063,7 +6063,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_release_trains_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'release_trains' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'release_trains' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY release_trains
       ADD CONSTRAINT fk_release_trains_tenant
@@ -6084,7 +6084,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_replay_sessions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'replay_sessions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'replay_sessions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY replay_sessions
       ADD CONSTRAINT fk_replay_sessions_tenant
@@ -6105,7 +6105,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_report_datasources_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'report_datasources' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'report_datasources' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY report_datasources
       ADD CONSTRAINT fk_report_datasources_tenant
@@ -6126,7 +6126,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_report_definitions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'report_definitions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'report_definitions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY report_definitions
       ADD CONSTRAINT fk_report_definitions_tenant
@@ -6147,7 +6147,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_report_executions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'report_executions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'report_executions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY report_executions
       ADD CONSTRAINT fk_report_executions_tenant
@@ -6168,7 +6168,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_report_schedules_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'report_schedules' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'report_schedules' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY report_schedules
       ADD CONSTRAINT fk_report_schedules_tenant
@@ -6189,7 +6189,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_reports_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'reports' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'reports' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY reports
       ADD CONSTRAINT fk_reports_tenant
@@ -6210,7 +6210,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_resilience_benchmarks_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'resilience_benchmarks' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'resilience_benchmarks' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY resilience_benchmarks
       ADD CONSTRAINT fk_resilience_benchmarks_tenant
@@ -6231,7 +6231,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_resilience_histories_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'resilience_histories' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'resilience_histories' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY resilience_histories
       ADD CONSTRAINT fk_resilience_histories_tenant
@@ -6252,7 +6252,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_resilience_recommendations_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'resilience_recommendations' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'resilience_recommendations' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY resilience_recommendations
       ADD CONSTRAINT fk_resilience_recommendations_tenant
@@ -6273,7 +6273,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_response_history_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'response_history' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'response_history' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY response_history
       ADD CONSTRAINT fk_response_history_tenant
@@ -6294,7 +6294,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_retention_policies_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'retention_policies' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'retention_policies' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY retention_policies
       ADD CONSTRAINT fk_retention_policies_tenant
@@ -6315,7 +6315,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_review_requests_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'review_requests' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'review_requests' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY review_requests
       ADD CONSTRAINT fk_review_requests_tenant
@@ -6336,7 +6336,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_reviews_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'reviews' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'reviews' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY reviews
       ADD CONSTRAINT fk_reviews_tenant
@@ -6357,7 +6357,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_risks_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'risks' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'risks' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY risks
       ADD CONSTRAINT fk_risks_tenant
@@ -6378,7 +6378,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_roi_entries_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'roi_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'roi_entries' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY roi_entries
       ADD CONSTRAINT fk_roi_entries_tenant
@@ -6399,7 +6399,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_rollbacks_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'rollbacks' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'rollbacks' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY rollbacks
       ADD CONSTRAINT fk_rollbacks_tenant
@@ -6420,7 +6420,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_runbooks_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'runbooks' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'runbooks' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY runbooks
       ADD CONSTRAINT fk_runbooks_tenant
@@ -6441,7 +6441,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_runs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'runs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'runs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY runs
       ADD CONSTRAINT fk_runs_tenant
@@ -6462,7 +6462,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_s_b_o_m_documents_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 's_b_o_m_documents' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 's_b_o_m_documents' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY s_b_o_m_documents
       ADD CONSTRAINT fk_s_b_o_m_documents_tenant
@@ -6483,7 +6483,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_s_b_o_ms_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 's_b_o_ms' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 's_b_o_ms' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY s_b_o_ms
       ADD CONSTRAINT fk_s_b_o_ms_tenant
@@ -6504,7 +6504,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_s_l_i_measurements_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 's_l_i_measurements' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 's_l_i_measurements' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY s_l_i_measurements
       ADD CONSTRAINT fk_s_l_i_measurements_tenant
@@ -6525,7 +6525,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_s_l_o_definitions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 's_l_o_definitions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 's_l_o_definitions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY s_l_o_definitions
       ADD CONSTRAINT fk_s_l_o_definitions_tenant
@@ -6546,7 +6546,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_s_s_e_log_event_records_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 's_s_e_log_event_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 's_s_e_log_event_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY s_s_e_log_event_records
       ADD CONSTRAINT fk_s_s_e_log_event_records_tenant
@@ -6567,7 +6567,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_s_s_e_status_event_records_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 's_s_e_status_event_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 's_s_e_status_event_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY s_s_e_status_event_records
       ADD CONSTRAINT fk_s_s_e_status_event_records_tenant
@@ -6588,7 +6588,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_s_s_o_configs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 's_s_o_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 's_s_o_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY s_s_o_configs
       ADD CONSTRAINT fk_s_s_o_configs_tenant
@@ -6609,7 +6609,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_s_s_o_providers_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 's_s_o_providers' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 's_s_o_providers' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY s_s_o_providers
       ADD CONSTRAINT fk_s_s_o_providers_tenant
@@ -6630,7 +6630,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_saga_instances_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'saga_instances' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'saga_instances' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY saga_instances
       ADD CONSTRAINT fk_saga_instances_tenant
@@ -6651,7 +6651,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_saga_steps_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'saga_steps' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'saga_steps' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY saga_steps
       ADD CONSTRAINT fk_saga_steps_tenant
@@ -6672,7 +6672,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_saga_transactions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'saga_transactions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'saga_transactions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY saga_transactions
       ADD CONSTRAINT fk_saga_transactions_tenant
@@ -6693,7 +6693,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_scan_reports_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'scan_reports' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'scan_reports' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY scan_reports
       ADD CONSTRAINT fk_scan_reports_tenant
@@ -6714,7 +6714,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_scheduled_notifications_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'scheduled_notifications' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'scheduled_notifications' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY scheduled_notifications
       ADD CONSTRAINT fk_scheduled_notifications_tenant
@@ -6735,7 +6735,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_scheduling_policies_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'scheduling_policies' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'scheduling_policies' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY scheduling_policies
       ADD CONSTRAINT fk_scheduling_policies_tenant
@@ -6756,7 +6756,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_script_libraries_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'script_libraries' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'script_libraries' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY script_libraries
       ADD CONSTRAINT fk_script_libraries_tenant
@@ -6777,7 +6777,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_script_templates_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'script_templates' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'script_templates' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY script_templates
       ADD CONSTRAINT fk_script_templates_tenant
@@ -6798,7 +6798,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_script_versions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'script_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'script_versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY script_versions
       ADD CONSTRAINT fk_script_versions_tenant
@@ -6819,7 +6819,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_scripts_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'scripts' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'scripts' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY scripts
       ADD CONSTRAINT fk_scripts_tenant
@@ -6840,7 +6840,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_sdk_tasks_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sdk_tasks' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'sdk_tasks' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY sdk_tasks
       ADD CONSTRAINT fk_sdk_tasks_tenant
@@ -6861,7 +6861,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_secrets_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'secrets' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'secrets' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY secrets
       ADD CONSTRAINT fk_secrets_tenant
@@ -6882,7 +6882,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_self_services_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'self_services' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'self_services' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY self_services
       ADD CONSTRAINT fk_self_services_tenant
@@ -6903,7 +6903,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_serverless_deployments_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'serverless_deployments' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'serverless_deployments' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY serverless_deployments
       ADD CONSTRAINT fk_serverless_deployments_tenant
@@ -6924,7 +6924,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_serverless_function_logs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'serverless_function_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'serverless_function_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY serverless_function_logs
       ADD CONSTRAINT fk_serverless_function_logs_tenant
@@ -6945,7 +6945,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_serverless_functions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'serverless_functions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'serverless_functions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY serverless_functions
       ADD CONSTRAINT fk_serverless_functions_tenant
@@ -6966,7 +6966,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_serverless_triggers_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'serverless_triggers' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'serverless_triggers' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY serverless_triggers
       ADD CONSTRAINT fk_serverless_triggers_tenant
@@ -6987,7 +6987,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_service_catalogs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'service_catalogs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'service_catalogs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY service_catalogs
       ADD CONSTRAINT fk_service_catalogs_tenant
@@ -7008,7 +7008,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_service_healths_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'service_healths' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'service_healths' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY service_healths
       ADD CONSTRAINT fk_service_healths_tenant
@@ -7029,7 +7029,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_service_registries_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'service_registries' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'service_registries' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY service_registries
       ADD CONSTRAINT fk_service_registries_tenant
@@ -7050,7 +7050,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_service_topologies_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'service_topologies' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'service_topologies' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY service_topologies
       ADD CONSTRAINT fk_service_topologies_tenant
@@ -7071,7 +7071,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_simulations_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'simulations' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'simulations' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY simulations
       ADD CONSTRAINT fk_simulations_tenant
@@ -7092,7 +7092,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_skill_audit_logs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'skill_audit_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'skill_audit_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY skill_audit_logs
       ADD CONSTRAINT fk_skill_audit_logs_tenant
@@ -7113,7 +7113,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_skill_executions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'skill_executions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'skill_executions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY skill_executions
       ADD CONSTRAINT fk_skill_executions_tenant
@@ -7134,7 +7134,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_skill_instances_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'skill_instances' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'skill_instances' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY skill_instances
       ADD CONSTRAINT fk_skill_instances_tenant
@@ -7155,7 +7155,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_skill_reviews_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'skill_reviews' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'skill_reviews' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY skill_reviews
       ADD CONSTRAINT fk_skill_reviews_tenant
@@ -7176,7 +7176,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_skills_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'skills' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'skills' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY skills
       ADD CONSTRAINT fk_skills_tenant
@@ -7197,7 +7197,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_sla_breach_events_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sla_breach_events' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'sla_breach_events' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY sla_breach_events
       ADD CONSTRAINT fk_sla_breach_events_tenant
@@ -7218,7 +7218,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_sla_definitions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sla_definitions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'sla_definitions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY sla_definitions
       ADD CONSTRAINT fk_sla_definitions_tenant
@@ -7239,7 +7239,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_sla_trackings_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sla_trackings' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'sla_trackings' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY sla_trackings
       ADD CONSTRAINT fk_sla_trackings_tenant
@@ -7260,7 +7260,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_smart_deploy_audit_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'smart_deploy_audit' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'smart_deploy_audit' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY smart_deploy_audit
       ADD CONSTRAINT fk_smart_deploy_audit_tenant
@@ -7281,7 +7281,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_smart_deploy_deployments_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'smart_deploy_deployments' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'smart_deploy_deployments' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY smart_deploy_deployments
       ADD CONSTRAINT fk_smart_deploy_deployments_tenant
@@ -7302,7 +7302,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_smart_deploy_rollbacks_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'smart_deploy_rollbacks' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'smart_deploy_rollbacks' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY smart_deploy_rollbacks
       ADD CONSTRAINT fk_smart_deploy_rollbacks_tenant
@@ -7323,7 +7323,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_snapshots_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'snapshots' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'snapshots' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY snapshots
       ADD CONSTRAINT fk_snapshots_tenant
@@ -7344,7 +7344,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_sprint_tickets_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sprint_tickets' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'sprint_tickets' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY sprint_tickets
       ADD CONSTRAINT fk_sprint_tickets_tenant
@@ -7365,7 +7365,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_sprints_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sprints' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'sprints' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY sprints
       ADD CONSTRAINT fk_sprints_tenant
@@ -7386,7 +7386,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_sql_audit_history_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sql_audit_history' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'sql_audit_history' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY sql_audit_history
       ADD CONSTRAINT fk_sql_audit_history_tenant
@@ -7407,7 +7407,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_sql_blacklist_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sql_blacklist' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'sql_blacklist' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY sql_blacklist
       ADD CONSTRAINT fk_sql_blacklist_tenant
@@ -7428,7 +7428,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_sql_orders_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sql_orders' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'sql_orders' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY sql_orders
       ADD CONSTRAINT fk_sql_orders_tenant
@@ -7449,7 +7449,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_stages_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'stages' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'stages' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY stages
       ADD CONSTRAINT fk_stages_tenant
@@ -7470,7 +7470,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_subapp_config_histories_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'subapp_config_histories' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'subapp_config_histories' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY subapp_config_histories
       ADD CONSTRAINT fk_subapp_config_histories_tenant
@@ -7491,7 +7491,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_subapp_configs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'subapp_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'subapp_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY subapp_configs
       ADD CONSTRAINT fk_subapp_configs_tenant
@@ -7512,7 +7512,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_subscriptions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'subscriptions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'subscriptions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY subscriptions
       ADD CONSTRAINT fk_subscriptions_tenant
@@ -7533,7 +7533,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_tasks_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'tasks' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'tasks' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY tasks
       ADD CONSTRAINT fk_tasks_tenant
@@ -7554,7 +7554,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_team_members_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'team_members' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'team_members' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY team_members
       ADD CONSTRAINT fk_team_members_tenant
@@ -7575,7 +7575,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_team_roles_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'team_roles' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'team_roles' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY team_roles
       ADD CONSTRAINT fk_team_roles_tenant
@@ -7596,7 +7596,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_teams_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'teams' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'teams' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY teams
       ADD CONSTRAINT fk_teams_tenant
@@ -7617,7 +7617,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_temporary_permissions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'temporary_permissions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'temporary_permissions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY temporary_permissions
       ADD CONSTRAINT fk_temporary_permissions_tenant
@@ -7638,7 +7638,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_tenant_invites_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'tenant_invites' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'tenant_invites' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY tenant_invites
       ADD CONSTRAINT fk_tenant_invites_tenant
@@ -7659,7 +7659,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_tenant_quota_alerts_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'tenant_quota_alerts' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'tenant_quota_alerts' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY tenant_quota_alerts
       ADD CONSTRAINT fk_tenant_quota_alerts_tenant
@@ -7680,7 +7680,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_tenant_quotas_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'tenant_quotas' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'tenant_quotas' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY tenant_quotas
       ADD CONSTRAINT fk_tenant_quotas_tenant
@@ -7701,7 +7701,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_tenant_users_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'tenant_users' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'tenant_users' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY tenant_users
       ADD CONSTRAINT fk_tenant_users_tenant
@@ -7722,7 +7722,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_test_cases_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'test_cases' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'test_cases' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY test_cases
       ADD CONSTRAINT fk_test_cases_tenant
@@ -7743,7 +7743,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_test_code_mappings_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'test_code_mappings' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'test_code_mappings' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY test_code_mappings
       ADD CONSTRAINT fk_test_code_mappings_tenant
@@ -7764,7 +7764,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_test_execution_records_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'test_execution_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'test_execution_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY test_execution_records
       ADD CONSTRAINT fk_test_execution_records_tenant
@@ -7785,7 +7785,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_test_suites_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'test_suites' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'test_suites' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY test_suites
       ADD CONSTRAINT fk_test_suites_tenant
@@ -7806,7 +7806,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ticket_assignment_rules_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_assignment_rules' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ticket_assignment_rules' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ticket_assignment_rules
       ADD CONSTRAINT fk_ticket_assignment_rules_tenant
@@ -7827,7 +7827,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ticket_assignments_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_assignments' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ticket_assignments' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ticket_assignments
       ADD CONSTRAINT fk_ticket_assignments_tenant
@@ -7848,7 +7848,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ticket_automation_rules_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_automation_rules' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ticket_automation_rules' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ticket_automation_rules
       ADD CONSTRAINT fk_ticket_automation_rules_tenant
@@ -7869,7 +7869,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ticket_dispatch_engineers_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_dispatch_engineers' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ticket_dispatch_engineers' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ticket_dispatch_engineers
       ADD CONSTRAINT fk_ticket_dispatch_engineers_tenant
@@ -7890,7 +7890,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ticket_dispatch_rules_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_dispatch_rules' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ticket_dispatch_rules' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ticket_dispatch_rules
       ADD CONSTRAINT fk_ticket_dispatch_rules_tenant
@@ -7911,7 +7911,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ticket_knowledges_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_knowledges' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ticket_knowledges' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ticket_knowledges
       ADD CONSTRAINT fk_ticket_knowledges_tenant
@@ -7932,7 +7932,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ticket_relations_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_relations' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ticket_relations' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ticket_relations
       ADD CONSTRAINT fk_ticket_relations_tenant
@@ -7953,7 +7953,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ticket_sla_policies_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_sla_policies' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ticket_sla_policies' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ticket_sla_policies
       ADD CONSTRAINT fk_ticket_sla_policies_tenant
@@ -7974,7 +7974,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ticket_sla_targets_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_sla_targets' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ticket_sla_targets' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ticket_sla_targets
       ADD CONSTRAINT fk_ticket_sla_targets_tenant
@@ -7995,7 +7995,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ticket_suspends_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_suspends' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ticket_suspends' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ticket_suspends
       ADD CONSTRAINT fk_ticket_suspends_tenant
@@ -8016,7 +8016,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ticketing_dispatch_weights_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticketing_dispatch_weights' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ticketing_dispatch_weights' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ticketing_dispatch_weights
       ADD CONSTRAINT fk_ticketing_dispatch_weights_tenant
@@ -8037,7 +8037,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ticketing_service_state_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticketing_service_state' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ticketing_service_state' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ticketing_service_state
       ADD CONSTRAINT fk_ticketing_service_state_tenant
@@ -8058,7 +8058,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_tickets_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'tickets' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'tickets' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY tickets
       ADD CONSTRAINT fk_tickets_tenant
@@ -8079,7 +8079,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_topologies_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'topologies' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'topologies' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY topologies
       ADD CONSTRAINT fk_topologies_tenant
@@ -8100,7 +8100,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_trace_sampling_configs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'trace_sampling_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'trace_sampling_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY trace_sampling_configs
       ADD CONSTRAINT fk_trace_sampling_configs_tenant
@@ -8121,7 +8121,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_trace_spans_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'trace_spans' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'trace_spans' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY trace_spans
       ADD CONSTRAINT fk_trace_spans_tenant
@@ -8142,7 +8142,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_traffic_records_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'traffic_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'traffic_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY traffic_records
       ADD CONSTRAINT fk_traffic_records_tenant
@@ -8163,7 +8163,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_trigger_logs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'trigger_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'trigger_logs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY trigger_logs
       ADD CONSTRAINT fk_trigger_logs_tenant
@@ -8184,7 +8184,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_u_e_b_a_alerts_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'u_e_b_a_alerts' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'u_e_b_a_alerts' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY u_e_b_a_alerts
       ADD CONSTRAINT fk_u_e_b_a_alerts_tenant
@@ -8205,7 +8205,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_u_e_b_a_profiles_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'u_e_b_a_profiles' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'u_e_b_a_profiles' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY u_e_b_a_profiles
       ADD CONSTRAINT fk_u_e_b_a_profiles_tenant
@@ -8226,7 +8226,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_unified_configs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'unified_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'unified_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY unified_configs
       ADD CONSTRAINT fk_unified_configs_tenant
@@ -8247,7 +8247,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_upload_tasks_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'upload_tasks' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'upload_tasks' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY upload_tasks
       ADD CONSTRAINT fk_upload_tasks_tenant
@@ -8268,7 +8268,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_usage_limits_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'usage_limits' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'usage_limits' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY usage_limits
       ADD CONSTRAINT fk_usage_limits_tenant
@@ -8289,7 +8289,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_usage_records_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'usage_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'usage_records' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY usage_records
       ADD CONSTRAINT fk_usage_records_tenant
@@ -8310,7 +8310,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_vector_stores_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'vector_stores' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'vector_stores' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY vector_stores
       ADD CONSTRAINT fk_vector_stores_tenant
@@ -8331,7 +8331,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_vectorize_ruleses_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'vectorize_ruleses' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'vectorize_ruleses' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY vectorize_ruleses
       ADD CONSTRAINT fk_vectorize_ruleses_tenant
@@ -8352,7 +8352,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_version_archives_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'version_archives' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'version_archives' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY version_archives
       ADD CONSTRAINT fk_version_archives_tenant
@@ -8373,7 +8373,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_versions_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'versions' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY versions
       ADD CONSTRAINT fk_versions_tenant
@@ -8394,7 +8394,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_webhooks_secrets_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'webhooks_secrets' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'webhooks_secrets' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY webhooks_secrets
       ADD CONSTRAINT fk_webhooks_secrets_tenant
@@ -8415,7 +8415,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_widget_configs_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'widget_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'widget_configs' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY widget_configs
       ADD CONSTRAINT fk_widget_configs_tenant
@@ -8436,7 +8436,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_workbenches_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'workbenches' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'workbenches' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY workbenches
       ADD CONSTRAINT fk_workbenches_tenant
@@ -8457,7 +8457,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_workflow_tasks_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'workflow_tasks' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'workflow_tasks' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY workflow_tasks
       ADD CONSTRAINT fk_workflow_tasks_tenant
@@ -8478,7 +8478,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_workflow_triggers_tenant'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'workflow_triggers' AND column_name = 'tenant_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'workflow_triggers' AND column_name = 'tenant_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY workflow_triggers
       ADD CONSTRAINT fk_workflow_triggers_tenant
@@ -8499,7 +8499,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_audit_logs_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'audit_logs' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'audit_logs' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY audit_logs
       ADD CONSTRAINT fk_audit_logs_user
@@ -8520,7 +8520,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_capability_audit_logs_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'capability_audit_logs' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'capability_audit_logs' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY capability_audit_logs
       ADD CONSTRAINT fk_capability_audit_logs_user
@@ -8541,7 +8541,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_alert_states_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_alert_states' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_alert_states' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_alert_states
       ADD CONSTRAINT fk_chatops_alert_states_user
@@ -8562,7 +8562,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_audit_logs_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_audit_logs' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_audit_logs' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_audit_logs
       ADD CONSTRAINT fk_chatops_audit_logs_user
@@ -8583,7 +8583,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_command_configs_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_command_configs' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_command_configs' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_command_configs
       ADD CONSTRAINT fk_chatops_command_configs_user
@@ -8604,7 +8604,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_dnd_settings_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_dnd_settings' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_dnd_settings' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_dnd_settings
       ADD CONSTRAINT fk_chatops_dnd_settings_user
@@ -8625,7 +8625,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_executions_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_executions' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_executions' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_executions
       ADD CONSTRAINT fk_chatops_executions_user
@@ -8646,7 +8646,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_messages_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_messages' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_messages' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_messages
       ADD CONSTRAINT fk_chatops_messages_user
@@ -8667,7 +8667,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_notification_preferences_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_notification_preferences' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_notification_preferences' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_notification_preferences
       ADD CONSTRAINT fk_chatops_notification_preferences_user
@@ -8688,7 +8688,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_platform_configs_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_platform_configs' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_platform_configs' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_platform_configs
       ADD CONSTRAINT fk_chatops_platform_configs_user
@@ -8709,7 +8709,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_question_configs_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_question_configs' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_question_configs' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_question_configs
       ADD CONSTRAINT fk_chatops_question_configs_user
@@ -8730,7 +8730,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_chatops_sessions_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'chatops_sessions' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'chatops_sessions' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY chatops_sessions
       ADD CONSTRAINT fk_chatops_sessions_user
@@ -8751,7 +8751,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_comments_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'comments' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'comments' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY comments
       ADD CONSTRAINT fk_comments_user
@@ -8772,7 +8772,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_config_audit_entries_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'config_audit_entries' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'config_audit_entries' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY config_audit_entries
       ADD CONSTRAINT fk_config_audit_entries_user
@@ -8793,7 +8793,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_deploy_audit_entries_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'deploy_audit_entries' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'deploy_audit_entries' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY deploy_audit_entries
       ADD CONSTRAINT fk_deploy_audit_entries_user
@@ -8814,7 +8814,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_do_not_disturbs_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'do_not_disturbs' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'do_not_disturbs' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY do_not_disturbs
       ADD CONSTRAINT fk_do_not_disturbs_user
@@ -8835,7 +8835,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_l_l_m_traces_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'l_l_m_traces' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'l_l_m_traces' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY l_l_m_traces
       ADD CONSTRAINT fk_l_l_m_traces_user
@@ -8856,7 +8856,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_m_f_a_devices_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'm_f_a_devices' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'm_f_a_devices' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY m_f_a_devices
       ADD CONSTRAINT fk_m_f_a_devices_user
@@ -8877,7 +8877,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_notification_templates_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'notification_templates' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'notification_templates' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY notification_templates
       ADD CONSTRAINT fk_notification_templates_user
@@ -8898,7 +8898,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_permission_audit_logs_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'permission_audit_logs' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'permission_audit_logs' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY permission_audit_logs
       ADD CONSTRAINT fk_permission_audit_logs_user
@@ -8919,7 +8919,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_permission_requests_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'permission_requests' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'permission_requests' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY permission_requests
       ADD CONSTRAINT fk_permission_requests_user
@@ -8940,7 +8940,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_playground_requests_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'playground_requests' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'playground_requests' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY playground_requests
       ADD CONSTRAINT fk_playground_requests_user
@@ -8961,7 +8961,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_policies_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'policies' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'policies' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY policies
       ADD CONSTRAINT fk_policies_user
@@ -8982,7 +8982,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_policy_workflows_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'policy_workflows' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'policy_workflows' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY policy_workflows
       ADD CONSTRAINT fk_policy_workflows_user
@@ -9003,7 +9003,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_project_members_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'project_members' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'project_members' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY project_members
       ADD CONSTRAINT fk_project_members_user
@@ -9024,7 +9024,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_query_execution_records_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'query_execution_records' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'query_execution_records' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY query_execution_records
       ADD CONSTRAINT fk_query_execution_records_user
@@ -9045,7 +9045,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_reviews_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'reviews' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'reviews' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY reviews
       ADD CONSTRAINT fk_reviews_user
@@ -9066,7 +9066,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_scheduled_notifications_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'scheduled_notifications' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'scheduled_notifications' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY scheduled_notifications
       ADD CONSTRAINT fk_scheduled_notifications_user
@@ -9087,7 +9087,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_skill_audit_logs_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'skill_audit_logs' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'skill_audit_logs' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY skill_audit_logs
       ADD CONSTRAINT fk_skill_audit_logs_user
@@ -9108,7 +9108,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_skill_executions_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'skill_executions' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'skill_executions' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY skill_executions
       ADD CONSTRAINT fk_skill_executions_user
@@ -9129,7 +9129,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_sql_orders_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'sql_orders' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'sql_orders' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY sql_orders
       ADD CONSTRAINT fk_sql_orders_user
@@ -9150,7 +9150,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_subscriptions_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'subscriptions' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'subscriptions' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY subscriptions
       ADD CONSTRAINT fk_subscriptions_user
@@ -9171,7 +9171,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_team_members_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'team_members' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'team_members' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY team_members
       ADD CONSTRAINT fk_team_members_user
@@ -9192,7 +9192,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_temporary_permissions_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'temporary_permissions' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'temporary_permissions' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY temporary_permissions
       ADD CONSTRAINT fk_temporary_permissions_user
@@ -9213,7 +9213,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_tenant_users_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'tenant_users' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'tenant_users' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY tenant_users
       ADD CONSTRAINT fk_tenant_users_user
@@ -9234,7 +9234,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ticket_dispatch_engineers_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_dispatch_engineers' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ticket_dispatch_engineers' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ticket_dispatch_engineers
       ADD CONSTRAINT fk_ticket_dispatch_engineers_user
@@ -9255,7 +9255,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ticket_transfers_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_transfers' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ticket_transfers' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ticket_transfers
       ADD CONSTRAINT fk_ticket_transfers_user
@@ -9276,7 +9276,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_ticket_workflow_history_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'ticket_workflow_history' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'ticket_workflow_history' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY ticket_workflow_history
       ADD CONSTRAINT fk_ticket_workflow_history_user
@@ -9297,7 +9297,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_u_e_b_a_alerts_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'u_e_b_a_alerts' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'u_e_b_a_alerts' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY u_e_b_a_alerts
       ADD CONSTRAINT fk_u_e_b_a_alerts_user
@@ -9318,7 +9318,7 @@ DO $$ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'fk_u_e_b_a_profiles_user'
   ) AND EXISTS (
     SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'u_e_b_a_profiles' AND column_name = 'user_id' AND data_type = 'uuid'
+    WHERE table_schema = 'public' AND table_name = 'u_e_b_a_profiles' AND column_name = 'user_id' AND data_type = 'uuid'
   ) THEN
     ALTER TABLE ONLY u_e_b_a_profiles
       ADD CONSTRAINT fk_u_e_b_a_profiles_user

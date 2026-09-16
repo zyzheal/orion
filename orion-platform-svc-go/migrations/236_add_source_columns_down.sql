@@ -6,6 +6,12 @@
 -- existence in information_schema, so a deployment missing one of the target
 -- tables (e.g. pipeline_runs, which is owned by a pipeline-engine dependency
 -- that may not be installed) does not abort the rollback.
+--
+-- The existence check MUST pin table_schema = 'public'. Without it,
+-- information_schema.tables also sees rollback_backup_* schema copies left
+-- behind by RunMigrationsDown's backup layer, so IF EXISTS matches a backup
+-- copy while the subsequent bare `ALTER TABLE <t>` resolves through search_path
+-- to public -- and dies with "relation does not exist".
 -- Order: drop indexes first (they reference the column), then drop columns.
 
 DROP INDEX IF EXISTS idx_tickets_source;
@@ -14,37 +20,37 @@ DROP INDEX IF EXISTS idx_change_approvals_source;
 
 DO $$
 BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'tickets') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tickets') THEN
         ALTER TABLE tickets DROP COLUMN IF EXISTS _source;
     END IF;
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'pipeline_runs') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pipeline_runs') THEN
         ALTER TABLE pipeline_runs DROP COLUMN IF EXISTS _source;
     END IF;
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'change_approvals') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'change_approvals') THEN
         ALTER TABLE change_approvals DROP COLUMN IF EXISTS _source;
     END IF;
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'feature_flags') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'feature_flags') THEN
         ALTER TABLE feature_flags DROP COLUMN IF EXISTS _source;
     END IF;
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'workflow_instances') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'workflow_instances') THEN
         ALTER TABLE workflow_instances DROP COLUMN IF EXISTS _source;
     END IF;
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'audit_logs') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'audit_logs') THEN
         ALTER TABLE audit_logs DROP COLUMN IF EXISTS _source;
     END IF;
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'slo') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'slo') THEN
         ALTER TABLE slo DROP COLUMN IF EXISTS _source;
     END IF;
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'alert') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'alert') THEN
         ALTER TABLE alert DROP COLUMN IF EXISTS _source;
     END IF;
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'change_requests') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'change_requests') THEN
         ALTER TABLE change_requests DROP COLUMN IF EXISTS _source;
     END IF;
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'notifications') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'notifications') THEN
         ALTER TABLE notifications DROP COLUMN IF EXISTS _source;
     END IF;
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'webhooks') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'webhooks') THEN
         ALTER TABLE webhooks DROP COLUMN IF EXISTS _source;
     END IF;
 END $$;
