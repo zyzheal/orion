@@ -252,15 +252,21 @@ func insertColumnLists(src, table string) [][]string {
 
 func TestMigration_HyphenDetectorIsNotVacuous(t *testing.T) {
 	// One real statement with a hyphenated relation, one log message that uses
-	// the same words, and one prose comment. The detector must return the
-	// statement's relation and nothing else, or every assertion built on it
-	// would pass or fail for the wrong reason.
+	// the same words, one prose comment, and one SQL-prefixed literal whose
+	// verb+hyphen pair is prose rather than a statement (no SET, WHERE or list
+	// follows the identifier). The detector must return the statement's relation
+	// and nothing else, or every assertion built on it would pass or fail for
+	// the wrong reason. The first two are rejected because they do not start a
+	// statement; the last only because no SQL continuation follows the name,
+	// which is what separates "UPDATE ticket-automation SET" from
+	// "UPDATE job-action rules".
 	src := "func f() {\n" +
 		"\ts := \"INSERT INTO ticket-automation (id, tenant_id) VALUES ($1, $2)\"\n" +
 		"\tlogger.Error(\"failed to update job-action execution\", zap.Error(err))\n" +
 		"\t// prose: INSERT INTO message-queue is hyphenated too\n" +
 		"\ts2 := \"SELECT * FROM message_queue WHERE tenant_id = $1\"\n" +
-		"\t_ = s\n\t_ = s2\n}\n"
+		"\ts3 := \"SELECT failed while updating: UPDATE job-action rules for the tenant\"\n" +
+		"\t_ = s\n\t_ = s2\n\t_ = s3\n}\n"
 	got := sqlHyphenHits(src)
 	if len(got) != 1 || got[0] != "ticket-automation" {
 		t.Fatalf("detector returned %v in a sample with one hyphenated statement, one log "+
