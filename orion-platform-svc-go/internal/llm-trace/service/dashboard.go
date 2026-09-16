@@ -4,7 +4,6 @@ import (
 	"context"
 	"math"
 	"sort"
-	"strings"
 	"time"
 
 	"orion/platform-svc-go/internal/llm-trace/models"
@@ -118,14 +117,4 @@ func (s *Service) GetUsageDashboard(ctx context.Context, tenantID string, start,
 // round2f rounds to 2 decimals using math.Round for correct ties.
 func round2f(v float64) float64 {
 	return math.Round(v*100) / 100
-}
-
-// hasCostData is a small guard used by tests to avoid importing internals.
-func hasCostData(d *models.UsageDashboard) bool {
-	return d != nil && d.TotalRequests > 0
-}
-
-// normalizeModel key normalizes model identifiers for aggregation keys.
-func normalizeModel(m string) string {
-	return strings.TrimSpace(m)
 }

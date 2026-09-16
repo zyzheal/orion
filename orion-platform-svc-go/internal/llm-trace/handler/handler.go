@@ -26,7 +26,11 @@ func NewHandler(svc service.ServiceInterface) *Handler {
 
 // RegisterRoutes registers all llm-trace endpoints under /api/v1/llm.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	f := rg.Group("/api/v1/llm")
+	// rg is already mounted at /api/v1 by the server's route registrar, so
+	// the group path is /llm only. Writing /api/v1/llm here resolved every
+	// endpoint to /api/v1/api/v1/llm/..., which made all ten routes
+	// unreachable while looking perfectly registered.
+	f := rg.Group("/llm")
 
 	// --- Traces ---
 	// GET /api/v1/llm/traces/:traceId - Get trace by ID
@@ -49,9 +53,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// GET /api/v1/llm/cost/module-dashboard - cost aggregated by module/scenario
 	f.GET("/cost/module-dashboard", auth.RequirePermission("llm-trace", "read"), h.GetModuleCostDashboard)
 
-	// GET /api/v1/llm/cost/breakdown - Get cost breakdown
-	// (placed before /traces/:traceId pattern to avoid collision — no :id param)
-	// already safe since /stats/ and /cost/ paths differ from /traces/:traceId
+	// GET /api/v1/llm/cost/breakdown - cost per model
+	f.GET("/cost/breakdown", auth.RequirePermission("llm-trace", "read"), h.GetCostBreakdown)
 
 	// GET /api/v1/llm/tracking/accuracy - Get tracking accuracy metrics
 	f.GET("/tracking/accuracy", auth.RequirePermission("llm-trace", "read"), h.GetTrackingAccuracy)
@@ -249,7 +252,14 @@ func (h *Handler) EstimateCost(c *gin.Context) {
 		return
 	}
 
-	breakdown := h.svc.CalculateCost(ctx, req.ModelID, req.InputTokens, req.OutputTokens)
+	breakdown, err := h.svc.CalculateCost(ctx, req.ModelID, req.InputTokens, req.OutputTokens)
+	if err != nil {
+		// Pricing lookup failed. A 200 here would be worse than the panic
+		// it replaced: the caller would record a number with no way to tell
+		// whether it came from a priced model or a lookup fault.
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
 
 	middleware.RespondSuccess(c, gin.H{
 		"modelId":          req.ModelID,

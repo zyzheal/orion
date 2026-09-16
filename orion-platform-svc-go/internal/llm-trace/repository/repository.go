@@ -3,8 +3,9 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
+	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"orion/platform-svc-go/internal/llm-trace/models"
@@ -23,6 +24,30 @@ func NewRepository(db *sqlx.DB) *Repository {
 
 // --- Traces ---
 
+// createTraceSQL is the statement CreateTrace binds.
+//
+// Every named parameter is written as the `db` struct tag on models.LLMTrace,
+// not as a Go field name. sqlx maps a field to its tag when the tag is present,
+// otherwise to strings.ToLower(GoFieldName) -- so :tenantId does not match a
+// field tagged db:"tenant_id" and the insert fails with
+// "could not find name tenantId in &models.LLMTrace{...}". The previous camelCase
+// form meant POST /api/v1/llm/traces could not bind at all.
+//
+// The old `:requestContext::jsonb` / `:metadata::jsonb` casts were a second,
+// independent failure: compileNamedQuery rejects any second colon after a
+// parameter name and returns "unexpected `:` while reading named param". Postgres
+// casts text to jsonb implicitly, so the casts were never needed.
+const createTraceSQL = `INSERT INTO llm_traces (id, tenant_id, user_id, scenario_id, provider_id, model_id,
+	   prompt_content, prompt_hash, output_content, output_hash,
+	   input_tokens, output_tokens, total_tokens, input_cost, output_cost, total_cost,
+	   currency, status, request_started_at, request_completed_at, duration_ms,
+	   parent_trace_id, error_message, request_context, metadata, created_at)
+	 VALUES (:id, :tenant_id, :user_id, :scenario_id, :provider_id, :model_id,
+	   :prompt_content, :prompt_hash, :output_content, :output_hash,
+	   :input_tokens, :output_tokens, :total_tokens, :input_cost, :output_cost, :total_cost,
+	   :currency, :status, :request_started_at, :request_completed_at, :duration_ms,
+	   :parent_trace_id, :error_message, :request_context, :metadata, :created_at)`
+
 // CreateTrace inserts a new trace into the database.
 func (r *Repository) CreateTrace(ctx context.Context, t *models.LLMTrace) error {
 	t.ID = uuid.New().String()
@@ -31,18 +56,7 @@ func (r *Repository) CreateTrace(ctx context.Context, t *models.LLMTrace) error 
 	t.CreatedAt = now
 	t.Status = models.TraceStatusPending
 	t.Currency = "CNY"
-	_, err := r.db.NamedExecContext(ctx,
-		`INSERT INTO llm_traces (id, tenant_id, user_id, scenario_id, provider_id, model_id,
-		   prompt_content, prompt_hash, output_content, output_hash,
-		   input_tokens, output_tokens, total_tokens, input_cost, output_cost, total_cost,
-		   currency, status, request_started_at, request_completed_at, duration_ms,
-		   parent_trace_id, error_message, request_context, metadata, created_at)
-		 VALUES (:id, :tenantId, :userId, :scenarioId, :providerId, :modelId,
-		   :promptContent, :promptHash, :outputContent, :outputHash,
-		   :inputTokens, :outputTokens, :totalTokens, :inputCost, :outputCost, :totalCost,
-		   :currency, :status, :requestStartedAt, :requestCompletedAt, :durationMs,
-		   :parentTraceId, :errorMessage, :requestContext::jsonb, :metadata::jsonb, :createdAt)`,
-		t)
+	_, err := r.db.NamedExecContext(ctx, createTraceSQL, t)
 	return err
 }
 
@@ -99,24 +113,54 @@ func (r *Repository) CountTracesByTenant(ctx context.Context, tenantID string, q
 	return total, err
 }
 
+// traceUpdateColumns is the closed set of columns a caller may ask UpdateTrace
+// to write. The keys are interpolated straight into the statement, so an open
+// map would let any caller name a column -- including id or tenant_id, which
+// would rewrite a row's identity and quietly re-tenant it. Rejected keys return
+// an error rather than being skipped: a caller asking for a column that does not
+// exist should fail loudly, not persist a silently partial trace.
+var traceUpdateColumns = map[string]bool{
+	"output_content":       true,
+	"output_hash":          true,
+	"input_tokens":         true,
+	"output_tokens":        true,
+	"total_tokens":         true,
+	"input_cost":           true,
+	"output_cost":          true,
+	"total_cost":           true,
+	"status":               true,
+	"request_completed_at": true,
+	"duration_ms":          true,
+	"error_message":        true,
+}
+
 // UpdateTrace completes or updates a trace.
 func (r *Repository) UpdateTrace(ctx context.Context, traceID, tenantID string, fields map[string]interface{}) error {
-	// Build dynamic update
 	if len(fields) == 0 {
 		return nil
 	}
-	setParts := make([]string, 0, len(fields))
-	args := make([]interface{}, 0, len(fields)+2)
-	argIdx := 1
-	for k, v := range fields {
-		setParts = append(setParts, fmt.Sprintf("%s = $%d", k, argIdx))
-		args = append(args, v)
-		argIdx++
+	// Validate first, then sort: map iteration order is random, and the $n
+	// slots are assigned in iteration order, so an unsorted map produced a
+	// different statement (and a different argument order) on every call.
+	keys := make([]string, 0, len(fields))
+	for k := range fields {
+		if !traceUpdateColumns[k] {
+			return fmt.Errorf("UpdateTrace: refusing to set %q, not a writable trace column", k)
+		}
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	setParts := make([]string, 0, len(keys))
+	args := make([]interface{}, 0, len(keys)+2)
+	for i, k := range keys {
+		setParts = append(setParts, fmt.Sprintf("%s = $%d", k, i+1))
+		args = append(args, fields[k])
 	}
 	args = append(args, traceID, tenantID)
 	stmt := fmt.Sprintf(
 		`UPDATE llm_traces SET %s WHERE id=$%d AND tenant_id=$%d`,
-		joinComma(setParts), argIdx, argIdx+1)
+		joinComma(setParts), len(keys)+1, len(keys)+2)
 	_, err := r.db.ExecContext(ctx, stmt, args...)
 	return err
 }
@@ -220,7 +264,7 @@ func (r *Repository) GetCustomPricing(ctx context.Context, modelID string) (*mod
 	var pricing models.ModelPricing
 	err := r.db.GetContext(ctx, &pricing,
 		`SELECT input, output FROM llm_model_pricing WHERE model_id = $1`, modelID)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
@@ -254,26 +298,6 @@ func (r *Repository) ListTracesByTenantAndDateRange(ctx context.Context, tenantI
 }
 
 // --- Helpers ---
-
-// parseJSONB handles JSONB null string.
-func parseJSONB(s sql.NullString) string {
-	if s.Valid {
-		return s.String
-	}
-	return ""
-}
-
-// toJSONB converts an interface to JSONB string for sql.NullString.
-func toJSONB(v interface{}) string {
-	if v == nil {
-		return ""
-	}
-	b, err := json.Marshal(v)
-	if err != nil {
-		return ""
-	}
-	return string(b)
-}
 
 func joinComma(parts []string) string {
 	result := ""

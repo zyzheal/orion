@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	"orion/platform-svc-go/internal/llm-trace/models"
@@ -58,7 +59,11 @@ func (s *Service) GetModuleCostDashboard(ctx context.Context, tenantID string, s
 		}
 		g := groups[scenario]
 		if g == nil {
-			g = &moduleCostAccum{Scenario: scenario, Currency: t.Currency}
+			// ByDay must be allocated here: the loop below writes to it, and a
+			// nil map is readable but not writable, so the first trace for a
+			// scenario panicked with "assignment to entry in nil map". GET
+			// /api/v1/llm/cost/module-dashboard 500'd on every non-empty tenant.
+			g = &moduleCostAccum{Scenario: scenario, Currency: t.Currency, ByDay: map[string]ModuleDayUsage{}}
 			groups[scenario] = g
 		}
 		g.Requests++
@@ -85,8 +90,10 @@ func (s *Service) GetModuleCostDashboard(ctx context.Context, tenantID string, s
 			Currency:    g.Currency,
 			SuccessRate: float64(g.Success) / float64(maxInt(g.Requests, 1)),
 		}
-		for _, d := range g.ByDay {
-			sum.ByDay = append(sum.ByDay, d)
+		// Day ordering: iterate the map keys sorted so the response is
+		// reproducible and diffable.
+		for _, k := range sortedKeys(g.ByDay) {
+			sum.ByDay = append(sum.ByDay, g.ByDay[k])
 		}
 		result = append(result, sum)
 	}
@@ -123,4 +130,13 @@ func maxInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func sortedKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }

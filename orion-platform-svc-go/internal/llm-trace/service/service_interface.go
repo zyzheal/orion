@@ -14,8 +14,8 @@ import (
 
 // ServiceInterface defines the interface for the llm-trace service.
 type ServiceInterface interface {
-	CalculateBatchCost(ctx context.Context, traces []models.LLMTrace) *models.CostBreakdown
-	CalculateCost(ctx context.Context, modelID string, inputTokens, outputTokens int) *models.CostBreakdown
+	CalculateBatchCost(ctx context.Context, traces []models.LLMTrace) (*models.CostBreakdown, error)
+	CalculateCost(ctx context.Context, modelID string, inputTokens, outputTokens int) (*models.CostBreakdown, error)
 	CompleteTrace(ctx context.Context, traceID, tenantID string, req *models.TraceCompleteRequest) (*models.LLMTrace, error)
 	CreateTrace(ctx context.Context, tenantID, userID string, req *models.TraceCreateRequest) (*models.LLMTrace, error)
 	GetAllPricing(ctx context.Context) map[string]models.ModelPricing
