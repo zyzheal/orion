@@ -17,7 +17,7 @@ var ErrRequestNotFound = errors.New("service request not found")
 func (r *Repository) GetRequest(ctx context.Context, tenantID, id string) (*models.ServiceRequest, error) {
 	var req models.ServiceRequest
 	err := r.db.GetContext(ctx, &req,
-		`SELECT * FROM service-catalog-requests WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+		`SELECT * FROM service_catalog_requests WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return nil, ErrRequestNotFound
 	}
@@ -46,7 +46,7 @@ func (r *Repository) UpdateRequestStatus(ctx context.Context, tenantID, id strin
 	}
 	// Build update
 	now := time.Now().UTC()
-	updateSQL := "UPDATE service-catalog-requests SET status = $1, assigned_to = $2, updated_at = $3 WHERE id = $4 AND tenant_id = $5"
+	updateSQL := "UPDATE service_catalog_requests SET status = $1, assigned_to = $2, updated_at = $3 WHERE id = $4 AND tenant_id = $5"
 	_, err = r.db.ExecContext(ctx, updateSQL, newStatus, assignedTo, now, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func (r *Repository) UpdateRequestStatus(ctx context.Context, tenantID, id strin
 	// Insert timeline entry
 	timelineID := uuid.New().String()
 	_, err = r.db.ExecContext(ctx, `
-		INSERT INTO service-catalog-timeline (id, request_id, tenant_id, action, by, comment, created_at)
+		INSERT INTO service_catalog_timeline (id, request_id, tenant_id, action, by, comment, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		timelineID, id, tenantID, "status_change:"+newStatus, by, comment, now)
 	if err != nil {
@@ -70,7 +70,7 @@ func (r *Repository) GetRequestTimeline(ctx context.Context, tenantID, requestID
 	var entries []models.TimelineEntry
 	err := r.db.SelectContext(ctx, &entries, `
 		SELECT action, by, comment, created_at as at
-		FROM service-catalog-timeline
+		FROM service_catalog_timeline
 		WHERE request_id = $1 AND tenant_id = $2
 		ORDER BY created_at DESC`, requestID, tenantID)
 	return entries, err
@@ -82,7 +82,7 @@ func (r *Repository) GetSLABreaches(ctx context.Context, tenantID string,
 	var breaches []models.SLABreach
 	query := `SELECT request_id as "requestId", service as "service", sla_target_ms as "slaTargetMs",
 				actual_ms as "actualMs", (actual_ms - sla_target_ms) as "overdueMs", status
-			FROM service-catalog-requests
+			FROM service_catalog_requests
 			WHERE tenant_id = $1 AND status = 'fulfilled' AND actual_ms > sla_target_ms`
 	args := []interface{}{tenantID}
 	if serviceFilter != "" {

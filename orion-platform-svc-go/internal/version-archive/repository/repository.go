@@ -27,14 +27,14 @@ func (r *Repository) Create(ctx context.Context, m *models.VersionArchive) error
 	m.CreatedAt = time.Now().UTC()
 	m.UpdatedAt = m.CreatedAt
 	_, err := r.db.NamedExecContext(ctx, `
-		INSERT INTO version-archive (id, tenant_id, name, value, enabled, created_at, updated_at)
+		INSERT INTO version_archive (id, tenant_id, name, value, enabled, created_at, updated_at)
 		VALUES (:id, :tenant_id, :name, :value, :enabled, :created_at, :updated_at)`, m)
 	return err
 }
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.VersionArchive, error) {
 	var m models.VersionArchive
-	err := r.db.GetContext(ctx, &m, `SELECT * FROM version-archive WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	err := r.db.GetContext(ctx, &m, `SELECT * FROM version_archive WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return nil, sentinel.NotFound
 	}
@@ -43,7 +43,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.VersionArchive, error) {
 	var items []models.VersionArchive
-	err := r.db.SelectContext(ctx, &items, `SELECT * FROM version-archive WHERE tenant_id = $1 ORDER BY created_at DESC`, tenantID)
+	err := r.db.SelectContext(ctx, &items, `SELECT * FROM version_archive WHERE tenant_id = $1 ORDER BY created_at DESC`, tenantID)
 	return items, err
 }
 
@@ -64,7 +64,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 	idx++
 	args = append(args, id, tenantID)
 	_, err := r.db.ExecContext(ctx,
-		"UPDATE version-archive SET "+strings.Join(setParts, ", ")+
+		"UPDATE version_archive SET "+strings.Join(setParts, ", ")+
 			" WHERE id = $"+strconv.Itoa(idx-2)+" AND tenant_id = $"+strconv.Itoa(idx-1),
 		args...,
 	)
@@ -75,6 +75,6 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM version-archive WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM version_archive WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	return err
 }

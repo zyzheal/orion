@@ -23,7 +23,7 @@ func (r *Repository) Create(ctx context.Context, item *models.GatewayRoutesItem)
 	item.CreatedAt = now
 	item.UpdatedAt = now
 	_, err := r.db.NamedExecContext(ctx,
-		"INSERT INTO gateway-routes (id, tenant_id, name, description, enabled, created_at, updated_at) VALUES (:id, :tenant_id, :name, :description, :enabled, :created_at, :updated_at)", item)
+		"INSERT INTO gateway_route_configs (id, tenant_id, name, description, enabled, created_at, updated_at) VALUES (:id, :tenant_id, :name, :description, :enabled, :created_at, :updated_at)", item)
 	return err
 }
 
@@ -32,7 +32,7 @@ func (r *Repository) Get(ctx context.Context, tenantID, id string) (*models.Gate
 		return nil, nil
 	}
 	item := &models.GatewayRoutesItem{}
-	return item, r.db.GetContext(ctx, item, "SELECT * FROM gateway-routes WHERE id = $1 AND tenant_id = $2", id, tenantID)
+	return item, r.db.GetContext(ctx, item, "SELECT * FROM gateway_route_configs WHERE id = $1 AND tenant_id = $2", id, tenantID)
 }
 
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.GatewayRoutesItem, error) {
@@ -40,13 +40,13 @@ func (r *Repository) List(ctx context.Context, tenantID string) ([]models.Gatewa
 		return []models.GatewayRoutesItem{}, nil
 	}
 	var items []models.GatewayRoutesItem
-	return items, r.db.SelectContext(ctx, &items, "SELECT * FROM gateway-routes WHERE tenant_id = $1 ORDER BY created_at DESC", tenantID)
+	return items, r.db.SelectContext(ctx, &items, "SELECT * FROM gateway_route_configs WHERE tenant_id = $1 ORDER BY created_at DESC", tenantID)
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	if r.db == nil {
 		return nil
 	}
-	_, err := r.db.ExecContext(ctx, "DELETE FROM gateway-routes WHERE id = $1 AND tenant_id = $2", id, tenantID)
+	_, err := r.db.ExecContext(ctx, "DELETE FROM gateway_route_configs WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	return err
 }
