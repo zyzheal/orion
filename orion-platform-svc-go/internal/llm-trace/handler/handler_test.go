@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,6 +21,7 @@ import (
 type fakeLLMTraceService struct {
 	createCalled bool
 	deleteCalled bool
+	calcErr      error
 }
 
 func (f *fakeLLMTraceService) CreateTrace(ctx context.Context, tenantID string, userID string, req *models.TraceCreateRequest) (*models.LLMTrace, error) {
@@ -46,11 +50,17 @@ func (f *fakeLLMTraceService) GetTrackingAccuracy(ctx context.Context, tenantID 
 func (f *fakeLLMTraceService) GetAllPricing(ctx context.Context) map[string]models.ModelPricing {
 	return map[string]models.ModelPricing{}
 }
-func (f *fakeLLMTraceService) CalculateCost(ctx context.Context, modelID string, inputTokens int, outputTokens int) *models.CostBreakdown {
-	return &models.CostBreakdown{}
+func (f *fakeLLMTraceService) CalculateCost(ctx context.Context, modelID string, inputTokens int, outputTokens int) (*models.CostBreakdown, error) {
+	if f.calcErr != nil {
+		return nil, f.calcErr
+	}
+	return &models.CostBreakdown{Currency: "CNY"}, nil
 }
-func (f *fakeLLMTraceService) CalculateBatchCost(ctx context.Context, traces []models.LLMTrace) *models.CostBreakdown {
-	return &models.CostBreakdown{}
+func (f *fakeLLMTraceService) CalculateBatchCost(ctx context.Context, traces []models.LLMTrace) (*models.CostBreakdown, error) {
+	if f.calcErr != nil {
+		return nil, f.calcErr
+	}
+	return &models.CostBreakdown{Currency: "CNY"}, nil
 }
 func (f *fakeLLMTraceService) GetCostBreakdown(ctx context.Context, tenantID string, q *models.CostBreakdownQuery) (*models.CostBreakdown, int64, error) {
 	return &models.CostBreakdown{}, 0, nil
@@ -86,8 +96,56 @@ func makeCtxLLM(method string, path string, body interface{}, params map[string]
 	return c, w
 }
 
-func TestHandler_LLM_TRACE_RegisterRoutes(t *testing.T) {
-	newHandler().RegisterRoutes(gin.New().Group(""))
+// RegisterRoutes is called by the server with a group already mounted at
+// /api/v1, so the handler must contribute /llm only. The previous code nested
+// another /api/v1 inside, which produced /api/v1/api/v1/llm/... for all ten
+// endpoints: fully registered, fully unreachable. Asserting the resolved paths
+// is what makes this test non-vacuous -- the old registration against an empty
+// group passed while returning no routes at all.
+func TestHandler_LLM_TRACE_RegisterRoutes_ResolvedPaths(t *testing.T) {
+	want := map[string]bool{
+		"GET /api/v1/llm/traces":                    true,
+		"GET /api/v1/llm/traces/:traceId":           true,
+		"POST /api/v1/llm/traces":                   true,
+		"POST /api/v1/llm/traces/:traceId/complete": true,
+		"GET /api/v1/llm/stats/daily":               true,
+		"GET /api/v1/llm/usage/dashboard":           true,
+		"GET /api/v1/llm/cost/module-dashboard":     true,
+		"GET /api/v1/llm/cost/breakdown":            true,
+		"GET /api/v1/llm/tracking/accuracy":         true,
+		"GET /api/v1/llm/pricing":                   true,
+		"POST /api/v1/llm/cost/estimate":            true,
+	}
+
+	engine := gin.New()
+	newHandler().RegisterRoutes(engine.Group("/api/v1"))
+
+	got := map[string]bool{}
+	for _, r := range engine.Routes() {
+		route := r.Method + " " + r.Path
+		if strings.Contains(route, "/api/v1/api/v1") {
+			t.Errorf("duplicate prefix in resolved route: %s", route)
+		}
+		got[route] = true
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("registered %d routes, want %d: got %s", len(got), len(want), strings.Join(sortedKeys(got), ", "))
+	}
+	for k := range want {
+		if !got[k] {
+			t.Errorf("missing route %s: registered %s", k, strings.Join(sortedKeys(got), ", "))
+		}
+	}
+}
+
+func sortedKeys(m map[string]bool) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func TestHandler_LLM_TRACE_GetTrace(t *testing.T) {
@@ -181,6 +239,23 @@ func TestHandler_LLM_TRACE_EstimateCost(t *testing.T) {
 	h.EstimateCost(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("EstimateCost: got %d", w.Code)
+	}
+}
+
+func TestHandler_LLM_TRACE_EstimateCost_PricingFaultIsNot200(t *testing.T) {
+	fake := &fakeLLMTraceService{calcErr: fmt.Errorf("connection refused")}
+	h := NewHandler(fake)
+	c, w := makeCtxLLM(http.MethodPost, "/api/v1/llm/cost/estimate", models.CostEstimateRequest{
+		ModelID:      "gpt-4",
+		InputTokens:  100,
+		OutputTokens: 50,
+	}, nil)
+	h.EstimateCost(c)
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("EstimateCost: got %d, want 500", w.Code)
+	}
+	if strings.Contains(w.Body.String(), "inputCost") {
+		t.Errorf("answered with a cost body on a pricing fault: %s", w.Body.String())
 	}
 }
 

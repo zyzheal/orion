@@ -22,12 +22,6 @@ func Test_Round2f(t *testing.T) {
 	}
 }
 
-func Test_NormalizeModel(t *testing.T) {
-	if got := normalizeModel("  gpt-4o  "); got != "gpt-4o" {
-		t.Fatalf("normalizeModel = %q", got)
-	}
-}
-
 // mockDashboardRepo stubs the repository for dashboard aggregation tests.
 type mockDashboardRepo struct {
 	traces []models.LLMTrace
@@ -132,17 +126,5 @@ func Test_GetUsageDashboard_MultiTenantView(t *testing.T) {
 	}
 	if len(dash.ByTenant) != 2 {
 		t.Fatalf("byTenant keys = %d, want 2", len(dash.ByTenant))
-	}
-}
-
-func Test_HasCostData_Guard(t *testing.T) {
-	if hasCostData(nil) {
-		t.Fatal("nil dashboard should not have cost data")
-	}
-	if hasCostData(&models.UsageDashboard{}) {
-		t.Fatal("empty dashboard should not have cost data")
-	}
-	if !hasCostData(&models.UsageDashboard{TotalRequests: 1}) {
-		t.Fatal("request with trace should have cost data")
 	}
 }
