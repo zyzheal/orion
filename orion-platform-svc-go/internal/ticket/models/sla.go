@@ -4,13 +4,21 @@ import "time"
 
 // SLATarget defines response/resolution time targets for a priority
 type SLATarget struct {
-	ID                     string    `json:"id" db:"id"`
-	Name                   string    `json:"name" db:"name"`
-	Priority               string    `json:"priority" db:"priority"`
-	TargetResponseTimeMs   int64     `json:"target_response_time_ms" db:"target_response_time_ms"`
-	TargetResolutionTimeMs int64     `json:"target_resolution_time_ms" db:"target_resolution_time_ms"`
-	Enabled                bool      `json:"enabled" db:"enabled"`
-	CreatedAt              time.Time `json:"created_at" db:"created_at"`
+	ID                     string `json:"id" db:"id"`
+	Name                   string `json:"name" db:"name"`
+	Priority               string `json:"priority" db:"priority"`
+	TargetResponseTimeMs   int64  `json:"target_response_time_ms" db:"target_response_time_ms"`
+	TargetResolutionTimeMs int64  `json:"target_resolution_time_ms" db:"target_resolution_time_ms"`
+	Enabled                bool   `json:"enabled" db:"enabled"`
+	// 686 declares sla_targets.tenant_id as a nullable column because
+	// sla_policy.go's compliance JOIN filters on t.tenant_id. sqlx runs in safe
+	// mode (no .Unsafe() anywhere in the repo), so a result column with no
+	// destination field is a hard error: without it, the two SELECT * queries in
+	// sla.go would fail with `missing destination name tenant_id in
+	// models.SLATarget` and POST/GET /tickets/sla/* would 500. The INSERT in
+	// CreateTarget does not write it, so it stays empty rather than NULL.
+	TenantID  string    `json:"tenant_id" db:"tenant_id"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
 // SLARecord tracks SLA status for a specific ticket

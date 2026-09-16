@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -52,8 +54,23 @@ func (qm *QueueManager) GetSLAQueueEntries(ctx context.Context) ([]models.SLAQue
 		slaEntry.SLAPriority = qm.calculateSLAPriority(entry, now)
 		slaEntry.Age = formatDuration(now.Sub(entry.EnqueuedAt))
 
-		// Get SLA deadline if available
-		slaRecord, _ := qm.slaRepo.GetRecordByTicket(ctx, entry.TicketID)
+		// Get SLA deadline if available.
+		//
+		// The error used to be discarded, so two different worlds produced the
+		// same answer: a ticket with no SLA record and a database that refused
+		// to answer. GetRecordByTicket returns sql.ErrNoRows for an absent row
+		// and leaves slaRecord nil, which the existing branch already treats as
+		// "no deadline". Only that signal is swallowed; any other error is a
+		// driver fault and must surface, otherwise GET /tickets/dispatch/queue/
+		// sla-entries answers 200 with stale, deadline-less entries while the
+		// database is unreachable. errors.Is rather than == so an implementation
+		// that wraps the driver error is handled the same way.
+		slaRecord, slaErr := qm.slaRepo.GetRecordByTicket(ctx, entry.TicketID)
+		if slaErr != nil {
+			if !errors.Is(slaErr, sql.ErrNoRows) {
+				return nil, fmt.Errorf("sla record for %s: %w", entry.TicketID, slaErr)
+			}
+		}
 		if slaRecord != nil {
 			slaEntry.SLADeadline = &slaRecord.ResolutionDeadlineAt
 			// Check SLA status

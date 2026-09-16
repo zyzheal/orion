@@ -157,8 +157,20 @@ func (s *TransferService) TransferDueToSuspend(ctx context.Context, suspendID st
 		return nil, fmt.Errorf("suspend %s is not active", suspendID)
 	}
 
-	// Get pending tickets for this engineer
-	pendingCount, _ := s.suspendRepo.CountPendingByEngineer(ctx, suspend.EngineerID)
+	// Get pending tickets for this engineer.
+	//
+	// The error used to be discarded, and a failed count looked exactly like
+	// "this engineer has nothing pending": database/sql reports 0 for a
+	// failed COUNT query, so a down database produced (nil, nil) here and the
+	// mounted POST /tickets/transfer/suspend/:suspendId answered 200 with
+	// {"transfers":null,"count":0}. The suspension was still in force and
+	// tickets were still assigned to an unavailable engineer, but the client
+	// was told nothing needed doing. Propagate it so a fault stays a fault;
+	// a legitimately empty count still returns (nil, nil) below.
+	pendingCount, err := s.suspendRepo.CountPendingByEngineer(ctx, suspend.EngineerID)
+	if err != nil {
+		return nil, fmt.Errorf("count pending tickets for engineer %s: %w", suspend.EngineerID, err)
+	}
 	if pendingCount == 0 {
 		return nil, nil
 	}
