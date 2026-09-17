@@ -55,8 +55,19 @@ func (s *WorkflowService) TransitionStatus(ctx context.Context, ticketID, tenant
 	}
 
 	// Record workflow history
+	// TODO(round 61): this whole file is dead -- zero production constructions of
+	// WorkflowService, and the live transition path is Service.TransitionStatus in
+	// ticket_workflow.go. It is kept only to keep the package compiling while the
+	// dead cluster (service/workflow.go, service/ticket.go, handler/workflow.go,
+	// repository/interfaces.go, repository/repository_interface.go and their
+	// three test files) is removed in one dedicated change. The duplicate
+	// repository/workflow.go was already deleted in this round: its INSERT named
+	// from_status, to_status, performed_by and reason, none of which
+	// 076_create_ticketing_tables.sql creates, and both of its SELECTs read by
+	// ticket id alone. It also records history with an empty tenant id, so it
+	// must not be wired up.
 	history := &models.WorkflowHistory{
-		ID:          0,
+		ID:          "",
 		TicketID:    ticketID,
 		FromState:   ticket.Status,
 		ToState:     toStatus,

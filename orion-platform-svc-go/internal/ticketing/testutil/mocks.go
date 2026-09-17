@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"orion/platform-svc-go/internal/ticketing/models"
@@ -477,6 +478,12 @@ func (r *MockCommentRepository) ListByTicket(ctx context.Context, ticketID strin
 
 type MockWorkflowRepository struct {
 	History []models.WorkflowHistoryEntry
+	// AddErr / GetErr make the two history methods fail on demand. Without them a
+	// service test asserting error propagation out of AddWorkflowHistory would be
+	// vacuous in the opposite direction: a mock that can never fail cannot prove a
+	// caller propagates.
+	AddErr error
+	GetErr error
 }
 
 func NewMockWorkflowRepository() *MockWorkflowRepository {
@@ -484,8 +491,12 @@ func NewMockWorkflowRepository() *MockWorkflowRepository {
 }
 
 func (r *MockWorkflowRepository) AddWorkflowHistory(ctx context.Context, tenantID, ticketID, action, fromState, toState, userID, comment string) error {
+	if r.AddErr != nil {
+		return r.AddErr
+	}
 	r.History = append(r.History, models.WorkflowHistoryEntry{
-		ID:        len(r.History) + 1,
+		ID:        fmt.Sprintf("wh-%d", len(r.History)+1),
+		TenantID:  tenantID,
 		TicketID:  ticketID,
 		FromState: fromState,
 		ToState:   toState,
@@ -497,9 +508,16 @@ func (r *MockWorkflowRepository) AddWorkflowHistory(ctx context.Context, tenantI
 }
 
 func (r *MockWorkflowRepository) GetWorkflowHistory(ctx context.Context, tenantID, ticketID string) ([]models.WorkflowHistoryEntry, error) {
+	if r.GetErr != nil {
+		return nil, r.GetErr
+	}
+	// Tenant first, exactly as the real repository filters
+	// WHERE tenant_id=$1 AND ticket_id=$2. A ticket id alone is not a tenant
+	// boundary, and the old loop matched on ticket ID only, so this mock returned
+	// another tenant's history as if it were the caller's.
 	var out []models.WorkflowHistoryEntry
 	for _, h := range r.History {
-		if h.TicketID == ticketID {
+		if h.TenantID == tenantID && h.TicketID == ticketID {
 			out = append(out, h)
 		}
 	}
@@ -516,7 +534,7 @@ func (r *MockWorkflowRepository) GetTicket(ctx context.Context, tenantID, id str
 
 func (r *MockWorkflowRepository) Create(ctx context.Context, entry *models.WorkflowHistory) error {
 	r.History = append(r.History, models.WorkflowHistoryEntry{
-		ID:        len(r.History) + 1,
+		ID:        fmt.Sprintf("wh-%d", len(r.History)+1),
 		TicketID:  entry.TicketID,
 		FromState: entry.FromState,
 		ToState:   entry.ToState,

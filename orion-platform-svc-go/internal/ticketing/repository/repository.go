@@ -164,9 +164,14 @@ func (r *Repository) AddWorkflowHistory(ctx context.Context, tenantID, ticketID,
 }
 
 func (r *Repository) GetWorkflowHistory(ctx context.Context, tenantID, ticketID string) ([]models.WorkflowHistoryEntry, error) {
+	// Explicit columns, not SELECT *: sqlx runs in safe mode, and 571 / 572 add
+	// deleted_at, created_by, updated_by and updated_at to this table. A SELECT *
+	// would hand back columns WorkflowHistoryEntry has no destination for and fail
+	// every read, even though the service never needs them.
 	var items []models.WorkflowHistoryEntry
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM ticket_workflow_history WHERE tenant_id=$1 AND ticket_id=$2 ORDER BY created_at`, tenantID, ticketID)
+		`SELECT id, tenant_id, ticket_id, action, from_state, to_state, user_id, comment, created_at
+		 FROM ticket_workflow_history WHERE tenant_id=$1 AND ticket_id=$2 ORDER BY created_at`, tenantID, ticketID)
 	return items, err
 }
 

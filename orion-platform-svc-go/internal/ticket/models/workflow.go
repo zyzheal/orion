@@ -20,14 +20,26 @@ var ValidTransitions = map[string][]string{
 	StatusClosed:     {StatusOpen}, // reopen
 }
 
-// WorkflowHistory tracks status transitions
+// WorkflowHistory tracks status transitions.
+//
+// The db tags name the columns 076_create_ticketing_tables.sql actually
+// created: from_state, to_state, user_id and comment. The previous tags pointed
+// at from_status, to_status, performed_by and reason, none of which exist, so
+// every INSERT this module issued was rejected by the driver. The json keys are
+// left alone because they are the wire contract the frontend already reads.
+//
+// TenantID and Action exist because 695 adds tenant_id and 076 declares
+// action NOT NULL with no default, so a row cannot be written without both.
+// CreatedAt is likewise NOT NULL with no default.
 type WorkflowHistory struct {
 	ID          string    `json:"id" db:"id"`
+	TenantID    string    `json:"tenant_id" db:"tenant_id"`
 	TicketID    string    `json:"ticket_id" db:"ticket_id"`
-	FromStatus  string    `json:"from_status" db:"from_status"`
-	ToStatus    string    `json:"to_status" db:"to_status"`
-	PerformedBy string    `json:"performed_by" db:"performed_by"`
-	Reason      string    `json:"reason,omitempty" db:"reason"`
+	Action      string    `json:"action" db:"action"`
+	FromStatus  string    `json:"from_status" db:"from_state"`
+	ToStatus    string    `json:"to_status" db:"to_state"`
+	PerformedBy string    `json:"performed_by" db:"user_id"`
+	Reason      string    `json:"reason,omitempty" db:"comment"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 }
 

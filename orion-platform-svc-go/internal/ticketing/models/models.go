@@ -77,8 +77,16 @@ type ResolveRequest struct {
 	Comment    string `json:"comment"`
 }
 
+// WorkflowHistoryEntry is one row of ticket_workflow_history.
+//
+// ID is a string because 076 declares the column UUID; scanning a UUID into
+// int fails in the driver. TenantID covers the column added by 695, which
+// AddWorkflowHistory writes and GetWorkflowHistory filters on. The query selects
+// an explicit column list rather than *, so the 571 deleted_at and 572
+// created_by / updated_by / updated_at additions need no destination here.
 type WorkflowHistoryEntry struct {
-	ID        int       `json:"id" db:"id"`
+	ID        string    `json:"id" db:"id"`
+	TenantID  string    `json:"tenant_id" db:"tenant_id"`
 	TicketID  string    `json:"ticket_id" db:"ticket_id"`
 	Action    string    `json:"action" db:"action"`
 	FromState string    `json:"from_state" db:"from_state"`
@@ -756,8 +764,13 @@ type DispatchQueueEntry struct {
 }
 
 // WorkflowHistory represents a single workflow transition (legacy name used by repo).
+//
+// ID is a string: 076 declares the column UUID, and scanning a UUID into int
+// fails in the driver. No production code still builds or reads this struct —
+// the live path uses WorkflowHistoryEntry — so it is kept only for the
+// repository and service files that have not been removed yet.
 type WorkflowHistory struct {
-	ID        int       `json:"id" db:"id"`
+	ID        string    `json:"id" db:"id"`
 	TicketID  string    `json:"ticket_id" db:"ticket_id"`
 	Action    string    `json:"action" db:"action"`
 	FromState string    `json:"from_state" db:"from_state"`

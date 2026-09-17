@@ -43,9 +43,13 @@ func (h *WorkflowHandler) TransitionStatus(c *gin.Context) {
 func (h *WorkflowHandler) GetWorkflowHistory(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetWorkflowHistory")
 	defer span.End()
+	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	history, err := h.svc.GetWorkflowHistory(ctx, id)
+	// tenantID is required: this endpoint used to list history by ticket id only,
+	// so any authenticated tenant could read another tenant's ticket history by
+	// guessing an id.
+	history, err := h.svc.GetWorkflowHistory(ctx, tenantID, id)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return

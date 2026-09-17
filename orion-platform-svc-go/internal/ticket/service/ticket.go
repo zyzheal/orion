@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"orion/go-common/pkg/otel"
 	"orion/platform-svc-go/internal/ticket/models"
@@ -60,15 +61,23 @@ func (s *TicketService) Create(ctx context.Context, tenantID string, req *models
 		return nil, err
 	}
 
-	// Record workflow entry for initial status
+	// Record workflow entry for initial status. Propagated on purpose: this used
+	// to be a bare call whose error was thrown away, so a write failure left the
+	// ticket in the database with no "create" event at all and the API reported
+	// success. Mirrors internal/ticketing, which propagates the same call.
 	if s.workflow != nil {
-		s.workflow.workflowRepo.Create(ctx, &models.WorkflowHistory{
+		if err := s.workflow.workflowRepo.Create(ctx, &models.WorkflowHistory{
 			ID:          uuid.New().String(),
+			TenantID:    tenantID,
 			TicketID:    ticket.ID,
+			Action:      "create",
 			FromStatus:  "",
 			ToStatus:    models.StatusOpen,
 			PerformedBy: createdBy,
-		})
+			CreatedAt:   time.Now().UTC(),
+		}); err != nil {
+			return nil, err
+		}
 	}
 
 	// Create SLA record
@@ -140,9 +149,21 @@ func (s *TicketService) Assign(ctx context.Context, id, tenantID, assignedTo str
 		return err
 	}
 
-	// Transition to assigned status
+	// Transition to assigned status. Only when it is not already assigned:
+	// ValidTransitions has no assigned -> assigned self-loop, so re-assigning a
+	// ticket to a different engineer would otherwise fail on validation after the
+	// assignee update had already committed. Propagated instead of discarded so a
+	// storage failure cannot read as a successful assignment.
 	if s.workflow != nil {
-		s.workflow.TransitionStatus(ctx, id, tenantID, models.StatusAssigned, "system", "auto-assigned")
+		cur, err := s.repo.GetByID(ctx, id, tenantID)
+		if err != nil {
+			return err
+		}
+		if cur.Status != models.StatusAssigned {
+			if _, _, err := s.workflow.TransitionStatus(ctx, id, tenantID, models.StatusAssigned, "system", "auto-assigned"); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -155,11 +176,11 @@ func (s *TicketService) TransitionStatus(ctx context.Context, ticketID, tenantID
 	return s.workflow.TransitionStatus(ctx, ticketID, tenantID, toStatus, performedBy, reason)
 }
 
-func (s *TicketService) GetWorkflowHistory(ctx context.Context, ticketID string) ([]models.WorkflowHistory, error) {
+func (s *TicketService) GetWorkflowHistory(ctx context.Context, tenantID, ticketID string) ([]models.WorkflowHistory, error) {
 	if s.workflow == nil {
 		return nil, nil
 	}
-	return s.workflow.GetWorkflowHistory(ctx, ticketID)
+	return s.workflow.GetWorkflowHistory(ctx, tenantID, ticketID)
 }
 
 func (s *TicketService) AddComment(ctx context.Context, ticketID, tenantID string, req *models.CreateCommentRequest) (*models.TicketComment, error) {
@@ -219,16 +240,24 @@ func (s *TicketService) Escalate(ctx context.Context, ticketID, tenantID, escala
 		return nil, err
 	}
 
-	// Record in workflow
+	// Record in workflow. Action is "escalate" and ToStatus is deliberately left
+	// at the ticket's current status: escalating raises priority, it does not move
+	// the ticket through the state machine. Propagated, as with the create event
+	// above, so a lost audit row cannot read as a successful escalation.
 	if s.workflow != nil {
-		s.workflow.workflowRepo.Create(ctx, &models.WorkflowHistory{
+		if err := s.workflow.workflowRepo.Create(ctx, &models.WorkflowHistory{
 			ID:          uuid.New().String(),
+			TenantID:    tenantID,
 			TicketID:    ticketID,
+			Action:      "escalate",
 			FromStatus:  ticket.Status,
 			ToStatus:    ticket.Status,
 			PerformedBy: escalatedBy,
 			Reason:      "escalated: " + reason,
-		})
+			CreatedAt:   time.Now().UTC(),
+		}); err != nil {
+			return nil, err
+		}
 	}
 
 	return ticket, nil

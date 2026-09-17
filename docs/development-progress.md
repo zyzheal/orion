@@ -12722,3 +12722,138 @@ HARNESS=PASS
 **第二：`ticket_sla_breaches` 永不写入。** `RecordSLABreach` 有实现、零调用方，于是 `GetSLACompliance.breached` 恒为 0——仪表盘上的「SLA 违约数」是一个常数。这是本轮唯一还留着一条**可修**的「恒为零」的字段（`Escalations` 那条需要新查询，已记录）。
 
 **第三：把 harness 的三件事落进仓库。** `_classifier_selftest()` 的正向对照、`FIXED_SNIPPETS` 的计数不变式、以及 T28 那条「双重读取」的推论（凡方法两次触达同一 repository 方法，传播子测试必须让丢弃改变谁赢）——目前它们只活在 `/tmp/r60/`，而这轮 42 条里唯一那条存活正是靠它被发现的。
+
+## 第六十一轮：`ticket_workflow_history` 的三向错配——schema / 写入 / 读取各说各话，测试自己把死副本揪了出来（Round 61）
+
+### 61.1 摘要
+
+上一轮（§60）证明 `internal/ticketing` 有七个活方法把数据库错误折成「空数据、全绿」。本轮顺着那张表往下挖，撞到一个更硬的问题：**两个活模块同时写、同时按租户过滤 `ticket_workflow_history`，而这张表的 DDL 里从来就没有 `tenant_id` 列**。这不是「字段留零」那种软缺陷——驱动层每条语句都会失败。顺带查出 `internal/ticket` 的 INSERT 还另外命名了四个从未被创建的列、漏掉了两个 NOT NULL 无默认值的列；两个 `SELECT *` 在 sqlx 安全模式下没有目的地；`GET /api/v1/tickets/:id/history` 从未读 `tenant_id`，任何已认证租户猜 id 即可读别人的工单历史。
+
+新增迁移 695（+ down），收敛模块 A 的 db tag 与列清单，签名加 `tenantID` 为首参，handler 传下去；`Create`/`Escalate`/`Assign` 三处静默丢弃改为传播；删除死副本 `internal/ticketing/repository/workflow.go`；新增 12 条回归测试，外加进程内自检和一个真实的文件系统变异 harness——8 条变异全灭，0 条编译击杀。`go test ./...` 546 个包全 ok。
+
+### 61.2 最终 schema 是四条迁移攒出来的
+
+判断「列存不存在」不能只看建表的 076。076 之后还有三波加列：
+
+| 来源 | 列 | 约束 |
+|---|---|---|
+| `076_create_ticketing_tables.sql` | `id UUID PK DEFAULT gen_random_uuid()`、`ticket_id VARCHAR(255)`、`action VARCHAR(50)`、`from_state`、`to_state`、`user_id VARCHAR(255)`、`comment TEXT`、`created_at TIMESTAMPTZ` | `ticket_id`/`action`/`created_at` NOT NULL，无默认 |
+| `571_add_soft_delete.sql` | `deleted_at TIMESTAMPTZ DEFAULT NULL` | 可空 |
+| `572_add_audit_columns.sql` | `created_by UUID`、`updated_by UUID`、`updated_at TIMESTAMPTZ DEFAULT NOW()` | 可空 |
+| **`695_add_ticket_workflow_history_tenant.sql`（本轮新增）** | `tenant_id UUID` | 可空，`IF NOT EXISTS` |
+
+所以测试不能拿一份写死的列清单，而是要**推导**最终列集：从 076 的 CREATE TABLE 取 NOT NULL / DEFAULT 标记，再叠加每一条向这张表 ADD COLUMN 的 forward 迁移。测试里那条不变式很关键——**ADD COLUMN 没有 NOT NULL 的一律算可空；带了 NOT NULL 的必须同时带 DEFAULT**，否则新部署会在第一条 INSERT 上炸。NOT NULL 且无默认值的集合被推导出是 `{action, created_at, ticket_id}` 三个。
+
+571 / 572 都是包在 `DO $ ... END $;` 里、用 `information_schema.columns` 判存在再 ALTER 的，**它们的 ALTER 语句本身不带 `IF NOT EXISTS`**。这条决定了 61.10 里那个正则的写法。
+
+### 61.3 三个错配方向
+
+**(1) 写不进去。** 两个仓库的 INSERT 列清单和 WHERE 谓词都含 `tenant_id`，076 没建它。`internal/ticket/repository/workflow.go` 更糟——它 INSERT 的是 `from_status, to_status, performed_by, reason`，而 076 建的是 `from_state, to_state, user_id, comment`；同一个仓库自己的 `ListByTicket` 读的是 076 那套名字。写和读在同一份代码里就不自洽。它还漏了 `action` 与 `created_at` 这两个 NOT NULL 无默认值的列，缺任何一个都是 INSERT 失败。所以这条路径从写下第一行代码起就不可能成功。
+
+**(2) 读不出来。** 模块 A 的两个 `SELECT *` 在 sqlx 安全模式下要求**每一个**结果列都有 `db:"..."` 目的地（`StructScan` → `TraversalsByName` → `missingFields`），而 571/572 加的四列加上 `action` 在当时都没有。这不是「多读几列没事」——任何一次读都是失败。
+
+**(3) 越权读。** 见 61.4。
+
+### 61.4 跨租户读取
+
+`internal/ticket` 的 `GET /api/v1/tickets/:id/history` 原本完全不读 `tenant_id`，仓库只按 `ticket_id` 建键。修完 schema 之后如果只修 schema，这条就是纯越权：拿到任意一个别人的工单 id 就能读它的完整流转历史。
+
+修法是把 `tenantID` 加进 `WorkflowRepositoryInterface.ListByTicket`、`WorkflowService.GetWorkflowHistory`、`TicketService.GetWorkflowHistory` 三条签名，全部**放在首位**（这个包里的每个仓库方法都是 tenant 在前的约定），handler 从 `c.GetString("tenant_id")` 取。测试用正则把 handler 那处调用的第一个实参钉死成 `tenantID`，并把「谓词同时含 `tenant_id` 和 `ticket_id`」作为两模块读写共同的要求——只提其一不算 tenant 限定，两个都不提也不算。
+
+### 61.5 `Assign` 的行为回归风险
+
+把三处丢弃的错误改成传播，`Assign` 有一个不能忽略的副作用：`ValidTransitions` **没有 `assigned → assigned` 自环**。原逻辑是先更新 assignee 再无条件 `TransitionStatus`，所以把一个已分配的工单**改派给另一个人**时，assignee 已经提交、然后在校验上失败。这是从「静默失败」换成了「明显的失败」——但仍然是失败，而且会带着半提交状态一起。
+
+修法是先读当前状态，只在 `cur.Status != StatusAssigned` 时才走转换。
+
+### 61.6 死副本：是测试自己把它报出来的
+
+`internal/ticketing/repository/workflow.go`（42 行）：零调用方、零外部引用；INSERT 命名 `from_status/to_status/performed_by/reason` 四个不存在的列；两个 SELECT 都是 `SELECT *` 且只按 `ticket_id` 建键；而且它用空 tenant id 记账。
+
+正确的动作不是把它的 SQL 改对——活路径（`service/ticket_workflow.go` 的 `Service.TransitionStatus` + `repository.go` 的 `AddWorkflowHistory`）已经存在了，改它就是造第二个写者。是**回归测试第一次运行时把它报了出来**，于是删掉。判断顺序很重要：如果只是 grep 构造点，会得到「零引用，删掉算了」；而测试是从 DDL 出发反向要求「凡是引用这张表的写入都必须列存在、tenant 限定」，它不认识「死代码」这个豁免。
+
+`service/workflow.go` 整份是死的（`wfValidTransitions` 用 `in_progress/cancelled/reopened` 词汇，与真实工单状态永不匹配），但它是同一个死簇的成员，删它需要连带处理 `repository/repository_interface.go`（生成文件，`DO NOT EDIT`）和三个测试文件——那是一次跨文件的专门变更，本轮只在文件内部留了 TODO 说明为什么它不能被接线（空 tenant id 记账）。
+
+### 61.7 为什么不去改 DDL 迁就模块 A
+
+另一条路是加 `from_status/to_status/performed_by/reason` 四列。否决：那是为了迁就一份从不可能工作的代码去污染一张两个模块都在写的表，而且会让 076 那套 `from_state/to_state` 变成死列——两个名字并存，后续每个人都要重新猜哪个是真的。收敛到 076 的方言，db tag 层做映射（`FromStatus` → `db:"from_state"`），API 的 JSON 形状不变。
+
+同理，把两个 `SELECT *` 留着也不行：那意味着给模型补 4 个没人用的指针字段去接 571/572 的列，而 `NULL` 扫进 `*time.Time` 的语义不确定。改成显式列清单之后，这类失败整类消失，而且以后再加列也不会突然炸读。
+
+### 61.8 12 条回归 + 非空证明
+
+`cmd/server/migration_ticket_workflow_history_test.go`：`CreatedByExactlyOneMigration`、`TenantIDIsDeclaredBy695`、`InsertColumnsExistInTheDDL`、`NotNullColumnsAreWrittenOrDefaulted`、`ReadsSelectColumnsThatExist`（拒绝 `SELECT *`）、`SelectedColumnsHaveADestination`（SELECT 列 ↔ 扫描目标 db tag 双向闭合，模块 B 对应 `WorkflowHistoryEntry`）、`EveryReadAndWriteIsTenantScoped`、`HandlerPassesTheTenantID`、`ModelTagsResolveAgainstTheDDL`、`VersionIsUnique`、`DownReversesTheForwardInOrder`、`DetectorsAreNotVacuous`。
+
+非空证明做了两次，因为只做一次不够：
+
+1. **进程内自检**：`DetectorsAreNotVacuous` 六个子检查，把修复前的真实语句喂回每个检测器；再用 `whSchemaWithout695()`（丢弃所有以 `695_` 开头的迁移文件）与 `whFinalSchema()` 比对，证明删掉 695 会让结论真的改变——而不是检测器本来就会报。
+2. **真实文件系统变异**：见 61.9。
+
+几个检测器写法上的坑值得记：**SELECT 列表的结束不能用分号定位**，因为 Go 字符串字面量 `"..."` 和 `` `...` `` 互不包含对方的定界符，一条 SELECT 的列表不会跨过拥有它的语句——所以结束集是 `[^;\"`]`，这是让「一条语句被误读成两条」这类假阳性消失的关键。反向的扫描目标解析（`reStructBlock` / `reDbTag`）在测试里是现成的 `tkDbTags`，但它的仓库路径被硬编码在模块 A 上，所以为模块 B 单独做了 `whDbTagsB`。
+
+### 61.9 8 条真实文件系统变异，全灭，0 编译击杀
+
+`/tmp/wh_mut.sh` 在变异前对 5 个文件做字节备份，逐条变异后跑那 12 条测试：
+
+| # | 变异 | 结果 |
+|---|---|---|
+| M1 | 活 SELECT 的 WHERE 去掉 `tenant_id` | KILLED |
+| M2 | `db:"from_state"` 改回 `db:"from_status"` | KILLED |
+| M3 | `695_...sql` 整个删掉 | KILLED |
+| M4 | handler 首参从 `tenantID` 换成 `id` | KILLED |
+| M5 | INSERT 回退四个幻影列（**值顺序不动**，保证能编译） | KILLED |
+| M6 | 活 SELECT 退回 `SELECT *` | KILLED |
+| M7 | 死文件 `repository/workflow.go` 原样复活 | KILLED |
+| M8 | down 迁移只删列、不删索引 | KILLED |
+
+`BASELINE: PASS`，8/8 KILLED，5 个文件按变异前备份 `cmp -s` 逐字节相同——**还原源是备份，不是 git**。
+
+M5 那条特意做成「能编译」的：只改列名、值保持位置参数，所以不会以编译错误的方式被抓到，必须是语义判定把它杀掉。M7 更是关键——`/tmp/wh_reason.sh` 确认它在 `[compiles clean]` 之后才失败，失败的是 `InsertColumnsExistInTheDDL`、`NotNullColumnsAreWrittenOrDefaulted`、`ReadsSelectColumnsThatExist`、`EveryReadAndWriteIsTenantScoped` 四条；M6 只触发 `ReadsSelectColumnsThatExist`；M2 触发 `SelectedColumnsHaveADestination` 和 `ModelTagsResolveAgainstTheDDL`。零条编译击杀意味着每条变异都真正走到了断言。
+
+### 61.10 判据自身的缺陷：我的 down 迁移正则过于苛刻
+
+down 迁移写的是 `DROP INDEX IF EXISTS` / `DROP COLUMN IF EXISTS`——这是对的。我第一版的三个正则却要求 `IF NOT EXISTS`，于是 `DownReversesTheForwardInOrder` 自己误报失败。改法是接受两种形式：`(?:IF\s+EXISTS|IF\s+NOT\s+EXISTS)`。forward 侧的 `reWhAlter` 本来就容忍可选的 `IF NOT EXISTS`。
+
+同一轮里还撞了两条工具侧的错误，一并记下来以免下次重犯：
+
+- 我写的测试本身有编译错误（`sortedWhKeys` 收了 `map[string]string` 却按 `map[string]bool` 传参）——`fmt` 对 `%v` 的 map 会自己排 key，直接传即可。
+- `reWhAlter` 里多打了一个 `)`，在 `regexp.Compile` 于包初始化时 panic——**正则写错在 Go 里是初始化期崩溃，不是断言失败**，所以它的修法必须早于跑测试。
+
+这三条都属于 §59.11 那条教训的又一例：工具或读法出错时，信号照样会响，只是响在你没预料的地方。
+
+### 61.11 验证
+
+```
+gofmt -l cmd migrations internal/ticket internal/ticketing   → 0 行
+go build ./...                                               → rc=0
+go vet ./cmd/server/ ./internal/ticket/... ./internal/ticketing/...  → rc=0，0 行
+go test ./cmd/server/ -run 'TestMigration_TicketWorkflowHistory' -v → 12/12 PASS
+go test ./cmd/server/                                        → rc=0，15.3s
+go test ./internal/ticket/... ./internal/ticketing/...       → rc=0，5 个包全 ok
+go test ./...                                                → rc=0，546 个包 ok，0 FAIL
+```
+
+harness 最终输出：
+
+```
+BASELINE: PASS
+KILLED=8 SURVIVED=0 COMPILE_KILL=0
+5 files restored byte-identical (cmp -s)
+```
+
+### 61.12 只记录、不动手
+
+- **模块 B 的死簇其余部分**：`service/workflow.go`、`service/ticket.go`、`handler/workflow.go`、`repository/interfaces.go` 的 `WorkflowRepositoryInterface`、生成的 `repository/repository_interface.go`、三个测试文件、`models.WorkflowHistory` 的四个幻影 alias tag（`from_status/to_status/performed_by/reason`）、`testutil/mocks.go` 的 `Create`。已在其内部记录 TODO。删它需要碰一个 `DO NOT EDIT` 的生成文件，并且要决定 `models.WorkflowHistory` 整型存不存在——那是类型决策，不是修补。
+- **模块 B 的 5+ 处 `_ = s.repo.*` 丢弃**：`ticket_workflow.go` 的 `TransitionStatus`（`UpdateTicket` ×3）、`AssignTicket`（`CreateAssignment`）、`EscalateTicket`（`UpdateTicket` + `AddWorkflowHistory(..., "escalate", "", "escalated", ...)`）、`UpdateSLATracking`，以及 `ticket_transfer_suspend.go:10`（`AddWorkflowHistory`，`transfer` → `""` → `"assigned"`）。这些是活路径，但与 §60 是同一批活方法，本轮没动是刻意控制变更面。
+- **`"escalated"` 不在 `validTransitions` 里**：`EscalateTicket` 传的目标状态在状态机里没有，因此 `GetExecutiveDashboard.Escalations` 结构性地恒为 0。要修需要一条新查询或状态约定，记录不动。
+- **`EscalateTicket` 从不写 `tickets.status`**：与上面同因。
+- **§60 carry-forward 全部不变**：`SLARepositoryInterface` 无实现、`RecordSLABreach` 零调用方所以 `ticket_sla_breaches` 永不写入、`GetTrendReport.Escalated` 无数据源、`handler/analytics.go` 从未构造、`SLARecord.ID` 在两个模块里分别是 `string` 与 `int`（不要把 `CreateRecordForTicket` 移植过去）、capacity handler 52 个在册外方法、24 个 stranded 模块级 migration、249 个 down 文件里 106 个零 `DROP TABLE`。
+- **`go.work.sum` / `orion-platform-svc-go/go.sum` 的工作树差异不归本轮**：`go.sum` 被裁掉 407 行且归因不到任何操作，`go.work.sum` 有 200 行纯新增。两个都是校验和文件，且 §60 已确认裁剪后的 `go.sum` 对完整模块图不完整。**未纳入提交。**
+
+### 61.13 下一轮候选
+
+**第一优先：模块 B 死簇的一次性删除。** 61.6 已经证明「死代码」不该靠 grep 判生死，而该让一个从 DDL 出发的检查器判——同一个检查器这轮抓出了 `repository/workflow.go`。把 `service/workflow.go`、`service/ticket.go`、`handler/workflow.go`、`repository/interfaces.go` 的 `WorkflowRepositoryInterface`、三个测试文件连同生成的 `repository_interface.go` 一起清掉，顺手决定 `models.WorkflowHistory` 是否还该存在。这是 §60.15 的第一优先（两模块去重）的第一步，而且现在有了工具。
+
+**第二：模块 B 活路径的丢弃错误。** 与 §60 同一批方法，5+ 处。有了 61.3 那种「从 DDL 反推」的检查器之后，这一批可以先证明它们确实活着再改。
+
+**第三：`"escalated"` 状态约定。** 一条约定或一条查询，把 `Escalations` 从恒零里救出来。这需要跨模块的一致决定（模块 A 的 `Escalate` 走的是「改优先级、状态不动」，模块 B 走的是「发 escalated 事件」），不能单独拍。

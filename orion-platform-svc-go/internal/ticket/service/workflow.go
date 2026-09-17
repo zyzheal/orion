@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"orion/go-common/pkg/otel"
 	"orion/platform-svc-go/internal/ticket/models"
@@ -47,14 +48,19 @@ func (s *WorkflowService) TransitionStatus(ctx context.Context, ticketID, tenant
 		return nil, nil, fmt.Errorf("invalid transition from %s to %s", ticket.Status, toStatus)
 	}
 
-	// Record workflow history
+	// Record workflow history. Action and CreatedAt are NOT NULL with no default
+	// in 076, and tenant_id comes from 695; omitting any of them made the INSERT
+	// fail in the driver.
 	history := &models.WorkflowHistory{
 		ID:          uuid.New().String(),
+		TenantID:    tenantID,
 		TicketID:    ticketID,
+		Action:      "transition",
 		FromStatus:  ticket.Status,
 		ToStatus:    toStatus,
 		PerformedBy: performedBy,
 		Reason:      reason,
+		CreatedAt:   time.Now().UTC(),
 	}
 
 	if err := s.workflowRepo.Create(ctx, history); err != nil {
@@ -71,9 +77,9 @@ func (s *WorkflowService) TransitionStatus(ctx context.Context, ticketID, tenant
 }
 
 // GetWorkflowHistory returns the full workflow history for a ticket
-func (s *WorkflowService) GetWorkflowHistory(ctx context.Context, ticketID string) ([]models.WorkflowHistory, error) {
+func (s *WorkflowService) GetWorkflowHistory(ctx context.Context, tenantID, ticketID string) ([]models.WorkflowHistory, error) {
 	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "WorkflowService.GetWorkflowHistory")
 	defer span.End()
 
-	return s.workflowRepo.ListByTicket(ctx, ticketID)
+	return s.workflowRepo.ListByTicket(ctx, tenantID, ticketID)
 }

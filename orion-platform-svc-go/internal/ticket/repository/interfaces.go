@@ -29,7 +29,11 @@ type CommentRepositoryInterface interface {
 // WorkflowRepositoryInterface abstracts workflow history data access
 type WorkflowRepositoryInterface interface {
 	Create(ctx context.Context, history *models.WorkflowHistory) error
-	ListByTicket(ctx context.Context, ticketID string) ([]models.WorkflowHistory, error)
+	// tenantID is first, matching every other repository method in this package:
+	// ticket_workflow_history.tenant_id was only added by migration 695, and the
+	// list used to key on ticket_id alone, which let any tenant read any ticket's
+	// history by guessing its id.
+	ListByTicket(ctx context.Context, tenantID, ticketID string) ([]models.WorkflowHistory, error)
 }
 
 // RelationRepositoryInterface abstracts ticket relation data access

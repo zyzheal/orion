@@ -69,9 +69,9 @@ func TestWorkflowService_GetWorkflowHistory(t *testing.T) {
 	workflowRepo := testutil.NewMockWorkflowRepository()
 
 	workflowRepo.History = []models.WorkflowHistoryEntry{
-		{ID: 1, TicketID: "t1", FromState: "", ToState: "open"},
-		{ID: 2, TicketID: "t1", FromState: "open", ToState: "in_progress"},
-		{ID: 3, TicketID: "t2", FromState: "", ToState: "open"},
+		{ID: "wh-1", TicketID: "t1", FromState: "", ToState: "open"},
+		{ID: "wh-2", TicketID: "t1", FromState: "open", ToState: "in_progress"},
+		{ID: "wh-3", TicketID: "t2", FromState: "", ToState: "open"},
 	}
 
 	svc := NewWorkflowService(workflowRepo, ticketRepo)
