@@ -56,10 +56,11 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
 		// through anonymously, so the guards become real authorisation for
 		// authenticated callers while no unauthenticated caller can be newly 401'd.
 		//
-		// Strict mode is auth.Auth; it is deliberately NOT mounted here because it
-		// aborts on a missing header and on a missing tenant_id claim, which would
-		// 401 the entire token-less client base overnight. Switching to it is the
-		// remaining PERM-8 work and needs a client-migration plan, not a commit.
+		// Strict mode is auth.Auth, mounted below behind AUTH_STRICT_ENABLED. It
+		// aborts on a missing header and on a missing tenant_id claim — the
+		// breaking change that completes PERM-8 once every client carries a token.
+		// The two modes are mutually exclusive deployment states; see the strict
+		// block for the migration plan and the SkipPaths exemptions.
 		if os.Getenv("AUTH_OPTIONAL_ENABLED") == "1" || os.Getenv("AUTH_OPTIONAL_ENABLED") == "true" {
 			// Phase H: wire anonymous traffic tracking so PERM-8 stage 2
 			// migration has real data. Two sinks, fanned out via a composite:
@@ -95,6 +96,46 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
 					zapTracker.CleanupBuckets(2 * time.Minute)
 				}
 			}()
+		}
+
+		// PERM-8 stage 2: strict (blocking) authentication, OFF by default.
+		//
+		// auth.Auth aborts every request that lacks a valid Bearer token whose
+		// claims include sub and tenant_id — the breaking change OptionalAuth was
+		// designed to phase in. Enable it only after the client migration is
+		// complete (all first-party callers attach tokens and the mandatory
+		// tenant_id claim; the frontend token migration landed 2026-09-01):
+		//
+		//   1. Deploy with AUTH_OPTIONAL_ENABLED=1 and observe
+		//      orion_anonymous_requests_total until it plateaus near zero — the
+		//      anonymous traffic that OptionalAuth still lets through is exactly
+		//      the callers that strict mode will 401.
+		//   2. Flip AUTH_STRICT_ENABLED=1 in staging, then production.
+		//   3. Once anonymous traffic is zero for a full release cycle, remove the
+		//      OptionalAuth block above and the env var.
+		//
+		// SkipPaths are matched by exact full path, so every exemption below is a
+		// deliberate endpoint that may be called without a token:
+		//
+		//   - /api/v1/roles/permissions-map — PERM-7 frontend bootstrapping; the
+		//     role-permission map is read before login to render the UI shell.
+		//     Guarding it would make usePermission.ts silently fall back to a
+		//     stale hard-coded copy.
+		//   - /api/v1/performance/vitals — the Web Vitals receiver is a public
+		//     browser telemetry endpoint (marked "Public endpoint, no auth
+		//     required" at its registration).
+		//   - /api/v1/routes — the route-discovery endpoint, itself unguarded
+		//     and used by developer tooling.
+		if os.Getenv("AUTH_STRICT_ENABLED") == "1" || os.Getenv("AUTH_STRICT_ENABLED") == "true" {
+			api.Use(auth.Auth(auth.AuthConfig{
+				JWTSecret:   infra.ffCfg.JWTSecret,
+				RedisClient: infra.rdb,
+				SkipPaths: []string{
+					"/api/v1/roles/permissions-map", // PERM-7: must stay unguarded
+					"/api/v1/performance/vitals",    // public endpoint
+					"/api/v1/routes",                // route discovery
+				},
+			}))
 		}
 
 		type routeRegistrar interface {

@@ -12857,3 +12857,75 @@ KILLED=8 SURVIVED=0 COMPILE_KILL=0
 **第二：模块 B 活路径的丢弃错误。** 与 §60 同一批方法，5+ 处。有了 61.3 那种「从 DDL 反推」的检查器之后，这一批可以先证明它们确实活着再改。
 
 **第三：`"escalated"` 状态约定。** 一条约定或一条查询，把 `Escalations` 从恒零里救出来。这需要跨模块的一致决定（模块 A 的 `Escalate` 走的是「改优先级、状态不动」，模块 B 走的是「发 escalated 事件」），不能单独拍。
+
+---
+
+## §62 PERM-8 阶段 2 — `/api/v1` 切换到严格 `auth.Auth`（2026-09-17）
+
+### 62.1 背景
+
+PERM-8 的根因（阶段 1 已证实）：`cmd/server/router.go` 对 `/api/v1` 只挂 7 个全局中间件（无认证），全仓库仅 `orion-go-common/pkg/auth/middleware.go` 一处 `c.Set("role", …)`，位于 `auth.Auth` 内；平台 `internal/middleware/` 0 个认证中间件。3640 处 `auth.RequirePermission` 守卫在无认证时对每个调用方都回答 403 "no role assigned"——守卫是死代码，不是授权。
+
+阶段 1（2026-08-29）以 `auth.OptionalAuth` 灰度：默认关闭，`AUTH_OPTIONAL_ENABLED=1` 后带 token 的调用方获得真实身份、守卫生效，无 token 调用方逐字不变，可用环境变量灰度而无需迁移客户端。
+
+阶段 2 是本轮的破坏性变更：挂 `auth.Auth` 后所有无 token 调用立刻硬 401，且 `auth.Auth` 强制 `tenant_id` claim。前端 token 迁移已于 2026-09-01 完成，客户端侧已具备切严格模式的先决条件。
+
+### 62.2 实现
+
+`orion-platform-svc-go/cmd/server/router.go` 新增严格模式块（`AUTH_STRICT_ENABLED=1|true` 控制，**默认关闭**）：
+
+- 挂 `auth.Auth(auth.AuthConfig{JWTSecret, RedisClient, SkipPaths})`，与 OptionalAuth 互斥（两个 env 变量代表两种互斥的部署状态）
+- 强制 `sub` + `tenant_id` claim：缺失 header → 401 "missing authorization header"；非 Bearer → 401 "invalid authorization format, expected Bearer token"；缺 `tenant_id` → 401 "token missing tenant ID"；缺 `sub` → 401 "token missing user ID"；无效 token → 401
+- **SkipPaths 豁免清单**（精确全路径匹配，均为刻意免 token 端点）：
+  1. `/api/v1/roles/permissions-map` — PERM-7 前端启动引导；守卫会让 `usePermission.ts` 静默回退到过期硬编码副本
+  2. `/api/v1/performance/vitals` — 公开 Web Vitals 遥测端点
+  3. `/api/v1/routes` — 路由发现端点（开发者工具）
+- `/auth/*`（根组）与 openapi 路由在根 `r` 上注册，天然不受严格守卫影响
+
+### 62.3 测试
+
+新增 `cmd/server/strict_auth_test.go`（8 个测试，全部复用 optional_auth_test.go 的测试基建）：
+
+| 测试 | 断言 |
+|---|---|
+| `TestStrictAuthOffByDefault` | `AUTH_STRICT_ENABLED` 未设置时无 token POST /roles = 403（守卫行为，不是严格 401） |
+| `TestStrictAuthRejectsMissingToken` | 无 Authorization header = 401 + "missing authorization header" |
+| `TestStrictAuthRejectsNonBearerHeader` | Basic header = 401 + "invalid authorization format, expected Bearer token" |
+| `TestStrictAuthRejectsMissingTenantID` | token 缺 `tenant_id` = 401 + "token missing tenant ID" |
+| `TestStrictAuthRejectsMissingSub` | token 缺 `sub` = 401 + "token missing user ID" |
+| `TestStrictAuthRejectsInvalidToken` | garbage token = 401 |
+| `TestStrictAuthAcceptsValidToken` | admin token 通过 middleware+guard（非 401/403）；viewer token = 403 + "insufficient permissions"（真实授权裁决，非 "no role assigned"） |
+| `TestStrictAuthSkipPathsStayUnguarded` | 无 token GET permissions-map 与 /routes 均 = 200 |
+
+### 62.4 验证
+
+```
+go build ./...   → rc=0
+go vet ./cmd/server/  → rc=0
+go test ./cmd/server/ -run 'StrictAuth|RolesPermissionsMap|OptionalAuth' -v  → ok 0.446s（8 strict + 3 optional + 1 permissions-map）
+go test ./cmd/server/  → ok 21.091s
+```
+
+`roles_permissions_map_test.go` 的 `TestRolesPermissionsMapServed`（PERM-7 回归守卫）保持 PASS：permissions-map 必须在无 token 时返回 200，正是 SkipPaths 豁免保证的。
+
+### 62.5 3 步客户端迁移计划（翻转严格模式的唯一正确顺序）
+
+> 引用自 router.go 严格块注释，部署时照此执行：
+
+1. **部署 `AUTH_OPTIONAL_ENABLED=1` 并观察 `orion_anonymous_requests_total`** 直到趋近零——OptionalAuth 仍放行的匿名流量，恰好就是严格模式会 401 的调用方。该 Prometheus 指标（`orion_anonymous_requests_total`，按 method/path/reason 打标签）是翻转的量化判据。
+2. **在 staging、再 production 翻转 `AUTH_STRICT_ENABLED=1`**。此时任何仍不带 token 的调用方会立刻收到硬 401，且缺失 `tenant_id` claim 的 token 也被拒。
+3. **匿名流量为零满一个完整发布周期后**，移除 router.go 的 OptionalAuth 块与 `AUTH_OPTIONAL_ENABLED` env 变量——OptionalAuth 至此完成使命，只留严格模式。
+
+### 62.6 文件清单
+
+| 文件 | 变更 |
+|---|---|
+| `orion-platform-svc-go/cmd/server/router.go` | 新增严格模式块（`AUTH_STRICT_ENABLED` + `auth.Auth` + 3 个 SkipPaths），OptionalAuth 块未动 |
+| `orion-platform-svc-go/cmd/server/strict_auth_test.go` | 新增，8 个严格模式回归测试 |
+| `docs/ALL_TODOS.md` | PERM-8 阶段 2 行勾选 ✅ 2026-09-17 |
+| 本文档 | §62 章节 |
+
+### 62.7 遗留
+
+- SkipPaths 是逐条精确全路径匹配——新加公开端点时若需要免 token，必须显式加入该清单；漏加会在严格模式下 401。
+- 翻转严格模式是部署决策，不是代码变更；本实现只是让翻转变成一次 env 变量操作。
