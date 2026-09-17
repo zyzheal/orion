@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"strconv"
-
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/middleware"
@@ -40,14 +38,17 @@ func (h *Handler) GetAssignmentRules(c *gin.Context) {
 	middleware.RespondSuccess(c, rules)
 }
 
-// RemoveAssignmentRule removes an assignment rule by numeric id.
+// RemoveAssignmentRule removes an assignment rule by its UUID.
+// ticketing_assignment_rules.id is UUID PRIMARY KEY in 655, so the numeric
+// coercion that used to sit here turned every id the database actually holds
+// into a 400 "invalid rule id" before the delete could run.
 func (h *Handler) RemoveAssignmentRule(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RemoveAssignmentRule")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		middleware.RespondBadRequest(c, "invalid rule id")
+	id := c.Param("id")
+	if id == "" {
+		middleware.RespondBadRequest(c, "missing rule id")
 		return
 	}
 	if err := h.svc.RemoveAssignmentRule(ctx, tenantID, id); err != nil {

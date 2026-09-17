@@ -692,11 +692,23 @@ func TestTkdModuleBTicketRelationIDIsAString(t *testing.T) {
 // map. Both markers are required: the fixed method checks a writable-column
 // allow list and iterates the map to build the SET clause. If either is absent
 // the map cannot reach SQL.
+// tkdIsNoopUpdate reports whether UpdateTicket's SET clause is actually derived
+// from its updates map and constrained by the writable allow list. Both shapes
+// the method has taken are accepted: the range over updates inlined in the
+// method body, and that iteration factored into buildSetClause with the method
+// delegating to updateRows. What is rejected is the original shape - a fixed
+// "SET updated_at = NOW()" that ignored the map entirely - and either shape
+// that drops the allow list, which would turn the method back into an
+// injection point.
 func tkdIsNoopUpdate(body string) bool {
-	if !regexp.MustCompile(`range\s+updates`).MatchString(body) {
+	hasAllowList := regexp.MustCompile(`writableTicketColumns`).MatchString(body)
+	switch {
+	case regexp.MustCompile(`range\s+updates`).MatchString(body),
+		regexp.MustCompile(`updateRows\(`).MatchString(body):
+		return !hasAllowList
+	default:
 		return true
 	}
-	return !regexp.MustCompile(`writableTicketColumns`).MatchString(body)
 }
 
 // tkdFuncBodies parses src and returns each method's full text keyed
@@ -761,6 +773,16 @@ func TestTkdModuleBUpdateTicketIsNotANoop(t *testing.T) {
 }`
 	if !tkdIsNoopUpdate(preFix) {
 		t.Fatal("the no-op detector accepted the pre-fix body; the check is vacuous")
+	}
+
+	// Positive control 2 covers the delegation branch: a body that hands the map
+	// to updateRows but drops the allow list must also be flagged. Without it the
+	// second arm of tkdIsNoopUpdate could accept anything at all.
+	preFixDelegated := `func (r *Repository) UpdateTicket(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
+	return r.updateRows(ctx, "tickets", nil, id, tenantID, updates)
+}`
+	if !tkdIsNoopUpdate(preFixDelegated) {
+		t.Fatal("the no-op detector accepted a delegation without the allow list; the check is vacuous")
 	}
 }
 

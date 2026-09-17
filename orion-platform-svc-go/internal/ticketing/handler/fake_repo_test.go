@@ -53,13 +53,13 @@ func (f *fakeTicketingRepo) CreateSuspend(ctx context.Context, tenantID string, 
 	return nil, nil
 }
 func (f *fakeTicketingRepo) CreateTicket(ctx context.Context, t *models.Ticket) error { return nil }
-func (f *fakeTicketingRepo) DeleteAssignmentRule(ctx context.Context, tenantID string, id int) error {
+func (f *fakeTicketingRepo) DeleteAssignmentRule(ctx context.Context, tenantID string, id string) error {
 	return nil
 }
-func (f *fakeTicketingRepo) DeleteAutomationRule(ctx context.Context, tenantID string, ruleID int) error {
+func (f *fakeTicketingRepo) DeleteAutomationRule(ctx context.Context, tenantID string, ruleID string) error {
 	return nil
 }
-func (f *fakeTicketingRepo) DeleteSLAPolicy(ctx context.Context, tenantID string, policyID int) error {
+func (f *fakeTicketingRepo) DeleteSLAPolicy(ctx context.Context, tenantID string, policyID string) error {
 	return nil
 }
 func (f *fakeTicketingRepo) DeleteTicket(ctx context.Context, tenantID, id string) error { return nil }
@@ -90,10 +90,10 @@ func (f *fakeTicketingRepo) GetRelations(ctx context.Context, tenantID, ticketID
 func (f *fakeTicketingRepo) GetSLABreaches(ctx context.Context, tenantID string) ([]models.SLABreach, error) {
 	return nil, nil
 }
-func (f *fakeTicketingRepo) GetSLACompliance(ctx context.Context, tenantID string, policyID int) (*models.ComplianceResult, error) {
+func (f *fakeTicketingRepo) GetSLACompliance(ctx context.Context, tenantID string, policyID string) (*models.ComplianceResult, error) {
 	return &models.ComplianceResult{}, nil
 }
-func (f *fakeTicketingRepo) GetSLAPolicy(ctx context.Context, tenantID string, policyID int) (*models.SLAPolicy, error) {
+func (f *fakeTicketingRepo) GetSLAPolicy(ctx context.Context, tenantID string, policyID string) (*models.SLAPolicy, error) {
 	return &models.SLAPolicy{}, nil
 }
 func (f *fakeTicketingRepo) GetSLATracking(ctx context.Context, tenantID, ticketID string) (*repository.TicketSLATracking, error) {
@@ -150,13 +150,13 @@ func (f *fakeTicketingRepo) SetServiceActive(ctx context.Context, tenantID strin
 func (f *fakeTicketingRepo) TransferTicket(ctx context.Context, tenantID, ticketID, fromUserID, toUserID, reason string) error {
 	return nil
 }
-func (f *fakeTicketingRepo) UpdateAutomationRule(ctx context.Context, tenantID string, ruleID int, updates map[string]interface{}) error {
+func (f *fakeTicketingRepo) UpdateAutomationRule(ctx context.Context, tenantID string, ruleID string, updates map[string]interface{}) error {
 	return nil
 }
 func (f *fakeTicketingRepo) UpdateDispatchWeights(ctx context.Context, tenantID string, weights map[string]int) error {
 	return nil
 }
-func (f *fakeTicketingRepo) UpdateSLAPolicy(ctx context.Context, tenantID string, policyID int, updates map[string]interface{}) error {
+func (f *fakeTicketingRepo) UpdateSLAPolicy(ctx context.Context, tenantID string, policyID string, updates map[string]interface{}) error {
 	return nil
 }
 func (f *fakeTicketingRepo) UpdateSLATracking(ctx context.Context, ticketID string, updates map[string]interface{}) error {

@@ -27,9 +27,9 @@ type RepositoryInterface interface {
 	CreateSLATarget(ctx context.Context, tenantID string, req models.CreateSLATargetRequest) (*models.SLATarget, error)
 	CreateSuspend(ctx context.Context, tenantID string, req models.CreateSuspendRequest) (*models.Suspend, error)
 	CreateTicket(ctx context.Context, t *models.Ticket) error
-	DeleteAssignmentRule(ctx context.Context, tenantID string, id int) error
-	DeleteAutomationRule(ctx context.Context, tenantID string, ruleID int) error
-	DeleteSLAPolicy(ctx context.Context, tenantID string, policyID int) error
+	DeleteAssignmentRule(ctx context.Context, tenantID string, id string) error
+	DeleteAutomationRule(ctx context.Context, tenantID string, ruleID string) error
+	DeleteSLAPolicy(ctx context.Context, tenantID string, policyID string) error
 	DeleteTicket(ctx context.Context, tenantID, id string) error
 	DetectDuplicates(ctx context.Context, tenantID, ticketID string) ([]models.TicketRelation, error)
 	FindRelatedTickets(ctx context.Context, tenantID, ticketID string) ([]models.TicketRelation, error)
@@ -40,8 +40,8 @@ type RepositoryInterface interface {
 	GetEngineerSuspensions(ctx context.Context, tenantID, engineerID string) ([]models.Suspend, error)
 	GetRelations(ctx context.Context, tenantID, ticketID string) ([]models.TicketRelation, error)
 	GetSLABreaches(ctx context.Context, tenantID string) ([]models.SLABreach, error)
-	GetSLACompliance(ctx context.Context, tenantID string, policyID int) (*models.ComplianceResult, error)
-	GetSLAPolicy(ctx context.Context, tenantID string, policyID int) (*models.SLAPolicy, error)
+	GetSLACompliance(ctx context.Context, tenantID string, policyID string) (*models.ComplianceResult, error)
+	GetSLAPolicy(ctx context.Context, tenantID string, policyID string) (*models.SLAPolicy, error)
 	GetSLATracking(ctx context.Context, tenantID, ticketID string) (*repository.TicketSLATracking, error)
 	GetSuspend(ctx context.Context, tenantID, id string) (*models.Suspend, error)
 	GetTicket(ctx context.Context, tenantID, id string) (*models.Ticket, error)
@@ -60,9 +60,9 @@ type RepositoryInterface interface {
 	RegisterEngineer(ctx context.Context, tenantID string, req models.RegisterEngineerRequest) (*models.DispatchEngineer, error)
 	SetServiceActive(ctx context.Context, tenantID string, active bool) error
 	TransferTicket(ctx context.Context, tenantID, ticketID, fromUserID, toUserID, reason string) error
-	UpdateAutomationRule(ctx context.Context, tenantID string, ruleID int, updates map[string]interface{}) error
+	UpdateAutomationRule(ctx context.Context, tenantID string, ruleID string, updates map[string]interface{}) error
 	UpdateDispatchWeights(ctx context.Context, tenantID string, weights map[string]int) error
-	UpdateSLAPolicy(ctx context.Context, tenantID string, policyID int, updates map[string]interface{}) error
+	UpdateSLAPolicy(ctx context.Context, tenantID string, policyID string, updates map[string]interface{}) error
 	UpdateSLATracking(ctx context.Context, ticketID string, updates map[string]interface{}) error
 	UpdateSuspendStatus(ctx context.Context, tenantID, id string, status string) error
 	UpdateTicket(ctx context.Context, tenantID, id string, updates map[string]interface{}) error

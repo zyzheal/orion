@@ -84,7 +84,7 @@ type ServiceInterface interface {
 	ListTickets(ctx context.Context, tenantID string, q models.TicketListQuery) ([]models.Ticket, error)
 	ManualDispatch(ctx context.Context, tenantID, ticketID, engineerID string) error
 	RegisterEngineer(ctx context.Context, tenantID string, req models.RegisterEngineerRequest) (*models.DispatchEngineer, error)
-	RemoveAssignmentRule(ctx context.Context, tenantID string, id int) error
+	RemoveAssignmentRule(ctx context.Context, tenantID string, id string) error
 	ResolveTicket(ctx context.Context, tenantID, ticketID string, req models.ResolveRequest, userID string) (*models.Ticket, error)
 	StartService(ctx context.Context, tenantID string) error
 	StopService(ctx context.Context, tenantID string) error

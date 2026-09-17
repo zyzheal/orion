@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	"orion/platform-svc-go/internal/ticketing/models"
@@ -19,19 +18,17 @@ func (s *Service) ListSLAPolicies(ctx context.Context, tenantID string) ([]model
 	return s.repo.ListSLAPolicies(ctx, tenantID)
 }
 
+// 655_create_ticketing_missing_tables.sql declares ticketing_sla_policies.id
+// and ticketing_automation_rules.id as UUID PRIMARY KEY, so the route parameter
+// is already the identifier. These methods used to strconv.Atoi it first and
+// reject every non-numeric id with "invalid policy id" before the query ran,
+// which made every SLA policy read, update, delete and compliance call a hard
+// 400 for the ids the database actually holds.
 func (s *Service) GetSLAPolicy(ctx context.Context, tenantID string, policyID string) (*models.SLAPolicy, error) {
-	pID, err := strconv.Atoi(policyID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid policy id: %w", err)
-	}
-	return s.repo.GetSLAPolicy(ctx, tenantID, pID)
+	return s.repo.GetSLAPolicy(ctx, tenantID, policyID)
 }
 
 func (s *Service) UpdateSLAPolicy(ctx context.Context, tenantID string, policyID string, req models.UpdateSLAPolicyRequest) (*models.SLAPolicy, error) {
-	pID, err := strconv.Atoi(policyID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid policy id: %w", err)
-	}
 	updates := make(map[string]interface{})
 	if req.Name != nil {
 		updates["name"] = *req.Name
@@ -48,18 +45,14 @@ func (s *Service) UpdateSLAPolicy(ctx context.Context, tenantID string, policyID
 	if req.Active != nil {
 		updates["active"] = *req.Active
 	}
-	if err := s.repo.UpdateSLAPolicy(ctx, tenantID, pID, updates); err != nil {
+	if err := s.repo.UpdateSLAPolicy(ctx, tenantID, policyID, updates); err != nil {
 		return nil, err
 	}
-	return s.repo.GetSLAPolicy(ctx, tenantID, pID)
+	return s.repo.GetSLAPolicy(ctx, tenantID, policyID)
 }
 
 func (s *Service) DeleteSLAPolicy(ctx context.Context, tenantID string, policyID string) error {
-	pID, err := strconv.Atoi(policyID)
-	if err != nil {
-		return fmt.Errorf("invalid policy id: %w", err)
-	}
-	return s.repo.DeleteSLAPolicy(ctx, tenantID, pID)
+	return s.repo.DeleteSLAPolicy(ctx, tenantID, policyID)
 }
 
 func (s *Service) GetTicketSLAStatus(ctx context.Context, tenantID, ticketID string) (*models.TicketSLAStatus, error) {
@@ -71,11 +64,7 @@ func (s *Service) GetBreaches(ctx context.Context, tenantID string) ([]models.SL
 }
 
 func (s *Service) GetCompliance(ctx context.Context, tenantID string, policyID string) (*models.ComplianceResult, error) {
-	pID, err := strconv.Atoi(policyID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid policy id: %w", err)
-	}
-	return s.repo.GetSLACompliance(ctx, tenantID, pID)
+	return s.repo.GetSLACompliance(ctx, tenantID, policyID)
 }
 
 // --- Automation Rules ---
@@ -89,10 +78,6 @@ func (s *Service) ListAutomationRules(ctx context.Context, tenantID string) ([]m
 }
 
 func (s *Service) UpdateAutomationRule(ctx context.Context, tenantID string, ruleID string, req models.UpdateAutomationRuleRequest) (*models.AutomationRule, error) {
-	rID, err := strconv.Atoi(ruleID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid rule id: %w", err)
-	}
 	updates := make(map[string]interface{})
 	if req.Name != nil {
 		updates["name"] = *req.Name
@@ -109,7 +94,7 @@ func (s *Service) UpdateAutomationRule(ctx context.Context, tenantID string, rul
 	if req.Enabled != nil {
 		updates["enabled"] = *req.Enabled
 	}
-	if err := s.repo.UpdateAutomationRule(ctx, tenantID, rID, updates); err != nil {
+	if err := s.repo.UpdateAutomationRule(ctx, tenantID, ruleID, updates); err != nil {
 		return nil, err
 	}
 	// Fetch updated rule
@@ -118,7 +103,7 @@ func (s *Service) UpdateAutomationRule(ctx context.Context, tenantID string, rul
 		return nil, err
 	}
 	for _, r := range rules {
-		if r.ID == rID {
+		if r.ID == ruleID {
 			return &r, nil
 		}
 	}
@@ -126,11 +111,7 @@ func (s *Service) UpdateAutomationRule(ctx context.Context, tenantID string, rul
 }
 
 func (s *Service) DeleteAutomationRule(ctx context.Context, tenantID string, ruleID string) error {
-	rID, err := strconv.Atoi(ruleID)
-	if err != nil {
-		return fmt.Errorf("invalid rule id: %w", err)
-	}
-	return s.repo.DeleteAutomationRule(ctx, tenantID, rID)
+	return s.repo.DeleteAutomationRule(ctx, tenantID, ruleID)
 }
 
 // ExecuteRule evaluates an automation rule against active tickets and returns
@@ -142,13 +123,13 @@ func (s *Service) ExecuteRule(ctx context.Context, tenantID string, ruleID strin
 	}
 	var rule *models.AutomationRule
 	for i := range rules {
-		if fmt.Sprintf("%d", rules[i].ID) == ruleID {
+		if rules[i].ID == ruleID {
 			rule = &rules[i]
 			break
 		}
 	}
 	if rule == nil || !rule.Enabled {
-		return &models.ExecuteRuleResult{RuleID: -1, Executed: false, Message: "rule not found or disabled"}, nil
+		return &models.ExecuteRuleResult{RuleID: "", Executed: false, Message: "rule not found or disabled"}, nil
 	}
 	tickets, err := s.repo.ListTickets(ctx, tenantID, models.TicketListQuery{})
 	if err != nil {

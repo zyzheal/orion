@@ -99,7 +99,7 @@ type WorkflowHistoryEntry struct {
 // --- Assignment Rules ---
 
 type AssignmentRule struct {
-	ID         int       `json:"id" db:"id"`
+	ID         string    `json:"id" db:"id"`
 	TenantID   string    `json:"tenant_id" db:"tenant_id"`
 	Name       string    `json:"name" db:"name"`
 	Categories []string  `json:"categories" db:"categories"`
@@ -152,7 +152,7 @@ type CorrelateRequest struct {
 // --- SLA ---
 
 type SLATarget struct {
-	ID                     int       `json:"id" db:"id"`
+	ID                     string    `json:"id" db:"id"`
 	TenantID               string    `json:"tenant_id" db:"tenant_id"`
 	Name                   string    `json:"name" db:"name"`
 	Priority               string    `json:"priority" db:"priority"`
@@ -291,7 +291,7 @@ type RegisterEngineerRequest struct {
 }
 
 type DispatchRule struct {
-	ID         int       `json:"id" db:"id"`
+	ID         string    `json:"id" db:"id"`
 	TenantID   string    `json:"tenant_id" db:"tenant_id"`
 	Name       string    `json:"name" db:"name"`
 	Conditions string    `json:"conditions" db:"conditions"`
@@ -339,11 +339,11 @@ type QueueStatus struct {
 }
 
 type QueueEntry struct {
-	TicketID string  `json:"ticket_id"`
-	Priority string  `json:"priority"`
-	Age      float64 `json:"age_hours"`
-	Assigned bool    `json:"assigned"`
-	Engineer *string `json:"engineer,omitempty"`
+	TicketID string  `json:"ticket_id" db:"ticket_id"`
+	Priority string  `json:"priority" db:"priority"`
+	Age      float64 `json:"age_hours" db:"age_hours"`
+	Assigned bool    `json:"assigned" db:"assigned"`
+	Engineer *string `json:"engineer,omitempty" db:"engineer"`
 }
 
 type SLAAlert struct {
@@ -418,7 +418,7 @@ type TransferRequest struct {
 }
 
 type TransferHistoryEntry struct {
-	ID         int       `json:"id" db:"id"`
+	ID         string    `json:"id" db:"id"`
 	TicketID   string    `json:"ticket_id" db:"ticket_id"`
 	FromUserID string    `json:"from_user_id" db:"from_user_id"`
 	ToUserID   string    `json:"to_user_id" db:"to_user_id"`
@@ -439,9 +439,9 @@ type EngineerProfile struct {
 }
 
 type TransferStats struct {
-	TotalTransfers  int     `json:"total_transfers"`
-	ActiveTransfers int     `json:"active_transfers"`
-	AvgTransfers    float64 `json:"avg_transfers_per_ticket"`
+	TotalTransfers  int     `json:"total_transfers" db:"total_transfers"`
+	ActiveTransfers int     `json:"active_transfers" db:"active_transfers"`
+	AvgTransfers    float64 `json:"avg_transfers_per_ticket" db:"avg_transfers_per_ticket"`
 }
 
 // --- Suspend ---
@@ -616,15 +616,15 @@ type UpdateSLAPolicyRequest struct {
 }
 
 type SLABreach struct {
-	ID         int       `json:"id" db:"id"`
+	ID         string    `json:"id" db:"id"`
 	TicketID   string    `json:"ticket_id" db:"ticket_id"`
-	PolicyID   int       `json:"policy_id" db:"policy_id"`
+	PolicyID   string    `json:"policy_id" db:"policy_id"`
 	Type       string    `json:"type" db:"type"` // response, resolution
 	BreachedAt time.Time `json:"breached_at" db:"breached_at"`
 }
 
 type ComplianceResult struct {
-	PolicyID   int     `json:"policy_id"`
+	PolicyID   string  `json:"policy_id"`
 	Total      int     `json:"total"`
 	Compliant  int     `json:"compliant"`
 	Breached   int     `json:"breached"`
@@ -634,7 +634,7 @@ type ComplianceResult struct {
 // --- Automation Rules ---
 
 type AutomationRule struct {
-	ID          int       `json:"id" db:"id"`
+	ID          string    `json:"id" db:"id"`
 	TenantID    string    `json:"tenant_id" db:"tenant_id"`
 	Name        string    `json:"name" db:"name"`
 	Description string    `json:"description" db:"description"`
@@ -669,7 +669,7 @@ type UpdateAutomationRuleRequest struct {
 }
 
 type ExecuteRuleResult struct {
-	RuleID   int    `json:"rule_id"`
+	RuleID   string `json:"rule_id"`
 	Executed bool   `json:"executed"`
 	Message  string `json:"message"`
 }

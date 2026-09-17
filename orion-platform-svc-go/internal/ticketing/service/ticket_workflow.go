@@ -143,7 +143,7 @@ func (s *Service) GetAssignmentRules(ctx context.Context, tenantID string) ([]mo
 	return s.repo.ListAssignmentRules(ctx, tenantID)
 }
 
-func (s *Service) RemoveAssignmentRule(ctx context.Context, tenantID string, id int) error {
+func (s *Service) RemoveAssignmentRule(ctx context.Context, tenantID string, id string) error {
 	return s.repo.DeleteAssignmentRule(ctx, tenantID, id)
 }
 

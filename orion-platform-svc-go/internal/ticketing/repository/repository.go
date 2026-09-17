@@ -138,6 +138,34 @@ func (r *Repository) ListTickets(ctx context.Context, tenantID string, q models.
 	return items, nil
 }
 
+// 655_create_ticketing_missing_tables.sql declares all of these tables with
+// UUID PRIMARY KEY, and 571 / 572 add deleted_at, created_by, updated_by and
+// updated_at to the ones they cover. Every SELECT in this file is therefore an
+// explicit projection: SELECT * hands back columns the destination struct has
+// no db:"..." name for, and sqlx safe mode fails the whole read.
+//
+// conditions and skills are JSONB in 655 but string in the models, so the
+// projection casts them to text -- lib/pq returns JSONB as []byte, which does
+// not scan into a string.
+//
+// Nullable UUIDs are COALESCEd to an empty string because a NULL never scans
+// into a plain string, and start_at is COALESCEd to NOW() for the same reason
+// -- neither cast is cosmetic, they are what lets these rows exist at all.
+// transferHistoryColumns deliberately omits tenant_id: models.TransferHistoryEntry
+// has no db:"tenant_id" destination, and a projected column with no destination
+// is the exact failure this block exists to avoid.
+const (
+	assignmentRuleColumns   = "id, tenant_id, name, conditions::text AS conditions, action, COALESCE(target_id, '') AS target_id, enabled, created_at"
+	slaTargetColumns        = "id, tenant_id, priority, response_hours, resolve_hours, enabled, created_at"
+	slaPolicyColumns        = "id, tenant_id, name, priority, response_hours, resolve_hours, active, created_at, updated_at"
+	slaBreachColumns        = "id, ticket_id, COALESCE(policy_id, '') AS policy_id, type, breached_at"
+	automationRuleColumns   = "id, tenant_id, name, trigger, condition, action, enabled, created_at, updated_at"
+	dispatchEngineerColumns = "id, tenant_id, COALESCE(user_id, '') AS user_id, name, skills::text AS skills, max_tickets, is_active, current_load, created_at, updated_at"
+	dispatchRuleColumns     = "id, tenant_id, name, conditions::text AS conditions, strategy, weight, enabled, created_at"
+	transferHistoryColumns  = "id, ticket_id, COALESCE(from_user_id, '') AS from_user_id, COALESCE(to_user_id, '') AS to_user_id, reason, created_at"
+	suspendColumns          = "id, tenant_id, COALESCE(engineer_id, '') AS engineer_id, reason, type, COALESCE(start_at, NOW()) AS start_at, end_at, status, created_at"
+)
+
 // writableTicketColumns is the allow list for UpdateTicket's dynamic SET
 // clause. The keys are hardcoded in the service layer today, but building SQL
 // from an unchecked map would both reach for a column 076 does not have and
@@ -146,51 +174,94 @@ func (r *Repository) ListTickets(ctx context.Context, tenantID string, q models.
 // to behave — it received the whole map and wrote only updated_at, which made
 // every transition, assignment, escalation, resolve and close a no-op.
 var writableTicketColumns = map[string]bool{
-	"title":        true,
-	"description":  true,
-	"category":     true,
-	"priority":     true,
-	"status":       true,
-	"assignee_id":  true,
-	"reporter_id":  true,
-	"resolved_at":  true,
-	"closed_at":    true,
-	"updated_at":   true,
+	"title":       true,
+	"description": true,
+	"category":    true,
+	"priority":    true,
+	"status":      true,
+	"assignee_id": true,
+	"reporter_id": true,
+	"resolved_at": true,
+	"closed_at":   true,
+	"updated_at":  true,
 }
 
-func (r *Repository) UpdateTicket(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
-	if len(updates) == 0 {
+// writableSLAPolicyColumns and writableAutomationRuleColumns are the same
+// guard for the two 655 tables that take a dynamic map. Both lists stop short
+// of id, tenant_id, name-of-tenant and created_at: those are identity or
+// immutable.
+var (
+	writableSLAPolicyColumns = map[string]bool{
+		"name":           true,
+		"priority":       true,
+		"response_hours": true,
+		"resolve_hours":  true,
+		"active":         true,
+		"updated_at":     true,
+	}
+	writableAutomationRuleColumns = map[string]bool{
+		"name":       true,
+		"trigger":    true,
+		"condition":  true,
+		"action":     true,
+		"enabled":    true,
+		"updated_at": true,
+	}
+)
+
+// updateRows runs the shared "UPDATE <table> SET ... WHERE id=$1 AND
+// tenant_id=$2" used by UpdateTicket, UpdateSLAPolicy and
+// UpdateAutomationRule. buildSetClause keeps the placeholders deterministic
+// (keys sorted) and rejects unknown keys.
+func (r *Repository) updateRows(ctx context.Context, table string, allow map[string]bool, id, tenantID string, updates map[string]interface{}) error {
+	set, args, err := buildSetClause(allow, id, tenantID, updates)
+	if err != nil {
+		return err
+	}
+	if set == "" {
+		// Nothing writable was supplied: issuing the statement would either
+		// produce an empty SET or write only updated_at.
 		return nil
 	}
+	_, err = r.db.ExecContext(ctx, "UPDATE "+table+" SET "+set+" WHERE id=$1 AND tenant_id=$2", args...)
+	return err
+}
 
+// buildSetClause sorts the map keys so the placeholder numbering is stable,
+// refuses a key the allow list does not carry, and leaves id / tenant_id on
+// $1 and $2 -- so the first SET argument is $3. That is the same off-by-one
+// UpdateSLATracking used to get wrong, which emitted "breached=$\x02" because
+// the index was formatted as a rune instead of a digit.
+func buildSetClause(allow map[string]bool, id, tenantID string, updates map[string]interface{}) (string, []interface{}, error) {
+	if len(updates) == 0 {
+		return "", nil, nil
+	}
 	keys := make([]string, 0, len(updates))
 	for k := range updates {
-		if !writableTicketColumns[k] {
-			return fmt.Errorf("update tickets: %q is not a writable column", k)
+		if !allow[k] {
+			return "", nil, fmt.Errorf("update: %q is not a writable column", k)
 		}
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
-	// id and tenant_id are $1 and $2, so SET args start at $3 — the same
-	// off-by-one UpdateSLATracking below used to get wrong, which emitted
-	// "breached=$\x02" because the index was formatted as a rune instead of a
-	// digit.
 	args := []interface{}{id, tenantID}
 	set := make([]string, 0, len(keys)+1)
 	for _, k := range keys {
 		if k == "updated_at" {
-			// Updated by the NOW() clause below; a caller value would either
-			// duplicate it or lose to it.
+			// Taken by the NOW() clause; a caller value would either duplicate
+			// it or lose to it.
 			continue
 		}
 		set = append(set, fmt.Sprintf("%s=$%d", k, len(args)+1))
 		args = append(args, updates[k])
 	}
 	set = append(set, "updated_at=NOW()")
+	return joinSQL(set, ", "), args, nil
+}
 
-	_, err := r.db.ExecContext(ctx, "UPDATE tickets SET "+joinSQL(set, ", ")+" WHERE id=$1 AND tenant_id=$2", args...)
-	return err
+func (r *Repository) UpdateTicket(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
+	return r.updateRows(ctx, "tickets", writableTicketColumns, id, tenantID, updates)
 }
 
 func (r *Repository) DeleteTicket(ctx context.Context, tenantID, id string) error {
@@ -273,11 +344,11 @@ func (r *Repository) CreateAssignmentRule(ctx context.Context, tenantID string, 
 func (r *Repository) ListAssignmentRules(ctx context.Context, tenantID string) ([]models.AssignmentRule, error) {
 	var items []models.AssignmentRule
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM ticketing_assignment_rules WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
+		"SELECT "+assignmentRuleColumns+" FROM ticketing_assignment_rules WHERE tenant_id=$1 ORDER BY created_at DESC", tenantID)
 	return items, err
 }
 
-func (r *Repository) DeleteAssignmentRule(ctx context.Context, tenantID string, id int) error {
+func (r *Repository) DeleteAssignmentRule(ctx context.Context, tenantID string, id string) error {
 	_, err := r.db.ExecContext(ctx,
 		`DELETE FROM ticketing_assignment_rules WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
@@ -345,7 +416,7 @@ func (r *Repository) CreateSLATarget(ctx context.Context, tenantID string, req m
 func (r *Repository) GetSLATarget(ctx context.Context, tenantID, priority string) (*models.SLATarget, error) {
 	var st models.SLATarget
 	err := r.db.GetContext(ctx, &st,
-		`SELECT * FROM ticketing_sla_targets WHERE tenant_id=$1 AND priority=$2 AND enabled=true`, tenantID, priority)
+		"SELECT "+slaTargetColumns+" FROM ticketing_sla_targets WHERE tenant_id=$1 AND priority=$2 AND enabled=true", tenantID, priority)
 	return &st, err
 }
 
@@ -373,28 +444,28 @@ func (r *Repository) CreateSLAPolicy(ctx context.Context, tenantID string, req m
 func (r *Repository) ListSLAPolicies(ctx context.Context, tenantID string) ([]models.SLAPolicy, error) {
 	var items []models.SLAPolicy
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM ticketing_sla_policies WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
+		"SELECT "+slaPolicyColumns+" FROM ticketing_sla_policies WHERE tenant_id=$1 ORDER BY created_at DESC", tenantID)
 	return items, err
 }
 
-func (r *Repository) GetSLAPolicy(ctx context.Context, tenantID string, policyID int) (*models.SLAPolicy, error) {
+func (r *Repository) GetSLAPolicy(ctx context.Context, tenantID string, policyID string) (*models.SLAPolicy, error) {
 	var p models.SLAPolicy
 	err := r.db.GetContext(ctx, &p,
-		`SELECT * FROM ticketing_sla_policies WHERE id=$1 AND tenant_id=$2`, policyID, tenantID)
+		"SELECT "+slaPolicyColumns+" FROM ticketing_sla_policies WHERE id=$1 AND tenant_id=$2", policyID, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	return &p, nil
 }
 
-func (r *Repository) UpdateSLAPolicy(ctx context.Context, tenantID string, policyID int, updates map[string]interface{}) error {
-	updates["updated_at"] = time.Now().UTC()
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE ticketing_sla_policies SET updated_at=NOW() WHERE id=$1 AND tenant_id=$2`, policyID, tenantID)
-	return err
+// UpdateSLAPolicy used to receive the whole map and write only updated_at, so
+// PUT /tickets/sla/policies/:policyId silently discarded name, priority,
+// response_hours, resolve_hours and active.
+func (r *Repository) UpdateSLAPolicy(ctx context.Context, tenantID string, policyID string, updates map[string]interface{}) error {
+	return r.updateRows(ctx, "ticketing_sla_policies", writableSLAPolicyColumns, policyID, tenantID, updates)
 }
 
-func (r *Repository) DeleteSLAPolicy(ctx context.Context, tenantID string, policyID int) error {
+func (r *Repository) DeleteSLAPolicy(ctx context.Context, tenantID string, policyID string) error {
 	_, err := r.db.ExecContext(ctx,
 		`DELETE FROM ticketing_sla_policies WHERE id=$1 AND tenant_id=$2`, policyID, tenantID)
 	return err
@@ -412,13 +483,17 @@ func (r *Repository) GetTicketSLAStatus(ctx context.Context, tenantID, ticketID 
 }
 
 func (r *Repository) GetSLABreaches(ctx context.Context, tenantID string) ([]models.SLABreach, error) {
+	// 655_create_ticketing_missing_tables.sql gives ticketing_sla_breaches no
+	// tenant_id column, so the tenant filter that used to live here was a Postgres
+	// "column does not exist" on every call. The parameter is kept so the method
+	// still satisfies RepositoryInterface.
 	var items []models.SLABreach
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM ticketing_sla_breaches WHERE tenant_id=$1 ORDER BY breached_at DESC`, tenantID)
+		"SELECT "+slaBreachColumns+" FROM ticketing_sla_breaches ORDER BY breached_at DESC")
 	return items, err
 }
 
-func (r *Repository) GetSLACompliance(ctx context.Context, tenantID string, policyID int) (*models.ComplianceResult, error) {
+func (r *Repository) GetSLACompliance(ctx context.Context, tenantID string, policyID string) (*models.ComplianceResult, error) {
 	var cr models.ComplianceResult
 	err := r.db.GetContext(ctx, &cr,
 		`SELECT COUNT(*) FILTER (WHERE status IN ('resolved','closed')) AS compliant, COUNT(*) AS total FROM tickets WHERE tenant_id=$1 AND sla_policy_id=$2`, tenantID, policyID)
@@ -457,18 +532,18 @@ func (r *Repository) CreateAutomationRule(ctx context.Context, tenantID string, 
 func (r *Repository) ListAutomationRules(ctx context.Context, tenantID string) ([]models.AutomationRule, error) {
 	var items []models.AutomationRule
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM ticketing_automation_rules WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
+		"SELECT "+automationRuleColumns+" FROM ticketing_automation_rules WHERE tenant_id=$1 ORDER BY created_at DESC", tenantID)
 	return items, err
 }
 
-func (r *Repository) UpdateAutomationRule(ctx context.Context, tenantID string, ruleID int, updates map[string]interface{}) error {
-	updates["updated_at"] = time.Now().UTC()
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE ticketing_automation_rules SET updated_at=NOW() WHERE id=$1 AND tenant_id=$2`, ruleID, tenantID)
-	return err
+// UpdateAutomationRule used to receive the whole map and write only updated_at,
+// so PUT /tickets/automation/rules/:ruleId silently discarded name, trigger,
+// condition, action and enabled.
+func (r *Repository) UpdateAutomationRule(ctx context.Context, tenantID string, ruleID string, updates map[string]interface{}) error {
+	return r.updateRows(ctx, "ticketing_automation_rules", writableAutomationRuleColumns, ruleID, tenantID, updates)
 }
 
-func (r *Repository) DeleteAutomationRule(ctx context.Context, tenantID string, ruleID int) error {
+func (r *Repository) DeleteAutomationRule(ctx context.Context, tenantID string, ruleID string) error {
 	_, err := r.db.ExecContext(ctx,
 		`DELETE FROM ticketing_automation_rules WHERE id=$1 AND tenant_id=$2`, ruleID, tenantID)
 	return err
@@ -498,14 +573,14 @@ func (r *Repository) RegisterEngineer(ctx context.Context, tenantID string, req 
 func (r *Repository) ListEngineers(ctx context.Context, tenantID string) ([]models.DispatchEngineer, error) {
 	var items []models.DispatchEngineer
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM ticketing_dispatch_engineers WHERE tenant_id=$1 ORDER BY name`, tenantID)
+		"SELECT "+dispatchEngineerColumns+" FROM ticketing_dispatch_engineers WHERE tenant_id=$1 ORDER BY name", tenantID)
 	return items, err
 }
 
 func (r *Repository) GetEngineer(ctx context.Context, tenantID, id string) (*models.DispatchEngineer, error) {
 	var e models.DispatchEngineer
 	err := r.db.GetContext(ctx, &e,
-		`SELECT * FROM ticketing_dispatch_engineers WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+		"SELECT "+dispatchEngineerColumns+" FROM ticketing_dispatch_engineers WHERE id=$1 AND tenant_id=$2", id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -536,7 +611,7 @@ func (r *Repository) AddDispatchRule(ctx context.Context, tenantID string, req m
 func (r *Repository) ListDispatchRules(ctx context.Context, tenantID string) ([]models.DispatchRule, error) {
 	var items []models.DispatchRule
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM ticketing_dispatch_rules WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
+		"SELECT "+dispatchRuleColumns+" FROM ticketing_dispatch_rules WHERE tenant_id=$1 ORDER BY created_at DESC", tenantID)
 	return items, err
 }
 
@@ -592,10 +667,31 @@ func (r *Repository) GetDispatchQueueStatus(ctx context.Context, tenantID string
 }
 
 func (r *Repository) GetDispatchQueueEntries(ctx context.Context, tenantID string) ([]models.QueueEntry, error) {
-	var items []models.QueueEntry
-	err := r.db.SelectContext(ctx, &items,
-		`SELECT id AS ticket_id, priority, EXTRACT(EPOCH FROM (NOW() - created_at))/3600 AS age_hours, CASE WHEN assignee_id IS NOT NULL THEN true ELSE false END AS assigned, assignee_id AS engineer FROM tickets WHERE tenant_id=$1 AND status NOT IN ('closed','resolved') ORDER BY priority`, tenantID)
-	return items, err
+	// models.QueueEntry carries no db tags, and sqlx's identity mapper lowercases
+	// the field name: TicketID becomes "ticketid", so the aliased "ticket_id" had
+	// no destination and the whole list failed. The projection therefore scans
+	// into a tagged row type and copies across.
+	//
+	// The age is cast to double precision: EXTRACT(EPOCH ...) returns numeric,
+	// which lib/pq hands back as []byte unless the value is a plain integer, and
+	// []byte does not scan into float64.
+	var rows []struct {
+		TicketID string  `db:"ticket_id"`
+		Priority string  `db:"priority"`
+		Age      float64 `db:"age_hours"`
+		Assigned bool    `db:"assigned"`
+		Engineer *string `db:"engineer"`
+	}
+	err := r.db.SelectContext(ctx, &rows,
+		`SELECT id AS ticket_id, priority, CAST(EXTRACT(EPOCH FROM (NOW() - created_at))/3600 AS double precision) AS age_hours, CASE WHEN assignee_id IS NOT NULL THEN true ELSE false END AS assigned, assignee_id AS engineer FROM tickets WHERE tenant_id=$1 AND status NOT IN ('closed','resolved') ORDER BY priority`, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]models.QueueEntry, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, models.QueueEntry{TicketID: row.TicketID, Priority: row.Priority, Age: row.Age, Assigned: row.Assigned, Engineer: row.Engineer})
+	}
+	return items, nil
 }
 
 // --- Transfer ---
@@ -622,7 +718,7 @@ func (r *Repository) TransferTicket(ctx context.Context, tenantID, ticketID, fro
 func (r *Repository) GetTransferHistory(ctx context.Context, tenantID, ticketID string) ([]models.TransferHistoryEntry, error) {
 	var items []models.TransferHistoryEntry
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM ticket_transfer_history WHERE tenant_id=$1 AND ticket_id=$2 ORDER BY created_at DESC`, tenantID, ticketID)
+		"SELECT "+transferHistoryColumns+" FROM ticket_transfer_history WHERE tenant_id=$1 AND ticket_id=$2 ORDER BY created_at DESC", tenantID, ticketID)
 	return items, err
 }
 
@@ -657,14 +753,14 @@ func (r *Repository) CreateSuspend(ctx context.Context, tenantID string, req mod
 func (r *Repository) ListSuspensions(ctx context.Context, tenantID string) ([]models.Suspend, error) {
 	var items []models.Suspend
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM ticketing_suspensions WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
+		"SELECT "+suspendColumns+" FROM ticketing_suspensions WHERE tenant_id=$1 ORDER BY created_at DESC", tenantID)
 	return items, err
 }
 
 func (r *Repository) GetSuspend(ctx context.Context, tenantID, id string) (*models.Suspend, error) {
 	var s models.Suspend
 	err := r.db.GetContext(ctx, &s,
-		`SELECT * FROM ticketing_suspensions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+		"SELECT "+suspendColumns+" FROM ticketing_suspensions WHERE id=$1 AND tenant_id=$2", id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -672,15 +768,18 @@ func (r *Repository) GetSuspend(ctx context.Context, tenantID, id string) (*mode
 }
 
 func (r *Repository) UpdateSuspendStatus(ctx context.Context, tenantID, id string, status string) error {
+	// ticketing_suspensions has no updated_at column, so the NOW() clause that
+	// used to sit next to status=$1 made every suspend-state change a Postgres
+	// "column does not exist". The table carries created_at only.
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE ticketing_suspensions SET status=$1, updated_at=NOW() WHERE id=$2 AND tenant_id=$3`, status, id, tenantID)
+		`UPDATE ticketing_suspensions SET status=$1 WHERE id=$2 AND tenant_id=$3`, status, id, tenantID)
 	return err
 }
 
 func (r *Repository) GetEngineerSuspensions(ctx context.Context, tenantID, engineerID string) ([]models.Suspend, error) {
 	var items []models.Suspend
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM ticketing_suspensions WHERE tenant_id=$1 AND engineer_id=$2 ORDER BY created_at DESC`, tenantID, engineerID)
+		"SELECT "+suspendColumns+" FROM ticketing_suspensions WHERE tenant_id=$1 AND engineer_id=$2 ORDER BY created_at DESC", tenantID, engineerID)
 	return items, err
 }
 

@@ -187,7 +187,7 @@ func TestHandler_GetDispatchRules(t *testing.T) {
 
 func TestHandler_RemoveDispatchRule(t *testing.T) {
 	r, repo := newTestDispatchHandler()
-	repo.Rules = []models.DispatchRule{{ID: 1, Name: "Test"}}
+	repo.Rules = []models.DispatchRule{{ID: "rule-1", Name: "Test"}}
 
 	req := httptest.NewRequest(http.MethodDelete, "/dispatch/rules/rule-1", nil)
 	w := httptest.NewRecorder()
