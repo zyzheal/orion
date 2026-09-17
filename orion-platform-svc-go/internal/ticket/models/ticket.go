@@ -2,16 +2,28 @@ package models
 
 import "time"
 
+// Ticket's db tags name 076_create_ticketing_tables.sql's columns, not the
+// historical ones this struct was written against. The API contract (json tags)
+// is unchanged; only the storage names moved:
+//
+//   Type       -> category      (076 has category VARCHAR(100), no type column)
+//   CreatedBy  -> reporter_id   (076's reporter_id VARCHAR(255) NOT NULL is the
+//                                reporter of the ticket, which is who the
+//                                create request names; 572's created_by is
+//                                UUID REFERENCES users(id) and would reject a
+//                                non-UUID string in the driver)
+//   AssignedTo -> assignee_id   (076 has assignee_id VARCHAR(255), no
+//                                assigned_to column)
 type Ticket struct {
 	ID          string     `json:"id" db:"id"`
 	TenantID    string     `json:"tenant_id" db:"tenant_id"`
 	Title       string     `json:"title" db:"title"`
 	Description string     `json:"description" db:"description"`
-	Type        string     `json:"type" db:"type"`
+	Type        string     `json:"type" db:"category"`
 	Priority    string     `json:"priority" db:"priority"`
 	Status      string     `json:"status" db:"status"`
-	CreatedBy   string     `json:"created_by" db:"created_by"`
-	AssignedTo  string     `json:"assigned_to" db:"assigned_to"`
+	CreatedBy   string     `json:"created_by" db:"reporter_id"`
+	AssignedTo  string     `json:"assigned_to" db:"assignee_id"`
 	ResolvedAt  *time.Time `json:"resolved_at,omitempty" db:"resolved_at"`
 	ClosedAt    *time.Time `json:"closed_at,omitempty" db:"closed_at"`
 	CreatedAt   time.Time  `json:"created_at" db:"created_at"`

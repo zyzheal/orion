@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"orion/platform-svc-go/internal/ticketing/models"
@@ -18,6 +19,32 @@ type Repository struct {
 func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{db: db}
 }
+
+// ticketColumns is the explicit projection every SELECT against tickets uses.
+// Never SELECT *: sqlx runs in safe mode, and 571 / 572 add deleted_at,
+// created_by and updated_by to this table, none of which models.Ticket has a db
+// destination for — a SELECT * fails the whole read even though none of those
+// columns are needed. This is the same rule GetWorkflowHistory below already
+// follows.
+//
+// The names are 076_create_ticketing_tables.sql's: metadata is omitted because
+// models.Ticket.Metadata has no db tag, and type / assigned_to are declared in
+// the struct but exist as no column at all. description, category and source
+// are declared nullable in 076 but scan into non-pointer strings here, so NULL
+// would fail the row; COALESCE gives them the empty string instead, which is
+// what a missing value already means to every caller. The nullable columns
+// whose destinations are pointers (assignee_id, source_id, resolved_at,
+// closed_at) need no wrapping.
+const ticketColumns = "id, tenant_id, title, COALESCE(description, '') AS description, COALESCE(category, '') AS category, priority, status, assignee_id, reporter_id, COALESCE(source, '') AS source, source_id, resolved_at, closed_at, created_at, updated_at"
+
+// relationColumns is the same projection for ticket_relations. description is
+// nullable in 696_add_ticket_relation_transfer_columns.sql but scans into a
+// non-pointer string, so it is COALESCE'd for the same reason. created_by is
+// omitted entirely: 572 adds it as UUID REFERENCES users(id), pre-572 rows hold
+// NULL there, and NULL does not scan into a string. related_ticket_id and
+// relation_type are struct fields that have no column, so they cannot be
+// selected.
+const relationColumns = "id, tenant_id, ticket_id, related_id, type, COALESCE(description, '') AS description, confidence, created_at"
 
 // --- Ticket CRUD ---
 
@@ -50,7 +77,7 @@ func (r *Repository) CreateTicket(ctx context.Context, t *models.Ticket) error {
 func (r *Repository) GetTicket(ctx context.Context, tenantID, id string) (*models.Ticket, error) {
 	var t models.Ticket
 	err := r.db.GetContext(ctx, &t,
-		`SELECT * FROM tickets WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+		"SELECT "+ticketColumns+" FROM tickets WHERE id=$1 AND tenant_id=$2", id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +127,7 @@ func (r *Repository) ListTickets(ctx context.Context, tenantID string, q models.
 	// and OFFSET come after every filter arg, so their positions are len(args)+1
 	// and len(args)+2. An earlier draft built a `placeholders` slice for these
 	// positions and never read it; that dead code is gone.
-	sql := fmt.Sprintf("SELECT * FROM tickets %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d", where, len(args)+1, len(args)+2)
+	sql := fmt.Sprintf("SELECT %s FROM tickets %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d", ticketColumns, where, len(args)+1, len(args)+2)
 	args = append(args, q.Limit, q.Offset)
 
 	var items []models.Ticket
@@ -111,10 +138,58 @@ func (r *Repository) ListTickets(ctx context.Context, tenantID string, q models.
 	return items, nil
 }
 
+// writableTicketColumns is the allow list for UpdateTicket's dynamic SET
+// clause. The keys are hardcoded in the service layer today, but building SQL
+// from an unchecked map would both reach for a column 076 does not have and
+// make this method an injection point, so an unknown key is an error rather
+// than a silent drop: silently ignoring a key is exactly how this method used
+// to behave — it received the whole map and wrote only updated_at, which made
+// every transition, assignment, escalation, resolve and close a no-op.
+var writableTicketColumns = map[string]bool{
+	"title":        true,
+	"description":  true,
+	"category":     true,
+	"priority":     true,
+	"status":       true,
+	"assignee_id":  true,
+	"reporter_id":  true,
+	"resolved_at":  true,
+	"closed_at":    true,
+	"updated_at":   true,
+}
+
 func (r *Repository) UpdateTicket(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
-	updates["updated_at"] = time.Now().UTC()
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE tickets SET updated_at = NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	if len(updates) == 0 {
+		return nil
+	}
+
+	keys := make([]string, 0, len(updates))
+	for k := range updates {
+		if !writableTicketColumns[k] {
+			return fmt.Errorf("update tickets: %q is not a writable column", k)
+		}
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	// id and tenant_id are $1 and $2, so SET args start at $3 — the same
+	// off-by-one UpdateSLATracking below used to get wrong, which emitted
+	// "breached=$\x02" because the index was formatted as a rune instead of a
+	// digit.
+	args := []interface{}{id, tenantID}
+	set := make([]string, 0, len(keys)+1)
+	for _, k := range keys {
+		if k == "updated_at" {
+			// Updated by the NOW() clause below; a caller value would either
+			// duplicate it or lose to it.
+			continue
+		}
+		set = append(set, fmt.Sprintf("%s=$%d", k, len(args)+1))
+		args = append(args, updates[k])
+	}
+	set = append(set, "updated_at=NOW()")
+
+	_, err := r.db.ExecContext(ctx, "UPDATE tickets SET "+joinSQL(set, ", ")+" WHERE id=$1 AND tenant_id=$2", args...)
 	return err
 }
 
@@ -229,21 +304,21 @@ func (r *Repository) AddRelation(ctx context.Context, tenantID, ticketID, relate
 func (r *Repository) GetRelations(ctx context.Context, tenantID, ticketID string) ([]models.TicketRelation, error) {
 	var items []models.TicketRelation
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM ticket_relations WHERE tenant_id=$1 AND ticket_id=$2 ORDER BY created_at`, tenantID, ticketID)
+		"SELECT "+relationColumns+" FROM ticket_relations WHERE tenant_id=$1 AND ticket_id=$2 ORDER BY created_at", tenantID, ticketID)
 	return items, err
 }
 
 func (r *Repository) FindRelatedTickets(ctx context.Context, tenantID, ticketID string) ([]models.TicketRelation, error) {
 	var items []models.TicketRelation
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM ticket_relations WHERE tenant_id=$1 AND (ticket_id=$2 OR related_id=$2) ORDER BY created_at`, tenantID, ticketID)
+		"SELECT "+relationColumns+" FROM ticket_relations WHERE tenant_id=$1 AND (ticket_id=$2 OR related_id=$2) ORDER BY created_at", tenantID, ticketID)
 	return items, err
 }
 
 func (r *Repository) DetectDuplicates(ctx context.Context, tenantID, ticketID string) ([]models.TicketRelation, error) {
 	var items []models.TicketRelation
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM ticket_relations WHERE tenant_id=$1 AND ticket_id=$2 AND type='duplicate'`, tenantID, ticketID)
+		"SELECT "+relationColumns+" FROM ticket_relations WHERE tenant_id=$1 AND ticket_id=$2 AND type='duplicate'", tenantID, ticketID)
 	return items, err
 }
 

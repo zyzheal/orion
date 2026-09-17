@@ -122,8 +122,12 @@ type CreateAssignmentRuleRequest struct {
 
 // --- Relations ---
 
+// TicketRelation links two tickets within a tenant. ID is a string because
+// 076_create_ticketing_tables.sql declares ticket_relations.id as
+// UUID PRIMARY KEY; sqlx scans the UUID into the destination and rejected int,
+// so every relation read and AddRelation's RETURNING id failed in the driver.
 type TicketRelation struct {
-	ID              int       `json:"id" db:"id"`
+	ID              string    `json:"id" db:"id"`
 	TenantID        string    `json:"tenant_id" db:"tenant_id"`
 	TicketID        string    `json:"ticket_id" db:"ticket_id"`
 	RelatedID       string    `json:"related_id" db:"related_id"`

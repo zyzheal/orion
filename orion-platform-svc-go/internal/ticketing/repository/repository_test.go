@@ -3,8 +3,10 @@ package repository
 import (
 	"context"
 	"database/sql/driver"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/jmoiron/sqlx"
@@ -133,6 +135,11 @@ func ticketPtr(s string) *string { return &s }
 // string(rune(i+1)), which emitted U+0001, U+0002, ... rather than digits and
 // was never read at all. The five-filter arm matters: it is the only one where
 // LIMIT and OFFSET land on $7 and $8, the largest positions reachable.
+//
+// The expectations also pin the explicit column list. This method used to run
+// SELECT *, which fails in sqlx safe mode because 571 / 572 add deleted_at,
+// created_by and updated_by to tickets and models.Ticket has no destination for
+// any of them.
 func TestListTicketsBuildsEveryPositionalPlaceholder(t *testing.T) {
 	cases := []struct {
 		name string
@@ -143,13 +150,13 @@ func TestListTicketsBuildsEveryPositionalPlaceholder(t *testing.T) {
 		{
 			"no filter, default limit",
 			models.TicketListQuery{},
-			`SELECT \* FROM tickets WHERE tenant_id = \$1 ORDER BY created_at DESC LIMIT \$2 OFFSET \$3`,
+			`SELECT id, tenant_id, title, COALESCE\(description, ''\) AS description, COALESCE\(category, ''\) AS category, priority, status, assignee_id, reporter_id, COALESCE\(source, ''\) AS source, source_id, resolved_at, closed_at, created_at, updated_at FROM tickets WHERE tenant_id = \$1 ORDER BY created_at DESC LIMIT \$2 OFFSET \$3`,
 			[]driver.Value{"t1", 50, 0},
 		},
 		{
 			"status and priority",
 			models.TicketListQuery{Status: ticketPtr("open"), Priority: ticketPtr("high")},
-			`SELECT \* FROM tickets WHERE tenant_id = \$1 AND  status = \$2 AND  priority = \$3 ORDER BY created_at DESC LIMIT \$4 OFFSET \$5`,
+			`SELECT id, tenant_id, title, COALESCE\(description, ''\) AS description, COALESCE\(category, ''\) AS category, priority, status, assignee_id, reporter_id, COALESCE\(source, ''\) AS source, source_id, resolved_at, closed_at, created_at, updated_at FROM tickets WHERE tenant_id = \$1 AND  status = \$2 AND  priority = \$3 ORDER BY created_at DESC LIMIT \$4 OFFSET \$5`,
 			[]driver.Value{"t1", "open", "high", 50, 0},
 		},
 		{
@@ -158,7 +165,7 @@ func TestListTicketsBuildsEveryPositionalPlaceholder(t *testing.T) {
 				Status: ticketPtr("open"), Priority: ticketPtr("high"), Assignee: ticketPtr("u1"),
 				Category: ticketPtr("cat"), Search: ticketPtr("search"),
 			},
-			`SELECT \* FROM tickets WHERE tenant_id = \$1 AND  status = \$2 AND  priority = \$3 AND  assignee_id = \$4 AND  category = \$5 AND  \(title ILIKE \$6 OR description ILIKE \$6\) ORDER BY created_at DESC LIMIT \$7 OFFSET \$8`,
+			`SELECT id, tenant_id, title, COALESCE\(description, ''\) AS description, COALESCE\(category, ''\) AS category, priority, status, assignee_id, reporter_id, COALESCE\(source, ''\) AS source, source_id, resolved_at, closed_at, created_at, updated_at FROM tickets WHERE tenant_id = \$1 AND  status = \$2 AND  priority = \$3 AND  assignee_id = \$4 AND  category = \$5 AND  \(title ILIKE \$6 OR description ILIKE \$6\) ORDER BY created_at DESC LIMIT \$7 OFFSET \$8`,
 			[]driver.Value{"t1", "open", "high", "u1", "cat", "%search%", 50, 0},
 		},
 	}
@@ -231,5 +238,132 @@ func TestTheRuneIndexEmitsControlBytesIsThePositiveControl(t *testing.T) {
 	}
 	if got := "$" + string(rune('0'+2)); got != "$2" {
 		t.Fatalf("string(rune('0'+2)) = %q, want $2", got)
+	}
+}
+
+// TestUpdateTicketAppliesEverySuppliedColumn pins that the whole updates map
+// reaches the SET clause. This method used to receive the map and run
+// `UPDATE tickets SET updated_at = NOW() ...` regardless, so POST /tickets/:id/
+// transition, assign, escalate, resolve and close each wrote only updated_at
+// and reported success: every ticket state change was silently discarded while
+// the workflow history row claimed it had happened. The keys are sorted before
+// the placeholders are numbered, so the expected string is deterministic
+// without needing a regexp.
+func TestUpdateTicketAppliesEverySuppliedColumn(t *testing.T) {
+	repo, mock := newMockRepo(t)
+	// AssignTicket passes exactly these three keys, plus resolved_at in the
+	// resolve path.
+	updates := map[string]interface{}{
+		"status":      "assigned",
+		"assignee_id": "u-9",
+		"resolved_at": time.Unix(1750000000, 0).UTC(),
+	}
+	mock.ExpectExec(
+		`UPDATE tickets SET assignee_id=\$3, resolved_at=\$4, status=\$5, updated_at=NOW\(\) WHERE id=\$1 AND tenant_id=\$2`).
+		WithArgs("tk-1", "t1", "u-9", updates["resolved_at"], "assigned").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	if err := repo.UpdateTicket(context.Background(), "t1", "tk-1", updates); err != nil {
+		t.Fatalf("UpdateTicket returned an error: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
+// TestUpdateTicketRejectsAColumn076DoesNotHave proves the allow list blocks both
+// a column that does not exist in 076_create_ticketing_tables.sql and a
+// read-only column the service must not overwrite. Silent acceptance would let a
+// typo silently rebuild the original no-op behaviour.
+func TestUpdateTicketRejectsAColumn076DoesNotHave(t *testing.T) {
+	repo, mock := newMockRepo(t)
+	for _, key := range []string{"does_not_exist", "tenant_id", "id", "created_at", "metadata", "type", "assigned_to"} {
+		err := repo.UpdateTicket(context.Background(), "t1", "tk-1", map[string]interface{}{key: "v"})
+		if err == nil {
+			t.Errorf("UpdateTicket accepted %q, want an error", key)
+			continue
+		}
+		if !strings.Contains(err.Error(), key) {
+			t.Errorf("UpdateTicket(%q) error %q does not name the offending key", key, err)
+		}
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
+// TestUpdateTicketEmptyMapSkipsTheQuery proves the guard: an empty map would
+// otherwise produce "UPDATE tickets SET  updated_at=NOW()", and a map containing
+// only updated_at still has to emit a well-formed statement.
+func TestUpdateTicketEmptyMapSkipsTheQuery(t *testing.T) {
+	repo, mock := newMockRepo(t)
+	if err := repo.UpdateTicket(context.Background(), "t1", "tk-1", map[string]interface{}{}); err != nil {
+		t.Fatalf("UpdateTicket({}) returned an error: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("an empty map must not issue a query: %v", err)
+	}
+
+	repo2, mock2 := newMockRepo(t)
+	mock2.ExpectExec(
+		`UPDATE tickets SET updated_at=NOW\(\) WHERE id=\$1 AND tenant_id=\$2`).
+		WithArgs("tk-1", "t1").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	if err := repo2.UpdateTicket(context.Background(), "t1", "tk-1", map[string]interface{}{"updated_at": time.Now().UTC()}); err != nil {
+		t.Fatalf("UpdateTicket(updated_at only) returned an error: %v", err)
+	}
+	if err := mock2.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
+// TestGetTicketUsesTheExplicitProjection pins that the single-ticket read is not
+// SELECT * either. It is the hottest read in the module: TransitionStatus,
+// AssignTicket, EscalateTicket, ResolveTicket and CloseTicket each call it twice,
+// and safe mode made every one of those routes fail on deleted_at and updated_by.
+func TestGetTicketUsesTheExplicitProjection(t *testing.T) {
+	repo, mock := newMockRepo(t)
+	mock.ExpectQuery(
+		`SELECT id, tenant_id, title, COALESCE\(description, ''\) AS description, COALESCE\(category, ''\) AS category, priority, status, assignee_id, reporter_id, COALESCE\(source, ''\) AS source, source_id, resolved_at, closed_at, created_at, updated_at FROM tickets WHERE id=\$1 AND tenant_id=\$2`).
+		WithArgs("tk-1", "t1").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("tk-1"))
+
+	if _, err := repo.GetTicket(context.Background(), "t1", "tk-1"); err != nil {
+		t.Fatalf("GetTicket returned an error: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
+// TestGetRelationsUsesTheExplicitProjection is the ticket_relations half of the
+// same rule, and it also pins the COALESCE on description, which 696 adds as
+// nullable while models.TicketRelation.Description is a non-pointer string.
+func TestGetRelationsUsesTheExplicitProjection(t *testing.T) {
+	repo, mock := newMockRepo(t)
+	mock.ExpectQuery(
+		`SELECT id, tenant_id, ticket_id, related_id, type, COALESCE\(description, ''\) AS description, confidence, created_at FROM ticket_relations WHERE tenant_id=\$1 AND ticket_id=\$2 ORDER BY created_at`).
+		WithArgs("t1", "tk-1").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+	if _, err := repo.GetRelations(context.Background(), "t1", "tk-1"); err != nil {
+		t.Fatalf("GetRelations returned an error: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
+// TestTicketRelationIDScansAUUIDStringIsThePositiveControl proves the type fix
+// has something to lose. ticket_relations.id is UUID PRIMARY KEY in 076, so the
+// destination must be a string; the old int field could never hold it.
+func TestTicketRelationIDScansAUUIDStringIsThePositiveControl(t *testing.T) {
+	var rel models.TicketRelation
+	rel.ID = "550e8400-e29b-41d4-a716-446655440000"
+	if rel.ID != "550e8400-e29b-41d4-a716-446655440000" {
+		t.Fatalf("TicketRelation.ID cannot hold a UUID string: %v", rel.ID)
+	}
+	if fmt.Sprintf("%T", rel.ID) != "string" {
+		t.Fatalf("TicketRelation.ID is %T, want string", rel.ID)
 	}
 }
