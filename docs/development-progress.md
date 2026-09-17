@@ -12929,3 +12929,183 @@ go test ./cmd/server/  → ok 21.091s
 
 - SkipPaths 是逐条精确全路径匹配——新加公开端点时若需要免 token，必须显式加入该清单；漏加会在严格模式下 401。
 - 翻转严格模式是部署决策，不是代码变更；本实现只是让翻转变成一次 env 变量操作。
+
+---
+
+## §63 两个活的工单模块用两套互不兼容的方言写 076 的同一批表（2026-08-26）
+
+> 编号说明：并行会话已占用 §62（PERM-8 阶段 2 严格 auth.Auth），本节顺延为 §63。
+> 扫描起点 HEAD `28eef84d7`（Round 61）；代码提交 `851f93fab`；本节剩余 4 项（3 个删除 + 2 个测试文件）见本节 63.9 提交清单。
+
+### 63.1 症状与根因
+
+两个**都活着**的模块写同一批表：`internal/ticket`（`cmd/server/wiring-core-domains.go:53-55` 挂 `ti_service/ti_repo/ti_handler`，路由 `/api/v1/tickets/...`）与 `internal/ticketing`（`cicd_domain_wiring.go:354`，路由 `internal/ticketing/handler/handler.go`）。它们对 `076_create_ticketing_tables.sql` 的 `tickets` / `ticket_relations` / `ticket_transfers` 使用两套方言，且**任何一处错误都在驱动层才暴露**——编译器、`go vet`、全部单测都看不见，路由在运行时答 500。
+
+三组互不兼容的写法：
+
+| 方言 | 模块 A `internal/ticket` | 模块 B `internal/ticketing` | 076 的真名 |
+|---|---|---|---|
+| 工单类型 | `type`（无此列） | `type`（无此列） | `category` |
+| 创建人/报告人 | `created_by` | `created_by` | `reporter_id`（NOT NULL 无默认） |
+| 受理人 | `assigned_to`（无此列） | `assigned_to`（无此列） | `assignee_id` |
+| 关联工单 | `related_ticket_id`（无此列） | `related_id` ✓ | `related_id` |
+| 关联类型 | `relation_type`（无此列） | `type` ✓ | `type` |
+| 转出/转入 | `from_engineer_id`/`to_engineer_id`（无此列） | `from_user_id`/`to_user_id` ✓ | `from_user_id`/`to_user_id` |
+
+模块 B 的读路径全是 `SELECT *`，而 571 / 572 给这三张表加了 `deleted_at`、`created_by`、`updated_by`、`updated_at`——`models.Ticket` 对这些列**一个 db 目的地都没有**，sqlx 安全模式（全库无 `.Unsafe()`，sqlx v1.4.0）下 `StructScan` 报 `missing destination name <column>`，整条读失败。模块 A 的 INSERT 则漏掉 076 里 NOT NULL 且无默认的 `reporter_id`、`created_at`、`updated_at`。
+
+### 63.2 方言裁决：076 胜
+
+裁决依据不是投票，是**已有活代码**：模块 B 活的 `CreateTicket` 逐字写的是 `(id, tenant_id, title, description, status, priority, category, assignee_id, reporter_id, source, source_id, metadata, created_at, updated_at)`——与 076 完全一致。让模块 A 收敛到 076，沿用 Round 61 的模式：**db tag 改指真实列名，json tag 一字不动**，API 契约不变，只有存储名移动。
+
+### 63.3 模块 A 的修复
+
+`models/ticket.go`、`models/relation.go`、`models/assignment_rule.go` 的 db tag 重映射（json tag 全部保留）：
+
+```
+Type         -> category          076 有 category VARCHAR(100)，无 type 列
+CreatedBy    -> reporter_id       reporter_id 是报告人，正是创建请求里命名的人；
+                                  572 的 created_by 是 UUID REFERENCES users(id)，
+                                  会拒收非 UUID 字符串
+AssignedTo   -> assignee_id       076 有 assignee_id VARCHAR(255)，无 assigned_to
+RelatedTicketID -> related_id     076 的列是 related_id
+RelationType    -> type           076 的列是 type VARCHAR(50)
+FromEngineerID -> from_user_id    ToEngineerID -> to_user_id
+```
+
+三个 repository 各加一个显式投影常量，并让每个 `Create` 在 caller 未设置时补 `created_at`（076 里 NOT NULL 无默认，没有任何调用方设它）：
+
+```go
+const ticketColumns    = "id, tenant_id, title, description, category, priority, status, reporter_id, assignee_id, resolved_at, closed_at, created_at, updated_at"
+const relationColumns  = "id, ticket_id, related_id, type, description, confidence, created_at"
+const transferColumns  = "id, ticket_id, from_user_id, to_user_id, initiated_by, reason, hold_duration_ms, created_at"
+```
+
+### 63.4 模块 B 的修复
+
+两个本轮才发现、且**在活路由上**的缺陷：
+
+1. **`TicketRelation.ID int`** —— `ticket_relations.id` 是 `UUID PRIMARY KEY`。UUID 扫进 `int` 在驱动层失败，于是每条 relation 读、以及 `AddRelation` 的 `RETURNING id` 全部报错。改为 `string`（lib/pq 对格式良好的 UUID 转 `string` 没问题）。
+2. **`UpdateTicket` 是彻底的空写** —— 原实现收下 `updates map[string]interface{}` 却只跑 `UPDATE tickets SET updated_at=NOW() WHERE id=$1 AND tenant_id=$2`。`TransitionStatus`、`AssignTicket`、`EscalateTicket`、`ResolveTicket`、`CloseTicket` 因此**每一条状态流转都只写了 updated_at 却返回成功**，而 `workflow_history` 仍记录「该流转已发生」。改为 9 键闭集白名单：未知键**返回错误而非静默丢弃**（静默忽略正是原行为），`sort.Strings` 后再按 `len(args)+1` 编号槽位，`updated_at` 由 `NOW()` 独占。占位符编号沿用了 `UpdateSLATracking` 已修好的写法——那个方法曾经因为 `string(rune(...))` 输出 `"\x02"` 而不是 `"2"`，在每条 SLA 更新上都是 PG 语法错误。
+
+两处投影：
+
+```go
+// description / category / source 在 076 里声明可空，但目的地是非指针 string，
+// NULL 会扫失败；指针目的地（assignee_id、source_id、resolved_at、closed_at）无需包裹
+const ticketColumns = "id, tenant_id, title, COALESCE(description, '') AS description, COALESCE(category, '') AS category, priority, status, assignee_id, reporter_id, COALESCE(source, '') AS source, source_id, resolved_at, closed_at, created_at, updated_at"
+const relationColumns = "id, tenant_id, ticket_id, related_id, type, COALESCE(description, '') AS description, confidence, created_at"
+```
+
+三处 `ticket_relations` 的 `SELECT *` 一并改为显式投影。
+
+### 63.5 迁移 696 与 `created_by` 的取舍
+
+`696_add_ticket_relation_transfer_columns.sql`（含 down）：
+
+- `ticket_relations` 加 `description TEXT`、`confidence DOUBLE PRECISION NOT NULL DEFAULT 0`（默认 0 使低置信度关系在 `ORDER BY confidence DESC` 里排最后）
+- `ticket_transfers` 加 `initiated_by VARCHAR(255)`、`hold_duration_ms BIGINT`
+- `ticket_relations.tenant_id` `DROP NOT NULL`
+
+四列是真缺——POST body 字段、`minConfidence` 过滤、`binding:"required"` 的 `initiated_by`、以及被 `hold_duration_ms` 回读的响应字段，都不是可选装饰。另外 4 个「幽灵列」其实只是 076 自家列的过期别名，**改代码，不动 schema**。`confidence` 的 `NOT NULL DEFAULT 0` 让它能进 INSERT 却不违反约束；`description` 可空，故模块 B 侧包 `COALESCE`。
+
+**刻意不写 `created_by`**：572 把它建成 `UUID REFERENCES users(id)`，而 `CreateRelationRequest.CreatedBy` 是客户自由输入——任何不存在的 `users.id` 都会 FK 失败，把整个请求 500。该列可空，且两个模块都没有 SELECT 读它，所以省略不丢任何「客户能存下的信息」。真正写入需要认证用户 id，而现有方法签名一个都不接收。同理不给 `ticket_transfers` 加 `tenant_id`（686 拒给 `sla_records` 加的先例）。租户归属是范围问题，不是列修复问题，留待专轮。
+
+### 63.6 删除三个死文件
+
+`internal/ticketing/repository/{ticket,relation,transfer}.go` 被删（备份 `/tmp/r62/dead_backup/`）：
+
+- `ticket.go:21` INSERT 漏 NOT NULL 的 `created_at`/`updated_at`，`:32` `SELECT * FROM tickets`
+- `relation.go:19` INSERT 用 `related_ticket_id`/`relation_type` 且漏 `type`/`created_at`；`:31,52` 两处 `SELECT *`
+- `transfer.go:22` INSERT 用 `from_engineer_id`/`to_engineer_id` 且漏 `created_at`
+
+外部引用为零（`TicketRepository`/`NewTicketRepository`、`RelationRepository`、`TransferRepository` 只剩自引用；`wiring-core-domains.go:161,163,170` 的命中用的是 `ti_repo` 别名 = 模块 A）；活路由走的是 `repository.Repository`。它们也是活 models 抄下幽灵列名的源头。修不可达的 SQL 不如按精炼规则 (b) 删掉——基础设施（`repository.go`）已在，且已被正确实现。
+
+`TestTkdDeadModuleBFilesAreGone` 钉住它们不再回来，并**反查 `repository.go` 仍存在**，防止整个目录删空也能通过。
+
+### 63.7 11 条回归与投影检查的双向化
+
+`cmd/server/migration_tickets_dialect_test.go`（新建，`package main`，纯解析真实 DDL 与真实源码，不写死期望）：
+
+1. 696 的 5 条正向子串 + 幂等（`ADD COLUMN` 出现次数 == `ADD COLUMN IF NOT EXISTS`）+ down 的 5 条
+2. 两模块 INSERT 只写 schema 真的有的列
+3. schema 里每个 NOT NULL 无默认的列都必须出现在 INSERT 里（`checked >= 4`；正向对照：`tickets.reporter_id` 必须为 NOT NULL、`ticket_relations.tenant_id` 在 696 后必须不再是、`related_id` 必须仍是）
+4. 两模块都不再对这三张表 `SELECT *`（正向对照：`SELECT COUNT(*)` 必须**不**被匹配；一个真的 `SELECT *` 必须被匹配）
+5. UPDATE 的 SET 只碰 schema 有的列（模块 A 要求 `len(updates) >= 4`）
+6. 投影列既有 DDL 又有 db 目的地——**双向**：模型有 db tag 而投影漏选同样报错，例外须在 `omit` 里点名；投影与 `omit` 同时出现的名字报「omit 过期」，防 allow-list 被用来掩盖真实遗漏
+7. 两模块都不再用 076 之前的列别名
+8. 模块 B `TicketRelation.ID` 是 `string`
+9. `UpdateTicket` 不是空写（内嵌修复前代码作正向对照）
+10. 提取器自身正向对照
+11. 死文件不再出现
+
+`omit` 的合法例外（每项在投影常量自己的注释里有理由）：模块 A relation `{created_by}`；模块 B ticket `{type, assigned_to, created_by}`；模块 B relation `{related_ticket_id, relation_type, created_by}`。
+
+`internal/ticketing/repository/repository_test.go` 另加 7 条 sqlmock 测试，钉住真实 SQL 文本与占位符编号（`UPDATE tickets SET assignee_id=\$3, resolved_at=\$4, status=\$5, updated_at=NOW() WHERE id=\$1 AND tenant_id=\$2` 等）。
+
+Round 61 的 `TestMigration_TicketWorkflowHistory_VersionIsUnique` 从「695 必须仍是最大版本」放宽为 `max >= 695`：696 落地后等式必挂，而真正的不变量已由 `len(forwards)==1` / `len(downs)==1` 承担。
+
+### 63.8 变异矩阵与敏感性对照
+
+Harness：`/tmp/r62/mutate/`（383M，独立的 2 模块 `go.work` + 复制的 `go.work.sum`，`go build ./orion-platform-svc-go/...` rc=0）。修复前内容用 `git show 28eef84d7:<path>` 取（该副本无 `.git`）。
+
+| 变异 | 结果 |
+|---|---|
+| 基线（修复后） | 11/11 PASS，RC=0 |
+| M1 回退模块 A（3 models + 3 repos） | 6/11 挂：INSERT 列存在性、NOT NULL 完整性、SELECT *、UPDATE 列、投影、列别名 |
+| M2 回退模块 B（models + repository.go） | 4/11 挂：SELECT *、投影、`ID is string`、`UpdateTicket 不是空写` |
+| M3 删掉迁移 696 | 4/11 挂：696 专项、INSERT 列存在性、NOT NULL 完整性、投影 |
+| M4 恢复 3 个死文件 | 5/11 挂：INSERT 列存在性、NOT NULL 完整性、SELECT *、列别名、死文件守卫 |
+| M5 全回退 | 10/11 挂；唯一存活的是提取器自测——它不依赖生产代码，本就该独立 |
+
+单列敏感性对照（每条只改一列，验证不是「全挂才算数」）：
+
+- 删掉模块 A tickets INSERT 的 `reporter_id` → 恰 1 条 NOT NULL 报错，归属正确
+- 给模块 B `ticketColumns` 塞 `metadata` → 目的地缺失报错
+- 塞 `assigned_to` → DDL 缺失报错
+- 从模块 A `relationColumns` 删掉 `description` → **修复前静默通过**；这就是 63.7 第 6 条改成双向的动机
+- `omit` 里塞一个真在投影里的列 → 报 omit 过期
+- 给模型加一个没被选中的字段（`Labels db:"labels"`）→ 报漏选
+
+### 63.9 写测试时自己撞出的两个测试基建缺陷
+
+**(a) 一次打补丁静默删掉了 2 条测试。** 用 python 做花括号配对切片替换 `tkdFunctionBody`，切片落点跑到文件最后一个 `}`，把测试文件从 722 行截到 706 行，`TestTkdModuleBUpdateTicketIsNotANoop` 与 `TestTkdDeadModuleBFilesAreGone` 一起消失。没暴露是因为**未被引用的函数是合法的 Go**——只有未使用的局部变量和 import 会编译失败，`tkdIsNoopUpdate` 变成无引用函数后 `go build` 与 `go vet` 全绿、8 条现存测试全绿。是靠 harness 的 `diff -q` 返回 IDENTICAL（两边都缺那两条）才查出。这正是「没用到的信号说明工具（或测试，或我的读法）太弱」：编译器和 vet 都对，弱的是断言覆盖面。
+
+**(b) `tkdFunctionBody` 被 `map[string]interface{}` 连续击穿两次。** 第一版数到第一个 `{`，停在 `interface{}` 的空花括号对上，只返回签名。改成「深度数到参数表的右括号，再取其后第一个 `{`」后又失败——receiver `func (r *Repository)` 自己的括号先归零，于是「其后第一个 `{`」仍然是 `interface{}` 的花括号，提取出的「函数体」只有签名，测试把**已经修好的** `UpdateTicket` 报成空写。最终改用 `go/ast`（`parser.ParseFile` + `fset.Position(fn.Pos()/fn.End()).Offset`）按 `接收者.方法名` 取整段文本，并由 `TestTkdFuncBodiesExtractsPastAMapInTheSignature` 钉住这个失败模式。附带把 `tkdIsNoopUpdate` 的第三条判据（比对旧 SQL 字面量）删掉——它只增加了字符串脆弱性，`range updates` 与 `writableTicketColumns` 两个标记已足够。
+
+### 63.10 验证
+
+```
+go build ./...                                        → rc=0
+go vet ./...                                          → rc=0
+go test -count=1 ./internal/ticket/... ./internal/ticketing/...  → 7 包全 ok
+go test -count=1 ./cmd/server/ -run 'TestTkd' -v      → 11/11 PASS
+go test -count=1 ./...                                → 546 包全 ok，0 FAIL（Round 61 基线同为 546）
+```
+
+### 63.11 提交清单
+
+本节未随 `851f93fab` 一起提交的四项：
+
+- `D orion-platform-svc-go/internal/ticketing/repository/ticket.go`
+- `D orion-platform-svc-go/internal/ticketing/repository/relation.go`
+- `D orion-platform-svc-go/internal/ticketing/repository/transfer.go`
+- `A orion-platform-svc-go/cmd/server/migration_tickets_dialect_test.go`
+- `M orion-platform-svc-go/cmd/server/migration_ticket_workflow_history_test.go`（695 等式放宽为 `max >= 695`）
+
+下一个可用迁移版本号 **697**。
+
+### 63.12 遗留（记录不改）
+
+- 模块 B 仍有 11 张表走 `SELECT *`：`ticketing_assignment_rules`、`ticketing_sla_targets`、`ticketing_sla_policies`、`ticketing_sla_breaches`、`ticketing_automation_rules`、`ticketing_dispatch_engineers`、`ticketing_dispatch_rules`、`ticketing_suspensions`、`ticket_transfer_history`、`ticket_sla_tracking`、`ticket_assignments`。
+- `QueueEntry`、`QueueStatus`、`ComplianceResult` 三个结构体**完全没有 db tag** → `GetDispatchQueueEntries`、`GetDispatchQueueStatus`、`GetSLACompliance` 在安全模式下每列都失败。
+- `UpdateSLAPolicy`（`:315`）与 `UpdateAutomationRule`（`:389`）是同一种丢 `updates` map 的空写。
+- `ticket_workflow.go` 六处 `_ = repo.…` 丢弃错误（3 处 `UpdateTicket`、`CreateAssignment`、2 处 `UpdateSLATracking`、`AddWorkflowHistory(... "escalate" ...)`）；`ticket_transfer_suspend.go:10`；模块 A `transfer.go` 的 `GetStats` 丢弃 `avgHold` 错误。
+- `service.go:73-79` 的 `validTransitions` 缺 `"escalated"`，喂 `GetExecutiveDashboard.Escalations`，结构上恒为 0。
+- 跨模块 relation 不可见：模块 B 按 `tenant_id=$1` 过滤，模块 A 写 NULL `tenant_id`（696 放松了它）——同属租户归属延后。
+- `ticket_relations.created_by` 需要认证用户 id，现有方法签名都不接收。
+- 模块 B `metadata` JSONB 与 `map[string]any` 经 sqlx v1.4.0 + lib/pq 的扫描未验证（`CreateTicket` 会写入 `"metadata": t.Metadata`）。
+- 模块 B 死集群：`service/workflow.go`、`service/ticket.go`、`handler/workflow.go`、`handler/ticket.go` 的 `TicketHandler`、`repository/interfaces.go`、生成的 `repository_interface.go`、3 个测试文件、`models.WorkflowHistory` 的四个幽灵别名 tag、`testutil/mocks.go` 的 `Create`、`models.ListQuery`（现只在死集群内被引用）。
+- `AssignmentRule.Order` 的 `db:"order"` 是 SQL 保留字。
+- 其余 53 个活 offender 分布在约 40 个模块（`/tmp/r62/liv7.txt`）；9 个 dead offender 待删（本节的 3 个已删）。
+- 本轮的投影完整性检查仍是**基于 db tag 的静态对照**，抓不住「db tag 存在但语义对错了列」；这类问题只能靠真实 DDL 回放或集成测试。
