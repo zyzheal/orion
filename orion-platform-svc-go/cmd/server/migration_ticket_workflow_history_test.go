@@ -449,8 +449,16 @@ func TestMigration_TicketWorkflowHistory_VersionIsUnique(t *testing.T) {
 			max = n
 		}
 	}
-	if strconv.Itoa(max) != whVersion {
-		t.Errorf("the newest migration version is %d, not %s", max, whVersion)
+	// The ordering guarantee is "nothing was applied after 695 when it landed",
+	// not "695 is still the last migration": the latter becomes false the moment
+	// any later round adds a migration (696 in Round 62) and says nothing about
+	// the ordering of this one.
+	whInt, aerr := strconv.Atoi(whVersion)
+	if aerr != nil {
+		t.Fatalf("whVersion %q is not an integer: %v", whVersion, aerr)
+	}
+	if max < whInt {
+		t.Errorf("the newest migration version is %d, so %s would apply after a later-numbered migration", max, whVersion)
 	}
 }
 
@@ -470,11 +478,11 @@ func TestMigration_TicketWorkflowHistory_DownReversesTheForwardInOrder(t *testin
 	t.Logf("indexes created by %s: %v", whMigration, idx)
 
 	for _, i := range idx {
-		if !regexp.MustCompile(`(?i)DROP\s+INDEX\s+(?:IF\s+EXISTS|IF\s+NOT\s+EXISTS)\s+`+regexp.QuoteMeta(i)+`\b`).MatchString(down) {
+		if !regexp.MustCompile(`(?i)DROP\s+INDEX\s+(?:IF\s+EXISTS|IF\s+NOT\s+EXISTS)\s+` + regexp.QuoteMeta(i) + `\b`).MatchString(down) {
 			t.Errorf("the down migration does not drop index %s", i)
 		}
 	}
-	if !regexp.MustCompile(`(?is)ALTER\s+TABLE\s+`+regexp.QuoteMeta(whTable)+`\s+DROP\s+COLUMN\s+(?:IF\s+EXISTS|IF\s+NOT\s+EXISTS)\s+tenant_id`).MatchString(down) {
+	if !regexp.MustCompile(`(?is)ALTER\s+TABLE\s+` + regexp.QuoteMeta(whTable) + `\s+DROP\s+COLUMN\s+(?:IF\s+EXISTS|IF\s+NOT\s+EXISTS)\s+tenant_id`).MatchString(down) {
 		t.Error("the down migration does not drop tenant_id")
 	}
 
