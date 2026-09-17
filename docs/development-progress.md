@@ -13109,3 +13109,209 @@ go test -count=1 ./...                                → 546 包全 ok，0 FAIL
 - `AssignmentRule.Order` 的 `db:"order"` 是 SQL 保留字。
 - 其余 53 个活 offender 分布在约 40 个模块（`/tmp/r62/liv7.txt`）；9 个 dead offender 待删（本节的 3 个已删）。
 - 本轮的投影完整性检查仍是**基于 db tag 的静态对照**，抓不住「db tag 存在但语义对错了列」；这类问题只能靠真实 DDL 回放或集成测试。
+---
+
+## §64 模块 B 活链方言修复：9 个 `SELECT *` 换显式投影、7 处 `int` 换回 UUID、2 个 map 空写换回真写（2026-08-26）
+
+> §62 归并行会话（PERM-8 阶段 2），§63 见上一节。扫描起点 HEAD `bfeb65719`（§63）。
+> 本节 13 个文件全部落在 `internal/ticketing`（模块 B）与 `cmd/server`，无新迁移，下一个可用版本号仍是 **697**。
+
+### 64.1 范围界定：只修活链，不碰死链
+
+模块 B 只有一条链路在生产被构造——`cicd_domain_wiring.go:354-356`：
+
+`*Repository` → `service.RepositoryInterface` → `*Service` → `*Handler`
+
+`service.ServiceInterface` 共 81 个方法，全部经这条链路可达。除此之外的东西生产不可达：`SLAService`、`DispatchService`、`SuspendService`、`WorkflowService`、`AnalyzerService`、`AnalyticsService`、`LoadBalancer`、`TicketGeneratorService`，以及 `repository/{sla.go,sla_policy.go,assignment_rule.go,suspend.go}` 四个克隆仓库。
+
+判定规则因此是：**活链上返回 nil / 空 / 常数 / 回显的方法是真欠账；同名死链上是删不删的问题。** 本节只修活链，死链另记（64.9）。
+
+活链查的表是 `ticketing_*`（655）。655 一律 `UUID PRIMARY KEY`，571 / 572 又补了 `deleted_at` / `created_by` / `updated_by` / `updated_at`。而活链的模型与签名还是 `int`、查询还是 `SELECT *`、JSONB 还是扫进 `string`——所以错误全在运行时以 500 暴露，编译、`go vet`、全部单测都看不见。八类硬伤：
+
+### 64.2 九个 `SELECT *` 换成显式投影，每条都由 655 的列类型决定
+
+| 表 | 投影里必须出现的写法 | 原因 |
+|---|---|---|
+| `ticketing_assignment_rules` | `conditions::text AS conditions`、`COALESCE(target_id, '')` | `conditions` 是 JSONB；lib/pq 把 JSONB 返回 `[]byte`，扫不进 `string`。`target_id` 可空 |
+| `ticketing_dispatch_engineers` | `skills::text AS skills`、`COALESCE(user_id, '')` | 同上 |
+| `ticketing_dispatch_rules` | `conditions::text AS conditions` | 同上 |
+| `ticketing_sla_policies` / `ticketing_automation_rules` | 补 `updated_at` | 572 补的审计列，`SELECT *` 会把它带回 |
+| `ticketing_sla_breaches` | `COALESCE(policy_id, '')` | 可空 UUID |
+| `ticket_transfer_history` | 故意**不投影** `tenant_id` | `models.TransferHistoryEntry` 没有 `db:"tenant_id"`；投影出一列而目的地没有它就是 safe mode 的失败方式 |
+| `ticketing_suspensions` | `COALESCE(engineer_id, '')`、`COALESCE(start_at, NOW())` | 前者可空；`TIMESTAMPTZ NULL` 扫不进 `time.Time` |
+
+### 64.3 `GetSLABreaches` 删掉一个引用不存在列的 WHERE
+
+原查询 `WHERE tenant_id=$1`，而 `ticketing_sla_breaches`（655）没有 `tenant_id`——每次调用都报 `column "tenant_id" does not exist`。686 的注释自己也写着「故意不给 sla_records / suspend_records / ticket_comments 加 tenant_id」，同族审计表都不是按租户分的。
+
+### 64.4 `UpdateSuspendStatus` 不再写 `updated_at`
+
+`ticketing_suspensions` 只有 `created_at`，没有 `updated_at`。写不存在的列是硬错误，改为只写 `status`。
+
+### 64.5 两个「收下整个 map 只写 updated_at」的空写
+
+`UpdateSLAPolicy` 与 `UpdateAutomationRule` 是 §63 已修掉的 `UpdateTicket` 同款空写——`PUT /tickets/sla/policies/:policyId` 静默丢弃 `name` / `priority` / `response_hours` / `resolve_hours` / `active`，`PUT /tickets/automation/rules/:ruleId` 丢弃 `name` / `trigger` / `condition` / `action` / `enabled`。
+
+修法与 `UpdateTicket` 对齐：新增 `writableSLAPolicyColumns` / `writableAutomationRuleColumns` 白名单，抽出共享的 `updateRows` + `buildSetClause`（`UpdateTicket` 改为委托，不再自己拼 SET）。`buildSetClause` 按 key 排序保证占位符编号稳定、未知 key 报错而不是静默丢弃，并把 `id` / `tenant_id` 留在 `$1` / `$2`，因此第一个 SET 参数是 `$3`——正是 `UpdateSLATracking` 曾经算错的 off-by-one。
+
+### 64.6 7 处签名与 9 个字段换回 UUID
+
+655 全是 `UUID PRIMARY KEY`，原来的 `int` 是 076 时代的残留。
+
+- **仓库签名 7 处**：`DeleteAssignmentRule(id)`、`GetSLAPolicy` / `UpdateSLAPolicy` / `DeleteSLAPolicy` / `GetSLACompliance(policyID)`、`UpdateAutomationRule` / `DeleteAutomationRule(ruleID)`
+- **service 层 6 个 `strconv.Atoi` 块全删**，签名镜像改；`service.go` / `service_interface.go` / `ticket_workflow.go` 同步
+- **模型字段 9 个**：`AssignmentRule.ID`、`SLATarget.ID`、`DispatchRule.ID`、`TransferHistoryEntry.ID`、`SLABreach.ID` + `SLABreach.PolicyID`、`ComplianceResult.PolicyID`、`AutomationRule.ID`、`ExecuteRuleResult.RuleID`
+- **handler**：`RemoveAssignmentRule` 的 `strconv.Atoi` 换掉、补空 id 防护——原来的写法把数据库里真实持有的每一个 UUID 都折成 400 `invalid rule id`，DELETE 永远跑不到
+
+### 64.7 `GetDispatchQueueEntries` 的两段式失败
+
+1. `EXTRACT(EPOCH FROM (NOW() - created_at))/3600` 是 `numeric` → sqlx 给 `[]byte` → 扫不进 `float64`。必须 `CAST(... AS double precision)`。
+2. 列别名 `id AS ticket_id` 扫进 `QueueEntry`：该结构体原来完全没有 db tag，safe mode 的恒等映射器把字段名小写化（`TicketID` → `ticketid`），与 `ticket_id` 不匹配。`QueueEntry`（5 个字段）与 `TransferStats`（3 个字段）补上显式 db tag。
+
+### 64.8 `tkdIsNoopUpdate` 检测器同步更新
+
+`UpdateTicket` 改为委托 `updateRows` 后，`range updates` 不再出现在它自己的方法体里，原来的正则会把**已修好的** `UpdateTicket` 判成 no-op。改为按形状判：内联 `range updates` 或委托 `updateRows` 都算已修，缺 `writableTicketColumns` 白名单算未修；并补了第二条正向对照（委托但白名单传 `nil` 必须被判定为空写），否则检测器的委托分支可以接受任何输入。
+
+### 64.9 28 条新回归测试
+
+**repository 层 17 条**（sqlmock + `QueryMatcherRegexp` + `MatchExpectationsInOrder(false)`）：`TestListAssignmentRulesCastsJSONBAndCoalescesTheNullableUUID`、`TestGetSLATargetUsesTheExplicitProjection`、`TestGetSLAPolicyScansTheUUIDIDAndEveryColumn`、`TestGetSLABreachesDoesNotFilterOnATenantColumnItLacks`、`TestListAutomationRulesUsesTheExplicitProjection`、`TestListEngineersCastsSkillsAndCoalescesTheUserUUID`、`TestListDispatchRulesUsesTheExplicitProjection`、`TestGetTransferHistoryOmitsATenantColumnTheModelLacks`、`TestListSuspensionsCoalescesTheNullableColumns`、`TestUpdateSuspendStatusDoesNotWriteUpdatedAt`、`TestUpdateSLAPolicyAppliesEverySuppliedColumn`、`TestUpdateSLAPolicyRejectsAColumn655DoesNotHave`、`TestUpdateAutomationRuleAppliesEverySuppliedColumn`、`TestUpdateAutomationRuleRejectsAColumn655DoesNotHave`、`TestGetDispatchQueueEntriesCastsTheAgeToDoublePrecision`、`TestGetTransferStatsScansTheUnderscoredAlias`、`TestTransferStatsCarriesDBTagsForEveryAliasIsThePositiveControl`。
+
+正则一律 `^…$` 锚定；`WithArgs()` 不带参数即断言零绑定参数。
+
+**service 层 8 条**：`sla_policy_test.go`，记录型 `slaPolicyRepo` 内嵌 `RepositoryInterface` 且故意留 nil——任何未覆写的方法一调就 panic。`TestGetSLAPolicyReachesTheRepositoryWithAUUIDID`、`TestDeleteSLAPolicyReachesTheRepositoryWithAUUIDID`、`TestGetComplianceReachesTheRepositoryWithAUUIDID`、`TestRemoveAssignmentRuleReachesTheRepositoryWithAUUIDID`、`TestUpdateSLAPolicyPassesTheUUIDAndEveryFieldThrough`、`TestDeleteAutomationRuleReachesTheRepositoryWithAUUIDID`、`TestUpdateAutomationRulePassesTheUUIDAndEveryFieldThrough`、`TestUpdateAutomationRuleMapsAMissingRuleToNotFound`。两个 Passes 测试同时断言 `len(updates) == len(want)`，所以多写字段也算失败。
+
+**handler 层 3 条**：`assignment_test.go`，`recordingAssignmentRepo` 内嵌 `fakeTicketingRepo`。`TestHandler_RemoveAssignmentRulePassesAUUIDThrough`（DELETE 真实 UUID → 200 且 `removedID` 未被改动）、`TestHandler_RemoveAssignmentRuleRejectsAnEmptyID`、`TestHandler_RemoveAssignmentRulePropagatesARepositoryFailure`。空 id 那条**直接驱动 handler**：gin 不会把 `/rules/` 路由进 `:id`（测试模式直接 404），只能通过 `c.Params = gin.Params{{Key:"id", Value:""}}` 造出「参数在但为空」这一种形态。
+
+选择 `RemoveAssignmentRule` 做 handler 层覆盖不是随手挑的：既有的 handler 测试全走死链（`DispatchService` / `SLAService` / `TicketService`），没有一条测过活的 `*Handler`。
+
+### 64.10 变异实验 17/17 全灭
+
+`git worktree add --detach --no-checkout /tmp/r64mut HEAD` + `git checkout HEAD -- .` 取干净 HEAD，再叠加本节的 10 个改动文件与 3 个测试文件；`cmp -s` 逐个确认与主工作树字节一致。基线先断言全绿，每个 patch 的命中数都断言，恢复一律从变异前备份按字节拷回，restore 后再 `cmp -s` 复核。
+
+| 变异 | 被哪条测试杀掉 |
+|---|---|
+| M1 `ListAssignmentRules` 退回 `SELECT *` | `TestListAssignmentRulesCastsJSONBAndCoalescesTheNullableUUID` |
+| M2 恢复 `GetSLABreaches` 的租户过滤 | `TestGetSLABreachesDoesNotFilterOnATenantColumnItLacks` |
+| M3 `UpdateSuspendStatus` 加回 `updated_at=NOW()` | `TestUpdateSuspendStatusDoesNotWriteUpdatedAt` |
+| M4 `UpdateSLAPolicy` 只写 `updated_at` | `TestUpdateSLAPolicyAppliesEverySuppliedColumn` |
+| M5a 白名单置 nil | 同上 |
+| M5b `if !allow[k]` → `if false` | 两条 Rejects 测试 |
+| M6 `UpdateAutomationRule` 只写 `updated_at` | `TestUpdateAutomationRuleAppliesEverySuppliedColumn` |
+| M7 去掉 `CAST(... AS double precision)` | `TestGetDispatchQueueEntriesCastsTheAgeToDoublePrecision` |
+| M8 行结构体 db tag 全去 | 同上（真扫盘失败） |
+| M9 `TransferStats.TotalTransfers` 的 db tag 去掉 | `TestGetTransferStatsScansTheUnderscoredAlias` |
+| M10 `QueueEntry` 的 db tag 全去 | `TestTransferStatsCarriesDBTagsForEveryAliasIsThePositiveControl`（正向对照） |
+| M11 把 `tenant_id` 投回 `ticket_transfer_history` | `TestGetTransferHistoryOmitsATenantColumnTheModelLacks` |
+| M12 service 层重新引入 `strconv.Atoi` | `TestGetSLAPolicyReachesTheRepositoryWithAUUIDID` |
+| M13 handler 层重新引入 `strconv.Atoi` | `TestHandler_RemoveAssignmentRulePassesAUUIDThrough` |
+| M14 `slaPolicyColumns` 去掉 `updated_at` | `TestGetSLAPolicyScansTheUUIDIDAndEveryColumn` |
+| M15 `skills::text` → `skills` | `TestListEngineersCastsSkillsAndCoalescesTheUserUUID` |
+| M16 `tkdIsNoopUpdate` 默认分支 `return true` → `false` | `TestTkdModuleBUpdateTicketIsNotANoop`（`migration_tickets_dialect_test.go:775`，报「the no-op detector accepted the pre-fix body; the check is vacuous」） |
+
+17/17 被杀，0 存活，0 编译型杀死，每一条都指名了具体测试。
+
+### 64.11 两个工具太弱的发现
+
+**(a) M5b 存活——拒绝测试结构性地无法区分「进 SQL 前被拒」与「发出查询后被拒」。** 把白名单判断换成 `if false`（即全放行）之后，两条 Rejects 测试**全过**。原因是 sqlmock 会拒绝未匹配的调用，所以 `err != nil` 在两种情况下都成立，断言是空的。
+
+修法：在两条 Rejects 测试里**先挂一个 `ExpectExec` 期望**。白名单被绕开时，第一个 key 会消费掉这个期望并返回 nil——这正是白名单要拦的行为；正确的代码则永远不会消费它（所以这两条测试里的 `ExpectationsWereMet` 被删掉了，它在这里已经是无效断言）。这也是本会话第二次撞上「没用到的信号说明工具（或测试，或我的读法）太弱」——第一次是 §63.9(a) 的静默删测试。
+
+**(b) 变异驱动的 BUILD / SURVIVED 分类器把一次真杀死报成「构建失败」。** 分类器的启发式要求输出里出现 `'# '` 才算存活/被杀，而 M16 是被杀死的，只是包没打印 `# ` 前缀。改判据：**`--- FAIL:` 是唯一权威的杀死信号**；没有它就归为 BROKEN 并去看——包构建失败时永远不会有 `--- FAIL:`，所以编译错误一律不能计入存活或被杀。
+
+顺带两个变异本身写坏了，重写后才成立：M13 原来给 `id` 重赋值为 `int` 后又写 `_ = id`（类型错误），改成 `strconv.Atoi` + `RespondBadRequest` 才是一次真实回归；M16 的锚点用了 `		` 而源码是 `	`。驱动脚本另有一处 `shutil.move` 崩在 restore 循环——M12 对同一个文件做两处改动，第二次移动时已经没有备份可搬，改为对文件列表去重。
+
+**(c) 本机 gofmt 会把注释里相邻的两个单引号改成 `”`（U+201D）。** 用 `gofmt -d` 加 python 取字节确认（`0x27 0x27` → `0x201d`）。注释被改成弯引号纯属外观，但「改完立刻 `gofmt -l` 变红」很误导。改法是重写那句话避开两个相邻单引号，而不是去跟 gofmt 对赌。
+
+### 64.12 验证
+
+```
+gofmt -l internal/ cmd/ tools/     → 只剩 3 个模块 A 的预先存在违规（非本节，未动）
+go build ./...                     → rc=0
+go vet ./...                       → 0 行输出
+go test -count=1 ./...             → rc=0，546 包 ok，0 FAIL（Round 61 基线同为 546）
+本节 28 条新测试                    → 17 + 8 + 3 全 PASS
+```
+
+### 64.13 提交清单
+
+11 个改动 + 2 个新增测试文件：
+
+- `M orion-platform-svc-go/internal/ticketing/repository/repository.go`
+- `M orion-platform-svc-go/internal/ticketing/models/models.go`
+- `M orion-platform-svc-go/internal/ticketing/service/service.go`
+- `M orion-platform-svc-go/internal/ticketing/service/service_interface.go`
+- `M orion-platform-svc-go/internal/ticketing/service/ticket_sla_policy.go`
+- `M orion-platform-svc-go/internal/ticketing/service/ticket_workflow.go`
+- `M orion-platform-svc-go/internal/ticketing/handler/handler_assignment.go`
+- `M orion-platform-svc-go/internal/ticketing/handler/dispatch_test.go`
+- `M orion-platform-svc-go/internal/ticketing/handler/fake_repo_test.go`
+- `M orion-platform-svc-go/cmd/server/migration_tickets_dialect_test.go`
+- `A orion-platform-svc-go/internal/ticketing/repository/repository_test.go`（+414）
+- `A orion-platform-svc-go/internal/ticketing/service/sla_policy_test.go`（265）
+- `A orion-platform-svc-go/internal/ticketing/handler/assignment_test.go`（96）
+
+### 64.14 遗留（记录不改）
+
+**仍走 `SELECT *` 的活链查询，共 2 个**（都在 `repository.go`，查的是 076 的表，655 不管）：`ticket_sla_tracking`（`:854`）、`ticket_assignments`（`:922`）。它们的目的结构体同样没有 db tag，需要各自的 076 列清点，与本轮口径不同，另开。
+
+**模块 B 的死链集群。** `repository/{sla.go,sla_policy.go,assignment_rule.go,suspend.go}`、`service/sla_policy.go`、`repository_interface.go`（无引用的生成文件）。前四个文件查的表是 **686** 创建的裸名家族（`sla_targets`、`sla_records`、`dispatch_engineers`、`dispatch_rules`、`dispatch_queue`、`suspend_records`）——模块 B 因此在同一份代码里对着 **三套表族**：076 的 `ticket_*`、655 的 `ticketing_*`、686 的裸名。死链那 28 条 `SELECT *` 全部没有租户过滤，而 686 明确「故意不加 `tenant_id`」。`interfaces.go` 的 `SLARepositoryInterface.policyID int`（`:36,71,72,73,76`）与 `testutil/mocks.go:171,175,179,191` 的 `MockSLARepository` 仍用 `int`，与活链的 `string` 不一致（生产不可达，内部自洽）。删除必须一次把 `interfaces.go` 与 `testutil/mocks.go:133` 的活引用一起处理，不能只删文件。
+
+**空写与信息缺口：**
+
+- `repository.go:468` 的 `GetTicketSLAStatus` 自述 `Placeholder`
+- `GetTransferStats` 只填 `TotalTransfers`，`ActiveTransfers` / `AvgTransfers` 恒 0——本轮只补了 db tag，SQL 仍是部分投影
+- `GetDispatchQueueStatus` / `GetSLACompliance` / `QueueStatus` 的结构体字段 655 没对应列
+- `SLATarget.Enabled`、`SLAPolicy.Enabled` / `TargetResponseTimeMs` / `TargetResolutionTimeMs`、`AutomationRule.Description` / `Actions` / `CreatedBy`、`AssignmentRule.Categories` / `Priorities` / `Assignee` 无 655 列——作为多余目的地无害，因此**正确地**没进投影和白名单
+
+**延后项：** 跨模块 relation 不可见（模块 B 按 `tenant_id=$1` 过滤，模块 A 写 NULL）；`ticket_relations.created_by` 与 572 的 `created_by` / `updated_by` 需要认证用户 id，现有签名都不接收，必须走迁移；模块 B 的 `metadata` JSONB 与 `map[string]any` 经 sqlx v1.4.0 + lib/pq 的编码/扫描未验证；`AssignmentRule.Order` 的 `db:"order"` 是 SQL 保留字；`Suspend.StartAt` / `EndAt` 在真实 TIMESTAMPTZ 行上的扫描未验证。
+
+**§63 结转仍未处理：** `service.go:73-79` 的 `validTransitions` 缺 `"escalated"`（喂 `GetExecutiveDashboard.Escalations`，结构上恒 0）；`ticket_workflow.go` 六处 `_ = repo.…`；`ticket_transfer_suspend.go:10`；模块 A `transfer.go` 的 `GetStats` 丢弃 `avgHold`；其余 53 个活 offender 分布在约 40 个模块；6 个 dead 删除候选；2 组 NO_DDL。
+
+**本节之外的预存在 gofmt 违规（模块 A，非本节，未动）：** `internal/ticket/models/{assignment_rule,relation,ticket}.go`。
+
+**方法论边界：** 本节的投影完整性检查仍是**基于 db tag 的静态对照**，抓不住「db tag 存在但语义对错了列」；这类只能靠真实 DDL 回放或集成测试。变异实验只证明这 17 条断言不是空的，不证明覆盖面完整。
+
+## §65 21 条「绑定的字段被丢弃」候选全部核实：3 处真实缺陷，其余为已修或死代码（2026-09-17）
+
+> §59.14 列出的 21 条候选已逐条核实。依据 LIVE/DEAD 判定：**活链上返回 nil/空/常数/回显的方法是真欠账（真实缺陷需修）；死代码按规则 (b) 只记录不修改；语义合理或表无列的结构误用同样只记录。** 与 §59.14 的原始清单相比，分类有 3 处变化（详见 65.1、65.3、65.4）。
+
+### 65.1 真实缺陷（需修，3 项）
+
+**(a) cmdb 5 条 TenantID —— 根因是「租户来自客户端输入而非 auth context」，跨租户写入漏洞。** 原始清单写的是「绑定的 TenantID 被丢弃」，核实后更准确的说法是：
+
+- `handler.go:210` `ListCIs` 用 `h.getDefaultTenantID(c.Query("tenantId"))` —— 租户从**客户端 query 参数**取值，空时回退零 UUID（`handler.go:696-701`）。
+- `handler.go:121-135` `CreateCI` 不传租户，靠 service 层默认。
+- `service.go:57-82` `Create`：`tenantID := "00000000-0000-0000-0000-000000000000"`，随后 `if req.TenantID != nil { tenantID = *req.TenantID }` —— **客户端请求体可直接控制写入的 tenant_id**。
+- `ImportCIs`（`service.go:171+`）同模式。
+
+即：不是「丢弃」，而是租户根本不取自认证上下文（`c.GetString("tenant_id")`），任何请求体/query 都能指定任意租户。仓库层（`repository.go`）全部 `WHERE tenant_id=$N` 是防住跨租户**读**的，但写入侧把租户当客户端输入是真实的跨租户写入漏洞。修法：租户一律取 auth context，请求体里的 `TenantID` 要么删字段要么忽略，零 UUID 回退不能作为生产默认。
+
+**(b) mlops `UpdateModel` 丢弃 `ArtifactPath`（`handler.go:100-112`）。** `CreateModelRequest` 有 `ArtifactPath`（`models.go:38`），`CreateModel` 消费它（`repository.go:59`），`artifact_path` 列存在于迁移 375（第 12 行），`PUT /:id` 路由活跃（`handler.go:30`），但 `UpdateModel` 的 `updates` map 只加 name/framework/version/description/metadata。真实缺陷：更新模型会静默丢 artifact path。
+
+**(c) cache-mgmt `wiring-cache-mgmt.go:17` 的 `NewService(repo, nil)` 传 nil manager。** service 的 `Flush/EvictKey/GetCachedValue/SetCachedValue/DeleteCachedValue` 全部解引用 `s.manager`，活跃路由（如 `PUT /api/v1/cache/mgmt/:key`）一调就 nil panic。真实缺陷需修。
+
+### 65.2 已修（仅记录）
+
+| 候选 | 结论 |
+|---|---|
+| condition `CreateGroup` | 已修，本会话无新增 |
+| condition `CreateExpression` | 已修，本会话无新增 |
+| form `CreateForm` | 已修 |
+| pipeline-executor `CreatePipeline` | 已修 |
+
+### 65.3 死代码 / 结构问题（仅记录）
+
+- **cron `Create` 三字段**（MaxRetries/TimeoutSec/Enabled）：全链死亡，仅记录。
+- **distributed-config `ListGroups` 四字段**（GroupID/Level/OverrideOnly/UserID）：结构误用，仅记录。
+- **form `SubmitForm` 丢 `req.Comment`**：**结论修正**——原曾归类为真实缺陷候选，但 `migrations/605_create_form_missing_tables.sql` 显示 `form_submissions` 表没有 `comment` 列 → 死代码，仅记录。
+- **internal-library `Deprecate`**：两层丢弃，但 `internal_libraries` 表无 deprecation 列 → 死代码，仅记录。
+- **security-compliance `CreateBaseline`**：全链路无 description 通道 → 死代码，仅记录。
+- **cache-mgmt 语义（Value/Method）**：`CacheValueRequest` 的 Value/Method 语义合理，Method 全链死亡 → 仅记录。
+- **cmdb-collector 2 条**（Discover/Collect）：死代码，仅记录。
+- **cmdb-import `CreateJob`**：有文档化限制，仅记录。
+
+### 65.4 与 §59.14 清单的 3 处分类变化
+
+1. cmdb 5 条从「丢弃 TenantID」修正为「租户来自客户端输入」——更准确的表述，仍是真实漏洞。
+2. form `SubmitForm Comment` 从候选缺陷降级为死代码（表无列）。
+3. 新增 cache-mgmt nil manager panic（原清单未提，核实中发现）。
