@@ -13093,7 +13093,7 @@ go test -count=1 ./...                                → 546 包全 ok，0 FAIL
 - `A orion-platform-svc-go/cmd/server/migration_tickets_dialect_test.go`
 - `M orion-platform-svc-go/cmd/server/migration_ticket_workflow_history_test.go`（695 等式放宽为 `max >= 695`）
 
-下一个可用迁移版本号 **697**。
+下一个可用迁移版本号 **697**。（§66 补注：697、698 已落地，当前下一个可用版本号为 **699**。）
 
 ### 63.12 遗留（记录不改）
 
@@ -13114,7 +13114,7 @@ go test -count=1 ./...                                → 546 包全 ok，0 FAIL
 ## §64 模块 B 活链方言修复：9 个 `SELECT *` 换显式投影、7 处 `int` 换回 UUID、2 个 map 空写换回真写（2026-08-26）
 
 > §62 归并行会话（PERM-8 阶段 2），§63 见上一节。扫描起点 HEAD `bfeb65719`（§63）。
-> 本节 13 个文件全部落在 `internal/ticketing`（模块 B）与 `cmd/server`，无新迁移，下一个可用版本号仍是 **697**。
+> 本节 13 个文件全部落在 `internal/ticketing`（模块 B）与 `cmd/server`，无新迁移，下一个可用版本号仍是 **697**。（§66 补注：697、698 已落地，当前下一个可用版本号为 **699**。）
 
 ### 64.1 范围界定：只修活链，不碰死链
 
@@ -13315,3 +13315,127 @@ go test -count=1 ./...             → rc=0，546 包 ok，0 FAIL（Round 61 基
 1. cmdb 5 条从「丢弃 TenantID」修正为「租户来自客户端输入」——更准确的表述，仍是真实漏洞。
 2. form `SubmitForm Comment` 从候选缺陷降级为死代码（表无列）。
 3. 新增 cache-mgmt nil manager panic（原清单未提，核实中发现）。
+
+## §66 工单 SLA 链路的四类错误返回值全部改成真计算：ON CONFLICT 缺唯一约束、秒写成毫秒、SLA 窗口写死 1h、6 处吞错（2026-08-26）
+
+> 编号说明：§65 归并行会话（其标题日期写的是 2026-09-17，与本轮同一编号相邻，故本轮顺延为 §66）。§64 见上一节前半，扫描起点是 §64 结束时的 HEAD。本节 12 个文件全部落在 `internal/ticketing`（模块 B）、`cmd/server` 与 `migrations`，新增 2 个迁移（697、698），下一个可用版本号 **699**。
+
+### 66.1 范围界定：只修模块 B 的 SLA 与工单工作流链
+
+§64 收尾时留下一句「`ticket_sla_tracking`（`:854`）、`ticket_assignments`（`:922`）仍走 `SELECT *`」。本轮不碰那两条查询的列清点，而是沿着**调用它们的活链**往下走，把工单创建、SLA 上报、状态流转、分配、升级、解决、关闭这一整条链上返回错误值或吞掉错误的方法一次清完。判定口径与 §64 相同：有路由有接线、返回值是 nil/空/常数/回显的，是真欠账。
+
+### 66.2 迁移 697：`ticket_sla_tracking` 的 ON CONFLICT 目标没有唯一约束
+
+`UpsertSLATracking`（`repository.go`）对 `ticket_sla_tracking (ticket_id)` 做 upsert，而 245 建这张表时只给了主键 `id` 和一个**普通**索引 `idx_sla_tracking_ticket_id`。Postgres 对不匹配 `ON CONFLICT` 规约的唯一/排他约束是**在插入任何行之前**直接报错拒绝：
+
+```
+ERROR: there is no unique or exclusion constraint matching the ON CONFLICT specification
+```
+
+所以 `go build`、`go vet`、`go test` 全绿，服务能起来，而**每个 POST /tickets 在工单行自身已经提交之后**才失败——工单写进去、SLA 跟踪行永远写不进去、接口返回 500。这类错误不落在编译期，只能靠 DDL 与 SQL 文本的静态对照。
+
+697 给该列补唯一索引（`ADD CONSTRAINT IF NOT EXISTS ... UNIQUE` 之外的 `CREATE UNIQUE INDEX IF NOT EXISTS`，可重复执行）：
+
+- `migrations/697_ticket_sla_tracking_unique_ticket_id.sql`（53 行）
+- `migrations/697_ticket_sla_tracking_unique_ticket_id_down.sql`（14 行，回滚只删索引）
+
+### 66.3 迁移 698：把已经写成秒的毫秒列修正过来
+
+`CreateTicket` 原来把小时数只乘 3600，即把**秒**写进了一个声明为毫秒的 `target_resolution_time_ms` 列：4 小时的 critical 窗口写成 14400，本应是 14400000。代码改完只影响新行，已经落库的行仍然差三个数量级。698 做一次幂等的数据修正（只更新那些明显按秒写的行）：
+
+- `migrations/698_ticket_sla_tracking_target_resolution_units.sql`（34 行，**刻意不做回滚**——反向修正会把已按毫秒的行再缩小 1000 倍，无法区分「已修」与「本来就对」）
+
+### 66.4 代码修复（6 处）
+
+1. **`service.go` 新增 `slaTargetsFor`**：未知优先级回退到 medium 窗口。原先是裸 map 查找，未命中返回零值 `{ResponseH:0, ResolveH:0}`，即把 0 ms 写进 NOT NULL 列——数据库会报错，而且即使不报错，上报端也会立刻把这张工单判为违约。`CreateTicket` 与 `GetTicketSLA` 走同一个 helper，创建时写下的窗口与之后上报的窗口因此不可能漂移。
+2. **`service.go` `CreateTicket` 单位修正**：`int64(target.ResolveH) * 3600 * 1000`。
+3. **`ticket_sla_report.go` `GetTicketSLA`**：窗口不再写死 1 小时/24 小时，改用 `slaTargetsFor`；`ResponseOK` 不再是常数 `true`（原先谁都没回复的工单也上报「响应达标」）；落库的 `TargetResolutionTimeMs > 0` 优先于推导值，避免上报端与创建端再次漂移；落库的 `Breached` / `ResponseBreached` 置位不会被上报端覆盖成 false。
+4. **`ticket_sla_report.go` `GetBacklogAnalysis`**：原先在递增前把 resolved / closed 的计数重置为 0，导致这两个状态的计数**永远是 1**，而 `Total` 却照算，`ByStatus` 加总永远凑不出 `Total`。
+5. **`ticket_workflow.go` 六处吞错**：`_ = s.repo.…` 全部改成传播——`TransitionStatus` 的状态更新、`UpdateSLATracking`、`AddWorkflowHistory`；`AssignTicket` 的 `CreateAssignment`；`EscalateTicket` 的优先级更新；`ResolveTicket` 的 SLA 更新。原先数据库故障会被包装成「流转成功」，而 `workflow_history` 仍记录已发生。
+6. **`handler_workflow.go` 五个 handler 的绑定失败**：`TransitionStatus`、`AssignTicket`、`EscalateTicket`、`ResolveTicket`、`CloseTicket` 全部改为 400。其中 `CloseTicket` 原先绑定失败后**继续用零值 body 往下走并返回 200**——一个截断的请求体等于「用一个空 comment 成功关闭工单」。
+7. **`repository.go` `GetAssignmentsByTicket`**：`COALESCE(reason, '')` 投影，076 里该列可空而目的结构体是非指针 `string`。
+
+### 66.5 回归测试（3 个文件，27 条）
+
+**`cmd/server/migration_on_conflict_targets_test.go`（225 行）** —— 697 的闭包测试，而不是 697 的单条断言。它把两个工单模块源码里每一个 `ON CONFLICT (cols)` 目标都找出来（就近取它前面那条 `INSERT INTO` 定表名），再解析全部 forward 迁移声明的唯一性（表级 `PRIMARY KEY`/`UNIQUE`、列级 `PRIMARY KEY`/`UNIQUE`、`ALTER TABLE ... ADD UNIQUE`、`CREATE UNIQUE INDEX`），两边都归一化成「表名 + 排序小写列列表」再对照。这样写回归的价值是双向的：把某个 upsert 改成插在一个只有普通索引的列上会在这里挂，把 697 删掉也会在这里挂，而且报的是**具体哪条 upsert 对不上哪张表**。当前覆盖 4 个目标：`dispatch_queue (ticket_id)`、`ticketing_dispatch_weights (engineer_id,tenant_id)`、`ticketing_service_state (tenant_id)`、`ticket_sla_tracking (ticket_id)`。
+
+**`internal/ticketing/service/ticket_sla_workflow_test.go`（644 行，16 条）** —— service 包第一个完整的 `RepositoryInterface` 假实现。`wfRepo` 记录每一次调用的实参（创建了什么、每次 `UpdateTicket`/`UpdateSLATracking` 写了哪些键、写了哪些历史行），并允许在**恰好一个**调用点注入失败。这是能指名「哪一行的错误被吞了」的关键：把 `errUpdateSLATracking` 打开后，测试断言恰好一次带 `resolved_at` 的 SLA 更新、恰好一条 `transition` 历史行、且返回值错误文本对上。
+
+- 故意**没有改接口**：`service.RepositoryInterface` 的 55 个方法一字未动，既有的 `handler/fake_repo_test.go` 与 `testutil/mocks.go` 两个实现者不受影响。
+- `CreateTicket` 的假实现给空 ID 填 `"tk-fixed"`，否则 `UpsertSLATracking` 收到空 ticket_id，断言不到「写下的窗口属于刚创建的这张工单」。
+- `wfRepo.overrideTracking` 覆盖 SLA 跟踪行的初始空值：没有它，每条测试看到的 `TargetResolutionTimeMs` 都是 0，「保留落库值」那一分支根本到不了。
+
+16 条覆盖：4 档优先级的毫秒窗口 + 未知优先级回退 medium（并断言回退后写的是 24h 而不是 0）；`GetTicketSLA` 的 critical 窗口与未知优先级回退；保留落库解决目标；落库违约置位不被覆盖；`TransitionStatus`/`AssignTicket`/`EscalateTicket`/`ResolveTicket` 四个传播点；`ResolveTicket` 的 ticket 与 SLA 两处 `resolved_at` 是**同一个** `now`；`GetBacklogAnalysis` 的 6 张工单（含 `ByStatus` 加总等于 `Total`）与空租户。
+
+**`internal/ticketing/handler/handler_workflow_test.go`（77 行，3 条 + 5 个子测试）** —— 五个写端点对同一份被截断的请求体 `{"status":"in-progress"` 全部返回**恰好 400**，并各有一条正例确认合法请求体仍返回 200。断言的是精确状态码而不是 `>= 500`：既存的 `TestHandler_TICKETING_CloseTicket` 只检查 `>= 500`，修复前 `CloseTicket` 对坏 body 返回的是 **200**，那条断言根本不会触发——这正是本轮补它的原因。
+
+### 66.6 变异矩阵（9 组代码 + 1 组迁移，全部有区分度）
+
+`/tmp/r65`（独立 go.work，rsync 副本，工作树未被碰过）：
+
+| 编号 | 变异 | 抓住它的测试 |
+|---|---|---|
+| A | `* 3600 * 1000` 改回 `* 3600` | `TestCreateTicketWritesTheSLAWindowInMilliseconds` |
+| B | 去掉 `slaTargetsFor` 的 medium 回退 | `TestCreateTicketFallsBackToMediumForAnUnknownPriority` |
+| C | `GetTicketSLA` 写死 1h 响应窗口 | `TestGetTicketSLAReportsTheCriticalWindow` + `...ForAnUnknownPriority` |
+| D | 丢弃「落库解决目标优先」分支 | `TestGetTicketSLAKeepsTheStoredResolutionTarget` |
+| E | 恢复 `byStatus` 重置为 0 | `TestBacklogAnalysisCountsEveryResolvedAndClosedTicket` |
+| F | 去掉 `COALESCE(reason, '')` | `TestGetAssignmentsByTicketUsesTheExplicitProjection` |
+| G | 丢弃 `TransitionStatus` 的 SLA 错误 | `TestTransitionStatusPropagatesTheSLAUpdateError` |
+| H | 丢弃 `CloseTicket` 的绑定错误 | `TestHandler_CloseTicketRejectsAMalformedBody` |
+| I | 丢弃 `EscalateTicket` 的优先级更新错误 | `TestEscalateTicketPropagatesThePriorityUpdateError` |
+
+每组都断言三件事：变异后**至少一条测试真跑真挂**（判据是输出里出现 `--- FAIL:`，而不只是 `FAIL`——编译失败与 setup 失败也会打印 `FAIL`）；变异后把文件按字节还原再跑一次仍是绿；打印出实际抓到的失败行，而不是靠 harness 自己返回非空就算成功。
+
+迁移闭包测试单独用 `/tmp/r66closer` 的独立小模块做（它直接读 live 路径的迁移目录，所以把迁移根改成可被 `MIGRATIONS_DIR` 覆盖，而不是在 live 树里 rename 一个文件——中断就留个坏现场）：基线绿；删掉 697 后恰报 `repository.go upserts into ticket_sla_tracking on (ticket_id) but no forward migration declares a unique index or constraint ... declared: [id]`。
+
+### 66.7 写 harness 时自己撞出的三个缺陷
+
+1. **`/tmp` 与 `/private/tmp`**：macOS 把 `/tmp` 规范化成 `/private/tmp`。`GOWORK=/tmp/r65/go.work` 时，workspace 算出的模块根在 `/tmp/...`，而 `go test` 解析包落在 `/private/tmp/...`，于是九组变异全部报「package is contained in a module that is not one of the workspace modules」——读起来像代码问题，实际是路径。换成 `/private/tmp` 即通。另外 `go test ./pkg/` 带尾斜杠在显式 workspace 下也会失败，不带就行。
+2. **把 setup 失败当区分结果**：一开始判据是 `"FAIL" in out`，`[setup failed]` 也命中，等于把「测试根本没跑起来」算作成功区分。收紧为 `"--- FAIL:" in out` 之后，九组全变成无法执行，才逼出上一条。
+3. **把 no-op patch 当非区分测试**：变异 B 一开始报 `patch-fails=False caught=[]`。真正的原因是替换串没匹配上（`slaTargetsFor` 的收尾花括号在第 0 列，不是 `\t}`），`str.replace` 原样返回，代码一字未改，测试自然通过。harness 只检查 lambda 返回非空，于是把**坏补丁**报成了**弱测试**。修法是两处：修正锚点，并在 `check()` 里断言 `mutation(src) != src`，no-op 直接 abort。这正是「没用或意外的信号说明工具或测试太弱」——这里弱的是 harness。
+
+### 66.8 验证
+
+```
+gofmt -l internal/ticketing cmd/server tools     → 0 行（模块 A 三个预存在违规不在范围内）
+go build ./internal/ticketing/...                → rc=0
+go vet   ./internal/ticketing/...                → 0 行
+go test -count=1 ./internal/ticketing/...        → handler / repository / service 全 ok
+cmd/server 闭包测试（/tmp/r66closer）             → 基线 ok；删 697 后 FAIL
+12 个文件字节扫描                                 → U+201D=0，控制字符=[]
+```
+
+工作树未被 `/tmp` 实验触碰：所有变异都在 rsync 副本内完成，副本在早期一次崩溃后已从 `/tmp/r65/orig` 按字节还原并复验为绿。`cmd/server` 包本身当前无法构建，原因是并行会话在 `internal/cmdb` 有未提交的 `service.go` 改动（`*Service does not implement ServiceInterface (wrong type for method Create)`）——与本轮无关，未动。
+
+### 66.9 提交清单
+
+- `A migrations/697_ticket_sla_tracking_unique_ticket_id.sql`
+- `A migrations/697_ticket_sla_tracking_unique_ticket_id_down.sql`
+- `A migrations/698_ticket_sla_tracking_target_resolution_units.sql`
+- `M internal/ticketing/service/service.go`（`slaTargetsFor` + 毫秒单位）
+- `M internal/ticketing/service/ticket_sla_report.go`
+- `M internal/ticketing/service/ticket_workflow.go`
+- `M internal/ticketing/handler/handler_workflow.go`
+- `M internal/ticketing/repository/repository.go`
+- `M internal/ticketing/repository/repository_test.go`
+- `A cmd/server/migration_on_conflict_targets_test.go`
+- `A internal/ticketing/service/ticket_sla_workflow_test.go`
+- `A internal/ticketing/handler/handler_workflow_test.go`
+
+下一个可用迁移版本号 **699**。
+
+### 66.10 遗留（记录不改）
+
+**结构性缺口，需要新基础设施才能做对：**
+
+- `ticket_sla_tracking` 没有 `tenant_id`，`GetSLATracking` / `UpdateSLATracking` 仍无法按租户隔离（`ticket_assignments` 有）。
+- `CreateTicket` 的部分写入：工单行与历史行已提交，`UpsertSLATracking` 才失败——需要事务基础设施。
+- `GetTrendReport.Escalated` 结构上恒为 0：要按工单逐个 `GetWorkflowHistory` 就是 N+1，得加一个 repo 方法，随之要动接口与 2 个实现者（本轮刻意不动接口）。
+- §63 结转的 `validTransitions` 缺 `"escalated"`，喂 `GetExecutiveDashboard.Escalations`，同样是结构上恒 0。
+
+**契约不一致：** 前端 `reason` / `comment` / `resolution` 三个 wire 字段在 3 条路由上对不上；`ResolveTicket` / `CloseTicket` 的 `from_state` 是空串（这两个方法从不调 `GetTicket`）。
+
+**死链集群（§64 已列，未动）**：`repository/{sla.go,sla_policy.go,assignment_rule.go,suspend.go}` + `service/sla_policy.go` + 无引用的 `repository_interface.go`，查 686 的裸名表族，28 条无租户过滤的 `SELECT *`；`interfaces.go` 与 `testutil/mocks.go:133` 是活引用，删除必须一起处理。`SLARepositoryInterface.policyID int` 与 `MockSLARepository` 仍是 `int`，与活链 `string` 不一致（生产不可达）。
+
+**未验证：** 模块 B `metadata` JSONB 与 `map[string]any` 的 encode/scan；`AssignmentRule.Order` 的 `db:"order"` 是 SQL 保留字；`GetTicketSLAStatus`（`repository.go:468`）自述 Placeholder；全仓约 80 处 `ON CONFLICT` 中只有工单模块那 4 处经过了 697 的闭包测试；其余 53 个活 offender 分布在约 40 个模块（`/tmp/r62/liv7.txt`）；6 个 dead 删除候选；2 组 NO_DDL；模块 A 的 3 个预存在 gofmt 违规（`internal/ticket/models/{assignment_rule,relation,ticket}.go`，不在本节范围）；`handler_test.go:126` 既存的 `TestHandler_TICKETING_CloseTicket` 只断言 `>= 500`，是非区分断言。
