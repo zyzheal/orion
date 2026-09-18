@@ -23,21 +23,51 @@ func (s *Service) GetTicketSLA(ctx context.Context, tenantID, ticketID string) (
 	if err != nil {
 		return nil, err
 	}
-	policyHrs := 24
-	if target, ok := defaultSLATargets[t.Priority]; ok {
-		policyHrs = target.ResolveH
-	}
-	resolutionDue := t.CreatedAt.Add(time.Duration(policyHrs) * time.Hour)
+	// ResponseH and ResolveH both come from defaultSLATargets through the same
+	// helper CreateTicket writes with, so the reported window is the window that
+	// was actually stored. ResponseDue used to be hardcoded to one hour after
+	// creation, so a medium ticket whose real window is four hours was reported
+	// as breached on hour one and a low ticket with a seven-day window as a
+	// passed response SLA forever after.
+	target := slaTargetsFor(t.Priority)
+	responseHrs, resolveHrs := target.ResponseH, target.ResolveH
+	responseDue := t.CreatedAt.Add(time.Duration(responseHrs) * time.Hour)
+	resolutionDue := t.CreatedAt.Add(time.Duration(resolveHrs) * time.Hour)
 	now := time.Now().UTC()
-	status := &models.TicketSLAStatus{
-		TicketID:     ticketID,
-		ResolutionOK: now.Before(resolutionDue),
-		ResponseOK:   true,
-		Breached:     tracking.Breached,
+	// ResponseOK used to be a constant true, which reported a passed response
+	// SLA for a ticket nobody had ever replied to.
+	responseOK := now.Before(responseDue)
+	if tracking.FirstResponseAt != nil {
+		responseOK = !tracking.FirstResponseAt.After(responseDue)
 	}
-	status.ResolutionDue = resolutionDue.Format(time.RFC3339)
-	status.ResponseDue = t.CreatedAt.Add(1 * time.Hour).Format(time.RFC3339)
-	return status, nil
+	if tracking.ResponseBreached {
+		responseOK = false
+	}
+	resolutionOK := now.Before(resolutionDue)
+	if tracking.ResolvedAt != nil {
+		resolutionOK = !tracking.ResolvedAt.After(resolutionDue)
+	}
+	if tracking.Breached {
+		resolutionOK = false
+	}
+	targetResolutionMs := int64(resolveHrs) * int64(time.Hour) / int64(time.Millisecond)
+	if tracking.TargetResolutionTimeMs > 0 {
+		targetResolutionMs = tracking.TargetResolutionTimeMs
+	}
+	return &models.TicketSLAStatus{
+		TicketID:               ticketID,
+		Status:                 t.Status,
+		Priority:               t.Priority,
+		ResponseDue:            responseDue.Format(time.RFC3339),
+		ResolutionDue:          resolutionDue.Format(time.RFC3339),
+		ResponseOK:             responseOK,
+		ResolutionOK:           resolutionOK,
+		Breached:               tracking.Breached,
+		TargetResponseTimeMs:   int64(responseHrs) * int64(time.Hour) / int64(time.Millisecond),
+		TargetResolutionTimeMs: targetResolutionMs,
+		RespondedAt:            tracking.FirstResponseAt,
+		ResolvedAt:             tracking.ResolvedAt,
+	}, nil
 }
 
 // --- Reports ---
@@ -137,11 +167,12 @@ func (s *Service) GetBacklogAnalysis(ctx context.Context, tenantID string) (*mod
 	byStatus := make(map[string]int)
 	byPriority := make(map[string]int)
 	var oldest *models.Ticket
+	// The old code reset byStatus[t.Status] to 0 just before incrementing it for
+	// resolved and closed tickets, so every resolved or closed ticket read as
+	// exactly one regardless of how many there were: the count always showed 1.
+	// Total still counted them, so ByStatus could never sum to Total.
 	for i := range tickets {
 		t := &tickets[i]
-		if t.Status == "resolved" || t.Status == "closed" {
-			byStatus[t.Status] = 0
-		}
 		byStatus[t.Status]++
 		byPriority[t.Priority]++
 		if oldest == nil || t.CreatedAt.Before(oldest.CreatedAt) {

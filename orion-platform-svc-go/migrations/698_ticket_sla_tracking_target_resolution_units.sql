@@ -1,0 +1,33 @@
+-- 698_ticket_sla_tracking_target_resolution_units.sql
+--
+-- ticket_sla_tracking.target_resolution_time_ms is declared BIGINT in
+-- 245_ticketing_schema_fixes.sql and its name says milliseconds, but the only
+-- writer stored seconds:
+--
+--     targetMs := int64(target.ResolveH) * 3600
+--
+-- in service.CreateTicket. Every row in ticket_sla_tracking therefore holds a
+-- value 1000x too small: a four hour critical window was written as 14400
+-- instead of 14400000.
+--
+-- The column reached a client through service.GetTicketSLA, which adopted the
+-- stored value whenever it was non-zero. So /api/v1/tickets/{id}/sla reported
+-- a 14.4 second resolution target for a critical ticket, and resolved_at was
+-- compared against a deadline derived from the uncorrupted default while the
+-- target it displayed was the corrupted one - the response and resolution
+-- fields of the same report disagreed by a factor of 1000.
+--
+-- The writer is now int64(target.ResolveH) * 3600 * 1000, and this statement
+-- repairs the rows it already wrote. Every non-zero value in the column was
+-- derived from one of the four whole-hour entries of defaultSLATargets, so
+-- multiplying by 1000 restores the intended value with no rounding. Rows
+-- holding 0 are left alone: 0 is still the sentinel for "no target", and 0 *
+-- 1000 is 0, so the branch only documents that.
+--
+-- There is no rollback for this statement. Dividing by 1000 would have to
+-- undo exactly the rows repaired here, and a row written by the fixed writer
+-- is indistinguishable from a repaired row because both are whole multiples
+-- of 1000. Dropping the whole migration is the only safe reversal.
+UPDATE ticket_sla_tracking
+    SET target_resolution_time_ms = target_resolution_time_ms * 1000
+  WHERE target_resolution_time_ms <> 0;

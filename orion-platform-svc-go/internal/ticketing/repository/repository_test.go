@@ -209,22 +209,81 @@ func TestListTicketsHonoursExplicitLimitAndOffset(t *testing.T) {
 // TestUpdateSLATrackingNumbersTheSetArguments pins the placeholder numbering in
 // the generated SET clause. The old code did k+"=$"+string(rune(i+2)), which
 // emitted U+0002 (STX) instead of the digit "2", so the statement read
-// "SET breached=$\x02,  updated_at=$\x03" — a Postgres syntax error on every
-// SLA update. ticket_workflow.go and sla.go call this on every workflow
+// "SET breached=$\x02,  updated_at=$\x03" - a Postgres syntax error on every
+// SLA update. ticket_workflow.go calls this on every resolved and closed
 // transition, so the failure was live. ticket_id takes $1, so the first SET
-// argument must be $2. The map key order is random, so the expectation accepts
-// either ordering of the two columns.
+// argument must be $2. buildSetClause sorts the keys, so the statement is a
+// literal rather than a regexp.
 func TestUpdateSLATrackingNumbersTheSetArguments(t *testing.T) {
 	repo, mock := newMockRepo(t)
-	mock.ExpectExec(`UPDATE ticket_sla_tracking SET (breached=\$2,  updated_at=\$3|updated_at=\$2,  breached=\$3) WHERE ticket_id=\$1`).
-		WithArgs("t-1", sqlmock.AnyArg(), sqlmock.AnyArg()).
+	mock.ExpectExec(
+		`UPDATE ticket_sla_tracking SET breached=\$2,  priority=\$3,  updated_at=NOW\(\) WHERE ticket_id=\$1`).
+		WithArgs("t-1", false, "high").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
-	err := repo.UpdateSLATracking(context.Background(), "t-1", map[string]interface{}{"breached": false})
+	err := repo.UpdateSLATracking(context.Background(), "t-1",
+		map[string]interface{}{"breached": false, "priority": "high"})
 	if err != nil {
 		t.Fatalf("UpdateSLATracking returned an error: %v", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
+// TestUpdateSLATrackingRejectsAColumnTheTableDoesNotHave proves the allow list
+// actually gates the statement. UpdateSLATracking used to splice every key its
+// caller passed straight into the SET clause, so a typo reached Postgres as an
+// unknown column rather than as a caller-side error. ticket_sla_tracking is
+// keyed by ticket_id and has no tenant_id, so both of those must be rejected
+// too.
+func TestUpdateSLATrackingRejectsAColumnTheTableDoesNotHave(t *testing.T) {
+	repo, mock := newMockRepo(t)
+	// The expectation is queued on purpose and left unconsumed. If a regression
+	// drops the allow list, the UPDATE matches, returns a real Result and err
+	// comes back nil, which the loop below catches. ExpectationsWereMet is not
+	// asserted here because an unconsumed expectation is the correct-code path,
+	// so this rejection assertion is structurally unable to prove no SQL ran -
+	// only the err == nil check above does that.
+	mock.ExpectExec(`UPDATE ticket_sla_tracking SET .*`).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	for _, key := range []string{
+		"does_not_exist", "tenant_id", "id", "ticket_id", "created_at",
+		"deleted_at", "created_by", "updated_by", "status", "assignee_id",
+	} {
+		err := repo.UpdateSLATracking(context.Background(), "t-1", map[string]interface{}{key: "v"})
+		if err == nil {
+			t.Errorf("UpdateSLATracking accepted %q and issued a query, want an error", key)
+			continue
+		}
+		if !strings.Contains(err.Error(), key) {
+			t.Errorf("UpdateSLATracking(%q) error %q does not name the offending key", key, err.Error())
+		}
+	}
+}
+
+// TestUpdateSLATrackingEmptyMapSkipsTheQuery is the SLA half of the same guard
+// TestUpdateTicketEmptyMapSkipsTheQuery pins for tickets. An empty SET is a
+// syntax error and an updated_at-only map must still emit a well-formed one.
+func TestUpdateSLATrackingEmptyMapSkipsTheQuery(t *testing.T) {
+	repo, mock := newMockRepo(t)
+	if err := repo.UpdateSLATracking(context.Background(), "t-1", map[string]interface{}{}); err != nil {
+		t.Fatalf("UpdateSLATracking({}) returned an error: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("an empty map must not issue a query: %v", err)
+	}
+
+	repo2, mock2 := newMockRepo(t)
+	mock2.ExpectExec(
+		`UPDATE ticket_sla_tracking SET updated_at=NOW\(\) WHERE ticket_id=\$1`).
+		WithArgs("t-1").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	if err := repo2.UpdateSLATracking(context.Background(), "t-1",
+		map[string]interface{}{"updated_at": time.Now().UTC()}); err != nil {
+		t.Fatalf("UpdateSLATracking(updated_at only) returned an error: %v", err)
+	}
+	if err := mock2.ExpectationsWereMet(); err != nil {
 		t.Fatalf("unmet expectations: %v", err)
 	}
 }
@@ -750,10 +809,8 @@ func TestGetTransferStatsScansTheUnderscoredAlias(t *testing.T) {
 	}
 }
 
-// TestTransferStatsCarriesDBTagsForEveryAliasIsThePositiveControl proves the
-// tag fix has something to lose: without them sqlx's identity mapper lowercases
-// the field name, so TotalTransfers would be looked up as "totaltransfers" and
-// the "total_transfers" alias would have nowhere to go.
+// dbTagOf reads the db struct tag of one field, so the positive control below
+// asserts on the tag rather than on the field name it would be mangled to.
 func dbTagOf(t reflect.Type, field string) string {
 	f, ok := t.FieldByName(field)
 	if !ok {
@@ -779,5 +836,135 @@ func TestTransferStatsCarriesDBTagsForEveryAliasIsThePositiveControl(t *testing.
 		if got := dbTagOf(entry, f); got == "" {
 			t.Fatalf("QueueEntry.%s is missing its db tag", f)
 		}
+	}
+}
+
+// TestGetSLATrackingUsesTheExplicitProjection pins the column list for the
+// ticket_sla_tracking read. This method used to select every column of the
+// table, and 571 added deleted_at while 572 added created_by and updated_by;
+// TicketSLATracking carries no db destination for any of those, so the whole
+// read died in sqlx safe mode with "missing destination name deleted_at".
+// GET /tickets/{id}/sla reaches it, so every SLA lookup failed.
+func TestGetSLATrackingUsesTheExplicitProjection(t *testing.T) {
+	repo, mock := newMockRepo(t)
+	mock.ExpectQuery(
+		`^SELECT id, ticket_id, priority, target_resolution_time_ms, actual_resolution_time_ms, breached, breached_at, resolved_at, first_response_at, response_breached, created_at, updated_at FROM ticket_sla_tracking WHERE ticket_id=\$1$`).
+		WithArgs("tk-1").
+		WillReturnRows(sqlmock.NewRows(
+			[]string{"id", "ticket_id", "priority", "target_resolution_time_ms", "actual_resolution_time_ms",
+				"breached", "breached_at", "resolved_at", "first_response_at", "response_breached",
+				"created_at", "updated_at"},
+		).AddRow("s-1", "tk-1", "critical", int64(14400000), nil, false, nil, nil, nil, false,
+			time.Unix(1700000000, 0), time.Unix(1700000000, 0)))
+
+	tr, err := repo.GetSLATracking(context.Background(), "t1", "tk-1")
+	if err != nil {
+		t.Fatalf("GetSLATracking returned an error: %v", err)
+	}
+	if tr.ID != "s-1" || tr.Priority != "critical" || tr.TargetResolutionTimeMs != 14400000 {
+		t.Errorf("row did not scan: %+v", tr)
+	}
+	if tr.ActualResolutionTimeMs != nil || tr.ResolvedAt != nil || tr.BreachedAt != nil || tr.FirstResponseAt != nil {
+		t.Errorf("nullable destinations did not stay nil: %+v", tr)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
+// TestUpsertSLATrackingReturnsTheExplicitProjection pins the RETURNING list of
+// the upsert, which used to be RETURNING *. The same 571 / 572 columns that
+// broke the plain SELECT also broke this one, so Service.CreateTicket failed
+// after the ticket row was already committed. The expectation is written with
+// single spaces even though the statement is a multi-line raw string literal:
+// sqlmock stripQuery collapses every whitespace run on both sides to one space
+// before matching, so a pattern that put \s+ next to a literal space demanded
+// two spaces where the statement has one and could never match. That showed up
+// only as "was not expected", because sqlmock's out-of-order branch discards a
+// query mismatch without reporting it.
+func TestUpsertSLATrackingReturnsTheExplicitProjection(t *testing.T) {
+	repo, mock := newMockRepo(t)
+	mock.ExpectQuery(
+		`^INSERT INTO ticket_sla_tracking \(id, ticket_id, priority, target_resolution_time_ms, breached, created_at, updated_at\) VALUES \(\$1, \$2, \$3, \$4, \$5, \$6, \$7\) ON CONFLICT \(ticket_id\) DO UPDATE SET updated_at=\$7 RETURNING id, ticket_id, priority, target_resolution_time_ms, actual_resolution_time_ms, breached, breached_at, resolved_at, first_response_at, response_breached, created_at, updated_at$`).
+		WithArgs(sqlmock.AnyArg(), "tk-1", "medium", int64(86400000), false, sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows(
+			[]string{"id", "ticket_id", "priority", "target_resolution_time_ms", "actual_resolution_time_ms",
+				"breached", "breached_at", "resolved_at", "first_response_at", "response_breached",
+				"created_at", "updated_at"},
+		).AddRow("s-1", "tk-1", "medium", int64(86400000), nil, false, nil, nil, nil, false,
+			time.Unix(1700000000, 0), time.Unix(1700000000, 0)))
+
+	tr, err := repo.UpsertSLATracking(context.Background(), "t1", "tk-1", "medium", 86400000)
+	if err != nil {
+		t.Fatalf("UpsertSLATracking returned an error: %v", err)
+	}
+	if tr.TicketID != "tk-1" || tr.TargetResolutionTimeMs != 86400000 {
+		t.Errorf("RETURNING row did not scan: %+v", tr)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
+// TestGetAssignmentsByTicketUsesTheExplicitProjection pins the column list for
+// the ticket_assignments read, which used to select every column of the table.
+// 572 adds created_by, updated_by and updated_at to it and the anonymous
+// destination carries seven db names, so the read died on the first row. The
+// COALESCE on reason is the second half of the fix: 245 declares reason TEXT
+// with neither NOT NULL nor a default, so a row written before that column was
+// added to the INSERT holds NULL, and NULL never scans into the Reason string
+// destination. TestAssignmentReasonDestinationCannotAbsorbANullIsThePositiveControl
+// below shows that this destination really does fail on a NULL, which is what
+// makes the COALESCE load-bearing rather than decorative.
+func TestGetAssignmentsByTicketUsesTheExplicitProjection(t *testing.T) {
+	repo, mock := newMockRepo(t)
+	mock.ExpectQuery(
+		`^SELECT id, tenant_id, ticket_id, assignee, assigned_by, COALESCE\(reason, ''\) AS reason, created_at FROM ticket_assignments WHERE tenant_id=\$1 AND ticket_id=\$2 ORDER BY created_at DESC$`).
+		WithArgs("t1", "tk-1").
+		WillReturnRows(sqlmock.NewRows(
+			[]string{"id", "tenant_id", "ticket_id", "assignee", "assigned_by", "reason", "created_at"},
+		).AddRow("a-1", "t1", "tk-1", "u-9", "u-1", "", time.Unix(1700000000, 0)))
+
+	items, err := repo.GetAssignmentsByTicket(context.Background(), "t1", "tk-1")
+	if err != nil {
+		t.Fatalf("GetAssignmentsByTicket returned an error: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("returned %d rows, want 1", len(items))
+	}
+	a := items[0]
+	if a.ID != "a-1" || a.TicketID != "tk-1" || a.Assignee != "u-9" || a.AssignedBy != "u-1" {
+		t.Errorf("row did not scan: %+v", a)
+	}
+	if a.Reason != "" {
+		t.Errorf("coalesced reason = %q, want empty string", a.Reason)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
+	}
+}
+
+// TestAssignmentReasonDestinationCannotAbsorbANullIsThePositiveControl is the
+// negative half of the projection test above. sqlmock hands back exactly what
+// the test puts in the row and never executes the COALESCE, so the projection
+// test alone cannot show that a NULL reason is dangerous. Returning a NULL in
+// the reason column here fails the scan, which proves the anonymous destination
+// cannot carry it and therefore proves the COALESCE in the SELECT is doing the
+// work. Without this test a deletion of the COALESCE would pass the projection
+// test and only surface on the first legacy row in production.
+func TestAssignmentReasonDestinationCannotAbsorbANullIsThePositiveControl(t *testing.T) {
+	repo, mock := newMockRepo(t)
+	mock.ExpectQuery(
+		`^SELECT id, tenant_id, ticket_id, assignee, assigned_by, COALESCE\(reason, ''\) AS reason, created_at FROM ticket_assignments`).
+		WithArgs("t1", "tk-1").
+		WillReturnRows(sqlmock.NewRows(
+			[]string{"id", "tenant_id", "ticket_id", "assignee", "assigned_by", "reason", "created_at"},
+		).AddRow("a-1", "t1", "tk-1", "u-9", "u-1", nil, time.Unix(1700000000, 0)))
+
+	if _, err := repo.GetAssignmentsByTicket(context.Background(), "t1", "tk-1"); err == nil {
+		t.Fatal("a NULL reason scanned into a string destination; the COALESCE would not be load-bearing")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("unmet expectations: %v", err)
 	}
 }

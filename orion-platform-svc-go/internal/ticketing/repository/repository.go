@@ -166,6 +166,23 @@ const (
 	suspendColumns          = "id, tenant_id, COALESCE(engineer_id, '') AS engineer_id, reason, type, COALESCE(start_at, NOW()) AS start_at, end_at, status, created_at"
 )
 
+// slaTrackingColumns and assignmentColumns cover the two tables created by
+// 245_ticketing_schema_fixes.sql rather than 655. 245 declares exactly the
+// columns in these two lists, but 571 adds deleted_at and 572 adds created_by
+// and updated_by (plus updated_at to ticket_assignments), so the final tables
+// carry 15 and 11 columns respectively. Both destinations below carry 12 and 7
+// db:"..." names, so a SELECT * or RETURNING * on either one dies in sqlx safe
+// mode with "missing destination name deleted_at" before any row is read.
+//
+// 245 also declares ticket_assignments.reason TEXT with no NOT NULL and no
+// default, so a legacy row created before the reason column was added to the
+// writer holds NULL. NULL never scans into the Reason string destination, so
+// reason is COALESCE'd like the other nullable-into-string columns above.
+const (
+	slaTrackingColumns = "id, ticket_id, priority, target_resolution_time_ms, actual_resolution_time_ms, breached, breached_at, resolved_at, first_response_at, response_breached, created_at, updated_at"
+	assignmentColumns  = "id, tenant_id, ticket_id, assignee, assigned_by, COALESCE(reason, '') AS reason, created_at"
+)
+
 // writableTicketColumns is the allow list for UpdateTicket's dynamic SET
 // clause. The keys are hardcoded in the service layer today, but building SQL
 // from an unchecked map would both reach for a column 076 does not have and
@@ -207,14 +224,32 @@ var (
 		"enabled":    true,
 		"updated_at": true,
 	}
+	// writableSLATrackingColumns guards UpdateSLATracking, which used to splice
+	// every key of its map straight into the SET clause. ticket_sla_tracking has
+	// no tenant_id and its primary key is id, so this table is keyed by
+	// ticket_id and the allow list keeps id and ticket_id out of reach too.
+	writableSLATrackingColumns = map[string]bool{
+		"priority":                  true,
+		"target_resolution_time_ms": true,
+		"actual_resolution_time_ms": true,
+		"breached":                  true,
+		"breached_at":               true,
+		"resolved_at":               true,
+		"first_response_at":         true,
+		"response_breached":         true,
+		"updated_at":                true,
+	}
 )
 
-// updateRows runs the shared "UPDATE <table> SET ... WHERE id=$1 AND
-// tenant_id=$2" used by UpdateTicket, UpdateSLAPolicy and
-// UpdateAutomationRule. buildSetClause keeps the placeholders deterministic
-// (keys sorted) and rejects unknown keys.
-func (r *Repository) updateRows(ctx context.Context, table string, allow map[string]bool, id, tenantID string, updates map[string]interface{}) error {
-	set, args, err := buildSetClause(allow, id, tenantID, updates)
+// updateRows runs the shared "UPDATE <table> SET ... WHERE <where>" used by
+// UpdateTicket, UpdateSLAPolicy, UpdateAutomationRule and UpdateSLATracking.
+// The WHERE clause and its bound arguments are passed in rather than assumed,
+// because ticket_sla_tracking is keyed by ticket_id and carries no tenant_id,
+// so it cannot reuse the id/tenant_id predicate the other three take.
+// buildSetClause keeps the placeholders deterministic (keys sorted) and
+// rejects unknown keys.
+func (r *Repository) updateRows(ctx context.Context, table, where string, allow map[string]bool, whereArgs []interface{}, updates map[string]interface{}) error {
+	set, args, err := buildSetClause(allow, whereArgs, updates)
 	if err != nil {
 		return err
 	}
@@ -223,16 +258,17 @@ func (r *Repository) updateRows(ctx context.Context, table string, allow map[str
 		// produce an empty SET or write only updated_at.
 		return nil
 	}
-	_, err = r.db.ExecContext(ctx, "UPDATE "+table+" SET "+set+" WHERE id=$1 AND tenant_id=$2", args...)
+	_, err = r.db.ExecContext(ctx, "UPDATE "+table+" SET "+set+" WHERE "+where, args...)
 	return err
 }
 
-// buildSetClause sorts the map keys so the placeholder numbering is stable,
-// refuses a key the allow list does not carry, and leaves id / tenant_id on
-// $1 and $2 -- so the first SET argument is $3. That is the same off-by-one
+// buildSetClause sorts the map keys so the placeholder numbering is stable and
+// refuses a key the allow list does not carry. The WHERE clause binds to
+// $1..$len(whereArgs) and the first SET argument is the next number, so the
+// caller cannot get the numbering wrong by construction. That is the off-by-one
 // UpdateSLATracking used to get wrong, which emitted "breached=$\x02" because
 // the index was formatted as a rune instead of a digit.
-func buildSetClause(allow map[string]bool, id, tenantID string, updates map[string]interface{}) (string, []interface{}, error) {
+func buildSetClause(allow map[string]bool, whereArgs []interface{}, updates map[string]interface{}) (string, []interface{}, error) {
 	if len(updates) == 0 {
 		return "", nil, nil
 	}
@@ -245,12 +281,14 @@ func buildSetClause(allow map[string]bool, id, tenantID string, updates map[stri
 	}
 	sort.Strings(keys)
 
-	args := []interface{}{id, tenantID}
+	args := append([]interface{}(nil), whereArgs...)
 	set := make([]string, 0, len(keys)+1)
 	for _, k := range keys {
 		if k == "updated_at" {
 			// Taken by the NOW() clause; a caller value would either duplicate
-			// it or lose to it.
+			// it or lose to it. An updated_at-only map must still emit a
+			// well-formed statement rather than a no-op, so this branch cannot
+			// return an empty SET.
 			continue
 		}
 		set = append(set, fmt.Sprintf("%s=$%d", k, len(args)+1))
@@ -261,7 +299,7 @@ func buildSetClause(allow map[string]bool, id, tenantID string, updates map[stri
 }
 
 func (r *Repository) UpdateTicket(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
-	return r.updateRows(ctx, "tickets", writableTicketColumns, id, tenantID, updates)
+	return r.updateRows(ctx, "tickets", "id=$1 AND tenant_id=$2", writableTicketColumns, []interface{}{id, tenantID}, updates)
 }
 
 func (r *Repository) DeleteTicket(ctx context.Context, tenantID, id string) error {
@@ -462,7 +500,7 @@ func (r *Repository) GetSLAPolicy(ctx context.Context, tenantID string, policyID
 // PUT /tickets/sla/policies/:policyId silently discarded name, priority,
 // response_hours, resolve_hours and active.
 func (r *Repository) UpdateSLAPolicy(ctx context.Context, tenantID string, policyID string, updates map[string]interface{}) error {
-	return r.updateRows(ctx, "ticketing_sla_policies", writableSLAPolicyColumns, policyID, tenantID, updates)
+	return r.updateRows(ctx, "ticketing_sla_policies", "id=$1 AND tenant_id=$2", writableSLAPolicyColumns, []interface{}{policyID, tenantID}, updates)
 }
 
 func (r *Repository) DeleteSLAPolicy(ctx context.Context, tenantID string, policyID string) error {
@@ -540,7 +578,7 @@ func (r *Repository) ListAutomationRules(ctx context.Context, tenantID string) (
 // so PUT /tickets/automation/rules/:ruleId silently discarded name, trigger,
 // condition, action and enabled.
 func (r *Repository) UpdateAutomationRule(ctx context.Context, tenantID string, ruleID string, updates map[string]interface{}) error {
-	return r.updateRows(ctx, "ticketing_automation_rules", writableAutomationRuleColumns, ruleID, tenantID, updates)
+	return r.updateRows(ctx, "ticketing_automation_rules", "id=$1 AND tenant_id=$2", writableAutomationRuleColumns, []interface{}{ruleID, tenantID}, updates)
 }
 
 func (r *Repository) DeleteAutomationRule(ctx context.Context, tenantID string, ruleID string) error {
@@ -838,8 +876,7 @@ func (r *Repository) UpsertSLATracking(ctx context.Context, tenantID, ticketID, 
 	err := r.db.GetContext(ctx, &t,
 		`INSERT INTO ticket_sla_tracking (id, ticket_id, priority, target_resolution_time_ms, breached, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)
-		 ON CONFLICT (ticket_id) DO UPDATE SET updated_at=$7
-		 RETURNING *`,
+		 ON CONFLICT (ticket_id) DO UPDATE SET updated_at=$7 RETURNING `+slaTrackingColumns,
 		uuid.New().String(), ticketID, priority, targetResolutionMs, false, now, now)
 	if err != nil {
 		return nil, err
@@ -851,35 +888,25 @@ func (r *Repository) UpsertSLATracking(ctx context.Context, tenantID, ticketID, 
 func (r *Repository) GetSLATracking(ctx context.Context, tenantID, ticketID string) (*TicketSLATracking, error) {
 	var t TicketSLATracking
 	err := r.db.GetContext(ctx, &t,
-		`SELECT * FROM ticket_sla_tracking WHERE ticket_id=$1`, ticketID)
+		"SELECT "+slaTrackingColumns+" FROM ticket_sla_tracking WHERE ticket_id=$1", ticketID)
 	if err != nil {
 		return nil, err
 	}
 	return &t, nil
 }
 
-// UpdateSLATracking updates a subset of SLA tracking fields.
+// UpdateSLATracking updates a subset of SLA tracking fields. It used to splice
+// every caller-supplied map key straight into the SET clause with no allow list,
+// so a mistyped key became part of the SQL string. The placeholder numbering was
+// also hand computed as i+2, which an earlier revision derived from a rune and
+// therefore rendered as "breached=$\x02" instead of "breached=$2" - every
+// workflow transition that touched SLA tracking answered a Postgres syntax
+// error. Both shapes are closed by construction now: buildSetClause rejects a
+// key writableSLATrackingColumns does not carry, and the first SET placeholder
+// is len(whereArgs)+1.
 func (r *Repository) UpdateSLATracking(ctx context.Context, ticketID string, updates map[string]interface{}) error {
-	updates["updated_at"] = time.Now().UTC()
-	keys := make([]string, 0, len(updates))
-	for k := range updates {
-		keys = append(keys, k)
-	}
-	set := make([]string, 0, len(keys))
-	args := make([]interface{}, 0, len(keys)+1)
-	// The index is a number, not a rune: string(rune(i+2)) emitted U+0002 (STX)
-	// rather than the digit "2", so the SET clause read "breached=$\x02" and every
-	// SLA update answered a Postgres syntax error. ticket_workflow and sla.go all
-	// call this, so every workflow transition that touched SLA tracking failed.
-	// ticket_id takes $1, so the first SET arg is $2.
-	for i, k := range keys {
-		set = append(set, fmt.Sprintf("%s=$%d", k, i+2))
-		args = append(args, updates[k])
-	}
-	sql := "UPDATE ticket_sla_tracking SET " + joinSQL(set, ", ") + " WHERE ticket_id=$1"
-	args = append([]interface{}{ticketID}, args...)
-	_, err := r.db.ExecContext(ctx, sql, args...)
-	return err
+	return r.updateRows(ctx, "ticket_sla_tracking", "ticket_id=$1",
+		writableSLATrackingColumns, []interface{}{ticketID}, updates)
 }
 
 // RecordSLABreach records a SLA breach for a ticket.
@@ -919,7 +946,7 @@ func (r *Repository) GetAssignmentsByTicket(ctx context.Context, tenantID, ticke
 		CreatedAt  time.Time `db:"created_at"`
 	}
 	err := r.db.SelectContext(ctx, &rows,
-		`SELECT * FROM ticket_assignments WHERE tenant_id=$1 AND ticket_id=$2 ORDER BY created_at DESC`,
+		"SELECT "+assignmentColumns+" FROM ticket_assignments WHERE tenant_id=$1 AND ticket_id=$2 ORDER BY created_at DESC",
 		tenantID, ticketID)
 	if err != nil {
 		return nil, err

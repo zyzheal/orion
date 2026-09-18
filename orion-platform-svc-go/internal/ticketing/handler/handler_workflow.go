@@ -97,7 +97,13 @@ func (h *Handler) CloseTicket(c *gin.Context) {
 	var body struct {
 		Comment string `json:"comment"`
 	}
-	c.ShouldBindJSON(&body)
+	// The other four write handlers 400 on a bad body; this one discarded the
+	// error, so a malformed payload closed the ticket with an empty comment and
+	// no diagnostic.
+	if err := c.ShouldBindJSON(&body); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
 	t, err := h.svc.CloseTicket(ctx, tenantID, ticketID, body.Comment, userID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

@@ -29,29 +29,32 @@ func (s *Service) TransitionStatus(ctx context.Context, tenantID, ticketID strin
 	if !s.canTransition(t.Status, req.Status) {
 		return nil, fmt.Errorf("invalid transition from %q to %q", t.Status, req.Status)
 	}
+	// resolved_at and closed_at are stamped in the same statement as the status
+	// change, so a caller cannot observe a resolved ticket with no resolution
+	// time. The write error used to be dropped here, which answered 200 for a
+	// transition that never persisted.
 	now := time.Now().UTC()
+	fields := map[string]interface{}{"status": req.Status}
 	if req.Status == "resolved" {
-		_ = s.repo.UpdateTicket(ctx, tenantID, ticketID, map[string]interface{}{
-			"status":      req.Status,
-			"resolved_at": now,
-		})
+		fields["resolved_at"] = now
 	} else if req.Status == "closed" {
-		_ = s.repo.UpdateTicket(ctx, tenantID, ticketID, map[string]interface{}{
-			"status":    req.Status,
-			"closed_at": now,
-		})
-	} else {
-		_ = s.repo.UpdateTicket(ctx, tenantID, ticketID, map[string]interface{}{
-			"status": req.Status,
-		})
+		fields["closed_at"] = now
+	}
+	if err := s.repo.UpdateTicket(ctx, tenantID, ticketID, fields); err != nil {
+		return nil, err
 	}
 	if err := s.repo.AddWorkflowHistory(ctx, tenantID, ticketID, "transition", t.Status, req.Status, userID, req.Comment); err != nil {
 		return nil, err
 	}
 	if req.Status == "resolved" || req.Status == "closed" {
-		_ = s.repo.UpdateSLATracking(ctx, ticketID, map[string]interface{}{
+		// The ticket is already resolved in the database by this point, so this
+		// is not a rollback but it is not safe to answer success while the SLA
+		// row still claims the ticket is open.
+		if err := s.repo.UpdateSLATracking(ctx, ticketID, map[string]interface{}{
 			"resolved_at": now,
-		})
+		}); err != nil {
+			return nil, err
+		}
 	}
 	return s.repo.GetTicket(ctx, tenantID, ticketID)
 }
@@ -61,7 +64,12 @@ func (s *Service) AssignTicket(ctx context.Context, tenantID, ticketID string, r
 	if err != nil {
 		return nil, err
 	}
-	_ = s.repo.CreateAssignment(ctx, tenantID, ticketID, req.AssigneeID, userID, req.Comment)
+	// The assignment row is the audit trail for who owns the ticket, so a
+	// failure here means the status update below would leave an owner with no
+	// record. It used to be dropped, returning 200 with the assignment missing.
+	if err := s.repo.CreateAssignment(ctx, tenantID, ticketID, req.AssigneeID, userID, req.Comment); err != nil {
+		return nil, err
+	}
 	status := t.Status
 	if status == "open" {
 		status = "assigned"
@@ -94,9 +102,17 @@ func (s *Service) EscalateTicket(ctx context.Context, tenantID, ticketID string,
 	}
 	if idx >= 0 && idx < len(priorityOrder)-1 {
 		priority = priorityOrder[idx+1]
-		_ = s.repo.UpdateTicket(ctx, tenantID, ticketID, map[string]interface{}{"priority": priority})
+		if err := s.repo.UpdateTicket(ctx, tenantID, ticketID, map[string]interface{}{"priority": priority}); err != nil {
+			return nil, err
+		}
 	}
-	_ = s.repo.AddWorkflowHistory(ctx, tenantID, ticketID, "escalate", "", "escalated", userID, req.Reason)
+	// Escalate moves the priority, not the status, so the audit row records the
+	// priority pair. The old from_state/to_state pair was ""/"escalated", which
+	// is not a member of validTransitions and could never be joined back to a
+	// status transition.
+	if err := s.repo.AddWorkflowHistory(ctx, tenantID, ticketID, "escalate", t.Priority, priority, userID, req.Reason); err != nil {
+		return nil, err
+	}
 	return s.repo.GetTicket(ctx, tenantID, ticketID)
 }
 
@@ -104,15 +120,20 @@ func (s *Service) ResolveTicket(ctx context.Context, tenantID, ticketID string, 
 	if err := s.repo.AddWorkflowHistory(ctx, tenantID, ticketID, "resolve", "", "resolved", userID, req.Comment); err != nil {
 		return nil, err
 	}
+	// One timestamp for the ticket and the SLA tracking row, so the two tables
+	// cannot disagree about when the ticket was resolved.
+	now := time.Now().UTC()
 	if err := s.repo.UpdateTicket(ctx, tenantID, ticketID, map[string]interface{}{
 		"status":      "resolved",
-		"resolved_at": time.Now().UTC(),
+		"resolved_at": now,
 	}); err != nil {
 		return nil, err
 	}
-	_ = s.repo.UpdateSLATracking(ctx, ticketID, map[string]interface{}{
-		"resolved_at": time.Now().UTC(),
-	})
+	if err := s.repo.UpdateSLATracking(ctx, ticketID, map[string]interface{}{
+		"resolved_at": now,
+	}); err != nil {
+		return nil, err
+	}
 	return s.repo.GetTicket(ctx, tenantID, ticketID)
 }
 
@@ -185,10 +206,7 @@ func (s *Service) CorrelateRootCause(ctx context.Context, tenantID string, ticke
 		if !ok {
 			continue
 		}
-		key := t.Category + "|" + t.Source
-		M := groups[key]
-		M = append(M, id)
-		groups[key] = M
+		groups[t.Category+"|"+t.Source] = append(groups[t.Category+"|"+t.Source], id)
 	}
 	correlated := len(groups) == 1 && len(groups) > 0
 	return map[string]interface{}{

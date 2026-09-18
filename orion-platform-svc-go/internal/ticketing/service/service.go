@@ -86,6 +86,20 @@ var defaultSLATargets = map[string]models.SLATarget{
 	"low":      {ResponseH: 8, ResolveH: 72, Enabled: true},
 }
 
+// slaTargetsFor resolves the SLA window for a priority, falling back to the
+// medium window for a priority outside defaultSLATargets. A bare map lookup
+// returns the zero value, which would write ResolveH 0, i.e. 0 ms, into
+// target_resolution_time_ms - a NOT NULL column - and the report would then
+// declare every such ticket breached the instant it was created. CreateTicket
+// and GetTicketSLA both go through this, so the window written at creation
+// cannot drift from the one reported later.
+func slaTargetsFor(priority string) models.SLATarget {
+	if target, ok := defaultSLATargets[priority]; ok {
+		return target
+	}
+	return defaultSLATargets["medium"]
+}
+
 type Service struct {
 	repo RepositoryInterface
 }
@@ -138,8 +152,13 @@ func (s *Service) CreateTicket(ctx context.Context, tenantID string, req models.
 	if err := s.repo.AddWorkflowHistory(ctx, tenantID, t.ID, "create", status, status, reporterID, "Ticket created"); err != nil {
 		return nil, err
 	}
-	target := defaultSLATargets[priority]
-	targetMs := int64(target.ResolveH) * 3600
+	target := slaTargetsFor(priority)
+	// target_resolution_time_ms is milliseconds, so the hour value needs
+	// seconds and then milliseconds. *3600 alone stored seconds in a column
+	// that declares milliseconds: a 4 hour critical window was written as
+	// 14400 instead of 14400000, and 698 repairs the rows that were already
+	// written that way.
+	targetMs := int64(target.ResolveH) * 3600 * 1000
 	_, err := s.repo.UpsertSLATracking(ctx, tenantID, t.ID, priority, targetMs)
 	return t, err
 }
