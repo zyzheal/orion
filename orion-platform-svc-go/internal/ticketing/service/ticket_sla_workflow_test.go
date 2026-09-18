@@ -33,6 +33,7 @@ type wfRepo struct {
 
 	errCreateTicket      error
 	errUpdateTicket      error
+	errGetSLATracking    error
 	errAddHistory        error
 	errCreateAssignment  error
 	errUpdateSLATracking error
@@ -154,6 +155,9 @@ func (r *wfRepo) GetSLAPolicy(context.Context, string, string) (*models.SLAPolic
 }
 func (r *wfRepo) GetSLATracking(ctx context.Context, _, ticketID string) (*repository.TicketSLATracking, error) {
 	_ = ctx
+	if r.errGetSLATracking != nil {
+		return nil, r.errGetSLATracking
+	}
 	if r.overrideTracking != nil {
 		return r.overrideTracking, nil
 	}
@@ -173,9 +177,6 @@ func (r *wfRepo) GetTicket(ctx context.Context, _, id string) (*models.Ticket, e
 		}
 	}
 	return &models.Ticket{ID: id}, nil
-}
-func (r *wfRepo) GetTicketSLAStatus(context.Context, string, string) (*models.TicketSLAStatus, error) {
-	return &models.TicketSLAStatus{}, nil
 }
 func (r *wfRepo) GetTransferHistory(context.Context, string, string) ([]models.TransferHistoryEntry, error) {
 	return nil, nil
@@ -425,6 +426,81 @@ func TestGetTicketSLADoesNotClearAStoredBreach(t *testing.T) {
 	if sla.ResolutionOK || sla.ResponseOK {
 		t.Errorf("a breached record reported OK: ResolutionOK=%v ResponseOK=%v",
 			sla.ResolutionOK, sla.ResponseOK)
+	}
+}
+
+// GET /ticketing/sla/tickets/:ticketId/status is registered on the live
+// ticketing handler, and before the fix its repository body was a connectivity
+// check that returned a TicketSLAStatus with only ticket_id set. Every window
+// and deadline on the route read as zero, so a queue full of breaches looked
+// identical to an empty one. The service now computes the same value
+// GetTicketSLA reports on GET /tickets/:id/sla, so the two routes agree. The
+// fixture uses a high ticket on purpose: a critical ticket has a zero hour
+// response window, which is also what a placeholder returns.
+func TestGetTicketSLAStatusReportsTheComputedWindow(t *testing.T) {
+	created := time.Now().UTC().Add(-15 * time.Minute)
+	repo := &wfRepo{tickets: []models.Ticket{{
+		ID: "tk-status", TenantID: "tenant-1", Status: "open",
+		Priority: "high", CreatedAt: created,
+	}}}
+	svc := NewService(repo)
+	sla, err := svc.GetTicketSLAStatus(context.Background(), "tenant-1", "tk-status")
+	if err != nil {
+		t.Fatalf("GetTicketSLAStatus returned an error: %v", err)
+	}
+	if got, want := sla.TicketID, "tk-status"; got != want {
+		t.Errorf("TicketID is %q, want %q", got, want)
+	}
+	if got, want := sla.Priority, "high"; got != want {
+		t.Errorf("Priority is %q, want %q", got, want)
+	}
+	if got, want := sla.Status, "open"; got != want {
+		t.Errorf("Status is %q, want %q", got, want)
+	}
+	if want := int64(1 * 3600 * 1000); sla.TargetResponseTimeMs != want {
+		t.Errorf("high response window is %d ms, want %d", sla.TargetResponseTimeMs, want)
+	}
+	if want := int64(8 * 3600 * 1000); sla.TargetResolutionTimeMs != want {
+		t.Errorf("high resolution window is %d ms, want %d", sla.TargetResolutionTimeMs, want)
+	}
+	// A high ticket has a one hour response window, so the deadline is an hour
+	// after creation rather than at creation time the way a critical ticket's
+	// zero hour window is.
+	wantRespond := created.Add(time.Hour).Format(time.RFC3339)
+	if sla.ResponseDue != wantRespond {
+		t.Errorf("ResponseDue is %q, want %q", sla.ResponseDue, wantRespond)
+	}
+	wantResolve := created.Add(8 * time.Hour).Format(time.RFC3339)
+	if sla.ResolutionDue != wantResolve {
+		t.Errorf("ResolutionDue is %q, want %q", sla.ResolutionDue, wantResolve)
+	}
+	// Fifteen minutes into a one hour response window nobody has replied yet, so
+	// both deadlines are still in the future.
+	if !sla.ResponseOK || !sla.ResolutionOK {
+		t.Errorf("a 15 minute old high ticket reported OK: ResponseOK=%v ResolutionOK=%v",
+			sla.ResponseOK, sla.ResolutionOK)
+	}
+}
+
+// The delegation must carry the repository failure rather than collapsing it
+// into a 200 with an empty status. Before the fix the endpoint answered 200
+// from a connectivity check, which is the same shape as a real database
+// failure: the caller could not tell a broken query from a healthy ticket.
+func TestGetTicketSLAStatusPropagatesTheTrackingFailure(t *testing.T) {
+	want := errors.New("sla tracking unavailable")
+	repo := &wfRepo{
+		tickets:           []models.Ticket{{ID: "tk-status", Priority: "high"}},
+		errGetSLATracking: want,
+	}
+	sla, err := NewService(repo).GetTicketSLAStatus(context.Background(), "tenant-1", "tk-status")
+	if err == nil {
+		t.Fatalf("GetTicketSLAStatus = %+v, want the repository error", sla)
+	}
+	if !errors.Is(err, want) {
+		t.Fatalf("GetTicketSLAStatus err = %q, want %q", err, want.Error())
+	}
+	if sla != nil {
+		t.Errorf("GetTicketSLAStatus = %+v, want nil alongside the error", sla)
 	}
 }
 

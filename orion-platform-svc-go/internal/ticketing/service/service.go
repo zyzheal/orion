@@ -45,7 +45,6 @@ type RepositoryInterface interface {
 	GetSLATracking(ctx context.Context, tenantID, ticketID string) (*repository.TicketSLATracking, error)
 	GetSuspend(ctx context.Context, tenantID, id string) (*models.Suspend, error)
 	GetTicket(ctx context.Context, tenantID, id string) (*models.Ticket, error)
-	GetTicketSLAStatus(ctx context.Context, tenantID, ticketID string) (*models.TicketSLAStatus, error)
 	GetTransferHistory(ctx context.Context, tenantID, ticketID string) ([]models.TransferHistoryEntry, error)
 	GetTransferStats(ctx context.Context, tenantID string) (*models.TransferStats, error)
 	GetWorkflowHistory(ctx context.Context, tenantID, ticketID string) ([]models.WorkflowHistoryEntry, error)

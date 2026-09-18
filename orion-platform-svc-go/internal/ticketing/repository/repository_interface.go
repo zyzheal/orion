@@ -45,7 +45,6 @@ type RepositoryInterface interface {
 	GetSLAPolicy(ctx context.Context, tenantID string, policyID int) (*models.SLAPolicy, error)
 	UpdateSLAPolicy(ctx context.Context, tenantID string, policyID int, updates map[string]interface{}) error
 	DeleteSLAPolicy(ctx context.Context, tenantID string, policyID int) error
-	GetTicketSLAStatus(ctx context.Context, tenantID, ticketID string) (*models.TicketSLAStatus, error)
 	GetSLABreaches(ctx context.Context, tenantID string) ([]models.SLABreach, error)
 	GetSLACompliance(ctx context.Context, tenantID string, policyID int) (*models.ComplianceResult, error)
 	CreateAutomationRule(ctx context.Context, tenantID string, req models.CreateAutomationRuleRequest) (*models.AutomationRule, error)

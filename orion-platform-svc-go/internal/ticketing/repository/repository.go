@@ -509,17 +509,6 @@ func (r *Repository) DeleteSLAPolicy(ctx context.Context, tenantID string, polic
 	return err
 }
 
-func (r *Repository) GetTicketSLAStatus(ctx context.Context, tenantID, ticketID string) (*models.TicketSLAStatus, error) {
-	// Placeholder: real implementation would compute from policy + ticket times.
-	var sla models.TicketSLAStatus
-	err := r.db.GetContext(ctx, &sla,
-		`SELECT ticket_id FROM tickets WHERE id=$1 AND tenant_id=$2`, ticketID, tenantID)
-	if err != nil {
-		return nil, err
-	}
-	return &models.TicketSLAStatus{TicketID: ticketID}, nil
-}
-
 func (r *Repository) GetSLABreaches(ctx context.Context, tenantID string) ([]models.SLABreach, error) {
 	// 655_create_ticketing_missing_tables.sql gives ticketing_sla_breaches no
 	// tenant_id column, so the tenant filter that used to live here was a Postgres

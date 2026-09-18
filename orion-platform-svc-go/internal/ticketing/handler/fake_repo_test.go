@@ -8,7 +8,13 @@ import (
 	"orion/platform-svc-go/internal/ticketing/service"
 )
 
-type fakeTicketingRepo struct{}
+// fakeTicketingRepo stands in for the ticketing repository in handler tests. The
+// tickets slice lets a test plant a ticket with a real priority and creation
+// time, so an endpoint that reports ticket-derived values can be asserted
+// against the value it actually computes instead of against an empty struct.
+type fakeTicketingRepo struct {
+	tickets []models.Ticket
+}
 
 func (f *fakeTicketingRepo) AddDispatchRule(ctx context.Context, tenantID string, req models.AddDispatchRuleRequest) (*models.DispatchRule, error) {
 	return nil, nil
@@ -103,10 +109,12 @@ func (f *fakeTicketingRepo) GetSuspend(ctx context.Context, tenantID, id string)
 	return &models.Suspend{}, nil
 }
 func (f *fakeTicketingRepo) GetTicket(ctx context.Context, tenantID, id string) (*models.Ticket, error) {
+	for i := range f.tickets {
+		if f.tickets[i].ID == id {
+			return &f.tickets[i], nil
+		}
+	}
 	return &models.Ticket{ID: id}, nil
-}
-func (f *fakeTicketingRepo) GetTicketSLAStatus(ctx context.Context, tenantID, ticketID string) (*models.TicketSLAStatus, error) {
-	return &models.TicketSLAStatus{}, nil
 }
 func (f *fakeTicketingRepo) GetTransferHistory(ctx context.Context, tenantID, ticketID string) ([]models.TransferHistoryEntry, error) {
 	return nil, nil

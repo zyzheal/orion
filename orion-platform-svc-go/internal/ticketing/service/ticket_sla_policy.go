@@ -55,8 +55,16 @@ func (s *Service) DeleteSLAPolicy(ctx context.Context, tenantID string, policyID
 	return s.repo.DeleteSLAPolicy(ctx, tenantID, policyID)
 }
 
+// GetTicketSLAStatus answers GET /ticketing/sla/tickets/:ticketId/status. It
+// delegates to GetTicketSLA instead of re-reading ticket_sla_tracking: that
+// table has no response-window column (245_ticketing_schema_fixes.sql created
+// it without one), so a repository-side computation would have to duplicate
+// defaultSLATargets and drift from the stored window again -- the same defect
+// slaTargetsFor was introduced to remove. The previous body was a connectivity
+// check that returned a struct with only ticket_id set, so every SLA field on
+// the route read as zero.
 func (s *Service) GetTicketSLAStatus(ctx context.Context, tenantID, ticketID string) (*models.TicketSLAStatus, error) {
-	return s.repo.GetTicketSLAStatus(ctx, tenantID, ticketID)
+	return s.GetTicketSLA(ctx, tenantID, ticketID)
 }
 
 func (s *Service) GetBreaches(ctx context.Context, tenantID string) ([]models.SLABreach, error) {
