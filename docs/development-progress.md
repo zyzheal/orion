@@ -13907,3 +13907,128 @@ POST /tickets/dispatch/queue/reprioritize  Dequeue
 **§69.8 的 10 条遗留结转**：`ReprioritizeAll` 不写字节、`GetTimeToAssignmentStats` 五个零值常量、`SLAService.ticketRepo` 从未读取、模块 A 零调用集群（本轮又删掉一对）、三个服务仍用 `zap.NewNop()`、`GetTransferConfig`/`UpdateTransferConfig` 改进程内全局内存配置、`TransferDueToSuspend` 丢错加合成工单 id、`GetTransferStats` 未受检类型断言、`handler/dispatch.go` 四处无守卫的 `c.GetString("tenant_id")`、`SLAService.CreateRecordForTicket` 混为一谈。
 
 **与 §65.1 同一性质的租户边界问题，本轮未排查**：§65.1(a) 的根因是「租户来自客户端输入」，这个模式可能出现在其他模块——`grep 'Query("tenantId")'` 与 `req.TenantID` 在全仓的结果未逐一核实。本轮只修了 §65 诊断出的 cmdb 一项，其他模块需单独扫描（与 §69 记录不改清单里「全仓约 80 处 ON CONFLICT 中只有工单模块 4 处经过闭包测试」是同一类盲区）。
+
+
+## §71 §65.1(a) 的根因全仓扩散：租户取自客户端输入，audit 19 处、efficiency 21 处、backup 3 处（2026-09-17）
+
+> §70 修完 cmdb 时在 §70.8 留了一条未验证的高价值断言：**「租户来自客户端输入」这个模式可能出现在其他模块，`grep 'Query("tenantId")'` 与 `req.TenantID` 的全仓结果未逐一核实**。本节把它核完。
+
+扫描起点 HEAD `83eb89297`。四个 grep 模式：`Query("tenant*")`、`DefaultQuery("tenant*")`、`PostForm("tenant*")`、`req.TenantID` / `body.TenantID` / `query.TenantID` 覆盖。命中 12 个模块，逐个核到活路由后确认 **6 个是真实缺陷**，其余是「边界已杀死」或服务内部，本轮刻意不动。
+
+### 71.1 internal/audit：19 处，且两条路由连权限守卫都没有
+
+`internal/audit/handler/handler.go` 有 15 个方法在 `c.GetString("tenant_id")` 之后紧跟：
+
+```go
+if tid := c.Query("tenantId"); tid != "" {
+    tenantID = tid
+}
+```
+
+另有 4 个方法（`VerifyChain`、`ComplianceCheck`、`ExportCSV`、`ExportJSON`）读 JSON body 的 `tenantId` 覆盖。
+
+这是三个模块里暴露面最大的：`audit_logs` 是**合规证据链**，15 个 query 覆盖的方法覆盖 `Actions`、`ResourceTypes`、SOC2/ISO27001/PCI/MLPS2/PDPA 五套合规报告、`Combined`、覆盖率、风险矩阵、趋势、`ChainInfo`、`StorageStats`、`ChainLatest`；4 个 body 覆盖的方法里两条是**导出下载**（`ExportCSV`/`ExportJSON`）。任何持 token 的用户都能拉别的租户的审计历史、合规报告并下载证据。
+
+更严重的是路由注册：`f.GET("/actions", h.Actions)` 和 `f.GET("/resource-types", h.ResourceTypes)` **连 `auth.RequirePermission` 都没有**——裸注册，只靠 `api.Use(auth.OptionalAuth(...))` 的中间件，不查权限。`tenant:read` 之外的任何人，只要 token 里有任意租户 claim，就能读。19 个覆盖块全部删除。
+
+`body.TenantID` / `req.TenantID` 字段**保留**为 wire 兼容（客户端发送被静默忽略），与 §70 的 cmdb 判据一致；彻底拒绝需改契约，属破坏性变更。
+
+### 71.2 internal/efficiency：21 处，第二种根因——共享租户桶
+
+`internal/efficiency/handler/handler.go` 的回退链比 audit 长一层，且是**两种不同缺陷叠加**：
+
+1. **10 个方法**：`if tenantID == "" { tenantID = c.Query("tenantId") }` —— auth 为空时可被客户端注入。
+2. **11 个方法**：再往下还有一层 `if tenantID == "" { tenantID = "default" }` —— 字面量 `"default"`。
+
+第 2 种是这次扫描里最不好的一种：**匿名的共享租户桶**。效率报告、DORA 指标（部署频率/变更前置时间/恢复时长/变更失败率）、团队指标、项目指标、开发者画像、瓶颈分析——全是跨租户分析数据。回退链让任何人（包括 auth 为空的请求）全部落进同一个 `"default"` 桶，既读不到自己的数据，又能看到桶里聚类的东西。
+
+修法：10 个 query 回退删除；11 个 `"default"` 回退改成与 `GetReports` **既有**守卫同形的 400：
+
+```go
+if tenantID == "" {
+    middleware.RespondBadRequest(c, "tenantId is required")
+    return
+}
+```
+
+选 400 而不是继续查一个桶：无 auth 租户时不产生任何数据，而不是查一个共享桶。用既有字符串是为了让 12 处守卫长得一样，便于日后一眼看出有没有漏。
+
+### 71.3 internal/infrastructure/backup：3 处，含一条破坏性路由
+
+`c.DefaultQuery("tenant_id", c.GetString("tenant_id"))` 的语义是「query 有值就用 query」——和 `OptionalAuth` 一样，query 永远优先于 auth：
+
+- `retention_handler.go:47` `PurgeTenant` —— **按租户删除过期备份记录**。一条 `?tenant_id=<别人>` 就能把别人的备份记录标成 expired。这是三个模块里唯一有**破坏性**的。
+- `archive_scheduler_handler.go:121` —— 读归档计划与统计。
+- `archive_handler.go:109` —— 构造请求体的 `TenantID` 字段。
+
+三处改成只读 auth context。顺带修掉 `retention_handler.go` 里已过时的注释（原写「query params override」，与修复后的行为相反）。
+
+### 71.4 internal/ai/aicost 与 internal/ai/llm：3 处
+
+- `aicost Optimize`：`ShouldBindJSON` 成功且 body 有 `tenantId` 时覆盖 auth 租户，取该租户的成本节省分析与优化建议。
+- `ai/llm ListTraces` / `GetDailyStats`：`c.Query("tenant_id")` **优先**、auth 兜底（和 §70 的 ai/llm 是同一个反模式，但 §70 没扫到这两个方法的反向写法）。且 `traces.GET("", h.ListTraces)`、`traces.GET("/stats/daily", h.GetDailyStats)` 都是**裸注册无权限守卫**。
+
+### 71.5 判为「边界已杀死」，本轮不动
+
+`notification` 的 `SendNotification`、`alert` 的 `Ingest`、`report-designer` 的 `CreateReport` 都在**服务层**读 `req.TenantID` 覆盖传入的 `tenantID`，看起来是同一个缺陷。但调用方 handler 已经把 `req.TenantID` 从 auth 填充好了：
+
+- `notification-handler`：`if req.TenantID == "" { req.TenantID = tenantID }` —— body 为空才填 auth；body 有值仍会被服务层拿来覆盖。这是**残留风险**，见 §71.8。
+- `report-designer`：`req.TenantID = &tenantID` —— handler 无条件覆盖，服务层的读形同虚设。
+- `alert Ingest`：handler 不填充 `req.TenantID`，body 里带 `tenantId` 就会被服务层拿来覆盖。这是**真缺陷**，但因为本轮已修完 6 个模块，且 alert 的路由有 `alert:write` 守卫，记入遗留而非本轮扩展。
+
+### 71.6 测试：31 个子测
+
+- **audit `TestHandler_TenantFromAuthContextNotClientInput`（19 子测）**：`recordingSvc` 包住既有 `mockSvc` 的 16 个 fn 字段，捕获 service 实际收到的 `tenantID`。15 个 query 方法传 `?tenantId=attacker-supplied-tenant`，4 个 body 方法传 `{"tenantId": ...}` 请求体，断言 service 收到的是 auth 的 `tenant-1`。
+  - `ChainLatest` 需要 `List` 返回**非 nil** 的 `AuditLogListResult`——它直接解引用 `result.Total`。mock 返回 `(nil, nil)` 时直接 panic，这是一个既有的 nil 解引用隐患（见 §71.8）。
+- **efficiency `TestHandler_TenantFromAuthContextOnly`（12 子测）**：新增 `performRequestWithTenant`（允许覆盖 auth 租户，传 `""` 走无租户路径），**双向断言**：
+  - 有 auth 租户 + query 注入 → service 收到 auth 值。
+  - 无 auth 租户 + query 注入 → **400，且 service 一次都没被调用**（`calls != 0` 即失败）。
+
+第二个断言是专门用来抓回退链的：只断 400 不够，因为「查了 `"default"` 桶然后失败」也能返回 400。零调用才证明没有共享桶。
+
+### 71.7 变异矩阵：5/5 全灭
+
+| # | 变异 | 抓到的子测 |
+|---|---|---|
+| M1 | audit `Actions` 恢复 query 覆盖 | `TestHandler_TenantFromAuthContextNotClientInput/Actions` |
+| M2 | audit `ExportCSV` 恢复 body 覆盖 | `.../ExportCSV` |
+| M3 | efficiency `GetReports` 恢复 query 回退 | `TestHandler_TenantFromAuthContextOnly/GetReports` |
+| M4 | efficiency `GetAllTeams` 恢复 `"default"` 桶 | `.../GetAllTeams` |
+| M5 | efficiency `ComparePeriods` 恢复 body 覆盖 | `.../ComparePeriods` |
+
+**harness 自身三处太弱，全部反打出来了：**
+
+1. **`mv file.mut file` 是应用而不是还原。** 变异脚本先 `open(p+".mut").write(替换结果)`，再 `mv p.mut p`——`mv` 把变异永久写进代码。`Actions` 的覆盖块因此留了一整轮没删掉，而后续几次打印的「KILLED ✓」是在**未变异**代码上测的假信号（脚本的 `assert anchor count == 1` 失败 → 替换没生效 → 代码没变 → 测试通过 → 但脚本仍打印 KILLED，因为 `grep FAIL` 命中了别的输出）。改成「先读原文进内存、原地替换写盘、测完把原文写回」后信号才可信。这是 §69.5（编译器报错算 KILLED）、§70.5（坏补丁算弱测试）之后第三次同一类病：**没有区分信号的信号说明工具太弱**。
+2. **锚点不唯一 / 不匹配被当成击杀。** M2 第一次 `anchor x0`、M3 `anchor x5`，替换静默不生效。改成强制 `assert s.count(old) == 1`，并把「退出非零但没有 `--- FAIL:` 行」单独判为 `FALSE-BUILD-FAIL` 而不是 KILLED。
+3. **测试数据形状不对会伪装成存活。** M5 第一次 SURVIVED——`ComparePeriods` 的测试请求体只带了 `periodA`/`periodB`，没带 `tenantId`，恢复的覆盖块拿不到非空值自然不触发。补上 `"tenantId": "attacker-supplied-tenant"` 后才 KILLED。
+
+### 71.8 遗留（记录不改）
+
+**本轮新增：**
+
+1. **notification 残留风险**：`notification-handler.Send` 用 `if req.TenantID == "" { req.TenantID = tenantID }`——body 带值时**不**用 auth 覆盖，而服务层 `SendNotification` 又有 `if req.TenantID != "" { tenantID = req.TenantID }`。body 里的 `tenant_id` 仍是可写入的租户来源。需要改成无条件用 auth 填充。
+2. **alert `Ingest` 残留**：handler 不填充 `req.TenantID`，body 带 `tenantId` 时服务层会覆盖传入的 auth 租户。有 `alert:write` 守卫，风险低于 audit，但同根因。
+3. **report-designer 的零 UUID 回退**：`getDefaultTenantID` 在 auth 为空时返回 `"00000000-0000-0000-0000-000000000000"`——和 §70 修掉的 cmdb `getDefaultTenantID` 一模一样，但调用点 handler 已无条件覆盖 `req.TenantID`，回退只在 auth 为空时命中。
+4. **audit `ChainLatest` 的 nil 解引用**：`result, err := h.svc.List(...)` 后直接读 `result.Total`，`err == nil && result == nil` 时 panic。本轮为了写测试给它配了非 nil mock 而发现，未修。
+5. **`internal/cron` gated 回退**：`tenantID := c.GetString("tenant_id"); if tenantID == "" { tenantID = c.Query("tenant_id") }`。auth 非空时 query 不生效，不构成覆盖型漏洞；但**匿名请求**（auth 空）仍可用 query 指定任意租户读 cron job 列表。本轮不修。
+6. **4 处修复无测试守护**（诚实边界）：ai/llm 与 aicost 无 handler 测试文件且 handler 持**具体** `*service.Service`（非接口，无法 mock）；backup handler 持具体 `*service.BackupService`，构造它需要真数据库。这 3+3 处修复只能靠 code review 守护。同类风险在所有持具体类型的 handler 上普遍存在。
+7. **§70.8 的 5 条遗留与 §65.3 死代码、§69.8 的 10 条结转不变。**
+
+**同一性质问题尚未排查完**：本次扫的是「租户取自客户端输入」这一个模式。`req.TenantID` / `body.TenantID` 在服务层的覆盖还可能有 handler 不填充的请求体字段——§71.5 的三条已经证明这类确实存在（notification 与 alert 是真实残留）。
+
+### 71.9 验证
+
+- `go build ./...` 退出 0。
+- `go vet ./internal/{audit,efficiency,infrastructure/backup,ai/aicost,ai/llm,cmdb,mlops,cache-mgmt}/...` 退出 0。
+- `gofmt -l` 8 目录无输出。
+- `go test -count=1` 涉及 18 个包全绿。
+- `grep -rn 'Query("tenant\|DefaultQuery("tenant\|PostForm("tenant' internal/ cmd/` 只剩 cron 一处 gated 回退（§71.8 第 5 条）。
+- 无新迁移，下一个可用版本号仍是 **699**。
+
+### 71.10 提交
+
+代码提交 `e03774965`：9 文件 444 增 / 136 删，含 2 个测试文件的 31 个子测。
+
+- 代码：`internal/audit/handler/handler.go`、`internal/efficiency/handler/handler.go`、`internal/infrastructure/backup/handler/{retention,archive,archive_scheduler}_handler.go`、`internal/ai/aicost/handler/handler.go`、`internal/ai/llm/handler/handler.go`。
+- 测试：`internal/audit/handler/handler_test.go`、`internal/efficiency/handler/handler_test.go`。
+- 文档：本节 + `ALL_TODOS.md` 一行。
