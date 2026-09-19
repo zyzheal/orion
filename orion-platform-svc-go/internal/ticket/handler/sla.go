@@ -22,13 +22,17 @@ func NewSLAHandler(svc *service.SLAService) *SLAHandler {
 func (h *SLAHandler) AddSLATarget(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketAddSLATarget")
 	defer span.End()
+	tenantID, ok := tenantFrom(c)
+	if !ok {
+		return
+	}
 	var req models.CreateSLATargetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
 
-	target, err := h.svc.CreateTarget(ctx, &req)
+	target, err := h.svc.CreateTarget(ctx, tenantID, &req)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -41,7 +45,11 @@ func (h *SLAHandler) AddSLATarget(c *gin.Context) {
 func (h *SLAHandler) GetTicketSLA(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetTicketSLA")
 	defer span.End()
-	sla, err := h.svc.GetTicketSLA(ctx, c.Param("id"))
+	tenantID, ok := tenantFrom(c)
+	if !ok {
+		return
+	}
+	sla, err := h.svc.GetTicketSLA(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		respondError(c, http.StatusNotFound, err)
 		return
@@ -53,7 +61,11 @@ func (h *SLAHandler) GetTicketSLA(c *gin.Context) {
 func (h *SLAHandler) GetSLACompliance(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetSLACompliance")
 	defer span.End()
-	report, err := h.svc.GetComplianceReport(ctx, time.Time{}, time.Time{})
+	tenantID, ok := tenantFrom(c)
+	if !ok {
+		return
+	}
+	report, err := h.svc.GetComplianceReport(ctx, tenantID, time.Time{}, time.Time{})
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -65,7 +77,11 @@ func (h *SLAHandler) GetSLACompliance(c *gin.Context) {
 func (h *SLAHandler) CheckSLABreaches(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketCheckSLABreaches")
 	defer span.End()
-	breaches, err := h.svc.CheckBreaches(ctx)
+	tenantID, ok := tenantFrom(c)
+	if !ok {
+		return
+	}
+	breaches, err := h.svc.CheckBreaches(ctx, tenantID)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return

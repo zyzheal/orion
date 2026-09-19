@@ -35,7 +35,11 @@ func (h *QueueHandler) GetSLAQueueStatus(c *gin.Context) {
 func (h *QueueHandler) GetSLAQueueEntries(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetSLAQueueEntries")
 	defer span.End()
-	entries, err := h.qm.GetSLAQueueEntries(ctx)
+	tenantID, ok := tenantFrom(c)
+	if !ok {
+		return
+	}
+	entries, err := h.qm.GetSLAQueueEntries(ctx, tenantID)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -47,6 +51,10 @@ func (h *QueueHandler) GetSLAQueueEntries(c *gin.Context) {
 func (h *QueueHandler) GetSLAAlerts(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetSLAAlerts")
 	defer span.End()
+	tenantID, ok := tenantFrom(c)
+	if !ok {
+		return
+	}
 	var alertType *models.SLAAlertType
 	if t := c.Query("type"); t != "" {
 		at := models.SLAAlertType(t)
@@ -57,7 +65,7 @@ func (h *QueueHandler) GetSLAAlerts(c *gin.Context) {
 		limit = 50
 	}
 
-	alerts, err := h.qm.GetSLAAlerts(ctx, alertType, limit)
+	alerts, err := h.qm.GetSLAAlerts(ctx, tenantID, alertType, limit)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return

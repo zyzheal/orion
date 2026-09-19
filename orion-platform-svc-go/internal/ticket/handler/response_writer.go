@@ -42,3 +42,18 @@ func respondForbidden(c *gin.Context, message string) {
 func respondInternalError(c *gin.Context, message string) {
 	errors.WriteError(c, errors.ErrInternal, message, http.StatusInternalServerError)
 }
+
+// tenantFrom reads the caller's tenant id from the auth middleware and refuses
+// to serve a request that reached the handler without one. A missing tenant is
+// a rejection, not an empty filter: sla_records carries no tenant column of its
+// own, so an empty tenantID would make every scoped query return nothing rather
+// than the right rows, and the unscoped queries it replaced would have returned
+// every tenant's rows.
+func tenantFrom(c *gin.Context) (string, bool) {
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" {
+		respondForbidden(c, "tenant_id is required")
+		return "", false
+	}
+	return tenantID, true
+}

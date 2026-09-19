@@ -102,17 +102,17 @@ type discardFakeSLA struct {
 func (f *discardFakeSLA) CreateTarget(ctx context.Context, target *models.SLATarget) error {
 	return nil
 }
-func (f *discardFakeSLA) ListTargets(ctx context.Context) ([]models.SLATarget, error) {
+func (f *discardFakeSLA) ListTargets(ctx context.Context, tenantID string) ([]models.SLATarget, error) {
 	return nil, nil
 }
-func (f *discardFakeSLA) GetTargetByPriority(ctx context.Context, priority string) (*models.SLATarget, error) {
+func (f *discardFakeSLA) GetTargetByPriority(ctx context.Context, tenantID, priority string) (*models.SLATarget, error) {
 	return nil, nil
 }
-func (f *discardFakeSLA) DeleteTarget(ctx context.Context, id string) error { return nil }
+func (f *discardFakeSLA) DeleteTarget(ctx context.Context, tenantID, id string) error { return nil }
 func (f *discardFakeSLA) CreateRecord(ctx context.Context, record *models.SLARecord) error {
 	return nil
 }
-func (f *discardFakeSLA) GetRecordByTicket(ctx context.Context, ticketID string) (*models.SLARecord, error) {
+func (f *discardFakeSLA) GetRecordByTicket(ctx context.Context, tenantID, ticketID string) (*models.SLARecord, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -121,19 +121,19 @@ func (f *discardFakeSLA) GetRecordByTicket(ctx context.Context, ticketID string)
 func (f *discardFakeSLA) UpdateRecord(ctx context.Context, record *models.SLARecord) error {
 	return nil
 }
-func (f *discardFakeSLA) FindBreachedRecords(ctx context.Context) ([]models.SLARecord, error) {
+func (f *discardFakeSLA) FindBreachedRecords(ctx context.Context, tenantID string) ([]models.SLARecord, error) {
 	return nil, nil
 }
-func (f *discardFakeSLA) FindPendingRecords(ctx context.Context) ([]models.SLARecord, error) {
+func (f *discardFakeSLA) FindPendingRecords(ctx context.Context, tenantID string) ([]models.SLARecord, error) {
 	return nil, nil
 }
-func (f *discardFakeSLA) PauseRecord(ctx context.Context, ticketID, reason string) error {
+func (f *discardFakeSLA) PauseRecord(ctx context.Context, tenantID, ticketID, reason string) error {
 	return nil
 }
-func (f *discardFakeSLA) UnpauseRecord(ctx context.Context, ticketID string) error {
+func (f *discardFakeSLA) UnpauseRecord(ctx context.Context, tenantID, ticketID string) error {
 	return nil
 }
-func (f *discardFakeSLA) GetComplianceReport(ctx context.Context, start, end time.Time) (*models.SLAComplianceReport, error) {
+func (f *discardFakeSLA) GetComplianceReport(ctx context.Context, tenantID string, start, end time.Time) (*models.SLAComplianceReport, error) {
 	return nil, nil
 }
 
@@ -150,7 +150,7 @@ func TestGetSLAQueueEntries_NoSLARecordIsNotAFault(t *testing.T) {
 	}
 	qm := NewQueueManager(dispatch, &discardFakeSLA{err: sql.ErrNoRows})
 
-	got, err := qm.GetSLAQueueEntries(context.Background())
+	got, err := qm.GetSLAQueueEntries(context.Background(), "ten")
 	require_NoError(t, err)
 	if len(got) != 1 {
 		t.Fatalf("returned %d entries, want 1: a ticket without an SLA record still belongs in the queue", len(got))
@@ -176,7 +176,7 @@ func TestGetSLAQueueEntries_SLARepositoryFaultSurfaces(t *testing.T) {
 	}
 	qm := NewQueueManager(dispatch, &discardFakeSLA{err: want})
 
-	got, err := qm.GetSLAQueueEntries(context.Background())
+	got, err := qm.GetSLAQueueEntries(context.Background(), "ten")
 	if err == nil {
 		t.Fatalf("err = nil, want the driver error; %d stale entries returned", len(got))
 	}
@@ -203,7 +203,7 @@ func TestGetSLAQueueEntries_WrappedNoRowsIsStillNotAFault(t *testing.T) {
 	wrapped := errors.Join(errors.New("wrapper"), sql.ErrNoRows)
 	qm := NewQueueManager(dispatch, &discardFakeSLA{err: wrapped})
 
-	got, err := qm.GetSLAQueueEntries(context.Background())
+	got, err := qm.GetSLAQueueEntries(context.Background(), "ten")
 	require_NoError(t, err)
 	if len(got) != 1 {
 		t.Fatalf("returned %d entries, want 1", len(got))
@@ -228,7 +228,7 @@ func TestGetSLAQueueEntries_SLARecordSurfacesTheDeadline(t *testing.T) {
 	}}
 	qm := NewQueueManager(dispatch, sla)
 
-	got, err := qm.GetSLAQueueEntries(context.Background())
+	got, err := qm.GetSLAQueueEntries(context.Background(), "ten")
 	require_NoError(t, err)
 	if len(got) != 1 {
 		t.Fatalf("returned %d entries, want 1", len(got))
@@ -246,7 +246,7 @@ func TestGetSLAQueueEntries_SLARecordSurfacesTheDeadline(t *testing.T) {
 func TestGetSLAQueueEntries_DequeueFaultSurfaces(t *testing.T) {
 	want := errors.New("no such relation")
 	qm := NewQueueManager(&discardFakeDispatch{dequeueErr: want}, &discardFakeSLA{})
-	got, err := qm.GetSLAQueueEntries(context.Background())
+	got, err := qm.GetSLAQueueEntries(context.Background(), "ten")
 	if err == nil {
 		t.Fatalf("err = nil, want the driver error")
 	}

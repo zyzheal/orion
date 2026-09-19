@@ -35,8 +35,11 @@ func (qm *QueueManager) GetSLAQueueStatus(ctx context.Context) (*models.Dispatch
 	return qm.dispatchRepo.GetQueueStatus(ctx)
 }
 
-// GetSLAQueueEntries returns queue entries with SLA priority scoring
-func (qm *QueueManager) GetSLAQueueEntries(ctx context.Context) ([]models.SLAQueueEntry, error) {
+// GetSLAQueueEntries returns queue entries with SLA priority scoring. tenantID
+// is needed for the sla_records lookup, which is scoped through the parent
+// ticket: the queue itself is not tenant-keyed, so a ticket id alone does not
+// prove the caller owns the record it is being shown.
+func (qm *QueueManager) GetSLAQueueEntries(ctx context.Context, tenantID string) ([]models.SLAQueueEntry, error) {
 	entries, err := qm.dispatchRepo.Dequeue(ctx, 100)
 	if err != nil {
 		return nil, err
@@ -65,7 +68,7 @@ func (qm *QueueManager) GetSLAQueueEntries(ctx context.Context) ([]models.SLAQue
 		// sla-entries answers 200 with stale, deadline-less entries while the
 		// database is unreachable. errors.Is rather than == so an implementation
 		// that wraps the driver error is handled the same way.
-		slaRecord, slaErr := qm.slaRepo.GetRecordByTicket(ctx, entry.TicketID)
+		slaRecord, slaErr := qm.slaRepo.GetRecordByTicket(ctx, tenantID, entry.TicketID)
 		if slaErr != nil {
 			if !errors.Is(slaErr, sql.ErrNoRows) {
 				return nil, fmt.Errorf("sla record for %s: %w", entry.TicketID, slaErr)
@@ -98,8 +101,8 @@ func (qm *QueueManager) GetSLAQueueEntries(ctx context.Context) ([]models.SLAQue
 }
 
 // GetSLAAlerts returns alerts for tickets at risk of SLA breach
-func (qm *QueueManager) GetSLAAlerts(ctx context.Context, alertType *models.SLAAlertType, limit int) ([]models.QueueAlert, error) {
-	entries, err := qm.GetSLAQueueEntries(ctx)
+func (qm *QueueManager) GetSLAAlerts(ctx context.Context, tenantID string, alertType *models.SLAAlertType, limit int) ([]models.QueueAlert, error) {
+	entries, err := qm.GetSLAQueueEntries(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}

@@ -295,7 +295,11 @@ func (h *DispatchHandler) GetBestMatch(c *gin.Context) {
 func (h *DispatchHandler) GetSLAAlerts(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetSLAAlerts")
 	defer span.End()
-	alerts, err := h.svc.GetSLAAlerts(ctx)
+	tenantID, ok := tenantFrom(c)
+	if !ok {
+		return
+	}
+	alerts, err := h.svc.GetSLAAlerts(ctx, tenantID)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return

@@ -48,17 +48,17 @@ type RelationRepositoryInterface interface {
 // SLARepositoryInterface abstracts SLA data access
 type SLARepositoryInterface interface {
 	CreateTarget(ctx context.Context, target *models.SLATarget) error
-	ListTargets(ctx context.Context) ([]models.SLATarget, error)
-	GetTargetByPriority(ctx context.Context, priority string) (*models.SLATarget, error)
-	DeleteTarget(ctx context.Context, id string) error
+	ListTargets(ctx context.Context, tenantID string) ([]models.SLATarget, error)
+	GetTargetByPriority(ctx context.Context, tenantID, priority string) (*models.SLATarget, error)
+	DeleteTarget(ctx context.Context, tenantID, id string) error
 	CreateRecord(ctx context.Context, record *models.SLARecord) error
-	GetRecordByTicket(ctx context.Context, ticketID string) (*models.SLARecord, error)
+	GetRecordByTicket(ctx context.Context, tenantID, ticketID string) (*models.SLARecord, error)
 	UpdateRecord(ctx context.Context, record *models.SLARecord) error
-	FindBreachedRecords(ctx context.Context) ([]models.SLARecord, error)
-	FindPendingRecords(ctx context.Context) ([]models.SLARecord, error)
-	PauseRecord(ctx context.Context, ticketID, reason string) error
-	UnpauseRecord(ctx context.Context, ticketID string) error
-	GetComplianceReport(ctx context.Context, start, end time.Time) (*models.SLAComplianceReport, error)
+	FindBreachedRecords(ctx context.Context, tenantID string) ([]models.SLARecord, error)
+	FindPendingRecords(ctx context.Context, tenantID string) ([]models.SLARecord, error)
+	PauseRecord(ctx context.Context, tenantID, ticketID, reason string) error
+	UnpauseRecord(ctx context.Context, tenantID, ticketID string) error
+	GetComplianceReport(ctx context.Context, tenantID string, start, end time.Time) (*models.SLAComplianceReport, error)
 }
 
 // DispatchRepositoryInterface abstracts dispatch data access

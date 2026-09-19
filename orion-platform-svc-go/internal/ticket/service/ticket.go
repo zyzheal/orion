@@ -82,7 +82,7 @@ func (s *TicketService) Create(ctx context.Context, tenantID string, req *models
 
 	// Create SLA record
 	if s.sla != nil {
-		s.sla.CreateRecordForTicket(ctx, ticket.ID, ticket.Priority)
+		s.sla.CreateRecordForTicket(ctx, tenantID, ticket.ID, ticket.Priority)
 	}
 
 	// Check assignment rules

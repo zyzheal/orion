@@ -413,9 +413,12 @@ func (s *DispatchService) GetBestMatch(ctx context.Context, ticketID, tenantID s
 	return s.FindBestEngineer(ctx, ticket)
 }
 
-// GetSLAAlerts returns pending SLA records with breached or near-breach status
-func (s *DispatchService) GetSLAAlerts(ctx context.Context) ([]models.SLARecord, error) {
-	records, err := s.slaRepo.FindPendingRecords(ctx)
+// GetSLAAlerts returns this tenant's pending SLA records with breached or
+// near-breach status. The loop below writes breached = true back to the rows it
+// reads, so the tenant predicate in FindPendingRecords is what stops a GET from
+// one tenant marking another tenant's records.
+func (s *DispatchService) GetSLAAlerts(ctx context.Context, tenantID string) ([]models.SLARecord, error) {
+	records, err := s.slaRepo.FindPendingRecords(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}

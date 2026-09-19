@@ -20,37 +20,61 @@ func NewSLARepository(db *database.DB) *SLARepository {
 // SLA Targets
 
 func (r *SLARepository) CreateTarget(ctx context.Context, target *models.SLATarget) error {
-	query := `INSERT INTO sla_targets (id, name, priority, target_response_time_ms, target_resolution_time_ms, enabled)
-		VALUES ($1, $2, $3, $4, $5, $6)`
+	// tenant_id is in the column list on purpose. 686 created the column and
+	// this was the only INSERT in the codebase writing sla_targets, but it
+	// skipped the column, so every target row landed with NULL ownership and
+	// GetTargetByPriority could hand another tenant's windows to this tenant's
+	// ticket. The column is nullable, which made the omission legal SQL and so
+	// invisible to any build or migration check.
+	query := `INSERT INTO sla_targets (id, tenant_id, name, priority, target_response_time_ms, target_resolution_time_ms, enabled)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`
 	_, err := r.db.ExecContext(ctx, query,
-		target.ID, target.Name, target.Priority,
+		target.ID, target.TenantID, target.Name, target.Priority,
 		target.TargetResponseTimeMs, target.TargetResolutionTimeMs, target.Enabled,
 	)
 	return err
 }
 
-func (r *SLARepository) ListTargets(ctx context.Context) ([]models.SLATarget, error) {
+func (r *SLARepository) ListTargets(ctx context.Context, tenantID string) ([]models.SLATarget, error) {
 	var targets []models.SLATarget
-	err := r.db.SelectContext(ctx, &targets, "SELECT * FROM sla_targets ORDER BY priority, name")
+	err := r.db.SelectContext(ctx, &targets,
+		"SELECT * FROM sla_targets WHERE tenant_id = $1 ORDER BY priority, name", tenantID)
 	return targets, err
 }
 
-func (r *SLARepository) GetTargetByPriority(ctx context.Context, priority string) (*models.SLATarget, error) {
+func (r *SLARepository) GetTargetByPriority(ctx context.Context, tenantID, priority string) (*models.SLATarget, error) {
+	// tenant_id leads the predicate: priority alone resolved the first enabled
+	// row with that priority anywhere in the registry, which is how a target
+	// written by a different tenant became the SLA deadline of this tenant's
+	// ticket. Rows with NULL tenant_id (written before this column was wired)
+	// match no predicate, so they are no longer reachable from any tenant.
 	var target models.SLATarget
 	err := r.db.GetContext(ctx, &target,
-		"SELECT * FROM sla_targets WHERE priority = $1 AND enabled = true LIMIT 1", priority)
+		"SELECT * FROM sla_targets WHERE tenant_id = $1 AND priority = $2 AND enabled = true LIMIT 1",
+		tenantID, priority)
 	if err != nil {
 		return nil, err
 	}
 	return &target, nil
 }
 
-func (r *SLARepository) DeleteTarget(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM sla_targets WHERE id = $1", id)
+func (r *SLARepository) DeleteTarget(ctx context.Context, tenantID, id string) error {
+	_, err := r.db.ExecContext(ctx,
+		"DELETE FROM sla_targets WHERE id = $2 AND tenant_id = $1", tenantID, id)
 	return err
 }
 
 // SLA Records
+//
+// sla_records has no tenant_id by design (see 686: no INSERT in the codebase
+// writes one, so a NOT NULL column plus a WHERE predicate would have turned
+// every legitimate call into not found). Ownership is therefore derived from
+// the parent ticket, and every read below ends in the same semi-join,
+// ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $1). sla_records.
+// ticket_id matches at most one tickets.id, so the join can only narrow the
+// result set, never widen it. CreateRecord and UpdateRecord are exempt: they
+// are keyed by the record primary key, and every record handed to UpdateRecord
+// comes out of a scoped read in this file.
 
 func (r *SLARepository) CreateRecord(ctx context.Context, record *models.SLARecord) error {
 	query := `INSERT INTO sla_records (id, ticket_id, sla_target_id, priority, response_deadline_at, resolution_deadline_at, breached, paused)
@@ -62,9 +86,16 @@ func (r *SLARepository) CreateRecord(ctx context.Context, record *models.SLAReco
 	return err
 }
 
-func (r *SLARepository) GetRecordByTicket(ctx context.Context, ticketID string) (*models.SLARecord, error) {
+func (r *SLARepository) GetRecordByTicket(ctx context.Context, tenantID, ticketID string) (*models.SLARecord, error) {
+	// The old body answered SELECT * ... WHERE ticket_id = $1 alone, so any
+	// authenticated tenant could read any other tenant's SLA deadline and
+	// breach state by guessing or learning a ticket id.
 	var record models.SLARecord
-	err := r.db.GetContext(ctx, &record, "SELECT * FROM sla_records WHERE ticket_id = $1", ticketID)
+	err := r.db.GetContext(ctx, &record,
+		`SELECT r.* FROM sla_records r
+		 WHERE r.ticket_id = $2
+		   AND r.ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $1)`,
+		tenantID, ticketID)
 	if err != nil {
 		return nil, err
 	}
@@ -81,50 +112,71 @@ func (r *SLARepository) UpdateRecord(ctx context.Context, record *models.SLAReco
 	return err
 }
 
-func (r *SLARepository) FindBreachedRecords(ctx context.Context) ([]models.SLARecord, error) {
+func (r *SLARepository) FindBreachedRecords(ctx context.Context, tenantID string) ([]models.SLARecord, error) {
 	var records []models.SLARecord
 	err := r.db.SelectContext(ctx, &records,
-		`SELECT * FROM sla_records WHERE breached = true AND resolved_at IS NULL ORDER BY resolution_deadline_at ASC`)
+		`SELECT r.* FROM sla_records r
+		 WHERE r.breached = true AND r.resolved_at IS NULL
+		   AND r.ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $1)
+		 ORDER BY r.resolution_deadline_at ASC`,
+		tenantID)
 	return records, err
 }
 
-func (r *SLARepository) FindPendingRecords(ctx context.Context) ([]models.SLARecord, error) {
+func (r *SLARepository) FindPendingRecords(ctx context.Context, tenantID string) ([]models.SLARecord, error) {
 	var records []models.SLARecord
 	err := r.db.SelectContext(ctx, &records,
-		`SELECT * FROM sla_records WHERE breached = false AND resolved_at IS NULL AND paused = false ORDER BY resolution_deadline_at ASC`)
+		`SELECT r.* FROM sla_records r
+		 WHERE r.breached = false AND r.resolved_at IS NULL AND r.paused = false
+		   AND r.ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $1)
+		 ORDER BY r.resolution_deadline_at ASC`,
+		tenantID)
 	return records, err
 }
 
-func (r *SLARepository) PauseRecord(ctx context.Context, ticketID, reason string) error {
+func (r *SLARepository) PauseRecord(ctx context.Context, tenantID, ticketID, reason string) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE sla_records SET paused = true, paused_at = NOW(), paused_reason = $1, updated_at = NOW() WHERE ticket_id = $2`,
-		reason, ticketID)
+		`UPDATE sla_records SET paused = true, paused_at = NOW(), paused_reason = $1, updated_at = NOW()
+		 WHERE ticket_id = $2
+		   AND ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $3)`,
+		reason, ticketID, tenantID)
 	return err
 }
 
-func (r *SLARepository) UnpauseRecord(ctx context.Context, ticketID string) error {
+func (r *SLARepository) UnpauseRecord(ctx context.Context, tenantID, ticketID string) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE sla_records SET paused = false, paused_at = NULL, paused_reason = '', updated_at = NOW() WHERE ticket_id = $1`,
-		ticketID)
+		`UPDATE sla_records SET paused = false, paused_at = NULL, paused_reason = '', updated_at = NOW()
+		 WHERE ticket_id = $2
+		   AND ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $1)`,
+		tenantID, ticketID)
 	return err
 }
 
 // Compliance reporting
 
-func (r *SLARepository) GetComplianceReport(ctx context.Context, start, end time.Time) (*models.SLAComplianceReport, error) {
+func (r *SLARepository) GetComplianceReport(ctx context.Context, tenantID string, start, end time.Time) (*models.SLAComplianceReport, error) {
 	report := &models.SLAComplianceReport{
 		ByPriority: make(map[string]models.SLAPriorityStats),
 	}
 
+	// All five counts are scoped to tenant_id by the semi-join; tenantID is $1
+	// in every query and the window bounds are $2 and $3, so the same three
+	// arguments are bound in the same order throughout.
 	// Total and breached counts
 	err := r.db.GetContext(ctx, &report.TotalTickets,
-		`SELECT COUNT(*) FROM sla_records WHERE created_at BETWEEN $1 AND $2`, start, end)
+		`SELECT COUNT(*) FROM sla_records r
+		 WHERE r.created_at BETWEEN $2 AND $3
+		   AND r.ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $1)`,
+		tenantID, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	err = r.db.GetContext(ctx, &report.BreachedCount,
-		`SELECT COUNT(*) FROM sla_records WHERE breached = true AND created_at BETWEEN $1 AND $2`, start, end)
+		`SELECT COUNT(*) FROM sla_records r
+		 WHERE r.breached = true AND r.created_at BETWEEN $2 AND $3
+		   AND r.ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $1)`,
+		tenantID, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -135,19 +187,25 @@ func (r *SLARepository) GetComplianceReport(ctx context.Context, start, end time
 
 	// Average times
 	r.db.GetContext(ctx, &report.AvgResponseMs,
-		`SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (responded_at - created_at)) * 1000), 0)
-		FROM sla_records WHERE responded_at IS NOT NULL AND created_at BETWEEN $1 AND $2`, start, end)
+		`SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (r.responded_at - r.created_at)) * 1000), 0)
+		FROM sla_records r
+		WHERE r.responded_at IS NOT NULL AND r.created_at BETWEEN $2 AND $3
+		AND r.ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $1)`, tenantID, start, end)
 
 	r.db.GetContext(ctx, &report.AvgResolutionMs,
-		`SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)) * 1000), 0)
-		FROM sla_records WHERE resolved_at IS NOT NULL AND created_at BETWEEN $1 AND $2`, start, end)
+		`SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (r.resolved_at - r.created_at)) * 1000), 0)
+		FROM sla_records r
+		WHERE r.resolved_at IS NOT NULL AND r.created_at BETWEEN $2 AND $3
+		AND r.ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $1)`, tenantID, start, end)
 
 	// By priority
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT priority, COUNT(*) as total,
-		COUNT(CASE WHEN breached THEN 1 END) as breached
-		FROM sla_records WHERE created_at BETWEEN $1 AND $2
-		GROUP BY priority`, start, end)
+		`SELECT r.priority, COUNT(*) as total,
+		COUNT(CASE WHEN r.breached THEN 1 END) as breached
+		FROM sla_records r
+		WHERE r.created_at BETWEEN $2 AND $3
+		AND r.ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $1)
+		GROUP BY r.priority`, tenantID, start, end)
 	if err != nil {
 		return report, nil
 	}

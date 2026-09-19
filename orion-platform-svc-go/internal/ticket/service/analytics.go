@@ -235,7 +235,7 @@ func (s *AnalyticsService) ExportBIData(ctx context.Context, tenantID, dataset, 
 		stats, _ := s.analyticsRepo.GetTicketStats(ctx, tenantID)
 		result["data"] = stats
 	case "sla":
-		report, _ := s.slaRepo.GetComplianceReport(ctx, start, end)
+		report, _ := s.slaRepo.GetComplianceReport(ctx, tenantID, start, end)
 		result["data"] = report
 	case "dispatch":
 		metrics, _ := s.dispatchRepo.GetMetrics(ctx, start, end)

@@ -21,8 +21,8 @@ func NewSLAService(slaRepo repository.SLARepositoryInterface, ticketRepo reposit
 	return &SLAService{slaRepo: slaRepo, ticketRepo: ticketRepo}
 }
 
-// CreateTarget creates a new SLA target
-func (s *SLAService) CreateTarget(ctx context.Context, req *models.CreateSLATargetRequest) (*models.SLATarget, error) {
+// CreateTarget creates a new SLA target owned by tenantID
+func (s *SLAService) CreateTarget(ctx context.Context, tenantID string, req *models.CreateSLATargetRequest) (*models.SLATarget, error) {
 	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "SLAService.CreateTarget")
 	defer span.End()
 
@@ -31,8 +31,12 @@ func (s *SLAService) CreateTarget(ctx context.Context, req *models.CreateSLATarg
 		enabled = *req.Enabled
 	}
 
+	// TenantID has to be set here rather than left to the caller: the INSERT
+	// writes whatever the struct holds, and a zero value would store an empty
+	// owner that matches no tenant_id predicate.
 	target := &models.SLATarget{
 		ID:                     req.ID,
+		TenantID:               tenantID,
 		Name:                   req.Name,
 		Priority:               req.Priority,
 		TargetResponseTimeMs:   req.TargetResponseTimeMs,
@@ -50,8 +54,8 @@ func (s *SLAService) CreateTarget(ctx context.Context, req *models.CreateSLATarg
 }
 
 // CreateRecordForTicket creates an SLA record when a ticket is created
-func (s *SLAService) CreateRecordForTicket(ctx context.Context, ticketID, priority string) error {
-	target, err := s.slaRepo.GetTargetByPriority(ctx, priority)
+func (s *SLAService) CreateRecordForTicket(ctx context.Context, tenantID, ticketID, priority string) error {
+	target, err := s.slaRepo.GetTargetByPriority(ctx, tenantID, priority)
 	if err != nil {
 		return nil // no SLA target for this priority, skip
 	}
@@ -69,14 +73,14 @@ func (s *SLAService) CreateRecordForTicket(ctx context.Context, ticketID, priori
 	return s.slaRepo.CreateRecord(ctx, record)
 }
 
-// GetTicketSLA returns the SLA record for a ticket
-func (s *SLAService) GetTicketSLA(ctx context.Context, ticketID string) (*models.SLARecord, error) {
-	return s.slaRepo.GetRecordByTicket(ctx, ticketID)
+// GetTicketSLA returns the SLA record for a ticket of tenantID
+func (s *SLAService) GetTicketSLA(ctx context.Context, tenantID, ticketID string) (*models.SLARecord, error) {
+	return s.slaRepo.GetRecordByTicket(ctx, tenantID, ticketID)
 }
 
 // MarkResponded marks a ticket as responded (SLA response met)
-func (s *SLAService) MarkResponded(ctx context.Context, ticketID string) error {
-	record, err := s.slaRepo.GetRecordByTicket(ctx, ticketID)
+func (s *SLAService) MarkResponded(ctx context.Context, tenantID, ticketID string) error {
+	record, err := s.slaRepo.GetRecordByTicket(ctx, tenantID, ticketID)
 	if err != nil {
 		return nil // no SLA record
 	}
@@ -85,8 +89,8 @@ func (s *SLAService) MarkResponded(ctx context.Context, ticketID string) error {
 }
 
 // MarkResolved marks a ticket as resolved (SLA resolution met)
-func (s *SLAService) MarkResolved(ctx context.Context, ticketID string) error {
-	record, err := s.slaRepo.GetRecordByTicket(ctx, ticketID)
+func (s *SLAService) MarkResolved(ctx context.Context, tenantID, ticketID string) error {
+	record, err := s.slaRepo.GetRecordByTicket(ctx, tenantID, ticketID)
 	if err != nil {
 		return nil
 	}
@@ -95,21 +99,26 @@ func (s *SLAService) MarkResolved(ctx context.Context, ticketID string) error {
 }
 
 // PauseSLA pauses SLA tracking for a ticket
-func (s *SLAService) PauseSLA(ctx context.Context, ticketID, reason string) error {
-	return s.slaRepo.PauseRecord(ctx, ticketID, reason)
+func (s *SLAService) PauseSLA(ctx context.Context, tenantID, ticketID, reason string) error {
+	return s.slaRepo.PauseRecord(ctx, tenantID, ticketID, reason)
 }
 
 // UnpauseSLA resumes SLA tracking
-func (s *SLAService) UnpauseSLA(ctx context.Context, ticketID string) error {
-	return s.slaRepo.UnpauseRecord(ctx, ticketID)
+func (s *SLAService) UnpauseSLA(ctx context.Context, tenantID, ticketID string) error {
+	return s.slaRepo.UnpauseRecord(ctx, tenantID, ticketID)
 }
 
-// CheckBreaches checks all pending SLA records for breaches
-func (s *SLAService) CheckBreaches(ctx context.Context) ([]models.SLARecord, error) {
+// CheckBreaches checks this tenant's pending SLA records for breaches
+func (s *SLAService) CheckBreaches(ctx context.Context, tenantID string) ([]models.SLARecord, error) {
 	_, span := otel.Tracer("orion-ticket-svc").Start(ctx, "SLAService.CheckBreaches")
 	defer span.End()
 
-	records, err := s.slaRepo.FindPendingRecords(ctx)
+	// FindPendingRecords is scoped to tenantID: the previous call had no
+	// tenant predicate at all, so a request from one tenant marked every other
+	// tenant's overdue record breached and returned those rows. tenantID is
+	// threaded here rather than read from the record because sla_records has no
+	// tenant column to filter on after the fact.
+	records, err := s.slaRepo.FindPendingRecords(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -133,15 +142,19 @@ func (s *SLAService) CheckBreaches(ctx context.Context) ([]models.SLARecord, err
 	return breached, nil
 }
 
-// GetComplianceReport returns SLA compliance statistics
-func (s *SLAService) GetComplianceReport(ctx context.Context, start, end time.Time) (*models.SLAComplianceReport, error) {
+// GetComplianceReport returns SLA compliance statistics for tenantID
+func (s *SLAService) GetComplianceReport(ctx context.Context, tenantID string, start, end time.Time) (*models.SLAComplianceReport, error) {
+	// Zero bounds are a deliberate request for the default one month window,
+	// so they are filled in here and never forwarded to the repository: a
+	// BETWEEN '0001-01-01' AND '0001-01-01' would match nothing and the route
+	// would report an empty compliance figure no matter what the data said.
 	if start.IsZero() {
 		start = time.Now().AddDate(0, -1, 0)
 	}
 	if end.IsZero() {
 		end = time.Now()
 	}
-	return s.slaRepo.GetComplianceReport(ctx, start, end)
+	return s.slaRepo.GetComplianceReport(ctx, tenantID, start, end)
 }
 
 func timePtr(t time.Time) *time.Time {

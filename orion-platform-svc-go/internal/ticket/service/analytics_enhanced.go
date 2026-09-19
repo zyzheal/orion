@@ -107,7 +107,7 @@ func (s *AnalyticsEnhanced) GetBottleneckAnalysis(ctx context.Context, tenantID 
 	}
 
 	// Check for SLA risks
-	breachedRecords, _ := s.slaRepo.FindBreachedRecords(ctx)
+	breachedRecords, _ := s.slaRepo.FindBreachedRecords(ctx, tenantID)
 	if len(breachedRecords) > 0 {
 		analysis.Bottlenecks = append(analysis.Bottlenecks, models.Bottleneck{
 			Type:        "sla_risk",

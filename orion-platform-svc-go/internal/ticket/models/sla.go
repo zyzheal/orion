@@ -10,13 +10,18 @@ type SLATarget struct {
 	TargetResponseTimeMs   int64  `json:"target_response_time_ms" db:"target_response_time_ms"`
 	TargetResolutionTimeMs int64  `json:"target_resolution_time_ms" db:"target_resolution_time_ms"`
 	Enabled                bool   `json:"enabled" db:"enabled"`
-	// 686 declares sla_targets.tenant_id as a nullable column because
-	// sla_policy.go's compliance JOIN filters on t.tenant_id. sqlx runs in safe
-	// mode (no .Unsafe() anywhere in the repo), so a result column with no
-	// destination field is a hard error: without it, the two SELECT * queries in
-	// sla.go would fail with `missing destination name tenant_id in
-	// models.SLATarget` and POST/GET /tickets/sla/* would 500. The INSERT in
-	// CreateTarget does not write it, so it stays empty rather than NULL.
+	// 686 declares sla_targets.tenant_id as a nullable column; module B's
+	// ticketing/repository/sla_policy.go shares the table and filters its
+	// compliance queries on t.tenant_id. sqlx runs in safe mode (no .Unsafe()
+	// anywhere in the repo), so a result column with no destination field is a
+	// hard error: without it, the two SELECT * queries in sla.go would fail
+	// with `missing destination name tenant_id in models.SLATarget` and
+	// POST/GET /tickets/sla/* would 500.
+	//
+	// CreateTarget writes the column, so every row created through the API
+	// carries its owner. Rows inserted before the column was wired hold NULL,
+	// and a NULL matches no tenant_id predicate, so they are reachable from no
+	// tenant rather than from all of them.
 	TenantID  string    `json:"tenant_id" db:"tenant_id"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
