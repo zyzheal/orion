@@ -1,8 +1,12 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
+
 	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/apm/models"
 	"orion/platform-svc-go/internal/apm/service"
 
@@ -123,14 +127,30 @@ func (h *Handler) Delete(c *gin.Context) {
 func (h *Handler) GetSlowTraces(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSlowTraces")
 	defer span.End()
+	// thresholdMs is the name the frontend sends; durationMs is the documented
+	// alias. Reading only one of them made the threshold silently unreachable.
 	q := models.SlowTracesQuery{}
 	q.TraceDurationMs = c.Query("durationMs")
+	if q.TraceDurationMs == "" {
+		q.TraceDurationMs = c.Query("thresholdMs")
+	}
 	q.Service = c.Query("service")
 	q.Start = c.Query("start")
 	q.End = c.Query("end")
+	if v := c.Query("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			q.Limit = n
+		}
+	}
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.GetSlowTraces(ctx, tenantID, &q)
 	if err != nil {
+		// An unparseable durationMs or time bound is the caller's mistake, so it
+		// answers 400; a real query failure still answers 500.
+		if errors.Is(err, sentinel.BadRequest) {
+			middleware.RespondBadRequest(c, err.Error())
+			return
+		}
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -141,9 +161,9 @@ func (h *Handler) GetServiceTopology(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetServiceTopology")
 	defer span.End()
 	q := models.TopologyQuery{}
-	if v := c.Query("includeDependencies"); v != "" {
-		q.IncludeDependencies = v == "true"
-	}
+	// Absent means include: a topology without its edges is a bag of nodes, and
+	// the frontend asks for dependencies without sending the flag.
+	q.IncludeDependencies = c.Query("includeDependencies") != "false"
 	q.Service = c.Query("service")
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.GetServiceTopology(ctx, tenantID, &q)

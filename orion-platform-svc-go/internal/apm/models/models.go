@@ -32,11 +32,16 @@ type PaginatedResponse struct {
 // ===== Business: Slow Traces =====
 
 // SlowTracesQuery filters slow traces.
+//
+// TraceDurationMs, Start and End stay strings because the handler forwards raw
+// query parameters; the service parses and validates them so a bad value comes
+// back as a bad request instead of a SQL error.
 type SlowTracesQuery struct {
 	TraceDurationMs string `json:"durationMs"`
 	Service         string `json:"service"`
 	Start           string `json:"start"`
 	End             string `json:"end"`
+	Limit           int    `json:"limit"`
 }
 
 // SlowTracesResponse wraps slow trace results.
