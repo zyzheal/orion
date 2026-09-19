@@ -19,9 +19,16 @@ func newHandler() *Handler {
 }
 
 func makeCtx(method string, path string, body interface{}, params map[string]string) (*gin.Context, *httptest.ResponseRecorder) {
+	return makeCtxWithTenant(method, path, "tenant-1", body, params)
+}
+
+// makeCtxWithTenant builds a test context and pins the auth-context tenant_id.
+// Pass "" deliberately to exercise the no-auth-context path; there is no
+// implicit default here.
+func makeCtxWithTenant(method, path, tenantID string, body interface{}, params map[string]string) (*gin.Context, *httptest.ResponseRecorder) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Set("tenant_id", "tenant-1")
+	c.Set("tenant_id", tenantID)
 	buf := new(bytes.Buffer)
 	if body != nil {
 		json.NewEncoder(buf).Encode(body)
@@ -54,11 +61,11 @@ func (f *fakeHandlerService) BatchUpdate(ctx context.Context, items []models.Bat
 	return &models.BatchResult{}, nil
 }
 
-func (f *fakeHandlerService) Create(ctx context.Context, req *models.CreateCIRequest) (*models.CI, error) {
+func (f *fakeHandlerService) Create(ctx context.Context, req *models.CreateCIRequest, tenantID string) (*models.CI, error) {
 	return &models.CI{}, nil
 }
 
-func (f *fakeHandlerService) CreateRelation(ctx context.Context, req *models.CreateRelationRequest) (*models.CIRelation, error) {
+func (f *fakeHandlerService) CreateRelation(ctx context.Context, req *models.CreateRelationRequest, tenantID string) (*models.CIRelation, error) {
 	return &models.CIRelation{}, nil
 }
 
@@ -94,7 +101,7 @@ func (f *fakeHandlerService) GetCurrentVersion(ctx context.Context, ciID string)
 	return &models.CIVersion{}, nil
 }
 
-func (f *fakeHandlerService) GetHost(ctx context.Context, ciID string) (*models.CI, error) {
+func (f *fakeHandlerService) GetHost(ctx context.Context, tenantID string, ciID string) (*models.CI, error) {
 	return &models.CI{}, nil
 }
 
@@ -134,7 +141,7 @@ func (f *fakeHandlerService) ListCICDResources(ctx context.Context, status *stri
 	return []models.CICDResource{}, 0, nil
 }
 
-func (f *fakeHandlerService) ListHosts(ctx context.Context, status *string, tags *string, limit, offset int) ([]models.CI, int, error) {
+func (f *fakeHandlerService) ListHosts(ctx context.Context, tenantID string, status *string, tags *string, limit, offset int) ([]models.CI, int, error) {
 	return []models.CI{}, 0, nil
 }
 
@@ -186,11 +193,11 @@ func (f *fakeCmdbService) BatchUpdate(ctx context.Context, items []models.BatchU
 	return &models.BatchResult{}, nil
 }
 
-func (f *fakeCmdbService) Create(ctx context.Context, req *models.CreateCIRequest) (*models.CI, error) {
+func (f *fakeCmdbService) Create(ctx context.Context, req *models.CreateCIRequest, tenantID string) (*models.CI, error) {
 	return &models.CI{}, nil
 }
 
-func (f *fakeCmdbService) CreateRelation(ctx context.Context, req *models.CreateRelationRequest) (*models.CIRelation, error) {
+func (f *fakeCmdbService) CreateRelation(ctx context.Context, req *models.CreateRelationRequest, tenantID string) (*models.CIRelation, error) {
 	return &models.CIRelation{}, nil
 }
 
@@ -226,7 +233,7 @@ func (f *fakeCmdbService) GetCurrentVersion(ctx context.Context, ciID string) (*
 	return &models.CIVersion{}, nil
 }
 
-func (f *fakeCmdbService) GetHost(ctx context.Context, ciID string) (*models.CI, error) {
+func (f *fakeCmdbService) GetHost(ctx context.Context, tenantID string, ciID string) (*models.CI, error) {
 	return &models.CI{}, nil
 }
 
@@ -266,7 +273,7 @@ func (f *fakeCmdbService) ListCICDResources(ctx context.Context, status *string,
 	return []models.CICDResource{}, 0, nil
 }
 
-func (f *fakeCmdbService) ListHosts(ctx context.Context, status *string, tags *string, limit, offset int) ([]models.CI, int, error) {
+func (f *fakeCmdbService) ListHosts(ctx context.Context, tenantID string, status *string, tags *string, limit, offset int) ([]models.CI, int, error) {
 	return []models.CI{}, 0, nil
 }
 
@@ -540,5 +547,126 @@ func TestCMDB_Handler_ExecuteScript(t *testing.T) {
 	newHandler().ExecuteScript(c)
 	if w.Code >= 500 {
 		t.Fatalf("ExecuteScript: got %d", w.Code)
+	}
+}
+
+// tenantRecordingService wraps fakeHandlerService and records the tenantID the
+// handler passed to whichever method was exercised. Any unlisted method still
+// returns the fake's zero-value result, so every existing handler test keeps
+// working unchanged.
+type tenantRecordingService struct {
+	fakeHandlerService
+	tenantID string
+	called   string
+}
+
+func (f *tenantRecordingService) Create(ctx context.Context, req *models.CreateCIRequest, tenantID string) (*models.CI, error) {
+	f.called, f.tenantID = "Create", tenantID
+	return &models.CI{}, nil
+}
+
+func (f *tenantRecordingService) CreateRelation(ctx context.Context, req *models.CreateRelationRequest, tenantID string) (*models.CIRelation, error) {
+	f.called, f.tenantID = "CreateRelation", tenantID
+	return &models.CIRelation{}, nil
+}
+
+func (f *tenantRecordingService) GetByCiId(ctx context.Context, ciID string, tenantID *string) (*models.CI, error) {
+	if tenantID != nil {
+		f.called, f.tenantID = "GetByCiId", *tenantID
+	} else {
+		f.called = "GetByCiId"
+	}
+	return &models.CI{}, nil
+}
+
+func (f *tenantRecordingService) List(ctx context.Context, ciType *string, status *string, tenantID string, page, limit int) ([]models.CI, int, error) {
+	f.called, f.tenantID = "List", tenantID
+	return []models.CI{}, 0, nil
+}
+
+func (f *tenantRecordingService) ListHosts(ctx context.Context, tenantID string, status *string, tags *string, limit, offset int) ([]models.CI, int, error) {
+	f.called, f.tenantID = "ListHosts", tenantID
+	return []models.CI{}, 0, nil
+}
+
+func (f *tenantRecordingService) GetHost(ctx context.Context, tenantID string, ciID string) (*models.CI, error) {
+	f.called, f.tenantID = "GetHost", tenantID
+	return &models.CI{}, nil
+}
+
+// TestHandler_TenantFromAuthContext verifies that every one of the write and
+// read paths the §65.1 audit fixed sources tenant_id exclusively from the auth
+// context. The regression covers both attack vectors the old code accepted:
+// (a) a client-supplied tenantId in the JSON request body (Create, CreateRelation),
+// and (b) a client-supplied tenantId in the query string
+// (ListCIs, GetCIByID, ListHosts, GetHost).
+func TestHandler_TenantFromAuthContext(t *testing.T) {
+	bodyTenant := map[string]string{"ciId": "ci-1", "name": "n", "ciType": "Server", "tenantId": "attacker-supplied-tenant"}
+	relationBody := map[string]string{"fromCiId": "a", "toCiId": "b", "relationType": "depends_on", "tenantId": "attacker-supplied-tenant"}
+
+	cases := []struct {
+		name   string
+		method string
+		path   string
+		body   interface{}
+		run    func(c *gin.Context)
+		want   string
+	}{
+		{"Create", http.MethodPost, "/", bodyTenant, func(c *gin.Context) { NewHandler(&tenantRecordingService{}).CreateCI(c) }, "tenant-1"},
+		{"CreateRelation", http.MethodPost, "/", relationBody, func(c *gin.Context) { NewHandler(&tenantRecordingService{}).CreateRelation(c) }, "tenant-1"},
+		{"GetCIByID", http.MethodGet, "/?tenantId=attacker-supplied-tenant", nil, func(c *gin.Context) { NewHandler(&tenantRecordingService{}).GetCIByID(c) }, "tenant-1"},
+		{"ListCIs", http.MethodGet, "/?tenantId=attacker-supplied-tenant", nil, func(c *gin.Context) { NewHandler(&tenantRecordingService{}).ListCIs(c) }, "tenant-1"},
+		{"ListHosts", http.MethodGet, "/?tenantId=attacker-supplied-tenant", nil, func(c *gin.Context) { NewHandler(&tenantRecordingService{}).ListHosts(c) }, "tenant-1"},
+		{"GetHost", http.MethodGet, "/?tenantId=attacker-supplied-tenant", nil, func(c *gin.Context) { NewHandler(&tenantRecordingService{}).GetHost(c) }, "tenant-1"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := &tenantRecordingService{}
+			h := NewHandler(svc)
+			c, w := makeCtx(tc.method, tc.path, tc.body, nil)
+			switch tc.name {
+			case "GetCIByID", "GetHost":
+				c.Params = gin.Params{{Key: "ciID", Value: "ci-1"}}
+			}
+			switch tc.name {
+			case "Create":
+				h.CreateCI(c)
+			case "CreateRelation":
+				h.CreateRelation(c)
+			case "GetCIByID":
+				h.GetCIByID(c)
+			case "ListCIs":
+				h.ListCIs(c)
+			case "ListHosts":
+				h.ListHosts(c)
+			case "GetHost":
+				h.GetHost(c)
+			}
+			if w.Code >= 500 {
+				t.Fatalf("%s returned %d", tc.name, w.Code)
+			}
+			if svc.tenantID != tc.want {
+				t.Errorf("%s: handler passed tenant %q to service, want %q (auth context)", svc.called, svc.tenantID, tc.want)
+			}
+		})
+	}
+}
+
+// TestHandler_NoAuthContextTenantFailsClosed verifies that an empty auth-context
+// tenant is not silently mapped to a zero UUID. The repository filters
+// WHERE tenant_id=$1, so an empty value matches nothing — a cross-tenant read
+// would need the zero-UUID fallback, which is what the old
+// getDefaultTenantID provided.
+func TestHandler_NoAuthContextTenantFailsClosed(t *testing.T) {
+	svc := &tenantRecordingService{}
+	c, w := makeCtxWithTenant(http.MethodGet, "/?tenantId=client-tenant", "", nil, nil)
+	c.Params = gin.Params{{Key: "ciID", Value: "ci-1"}}
+	NewHandler(svc).GetCIByID(c)
+	if w.Code >= 500 {
+		t.Fatalf("GetCIByID returned %d", w.Code)
+	}
+	if svc.tenantID != "" {
+		t.Errorf("empty auth tenant must be passed through unchanged, got %q", svc.tenantID)
 	}
 }

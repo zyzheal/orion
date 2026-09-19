@@ -31,8 +31,14 @@ type Service struct {
 	manager *MethodCacheManager
 }
 
-// NewService creates a new service.
+// NewService creates a new service. A nil manager is rejected rather than
+// accepted: every cache operation dereferences it, so a nil manager used to
+// panic the process on the first cache route (Flush/Evict/Get/Set/Delete/
+// ClearAll) instead of failing at wiring time.
 func NewService(repo RepositoryInterface, manager *MethodCacheManager) *Service {
+	if repo == nil || manager == nil {
+		return nil
+	}
 	return &Service{repo: repo, manager: manager}
 }
 

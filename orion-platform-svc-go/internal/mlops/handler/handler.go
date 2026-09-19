@@ -107,6 +107,9 @@ func (h *Handler) UpdateModel(c *gin.Context) {
 	if req.Description != "" {
 		updates["description"] = req.Description
 	}
+	if req.ArtifactPath != "" {
+		updates["artifact_path"] = req.ArtifactPath
+	}
 	if req.Metadata != nil {
 		updates["metadata"] = req.Metadata
 	}

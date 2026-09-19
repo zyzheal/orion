@@ -12,8 +12,8 @@ import (
 var cacheMgmtH *cachemgmt_handler.Handler
 
 func wirecachemgmt(db *database.DB, logger *zap.Logger) {
-	_ = logger
 	repo := cachemgmt_repo.NewRepository(db.DB)
-	svc := cachemgmt_service.NewService(repo, nil)
+	manager := cachemgmt_service.NewMethodCacheManager(repo, logger)
+	svc := cachemgmt_service.NewService(repo, manager)
 	cacheMgmtH = cachemgmt_handler.NewHandler(svc)
 }

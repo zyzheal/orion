@@ -20,6 +20,8 @@ type mockRepo struct {
 	offset     int
 	cis        []models.CI
 	calledArgs searchArgs
+	createdCI  *models.CI
+	createdRel *models.CIRelation
 }
 
 type searchArgs struct {
@@ -42,8 +44,14 @@ func (m *mockRepo) BatchQueryCIs(ctx context.Context, q *models.BatchQueryReques
 func (m *mockRepo) BatchUpdateCIs(ctx context.Context, items []models.BatchUpdateItem, tenantID string) (*models.BatchResult, error) {
 	return nil, nil
 }
-func (m *mockRepo) CreateCI(ctx context.Context, ci *models.CI) error                { return nil }
-func (m *mockRepo) CreateRelation(ctx context.Context, rel *models.CIRelation) error { return nil }
+func (m *mockRepo) CreateCI(ctx context.Context, ci *models.CI) error {
+	m.createdCI = ci
+	return nil
+}
+func (m *mockRepo) CreateRelation(ctx context.Context, rel *models.CIRelation) error {
+	m.createdRel = rel
+	return nil
+}
 func (m *mockRepo) CreateVersion(ctx context.Context, ciID string, version int, snapshot *string, createdBy string, tenantID string) error {
 	return nil
 }
@@ -57,7 +65,12 @@ func (m *mockRepo) ExportCIs(ctx context.Context, ciType, status, environment, s
 func (m *mockRepo) GetCIByCiId(ctx context.Context, ciID string, tenantID *string) (*models.CI, error) {
 	return nil, nil
 }
-func (m *mockRepo) GetCIByID(ctx context.Context, id string) (*models.CI, error) { return nil, nil }
+func (m *mockRepo) GetCIByID(ctx context.Context, id string) (*models.CI, error) {
+	if m.createdCI != nil {
+		return m.createdCI, nil
+	}
+	return nil, nil
+}
 func (m *mockRepo) GetCIRelations(ctx context.Context, ciID string) ([]models.CIRelation, error) {
 	return nil, nil
 }
@@ -111,9 +124,11 @@ func makeService(repo RepositoryInterface) *Service {
 	return NewService(repo)
 }
 
+func strp(s string) *string { return &s }
+
 // --- Tests ---
 
-func TestService_Search_DefaultTenantID(t *testing.T) {
+func TestService_Search_EmptyTenantIDPassedThrough(t *testing.T) {
 	m := &mockRepo{cis: []models.CI{helperCI("1", "Web Server", "Server", "default")}}
 	svc := makeService(m)
 	ctx := context.Background()
@@ -122,8 +137,8 @@ func TestService_Search_DefaultTenantID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Search returned error: %v", err)
 	}
-	if m.calledArgs.tenantID != "00000000-0000-0000-0000-000000000000" {
-		t.Errorf("expected default tenant ID, got %q", m.calledArgs.tenantID)
+	if m.calledArgs.tenantID != "" {
+		t.Errorf("expected empty tenant ID to pass through, got %q", m.calledArgs.tenantID)
 	}
 	if len(items) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(items))
@@ -319,5 +334,59 @@ func TestService_Search_PassThroughToRepository(t *testing.T) {
 	}
 	if m.calledArgs.domain != "Host" {
 		t.Errorf("domain mismatch: got %q", m.calledArgs.domain)
+	}
+}
+
+func TestService_Create_UsesInjectedTenantIDNotRequestBody(t *testing.T) {
+	// The CreateCIRequest still carries TenantID for wire compatibility, but the
+	// service must ignore it and write the tenant the caller passed in. The
+	// handler always passes the auth-context tenant; a client-supplied body
+	// tenant must not reach the database.
+	m := &mockRepo{}
+	svc := makeService(m)
+	ctx := context.Background()
+
+	body := strp("attacker-supplied-tenant")
+	req := &models.CreateCIRequest{CIID: "ci-1", Name: "n", CIType: "Server", TenantID: body}
+
+	got, err := svc.Create(ctx, req, "auth-context-tenant")
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+	if m.createdCI == nil {
+		t.Fatalf("CreateCI was not called")
+	}
+	if m.createdCI.TenantID != "auth-context-tenant" {
+		t.Errorf("created CI tenant: got %q, want %q", m.createdCI.TenantID, "auth-context-tenant")
+	}
+	if got != nil && got.TenantID != "auth-context-tenant" {
+		t.Errorf("returned CI tenant: got %q, want %q", got.TenantID, "auth-context-tenant")
+	}
+}
+
+func TestService_CreateRelation_UsesInjectedTenantIDNotRequestBody(t *testing.T) {
+	m := &mockRepo{}
+	svc := makeService(m)
+	ctx := context.Background()
+
+	req := &models.CreateRelationRequest{
+		FromCID:      "a",
+		ToCIID:       "b",
+		RelationType: "depends_on",
+		TenantID:     strp("attacker-supplied-tenant"),
+	}
+
+	rel, err := svc.CreateRelation(ctx, req, "auth-context-tenant")
+	if err != nil {
+		t.Fatalf("CreateRelation returned error: %v", err)
+	}
+	if m.createdRel == nil {
+		t.Fatalf("CreateRelation was not called")
+	}
+	if m.createdRel.TenantID == nil || *m.createdRel.TenantID != "auth-context-tenant" {
+		t.Errorf("created relation tenant: got %v, want auth-context-tenant", m.createdRel.TenantID)
+	}
+	if rel.TenantID == nil || *rel.TenantID != "auth-context-tenant" {
+		t.Errorf("returned relation tenant: got %v, want auth-context-tenant", rel.TenantID)
 	}
 }

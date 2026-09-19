@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"orion/platform-svc-go/internal/mlops/models"
 	"orion/platform-svc-go/internal/mlops/service"
 
 	"github.com/gin-gonic/gin"
@@ -76,5 +78,56 @@ func TestHandler_GetMetrics_NoDB(t *testing.T) {
 	newHandler().GetMetrics(c)
 	if w.Code >= 500 {
 		t.Fatalf("GetMetrics: got %d, body: %s", w.Code, w.Body.String())
+	}
+}
+
+// updatesRecordingService captures the updates map the UpdateModel handler
+// passes to the service. Every other method still routes through the real
+// *service.Service (which needs no DB for a nil-receiver call), so the
+// pre-existing tests keep working unchanged.
+type updatesRecordingService struct {
+	*service.Service
+	captured map[string]interface{}
+}
+
+func (f *updatesRecordingService) UpdateModel(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Model, error) {
+	f.captured = updates
+	return &models.Model{}, nil
+}
+
+// TestHandler_UpdateModel_PassesArtifactPath asserts the handler forwards a
+// client-supplied artifactPath to the service as an "artifact_path" key. The
+// mlops_models table has an artifact_path column (migrations/375) and
+// RegisterModel writes it, but PUT /mlops/:id used to silently drop the field,
+// so a model's artifact pointer could never be corrected after registration.
+func TestHandler_UpdateModel_PassesArtifactPath(t *testing.T) {
+	svc := &updatesRecordingService{}
+	c, w := makeCtx(http.MethodPut, "/mlops/m1", `{"name":"m1","artifactPath":"/artifacts/m1.pt"}`)
+	c.Params = gin.Params{{Key: "id", Value: "m1"}}
+	NewHandler(svc).UpdateModel(c)
+	if w.Code != 200 {
+		t.Fatalf("UpdateModel: got %d, want 200", w.Code)
+	}
+	if svc.captured == nil {
+		t.Fatalf("UpdateModel was not called")
+	}
+	if got, ok := svc.captured["artifact_path"]; !ok || got != "/artifacts/m1.pt" {
+		t.Errorf("artifact_path not forwarded: got %v (present=%v), want %q", got, ok, "/artifacts/m1.pt")
+	}
+}
+
+// TestHandler_UpdateModel_LeavesArtifactPathEmpty asserts an empty artifactPath
+// is not written into the updates map, so a partial update that omits the
+// field cannot zero out an existing artifact pointer.
+func TestHandler_UpdateModel_LeavesArtifactPathEmpty(t *testing.T) {
+	svc := &updatesRecordingService{}
+	c, w := makeCtx(http.MethodPut, "/mlops/m1", `{"name":"m1"}`)
+	c.Params = gin.Params{{Key: "id", Value: "m1"}}
+	NewHandler(svc).UpdateModel(c)
+	if w.Code != 200 {
+		t.Fatalf("UpdateModel: got %d, want 200", w.Code)
+	}
+	if _, ok := svc.captured["artifact_path"]; ok {
+		t.Errorf("artifact_path must be omitted when the request body leaves it empty")
 	}
 }

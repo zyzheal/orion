@@ -126,7 +126,8 @@ func (h *Handler) CreateCI(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	ci, err := h.svc.Create(ctx, &req)
+	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
+	ci, err := h.svc.Create(ctx, &req, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -154,12 +155,8 @@ func (h *Handler) GetCIByID(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCIByID")
 	defer span.End()
 	ciID := c.Param("ciID")
-	tenantIDStr := c.Query("tenantId")
-	var tenantID *string
-	if tenantIDStr != "" {
-		tenantID = &tenantIDStr
-	}
-	ci, err := h.svc.GetByCiId(ctx, ciID, tenantID)
+	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
+	ci, err := h.svc.GetByCiId(ctx, ciID, &tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "CI not found")
@@ -207,7 +204,7 @@ func (h *Handler) DeleteCI(c *gin.Context) {
 func (h *Handler) ListCIs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCIs")
 	defer span.End()
-	tenantID := h.getDefaultTenantID(c.Query("tenantId"))
+	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	ciType := ptrIf(c.Query("ciType"))
 	status := ptrIf(c.Query("status"))
 	page := h.getQueryInt(c.Query("page"), 1)
@@ -383,7 +380,8 @@ func (h *Handler) CreateRelation(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	rel, err := h.svc.CreateRelation(ctx, &req)
+	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
+	rel, err := h.svc.CreateRelation(ctx, &req, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -547,7 +545,8 @@ func (h *Handler) ListHosts(c *gin.Context) {
 	tags := ptrIf(c.Query("tags"))
 	limit := h.getQueryInt(c.Query("limit"), 20)
 	offset := h.getQueryInt(c.Query("offset"), 0)
-	items, total, err := h.svc.ListHosts(ctx, status, tags, limit, offset)
+	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
+	items, total, err := h.svc.ListHosts(ctx, tenantID, status, tags, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -564,7 +563,8 @@ func (h *Handler) GetHost(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetHost")
 	defer span.End()
 	ciID := c.Param("ciID")
-	host, err := h.svc.GetHost(ctx, ciID)
+	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
+	host, err := h.svc.GetHost(ctx, tenantID, ciID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "Host not found")
@@ -692,11 +692,11 @@ func (h *Handler) ActionRecommendation(c *gin.Context) {
 
 // --- Helpers ---
 
-// getDefaultTenantID returns the tenant ID from the context or defaults to a zero UUID.
+// getDefaultTenantID passes the tenant ID from the auth context through. An
+// empty value is intentionally preserved: the repository's WHERE tenant_id=$N
+// then matches nothing, which fails closed instead of falling back to a zero
+// UUID that could leak across tenants.
 func (h *Handler) getDefaultTenantID(tenantID string) string {
-	if tenantID == "" {
-		return "00000000-0000-0000-0000-000000000000"
-	}
 	return tenantID
 }
 

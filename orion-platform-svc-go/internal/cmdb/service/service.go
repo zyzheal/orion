@@ -54,11 +54,7 @@ func NewService(repo RepositoryInterface) *Service {
 
 // --- CI CRUD ---
 
-func (s *Service) Create(ctx context.Context, req *models.CreateCIRequest) (*models.CI, error) {
-	tenantID := "00000000-0000-0000-0000-000000000000"
-	if req.TenantID != nil {
-		tenantID = *req.TenantID
-	}
+func (s *Service) Create(ctx context.Context, req *models.CreateCIRequest, tenantID string) (*models.CI, error) {
 	createdBy := req.CreatedBy
 	if createdBy == "" {
 		createdBy = "system"
@@ -232,14 +228,10 @@ func (s *Service) GetRelations(ctx context.Context, ciID string) ([]models.CIRel
 	return s.repo.GetCIRelations(ctx, ciID)
 }
 
-func (s *Service) CreateRelation(ctx context.Context, req *models.CreateRelationRequest) (*models.CIRelation, error) {
+func (s *Service) CreateRelation(ctx context.Context, req *models.CreateRelationRequest, tenantID string) (*models.CIRelation, error) {
 	user := "system"
 	if req.User != nil {
 		user = *req.User
-	}
-	tenantID := "00000000-0000-0000-0000-000000000000"
-	if req.TenantID != nil {
-		tenantID = *req.TenantID
 	}
 	rel := &models.CIRelation{
 		FromCID:      req.FromCID,
@@ -339,9 +331,8 @@ func (s *Service) Health(ctx context.Context) (*models.HealthStatus, error) {
 
 // --- Integration (Hosts, K8s, CICD, Execute) ---
 
-func (s *Service) ListHosts(ctx context.Context, status *string, tags *string, limit, offset int) ([]models.CI, int, error) {
+func (s *Service) ListHosts(ctx context.Context, tenantID string, status *string, tags *string, limit, offset int) ([]models.CI, int, error) {
 	ciType := "Host"
-	tenantID := "00000000-0000-0000-0000-000000000000"
 	items, total, err := s.repo.ListCIs(ctx, &ciType, status, tenantID, offset, limit)
 	if err != nil {
 		return nil, 0, err
@@ -362,8 +353,7 @@ func (s *Service) ListHosts(ctx context.Context, status *string, tags *string, l
 	return items, total, nil
 }
 
-func (s *Service) GetHost(ctx context.Context, ciID string) (*models.CI, error) {
-	tenantID := "00000000-0000-0000-0000-000000000000"
+func (s *Service) GetHost(ctx context.Context, tenantID string, ciID string) (*models.CI, error) {
 	return s.repo.GetCIByCiId(ctx, ciID, &tenantID)
 }
 
@@ -476,9 +466,6 @@ func (s *Service) ExecuteScript(ctx context.Context, req *models.ScriptExecReque
 // Search performs full-text search across CMDB CIs using the repository's FTS query.
 func (s *Service) Search(ctx context.Context, tenantID, query, domain string) ([]models.CI, error) {
 	// Tenant isolation: always filter by tenant
-	if tenantID == "" {
-		tenantID = "00000000-0000-0000-0000-000000000000"
-	}
 	return s.repo.SearchCIs(ctx, tenantID, query, domain, 20, 0)
 }
 
