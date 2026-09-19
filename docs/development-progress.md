@@ -14032,3 +14032,166 @@ if tenantID == "" {
 - 代码：`internal/audit/handler/handler.go`、`internal/efficiency/handler/handler.go`、`internal/infrastructure/backup/handler/{retention,archive,archive_scheduler}_handler.go`、`internal/ai/aicost/handler/handler.go`、`internal/ai/llm/handler/handler.go`。
 - 测试：`internal/audit/handler/handler_test.go`、`internal/efficiency/handler/handler_test.go`。
 - 文档：本节 + `ALL_TODOS.md` 一行。
+
+## §72 模块 A 剩下的 8 条在册路由绕过租户守卫：`ManualDispatch` 写孤儿派发行并谎报成功、`DeleteTicket` 删零行报 200、`Count` 把空租户报成 0（2026-08-26）
+
+§68 给模块 A 的 SLA 子系统补上租户守卫，§69 给 `dispatch_queue` 的 4 个方法与 6 条队列/派发出队路由补上租户谓词，两处用的是同一个判据：**租户只取自认证上下文，缺失即 403，绝不回退成空字符串查询**。本节把同一判据补齐到模块 A 剩下的 8 条在册路由——它们当时仍然裸读 `c.GetString("tenant_id")`。
+
+扫描起点 HEAD `f8ee2ba38`。三个信息源交叉核对：`internal/ticket/handler/routes.go` 的 23 条在册路由、全仓 `c.GetString("tenant_id")` 的分布、`cmd/server/router.go` 的鉴权接线。结论：**8 条在册路由读调用方租户但没有任何守卫**。修完这 8 条后，23 条在册路由里 **15 条有租户守卫**，剩下 8 条无守卫的没有租户概念可用（§72.6）。
+
+### 72.1 为什么裸读在默认部署下等价于无条件放行
+
+`tenantFrom`（`response_writer.go`）是这个包唯一的租户闸门：租户为空就返回 403 `tenant_id is required` 与 false，没有第二条路。裸读连失败路径都没有。
+
+裸读不是理论风险，取决于接线事实：
+
+- `cmd/server/router.go:64` 的 `auth.OptionalAuth` 挂在 `AUTH_OPTIONAL_ENABLED` 之后；
+- `cmd/server/router.go:129` 的严格 `auth.Auth` 挂在 `AUTH_STRICT_ENABLED` 之后；
+- **两个开关默认都是关的**——`roles_permissions_map_test.go:24` 直接把这个当既成事实断言。
+
+所以默认部署里 `c.GetString("tenant_id")` 恒为 `""`。`auth.RequirePermission("ticket","write")` 只查角色、不查租户（`OptionalAuth` 刻意不要求租户），于是这 8 条路由**对任何无租户身份的请求都返回真实数据或真实写入**，而不是 403。`RequirePermission` 挡不住这件事——它在这一层根本没有租户信息。
+
+### 72.2 逐条定级：同一个缺陷，后果跨了两个量级
+
+同样是裸读，后果从「读不到」到「写孤儿数据」跨了两个量级。逐条读完 service 层的第一次调用才定级：
+
+| 路由 | 方法 | `tenantID == ""` 时的实际行为 |
+|---|---|---|
+| `POST /tickets/:id/dispatch/manual` | `ManualDispatch` | **最重**。service 不调 `GetByID`，直接 `CreateRecord` + `IncrementLoad` 落库，再返回 200 加完整 `DispatchRecord`。同时 `UpdateAssignee` / `UpdateStatus` / `RemoveFromQueue` 三条都带 `WHERE tenant_id=$N`，空值匹配不到任何行、**静默 no-op**。净效果：派发行与工程师负载都写进去了，工单状态与队列不变，调用方拿到「派发成功」 |
+| `DELETE /tickets/:id` | `DeleteTicket` | `repo.Delete` 的 `WHERE id=$1 AND tenant_id=$2` 匹配零行，返回 200 `{"message":"ticket deleted"}`。**删了零行报成功** |
+| `GET /tickets/stats` | `Count` | `SELECT COUNT(*) ... WHERE tenant_id=$1` 返回 `{"count":0}`，与「该租户真的没有工单」**无法区分** |
+| `PUT /tickets/:id` | `UpdateTicket` | 第一跳是租户作用域的 `GetByID`，空值匹配不到 → 404。不泄漏，但语义从「你不是这个租户的」变成「查无此单」 |
+| `GET /tickets/:id/comments` | `ListComments` | 同上：先做 `GetByID` → 404 |
+| `POST /tickets/:id/comments` | `CreateComment` | 同上 → 404 |
+| `POST /tickets/:id/dispatch/auto` | `AutoDispatch` | 同上：`AutoDispatch` 第一跳是 `GetByID` → 404 |
+| `POST /tickets/transfer/auto-check` | `CheckAutoTransfer` | **唯一安全的空值路径**：`Dequeue` 是 `WHERE tenant_id=$1`，空值匹配不到队列行，返回 `{"count":0}`，不可能跨租户批量转移 |
+
+前 3 条是真缺陷（写入侧无边界、成功语义造假），后 5 条是「被数据库的租户谓词顺手挡住」——它们没有守卫，只是恰好第一跳就会失败。这一列的意义在于：**没有守卫不等于同一个 bug**。把 5 条「恰好安全」的和 3 条「真的在写」的混在一处报，会同时低估与高估。
+
+### 72.3 修法：8 处守卫，与既有守卫逐字同形
+
+八条路由统一改成同一段，与既有守卫逐字同形，便于日后一眼看出有没有漏：
+
+```go
+	tenantID, ok := tenantFrom(c)
+	if !ok {
+		return
+	}
+```
+
+位置刻意放在 `defer span.End()` 之后、**任何 `c.Param` 与 `ShouldBindJSON` 之前**。顺序不是审美问题：守卫在绑定之后时，一个没有租户的坏 body 会先返回 400 而不是 403，「拒绝」与「校验失败」被混成一个信号，调用方无法区分。§72.5 的 `TenantGuardRunsBeforeBinding` 就是钉这个顺序的。
+
+- `handler/ticket.go` 5 处：`UpdateTicket`、`DeleteTicket`、`ListComments`、`CreateComment`、`Count`。
+- `handler/dispatch.go` 2 处：`AutoDispatch`、`ManualDispatch`。
+- `handler/transfer_handler.go` 1 处：`CheckAutoTransfer`。
+
+改完 `tenantFrom(c)` 在 handler 包共出现 **17 次**：ticket 5、sla 4、queue 4、dispatch 3、transfer 1。其中 15 次落在在册路由上，2 次落在未在册方法上（`sla.go:48` `GetTicketSLA`、`dispatch.go:280` `GetSLAAlerts`——ticketingH 已拥有对应路径）。这 17 里 8 处是本轮新增，其余 9 处是 §68 / §69 落的。
+
+### 72.4 D2：三个接线时付了费、运行期从不读的依赖
+
+改守卫时顺手发现三处**构造器依赖与实现不一致**：依赖在 `NewXxxService` 里收下、存进字段，然后没有任何方法读它。字段使用计数按 `s.<field>` 加 `<field>:` 字面量赋值全包统计：
+
+| 结构 | 删掉的字段 | 证据 |
+|---|---|---|
+| `TicketService` | `dispatch *DispatchService` | 全包出现 0 次 |
+| `TicketService` | `analyzer *AnalyzerService` | 全包出现 0 次 |
+| `SuspendService` | `slaService *SLAService` | 全包出现 1 次——就是它自己的构造器字面量 |
+
+对照 `TicketService` 其余字段的真实使用次数：`repo` 17、`workflow` 14、`comment` 2、`sla` 2、`ruleRepo` 2。「零使用」不是统计口径问题。
+
+删构造函数参数而不动调用方不可编译，所以 `cmd/server/wiring-core-domains.go` 两处同步改：
+
+```go
+	suspendService := ti_service.NewSuspendService(suspendRepo, dispatchRepo)
+	ticketService  := ti_service.NewTicketService(ticketRepo, commentRepo, workflowService, slaService, assignmentRuleRepo)
+```
+
+`dispatchService`、`analyzerService`、`slaService` 三个变量**保留**：它们还被 `NewDispatchHandler`、`NewRelationHandler`、`NewSLAHandler` 消费。`workflow` / `sla` / `ruleRepo` 三个字段也只在接线文件使用，所以删除范围精确到两个调用点，不牵动别的文件。
+
+模块 B（`internal/ticketing`）的同名构造器不受影响：它自己的 `ticket_test.go` 与 `ticketing_h_test.go` import 的是 `orion/platform-svc-go/internal/ticketing/service`，两个模块各自有一份 `NewTicketService`。
+
+### 72.5 新测试：8 个测试函数，16 个执行用例
+
+新文件 `internal/ticket/handler/tenant_guard_test.go`（339 行），复用 §69 留下的 `slaMockDB` / `slaCtx` / `queueFixtureCols`，不新增包级标识符。全部走 `sqlmock`，零真库依赖。
+
+- **`TestTicketHandler_MountedRoutesRequireTenant`（8 子测）**：一张表覆盖 8 条路由的合法 body 与空租户，断言 403 且 body 含 `tenant_id`。这条测试的关键是 **sqlmock 零期望**——守卫必须在任何数据库调用之前返回，否则空租户会让期望队列空转、落到 404 / 500 而不是 403，测试同样失败。所以它同时证明「有守卫」与「守卫在前」。
+- **`TestTicketHandler_TenantGuardRunsBeforeBinding`（2 子测）**：`CreateComment` 与 `ManualDispatch` 的 body 字段都带 `binding:"required"`，用**空 body** 双向断言——无租户是 403（守卫先跑），带租户 `ten-a` 是 400（绑定真的失败）。后半段不可省：它证明这个 body 确实会触发绑定失败，所以前半段的 403 不是因为空 body 恰好没进 service；也抓得住「把守卫挪到绑定之后」的变异，那样无租户空 body 会返回 400。
+- **`TestTicketHandler_CountBindsTheCallerTenant`**：`ExpectQuery(...).WithArgs("ten-a")` 钉住 `SELECT COUNT(*) FROM tickets WHERE tenant_id=$1` 的实参，断言 `{"count":7}`。
+- **`TestTicketHandler_DeleteTicketBindsTheCallerTenant`**：`WithArgs("t-42","ten-a")` 钉住 `DELETE FROM tickets WHERE id = $1 AND tenant_id = $2`，断言 `{"ticket deleted"}`。
+- **`TestTicketHandler_UpdateTicketBindsTheCallerTenant`**：读与写两条语句都钉租户实参（读 `WithArgs("t-42","ten-a")`，写 `WithArgs("revised","desc","incident","high","open","",nil,nil,"t-42","ten-a")`），断言返回体的 `title` 与 `tenant_id`。
+- **`TestDispatchHandler_ManualDispatchBindsTheCallerTenant`（6 条有序期望）** 与 **`TestDispatchHandler_AutoDispatchBindsTheCallerTenant`（7 条）**：把 §69 修完的四条尾部写入在 handler 边界上再验一遍——`UpdateAssignee` / `UpdateStatus` 的 `WithArgs("e-1","t-42","ten-a")`、`RemoveFromQueue` 的 `WithArgs("ten-a","t-42")`、`IncrementLoad` 的 `WithArgs("e-1")`。两条都断言返回体里 `ticket_id` 与 `engineer_id` 真实回传。
+- **`TestTransferHandler_CheckAutoTransferBindsTheCallerTenant`**：`WithArgs("ten-a", 100)` 钉住 `Dequeue` 的租户实参，断言 `{"count":0}`。
+
+计数：8 个测试函数、16 个执行用例（8 + 2 子测 + 6 个独立函数）。
+
+### 72.6 变异矩阵：13/13 KILLED，负控 SURVIVED
+
+Harness 在仓库外的 `/private/tmp/r69/`（不入库）：`rsync -a --delete --exclude=.git` 两份模块副本 + 独立 `go.work`，锚点用 `^` 记制表符、`||` 分行的三引号块，`apply()` 在锚点缺失**或不唯一**时都返回 `PATCH_ERROR`。
+
+| 变异 | 判定 | 抓到它的测试 |
+|---|---|---|
+| M1 `UpdateTicket` 退回裸读 | KILLED | `TestTicketHandler_MountedRoutesRequireTenant` |
+| M2 `DeleteTicket` 退回裸读 | KILLED | `TestTicketHandler_MountedRoutesRequireTenant` |
+| M3 `ListComments` 退回裸读 | KILLED | `TestTicketHandler_MountedRoutesRequireTenant` |
+| M4 `CreateComment` 退回裸读 | KILLED | `…RequireTenant` 与 `…RunsBeforeBinding` |
+| M5 `Count` 退回裸读 | KILLED | `TestTicketHandler_MountedRoutesRequireTenant` |
+| M6 `AutoDispatch` 退回裸读 | KILLED | `TestTicketHandler_MountedRoutesRequireTenant` |
+| M7 `ManualDispatch` 退回裸读 | KILLED | `…RequireTenant` 与 `…RunsBeforeBinding` |
+| M8 `CheckAutoTransfer` 退回裸读 | KILLED | `TestTicketHandler_MountedRoutesRequireTenant` |
+| M9 `CreateComment` 的守卫挪到绑定之后 | KILLED | `TestTicketHandler_TenantGuardRunsBeforeBinding` |
+| M10 `tenantFrom` 不再拒绝空租户（`if false`） | KILLED | `TestQueueHandler_SLARoutesRequireTenant`、`TestSLAHandler_RequiresTenant`、`TestTicketHandler_MountedRoutesRequireTenant` |
+| M11 `Count` 在 handler→service 边界丢租户 | KILLED | `TestTicketHandler_CountBindsTheCallerTenant` |
+| M12 `DeleteTicket` 在边界丢租户 | KILLED | `TestTicketHandler_DeleteTicketBindsTheCallerTenant` |
+| M13 `ManualDispatch` 在边界丢租户 | KILLED | `TestDispatchHandler_ManualDispatchBindsTheCallerTenant` |
+
+`restored-identical: YES`、`restored-suite-exit: 0`，最终判定 `all 13 mutations applied and were killed`。
+
+**M10 值得单独记一句**：把闸门本身废掉这一个变异，被**三个**测试家族同时抓住——§68 的 SLA 守卫、§69 的 queue 守卫、本节的 8 条全部落在同一个断言上。这说明本轮的新表是**叠加**在既有守卫上的，不是替换。
+
+**第一次跑 M11–M13 得到的是 BUILD_FAILED，不是 KILLED。** 把租户从调用点删掉后 `tenantID` 变成未使用变量，Go 直接编译失败，测试根本跑不起来，harness 也就不能把它算成 kill。补一行 `_ = tenantID` 让变异可编译之后，三条全部转成 KILLED。这个中间结果本身是有价值的信号：**harness 拒绝把「跑不起来」当成「被杀死」**。若 gate 把 BUILD_FAILED 计入通过，这 3 条就永远测不到——它们测的是 handler→service 边界，不是 handler 表面。这与 §69.5、§70.5 / §71.7 是同一类教训：一个分不出「失败」与「没跑」的信号，证明工具太弱。
+
+**负控**（`negctl.py`，把变异表换成一个 no-op 重写）：`SURVIVED`，gate 退出 2，`restored-identical: YES`。证明 harness 确实能看见存活，成功判定不是默认值。
+
+**诚实的一条**：D2 的三处删除**无法用回归证明**——重新加回一个死字段能编译、全绿，任何变异都杀不死它。所以 D2 只由 build / vet / 全量套件验证，不假装被变异覆盖。
+
+### 72.7 只记录不修（含本轮新发现）
+
+1. **8 条在册路由没有租户概念可用，本轮无法守卫**：
+   - 5 条 load-balancer 路由（`loadBalancerH`）——`dispatch_engineers` 在迁移 686 里定义 15 列，**没有任何一列与租户有关**，且 `grep -rn 'ALTER TABLE dispatch_engineers' migrations/` 为空，没有后续迁移补过。需要一条迁移才能做租户作用域，本轮不做。
+   - 3 条 transfer 路由：`TransferDueToSuspend` 完全不收租户（`POST /tickets/transfer/suspend/:suspendId` 只按 suspendId 查）；`GetTransferConfig` / `UpdateTransferConfig` 改的是 `TransferService` 内的进程内全局内存配置，无持久化、无租户作用域，加守卫只是装饰。
+2. **模块 A 有 6 个 handler 对象整体在册外，共 33 处裸读**：`AnalyticsHandler` 11（`analytics.go`）、`SLAPolicyHandler` 7、`AutomationRuleHandler` 6、`WorkflowHandler` 4（`workflow.go`）、`AnalyticsEnhancedHandler` 3（**且零调用点**）、`TicketSourceHandler` 2。`cmd/server/router.go` 273–283、302–305、316–322、351–353 已明确说明它们被 `ticketingH` 覆盖所以不注册。属「不可达」而非 stub——方法做真活，删掉六个 handler 对象是结构重构、没有测试可证明的收益，且 router.go 的注释表明存在一条正在进行的模块 A→B 迁移路径，删掉会毁掉它。**本轮记录，不删。**
+3. **8 个未在册方法裸读租户**：`ticket.go:34` `ListTickets`、`:55` `GetTicket`、`:71` `CreateTicket`、`:160` `AssignTicket`、`:181` `ResolveTicket`；`dispatch.go:124` `CalculateDispatchScore`、`:265` `GetBestMatch`；`transfer_handler.go:25` `ManualTransfer`（ticketingH 已拥有 `/tickets/transfer/:ticketId`）。另有 `transfer_handler.go:75` `GetTransferHistory` 与 `:87` `GetTransferStats` 连租户参数都没有。
+4. `CommentRepository.ListByTicket` 无租户谓词（`ticket_comments` 无 `tenant_id` 列），租户作用域委托给前一步的 `TicketRepository.GetByID`——正确但脆弱。
+5. `SuspendService` 丢弃 6 处错误：`suspend.go:99` / `:127`（`GetEngineer`）、`:102` / `:130`（`UpdateEngineer` 返回值整体丢弃）、`:178` / `:179`（`CountPendingByEngineer` / `CountActiveByEngineer`）。本轮刚在这个文件里删了死依赖，顺手记录。
+6. `DispatchService.GetSLAAlerts` 在 `service/dispatch.go:461` 丢弃 `UpdateRecord` 错误——死代码，唯一调用方是未在册的 `DispatchHandler.GetSLAAlerts`（`dispatch.go:280`）。
+7. `DispatchService.GetTimeToAssignmentStats` 返回五个零值常量——死代码。
+8. 结转不变：`QueueManager.ReprioritizeAll` stub（`sla_priority` 列需要迁移，699 仍空闲）、`UpdateQueueEntry` 零调用、`TransferService` / `QueueManager` / `LoadBalancer` 的 `zap.NewNop()`、`TransferDueToSuspend` 丢弃 `GetEngineer` 与 `transferRepo.Create` 错误且生成 `pending-%s-%d` 合成工单 id、`GetTransferStats` 未受检类型断言、模块 A/B 死链群、约 80 处 `ON CONFLICT` 只有 4 处有闭包测试、`SLARepositoryInterface.policyID int`、`SLAService.CreateRecordForTicket` 把 `ErrNoRows` 与驱动故障混为一谈。
+9. D2 的三处删除没有行为面，不假装被回归证明（§72.6 末段）。
+
+### 72.8 验证
+
+- `go build ./...` 退出 0。
+- `go vet ./internal/ticket/... ./cmd/server/...` 退出 0。
+- `go test -count=1 ./internal/ticket/...` 退出 0（repository / service / handler 全绿）。
+- `go test ./... -count=1` 退出 0：**548 个 ok 包，0 FAIL**。
+- `gofmt -l` 对本轮 7 个文件无输出；控制字符扫描 7 个文件 `bad=0 adjacent_sq=0`，唯一的非 ASCII 是 `wiring-core-domains.go` offset 4872 的既有 `§`（`doc §3.5`），不在 `git diff` 内。
+- `git diff --stat`：6 文件 49 增 / 19 删，加新文件 `tenant_guard_test.go`。
+- 无新迁移，下一个可用版本号仍是 **699**。
+
+### 72.9 提交
+
+代码提交 `56e884599`：7 文件 388 增 / 19 删，含新测试文件 339 行。代码与文档分两笔，只 stage 本轮 7 个文件：
+
+```
+orion-platform-svc-go/cmd/server/wiring-core-domains.go
+orion-platform-svc-go/internal/ticket/handler/dispatch.go
+orion-platform-svc-go/internal/ticket/handler/ticket.go
+orion-platform-svc-go/internal/ticket/handler/transfer_handler.go
+orion-platform-svc-go/internal/ticket/handler/tenant_guard_test.go   （新）
+orion-platform-svc-go/internal/ticket/service/suspend.go
+orion-platform-svc-go/internal/ticket/service/ticket.go
+```
+
+并行会话的文件（`internal/ai/llm/...`、`internal/audit/...`、`internal/ticketing/...`）与全部 `orion-frontend/...` 修改一律不入这两笔。`go.work.sum` 与 `orion-platform-svc-go/go.sum` 提交前复核无改动。变异 harness 在 `/private/tmp/r69/`，仓库外，不入库。
+
+文档提交：本节 + `ALL_TODOS.md` 第 398 行一行。
