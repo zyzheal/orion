@@ -13792,3 +13792,118 @@ POST /tickets/dispatch/queue/reprioritize  Dequeue
 8. `TransferService.GetTransferStats` 的未受检类型断言不变。
 9. `handler/dispatch.go` 里 `AutoDispatch`/`ManualDispatch`/`CalculateDispatchScore`/`GetBestMatch` 仍用 `tenantID := c.GetString("tenant_id")` 无守卫（既有模式，本轮没碰）。
 10. `SLAService.CreateRecordForTicket` 把"该优先级无 target"与驱动故障混为一谈；§68.8 的 1–3、5、7、8 各项不变。
+
+## §70 §65.1 三项真实缺陷全部落地：cmdb 跨租户写入、mlops artifact 指针静默丢失、cache-mgmt nil manager 进程崩溃（2026-09-17）
+
+> §65（2026-09-17）由并行会话完成的是**诊断**——21 条候选逐条核实，结论是 3 处真实缺陷、其余已修或死代码。诊断本身没写一行生产代码：`internal/cmdb/*`、`internal/mlops/*`、`internal/cache-mgmt/*` 三个模块的活路由从那天起继续裸奔。本节把它修完。
+
+扫描起点 HEAD `07610f48f`（§69 已提交）。本节 10 个文件落在三个模块加 `cmd/server` 一个接线文件，无新迁移，下一个可用版本号仍是 **699**。
+
+### 70.1 §65.1(a) cmdb：不是「租户被丢弃」，是「租户被客户端注入」
+
+§65.1(a) 的表述已经纠正过一遍：`CreateCIRequest.TenantID` 字段还在，所以不是「绑定的字段被丢弃」，而是**租户压根不取自认证上下文**——任何请求体或 query 都能指定任意租户写进 `cmdb_configuration_items.tenant_id`。仓库层 `WHERE tenant_id=$N` 防住了跨租户**读**，写入侧把租户当客户端输入是真实的跨租户写入漏洞。
+
+修法与 §68/§69 同一套：租户一律取 `c.GetString("tenant_id")`，请求体里的 `TenantID` 失去写入通道。六处改动：
+
+- `handler.go` 六个方法改走 auth context：`CreateCI`、`CreateRelation`、`GetCIByID`、`ListCIs`、`ListHosts`、`GetHost`。原来 `GetCIByID`/`ListCIs` 读的是 `c.Query("tenantId")`，其余四个干脆不传租户、靠 service 层默认。
+- `getDefaultTenantID` 删除零 UUID 回退，改成一行 `return tenantID`。**空值原样透传**是关键：repository 的 `WHERE tenant_id=$1` 在空值时匹配不到任何行，等于 fail-closed；而零 UUID 会让未认证的请求**看起来**属于某个合法租户，反而打开跨租户读的面。
+- `service.Create`/`CreateRelation`/`ListHosts`/`GetHost` 签名加宽显式接收 `tenantID`，删掉 `if req.TenantID != nil { tenantID = *req.TenantID }` 覆盖分支。`service_interface.go` 四个签名同步。
+- `service.Search` 删除空值→零 UUID 回退（它本来就接 auth context 的租户，回退只服务于「忘了传参」的调用方）。
+
+`req.TenantID` 字段**保留**为 wire 兼容（客户端发送会被静默忽略），彻底拒绝需改契约，属破坏性变更，本轮刻意不动。
+
+### 70.2 §65.1(b) mlops：`artifact_path` 从建表那天起就改不动
+
+`mlops_models.artifact_path` 列在迁移 375 存在（`375_create_mlops_tables.sql:12`），`CreateModelRequest.ArtifactPath` 有字段，`CreateModel` 消费它——`POST /mlops` 能建出带 artifact 指针的模型。但 `PUT /mlops/:id`（`handler.go:30` 在册，带 `mlops:write` 权限）的 `updates` map 只加 name/framework/version/description/metadata 五个键，`artifact_path` 从未进入 `SET` 子句。`repository.UpdateModel` 自己没问题——它按传入的 map 拼 `UPDATE … SET k=$N`，所以丢失点精确落在 handler 这一层。
+
+补一行分支：`if req.ArtifactPath != "" { updates["artifact_path"] = req.ArtifactPath }`。空值守卫不能省：partial update 不带 artifactPath 时若无条件写入，会把已有指针零掉——这是「修丢字段」最容易引入的第二种缺陷。
+
+### 70.3 §65.1(c) cache-mgmt：这不是「功能缺失」，是「一调就崩」
+
+`wiring-cache-mgmt.go:17` 的 `cachemgmt_service.NewService(repo, nil)` 让 `service.manager` 恒为 nil。`Service` 的缓存方法全部解引用 `s.manager`：`Flush`→`manager.Invalidate`、`EvictKey`/`DeleteCachedValue`→`manager.Delete`、`GetCachedValue`→`manager.Get`、`SetCachedValue`→`manager.Set`、`ClearAllCaches`→`manager.ClearAll`、`CacheKey`/`Stats` 直传。而 `MethodCacheManager` 的每个方法第一句就是 `m.mu.RLock()` 或 `m.mu.Lock()`——对 nil receiver 调 mutex 方法是确定的 nil-pointer panic，会把整个进程带崩。
+
+这是本轮三项里性质最重的一项，因为**编译器、`go build`、`go vet`、`go test` 全绿，服务也照常启动**：`NewService` 接受 nil，六个 cache-op 路由全部注册成功，panic 只在有人真正调 `POST /cache-mgmt/:id/set` 之类路由的那一刻发生。
+
+改三处：
+
+1. `wiring-cache-mgmt.go` 注入 `NewMethodCacheManager(repo, logger)`。`MethodCacheManager` 的 repo 参数只被 `RebuildCache` 用到，logger 当前零引用，两个都不影响其余方法。
+2. `NewService` 加 `if repo == nil || manager == nil { return nil }`，把崩溃点从 handler 挪到接线时——**fail-at-wiring 而非 fail-at-panic**。`wirecachemgmt` 拿到 nil service 时接线会挂，而不是启动后第一个请求崩。
+3. 副作用：handler 在 `svc == nil` 时会返回 500 而不是 panic。这是严格改进（不再崩进程，也不再返回任何数据），但语义从 panic 变成 HTTP 错误，值得记一笔。
+
+`MethodCacheManager` 在 nil repo 下仍可构造——只在调用 `RebuildCache` 时才暴露，本轮不拦（拦截点该在 `RebuildCache` 内部而非构造器，后者要拒绝合法的空 repo 用例）。
+
+### 70.4 六条新回归
+
+既有测试一概没动（cmdb handler 33 条、service 15 条、repository 若干，mlops handler 6 条，cache-mgmt 原本零测试文件）。
+
+**cmdb service（2 条）**：`mockRepo` 加 `createdCI`/`createdRel` 捕获，`GetCIByID` 返回 `createdCI` 让 `Create` 的返回值可断言。
+
+- `TestService_Create_UsesInjectedTenantIDNotRequestBody`：请求体塞 `TenantID: "attacker-supplied-tenant"`，注入 `"auth-context-tenant"`，断言落库的 CI 与返回值两个租户都是注入值。这条同时覆盖了「写入」与「读回」——只断 `m.createdCI` 不够，因为返回值是另一条代码路径。
+- `TestService_CreateRelation_UsesInjectedTenantIDNotRequestBody`：同判据，`CIRelation.TenantID` 是 `*string`，断言非空且值等于注入值。
+
+**cmdb handler（2 条）**：新增 `tenantRecordingService`（内嵌 `fakeHandlerService`，覆盖六个改过签名的方法，其余照走 fake 的零值返回，既有测试全部不受影响），记录 handler 传给 service 的 tenantID 与方法名。
+
+- `TestHandler_TenantFromAuthContext`：表驱动 6 子测，一次覆盖两条攻击向量——(a) 请求体带 `tenantId`（`Create`、`CreateRelation`），(b) query 带 `tenantId`（`GetCIByID`、`ListCIs`、`ListHosts`、`GetHost`），全部断言 handler 传入的是 auth context 的 `"tenant-1"` 而非 `"attacker-supplied-tenant"`。
+- `TestHandler_NoAuthContextTenantFailsClosed`：auth context 租户为空、query 带 `"client-tenant"`，断言 handler 传入 `""` 而非零 UUID。这条只抓 §70.1 那个回退删除——不删的话空值会被填成 `"00000000-0000-0000-0000-000000000000"`。
+
+**mlops handler（2 条）**：新增 `updatesRecordingService`（内嵌 `*service.Service`，覆写 `UpdateModel` 捕获 map）。
+
+- `TestHandler_UpdateModel_PassesArtifactPath`：断言 `captured["artifact_path"] == "/artifacts/m1.pt"`。
+- `TestHandler_UpdateModel_LeavesArtifactPathEmpty`：请求体只有 `name`，断言 map 里**没有** `artifact_path` 键。这是针对 §70.2 那个空值守卫的反向测试，防止「无条件写」的误修把已有指针零掉。
+
+**cache-mgmt service（3 条，新文件）**：`fakeRepo` 10 个方法全实现（`GetConfigByID` 恒返回 enabled config，让 `validateConfig` 放行、调用到达 manager），manager 用 `NewMethodCacheManager((*repository.Repository)(nil), zap.NewNop())` 构造（nil repo 不影响本轮用到的任何方法）。
+
+- `TestCacheOpsSurviveWithARealManager`：8 个 manager 依赖方法逐个调用。nil manager 下第一个就会在 `m.mu.RLock()` 崩——这条测试的存在本身就是「nil 会崩」的证明，修完后断言的是「崩溃没发生」加「错误形状正确」（cache 未 build 时报 `cache not found: cfg-1` 而非 nil）。
+- `TestNewServiceRejectsANilManager`：钉住 nil manager 与 nil repo 都被拒；并断言真 repo + 真 manager 不返回 nil（否则这条测试会因为「总是 nil」而空过）。
+- `TestService_ValidateConfigSurfacesRepositoryError`：repo 返回 `errors.New("boom")`，断言 `GetCachedValue`/`Flush` 用 `errors.Is` 传播同一错误——不修的话 repo 故障会被吞成 200 加空值。
+
+### 70.5 变异矩阵：6/6 全灭，但有一条诚实的边界
+
+| # | 变异 | 抓到的测试 |
+|---|---|---|
+| A | `service.Create` 恢复 `if req.TenantID != nil { tenantID = *req.TenantID }` | `TestService_Create_UsesInjectedTenantIDNotRequestBody`（断言落库租户） |
+| B | `handler.ListCIs` 改回 `c.Query("tenantId")` | `TestHandler_TenantFromAuthContext/ListCIs` |
+| C | `getDefaultTenantID` 恢复零 UUID 回退 | `TestHandler_NoAuthContextTenantFailsClosed` |
+| D | 删除 `artifact_path` 分支 | `TestHandler_UpdateModel_PassesArtifactPath` |
+| D2 | 无条件写 `artifact_path`（删掉空值守卫） | `TestHandler_UpdateModel_LeavesArtifactPathEmpty` |
+| E | 移除 `NewService` 的 nil 守卫 | `TestNewServiceRejectsANilManager` |
+
+每组都断言变异后测试真跑真挂（打印实际 `--- FAIL:` 行）、按字节还原后再跑仍绿。D2 值得一提：它抓的是「修复写错了」而不是「修复缺失」，说明空值守卫本身值得独立守护。
+
+**诚实的边界**：回退 `wiring-cache-mgmt.go` 到 `NewService(repo, nil)` 测试层抓不住——守卫在 `NewService` 里，测试用的是真 manager。变异 M1 应用成功、`go build` 成功、套件全绿。这是 wiring 层的盲区，测试兜不住接线本身，只能靠 code review 或 E2E。把 `wirecachemgmt` 抽成可测函数（构造注入而非包级变量）才能补上，本轮刻意不做。
+
+**另一条记一笔**：变异 B 第一次报 `PATCH_ERROR anchor absent`——Python 里的 `\n\t` 锚点写成了 `\n\n\t`（多一个换行），替换静默不生效、代码一字未改、测试自然通过。harness 只检查替换结果非空，于是把**坏补丁**报成了**弱测试**。修正锚点重跑后 B 才真应用真灭。这和 §69.5 的 M16–M19（编译器报错算 KILLED）是同一种病：**没有区分信号的信号说明工具太弱**。
+
+### 70.6 验证
+
+- `go build ./...` 退出 0。
+- `go vet ./internal/cmdb/... ./internal/mlops/... ./internal/cache-mgmt/...` 退出 0。
+- `gofmt -l internal/cmdb/ internal/mlops/ internal/cache-mgmt/ cmd/server/wiring-cache-mgmt.go` 无输出。
+- `go test -count=1 ./internal/cmdb/... ./internal/mlops/... ./internal/cache-mgmt/...` 退出 0，全绿（cmdb handler 33 tests / service 15 tests / repository；mlops handler；cache-mgmt service + cache/lru）。
+- 无新迁移；`go.work.sum`、`orion-platform-svc-go/go.sum` 无改动。
+
+### 70.7 提交
+
+- 代码：`internal/cmdb/handler/handler.go`、`internal/cmdb/service/{service,service_interface}.go`、`internal/mlops/handler/handler.go`、`internal/cache-mgmt/service/service.go`、`cmd/server/wiring-cache-mgmt.go`。
+- 测试：`internal/cmdb/handler/handler_test.go`、`internal/cmdb/service/service_test.go`、`internal/mlops/handler/handler_test.go`、新增 `internal/cache-mgmt/service/service_test.go`。
+- 文档：本节 + `ALL_TODOS.md` 一行。
+
+代码提交 `7078bac64`，文档提交跟随。10 文件，410 增 / 54 删，含 1 个新测试文件。
+
+本轮不需要迁移，下一个可用迁移版本号 **699**。
+
+### 70.8 遗留（记录不改）
+
+**本轮新增，结转：**
+
+1. **wiring 层盲区**（§70.5）：`wirecachemgmt` 回退到 nil manager 测试抓不住，需把接线函数抽成可注入构造。同类风险在其他 `cmd/server/wiring-*.go` 上普遍存在，未逐一排查。
+2. **`req.TenantID` 仍留在 cmdb 三个 DTO 里**（`CreateCIRequest`、`CreateRelationRequest`、`UpdateCIRequest`，另有 `BatchUpdateRequest`/`BatchDeleteRequest`/`BatchQueryRequest`/`ImportCIsRequest` 各有 `TenantID *string`）。当前被静默忽略，客户端若依赖它会以为写入成功。彻底拒绝需改契约（返回 400 或直接删字段），属破坏性变更。
+3. **`MethodCacheManager` 在 nil repo 下可构造**：只在调用 `RebuildCache` 时暴露。拦截点应在 `RebuildCache` 内部而非构造器。
+4. **cache-mgmt handler 零测试**：`internal/cache-mgmt/handler` 仍无测试文件，`Flush`/`EvictKey` 等 6 条路由的「svc 为 nil 时返回 500 而非 panic」这个新语义没有路由级守护。
+5. **handler 层 `s.svc.UpdateModel` 对空 `updates` 的行为**：`name` 是必填（`binding:"required"`），所以 map 永远非空；但若将来把 name 改成可选，`Repository.UpdateModel` 对空 map 返回 `sentinel.NotFound`，一条合法更新会 404。记录以免下轮误判。
+
+**§65.3 记录的死代码候选，本轮一概未动**（结构误用或表无列，按 §65 的判定口径只记录）：cron `Create` 三字段、distributed-config `ListGroups` 四字段、form `SubmitForm` 丢 `Comment`（`form_submissions` 无 `comment` 列）、internal-library `Deprecate`（无 deprecation 列）、security-compliance `CreateBaseline`、cache-mgmt `CacheValueRequest.Method` 全链死亡、cmdb-collector 2 条、cmdb-import `CreateJob`。
+
+**§69.8 的 10 条遗留结转**：`ReprioritizeAll` 不写字节、`GetTimeToAssignmentStats` 五个零值常量、`SLAService.ticketRepo` 从未读取、模块 A 零调用集群（本轮又删掉一对）、三个服务仍用 `zap.NewNop()`、`GetTransferConfig`/`UpdateTransferConfig` 改进程内全局内存配置、`TransferDueToSuspend` 丢错加合成工单 id、`GetTransferStats` 未受检类型断言、`handler/dispatch.go` 四处无守卫的 `c.GetString("tenant_id")`、`SLAService.CreateRecordForTicket` 混为一谈。
+
+**与 §65.1 同一性质的租户边界问题，本轮未排查**：§65.1(a) 的根因是「租户来自客户端输入」，这个模式可能出现在其他模块——`grep 'Query("tenantId")'` 与 `req.TenantID` 在全仓的结果未逐一核实。本轮只修了 §65 诊断出的 cmdb 一项，其他模块需单独扫描（与 §69 记录不改清单里「全仓约 80 处 ON CONFLICT 中只有工单模块 4 处经过闭包测试」是同一类盲区）。
