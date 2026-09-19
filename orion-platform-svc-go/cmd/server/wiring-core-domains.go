@@ -181,9 +181,9 @@ func wireTicketDomain(db *database.DB, logger *zap.Logger) {
 	transferService := ti_service.NewTransferService(transferRepo, ticketRepo, dispatchRepo, suspendRepo)
 	queueManager := ti_service.NewQueueManager(dispatchRepo, slaRepo)
 	loadBalancer := ti_service.NewLoadBalancer(dispatchRepo)
-	suspendService := ti_service.NewSuspendService(suspendRepo, dispatchRepo, slaService)
+	suspendService := ti_service.NewSuspendService(suspendRepo, dispatchRepo)
 	analyticsService := ti_service.NewAnalyticsService(analyticsRepo, dispatchRepo, slaRepo, transferRepo, ticketRepo)
-	ticketService := ti_service.NewTicketService(ticketRepo, commentRepo, workflowService, slaService, dispatchService, analyzerService, assignmentRuleRepo)
+	ticketService := ti_service.NewTicketService(ticketRepo, commentRepo, workflowService, slaService, assignmentRuleRepo)
 
 	ticketH = ti_handler.NewTicketHandler(ticketService)
 	slaModH = ti_handler.NewSLAHandler(slaService)

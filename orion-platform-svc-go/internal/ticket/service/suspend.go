@@ -12,14 +12,20 @@ import (
 	"github.com/google/uuid"
 )
 
+// SuspendService suspends and resumes an engineer and freezes the SLA timers
+// attached to that engineer's tickets.
+//
+// It used to take an *SLAService and keep it in a field that no method ever
+// read, so the dependency was paid for at wiring time and never used. The
+// param is gone; SuspendService talks only to suspendRepo (suspend_records)
+// and dispatchRepo (engineers, dispatch_queue).
 type SuspendService struct {
 	suspendRepo  repository.SuspendRepositoryInterface
 	dispatchRepo repository.DispatchRepositoryInterface
-	slaService   *SLAService
 }
 
-func NewSuspendService(suspendRepo repository.SuspendRepositoryInterface, dispatchRepo repository.DispatchRepositoryInterface, slaService *SLAService) *SuspendService {
-	return &SuspendService{suspendRepo: suspendRepo, dispatchRepo: dispatchRepo, slaService: slaService}
+func NewSuspendService(suspendRepo repository.SuspendRepositoryInterface, dispatchRepo repository.DispatchRepositoryInterface) *SuspendService {
+	return &SuspendService{suspendRepo: suspendRepo, dispatchRepo: dispatchRepo}
 }
 
 // CreateSuspend creates a new suspension record

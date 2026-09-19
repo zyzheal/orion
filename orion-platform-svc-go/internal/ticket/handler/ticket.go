@@ -90,7 +90,10 @@ func (h *TicketHandler) CreateTicket(c *gin.Context) {
 func (h *TicketHandler) UpdateTicket(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketUpdateTicket")
 	defer span.End()
-	tenantID := c.GetString("tenant_id")
+	tenantID, ok := tenantFrom(c)
+	if !ok {
+		return
+	}
 	id := c.Param("id")
 
 	existing, err := h.svc.GetByID(ctx, id, tenantID)
@@ -136,7 +139,10 @@ func (h *TicketHandler) UpdateTicket(c *gin.Context) {
 func (h *TicketHandler) DeleteTicket(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketDeleteTicket")
 	defer span.End()
-	tenantID := c.GetString("tenant_id")
+	tenantID, ok := tenantFrom(c)
+	if !ok {
+		return
+	}
 	id := c.Param("id")
 
 	if err := h.svc.Delete(ctx, id, tenantID); err != nil {
@@ -188,7 +194,10 @@ func (h *TicketHandler) ResolveTicket(c *gin.Context) {
 func (h *TicketHandler) ListComments(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketListComments")
 	defer span.End()
-	tenantID := c.GetString("tenant_id")
+	tenantID, ok := tenantFrom(c)
+	if !ok {
+		return
+	}
 	id := c.Param("id")
 
 	comments, err := h.svc.ListComments(ctx, id, tenantID)
@@ -204,7 +213,10 @@ func (h *TicketHandler) ListComments(c *gin.Context) {
 func (h *TicketHandler) CreateComment(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketCreateComment")
 	defer span.End()
-	tenantID := c.GetString("tenant_id")
+	tenantID, ok := tenantFrom(c)
+	if !ok {
+		return
+	}
 	id := c.Param("id")
 
 	var req models.CreateCommentRequest
@@ -225,7 +237,10 @@ func (h *TicketHandler) CreateComment(c *gin.Context) {
 func (h *TicketHandler) Count(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketCount")
 	defer span.End()
-	tenantID := c.GetString("tenant_id")
+	tenantID, ok := tenantFrom(c)
+	if !ok {
+		return
+	}
 	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)

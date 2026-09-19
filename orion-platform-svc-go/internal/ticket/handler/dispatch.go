@@ -66,7 +66,10 @@ func (h *DispatchHandler) GetEngineer(c *gin.Context) {
 func (h *DispatchHandler) AutoDispatch(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketAutoDispatch")
 	defer span.End()
-	tenantID := c.GetString("tenant_id")
+	tenantID, ok := tenantFrom(c)
+	if !ok {
+		return
+	}
 	id := c.Param("id")
 
 	var req struct {
@@ -90,7 +93,10 @@ func (h *DispatchHandler) AutoDispatch(c *gin.Context) {
 func (h *DispatchHandler) ManualDispatch(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketManualDispatch")
 	defer span.End()
-	tenantID := c.GetString("tenant_id")
+	tenantID, ok := tenantFrom(c)
+	if !ok {
+		return
+	}
 	id := c.Param("id")
 
 	var req struct {

@@ -44,7 +44,10 @@ func (h *TransferHandler) ManualTransfer(c *gin.Context) {
 func (h *TransferHandler) CheckAutoTransfer(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketCheckAutoTransfer")
 	defer span.End()
-	tenantID := c.GetString("tenant_id")
+	tenantID, ok := tenantFrom(c)
+	if !ok {
+		return
+	}
 
 	transfers, err := h.svc.CheckAndAutoTransfer(ctx, tenantID)
 	if err != nil {

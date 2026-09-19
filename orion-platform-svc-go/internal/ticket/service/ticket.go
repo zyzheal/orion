@@ -12,13 +12,17 @@ import (
 	"github.com/google/uuid"
 )
 
+// TicketService is the ticket CRUD, assignment and resolution layer.
+//
+// It used to carry a *DispatchService and an *AnalyzerService in fields that no
+// method ever read, so both were paid for at wiring time and never used. The
+// params are gone; DispatchService and AnalyzerService are reached through
+// their own handlers and, for the analyzer, through RelationHandler.
 type TicketService struct {
 	repo     repository.TicketRepositoryInterface
 	comment  repository.CommentRepositoryInterface
 	workflow *WorkflowService
 	sla      *SLAService
-	dispatch *DispatchService
-	analyzer *AnalyzerService
 	ruleRepo repository.AssignmentRuleRepositoryInterface
 }
 
@@ -27,8 +31,6 @@ func NewTicketService(
 	comment repository.CommentRepositoryInterface,
 	workflow *WorkflowService,
 	sla *SLAService,
-	dispatch *DispatchService,
-	analyzer *AnalyzerService,
 	ruleRepo repository.AssignmentRuleRepositoryInterface,
 ) *TicketService {
 	return &TicketService{
@@ -36,8 +38,6 @@ func NewTicketService(
 		comment:  comment,
 		workflow: workflow,
 		sla:      sla,
-		dispatch: dispatch,
-		analyzer: analyzer,
 		ruleRepo: ruleRepo,
 	}
 }
