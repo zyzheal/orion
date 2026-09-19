@@ -30,9 +30,12 @@ func NewQueueManager(dispatchRepo repository.DispatchRepositoryInterface, slaRep
 	}
 }
 
-// GetSLAQueueStatus returns queue status with SLA-aware entries
-func (qm *QueueManager) GetSLAQueueStatus(ctx context.Context) (*models.DispatchQueueStatus, error) {
-	return qm.dispatchRepo.GetQueueStatus(ctx)
+// GetSLAQueueStatus returns this tenant's queue status. It is a plain pass
+// through to the repository, so tenantID is threaded by the caller rather than
+// read here: the queue table is tenant-keyed and nothing in this method can
+// infer the caller from its arguments.
+func (qm *QueueManager) GetSLAQueueStatus(ctx context.Context, tenantID string) (*models.DispatchQueueStatus, error) {
+	return qm.dispatchRepo.GetQueueStatus(ctx, tenantID)
 }
 
 // GetSLAQueueEntries returns queue entries with SLA priority scoring. tenantID
@@ -40,7 +43,7 @@ func (qm *QueueManager) GetSLAQueueStatus(ctx context.Context) (*models.Dispatch
 // ticket: the queue itself is not tenant-keyed, so a ticket id alone does not
 // prove the caller owns the record it is being shown.
 func (qm *QueueManager) GetSLAQueueEntries(ctx context.Context, tenantID string) ([]models.SLAQueueEntry, error) {
-	entries, err := qm.dispatchRepo.Dequeue(ctx, 100)
+	entries, err := qm.dispatchRepo.Dequeue(ctx, tenantID, 100)
 	if err != nil {
 		return nil, err
 	}
@@ -155,9 +158,25 @@ func (qm *QueueManager) GetSLAAlerts(ctx context.Context, tenantID string, alert
 	return alerts, nil
 }
 
-// ReprioritizeAll recalculates priority for all queue entries
-func (qm *QueueManager) ReprioritizeAll(ctx context.Context) (int, error) {
-	entries, err := qm.dispatchRepo.Dequeue(ctx, 1000)
+// ReprioritizeAll recalculates the SLA-aware priority for this tenant's queue
+// entries.
+//
+// Not implemented, and the honest blocker is recorded rather than papered over:
+// dispatch_queue has no column to hold a computed score. The only writable
+// priority field is the ordinal business value that Dequeue orders by through a
+// CASE expression, so writing a float score into it would corrupt the ordering
+// that every other route in this package depends on. Fixing it needs a
+// migration adding an sla_priority column plus a new repository method, which
+// is out of scope for a code-only round.
+//
+// The count below is therefore not a reprioritization count either:
+// calculateSLAPriority is base + ageBoost + attemptBoost with base >= 1.0, so
+// newPriority > 0 is always true and the number returned is simply
+// len(entries). The handler says "reprioritized": len(entries) on
+// POST /tickets/dispatch/queue/reprioritize, so a client reading that field
+// learns the queue size, not that anything changed. Nothing is written.
+func (qm *QueueManager) ReprioritizeAll(ctx context.Context, tenantID string) (int, error) {
+	entries, err := qm.dispatchRepo.Dequeue(ctx, tenantID, 1000)
 	if err != nil {
 		return 0, err
 	}
@@ -167,8 +186,6 @@ func (qm *QueueManager) ReprioritizeAll(ctx context.Context) (int, error) {
 
 	for _, entry := range entries {
 		newPriority := qm.calculateSLAPriority(entry, now)
-		// In a full implementation, we'd update the queue entry's priority
-		// For now, we just count what would be reprioritized
 		if newPriority > 0 {
 			reprioritized++
 		}

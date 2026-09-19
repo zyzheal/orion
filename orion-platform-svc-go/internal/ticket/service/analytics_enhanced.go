@@ -118,7 +118,7 @@ func (s *AnalyticsEnhanced) GetBottleneckAnalysis(ctx context.Context, tenantID 
 	}
 
 	// Check for queue backlog
-	queueStatus, _ := s.dispatchRepo.GetQueueStatus(ctx)
+	queueStatus, _ := s.dispatchRepo.GetQueueStatus(ctx, tenantID)
 	if queueStatus != nil && queueStatus.PendingCount > 10 {
 		severity := "medium"
 		if queueStatus.PendingCount > 25 {

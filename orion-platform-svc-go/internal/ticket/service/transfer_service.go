@@ -50,7 +50,13 @@ func (s *TransferService) ManualTransfer(ctx context.Context, ticketID, tenantID
 	}
 
 	// Check max transfers
-	transfers, _ := s.transferRepo.ListByTicket(ctx, ticketID)
+	// The error used to be discarded, which made the guard below vacuous: a
+	// failed SELECT yields a nil slice, len(nil) is 0, and a ticket at or past
+	// its transfer limit looked transferable again.
+	transfers, err := s.transferRepo.ListByTicket(ctx, ticketID)
+	if err != nil {
+		return nil, fmt.Errorf("list transfers for %s: %w", ticketID, err)
+	}
 	if len(transfers) >= s.config.MaxTransfers {
 		return nil, fmt.Errorf("ticket %s has reached max transfers (%d)", ticketID, s.config.MaxTransfers)
 	}
@@ -84,21 +90,36 @@ func (s *TransferService) ManualTransfer(ctx context.Context, ticketID, tenantID
 		return nil, fmt.Errorf("update assignee: %w", err)
 	}
 
-	// Update engineer loads
+	// Update engineer loads.
+	//
+	// Propagated, not logged: a failed counter update desynchronises capacity,
+	// which the next FindBestEngineer call reads straight back and scores on, so
+	// an unreported failure here quietly keeps dispatching tickets to an
+	// engineer the book already says is full. s.logger is zap.NewNop() in the
+	// constructor, so there is no logging path to degrade to anyway.
 	if fromEngineerID != "" {
-		s.dispatchRepo.DecrementLoad(ctx, fromEngineerID)
+		if err := s.dispatchRepo.DecrementLoad(ctx, fromEngineerID); err != nil {
+			return nil, fmt.Errorf("decrement load for %s: %w", fromEngineerID, err)
+		}
 	}
-	s.dispatchRepo.IncrementLoad(ctx, toEngineerID)
+	if err := s.dispatchRepo.IncrementLoad(ctx, toEngineerID); err != nil {
+		return nil, fmt.Errorf("increment load for %s: %w", toEngineerID, err)
+	}
 
-	// Create dispatch record for the transfer
-	s.dispatchRepo.CreateRecord(ctx, &models.DispatchRecord{
+	// Create dispatch record for the transfer. The audit row is written after
+	// the counters moved, so on failure the transfer record and the ticket row
+	// are committed and this one is not. Returning the error keeps the caller
+	// honest about that split.
+	if err := s.dispatchRepo.CreateRecord(ctx, &models.DispatchRecord{
 		ID:         uuid.New().String(),
 		TicketID:   ticketID,
 		EngineerID: toEngineerID,
 		AssignedBy: initiatedBy,
 		Method:     "transfer",
 		Reason:     reason,
-	})
+	}); err != nil {
+		return nil, fmt.Errorf("create dispatch record: %w", err)
+	}
 
 	return record, nil
 }
@@ -112,7 +133,7 @@ func (s *TransferService) CheckAndAutoTransfer(ctx context.Context, tenantID str
 
 	// Get all tickets that are assigned but not started
 	// We check tickets by looking at queue entries and dispatch records
-	queueEntries, err := s.dispatchRepo.Dequeue(ctx, 100)
+	queueEntries, err := s.dispatchRepo.Dequeue(ctx, tenantID, 100)
 	if err != nil {
 		return nil, fmt.Errorf("dequeue: %w", err)
 	}

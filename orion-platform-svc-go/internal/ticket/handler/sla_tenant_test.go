@@ -21,6 +21,85 @@ import (
 	"orion/platform-svc-go/internal/ticket/service"
 )
 
+// recordingDispatchRepo captures the tenant each queue call was handed, so a
+// handler that reads the right value out of the context but drops it at the
+// service boundary fails here. The SQL side is pinned by the real repository
+// and the matcher, which sees the statement but not the bound values.
+type recordingDispatchRepo struct {
+	repo  repository.DispatchRepositoryInterface
+	calls []string
+}
+
+func (f *recordingDispatchRepo) CreateEngineer(ctx context.Context, ep *models.EngineerProfile) error {
+	return f.repo.CreateEngineer(ctx, ep)
+}
+func (f *recordingDispatchRepo) UpdateEngineer(ctx context.Context, ep *models.EngineerProfile) error {
+	return f.repo.UpdateEngineer(ctx, ep)
+}
+func (f *recordingDispatchRepo) GetEngineer(ctx context.Context, id string) (*models.EngineerProfile, error) {
+	return f.repo.GetEngineer(ctx, id)
+}
+func (f *recordingDispatchRepo) ListEngineers(ctx context.Context) ([]models.EngineerProfile, error) {
+	return f.repo.ListEngineers(ctx)
+}
+func (f *recordingDispatchRepo) IncrementLoad(ctx context.Context, engineerID string) error {
+	return f.repo.IncrementLoad(ctx, engineerID)
+}
+func (f *recordingDispatchRepo) DecrementLoad(ctx context.Context, engineerID string) error {
+	return f.repo.DecrementLoad(ctx, engineerID)
+}
+func (f *recordingDispatchRepo) CreateRecord(ctx context.Context, rec *models.DispatchRecord) error {
+	return f.repo.CreateRecord(ctx, rec)
+}
+func (f *recordingDispatchRepo) GetRecordByTicket(ctx context.Context, ticketID string) (*models.DispatchRecord, error) {
+	return f.repo.GetRecordByTicket(ctx, ticketID)
+}
+func (f *recordingDispatchRepo) ListRecordsByEngineer(ctx context.Context, engineerID string, limit int) ([]models.DispatchRecord, error) {
+	return f.repo.ListRecordsByEngineer(ctx, engineerID, limit)
+}
+func (f *recordingDispatchRepo) CreateRule(ctx context.Context, rule *models.DispatchRule) error {
+	return f.repo.CreateRule(ctx, rule)
+}
+func (f *recordingDispatchRepo) ListRules(ctx context.Context) ([]models.DispatchRule, error) {
+	return f.repo.ListRules(ctx)
+}
+func (f *recordingDispatchRepo) DeleteRule(ctx context.Context, id string) error {
+	return f.repo.DeleteRule(ctx, id)
+}
+func (f *recordingDispatchRepo) Enqueue(ctx context.Context, ticketID, tenantID, priority string) error {
+	f.calls = append(f.calls, "Enqueue:"+tenantID)
+	return f.repo.Enqueue(ctx, ticketID, tenantID, priority)
+}
+func (f *recordingDispatchRepo) Dequeue(ctx context.Context, tenantID string, limit int) ([]models.DispatchQueueEntry, error) {
+	f.calls = append(f.calls, fmt.Sprintf("Dequeue:%s:%d", tenantID, limit))
+	return f.repo.Dequeue(ctx, tenantID, limit)
+}
+func (f *recordingDispatchRepo) RemoveFromQueue(ctx context.Context, tenantID, ticketID string) error {
+	f.calls = append(f.calls, "RemoveFromQueue:"+tenantID+":"+ticketID)
+	return f.repo.RemoveFromQueue(ctx, tenantID, ticketID)
+}
+func (f *recordingDispatchRepo) UpdateQueueEntry(ctx context.Context, tenantID, ticketID, lastError string, attempts int) error {
+	f.calls = append(f.calls, "UpdateQueueEntry:"+tenantID)
+	return f.repo.UpdateQueueEntry(ctx, tenantID, ticketID, lastError, attempts)
+}
+func (f *recordingDispatchRepo) GetQueueStatus(ctx context.Context, tenantID string) (*models.DispatchQueueStatus, error) {
+	f.calls = append(f.calls, "GetQueueStatus:"+tenantID)
+	return f.repo.GetQueueStatus(ctx, tenantID)
+}
+func (f *recordingDispatchRepo) GetMetrics(ctx context.Context, start, end time.Time) (*models.DispatchMetrics, error) {
+	return f.repo.GetMetrics(ctx, start, end)
+}
+
+var _ repository.DispatchRepositoryInterface = (*recordingDispatchRepo)(nil)
+
+// queueFixtureCols is the column list SELECT * FROM dispatch_queue expands to
+// under migration 686.
+func queueFixtureCols() []string {
+	return []string{
+		"ticket_id", "tenant_id", "priority", "enqueued_at", "attempts", "last_error",
+	}
+}
+
 // Tenant isolation on the mounted SLA and queue routes.
 //
 // All four SLA routes and both SLA queue routes used to reach the database with
@@ -378,11 +457,11 @@ func TestQueueHandler_GetSLAAlertsScopesTheRecordLookup(t *testing.T) {
 	qm := service.NewQueueManager(repository.NewDispatchRepository(db), repository.NewSLARepository(db))
 	h := NewQueueHandler(qm)
 
-	mock.ExpectQuery("SELECT * FROM dispatch_queue").
-		WithArgs(100).
-		WillReturnRows(sqlmock.NewRows([]string{
-			"ticket_id", "tenant_id", "priority", "enqueued_at", "attempts", "last_error",
-		}).AddRow("t-42", "ten-a", "critical", time.Now().Add(-2*time.Hour), 0, ""))
+	mock.ExpectQuery("SELECT * FROM dispatch_queue WHERE tenant_id = $1 ORDER BY").
+		WithArgs("ten-a", 100).
+		WillReturnRows(sqlmock.NewRows(queueFixtureCols()).AddRow(
+			"t-42", "ten-a", "critical", time.Now().Add(-2*time.Hour), int64(0), "",
+		))
 	mock.ExpectQuery("ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $1)").
 		WithArgs("ten-a", "t-42").
 		WillReturnRows(sqlmock.NewRows(slaRecordCols()).AddRow(
@@ -408,5 +487,143 @@ func TestQueueHandler_GetSLAAlertsScopesTheRecordLookup(t *testing.T) {
 	}
 	if out.Data.Count != 1 || out.Data.Alerts[0].TicketID != "t-42" {
 		t.Errorf("response = %+v, want one alert for t-42", out.Data)
+	}
+}
+
+// The queue routes are the ones that used to ignore the caller entirely, so the
+// tenant has to be shown to arrive both in the service call and bound in the
+// SQL. "ten-b" is deliberately different from the fixture rows, which are
+// "ten-a": a handler that echoed the fixture instead of the context would
+// produce ten-a here and fail.
+func TestQueueHandler_GetSLAQueueStatusThreadsTheCallerTenant(t *testing.T) {
+	db, mock, seen := slaMockDB(t)
+	rec := &recordingDispatchRepo{repo: repository.NewDispatchRepository(db)}
+	h := NewQueueHandler(service.NewQueueManager(rec, repository.NewSLARepository(db)))
+
+	mock.ExpectQuery("SELECT COUNT(*) FROM dispatch_queue WHERE tenant_id = $1").
+		WithArgs("ten-b").
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(3)))
+	mock.ExpectQuery("SELECT MIN(enqueued_at) FROM dispatch_queue WHERE tenant_id = $1").
+		WithArgs("ten-b").
+		WillReturnRows(sqlmock.NewRows([]string{"min"}).AddRow(time.Date(2026, 8, 26, 7, 0, 0, 0, time.UTC)))
+	mock.ExpectQuery("COALESCE(AVG(EXTRACT(EPOCH FROM (NOW() - enqueued_at)) * 1000)").
+		WithArgs("ten-b").
+		WillReturnRows(sqlmock.NewRows([]string{"avg"}).AddRow(float64(900)))
+
+	c, w := slaCtx("ten-b", nil, nil)
+	h.GetSLAQueueStatus(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", w.Code, w.Body.String())
+	}
+	if got := rec.calls; len(got) != 1 || got[0] != "GetQueueStatus:ten-b" {
+		t.Fatalf("service saw %v, want GetQueueStatus with ten-b", got)
+	}
+	if len(*seen) != 3 {
+		t.Fatalf("ran %d statements, want 3", len(*seen))
+	}
+	for i, sql := range *seen {
+		if !strings.Contains(sql, "tenant_id = $1") {
+			t.Errorf("unscoped queue statement #%d: %s", i, sql)
+		}
+	}
+	var out struct {
+		Data struct {
+			PendingCount int `json:"pending_count"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatalf("response %q: %v", w.Body.String(), err)
+	}
+	if out.Data.PendingCount != 3 {
+		t.Errorf("pending_count = %d, want 3", out.Data.PendingCount)
+	}
+}
+
+// The entries route walks every queued ticket into an SLA lookup, so both the
+// queue read and the record lookup have to carry the caller's tenant.
+func TestQueueHandler_GetSLAQueueEntriesThreadsTheCallerTenant(t *testing.T) {
+	db, mock, seen := slaMockDB(t)
+	rec := &recordingDispatchRepo{repo: repository.NewDispatchRepository(db)}
+	h := NewQueueHandler(service.NewQueueManager(rec, repository.NewSLARepository(db)))
+
+	mock.ExpectQuery("SELECT * FROM dispatch_queue WHERE tenant_id = $1 ORDER BY").
+		WithArgs("ten-b", 100).
+		WillReturnRows(sqlmock.NewRows(queueFixtureCols()).AddRow(
+			"t-2", "ten-b", "high", time.Now().Add(-time.Hour), int64(0), ""))
+	mock.ExpectQuery("ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $1)").
+		WithArgs("ten-b", "t-2").
+		WillReturnRows(sqlmock.NewRows(slaRecordCols()).AddRow(
+			"r-2", "t-2", "sla-2", "high",
+			time.Now().Add(-30*time.Minute), time.Now().Add(time.Hour),
+			nil, nil, false, "", false, nil, "",
+			time.Now().Add(-time.Hour), time.Now().Add(-time.Hour)))
+
+	c, w := slaCtx("ten-b", nil, nil)
+	h.GetSLAQueueEntries(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", w.Code, w.Body.String())
+	}
+	if got := rec.calls; len(got) != 1 || got[0] != "Dequeue:ten-b:100" {
+		t.Fatalf("service saw %v, want Dequeue with ten-b", got)
+	}
+	if len(*seen) != 2 {
+		t.Fatalf("ran %d statements, want 2", len(*seen))
+	}
+	for i, sql := range *seen {
+		if !strings.Contains(sql, "tenant_id = $1") {
+			t.Errorf("unscoped queue statement #%d: %s", i, sql)
+		}
+	}
+	var out struct {
+		Data struct {
+			Entries []models.SLAQueueEntry `json:"entries"`
+			Count   int                    `json:"count"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatalf("response %q: %v", w.Body.String(), err)
+	}
+	if out.Data.Count != 1 || out.Data.Entries[0].TicketID != "t-2" {
+		t.Errorf("response = %+v, want the one ten-b entry", out.Data)
+	}
+	if out.Data.Entries[0].SLADeadline == nil {
+		t.Errorf("sla_deadline = nil, want the record's resolution deadline")
+	}
+}
+
+// ReprioritizeAll reads the whole tenant queue, and it must be the caller's
+// queue: the limit is 1000 here, not the 100 the status route uses, which is
+// the only way to tell the two apart.
+func TestQueueHandler_ReprioritizeQueueThreadsTheCallerTenant(t *testing.T) {
+	db, mock, _ := slaMockDB(t)
+	rec := &recordingDispatchRepo{repo: repository.NewDispatchRepository(db)}
+	h := NewQueueHandler(service.NewQueueManager(rec, repository.NewSLARepository(db)))
+
+	mock.ExpectQuery("SELECT * FROM dispatch_queue WHERE tenant_id = $1 ORDER BY").
+		WithArgs("ten-b", 1000).
+		WillReturnRows(sqlmock.NewRows(queueFixtureCols()).
+			AddRow("t-2", "ten-b", "high", time.Now().Add(-time.Hour), int64(0), "").
+			AddRow("t-3", "ten-b", "medium", time.Now(), int64(1), ""))
+
+	c, w := slaCtx("ten-b", nil, nil)
+	h.ReprioritizeQueue(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", w.Code, w.Body.String())
+	}
+	if got := rec.calls; len(got) != 1 || got[0] != "Dequeue:ten-b:1000" {
+		t.Fatalf("service saw %v, want Dequeue with ten-b and limit 1000", got)
+	}
+	var out struct {
+		Data struct {
+			Reprioritized int `json:"reprioritized"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatalf("response %q: %v", w.Body.String(), err)
+	}
+	// ReprioritizeAll writes nothing, so this number is the queue size. The
+	// assertion records that, rather than pretending it is a write count.
+	if out.Data.Reprioritized != 2 {
+		t.Errorf("reprioritized = %d, want the 2 ten-b entries read", out.Data.Reprioritized)
 	}
 }

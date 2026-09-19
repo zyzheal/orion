@@ -81,8 +81,13 @@ func (s *DispatchService) AutoDispatch(ctx context.Context, ticketID, tenantID, 
 
 	match, err := s.FindBestEngineer(ctx, ticket)
 	if err != nil {
-		// Enqueue for later
-		s.engineerRepo.Enqueue(ctx, ticketID, tenantID, ticket.Priority)
+		// Enqueue for later. Propagated because the error text below tells the
+		// caller the ticket was enqueued: with the error discarded, a failed
+		// INSERT left the ticket in no queue at all, so it was unreachable from
+		// every dispatch route while the API said otherwise.
+		if qErr := s.engineerRepo.Enqueue(ctx, ticketID, tenantID, ticket.Priority); qErr != nil {
+			return nil, fmt.Errorf("no available engineer and enqueue failed: %w", qErr)
+		}
 		return nil, fmt.Errorf("no available engineer, enqueued: %w", err)
 	}
 
@@ -99,11 +104,28 @@ func (s *DispatchService) AutoDispatch(ctx context.Context, ticketID, tenantID, 
 		return nil, err
 	}
 
-	// Update ticket assignment
-	s.ticketRepo.UpdateAssignee(ctx, ticketID, tenantID, match.EngineerID)
-	s.ticketRepo.UpdateStatus(ctx, ticketID, tenantID, models.StatusAssigned)
-	s.engineerRepo.IncrementLoad(ctx, match.EngineerID)
-	s.engineerRepo.RemoveFromQueue(ctx, ticketID)
+	// Update ticket assignment.
+	//
+	// All four writes used to be fire-and-forget, so POST /tickets/:id/dispatch/
+	// auto answered 200 with a DispatchRecord while the ticket row could still
+	// read open and unassigned, the engineer's load could stay at zero (and so
+	// be offered more work than it can take), and the queue row could stay
+	// enqueued (so it could be dispatched twice). Each is propagated now. The
+	// DispatchRecord above is already committed, so a caller that retries may
+	// see two records for one assignment; that is the lesser evil against
+	// reporting success for work the database refused.
+	if err := s.ticketRepo.UpdateAssignee(ctx, ticketID, tenantID, match.EngineerID); err != nil {
+		return nil, fmt.Errorf("update assignee: %w", err)
+	}
+	if err := s.ticketRepo.UpdateStatus(ctx, ticketID, tenantID, models.StatusAssigned); err != nil {
+		return nil, fmt.Errorf("update status: %w", err)
+	}
+	if err := s.engineerRepo.IncrementLoad(ctx, match.EngineerID); err != nil {
+		return nil, fmt.Errorf("increment load: %w", err)
+	}
+	if err := s.engineerRepo.RemoveFromQueue(ctx, tenantID, ticketID); err != nil {
+		return nil, fmt.Errorf("remove from queue: %w", err)
+	}
 
 	return record, nil
 }
@@ -132,10 +154,20 @@ func (s *DispatchService) ManualDispatch(ctx context.Context, ticketID, tenantID
 		return nil, err
 	}
 
-	s.ticketRepo.UpdateAssignee(ctx, ticketID, tenantID, engineerID)
-	s.ticketRepo.UpdateStatus(ctx, ticketID, tenantID, models.StatusAssigned)
-	s.engineerRepo.IncrementLoad(ctx, engineerID)
-	s.engineerRepo.RemoveFromQueue(ctx, ticketID)
+	// Same four writes as AutoDispatch, same fire-and-forget defect: see the
+	// comment there for why each one is propagated rather than discarded.
+	if err := s.ticketRepo.UpdateAssignee(ctx, ticketID, tenantID, engineerID); err != nil {
+		return nil, fmt.Errorf("update assignee: %w", err)
+	}
+	if err := s.ticketRepo.UpdateStatus(ctx, ticketID, tenantID, models.StatusAssigned); err != nil {
+		return nil, fmt.Errorf("update status: %w", err)
+	}
+	if err := s.engineerRepo.IncrementLoad(ctx, engineerID); err != nil {
+		return nil, fmt.Errorf("increment load: %w", err)
+	}
+	if err := s.engineerRepo.RemoveFromQueue(ctx, tenantID, ticketID); err != nil {
+		return nil, fmt.Errorf("remove from queue: %w", err)
+	}
 
 	return record, nil
 }
@@ -291,15 +323,11 @@ func (s *DispatchService) GetWeights() models.DispatchWeights {
 	return s.weights
 }
 
-// Queue management
-
-func (s *DispatchService) GetQueueStatus(ctx context.Context) (*models.DispatchQueueStatus, error) {
-	return s.engineerRepo.GetQueueStatus(ctx)
-}
-
-func (s *DispatchService) GetQueueEntries(ctx context.Context) ([]models.DispatchQueueEntry, error) {
-	return s.engineerRepo.Dequeue(ctx, 100)
-}
+// Queue reads are served by QueueManager on /tickets/dispatch/queue/sla-status
+// and /sla-entries; ticketingH owns the un-suffixed /queue/status and
+// /queue/entries. DispatchService never got its own route for them, so the
+// pass-through wrappers that existed here were deleted instead of being kept
+// compilable for a route that will never be mounted.
 
 func (s *DispatchService) GetMetrics(ctx context.Context, start, end time.Time) (*models.DispatchMetrics, error) {
 	if start.IsZero() {

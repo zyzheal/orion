@@ -76,10 +76,14 @@ type DispatchRepositoryInterface interface {
 	ListRules(ctx context.Context) ([]models.DispatchRule, error)
 	DeleteRule(ctx context.Context, id string) error
 	Enqueue(ctx context.Context, ticketID, tenantID, priority string) error
-	Dequeue(ctx context.Context, limit int) ([]models.DispatchQueueEntry, error)
-	RemoveFromQueue(ctx context.Context, ticketID string) error
-	UpdateQueueEntry(ctx context.Context, ticketID, lastError string, attempts int) error
-	GetQueueStatus(ctx context.Context) (*models.DispatchQueueStatus, error)
+	// Every queue read and write below is scoped to the caller's tenant. 686
+	// declares dispatch_queue.tenant_id as NOT NULL, so the column is always
+	// populated for rows written through Enqueue and filtering on it changes no
+	// row that this code can write; it only closes the reads.
+	Dequeue(ctx context.Context, tenantID string, limit int) ([]models.DispatchQueueEntry, error)
+	RemoveFromQueue(ctx context.Context, tenantID, ticketID string) error
+	UpdateQueueEntry(ctx context.Context, tenantID, ticketID, lastError string, attempts int) error
+	GetQueueStatus(ctx context.Context, tenantID string) (*models.DispatchQueueStatus, error)
 	GetMetrics(ctx context.Context, start, end time.Time) (*models.DispatchMetrics, error)
 }
 

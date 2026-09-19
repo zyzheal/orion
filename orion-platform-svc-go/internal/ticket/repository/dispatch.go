@@ -189,41 +189,59 @@ func (r *DispatchRepository) Enqueue(ctx context.Context, ticketID, tenantID, pr
 	return err
 }
 
-func (r *DispatchRepository) Dequeue(ctx context.Context, limit int) ([]models.DispatchQueueEntry, error) {
+// Dequeue returns the caller's own queue, oldest-first within a priority band.
+//
+// tenantID leads the signature like every other method in this package. The
+// ticket_id half of the clause is not enough by itself: a caller only needs to
+// guess one id to read that row, and every mounted queue route handed a foreign
+// tenant a listing of every other tenant's tickets.
+func (r *DispatchRepository) Dequeue(ctx context.Context, tenantID string, limit int) ([]models.DispatchQueueEntry, error) {
 	var entries []models.DispatchQueueEntry
 	err := r.db.SelectContext(ctx, &entries,
-		`SELECT * FROM dispatch_queue ORDER BY
+		`SELECT * FROM dispatch_queue WHERE tenant_id = $1 ORDER BY
 		CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
-		enqueued_at ASC LIMIT $1`, limit)
+		enqueued_at ASC LIMIT $2`, tenantID, limit)
 	return entries, err
 }
 
-func (r *DispatchRepository) RemoveFromQueue(ctx context.Context, ticketID string) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM dispatch_queue WHERE ticket_id = $1", ticketID)
+func (r *DispatchRepository) RemoveFromQueue(ctx context.Context, tenantID, ticketID string) error {
+	_, err := r.db.ExecContext(ctx,
+		"DELETE FROM dispatch_queue WHERE tenant_id = $1 AND ticket_id = $2",
+		tenantID, ticketID)
 	return err
 }
 
-func (r *DispatchRepository) UpdateQueueEntry(ctx context.Context, ticketID, lastError string, attempts int) error {
-	_, err := r.db.ExecContext(ctx, "UPDATE dispatch_queue SET attempts = $1, last_error = $2 WHERE ticket_id = $3",
-		attempts, lastError, ticketID)
+// UpdateQueueEntry has no caller today, but it is scoped anyway so an unscoped
+// variant does not get reintroduced the next time something starts using it.
+func (r *DispatchRepository) UpdateQueueEntry(ctx context.Context, tenantID, ticketID, lastError string, attempts int) error {
+	_, err := r.db.ExecContext(ctx,
+		"UPDATE dispatch_queue SET attempts = $1, last_error = $2 WHERE tenant_id = $3 AND ticket_id = $4",
+		attempts, lastError, tenantID, ticketID)
 	return err
 }
 
-func (r *DispatchRepository) GetQueueStatus(ctx context.Context) (*models.DispatchQueueStatus, error) {
+// GetQueueStatus reports this tenant's queue only. Three separate statements so
+// a predicate is needed in each one: the old form counted the whole registry,
+// which answered GET /tickets/dispatch/queue/sla-status with every tenant's
+// backlog.
+func (r *DispatchRepository) GetQueueStatus(ctx context.Context, tenantID string) (*models.DispatchQueueStatus, error) {
 	status := &models.DispatchQueueStatus{}
 
-	if err := r.db.GetContext(ctx, &status.PendingCount, "SELECT COUNT(*) FROM dispatch_queue"); err != nil {
+	if err := r.db.GetContext(ctx, &status.PendingCount,
+		"SELECT COUNT(*) FROM dispatch_queue WHERE tenant_id = $1", tenantID); err != nil {
 		return nil, fmt.Errorf("count pending: %w", err)
 	}
 
 	var oldest *time.Time
-	if err := r.db.GetContext(ctx, &oldest, "SELECT MIN(enqueued_at) FROM dispatch_queue"); err != nil {
+	if err := r.db.GetContext(ctx, &oldest,
+		"SELECT MIN(enqueued_at) FROM dispatch_queue WHERE tenant_id = $1", tenantID); err != nil {
 		return nil, fmt.Errorf("oldest entry: %w", err)
 	}
 	status.OldestEntry = oldest
 
 	if err := r.db.GetContext(ctx, &status.AvgWaitMs,
-		`SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (NOW() - enqueued_at)) * 1000), 0) FROM dispatch_queue`); err != nil {
+		`SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (NOW() - enqueued_at)) * 1000), 0)
+		 FROM dispatch_queue WHERE tenant_id = $1`, tenantID); err != nil {
 		return nil, fmt.Errorf("avg wait: %w", err)
 	}
 

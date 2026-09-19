@@ -20,11 +20,37 @@ import (
 )
 
 // discardFakeDispatch serves queue entries and engineers without touching a DB.
+//
+// seen records every tenant-scoped call as "Method:tenantID" so a test can prove
+// the tenant actually reached the repository call site. Without it a fix that
+// threads tenantID to the interface but drops it at the call would still return
+// the right rows from these fakes and pass.
 type discardFakeDispatch struct {
 	entries        []models.DispatchQueueEntry
 	engineers      map[string]*models.EngineerProfile
 	dequeueErr     error
 	getEngineerErr error
+	enqueueErr     error
+	recordErr      error
+	status         *models.DispatchQueueStatus
+	statusErr      error
+	incrementErr   error
+	decrementErr   error
+	removeErr      error
+	seen           []string
+	allEngineers   []models.EngineerProfile
+}
+
+// wantSeen fails the test unless a tenant-scoped call reached the fake with the
+// tenant the caller was told to act for.
+func wantSeen(t *testing.T, f *discardFakeDispatch, call string) {
+	t.Helper()
+	for _, s := range f.seen {
+		if s == call {
+			return
+		}
+	}
+	t.Fatalf("repository never received %q; got %v", call, f.seen)
 }
 
 func (f *discardFakeDispatch) CreateEngineer(ctx context.Context, ep *models.EngineerProfile) error {
@@ -47,16 +73,16 @@ func (f *discardFakeDispatch) GetEngineer(ctx context.Context, id string) (*mode
 	return ep, nil
 }
 func (f *discardFakeDispatch) ListEngineers(ctx context.Context) ([]models.EngineerProfile, error) {
-	return nil, nil
+	return f.allEngineers, nil
 }
 func (f *discardFakeDispatch) IncrementLoad(ctx context.Context, engineerID string) error {
-	return nil
+	return f.incrementErr
 }
 func (f *discardFakeDispatch) DecrementLoad(ctx context.Context, engineerID string) error {
-	return nil
+	return f.decrementErr
 }
 func (f *discardFakeDispatch) CreateRecord(ctx context.Context, rec *models.DispatchRecord) error {
-	return nil
+	return f.recordErr
 }
 func (f *discardFakeDispatch) GetRecordByTicket(ctx context.Context, ticketID string) (*models.DispatchRecord, error) {
 	return nil, sql.ErrNoRows
@@ -74,19 +100,23 @@ func (f *discardFakeDispatch) DeleteRule(ctx context.Context, id string) error {
 	return nil
 }
 func (f *discardFakeDispatch) Enqueue(ctx context.Context, ticketID, tenantID, priority string) error {
-	return nil
+	f.seen = append(f.seen, "Enqueue:"+tenantID)
+	return f.enqueueErr
 }
-func (f *discardFakeDispatch) Dequeue(ctx context.Context, limit int) ([]models.DispatchQueueEntry, error) {
+func (f *discardFakeDispatch) Dequeue(ctx context.Context, tenantID string, limit int) ([]models.DispatchQueueEntry, error) {
+	f.seen = append(f.seen, "Dequeue:"+tenantID)
 	return f.entries, f.dequeueErr
 }
-func (f *discardFakeDispatch) RemoveFromQueue(ctx context.Context, ticketID string) error {
+func (f *discardFakeDispatch) RemoveFromQueue(ctx context.Context, tenantID, ticketID string) error {
+	f.seen = append(f.seen, "RemoveFromQueue:"+tenantID)
+	return f.removeErr
+}
+func (f *discardFakeDispatch) UpdateQueueEntry(ctx context.Context, tenantID, ticketID, lastError string, attempts int) error {
 	return nil
 }
-func (f *discardFakeDispatch) UpdateQueueEntry(ctx context.Context, ticketID, lastError string, attempts int) error {
-	return nil
-}
-func (f *discardFakeDispatch) GetQueueStatus(ctx context.Context) (*models.DispatchQueueStatus, error) {
-	return nil, nil
+func (f *discardFakeDispatch) GetQueueStatus(ctx context.Context, tenantID string) (*models.DispatchQueueStatus, error) {
+	f.seen = append(f.seen, "GetQueueStatus:"+tenantID)
+	return f.status, f.statusErr
 }
 func (f *discardFakeDispatch) GetMetrics(ctx context.Context, start, end time.Time) (*models.DispatchMetrics, error) {
 	return nil, nil
@@ -95,8 +125,12 @@ func (f *discardFakeDispatch) GetMetrics(ctx context.Context, start, end time.Ti
 // discardFakeSLA lets one test force sql.ErrNoRows and another force a driver
 // fault; both shapes matter because the fix has to distinguish them.
 type discardFakeSLA struct {
-	record *models.SLARecord
-	err    error
+	record    *models.SLARecord
+	err       error
+	pending   []models.SLARecord
+	updateErr error
+	updated   []*models.SLARecord
+	seen      []string
 }
 
 func (f *discardFakeSLA) CreateTarget(ctx context.Context, target *models.SLATarget) error {
@@ -119,13 +153,18 @@ func (f *discardFakeSLA) GetRecordByTicket(ctx context.Context, tenantID, ticket
 	return f.record, nil
 }
 func (f *discardFakeSLA) UpdateRecord(ctx context.Context, record *models.SLARecord) error {
+	if f.updateErr != nil {
+		return f.updateErr
+	}
+	f.updated = append(f.updated, record)
 	return nil
 }
 func (f *discardFakeSLA) FindBreachedRecords(ctx context.Context, tenantID string) ([]models.SLARecord, error) {
 	return nil, nil
 }
 func (f *discardFakeSLA) FindPendingRecords(ctx context.Context, tenantID string) ([]models.SLARecord, error) {
-	return nil, nil
+	f.seen = append(f.seen, "FindPendingRecords:"+tenantID)
+	return f.pending, nil
 }
 func (f *discardFakeSLA) PauseRecord(ctx context.Context, tenantID, ticketID, reason string) error {
 	return nil
@@ -303,6 +342,7 @@ func (f *discardFakeSuspend) CountActiveByEngineer(ctx context.Context, engineer
 type discardFakeTransfer struct {
 	created   []*models.TransferRecord
 	createErr error
+	listErr   error
 }
 
 func (f *discardFakeTransfer) Create(ctx context.Context, rec *models.TransferRecord) error {
@@ -313,19 +353,26 @@ func (f *discardFakeTransfer) Create(ctx context.Context, rec *models.TransferRe
 	return nil
 }
 func (f *discardFakeTransfer) ListByTicket(ctx context.Context, ticketID string) ([]models.TransferRecord, error) {
-	return nil, nil
+	return nil, f.listErr
 }
 func (f *discardFakeTransfer) GetStats(ctx context.Context, start, end time.Time) (map[string]any, error) {
 	return nil, nil
 }
 
-type discardFakeTicket struct{}
+type discardFakeTicket struct {
+	ticket    *models.Ticket
+	assignErr error
+	statusErr error
+}
 
 func (f *discardFakeTicket) Create(ctx context.Context, ticket *models.Ticket) error {
 	return nil
 }
 func (f *discardFakeTicket) GetByID(ctx context.Context, id, tenantID string) (*models.Ticket, error) {
-	return nil, sql.ErrNoRows
+	if f.ticket == nil {
+		return nil, sql.ErrNoRows
+	}
+	return f.ticket, nil
 }
 func (f *discardFakeTicket) List(ctx context.Context, tenantID string, q models.ListQuery) ([]models.Ticket, int, error) {
 	return nil, 0, nil
@@ -333,10 +380,10 @@ func (f *discardFakeTicket) List(ctx context.Context, tenantID string, q models.
 func (f *discardFakeTicket) Update(ctx context.Context, ticket *models.Ticket) error { return nil }
 func (f *discardFakeTicket) Delete(ctx context.Context, id, tenantID string) error   { return nil }
 func (f *discardFakeTicket) UpdateStatus(ctx context.Context, id, tenantID, status string) error {
-	return nil
+	return f.statusErr
 }
 func (f *discardFakeTicket) UpdateAssignee(ctx context.Context, id, tenantID, assignedTo string) error {
-	return nil
+	return f.assignErr
 }
 func (f *discardFakeTicket) Count(ctx context.Context, tenantID string) (int, error) { return 0, nil }
 
@@ -447,6 +494,339 @@ func TestTransferDueToSuspend_InactiveSuspendIsRejected(t *testing.T) {
 	if !strings.Contains(err.Error(), "not active") {
 		t.Errorf("error = %q, want the not-active reason", err.Error())
 	}
+}
+
+// ---------------------------------------------------------------- F-C
+//
+// POST /tickets/:id/dispatch/auto and POST /tickets/:id/dispatch/manual.
+//
+// These are the fire-and-forget tail of DispatchService: the ticket assignment,
+// the status change, the engineer load counter and the queue row all used to be
+// written with the error thrown away, so the route answered 200 with a
+// DispatchRecord while the ticket could still read open and unassigned.
+
+func dispatchFixture() (*discardFakeDispatch, *discardFakeTicket) {
+	eng := &models.EngineerProfile{
+		ID: "eng-1", Name: "Ana", MaxCapacity: 5, CurrentLoad: 0,
+		Availability: models.AvailabilityAvailable,
+	}
+	// allEngineers drives FindBestEngineer; engineers answers GetEngineer, which
+	// ManualDispatch calls first.
+	dispatch := &discardFakeDispatch{
+		allEngineers: []models.EngineerProfile{*eng},
+		engineers:    map[string]*models.EngineerProfile{"eng-1": eng},
+	}
+	ticket := &discardFakeTicket{ticket: &models.Ticket{
+		ID: "t-1", TenantID: "ten-a", Priority: "high", AssignedTo: "eng-0",
+	}}
+	return dispatch, ticket
+}
+
+func TestAutoDispatch_IncrementLoadFaultSurfaces(t *testing.T) {
+	want := errors.New("deadlock detected")
+	dispatch, ticket := dispatchFixture()
+	dispatch.incrementErr = want
+	svc := NewDispatchService(dispatch, ticket, &discardFakeSLA{})
+
+	got, err := svc.AutoDispatch(context.Background(), "t-1", "ten-a", "op-1")
+	if err == nil {
+		t.Fatalf("err = nil, want the driver error; record was %+v", got)
+	}
+	if got != nil {
+		t.Errorf("returned %v, want nil alongside an error", got)
+	}
+	if !errors.Is(err, want) {
+		t.Fatalf("error = %q, want the driver error", err.Error())
+	}
+	if !strings.Contains(err.Error(), "increment load") {
+		t.Errorf("error = %q, want the step named", err.Error())
+	}
+}
+
+// The last write in the chain: if it fails the ticket was assigned and its load
+// was counted but the queue row remains, so the same ticket is dispatchable a
+// second time. The caller has to know.
+func TestAutoDispatch_RemoveFromQueueFaultSurfaces(t *testing.T) {
+	want := errors.New("no such table")
+	dispatch, ticket := dispatchFixture()
+	dispatch.removeErr = want
+	svc := NewDispatchService(dispatch, ticket, &discardFakeSLA{})
+
+	got, err := svc.AutoDispatch(context.Background(), "t-1", "ten-a", "op-1")
+	if err == nil {
+		t.Fatalf("err = nil, want the driver error; record was %+v", got)
+	}
+	if got != nil {
+		t.Errorf("returned %v, want nil alongside an error", got)
+	}
+	if !errors.Is(err, want) {
+		t.Fatalf("error = %q, want the driver error", err.Error())
+	}
+	if !strings.Contains(err.Error(), "remove from queue") {
+		t.Errorf("error = %q, want the step named", err.Error())
+	}
+	wantSeen(t, dispatch, "RemoveFromQueue:ten-a")
+}
+
+// ManualDispatch shares the same tail.
+func TestManualDispatch_UpdateStatusFaultSurfaces(t *testing.T) {
+	want := errors.New("row not found")
+	dispatch, ticket := dispatchFixture()
+	ticket.statusErr = want
+	svc := NewDispatchService(dispatch, ticket, &discardFakeSLA{})
+
+	got, err := svc.ManualDispatch(context.Background(), "t-1", "ten-a", "eng-1", "op-1", "manual")
+	if err == nil {
+		t.Fatalf("err = nil, want the driver error; record was %+v", got)
+	}
+	if got != nil {
+		t.Errorf("returned %v, want nil alongside an error", got)
+	}
+	if !errors.Is(err, want) {
+		t.Fatalf("error = %q, want the driver error", err.Error())
+	}
+	if !strings.Contains(err.Error(), "update status") {
+		t.Errorf("error = %q, want the step named", err.Error())
+	}
+}
+
+// The enqueue half: the error text promises the ticket was queued, so a failed
+// INSERT must not be discarded.
+func TestAutoDispatch_NoEngineerAndEnqueueFails(t *testing.T) {
+	want := errors.New("connection refused")
+	dispatch, ticket := dispatchFixture()
+	dispatch.allEngineers = nil // makes FindBestEngineer fail
+	dispatch.enqueueErr = want
+	svc := NewDispatchService(dispatch, ticket, &discardFakeSLA{})
+
+	got, err := svc.AutoDispatch(context.Background(), "t-1", "ten-a", "op-1")
+	if err == nil {
+		t.Fatalf("err = nil, want the enqueue fault; record was %+v", got)
+	}
+	if got != nil {
+		t.Errorf("returned %v, want nil alongside an error", got)
+	}
+	if !errors.Is(err, want) {
+		t.Fatalf("error = %q, want the driver error", err.Error())
+	}
+	if !strings.Contains(err.Error(), "enqueue failed") {
+		t.Errorf("error = %q, want it to say the enqueue failed", err.Error())
+	}
+}
+
+// The happy path still finishes the whole tail and keeps the queue scoped to
+// the caller's tenant.
+func TestAutoDispatch_HappyPathScopesEveryWrite(t *testing.T) {
+	dispatch, ticket := dispatchFixture()
+	svc := NewDispatchService(dispatch, ticket, &discardFakeSLA{})
+
+	got, err := svc.AutoDispatch(context.Background(), "t-1", "ten-a", "op-1")
+	require_NoError(t, err)
+	if got == nil || got.EngineerID != "eng-1" {
+		t.Fatalf("record = %+v, want eng-1 assigned", got)
+	}
+	wantSeen(t, dispatch, "RemoveFromQueue:ten-a")
+}
+
+// ---------------------------------------------------------------- F-D
+//
+// GET /tickets/sla/breaches, via SLAService.CheckBreaches.
+
+func TestCheckBreaches_UpdateRecordFaultSurfaces(t *testing.T) {
+	want := errors.New("connection refused")
+	sla := &discardFakeSLA{
+		pending: []models.SLARecord{{
+			// RespondedAt stays nil: with it set the response-breach branch is
+			// skipped and no update is issued at all, so the injected fault
+			// would never be reached and the test would prove nothing.
+			TicketID:             "t-42",
+			ResponseDeadlineAt:   time.Now().Add(-time.Hour),
+			ResolutionDeadlineAt: time.Now().Add(time.Hour),
+		}},
+		updateErr: want,
+	}
+	svc := NewSLAService(sla, &discardFakeTicket{})
+
+	got, err := svc.CheckBreaches(context.Background(), "ten-a")
+	if err == nil {
+		t.Fatalf("err = nil, want the driver error; %d breaches reported as written", len(got))
+	}
+	if got != nil {
+		t.Errorf("returned %v, want nil alongside an error", got)
+	}
+	if !errors.Is(err, want) {
+		t.Fatalf("error = %q, want the driver error", err.Error())
+	}
+	if !strings.Contains(err.Error(), "t-42") {
+		t.Errorf("error = %q, want the ticket id", err.Error())
+	}
+	if len(sla.updated) != 0 {
+		t.Errorf("wrote %d rows after the fault, want 0", len(sla.updated))
+	}
+	if len(sla.seen) != 1 || sla.seen[0] != "FindPendingRecords:ten-a" {
+		t.Errorf("service saw %v, want the pending scan scoped to ten-a", sla.seen)
+	}
+}
+
+// A resolved-and-responded record is not a breach, so no update is issued and no
+// fault can surface: this pins that the fix did not turn the quiet path into a
+// 500.
+func TestCheckBreaches_NoBreachWritesNothing(t *testing.T) {
+	sla := &discardFakeSLA{
+		pending: []models.SLARecord{{
+			TicketID:             "t-43",
+			RespondedAt:          timePtr(time.Now().Add(-time.Minute)),
+			ResponseDeadlineAt:   time.Now().Add(time.Hour),
+			ResolutionDeadlineAt: time.Now().Add(time.Hour),
+		}},
+	}
+	svc := NewSLAService(sla, &discardFakeTicket{})
+
+	got, err := svc.CheckBreaches(context.Background(), "ten-a")
+	require_NoError(t, err)
+	if len(got) != 0 {
+		t.Fatalf("returned %d breaches, want 0", len(got))
+	}
+	if len(sla.updated) != 0 {
+		t.Errorf("wrote %d rows, want 0", len(sla.updated))
+	}
+}
+
+// The resolution branch is the one that fires first: a resolution deadline in
+// the past takes the if, and the response deadline is never looked at. Only this
+// fixture reaches that branch, so its fault needs its own test.
+func TestCheckBreaches_ResolutionUpdateRecordFaultSurfaces(t *testing.T) {
+	want := errors.New("unique violation")
+	sla := &discardFakeSLA{
+		pending: []models.SLARecord{{
+			TicketID:             "t-45",
+			ResponseDeadlineAt:   time.Now().Add(time.Hour),
+			ResolutionDeadlineAt: time.Now().Add(-time.Hour),
+		}},
+		updateErr: want,
+	}
+	svc := NewSLAService(sla, &discardFakeTicket{})
+
+	got, err := svc.CheckBreaches(context.Background(), "ten-a")
+	if err == nil {
+		t.Fatalf("err = nil, want the driver error; %d breaches reported as written", len(got))
+	}
+	if got != nil {
+		t.Errorf("returned %v, want nil alongside an error", got)
+	}
+	if !errors.Is(err, want) {
+		t.Fatalf("error = %q, want the driver error", err.Error())
+	}
+	if !strings.Contains(err.Error(), "t-45") {
+		t.Errorf("error = %q, want the ticket id", err.Error())
+	}
+	if len(sla.updated) != 0 {
+		t.Errorf("wrote %d rows after the fault, want 0", len(sla.updated))
+	}
+}
+
+// The breach itself still gets recorded and returned.
+func TestCheckBreaches_ResolutionBreachIsMarkedAndReturned(t *testing.T) {
+	sla := &discardFakeSLA{
+		pending: []models.SLARecord{{
+			TicketID:             "t-44",
+			ResponseDeadlineAt:   time.Now().Add(time.Hour),
+			ResolutionDeadlineAt: time.Now().Add(-time.Minute),
+		}},
+	}
+	svc := NewSLAService(sla, &discardFakeTicket{})
+
+	got, err := svc.CheckBreaches(context.Background(), "ten-a")
+	require_NoError(t, err)
+	if len(got) != 1 || got[0].BreachType != "resolution" {
+		t.Fatalf("breaches = %+v, want one resolution breach", got)
+	}
+	if len(sla.updated) != 1 || !sla.updated[0].Breached {
+		t.Fatalf("wrote %+v, want one breached row", sla.updated)
+	}
+}
+
+// ---------------------------------------------------------------- F-E
+//
+// POST /tickets/transfer/auto-check and the manual transfer path.
+
+func TestManualTransfer_TransferLimitReadFaultSurfaces(t *testing.T) {
+	want := errors.New("connection refused")
+	dispatch, ticket := dispatchFixture()
+	svc := NewTransferService(&discardFakeTransfer{listErr: want}, ticket, dispatch, &discardFakeSuspend{})
+
+	got, err := svc.ManualTransfer(context.Background(), "t-1", "ten-a", "eng-1", "op-1", "handover")
+	if err == nil {
+		t.Fatalf("err = nil, want the driver error; the max-transfer guard was skipped; got %+v", got)
+	}
+	if got != nil {
+		t.Errorf("returned %v, want nil alongside an error", got)
+	}
+	if !errors.Is(err, want) {
+		t.Fatalf("error = %q, want the driver error", err.Error())
+	}
+}
+
+func TestManualTransfer_DecrementLoadFaultSurfaces(t *testing.T) {
+	want := errors.New("deadlock detected")
+	dispatch, ticket := dispatchFixture()
+	dispatch.decrementErr = want
+	svc := NewTransferService(&discardFakeTransfer{}, ticket, dispatch, &discardFakeSuspend{})
+
+	got, err := svc.ManualTransfer(context.Background(), "t-1", "ten-a", "eng-1", "op-1", "handover")
+	if err == nil {
+		t.Fatalf("err = nil, want the driver error; got %+v", got)
+	}
+	if got != nil {
+		t.Errorf("returned %v, want nil alongside an error", got)
+	}
+	if !errors.Is(err, want) {
+		t.Fatalf("error = %q, want the driver error", err.Error())
+	}
+	if !strings.Contains(err.Error(), "decrement load") {
+		t.Errorf("error = %q, want the step named", err.Error())
+	}
+}
+
+func TestManualTransfer_DispatchRecordFaultSurfaces(t *testing.T) {
+	want := errors.New("duplicate key")
+	dispatch, ticket := dispatchFixture()
+	dispatch.recordErr = want
+	svc := NewTransferService(&discardFakeTransfer{}, ticket, dispatch, &discardFakeSuspend{})
+
+	got, err := svc.ManualTransfer(context.Background(), "t-1", "ten-a", "eng-1", "op-1", "handover")
+	if err == nil {
+		t.Fatalf("err = nil, want the driver error; got %+v", got)
+	}
+	if got != nil {
+		t.Errorf("returned %v, want nil alongside an error", got)
+	}
+	if !errors.Is(err, want) {
+		t.Fatalf("error = %q, want the driver error", err.Error())
+	}
+	if !strings.Contains(err.Error(), "create dispatch record") {
+		t.Errorf("error = %q, want the step named", err.Error())
+	}
+}
+
+// ---------------------------------------------------------------- F-F
+//
+// POST /tickets/dispatch/queue/reprioritize. The count is read-only today, but
+// the read must be tenant scoped.
+
+func TestReprioritizeAll_ScopesDequeueToTenant(t *testing.T) {
+	dispatch := &discardFakeDispatch{entries: []models.DispatchQueueEntry{{
+		TicketID: "t-1", TenantID: "ten-a", Priority: "medium",
+		EnqueuedAt: time.Now().Add(-time.Hour),
+	}}}
+	qm := NewQueueManager(dispatch, &discardFakeSLA{})
+
+	count, err := qm.ReprioritizeAll(context.Background(), "ten-b")
+	require_NoError(t, err)
+	if count != 1 {
+		t.Fatalf("count = %d, want 1", count)
+	}
+	wantSeen(t, dispatch, "Dequeue:ten-b")
 }
 
 func require_NoError(t *testing.T, err error) {

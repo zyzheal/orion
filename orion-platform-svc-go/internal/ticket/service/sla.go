@@ -123,18 +123,29 @@ func (s *SLAService) CheckBreaches(ctx context.Context, tenantID string) ([]mode
 		return nil, err
 	}
 
+	// Both UpdateRecord errors were discarded, so GET /tickets/sla/breaches
+	// answered 200 with the breached rows it had computed in memory while the
+	// database still held breached = false on those same rows. The next call
+	// computed the same set again, and the compliance report kept counting them
+	// as unbreached until something else wrote the row. Propagate instead: s
+	// has no logger to degrade to, and a partially written breach list is worse
+	// than no list.
 	now := time.Now()
 	var breached []models.SLARecord
 	for _, rec := range records {
 		if now.After(rec.ResolutionDeadlineAt) {
 			rec.Breached = true
 			rec.BreachType = "resolution"
-			s.slaRepo.UpdateRecord(ctx, &rec)
+			if err := s.slaRepo.UpdateRecord(ctx, &rec); err != nil {
+				return nil, fmt.Errorf("mark %s breached: %w", rec.TicketID, err)
+			}
 			breached = append(breached, rec)
 		} else if rec.RespondedAt == nil && now.After(rec.ResponseDeadlineAt) {
 			rec.Breached = true
 			rec.BreachType = "response"
-			s.slaRepo.UpdateRecord(ctx, &rec)
+			if err := s.slaRepo.UpdateRecord(ctx, &rec); err != nil {
+				return nil, fmt.Errorf("mark %s breached: %w", rec.TicketID, err)
+			}
 			breached = append(breached, rec)
 		}
 	}

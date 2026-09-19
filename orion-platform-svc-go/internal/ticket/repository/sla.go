@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"orion/platform-svc-go/internal/ticket/models"
@@ -185,18 +186,25 @@ func (r *SLARepository) GetComplianceReport(ctx context.Context, tenantID string
 		report.ComplianceRate = float64(report.TotalTickets-report.BreachedCount) / float64(report.TotalTickets) * 100
 	}
 
-	// Average times
-	r.db.GetContext(ctx, &report.AvgResponseMs,
+	// Average times. Both of these errors used to be discarded, which made a
+	// driver fault here look like "average response time: 0ms" on
+	// GET /tickets/sla/compliance. Zero is also a legitimate answer from the
+	// COALESCE, so the route had no way to tell a healthy empty average from a
+	// database that refused to answer.
+	if err := r.db.GetContext(ctx, &report.AvgResponseMs,
 		`SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (r.responded_at - r.created_at)) * 1000), 0)
 		FROM sla_records r
 		WHERE r.responded_at IS NOT NULL AND r.created_at BETWEEN $2 AND $3
-		AND r.ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $1)`, tenantID, start, end)
-
-	r.db.GetContext(ctx, &report.AvgResolutionMs,
+		AND r.ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $1)`, tenantID, start, end); err != nil {
+		return nil, fmt.Errorf("avg response: %w", err)
+	}
+	if err := r.db.GetContext(ctx, &report.AvgResolutionMs,
 		`SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (r.resolved_at - r.created_at)) * 1000), 0)
 		FROM sla_records r
 		WHERE r.resolved_at IS NOT NULL AND r.created_at BETWEEN $2 AND $3
-		AND r.ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $1)`, tenantID, start, end)
+		AND r.ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $1)`, tenantID, start, end); err != nil {
+		return nil, fmt.Errorf("avg resolution: %w", err)
+	}
 
 	// By priority
 	rows, err := r.db.QueryContext(ctx,
@@ -207,7 +215,11 @@ func (r *SLARepository) GetComplianceReport(ctx context.Context, tenantID string
 		AND r.ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $1)
 		GROUP BY r.priority`, tenantID, start, end)
 	if err != nil {
-		return report, nil
+		// This used to be return report, nil: the partial report held real total
+		// and breached counts and an empty ByPriority map, so the route answered
+		// 200 with a plausible-looking compliance figure that simply had no
+		// breakdown behind it.
+		return nil, fmt.Errorf("by priority: %w", err)
 	}
 	defer rows.Close()
 
@@ -215,7 +227,7 @@ func (r *SLARepository) GetComplianceReport(ctx context.Context, tenantID string
 		var priority string
 		var total, breached int
 		if err := rows.Scan(&priority, &total, &breached); err != nil {
-			continue
+			return nil, fmt.Errorf("scan priority row: %w", err)
 		}
 		rate := float64(0)
 		if total > 0 {
@@ -224,6 +236,9 @@ func (r *SLARepository) GetComplianceReport(ctx context.Context, tenantID string
 		report.ByPriority[priority] = models.SLAPriorityStats{
 			Total: total, Breached: breached, ComplianceRate: rate,
 		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate priority rows: %w", err)
 	}
 
 	return report, nil

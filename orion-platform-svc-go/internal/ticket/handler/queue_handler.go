@@ -23,7 +23,11 @@ func NewQueueHandler(qm *service.QueueManager) *QueueHandler {
 func (h *QueueHandler) GetSLAQueueStatus(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetSLAQueueStatus")
 	defer span.End()
-	status, err := h.qm.GetSLAQueueStatus(ctx)
+	tenantID, ok := tenantFrom(c)
+	if !ok {
+		return
+	}
+	status, err := h.qm.GetSLAQueueStatus(ctx, tenantID)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -77,7 +81,11 @@ func (h *QueueHandler) GetSLAAlerts(c *gin.Context) {
 func (h *QueueHandler) ReprioritizeQueue(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketReprioritizeQueue")
 	defer span.End()
-	count, err := h.qm.ReprioritizeAll(ctx)
+	tenantID, ok := tenantFrom(c)
+	if !ok {
+		return
+	}
+	count, err := h.qm.ReprioritizeAll(ctx, tenantID)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return

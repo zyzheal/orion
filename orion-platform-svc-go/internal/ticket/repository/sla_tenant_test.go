@@ -388,3 +388,114 @@ func TestSLARepository_GetComplianceReportPropagatesErrors(t *testing.T) {
 		t.Errorf("error = %q, want %q", err.Error(), want.Error())
 	}
 }
+
+// complianceWindow returns a fixed window so the bound arguments can be pinned.
+func complianceWindow() (time.Time, time.Time) {
+	return time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2026, 8, 31, 23, 59, 59, 0, time.UTC)
+}
+
+// complianceCounts sets up the two COUNT queries so a later expectation can be
+// made to fail. Without them queued, sqlmock would report the failure of the
+// first query and the test would not be exercising the intended one.
+func complianceCounts(mock sqlmock.Sqlmock, start, end time.Time) {
+	mock.ExpectQuery("SELECT COUNT(*) FROM sla_records r").
+		WithArgs("ten-a", start, end).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(5)))
+	mock.ExpectQuery("r.breached = true AND r.created_at BETWEEN $2 AND $3").
+		WithArgs("ten-a", start, end).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(2)))
+}
+
+// AvgResponseMs used to be discarded, so a driver fault on the third query read
+// as "average response time: 0ms", which the COALESCE also produces for a
+// healthy dataset with no responses yet.
+func TestSLARepository_GetComplianceReportAvgResponseFaultSurfaces(t *testing.T) {
+	db, mock, _ := slaMockDB(t)
+	r := NewSLARepository(db)
+
+	want := errors.New("column does not exist")
+	start, end := complianceWindow()
+	complianceCounts(mock, start, end)
+	mock.ExpectQuery("EXTRACT(EPOCH FROM (r.responded_at - r.created_at))").
+		WithArgs("ten-a", start, end).
+		WillReturnError(want)
+
+	report, err := r.GetComplianceReport(context.Background(), "ten-a", start, end)
+	if err == nil {
+		t.Fatalf("err = nil, want the driver error; report was %+v", report)
+	}
+	if report != nil {
+		t.Errorf("report = %+v, want nil alongside an error", report)
+	}
+	if !errors.Is(err, want) {
+		t.Fatalf("error = %q, want the driver error", err.Error())
+	}
+	if !strings.Contains(err.Error(), "avg response") {
+		t.Errorf("error = %q, want the step named", err.Error())
+	}
+}
+
+func TestSLARepository_GetComplianceReportAvgResolutionFaultSurfaces(t *testing.T) {
+	db, mock, _ := slaMockDB(t)
+	r := NewSLARepository(db)
+
+	want := errors.New("column does not exist")
+	start, end := complianceWindow()
+	complianceCounts(mock, start, end)
+	mock.ExpectQuery("EXTRACT(EPOCH FROM (r.responded_at - r.created_at))").
+		WithArgs("ten-a", start, end).
+		WillReturnRows(sqlmock.NewRows([]string{"avg"}).AddRow(float64(1200)))
+	mock.ExpectQuery("EXTRACT(EPOCH FROM (r.resolved_at - r.created_at))").
+		WithArgs("ten-a", start, end).
+		WillReturnError(want)
+
+	report, err := r.GetComplianceReport(context.Background(), "ten-a", start, end)
+	if err == nil {
+		t.Fatalf("err = nil, want the driver error; report was %+v", report)
+	}
+	if report != nil {
+		t.Errorf("report = %+v, want nil alongside an error", report)
+	}
+	if !errors.Is(err, want) {
+		t.Fatalf("error = %q, want the driver error", err.Error())
+	}
+	if !strings.Contains(err.Error(), "avg resolution") {
+		t.Errorf("error = %q, want the step named", err.Error())
+	}
+}
+
+// The GROUP BY failure used to be return report, nil: the caller got real total
+// and breached counts with an empty breakdown and a 200.
+func TestSLARepository_GetComplianceReportPriorityFaultSurfaces(t *testing.T) {
+	db, mock, _ := slaMockDB(t)
+	r := NewSLARepository(db)
+
+	want := errors.New("connection refused")
+	start, end := complianceWindow()
+	complianceCounts(mock, start, end)
+	mock.ExpectQuery("EXTRACT(EPOCH FROM (r.responded_at - r.created_at))").
+		WithArgs("ten-a", start, end).
+		WillReturnRows(sqlmock.NewRows([]string{"avg"}).AddRow(float64(1200)))
+	mock.ExpectQuery("EXTRACT(EPOCH FROM (r.resolved_at - r.created_at))").
+		WithArgs("ten-a", start, end).
+		WillReturnRows(sqlmock.NewRows([]string{"avg"}).AddRow(float64(5000)))
+	mock.ExpectQuery("GROUP BY r.priority").
+		WithArgs("ten-a", start, end).
+		WillReturnError(want)
+
+	report, err := r.GetComplianceReport(context.Background(), "ten-a", start, end)
+	if err == nil {
+		t.Fatalf("err = nil, want the driver error; report was %+v", report)
+	}
+	if report != nil {
+		t.Errorf("report = %+v, want nil alongside an error: a partial report "+
+			"reads as a healthy breakdown-less compliance figure", report)
+	}
+	if !errors.Is(err, want) {
+		t.Fatalf("error = %q, want the driver error", err.Error())
+	}
+	if !strings.Contains(err.Error(), "by priority") {
+		t.Errorf("error = %q, want the step named", err.Error())
+	}
+}

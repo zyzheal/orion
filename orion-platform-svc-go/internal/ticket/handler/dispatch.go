@@ -135,30 +135,6 @@ func (h *DispatchHandler) CalculateDispatchScore(c *gin.Context) {
 	respondSuccess(c, match)
 }
 
-// GetDispatchQueueStatus GET /api/v1/tickets/dispatch/queue/status
-func (h *DispatchHandler) GetDispatchQueueStatus(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetDispatchQueueStatus")
-	defer span.End()
-	status, err := h.svc.GetQueueStatus(ctx)
-	if err != nil {
-		respondError(c, http.StatusInternalServerError, err)
-		return
-	}
-	respondSuccess(c, status)
-}
-
-// GetDispatchQueueEntries GET /api/v1/tickets/dispatch/queue/entries
-func (h *DispatchHandler) GetDispatchQueueEntries(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetDispatchQueueEntries")
-	defer span.End()
-	entries, err := h.svc.GetQueueEntries(ctx)
-	if err != nil {
-		respondError(c, http.StatusInternalServerError, err)
-		return
-	}
-	respondSuccess(c, gin.H{"entries": entries, "count": len(entries)})
-}
-
 // AddDispatchRule POST /api/v1/tickets/dispatch/rules
 func (h *DispatchHandler) AddDispatchRule(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketAddDispatchRule")
