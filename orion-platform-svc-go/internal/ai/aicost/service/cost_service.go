@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"orion/platform-svc-go/internal/ai/aicost/models"
@@ -18,52 +19,121 @@ func NewService(repo repository.RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
-// AnalyzeCostSavings returns a cost analysis with opportunities for a tenant.
-// Queries the repository for real spend data; falls back to reasonable defaults
-// when no data exists yet.
-func (s *Service) AnalyzeCostSavings(tenantID string) models.CostOptimizationAnalysis {
-	// In production, query actual cost data from the repository.
-	opportunities := s.buildOpportunities(tenantID)
-	totalSpend := s.estimateTotalSpend(tenantID)
+// defaultCurrency is the display currency of a cost analysis. No cost table
+// carries a currency column, so this is a presentation default, not a value
+// read from storage.
+const defaultCurrency = "CNY"
 
+// highSpendShare and midSpendShare rank a model by the share of the tenant's
+// monthly spend it carries. They are policy thresholds for how risky acting on
+// a model is, not measurements.
+const (
+	highSpendShare = 0.5
+	midSpendShare  = 0.25
+)
+
+// alertSavingsFloor is the monthly spend below which an opportunity is not
+// worth surfacing as an alert.
+const alertSavingsFloor = 500.0
+
+// AnalyzeCostSavings returns the tenant's cost picture: all-time recorded
+// spend plus the consolidation opportunities its recent records support.
+//
+// It used to return a hardcoded 5000.00 spend and two hardcoded opportunities
+// about a gpt-4 migration while ignoring tenantID, so every tenant read the
+// same analysis. Both numbers now come from ai_cost_records.
+func (s *Service) AnalyzeCostSavings(ctx context.Context, tenantID string) (models.CostOptimizationAnalysis, error) {
+	totalSpend, err := s.repo.GetTotalSpend(ctx, tenantID)
+	if err != nil {
+		return models.CostOptimizationAnalysis{}, fmt.Errorf("read total spend: %w", err)
+	}
+	opportunities, err := s.buildOpportunities(ctx, tenantID)
+	if err != nil {
+		return models.CostOptimizationAnalysis{}, err
+	}
 	return models.CostOptimizationAnalysis{
 		TenantID:      tenantID,
 		TotalSpend:    totalSpend,
 		Opportunities: opportunities,
-		Currency:      "CNY",
+		Currency:      defaultCurrency,
+	}, nil
+}
+
+// RecommendOptimization returns the tenant's consolidation opportunities, the
+// same set a full analysis carries.
+func (s *Service) RecommendOptimization(ctx context.Context, tenantID string) ([]models.CostSavingsOpportunity, error) {
+	return s.buildOpportunities(ctx, tenantID)
+}
+
+// buildOpportunities turns the tenant's per-model spend into opportunities: one
+// per model that recorded spend in the last 30 days.
+//
+// The estimated savings is that model's own observed spend. The money the
+// tenant already pays for a model is the budget a migration or consolidation
+// can address, so it is the addressable amount and an upper bound, not a
+// promise; the description says so. The share is computed against the models'
+// 30-day spend, never against the all-time total, because mixing the two
+// windows would make the percentage meaningless.
+//
+// Nothing is invented: a tenant with no records gets no opportunities. It used
+// to return two hardcoded opportunities worth 1200.00 and 800.00 for every
+// tenant.
+func (s *Service) buildOpportunities(ctx context.Context, tenantID string) ([]models.CostSavingsOpportunity, error) {
+	opportunities := make([]models.CostSavingsOpportunity, 0)
+	byModel, err := s.repo.ListSpendByModel(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("read spend by model: %w", err)
 	}
-}
 
-// RecommendOptimization returns cost optimization recommendations.
-func (s *Service) RecommendOptimization(tenantID string) ([]models.CostSavingsOpportunity, error) {
-	return s.buildOpportunities(tenantID), nil
-}
-
-// buildOpportunities generates cost savings opportunities for a tenant.
-// TODO(stub): Replace with real opportunity detection logic (e.g., query usage patterns).
-func (s *Service) buildOpportunities(tenantID string) []models.CostSavingsOpportunity {
-	return []models.CostSavingsOpportunity{
-		{
-			Category:                "model_optimization",
-			ResourceName:            "gpt-4 -> gpt-4-turbo migration",
-			EstimatedMonthlySavings: 1200.00,
-			RiskLevel:               "low",
-			Description:             "Switch from gpt-4 to gpt-4-turbo for non-critical tasks",
-		},
-		{
-			Category:                "idle_resources",
-			ResourceName:            "unused model deployments",
-			EstimatedMonthlySavings: 800.00,
-			RiskLevel:               "medium",
-			Description:             "Remove unused model deployments to reduce hosting costs",
-		},
+	windowTotal := 0.0
+	for _, m := range byModel {
+		if m.Spend > 0 {
+			windowTotal += m.Spend
+		}
 	}
+
+	for _, m := range byModel {
+		if m.Spend <= 0 {
+			continue
+		}
+		share := 0.0
+		if windowTotal > 0 {
+			share = m.Spend / windowTotal
+		}
+		name := modelName(m.ModelID)
+		opportunities = append(opportunities, models.CostSavingsOpportunity{
+			Category:                "model_consolidation",
+			ResourceName:            name,
+			EstimatedMonthlySavings: m.Spend,
+			RiskLevel:               riskForShare(share),
+			Description: fmt.Sprintf(
+				"%s recorded %.2f across %d request(s) in the last 30 days (%.0f%% of the tenant's monthly spend); migrating or consolidating it is worth at most that amount",
+				name, m.Spend, m.Requests, share*100),
+		})
+	}
+	return opportunities, nil
 }
 
-// estimateTotalSpend returns a tenant's total spend.
-// TODO(stub): Replace with real aggregation query when spend data source is available.
-func (s *Service) estimateTotalSpend(tenantID string) float64 {
-	return 5000.00
+// modelName names a model that recorded spend. model_id is nullable, so an
+// empty one is labelled explicitly instead of producing a blank resource.
+func modelName(id string) string {
+	if id == "" {
+		return "unspecified-model"
+	}
+	return id
+}
+
+// riskForShare maps a model's share of the tenant's monthly spend to a risk
+// label for acting on it: the model carrying most of the spend is the most
+// disruptive to change.
+func riskForShare(share float64) string {
+	if share >= highSpendShare {
+		return "high"
+	}
+	if share >= midSpendShare {
+		return "medium"
+	}
+	return "low"
 }
 
 // GetSavingsHistory returns savings tracking history.
@@ -92,12 +162,18 @@ func (s *Service) RecordSavings(ctx context.Context, tenantID string, amount flo
 	return record, nil
 }
 
-// GenerateAlerts generates cost alerts from high-priority opportunities.
-func (s *Service) GenerateAlerts(tenantID string) []models.CostAlert {
-	analysis := s.AnalyzeCostSavings(tenantID)
-	var alerts []models.CostAlert
-	for _, opp := range analysis.Opportunities {
-		if opp.EstimatedMonthlySavings > 500 {
+// GenerateAlerts returns the tenant's opportunities that are worth surfacing as
+// an alert, largest savings first. It used to read them through
+// AnalyzeCostSavings, which would have fetched the all-time total twice; it
+// reads the opportunities directly instead.
+func (s *Service) GenerateAlerts(ctx context.Context, tenantID string) ([]models.CostAlert, error) {
+	opportunities, err := s.buildOpportunities(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	alerts := make([]models.CostAlert, 0)
+	for _, opp := range opportunities {
+		if opp.EstimatedMonthlySavings > alertSavingsFloor {
 			alerts = append(alerts, models.CostAlert{
 				Type:                    "high_savings_opportunity",
 				Category:                opp.Category,
@@ -108,5 +184,5 @@ func (s *Service) GenerateAlerts(tenantID string) []models.CostAlert {
 			})
 		}
 	}
-	return alerts
+	return alerts, nil
 }

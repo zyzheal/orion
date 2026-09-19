@@ -9,6 +9,7 @@ type RepositoryInterface interface {
 	ListSavingsHistory(ctx context.Context, tenantID string) ([]models.SavingsRecord, error)
 	GetTotalSavings(ctx context.Context, tenantID string) (float64, error)
 	GetTotalSpend(ctx context.Context, tenantID string) (float64, error)
+	ListSpendByModel(ctx context.Context, tenantID string) ([]ModelSpend, error)
 }
 
 // Ensure Repository implements RepositoryInterface at compile time.

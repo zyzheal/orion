@@ -31,14 +31,19 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) Optimize(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "OptimizeAICost")
 	defer span.End()
-	_ = ctx
 	tenantID := c.GetString("tenant_id")
 
+	// The body carries a client-supplied tenant_id, which is not the caller's
+	// tenant, so it is bound for validation but never read.
 	var req models.OptimizeRequest
 	_ = c.ShouldBindJSON(&req)
 
-	analysis := h.svc.AnalyzeCostSavings(tenantID)
-	recommendations, err := h.svc.RecommendOptimization(tenantID)
+	analysis, err := h.svc.AnalyzeCostSavings(ctx, tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	recommendations, err := h.svc.RecommendOptimization(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -71,7 +76,11 @@ func (h *Handler) GetSummary(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	analysis := h.svc.AnalyzeCostSavings(tenantID)
+	analysis, err := h.svc.AnalyzeCostSavings(ctx, tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
 	totalSavings, err := h.svc.GetTotalSavings(ctx, tenantID)
 	if err != nil {
 		respondInternalError(c, err.Error())
@@ -88,10 +97,14 @@ func (h *Handler) GetSummary(c *gin.Context) {
 
 // GetAlerts handles GET /ai/cost/alerts
 func (h *Handler) GetAlerts(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAICostAlerts")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAICostAlerts")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	alerts := h.svc.GenerateAlerts(tenantID)
 
+	alerts, err := h.svc.GenerateAlerts(ctx, tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
 	respondSuccess(c, gin.H{"data": alerts, "total": len(alerts)})
 }

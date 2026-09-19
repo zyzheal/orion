@@ -20,13 +20,18 @@ type CostSavingsOpportunity struct {
 }
 
 // SavingsRecord represents a historical savings record.
+//
+// The db tags are load-bearing: ListSavingsHistory reads SELECT * and sqlx
+// maps a column to db:"..." first, falling back to the Go field name. Without
+// them tenant_id and created_at have no destination and the whole history
+// route answers 500 as soon as a tenant holds one record.
 type SavingsRecord struct {
-	ID          string    `json:"id"`
-	TenantID    string    `json:"tenant_id"`
-	Amount      float64   `json:"amount"`
-	Category    string    `json:"category"`
-	Description string    `json:"description"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          string    `json:"id" db:"id"`
+	TenantID    string    `json:"tenant_id" db:"tenant_id"`
+	Amount      float64   `json:"amount" db:"amount"`
+	Category    string    `json:"category" db:"category"`
+	Description string    `json:"description" db:"description"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 }
 
 // CostSummary represents the cost summary response.
