@@ -13577,3 +13577,119 @@ func (r *Repository) GetTicketSLAStatus(ctx context.Context, tenantID, ticketID 
 - 全仓约 80 处 `ON CONFLICT` 中只有工单模块 4 处经过闭包测试；其余 53 个活 offender 在约 40 个模块（`/tmp/r62/liv7.txt`）；6 个 dead 删除候选；2 组 NO_DDL；模块 A `metadata` JSONB 与 `map[string]any` 的 encode/scan 未验证；`AssignmentRule.Order` 的 `db:"order"` 是 SQL 保留字。
 - 模块 A 3 个预存在 gofmt 违规（`internal/ticket/models/{assignment_rule,relation,ticket}.go`）。
 - `handler_test.go:126` 的 `TestHandler_TICKETING_CloseTicket` 与 `handler_test.go:560` 的 `TestHandler_TICKETING_GetTicketSLAStatus` 都是非区分断言（只查 `w.Code >= 500`）。本轮新加的 handler 测试断言恰好 200 加具体字段值，与那条并存但互不替代。
+## §68 模块 A（`internal/ticket`）SLA 子系统的 5 条在册路由整条无租户边界：SLA 期限、违约状态、暂停标记全部跨租户读写（2026-08-26）
+
+扫描起点 HEAD `fce62a50e`（§67 已提交）。§66、§67 扫的都是模块 B（`internal/ticketing`）；本轮起攻模块 A——它同样在册：`RegisterTicketDomainRoutes` 挂在 `cmd/server/router.go:282`，`routes.go` 里 **23 条**注册。它的 SLA 半条链一条租户参数都没有。
+
+本节 16 个文件全部落在 `internal/ticket`，无新迁移，下一个可用版本号仍是 **699**。（§66 补注过 697、698 已落地。）
+
+### 68.1 缺的不是一个方法，是整条链的形状
+
+迁移 686 建表时就埋了两颗雷：
+
+```sql
+CREATE TABLE IF NOT EXISTS sla_targets (
+    ...
+    tenant_id TEXT,          -- 可空
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+`slla_records`（模块 A 的 `sla_records`）则**根本没有** tenant 列。于是两类缺陷同时存在：
+
+**A 类：列存在但没人写。** `SLARepository.CreateTarget` 的 INSERT 列清单里不含 `tenant_id`，`CreateRecordForTicket` 建的 target 也没有。所有 target 行落地时租户是 NULL，于是 `GetTargetByPriority` 按 `priority + enabled` 取第一行——**全库范围**的第一行。别的租户写的 critical 目标窗口，就变成这个租户工单的 SLA 截止。因为列可空，这个遗漏是合法 SQL，编译、迁移检查全绿。
+
+**B 类：没有列可读。** `sla_records` 的 6 个读方法和 5 条合规查询全靠 `ticket_id` 或时间窗过滤：
+
+| 方法 | 修复前的过滤条件 |
+|---|---|
+| `GetRecordByTicket` | `WHERE ticket_id = $1` |
+| `FindBreachedRecords` | `WHERE r.breached = true AND r.resolved_at IS NULL` |
+| `FindPendingRecords` | `WHERE r.breached = false AND … paused = false` |
+| `PauseRecord` / `UnpauseRecord` | `WHERE ticket_id = $2` |
+| `GetComplianceReport` ×5 | `WHERE r.created_at BETWEEN $2 AND $3`（纯时间窗） |
+
+危害不是"数据错"，是**任意租户可读任意租户的 SLA 状态**：猜到一个工单 id 就能拿到它的截止时间和违约标记；`CheckSLABreaches` 更糟——它扫全库 pending 记录再逐条 `UPDATE` 回写 `breached = true`，一次跨租户读还带一次跨租户**写**。
+
+### 68.2 修法：经父工单做 semi-join，不给 `sla_records` 加列
+
+`sla_records` 没有 tenant 列，要隔离只能经父工单。`tickets` 表有 `tenant_id`，于是所有 `sla_records` 读统一加一条半连接：
+
+```sql
+AND r.ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $1)
+```
+
+**为什么不加列**：给 `sla_records` 加 `tenant_id` 需要新迁移，而这张表的行是 `CreateRecordForTicket` 在工单创建时顺手写的，写路径上没有现成的租户来源要搬——反而要从 `tickets` 反查，等于把半连接的成本前移到写入时，读侧照样得信这张列。**不复制归属事实**：半连接让 `tickets.tenant_id` 是唯一权威，加列会造出第二份需要同步的副本，正是 §66 里 `slaTargetsFor` 那份硬编码漂移的同型风险。
+
+三处配套改动：
+
+1. **`repository/sla.go` 的 `CreateTarget` 补上列**：INSERT 列清单加 `tenant_id`，参数加 `target.TenantID`（第 2 位，后面全部顺延）。
+2. **`service/sla.go` 的 `CreateTarget` 盖章**：`TenantID: tenantID`。ID 为空时自动生成 `sla-<unixmilli>`。
+3. **`handler/response_writer.go` 新增 `tenantFrom`**：取 `c.GetString("tenant_id")`，空则 **403 + `errors.ErrForbidden`** 并回 `tenant_id is required`，返回 `(tenantID, false)`。选 `ErrForbidden` 而不是 `middleware.RespondUnauthorized` 是为了不引入 `internal/middleware`——模块 A 的 handler 包此前没有这个依赖。
+
+`CreateRecord`/`UpdateRecord` 刻意保持无租户参数：它们按记录主键定位，调用方拿记录的前提已经过上面那条半连接。
+
+### 68.3 在册路由与死链的边界（这部分必须分清）
+
+修在**活路由**上的 5 条（全部经 `auth.RequirePermission`）：
+
+| 路由 | handler | 修复前 |
+|---|---|---|
+| `POST /tickets/sla/targets` | `AddSLATarget` | 写入 NULL 租户的 target |
+| `GET /tickets/sla/compliance` | `GetSLACompliance` | 5 条纯时间窗查询 |
+| `GET /tickets/sla/breaches` | `CheckSLABreaches` | 全库扫 + 跨租户回写 |
+| `GET /tickets/dispatch/queue/sla-entries` | `QueueHandler.GetSLAQueueEntries` | 无租户的记录查找 |
+| `GET /tickets/dispatch/queue/sla-alerts` | `QueueHandler.GetSLAAlerts` | 无租户的记录查找 |
+
+**另修对但没有挂载点的方法**（不是漏修，是把死代码也修到不会出事）：`ListTargets`、`DeleteTarget`、`FindBreachedRecords`、`PauseRecord`、`UnpauseRecord` 在模块 A 内**零调用**或只被死链调用；`SLAHandler.GetTicketSLA` 未在模块 A 注册——`routes.go:43` 明确写了 `ticketingH owns GET /tickets/:id/sla`，模块 B 占着这条路。它对应的仓库方法 `GetRecordByTicket` 仍然通过在册的 `sla-entries` / `sla-alerts` 被调到，所以那条半连接是真被保护的（变异 M3 由挂在这两条路由上的 handler 测试杀掉）。
+
+**没动，因为基础设施不存在**：`GET /tickets/dispatch/queue/sla-status` → `dispatchRepo.GetQueueStatus(ctx)` 没有租户参数，`dispatch_queue` 本身不建租户键（`Enqueue` 收 `tenantID`，`GetQueueStatus`/`Dequeue` 不收）；`POST /tickets/dispatch/queue/reprioritize` → `ReprioritizeAll(ctx)` 只数数，从不写库。
+
+### 68.4 19 条新回归
+
+`repository/sla_tenant_test.go`（390 行，12 条）+ `handler/sla_tenant_test.go`（412 行，7 条含 4 个子用例）。三个设计点：
+
+1. **fragment matcher 而不是精确匹配**：`sqlmock` 默认是 `strings.Contains`，会把期望串当成必须出现的片段。这里换 `QueryMatcherFunc` 做空白归一化后的包含判断，期望串写成语句里最容易被删掉的那一段——`SELECT id FROM tickets WHERE tenant_id = $1`。删掉半连接，期望串立刻匹配不上，驱动返回 error，测试 `Fatalf`。
+2. **参数序用 `WithArgs` 钉住**：`PauseRecord` 的租户在 `$3`，`reason` 在 `$1`。`WithArgs("maintenance window", "t-42", "ten-a")` 把顺序钉死——把 `$3` 写成 `$1` 会绑定到 reason，SQL 仍然合法、编译仍然通过，只有参数序断言能抓到（变异 M9）。
+3. **跨 service 断言租户值**：`recordingSLARepo` 实现全部 12 个 `SLARepositoryInterface` 方法，把 `"方法:租户"` 记进 `f.calls`，其余委托给真仓库。于是 handler 测试能断言 `rec.calls == ["GetRecordByTicket:ten-a:t-42"]`——租户值一路从 gin context 传到绑定参数，中间任何一层丢掉都会露出来。
+
+`TestSLAHandler_RequiresTenant` 与 `TestQueueHandler_SLARoutesRequireTenant` 特意**不排任何 mock 期望**：真有任何查询落到驱动上会得到 500，所以断言 403 本身就证明了拒绝发生在数据库调用之前。`mock.ExpectationsWereMet()` 对零期望是空断言，已从这两条测试里删掉。
+
+### 68.5 三个自查太弱（本轮自己撞出来的）
+
+1. **变异 harness 的门只看 `SURVIVED`，不看 `PATCH_ERROR`。** 第一次跑出 9 条变异里有 7 条 `PATCH_ERROR: anchor not found`——我的锚点用了 1 个 tab 而源文件是 2 个，或用 0 个对齐空格而源文件是 2–3 个（`AND …` 续行是 `\t\t` + 3 空格）——但脚本照样打印 `RESULT: every mutation killed`。**七条变异从未应用，等于七条非空性证明从未发生。** 门改成 `SURVIVED` 和 `PATCH_ERROR` 一起 fail，并把"锚点不唯一"也判失败。修完锚点后 12/12 全部应用并全部 KILLED，`restored-identical: YES`，`restored-suite-exit: 0`。
+2. **两条测试是空断言，被变异抓出来。** M4（`FindPendingRecords`）与 M5（`FindBreachedRecords`）SURVIVED：我的 `ExpectQuery` 片段写的是**与租户无关**的那段谓词，删掉半连接后期望串照样匹配；`WithArgs("ten-a")` 只钉了值，没钉它喂给哪条谓词。修法是让片段本身带上半连接，同时新增 `assertSemiJoin` 独立读回驱动实际收到的语句——两者任一再被软化，另一条仍然在。
+3. **`sqlmock` v1.5.2 的 `QueryMatcherFunc` 永远拿不到绑定参数。** 我在 matcher 里试图捕获实际绑定值，结果是 5 条合规查询全部打印 `compliance query bound []`。删除该机制：绑定参数靠每条期望上的 `WithArgs`，服务层边界靠 `recordingSLARepo`。
+
+### 68.6 验证
+
+- `gofmt -l -w` 16 个文件，只剩 1 个测试文件被格式化。
+- 16 个文件字节扫描：U+201D = 0，控制字符 = 0，相邻单引号仅出现在 `UnpauseRecord` 的原始字符串 `paused_reason = ''` 内（安全）。
+- `go build ./...`、`go vet ./internal/ticket/...`、`go test -count=1 ./internal/ticket/...`、`go test ./...` 全绿。
+- `go test -count=1 -run 'RouteDump|RouteConflict|RouteCount' ./cmd/server/` 退出 0。
+- 变异 harness：**12/12 应用且全部 KILLED**，恢复逐字节一致。
+- 工作树只多出本轮预期的 14 个改动 + 2 个新文件；并行会话的 `internal/cmdb/*`（5 个）、`internal/cache-mgmt/*`、`internal/mlops/*`、`cmd/server/wiring-cache-mgmt.go` 未动。
+
+两条环境坑（§66、§67 各撞过，本轮又撞）：`go test` 会报 `ok … (cached)`，改动过的包必须 `-count=1` 重跑；以及 `go build … | head; echo $?` 拿到的是 `head` 的退出码，一律先重定向到文件再 `echo $?`。另外 harness 用 `GOWORK=off` 会报 `missing go.sum entry for … go.opentelemetry.io/otel`——workspace 的 sum 是承重的，改用两模块 `go.work` + 复制的 `go.work.sum`。
+
+### 68.7 提交
+
+- 代码：`internal/ticket/handler/{dispatch,queue_handler,response_writer,sla}.go`、`internal/ticket/models/sla.go`、`internal/ticket/repository/{interfaces,sla}.go`、`internal/ticket/service/{analytics,analytics_enhanced,dispatch,error_discard_test,queue_manager,sla,ticket}.go`、新增 `internal/ticket/{handler,repository}/sla_tenant_test.go`。
+- 文档：本节 + `ALL_TODOS.md` 一行。
+
+本轮不需要迁移，下一个可用迁移版本号 **699**。
+
+### 68.8 遗留（记录不改）
+
+**顺带修对的注释**：`models/sla.go` 里 `TenantID` 的注释原先写着"CreateTarget 的 INSERT 不写它，所以保持空值而非 NULL"——本轮修完这句就成了假话，已改写为"INSERT 写该列；此前写入的行持有 NULL，而 NULL 不匹配任何 `tenant_id` 谓词，因此对任何租户都不可达，而不是对所有租户可见"。
+
+**未动，结转：**
+
+1. `SLAService.CreateRecordForTicket` 把"这个优先级没有 target"和真数据库错误混成一件事：`if err != nil { return nil }`。
+2. `SLAService.GetTicketSLA` / `MarkResponded` / `MarkResolved` 吞掉 `GetRecordByTicket` 的错误（`return nil // no SLA record`），把 `sql.ErrNoRows` 与驱动故障混为一谈。
+3. `service/ticket.go:85` 完全丢弃 `CreateRecordForTicket` 的返回值（fire-and-forget）。
+4. `SLARepository.GetComplianceReport` 丢弃两条 AVG 查询的错误，且 `GROUP BY` 查询失败时返回 `report, nil`。
+5. `SLAService.ticketRepo` 字段在 `service/sla.go` 里从未被读取（死字段，`NewSLAService` 仍给它赋值）。
+6. 模块 A 零调用集群：`ListTargets`、`DeleteTarget`、`FindBreachedRecords`（唯一调用点在死的 `AnalyticsEnhanced`，且错误用 `_` 丢弃）、`PauseSLA`、`UnpauseSLA`、`MarkResponded`、`MarkResolved`。本轮一并做了租户隔离，但按"零调用且零信息的字段/方法是死代码"的标准，它们属于删除候选而不是路由修复。
+7. `QueueManager.GetSLAQueueStatus` 仍无租户边界（`dispatch_queue` 不建租户键）；`QueueHandler.ReprioritizeQueue` 仍无租户边界（底层只计数不写）。
+8. §67.9 的死链集群不变：4 个克隆仓库 + `service/sla_policy.go` + 无引用的 `repository_interface.go`，查 686 的裸名表族，28 条无租户过滤的 `SELECT *`。
