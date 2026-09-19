@@ -13693,3 +13693,102 @@ AND r.ticket_id IN (SELECT id FROM tickets WHERE tenant_id = $1)
 6. 模块 A 零调用集群：`ListTargets`、`DeleteTarget`、`FindBreachedRecords`（唯一调用点在死的 `AnalyticsEnhanced`，且错误用 `_` 丢弃）、`PauseSLA`、`UnpauseSLA`、`MarkResponded`、`MarkResolved`。本轮一并做了租户隔离，但按"零调用且零信息的字段/方法是死代码"的标准，它们属于删除候选而不是路由修复。
 7. `QueueManager.GetSLAQueueStatus` 仍无租户边界（`dispatch_queue` 不建租户键）；`QueueHandler.ReprioritizeQueue` 仍无租户边界（底层只计数不写）。
 8. §67.9 的死链集群不变：4 个克隆仓库 + `service/sla_policy.go` + 无引用的 `repository_interface.go`，查 686 的裸名表族，28 条无租户过滤的 `SELECT *`。
+
+## §69 模块 A 的 `dispatch_queue` 四个方法零租户谓词，四条在册路由把写失败报成 200（2026-08-26）
+
+扫描起点 HEAD `3cce7a2ee`（§68 已提交）。§68 隔开了同一模块的 `sla_targets`/`sla_records`，但 `dispatch_queue` 整张表还在裸奔，而且挂在上面的 6 条路由里有 4 条把"写失败"当成成功回答。
+
+本节 14 个文件全部落在 `internal/ticket`，无新迁移，下一个可用版本号仍是 **699**。
+
+### 69.1 D1：一张表 6 条 SQL，只有写入那 1 条带租户
+
+`dispatch_queue` 的 tenant 列是齐的（`Enqueue` 的 INSERT 就写 `tenant_id`），但读出侧一个谓词都没有：
+
+| 方法 | 修复前的 SQL | 说明 |
+|---|---|---|
+| `Dequeue` | `SELECT * FROM dispatch_queue ORDER BY … LIMIT $1` | 全库按优先级出队 |
+| `RemoveFromQueue` | `DELETE FROM dispatch_queue WHERE ticket_id = $1` | 猜一个工单 id 就能清掉别人的排队行 |
+| `UpdateQueueEntry` | `UPDATE … WHERE ticket_id = $3` | 同上，还能改别人的 attempts |
+| `GetQueueStatus` ×3 | `SELECT COUNT(*)/MIN(enqueued_at)/AVG(wait)` 裸表 | 三个数字全是全库口径 |
+
+危害最重的是 `Dequeue`：`QueueManager` 用它喂 4 条在册队列路由，所以 `GET /tickets/dispatch/queue/sla-entries` 会把**全库**工单列表回给任何持 `ticket:read` 权限的租户。`ReprioritizeQueue` 还更糟——它出队之后要按优先级**回写**，一次跨租户读带一次跨租户写。
+
+修法跟 §68 一致，但这里不用半连接：`dispatch_queue` 自己有 `tenant_id` 列，直接加 `WHERE tenant_id = $1`。`tenantID` 一律提到签名第一位，`LIMIT` 顺延成 `$2`。共 6 条语句加谓词，覆盖 6 条在册路由：
+
+```
+POST /tickets/:id/dispatch/auto        Enqueue / RemoveFromQueue
+POST /tickets/:id/dispatch/manual      RemoveFromQueue
+GET  /tickets/dispatch/queue/sla-status   GetQueueStatus(×3)
+GET  /tickets/dispatch/queue/sla-entries  Dequeue
+GET  /tickets/dispatch/queue/sla-alerts   Dequeue
+POST /tickets/dispatch/queue/reprioritize  Dequeue
+```
+
+`repository/interfaces.go` 的 `DispatchRepositoryInterface` 四个签名同步改，`AnalyticsEnhanced` 里那一处调用点跟着补租户参数。
+
+### 69.2 D3–D6：写路径上的火放枪
+
+§66 数过模块 B 的吞错，模块 A 这边是同一病在不同器官上：
+
+- **D3 派发的四个尾写全是 fire-and-forget。** `AutoDispatch` 先落 `DispatchRecord`，然后 `UpdateAssignee`/`UpdateStatus`/`IncrementLoad`/`RemoveFromQueue` 四次写**全部丢弃错误**，`POST /dispatch/auto` 回 200 加一条记录，而工单行还能读成 open 且未分配、工程师负载停在 0（于是还会被派更多活）、队列行还挂在队里（于是会被派两次）。`ManualDispatch` 尾段一模一样。失败分支的 `Enqueue` 错误在 §68 已修，本轮把这四处补成 `fmt.Errorf("update assignee: %w", err)` 这样带步骤名的传播。
+- **D4 `CheckBreaches` 两条分支各吞一次回写。** `resolution` 分支和 `response` 分支的 `UpdateRecord` 错误都被丢掉，接口照旧回"违约已标记"。两处都改成 `return nil, fmt.Errorf("mark %s breached: %w", rec.TicketID, err)`——返回值必须带工单 id，否则 100 条记录里排错要人肉数。
+- **D5 `ManualTransfer` 三处。** `ListByTicket` 的读错被丢（转移次数上限这条护栏直接失效）；`DecrementLoad` 丢错（被转出的人负载不减，永久偏高）；审计 `CreateRecord` 丢错（换人这件事不留痕）。
+- **D6 `GetComplianceReport` 两条 AVG 丢错，`GROUP BY` 失败时 `return report, nil`。** 第二条尤其阴：前两条 COUNT 是真实数据，回给调用方的是一份"总数、违约数都正常，只有分级明细为空"的报告，200。读起来像"这个租户没有分级数据"，实际上是数据库拒绝服务。
+
+刻意保留的一个语义：`AutoDispatch` 里 `DispatchRecord` 已经提交才去写后三个字段，所以调用方重试可能看到一次分配两条记录。这是权衡过之后选的：宁可重复留痕，也不能在数据库拒绝写入时报告成功。
+
+### 69.3 D7：删掉那条永远不会挂载的包装链
+
+模块 A 的 `DispatchHandler` 里挂着 `GetDispatchQueueStatus` 和 `GetDispatchQueueEntries` 两个方法，签名是 `func(h) *gin.Context`，但全仓没有任何一行调用它们：`routes.go` 给模块 A 只注册了 `dispatch.AutoDispatch` 和 `dispatch.ManualDispatch`；全模块 grep 零引用。它们底下的 `DispatchService.GetQueueStatus`/`GetQueueEntries` 同样零调用——这两个方法的注释里自己就写着"只能通过未挂载的 handler 方法到达"。
+
+这两条路径归模块 B 管：`internal/ticketing/handler/handler.go:100-101` 拥有不带后缀的 `/queue/status` 和 `/queue/entries`，`internal/ticketing/handler/dispatch_test.go` 里有测试。
+
+按"零信息且零调用者的方法/字段是死代码"的标准，正确处置是**删**而不是补测试：给一条永远不会挂载的路由加测试，等于为不存在的行为写断言。`handler/dispatch.go` 净 −24 行（纯删除），`DispatchService` 那两个透传包装改成一段说明注释，记下谁真正服务这些路径。
+
+### 69.4 D2 记录不改：`ReprioritizeAll` 需要一次迁移
+
+`POST /tickets/dispatch/queue/reprioritize` 在册，handler 现在正确传租户，底层 `QueueManager.ReprioritizeAll` 仍然**一个字节都不写**：它出队 → `calculateSLAPriority` 算新优先级 → 只数一遍。而那个函数是 `base(≥1.0) + ageBoost + attemptBoost`，和恒大于 0，所以返回的 `reprioritized` 恒等于 `len(entries)`——接口每次都说"重排了 N 条"，实际上什么都没动。
+
+`dispatch_queue` 没有可以持久化分数的列（只有 `ticket_id`/`tenant_id`/`priority`/`enqueued_at`/`attempts`/`last_error`），要真正重排必须新迁移加列。阻塞点已经写进代码注释，本轮不伪造一个"写回去了"的假实现。
+
+### 69.5 26 条新回归 + 20 个变异全部被杀死
+
+新增 26 个测试函数：`repository/dispatch_queue_tenant_test.go`（新文件，7 个）+ 19 个补进既有文件。其中特意补了 `TestCheckBreaches_ResolutionUpdateRecordFaultSurfaces`——原有故障测试只走到 `response` 分支，`resolution` 分支是整条链路里**先**触发的那条（解决期限在过去就进 if，响应期限根本没被看），没有它 M12 会变成空变异。
+
+20 个变异全 KILLED，恢复逐字节一致，恢复后套件退出 0。harness 自己这轮暴露两处太弱的地方，都改掉了：
+
+1. **`KILLED` 的判据是"测试退出非零"，编译器报错也算杀死了。** M16–M19 把 handler 里的 `tenantID` 换成 `""`，Go 直接报 `declared and not used: tenantID`——测试根本没跑，四个"KILLED"全是空的。修：变异改写成 `_ = tenantID` 加常量参数，让它**能编译**，于是杀死它的是断言 `rec.calls == "Dequeue:ten-b:100"` 而不是编译器；同时 verdict 拆成三分支，非零退出但没有 `--- FAIL:` 行的判为 `BUILD_FAILED` 并进失败门槛。
+2. **M1、M2 的锚点缩进写错**（该两个 tab 的行写成一个 tab），`PATCH_ERROR anchor absent`。锚点写成"每个 `^` 一个 tab"运行时展开，避免在脚本里放字面 tab。
+
+负面控制：把一个恒等改写（原样写回）塞进 `MUTATIONS`，harness 报 `SURVIVED` → `RESULT: NOT PROVEN` → 退出 2。门槛是真的会失败的。
+
+### 69.6 验证
+
+- `go build ./...` 退出 0；`go vet ./internal/ticket/...` 退出 0。
+- `go test -count=1 ./internal/ticket/...` 退出 0；`go test ./... -count=1` 退出 0。
+- `gofmt -l` 在 handler/service/repository 三目录无输出。
+- 本轮 14 个 Go 文件字节扫描：非 ASCII = 0，控制字符 = 0（U+201D = 0）。
+- `go.work.sum`、`orion-platform-svc-go/go.sum` 均无改动。
+- 工作树只有本轮预期的 14 个改动 + 1 个新测试文件；并行会话的 `internal/cmdb/*`（5 个）、`internal/cache-mgmt/*`（含 1 个未跟踪）、`internal/mlops/*`（2 个）、`cmd/server/wiring-cache-mgmt.go` 未动。
+
+### 69.7 提交
+
+- 代码：`internal/ticket/handler/{dispatch,queue_handler}.go`、`internal/ticket/repository/{dispatch,interfaces}.go`、`internal/ticket/service/{analytics_enhanced,dispatch,queue_manager,sla,transfer_service}.go`，测试 `internal/ticket/handler/sla_tenant_test.go`、`internal/ticket/repository/sla_tenant_test.go`、`internal/ticket/service/error_discard_test.go`、新增 `internal/ticket/repository/dispatch_queue_tenant_test.go`。
+- 文档：本节 + `ALL_TODOS.md` 一行。
+
+本轮不需要迁移，下一个可用迁移版本号 **699**。
+
+### 69.8 遗留（记录不改）
+
+**未动，结转：**
+
+1. `QueueManager.ReprioritizeAll` 不写任何字节（§69.4），需要新迁移加列。
+2. `DispatchService.GetTimeToAssignmentStats` 在在册的 `GET /tickets/dispatch/reports/time-to-assignment` 上返回五个零值常量，`engineerRepo` 里没有可算它的列。
+3. `SLAService.ticketRepo` 字段从未被读取。
+4. 模块 A 零调用集群不变：`ListTargets`、`DeleteTarget`、`FindBreachedRecords`、`PauseSLA`、`UnpauseSLA`、`MarkResponded`、`MarkResolved`；本轮又删掉 `DispatchService.GetQueueStatus`/`GetQueueEntries` 一对。`UpdateQueueEntry` 仍零调用，但已按本轮标准加了租户谓词。
+5. `TransferService`/`QueueManager`/`LoadBalancer` 仍用 `zap.NewNop()`。
+6. `GetTransferConfig`/`UpdateTransferConfig` 改的是进程内全局内存配置，无持久化也无租户作用域。
+7. `TransferService.TransferDueToSuspend` 仍丢弃 `GetEngineer` 和 `transferRepo.Create` 的错误，并生成 `pending-%s-%d` 合成工单 id。
+8. `TransferService.GetTransferStats` 的未受检类型断言不变。
+9. `handler/dispatch.go` 里 `AutoDispatch`/`ManualDispatch`/`CalculateDispatchScore`/`GetBestMatch` 仍用 `tenantID := c.GetString("tenant_id")` 无守卫（既有模式，本轮没碰）。
+10. `SLAService.CreateRecordForTicket` 把"该优先级无 target"与驱动故障混为一谈；§68.8 的 1–3、5、7、8 各项不变。
