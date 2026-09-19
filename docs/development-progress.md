@@ -14337,3 +14337,184 @@ orion-platform-svc-go/internal/apm/service/business_test.go   （新）
 并行会话的文件（`internal/alert/...`、`internal/audit/...`、`internal/notification/...`）与全部 `orion-frontend/...` 修改一律不入这两笔。`go.work.sum` 与 `orion-platform-svc-go/go.sum` 提交前复核无改动。变异 harness 在 `/private/tmp/r72/`，仓库外，不入库。
 
 文档提交：本节 + `ALL_TODOS.md` 第 399 行一行。
+
+
+## §74 ai/aicost 四条在册路由的成本分析整条链都从内存里读伪造数据：`GetTotalSpend` 汇总的是省下的钱而不是花掉的钱、两处 5000.00 回退把查询错误和真实的零都伪造成"月花五千"、`AnalyzeCostSavings` 忽略 tenantID 返回两条硬编码 1200.00 / 800.00 的机会、`GenerateAlerts` 用硬编码阈值筛伪造数据并把 nil 序列化成 null（2026-08-26）
+
+Round 73 起点 HEAD `65ce68393`。四条在册路由：`POST /ai/cost/optimize`、`GET /ai/cost/summary`、`GET /ai/cost/alerts`、`GET /ai/cost/history`，全部挂着 `auth.RequirePermission("ai-cost", ...)`。问题不在路由，在 service 到 repository 的整条链返回的是字面量。
+
+### 74.1 为什么这组 stub 看起来像已经交付了
+
+改动前 `repository.GetTotalSpend` 的完整方法体：
+
+```go
+// GetTotalSpend returns the total spend amount for a tenant.
+// TODO(stub): Replace with real spend data source when available.
+func (r *Repository) GetTotalSpend(ctx context.Context, tenantID string) (float64, error) {
+	var total float64
+	err := r.db.GetContext(ctx, &total,
+		`SELECT COALESCE(SUM(amount), 0) FROM ai_cost_savings WHERE tenant_id=$1`, tenantID)
+	if err != nil {
+		return 5000.00, nil // fallback to default stub value
+	}
+	if total == 0 {
+		return 5000.00, nil // default when no data
+	}
+	return total, nil
+}
+```
+
+service 侧更隐蔽。`AnalyzeCostSavings` 的文档注释原文是 `Queries the repository for real spend data; falls back to reasonable defaults when no data exists yet.`，方法体内对应的那一行是 `// In production, query actual cost data from the repository.`，`buildOpportunities` 里是 `// TODO(stub): Replace with real opportunity detection logic (e.g., query usage patterns).`，然后返回两条字面量：
+
+```go
+{Category: "model_optimization", ResourceName: "gpt-4 -> gpt-4-turbo migration",
+	EstimatedMonthlySavings: 1200.00, RiskLevel: "low"},
+{Category: "idle_resources", ResourceName: "unused model deployments",
+	EstimatedMonthlySavings: 800.00, RiskLevel: "medium"},
+```
+
+`estimateTotalSpend(tenantID string) float64` 的整个方法体是 `return 5000.00`，`GenerateAlerts(tenantID string) []models.CostAlert` 经 `AnalyzeCostSavings` 拿这两条伪造机会，用硬编码 `> 500` 过滤，然后 `var alerts []models.CostAlert`——**nil**，JSON 序列化成 `null` 而不是 `[]`。
+
+四个"看起来像做完"的理由，每一个都经得起表面审查：
+
+1. **文档注释是诚实的假象。** 读完那句 `Queries the repository for real spend data` 的人会认定有真查询，只是没数据时有默认值。而那行 `// In production, query actual cost data from the repository.` 出现在唯一存在的仓库调用之后，所以"生产环境里会查"这句话在语义上恰好等于"这段代码不查"。注释越认真，越难被发现。
+2. **签名齐全。** `ctx context.Context`、`tenantID string`、`float64, error` 全就位，`var _ RepositoryInterface = (*Repository)(nil)` 的编译期断言通过。唯一漏的是方法体。
+3. **返回数据语义上完全合理。** 1200.00 的 `gpt-4 -> gpt-4-turbo migration`、800.00 的 `unused model deployments`，category 是 `model_optimization` / `idle_resources`，risk 是 `low` / `medium`，`Currency: "CNY"` 也是真的。前端和集成测试拿到这份 JSON 都无从分辨真假。
+4. **失败路径比成功路径更像真的。** `GetTotalSpend` 返回 `float64, error`，但**永远不会返回非 nil error**：查询失败回 5000.00，查询成功但为零也回 5000.00。调用方拿到的 `err == nil` 是真实信号，只有数值是假的。这是最难查的一类 stub——错误契约是完整的，错的是"错误被当成数据返回"。
+
+而 `GetTotalSpend` 还有一个更糟的性质：它**查了真表，但查错了表**。`FROM ai_cost_savings` + `SUM(amount)` 汇总的是省下来的钱，不是花掉的钱。所以 `GET /ai/cost/summary` 的 `total_spend` 在真库上的真实语义是"该租户累计省了多少"，字段名叫 spend。
+
+### 74.2 逐条定级
+
+| 位置 | 缺陷 | 后果 |
+|---|---|---|
+| `repository.GetTotalSpend` | `FROM ai_cost_savings` + `SUM(amount)`；错误与真实的零各回退一个 5000.00 | summary 与 optimize 的 total_spend 汇总的是省下的钱；数据库不可用时返回一个看起来真实的月花费 |
+| `service.AnalyzeCostSavings` | 签名 `(tenantID string)` 无 ctx 无 error；正文 `// In production, query actual cost data from the repository.`；`TotalSpend: estimateTotalSpend(...)` | tenantID 完全不参与；调用方无法得知分析失败；跨模块调用不带 ctx，超时与取消不传播 |
+| `service.buildOpportunities` | `// TODO(stub)`；两条字面量 1200.00 与 800.00 | optimize 的 recommendations 与 alerts 对每个租户都一样 |
+| `service.estimateTotalSpend` | `// TODO(stub)`；`return 5000.00` | 每个租户的月花费都是 5000.00 |
+| `service.GenerateAlerts` | 签名 `(tenantID string)` 无 error；经 `AnalyzeCostSavings` 拿伪造机会；硬编码 `> 500`；`var alerts []models.CostAlert` | 错误被静默吞掉；无机会时 alerts 是 nil，JSON 序列化成 null 而不是数组 |
+| `handler.Optimize` 与 `GetSummary` | `analysis := h.svc.AnalyzeCostSavings(tenantID)`，不检查错误（方法也不返回 error）；丢弃 span 的 ctx（`_ = ctx`） | 无法区分"分析成功"与"分析失败" |
+| `handler.GetAlerts` | `_, span :=` 丢弃 ctx；不检查错误 | 查询失败返回 200 加空 |
+| `models.SavingsRecord` | 只有 json tag 没有 db tag，而 `ListSavingsHistory` 是 `SELECT *` | 见 74.5：任何持有记录的租户调 history 都 500 |
+
+`GetHistory` 是唯一不是 stub 的路由（真查询、检查错误），但它的响应结构恰好是 74.5 的受害方。
+
+### 74.3 修法
+
+**数据源换成真表。** `migrations/689_create_ai_domain_orphan_tables.sql` 里 `ai_cost_records` 有 `tenant_id` / `model_id` / `cost` / `created_at`，`ai_cost_savings` 有 `tenant_id` / `amount`。所以：
+
+- `GetTotalSpend` 改成 `SELECT COALESCE(SUM(cost), 0) FROM ai_cost_records WHERE tenant_id = $1`，**两处 5000.00 回退全删**，错误原样上抛。没有行时 `COALESCE` 让聚合本身返回一行 0——真实的零，不是默认值。
+- 新增 `ListSpendByModel` 读 30 天窗口（`WHERE tenant_id = $1 AND created_at >= NOW() - INTERVAL '30 days'`，`GROUP BY 1`，`ORDER BY spend DESC, model_id`），返回 `[]ModelSpend`（`ModelID` / `Spend` / `Requests`）；`RepositoryInterface` 同步加一行。`GROUP BY 1` 而不是 `GROUP BY model_id` 是刻意的：选出的是 `COALESCE(model_id, '')`，它与 `model_id` 在语法上不相等，PostgreSQL 不允许按未出现的表达式分组。
+
+**机会从数据推导，不再写死。** `buildOpportunities` 变成：取窗口内每模型的 `Spend`，跳过 `Spend <= 0`，每行一条 `model_consolidation` 机会，`EstimatedMonthlySavings` 等于该模型自己观测到的花费，`RiskLevel` 由 `riskForShare` 给出（大于等于 50% 为 high、大于等于 25% 为 medium、其余 low，分母是窗口总额 `windowTotal`），Description 用 `fmt.Sprintf` 写清模型名、金额、请求数、占比与窗口。`AnalyzeCostSavings` 与 `RecommendOptimization` 走同一个 `buildOpportunities`；`GenerateAlerts` 直接读 `buildOpportunities`（原来经 `AnalyzeCostSavings`，等于多查一次全时段总花费）。`estimateTotalSpend` 整个删掉，`> 500` 提为常量 `alertSavingsFloor = 500.0`。
+
+**错误契约补齐。** 三个 service 方法改成 `(ctx, tenantID) (..., error)`，仓库错误用 `%w` 包上 `"read total spend"` 与 `"read spend by model"`；四个 handler 各加 `if err != nil { respondInternalError(c, err.Error()); return }`，`Optimize` 两处、`GetSummary` 两处。`GetAlerts` 原先丢弃 ctx 的 `_, span :=` 改成 `ctx, span :=`。
+
+**JSON 形状稳定。** 三处 `var ... []T`（nil）改成 `make([]T, 0)`，让 Opportunities / Recommendations / Alerts 在空的时候序列化成空数组而不是 null。
+
+**handler 层刻意不动两处。** 四条 aicost 路由仍用裸 `c.GetString("tenant_id")`（`internal/ai/*` 整目录的约定，兄弟模块 `internal/ai/cost` 也是），且四条全是读，后果是空结果而不是跨租户泄漏，本轮不动（74.8 第 1 条）。`Handler.svc` 仍是具体 `*service.Service`，接口化延后。
+
+### 74.4 三个语义决定，都写进代码而不是留成假设
+
+1. **两个时间窗必须分开，不能混。** 机会列表用的是 30 天窗（唯一暴露的字段名就叫 `EstimatedMonthlySavings`，是月度的），而 `TotalSpend` 是全时段累计（与兄弟模块 `internal/ai/cost` 的 summary 一致）。因此占比的分母必须是 30 天窗口总额，绝不能是全时段总额——否则每个占比都约等于 0，每个风险都读成 low，风险分级整栏失效。`TestAnalyzeCostSavings_ShareIsAgainstTheMonthlyWindow` 专门钉这一点：全时段 10000 对窗口 200，100 的分母必须是 200。
+2. **`EstimatedMonthlySavings` 是上限，不是预测。** 该模型自己观测到的花费是"最多能省多少"的可寻址上限，代码里不发明任何折算系数（"迁移到便宜模型能省 30%"这类系数没有任何数据支撑）。Description 因此写成 `... migrating or consolidating it is worth at most that amount`，并写明窗口，让调用方知道这个数是什么。
+3. **`RiskLevel` 保留原意：动作的风险，不是紧迫度。** 占比越大，动这个模型越危险（依赖它的调用方越多、越集中），所以高占比对应 high。不改语义，只让它是真的算出来的。
+
+### 74.5 顺手抓到的一处活缺陷：`SavingsRecord` 缺 db tag，`SELECT *` 扫不进自己的表
+
+写 handler 测试（而不是仓库测试）时炸出来的。`ListSavingsHistory` 用的是 `SELECT * FROM ai_cost_savings`，而 `models.SavingsRecord` 只有 json tag。sqlx v1.4.0 的列到字段映射顺序是 `db:"..."` 优先、其次 Go 字段名小写化——所以 `tenant_id` **不**映射到 `TenantID`，整行扫描报 `missing destination name tenant_id`，`GET /ai/cost/history` 对任何持有记录的租户都 500。
+
+补 6 个 db tag 即可，**不需要迁移**：`migrations/689_create_ai_domain_orphan_tables.sql` 第 120 到 127 行的 `ai_cost_savings` 恰好就是这 6 列。缺陷是潜伏的——`RecordSavings` 全仓零非测试调用点，生产上这张表是空的，空切片扫描不报错，路由一直返回 200 加空数组。仓库层测试测不出来（仓库测试用 sqlmock，返回的列名由测试自己决定），只有把整条链挂到真实的 `SELECT *` 上才能暴露。
+
+### 74.6 新测试：43 个测试函数，1158 行
+
+repository 6 个（新文件 `cost_repository_test.go` 181 行）/ service 25 个（`service_test.go` 530 行）/ handler 12 个（新文件 `handler_test.go` 447 行）。
+
+**仓库层**用 sqlmock `QueryMatcherEqual` 精确比对 SQL 文本。两个让断言不虚的写法：(1) `TestGetTotalSpendReadsTheSpendTable` **只注册 `ai_cost_records` 的期望**——注册了期望之后对别表的任何查询都会以 unexpected call 失败，所以"它读的是省钱的表"这件事被直接证伪而不是被推断；(2) `TestListSpendByModelBindsOnlyTheTenant` 用 `WithArgs("solo")` 钉住只有一个绑定参数，窗口是字面量而不是第二个占位符。
+
+**service 层**用记录调用点的 `fakeCostRepo`，`spendTenant` 与 `byModelTenant` 让丢租户或换租户在这里失败，而不是静默答别人的账；`var _ repository.RepositoryInterface = (*fakeCostRepo)(nil)` 保证 fake 覆盖整个接口，74.3 新增的 `ListSpendByModel` 会立刻要求在 fake 里实现，接口漂移无处藏。三条 `...NotNil` 测试钉 JSON 形状是数组不是 null。
+
+**handler 层**比兄弟模块的同类测试强一点：不是新建一个测试专用 router，而是走**真实的** `RegisterRoutes(r.Group("/api/v1"))`，靠测试中间件 `c.Set("tenant_id", ...)` 加 `c.Set("roles", []string{"admin"})` 让真正的 `auth.RequirePermission` 守卫跑起来（admin 的 `*:*` 通配在 `permission.go` 第 22 行，能覆盖不在权限表里的 `ai-cost` 资源）。这样 4 条路由、4 个守卫、完整 HTTP envelope 都在被测路径上，不需要在生产代码里留测试专用分支。`assertInternalError` 不只查 500，还断言 `success == false`、`code == "INTERNAL_ERROR"` 且 error 文本**包含**指定子串——因为只查状态码无法区分四个 handler 各自的错误分支。
+
+### 74.7 变异矩阵：29/29 KILLED，负控 SURVIVED
+
+变异从改动前的文件按字节拷贝还原，不走 git；`restored-identical: YES`、`restored-suite-exit: 0`。下表节选首个被点名的测试：
+
+| 变异 | 判定 | 抓到它的测试（节选） |
+|---|---|---|
+| NC 只改注释 | SURVIVED（负控） | — |
+| R1 花费改回从省钱账本读 | KILLED | TestGetSummary_ReturnsStoredSpendAndSavings 等 3 条 |
+| R2 查询错误回 5000.00 | KILLED | TestGetSummary_SpendQueryFailureAnswers500、TestGetTotalSpendPropagatesError、TestOptimize_AnalysisQueryFailureAnswers500 |
+| R3 真实的零替换成 5000.00 | KILLED | TestGetTotalSpendReturnsARealZero、TestGetTotalSpendPropagatesError |
+| R4 删掉 30 天窗口子句 | KILLED | TestGetAlerts_SurfaceOnlyOpportunitiesAboveTheFloor 等 3 条 |
+| R5 删掉每模型分组 | KILLED | 同上 3 条 |
+| R6 每模型查询硬编码租户 | KILLED | 同上 3 条 |
+| R7 撤销 SavingsRecord 的 db tag | KILLED | TestGetHistory_ReturnsRecords |
+| S1 节省额改回硬编码 1200.00 | KILLED | TestAnalyzeCostSavings_BindsOpportunitiesFromPerModelSpend 等 3 条 |
+| S2 占比分母改成固定总额 | KILLED | TestAnalyzeCostSavings_ShareIsAgainstTheMonthlyWindow 等 3 条 |
+| S3 风险阈值反向 | KILLED | TestAnalyzeCostSavings_BindsOpportunitiesFromPerModelSpend、TestGenerateAlerts_OnlyOpportunitiesAboveTheFloor |
+| S4 机会类别改名 | KILLED | 同上 2 条加 TestOptimize_Answers201WithTheCallerTenant |
+| S5 保留零花费的模型 | KILLED | TestAnalyzeCostSavings_SkipsModelsWithNoSpend |
+| S6 空 model_id 留空 | KILLED | TestAnalyzeCostSavings_LabelsAMissingModelID |
+| S7 花费查询丢租户 | KILLED | TestAnalyzeCostSavings_BindsTenantAndReturnsRepoSpend 等 3 条 |
+| S8 每模型查询丢租户 | KILLED | TestAnalyzeCostSavings_BindsTenantAndReturnsRepoSpend、TestGetAlerts 两条 |
+| S9 币种改成 USD | KILLED | TestAnalyzeCostSavings_BindsTenantAndReturnsRepoSpend、TestGetSummary_ReturnsStoredSpendAndSavings |
+| S10 Opportunities 改回 nil | KILLED | TestRecommendOptimization_EmptySliceNotNil、TestAnalyzeCostSavings_BindsTenantAndReturnsRepoSpend |
+| S11 告警地板降到零 | KILLED | TestGenerateAlerts_AtTheFloorIsNotAlerted 等 4 条 |
+| S12 等于地板的也算（大于改大于等于） | KILLED | TestGenerateAlerts_AtTheFloorIsNotAlerted（唯一） |
+| S13 Alerts 改回 nil | KILLED | TestGenerateAlerts_EmptySliceNotNil、TestGetAlerts_NoAlertsAnswersAnEmptyArray 等 3 条 |
+| H1 丢 Optimize 的 analysis 错误检查 | KILLED | TestOptimize_AnalysisQueryFailureAnswers500 |
+| H2 丢 Optimize 的 recommendation 错误检查 | KILLED | TestOptimize_RecommendationQueryFailureAnswers500 |
+| H3 Optimize 信任 body 里的 tenant_id | KILLED | TestOptimize_Answers201WithTheCallerTenant |
+| H4 Optimize 返回 200 而非 201 | KILLED | TestOptimize_Answers201WithTheCallerTenant |
+| H5 丢 GetSummary 的 analysis 错误检查 | KILLED | TestGetSummary_OpportunityQueryFailureAnswers500、TestGetSummary_SpendQueryFailureAnswers500 |
+| H6 丢 GetSummary 的 savings 错误检查 | KILLED | TestGetSummary_SavingsQueryFailureAnswers500 |
+| H7 GetSummary 硬编码花费 | KILLED | TestGetSummary_ReturnsStoredSpendAndSavings |
+| H8 丢 GetAlerts 的错误检查 | KILLED | TestGetAlerts_QueryFailureAnswers500 |
+| H9 丢 GetHistory 的错误检查 | KILLED | TestGetHistory_QueryFailureAnswers500 |
+
+**本轮补的两个测试是变异矩阵倒逼出来的。** (1) S12（大于改成大于等于）首跑 SURVIVED——没有测试覆盖"正好等于阈值"的情形，阈值边界不可测。补 `TestGenerateAlerts_AtTheFloorIsNotAlerted`（500.00 恰好等于地板，必须不告警）才 KILLED，这也是全表唯一一个只被一条测试抓住的变异。(2) H1（丢 `Optimize` 的**第一个**错误检查）首跑 SURVIVED——既有的 `TestOptimize_RecommendationQueryFailureAnswers500` 只走第二个分支，第一个分支没有测试。补 `TestOptimize_AnalysisQueryFailureAnswers500`（只注册 spend 期望并让它报错，断言 error 含 `"read total spend"`）才 KILLED。**一个变异杀不死说明测试集有洞，不是变异太弱。**
+
+**harness 自己两次失效，都被 gate 挡住。** (1) H8 首跑报 `BUILD_FAILED` 而不是 `KILLED`。变异写成裸字符串 `"\talerts, _ := h.svc.GenerateAlerts(ctx, tenantID)"`——少了行尾换行、也没包在 `A()` 里——而锚点是以换行结尾的。`GetAlerts` 的错误块后面没有空行（第 104 到 109 行连续），所以 `respondSuccess` 被粘到了同一行，报 `handler.go:104:51: syntax error: unexpected name respondSuccess at end of statement`。包根本编译不起来，测试压根没跑，而 gate 只看有没有 `--- FAIL:` 行，于是把"跑不起来"当成了"被杀死"。H2 与 H6 与 H9 侥幸逃过，是因为它们的错误块后面有空行。修法是四个 `_ :=` 变异全部用 `A()` 包起来补回换行。**这与 §72.6（补一行 `_ = tenantID` 让变异可编译）、§73.6（删掉一个 Sprintf verb 导致 `go vet` 判包 build failed）是同一类病：分不出"跑不起来"与"被杀死"的 gate 会让整类变异永远测不到。** (2) 修 harness 时我自己把 `"<string>")` 换成 `A("<string>")`，补上了 `A()` 的右括号却漏了外层 raw 元组的右括号，harness 报 Python `SyntaxError`。加 `ast.parse` 自检后才放过。
+
+### 74.8 只记录不修
+
+1. **四条 aicost 路由仍用裸 `c.GetString("tenant_id")`。** `internal/ai/*` 整目录的约定（兄弟模块 `internal/ai/cost` 同款）。四条路由全是读，租户为空时后果是空结果而不是跨租户泄漏。§71 清的是"租户取自客户端输入"的覆盖型漏洞，这里是另一类问题（缺守卫而非被覆盖），本轮不改。
+2. **`Currency` 是 `"CNY"` 展示默认值。** 没有任何成本表带 currency 列，这个字段无法从数据推出；改成配置项需要新的接线，不是本轮的活。
+3. **`EstimatedMonthlySavings` 是上限不是预测**（74.4 第 2 条）。要变成预测需要单位价格模型，见下一条。
+4. **`model_custom_pricing`（input_price 与 output_price）与 `ai_models` 两张表本轮完全没用到**，基于定价的机会检测（"这个模型贵于同类 30%"）仍然缺失。`ListSpendByModel` 只回答"钱花在哪"，不回答"该不该花"。
+5. **`OptimizeRequest.TenantID` 仍被绑定但从不读。** 彻底拒绝需要改契约，属破坏性变更；handler 注释里写明了"绑定只为校验、绝不读取"。
+6. **`RecordSavings` 全仓零非测试调用点**，所以 `ai_cost_savings` 在生产上是空的，74.5 的缺陷因此是潜伏的。要让它真的记录需要一条"实际发生了节省"的写入路径，本轮不做。
+7. **`Handler.svc` 仍是具体 `*service.Service`**，接口化延后；本轮的 handler 测试靠真实 service 加 sqlmock 绕开了这个限制。
+8. **兄弟模块 `internal/ai/cost` 也有裸租户读取**，且它的 `handler_test.go` 只覆盖自己的路径；两个 cost 模块并存本身就是重复，合并属结构重构。
+9. §73.8 的 9 项原样结转（`trace_spans` 全仓无写入路径、`Version` 与 `Protocol` 无来源列、status_code 语义是显式假设、`GetSlowQueries` 仍吞查询错误、前端 `getSlowQueries` 参数名不一致、`ComplianceEvidenceRepository.FindByTenantAndPolicy` 两占位符只绑一参数，以及 §72.7 全部 9 项）。
+
+### 74.9 验证
+
+- `go build ./...` 退出 0；`go vet ./internal/ai/aicost/...` 退出 0；`gofmt -l internal/ai/aicost/` 无输出。
+- `go test -count=1 ./internal/ai/aicost/...` 退出 0：handler 0.014s / repository 0.008s / service 0.009s 全 ok，models 无测试文件。
+- `go test ./... -count=1` 退出 0，**550 个 ok 包、0 FAIL**（§73 是 548，本轮新增 2 个测试包）。
+- 8 个触及文件控制字符扫描：ctrl 为 0、无弯引号、problem-files 为 0（仓库里剩下的相邻单引号全在反引号 SQL 原文串里，即 `COALESCE(model_id, '')`）。
+- `grep -rn 'TODO(stub)' internal/ai/aicost/` 无结果——三个标记全部清除。
+- 变异矩阵基线退出 0、29/29 KILLED、注释负控 SURVIVED、`restored-identical: YES`、`restored-suite-exit: 0`。
+- `git diff --numstat`：`handler.go` +19/−6、`models.go` +11/−6、`cost_repository.go` +38/−10、`repository_interface.go` +1/−0、`cost_service.go` +117/−41、`service_test.go` +390/−172，加两个新测试文件 628 行。
+- 无新迁移，下一个可用版本号仍是 **699**。`go.work.sum`、`orion-platform-svc-go/go.sum`、`go.mod` 复核无改动。
+
+### 74.10 提交
+
+代码提交（8 文件）：
+
+```
+orion-platform-svc-go/internal/ai/aicost/handler/handler.go
+orion-platform-svc-go/internal/ai/aicost/handler/handler_test.go            （新）
+orion-platform-svc-go/internal/ai/aicost/models/models.go
+orion-platform-svc-go/internal/ai/aicost/repository/cost_repository.go
+orion-platform-svc-go/internal/ai/aicost/repository/cost_repository_test.go （新）
+orion-platform-svc-go/internal/ai/aicost/repository/repository_interface.go
+orion-platform-svc-go/internal/ai/aicost/service/cost_service.go
+orion-platform-svc-go/internal/ai/aicost/service/service_test.go
+```
+
+并行会话的文件（`internal/alert/...`、`internal/audit/...`、`internal/notification/...`）与全部 `orion-frontend/...` 修改一律不入这两笔。变异 harness 在 `/private/tmp/r73/`，仓库外，不入库。
+
+文档提交：本节 + `ALL_TODOS.md` 第 400 行一行。
