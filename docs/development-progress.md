@@ -14195,3 +14195,145 @@ orion-platform-svc-go/internal/ticket/service/ticket.go
 并行会话的文件（`internal/ai/llm/...`、`internal/audit/...`、`internal/ticketing/...`）与全部 `orion-frontend/...` 修改一律不入这两笔。`go.work.sum` 与 `orion-platform-svc-go/go.sum` 提交前复核无改动。变异 harness 在 `/private/tmp/r69/`，仓库外，不入库。
 
 文档提交：本节 + `ALL_TODOS.md` 第 398 行一行。
+
+## §73 APM 两条在册路由从内存里读伪造数据：`/apm/traces/slow` 返回三条硬编码 trace、`/apm/services/topology` 返回四个硬编码节点和三把伪造的 version / protocol / calls（2026-08-26）
+
+### 73.1 为什么这两个 stub 看起来像已经交付了
+
+`internal/apm/service/business.go` 的 HEAD 版本里，`GetSlowTraces` 与 `GetServiceTopology` 都是字面量切片：
+
+```go
+traces := []models.TraceEntry{
+    {TraceID: "trace-001", Service: "orion-platform-service", DurationMs: 2300, SpanCount: 12, Start: 1720000000, Error: false},
+    ...
+}
+services := []models.ServiceNode{
+    {Name: "orion-api-gateway", Version: "1.0.0", Health: "healthy"},
+    {Name: "orion-ai-service", Version: "1.0.0", Health: "degraded"},
+    {Name: "orion-db", Version: "14", Health: "healthy"},
+}
+edges := []models.ServiceEdge{
+    {From: "orion-api-gateway", To: "orion-platform-service", Protocol: "http", Calls: 1200},
+    {From: "orion-platform-service", To: "orion-ai-service", Protocol: "grpc", Calls: 340},
+    {From: "orion-platform-service", To: "orion-db", Protocol: "tcp", Calls: 5600},
+}
+```
+
+四件事让它读起来像真的：签名齐全（收 `ctx`、`tenantID`、`*Query`，返回 typed response + error）；两个方法头上都有 `// TODO: replace simulated data with real tracing service/repository queries once tracing data is available.`；路由在册（`handler.go:36` `/traces/slow`、`:37` `/services/topology`），是活的；返回的数据在语义上完全合理——trace id 递增、duration 与 span 数成比例、节点带版本号和健康度、边带协议和调用量。**前端、集成测试、文档都无从分辨真假。**
+
+### 73.2 逐条定级
+
+| 位置 | 缺陷 | 后果 |
+|---|---|---|
+| `GetSlowTraces` 整个方法体 | `ctx`、`tenantID`、`TraceDurationMs`、`Start`、`End` 全部未使用 | 每个租户读同一批 trace；durationMs 阈值无效；时间窗无效 |
+| 唯一的"过滤" `if q != nil && q.Service != ""` | 把三条假数据按名字筛一遍 | 过滤逻辑真实存在但作用在伪造数据上——把 bug 伪装成 feature |
+| `GetServiceTopology` 整个方法体 | 4 节点 3 边硬编码，`tenantID` 未使用 | 跨租户同一张拓扑图 |
+| handler `GetServiceTopology` | `IncludeDependencies` 缺省 `false`，而前端从不传该参数 | 生产行为 = 4 个假节点 + **零条边**；一张拓扑图没有依赖关系 |
+| handler `GetSlowTraces` | 只读 `durationMs`，完全忽略 `limit`；前端发的是 `thresholdMs` + `limit` | 前端调不出阈值，`limit` 静默失效 |
+| `ServiceNode.Version` / `ServiceEdge.Protocol` | `trace_spans` 里没有版本列，也没有协议列 | 继续留就是伪造数据 |
+
+### 73.3 修法：删掉伪造数据，把参数真的绑进 SQL
+
+**`GetSlowTraces`** 改成对 `trace_spans` 的窗口函数聚合，`ROW_NUMBER() OVER (PARTITION BY trace_id ORDER BY duration DESC, id)` 取每个 trace 一行：
+
+- `duration_ms = MAX(duration) OVER (PARTITION BY trace_id)`——span 没有结束时间戳，OTLP 里根 span 承载整条 trace 的 duration，所以最长 span 即 trace；
+- `service_name` 取自同一个最长 span（ROW_NUMBER 选出的那一行），不是任意成员；
+- `start_at = MIN(created_at) OVER (...)` → `Start`（Unix 秒）；`span_count = COUNT(*) OVER (...)`；
+- `error_spans = SUM(CASE WHEN status_code NOT IN (0, 1, 200) THEN 1 ELSE 0 END) OVER (...)` → `Error = errorSpans > 0`。
+
+`tenantID` 永远是 `$1`：`slowTraceWhere()` 按 service → start → end 顺序追加谓词并返回下一个占位符序号，threshold 与 limit 排在最后并用 `idx` 计算，所以过滤条件变多不会错位。`parseDurationMs` / `parseTraceTime` 把非法值转成 `sentinel.BadRequest`（点名出错字段），handler 按 `errors.Is` 映射 **400**，真实查询失败仍 **500**。
+
+**`GetServiceTopology`** 拆成两条语句：nodes 是 `GROUP BY service_name` + 同一个 CASE 谓词聚合失败 span；edges 是 child ⋈ parent（同 trace、同租户、`p.span_id = c.parent_span_id`），`HAVING p.service_name <> c.service_name` 丢掉服务内调用——服务内调用不是依赖边。根 span 的 `parent_span_id` 为空，天然不产生边。health 只做两级（healthy / unhealthy）：schema 没有延迟数据，做不出三级分级。
+
+**默认值**：`IncludeDependencies` 改成 `!= "false"`（service 侧把 `q == nil` 当包含）——旧 stub 在 `q == nil` 时返回全部三条边，但 handler 的零值是 `false`，naive port 会静默产出零条边的拓扑图。
+
+**不发明的字段**：`Version` 与 `Protocol` 留空字符串，不填 `"1.0.0"` / `"http"`。
+
+**顺手**：`models.SlowTracesQuery` 补上 `Limit int`；两个方法补了 nil-db 降级分支，与本文件既有的 `GetSlowQueries` 守卫同形。`GetSlowQueries`（pg_stat_statements）本轮未动——它已经是真实查询。
+
+### 73.4 状态码语义：一个谓词覆盖两种约定
+
+全仓没有任何地方定义 `status_code` 的含义。取 `NOT IN (0, 1, 200)` 为失败：`0` / `1` 是 OTel 的 UNSET 与 OK 枚举值，`200` 是 tracing 仓库 fixture 里写的 HTTP 200。两个查询共用同一个常量 `spanSuccessCodes`，不猜写者用了哪一种约定，任何一侧改口径只改一处。
+
+### 73.5 新测试：24 个测试函数（service 14 个 / handler 10 个）
+
+`internal/apm/service/business_test.go` 403 行（新文件）+ `handler_test.go` 增 163 行。
+
+- **SQL 文本比对**：sqlmock v1.5.2 + `sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual)`。它的 `stripQuery` 把期望值与实际值都压成单行单空格，所以测试里可以写多行 SQL 模板，读起来和 `fmt.Sprintf` 里的源码一样。
+- **绑定参数比对**：`argsMatches` 先把期望值过一遍 `driver.DefaultParameterConverter` 再 `reflect.DeepEqual`——`int` 两边都变成 `int64`，所以 `ExpectArgs("tenant-1", 250, 7)` 直接成立；`time.Time` 两边原样通过，fixture 用 `time.Parse(time.RFC3339, ...)` 构造（与生产同一个调用），保证 wall / ext / loc 三元组一致。
+- **"非法输入不打数据库"的证明方式**：不注册任何期望，断言 `errors.Is(err, sentinel.BadRequest)` **和**消息文本。任何一次 DB 调用都会得到 "unexpected call" 错误，既不是 BadRequest 也不是解析消息。`ExpectationsWereMet()` 在零期望时返回 nil，**不能**证明"没碰库"——这一点写在测试注释里。
+- **`IncludeDependencies=false` 跳过 edge 语句**：只注册一条（nodes）期望——多余的语句会以 "unexpected call" 变成错误，而不是"未被满足的期望"。
+- **反伪造断言**：每个 node 断言 `Version == ""`、每根 edge 断言 `Protocol == ""`，注释写明"schema 没有这一列，发明一个是伪造数据"。
+- **handler 侧**：`capturingApmService` 记录 handler 实际传下来的 query，`var _ service.ServiceInterface` 编译期校验 8 个方法实现完整。
+
+### 73.6 变异矩阵：17/17 KILLED，负控 SURVIVED
+
+Harness 在仓库外的 `/private/tmp/r72/`（不入库）：两份模块副本 + 独立 `go.work`，锚点用 `\t` 转义逐字写出（文件内不含字面 tab），`apply()` 在锚点缺失**或不唯一**时都返回 `PATCH_ERROR`，并在校验前先跑一次 preflight 把所有锚点的 `count` 打出来。
+
+| 变异 | 判定 | 抓到它的测试 |
+|---|---|---|
+| NC 只改注释（必须 SURVIVE） | SURVIVED | — |
+| M1 duration 阈值被强制归零 | KILLED | `TestGetSlowTraces_AllFiltersBoundInOrder` |
+| M2 请求的 limit 被忽略 | KILLED | `TestGetSlowTraces_AllFiltersBoundInOrder` |
+| M3 threshold 参数不绑定 | KILLED | `…AllFiltersBoundInOrder` / `…BindsTenantThresholdAndLimit` / `…QueryErrorPropagates` |
+| M4 内层扫描丢掉租户谓词 | KILLED | 同上 |
+| M5 恰好等于阈值的 trace 被漏掉（`>=` → `>`） | KILLED | 同上 |
+| M6 丢掉每 trace 一行（`row_num = 1`） | KILLED | 同上 |
+| M7 span 成功集合收窄成只有 `200` | KILLED | `TestGetServiceTopology_NodeHealthAndEdgeScan` 与三个 edge 测试 |
+| M8 health 谓词取反 | KILLED | `…NodeHealthAndEdgeScan` / `…ExcludingDependenciesSkipsEdgeStatement` |
+| M9 伪造节点版本号 `1.0.0` | KILLED | `TestGetServiceTopology_NodeHealthAndEdgeScan` |
+| M10 伪造边协议 `http` | KILLED | 同上 |
+| M11 保留服务内调用（删 `HAVING`） | KILLED | 三个 edge 测试 |
+| M12 忽略 `IncludeDependencies` | KILLED | `TestGetServiceTopology_ExcludingDependenciesSkipsEdgeStatement` |
+| M13 node 查询不绑租户 | KILLED | 三个 edge 测试 |
+| M14 缺省 `includeDependencies` 变成排除 | KILLED | `TestGetServiceTopology_AbsentFlagMeansIncludeDependencies` |
+| M15 删掉 `thresholdMs` 别名 | KILLED | `TestGetSlowTraces_ThresholdMsAliasReachesService` |
+| M16 非法输入回 500 而不是 400 | KILLED | `TestGetSlowTraces_BadRequestAnswers400` |
+| M17 limit 永不转发 | KILLED | `TestGetSlowTraces_QueryParamsReachService` |
+
+`restored-identical: YES`、`restored-suite-exit: 0`，最终判定 `all 17 mutations applied and were killed, negative control survived`。
+
+**harness 自身失效了三次，三次都被 gate 挡住，三次都指向工具太弱而不是代码太弱：**
+
+1. **M10 / M11 第一次是 PATCH_ERROR**——锚点首行的制表符数抄错（`business.go:271` 实际是 2 个 tab）。改成用 `\t` 转义逐字写出所有锚点，文件里不再有任何字面 tab，并加 preflight 在跑测试前就报出每个锚点的 `count`。抄错从此是 preflight 报错，不是跑到一半才发现。
+2. **M11 第二次仍是 PATCH_ERROR**——锚点经过 `A()` 补了行尾 `\n`，但它落在 raw string 中间，源码在该处是反引号而不是换行。改成裸子串并写明原因。这条的教训是：**"锚点必须是完整语句"是个伪前提**，多行 SQL 模板里的锚点天然是半句。
+3. **M5 第一次是 BUILD_FAILED 而不是 KILLED**——删掉 `AND t.duration_ms >= $%d` 会少一个 `$%d` verb，`fmt.Sprintf` 多出一个参数，`go vet` 在 `go test` 里把整个包判为 build failed，测试根本跑不起来。改成把 `>=` 改成 `>`（保留 verb、保留编译）：语义上是"恰好等于阈值的 trace 被漏掉"，比删掉整条更真实，而且同样被测杀死。
+
+第 3 条与 §72.6 的 M11–M13（补 `_ = tenantID` 让变异可编译）是同一个教训的第二个实例：**一个分不出"跑不起来"与"被杀死"的 gate，会让整类变异永远测不到**。本轮它差点把 M5 算进通过——M5 测的正是阈值比较本身，是这两个端点最核心的契约。
+
+### 73.7 只记录不修
+
+1. **`trace_spans` 全仓没有写入路径**：`CreateSpan` 零非测试调用点，tracing service 没有 span writer。所以活部署上这两个端点返回空列表 / 空图。本轮修的价值是：伪造数据被删、`tenantID` 从被丢弃的参数变成真实的绑定参数、全部过滤条件真的进 SQL。不是端到端可用。
+2. `ServiceNode.Version` / `ServiceEdge.Protocol` 无来源列，留空不发明。
+3. `status_code` 语义全仓未定义，`IN (0, 1, 200)` 是显式假设（§73.4）。
+4. `GetSlowQueries` 仍吞查询错误（pg_stat_statements 扩展未启用时返回空结果）——与本轮两个新方法"传播错误"故意不同：它面向一个可能没装的扩展，另两个面向一张真实存在的表。有意分歧，记录。
+5. 前端 `orion-frontend/src/api/apm.ts` 的 `getSlowQueries` 参数名与后端不一致（后端 `minDurationMs` / `database` vs 前端 `limit` / `since` / `tenantId`）。本轮只修了触到的两个端点；前端文件属并行会话，不动。
+6. `ComplianceEvidenceRepository.FindByTenantAndPolicy` 的查询有 2 个占位符但只绑 1 个参数（`_ = tenantID`），所在类型整体死代码——只记录。
+7. 结转 §72.7 全部 9 项不变：8 条无租户概念可用的在册路由（5 load-balancer + 3 transfer）；模块 A 6 个整体在册外的 handler 对象共 33 处裸读；8 个未在册方法裸读；`CommentRepository.ListByTicket` 无租户谓词；`SuspendService` 6 处错误丢弃；`DispatchService.GetSLAAlerts` 在 `service/dispatch.go:461` 丢弃 `UpdateRecord`；`GetTimeToAssignmentStats` 五个零值常量；§69.8 结转群（`QueueManager.ReprioritizeAll` 需要 `sla_priority`、`UpdateQueueEntry` 零调用、`zap.NewNop()` 群、`TransferDueToSuspend` 错误丢弃 + 合成 `pending-%s-%d` id、`GetTransferStats` 未受检断言、模块 A/B 死链、约 80 处 `ON CONFLICT` 只有 4 处闭包测试、`SLARepositoryInterface.policyID int`、`SLAService.CreateRecordForTicket` 把 `ErrNoRows` 与驱动故障混同）；D2 三处删除无行为面。
+
+### 73.8 验证
+
+- `go build ./...` 退出 0。
+- `go vet ./internal/apm/...` 退出 0。
+- `go test -count=1 ./internal/apm/...` 退出 0（handler 0.015s / service 0.019s 全绿）。
+- `go test ./... -count=1` 退出 0：**548 个 ok 包，0 FAIL**。
+- `gofmt -l` 对本轮 5 个文件无输出；控制字符与相邻引号扫描 `bad=0`，无 U+201D。
+- 变异矩阵：baseline exit 0、17/17 KILLED、NC SURVIVED、`restored-identical: YES`、`restored-suite-exit: 0`。
+- `git diff --numstat`：`handler.go` +23/−3、`handler_test.go` +163、`models.go` +5、`business.go` +253/−57，加新文件 `business_test.go` 403 行。
+- 无新迁移，下一个可用版本号仍是 **699**。
+
+### 73.9 提交
+
+代码提交 `9e01842d5`：5 文件 847 增 / 60 删，含新测试文件 403 行。代码与文档分两笔，只 stage 本轮 5 个文件：
+
+```
+orion-platform-svc-go/internal/apm/handler/handler.go
+orion-platform-svc-go/internal/apm/handler/handler_test.go
+orion-platform-svc-go/internal/apm/models/models.go
+orion-platform-svc-go/internal/apm/service/business.go
+orion-platform-svc-go/internal/apm/service/business_test.go   （新）
+```
+
+并行会话的文件（`internal/alert/...`、`internal/audit/...`、`internal/notification/...`）与全部 `orion-frontend/...` 修改一律不入这两笔。`go.work.sum` 与 `orion-platform-svc-go/go.sum` 提交前复核无改动。变异 harness 在 `/private/tmp/r72/`，仓库外，不入库。
+
+文档提交：本节 + `ALL_TODOS.md` 第 399 行一行。
