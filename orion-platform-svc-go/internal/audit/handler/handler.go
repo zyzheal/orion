@@ -194,9 +194,6 @@ func (h *Handler) VerifyChain(c *gin.Context) {
 		TenantID string `json:"tenantId"`
 	}
 	c.ShouldBindJSON(&body)
-	if body.TenantID != "" {
-		tenantID = body.TenantID
-	}
 	result, err := h.svc.VerifyChain(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -214,9 +211,6 @@ func (h *Handler) Actions(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Actions")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if tid := c.Query("tenantId"); tid != "" {
-		tenantID = tid
-	}
 	actions, err := h.svc.GetActions(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -229,9 +223,6 @@ func (h *Handler) ResourceTypes(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ResourceTypes")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if tid := c.Query("tenantId"); tid != "" {
-		tenantID = tid
-	}
 	resourceTypes, err := h.svc.GetResourceTypes(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -246,9 +237,6 @@ func (h *Handler) ComplianceSOC2(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ComplianceSOC2")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if tid := c.Query("tenantId"); tid != "" {
-		tenantID = tid
-	}
 	report, err := h.svc.ComplianceReport(ctx, tenantID, "SOC2")
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -261,9 +249,6 @@ func (h *Handler) ComplianceISO27001(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ComplianceISO27001")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if tid := c.Query("tenantId"); tid != "" {
-		tenantID = tid
-	}
 	report, err := h.svc.ComplianceReport(ctx, tenantID, "ISO27001")
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -277,9 +262,6 @@ func (h *Handler) CompliancePCIDSS(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CompliancePCIDSS")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if tid := c.Query("tenantId"); tid != "" {
-		tenantID = tid
-	}
 	report, err := h.svc.ComplianceReport(ctx, tenantID, "PCI-DSS")
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -293,9 +275,6 @@ func (h *Handler) ComplianceMLPS2(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ComplianceMLPS2")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if tid := c.Query("tenantId"); tid != "" {
-		tenantID = tid
-	}
 	report, err := h.svc.ComplianceReport(ctx, tenantID, "MLPS2")
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -309,9 +288,6 @@ func (h *Handler) CompliancePDPA(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CompliancePDPA")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if tid := c.Query("tenantId"); tid != "" {
-		tenantID = tid
-	}
 	report, err := h.svc.ComplianceReport(ctx, tenantID, "PDPA")
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -336,9 +312,6 @@ func (h *Handler) ComplianceCombined(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ComplianceCombined")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if tid := c.Query("tenantId"); tid != "" {
-		tenantID = tid
-	}
 	report, err := h.svc.ComplianceReport(ctx, tenantID, "COMBINED")
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -351,9 +324,6 @@ func (h *Handler) ComplianceCoverage(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ComplianceCoverage")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if tid := c.Query("tenantId"); tid != "" {
-		tenantID = tid
-	}
 	stats, err := h.svc.CoverageStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -371,9 +341,6 @@ func (h *Handler) ComplianceCheck(c *gin.Context) {
 		Framework string `json:"framework"`
 	}
 	c.ShouldBindJSON(&body)
-	if body.TenantID != "" {
-		tenantID = body.TenantID
-	}
 	if body.Framework == "" {
 		body.Framework = "COMBINED"
 	}
@@ -390,9 +357,6 @@ func (h *Handler) ComplianceDashboard(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ComplianceDashboard")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if tid := c.Query("tenantId"); tid != "" {
-		tenantID = tid
-	}
 	overview, err := h.svc.DashboardOverview(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -406,9 +370,6 @@ func (h *Handler) ComplianceRiskMap(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ComplianceRiskMap")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if tid := c.Query("tenantId"); tid != "" {
-		tenantID = tid
-	}
 	matrix, err := h.svc.RiskMatrix(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -422,9 +383,6 @@ func (h *Handler) ComplianceTrend(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ComplianceTrend")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if tid := c.Query("tenantId"); tid != "" {
-		tenantID = tid
-	}
 	days := 30
 	if d := c.Query("days"); d != "" {
 		if parsed, err := strconv.Atoi(d); err == nil && parsed > 0 {
@@ -445,9 +403,6 @@ func (h *Handler) ChainInfo(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChainInfo")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if tid := c.Query("tenantId"); tid != "" {
-		tenantID = tid
-	}
 	info, err := h.svc.ChainInfo(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -460,9 +415,6 @@ func (h *Handler) StorageStats(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StorageStats")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if tid := c.Query("tenantId"); tid != "" {
-		tenantID = tid
-	}
 	stats, err := h.svc.StorageStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -493,9 +445,6 @@ func (h *Handler) ChainLatest(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChainLatest")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if tid := c.Query("tenantId"); tid != "" {
-		tenantID = tid
-	}
 	result, err := h.svc.List(ctx, tenantID, models.AuditLogQuery{Limit: 1})
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -548,9 +497,6 @@ func (h *Handler) ExportCSV(c *gin.Context) {
 		DateTo       string `json:"dateTo"`
 	}
 	c.ShouldBindJSON(&body)
-	if body.TenantID != "" {
-		tenantID = body.TenantID
-	}
 	result, err := h.svc.Export(ctx, tenantID, models.AuditLogQuery{
 		TenantID:     tenantID,
 		UserID:       body.UserID,
@@ -584,9 +530,6 @@ func (h *Handler) ExportJSON(c *gin.Context) {
 		DateTo       string `json:"dateTo"`
 	}
 	c.ShouldBindJSON(&body)
-	if body.TenantID != "" {
-		tenantID = body.TenantID
-	}
 	result, err := h.svc.Export(ctx, tenantID, models.AuditLogQuery{
 		TenantID:     tenantID,
 		UserID:       body.UserID,

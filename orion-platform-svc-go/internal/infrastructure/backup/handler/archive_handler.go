@@ -106,7 +106,7 @@ func (h *ArchiveHandler) List(c *gin.Context) {
 	defer span.End()
 
 	q := service.ArchiveQuery{
-		TenantID: c.DefaultQuery("tenant_id", c.GetString("tenant_id")),
+		TenantID: c.GetString("tenant_id"),
 		PlanID:   c.Query("plan_id"),
 		Limit:    100,
 	}

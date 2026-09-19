@@ -112,10 +112,7 @@ func (h *Handler) GetTrace(c *gin.Context) {
 func (h *Handler) ListTraces(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AILLMListTraces")
 	defer span.End()
-	tenantID := c.Query("tenant_id")
-	if tenantID == "" {
-		tenantID = c.GetString("tenant_id")
-	}
+	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
 
 	traces, err := h.svc.GetTracesByTenant(ctx, tenantID, limit)
@@ -156,10 +153,7 @@ func (h *Handler) ClearTraces(c *gin.Context) {
 func (h *Handler) GetDailyStats(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AILLMGetDailyStats")
 	defer span.End()
-	tenantID := c.Query("tenant_id")
-	if tenantID == "" {
-		tenantID = c.GetString("tenant_id")
-	}
+	tenantID := c.GetString("tenant_id")
 	dateStr := c.DefaultQuery("date", time.Now().UTC().Format("2006-01-02"))
 	date, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {

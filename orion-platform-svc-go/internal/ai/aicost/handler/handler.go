@@ -35,9 +35,7 @@ func (h *Handler) Optimize(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 
 	var req models.OptimizeRequest
-	if err := c.ShouldBindJSON(&req); err == nil && req.TenantID != "" {
-		tenantID = req.TenantID
-	}
+	_ = c.ShouldBindJSON(&req)
 
 	analysis := h.svc.AnalyzeCostSavings(tenantID)
 	recommendations, err := h.svc.RecommendOptimization(tenantID)

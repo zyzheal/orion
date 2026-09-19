@@ -401,3 +401,198 @@ func TestHandler_GetDeveloperProfiles_Success(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 }
+
+// ==================== Tenant isolation ====================
+//
+// Every efficiency method used to fall back to a client-supplied ?tenantId= when
+// the auth context was empty, and then to the literal string "default" if that
+// too was empty. The "default" bucket was an anonymous shared tenant: efficiency
+// reports, DORA metrics, team/project metrics and developer profiles are cross-
+// tenant analytics, and any token holder — or anyone hitting the route without a
+// tenant claim — landed in the same bucket.
+// The auth-context tenant must be the only source; an empty tenant is a 400.
+
+// performRequestWithTenant is performRequest with an overridable auth-context
+// tenant. Pass "" to exercise the no-tenant path.
+func performRequestWithTenant(h *Handler, handlerFn func(c *gin.Context), method string, body interface{}, pathParams map[string]string, queryParams map[string]string, tenantID string) *httptest.ResponseRecorder {
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("tenant_id", tenantID)
+	c.Set("user_id", "user-1")
+
+	var buf bytes.Buffer
+	if body != nil {
+		b, _ := json.Marshal(body)
+		buf = *bytes.NewBuffer(b)
+	}
+	c.Request = httptest.NewRequest(method, "/", &buf)
+	c.Request.Header.Set("Content-Type", "application/json")
+	if pathParams != nil {
+		for k, v := range pathParams {
+			c.Params = append(c.Params, gin.Param{Key: k, Value: v})
+		}
+	}
+	if queryParams != nil {
+		q := c.Request.URL.Query()
+		for k, v := range queryParams {
+			q.Set(k, v)
+		}
+		c.Request.URL.RawQuery = q.Encode()
+	}
+	handlerFn(c)
+	return w
+}
+
+// TestHandler_TenantFromAuthContextOnly asserts both halves of the fix: with an
+// auth tenant present the service sees it (not the spoofed query), and with the
+// auth tenant absent the handler returns 400 without reaching the service — the
+// old code would have called it with "default" or the spoofed value.
+func TestHandler_TenantFromAuthContextOnly(t *testing.T) {
+	spoof := map[string]string{"tenantId": "attacker-supplied-tenant"}
+	period := eff_models.PeriodSpec{Label: "p"}
+
+	cases := []struct {
+		name string
+		body interface{}
+		fn   func(c *gin.Context)
+	}{
+		{"GetReports", nil, nil},
+		{"GetReportHistory", nil, nil},
+		{"GetTeamMetrics", nil, nil},
+		{"GetProjectMetrics", nil, nil},
+		{"GetAllTeams", nil, nil},
+		{"ComparePeriods", map[string]interface{}{"periodA": period, "periodB": period, "tenantId": "attacker-supplied-tenant"}, nil},
+		{"GetAllDORA", nil, nil},
+		{"GetDORATrend", nil, nil},
+		{"GetDashboard", nil, nil},
+		{"GetTrends", nil, nil},
+		{"GetBottlenecks", nil, nil},
+		{"GetDeveloperProfiles", nil, nil},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var calls int
+			var sawTenant string
+			svc := &mockSvc{
+				generateReportFn: func(ctx context.Context, tenantID string, tw eff_models.TimeWindow, ws int) (*eff_models.EfficiencyReport, error) {
+					calls++
+					sawTenant = tenantID
+					return nil, nil
+				},
+				getReportHistoryFn: func(ctx context.Context, tenantID string, limit int) ([]*eff_models.EfficiencyReport, error) {
+					calls++
+					sawTenant = tenantID
+					return nil, nil
+				},
+				getTeamMetricsFn: func(ctx context.Context, tenantID, teamID string) (*eff_models.TeamMetrics, error) {
+					calls++
+					sawTenant = tenantID
+					return nil, nil
+				},
+				getProjectMetricsFn: func(ctx context.Context, tenantID, projectID string) (*eff_models.ProjectMetrics, error) {
+					calls++
+					sawTenant = tenantID
+					return nil, nil
+				},
+				getAllTeamsFn: func(ctx context.Context, tenantID string) []eff_models.TeamInfo {
+					calls++
+					sawTenant = tenantID
+					return nil
+				},
+				comparePeriodsFn: func(ctx context.Context, tenantID string, a, b eff_models.PeriodSpec) (*eff_models.PeriodComparisonResult, error) {
+					calls++
+					sawTenant = tenantID
+					return nil, nil
+				},
+				getAllDORAFn: func(ctx context.Context, tenantID string, d []eff_models.DeploymentRecord, p []eff_models.PipelineCompletionRecord, i []eff_models.IncidentRecord, tw eff_models.TimeWindow, ws int) (*eff_models.AllDORAResult, error) {
+					calls++
+					sawTenant = tenantID
+					return nil, nil
+				},
+				getDORATrendFn: func(ctx context.Context, tenantID string, d []eff_models.DeploymentRecord, p []eff_models.PipelineCompletionRecord, i []eff_models.IncidentRecord, tw eff_models.TimeWindow, ws int) (*eff_models.DORATrendResult, error) {
+					calls++
+					sawTenant = tenantID
+					return nil, nil
+				},
+				getDashboardDataFn: func(ctx context.Context, tenantID string, tw eff_models.TimeWindow, ws int) *eff_models.DashboardData {
+					calls++
+					sawTenant = tenantID
+					return nil
+				},
+				getHistoricalSnapshotsFn: func(ctx context.Context, tenantID string, weeks int) ([]eff_models.HistoricalSnapshotWeek, error) {
+					calls++
+					sawTenant = tenantID
+					return nil, nil
+				},
+				getBottlenecksFn: func(ctx context.Context, tenantID string, tw eff_models.TimeWindow, ws int) []eff_models.Bottleneck {
+					calls++
+					sawTenant = tenantID
+					return nil
+				},
+				getDeveloperProfilesFn: func(ctx context.Context, tenantID string) []eff_models.DeveloperProfile {
+					calls++
+					sawTenant = tenantID
+					return nil
+				},
+			}
+			h := newHandlerWithSvc(svc)
+			var fn func(c *gin.Context)
+			switch tc.name {
+			case "GetReports":
+				fn = h.GetReports
+			case "GetReportHistory":
+				fn = h.GetReportHistory
+			case "GetTeamMetrics":
+				fn = h.GetTeamMetrics
+			case "GetProjectMetrics":
+				fn = h.GetProjectMetrics
+			case "GetAllTeams":
+				fn = h.GetAllTeams
+			case "ComparePeriods":
+				fn = h.ComparePeriods
+			case "GetAllDORA":
+				fn = h.GetAllDORA
+			case "GetDORATrend":
+				fn = h.GetDORATrend
+			case "GetDashboard":
+				fn = h.GetDashboard
+			case "GetTrends":
+				fn = h.GetTrends
+			case "GetBottlenecks":
+				fn = h.GetBottlenecks
+			case "GetDeveloperProfiles":
+				fn = h.GetDeveloperProfiles
+			}
+
+			// GetTeamMetrics/GetProjectMetrics also need their path param.
+			params := map[string]string{}
+			if tc.name == "GetTeamMetrics" {
+				params["teamId"] = "team-1"
+			}
+			if tc.name == "GetProjectMetrics" {
+				params["projectId"] = "proj-1"
+			}
+
+			// Auth tenant present + client spoofing the query.
+			w := performRequestWithTenant(h, fn, http.MethodGet, tc.body, params, spoof, "tenant-1")
+			if w.Code != http.StatusOK {
+				t.Fatalf("%s: expected 200, got %d", tc.name, w.Code)
+			}
+			if sawTenant != "tenant-1" {
+				t.Errorf("%s: service saw tenant %q, want %q (auth context)", tc.name, sawTenant, "tenant-1")
+			}
+
+			// Auth tenant absent: 400, and the service must never be reached.
+			calls = 0
+			sawTenant = ""
+			w = performRequestWithTenant(h, fn, http.MethodGet, tc.body, params, spoof, "")
+			if w.Code != http.StatusBadRequest {
+				t.Fatalf("%s: no auth tenant must return 400, got %d", tc.name, w.Code)
+			}
+			if calls != 0 {
+				t.Errorf("%s: service called %d time(s) with no auth tenant, saw %q — expected no call (no shared \"default\" bucket)", tc.name, calls, sawTenant)
+			}
+		})
+	}
+}

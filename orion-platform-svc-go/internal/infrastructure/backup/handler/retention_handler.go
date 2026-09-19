@@ -35,8 +35,9 @@ func (h *RetentionHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	bg.GET("/retention/status", auth.RequirePermission("backup", "read"), h.Status)
 }
 
-// PurgeTenant purges expired backups for the current tenant. The tenant
-// is taken from the auth context; query params override.
+// PurgeTenant purges expired backups for the current tenant. The tenant comes
+// from the auth context only — never from a query param, which would let any
+// token holder purge another tenant's backups.
 func (h *RetentionHandler) PurgeTenant(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RetentionPurgeTenant")
 	defer span.End()
@@ -44,7 +45,7 @@ func (h *RetentionHandler) PurgeTenant(c *gin.Context) {
 		middleware.RespondServiceUnavailable(c, "backup service not configured")
 		return
 	}
-	tenantID := c.DefaultQuery("tenant_id", c.GetString("tenant_id"))
+	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondBadRequest(c, "tenant_id required")
 		return

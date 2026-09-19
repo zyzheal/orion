@@ -78,9 +78,6 @@ func (h *Handler) GetReports(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		tenantID = c.Query("tenantId")
-	}
-	if tenantID == "" {
 		middleware.RespondBadRequest(c, "tenantId is required")
 		return
 	}
@@ -106,10 +103,8 @@ func (h *Handler) GetReportHistory(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		tenantID = c.Query("tenantId")
-	}
-	if tenantID == "" {
-		tenantID = "default"
+		middleware.RespondBadRequest(c, "tenantId is required")
+		return
 	}
 	limit := parseInt(c.Query("limit"), 10)
 	if limit <= 0 {
@@ -131,10 +126,8 @@ func (h *Handler) GetTeamMetrics(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		tenantID = c.Query("tenantId")
-	}
-	if tenantID == "" {
-		tenantID = "default"
+		middleware.RespondBadRequest(c, "tenantId is required")
+		return
 	}
 	teamID := c.Param("teamId")
 	if teamID == "" {
@@ -155,10 +148,8 @@ func (h *Handler) GetProjectMetrics(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		tenantID = c.Query("tenantId")
-	}
-	if tenantID == "" {
-		tenantID = "default"
+		middleware.RespondBadRequest(c, "tenantId is required")
+		return
 	}
 	projectId := c.Param("projectId")
 	if projectId == "" {
@@ -179,7 +170,8 @@ func (h *Handler) GetAllTeams(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		tenantID = "default"
+		middleware.RespondBadRequest(c, "tenantId is required")
+		return
 	}
 
 	teams := h.svc.GetAllTeams(ctx, tenantID)
@@ -193,16 +185,14 @@ func (h *Handler) ComparePeriods(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		tenantID = "default"
+		middleware.RespondBadRequest(c, "tenantId is required")
+		return
 	}
 
 	var req models.ComparePeriodsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
-	}
-	if req.TenantID != nil && *req.TenantID != "" {
-		tenantID = *req.TenantID
 	}
 	if req.PeriodA == nil || req.PeriodB == nil {
 		middleware.RespondBadRequest(c, "periodA and periodB are required")
@@ -224,10 +214,8 @@ func (h *Handler) GetAllDORA(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		tenantID = c.Query("tenantId")
-	}
-	if tenantID == "" {
-		tenantID = "default"
+		middleware.RespondBadRequest(c, "tenantId is required")
+		return
 	}
 	timeWindow := models.TimeWindow(c.Query("timeWindow"))
 	if timeWindow == "" {
@@ -251,10 +239,8 @@ func (h *Handler) GetDORATrend(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		tenantID = c.Query("tenantId")
-	}
-	if tenantID == "" {
-		tenantID = "default"
+		middleware.RespondBadRequest(c, "tenantId is required")
+		return
 	}
 	timeWindow := models.TimeWindow(c.Query("timeWindow"))
 	if timeWindow == "" {
@@ -280,10 +266,8 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		tenantID = c.Query("tenantId")
-	}
-	if tenantID == "" {
-		tenantID = "default"
+		middleware.RespondBadRequest(c, "tenantId is required")
+		return
 	}
 	timeWindow := models.TimeWindow(c.Query("timeWindow"))
 	if timeWindow == "" {
@@ -305,10 +289,8 @@ func (h *Handler) GetTrends(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		tenantID = c.Query("tenantId")
-	}
-	if tenantID == "" {
-		tenantID = "default"
+		middleware.RespondBadRequest(c, "tenantId is required")
+		return
 	}
 	weeks := parseInt(c.Query("weeks"), 12)
 	if weeks <= 0 {
@@ -330,10 +312,8 @@ func (h *Handler) GetBottlenecks(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		tenantID = c.Query("tenantId")
-	}
-	if tenantID == "" {
-		tenantID = "default"
+		middleware.RespondBadRequest(c, "tenantId is required")
+		return
 	}
 	timeWindow := models.TimeWindow(c.Query("timeWindow"))
 	if timeWindow == "" {
@@ -355,10 +335,8 @@ func (h *Handler) GetDeveloperProfiles(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		tenantID = c.Query("tenantId")
-	}
-	if tenantID == "" {
-		tenantID = "default"
+		middleware.RespondBadRequest(c, "tenantId is required")
+		return
 	}
 
 	profiles := h.svc.GetDeveloperProfiles(ctx, tenantID)

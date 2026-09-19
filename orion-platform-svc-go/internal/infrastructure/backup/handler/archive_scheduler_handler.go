@@ -118,7 +118,7 @@ func (h *ArchiveSchedulerHandler) UnregisterPlan(c *gin.Context) {
 		middleware.RespondServiceUnavailable(c, "archive scheduler not configured")
 		return
 	}
-	tenantID := c.DefaultQuery("tenant_id", c.GetString("tenant_id"))
+	tenantID := c.GetString("tenant_id")
 	h.scheduler.RemovePlan(tenantID, c.Param("planId"))
 	middleware.RespondSuccess(c, gin.H{"removed": true})
 	_ = ctx

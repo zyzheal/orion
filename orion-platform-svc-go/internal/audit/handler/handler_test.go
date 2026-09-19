@@ -619,3 +619,172 @@ func TestHandler_ComplianceTrend_Error(t *testing.T) {
 		t.Fatalf("expected 500, got %d", w.Code)
 	}
 }
+
+// ==================== Tenant isolation ====================
+//
+// 19 audit methods used to accept a client-supplied tenantId that overrode the
+// auth-context tenant: 15 via ?tenantId= (Actions, ResourceTypes, six
+// compliance frameworks, Combined, Coverage, Dashboard, RiskMap, Trend,
+// ChainInfo, StorageStats, ChainLatest) and 4 via the JSON body
+// (VerifyChain, ComplianceCheck, ExportCSV, ExportJSON). audit_logs is the
+// compliance evidence trail, so any token holder could pull another tenant's
+// log history, SOC2/ISO27001/PCI/MLPS2/PDPA reports and export downloads —
+// including over the two UNPERMISSIONED routes (GET /audit/actions,
+// /audit/resource-types). The auth-context tenant must be the only source.
+
+// recordingSvc wraps mockSvc and captures the tenantID the service saw,
+// regardless of which method the handler called.
+func recordingSvc(out *string) *mockSvc {
+	return &mockSvc{
+		listFn: func(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogListResult, error) {
+			*out = tenantID
+			return &models.AuditLogListResult{}, nil
+		},
+		getFn: func(ctx context.Context, tenantID, id string) (*models.AuditLogEntry, error) {
+			*out = tenantID
+			return nil, nil
+		},
+		createFn: func(ctx context.Context, tenantID string, req models.AuditLogCreateRequest) (*models.AuditLogEntry, error) {
+			*out = tenantID
+			return nil, nil
+		},
+		verifySingleFn: func(ctx context.Context, tenantID, id string) (*models.AuditLogEntry, bool, error) {
+			*out = tenantID
+			return nil, false, nil
+		},
+		verifyChainFn: func(ctx context.Context, tenantID string) (*models.ChainVerifyResult, error) {
+			*out = tenantID
+			return &models.ChainVerifyResult{}, nil
+		},
+		getActionsFn: func(ctx context.Context, tenantID string) ([]string, error) {
+			*out = tenantID
+			return nil, nil
+		},
+		getResourceTypesFn: func(ctx context.Context, tenantID string) ([]string, error) {
+			*out = tenantID
+			return nil, nil
+		},
+		complianceReportFn: func(ctx context.Context, tenantID string, framework string) (*models.ComplianceReport, error) {
+			*out = tenantID
+			return &models.ComplianceReport{}, nil
+		},
+		coverageStatsFn: func(ctx context.Context, tenantID string) (*models.AuditCoverageStats, error) {
+			*out = tenantID
+			return &models.AuditCoverageStats{}, nil
+		},
+		dashboardOverviewFn: func(ctx context.Context, tenantID string) (*models.ComplianceDashboardOverview, error) {
+			*out = tenantID
+			return &models.ComplianceDashboardOverview{}, nil
+		},
+		riskMatrixFn: func(ctx context.Context, tenantID string) (*models.ComplianceRiskMatrix, error) {
+			*out = tenantID
+			return &models.ComplianceRiskMatrix{}, nil
+		},
+		scoreTrendFn: func(ctx context.Context, tenantID string, days int) (*models.ComplianceScoreTrend, error) {
+			*out = tenantID
+			return &models.ComplianceScoreTrend{}, nil
+		},
+		chainInfoFn: func(ctx context.Context, tenantID string) (*models.ChainInfo, error) {
+			*out = tenantID
+			return &models.ChainInfo{}, nil
+		},
+		storageStatsFn: func(ctx context.Context, tenantID string) (*models.StorageStats, error) {
+			*out = tenantID
+			return &models.StorageStats{}, nil
+		},
+		exportFn: func(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogExportResult, error) {
+			*out = tenantID
+			return &models.AuditLogExportResult{}, nil
+		},
+	}
+}
+
+func TestHandler_TenantFromAuthContextNotClientInput(t *testing.T) {
+	spoof := "attacker-supplied-tenant"
+	querySpoof := map[string]string{"tenantId": spoof}
+	bodySpoof := map[string]string{"tenantId": spoof}
+
+	cases := []struct {
+		name      string
+		body      interface{}
+		query     map[string]string
+		runRecord func()
+	}{
+		{"Actions", nil, querySpoof, nil},
+		{"ResourceTypes", nil, querySpoof, nil},
+		{"ComplianceSOC2", nil, querySpoof, nil},
+		{"ComplianceISO27001", nil, querySpoof, nil},
+		{"CompliancePCIDSS", nil, querySpoof, nil},
+		{"ComplianceMLPS2", nil, querySpoof, nil},
+		{"CompliancePDPA", nil, querySpoof, nil},
+		{"ComplianceCombined", nil, querySpoof, nil},
+		{"ComplianceCoverage", nil, querySpoof, nil},
+		{"ComplianceDashboard", nil, querySpoof, nil},
+		{"ComplianceRiskMap", nil, querySpoof, nil},
+		{"ComplianceTrend", nil, querySpoof, nil},
+		{"ChainInfo", nil, querySpoof, nil},
+		{"StorageStats", nil, querySpoof, nil},
+		{"ChainLatest", nil, querySpoof, nil},
+		{"VerifyChain", bodySpoof, nil, nil},
+		{"ComplianceCheck", bodySpoof, nil, nil},
+		{"ExportCSV", bodySpoof, nil, nil},
+		{"ExportJSON", bodySpoof, nil, nil},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var got string
+			h := newHandlerWithSvc(recordingSvc(&got))
+			var w *httptest.ResponseRecorder
+			switch tc.name {
+			case "Actions":
+				w = performRequest(h, h.Actions, http.MethodGet, nil, nil, tc.query)
+			case "ResourceTypes":
+				w = performRequest(h, h.ResourceTypes, http.MethodGet, nil, nil, tc.query)
+			case "ComplianceSOC2":
+				w = performRequest(h, h.ComplianceSOC2, http.MethodGet, nil, nil, tc.query)
+			case "ComplianceISO27001":
+				w = performRequest(h, h.ComplianceISO27001, http.MethodGet, nil, nil, tc.query)
+			case "CompliancePCIDSS":
+				w = performRequest(h, h.CompliancePCIDSS, http.MethodGet, nil, nil, tc.query)
+			case "ComplianceMLPS2":
+				w = performRequest(h, h.ComplianceMLPS2, http.MethodGet, nil, nil, tc.query)
+			case "CompliancePDPA":
+				w = performRequest(h, h.CompliancePDPA, http.MethodGet, nil, nil, tc.query)
+			case "ComplianceCombined":
+				w = performRequest(h, h.ComplianceCombined, http.MethodGet, nil, nil, tc.query)
+			case "ComplianceCoverage":
+				w = performRequest(h, h.ComplianceCoverage, http.MethodGet, nil, nil, tc.query)
+			case "ComplianceDashboard":
+				w = performRequest(h, h.ComplianceDashboard, http.MethodGet, nil, nil, tc.query)
+			case "ComplianceRiskMap":
+				w = performRequest(h, h.ComplianceRiskMap, http.MethodGet, nil, nil, tc.query)
+			case "ComplianceTrend":
+				w = performRequest(h, h.ComplianceTrend, http.MethodGet, nil, nil, tc.query)
+			case "ChainInfo":
+				w = performRequest(h, h.ChainInfo, http.MethodGet, nil, nil, tc.query)
+			case "StorageStats":
+				w = performRequest(h, h.StorageStats, http.MethodGet, nil, nil, tc.query)
+			case "ChainLatest":
+				w = performRequest(h, h.ChainLatest, http.MethodGet, nil, nil, tc.query)
+			case "VerifyChain":
+				w = performRequest(h, h.VerifyChain, http.MethodPost, tc.body, nil, nil)
+			case "ComplianceCheck":
+				w = performRequest(h, h.ComplianceCheck, http.MethodPost, tc.body, nil, nil)
+			case "ExportCSV":
+				w = performRequest(h, h.ExportCSV, http.MethodPost, tc.body, nil, nil)
+			case "ExportJSON":
+				w = performRequest(h, h.ExportJSON, http.MethodPost, tc.body, nil, nil)
+			}
+			if w.Code >= http.StatusInternalServerError {
+				t.Fatalf("%s: handler returned %d for a valid request", tc.name, w.Code)
+			}
+			if got == "" {
+				t.Fatalf("%s: service never received a tenant ID", tc.name)
+			}
+			if got != "tenant-1" {
+				t.Errorf("%s: service saw tenant %q, want %q (auth context)", tc.name, got, "tenant-1")
+			}
+		})
+	}
+}
