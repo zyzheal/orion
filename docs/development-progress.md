@@ -14518,3 +14518,157 @@ orion-platform-svc-go/internal/ai/aicost/service/service_test.go
 并行会话的文件（`internal/alert/...`、`internal/audit/...`、`internal/notification/...`）与全部 `orion-frontend/...` 修改一律不入这两笔。变异 harness 在 `/private/tmp/r73/`，仓库外，不入库。
 
 文档提交：本节 + `ALL_TODOS.md` 第 400 行一行。
+
+## §75 internal/artifact-ops 三条在册路由返回"已执行"却从不执行：`GetRetentionReport` 永远全零、`Cleanup` 谎报"清理完成"、`DetectMalicious` 没读任何报告也答"威胁库里没匹配"；顺带修掉一处潜伏的 NULL 扫描缺陷，它让"无操作记录"分支不可达（2026-08-26）
+
+Round 74 起点 HEAD `4ffe420e8`。三条在册路由：`POST /artifact-ops/artifacts/:id/detect-malicious`、`GET /artifact-ops/retention/report`、`POST /artifact-ops/cleanup`。
+
+同一文件、同一模块里的 `EvaluateRetention` 是**真的**：读策略、算账龄、算操作数，错误串也都是实的。于是这个模块看着像已经交付。但和它配成一套的另外三条返回的是常量，而且三者必须对"什么叫过期"给出同一个答案，所以不能只修两条。
+
+### 75.1 三个 stub 的原文
+
+`DetectMalicious` 的返回值声称查了一个从未被访问的数据库：
+
+```go
+// DetectMalicious simulates malicious artifact detection by hash lookup.
+	// In production, this would query a threat-intelligence database.
+	// For now, return a clean result.
+	return &models.DetectMaliciousResult{
+		Malicious:  false,
+		Reason:     "no match found in threat database",
+		ArtifactID: req.ArtifactID,
+	}, nil
+```
+
+`no match found in threat database` 是一条**从未执行过的查询**的结论，而且对每个 hash 都成立——调用方拿到的是"干净"，不是"未知"。
+
+`GetRetentionReport` 是"连通性检查加空容器返回"的标准形态：它真的查了策略，然后把结果扔掉。
+
+```go
+	var report models.RetentionReport
+	if req.PolicyID != "" {
+		_, err := s.repo.GetPolicyByID(ctx, tenantID, req.PolicyID)
+		if err != nil {
+			return nil, errors.New("retention policy not found")
+		}
+		report.PolicyID = req.PolicyID
+	}
+	// Placeholder report — in production, this evaluates all artifacts against policies.
+	return &report, nil
+```
+
+`Cleanup` 最短：
+
+```go
+	// Placeholder: removes old operation records older than a threshold.
+	return map[string]any{"message": "cleanup completed", "deleted": 0}, nil
+```
+
+### 75.2 逐条定级
+
+- **`Cleanup` 最高。** 这是删除数据的破坏性路由，返回 `cleanup completed` 加 `deleted: 0`。运营方看到的是"清理成功"，实际一行没删，过期记录继续堆积。谎报比不响应危险：前者会让人停止检查。
+- **`DetectMalicious` 次之。** 一个安全判定接口对每个输入都答"干净"，等于拆掉安全网却保留了它的按钮。
+- **`GetRetentionReport` 最低但成对。** 它和 `Cleanup` 是一条链：报告点出哪几个制品过期，清理才删这几个。报告全零时整条链失效，而全零报告本身就是"一切正常"的假象。
+
+### 75.3 修法
+
+新增两个仓库方法，同时加进仓库接口**和** service 自己的接口。`repository_interface.go` 头部写着 `DO NOT MODIFY: auto-generated from repository.go`，但仓库里不存在这个生成器，所以按既有 16 个方法的样子手工补两行。
+
+- `ListArtifactIDs`：`SELECT DISTINCT artifact_id FROM artifact_operations WHERE tenant_id=$1 ORDER BY artifact_id`。模块记录制品存在的唯一位置就是 `artifact_operations`。
+- `DeleteOperationsByArtifact`：返回 `RowsAffected()`，让删除数由数据库给出。
+
+service 侧把"过期"收敛成一条判定路径：`loadRule`（取策略并解析 rule JSON）、`enabledRules`（全部启用策略；rule 不是合法 JSON 时**返回错误而不是跳过**——悄悄丢掉一条配错的规则等于关掉了执行）、`evaluateArtifactRetention`（单个制品的账龄与操作数）、`anyRuleExpires`（跨策略 fail-closed）。三条路由都走它，不可能得出不同答案。
+
+`GetRetentionReport` 现在满足可测不变量 `TotalChecked == Expired + Active`，并且在没有启用策略时**先于** `ListArtifactIDs` 返回；顺序反了就会把制品计成"已检查"，却没有一条判定落库。
+
+### 75.4 三个语义决定，都写进代码而不是留成假设
+
+1. **加 `Checked` 区分"干净"和"没检查"。** 没有证据时 `Malicious: false` 没有意义，所以结果体加 `Checked` 与 `ReportsChecked`；零报告时 `Checked == false`，理由写成 `verdict unknown`。
+2. **`deleted` 来自 `RowsAffected`。** 不用 `len(removed)`：返回体里不能出现"打算删的数量"。
+3. **`req.Hash` 保留绑定但不读，并写明原因。** 全仓没有威胁情报表、没有 hash 白名单、没有对应迁移。凭空建一张 `known_bad_hashes` 只会造出第二个永远答"干净"的桩，所以保留字段、在注释里写清为什么不查，而不是假装查了。
+
+### 75.5 顺手抓到的一处活缺陷：`MIN` 无 `GROUP BY` 恒返回一行，NULL 扫不进非指针 `time.Time`
+
+`evaluateArtifactRetention` 原本把 `SELECT MIN(created_at) ...` 扫进**非指针** `time.Time`，再靠 `IsZero()` 判断"没有操作记录"。但 `MIN` 无 `GROUP BY` 永远返回一行，没有匹配行时该值是 NULL，而 NULL 扫进非指针 `time.Time` 直接报错。于是 `no operations recorded for artifact` 分支是不可达的死代码，路由对"有启用策略、但该制品没有任何操作记录"回答 500。
+
+和 §74.5 的 `SavingsRecord` 缺 db tag 是同一类潜伏缺陷：代码读起来完全正确，只在特定数据形态下崩。
+
+改成 `*time.Time` 加 `== nil` 之后，我核到依赖源码确认它成立，而不是靠猜：`sqlx@v1.4.0` 的 `sqlx.go:56` `isScannable` 对 `time.Time` 返回 true（没有导出字段，`len(mapper().TypeMap(t).Index) == 0`），因此走 `r.Scan(dest)` 标准路径，NULL 落为 nil 指针，而**不是**走列名映射报 `missing destination name min in *time.Time`。这个区别决定了这处修复有效。
+
+### 75.6 新测试：24 个测试函数，631 行
+
+`internal/artifact-ops/service/service_test.go`（新文件）：`DetectMalicious` 5、`EvaluateRetention` 8、`GetRetentionReport` 6、`Cleanup` 5。仓库方法用假实现，裸 SQL 走 sqlmock 加真实 `sqlx.NewDb`，SQL 常量写成单行以匹配 `QueryMatcherEqual` 的空白折叠；`ExpectationsWereMet` 挂在 `t.Cleanup` 上，所以任何一条未消费的期望都会失败。
+
+三个桩各有一条直接回归：`TestDetectMalicious_NoReportsIsUnknownNotClean`、`TestGetRetentionReport_CountsExpiredAndActive`、`TestCleanup_DeletesOnlyExpiredArtifacts`。NULL 扫描有一条：`TestEvaluateRetention_NoOperationsIsNotExpired`。两条不变量各有一条：`TotalChecked == Expired + Active`；无启用策略时四个计数器全零且 `ExpiredArtifacts` 是空切片而非 nil（JSON 出 `[]` 而不是 `null`）。
+
+### 75.7 变异矩阵：22/22 KILLED，负控 SURVIVED
+
+`/private/tmp/r74/mutation_check.py`，全部写在 `/private/tmp/r74/work`，仓库工作树从未被写入。变异从改动前的字节副本还原，不走 git。基线退出 0、22 个真变异全灭、注释负控 SURVIVED、`RESTORED exit=0`、`build_errors=0`、`bad_anchors=0`。
+
+harness 把编译错误单列为 `BUILD_ERROR`，不让自己的笔误伪装成 KILLED。上一轮有 7 个 `BUILD_ERROR`（都是 harness 里写的非法 Go）加 3 个 `ANCHOR_HIT_0`（锚点缩进写错），全部修成合法 Go 并对每条锚点逐个校验 `count == 1` 之后才重跑。
+
+| 变异 | 判定 | 抓到它的测试 |
+|---|---|---|
+| NC 只改注释 | SURVIVED（负控） | — |
+| 无证据时把理由改成"没有已知恶意特征" | KILLED | TestDetectMalicious_NoReportsIsUnknownNotClean |
+| 去掉 status 的 TrimSpace | KILLED | TestDetectMalicious_StatusMatchIgnoresCaseAndWhitespace |
+| 成功分支不置 Checked | KILLED | TestDetectMalicious_FlaggedWhenAReportSaysMalicious |
+| 结果体不带策略 ID | KILLED | TestEvaluateRetention_ExpiredByAge |
+| 整段丢掉 loadRule | KILLED | TestEvaluateRetention_ExpiredByAge |
+| 不再列举制品 ID | KILLED | TestGetRetentionReport_CountsExpiredAndActive |
+| 丢掉 Expired 计数 | KILLED | 同上 |
+| 过期制品计成 Active | KILLED | 同上 |
+| 丢掉整个判定循环 | KILLED | 同上 |
+| 无策略分支 TotalChecked 报 99 | KILLED | TestGetRetentionReport_DisabledPolicyDoesNotCount |
+| 清理的"无策略"文案改成完成 | KILLED | TestCleanup_NoEnabledPolicyReportsNothingInsteadOfSuccess |
+| 丢掉 deleted 累加 | KILLED | TestCleanup_DeletesOnlyExpiredArtifacts |
+| 丢掉 policies_checked 真实值 | KILLED | 同上 |
+| 无策略早退条件反向 | KILLED | TestGetRetentionReport_CountsExpiredAndActive |
+| 账龄门槛永不生效 | KILLED | TestEvaluateRetention_ExpiredByAge |
+| 操作数门槛反向（大于改小于等于） | KILLED | TestEvaluateRetention_ExpiredByOperationCount |
+| 账龄门槛反向 | KILLED | TestEvaluateRetention_ExpiredByAge |
+| NULL 分支反向 | KILLED | TestEvaluateRetention_ExpiredByAge |
+| rule 非法 JSON 时不再报错 | KILLED | TestEvaluateRetention_ExpiredByAge |
+| 过期制品不删 | KILLED | TestCleanup_DeletesOnlyExpiredArtifacts |
+| 全部制品都删 | KILLED | 同上 |
+| 删除数改成硬编码 5 | KILLED | 同上 |
+
+**harness 自己的一处空转，也是本轮抓到的。** `删除数改成硬编码 5` 一开始会 SURVIVED：测试里 `deleteRows` 恰好是 5，断言写的也是 5，于是返回常量的桩按巧合通过。这正是"返回常量也能过测试"的形态。把测试改成 `deleteRows: 7`、断言 `int64(7)` 之后这条变异才真正被灭掉，顺带让 `deleted` 断言有了真实判别力而不是碰巧对上。
+
+### 75.8 只记录不修
+
+1. **`DetectMaliciousRequest.Hash` 绑定但从不读。** 全仓没有威胁情报或 hash 白名单的任何基础设施，连迁移都没有。凭空建表只会造出第二个永远答"干净"的桩，所以保留字段并写明原因（75.4 第 3 条）。
+2. **`artifact_operations.deleted_at`（迁移 571 加的列）没有任何查询引用。** 模块的软删除是个 no-op，因此 `Cleanup` 走硬删除——那才是 `RowsAffected` 能给出真实数字的路径。
+3. **模块对制品存在的唯一认知就是 `artifact_operations`。** 没有操作记录的制品对 `GetRetentionReport` 和 `Cleanup` 完全不可见。这是真实的数据缺口：模块本身不记录制品本体。
+4. **`Cleanup` 返回 `map[string]any` 而不是结构体。** 签名被生成的 `ServiceInterface` 固定，改它等于改接口加生成器，属结构重构。
+5. **`GetArtifactStats` 空分组时返回 `nil, nil`。** 既有行为，本轮未动。
+6. **`database-devops` 的占位回退仍报 `Status: "completed"`。** 真实执行器路径已核为真的接线（`wireDatasource` 在 `wireCoreDomains` 内先于 `wireInlineHandlers` 执行），`canExecute()` 是正当的能力检查，回退文案也标明了 `(placeholder — executor not configured)`。但降级模式仍标 completed；`ExecuteRestore` 的降级路径则一个字都不返回。
+7. **`data-catalog Discover` 的 `*DiscoverySummary` 没有错误通道。** 它是结构问题不是桩：`introspector == nil` 与 `len(configs) == 0` 两个 guard 都诚实地标了 `Status: "skipped"`。
+8. §74.8 的 9 项原样结转（aicost 四条路由裸读 `c.GetString("tenant_id")`、`Currency` 的 CNY 展示默认值、`EstimatedMonthlySavings` 是上限而非预测、`model_custom_pricing` 与 `ai_models` 两张表未被使用、`OptimizeRequest.TenantID` 绑定不读、`RecordSavings` 全仓零非测试调用点、`Handler.svc` 仍是具体类型、兄弟模块 `internal/ai/cost` 也有裸租户读取），以及 §73.7 的 7 项、§72.7 的 9 项。顺带纠正一处交叉引用：§74.8 第 9 条写的"§73.8 的 9 项"有笔误，§73 的"只记录不修"一节是 **73.7**，且为 7 项（§73.8 是验证）。
+
+### 75.9 验证
+
+- `go build ./...` 退出 0；`go vet ./internal/artifact-ops/...` 退出 0；`gofmt -l internal/artifact-ops/` 无输出。
+- `go test -count=1 ./internal/artifact-ops/...` 退出 0：handler 0.014s、service 0.008s 全 ok，models 与 repository 无测试文件。
+- 5 个触及文件控制字符扫描：ctrl 为 0、无弯引号、无 nbsp。
+- `grep -rn 'TODO(stub)\|stub)' internal/artifact-ops/` 无结果。
+- 变异矩阵：基线退出 0、22/22 KILLED、注释负控 SURVIVED、`RESTORED exit=0`、`build_errors=0`、`bad_anchors=0`。
+- `git diff --numstat`：`models.go` +13/−0、`repository.go` +25/−0、`repository_interface.go` +2/−0、`service.go` +246/−58，加新测试文件 631 行、24 个测试函数。
+- 无新迁移，下一个可用版本号仍是 **699**。`go.work.sum`、`orion-platform-svc-go/go.sum`、`go.mod` 复核无改动。
+- 磁盘：harness 的 `GOCACHE` 重定向到 `/private/tmp/r74/work/gocache`（87M，跑完已删），宿主 9.6G 的 build cache 全程未触碰。
+
+### 75.10 提交
+
+代码提交（5 文件）：
+
+```
+orion-platform-svc-go/internal/artifact-ops/models/models.go
+orion-platform-svc-go/internal/artifact-ops/repository/repository.go
+orion-platform-svc-go/internal/artifact-ops/repository/repository_interface.go
+orion-platform-svc-go/internal/artifact-ops/service/service.go
+orion-platform-svc-go/internal/artifact-ops/service/service_test.go （新）
+```
+
+并行会话的文件（`internal/alert/...`、`internal/audit/...`、`internal/notification/...`）与全部 `orion-frontend/...` 修改一律不入这两笔。变异 harness 在 `/private/tmp/r74/`，仓库外，不入库。
+
+文档提交：本节 + `ALL_TODOS.md` 第 401 行一行。
