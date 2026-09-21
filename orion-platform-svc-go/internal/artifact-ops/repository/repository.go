@@ -37,6 +37,31 @@ func (r *Repository) ListOperationsByArtifact(ctx context.Context, tenantID, art
 	return items, err
 }
 
+// ListArtifactIDs returns every distinct artifact_id this tenant has an
+// operation record for, ordered for stable reports. artifact_operations is the
+// only place the module records the existence of an artifact, so an artifact
+// with no operation row is invisible to this module.
+func (r *Repository) ListArtifactIDs(ctx context.Context, tenantID string) ([]string, error) {
+	var ids []string
+	err := r.db.SelectContext(ctx, &ids,
+		`SELECT DISTINCT artifact_id FROM artifact_operations WHERE tenant_id=$1 ORDER BY artifact_id`,
+		tenantID)
+	return ids, err
+}
+
+// DeleteOperationsByArtifact hard-deletes every operation record for one
+// artifact and returns how many rows went. Callers use the count to report a
+// truthful deletion number instead of asserting success.
+func (r *Repository) DeleteOperationsByArtifact(ctx context.Context, tenantID, artifactID string) (int64, error) {
+	res, err := r.db.ExecContext(ctx,
+		`DELETE FROM artifact_operations WHERE tenant_id=$1 AND artifact_id=$2`,
+		tenantID, artifactID)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 // ---------- Artifact Stats ----------
 
 func (r *Repository) GetArtifactStats(ctx context.Context, tenantID, artifactID string) (*models.ArtifactStats, error) {

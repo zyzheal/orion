@@ -10,6 +10,8 @@ import (
 type RepositoryInterface interface {
 	CreateOperation(ctx context.Context, op *models.ArtifactOperation) error
 	ListOperationsByArtifact(ctx context.Context, tenantID, artifactID string, limit, offset int) ([]models.ArtifactOperation, error)
+	ListArtifactIDs(ctx context.Context, tenantID string) ([]string, error)
+	DeleteOperationsByArtifact(ctx context.Context, tenantID, artifactID string) (int64, error)
 	GetArtifactStats(ctx context.Context, tenantID, artifactID string) (*models.ArtifactStats, error)
 	CreateScan(ctx context.Context, scan *models.ArtifactScan) error
 	GetScanByID(ctx context.Context, tenantID, id string) (*models.ArtifactScan, error)

@@ -62,6 +62,11 @@ type DetectMaliciousResult struct {
 	Malicious  bool   `json:"malicious"`
 	Reason     string `json:"reason"`
 	ArtifactID string `json:"artifact_id"`
+	// Checked reports whether a verdict was actually reached from evidence.
+	// A false Malicious is meaningless without evidence, so callers must treat
+	// Checked == false as "unknown", not as "clean".
+	Checked        bool `json:"checked"`
+	ReportsChecked int  `json:"reports_checked"`
 }
 
 // RetentionPolicy defines retention rules for artifacts.
@@ -102,4 +107,12 @@ type RetentionReport struct {
 	TotalChecked int    `json:"total_checked"`
 	Expired      int    `json:"expired"`
 	Active       int    `json:"active"`
+	// PoliciesApplied is the number of retention rules the artifacts were
+	// judged against. Empty PolicyID means every enabled policy, and an
+	// artifact counts as Expired when any of them expires it.
+	PoliciesApplied int `json:"policies_applied"`
+	// ExpiredArtifacts names the artifacts that fell outside their retention
+	// window, so the operator knows which records Cleanup would purge.
+	ExpiredArtifacts []string `json:"expired_artifacts"`
+	Message          string   `json:"message"`
 }
