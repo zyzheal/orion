@@ -14672,3 +14672,172 @@ orion-platform-svc-go/internal/artifact-ops/service/service_test.go （新）
 并行会话的文件（`internal/alert/...`、`internal/audit/...`、`internal/notification/...`）与全部 `orion-frontend/...` 修改一律不入这两笔。变异 harness 在 `/private/tmp/r74/`，仓库外，不入库。
 
 文档提交：本节 + `ALL_TODOS.md` 第 401 行一行。
+
+## §76 internal/knowledge 在册路由 `POST /eval/sets/:id/run` 的召回率恒为 1.00：`totalRecall += 1.0` 的占位注释让 `avg_recall` 退化成 `total/total`，`CompareRuns` 的 `AvgRecallDelta` 因此永远是 0；同一次运行 `avg_score` 还拿 `total_count` 做分母，把检索报错的用例算成"零分"而不是"未测量"；`UpdateEvalRun` 的写入错误被 `_ =` 丢弃，写失败照样返回 201，客户端拿到一个永远卡在 `status:"running"` 的运行（2026-08-26）
+
+### 76.1 三个缺陷的原文
+
+路由在册：`internal/knowledge/handler/handler.go:101`
+
+```go
+f.POST("/eval/sets/:id/run", auth.RequirePermission("knowledge", "write"), h.RunEval)
+```
+
+handler `:998` → `h.svc.RunEval` → `internal/knowledge/service/eval_set_service.go:70`。修复前的循环体（原 `:99-138`）：
+
+```go
+	total := len(cases)
+	pass := 0
+	totalRecall := 0.0
+	totalScore := 0.0
+	for _, c := range cases {
+		results, rerr := s.repo.Retrieve(ctx, tenantID, c.Query, "", &topK)
+		if rerr != nil {
+			continue
+		}
+		// ... hit 判定 ...
+		if hit {
+			pass++
+		}
+		totalRecall += 1.0                    // placeholder: absolute recall against 1 expected doc
+		totalScore += (resultsScore(results)) // similarity contributes
+	}
+
+	updates := map[string]interface{}{
+		"status":      "completed",
+		"pass_count":  pass,
+		"total_count": total,
+		"avg_recall":  safeRateRound(totalRecall, total),
+		"avg_score":   safeRateRound(totalScore, total),
+		"report":      report,
+	}
+	_ = s.ragRepo.UpdateEvalRun(ctx, run.ID, updates)
+```
+
+### 76.2 逐条定级
+
+**(a) `totalRecall += 1.0` —— 指标不存在，不是精度不够。**
+注释自己写明了它是占位。后果是 `avg_recall = safeRateRound(totalRecall, total) = total/total`：只要运行里至少有一个用例，`avg_recall` 就是 1.00，与检索质量完全无关。它**从不读取 `GoldSources`**。链路影响：`avg_recall` 写入 `eval_runs.avg_recall`（`repository_rag.go:547/573/599`），`CompareRuns` 直接相减得 `AvgRecallDelta`，所以那条"回归检测"字段从上线第一天起恒为 0。两个检索质量完全不同的 run 会显示 `AvgRecallDelta: 0`。
+
+**为什么这一项可实现，不是 record-only**：分子分母都在。`models.EvalSetCase.GoldSources`（`models.go:248`）、`models.RAGRetrieveResult.ID`（`:91`）——只差没有算。
+
+**(b) `avg_score` 用 `total_count` 做分母 —— 把故障算成零分。**
+`safeRateRound(totalScore, total)` 把检索报错的 case 计入分母，等价于"检索系统挂了 = 这个用例得分 0"。检索后端不可用时 `avg_score` 下跌，看起来像检索质量变差，实际是它自己挂了。
+
+**(c) `_ = UpdateEvalRun` —— 写失败被吞掉，返回 201。**
+错误丢弃后函数照常走到 `GetEvalRun`。读回来的行还是 `CreateEvalRun` 写的 `status: "running"`——客户端拿到"创建成功"的运行，状态永远是 running，永远不会完成，且调用方无从得知写入失败。
+
+### 76.3 修法
+
+`internal/knowledge/service/eval_set_service.go`（+70/−11）：
+
+1. `recallForCase(goldSources string, results []models.RAGRetrieveResult) (float64, bool)` —— 真召回率：取交集大小除以期望数。第二个返回值在 case 未声明 gold sources 时为 `false`，此时**召回率不可测量**，该 case 必须不进分母。
+2. `parseGoldSources(raw string) []string` —— 解码 `gold_sources` 列。`CreateEvalSet` 写的是裸括号逗号列表（`[doc-1,doc-2]`，`:31` 的 `strings.Join`），**不是合法 JSON**，`json.Unmarshal` 会拒绝它；同时剥掉引号，JSON 形态也能解析。两种都容忍，因为库里可能同时有旧数据和新写法。
+3. 两个独立分母：`goldCases`（声明了 gold sources 的用例数）给 `avg_recall`，`measured`（检索成功的用例数）给 `avg_score`。检索报错的 case 两个分母都不进。
+4. report 新增 `"gold_cases":%d` —— **这个键是必要的，不是锦上添花**：当 `avg_recall` 为 0.00 时调用方无法区分"真的一个都没检索到"和"压根没人声明 gold sources"。`CreateEvalSet` 在 `GoldSources` 为空时默认写 `"[]"`（`:29`），所以大量真实 run 会落在后者。有了 `gold_cases: 0` 就不再误读。
+5. 写入错误改为 `return nil, fmt.Errorf("record eval run result: %w", err)`。
+
+### 76.4 语义决定，都写进代码而不是留成假设
+
+- **召回率按声明的 gold sources 计，不按结果条数计。** 检索返回 5 条但都不是期望的那条，召回率是 0；返回 1 条且正是它，也是 0.5（声明了两条时）。条数不进分子。
+- **未测量的不进分母，而不是按零计入。** 这是 `measured` 与 `total` 的区别，也是 §76.2(b) 要修的点。
+- **空 gold sources 返回 `(0, false)` 而不是 `(0, true)`。** 后者会让一个什么都没声明的 case 把平均值拉低，制造出一次从未发生过的检索失败。
+- **写入失败必须失败。** 评估运行"创建"和"记录结果"是两步，只成功第一步却报 201 是比报错更糟的状态——它留下一个永远 running 的僵尸行。
+
+### 76.5 顺手抓到的一处凑数测试
+
+`eval_set_service_test.go` 原 101 行，全是纯函数测试加 `CompareRuns`，**`RunEval` 零覆盖**。其中：
+
+```go
+func Test_EvalRunReport(t *testing.T) {
+	report := `{"total":10,"pass":7,"fail":3,"pass_rate":0.70}`
+	if !strings.Contains(report, "pass_rate") {
+		t.Fatal("report should contain pass_rate")
+	}
+}
+```
+
+它构造一个字面量字符串，再断言**自己**包含 `pass_rate`。与被测代码零耦合，无论 `RunEval` 怎么坏它都绿。已删除——替换它的是一条断言 report 精确等于 `{"total":3,"pass":2,"fail":1,"pass_rate":0.67,"gold_cases":2}` 的真测试。
+
+### 76.6 新测试：9 个测试函数，303 行
+
+fake 同时实现 `RepositoryInterface` 与 `RAGRepositoryInterface`（`var _` 双断言编译期兜底）。`UpdateEvalRun` 会把 update map **真实回写**到 run 结构体，镜像 repository 的行为，所以断言的是 service 真正写入的值。
+
+| 测试 | 关键断言 |
+|---|---|
+| `RunEval_AvgRecallIsMeasuredAgainstGoldSources` | 3 case（全命中 / 半命中 / 无 gold）→ `avg_recall` **0.75**（`(1.0+0.5)/2`，不是 `/3` 的 0.5）；`avg_score` 0.63；report 精确等于 `{"total":3,"pass":2,"fail":1,"pass_rate":0.67,"gold_cases":2}`；`topK` 默认 5 且传给 Retrieve 三次 |
+| `RunEval_RetrievalErrorLeavesBothDenominators` | 2 case 其中 1 个检索报错 → `avg_recall` 0.50（不是 `/2` 的 0.25）、`avg_score` 0.60（不是 0.30）；report 结尾 `gold_cases":1}` |
+| `RunEval_NoGoldSourcesIsNotMeasureable` | 2 case 都是 `"[]"` → `avg_recall` 0 且 `gold_cases:0`（不是 2 个"测出零"）；`avg_score` 0.5 照常按 2 个 measured 计 |
+| `CompareRuns_AvgRecallDeltaReflectsRetrieval` | 0.5 → 1.0 显示 `AvgRecallDelta` 0.5——正是修复前恒为 0 的那个字段 |
+| `RunEval_UpdateEvalRunErrorPropagates` | 写入报错 → `(nil, err)`，err 含 `record eval run result`（不再 201 + 永久 running） |
+| `RunEval_EmptySet` | 0 case → 两个平均值都是 0，`pass_rate:0.00`，不除零 |
+| `RunEval_SetNotFound` | set 不存在 → 报错 |
+| `ParseGoldSources` | 10 例：裸列表、JSON 引号、空白、`[]`、空串、尾逗号、垃圾输入、空引号元素 |
+| `RecallForCase` | 全命中 1.0 / 半命中 0.5 / 全未命中 0.0 / 无结果 `0.0,true` / 空 expected `(0,false)` / 空 ID 结果不匹配 |
+
+### 76.7 变异矩阵：11/11 KILLED，负控 SURVIVED
+
+harness 在 `/private/tmp/r75/`（仓库外，不入库）。每个变异在一个独立的 `go test` 进程里跑**未修改的**测试；编译错误报 `BUILD_ERROR` 而不计为 kill，避免 harness 自己的笔误冒充结果；11 个锚点全部先验 `count == 1`，任一不满足则整体中止。
+
+| 变异 | 结果 | 由谁杀死 |
+|---|---|---|
+| NC_control（不变异，负控） | SURVIVED ✓ | — |
+| M1 `totalRecall += recall` → `+= 1.0`（**原缺陷**） | KILLED | `RunEval_AvgRecallIsMeasured...` |
+| M2 recall 分母改回 `total` | KILLED | 同上 + `RetrievalErrorLeavesBoth...` |
+| M3 score 分母改回 `total` | KILLED | `RetrievalErrorLeavesBoth...` |
+| M4 report 去掉 `gold_cases` 键 | KILLED | 4 个测试的 report 精确串断言 |
+| M5 `UpdateEvalRun` 错误改回 `_ =` | KILLED | `UpdateEvalRunErrorPropagates` |
+| M6 `parseGoldSources` 不剥引号 | KILLED | `ParseGoldSources` |
+| M7 空 expected 返回 `true` | KILLED | `NoGoldSourcesIsNotMeasureable` + `RecallForCase` |
+| M8 `measured++` → `measured += 0` | KILLED | `RunEval_AvgRecallIsMeasured...`（avg_score 0.63 → 1.9） |
+| M9 `goldCases++` → `goldCases += 0` | KILLED | 同上（0.75 → 1.0） |
+| M10 hits 无条件计数 | KILLED | 同上 + `RecallForCase` |
+| M11 `found` 永不填充 | KILLED | 同上 + `RecallForCase` |
+
+```
+SUMMARY killed=11/11 survived=1 builderr=0 badanchor=0
+VERDICT PASS
+```
+
+**一次值得记录的 harness 迭代**：M1 首轮被判 `BUILD_ERROR` 而不是 KILLED。我原以为把 `totalRecall += recall` 换成 `+= 1.0` 就够，但 `if recall, ok := recallForCase(...)` 的绑定变量 `recall` 随即变成未使用，Go 直接编译失败。harness 如实报成 `BUILD_ERROR`——这正是"harness 不能把自己的编译错误算成杀死"这条规则在起作用，否则 11/11 里有一个是假的。锚点扩到覆盖 `if` 绑定后 M1 才成为有效变异。
+
+M8/M9 用 `+= 0` 而不是删除自增行，理由相同：删掉会让变量未使用而编译失败，那不是变异而是笔误。
+
+### 76.8 只记录不修
+
+1. **`UpdateEvalRun(ctx, id, updates)` 是 eval-runs 唯一没有租户谓词的查询。** `repository_rag.go:551` 用 `WHERE id = $N`，而同表的 `GetEvalRun` / `ListEvalRuns` 都是租户限定的。修它要改 `RAGRepositoryInterface` 签名并波及全部调用方，属接口变更，超出本轮。
+2. **`GoldSources` 字段注释写 "JSON array of doc IDs"（`models.go:248`），实际 `CreateEvalSet` 写的是 `[doc-1,doc-2]`（`:31` 的 `strings.Join`），不是合法 JSON。** `parseGoldSources` 两种都容忍，但写入侧应改成 `json.Marshal`——那是数据迁移问题。
+3. **`CreateEvalSet` 在 `GoldAnswer` 为空时回退 `gold = c.Query`（`:26-28`）**，所以 gold answer 永远非空，而 `GoldSources` 默认 `"[]"`。这就是必须把 `gold_cases` 放进 report 的原因。
+4. **`EvalRun.CompletedAt` 由 repository 打**（`UpdateEvalRun` 追加 `completed_at = NOW()`），不在 service 层。
+5. **`report` 列是面向客户端的不透明 JSON 字符串**，全仓无结构化解析方（handler 原样回传，`eval_set_seeding.go` 不读），所以加键安全。
+
+### 76.9 验证
+
+```
+$ go test -count=1 ./internal/knowledge/...
+ok  	orion/platform-svc-go/internal/knowledge/handler	0.026s
+?   	orion/platform-svc-go/internal/knowledge/models	[no test files]
+ok  	orion/platform-svc-go/internal/knowledge/repository	0.017s
+ok  	orion/platform-svc-go/internal/knowledge/service	0.015s
+```
+
+`gofmt -l internal/knowledge/` 无输出。字节级扫描：无控制字符、无非 ASCII、无相邻单引号。
+
+**一个环境层面的坑**：用 `GOWORK=off` 跑同一命令会误报 `missing go.sum entry`（`go.work.sum` 在仓库根，关掉工作区后只认模块自己的 `go.sum`）。必须走工作区模式。
+
+### 76.10 提交与副作用
+
+`eval_set_seeding.go:201` 也调 `RunEval`，但只读 `PassCount`/`TotalCount`/`Status`。修复前 CI 播种遇到写入失败会拿到 `status:"running"` 的 run 并据此算 `passRate`；现在它走 `err != nil` 分支记成 `Status: "error"` 且 `failed++`。**这是改进，不是破坏**：僵尸 running 行不再被当成完成态参与统计。
+
+代码提交（2 文件，+362/−11）：
+
+```
+orion-platform-svc-go/internal/knowledge/service/eval_set_service.go
+orion-platform-svc-go/internal/knowledge/service/eval_set_service_test.go
+```
+
+`go.work.sum` / `go.sum` / `go.mod` 均未动。并行会话的文件（`internal/alert/...`、`internal/audit/...`、`internal/notification/...`）与全部 `orion-frontend/...` 修改一律不入这两笔。变异 harness 在 `/private/tmp/r75/`，仓库外，不入库。
+
+文档提交：本节 + `ALL_TODOS.md` 第 402 行一行。
+
+遗留 carry-forward 不变：§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项，全部原样结转。
