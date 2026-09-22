@@ -95,6 +95,8 @@ func (s *Service) RunEval(ctx context.Context, tenantID string, req models.RunEv
 	total := len(cases)
 	pass := 0
 	totalRecall := 0.0
+	goldCases := 0
+	measured := 0
 	totalScore := 0.0
 	for _, c := range cases {
 		results, rerr := s.repo.Retrieve(ctx, tenantID, c.Query, "", &topK)
@@ -120,22 +122,33 @@ func (s *Service) RunEval(ctx context.Context, tenantID string, req models.RunEv
 		if hit {
 			pass++
 		}
-		totalRecall += 1.0                    // placeholder: absolute recall against 1 expected doc
-		totalScore += (resultsScore(results)) // similarity contributes
+		// A case that reached retrieval is what both averages divide by:
+		// counting cases that errored would report a quality the retrieval
+		// never produced.
+		measured++
+		if recall, ok := recallForCase(c.GoldSources, results); ok {
+			totalRecall += recall
+			goldCases++
+		}
+		totalScore += resultsScore(results)
 	}
 
-	report := fmt.Sprintf(`{"total":%d,"pass":%d,"fail":%d,"pass_rate":%.2f}`,
-		total, pass, total-pass, safeRate(pass, total))
+	// gold_cases records how many cases declared gold sources, so a 0.00
+	// avg_recall means either a real miss or that nothing was measurable.
+	report := fmt.Sprintf(`{"total":%d,"pass":%d,"fail":%d,"pass_rate":%.2f,"gold_cases":%d}`,
+		total, pass, total-pass, safeRate(pass, total), goldCases)
 
 	updates := map[string]interface{}{
 		"status":      "completed",
 		"pass_count":  pass,
 		"total_count": total,
-		"avg_recall":  safeRateRound(totalRecall, total),
-		"avg_score":   safeRateRound(totalScore, total),
+		"avg_recall":  safeRateRound(totalRecall, goldCases),
+		"avg_score":   safeRateRound(totalScore, measured),
 		"report":      report,
 	}
-	_ = s.ragRepo.UpdateEvalRun(ctx, run.ID, updates)
+	if err := s.ragRepo.UpdateEvalRun(ctx, run.ID, updates); err != nil {
+		return nil, fmt.Errorf("record eval run result: %w", err)
+	}
 
 	return s.ragRepo.GetEvalRun(ctx, tenantID, run.ID)
 }
@@ -214,4 +227,47 @@ func maxInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// recallForCase measures how much of the case's declared gold sources the
+// retrieval returned: |retrieved intersect expected| / |expected|. The second
+// return is false when the case declares no gold sources, in which case recall
+// is not measurable and the case must not sit in the denominator.
+func recallForCase(goldSources string, results []models.RAGRetrieveResult) (float64, bool) {
+	expected := parseGoldSources(goldSources)
+	if len(expected) == 0 {
+		return 0, false
+	}
+	found := make(map[string]struct{}, len(results))
+	for _, r := range results {
+		if r.ID != "" {
+			found[r.ID] = struct{}{}
+		}
+	}
+	hits := 0
+	for _, id := range expected {
+		if _, ok := found[id]; ok {
+			hits++
+		}
+	}
+	return float64(hits) / float64(len(expected)), true
+}
+
+// parseGoldSources decodes the gold_sources column. CreateEvalSet writes it as
+// a bare comma list inside brackets (doc-1,doc-2), not JSON, so json.Unmarshal
+// would reject it; trim the quotes so the JSON shape works too.
+func parseGoldSources(raw string) []string {
+	s := strings.TrimSpace(raw)
+	s = strings.Trim(s, "[]")
+	if s == "" {
+		return nil
+	}
+	var out []string
+	for _, part := range strings.Split(s, ",") {
+		p := strings.Trim(strings.TrimSpace(part), "\"'")
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
