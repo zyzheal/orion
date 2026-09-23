@@ -15095,3 +15095,110 @@ M1 是把 §77 的缺陷**原样装回去**，它被杀掉才证明 78.3 的第�
 仍未排查的扫描候选：`alert-adapter/service/handlers.go` 的 5 处 TODO（77、178、188、320、370 行）只定位未查；`internal/branch-policy/service/service.go:2684-2767` 与其 83 行的 sentinel；`internal/config/service/drift_service.go:25`。基础设施确实不存在的一类：`internal/cmdb/transport/{snmp,ssh,sql}.go`、`internal/infrastructure/backup/executor/key_provider.go:80`、`internal/crossover/registry/registry.go:156/285`、`internal/degradation/service/service.go:131/291`、`internal/incident/repository/repository.go:442`、`internal/job-source/service/adapters.go:386`、`cmd/server/wiring.go:271`。
 
 仍然需要授权的两个决定：(1) `RecordSavings` 零个非测试调用方，生产库里 `ai_cost_savings` 恒为空——接调用方还是删掉整条链（破坏性）；(2) 模块 A 的 6 个 handler / 33 处裸租户读取完全不在路由注册里——删还是留。
+
+## §79 两条在册读链：环境对比恒返空 diff、api-component 重启后组件全部不可见（Round 78，2026-08-26）
+
+### 79.1 怎么找到的
+
+沿 §78 的「在册路由 → 服务方法 → 返回值是否真的取决于读到的数据」继续扫。这轮两个命中的形状不同，根因同族：**方法返回值与它读到的东西无关**。
+
+- `config` 的 `CompareEnvironments` 是无条件常量返回，源码里那行 `// In a real implementation, fetch both environments and compute diff` 把意图写在脸上。
+- `api-component` 的五个读方法只读进程内 registry，而该 registry 在 `NewService` 里每次被重建为空。写入路径 `RegisterComponent` 同时写库和写 registry，所以**同一个进程生命周期内它是好的**——这正是它躲过前面几轮的原因：任何在启动后立即做的观察都看不到差异，只有跨重启才暴露。
+
+判「修」还是判「记录」，靠数据侧的硬证据而不是判断：
+
+```
+grep -rn "INSERT INTO config_versions" .   →  恰好 1 处（config/repository.go:122）
+config 的 CreateVersion 非测试调用方        →  0（只有它自己的定义 + 生成的接口）
+```
+
+见 79.5(b)。
+
+### 79.2 修的两条链
+
+#### 79.2.1 `config.CompareEnvironments`（`GET /diff/:sourceEnv/:targetEnv`）
+
+原实现只有 `Differences: []models.ConfigDiff{}` 和一行 TODO 注释。现在按 `Key` 分组做三方 diff，输出 `added` / `removed` / `modified` 三类，键排序后输出（不排序则同一份数据在不同进程里顺序不同，客户端做不出稳定 diff）。四个非显然的细节：
+
+1. **必须翻页**。`Repository.List` 是分页的，只调一次就把第一页之外的键全丢掉，而这些键会被误报成 `removed`——比返回空还糟，因为它**制造假的漂移**。新增 `listConfigsInEnv` 按每页 200 翻到不满一页为止。
+2. **`TotalCount` 与 `Differences` 同步**。原来两处恒为 0，而客户端按 total 判「无差异」。
+3. **无漂移时返空切片不返 nil**，否则 JSON 是 `null`，前端 `for (const d of data.differences)` 直接抛。
+4. **两侧环境名都要校验**，任一侧为空就报错，而不是把空串当成一个合法环境去查。
+
+#### 79.2.2 `api-component` 读路径（`GET /api-components`、`/:name`、`/routes`、`/stats`、`/tag/:tag`）
+
+新增 `componentStore` 接口（`Get` / `List` / `ListRoutes` / `FilterByTag` / `Save` / `Delete`）。`*repository.Repository` 已满足它，所以 wiring 调用点一行未改；测试则可以用 fake 而不碰数据库。
+
+- `ensureLoaded(ctx)`：双检锁把已持久化的组件镜像进进程内 registry。nil repo 时是 no-op；**失败不置位 `loaded`**，下次调用会重试；组件在加载过程中被别的进程删掉则跳过，不让一次并发删除毁掉整次加载。
+- `GetComponent(ctx, name)`：registry 命中直接返回；未命中回退 store；**只有 store 回 `sentinel.NotFound` 才映射成 `ErrComponentNotFound`，库故障照常上抛**——把「不存在」和「数据库挂了」折叠成一个错误，会让运维在库不可用时看到一个假的 404。命中后写回 registry，后续调用不再打库。
+- `Stats` 是 best-effort：`_ = ensureLoaded(ctx)`。库不可用时仍给出合法（但不完整）的计数，优于让 `/stats` 直接 500。
+
+**顺带修掉自己引入的回归**：`componentStore` 是接口，`NewService(nil)` 会把 nil 指针包进一个**非 nil** 的接口值，于是 `s.repo == nil` 三处守卫全部失效，改成真的去调一个 nil 接收者。修法是在赋值前判空：
+
+```go
+func NewService(repo *repository.Repository) *Service {
+	s := &Service{registry: apicomponent.NewRegistry()}
+	if repo != nil {
+		s.repo = repo
+	}
+	return s
+}
+```
+
+把参数从具体类型改成接口，这是本轮最容易踩、也最容易被现有测试漏掉的坑：已有的 `service_test.go` 里那个 `acs.NewService(nil)` 只断言 `svc != nil`，发现不了。
+
+### 79.3 测试：新增 16 个，删掉 1 个空转的
+
+config 侧 5 个（`compare_test.go`）：三类 diff 全覆盖且断言精确切片相等；无漂移时 `Differences != nil`；缺环境名报错；205 条配置按 2 页翻完并断言 `pagesByEnv["dev"] == 2`；仓库报错上抛。
+
+api-component 侧 11 个（`readthrough_test.go`，用 `package service` 以便断言 `svc.loaded` / `svc.registry`）：重启后读库；NotFound 映射；库故障上抛且不伪装成 NotFound；nil repo；列表 / 路由 / 按标签三条读路径；加载失败不置位 `loaded`；**重复读只打一次库**；加载中断言跳过消失的组件；`Stats` 在库故障下不 panic。
+
+**删掉一个把 stub 钉死的测试**：原 `service_test.go` 的 `Test_CompareEnvironments` 只断言结果非 nil 且回显环境名——它针对 stub 和针对真实实现会给出**完全相同**的通过结果。留着等于给缺陷盖一个「已通过」的章，所以删掉，换成能证明实现的断言。
+
+### 79.4 变异：7 个全杀
+
+| 变异 | 内容 |
+|---|---|
+| M1 | `CompareEnvironments` 改回常量空 diff（连同 `listConfigsInEnv` 和 `sort` 导入一起删掉，保证是编译通过的真变异） |
+| M2 | 只读第一页 |
+| M3 | `TotalCount` 恒为 0 |
+| M4 | 无漂移时 `Differences` 用 nil |
+| M5 | `ensureLoaded` 变成 `return nil` |
+| M6 | `GetComponent` 把所有 store 错误都当成 NotFound |
+| M7 | `GetComponent` 不再回填 registry |
+
+`killed=7 survived=0 builderr=0 badanchor=0 HARNESS OK`，恢复后逐字节比对工作树与基线一致。
+
+M1 是本轮最值得跑的一个：只有它被杀掉，才能说明 79.3 第一组用例不是空转，而不是靠编译失败蒙过去。
+
+### 79.5 只记录，未处理
+
+(a) **`internal/config/handler/drift_handler.go` 与 `internal/config/service/drift_service.go` 整条链是死代码**。零个构造点，`RegisterRoutes` 里没有它。`ScanForDrift` 返回常量 clean 结果；`ResolveDrift` 的 `"revert"` 分支是一个循环体只有注释加 `break` 的循环。功能上它与已接线的 `cmdb-drift` 模块重复。整条删除属破坏性变更，留给授权。
+
+(b) **`config/service.DetectDrift`（`GET /gitops/drift`）与 `CompareVersions`（`GET /configs/:configId/versions/diff`）是记录性的 stub，不可修**。两条路由都活着，但数据侧不存在：`config_versions` 全仓只有 1 处 `INSERT`，`CreateVersion` 除自身定义和生成接口外零调用方——这张表在生产里永远是空的。写成「真实实现」会变成一段永远返回 `version not found` 的 SQL。缺的是写入侧，不是这一层。
+
+(c) **`cmdb.ListK8sResources`（`GET /cmdb/k8s`）** 返回硬编码行，标签写着 Mock/scaffold data。`models.CI` 既无 `cluster` 字段也无 `namespace` 字段，硬拼映射等于编造数据，拒绝修。
+
+(d) **`alert-adapter/service/handlers.go` 的 5 处 TODO 属设计如此**。包文档明确说生产 handler 由平台运维接线，这是 SPI 参考实现，与已修掉的 `alert-adapter-v2` 性质不同。
+
+(e) **`Test_DetectDrift_Empty` 仍是空转的**（只断言非 nil）。被测对象属于 (b)，改测试无意义，保留。
+
+(f) **`branch-policy/service/service.go`** 两处只记录：`:85` 的 `sentinelNotFound` 是注释写明供 Phase 1/2 stub 方法使用的本地别名；`:2684` 起的 `runGateRule(GateRuleIDSchema, "schema-compatibility", GateSeverityBlocking)` 在无 checker 接线时退化成 pass-with-warning，注释写明是 degrade-by-design。本轮未深挖该文件。
+
+### 79.6 变异工具的两个新坑
+
+§78.6 记了四个，本轮又付了两个。
+
+1. **锚点是从记忆抄的，不是从文件里读的**。M3 用 `TotalCount: len(diffs)` 做锚点，真源码是 `TotalCount:  len(diffs),`（两空格 + 逗号，多行结构体字面量），`str.count` 返回 0，断言炸掉。教训同 §78.6(1)：补丁锚点必须先 grep 出来再写。
+2. **删除区间越界，被分类器误判成「杀死」**。M7 想删掉 `GetComponent` 里那段回填逻辑，却用「下一个列首 `}`」当终点，结果把函数收尾的 `return comp, nil` 一起删掉，语法错误。包级失败输出 `FAIL\tpkg` 而没有 `--- FAIL:`，旧分类器把 `FAIL\t` 也算作杀死，于是这个**编译不过**的变异被记成 KILLED。分类器已收紧为：必须有 `--- FAIL:` 才算杀死，否则一律 BUILD_ERROR。
+
+两次都是同一个教训的另一面：一个看起来像「通过」或「杀死」的信号，先怀疑工具。
+
+### 79.7 遗留
+
+§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 79.5 的 (a)(b)(c)(f)。
+
+仍未排查：`internal/branch-policy/service/service.go` 在 2684 行以外的部分。缺基础设施的清单与 §78.7 一致，未变化：`internal/cmdb/transport/{snmp,ssh,sql}.go`、`internal/infrastructure/backup/executor/key_provider.go`、`internal/crossover/registry/registry.go`、`internal/degradation/service/service.go`、`internal/incident/repository/repository.go`、`internal/job-source/service/adapters.go`、`cmd/server/wiring.go`。
+
+仍然需要授权的两个决定不变：(1) `RecordSavings` 零个非测试调用方，生产库里 `ai_cost_savings` 恒为空——接调用方还是删掉整条链（破坏性）；(2) 模块 A 的 6 个 handler / 33 处裸 `c.GetString("tenant_id")` 完全不在路由注册里——删还是留。
+
