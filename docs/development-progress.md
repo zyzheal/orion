@@ -15000,3 +15000,98 @@ mock.ExpectExec(`UPDATE change_rfcs SET status = $1, title = $2, updated_at = $3
 
 仍然需要授权的两个决定：(1) `RecordSavings` 零个非测试调用方，生产库里 `ai_cost_savings` 恒为空——接调用方还是删掉整条链（破坏性）；(2) 模块 A 的 6 个 handler / 33 处裸租户读取完全不在路由注册里——删还是留。
 
+
+---
+
+## §78 局部更新家族清尾：6 个在册 PUT 路由仍然只碰 updated_at，外加 sprint 服务层再丢 4 个字段（Round 77，2026-08-26）
+
+### 78.1 怎么找到的
+
+§77 用 `dbupdate.Build` 修掉了 change / serverless / chaos / worker-dispatcher / approval 五个模块的「局部更新只碰 updated_at」缺陷，并顺手做了全仓 grep 找同族。Round 77 对 grep 的**剩余命中**逐条复查，发现这一族没有被穷尽：还剩 7 个 Update 方法，其中 6 个挂着在册的 PUT 路由，2 个是死代码。
+
+复查必须逐条读而不能信 grep 结论——同样是 `SET updated_at=NOW()` 命中，实际有三种完全不同的形状，只有第一种是缺陷：
+
+- **缺陷**：接收 `updates map` 却完全不读，`UPDATE <table> SET updated_at=NOW() WHERE id=$1 AND tenant_id=$2`。调用方发的字段被静默丢弃，路由仍回 200。
+- **死代码**：`handler-registry` 的 Create/Update/Delete、`gateway-dynamic.UpdateJSON`——方法存在但零调用方（见 78.5）。
+- **正当**：`chatops/repository.go:541` 用的是真实 `:updated_at` 映射字段；`change/repository.go:136` 是文档里写明的 `len(updates)==0` 退化分支。两处都不动。
+
+### 78.2 修的 7 处（6 个 repo + 1 个 service）
+
+全部接到 §77 的共享构造器，每个模块各自声明白名单：
+
+| 模块 | 路由 | 白名单 |
+|---|---|---|
+| `multi-cloud` `UpdateAccount` | `PUT /providers/:id` | `account_name, credential_type, region, status, monthly_budget` |
+| `developer-portal` `Update` | `PUT :id` | `name` |
+| `workbench` `Update` | `PUT /items/:id` | `name` |
+| `sprint` `Update` | `PUT /:id` | `name, goal, start_date, end_date, status, capacity` |
+| `governance/policy` `Update` | `PUT /:id` | `name` |
+| `gateway-dynamic` `Update` | `PUT /:id` | `path, methods, upstream_url, enabled, priority, metadata` |
+
+六个方法现在都是同一个形状：存在性预检 → `dbupdate.Build` → `ErrEmpty` 时返回当前行/nil → `ExecContext` → 回读。`multi-cloud` 额外做末尾回读，因为它的签名返回整行给 handler。
+
+两个附带清理：`workbench` 与 `governance/policy` 的 `repository.go` 在改写后 `fmt` 变成未使用导入，删掉。
+
+**本 round 找到的第二个缺陷——服务层丢字段**：`internal/sprint/service/service.go` 的 `Update` 把 `UpdateSprintRequest` 的五个字段只映射了 `name` 一个，`goal / start_date / end_date / status / capacity` 全丢。这与 repo 丢字段是**两个独立缺陷**：即使 repo 接上了白名单构造器，`PUT /sprints/:id` 仍然改不了日期、状态和容量。只有两层都修，这条路由才真的能写。现在五个字段全部映射。
+
+**第三个是潜在漏洞而非当前漏洞**：`gateway-dynamic.Update` 原本有一个「动态 SET」构造器，但它把 map 的 key 直接拼进 SQL、没有任何白名单。今天的调用方只传硬编码字面量，所以没炸；但一旦有人把请求体字段转发进来，调用方就能让 `id` 或 `tenant_id` 变成可写列。同时它**从不刷新 `updated_at`**，注释还写着 `orderedKeys`——而 map 遍历是乱序的，注释是假的。已收敛到共享白名单，不再复制一份模式。
+
+### 78.3 回归测试：20 个新测试函数
+
+六个 repo 各一个 `update_test.go`，每个三个用例，共 18 个：
+
+1. **WritesTheCallerColumns** —— `QueryMatcherEqual` 精确断言整条 SQL，例如
+   `UPDATE cloud_accounts SET account_name = $1, status = $2, updated_at = $3 WHERE id = $4 AND tenant_id = $5`，
+   加 `WithArgs` 校验参数位置（`updated_at` 用 `sqlmock.AnyArg()`，其余必须是字面值）。
+2. **RejectsColumnsOutsideTheWhitelist** —— 传一个**真实存在但不可写**的列（`account_id` / `tenant_id`），断言既不报错也**不发任何 UPDATE**。`tenant_id` 是行键，能写成 SET 列就等于跨租户改写。
+3. **MissingRowReportsNotFound** —— 预检必须真的查，缺行要报 `ErrNoRows`，不能假装成功。
+
+`sprint/service/update_test.go` 另外两个，覆盖 repo 测试**看不见**的那一层：
+
+- `TestUpdate_MapsEveryRequestField` —— 五个字段全给，断言 map 的长度和每个 key 的值都对。旧代码下这里必然挂：长度 1 vs 期望 6。
+- `TestUpdate_SendsOnlyTheFieldsThatWereProvided` —— 只给 `status`，断言 map 里只有 `status`。防止为了过上一个测试而把全部字段无条件塞进去（那会让「未传字段被写成零值」）。
+
+### 78.4 变异验证：6/6 全灭，对照组存活
+
+`/private/tmp/r77/mutation_check.py`，每次运行前从 pristine 逐字节还原再打一个补丁，只认「因为测试失败而失败」为 KILLED：
+
+```
+killed=6 survived=1 builderr=0 badanchor=0
+HARNESS OK
+```
+
+| 变异 | 内容 |
+|---|---|
+| M1 | `multi-cloud.UpdateAccount` 恢复原状：丢弃 map，只 `SET updated_at=NOW()` |
+| M2 | `developer-portal` 白名单写成一个不存在的列名 |
+| M3 | `workbench.Update` 删掉存在性预检 |
+| M4 | `gateway-dynamic.Update` 传 `nil` 白名单（等价于全放行） |
+| M5 | sprint 服务层不再映射 `goal` |
+| M6 | `dbupdate.Build` 忽略白名单 |
+
+M1 是把 §77 的缺陷**原样装回去**，它被杀掉才证明 78.3 的第一类用例不是空转。M6 被杀掉证明共享构造器自身的测试在起作用，而不只是六个调用方的精确字符串在起作用。
+
+### 78.5 只记录，未处理
+
+(a) **`handler-registry` 的 Legacy CRUD 是死代码**。`handler.go:57` 有一段 `====== Legacy CRUD handlers (backward compatibility) ======`，下面挂着 `Create` / `Update` / `Delete`；但 `RegisterRoutes` 只注册了 9 条（GET 列表/health/domains/get + POST register/enable/disable/invoke + DELETE unregister），**没有任何 PUT/PATCH**。这三个方法零调用方。它自己的 repo `Update` 也是同族 touch-only 形状。属于「零信息方法 + 零调用方」，删掉的收益是省掉一段会误导后来人的代码，但需要确认没有外部生成器在引用方法名。
+
+(b) **`gateway-dynamic.Repository.UpdateJSON` 是死代码，且声明的行为它做不到**。全仓 grep 只有它自己的定义和文档注释，零调用方。注释写的是 "updates a single JSON field … plus returns the full row for the caller"，但签名只返回 `error`——要返回整行就必须改签名，而改签名意味着要么加调用方（现在没有）、要么删掉。方法体又是 touch-only（`SET updated_at=NOW()`）。
+
+(c)-(h) 与 §77.6 完全一致，未变化：`infrastructure.Repository.UpdateConnector` / `UpdateNetworkPolicy`（死代码，touch-only）；`approval.Repository.UpdateTemplate`（死代码）；5 个模块的 `ListTemplates2` 与 4 个模块的 `ListTemplates` 死代码、artifact-version 的 `GET /templates2` 在册但冗余；`CreateApprovalHistory` 仍有 **7 处** `_ =`（`approval/service/service.go:117,148,172,199,223,235,247`），审批历史写失败仍被吞，是独立于本轮的审计缺口；`serverless_functions.environment` 仍是 `map[string]string` 的 JSON 列、无 marshaler，只能排除在白名单外；`approval.UpdateApprovalRequest` 仍无 PUT 路由（`approval/handler/handler.go` 无 PUT/PATCH），只能由内部工作流方法间接触发；`DelegateApproval` / `ReassignApproval` 仍只能记历史，因为 `UpdateApprovalLevel` **全仓零命中**，没有承载「换审批人」的持久化面。
+
+### 78.6 变异工具的四个坑（这轮白付的成本）
+
+1. **分类器写成了列表成员判断**。`"FAIL" in out.splitlines()[0:1]` 是 `list.__contains__(str)`，永远为 False——6 个变异全被记成 `OTHER_FAIL`。表面上 6 个都「失败」很像通过，实际是分类器根本没在工作。
+2. **`GOTOOLCHAIN=local` 指错了二进制**。`/usr/local/go/bin/go` 是 1.24.4，`go version` 在真树里报 1.25.0 是因为默认 `GOTOOLCHAIN=auto` 自动切到 mod cache 里那份 1.25.0。harness 里关掉自动切换就撞上了 `go.mod requires go >= 1.25.0`。修法是把缓存里那份 1.25.0 的绝对路径写死。
+3. **GOMODCACHE 那行被自己的补丁删掉了**。`HOME` 被指到临时目录，GOMODCACHE 随之落到一个空目录，Go 就开始下网络——而 proxy 被墙，`go test` 挂在 `dial tcp ... i/o timeout` 上，进程活着但 4 分钟只烧 0.4 秒 CPU。这种「卡住」和「编译慢」在 `ps` 上长得一模一样，靠 `du` mod cache 大小才发现。
+4. **`-mod=mod` 会去 sumdb 校验**。缓存里明明有模块，Go 仍要联网验 checksum。加 `GOPROXY=off` + `GOSUMDB=off` 之后整个 harness 从「永远跑不完」变成 200 秒跑完 7 次全量测试。
+
+教训同 §77.5：一个看起来像「通过」或「失败」的信号，先怀疑工具。
+
+### 78.7 遗留
+
+§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 78.5 的 (a)(b)。
+
+仍未排查的扫描候选：`alert-adapter/service/handlers.go` 的 5 处 TODO（77、178、188、320、370 行）只定位未查；`internal/branch-policy/service/service.go:2684-2767` 与其 83 行的 sentinel；`internal/config/service/drift_service.go:25`。基础设施确实不存在的一类：`internal/cmdb/transport/{snmp,ssh,sql}.go`、`internal/infrastructure/backup/executor/key_provider.go:80`、`internal/crossover/registry/registry.go:156/285`、`internal/degradation/service/service.go:131/291`、`internal/incident/repository/repository.go:442`、`internal/job-source/service/adapters.go:386`、`cmd/server/wiring.go:271`。
+
+仍然需要授权的两个决定：(1) `RecordSavings` 零个非测试调用方，生产库里 `ai_cost_savings` 恒为空——接调用方还是删掉整条链（破坏性）；(2) 模块 A 的 6 个 handler / 33 处裸租户读取完全不在路由注册里——删还是留。
