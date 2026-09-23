@@ -2,9 +2,11 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"orion/platform-svc-go/internal/chaos/models"
+	"orion/platform-svc-go/internal/dbupdate"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -69,9 +71,21 @@ func (r *Repository) List(ctx context.Context, tenantID string, status string, l
 	return items, nil
 }
 
+// experimentColumns is what Update may write. created_by is immutable.
+var experimentColumns = []string{"name", "description", "scope", "faults", "steady_state_hypothesis", "auto_rollback", "status"}
+
 func (r *Repository) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE chaos_experiments SET updated_at=NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	if _, err := r.GetByID(ctx, tenantID, id); err != nil {
+		return err
+	}
+	stmt, args, err := dbupdate.Build("chaos_experiments", updates, experimentColumns, id, tenantID)
+	if err != nil {
+		if errors.Is(err, dbupdate.ErrEmpty) {
+			return nil
+		}
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, stmt, args...)
 	return err
 }
 

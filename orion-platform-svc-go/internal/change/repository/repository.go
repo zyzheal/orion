@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/change/models"
+	"orion/platform-svc-go/internal/dbupdate"
 
 	"orion/go-common/pkg/sentinel"
 
@@ -311,10 +312,23 @@ func (r *Repository) ListRFCs(ctx context.Context, tenantID string, limit, offse
 	return &models.ListResult[models.RFC]{Data: items, Total: total}, nil
 }
 
+// rfcColumns is what UpdateRFC may write. change_request_id, rfc_number and
+// created_by are immutable once an RFC exists.
+var rfcColumns = []string{"title", "description", "status"}
+
 func (r *Repository) UpdateRFC(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.RFC, error) {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE change_rfcs SET updated_at=NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	cur, err := r.GetRFC(ctx, tenantID, id)
 	if err != nil {
+		return nil, err
+	}
+	stmt, args, err := dbupdate.Build("change_rfcs", updates, rfcColumns, id, tenantID)
+	if err != nil {
+		if errors.Is(err, dbupdate.ErrEmpty) {
+			return cur, nil
+		}
+		return nil, err
+	}
+	if _, err := r.db.ExecContext(ctx, stmt, args...); err != nil {
 		return nil, err
 	}
 	return r.GetRFC(ctx, tenantID, id)
@@ -389,10 +403,22 @@ func (r *Repository) ListCABMeetings(ctx context.Context, tenantID string, q mod
 	return &models.ListResult[models.CABMeeting]{Data: items, Total: total}, nil
 }
 
+// cabColumns is what UpdateCABMeeting may write. created_by is immutable.
+var cabColumns = []string{"title", "description", "status", "scheduled_at"}
+
 func (r *Repository) UpdateCABMeeting(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.CABMeeting, error) {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE cab_meetings SET updated_at=NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	cur, err := r.GetCABMeeting(ctx, tenantID, id)
 	if err != nil {
+		return nil, err
+	}
+	stmt, args, err := dbupdate.Build("cab_meetings", updates, cabColumns, id, tenantID)
+	if err != nil {
+		if errors.Is(err, dbupdate.ErrEmpty) {
+			return cur, nil
+		}
+		return nil, err
+	}
+	if _, err := r.db.ExecContext(ctx, stmt, args...); err != nil {
 		return nil, err
 	}
 	return r.GetCABMeeting(ctx, tenantID, id)

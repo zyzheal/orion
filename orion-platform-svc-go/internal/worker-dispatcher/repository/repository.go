@@ -2,9 +2,11 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"orion/platform-svc-go/internal/dbupdate"
 	"orion/platform-svc-go/internal/worker-dispatcher/models"
 
 	"github.com/google/uuid"
@@ -102,10 +104,22 @@ func (r *Repository) ListPolicies(ctx context.Context, tenantID string, policyTy
 	return items, err
 }
 
+// policyColumns is what UpdatePolicy may write. id and tenant_id are the row
+// key and are bound in the WHERE clause.
+var policyColumns = []string{"name", "type", "config", "priority", "enabled"}
+
 func (r *Repository) UpdatePolicy(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
-	_ = updates
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE worker_policies SET updated_at=NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	if _, err := r.GetPolicy(ctx, tenantID, id); err != nil {
+		return err
+	}
+	stmt, args, err := dbupdate.Build("worker_policies", updates, policyColumns, id, tenantID)
+	if err != nil {
+		if errors.Is(err, dbupdate.ErrEmpty) {
+			return nil
+		}
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, stmt, args...)
 	return err
 }
 

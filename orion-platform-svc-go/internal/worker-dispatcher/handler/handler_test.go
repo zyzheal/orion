@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 
+	"orion/platform-svc-go/internal/worker-dispatcher/models"
 	"orion/platform-svc-go/internal/worker-dispatcher/repository"
 	"orion/platform-svc-go/internal/worker-dispatcher/service"
 )
@@ -27,12 +29,52 @@ func (r *assignmentOutageRepo) GetActiveAssignments(ctx context.Context, tenantI
 	return 0, errors.New("connection refused")
 }
 
+// fakePolicyRepo drives the real dispatcher. Only the two methods DeletePolicy
+// touches are implemented; the embedded interface keeps the rest compiling.
+type fakePolicyRepo struct {
+	repository.RepositoryInterface
+
+	getErr     error
+	delErr     error
+	deletedIDs []string
+}
+
+func (f *fakePolicyRepo) GetPolicy(ctx context.Context, tenantID, id string) (*models.WorkerPolicy, error) {
+	if f.getErr != nil {
+		return nil, f.getErr
+	}
+	return &models.WorkerPolicy{ID: id, TenantID: tenantID}, nil
+}
+
+func (f *fakePolicyRepo) DeletePolicy(ctx context.Context, tenantID, id string) error {
+	if f.delErr != nil {
+		return f.delErr
+	}
+	f.deletedIDs = append(f.deletedIDs, id)
+	return nil
+}
+
+func newDeleteHandler(repo *fakePolicyRepo) *Handler {
+	return NewHandler(service.NewService(repo))
+}
+
 func loadCtx() (*gin.Context, *httptest.ResponseRecorder) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Set("tenant_id", "t-1")
 	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/worker/load/w-1", nil)
 	c.Params = gin.Params{{Key: "workerId", Value: "w-1"}}
+	return c, w
+}
+
+func deleteCtx(t *testing.T, id string) (*gin.Context, *httptest.ResponseRecorder) {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("tenant_id", "t-1")
+	c.Request = httptest.NewRequest(http.MethodDelete, "/api/v1/worker/policies/"+id, nil)
+	c.Params = gin.Params{{Key: "id", Value: id}}
 	return c, w
 }
 
@@ -71,5 +113,53 @@ func TestGetWorkerLoadReturnsTheActiveAssignmentCount(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), `"current_load":4`) {
 		t.Fatalf("body %q does not carry the load", w.Body.String())
+	}
+}
+
+// DeletePolicy used to be a constant success: "policy deletion supported via
+// direct repo call" -- it never touched the repository, so DELETE returned 200
+// for a nonexistent policy and deleted nothing at all.
+func TestDeletePolicy_ActuallyDeletes(t *testing.T) {
+	repo := &fakePolicyRepo{}
+	h := newDeleteHandler(repo)
+	c, w := deleteCtx(t, "p-1")
+
+	h.DeletePolicy(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	if len(repo.deletedIDs) != 1 || repo.deletedIDs[0] != "p-1" {
+		t.Fatalf("repo.deletedIDs = %v, want [p-1]", repo.deletedIDs)
+	}
+}
+
+func TestDeletePolicy_MissingPolicyIsNotFound(t *testing.T) {
+	repo := &fakePolicyRepo{getErr: sql.ErrNoRows}
+	h := newDeleteHandler(repo)
+	c, w := deleteCtx(t, "ghost")
+
+	h.DeletePolicy(c)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404, body = %s", w.Code, w.Body.String())
+	}
+	if len(repo.deletedIDs) != 0 {
+		t.Fatalf("nothing may be deleted, got %v", repo.deletedIDs)
+	}
+}
+
+func TestDeletePolicy_FailureIsNotReportedAsSuccess(t *testing.T) {
+	repo := &fakePolicyRepo{delErr: sql.ErrConnDone}
+	h := newDeleteHandler(repo)
+	c, w := deleteCtx(t, "p-1")
+
+	h.DeletePolicy(c)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500, body = %s", w.Code, w.Body.String())
+	}
+	if len(repo.deletedIDs) != 0 {
+		t.Fatalf("nothing may be deleted, got %v", repo.deletedIDs)
 	}
 }

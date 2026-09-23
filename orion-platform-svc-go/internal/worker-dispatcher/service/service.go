@@ -226,6 +226,16 @@ func (d *WorkerDispatcher) DeleteCapability(ctx context.Context, tenantID, worke
 	return d.repo.DeleteCapability(ctx, tenantID, workerID, skill)
 }
 
+// DeletePolicy removes a dispatch policy by id. Existence is checked first so a
+// delete of an unknown policy reports not-found instead of a silent no-op that
+// the handler would otherwise report as success.
+func (d *WorkerDispatcher) DeletePolicy(ctx context.Context, tenantID, id string) error {
+	if _, err := d.repo.GetPolicy(ctx, tenantID, id); err != nil {
+		return err
+	}
+	return d.repo.DeletePolicy(ctx, tenantID, id)
+}
+
 // CreatePolicy persists a new dispatch policy definition.
 func (d *WorkerDispatcher) CreatePolicy(ctx context.Context, tenantID string, req models.CreatePolicyRequest) (*models.WorkerPolicy, error) {
 	m := &models.WorkerPolicy{

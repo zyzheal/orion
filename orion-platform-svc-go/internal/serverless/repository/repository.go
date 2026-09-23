@@ -3,9 +3,11 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
+	"orion/platform-svc-go/internal/dbupdate"
 	"orion/platform-svc-go/internal/serverless/models"
 
 	"github.com/google/uuid"
@@ -84,10 +86,22 @@ func (r *Repository) ListFunctions(ctx context.Context, tenantID string, q model
 	return items, err
 }
 
+// functionColumns is what UpdateFunction may write. environment is excluded:
+// it is stored as JSON and the update path has no marshaler for it.
+var functionColumns = []string{"name", "description", "runtime", "handler", "memory", "timeout", "code", "replicas", "status"}
+
 func (r *Repository) UpdateFunction(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
-	updates["updated_at"] = time.Now().UTC()
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE serverless_functions SET updated_at=NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	if _, err := r.GetFunction(ctx, tenantID, id); err != nil {
+		return err
+	}
+	stmt, args, err := dbupdate.Build("serverless_functions", updates, functionColumns, id, tenantID)
+	if err != nil {
+		if errors.Is(err, dbupdate.ErrEmpty) {
+			return nil
+		}
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, stmt, args...)
 	return err
 }
 

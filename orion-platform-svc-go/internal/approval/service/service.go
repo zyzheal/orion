@@ -109,7 +109,9 @@ func (s *Service) ReviewApproval(ctx context.Context, tenantID, approvalID strin
 	default:
 		return errors.New("invalid decision")
 	}
-	_ = s.repo.UpdateApprovalRequest(ctx, tenantID, approvalID, map[string]interface{}{"status": approval.Status})
+	if err := s.repo.UpdateApprovalRequest(ctx, tenantID, approvalID, map[string]interface{}{"status": approval.Status}); err != nil {
+		return fmt.Errorf("record decision: %w", err)
+	}
 
 	// Record history
 	_ = s.repo.CreateApprovalHistory(ctx, &models.ApprovalHistory{
@@ -136,10 +138,12 @@ func (s *Service) ApproveRequest(ctx context.Context, tenantID, approvalID strin
 	if approval.CurrentLevel > approval.TotalLevels {
 		approval.Status = "approved"
 	}
-	_ = s.repo.UpdateApprovalRequest(ctx, tenantID, approvalID, map[string]interface{}{
+	if err := s.repo.UpdateApprovalRequest(ctx, tenantID, approvalID, map[string]interface{}{
 		"current_level": approval.CurrentLevel,
 		"status":        approval.Status,
-	})
+	}); err != nil {
+		return fmt.Errorf("record level progression: %w", err)
+	}
 
 	_ = s.repo.CreateApprovalHistory(ctx, &models.ApprovalHistory{
 		TenantID:   tenantID,
@@ -162,7 +166,9 @@ func (s *Service) RejectRequest(ctx context.Context, tenantID, approvalID string
 	}
 
 	approval.Status = "rejected"
-	_ = s.repo.UpdateApprovalRequest(ctx, tenantID, approvalID, map[string]interface{}{"status": "rejected"})
+	if err := s.repo.UpdateApprovalRequest(ctx, tenantID, approvalID, map[string]interface{}{"status": "rejected"}); err != nil {
+		return fmt.Errorf("record rejection: %w", err)
+	}
 	_ = s.repo.CreateApprovalHistory(ctx, &models.ApprovalHistory{
 		TenantID:   tenantID,
 		ApprovalID: approvalID,
@@ -187,7 +193,9 @@ func (s *Service) WithdrawApproval(ctx context.Context, tenantID, approvalID str
 	}
 
 	approval.Status = "withdrawn"
-	_ = s.repo.UpdateApprovalRequest(ctx, tenantID, approvalID, map[string]interface{}{"status": "withdrawn"})
+	if err := s.repo.UpdateApprovalRequest(ctx, tenantID, approvalID, map[string]interface{}{"status": "withdrawn"}); err != nil {
+		return fmt.Errorf("record withdrawal: %w", err)
+	}
 	_ = s.repo.CreateApprovalHistory(ctx, &models.ApprovalHistory{
 		TenantID:   tenantID,
 		ApprovalID: approvalID,
@@ -209,7 +217,9 @@ func (s *Service) CancelApproval(ctx context.Context, tenantID, approvalID strin
 	}
 
 	approval.Status = "cancelled"
-	_ = s.repo.UpdateApprovalRequest(ctx, tenantID, approvalID, map[string]interface{}{"status": "cancelled"})
+	if err := s.repo.UpdateApprovalRequest(ctx, tenantID, approvalID, map[string]interface{}{"status": "cancelled"}); err != nil {
+		return fmt.Errorf("record cancellation: %w", err)
+	}
 	_ = s.repo.CreateApprovalHistory(ctx, &models.ApprovalHistory{
 		TenantID:   tenantID,
 		ApprovalID: approvalID,

@@ -2,10 +2,12 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"orion/platform-svc-go/internal/approval/models"
+	"orion/platform-svc-go/internal/dbupdate"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -76,10 +78,23 @@ func (r *Repository) ListApprovalRequests(ctx context.Context, tenantID, approva
 	return items, nil
 }
 
+// requestColumns is what UpdateApprovalRequest may write. The state machine
+// only ever moves status and current_level; title and description are request
+// content set by Submit.
+var requestColumns = []string{"status", "current_level", "title", "description"}
+
 func (r *Repository) UpdateApprovalRequest(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
-	updates["updated_at"] = time.Now().UTC()
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE approval_requests SET updated_at=NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	if _, err := r.GetApprovalRequest(ctx, tenantID, id); err != nil {
+		return err
+	}
+	stmt, args, err := dbupdate.Build("approval_requests", updates, requestColumns, id, tenantID)
+	if err != nil {
+		if errors.Is(err, dbupdate.ErrEmpty) {
+			return nil
+		}
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, stmt, args...)
 	return err
 }
 

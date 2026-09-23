@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"database/sql"
+	"errors"
 	"strconv"
 	"time"
 
@@ -124,12 +126,15 @@ func (h *Handler) DeletePolicy(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if _, err := h.svc.GetPolicy(ctx, tenantID, id); err != nil {
-		middleware.RespondNotFound(c, "policy not found")
+	if err := h.svc.DeletePolicy(ctx, tenantID, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			middleware.RespondNotFound(c, "policy not found")
+			return
+		}
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	// NOTE: DeletePolicy not exposed via service; stub for handler.
-	middleware.RespondSuccess(c, gin.H{"message": "policy deletion supported via direct repo call"})
+	middleware.RespondSuccess(c, gin.H{"message": "policy deleted", "id": id})
 }
 
 // --- Capabilities ---
