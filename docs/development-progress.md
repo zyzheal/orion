@@ -14841,3 +14841,162 @@ orion-platform-svc-go/internal/knowledge/service/eval_set_service_test.go
 文档提交：本节 + `ALL_TODOS.md` 第 402 行一行。
 
 遗留 carry-forward 不变：§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项，全部原样结转。
+
+---
+
+## §77 六个模块把"局部更新"写成了只碰 updated_at：`worker-dispatcher` 用 `_ = updates` 把整个入参丢掉，`approval` 的六个状态流转共用同一个丢字段的方法且五个调用点把写错误 `_ =` 掉，`worker-dispatcher` 的 `DELETE /policies/:id` 不查仓库就答"支持删除"（2026-08-26）
+
+### 77.1 怎么找到的
+
+§76 收工后按惯例从"最刺眼的单个缺陷"往外扩：`worker-dispatcher` 的 `UpdatePolicy` 里有一句
+
+```go
+_ = updates
+_, err = r.db.ExecContext(ctx,
+    `UPDATE worker_policies SET updated_at = NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+```
+
+入参被显式丢弃，然后发一条只碰 `updated_at` 的 UPDATE。`_ = updates` 这种写法很显眼，直接拿去全仓 grep，同类模式变成 9 处、跨 6 个模块，其中 **7 处有在册路由**：
+
+| 模块 | 方法 | 路由 | 原样 |
+|---|---|---|---|
+| worker-dispatcher | `UpdatePolicy` | `PUT /worker/policies/:id` | `_ = updates` 显式丢参 |
+| change | `UpdateRFC` | `PUT /change/rfc/:id` | `SET updated_at=NOW()`，map 从头到尾没用 |
+| change | `UpdateCABMeeting` | `PUT /change/cab/:id` | 同上 |
+| serverless | `UpdateFunction` | `PUT /functions/:id` | 同上 |
+| chaos | `Update` | `PUT /chaos/experiments/:id` | 同上 |
+| approval | `UpdateApprovalRequest` | 无直接路由，见 77.6(f) | 同上 |
+| infrastructure | `UpdateConnector` | 无路由 | 同上 |
+
+危害不只是"改了没生效"：这些方法里除了 `worker-dispatcher` 全都**不校验行是否存在**，所以对一个不存在的 id 发起 PUT 会走完整条 SQL、拿到 `RowsAffected=0`、再返回 `nil`，handler 照答 200。`PUT /change/rfc/不存在的id` 成功"修改"了一条不存在的记录。
+
+### 77.2 新增 `internal/dbupdate`：白名单局部更新构造器
+
+这 6 个仓库各自漂移出了同一个坏形状，而且"哪些列可以写"是一条**安全相关**的白名单（列名会被拼进 SQL 文本，虽然值走占位符）。把白名单在 6 个包里各写一份，它就一定会漂移；所以提一个共享包：
+
+```go
+func Build(table string, updates map[string]any, allowed []string, id, tenantID string) (string, []any, error)
+```
+
+四条不变量，全部有测试：
+
+1. **只有 `allowed` 里的 key 才会进 SQL**。非白名单 key 被静默丢弃，绝不参与字符串拼接。
+2. **`updated_at` 永远由构造器刷新，绝不接受调用方传值**。只带 `updated_at` 的 map 报 `ErrEmpty`——这正是"只碰 updated_at"那个 bug 的形状，构造器从根上不允许它发生。
+3. **key 排序后再渲染**，SQL 文本确定，测试可以逐字比较。`$N` 编号因此也稳定。
+4. **表名做标识符合法性检查**（`ErrUnsafeTable`）。表名没法参数化，必须拼进去，那就至少挡掉空格/引号/分号/换行。
+
+配套两个错误：`ErrEmpty`（map 里没有可写列，调用方必须跳过写入并返回未变更的行，而不是发一条空 UPDATE）、`ErrUnsafeTable`。
+
+渲染结果示例：
+
+```sql
+UPDATE change_rfcs SET status = $1, title = $2, updated_at = $3 WHERE id = $4 AND tenant_id = $5
+```
+
+### 77.3 七个模块的修复
+
+每个仓库加一份自己的白名单（这是唯一必须分散的东西——它是表结构知识），然后方法改成三段：
+
+```go
+cur, err := r.GetRFC(ctx, tenantID, id)          // 1. 先校验存在：给出 not-found 语义
+if err != nil { return nil, err }
+stmt, args, err := dbupdate.Build("change_rfcs", updates, rfcColumns, id, tenantID)
+if err != nil {
+    if errors.Is(err, dbupdate.ErrEmpty) { return cur, nil }   // 2. 无可写列 -> 返回原行
+    return nil, err
+}
+if _, err := r.db.ExecContext(ctx, stmt, args...); err != nil { return nil, err }
+return r.GetRFC(ctx, tenantID, id)                    // 3. 重新读回，返回真的写进去的值
+```
+
+白名单：
+
+- `change`: `rfcColumns = {title, description, status}`；`cabColumns = {title, description, status, scheduled_at}`
+- `serverless`: `{name, description, runtime, handler, memory, timeout, code, replicas, status}`
+- `chaos`: `{name, description, scope, faults, steady_state_hypothesis, auto_rollback, status}`
+- `worker-dispatcher`: `{name, type, config, priority, enabled}`
+- `approval`: `{status, current_level, title, description}`
+
+`id` / `tenant_id` / `created_by` / `rfc_number` / `type` / `total_levels` 这类一旦创建就不该被 PUT 改的列，一律不进白名单。
+
+**`worker-dispatcher` 的 `DeletePolicy`** 是另一个独立的活桩。handler 里写着
+
+```go
+// NOTE: DeletePolicy not exposed via service; stub for handler.
+middleware.RespondSuccess(c, gin.H{"message": "policy deletion supported via direct repo call"})
+```
+
+注释已经承认这是桩，但路由 `DELETE /worker/policies/:id` 在册，权限 `worker:write`。查下来 `RepositoryInterface` 早就声明了 `DeletePolicy`、仓库也早就实现了它，**只差 dispatcher 上没有这个方法**——所以补一个带存在性校验的 dispatcher 方法，handler 改成真实的 404 / 500 / 200 三分支。
+
+**`approval` 的五个 `_ =`**：`ReviewApproval` / `ApproveRequest` / `RejectRequest` / `WithdrawApproval` / `CancelApproval` 全部把 `UpdateApprovalRequest` 的返回值 `_ =` 掉。因为这一轮同时发现 `UpdateApprovalRequest` 本身就丢字段，两处叠在一起的效果是：**审批工作流的六个状态流转全部是对一个从未改变的行谎报成功**。写错误现在包上具体原因再返回：`record decision` / `record level progression` / `record rejection` / `record withdrawal` / `record cancellation`。
+
+### 77.4 回归测试：7 个文件，21 个测试函数
+
+反证的核心不是"方法能跑"，而是**载荷真的进了 SQL 字符串**。所以五个仓库测试都用 `sqlmock` + `QueryMatcherEqual`，断言逐字 SQL：
+
+```go
+mock.ExpectExec(`UPDATE change_rfcs SET status = $1, title = $2, updated_at = $3 WHERE id = $4 AND tenant_id = $5`).
+    WithArgs("approved", "Restart the cache", sqlmock.AnyArg(), "r-1", "t-1").
+    WillReturnResult(sqlmock.NewResult(0, 1))
+```
+
+任何一个仓库退回 `SET updated_at=NOW()`，`QueryMatcherEqual` 立刻不匹配 → `ExecContext` 返回 error → 测试失败。`updated_at` 那一项用 `AnyArg()`（时间值不该参与比较），其余占位符逐字校验。
+
+每份仓库测试三个用例：写入真实生效（断言 `WithArgs` 的实参顺序）、**白名单外的真实列被拒绝**（`rfc_number` / `id` / `type` 都是真实存在的列，但不可写）、**不存在的行报 not-found**。
+
+`sqlx` 的 `SELECT *` 只按列名映射，缺的字段保持零值，所以前置存在性校验的 SELECT 只需要 mock 出 `id`、`tenant_id` 两列——这让 5 个仓库测试都能保持很短。
+
+**一个流程事故，值得记下来。** 动手前我用 `git status` 的未跟踪清单判断 `internal/worker-dispatcher/handler/handler_test.go` 不存在，于是直接 `cat >` 覆盖。它其实**已经在 HEAD 里**（75 行，两个用例 `TestGetWorkerLoadAnswersInternalErrorForARepositoryOutage` / `TestGetWorkerLoadReturnsTheActiveAssignmentCount`，加 `assignmentOutageRepo` 和 `loadCtx`）——`git status` 把它报成 `M` 而不是 `??`，是我没去读那个字段的含义。好在提交前用 `git status --porcelain` 逐行核对了状态字符，`M` 和 `??` 的区别暴露了这件事；已把原有两个用例、两个 fake、`loadCtx` 全部合并回来，5 个用例一起跑绿。教训：**`git status` 里 `M` 和 `??` 必须逐字确认，不能凭"我以为这个文件是新建的"下判断**；`cat >` 对已存在文件是静默覆盖，没有任何保护。
+
+另外：`internal/dbupdate/dbupdate_test.go` 7 个用例覆盖构造器的四条不变量；`internal/worker-dispatcher/handler/handler_test.go` 3 个用例用**真实的** `service.WorkerDispatcher` + fake 仓库驱动，断言 DELETE 真的删了那一条（`repo.deletedIDs == ["p-1"]`）；`internal/approval/service/update_error_test.go` 用 6 分支表驱动覆盖全部状态流转，每支同时断言三件事：错误非 nil、错误信息含具体原因、`errors.Is` 能穿透到原始错误。
+
+### 77.5 变异验证：10/10 全部被杀死
+
+`/private/tmp/r76/mutation_check.py`，独立 GOCACHE，`go.mod` 的 replace 改成绝对路径后整份拷进 `/private/tmp`。
+
+| 变异 | 被谁杀死 |
+|---|---|
+| M1 白名单被绕过（`yes || true`） | `TestBuild_IgnoresKeysOutsideTheWhitelist` + 3 个仓库白名单测试 |
+| M2 `updated_at` 改成服务端 `NOW()` | `TestBuild_PlacesUpdatedAtBeforeTheKey` + 6 个仓库 SQL 测试 |
+| M3 `change.UpdateRFC` 退回只碰 updated_at | `TestUpdateRFC_WritesTheCallerColumns` |
+| M4 `change.UpdateRFC` 去掉存在性校验 | `TestUpdateRFC_MissingRowReportsNotFound` |
+| M5 `serverless` 重新丢掉 updates | `TestUpdateFunction_WritesTheCallerColumns` |
+| M6 `approval.ApproveRequest` 重新 `_ =` 掉写错误 | `TestTransitionWriteErrorsPropagate/approve` |
+| M7 handler 把 not-found 当成功 | `TestDeletePolicy_MissingPolicyIsNotFound` |
+| M8 `chaos.Update` 退回只碰 updated_at | `TestUpdate_WritesTheCallerColumns` |
+| M9 `dispatcher.DeletePolicy` 去掉存在性校验 | `TestDeletePolicy_MissingPolicyIsNotFound` |
+| M10 `worker-dispatcher.UpdatePolicy` 重新丢掉 updates | `TestUpdatePolicy_WritesTheCallerColumns` |
+
+`NC  control (no mutation)` **SURVIVED**，`builderr=0`，`badanchor=0`。10/10 KILLED。
+
+**两个关于测试本身的发现，来自跑变异而不是读代码：**
+
+1. 第一版 M2 是"调用方可以设置 `updated_at`"（把白名单判断改成 `yes || k == "updated_at"`）。它 **SURVIVED**——不是测试弱，是这个变异根本不改变行为：上面还有一条 `if k == "updated_at" { continue }` 在前面就把该 key 拦掉了，我的变异成了死代码。换成"构造器自己写 `updated_at` 时被改成服务端 `NOW()`"之后立刻被 8 个测试杀死。M2 的 SQL 是**合法**的（占位符编号、实参个数都对），能杀掉它的只有逐字 SQL 断言——这恰好证明仓库测试不是在依赖"SQL 写错了编译不过"这种假阳性。
+2. 第一版 harness 只在开始时拷一次源码，10 个变异在**同一棵被反复污染的树**上跑。结果 M3 之后的 kill 列表里全是 M1 遗留的 dbupdate 失败，而且两个共用锚点的变异报 `BADANCHOR count=0`。改成"每个变异都从 pristine 树还原"才拿到干净结果。这和 §76 那条一样：**看着像通过的信号，先怀疑工具**。
+
+### 77.6 只记录、未处理
+
+**(a) `DelegateApproval` / `ReassignApproval` 只写审计历史，什么都没委派或转派。** 两个方法各一行 `_ = s.repo.CreateApprovalHistory(...)` 就 return nil，连 `GetApprovalRequest` 都不调，存在性不校验。它们对应真实在册路由。修不了的原因：全仓 `grep UpdateApprovalLevel` **零命中**，`approval_levels` 表没有任何 UPDATE 路径，"把这一级的审批人换成 X"这件事在当前基础设施下无处落地。这是新增能力的范畴，不是修桩。
+
+**(b) `CreateApprovalHistory` 的写错误仍在 7 处 `_ =`。** 这是审计缺口，和 77.3 里"状态流转写失败"是不同性质的缺陷：审计失败不该让审批本身失败，正确做法是记日志+告警，那需要一条已经存在的基础设施（结构化日志 + 审计失败指标）。本轮刻意不做，避免把两个不同性质的问题混在一次变更里。
+
+**(c) `approval.Repository.UpdateTemplate` 是死代码**：无路由、全仓零调用方。删它要动 `repository_interface.go`（两个同名接口 + 仓库的 compile-time 断言）。
+
+**(d) `infrastructure.Repository.UpdateConnector` / `UpdateNetworkPolicy` 全仓零调用方**，且两者都是本节的"只碰 updated_at"形状。同样卡在 `repository_interface.go`。
+
+**(e) `ListTemplates2` 在 5 个模块里是死代码**（handler + service + 接口 + 测试齐全，但没有路由注册），其中 4 个模块连 `/templates` 都没有，那 4 个模块的 `ListTemplates` 也是死的。反过来 `artifact-version` 的 `GET /templates2` **在册**，返回真数据，是 `/templates` 的冗余重复。约 20 个点位跨 5 个模块，其中还涉及标了 `DO NOT EDIT` 的生成接口，本轮不动。
+
+**(f) `approval.ApprovalRequest` 的 `UpdateApprovalRequest` 没有 PUT 路由**——它只被六个状态流转 handler 走到。所以 77.3 修它**不能**靠"给某个 API 发 PUT"验证，只能靠 77.4 里的状态流转测试间接断言。这也是为什么这五个 `_ =` 的杀伤面比看上去大：一个丢字段的仓库方法 + 五个丢错误的服务调用点。
+
+**(g) `serverless_functions.environment` 被排除在 `functionColumns` 之外**：它是 `map[string]string` 的 JSON 列，更新路径上没有 marshaler，直接传进 `ExecContext` 会变成 map 原样。要支持它需要给列加类型化的 marshaler，那是另一个改动。
+
+**(h) `GOWORK=off` 的坑在 harness 里反而是安全的**：§76 记录过工作区模式下 `go test` 不能加 `GOWORK=off`（`go.work.sum` 在仓库根）。但本节的 harness 把模块的 `go.mod` + `go.sum` 整份拷走了，拷走的那份自带校验和，所以 `/private/tmp` 里的 harness **可以**开 `GOWORK=off`。区分一下：工作区测试用工作区模式，`/tmp` 里的独立副本可以 `GOWORK=off`。
+
+### 77.7 遗留
+
+§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 77.6 的 (a)-(g)。
+
+仍未排查的扫描候选：`alert-adapter/service/handlers.go` 的 5 处 TODO（77、178、188、320、370 行）只定位未查；`internal/branch-policy/service/service.go:2684-2767` 与其 83 行的 sentinel；`internal/config/service/drift_service.go:25`。基础设施确实不存在的一类：`internal/cmdb/transport/{snmp,ssh,sql}.go`、`internal/infrastructure/backup/executor/key_provider.go:80`、`internal/crossover/registry/registry.go:156/285`、`internal/degradation/service/service.go:131/291`、`internal/incident/repository/repository.go:442`、`internal/job-source/service/adapters.go:386`、`cmd/server/wiring.go:271`。
+
+仍然需要授权的两个决定：(1) `RecordSavings` 零个非测试调用方，生产库里 `ai_cost_savings` 恒为空——接调用方还是删掉整条链（破坏性）；(2) 模块 A 的 6 个 handler / 33 处裸租户读取完全不在路由注册里——删还是留。
+
