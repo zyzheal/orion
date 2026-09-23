@@ -3,9 +3,11 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
+	"orion/platform-svc-go/internal/dbupdate"
 	"orion/platform-svc-go/internal/multi-cloud/models"
 
 	"github.com/google/uuid"
@@ -52,10 +54,26 @@ func (r *Repository) ListAccounts(ctx context.Context, tenantID string) ([]model
 	return accounts, err
 }
 
+// accountColumns is what UpdateAccount may write. provider_id, account_id and
+// credential_ref identify the credential itself and are immutable here, and
+// current_spend is written by the sync loop rather than by a caller.
+var accountColumns = []string{"account_name", "credential_type", "region", "status", "monthly_budget"}
+
+// UpdateAccount used to issue "UPDATE cloud_accounts SET updated_at=NOW()" and
+// ignore the map entirely, so PUT /providers/:id returned 200 with the old row.
 func (r *Repository) UpdateAccount(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.CloudAccount, error) {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE cloud_accounts SET updated_at = NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	cur, err := r.GetAccountByID(ctx, tenantID, id)
 	if err != nil {
+		return nil, err
+	}
+	stmt, args, err := dbupdate.Build("cloud_accounts", updates, accountColumns, id, tenantID)
+	if err != nil {
+		if errors.Is(err, dbupdate.ErrEmpty) {
+			return cur, nil
+		}
+		return nil, err
+	}
+	if _, err := r.db.ExecContext(ctx, stmt, args...); err != nil {
 		return nil, err
 	}
 	return r.GetAccountByID(ctx, tenantID, id)

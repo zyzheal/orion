@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"orion/platform-svc-go/internal/dbupdate"
 	"orion/platform-svc-go/internal/gateway-dynamic/models"
 
 	"github.com/google/uuid"
@@ -130,39 +131,27 @@ func (r *Repository) ListWithFilter(ctx context.Context, tenantID string, enable
 	return items, total, nil
 }
 
+// routeColumns is what Update may write. created_by, updated_by and the id /
+// tenant_id keys are never written by an update call.
+var routeColumns = []string{"path", "methods", "upstream_url", "enabled", "priority", "metadata"}
+
+// Update used to interpolate the map keys straight into the SET clause. The
+// callers pass literal strings today, but the builder had no whitelist, so any
+// future caller could name an arbitrary column -- including id or tenant_id --
+// and it would have been rendered into SQL.
 func (r *Repository) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
-	updates["updated_at"] = time.Now().UTC()
-
-	// Build SET clause from the map.
-	// Use $1..$N for SET values, $N+1 for id, $N+2 for tenant_id.
-	orderedKeys := make([]string, 0, len(updates))
-	for k := range updates {
-		orderedKeys = append(orderedKeys, k)
-	}
-
-	setParts := make([]string, 0, len(orderedKeys))
-	args := []interface{}{}
-	for i, k := range orderedKeys {
-		setParts = append(setParts, fmt.Sprintf("%s=$%d", k, i+1))
-		args = append(args, updates[k])
-	}
-	idArg := len(orderedKeys) + 1
-	tenantArg := idArg + 1
-	setClause := strings.Join(setParts, ", ")
-	stmt := fmt.Sprintf(`UPDATE gateway_routes SET %s WHERE id=$%d AND tenant_id=$%d`, setClause, idArg, tenantArg)
-
-	res, err := r.db.ExecContext(ctx, stmt, append(args, id, tenantID)...)
-	if err != nil {
-		return fmt.Errorf("failed to update: %w", err)
-	}
-	rows, err := res.RowsAffected()
-	if err != nil {
+	if _, err := r.GetByID(ctx, tenantID, id); err != nil {
 		return err
 	}
-	if rows == 0 {
-		return fmt.Errorf("route not found")
+	stmt, args, err := dbupdate.Build("gateway_routes", updates, routeColumns, id, tenantID)
+	if err != nil {
+		if errors.Is(err, dbupdate.ErrEmpty) {
+			return nil
+		}
+		return err
 	}
-	return nil
+	_, err = r.db.ExecContext(ctx, stmt, args...)
+	return err
 }
 
 // UpdateJSON updates a single JSON field (path, methods, upstream_url, etc.) plus

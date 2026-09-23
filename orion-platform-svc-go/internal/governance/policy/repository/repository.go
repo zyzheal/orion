@@ -2,11 +2,12 @@ package repository
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/platform-svc-go/internal/dbupdate"
 	"orion/platform-svc-go/internal/governance/policy/models"
 )
 
@@ -47,13 +48,22 @@ func (r *Repository) List(ctx context.Context, tenantID string, limit, offset in
 	return items, nil
 }
 
+// policyColumns is what Update may write; tenant_id is the key.
+var policyColumns = []string{"name"}
+
 func (r *Repository) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
-	updates["updated_at"] = time.Now().UTC()
-	_, err := r.db.ExecContext(ctx, `UPDATE policy SET updated_at = NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
-	if err != nil {
-		return fmt.Errorf("failed to update: %w", err)
+	if _, err := r.GetByID(ctx, tenantID, id); err != nil {
+		return err
 	}
-	return nil
+	stmt, args, err := dbupdate.Build("policy", updates, policyColumns, id, tenantID)
+	if err != nil {
+		if errors.Is(err, dbupdate.ErrEmpty) {
+			return nil
+		}
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, stmt, args...)
+	return err
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {

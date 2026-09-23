@@ -2,9 +2,10 @@ package repository
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"time"
 
+	"orion/platform-svc-go/internal/dbupdate"
 	"orion/platform-svc-go/internal/workbench/models"
 
 	"github.com/google/uuid"
@@ -51,14 +52,22 @@ func (r *Repository) List(ctx context.Context, tenantID string, limit, offset in
 	return items, nil
 }
 
+// workbenchColumns is what Update may write; tenant_id is the key.
+var workbenchColumns = []string{"name"}
+
 func (r *Repository) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
-	updates["updated_at"] = time.Now().UTC()
-	// Simple update per field
-	_, err := r.db.ExecContext(ctx, `UPDATE workbenches SET updated_at = NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
-	if err != nil {
-		return fmt.Errorf("failed to update: %w", err)
+	if _, err := r.GetByID(ctx, tenantID, id); err != nil {
+		return err
 	}
-	return nil
+	stmt, args, err := dbupdate.Build("workbenches", updates, workbenchColumns, id, tenantID)
+	if err != nil {
+		if errors.Is(err, dbupdate.ErrEmpty) {
+			return nil
+		}
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, stmt, args...)
+	return err
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {

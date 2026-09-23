@@ -52,9 +52,26 @@ func (s *Service) List(ctx context.Context, tenantID string, limit, offset int) 
 }
 
 func (s *Service) Update(ctx context.Context, tenantID, id string, req models.UpdateSprintRequest) (*models.Sprint, error) {
+	// Every field of UpdateSprintRequest is caller-visible: mapping only name
+	// made PUT /sprints/:id silently ignore goal, dates, status and capacity.
 	updates := make(map[string]interface{})
 	if req.Name != nil {
 		updates["name"] = *req.Name
+	}
+	if req.Goal != nil {
+		updates["goal"] = *req.Goal
+	}
+	if req.StartDate != nil {
+		updates["start_date"] = *req.StartDate
+	}
+	if req.EndDate != nil {
+		updates["end_date"] = *req.EndDate
+	}
+	if req.Status != nil {
+		updates["status"] = *req.Status
+	}
+	if req.Capacity != nil {
+		updates["capacity"] = *req.Capacity
 	}
 	if err := s.repo.Update(ctx, tenantID, id, updates); err != nil {
 		return nil, err
