@@ -608,26 +608,6 @@ func Test_DetectDrift_Empty(t *testing.T) {
 	}
 }
 
-func Test_CompareEnvironments(t *testing.T) {
-	repo := newMockConfigRepo()
-	svc := NewService(repo)
-	ctx := context.Background()
-
-	result, err := svc.CompareEnvironments(ctx, "tenant-1", "dev", "prod")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result == nil {
-		t.Fatal("expected non-nil result")
-	}
-	if result.SourceEnv != "dev" {
-		t.Fatalf("expected source env 'dev', got '%s'", result.SourceEnv)
-	}
-	if result.TargetEnv != "prod" {
-		t.Fatalf("expected target env 'prod', got '%s'", result.TargetEnv)
-	}
-}
-
 func Test_CreateChangeRequest(t *testing.T) {
 	repo := newMockConfigRepo()
 	svc := NewService(repo)

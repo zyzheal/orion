@@ -6,6 +6,7 @@ package service
 import (
 	"context"
 	"errors"
+	"sort"
 	"time"
 
 	"orion/platform-svc-go/internal/config/models"
@@ -522,14 +523,84 @@ func (s *Service) DeleteSnapshot(ctx context.Context, tenantID, snapshotID strin
 
 // ---------- Diff ----------
 
+// listConfigsInEnv returns every config in one environment. Repository.List is
+// paginated, so a single call would cap the comparison at the first page and the
+// dropped keys would show up as spurious "removed" entries.
+func (s *Service) listConfigsInEnv(ctx context.Context, tenantID, env string) ([]models.Config, error) {
+	const pageSize = 200
+	var out []models.Config
+	for page := 0; ; page++ {
+		items, _, err := s.repo.List(ctx, tenantID, repository.ConfigFilter{
+			Environment: env,
+			PageSize:    pageSize,
+			Page:        page,
+		})
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, items...)
+		if len(items) < pageSize {
+			return out, nil
+		}
+	}
+}
+
+// CompareEnvironments diffs every key that exists in either environment and
+// reports it as added (target only), removed (source only) or modified
+// (present in both with a different value). Keys with identical values are
+// omitted.
 func (s *Service) CompareEnvironments(ctx context.Context, tenantID, sourceEnv, targetEnv string) (*models.EnvironmentDiffResult, error) {
-	diff := &models.EnvironmentDiffResult{
+	if sourceEnv == "" || targetEnv == "" {
+		return nil, errors.New("source and target environment are required")
+	}
+	src, err := s.listConfigsInEnv(ctx, tenantID, sourceEnv)
+	if err != nil {
+		return nil, err
+	}
+	tgt, err := s.listConfigsInEnv(ctx, tenantID, targetEnv)
+	if err != nil {
+		return nil, err
+	}
+	srcByKey := map[string]models.Config{}
+	for _, c := range src {
+		srcByKey[c.Key] = c
+	}
+	tgtByKey := map[string]models.Config{}
+	for _, c := range tgt {
+		tgtByKey[c.Key] = c
+	}
+	keySet := map[string]struct{}{}
+	for k := range srcByKey {
+		keySet[k] = struct{}{}
+	}
+	for k := range tgtByKey {
+		keySet[k] = struct{}{}
+	}
+	keys := make([]string, 0, len(keySet))
+	for k := range keySet {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	diffs := []models.ConfigDiff{}
+	for _, k := range keys {
+		sv, inSrc := srcByKey[k]
+		tv, inTgt := tgtByKey[k]
+		switch {
+		case !inSrc:
+			diffs = append(diffs, models.ConfigDiff{Key: k, NewVal: tv.Value, Status: "added"})
+		case !inTgt:
+			diffs = append(diffs, models.ConfigDiff{Key: k, OldVal: sv.Value, Status: "removed"})
+		case sv.Value != tv.Value:
+			diffs = append(diffs, models.ConfigDiff{Key: k, OldVal: sv.Value, NewVal: tv.Value, Status: "modified"})
+		}
+	}
+	return &models.EnvironmentDiffResult{
 		SourceEnv:   sourceEnv,
 		TargetEnv:   targetEnv,
-		Differences: []models.ConfigDiff{},
-	}
-	// In a real implementation, fetch both environments and compute diff
-	return diff, nil
+		Differences: diffs,
+		TotalCount:  len(diffs),
+	}, nil
 }
 
 func (s *Service) CompareVersions(ctx context.Context, tenantID, configID, versionFrom, versionTo string) (*models.VersionDiffResult, error) {
