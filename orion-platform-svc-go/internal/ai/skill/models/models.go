@@ -223,8 +223,14 @@ type CreateReviewRequest struct {
 }
 
 type CreateInstanceRequest struct {
-	SkillID     string `json:"skill_id"   binding:"required"`
-	TenantID    string `json:"tenant_id"  binding:"required"`
+	SkillID string `json:"skill_id"   binding:"required"`
+	// TenantID is bound for compatibility with existing request bodies but is
+	// never consulted: the service takes its tenant from the auth context, so
+	// honouring the body would let any skill:write holder file an instance
+	// into another tenant's namespace. It is also no longer `required` — with
+	// the tag present the fallback in the handler was unreachable dead code
+	// and the body tenant won 100% of the time.
+	TenantID    string `json:"tenant_id"`
 	ProjectID   string `json:"project_id"`
 	Name        string `json:"name"       binding:"required"`
 	Description string `json:"description"`
@@ -249,7 +255,10 @@ type UpdateInstanceRequest struct {
 }
 
 type CreateExecutionRequest struct {
-	TenantID    string `json:"tenant_id"   binding:"required"`
+	// TenantID is bound but never consulted, and no longer `required`: see
+	// CreateInstanceRequest above. The execution row is written under the auth
+	// tenant, which also scopes the instance-ownership check below.
+	TenantID    string `json:"tenant_id"`
 	SkillID     string `json:"skill_id"    binding:"required"`
 	InstanceID  string `json:"instance_id"`
 	Capability  string `json:"capability"`

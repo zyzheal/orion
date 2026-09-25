@@ -382,7 +382,14 @@ func (s *Service) AddReview(ctx context.Context, skillID string, req *models.Cre
 // =====================================================================
 
 // CreateInstance creates a new tenant-scoped skill instance.
-func (s *Service) CreateInstance(ctx context.Context, req *models.CreateInstanceRequest) (*models.SkillInstance, error) {
+//
+// tenantID comes from the caller (the handler's auth context). req.TenantID is
+// not consulted: reading the body would let any skill:write holder file an
+// instance under another tenant's tenant_id, and because the read path is
+// tenant-scoped (FindInstanceByIDAndTenant) that instance would be invisible to
+// the caller and visible to the victim. Every sibling method here already takes
+// tenantID as a parameter for the same reason.
+func (s *Service) CreateInstance(ctx context.Context, tenantID string, req *models.CreateInstanceRequest) (*models.SkillInstance, error) {
 	if strings.TrimSpace(req.Name) == "" {
 		return nil, fmt.Errorf("%w: instance name is required", ErrInvalidInput)
 	}
@@ -395,7 +402,7 @@ func (s *Service) CreateInstance(ctx context.Context, req *models.CreateInstance
 
 	// If setting as default, unset existing defaults for this skill+tenant
 	if req.IsDefault {
-		if err := s.clearDefaultInstances(ctx, req.SkillID, req.TenantID, ""); err != nil {
+		if err := s.clearDefaultInstances(ctx, req.SkillID, tenantID, ""); err != nil {
 			return nil, err
 		}
 	}
@@ -404,7 +411,7 @@ func (s *Service) CreateInstance(ctx context.Context, req *models.CreateInstance
 	inst := &models.SkillInstance{
 		ID:        uuid.New().String(),
 		SkillID:   req.SkillID,
-		TenantID:  req.TenantID,
+		TenantID:  tenantID,
 		Name:      strings.TrimSpace(req.Name),
 		Status:    orDefault(req.Status, "inactive"),
 		Config:    orDefaultJSONB(req.Config),
@@ -493,7 +500,13 @@ func (s *Service) DeleteInstance(ctx context.Context, id, tenantID string) error
 // =====================================================================
 
 // ExecuteSkill creates an execution record, logs audit, and marks completed (sync mode).
-func (s *Service) ExecuteSkill(ctx context.Context, skillID string, req *models.CreateExecutionRequest) (*models.SkillExecution, error) {
+//
+// tenantID comes from the caller (the handler's auth context) and is also what
+// scopes the instance-ownership check below. Trusting req.TenantID there would
+// be self-defeating: a forged tenant fails the check against the caller's real
+// instance, but when InstanceID is empty the forged tenant is written
+// straight into the execution row.
+func (s *Service) ExecuteSkill(ctx context.Context, tenantID, skillID string, req *models.CreateExecutionRequest) (*models.SkillExecution, error) {
 	skill, err := s.repo.FindSkillByID(ctx, skillID)
 	if err != nil {
 		return nil, ErrSkillNotFound
@@ -501,14 +514,14 @@ func (s *Service) ExecuteSkill(ctx context.Context, skillID string, req *models.
 
 	// Verify instance belongs to tenant if provided
 	if req.InstanceID != "" {
-		if _, err := s.repo.FindInstanceByIDAndTenant(ctx, req.InstanceID, req.TenantID); err != nil {
+		if _, err := s.repo.FindInstanceByIDAndTenant(ctx, req.InstanceID, tenantID); err != nil {
 			return nil, ErrInstanceNotFound
 		}
 	}
 
 	exec := &models.SkillExecution{
 		ID:          uuid.New().String(),
-		TenantID:    req.TenantID,
+		TenantID:    tenantID,
 		SkillID:     skillID,
 		Status:      "pending",
 		Input:       orDefaultJSONB(req.Input),

@@ -482,10 +482,10 @@ func (h *Handler) CreateInstance(c *gin.Context) {
 	}
 	// Skill ID comes from the URL param
 	req.SkillID = c.Param("id")
-	if req.TenantID == "" {
-		req.TenantID = c.GetString("tenant_id")
-	}
-	inst, err := h.svc.CreateInstance(ctx, &req)
+	// req.TenantID is bound but never forwarded: the row is written under the
+	// auth tenant, so trusting the body would let any skill:write holder file
+	// an instance into another tenant's namespace.
+	inst, err := h.svc.CreateInstance(ctx, c.GetString("tenant_id"), &req)
 	if err != nil {
 		mapError(c, err)
 		return
@@ -574,10 +574,9 @@ func (h *Handler) ExecuteSkill(c *gin.Context) {
 		return
 	}
 	req.SkillID = c.Param("id")
-	if req.TenantID == "" {
-		req.TenantID = c.GetString("tenant_id")
-	}
-	exec, err := h.svc.ExecuteSkill(ctx, c.Param("id"), &req)
+	// req.TenantID is bound but never forwarded: the execution row and the
+	// instance-ownership check below both use the auth tenant.
+	exec, err := h.svc.ExecuteSkill(ctx, c.GetString("tenant_id"), c.Param("id"), &req)
 	if err != nil {
 		mapError(c, err)
 		return
