@@ -15626,3 +15626,117 @@ carry-forward：§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)
 仍未排查：`internal/branch-policy/service/service.go` 2684 行以外的部分（总量 3013 行）。缺基础设施清单与 §80.7 一致。
 
 仍需授权的 3 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留）。
+
+## §83 BranchEnvGuard 拿请求体租户去做跨租户读取，且排在权限检查之前：任何调用方都能用别人的 image-tag 前缀策略过闸，并顺手拿到一个匿名读取别的租户绑定配置的 oracle（Round 82，2026-09-25）
+
+起点 HEAD `07e27865a`。
+
+### 83.1 这一轮的两件事，以及一个必须改口的危害判断
+
+`§80.5(c)` 挂的最后一处：`branch-policy/middleware/branch_env_guard.go:65`
+
+```go
+if req.TenantID == "" {
+    req.TenantID = tenantID
+}
+...
+ok, err := svc.VerifyImageTagMatch(c.Request.Context(), req.TenantID, ...)
+```
+
+追流之后发现它和 §80 的三处、§82 的两处**不同类**。那五处都是**写**路径——写错归属、改别人的行、把数据转移到别人命名空间。这一处是**读**路径：`VerifyImageTagMatch` → `GetNamespaceBindingByBranchEnv(ctx, tenantID, branch, envName)`，一个租户作用域的读。伪造租户不是改数据，是**拿别人的策略来验自己的镜像 tag**。
+
+由此 §80.5(c) 的挂账理由需要修正一处。当时写的是"中间件，body 为空会 fail-closed，危害明显小于其余"。方向对，但原因写错了：真正让它不构成部署绕过的原因不是 fail-closed，而是**下面还有一道同名校验**——`CheckPreDeployGate` 的 R1 调的就是同一个 `VerifyImageTagMatch`，在 handler 里以 auth 租户重跑。所以 body 租户让 guard 放行**并不会**让一次不合规的部署成功；它给的是**假保证**（operator 以为闸门生效了）加**读取 oracle**。
+
+第二件事是注册顺序：
+
+```go
+r.POST("/deploy", middleware.BranchEnvGuard(h.svc), auth.RequirePermission("branch-policy", "write"), h.ExecuteDeploy)
+```
+
+guard 排在权限检查**之前**。这意味着一个即将被 403 的调用方也能触发一次租户作用域的读。而 tenant 的来源是 auth 上下文——auth 关闭时是 `c.GetString("tenant_id")` 为空、退回**客户端可控的 `X-Tenant-Id` 头**。组合起来就是一个**匿名、指向任意租户的 allow/deny oracle**：给 `branch` / `targetEnv` / `imageTag` 三个字段，用响应里的 400 `BRANCH_ENV_MISMATCH` 和"继续往下走"区分，可以二分/字典探测出**另一个租户**的 `NamespaceBinding.ImageTagPrefix`。
+
+### 83.2 修的两处
+
+(1) 中间件删掉 body 回退，fail-closed 检查与 `VerifyImageTagMatch` 都改以 `tenantID` 为键：
+
+```go
+// req.TenantID is bound but never consulted — see the func comment.
+// tenantID (not req.TenantID) is what the fail-closed check and the
+// VerifyImageTagMatch call below are keyed on.
+if tenantID == "" || req.Branch == "" || req.TargetEnv == "" || req.ImageTag == "" {
+...
+ok, err := svc.VerifyImageTagMatch(c.Request.Context(), tenantID, req.Branch, req.TargetEnv, req.ImageTag)
+```
+
+`X-Tenant-Id` 头回退**保留**：那是 auth 关闭时的唯一租户来源（见 83.6(b)）。改错误文案：`(and tenantId or X-Tenant-Id header)` → `the tenant comes from auth, or X-Tenant-Id when auth is disabled`——旧文案还在教调用方往 body 里塞 `tenantId`。
+
+(2) 路由顺序反转：
+
+```go
+r.POST("/deploy", auth.RequirePermission("branch-policy", "write"), middleware.BranchEnvGuard(h.svc), h.ExecuteDeploy)
+```
+
+这是一次**纯收紧**：任何之前拿到 2xx 的请求都持有该角色，只是把同一个检查挪到链首，仍会放行。唯一可观察的变化是**没有权限且 image tag 不匹配**的调用方——之前 400 `BRANCH_ENV_MISMATCH`，现在 403。那个方向是少泄露信息：不告诉未授权调用方部署配置长什么样。
+
+### 83.3 三处记录被本轮修正
+
+(a) **guard 不是唯一的执行点**（见 83.1）。`DeployRequest.TenantID` 是 `branch-policy` 模块里**唯一被读取**的 body 租户字段——9 个带 `json:"tenantId"` 的字段全在行/实体结构体上（`Record` / `BranchProfile` / `BuildArtifact` / `NamespaceBinding` / `SyncPolicy` / `SyncRunLog` / `DeployEvent` / `MergePreview` 以及 `DeployRequest`），没有一个是 Create* 请求 DTO 的字段。而且全模块 9 个 `TenantID` 字段没有一个挂 `binding:"required"`，所以 §82.1 那个"body 独占生效"的变体在这个模块不存在。
+
+(b) **模块级服务层是干净的，"329 行未排查"的挂账本轮关闭**。`service.go` 3013 行里 **107 处 `s.repo.` 调用逐一核对**：每一次要么把 `tenantID` 作为第一个参数传下去，要么（8 处 `TenantID:` 字面赋值）从参数而不是请求体取值。之前只看了尾部 2684 行以外那一段（`ExecuteDeploy` / `CheckPreDeployGate` / `MergePreview` 三个方法加 gate helper），确认它们全走显式 `tenantID` 参数；本轮把前面 2683 行也过了一遍，没有例外。
+
+(c) **两处注释声称与代码不符**：guard 的函数注释与路由注释都写"body 不是 deploy 形状就静默跳过，所以中间件可以挂到更宽的 route group"。实际 `json.Unmarshal` 只对**非法 JSON** 报错；一个合法但不含 deploy 字段的 JSON 会解成零值 `DeployRequest`，然后撞必填检查返回 400 `BRANCH_ENV_REQUIRED`。所以这个中间件**不能**挂到更宽的 route group，那句话是假的（路由上也只挂了一处，没人真用）。两处注释都改成了实际行为，并加一条测试钉住，免得下一个读注释的人按假前提去复用这个中间件。
+
+### 83.4 测试：新增 7 个（中间件 5 + handler 2）
+
+中间件 5 条，全部断言**传给服务层的租户字符串**而不是返回值（stub 记录的是 `tenantID+"/"+branch+"/"+env+"/"+imageTag`，所以一条断言同时钉住四个字段）：
+
+- `BodyTenantIgnoredAuthTenantUsed` — 断言精确等于 `caller-tenant/bp-1/prod/myrepo/release-ent/abc`；
+- `AuthTenantBeatsXTenantIdHeader` — auth 租户同时压过 body 与 header 两个客户端可控来源；
+- `HeaderTenantUsedWhenAuthAbsent` — 无 auth 上下文时 header 仍生效，**钉住这条 auth-off 路径没被顺手删掉**；
+- `FailsClosedWithoutAnyTenant` — 无任何租户 → 400 `BRANCH_ENV_REQUIRED` **且服务层零调用**；
+- `ValidNonDeployJSONBodyFailsClosed` — 合法但非 deploy 的 JSON 仍 400，钉住 83.3(c) 的修正。
+
+handler 2 条走**真实 gin engine**（`NewHandler(svc).RegisterRoutes(eng.Group("/api/v1"))` + `eng.ServeHTTP`），不构造 gin context：
+
+- `DeployPermissionRunsBeforeGuard` — 无角色 → 403 **且 `VerifyImageTagMatch` 调用数为 0**。两个断言是独立的：顺序反转会同时改状态码（guard 先跑 → 400 而非 403）和调用数，任一断言都能抓住；
+- `DeployGuardStillRunsForAuthorizedCaller` — `admin` 角色（`*:*` 通配，来自 go-common 默认权限表）→ 201 **且恰好 1 次调用**，防止有人为了过第一条测试把 guard 整个摘掉。
+
+一个测试写法坑：helper 里 `mw(c)` 之后必须判断 `c.IsAborted()` 再调下一个 handler。直接调会让失败用例的 `called` 变成 true，两条 fail-closed 断言全绿却什么都没证明——原有 6 条测试不用这个 helper 也不查 `called`，所以这个坑只在本轮暴露。
+
+### 83.5 变异：5 个全杀 + 1 个已知缺口存活 + 对照组存活
+
+`/private/tmp/r82/mutation_check.py`（每个变异前从 pristine 逐字节还原，支持一次变异跨多文件）：**killed=5 survived=0 builderr=0 badanchor=0，GAP SURVIVED，NC SURVIVED，restore 逐字节一致，HARNESS OK**。
+
+- **M1** body 回退装回（含调用点改回 `req.TenantID`）→ 2 fail；
+- **M2** 路由顺序反转 → 1 fail；
+- **M3** 必填检查去掉 `tenantID == ""` → 1 fail（无租户请求直达服务层）；
+- **M4** header 回退删掉 → 1 fail（auth-off 路径断掉）；
+- **M5** 复合形态，即**代码被找到时的原样**（body 赢 + guard 先跑 + 必填检查不收租户，两处文件一起改）→ 4 fail。M5 的 4 条失败说明这组测试覆盖了整条缺陷链而不是只覆盖一个环节。
+- **GAP（不计入门禁）**：`INVALID_BODY` 分支（`io.ReadAll` 返回错误）从未被任何测试触发 → SURVIVED。这条与 §82 的 GAP 不同类：那个是"整个包没有测试文件"（handler→service 只有编译期保证），这个是"一个具体分支没覆盖"，都是真实缺口但形状不同。
+- **NC**：`BRANCH_ENV_MISMATCH` 的 message 文案（测试只钉 `code` 不钉 `message`）存活，证明 harness 能报通过。
+
+M4 值得单说：如果这一轮只想修租户来源，很容易顺手删掉 header 回退（"body 都不可信，header 更不可信"）。删了之后 M4 会显示 auth-off 路径断裂——**收紧一个来源时，要确认另一个来源是不是某个部署形态唯一还在用的那条路**。
+
+### 83.6 只记录，未处理
+
+(a) **默认配置下 `/deploy` 本来就不可达**。`AUTH_OPTIONAL_ENABLED` 与 `AUTH_STRICT_ENABLED` 都默认关（`cmd/server/router.go`），没有任何中间件给 context 设 `role`，`RequirePermission` 对所有调用方一律 403。所以本轮两处修复在默认部署下都不会执行到 guard 之后的链路。这与 §62 记录的 PERM-8 状态一致，本轮不动认证开关。
+
+(b) **auth 关闭时 `X-Tenant-Id` 头是客户端完全可控的租户来源**。本轮修的是"body 租户压过 auth 租户"；auth 关闭时 `c.GetString("tenant_id")` 为空，header 就成了租户本身，guard 的 pre-auth oracle 形态依然存在（只是租户从 body 换成了 header）。`branch_env_guard.go:43` 与 `handler.go:1587` 两处都有这个回退。真正封住需要关于 auth-off 部署形态的决定，与 §81.6 的 `StartTrace` 挂账同类，**仍需授权**。
+
+(c) **guard 的 body 缓冲无上限**：`io.ReadAll(c.Request.Body)` 把整个 body 读进内存，超大 body 造成内存放大。非租户问题，本轮不动。
+
+(d) **`byteReader.Seek` / `newReadSeeker` 没有测试**。body 回读本身已被 83.4 的路由测试间接覆盖（handler 的 `ShouldBindJSON` 依赖回读成功的 body），但 `Seek` 的实现没有直接断言。
+
+(e) **`VerifyBranchEnvBinding`（`service.go:1534`）零调用方**，`ServiceInterface` 里还挂着。与 §80.5 里那些"存在但没人调"的项同形，删需改接口。
+
+### 83.7 验证与遗留
+
+`go build ./...` 退出码 0；`go vet ./internal/branch-policy/...` 退出码 0；`gofmt -l internal/branch-policy/` 无输出；`go test -count=1 ./...` 563 个包 ok / 0 FAIL。无新迁移，`go.sum` 与 `go.work.sum` 未改。
+
+**`§80.5(c)` 四处全部清完**（Round 80 清 `branch-policy/handler.go:1603` 那条 inert 死代码，Round 81 清 `ai/skill` 两处，本轮清中间件这一处）。`§80.5(b)` 三处已在上一轮清完。之前"仍未排查 `branch-policy/service/service.go` 尾部 329 行"的挂账本轮关闭（见 83.3(b)），**未排查代码区域的清单为空**。
+
+§71.8 遗留 7 条：第 3、5、6、7 条不变；第 4 条（`audit.ChainLatest` 的 nil 解引用）仍未修。
+
+carry-forward：§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 83.6 的 (a)-(e)。
+
+仍需授权的 3 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留），另加 83.6(b) 的 auth-off header 租户来源作为第 4 项候选。
