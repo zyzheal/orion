@@ -450,7 +450,16 @@ func (h *Handler) ChainLatest(c *gin.Context) {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	if result.Total == 0 {
+	// "No latest entry" arrives in two shapes, and neither is a 500:
+	//
+	//  1. result is nil — any Service implementation may return (nil, nil);
+	//     dereferencing result.Total was a panic.
+	//  2. Total > 0 but Entries is empty. Repository.List takes its count and
+	//     its rows from two separate statements, so the newest row can be
+	//     deleted between them. Total counts the whole filtered set, so it is
+	//     the wrong predicate for "does a first row exist" — Entries[0] on an
+	//     empty slice was an index-out-of-range panic.
+	if result == nil || len(result.Entries) == 0 {
 		middleware.RespondNotFound(c, "no audit logs found")
 		return
 	}

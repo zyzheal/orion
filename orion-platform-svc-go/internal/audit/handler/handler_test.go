@@ -194,6 +194,91 @@ func TestHandler_ListLogs_Error(t *testing.T) {
 	}
 }
 
+// ==================== ChainLatest ====================
+//
+// ChainLatest returned the newest audit log. It gated on Total == 0 and then
+// indexed Entries[0], which panicked in two shapes:
+//   - result == nil: dereferencing result.Total. Any Service implementation
+//     may return (nil, nil) — mockSvc's default List does.
+//   - Total > 0 with zero rows: Repository.List takes its count and its rows
+//     from two separate statements, so the newest row can be deleted between
+//     them. Total counts the whole filtered set, so it was the wrong predicate
+//     for "does a first row exist", and Entries[0] was index-out-of-range.
+// Both must be a 404, not a panic that gin.Recovery turns into a 500.
+
+func TestHandler_ChainLatest_ReturnsMostRecentEntry(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{
+		listFn: func(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogListResult, error) {
+			return &models.AuditLogListResult{
+				Entries: []models.AuditLogEntry{{ID: "latest-1", Action: "CREATE"}},
+				Total:   1,
+			}, nil
+		},
+	})
+	w := performRequest(h, h.ChainLatest, "GET", nil, nil, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	var out map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatalf("bad json: %v body=%s", err, w.Body.String())
+	}
+	data, _ := out["data"].(map[string]any)
+	if data == nil || data["id"] != "latest-1" {
+		t.Fatalf("expected the newest entry, got %v", out["data"])
+	}
+}
+
+func TestHandler_ChainLatest_NoEntries_ReturnsNotFound(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{
+		listFn: func(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogListResult, error) {
+			return &models.AuditLogListResult{Total: 0}, nil
+		},
+	})
+	w := performRequest(h, h.ChainLatest, "GET", nil, nil, nil)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestHandler_ChainLatest_NilResult_ReturnsNotFound(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{
+		listFn: func(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogListResult, error) {
+			return nil, nil
+		},
+	})
+	w := performRequest(h, h.ChainLatest, "GET", nil, nil, nil)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", w.Code)
+	}
+}
+
+// The shape the real repository can produce: COUNT(*) saw three rows, the
+// LIMIT 1 fetch ran after the newest ones were deleted.
+func TestHandler_ChainLatest_TotalWithNoRows_ReturnsNotFound(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{
+		listFn: func(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogListResult, error) {
+			return &models.AuditLogListResult{Total: 3, Entries: []models.AuditLogEntry{}}, nil
+		},
+	})
+	w := performRequest(h, h.ChainLatest, "GET", nil, nil, nil)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 for Total>0 with zero rows, got %d", w.Code)
+	}
+}
+
+func TestHandler_ChainLatest_ServiceError(t *testing.T) {
+	h := newHandlerWithSvc(&mockSvc{
+		listFn: func(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogListResult, error) {
+			return nil, errors.New("boom")
+		},
+	})
+	w := performRequest(h, h.ChainLatest, "GET", nil, nil, nil)
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", w.Code)
+	}
+}
+
 // ==================== GetLog ====================
 
 func TestHandler_GetLog_Success(t *testing.T) {
