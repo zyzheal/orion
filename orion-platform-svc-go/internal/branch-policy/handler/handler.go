@@ -90,12 +90,17 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.GET("/merge-preview", auth.RequirePermission("branch-policy", "read"), h.ListMergePreviews)
 
 	// P0-MB Phase 6 — Deploy Execution (BranchEnvGuard middleware + PreDeployGate + DeployEvent)
-	// BranchEnvGuard runs BEFORE the permission check and the handler — it
-	// validates image-tag ↔ env compatibility and aborts the request with
-	// HTTP 400 when the check fails. When the request body is not a
-	// DeployRequest (e.g. a different endpoint shape), BranchEnvGuard skips
-	// silently so the middleware can be mounted on wider route groups.
-	r.POST("/deploy", middleware.BranchEnvGuard(h.svc), auth.RequirePermission("branch-policy", "write"), h.ExecuteDeploy)
+	// RequirePermission runs BEFORE BranchEnvGuard: the guard reads the
+	// tenant-scoped NamespaceBinding image-tag prefix, so putting it first
+	// gave any caller who lacked the permission a pre-auth allow/deny oracle
+	// over whatever tenant they named. The guard still runs before the
+	// handler, so a mismatch is a 400 rather than a rejected deploy event.
+	//
+	// The guard skips only when the body is not valid JSON. A valid JSON body
+	// that merely is not deploy-shaped unmarshals into a zero DeployRequest
+	// and then fails the required-field check with 400 — it does NOT let the
+	// middleware be mounted on a wider route group.
+	r.POST("/deploy", auth.RequirePermission("branch-policy", "write"), middleware.BranchEnvGuard(h.svc), h.ExecuteDeploy)
 
 	// P0-MB Phase 1 — L1 BranchProfile canonical paths.
 	// The multi-branch design doc v2 (§API, L173-180) specifies

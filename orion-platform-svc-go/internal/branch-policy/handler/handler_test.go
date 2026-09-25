@@ -571,6 +571,77 @@ func TestBRANCH_POLICY_Handler_RegisterRoutes(t *testing.T) {
 	newHandler().RegisterRoutes(gin.New().Group("/api/v1"))
 }
 
+// spyDeployService counts VerifyImageTagMatch calls so the /deploy route tests
+// can prove whether the guard ran for a caller who was never authorised.
+type spyDeployService struct {
+	fakeHandlerService
+	imageTagCalls int
+}
+
+func (s *spyDeployService) VerifyImageTagMatch(ctx context.Context, tenantID, branch, envName, imageTag string) (bool, error) {
+	s.imageTagCalls++
+	return true, nil
+}
+
+var _ service.ServiceInterface = (*spyDeployService)(nil)
+
+// deployRoutes builds the real /deploy chain so the tests exercise the
+// middleware ordering as registered, not the middleware in isolation. seed
+// stands in for the auth middleware by putting the identity into the context.
+func deployRoutes(svc service.ServiceInterface, seed func(c *gin.Context)) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	eng := gin.New()
+	if seed != nil {
+		eng.Use(seed)
+	}
+	NewHandler(svc).RegisterRoutes(eng.Group("/api/v1"))
+	return eng
+}
+
+func postDeploy(eng *gin.Engine, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/branch-policy/deploy", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	eng.ServeHTTP(w, req)
+	return w
+}
+
+// The guard used to run before auth.RequirePermission. VerifyImageTagMatch
+// reads the tenant-scoped NamespaceBinding, so an unauthorised caller got a
+// pre-auth allow/deny oracle over whatever tenant they named. RequirePermission
+// must come first.
+func TestBRANCH_POLICY_Handler_DeployPermissionRunsBeforeGuard(t *testing.T) {
+	svc := &spyDeployService{}
+	w := postDeploy(deployRoutes(svc, nil), `{"branch":"bp-1","targetEnv":"prod","imageTag":"tag/1"}`)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for a caller with no role, got %d body=%s", w.Code, w.Body.String())
+	}
+	if svc.imageTagCalls != 0 {
+		t.Fatalf("BranchEnvGuard ran before the permission check: %d VerifyImageTagMatch calls", svc.imageTagCalls)
+	}
+}
+
+// Guards against undoing the previous test wholesale: the guard must still run
+// for an authorised caller, once, before the handler.
+func TestBRANCH_POLICY_Handler_DeployGuardStillRunsForAuthorizedCaller(t *testing.T) {
+	svc := &spyDeployService{}
+	eng := deployRoutes(svc, func(c *gin.Context) {
+		c.Set("roles", []string{"admin"})
+		c.Set("tenant_id", "tenant-1")
+		c.Set("user_id", "user-1")
+		c.Next()
+	})
+	w := postDeploy(eng, `{"branch":"bp-1","targetEnv":"prod","imageTag":"tag/1"}`)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for an authorised deploy, got %d body=%s", w.Code, w.Body.String())
+	}
+	if svc.imageTagCalls != 1 {
+		t.Fatalf("expected exactly 1 VerifyImageTagMatch call from the guard, got %d", svc.imageTagCalls)
+	}
+}
+
 func TestBRANCH_POLICY_Handler_List(t *testing.T) {
 	c, w := makeCtx(http.MethodGet, "/", nil, nil)
 	newHandler().List(c)

@@ -29,7 +29,15 @@ type DeployRequestAlias = models.DeployRequest
 //
 // It reads the request body as a models.DeployRequest:
 //
-//	{"tenantId": "...", "branch": "...", "targetEnv": "...", "imageTag": "..."}
+//	{"branch": "...", "targetEnv": "...", "imageTag": "..."}
+//
+// The tenant is NOT taken from the body: the binding this check reads is
+// tenant-scoped, and the only policy a caller is entitled to have checked is
+// its own. It comes from the auth context (or the X-Tenant-Id header when
+// auth is disabled). A body-supplied tenantId would let any caller clear the
+// guard against a victim's NamespaceBinding image-tag prefix; the
+// authoritative re-check is R1 inside CheckPreDeployGate, which runs under
+// the auth tenant inside the handler.
 //
 // Then calls svc.VerifyImageTagMatch with the parsed fields. If the check
 // fails or errors, the request is aborted with HTTP 400.
@@ -55,28 +63,29 @@ func BranchEnvGuard(svc service.ServiceInterface) gin.HandlerFunc {
 		var req models.DeployRequest
 		if len(raw) > 0 {
 			if err := json.Unmarshal(raw, &req); err != nil {
-				// Not a deploy-shaped body — skip validation silently.
-				// This lets the middleware be mounted on wider route groups
-				// without breaking non-deploy endpoints.
+				// Invalid JSON — skip validation silently. This is the only
+				// shape that is skipped: a valid JSON body that merely is not
+				// deploy-shaped yields a zero DeployRequest, which then fails
+				// the required-field check below with BRANCH_ENV_REQUIRED.
 				c.Next()
 				return
 			}
 		}
-		if req.TenantID == "" {
-			req.TenantID = tenantID
-		}
-		if req.TenantID == "" || req.Branch == "" || req.TargetEnv == "" || req.ImageTag == "" {
+		// req.TenantID is bound but never consulted — see the func comment.
+		// tenantID (not req.TenantID) is what the fail-closed check and the
+		// VerifyImageTagMatch call below are keyed on.
+		if tenantID == "" || req.Branch == "" || req.TargetEnv == "" || req.ImageTag == "" {
 			// Malformed deploy request. Fail closed to be safe.
 			c.JSON(400, gin.H{
 				"success": false,
 				"code":    "BRANCH_ENV_REQUIRED",
-				"message": "deploy request must include branch, targetEnv, imageTag (and tenantId or X-Tenant-Id header)",
+				"message": "deploy request must include branch, targetEnv and imageTag (the tenant comes from auth, or X-Tenant-Id when auth is disabled)",
 			})
 			c.Abort()
 			return
 		}
 
-		ok, err := svc.VerifyImageTagMatch(c.Request.Context(), req.TenantID, req.Branch, req.TargetEnv, req.ImageTag)
+		ok, err := svc.VerifyImageTagMatch(c.Request.Context(), tenantID, req.Branch, req.TargetEnv, req.ImageTag)
 		if err != nil {
 			c.JSON(500, gin.H{"success": false, "code": "BRANCH_ENV_VERIFY_FAILED", "message": err.Error()})
 			c.Abort()
