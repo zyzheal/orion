@@ -15501,3 +15501,128 @@ if req.TenantID == "" {
 仍未排查：`internal/branch-policy/service/service.go` 2684 行以外的部分，缺基础设施清单与 §80.7 一致。
 
 仍然需要授权的两个决定不变（`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取是否删），**新增第三个**：81.6 的 `StartTrace` 在 auth 关闭时 fail-closed / 接受空租户 / 加默认值。
+
+## §82 ai/skill 两处 body 租户：`binding:"required"` 把回退变成不可达死代码，body 租户 100% 生效——比 §80 的三处更糟（Round 81，2026-09-25）
+
+### 82.1 关键发现：这不是"body 优先"，是"body 独占"
+
+§80.5(c) 挂着 `ai/skill/handler.go:485` 与 `:577` 两处 body 租户，形状和 alert / audit / notification 一模一样：
+
+```go
+if req.TenantID == "" {
+    req.TenantID = c.GetString("tenant_id")
+}
+```
+
+但打开两个请求体，发现一个决定性差异：
+
+```go
+type CreateInstanceRequest struct {
+	SkillID  string `json:"skill_id"  binding:"required"`
+	TenantID string `json:"tenant_id" binding:"required"`   // ←
+	...
+}
+```
+
+**`binding:"required"` 对 string 意味着"缺失或空串都拒绝"**，所以 `ShouldBindJSON` 在 handler 执行前就把没有 `tenantId` 的请求 400 掉了。于是：
+
+- 上一轮修的三处：body 带值时赢，body 为空时回退到 auth 租户。auth 租户**还有**生效路径。
+- 这一处：`if req.TenantID == ""` **永远为假**。回退是**不可达死代码**，body 租户 100% 生效，auth 租户从未被咨询过。
+
+危害等级更高，而且形态更隐蔽——看起来有一行回退在兜底，实际那行代码从未执行过。这是"防御代码存在但不生效"，比"没有防御代码"更难被 code review 发现。
+
+### 82.2 修的四处
+
+| 位置 | 改法 |
+|---|---|
+| `models.CreateInstanceRequest.TenantID` | 去掉 `binding:"required"`，保留字段并写明"绑定但不读取" |
+| `models.CreateExecutionRequest.TenantID` | 同上 |
+| `service.CreateInstance` | 签名 `(ctx, req)` → `(ctx, tenantID string, req)`；两处 `req.TenantID` 改 `tenantID` |
+| `service.ExecuteSkill` | 签名 `(ctx, skillID, req)` → `(ctx, tenantID, skillID string, req)`；写行与归属校验两处 `req.TenantID` 改 `tenantID` |
+
+handler 两处删掉回退、改传 `c.GetString("tenant_id")`。
+
+**同仓库的兄弟模块就是正确形状**：`internal/skill/handler/handler.go:269` 的 `CreateInstance` 写的是 `tenantID := c.GetString("tenant_id")` 然后作为独立参数传入，从不读 `req.TenantID`——而且它有 `handler_test.go`。两个模块都做同一对操作，一个对一个错。`ai_skillH` 挂 `/skills`（router.go:185），`skillH` 挂 `/skill`（router.go:203，注释在 :357），**两者都在路由上**。本模块的兄弟方法 `GetInstance` / `ListInstances` / `UpdateInstance` / `DeleteInstance` 也全都已经收 `tenantID` 参数——错的只有这两个。
+
+去掉 `binding:"required"` 是**纯放宽**：现在带 `tenantId` 的请求照常绑定（然后被忽略），原来会 400 的现在成功。没有合法请求会变非法。
+
+### 82.3 三个危害面，不只是"写错归属"
+
+追流的时候看到三个独立危害，单修一处都不够：
+
+(a) **实例写错命名空间**——`skill_instances` 的读路径是租户作用域的（`FindInstanceByIDAndTenant`），所以伪造租户后，你的实例**对你不可见、对对方可见**。不是数据被污染，是数据被转移。
+
+(b) **`clearDefaultInstances` 会去改别人的 `is_default`**——`CreateInstance` 传 `IsDefault: true` 时会调用 `clearDefaultInstances(ctx, skillID, req.TenantID, "")`，把该租户下同 skill 的既有默认实例的 `is_default` 翻成 false。仓库层已经按租户作用域（`WHERE skill_id = $1 AND tenant_id = $2`），所以它只会改到对方的行——但那是**对方的行**，仍然是跨租户写。
+
+(c) **`ExecuteSkill` 的归属校验是自废的**——`FindInstanceByIDAndTenant(req.InstanceID, req.TenantID)`：伪造租户时这个校验会对**你自己的实例**报 `ErrInstanceNotFound`，看起来像是防护生效了。但只要 `InstanceID` 为空，伪造租户就直接写进执行记录。**校验挡住了 50% 的路径，另一半畅通无阻**——这种"看起来有防护"的缺陷比完全没有防护更危险，因为它给调用方一个错误的信心。
+
+### 82.4 测试：新增 9 个（服务 6 + 绑定 3）
+
+断言策略沿用 §80.3 / §81.4：**断言绑定的 SQL 参数，不断言返回值**。service 是自己在内存里构造返回的 `SkillInstance` / `SkillExecution`，断言返回对象的租户等于自证。
+
+caller 租户 `"caller-tenant"`，body 里塞 `"attacker-tenant"`：
+
+- `TestCreateInstance_WritesCallerTenantNotRequestBody` —— `INSERT INTO skill_instances` 的第 3 个参数钉死为 caller 租户
+- `TestCreateInstance_ClearsDefaultsUnderCallerTenant` —— 归属清理的 `SELECT` 与 `UPDATE` 都用 caller 租户（堵 (b)）
+- `TestCreateInstance_EmptyCallerTenantStaysEmpty` —— 空 caller 租户仍被绑定，不从 body 回填
+- `TestExecuteSkill_WritesCallerTenantNotRequestBody` —— `INSERT INTO skill_executions` 的第 2 个参数是 caller 租户
+- `TestExecuteSkill_InstanceOwnershipCheckUsesCallerTenant` —— 归属校验的 `WithArgs("inst-1", "caller-tenant")`（堵 (c)）
+- `TestExecuteSkill_RejectsInstanceOwnedByAnotherTenant` —— 实例存在但属于别人时返回 `ErrInstanceNotFound`。这条是**反向护栏**：如果校验是租户盲的，这条测试会通过、缺陷反而看不见
+
+3 个绑定测试直接钉住 §82.1 的机制（用真实的 `gin.ShouldBindJSON` 而不是手写 validator）：
+
+- `TestCreateInstanceRequest_TenantIDIsOptional` / `TestCreateExecutionRequest_TenantIDIsOptional` —— 不带 `tenant_id` 的请求必须能通过绑定。这是整个修复的前提，没有这两条，`binding:"required"` 复活也不会被任何人发现。
+- `TestCreateInstanceRequest_BodyTenantStillBinds` —— 带 `tenant_id` 仍然正常绑定（向后兼容），只是不再决定任何东西
+
+### 82.5 变异：5 个全杀 + 1 个已知缺口存活 + 对照组存活
+
+`/private/tmp/r81/mutation_check.py`，每个变异前逐字节还原；支持一次变异跨多个文件：
+
+| 变异 | 内容 | 失败数 |
+|---|---|---|
+| M1 | `CreateInstance` 写行改回 body 租户 | 3 |
+| M2 | `ExecuteSkill` 写行改回 body 租户 | 2 |
+| M3 | `ExecuteSkill` 归属校验改回 body 租户 | 2 |
+| M4 | 两个请求体的 `binding:"required"` 装回去 | 2 |
+| M5 | **原始状态的复合形态**（body 覆盖 + `required` 同时存在） | 5 |
+| GAP | handler 回退装回去 | 0（存活，**符合预期**） |
+| NC | 审计 reason 的格式串（绑定为 `AnyArg`，无任何断言） | 0（存活） |
+
+```
+killed=5 survived=0 builderr=0 badanchor=0 other=0
+GAP survived as expected: True
+NC control (expected SURVIVED): SURVIVED
+HARNESS OK
+```
+
+M4 只有 2 条失败，全部来自那 3 个绑定测试里的两条"必须可选"——这证明绑定测试是唯一罩住 `binding:"required"` 的东西。服务层的 6 条在这个变异下全部仍然绿，因为服务层已经不读 body 租户了。**绑定契约和租户来源是两层独立的保证，缺一层就有一个变异活下来。**
+
+M5 是本轮最有信息量的一条：把 M1 和 M4 同时装回去，也就是**代码被找到时的原样**。5 条失败说明这组测试覆盖了整个缺陷链，而不是只覆盖其中一个环节。
+
+**GAP 是刻意留的存活变异，不是漏杀**：把 handler 的回退装回去，0 条失败——因为 `internal/ai/skill/handler` 没有任何测试文件。这是 §81.7(e) 那条记录缺口的具体证据：handler → service 的租户传参**只有编译期保证**。变异 M1-M4 杀的全是服务层和模型层，没有任何一条能发现 handler 传错了租户。同一对操作在 `internal/skill/handler` 里有 `handler_test.go` 罩着，这里没有。GAP 被单独列出来跑、不计入门禁，就是为了让这个缺口在每次变异验证里都可见，而不是被 KILLED 计数掩盖。
+
+harness 自身两处笔误：锚点没跟上 gofmt 的对齐（`TenantID string` 变成了 `TenantID    string`）导致 M4/M5 报 BADANCHOR；NC 选的值其实是被钉住的（测试里把 `Action: "executed"` 写进了 `WithArgs`）导致 NC 误判 KILLED。前者说明**锚点必须对着 gofmt 之后的文本写**，后者说明选 NC 时得先确认那个值真的没被任何 `WithArgs` 钉住。
+
+### 82.6 只记录，未处理
+
+(a) **`internal/ai/skill/handler` 仍然没有测试文件**。GAP 变异已经证明这个缺口的具体形状：handler 传错租户不会有任何测试失败。补测试需要先把 `Service` 从具体类型 `*repository.Repository` 改成接口，或者像 §74 那样走真实 router 加测试中间件。
+
+(b) **`skill_audit_logs` 没有 `tenant_id` 列**（`internal/ai/migrations/001_ai_tables.sql:308` 的建表语句里根本没有）。skill 操作的审计轨迹按 skill 而不是按租户分区，跨租户的操作记录会混在同一个 skill 的历史里。加列需要迁移。
+
+(c) **`FindInstanceByID` 标注 DEPRECATED 且零调用方**——仓库里唯一还存在的租户盲实例读方法，注释写明"仅供没有租户上下文的服务内调用"，实际没人调。删掉需改接口。
+
+(d) **`SkillID` 同样挂着 `binding:"required"` 但会被路径参数覆盖**：handler 在绑定之后执行 `req.SkillID = c.Param("id")`，和 `TenantID` 是同一个死绑定模式。但这里路径参数无条件赢，不存在安全影响，只是逼客户端在请求体里重复填一个 URL 里已经有的字段。本轮不动（属 API 契约而非缺陷）。
+
+(e) **两个并行的 skill 模块**：`internal/skill`（`/skill`，正确形状、有测试）与 `internal/ai/skill`（`/skills`，本轮修复）。两者都做实例与执行的创建和执行。合并属结构重构。
+
+(f) **§80.5(c) 只剩一处**：`branch-policy/middleware/branch_env_guard.go:65`。中间件，body 为空会 fail-closed，危害明显小于其余。
+
+### 82.7 遗留
+
+`§80.5(b)` 三处全部清完（本轮清 (a)(c) 两项、上一轮清 (b)），`§80.5(c)` 清掉两项、剩 `branch_env_guard.go:65`。§71.8 遗留 7 条中的第 3、5、6、7 条不变；第 4 条（`audit.ChainLatest` 的 nil 解引用）仍未修。
+
+carry-forward：§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 82.6 的 (a)-(f)。
+
+仍未排查：`internal/branch-policy/service/service.go` 2684 行以外的部分（总量 3013 行）。缺基础设施清单与 §80.7 一致。
+
+仍需授权的 3 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留）。
