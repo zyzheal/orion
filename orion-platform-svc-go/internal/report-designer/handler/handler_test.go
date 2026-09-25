@@ -274,3 +274,24 @@ func TestListReports_ValidLimitUnchanged(t *testing.T) {
 		t.Fatalf("expected limit=7 offset=14 forwarded, got limit=%d offset=%d", svc.limit, svc.offset)
 	}
 }
+
+// A negative offset is clamped to 0. Without the clamp offset/limit + 1 puts 0
+// or a negative number in the response's page field, and the negative value
+// reaches the database as a negative OFFSET, which Postgres rejects with an
+// error instead of data.
+func TestListReports_NegativeOffsetIsClamped(t *testing.T) {
+	svc := &limitRecordingService{}
+	h := NewHandler(svc)
+	c, w := makeCtx(http.MethodGet, "/reports?offset=-40")
+	h.ListReports(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+	if got := w.Body.String(); !strings.Contains(got, `"page":1`) || !strings.Contains(got, `"pageSize":20`) {
+		t.Fatalf("expected page 1 of size 20 for a clamped offset, got %s", got)
+	}
+	if svc.offset != 0 {
+		t.Fatalf("expected offset=0 forwarded, got offset=%d", svc.offset)
+	}
+}

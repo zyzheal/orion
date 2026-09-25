@@ -756,3 +756,38 @@ func TestListHosts_ValidLimitUnchanged(t *testing.T) {
 		t.Fatalf("expected limit=5 offset=10 forwarded, got limit=%d offset=%d", svc.limit, svc.offset)
 	}
 }
+
+// A negative offset is clamped to 0. Without the clamp offset/limit + 1 puts 0
+// or a negative number in the response's page field, and the negative value
+// reaches the database as a negative OFFSET, which Postgres rejects with an
+// error instead of data.
+func TestListHosts_NegativeOffsetIsClamped(t *testing.T) {
+	svc := &limitRecordingService{}
+	c, w := makeCtx("GET", "/?offset=-40", nil, nil)
+	NewHandler(svc).ListHosts(c)
+	assertClampedOffset(t, w.Body.String(), svc)
+}
+
+func TestListK8sResources_NegativeOffsetIsClamped(t *testing.T) {
+	svc := &limitRecordingService{}
+	c, w := makeCtx("GET", "/?offset=-40", nil, nil)
+	NewHandler(svc).ListK8sResources(c)
+	assertClampedOffset(t, w.Body.String(), svc)
+}
+
+func TestListCICDResources_NegativeOffsetIsClamped(t *testing.T) {
+	svc := &limitRecordingService{}
+	c, w := makeCtx("GET", "/?offset=-40", nil, nil)
+	NewHandler(svc).ListCICDResources(c)
+	assertClampedOffset(t, w.Body.String(), svc)
+}
+
+func assertClampedOffset(t *testing.T, body string, svc *limitRecordingService) {
+	t.Helper()
+	if !strings.Contains(body, `"page":1`) {
+		t.Fatalf("expected page 1 for a clamped offset, got %s", body)
+	}
+	if svc.offset != 0 {
+		t.Fatalf("expected offset=0 forwarded, got offset=%d", svc.offset)
+	}
+}

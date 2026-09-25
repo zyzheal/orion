@@ -103,3 +103,67 @@ func assertClampedPage(t *testing.T, w *httptest.ResponseRecorder) {
 		t.Fatalf("expected the default page, got %s", w.Body.String())
 	}
 }
+
+// argCheckedRouter is looseRouter with the bound arguments pinned: without the
+// clamp, ?offset=-40 reaches the database as OFFSET -40, which Postgres
+// rejects with an error instead of data. Each unfiltered list binds exactly
+// (tenantID, offset, limit), so the expectation is the same for all five.
+func argCheckedRouter(t *testing.T, table string) *gin.Engine {
+	t.Helper()
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	mock.ExpectQuery("FROM "+table).
+		WithArgs("tenant-1", 0, 20).
+		WillReturnRows(emptyRows())
+
+	e := gin.New()
+	e.Use(func(c *gin.Context) {
+		c.Set("tenant_id", "tenant-1")
+		c.Set("roles", []string{"admin"})
+		c.Next()
+	})
+	repo := repository.NewRepository(sqlx.NewDb(db, "postgres"))
+	NewHandler(service.NewService(repo, nil, nil)).RegisterRoutes(e.Group("/api/v1"))
+	NewFactoryHandler(service.NewAdapterFactory(repo, nil, nil)).RegisterRoutes(e.Group("/api/cmdb"))
+	return e
+}
+
+// A negative offset is clamped to 0. Without the clamp it reaches Postgres as a
+// negative OFFSET, which is rejected with an error instead of data, and
+// offset/limit + 1 puts 0 or a negative number in the response's page field.
+func TestListCollections_NegativeOffsetIsClamped(t *testing.T) {
+	w := httptest.NewRecorder()
+	argCheckedRouter(t, "cmdb_collections").ServeHTTP(w, request("GET", "/api/v1/collector/collections?offset=-40", ""))
+	assertClampedPage(t, w)
+}
+
+func TestListDevices_NegativeOffsetIsClamped(t *testing.T) {
+	w := httptest.NewRecorder()
+	argCheckedRouter(t, "cmdb_devices").ServeHTTP(w, request("GET", "/api/v1/collector/devices?offset=-40", ""))
+	assertClampedPage(t, w)
+}
+
+func TestListJobs_NegativeOffsetIsClamped(t *testing.T) {
+	w := httptest.NewRecorder()
+	argCheckedRouter(t, "cmdb_discovery_jobs").ServeHTTP(w, request("GET", "/api/cmdb/discoveries?offset=-40", ""))
+	assertClampedPage(t, w)
+}
+
+func TestListAssets_NegativeOffsetIsClamped(t *testing.T) {
+	w := httptest.NewRecorder()
+	argCheckedRouter(t, "cmdb_assets").ServeHTTP(w, request("GET", "/api/cmdb/assets?offset=-40", ""))
+	assertClampedPage(t, w)
+}
+
+// ListAdapters has no page field in its response, so here the clamp shows up
+// only in the argument that gets bound.
+func TestListAdapters_NegativeOffsetIsClamped(t *testing.T) {
+	w := httptest.NewRecorder()
+	argCheckedRouter(t, "cmdb_adapters").ServeHTTP(w, request("GET", "/api/cmdb/adapters?offset=-40", ""))
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+}

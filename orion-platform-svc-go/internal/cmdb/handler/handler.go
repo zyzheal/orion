@@ -544,7 +544,7 @@ func (h *Handler) ListHosts(c *gin.Context) {
 	status := ptrIf(c.Query("status"))
 	tags := ptrIf(c.Query("tags"))
 	limit := queryLimit(c.Query("limit"), 20)
-	offset := h.getQueryInt(c.Query("offset"), 0)
+	offset := queryOffset(c.Query("offset"))
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	items, total, err := h.svc.ListHosts(ctx, tenantID, status, tags, limit, offset)
 	if err != nil {
@@ -582,7 +582,7 @@ func (h *Handler) ListK8sResources(c *gin.Context) {
 	kind := ptrIf(c.Query("kind"))
 	namespace := ptrIf(c.Query("namespace"))
 	limit := queryLimit(c.Query("limit"), 20)
-	offset := h.getQueryInt(c.Query("offset"), 0)
+	offset := queryOffset(c.Query("offset"))
 	items, total, err := h.svc.ListK8sResources(ctx, kind, namespace, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -626,7 +626,7 @@ func (h *Handler) ListCICDResources(c *gin.Context) {
 	defer span.End()
 	status := ptrIf(c.Query("status"))
 	limit := queryLimit(c.Query("limit"), 20)
-	offset := h.getQueryInt(c.Query("offset"), 0)
+	offset := queryOffset(c.Query("offset"))
 	items, total, err := h.svc.ListCICDResources(ctx, status, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -721,6 +721,17 @@ func queryLimit(value string, def int) int {
 		return i
 	}
 	return def
+}
+
+// queryOffset parses an "offset" query param, clamping a negative value to 0.
+// Postgres rejects a negative OFFSET, so without the clamp `?offset=-1` turns a
+// list endpoint into a 500; and offset/limit + 1 would put 0 or a negative
+// number in the response's page field. Absent and unparsable values are 0.
+func queryOffset(value string) int {
+	if i, err := strconv.Atoi(value); err == nil && i > 0 {
+		return i
+	}
+	return 0
 }
 
 // ptrIf returns a string pointer if non-empty, nil otherwise.

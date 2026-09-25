@@ -21,8 +21,6 @@
 package handler
 
 import (
-	"strconv"
-
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/cmdb-collector/models"
 	"orion/platform-svc-go/internal/cmdb-collector/service"
@@ -72,7 +70,7 @@ func (h *FactoryHandler) ListAdapters(c *gin.Context) {
 	tenantID := h.tenantID(c)
 	filter := service.ListAdaptersFilter{
 		Category: c.Query("category"),
-		Offset:   h.queryInt(c.Query("offset"), 0),
+		Offset:   queryOffset(c.Query("offset")),
 		Limit:    queryLimit(c.Query("limit"), 20),
 	}
 
@@ -226,7 +224,7 @@ func (h *FactoryHandler) ListJobs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListJobs")
 	defer span.End()
 	tenantID := h.tenantID(c)
-	offset := h.queryInt(c.Query("offset"), 0)
+	offset := queryOffset(c.Query("offset"))
 	limit := queryLimit(c.Query("limit"), 20)
 
 	items, err := h.factory.ListJobs(ctx, tenantID, c.Query("adapter_id"), c.Query("status"), offset, limit)
@@ -264,7 +262,7 @@ func (h *FactoryHandler) ListAssets(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAssets")
 	defer span.End()
 	tenantID := h.tenantID(c)
-	offset := h.queryInt(c.Query("offset"), 0)
+	offset := queryOffset(c.Query("offset"))
 	limit := queryLimit(c.Query("limit"), 20)
 
 	filter := service.ListAssetsFilter{
@@ -312,15 +310,4 @@ func (h *FactoryHandler) tenantID(c *gin.Context) string {
 		tenantID = "00000000-0000-0000-0000-000000000000"
 	}
 	return tenantID
-}
-
-func (h *FactoryHandler) queryInt(value string, defaultVal int) int {
-	if value == "" {
-		return defaultVal
-	}
-	i, err := strconv.Atoi(value)
-	if err != nil {
-		return defaultVal
-	}
-	return i
 }

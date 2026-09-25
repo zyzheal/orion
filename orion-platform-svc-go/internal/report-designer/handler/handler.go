@@ -152,7 +152,7 @@ func (h *Handler) ListReports(c *gin.Context) {
 	keyword := ptrIf(c.Query("keyword"))
 	category := ptrIf(c.Query("category"))
 	limit := queryLimit(c.Query("limit"), 20)
-	offset := h.getQueryInt(c.Query("offset"), 0)
+	offset := queryOffset(c.Query("offset"))
 	enabled := parseBool(c.Query("enabled"))
 
 	req := &models.ListReportsRequest{
@@ -421,6 +421,18 @@ func queryLimit(value string, def int) int {
 	}
 	return def
 }
+
+// queryOffset parses an "offset" query param, clamping a negative value to 0.
+// Postgres rejects a negative OFFSET, so without the clamp `?offset=-1` turns a
+// list endpoint into a 500; and offset/limit + 1 would put 0 or a negative
+// number in the response's page field. Absent and unparsable values are 0.
+func queryOffset(value string) int {
+	if i, err := strconv.Atoi(value); err == nil && i > 0 {
+		return i
+	}
+	return 0
+}
+
 func ptrIf(s string) *string {
 	if s == "" {
 		return nil
