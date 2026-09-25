@@ -15740,3 +15740,108 @@ M4 值得单说：如果这一轮只想修租户来源，很容易顺手删掉 h
 carry-forward：§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 83.6 的 (a)-(e)。
 
 仍需授权的 3 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留），另加 83.6(b) 的 auth-off header 租户来源作为第 4 项候选。
+## §84 `audit.ChainLatest` 两个 panic 站点：`result` 为 nil 时解引用，以及 `Total > 0` 但 `Entries` 为空时下标越界——挂账 4 次的那条，记的是较不可能的那个（Round 83，2026-09-25）
+
+起点 HEAD `1ad2243fa`。
+
+### 84.1 挂账那条成立但难发生；真正的站点在它下面一行
+
+`§71.8` 第 4 条（§76 / §80 / §81 / §83 四次明确写"仍未修"）记的是：
+
+```go
+result, err := h.svc.List(ctx, tenantID, models.AuditLogQuery{Limit: 1})
+if err != nil { ... }
+if result.Total == 0 {        // handler.go:453
+```
+
+`err == nil && result == nil` 时 panic。这一条**成立，但很难发生**：`Service.List`（`service.go:108`）在 `err == nil` 时总返回非 nil 的 `&models.AuditLogListResult{...}`，`entries` 由 `make([]..., 0, len(logs))` 构造、永不为 nil。能触发它的只有**换一个 `Service` 实现**——handler 侧的 `Service` 是 handler 自己的局部接口（`handler.go:19`），不是对外契约。
+
+真正更值得修的是同一函数里的一行下面：
+
+```go
+middleware.RespondSuccess(c, result.Entries[0])
+```
+
+它要安全就得 `len(Entries) > 0`，但判定用的是 `result.Total`。**`Total` 是"过滤后集合的总数"，不是"第一行是否存在"**，两者不等价——`Repository.List`（`repository.go:114`）把计数和取行放在**两条独立语句**里：
+
+```go
+// Count query
+countSQL := fmt.Sprintf("SELECT COUNT(*) FROM audit_logs %s", cond)
+err := r.db.GetContext(ctx, &total, countSQL, countArgs...)
+
+// Data query
+dataSQL := fmt.Sprintf("SELECT %s FROM audit_logs %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d", ...)
+err = r.db.SelectContext(ctx, &items, dataSQL, args...)
+```
+
+READ COMMITTED 下 `COUNT(*)` 看到 3 行、`LIMIT 1` 取行前那一行被删，就得到 `Total=3` + `Entries=[]`：判定通过，`Entries[0]` 越界。**这一站用真实的 `Service` 就能触发，不依赖换实现。**
+
+两个站点实测（还原成 as-found 逐条跑，Go 测试二进制在第一个 panic 就会中止，所以只能一条一条跑）：
+
+| 用例 | as-found | 修复后 |
+|------|----------|--------|
+| `NilResult_ReturnsNotFound` | `panic: runtime error: invalid memory address or nil pointer dereference` | 404 |
+| `TotalWithNoRows_ReturnsNotFound` | `panic: runtime error: index out of range [0] with length 0` | 404 |
+| `NoEntries_ReturnsNotFound` | ok（`Total=0` 已被拦住） | 404 |
+| `ReturnsMostRecentEntry` | ok | 200 |
+
+也就是说挂账那次看到的是"接口契约型"的 panic，而真正能用生产代码打出来的那个一直在旁边。
+
+### 84.2 修复
+
+```go
+if result == nil || len(result.Entries) == 0 {
+	middleware.RespondNotFound(c, "no audit logs found")
+	return
+}
+middleware.RespondSuccess(c, result.Entries[0])
+```
+
+两个条件缺一不可：左半边挡 nil，右半边才是"第一行是否存在"的正确谓词。判空之后 404 而不是 500——"最新一条不存在"是正常业务状态，不是服务端故障；之前两个站点都会 panic，`gin.Recovery()`（`cmd/server/router.go:28`）把它变成带堆栈日志的 500，对调用方和运维都是错误信号。
+
+### 84.3 测试：新增 5 个
+
+全部走 `newHandlerWithSvc(&mockSvc{listFn: ...})` + `performRequest(h, h.ChainLatest, ...)`：
+
+- `ReturnsMostRecentEntry` — `Entries:[{ID:"latest-1"}]`, `Total:1` → 200，反序列化后断言 `data["id"] == "latest-1"`；
+- `NoEntries_ReturnsNotFound` — `&AuditLogListResult{Total:0}` → 404；
+- `NilResult_ReturnsNotFound` — `return nil, nil` → 404。这个形态正是 §71.8 记录的那个——`mockSvc.List` 的默认实现就是 `return nil, nil`，所以第 4 条挂账是**当年为了写别的测试给它配了非 nil mock 才冒出来的**；
+- `TotalWithNoRows_ReturnsNotFound` — `Total:3`, `Entries:[]` → 404。**这是真实 repository 能打出的那个形态**；
+- `ServiceError` — `nil, errors.New("boom")` → 500。
+
+前两条是"别把本来正常的弄坏"，后三条是缺陷本身。
+
+### 84.4 变异：5 个全杀 + 1 个已知缺口存活 + 对照组存活
+
+`/private/tmp/r83/mutation_check.py`（每个变异前从 pristine 逐字节还原，变异后 gofmt，先 `go build` 再 `go test -count=1 -run ChainLatest`）：**killed=5 survived=0 builderr=0 badanchor=0，GAP SURVIVED，NC SURVIVED，restore 逐字节一致，HARNESS OK**。
+
+- **M1** 还原成 as-found（`if result.Total == 0`）→ 1 fail（`NilResult`，nil 指针）。panic 会中止整个测试二进制，所以 M1 只能报 1 条 fail，但它是两个 panic 都存在的证据；
+- **M2** 留 nil 检查、保留错误谓词（`if result == nil || result.Total == 0`）→ 1 fail（`TotalWithNoRows`，index out of range）；
+- **M3** 留正确谓词、删 nil 检查（`if len(result.Entries) == 0`）→ 1 fail（`NilResult`，nil 指针）；
+- **M4** 404 改 500（`RespondNotFound` → `RespondInternalError`）→ 3 fail。这一条钉的是**语义**：不只是"不 panic"，而是"空结果必须是 404 而不是 500"；
+- **M5** 成功路径改成返回整个 `result` 而非 `result.Entries[0]` → 1 fail（`ReturnsMostRecentEntry`）。这一条钉的是**端点契约**：`/chain/latest` 必须返回最新那一条，不是整页。M5 说明这组测试没有只覆盖"不崩"。
+
+- **GAP（不计入门禁）**：`h.svc.List(ctx, tenantID, models.AuditLogQuery{Limit: 1})` 改成带 `Action: "login"` → SURVIVED。原因很直接：**audit 的 handler 测试从来没断言过传给 `List` 的 `AuditLogQuery`**（7 处 `listFn` 全部忽略 `q` 参数）。这是真实缺口——`/chain/latest` 会被静默过滤成只返回 action 为 login 的条目，绝大多数租户直接 404，而测试全绿。与 §83 的 GAP（一个分支没覆盖）和 §82 的 GAP（整个包没有测试）都不同形。
+- **NC**：404 的 message 文案 `"no audit logs found"` → 存活（测试只钉状态码）。
+
+M2 和 M3 是同一处条件的两半，分开验证而不是合成一条，是为了确认**两个 panic 各自独立被抓到**，而不是"有一条 panic 用例兜住了全部"。
+
+### 84.5 只记录，未处理
+
+(a) **三个 Export handler 有同款 nil 解引用形状，但没有错误谓词**。`handler.go:491-492` / `524-525` / `557-558` 三处 `result.Filename`、`result.Content`，对应 `Service.Export`（`service.go:211`）——在 `err == nil` 时同样总返回非 nil 的 `&models.AuditLogExportResult{...}`。它们只有"换了实现才会 panic"这一种触发方式，没有 `ChainLatest` 那种能被真实 service 打出来的路径，所以记录不修。同理接口层没有任何约束保证 `List` 在 `err == nil` 时非 nil，这个隐患仍是实现侧的自由裁量；本轮修的是消费侧。
+
+(b) **这个表的 race 窗口结构上存在，但本仓库没有删除路径**。全仓库扫 `DELETE FROM audit_logs` 零命中，`internal/audit/` 也没有 retention / purge job（`service.go:386/466/601` 三处 "retention" 命中是合规清单的 `Remediation` 文案字符串，不是代码）。所以 `Total > 0` / `Entries == 0` 今天在这张表上是**结构性可达、无实际触发路径**——修了是对的（谓词本来就是错的），但不要把它说成已观测到的线上问题。**这个模式在别的模块是真威胁**：`plugin/repository/plugin_repository.go:284`（`DELETE FROM plugin_audit_entries WHERE entry_at < $1`）、`inception/repository/inception_repository.go:456`（`DELETE FROM audit_reports WHERE expires_at IS NOT NULL AND expires_at < $1`）、`terminal-audit/repository/repository.go:109/123` 都有真实的审计类表 retention 删除。
+
+(c) **这个缺陷是全仓库孤例**。全仓库扫 `\b(result|resp|out|data|r)\.[A-Za-z_]+\[0\]`（非测试文件）只有 2 处命中，都在 `security-compliance`，且都已用 `if len(r.warnings) > 0` 守卫；其中 `evaluator.go:182` 的注释还写着"this path used to index [0] unconditionally and died with index-out-of-range the moment a catalog control declared no warning text (iso27001 A.5.2, nist-csf GV.OC)"——同一类缺陷在别的模块修过一次，那次也带了注释说明来历。`Total == 0` 扫描只有 `cache-monitor/service/service.go:189` 的 `metrics.MemoryTotal == 0`，类型不同。
+
+(d) handler 测试不校验 `AuditLogQuery`（见 84.4 的 GAP）——本轮只在 ChainLatest 一处发现，`parseAuditQuery` 走 query string 的路径已有 `TestHandler_TenantFromAuthContextNotClientInput` 覆盖，字段级断言缺失是普遍现象。
+
+### 84.6 验证与遗留
+
+`go build ./...` 退出码 0；`go vet ./internal/audit/...` 退出码 0；`gofmt -l internal/audit/` 无输出；`go test -count=1 ./...` **563 个包 ok / 0 FAIL / 0 panic**。无新迁移，`go.sum` 与 `go.work.sum` 未改。改动范围 2 个文件（handler 11 行 / 测试 85 行）。
+
+**§71.8 第 4 条本轮清完**（挂账 4 次：§76 / §80 / §81 / §83）。第 3、5、6、7 条不变。
+
+carry-forward：§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 84.5 的 (a)-(d)。
+
+仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
