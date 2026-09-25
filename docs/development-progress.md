@@ -15976,3 +15976,115 @@ M1-M3 的 panic 文本都是 `runtime error: integer divide by zero`。Go 测试
 carry-forward：§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 85.6 的 (a)-(f)。
 
 仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
+
+## §86 offset 从不被夹：149 个读取点里只有 7 个原本就夹，本轮回掉九个除法家族的九个（Round 85，2026-09-25）
+
+§85 修的是 `limit=0` 除零；同一批九个站点、同两个 helper 旁边，`offset` 是裸的——`?offset=-40` 一路进 SQL。这一轮把它夹掉。
+
+### 86.1 盘点：149 个 handler 级 offset 读取点，只有 7 个原本就夹
+
+`grep 'Query("offset")'`（非测试代码）全仓库 **149 处**。逐点分类（`/tmp/r85_scan4.py`，机械扫 + 逐条人工复核）：
+
+| 分类 | 站点数 | 说明 |
+|------|-------|------|
+| 本轮新夹（`queryOffset`） | 9 | §85 那九个除法站点 |
+| 原本就在读取点夹了 | 7 | `sbom:85` `parsePagination`、`cmdb-validator:106`、`tool:184`、`build-env:109`、`security-compliance:122`、`ai-agent-run:316` 与 `ai/agents:381` 的 `getPaginationParams`（后两者是 `v >= 0`） |
+| 本模块内有夹点但路径未追 | 54 | 模块里别处夹了，这条读路径上没夹 |
+| **本模块内一处夹点都没有** | **79** | 分布在 **47 个文件 / 47 个模块** |
+
+夹 offset 在这个仓库是既成做法：非测试代码里有 **47 处 `offset < 0`**（另 4 处写成 `o < 0` / `v < 0`），所以这不是发明新规矩，是把 142 个没做的站点里最危险的九个补上。
+
+本轮范围照旧只取 §85 那九个——同一个模块、同一个 helper 形状、同一句 `Page: offset/limit + 1`。改完一处不改邻居会制造模块内部不一致；反过来把 133 个站点一次做完会把改动扩散到 55 个文件，超出「一轮一件事」。
+
+### 86.2 九个站点逐路径分类：四个只是元数据错，五个是真 500
+
+这一列是本节最重要的部分——「要不要修」取决于负 offset 到底会不会打到数据库。
+
+| 站点 | 下游夹点 | 负 offset 的实际后果 |
+|------|---------|---------------------|
+| `report-designer/handler.go:155` ListReports | `repository.go:84-87` `if offset < 0 { offset = 0 }` | SQL 安全；**只有 `Page` 元数据错** |
+| `cmdb/handler.go:547` ListHosts | `repository.go:96-98` `if page <= 0 { page = 1 }`，`offset` 在 `:125` 由 `(page-1)*limit` 推导 | SQL 安全；**只有 `Page` 元数据错** |
+| `cmdb/handler.go:585` ListK8sResources | `service.go:364` | mock 数据，无 SQL；`Page` 错 |
+| `cmdb/handler.go:629` ListCICDResources | `service.go:416` | mock 数据，无 SQL；`Page` 错 |
+| `cmdb-collector/handler.go:257` ListCollections | **无** | 负 OFFSET 直达 Postgres → **500** |
+| `cmdb-collector/handler.go:305` ListDevices | **无** | 同上 |
+| `cmdb-collector/factory_handler.go:73` ListAdapters | **无** | 同上（且无 page 字段，只在绑定参数上暴露） |
+| `cmdb-collector/factory_handler.go:227` ListJobs | **无** | 同上 |
+| `cmdb-collector/factory_handler.go:265` ListAssets | **无** | 同上 |
+
+`cmdb-collector` 整个模块在改之前**一处 offset 夹点都没有**——所以那五个是真故障，前四个是响应元数据脏。修法是同一个 helper，代价也是同一个。
+
+### 86.3 为什么测试用 `-40` 而不是 `-1`
+
+Go 整数除法向零截断，所以负 offset 的 `Page` 值随大小变：
+
+```
+offset=-5  →  -5/20 == 0   →  Page = 1   ← 和正确答案长得一样，测不出来
+offset=-20 →  -20/20 == -1 →  Page = 0
+offset=-40 →  -40/20 == -2 →  Page = -1  ← 明显错，任何断言都抓得住
+```
+
+`-1` 会给出一个「看起来正常」的 `Page: 1`，正好落进漏测区。九个测试全用 `?offset=-40`。
+
+### 86.4 sqlmock v1.5.2：`WithArgs` 是真的生效的，`QueryMatcherArgCheck` 不存在
+
+要在 cmdb-collector 那五个站点上证明「负数确实被拦在数据库之前」，得让 mock 校验绑定参数。翻模块源码得到的结论：
+
+- `QueryMatcherFunc` 的签名是 `func(expectedSQL, actualSQL string) error`——**没有 args 参数**，所以写不进参数校验器。
+- 不存在 `QueryMatcherArgCheck` 这个选项（那是别的新版本 API）。
+- 但 `.WithArgs(...)` **真的会校验**：`expectations_go18.go` 里的 `(*queryBasedExpectation).argsMatches` 先把两边都过一遍 `driver.DefaultParameterConverter`，再做 `reflect.DeepEqual`。
+
+于是 `mock.ExpectQuery("FROM cmdb_collections").WithArgs("tenant-1", 0, 20)` 在真实绑定为 `-40` 时直接判定查询不匹配，handler 落到 500——测试因此失败。五个无过滤列表恰好都绑定 `(tenantID, offset, limit)`，一个 helper 就够：
+
+```go
+func argCheckedRouter(t *testing.T, table string) *gin.Engine { ... }
+```
+
+### 86.5 顺带删掉的两段死代码
+
+两个 `queryInt` 方法（`Handler.queryInt`、`FactoryHandler.queryInt`）唯一的用途就是解析这几个分页参数，而且它们**不夹任何东西**——`h.queryInt(c.Query("offset"), 0)` 就是本缺陷的载体。改成 `queryOffset(...)` 之后它们零调用方，一起删掉；`factory_handler.go` 里随之失去用途的 `"strconv"` import 也一并移除。留着就是邀请下一个人把坑重新踩一遍。
+
+### 86.6 变异：8 个全杀 + 1 个已知缺口存活 + 对照组存活
+
+`/private/tmp/r85/mutation_check.py`：锚点全部从真实源码按函数签名抽取（`queryLimit` 与 `queryOffset` 的条件文本逐字节相同，所以锚点必须连 `func` 行一起取），逐条 apply → gofmt 改动文件 → `go build` → `go test -count=1 -run 'Limit|Offset'` → 还原。**gate=8 killed=8 survived=0 builderr=0 badanchor=0，GAP SURVIVED，NC SURVIVED，restore 逐字节一致，HARNESS OK**。
+
+| 变异 | 结果 | 杀手 |
+|------|------|------|
+| M1 拆掉 report-designer 的 `queryOffset` 下限 | KILLED | `TestListReports_NegativeOffsetIsClamped` |
+| M2 拆掉 cmdb 的 | KILLED | `TestListHosts` / `TestListK8sResources` / `TestListCICDResources_NegativeOffsetIsClamped` |
+| M3 拆掉 cmdb-collector 的 | KILLED | `TestListCollections` / `TestListDevices` / `TestListJobs` / `TestListAssets` / `TestListAdapters_NegativeOffsetIsClamped` |
+| M4 把 report-designer 调用点还原成 `h.getQueryInt(...)` | KILLED | `TestListReports_NegativeOffsetIsClamped` |
+| M5 把 cmdb 三处调用点还原 | KILLED | 三条 cmdb NegativeOffset |
+| M6 把 cmdb-collector 五处调用点还原（注入一个不夹的 `rawOffset`） | KILLED | 五条 cmdb-collector NegativeOffset |
+| M7 `queryLimit` 回退值从 20 改成 100 | KILLED | `TestListReports_ZeroLimitIsClamped`、`ValidLimitUnchanged` |
+| M8 `queryLimit` 下限放宽 `i > 0` → `i >= 0` | KILLED | 三个包的 ZeroLimit + **除零 panic** |
+
+M6 是最有说服力的一条：不是改 helper，而是把 helper 旁路掉——证明「夹」这件事确实发生在调用点，不是 helper 自己偷偷做了。
+
+- **GAP（不计入门禁）**：`queryOffset` 的 `i > 0` → `i > 1` → **SURVIVED**。`0` 这个值本来就会被当成「缺省」折回默认 0，行为逐字节相同，所以没有测试能区分「显式接受 0」和「把 0 当缺省」。**诚实边界**：全仓库没有任何测试断言过 `?offset=0` 的输入——`grep offset=0` 命中的 8 处，要么是断言「转发出去的是 0」（那是夹的结果、不是输入），要么在别的模块。这一分支无测试覆盖。
+- **NC**：`queryOffset` 注释里 `clamping a negative value to 0` → `clamping a negative value at zero` → SURVIVED（测试不读注释）。
+
+### 86.7 只记录，未处理
+
+(a) **79 个站点 / 47 个模块，本模块内一处 offset 夹点都没有**：`monitoring` 9、`policy` 6、`auto-exec` 3、`internal-library` 3、`pipeline-executor` 3、`sla` 3，其余 41 个模块各 1–2 个。这些负 offset 直入 SQL。**记，不修**——修它们需要逐个追下游，工作量远超一轮。
+
+(b) **54 个站点落在「本模块有夹点、但这条路径没追」的桶里**：`artifact`、`build-env`、`change` ×4、`ci-cd/artifact-registry`、`code-repo`、`infrastructure/backup` ×3、`file-handler`、`pipeline-audit-log`、`security-compliance`、`storage`、`ticketing`、`team` 等。`storage` 和 `pipeline-audit-log` 在 §85 的挂账名单里出现过，这一轮的机械扫描确认它们仍在「未追」状态。
+
+(c) **`cmdb-collector/handler.go:107` ListTargets 仍不夹**：`offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))`，不在除法家族里（它不做除法，`ListTargets` 直接把这个值传给 service）。本轮只在会进除法的九个站点动手，它不在内。
+
+(d) **同包两个 `tenantID` 行为不一致**（本轮删 `FactoryHandler.queryInt` 时看到的）：`factory_handler.go:307-313` 的 `FactoryHandler.tenantID` 在空值时返回零 UUID `00000000-0000-0000-0000-000000000000`；同包 `handler.go:358-365` 的 `Handler.tenantID` 空值时 **401 fail-closed**，注释里明确写了「不该折进零 UUID 桶」。一个 fail-open、一个 fail-closed，在同一包、同一文件目录下。**不改**：`FactoryHandler` 是死代码（§85.6(f)，全仓库无 `NewFactoryHandler` 调用方），改它等于给死代码做安全加固，收益为零。
+
+(e) **`§85.6`(c) 的措辞更正**：那里写「`offset` 全仓库都不夹」，不精确。仓库里有 47 处 `offset < 0` 夹点、`sbom` 早在 `parsePagination` 里就同时夹两者。准确的陈述是：**本轮这九个站点的读路径上没有夹点，另外 140 个 handler 级读取点里有 133 个也没有**（7 个原本就夹）。
+
+(f) **可达性照 §85.6(e)**：九个路由全在 `auth.RequirePermission(...)` 后，`AUTH_OPTIONAL_ENABLED` / `AUTH_STRICT_ENABLED` 默认全关，无中间件写 `role`，`RequirePermission` 在角色为空时直接 403。默认部署下这九个端点不可达；`cmdb-collector` 那 3 个 `FactoryHandler` 站点还是死代码。
+
+### 86.8 验证与遗留
+
+`go build ./...` 退出 0；`go vet ./internal/{report-designer,cmdb,cmdb-collector}/...` 退出 0；`gofmt -l` 三个目录无输出；`go test -count=1 ./...` **563 个包 ok / 0 FAIL / 0 panic**。`go.sum` 与 `go.work.sum` 未改。改动范围 7 个文件：**163 增 / 33 删**，其中 4 个 handler（3 个新 `queryOffset` helper + 9 个调用点迁移 + 2 个 `queryInt` 删除 + 1 个 unused import）、3 个测试文件（9 个新用例）。
+
+`gofmt -l internal cmd` 会报 `internal/ticket/models/{assignment_rule.go,relation.go,ticket.go}` 三个文件——非本轮改动，历史遗留。
+`internal/infrastructure/dr/handler` 的 `TestListPlansCountErrorIs500` 在完整套件下偶发失败一次、单独重跑 3/3 通过、全套重跑后 563/563 通过。它是 `strings.Contains(w.Body.String(), "200")` 这种子串断言（`handler_test.go:247`），且 `go list -deps` 确认与本轮三个模块**零依赖**。记一笔，不修。
+
+carry-forward：§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 86.7 的 (a)-(f)。
+
+仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
