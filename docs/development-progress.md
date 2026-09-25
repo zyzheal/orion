@@ -16088,3 +16088,122 @@ M6 是最有说服力的一条：不是改 helper，而是把 helper 旁路掉�
 carry-forward：§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 86.7 的 (a)-(f)。
 
 仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
+
+## §87 monitoring 九个列表端点：仓储夹 limit 却不夹 offset，负 offset 全是真 500（Round 86，2026-09-25）
+
+§86.7(a) 的第一项。47 个零夹点模块里唯一的大簇是 `monitoring`（9 处集中在同一个 handler 文件），这一轮把它拿下。
+
+### 87.1 决策：为什么只做 offset、不碰 limit
+
+`monitoring` 的分页夹点分布很不对称：
+
+| 层 | `limit` | `offset` |
+|----|---------|----------|
+| handler | 10 处 `strconv.Atoi(c.DefaultQuery("limit", "50"/"100"))`，不夹 | 9 处裸 `strconv.Atoi`，不夹 |
+| service | 纯透传（`return s.repo.ListX(ctx, tenantID, limit, offset)`） | 同左 |
+| repository | **10 处 `if limit <= 0 { limit = 20 }`** | **0 处** |
+
+所以：`?limit=-5` 和 `?limit=0` 都被仓储抬成 20，`?offset=-40` 一路绑进 `OFFSET $3`。另外全模块**没有任何 `offset/limit` 除法**，Round 84 那族除零在这里不存在。
+
+修法只有一个 helper：`queryOffset`，9 个调用点迁移。`limit` 一行不动——它在仓储层已经有夹点了，去 handler 再夹一遍是重复保护，跟 §85.6(b)「只在会除零的地方动手」是同一个纪律。代价是 handler 夹 offset、仓储夹 limit 的层间不一致，如实记录在 87.6(b)。
+
+### 87.2 九条路径逐条：全是真 500，没有一个是元数据错
+
+这一轮比 §85 干净。§85 那九个里只有五个是真故障、四个只是 `Page` 元数据算错；这里九个全部直入 SQL：
+
+| handler | svc → repo | SQL |
+|---------|-----------|-----|
+| `:209` GetRegisteredMetrics | ListMetrics | `monitoring_metrics ... LIMIT $2 OFFSET $3` (`repository.go:79`) |
+| `:269` GetRules | ListRules | `alert_rules ... LIMIT $2 OFFSET $3` (`:145`) |
+| `:396` GetAlerts | ListAlerts | `alerts ... LIMIT $2 OFFSET $3` (`:230`) |
+| `:410` GetActiveAlerts | ListActiveAlerts | `alerts ... status IN ... LIMIT $2 OFFSET $3` (`:241`) |
+| `:506` GetChannels | ListChannels | `notification_channels ... LIMIT $2 OFFSET $3` (`:289`) |
+| `:557` GetEscalationPolicies | ListEscalationPolicies | `escalation_policies ... LIMIT $2 OFFSET $3` (`:330`) |
+| `:573` GetNotificationHistory | ListNotificationRecords | `notification_records ... LIMIT $2 OFFSET $3` (`:354`) |
+| `:618` GetWidgetConfigs | ListWidgetConfigs | `dashboard_widgets ... LIMIT $2 OFFSET $3` (`:378`) |
+| `:646` DetectAnomalies | ListAnomalies | `anomalies ... LIMIT $2 OFFSET $3` (`:401`) |
+
+九个调用点字节级相同，所以是一条 `sed` 加一次人工核对；`strconv` 保留（还有 10 处 limit 读取在用）。
+
+### 87.3 DetectAnomalies 是九个里唯一一个会写的
+
+这条比另外八个严重，值得单独说：
+
+```go
+func (s *Service) DetectAnomalies(ctx, tenantID, limit, offset) ([]models.Anomaly, error) {
+	metrics, err := s.repo.ListMetrics(ctx, tenantID, 200, 0)   // 先拉指标目录
+	...
+	for _, m := range metrics {
+		...
+		if createErr := s.repo.CreateAnomaly(ctx, anomaly); createErr != nil { _ = createErr }  // 写
+	}
+	return s.repo.ListAnomalies(ctx, tenantID, limit, offset)  // 最后才读
+}
+```
+
+`?offset=-40` 打进来时，它先对每个启用指标算 z-score 并 **落库**，然后才在最后的 `ListAnomalies` 上被 Postgres 拒掉、返回 500。也就是调用方收到错误响应的同时，异常记录已经写进去了——一个幂等性看起来被破坏的读端点。修完之后写发生在夹过的 offset 上，不再 500。
+
+顺带澄清一个自己差点写错的判断：`grep` 取第一个匹配时看起来像是 `DetectAnomalies` 直接返回了 `ListMetrics` 的结果（「异常端点返回指标目录」）。读全函数后确认不是——`ListMetrics` 只是取目录，返回值来自 `ListAnomalies`。**不是缺陷**。
+
+### 87.4 测试：监控 handler 响应里没有 page 字段，只能从仓储侧观测
+
+§85 那些站点响应里有 `page` 字段，所以能直接断言响应体。`monitoring` 九个 handler 全是 `RespondSuccess(c, items)`，**响应里没有 page/pageSize**——负 offset 的效果在响应体上完全不可见，只能观测传给仓储的值。
+
+做法是嵌现有 mock、只覆写 9 个 list 方法来记录 `(limit, offset)`：
+
+```go
+type offsetRecordingRepo struct {
+	*mockMonitoringRepo
+	calls []pageCall
+}
+func (r *offsetRecordingRepo) ListRules(ctx, tenantID string, limit, offset int) ([]models.AlertRule, error) {
+	r.record(limit, offset)
+	return r.mockMonitoringRepo.ListRules(ctx, tenantID, limit, offset)
+}
+```
+
+复用 `handler_test.go` 里的 `performRequest` 与 `newMockRepo()`，不新造请求夹具。10 个用例：9 个 `?offset=-40` 各断言「200 且仓储看到 offset=0 且 limit 仍是默认 50」，加 1 个「offset=14 limit=7 原样透传」。
+
+`DetectAnomalies` 的断言索引用 `last=1` 而不是 `0`——它先调一次 `ListMetrics(ctx, tenantID, 200, 0)` 取目录，第二次才是 `ListAnomalies`。这个调用次序也顺手被钉住了。
+
+### 87.5 变异：6 个全杀 + 1 个已知缺口存活 + 对照组存活
+
+`/private/tmp/r86/mutation_check.py`。**gate=6 killed=6 survived=0 builderr=0 badanchor=0，GAP SURVIVED，NC SURVIVED，restore 逐字节一致，HARNESS OK**。
+
+| 变异 | 结果 | 杀手 |
+|------|------|------|
+| M1 拆掉 `queryOffset` 下限 | KILLED | 9 条 NegativeOffset |
+| M2 九个调用点还原成 `strconv.Atoi(...)` | KILLED | 9 条 NegativeOffset |
+| M3 下限变成上限 5 | KILLED | `TestGetRules_ValidOffsetAndLimitPassThrough` |
+| M4 读错参数名 `offset` → `page` | KILLED | `TestGetRules_ValidOffsetAndLimitPassThrough` |
+| M5 下限从 0 变 1 | KILLED | 9 条 NegativeOffset |
+| M6 handler 默认 limit 从 50 改 20 | KILLED | 9 条 NegativeOffset |
+
+M3/M4 只杀那一条透传用例、M1/M2/M5/M6 杀九条 clamp 用例——两条用例各自的覆盖面互不重叠，说明没有一条是冗余的。M6 顺手证明了「limit 仍是 50」这个断言有牙：改默认值立刻被九条用例抓住。
+
+- **GAP（不计入门禁）**：`queryOffset` 的 `i > 0` → `i > 1` → **SURVIVED**。后果是真的但很窄：`?offset=1` 会被静默折成 0（本该是 1）。诚实边界：只钉了 `-40` 和 `14` 两个输入，`1` 到 `5` 这段整区间无覆盖。
+- **NC**：helper 注释 `clamping a negative value to 0` → `clamping negatives to zero` → SURVIVED（测试不读注释）。
+
+### 87.6 只记录，未处理
+
+(a) **其余 70 个零夹点站点 / 46 个模块**：`policy` 6、`auto-exec` 3、`internal-library` 3、`pipeline-executor` 3、`sla` 3 等。本轮消掉 9 处、模块数从 47 降到 46。
+
+(b) **handler 夹 offset、仓储夹 limit 的层间不一致**：修完之后 `monitoring` 的分页保护被切成两层，以后有人在仓储加方法时很容易漏掉 offset。要统一就得在 handler 也补 `queryLimit`，那属于重复保护、本轮不做。
+
+(c) **54 处「本模块有夹点但路径未追」** 仍未动，包括 `storage`、`pipeline-audit-log`、`file-handler`、`ticketing` 这几个 §85 就挂过账的。
+
+(d) **`cmdb-collector/handler.go:107` ListTargets 仍不夹**（§86.7(c) 原样挂着，这一轮没碰）。
+
+(e) **可达性照 §86.7(f)**：九个路由全在 `auth.RequirePermission("monitoring", "read")` 后，默认部署（`AUTH_OPTIONAL_ENABLED` / `AUTH_STRICT_ENABLED` 全关、无中间件写 `role`、空角色 403）下不可达，只在预期生产配置下可达。修的是「代码库一致性 + 开 auth 后的真实可达路径」，不是「线上正在发生的故障」。
+
+(f) **测试夹具 harness 自己的 bug**：第一次跑把基线快照在**应用修复之前**，于是 harness 第一次 `restore()` 直接把修复回滚了，随后锚点抽取失败——工作树停在半修复状态。已修正为「修复后快照」，并给锚点抽取加了安全网：`block()` 找不到锚点时先 `restore()` 再抛错，这样任何一次抽取失败都不会把变异留在工作树里。
+
+### 87.7 验证与遗留
+
+`go build ./...` 退出 0；`go vet ./internal/monitoring/...` 退出 0；`gofmt -l internal/monitoring/` 无输出；`go test -count=1 ./...` **563 个包 ok / 0 FAIL / 0 panic**（§86.8 记的 `dr/handler` 偶发这一轮没触发）。`go.sum` 与 `go.work.sum` 未改。改动 2 个文件：`handler.go` **21 增 / 9 删**（1 个新 helper + 9 个调用点）、新增 `offset_clamp_test.go` **166 行 / 10 个用例**，合计 **187 增 / 9 删**。
+
+本轮结束后的 offset 全景（机械复扫，`/tmp/r85_scan4.py`）：149 处 handler 级读取点 = **18 处**已按站点夹（Round 85 的 9 + 本轮 9）+ **7 处**原本就夹 + **54 处**本模块有夹点路径未追 + **70 处**本模块零夹点（46 个模块）。
+
+carry-forward：§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 87.6 的 (a)-(f)。
+
+仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
