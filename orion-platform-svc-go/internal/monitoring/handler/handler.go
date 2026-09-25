@@ -206,7 +206,7 @@ func (h *Handler) GetRegisteredMetrics(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	offset := queryOffset(c.Query("offset"))
 	items, err := h.svc.GetRegisteredMetrics(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -266,7 +266,7 @@ func (h *Handler) GetRules(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	offset := queryOffset(c.Query("offset"))
 	items, err := h.svc.GetRules(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -393,7 +393,7 @@ func (h *Handler) GetAlerts(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	offset := queryOffset(c.Query("offset"))
 	items, err := h.svc.GetAlerts(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -407,7 +407,7 @@ func (h *Handler) GetActiveAlerts(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	offset := queryOffset(c.Query("offset"))
 	items, err := h.svc.GetActiveAlerts(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -503,7 +503,7 @@ func (h *Handler) GetChannels(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	offset := queryOffset(c.Query("offset"))
 	items, err := h.svc.GetChannels(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -554,7 +554,7 @@ func (h *Handler) GetEscalationPolicies(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	offset := queryOffset(c.Query("offset"))
 	items, err := h.svc.GetEscalationPolicies(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -570,7 +570,7 @@ func (h *Handler) GetNotificationHistory(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	offset := queryOffset(c.Query("offset"))
 	items, err := h.svc.GetNotificationHistory(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -615,7 +615,7 @@ func (h *Handler) GetWidgetConfigs(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	offset := queryOffset(c.Query("offset"))
 	items, err := h.svc.GetWidgetConfigs(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -643,7 +643,7 @@ func (h *Handler) DetectAnomalies(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	offset := queryOffset(c.Query("offset"))
 	items, err := h.svc.DetectAnomalies(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -678,4 +678,16 @@ func (h *Handler) CollectSystemMetrics(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, sm)
+}
+
+// queryOffset parses an "offset" query param, clamping a negative value to 0.
+// Postgres rejects a negative OFFSET, so without the clamp `?offset=-1` turns a
+// list endpoint into a 500. The repository layer in this module clamps
+// `limit <= 0` but has no offset clamp at all, so this is the only guard on the
+// path. Absent and unparsable values are 0.
+func queryOffset(value string) int {
+	if i, err := strconv.Atoi(value); err == nil && i > 0 {
+		return i
+	}
+	return 0
 }
