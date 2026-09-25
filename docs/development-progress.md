@@ -15845,3 +15845,134 @@ M2 和 M3 是同一处条件的两半，分开验证而不是合成一条，是�
 carry-forward：§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 84.5 的 (a)-(d)。
 
 仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
+
+## §85 九个分页读取把客户端 `limit` 直接喂进除法：`?limit=0` 就是 `offset/limit + 1` 的除零 panic（Round 84，2026-09-25）
+
+起点 HEAD `3c4314f89`。
+
+### 85.1 提案的那条记错了：回退值是空串，不是零 UUID
+
+`§71.8` 第 3 条写的是「`report-designer` 的 `getDefaultTenantID` 在 auth 为空时返回 `00000000-0000-0000-0000-000000000000`」。实际不是：
+
+```go
+// internal/report-designer/handler/handler.go:396
+func (h *Handler) getDefaultTenantID(tenantID string) string {
+	if tenantID == "" {
+		return ""
+	}
+	return tenantID
+}
+```
+
+它是个恒等函数，回退值是空串，零 UUID 一字符都没有。零 UUID 在**服务层**——`service.go:59/154/220` 的 `CreateReport` / `CreateDatasource` / `CreateSchedule` 里 `req.TenantID == nil` 时的默认租户桶。那是全仓库约定，18 个非测试文件在用（`sbom/handler.go:75 getTenantID`、`api-governance/service.go:46 getTenantID`、`api-governance/repository.go:24 getDefaultTenantID`、`webhook`、`notification-policy`、`pipeline-sse` 等）。所以第 3 条描述的那段代码路径**不存在**，没有可修的东西。按记录更正，不按缺陷处理。
+
+顺着它往下翻同一个 handler 文件时撞到了一个真能打出来的缺陷。
+
+### 85.2 九个 `offset/limit + 1` 没有下限
+
+同一份代码里，`limit` 直接从 query string 解析出来就用：
+
+```go
+// internal/report-designer/handler/handler.go:154
+limit := h.getQueryInt(c.Query("limit"), 20)
+offset := h.getQueryInt(c.Query("offset"), 0)
+...
+Page:     offset/limit + 1,
+```
+
+`getQueryInt` / `queryInt` 只在**空串或不可解析**时回退：
+
+```go
+func (h *Handler) getQueryInt(value string, defaultVal int) int {
+	if value == "" { return defaultVal }
+	i, err := strconv.Atoi(value)
+	if err != nil { return defaultVal }
+	return i
+}
+```
+
+`"0"` 是**可解析的**，所以 `?limit=0` 原样进除法，`runtime error: integer divide by zero`。`?limit=-5` 同样原样通过。九个站点：
+
+| 文件 | 行 | handler | 路由 |
+|------|----|---------|------|
+| `report-designer/handler/handler.go` | 154 | `ListReports` | `GET /api/v1/reports` |
+| `cmdb/handler/handler.go` | 546 | `ListHosts` | `GET /api/v1/cmdb/hosts` |
+| `cmdb/handler/handler.go` | 584 | `ListK8sResources` | `GET /api/v1/cmdb/k8s` |
+| `cmdb/handler/handler.go` | 628 | `ListCICDResources` | `GET /api/v1/cmdb/cicd` |
+| `cmdb-collector/handler/handler.go` | 258 | `ListCollections` | `GET /api/v1/collector/collections` |
+| `cmdb-collector/handler/handler.go` | 306 | `ListDevices` | `GET /api/v1/collector/devices` |
+| `cmdb-collector/handler/factory_handler.go` | 76 | `ListAdapters`（filter 字段） | 未挂载 |
+| `cmdb-collector/handler/factory_handler.go` | 230 | `ListJobs` | 未挂载 |
+| `cmdb-collector/handler/factory_handler.go` | 268 | `ListAssets` | 未挂载 |
+
+`factory_handler.go` 那三个在**没有接线**的代码里：`NewFactoryHandler` 全仓库没有非测试调用方（`NewAdapterFactory` 同样），`cmd/server/wiring-cmdb-collector.go` 只构造了 `cmdbCollectorH`。所以 6 个是活的，3 个是潜伏的——同一个错误形状、一行修法相同，一起改比留尾巴干净。
+
+`limit=0` 还有第二重后果：它也原样进 SQL，`LIMIT 0` 让页面永远空。
+
+### 85.3 修复：一个 `queryLimit`，九个调用点
+
+```go
+// queryLimit parses a "limit" query param as a page size, falling back to the
+// default when it is missing, unparsable or <= 0. A page size of 0 would pass
+// LIMIT 0 to the database and divide by zero in the Page calculation below, so
+// it is treated like an absent param.
+func queryLimit(value string, def int) int {
+	if i, err := strconv.Atoi(value); err == nil && i > 0 {
+		return i
+	}
+	return def
+}
+```
+
+九个调用点改成 `queryLimit(c.Query("limit"), 20)`，三个包各一个助手、落在 4 个文件里。八个 `if limit <= 0 { limit = 20 }` 内联等于 8 个散落的魔数；助手同时可单测。默认值留在调用点，不藏进助手签名。
+
+### 85.4 测试：新增 11 个
+
+- **report-designer 2 个**：`ZeroLimitIsClamped`（200，响应体 `pageSize=20` / `page=1`，并且 mock 记录到 `req.Limit == 20`、`req.Offset == 0`）+ `ValidLimitUnchanged`（`?limit=7&offset=14` → `pageSize=7`、`page=3`）；
+- **cmdb 4 个**：三个 `_ZeroLimitIsClamped`（Hosts / K8sResources / CICDResources）+ `ListHosts_ValidLimitUnchanged`，共用 `assertClampedLimit`；
+- **cmdb-collector 5 个**：新文件 `pagination_limit_test.go`，走真 gin 路由 + sqlmock（`looseRouter` 用默认正则匹配器，不钉 SQL 全文），`ListCollections` / `ListDevices` / `ListJobs` / `ListAssets` 四个 `_ZeroLimitIsClamped` + `ListDevices_ValidLimitUnchanged`。
+
+report-designer 和 cmdb 那两组用记录器 fake 同时断言「响应」和「真的传给 service 的值」；cmdb-collector 走完整路由是因为那个包的 handler 持具体仓库类型，没有现成的 mock 接缝。
+
+`ValidLimit` 那几个是反向护栏：确认下限不越界把正常分页弄坏——`limit=7&offset=14` 必须还是第 3 页，不是第 1 页。
+
+### 85.5 变异：5 个全杀 + 1 个已知缺口存活 + 对照组存活
+
+`/private/tmp/r84/mutation_check.py`：逐条 apply → gofmt 改动文件 → `go build` → `go test -count=1 -run 'ZeroLimit|ValidLimit'` → 还原。**killed=5 survived=0 builderr=0 badanchor=0，GAP SURVIVED，NC SURVIVED，restore 逐字节一致，HARNESS OK**。
+
+| 变异 | 结果 | 杀手 |
+|------|------|------|
+| M1 还原 report-designer 的调用点 | KILLED | `TestListReports_ZeroLimitIsClamped` |
+| M2 还原 cmdb 三处 | KILLED | `TestListHosts_ZeroLimitIsClamped` |
+| M3 还原 cmdb-collector 五处 | KILLED | `TestListCollections_ZeroLimitIsClamped` |
+| M4 下限放宽 `i > 0` → `i >= 0` | KILLED | 三个包的 ZeroLimit |
+| M5 回退值固定成 1 | KILLED | 5 条 ZeroLimit |
+
+M1-M3 的 panic 文本都是 `runtime error: integer divide by zero`。Go 测试二进制在第一个 panic 就中止，所以一个包只报一条 fail——把九个站点一次性还原再按包跑，结果是**三个包各 1 条 fail、各一次除零 panic**，其余 ZeroLimit 用例根本没跑到。这也是门禁按模块切、而不是合成一条的原因。
+
+- **GAP（不计入门禁）**：`i > 0` → `i != 0` → **SURVIVED**。负数 `limit` 会原样通过，Postgres 拒绝负 `LIMIT`，于是从 panic 退化成 500——比原来轻，但还是错误响应。诚实边界：测试只钉了 `0` 和正常值，没钉负数。
+- **NC**：助手注释里 `Page calculation` → `Page computation` → SURVIVED（测试不读注释）。
+
+### 85.6 只记录，未处理
+
+(a) **`ci-cd/build` 有两处同款除法，是潜伏的**。`build_service.go:149-150` 的 `page := (offset / limit) + 1` 与 `totalPages := (total + limit - 1) / limit` 在 `ListPaginated` 里，全仓库唯一调用方是 `handler.go:78`，它的 `offset, limit` 来自 `handler.go:57 paginated()`——那里 bind 的是 `PaginatedRequest{Page form:"page", PageSize form:"page_size"}`，`Limit()` 把 `PageSize` 夹到 `[1,100]`，`Offset()` 先夹 `Page <= 0`。`?limit=0` 进不来。**记，不修**。
+
+(b) **另有 3 个 limit 读取点故意不动**，下游已经夹了：`report-designer/handler.go:384`（`GetExecutionHistory`）→ `repository.go:299 if limit <= 0 { limit = 20 }`；`cmdb/handler.go:211`（`ListCIs`）→ `cmdb/service.go:126`；`cmdb/handler.go:671`（`GetRecommendations`）→ `cmdb/service.go:523`。三处都不做除法，`limit=0` 只是被抬成 20。本轮只在会除零的地方动手。
+
+(c) **`offset` 全仓库都不夹**。同一批九个站点 `offset := h.getQueryInt(c.Query("offset"), 0)`，`?offset=-5` 原样进 SQL，Postgres 报 `OFFSET cannot be negative` → 500；同时 `Page` 会变成 0 或负数回给前端。仓库里有现成做法：`sbom/handler.go:86 parsePagination` 同时夹 offset 和 limit（`if offset < 0 { offset = 0 }`），`pipeline-templates`、`eventbus`、`build-env`、`pandawiki`、`report-designer/repository.go:85` 等都在夹。本轮排除在外——这一轮只处理一件事。
+
+(d) **`factory_handler.go:76` 那处本来连除零都没有**。filter 的 `Limit` 直接进 SQL，`repo.ListAdapters`（`factory_repository.go:83`）不夹，`?limit=0` → `LIMIT 0` → **静默空页，不 panic**。同根因、一行改法、同一个模块，一起改了让模块内部一致；代价是「修的东西」从 panic 扩大到「返回错误的空页」。
+
+(e) **可达性照实说**。九个路由全部挂在 `auth.RequirePermission(...)` 后面，而 `AUTH_OPTIONAL_ENABLED` / `AUTH_STRICT_ENABLED` 默认都是关的（`cmd/server/router.go:64/129`）；仓库里没有任何中间件往 `role` 里写值，`RequirePermission` 在角色为空时直接 403（`orion-go-common/pkg/auth/permission.go:323-325`）。所以默认部署下这九个端点全部不可达，在预期的生产配置（开 auth 且配了角色）下才可达。与 `§83.6` (a) 的结论一致。
+
+(f) **`factory_handler.go` 那 3 处是死代码**（见 85.2）。修了是对的——将来接线那天它就是一个线上除零 panic——但不能说「修好了线上问题」。
+
+### 85.7 验证与遗留
+
+`go build ./...` 退出 0；`go vet ./internal/{report-designer,cmdb,cmdb-collector}/...` 退出 0；`gofmt -l` 三个目录无输出；`go test -count=1 ./...` **563 个包 ok / 0 FAIL / 0 panic**。`go.sum` 与 `go.work.sum` 未改。改动范围 7 个文件：4 个 handler（3 个助手 + 9 个调用点，41 增 / 9 删）、2 个既有测试（143 增）、1 个新测试文件（105 行，5 个用例），合计 **289 增 / 9 删**。
+
+**`§71.8` 第 3 条按记录更正**（描述的代码不存在）。第 5、6、7 条不变。
+
+carry-forward：§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 85.6 的 (a)-(f)。
+
+仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
