@@ -15202,3 +15202,147 @@ M1 是本轮最值得跑的一个：只有它被杀掉，才能说明 79.3 第�
 
 仍然需要授权的两个决定不变：(1) `RecordSavings` 零个非测试调用方，生产库里 `ai_cost_savings` 恒为空——接调用方还是删掉整条链（破坏性）；(2) 模块 A 的 6 个 handler / 33 处裸 `c.GetString("tenant_id")` 完全不在路由注册里——删还是留。
 
+
+## §80 三处服务层让请求体里的 tenantId 覆盖 auth 租户：alert 落错库还会去抑制别人的告警、audit 把行写进别人的证据链、notification 写进别人的表；外加一处常见路径上的空指针 panic（Round 79，2026-08-26）
+
+### 80.1 怎么找到的
+
+§71.8 的遗留第 1、2 条当初就把 notification 和 `alert.Ingest` 挂了号：
+
+> 1. **notification 残留风险**：`notification-handler.Send` 用 `if req.TenantID == "" { req.TenantID = tenantID }`……而服务层 `SendNotification` 又有 `if req.TenantID != "" { tenantID = req.TenantID }`。body 里的 `tenant_id` 仍是可写入的租户来源。
+> 2. **alert `Ingest` 残留**：handler 不填充 `req.TenantID`，body 带 `tenantId` 时服务层会覆盖传入的 auth 租户。
+
+两条都被判为"真缺陷"但记入遗留而非当轮扩展。这轮把它们捞出来时，顺带用同一形状全仓 grep，发现同族还差一处（audit）：
+
+```
+grep -rn "tenantID = req.TenantID\|tenantID = r.TenantID"        → ai/llm ×1
+grep -rn "if req.TenantID == \"\" {"                             → 8 处，逐条复查
+```
+
+命中的 alert / audit / notification 三处是**同一种形状但危害各不相同**，所以按危害而不是按位置来排优先级。
+
+### 80.2 修的四处
+
+#### 80.2.1 `alert.Ingest` —— 危害比"写错库"大
+
+删掉 `if req.TenantID != "" { tenantID = req.TenantID }`。
+
+危害不止是告警落到别人的租户：`checkSuppression` 和去重都拿 `tenantID` 做 semi-join，落到别的租户的 workspace 之后，新告警会**跟那个租户的历史 fingerprint 去比对**——命中就当作已抑制，于是对方的一条真实告警被静默吞掉。写错地方是数据污染，读错数据再据此抑制是**可用性攻击**。
+
+#### 80.2.2 `audit.Create` —— 写进别人的证据链
+
+handler 同时做了两件事：把 auth 租户传给 `Create`，**并且把原始 body 原样递进去**。原实现是 `if req.TenantID == "" { req.TenantID = tenantID }`，body 带了 `tenantId` 就赢。
+
+audit 是每租户一条 hash 链。写进别人的链不只是多一行数据，而是**污染对方整条证据链的哈希**，之后该租户的链校验会指向一条不属于它的记录。
+
+#### 80.2.3 `notification.SendNotification` —— 同形
+
+与 audit 同一形状，危害最小（单表写入，无链式结构），但也是跨租户写。
+
+#### 80.2.4 `alert.checkSuppression` —— 与前三个不同族的第二个缺陷
+
+```go
+if err == nil {                                    // 原状
+if err == nil && issue != nil {                    // 修后
+```
+
+`err == nil` 之后直接读 `issue.Title`，而 `(nil, nil)` 是 no-match 的常见返回值。fingerprint **大多数时候都不匹配**，所以这是 Ingest 的常见路径，不是一条边缘分支。
+
+生产上没有炸，因为生产 repo 在 no-match 时走的是 error 分支：
+
+```go
+// internal/alert/repository/repository.go:237
+if err != nil { return nil, err }      // sqlx.ErrNoRows 落在这里
+return &ki, nil
+```
+
+所以 `err == nil` 在生产上确实意味着"真有行"。但这依赖一个**没人写下来的返回约定**：任何按 `(nil, nil)` 约定的实现——包括所有 sqlmock 驱动的测试——都会崩进程。这类"靠约定活着"的空指针比显式 bug 更难被发现，因为它在生产上不发作。
+
+### 80.3 测试：新增 9 个，三种断言策略
+
+三个模块各一份 `tenant_test.go`，9 个测试函数。三个模块的断言方式各不相同，每种都是在堵一个"断言看起来对但证明不了东西"的漏洞：
+
+- **alert** —— fake repo 记录 `seenTenants`，断言每一条下游查询都用 caller 租户。只断言返回值不够：`Ingest` 的返回值租户正确，不能证明 suppression / dedup 的 semi-join 用的是对的租户，而那正是 80.2.1 升级成可用性攻击的那一步。
+- **audit** —— mock repo 用 `tenantID:id` 做 key，断言行落在 caller 的链前缀下，**并做负向断言**：body 租户的链下没有这行。
+- **notification** —— **断言绑定参数而不是返回值**。`MarkAsSent` 只收 row id，返回对象的 tenant 是测试自己的 mock fixture 填的，断言返回值等于自证。用 `WithArgs(AnyArg, "t1", AnyArg, ...)` 把 INSERT 的第 2 个参数钉死，租户错了 sqlmock 自己报期望不符。
+
+这是 §78.3 的第二个实例：同一个坑换了个模块又踩一次。
+
+每个模块两条互补：非空 caller 租户不被覆盖、**空 caller 租户也不从 body 回填**。后者是防"善意修复"——当 caller 租户为空时回退到 body 看起来是合理的兜底，但那等于把同一个洞为匿名请求重开一次。
+
+### 80.4 变异：5 个全杀，对照组存活
+
+`/private/tmp/r79/mutation_check.py`，每个变异前从 pristine 逐字节还原：
+
+| 变异 | 内容 | 失败数 |
+|---|---|---|
+| M1 | `alert.Ingest` 装回 body 覆盖（原缺陷原样装回去） | 2 |
+| M2 | `alert.checkSuppression` 去掉 nil 守卫（空指针原样装回去） | 1 |
+| M3 | `audit.Create` 改回用 `req.TenantID` 写 | 2 |
+| M4 | `notification.SendNotification` 装回 body 覆盖 | 2 |
+| M5 | `alert.Ingest` 把空 caller 租户回退到 body（重开另一半） | 1 |
+| NC | 默认 severity `"warning"` → `"warn"`（无任何测试断言） | — |
+
+```
+killed=5 survived=0 builderr=0 badanchor=0
+NC control (expected SURVIVED): SURVIVED
+HARNESS OK
+```
+
+M1 / M3 / M4 各触发 2 条失败，打掉的是**同一模块的两条互补用例**（非空 caller 不被覆盖 + 空 caller 不被回填），而不是同一个用例里的两条断言。M1 这一点值得单独记：原缺陷的补丁块只判了 `req.TenantID != ""`、**没有判 caller 租户是否为空**，所以就算 auth 租户是空串，body 照样赢——原来的洞在匿名请求上同样成立，两条用例都必须写。
+
+NC 存活证明 harness 能报通过，所以上面的 KILLED 是真信号而不是运行环境的假阳性。
+
+**M2 的失败数被低估了。** 全量跑只报 1 条失败，因为一次 panic 会**把整个 test 二进制崩掉，后面的测试全部拿不到执行机会**——被崩掉的是排在它前面的 `TestIngest_UsesCallerTenantNotRequestBody`，真正的空指针回归用例 `TestIngest_NoMatchingKnownIssueDoesNotPanic` 根本没轮到。单独 `-run` 跑它，确实 KILLED 且 `panic=True`，所以它是独立的真守卫，不是靠别人陪跑。
+
+这带出一个写 panic 回归测试时必须知道的顺序问题：**panic 类测试和它前面的测试互相抢位置**。如果哪天有人把某个会 panic 的测试挪到前面，后面所有测试都会变成"未执行"，而失败列表看起来完全正常。
+
+M5 值得单独说一句：它不是任何修复的反向，而是**主动重开另一半的洞**。这类变异只有当"空 caller 租户"的测试存在时才可能被发现——如果只写了"非空不覆盖"那一条，M5 会存活，而存活意味着 80.2 的三处跨租户写入只堵了其中一条。
+
+### 80.5 只记录，未处理
+
+(a) **`notification-engine/integration.go:77` 的 `ToNotifyMessage` 全仓零调用方，但它会读 `req.TenantID`**。`TenantID: req.TenantID` 意味着任何未来的引擎消费方会拿到空租户（或 body 伪造的租户）。零调用方所以不动；真要用它，签名该先加一个 tenantID 参数。
+
+(b) **`ai/llm` 三处 body 租户仍然赢**：`handler.go:63`（StartTrace）、`handler.go:200`（SetPricing）、`service.go:248`（`SetCustomPricing` 把 `tenantID *string` 完全由 body 推导，auth 租户根本没被咨询）。第三处是本家族里最松的。
+
+(c) **同族残留四处**：`ai/skill/handler/handler.go:485`（CreateInstance）、`:577`；`branch-policy/handler/handler.go:1603`（Deploy）；`branch-policy/middleware/branch_env_guard.go:65`。最后一个是中间件，body 为空会 fail-closed，危害明显小于其余。`execution-mode-engine/handler/handler.go:75` 已经是正确形状（先赋 auth 租户再判空），不动。
+
+(d) **`CreateNotificationRequest.TenantID` 现在在本模块只剩 JSON 绑定这一个用途**。handler 不再回填、服务层不读。字段保留以兼容既有请求体，删除属破坏性变更。
+
+### 80.6 变异工具的两个新坑
+
+1. **`GOSUMDB=off` 会打断 toolchain 解析**，让所有变异返回 `OTHER_FAIL` 且 `FAILS=0`：
+
+```
+M1   OTHER_FAIL  0
+M2   OTHER_FAIL  0
+M3   OTHER_FAIL  0
+M4   OTHER_FAIL  0
+M5   OTHER_FAIL  0
+killed=0 survived=0 builderr=0 badanchor=0
+```
+
+两个计数都是 0：`survived` 与 `builderr` 都很"干净"，看起来像"这批变异都太弱了"，实际是命令根本没执行。toolchain 模块本身也要过 sumdb 校验：
+
+```
+go: golang.org/toolchain@v0.0.1-go1.25.0.darwin-arm64: verifying module:
+    checksum database disabled by GOSUMDB=off
+```
+
+修法是先把 1.25.0 的绝对路径钉死（`.../pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.darwin-arm64/bin/go`）配 `GOTOOLCHAIN=local`，让解析完全不发生。
+
+2. **panic 会吃掉同包其余测试，导致变异被记成"杀得弱"**。M2（去掉 nil 守卫）全量跑只报 1 条失败，`FAILS=1` 看起来像"这个变异只被一条断言罩着"。实际是一次 panic 就把整个 test 二进制崩掉，排在后面的测试**全部拿不到执行机会**——真正罩住 M2 的空指针回归用例根本没轮到，单独 `-run` 跑它才是 KILLED。
+
+所以 `FAILS` 计数在含 panic 类测试的包里**系统性偏低**。harness 没有按变异 `-run` 隔离，是本轮刻意没做的权衡：隔离能把 M2 从 1 条补成 2 条，但那只是多一轮调用、结论（KILLED）不变。少报的是"覆盖有多宽"，不是"有没有杀"——记在这里，是为了别让下一轮拿 `FAILS` 去横向比较不同变异的严格程度。
+
+两次都是同一个教训的变体：一个看起来像"没杀"，一个看起来像"杀得弱"，真相都是工具。
+
+### 80.7 遗留
+
+§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 80.5 的 (a)(b)(c)。
+
+**§71.8 遗留 7 条中的 2 条本轮已清**：第 1 条（notification）与第 2 条（`alert.Ingest`）均为 body 租户覆盖型，本轮一起清掉并加上测试。第 3、5、6、7 条不变。另外：第 4 条（`audit.ChainLatest` 的 nil 解引用）仍未修——它与 80.2.4 的空指针同形（`err == nil` 后直接读结果字段），但在 handler 层且在尾部路径，本轮不扩展。
+
+仍未排查：`internal/branch-policy/service/service.go` 在 2684 行以外的部分。缺基础设施的清单与 §79.7 一致，未变化：`internal/cmdb/transport/{snmp,ssh,sql}.go`、`internal/infrastructure/backup/executor/key_provider.go`、`internal/crossover/registry/registry.go`、`internal/degradation/service/service.go`、`internal/incident/repository/repository.go`、`internal/job-source/service/adapters.go`、`cmd/server/wiring.go`。
+
+仍然需要授权的两个决定不变：(1) `RecordSavings` 零个非测试调用方，生产库里 `ai_cost_savings` 恒为空——接调用方还是删掉整条链（破坏性）；(2) 模块 A 的 6 个 handler / 33 处裸 `c.GetString("tenant_id")` 完全不在路由注册里——删还是留。
