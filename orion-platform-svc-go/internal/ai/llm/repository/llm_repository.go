@@ -202,11 +202,15 @@ func (r *Repository) GetDailyStats(ctx context.Context, tenantID string, date ti
 // Model Custom Pricing
 // ==========================================================================
 
-// FindPricingByModelID returns the custom pricing for a model, or nil if none exists.
-func (r *Repository) FindPricingByModelID(ctx context.Context, modelID string) (*models.ModelPricing, error) {
+// FindPricingByModelID returns this tenant's custom pricing for a model, or
+// nil if the tenant has none. Scoping by tenant_id is what makes the upsert
+// below write-own-rows-only: model_id is not unique in this table, so an
+// unscoped lookup returns whichever row the planner picks and the UPDATE
+// would then rewrite another tenant's prices.
+func (r *Repository) FindPricingByModelID(ctx context.Context, tenantID, modelID string) (*models.ModelPricing, error) {
 	var p models.ModelPricing
 	err := r.db.GetContext(ctx, &p,
-		`SELECT * FROM model_custom_pricing WHERE model_id = $1 LIMIT 1`, modelID)
+		`SELECT * FROM model_custom_pricing WHERE tenant_id = $1 AND model_id = $2 LIMIT 1`, tenantID, modelID)
 	if err != nil {
 		return nil, err // sql.ErrNoRows means not found
 	}
@@ -224,31 +228,21 @@ func (r *Repository) FindPricingsByTenant(ctx context.Context, tenantID string) 
 	return items, nil
 }
 
-// FindAllPricings returns every custom pricing row.
-func (r *Repository) FindAllPricings(ctx context.Context) ([]models.ModelPricing, error) {
-	var items []models.ModelPricing
-	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM model_custom_pricing ORDER BY model_id`)
-	if err != nil {
-		return nil, fmt.Errorf("FindAllPricings: %w", err)
-	}
-	return items, nil
-}
-
 // UpsertPricing creates or updates custom pricing for a model.
 // Mirrors the Node.js ModelPricingRepository.upsertByModelId logic.
-func (r *Repository) UpsertPricing(ctx context.Context, modelID string, inputPrice, outputPrice float64, tenantID *string) (*models.ModelPricing, error) {
-	// Try to find existing pricing first (matches Node.js upsert logic).
-	existing, err := r.FindPricingByModelID(ctx, modelID)
+func (r *Repository) UpsertPricing(ctx context.Context, tenantID, modelID string, inputPrice, outputPrice float64) (*models.ModelPricing, error) {
+	// Try to find this tenant's existing pricing first (matches Node.js
+	// upsert logic). Tenant-scoped: see FindPricingByModelID.
+	existing, err := r.FindPricingByModelID(ctx, tenantID, modelID)
 	if err == nil && existing != nil {
 		// Update existing row.
 		existing.InputPrice = inputPrice
 		existing.OutputPrice = outputPrice
 		existing.UpdatedAt = time.Now()
-		query := `UPDATE model_custom_pricing SET input_price = $1, output_price = $2, updated_at = $3 WHERE id = $4 RETURNING *`
+		query := `UPDATE model_custom_pricing SET input_price = $1, output_price = $2, updated_at = $3 WHERE id = $4 AND tenant_id = $5 RETURNING *`
 		var out models.ModelPricing
 		err = r.db.QueryRowxContext(ctx, query,
-			existing.InputPrice, existing.OutputPrice, existing.UpdatedAt, existing.ID,
+			existing.InputPrice, existing.OutputPrice, existing.UpdatedAt, existing.ID, tenantID,
 		).StructScan(&out)
 		if err != nil {
 			return nil, fmt.Errorf("UpsertPricing update(%s): %w", modelID, err)
@@ -271,10 +265,10 @@ func (r *Repository) UpsertPricing(ctx context.Context, modelID string, inputPri
 	return &out, nil
 }
 
-// DeletePricingByModelID removes the custom pricing for a model.
-func (r *Repository) DeletePricingByModelID(ctx context.Context, modelID string) (bool, error) {
+// DeletePricingByModelID removes this tenant's custom pricing for a model.
+func (r *Repository) DeletePricingByModelID(ctx context.Context, tenantID, modelID string) (bool, error) {
 	result, err := r.db.ExecContext(ctx,
-		`DELETE FROM model_custom_pricing WHERE model_id = $1`, modelID)
+		`DELETE FROM model_custom_pricing WHERE tenant_id = $1 AND model_id = $2`, tenantID, modelID)
 	if err != nil {
 		return false, fmt.Errorf("DeletePricingByModelID(%s): %w", modelID, err)
 	}

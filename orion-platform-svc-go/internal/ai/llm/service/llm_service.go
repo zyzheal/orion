@@ -88,8 +88,9 @@ func (s *Service) CompleteTrace(ctx context.Context, traceID string, req *models
 		return nil, ErrTraceNotFound
 	}
 
-	// Calculate cost using the model's pricing.
-	cost := s.CalculateCost(ctx, trace.ModelID, req.InputTokens, req.OutputTokens)
+	// Calculate cost using the model's pricing, scoped to the tenant the trace
+	// belongs to — not the caller's, since completion can be triggered later.
+	cost := s.CalculateCost(ctx, trace.TenantID, trace.ModelID, req.InputTokens, req.OutputTokens)
 
 	outputHash := hashContent(req.OutputContent)
 	now := time.Now().UTC()
@@ -165,8 +166,8 @@ func (s *Service) AggregateDailyStats(ctx context.Context, tenantID string, date
 
 // CalculateCost computes the cost breakdown for a single LLM call.
 // It checks custom pricing in the database first, then falls back to defaults.
-func (s *Service) CalculateCost(ctx context.Context, modelID string, inputTokens, outputTokens int64) *models.CostBreakdown {
-	pricing := s.getPricing(ctx, modelID)
+func (s *Service) CalculateCost(ctx context.Context, tenantID, modelID string, inputTokens, outputTokens int64) *models.CostBreakdown {
+	pricing := s.getPricing(ctx, tenantID, modelID)
 	inputCost := float64(inputTokens) * pricing.Input
 	outputCost := float64(outputTokens) * pricing.Output
 	totalCost := inputCost + outputCost
@@ -181,7 +182,7 @@ func (s *Service) CalculateCost(ctx context.Context, modelID string, inputTokens
 }
 
 // CalculateBatchCost computes the total cost across multiple traces.
-func (s *Service) CalculateBatchCost(ctx context.Context, traces []struct {
+func (s *Service) CalculateBatchCost(ctx context.Context, tenantID string, traces []struct {
 	ModelID      string
 	InputTokens  int64
 	OutputTokens int64
@@ -190,7 +191,7 @@ func (s *Service) CalculateBatchCost(ctx context.Context, traces []struct {
 	byModel := make(map[string]float64)
 
 	for _, t := range traces {
-		pricing := s.getPricing(ctx, t.ModelID)
+		pricing := s.getPricing(ctx, tenantID, t.ModelID)
 		input := float64(t.InputTokens) * pricing.Input
 		output := float64(t.OutputTokens) * pricing.Output
 		cost := input + output
@@ -209,9 +210,9 @@ func (s *Service) CalculateBatchCost(ctx context.Context, traces []struct {
 }
 
 // CalculateSavings compares the cost of two models for the same token usage.
-func (s *Service) CalculateSavings(ctx context.Context, req *models.SavingsRequest) *models.SavingsResult {
-	currentPricing := s.getPricing(ctx, req.CurrentModel)
-	altPricing := s.getPricing(ctx, req.AlternativeModel)
+func (s *Service) CalculateSavings(ctx context.Context, tenantID string, req *models.SavingsRequest) *models.SavingsResult {
+	currentPricing := s.getPricing(ctx, tenantID, req.CurrentModel)
+	altPricing := s.getPricing(ctx, tenantID, req.AlternativeModel)
 
 	currentCost := float64(req.InputTokens)*currentPricing.Input + float64(req.OutputTokens)*currentPricing.Output
 	altCost := float64(req.InputTokens)*altPricing.Input + float64(req.OutputTokens)*altPricing.Output
@@ -231,8 +232,8 @@ func (s *Service) CalculateSavings(ctx context.Context, req *models.SavingsReque
 }
 
 // EstimateMonthlyCost projects a monthly cost from daily token usage.
-func (s *Service) EstimateMonthlyCost(ctx context.Context, modelID string, dailyTokens int64) float64 {
-	pricing := s.getPricing(ctx, modelID)
+func (s *Service) EstimateMonthlyCost(ctx context.Context, tenantID, modelID string, dailyTokens int64) float64 {
+	pricing := s.getPricing(ctx, tenantID, modelID)
 	halfTokens := float64(dailyTokens) / 2
 	dailyCost := halfTokens*pricing.Input + halfTokens*pricing.Output
 	return dailyCost * 30
@@ -243,12 +244,12 @@ func (s *Service) EstimateMonthlyCost(ctx context.Context, modelID string, daily
 // ==========================================================================
 
 // SetCustomPricing creates or updates custom pricing for a model.
-func (s *Service) SetCustomPricing(ctx context.Context, req *models.SetPricingRequest) (*models.ModelPricing, error) {
-	var tenantID *string
-	if req.TenantID != "" {
-		tenantID = &req.TenantID
-	}
-	p, err := s.repo.UpsertPricing(ctx, req.ModelID, req.InputPrice, req.OutputPrice, tenantID)
+func (s *Service) SetCustomPricing(ctx context.Context, tenantID string, req *models.SetPricingRequest) (*models.ModelPricing, error) {
+	// tenantID comes from the caller (the handler's auth context). req.TenantID
+	// is not consulted: the body never picked the tenant, and the upsert below is
+	// scoped to tenantID, so a body-supplied tenant would only have rewritten the
+	// price stored under THIS tenant while still reading back the shared row.
+	p, err := s.repo.UpsertPricing(ctx, tenantID, req.ModelID, req.InputPrice, req.OutputPrice)
 	if err != nil {
 		return nil, fmt.Errorf("SetCustomPricing(%s): %w", req.ModelID, err)
 	}
@@ -257,13 +258,13 @@ func (s *Service) SetCustomPricing(ctx context.Context, req *models.SetPricingRe
 }
 
 // GetPricingForModel returns the effective pricing (custom or default) for a model.
-func (s *Service) GetPricingForModel(ctx context.Context, modelID string) map[string]float64 {
-	p := s.getPricing(ctx, modelID)
+func (s *Service) GetPricingForModel(ctx context.Context, tenantID, modelID string) map[string]float64 {
+	p := s.getPricing(ctx, tenantID, modelID)
 	return map[string]float64{"input": p.Input, "output": p.Output}
 }
 
 // GetAllPricing returns a merged map of default + custom pricings.
-func (s *Service) GetAllPricing(ctx context.Context) map[string]map[string]float64 {
+func (s *Service) GetAllPricing(ctx context.Context, tenantID string) map[string]map[string]float64 {
 	result := make(map[string]map[string]float64)
 
 	// Start with defaults.
@@ -271,8 +272,8 @@ func (s *Service) GetAllPricing(ctx context.Context) map[string]map[string]float
 		result[model] = map[string]float64{"input": p.Input, "output": p.Output}
 	}
 
-	// Override with custom pricing from DB.
-	custom, err := s.repo.FindAllPricings(ctx)
+	// Override with this tenant's custom pricing from DB.
+	custom, err := s.repo.FindPricingsByTenant(ctx, tenantID)
 	if err == nil {
 		for _, p := range custom {
 			result[p.ModelID] = map[string]float64{"input": p.InputPrice, "output": p.OutputPrice}
@@ -282,12 +283,12 @@ func (s *Service) GetAllPricing(ctx context.Context) map[string]map[string]float
 }
 
 // GetAvailableModels returns the union of default model IDs and custom-priced model IDs.
-func (s *Service) GetAvailableModels(ctx context.Context) []string {
+func (s *Service) GetAvailableModels(ctx context.Context, tenantID string) []string {
 	seen := make(map[string]struct{})
 	for id := range models.DefaultModelPricing {
 		seen[id] = struct{}{}
 	}
-	custom, err := s.repo.FindAllPricings(ctx)
+	custom, err := s.repo.FindPricingsByTenant(ctx, tenantID)
 	if err == nil {
 		for _, p := range custom {
 			seen[p.ModelID] = struct{}{}
@@ -301,8 +302,8 @@ func (s *Service) GetAvailableModels(ctx context.Context) []string {
 }
 
 // DeleteCustomPricing removes custom pricing for a model.
-func (s *Service) DeleteCustomPricing(ctx context.Context, modelID string) (bool, error) {
-	return s.repo.DeletePricingByModelID(ctx, modelID)
+func (s *Service) DeleteCustomPricing(ctx context.Context, tenantID, modelID string) (bool, error) {
+	return s.repo.DeletePricingByModelID(ctx, tenantID, modelID)
 }
 
 // ==========================================================================
@@ -332,8 +333,8 @@ func EstimateTokens(text string) int {
 
 // getPricing retrieves the effective pricing for a model: custom DB pricing
 // takes precedence over the built-in defaults.
-func (s *Service) getPricing(ctx context.Context, modelID string) struct{ Input, Output float64 } {
-	custom, err := s.repo.FindPricingByModelID(ctx, modelID)
+func (s *Service) getPricing(ctx context.Context, tenantID, modelID string) struct{ Input, Output float64 } {
+	custom, err := s.repo.FindPricingByModelID(ctx, tenantID, modelID)
 	if err == nil && custom != nil {
 		return struct{ Input, Output float64 }{Input: custom.InputPrice, Output: custom.OutputPrice}
 	}

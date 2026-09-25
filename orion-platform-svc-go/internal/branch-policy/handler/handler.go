@@ -1600,9 +1600,8 @@ func (h *Handler) ExecuteDeploy(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid DeployRequest body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	if req.TenantID == "" {
-		req.TenantID = tenantID
-	}
+	// req.TenantID is bound but never forwarded: ExecuteDeploy takes its tenant
+	// from tenantID (the auth context), so a body tenantId was dead weight.
 	// Validate required fields — ShouldBindJSON does not enforce binding
 	// tags for nested structs, so we check explicitly.
 	if req.Branch == "" || req.TargetEnv == "" || req.ImageTag == "" {

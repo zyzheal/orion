@@ -175,7 +175,8 @@ func (h *Handler) GetDailyStats(c *gin.Context) {
 func (h *Handler) GetAllPricing(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AILLMGetAllPricing")
 	defer span.End()
-	pricing := h.svc.GetAllPricing(ctx)
+	tenantID := c.GetString("tenant_id")
+	pricing := h.svc.GetAllPricing(ctx, tenantID)
 	respondSuccess(c, gin.H{"data": pricing})
 }
 
@@ -184,7 +185,7 @@ func (h *Handler) GetPricingForModel(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AILLMGetPricingForModel")
 	defer span.End()
 	modelID := c.Param("modelId")
-	pricing := h.svc.GetPricingForModel(ctx, modelID)
+	pricing := h.svc.GetPricingForModel(ctx, c.GetString("tenant_id"), modelID)
 	respondSuccess(c, pricing)
 }
 
@@ -197,11 +198,10 @@ func (h *Handler) SetCustomPricing(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	if req.TenantID == "" {
-		req.TenantID = c.GetString("tenant_id")
-	}
-
-	p, err := h.svc.SetCustomPricing(ctx, &req)
+	// req.TenantID is bound but never forwarded: the upsert is scoped to the
+	// auth tenant, so trusting the body would let any llm:write holder rewrite
+	// the price another tenant is billing against.
+	p, err := h.svc.SetCustomPricing(ctx, c.GetString("tenant_id"), &req)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -214,7 +214,7 @@ func (h *Handler) DeleteCustomPricing(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AILLMDeleteCustomPricing")
 	defer span.End()
 	modelID := c.Param("modelId")
-	deleted, err := h.svc.DeleteCustomPricing(ctx, modelID)
+	deleted, err := h.svc.DeleteCustomPricing(ctx, c.GetString("tenant_id"), modelID)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -230,7 +230,7 @@ func (h *Handler) DeleteCustomPricing(c *gin.Context) {
 func (h *Handler) GetAvailableModels(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AILLMGetAvailableModels")
 	defer span.End()
-	models := h.svc.GetAvailableModels(ctx)
+	models := h.svc.GetAvailableModels(ctx, c.GetString("tenant_id"))
 	respondSuccess(c, gin.H{"data": models})
 }
 
@@ -243,7 +243,7 @@ func (h *Handler) CalculateSavings(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	result := h.svc.CalculateSavings(ctx, &req)
+	result := h.svc.CalculateSavings(ctx, c.GetString("tenant_id"), &req)
 	respondSuccess(c, result)
 }
 
@@ -258,7 +258,7 @@ func (h *Handler) EstimateMonthlyCost(c *gin.Context) {
 	}
 	dailyTokens, _ := strconv.ParseInt(c.DefaultQuery("daily_tokens", "0"), 10, 64)
 
-	cost := h.svc.EstimateMonthlyCost(ctx, modelID, dailyTokens)
+	cost := h.svc.EstimateMonthlyCost(ctx, c.GetString("tenant_id"), modelID, dailyTokens)
 	respondSuccess(c, gin.H{
 		"model_id":     modelID,
 		"daily_tokens": dailyTokens,
