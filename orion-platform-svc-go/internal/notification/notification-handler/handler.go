@@ -62,10 +62,10 @@ func (h *Handler) Send(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	if req.TenantID == "" {
-		req.TenantID = tenantID
-	}
-
+	// The body's tenantId is bound into req but deliberately not forwarded: the
+	// service takes its tenant only from tenantID, which came from the auth
+	// context. There used to be a fallback here (body tenant when empty) that
+	// let any token holder write into another tenant's notification table.
 	n, err := h.svc.SendNotification(ctx, tenantID, &req)
 	if err != nil {
 		respondInternalError(c, err.Error())

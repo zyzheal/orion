@@ -88,9 +88,11 @@ func (s *Service) SendNotification(ctx context.Context, tenantID string, req *mo
 	if req.UserID == "" {
 		return nil, fmt.Errorf("user_id is required")
 	}
-	if req.TenantID != "" {
-		tenantID = req.TenantID
-	}
+
+	// tenantID comes from the caller (the handler's auth context). req.TenantID
+	// is deliberately not consulted: the handler only fills it when empty, so a
+	// body carrying tenant_id would otherwise win over the auth tenant and write
+	// the notification into another tenant's table.
 
 	now := time.Now()
 	n := &models.Notification{

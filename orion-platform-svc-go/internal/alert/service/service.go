@@ -51,10 +51,10 @@ func NewService(repo RepositoryInterface, db *sqlx.DB) *Service {
 
 // Ingest processes an incoming alert: generates fingerprint, checks suppression, deduplicates.
 func (s *Service) Ingest(ctx context.Context, tenantID string, req models.IngestRequest) (*models.IngestResponse, error) {
-	// Ensure tenant ID
-	if req.TenantID != "" {
-		tenantID = req.TenantID
-	}
+	// tenantID comes from the caller (the handler's auth context). req.TenantID
+	// is not consulted: letting the request body pick the tenant would let any
+	// token holder ingest alerts into another tenant's workspace, where they
+	// would be deduplicated against and suppress that tenant's real alerts.
 	severity := req.Severity
 	if severity == "" {
 		severity = "warning"
@@ -525,10 +525,13 @@ func (s *Service) checkSuppression(ctx context.Context, tenantID string, alert *
 		}
 	}
 
-	// Check known issues
+	// Check known issues. Both a repository error and a no-match (nil, nil)
+	// mean "not suppressed" — a bare err == nil check dereferenced issue.Title
+	// on the no-match path and panicked, since every fingerprint misses most of
+	// the time.
 	if alert.Fingerprint != "" {
 		issue, err := s.repo.GetKnownIssueByPattern(ctx, tenantID, alert.Fingerprint)
-		if err == nil {
+		if err == nil && issue != nil {
 			return true, fmt.Sprintf("suppressed by known issue: %s", issue.Title), nil
 		}
 	}

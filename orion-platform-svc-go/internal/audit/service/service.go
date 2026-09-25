@@ -76,16 +76,17 @@ func toAuditLogEntry(log models.AuditLog) models.AuditLogEntry {
 
 // Create creates a new audit log entry.
 func (s *Service) Create(ctx context.Context, tenantID string, req models.AuditLogCreateRequest) (*models.AuditLogEntry, error) {
-	// Default tenant
-	if req.TenantID == "" {
-		req.TenantID = tenantID
-	}
+	// tenantID comes from the caller (the handler's auth context). req.TenantID
+	// is not consulted: the handler passes the auth tenant but also hands over
+	// the raw body, so a body carrying tenantId would otherwise create the audit
+	// row in another tenant's log chain and be chained/hashed under their
+	// tenant_id.
 	// Default resource type
 	if req.ResourceType == "" {
 		req.ResourceType = "audit"
 	}
 
-	log, err := s.repo.Create(ctx, req.TenantID, req)
+	log, err := s.repo.Create(ctx, tenantID, req)
 	if err != nil {
 		return nil, err
 	}
