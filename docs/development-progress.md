@@ -16207,3 +16207,93 @@ M3/M4 只杀那一条透传用例、M1/M2/M5/M6 杀九条 clamp 用例——两�
 carry-forward：§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 87.6 的 (a)-(f)。
 
 仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
+
+## §88 policy 六个列表端点：同一形状第二次出现，顺带撞见两个字节级相同的 handler（Round 87，2026-09-25）
+
+§87.6(a) 的第一项。上一轮扫完后 `policy` 是剩余簇里最大的（6 处）。
+
+### 88.1 形状第二次复现：handler 裸解析 + 仓储只夹 limit + 无 page 字段
+
+追完下游，`policy` 和 `monitoring` 是**同一个模板**：
+
+| 层 | `limit` | `offset` |
+|----|---------|----------|
+| handler | 6 处 `strconv.Atoi(c.DefaultQuery("limit", "50"))`，不夹 | 6 处裸 `strconv.Atoi`，不夹 |
+| service | 纯透传 | 纯透传 |
+| repository | **6 处 `if limit <= 0 { limit = 50 }`** | **0 处** |
+
+无除法，无 `Page`/`pageSize` 响应字段。所以六个全是真 500，没有一个是元数据错，修法跟 §87 一字不差：一个 `queryOffset` + 6 个调用点，`limit` 不动。六个调用点字节级相同，一条替换加人工核对。
+
+连续两轮撞到同一模板，说明这是仓库级习惯而不是偶发：分页参数在 handler 裸解析，`limit` 靠仓储兜底，`offset` 谁都不管。
+
+### 88.2 第二个缺陷类：两个字节级相同的 handler 挂着两个不同路由
+
+追的时候撞见的，跟 offset 无关：
+
+```go
+// ListRootEvaluations handles GET /policies/evaluations.
+func (h *Handler) ListRootEvaluations(c *gin.Context) { ... h.svc.ListEvaluations(ctx, tenantID, limit, offset) ... }
+
+// ListEvaluationsRuns handles GET /policies/evaluations/runs.
+func (h *Handler) ListEvaluationsRuns(c *gin.Context) { ... h.svc.ListEvaluations(ctx, tenantID, limit, offset) ... }
+```
+
+两个函数除了 span 名之外逐字节相同，`GET /policies/evaluations` 与 `GET /policies/evaluations/runs` 返回**完全相同的数据**。路由注释也没帮上忙：前者写 "Get evaluation history"，后者写 "List evaluations"。
+
+查了模型和仓储：`models.PolicyEvaluation` 带 `run_id`（`models.go:72`），`service.go:485` 也在写它，但**没有 runs 表、没有 `ListRuns`、没有按 run 过滤的方法**。所以无从判断哪个端点应该按什么过滤——**记，不修**，缺的是规格不是代码。
+
+### 88.3 handler 名与 service 名也不对应
+
+同一个链路里三个近似名字，容易读错：handler `ListEvaluations` 服务 `GET /policies/:id/evaluations`，调用的是 service `GetEvaluationHistory`；而 handler `ListRootEvaluations` 与 `ListEvaluationsRuns` 才调用 service `ListEvaluations`。
+
+### 88.4 测试：把「调到哪个方法」也一起钉住
+
+跟 §87 一样的约束（响应里没有 page 字段，只能从下游观测）。嵌现有 `fakePolicyService`、只覆写 5 个 list 方法记录 `(method, limit, offset)`，7 个用例。
+
+比 §87 多钉了一件事：断言里带 `want` 方法名，所以 `ListRootEvaluations` 和 `ListEvaluationsRuns` 都断言 `want: "ListEvaluations"`——88.2 那个字节级重复的结论由此被测试固定，将来有人给其中一个加上 run 过滤，另一条用例会立刻变红。
+
+### 88.5 变异：6 个全杀 + 1 个已知缺口存活 + 对照组存活
+
+`/private/tmp/r87/mutation_check.py`。**gate=6 killed=6 survived=0 builderr=0 badanchor=0，GAP SURVIVED，NC SURVIVED，restore 逐字节一致，HARNESS OK**。
+
+| 变异 | 结果 | 杀手 |
+|------|------|------|
+| M1 拆掉 `queryOffset` 下限 | KILLED | 6 条 NegativeOffset |
+| M2 六个调用点还原成 `strconv.Atoi(...)` | KILLED | 6 条 NegativeOffset |
+| M3 下限变成上限 5 | KILLED | `TestListPolicies_ValidOffsetAndLimitPassThrough` |
+| M4 读错参数名 `offset` → `page` | KILLED | 同上 |
+| M5 下限从 0 变 1 | KILLED | 6 条 NegativeOffset |
+| M6 handler 默认 limit 从 50 改 20 | KILLED | 6 条 NegativeOffset |
+
+两组覆盖面互不重叠，跟 §87 完全一致：M3/M4 只杀透传用例，M1/M2/M5/M6 杀六条 clamp 用例。
+
+这一轮的 harness 是从 Round 86 的脚本用 sed 派生的（换路径 + 改锚点计数），**第一次就跑通**。§87.6(f) 记的两个教训都起作用了：基线按「修复后」快照，`block()` 找不到锚点时先 `restore()` 再抛错。harness 已经从一次性脚本变成可复用模板。
+
+- **GAP（不计入门禁）**：`i > 0` → `i > 1` → **SURVIVED**。`?offset=1` 会被静默折成 0。跟 §87.5 同一个缺口：只钉了 `-40` 和 `14`，1 到 5 整段无覆盖。现在是第四个包共用同一个未覆盖分支（report-designer、cmdb、cmdb-collector、monitoring、policy 共 5 个 helper）。
+- **NC**：helper 注释改词 → SURVIVED。
+
+### 88.6 只记录，未处理
+
+(a) **64 个零夹点站点 / 45 个模块**，且**最大簇已经降到 3**：`pipeline-executor` 3、`internal-library` 3、`auto-exec` 3、`sla` 3，其余 35 个模块各 1–2 处。
+
+(b) **两个字节级相同的 handler**（88.2）：`ListRootEvaluations` 与 `ListEvaluationsRuns` 返回同一份数据。缺规格，不定。
+
+(c) **handler 与 service 命名错位**（88.3）：读起来像 bug、其实是刻意或随机的命名，不在本轮范围。
+
+(d) **handler 夹 offset、仓储夹 limit 的层间不一致**，跟 §87.6(b) 是同一个：现在已经在 `monitoring` 与 `policy` 两个模块里存在。
+
+(e) **54 处「本模块有夹点但路径未追」**仍未动。
+
+(f) **可达性照 §86.7(f)**：六个路由全在 `auth.RequirePermission("policy", "read")` 后，默认部署下不可达。
+
+### 88.7 验证与遗留
+
+`go build ./...` 退出 0；`go vet ./internal/policy/...` 退出 0；`gofmt -l internal/policy/` 无输出；`go test -count=1 ./...` **563 个包 ok / 0 FAIL / 0 panic**。`go.sum` 与 `go.work.sum` 未改。改动 2 个文件：`handler.go` **18 增 / 6 删**、新增 `offset_clamp_test.go` **138 行 / 7 个用例**，合计 **156 增 / 6 删**。
+
+**这个家族该收口了。** offset 全景（机械复扫）：149 处 = **24 处**已按站点夹（Round 85 的 9 + Round 86 的 9 + 本轮 6）+ 7 处原本就夹 + 54 处路径未追 + **64 处本模块零夹点（45 个模块）**。三轮拿了 24 处、消掉 3 个模块（47 → 45）。剩下 64 处摊在 45 个模块，最大簇只有 3——按「一轮一个大簇」的节奏要再走 35 轮才能扫完，每轮收益不到 2 处，而每处都要先追一遍下游才能确定形状。这个家族的边际收益已经从「一轮 9 处」掉到「一轮 6 处再到一轮 3 处」，继续单模块推进不划算。
+
+合理的收法是二选一：**把 45 个模块一次性扫完**（需要接受「有的要修、有的只需确认」的混合产出，以及可能要追 64 条下游），或者**把这个家族关在 24/149 这里，换家族**。后者更符合「一轮一件事」，但会把 64 处留在台账上。
+
+carry-forward：§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 88.6 的 (a)-(f)。
+
+仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
