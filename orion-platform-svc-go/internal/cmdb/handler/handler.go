@@ -543,7 +543,7 @@ func (h *Handler) ListHosts(c *gin.Context) {
 	defer span.End()
 	status := ptrIf(c.Query("status"))
 	tags := ptrIf(c.Query("tags"))
-	limit := h.getQueryInt(c.Query("limit"), 20)
+	limit := queryLimit(c.Query("limit"), 20)
 	offset := h.getQueryInt(c.Query("offset"), 0)
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	items, total, err := h.svc.ListHosts(ctx, tenantID, status, tags, limit, offset)
@@ -581,7 +581,7 @@ func (h *Handler) ListK8sResources(c *gin.Context) {
 	defer span.End()
 	kind := ptrIf(c.Query("kind"))
 	namespace := ptrIf(c.Query("namespace"))
-	limit := h.getQueryInt(c.Query("limit"), 20)
+	limit := queryLimit(c.Query("limit"), 20)
 	offset := h.getQueryInt(c.Query("offset"), 0)
 	items, total, err := h.svc.ListK8sResources(ctx, kind, namespace, limit, offset)
 	if err != nil {
@@ -625,7 +625,7 @@ func (h *Handler) ListCICDResources(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCICDResources")
 	defer span.End()
 	status := ptrIf(c.Query("status"))
-	limit := h.getQueryInt(c.Query("limit"), 20)
+	limit := queryLimit(c.Query("limit"), 20)
 	offset := h.getQueryInt(c.Query("offset"), 0)
 	items, total, err := h.svc.ListCICDResources(ctx, status, limit, offset)
 	if err != nil {
@@ -710,6 +710,17 @@ func (h *Handler) getQueryInt(value string, defaultVal int) int {
 		return defaultVal
 	}
 	return i
+}
+
+// queryLimit parses a "limit" query param as a page size, falling back to the
+// default when it is missing, unparsable or <= 0. A page size of 0 would pass
+// LIMIT 0 to the database and divide by zero in the Page calculation below, so
+// it is treated like an absent param.
+func queryLimit(value string, def int) int {
+	if i, err := strconv.Atoi(value); err == nil && i > 0 {
+		return i
+	}
+	return def
 }
 
 // ptrIf returns a string pointer if non-empty, nil otherwise.

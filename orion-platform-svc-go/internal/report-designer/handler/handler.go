@@ -151,7 +151,7 @@ func (h *Handler) ListReports(c *gin.Context) {
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	keyword := ptrIf(c.Query("keyword"))
 	category := ptrIf(c.Query("category"))
-	limit := h.getQueryInt(c.Query("limit"), 20)
+	limit := queryLimit(c.Query("limit"), 20)
 	offset := h.getQueryInt(c.Query("offset"), 0)
 	enabled := parseBool(c.Query("enabled"))
 
@@ -411,6 +411,16 @@ func (h *Handler) getQueryInt(value string, defaultVal int) int {
 	return i
 }
 
+// queryLimit parses a "limit" query param as a page size, falling back to the
+// default when it is missing, unparsable or <= 0. A page size of 0 would pass
+// LIMIT 0 to the database and divide by zero in the Page calculation below, so
+// it is treated like an absent param.
+func queryLimit(value string, def int) int {
+	if i, err := strconv.Atoi(value); err == nil && i > 0 {
+		return i
+	}
+	return def
+}
 func ptrIf(s string) *string {
 	if s == "" {
 		return nil

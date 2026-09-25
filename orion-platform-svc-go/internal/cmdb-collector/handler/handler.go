@@ -255,7 +255,7 @@ func (h *Handler) ListCollections(c *gin.Context) {
 	deviceID := c.Query("device_id")
 	status := c.Query("status")
 	offset := h.queryInt(c.Query("offset"), 0)
-	limit := h.queryInt(c.Query("limit"), 20)
+	limit := queryLimit(c.Query("limit"), 20)
 
 	items, err := h.svc.Repository().ListCollections(ctx, tenantID, collectorName, deviceID, status, offset, limit)
 	if err != nil {
@@ -303,7 +303,7 @@ func (h *Handler) ListDevices(c *gin.Context) {
 	deviceType := c.Query("type")
 	vendor := c.Query("vendor")
 	offset := h.queryInt(c.Query("offset"), 0)
-	limit := h.queryInt(c.Query("limit"), 20)
+	limit := queryLimit(c.Query("limit"), 20)
 
 	items, err := h.svc.Repository().ListDevices(ctx, tenantID, deviceType, vendor, offset, limit)
 	if err != nil {
@@ -373,4 +373,15 @@ func (h *Handler) queryInt(value string, defaultVal int) int {
 		return defaultVal
 	}
 	return i
+}
+
+// queryLimit parses a "limit" query param as a page size, falling back to the
+// default when it is missing, unparsable or <= 0. A page size of 0 would pass
+// LIMIT 0 to the database and divide by zero in the Page calculation below, so
+// it is treated like an absent param.
+func queryLimit(value string, def int) int {
+	if i, err := strconv.Atoi(value); err == nil && i > 0 {
+		return i
+	}
+	return def
 }

@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"orion/platform-svc-go/internal/report-designer/service"
@@ -215,5 +216,61 @@ func TestHandler_REPORT_DESIG_GetExecutionHistory(t *testing.T) {
 	newHandler().GetExecutionHistory(c)
 	if w.Code >= 500 {
 		t.Fatalf("GetExecutionHistory: got %d", w.Code)
+	}
+}
+
+// ==================== Pagination limit clamping ====================
+//
+// ListReports computed Page as offset/limit + 1 with limit straight from the
+// query string. `?limit=0` reached the division and panicked with "integer
+// divide by zero", which gin.Recovery turned into a 500. limit=0 also meant
+// LIMIT 0 for the query itself, so even without the panic the caller got an
+// empty page. limitRecordingService records what the handler forwards so the
+// test pins the database-facing value, not just the response body.
+
+type limitRecordingService struct {
+	fakeReport_designerService
+	limit  int
+	offset int
+}
+
+func (f *limitRecordingService) ListReports(ctx context.Context, tenantID string, req *models.ListReportsRequest) ([]models.ReportDefinition, int, error) {
+	f.limit = req.Limit
+	f.offset = req.Offset
+	return []models.ReportDefinition{}, 0, nil
+}
+
+func TestListReports_ZeroLimitIsClamped(t *testing.T) {
+	svc := &limitRecordingService{}
+	h := NewHandler(svc)
+	c, w := makeCtx(http.MethodGet, "/reports?limit=0")
+	h.ListReports(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+	if got := w.Body.String(); !strings.Contains(got, `"pageSize":20`) || !strings.Contains(got, `"page":1`) {
+		t.Fatalf("expected the default page, got %s", got)
+	}
+	if svc.limit != 20 || svc.offset != 0 {
+		t.Fatalf("expected limit=20 offset=0 forwarded, got limit=%d offset=%d", svc.limit, svc.offset)
+	}
+}
+
+// A valid limit must pass through untouched: the clamp is a floor, not a cap.
+func TestListReports_ValidLimitUnchanged(t *testing.T) {
+	svc := &limitRecordingService{}
+	h := NewHandler(svc)
+	c, w := makeCtx(http.MethodGet, "/reports?limit=7&offset=14")
+	h.ListReports(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+	if got := w.Body.String(); !strings.Contains(got, `"pageSize":7`) || !strings.Contains(got, `"page":3`) {
+		t.Fatalf("expected page 3 of size 7, got %s", got)
+	}
+	if svc.limit != 7 || svc.offset != 14 {
+		t.Fatalf("expected limit=7 offset=14 forwarded, got limit=%d offset=%d", svc.limit, svc.offset)
 	}
 }

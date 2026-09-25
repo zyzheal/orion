@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"orion/platform-svc-go/internal/cmdb/service"
@@ -668,5 +669,90 @@ func TestHandler_NoAuthContextTenantFailsClosed(t *testing.T) {
 	}
 	if svc.tenantID != "" {
 		t.Errorf("empty auth tenant must be passed through unchanged, got %q", svc.tenantID)
+	}
+}
+
+// ==================== Pagination limit clamping ====================
+//
+// ListHosts, ListK8sResources and ListCICDResources all computed Page as
+// offset/limit + 1 with limit read straight from the query string. `?limit=0`
+// reached the division and panicked with "integer divide by zero", which
+// gin.Recovery turned into a 500. Each test records the value handed to the
+// service so the database-facing LIMIT is pinned, not just the response body.
+
+type limitRecordingService struct {
+	fakeHandlerService
+	limit  int
+	offset int
+}
+
+func (f *limitRecordingService) ListHosts(ctx context.Context, tenantID string, status *string, tags *string, limit, offset int) ([]models.CI, int, error) {
+	f.limit, f.offset = limit, offset
+	return []models.CI{}, 0, nil
+}
+
+func (f *limitRecordingService) ListK8sResources(ctx context.Context, kind *string, namespace *string, limit, offset int) ([]models.K8sResource, int, error) {
+	f.limit, f.offset = limit, offset
+	return []models.K8sResource{}, 0, nil
+}
+
+func (f *limitRecordingService) ListCICDResources(ctx context.Context, status *string, limit, offset int) ([]models.CICDResource, int, error) {
+	f.limit, f.offset = limit, offset
+	return []models.CICDResource{}, 0, nil
+}
+
+func TestListHosts_ZeroLimitIsClamped(t *testing.T) {
+	svc := &limitRecordingService{}
+	c, w := makeCtx("GET", "/?limit=0", nil, nil)
+	NewHandler(svc).ListHosts(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+	assertClampedLimit(t, w.Body.String(), svc)
+}
+
+func TestListK8sResources_ZeroLimitIsClamped(t *testing.T) {
+	svc := &limitRecordingService{}
+	c, w := makeCtx("GET", "/?limit=0", nil, nil)
+	NewHandler(svc).ListK8sResources(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+	assertClampedLimit(t, w.Body.String(), svc)
+}
+
+func TestListCICDResources_ZeroLimitIsClamped(t *testing.T) {
+	svc := &limitRecordingService{}
+	c, w := makeCtx("GET", "/?limit=0", nil, nil)
+	NewHandler(svc).ListCICDResources(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+	assertClampedLimit(t, w.Body.String(), svc)
+}
+
+func assertClampedLimit(t *testing.T, body string, svc *limitRecordingService) {
+	t.Helper()
+	if !strings.Contains(body, `"pageSize":20`) || !strings.Contains(body, `"page":1`) {
+		t.Fatalf("expected the default page, got %s", body)
+	}
+	if svc.limit != 20 || svc.offset != 0 {
+		t.Fatalf("expected limit=20 offset=0 forwarded, got limit=%d offset=%d", svc.limit, svc.offset)
+	}
+}
+
+// A valid limit must pass through untouched: the clamp is a floor, not a cap.
+func TestListHosts_ValidLimitUnchanged(t *testing.T) {
+	svc := &limitRecordingService{}
+	c, w := makeCtx("GET", "/?limit=5&offset=10", nil, nil)
+	NewHandler(svc).ListHosts(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"pageSize":5`) || !strings.Contains(w.Body.String(), `"page":3`) {
+		t.Fatalf("expected page 3 of size 5, got %s", w.Body.String())
+	}
+	if svc.limit != 5 || svc.offset != 10 {
+		t.Fatalf("expected limit=5 offset=10 forwarded, got limit=%d offset=%d", svc.limit, svc.offset)
 	}
 }

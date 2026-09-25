@@ -73,7 +73,7 @@ func (h *FactoryHandler) ListAdapters(c *gin.Context) {
 	filter := service.ListAdaptersFilter{
 		Category: c.Query("category"),
 		Offset:   h.queryInt(c.Query("offset"), 0),
-		Limit:    h.queryInt(c.Query("limit"), 20),
+		Limit:    queryLimit(c.Query("limit"), 20),
 	}
 
 	items, err := h.factory.ListAdapters(ctx, tenantID, filter)
@@ -227,7 +227,7 @@ func (h *FactoryHandler) ListJobs(c *gin.Context) {
 	defer span.End()
 	tenantID := h.tenantID(c)
 	offset := h.queryInt(c.Query("offset"), 0)
-	limit := h.queryInt(c.Query("limit"), 20)
+	limit := queryLimit(c.Query("limit"), 20)
 
 	items, err := h.factory.ListJobs(ctx, tenantID, c.Query("adapter_id"), c.Query("status"), offset, limit)
 	if err != nil {
@@ -265,7 +265,7 @@ func (h *FactoryHandler) ListAssets(c *gin.Context) {
 	defer span.End()
 	tenantID := h.tenantID(c)
 	offset := h.queryInt(c.Query("offset"), 0)
-	limit := h.queryInt(c.Query("limit"), 20)
+	limit := queryLimit(c.Query("limit"), 20)
 
 	filter := service.ListAssetsFilter{
 		AdapterID: c.Query("adapter_id"),
