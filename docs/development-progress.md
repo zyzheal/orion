@@ -15346,3 +15346,158 @@ go: golang.org/toolchain@v0.0.1-go1.25.0.darwin-arm64: verifying module:
 仍未排查：`internal/branch-policy/service/service.go` 在 2684 行以外的部分。缺基础设施的清单与 §79.7 一致，未变化：`internal/cmdb/transport/{snmp,ssh,sql}.go`、`internal/infrastructure/backup/executor/key_provider.go`、`internal/crossover/registry/registry.go`、`internal/degradation/service/service.go`、`internal/incident/repository/repository.go`、`internal/job-source/service/adapters.go`、`cmd/server/wiring.go`。
 
 仍然需要授权的两个决定不变：(1) `RecordSavings` 零个非测试调用方，生产库里 `ai_cost_savings` 恒为空——接调用方还是删掉整条链（破坏性）；(2) 模块 A 的 6 个 handler / 33 处裸 `c.GetString("tenant_id")` 完全不在路由注册里——删还是留。
+
+## §81 模型自定义定价整条链不带租户谓词：`model_custom_pricing` 上的 upsert 与 delete 用 `model_id` 单键，任一模调者都能改写另一个租户正在计费的价格；handler 层还有 7 处租户根本没传下去（Round 80，2026-09-25）
+
+### 81.1 怎么找到的，以及为什么这一轮修的是仓库层
+
+§80.5(b) 挂了三处 ai/llm body 租户，第三条是本家族里最松的：`service.SetCustomPricing` 的 `tenantID *string` 完全由 body 推导，auth 租户根本没被咨询。按上一轮的模式，删掉 body 覆盖就收工了。把这个 body 租户的流向追到底，看到的是另一件事：
+
+```
+service.SetCustomPricing  →  repo.UpsertPricing(ctx, modelID, in, out, tenantID *string)
+                               → FindPricingByModelID: SELECT * FROM model_custom_pricing WHERE model_id = $1 LIMIT 1
+                               → UPDATE model_custom_pricing SET ... WHERE id = $4 RETURNING *
+                               → DeletePricingByModelID: DELETE FROM model_custom_pricing WHERE model_id = $1
+```
+
+**handler 里那个 body 覆盖只是入口，真正的洞在仓库层**：`model_id` 在这张表上不是唯一的——任何一份迁移里都只有普通索引（`internal/ai/migrations/001_ai_tables.sql:71` 的 `idx_model_pricing_model`），没有 unique 约束。于是 `WHERE model_id = $1 LIMIT 1` 返回的是执行计划挑中的那**一**行，随后 `UPDATE ... WHERE id = $4` 把那一行改掉。tenant 参数在 upsert 的读路径上压根没进 SQL，`*string` 那种"可空指针"只是让写入时不报错。
+
+两个证据说明"按租户作用域"本来就是设计意图，只是没落地：
+
+1. `FindPricingsByTenant(ctx, tenantID)` **已经存在**，带 `WHERE tenant_id = $1`，但 `git grep` 确认它在 HEAD 上**只有定义、零调用方**。一份带租户谓词的查询和一份不带的并存，带的那个是死代码——死代码比活代码更可靠地反映作者的原意。
+2. `GetAllPricing` 与 `GetAvailableModels` 原本调的是 `FindAllPricings`（无租户、`ORDER BY model_id` 返全表），把**其他租户**的自定义价格合并进当前租户的价格表和可选模型列表。
+
+所以这一轮的修法是给仓库层三条 SQL 加谓词，而不是只删 handler 里那三行。只删那三行，body 不再赢，但 `WHERE model_id = $1` 仍然按执行计划挑行——跨租户改写原样保留。
+
+### 81.2 修的四处
+
+| 位置 | 改法 |
+|---|---|
+| `repository.FindPricingByModelID` | 签名加 `tenantID`；`SELECT ... WHERE tenant_id = $1 AND model_id = $2 LIMIT 1` |
+| `repository.UpsertPricing` | 签名从 `(modelID string, in, out float64, tenantID *string)` 改成 `(tenantID, modelID string, in, out float64)`；UPDATE 加 `AND tenant_id = $5`；INSERT 照旧绑 tenant |
+| `repository.DeletePricingByModelID` | 签名加 `tenantID`；`DELETE ... WHERE tenant_id = $1 AND model_id = $2` |
+| `service` 10 个方法 | `CalculateCost` / `CalculateBatchCost` / `CalculateSavings` / `EstimateMonthlyCost` / `SetCustomPricing` / `GetPricingForModel` / `GetAllPricing` / `GetAvailableModels` / `DeleteCustomPricing` / `getPricing` 全部串上 `tenantID` |
+
+`GetAllPricing` 与 `GetAvailableModels` 从 `FindAllPricings` 改调本来就在库里的 `FindPricingsByTenant`，`FindAllPricings` 随之变成零调用方，已删除。
+
+handler 7 处调用点改为传 `c.GetString("tenant_id")`，`SetCustomPricing` handler 删掉 `if req.TenantID == "" { req.TenantID = c.GetString("tenant_id") }` 换成写明契约的注释（与 §80.2 的 alert/audit/notification 同一形状）。
+
+`CompleteTrace` 用的是 `trace.TenantID` 而不是调用方的：
+
+```go
+cost := s.CalculateCost(ctx, trace.TenantID, trace.ModelID, req.InputTokens, req.OutputTokens)
+```
+
+计费归属必须跟随 trace 自己的租户，因为 complete 可以在 start 之后的任意时间被触发，调用方未必是记 trace 的那个主体。
+
+`branch-policy/handler.go` 的 `ExecuteDeploy` 里 `if req.TenantID == "" { req.TenantID = tenantID }` 被删掉：它是 inert 的——`ExecuteDeploy` 的租户全程取自 `tenantID`，改 `req.TenantID` 之后没有任何下游读它。这一处不是活缺陷，只是 §80.5(c) 挂着的一行死代码，本轮一并清掉换成注释。
+
+### 81.3 差点引入的回归：只给写路径加谓词会让读路径撞 LIMIT 1
+
+给 `UpsertPricing` 和 `DeletePricingByModelID` 加谓词是够的，但 `getPricing` 必须一起加。否则同一个模型会出现多个租户各一行，而 `getPricing` 仍按 `WHERE model_id = $1 LIMIT 1` 取——执行计划挑中哪一行决定**所有**租户拿到哪份价格。写路径加锁、读路径不锁，等于把"跨租户改写"变成"跨租户错读"，而且是这轮自己引入的。所以 `getPricing` 的五个下游（cost / savings / monthly estimate / 两个读接口）全部一起串参数。
+
+顺带确认过波及面：改签名的 10 个方法，调用方全部在 `internal/ai/llm` 内部。`internal/llm-trace` 是另一个模块、用自己的类型，`cmd/server/ai_wiring.go` 只做依赖注入不碰这些方法。
+
+### 81.4 测试：新增 8 个（仓库 5 + 服务 3）
+
+断言策略沿用 §80.3 notification 那条：**断言绑定的 SQL 参数，不断言返回值**。`UpsertPricing` 的 RETURNING 行是测试自己的 fixture 填的，断言返回值等于自证；租户错了，sqlmock 会自己报期望不符。
+
+SQL 期望用正则钉住占位符编号（`sqlmock` 默认 `QueryMatcherRegexp`，期望串就是正则），参数用 `WithArgs` 钉死、时间戳位用 `sqlmock.AnyArg()`。这样"少一个占位符"和"参数顺序错"都是硬失败，而不是靠肉眼比 SQL 文本。
+
+5 个仓库用例：
+
+- `TestFindPricingByModelID_ScopesByTenant` —— SELECT 的两个谓词都在，且绑定顺序是 tenant 先于 model
+- `TestUpsertPricing_UpdateIsTenantScoped` —— UPDATE 带 `AND tenant_id = $5`，第 5 个参数是 caller 租户
+- `TestUpsertPricing_InsertsWhenTenantHasNoRow` —— 本租户无行时走 INSERT，tenant 绑定进第 5 个参数（RETURNING 行必须反映绑定的价格，否则断言的是 fixture 而不是 SQL）
+- `TestDeletePricingByModelID_ScopesByTenant` —— DELETE 两个谓词
+- `TestDeletePricingByModelID_EmptyTenantStillBinds` —— **租户为空串时参数仍然被绑定**：证明修法是"永远带上谓词"而不是"有租户才加谓词"
+
+3 个服务用例证明 body 租户到不了 SQL（caller 租户是 `"caller-tenant"`，body 里放 `"attacker-supplied-tenant"`）：
+
+- `TestSetCustomPricing_UsesCallerTenantNotRequestBody` —— `WithArgs` 断言 upsert 的第一个参数是 caller 租户；若 body 租户被转发，sqlmock 期望不符直接失败
+- `TestSetCustomPricing_LookupIsCallerScoped` —— 同一条写路径上的**读**也用 caller 租户
+- `TestSetCustomPricing_EmptyCallerTenantStaysEmpty` —— 空 caller 租户**不从 body 回填**，绑定值仍是 `""`
+
+第三条是 §80.3 说的那个"防善意修复"：caller 为空时回退到 body 看起来是合理的兜底，但那等于把同一个洞为匿名请求重开一次。
+
+服务层能测到这一点是因为虽然 `Service` 持有具体的 `*repository.Repository`（没有接口），但测试可以直接用一个 sqlmock 后端构造出那个具体类型，仍然把真实 SQL 压在断言下。
+
+### 81.5 变异：5 个全杀，对照组存活
+
+`/private/tmp/r80/mutation_check.py`，每个变异前从 pristine 逐字节还原（上轮踩过的"共用锚点报 BADANCHOR count=0"就是没还原导致的）：
+
+| 变异 | 内容 | 失败数 |
+|---|---|---|
+| M1 | `UpsertPricing` 的 UPDATE 去掉 `AND tenant_id = $5`（缺陷原样装回去） | 2 |
+| M2 | `FindPricingByModelID` 退回 `WHERE model_id = $1`（缺陷原样装回去） | 6 |
+| M3 | `DeletePricingByModelID` 退回 `WHERE model_id = $1`（缺陷原样装回去） | 2 |
+| M4 | `service.SetCustomPricing` 装回 body 覆盖 caller 租户（**本轮那个活缺陷**） | 3 |
+| M5 | 空 caller 租户从 body 回填（主动重开另一半） | 1 |
+| NC | `getPricing` 的未知模型回退 `"gpt-4"` → `"gpt-4o"`（无任何测试断言） | — |
+
+```
+killed=5 survived=0 builderr=0 badanchor=0
+NC control (expected SURVIVED): SURVIVED
+HARNESS OK
+```
+
+M2 触发 6 条失败，因为 `FindPricingByModelID` 是整条链的入口，SELECT 一旦退回无谓词，upsert 的读、insert 分支、`getPricing` 的五个下游全都会被同一批断言抓住。M4 触发 3 条，正好是三个服务用例——它只动服务层，仓库层那 5 个用例仍然绿，说明**仓库层的谓词断言和服务层的租户来源断言是两件独立的事**，缺一不可。
+
+NC 存活证明 harness 能报通过，所以上面的 KILLED 是真信号。这一轮的 harness 没有再白付环境坑，两处小笔误（锚点少行首制表符、替换串少行首制表符）都被 `count == 1` 与 gofmt 检查挡在跑测试之前，而不是伪装成 KILLED。
+
+### 81.6 决策：`StartTrace` 这一处不动，需要授权
+
+§80.5(b) 的第 1 条（`handler.go:63` 的 `StartTrace`）**本轮刻意不修**，理由不是保守，而是它和已修的四处不同类：
+
+```go
+// handler.go:63
+if req.TenantID == "" {
+    req.TenantID = c.GetString("tenant_id")
+}
+```
+
+删掉它意味着 `StartTrace` 只认 auth 租户。而本仓库的认证默认是关的（§62：`AUTH_STRICT_ENABLED` 默认关，`AUTH_OPTIONAL_ENABLED` 也不默认开），无 token 请求下 `c.GetString("tenant_id")` 返回 `""`。`llm_traces.tenant_id` 在两份 live 定义里都是 `NOT NULL`（`internal/ai/migrations/001_ai_tables.sql:29`、`migrations/694_create_module_orphan_tables.sql:93`）。空串不等于 NULL，所以写入**不会失败**——它会静默地把每条 trace 记到 `tenant_id = ''` 上。
+
+后果不是报错，是**所有 trace 对任何真实租户都不再可见**：`FindTracesByTenant`、`GetDailyStats` 都按租户过滤。这正是 §80.2.4 那种"靠约定活着"的缺陷形状——生产上不会炸，炸的是数据归属。
+
+还有一层：trace 的读路径本身就是租户盲的，`FindTraceByTraceID` / `UpdateTrace` / `FindAllTraces` / `DeleteAllTraces` 全都不收租户参数。所以就算把写入侧收紧，知道 traceID 的任何人仍然能读和改——单点修复建立不了隔离，需要一个关于跨租户 traceID 的策略决定（要不要给 ID 路径也加租户谓词，SDK 是否跨租户传 traceID）。
+
+而这一处的实际危害是真的，不是可有可无：`StartTrace` 接受伪造 `tenantId` 之后，`CompleteTrace` 会拿 `trace.TenantID` 去查那个租户的自定义定价（81.2），于是调用方可以把**自己的账单按另一个租户的价格算**，同时把对方的 `ai_llm_daily_stats` 灌水。本轮把定价链收紧之后，这个入口反而变成唯一还能改价格归属的地方，所以它值得单独挂账而不是混在记录里。
+
+需要的授权：`StartTrace` 在 auth 关闭时怎么办——fail-closed（无租户就 401，等于要求先开 `AUTH_OPTIONAL_ENABLED`）、还是接受空租户（当前的行为，但会把归属搞乱）、还是给 `llm_traces` 加租户默认值。三个选项都超出本轮范围。
+
+### 81.7 只记录，未处理
+
+(a) **trace 读路径租户盲**：`FindTraceByTraceID` / `UpdateTrace` / `FindAllTraces` 无租户谓词，`DeleteAllTraces` 无任何谓词（一次调用删掉所有租户的 trace）。与 (a) 的 `StartTrace` 是一个决定的两面，改签名波及全部调用方。
+
+(b) **§80.5(c) 剩余三项**：`ai/skill/handler.go:485`（CreateInstance）、`:577`；`branch-policy/middleware/branch_env_guard.go:65`（中间件，body 为空会 fail-closed，危害小于其余）。`branch-policy/handler.go:1603`（Deploy）本轮已清（inert 死代码，非活缺陷）。
+
+(c) **`SetPricingRequest.TenantID` 现在只剩 JSON 绑定这一个用途**。与 §80.5(d) 的 `CreateNotificationRequest.TenantID` 同形：字段保留以兼容既有请求体，删除属破坏性变更。
+
+(d) **`model_custom_pricing.tenant_id` 的可空性在两份迁移里不一致**，而且这份不一致是潜在故障：`internal/ai/migrations/001_ai_tables.sql:68` 是 `tenant_id TEXT`（可空），`migrations/689_create_ai_domain_orphan_tables.sql:189` 是 `tenant_id VARCHAR(36) NOT NULL`。两边都是 `CREATE TABLE IF NOT EXISTS`，谁先跑谁生效。更糟的是 689 那份**没有** `created_at` / `updated_at` 列，而 Go model 对这两列有 db tag、`UpsertPricing` 用 `RETURNING *` 加 `StructScan` 读回——如果 689 先跑，upsert 会在扫描时失败。本轮没动迁移（无 live 表可验证先后），只记录。
+
+(e) **`internal/ai/llm/handler` 没有测试文件**（`go test` 输出 `[no test files]`）。81.2 的 7 处 handler → service 传参**只有编译期保证，没有测试保证**：变异 M4 是在服务层被杀的，如果哪天有人把 handler 的 `c.GetString("tenant_id")` 换成别的来源（或者干脆不传），现有 8 个测试全部仍然绿。这是本轮覆盖面上的真实缺口。
+
+(f) §74.8 第 (4) 条"基于定价的机会检测仍然缺失"仍然成立，但现在它依赖的 `model_custom_pricing` 已经是按租户的，未来那条链必须按租户取价而不是取全表。
+
+### 81.8 两处文档修正
+
+(a) **§80.5(b) 的三处已清两处**：第 2 条（`handler.go:200` SetCustomPricing 的 body 回退）与第 3 条（`service.go:248` 的 body 推导租户）本轮清掉，第 1 条按 81.6 挂账等授权。
+
+(b) **`docs/ALL_TODOS.md` 里 PERM-8 阶段 2 的状态有三处，其中两处是错的**。同一个文件里：`:417`（已完成清单）记 `✅ 2026-09-17` 且带完整说明；`:943`（PERM 表）写 `⬜ 待做`；`:246`（P0 总览）写"服务端切严格 auth.Auth 仍 ⬜ 待做"。而 `§62` 完整记录了实现（`router.go` 挂 `auth.Auth`、`AUTH_STRICT_ENABLED` 默认关、三路径 SkipPaths、8 个回归测试）。
+
+本轮把两处过期副本改成不再重复维护状态：`:943` 的状态列改成 `✅ 2026-09-17` 并注明以「已完成清单」那一行为准，同时把原来挂在 `⬜ 待做` 后面的 2026-09-10 证伪结论（`/roles/permissions-map` 必须豁免）保留下来——那部分是有价值的，过期的是状态不是结论；`:246` 的 P0 总览改成陈述已落地的事实。
+
+这一条也算自我纠正：本轮对话里我一度把 PERM-8 阶段 2 报成"未完成"，依据的正是 `:943` 这份过期副本。文档自相矛盾时，误导的不是读者，是我自己。
+
+### 81.9 验证与遗留
+
+`go build ./...` 退出码 0；`go test -count=1 ./...` 全绿；`go test -count=1 ./internal/ai/llm/... ./internal/branch-policy/...` 全绿（`ai/llm/handler` 与 `branch-policy/{models,repository}` 无测试文件）；`gofmt -l internal/ai/llm internal/branch-policy/handler` 无输出。无新迁移，版本号未动，`go.sum` / `go.work.sum` 未改。
+
+**工具链第三个坑（接 §80.6）**：把 `GOROOT` 设成 toolchain 模块的**父目录**（`.../pkg/mod/golang.org`）而不是模块根目录，会让 `go build` 报 `package go/types is not in std (…/golang.org/src/go/types)`。这个报错有误导性——那个路径的下一层确实存在 `src/go/types`，看起来像是 GOROOT 只是差了一层。harness 里之所以对，是因为它把变量定义在 `bin` 目录上再 `dirname`，一次都没错；出错的是我在 shell 里写 `GOROOT=$(dirname $TC)` 而 `$TC` 已经是模块根目录。§80.6 的钉死配方里，`GOROOT` 必须是 toolchain 模块根目录本身。
+
+§71.8 遗留 7 条不变（第 1、2 条上一轮已清）。carry-forward：§80.5 的 (a)(c)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 81.7 的 (a)-(f)。
+
+仍未排查：`internal/branch-policy/service/service.go` 2684 行以外的部分，缺基础设施清单与 §80.7 一致。
+
+仍然需要授权的两个决定不变（`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取是否删），**新增第三个**：81.6 的 `StartTrace` 在 auth 关闭时 fail-closed / 接受空租户 / 加默认值。
