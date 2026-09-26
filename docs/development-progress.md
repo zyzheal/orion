@@ -16853,3 +16853,186 @@ M2/M3 打不死 `ValidPageReachesTheDatabase` 是因为 `(3-1)*25 = 50` 和 `pag
 carry-forward：§91.7 的 (a)-(h)、§90.7 的 (a)-(h)、§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 92.7 的 (a)-(h)。
 
 仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
+
+## §93 推荐 A 只有一半成立：pandawiki 两处是误判，cmdb-import 一处是真 500；「上限归谁」量出 4 种归属（Round 92，2026-09-25）
+
+### 93.1 动手之前先验了下游：18 处里有 2 处是误判
+
+§92.7(a) 说剩下 18 处 live 站点里有 3 处在「已有 handler 测试可搭」的模块（`cmdb-import` 1、`pandawiki` 2）。动手前把这两个模块从 handler 一路读到仓储，**`pandawiki` 那两处根本没病**：
+
+```go
+// internal/pandawiki/service/service.go:75 ListSpaces（ListDocs:175 同形）
+func (s *Service) ListSpaces(ctx context.Context, tenantID string, offset, limit int, opts *repository.ListSpacesOpts) ([]models.Space, int64, error) {
+	if limit < 1 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return s.repo.ListSpaces(ctx, tenantID, offset, limit, opts)
+}
+```
+
+handler 把负 offset 传下来，service 在喂仓储之前把它夹回 0，`limit` 也夹回 50。所以 `?page=-1`、`?page=0`、`?perPage=-5` 全部不出错。这属于 §91.7(e) 那个「夹点在推导之后、所以只看输入参数的扫描器看不见」的类别，只是**夹点不在 handler 里而在 service 里**，91.7(e) 只找出了 handler 本地那 6 处，这一变体漏掉了。
+
+顺手把剩下 8 个模块也扫了一遍（模块内所有非测试 `.go` 文件，覆盖 handler / service / factory / repository 四层）：
+
+| 模块 | 模块内夹点 | 本轮判定 |
+|---|---|---|
+| `cmdb-import` | 2，**都在 handler** | 真 live，service 是纯透传、仓储裸绑定 |
+| `pandawiki` | 6，全在 service | **误判**，service 已夹 offset 和 limit |
+| `visor` | 1，在 `ListNotificationHistory` | 无关方法，本轮 3 处仍 live |
+| `runner` `infrastructure/capacity` `extension-point` `ai/intelligence` `governance/governance` `governance/risk` `infrastructure/digital-twin` | 0 | 全 live，无夹点 |
+
+所以 **18 处里只有 16 处真 live**，落在 8 个模块；`pandawiki` 两处从清单里删除。更硬的一句话是：**这 16 处全部在没有任何 handler 行为测试的模块里**（8 个模块的 handler 目录下一个 `*_test.go` 都没有，或只有注册路由的测试）。这一轮能收 1 处而不是 3 处，原因就在这。
+
+顺带把「有脚手架」这个判断也纠正了：`pandawiki/handler/route_test.go` 只有 91 行、全是路由注册断言，`NewHandler(nil)` 吃的是具体类型 `*service.Service` 不是接口，没法注入假实现。它算「有测试文件」但不算「有行为测试脚手架」。
+
+### 93.2 「上限归谁」这轮用真实站点量出来了：4 种归属同时存在
+
+这是 §91.4 / §91.7(f) / §92.7(f) 悬着的那个问题。扫完 11 个模块，答案不是「该归谁」，是**仓库里已经有 4 种做法，而且 0 处有测试**：
+
+| 归属 | 模块 | 夹什么 |
+|---|---|---|
+| handler | `cmdb-import` | floor 加 cap：`limit <= 0 → 20`、`limit > 100 → 100`——**唯一带上限的** |
+| service | `pandawiki` | floor：`limit < 1 → 50`、`offset < 0 → 0`；cap：`Search` 与 `GetSyncLogs` 的 `limit > 50 → 10` |
+| service 加 repository | `dba/osc` | 两层都夹 floor：service `page <= 0 → 1`、repository `page <= 0 → 1` 加 `limit <= 0 → 20` |
+| 都没有 | 8 个模块 | 负 offset 直接进 `OFFSET` |
+
+§90.2 写下的层间约定是「解析器只管 floor，cap 归仓储」。**这个约定只有 `dba/osc` 一个模块遵循**（而且它把 cap 放在了 service 和 repository 两层），`cmdb-import` 把 cap 放 handler，`pandawiki` 把 cap 放 service。约定的现状是：写下来了，只有 1 个模块照做，没有 1 处有测试。本轮不推翻它，也不把它推广到别处——先记下这个实测分布。
+
+### 93.3 `cmdb-import ListJobs` 有两个缺陷，不是一个
+
+```go
+// 修之前，internal/cmdb-import/handler/handler.go:93
+page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+
+offset := (page - 1) * ps      // 用未夹的 ps 推导
+limit := ps
+if limit <= 0 {
+	limit = 20
+}
+if limit > 100 {
+	limit = 100
+}
+```
+
+**缺陷一，没有 page 地板，是真 500。** `?page=-1&page_size=20` 推出 `offset=-20`；`?page=0` 同样推出 `-20`；`?page=abc` 让 `Atoi` 失败返回 0，也推出 `-20`。下游全是裸的：service `ListJobs`（`service/service.go:692`）是纯透传一行，仓储 `ListJobs`（`repository/repository.go:86`）把 `offset` 直接绑进 `OFFSET $3 LIMIT $4`。handler 是整条链上唯一的夹点，而它没有 page 地板。
+
+**缺陷二，上限在推导之后才夹，信封和查询会不一致。** `?page=2&page_size=1000`：offset 用原始 `ps=1000` 算出 `1000`，然后 `limit` 才被夹成 `100`。于是查询返回第 1000 到 1099 行，信封报 `offset=1000 / limit=100`。客户端如果按 `offset/limit` 反推页码，会算出第 11 页而不是第 2 页——这正是 §91 台账里 `cmdb-collector` 那个 `Page: offset/limit + 1` 的形状，同一个病从另一个方向进来。
+
+`service.ListJobs` 只有 1 个调用方（本文件 handler），`repo.ListJobs` 也只有 1 个调用方（service），所以改 handler 就够，不用碰 service 或仓储。
+
+### 93.4 修法：上限留在 handler，但必须挪到推导之前
+
+```go
+page := pagination.Page(c.Query("page"), 1)
+ps := pagination.Limit(c.Query("page_size"), 20)
+// The cap lives here rather than in the service or repository, which both
+// pass limit through untouched. It must be applied before the offset is
+// derived: deriving from the requested size and capping the limit afterwards
+// made `page=2&page_size=1000` return rows 1000-1099 while the envelope
+// reported offset 1000 / limit 100.
+if ps > 100 {
+	ps = 100
+}
+
+offset := pagination.OffsetFromPage(page, ps)
+limit := ps
+```
+
+保留缺省 20、地板 20、上限 100 三个既有语义；`pagination.Limit` 接手了原来的 `limit <= 0 → 20`；`pagination.Page` 补上缺失的 page 地板；上限从「夹 `limit`」改成「夹 `ps`」，这样推导出来的 offset 和返回的 limit 用的是同一个数。
+
+没有把上限下沉到仓储，理由写进注释了：这个模块的 service 和仓储都裸传，下沉等于同时改三层的职责划分，而 §93.2 刚量出来仓库里有 4 种归属、没有一种是主流——单点决策会制造第 5 种。**本轮只做一件事：让推导和上限用同一个 `ps`。**
+
+`strconv` 保留（同文件 `GetRecords` 还在用），新增 `internal/pagination`。
+
+### 93.5 测试：15 条子用例，假服务扩 3 个记录字段
+
+`internal/cmdb-import/handler/page_test.go`（新文件，95 行，2 个测试函数）。这个模块已有 `fakeImportService` 和 `makeCtx` 脚手架，所以没有另建一套——给假服务加了 `lastStatus`、`lastOffset`、`lastLimit` 三个字段记录 handler 传下来的值，`handler_test.go` 改动 14 增 / 3 删。
+
+`TestListJobs_PaginationReachesTheService` 12 条，钉死 handler 传给 service 的 `(offset, limit)`：
+
+| 子用例 | 查询 | 期望 offset, limit |
+|---|---|---|
+| `negativePageIsClamped` | `page=-40&page_size=20` | `0, 20` |
+| `zeroPageIsClamped` | `page=0&page_size=25` | `0, 25` |
+| `negativePageSizeIsClamped` | `page=2&page_size=-5` | `20, 20` |
+| `zeroPageSizeFallsBack` | `page=2&page_size=0` | `20, 20` |
+| `unparsableUsesDefaults` | `page=abc&page_size=` | `0, 20` |
+| `absentUsesDefaults` | 无参数 | `0, 20` |
+| `validPageReachesTheService` | `page=3&page_size=25` | `50, 25` |
+| `pageOneIsOffsetZero` | `page=1&page_size=100` | `0, 100` |
+| `overTheCapIsCappedBeforeDerivation` | `page=2&page_size=1000` | `100, 100` |
+| `exactlyTheCapPassesThrough` | `page=2&page_size=100` | `100, 100` |
+| `overTheCapOnPageOne` | `page=1&page_size=500` | `0, 100` |
+| `statusIsForwarded` | `page=2&page_size=10&status=running` | `10, 10` |
+
+`TestListJobs_EnvelopeReportsTheDerivedValues` 3 条，断言响应信封里的 `offset` / `limit` / `total` 和服务收到的整数是同一组——这条专门防 §93.3 的缺陷二。
+
+`page_size` 只钉到 100（上限本身），这是本轮 GAP 能存活的前提。
+
+### 93.6 变异：5 个全杀 + GAP 存活 + 对照组存活
+
+`/tmp/r92_mutation_check.py`，基线在修复**之后**取（5 个文件，镜像目录树），跑 `./internal/cmdb-import/handler/` + `./internal/pagination/`。
+
+```
+  M1 ListJobs reverts to the bare Atoi block               KILLED
+  M2 cap applied after the offset is derived               KILLED
+  M3 page-size cap dropped entirely                        KILLED
+  M4 handler swaps offset and limit at the service call    KILLED
+  M5 default page size 20 -> 100                           KILLED
+
+  GAP silent cap of 1000 in OffsetFromPage (must SURVIVE)  SURVIVED
+  NC doc-comment reword (must SURVIVE)                     SURVIVED
+
+  restore byte-identical: YES
+  gate cases: 5   KILLED: 5   SURVIVED: 0   BUILDERR: 0   BADANCHOR: 0
+  ADMISSIBLE: True
+```
+
+**M1 有个坑值得记**：把 ListJobs 换回裸 `strconv.Atoi` 之后文件编译不过——`pagination` 变成未使用 import，报 `imported and not used`，判定成 BUILDERR 而不是 KILLED。`strconv` 不能删（`GetRecords` 还在用），`pagination` 必须跟着一起删，M1 才是真的 KILLED。**回退类变异必须连 import 表一起回退**，这是继 Round 90 的 M6 之后第二次在同一个坑上确认一次。
+
+| 门 | 打死的子用例 | 说明 |
+|---|---|---|
+| M1 回退裸 Atoi | 8 条 | 夹值用例 + 信封用例 |
+| M2 上限挪到推导之后 | **只有 2 条** | `overTheCapIsCappedBeforeDerivation` 和信封的 `capAppliedBeforeDerivation` |
+| M3 上限整个删掉 | 3 条 | 加 `overTheCapOnPageOne` |
+| M4 参数对调 | 8 条 | 覆盖面最广 |
+| M5 缺省 20 改成 100 | 6 条 | 夹值 + 信封 |
+
+M2 只被 2 条断言保护，是本轮最薄弱的一条防线：「上限必须先于推导」这个性质，全靠 `page_size=1000` 这一组输入。**换一个大值输入（比如 5000）也杀不了它**，因为夹完之后 offset 都是 1000。要让这条更结实，得再加一条「超大 page_size 在 page 3 上仍然只跳 200」之类的断言——本轮没加，记在 93.7。
+
+`GAP` 是第 5 次同款：给 `OffsetFromPage` 静默加 `pageSize > 1000` 的上限。钉死过的最大未超限 `page_size` 是 100，而 500 和 1000 都先被 handler 夹掉了，所以永远触发不到。`NC` 是改写 ListJobs 的文档注释。
+
+### 93.7 只记录，未处理
+
+- **(a) 16 处真 live 站点剩在 8 个模块，而且全部在没有任何 handler 行为测试的模块里。** 清单（在 §92.7(a) 基础上删掉 `cmdb-import` 和 `pandawiki`）：`runner` 3（`ListAgents` `ListJobs` `ListJobsByAgent`）、`infrastructure/capacity` 3（`ListPools` `ListForecasts` `ListReports`）、`visor` 3（`ListDashboards` `ListHosts` `ListAlerts`）、`extension-point` 2（`ListExtensions` `ListStartupTasks`）、`ai/intelligence` 1（`List`）、`governance/governance` 1 + `governance/risk` 1（各 `List`）、`infrastructure/digital-twin` 1（`List`）。**这 8 个模块的 handler 目录下一个行为测试都没有**，每处要动都得先建脚手架——本轮自己就是例子，`cmdb-import` 能收是因为它先有 `fakeImportService` 加 `makeCtx`。
+- **(b) `pandawiki` 的夹点在 service，代价是信封回显原始值。** `ListSpaces` 和 `ListDocs` 的响应体 `meta` 里写的是 handler 手里的原始值：`?page=-1` 实际返回第一页，响应体报 `page: -1`；`?perPage=-5` 实际用 50 条，响应体报 `perPage: -5`。没有 500、也没有错数据，但客户端拿到的元数据和实际结果不一致，而且这个不一致发生在 service 夹完之后、handler 又用旧变量拼信封的地方。
+- **(c) `cmdb-import GetRecords` 是 offset 家族的在册 live 站点，和本轮修的不是同一族。** `handler/handler.go:196` 是裸 `strconv.Atoi(c.DefaultQuery("offset", "0"))`，`:198` 的 `limit <= 0 || limit > 500 → 50` 只夹 limit，仓储裸绑定，负 offset 直接进 `OFFSET` → 真 500。属 §89 的 offset 账本口径，本轮不动。
+- **(d) `pandawiki` 的 `perPage` 覆盖顺序。** `ListSpaces` 读 `perPage`、`ListDocs` 读 `pageSize` 再用 `perPage` 覆盖（仅当非空）。所以 `?pageSize=10&perPage=0` 返回 50 条不是 10 条，`?pageSize=10&perPage=` 才返回 10 条。覆盖语义本身没坏，但它意味着有两个参数名在竞争同一个槽位，而文档里没写谁赢。
+- **(e) `dba/osc` 有第三份本地兜底函数 `intDef`（`handler.go:170`）：空值或缺省值，但负数照传。** 它安全只是因为 service 和 repository 两层都夹了 `page <= 0 → 1`——是本轮唯一观测到的「两层都夹」的模块。同一份兜底逻辑在仓库里现在有 3 种实现（`pagination.Limit` / `intDef` / 各模块内联 `Atoi` 加 `if`），§90 收掉的是第 3 种里的 10 份 `queryOffset`。
+- **(f) 「上限归谁」这轮的结论是分布而不是答案**（93.2）：4 种归属同时存在，§90.2 写的约定只有 1 个模块遵循，0 处有测试。**本轮故意不做决定**——单点决策会制造第 5 种归属。要定就得一次改完或者接受仓库里长期 5 种并存。
+- **(g) GAP 是第 5 次同款存活**（§88.6 的原始形态、§90.6、§91.6、§92.6 各一次）。静默上限在 `page_size` 上仍然没有任何测试能抓住，这一轮又多了一条结构性原因：handler 层的上限把大值拦在 `OffsetFromPage` 之前，共享包的测试根本看不到大值。
+- **(h) §89.2 的 offset 权威账本（handler 读点 149、受保护 63、修复率 42%）在本轮之后仍然有效**，本轮一处 offset 没碰。
+
+### 93.8 验证与遗留
+
+`go build ./...` 退出 0；`go vet ./internal/cmdb-import/...` 退出 0；`gofmt -l internal cmd` 只剩 `ticket/models` 那三个历史文件（`assignment_rule.go` `relation.go` `ticket.go`，本轮未触碰）；`go test -count=1 ./...` **567 个包 ok / 0 FAIL / 0 panic**，与 §92 持平（新测试文件落在已有包内，没有新增包）。`go.sum` 与 `go.work.sum` 未改。
+
+改动 2 个文件 + 新增 1 个测试文件：**28 增 / 13 删**（`handler.go` 15 增 / 8 删、`handler_test.go` 8 增 / 3 删、`page_test.go` 95 行）。
+
+本轮相对推荐的范围缩小了一半：推荐的是 3 处（`cmdb-import` 1 + `pandawiki` 2），实际能修的只有 1 处。原因不是工作量大，是**「有 handler 测试可搭」这个筛选条件本身就漏了下游夹点**——`pandawiki` 有测试文件但那是路由注册测试，而且它的两处本来就不该修。真正的筛选条件应该是「handler 没有地板**且**下游也没有夹点」，这个条件要在动手前把 service 和仓储读完才知道。
+
+下一步有三条路，本轮没做决定：
+
+- **A：给下一个模块先建脚手架再修。** 剩下 16 处全在 8 个零 handler 行为测试的模块里，得按模块整块做，一个模块一次。`runner` 和 `infrastructure/capacity` 各 3 处、簇最大，而且形状和已修的 11 个站点一致（`(page-1)*ps` 直传 service），机械度最高。
+- **B：正式定「上限归谁」。** 93.2 的实测分布已经把选项摆在桌面上了：要么把 §90.2 的约定推广到全部模块（要动很多仓储），要么承认 4 种并存并把它们各自钉死。这一轮不做是因为没有代码产出，而且 (f) 说的对——单点决策会制造第 5 种。
+- **C：把 offset 家族里 `cmdb-import GetRecords` 这类已确认站点收掉**（93.7(c)）。属 §89 的账本口径，不是 `page` 家族；§89.2 说 149 个读点里 86 处无夹点、58 个模块，但那些账本是按「handler 有无夹点」分的，很可能也存在 93.1 那种下游误判，得先重扫一遍才知道真实数字。
+
+推荐 **A**：一轮一个模块（`runner` 或 `infrastructure/capacity`），先建脚手架再收那 3 处，形状和已修的 11 个站点一致、机械度最高，而且每做一轮就把「16 处全在零测试模块」这个结构性障碍拆掉一个。C 的覆盖面看起来大，但 93.1 刚证明这类台账存在下游误判，不做重扫就动手会重演本轮一半的工作量。B 独立做仍然没有代码产出。
+
+carry-forward：§92.7 的 (a)-(h)、§91.7 的 (a)-(h)、§90.7 的 (a)-(h)、§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 93.7 的 (a)-(h)。
+
+仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
