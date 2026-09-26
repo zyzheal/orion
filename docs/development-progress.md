@@ -16433,3 +16433,120 @@ Query 'SELECT * FROM pipelines ... LIMIT $2 OFFSET $3'
 carry-forward：§88.6 的 (a)-(h)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 89.7 的 (a)-(h)。
 
 仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
+
+## §90 按 §89 的推荐 B 走：10 份 `queryOffset` 收进 `internal/pagination`，Round 88 那条 SURVIVED 的 GAP 在源头被关掉（Round 89，2026-09-25）
+
+### 90.1 这不是风格问题，是同一个未测分支被复制了 10 遍
+
+§89 末尾把方案 B 列为推荐，理由是家族真实规模（offset 149 + `page` 119 + `page_size` 53）已经大到「一份 helper 抄 10 遍」本身就是问题。本轮落地它。
+
+要收敛的东西先量清楚：仓库里有 **10 份字节级相同的 `queryOffset` 定义**（两种注释文本、同一段函数体，md5 `e87aed1b0b441f36ceb563217385f544` ×7、`71c91b7403d2c35809c795f94102fe33` ×3），加上 **3 份字节级相同的 `queryLimit(value string, def int)`**。10 份 `queryOffset` 的函数体里有一条分支从未被任何测试覆盖——`?offset=1` 会被折成 0（`i > 0` 被静默改成 `i > 1`）。这条分支被复制了 10 份，Round 88 的 GAP 变异在 5 到 10 个包上全部 SURVIVED，就是因为只有 `-40` 和 `60` 被钉住，`1..4` 是空的。
+
+任何一处修正都要改 10 个文件、跑 10 套测试、做 10 轮变异验证。这才是「收进共享包」的实际收益：写一次、评审一次、测一次。
+
+### 90.2 共享包：两个函数，都是地板不是上限
+
+新增 `internal/pagination`，两个导出函数：
+
+```go
+func Offset(value string) int          // 负数 / 缺省 / 不可解析 -> 0
+func Limit(value string, def int) int  // 缺省 / 不可解析 / <= 0 -> def
+```
+
+两点设计决定，都写进了包注释：
+
+- **两个都是地板（floor），不是上限（cap）。** 上限要由仓储层加，本平台大多数模块的仓储已经在做（如 `clamp(limit, 1, 100)`）。让 handler 层的解析器偷偷带上限，会和仓储层的上限叠加、互相看不见。
+- **`Limit` 把 `<= 0` 当缺省处理。** `limit=0` 会既让 SQL 收到 `LIMIT 0`，又让 `offset/limit + 1` 那个页码计算除零。§85 除零家族的根因就在这里，所以它不是保守写法，是把已知缺陷堵死。
+
+### 90.3 迁移账本：11 个文件、30 个调用点、13 个 helper 删除
+
+| 文件 | offset 调用点 | limit 调用点 | 删掉的本文件 helper |
+|---|---|---|---|
+| `monitoring/handler/handler.go` | 9 | 0 | `queryOffset` |
+| `policy/handler/handler.go` | 6 | 0 | `queryOffset` |
+| `pipeline-executor/handler/handler.go` | 3 | 0 | `queryOffset` |
+| `internal-library/handler/handler.go` | 3 | 0 | `queryOffset` |
+| `cmdb/handler/handler.go` | 3 | 3 | 两个 |
+| `cmdb-collector/handler/factory_handler.go` | 3 | 3 | —（helper 在同包另一文件） |
+| `cmdb-collector/handler/handler.go` | 2 | 2 | 两个 |
+| `ci-cd/artifact-registry/handler/handler.go` | 2 | 0 | `queryOffset` |
+| `disaster-recovery/handler/handler.go` | 1 | 0 | `queryOffset` |
+| `report-designer/handler/handler.go` | 1 | 1 | 两个 |
+| `ci-cd/artifact-version/handler/handler.go` | 1 | 0 | `queryOffset` |
+| **合计** | **21** | **9** | **13 个定义** |
+
+两个值得记的实现细节：
+
+- **helper 块不一定在文件尾。** `report-designer` 的 `queryOffset`/`queryLimit` 后面还跟着 `ptrIf`/`ptrStr`/`parseBool`/`ptrBool`，只有 `cmdb-collector` 的是顶到 EOF 的。所以删除走的是「精确定位注释块 + 函数体大括号配平」，不是尾部截断——尾部截断会吃掉那四个指针 helper。
+- **`factory_handler.go` 有自己的 6 个调用点但没有 helper 定义**，定义在同包的 `handler.go`。删除要按包而不是按文件算，否则同包会留下两个不可见的副本。
+
+`strconv` 在 11 个文件里仍然被使用（1 到 10 处不等），所以没有文件需要删 import；`cmdb-collector/factory_handler.go` 本来就不直接用 `strconv`，只通过 helper 间接用，因此它连 import 都不用动。
+
+### 90.4 Round 88 的 GAP 在源头关掉了
+
+新包的表驱动测试把之前从未钉住的区间钉上了：`Offset` 钉了 `1`、`2`、`4`、`14`、`60`、`999999`，`Limit` 钉了 `1`、`2`、`7`、`25`。
+
+Round 88 的 GAP 变异是 `i > 0` → `i > 1`，当时在 5 到 10 个 handler 包上全部 SURVIVED，结论是「`?offset=1` 会被静默折成 0，且这条分支被复制了 10 份」。本轮之后同一条变异 `TestOffset` 直接报 `Offset("1") = 0, want 1` —— **GAP 从「10 处共用」变成「1 处即被杀掉」**。这正是 §89 选 B 的核心理由，现在兑现了。
+
+代价是诚实的：GAP 并没有消失，只是搬了家（见 90.6）。
+
+### 90.5 测试：22 条表用例在共享包，52 条既有 handler 用例原样通过
+
+`internal/pagination/pagination_test.go` 两个表驱动测试，**22 条用例**：`TestOffset` 12 条（含 `-1`/`-40`/`0`/`1`/`2`/`4`/`14`/`60`/`999999`）、`TestLimit` 10 条（含两个不同缺省值 `20` 和 `50`，以及 `limit=0` 那条除零防护）。
+
+**52 条既有 handler 级 clamp 用例一条没改、全部通过**——它们通过 HTTP 打进来再用 `sqlmock WithArgs` 钉绑定进 SQL 的真实值，只验行为不验 helper 的位置。这保证了迁移是纯机械替换：21 个 offset 调用点全部行为不变，9 个 limit 调用点全部行为不变。分布如下：`cmdb-collector` 10、`monitoring` 10、`cmdb` 7、`policy` 7、`pipeline-executor` 4、`internal-library` 4、`report-designer` 3、`ci-cd/artifact-registry` 3、`disaster-recovery` 2、`ci-cd/artifact-version` 2。
+
+### 90.6 变异：6 个全杀 + 新 GAP 存活 + 对照组存活
+
+harness `/tmp/r89_mutation_check.py`，基线在**迁移完成之后**才对 13 个文件拍快照，每次变异后按 md5 逐字节校验还原。
+
+| 变异 | 结论 | 杀掉它的是 |
+|---|---|---|
+| M1 `Offset` 丢地板（`err == nil && i > 0` → `err == nil`） | KILLED | `TestOffset`（`Offset("-40") = -40, want 0`）+ `TestListPipelines` |
+| M2 `Offset` 地板变上限 5 | KILLED | `TestOffset`（`14`/`60`/`999999` 全错）+ `TestListSteps_ValidOffsetUnchanged` |
+| M3 `Offset` 地板是 1 不是 0 | KILLED | `TestOffset` 6 条用例全错 + `TestListPipelines` |
+| M4 某个消费者退回本地非夹点 helper | KILLED | `pipeline-executor` 三条用例：`argument 2 expected [int64 - 0] does not match actual [int64 - -40]` |
+| M5 `Limit` 丢地板 | KILLED | `TestLimit` + `TestListReports`/`TestListCollections`/`TestListHosts` |
+| M6 `Limit` 返回 0 而非缺省值 | KILLED | `TestLimit` 6 条用例 + 三个 handler 测试 |
+| **GAP**：`Limit` 静默加上限 1000 | **SURVIVED** | — |
+| **NC**：改写包注释 | **SURVIVED** | — |
+
+`gate=6 killed=6 survived=0 builderr=0 badanchor=0`，GAP SURVIVED，NC SURVIVED，restore 逐字节一致，**ADMISSIBLE True**。
+
+M4 是最有价值的一条，也说明共享包方案有一个真实弱点：把某个包的 3 个调用点退回本地 `queryOffset`（函数体 `i, _ := strconv.Atoi(value)`，即只解析不夹点），既有测试照样把它杀掉。共享包能保证 clamp 只写一处，但**保证不了每个调用点都还在用它**。M4 之所以能 KILLED 全靠那些钉了绑定参数的 handler 用例，不靠共享包本身。
+
+harness 构造时有两次修正，记下来免得下次踩：
+
+- **第一版 M4 是 BUILDERR 不是 KILLED。** 退回裸 `strconv.Atoi` 之后 `internal/pagination` 变成未使用 import，包直接编译失败。BUILDERR 不算 KILLED，所以改成「加本地非夹点 helper + 同时删掉那个 import」，才是一条能编译通过的退化路径。
+- **GAP 一开始挑错了函数。** 原计划给 `Offset` 加 100000 上限，但新测试已经钉了 `{"999999", 999999}`，那个 GAP 会被杀掉而不是存活。所以 GAP 挪到 `Limit` 上——测试里 `Limit` 最大的入参只有 25，handler 层最大是 50，1000 的上限静默通过。
+
+**新 GAP 的含义要写清楚**：`Limit` 没有上限，而且没有任何测试钉住「大 limit 应原样透传」。谁要是给 handler 层偷偷加上限，现有测试全绿。这不是本轮的疏漏，是 §89 记录过的层间约定（上限归仓储层）——它意味着这条约定目前**没有被测试保护**。
+
+### 90.7 只记录，未处理
+
+- **(a) 86 处 offset 无夹点、摊在 58 个模块，本轮一处没动。** 本轮只收了共享包、迁了已有 helper 的站点，没有新增任何端点的夹点。`§89.2` 那份权威账本（handler 读点 149、受保护 63、修复率 42%）在本轮之后仍然有效。
+- **(b) `page` 家族仍未进台账：119 处 `page` + 53 处 `page_size` 读点。** 推导方式是 `(page-1)*ps`，`page=0` 直接为负，夹点位置和内容都和 `offset` 家族不同，可能是比 offset 更大的家族。
+- **(c) `alert-adapter/handler/handler.go:131` `ListAdapters` 的死分页参数。** 读了 `page` 和 `page_size`，然后调 `h.svc.ListAdapters(ctx, tenantID)`——两个都没传。接着 `RespondPaginated(c, items, (page-1)*ps, ps, len(items))` 把客户端的值原样写进响应信封。结果是：**`data` 永远是全量列表，`offset`/`limit` 两个字段只是回显客户端的请求**。`?page=50&page_size=20` 返回全量数据但信封里写 `offset=980`。查了 `RespondPaginated` 本体（`internal/middleware/response.go:64`）只做字段拼装、没有除法，所以没有 panic 也没有 500，纯静默错误。§89 记的这条缺陷类仍开着，且比当时描述的更具体。
+- **(d) `internal/code-scan` 的 `queryLimit(c *gin.Context)` 刻意不迁。** 签名不同（收 `*gin.Context` 不是字符串），行为也不同：它只夹下限（不可解析和 `<= 0` 返回 0），上限交给 service（`?limit=99999` → 1000）。要迁就得改成 `pagination.Limit(c.Query("limit"), 0)` 再删掉函数，涉及 2 个调用点。它是第 4 种形状。
+- **(e) `internal/distributed-config/handler.go:415` 是第 5 种形状。** `ListAudit` 自己在 handler 层同时夹上下限（`minAuditLimit=1` / `maxAuditLimit=500`），不可解析的 limit 返回 400 而不是回落到缺省。这是全仓唯一「handler 层加上限」的地方，和 90.2 那条设计约定直接冲突，需要单独决定谁说了算。
+- **(f) `sla` 3 处是 `q.Offset` 结构体字段形状**，`queryOffset` 套不进去，需单独处理。
+- **(g) 层间不一致已在 7 个模块存在**：handler 夹 offset、仓储只夹 limit。本轮把 handler 侧收成一处之后，这个不对称变得更显眼而不是更均衡。
+- **(h) 10 份 helper 是手工复制的，不是生成的**——两种注释文本、同一函数体。这说明仓库里没有机制阻止这种复制，本轮只消掉了已复制的那批，新增端点仍然可以照抄共享包以外的任何东西。
+
+### 90.8 验证与遗留
+
+`go build ./...` 退出 0；`go vet` 涉及的 10 棵树退出 0；`gofmt -l internal cmd` 只剩 `ticket/models` 那三个历史文件；`go test -count=1 ./...` **566 个包 ok / 0 FAIL / 0 panic**（上轮 565，加上新建的 `internal/pagination`；1389 个包总共 566 有测试、823 无测试文件）。`go.sum` 与 `go.work.sum` 未改。
+
+改动 13 个文件：**167 增 / 201 删，净减 34 行**（11 个 handler 文件 71 增 / 201 删；新增 `pagination.go` 38 行 + `pagination_test.go` 58 行）。
+
+下一步有三条路，本轮没做决定：
+
+- **A：继续扩 offset 家族**——86 处 58 个模块，现在有了共享包，机械替换那一层变简单了（不用再抄 helper），但「哪一层该夹」的判断还是要逐模块做，且多数模块仍需新建测试脚手架。
+- **B：转去打 `page` 家族**——119 + 53 处，从未进过任何台账，规模更大，而且 `(c) alert-adapter` 那个死分页参数就在这个家族里，属于已知真缺陷。需要先建台账、确定 `(page-1)*ps` 的正确夹法。
+- **C：先修 `page` 家族里已经确认的那一个真缺陷**（`alert-adapter ListAdapters` 静默忽略客户端分页），一轮一个小而硬的成果。
+
+推荐 **B**：`(c)` 已经证明 `page` 家族里藏着「读了参数但没用它」这种缺陷，那是比「负 offset 进 SQL」更难发现的一类，因为完全不报错。但和 offset 家族一样，先建台账比直接动手便宜。
+
+carry-forward：§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 90.7 的 (a)-(h)。
+
+仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
