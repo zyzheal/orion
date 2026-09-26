@@ -17036,3 +17036,136 @@ M2 只被 2 条断言保护，是本轮最薄弱的一条防线：「上限必�
 carry-forward：§92.7 的 (a)-(h)、§91.7 的 (a)-(h)、§90.7 的 (a)-(h)、§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 93.7 的 (a)-(h)。
 
 仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
+
+
+## §94 runner 的 3 处收掉了，但台账漏记了 23 处候选 live 站点（Round 93，2026-09-25）
+
+### 94.1 动手前把 runner 四层读完：零夹点，3 处全 live
+
+§93.1 的教训是「handler 没有地板」不等于「live」，得把 service 和仓储读完才知道。这轮先照做，把 runner 模块内所有非测试 `.go` 文件（handler / service / factory / repository 四层）扫一遍 `offset < 0` / `offset < 1` / `offset <= 0` / `limit < 1` / `limit <= 0` / `limit > ` / `page < 1` / `page <= 0` / `pageSize < 1` / `clamp` / `GREATEST(`——**0 命中**。四层全裸，没有任何夹点。
+
+三个站点的调用链都是纯透传：
+
+```go
+// internal/runner/service/service.go:161 / :422 / :427
+return s.repo.ListAgents(ctx, tenantID, "", offset, limit)
+return s.repo.ListJobs(ctx, tenantID, "", status, offset, limit)
+return s.repo.ListJobs(ctx, tenantID, agentID, "", offset, limit)
+```
+
+`repository.go:95` `ListAgents` 和 `:279` `ListJobs` 把 offset / limit 原样绑进 `OFFSET / LIMIT`。所以 `?page=-1` 之前是 `OFFSET -20` 直达 Postgres——一个错误而不是一页数据，GET 变成 500。3 处全 live，没有 `pandawiki` 那种误判。
+
+### 94.2 runner 是 16 个已迁移站点里第一个信封带真 total 的
+
+前 13 处（`alert-adapter` 2、`cmdb-import` 1、`feature-flag` 1、`federation` 1、`inception` 1、`plugin` 1、`security` 5、`workflow/workflow` 1）的 `RespondPaginated` 第 4 个参数全是 `len(items)`——报的是「这一页有几条」，客户端拿不到总数，翻页只能靠「返回条数是否等于 limit」猜。runner 三处不一样：
+
+```go
+total, _ := h.svc.CountAgents(ctx, tenantID)      // ListJobs 用 CountJobs
+middleware.RespondPaginated(c, items, offset, ps, total)
+```
+
+这是 16 个已迁移站点里**第一个带真 total 的**，所以测试里必须单独断言 `total`：信封的 `total` 必须是 `CountAgents` 返回的 7，而不是空列表的 `len(items)` 即 0。前 13 处从来没有这条断言，因为对它们来说两个值恒等。
+
+### 94.3 测试脚手架：16 个方法的假服务 + 9 条共享用例
+
+`internal/runner/handler/page_test.go`（新文件，239 行，4 个测试函数 / 31 个子用例 / 35 条 `--- PASS`）。
+
+这个模块此前一个测试文件都没有，所以从零建了 `fakeService`。runner 的 `Service` 接口有 **16 个方法**，假实现全部落地（不是 `panic` 桩），其中 5 个记录调用参数（`ListAgents` / `ListJobs` / `ListJobsByAgent` / `CountAgents` / `CountJobs`），另外 11 个返回零值或字面量。文件里有 `var _ Service = (*fakeService)(nil)` 编译期断言——**以后给 `Service` 加方法，这个文件会直接编译失败**，不会静默漏实现。16 个方法里 11 个是噪音，这是「接口太大的模块建脚手架」的固定成本。
+
+9 条用例由 `paginationCases()` 一次定义、三个 handler 共用，`checkPagination(t, path, f, query, wantOff, wantLimit, call)` 把 handler 当 `func(*gin.Context)` 传进去，三个测试函数只差一个路径和一个函数值：
+
+| 子用例 | 查询 | 期望 offset, limit |
+|---|---|---|
+| `negativePageIsClamped` | `page=-40&page_size=20` | `0, 20` |
+| `zeroPageIsClamped` | `page=0&page_size=25` | `0, 25` |
+| `negativePageSizeIsClamped` | `page=2&page_size=-5` | `20, 20` |
+| `zeroPageSizeFallsBack` | `page=2&page_size=0` | `20, 20` |
+| `unparsableUsesDefaults` | `page=abc&page_size=` | `0, 20` |
+| `absentUsesDefaults` | 无参数 | `0, 20` |
+| `validPageReachesTheService` | `page=3&page_size=25` | `50, 25` |
+| `pageOneIsOffsetZero` | `page=1&page_size=20` | `0, 20` |
+| `largePageIsPreserved` | `page=40&page_size=20` | `780, 20` |
+
+`TestListJobs_PaginationReachesTheService` 额外加了一条 `statusIsForwarded`（`page=2&page_size=10&status=running`），`TestListAgents_EnvelopeMatchesTheQuery` 3 条断言信封里的 `offset` / `limit` / `total` 和服务收到的整数是同一组（94.2 那条）。
+
+### 94.4 测试脚手架自己先错了：URL 拼接把查询串吞进路径
+
+第一版 `listCtx` 写成 `httptest.NewRequest(http.MethodGet, "/"+strings.TrimPrefix(query, "?"), ...)`，把查询串折进了**路径**，`c.Query()` 对每条用例都返回空。症状只有一条：`TestListAgents_EnvelopeMatchesTheQuery/validPage` 报 `offset = 0, want 50`。
+
+修完（改成 `listCtx(path, query string)` 做 `path+query`）之后才算出代价：**9 条用例里有 4 条的期望值恰好等于无输入缺省值 `(0, 20)`**——`negativePageIsClamped`（`page=-40&page_size=20`）、`unparsableUsesDefaults`、`absentUsesDefaults`、`pageOneIsOffsetZero`。在 bug 状态下这 4 条**全部通过**，其中 3 条（除 `absentUsesDefaults`）是**因为理由错了而通过**：handler 根本没读到查询串，输出照样是 `(0, 20)`。
+
+教训很具体：**会静默吞掉输入的测试脚手架，会让一部分负输入用例「因为理由错了而通过」。**判据也简单——期望值等于无输入缺省值的那几条，对「输入被丢弃」和「解析正确」是不区分的。要让它可区分，得让查询串里有个不影响期望值的可观测标记，比如把 `page=-40&page_size=20` 改成 `page=-40&page_size=25`，期望值变成 `(0, 25)`，读没读到查询串立刻显形——`zeroPageIsClamped` 用的就是这个写法。
+
+### 94.5 变异：5 个全杀 + GAP 存活 + 对照组存活
+
+`/tmp/r93_mutation_check.py`，基线在修复**之后**取（4 个文件，镜像目录树，`os.walk` + `os.path.relpath`），跑 `./internal/runner/handler/` + `./internal/pagination/`。
+
+```
+  M1 3 sites all revert to bare Atoi, import table reverted      KILLED
+  M2 only ListAgents reverts                                     KILLED
+  M3 only ListJobs reverts                                       KILLED
+  M4 only ListJobsByAgent reverts                                KILLED
+  M5 offset/limit swapped at all 3 service calls                 KILLED
+
+  GAP silent page_size > 1000 cap in OffsetFromPage (SURVIVE)    SURVIVED
+  NC  runner package comment reworded (SURVIVE)                   SURVIVED
+
+  restore byte-identical: True
+  killed=5/5  builderr=0  badanchor=0        ADMISSIBLE
+```
+
+基线自检 39 条 `--- PASS` / 2 个包 ok。
+
+M1 第三次踩中「回退类变异必须连 import 表一起回退」的坑，这次是双向的：`strconv` 要**加回来**（runner 里那 3 处是它唯一的用处，迁移时整个删掉了），`pagination` 要**删掉**（否则 `imported and not used` 报 BUILDERR，不算 KILLED）。M2 / M3 / M4 只回退单个站点，`strconv` 加回来而 `pagination` 保留（另外两个站点还在用），两个 import 同时在场是编译通过的——**单站点回退才是干净的门**。另外，回退块必须整块回退到函数体的信封那一行，只回退推导行会让 `RespondPaginated` 里的 `offset` 变成 `undefined` → BUILDERR。
+
+GAP 第 6 次同款存活（§88.6 原始形态、§90.6、§91.6、§92.6、§93.6、本节）。NC 是改写 runner 的包注释。
+
+### 94.6 打死的宽度很不均：9 条共享用例里 4 条对「回退」完全无判别力
+
+| 门 | 打死的失败行 | 说明 |
+|---|---|---|
+| M1 三处全回退 | 20 | 5 条判别用例 × 3 handler + 信封 2 条 |
+| M2 只回退 ListAgents | 8 | 判别用例 + 信封那条 |
+| M3 只回退 ListJobs | 6 | |
+| M4 只回退 ListJobsByAgent | 6 | |
+| M5 三处参数对调 | 28 | 覆盖面最广 |
+
+单站点隔离成立：M2 只打 `TestListAgents_*`，M3 只打 `TestListJobs_*`，M4 只打 `TestListJobsByAgent_*`，互不串。这是 3 个站点分 3 个门各打一次的意义——一个整文件回退的门只能证明「这套测试整体有效」，证明不了「每处都被单独钉住了」。
+
+**9 条共享用例对「回退」的判别力只有 5/9。**另外 4 条（`absentUsesDefaults`、`pageOneIsOffsetZero`、`validPageReachesTheService`、`largePageIsPreserved`）在正确实现和裸 `strconv.Atoi` 下输出完全相同：`page=3&page_size=25` 两种写法都算出 `(50, 25)`，`page=40&page_size=20` 都算出 `(780, 20)`。**合法范围内的算术不是这轮修的缺陷**，这 4 条只是钉住缺省值和正常路径，不能当回归防线看。
+
+反过来，这 4 条对「参数对调」有判别力（M5 杀掉它们），而 M5 有 2 条盲区：`negativePageSizeIsClamped`（`page=2&page_size=-5` → `(20, 20)`）和 `zeroPageSizeFallsBack`（`page=2&page_size=0` → `(20, 20)`）——**offset 和 limit 数值相等时对调是恒等操作**，而这两条恰好都落在「page 2 + 缺省 20 条」这一格上。
+
+两个盲区不相交，所以 9 条里没有一条是「两个门都杀不掉」的完全无用例。但要说清楚的是：**这套用例能抓到「回退」和「参数对调」两类回归，抓不到「上限缺失」**。runner 三处本来就没有上限，`?page_size=1000000` 现在照样直达 Postgres，没有任何测试会因为这件事失败——这是 §90.2「解析器是地板不是上限」那条约定的必然结果，不是漏测。
+
+### 94.7 只记录，未处理
+
+- **(a) §93 的台账漏记了 23 处候选 live 站点。** 本轮把整棵树的 page 家族重扫了一遍（非测试文件，数 `Atoi(c.(Default)?Query("page"))` 调用）：**66 处裸站点散在 49 个 handler 文件里，16 处已迁移在 9 个文件里**。66 处里有 29 处在本函数内就有本地地板（`if page < 1` / `if ps < 1` 之类），不是缺陷只是没迁移；剩下 **37 处本函数内没有地板**，才是候选 live。
+  台账已知的部分对得上：`infrastructure/capacity` 3、`visor` 3、`extension-point` 2、`ai/intelligence` 1、`governance/governance` 1、`governance/risk` 1、`infrastructure/digital-twin` 1，加已修的 `runner` 3，共 15 处。但另外 **23 处散在 17 个模块里从未上过台账**：`resilience-score` 3、`skill` 3、`infrastructure/dba` 2，以及 `audit` `ci-cd/pipeline-template` `cmdb-drift` `data-catalog` `dba` `developer-portal` `infrastructure/chaos` `notification-template` `release-management` `scheduled-notification` `test-execution-engine` `user-activity` `vulnerability` `webhook` `workflow-webhook` 各 1。这 23 处是否 live 还没验——它们完全可能像 `pandawiki` 一样在 service 或仓储层有夹点。**§93 那个数字不是算错了，它只是不完整。**
+- **(b) 订正一处算术：§93.7(a) 说「16 处真 live 剩在 8 个模块」，它自己的清单加起来是 15。** `cmdb-import` 那 1 处在 Round 92 已经修了，不该再算在「剩」里。本轮再减 runner 的 3 处 → **剩 12 处，落在 7 个模块**：`infrastructure/capacity` 3、`visor` 3、`extension-point` 2、`ai/intelligence` 1、`governance/governance` 1、`governance/risk` 1、`infrastructure/digital-twin` 1。
+- **(c) 这 7 个模块里只有 `extension-point` 已经有可注入的 `Service` 接口。** 其余 6 个（`visor` `infrastructure/capacity` `ai/intelligence` `governance/governance` `governance/risk` `infrastructure/digital-twin`）的 `NewHandler` 都吃具体类型 `*service.Service`，得先引入接口才能注入假实现——正是 §93.1 描述 `pandawiki` 时那种情况。`extension-point` 的接口 11 个方法、2 处站点，是剩下里面脚手架成本最低的；`infrastructure/capacity` 3 处簇最大但要先动接口。
+- **(d) 这 7 个模块仍然一个 handler 测试文件都没有**（本轮复核，`ls internal/<m>/handler/*_test.go` 全部为空）。§93.1 那个结构性障碍原样没变，只是分子从 16 变成 12。
+- **(e) `runner ListJobsByAgent` 的 total 报的是租户全量，不是该 agent 的。** `GET /jobs/agent/:agentId` 返回这个 agent 的任务，信封 `total` 却是 `CountJobs(ctx, tenantID)` 的租户总数——第一页 20 条、`total` 报 500，客户端会算出 25 页。仓储层有个 `CountJobsByAgent(ctx, agentID)`（`repository.go:482`），但它**只在仓储层、没有租户谓词、也没有 service 包装**，所以不是 drop-in：直接换会丢掉租户边界，得先补 service 层的租户校验。
+- **(f) 「上限归谁」这轮仍然不做决定。** runner 三处没有上限，属 §93.2 量出的「nobody」那一类，也正是 §90.2 写明的约定。实测分布更新一版：16 个已迁移站点里只有 `cmdb-import` 在 handler 加了 100 的上限，另外 15 处都没有；反方向（未迁移但自己加了上限）有 `event-trigger`（`if ps > 100` 加 `if offset < 0`）和 `security/secret`（`if ps <= 0 || ps > 100`）。
+- **(g) `feature-flag` 是唯一半迁移的模块，而且它的裸站点不是缺陷。** `handler.go:94` 的 `List` 是裸 `strconv.Atoi`，但紧接着 `if page < 1 { page = 1 }` 和 `if pageSize < 1 || pageSize > 100 { pageSize = 20 }`——地板和上限都有，只是**上限超过 100 时重置为 20 而不是 100**（`?page_size=500` 返回 20 条，而 `cmdb-import` 同样输入返回 100 条）。同一个 handler 文件里 `:130` 已经用 `pagination.Page` 了。这是「共享包上线之后同一文件里两种写法并存」的现成样本，而且两个模块对同一个非法输入给出了不同的结果。
+- **(h) GAP 是第 6 次同款存活。** 钉死过的最大未超限 `page_size` 是 25，`OffsetFromPage` 里加 `pageSize > 1000` 的上限永远触发不到；共享包的 `pagination_test.go` 里 `TestOffsetFromPage` 最大 size 也只有 25、最大 page 14，所以共享包自己的测试同样抓不到。**这个盲区已经连存 6 轮，而且每一轮的结构原因都一样：没有任何测试用大值 page_size。**
+
+### 94.8 验证与遗留
+
+`go build ./...` 退出 0；`go vet ./internal/runner/...` 退出 0；`gofmt -l internal cmd` 只剩 `ticket/models` 那三个历史文件（`assignment_rule.go` `relation.go` `ticket.go`，本轮未触碰）；`go test -count=1 ./...` **568 个包 ok / 0 FAIL / 0 panic**，比 §93 多 1 个（`internal/runner/handler` 从「无测试文件」变成有测试的包）。`go.sum` 与 `go.work.sum` 未改。
+
+改动 1 个文件 + 新增 1 个测试文件：**16 增 / 13 删**（`handler.go`）、`page_test.go` 239 行。`strconv` 整体删除（runner 里那 3 处是它唯一的用处）。
+
+本轮按推荐做到了：一轮一个模块、先建脚手架、收满 3 处。但真正值钱的不是这 3 处，是 (a) 那次全树重扫——**剩下的工作量比 §93 报的大一个量级**：台账记 12 处，未验证的候选还有 23 处。
+
+下一步有三条路：
+
+- **A：继续一轮一个模块。** 剩下 12 处里 `extension-point`（2 处、已有接口、11 个方法）脚手架成本最低，`infrastructure/capacity`（3 处、需先引入接口）簇最大。
+- **B：把 (a) 那 23 处候选做一次下游验证，把台账补全。** 不修代码，只把 §93.1 的判定条件「handler 无地板 **且** service 和仓储无夹点」跑完 17 个模块。产出是一份可信清单，之后的每一轮都不用再靠猜。
+- **C：offset 家族。** §93.7(c) 那类在册站点，账本口径不同，同样需要先重扫才能确认真实数字。
+
+推荐 **B**。理由是 (a) 和 §93.1 共同指向同一个坑：这类台账的漏记方式（下游夹点导致误判）只在动手时才会暴露，代价是整轮工作量——Round 92 就是例子，推荐 3 处实际只能修 1 处。**先把清单做对，A 才有确定的目标**；否则下一轮大概率又花在验证而不是修复上。
+
+carry-forward：§93.7 的 (a)-(h)、§92.7 的 (a)-(h)、§91.7 的 (a)-(h)、§90.7 的 (a)-(h)、§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 94.7 的 (a)-(h)。
+
+仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
