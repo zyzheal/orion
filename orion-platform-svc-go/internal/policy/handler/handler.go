@@ -7,9 +7,11 @@ import (
 	"orion/platform-svc-go/internal/policy/models"
 	"orion/platform-svc-go/internal/policy/service"
 
+	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
+
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler handles HTTP requests for the policy module.
@@ -106,7 +108,7 @@ func (h *Handler) List(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset := queryOffset(c.Query("offset"))
+	offset := pagination.Offset(c.Query("offset"))
 	policies, err := h.svc.ListPolicies(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -228,7 +230,7 @@ func (h *Handler) ListEvaluations(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset := queryOffset(c.Query("offset"))
+	offset := pagination.Offset(c.Query("offset"))
 	evaluations, err := h.svc.GetEvaluationHistory(ctx, tenantID, id, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -289,7 +291,7 @@ func (h *Handler) ListRootEvaluations(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset := queryOffset(c.Query("offset"))
+	offset := pagination.Offset(c.Query("offset"))
 	evaluations, err := h.svc.ListEvaluations(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -304,7 +306,7 @@ func (h *Handler) ListEvaluationsRuns(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset := queryOffset(c.Query("offset"))
+	offset := pagination.Offset(c.Query("offset"))
 	evaluations, err := h.svc.ListEvaluations(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -320,7 +322,7 @@ func (h *Handler) ListViolations(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset := queryOffset(c.Query("offset"))
+	offset := pagination.Offset(c.Query("offset"))
 	violations, err := h.svc.ListViolations(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -370,7 +372,7 @@ func (h *Handler) ListOverrides(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset := queryOffset(c.Query("offset"))
+	offset := pagination.Offset(c.Query("offset"))
 	overrides, err := h.svc.ListOverrides(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -571,16 +573,4 @@ func (h *Handler) RevokeExemption(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, m)
-}
-
-// queryOffset parses an "offset" query param, clamping a negative value to 0.
-// Postgres rejects a negative OFFSET, so without the clamp `?offset=-1` turns a
-// list endpoint into a 500. The repository layer in this module clamps
-// `limit <= 0` but has no offset clamp at all, so this is the only guard on the
-// path. Absent and unparsable values are 0.
-func queryOffset(value string) int {
-	if i, err := strconv.Atoi(value); err == nil && i > 0 {
-		return i
-	}
-	return 0
 }

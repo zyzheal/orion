@@ -4,8 +4,10 @@ import (
 	"strconv"
 
 	"orion/go-common/pkg/auth"
+
 	"orion/platform-svc-go/internal/disaster-recovery/models"
 	"orion/platform-svc-go/internal/disaster-recovery/service"
+	"orion/platform-svc-go/internal/pagination"
 
 	"orion/go-common/pkg/errors"
 
@@ -66,7 +68,7 @@ func (h *Handler) ListPlans(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset := queryOffset(c.Query("offset"))
+	offset := pagination.Offset(c.Query("offset"))
 	result, err := h.svc.ListPlans(ctx, tenantID, limit, offset)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
@@ -117,16 +119,4 @@ func (h *Handler) ListRuns(c *gin.Context) {
 		return
 	}
 	errors.WriteSuccess(c, result)
-}
-
-// queryOffset parses an "offset" query param, clamping a negative value to 0.
-// Postgres rejects a negative OFFSET, so without the clamp `?offset=-1` turns a
-// list endpoint into a 500. The repository layer in this module clamps
-// `limit <= 0` but has no offset clamp at all, so this is the only guard on the
-// path. Absent and unparsable values are 0.
-func queryOffset(value string) int {
-	if i, err := strconv.Atoi(value); err == nil && i > 0 {
-		return i
-	}
-	return 0
 }

@@ -3,12 +3,14 @@ package handler
 import (
 	"strconv"
 
-	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ci-cd/artifact-registry/models"
 	"orion/platform-svc-go/internal/ci-cd/artifact-registry/service"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
+
+	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 )
 
 type ArtifactRegistryHandler struct {
@@ -43,7 +45,7 @@ func (h *ArtifactRegistryHandler) ListRegistries(c *gin.Context) {
 	defer span.End()
 	tenantID := h.GetTenantID(c)
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset := queryOffset(c.Query("offset"))
+	offset := pagination.Offset(c.Query("offset"))
 
 	resp, err := h.svc.QueryRegistries(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -109,7 +111,7 @@ func (h *ArtifactRegistryHandler) ListArtifacts(c *gin.Context) {
 	registryID := c.Param("id")
 	name := c.Query("name")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	Offset := queryOffset(c.Query("offset"))
+	Offset := pagination.Offset(c.Query("offset"))
 
 	resp, err := h.svc.QueryArtifacts(ctx, tenantID, registryID, name, limit, Offset)
 	if err != nil {
@@ -150,16 +152,4 @@ func (h *ArtifactRegistryHandler) DeleteArtifact(c *gin.Context) {
 		return
 	}
 	middleware.RespondNoContent(c)
-}
-
-// queryOffset parses an "offset" query param, clamping a negative value to 0.
-// Postgres rejects a negative OFFSET, so without the clamp `?offset=-1` turns a
-// list endpoint into a 500. The repository layer in this module clamps
-// `limit <= 0` but has no offset clamp at all, so this is the only guard on the
-// path. Absent and unparsable values are 0.
-func queryOffset(value string) int {
-	if i, err := strconv.Atoi(value); err == nil && i > 0 {
-		return i
-	}
-	return 0
 }

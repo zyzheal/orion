@@ -25,6 +25,7 @@ import (
 	"orion/platform-svc-go/internal/cmdb-collector/models"
 	"orion/platform-svc-go/internal/cmdb-collector/service"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -70,8 +71,8 @@ func (h *FactoryHandler) ListAdapters(c *gin.Context) {
 	tenantID := h.tenantID(c)
 	filter := service.ListAdaptersFilter{
 		Category: c.Query("category"),
-		Offset:   queryOffset(c.Query("offset")),
-		Limit:    queryLimit(c.Query("limit"), 20),
+		Offset:   pagination.Offset(c.Query("offset")),
+		Limit:    pagination.Limit(c.Query("limit"), 20),
 	}
 
 	items, err := h.factory.ListAdapters(ctx, tenantID, filter)
@@ -224,8 +225,8 @@ func (h *FactoryHandler) ListJobs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListJobs")
 	defer span.End()
 	tenantID := h.tenantID(c)
-	offset := queryOffset(c.Query("offset"))
-	limit := queryLimit(c.Query("limit"), 20)
+	offset := pagination.Offset(c.Query("offset"))
+	limit := pagination.Limit(c.Query("limit"), 20)
 
 	items, err := h.factory.ListJobs(ctx, tenantID, c.Query("adapter_id"), c.Query("status"), offset, limit)
 	if err != nil {
@@ -262,8 +263,8 @@ func (h *FactoryHandler) ListAssets(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAssets")
 	defer span.End()
 	tenantID := h.tenantID(c)
-	offset := queryOffset(c.Query("offset"))
-	limit := queryLimit(c.Query("limit"), 20)
+	offset := pagination.Offset(c.Query("offset"))
+	limit := pagination.Limit(c.Query("limit"), 20)
 
 	filter := service.ListAssetsFilter{
 		AdapterID: c.Query("adapter_id"),

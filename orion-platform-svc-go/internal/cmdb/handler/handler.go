@@ -8,9 +8,11 @@ import (
 	"orion/platform-svc-go/internal/cmdb/models"
 	"orion/platform-svc-go/internal/cmdb/service"
 
+	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
+
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -543,8 +545,8 @@ func (h *Handler) ListHosts(c *gin.Context) {
 	defer span.End()
 	status := ptrIf(c.Query("status"))
 	tags := ptrIf(c.Query("tags"))
-	limit := queryLimit(c.Query("limit"), 20)
-	offset := queryOffset(c.Query("offset"))
+	limit := pagination.Limit(c.Query("limit"), 20)
+	offset := pagination.Offset(c.Query("offset"))
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	items, total, err := h.svc.ListHosts(ctx, tenantID, status, tags, limit, offset)
 	if err != nil {
@@ -581,8 +583,8 @@ func (h *Handler) ListK8sResources(c *gin.Context) {
 	defer span.End()
 	kind := ptrIf(c.Query("kind"))
 	namespace := ptrIf(c.Query("namespace"))
-	limit := queryLimit(c.Query("limit"), 20)
-	offset := queryOffset(c.Query("offset"))
+	limit := pagination.Limit(c.Query("limit"), 20)
+	offset := pagination.Offset(c.Query("offset"))
 	items, total, err := h.svc.ListK8sResources(ctx, kind, namespace, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -625,8 +627,8 @@ func (h *Handler) ListCICDResources(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCICDResources")
 	defer span.End()
 	status := ptrIf(c.Query("status"))
-	limit := queryLimit(c.Query("limit"), 20)
-	offset := queryOffset(c.Query("offset"))
+	limit := pagination.Limit(c.Query("limit"), 20)
+	offset := pagination.Offset(c.Query("offset"))
 	items, total, err := h.svc.ListCICDResources(ctx, status, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -710,28 +712,6 @@ func (h *Handler) getQueryInt(value string, defaultVal int) int {
 		return defaultVal
 	}
 	return i
-}
-
-// queryLimit parses a "limit" query param as a page size, falling back to the
-// default when it is missing, unparsable or <= 0. A page size of 0 would pass
-// LIMIT 0 to the database and divide by zero in the Page calculation below, so
-// it is treated like an absent param.
-func queryLimit(value string, def int) int {
-	if i, err := strconv.Atoi(value); err == nil && i > 0 {
-		return i
-	}
-	return def
-}
-
-// queryOffset parses an "offset" query param, clamping a negative value to 0.
-// Postgres rejects a negative OFFSET, so without the clamp `?offset=-1` turns a
-// list endpoint into a 500; and offset/limit + 1 would put 0 or a negative
-// number in the response's page field. Absent and unparsable values are 0.
-func queryOffset(value string) int {
-	if i, err := strconv.Atoi(value); err == nil && i > 0 {
-		return i
-	}
-	return 0
 }
 
 // ptrIf returns a string pointer if non-empty, nil otherwise.

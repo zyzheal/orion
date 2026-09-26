@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/report-designer/service"
 
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -151,8 +152,8 @@ func (h *Handler) ListReports(c *gin.Context) {
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	keyword := ptrIf(c.Query("keyword"))
 	category := ptrIf(c.Query("category"))
-	limit := queryLimit(c.Query("limit"), 20)
-	offset := queryOffset(c.Query("offset"))
+	limit := pagination.Limit(c.Query("limit"), 20)
+	offset := pagination.Offset(c.Query("offset"))
 	enabled := parseBool(c.Query("enabled"))
 
 	req := &models.ListReportsRequest{
@@ -409,28 +410,6 @@ func (h *Handler) getQueryInt(value string, defaultVal int) int {
 		return defaultVal
 	}
 	return i
-}
-
-// queryLimit parses a "limit" query param as a page size, falling back to the
-// default when it is missing, unparsable or <= 0. A page size of 0 would pass
-// LIMIT 0 to the database and divide by zero in the Page calculation below, so
-// it is treated like an absent param.
-func queryLimit(value string, def int) int {
-	if i, err := strconv.Atoi(value); err == nil && i > 0 {
-		return i
-	}
-	return def
-}
-
-// queryOffset parses an "offset" query param, clamping a negative value to 0.
-// Postgres rejects a negative OFFSET, so without the clamp `?offset=-1` turns a
-// list endpoint into a 500; and offset/limit + 1 would put 0 or a negative
-// number in the response's page field. Absent and unparsable values are 0.
-func queryOffset(value string) int {
-	if i, err := strconv.Atoi(value); err == nil && i > 0 {
-		return i
-	}
-	return 0
 }
 
 func ptrIf(s string) *string {

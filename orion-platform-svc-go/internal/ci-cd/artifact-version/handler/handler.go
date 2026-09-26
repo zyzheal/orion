@@ -3,12 +3,14 @@ package handler
 import (
 	"strconv"
 
-	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ci-cd/artifact-version/models"
 	"orion/platform-svc-go/internal/ci-cd/artifact-version/service"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
+
+	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 )
 
 type ArtifactVersionHandler struct {
@@ -41,7 +43,7 @@ func (h *ArtifactVersionHandler) ListVersions(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	artifactID := c.Query("artifact_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset := queryOffset(c.Query("offset"))
+	offset := pagination.Offset(c.Query("offset"))
 
 	resp, err := h.svc.QueryVersions(ctx, tenantID, artifactID, limit, offset)
 	if err != nil {
@@ -127,16 +129,4 @@ func (h *ArtifactVersionHandler) DeleteVersion(c *gin.Context) {
 		return
 	}
 	middleware.RespondNoContent(c)
-}
-
-// queryOffset parses an "offset" query param, clamping a negative value to 0.
-// Postgres rejects a negative OFFSET, so without the clamp `?offset=-1` turns a
-// list endpoint into a 500. The repository layer in this module clamps
-// `limit <= 0` but has no offset clamp at all, so this is the only guard on the
-// path. Absent and unparsable values are 0.
-func queryOffset(value string) int {
-	if i, err := strconv.Atoi(value); err == nil && i > 0 {
-		return i
-	}
-	return 0
 }
