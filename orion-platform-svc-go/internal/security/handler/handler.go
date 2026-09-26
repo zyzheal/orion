@@ -4,9 +4,9 @@ import (
 	"errors"
 	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/platform-svc-go/internal/security/models"
 	"orion/platform-svc-go/internal/security/service"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -110,9 +110,9 @@ func (h *Handler) ListScans(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterListScans")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.List(ctx, tenantID, (page-1)*ps, ps)
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
+	items, err := h.svc.List(ctx, tenantID, pagination.OffsetFromPage(page, ps), ps)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -185,10 +185,10 @@ func (h *Handler) ListFindings(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterListFindings")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
 	severity := c.Query("severity")
-	items, err := h.svc.ListFindings(ctx, tenantID, (page-1)*ps, ps, severity)
+	items, err := h.svc.ListFindings(ctx, tenantID, pagination.OffsetFromPage(page, ps), ps, severity)
 	if errors.Is(err, service.ErrInvalidSeverity) {
 		respondBadRequest(c, err.Error())
 		return
@@ -535,9 +535,9 @@ func (h *Handler) ListSBOMs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterListSBOMs")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.ListSBOMs(ctx, tenantID, (page-1)*ps, ps)
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
+	items, err := h.svc.ListSBOMs(ctx, tenantID, pagination.OffsetFromPage(page, ps), ps)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -612,9 +612,9 @@ func (h *Handler) ListDependencyGraphs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterListDependencyGraphs")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.ListDependencyGraphs(ctx, tenantID, (page-1)*ps, ps)
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
+	items, err := h.svc.ListDependencyGraphs(ctx, tenantID, pagination.OffsetFromPage(page, ps), ps)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -645,9 +645,9 @@ func (h *Handler) ListPoisoningScans(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecurityCenterListPoisoningScans")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.ListDependencyPoisoningScans(ctx, tenantID, (page-1)*ps, ps)
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
+	items, err := h.svc.ListDependencyPoisoningScans(ctx, tenantID, pagination.OffsetFromPage(page, ps), ps)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

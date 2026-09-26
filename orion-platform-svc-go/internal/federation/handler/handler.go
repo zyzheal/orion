@@ -7,7 +7,7 @@ import (
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/federation/models"
 	"orion/platform-svc-go/internal/middleware"
-	"strconv"
+	"orion/platform-svc-go/internal/pagination"
 )
 
 // Service defines the interface used by Handler.
@@ -373,10 +373,9 @@ func (h *Handler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	_ = ps
-	items, err := h.svc.List(ctx, tenantID, (page-1)*ps, ps)
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
+	items, err := h.svc.List(ctx, tenantID, pagination.OffsetFromPage(page, ps), ps)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

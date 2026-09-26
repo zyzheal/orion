@@ -3,9 +3,9 @@ package handler
 import (
 	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/platform-svc-go/internal/workflow/workflow/models"
 	"orion/platform-svc-go/internal/workflow/workflow/service"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -50,9 +50,9 @@ func (h *Handler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "WorkflowEngineList")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.ListDefinitions(ctx, tenantID, nil, (page-1)*ps, ps)
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
+	items, err := h.svc.ListDefinitions(ctx, tenantID, nil, pagination.OffsetFromPage(page, ps), ps)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

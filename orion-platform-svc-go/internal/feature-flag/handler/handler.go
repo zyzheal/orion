@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/feature-flag/service"
 
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -126,10 +127,9 @@ func (h *Handler) Search(c *gin.Context) {
 		middleware.RespondBadRequest(c, "query parameter 'q' is required")
 		return
 	}
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-
-	items, err := h.svc.Search(ctx, tenantID, query, (page-1)*pageSize, pageSize)
+	page := pagination.Page(c.Query("page"), 1)
+	pageSize := pagination.Limit(c.Query("page_size"), 20)
+	items, err := h.svc.Search(ctx, tenantID, query, pagination.OffsetFromPage(page, pageSize), pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
