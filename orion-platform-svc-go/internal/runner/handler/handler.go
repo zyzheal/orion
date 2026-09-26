@@ -20,10 +20,10 @@ package handler
 
 import (
 	"context"
-	"strconv"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/platform-svc-go/internal/runner/models"
 
 	"github.com/gin-gonic/gin"
@@ -138,9 +138,10 @@ func (h *Handler) ListAgents(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAgents")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.ListAgents(ctx, tenantID, (page-1)*ps, ps)
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
+	offset := pagination.OffsetFromPage(page, ps)
+	items, err := h.svc.ListAgents(ctx, tenantID, offset, ps)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -149,7 +150,7 @@ func (h *Handler) ListAgents(c *gin.Context) {
 		items = []models.RunnerAgent{}
 	}
 	total, _ := h.svc.CountAgents(ctx, tenantID)
-	middleware.RespondPaginated(c, items, (page-1)*ps, ps, total)
+	middleware.RespondPaginated(c, items, offset, ps, total)
 }
 
 func (h *Handler) UpdateAgent(c *gin.Context) {
@@ -246,9 +247,10 @@ func (h *Handler) ListJobs(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	status := c.Query("status")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.ListJobs(ctx, tenantID, status, (page-1)*ps, ps)
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
+	offset := pagination.OffsetFromPage(page, ps)
+	items, err := h.svc.ListJobs(ctx, tenantID, status, offset, ps)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -257,7 +259,7 @@ func (h *Handler) ListJobs(c *gin.Context) {
 		items = []models.RunnerJob{}
 	}
 	total, _ := h.svc.CountJobs(ctx, tenantID)
-	middleware.RespondPaginated(c, items, (page-1)*ps, ps, total)
+	middleware.RespondPaginated(c, items, offset, ps, total)
 }
 
 func (h *Handler) ListJobsByAgent(c *gin.Context) {
@@ -265,9 +267,10 @@ func (h *Handler) ListJobsByAgent(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	agentID := c.Param("agentId")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.ListJobsByAgent(ctx, tenantID, agentID, (page-1)*ps, ps)
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
+	offset := pagination.OffsetFromPage(page, ps)
+	items, err := h.svc.ListJobsByAgent(ctx, tenantID, agentID, offset, ps)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -276,7 +279,7 @@ func (h *Handler) ListJobsByAgent(c *gin.Context) {
 		items = []models.RunnerJob{}
 	}
 	total, _ := h.svc.CountJobs(ctx, tenantID)
-	middleware.RespondPaginated(c, items, (page-1)*ps, ps, total)
+	middleware.RespondPaginated(c, items, offset, ps, total)
 }
 
 func (h *Handler) TransitionJob(c *gin.Context) {
