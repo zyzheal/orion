@@ -16550,3 +16550,148 @@ harness 构造时有两次修正，记下来免得下次踩：
 carry-forward：§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 90.7 的 (a)-(h)。
 
 仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
+
+
+## §91 `page` 家族先建台账再动手：44 个推导点里 30 个能推出负 OFFSET，本轮修掉 10 个（Round 90，2026-09-25）
+
+### 91.1 台账：120 个函数、27 种形状，比 offset 家族分散一个数量级
+
+§90 末尾把 B 列为推荐，理由是当时记录的 `alert-adapter` 死分页参数已经证明这个家族里藏着「读了参数但没用它」这类缺陷——比「负 offset 进 SQL」难发现得多，因为完全不报错。本轮按推荐先建台账。
+
+`page` / `page_size` / `perPage` / `pageSize` 四个参数名一共 **172 个读点**（119 个 `page` + 53 个 `page_size` 系），落在 **120 个函数、81 个文件**。按「参数名组合 × 读取方式 × 推导方式 × 有没有夹点」给每个函数打签名，得到 **27 种不同形状**。offset 家族在 §89 收敛之前只有 1 种形状——这就是为什么 §88 那个单形状扫描器会误判，也是为什么这一族必须先建台账。
+
+最大的单一形状是 **16 个站点**：`('page','page_size') + DefaultQuery + Atoi + (page-1)*ps`，两端都不夹。这就是主集群。
+
+推导点的夹点分布很不均匀：
+
+| | 函数数 |
+|---|---|
+| 做 `(page-1)*size` 推导 | 44 |
+| └ 推导算式上有任何地板 | 24 |
+| └ **推导 + 完全无地板（live）** | **20** |
+| page 级地板（`page < 1 → 1`） | 20 |
+| page size 级地板 | 17 |
+| 推导之后再夹 offset（`if offset < 0`） | 6 |
+| handler 层上限（`> 100` 之类） | 24 |
+
+**迁移前的 live 数是 30，不是 20**：这 10 个本轮修掉的站点也在其中。30 个「推导出负数、且算式两端都没人夹」的站点，`?page=-40` 全部能把负 OFFSET 送进 SQL。
+
+### 91.2 共享包扩到 4 个函数：`Page` 和 `OffsetFromPage`
+
+`internal/pagination` 在 §90 的两个函数之外再加两个：
+
+```go
+func Page(value string, def int) int        // 1-based，< 1 折到 def
+func OffsetFromPage(page, pageSize int) int // (page-1)*pageSize，两端各有一个地板
+```
+
+两点设计决定，和 §90.2 一致并写进了包注释：
+
+- **仍然是地板不是上限。** `OffsetFromPage` 的两个输入各有一个地板（page 地板 1、page size 地板 1），但都没有上限。上限要由仓储层加，这条层间约定 §90.2 已经立过。
+- **页码约定按仓库现状定为 1-based，不是发明的。** 仓库里 **20 处**预先存在的 page 级地板全部是 `if page < 1 { page = 1 }`，没有一个用 `page <= 0`。有 2 处例外（见 91.7(d)），但主流约定是清楚的，`Page` 的地板取 1 是从代码里读出来的。
+- **`OffsetFromPage` 把两个输入都夹，是因为调用方可以只夹一个。** `pagination.Page` 已经夹了 page，`pagination.Limit` 已经夹了 page size，但 `OffsetFromPage` 直接接收 `int`，签名上无法区分「夹过的」和「裸的」。夹两个是幂等的——夹过的值原样通过，裸的值也不会漏。
+
+### 91.3 迁移账本：6 个文件、10 个站点
+
+| 文件 | 站点 | handler | 备注 |
+|---|---|---|---|
+| `security/handler/handler.go` | 5 | `ListScans` `ListFindings` `ListSBOMs` `ListDependencyGraphs` `ListPoisoningScans` | 最大单文件批量 |
+| `inception/handler/handler.go` | 1 | `History` | 删 `strconv` import |
+| `plugin/handler/handler.go` | 1 | `List` | `strconv` 另有 3 处仍用 |
+| `feature-flag/handler/handler.go` | 1 | `Search` | 同文件 `List` 有自建夹点，**未迁** |
+| `federation/handler/handler.go` | 1 | `List` | 顺带删了一行死的 `_ = ps` |
+| `workflow/workflow/handler/handler.go` | 1 | `List` | 删 `strconv` import |
+
+替换形态统一为：
+
+```go
+// 之前
+page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+items, err := h.svc.List(ctx, tenantID, (page-1)*ps, ps)
+
+// 之后
+page := pagination.Page(c.Query("page"), 1)
+ps := pagination.Limit(c.Query("page_size"), 20)
+items, err := h.svc.List(ctx, tenantID, pagination.OffsetFromPage(page, ps), ps)
+```
+
+**这 10 个站点的仓储层全部没有夹点**，逐个读过了：`security` 5 个仓储查询都是 `WHERE tenant_id=$1 ... OFFSET $2 LIMIT $3` 后跟裸的 `tenantID, offset, limit`；`inception` / `plugin` / `feature-flag` / `federation` / `workflow` 的仓储同样裸绑，整个 5 个模块的仓储文件里 `clamp` 出现 0 次。所以 handler 是这条链路上唯一能夹的地方，§90.7(g) 记录的那个 handler 夹 offset、仓储只夹 limit 的不对称，在这 10 处是 handler 一个都没有、仓储也一个都没有。
+
+### 91.4 台账里最有价值的发现，不是 live 数
+
+三个东西是只靠「把家族扫一遍」才拿得到的：
+
+- **6 处「推导之后再夹」的站点**（`if offset < 0 { offset = 0 }`）。它们今天是对的，但一个只看 page / page size 的扫描器看不见它们——本轮的扫描器第一版就把它们算成了 live。修法是把「夹点」的定义从「算式的输入被夹」扩成「算式或输出被夹」。这类站点没有测试保护，靠的是实现者记得夹。
+- **`developer-portal` 和 `prompt-security` 用 0-based 页码**（`offset := page * pageSize`），推导式和仓库其余 42 处不同。这 2 处本身是安全的（`page < 0 → 0`），但它们意味着前端拿到的是两套分页语义：同样叫 `page=2`，在这两个端点是「第 3 条开始」，在其余端点是「第 2 页」。这是个契约不一致，不是缺陷，但没记录就等于没人知道。
+- **handler 层上限有 24 处**，和 §90.2 立的「上限归仓储层」约定直接冲突。本轮看到的最明确两个：`feature-flag List` 是 `if pageSize < 1 || pageSize > 100 { pageSize = 20 }`——**超限不是夹到 100 而是重置成 20**，`?page_size=1000` 会静默变小页；`cmdb-import ListJobs` 是 `limit <= 0 → 20` 加 `limit > 100 → 100` 的完整夹法。谁说了算需要单独决定，本轮不碰。
+
+### 91.5 测试：共享包 50 条表用例 + 6 个 handler 测试文件 38 条用例
+
+`pagination_test.go` 从 22 条表用例扩到 **50 条**：`TestPage` 15 条（钉 `-40`/`-3`/`0`/`1`/`2`/`4`/`14`/`60`/`999999` 和两个缺省值）、`TestOffsetFromPage` 13 条（钉 `page=0`/`-1`/`-40` 和 `pageSize=0`/`-5` 两组负输入，以及 `page=14,size=25 → 325` 的大值透传）。原有 `TestOffset` 12 条和 `TestLimit` 10 条未动。
+
+**38 条新 handler 用例**分布在 6 个文件里，两种断言手段：
+
+- 4 个用 recording fake（`inception` 6、`plugin` 6、`feature-flag` 5、`federation` 6）：嵌入既有 mock，只覆盖 list 方法，记录 handler 实际传给 service 的 `(offset, limit)`。
+- 2 个用 sqlmock 钉绑定值（`security` 9、`workflow/workflow` 6）：`QueryMatcherRegexp` 匹配表名 + `WithArgs("t1", 0, 20)` 钉 SQL 的真实绑定整数。`security` 的 5 个端点全走这条，因为它们的仓储是裸绑——这是唯一能证明「负 OFFSET 没进数据库」的手段。
+
+每条都同时有负输入和正输入两组：负输入（`page=-40` / `page=0` / `page_size=-5` / 不可解析）证明地板生效，正输入（`page=3&page_size=25 → offset 50`）证明**是地板不是上限**。后者是本轮特意加的，因为 §90 的 GAP 就是「上限没被测试保护」。
+
+**§90.5 记录的 52 条 handler clamp 用例一条没改、全部通过**——本轮 6 个新测试文件全部落在已有包内，没有动任何既有测试。
+
+### 91.6 变异：6 个全杀 + 新 GAP 存活 + 对照组存活
+
+harness `/tmp/r90_mutation_check.py`，基线在**迁移完成之后**对 8 个文件拍镜像快照（路径原样保留，见 91.8 的两次 harness 修正），每次变异后按 md5 逐字节校验还原。
+
+| 变异 | 结论 | 杀掉它的是 |
+|---|---|---|
+| M1 `Page` 丢地板（`err == nil && i > 0` → `err == nil`） | KILLED | `TestPage`（`"-1"`/`"0"` 两条） |
+| M2 `Page` 接受 0（`i > 0` → `i >= 0`） | KILLED | `TestPage` 的 `{"0", 1, 1}` |
+| M3 `OffsetFromPage` 丢 page 地板 | KILLED | `TestOffsetFromPage` 的 `{0,20,0}`/`{-1,20,0}`/`{-40,20,0}` |
+| M4 `OffsetFromPage` 丢 pageSize 地板 | KILLED | `TestOffsetFromPage` 的 `{5,0,4}`/`{5,-5,4}`/`{1,0,0}`/`{1,-3,0}` |
+| M5 `OffsetFromPage` 改成 `page*pageSize` | KILLED | `TestOffsetFromPage` 大部分用例 + `TestHistory_ValidPagePassesThrough` 等 |
+| M6 一个消费者（`inception History`）退回裸 `Atoi` 推导 | KILLED | `TestHistory_NegativePageIsClamped`（`offset=-800, want 0`） |
+| **GAP**：`OffsetFromPage` 静默给 pageSize 加上限 1000 | **SURVIVED** | — |
+| **NC**：改写 `Page` 的文档注释 | **SURVIVED** | — |
+
+`gate=6 killed=6 survived=0 builderr=0 badanchor=0`，GAP SURVIVED，NC SURVIVED，restore 逐字节一致，**ADMISSIBLE True**。
+
+M1 和 M2 是这一族特有的，也是 §90 没有的：`page` 的地板是 **1 不是 0**，所以「丢地板」和「把地板从 1 挪到 0」是两个不同的错误、两个不同的测试用例。offset 家族只有一个地板值 0，所以 §90 的 M1 一条就够。这 13 条 `TestOffsetFromPage` 用例里刻意钉了 `page=0`，就是为了让这两条变异分开——不分开的话，把 `Page` 的地板误改成 0 会让「所有页码整体后移一页」这个错误全绿。
+
+M6 依然是共享包方案的老弱点：`inception` 只有 3 处 `pagination.` 调用且全在 `History`，退回裸 `Atoi` 会把 import 变成未使用、直接编译失败，所以 M6 必须同时移除 `internal/pagination` import 并补回 `strconv`，才是一条能编译通过的退化路径。**BUILDERR 不算 KILLED**，这个约束在 §90.6 已经踩过一次，本轮 harness 一开始就按它写。
+
+**新 GAP 的含义**：`OffsetFromPage` 没有上限，而且没有测试钉住「大 pageSize 应原样透传」。本轮测试里 `pageSize` 最大的入参是 25（handler 层也是 25），1000 的上限静默通过。这不是本轮的疏漏，是 §90.6 记录过的同一件事换了个函数——`Limit` 和 `OffsetFromPage` 都没有上限保护，而 91.4 刚查出 **24 处** handler 层上限在违反这条约定。
+
+harness 本身有两次修正，记下来：
+
+- **第一次跑就 `KeyError`**：基线目录用了 `internal_` 前缀加下划线替代斜杠的文件名编码，还原路径时把 `pagination_test.go` 里的下划线也换成了斜杠，解成 `internal/pagination/pagination/test.go`，写失败后 `restore()` 同样失败——**留了一个 M1 变异在树里**。手工从基线恢复后改用镜像目录布局（路径原样保留），彻底避开名字编码。教训是：`try_case` 的 `finally: restore()` 必须在异常路径上也不能失效，而 `restore()` 自己用的是同一份有 bug 的映射。
+- **第二次跑 `AssertionError` 直接挡住**：加了「基线路径必须能在树上解析」的前置断言，才在写文件之前失败。这两个断言现在都在脚本里。
+
+### 91.7 只记录，未处理
+
+- **(a) 20 处 live 站点留在 11 个模块，本轮一处没动。** 完整清单：`runner` 3（`ListAgents` `ListJobs` `ListJobsByAgent`）、`infrastructure/capacity` 3（`ListPools` `ListForecasts` `ListReports`）、`visor` 3（`ListDashboards` `ListHosts` `ListAlerts`）、`pandawiki` 2（`ListSpaces` `ListDocs`）、`extension-point` 2（`ListExtensions` `ListStartupTasks`）、`alert-adapter` 2（`ListAdapters` `ListEvents`）、`cmdb-import` 1（`ListJobs`）、`ai/intelligence` 1（`List`）、`governance/governance` 1 + `governance/risk` 1（各 `List`）、`infrastructure/digital-twin` 1（`List`）。**其中 17 处在 9 个完全没有 handler 测试文件的模块里**（`runner`、`extension-point`、`ai/intelligence`、`governance/governance`、`governance/risk`、`alert-adapter`、`infrastructure/capacity`、`infrastructure/digital-twin`、`visor`）；只有 `cmdb-import`（1）和 `pandawiki`（2）有既有 handler 测试可搭。
+- **(b) `alert-adapter/handler/handler.go:130 ListAdapters` 死分页，本轮把结论钉死了。** `page` 和 `ps` 读出来之后调 `h.svc.ListAdapters(ctx, tenantID)`——两个都没传；接着 `RespondPaginated(c, items, (page-1)*ps, ps, len(items))` 把客户端的值原样写进信封。查了 `RespondPaginated` 本体（`internal/middleware/response.go:64`）只做 `gin.H{"data","offset","limit","total"}` 字段拼装、没有除法，所以**没有 panic 也没有 500**，`data` 永远是全量列表，`offset`/`limit` 只是回显请求。`?page=50&page_size=20` 返回全量数据但信封里写 `offset=980`。同文件 `ListEvents`(:264) 则真的把 `(page-1)*ps` 传进了 service，是两个不同的缺陷。§90.7(c) 那条现在可以关成「已确认、含精确行号、含无 500 的证明」，但修法要动 service 签名，本轮不碰。
+- **(c) `cmdb-import` 和 `pandawiki` 的形状和共享包不同，机械替换会丢语义。** `cmdb-import ListJobs` 自带 `limit <= 0 → 20` 和 `limit > 100 → 100` 的完整夹法（只缺 page 地板）；`pandawiki` 两处读的是 `perPage`（`ListSpaces`）或 `pageSize`/`perPage` 双参数（`ListDocs`），缺省 50 不是 20，且 `perPage` 有覆盖逻辑。迁它们得逐个决定「上限留不留、覆盖顺序保不保」，属于 91.4 那个「谁说了算」的决策范围，不是替换。
+- **(d) 2 处 0-based 页码约定。** `developer-portal/repository.go:99` 和 `prompt-security/repository.go:169` 用 `offset := page * pageSize`，推导式和其余 42 处 `(page-1)*size` 不同，`page=2` 在它们身上是「第 3 条开始」。两处都自带 `page < 0 → 0` 地板所以不出错，但这意味着仓库有两套分页语义同时在对外，前端和文档都不知道。
+- **(e) 6 处「推导之后再夹 offset」没有测试保护。** `event-trigger List`、`ci-cd/runner ListRunners`/`ListRuns`、`infrastructure/serverless ListFunctions`、`infrastructure/iac ListWorkspaces`/`ListModules`。它们今天是对的，但夹点在算式输出侧，只看输入参数的扫描器看不见——本轮扫描器第一版就把这 6 处误报成 live。
+- **(f) 24 处 handler 层上限和 §90.2 的层间约定冲突**，本轮只看清了两个（`feature-flag List` 超限重置成 20、`cmdb-import ListJobs` 完整夹法），其余 22 处未逐个读。这条约定目前没有测试保护（见 91.6 的 GAP）。
+- **(g) `Limit` 和 `OffsetFromPage` 都没有上限、也没有「大值透传」测试。** 这是 §90.6 GAP 的原样复现，只是换了函数。
+- **(h) 本轮没动 offset 家族的任何一站。** §89.2 的权威账本（handler 读点 149、受保护 63、修复率 42%）在本轮之后仍然有效；§90.7(a) 的 86 处 offset 无夹点、58 个模块全部照旧。
+
+### 91.8 验证与遗留
+
+`go build ./...` 退出 0；`go vet` 涉及的 7 棵树（`pagination` + 6 个改动 handler 包）退出 0；`gofmt -l internal cmd` 只剩 `ticket/models` 那三个历史文件（`assignment_rule.go` `relation.go` `ticket.go`，本轮未触碰）；`go test -count=1 ./...` **566 个包 ok / 0 FAIL / 0 panic**，与 §90 持平（本轮 6 个新测试文件都落在已有包内，没有新增包）。`go.sum` 与 `go.work.sum` 未改。
+
+改动 8 个文件 + 新增 6 个测试文件：**139 增 / 42 删**（6 个 handler 文件 20 增 / 42 删，净减 22；`pagination.go` +29、`pagination_test.go` +63；6 个测试文件 486 行）。
+
+下一步有三条路，本轮没做决定：
+
+- **A：把剩下 20 处 live 站点里那 4 个有脚手架的补上**（`cmdb-import` 1 + `pandawiki` 2，另有 `event-trigger` 那处其实是 (e) 的误报不算）。一轮能收掉 3 个，剩下的 17 处因为没有 handler 测试文件、每处都要先建脚手架，不适合塞进一轮。
+- **B：先解决「上限归谁」这个层间约定**（91.4 和 91.7(f)）。24 处 handler 层上限、0 处测试保护，这决定了下一轮往哪个方向夹才算对；不定下来，机械迁移会继续把不同语义搅在一起。
+- **C：修 `alert-adapter ListAdapters` 那个已确认的死分页**（91.7(b)）。要动 `Service` 签名和仓储，涉及 service 层加 `offset, limit` 参数加对应仓储查询，是一轮里唯一「已知真缺陷 + 修法明确」的项。
+
+推荐 **C**：它是三个选项里唯一有已确认缺陷、有精确行号、有「无 500」证明的项，(a) 剩下的 20 处虽然更多但大多是「负 OFFSET 进 SQL」这类已经能靠 §90 的经验机械处理的项，而 (b) 是一个决策不是一个修复，做错了会波及后续所有轮的夹法。
+
+carry-forward：§90.7 的 (a)-(h)、§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 91.7 的 (a)-(h)。
+
+仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
