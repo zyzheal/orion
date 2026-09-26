@@ -66,7 +66,7 @@ func (h *Handler) ListPipelines(c *gin.Context) {
 	defer span.End()
 	status := c.Query("status")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	offset := queryOffset(c.Query("offset"))
 	resp, err := h.exec.ListPipelines(ctx, h.tenantID(c), status, limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())
@@ -152,7 +152,7 @@ func (h *Handler) ListSteps(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPipelineSteps")
 	defer span.End()
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	offset := queryOffset(c.Query("offset"))
 	resp, err := h.exec.ListSteps(ctx, h.tenantID(c), c.Param("id"), limit, offset)
 	if err != nil {
 		respondNotFound(c, err.Error())
@@ -234,11 +234,23 @@ func (h *Handler) ListExecutions(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPipelineExecutions")
 	defer span.End()
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	off, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	off := queryOffset(c.Query("offset"))
 	resp, err := h.exec.ListExecutions(ctx, h.tenantID(c), c.Param("id"), limit, off)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
 	respondSuccess(c, resp)
+}
+
+// queryOffset parses an "offset" query param, clamping a negative value to 0.
+// Postgres rejects a negative OFFSET, so without the clamp `?offset=-1` turns a
+// list endpoint into a 500. The repository layer in this module clamps
+// `limit <= 0` but has no offset clamp at all, so this is the only guard on the
+// path. Absent and unparsable values are 0.
+func queryOffset(value string) int {
+	if i, err := strconv.Atoi(value); err == nil && i > 0 {
+		return i
+	}
+	return 0
 }

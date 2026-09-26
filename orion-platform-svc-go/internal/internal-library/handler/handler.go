@@ -97,7 +97,7 @@ func (h *Handler) List(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	offset := queryOffset(c.Query("offset"))
 	items, err := h.svc.List(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -130,7 +130,7 @@ func (h *Handler) ListByLanguage(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	offset := queryOffset(c.Query("offset"))
 	items, err := h.svc.ListByLanguage(ctx, tenantID, c.Param("language"), limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -147,7 +147,7 @@ func (h *Handler) ListByOwner(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	offset := queryOffset(c.Query("offset"))
 	items, err := h.svc.ListByOwner(ctx, tenantID, c.Param("owner"), limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -430,3 +430,15 @@ func (h *Handler) UpdateStats(c *gin.Context) {
 // time needed for model tags
 // ---------------------------------------------------------------------------
 var _ = time.Now()
+
+// queryOffset parses an "offset" query param, clamping a negative value to 0.
+// Postgres rejects a negative OFFSET, so without the clamp `?offset=-1` turns a
+// list endpoint into a 500. The repository layer in this module clamps
+// `limit <= 0` but has no offset clamp at all, so this is the only guard on the
+// path. Absent and unparsable values are 0.
+func queryOffset(value string) int {
+	if i, err := strconv.Atoi(value); err == nil && i > 0 {
+		return i
+	}
+	return 0
+}
