@@ -16695,3 +16695,161 @@ harness 本身有两次修正，记下来：
 carry-forward：§90.7 的 (a)-(h)、§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 91.7 的 (a)-(h)。
 
 仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
+
+## §92 死分页收官：全仓库只有 1 个站点，修掉；`Service` 接口补回 `offset, limit`（Round 91，2026-09-25）
+
+### 92.1 先收官：这个缺陷类在全仓库只有 1 个站点
+
+§91 建完 `page` 台账之后留了一条尾巴（91.7(b)）：`alert-adapter ListAdapters` 把 `page` 和 `ps` 读出来却两个都不传。本轮把它查全，方法是对全部 **157 个 `page` 家族变量**逐个追踪它的最终去处，分成三类：
+
+| 类别 | 数量 | 含义 |
+|---|---|---|
+| 到达 service / 仓储调用 | 115 | 客户端的分页参数真的进了查询 |
+| 只到达信封回显 | **2** | 值被读出来、算了、写进响应体，但从未进入任何查询 |
+| 只被推导、两处都没到 | 40 | 死代码或中间量 |
+
+**只有 2 个变量属于「只到信封回显」，而这两个都在 `alert-adapter/handler/handler.go` 的同一个函数里**（`page` 和 `ps`，`:130` `ListAdapters`）。结论因此可以下得比较硬：§90.7(c) 记录的那条死分页不是「已知一例」，它是这一缺陷类在整棵代码树里的**唯一一例**。本轮修完，这一类就关掉了，剩下的是别的形状。
+
+### 92.2 根因是三层一起坏的，而且任何一层单独看都不像问题
+
+- **第一层，handler 丢值。** `page` 和 `ps` 读完之后，调用是 `h.svc.ListAdapters(ctx, tenantID)`——`Service` 接口本来就只有这两个参数，接口签名里根本没有 `offset` 和 `limit` 的位置。这不是「忘了传」，是接口的形状把值挤出去了。
+- **第二层，factory 写死。** `AlertAdapterFactory.ListAdapters`（`service/factory.go:232`）自己写死 `offset 0 / limit 100`，直接喂给仓储。所以即使 handler 把正确的值传进来，也会被这一层扔掉。
+- **第三层，信封不回算。** `RespondPaginated`（`internal/middleware/response.go:64`）只做 `gin.H{"data","offset","limit","total"}` 四个字段的拼装，**没有除法、没有下标、没有任何运算**。
+
+第三层是「没有 500」的原因，也是这条缺陷能活到现在的原因：信封永远报成功，`data` 永远是这个租户的全量列表，`offset` 和 `limit` 只是把请求参数原样回显。`?page=50&page_size=20` 返回全部适配器，响应体里写 `offset=980`、`limit=20`。客户端看起来拿到了第三页的一页数据，实际上拿到了全部；因为 `total` 传的是 `len(items)`（全量长度），连「还有下一页」这种提示都会算错。
+
+三层里任何一层单独看都成立：handler 是「按接口要求传的」，factory 是「有个合理缺省值」，middleware 是「标准信封拼装」。只有三层放在一起才出问题——这也是为什么这类缺陷不会被代码评审拦下来。
+
+### 92.3 修法：6 处替换、3 个文件，接口签名要动
+
+```go
+// internal/alert-adapter/handler/handler.go —— Service 接口
+ListAdapters(ctx context.Context, tenantID string, offset, limit int) ([]models.AlertAdapter, error)
+```
+
+```go
+// handler.ListAdapters
+page := pagination.Page(c.Query("page"), 1)
+ps := pagination.Limit(c.Query("page_size"), 20)
+offset := pagination.OffsetFromPage(page, ps)
+items, err := h.svc.ListAdapters(ctx, tenantID, offset, ps)
+...
+middleware.RespondPaginated(c, items, offset, ps, len(items))
+```
+
+```go
+// service/adapter.go —— 服务层透传
+func (s *AdapterService) ListAdapters(ctx context.Context, tenantID string, offset, limit int) ([]models.AlertAdapter, error) {
+	return s.factory.ListAdapters(ctx, tenantID, offset, limit)
+}
+
+// service/factory.go —— 不再写死
+func (f *AlertAdapterFactory) ListAdapters(ctx context.Context, tenantID string, offset, limit int) ([]models.AlertAdapter, error) {
+	return f.repo.ListAdapters(ctx, tenantID, "", "", offset, limit)
+}
+```
+
+仓储那层本来就是通的：`ListAdapters` 的 SQL 是 `WHERE tenant_id = $1 ORDER BY created_at DESC OFFSET $2 LIMIT $3`，三个参数一直在，只是从来没人把 `page` 派生出来的值填进 `$2`。所以本轮**没有改任何 SQL**，改的是 handler 2 处（`ListAdapters`、`ListEvents`）+ service 1 处 + factory 1 处 + 接口 2 处签名。
+
+`strconv` 是 handler.go 里只被这 4 行用过的 import，随迁移一起删掉了；`internal/pagination` 是这轮新增的。
+
+### 92.4 顺带修掉的同文件 live 站点
+
+`ListEvents`（`handler.go:265`）是 §91.7(a) 里 `alert-adapter` 的第二个站点，形状不同：它把 `(page-1)*ps` **传进**了 service，但没有地板，`?page=-1` 会推出 `-20` 进 `OFFSET`。同一文件、同一模块、同一种夹法，改 `ListAdapters` 的时候顺手就改了，否则下一轮还得为它单独建一遍脚手架。仓储侧对应的 `ListEventsByAdapter` 也是 `OFFSET $3 LIMIT $4` 三参数一直在。
+
+这两个站点修完，§91.7(a) 的 **20 处 live 站点降到 18 处、11 个模块降到 10 个**，`alert-adapter` 从清单里整行移除。
+
+### 92.5 测试：10 条用例，一路打到数据库绑定参数
+
+`internal/alert-adapter/handler/page_test.go`（新文件，122 行，10 条用例）。选 sqlmock 端到端而不是 mock service，是因为**唯一能证明「客户端的分页真的到了数据库」的证据就是 `OFFSET $2 LIMIT $3` 里实际绑定的整数**——mock service 只能证明 handler 调用了 service，不能证明 service 没把值改掉。
+
+```go
+func pageRouter(t *testing.T, table string, wantArgs ...driver.Value) *gin.Engine {
+	db, mock, _ := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	mock.ExpectQuery("FROM "+table+" WHERE").WithArgs(wantArgs...).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	t.Cleanup(func() { if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("pagination did not reach the database as intended: %v", err) } })
+	r.Use(func(c *gin.Context) { c.Set("tenant_id", "tenant-1"); c.Next() })
+	repo := repository.NewRepository(sqlx.NewDb(db, "postgres"))
+	h := NewHandler(service.NewAdapterService(service.NewFactory(repo, nil), repo))
+	...
+}
+```
+
+`ListAdapters` 6 条，钉死 `("tenant-1", offset, limit)` 的实际绑定：
+
+| 用例 | 请求 | 钉死的绑定 |
+|---|---|---|
+| `NegativePageIsClamped` | `page=-40&page_size=20` | `0, 20` |
+| `ZeroPageIsClamped` | `page=0&page_size=25` | `0, 25` |
+| `NegativePageSizeIsClamped` | `page=2&page_size=-5` | `20, 20` |
+| `UnparsablePaginationUsesDefaults` | `page=abc&page_size=` | `0, 20` |
+| `AbsentPaginationUsesDefaults` | 无参数 | `0, 20` |
+| `ValidPageReachesTheDatabase` | `page=3&page_size=25` | `50, 25` |
+
+最后一条是这一轮的核心断言，它同时断言绑定参数和响应体：修之前的代码会绑定 `(0, 100)` 却在信封里回显 `offset=50`。`ListEvents` 4 条，同样的形状，参数是 `("e-1", "tenant-1", "", offset, limit)`。
+
+### 92.6 变异：5 个全杀 + GAP 存活 + 对照组存活
+
+`/tmp/r91_mutation_check.py`，基线快照在修复**之后**取（6 个文件，镜像目录树），跑 `./internal/alert-adapter/...` + `./internal/pagination/`。
+
+```
+  M1 factory hardcodes offset 0 / limit 100 again          KILLED
+  M2 handler.ListAdapters reverts to bare Atoi             KILLED
+  M3 handler.ListEvents reverts to bare Atoi               KILLED
+  M4 handler swaps offset and limit at the service call    KILLED
+  M5 service drops the client's offset when delegating     KILLED
+
+  GAP silent cap of 1000 on pageSize (must SURVIVE)        SURVIVED
+  NC doc-comment reword (must SURVIVE)                     SURVIVED
+
+  restore byte-identical: YES
+  gate cases: 5   KILLED: 5   SURVIVED: 0   BUILDERR: 0   BADANCHOR: 0
+  ADMISSIBLE: True
+```
+
+5 个门分别覆盖三层：**M1** 把 factory 换回写死的 `0, 100`（原始缺陷），被 `ValidPageReachesTheDatabase` 打死；**M2/M3** 把两个 handler 函数换回裸 `strconv.Atoi`（`strconv` import 必须同时加回来，否则编译不过、是 BUILDERR 而不是 KILLED）；**M4** 把 handler 到 service 的两个整数对调；**M5** 把服务层的 `offset` 换成 `0`。
+
+被哪些用例打死这件事值得记下来，因为它暴露了断言的实际强度：
+
+| 门 | 实际打死的用例 | 没打死的 |
+|---|---|---|
+| M1 | `TestListAdapters_*` 全部 6 条 | — |
+| M2 | 4 条夹值用例 | `ValidPageReachesTheDatabase`、`AbsentPaginationUsesDefaults` |
+| M3 | 3 条夹值用例 | `ValidPageReachesTheDatabase` |
+| M4 | 5 条 | `NegativePageSizeIsClamped` |
+| M5 | 2 条 | 4 条 |
+
+M2/M3 打不死 `ValidPageReachesTheDatabase` 是因为 `(3-1)*25 = 50` 和 `pagination` 的版本算出来一样——**裸推导在正数输入上是对的，测试杀它们靠的是负数和零，不是正数**。M5 打不死那 4 条是因为它们全部期望 `offset=0`，而 M5 恰好把 offset 变成 `0`，所以只有 `NegativePageSizeIsClamped`（期望 20）和 `ValidPageReachesTheDatabase`（期望 50）能抓住它。**「合法页码真的到了数据库」和「非法输入被夹住」是两条独立的防线**，删掉任何一条都会让另一类变异逃过去。
+
+`GAP` 是 §90.6 的同款：给 `OffsetFromPage` 静默加上 `pageSize > 1000` 的上限，本轮钉死过的大 `page_size` 只有 25，所以存活。`NC` 是改写 factory 那条注释。
+
+### 92.7 只记录，未处理
+
+- **(a) 18 处 live 站点剩在 10 个模块，本轮只清了 2 处。** 清单（在 §91.7(a) 基础上删掉 `alert-adapter`）：`runner` 3（`ListAgents` `ListJobs` `ListJobsByAgent`）、`infrastructure/capacity` 3（`ListPools` `ListForecasts` `ListReports`）、`visor` 3（`ListDashboards` `ListHosts` `ListAlerts`）、`pandawiki` 2（`ListSpaces` `ListDocs`）、`extension-point` 2（`ListExtensions` `ListStartupTasks`）、`cmdb-import` 1（`ListJobs`）、`ai/intelligence` 1（`List`）、`governance/governance` 1 + `governance/risk` 1（各 `List`）、`infrastructure/digital-twin` 1（`List`）。**其中 15 处在 8 个完全没有 handler 测试文件的模块里**（`runner`、`extension-point`、`ai/intelligence`、`governance/governance`、`governance/risk`、`infrastructure/capacity`、`infrastructure/digital-twin`、`visor`），只有 `cmdb-import`（1）和 `pandawiki`（2）有既有 handler 测试可搭。本轮自己就是例子：`alert-adapter` 原来也是 0 个 handler 测试，先建了 122 行脚手架才能证明修复。
+- **(b) `IsAdapterNameTaken` 写死 `0, 10`，是同一函数上的第二个缺陷。** `service/adapter.go:125` 用 `repo.ListAdapters(ctx, tenantID, "", "", 0, 10)` 做注册时的重名检查——只翻前 10 条。租户里有 11 个及以上适配器、且第 11 条名字重复时，检查返回 `false`，重复名字被接受。本轮不动，原因是它不在本轮修的这条读链上，而且改法要决定「重名检查该用 `COUNT` 还是 `WHERE name = $n`」，是一个独立的语义问题。
+- **(c) `alert-adapter-v2` 有三个 offset 家族站点，一个都没夹。** `handler.go:84`、`:155`、`:189` 三处都是 `offset, _ := strconv.Atoi(c.Query("offset"))` 直接进 SQL，只有 `limit <= 0` 的地板，`offset` 负数照进 `OFFSET`。这条属于 offset 家族（§89 的账本口径），不是本轮的 `page` 家族，所以本轮只记账不动手。
+- **(d) `RespondPaginated` 的 `total` 传的是 `len(items)`。** 两个端点都传当前页条数而不是租户总数，所以信封里的 `total` 在最后一页之前一直偏小，客户端无法判断是否还有下一页。改它要加一次 `COUNT` 查询，是行为变更，本轮不碰。
+- **(e) 死分页这一类已经全仓库清零，但「信封回显和实际查询不一致」还没有测试防线。** 本轮靠 `ValidPageReachesTheDatabase` 那条同时断言绑定参数和响应体的写法才把它抓住；这个写法目前只在这一个测试文件里存在，其他 115 个「值确实进了查询」的站点没有等价断言。
+- **(f) 91.7 的 (c)(d)(e)(f)(g)(h) 全部照旧。** `cmdb-import` / `pandawiki` 的形状仍然不适合机械替换；2 处 0-based 页码约定仍然存在；6 处「推导之后再夹 offset」仍然没有测试保护；24 处 handler 层上限仍然和 §90.2 的层间约定冲突、仍然 0 处测试保护；`Limit` / `OffsetFromPage` 仍然没有上限；offset 家族的任何一站仍然没有动过。
+- **(g) 本轮的接口签名变更影响面是 1 个实现 + 1 个新测试文件。** `Service` 接口的 `ListAdapters` 加了两个参数，全仓库唯一实现是 `AdapterService`，已同步；`alert-adapter-v2` 是独立模块、不走这个接口，不受影响。但这说明「改接口」这个动作在这棵代码树里仍然便宜——只有当一个接口有多个实现时才变贵，而这棵树目前的接口大多只有 1 个实现。
+- **(h) §89.2 的 offset 权威账本（handler 读点 149、受保护 63、修复率 42%）在本轮之后仍然有效**，本轮一处 offset 没碰。
+
+### 92.8 验证与遗留
+
+`go build ./...` 退出 0；`go vet ./internal/alert-adapter/...` 退出 0；`gofmt -l internal cmd` 只剩 `ticket/models` 那三个历史文件（`assignment_rule.go` `relation.go` `ticket.go`，本轮未触碰）；`go test -count=1 ./...` **567 个包 ok / 0 FAIL / 0 panic**，比 §91 多 1（`internal/alert-adapter/handler` 这是它第一个测试包）。`go.sum` 与 `go.work.sum` 未改。
+
+改动 3 个文件 + 新增 1 个测试文件：**32 增 / 15 删**（`handler.go` 12 增 / 10 删、`adapter.go` 2 增 / 2 删、`factory.go` 6 增 / 3 删，`page_test.go` 122 行）。
+
+下一步有三条路，本轮没做决定：
+
+- **A：把剩下 3 个有脚手架的 live 站点补上**（`cmdb-import` 1 + `pandawiki` 2）。§91.7(c) 说过它们的形状和共享包不同——`cmdb-import ListJobs` 自带完整夹法（`limit <= 0 → 20`、`limit > 100 → 100`，只缺 page 地板）；`pandawiki` 两处读 `perPage` 或 `pageSize`/`perPage` 双参数、缺省 50 不是 20、`perPage` 还有覆盖逻辑。所以这 3 处不是替换，是逐个决定「上限留不留、覆盖顺序保不保」。
+- **B：先解决「上限归谁」这个层间约定**（91.4、91.7(f)、本轮 92.7(f)）。24 处 handler 层上限、0 处测试保护；本轮的 `GAP` 又是同一条存活——静默上限在 pageSize 上仍然没有任何测试能抓住。
+- **C：把「信封回显」这条断言推广到 offset 家族的在册读链**（92.7(e)）。本轮证明了这种双断言能抓住 handler/service/factory 三层的回退，而 offset 家族 149 个读点里 86 个没有夹点，却也没有任何一处断言过「绑定的值和信封一致」。
+
+推荐 **A**：三个站点、两个模块、两边都已有 handler 测试文件可以直接搭，一轮能收干净，而且收的时候必须逐个做「上限归谁」的决定——这等于把 B 那个悬着的层间约定用 3 个真实站点试出来，B 真正定下来之前不会白做。B 独立做是纯决策、没有代码产出；C 的覆盖面大但每处都要先建脚手架，不适合塞进一轮。
+
+carry-forward：§91.7 的 (a)-(h)、§90.7 的 (a)-(h)、§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 92.7 的 (a)-(h)。
+
+仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
