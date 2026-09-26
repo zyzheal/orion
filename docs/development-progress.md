@@ -16297,3 +16297,139 @@ func (h *Handler) ListEvaluationsRuns(c *gin.Context) { ... h.svc.ListEvaluation
 carry-forward：§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 88.6 的 (a)-(f)。
 
 仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
+
+## §89 §88 的收口结论是错的：offset 家族真实状态是 63/149，86 处 58 个模块仍无夹点（Round 88，2026-09-25）
+
+本轮原定只做一件事：把 §88.6(e) 那「54 处本模块有夹点、路径未追」的台账清掉。清账的过程把 §88 的收口结论推翻了。**这个家族没有收口，而且远没收口**——三轮里我修的 24 处是真的，但「剩下的站点下游会夹」这个前提是错的。
+
+### 89.1 三个测量错误，其中一个直接制造了「下游会夹」的错觉
+
+(a) **代理指标太松**。`/tmp/r88_trace2.py` 用「本模块的 repository 层存在夹点」当作「这条路径会夹」。它把 48 处站点标成 Class A「大概安全」。模块里有夹点只说明某个方法夹了，不说明这条链路经过那个方法——报出来的夹点函数名里就混着 `service:RecordCost`、`repository:CreateAction`、`service:Seek` 这种跟 offset 毫无关系的东西。
+
+(b) **决定性错误：`clamp\w*\(` 把 limit 的夹点算成了 offset 的夹点**。仓储里最常见的写法是 `limit = clamp(limit, 1, 100)`，这个正则照单全收。结果 `pipeline-executor` 的 23 个带 `OFFSET` 的仓储方法被报成 **23/23 已夹**、`auto-exec` 19/19——实际都是 **0**。这两个模块正是 §88.6(a) 里排在最前面的两个「3 站点大簇」。整个「Class A 大概安全」的故事，就是这一条正则喂出来的。
+
+修法：夹点判据必须提到 offset 这个变量本身——`offset < 0` / `offset >= 0` / `Offset < 0` / `.GetOffset()` / `queryOffset()` / `clamp(offset`。**`clamp(limit` 不算**。
+
+(c) **函数体解析器越界**。用大括号配平切函数体的那个脚本报了 3312 个「含 `OFFSET` 的仓储方法」，而整个仓库里含 `OFFSET` 字面量的行总共只有 521 行——6 倍虚高。原因是部分函数体解析失败时，`depth` 一直不回零，函数体吞掉了后面所有函数。改成「按顶层 `func ` 行切块、下一行 `func ` 为界」的平坦归因之后，数字回到 **345**，可信。
+
+三个错叠加的后果：一个真实的、摊在 58 个模块上的缺陷家族，被记成了「已收口，剩 64 处待确认」。
+
+### 89.2 修正后的权威账本
+
+| 层 | 数字 |
+|----|------|
+| handler 里 `c.Query/DefaultQuery("offset")` 读点 | **149**（与 Round 85 口径完全对上） |
+| └ handler 函数体内自带夹点 | 39 |
+| 带 `OFFSET` 字面量的仓储方法 | **345** |
+| └ 不夹 offset 的 | **317（92%）**，其中只夹 limit 的 132、两个都不夹的 185 |
+| └ 夹 offset 的 | 28 |
+| 有 offset 读点的模块 | 81 |
+| └ handler 或仓储任一层有夹点的（受保护） | 23 个模块 / **63 处** |
+| └ **两层皆无夹点** | **58 个模块 / 86 处** |
+
+修复率 **63/149 = 42%**，其中 39 处是 handler 自带、24 处是 Round 85–88 加的。§88 记的「64 处 / 45 个模块」在方向和量级上没错，但漏了 22 处、少算了 13 个模块，而且**把它们说成「待确认」是错的——它们是已知无夹点**。
+
+Top 簇：`infrastructure` 8、`alert-adapter-v2` 3、`auto-exec` 3、`sla-engine` 3，其余 54 个模块各 1–2 处。
+
+### 89.3 Class B 六处人工核实：四处真缺陷、两处假阳性
+
+上一轮判成「本模块只有无关夹点、站点没保护」的 6 处，逐条读完三层：
+
+| 站点 | 结论 |
+|------|------|
+| `ci-cd/artifact-version/handler.go:45` `ListVersions` | **真缺陷**，已修 |
+| `ci-cd/artifact-registry/handler.go:47` `ListRegistries` | **真缺陷**，已修 |
+| `ci-cd/artifact-registry/handler.go:113` `ListArtifacts` | **真缺陷**，已修 |
+| `disaster-recovery/handler.go:70` `ListPlans` | **真缺陷**，已修 |
+| `ci-type/handler.go:81` `ListTypes` | **假阳性**：handler 自己就在夹——`if err == nil && offset >= 0 { filter.Offset = &offset }`。夹点在 Atoi 那一行的下一行，窗口式检查没框进去 |
+| `pipeline-budget/handler.go:232` `ListHistory` | **假阳性**：走的是 `models.ListQuery`，它有 `GetOffset()` 方法，`*q.Offset < 0` 就返回 0，service 调的正是 `lq.GetOffset()` |
+
+两处假阳性值得记一笔：这个仓库的分页夹点至少有三种形状（裸 `Atoi` + 后接 guard、`ListFilter{Offset: *int}` 指针字段、`ListQuery` 值接收者方法），任何按单一形状写的扫描都会漏判或误判。
+
+### 89.4 本轮修 5 个模块 10 处
+
+选的标准是「已逐条追完三层、且形状与 Round 85–87 完全一致」：
+
+| 模块 | 站点 | handler | service | repository |
+|------|------|---------|---------|------------|
+| `disaster-recovery` | 1 `ListPlans` | 裸 `Atoi` | 纯透传 | `if limit <= 0 { limit = 50 }`，`OFFSET $3` 不夹 |
+| `ci-cd/artifact-version` | 1 `ListVersions` | 裸 `Atoi` | 纯透传 | `limit <= 0 \|\| limit > 100` → 50，`OFFSET $n` 不夹 |
+| `ci-cd/artifact-registry` | 2 `ListRegistries` / `ListArtifacts` | 裸 `Atoi` | 纯透传 | 同上 |
+| `internal-library` | 3 `List` / `ListByLanguage` / `ListByOwner` | 裸 `Atoi` | 纯透传 | 3 处 `if limit <= 0`，`OFFSET $n` 不夹 |
+| `pipeline-executor` | 3 `ListPipelines` / `ListSteps` / `ListExecutions` | 裸 `Atoi` | 纯透传 | 3 处 `clamp(limit, 1, 100)`，`OFFSET $n` 不夹 |
+
+**全是模板 (i)：仓储夹 limit、不夹 offset。** helper 文本与 §86/§87 逐字相同，追加到各包末尾，`limit` 一律不动。`queryOffset` 现在是仓库里第 10 份逐字相同的拷贝。
+
+### 89.5 测试：两种钉法各就位，共 15 个用例
+
+- **录制 fake**（`disaster-recovery`、`internal-library`）：嵌现有 `fakeDisaster_recoveryService` / `fakeInternal_libraryService`，只覆写 list 方法记录 `(method, limit, offset)`，断言 handler 转发出去的数。`internal-library` 的断言带 `want` 方法名，`List` / `ListByLanguage` / `ListByOwner` 各自独立成例。
+- **sqlmock `WithArgs`**（`pipeline-executor`、`ci-cd/artifact-version`、`ci-cd/artifact-registry`）：三个包的 service 都是具体类型不是接口，只能走数据库层。`WithArgs("tenant-a", 50, 0)` 把**真正绑定进 SQL 的值**钉死，夹点失效时 sqlmock 直接报参数不匹配。
+
+两个包（`ci-cd/artifact-version`、`ci-cd/artifact-registry`）**此前没有任何 handler 测试**，本轮是它们的第一份。
+
+每个包都带至少一条透传用例（`?offset=60&limit=25` → 原样转发）。这一条是必要的：M3 和 M4 两个变异只被它杀掉，见 89.6。
+
+两个环境细节：`ListSteps` 在列步骤前先做租户归属校验（`SELECT EXISTS(SELECT 1 FROM pipelines ...)`），期望要排在前；`artifact-*` 两个包的租户键是 `tenantId`，其余是 `tenant_id`。
+
+### 89.6 变异：6 个全杀 + 缺口存活 + 对照组存活
+
+`/private/tmp/r88/mutation_check.py`。**gate=6 killed=6 survived=0 builderr=0 badanchor=0，GAP SURVIVED，NC SURVIVED，restore 逐字节一致，ADMISSIBLE True**。
+
+这是第一次一个 harness 同时管 5 个包：helper 逐字相同，所以块级变异在 5 个文件上一次做完，调用点变异按各文件期望条数（1/1/2/3/3）分别校验。
+
+| 变异 | 结果 |
+|------|------|
+| M1 拆掉 `queryOffset` 下限（`i > 0` 去掉） | KILLED |
+| M2 10 个调用点还原成裸 `strconv.Atoi` | KILLED |
+| M3 下限变成上限 5 | KILLED |
+| M4 读错参数名 `offset` → `page` | KILLED |
+| M5 下限从 0 变 1 | KILLED |
+| M6 handler 默认 limit 从 50 改 20 | KILLED |
+
+**顺带在 harness 外做了一次负向自检**：把下限拆掉后 `pipeline-executor` 三条用例全红，报的就是真实缺陷长什么样——
+
+```
+argument 2 expected [int64 - 0] does not match actual [int64 - -40]
+Query 'SELECT * FROM pipelines ... LIMIT $2 OFFSET $3'
+```
+
+第一次跑 harness 出现 `BADANCHOR`（M2/M6 改写 0 处）：`^...$` 正则没加 `re.MULTILINE`。加上即过。
+
+- **GAP（不计入门禁）**：`i > 0` → `i > 1` → **SURVIVED**。`?offset=1` 会被静默折成 0。只钉了 `-40` 与 `60`，1 到 5 整段依旧无覆盖——现在共用这个未覆盖分支的 helper 已经从 5 份涨到 **10 份**。
+- **NC**：helper 注释改词 → SURVIVED。
+
+### 89.7 只记录，未处理
+
+(a) **86 处 / 58 个模块两层皆无夹点**，家族**重新打开**。§88 建议的「关在 24/149 换家族」不能执行，因为前提不成立。
+
+(b) **`page` 家族第一次被量出来：119 处 `page` + 53 处 `page_size` 读点**，此前从未进过任何台账。`page` 推导出的 offset 是 `(page-1)*ps`，负值路径与 `offset` 不同（`page=0` → `-ps`），夹点位置也该不同。这可能是比 offset 更大的一个家族。
+
+(c) **死分页参数**：`alert-adapter/handler.go:135` 的 `ListAlertAdapters` 读了 `page` 和 `page_size` 两个参数，然后调用 `h.svc.ListAdapters(ctx, tenantID)`——**两个都没传**。客户端的分页请求被静默忽略，端点永远返回全量。这是新的一类缺陷，跟夹点无关。
+
+(d) **`sla` 3 处是 `q.Offset` 结构体字段形状**，不是单行 `Atoi` 模板，`queryOffset` 套不进去，需要单独处理。
+
+(e) **模板 (ii)：185 个仓储方法两个都不夹**。`?limit=-1` 在 Postgres 里是语法错误，也是 500——本轮的 `limit` 一律没动，这部分仍然开着。
+
+(f) **`ci-cd/artifact-registry/handler.go:112` 的局部变量叫 `Offset`**（大写），改调用点时保留了原样。既有风格债，不属于本缺陷。
+
+(g) **层间不一致继续扩散**：`queryOffset` 在 handler 夹、仓储只夹 limit，§87.6(b)/§88.6(d) 那个问题现在已在 7 个模块里存在。
+
+(h) **可达性照 §86.7(f)**：本轮 10 个路由全部在 `auth.RequirePermission(...)` 之后，默认部署下不可达。
+
+### 89.8 验证与遗留
+
+`go build ./...` 退出 0；`go vet` 五棵树退出 0；`gofmt -l internal cmd` 只剩 `ticket/models` 那三个历史文件；`go test -count=1 ./...` **565 个包 ok / 0 FAIL / 0 panic**（上轮 563，`ci-cd/artifact-version` 与 `ci-cd/artifact-registry` 有了第一份测试文件）。`go.sum` 与 `go.work.sum` 未改。
+
+改动 10 个文件：5 个 `handler.go` **70 增 / 10 删**、5 个新增 `offset_clamp_test.go` **411 行 / 15 个用例**，合计 **481 增 / 10 删**。
+
+**下一步该怎么走，本轮没做决定。** 机械修法已经完全模板化、且每处都过了变异验证，但剩下 86 处摊在 58 个模块、最大簇只有 8，多数模块需要新建测试脚手架（本轮 5 个模块里就有 2 个此前零测试）。三条路：
+
+- **A：一次性扫完 58 个模块**。收益最大，但要接受一轮里产出几十个包的脚手架，风险和工时都集中。
+- **B：先把 `queryOffset` / `queryLimit` 收进一个共享包（如 `internal/pagination`），再机械替换全部站点**。顺手消掉仓库里那 10 份逐字相同的 helper，夹点逻辑只测一次；代价是改仓库约定，且要处理 `page`、`q.Offset` 等异型站点。
+- **C：仍按单模块推进**，接受每轮 3–10 处的边际收益。
+
+推荐 **B**：家族的真实规模（offset 149 + page 119 + page_size 53）已经大到「一份 helper 抄 10 遍」本身就是问题，而且 GAP 那段未覆盖分支现在被复制了 10 份。但 B 是跨轮工程，不是一轮能收的事。
+
+carry-forward：§88.6 的 (a)-(h)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 89.7 的 (a)-(h)。
+
+仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
