@@ -17,11 +17,11 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"strconv"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/alert-adapter/models"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -30,7 +30,7 @@ import (
 // Service defines the methods the handler calls on the service/factory layer.
 type Service interface {
 	CreateAdapter(ctx context.Context, tenantID, name, atype, category string, config map[string]string) (*models.AlertAdapter, error)
-	ListAdapters(ctx context.Context, tenantID string) ([]models.AlertAdapter, error)
+	ListAdapters(ctx context.Context, tenantID string, offset, limit int) ([]models.AlertAdapter, error)
 	GetAdapter(ctx context.Context, tenantID, id string) (*models.AlertAdapter, error)
 	UpdateAdapter(ctx context.Context, tenantID, id string, req *models.UpdateAdapterRequest) (*models.AlertAdapter, error)
 	DeleteAdapter(ctx context.Context, tenantID, id string) error
@@ -132,10 +132,11 @@ func (h *Handler) ListAdapters(c *gin.Context) {
 	defer span.End()
 
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
 
-	items, err := h.svc.ListAdapters(ctx, tenantID)
+	offset := pagination.OffsetFromPage(page, ps)
+	items, err := h.svc.ListAdapters(ctx, tenantID, offset, ps)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -144,7 +145,7 @@ func (h *Handler) ListAdapters(c *gin.Context) {
 		items = []models.AlertAdapter{}
 	}
 
-	middleware.RespondPaginated(c, items, (page-1)*ps, ps, len(items))
+	middleware.RespondPaginated(c, items, offset, ps, len(items))
 }
 
 func (h *Handler) GetAdapter(c *gin.Context) {
@@ -268,10 +269,11 @@ func (h *Handler) ListEvents(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	adapterID := c.Param("id")
 	status := c.Query("status")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
 
-	items, err := h.svc.ListEvents(ctx, tenantID, adapterID, status, (page-1)*ps, ps)
+	offset := pagination.OffsetFromPage(page, ps)
+	items, err := h.svc.ListEvents(ctx, tenantID, adapterID, status, offset, ps)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -280,5 +282,5 @@ func (h *Handler) ListEvents(c *gin.Context) {
 		items = []models.AlertEvent{}
 	}
 
-	middleware.RespondPaginated(c, items, (page-1)*ps, ps, len(items))
+	middleware.RespondPaginated(c, items, offset, ps, len(items))
 }

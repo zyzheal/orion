@@ -38,8 +38,8 @@ func (s *AdapterService) CreateAdapter(ctx context.Context, tenantID, name, atyp
 }
 
 // ListAdapters delegates to the factory.
-func (s *AdapterService) ListAdapters(ctx context.Context, tenantID string) ([]models.AlertAdapter, error) {
-	return s.factory.ListAdapters(ctx, tenantID)
+func (s *AdapterService) ListAdapters(ctx context.Context, tenantID string, offset, limit int) ([]models.AlertAdapter, error) {
+	return s.factory.ListAdapters(ctx, tenantID, offset, limit)
 }
 
 // GetAdapter delegates to the factory.

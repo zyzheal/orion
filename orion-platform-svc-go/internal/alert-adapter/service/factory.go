@@ -225,9 +225,12 @@ func (f *AlertAdapterFactory) CreateAdapter(
 	return a, nil
 }
 
-// ListAdapters returns paginated adapters for the given tenant.
-func (f *AlertAdapterFactory) ListAdapters(ctx context.Context, tenantID string) ([]models.AlertAdapter, error) {
-	return f.repo.ListAdapters(ctx, tenantID, "", "", 0, 100)
+// ListAdapters returns adapters for the given tenant within one page. The
+// offset and limit come from the caller: this method used to hardcode
+// offset 0 / limit 100, which made the adapter catalog endpoint return its
+// whole tenant at once no matter what page the client asked for.
+func (f *AlertAdapterFactory) ListAdapters(ctx context.Context, tenantID string, offset, limit int) ([]models.AlertAdapter, error) {
+	return f.repo.ListAdapters(ctx, tenantID, "", "", offset, limit)
 }
 
 // GetAdapter returns a single adapter by ID, with multi-tenant guard.
