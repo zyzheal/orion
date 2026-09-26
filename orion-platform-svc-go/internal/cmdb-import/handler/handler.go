@@ -19,6 +19,7 @@ import (
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/cmdb-import/models"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -83,24 +84,30 @@ func (h *Handler) CreateJob(c *gin.Context) {
 	})
 }
 
-// ListJobs returns paginated import jobs for a tenant.
+// ListJobs returns paginated import jobs for a tenant. 1-based page numbering,
+// default page size 20, page size cap 100. The service and repository both pass
+// offset and limit straight into `OFFSET / LIMIT`, so this handler is the only
+// guard on the path: a negative page used to reach Postgres as a negative
+// OFFSET, which is an error instead of data and turned a GET into a 500.
 func (h *Handler) ListJobs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListImportJobs")
 	defer span.End()
 
 	tenantID := c.GetString("tenant_id")
 	status := c.Query("status")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
+	// The cap lives here rather than in the service or repository, which both
+	// pass limit through untouched. It must be applied before the offset is
+	// derived: deriving from the requested size and capping the limit afterwards
+	// made `page=2&page_size=1000` return rows 1000-1099 while the envelope
+	// reported offset 1000 / limit 100.
+	if ps > 100 {
+		ps = 100
+	}
 
-	offset := (page - 1) * ps
+	offset := pagination.OffsetFromPage(page, ps)
 	limit := ps
-	if limit <= 0 {
-		limit = 20
-	}
-	if limit > 100 {
-		limit = 100
-	}
 
 	jobs, err := h.svc.ListJobs(ctx, tenantID, status, offset, limit)
 	if err != nil {

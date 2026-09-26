@@ -34,11 +34,16 @@ func makeCtx(method string, path string, body string) (*gin.Context, *httptest.R
 	return c, w
 }
 
-// fakeImportService records the tenant ID each handler passes down, so tests
-// can assert the caller's tenant reaches the service layer (no handler may
-// drop it or substitute an empty string).
+// fakeImportService records the tenant ID and the pagination arguments each
+// handler passes down, so tests can assert the caller's tenant reaches the
+// service layer (no handler may drop it or substitute an empty string) and that
+// the offset / limit derived from page and page_size are what the handler
+// believes it sent.
 type fakeImportService struct {
 	lastTenant string
+	lastStatus string
+	lastOffset int
+	lastLimit  int
 }
 
 func (f *fakeImportService) CreateJob(ctx context.Context, tenantID, name, sourceType, sourcePath, targetType, mode string, mapping map[string]string) (*models.CMDBImportJob, error) {
@@ -58,6 +63,9 @@ func (f *fakeImportService) GetJob(ctx context.Context, tenantID, jobID string) 
 
 func (f *fakeImportService) ListJobs(ctx context.Context, tenantID, status string, offset, limit int) ([]models.CMDBImportJob, error) {
 	f.lastTenant = tenantID
+	f.lastStatus = status
+	f.lastOffset = offset
+	f.lastLimit = limit
 	return []models.CMDBImportJob{}, nil
 }
 
