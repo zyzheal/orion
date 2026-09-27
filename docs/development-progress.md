@@ -17331,3 +17331,137 @@ carry-forward：§94.7 的 (a)-(h)、§93.7 的 (a)-(h)、§92.7 的 (a)-(h)、�
 
 仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
 
+
+## §96 `skill` 的四层打通：三个死分页站点收掉，仓储补上 `LIMIT`/`OFFSET`，`total` 不再谎报（Round 95，2026-09-25）
+
+### 96.1 四层一起动，接口那层是「把谎话改回实话」
+
+§95.3 判定的形态一：`ServiceInterface`（21 个方法）声明了 `page, limit int`，handler 老实传进去，service 静默丢弃，仓储接口里连槽位都没有。修法是四层：
+
+| 层 | 文件 | 改动 |
+|---|---|---|
+| 仓储接口 | `repository_interface.go` | 3 个方法加 `offset, limit int`，新增 `CountSkills` / `CountAuditLogs` |
+| 仓储实现 | `repository.go` | 3 个方法加 `LIMIT $n OFFSET $n+1`，新增 2 个计数方法，抽出 `skillsWhere` |
+| 服务接口 | `service_interface.go` | `page, limit` 改名为 `offset, limit` |
+| 服务实现 | `service.go` | 把参数转下去，`total` 改由计数方法给出 |
+| handler | `handler.go` | 3 处换成 `pagination` 三件套，`strconv` 整体删除 |
+
+第 3 层不是顺手改的：`page` 这个名字现在指的是 SQL 的偏移量，留着原名会让下一个读者再被骗一次。**接口签名说谎是这轮修的根因，改名是修的一部分。**
+
+`skillsWhere(tenantID, category, status)` 抽出来给 `ListSkills` 和 `CountSkills` 共用——两个查询必须用同一个谓词，否则 `total` 和 `skills` 会各算各的。
+
+### 96.2 `total` 的处理：不加计数方法，信封会开始说谎
+
+这处有个必须显式决定的点。修之前 `total = int64(len(skills))`，而 service 不分页，所以它等于整租户数——**看起来是对的**。一旦仓储真的分页，`len(skills)` 就变成这一页的条数，信封会在 500 条表上回报 `total: 20`。
+
+所以补了 `CountSkills` / `CountAuditLogs`，和 `runner` 的 `CountAgents` / `CountJobs` 是同一个形状（`§94.2`）。代价是每次 list 多一次数据库往返；收益是信封的 `total` 从「恰好对」变成「一直对」。
+
+`skill` 是第 2 个带真 `total` 的模块。**19 个已迁移站点里现在有 5 处带真 total**（`runner` 3 处、`skill` 2 处；`ListExecutions` 的信封不带 total 字段），其余 14 处仍然是 `len(items)`。
+
+另外两笔主动的决定：3 处都补了 `nil` → 空切片归一（和 `runner`、`cmdb-import` 一致），但**没有**把 `gin.H{"skills": ..., "total": ...}` 换成 `middleware.RespondPaginated`——换的话信封里会出现 `offset`/`limit` 两个新字段，那是接口契约变更，不是这轮的范围。
+
+### 96.3 仓储测试：绑定顺序必须被钉住
+
+`internal/skill/repository/pagination_test.go`（新文件，132 行，7 个测试）。这层此前**零行为覆盖**：`repository_test.go` 只有构造器和接口契约测试，从不调用任何 list 方法。所以本轮加的 `skill` 修复有四层，但只有两层（handler、service）被测。
+
+7 个测试用 `sqlmock.QueryMatcherEqual` 钉 SQL 原文、`WithArgs` 钉参数顺序：
+
+```go
+mock.ExpectQuery(`SELECT * FROM skills WHERE tenant_id = $1 AND category = $2 AND status = $3 ORDER BY created_at DESC LIMIT $4 OFFSET $5`).
+    WithArgs("tenant-1", "ci", "approved", 40, 20)
+```
+
+`TestListSkills_PaginatesAtAll` 是反向用例：预期一个**没有** `LIMIT` 子句的查询跑通，然后断言它**必须失败**——如果仓储悄悄丢掉分页，这行 `t.Fatalf` 会响，而不是让一页请求变成整表读。
+
+### 96.4 测试脚手架又错了：`listCtx` 第二次踩同一个坑
+
+第一版 `listCtx` 写成 `httptest.NewRequest(http.MethodGet, path+query, ...)`——把查询串折进了**路径**，`c.Query()` 对每条用例返回空，handler 全部回退到缺省值。症状是 7 条用例报 `repository got offset=0 limit=20`。
+
+这就是 §94.4 记过的那个坑，同一个写法，第二次踩中。这次能立刻看见，**因为本轮的用例故意不用 `limit=20`**：`limit=25` / `30` / `40` / `-5` 是标记，查询串一旦被丢弃、回退到缺省 20，期望值立刻对不上。如果照抄 `runner` 那套 9 条用例（其中 4 条期望值就是缺省 `(0, 20)`），这个 bug 会**静默存活**。
+
+修成 `path + "?" + query`（空查询串时不加 `?`）。这也是为什么 §94.4 那段的判据值得重复一次：**期望值等于无输入缺省值的那几条，对「输入被丢弃」和「解析正确」是不区分的。**
+
+### 96.5 变异：9 个全杀 + GAP 存活 + 对照组存活
+
+`/tmp/r95/harness.py`，基线在修复**之后**取（11 个文件，含 `pagination` 的两个），跑 4 个包：`./internal/skill/handler/` `./internal/skill/service/` `./internal/skill/repository/` `./internal/pagination/`。
+
+```
+  M1 3 sites all revert to bare Atoi                   KILLED
+  M2 only ListSkills reverts                            KILLED
+  M3 only ListExecutions reverts                        KILLED
+  M4 only GetAuditLogs reverts                          KILLED
+  M5 offset/limit swapped at all 3 calls                KILLED
+  M6 service drops the offset (passes 0)                KILLED
+  M7 total becomes len(items)                           KILLED
+  M8 repo ListSkills binds offset then limit            KILLED
+  M9 repo ListExecutions drops the LIMIT clause         KILLED
+
+  GAP  silent page_size > 1000 cap in OffsetFromPage    SURVIVED
+  NC   repository comment reworded                      SURVIVED
+
+  restore byte-identical: True
+  killed=9/9  builderr=0  badanchor=0        ADMISSIBLE
+```
+
+基线自检 77 条 `--- PASS` / 0 fail。GAP 第 7 次同款存活（§88.6 原始形态、§90.6、§91.6、§92.6、§93.6、§94.6、本节）。NC 是改写仓储的注释。
+
+**这轮的 harness 自己错了两次，都记下来：**
+
+1. **builderr 检测器漏了 `declared but not used`。** 第一版只认 `could not import` / `undefined:` / `imported and not used` / `setup failed`，于是 M9（删掉 `LIMIT` 子句后 `argIdx` 变成未使用变量、直接编译失败）被误判成 **KILLED**。**BUILDERR 不算 KILLED**，这条纪律在这里被违反了一次，靠重跑才发现。
+2. **`single_site` 的锚点拼接写错了。** 用 `split` + 下标重拼时少留了一个分隔符，M2 / M4 生成的文件**丢了大段函数体**（报 `CreateSkill undefined`），两个 BUILDERR 全是 harness 造的，不是变异造的。§94.5 记过「回退块必须整块回退」，这一条是它的镜像：**重构块也必须整块保留。**
+
+修完之后 M9 换了目标：删 `ListSkills` 的 `LIMIT` 子句会让 `argIdx` 未使用而编译失败，改删 `ListExecutions` 的——那处的 `argIdx` 在 `skillID` 分支里还被用到，能编译，是真变异。
+
+### 96.6 打死的宽度：9 条共享用例的判别力分门不同
+
+| 门 | 打死的失败行 | 说明 |
+|---|---|---|
+| M1 三处全回退 | 15 | 5 条判别用例 × 3 handler |
+| M2 只回退 ListSkills | 5 | 只打 `TestListSkills_*` |
+| M3 只回退 ListExecutions | 5 | 只打 `TestListExecutions_*` |
+| M4 只回退 GetAuditLogs | 5 | 只打 `TestGetAuditLogs_*` |
+| M5 三处参数对调 | 24 | 8 条判别用例 × 3，覆盖面最广 |
+| M6 service 丢掉 offset | 12 | 4 条 × 3 |
+| M7 total 变回 `len(items)` | 2 | 信封两条断言 |
+| M8 仓储绑定顺序对调 | 2 | 两个 ListSkills sqlmock 用例 |
+| M9 仓储丢掉 `LIMIT` | 1 | ListExecutions sqlmock 用例 |
+
+单站点隔离成立：M2 / M3 / M4 各打各的 handler，互不串。
+
+**同一套 9 条用例，判别力随门的类型而变：**
+
+- 对「回退成裸 `Atoi`」：**5/9。** 另外 4 条（`absentUsesDefaults`、`validPageReachesTheRepository`、`pageOneIsOffsetZero`、`largePageIsPreserved`）在正确实现和裸 `Atoi` 下输出完全相同——合法范围内的算术不是这轮修的缺陷。和 `runner` 的 5/9 一样。
+- 对「输入被丢弃」：**7/9。** 只有 `absentUsesDefaults` 和 `unparsableUsesDefaults` 的期望值等于缺省 `(0, 20)`，其余 7 条因为用了 `limit=25` / `30` / `40` 而立刻显形。`runner` 那套只有 5/9（§94.6）。**96.4 那个 bug 能被看见，靠的就是这 2 条的差别。**
+- 对「参数对调」：**8/9。** 唯一盲区是 `negativeLimitIsClamped`（`page=2&limit=-5` → `(20, 20)`）：offset 和 limit 数值相等时对调是恒等操作。`runner` 有 2 条盲区。
+- 对「service 丢掉 offset」：**4/9**（offset 非 0 的那 4 条）。这 4 条和「回退」的 5 条**不相交地部分重叠**——`negativeLimitIsClamped` 在两组里都在，其余不同。
+
+**两个门都抓不到的**：上限缺失。钉死过的最大 `limit` 是 40，`OffsetFromPage` 里加 `pageSize > 1000` 的上限永远触发不到；共享包自己的 `TestOffsetFromPage` 最大 size 也只有 25。**这个盲区连存 7 轮，结构原因没变：没有任何测试用大值 page_size。**
+
+### 96.7 只记录，未处理
+
+- **(a) 台账收窄：16 处 live → 13 处 live，落在 8 个模块。** 本轮收掉 `skill` 3 处。剩 `infrastructure/chaos` 1、`infrastructure/capacity` 3、`visor` 3、`extension-point` 2、`ai/intelligence` 1、`governance/governance` 1、`governance/risk` 1、`infrastructure/digital-twin` 1。§95.2 那张 LIVE 表消掉一行。
+- **(b) `ServiceInterface` 是生成文件，但没有生成器在跑。** 文件头写着 `Code generated by tools/generate_service_interface.go. DO NOT EDIT.`（全树 63 个文件带这个注释），但那个工具不存在——`tools/gen-interface/main.go` 只有 3.9 KB 且停在 9 月 16 日。本轮手工改了 `service_interface.go`，**这是全树的既有做法，不是例外。** 将来有人真去跑生成器，改动会被覆盖。
+- **(c) `total` 现在要走第二次数据库往返。** 这和 `runner` 的 `CountAgents` / `CountJobs` 同形状（§94.2），但 skill 的 `ListSkills` / `ListAuditLogs` 每次请求都是两次查询。冷不冷不知道，但这是本轮引入的固定成本。
+- **(d) `skill` 的信封仍然不带 `offset` / `limit`。** 三处用的是 `gin.H{"skills": ..., "total": ...}`，不是 `middleware.RespondPaginated`。补了 `nil` → 空切片归一，但没有换成统一信封——换成会出现两个新字段，是接口契约变更。§94.2 记的「15 处报 `len(items)`」这条账，本轮只把其中 2 处换成了真 total。
+- **(e) `infrastructure/chaos` 仍然是全树唯一有「service 里夹点却对 offset 是死代码」的模块。** 1 行换位就能关掉一个真 500，但模块零测试文件、`NewHandler` 吃具体类型 `*service.ChaosService`。§96.3 这轮补仓储测试的做法说明「零测试文件」不是死锁——**但先动 `chaos` 仍要先引入接口，顺序反过来比 skill 贵。**
+- **(f) `developer-portal/service/service.go:127` 把 context 参数命名为 `c`**，和 handler 里 `*gin.Context` 的 `c` 撞名（§95.8 记过，未处理）。
+- **(g) GAP 是第 7 次同款存活。** 钉死过的最大 `limit` 是 40；`pagination_test.go` 的 `TestOffsetFromPage` 最大 size 25、最大 page 14。**连存 7 轮，结构原因没变。**
+- **(h) 仓储测试这轮才开始有，但覆盖面很窄。** 7 个用例钉住了 5 个方法的 SQL 原文和参数顺序，但**没有**一个用例走 `skill` 的错误路径、租户越界或事务。§94.6 那种「测了参数没测语义」的薄处在仓储层依然存在。
+
+### 96.8 验证与遗留
+
+`go build ./...` 退出 0；`go vet ./...` 退出 0；`gofmt -l internal cmd` 只剩 `ticket/models` 那三个历史文件（`assignment_rule.go` `relation.go` `ticket.go`，本轮未触碰）；`go test -count=1 ./...` **568 个包 ok / 0 FAIL / 0 panic**，和 §95 的基线同数（`internal/skill/handler` 与 `internal/skill/repository` 本轮之前就已经是有测试的包）。`go.sum` 与 `go.work.sum` 未改。
+
+改动 7 个文件、新增 2 个测试文件：**207 增 / 50 删**（7 个被改文件）、`page_test.go` 162 行、`pagination_test.go` 132 行。`strconv` 整体删除（3 处站点是它唯一的用处，和 `runner` 一样）。
+
+下一步有两条路：
+
+- **A：`infrastructure/chaos`。** 1 行换位关掉一个真 500（`offset` 在夹点之前推导，`?page=-5` → `OFFSET -100`）。需要先引入 `Service` 接口（现在吃 `*service.ChaosService`），再建 handler 测试脚手架——本轮 §96.3 的仓储测试写法可以直接复用。是全树唯一**确认会 500** 的 live 站点。
+- **B：`extension-point`。** 2 处，接口现成（11 个方法），零测试文件，要新建脚手架。比 A 便宜一截（不用动接口），但缺陷是纯「返回整张表」，没有 500。
+
+推荐 **A**。理由：它是 13 处 live 里唯一一个有确定 500 后果的，`OFFSET -100` 是数据库错误而不是一页数据；而且它暴露的「模块里有夹点所以扫描会报 protected」那个假保障属性（§95.4），只有真修掉才有反例。B 的缺陷更安静，排在后面。
+
+carry-forward：§95.2 的两张台账表（LIVE 表消掉 `skill` 一行后剩 13 处 / 8 个模块）、§95.8 的两笔顺带读到的、§94.7 的 (a)-(h)、§93.7 的 (a)-(h)、§92.7 的 (a)-(h)、§91.7 的 (a)-(h)、§90.7 的 (a)-(h)、§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 96.7 的 (a)-(h)。
+
+仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
+
