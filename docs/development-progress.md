@@ -17465,3 +17465,155 @@ carry-forward：§95.2 的两张台账表（LIVE 表消掉 `skill` 一行后剩 
 
 仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
 
+
+## §97 `chaos` 的 1 行修不是 1 行：夹点归位到 handler，服务收回夹点改回透传，三个缺陷住在同一段顺序里（Round 96，2026-09-25）
+
+### 97.1 四个文件一起动，仓储一行没改
+
+落地 §96 末尾推荐的方案 A：收掉 `infrastructure/chaos` 那 1 处 live 站点。§95.4 说它是「1 行换位」，实际是 2 个源文件 50 增 20 删 + 3 个测试文件 506 行。
+
+| 层 | 文件 | 改动 |
+|---|---|---|
+| handler | `handler.go` | 换成 `pagination` 三件套，上限 100 **先于**推导，删 `strconv`，补 nil→空切片 |
+| handler | `handler.go` | 新增 `Service` 接口 + `var _ Service = (*service.ChaosService)(nil)` 编译断言 |
+| service | `chaos_service.go` | 签名 `page, pageSize` → `offset, limit`，**删掉 8 行夹点**，改回一行透传 |
+| repository | `chaos_repository.go` | **未改** |
+| models | `models.go` | **未改** |
+
+仓储没改不是省事：它本来就是对的——`LIMIT $2 OFFSET $3` 配 `(tenantID, limit, offset)`，绑定顺序和 §94.6 量出的既有惯例一致。这轮它只是**第一次被测到**。
+
+handler 之前吃具体类型 `*service.ChaosService`，`NewHandler` 无法注入假实现。§96 的 `skill` 是「接口现成」，chaos 是「接口要现造」，这就是它在 §96 里排第二的原因。接口声明在 handler 包、构造函数仍收具体类型能传入——wiring 一行没改，`var _` 断言保证签名漂移在编译期而不是接线期暴露。
+
+### 97.2 三个缺陷住在同一段顺序里
+
+原代码 12 行，两个功能缺陷加一个假保障属性：
+
+```go
+offset := (page - 1) * pageSize   // ← 先用未夹点的值推导
+if page <= 0   { page = 1 }       // ← 写入一个之后没人读的局部变量
+if pageSize <= 0 { pageSize = 20 }
+if pageSize > 100 { pageSize = 100 }
+return s.repo.ListByTenant(ctx, tenantID, offset, pageSize)
+```
+
+**(a) 负 OFFSET → 真 500。** `offset` 在夹点之前算好，之后 `page` 的夹点写的是一个再也没被读的局部变量。`?page=0`、`?page=-5`、`?page=2&page_size=-5` 全都推出负 OFFSET；Postgres 对负 OFFSET 回错误而不是回数据，GET 变 500。**最坏的一条是 `?page=abc`**：handler 用裸 `strconv.Atoi` 且忽略 error，非数字变 0，`offset = (0-1)*20 = -20`。URL 里打错一个字母，列表接口就 500。
+
+**(b) 错页，且完全静默。** 上限夹在推导之后，所以 `?page=3&page_size=1000` 推出 `offset=2000`、`limit` 再被夹到 100，返回第 2001–2100 行，而 URL 要的是第 201–300 行。没有错误、没有状态码变化，客户端看到一页长得完全合理的数据。这是 §94.3 在 `cmdb-import` 记过的同一个「先推导后夹点」形态，但它在那边是有信封回报 `offset`/`limit` 的，在 chaos 这里连信封都没有——**错页在这里连一个可以核对的数字都不给。**
+
+**(c) `if page <= 0 { page = 1 }` 是死代码。** 它夹住了错误的变量：该夹的是 `offset`，它夹的是 `page`，而 `page` 在被夹之前就已经用完。
+
+### 97.3 扫描器数夹点，不数数据流
+
+§95.1 的判定条件是「handler 无地板 且 service 无夹点 且 repository 无夹点」，三条全空才算 live。chaos 的 service **有**夹点，所以 §95.2 把它记进了 PROTECTED 表——记录是错的，判据是对的。
+
+问题是判据把「存在夹点」当成了「夹点生效」。这里夹点在源里、在正确的函数里、形状也正确，只是作用在一个已经不参与输出的变量上。**§95.4 当时命名为「假保障属性」，这一轮把它具体化了：假保障不只是夹点写错方向，还有夹点写对但夹的是死变量。** 正则和 AST 都数得出这一行 `if page <= 0`，只有跟着 `offset` 这一条数据流走才知道它没用。
+
+这解释了为什么 §94 到 §96 三轮扫出来的台账都带一点噪音：判据能数「有没有」，数不出「算不算数」。
+
+### 97.4 信封不动，`total` 的问题不存在
+
+`respondSuccess(c, exps)` 返回的是裸切片，信封里既没有 `total` 也没有 `offset`/`limit`。所以 §96.2 那个「一旦真分页，`len(items)` 就会开始谎报」的问题在 chaos 这里**不适用**——它从不说谎，因为它什么都不报。不用加计数方法。
+
+换成 `middleware.RespondPaginated` 会给 API 契约加两个字段，那是接口变更不是修缺陷，这轮不做（和 §96.7(c) 同一个决定）。
+
+顺带：`chaos-gateway` 是另一个模块，同一个 `ListExperiments` 问题它答的是 `(data, total, err)` + `RespondPaginated`，而且夹点在 handler 里、顺序也对。两个模块回答同一个问题，信封形状和正确性都不一样。
+
+### 97.5 服务层怎么测：树里没有假仓储这个惯例
+
+`ChaosService` 吃 `*repository.ChaosRepository`。要测它的透传，要么引入仓储接口 + 假仓储，要么让真仓储跑在 sqlmock 上。
+
+**树里两种都有先例，但比例悬殊：** `repo *repository.X` 这类具体字段 206 处；在 service 包内声明 `RepositoryInterface` 的只有 3 个模块（`unified-config`、`service-topology`、`page-registry`）。
+
+选 sqlmock 穿过真仓储。理由：服务是**一行透传**，为它引入接口是为了测这一行；而 sqlmock 把「服务有没有转对参数」和「仓储的 SQL 文本、绑定顺序对不对」一次测到，M7/M8 两个仓储层的门因此能在仓储测试里独立归因。代价是服务测试耦合了 SQL 原文——将来谁改查询，服务测试会为了错的原因失败。这个代价 §97.8(d) 记着。
+
+3 个测试文件 506 行：handler 346、repository 78、service 82。chaos 模块此前**零测试文件**，现在是 4 个包里有 3 个包带测试。
+
+`handler_test.go` 的 10 条共享用例里有一条是 skill 那套没有的：`pageSizeCapAppliesBeforeDeriving`（`page=3&page_size=250` → `(200, 100)`）。它是 (b) 的回归门，没有它 (b) 修了也测不出——skill 的 9 条用例里没有任何一条 `page_size > 100`，照抄就会漏掉整个「先推导后夹点」家族。
+
+### 97.6 变异：9 个全杀 + GAP 第 8 次存活
+
+`/tmp/r96/harness.py`，基线在修复之后取（8 个文件，4 个包，40 条 `--- PASS`）。
+
+```
+  M1 handler 回退成裸 Atoi，无地板无上限              KILLED   width=21
+  M2 service 回退成推导-再-夹点的原身                  KILLED   width=2
+  M3 service 丢掉 offset，绑 0                        KILLED   width=1
+  M4 handler 在推导之后才夹上限                        KILLED   width=6
+  M5 handler 删掉上限那个 if 块                        KILLED   width=6
+  M6 handler 调用处 offset 与 limit 对调               KILLED   width=20
+  M7 仓储把 offset 绑在 limit 前面                     KILLED   width=3
+  M8 仓储删掉 LIMIT 子句                              KILLED   width=4
+  M9 handler 删掉 nil → 空切片                        KILLED   width=1
+  GAP OffsetFromPage 里静默夹 pageSize>1000            SURVIVED
+  NC  仓储文档注释改写                                 SURVIVED
+
+  restore byte-identical: True
+  killed=9/9  builderr=0  badanchor=0        ADMISSIBLE
+```
+
+基线自检 40 条 PASS / 0 fail。GAP 第 8 次同款存活（§88.6 原始形态、§90.6、§91.6、§92.6、§93.6、§94.6、§96.5、本节）。
+
+**M1 是 21，本轮最宽；M2/M3 是 2 和 1，本轮最薄。** 原因不是测试写得松，而是 handler 测试注入的是假服务，它只能看见 handler 往外发了什么，看不见 service 做了什么。M2/M3 全靠 service 测试那 3 条撑着。§97.7 展开。
+
+### 97.7 打死的宽度：10 条共享用例的判别力分门不同
+
+| 门 | 宽度 | 说明 |
+|---|---|---|
+| M1 handler 全回退 | 21 | 最宽。9 条负面用例 + 10 条共享用例 + 3 条夹点顺序用例一起响 |
+| M6 调用处参数对调 | 20 | 9/10 共享用例 + 全部 9 条负面用例 |
+| M4 先推导后夹上限 | 6 | 1 条共享 + 3 条专用（`pageFiveSizeTwoHundred` 在两边都能被抓到） |
+| M5 删掉上限块 | 6 | 同上，但 `page_size` 没被夹，`(500,250)` 和 `(200,100)` 一起错 |
+| M8 仓储丢 LIMIT | 4 | 服务 2 条 + 仓储 2 条 |
+| M7 仓储绑定顺序对调 | 3 | 服务 2 条 + 仓储 1 条 |
+| M2 service 回退原身 | 2 | 服务 2 条 |
+| M3 service 丢 offset | 1 | 服务 1 条（另一条 `limit=500` 的用例对它不敏感） |
+| M9 删 nil 归一 | 1 | 1 条专用 |
+
+**同一套 10 条共享用例，判别力随门的类型而变：**
+
+- 对「回退成裸 `Atoi`」：**10/10。** 比 skill 的 5/9 和 runner 的 5/9 都好。原因是 chaos 的旧 handler **根本不推导 offset**——它把 `page, pageSize` 直接当 `offset, limit` 传给 service。所以任何 page 不为 1 的用例都和正确输出不同。skill 的旧 handler 推导是对的（`(page-1)*limit`），合法范围内的算术不是它修的缺陷，所以那 4 条天然不判别。
+- 对「handler 丢掉整个查询串」：**8/10。** 盲区是 `unparsableUsesDefaults` 和 `absentUsesDefaults`，两条期望值都等于缺省 `(0,20)`。仍然是 skill 那套标记设计在起作用。
+- 对「调用处 offset/limit 对调」：**9/10。** 唯一盲区 `negativePageSizeIsClamped` 的 `(20, 20)`——两个数相等时对调是恒等操作。
+- 对「先推导后夹上限」：**共享用例只有 1/10**（只有 `pageSizeCapAppliesBeforeDeriving` 的 `page_size` 超过 100）。剩下靠 3 条专用用例。
+- 对「service 丢掉 offset」和「service 回退原身」：**共享用例 0/10。** handler 测试结构性地看不见服务层。
+
+**两个门都抓不到的**：仍然是 `OffsetFromPage` 内部的夹点。但这一轮有一处**改善值得单独记**：handler 自己的那个上限 100 **现在被变异验证过了**（M5 删掉它就死），因为钉死过的最大 `page_size` 是 250、专用用例里还有 1000。Round 95 里 skill 的门槛是「钉死的最大 limit 只有 40，上限缺失谁都抓不到」——**同一个盲区，这一轮从「没有门」变成了「有门，只是门在 handler 不在共享包」。** 缺陷类从「没人夹」挪到了「没人测共享包里的夹点」。
+
+### 97.8 三个 harness 锚点又错了，第三次靠手抓
+
+**(1) `H_CANON` 数出来是 0。** 锚点少写了夹点前面那 7 行注释。注释在解析和夹点之间，所以「从 `page :=` 到 `limit := ps`」这一段实际是 14 行不是 6 行。前两轮都没踩，因为这轮注释最长。
+
+**(2) `R_PAGED` 吞了 16 行。** 锚点写的是 `query := \`SELECT * FROM chaos_experiments`，而 `GetByID` 的查询也以这段开头，于是从 `GetByID` 一直吃到 `ListByTenant` 的 `SelectContext`。改成用完整查询原文做锚点。
+
+**(3) 前两轮修锚点的方式本身就是问题。** 三轮下来锚点错三次：§94.5 回退块没整块回退、§96.5 `single_site` 下标错位、本轮这两处。共同点是**锚点字符串是我重新敲一遍的**。这一轮换了做法：锚点从真实文件里 `index()` 切出来存进 `anchors.json`，harness 读 JSON 而不是重打字符串。**锚点不该被输入，该被读取。** 这一条值得留下。
+
+另外 M5 第一版写成了 `limit := 20`——把 `page_size` 的解析一起删了，等于「删上限」和「无视 page_size」两件事混在一个变异里，宽度虚高到 10。收窄成只删夹点那个 `if` 块后是 6。**一个变异改了超过一件事，测出来的是套件对别的东西的敏感度。**
+
+顺带记一个测试本身的坑，不是 harness 的：`sqlmock.NewRows(列名)` 不给任何行时，`SelectContext` 把切片留在 nil。所以仓储测试里 `if got == nil` 那条断言**是断言错了，不是仓储错了**——换成返回一行再断言行数就对了。这条看着像仓储 bug，其实是 sqlmock 的行为。
+
+### 97.9 只记录，未处理
+
+- **(a) `models.PaginatedRequest` 是死代码，而且它是正确的。** `models.go:135-159`，`Offset()` 先夹 `Page` 和 `PageSize` **再**推导——正好是这轮修出来的正确顺序。全模块**零引用**。这个模块里同时躺着正确写法（未使用）和错误写法（在生产路径上）。它是全树大约 50 份同名同形 helper 之一。
+- **(b) `respondForbidden` 是死代码。** `response_writer.go:36-39`，定义了没有调用点。
+- **(c) 仓储对空表返回 nil。** `var exps []models.ChaosExperiment` + `SelectContext` 在零行时留下 nil，是 handler 的 nil→空切片归一让它序列化成 `[]` 而不是 `null`。M9 守着那个归一，但**没有任何测试守着仓储这个契约**——将来谁把仓储改成返回 `[]models.ChaosExperiment{}`，没人知道；谁删掉 handler 的归一，空表就会回 `null`。
+- **(d) 服务测试耦合了 SQL 原文。** 这是 §97.5 选 sqlmock 的代价，写在这里免得下次忘了为什么。
+- **(e) `ServiceInterface` 那一笔账要修正。** §96.7(b) 说生成器不存在，准确的说法是：`*_interface.go` 共 220 个，其中 191 个写 `Code generated by tools/generate_service_interface.go`、63 个写 `repository interface extractor`——**这两个路径在 `tools/` 下都不存在**；真正存在的 `tools/gen-interface/main.go` 只生成了 1 个文件（`internal/webhook/store/service/service_interface.go`），而且那个文件的 mtime（8 月 1 日）比工具本身（9 月 16 日）还老。全树 220 个「DO NOT EDIT」文件里有 219 个没有生成器。
+- **(f) `developer-portal/service/service.go:127` 把 context 参数命名为 `c`**（§95.8、§96.7 都记过，仍未处理）。
+- **(g) 台账收窄：13 处 live → 12 处 live，落在 7 个模块。** 本轮收掉 `chaos` 1 处。剩 `infrastructure/capacity` 3、`visor` 3、`extension-point` 2、`ai/intelligence` 1、`governance/governance` 1、`governance/risk` 1、`infrastructure/digital-twin` 1。已迁移站点 19 → 20，落在 11 个模块。
+- **(h) 4 项授权决定仍未动**：`StartTrace` 在 auth 关闭时怎么办、`RecordSavings` 零调用方、模块 A 的 6 个 handler 与 33 处裸租户读取删还是留、auth 关闭时 `X-Tenant-Id` 头的租户来源。
+
+### 97.10 验证与遗留
+
+`go build ./...` 退出 0；`go vet ./...` 退出 0；`gofmt -l internal cmd` 只剩 `ticket/models` 那三个历史文件（`assignment_rule.go` `relation.go` `ticket.go`，本轮未触碰）；`go test -count=1 ./...` **571 个包 ok / 0 FAIL**（§96 的 568 + 本轮新增的 3 个 chaos 测试包），`go.sum` 与 `go.work.sum` 未改。
+
+改动 2 个源文件 **50 增 / 20 删**，新增 3 个测试文件 **506 行**。chaos 模块从 0 个测试文件变成 3 个。
+
+下一步有两条路：
+
+- **A：`extension-point`。** 2 处，接口现成（11 个方法），零测试文件。缺陷是纯「返回整张表」，没有 500，比本轮的 chaos 安静。
+- **B：`infrastructure/capacity`。** 3 处，全树最多的一个模块。要先看清它的四层长什么样，可能是脚手架最贵的一轮。
+
+推荐 **A**。理由：12 处 live 里它是最便宜的——接口已在，只需要新建脚手架，而本轮 §97.5 的「sqlmock 穿过真仓储」和 §97.6 的 10 条共享用例（含那条 `page_size > 100` 的专用用例）都可以整块搬过去。B 有 3 处但要先摸清结构，可能一轮装不下。
+
+carry-forward：§96.7 的 (a)-(h)、§95.7 与 §95.2 的两张台账表（LIVE 表本轮消掉 `chaos` 一行，剩 12 处 / 7 个模块）、§94.7 的 (a)-(h)、§93.7 的 (a)-(h)、§92.7 的 (a)-(h)、§91.7 的 (a)-(h)、§90.7 的 (a)-(h)、§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 97.8 与 97.9 的 (a)-(h)。
+
