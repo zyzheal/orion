@@ -29,12 +29,18 @@ func NewService(repo repository.RepositoryInterface) *Service {
 
 // ==================== Skill CRUD ====================
 
-func (s *Service) ListSkills(ctx context.Context, tenantID string, category, status string, page, limit int) ([]models.Skill, int64) {
-	skills, err := s.repo.ListSkills(ctx, tenantID, category, status)
+func (s *Service) ListSkills(ctx context.Context, tenantID string, category, status string, offset, limit int) ([]models.Skill, int64) {
+	skills, err := s.repo.ListSkills(ctx, tenantID, category, status, offset, limit)
 	if err != nil {
 		return nil, 0
 	}
-	return skills, int64(len(skills))
+	// Count separately from the same predicate so `total` reports the tenant
+	// total rather than the length of the page that was just fetched.
+	total, err := s.repo.CountSkills(ctx, tenantID, category, status)
+	if err != nil {
+		return skills, 0
+	}
+	return skills, total
 }
 
 func (s *Service) GetSkill(ctx context.Context, tenantID, id string) (*models.Skill, error) {
@@ -269,8 +275,8 @@ func (s *Service) ExecuteSkill(ctx context.Context, tenantID, skillID, userID st
 	return execution, err
 }
 
-func (s *Service) ListExecutions(ctx context.Context, tenantID, skillID string, page, limit int) ([]models.SkillExecution, error) {
-	executions, err := s.repo.ListExecutions(ctx, tenantID, skillID)
+func (s *Service) ListExecutions(ctx context.Context, tenantID, skillID string, offset, limit int) ([]models.SkillExecution, error) {
+	executions, err := s.repo.ListExecutions(ctx, tenantID, skillID, offset, limit)
 	return executions, err
 }
 
@@ -436,12 +442,16 @@ func (s *Service) ListReviews(ctx context.Context, tenantID string, status strin
 
 // ==================== Audit log ====================
 
-func (s *Service) ListAuditLogs(ctx context.Context, tenantID, skillID string, page, limit int) ([]models.SkillAuditLog, int64) {
-	logs, err := s.repo.ListAuditLogs(ctx, tenantID, skillID)
+func (s *Service) ListAuditLogs(ctx context.Context, tenantID, skillID string, offset, limit int) ([]models.SkillAuditLog, int64) {
+	logs, err := s.repo.ListAuditLogs(ctx, tenantID, skillID, offset, limit)
 	if err != nil {
 		return nil, 0
 	}
-	return logs, int64(len(logs))
+	total, err := s.repo.CountAuditLogs(ctx, tenantID, skillID)
+	if err != nil {
+		return logs, 0
+	}
+	return logs, total
 }
 
 // ==================== Stats ====================

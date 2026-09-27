@@ -17,6 +17,10 @@ import (
 // mockRepo is a minimal mock implementation of repository.RepositoryInterface
 // for handler-level route registration tests.
 type mockRepo struct {
+	lastOffset int
+	lastLimit  int
+	lastCount  int64
+
 	skills      map[string]*models.Skill
 	versions    map[string][]models.SkillVersion
 	instances   map[string]*models.SkillInstance
@@ -57,7 +61,9 @@ func (m *mockRepo) GetSkill(ctx context.Context, tenantID, id string) (*models.S
 	return s, nil
 }
 
-func (m *mockRepo) ListSkills(ctx context.Context, tenantID, category, status string) ([]models.Skill, error) {
+// filterSkills applies the same predicate the repository builds, so the two
+// cannot drift in these tests.
+func filterSkills(m *mockRepo, tenantID, category, status string) []models.Skill {
 	var result []models.Skill
 	for _, s := range m.skills {
 		if s.TenantID != tenantID {
@@ -71,7 +77,36 @@ func (m *mockRepo) ListSkills(ctx context.Context, tenantID, category, status st
 		}
 		result = append(result, *s)
 	}
-	return result, nil
+	return result
+}
+
+// paginate applies an offset/limit window, mirroring SQL LIMIT/OFFSET.
+func paginate[T any](all []T, offset, limit int) []T {
+	if limit <= 0 {
+		return nil
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	if offset >= len(all) {
+		return nil
+	}
+	end := offset + limit
+	if end > len(all) {
+		end = len(all)
+	}
+	return all[offset:end]
+}
+
+func (m *mockRepo) ListSkills(ctx context.Context, tenantID, category, status string, offset, limit int) ([]models.Skill, error) {
+	all := filterSkills(m, tenantID, category, status)
+	m.lastOffset, m.lastLimit = offset, limit
+	return paginate(all, offset, limit), nil
+}
+
+func (m *mockRepo) CountSkills(ctx context.Context, tenantID, category, status string) (int64, error) {
+	m.lastCount = int64(len(filterSkills(m, tenantID, category, status)))
+	return m.lastCount, nil
 }
 
 func (m *mockRepo) UpdateSkill(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
@@ -181,8 +216,9 @@ func (m *mockRepo) CreateExecution(ctx context.Context, exec *models.SkillExecut
 	return nil
 }
 
-func (m *mockRepo) ListExecutions(ctx context.Context, tenantID, skillID string) ([]models.SkillExecution, error) {
-	return m.executions, nil
+func (m *mockRepo) ListExecutions(ctx context.Context, tenantID, skillID string, offset, limit int) ([]models.SkillExecution, error) {
+	m.lastOffset, m.lastLimit = offset, limit
+	return paginate(m.executions, offset, limit), nil
 }
 
 // --- Reviews ---
@@ -225,17 +261,27 @@ func (m *mockRepo) CreateAuditLog(ctx context.Context, log *models.SkillAuditLog
 	return nil
 }
 
-func (m *mockRepo) ListAuditLogs(ctx context.Context, tenantID, skillID string) ([]models.SkillAuditLog, error) {
-	return m.auditLogs, nil
+func (m *mockRepo) ListAuditLogs(ctx context.Context, tenantID, skillID string, offset, limit int) ([]models.SkillAuditLog, error) {
+	m.lastOffset, m.lastLimit = offset, limit
+	return paginate(m.auditLogs, offset, limit), nil
+}
+
+func (m *mockRepo) CountAuditLogs(ctx context.Context, tenantID, skillID string) (int64, error) {
+	m.lastCount = int64(len(m.auditLogs))
+	return m.lastCount, nil
 }
 
 // Ensure mockRepo implements repository.RepositoryInterface
 var _ repository.RepositoryInterface = (*mockRepo)(nil)
 
 func newHandler() *Handler {
-	mock := newMockRepo()
-	svc := service.NewService(mock)
-	return NewHandler(svc)
+	return NewHandler(service.NewService(newMockRepo()))
+}
+
+// newHandlerWith backs a mock the test owns, so the pagination tests can read
+// the offset and limit the handler actually computed.
+func newHandlerWith(mock *mockRepo) *Handler {
+	return NewHandler(service.NewService(mock))
 }
 
 func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecorder) {

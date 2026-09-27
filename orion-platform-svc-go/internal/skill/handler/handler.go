@@ -1,13 +1,12 @@
 package handler
 
 import (
-	"strconv"
-
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/skill/models"
 	"orion/platform-svc-go/internal/skill/service"
 
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -75,9 +74,13 @@ func (h *Handler) ListSkills(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	category := c.Query("category")
 	status := c.Query("status")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	skills, total := h.svc.ListSkills(ctx, tenantID, category, status, page, limit)
+	page := pagination.Page(c.Query("page"), 1)
+	limit := pagination.Limit(c.Query("limit"), 20)
+	offset := pagination.OffsetFromPage(page, limit)
+	skills, total := h.svc.ListSkills(ctx, tenantID, category, status, offset, limit)
+	if skills == nil {
+		skills = []models.Skill{}
+	}
 	middleware.RespondSuccess(c, gin.H{"skills": skills, "total": total})
 }
 
@@ -379,12 +382,16 @@ func (h *Handler) ListExecutions(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	skillID := c.Param("skillId")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	executions, err := h.svc.ListExecutions(ctx, tenantID, skillID, page, limit)
+	page := pagination.Page(c.Query("page"), 1)
+	limit := pagination.Limit(c.Query("limit"), 20)
+	offset := pagination.OffsetFromPage(page, limit)
+	executions, err := h.svc.ListExecutions(ctx, tenantID, skillID, offset, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
+	}
+	if executions == nil {
+		executions = []models.SkillExecution{}
 	}
 	middleware.RespondSuccess(c, executions)
 }
@@ -523,8 +530,12 @@ func (h *Handler) GetAuditLogs(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	skillID := c.Param("skillId")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	logs, total := h.svc.ListAuditLogs(ctx, tenantID, skillID, page, limit)
+	page := pagination.Page(c.Query("page"), 1)
+	limit := pagination.Limit(c.Query("limit"), 20)
+	offset := pagination.OffsetFromPage(page, limit)
+	logs, total := h.svc.ListAuditLogs(ctx, tenantID, skillID, offset, limit)
+	if logs == nil {
+		logs = []models.SkillAuditLog{}
+	}
 	middleware.RespondSuccess(c, gin.H{"audit_logs": logs, "total": total})
 }

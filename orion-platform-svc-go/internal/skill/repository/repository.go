@@ -57,7 +57,9 @@ func (r *Repository) GetSkill(ctx context.Context, tenantID, id string) (*models
 }
 
 // ListSkills returns skills for a tenant with optional category/status filtering.
-func (r *Repository) ListSkills(ctx context.Context, tenantID string, category, status string) ([]models.Skill, error) {
+// skillsWhere builds the shared predicate for ListSkills and CountSkills so the
+// two queries can never drift onto different filters.
+func skillsWhere(tenantID, category, status string) (string, []interface{}) {
 	var where strings.Builder
 	var args []interface{}
 	where.WriteString("WHERE tenant_id = $1")
@@ -74,12 +76,32 @@ func (r *Repository) ListSkills(ctx context.Context, tenantID string, category, 
 		args = append(args, status)
 		argIdx++
 	}
+	return where.String(), args
+}
+
+// ListSkills returns one page of skills for a tenant. offset and limit are bound
+// straight into SQL, so the handler must clamp them: a negative offset is a
+// database error, not a page.
+func (r *Repository) ListSkills(ctx context.Context, tenantID string, category, status string, offset, limit int) ([]models.Skill, error) {
+	where, args := skillsWhere(tenantID, category, status)
+	argIdx := 2 + len(args) - 1
+	args = append(args, limit, offset)
 
 	var skills []models.Skill
 	err := r.db.SelectContext(ctx, &skills,
-		fmt.Sprintf(`SELECT * FROM skills %s ORDER BY created_at DESC`, where.String()),
+		fmt.Sprintf(`SELECT * FROM skills %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1),
 		args...)
 	return skills, err
+}
+
+// CountSkills returns the tenant total behind the same predicate as ListSkills.
+// ListSkills pages the rows, so it cannot supply the total on its own.
+func (r *Repository) CountSkills(ctx context.Context, tenantID string, category, status string) (int64, error) {
+	where, args := skillsWhere(tenantID, category, status)
+	var total int64
+	err := r.db.GetContext(ctx, &total,
+		fmt.Sprintf(`SELECT COUNT(*) FROM skills %s`, where), args...)
+	return total, err
 }
 
 // UpdateSkill applies partial updates to a skill by ID.
@@ -388,14 +410,18 @@ func (r *Repository) CreateExecution(ctx context.Context, exec *models.SkillExec
 }
 
 // ListExecutions returns executions for a tenant, optionally filtered by skill.
-func (r *Repository) ListExecutions(ctx context.Context, tenantID, skillID string) ([]models.SkillExecution, error) {
+func (r *Repository) ListExecutions(ctx context.Context, tenantID, skillID string, offset, limit int) ([]models.SkillExecution, error) {
 	query := `SELECT * FROM skill_executions WHERE tenant_id=$1`
 	args := []interface{}{tenantID}
+	argIdx := 2
 	if skillID != "" {
-		query += ` AND skill_id=$2`
+		query += fmt.Sprintf(` AND skill_id=$%d`, argIdx)
 		args = append(args, skillID)
+		argIdx++
 	}
-	query += ` ORDER BY created_at DESC`
+	args = append(args, limit, offset)
+
+	query += fmt.Sprintf(` ORDER BY created_at DESC LIMIT $%d OFFSET $%d`, argIdx, argIdx+1)
 
 	var executions []models.SkillExecution
 	err := r.db.SelectContext(ctx, &executions, query, args...)
@@ -494,16 +520,34 @@ func (r *Repository) CreateAuditLog(ctx context.Context, log *models.SkillAuditL
 }
 
 // ListAuditLogs returns audit logs for a tenant, optionally filtered by skill.
-func (r *Repository) ListAuditLogs(ctx context.Context, tenantID, skillID string) ([]models.SkillAuditLog, error) {
+func (r *Repository) ListAuditLogs(ctx context.Context, tenantID, skillID string, offset, limit int) ([]models.SkillAuditLog, error) {
 	query := `SELECT * FROM skill_audit_logs WHERE tenant_id=$1`
+	args := []interface{}{tenantID}
+	argIdx := 2
+	if skillID != "" {
+		query += fmt.Sprintf(` AND skill_id=$%d`, argIdx)
+		args = append(args, skillID)
+		argIdx++
+	}
+	args = append(args, limit, offset)
+
+	query += fmt.Sprintf(` ORDER BY created_at DESC LIMIT $%d OFFSET $%d`, argIdx, argIdx+1)
+
+	var logs []models.SkillAuditLog
+	err := r.db.SelectContext(ctx, &logs, query, args...)
+	return logs, err
+}
+
+// CountAuditLogs returns the tenant total behind the same predicate as
+// ListAuditLogs.
+func (r *Repository) CountAuditLogs(ctx context.Context, tenantID, skillID string) (int64, error) {
+	query := `SELECT COUNT(*) FROM skill_audit_logs WHERE tenant_id=$1`
 	args := []interface{}{tenantID}
 	if skillID != "" {
 		query += ` AND skill_id=$2`
 		args = append(args, skillID)
 	}
-	query += ` ORDER BY created_at DESC`
-
-	var logs []models.SkillAuditLog
-	err := r.db.SelectContext(ctx, &logs, query, args...)
-	return logs, err
+	var total int64
+	err := r.db.GetContext(ctx, &total, query, args...)
+	return total, err
 }

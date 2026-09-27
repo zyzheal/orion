@@ -7,6 +7,7 @@ import (
 
 	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/skill/models"
+	"orion/platform-svc-go/internal/skill/repository"
 
 	"github.com/google/uuid"
 )
@@ -23,7 +24,16 @@ type mockRepoForService struct {
 	stats         map[string]any
 	ratingStats   map[string]any
 	installCounts map[string]int
+
+	lastOffset int
+	lastLimit  int
+	lastCount  int64
 }
+
+// Compile-time check that mockRepoForService still implements the repository
+// contract; a signature change in RepositoryInterface otherwise fails only at
+// NewService, far from the cause.
+var _ repository.RepositoryInterface = (*mockRepoForService)(nil)
 
 func newMockRepoForService() *mockRepoForService {
 	return &mockRepoForService{
@@ -59,7 +69,7 @@ func (m *mockRepoForService) GetSkill(ctx context.Context, tenantID, id string) 
 	return s, nil
 }
 
-func (m *mockRepoForService) ListSkills(ctx context.Context, tenantID string, category, status string) ([]models.Skill, error) {
+func (m *mockRepoForService) filterSkills(tenantID, category, status string) []models.Skill {
 	var result []models.Skill
 	for _, s := range m.skills {
 		if s.TenantID != tenantID {
@@ -73,7 +83,34 @@ func (m *mockRepoForService) ListSkills(ctx context.Context, tenantID string, ca
 		}
 		result = append(result, *s)
 	}
-	return result, nil
+	return result
+}
+
+func paginate[T any](all []T, offset, limit int) []T {
+	if limit <= 0 {
+		return nil
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	if offset >= len(all) {
+		return nil
+	}
+	end := offset + limit
+	if end > len(all) {
+		end = len(all)
+	}
+	return all[offset:end]
+}
+
+func (m *mockRepoForService) ListSkills(ctx context.Context, tenantID string, category, status string, offset, limit int) ([]models.Skill, error) {
+	m.lastOffset, m.lastLimit = offset, limit
+	return paginate(m.filterSkills(tenantID, category, status), offset, limit), nil
+}
+
+func (m *mockRepoForService) CountSkills(ctx context.Context, tenantID string, category, status string) (int64, error) {
+	m.lastCount = int64(len(m.filterSkills(tenantID, category, status)))
+	return m.lastCount, nil
 }
 
 func (m *mockRepoForService) UpdateSkill(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
@@ -220,7 +257,7 @@ func (m *mockRepoForService) CreateExecution(ctx context.Context, exec *models.S
 	return nil
 }
 
-func (m *mockRepoForService) ListExecutions(ctx context.Context, tenantID, skillID string) ([]models.SkillExecution, error) {
+func (m *mockRepoForService) ListExecutions(ctx context.Context, tenantID, skillID string, offset, limit int) ([]models.SkillExecution, error) {
 	var result []models.SkillExecution
 	for _, e := range m.executions {
 		if e.TenantID != tenantID {
@@ -231,7 +268,8 @@ func (m *mockRepoForService) ListExecutions(ctx context.Context, tenantID, skill
 		}
 		result = append(result, e)
 	}
-	return result, nil
+	m.lastOffset, m.lastLimit = offset, limit
+	return paginate(result, offset, limit), nil
 }
 
 func (m *mockRepoForService) GetReview(ctx context.Context, skillID string) (*models.SkillReview, error) {
@@ -284,7 +322,7 @@ func (m *mockRepoForService) CreateAuditLog(ctx context.Context, log *models.Ski
 	return nil
 }
 
-func (m *mockRepoForService) ListAuditLogs(ctx context.Context, tenantID, skillID string) ([]models.SkillAuditLog, error) {
+func (m *mockRepoForService) ListAuditLogs(ctx context.Context, tenantID, skillID string, offset, limit int) ([]models.SkillAuditLog, error) {
 	var result []models.SkillAuditLog
 	for _, log := range m.auditLogs {
 		if log.TenantID != tenantID {
@@ -296,7 +334,13 @@ func (m *mockRepoForService) ListAuditLogs(ctx context.Context, tenantID, skillI
 		// copy
 		result = append(result, log)
 	}
-	return result, nil
+	m.lastOffset, m.lastLimit = offset, limit
+	return paginate(result, offset, limit), nil
+}
+
+func (m *mockRepoForService) CountAuditLogs(ctx context.Context, tenantID, skillID string) (int64, error) {
+	m.lastCount = int64(len(m.auditLogs))
+	return m.lastCount, nil
 }
 
 // --- Service tests ---
@@ -339,7 +383,7 @@ func TestService_CRUD(t *testing.T) {
 	}
 
 	// List
-	list, total := svc.ListSkills(ctx, tenantID, "", "", 1, 10)
+	list, total := svc.ListSkills(ctx, tenantID, "", "", 0, 10)
 	if len(list) != 1 {
 		t.Fatalf("list count: got %d, want 1", len(list))
 	}
@@ -560,7 +604,7 @@ func TestService_Execution(t *testing.T) {
 	}
 
 	// List executions
-	executions, err := svc.ListExecutions(ctx, tenantID, skill.ID, 1, 10)
+	executions, err := svc.ListExecutions(ctx, tenantID, skill.ID, 0, 10)
 	if err != nil {
 		t.Fatalf("ListExecutions: %v", err)
 	}

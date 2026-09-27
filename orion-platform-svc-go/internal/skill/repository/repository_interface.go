@@ -12,7 +12,8 @@ type RepositoryInterface interface {
 	// Skill CRUD
 	CreateSkill(ctx context.Context, tenantID string, skill *models.Skill) error
 	GetSkill(ctx context.Context, tenantID, id string) (*models.Skill, error)
-	ListSkills(ctx context.Context, tenantID string, category, status string) ([]models.Skill, error)
+	ListSkills(ctx context.Context, tenantID string, category, status string, offset, limit int) ([]models.Skill, error)
+	CountSkills(ctx context.Context, tenantID string, category, status string) (int64, error)
 	UpdateSkill(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 	DeleteSkill(ctx context.Context, tenantID, id string) error
 	GetStats(ctx context.Context, tenantID string) (*map[string]any, error)
@@ -36,7 +37,7 @@ type RepositoryInterface interface {
 
 	// Executions
 	CreateExecution(ctx context.Context, exec *models.SkillExecution) error
-	ListExecutions(ctx context.Context, tenantID, skillID string) ([]models.SkillExecution, error)
+	ListExecutions(ctx context.Context, tenantID, skillID string, offset, limit int) ([]models.SkillExecution, error)
 
 	// Reviews
 	GetReview(ctx context.Context, skillID string) (*models.SkillReview, error)
@@ -46,5 +47,6 @@ type RepositoryInterface interface {
 
 	// Audit logs
 	CreateAuditLog(ctx context.Context, log *models.SkillAuditLog) error
-	ListAuditLogs(ctx context.Context, tenantID, skillID string) ([]models.SkillAuditLog, error)
+	ListAuditLogs(ctx context.Context, tenantID, skillID string, offset, limit int) ([]models.SkillAuditLog, error)
+	CountAuditLogs(ctx context.Context, tenantID, skillID string) (int64, error)
 }
