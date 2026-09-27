@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 	"time"
 
@@ -9,17 +10,83 @@ import (
 
 	"orion/go-common/pkg/auth"
 
+	"orion/platform-svc-go/internal/pagination"
 	"orion/platform-svc-go/internal/visor/models"
 	"orion/platform-svc-go/internal/visor/service"
 )
 
+// Service defines the methods the handler calls on the service layer. Keeping
+// it here rather than in the service package lets the handler be tested with a
+// fake and keeps the wiring source-compatible: *service.Service already
+// satisfies it.
+type Service interface {
+	// Dashboards
+	CreateDashboard(ctx context.Context, tenantID string, req *models.CreateDashboardRequest) (*models.Dashboard, error)
+	ListDashboards(ctx context.Context, tenantID string, offset, limit int) ([]models.Dashboard, error)
+	GetDashboard(ctx context.Context, tenantID, id string) (*models.Dashboard, error)
+	UpdateDashboard(ctx context.Context, tenantID, id string, req *models.UpdateDashboardRequest) (*models.Dashboard, error)
+	DeleteDashboard(ctx context.Context, tenantID, id string) error
+	CountDashboards(ctx context.Context, tenantID string) (int, error)
+
+	// Monitor hosts
+	CreateHost(ctx context.Context, tenantID string, req *models.CreateHostRequest) (*models.MonitorHost, error)
+	ListHosts(ctx context.Context, tenantID string, offset, limit int) ([]models.MonitorHost, error)
+	GetHost(ctx context.Context, tenantID, id string) (*models.MonitorHost, error)
+	UpdateHost(ctx context.Context, tenantID, id string, req *models.UpdateHostRequest) (*models.MonitorHost, error)
+	DeleteHost(ctx context.Context, tenantID, id string) error
+	CountHosts(ctx context.Context, tenantID string) (int, error)
+	GetHostStatusSummary(ctx context.Context, tenantID string) (map[string]int, error)
+	Heartbeat(ctx context.Context, tenantID, hostID string) error
+
+	// Alert rules
+	CreateAlertRule(ctx context.Context, tenantID string, req *models.CreateAlertRuleRequest) (*models.AlertRule, error)
+	ListAlertRules(ctx context.Context, tenantID string) ([]models.AlertRule, error)
+	GetAlertRule(ctx context.Context, tenantID, id string) (*models.AlertRule, error)
+	UpdateAlertRule(ctx context.Context, tenantID, id string, req *models.UpdateAlertRuleRequest) (*models.AlertRule, error)
+	DeleteAlertRule(ctx context.Context, tenantID, id string) error
+	ToggleAlertRule(ctx context.Context, tenantID, id string, enabled bool) (*models.AlertRule, error)
+
+	// Alert instances
+	ListAlerts(ctx context.Context, tenantID, status, severity string, offset, limit int) ([]models.AlertInstance, int, error)
+	GetAlert(ctx context.Context, tenantID, id string) (*models.AlertInstance, error)
+	AcknowledgeAlert(ctx context.Context, tenantID, id, userID string) (*models.AlertInstance, error)
+	ResolveAlert(ctx context.Context, tenantID, id string) (*models.AlertInstance, error)
+	GetAlertStats(ctx context.Context, tenantID string) (*models.AlertStats, error)
+
+	// Metrics
+	RecordMetric(ctx context.Context, tenantID string, req *models.RecordMetricRequest) error
+	QueryMetricSeries(ctx context.Context, tenantID, metricName string, start, end time.Time, maxPoints int) ([]models.MetricDataPoint, error)
+	GetLatestMetricValue(ctx context.Context, tenantID, metricName string) (*float64, error)
+	GetMetricSummary(ctx context.Context, tenantID, metricName string, windowMs int64) (*service.MetricAggregation, error)
+	DetectAnomalies(ctx context.Context, tenantID, metricName string, windowMs int64, threshold float64) ([]service.AnomalyResult, error)
+
+	// Rule evaluation
+	EvaluateRules(ctx context.Context, tenantID string) ([]models.AlertInstance, error)
+
+	// Notification channels
+	CreateChannel(ctx context.Context, tenantID string, req *models.CreateChannelRequest) (*models.NotificationChannel, error)
+	ListChannels(ctx context.Context, tenantID string) ([]models.NotificationChannel, error)
+	ToggleChannel(ctx context.Context, tenantID, id string, enabled bool) error
+	DeleteChannel(ctx context.Context, tenantID, id string) error
+
+	// Notification history
+	ListNotificationHistory(ctx context.Context, tenantID, alertID string, limit int) ([]models.NotificationHistory, error)
+
+	// Send notification
+	SendNotification(ctx context.Context, tenantID, alertID string, channelIDs []string) ([]models.NotificationHistory, error)
+}
+
+// The concrete service satisfies the interface. If the service ever drops a
+// method or renames a parameter, this fails the build rather than the wiring.
+var _ Service = (*service.Service)(nil)
+
 // Handler exposes HTTP endpoints for the visor service.
 type Handler struct {
-	svc *service.Service
+	svc Service
 }
 
 // NewHandler creates a new Handler backed by the given Service.
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 
@@ -109,12 +176,44 @@ func (h *Handler) ListDashboards(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "VisorListDashboards")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.ListDashboards(ctx, tenantID, (page-1)*ps, ps)
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
+	// The cap must land before the offset is derived: deriving from the
+	// requested size and capping the limit afterwards makes
+	// page=3&page_size=1000 return rows 2001-2100 while every reader of the
+	// URL expects rows 201-300.
+	//
+	// These three handlers used to read both params with a bare strconv.Atoi,
+	// so page=-5, page=0 and page=abc each reached Postgres as a negative
+	// OFFSET - an error instead of a page, turning a GET into a 500. page=abc
+	// was the worst of them: one mistyped character, Atoi returning 0 and
+	// throwing its error away. Nothing in the handler capped the size either,
+	// so page_size=100000 went straight into LIMIT.
+	//
+	// The sharpest one was ListAlerts below: it divides total by ps to build
+	// total_pages, and a bare Atoi leaves ps at 0 for page_size=0, so
+	// ?page_size=0 did not return a 500 - it divided by zero and panicked.
+	//
+	// The module already has a helper shaped exactly like this:
+	// models.PaginatedRequest owns the same two floors and the same 100 cap.
+	// It is dead code - zero production callers and zero tests - and its
+	// Offset derives before Limit caps, so it would have answered
+	// page=3&page_size=250 with offset 500 and limit 100. It was not worth
+	// routing three call sites through a field on a request struct to reuse
+	// it, so the arithmetic stays here. The cap below is that same 100.
+	if ps > 100 {
+		ps = 100
+	}
+	offset := pagination.OffsetFromPage(page, ps)
+	limit := ps
+
+	items, err := h.svc.ListDashboards(ctx, tenantID, offset, limit)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
+	}
+	if items == nil {
+		items = []models.Dashboard{}
 	}
 	respondSuccess(c, items)
 }
@@ -194,12 +293,23 @@ func (h *Handler) ListHosts(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "VisorListHosts")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.ListHosts(ctx, tenantID, (page-1)*ps, ps)
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
+	// Same floors and cap as ListDashboards, and the cap before the derivation:
+	// the three list endpoints share the pagination package for this reason.
+	if ps > 100 {
+		ps = 100
+	}
+	offset := pagination.OffsetFromPage(page, ps)
+	limit := ps
+
+	items, err := h.svc.ListHosts(ctx, tenantID, offset, limit)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
+	}
+	if items == nil {
+		items = []models.MonitorHost{}
 	}
 	respondSuccess(c, items)
 }
@@ -377,22 +487,42 @@ func (h *Handler) ListAlerts(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	status := c.Query("status")
 	severity := c.Query("severity")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, total, err := h.svc.ListAlerts(ctx, tenantID, status, severity, (page-1)*ps, ps)
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
+	// Same floors and cap as ListDashboards, and the cap before the derivation:
+	// the three list endpoints share the pagination package for this reason.
+	//
+	// This handler is the one that owns a paginated envelope, so it also has to
+	// keep the envelope honest. page_size used to reach the envelope raw, so
+	// the query could fetch a different window than the response reported, and
+	// total_pages was derived from the uncapped size. Floor and cap land here,
+	// once, and everything downstream - the service call, page_size and
+	// total_pages - reuses the same two values.
+	if ps > 100 {
+		ps = 100
+	}
+	offset := pagination.OffsetFromPage(page, ps)
+	limit := ps
+
+	items, total, err := h.svc.ListAlerts(ctx, tenantID, status, severity, offset, limit)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
-	totalPages := total / ps
-	if total%ps > 0 {
+	if items == nil {
+		items = []models.AlertInstance{}
+	}
+	// limit is already floored by pagination.Limit, so this division cannot
+	// divide by zero. limit was 0 for page_size=0 before the floor existed.
+	totalPages := total / limit
+	if total%limit > 0 {
 		totalPages++
 	}
 	respondSuccess(c, models.PaginatedResult{
 		Data:       items,
 		Total:      total,
 		Page:       page,
-		PageSize:   ps,
+		PageSize:   limit,
 		TotalPages: totalPages,
 	})
 }
