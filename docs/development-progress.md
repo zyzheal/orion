@@ -17795,3 +17795,136 @@ list 按 `category` 和 `status` 过滤，count 只按租户数。`?status=disab
 推荐 **A**，但先花一轮的头部时间把 `capacity` 的四层读完再决定是修还是拆成两轮——10 处 live 落在 6 个模块，`capacity` 和 `visor` 各 3 处，占了剩下的 60%。另外 §98.8 记的那个新缺陷类别（`argsList` 的 append 次数 vs `WHERE` 里 `$n` 的引用次数不一致）值得在下一次扫表时顺手核一遍，因为它不在候选表里。
 
 carry-forward：§97.9 的 (a)-(h)、§96.7 的 (a)-(h)、§95.7 与 §95.2 的两张台账表（LIVE 表本轮消掉 `extension-point` 一行，剩 10 处 / 6 个模块；带真 total 的 5 → 7）、§94.7 的 (a)-(h)、§93.7 的 (a)-(h)、§92.7 的 (a)-(h)、§91.7 的 (a)-(h)、§90.7 的 (a)-(h)、§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 98.8 与 98.9 的 (a)-(h)。
+
+## §99 `capacity` 的三处是这一族里最规整的一处：只有一个缺陷类别，脚手架却最贵（Round 98，2026-09-25）
+
+### 99.1 §98 的两条预测，一条中一条半
+
+§98.10 推荐了 `infrastructure/capacity`，理由是「3 处，全树最多」，同时打了两个注：一是「接口和信封白捡的前提是模块本来就有接口」，二是让下一轮顺手核一遍 `argsList` 的 append 次数和 `WHERE` 里 `$n` 的引用次数。
+
+- **「接口白捡」——猜对了，代价比预想贵。** `handler.go` 原文是 `type Handler struct{ svc *service.Service }`——**具体类型字段，没有接口**。chaos 和 extension-point 都有接口（分别 5 个和 11 个方法），capacity 的 handler 调了 service 的 18 个方法，所以接口是 **18 个**。这一轮建脚手架的成本是前两轮之和的 1.5 倍，而且它是纯新增：`var _ Service = (*service.Service)(nil)` 这一行是这轮新增的，前两轮都是白捡的。
+- **「信封白捡」——猜反了，而且是好的那种猜反。** capacity 的三处信封是 `respondSuccess(c, items)`，**一个裸切片**，没有 `offset`、没有 `limit`、没有 `total`。所以它没有 extension-point 那轮的第二个缺陷（`total` 说谎），也没有 envelope-drift 这一类变异可以写（见 99.6 的 M7 缺席）。
+- **`argsList` 那条核查——干净。** 3 个 List 仓储方法全是 `$1 / $2 / $3` 三个占位符配三个实参，`MetricRepository.List` 和 `AlertRepository.List` 的动态过滤也是每 append 一次就升一次 `idx`。**这一族的第二个缺陷类别（§98.8 新增的「绑错参数个数」）在这个模块不存在。**
+
+### 99.2 缺陷：三处裸 `Atoi`，没有 floor 也没有上限
+
+`ListPools`（原 `handler.go:69-79`）、`ListForecasts`（原 `:112-122`）、`ListReports`（原 `:259-269`）形状完全相同：
+
+```go
+page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+ps,   _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+items, err := h.svc.ListPools(ctx, tenantID, (page-1)*ps, ps)
+```
+
+四个后果，和前两轮一致：
+
+1. **负 OFFSET 出 500。** `?page=-40` → offset −1025；`?page=0` → −25；`?page=2&page_size=-5` → −5。`?page=abc` 最坏：一个字符敲错，`Atoi` 返回 0 并把 error 丢掉。
+2. **无上限。** `?page_size=100000` 原样进 `LIMIT`。
+3. **三处各算一遍 `(page-1)*ps`。** 和 extension-point 一样是潜伏漂移风险而不是活缺陷，这轮收成 `offset`/`limit` 各推导一次、两处复用。
+4. **信封不带分页信息。** 裸切片意味着客户端拿不到 `offset`/`limit`/`total`，也没法在响应里核对查询取的是哪个窗口。这一条不算缺陷（接口没声明就要分页信封），但它让「信封和查询不一致」这个缺陷在 capacity 里**不可能发生也不可能测**——见 99.6。
+
+修法照抄 §97/§98：`pagination.Page` + `pagination.Limit` 收地板，`if ps > 100 { ps = 100 }` 收上限，**上限必须在推导 offset 之前**（`page=3&page_size=250` 否则返回第 500-600 行，而 URL 的每个读者期待第 201-300 行），`pagination.OffsetFromPage` 推导一次，`limit := ps`，service 调用复用这两个值，再加一条 nil→空切片的归一（仓储用 `var items []T`，空表回来是 nil）。
+
+### 99.3 三层的其余部分是干净的，所以这轮只有一个缺陷类别
+
+按 §95.1 的判据（handler 无 floor 且 service 无 clamp 且 repository 无 clamp 才算 live）逐层读过：
+
+- **服务层是纯透传。** `ListPools` → `s.poolRepo.List(ctx, tenantID, offset, limit)`，`ListForecasts` 和 `ListReports` 完全同形，三处都只有一行 `return`，没有任何二次推导。chaos 那轮（§97）的服务层是有问题的——它自己夹过一次且夹错了顺序；extension-point 那轮的服务层有 `total` 说谎。capacity 的服务层两个都没有。
+- **仓储层是对的。** 三个 List 方法的 SQL 都是 `WHERE tenant_id=$1 ORDER BY <col> DESC OFFSET $2 LIMIT $3`，实参 `tenantID, offset, limit`。**`OFFSET` 和 `LIMIT` 都在。**
+- **没有隐藏的第 4 处。** `MetricFilter{ResourceType, MetricName}` 和 `AlertFilter{Severity}` 都不带分页字段，`ListMetrics`/`ListAlerts` 的仓库 SQL 里没有 `OFFSET`/`LIMIT`。`ListPolicies` 从头到尾不分页（SQL 只有 `WHERE tenant_id=$1 ORDER BY created_at DESC`）——它没声明过分页，所以不算台账站点，但也意味着 `/policies` 会随策略数无限增长，记录在 99.8。
+
+extension-point 那轮是三个缺陷类别（floor、绑错参数个数、count 谓词）必须同一轮一起修，因为只修第一个会把「响亮的 500」换成「安静的错数」。capacity 这轮没有那个连锁——但这是运气，不是设计：同一个模块的下一批 endpoint 完全可能同时欠三笔。
+
+### 99.4 这一族里最讽刺的一处：正确的分页实现，零调用方，零测试
+
+`models.go:170-192` 的 `PaginatedRequest` 有 `Offset()` 和 `Limit()`，`Limit()` **带 100 上限**，`ReportFilter{PaginatedRequest}` 还专门嵌了它。
+
+**生产代码零引用，测试零条。**
+
+extension-point 那份同类死代码至少有 6 条测试把地板和上限都钉住了（§98.9(e)）。capacity 这份更差——它不仅没人用，**连测试都没有**，所以它内部藏的那笔账也没人发现：`Offset()` 先夹 floor 就立刻推导 `(p.Page-1)*p.PageSize`，而 100 上限写在 `Limit()` 里、**在 `Offset()` 之后**。`PaginatedRequest{Page: 3, PageSize: 250}` 会给出 offset 500 配 limit 100——正好就是这轮 handler 里被修掉的那个错误顺序（M7 守着的就是它）。
+
+也就是说：**同一个错误的夹点顺序，在 handler 里修了一次，在同一个模块的死代码里还躺着一份没测的。**
+
+为什么没把它接进生产路径：三个调用点，六个仓储字段，把分页搬进一个嵌在 request struct 里的字段要改六处构造。这轮的选择是把算术留在 handler 里，`100` 这个数和它那份死代码里的 `100` 一致——和 extension-point 那轮同一个意图没接上，但这次连「接上」的路都不存在了。
+
+### 99.5 测试：40 + 10 + 4，10 条共享用例第一次跑三遍
+
+新增 3 个测试文件，共 764 行：
+
+- **`handler/handler_test.go`（353 行，40 PASS）**：fake service 实现全部 18 个方法，`var _ Service = (*fakeService)(nil)` 编译期钉住；三个 List 方法各记录 `lastOffset`/`lastLimit`。10 条共享用例各跑一遍（30 个子测试），加租户透传、信封形状、3 条 service-error→500、2 条 nil 归一、1 条路由注册。**`RegisterRoutes` 挂 17 条路由**，用 `engine := gin.New()` + `engine.Routes()` 断言（`*gin.RouterGroup` 没有 `Routes()`，这是 chaos 那轮就踩过的坑）。
+- **`repository/capacity_repository_test.go`（292 行，10 PASS，新建）**：sqlmock 用 `QueryMatcherEqual`（这 3 条 SQL 都是单行，精确匹配直接可用，不用转义）。3 条 List 各钉住 SQL 原文和 `WithArgs(tenantID, offset, limit)` 的**绑定顺序**——`OFFSET $2 LIMIT $3` 但实参是 `tenantID, offset, limit`，后两个对调就是 `page=3&page_size=20` 从第 60 行而不是第 40 行开始，查询照样合法、Postgres 照样照办。另加空表零行（断言 `len(got) == 0` 而不是 `got == nil`）、error 透传、metric/alert/policy 的租户谓词、`Count` 的租户谓词。
+- **`service/service_test.go`（15 → 119 行，4 PASS）**：原来只有 `TestErrorConstants`。现在是真 `Service` 配真仓储跑 sqlmock，三处 List 各钉一次 offset/limit 原样下传。
+
+sqlmock 是 v1.5.2，加行是 `AddRow` 不是 `Add`；`QueryMatcherEqual` 下 SQL 字符串**不能转义**（`\$1` 会原样比对失败）。这两个都是这轮新踩的坑，前几轮一直用的是 `QueryMatcherRegexp`。
+
+10 条共享用例的组成和 extension-point 那轮一样，其中 4 条是合理输入用例（`absentUsesDefaults`、`validPageReachesTheService`、`pageOneIsOffsetZero`、`largePageIsPreserved`）——地板按定义在合理输入上是恒等变换，所以这 4 条对「退回裸 `Atoi`」**不构成杀伤**。这是 99.6 里 M1 宽度是 21 而不是 30 的原因。
+
+### 99.6 变异验证：17 个门，15 杀 0 builderr 0 badanchor
+
+基线 59 PASS / 0 fail / 0 builderr。锚点从真实文件抽到 `/tmp/r98/anchors.json`（50 个），harness 只从 JSON 读锚点、绝不打字复录，每处替换前 `check(count == 1)`。
+
+| 门 | 变异 | 结果 | 宽度 |
+|---|---|---|---|
+| M1 | 三处全部退回裸 `Atoi` | KILLED | 21 |
+| M2 | 仅 `ListPools` 退回 | KILLED | 7 |
+| M3 | 仅 `ListForecasts` 退回 | KILLED | 7 |
+| M4 | 仅 `ListReports` 退回 | KILLED | 7 |
+| M5 | 三处都去掉上限 | KILLED | 6 |
+| M6 | 仅 `ListPools` 去掉上限 | KILLED | 2 |
+| M7 | 上限挪到推导 offset 之后 | KILLED | 6 |
+| M8 | pool 仓储丢掉 `OFFSET LIMIT` | KILLED | 3 |
+| M9 | report 仓储丢掉 `OFFSET LIMIT` | KILLED | 2 |
+| M10 | forecast 仓储把 limit/offset 绑反 | KILLED | 2 |
+| M11 | service `ListPools` 丢掉 offset | KILLED | 1 |
+| M12 | service `ListReports` 丢掉 offset | KILLED | 1 |
+| M13 | handler 丢掉 nil 归一 | KILLED | 1 |
+| M14 | metric 仓储丢掉 `resource_type` 过滤 | KILLED | 1 |
+| M15 | pool `Count` 丢掉租户谓词 | KILLED | 1 |
+| GAP | 死代码 `PaginatedRequest` 上限 100→999 | SURVIVED | 0 |
+| NC | 仓储注释改写 | SURVIVED | 0 |
+
+restore byte-identical：True。`killed=15 builderr=0 badanchor=0 survived=2`，两个 SURVIVED 都是刻意门。
+
+三笔要记薄的地方：
+
+- **M1 的宽度 21 是 6×3+3，不是 30。** 10 条共享用例里 6 条能区分「裸 `Atoi`」，另外 4 条是合理输入、对地板修复是恒等。extension-point 那轮是 6/10，这轮同样 6/10。chaos 那轮是 10/10，因为它旧代码把 `page, pageSize` 直接当 `offset, limit` 传、根本没有推导。**结论照旧：共享用例的杀伤力取决于修复前的代码长什么样，不能把「10 条共享用例」当成固定防御。**
+- **这轮 M1 不再是 BUILDERR 了。** extension-point 那轮 M1 是 BUILDERR（退回裸 `Atoi` 会让 `pagination` import 变成 unused），因为那个模块只有两处、退回后 import 就没人用了。capacity 有三处，本轮把 import 也一起换掉（`pagination` → `strconv`），编译通过，测试才真正跑起来。**同一族缺陷的同一变异，在两个模块里一次是 BUILDERR 一次是 KILLED，差别只在「退回之后还有没有人用那个 import」。**
+- **GAP 这次不是 `pagination` 包了，是死代码。** 连续 10 轮存活的那个缺口（`pagination` 里没有任何上限，100 写在 handler 里）这轮换了个靶子：把上限 100→999 改在**没人调用的** `models.PaginatedRequest.Limit()` 里，宽度 0。这个 GAP 比共享包那个更硬——它证明的是「零调用方的代码，改多少都没人看见」，而这正是 99.4 那笔账的性质。
+
+另外记一条 harness 自己的 bug：单点退回的 M2/M3/M4 一开始复用了 M1 的 import 替换（把 `pagination` 换成 `strconv`），结果另外两处还在用 `pagination`，编译报 `undefined: pagination`，三个门一起 BUILDERR。修法是单点退回**保留** `pagination` import、把 `strconv` 加在 `gin` 之后。这个 bug 的表现形式和真缺陷一模一样（BUILDERR），要不是逐门看归属就没发现。
+
+### 99.7 信封这一类变异，在 capacity 里不存在
+
+extension-point 那轮能写 M7（信封对调 offset/limit）是因为它的信封是 `RespondPaginated(c, items, offset, limit, total)`——响应里印了窗口，所以「响应的窗口 ≠ 查询的窗口」是一个可测的形态。
+
+capacity 的三处是 `respondSuccess(c, items)`，**裸切片**。响应里没有 `offset`、没有 `limit`、没有 `total`，所以「信封和查询不一致」这个缺陷**在结构上就不可能发生**。代价是：客户端永远无法从响应里判断自己拿到的是哪一页，只能靠 URL 自己数。
+
+这不是缺陷，是一个取舍。但它意味着 capacity 的三处比 extension-point 的两处**少一类保护**：任何让查询取错窗口的改动，只有 handler 那层的 30 个子测试能拦住，响应本身不带第二道校验。chaos 那轮的三处（§97）也是裸切片，同一性质。
+
+### 99.8 只记录，未处理
+
+- **(a) `ListPolicies` 从不分页。** 服务层 `ListPolicies(ctx, tenantID)` 没有 offset/limit，仓储 SQL 没有 `OFFSET`/`LIMIT`，handler 也不读 `page`。它没声明过分页所以不算台账站点，但 `/policies` 会随策略数线性增长。台账里应该新开一列「端点从不声明分页」——它和「声明了分页但没实现」是两类问题，前者是接口契约问题，后者是实现缺陷。
+- **(b) `ListAlerts` handler 定义了但从未注册。** `handler.go` 里有 `ListAlerts` 方法，`RegisterRoutes` 只挂 `c.DELETE("/alerts/:id")`，没有 `GET /alerts`。17 条路由里没有它。和 extension-point 那份死 `PaginatedRequest`（§98.9(d)）同类：写好了没接上，但这次是「接口没接上」而不是「实现没接上」。
+- **(c) `respondConflict` 和 `respondForbidden` 定义了但零调用方。** `handler/response_writer.go` 里有 7 个响应助手，2 个没人用。capacity 的 handler 把所有 service error 都映射成 `respondInternalError`——`ErrPoolNotFound`/`ErrPolicyNotFound`/`ErrReportNotFound` 这些本该是 404 的现在全变 500。chaos 那轮（§97）有 `mapError` 做正确映射，capacity 没有。
+- **(d) 服务层吞掉仓储 error 的粒度。** `UpdatePool` 里 `s.poolRepo.GetByID` 出错一律返回 `ErrPoolNotFound`——driver 故障和行不存在无法区分。和 (c) 是同一个 handler 映射缺失的上游。
+- **(e) `Pagination` 家族的第 10 轮：`pagination` 包只有 floor，没有 cap。** 100 这个数这轮第三次被写进 handler（chaos、extension-point、capacity 各一处）。GAP 换了靶子但缺口没变。
+- **(f) 仓储对空表返回 nil。** 三个 List 方法都是 `var items []T`，靠 handler 的 nil→空切片归一才序列化成 `[]`。`TestListPools_NormalisesNilToAnEmptySlice` 守着它（M13 宽度 1）；仓储那层的 `len(items) != 0` 断言对 nil 和空切片都成立，所以它只守「返回零行」，不区分两种表示。和 extension-point 那轮同一性质。
+- **(g) 服务测试耦合了 SQL 原文。** sqlmock 穿过真仓储的代价，和 §97.5、§98.9(g) 同一条。换来的是 M8/M9/M11/M12 这四个门能被独立归因到「仓储层」还是「服务层」——假仓储测不到这件事。
+- **(h) 仓储 SQL 用 `SELECT *`。** 三个 List 方法都是 `SELECT *`，列变更需要同时改 SQL 和 struct。sqlmock 的列名是测试自己给的，所以 `SELECT *` 在这里没暴露问题，但生产环境加列/改列会直接打断扫描。
+
+### 99.9 验证与遗留
+
+`go build ./...` 退出 0；`go vet ./internal/infrastructure/capacity/...` 退出 0；`gofmt -l internal cmd` 只剩 `ticket/models` 那三个历史文件（`assignment_rule.go` `relation.go` `ticket.go`，本轮未触碰）；`go test -count=1 ./...` **575 个包 ok / 0 FAIL**（§98 的 573 + 本轮新增的 `capacity/handler` 与 `capacity/repository` 两个测试包），`go.sum` 与 `go.work.sum` 未改。
+
+改动 2 个文件 **197 增 / 13 删**（`handler.go` +92/-12 含 18 方法接口与三处夹点；`service_test.go` +105/-1），新增 3 个测试文件 **764 行**（`handler_test.go` 353、`capacity_repository_test.go` 292、`service_test.go` 追加 104）。`capacity` 从 2 个测试包变成 4 个。
+
+### 99.10 台账
+
+- **LIVE：10 处 / 6 个模块 → 7 处 / 5 个模块。** 本轮收掉 `infrastructure/capacity` 3 处。剩 `visor` 3、`ai/intelligence` 1、`governance/governance` 1、`governance/risk` 1、`infrastructure/digital-twin` 1。
+- **已迁移站点：22 → 25，落在 13 个模块。**
+- **带真 `total` 的站点：仍为 7**（`runner` 3、`skill` 2、`extension-point` 2）。capacity 的三处是裸切片，没有 total 字段，所以它和 chaos 一样是「不带 total」这一类，没有让真计数变多。§96.2 记的「其余 14 处仍然是 `len(items)`」这一项本轮依然没有变化。
+- **新增一列（99.8(a)）：** 「端点从不声明分页」和「声明了分页但没实现」应该分开记。前者是契约问题（`ListPolicies`），后者是实现缺陷（本台账一直在数的那一列）。合并记会漏掉前者，因为前者从来没有「分页」症状可筛。
+
+下一步推荐 **A：`visor`**（3 处，剩下的最大一块，现在和 `capacity` 一样是全树最多）。按这三轮的经验，开工前先看两件事：一是这个模块的 handler 有没有接口（chaos 5 个方法、extension-point 11 个、capacity 18 个——脚手架成本直接正比于 handler 调用的方法数），二是信封是不是裸切片（裸切片少一类保护，但也没有 `total` 说谎这一类缺陷要连锁修）。另外 §98.8 那条 `argsList` 核查照例再做一遍——capacity 这一轮干净，不代表 `visor` 也干净。
+
+carry-forward：§98.9 的 (a)-(h)、§97.9 的 (a)-(h)、§96.7 的 (a)-(h)、§95.7 与 §95.2 的两张台账表（LIVE 表本轮消掉 `infrastructure/capacity` 一行，剩 7 处 / 5 个模块；已迁移 22 → 25 落在 13 个模块；带真 total 仍 7）、§94.7 的 (a)-(h)、§93.7 的 (a)-(h)、§92.7 的 (a)-(h)、§91.7 的 (a)-(h)、§90.7 的 (a)-(h)、§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 99.8 与 99.10 的 (a)-(h)。
