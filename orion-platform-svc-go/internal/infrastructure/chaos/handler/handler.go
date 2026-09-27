@@ -1,23 +1,40 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"go.opentelemetry.io/otel"
-	"strconv"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/infrastructure/chaos/models"
 	"orion/platform-svc-go/internal/infrastructure/chaos/service"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 )
 
-// Handler provides HTTP handlers for chaos experiment operations.
-type Handler struct {
-	svc *service.ChaosService
+// Service defines the methods the handler calls on the service layer. Keeping
+// it here rather than in the service package lets the handler be tested with a
+// fake and keeps the wiring source-compatible: *service.ChaosService already
+// satisfies it.
+type Service interface {
+	CreateExperiment(ctx context.Context, tenantID string, input *models.CreateExperimentInput) (*models.ChaosExperiment, error)
+	GetExperiment(ctx context.Context, tenantID, id string) (*models.ChaosExperiment, error)
+	ListExperiments(ctx context.Context, tenantID string, offset, limit int) ([]models.ChaosExperiment, error)
+	UpdateStatus(ctx context.Context, tenantID, id string, status models.ExperimentStatus) error
+	DeleteExperiment(ctx context.Context, tenantID, id string) error
 }
 
-func NewHandler(svc *service.ChaosService) *Handler {
+// The concrete service satisfies the interface. If the service ever drops a
+// method or renames a parameter, this fails the build rather than the wiring.
+var _ Service = (*service.ChaosService)(nil)
+
+// Handler provides HTTP handlers for chaos experiment operations.
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 
@@ -83,13 +100,28 @@ func (h *Handler) ListExperiments(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraChaosListExperiments")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
+	// The cap lives here, and it must be applied before the offset is derived.
+	// Deriving from the requested size and capping the limit afterwards made
+	// `page=3&page_size=1000` return rows 2001-2100 while every reader of the
+	// URL expected rows 201-300. The same misplaced arithmetic used to compute
+	// the offset before the page and page_size floors, so `?page=0`,
+	// `?page=-5` and `?page=abc` each reached Postgres as a negative OFFSET —
+	// an error instead of a page, turning a GET into a 500.
+	if ps > 100 {
+		ps = 100
+	}
+	offset := pagination.OffsetFromPage(page, ps)
+	limit := ps
 
-	exps, err := h.svc.ListExperiments(ctx, tenantID, page, pageSize)
+	exps, err := h.svc.ListExperiments(ctx, tenantID, offset, limit)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
+	}
+	if exps == nil {
+		exps = []models.ChaosExperiment{}
 	}
 
 	respondSuccess(c, exps)

@@ -73,23 +73,21 @@ func (s *ChaosService) GetExperiment(ctx context.Context, tenantID, id string) (
 	return s.repo.GetByID(ctx, tenantID, id)
 }
 
-// ListExperiments retrieves paginated experiments.
-func (s *ChaosService) ListExperiments(ctx context.Context, tenantID string, page, pageSize int) ([]models.ChaosExperiment, error) {
+// ListExperiments retrieves paginated experiments. The offset is already
+// derived and the limit already clamped by the handler, which owns the page
+// arithmetic for this module; the repository binds both untouched.
+//
+// This method used to own the clamp itself, but it derived the offset before
+// clamping the inputs, so the page floor wrote to a local variable that was
+// never read again and the offset reached Postgres unclamped. The clamp also
+// sat after the derivation, which meant a page_size above the cap moved the
+// offset but not the limit. Either half of that ordering produced a wrong
+// answer that the other half of the same function appeared to guard against.
+func (s *ChaosService) ListExperiments(ctx context.Context, tenantID string, offset, limit int) ([]models.ChaosExperiment, error) {
 	ctx, span := otel.Tracer("orion-chaos-svc").Start(ctx, "ChaosService.ListExperiments")
 	defer span.End()
 
-	offset := (page - 1) * pageSize
-	if page <= 0 {
-		page = 1
-	}
-	if pageSize <= 0 {
-		pageSize = 20
-	}
-	if pageSize > 100 {
-		pageSize = 100
-	}
-
-	return s.repo.ListByTenant(ctx, tenantID, offset, pageSize)
+	return s.repo.ListByTenant(ctx, tenantID, offset, limit)
 }
 
 // UpdateStatus updates the experiment status.
