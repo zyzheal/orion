@@ -19,12 +19,12 @@ package handler
 
 import (
 	"context"
-	"strconv"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/extension-point/models"
 	"orion/platform-svc-go/internal/extension-point/service"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -97,9 +97,28 @@ func (h *Handler) ListExtensions(c *gin.Context) {
 	_ = c.GetString("tenant_id")
 	category := c.Query("category")
 	status := c.Query("status")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, total, err := h.svc.ListExtensions(ctx, category, status, (page-1)*ps, ps)
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
+	// The cap must land before the offset is derived: deriving from the requested
+	// size and capping the limit afterwards makes `page=3&page_size=1000` return
+	// rows 2001-2100 while every reader of the URL expects rows 201-300.
+	//
+	// This handler used to read both params with a bare strconv.Atoi, so page=-5,
+	// page=0 and page=abc each produced a negative OFFSET - an error instead of a
+	// page, turning a GET into a 500. `?page=abc` was the worst of them: one
+	// mistyped character, Atoi returning 0 and discarding its error.
+	//
+	// offset and limit are derived once, here, and reused in the envelope. They
+	// used to be computed twice - in the service call and again in
+	// RespondPaginated - so the envelope could report a window the query never
+	// fetched, and any edit to one side had to be made twice or they drifted.
+	if ps > 100 {
+		ps = 100
+	}
+	offset := pagination.OffsetFromPage(page, ps)
+	limit := ps
+
+	items, total, err := h.svc.ListExtensions(ctx, category, status, offset, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -107,7 +126,7 @@ func (h *Handler) ListExtensions(c *gin.Context) {
 	if items == nil {
 		items = []models.ExtensionSummary{}
 	}
-	middleware.RespondPaginated(c, items, (page-1)*ps, ps, total)
+	middleware.RespondPaginated(c, items, offset, limit, total)
 }
 
 // ListBuiltinPoints returns the 15 builtin extension points catalog
@@ -269,9 +288,17 @@ func (h *Handler) ListStartupTasks(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	status := c.Query("status")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, total, err := h.svc.ListStartupTasks(ctx, status, (page-1)*ps, ps)
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
+	// Same floors and cap as ListExtensions, and the cap before the derivation:
+	// the two list endpoints share the pagination package for exactly this reason.
+	if ps > 100 {
+		ps = 100
+	}
+	offset := pagination.OffsetFromPage(page, ps)
+	limit := ps
+
+	items, total, err := h.svc.ListStartupTasks(ctx, status, offset, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -280,7 +307,7 @@ func (h *Handler) ListStartupTasks(c *gin.Context) {
 		items = []models.StartupTask{}
 	}
 	_ = tenantID // enforced at service layer
-	middleware.RespondPaginated(c, items, (page-1)*ps, ps, total)
+	middleware.RespondPaginated(c, items, offset, limit, total)
 }
 
 func (h *Handler) GetStartupStatus(c *gin.Context) {

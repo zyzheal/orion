@@ -172,10 +172,17 @@ func (r *Repository) ListExtensionPoints(ctx context.Context, tenantID, category
 	var items []models.ExtensionPoint
 	var err error
 
+	// offset and limit are appended after the filters so they occupy the
+	// placeholders the clause below refers to. They used to be appended twice -
+	// once here, before the filters were added, and again at the end - so the
+	// call always bound two values the query never referenced. Postgres rejects
+	// that as a protocol violation (`bind message supplies 5 parameters, but
+	// prepared statement requires 3`), so every request to
+	// `GET /extension-points` - including the unfiltered one - returned a 500,
+	// and ExtensionRegistry.InitializeAll failed to load priority at all.
 	var where string
-	var argsList []interface{}
-	argsList = append(argsList, tenantID, offset, limit)
 	parts := []string{"tenant_id = $1"}
+	argsList := []interface{}{tenantID}
 	idx := 2
 	if category != "" {
 		parts = append(parts, fmt.Sprintf("category = $%d", idx))
@@ -303,13 +310,29 @@ func (r *Repository) DeleteExtensionPoint(ctx context.Context, tenantID, name st
 	return err
 }
 
-// CountExtensionPoints returns total extension point count for a tenant.
-func (r *Repository) CountExtensionPoints(ctx context.Context, tenantID string) (int, error) {
+// CountExtensionPoints returns the number of extension points for a tenant that
+// match the same predicate as ListExtensionPoints, so the envelope's total counts
+// the rows the page was fetched from. It used to count the whole tenant: the
+// handler filtered by status and category, the list honoured both, and the total
+// ignored both, so `?status=disabled` answered with a page of three rows and a
+// total of seventeen.
+func (r *Repository) CountExtensionPoints(ctx context.Context, tenantID, category, status string) (int, error) {
+	parts := []string{"tenant_id = $1"}
+	args := []interface{}{tenantID}
+	idx := 2
+	if category != "" {
+		parts = append(parts, fmt.Sprintf("category = $%d", idx))
+		args = append(args, category)
+		idx++
+	}
+	if status != "" {
+		parts = append(parts, fmt.Sprintf("status = $%d", idx))
+		args = append(args, status)
+		idx++
+	}
 	var count int
 	err := r.db.GetContext(ctx, &count,
-		`SELECT COUNT(*) FROM extension_points WHERE tenant_id = $1`,
-		tenantID,
-	)
+		fmt.Sprintf("SELECT COUNT(*) FROM extension_points WHERE %s", strings.Join(parts, " AND ")), args...)
 	return count, err
 }
 

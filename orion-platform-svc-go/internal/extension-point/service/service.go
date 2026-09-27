@@ -59,7 +59,11 @@ func (s *ServiceEx) ListExtensions(ctx context.Context, category, status string,
 	for i, ep := range eps {
 		summaries[i] = repository.ExtensionPointToSummary(ep)
 	}
-	total, _ := s.repo.CountExtensionPoints(ctx, s.tenantID)
+	// The count carries the same filters as the list. Without them the envelope
+	// reported the tenant total for a filtered page: `?status=disabled` returned
+	// three rows and a total of seventeen, which is a lie a reader cannot see
+	// unless they also know the predicate.
+	total, _ := s.repo.CountExtensionPoints(ctx, s.tenantID, category, status)
 	return summaries, total, nil
 }
 
