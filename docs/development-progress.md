@@ -17169,3 +17169,165 @@ GAP 第 6 次同款存活（§88.6 原始形态、§90.6、§91.6、§92.6、§9
 carry-forward：§93.7 的 (a)-(h)、§92.7 的 (a)-(h)、§91.7 的 (a)-(h)、§90.7 的 (a)-(h)、§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 94.7 的 (a)-(h)。
 
 仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
+
+## §95 台账补全：34 处候选全部读完下游，16 处 live、18 处误判，另发现 2 种新的缺陷形态（Round 94，2026-09-25）
+
+### 95.1 先修检测器：候选是 34 处，不是 §94 说的 37 处，也不是 33 处
+
+§94.7(a) 报的是 29 处本函数内有本地地板、37 处没有。本轮把 66 处全数复核，检测器两个方向都偏了：
+
+1. **漏检 `err == nil && p > 0` 这种 init-clause 写法。** `webhook`、`workflow-webhook`、`scheduled-notification` 三个模块的 `parsePagination` 把判断写在 `if` 的初始化子句里（`if p, err := strconv.Atoi(c.Query("page")); err == nil && p > 0 {`），而正则只认 `p < 1` / `p <= 0` 这类比较式，于是把它们全判成「无地板」。**它们其实有地板，不是候选。**
+2. **误认 `total%ps > 0` 是地板。** `visor` 的 `ListAlerts`（`handler.go:374`）算总页数时有一句 `if total%ps > 0 { totalPages++ }`，其中的 `ps > 0` 命中了正则，但这个比较是在算信封字段、不是夹紧分页参数。**它其实没有地板，是候选。**
+
+两条修正方向相反，净结果是 **66 = 32 处本函数内已有地板 + 34 处 handler 无地板的候选**。§94.7(a) 的 29 / 37 各错 3 处。
+
+顺带订正 §94.7(a) 自己的一笔算术：它列的「台账已知 15 处」加「未上台账 23 处」等于 38，和它自己报的 37 差 1。
+
+### 95.2 34 处全部读完下游：16 处 live / 9 个模块，18 处 protected / 14 个模块
+
+照 §93.1 的判定条件（handler 无地板 **且** service 无夹点 **且** 仓储无夹点）逐模块把四层读完：
+
+**LIVE — 16 处，9 个模块**
+
+| 模块 | 处数 | 站点 | service | 仓储 |
+|---|---|---|---|---|
+| `skill` | 3 | ListSkills / ListExecutions / GetAuditLogs | 接口有槽位但静默丢弃 | 无分页参数；全文件 0 个 `LIMIT`/`OFFSET` |
+| `infrastructure/chaos` | 1 | ListExperiments | 有 3 个夹点，但都在推导 `offset` 之后 | 零夹点，原样绑定 |
+| `infrastructure/capacity` | 3 | ListPools / ListForecasts / ListReports | 纯透传 | 原样绑定 |
+| `visor` | 3 | ListDashboards / ListHosts / ListAlerts | 纯透传 | 零夹点 |
+| `extension-point` | 2 | ListExtensions / ListStartupTasks | 纯透传 | 原样绑定 |
+| `ai/intelligence` | 1 | List | 纯透传（`intelligence_service.go:33-35`） | 原样绑定（`:19-23`） |
+| `governance/governance` | 1 | List | 纯透传 | 原样绑定；跑了 `COUNT(*)` 却没用 |
+| `governance/risk` | 1 | List | 纯透传 | 原样绑定 |
+| `infrastructure/digital-twin` | 1 | List | 纯透传 | 原样绑定 |
+
+**PROTECTED — 18 处，14 个模块**
+
+| 模块 | 处数 | 夹点位置 |
+|---|---|---|
+| `resilience-score` | 3 | 查询结构体方法 `ListQuery.Offset()` / `Limit()`，同时带上限 100 |
+| `pandawiki` | 2 | service（§93.1 已认定误判） |
+| `infrastructure/dba` | 2 | service `if offset < 0` |
+| `dba` | 1 | 仓储 `if limit <= 0` / `if page <= 0` |
+| `data-catalog` | 1 | 仓储 |
+| `release-management` | 1 | 仓储，先夹后推导 |
+| `test-execution-engine` | 1 | 仓储，与上一个字节级同型 |
+| `audit` | 1 | service + 仓储 |
+| `cmdb-drift` | 1 | 仓储，但 `PageSize <= 0` 时整段分页被跳过 |
+| `vulnerability` | 1 | service + 仓储 |
+| `notification-template` | 1 | service |
+| `user-activity` | 1 | service，带上限 100，顺序正确 |
+| `ci-cd/pipeline-template` | 1 | service |
+| `developer-portal` | 1 | 仓储，0-based 内部自洽 |
+
+**§94 那个「16 live」数字碰巧对上了，但成分完全不同。**它算的 16 是 runner 修完之后台账记的 12 加 runner 自己的 3（口径本身就不对，Round 93 才把 runner 修掉）；本轮的 16 是 12 处台账已知加 4 处新发现。
+
+### 95.3 新形态一：`skill` 的死分页是两层深，而且接口已经把参数声明好了
+
+```go
+// internal/skill/handler/handler.go:78-81
+page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+skills, total := h.svc.ListSkills(ctx, tenantID, category, status, page, limit)
+
+// internal/skill/service/service.go:32-38 —— page 和 limit 静默丢弃
+func (s *Service) ListSkills(ctx context.Context, tenantID string, category, status string, page, limit int) ([]models.Skill, int64) {
+    skills, err := s.repo.ListSkills(ctx, tenantID, category, status)
+    if err != nil { return nil, 0 }
+    return skills, int64(len(skills))
+}
+
+// internal/skill/repository/repository_interface.go:15 —— 接口里根本没有分页槽位
+ListSkills(ctx context.Context, tenantID string, category, status string) ([]models.Skill, error)
+```
+
+三个站点：`ListSkills`（`handler.go:72` / service `:32` / repo `:60`）、`ListExecutions`（`:377` / `:272` / `:391`）、`GetAuditLogs`（`:521` / `:439` / `:497`）。整个仓储文件里 `LIMIT` 和 `OFFSET` 的出现次数是 **0**。
+
+这是 Round 91 那个 `alert-adapter` 的加强版。那里 `Service` 接口**根本没有** offset / limit 的位置，读代码的人一眼看出参数没传下去；这里 `ServiceInterface`（21 个方法）**已经声明了 `page, limit int`**，handler 也老老实实把两个整数传了进去。**只看 handler、或者只看接口，结论都是「分页接好了」。** 没有 500，`?page=50&limit=1000` 返回整张表。
+
+修这一处要动 4 层：`repository_interface.go` 的方法签名（加 `offset, limit`）、`repository.go` 的 SQL（加 `LIMIT`/`OFFSET`）、`service.go` 的三个方法（把参数转发下去）、`handler.go` 的解析（换成 `pagination`）。`ServiceInterface` 不用改——**它本来就说谎说了**。
+
+### 95.4 新形态二：`infrastructure/chaos` 的夹点在 service 层，而且对 offset 是死代码
+
+```go
+// internal/infrastructure/chaos/internal/service/chaos_service.go:77-92
+func (s *ChaosService) ListExperiments(ctx context.Context, tenantID string, page, pageSize int) ([]models.ChaosExperiment, error) {
+    offset := (page - 1) * pageSize   // :81 夹点之前就算完了
+    if page <= 0      { page = 1 }     // :82 太晚，offset 已经定型
+    if pageSize <= 0  { pageSize = 20 }
+    if pageSize > 100 { pageSize = 100 }
+    return s.repo.ListByTenant(ctx, tenantID, offset, pageSize)   // :92 offset 仍未夹
+}
+```
+
+仓储（`chaos_repository.go:52-59`）把 `limit, offset` 原样绑进 SQL，全仓库零夹点。`?page=-5&pageSize=20` → `OFFSET -100` → **500**；`?page=2&pageSize=0` → `offset = 1*0 = 0`，返回第一页却声称是第 2 页。
+
+这一处最阴的地方是：**「这个模块夹没夹？」的答案是「夹了」。**三个 `if` 都写在 service 里，任何以模块为粒度问「有没有夹点」的扫描都会把它报成 protected。它是 §93.3「先算后夹」那个坑在 service 层的第二例，而且比 handler 层那一例更难发现——handler 层的那一处至少还能用「handler 无地板」筛出来，这一处筛不出来。修法是 1 行换位。
+
+### 95.5 第 5 种「地板归谁」：查询结构体自带方法
+
+```go
+// internal/resilience-score/models/models.go:65-79
+func (q *ListQuery) Offset() int {
+    if q.Page <= 0 { q.Page = 1 }
+    return (q.Page - 1) * q.Limit()
+}
+func (q *ListQuery) Limit() int {
+    if q.Size <= 0  { return 20 }
+    if q.Size > 100 { return 100 }
+    return q.Size
+}
+```
+
+仓储在 4 处直接绑 `q.Limit(), q.Offset()`（`repository.go:55` / `:112` / `:170` / `:227`）。§90.2 写明「解析器是地板不是上限」，这是全仓库**唯一在 handler 之外同时做了地板和上限**的模块。
+
+顺带量出一处**正确写法**：`user-activity` 的 service 先夹 `page` 和 `pageSize`、再夹上限到 100、最后才算 `offset := (page-1)*pageSize`（`service.go:35-44`）。34 处候选里只有这 2 个模块有上限，而且都是这个顺序；`infrastructure/chaos` 是第 3 个写了上限的，但把上限放在推导之后，等于没有。
+
+### 95.6 三个差点写错的误判
+
+1. **`developer-portal` 不是 off-by-one。** handler 的默认 `page` 是 `"0"`（不是 `"1"`），仓储是 `:99 if pageSize <= 0` / `:102 if page < 0` / `:105 offset := page * pageSize`——**整套是 0-based，内部自洽**。如果默认值看错成 `"1"`，这里就是一个「第 0 页返回 20 条、第 1 页也从第 20 条之后开始」的错位。读实际默认值省下了一个假缺陷。
+2. **`release-management` 和 `test-execution-engine` 的仓储是同一段代码。** 两个仓储各有一份 `page := q.Page` → `if page < 1` → `if pageSize < 1` → `offset := (page-1)*pageSize`（`:74-84` / `:71-81`），除了表名和列名字节级一致。这是「夹点写在仓储」那个约定的第二个复制源，将来改约定要改两遍。
+3. **`cmdb-drift` 不是 500，是整表返回。** 仓储 `:170` 用 `if filter.PageSize > 0 {` 把整段 `LIMIT`/`OFFSET` 包起来——`pageSize <= 0` 时不加分页子句，直接返回整张表。没有崩溃，没有错误，客户端拿到一个和 limit 无关的结果集。**这类「静默不分页」比 500 更难被发现，因为没有异常可报。**
+
+### 95.7 脚手架现状重估：9 个 LIVE 模块里只有 2 个能注入假实现
+
+| 模块 | 可注入接口 | handler 测试文件 | 脚手架成本 |
+|---|---|---|---|
+| `skill` | 有，`service.ServiceInterface` 21 个方法 | 有，421 行，`mockRepo` + 24 个测试函数 | **最低**：只缺分页断言 |
+| `extension-point` | 有，11 个方法 | 无 | 低：接口现成，要新建脚手架 |
+| 其余 7 个 | 无，`NewHandler` 吃具体类型 | 无 | 高：先引入接口，再建脚手架 |
+
+两处需要修正 §94.7(c)(d) 的说法：
+
+- **`skill` 不是「零测试文件」。** 它有一个 421 行的 `handler_test.go`，里面有 `mockRepo`（实现了 `RepositoryInterface`）和 24 个测试函数，其中 3 个正好覆盖这 3 处 live 站点（`TestHandler_SKILL_ListSkills` / `_ListExecutions` / `_GetAuditLogs`）。但它们的断言只有一条：`if w.Code >= 500 { t.Fatalf(...) }`，请求是 `GET /` 不带任何查询串。**这是前面几轮点名的「冒烟测试形状」：能证明路由挂了，证明不了任何参数有没有传下去。**好在脚手架已经在，`skill` 是全树修复成本最低的 live 模块——接口现成、假实现现成、3 处都有测试函数，只缺分页断言。
+- **`extension-point` 仍然是「已有 11 个方法的接口 + 零测试文件」。**它要的是新脚手架，`skill` 要的是新断言，这两件事的成本差很多。
+
+其余 7 个 LIVE 模块（`visor`、`infrastructure/capacity`、`ai/intelligence`、`governance/governance`、`governance/risk`、`infrastructure/digital-twin`、`infrastructure/chaos`）仍然都是 `NewHandler` 吃具体类型，仍然一个 handler 测试文件都没有。
+
+### 95.8 本轮没有跑变异验证：这是成本，不是省略
+
+本轮按授权做的是台账，**没有改一行代码**，所以**没有跑变异检查脚本，没有 GAP，没有对照组，没有 restore 校验**。连存 7 轮的 GAP 形态（`OffsetFromPage` 里加一个触发不到的上限）本轮不产生新的存活计数——不是它消失了，是本轮没有做这个实验。
+
+代价要说清楚：§95 里「16 处 live」「18 处 protected」这两个数字**没有任何测试钉住**，它们是一次人工读代码的产物；95.3 和 95.4 那两个新形态也是。§93.1 已经证明过一次这类判定会在动手时推翻（`pandawiki`），而本轮读到的 `infrastructure/chaos` 说明它还能在「读对了」的情况下给出一个看起来正确的结论——service 里确实有三个夹点，模块级别的 grep 也确实会说 protected。**「我读过了」和「我有测试」是两件事。**
+
+另记两笔顺带读到的：`developer-portal/service/service.go:127` 把 context 参数命名为 `c`（`func (s *Service) ListDocuments(c context.Context, ...)`），和 handler 里 `*gin.Context` 的 `c` 撞名，只是风格问题；`governance/governance` 的仓储在 `:62-64` 跑了 `SELECT COUNT(*)` 把 `total` 返回上去，但分页那两个参数原样裸绑——**它有能力报真 total，只是没用**。
+
+### 95.9 验证与遗留
+
+`go build ./...` 退出 0；`go vet ./...` 退出 0。`go test -count=1 ./...` 本轮未跑（无代码改动，无测试可回归）；`gofmt -l` 同样未跑。工作树 `git status --porcelain` 干净（本轮只改文档）。`go.sum` 与 `go.work.sum` 未改。
+
+改动：0 行代码、0 个测试文件、0 个变异。新增：`docs/development-progress.md` §95、`docs/ALL_TODOS.md` 一行。
+
+下一步有四条路：
+
+- **A：`skill`。** 3 处 live，接口现成、假实现现成、3 处都有测试函数，只缺分页断言。要动 4 层（`repository_interface.go` 签名、`repository.go` SQL、`service.go` 转发、`handler.go` 解析）。是全树脚手架成本最低的 live 模块。
+- **B：`infrastructure/chaos`。** 1 行换位（把 `offset :=` 移到三个夹点之后）就能关掉一个真 500，但模块零测试文件、`NewHandler` 吃具体类型 `*service.ChaosService`，得先引入接口再建脚手架。按「每个修复都要变异验证」这条规矩，这个修复本身没法验证，等于本轮只能记账不能交付。
+- **C：`infrastructure/capacity`。** 3 处簇最大，同样要先引入接口。
+- **D：`extension-point`。** 2 处，接口现成（11 个方法），零测试文件，要新建脚手架。比 A 贵，比 B / C 便宜。
+
+推荐 **A**。理由：它是唯一一个「脚手架、假实现、目标测试函数三样都已经在」的 live 模块，剩下的全是断言；而且它的缺陷是本轮新发现的形态一——只有它修了，「接口声明了参数但服务丢弃」这类问题才有一个可复用的修法样板。
+
+carry-forward：§94.7 的 (a)-(h)、§93.7 的 (a)-(h)、§92.7 的 (a)-(h)、§91.7 的 (a)-(h)、§90.7 的 (a)-(h)、§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 95.2 的两张表和 95.8 的两笔顺带读到的。
+
+仍需授权的 4 项不变（`StartTrace` 在 auth 关闭时怎么办；`RecordSavings` 零调用方；模块 A 的 6 个 handler / 33 处裸租户读取删还是留；auth 关闭时 `X-Tenant-Id` 头的租户来源）。
+
