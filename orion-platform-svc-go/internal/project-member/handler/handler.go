@@ -1,8 +1,9 @@
 package handler
 
 import (
-	"strconv"
 
+
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	goerr "orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/project-member/models"
@@ -32,8 +33,10 @@ func (h *Handler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	q := models.ListMembersQuery{ProjectID: c.Query("project_id"), UserID: c.Query("user_id"), Role: c.Query("role"), Status: c.Query("status"), Limit: &limit, Offset: &offset}
 	items, total, err := h.svc.ListMembers(ctx, tenantID, q)
 	if err != nil {

@@ -2,8 +2,9 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
+
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ephemeral-env/models"
 	"orion/platform-svc-go/internal/ephemeral-env/service"
@@ -110,7 +111,8 @@ func (h *Handler) GetLogs(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	envID := c.Param("id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
+	limit := pagination.Limit(c.Query("limit"), 100)
+	if limit > 100 { limit = 100 }
 	result, err := h.svc.GetLogs(ctx, tenantID, envID, limit)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
@@ -123,8 +125,10 @@ func (h *Handler) ListEnvs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListEnvs")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	result, err := h.svc.ListEnvs(ctx, tenantID, limit, offset)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)

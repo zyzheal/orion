@@ -3,10 +3,11 @@ package handler
 import (
 	"go.opentelemetry.io/otel"
 	"net/http"
-	"strconv"
+
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/self-healing/models"
@@ -41,8 +42,10 @@ func (h *SelfHealingHandler) ListActions(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SelfHealingListActions")
 	defer span.End()
 	tenantID := h.GetTenantID(c)
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	resp, err := h.svc.QueryHealingActions(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -155,8 +158,10 @@ func (h *SelfHealingHandler) ListHistory(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	actionID, _ := uuid.Parse(c.Query("action_id"))
 	status := c.Query("status")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	resp, err := h.svc.QueryHealingHistory(ctx, tenantID, actionID, status, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

@@ -2,9 +2,10 @@ package handler
 
 import (
 	"go.opentelemetry.io/otel"
-	"strconv"
+
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/task-executor/models"
@@ -37,8 +38,10 @@ func (h *TaskExecutorHandler) ListTasks(c *gin.Context) {
 	defer span.End()
 	tenantID := h.GetTenantID(c)
 	status := c.Query("status")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	resp, err := h.svc.QueryTasks(ctx, tenantID, status, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

@@ -2,8 +2,9 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
+
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/mcp/models"
 	"orion/platform-svc-go/internal/mcp/service"
@@ -78,8 +79,10 @@ func (h *Handler) ListServers(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListServers")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	q := models.ListMCPServersQuery{Limit: limit, Offset: offset}
 	result, err := h.svc.ListServers(ctx, tenantID, q)
 	if err != nil {
@@ -92,8 +95,10 @@ func (h *Handler) ListServers(c *gin.Context) {
 func (h *Handler) ListTools(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTools")
 	defer span.End()
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	q := models.ListMCPToolsQuery{Limit: limit, Offset: offset}
 	result, err := h.svc.ListTools(ctx, q)
 	if err != nil {

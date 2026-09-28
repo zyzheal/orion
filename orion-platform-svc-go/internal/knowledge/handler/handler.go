@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/knowledge/models"
 	"orion/platform-svc-go/internal/knowledge/service"
@@ -898,8 +899,10 @@ func (h *Handler) RAGAuditLogs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGAuditLogs")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	logs, err := h.svc.ListQueryAuditLogs(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -917,8 +920,10 @@ func (h *Handler) RAGFlaggedQueries(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGFlaggedQueries")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	logs, err := h.svc.ListFlaggedQueryAuditLogs(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -1036,7 +1041,8 @@ func (h *Handler) ListEvalRuns(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	setID := c.Query("set_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	limit := pagination.Limit(c.Query("limit"), 20)
+	if limit > 100 { limit = 100 }
 	runs, err := h.svc.ListEvalRuns(ctx, tenantID, setID, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

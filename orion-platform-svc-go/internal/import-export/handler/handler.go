@@ -1,8 +1,9 @@
 package handler
 
 import (
-	"strconv"
 
+
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/import-export/async"
 	"orion/platform-svc-go/internal/import-export/models"
@@ -206,7 +207,8 @@ func (h *Handler) ImportHistory(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 
 	operation := c.Param("operation")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 
 	filter := &models.JobFilter{
 		Operation: operation,

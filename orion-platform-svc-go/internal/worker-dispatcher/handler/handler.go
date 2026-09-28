@@ -3,9 +3,10 @@ package handler
 import (
 	"database/sql"
 	"errors"
-	"strconv"
+
 	"time"
 
+	"orion/platform-svc-go/internal/pagination"
 	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/worker-dispatcher/models"
 	"orion/platform-svc-go/internal/worker-dispatcher/service"
@@ -76,8 +77,10 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	policyType := c.Query("type")
 	enabled := c.Query("enabled")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	items, err := h.svc.ListPolicies(ctx, tenantID, policyType, enabled, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

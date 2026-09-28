@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"strconv"
+
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ci-cd/artifact-registry/models"
@@ -44,7 +44,8 @@ func (h *ArtifactRegistryHandler) ListRegistries(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ArtifactRegistryListRegistries")
 	defer span.End()
 	tenantID := h.GetTenantID(c)
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	offset := pagination.Offset(c.Query("offset"))
 
 	resp, err := h.svc.QueryRegistries(ctx, tenantID, limit, offset)
@@ -110,7 +111,8 @@ func (h *ArtifactRegistryHandler) ListArtifacts(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	registryID := c.Param("id")
 	name := c.Query("name")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	Offset := pagination.Offset(c.Query("offset"))
 
 	resp, err := h.svc.QueryArtifacts(ctx, tenantID, registryID, name, limit, Offset)

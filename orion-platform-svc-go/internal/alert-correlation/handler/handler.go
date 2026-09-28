@@ -2,11 +2,12 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
+
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/alert-correlation/models"
 	"orion/platform-svc-go/internal/alert-correlation/service"
@@ -66,8 +67,10 @@ func (h *AlertCorrelationHandler) ListGroups(c *gin.Context) {
 	defer span.End()
 	tenantID := h.GetTenantID(c)
 	groupType := c.Query("group_type")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 
 	resp, err := h.svc.QueryGroups(ctx, tenantID, groupType, limit, offset)
 	if err != nil {
@@ -144,8 +147,10 @@ func (h *AlertCorrelationHandler) ListRules(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertCorrListRules")
 	defer span.End()
 	tenantID := h.GetTenantID(c)
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 
 	rules, total, err := h.svc.QueryRules(ctx, tenantID, limit, offset)
 	if err != nil {

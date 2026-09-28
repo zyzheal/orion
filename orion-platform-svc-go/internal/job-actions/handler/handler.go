@@ -3,10 +3,11 @@ package handler
 
 import (
 	"errors"
-	"strconv"
+
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/job-actions/models"
 	"orion/platform-svc-go/internal/job-actions/repository"
@@ -82,8 +83,10 @@ func (h *Handler) ListActions(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "JobActionsListActions")
 	defer span.End()
 	category := c.Query("category")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	resp, err := h.repo.ListActions(ctx, h.tenantID(c), category, limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())
@@ -154,8 +157,10 @@ func (h *Handler) GetHistory(c *gin.Context) {
 		respondNotFound(c, terr.Error())
 		return
 	}
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	resp, err := h.repo.ListHistory(ctx, tenant, actionID, limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())

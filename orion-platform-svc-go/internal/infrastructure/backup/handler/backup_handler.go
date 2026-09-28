@@ -3,9 +3,10 @@ package handler
 import (
 	"go.opentelemetry.io/otel"
 	"net/http"
-	"strconv"
+
 	"time"
 
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/infrastructure/backup/models"
 	"orion/platform-svc-go/internal/infrastructure/backup/service"
@@ -94,8 +95,9 @@ func (h *Handler) ListPlans(c *gin.Context) {
 		respondBadRequest(c, "tenant_id required")
 		return
 	}
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset := pagination.Offset(c.Query("offset"))
+	limit := pagination.Limit(c.Query("limit"), 20)
+	if limit > 100 { limit = 100 }
 	plans, err := h.backupSvc.ListPlans(ctx, tenantID, offset, limit)
 	if err != nil {
 		h.log.Error("failed to list plans", zap.Error(err))
@@ -195,8 +197,9 @@ func (h *Handler) ListBackupRecords(c *gin.Context) {
 		Status: c.Query("status"),
 		Type:   c.Query("type"),
 	}
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset := pagination.Offset(c.Query("offset"))
+	limit := pagination.Limit(c.Query("limit"), 20)
+	if limit > 100 { limit = 100 }
 	backups, err := h.backupSvc.ListBackups(ctx, tenantID, filter, offset, limit)
 	if err != nil {
 		h.log.Error("failed to list backups", zap.Error(err))
@@ -287,8 +290,9 @@ func (h *Handler) ListRecoveries(c *gin.Context) {
 		respondBadRequest(c, "tenant_id required")
 		return
 	}
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset := pagination.Offset(c.Query("offset"))
+	limit := pagination.Limit(c.Query("limit"), 20)
+	if limit > 100 { limit = 100 }
 	recoveries, err := h.recoverySvc.ListRecoveries(ctx, tenantID, offset, limit)
 	if err != nil {
 		h.log.Error("failed to list recoveries", zap.Error(err))

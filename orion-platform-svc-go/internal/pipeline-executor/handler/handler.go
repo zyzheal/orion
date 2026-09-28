@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"strconv"
+
 
 	"orion/go-common/pkg/auth"
 
@@ -68,7 +68,8 @@ func (h *Handler) ListPipelines(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPipelines")
 	defer span.End()
 	status := c.Query("status")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	offset := pagination.Offset(c.Query("offset"))
 	resp, err := h.exec.ListPipelines(ctx, h.tenantID(c), status, limit, offset)
 	if err != nil {
@@ -154,7 +155,8 @@ func (h *Handler) AddStep(c *gin.Context) {
 func (h *Handler) ListSteps(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPipelineSteps")
 	defer span.End()
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	offset := pagination.Offset(c.Query("offset"))
 	resp, err := h.exec.ListSteps(ctx, h.tenantID(c), c.Param("id"), limit, offset)
 	if err != nil {
@@ -236,7 +238,8 @@ func (h *Handler) RunPipeline(c *gin.Context) {
 func (h *Handler) ListExecutions(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPipelineExecutions")
 	defer span.End()
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	off := pagination.Offset(c.Query("offset"))
 	resp, err := h.exec.ListExecutions(ctx, h.tenantID(c), c.Param("id"), limit, off)
 	if err != nil {

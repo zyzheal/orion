@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"strconv"
+
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/policy/models"
@@ -107,7 +107,8 @@ func (h *Handler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	offset := pagination.Offset(c.Query("offset"))
 	policies, err := h.svc.ListPolicies(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -229,7 +230,8 @@ func (h *Handler) ListEvaluations(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	offset := pagination.Offset(c.Query("offset"))
 	evaluations, err := h.svc.GetEvaluationHistory(ctx, tenantID, id, limit, offset)
 	if err != nil {
@@ -290,7 +292,8 @@ func (h *Handler) ListRootEvaluations(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRootEvaluations")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	offset := pagination.Offset(c.Query("offset"))
 	evaluations, err := h.svc.ListEvaluations(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -305,7 +308,8 @@ func (h *Handler) ListEvaluationsRuns(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListEvaluationsRuns")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	offset := pagination.Offset(c.Query("offset"))
 	evaluations, err := h.svc.ListEvaluations(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -321,7 +325,8 @@ func (h *Handler) ListViolations(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListViolations")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	offset := pagination.Offset(c.Query("offset"))
 	violations, err := h.svc.ListViolations(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -371,7 +376,8 @@ func (h *Handler) ListOverrides(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListOverrides")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	offset := pagination.Offset(c.Query("offset"))
 	overrides, err := h.svc.ListOverrides(ctx, tenantID, limit, offset)
 	if err != nil {

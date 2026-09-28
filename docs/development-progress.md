@@ -3511,6 +3511,25 @@ feat(branch-policy): P0-MB Phase 5b — git merge-tree integration
 - **R6 schema-compatibility 真实实现**：需要 migration service 支持
 - **AddedFiles/ModifiedFiles/DeletedFiles 分类**：需调用 `git diff --name-status` 后解析
 
+### 2026-09-28（§103-§105 分页加固：page/page_size + offset/limit 全仓清零）
+
+**§103 LIVE 列清零**（commit `ba730314b`）：governance/risk + digital-twin 两处单点站点
+
+**§104 50 站点批量迁移**（commit `50ee944d3`）：
+- Python 脚本批量 22 模块 + 13 复查已改 + vulnerability 手动 = 36 handler 文件
+- infrastructure/dr 豁免（Pattern D：400 错误响应设计）
+- page/page_size 裸 Atoi 清零
+
+**§105 offset/limit 模式批量迁移**：
+- 80 个 handler 文件批量迁移：`limit, _ := strconv.Atoi(...)` → `pagination.Limit(...)` + 100 上界，`offset, _ := strconv.Atoi(...)` → `pagination.Offset(...)`
+- 3 处非标准变量名手动修复（plugin `l`、job-source `off`、cron `off`）
+- offset/limit 裸 Atoi 清零
+
+**最终状态**：
+- `grep -rn 'strconv.Atoi.*DefaultQuery.*page\|page_size\|pageSize\|limit\|offset'` → 0 条
+- go build ./... / go vet ./... / go test -count=1 ./... → 全绿 583 包 / 0 FAIL
+- 累计：0→148 已迁移站点，0→87 模块覆盖
+
 ### 2026-09-28（§103-§104 分页加固：50 站点批量迁移完成）
 
 **背景**：台账原 149 个 offset 读取点，Round 79-103 迁移 32 个。台账口径不完整——全仓 grep 发现 50 处 page/page_size 裸 Atoi 站点散布在 33 个模块中，全部未被台账覆盖。

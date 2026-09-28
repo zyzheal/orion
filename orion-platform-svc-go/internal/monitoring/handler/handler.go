@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"strconv"
+
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/monitoring/models"
@@ -207,7 +207,8 @@ func (h *Handler) GetRegisteredMetrics(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRegisteredMetrics")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.GetRegisteredMetrics(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -222,7 +223,8 @@ func (h *Handler) GetMetricSeries(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	name := c.Param("name")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
+	limit := pagination.Limit(c.Query("limit"), 100)
+	if limit > 100 { limit = 100 }
 	series, err := h.svc.GetMetricSeries(ctx, tenantID, name, nil, nil, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -267,7 +269,8 @@ func (h *Handler) GetRules(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRules")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.GetRules(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -394,7 +397,8 @@ func (h *Handler) GetAlerts(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAlerts")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.GetAlerts(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -408,7 +412,8 @@ func (h *Handler) GetActiveAlerts(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetActiveAlerts")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.GetActiveAlerts(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -504,7 +509,8 @@ func (h *Handler) GetChannels(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetChannels")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.GetChannels(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -555,7 +561,8 @@ func (h *Handler) GetEscalationPolicies(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEscalationPolicies")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.GetEscalationPolicies(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -571,7 +578,8 @@ func (h *Handler) GetNotificationHistory(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetNotificationHistory")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.GetNotificationHistory(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -616,7 +624,8 @@ func (h *Handler) GetWidgetConfigs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetWidgetConfigs")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.GetWidgetConfigs(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -644,7 +653,8 @@ func (h *Handler) DetectAnomalies(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DetectAnomalies")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.DetectAnomalies(ctx, tenantID, limit, offset)
 	if err != nil {

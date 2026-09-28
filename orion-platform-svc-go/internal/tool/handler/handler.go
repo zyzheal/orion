@@ -2,12 +2,13 @@ package handler
 
 import (
 	"errors"
-	"strconv"
+
 	"strings"
 
 	"github.com/gin-gonic/gin"
 
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/tool/models"
@@ -180,8 +181,10 @@ func (h *ToolHandler) GetInvocations(c *gin.Context) {
 	tenantID := auth.GetTenantID(c)
 	id := c.Param("id")
 
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 20)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	if limit < 1 || limit > 100 {
 		limit = 20
 	}
@@ -318,7 +321,8 @@ func (h *ToolHandler) GetTopTools(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToolGetTopTools")
 	defer span.End()
 	tenantID := auth.GetTenantID(c)
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	limit := pagination.Limit(c.Query("limit"), 10)
+	if limit > 100 { limit = 100 }
 	if limit < 1 || limit > 50 {
 		limit = 10
 	}

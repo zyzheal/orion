@@ -13,8 +13,9 @@ package handler
 import (
 	stderrors "errors"
 	"go.opentelemetry.io/otel"
-	"strconv"
 
+
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
 
@@ -131,8 +132,10 @@ func (h *Handler) ListTasks(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AutoExecListTasks")
 	defer span.End()
 	status := c.Query("status")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	resp, err := h.svc.ListTasks(ctx, tenantID(c), status, limit, offset)
 	if err != nil {
 		fail(c, err)
@@ -185,8 +188,10 @@ func (h *Handler) RunTask(c *gin.Context) {
 func (h *Handler) GetHistory(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AutoExecGetHistory")
 	defer span.End()
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	resp, err := h.svc.GetHistory(ctx, tenantID(c), c.Param("id"), limit, offset)
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, err.Error(), 404)
@@ -216,8 +221,10 @@ func (h *Handler) RegisterPlugin(c *gin.Context) {
 func (h *Handler) ListPlugins(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AutoExecListPlugins")
 	defer span.End()
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	resp, err := h.svc.ListPlugins(ctx, tenantID(c), c.Query("category"), limit, offset)
 	if err != nil {
 		fail(c, err)

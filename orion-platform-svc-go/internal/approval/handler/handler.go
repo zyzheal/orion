@@ -1,8 +1,9 @@
 package handler
 
 import (
-	"strconv"
 
+
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/approval/models"
 	"orion/platform-svc-go/internal/approval/service"
@@ -102,8 +103,10 @@ func (h *Handler) ListApprovalRequests(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	approvalType := c.Query("type")
 	status := c.Query("status")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	items, err := h.svc.ListApprovalRequests(ctx, tenantID, approvalType, status, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -379,8 +382,10 @@ func (h *Handler) GetTemplates(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTemplates")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	items, err := h.svc.GetTemplates(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

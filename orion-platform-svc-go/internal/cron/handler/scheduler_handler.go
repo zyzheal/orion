@@ -1,8 +1,9 @@
 package handler
 
 import (
-	"strconv"
 
+
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/cron/service"
 
@@ -220,7 +221,8 @@ func (h *SchedulerHandler) GetLogs(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	logs, err := h.sm.GetExecutionLogs(ctx, tenantID, id, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

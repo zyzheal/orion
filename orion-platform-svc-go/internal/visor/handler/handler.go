@@ -749,7 +749,8 @@ func (h *Handler) ListNotificationHistory(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	alertID := c.Query("alert_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 
 	items, err := h.svc.ListNotificationHistory(ctx, tenantID, alertID, limit)
 	if err != nil {

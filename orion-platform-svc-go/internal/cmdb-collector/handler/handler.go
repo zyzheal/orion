@@ -21,7 +21,7 @@
 package handler
 
 import (
-	"strconv"
+
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/cmdb-collector/models"
@@ -105,8 +105,9 @@ func (h *Handler) ListTargets(c *gin.Context) {
 		return
 	}
 	collectorName := c.Param("name")
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	offset := pagination.Offset(c.Query("offset"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	if limit <= 0 || limit > 500 {
 		limit = 50
 	}

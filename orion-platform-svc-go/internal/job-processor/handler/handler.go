@@ -3,8 +3,9 @@ package handler
 import (
 	stderrors "errors"
 	"go.opentelemetry.io/otel"
-	"strconv"
 
+
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/job-processor/models"
 	"orion/platform-svc-go/internal/job-processor/processor"
@@ -88,8 +89,10 @@ func (h *Handler) ListOperations(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListJobOperations")
 	defer span.End()
 	chainID := c.Query("chain_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	resp, err := h.svc.ListOperations(ctx, h.tenantID(c), chainID, limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())
@@ -101,8 +104,10 @@ func (h *Handler) ListOperations(c *gin.Context) {
 func (h *Handler) ListChains(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListJobChains")
 	defer span.End()
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	resp, err := h.svc.ListChains(ctx, h.tenantID(c), limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())

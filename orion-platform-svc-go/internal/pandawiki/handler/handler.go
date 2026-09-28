@@ -328,7 +328,8 @@ func (h *Handler) GetSyncLogs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PandawikiGetSyncLogs")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	limit := pagination.Limit(c.Query("limit"), 10)
+	if limit > 100 { limit = 100 }
 	logs, err := h.svc.GetSyncLogs(ctx, tenantID, limit)
 	if err != nil {
 		respondInternalError(c, err.Error())

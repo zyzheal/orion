@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"strconv"
-
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/plugin/models"
 	"orion/platform-svc-go/internal/plugin/service"
@@ -221,7 +219,8 @@ func (h *Handler) Audit(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pluginID := c.Query("plugin_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	if limit <= 0 || limit > 500 {
 		limit = 50
 	}
@@ -237,7 +236,8 @@ func (h *Handler) AuditTrail(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuditTrail")
 	defer span.End()
 	taskID := c.Param("taskId")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	if limit <= 0 || limit > 500 {
 		limit = 50
 	}
@@ -409,9 +409,8 @@ func (h *Handler) ListSecurityEvents(c *gin.Context) {
 		Severity: c.Query("severity"),
 		Limit:    100,
 	}
-	if l, _ := strconv.Atoi(c.DefaultQuery("limit", "100")); l > 0 {
-		f.Limit = l
-	}
+	limit := pagination.Limit(c.Query("limit"), 100)
+	f.Limit = limit
 	events, err := h.svc.ListSecurityEvents(ctx, f)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

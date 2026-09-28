@@ -1,8 +1,9 @@
 package handler
 
 import (
-	"strconv"
 
+
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/incident/models"
 	"orion/platform-svc-go/internal/incident/service"
@@ -105,8 +106,10 @@ func (h *Handler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 20)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	status := c.Query("status")
 	severity := c.Query("severity")
 	priority := c.Query("priority")
@@ -357,8 +360,10 @@ func (h *Handler) GetTimeline(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 20)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	timeline, err := h.svc.GetTimeline(ctx, tenantID, id, models.TimelineQuery{
 		Limit:  &limit,
 		Offset: &offset,
@@ -519,7 +524,8 @@ func (h *Handler) GetKnowledgeRecommendations(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "5"))
+	limit := pagination.Limit(c.Query("limit"), 5)
+	if limit > 100 { limit = 100 }
 	result, err := h.svc.GetKnowledgeRecommendations(ctx, tenantID, id, limit)
 	if err != nil {
 		if service.IsNotFound(err) {

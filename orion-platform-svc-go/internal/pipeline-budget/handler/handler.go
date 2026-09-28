@@ -2,8 +2,9 @@ package handler
 
 import (
 	"context"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/platform-svc-go/internal/middleware"
-	"strconv"
+
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/pipeline-budget/models"
@@ -228,8 +229,9 @@ func (h *Handler) ListHistory(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Param("id")
 
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset := pagination.Offset(c.Query("offset"))
+	limit := pagination.Limit(c.Query("limit"), 20)
+	if limit > 100 { limit = 100 }
 
 	q := &models.ListQuery{
 		Offset: &offset,

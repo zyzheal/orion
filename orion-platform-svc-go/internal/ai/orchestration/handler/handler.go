@@ -2,10 +2,11 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
+
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai/orchestration/models"
 	"orion/platform-svc-go/internal/ai/orchestration/service"
@@ -44,8 +45,10 @@ func (h *OrchestrationHandler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIOrchList")
 	defer span.End()
 	tenantID := h.GetTenantID(c)
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 
 	resp, err := h.svc.Query(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -131,8 +134,10 @@ func (h *OrchestrationHandler) ListRuns(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIOrchListRuns")
 	defer span.End()
 	orchID := c.Param("id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 
 	runs, total, err := h.svc.QueryRuns(ctx, orchID, limit, offset)
 	if err != nil {

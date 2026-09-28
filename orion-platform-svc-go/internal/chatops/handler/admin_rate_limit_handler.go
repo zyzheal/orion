@@ -1,8 +1,9 @@
 package handler
 
 import (
-	"strconv"
 
+
+	"orion/platform-svc-go/internal/pagination"
 	"orion/platform-svc-go/internal/chatops/models"
 	"orion/platform-svc-go/internal/chatops/service"
 
@@ -179,7 +180,8 @@ func (h *Handler) GetWebhookLogs(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	limit := pagination.Limit(c.Query("limit"), 20)
+	if limit > 100 { limit = 100 }
 	logs, err := h.svc.GetWebhookLogs(ctx, tenantID, id, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

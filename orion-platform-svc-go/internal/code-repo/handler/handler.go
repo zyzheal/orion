@@ -1,8 +1,9 @@
 package handler
 
 import (
-	"strconv"
 
+
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/code-repo/models"
 	"orion/platform-svc-go/internal/code-repo/service"
@@ -385,8 +386,10 @@ func (h *Handler) ListCommits(c *gin.Context) {
 	defer span.End()
 	adapterID := c.Param("adapterId")
 	repoID := c.Param("repoId")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 20)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	commits, err := h.svc.ListCommits(ctx, adapterID, repoID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -450,8 +453,10 @@ func (h *Handler) ListCodeOwners(c *gin.Context) {
 func (h *Handler) ListWebhookLogs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListWebhookLogs")
 	defer span.End()
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	logs, err := h.svc.ListWebhookLogs(ctx, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

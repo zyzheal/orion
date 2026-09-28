@@ -2,8 +2,9 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
+
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/escalation/models"
 	"orion/platform-svc-go/internal/escalation/service"
@@ -90,8 +91,10 @@ func (h *Handler) ListRules(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRules")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
+	offset := pagination.Offset(c.Query("offset"))
+
 	q := models.ListRulesQuery{Limit: limit, Offset: offset}
 	result, err := h.svc.ListRules(ctx, tenantID, q)
 	if err != nil {

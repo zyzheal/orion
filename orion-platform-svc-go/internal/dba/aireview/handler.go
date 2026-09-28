@@ -1,8 +1,9 @@
 package aireview
 
 import (
-	"strconv"
 
+
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/middleware"
 
@@ -59,7 +60,8 @@ func (h *Handler) GetHistory(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AirReviewHistory")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	limit := pagination.Limit(c.Query("limit"), 20)
+	if limit > 100 { limit = 100 }
 	records, err := h.svc.GetReviewHistory(ctx, tenantID, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

@@ -1,8 +1,9 @@
 package explain
 
 import (
-	"strconv"
 
+
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/middleware"
 
@@ -55,7 +56,8 @@ func (h *Handler) History(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExplainHistory")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	list, err := h.svc.RecentHistory(ctx, tenantID, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

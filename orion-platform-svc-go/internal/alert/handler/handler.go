@@ -1,8 +1,9 @@
 package handler
 
 import (
-	"strconv"
 
+
+	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/alert/models"
 	"orion/platform-svc-go/internal/alert/service"
@@ -249,7 +250,8 @@ func (h *Handler) ListAlerts(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	severity := c.Query("severity")
 	status := c.Query("status")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
+	limit := pagination.Limit(c.Query("limit"), 100)
+	if limit > 100 { limit = 100 }
 	result, err := h.svc.ListAlerts(ctx, tenantID, severity, status, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

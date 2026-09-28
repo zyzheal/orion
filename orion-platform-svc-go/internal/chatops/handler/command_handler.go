@@ -176,7 +176,8 @@ func (h *Handler) GetKnowledgeRecommendations(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	context := c.DefaultQuery("context", "general")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	limit := pagination.Limit(c.Query("limit"), 10)
+	if limit > 100 { limit = 100 }
 	recs, err := h.svc.GetKnowledgeRecommendations(ctx, tenantID, context, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -192,7 +193,8 @@ func (h *Handler) GetSessionMessages(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	sessionID := c.Param("id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 { limit = 100 }
 	cursor := c.Query("cursor")
 	var cursorPtr *string
 	if cursor != "" {
