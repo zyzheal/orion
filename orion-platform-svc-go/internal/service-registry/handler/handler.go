@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"orion/platform-svc-go/internal/pagination"
 	"net/http"
-	"strconv"
 	"time"
 
 	"orion/go-common/pkg/auth"
@@ -64,8 +64,8 @@ func (h *Handler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	limit := pagination.Limit(c.Query("limit"), 20)
 	if page < 1 {
 		page = 1
 	}

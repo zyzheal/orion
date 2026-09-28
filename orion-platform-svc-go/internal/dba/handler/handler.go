@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/dba/service"
 
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -77,8 +78,8 @@ func (h *Handler) ListOrders(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	status := c.Query("status")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	limit := pagination.Limit(c.Query("limit"), 20)
 	result, err := h.svc.ListOrders(ctx, tenantID, status, page, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

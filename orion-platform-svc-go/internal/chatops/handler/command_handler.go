@@ -5,6 +5,7 @@ import (
 
 	"orion/platform-svc-go/internal/chatops/models"
 	"orion/platform-svc-go/internal/chatops/service"
+	"orion/platform-svc-go/internal/pagination"
 
 	"orion/platform-svc-go/internal/middleware"
 
@@ -28,8 +29,8 @@ func (h *Handler) ListCommands(c *gin.Context) {
 	if name != "" {
 		namePtr = &name
 	}
-	limit, _ := strconv.Atoi(c.DefaultQuery("perPage", "50"))
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit := pagination.Limit(c.Query("perPage"), 50)
+	page := pagination.Page(c.Query("page"), 1)
 	if page <= 0 {
 		page = 1
 	}
@@ -115,8 +116,8 @@ func (h *Handler) ListExecutions(c *gin.Context) {
 	if status != "" {
 		s = &status
 	}
-	limit, _ := strconv.Atoi(c.DefaultQuery("perPage", "50"))
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit := pagination.Limit(c.Query("perPage"), 50)
+	page := pagination.Page(c.Query("page"), 1)
 	if page <= 0 {
 		page = 1
 	}

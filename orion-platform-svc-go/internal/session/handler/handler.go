@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"strconv"
+	"orion/platform-svc-go/internal/pagination"
 
 	"orion/platform-svc-go/internal/session/models"
 	"orion/platform-svc-go/internal/session/service"
@@ -39,8 +39,8 @@ func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "50"))
+	page := pagination.Page(c.Query("page"), 1)
+	pageSize := pagination.Limit(c.Query("page_size"), 50)
 	if page < 1 {
 		page = 1
 	}

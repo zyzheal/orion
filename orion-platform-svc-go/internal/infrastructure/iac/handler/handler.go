@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"orion/platform-svc-go/internal/pagination"
 	"go.opentelemetry.io/otel"
-	"strconv"
 
 	"orion/platform-svc-go/internal/infrastructure/iac/models"
 	"orion/platform-svc-go/internal/infrastructure/iac/service"
@@ -75,8 +75,8 @@ func (h *Handler) ListWorkspaces(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraIACListWorkspaces")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
 	offset := (page - 1) * ps
 	if offset < 0 {
 		offset = 0
@@ -267,8 +267,8 @@ func (h *Handler) CreateModule(c *gin.Context) {
 func (h *Handler) ListModules(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraIACListModules")
 	defer span.End()
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
 	offset := (page - 1) * ps
 	if offset < 0 {
 		offset = 0

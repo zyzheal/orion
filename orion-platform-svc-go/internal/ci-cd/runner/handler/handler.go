@@ -6,6 +6,7 @@ import (
 
 	"orion/platform-svc-go/internal/ci-cd/runner/models"
 	"orion/platform-svc-go/internal/ci-cd/runner/service"
+	"orion/platform-svc-go/internal/pagination"
 
 	"orion/go-common/pkg/auth"
 
@@ -104,8 +105,8 @@ func (h *Handler) ListRunners(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIRunnerListRunners")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
 	offset := (page - 1) * ps
 	if offset < 0 {
 		offset = 0
@@ -258,8 +259,8 @@ func (h *Handler) ListRuns(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIRunnerListRuns")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
 	offset := (page - 1) * ps
 	if offset < 0 {
 		offset = 0

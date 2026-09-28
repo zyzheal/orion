@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/developer-portal/service"
 
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -286,8 +287,8 @@ func (h *Handler) ListDocuments(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDocuments")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "0"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+	page := pagination.Page(c.Query("page"), 0)
+	pageSize := pagination.Limit(c.Query("pageSize"), 20)
 	docs, err := h.svc.ListDocuments(ctx, tenantID, page, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

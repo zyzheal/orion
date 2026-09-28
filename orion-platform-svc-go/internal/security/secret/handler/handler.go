@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"orion/platform-svc-go/internal/pagination"
 	"go.opentelemetry.io/otel"
-	"strconv"
 
 	"orion/platform-svc-go/internal/security/secret/models"
 	"orion/platform-svc-go/internal/security/secret/service"
@@ -74,8 +74,8 @@ func (h *Handler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SecuritySecretList")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	ps := pagination.Limit(c.Query("page_size"), 20)
 	scope := models.SecretScope(c.Query("scope"))
 
 	if page <= 0 {

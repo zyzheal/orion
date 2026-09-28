@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"strconv"
+	"orion/platform-svc-go/internal/pagination"
 
 	"context"
 
@@ -296,8 +296,8 @@ func (h *Handler) AddDependency(c *gin.Context) {
 
 // parsePagination reads page/page_size query params with sensible defaults.
 func parsePagination(c *gin.Context) (int, int) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	pageSize := pagination.Limit(c.Query("page_size"), 20)
 	if page < 1 {
 		page = 1
 	}

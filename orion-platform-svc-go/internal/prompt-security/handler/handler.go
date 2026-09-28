@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"orion/platform-svc-go/internal/pagination"
 	"go.opentelemetry.io/otel"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/auth"
@@ -85,8 +85,8 @@ func (h *PromptSecurityHandler) ListScans(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PromptSecurityListScans")
 	defer span.End()
 	tenantID := h.GetTenantID(c)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "0"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	page := pagination.Page(c.Query("page"), 0)
+	limit := pagination.Limit(c.Query("limit"), 20)
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}

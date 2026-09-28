@@ -1,14 +1,13 @@
 package handler
 
 import (
-	"strconv"
-
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ci-cd/pipeline-template/models"
 	"orion/platform-svc-go/internal/ci-cd/pipeline-template/repository"
 	"orion/platform-svc-go/internal/ci-cd/pipeline-template/service"
+	"orion/platform-svc-go/internal/pagination"
 )
 
 // ---------------------------------------------------------------------------
@@ -63,8 +62,8 @@ func (h *Handler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PipelineTemplateList")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	pageSize := pagination.Limit(c.Query("page_size"), 20)
 
 	filter := repository.ListFilter{TenantID: tenantID}
 	if v := c.Query("category"); v != "" {

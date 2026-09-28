@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"orion/platform-svc-go/internal/pagination"
 	"context"
-	"strconv"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/resilience-score/models"
@@ -88,8 +88,8 @@ func (h *Handler) ListServiceScores(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListServiceScores")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	size := pagination.Limit(c.Query("size"), 20)
 	sort := c.Query("sort")
 	order := c.Query("order")
 	result, err := h.svc.ListServiceScores(ctx, tenantID, models.ListQuery{
@@ -129,8 +129,8 @@ func (h *Handler) ListHistory(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListHistory")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	size := pagination.Limit(c.Query("size"), 20)
 	sort := c.Query("sort")
 	order := c.Query("order")
 	result, err := h.svc.ListHistory(ctx, tenantID, models.ListQuery{
@@ -157,8 +157,8 @@ func (h *Handler) ListRecommendations(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRecommendations")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	size := pagination.Limit(c.Query("size"), 20)
 	priority := c.Query("priority")
 	component := c.Query("component")
 	result, err := h.svc.ListRecommendations(ctx, tenantID, models.ListQuery{

@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"strconv"
+	"orion/platform-svc-go/internal/pagination"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/param-types/models"
@@ -189,8 +189,8 @@ func (h *Handler) ListTemplates(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	_ = ctx
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	pageSize := pagination.Limit(c.Query("page_size"), 20)
 	if page < 1 {
 		page = 1
 	}

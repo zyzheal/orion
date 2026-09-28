@@ -3511,6 +3511,26 @@ feat(branch-policy): P0-MB Phase 5b — git merge-tree integration
 - **R6 schema-compatibility 真实实现**：需要 migration service 支持
 - **AddedFiles/ModifiedFiles/DeletedFiles 分类**：需调用 `git diff --name-status` 后解析
 
+### 2026-09-28（§103-§104 分页加固：50 站点批量迁移完成）
+
+**背景**：台账原 149 个 offset 读取点，Round 79-103 迁移 32 个。台账口径不完整——全仓 grep 发现 50 处 page/page_size 裸 Atoi 站点散布在 33 个模块中，全部未被台账覆盖。
+
+**§103 LIVE 列清零**（commit `ba730314b`）：
+- governance/risk：5 方法 Service 接口 + pagination.Page/Limit/OffsetFromPage + 100 上界 + nil→空切片 + 新增 handler_test.go（10 条 paginationCases + 信封形状 + 路由断言）
+- infrastructure/digital-twin：最小变更策略（35 方法不提取接口，仅改 List 内部），sqlmock 全链路测试
+
+**§104 50 站点批量迁移**：
+- Python 脚本批量迁移 22 个模块（hook-chain / infra-dba / iac / serverless / lowcode / notification-template / pandawiki / param-types / permission / prompt-security / release-management / resilience-score / role / secret / service-registry / session / startup / test-execution-engine / user-activity / user / visor-exec / workflow-trigger）
+- 12 个跳过文件复查后发现 11 个已被脚本实际修改（仅 strconv import 保守未删），仅 infrastructure/dr 为 Pattern D（400 错误响应设计，不迁移）
+- vulnerability 模块手动迁移（page+limit → query struct 模式）
+- 迁移统计：36 个 handler 文件、32→68 已迁移站点
+
+**最终状态**：
+- `grep -rn 'strconv.Atoi.*DefaultQuery.*page'` → 0 条（排除 infrastructure/dr Pattern D）
+- `grep -rn 'strconv.Atoi.*DefaultQuery.*page_size\|pageSize'` → 0 条
+- 残余 offset/limit 模式站点不在 page/page_size 口径内，属独立迁移战役
+- go build ./... / go vet ./... / go test -count=1 ./...：全绿 0 FAIL
+
 ---
 
 ## P0-MB Phase 5c — 生产接线（2026-08-26）

@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/audit/service"
 
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -560,8 +561,8 @@ func (h *Handler) ExportJSON(c *gin.Context) {
 
 // parseAuditQuery extracts audit query parameters from the request context.
 func parseAuditQuery(c *gin.Context, tenantID string) models.AuditLogQuery {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	limit := pagination.Limit(c.Query("limit"), 20)
 	return models.AuditLogQuery{
 		TenantID:     tenantID,
 		UserID:       c.Query("userId"),

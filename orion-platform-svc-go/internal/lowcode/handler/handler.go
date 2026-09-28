@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"orion/platform-svc-go/internal/pagination"
 	"net/http"
-	"strconv"
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
@@ -74,8 +74,8 @@ func (h *Handler) ListFlows(c *gin.Context) {
 	defer span.End()
 	tenantID := getTenantID(c)
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	pageSize := pagination.Limit(c.Query("page_size"), 20)
 	if page < 1 {
 		page = 1
 	}

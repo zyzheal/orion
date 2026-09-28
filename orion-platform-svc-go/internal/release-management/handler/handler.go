@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"orion/platform-svc-go/internal/pagination"
 	"go.opentelemetry.io/otel"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/auth"
@@ -68,8 +68,8 @@ func (h *Handler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListReleases")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	pageSize := pagination.Limit(c.Query("pageSize"), 20)
 	q := models.ListReleasesQuery{Page: page, PageSize: pageSize, PipelineID: c.Query("pipelineId")}
 	result, err := h.svc.List(ctx, tenantID, q)
 	if err != nil {

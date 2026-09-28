@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -12,6 +11,7 @@ import (
 	"orion/platform-svc-go/internal/ci-cd/build/models"
 	"orion/platform-svc-go/internal/ci-cd/build/repository"
 	"orion/platform-svc-go/internal/ci-cd/build/service"
+	"orion/platform-svc-go/internal/pagination"
 )
 
 type Handler struct {
@@ -533,8 +533,8 @@ func (h *Handler) CleanupArtifactsByRun(c *gin.Context) {
 
 // parseLimitOffset is a helper for artifact pagination that uses page/page_size.
 func parseLimitOffset(c *gin.Context) (offset, limit int) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	pageSize := pagination.Limit(c.Query("page_size"), 20)
 	if page < 1 {
 		page = 1
 	}

@@ -2,10 +2,10 @@ package handler
 
 import (
 	"go.opentelemetry.io/otel"
-	"strconv"
 
 	"orion/platform-svc-go/internal/governance/compliance/models"
 	"orion/platform-svc-go/internal/governance/compliance/service"
+	"orion/platform-svc-go/internal/pagination"
 
 	"orion/go-common/pkg/auth"
 
@@ -99,8 +99,8 @@ func (h *Handler) ListReports(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	framework := c.Query("framework")
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	pageSize := pagination.Limit(c.Query("page_size"), 20)
 	if page <= 0 {
 		page = 1
 	}
@@ -199,8 +199,8 @@ func (h *Handler) ListSchedules(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	pageSize := pagination.Limit(c.Query("page_size"), 20)
 	if page <= 0 {
 		page = 1
 	}
@@ -263,8 +263,8 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	framework := c.Query("framework")
 	category := c.Query("category")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	pageSize := pagination.Limit(c.Query("page_size"), 20)
 	if page <= 0 {
 		page = 1
 	}

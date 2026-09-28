@@ -1,11 +1,10 @@
 package handler
 
 import (
-	"strconv"
-
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/data-catalog/models"
 	"orion/platform-svc-go/internal/data-catalog/service"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -153,8 +152,8 @@ func (h *Handler) SearchEntries(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SearchEntries")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	page := pagination.Page(c.Query("page"), 1)
 	q := models.SearchRequest{
 		Query:     c.Query("q"),
 		DataType:  c.Query("dataType"),

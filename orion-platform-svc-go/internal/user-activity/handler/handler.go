@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"strconv"
+	"orion/platform-svc-go/internal/pagination"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/user-activity/service"
@@ -46,8 +46,8 @@ func (h *Handler) GetActivities(c *gin.Context) {
 		return
 	}
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	pageSize := pagination.Limit(c.Query("pageSize"), 20)
 
 	result, err := h.svc.GetActivities(ctx, userID, page, pageSize)
 	if err != nil {

@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"strconv"
+	"orion/platform-svc-go/internal/pagination"
 
 	"orion/go-common/pkg/auth"
 
@@ -83,8 +83,8 @@ func (h *Handler) ListCommandLogs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCommandLogs")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	pageSize := pagination.Limit(c.Query("pageSize"), 20)
 	if pageSize <= 0 {
 		pageSize = 20
 	}
@@ -334,8 +334,8 @@ func (h *Handler) ListCronJobLogs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCronJobLogs")
 	defer span.End()
 	jobID := c.Param("id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	pageSize := pagination.Limit(c.Query("pageSize"), 20)
 	if pageSize <= 0 {
 		pageSize = 20
 	}

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"orion/platform-svc-go/internal/pagination"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -84,7 +85,7 @@ func (h *Handler) ListSpaces(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	opts := parseSpaceListOpts(c)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	page := pagination.Page(c.Query("page"), 1)
 	pp := 50
 	if p := c.Query("perPage"); p != "" {
 		pp, _ = strconv.Atoi(p)
@@ -190,8 +191,8 @@ func (h *Handler) ListDocs(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	opts := parseDocListOpts(c)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pp, _ := strconv.Atoi(c.DefaultQuery("pageSize", "50"))
+	page := pagination.Page(c.Query("page"), 1)
+	pp := pagination.Limit(c.Query("pageSize"), 50)
 	if p := c.Query("perPage"); p != "" {
 		pp, _ = strconv.Atoi(p)
 	}

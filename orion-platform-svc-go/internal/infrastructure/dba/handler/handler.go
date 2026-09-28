@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"orion/platform-svc-go/internal/pagination"
 	"go.opentelemetry.io/otel"
-	"strconv"
 
 	"orion/platform-svc-go/internal/infrastructure/dba/models"
 	"orion/platform-svc-go/internal/infrastructure/dba/service"
@@ -75,8 +75,8 @@ func (h *Handler) ListOrders(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	status := c.Query("status")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	limit := pagination.Limit(c.Query("limit"), 20)
 	result, err := h.svc.ListOrders(ctx, tenantID, status, page, limit)
 	if err != nil {
 		respondInternalError(c, err.Error())
@@ -308,8 +308,8 @@ func (h *Handler) ListQueryLogs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDBAListQueryLogs")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	page := pagination.Page(c.Query("page"), 1)
+	limit := pagination.Limit(c.Query("limit"), 20)
 	dataSourceID := c.Query("dataSourceId")
 	status := c.Query("status")
 

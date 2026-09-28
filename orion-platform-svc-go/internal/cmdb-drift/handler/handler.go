@@ -2,12 +2,12 @@ package handler
 
 import (
 	"context"
-	"strconv"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/cmdb-drift/models"
 	"orion/platform-svc-go/internal/cmdb-drift/service"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -80,12 +80,8 @@ func (h *Handler) ListDrifts(c *gin.Context) {
 		UnresolvedOnly: c.Query("unresolved") == "true",
 	}
 
-	if page, err := strconv.Atoi(c.DefaultQuery("page", "1")); err == nil {
-		filter.Page = page
-	}
-	if pageSize, err := strconv.Atoi(c.DefaultQuery("pageSize", "20")); err == nil {
-		filter.PageSize = pageSize
-	}
+	filter.Page = pagination.Page(c.Query("page"), 1)
+	filter.PageSize = pagination.Limit(c.Query("pageSize"), 20)
 
 	items, err := h.svc.ListDrifts(ctx, tenantID, filter)
 	if err != nil {
