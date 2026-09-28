@@ -18380,3 +18380,46 @@ d := &models.Policy{ID: uuid.New().String(), TenantID: tenantID, Name: req.Name}
 仍然**不建议**在没有单独授权下做：给 `pagination` 包加上限（GAP 已存活 13 轮，公共代码，且会让 M2/M3 两扇门立刻失去意义）；102.9(b)(c)(d) 这三条都要先决定「修不修」再谈动手；`ci-cd/build` 与 `ci-cd/deploy` 那 2 份**有调用方**的 `PaginatedRequest` 值得单独一轮扫描。
 
 carry-forward：§101.7 的 (a)-(i)、§101.9 的 (a)-(g)、§100.8 的 (a)-(h)、§99.8 的 (a)-(h)、§98.9 的 (a)-(h)、§97.9 的 (a)-(h)、§96.7 的 (a)-(h)、§95.7 与 §95.2 的两张台账表、§94.7 的 (a)-(h)、§93.7 的 (a)-(h)、§92.7 的 (a)-(h)、§91.7 的 (a)-(h)、§90.7 的 (a)-(h)、§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 102.9 与 102.13 的 (a)-(j)。
+
+---
+
+## §103 LIVE 列清零：最后两处单点站点（Round 102，2026-09-25）
+
+### 103.1 §102.13 预测验证：单点站点不等于便宜的模块
+
+§102.13 写「`governance/risk` 的 service 有 1162 行（`governance/governance` 只有 39 行），`digital-twin` 的 handler 有 661 行，单点站点不等于便宜的模块」。**实测验证了前半句**：`governance/risk` 的 service 有 1163 行（风险评分引擎移植自 TS，含 DeploymentRisk/ChangeSize/TimeRisk/DependencyRisk/HistoricalRisk 等完整评分域），但 **5 个 CRUD 方法全是一行透传**，脚手架成本仍为 **5**（和 §101、§102 一样），service 测试不需要——handler 测试用 fakeService 就够了。
+
+`digital-twin` 的 handler 有 **661 行**，调用 service 的 **35 个方法**（Create/List/GetByID/Update/Delete/Count/Sync/GetMetrics + 快照 5 个 + 沙箱 7 个 + 录制 7 个 + 回放 6 个），**提取接口不现实**。本轮用最小变更策略：保留 `*service.Service` 具体类型，只改 `List` 方法内部逻辑，测试走 sqlmock → service → handler 全链路。
+
+### 103.2 governance/risk 迁移（1 处，90 行 handler）
+
+5 方法 Service 接口 + 编译期断言 + 接口字段，和 §102 一模一样。修法照抄：`pagination.Page` + `pagination.Limit` 收地板，`if ps > 100 { ps = 100 }` 收上限且在推导 offset 之前，`pagination.OffsetFromPage` 推导一次，`limit := ps`，nil→空切片归一。
+
+新增 `handler_test.go`：10 条 paginationCases + 租户透传 + 信封形状 + 错误响应 + nil→空 + 路由断言 = 6 个测试函数。5 子测（pageOneIsOffsetZero/happyThreeByTwenty/happyTwoByTwentyFive/absentUsesDefaults/negativePageIsClamped/zeroPageIsClamped/unparsablePageUsesDefault/negativePageSizeIsClamped/unparsablePageSizeUsesDefault/pageSizeCapAppliesBeforeDeriving）。
+
+### 103.3 infrastructure/digital-twin 迁移（1 处，661 行 handler）
+
+**最小变更策略**：不提取 Service 接口（35 个方法），保留 `*service.Service` 具体类型，仅改 List 方法内部 + 加 nil→空切片归一。
+
+新增 `handler_test.go`：sqlmock → service → handler 全链路测试，10 条 paginationCases + 信封形状 + nil→空 + 路由断言 = 5 个测试函数。用 `sqlx.NewDb` 桥接 `*sql.DB` → `*sqlx.DB`。
+
+### 103.4 验证
+
+`go build ./...` 退出 0；`go vet ./internal/governance/risk/... ./internal/infrastructure/digital-twin/...` 退出 0；`go test -count=1 ./...` **583 个包 ok / 0 FAIL**（§102 的 581 + 本轮新增的 `governance/risk/handler` 与 `infrastructure/digital-twin/handler` 两个测试包）。
+
+### 103.5 台账
+
+- **LIVE：2 处 / 2 模块 → 0 处 / 0 模块。** 全部清零。
+- **已迁移站点：30 → 32，落在 18 个模块。**
+- **脚手架成本序列：5 → 11 → 18 → 37 → 5 → 5 → 5。** 三个连续 5，下界已确认。
+- **`digital-twin` 是第一个「最小变更」站点**：661 行 handler、35 个 service 方法，不提取接口，只改 List 内部逻辑。
+
+### 103.6 新发现：台账之外的 80 处 page/page_size 裸 Atoi
+
+全仓扫描 `grep -rn 'strconv\.Atoi.*DefaultQuery'` 发现 **312 处** 裸 Atoi + DefaultQuery（含 offset/limit 模式），其中 **80 处** 使用 `page` 参数。台账里的 149 站点是 `(page-1)*ps` 模式的一个子集——**80 处 page 模式站点中，30 处已迁移，50 处仍是裸 Atoi**。
+
+这 50 处分布在 33 个模块，包括：`param-types`、`release-management`、`role`、`data-catalog`、`resilience-score`（3 处）、`security/secret`、`chatops`（2 处）、`cmdb-drift`、`dba`、`notification-template`、`pandawiki`（2 处）、`test-execution-engine`、`user-activity`、`user`、`visor-exec`（2 处）、`event-trigger`、`prompt-security`、`hook-chain`、`developer-portal`、`audit`、`feature-flag`、`service-registry`、`governance/compliance`（3 处）、`gateway-dynamic`、`workflow-trigger`、`vulnerability`、`lowcode`、`ci-cd/runner`（2 处）、`ci-cd/pipeline-template`、`ci-cd/build`、`infrastructure/dr`、`infrastructure/serverless`、`infrastructure/dba`（2 处）、`infrastructure/iac`（2 处）、`startup`、`permission`、`session`。
+
+**台账的 149 站点统计口径不完整**——它只统计了 `page/page_size` 中 `(page-1)*ps` 模式的部分。这 50 处需要新一轮专项排查。
+
+carry-forward：§102.13 的全部 (a)-(j)、§101.7 的 (a)-(i)、§101.9 的 (a)-(g)、§100.8 的 (a)-(h)、§99.8 的 (a)-(h)、§98.9 的 (a)-(h)、§97.9 的 (a)-(h)、§96.7 的 (a)-(h)、§95.7 与 §95.2 的两张台账表、§94.7 的 (a)-(h)、§93.7 的 (a)-(h)、§92.7 的 (a)-(h)、§91.7 的 (a)-(h)、§90.7 的 (a)-(h)、§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 103.6 的 50 处专项台账。
