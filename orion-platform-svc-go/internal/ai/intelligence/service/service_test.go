@@ -63,10 +63,10 @@ func TestServiceCount_PassesTheTenantOnly(t *testing.T) {
 	}
 }
 
-// The handler's nil guard depends on this: an empty table must come back as a
-// non-nil slice here, not nil. The repository declares `var items []T`, so it
-// can return nil, and the handler is the layer that normalises it.
-func TestServiceList_ReturnsANonNilEmptySlice(t *testing.T) {
+// The service passes the repository's nil straight through; it does not
+// normalise. The handler is the layer that turns nil into an empty slice, so
+// this pin is what tells you which layer owns the guard.
+func TestServiceList_PassesANilSliceThrough(t *testing.T) {
 	mock, svc := newTestService(t)
 	mock.ExpectQuery("SELECT * FROM intelligence_tasks WHERE tenant_id=$1 ORDER BY created_at DESC OFFSET $2 LIMIT $3").
 		WithArgs("tenant-1", 0, 20).
@@ -76,7 +76,7 @@ func TestServiceList_ReturnsANonNilEmptySlice(t *testing.T) {
 		t.Fatalf("List: %v", err)
 	}
 	if tasks != nil {
-		t.Errorf("tasks = %v, want non-nil empty slice", tasks)
+		t.Errorf("tasks = %v, want nil", tasks)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatalf("expectations: %v", err)
