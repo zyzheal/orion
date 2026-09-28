@@ -18076,3 +18076,141 @@ capacity 那轮（§99.7）明确记过：裸切片信封让「响应的窗口 �
 同时有两件事**不建议**在没有单独授权的情况下做：一是给 `pagination` 包加上限（100 已经在四个模块的 handler 里手写了一份，公共代码加 cap 是跨模块决策，而且会立刻让这轮 17 个门里的 5 个（M5/M6/M7）从 KILLED 变成无意义）；二是 `visor-exec` 那两处（它是台账的筛词盲区，先要确认它是否 live，再谈修）。
 
 carry-forward：§99.8 的 (a)-(h)、§98.9 的 (a)-(h)、§97.9 的 (a)-(h)、§96.7 的 (a)-(h)、§95.7 与 §95.2 的两张台账表、§94.7 的 (a)-(h)、§93.7 的 (a)-(h)、§92.7 的 (a)-(h)、§91.7 的 (a)-(h)、§90.7 的 (a)-(h)、§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 100.8 与 100.10 的 (a)-(h)。
+
+## §101 单点模块回到脚手架成本的起点：5 个方法，7 个门，这一族的账开始摊平（Round 100，2026-09-25）
+
+### 101.1 §100 的预测对了：单点模块确实是最便宜的
+
+§100.10 推荐从四个单点模块里挑一个，理由是「脚手架成本正比于 handler 调用的方法数，单点模块是这一族里最低的」。本轮选了 `ai/intelligence`，实测：
+
+- **handler 调用 service 的 5 个方法**——脚手架成本序列是 **5 → 11 → 18 → 37 → 5**，第五个数据点回到第一个。chaos 那轮（§97）的 5 个方法就是这条序列的起点。
+- **整模块只有 327 行源码**，是这一族里最小的模块。前三轮分别是多少行不用查了：capacity 的 handler 单独就有 700 多行。
+- **仓储 SQL 是单行的**，所以 `QueryMatcherEqual` 可以直接精确匹配，不需要 visor 那轮自写的空白压缩 matcher。
+- **信封是裸切片，`Count` 不带过滤条件，`List` 也不带过滤条件**——三类变异直接消失（见 101.4）。
+
+预测成立，而且是那种「便宜的模块真的便宜」的成立，不是「看起来便宜」。
+
+### 101.2 缺陷与修复：和前五轮完全同形，一处
+
+`List`（原 `handler.go:43-55`）：
+
+```go
+page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+ps,   _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+items, err := h.svc.List(ctx, tenantID, (page-1)*ps, ps)
+```
+
+§95.1 的三层数据流核查确认它是 live：handler 无 floor 无 cap、service 的五个方法**全是一行透传**、仓储 SQL 有 `OFFSET $2 LIMIT $3` 但没有任何 clamp。三层全部不夹，是唯一算 live 的形状。
+
+后果和前五轮一致：`page=-40` 送负 OFFSET 进 Postgres 变 500；`page=abc` 一个字符敲错 `Atoi` 返回 0 并把 error 丢掉；`page_size=100000` 原样进 `LIMIT`。
+
+修法照抄 §97-§100：`pagination.Page` + `pagination.Limit` 收地板，`if ps > 100 { ps = 100 }` 收上限且**必须在推导 offset 之前**，`pagination.OffsetFromPage` 推导一次，`limit := ps`，加 nil→空切片归一。
+
+这一处没有 visor 那轮的除零 panic（它是裸切片，不计算 `total_pages`），也没有 extension-point 那轮的 count 说谎（`Count` 不带过滤条件）。**缺陷是纯「一个类别」的形态。**
+
+### 101.3 这轮的注释里，死代码那一段第一次写对了
+
+前五轮都在同一个地方栽过：把别的模块的死代码注释抄过来。这一轮 `models.PaginatedRequest` 是**第五份**死副本，而且它和前两份的差别值得写进注释里：
+
+- `extension-point` 那份有 **6 条测试**把地板和上限都钉住了；
+- `capacity` 那份**零测试**；
+- `ai/intelligence` 这份有 **1 条测试**，断言是 `if p.Limit() != 20`、零值输入——**只钉默认值**。
+
+所以本轮 handler 注释里写的是「`models.PaginatedRequest` owns the same two floors and the same 100 cap. It is dead code - zero production callers and **one test that only pins the default** - and its `Offset` derives before `Limit` caps」。三个模块三种状态，注释必须各自准确，不能复用。
+
+顺带一个树级观察：`PaginatedRequest` 这个类型在树里有 **35 份**副本，其中只有 `ci-cd/build` 和 `ci-cd/deploy` 的 handler **真的调用**它，其余 33 份都是死的。本轮收掉的第 29 个站点，是在一个「这个类型在树里 33 份是死的」的模块里。**这不是巧合，是同一批生成代码。**
+
+### 101.4 门数从 15 掉到 7：不是覆盖不足，是缺陷空间更小
+
+变异验证：**9 个门，7 杀，0 builderr，0 badanchor**。baseline **33 PASS / 0 FAIL / 0 builderr**，跑在 5 个包上，锚点从真实文件读进 JSON 共 14 个，无手抄。restore byte-identical：True。
+
+| 门 | 变异 | 结果 | 宽度 |
+|---|---|---|---|
+| M1 | `List` 退回裸 `Atoi` | KILLED | 7 |
+| M2 | 去掉上限 | KILLED | 2 |
+| M3 | 上限挪到推导 offset 之后 | KILLED | 2 |
+| M4 | 仓储丢掉 `OFFSET LIMIT` | KILLED | 4 |
+| M5 | 仓储把 limit 与 offset 绑反 | KILLED | 4 |
+| M6 | service 丢掉 offset | KILLED | 1 |
+| M7 | handler 丢掉 nil 归一 | KILLED | 1 |
+| GAP | 死代码 `PaginatedRequest` 上限 100→999 | SURVIVED | 0 |
+| NC | 仓储加一行注释 | SURVIVED | 0 |
+
+`killed=7 builderr=0 badanchor=0 survived=2`，两个 SURVIVED 都是刻意门。
+
+**7 个门对 15 个门，差的是机器，不是覆盖。** 这一族已经能数出为什么：
+
+- **没有信封漂移门**（extension-point 的 M7、visor 的 M14 都没有）。信封是 `respondSuccess(c, items)` 裸切片，响应里没有 `offset`/`limit`/`total`，「响应的窗口 ≠ 查询的窗口」在结构上不可能发生。
+- **没有 count 谓词门**（extension-point 的 M10、visor 的 M15 都没有）。`Count` 的签名只有 `tenantID`，没有过滤条件，所以「count 和 list 的谓词不一致」无从谈起。
+- **没有过滤透传门**（extension-point 的 M13 没有）。`List` 没有 `status`/`category` 这类过滤参数。
+- **没有单点退回的变体**（capacity 和 visor 的 M2/M3/M4 都没有）。这个模块只有一个站点，「只退回其中一个」这个维度不存在。
+- **没有 service 层的地板门**（visor 的 M12 没有）。这个模块的服务层没有任何自己的夹点。
+
+前五轮的结论「信封是裸切片就少一类保护」在这轮有了正反对称的另一面：**裸切片不是覆盖不足，它让整类缺陷不会发生。** 缺陷空间的大小由模块的机器决定，门数跟着机器走。这是第一次能把这件事量化：15 个门的模块有两类裸切片模块没有的门。
+
+宽度分布也值得记：
+
+- **M1 宽度 7 = 6 条判别性共享用例 + 1 个父测试。** 10 条共享用例里只有 6 条能区分「裸 `Atoi`」（另外 4 条是合理输入、对地板修复是恒等），6 个子测试 FAIL 加上父测试自己的 `--- PASS` 变 `--- FAIL`，共 7 行。**6/10 的判别力第五次确认。**
+- **M2 和 M3 宽度都是 2 = 1 条判别性用例 + 1 个父测试。** `pageSizeCapAppliesBeforeDeriving`（`page=3&page_size=250`）是唯一能看见上限的那条，两种错法（没有上限、上限在推导之后）都把它变成 `offset=500 limit=250`，和期望的 `offset=200 limit=100` 撞在一起。
+- **M4 和 M5 宽度都是 4**，四条测试的 `WithArgs` 都绑了这个窗口。M5（绑反）之所以能被看见，是因为 `WithArgs("tenant-1", 50, 25)` 是**有顺序**的断言——Postgres 会把绑反的参数当成合法查询执行，`page=3&page_size=20` 会从第 60 行而不是第 40 行开始，查询照样合法、驱动照样不报错。**只有钉住参数顺序的测试能看见这类错误。**
+
+### 101.5 「全量退回必须换 import」这个规律到此可以一般化了
+
+前五轮的 BUILDERR 陷阱都在同一个地方：全量退回后 `pagination` 没人用了，编译器在测试跑起来之前就杀掉了变异。
+
+| 模块 | 站点数 | 全量退回 | 单点退回 |
+|---|---|---|---|
+| chaos | 1 | 必须换 import | 不适用 |
+| extension-point | 2 | 必须换 | 不用换 |
+| capacity | 3 | 必须换 | 不用换 |
+| visor | 3 | 必须换 | 不用换 |
+| ai/intelligence | 1 | 必须换 | 不适用 |
+
+**规律：全量退回永远留下一个 unused import；只有当别的站点还在时 import 才活得下来。** 这一轮它以最纯粹的形式出现——模块只有一个站点，所以「全量退回」和「单点退回」是同一个动作，必须换 import。chaos 那轮（§97）就是同一种情况，只是当时没意识到它在表格里占哪个格子。
+
+顺带修好了 Round 98 那个 harness bug 的根因：单点退回复用了全量退回的 import 替换。现在有了这张表，正确的做法是**按格子选替换策略**，而不是照抄上一个变异。
+
+### 101.6 测试
+
+新增 2 个测试文件、改写 1 个，共 251 行改动：
+
+- **`handler/handler_test.go`（183 行，16 PASS）**：fake 实现全部 **5 个方法**，`var _ Service = (*fakeService)(nil)` 编译期钉住。10 条共享用例、租户透传、信封形状（断言 `data` 就是那一页，而不是包了一层）、service-error→500、nil 归一、5 条路由挂载。
+- **`repository/intelligence_repository_test.go`（166 行，7 PASS，新建）**：`QueryMatcherEqual` 精确匹配（SQL 是单行的，不用转义）。`List` 钉 SQL 原文 + `WithArgs("tenant-1", 50, 25)` 的**绑定顺序**；空表零行（断言 `len != 0` 而不是 `== nil`）；error 透传；`GetByID`/`Delete`/`Count` 的租户谓词；**`Create` 的九列绑定顺序**。
+- **`service/service_test.go`（9 → 84 行，4 PASS）**：真 `Service` 配真仓储跑 sqlmock，`List` 钉 offset/limit 原样下传、`Count` 只传租户、空表返回非 nil 空切片。
+
+一个 sqlmock 的新坑：**`time.Time` 字段不能用字符串喂。** `created_at` 在 struct 里是 `time.Time`，`AddRow` 传 `"2026-01-01T00:00:00Z"` 会报 `unsupported Scan, storing driver.Value type string into type *time.Time`。前几轮的仓储测试都没碰过时间列（capacity 和 visor 的期望行都是零行），这是第一次带真行。另外 `Create` 的断言里我把 `CreatedAt` 忘了设，绑出去的是零值时间，`WithArgs` 报 `argument 8 expected [string - ...] does not match actual [time.Time - 0001-01-01]`——**断言没写对的地方编译器不管，是 sqlmock 在帮我看。**
+
+还修了一个自己的错误：`TestServiceList_PropagatesTheDriverError` 这个名字是假的，它并不制造 error，它返回空切片。改名成 `TestServiceList_ReturnsANonNilEmptySlice`，注释写成「handler 的 nil guard 依赖这个」。
+
+### 101.7 只记录，未处理
+
+- **(a) 5 条路由里 3 条没有 `auth.RequirePermission`。** `GET /tasks`、`GET /tasks/:id`、`GET /tasks/count` 三个读路由裸挂，只有 `POST` 和 `DELETE` 有权限守卫。而 `cmd/server/router.go:48` 的 `api` 分组**没有组级中间件**——权限是逐路由加的。`router.go:60` 的注释写着「PERM-8 phase 1: optional (non-blocking) authentication, OFF by default」，所以全树的守卫本来就是可选的。**这一条属于此前明确保留的四项授权决策之一（auth-off 下的租户来源），本轮只记录不动手。**
+- **(b) `ErrIntelligenceTaskNotFound` 定义了，service 从不返回它。** `GetByID` 直接返回 `s.repo.GetByID` 的原始 driver error，`sql.ErrNoRows` 一路传到 handler，于是 404 的 message 是驱动层的话术而不是「task not found」。错误定义只有它自己的测试引用。第四例（§97、§99.8(c)、§100.8(e) 是同族）。
+- **(c) `Confidence` 永远不会被写入。** `CreateIntelligenceTaskRequest` 没有这个字段，service 的 `Create` 不设置它，但仓储的 INSERT **绑了它**——所以每一条通过 HTTP 创建的任务 confidence 恒为 0，而这条 0 是被真的写进数据库的。列、struct、SQL 三处对齐，唯一不对齐的是「谁给它赋值」。
+- **(d) 四条 SELECT 全是 `SELECT *`。** 加列或改列会同时打断 SQL 和 struct。sqlmock 的列名是测试自己给的，所以 `SELECT *` 在这里没暴露问题。
+- **(e) `respondConflict` 和 `respondForbidden` 零调用方。** 7 个响应助手里 5 个在用。第 (b) 条的上游。
+- **(f) 仓储 `var items []models.IntelligenceTask`，空表回来是 nil。** 靠 handler 的 nil 归一才序列化成 `[]`（M7 守着，宽度 1）。
+- **(g) 第五份死 `PaginatedRequest`，这一份有 1 条测试只钉默认值。** GAP 就埋在这里（宽度 0）。三份死副本三种覆盖状态：6 条测试、0 条测试、1 条只钉默认值的测试。**第三种最危险**，因为它给了「已覆盖」的错觉。
+- **(h) `/api/v1/tasks` 是路由冲突磁铁。** `internal/auto-exec/handler/handler.go:41` 的注释把这个模块写成「the root cause of the **seven dead handlers** below」；`internal/ci-cd/runner/handler/handler.go:63` 因为同一个原因删掉了自己的 `GET /tasks/:id`（Gin 对重复的 (method, path) 注册直接 panic）。**这个模块的 5 条路由已经让别处 7 个 handler 死掉。** 本轮的路由注册测试钉住了这 5 条，但「它们挤走了别人」这件事需要单独处理。
+- **(i) `pagination` 包仍然只有 floor 没有 cap，100 这个数这轮第五次数进 handler。** GAP 第 12 轮存活。和前五轮一样，这是公共代码的决策，需要单独授权。
+
+### 101.8 验证与遗留
+
+`go build ./...` 退出 0；`go vet ./internal/ai/intelligence/...` 退出 0；`gofmt -l internal cmd` 只剩 `ticket/models` 那三个历史文件（本轮未触碰）；`go test -count=1 ./...` **579 个包 ok / 0 FAIL**（§100 的 577 + 本轮新增的 `ai/intelligence/handler` 与 `ai/intelligence/repository` 两个测试包），`go.sum` 未改。
+
+改动 4 个文件 **251 增 / 7 删**：`handler/handler.go` +50/-7（5 方法接口 + `Handler.svc` 改接口 + 夹点）、`service/service_test.go` +76/-1，新增 `handler/handler_test.go` 183 行与 `repository/intelligence_repository_test.go` 166 行。`ai/intelligence` 从 2 个测试包（`models`、`service`）变成 4 个。
+
+### 101.9 台账
+
+- **LIVE：4 处 / 4 个模块 → 3 处 / 3 个模块。** 收掉 `ai/intelligence` 1 处。剩 `governance/governance` 1、`governance/risk` 1、`infrastructure/digital-twin` 1。
+- **已迁移站点：28 → 29，落在 15 个模块。**
+- **带真 `total` 的站点：仍为 8。** 这一处是裸切片，`Count` 是独立的 `/tasks/count` 路由而不是信封字段，所以它和 chaos、capacity、`ai/intelligence` 一样属于「不带 total」那一类。
+- **脚手架成本序列：5 → 11 → 18 → 37 → 5。** 第五个点回到第一个，同时确认了序列的下界：一个只有一个列表端点、五个服务方法的模块，脚手架就是 5 个方法 + 一个接口断言。**剩下的三个模块应该都在这个量级。**
+- **`PaginatedRequest` 副本普查：树里 35 份，只有 2 份有调用方**（`ci-cd/build`、`ci-cd/deploy`），其余 33 份是死的。本轮是第 5 份被记录的死副本，另两份有调用方的副本至今没有被任何台账列覆盖过——**它们可能是一个完全不同类型的缺陷族**（「有调用方的分页助手」而不是「裸 `Atoi`」），值得单独一轮扫描。
+- **§99.8(a) 新开的那一列（端点从不声明分页）没有新实例**，仍是 `ListPolicies` 与 `ListAlertRules` 两例。
+
+下一步推荐 **A：剩下的三个单点模块连续做完**（`governance/governance`、`governance/risk`、`infrastructure/digital-twin`），每一块都是 5 个方法量级的脚手架，做完 LIVE 列清零。
+
+三件事仍然**不建议**在没有单独授权下做：一是给 `pagination` 包加上限（GAP 已存活 12 轮，但那是公共代码，且会立刻让已建立的 M2/M3 门失效）；二是 101.7(a) 那三条无权限的读路由（属于此前明确保留的授权决策）；三是 `ci-cd/build` 与 `ci-cd/deploy` 那两份**有调用方**的 `PaginatedRequest`——它们值得一轮独立扫描，而不是顺手改。
+
+carry-forward：§100.8 的 (a)-(h)、§99.8 的 (a)-(h)、§98.9 的 (a)-(h)、§97.9 的 (a)-(h)、§96.7 的 (a)-(h)、§95.7 与 §95.2 的两张台账表、§94.7 的 (a)-(h)、§93.7 的 (a)-(h)、§92.7 的 (a)-(h)、§91.7 的 (a)-(h)、§90.7 的 (a)-(h)、§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 101.7 与 101.9 的 (a)-(i)。
