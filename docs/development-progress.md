@@ -18214,3 +18214,169 @@ items, err := h.svc.List(ctx, tenantID, (page-1)*ps, ps)
 三件事仍然**不建议**在没有单独授权下做：一是给 `pagination` 包加上限（GAP 已存活 12 轮，但那是公共代码，且会立刻让已建立的 M2/M3 门失效）；二是 101.7(a) 那三条无权限的读路由（属于此前明确保留的授权决策）；三是 `ci-cd/build` 与 `ci-cd/deploy` 那两份**有调用方**的 `PaginatedRequest`——它们值得一轮独立扫描，而不是顺手改。
 
 carry-forward：§100.8 的 (a)-(h)、§99.8 的 (a)-(h)、§98.9 的 (a)-(h)、§97.9 的 (a)-(h)、§96.7 的 (a)-(h)、§95.7 与 §95.2 的两张台账表、§94.7 的 (a)-(h)、§93.7 的 (a)-(h)、§92.7 的 (a)-(h)、§91.7 的 (a)-(h)、§90.7 的 (a)-(h)、§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 101.7 与 101.9 的 (a)-(i)。
+
+## §102 同一个方法重复两次：脚手架成本 5 又出现一次，但这轮挖出的是「total 算在了错的层」（Round 101，2026-09-25）
+
+### 102.1 脚手架成本的序列是 5 → 11 → 18 → 37 → 5 → 5
+
+§101.9 说「剩下的三个模块应该都在这个量级」，第一个就是：`governance/governance` 的 handler 调用 service 的 **5 个方法**，和 `ai/intelligence` 一模一样的 5 个（Create / List / GetByID / Delete / Count），连顺序都一样。两个模块的 handler 都是 90 行出头，都是「具体类型字段、没有接口」的同一个形状，都得先加 5 方法接口 + 编译期断言 + 接口字段。
+
+**这两块是被同一段生成器吐出来的。** 连缺陷都在同一个位置、同一行号附近（`handler.go` 的第 47-49 行）。
+
+### 102.2 缺陷与修复：三层全裸，和前五轮同形
+
+`List`（原 `handler.go:47-49`）：
+
+```go
+page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+ps,   _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+items, err := h.svc.List(ctx, tenantID, (page-1)*ps, ps)
+```
+
+§95.1 三层核查：handler 无 floor 无 cap；service 的五个方法**全是一行透传**；仓储 SQL 有 `OFFSET $2 LIMIT $3`。三层一起扫 `clamp`、`GREATEST`、`> 100`、`< 1`、`<= 0`、`OffsetFromPage`、`pagination.` 共 7 种形状，**0 命中**——三层全不夹是唯一算 live 的形状。
+
+修法照抄 §97-§101：`pagination.Page` + `pagination.Limit` 收地板，`if ps > 100 { ps = 100 }` 在推导 offset 之前收上限，`pagination.OffsetFromPage` 推导一次，`limit := ps`，加 nil→空切片归一。
+
+### 102.3 新缺陷类别：total 算在了错的层，然后被丢掉
+
+这是前五轮没有的形状。`repository.ListPolicies` **每次先跑一条 `COUNT(*)`**，返回 `(items, total, err)`；而 `Service.List` 写的是：
+
+```go
+items, _, err := s.repo.ListPolicies(ctx, tenantID, offset, limit)
+```
+
+**第二个返回值直接扔掉。** 所以这个模块是这一族里第一个「仓储已经在算真 total、服务层把它丢了」的站点——不是信封没有 total 字段，是 total 被算出来之后在中间层蒸发掉了。副作用是每次翻页请求都白跑一条 COUNT。
+
+修法没做：把 total 透出信封会加一个响应字段，那是客户端可见的变更，超出「接入分页包」的范围。记在 102.9(a)。
+
+更怪的在 `Count` 上：
+
+```go
+func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
+	_, total, err := s.repo.ListPolicies(ctx, tenantID, 0, 0)
+```
+
+**Count 不是 count，它是「跑一次 ListPolicies 再丢掉 items」。** 它会先跑 COUNT，再跑一条 `SELECT ... LIMIT 0`，结果没人读。本轮给这个调用加了两条断言（`TestServiceCount_ReturnsTheTotalOnly` 钉住 `(0, 0)` 窗口，`TestServiceList_DropsTheTotalTheRepositoryComputed` 钉住 total 被丢），所以谁改这个调用都会被抓到。
+
+### 102.4 新缺陷类别：`Create` 丢掉 7 个字段里的 6 个
+
+§101.7(c) 记的是「`Confidence` 列被 INSERT 绑了但没人赋值」——**列侧漏了**。这轮是反过来的：**请求侧过了校验、服务侧全丢了。**
+
+`CreatePolicyRequest` 有 7 个字段，其中 `Category` 和 `RegoPath` 是 `binding:"required"`；而 `Service.Create` 只填 3 个：
+
+```go
+d := &models.Policy{ID: uuid.New().String(), TenantID: tenantID, Name: req.Name}
+```
+
+`Description`、`Category`、`RegoPath`、`GateID`、`Severity`、`Metadata` **全部丢弃**。后果是一条链：
+
+- API 会因为「你没传 category」拒绝请求，然后无视你传的 category，写进数据库的是 `category=""`。
+- `ListPoliciesByCategory(tenant, "security")` 永远查不到任何通过 HTTP 创建的策略。
+- `ListEnabledPolicies` 永远查不到任何一条——`Enabled` 是 bool，零值 false。
+- 想补救得走 `UpdatePolicy`，而 `UpdatePolicy` **在全仓库零调用方**：service 没有 Update 方法，handler 没有 PUT 路由，仓库里那段带白名单的动态 UPDATE（§77 那轮的产物）整段是死的。
+
+**也就是说：通过 HTTP 创建的治理策略，永远无法通过 HTTP 修正。** 这条链的每一环单独看都不是 bug，连起来是。
+
+### 102.5 同一个根因，两个模块两个相反的故障表现
+
+`ErrPolicyNotFound` 定义了、service 从不返回它——第五例（§97、§99.8(c)、§100.8(e)、§101.7(b) 同族）。但这次的**症状和 `ai/intelligence` 完全相反**：
+
+| 模块 | service 怎么返回仓储错误 | handler 的回答 |
+|---|---|---|
+| `ai/intelligence` | 原样上抛 | **404**，message 是驱动的话术 |
+| `governance/governance` | `if err == sql.ErrNoRows { return nil, nil }` | **200**，`data: null` |
+
+两个模块的根因都是「service 从不翻译仓储错误」，但一个把 error 漏出去了、一个把 error 吞掉了。**同一个缺陷族可以在两个方向上都错，而且错的方式看不出关系。** `TestGetPolicyByID_NoRowYieldsNilNotAnError` 把这个行为钉下来了——注释写的是「记录行为，不是认可行为」。
+
+顺带：这个仓储里有 **20 处** `err == sql.ErrNoRows` 而不是 `errors.Is(err, sql.ErrNoRows)`。目前 sqlx 原样返回 `sql.ErrNoRows` 所以恰好能用，但 `==` 对任何包装过的 error 都会漏判。
+
+### 102.6 绑定顺序地雷：这个仓储自己的约定自相矛盾
+
+`ListPolicies(ctx, tenantID, offset, limit)` 是 `(offset, limit)`；但同一文件里：
+
+- `ListEvaluations(ctx, limit, offset)`
+- `ListEvaluationsByTenant(ctx, tenantID, limit, offset)`
+- `FindEvaluationsByPolicyID(ctx, policyID, limit, offset)`
+
+**全部反着。** 三个函数的函数体里绑定是一致的（`OFFSET $2 LIMIT $3, offset, limit`），所以今天没有 bug；但它是 Round 100 的 M5 演示过的那个陷阱——Postgres 会把绑反的参数当合法查询执行，驱动不报错，窗口悄悄错开。谁按仓库惯例写调用，谁就从错的位置开始取数。
+
+另外 `ListEvaluationsByTenant` 的租户过滤是 `input_context->>'tenantId'`——**SQL 里用 camelCase JSON 键，Go 侧全树是 snake_case**。而 `ListEvaluations`（无任何租户过滤）和 `GetPolicyByIDAny`（**无租户谓词**的单点读）都是零调用方。后者是真地雷：谁把它接上，一个请求就能按 id 读任何租户的策略。
+
+### 102.7 测试
+
+新增 2 个文件改写 1 个，另有 1 个文件修了 §101.6 的错名，共 **578 增 / 12 删，5 个文件**：
+
+- **`handler/handler_test.go` 185 行，16 PASS**：fake 实现全部 5 个方法，编译期断言钉住；10 条共享用例、租户透传、信封形状（断言 `data` 就是那一页，且**断言没有 `total` 字段**）、service-error→500、nil 归一、路由挂载。
+- **`repository/governance_repository_test.go` 208 行，8 PASS（新建）**：`ListPolicies` 钉 COUNT 与 SELECT 的 SQL 原文加 `WithArgs("tenant-1", 50, 25)` 的绑定顺序；空表零行；驱动 error 透传；**COUNT 失败整调失败**；`GetPolicyByID` 无行返回 `(nil, nil)`；`DeletePolicy` 的租户谓词；`CreatePolicy` 的十列绑定顺序。
+- **`service/service_test.go` 9 → 138 行，5 PASS**：真 `Service` 配真仓储跑 sqlmock，`List` 钉 offset/limit 原样下传、**total 被丢**、`Count` 钉 `(0, 0)` 窗口、nil 透传。
+- **`ai/intelligence/service/service_test.go` 5 行**：修 §101.6 的错名（见 102.10）。
+
+这个仓储的 SQL 有跨两行的反引号串（`CreatePolicy`、`ListPolicies` 的 COUNT），`QueryMatcherEqual` 用不了，所以沿用 visor 那轮自写的空白压缩 matcher，`QueryMatcherFunc` 的签名还是 v1.5.2 的 `func(expected, actual string) error`。
+
+### 102.8 变异验证：9 门 7 杀
+
+**baseline 39 PASS / 0 FAIL / 0 builderr**，跑在 6 个包上，锚点 11 个从真实文件读进 JSON 无手抄，restore byte-identical：True。
+
+| 门 | 变异 | 结果 | 宽度 |
+|---|---|---|---|
+| M1 | `List` 退回裸 `Atoi` | KILLED | 7 |
+| M2 | 去掉上限 | KILLED | 2 |
+| M3 | 上限挪到推导 offset 之后 | KILLED | 2 |
+| M4 | 仓储丢掉 `OFFSET LIMIT` | KILLED | 6 |
+| M5 | 仓储把 limit 与 offset 绑反 | KILLED | 5 |
+| M6 | service 丢掉 offset | KILLED | 1 |
+| M7 | handler 丢掉 nil 归一 | KILLED | 1 |
+| GAP | 死代码 `PaginatedRequest` 上限 100→999 | SURVIVED | 0 |
+| NC | 仓储加一行注释 | SURVIVED | 0 |
+
+`killed=7 builderr=0 badanchor=0 survived=2`，两个 SURVIVED 都是刻意门。
+
+门数还是 7（和 §101 一样），**但成分变了**：这轮 M4/M5 的宽度是 6 和 5，§101 是 4 和 4。原因是这个模块的 `ListPolicies` 里多了一条 COUNT 查询，而 §101 的 `List` 没有——**同一个门，宽度跟着被测函数里查询的条数走**。这印证了 §101.4 的结论「门数跟着机器走」，而且粒度更细一层：不是跟着模块的机器走，是跟着**那条读链上查询的条数**走。
+
+6/10 的判别力**第六次确认**：M1 的 7 行宽度 = 6 条判别性共享用例（`negativePageIsClamped`、`zeroPageIsClamped`、`unparsablePageUsesDefault`、`negativePageSizeIsClamped`、`unparsablePageSizeUsesDefault`、`pageSizeCapAppliesBeforeDeriving`）+ 1 个父测试，实测的失败值分别是 `offset=-120`、`-25`、`-25`、`limit=-5`、`limit=0`、`offset=500/limit=250`。另外 4 条合理输入用例（`pageOneIsOffsetZero`、`happyThreeByTwenty`、`happyTwoByTwentyFive`、`absentUsesDefaults`）对裸 `Atoi` 是恒等，按设计不判别。
+
+### 102.9 只记录，未处理
+
+- **(a) total 被服务层丢掉，信封是裸切片。** 仓储每次 List 都算真 COUNT，代价已经付了。透出信封要加响应字段，属于客户端可见变更，本轮不动。
+- **(b) `Create` 丢掉 7 个字段里的 6 个，且 `UpdatePolicy` 全仓库零调用方**（见 102.4）。HTTP 创建的策略永远无法通过 HTTP 修正。
+- **(c) `Count` 不是 count，是「ListPolicies + 丢弃 items」，多跑一条 `LIMIT 0` 的 SELECT。** 已被两条测试钉住，行为变更需要显式决定。
+- **(d) `GetPolicyByID` 在 `sql.ErrNoRows` 时返回 `(nil, nil)`，handler 因此答 200 配 `data: null`** 而不是 404。`ErrPolicyNotFound` 定义了从不返回，第五例。
+- **(e) 20 处 `err == sql.ErrNoRows`**，该用 `errors.Is`。
+- **(f) 三个 List 方法把 `(limit, offset)` 写在签名里，与仓库自己的 `(offset, limit)` 惯例相反**（见 102.6）。
+- **(g) `ListEvaluationsByTenant` 用 camelCase 的 `input_context->>'tenantId'` 做租户过滤；`ListEvaluations` 与 `GetPolicyByIDAny` 零调用方，后者是无租户谓词的单点读。**
+- **(h) `respondConflict` 与 `respondForbidden` 零调用方**，7 个响应助手里 5 个在用（与 §97-§101 同状）。
+- **(i) `/api/v1/policies` 有 4 个模块想拥有**，`policyH` 占了，本模块被 namespace 到 `/api/v1/governance/policies`（`router.go:323-325` 有注释说明），`governancePolicyH` 再到 `/api/v1/governance/policy`。**本轮的路由测试断言的是真实前缀**，所以谁改前缀都会被看到——§100.8(h) 记的 `/api/v1/tasks` 冲突磁铁在这里有个更温和的版本。
+- **(j) 第六份死 `PaginatedRequest`，和 §101 那份同一个状态：1 条测试只钉默认值，GAP 埋在这里，宽度 0。**
+
+### 102.10 两处自我纠正
+
+**§101.6 的错名。** 我给 `ai/intelligence` 的 service 测试起名叫 `TestServiceList_ReturnsANonNilEmptySlice`，注释写「空表必须在这里回来非 nil 切片」，但断言是 `if tasks != nil`——**它断言的是 nil，和名字正好相反**。改名成 `TestServiceList_PassesANilSliceThrough`，注释改成「service 把 nil 原样透传，归一是 handler 的活」。§101.6 里我写「修了自己的一个错误」，实际上那次改名**只改了名字、没改断言**，错的判断留下了。这轮的 `governance` service 也有同样的 nil 透传，用同样的写法测。
+
+**§101.9 的副本数。** 我写「树里 35 份副本」，实际声明数是 **31**（`grep -rl 'type PaginatedRequest struct'`）；**真正在生产代码构造它的是 2 个模块**（`ci-cd/build` handler.go:58、`ci-cd/deploy` handler.go:50），其余 29 份是死的。顺带一个反例：`infrastructure/capacity` 把 `PaginatedRequest` **嵌进**了 `ReportFilter`——但 `ReportFilter` 本身零引用，嵌入救不活它。
+
+### 102.11 harness 自己的两个 bug
+
+- **锚点跨了闭合括号。** `R_LIST_ARGS` 的锚点是 `tenantID, offset, limit)`，它包含了 `SelectContext` 调用的**右括号**。所以把 M4 替换成 `tenantID`、M5 替换成 `tenantID, limit, offset` 时，右括号被一起吃掉了，报 `syntax error: unexpected newline in argument list`。和 Round 99 的 M8/M9 同一类错误——**写锚点时不看清它把哪一层的括号吃进去了**。
+- **宽度计数器漏了缩进的子测试行。** 计数器只匹配以 `--- FAIL` 开头的行，而 `-v` 下的子测试行前面有 4 个空格，所以 M1 被报成宽度 1。判据很简单：**加了 `-v` 之后宽度还是 1，就说明缩进行没被算进来。** 修好之后 M1 才是 7。
+
+### 102.12 验证与遗留
+
+`go build ./...` 退出 0；`go vet ./internal/governance/governance/... ./internal/ai/intelligence/...` 退出 0；`gofmt -l internal cmd` 只剩 `ticket/models` 三个历史文件（本轮未触碰）；`go test -count=1 ./...` **581 个包 ok / 0 FAIL**（§101 的 579 加本轮新增的 `governance/governance/handler` 与 `governance/governance/repository` 两个测试包）。harness 跑完后再跑了一次全量，仍是 581，说明 restore 是干净的。
+
+`governance/governance` 从 2 个测试包变成 4 个。
+
+### 102.13 台账
+
+- **LIVE：3 处 / 3 模块 → 2 处 / 2 模块。** 收掉 `governance/governance` 1 处。剩 `governance/risk` 1、`infrastructure/digital-twin` 1。
+- **已迁移站点：29 → 30，落在 16 个模块。**
+- **带真 `total` 的站点：仍为 8。** 这一处信封是裸切片（见 102.3）——但它已经是这一族里第一个「仓储在算、服务层丢掉」的站点。
+- **脚手架成本序列：5 → 11 → 18 → 37 → 5 → 5。** 连续两个 5，确认了下界。
+- **`PaginatedRequest` 副本普查（修正）：31 份声明，2 份有生产调用方，29 份是死的。** 本轮是第 6 份被记录的死副本。
+- **§99.8(a)「端点从不声明分页」那列没有新实例**，仍是 `ListPolicies`（`governance/compliance`）与 `ListAlertRules`（`visor`）两例。
+- **GAP 第 13 轮存活**；100 这个数这轮第六次数进 handler。
+
+下一步推荐 **A：`governance/risk` 与 `infrastructure/digital-twin` 连着做完**，两个都是单点站点，LIVE 列清零。这两块值得先扫一眼再动手：`governance/risk` 的 service 有 1162 行（`governance/governance` 只有 39 行），`digital-twin` 的 handler 有 661 行，**单点站点不等于便宜的模块**——§101 那轮便宜是因为整模块 337 行，这个预测在 risk 上很可能不成立。
+
+仍然**不建议**在没有单独授权下做：给 `pagination` 包加上限（GAP 已存活 13 轮，公共代码，且会让 M2/M3 两扇门立刻失去意义）；102.9(b)(c)(d) 这三条都要先决定「修不修」再谈动手；`ci-cd/build` 与 `ci-cd/deploy` 那 2 份**有调用方**的 `PaginatedRequest` 值得单独一轮扫描。
+
+carry-forward：§101.7 的 (a)-(i)、§101.9 的 (a)-(g)、§100.8 的 (a)-(h)、§99.8 的 (a)-(h)、§98.9 的 (a)-(h)、§97.9 的 (a)-(h)、§96.7 的 (a)-(h)、§95.7 与 §95.2 的两张台账表、§94.7 的 (a)-(h)、§93.7 的 (a)-(h)、§92.7 的 (a)-(h)、§91.7 的 (a)-(h)、§90.7 的 (a)-(h)、§89.7 的 (a)-(h)、§88.6 的 (a)-(f)、§87.6 的 (a)-(f)、§86.7 的 (a)-(f)、§85.6 的 (a)-(f)、§84.5 的 (a)-(d)、§83.6 的 (a)-(e)、§82.6 的 (a)-(e)、§81.7 的 (a)-(f)、§80.5 的 (a)(d)、§79.5 的 (a)(b)(c)(f)、§78.5 的 (a)(b)、§77.6 的 (a)-(h)、§76.8 的 5 项、§75.8 的 7 项、§74.8 的 9 项、§73.7 的 7 项、§72.7 的 9 项全部不变，另加本节 102.9 与 102.13 的 (a)-(j)。
