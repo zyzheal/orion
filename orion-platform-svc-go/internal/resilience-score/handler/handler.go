@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"orion/platform-svc-go/internal/pagination"
 	"context"
+	"orion/platform-svc-go/internal/pagination"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/resilience-score/models"

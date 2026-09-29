@@ -18,9 +18,9 @@ var ValidRelationTypes = []string{
 // TicketRelation links two tickets. The db tags name 076_create_ticketing_tables.sql's
 // columns; the json tags are the API contract and are unchanged.
 //
-//   RelatedTicketID -> related_id      (076's column is related_id, there is no
-//                                      related_ticket_id)
-//   RelationType    -> type            (076's column is type VARCHAR(50))
+//	RelatedTicketID -> related_id      (076's column is related_id, there is no
+//	                                   related_ticket_id)
+//	RelationType    -> type            (076's column is type VARCHAR(50))
 //
 // CreatedBy keeps db:"created_by", which 572_add_audit_columns.sql adds as
 // UUID REFERENCES users(id). Neither Create nor any SELECT touches the column:

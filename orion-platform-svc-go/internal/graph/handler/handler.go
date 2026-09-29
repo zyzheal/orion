@@ -4,11 +4,11 @@ import (
 	"errors"
 	"strconv"
 
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/graph/models"
 	"orion/platform-svc-go/internal/graph/service"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -118,7 +118,9 @@ func (h *Handler) ListNodes(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	label := c.Query("label")
 	limit := pagination.Limit(c.Query("limit"), 100)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 
 	nodes, err := h.svc.ListNodes(ctx, tenantID, label, limit)
 	if err != nil {
@@ -224,7 +226,9 @@ func (h *Handler) ListRelationships(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	relType := c.Query("type")
 	limit := pagination.Limit(c.Query("limit"), 100)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 
 	rels, err := h.svc.ListRelationships(ctx, tenantID, relType, limit)
 	if err != nil {

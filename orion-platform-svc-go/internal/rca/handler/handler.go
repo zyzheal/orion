@@ -1,15 +1,13 @@
 package handler
 
 import (
-
-
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
 
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/platform-svc-go/internal/rca/models"
 	"orion/platform-svc-go/internal/rca/service"
 )
@@ -102,7 +100,9 @@ func (h *RCAHandler) ListHistory(c *gin.Context) {
 	}
 	incidentID := c.Query("incident_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 
 	resp, err := h.svc.QueryAnalysisHistory(ctx, tenantID, incidentID, limit, offset)

@@ -3,11 +3,10 @@ package handler
 import (
 	"net/http"
 
-
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ephemeral-env/models"
 	"orion/platform-svc-go/internal/ephemeral-env/service"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -112,7 +111,9 @@ func (h *Handler) GetLogs(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	envID := c.Param("id")
 	limit := pagination.Limit(c.Query("limit"), 100)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	result, err := h.svc.GetLogs(ctx, tenantID, envID, limit)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
@@ -126,7 +127,9 @@ func (h *Handler) ListEnvs(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 
 	result, err := h.svc.ListEnvs(ctx, tenantID, limit, offset)

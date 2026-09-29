@@ -1,12 +1,10 @@
 package handler
 
 import (
-
-
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/incident/models"
 	"orion/platform-svc-go/internal/incident/service"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -107,7 +105,9 @@ func (h *Handler) List(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 20)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 
 	status := c.Query("status")
@@ -361,7 +361,9 @@ func (h *Handler) GetTimeline(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	limit := pagination.Limit(c.Query("limit"), 20)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 
 	timeline, err := h.svc.GetTimeline(ctx, tenantID, id, models.TimelineQuery{
@@ -525,7 +527,9 @@ func (h *Handler) GetKnowledgeRecommendations(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	limit := pagination.Limit(c.Query("limit"), 5)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	result, err := h.svc.GetKnowledgeRecommendations(ctx, tenantID, id, limit)
 	if err != nil {
 		if service.IsNotFound(err) {

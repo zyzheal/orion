@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"orion/platform-svc-go/internal/pagination"
 	"net/http"
+	"orion/platform-svc-go/internal/pagination"
 
 	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/hook-chain/models"

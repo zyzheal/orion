@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"time"
 
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -61,7 +61,9 @@ func (h *Handler) TopN(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SlowQueryTopN")
 	defer span.End()
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	req := TopNRequest{
 		DataSourceID: c.Query("data_source_id"),
 		TenantID:     c.GetString("tenant_id"),

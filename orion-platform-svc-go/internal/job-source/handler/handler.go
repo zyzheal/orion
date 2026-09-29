@@ -3,11 +3,11 @@ package handler
 import (
 	"errors"
 
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/job-source/models"
 	"orion/platform-svc-go/internal/job-source/service"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -69,7 +69,9 @@ func (h *Handler) List(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	off := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.ListSources(ctx, tenantID, limit, off)
 	if err != nil {
@@ -158,7 +160,9 @@ func (h *Handler) GetEvents(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	sourceID := c.Param("id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	off := pagination.Offset(c.Query("offset"))
 	events, err := h.svc.GetSourceEvents(ctx, tenantID, sourceID, limit, off)
 	if err != nil {

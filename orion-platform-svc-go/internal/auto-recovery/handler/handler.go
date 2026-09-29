@@ -1,15 +1,13 @@
 package handler
 
 import (
-
-
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/auto-recovery/models"
 	"orion/platform-svc-go/internal/auto-recovery/service"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 )
 
 type AutoRecoveryHandler struct {
@@ -43,9 +41,10 @@ func (h *AutoRecoveryHandler) ListRules(c *gin.Context) {
 	defer span.End()
 	tenantID := h.GetTenantID(c)
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
-
 
 	resp, err := h.svc.QueryRules(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -133,9 +132,10 @@ func (h *AutoRecoveryHandler) ListActions(c *gin.Context) {
 	ruleID := c.Query("rule_id")
 	status := c.Query("status")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
-
 
 	resp, err := h.svc.QueryActions(ctx, tenantID, ruleID, status, limit, offset)
 	if err != nil {

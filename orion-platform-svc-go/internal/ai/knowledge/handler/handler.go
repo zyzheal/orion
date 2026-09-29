@@ -3,13 +3,12 @@ package handler
 import (
 	"net/http"
 
-
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai/knowledge/models"
 	"orion/platform-svc-go/internal/ai/knowledge/service"
+	"orion/platform-svc-go/internal/pagination"
 )
 
 type KnowledgeHandler struct {
@@ -50,9 +49,10 @@ func (h *KnowledgeHandler) ListBases(c *gin.Context) {
 	defer span.End()
 	tenantID := h.GetTenantID(c)
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
-
 
 	resp, err := h.svc.QueryBases(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -116,9 +116,10 @@ func (h *KnowledgeHandler) ListDocuments(c *gin.Context) {
 	defer span.End()
 	baseID := c.Param("base_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
-
 
 	resp, err := h.svc.QueryDocuments(ctx, baseID, limit, offset)
 	if err != nil {

@@ -3,15 +3,14 @@ package handler
 import (
 	"net/http"
 
-
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/alert-correlation/models"
 	"orion/platform-svc-go/internal/alert-correlation/service"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 )
 
 type AlertCorrelationHandler struct {
@@ -68,9 +67,10 @@ func (h *AlertCorrelationHandler) ListGroups(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	groupType := c.Query("group_type")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
-
 
 	resp, err := h.svc.QueryGroups(ctx, tenantID, groupType, limit, offset)
 	if err != nil {
@@ -148,9 +148,10 @@ func (h *AlertCorrelationHandler) ListRules(c *gin.Context) {
 	defer span.End()
 	tenantID := h.GetTenantID(c)
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
-
 
 	rules, total, err := h.svc.QueryRules(ctx, tenantID, limit, offset)
 	if err != nil {

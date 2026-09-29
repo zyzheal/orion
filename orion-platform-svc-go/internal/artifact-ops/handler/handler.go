@@ -1,12 +1,10 @@
 package handler
 
 import (
-
-
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/artifact-ops/models"
 	"orion/platform-svc-go/internal/artifact-ops/service"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -76,7 +74,9 @@ func (h *Handler) GetOperationHistory(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	artifactID := c.Param("artifactId")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 
 	items, err := h.svc.GetOperationHistory(ctx, tenantID, artifactID, limit, offset)

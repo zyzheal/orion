@@ -4,16 +4,15 @@ import (
 	"context"
 	"net/http"
 
-
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/alert-silence/fatigue"
 	"orion/platform-svc-go/internal/alert-silence/models"
 	"orion/platform-svc-go/internal/alert-silence/service"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 )
 
 // FatigueServiceInterface exposes the fatigue methods used by the handler.
@@ -65,9 +64,10 @@ func (h *AlertSilenceHandler) List(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	status := c.Query("status")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
-
 
 	resp, err := h.svc.QuerySilences(ctx, tenantID, status, limit, offset)
 	if err != nil {

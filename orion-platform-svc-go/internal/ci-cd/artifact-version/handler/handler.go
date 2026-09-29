@@ -1,8 +1,6 @@
 package handler
 
 import (
-
-
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ci-cd/artifact-version/models"
 	"orion/platform-svc-go/internal/ci-cd/artifact-version/service"
@@ -43,7 +41,9 @@ func (h *ArtifactVersionHandler) ListVersions(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	artifactID := c.Query("artifact_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 
 	resp, err := h.svc.QueryVersions(ctx, tenantID, artifactID, limit, offset)

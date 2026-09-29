@@ -6,14 +6,14 @@ import "time"
 // historical ones this struct was written against. The API contract (json tags)
 // is unchanged; only the storage names moved:
 //
-//   Type       -> category      (076 has category VARCHAR(100), no type column)
-//   CreatedBy  -> reporter_id   (076's reporter_id VARCHAR(255) NOT NULL is the
-//                                reporter of the ticket, which is who the
-//                                create request names; 572's created_by is
-//                                UUID REFERENCES users(id) and would reject a
-//                                non-UUID string in the driver)
-//   AssignedTo -> assignee_id   (076 has assignee_id VARCHAR(255), no
-//                                assigned_to column)
+//	Type       -> category      (076 has category VARCHAR(100), no type column)
+//	CreatedBy  -> reporter_id   (076's reporter_id VARCHAR(255) NOT NULL is the
+//	                             reporter of the ticket, which is who the
+//	                             create request names; 572's created_by is
+//	                             UUID REFERENCES users(id) and would reject a
+//	                             non-UUID string in the driver)
+//	AssignedTo -> assignee_id   (076 has assignee_id VARCHAR(255), no
+//	                             assigned_to column)
 type Ticket struct {
 	ID          string     `json:"id" db:"id"`
 	TenantID    string     `json:"tenant_id" db:"tenant_id"`

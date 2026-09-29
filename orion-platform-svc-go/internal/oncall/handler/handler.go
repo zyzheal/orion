@@ -4,14 +4,13 @@ import (
 	"go.opentelemetry.io/otel"
 	"net/http"
 
-
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/oncall/models"
 	"orion/platform-svc-go/internal/oncall/service"
+	"orion/platform-svc-go/internal/pagination"
 )
 
 type OnCallHandler struct {
@@ -45,7 +44,9 @@ func (h *OnCallHandler) ListSchedules(c *gin.Context) {
 	defer span.End()
 	tenantID := h.GetTenantID(c)
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 
 	resp, err := h.svc.QuerySchedules(ctx, tenantID, limit, offset)
@@ -131,7 +132,9 @@ func (h *OnCallHandler) ListRotations(c *gin.Context) {
 		return
 	}
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 
 	rotations, total, err := h.svc.QueryRotations(ctx, scheduleID, limit, offset)

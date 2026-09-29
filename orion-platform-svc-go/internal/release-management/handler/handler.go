@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"orion/platform-svc-go/internal/pagination"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/auth"

@@ -6,10 +6,10 @@ import (
 
 	"time"
 
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/infrastructure/backup/models"
 	"orion/platform-svc-go/internal/infrastructure/backup/service"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -97,7 +97,9 @@ func (h *Handler) ListPlans(c *gin.Context) {
 	}
 	offset := pagination.Offset(c.Query("offset"))
 	limit := pagination.Limit(c.Query("limit"), 20)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	plans, err := h.backupSvc.ListPlans(ctx, tenantID, offset, limit)
 	if err != nil {
 		h.log.Error("failed to list plans", zap.Error(err))
@@ -199,7 +201,9 @@ func (h *Handler) ListBackupRecords(c *gin.Context) {
 	}
 	offset := pagination.Offset(c.Query("offset"))
 	limit := pagination.Limit(c.Query("limit"), 20)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	backups, err := h.backupSvc.ListBackups(ctx, tenantID, filter, offset, limit)
 	if err != nil {
 		h.log.Error("failed to list backups", zap.Error(err))
@@ -292,7 +296,9 @@ func (h *Handler) ListRecoveries(c *gin.Context) {
 	}
 	offset := pagination.Offset(c.Query("offset"))
 	limit := pagination.Limit(c.Query("limit"), 20)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	recoveries, err := h.recoverySvc.ListRecoveries(ctx, tenantID, offset, limit)
 	if err != nil {
 		h.log.Error("failed to list recoveries", zap.Error(err))

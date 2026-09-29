@@ -1,9 +1,8 @@
 package handler
 
 import (
-	"orion/platform-svc-go/internal/pagination"
 	"go.opentelemetry.io/otel"
-
+	"orion/platform-svc-go/internal/pagination"
 
 	"orion/platform-svc-go/internal/infrastructure/serverless/models"
 	"orion/platform-svc-go/internal/infrastructure/serverless/service"
@@ -187,7 +186,9 @@ func (h *Handler) GetFunctionLogs(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	level := c.Query("level")
 	limit := pagination.Limit(c.Query("limit"), 100)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	logs, err := h.svc.GetFunctionLogs(ctx, tenantID, c.Param("id"), level, limit)
 	if err != nil {
 		respondNotFound(c, err.Error())

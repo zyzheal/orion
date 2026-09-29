@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/knowledge/models"
 	"orion/platform-svc-go/internal/knowledge/service"
+	"orion/platform-svc-go/internal/pagination"
 
 	"orion/platform-svc-go/internal/middleware"
 
@@ -900,7 +900,9 @@ func (h *Handler) RAGAuditLogs(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 
 	logs, err := h.svc.ListQueryAuditLogs(ctx, tenantID, limit, offset)
@@ -921,7 +923,9 @@ func (h *Handler) RAGFlaggedQueries(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 
 	logs, err := h.svc.ListFlaggedQueryAuditLogs(ctx, tenantID, limit, offset)
@@ -1042,7 +1046,9 @@ func (h *Handler) ListEvalRuns(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	setID := c.Query("set_id")
 	limit := pagination.Limit(c.Query("limit"), 20)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	runs, err := h.svc.ListEvalRuns(ctx, tenantID, setID, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

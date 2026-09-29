@@ -15,7 +15,6 @@ package handler
 import (
 	"context"
 
-
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/cmdb-import/models"
 	"orion/platform-svc-go/internal/middleware"
@@ -195,7 +194,9 @@ func (h *Handler) GetRecords(c *gin.Context) {
 
 	offset := pagination.Offset(c.Query("offset"))
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	if limit <= 0 || limit > 500 {
 		limit = 50
 	}

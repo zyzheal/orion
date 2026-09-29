@@ -3,9 +3,8 @@ package handler
 import (
 	"context"
 
-
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/platform-svc-go/internal/product-line/models"
 
 	"github.com/gin-gonic/gin"
@@ -122,7 +121,9 @@ func (h *Handler) List(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 
 	items, err := h.svc.List(ctx, tenantID, limit, offset)

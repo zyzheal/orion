@@ -220,7 +220,9 @@ func (h *Handler) Audit(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	pluginID := c.Query("plugin_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	if limit <= 0 || limit > 500 {
 		limit = 50
 	}
@@ -237,7 +239,9 @@ func (h *Handler) AuditTrail(c *gin.Context) {
 	defer span.End()
 	taskID := c.Param("taskId")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	if limit <= 0 || limit > 500 {
 		limit = 50
 	}

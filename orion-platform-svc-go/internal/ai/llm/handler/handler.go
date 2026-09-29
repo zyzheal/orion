@@ -6,10 +6,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai/llm/models"
 	"orion/platform-svc-go/internal/ai/llm/service"
+	"orion/platform-svc-go/internal/pagination"
 )
 
 // Handler exposes HTTP endpoints for the LLM trace service.
@@ -115,7 +115,9 @@ func (h *Handler) ListTraces(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 100)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 
 	traces, err := h.svc.GetTracesByTenant(ctx, tenantID, limit)
 	if err != nil {
@@ -131,7 +133,9 @@ func (h *Handler) ListTracesByScenario(c *gin.Context) {
 	defer span.End()
 	scenarioID := c.Param("scenarioId")
 	limit := pagination.Limit(c.Query("limit"), 100)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 
 	traces, err := h.svc.GetTracesByScenario(ctx, scenarioID, limit)
 	if err != nil {

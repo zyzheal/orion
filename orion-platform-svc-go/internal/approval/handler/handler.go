@@ -1,12 +1,10 @@
 package handler
 
 import (
-
-
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/approval/models"
 	"orion/platform-svc-go/internal/approval/service"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -104,7 +102,9 @@ func (h *Handler) ListApprovalRequests(c *gin.Context) {
 	approvalType := c.Query("type")
 	status := c.Query("status")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 
 	items, err := h.svc.ListApprovalRequests(ctx, tenantID, approvalType, status, limit, offset)
@@ -383,7 +383,9 @@ func (h *Handler) GetTemplates(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 
 	items, err := h.svc.GetTemplates(ctx, tenantID, limit, offset)

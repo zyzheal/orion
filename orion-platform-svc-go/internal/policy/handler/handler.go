@@ -1,8 +1,6 @@
 package handler
 
 import (
-
-
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/policy/models"
 	"orion/platform-svc-go/internal/policy/service"
@@ -108,7 +106,9 @@ func (h *Handler) List(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 	policies, err := h.svc.ListPolicies(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -231,7 +231,9 @@ func (h *Handler) ListEvaluations(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 	evaluations, err := h.svc.GetEvaluationHistory(ctx, tenantID, id, limit, offset)
 	if err != nil {
@@ -293,7 +295,9 @@ func (h *Handler) ListRootEvaluations(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 	evaluations, err := h.svc.ListEvaluations(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -309,7 +313,9 @@ func (h *Handler) ListEvaluationsRuns(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 	evaluations, err := h.svc.ListEvaluations(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -326,7 +332,9 @@ func (h *Handler) ListViolations(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 	violations, err := h.svc.ListViolations(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -377,7 +385,9 @@ func (h *Handler) ListOverrides(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 	overrides, err := h.svc.ListOverrides(ctx, tenantID, limit, offset)
 	if err != nil {

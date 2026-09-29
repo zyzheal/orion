@@ -1,14 +1,12 @@
 package handler
 
 import (
-
-
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/import-export/async"
 	"orion/platform-svc-go/internal/import-export/models"
 	"orion/platform-svc-go/internal/import-export/service"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -208,7 +206,9 @@ func (h *Handler) ImportHistory(c *gin.Context) {
 
 	operation := c.Param("operation")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 
 	filter := &models.JobFilter{
 		Operation: operation,

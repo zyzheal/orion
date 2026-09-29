@@ -2,11 +2,10 @@ package handler
 
 import (
 	"go.opentelemetry.io/otel"
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/platform-svc-go/internal/workflow/workflow/models"
 	"orion/platform-svc-go/internal/workflow/workflow/service"
-
 
 	"github.com/gin-gonic/gin"
 )
@@ -92,7 +91,9 @@ func (h *ExtraHandler) Executions(c *gin.Context) {
 	defer span.End()
 	id := c.Param("id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	instances, err := h.svc.ListInstances(ctx, id, limit)
 	if err != nil {
 		respondInternalError(c, err.Error())

@@ -1,8 +1,6 @@
 package handler
 
 import (
-
-
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/monitoring/models"
 	"orion/platform-svc-go/internal/monitoring/service"
@@ -208,7 +206,9 @@ func (h *Handler) GetRegisteredMetrics(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.GetRegisteredMetrics(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -224,7 +224,9 @@ func (h *Handler) GetMetricSeries(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	name := c.Param("name")
 	limit := pagination.Limit(c.Query("limit"), 100)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	series, err := h.svc.GetMetricSeries(ctx, tenantID, name, nil, nil, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -270,7 +272,9 @@ func (h *Handler) GetRules(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.GetRules(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -398,7 +402,9 @@ func (h *Handler) GetAlerts(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.GetAlerts(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -413,7 +419,9 @@ func (h *Handler) GetActiveAlerts(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.GetActiveAlerts(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -510,7 +518,9 @@ func (h *Handler) GetChannels(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.GetChannels(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -562,7 +572,9 @@ func (h *Handler) GetEscalationPolicies(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.GetEscalationPolicies(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -579,7 +591,9 @@ func (h *Handler) GetNotificationHistory(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.GetNotificationHistory(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -625,7 +639,9 @@ func (h *Handler) GetWidgetConfigs(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.GetWidgetConfigs(ctx, tenantID, limit, offset)
 	if err != nil {
@@ -654,7 +670,9 @@ func (h *Handler) DetectAnomalies(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.DetectAnomalies(ctx, tenantID, limit, offset)
 	if err != nil {

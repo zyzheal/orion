@@ -4,14 +4,13 @@ package handler
 import (
 	"errors"
 
-
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/job-actions/models"
 	"orion/platform-svc-go/internal/job-actions/repository"
 	"orion/platform-svc-go/internal/job-actions/service"
+	"orion/platform-svc-go/internal/pagination"
 )
 
 type Handler struct {
@@ -84,7 +83,9 @@ func (h *Handler) ListActions(c *gin.Context) {
 	defer span.End()
 	category := c.Query("category")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 
 	resp, err := h.repo.ListActions(ctx, h.tenantID(c), category, limit, offset)
@@ -158,7 +159,9 @@ func (h *Handler) GetHistory(c *gin.Context) {
 		return
 	}
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 
 	resp, err := h.repo.ListHistory(ctx, tenant, actionID, limit, offset)

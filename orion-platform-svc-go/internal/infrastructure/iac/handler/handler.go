@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"orion/platform-svc-go/internal/pagination"
 	"go.opentelemetry.io/otel"
+	"orion/platform-svc-go/internal/pagination"
 
 	"orion/platform-svc-go/internal/infrastructure/iac/models"
 	"orion/platform-svc-go/internal/infrastructure/iac/service"

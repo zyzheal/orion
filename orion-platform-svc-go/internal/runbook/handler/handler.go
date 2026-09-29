@@ -1,11 +1,9 @@
 package handler
 
 import (
-
-
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	goerr "orion/go-common/pkg/errors"
+	"orion/platform-svc-go/internal/pagination"
 
 	"orion/platform-svc-go/internal/runbook/models"
 	"orion/platform-svc-go/internal/runbook/service"
@@ -38,7 +36,9 @@ func (h *Handler) List(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 20)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 
 	q := models.ListQuery{Limit: &limit, Offset: &offset, Category: c.Query("category"), Severity: c.Query("severity")}

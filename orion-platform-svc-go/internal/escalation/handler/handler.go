@@ -3,11 +3,10 @@ package handler
 import (
 	"net/http"
 
-
-	"orion/platform-svc-go/internal/pagination"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/escalation/models"
 	"orion/platform-svc-go/internal/escalation/service"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -92,7 +91,9 @@ func (h *Handler) ListRules(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 
 	q := models.ListRulesQuery{Limit: limit, Offset: offset}

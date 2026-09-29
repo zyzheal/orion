@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 
-
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/feature-flag/models"
 	"orion/platform-svc-go/internal/feature-flag/service"
@@ -311,7 +310,9 @@ func (h *Handler) ToggleHistory(c *gin.Context) {
 	}
 
 	limit := pagination.Limit(c.Query("limit"), 50)
-	if limit > 100 { limit = 100 }
+	if limit > 100 {
+		limit = 100
+	}
 	records, err := h.svc.ListToggleHistory(ctx, id, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

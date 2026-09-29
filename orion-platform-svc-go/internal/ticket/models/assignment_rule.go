@@ -29,10 +29,10 @@ type CreateAssignmentRuleRequest struct {
 // 076_create_ticketing_tables.sql's columns; the json tags are the API contract
 // and are unchanged.
 //
-//   FromEngineerID -> from_user_id   (076's column is from_user_id, there is no
-//                                     from_engineer_id)
-//   ToEngineerID   -> to_user_id     (076's column is to_user_id, there is no
-//                                     to_engineer_id)
+//	FromEngineerID -> from_user_id   (076's column is from_user_id, there is no
+//	                                  from_engineer_id)
+//	ToEngineerID   -> to_user_id     (076's column is to_user_id, there is no
+//	                                  to_engineer_id)
 //
 // InitiatedBy / HoldDurationMs have no column in 076; 696_add_ticket_relation_transfer_columns.sql
 // adds them because TransferRequest marks initiated_by binding:"required" and
