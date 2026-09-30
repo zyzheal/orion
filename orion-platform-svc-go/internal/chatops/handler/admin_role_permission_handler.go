@@ -5,6 +5,7 @@ import (
 
 	"orion/platform-svc-go/internal/chatops/models"
 	"orion/platform-svc-go/internal/chatops/service"
+	"orion/platform-svc-go/internal/pagination"
 
 	"orion/platform-svc-go/internal/middleware"
 
@@ -235,7 +236,10 @@ func (h *Handler) GetAllCommandVersions(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAllCommandVersions")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	perPage, _ := strconv.Atoi(c.DefaultQuery("perPage", "20"))
+	perPage := pagination.Limit(c.Query("perPage"), 20)
+	if perPage > 100 {
+		perPage = 100
+	}
 	result, err := h.svc.GetAllCommandVersions(ctx, tenantID, 1, perPage)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
