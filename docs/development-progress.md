@@ -3776,6 +3776,122 @@ offset := (page - 1) * pageSize
 - 变异台架：11 扇门全灭、`builderr=0`、`badanchor=0`、基准 67 PASS、
   2 个 GAP 存活（§106.4 说明了为什么）、NC 存活、restore 字节级一致
 
+### 2026-09-30（§107 审查 `ce08d8799` + §108 上界回落家族清尾）
+
+### 107.1 这个提交是什么
+
+`ce08d8799` `fix(backend): 非分页业务参数 Atoi 全部归入 pagination.Int`，7 个文件 +27/−23，**0 个测试文件**，无文档、无变异验证、未推。`pagination` 包新增 `Int(value, def)`，把 5 个非分页业务参数（`depth`×2、`timeout_minutes`×2、`service_count`、`max_points`）从 `strconv.Atoi(c.DefaultQuery(...))` 迁过去，顺带删掉 `ai/skill` 里重复实现的 `queryInt`。
+
+### 107.2 说对的三条
+
+`grep 'strconv.Atoi.*DefaultQuery' internal/` 确实 0 条；`go test -count=1 ./...` rc=0、583 包 ok；build/vet 干净。这三条都复核过。
+
+### 107.3 说错的三条
+
+**标题「非分页业务参数 Atoi 全部归入」不成立。** `days`×2（`ticket`/`ticketing` 的 `analytics.go`）和 `maxResults`×2（`ticket`/`ticketing` 的 `relation.go`）是非分页业务参数，仍是丢弃错误的裸 `Atoi`。那个 `DefaultQuery` grep 抓不到它们——它们用的是 `c.Query`。这是第三次同一形状的错误：脚本的覆盖面等于输入清单的覆盖面，而清单是上一轮手工整理的（§106.2）。
+
+**「`infrastructure/dr`: parsePagination 改用 c.Query」是假的。** 改后仍是 `c.DefaultQuery`；diff 只是把两次调用提成 `pageStr` / `sizeStr` 两个局部变量，净 +2 行，行为零变化。7 个文件里 1 个是 `pagination.go` 本身、1 个是 no-op，实际是 5 处 handler 修复。
+
+**gofmt 是红的，提交里没提。** `cmdb-relationship/handler/handler.go` 把 `pagination` 排在 `middleware` 前面，`gofmt -l internal cmd` 非空。§106.7 记过的同类债务又添 1 个，本轮已修。
+
+### 107.4 5 处未记录的行为变更
+
+提交只说「迁到 `Int`」，没说这些参数的取值域变了。逐处对照：
+
+| 站点 | 改前 | 改后 |
+|---|---|---|
+| `graph` `depth` | `-5` 直达 `Neighbors` | `1`（真修） |
+| `ci-cd/runner` `timeout_minutes`×2 | `0`/`-1` = 不设阈值 | `5`（真修） |
+| `cmdb-relationship` `depth` | `0` = 不展开（有意义） | `2` |
+| `ai/skill` `queryInt`×16 调用点 | 接受任意整数，含 0/负 | `<= 0` 全部回落默认 |
+| `visor` `max_points` | `abc` → `0` = **不下采样** | `500` |
+
+`visor` 那条值得单独说：repository 的守卫是 `if maxPoints > 0 && len(items) > maxPoints`，`visor_service.go:280` 和 `:307` 内部就传 `0` 来表示「全部返回」。所以 `?max_points=abc` 以前意味着整条时间序列，现在是 500 个点。方向对，但客户端可见，提交里没提。
+
+### 107.5 `pagination.Int` 零测试
+
+`pagination_test.go` 原本只覆盖 `Offset` / `Limit` / `Page` / `OffsetFromPage`。新加的公共函数 `Int` 一行测试都没有——而 `Int` 是全平台的非分页整数参数地板。本轮补了 `TestInt`，含 `{"1", 2, 1}` 这条边界行：`i > 0` 悄悄变成 `i > 1` 会让 `depth=1`（`graph` 的默认值）折叠成它自己的回退值，浅一跳再也表达不出来。这条行的 NC 宽度为 1，正好落在 `{1,2,1}`。
+
+### 107.6 账本口径到第四个版本了
+
+`累计：149→156 已迁移站点`。§92-§103 用 149（`(page-1)*ps` 模式），§105 用过 147，§106 用 218（`pagination.Page`/`Limit` 调用点，本轮实测 219）。四个口径互不兼容，也没标基准。
+
+### 107.7 §106.11 因此过期
+
+§106.11 把 8 处非分页业务参数列为「仍在等决定」，其中 `depth`×2、`timeout_minutes`×2、`service_count`、`max_points` 这 5 处已经被这个提交迁掉了，只剩 `days`×2 和 `maxResults`×2。这 4 处下游都有地板（`ticket`/`ticketing` 的 `GetTrendReport` 有 `if days <= 0 { days = 30 }`、`FindRelatedTickets` 有 `if maxResults <= 0 { maxResults = 10 }`），**不是 live**，但仍是丢弃错误的裸 `Atoi`。
+
+---
+
+### 108.1 本轮扫描脚本自己错了两次（先记这个）
+
+第一次：正则写成 `[:=]`。Go 写 `:=` 是两字符，`[:=]` 是单字符类，匹配时只吃掉 `:` 留下一个 `=`，于是 `depth, _ := strconv.Atoi(...)` 一处都匹配不上——脚本报「query/param 上的裸 Atoi: 0 处」，而我上轮刚数的还是 34。同类错误第四次了（Round 101 的缩进、Round 105 的 `--- PASS:` 冒号、本轮两次）。修成 `[:=]=?` 之后是 26 处。
+
+第二次：上界正则写成 `^\s*\w+\s*>\s*\d+`，要求行首就是变量名，但实际代码是 `if pageSize > 100 {`。于是 15 处**顺序正确**的站点全被标成「先推导后夹上限」的假 bug。修好之后重数：**全树 26 个含手动 `(page-1)*` 推导的函数，0 处先推导后夹上限**。§106 担心的那个缺陷类目前并不存在，这一条本来可以让我白忙一轮。
+
+### 108.2 新查出 1 处 live：`ticket` / `ticketing` 的 SLA 告警静默过量
+
+`queue_handler.go`：`limit, _ := strconv.Atoi(c.Query("limit"))`，只判 `if limit == 0`；服务层 `GetSLAAlerts` 截断循环的守卫是 `if limit > 0 && len(alerts) >= limit { break }`。三层无地板。
+
+`?limit=-1` 返回**全部**排队工单的告警而不是 50 行。没有 500、没有报错，只是响应比调用方要求的长——和 `pandawiki` 那一类「静默」缺陷同一个形状（§106.3），比 500 更隐蔽。
+
+`ticket` / `ticketing` 不在 §103.6 手工整理的 33 模块清单里，所以 §104 和 §105 两轮的批量迁移都没扫到。**同一个盲区形状第三次出现。**
+
+修法：`pagination.Limit(c.Query("limit"), 50)`，一个地板收掉整个非正区间。
+
+### 108.3 18 处上界回落家族清尾（授权后执行）
+
+§106.6 记录过「16 处 `if X > 100 { X = 20 }`」并标为「语义选择，只记录不改」。本轮拿到授权后改成了夹到 100。
+
+**改前**（220 个含 `pagination.Page`/`Limit` 的函数）：147 → 100，15 → 20，1 → 50，56 无上界。
+**改后**（219 个）：**163 → 100，56 无上界**。回落到默认值这一族归零。
+
+顺带删掉的死代码：14 处 `if page < 1 { page = 1 }`（`pagination.Page` 已经收过地板），以及 `tool` 里一整段全死代码的夹点块（`limit` 先被 `pagination.Limit` 收过地板、又被前一个 `if` 收过上界，第二个块的两个分支都不可能成立）。
+
+**一条必须记的更正**：`startup` 的 `TestListModules_DefaultsAndClamping` 和 `TestParsePagination` **本来就把「回落到默认值」写进断言了**——`{"page_size=101", 1, 20}`、`{"page_size=500", 1, 20}`。所以这 16 处不是无人察觉的笔误，是有人钉住过的选择。本轮改的是断言而不是悄悄改行为：两处断言更新为 `100`，并加了注释说明这是那个必须移动的 pin。全量测试一开始在这里红了 2 个用例，正是这两条。
+
+**§106.6 漏了 2 处**：`tool/handler/handler.go:190` 和 `ai/gateway/handler/handler.go:156`。§106.6 的扫描只覆盖同时含 `pagination.Page` 和 `pagination.Limit` 的函数，这两个只用了 `Limit`。同一课：扫描口径决定答案。`ai/gateway` 那处特殊——`n` 是 `fmt.Sscanf(c.Param("n"), "%d", &n)` 解析的路径参数，原来的 `if n <= 0 || n > 100` 同时兜了两个方向，拆成夹到 100 之后必须单独补一个 `if n < 1`，否则负数会漏过去。
+
+**另外 6 处模块专属上界没动**：`cmdb-import`、`plugin`×2、`cmdb-collector` 是 500，`cmdb-validator` 是 500/200，`tool:323` 是 50。那是模块自己的上限（批量导入、校验器规则这类接口就是要大页），跟平台的 100 不是一个决定，本轮没有授权，也没碰。
+
+### 108.4 变异验证
+
+**11 个模块的 cap 测试全部 KILLED。** 断言形状分三种：响应信封里有 `page_size` 的 9 个模块（`role`、`user`、`hook-chain`、`feature-flag`、`gateway-dynamic`、`workflow-trigger`、`session`、`permission`、`lowcode`）断言 `"page_size":100`；`param-types` 的信封不含分页字段，改用 sqlmock 的 `WithArgs("tenant-1", 0, 100)` 钉绑定的 LIMIT；`startup` 的 `parsePagination` 是纯函数，直接钉返回值。
+
+NC 实跑 4 个代表站点：`user`、`feature-flag`、`workflow-trigger`（信封族，宽度各 1）、`param-types`（绑定参数族，宽度 1）、`startup`（纯函数族，宽度 1）——全部按预期 FAIL，restore 后字节级一致、全绿。其余 6 个信封族站点是同一断言形状，同一个 revert 会同样失败。
+
+**2 个 queue 站点**：NC 把 `pagination.Limit` 退回 `strconv.Atoi` + `if limit == 0` 之后，`ticket` 和 `ticketing` 各红 2 行（`negativeLimitIsFloored` 和 `largeNegativeLimitIsFloored`，`count = 55, want 50`）。测试里队列故意造了 55 条，超过 50 的回退值，地板才可见；再配一条 3 条队列的 `shortQueueIsNotPadded`，证明地板只设下限、不会把短队列补到 50。
+
+**`TestInt`**：NC 把 `Int` 里的 `i > 0` 改成 `i > 1`，被 `{1,2,1}` 一行杀死。
+
+**仍然存活的是 6 处 GAP**，同一个形状：测试钉不住，因为模块里没有可用的测试入口。`governance/compliance` 3 处（信封是裸数组、模块零测试文件）、`security/secret` 1 处（信封不含分页字段）、`prompt-security` 1 处（模块零测试）、`tool` 1 处（信封不含分页字段）、`ai/gateway` 1 处（信封不含分页字段）。这 6 处可以退回 `pageSize = 20` 而 584 个包全绿。**这是本轮和 §104/§105 的区别：GAP 数从「全部」降到 6 处，且逐处列了名字。**
+
+### 108.5 gofmt 与 `pagination.Int`
+
+`cmdb-relationship/handler/handler.go` 的 import 顺序修好，`gofmt -l internal cmd` 空。`TestInt` 补了 13 行用例（缺省、不可解析、`-`、负数、零、边界 1、上界不夹、比回退值大和小的两种情况）。
+
+### 108.6 carry-forward
+
+§102.9 的 (a)-(j)、§101.7 的 (a)-(i)、§101.9 的 (a)-(g)、§100.8 的 (a)-(h) 及更早全部不变。新增：
+
+- **6 处 GAP**（§108.4）：`governance/compliance`×3、`security/secret`、`prompt-security`、`tool`、`ai/gateway` 的上界可以静默退回 20。修法需要给这 5 个模块建测试入口（前两个信封不含分页字段，得加记录器或改信封），本轮没做。
+- **`pagination.Page(c.Query("page"), 0)`**（`prompt-security/handler/handler.go:87`）：page 的默认值传的是 0，`Page` 只在解析成功且 > 0 时返回解析值，所以缺省和不可解析都是 0，而 `ScanHistory` 拿到的就是 0。是否要地板成 1 需要看服务层怎么解释 0，本轮只记录。
+- **`ticket` / `ticketing` 的 `days`×2、`maxResults`×2**（§107.7）：下游有地板所以不是 live，但仍是丢弃错误的裸 `Atoi`。
+- **14 轮 GAP**（共享 `pagination` 包不加夹点）仍未修。本轮**没有**把夹点上移到共享包：163 处继续用手写的 `if ps > 100`，已建立的 M2/M3 门不动。`ce08d8799` 往包里加的 `Int` 只加了地板，没破坏门，但包的角色从「分页夹点」扩成了「任意整数参数解析」，名字和职责现在对不上了——这一条留给你定。
+- **`pipeline-batch` 的 `total = len(groups)`**、§102.9 (a)-(d)、§101.7 (a)-(i) 全部照旧，仍未动。
+- `StartTrace` 关 auth、`RecordSavings` 零调用、模块 A 的 6 个 handler / 33 处裸 tenant 读、关 auth 的 `X-Tenant-Id` tenant 来源、`ci-cd/build` + `ci-cd/deploy` 的 2 个有真调用的 `PaginatedRequest`——**仍需授权，没动。**
+
+### 108.7 最终状态
+
+- 本轮修掉 **18 处上界回落** + **2 处 live 静默过量**（`ticket` / `ticketing`）
+- 上界形状：**163 → 100 / 56 无上界**，回落到默认值这一族归零
+- 裸 `strconv.Atoi` 读 query/param：**26 → 24**（`ticket` / `ticketing` 各 1 处），其中丢弃 error 的 **17 → 15**
+- 含手动 `(page-1)*` 推导的函数 26 个，**0 处先推导后夹上限**
+- 删掉 14 处死代码地板 + `tool` 一整段全死代码夹点块
+- 新增 13 个测试文件（2 个 queue、11 个 cap），`pagination` 补 `TestInt`
+- gofmt 全清；build / vet 全绿；`go test -count=1 ./...` **584 包 ok / 0 FAIL**（`param-types/handler` 是它第一个测试包）
+- 变异验证：11 个 cap 站点 + 2 个 queue 站点 + `TestInt` 全部 KILLED，NC 宽度均为 1；**6 处 GAP 存活并逐处列名**（§108.4）
+- `ce08d8799` 的 3 条错误声明、5 处未记录行为变更、零测试问题已在本节记录，gofmt 已修
+
 ---
 
 ## P0-MB Phase 5c — 生产接线（2026-08-26）
