@@ -85,12 +85,7 @@ func (h *Handler) ListSpaces(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	opts := parseSpaceListOpts(c)
-	page := pagination.Page(c.Query("page"), 1)
-	pp := 50
-	if p := c.Query("perPage"); p != "" {
-		pp, _ = strconv.Atoi(p)
-	}
-	offset := (page - 1) * pp
+	page, offset, pp := listPage(c, false)
 	spaces, total, err := h.svc.ListSpaces(ctx, tenantID, offset, pp, opts)
 	if err != nil {
 		respondInternalError(c, err.Error())
@@ -191,12 +186,7 @@ func (h *Handler) ListDocs(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	opts := parseDocListOpts(c)
-	page := pagination.Page(c.Query("page"), 1)
-	pp := pagination.Limit(c.Query("pageSize"), 50)
-	if p := c.Query("perPage"); p != "" {
-		pp, _ = strconv.Atoi(p)
-	}
-	offset := (page - 1) * pp
+	page, offset, pp := listPage(c, true)
 	docs, total, err := h.svc.ListDocs(ctx, tenantID, offset, pp, opts)
 	if err != nil {
 		respondInternalError(c, err.Error())
@@ -476,6 +466,48 @@ func (h *Handler) GetGraph(c *gin.Context) {
 		return
 	}
 	respondSuccess(c, graph)
+}
+
+// listPage parses the page / page-size parameters shared by the two list
+// endpoints and returns the SQL offset and limit.
+//
+// Both endpoints read `perPage`, and ListDocs additionally honours `pageSize`;
+// `perPage` wins when both are present. `pageSize` is only consulted when
+// readPageSizeAlias is set, because ListSpaces never accepted it and wiring it
+// in here would silently widen what that endpoint honours.
+//
+// Both endpoints used to read `perPage` with a bare strconv.Atoi and throw the
+// error away, so one mistyped character decided the shape of the query:
+//
+//	page=1&perPage=abc  -> size  0, offset  0
+//	page=3&perPage=abc  -> size  0, offset  0
+//	page=3&perPage=-5   -> size -5, offset -10
+//
+// The service floors both values (`limit < 1 -> 50`, `offset < 0 -> 0`), which
+// is why none of these turned a GET into a 500 - but `page=3` answered with
+// page 1's rows while `meta.perPage` reported 0 or -5, so a client paging
+// forward landed on the same page twice with no signal that anything was wrong.
+// Nothing capped the size either: the service only has a floor, so
+// `perPage=100000` went straight into LIMIT. The cap below is the 50 this
+// module already applies in Search and GetSyncLogs, so the list endpoints now
+// agree with the rest of it.
+//
+// The bulk migration of every `page_size` parameter in the platform missed both
+// of these: they are spelled `perPage` / `pageSize`.
+func listPage(c *gin.Context, readPageSizeAlias bool) (page, offset, size int) {
+	page = pagination.Page(c.Query("page"), 1)
+	var raw string
+	if readPageSizeAlias {
+		raw = c.Query("pageSize")
+	}
+	if p := c.Query("perPage"); p != "" {
+		raw = p
+	}
+	size = pagination.Limit(raw, 50)
+	if size > 50 {
+		size = 50
+	}
+	return page, pagination.OffsetFromPage(page, size), size
 }
 
 // ================== Helpers ==================

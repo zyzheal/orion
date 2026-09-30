@@ -3,7 +3,6 @@ package handler
 import (
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -12,6 +11,7 @@ import (
 	"orion/platform-svc-go/internal/alert-adapter-v2/models"
 	"orion/platform-svc-go/internal/alert-adapter-v2/service"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 )
 
 type Handler struct{ factory *service.NotificationFactory }
@@ -78,15 +78,24 @@ func (h *Handler) CreateAdapter(c *gin.Context) {
 	middleware.RespondCreated(c, a)
 }
 
+// listArgs parses the offset/limit pair shared by the three list endpoints.
+//
+// offset floors a negative value to 0. A negative OFFSET is rejected by
+// Postgres, so ?offset=-5 was an error instead of a page: the GET became a 500.
+// The limit fallback below is what the inline `if limit <= 0` block did three
+// times; neither the handler nor the repository capped it, so
+// ?limit=100000 went straight into LIMIT.
+func listArgs(c *gin.Context) (offset, limit int) {
+	offset = pagination.Offset(c.Query("offset"))
+	limit = pagination.Limit(c.Query("limit"), 20)
+	return offset, limit
+}
+
 func (h *Handler) ListAdapters(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertAdapterListAdapters")
 	defer span.End()
 	ch := c.Query("channel")
-	offset, _ := strconv.Atoi(c.Query("offset"))
-	limit, _ := strconv.Atoi(c.Query("limit"))
-	if limit <= 0 {
-		limit = 20
-	}
+	offset, limit := listArgs(c)
 	items, err := h.factory.ListAdapters(ctx, c.GetString("tenant_id"), ch, offset, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -152,11 +161,7 @@ func (h *Handler) ListTemplates(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertAdapterListTemplates")
 	defer span.End()
 	ch := c.Query("channel")
-	offset, _ := strconv.Atoi(c.Query("offset"))
-	limit, _ := strconv.Atoi(c.Query("limit"))
-	if limit <= 0 {
-		limit = 20
-	}
+	offset, limit := listArgs(c)
 	items, err := h.factory.ListTemplates(ctx, c.GetString("tenant_id"), ch, offset, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -187,11 +192,7 @@ func (h *Handler) SendNotification(c *gin.Context) {
 func (h *Handler) ListEvents(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertAdapterListEvents")
 	defer span.End()
-	offset, _ := strconv.Atoi(c.Query("offset"))
-	limit, _ := strconv.Atoi(c.Query("limit"))
-	if limit <= 0 {
-		limit = 20
-	}
+	offset, limit := listArgs(c)
 	items, err := h.factory.ListEvents(ctx, c.GetString("tenant_id"), c.Param("id"), c.Query("status"), offset, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

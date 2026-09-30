@@ -1,13 +1,11 @@
 package handler
 
 import (
-	"strconv"
-
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/platform-svc-go/internal/pipeline-batch/models"
 	"orion/platform-svc-go/internal/pipeline-batch/service"
-
-	"orion/platform-svc-go/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -65,14 +63,31 @@ func (h *Handler) CreatePhaseGroup(c *gin.Context) {
 	middleware.RespondCreated(c, group)
 }
 
+// listArgs parses the offset/limit pair for ListPhaseGroups.
+//
+// Neither value was floored, which gave two different failures from the same
+// endpoint. `?offset=-1` reached Postgres as a negative OFFSET - an error
+// instead of a page, so the GET returned 500. With no limit parameter at all,
+// `strconv.Atoi("")` returned 0 and the 0 went straight into LIMIT, so the
+// endpoint answered an empty list for every ordinary request. The repository
+// checks only whether the pointer is nil, not what it points at, so it could
+// not have caught either.
+func listArgs(c *gin.Context) (offset, limit int) {
+	offset = pagination.Offset(c.Query("offset"))
+	limit = pagination.Limit(c.Query("limit"), 20)
+	return offset, limit
+}
+
 func (h *Handler) ListPhaseGroups(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPhaseGroups")
 	defer span.End()
 	tenantID := h.getTenantID(c)
 	pipelineID := c.Query("pipelineId")
 	status := c.Query("status")
-	limit, _ := strconv.Atoi(c.Query("limit"))
-	offset, _ := strconv.Atoi(c.Query("offset"))
+	offset, limit := listArgs(c)
+	// The repository takes (limit, offset), the reverse of this
+	// helper, so the pointers are spelled out rather than relying on
+	// the return order.
 
 	groups, total, err := h.svc.ListPhaseGroups(ctx, tenantID,
 		getStrPtr(pipelineID), getStrPtr(status), &limit, &offset)

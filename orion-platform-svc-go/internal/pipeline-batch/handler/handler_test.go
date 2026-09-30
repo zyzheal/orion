@@ -25,8 +25,6 @@ func makeCtx(method string, path string) (*gin.Context, *httptest.ResponseRecord
 	return c, w
 }
 
-type fakePipeline_batchService struct{}
-
 func (f *fakePipeline_batchService) AdvanceToNextBatch(ctx context.Context, id string, tenantID string) (*models.PhaseGroup, error) {
 	return &models.PhaseGroup{}, nil
 }
@@ -55,8 +53,22 @@ func (f *fakePipeline_batchService) ListBatchRuns(ctx context.Context, pgID stri
 	return []models.BatchRun{}, nil
 }
 
+// lastLimit and lastOffset let a test inspect the window the handler handed
+// over. They stay nil unless ListPhaseGroups was called.
+type fakePipeline_batchService struct {
+	lastLimit  *int
+	lastOffset *int
+}
+
 func (f *fakePipeline_batchService) ListPhaseGroups(ctx context.Context, tenantID string, pipelineID *string, status *string, limit *int, offset *int) ([]models.PhaseGroup, int, error) {
+	f.lastLimit = limit
+	f.lastOffset = offset
 	return []models.PhaseGroup{}, 0, nil
+}
+
+func newHandlerWithRecorder() (*Handler, *fakePipeline_batchService) {
+	f := &fakePipeline_batchService{}
+	return NewHandler(f), f
 }
 
 func (f *fakePipeline_batchService) PauseExecution(ctx context.Context, id string, tenantID string) (*models.PhaseGroup, error) {
