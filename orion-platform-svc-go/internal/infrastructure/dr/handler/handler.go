@@ -7,6 +7,7 @@ import (
 
 	"orion/platform-svc-go/internal/infrastructure/dr/models"
 	"orion/platform-svc-go/internal/infrastructure/dr/service"
+	"orion/platform-svc-go/internal/pagination"
 
 	"orion/go-common/pkg/auth"
 
@@ -28,13 +29,15 @@ const maxPageSize = 100
 // limit the repository takes. Both list handlers used to discard the Atoi error,
 // so page=abc meant page 0 and page_size=0 meant no LIMIT at all.
 func (h *Handler) parsePagination(c *gin.Context) (offset, limit int, ok bool) {
-	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
-	if err != nil || page < 1 {
+	pageStr := c.DefaultQuery("page", "1")
+	sizeStr := c.DefaultQuery("page_size", "20")
+	page, perr := strconv.Atoi(pageStr)
+	if perr != nil || page < 1 {
 		respondBadRequest(c, "page must be an integer >= 1")
 		return 0, 0, false
 	}
-	size, err := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	if err != nil || size < 1 || size > maxPageSize {
+	size, serr := strconv.Atoi(sizeStr)
+	if serr != nil || size < 1 || size > maxPageSize {
 		respondBadRequest(c, "page_size must be an integer between 1 and "+strconv.Itoa(maxPageSize))
 		return 0, 0, false
 	}
@@ -597,7 +600,7 @@ func (h *Handler) GetCostEstimate(c *gin.Context) {
 	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InfraDRGetCostEstimate")
 	defer span.End()
 	strategy := c.DefaultQuery("strategy", "cold-standby")
-	serviceCount, _ := strconv.Atoi(c.DefaultQuery("service_count", "1"))
+	serviceCount := pagination.Int(c.Query("service_count"), 1)
 
 	estimate := h.svc.GetFailoverCostEstimate(strategy, serviceCount)
 	respondSuccess(c, estimate)

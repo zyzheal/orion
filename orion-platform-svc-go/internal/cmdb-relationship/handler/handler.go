@@ -15,10 +15,10 @@ package handler
 
 import (
 	"context"
-	"strconv"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/cmdb-relationship/models"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/platform-svc-go/internal/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -217,10 +217,7 @@ func (h *Handler) BuildTopology(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ciID := c.Param("ciId")
-	depth, _ := strconv.Atoi(c.DefaultQuery("depth", "2"))
-	if depth < 0 {
-		depth = 0
-	}
+	depth := pagination.Int(c.Query("depth"), 2)
 	if depth > 10 {
 		depth = 10
 	}

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"go.opentelemetry.io/otel"
-	"strconv"
 
 	"orion/platform-svc-go/internal/ci-cd/runner/models"
 	"orion/platform-svc-go/internal/ci-cd/runner/service"
@@ -204,7 +203,7 @@ func (h *Handler) SelectRunner(c *gin.Context) {
 func (h *Handler) GetStaleRunners(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIRunnerGetStaleRunners")
 	defer span.End()
-	timeout, _ := strconv.Atoi(c.DefaultQuery("timeout_minutes", "5"))
+	timeout := pagination.Int(c.Query("timeout_minutes"), 5)
 	stale, err := h.svc.GetStaleRunners(ctx, timeout)
 	if err != nil {
 		respondInternalError(c, err.Error())
@@ -216,7 +215,7 @@ func (h *Handler) GetStaleRunners(c *gin.Context) {
 func (h *Handler) MarkStaleRunnersOffline(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIRunnerMarkStaleRunnersOffline")
 	defer span.End()
-	timeout, _ := strconv.Atoi(c.DefaultQuery("timeout_minutes", "5"))
+	timeout := pagination.Int(c.Query("timeout_minutes"), 5)
 	count, err := h.svc.MarkStaleRunnersOffline(ctx, timeout)
 	if err != nil {
 		respondInternalError(c, err.Error())

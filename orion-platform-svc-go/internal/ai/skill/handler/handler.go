@@ -1,12 +1,11 @@
 package handler
 
 import (
-	"strconv"
-
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/ai/skill/models"
 	"orion/platform-svc-go/internal/ai/skill/service"
+	"orion/platform-svc-go/internal/pagination"
 
 	"orion/go-common/pkg/auth"
 )
@@ -674,11 +673,7 @@ func (h *Handler) GetAllAuditLogs(c *gin.Context) {
 // =====================================================================
 
 func queryInt(c *gin.Context, key string, def int) int {
-	v, err := strconv.Atoi(c.DefaultQuery(key, strconv.Itoa(def)))
-	if err != nil {
-		return def
-	}
-	return v
+	return pagination.Int(c.Query(key), def)
 }
 
 func mapError(c *gin.Context, err error) {

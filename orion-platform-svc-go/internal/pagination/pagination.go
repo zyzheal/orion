@@ -70,3 +70,14 @@ func Limit(value string, def int) int {
 	}
 	return def
 }
+
+// Int parses an arbitrary integer query param, clamping a non-positive value
+// to the default. Unlike Offset (which floors at 0), this is useful for
+// business parameters like depth, timeout_minutes, or max_points where a
+// zero or negative value is meaningless.
+func Int(value string, def int) int {
+	if i, err := strconv.Atoi(value); err == nil && i > 0 {
+		return i
+	}
+	return def
+}

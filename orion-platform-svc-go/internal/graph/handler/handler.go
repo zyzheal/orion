@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"strconv"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/graph/models"
@@ -312,7 +311,7 @@ func (h *Handler) GetNeighbors(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	nodeID := c.Param("nodeId")
-	depth, _ := strconv.Atoi(c.DefaultQuery("depth", "1"))
+	depth := pagination.Int(c.Query("depth"), 1)
 
 	paths, err := h.svc.Neighbors(ctx, tenantID, nodeID, depth)
 	if err != nil {

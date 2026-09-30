@@ -604,7 +604,7 @@ func (h *Handler) QueryMetricSeries(c *gin.Context) {
 	metricName := c.Param("id")
 	startStr := c.DefaultQuery("start", time.Now().Add(-1*time.Hour).Format(time.RFC3339))
 	endStr := c.DefaultQuery("end", time.Now().Format(time.RFC3339))
-	maxPoints, _ := strconv.Atoi(c.DefaultQuery("max_points", "500"))
+	maxPoints := pagination.Int(c.Query("max_points"), 500)
 
 	start, err := time.Parse(time.RFC3339, startStr)
 	if err != nil {
