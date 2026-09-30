@@ -3511,44 +3511,270 @@ feat(branch-policy): P0-MB Phase 5b — git merge-tree integration
 - **R6 schema-compatibility 真实实现**：需要 migration service 支持
 - **AddedFiles/ModifiedFiles/DeletedFiles 分类**：需调用 `git diff --name-status` 后解析
 
-### 2026-09-28（§103-§105 分页加固：page/page_size + offset/limit 全仓清零）
+### 2026-09-28（§103-§106 分页加固：LIVE 清零 + 批量迁移 + 审计补课）
 
-**§103 LIVE 列清零**（commit `ba730314b`）：governance/risk + digital-twin 两处单点站点
+> **本节由 §106 合并重写。** §104 与 §105 原本各写入一段「2026-09-28（§103-§104…）」/
+> 「…（§103-§105…）」小节，两段并存且口径互相矛盾（一处写 32→68 站点，一处写 0→148 站点），
+> 本节删掉重复段、只保留一段并把账本数字统一到实测值。
 
-**§104 50 站点批量迁移**（commit `50ee944d3`）：
-- Python 脚本批量 22 模块 + 13 复查已改 + vulnerability 手动 = 36 handler 文件
-- infrastructure/dr 豁免（Pattern D：400 错误响应设计）
-- page/page_size 裸 Atoi 清零
+**§103 LIVE 列清零**（commit `ba730314b`，详见 §103）：
+- `governance/risk`：5 方法 Service 接口 + `pagination.Page`/`Limit`/`OffsetFromPage` + 100 上界 + nil→空切片 + 新增 handler_test.go
+- `infrastructure/digital-twin`：最小变更策略（35 方法不提取接口，仅改 List 内部），sqlmock 全链路测试
+- **LIVE 2 处 / 2 模块 → 0 处 / 0 模块**
 
-**§105 offset/limit 模式批量迁移**：
-- 80 个 handler 文件批量迁移：`limit, _ := strconv.Atoi(...)` → `pagination.Limit(...)` + 100 上界，`offset, _ := strconv.Atoi(...)` → `pagination.Offset(...)`
-- 3 处非标准变量名手动修复（plugin `l`、job-source `off`、cron `off`）
-- offset/limit 裸 Atoi 清零
+**§104 page/page_size 批量迁移**（commit `50ee944d3`，37 文件）：
+- Python 脚本批量 22 模块 + 13 处复查已改 + `vulnerability` 手动 = 36 个 handler 文件
+- `infrastructure/dr` 豁免（Pattern D：自带 `parsePagination`，超界回 400，比这一族任何一处都严格）
 
-**最终状态**：
-- `grep -rn 'strconv.Atoi.*DefaultQuery.*page\|page_size\|pageSize\|limit\|offset'` → 0 条
-- go build ./... / go vet ./... / go test -count=1 ./... → 全绿 583 包 / 0 FAIL
-- 累计：0→148 已迁移站点，0→87 模块覆盖
+**§105 offset/limit 批量迁移**（commit `b8738da14`，81 文件）：
+- `limit, _ := strconv.Atoi(...)` → `pagination.Limit(...)` + 100 上界；`offset, _ :=` → `pagination.Offset(...)`
+- 3 处非标准变量名手动修复（`plugin` 的 `l`、`job-source` 的 `off`、`cron` 的 `off`）
 
-### 2026-09-28（§103-§104 分页加固：50 站点批量迁移完成）
+### 106.1 本轮实测账本（脚本口径，非手工计数）
 
-**背景**：台账原 149 个 offset 读取点，Round 79-103 迁移 32 个。台账口径不完整——全仓 grep 发现 50 处 page/page_size 裸 Atoi 站点散布在 33 个模块中，全部未被台账覆盖。
+对全仓每个含 `pagination.Page` 或 `pagination.Limit` 的函数做结构扫描，**218 个调用点**：
 
-**§103 LIVE 列清零**（commit `ba730314b`）：
-- governance/risk：5 方法 Service 接口 + pagination.Page/Limit/OffsetFromPage + 100 上界 + nil→空切片 + 新增 handler_test.go（10 条 paginationCases + 信封形状 + 路由断言）
-- infrastructure/digital-twin：最小变更策略（35 方法不提取接口，仅改 List 内部），sqlmock 全链路测试
+| 形状 | 数量 |
+|---|---|
+| `if X > 100 { X = 100 }`（这一族的既定上界） | **147** |
+| `if X > 100 { X = 20 }`（上界回落到**默认值**） | **15** |
+| `if X > 100 { X = 50 }`（同上，默认值是 50） | 1 |
+| 没有上界 | 55 |
+| 其中带**死代码地板**（`pagination.Page` 已夹过又写一次 `if page <= 0`） | 21 |
+| 其中手动 `(page-1)*ps` 推导而非 `pagination.OffsetFromPage` | 7 |
 
-**§104 50 站点批量迁移**：
-- Python 脚本批量迁移 22 个模块（hook-chain / infra-dba / iac / serverless / lowcode / notification-template / pandawiki / param-types / permission / prompt-security / release-management / resilience-score / role / secret / service-registry / session / startup / test-execution-engine / user-activity / user / visor-exec / workflow-trigger）
-- 12 个跳过文件复查后发现 11 个已被脚本实际修改（仅 strconv import 保守未删），仅 infrastructure/dr 为 Pattern D（400 错误响应设计，不迁移）
-- vulnerability 模块手动迁移（page+limit → query struct 模式）
-- 迁移统计：36 个 handler 文件、32→68 已迁移站点
+手动推导在**已迁移集合内**是 7 处，但全树 `(page - 1) *` 有 **47 处**——其余 40 处在
+service / repository 层，是 §104/§105 根本没碰过的层。这个数字说明「批量迁移」的实际
+覆盖面比提交信息暗示的小得多。
 
-**最终状态**：
-- `grep -rn 'strconv.Atoi.*DefaultQuery.*page'` → 0 条（排除 infrastructure/dr Pattern D）
-- `grep -rn 'strconv.Atoi.*DefaultQuery.*page_size\|pageSize'` → 0 条
-- 残余 offset/limit 模式站点不在 page/page_size 口径内，属独立迁移战役
-- go build ./... / go vet ./... / go test -count=1 ./...：全绿 0 FAIL
+### 106.2 修正 §105 的「全仓清零」（这是本轮最重要的一条）
+
+§105 的提交信息写「80 站点全仓清零」。**按这个口径是假的。** 全树仍有 **43 处**裸
+`strconv.Atoi` 读 query/param，其中 **32 处把 error 直接丢掉**（`x, _ := strconv.Atoi(...)`）：
+
+| 归类 | 数量 |
+|---|---|
+| `offset`/`limit`/`perPage` 分页形状 | 24 |
+| 非分页参数（`depth`×2、`timeout_minutes`×2、`days`×2、`max_points`、`service_count`、`maxResults`×2、`version`×2、`idx`） | 19 |
+
+按 §95.1 的口径（handler 无地板 **且** service 无夹点 **且** repository 无夹点 才算 live）
+逐处追下游，24 处分页形状里：
+
+- **8 处是 live**——`alert-adapter-v2` 的 `ListAdapters`/`ListTemplates`/`ListEvents`
+  各 2 处，加 `pipeline-batch` 的 `ListPhaseGroups` 2 处。`offset` 从 handler 一路进 SQL
+  的 `OFFSET $n`，**三层都没有地板**，`?offset=-5` 是 Postgres 报错而不是第 N 页，
+  GET 变 500。本轮已修（见 §106.3）。
+- 其余在 service 或 repository 有 `if limit <= 0` / `if offset < 0`，不是 live。
+
+为什么漏：§103.6 列出 33 个模块作为 §104 的迁移清单，`alert-adapter-v2`、`pipeline-batch`、
+`pipeline-audit-log`、`sbom`、`storage`、`file-handler`、`slo` **都不在这 33 个里**，
+脚本只对清单内的模块跑。所以准确的结论是「§103.6 清单内的模块清零」，不是全仓清零。
+
+`pipeline-batch` 那处还多一个独立缺陷：没有 `limit` 参数时 `strconv.Atoi("")` 返回 0，
+而 repository 只判断指针是否 nil、不判断指向的值，所以 `LIMIT 0` 真的进了 SQL——
+**普通请求（不带任何参数）返回空列表**。这一处是「修好 500」和「修好空列表」两件事。
+
+### 106.3 本轮修掉的 10 处（3 个模块）
+
+**`pandawiki` 2 处**（`ListSpaces`、`ListDocs`）——§104 按 `page_size` 抓，这两个端点
+拼的是 `perPage` / `pageSize`，整段被 grep 跳过：
+
+```go
+page := pagination.Page(c.Query("page"), 1)   // page 半被迁移了
+pp := 50
+if p := c.Query("perPage"); p != "" {
+    pp, _ = strconv.Atoi(p)                    // size 半没有
+}
+offset := (page - 1) * pp
+```
+
+`page=3&perPage=abc` → size 0、offset 0；`page=3&perPage=-5` → size -5、offset -10。
+**服务层两边都有地板**（`limit < 1 -> 50`、`offset < 0 -> 0`），所以这不是 500——
+是 `page=3` 返回第 1 页的行，而响应里的 `meta.perPage` 报 0 或 -5。客户端往前翻页
+会在同一页停两次，没有任何信号。上界同样没有：`perPage=100000` 直接进 LIMIT。
+
+这类比 500 更隐蔽：500 会吵，这个只会让分页卡住。
+
+改法收敛成一个纯函数 `listPage(c, readPageSizeAlias)`，两个端点共用；
+`readPageSizeAlias` 是故意的——`ListSpaces` 从来没收过 `pageSize`，
+在共用函数里顺手加进去会静默扩大这个端点的接受面。上界用 50，
+与同模块 `Search` / `GetSyncLogs` 已有的 50 对齐。
+
+**`alert-adapter-v2` 6 处 + `pipeline-batch` 2 处**：
+`pagination.Offset` + `pagination.Limit(..., 20)` 收敛成各自的 `listArgs(c)`。
+`alert-adapter-v2` 原来的 `if limit <= 0 { limit = 20 }` 与 `pagination.Limit(x, 20)`
+语义完全等价，所以这一处纯粹是消掉三遍重复；`pipeline-batch` 是实打实的两个缺陷。
+
+两个 `listArgs` 都返回 `(offset, limit)`。`pipeline-batch` 的 repository 参数顺序是
+`(limit, offset)`，反的——所以那处调用点显式写了 `offset, limit := listArgs(c)`
+再传 `&limit, &offset`，不靠返回顺序。这是 §102.9(f) 那类陷阱的又两个实例
+（这次主动消掉了，不是记录着）。
+
+### 106.4 变异验证
+
+基准 67 PASS / 0 fail（3 个 handler 包）。**11 扇门全灭，宽度如下**：
+
+| 门 | 变异 | 宽度 |
+|---|---|---|
+| P1 | `pandawiki` size 退回裸 Atoi（丢掉地板） | 10 |
+| P2 | 丢掉 50 上界 | 5 |
+| P3 | 丢掉 page 地板 | 10 |
+| P4 | 丢掉 `readPageSizeAlias` 保护（ListSpaces 开始读 pageSize） | 2 |
+| P5 | 忽略 `perPage` | 9 |
+| A1 | `alert-adapter-v2` offset 退回裸 Atoi | 7 |
+| A2 | 丢掉 limit 地板 | 12 |
+| B1 | `pipeline-batch` offset 退回裸 Atoi | 4 |
+| B2 | 丢掉 limit 默认值 | 10 |
+| B3 | 调用点把 `limit`/`offset` 传反 | 1 |
+| B-WIRE | `ListPhaseGroups` 整个退回行内裸 Atoi | 1 |
+
+`builderr = 0`，`badanchor = 0`，restore 字节级一致（独立复跑确认 0 个文件有差异）。
+
+**2 个 GAP 存活**，都是同一个形状：测试钉住了 helper，没钉住 helper 有没有被调用。
+把 `ListSpaces` / `ListAdapters` 改回行内裸 Atoi 而不动 `listPage` / `listArgs`，
+编译过、67 个测试全绿。原因是这两个 handler 持有具体类型
+（`*service.Service`、`*service.NotificationFactory`）而不是接口，没法用假实现驱动，
+提接口要 17 个和若干方法，比 §103 的 digital-twin 那次更不值得。
+
+`pipeline-batch` 没有这个盲区：它原本就有 `fakePipeline_batchService`，
+加两个指针字段之后 `TestListPhaseGroupsForwardsAValidWindow` 就能检查真传出去的值，
+所以 B-WIRE 被杀掉了。**这是同一轮里两种写法的直接对比**：能假实现就钉住接线，
+钉不住就老老实实把盲区记下来。顺带说一句，
+`TestHandler_PIPELINE_BAT_ListPhaseGroups` 原本只断言 `w.Code < 500`——
+正是 §97-§102 反复出现的「断言唯一不会变的分支」形状，没删它，
+在它旁边加了一个会变的。
+
+### 106.5 变异验证缺口（§104/§105 的问题，本轮没法补）
+
+`git show --name-only` 确认：**§104 与 §105 各新增 0 个测试文件。** 120 个文件的改动
+没有新测试、没有 GAP 门、没有 NC 对照组、没有 killed/builderr/survived 计数。
+
+覆盖率实测：
+
+- 全树只有 **9 个测试文件**断言过 `> 100` 的上界（`page_size=250` 等），全部来自 Round 96-103
+  的逐轮工作（`ai/intelligence`、`cmdb-import`、`extension-point`、`governance/governance`、
+  `governance/risk`、`capacity`、`chaos`、`digital-twin`、`visor`）。
+- 只有 **10 个文件**引用共享用例表 `paginationCases`。
+- **16 处上界偏离站点里，4 处连 handler 测试都没有**：`param-types`、`governance/compliance`、
+  `prompt-security`、`security/secret`。
+
+也就是说：把 15 处的 `20` 改成 `100`（或反过来），**当前没有任何测试会失败**。这和
+§97-§102 的 GAP 发现是同一形状——有测试看着像覆盖、实际上覆盖的是唯一不会变的那个分支——
+只不过这 4 处连「看着像覆盖」都没有。120 个文件不适合 120 个文件的变异台架，
+§106.1 的结构化审计是这一轮能做到的最诚实的验证方式，但它是**静态**的，
+静态审计抓不到 §106.2 那种「形状对了但顺序错了」的东西——
+那两处只有真把请求打进去才会暴露。
+
+### 106.6 本轮新发现：16 处上界把 page_size 回落到默认值，不是夹到 100
+
+§104 引入了一种这一族没有的形状：
+
+```go
+page := pagination.Page(c.Query("page"), 1)
+pageSize := pagination.Limit(c.Query("page_size"), 20)
+if page <= 0 {                 // 死代码：pagination.Page 已经夹过
+    page = 1
+}
+if pageSize <= 0 || pageSize > 100 {
+    pageSize = 20              // 其余 147 处是 100
+}
+offset := (page - 1) * pageSize
+```
+
+`page_size=1000` 在这 16 处返回 **20 行**（`session` 是 50 行），在其余 147 处返回 **100 行**。
+同一棵树里同一个请求有两种不同回答。清单：`param-types`、`role`、`security/secret`、`user`、
+`prompt-security`、`hook-chain`、`feature-flag`、`governance/compliance`×3、`gateway-dynamic`、
+`workflow-trigger`、`lowcode`、`startup`、`permission`（15 处 → 20），加 `session`（→ 50）。
+
+**性质判定：这是语义选择，不是笔误**，所以本轮只记录不改。改成 `100` 会让这 16 个端点在
+`page_size > 100` 时多返回一倍行数——是可见的行为变更，需要单独授权。与 §104 里给
+`pagination` 包加上限是同一类决策。那 21 处死代码地板跟这 16 处的 `> 100` 判断写在
+同一个 `if` 块里，没法单独清，一清就会产生中间状态，所以一起等这个决定。
+
+同样等决定的还有 §106.1 里那 47 处手动 `(page-1)*` 推导要不要收敛回 `OffsetFromPage`。
+
+### 106.7 gofmt 回归
+
+§104/§105 没跑 gofmt：`gofmt -l internal cmd` 从 3 个历史文件涨到 **95 个**。成因两类：
+§104/§105 把 `pagination` 插进了错误的 import 分组；以及单行 `if limit > 100 { limit = 100 }`
+没展开。commit `f27d53df0` 已全仓 gofmt（95 文件，+482/−332，纯格式），顺带把 `ticket/models`
+那三个历史遗留文件也格式化了。
+
+### 106.8 提交规范
+
+`ba730314b` 把代码和 §103 文档打进同一个 commit；`50ee944d3` 与 `b8738da14` 的代码与文档
+也混在一起，且文档写在了 P0-MB 章节的「剩余任务」小节里而不是文档末尾的 §N 序列里——
+**§103 是文档末尾唯一按 `## §N` 序列落的**，§104/§105 没有。本轮把三段合并进这里，
+§104/§105 的正文留在 §103 之后不再重复。本轮自身按约定拆成
+`fix(backend)` + `docs` 两个 commit。
+
+### 106.9 台架自身的 5 个 bug（都在出结果之前修掉了）
+
+1. `open(p, 'w')` 在 write 参数求值**之前**就截断文件。某个变异缺 `_R` 键时
+   `s.replace(old, None)` 抛 TypeError，但文件已经被截成 0 字节。改成先校验全部锚点、
+   先算好替换文本再开文件。
+2. `gate()` 把解包变量写成 `_fails`，判断却用 `fails`——那个 `fails` 是模块级基准变量，
+   永远是 `[]`。**结果每一扇门都报告 SURVIVED、fail=0**。这个错如果没被后面两步抓住，
+   就会产出一份「11 扇门全部存活」的假报告。
+3. 判定字符串带了对齐用的尾随空格（`'KILLED  '`），跟 `'KILLED'` 比较永远不相等，
+   `killed=0/11`。改成只在打印时 pad。
+4. `test()` 在 builderr 分支返回 3 个值、成功分支返回 4 个，解包直接 ValueError。
+5. Go 打印的是 `--- PASS: Name`，带冒号。`\s+` 后接名字的写法一个都匹配不上，
+   所有宽度读成 0。这是**第三次**同类错误（Round 101 漏了 4 空格缩进的子测试行，
+   这次漏了冒号）。台架计数器和真实输出之间隔着一层正则，每层都能错。
+
+### 106.10 自己说错的两处
+
+1. **对用户说「§104 和 §105 完全没有文档」——这是错的。** 两者在
+   `docs/development-progress.md:3514` 都有小节。真正成立的是那半句「没有变异验证记录」，
+   以及重复段并存、嵌套在 P0-MB 章节的「剩余任务」里、账本数字互相矛盾。
+   把「没有文档」和「没有验证」混成一句，等于把一个可修的文档问题说成了不存在。
+2. §106.1 第一稿写「整棵树仍有 16 处裸 Atoi，逐处核实过全部不是 live」。**错的。**
+   实际是 43 处（32 处丢 error），其中 8 处是 live。原因是我沿用了 §104 的 grep 口径
+   （`strconv.Atoi` + `DefaultQuery`），而这个口径本身就漏掉了用 `Query` 的那些。
+   分类脚本第一版还判反了：`_ :=` 被当成了「检查了 error」，
+   把 `storage` 那种明显丢 error 的站点归进「安全」那一栏。
+
+### 106.11 carry-forward
+
+§102.9 (a)-(j)、§102.10、§102.11、§102.13 全部不变；§101.7 (a)-(i)、§101.9 (a)-(g)、
+§100.8 (a)-(h)、§99.8 (a)-(h)、§98.9 (a)-(h)、§97.9 (a)-(h)、§96.7 (a)-(h)、
+§95.7 与 §95.2 的两张台账表、§94.7 (a)-(h)、§93.7 (a)-(h)、§92.7 (a)-(h)、
+§91.7 (a)-(h)、§90.7 (a)-(h)、§89.7 (a)-(h)、§88.6 (a)-(f)、§87.6 (a)-(f) 全部不变。
+仍需授权的四项不变：`StartTrace` 在 auth 关闭时、`RecordSavings` 零调用方、
+模块 A 的 6 个 handler / 33 处裸 tenant 读、auth 关闭时的 `X-Tenant-Id` tenant 来源。
+
+### 106.12 关于 `4e50f8881`（chatops 的 perPage）
+
+本节前有一个 `fix(backend): chatops admin_role_permission perPage 裸 Atoi 迁移`
+的提交，它把 `perPage, _ := strconv.Atoi(c.DefaultQuery("perPage", "20"))` 换成
+`pagination.Limit(c.Query("perPage"), 20)` + 100 上界，**并声明「至此 internal/ 下
+所有分页相关裸 Atoi 清零」**。这句话和 §105 的「全仓清零」是**同一个错**，
+而且是同一形状：它的扫描口径还是 `strconv.Atoi` + `DefaultQuery`，
+那个口径抓不到用 `c.Query` 的站点。它清完之后树上仍有 42 处裸 Atoi 读 query/param，
+其中本轮修掉的那 8 处是 live。
+
+这里还有一个值得说清的细节：chatops 原本**没有任何上界**
+（服务层只有 `if page <= 0` / `if perPage <= 0` 两个地板），这次给它加了 100。
+所以它和 §106.6 那 16 处不是一类——那 16 处是**已经有上界但值不同**，
+属于语义选择；chatops 是**根本没有上界**，补上和 §92-§103 一路的做法一致。
+本轮给 `pandawiki` 用的是 50 而不是 100，是因为同模块的 `Search` / `GetSyncLogs`
+已经在用 50。**口径是：模块自己有上界就对齐模块，没有就用平台的 100**。
+
+### 106.13 最终状态
+
+- LIVE 0 处 / 0 模块（§103），本轮再收 **10 处**（§106.3），外加 chatops 1 处
+- `pagination.Page` / `pagination.Limit` 调用点 **218**
+- 裸 `strconv.Atoi` 读 query/param：**43 → 34**（chatops 1 处 + 本轮 8 处迁掉，
+  另有 1 处在 §106.6 的 16 处里被改成 `> 100` 判断的形状）；其中丢 error 的 **32 → 23**。
+  剩余的 23 处逐处追过下游，分页形状的全部有 `if limit <= 0` / `if offset < 0`
+  地板（`storage`、`file-handler`、`pipeline-audit-log`、`sbom`、`slo`），
+  其余 8 处是非分页业务参数（`depth`×2、`timeout_minutes`×2、`service_count`、
+  `max_points`、`days`×2、`maxResults`×2）
+- gofmt 全清（`gofmt -l internal cmd` 空）
+- `go build` / `go vet` / `go test -count=1 ./...` 全绿 **583 包 / 0 FAIL**
+- 变异台架：11 扇门全灭、`builderr=0`、`badanchor=0`、基准 67 PASS、
+  2 个 GAP 存活（§106.4 说明了为什么）、NC 存活、restore 字节级一致
 
 ---
 
