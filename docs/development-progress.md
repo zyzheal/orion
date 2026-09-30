@@ -3892,6 +3892,95 @@ NC 实跑 4 个代表站点：`user`、`feature-flag`、`workflow-trigger`（信
 - 变异验证：11 个 cap 站点 + 2 个 queue 站点 + `TestInt` 全部 KILLED，NC 宽度均为 1；**6 处 GAP 存活并逐处列名**（§108.4）
 - `ce08d8799` 的 3 条错误声明、5 处未记录行为变更、零测试问题已在本节记录，gofmt 已修
 
+### 2026-09-30（§109 更正 §108.4 的 GAP 口径）
+
+### 109.1 一处算术错误：写 6，文件里是 7
+
+§108.4 把存活 GAP 写成「6 处」，但同一段自己枚举的是 `governance/compliance` 3 + `security/secret` 1 + `prompt-security` 1 + `tool` 1 + `ai/gateway` 1 = **7**。错在 fix 提交信息、§108.4、§108.6、§108.7 和 Round 107 的 TODO 行，五处都写成 6。
+
+### 109.2 更严重：7 处的分类全错
+
+不是少算一处，是**分类整个错了**。§108.4 写的是「同一个形状：测试钉不住」。逐层追完数据流之后，实情是两类：
+
+| 站点 | 类 | 撤回夹点会发生什么 | 测试入口为什么难建 |
+|---|---|---|---|
+| `governance/compliance` ×3 | A 可观测性受限 | **真缺陷**：limit 直达 `LIMIT $n`，service 与 repository 都不夹 | 信封是裸数组 `respondSuccess(c, reports)` |
+| `security/secret` ×1 | A 可观测性受限 | **真缺陷**：service 直接透传，repository 直接绑 `LIMIT $3` | 信封是脱敏后的 `[]gin.H` |
+| `tool` `GetInvocations` ×1 | **B 夹点已死** | **零变化** | 信封是裸数组 |
+| `ai/gateway` ×1 | **B 夹点已死** | **零变化** | 信封是 `gin.H{"data","total"}` |
+
+`tool` 的 service 只是 `return s.invRepo.ListByTool(...)`，而 `invocation_repository.go:46` 是 `if limit <= 0 || limit > 100 { limit = 20 }`——handler 的 `if limit > 100` 上界分支不可达，撤回它仓库层接管。`ai/gateway` 更明显，`service.go:121` 直接是 `if n <= 0 || n > 100 { n = 20 }`。这**不是** GAP，是 §106.6 那个 82 处组合守卫家族的手写克隆。
+
+`prompt-security` 则是**根本不该算 GAP**：信封是 `gin.H{"total", "page", "limit", "data"}`，`"limit"` 就在里面，夹点直接可观测。§108.4 把它归成「测试钉不住」是错的，它只是「这个模块没有测试文件」。这一处已在本轮关掉，见 §109.3。
+
+**修正后：7 处 → 关 1 处 → 6 处，其中 4 处是真缺口（A 类，撤回即真缺陷），2 处是零影响（B 类，撤回无任何变化）。** A 类的修法一致：改信封带上分页字段，或建 fake/service 注入。
+
+### 109.3 `prompt-security` 的 GAP 已关
+
+新增 `handler/page_cap_test.go`，走 `param-types` 那个 sqlmock 模式：真 service + 真 repository + `sqlx.NewDb(raw, "postgres")`。仓库层自己有个 `if limit <= 0 { limit = 20 }` 地板，所以地板钉不住，夹点钉得住——4 行用例里 `capLandsBeforeOffsetIsDerived` 那行（`page=1&limit=1000` → 绑 `(100, 100)`）同时钉了「夹点在推导 offset 之前落地」。
+
+NC：删掉 `if limit > 100 { limit = 100 }` 后 `capped` 子测试 FAIL，期望 `(tenant-1, 100, 0)`、实际绑 `limit=1000`。**NC 宽度 1**。restore 后字节级一致、全绿、gofmt 干净。
+
+顺带一个口径提醒：4 行用例在变异下会一起红，但那是 sqlmock 期望在子测试之间串行的假宽度——只跑 `capped` 红、只跑 `defaults` 绿，说明真正有信号的只有 1 行。跟 §105 那次「先把 N 个期望全注册再跑 N 个子测试」是同一个坑。
+
+### 109.4 顺带关掉 §108.6 挂起的 `prompt-security:87`
+
+§108.6 挂着一条：`pagination.Page(c.Query("page"), 0)` 默认值传 0 且无地板，`ScanHistory` 会拿到 0，「是否地板成 1 要看服务层怎么解释 0」。
+
+追下来是 `repository.ListScans`：`offset := page * limit`。**0-based 分页是承重的**，默认 0 表示第一页。地板成 1 会让第一页被跳过。所以这一条的结论是**不改**，理由已定，从挂起项移除。
+
+（另注：`?page=1` 在这个语义下是第二页，命名和语义不一致，但不是一致性 bug——handler 默认 0、repository 乘 0，两头对齐。）
+
+### 109.5 顺带一处新发现：`tool` 的 `GetTopTools`
+
+`tool/handler/handler.go:320`：
+
+```go
+limit := pagination.Limit(c.Query("limit"), 10)
+if limit > 100 {
+    limit = 100
+}
+if limit < 1 || limit > 50 {
+    limit = 10
+}
+```
+
+第一个夹点的上界分支同样不可达，而且对 `50 < limit ≤ 100`，下面的重置会接管：`?limit=80` 实际返回 10 行，不是 80 行。`tool:185` 那个 `if limit > 100` 也是上一轮之前就有的（不在本轮 18 处里），本轮在 `tool` 只删了后面那段全死代码块。
+
+两处都是「handler 先夹一次、下游再重置一次」，和本轮 §109.2 B 类同一个家族。**只记录，没动**——50 是模块自己的上限，改不改需要你定。
+
+### 109.6 账本口径：§108.7 的「26 → 24」复现不出来
+
+diff 可核的部分是准的：`git diff ce08d8799..a47dbf3b2 -- '*.go'` 删 2 处 `strconv.Atoi`、加 0 处。−2 这个 delta 就是 `ticket` / `ticketing` 的两个 `queue_handler.go`。
+
+绝对基线 26 复现不出来。本轮换三个口径各扫一遍：
+
+- 宽松 grep：36 条，其中 8 条只出现在注释里、3 条实际在解析别的东西（`parts[1]`、`strings.TrimSpace(value)`）
+- 收紧到「同一个 Atoi 调用的参数里含 Query/Param」：25 条
+- 放宽到「同一函数里同时出现 Atoi 和 Query/Param」：81 条
+
+§108.7 那个 24 用的口径比上面任何一条都窄，现在扫不回来。**能复核的是 delta，基线复核不了**——§107.6 说账本已有 4 个互不兼容口径（149 / 147 / 218 / 149→156），现在这个裸 Atoi 条目是第 5 个。修法一致：先把口径写成脚本里的固定定义再报数，别边扫边定。
+
+### 109.7 本轮扫描脚本又错了三次
+
+写完 `/tmp` 里那个函数级 Atoi 扫描器之后：
+
+1. 把 `re.finditer()` 当 list 用，`len(...)` 直接 `TypeError`
+2. 定义了 `sites` 变量之后又忘了在同一段里定义，`NameError`
+3. 修好之后 co-occurrence 窗口取 ±80 字符，结果 81 条，明显太松
+
+加上 §108.1 记过的 `[:=]` 单字符类和「要求行首是变量名」的上界正则，**同一个形状这轮错了五次**。
+
+### 109.8 最终状态
+
+- 关掉 1 处 GAP（`prompt-security`，NC 宽度 1）；**GAP 从 7 更正为 6，其中 4 处真缺口 + 2 处零影响**
+- 关掉 §108.6 挂起的 `prompt-security:87`：0-based 分页是承重的，结论不改
+- 新增 `internal/prompt-security/handler/page_cap_test.go`，这是该模块第一个测试包
+- cap 站点 KILLED 从 11 处变 12 处
+- 新增记录：`tool` 的 `GetTopTools` 双夹点、`tool`/`ai-gateway` 的手写守卫克隆
+- §108.7 的裸 Atoi 基线标为「不可复核，delta 可复核」
+- gofmt 全清、build/vet 全绿、`go test -count=1 ./...` **585 包 ok / 0 FAIL**（`prompt-security/handler` 是它第一个测试包，584 → 585）
+
 ---
 
 ## P0-MB Phase 5c — 生产接线（2026-08-26）
