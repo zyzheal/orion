@@ -102,11 +102,8 @@ func (h *Handler) List(c *gin.Context) {
 
 	page := pagination.Page(c.Query("page"), 1)
 	PageSize := pagination.Limit(c.Query("page_size"), 20)
-	if page < 1 {
-		page = 1
-	}
-	if PageSize < 1 || PageSize > 100 {
-		PageSize = 20
+	if PageSize > 100 {
+		PageSize = 100
 	}
 
 	filter := &models.ListFilter{}

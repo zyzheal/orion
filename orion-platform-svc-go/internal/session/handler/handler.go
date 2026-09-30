@@ -41,11 +41,8 @@ func (h *Handler) List(c *gin.Context) {
 
 	page := pagination.Page(c.Query("page"), 1)
 	pageSize := pagination.Limit(c.Query("page_size"), 50)
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 50
+	if pageSize > 100 {
+		pageSize = 100
 	}
 
 	items, err := h.svc.List(ctx, tenantID, userID, (page-1)*pageSize, pageSize)

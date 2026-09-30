@@ -187,13 +187,6 @@ func (h *ToolHandler) GetInvocations(c *gin.Context) {
 	}
 	offset := pagination.Offset(c.Query("offset"))
 
-	if limit < 1 || limit > 100 {
-		limit = 20
-	}
-	if offset < 0 {
-		offset = 0
-	}
-
 	invs, err := h.svc.GetInvocations(ctx, tenantID, id, limit, offset)
 	if err != nil {
 		respondInternalError(c, "internal error")

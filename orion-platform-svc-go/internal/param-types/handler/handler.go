@@ -191,11 +191,8 @@ func (h *Handler) ListTemplates(c *gin.Context) {
 
 	page := pagination.Page(c.Query("page"), 1)
 	pageSize := pagination.Limit(c.Query("page_size"), 20)
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 20
+	if pageSize > 100 {
+		pageSize = 100
 	}
 	_ = page
 	tpls, err := h.reg.ListParamTemplates(tenantID, (page-1)*pageSize, pageSize)

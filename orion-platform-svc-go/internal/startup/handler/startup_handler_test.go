@@ -231,6 +231,11 @@ func TestListModules_PassesTheCallerTenantAndDerivedPagination(t *testing.T) {
 	}
 }
 
+// The two `page_size` rows above the cap used to expect 20, because the handler
+// reset an oversized value to its own default. As of §108 it clamps to the
+// platform's 100 instead, so `?page_size=500` returns 100 rows rather than 20.
+// That is the behaviour this table was written to pin - it is the pin that had
+// to move.
 func TestListModules_DefaultsAndClamping(t *testing.T) {
 	for _, tc := range []struct {
 		query string
@@ -241,8 +246,8 @@ func TestListModules_DefaultsAndClamping(t *testing.T) {
 		{"page=2", 2, 20},
 		{"page_size=5", 1, 5},
 		{"page_size=100", 1, 100},
-		{"page_size=101", 1, 20},
-		{"page_size=500", 1, 20},
+		{"page_size=101", 1, 100},
+		{"page_size=500", 1, 100},
 		{"page_size=0", 1, 20},
 		{"page=0&page_size=1", 1, 1},
 		{"page=-4", 1, 20},
@@ -761,8 +766,8 @@ func TestParsePagination(t *testing.T) {
 		{"", 1, 20},
 		{"page=3&page_size=25", 3, 25},
 		{"page_size=100", 1, 100},
-		{"page_size=101", 1, 20},
-		{"page_size=500", 1, 20},
+		{"page_size=101", 1, 100},
+		{"page_size=500", 1, 100},
 		{"page_size=0", 1, 20},
 		{"page_size=-1", 1, 20},
 		{"page=0&page_size=1", 1, 1},

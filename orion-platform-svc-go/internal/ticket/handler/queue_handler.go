@@ -3,9 +3,9 @@ package handler
 import (
 	"go.opentelemetry.io/otel"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/platform-svc-go/internal/ticket/models"
 	"orion/platform-svc-go/internal/ticket/service"
 )
@@ -64,10 +64,13 @@ func (h *QueueHandler) GetSLAAlerts(c *gin.Context) {
 		at := models.SLAAlertType(t)
 		alertType = &at
 	}
-	limit, _ := strconv.Atoi(c.Query("limit"))
-	if limit == 0 {
-		limit = 50
-	}
+	// The service truncates the loop with `if limit > 0`, so any non-positive
+	// limit means "no cap" and the whole queue comes back. The old guard only
+	// rescued `== 0`, so ?limit=-1 answered with every queued ticket instead of
+	// 50: one minus sign, no error, no 500, just an unexpectedly long response.
+	// `pagination.Limit` floors the whole non-positive range, and it caps
+	// nothing on top - a queue with 55 entries and limit=1000 still returns 55.
+	limit := pagination.Limit(c.Query("limit"), 50)
 
 	alerts, err := h.qm.GetSLAAlerts(ctx, tenantID, alertType, limit)
 	if err != nil {

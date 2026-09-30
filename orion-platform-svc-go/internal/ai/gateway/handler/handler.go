@@ -153,8 +153,11 @@ func (h *Handler) ListRecent(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	n := 20
 	fmt.Sscanf(c.Param("n"), "%d", &n)
-	if n <= 0 || n > 100 {
+	if n < 1 {
 		n = 20
+	}
+	if n > 100 {
+		n = 100
 	}
 	items, total, err := h.svc.ListRecent(ctx, tenantID, n)
 	if err != nil {

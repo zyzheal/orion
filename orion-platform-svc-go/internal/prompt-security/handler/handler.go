@@ -87,8 +87,8 @@ func (h *PromptSecurityHandler) ListScans(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	page := pagination.Page(c.Query("page"), 0)
 	limit := pagination.Limit(c.Query("limit"), 20)
-	if limit <= 0 || limit > 100 {
-		limit = 20
+	if limit > 100 {
+		limit = 100
 	}
 	scans, total, err := h.svc.ScanHistory(ctx, tenantID, page, limit)
 	if err != nil {

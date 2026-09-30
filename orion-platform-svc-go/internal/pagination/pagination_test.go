@@ -119,3 +119,41 @@ func TestOffsetFromPage(t *testing.T) {
 		}
 	}
 }
+
+// Int is the floor shared by the non-pagination integer parameters - depth,
+// timeout_minutes, service_count, max_points. They are no longer pagination
+// arguments, which is why they got their own name, but the clamp is the same
+// one as Limit: absent, unparsable and non-positive all fall back to the
+// default, and nothing is capped on top.
+//
+// `1` is the row that matters. The same rot this file exists to stop -
+// `i > 0` silently becoming `i > 1` - would fold depth=1, the default of
+// graph's GetNeighbors, onto its own fallback, so the parameter could no
+// longer express the shallowest hop. Limit and Page carry the same row for
+// the same reason.
+func TestInt(t *testing.T) {
+	cases := []struct {
+		in   string
+		def  int
+		want int
+	}{
+		{"", 2, 2},    // absent
+		{"abc", 2, 2}, // unparsable
+		{"-", 2, 2},
+		{"-1", 2, 2}, // non-positive falls back
+		{"-40", 2, 2},
+		{"0", 2, 2},
+		{"1", 2, 1}, // the boundary: 1 is a value, not a fallback
+		{"2", 2, 2},
+		{"5", 2, 5},
+		{"500", 500, 500},
+		{"999999", 1, 999999}, // no cap, same as Limit
+		{"3", 10, 3},          // a fallback larger than the value
+		{"7", 5, 7},           // and smaller
+	}
+	for _, tc := range cases {
+		if got := Int(tc.in, tc.def); got != tc.want {
+			t.Errorf("Int(%q, %d) = %d, want %d", tc.in, tc.def, got, tc.want)
+		}
+	}
+}

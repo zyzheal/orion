@@ -78,11 +78,8 @@ func (h *Handler) List(c *gin.Context) {
 	ps := pagination.Limit(c.Query("page_size"), 20)
 	scope := models.SecretScope(c.Query("scope"))
 
-	if page <= 0 {
-		page = 1
-	}
-	if ps <= 0 || ps > 100 {
-		ps = 20
+	if ps > 100 {
+		ps = 100
 	}
 	offset := (page - 1) * ps
 

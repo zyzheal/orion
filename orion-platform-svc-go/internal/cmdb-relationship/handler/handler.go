@@ -18,8 +18,8 @@ import (
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/cmdb-relationship/models"
-	"orion/platform-svc-go/internal/pagination"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"

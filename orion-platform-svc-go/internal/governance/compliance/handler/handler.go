@@ -101,11 +101,8 @@ func (h *Handler) ListReports(c *gin.Context) {
 
 	page := pagination.Page(c.Query("page"), 1)
 	pageSize := pagination.Limit(c.Query("page_size"), 20)
-	if page <= 0 {
-		page = 1
-	}
-	if pageSize <= 0 || pageSize > 100 {
-		pageSize = 20
+	if pageSize > 100 {
+		pageSize = 100
 	}
 	offset := (page - 1) * pageSize
 
@@ -201,11 +198,8 @@ func (h *Handler) ListSchedules(c *gin.Context) {
 
 	page := pagination.Page(c.Query("page"), 1)
 	pageSize := pagination.Limit(c.Query("page_size"), 20)
-	if page <= 0 {
-		page = 1
-	}
-	if pageSize <= 0 || pageSize > 100 {
-		pageSize = 20
+	if pageSize > 100 {
+		pageSize = 100
 	}
 	offset := (page - 1) * pageSize
 
@@ -265,11 +259,8 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 	category := c.Query("category")
 	page := pagination.Page(c.Query("page"), 1)
 	pageSize := pagination.Limit(c.Query("page_size"), 20)
-	if page <= 0 {
-		page = 1
-	}
-	if pageSize <= 0 || pageSize > 100 {
-		pageSize = 20
+	if pageSize > 100 {
+		pageSize = 100
 	}
 	offset := (page - 1) * pageSize
 	policies, err := h.svc.ListPolicies(ctx, tenantID, framework, category, offset, pageSize)
