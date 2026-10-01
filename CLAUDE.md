@@ -12,7 +12,8 @@ Orion is an AI-driven DevOps platform for R&D efficiency. Core主张: "不替代
 
 ```
 orion-platform-svc-go/     # Core backend (Go + Gin) — 主力后端服务
-orion-api-gateway-go/      # API Gateway (Go + Gin) — 替代旧 TS 版本
+orion-api-gateway-go/      # API Gateway (Go + Gin) — 完整替代旧 TS 版本
+orion-go-common/            # 公共库 (Go)
 orion-frontend/             # Frontend (React + Vite + Ant Design + Orion-MF 自研微前端)
 orion-ai-service/           # AI microservice (Python) — 权威实现
 orion-ai-agents-svc/        # AI Agents 专项服务（Python 蓝图）
@@ -20,7 +21,7 @@ orion-visor/                # Ops visualization (Java/Spring)
 orion-knowledge/            # AI knowledge base (PandaWiki fork)
 orion-dba/                  # DB management platform
 docs/                       # 260+ design docs organized by domain
-legacy/                     # 已归档的 TS 版本（orion-api-gateway-ts 等）
+legacy/                     # 已归档的 TS 版本（仅存档，不再维护）
 ```
 
 ### orion-*-svc 独立微服务目录
@@ -68,12 +69,14 @@ npm run lint
 npm run type-check   # tsc --noEmit
 ```
 
-### API Gateway
+### API Gateway（Go）
 ```bash
-cd orion-api-gateway
-npm install
-npm run dev
-npm run test
+cd orion-api-gateway-go
+go build -o bin/api-gateway ./cmd/server
+./bin/api-gateway
+go test ./... -count=1 -timeout 120s
+go test ./... -race -count=1 -timeout 180s
+go vet ./...
 ```
 
 ### Frontend
@@ -117,51 +120,49 @@ npx vitest run path/to/test.ts
 npx tsx docs/design-constraints/framework/core/cli-check.ts --scan orion-frontend/src/pages/ --max-files 200
 ```
 
-## Key Architecture Numbers (2026-07-01)
+## Key Architecture Numbers (2026-09-25)
 
 | Dimension | Count | Notes |
 |-----------|-------|-------|
-| **Backend services** | 139 dirs in `src/services/` | 100 有 index.ts barrel 导出, 38 有源码无导出 |
-| **Substantial services (3+ files)** | 73 | Services with real implementation |
+| **Go API Gateway 生产代码** | 7,783 行 | 33 Go 文件，完整替代 24,986 行 TS |
+| **Go API Gateway 测试用例** | 81 个 | 覆盖熔断器/动态路由/分页/错误码/中间件 |
+| **Go Platform Service** | 主力后端 | `orion-platform-svc-go/` |
+| **Go 公共库** | 1 个 | `orion-go-common/` |
 | **Frontend pages** | 202 | `orion-frontend/src/pages/` |
 | **Frontend API clients** | 239 | `orion-frontend/src/api/` |
 | **Frontend .tsx/.ts files** | 739/.tsx + 345/.ts | Frontend source files |
-| **Backend routes** | 175 | `api/*-routes.ts` files |
 | **DB migrations** | 643 | SQL migration files (001+) |
 | **Design docs** | ~466 | Across 27 category directories |
 | **ADR decisions** | 7 | `docs/adr/` |
-| **Microservice dirs** | 87 | 37 TS + 47 Go + 2 Python + 1 Rust (全部蓝图, 非独立部署) |
-| **Test suites** | 305+ | Backend Jest tests |
-| **CodeGraph 索引** | 9407 文件, 113487 节点 | AST 级代码知识图谱 |
+| **CI jobs** | 10 | GitHub Actions 全绿 |
 
 ## Important Context
 
-### Current Implementation State (2026-07-01)
-- **Backend**: ~85% (139 services, 73 substantial, 30+ migrated to PostgreSQL Repository pattern)
-- **Frontend**: ~88% (202 pages, 57+ main pages + dashboard variants, 239 API clients)
-- **API consistency**: ~20% 精确匹配（35/175 routes 有对应前端页面，命名/微前端模式导致大量"假 Gap"）
-- **Database**: 643 migration files; most services use PostgreSQL Repository pattern
-- **TypeScript**: All critical errors fixed; ongoing cleanup of edge-case type issues
-- **微服务**: 87 个 orion-*-svc* 目录，全部为蓝图（非独立部署），47 个 Go 微服务仅有 go.mod 无 main.go
+### Current Implementation State (2026-09-25)
+- **Backend Go**: API Gateway + Platform Service 均使用 Go（Go + Gin）
+- **TS→Go 迁移**: API Gateway 完整迁移（24,986 TS 行 → 7,783 Go 行），TS 版本已归档至 `legacy/`
+- **Frontend**: ~88% (202 pages, 239 API clients)
+- **Database**: 643 migration files; PostgreSQL Repository pattern
+- **CI**: 10 个 GitHub Actions job 全绿，81 个 Go 测试用例通过
+- **微服务**: 87 个 orion-*-svc* 目录，全部为蓝图（非独立部署）
 
 ### Known Issues to Be Aware Of
-1. **Dual ArtifactService confusion**: `services/artifact/` and build-related services have overlapping responsibilities
-2. **orion-platform-service is the monolith**: All 87 microservice directories have substantial code but are currently deployed as a single process
-3. **Go 微服务不可独立部署**: 47 个 Go 微服务目录均有 `go.mod` 但无 `main.go`，仅为编译单元
-4. **前端-后端命名不一致**: 35/175 routes 有精确匹配的前端页面（20%），大量页面通过 Orion-MF 微前端模式加载
-5. **38 个服务缺少 barrel 导出**: 有源码但无 `index.ts`，影响模块化引用
+1. **Go 微服务不可独立部署**: 47 个 Go 微服务目录均有 `go.mod` 但无 `main.go`，仅为编译单元
+2. **前端-后端命名不一致**: 35/175 routes 有精确匹配的前端页面（20%），大量页面通过 Orion-MF 微前端模式加载
+3. **灰度发布**: 已实现 Redis Pub/Sub 灰度路由，需要配置文档补充
+4. **legacy/ 目录**: TS 版本已归档但仍在仓库中，未来可考虑删除
 
 ### Recent Milestones
+- **TS→Go 完整迁移 (2026-09)**: API Gateway 24,986 TS 行 → 7,783 Go 行，33 Go 文件，81 测试用例
+- **CI 加固 (2026-09)**: 移除 6 个 `continue-on-error`，添加 `go test -race`，golangci-lint，Docker build 验证
+- **P0 仓库卫生 (2026-09)**: .gitignore 更新，未跟踪文件清理
+- **Pipeline SSE Integration**: Real-time log streaming via SSE
 - **M25 Persistence Migration**: 30+ services migrated from `Map()` mock storage to PostgreSQL Repository pattern
-- **M6/M29/M30 Frontend**: ProductLine, ArtifactManagement, InternalLibrary frontend pages implemented
-- **API Path Consistency**: ~30 frontend-backend path mismatches resolved (~95% consistent)
-- **80 Outdated Docs Removed**: Cleanup of cache/review/sprint/task files
-- **Pipeline SSE Integration**: Real-time log streaming via SSE (Bridge → Service → Routes → Frontend Hook)
-- **TypeScript Error Resolution**: ~55+ compilation errors fixed across services
 
 ### Service Ports
-- API Gateway: `localhost:3000` (healthz)
-- Platform Service: `localhost:3001` (healthz)
+- API Gateway (Go): `localhost:3000` (healthz)
+- Platform Service (Go): `localhost:3001` (healthz)
+- Frontend: `localhost:5173`
 
 ## Design Documentation
 
@@ -173,7 +174,7 @@ npx tsx docs/design-constraints/framework/core/cli-check.ts --scan orion-fronten
 
 ## Current Branch
 
-`feat/frontend-gap-implementation` — Focused on closing frontend-backend gaps and Design Token migration.
+`feat/wave2-parallel-execution` — TS→Go 完整迁移完成，P0/P1/P2 全部实现。
 
 ## Frontend Gap Implementation Progress (2026-05-18)
 

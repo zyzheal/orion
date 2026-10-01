@@ -32,7 +32,6 @@ jobs:
         working-directory: orion-frontend
 
       - name: Lint
-        continue-on-error: true
         run: npm run lint
         working-directory: orion-frontend
 
@@ -57,7 +56,6 @@ jobs:
         working-directory: orion-frontend
 
       - name: Type check
-        continue-on-error: true
         run: npm run type-check
         working-directory: orion-frontend
 
@@ -143,7 +141,6 @@ jobs:
         working-directory: orion-frontend
 
       - name: Run tests
-        continue-on-error: true
         run: npm run test -- --coverage
         working-directory: orion-frontend
 
@@ -157,7 +154,6 @@ jobs:
           if-no-files-found: warn
 
       - name: Build
-        continue-on-error: true
         run: npm run build
         working-directory: orion-frontend
 
@@ -227,6 +223,14 @@ jobs:
       - name: Test API Gateway (Go)
         run: go test -C orion-api-gateway-go ./... -count=1 -timeout 120s
 
+      - name: Race Detect (Go)
+        run: go test -C orion-api-gateway-go ./... -race -count=1 -timeout 180s
+
+      - name: GolangCI-Lint (Go)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
+          $(go env GOPATH)/bin/golangci-lint run -C orion-api-gateway-go ./...
+
   # ==================== Orion DBA Frontend Build ====================
 
   orion-dba-frontend-build:
@@ -248,7 +252,6 @@ jobs:
         working-directory: orion-dba/frontend
 
       - name: Build (with type check)
-        continue-on-error: true
         run: npm run build
         working-directory: orion-dba/frontend
 
@@ -275,7 +278,6 @@ jobs:
         working-directory: orion-ai-service
 
       - name: Run tests
-        continue-on-error: true
         run: python -m pytest tests/ -v --tb=short
         working-directory: orion-ai-service
 
@@ -348,6 +350,7 @@ jobs:
         service:
           - orion-frontend
           - orion-platform-svc-go
+          - orion-api-gateway-go
         include:
           - service: orion-frontend
             context: ./orion-frontend
@@ -355,6 +358,9 @@ jobs:
           - service: orion-platform-svc-go
             context: ./orion-platform-svc-go
             file: ./orion-platform-svc-go/Dockerfile
+          - service: orion-api-gateway-go
+            context: ./orion-api-gateway-go
+            file: ./orion-api-gateway-go/Dockerfile
     steps:
       - uses: actions/checkout@v4
 

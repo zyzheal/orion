@@ -27,42 +27,56 @@
 
 | 项目 | 说明 |
 |------|------|
+| [orion-api-gateway-go/](orion-api-gateway-go/) | API 网关服务（Go + Gin，替代旧 TS 版本） |
+| [orion-platform-svc-go/](orion-platform-svc-go/) | 平台核心服务（Go + Gin） |
+| [orion-go-common/](orion-go-common/) | 公共库（Go） |
 | [orion-visor/](orion-visor/) | 运维可视化管理平台 |
 | [orion-knowledge/](orion-knowledge/) | AI 知识库微服务 |
 | [orion-dba/](orion-dba/) | 数据库管理平台 |
-| [legacy/orion-api-gateway-ts/](legacy/orion-api-gateway-ts/) | API 网关服务 |
-| [orion-platform-service/](orion-platform-service/) | 平台核心服务 |
+| [orion-ai-service/](orion-ai-service/) | AI 微服务（Python） |
+| [orion-frontend/](orion-frontend/) | 前端（React + Vite） |
+| [legacy/](legacy/) | 已归档的 TS 版本（仅存档，不再维护） |
 
 ### 服务启动
 
-#### 1. API Gateway
+#### 1. API Gateway（Go）
 
 ```bash
-cd orion-api-gateway
-npm install
-npm run dev
+cd orion-api-gateway-go
+go build -o bin/api-gateway ./cmd/server
+./bin/api-gateway
 ```
 
 访问：http://localhost:3000/healthz
 
-#### 2. Platform Service
+#### 2. Platform Service（Go）
 
 ```bash
-cd orion-platform-service
+cd orion-platform-svc-go
+go build -o bin/server ./cmd/server
+./bin/server
+```
+
+访问：http://localhost:3001/healthz
+
+#### 3. Frontend
+
+```bash
+cd orion-frontend
 npm install
 npm run dev
 ```
 
-访问：http://localhost:3001/healthz
+访问：http://localhost:5173
 
 #### 环境变量配置
 
 | 变量名 | 说明 | 默认值 |
 |--------|------|--------|
 | `PORT` | 服务端口 | `3000` (gateway) / `3001` (platform) |
-| `NATS_SERVERS` | NATS 服务器地址 | `nats://localhost:4222` |
-| `REDIS_HOST` | Redis 主机 | `localhost` |
+| `REDIS_ADDR` | Redis 地址 | `localhost:6379` |
 | `DB_HOST` | 数据库主机 | `localhost` |
+| `GIN_MODE` | Gin 运行模式 | `debug` |
 
 ### 详细设计文档（docs/）
 
@@ -80,4 +94,4 @@ npm run dev
 
 ---
 
-_最后更新：2026-06-26_
+_最后更新：2026-09-25（TS→Go 完整迁移完成，API Gateway + Platform Service 均使用 Go）_
