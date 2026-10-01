@@ -14,8 +14,12 @@
 // written. Both families had the same hole: neither endpoint of the arithmetic
 // was ever checked, so one bad query parameter turned a GET into a 500.
 //
-// Every function here is a floor, not a cap: a caller that wants a maximum page
-// size must add it at the repository, which already does so for most modules.
+// Limit and LimitMax cap page sizes: Limit caps at the platform standard of 100,
+// LimitMax lets a caller choose a different cap. The cap was moved here from
+// ~70 call sites that each had to write `if limit > 100 { limit = 100 }` by hand
+// (and ~70 more that forgot to). Page and Offset remain floor-only — a page
+// number has no natural maximum, and an offset's maximum is derived from the
+// page size, which is already capped.
 
 package pagination
 
@@ -61,11 +65,24 @@ func Offset(value string) int {
 }
 
 // Limit parses a "limit" query param as a page size, falling back to the
-// default when it is missing, unparsable or <= 0. A page size of 0 passes
-// LIMIT 0 to the database and divides by zero in the Page calculation, so it is
-// treated like an absent param. This is a floor, not a cap.
+// default when it is missing, unparsable or <= 0, and capping at 100. A page
+// size of 0 passes LIMIT 0 to the database and divides by zero in the Page
+// calculation, so it is treated like an absent param. The cap of 100 is the
+// platform standard: before it was centralized here, ~70 call sites had to
+// write `if limit > 100 { limit = 100 }` by hand, and ~70 more forgot to.
+// Callers that need a different cap should use LimitMax.
 func Limit(value string, def int) int {
+	return LimitMax(value, def, 100)
+}
+
+// LimitMax is like Limit but lets the caller choose a different cap. Modules
+// that have a smaller page-size ceiling (e.g. 50 for chatops, incident, tool)
+// pass it here instead of adding a second manual clamp on top of Limit.
+func LimitMax(value string, def, max int) int {
 	if i, err := strconv.Atoi(value); err == nil && i > 0 {
+		if i > max {
+			i = max
+		}
 		return i
 	}
 	return def

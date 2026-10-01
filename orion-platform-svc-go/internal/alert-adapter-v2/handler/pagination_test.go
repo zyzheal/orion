@@ -19,10 +19,9 @@ func pageCtx(query string) *gin.Context {
 // the four `offset=-N` rows plus `offset=0`, `offset=abc` and the combined
 // row. Three rows discriminate against dropping the limit fallback.
 //
-// `limit=100000` is pinned on purpose: neither this endpoint nor any of the
-// three it feeds ever capped the size, and adding one here would change what
-// the endpoint returns for an existing client. That decision belongs to the
-// same open item as the 16 sites that reset page_size to the default.
+// `limit=100000` used to go straight into LIMIT because neither this endpoint
+// nor any of the three it feeds ever capped the size. The cap is now in
+// pagination.Limit itself (100), so the row below asserts the capped value.
 func listArgsCases() []struct {
 	name       string
 	query      string
@@ -48,7 +47,7 @@ func listArgsCases() []struct {
 		{"negativeLimitFallsBack", "limit=-5", 0, 20},
 		{"zeroLimitFallsBack", "limit=0", 0, 20},
 		{"unparsableLimitFallsBack", "limit=abc", 0, 20},
-		{"limitIsNotCapped", "limit=100000", 0, 100000},
+		{"cappedAtOneHundred", "limit=100000", 0, 100},
 	}
 }
 

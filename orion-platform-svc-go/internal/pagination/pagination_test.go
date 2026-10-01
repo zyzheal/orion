@@ -49,10 +49,41 @@ func TestLimit(t *testing.T) {
 		{"25", 20, 25},
 		{"", 50, 50},
 		{"0", 50, 50},
+		{"100", 20, 100},    // the cap itself
+		{"101", 20, 100},    // one above the cap
+		{"999999", 20, 100}, // the row that used to be `limitIsNotCapped`
 	}
 	for _, tc := range cases {
 		if got := Limit(tc.in, tc.def); got != tc.want {
 			t.Errorf("Limit(%q, %d) = %d, want %d", tc.in, tc.def, got, tc.want)
+		}
+	}
+}
+
+func TestLimitMax(t *testing.T) {
+	cases := []struct {
+		in   string
+		def  int
+		max  int
+		want int
+	}{
+		{"", 20, 100, 20},
+		{"abc", 20, 100, 20},
+		{"-1", 20, 100, 20},
+		{"0", 20, 100, 20},
+		{"1", 20, 100, 1},
+		{"50", 20, 100, 50},
+		{"100", 20, 100, 100},
+		{"101", 20, 100, 100},
+		{"", 50, 50, 50},   // cap equals default
+		{"60", 50, 50, 50}, // above the 50 cap
+		{"50", 50, 50, 50}, // at the cap
+		{"49", 50, 50, 49}, // below the cap
+		{"999999", 10, 50, 50},
+	}
+	for _, tc := range cases {
+		if got := LimitMax(tc.in, tc.def, tc.max); got != tc.want {
+			t.Errorf("LimitMax(%q, %d, %d) = %d, want %d", tc.in, tc.def, tc.max, got, tc.want)
 		}
 	}
 }
@@ -123,8 +154,8 @@ func TestOffsetFromPage(t *testing.T) {
 // Int is the floor shared by the non-pagination integer parameters - depth,
 // timeout_minutes, service_count, max_points. They are no longer pagination
 // arguments, which is why they got their own name, but the clamp is the same
-// one as Limit: absent, unparsable and non-positive all fall back to the
-// default, and nothing is capped on top.
+// one Limit used before the cap was added: absent, unparsable and non-positive
+// all fall back to the default, and nothing is capped on top.
 //
 // `1` is the row that matters. The same rot this file exists to stop -
 // `i > 0` silently becoming `i > 1` - would fold depth=1, the default of
@@ -147,7 +178,7 @@ func TestInt(t *testing.T) {
 		{"2", 2, 2},
 		{"5", 2, 5},
 		{"500", 500, 500},
-		{"999999", 1, 999999}, // no cap, same as Limit
+		{"999999", 1, 999999}, // no cap, unlike Limit which caps at 100
 		{"3", 10, 3},          // a fallback larger than the value
 		{"7", 5, 7},           // and smaller
 	}

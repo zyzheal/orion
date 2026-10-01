@@ -41,7 +41,7 @@ func pbListArgsCases() []struct {
 		{"negativeLimitFallsBack", "limit=-5", 0, 20},
 		{"zeroLimitFallsBack", "limit=0", 0, 20},
 		{"unparsableLimitFallsBack", "limit=abc", 0, 20},
-		{"limitIsNotCapped", "limit=100000", 0, 100000},
+		{"cappedAtOneHundred", "limit=100000", 0, 100},
 	}
 }
 

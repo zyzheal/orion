@@ -75,6 +75,29 @@ func (r *Repository) ListPhaseGroups(ctx context.Context, tenantID string, pipel
 	return groups, err
 }
 
+// CountPhaseGroups returns the total number of phase groups matching the same
+// filter as ListPhaseGroups, ignoring LIMIT/OFFSET. The service uses this to
+// report the true total in PaginatedResponse instead of len(rows) — which is
+// only the page size after LIMIT/OFFSET has trimmed the result.
+func (r *Repository) CountPhaseGroups(ctx context.Context, tenantID string, pipelineID *string, status *string) (int, error) {
+	where := "WHERE tenant_id = $1"
+	args := []interface{}{tenantID}
+	argIdx := 2
+	if pipelineID != nil && *pipelineID != "" {
+		where += fmt.Sprintf(" AND pipeline_id = $%d", argIdx)
+		args = append(args, *pipelineID)
+		argIdx++
+	}
+	if status != nil && *status != "" {
+		where += fmt.Sprintf(" AND status = $%d", argIdx)
+		args = append(args, *status)
+	}
+	var count int
+	err := r.db.GetContext(ctx, &count,
+		fmt.Sprintf(`SELECT COUNT(*) FROM pipeline_phase_groups %s`, where), args...)
+	return count, err
+}
+
 func (r *Repository) UpdatePhaseGroup(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.PhaseGroup, error) {
 	if len(updates) == 0 {
 		return nil, sentinel.NotFound

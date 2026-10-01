@@ -19,6 +19,7 @@ import (
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
+	CountPhaseGroups(ctx context.Context, tenantID string, pipelineID *string, status *string) (int, error)
 	CreatePhaseGroup(ctx context.Context, group *models.PhaseGroup) error
 	DeletePhaseGroup(ctx context.Context, id string, tenantID string) (bool, error)
 	GetBatchRunByID(ctx context.Context, batchID string, tenantID string) (*models.BatchRun, error)
@@ -58,6 +59,9 @@ func (s *Service) GetPhaseGroup(ctx context.Context, id string, tenantID string)
 	return s.repo.GetPhaseGroupByID(ctx, id, tenantID)
 }
 
+// ListPhaseGroups returns a page of phase groups and the total count before
+// LIMIT/OFFSET was applied. The total used to be len(groups) — the page size —
+// which made PaginatedResponse.Total lie about how many rows exist.
 func (s *Service) ListPhaseGroups(ctx context.Context, tenantID string, pipelineID *string, status *string, limit *int, offset *int) ([]models.PhaseGroup, int, error) {
 	groups, err := s.repo.ListPhaseGroups(ctx, tenantID, pipelineID, status, limit, offset)
 	if err != nil {
@@ -66,7 +70,11 @@ func (s *Service) ListPhaseGroups(ctx context.Context, tenantID string, pipeline
 	if groups == nil {
 		groups = []models.PhaseGroup{}
 	}
-	return groups, len(groups), nil
+	total, err := s.repo.CountPhaseGroups(ctx, tenantID, pipelineID, status)
+	if err != nil {
+		return nil, 0, err
+	}
+	return groups, total, nil
 }
 
 func (s *Service) UpdatePhaseGroup(ctx context.Context, id string, tenantID string, req *models.UpdatePhaseGroupRequest) (*models.PhaseGroup, error) {
