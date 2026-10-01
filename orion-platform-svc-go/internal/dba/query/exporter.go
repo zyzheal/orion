@@ -85,6 +85,15 @@ func WriteExcel(ctx context.Context, path string, cols []QueryColumn, rows <-cha
 
 	count := 0
 	rowIdx := 2
+
+	// Check context before entering the loop — a pre-cancelled context
+	// might lose the select race against a buffered rows channel.
+	if err := ctx.Err(); err != nil {
+		_ = f.Close()
+		_ = os.Remove(path)
+		return 0, fmt.Errorf("%w: %v", ErrExportCancelled, err)
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
