@@ -52,6 +52,10 @@ orion-knowledge/backend/bin/api
 orion-knowledge/pandawiki-api
 orion-cmdb-service/bin/cmdbd
 
+# Legacy/archived package-lock files (no longer maintained)
+docs/archives/blueprints-legacy/*/package-lock.json
+legacy/orion-platform-service-ts/packages/*/package-lock.json
+
 # Tool caches
 .codegraph/
 .understand-anything/
