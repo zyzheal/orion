@@ -11,7 +11,7 @@ trigger:
   paths:
     include:
       - "orion-platform-service/**"
-      - "legacy/orion-api-gateway-ts/**"
+      - "orion-api-gateway-go/**"
       - "orion-frontend/**"
       - ".orion-ci.yml"
     exclude:
@@ -43,12 +43,10 @@ stages:
         workingDir: "./orion-platform-service"
         command: npm run lint
 
-      - name: "Type Check - API Gateway"
+      - name: "Go Vet - API Gateway"
         type: "shell"
-        workingDir: "./orion-api-gateway"
-        command: |
-          npm install --ignore-scripts
-          npm run type-check
+        workingDir: "./orion-api-gateway-go"
+        command: go vet ./...
 
       - name: "Type Check - Frontend"
         type: "shell"
@@ -88,10 +86,10 @@ stages:
         workingDir: "./orion-platform-service"
         command: npm run test -- --passWithNoTests --testPathIgnorePatterns=integration
 
-      - name: "Unit Tests - API Gateway"
+      - name: "Go Tests - API Gateway"
         type: "shell"
-        workingDir: "./orion-api-gateway"
-        command: npm run test -- --passWithNoTests
+        workingDir: "./orion-api-gateway-go"
+        command: go test ./... -count=1 -timeout 120s
 
       - name: "Unit Tests - Frontend"
         type: "shell"
@@ -155,12 +153,10 @@ stages:
           npm install --ignore-scripts
           npm run build
 
-      - name: "Build - API Gateway"
+      - name: "Go Build - API Gateway"
         type: "shell"
-        workingDir: "./orion-api-gateway"
-        command: |
-          npm install --ignore-scripts
-          npm run build
+        workingDir: "./orion-api-gateway-go"
+        command: go build ./...
 
       - name: "Build - Frontend"
         type: "shell"

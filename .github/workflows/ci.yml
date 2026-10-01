@@ -224,6 +224,9 @@ jobs:
       - name: Vet API Gateway (Go)
         run: go vet -C orion-api-gateway-go ./...
 
+      - name: Test API Gateway (Go)
+        run: go test -C orion-api-gateway-go ./... -count=1 -timeout 120s
+
   # ==================== Orion DBA Frontend Build ====================
 
   orion-dba-frontend-build:
