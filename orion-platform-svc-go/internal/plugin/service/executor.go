@@ -201,10 +201,10 @@ func (e *SubprocessExecutor) Kill(taskID string, reason string) error {
 		return fmt.Errorf("no running execution for task %q", taskID)
 	}
 
+	// Context cancellation kills the process via exec.CommandContext.
+	// Do NOT touch rp.cmd.Process here — it is set by cmd.Run() in another
+	// goroutine and accessing it without the lock causes a data race.
 	rp.cancel()
-	if rp.cmd != nil && rp.cmd.Process != nil {
-		_ = rp.cmd.Process.Kill()
-	}
 
 	return nil
 }
