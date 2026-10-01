@@ -211,7 +211,6 @@ jobs:
           path: orion-frontend/coverage/lcov.info
           retention-days: 30
           if-no-files-found: warn
-          retention-days: 30
 
       - name: Build
         run: npm run build
