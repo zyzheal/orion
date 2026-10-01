@@ -160,7 +160,7 @@ jobs:
 
       - name: Run Spec Traceability Verification
         id: traceability-run
-        run: npm run verify:specs
+        run: npx --yes tsx scripts/verify-spec-traceability.ts
         working-directory: .
 
       - name: Upload Traceability Report

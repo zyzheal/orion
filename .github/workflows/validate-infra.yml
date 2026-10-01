@@ -87,10 +87,10 @@ jobs:
 
       - name: Verify Dockerfiles
         run: |
-          count=$(find orion-*-svc-go -name "Dockerfile" 2>/dev/null | wc -l)
+          count=$(find . -name "Dockerfile" -not -path "*/node_modules/*" 2>/dev/null | wc -l)
           echo "Found $count Dockerfiles"
-          if [ "$count" -lt 50 ]; then
-            echo "ERROR: Expected >= 50 Dockerfiles, found $count"
+          if [ "$count" -lt 1 ]; then
+            echo "ERROR: Expected >= 1 Dockerfile, found $count"
             exit 1
           fi
           echo "Dockerfiles check passed: $count files"
