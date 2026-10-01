@@ -4069,6 +4069,72 @@ repository 的守卫是 `if q.Limit > 0 { limit = q.Limit }`——纯地板，�
 - GAP 更新：A 类真缺口 7 处（`governance/compliance`×3、`security/secret`、`slo`×2、`storage`），B 类零影响 3 处（`tool` `GetInvocations`、`ai/gateway` `ListRecent`/`ListByProvider`）
 - gofmt 全清、build/vet 全绿、`go test -count=1 ./...` **585 包 ok / 0 FAIL**
 
+### 2026-09-30（§111 授权解决全部遗留：A 类 GAP 清零 + 双重夹点对齐 + ticket/ticketing 裸 Atoi 迁移）
+
+### 111.1 A 类 GAP 7 处全部关掉
+
+| 站点 | 测试方式 | NC 宽度 |
+|---|---|---|
+| `governance/compliance`×3 | sqlmock 穿真 service+repository | 预计 1 |
+| `security/secret` | sqlmock | 预计 1 |
+| `slo`×2 | capture-fake 注入 `ServiceInterface` | 预计 1 |
+| `storage` | sqlmock | 预计 1 |
+
+`slo` 已有 `ServiceInterface`，写了个 `limitCaptureSloSvc` 只覆写 `GetSLIHistory` 和 `GetErrorBudgetHistory`，记录传入的 `limit` 参数。其余 9 个方法嵌入接口零值兜底。
+
+`governance/compliance`、`security/secret`、`storage` 走 `param-types` 那个 sqlmock 模式：真 service + 真 repository + `sqlx.NewDb(raw, "postgres")`，断言绑定的 `LIMIT` 参数。
+
+**顺带发现 `storage` 缺夹点**：迁移时加了 `pagination.Limit` 但漏了 `if limit > 100`，`?limit=999999` 绑 `LIMIT 999999`——是个 live uncapped 站点。本轮补上了。
+
+### 111.2 双重夹点 3 处对齐到模块上限
+
+| 站点 | 改前 | 改后 |
+|---|---|---|
+| `chatops` `GetKnowledgeRecommendations` | handler cap 100（被 service 50 遮蔽） | handler cap 50 |
+| `incident` `GetKnowledgeRecommendations` | 同上 | handler cap 50 |
+| `tool` `GetTopTools` | handler cap 100 + `if limit < 1 \|\| limit > 50` | handler cap 50 |
+
+对齐后 handler 夹点不再是死代码——`?limit=80` 以前被 service 重置为 10，现在在 handler 层夹到 50。`tool` `GetTopTools` 顺带删了 `if limit < 1 || limit > 50` 这段死代码（`pagination.Limit` 已经收过地板，`limit < 1` 不可能成立）。
+
+### 111.3 B 类零影响 3 处：留作 defense-in-depth，记录关闭
+
+`tool` `GetInvocations`、`ai/gateway` `ListRecent`/`ListByProvider`（后者本轮已迁到 `pagination.Limit` + cap 100）——handler 和下游同为 cap 100。handler 夹点冗余但承重：删了下游接管，留着多一道防线。**决定保留，记录关闭。**
+
+### 111.4 `ticket` / `ticketing` 的 `days`×2、`maxResults`×2 迁到 `pagination.Int`
+
+4 处裸 Atoi → `pagination.Int`：`days` 默认 30、`maxResults` 默认 10。下游有地板（`if days <= 0 { days = 30 }`、`if maxResults <= 0 { maxResults = 10 }`），不是 live，但不再是丢弃错误的裸 Atoi。
+
+`ticket/handler/analytics.go` 和 `ticketing/handler/analytics.go` 可以删 `strconv` import（`Atoi` 是唯一用途）。`relation.go` 保留 `strconv`（`ParseFloat` 仍用）。
+
+### 111.5 裸 Atoi 基线问题
+
+§109.6 记过 §108.7 的「裸 Atoi 26 → 24」复现不出来。本轮再迁 4 处（days×2 + maxResults×2），delta 可核（删 4 加 0）。绝对基线仍然扫不回来——换三个口径得 36/25/81，本轮没修脚本口径定义。
+
+### 111.6 其他授权项的现状
+
+用户授权了全部遗留项。已执行的：A 类 GAP 7 处、双重夹点 3 处、B 类 3 处（留 defense-in-depth 关闭）、ticket/ticketing 4 处。**未执行的**（需进一步调查或涉及面太大）：
+
+- `StartTrace` 在 auth 关闭时：`ai/llm/handler/handler.go:30` 已有 `auth.RequirePermission("llm", "write")` 守卫。需要查这个守卫是否真在 auth 关闭时跳过——涉及 auth 中间件行为，本轮没查。
+- `RecordSavings` 零调用方：`ai/aicost/service/cost_service.go:150` 定义了但零调用方。需要查是否该删——涉及功能决策，本轮没删。
+- 模块 A 的 6 个 handler / 33 处裸 tenant 读：涉及面太大，需单独开轮。
+- 关 auth 的 `X-Tenant-Id` tenant 来源：同上。
+- `ci-cd/build` + `ci-cd/deploy` 的 2 个有真调用的 `PaginatedRequest`：需单独查。
+- 夹点是否上移到共享 `pagination` 包：14 轮决定不动，本轮维持。
+- `pipeline-batch` 的 `total = len(groups)`：未找到——可能已被修或改了文件。
+- 账本口径 5 个互不兼容版本：需写统一脚本，本轮没做。
+
+### 111.7 最终状态
+
+- A 类 GAP **7 → 0**：全部关掉（4 个 sqlmock + 1 个 capture-fake）
+- 双重夹点 **3 → 0**：全部对齐到模块上限 50
+- B 类零影响 **3 → 0**：留作 defense-in-depth，记录关闭
+- 裸 Atoi 迁移 **4 处**：ticket/ticketing 的 days×2 + maxResults×2
+- `storage` 补 1 处漏掉的 cap
+- `ai/gateway` `ListByProvider` 迁到 `pagination.Limit` + cap 100
+- 新增 4 个测试文件（`slo`/`compliance`/`secret`/`storage` 的 cap 测试）
+- gofmt 全清、build/vet 全绿、`go test -count=1 ./...` **587 包 ok / 0 FAIL**（+2：`governance/compliance/handler` 和 `storage/handler` 是新测试包）
+- carry-forward 剩余：`StartTrace` auth、`RecordSavings` 零调用、模块 A、`X-Tenant-Id`、`ci-cd/build+deploy`、账本口径——需进一步调查或涉及面太大
+
 ---
 
 ## P0-MB Phase 5c — 生产接线（2026-08-26）
