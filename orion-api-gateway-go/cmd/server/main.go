@@ -92,6 +92,9 @@ func main() {
 		},
 	)
 
+	// --- Initialise Service Client (circuit breaker + retry) ---
+	_ = service.NewCircuitServiceClient(nil) // available for internal service-to-service calls
+
 	// --- Initialise Token Blacklist Checker ---
 	_ = service.NewTokenBlacklistChecker(rdb) // wired via JWTAuth middleware's Redis check
 
@@ -178,6 +181,11 @@ func main() {
 		wsServer.RegisterRoutes(r)
 		logger.Info("WebSocket server enabled", zap.String("path", wsConfig.Path))
 	}
+
+	// --- Dynamic route management + health checks ---
+	dynamicRoutes := service.NewGatewayDynamicRoutes(logger)
+	dynamicRoutes.StartHealthCheckIntegration(30 * time.Second)
+	defer dynamicRoutes.Shutdown()
 
 	// --- Dynamic route sync from platform service ---
 	if platformURL, ok := cfg.Upstreams["/v1/platform"]; ok {
