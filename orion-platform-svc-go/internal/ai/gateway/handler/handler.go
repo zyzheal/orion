@@ -116,9 +116,9 @@ func (h *Handler) ListByProvider(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	provider := c.Param("provider")
-	limit := 50
-	if c.Query("limit") != "" {
-		fmt.Sscanf(c.Query("limit"), "%d", &limit)
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 {
+		limit = 100
 	}
 	items, total, err := h.svc.ListByProvider(ctx, tenantID, provider, limit)
 	if err != nil {

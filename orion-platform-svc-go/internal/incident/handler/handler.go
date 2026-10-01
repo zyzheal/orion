@@ -105,7 +105,7 @@ func (h *Handler) List(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 20)
-	if limit > 100 {
+	if limit > 50 {
 		limit = 100
 	}
 	offset := pagination.Offset(c.Query("offset"))
@@ -361,7 +361,7 @@ func (h *Handler) GetTimeline(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	limit := pagination.Limit(c.Query("limit"), 20)
-	if limit > 100 {
+	if limit > 50 {
 		limit = 100
 	}
 	offset := pagination.Offset(c.Query("offset"))
@@ -527,7 +527,7 @@ func (h *Handler) GetKnowledgeRecommendations(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	limit := pagination.Limit(c.Query("limit"), 5)
-	if limit > 100 {
+	if limit > 50 {
 		limit = 100
 	}
 	result, err := h.svc.GetKnowledgeRecommendations(ctx, tenantID, id, limit)

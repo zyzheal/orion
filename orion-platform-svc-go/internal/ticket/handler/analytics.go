@@ -3,7 +3,7 @@ package handler
 import (
 	"go.opentelemetry.io/otel"
 	"net/http"
-	"strconv"
+	"orion/platform-svc-go/internal/pagination"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -62,7 +62,7 @@ func (h *AnalyticsHandler) GetTrendReport(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketGetTrendReport")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	days, _ := strconv.Atoi(c.Query("days"))
+	days := pagination.Int(c.Query("days"), 30)
 	granularity := c.Query("granularity")
 
 	report, err := h.svc.GetTrendReport(ctx, tenantID, days, granularity)

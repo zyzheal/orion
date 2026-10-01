@@ -3,6 +3,7 @@ package handler
 import (
 	"go.opentelemetry.io/otel"
 	"net/http"
+	"orion/platform-svc-go/internal/pagination"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -57,7 +58,7 @@ func (h *RelationHandler) GetRelations(c *gin.Context) {
 func (h *RelationHandler) FindRelatedTickets(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TicketFindRelatedTickets")
 	defer span.End()
-	maxResults, _ := strconv.Atoi(c.Query("maxResults"))
+	maxResults := pagination.Int(c.Query("maxResults"), 10)
 	minConfidence, _ := strconv.ParseFloat(c.Query("minConfidence"), 64)
 
 	related, err := h.svc.FindRelatedTickets(ctx, c.Param("id"), maxResults, minConfidence)

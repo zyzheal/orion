@@ -36,6 +36,9 @@ func (h *Handler) List(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := pagination.Limit(c.Query("limit"), 20)
+	if limit > 100 {
+		limit = 100
+	}
 	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.List(ctx, tenantID, limit, offset)
 	if err != nil {

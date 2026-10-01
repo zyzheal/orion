@@ -317,11 +317,8 @@ func (h *ToolHandler) GetTopTools(c *gin.Context) {
 	defer span.End()
 	tenantID := auth.GetTenantID(c)
 	limit := pagination.Limit(c.Query("limit"), 10)
-	if limit > 100 {
-		limit = 100
-	}
-	if limit < 1 || limit > 50 {
-		limit = 10
+	if limit > 50 {
+		limit = 50
 	}
 
 	ranks, err := h.svc.GetTopTools(ctx, tenantID, limit)
