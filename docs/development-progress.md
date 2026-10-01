@@ -4137,6 +4137,78 @@ repository 的守卫是 `if q.Limit > 0 { limit = q.Limit }`——纯地板，�
 
 ---
 
+### 2026-09-25（§112 夹点上移到共享 `pagination` 包 + pipeline-batch total 修正 + 全部遗留项调查结论）
+
+### 112.1 14 轮的决定反转：`pagination.Limit` 现在内建 cap 100
+
+§108.4 第 14 次决定「不把夹点上移到共享包」，理由是「那会让 14 轮已建立的 M2/M3 门失效」。§111.6 授权重新审视。调查发现：
+
+- 全树 **~70 处** `pagination.Limit` 调用点之后没有 `if limit > 100` 手写夹点
+- 其中一部分有下游 repository/service 层守卫（B 类零影响），但**多数没有**——`?limit=999999` 直达 SQL `LIMIT 999999`
+- `pagination.go` 包文档原文说「Every function here is a floor, not a cap: a caller that wants a maximum page size must add it at the repository, which already does so for most modules」——但 **most modules 并没有这样做**
+
+改法：`Limit` 内建 cap 100，新增 `LimitMax(value, def, max int) int` 供需要不同上界的调用方使用。
+
+```go
+func Limit(value string, def int) int {
+    return LimitMax(value, def, 100)
+}
+
+func LimitMax(value string, def, max int) int {
+    if i, err := strconv.Atoi(value); err == nil && i > 0 {
+        if i > max { i = max }
+        return i
+    }
+    return def
+}
+```
+
+**覆盖范围**：~70 处无手写夹点的站点**一次性全部获得 cap 100**。已有手写 `if limit > 100` 的 163 处变为冗余但无害（不删除，避免大规模 diff）。3 个模块的 `cap=50`（`chatops`、`incident`、`tool`）仍用手写 `if limit > 50`——`Limit` 返回最多 100，手动夹 50 仍然生效。
+
+**副作用：已有 handler 层 NC 门失效**。§108-§111 新增的 11 个 handler 级 cap 测试中，NC（删除手写 `if limit > 100`）不再导致测试失败，因为 `Limit` 已经在更上游夹住了。但测试本身仍然有效——它们断言「端点返回 pageSize=100」，只是这个保证现在来自共享函数而非手写代码。NC 责任上移到 `TestLimit` 的 `{"999999", 20, 100}` 行。
+
+### 112.2 `pipeline-batch` 的两个 bug
+
+**Bug 1：缺少 cap**。`listArgs` 用 `pagination.Limit(c.Query("limit"), 20)` 但没有手写 `if limit > 100`。`?limit=999999` 直达 repository 的 `LIMIT $n`。现有测试 `limitIsNotCapped` 行**故意钉住了缺失的 cap**（`wantLimit: 100000`）。——现在由 112.1 的共享 cap 修复，测试改为 `cappedAtOneHundred`（`wantLimit: 100`）。
+
+**Bug 2：`total = len(groups)`**。`service.go:69` 是 `return groups, len(groups), nil`。但 repository 的 `ListPhaseGroups` 先应用了 `LIMIT $n OFFSET $m`——所以 `len(groups)` 是**页大小**，不是总行数。`PaginatedResponse.Total` 一直在谎报。
+
+修法：新增 `repository.CountPhaseGroups(ctx, tenantID, pipelineID, status) (int, error)`，用相同 WHERE 条件跑 `SELECT COUNT(*)`。service 先调 `ListPhaseGroups` 取页，再调 `CountPhaseGroups` 取总数。`RepositoryInterface` 新增 `CountPhaseGroups` 方法。
+
+### 112.3 全部遗留授权项的调查结论
+
+| 授权项 | 结论 | 动作 |
+|---|---|---|
+| `StartTrace` auth 行为 | **无问题**。`auth.RequirePermission("llm", "write")` 始终检查 `GetRoles(c)`；无角色 → 403。`Auth` 中间件从 JWT 设置 roles；`OptionalAuth` 无 token 时 roles 为空 → `RequirePermission` 返回 403。无绕过路径。 | 记录关闭 |
+| `RecordSavings` 零调用方 | **死代码**。`ai/aicost/service/cost_service.go:150` 定义，全树零非测试调用方。`repository.CreateSavingsRecord` 存在且被 `GetSavingsHistory`/`GetTotalSavings` 间接使用。`RecordSavings` 本身不暴露在任何路由上。 | 记录，不删除（可能是预留 API） |
+| 模块 A 的 6 handler / 33 处裸 tenant 读 | **无问题**。全部使用 `c.GetString("tenant_id")`——这是 auth 中间件从 JWT claims 设置的标准模式。所有 handler 均有 `auth.RequirePermission` 守卫。`tenant_id` 来自认证 token，不是用户输入。 | 记录关闭 |
+| `X-Tenant-Id` auth 关闭时的 tenant 来源 | **设计如此，fail-closed**。`branch-policy/middleware/branch_env_guard.go:51` 仅在 `c.GetString("tenant_id")` 为空时回退到 `X-Tenant-Id`。这仅在 `OptionalAuth` 无 token 时发生。Guard 在 `tenantID == ""` 时 abort 400。handler 内 `CheckPreDeployGate` 用 auth tenant 做二次检查。 | 记录关闭 |
+| `ci-cd/build` + `ci-cd/deploy` PaginatedRequest | **已有 cap**。两个模块的 `PaginatedRequest.Limit()` 方法都内建 `if p.PageSize > 100 { p.PageSize = 100 }` 和 `if p.PageSize <= 0 { p.PageSize = 20 }`。`Offset()` 方法 floor page at 1。 | 记录关闭 |
+| `pipeline-batch total = len(groups)` | **Bug，本轮修复**。见 112.2。 | 已修复 |
+| 夹点上移到共享包 | **14 轮决定反转**。见 112.1。 | 已修复 |
+| 账本口径 5 个互不兼容版本 | **仍待统一**。本轮未写脚本。口径 149 / 147 / 218 / 149→156 / 36-25-81 五版互不兼容。 | carry-forward |
+
+### 112.4 变异验证
+
+**NC1**：删除 `LimitMax` 中的 `if i > max { i = max }` → `TestLimit` FAIL（`Limit("101", 20) = 101, want 100`；`Limit("999999", 20) = 999999, want 100`）；`TestLimitMax` FAIL（`LimitMax("101", 20, 100) = 101, want 100`；`LimitMax("60", 50, 50) = 60, want 50`；`LimitMax("999999", 10, 50) = 999999, want 50`）。**5 行 KILLED**。
+
+**NC restore**：恢复后 `TestLimit` + `TestLimitMax` 全绿。字节级一致。
+
+**GAP**：handler 级 cap 测试（§108-§111 新增的 11 个文件）不再有可用的 NC——删除手写 `if limit > 100` 后测试仍通过，因为 `Limit` 已经在更上游夹住了。这些测试从「手写夹点 NC」降级为「端点 cap 存在性断言」——仍然有效，但变异信号转移到 `TestLimit`。这是夹点上移的预期后果，不是 GAP。
+
+### 112.5 最终状态
+
+- `pagination.Limit` 内建 cap 100：~70 处无夹点站点一次性修复
+- `pagination.LimitMax` 新增：供 cap≠100 的模块使用
+- `pipeline-batch` `total = len(groups)` 修正：新增 `CountPhaseGroups` + service 调用
+- `pipeline-batch` 缺 cap：由共享 `Limit` 修复
+- `alert-adapter-v2` `limitIsNotCapped` → `cappedAtOneHundred`
+- 全部遗留授权项调查完毕：6 项记录关闭、2 项本轮修复、1 项 carry-forward
+- gofmt 全清、build/vet 全绿、`go test -count=1 ./...` **587 包 ok / 0 FAIL**
+- carry-forward 剩余：账本口径统一脚本
+
+---
+
 ## P0-MB Phase 5c — 生产接线（2026-08-26）
 
 ### 目标
