@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/platform-svc-go/internal/slo/models"
 	"orion/platform-svc-go/internal/slo/service"
 
@@ -246,7 +247,10 @@ func (h *Handler) GetSLIHistory(c *gin.Context) {
 		return
 	}
 	sloID := c.Param("id")
-	limit, _ := strconv.Atoi(c.Query("limit"))
+	limit := pagination.Limit(c.Query("limit"), 20)
+	if limit > 100 {
+		limit = 100
+	}
 
 	result, err := h.svc.GetSLIHistory(ctx, sloID, tenantID, limit)
 	if err != nil {
@@ -282,7 +286,10 @@ func (h *Handler) GetErrorBudgetHistory(c *gin.Context) {
 		return
 	}
 	sloID := c.Param("id")
-	limit, _ := strconv.Atoi(c.Query("limit"))
+	limit := pagination.Limit(c.Query("limit"), 20)
+	if limit > 100 {
+		limit = 100
+	}
 
 	result, err := h.svc.GetErrorBudgetHistory(ctx, sloID, tenantID, limit)
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/ai/gateway/models"
 	"orion/platform-svc-go/internal/ai/gateway/service"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -95,11 +96,13 @@ func (h *Handler) ListRequests(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	q := models.ListQuery{Provider: c.Query("provider")}
-	limit := 20
-	if c.Query("limit") != "" {
-		fmt.Sscanf(c.Query("limit"), "%d", &limit)
+	// The repository only floors (`if q.Limit > 0`), so an uncapped value bound
+	// straight into LIMIT: ?limit=999999 read the whole table next to its own
+	// COUNT(*).
+	q.Limit = pagination.Limit(c.Query("limit"), 20)
+	if q.Limit > 100 {
+		q.Limit = 100
 	}
-	q.Limit = limit
 	items, total, err := h.svc.ListRequests(ctx, tenantID, q)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -130,9 +133,13 @@ func (h *Handler) ListByModel(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	model := c.Param("model")
-	limit := 50
-	if c.Query("limit") != "" {
-		fmt.Sscanf(c.Query("limit"), "%d", &limit)
+	// The result is truncated with this value (`items[:limit]`), so an uncapped
+	// or negative value was not a long read - it was a crash: ?limit=-1 reached
+	// items[:-1] and panicked with "slice bounds out of range", and ?limit=0
+	// returned an empty array next to a total that still counted every row.
+	limit := pagination.Limit(c.Query("limit"), 50)
+	if limit > 100 {
+		limit = 100
 	}
 	// GetByModel currently filters by provider field; rename is a future improvement
 	items, total, err := h.svc.GetByModel(ctx, tenantID, model)

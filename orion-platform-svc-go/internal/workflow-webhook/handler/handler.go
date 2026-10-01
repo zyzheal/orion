@@ -2,8 +2,8 @@ package handler
 
 import (
 	"errors"
-	"strconv"
 
+	"orion/platform-svc-go/internal/pagination"
 	"orion/platform-svc-go/internal/workflow-webhook/models"
 	"orion/platform-svc-go/internal/workflow-webhook/service"
 	workflow_service "orion/platform-svc-go/internal/workflow/workflow/service"
@@ -66,14 +66,8 @@ func (h *Handler) getUserID(c *gin.Context) string {
 
 // parsePagination reads page and pageSize from query parameters.
 func parsePagination(c *gin.Context) (int, int) {
-	page := 1
-	pageSize := 20
-	if p, err := strconv.Atoi(c.Query("page")); err == nil && p > 0 {
-		page = p
-	}
-	if ps, err := strconv.Atoi(c.Query("pageSize")); err == nil && ps > 0 {
-		pageSize = ps
-	}
+	page := pagination.Page(c.Query("page"), 1)
+	pageSize := pagination.Limit(c.Query("pageSize"), 20)
 	if pageSize > 100 {
 		pageSize = 100
 	}

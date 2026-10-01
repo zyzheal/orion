@@ -2,11 +2,11 @@ package handler
 
 import (
 	"errors"
-	"strconv"
 
 	"orion/go-common/pkg/auth"
 	goerr "orion/go-common/pkg/errors"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/platform-svc-go/internal/storage/models"
 	"orion/platform-svc-go/internal/storage/service"
 
@@ -35,8 +35,8 @@ func (h *Handler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.Query("limit"))
-	offset, _ := strconv.Atoi(c.Query("offset"))
+	limit := pagination.Limit(c.Query("limit"), 20)
+	offset := pagination.Offset(c.Query("offset"))
 	items, err := h.svc.List(ctx, tenantID, limit, offset)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)

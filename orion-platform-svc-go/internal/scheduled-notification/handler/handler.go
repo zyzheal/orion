@@ -1,9 +1,8 @@
 package handler
 
 import (
-	"strconv"
-
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/platform-svc-go/internal/scheduled-notification/models"
 	"orion/platform-svc-go/internal/scheduled-notification/service"
 
@@ -64,13 +63,10 @@ func (h *Handler) getUserID(c *gin.Context) string {
 
 // getPagination extracts page and pageSize from query parameters.
 func (h *Handler) getPagination(c *gin.Context) (int, int) {
-	page := 1
-	pageSize := 20
-	if p, err := strconv.Atoi(c.Query("page")); err == nil && p > 0 {
-		page = p
-	}
-	if ps, err := strconv.Atoi(c.Query("pageSize")); err == nil && ps > 0 {
-		pageSize = ps
+	page := pagination.Page(c.Query("page"), 1)
+	pageSize := pagination.Limit(c.Query("pageSize"), 20)
+	if pageSize > 100 {
+		pageSize = 100
 	}
 	return page, pageSize
 }
