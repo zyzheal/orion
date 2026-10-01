@@ -2,13 +2,12 @@ package handler
 
 import (
 	"context"
-	"strconv"
 
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/pagination"
 	"orion/platform-svc-go/internal/sbom/models"
 	"orion/platform-svc-go/internal/sbom/service"
-
-	"orion/platform-svc-go/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -82,14 +81,8 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 
 // parsePagination parses offset/limit query params.
 func parsePagination(c *gin.Context) (int, int) {
-	offset, _ := strconv.Atoi(c.Query("offset"))
-	limit, _ := strconv.Atoi(c.Query("limit"))
-	if offset < 0 {
-		offset = 0
-	}
-	if limit <= 0 {
-		limit = 20
-	}
+	offset := pagination.Offset(c.Query("offset"))
+	limit := pagination.Limit(c.Query("limit"), 20)
 	return offset, limit
 }
 

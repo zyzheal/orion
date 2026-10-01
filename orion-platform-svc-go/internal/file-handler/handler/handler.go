@@ -7,6 +7,7 @@ import (
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/file-handler/service"
+	"orion/platform-svc-go/internal/pagination"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -103,11 +104,8 @@ func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 
 	category := c.Query("category")
-	limit, _ := strconv.Atoi(c.Query("limit"))
-	if limit <= 0 {
-		limit = 50
-	}
-	offset, _ := strconv.Atoi(c.Query("offset"))
+	limit := pagination.Limit(c.Query("limit"), 50)
+	offset := pagination.Offset(c.Query("offset"))
 
 	files, err := h.svc.ListFiles(ctx, tenantID, category, limit, offset)
 	if err != nil {

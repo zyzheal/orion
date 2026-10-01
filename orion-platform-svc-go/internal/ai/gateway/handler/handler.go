@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 
 	"orion/go-common/pkg/auth"
@@ -158,14 +157,7 @@ func (h *Handler) ListRecent(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRecent")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	n := 20
-	fmt.Sscanf(c.Param("n"), "%d", &n)
-	if n < 1 {
-		n = 20
-	}
-	if n > 100 {
-		n = 100
-	}
+	n := pagination.Limit(c.Param("n"), 20)
 	items, total, err := h.svc.ListRecent(ctx, tenantID, n)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)

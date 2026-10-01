@@ -3,13 +3,13 @@ package handler
 import (
 	"net/http"
 	"orion/platform-svc-go/internal/middleware"
-	"strconv"
+	"orion/platform-svc-go/internal/pagination"
+	"orion/platform-svc-go/internal/pipeline-audit-log/models"
+	"orion/platform-svc-go/internal/pipeline-audit-log/service"
 	"time"
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
-	"orion/platform-svc-go/internal/pipeline-audit-log/models"
-	"orion/platform-svc-go/internal/pipeline-audit-log/service"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
@@ -103,8 +103,8 @@ func (h *Handler) Query(c *gin.Context) {
 	action := c.Query("action")
 	actor := c.Query("actor")
 	outcome := c.Query("outcome")
-	limit, _ := strconv.Atoi(c.Query("limit"))
-	offset, _ := strconv.Atoi(c.Query("offset"))
+	limit := pagination.Limit(c.Query("limit"), 20)
+	offset := pagination.Offset(c.Query("offset"))
 
 	var q models.AuditLogQuery
 	if runID != "" {
@@ -158,10 +158,7 @@ func (h *Handler) GetRunAuditTrail(c *gin.Context) {
 	defer span.End()
 	runID := c.Param("runId")
 	tenantID := h.getTenantID(c)
-	limit, _ := strconv.Atoi(c.Query("limit"))
-	if limit <= 0 {
-		limit = 100
-	}
+	limit := pagination.Limit(c.Query("limit"), 100)
 	trail, err := h.svc.GetRunAuditTrail(ctx, tenantID, runID, limit)
 	if err != nil {
 		if service.IsNotFound(err) {
