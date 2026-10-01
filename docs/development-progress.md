@@ -4209,6 +4209,74 @@ func LimitMax(value string, def, max int) int {
 
 ---
 
+### 2026-09-25（§112 续：账本口径统一 + 最后 8 处裸 Atoi/Sscanf 迁移）
+
+### 112.6 账本口径统一：固定脚本定义
+
+§109.6 记过 5 个互不兼容的账本口径（149 / 147 / 218 / 149→156 / 36-25-81），每次换正则就得不同数字。本轮写了 `tools/ledger/count_pagination_sites.py`，定义 5 个固定类别：
+
+| 类别 | 定义 | 目标 |
+|---|---|---|
+| A. `bare_atoi_query` | `strconv.Atoi(c.Query/DefaultQuery(...))` 丢弃 error，非测试文件 | 0 |
+| B. `bare_atoi_param` | `strconv.Atoi(c.Param(...))` 非测试文件 | 非分页，不迁移 |
+| C. `pagination_calls` | `pagination.Page/Limit/Offset/Int/OffsetFromPage/LimitMax(` 非测试文件 | — |
+| D. `manual_caps` | `pagination.Limit` 后 5 行内有 `if X > N` | — |
+| E. `fmt_sscanf_query` | `fmt.Sscanf(c.Query/Param/DefaultQuery(...))` 非测试文件 | 0 |
+
+脚本使用 `grep -rnE`（扩展正则），路径用 `os.path.relpath` 归一化，输出绝对路径不再导致正则失配（§109.6 第七次同类错误）。
+
+### 112.7 最后 8 处裸 Atoi/Sscanf 迁移
+
+**7 处 `strconv.Atoi` + `c.Query`**：
+
+| 模块 | 站点数 | 修法 |
+|---|---|---|
+| `sbom` | 2（offset + limit） | `parsePagination` 改用 `pagination.Offset` + `pagination.Limit`，删 `strconv` import |
+| `file-handler` | 2（limit + offset） | 改用 `pagination.Limit(c.Query("limit"), 50)` + `pagination.Offset(c.Query("offset"))`，保留 `strconv`（`FormatInt` 仍用） |
+| `pipeline-audit-log` | 3（limit×2 + offset） | 改用 `pagination.Limit` + `pagination.Offset`，删 `strconv` import |
+
+其中 `pipeline-audit-log` 的 repository 有下游 cap（`if limit > 1000` / `if limit > 500`），是 B 类零影响——但裸 Atoi 丢弃 error 仍是缺陷，迁移后不再丢弃。
+
+**1 处 `fmt.Sscanf` + `c.Param`**：
+
+`ai/gateway/handler/handler.go:162` 的 `ListRecent`：
+
+```go
+// 改前
+n := 20
+fmt.Sscanf(c.Param("n"), "%d", &n)
+if n < 1 { n = 20 }
+if n > 100 { n = 100 }
+
+// 改后
+n := pagination.Limit(c.Param("n"), 20)
+```
+
+`pagination.Limit` 的 floor + cap 完全覆盖原有的 3 行手动逻辑。删 `fmt` import（唯一用途）。
+
+### 112.8 统一账本最终输出
+
+```
+A. bare_atoi_query:   0  ✓
+B. bare_atoi_param:   3  (path params, check error, non-pagination)
+C. pagination_calls:  480
+D. manual_caps:       162  (redundant since Round 111)
+E. fmt_sscanf_query:  0  ✓
+```
+
+**A=0, E=0** — 所有 query/path 参数的裸 Atoi/Sscanf 解析全部迁移到 `pagination` 包。账本口径从此固定，不再需要每轮重新定义正则。
+
+### 112.9 carry-forward 清零
+
+§111.6 的 8 项遗留：
+- 6 项记录关闭（StartTrace auth、RecordSavings、模块 A、X-Tenant-Id、ci-cd PaginatedRequest、pipeline-batch total）
+- 2 项本轮修复（夹点上移、pipeline-batch total 修正）
+- 1 项本轮修复（账本口径统一脚本）
+
+**carry-forward = 0**。所有授权项已全部解决。
+
+---
+
 ## P0-MB Phase 5c — 生产接线（2026-08-26）
 
 ### 目标
