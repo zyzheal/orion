@@ -9,13 +9,14 @@ type: project
 ## 核心架构
 
 ```
-orion-platform-service/     # 核心后端 (Node.js + TypeScript + Fastify) — 主力服务
-orion-api-gateway/          # API 网关 (Node.js + Fastify + http-proxy)
+orion-platform-svc-go/     # 核心后端 (Go + Gin) — 主力服务，替代旧 TS 版本
+orion-api-gateway-go/      # API 网关 (Go + Gin) — 替代旧 TS 版本
 orion-frontend/             # 前端 (React + Vite + Ant Design + wujie 微前端)
 orion-ai-service/           # AI 微服务 (Python)
 orion-visor/                # 运维可视化 (Java/Spring)
 orion-knowledge/            # AI 知识库 (PandaWiki fork)
 orion-dba/                  # DB 管理平台
+legacy/                     # 已归档的 TS 版本（orion-api-gateway-ts 等）
 ```
 
 ## Platform Service 内部结构 (orion-platform-service/src/)

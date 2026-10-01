@@ -11,16 +11,16 @@ Orion is an AI-driven DevOps platform for R&D efficiency. Core主张: "不替代
 ## Repository Structure
 
 ```
-orion-platform-service/     # Core backend (Node.js + TypeScript + Fastify) — main workhorse
-orion-api-gateway/          # API Gateway (Node.js + Fastify + http-proxy)
+orion-platform-svc-go/     # Core backend (Go + Gin) — 主力后端服务
+orion-api-gateway-go/      # API Gateway (Go + Gin) — 替代旧 TS 版本
 orion-frontend/             # Frontend (React + Vite + Ant Design + Orion-MF 自研微前端)
 orion-ai-service/           # AI microservice (Python) — 权威实现
-orion-ai-svc/               # AI microservice (TS) — 微服务蓝图，与 orion-ai-service 功能重叠
 orion-ai-agents-svc/        # AI Agents 专项服务（Python 蓝图）
 orion-visor/                # Ops visualization (Java/Spring)
 orion-knowledge/            # AI knowledge base (PandaWiki fork)
 orion-dba/                  # DB management platform
 docs/                       # 260+ design docs organized by domain
+legacy/                     # 已归档的 TS 版本（orion-api-gateway-ts 等）
 ```
 
 ### orion-*-svc 独立微服务目录

@@ -1,0 +1,38 @@
+# Orion API Gateway Configuration
+service_name: orion-api-gateway
+environment: development
+http_addr: ":3000"
+
+# JWT secret (required, or set JWT_SECRET env var)
+jwt_secret: ""
+
+# Redis for rate limiting and token blacklist
+redis_url: "redis://localhost:6379/0"
+
+# OpenTelemetry (optional)
+otel_endpoint: ""
+
+# Rate limiting
+rate_limit_rps: 100
+
+# CORS
+allowed_origins:
+  - "*"
+
+# CSP (Content Security Policy)
+csp_enabled: true
+
+# Upstream service mappings
+# Keys are path prefixes, values are upstream URLs
+upstreams:
+  "/v1/pipeline": "http://localhost:3001"
+  "/v1/tenant": "http://localhost:3001"
+  "/v1/monitoring": "http://localhost:3001"
+  "/v1/alert": "http://localhost:3001"
+  "/v1/cmdb": "http://localhost:3001"
+  "/v1/ticketing": "http://localhost:3001"
+  "/v1/finops": "http://localhost:3001"
+  "/v1/diagnostic": "http://localhost:3001"
+  "/v1/ai": "http://localhost:3001"
+  "/v1/platform": "http://localhost:3001"
+  "/v1/knowledge": "http://localhost:8090"

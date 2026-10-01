@@ -4,7 +4,7 @@ use (
 	./
 	./blueprints/orion-ai-svc-go.archived
 	./blueprints/orion-alert-breaker-svc-go.archived
-	./blueprints/orion-api-gateway-go
+	./orion-api-gateway-go
 	./blueprints/orion-auth-svc.archived
 	./blueprints/orion-ci-cd-svc-go.archived
 	./blueprints/orion-community-svc-go.archived

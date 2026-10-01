@@ -1,0 +1,57 @@
+# ============================================================
+# Orion Platform - Namespace Pool 基础配置
+# ============================================================
+# 描述：定义 100 个租户池的基础 Namespace 配置
+# 用途：租户隔离的计算资源边界
+# ============================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: orion-tenant-pool-001
+  labels:
+    orion.io/type: tenant-pool
+    orion.io/pool-id: "001"
+    orion.io/tenant-range: "t001-t010"
+    orion.io/environment: production
+---
+# 资源配额限制（Namespace 级别）
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: tenant-pool-quota
+  namespace: orion-tenant-pool-001
+spec:
+  hard:
+    requests.cpu: "20"           # 20 Core 总请求
+    requests.memory: 40Gi        # 40Gi 总内存请求
+    limits.cpu: "40"             # 40 Core 总限制（允许超卖）
+    limits.memory: 80Gi          # 80Gi 总内存限制
+    persistentvolumeclaims: "20" # PVC 数量限制
+    requests.storage: 100Gi      # 总存储请求
+    pods: "50"                   # Pod 数量上限
+---
+# 容器默认资源限制
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: tenant-pool-limits
+  namespace: orion-tenant-pool-001
+spec:
+  limits:
+    - type: Container
+      min:
+        cpu: 100m
+        memory: 128Mi
+      max:
+        cpu: 4000m
+        memory: 8Gi
+      default:
+        cpu: 500m
+        memory: 512Mi
+      defaultRequest:
+        cpu: 500m
+        memory: 512Mi
+      maxLimitRequestRatio:
+        cpu: "4"
+        memory: "4"

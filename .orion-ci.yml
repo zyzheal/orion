@@ -11,7 +11,7 @@ trigger:
   paths:
     include:
       - "orion-platform-service/**"
-      - "orion-api-gateway/**"
+      - "legacy/orion-api-gateway-ts/**"
       - "orion-frontend/**"
       - ".orion-ci.yml"
     exclude:

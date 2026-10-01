@@ -30,7 +30,7 @@
 | [orion-visor/](orion-visor/) | 运维可视化管理平台 |
 | [orion-knowledge/](orion-knowledge/) | AI 知识库微服务 |
 | [orion-dba/](orion-dba/) | 数据库管理平台 |
-| [orion-api-gateway/](orion-api-gateway/) | API 网关服务 |
+| [legacy/orion-api-gateway-ts/](legacy/orion-api-gateway-ts/) | API 网关服务 |
 | [orion-platform-service/](orion-platform-service/) | 平台核心服务 |
 
 ### 服务启动

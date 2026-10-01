@@ -1,0 +1,151 @@
+# NATS JetStream 集群部署配置
+# 版本：1.0 | 创建日期：2026-04-11
+#
+# 部署说明:
+# - 3 节点集群，支持高可用
+# - JetStream 启用，R=3 副本
+# - 故障切换 < 15 秒
+# - 持久化存储配置
+
+version: '3.8'
+
+services:
+  # ==================== NATS 节点 1 ====================
+  nats-1:
+    image: nats:2.10-alpine
+    container_name: nats-server-1
+    hostname: nats-1
+    ports:
+      - "4222:4222"     # 客户端连接端口
+      - "8222:8222"     # 监控端口
+      - "6222:6222"     # 集群路由端口
+    command:
+      - --config
+      - /etc/nats/config.conf
+      - --jetstream
+    volumes:
+      - ./config/nats-1.conf:/etc/nats/config.conf:ro
+      - nats-data-1:/data
+      - ./logs/nats-1:/var/log/nats
+    networks:
+      - orion-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nats-server", "-sl", "ldm=/var/run/nats/nats.pid"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # ==================== NATS 节点 2 ====================
+  nats-2:
+    image: nats:2.10-alpine
+    container_name: nats-server-2
+    hostname: nats-2
+    ports:
+      - "4223:4222"
+      - "8223:8222"
+      - "6223:6222"
+    command:
+      - --config
+      - /etc/nats/config.conf
+      - --jetstream
+    volumes:
+      - ./config/nats-2.conf:/etc/nats/config.conf:ro
+      - nats-data-2:/data
+      - ./logs/nats-2:/var/log/nats
+    networks:
+      - orion-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nats-server", "-sl", "ldm=/var/run/nats/nats.pid"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # ==================== NATS 节点 3 ====================
+  nats-3:
+    image: nats:2.10-alpine
+    container_name: nats-server-3
+    hostname: nats-3
+    ports:
+      - "4224:4222"
+      - "8224:8222"
+      - "6224:6222"
+    command:
+      - --config
+      - /etc/nats/config.conf
+      - --jetstream
+    volumes:
+      - ./config/nats-3.conf:/etc/nats/config.conf:ro
+      - nats-data-3:/data
+      - ./logs/nats-3:/var/log/nats
+    networks:
+      - orion-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nats-server", "-sl", "ldm=/var/run/nats/nats.pid"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # ==================== NATS 监控 exporte ====================
+  nats-exporter:
+    image: natsio/prometheus-nats-exporter:0.14.0
+    container_name: nats-exporter
+    command:
+      - -connz
+      - -routez
+      - -gatewayz
+      - -leafz
+      - -varz
+      - -jsz=all
+      - http://nats-1:8222
+    ports:
+      - "7777:7777"
+    networks:
+      - orion-network
+    restart: unless-stopped
+    depends_on:
+      - nats-1
+
+networks:
+  orion-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  nats-data-1:
+    driver: local
+    name: nats-data-1
+  nats-data-2:
+    driver: local
+    name: nats-data-2
+  nats-data-3:
+    driver: local
+    name: nats-data-3
