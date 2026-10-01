@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"orion/platform-svc-go/internal/chaos/models"
@@ -33,9 +34,11 @@ func setup() (*gin.Context, *httptest.ResponseRecorder) {
 }
 
 // requestWithBody builds a gin.Context with the given method, path, and JSON body.
+var setTestModeOnce sync.Once
+
 // Sets tenant_id in the context.
 func requestWithBody(method, path string, body interface{}) *gin.Context {
-	gin.SetMode(gin.TestMode)
+	setTestModeOnce.Do(func() { gin.SetMode(gin.TestMode) })
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Params = gin.Params{
@@ -981,6 +984,7 @@ func TestHandler_PreReleaseVerify_EmptyJSON(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHandler_ConcurrentRequests(t *testing.T) {
+	gin.SetMode(gin.TestMode) // set once before goroutines to avoid race
 	done := make(chan bool, 3)
 
 	go func() {

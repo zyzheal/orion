@@ -148,6 +148,12 @@ func TestDNDHandler_Set(t *testing.T) {
 	now := time.Now()
 	start := now.Add(1 * time.Hour).Truncate(time.Second)
 	end := now.Add(2 * time.Hour).Truncate(time.Second)
+	// Round-trip through RFC3339 to strip monotonic clock reading,
+	// matching what gin's ShouldBindJSON produces after JSON parsing.
+	// Without this, reflect.DeepEqual in sqlmock fails on UTC systems
+	// where time.Now() sets the hasMonotonic bit.
+	start, _ = time.Parse(time.RFC3339, start.Format(time.RFC3339))
+	end, _ = time.Parse(time.RFC3339, end.Format(time.RFC3339))
 	mock.ExpectQuery("INSERT INTO do_not_disturb").
 		WithArgs("tenant-1", "user-1", start, end, nil).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "tenant_id", "user_id", "start_time", "end_time", "reason", "created_at", "updated_at"}).

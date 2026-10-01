@@ -132,7 +132,7 @@ func TestPGExecutor_Backup_EncryptionProducesNonPlainText(t *testing.T) {
 	// The fake pg_dump writes a known plaintext file so we can verify
 	// encryption actually transforms the bytes. pg_dump receives multiple
 	// args; the output file is the last positional argument.
-	script := "#!/bin/sh\nlast=\"${@: -1}\"\nprintf '%s' \"secret-bytes-for-encryption\" > \"$last\"\n"
+	script := "#!/bin/bash\nlast=\"${@: -1}\"\nprintf '%s' \"secret-bytes-for-encryption\" > \"$last\"\n"
 	if err := os.WriteFile(fakeBin, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
