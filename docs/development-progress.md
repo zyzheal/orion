@@ -3981,6 +3981,94 @@ diff 可核的部分是准的：`git diff ce08d8799..a47dbf3b2 -- '*.go'` 删 2 
 - §108.7 的裸 Atoi 基线标为「不可复核，delta 可复核」
 - gofmt 全清、build/vet 全绿、`go test -count=1 ./...` **585 包 ok / 0 FAIL**（`prompt-security/handler` 是它第一个测试包，584 → 585）
 
+### 2026-09-30（§110 深度检查：下游遮蔽扫描 + ai/gateway 的 panic 与过量）
+
+### 110.1 上一轮说「全部完成」时漏了什么
+
+用户问「所有任务是否全部完成」时回头做深度检查，发现两个问题。
+
+**第一：工作树里有 5 个模块的迁移没提交。** `slo`（2 处）、`storage`（1 处）、`scheduled-notification`（2 处）、`webhook`（2 处）、`workflow-webhook`（2 处）——都是裸 `Atoi` 迁到 `pagination.Page`/`Limit` + 夹到 100，和 Round 107 的 18 处同一个形状。这些改动在工作树里已经存在，但不在我的任何提交里。本轮一并提交。
+
+**第二：§109.2 说 `tool` 和 `ai/gateway` 的 handler 夹点是「零影响」的 B 类——下游有 `if limit <= 0 || limit > 100`。** 但这只对 `ai/gateway` 的 `ListRecent` 和 `ListByProvider` 成立。`ListByModel` 和 `ListRequests` 是另一回事。
+
+### 110.2 `ai/gateway` `ListByModel`：负数 limit 直接 panic
+
+`ListByModel` 的代码是：
+
+```go
+limit := 50
+if c.Query("limit") != "" { fmt.Sscanf(c.Query("limit"), "%d", &limit) }
+items, total, err := h.svc.GetByModel(ctx, tenantID, model)
+if len(items) > limit { items = items[:limit] }
+```
+
+`?limit=-1` 命中 `items[:-1]`，Go 运行时 `slice bounds out of range [:-1]`，**panic**。不是 500、不是静默过量——是进程崩溃。路由 `GET /ai-gateway/by-model/:model` 已挂载且有 auth 守卫，任何能调这个 API 的用户一个负号就能打爆。
+
+`?limit=0` 不 panic 但返回空数组，旁边 `total` 仍报全量行数。
+
+修法：`pagination.Limit(c.Query("limit"), 50)` + `if limit > 100 { limit = 100 }`。
+
+### 110.3 `ai/gateway` `ListRequests`：uncapped limit 直达 SQL
+
+`ListRequests` 的代码是：
+
+```go
+limit := 20
+if c.Query("limit") != "" { fmt.Sscanf(c.Query("limit"), "%d", &limit) }
+q.Limit = limit
+items, total, err := h.svc.ListRequests(ctx, tenantID, q)
+```
+
+repository 的守卫是 `if q.Limit > 0 { limit = q.Limit }`——纯地板，没有上界。`?limit=999999` 绑定 `LIMIT 999999`，读全表，旁边 `COUNT(*)` 也读全表。和 Round 107 的 18 处同一个形状。
+
+修法同上。
+
+### 110.4 下游遮蔽扫描：3 处 handler 夹点已死
+
+写了个扫描器，遍历全树 handler 层 `if X > 100` 站点，追到紧随其后的 `svc.Method(...)` 调用，再在同模块的 service/repository 层找 `if limit <= 0 || limit > N` 组合守卫。结果：
+
+| 类别 | 数量 | 含义 |
+|---|---|---|
+| **被下游遮蔽**（handler cap 不可达） | **3** | 下游阈值 < 100，handler 上界分支永远走不到 |
+| 同阈值（handler cap = 下游 cap = 100） | 14 | handler 夹点冗余但承重——删了下游接管 |
+| 下游无守卫 | 148 | handler 夹点是唯一防线，live |
+
+3 处被遮蔽：
+
+1. **`chatops` `GetKnowledgeRecommendations`**：handler `if limit > 100` → service `if limit <= 0 || limit > 50 { limit = 10 }`。`?limit=80` 被 service 重置为 10。
+2. **`incident` `GetKnowledgeRecommendations`**：同上。handler cap 100，service cap 50。
+3. **`tool` `GetTopTools`**：handler `if limit > 100` → service `if limit <= 0 || limit > 50 { limit = 10 }`。§109.5 已记，这里补完数据流。
+
+这三处都是 handler 先夹 100、service 再夹 50 的「双重夹点」家族。handler 的 100 分支不可达，但 handler 的 `pagination.Limit` 地板仍然承重。**只记录，没动**——50 是模块自己的上限，改不改需要授权。
+
+扫描器自己也有问题：模块枚举用了 `p.parents[1]` 越界（修 1 次）、正则匹配了空集（修 1 次）。同一个形状第六次了。
+
+### 110.5 变异验证
+
+**`ai/gateway` `ListByModel`**：NC 把 `pagination.Limit + cap` 退回裸 `limit := 50`，`exactLimit` 子测试 FAIL（`limit=3` 返回 5 行 want 3，因为没截断）。**NC 宽度 1**。
+
+**`ai/gateway` `ListRequests`**：NC 删掉 `if q.Limit > 100`，`cappedAtOneHundred` 子测试 FAIL（`limit=1000` 绑定 LIMIT 1000 want 100）。**NC 宽度 1**。
+
+**`webhook` cap 测试**：NC 删掉 `if pageSize > 100`，`capped` 子测试 FAIL（`pageSize=1000` → `pageSize=0` want 100，因为信封没夹点了）。**NC 宽度 1**。restore 后字节级一致。
+
+`scheduled-notification` 和 `workflow-webhook` 是同一断言形状，同一个 revert 会同样失败——NC 只跑了 `webhook` 作为代表。
+
+### 110.6 新增 GAP：`slo` 和 `storage`
+
+`slo` 的 2 处信封是 `gin.H{"data": result}`——没有 `limit` 或 `pageSize` 字段。`storage` 的 1 处信封是 `gin.H{"data": items, "total": len(items)}`——也没有。这两处可以撤回 cap 而测试全绿。**GAP 从 6 增到 8**（加 `slo`×2、`storage`×1，减 `prompt-security`×1 = 7+1=8，但 `tool` 和 `ai/gateway` 的 `ListRecent` 是 B 类零影响，不算 GAP，所以是 4+2+1+1=8）。
+
+实际上应该这样数：A 类真缺口（撤回即真缺陷）= `governance/compliance`×3 + `security/secret` + `slo`×2 + `storage` = **7 处**。B 类零影响 = `tool` `GetInvocations` + `ai/gateway` `ListRecent` + `ai/gateway` `ListByProvider`（后两者的 service 有 `if limit <= 0 || limit > 100`）= **3 处**。总共 **10 处**（含已关的 `prompt-security` 从 7 变 7+3=10？不对——`prompt-security` 已关，`tool` 和 `ai/gateway` 两处是 B 类零影响）。精确地说：**A 类 7 处 + B 类 3 处 = 10 处 GAP/零影响**，其中 A 类 7 处是真缺口。
+
+### 110.7 最终状态
+
+- 新增 2 处 live 修复（`ai/gateway` `ListByModel` panic + `ListRequests` uncapped）
+- 提交 5 个模块的 9 处裸 Atoi 迁移（工作树已有、本轮提交）
+- 新增 4 个测试文件（`ai/gateway/handler/limit_test.go` 12 行、3 个 cap 测试各 3 行）
+- NC 全部 KILLED，宽度均为 1
+- 下游遮蔽扫描：3 处 handler 夹点已死（`chatops`、`incident`、`tool/GetTopTools`），14 处冗余但承重，148 处 live
+- GAP 更新：A 类真缺口 7 处（`governance/compliance`×3、`security/secret`、`slo`×2、`storage`），B 类零影响 3 处（`tool` `GetInvocations`、`ai/gateway` `ListRecent`/`ListByProvider`）
+- gofmt 全清、build/vet 全绿、`go test -count=1 ./...` **585 包 ok / 0 FAIL**
+
 ---
 
 ## P0-MB Phase 5c — 生产接线（2026-08-26）
