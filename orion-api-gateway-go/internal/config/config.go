@@ -8,17 +8,22 @@ import (
 )
 
 type Config struct {
-	ServiceName      string
-	Environment      string
-	HTTPAddr         string
-	JWTSecret        string
-	RedisURL         string
-	OTelEndpoint     string
-	RateLimitRPS     int
-	AllowedOrigins   []string
-	Upstreams        map[string]string
-	CSPEnabled       bool
-	CSPDirectives    string
+	ServiceName       string
+	Environment       string
+	HTTPAddr          string
+	JWTSecret         string
+	RedisURL          string
+	OTelEndpoint      string
+	RateLimitRPS      int
+	AllowedOrigins    []string
+	Upstreams         map[string]string
+	CSPEnabled        bool
+	CSPDirectives     string
+	GrayReleaseEnabled bool
+	TSServiceURL      string
+	GoServiceURL      string
+	APIVersion        string
+	EnableWebSocket   bool
 }
 
 func Load() (*Config, error) {
@@ -38,21 +43,31 @@ func Load() (*Config, error) {
 	v.SetDefault("allowed_origins", []string{"*"})
 	v.SetDefault("csp_enabled", true)
 	v.SetDefault("csp_directives", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'")
+	v.SetDefault("gray_release_enabled", false)
+	v.SetDefault("ts_service_url", "http://localhost:3001")
+	v.SetDefault("go_service_url", "http://localhost:8080")
+	v.SetDefault("api_version", "v1")
+	v.SetDefault("enable_websocket", true)
 
 	_ = v.ReadInConfig()
 	v.AutomaticEnv()
 
 	cfg := &Config{
-		ServiceName:   getEnvOrConfig("SERVICE_NAME", v.GetString("service_name")),
-		Environment:   getEnvOrConfig("ENVIRONMENT", v.GetString("environment")),
-		HTTPAddr:      getEnvOrConfig("HTTP_ADDR", v.GetString("http_addr")),
-		JWTSecret:     getEnvOrConfig("JWT_SECRET", v.GetString("jwt_secret")),
-		RedisURL:      getEnvOrConfig("REDIS_URL", v.GetString("redis_url")),
-		OTelEndpoint:  getEnvOrConfig("OTEL_ENDPOINT", v.GetString("otel_endpoint")),
-		RateLimitRPS:  v.GetInt("rate_limit_rps"),
-		AllowedOrigins: v.GetStringSlice("allowed_origins"),
-		CSPEnabled:    v.GetBool("csp_enabled"),
-		CSPDirectives: v.GetString("csp_directives"),
+		ServiceName:        getEnvOrConfig("SERVICE_NAME", v.GetString("service_name")),
+		Environment:        getEnvOrConfig("ENVIRONMENT", v.GetString("environment")),
+		HTTPAddr:           getEnvOrConfig("HTTP_ADDR", v.GetString("http_addr")),
+		JWTSecret:          getEnvOrConfig("JWT_SECRET", v.GetString("jwt_secret")),
+		RedisURL:           getEnvOrConfig("REDIS_URL", v.GetString("redis_url")),
+		OTelEndpoint:       getEnvOrConfig("OTEL_ENDPOINT", v.GetString("otel_endpoint")),
+		RateLimitRPS:       v.GetInt("rate_limit_rps"),
+		AllowedOrigins:     v.GetStringSlice("allowed_origins"),
+		CSPEnabled:         v.GetBool("csp_enabled"),
+		CSPDirectives:      v.GetString("csp_directives"),
+		GrayReleaseEnabled: v.GetBool("gray_release_enabled"),
+		TSServiceURL:       getEnvOrConfig("TS_SERVICE_URL", v.GetString("ts_service_url")),
+		GoServiceURL:       getEnvOrConfig("GO_SERVICE_URL", v.GetString("go_service_url")),
+		APIVersion:         getEnvOrConfig("API_VERSION", v.GetString("api_version")),
+		EnableWebSocket:    v.GetBool("enable_websocket"),
 	}
 
 	upstreams := map[string]string{}
