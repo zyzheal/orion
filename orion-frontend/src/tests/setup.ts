@@ -14,7 +14,7 @@ vi.mock('@testing-library/react', async (importOriginal) => {
   return {
     ...mod,
     render: (ui: React.ReactElement, options?: any) =>
-      mod.render(<QueryClientProvider client={getQueryClient()}>{ui}</QueryClientProvider>, options),
+      mod.render(React.createElement(QueryClientProvider, { client: getQueryClient() }, ui), options),
   };
 });
 
