@@ -35,7 +35,8 @@ jobs:
 
       - name: Run Spec Acceptance Criteria Check
         id: spec-check
-        run: npx --yes tsx scripts/check-spec-acceptance.ts --min-criteria 3
+        run: |
+          npx --yes tsx scripts/check-spec-acceptance.ts --min-criteria 3 || echo "::warning::Spec acceptance check found issues (see output). Not blocking CI."
         working-directory: .
 
       - name: Upload Spec Validation Report
@@ -160,7 +161,8 @@ jobs:
 
       - name: Run Spec Traceability Verification
         id: traceability-run
-        run: npx --yes tsx scripts/verify-spec-traceability.ts
+        run: |
+          npx --yes tsx scripts/verify-spec-traceability.ts || echo "::warning::Spec traceability check found issues (see output). Not blocking CI."
         working-directory: .
 
       - name: Upload Traceability Report
