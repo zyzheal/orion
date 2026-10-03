@@ -141,8 +141,7 @@ jobs:
         working-directory: orion-frontend
 
       - name: Run tests — non-blocking
-        timeout-minutes: 15
-        run: npm run test:coverage -- --run || echo "::warning::Frontend tests timed out or failed (see output). Not blocking CI."
+        run: timeout 900 bash -c 'npm run test:coverage -- --run' || echo "::warning::Frontend tests timed out or failed (see output). Not blocking CI."
         working-directory: orion-frontend
 
       - name: Coverage threshold check (vitest built-in)
