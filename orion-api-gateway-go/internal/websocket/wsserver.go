@@ -208,27 +208,52 @@ func generateID() string {
 
 // --- ConnectionManager ---
 
+// connWrapper wraps a WebSocket connection with a write mutex.
+type connWrapper struct {
+	conn *websocket.Conn
+	mu   sync.Mutex
+}
+
+func (c *connWrapper) writeMessage(msgType int, data []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.conn.WriteMessage(msgType, data)
+}
+
+func (c *connWrapper) writeControl(msgType int, data []byte, deadline time.Time) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.conn.WriteControl(msgType, data, deadline)
+}
+
+func (c *connWrapper) close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.conn.Close()
+}
+
 // ConnectionManager tracks all WebSocket connections.
 type ConnectionManager struct {
-	mu         sync.RWMutex
-	connections map[string]*websocket.Conn
+	mu          sync.RWMutex
+	connections map[string]*connWrapper
 }
 
 // NewConnectionManager creates a connection manager.
 func NewConnectionManager() *ConnectionManager {
 	return &ConnectionManager{
-		connections: make(map[string]*websocket.Conn),
+		connections: make(map[string]*connWrapper),
 	}
 }
 
 // AddConnection registers a connection and starts heartbeat.
 func (cm *ConnectionManager) AddConnection(id string, ws *websocket.Conn, interval, timeout time.Duration) {
+	cw := &connWrapper{conn: ws}
 	cm.mu.Lock()
-	cm.connections[id] = ws
+	cm.connections[id] = cw
 	cm.mu.Unlock()
 
 	// Start heartbeat in background
-	go cm.heartbeat(id, ws, interval, timeout)
+	go cm.heartbeat(id, cw, interval, timeout)
 }
 
 // RemoveConnection removes a connection.
@@ -241,7 +266,7 @@ func (cm *ConnectionManager) RemoveConnection(id string) {
 // SendToClient sends a JSON message to a specific client.
 func (cm *ConnectionManager) SendToClient(id string, data interface{}) bool {
 	cm.mu.RLock()
-	ws, ok := cm.connections[id]
+	cw, ok := cm.connections[id]
 	cm.mu.RUnlock()
 	if !ok {
 		return false
@@ -250,7 +275,7 @@ func (cm *ConnectionManager) SendToClient(id string, data interface{}) bool {
 	if err != nil {
 		return false
 	}
-	return ws.WriteMessage(websocket.TextMessage, msg) == nil
+	return cw.writeMessage(websocket.TextMessage, msg) == nil
 }
 
 // Broadcast sends a JSON message to all clients.
@@ -260,9 +285,13 @@ func (cm *ConnectionManager) Broadcast(data interface{}) {
 		return
 	}
 	cm.mu.RLock()
-	defer cm.mu.RUnlock()
-	for _, ws := range cm.connections {
-		ws.WriteMessage(websocket.TextMessage, msg)
+	wsCopy := make([]*connWrapper, 0, len(cm.connections))
+	for _, cw := range cm.connections {
+		wsCopy = append(wsCopy, cw)
+	}
+	cm.mu.RUnlock()
+	for _, cw := range wsCopy {
+		cw.writeMessage(websocket.TextMessage, msg)
 	}
 }
 
@@ -276,14 +305,18 @@ func (cm *ConnectionManager) GetConnectionCount() int {
 // CloseAll closes all connections.
 func (cm *ConnectionManager) CloseAll() {
 	cm.mu.Lock()
-	defer cm.mu.Unlock()
-	for _, ws := range cm.connections {
-		ws.Close()
+	wsCopy := make([]*connWrapper, 0, len(cm.connections))
+	for _, cw := range cm.connections {
+		wsCopy = append(wsCopy, cw)
 	}
-	cm.connections = make(map[string]*websocket.Conn)
+	cm.connections = make(map[string]*connWrapper)
+	cm.mu.Unlock()
+	for _, cw := range wsCopy {
+		cw.close()
+	}
 }
 
-func (cm *ConnectionManager) heartbeat(id string, ws *websocket.Conn, interval, timeout time.Duration) {
+func (cm *ConnectionManager) heartbeat(id string, cw *connWrapper, interval, timeout time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	missedPongs := 0
@@ -300,12 +333,12 @@ func (cm *ConnectionManager) heartbeat(id string, ws *websocket.Conn, interval, 
 		missedPongs++
 		if missedPongs > maxMissed {
 			cm.RemoveConnection(id)
-			ws.Close()
+			cw.close()
 			return
 		}
 
 		deadline := time.Now().Add(timeout)
-		if err := ws.WriteControl(websocket.PingMessage, nil, deadline); err != nil {
+		if err := cw.writeControl(websocket.PingMessage, nil, deadline); err != nil {
 			cm.RemoveConnection(id)
 			return
 		}

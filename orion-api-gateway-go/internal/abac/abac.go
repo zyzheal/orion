@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -465,7 +466,13 @@ func evaluateCondition(cond *Condition, ctx Context) bool {
 	case OpExists:
 		return attrVal != nil
 	case OpNotExists:
-		return attrVal == nil
+		if attrVal == nil {
+			return true
+		}
+		if s, ok := attrVal.(string); ok {
+			return s == ""
+		}
+		return false
 	case OpBetween:
 		return toFloat(attrVal) >= toFloat(compareVal) && toFloat(attrVal) <= toFloat(compareVal2)
 	case OpTimeInRange:
@@ -510,10 +517,17 @@ func getField(obj interface{}, field string) interface{} {
 	if v.Kind() == reflect.Struct {
 		f := v.FieldByName(field)
 		if !f.IsValid() {
-			// Check map attributes
-			if field == "Attributes" || field == "attributes" {
-				return nil
+			// Try case-insensitive match (e.g. "tenantId" → TenantID)
+			typeName := v.Type()
+			for i := 0; i < typeName.NumField(); i++ {
+				sf := typeName.Field(i)
+				if strings.EqualFold(sf.Name, field) {
+					f = v.Field(i)
+					break
+				}
 			}
+		}
+		if !f.IsValid() {
 			return nil
 		}
 		if f.Kind() == reflect.Ptr && f.IsNil() {
@@ -565,6 +579,30 @@ func toFloat(v interface{}) float64 {
 		return float64(n)
 	case int64:
 		return float64(n)
+	case int32:
+		return float64(n)
+	case string:
+		f, err := strconv.ParseFloat(n, 64)
+		if err != nil {
+			return 0
+		}
+		return f
+	default:
+		return 0
+	}
+}
+
+func toInt(v interface{}) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case int64:
+		return int(n)
+	case float64:
+		return int(n)
+	case string:
+		i, _ := strconv.Atoi(n)
+		return i
 	default:
 		return 0
 	}
@@ -578,12 +616,17 @@ func evalTimeInRange(timeVal interface{}, rangeConfig interface{}) bool {
 	default:
 		return false
 	}
-	cfg, ok := rangeConfig.(map[string]int)
-	if !ok {
+	var startHour, endHour int
+	switch cfg := rangeConfig.(type) {
+	case map[string]int:
+		startHour = cfg["startHour"]
+		endHour = cfg["endHour"]
+	case map[string]interface{}:
+		startHour = toInt(cfg["startHour"])
+		endHour = toInt(cfg["endHour"])
+	default:
 		return false
 	}
-	startHour := cfg["startHour"]
-	endHour := cfg["endHour"]
 	if startHour == 0 && endHour == 0 {
 		startHour = 9
 		endHour = 18

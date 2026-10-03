@@ -35,7 +35,6 @@ jobs:
 
       - name: Run Spec Acceptance Criteria Check
         id: spec-check
-        continue-on-error: true
         run: npx tsx scripts/check-spec-acceptance.ts --min-criteria 3
         working-directory: .
 
@@ -129,15 +128,14 @@ jobs:
 
       - name: Check traceability matrix completeness
         id: matrix-completeness
-        continue-on-error: true
         run: |
           count=$(grep -cE '`docs/(specs|services/.+/spec)\.md`' docs/specs/traceability-matrix.md || true)
           echo "Specs referenced in traceability matrix: $count"
           if [ "$count" -lt 5 ]; then
-            echo "WARNING: traceability matrix references fewer than 5 specs (found: $count)"
-          else
-            echo "Traceability matrix completeness check passed ($count specs referenced)."
+            echo "ERROR: traceability matrix references fewer than 5 specs (found: $count)"
+            exit 1
           fi
+          echo "Traceability matrix completeness check passed ($count specs referenced)."
 
   # ==================== Spec Traceability Script Run ====================
 
@@ -162,7 +160,6 @@ jobs:
 
       - name: Run Spec Traceability Verification
         id: traceability-run
-        continue-on-error: true
         run: npx --yes tsx scripts/verify-spec-traceability.ts
         working-directory: .
 

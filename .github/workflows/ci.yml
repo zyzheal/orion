@@ -144,6 +144,25 @@ jobs:
         run: npm run test -- --coverage
         working-directory: orion-frontend
 
+      - name: Coverage threshold check
+        run: |
+          node -e "
+          const fs = require('fs');
+          const lcov = fs.readFileSync('orion-frontend/coverage/lcov.info', 'utf8');
+          const lines = lcov.split('end_of_record').join('\n').split('\n');
+          let found = 0, total = 0;
+          for (const line of lines) {
+            if (line.startsWith('DA,')) {
+              const [, , count] = line.split(',');
+              if (count !== '0') found++;
+              total++;
+            }
+          }
+          const pct = total > 0 ? (found / total * 100) : 0;
+          console.log(\`Frontend coverage: \${pct.toFixed(1)}% (\${found}/\${total} lines)\`);
+          if (pct < 50) { console.error('ERROR: frontend coverage below 50% threshold'); process.exit(1); }
+          "
+
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4
@@ -185,8 +204,24 @@ jobs:
         run: go vet ./...
         working-directory: ${{ matrix.service }}
 
+      - name: Govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+        working-directory: ${{ matrix.service }}
+
       - name: Test
         run: go test ./... -v -race -timeout 10m -coverprofile=coverage.out -covermode=atomic
+        working-directory: ${{ matrix.service }}
+
+      - name: Coverage threshold check
+        run: |
+          total=$(go tool cover -func=coverage.out 2>/dev/null | grep total: | awk '{print $3}' | tr -d '%')
+          echo "Go coverage: ${total}%"
+          if [ -z "$total" ] || [ "$(echo "$total < 60" | bc)" -eq 1 ]; then
+            echo "ERROR: Go coverage below 60% threshold (${total}%)"
+            exit 1
+          fi
         working-directory: ${{ matrix.service }}
 
       - name: Upload coverage
@@ -225,6 +260,29 @@ jobs:
 
       - name: Race Detect (Go)
         run: go test -C orion-api-gateway-go ./... -race -count=1 -timeout 180s
+
+      - name: Coverage threshold check (Go)
+        run: |
+          go test -C orion-api-gateway-go ./... -coverprofile=orion-api-gateway-go/coverage.out -covermode=atomic
+          total=$(go tool cover -func=orion-api-gateway-go/coverage.out 2>/dev/null | grep total: | awk '{print $3}' | tr -d '%')
+          echo "Go gateway coverage: ${total}%"
+          if [ -z "$total" ] || [ "$(echo "$total < 70" | bc)" -eq 1 ]; then
+            echo "ERROR: Go gateway coverage below 70% threshold (${total}%)"
+            exit 1
+          fi
+
+      - name: Upload Go gateway coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-gateway-coverage
+          path: orion-api-gateway-go/coverage.out
+          retention-days: 30
+
+      - name: Govulncheck (Go)
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go run golang.org/x/vuln/cmd/govulncheck@latest -C orion-api-gateway-go ./...
 
       - name: GolangCI-Lint (Go)
         run: |

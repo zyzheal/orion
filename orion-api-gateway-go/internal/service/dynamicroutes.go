@@ -390,7 +390,11 @@ func (g *GatewayDynamicRoutes) checkAllRoutesHealth() {
 
 	var mu sync.Mutex
 	var wg sync.WaitGroup
+	targets := make([]string, 0, len(activeTargets))
 	for target := range activeTargets {
+		targets = append(targets, target)
+	}
+	for _, target := range targets {
 		wg.Add(1)
 		go func(t string) {
 			defer wg.Done()
