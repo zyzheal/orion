@@ -141,7 +141,8 @@ jobs:
         working-directory: orion-frontend
 
       - name: Run tests
-        run: npm run test:coverage
+        timeout-minutes: 10
+        run: npm run test:coverage -- --run --coverage
         working-directory: orion-frontend
 
       - name: Coverage threshold check (vitest built-in)
