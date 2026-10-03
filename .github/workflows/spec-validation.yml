@@ -35,7 +35,7 @@ jobs:
 
       - name: Run Spec Acceptance Criteria Check
         id: spec-check
-        run: npx tsx scripts/check-spec-acceptance.ts --min-criteria 3
+        run: npx --yes tsx scripts/check-spec-acceptance.ts --min-criteria 3
         working-directory: .
 
       - name: Upload Spec Validation Report
