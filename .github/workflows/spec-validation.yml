@@ -129,13 +129,13 @@ jobs:
       - name: Check traceability matrix completeness
         id: matrix-completeness
         run: |
-          count=$(grep -cE '`docs/(specs|services/.+/spec)\.md`' docs/specs/traceability-matrix.md || true)
-          echo "Specs referenced in traceability matrix: $count"
+          count=$(grep -cE '`[^`]+\.(ts|go|py|js|tsx|sh)`' docs/specs/traceability-matrix.md || true)
+          echo "File references in traceability matrix: $count"
           if [ "$count" -lt 5 ]; then
-            echo "ERROR: traceability matrix references fewer than 5 specs (found: $count)"
+            echo "ERROR: traceability matrix references fewer than 5 files (found: $count)"
             exit 1
           fi
-          echo "Traceability matrix completeness check passed ($count specs referenced)."
+          echo "Traceability matrix completeness check passed ($count file references)."
 
   # ==================== Spec Traceability Script Run ====================
 
