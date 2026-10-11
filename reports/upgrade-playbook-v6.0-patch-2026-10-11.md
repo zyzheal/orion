@@ -677,7 +677,51 @@ git diff reports/upgrade-execution-playbook-2026-10-03.md.bak \
 
 ---
 
-## 10. 验收标准
+## 10. 复现命令（⭐ 机械计数）
+
+```bash
+cd /Users/heal/orion-design
+
+# 1. Playbook 主文件
+ls reports/upgrade-execution-playbook-2026-10-03.md
+wc -l reports/upgrade-execution-playbook-2026-10-03.md
+
+# 2. 本补丁文件
+ls reports/upgrade-playbook-v6.0-patch-2026-10-11.md
+wc -l reports/upgrade-playbook-v6.0-patch-2026-10-11.md
+
+# 3. 本轮新增 15 项任务
+grep -c '^\*\*新增任务' reports/upgrade-playbook-v6.0-patch-2026-10-11.md
+# 期望: 15（S0+1, S1+6, S2+3, S3+1, S5+9, S6+1）
+
+# 4. 阶段门控更新数
+grep -c '门控更新\|门控新增' reports/upgrade-playbook-v6.0-patch-2026-10-11.md
+
+# 5. 风险数
+grep -cE '^\| R-[A-Z][0-9]+' reports/upgrade-playbook-v6.0-patch-2026-10-11.md
+
+# 6. 参考文档索引
+grep -c '^\| `' reports/upgrade-playbook-v6.0-patch-2026-10-11.md
+
+# 7. 所有引用文档存在性
+for f in \
+  reports/module-upgrade-designs/role-based-push-and-triage-design-2026-10-11.md \
+  reports/module-upgrade-designs/triage-api-contract-design-2026-10-11.md \
+  reports/module-upgrade-designs/frontend-triage-implementation-spec-2026-10-11.md \
+  reports/module-upgrade-designs/frontend-interaction-optimization-design-2026-10-11.md \
+  reports/module-upgrade-designs/frontend-a11y-p0-prework-design-2026-10-11.md \
+  reports/expert-reviews/triage-ui-domain-expert-design-analysis-2026-10-11.md; do
+  test -f "$f" && echo "OK: $f" || echo "MISS: $f"
+done
+
+# 8. 未修改 Playbook 主文件（本补丁作为独立文档）
+git diff --name-only reports/upgrade-execution-playbook-2026-10-03.md
+# 期望: 空（除非人工合并）
+```
+
+---
+
+## 11. 验收标准
 
 | # | 标准 | 验证方式 |
 |---|---|---|

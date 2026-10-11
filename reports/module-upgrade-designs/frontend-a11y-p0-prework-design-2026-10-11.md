@@ -615,7 +615,54 @@ if (P0-1 not completed) or (P0-3 not completed) or (P0-6 not completed):
 
 ---
 
-## 12. 验收标准
+## 12. 复现命令（⭐ 机械计数）
+
+```bash
+cd /Users/heal/orion-design
+
+# P0-1 Layout nav 现状
+grep -rn '<div[^>]*onClick' orion-frontend/src/layouts/ --include='*.tsx' | wc -l
+grep -rn 'role="navigation"\|role="menu"\|role="menubar"' orion-frontend/src/ --include='*.tsx' | wc -l
+grep -rn 'role="menuitem"' orion-frontend/src/ --include='*.tsx' | wc -l
+
+# P0-2 <div onClick> 全仓
+grep -rn '<div[^>]*onClick' orion-frontend/src --include='*.tsx' | wc -l
+grep -rn '<div[^>]*onClick' orion-frontend/src --include='*.tsx' \
+  | cut -d: -f1 | sort -u | wc -l
+
+# P0-3 图标按钮无 aria-label
+grep -rn '<button[^>]*>' orion-frontend/src --include='*.tsx' | wc -l
+grep -rn '<button[^>]*>' orion-frontend/src --include='*.tsx' \
+  | grep -v 'aria-label' \
+  | grep -E '<(Delete|Close|Save|Refresh|Edit|Search|Filter|Bell|Setting|Menu|Eye|EyeInvisible|Copy|Download|Upload|Check|CloseOutlined)Outlined' \
+  | wc -l
+
+# P0-4 tabIndex 使用
+grep -rn 'tabIndex=' orion-frontend/src --include='*.tsx' | wc -l
+grep -rn 'tabIndex=\{-1\}' orion-frontend/src --include='*.tsx' | wc -l
+
+# P0-5 aria-* 覆盖
+grep -rn 'aria-describedby' orion-frontend/src --include='*.tsx' | wc -l
+grep -rn 'aria-live' orion-frontend/src --include='*.tsx' | wc -l
+grep -rn 'aria-expanded' orion-frontend/src --include='*.tsx' | wc -l
+grep -rn 'aria-selected' orion-frontend/src --include='*.tsx' | wc -l
+
+# P0-6 prefers-reduced-motion
+grep -rn 'prefers-reduced-motion' orion-frontend/src/ | wc -l
+grep -rn '@media.*prefers-reduced-motion' orion-frontend/src/ | wc -l
+
+# Feature Flag
+grep -rn 'layout-nav-a11y-v2' orion-frontend/src/ orion-platform-svc-go/ 2>/dev/null | wc -l
+
+# 相关设计文档
+ls reports/module-upgrade-designs/frontend-triage-implementation-spec-2026-10-11.md
+ls reports/module-upgrade-designs/frontend-interaction-optimization-design-2026-10-11.md
+ls reports/module-upgrade-designs/triage-api-contract-design-2026-10-11.md
+```
+
+---
+
+## 13. 验收标准
 
 | # | 标准 | 验证方式 |
 |---|---|---|
