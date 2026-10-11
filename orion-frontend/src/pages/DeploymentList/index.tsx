@@ -56,15 +56,19 @@ const DeploymentList = () => {
           filteredDeployments.length === 0
             ? {
                 emptyText: (
-                  <Empty description="暂无部署记录" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-                    <Button
-                      type="primary"
-                      icon={<RocketOutlined />}
-                      onClick={() => navigate('/deployments/new')}
-                    >
-                      创建部署
-                    </Button>
-                  </Empty>
+                  <div role="status" aria-live="polite" aria-atomic="true">
+                    <Empty description="暂无部署记录" image={Empty.PRESENTED_IMAGE_SIMPLE}>
+                      <Button
+                        type="primary"
+                        icon={<RocketOutlined />}
+                        onClick={() => navigate('/deployments/new')}
+                        aria-label="创建新部署"
+                        tabIndex={0}
+                      >
+                        创建部署
+                      </Button>
+                    </Empty>
+                  </div>
                 ),
               }
             : undefined

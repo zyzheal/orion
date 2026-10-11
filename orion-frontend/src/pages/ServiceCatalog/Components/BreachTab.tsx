@@ -19,22 +19,34 @@ export const BreachTab = ({ breaches, onRefresh }: BreachTabProps) => (
         <BellOutlined /> SLA 违约记录
       </>
     }
+    role="region"
+    aria-label="SLA 违约记录"
     extra={
-      <Button icon={<ReloadOutlined />} size="small" onClick={onRefresh}>
+      <Button
+        icon={<ReloadOutlined />}
+        size="small"
+        onClick={onRefresh}
+        aria-label="刷新 SLA 违约记录"
+        tabIndex={0}
+      >
         刷新
       </Button>
     }
   >
     {breaches.length === 0 ? (
-      <Empty description="暂无 SLA 违约记录" />
+      <div role="status" aria-live="polite" aria-atomic="true">
+        <Empty description="暂无 SLA 违约记录" />
+      </div>
     ) : (
-      <Table
-        columns={buildBreachColumns()}
-        dataSource={breaches}
-        rowKey="requestId"
-        size="small"
-        pagination={{ pageSize: 10 }}
-      />
+      <div role="list" aria-label="SLA 违约列表" aria-live="polite" aria-atomic="false">
+        <Table
+          columns={buildBreachColumns()}
+          dataSource={breaches}
+          rowKey="requestId"
+          size="small"
+          pagination={{ pageSize: 10 }}
+        />
+      </div>
     )}
   </Card>
 );

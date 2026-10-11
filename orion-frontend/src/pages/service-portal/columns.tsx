@@ -76,6 +76,8 @@ export const buildServiceColumns = ({ onDetail, onDeregister }: ColumnsDeps): Co
           size="small"
           icon={<EyeOutlined />}
           onClick={() => onDetail(record)}
+          aria-label={`查看详情：${record.name}`}
+          tabIndex={0}
         >
           详情
         </Button>
@@ -85,7 +87,14 @@ export const buildServiceColumns = ({ onDetail, onDeregister }: ColumnsDeps): Co
           okText="确认"
           cancelText="取消"
         >
-          <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+          <Button
+            type="link"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            aria-label={`注销服务：${record.name}`}
+            tabIndex={0}
+          >
             注销
           </Button>
         </Popconfirm>

@@ -16,6 +16,9 @@ interface PageHeaderProps {
 
 export const PageHeader = ({ totalCount, loading, onRefresh }: PageHeaderProps) => (
   <div
+    role="region"
+    aria-label="部署管理"
+    aria-busy={loading}
     style={{
       display: 'flex',
       justifyContent: 'space-between',
@@ -23,14 +26,20 @@ export const PageHeader = ({ totalCount, loading, onRefresh }: PageHeaderProps) 
       marginBottom: spacing.lg,
     }}
   >
-    <div>
+    <div aria-live="polite" aria-atomic="true">
       <Title level={2} style={{ marginBottom: spacing.sm }}>
         <RocketOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
         部署管理
       </Title>
       <Text type="secondary">共 {totalCount} 条部署记录</Text>
     </div>
-    <Button icon={<ReloadOutlined />} onClick={onRefresh} loading={loading}>
+    <Button
+      icon={<ReloadOutlined />}
+      onClick={onRefresh}
+      loading={loading}
+      aria-label="刷新部署列表"
+      tabIndex={0}
+    >
       刷新
     </Button>
   </div>

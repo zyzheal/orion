@@ -36,14 +36,35 @@ export const buildServiceColumns = (deps: BuildServiceColumnsDeps) => [
     width: 180,
     render: (_: unknown, r: ServiceCatalog) => (
       <Space>
-        <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => deps.onViewDetail(r)}>
+        <Button
+          type="link"
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={() => deps.onViewDetail(r)}
+          aria-label={`查看详情：${r.name}`}
+          tabIndex={0}
+        >
           详情
         </Button>
-        <Button type="link" size="small" icon={<EditOutlined />} onClick={() => deps.onEdit(r)}>
+        <Button
+          type="link"
+          size="small"
+          icon={<EditOutlined />}
+          onClick={() => deps.onEdit(r)}
+          aria-label={`编辑：${r.name}`}
+          tabIndex={0}
+        >
           编辑
         </Button>
         <Popconfirm title="确认删除？" onConfirm={() => deps.onDelete(r.id)}>
-          <Button type="link" danger size="small" icon={<DeleteOutlined />}>
+          <Button
+            type="link"
+            danger
+            size="small"
+            icon={<DeleteOutlined />}
+            aria-label={`删除：${r.name}`}
+            tabIndex={0}
+          >
             删除
           </Button>
         </Popconfirm>
