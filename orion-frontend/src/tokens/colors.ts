@@ -136,6 +136,22 @@ export const colors = {
       light: '#262626',
       heavy: '#595959',
     },
+    // P2-2: 交互状态半透明叠加色（暗色模式）
+    overlay: {
+      subtle: 'rgba(255,255,255,0.03)',
+      hover: 'rgba(255,255,255,0.06)',
+      active: 'rgba(255,255,255,0.08)',
+      divider: 'rgba(255,255,255,0.05)',
+      border: 'rgba(255,255,255,0.06)',
+    },
+    // P2-2: 导航菜单文本色（暗色模式专用 alpha 白）
+    menuText: {
+      default: 'rgba(255,255,255,0.65)',
+      active: 'rgba(255,255,255,0.95)',
+      hover: 'rgba(255,255,255,0.9)',
+      secondary: 'rgba(255,255,255,0.4)',
+      disabled: 'rgba(255,255,255,0.35)',
+    },
   },
 
   // ============ 浅色模式色彩 ============
@@ -156,6 +172,22 @@ export const colors = {
       default: '#d9d9d9',
       light: '#f0f0f0',
       heavy: '#bfbfbf',
+    },
+    // P2-2: 交互状态中性色叠加（浅色模式）
+    overlay: {
+      subtle: '#fafafa',
+      hover: '#f0f0f0',
+      active: '#e5e5e5',
+      divider: '#f5f5f5',
+      border: '#e8e8e8',
+    },
+    // P2-2: 导航菜单文本色（浅色模式）
+    menuText: {
+      default: '#595959',
+      active: '#1f1f1f',
+      hover: '#262626',
+      secondary: '#8c8c8c',
+      disabled: '#bfbfbf',
     },
   },
 

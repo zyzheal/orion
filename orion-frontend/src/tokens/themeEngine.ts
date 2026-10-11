@@ -20,6 +20,17 @@ const DARK_SEMANTICS = {
   '--border-light': colors.dark.border.light,
   '--border-default': colors.dark.border.default,
   '--border-heavy': colors.dark.border.heavy,
+  // P2-2: 交互状态叠加 + 菜单文本色
+  '--overlay-subtle': colors.dark.overlay.subtle,
+  '--overlay-hover': colors.dark.overlay.hover,
+  '--overlay-active': colors.dark.overlay.active,
+  '--overlay-divider': colors.dark.overlay.divider,
+  '--overlay-border': colors.dark.overlay.border,
+  '--menu-text-default': colors.dark.menuText.default,
+  '--menu-text-active': colors.dark.menuText.active,
+  '--menu-text-hover': colors.dark.menuText.hover,
+  '--menu-text-secondary': colors.dark.menuText.secondary,
+  '--menu-text-disabled': colors.dark.menuText.disabled,
 };
 
 /** 高对比度模式语义色映射（AA/AAA 合规） */

@@ -37,6 +37,17 @@ export function injectDesignTokens(): string {
   tokens['--border-light'] = colors.light.border.light;
   tokens['--border-default'] = colors.light.border.default;
   tokens['--border-heavy'] = colors.light.border.heavy;
+  // P2-2: 交互状态叠加 + 菜单文本色（浅色模式）
+  tokens['--overlay-subtle'] = colors.light.overlay.subtle;
+  tokens['--overlay-hover'] = colors.light.overlay.hover;
+  tokens['--overlay-active'] = colors.light.overlay.active;
+  tokens['--overlay-divider'] = colors.light.overlay.divider;
+  tokens['--overlay-border'] = colors.light.overlay.border;
+  tokens['--menu-text-default'] = colors.light.menuText.default;
+  tokens['--menu-text-active'] = colors.light.menuText.active;
+  tokens['--menu-text-hover'] = colors.light.menuText.hover;
+  tokens['--menu-text-secondary'] = colors.light.menuText.secondary;
+  tokens['--menu-text-disabled'] = colors.light.menuText.disabled;
 
   // 间距
   Object.entries(spacing).forEach(([key, value]) => {

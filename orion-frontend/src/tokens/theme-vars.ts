@@ -20,4 +20,16 @@ export const themeVars = {
   borderDefault: 'var(--border-default)',
   borderLight: 'var(--border-light)',
   borderHeavy: 'var(--border-heavy)',
+  // P2-2: 交互状态半透明叠加（暗色/浅色自动切换）
+  overlaySubtle: 'var(--overlay-subtle)',
+  overlayHover: 'var(--overlay-hover)',
+  overlayActive: 'var(--overlay-active)',
+  overlayDivider: 'var(--overlay-divider)',
+  overlayBorder: 'var(--overlay-border)',
+  // P2-2: 导航菜单文本色（暗色模式用 alpha 白，浅色模式用中性色）
+  menuText: 'var(--menu-text-default)',
+  menuTextActive: 'var(--menu-text-active)',
+  menuTextHover: 'var(--menu-text-hover)',
+  menuTextSecondary: 'var(--menu-text-secondary)',
+  menuTextDisabled: 'var(--menu-text-disabled)',
 } as const;

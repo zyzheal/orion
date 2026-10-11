@@ -82,9 +82,12 @@ const MicroFrontendInitializer: React.FC = () => {
 
 function injectDesignTokens(isDark: boolean) {
   const root = document.documentElement;
-  const bg = isDark ? colors.dark.bg : colors.light.bg;
-  const text = isDark ? colors.dark.text : colors.light.text;
-  const border = isDark ? colors.dark.border : colors.light.border;
+  const palette = isDark ? colors.dark : colors.light;
+  const bg = palette.bg;
+  const text = palette.text;
+  const border = palette.border;
+  const overlay = palette.overlay;
+  const menuText = palette.menuText;
 
   root.style.setProperty('--bg-primary', bg.primary);
   root.style.setProperty('--bg-secondary', bg.secondary);
@@ -99,6 +102,18 @@ function injectDesignTokens(isDark: boolean) {
   root.style.setProperty('--border-default', border.default);
   root.style.setProperty('--border-light', border.light);
   root.style.setProperty('--border-heavy', border.heavy);
+
+  // P2-2: 交互状态叠加 + 菜单文本色（暗色/浅色自动切换）
+  root.style.setProperty('--overlay-subtle', overlay.subtle);
+  root.style.setProperty('--overlay-hover', overlay.hover);
+  root.style.setProperty('--overlay-active', overlay.active);
+  root.style.setProperty('--overlay-divider', overlay.divider);
+  root.style.setProperty('--overlay-border', overlay.border);
+  root.style.setProperty('--menu-text-default', menuText.default);
+  root.style.setProperty('--menu-text-active', menuText.active);
+  root.style.setProperty('--menu-text-hover', menuText.hover);
+  root.style.setProperty('--menu-text-secondary', menuText.secondary);
+  root.style.setProperty('--menu-text-disabled', menuText.disabled);
 
   for (const [key, value] of Object.entries(colorCSSVariables)) {
     root.style.setProperty(key, value);
