@@ -23,6 +23,36 @@
 
 ---
 
+## 0.5 明确不做清单（15 项 · U15 护城河保护 + big-tech v2）
+
+> **来源**：`docs/ai-moat-protection-2026-10-11.md` §5.3（10 项 M-1~M-10 护城河）+ `reports/expert-reviews/big-tech-adversarial-review-2026-10-11.md` §5（5 项 NL 弯路）
+> **约束**：以下 15 项**任何 ADR/评审/任务不得提议**。若提议，Y 手册审查人直接否决。
+
+| # | 不做项 | 依据 | 护城河/弯路 |
+|---|--------|------|------------|
+| 1 | ❌ 不削减 AI 路由 132（M-1）| `orion-ai-service/src/api/*.py` 132 路由 | 智能性护城河 |
+| 2 | ❌ 不迁移 orion-ai-service 到非 Python 语言（M-2）| 10,543 行 Python 权威实现 | 智能性护城河 |
+| 3 | ❌ 不在本次升级中完成 orion-ai-agents-svc 蓝图（M-3）| Python 蓝图保留 | 智能性护城河 |
+| 4 | ❌ 不重写 AI Phase 4 已完成的 6 模块（M-4）| 193 tests pass | 智能性护城河 |
+| 5 | ❌ 不下线 eventbus 内部抽象层（M-5）| 17 EventType + 三层 | 高扩展性护城河 |
+| 6 | ❌ 不把 Saga 简化为事件溯源（M-6）| SagaCoordinator 已实现 | 高扩展性护城河 |
+| 7 | ❌ 不合并 Pipeline 三层引擎为单层（M-7）| PipelineEngine→StageExecutor→TaskRunner | 高扩展性护城河 |
+| 8 | ❌ 不下线 ClickHouse 或可观测三件套（M-8）| Prometheus+OTel+ClickHouse 102+453+47 处 | 可观测性护城河 |
+| 9 | ❌ 不统一 Kafka/NATS 为单一消息中间件（M-9）| Kafka 持久化 + NATS 灰度路由 | 可观测性护城河 |
+| 10 | ❌ 不为对标引入 K8s/Helm/ArgoCD Runner 到巡检链路（M-10）| 多云 Runner 差异化 | 可观测性护城河 |
+| 11 | ❌ 不在后端做 SVG 报表生成 | big-tech v2 §3.E5 | NL 弯路 |
+| 12 | ❌ 不重构 Incident/Problem/Change 为 ChannelType 配置化 | E2 明确反对 | NL 弯路 |
+| 13 | ❌ 不为对标引入 NL 的 Template 层 | ADR-013 §1.2 更正框 | NL 弯路 |
+| 14 | ❌ 不引用 NL 虚构类名 | AlertBreakerMapper / CITemplate / TaskHandlerContext | NL 弯路 |
+| 15 | ❌ 不做"人天估算" | CLAUDE.md 强制约束 | 治理约束 |
+
+**护城河保护机制**（3 层）：
+- **L1 文档层**：本清单纳入 Y 手册 §0.5，新增 ADR/评审提议削减 → Y 手册审查人否决
+- **L2 CI 层**：`.github/workflows/moat-protection.yml`（规划中）检查 git diff，任一 M-1~M-10 对应文件被删除 → CI 阻断 PR
+- **L3 架构层**：ADR 起草模板新增"影响护城河"字段（NEXT-3），ADR 影响任一护城河项 → 需 5 人评审 + CEO 签发
+
+---
+
 ## 1. TL;DR（执行阶段全景 · v6.0）
 
 > ⚠️ 本表反映 **v6.0 合并后** 任务分布。v5.x 历史数字见 §14/§15.9 版本历史。
