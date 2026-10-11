@@ -40,6 +40,10 @@ type StageExecutor struct {
 	engine EngineInterface
 	// maxSubPipelineDepth overrides defaultMaxSubPipelineDepth when > 0.
 	maxSubPipelineDepth int
+	// artifactBusAdapter holds an optional artifactbus.ArtifactBus for
+	// stage-output artifact propagation (ADR-014 §3.2.3). Set via
+	// WithArtifactBus. Nil by default — ExecuteTask is unchanged.
+	artifactBusAdapter *ArtifactBusAdapter
 }
 
 // NewStageExecutor creates a new StageExecutor.
