@@ -169,7 +169,7 @@
 
 | Gap 类型 | 数量 | 位置明细 |
 |---------|------|---------|
-| **G0 核心缺口** | **8** | citype / attr / threshold / configfile-inspect / widget / drill / export / rd-req / rd-bug / rd-validtransition / configfile-devops |
+| **G0 核心缺口** | **11** | citype / attr / threshold / configfile-inspect / widget / drill / export / rd-req / rd-bug / rd-validtransition / configfile-devops |
 | **G1 主要缺口** | **9** | cmdb-validator / cmdb-relationship / cmdb-import Service 空 / form Service 空 / inspection.collect 单文件 / alert-rule-engine 无 models / code-scan 浅 / rd-validtransition 无独立目录 |
 | **G2 补充缺口** | **6** | cmdb.topo / channel 深度浅 / inspection.report 无独立 handler / inspection.schedule 无独立 handler / bi-dashboard 深度浅 |
 | **G3 体验缺口** | **0** | 本层扫描不覆盖（由 accessibility-reviewer 承担） |
@@ -178,7 +178,7 @@
 | **G-SV Service 简化** | **8** | 全 8 模块：ticket/form/cmdb-validator/cmdb-relationship/cmdb-import/inspection/report-designer/bi-dashboard Service 均为 CRUD 骨架 |
 | **G-UD 独有子域缺失** | **11** | citype / attr / threshold / configfile-inspect / widget / drill / export / rd-req / rd-bug / configfile-devops / rd-validtransition |
 
-**Gap 总数**：G0/G1/G2/G3 = **23 项** + G-OD/G-MG/G-SV/G-UD = **29 项** = **52 项**
+**Gap 总数**：G0/G1/G2/G3 = **26 项** + G-OD/G-MG/G-SV/G-UD = **29 项** = **55 项**
 
 对比 v3 综合报告 202 项（381 NeatLogic 功能点粒度）—— 本次报告粒度为 48 子域 × 4 层 = 192 检查点，粒度差异 4:1，Gap 数量级一致（23 核心缺口 / 381 NeatLogic 功能点 ≈ 6%，与 v3 的 G0 3% 一致）。
 
