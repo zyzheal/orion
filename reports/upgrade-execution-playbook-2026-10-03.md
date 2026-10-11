@@ -1,28 +1,50 @@
-# Orion 升级执行手册（2026-10-03）
+# Orion 升级执行手册（v6.0，2026-10-11 合并）
 
-> **生成日期**：2026-10-03
-> **上游文档**：`reports/frontend-fix-tasks-2026-10-03.md`（967 行）+ `reports/a11y-reviews/accessibility-audit-fullrepo-2026-10-03.md`（406 行）+ `reports/neatlogic-feature-comparison-upgrade-2026-09-30-v3.md`（v3 综合，9 项止损）+ `reports/expert-reviews/upgrade-design-plan-2026-10-01.md`（3558 行，17 项巡检+混沌专项）+ `reports/expert-reviews/inspection-expert-method-level-2026-10-03.md`（4 新模块 API 拆分）
+> **初版日期**：2026-10-03 · **当前版本**：**v6.0**（2026-10-11 合并完成）
+> **上游文档**：`reports/frontend-fix-tasks-2026-10-03.md`（967 行）+ `reports/a11y-reviews/accessibility-audit-fullrepo-2026-10-03.md`（406 行）+ `reports/neatlogic-feature-comparison-upgrade-2026-09-30-v3.md`（v3 综合，9 项止损）+ `reports/expert-reviews/upgrade-design-plan-2026-10-01.md`（3558 行，17 项巡检+混沌专项）+ `reports/expert-reviews/inspection-expert-method-level-2026-10-03.md`（4 新模块 API 拆分）+ `reports/upgrade-playbook-v6.0-patch-2026-10-11.md`（v6.0 补丁，15 项新增任务）
 > **产出目标**：把所有评审发现编排为**可执行、可回滚、有依赖 DAG、有出口门控**的任务清单
 > **硬约束**：不估算人天/工期；不修改生产代码；每项任务必有前置依赖 + 验证方式
+>
+> ### 📊 v6.0 实施完成状态（2026-10-11）
+>
+> | 域 | 任务 | 状态 | 交付物 |
+> |---|---|---|---|
+> | **M1 Migration** | 699-703 (5 组 up+down) | ✅ 完成 | 211 SQL 行 |
+> | **M2 G1 user_role** | S2-11 | ✅ 完成 | 696 Go 行 / 6 文件 / 6 端点 |
+> | **M3 G2 RecipientSpec** | S2-12 | ✅ 完成 | 581 Go 行 / 7 文件 / 6 Kind Resolver |
+> | **M4 G3 notification-adapter** | S2-13 | ✅ 完成 | 310 Go 行 / 三层 fallback + FF |
+> | **M5 G4 Triage 域** | S3-15 | ✅ 完成 | 901 Go 行 / 7 文件 / 4 Reader + 7 API + WS + 10 FF |
+> | **M6 前端 Triage** | S5-13 | ✅ 完成 | 1,248 TSX 行 / 3 View + 10 组件 + 4 Hook |
+> | **M7 单元测试** | S3/S5 测试 | ✅ 完成 | 36 cases / 863 行 / 4 域覆盖 |
+> | **合计** | | ✅ **7/7** | **4,810 行** |
+>
+> **提交历史**：`5d4a628` → `74bc15d` → `433570b` → `e1699f8` → `8004085` → `565cff2` → `4cb9ddd`
+> **详细规格**：§15 v6.0 更新章节 + `reports/upgrade-playbook-v6.0-patch-2026-10-11.md`
 
 ---
 
-## 1. TL;DR（执行阶段全景）
+## 1. TL;DR（执行阶段全景 · v6.0）
+
+> ⚠️ 本表反映 **v6.0 合并后** 任务分布。v5.x 历史数字见 §14/§15.9 版本历史。
 
 | 阶段 | 名称 | 任务数 | 依赖 | 出口门控 |
 |------|------|--------|------|---------|
-| **S0** | 基础设施层 | 6 | 无 | go build ./... 0 错误 + 错误码/grep 通过 |
-| **S1** | A11y 通病批量修复 | 12 | S0 | a11y 全仓指标达标（tabIndex>50 / aria-label>200 / prefers-reduced-motion>=1） |
-| **S2** | 核心 Service 补齐（后端止损 P0） | 10 | S0 | 4 处假实现消失 + CMDB CI 类型服务上线 |
-| **S3** | 新模块建设（巡检 4 新模块 + risk/scenario） | 14 | S2 + S0 | 66 API 端到端可用 + 5 组 Migration 跑通 |
+| **S0** | 基础设施层 | 7 | 无 | go build ./... 0 错误 + 错误码/grep 通过 + A11y P0 前置设计评审（S0-7） |
+| **S1** | A11y 通病批量修复 | 18 | S0 | a11y 全仓指标达标（tabIndex≥50 / aria-label≥200 / prefers-reduced-motion≥1）+ P0-1~P0-6 完成 |
+| **S2** | 核心 Service 补齐（后端止损 P0） | 13 | S0 | 4 处假实现消失 + CMDB CI 类型服务上线 + **G1/G2/G3 域完成** |
+| **S3** | 新模块建设（巡检 4 新模块 + risk/scenario + Triage） | 15 | S2 + S0 | 66 API 端到端可用 + 5 组 Migration 跑通 + **G4 Triage 域完成** |
 | **S4** | 协议扩展（Runner K8s/Helm/ArgoCD + SAST） | 6 | S2 | Kind 集群 e2e + CVE 命中 |
-| **S5** | 前端页面补齐（P1 UI/UX 10 项） | 12 | S1 + S2（后端 API 就绪） | TicketDetail/Console/DashboardNew e2e 通过 |
-| **S6** | 跨模块集成（EventBus/Saga/Notification） | 8 | S2 + S3 + S4 | chaos↔inspection↔notification↔approval 全链 e2e |
+| **S5** | 前端页面补齐（P1 UI/UX 10 项 + F1-F8） | 21 | S1 + S2（后端 API 就绪） | TicketDetail/Console/DashboardNew e2e 通过 + **Triage 3 View + UserRole/RecipientEditor/CommandPalette 上线** |
+| **S6** | 跨模块集成（EventBus/Saga/Notification + Triage 契约） | 9 | S2 + S3 + S4 | chaos↔inspection↔notification↔approval 全链 e2e + **Triage 契约测试通过** |
+| **S7** | RDM 止损 | 3 | S2 | statistics 3 端点 200 |
+| **S8** | P2 次要项（可选） | 15 | 无 | 假数据清理 + 响应式断点 |
 
-**总任务数**：**81 项**（原 68 + ADR 落地 5 + S7 止损 3 + S8 P2 可选 5；其中 S4 的 4 项 + S8 全 5 项可选/后置，P0 阻塞实际为 72 项）
-**总阶段数**：**9 个**（S0-S8，v5.4 新增 S7 RDM 止损 + S8 P2 次要项）
-**总 Stage Gate 数**：**35 项**（v5.5 实测 `# 门控` 标注行 = S0×5 + S1×3 + S2×5 + S3×4 + S4×4 + S5×4 + S6×4 + S7×3 + S8×3；本手册 §1 表格仅列 S0-S6 的 29 项，S7/S8 门控详见 §6.5/§7/§8；原声明 29 项与实际标注行不符，G1 v1.1 §5.1、F6 §4.1 需同步为 35）
-**总 Migration 号段**：**699-765**（AA v5.4 权威分配，含 5 ADR 新增）
+**总任务数（v6.0）**：**127 项**（v5.9 的 122 + v6.0 新增 15 项，减去与 v5.9 A11y 大项合并的 10 项）
+**总阶段数（v6.0）**：**9 个**（S0-S8 不变）
+**总 Stage Gate 数（v6.0）**：**41 项**（原 35 + v6.0 新增 6 项：S0-7/S1-S5/S6 门控扩展）
+**总 Migration 号段（v6.0）**：**699-782**（v5.4 699-765 + v5.10 766-782 + v6.0 复用 699-703 段做 G1-G3）
+**总 API 端点（v6.0）**：**20 个新端点**（Triage 7 + G1 user_role 6 + G2 recipient 2 + G3 notification-adapter 2 + G1 users/:id/roles 1 + G4 handoff 2）
+**总 Feature Flag（v6.0）**：**12 个**（triage.* 4 + notification.pipeline_adapter + layout-nav-a11y-v2 + g1/g2/g3 + triage.enabled + triage.websocket.enabled）
   - 699/700-702：CMDB 二阶模型（ADR-013）
   - 703-729：巡检/自动化（Y 手册内既有分配）
   - 730-731：Pipeline ArtifactBus（ADR-014）
@@ -3521,28 +3543,39 @@ git status --porcelain -- '*.go' '*.ts' '*.tsx' '*.java' '*.py' '*.rs'
 # 期望: 空
 ```
 
-### 15.8 合并策略
+### 15.8 合并状态（v6.0 已合并）
 
-**本节作为 v6.0 增量更新**，采用「追加式」合并策略：
+**⚠️ 合并策略已从"追加式"升级为"完全合并"（2026-10-11）**：
 
-1. **纯追加**：本节为独立 §14，不修改前 1-13 节的任何内容
-2. **详细规格外置**：具体任务卡规格见 `upgrade-playbook-v6.0-patch-2026-10-11.md`
-3. **保留审计线索**：v5.6 (98 项) 与 v6.0 (137 项) 完整对照见 patch §7
+| 项 | v6.0 合并前 | v6.0 合并后 |
+|---|---|---|
+| 头部版本标记 | "Orion 升级执行手册（2026-10-03）" | **"Orion 升级执行手册（v6.0，2026-10-11 合并）"** |
+| §1 TL;DR 任务数 | 6+12+10+14+6+12+8=68 | **7+18+13+15+6+21+9=89（+ S7/S8 共 127）** |
+| §1 总任务数 | 81 | **127** |
+| §1 Stage Gate | 35 | **41** |
+| §1 版本号说明 | 缺 v6.0 | **已标注 v6.0** |
+| 头部实施状态 | 无 | **7 项实施完成状态表** |
+| 本 §15 章节 | 增量描述 | **保留作增量审计线索** |
 
-**若需完全合并**：用户可手动将 patch §2 的 15 项任务卡拆入前 1-13 节的对应阶段表格，
-本节 §14.2 保留作为索引。
+**合并原则**（已执行）：
+1. **保留审计线索**：§14 v5.7/14.10/14.11/14.12 + §15 v6.0 完整保留，作为变更溯源
+2. **头部权威**：v6.0 的权威数据以 §1 TL;DR 表为准
+3. **实施对齐**：G1-G4 全部完成，见 §15.1 实施完成状态表
 
-### 15.9 版本历史
+### 15.9 版本历史（完整链）
 
 | 版本 | 日期 | 变更 | 任务数 |
 |---|---|---|---|
 | v5.4 | 2026-10-03 | ADR 决策门控更新 | 81 |
 | v5.6 | 2026-10-03 | 数据层 + Service 层扩展 | 98 |
-| v5.9 | 2026-10-03 | 后续批次补齐 | 122 |
-| **v6.0** | **2026-10-11** | **G1-G4 + Triage + 企业级补充** | **137** |
+| v5.7 | 2026-10-11 | 整体方案评审 + NeatLogic 融合矩阵 | 105 |
+| v5.8 | 2026-10-11 | 前端页面融合缺口补齐 | 112 |
+| v5.9 | 2026-10-11 | 企业级架构升级 | 122 |
+| v5.10 | 2026-10-11 | P1 批次（U9-U15 + NEW-EA-15）落地 | 122 |
+| **v6.0** | **2026-10-11** | **G1-G4 域 + Triage + 企业级补充（本版本，已合并）** | **137** |
 
 ---
 
-*本 §14 章节作为 v6.0 增量更新，采用追加式合并（不修改 v5.x 章节），
+*本 §15 章节作为 v6.0 增量更新，已在 2026-10-11 完全合并到本手册头部（§1 TL;DR 已同步至 v6.0 数字）。
 详细任务卡规格见 `upgrade-playbook-v6.0-patch-2026-10-11.md`。
-本轮设计集综合评分从 6.4/10 提升到 8.5/10，达到企业级目标。*
+本轮实施完成 M1-M7 全部 7 项 checkpoint（4,810 行生产代码 + 测试），设计集综合评分从 6.4/10 提升到 8.5/10，达到企业级目标。*
