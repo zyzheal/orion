@@ -433,11 +433,118 @@ Orion 的模板层是对**Orion 自身需求**（批量创建 CI）的响应，
 
 ### 5.3 对 AA 数据模型设计的影响
 
-- Migration 700-704 需重新分配：
+- Migration 700-704 需重新分配（v5.9 拆 2 类，见 §5.4）：
   - **700**：cmdb_ci_types 表（原方案：cmdb_ci_type_system 完整 4 层）
   - **701**：cmdb_cis 加 type_id（原方案：cmdb_ci_properties 展开表）
   - **702**：数据回填脚本（新）
   - **703-704**：预留（阶段 2 模板 / 阶段 3 事务）
+
+### 5.4 internal/cmdb/attribute 包规划 + Migration 拆 2 类（v5.9 补强，P0-NEW-EA-2）
+
+> **来源**：`reports/expert-reviews/enterprise-architecture-depth-review-2026-10-11.md` §6.4 关键判据 2（NEW-EA-2）
+> **依据**：Google Cloud Inventory（`CloudInventoryService` 分层设计）+ ServiceNow CMDB `CMDBAttribute` 独立包模式
+> **阻塞问题**：E1 根因级——若将 `ci_types.attributes` 直接塞 JSONB，则**客户自定义配置项无法被 CMDB 二阶模型承载**（P0-1 spec 的核心能力天花板）
+> **决策**：新增独立包 `internal/cmdb/attribute/` 承载属性元数据 + 校验器 + 类型定义，与 CI 类型表解耦；Migration 从「3 号段（700-702）」拆为「attribute 2 号段（700-701）+ entity 2 号段（702-703）」
+
+**包结构**（`internal/cmdb/attribute/`，~5 个 Go 文件，~400 行）：
+
+```
+internal/cmdb/attribute/
+├── models.go           # Attribute / AttributeType / AttributeValue 数据结构
+├── validator.go        # ValidatorFactory 接口 + 内置 4 类校验器（enum/range/regex/ci-ref）
+├── schema.go           # Schema 校验入口（CI attributes ↔ type.attributes 双向校验）
+├── schema_test.go      # 单测：4 类校验器 + 边界场景
+└── factory.go          # AttrValueHandlerFactory（对标 NL 36 实现）
+```
+
+**核心类型**：
+
+```go
+// Attribute 是 CMDB 属性的元数据定义（对标 NL AttrVo 45 字段子集）
+type Attribute struct {
+    ID           string                 `json:"id"`
+    Name         string                 `json:"name"`
+    AttributeType string               `json:"attributeType"` // enum/int/string/json/ci-ref
+    Required     bool                   `json:"required"`
+    Default      any                    `json:"default"`
+    Validator    map[string]any         `json:"validator"` // enum/range/regex 参数
+    TargetCiID   *string                `json:"targetCiId,omitempty"` // ci-ref 类型
+    Config       map[string]any         `json:"config"`
+}
+
+// AttributeType 枚举（对标 NL AttrTypeVo）
+const (
+    AttrTypeString = "string"
+    AttrTypeInt    = "int"
+    AttrTypeEnum   = "enum"
+    AttrTypeJSON   = "json"
+    AttrTypeCIRef  = "ci-ref"   // 关联另一个 CI 类型
+)
+
+// ValidatorFactory 用于注册自定义校验器（对标 NL AttrValueHandlerFactory）
+type ValidatorFactory interface {
+    Register(name string, v Validator)
+    Get(name string) (Validator, bool)
+}
+```
+
+**Migration 拆 2 类（新分配，替换原 700-702）**：
+
+| 号段 | 类别 | 内容 | 影响面 |
+|-----|------|------|-------|
+| **700** | attribute | `cmdb_attributes` 表（属性元数据）| 新表，无破坏 |
+| **701** | attribute | `cmdb_ci_types` 加 `attribute_ids JSONB`（外键列，指向 cmdb_attributes）| ALTER TABLE，兼容 |
+| **702** | entity | `cmdb_cis` 加 `type_id UUID` + `attribute_values JSONB` | ALTER TABLE，兼容 |
+| **703** | entity | 数据回填脚本（旧 `ci_type` 字符串 → 新 `type_id` + `attribute_values`）| 幂等 + 事务包裹 |
+| **704** | 预留 | 阶段 2 模板层 / 阶段 3 事务层 | — |
+
+**依赖链调整**：
+
+```
+原：Migration 700 → 701 → 702（3 号段，属性内嵌 ci_types.attributes）
+新：Migration 700 (attr) → 701 (attr) → 702 (entity) → 703 (backfill)
+    ─────────────── 属性元数据（2 号段）──────────────
+    ─────────────── 实体迁移（2 号段）──────────────
+```
+
+**验证方式**：
+
+```bash
+# 包结构存在
+ls orion-platform-svc-go/internal/cmdb/attribute/*.go | wc -l  # 应 >=5
+
+# Migration 号段
+ls orion-platform-svc-go/migrations/70[0-3]_*.sql  # 应 >=4
+
+# Repository 校验器
+go test ./internal/cmdb/attribute/... -run TestValidator -count=1
+
+# CI 与 attribute 关联
+grep -rn "attribute_ids" orion-platform-svc-go/internal/cmdb/  # 应 >=5 处
+
+# Schema 校验
+go test ./internal/cmdb/... -run TestSchemaValidation -count=1  # 应通过
+```
+
+**与 CLAUDE.md 技能一致性契约的对齐**：
+- 包结构层归 `code-design-analyzer`（能力十 数据结构设计 / 能力十一 框架选型）
+- Migration 号段归属 `ADR-013`（本 ADR）
+- 校验器注册模式复用 `ADR-012` Factory+Handler 注册表模式
+- 本步骤不新增人天估算（CLAUDE.md 强制约束）
+
+**实施批次**：
+
+| 步骤 | 内容 | 触发条件 | 状态 |
+|-----|------|---------|------|
+| 1 | `internal/cmdb/attribute/` 包结构创建 + 4 类校验器实现 | S0 阶段 | ⏳ 待 S0-T5 完成 |
+| 2 | Migration 700-701（attribute 表 + ci_types 关联）| 步骤 1 完成 | ⏳ 待 S0 阶段 |
+| 3 | Migration 702-703（entity 表 + 回填）| 步骤 2 完成 | ⏳ 待 S1 CMDB |
+| 4 | 前端 CI 详情页接入新 attribute schema | 步骤 3 完成 | ⏳ 待 S5 前端 |
+
+**回滚**：
+- 步骤 1-2 回滚：`git revert <commit>` + 删除 `internal/cmdb/attribute/` + `psql -f 700.down.sql 701.down.sql`
+- 步骤 3 回滚：`psql -f 702.down.sql 703.down.sql` + 恢复 `cmdb_cis` 原结构
+- 回滚触发条件：回填脚本失败率 >5% 或 CI 类型校验破坏现有写入 >10/min
 
 ---
 
@@ -468,6 +575,7 @@ Orion 的模板层是对**Orion 自身需求**（批量创建 CI）的响应，
 | 日期 | 修订 | 依据 |
 |---|---|---|
 | 2026-10-11 | §1.2 虚构类名（`CIType`/`CITemplate`/`CI`/`CIChange`）替换为真实类（`CiTypeVo`/`AttrTypeVo`/`AttrVo`/`CiEntityVo`/`TransactionVo`）并附字段数；**新增「NL 无独立 Template 层」更正框**；§1.3 新增 Q1b；§2.1 标题与 4 张表注释标注 Template 为自主扩展；§2.1 Migration 策略删除「2 周过渡期」时间线估算；§3.4 对齐表重画并更正 Template 行 | `reports/reference/adr-neatlogic-reference-audit-2026-10-11.md` §4、`reports/reference/neatlogic-baseline-2026-10-11.md` §2 |
+| 2026-10-11 | **§5.4 新增 internal/cmdb/attribute 包规划 + Migration 拆 2 类**：新增独立 attribute 包（5 文件 / 400 行）承载属性元数据 + 4 类校验器 + ValidatorFactory；Migration 700-703 从 3 号段拆为「attribute 2 号段（700-701）+ entity 2 号段（702-703）」；解决 E1 根因级（CMDB 二阶模型无法承载客户自定义配置项）| `reports/expert-reviews/enterprise-architecture-depth-review-2026-10-11.md` §6.4 NEW-EA-2；`big-tech-expert-granularity-comparison-2026-10-11.md` §3.2 |
 
 **修订性质**：
 - **技术决策不变**：仍为分阶段引入二阶模型（阶段 1 类型+属性+实体，阶段 2 模板，阶段 3 事务）。
