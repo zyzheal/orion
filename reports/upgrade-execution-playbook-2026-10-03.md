@@ -3379,3 +3379,170 @@ P1-9 (UI 组件对标) ─┘
 | feature-parity "62% 覆盖" vs "32.1% 完成度" | CLAUDE.md memory vs feature-parity §5 | 分档声明（页面 62% / 业务 32%），待 INDEX v5.6 补充 |
 | G0 "8 项" vs 列表 11 项 | feature-parity §4 表格 vs 列表 | §4 表格已修正为 11（P0-4） |
 | "7783 行 33 文件" vs "45 文件" | CLAUDE.md 快照 vs 实测 | 待下次 CLAUDE.md 数据刷新 |
+
+---
+
+## 15. v6.0 更新（2026-10-11，G1-G4 域 + Triage + 企业级补充）
+
+> **⚠️ 本节为 v6.0 增量更新，作为独立章节追加，不修改前 1-13 节的任何内容。**
+> **详细规格见独立补丁文件**：`reports/upgrade-playbook-v6.0-patch-2026-10-11.md`
+> **详细评审**：`reports/expert-reviews/design-set-enterprise-level-meta-review-v2-2026-10-11.md`（综合评分 8.5/10，达到企业级）
+
+### 15.1 变更总览
+
+| 维度 | v5.6 | v6.0 | 变化 |
+|---|---:|---:|---|
+| 任务总数 | 98 | **137** | **+39** |
+| 前端实施规格 | 无 | 1（Triage 10 组件 + 4 Hook + 3 View） | +1 |
+| API 契约文档 | 无 | 2（Triage 7 + G1-G3 13 = 20 端点） | +2 |
+| UI 专家评审 | 无 | 1（三角色评分 6.2/10） | +1 |
+| 可观测性设计 | 无 | 1（23 业务指标 + 42 trace span） | +1 |
+| 部署策略 | 无 | 1（5 环境 + 8 阶段 + 回滚 ≤5min） | +1 |
+| CI/CD 集成 | 无 | 1（6 阶段 + 20+ 检查项） | +1 |
+| i18n 策略 | 无 | 1（12 页组件完整 key + 9 错误码） | +1 |
+| 企业级评分 | 6.4/10 | **8.5/10** | **+2.1** |
+
+### 15.2 新增任务分类（15 项，+15 任务卡）
+
+| 阶段 | 新增任务数 | 主要新增内容 |
+|---|---:|---|
+| S0 前置门控 | +1 | A11y P0 前置完成门控（P0-1~P0-6 阻塞 Triage 上线） |
+| S1 A11y | +6 | P0-1 Layout nav / P0-2 <div onClick> 101 处 / P0-3 aria-label 2262 按钮 / P0-4 tabIndex / P0-5 aria-describedby+live / P0-6 prefers-reduced-motion |
+| S2 核心 Service | +3 | G1 user_role / G2 recipient / G3 notification-adapter 后端服务 |
+| S3 新模块 | +1 | G4 Triage 域（4 Reader 接口 + 3 View） |
+| S5 前端页面 | +9 | Triage Overview / Queue / Timeline 3 View + 10 新组件 + 4 Hook + 3 命令面板 |
+| S6 跨模块集成 | +1 | Triage 前后端联调 + WebSocket 事件接入 |
+
+**注**：v6.0 中 S0-S6 新增 21 项任务卡，其中 S0 部分与 v5.9 已列 A11y P0 项目合并；
+最终净新增 15 项。详细任务卡见 patch 文件 §2。
+
+### 15.3 关键路径扩展
+
+**v5.9 关键路径**：S0 → S1 → S2 → S3 → S5 → S6
+
+**v6.0 新增依赖**：
+```
+A11y P0-1 ~ P0-6 (S1)
+    ↓ 阻塞
+Triage Overview/Queue/Timeline (S5)
+    ↓ 阻塞
+Triage 前后端联调 (S6)
+    ↓ 阻塞
+Triage 上线 (上线门控)
+
+G1 user_role (S2) ─┐
+G2 recipient (S2) ─┼─ 阻塞
+G3 adapter (S2)   ─┘
+    ↓ 阻塞
+Triage Assign/Handoff (S6)
+
+D1-D6 企业级补充设计（可并行）
+    - D1 backend-g1-g3-implementation-spec
+    - D2 observability-plan
+    - D3 deployment-rollout-strategy
+    - D4 i18n-strategy
+    - D5 ci-cd-integration-plan
+    - D6 g1-g3-api-contract
+```
+
+### 15.4 新增阶段门控（6 项）
+
+| 阶段 | 新增门控 | 阻塞条件 |
+|---|---|---|
+| S0 | A11y P0 前置设计评审通过 | 否 |
+| S1 | A11y P0-1~P0-6 完成 + Feature Flag 就位 | 是（阻塞 S5 Triage） |
+| S2 | G1/G2/G3 API 契约评审通过 | 否 |
+| S3 | Triage 4 Reader 接口 + 3 View 设计评审 | 否 |
+| S5 | Triage 前端 4 类测试全部通过 | 是（阻塞 S6） |
+| S6 | Triage 上线前 P0-1/3/6 完成验证 | 是（阻塞上线） |
+
+### 15.5 与既有版本的对齐
+
+| v5.9 已列项 | v6.0 处理 |
+|---|---|
+| A11y 大修复（P1-5） | 拆分为 P0-1~P0-6 六项，S1 内细分 |
+| 前端 CRUD 修复（P1-4） | 保留，Triage 前端实施复用组件 |
+| API 主清单（P1-6） | 扩展至 20 端点（含 G1-G4 全部） |
+| 数据层基础（P1-3） | 保留，G1/G2/G3 Migration 编号 699-703 |
+
+### 15.6 参考文档索引（本轮新增）
+
+| 类别 | 文件 | 用途 |
+|---|---|---|
+| G1-G4 设计 | `reports/module-upgrade-designs/role-based-push-and-triage-design-2026-10-11.md` | 4 域总体设计 |
+| API 契约 | `reports/module-upgrade-designs/triage-api-contract-design-2026-10-11.md` | Triage 7 端点 |
+| API 契约 | `reports/module-upgrade-designs/g1-g3-api-contract-2026-10-11.md` | G1-G3 13 端点 |
+| 后端实施 | `reports/module-upgrade-designs/backend-g1-g3-implementation-spec-2026-10-11.md` | 实施规格 |
+| 前端实施 | `reports/module-upgrade-designs/frontend-triage-implementation-spec-2026-10-11.md` | Triage 前端 |
+| 前端交互 | `reports/module-upgrade-designs/frontend-interaction-optimization-design-2026-10-11.md` | 交互优化 |
+| A11y 前置 | `reports/module-upgrade-designs/frontend-a11y-p0-prework-design-2026-10-11.md` | P0-1~P0-6 |
+| 可观测性 | `reports/module-upgrade-designs/observability-plan-2026-10-11.md` | D2 |
+| 部署策略 | `reports/module-upgrade-designs/deployment-rollout-strategy-2026-10-11.md` | D3 |
+| i18n | `reports/module-upgrade-designs/i18n-strategy-2026-10-11.md` | D4 |
+| CI/CD | `reports/module-upgrade-designs/ci-cd-integration-plan-2026-10-11.md` | D5 |
+| UI 评审 | `reports/expert-reviews/triage-ui-domain-expert-design-analysis-2026-10-11.md` | 三角色评审 |
+| 企业级评审 | `reports/expert-reviews/design-set-enterprise-level-meta-review-v2-2026-10-11.md` | 综合 8.5/10 |
+| 补丁详规 | **`reports/upgrade-playbook-v6.0-patch-2026-10-11.md`** | **完整任务卡** |
+
+### 15.7 复现命令（⭐ 机械计数）
+
+```bash
+cd /Users/heal/orion-design
+
+# 主 Playbook 版本更新
+wc -l reports/upgrade-execution-playbook-2026-10-03.md
+grep -c '^## 14\.' reports/upgrade-execution-playbook-2026-10-03.md
+
+# 独立补丁文件
+wc -l reports/upgrade-playbook-v6.0-patch-2026-10-11.md
+grep -c '^\*\*新增任务' reports/upgrade-playbook-v6.0-patch-2026-10-11.md
+# 期望: 15
+
+# 全部 13 份相关设计文档存在性
+for f in \
+  reports/module-upgrade-designs/role-based-push-and-triage-design-2026-10-11.md \
+  reports/module-upgrade-designs/triage-api-contract-design-2026-10-11.md \
+  reports/module-upgrade-designs/g1-g3-api-contract-2026-10-11.md \
+  reports/module-upgrade-designs/backend-g1-g3-implementation-spec-2026-10-11.md \
+  reports/module-upgrade-designs/frontend-triage-implementation-spec-2026-10-11.md \
+  reports/module-upgrade-designs/frontend-interaction-optimization-design-2026-10-11.md \
+  reports/module-upgrade-designs/frontend-a11y-p0-prework-design-2026-10-11.md \
+  reports/module-upgrade-designs/observability-plan-2026-10-11.md \
+  reports/module-upgrade-designs/deployment-rollout-strategy-2026-10-11.md \
+  reports/module-upgrade-designs/i18n-strategy-2026-10-11.md \
+  reports/module-upgrade-designs/ci-cd-integration-plan-2026-10-11.md \
+  reports/expert-reviews/triage-ui-domain-expert-design-analysis-2026-10-11.md \
+  reports/expert-reviews/design-set-enterprise-level-meta-review-v2-2026-10-11.md; do
+  test -f "$f" && echo "OK: $f" || echo "MISS: $f"
+done
+
+# 生产代码未被修改
+git status --porcelain -- '*.go' '*.ts' '*.tsx' '*.java' '*.py' '*.rs'
+# 期望: 空
+```
+
+### 15.8 合并策略
+
+**本节作为 v6.0 增量更新**，采用「追加式」合并策略：
+
+1. **纯追加**：本节为独立 §14，不修改前 1-13 节的任何内容
+2. **详细规格外置**：具体任务卡规格见 `upgrade-playbook-v6.0-patch-2026-10-11.md`
+3. **保留审计线索**：v5.6 (98 项) 与 v6.0 (137 项) 完整对照见 patch §7
+
+**若需完全合并**：用户可手动将 patch §2 的 15 项任务卡拆入前 1-13 节的对应阶段表格，
+本节 §14.2 保留作为索引。
+
+### 15.9 版本历史
+
+| 版本 | 日期 | 变更 | 任务数 |
+|---|---|---|---|
+| v5.4 | 2026-10-03 | ADR 决策门控更新 | 81 |
+| v5.6 | 2026-10-03 | 数据层 + Service 层扩展 | 98 |
+| v5.9 | 2026-10-03 | 后续批次补齐 | 122 |
+| **v6.0** | **2026-10-11** | **G1-G4 + Triage + 企业级补充** | **137** |
+
+---
+
+*本 §14 章节作为 v6.0 增量更新，采用追加式合并（不修改 v5.x 章节），
+详细任务卡规格见 `upgrade-playbook-v6.0-patch-2026-10-11.md`。
+本轮设计集综合评分从 6.4/10 提升到 8.5/10，达到企业级目标。*
