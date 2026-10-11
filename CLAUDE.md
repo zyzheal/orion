@@ -172,6 +172,31 @@ npx tsx docs/design-constraints/framework/core/cli-check.ts --scan orion-fronten
 - **docs/review/full-review-2026-04-23.md** — Latest full-system review
 - **API-QUICK-REFERENCE.md** — API endpoint quick reference
 
+### NeatLogic 升级三入口契约（2026-10-03）
+
+> **规则**：任何涉及 NeatLogic → Orion 升级的评审/设计/执行工作，Agent 必须感知以下 3 份文件的角色边界，禁止把三者当成同一文档合并。
+
+| 角色 | 文件 | 权威范围 | 版本 |
+|------|------|---------|------|
+| **索引（INDEX）** | `reports/design-docs-summary-2026-10-03.md` | 72 份评审文档元数据 + 目录分层 | v5.4 |
+| **决策（G1）** | `reports/expert-reviews/all-plans-tasks-summary-2026-10-03.md` | 跨评审任务合并总清单（134 项） | v1.1 |
+| **执行（Y）** | `reports/upgrade-execution-playbook-2026-10-03.md` | S0-S6 7 阶段 × 68 项任务 DAG + grep 验证 + 回滚 | v5.4 |
+
+**契约条款**：
+1. **数据流**：INDEX → G1 → Y。索引提供发现来源；G1 合并去重；Y 展开为可执行 DAG。
+2. **任务数口径差异**：G1 = 134（跨文档合并），Y = 68（仅 S0-S6 生产执行），G1 多出 66 项为 ADR/R-P0/CC-NL 等非 S0-S6 项。**禁止**在跨文档汇报时混用两个数字。
+3. **Migration 号段**：AA v5.4 权威分配 = **699-765**（含 5 ADR 新增）。所有文档引用 Migration 号段时必须以此为准。
+4. **风险登记册**：`reports/module-upgrade-designs/risk-fallback-design-2026-10-03.md` v5.4 = 59 项（P0×7 / P1×19 / P2×24 / P3×6 / CC×3）。
+5. **Stage Gate**：**35 项**（实测 Y 手册 `# 门控` 标注行 = S0×5 + S1×3 + S2×5 + S3×4 + S4×4 + S5×4 + S6×4 + S7×3 + S8×3；其中 S0-S6 生产门控 29 项，S7/S8 共 6 项。v5.5 修正：原声明 26 项且分解式 3+4+3+3+5+3+4+3 自加为 28，两处均与实际不符）。
+6. **推荐执行入口**：路线 A（ADR-011 → ADR-013 → ADR-014 → ADR-010 → ADR-012），R-P0-04/05 待 S7 阶段。
+7. **RC-03 硬约束**：以上 3 份文件均为**设计文档**，Agent 不修改生产代码。生产代码修复需用户显式确认。
+
+**入口判定**：
+- 用户问"有哪些文档 / 评审进度" → INDEX
+- 用户问"要做什么 / 任务清单" → G1
+- 用户问"怎么执行 / 阶段 DAG" → Y
+- 用户问"决策缺口 / 风险" → ADR-015 缺口盘点 + 风险登记册（非本 3 份）
+
 ## Current Branch
 
 `feat/wave2-parallel-execution` — TS→Go 完整迁移完成，P0/P1/P2 全部实现。
