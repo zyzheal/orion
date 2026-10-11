@@ -16,6 +16,9 @@ export function EvalRunsCard({ runs, runColumns, selectedRuns, setSelectedRuns, 
   return (
     <Card
       title="评测运行记录"
+      role="region"
+      aria-label="评测运行记录"
+      aria-busy={loading || exporting}
       extra={
         <Space>
           <Button
@@ -23,6 +26,8 @@ export function EvalRunsCard({ runs, runColumns, selectedRuns, setSelectedRuns, 
             loading={exporting}
             onClick={onExport}
             disabled={runs.length === 0}
+            aria-label="导出评测报告"
+            tabIndex={0}
           >
             导出报告
           </Button>
@@ -30,6 +35,8 @@ export function EvalRunsCard({ runs, runColumns, selectedRuns, setSelectedRuns, 
             icon={<SwapOutlined />}
             onClick={onCompare}
             disabled={selectedRuns.length !== 2}
+            aria-label="对比评测运行"
+            tabIndex={0}
           >
             对比分析
           </Button>
@@ -50,7 +57,15 @@ export function EvalRunsCard({ runs, runColumns, selectedRuns, setSelectedRuns, 
         loading={loading}
         size="small"
         pagination={false}
-        locale={{ emptyText: <Empty description="暂无评测运行记录" /> }}
+        locale={
+          {
+            emptyText: (
+              <div role="status" aria-live="polite" aria-atomic="true">
+                <Empty description="暂无评测运行记录" />
+              </div>
+            ),
+          } as any
+        }
       />
     </Card>
   );

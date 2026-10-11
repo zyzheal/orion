@@ -245,16 +245,22 @@ const AIReviewDashboard: React.FC = () => {
       </Row>
 
       {/* Recent Reviews */}
-      <Card title="最近评审记录">
+      <Card title="最近评审记录" role="region" aria-label="最近评审记录" aria-busy={loading}>
         <Table
           columns={columns}
           dataSource={tableData}
           loading={loading}
           pagination={{ pageSize: 10 }}
           size="small"
-          locale={{
-            emptyText: <Empty description="暂无评审记录" />,
-          }}
+          locale={
+            {
+              emptyText: (
+                <div role="status" aria-live="polite" aria-atomic="true">
+                  <Empty description="暂无评审记录" />
+                </div>
+              ),
+            } as any
+          }
         />
       </Card>
 

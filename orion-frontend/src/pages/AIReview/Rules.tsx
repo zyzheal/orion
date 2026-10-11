@@ -256,18 +256,22 @@ const AIReviewRules: React.FC = () => {
       </Card>
 
       {/* Table */}
-      <Card>
+      <Card role="region" aria-label="评审规则列表" aria-busy={loading}>
         <Table
           columns={columns}
           dataSource={tableData}
           loading={loading}
           pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条` }}
           size="small"
-          locale={{
-            emptyText: (
-              <Empty description="暂无评审规则，点击「新增规则」开始添加" />
-            ),
-          }}
+          locale={
+            {
+              emptyText: (
+                <div role="status" aria-live="polite" aria-atomic="true">
+                  <Empty description="暂无评审规则，点击「新增规则」开始添加" />
+                </div>
+              ),
+            } as any
+          }
         />
       </Card>
 

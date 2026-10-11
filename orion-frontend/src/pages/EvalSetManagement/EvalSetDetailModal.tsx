@@ -99,7 +99,9 @@ export const EvalSetDetailModal: React.FC<EvalSetDetailModalProps> = ({
           </div>
         </>
       ) : (
-        <Empty description="暂无评测用例" />
+        <div role="status" aria-live="polite" aria-atomic="true">
+          <Empty description="暂无评测用例" />
+        </div>
       )}
     </Modal>
   );

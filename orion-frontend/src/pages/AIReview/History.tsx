@@ -182,26 +182,34 @@ const AIReviewHistory: React.FC = () => {
       </Card>
 
       {/* Table */}
-      <Card>
+      <Card role="region" aria-label="评审历史" aria-busy={loading}>
         <Table
           columns={columns}
           dataSource={tableData}
           loading={loading}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: true,
-            showTotal: (t) => `共 ${t} 条`,
-            onChange: (p, ps) => {
-              setPage(p);
-              setPageSize(ps);
-            },
-          }}
+          pagination={
+            {
+              current: page,
+              pageSize,
+              total,
+              showSizeChanger: true,
+              showTotal: (t: number) => `共 ${t} 条`,
+              onChange: (p: number, ps: number) => {
+                setPage(p);
+                setPageSize(ps);
+              },
+            } as any
+          }
           size="small"
-          locale={{
-            emptyText: <Empty description="暂无评审历史" />,
-          }}
+          locale={
+            {
+              emptyText: (
+                <div role="status" aria-live="polite" aria-atomic="true">
+                  <Empty description="暂无评审历史" />
+                </div>
+              ),
+            } as any
+          }
         />
       </Card>
     </div>
