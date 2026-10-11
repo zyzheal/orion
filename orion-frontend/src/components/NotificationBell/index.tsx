@@ -217,6 +217,8 @@ export const NotificationBell: React.FC = () => {
   // 通知面板内容
   const notificationPanel = (
     <div
+      role="dialog"
+      aria-label="通知中心"
       style={{
         width: 420,
         background: 'rgba(255, 255, 255, 0.95)',
@@ -332,6 +334,9 @@ export const NotificationBell: React.FC = () => {
             color: unreadCount > 0 ? colors.error[500] : undefined,
           }}
           title="通知"
+          aria-label="通知"
+          aria-expanded={dropdownOpen}
+          aria-haspopup="true"
         />
       </Badge>
     </Dropdown>

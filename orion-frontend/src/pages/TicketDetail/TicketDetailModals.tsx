@@ -10,15 +10,19 @@ interface TicketDetailModalsProps {
   assignModalOpen: boolean;
   setAssignModalOpen: (v: boolean) => void;
   assignForm: FormInstance;
+  assignLoading: boolean;
   escalateModalOpen: boolean;
   setEscalateModalOpen: (v: boolean) => void;
   escalateForm: FormInstance;
+  escalateLoading: boolean;
   resolveModalOpen: boolean;
   setResolveModalOpen: (v: boolean) => void;
   resolveForm: FormInstance;
+  resolveLoading: boolean;
   transferModalOpen: boolean;
   setTransferModalOpen: (v: boolean) => void;
   transferForm: FormInstance;
+  transferLoading: boolean;
   engineers: { id: string; name?: string; username?: string }[];
   handleAssign: () => void;
   handleEscalate: () => void;
@@ -39,8 +43,10 @@ export const TicketDetailModals: React.FC<TicketDetailModalsProps> = (props) => 
           props.assignForm.resetFields();
         }}
         onOk={props.handleAssign}
+        confirmLoading={props.assignLoading}
         okText="确认分配"
         cancelText="取消"
+        destroyOnClose
       >
         <Form form={props.assignForm} layout="vertical">
           <Form.Item
@@ -71,8 +77,10 @@ export const TicketDetailModals: React.FC<TicketDetailModalsProps> = (props) => 
           props.escalateForm.resetFields();
         }}
         onOk={props.handleEscalate}
+        confirmLoading={props.escalateLoading}
         okText="确认升级"
         cancelText="取消"
+        destroyOnClose
       >
         <Form form={props.escalateForm} layout="vertical">
           <Form.Item
@@ -94,8 +102,10 @@ export const TicketDetailModals: React.FC<TicketDetailModalsProps> = (props) => 
           props.resolveForm.resetFields();
         }}
         onOk={props.handleResolve}
+        confirmLoading={props.resolveLoading}
         okText="确认解决"
         cancelText="取消"
+        destroyOnClose
       >
         <Form form={props.resolveForm} layout="vertical">
           <Form.Item label="解决方案" name="resolutionNote">
@@ -113,14 +123,16 @@ export const TicketDetailModals: React.FC<TicketDetailModalsProps> = (props) => 
           props.transferForm.resetFields();
         }}
         onOk={props.handleTransfer}
+        confirmLoading={props.transferLoading}
         okText="确认转交"
         cancelText="取消"
+        destroyOnClose
       >
         <Form form={props.transferForm} layout="vertical">
           <Form.Item
-            label="转交给"
+            label="目标工程师"
             name="toEngineer"
-            rules={[{ required: true, message: '请选择接收人' }]}
+            rules={[{ required: true, message: '请选择目标工程师' }]}
           >
             <Select placeholder="选择工程师">
               {props.engineers.map((e) => (
@@ -130,12 +142,8 @@ export const TicketDetailModals: React.FC<TicketDetailModalsProps> = (props) => 
               ))}
             </Select>
           </Form.Item>
-          <Form.Item
-            label="转交理由"
-            name="reason"
-            rules={[{ required: true, message: '请输入转交理由' }]}
-          >
-            <Input.TextArea rows={2} placeholder="请说明转交原因" />
+          <Form.Item label="转交理由" name="reason">
+            <Input.TextArea rows={2} placeholder="可选" />
           </Form.Item>
         </Form>
       </Modal>

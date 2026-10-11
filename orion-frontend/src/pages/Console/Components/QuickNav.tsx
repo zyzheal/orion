@@ -5,6 +5,7 @@
 import React from 'react';
 import { Card, Col, Row, Space, Typography } from 'antd';
 import { AppstoreOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { colors } from '@/tokens';
 
 const { Text } = Typography;
@@ -37,28 +38,39 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-export const QuickNav = () => (
-  <Card title="快速导航">
-    <Row gutter={[16, 16]}>
-      {NAV_ITEMS.map((item) => (
-        <Col key={item.path} xs={24} sm={12} lg={8}>
-          <Card
-            hoverable
-            onClick={() => {
-              window.location.href = item.path;
-            }}
-            style={{ height: '100%' }}
-          >
-            <Space direction="vertical" size={8}>
-              {item.icon}
-              <Text strong>{item.title}</Text>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {item.desc}
-              </Text>
-            </Space>
-          </Card>
-        </Col>
-      ))}
-    </Row>
-  </Card>
-);
+export const QuickNav = () => {
+  const navigate = useNavigate();
+
+  return (
+    <Card title="快速导航">
+      <Row gutter={[16, 16]}>
+        {NAV_ITEMS.map((item) => (
+          <Col key={item.path} xs={24} sm={12} lg={8}>
+            <Card
+              hoverable
+              onClick={() => navigate(item.path)}
+              style={{ height: '100%' }}
+              role="button"
+              tabIndex={0}
+              aria-label={item.title}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  navigate(item.path);
+                }
+              }}
+            >
+              <Space direction="vertical" size={8}>
+                {item.icon}
+                <Text strong>{item.title}</Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {item.desc}
+                </Text>
+              </Space>
+            </Card>
+          </Col>
+        ))}
+      </Row>
+    </Card>
+  );
+};

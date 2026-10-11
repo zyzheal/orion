@@ -138,8 +138,11 @@ const FeishuNavItem: React.FC<FeishuNavItemProps> = ({
   const hoverBg = isDark ? 'rgba(255,255,255,0.06)' : colors.neutral[100];
 
   const navTrigger = (
-    <div
+    <button
+      type="button"
       onClick={() => onNavigate(item.key, item.label)}
+      aria-label={item.label}
+      aria-current={isActive ? 'page' : undefined}
       style={{
         position: 'relative',
         display: 'inline-flex',
@@ -148,6 +151,8 @@ const FeishuNavItem: React.FC<FeishuNavItemProps> = ({
         height: 56,
         padding: '0 14px',
         margin: '0 1px',
+        border: 'none',
+        background: 'transparent',
         cursor: 'pointer',
         fontSize: 14,
         fontWeight: isActive ? 500 : 400,
@@ -191,7 +196,7 @@ const FeishuNavItem: React.FC<FeishuNavItemProps> = ({
           }}
         />
       )}
-    </div>
+    </button>
   );
 
   if (hasChildren) {
@@ -443,6 +448,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             flexShrink: 0,
           }}
           onClick={() => navigate('/dashboard')}
+          role="link"
+          tabIndex={0}
+          aria-label="Orion Platform 首页"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              navigate('/dashboard');
+            }
+          }}
         >
           <SubAppLauncher />
           <img src="/logo.svg" alt="Orion" style={{ width: 28, height: 28, flexShrink: 0 }} />
@@ -504,6 +518,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 color: theme === 'dark' ? colors.dark.text.primary : colors.light.text.secondary,
               }}
               title="菜单配置"
+              aria-label="菜单配置"
             />
           )}
 
@@ -523,6 +538,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   color: theme === 'dark' ? colors.dark.text.primary : colors.light.text.secondary,
                 }}
                 title="控制台"
+                aria-label="控制台"
               />
             </Dropdown>
           )}
@@ -538,6 +554,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               color: theme === 'dark' ? colors.dark.text.primary : colors.light.text.secondary,
             }}
             title={theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'}
+            aria-label={theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'}
           />
 
           {/* 通知铃铛 */}
@@ -552,6 +569,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           {/* 用户菜单 */}
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']}>
             <div
+              role="button"
+              tabIndex={0}
+              aria-label="用户菜单"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  // Dropdown 的 trigger 是 click，这里触发模拟
+                }
+              }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -609,6 +635,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               />
               {/* 面板容器 - 全宽，紧贴 Header 底部，带淡入动画 */}
               <div
+                role="navigation"
+                aria-label={`${activeItem.label} 子菜单`}
                 onMouseEnter={() => handleMegaMenuToggle(megaMenuKey)}
                 onMouseLeave={() => handleMegaMenuToggle(null)}
                 style={{
@@ -666,17 +694,25 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                           }}
                         >
                           {items.map((child) => (
-                            <div
+                            <button
+                              type="button"
                               key={child.key}
                               onClick={() => handleNavigate(child.key, child.label)}
+                              aria-label={child.label}
                               style={{
                                 display: 'flex',
                                 alignItems: 'flex-start',
                                 gap: spacing[3],
                                 padding: '10px 12px',
                                 borderRadius: 8,
+                                border: 'none',
+                                background: 'transparent',
                                 cursor: 'pointer',
                                 transition: 'background 0.15s',
+                                textAlign: 'left',
+                                color: 'inherit',
+                                fontSize: 'inherit',
+                                fontFamily: 'inherit',
                               }}
                               onMouseEnter={(e) => {
                                 (e.currentTarget as HTMLElement).style.background = isDark
@@ -730,7 +766,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                                   </div>
                                 )}
                               </div>
-                            </div>
+                            </button>
                           ))}
                         </div>
                       </div>

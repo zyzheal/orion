@@ -432,3 +432,66 @@ body {
   outline: 2px solid var(--color-primary-500, #3370E6);
   outline-offset: 2px;
 }
+
+/* ============================================
+   Accessibility: Aria-describedby / aria-invalid
+   ============================================ */
+
+[aria-invalid="true"] {
+  border-color: var(--color-error-500, #f5222d);
+}
+
+/* ============================================
+   Accessibility: prefers-reduced-motion
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================
+   Accessibility: prefers-color-scheme
+   ============================================ */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+  }
+}
+
+/* ============================================
+   Accessibility: high contrast mode
+   ============================================ */
+
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 3px solid Highlight;
+  }
+
+  .ant-btn {
+    border: 1px solid ButtonText;
+  }
+}
+
+/* ============================================
+   Accessibility: Focus ring for role="button"
+   ============================================ */
+
+[role='button']:focus-visible {
+  outline: 2px solid var(--color-primary-500, #3370E6);
+  outline-offset: 2px;
+  border-radius: 2px;
+}

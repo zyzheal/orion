@@ -4,7 +4,7 @@
  * 全 state + loadTicket/loadEngineers/loadRelatedData + 5 handlers + action flags + SLA memo
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { message } from 'antd';
+import { message, Modal } from 'antd';
 import {
   getTicket,
   assignTicket,
@@ -21,7 +21,8 @@ import { calculateSLA } from './helpers';
 export const useTicketDetailState = (id?: string) => {
   // --- State ---
   const [ticket, setTicket] = useState<Ticket | null>(null);
-  const [_loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [engineers, setEngineers] = useState<User[]>([]);
   const [relations, setRelations] = useState<any[]>([]);
   const [transfers, setTransfers] = useState<any[]>([]);
@@ -35,13 +36,16 @@ export const useTicketDetailState = (id?: string) => {
 
   const loadTicket = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const response = await getTicket(id!);
       setTicket((response as { data?: { data?: Ticket } })?.data?.data ?? null);
     } catch (err: unknown) {
       if (err instanceof Error) {
+        setError(`加载工单详情失败：${err.message}`);
         message.error(`加载工单详情失败：${err.message}`);
       } else {
+        setError('加载工单详情失败，请稍后重试');
         message.error('加载工单详情失败，请稍后重试');
       }
     } finally {
@@ -174,24 +178,33 @@ export const useTicketDetailState = (id?: string) => {
     [ticket, loadTicket],
   );
 
-  const handleClose = useCallback(async () => {
+  const handleClose = useCallback(() => {
     if (!ticket) return;
-    try {
-      await closeTicket(ticket.id, { performedBy: 'current-user' });
-      message.success('工单已关闭');
-      loadTicket();
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        message.error(`关闭失败：${error.message}`);
-      } else {
-        message.error('关闭失败，请稍后重试');
-      }
-    }
+    Modal.confirm({
+      title: '确认关闭工单',
+      content: `确定要关闭工单 ${ticket.id} 吗？关闭后不可恢复。`,
+      okText: '确认关闭',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await closeTicket(ticket.id, { performedBy: 'current-user' });
+          message.success('工单已关闭');
+          loadTicket();
+        } catch (error: unknown) {
+          if (error instanceof Error) {
+            message.error(`关闭失败：${error.message}`);
+          } else {
+            message.error('关闭失败，请稍后重试');
+          }
+        }
+      },
+    });
   }, [ticket, loadTicket]);
 
   // --- Returns ---
   return {
-    ticket,
+    ticket, loading, error,
     engineers,
     relations,
     transfers,

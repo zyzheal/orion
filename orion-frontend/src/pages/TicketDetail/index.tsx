@@ -7,7 +7,7 @@
  * + Components/TicketNotFound (404 Result)
  */
 import React from 'react';
-import { Row, Col } from 'antd';
+import { Row, Col, Spin, Result } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTicketDetailState } from './useTicketDetailState';
 import { useTicketFormWrappers } from './useTicketFormWrappers';
@@ -22,7 +22,7 @@ const TicketDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
 
   const {
-    ticket,
+    ticket, loading, error,
     engineers,
     relations,
     transfers,
@@ -42,10 +42,34 @@ const TicketDetail: React.FC = () => {
 
   const {
     assignForm, escalateForm, resolveForm, transferForm,
+    assignLoading, escalateLoading, resolveLoading, transferLoading,
     handleAssignWrapper, handleEscalateWrapper, handleResolveWrapper, handleTransferWrapper,
   } = useTicketFormWrappers({ handleAssign, handleEscalate, handleResolve, handleTransfer });
 
-  // --- 404 guard ---
+  // --- Loading / Error / 404 guard ---
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+        <Spin size="large" tip="加载工单详情..." />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Result
+        status="warning"
+        title="加载失败"
+        subTitle={error}
+        extra={
+          <Button type="primary" onClick={() => navigate('/tickets')}>
+            返回工单列表
+          </Button>
+        }
+      />
+    );
+  }
+
   if (!ticket) {
     return <TicketNotFound id={id} onBack={() => navigate('/tickets')} />;
   }
@@ -86,15 +110,19 @@ const TicketDetail: React.FC = () => {
         assignModalOpen={assignModalOpen}
         setAssignModalOpen={setAssignModalOpen}
         assignForm={assignForm}
+        assignLoading={assignLoading}
         escalateModalOpen={escalateModalOpen}
         setEscalateModalOpen={setEscalateModalOpen}
         escalateForm={escalateForm}
+        escalateLoading={escalateLoading}
         resolveModalOpen={resolveModalOpen}
         setResolveModalOpen={setResolveModalOpen}
         resolveForm={resolveForm}
+        resolveLoading={resolveLoading}
         transferModalOpen={transferModalOpen}
         setTransferModalOpen={setTransferModalOpen}
         transferForm={transferForm}
+        transferLoading={transferLoading}
         engineers={engineers as any}
         handleAssign={handleAssignWrapper}
         handleEscalate={handleEscalateWrapper}

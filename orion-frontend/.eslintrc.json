@@ -5,20 +5,43 @@
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
     "plugin:react-hooks/recommended",
+    "plugin:jsx-a11y/recommended",
     "prettier"
   ],
   "ignorePatterns": ["dist", "node_modules", "*.config.ts"],
   "parser": "@typescript-eslint/parser",
-  "plugins": ["prettier"],
+  "plugins": ["jsx-a11y", "prettier"],
   "rules": {
     "prettier/prettier": "error",
     "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
     "@typescript-eslint/explicit-function-return-type": "off",
-    "@typescript-eslint/no-explicit-any": "warn"
+    "@typescript-eslint/no-explicit-any": "warn",
+    "jsx-a11y/alt-text": "error",
+    "jsx-a11y/aria-props": "error",
+    "jsx-a11y/aria-proptypes": "error",
+    "jsx-a11y/aria-unsupported-elements": "error",
+    "jsx-a11y/aria-role": "error",
+    "jsx-a11y/role-has-required-aria-attrs": "error",
+    "jsx-a11y/role-supports-aria-props": "error",
+    "jsx-a11y/click-events-have-key-events": "error",
+    "jsx-a11y/no-static-element-interactions": "error",
+    "jsx-a11y/label-has-associated-control": "error",
+    "jsx-a11y/label-has-for": "error",
+    "jsx-a11y/media-has-caption": "error"
   },
   "settings": {
     "react": {
       "version": "detect"
     }
-  }
+  },
+  "overrides": [
+    {
+      "files": ["*.test.ts", "*.test.tsx", "*.spec.ts", "*.spec.tsx"],
+      "plugins": ["vitest"],
+      "extends": ["plugin:vitest/recommended"],
+      "rules": {
+        "vitest/expect-expect": "error"
+      }
+    }
+  ]
 }
