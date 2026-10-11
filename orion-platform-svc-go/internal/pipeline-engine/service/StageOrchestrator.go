@@ -201,6 +201,16 @@ func (o *StageOrchestrator) ExecuteStage(ctx context.Context, execution *Executi
 		taskName, taskResult := o.executor.ExecuteTask(ctx, execution.TenantID, stageID, &task, execution.Variables)
 		taskOutputs[taskName] = taskResult.Outputs
 
+		// Publish outputs as artifacts (ADR-014 §3.2.3). No-op when
+		// executor has no ArtifactBus wired; publish failures are
+		// logged and never abort the stage (降级路径).
+		if taskResult.Success && taskResult.Outputs != nil {
+			if _, perr := o.executor.PublishOutputs(ctx, execution.TenantID, execution.ID, stageID, taskName, taskResult.Outputs); perr != nil {
+				fmt.Printf("[pipeline-engine] publish outputs failed (run=%s stage=%s task=%s): %v\n",
+					execution.ID, stageID, taskName, perr)
+			}
+		}
+
 		// Save checkpoint after each task
 		o.checkpoint.Save(ctx, execution.ID, stageName, taskName, execution.Variables)
 
