@@ -2596,7 +2596,7 @@ cd orion-platform-svc-go && go test ./internal/saga/... -run TestSaga_ChaosRollb
 | 模块 | 部分融合功能 | 缺口 |
 |------|-------------|------|
 | CMDB | CI 类型系统 + 属性管理 | G0: citype/attr 缺失（ADR-013 未落地） |
-| ITSM | 审批流 + 变更管理 | Workflow 引擎 0 DAG（ADR-015 未决策） |
+| ITSM | 审批流 + 变更管理 | Workflow 引擎 0 DAG（ADR-015 已接受，阶段 2 待实施） |
 | Alert | 告警关联 + 断路器 | G0: threshold 缺失；ADR-010 未落地 |
 | Pipeline | Artifact 传播 + 版本管理 | G0: configfile-devops 缺失；ADR-014 未落地 |
 | DevOps | Runner 协议扩展 + SAST | G0: configfile-inspect 缺失 |
@@ -2627,7 +2627,7 @@ cd orion-platform-svc-go && go test ./internal/saga/... -run TestSaga_ChaosRollb
 | AlertBreaker 状态 | 8 | 735-744 | 计划中（ADR-010 已接受） |
 | 多租户 Schema 隔离 | 10 | 720 | 计划中（ADR-011 已接受） |
 | Factory+Handler 注册表 | 8 | — | 计划中（ADR-012 已接受） |
-| Change 建模 | 6 | 755-758 | 待决策（ADR-015 骨架未补齐） |
+| Change 建模 | 6 | 755-758 | 已接受（ADR-015 骨架已落地，阶段 2 待实施） |
 | 其他 AA 分配 | 6 | 713-729/732-734/745-754/759-765 | 计划中（AA v5.4） |
 
 #### 14.6.6 完美融合判定标准

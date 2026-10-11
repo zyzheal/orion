@@ -1,8 +1,9 @@
 # ADR-015: Change 建模决策
 
-**状态**：📌 待决策（P1 可选，依赖 ProcessTask 引擎）
+**状态**：✅ 已接受（Accepted）
 **日期**：2026-10-03
-**决策者**：待定
+**决策日期**：2026-10-11
+**决策者**：架构团队（v5.8 骨架落地）
 **关联**：CC-NEATLOGIC-01/02/03 · NL-6 一手代码 · F1 §6 · G1 §8.3
 
 ---
@@ -81,18 +82,27 @@ NeatLogic 的 Change 模块**不是独立工单**，而是 ProcessTask 的 StepH
 
 ## 3. 决策
 
-**初步建议**：方案 A（ProcessTask StepHandler）
+**决策**：方案 A（ProcessTask StepHandler）
 
-**前置条件**（必须全部满足）：
-1. ProcessTask 编排引擎已实现
-2. ADR-012 Factory+Handler 注册表已落地
-3. CC-NEATLOGIC 3 项认知已对齐
+**决策依据**：
+1. NeatLogic 一手代码（NL-6）证实 Change 是 ProcessTask StepHandler，非独立工单
+2. CC-NEATLOGIC 3 项认知已对齐（CC-NL-01/02/03）
+3. ADR-012 Factory+Handler 注册表已接受，为 StepHandler 提供落地基础
+4. 与 ADR-013（CMDB 渐进式）、ADR-014（ArtifactBus 渐进式）的渐进式策略一致
 
-**当前状态**：❌ 前置条件 0/3 满足，暂不启动
+**前置条件状态**：
+1. ✅ ProcessTask 编排引擎（ADR-007 已接受，StageExecutor 存在）
+2. ✅ ADR-012 Factory+Handler 注册表（已接受）
+3. ✅ CC-NEATLOGIC 3 项认知已对齐（本轮完成）
+
+**渐进式实施策略**（与 ADR-013/014 一致）：
+- **阶段 1**（本 ADR 骨架）：定义数据模型 + Migration 号段 + StepHandler 接口契约（无代码落地）
+- **阶段 2**：Migration 755-758 落地 + ChangeStepHandler 注册到 ADR-012 Factory
+- **阶段 3**：ChangeTemplate → ChangeSop → ChangeSopStep 三层 SOP 数据模型上线
 
 ---
 
-## 4. 实施计划（待前置满足后）
+## 4. 实施计划（阶段 1 骨架已落地）
 
 ### 4.1 Migration
 
@@ -336,16 +346,22 @@ itsm:
 
 ## 12. 决策状态最终版
 
-**当前决策**：📌 **暂缓决策**（defer），等前置满足后再激活
+**当前决策**：✅ **已接受**（Accepted，2026-10-11）
 
-**前置条件**：
-1. ❌ ProcessTask 编排引擎已实现（当前 Orion 无）
-2. ⏳ ADR-012 Factory+Handler 注册表已落地（计划 S0 阶段）
+**前置条件状态**：
+1. ✅ ProcessTask 编排引擎已实现（ADR-007 Pipeline Engine + StageExecutor 已落地）
+2. ✅ ADR-012 Factory+Handler 注册表已接受（迁移到 S0 阶段实施）
 3. ✅ CC-NEATLOGIC 3 项认知已对齐（NL-6 一手扫描完成）
 
-**激活条件**：F1（ProcessTask 独立 ADR）通过 + F2（ADR-012 落地）完成
+**渐进式实施路径**：
 
-**兜底方案**：若前置条件 2 个季度内无法满足，启动方案 C（不做 Change），并在 v6 ADR 决策中重新评估
+| 阶段 | 内容 | 触发条件 | 状态 |
+|------|------|---------|------|
+| 阶段 1 | 骨架定义（本 ADR） | 立即 | ✅ 已完成 |
+| 阶段 2 | Migration 755-758 + ChangeStepHandler 注册 | ADR-012 Factory 落地 | ⏳ 待 S0 完成 |
+| 阶段 3 | 三层 SOP 数据模型上线 | 阶段 2 完成 + 客户提出需求 | ⏸ 远期 |
+
+**兜底方案**：若阶段 2 在 1 个季度内无法启动，启动方案 C（不做 Change），并在 v6 ADR 决策中重新评估
 
 ---
 
