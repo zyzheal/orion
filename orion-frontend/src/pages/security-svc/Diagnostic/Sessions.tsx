@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Typography, Button, Space, Tag, Modal, Form, Input, Select, message, Drawer } from 'antd';
 import { colors, spacing } from '@/tokens';
+import { themeVars } from '@/tokens';
 import {
   PlusOutlined,
   DesktopOutlined,
@@ -40,8 +41,6 @@ const DiagnosticSessions: React.FC = () => {
   const [sessionDetail, setSessionDetail] = useState<any>(null);
   const [symptomForm] = Form.useForm();
 
-  // 动态获取主题
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
   const loadData = async () => {
     setLoading(true);
@@ -419,7 +418,7 @@ const DiagnosticSessions: React.FC = () => {
                       key={String(idx)}
                       style={{
                         padding: spacing[3],
-                        background: isDark ? 'rgba(255,255,255,0.05)' : colors.neutral[50],
+                        background: themeVars.overlayDivider,
                         borderRadius: 6,
                       }}
                     >

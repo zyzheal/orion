@@ -32,6 +32,7 @@ import {
   type MenuChildConfig,
 } from '@/stores/menuConfigStore';
 import { spacing } from '@/tokens';
+import { themeVars } from '@/tokens';
 
 const { Text } = Typography;
 
@@ -245,11 +246,11 @@ const ModuleEditor: React.FC<{
   return (
     <div
       style={{
-        background: isDark ? 'rgba(255,255,255,0.03)' : 'colors.neutral[50]',
+        background: themeVars.overlaySubtle,
         borderRadius: 10,
         padding: spacing.md,
         marginBottom: spacing[3],
-        border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : colors.neutral[200]}`,
+        border: `1px solid ${themeVars.overlayBorder}`,
       }}
     >
       {/* 模块头部 */}
@@ -429,8 +430,6 @@ export const MenuConfigPanel: React.FC<{ open: boolean; onClose: () => void }> =
 }) => {
   const { modules, updateModule, updateChild, deleteChild, addChild, saveConfig, resetToDefault } =
     useMenuConfigStore();
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-
   const moduleKeys = Object.keys(modules);
   const moduleOptions = moduleKeys.map((key) => ({ key, label: modules[key].label }));
 
@@ -466,10 +465,10 @@ export const MenuConfigPanel: React.FC<{ open: boolean; onClose: () => void }> =
       styles={{
         body: {
           padding: '20px 24px',
-          background: isDark ? colors.neutral[900] : colors.neutral[0],
+          background: themeVars.bgPrimary,
         },
         header: {
-          borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : colors.neutral[200]}`,
+          borderBottom: `1px solid ${themeVars.overlayBorder}`,
           paddingBottom: 16,
         },
       }}

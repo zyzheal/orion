@@ -46,7 +46,7 @@ import { MenuConfigPanel } from '@/components/MenuConfig';
 import { colors } from '@/tokens/colors';
 import { getIcon } from './iconMap';
 import { prefetchSubApp } from '@/utils/subappPreload';
-import { spacing } from '@/tokens';
+import { spacing, themeVars } from '@/tokens';
 
 type ItemType = GetProp<MenuProps, 'items'>[number];
 
@@ -131,11 +131,12 @@ const FeishuNavItem: React.FC<FeishuNavItemProps> = ({
   onNavigate,
   onMegaMenuToggle,
 }) => {
-  const isDark = theme === 'dark';
+  // P2-2: theme 参数保留在 props 中以兼容外部调用，颜色统一走 themeVars
+  void theme;
   const hasChildren = item.children && item.children.length > 0;
-  const txtColor = isDark ? 'rgba(255,255,255,0.65)' : colors.neutral[600];
-  const activeTxtColor = isDark ? 'rgba(255,255,255,0.95)' : colors.neutral[800];
-  const hoverBg = isDark ? 'rgba(255,255,255,0.06)' : colors.neutral[100];
+  const txtColor = themeVars.menuText;
+  const activeTxtColor = themeVars.menuTextActive;
+  const hoverBg = themeVars.overlayHover;
 
   const navTrigger = (
     <button
@@ -178,7 +179,7 @@ const FeishuNavItem: React.FC<FeishuNavItemProps> = ({
         <DownOutlined
           style={{
             fontSize: 10,
-            color: isDark ? 'rgba(255,255,255,0.35)' : colors.neutral[400],
+            color: themeVars.menuTextDisabled,
             marginLeft: 2,
           }}
         />
@@ -646,11 +647,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   width: '100vw',
                   zIndex: 999,
                   animation: 'megaMenuFadeIn 0.2s ease-out',
-                  background: isDark ? colors.dark.bg.elevated : colors.light.bg.primary,
+                  background: themeVars.bgElevated,
                   boxShadow: isDark
                     ? '0 6px 20px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.3)'
                     : '0 6px 20px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06)',
-                  borderBottom: `1px solid ${isDark ? colors.dark.border.default : colors.light.border.light}`,
+                  borderBottom: `1px solid ${themeVars.borderDefault}`,
                   display: 'flex',
                   justifyContent: 'center',
                 }}
@@ -677,7 +678,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                           style={{
                             fontSize: 12,
                             fontWeight: 600,
-                            color: isDark ? 'rgba(255,255,255,0.4)' : colors.neutral[500],
+                            color: themeVars.menuTextSecondary,
                             marginBottom: spacing.sm,
                             paddingLeft: 4,
                             textTransform: 'uppercase',
@@ -715,9 +716,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                                 fontFamily: 'inherit',
                               }}
                               onMouseEnter={(e) => {
-                                (e.currentTarget as HTMLElement).style.background = isDark
-                                  ? 'rgba(255,255,255,0.08)'
-                                  : colors.neutral[100];
+                                (e.currentTarget as HTMLElement).style.background = themeVars.overlayActive;
                                 // 子应用 hover 预加载
                                 handleSubAppHover(child.key);
                               }}
@@ -730,9 +729,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                                   width: 32,
                                   height: 32,
                                   borderRadius: 8,
-                                  background: isDark
-                                    ? 'rgba(255,255,255,0.08)'
-                                    : colors.neutral[100],
+                                  background: themeVars.overlayActive,
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
@@ -748,7 +745,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                                   style={{
                                     fontSize: 14,
                                     fontWeight: 500,
-                                    color: isDark ? 'rgba(255,255,255,0.9)' : colors.neutral[800],
+                                    color: themeVars.menuTextHover,
                                     lineHeight: '22px',
                                   }}
                                 >
@@ -758,7 +755,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                                   <div
                                     style={{
                                       fontSize: 12,
-                                      color: isDark ? 'rgba(255,255,255,0.4)' : colors.neutral[500],
+                                      color: themeVars.menuTextSecondary,
                                       lineHeight: '18px',
                                     }}
                                   >
