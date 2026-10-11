@@ -32,6 +32,7 @@ type RepositoryInterface interface {
 	GetServiceDependencies(ctx context.Context, tenantID string, ciID string) ([]models.CIRelation, error)
 	GetImpactAnalysis(ctx context.Context, tenantID string, ciID string) ([]models.CIRelation, error)
 	SearchCIs(ctx context.Context, tenantID, query, domain string, limit, offset int) ([]models.CI, error)
+	GetCITypeByTenantAndName(ctx context.Context, tenantID, name string) (string, error)
 }
 
 // Ensure Repository implements RepositoryInterface.

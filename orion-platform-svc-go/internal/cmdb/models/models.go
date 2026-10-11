@@ -20,13 +20,17 @@ type CI struct {
 
 // CreateCIRequest is the body for creating a CI.
 type CreateCIRequest struct {
-	CIID        string  `json:"ciId" binding:"required"`
-	Name        string  `json:"name" binding:"required"`
-	CIType      string  `json:"ciType" binding:"required"`
-	Status      string  `json:"status"`
-	Description *string `json:"description"`
-	TenantID    *string `json:"tenantId"`
-	CreatedBy   string  `json:"createdBy"`
+	CIID        string            `json:"ciId" binding:"required"`
+	Name        string            `json:"name" binding:"required"`
+	CIType      string            `json:"ciType" binding:"required"`
+	Status      string            `json:"status"`
+	Description *string           `json:"description"`
+	TenantID    *string           `json:"tenantId"`
+	CreatedBy   string            `json:"createdBy"`
+	// Attributes are the CI's attribute values (key=name, value=any).
+	// Validated against cmdb_ci_types.attributes (ADR-013 §5.4) when
+	// the CI type is found. Nil/empty means no attribute validation.
+	Attributes map[string]any `json:"attributes"`
 }
 
 // UpdateCIRequest is the body for updating a CI.
@@ -39,6 +43,9 @@ type UpdateCIRequest struct {
 	Tags        *string `json:"tags"`
 	User        *string `json:"user"`
 	TenantID    *string `json:"tenantId"`
+	// Attributes are the CI's attribute values to update. Nil means
+	// no attribute changes; non-nil is validated against the CI type.
+	Attributes map[string]any `json:"attributes"`
 }
 
 // BatchCreateItem is a single item in batch create.

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/cmdb/attribute"
 	"orion/platform-svc-go/internal/cmdb/models"
 )
 
@@ -69,24 +70,62 @@ type RepositoryInterface interface {
 	ListCIs(ctx context.Context, ciType *string, status *string, tenantID string, page, limit int) ([]models.CI, int, error)
 	UpdateCI(ctx context.Context, id string, updates map[string]interface{}) (*models.CI, error)
 	SearchCIs(ctx context.Context, tenantID, query, domain string, limit, offset int) ([]models.CI, error)
+	GetCITypeByTenantAndName(ctx context.Context, tenantID, name string) (string, error)
 }
 
 type Service struct {
-	repo      RepositoryInterface
-	k8sSync   *k8sSyncState
+	repo        RepositoryInterface
+	k8sSync     *k8sSyncState
+	attrFactory *attribute.AttrValueHandlerFactory
 }
 
 func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo, k8sSync: newK8sSyncState()}
 }
 
+// NewServiceWithAttributes constructs a Service with attribute validation
+// enabled (ADR-013 §5.4). factory may be nil (falls back to WithDefaults).
+func NewServiceWithAttributes(repo RepositoryInterface, factory *attribute.AttrValueHandlerFactory) *Service {
+	if factory == nil {
+		factory = attribute.NewWithDefaults()
+	}
+	return &Service{repo: repo, k8sSync: newK8sSyncState(), attrFactory: factory}
+}
+
 // --- CI CRUD ---
+
+// validateAttributes checks CI attribute values against the CI type's
+// attribute definitions (ADR-013 §5.4). Returns nil if validation passes
+// or if attrFactory is nil (validation disabled). Returns *ValidationErrors
+// if there are problems.
+func (s *Service) validateAttributes(ctx context.Context, tenantID, ciType string, values map[string]any, entityID string) *attribute.ValidationErrors {
+	if s.attrFactory == nil {
+		return nil
+	}
+	attrJSON, err := s.repo.GetCITypeByTenantAndName(ctx, tenantID, ciType)
+	if err != nil {
+		// Type not found or DB error — skip validation (non-blocking).
+		return nil
+	}
+	var defs []*attribute.Attribute
+	if err := json.Unmarshal([]byte(attrJSON), &defs); err != nil {
+		return nil // parse error — skip validation
+	}
+	return attribute.ValidateCIAttributes(ctx, s.attrFactory, tenantID, entityID, defs, values)
+}
 
 func (s *Service) Create(ctx context.Context, req *models.CreateCIRequest, tenantID string) (*models.CI, error) {
 	createdBy := req.CreatedBy
 	if createdBy == "" {
 		createdBy = "system"
 	}
+	// Validate attributes against CI type definitions (ADR-013 §5.4).
+	if req.Attributes != nil {
+		if vErrs := s.validateAttributes(ctx, tenantID, req.CIType, req.Attributes, req.CIID); vErrs != nil && vErrs.Len() > 0 {
+			return nil, vErrs
+		}
+	}
+
 	ci := &models.CI{
 		CIID:        req.CIID,
 		Name:        req.Name,

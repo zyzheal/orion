@@ -558,6 +558,18 @@ func (r *Repository) SearchCIs(ctx context.Context, tenantID, query string, doma
 	return items, err
 }
 
+// GetCITypeByTenantAndName looks up a CI type definition by tenant and name.
+// Returns the attributes JSONB as a string. Used by the service layer to
+// validate CI attribute values against type definitions (ADR-013 §5.4).
+// Returns sql.ErrNoRows if the type does not exist.
+func (r *Repository) GetCITypeByTenantAndName(ctx context.Context, tenantID, name string) (attributesJSON string, err error) {
+	err = r.db.QueryRowxContext(ctx, `
+		SELECT COALESCE(attributes, '[]'::jsonb) FROM cmdb_ci_types
+		 WHERE tenant_id = $1 AND name = $2`,
+		tenantID, name).Scan(&attributesJSON)
+	return
+}
+
 // NotYetImplemented returns a sentinel error for unimplemented operations.
 func NotYetImplemented(msg string) error {
 	return fmt.Errorf("%s", msg)

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 	"time"
@@ -22,6 +23,7 @@ type mockRepo struct {
 	calledArgs searchArgs
 	createdCI  *models.CI
 	createdRel *models.CIRelation
+	ciTypeAttrs string
 }
 
 type searchArgs struct {
@@ -105,6 +107,16 @@ func (m *mockRepo) UpdateCI(ctx context.Context, id string, updates map[string]i
 func (m *mockRepo) SearchCIs(ctx context.Context, tenantID, query, domain string, limit, offset int) ([]models.CI, error) {
 	m.calledArgs = searchArgs{tenantID: tenantID, query: query, domain: domain, limit: limit, offset: offset}
 	return m.cis, m.err
+}
+
+func (m *mockRepo) GetCITypeByTenantAndName(ctx context.Context, tenantID, name string) (string, error) {
+	// Default: return empty array (no attribute definitions) so
+	// validateAttributes skips silently. Tests that need to exercise
+	// attribute validation set m.ciTypeAttrs to a JSON array.
+	if m.ciTypeAttrs != "" {
+		return m.ciTypeAttrs, nil
+	}
+	return "[]", nil
 }
 
 func helperCI(id, name, ciType, tenantID string) models.CI {
@@ -388,5 +400,188 @@ func TestService_CreateRelation_UsesInjectedTenantIDNotRequestBody(t *testing.T)
 	}
 	if rel.TenantID == nil || *rel.TenantID != "auth-context-tenant" {
 		t.Errorf("returned relation tenant: got %v, want auth-context-tenant", rel.TenantID)
+	}
+}
+
+
+func TestService_Create_WithValidAttributes(t *testing.T) {
+	m := &mockRepo{
+		ciTypeAttrs: `[{"id":"a1","name":"cpu","attributeType":"int","required":false,"validator":{"min":1,"max":128}}]`,
+	}
+	s := makeService(m)
+	req := &models.CreateCIRequest{
+		CIID:   "ci-1",
+		Name:   "web-1",
+		CIType: "server",
+		Attributes: map[string]any{
+			"cpu": 8,
+		},
+	}
+	ci, err := s.Create(context.Background(), req, "t1")
+	if err != nil {
+		t.Fatalf("Create with valid attributes: %v", err)
+	}
+	if ci == nil || ci.CIID != "ci-1" {
+		t.Errorf("Create returned %v, want CIID=ci-1", ci)
+	}
+}
+
+func TestService_Create_WithInvalidAttribute(t *testing.T) {
+	m := &mockRepo{
+		ciTypeAttrs: `[{"id":"a1","name":"cpu","attributeType":"int","required":false,"validator":{"min":1,"max":16}}]`,
+	}
+	s := NewServiceWithAttributes(m, nil)
+	req := &models.CreateCIRequest{
+		CIID:   "ci-1",
+		Name:   "web-1",
+		CIType: "server",
+		Attributes: map[string]any{
+			"cpu": 999, // exceeds max=16
+		},
+	}
+	_, err := s.Create(context.Background(), req, "t1")
+	if err == nil {
+		t.Fatal("expected error for out-of-range attribute")
+	}
+}
+
+func TestService_Create_WithNoAttributes(t *testing.T) {
+	m := &mockRepo{}
+	s := makeService(m)
+	req := &models.CreateCIRequest{
+		CIID:   "ci-1",
+		Name:   "web-1",
+		CIType: "server",
+	}
+	ci, err := s.Create(context.Background(), req, "t1")
+	if err != nil {
+		t.Fatalf("Create without attributes: %v", err)
+	}
+	if ci == nil {
+		t.Fatal("nil CI")
+	}
+}
+
+func TestService_Create_WithAttributeValidationDisabled(t *testing.T) {
+	// Service created without NewServiceWithAttributes → attrFactory=nil
+	m := &mockRepo{}
+	s := NewService(m)
+	req := &models.CreateCIRequest{
+		CIID:   "ci-1",
+		Name:   "web-1",
+		CIType: "server",
+		Attributes: map[string]any{
+			"cpu": 999, // would fail if validation were enabled
+		},
+	}
+	ci, err := s.Create(context.Background(), req, "t1")
+	if err != nil {
+		t.Fatalf("Create with validation disabled: %v", err)
+	}
+	if ci == nil {
+		t.Fatal("nil CI")
+	}
+}
+
+func TestNewServiceWithAttributes(t *testing.T) {
+	m := &mockRepo{
+		ciTypeAttrs: `[{"id":"a1","name":"level","attributeType":"enum","required":false,"validator":{"values":["low","medium","high"]}}]`,
+	}
+	s := NewServiceWithAttributes(m, nil) // nil factory → WithDefaults
+	if s == nil {
+		t.Fatal("NewServiceWithAttributes returned nil")
+	}
+	if s.attrFactory == nil {
+		t.Error("attrFactory should not be nil (should fall back to WithDefaults)")
+	}
+	
+	// Test with valid enum value
+	req := &models.CreateCIRequest{
+		CIID: "ci-1", Name: "test", CIType: "service",
+		Attributes: map[string]any{"level": "medium"},
+	}
+	ci, err := s.Create(context.Background(), req, "t1")
+	if err != nil {
+		t.Fatalf("Create with valid enum: %v", err)
+	}
+	if ci == nil {
+		t.Fatal("nil CI")
+	}
+	
+	// Test with invalid enum value
+	req = &models.CreateCIRequest{
+		CIID: "ci-2", Name: "test2", CIType: "service",
+		Attributes: map[string]any{"level": "invalid"},
+	}
+	_, err = s.Create(context.Background(), req, "t1")
+	if err == nil {
+		t.Error("expected error for invalid enum value")
+	}
+}
+
+func TestValidateAttributes_NoTypeFound(t *testing.T) {
+	m := &mockRepo{err: sql.ErrNoRows}
+	s := NewServiceWithAttributes(m, nil)
+	req := &models.CreateCIRequest{
+		CIID: "ci-1", Name: "test", CIType: "nonexistent",
+		Attributes: map[string]any{"foo": "bar"},
+	}
+	// Type not found → validation skipped → create succeeds
+	ci, err := s.Create(context.Background(), req, "t1")
+	if err != nil {
+		t.Fatalf("Create with unknown type: %v", err)
+	}
+	if ci == nil {
+		t.Fatal("nil CI")
+	}
+}
+
+func TestValidateAttributes_MalformedJSON(t *testing.T) {
+	m := &mockRepo{ciTypeAttrs: `{invalid-json`}
+	s := NewServiceWithAttributes(m, nil)
+	req := &models.CreateCIRequest{
+		CIID: "ci-1", Name: "test", CIType: "server",
+		Attributes: map[string]any{"cpu": 8},
+	}
+	// Malformed JSON → validation skipped → create succeeds
+	ci, err := s.Create(context.Background(), req, "t1")
+	if err != nil {
+		t.Fatalf("Create with malformed type JSON: %v", err)
+	}
+	if ci == nil {
+		t.Fatal("nil CI")
+	}
+}
+
+func TestValidateAttributes_RequiredFieldMissing(t *testing.T) {
+	m := &mockRepo{
+		ciTypeAttrs: `[{"id":"a1","name":"hostname","attributeType":"string","required":true}]`,
+	}
+	s := NewServiceWithAttributes(m, nil)
+	req := &models.CreateCIRequest{
+		CIID: "ci-1", Name: "test", CIType: "server",
+		Attributes: map[string]any{}, // empty — required "hostname" missing
+	}
+	_, err := s.Create(context.Background(), req, "t1")
+	if err == nil {
+		t.Error("expected error for missing required attribute")
+	}
+}
+
+func TestValidateAttributes_UnknownAttribute(t *testing.T) {
+	m := &mockRepo{
+		ciTypeAttrs: `[{"id":"a1","name":"cpu","attributeType":"int","required":false}]`,
+	}
+	s := NewServiceWithAttributes(m, nil)
+	req := &models.CreateCIRequest{
+		CIID: "ci-1", Name: "test", CIType: "server",
+		Attributes: map[string]any{
+			"cpu":     8,
+			"unknown": "value", // not in type definitions
+		},
+	}
+	_, err := s.Create(context.Background(), req, "t1")
+	if err == nil {
+		t.Error("expected error for unknown attribute")
 	}
 }

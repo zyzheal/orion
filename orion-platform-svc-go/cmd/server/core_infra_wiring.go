@@ -111,6 +111,7 @@ import (
 
 	// Observability modules: cmdb, monitoring, alert, artifact-ops, config, session, api-key, eventbus, event-trigger, hook-chain
 	cmdb_handler "orion/platform-svc-go/internal/cmdb/handler"
+	cmdb_attribute "orion/platform-svc-go/internal/cmdb/attribute"
 	cmdb_repo "orion/platform-svc-go/internal/cmdb/repository"
 	cmdb_service "orion/platform-svc-go/internal/cmdb/service"
 	monitoring_handler "orion/platform-svc-go/internal/monitoring/handler"
@@ -341,9 +342,10 @@ func wireInfrastructureModules(db *database.DB, logger *zap.Logger) {
 // cmdb, monitoring, alert, artifact-ops, config, session, api-key,
 // eventbus, event-trigger, hook-chain.
 func wireObservabilityModules(db *database.DB) {
-	// cmdb services
+	// cmdb services (ADR-013 §5.4: attribute validation enabled)
 	cmdbRepo := cmdb_repo.NewRepository(db.DB)
-	cmdbSvc := cmdb_service.NewService(cmdbRepo)
+	cmdbAttrFactory := cmdb_attribute.NewWithDefaults()
+	cmdbSvc := cmdb_service.NewServiceWithAttributes(cmdbRepo, cmdbAttrFactory)
 	cmdbH = cmdb_handler.NewHandler(cmdbSvc)
 
 	// monitoring services
