@@ -153,6 +153,7 @@ export const buildPolicyColumns = ({
             size="small"
             icon={<EyeOutlined />}
             onClick={() => openDetail(record)}
+            aria-label="查看"
           />
         </Tooltip>
         <Tooltip title="编辑">
@@ -161,11 +162,14 @@ export const buildPolicyColumns = ({
             size="small"
             icon={<EditOutlined />}
             onClick={() => openEdit(record)}
+            aria-label="编辑"
           />
         </Tooltip>
         <Popconfirm title="确认删除该策略?" onConfirm={() => handleDelete(record.id)}>
           <Tooltip title="删除">
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
           </Tooltip>
         </Popconfirm>
       </Space>

@@ -68,7 +68,8 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           loading={isRerunning}
           onClick={onRerun}
           disabled={loading || (pipeline.status as StatusType) === 'running'}
-        >
+            aria-label="刷新"
+          >
           {isRerunning ? '触发中...' : '重新运行'}
         </Button>
       </Space>

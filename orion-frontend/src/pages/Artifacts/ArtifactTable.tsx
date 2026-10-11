@@ -179,7 +179,8 @@ const ArtifactTable: React.FC<ArtifactTableProps> = ({
                 size="small"
                 icon={<EditOutlined />}
                 onClick={() => onEdit(record)}
-              />
+            aria-label="编辑"
+          />
             </Tooltip>
             {record.status === 'available' && nextAvailableStage(record.stage) && (
               <Tooltip title={`晋升到 ${stageLabelMap[nextAvailableStage(record.stage)!]}`}>
@@ -188,7 +189,8 @@ const ArtifactTable: React.FC<ArtifactTableProps> = ({
                   size="small"
                   icon={<RocketOutlined />}
                   onClick={() => onPromote(record)}
-                />
+            aria-label="部署"
+          />
               </Tooltip>
             )}
             {record.status === 'available' && (
@@ -198,7 +200,8 @@ const ArtifactTable: React.FC<ArtifactTableProps> = ({
                   size="small"
                   icon={<TagOutlined />}
                   onClick={() => onTag(record)}
-                />
+            aria-label="标签"
+          />
               </Tooltip>
             )}
             <Tooltip title="下载">
@@ -207,13 +210,16 @@ const ArtifactTable: React.FC<ArtifactTableProps> = ({
                 size="small"
                 icon={<DownloadOutlined />}
                 onClick={() => onDownload(record)}
-              />
+            aria-label="下载"
+          />
             </Tooltip>
             {record.status === 'available' && (
               <>
                 <Tooltip title="废弃">
                   <Popconfirm title="确认废弃该制品?" onConfirm={() => onDeprecate(record.id)}>
-                    <Button type="link" size="small" danger icon={<StopOutlined />} />
+                    <Button type="link" size="small" danger icon={<StopOutlined />}
+            aria-label="停止"
+          />
                   </Popconfirm>
                 </Tooltip>
                 <Tooltip title="隔离">
@@ -227,7 +233,9 @@ const ArtifactTable: React.FC<ArtifactTableProps> = ({
             )}
             <Tooltip title="删除">
               <Popconfirm title="确认删除?" onConfirm={() => onDelete(record.id)}>
-                <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+                <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
               </Popconfirm>
             </Tooltip>
           </Space>

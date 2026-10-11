@@ -179,19 +179,25 @@ const LibraryTable: React.FC<LibraryTableProps> = ({
             {record.status === 'deprecated' || record.status === 'archived' ? (
               <Tooltip title="激活">
                 <Popconfirm title="确认激活?" onConfirm={() => onActivate(record.id)}>
-                  <Button type="link" size="small" icon={<PlayCircleOutlined />} />
+                  <Button type="link" size="small" icon={<PlayCircleOutlined />}
+            aria-label="运行"
+          />
                 </Popconfirm>
               </Tooltip>
             ) : record.status === 'active' ? (
               <Tooltip title="废弃">
                 <Popconfirm title="确认废弃?" onConfirm={() => onDeprecate(record)}>
-                  <Button type="link" size="small" danger icon={<StopOutlined />} />
+                  <Button type="link" size="small" danger icon={<StopOutlined />}
+            aria-label="停止"
+          />
                 </Popconfirm>
               </Tooltip>
             ) : null}
             <Tooltip title="删除">
               <Popconfirm title="确认删除?" onConfirm={() => onDelete(record.id)}>
-                <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+                <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
               </Popconfirm>
             </Tooltip>
           </Space>

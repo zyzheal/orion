@@ -113,7 +113,9 @@ export const makeCollectionColumns = (
             title="确认删除该集合？此操作不可撤销。"
             onConfirm={() => handleDeleteCollection(record.name)}
           >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
           </Popconfirm>
         </Tooltip>
       </Space>
@@ -182,7 +184,9 @@ export const makeDocumentColumns = (handleDeleteDoc: (id: string) => void) => [
     width: 80,
     render: (_: unknown, record: VectorDocument) => (
       <Popconfirm title="确认删除该文档？" onConfirm={() => handleDeleteDoc(record.id)}>
-        <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+        <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
       </Popconfirm>
     ),
   },

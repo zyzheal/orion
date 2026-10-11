@@ -201,7 +201,9 @@ const PipelineTemplatePage: React.FC = () => {
       render: (_: unknown, record) => (
         <Space size="small">
           <Tooltip title="复制">
-            <Button type="link" size="small" icon={<CopyOutlined />} />
+            <Button type="link" size="small" icon={<CopyOutlined />}
+            aria-label="复制"
+          />
           </Tooltip>
           <Tooltip title="编辑">
             <Button
@@ -209,11 +211,14 @@ const PipelineTemplatePage: React.FC = () => {
               size="small"
               icon={<EditOutlined />}
               onClick={() => handleEdit(record)}
-            />
+            aria-label="编辑"
+          />
           </Tooltip>
           <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
             <Tooltip title="删除">
-              <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
             </Tooltip>
           </Popconfirm>
         </Space>

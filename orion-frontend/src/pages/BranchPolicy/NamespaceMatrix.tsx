@@ -225,7 +225,8 @@ export default function NamespaceMatrix() {
               icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
               onClick={() => openDetail(row, env)}
               style={{ paddingLeft: 0 }}
-            >
+            aria-label="确认"
+          >
               <Text style={{ color: '#52c41a' }}>{binding?.imageTagPrefix ?? c?.imageTagPrefix ?? '已绑定'}</Text>
             </Button>
           ) : (

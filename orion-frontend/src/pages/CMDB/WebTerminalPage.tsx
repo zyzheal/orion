@@ -335,7 +335,9 @@ const WebTerminalPage: React.FC = () => {
               <Button danger onClick={disconnect}>
                 断开
               </Button>
-              <Button icon={<FullscreenOutlined />} onClick={toggleFullscreen}>
+              <Button icon={<FullscreenOutlined />} onClick={toggleFullscreen}
+            aria-label="全屏"
+          >
                 {fullscreen ? '退出全屏' : '全屏'}
               </Button>
               <Button

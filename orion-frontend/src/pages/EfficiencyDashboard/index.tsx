@@ -60,6 +60,7 @@ const EfficiencyDashboard: React.FC = () => {
             icon={<QuestionCircleOutlined />}
             onClick={() => setShowOnboarding(true)}
             style={{ fontSize: 18 }}
+            aria-label="帮助"
           />
         </Tooltip>
       </div>

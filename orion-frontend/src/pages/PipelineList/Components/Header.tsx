@@ -55,7 +55,8 @@ export const Header: React.FC<HeaderProps> = ({ state }) => {
                 icon={<PlusOutlined />}
                 onClick={action.onClick}
                 disabled={action.disabled ?? !hasPermission}
-              >
+            aria-label="新建"
+          >
                 {action.label}
               </Button>
             )}

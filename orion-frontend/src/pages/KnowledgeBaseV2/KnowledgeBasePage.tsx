@@ -99,7 +99,8 @@ const KnowledgeBasePage: React.FC = () => {
                 danger
                 icon={<DeleteOutlined />}
                 style={{ padding: '0 4px' }}
-              />
+            aria-label="删除"
+          />
             </Popconfirm>
           </Space>
         ),
@@ -149,7 +150,9 @@ const KnowledgeBasePage: React.FC = () => {
           <Space style={{ width: '100%', marginBottom: spacing.sm, justifyContent: 'space-between' }}>
             <Text strong style={{ fontSize: 12 }}>空间 ({s.stats.totalSpaces})</Text>
             <Tooltip title="新建空间">
-              <Button type="text" size="small" icon={<PlusOutlined />} onClick={() => s.setSpaceModalVisible(true)} />
+              <Button type="text" size="small" icon={<PlusOutlined />} onClick={() => s.setSpaceModalVisible(true)}
+            aria-label="新建"
+          />
             </Tooltip>
           </Space>
 

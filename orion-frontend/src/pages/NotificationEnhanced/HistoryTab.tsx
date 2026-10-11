@@ -181,7 +181,8 @@ const HistoryTab: React.FC = () => {
               size="small"
               icon={<EyeOutlined />}
               onClick={() => handleMarkRead(record.id)}
-            />
+            aria-label="查看"
+          />
           </Tooltip>
         );
       },

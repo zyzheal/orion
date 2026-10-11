@@ -160,7 +160,9 @@ export const buildApprovalColumns = ({
               type="link"
               size="small"
               danger
-              icon=<CloseOutlined />
+              icon=<CloseOutlined
+            aria-label="关闭"
+          />
               onClick={() => onOpenComment(record.id, 'reject')}
             >
               拒绝

@@ -71,7 +71,9 @@ export function buildActionColumn(deps: ColumnDeps): TableColumn {
     render: (_: unknown, record: any) => (
       <Space>
         <Tooltip title="编辑">
-          <Button type="link" icon={<EditOutlined />} onClick={() => deps.handleEdit(record)} />
+          <Button type="link" icon={<EditOutlined />} onClick={() => deps.handleEdit(record)}
+            aria-label="编辑"
+          />
         </Tooltip>
         <Tooltip title="删除">
           <Button
@@ -79,6 +81,7 @@ export function buildActionColumn(deps: ColumnDeps): TableColumn {
             danger
             icon={<DeleteOutlined />}
             onClick={() => deps.handleDelete(record.id)}
+            aria-label="删除"
           />
         </Tooltip>
       </Space>

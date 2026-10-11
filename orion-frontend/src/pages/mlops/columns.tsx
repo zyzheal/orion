@@ -101,7 +101,9 @@ export function buildExperimentColumns(deps: ExperimentColumnsDeps): ColumnsType
             okText="确定"
             cancelText="取消"
           >
-            <Button size="small" type="link" danger icon={<DeleteOutlined />} />
+            <Button size="small" type="link" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
           </Popconfirm>
         </Space>
       ),

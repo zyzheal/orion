@@ -24,7 +24,9 @@ export const EmptyState = ({ onRetry }: EmptyStateProps) => (
         </div>
       }
       extra={
-        <Button type="primary" icon=<SyncOutlined /> onClick={onRetry}>
+        <Button type="primary" icon=<SyncOutlined
+            aria-label="同步"
+          /> onClick={onRetry}>
           刷新页面
         </Button>
       }
@@ -48,7 +50,9 @@ export const ErrorState = ({ onRetry }: EmptyStateProps) => (
         </div>
       }
       extra={
-        <Button type="primary" icon=<SyncOutlined /> onClick={onRetry}>
+        <Button type="primary" icon=<SyncOutlined
+            aria-label="同步"
+          /> onClick={onRetry}>
           刷新页面
         </Button>
       }

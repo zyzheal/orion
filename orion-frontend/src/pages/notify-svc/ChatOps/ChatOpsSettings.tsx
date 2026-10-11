@@ -149,7 +149,8 @@ const QuestionConfigTab: React.FC = () => {
                   size="small"
                   icon={<DeleteOutlined />}
                   onClick={() => removeQuestion(q.key)}
-                />
+            aria-label="删除"
+          />
               </Space>
             }
           >
@@ -259,7 +260,8 @@ const CommandConfigTab: React.FC = () => {
                   size="small"
                   icon={<DeleteOutlined />}
                   onClick={() => removeCommand(cmd.key)}
-                />
+            aria-label="删除"
+          />
               </Space>
             }
           >

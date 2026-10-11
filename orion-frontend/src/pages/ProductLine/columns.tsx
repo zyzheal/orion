@@ -151,25 +151,32 @@ export function buildProductLineColumns(
               size="small"
               icon={<EditOutlined />}
               onClick={() => openEdit(record)}
-            />
+            aria-label="编辑"
+          />
           </Tooltip>
           {record.status?.phase === 'Active' ? (
             <Tooltip title="暂停">
               <Popconfirm title="确认暂停?" onConfirm={() => handleSuspend(record.id)}>
-                <Button type="link" size="small" danger icon={<PauseCircleOutlined />} />
+                <Button type="link" size="small" danger icon={<PauseCircleOutlined />}
+            aria-label="暂停"
+          />
               </Popconfirm>
             </Tooltip>
           ) : record.status?.phase === 'Suspended' ||
             record.status?.phase === 'Pending' ? (
             <Tooltip title="激活">
               <Popconfirm title="确认激活?" onConfirm={() => handleActivate(record.id)}>
-                <Button type="link" size="small" icon={<PlayCircleOutlined />} />
+                <Button type="link" size="small" icon={<PlayCircleOutlined />}
+            aria-label="运行"
+          />
               </Popconfirm>
             </Tooltip>
           ) : null}
           <Tooltip title="删除">
             <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
-              <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
             </Popconfirm>
           </Tooltip>
         </Space>

@@ -202,7 +202,9 @@ const AIReviewRules: React.FC = () => {
             编辑
           </Button>
           <Popconfirm title="确认删除此规则？" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
           </Popconfirm>
         </Space>
       ),

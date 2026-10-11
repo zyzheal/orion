@@ -91,7 +91,8 @@ export const PipelineHeader: React.FC<PipelineHeaderProps> = ({
           loading={isRerunning}
           onClick={onRerun}
           disabled={!pipeline || pipeline.status === 'running' || loading}
-        >
+            aria-label="刷新"
+          >
           {isRerunning ? '触发中...' : '重新运行'}
         </Button>
       </Space>

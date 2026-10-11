@@ -158,7 +158,9 @@ export const makeOnCallColumns = ({
         </Tooltip>
         <Tooltip title="删除">
           <Popconfirm title="确认删除该值班排班?" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
           </Popconfirm>
         </Tooltip>
       </Space>

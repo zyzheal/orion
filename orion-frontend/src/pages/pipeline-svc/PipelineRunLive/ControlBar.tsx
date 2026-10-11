@@ -78,7 +78,8 @@ export const ControlBar: React.FC<ControlBarProps> = ({
         icon={isPaused ? <PlayCircleOutlined /> : <PauseCircleOutlined />}
         onClick={handlePause}
         title={isPaused ? '恢复日志流' : '暂停日志流'}
-      >
+            aria-label="运行"
+          >
         {isPaused ? '恢复' : '暂停'}
       </Button>
       <Button size="small" icon={<ClearOutlined />} onClick={handleClearLogs} title="清空日志">

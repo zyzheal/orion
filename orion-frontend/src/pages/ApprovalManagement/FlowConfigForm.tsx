@@ -243,7 +243,8 @@ const FlowConfigForm: React.FC<FlowConfigFormProps> = ({ flows, onRefresh }) => 
           danger
           icon={<DeleteOutlined />}
           onClick={() => removeNode(index)}
-        />
+            aria-label="删除"
+          />
       ),
     },
   ];

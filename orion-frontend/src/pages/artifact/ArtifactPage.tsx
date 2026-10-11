@@ -344,10 +344,13 @@ const ArtifactPage: React.FC = () => {
               size="small"
               icon={<EyeOutlined />}
               onClick={() => openDetail(record)}
-            />
+            aria-label="查看"
+          />
           </Tooltip>
           <Tooltip title="下载">
-            <Button type="link" size="small" icon={<DownloadOutlined />} />
+            <Button type="link" size="small" icon={<DownloadOutlined />}
+            aria-label="下载"
+          />
           </Tooltip>
         </Space>
       ),

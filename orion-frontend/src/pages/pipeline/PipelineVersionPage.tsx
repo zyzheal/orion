@@ -422,7 +422,8 @@ const PipelineVersionPage: React.FC = () => {
               size="small"
               icon={<TagsOutlined />}
               onClick={() => openTagModal(record)}
-            />
+            aria-label="标签"
+          />
           </Tooltip>
           {!record.is_baseline && (
             <Popconfirm title="设为基线版本?" onConfirm={() => handleSetBaseline(record, true)}>

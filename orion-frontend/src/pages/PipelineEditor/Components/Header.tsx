@@ -80,7 +80,8 @@ export const Header: React.FC<HeaderProps> = ({ state }) => {
           onClick={handleSavePipeline}
           loading={saving}
           disabled={stages.length === 0}
-        >
+            aria-label="保存"
+          >
           {saving ? '保存中...' : '保存'}
         </Button>
       </Space>

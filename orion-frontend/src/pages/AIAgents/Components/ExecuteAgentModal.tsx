@@ -58,7 +58,8 @@ export const ExecuteAgentModal = ({
           onClick={onSubmit}
           loading={executing}
           block
-        >
+            aria-label="运行"
+          >
           {executing ? '执行中...' : '执行 Agent'}
         </Button>
       </Form.Item>

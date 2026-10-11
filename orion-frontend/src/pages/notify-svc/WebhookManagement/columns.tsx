@@ -107,6 +107,7 @@ export const buildWebhookColumns = (deps: WebhookColumnsDeps): TableColumn<Webho
             size="small"
             icon={<SendOutlined />}
             onClick={() => deps.onTest(record.id)}
+            aria-label="发送"
           />
         </Tooltip>
         <Tooltip title="日志">
@@ -115,6 +116,7 @@ export const buildWebhookColumns = (deps: WebhookColumnsDeps): TableColumn<Webho
             size="small"
             icon={<EyeOutlined />}
             onClick={() => deps.onViewLogs(record)}
+            aria-label="查看"
           />
         </Tooltip>
         <Tooltip title="编辑">
@@ -123,11 +125,14 @@ export const buildWebhookColumns = (deps: WebhookColumnsDeps): TableColumn<Webho
             size="small"
             icon={<EditOutlined />}
             onClick={() => deps.onEdit(record)}
+            aria-label="编辑"
           />
         </Tooltip>
         <Popconfirm title="确认删除该 Webhook?" onConfirm={() => deps.onDelete(record.id)}>
           <Tooltip title="删除">
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
           </Tooltip>
         </Popconfirm>
       </Space>

@@ -27,7 +27,9 @@ export function MiddleRow({ state: s, rtoRpoColumns, drillColumns }: Props) {
           }
           extra={
             <Space>
-              <Button icon={<ReloadOutlined />} size="small" loading={s.loading} onClick={s.handleRefresh} />
+              <Button icon={<ReloadOutlined />} size="small" loading={s.loading} onClick={s.handleRefresh}
+            aria-label="刷新"
+          />
               <Button
                 type="primary"
                 icon={<PlusOutlined />}

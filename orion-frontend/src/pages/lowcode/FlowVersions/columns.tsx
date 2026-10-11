@@ -52,7 +52,9 @@ export const buildVersionColumns = ({ onViewVersion, onRestoreVersion }: Columns
     render: (_: unknown, record: LowcodeFlowVersion) => (
       <Space size="small">
         <Tooltip title="查看快照">
-          <Button size="small" icon={<EyeOutlined />} onClick={() => onViewVersion(record)} />
+          <Button size="small" icon={<EyeOutlined />} onClick={() => onViewVersion(record)}
+            aria-label="查看"
+          />
         </Tooltip>
         <Popconfirm
           title="恢复到此版本"
@@ -63,7 +65,9 @@ export const buildVersionColumns = ({ onViewVersion, onRestoreVersion }: Columns
           okButtonProps={{ danger: true }}
         >
           <Tooltip title="恢复此版本">
-            <Button size="small" danger icon={<RollbackOutlined />} />
+            <Button size="small" danger icon={<RollbackOutlined />}
+            aria-label="回滚"
+          />
           </Tooltip>
         </Popconfirm>
       </Space>

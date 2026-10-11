@@ -193,7 +193,8 @@ export const CapabilityMappingTab: React.FC = () => {
               size="small"
               icon={<EditOutlined />}
               onClick={() => handleEdit(record)}
-            />
+            aria-label="编辑"
+          />
           </Tooltip>
           <Popconfirm
             title="确认删除"
@@ -203,7 +204,9 @@ export const CapabilityMappingTab: React.FC = () => {
             cancelText="取消"
           >
             <Tooltip title="删除">
-              <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+              <Button type="text" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
             </Tooltip>
           </Popconfirm>
         </Space>

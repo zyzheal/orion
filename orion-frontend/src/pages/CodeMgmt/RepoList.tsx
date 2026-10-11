@@ -232,14 +232,16 @@ const RepoList: React.FC = () => {
                           loadRepoDetails(repo);
                           navigate(`/code-mgmt/repos/${repo.id}`);
                         }}
-                      />
+            aria-label="查看"
+          />
                       <Button
                         type="text"
                         size="small"
                         icon={<DeleteOutlined />}
                         danger
                         onClick={() => handleDeleteRepo(repo)}
-                      />
+            aria-label="删除"
+          />
                     </Space>
                   }
                   actions={[

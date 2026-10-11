@@ -135,6 +135,7 @@ export const ApprovalConfigTab: React.FC = () => {
             size="small"
             icon={<EditOutlined />} 
             onClick={() => handleEdit(record)}
+            aria-label="编辑"
           />
         </Tooltip>
       ),

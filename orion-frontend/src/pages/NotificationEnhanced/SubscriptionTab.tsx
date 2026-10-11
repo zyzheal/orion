@@ -253,7 +253,8 @@ const SubscriptionTab: React.FC = () => {
               size="small"
               icon={<EditOutlined />}
               onClick={() => handleOpenEdit(record)}
-            />
+            aria-label="编辑"
+          />
           </Tooltip>
           <Popconfirm
             title="确认删除此订阅？"
@@ -262,7 +263,9 @@ const SubscriptionTab: React.FC = () => {
             cancelText="取消"
           >
             <Tooltip title="删除">
-              <Button type="text" size="small" icon={<DeleteOutlined />} danger />
+              <Button type="text" size="small" icon={<DeleteOutlined />} danger
+            aria-label="删除"
+          />
             </Tooltip>
           </Popconfirm>
         </Space>

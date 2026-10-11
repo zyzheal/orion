@@ -101,7 +101,8 @@ const SPIConfig: React.FC<SPIConfigProps> = ({
                 size="small"
                 icon={<EditOutlined />}
                 onClick={() => onOpenEditConfig(record)}
-              />
+            aria-label="编辑"
+          />
             </Tooltip>
             <Tooltip title="删除配置">
               <Button
@@ -110,7 +111,8 @@ const SPIConfig: React.FC<SPIConfigProps> = ({
                 danger
                 icon={<DeleteOutlined />}
                 onClick={() => onDeleteConfig(record.id)}
-              />
+            aria-label="删除"
+          />
             </Tooltip>
           </Space>
         ),

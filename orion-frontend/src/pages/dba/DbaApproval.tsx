@@ -472,7 +472,8 @@ const DbaApproval: React.FC = () => {
                   icon={<DeleteOutlined />}
                   disabled={wfSteps.length <= 1}
                   onClick={() => removeStep(idx)}
-                />
+            aria-label="删除"
+          />
               </div>
             </Card>
           ))}

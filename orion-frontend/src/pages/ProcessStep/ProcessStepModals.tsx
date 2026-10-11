@@ -151,7 +151,8 @@ export const ProcessStepModals: React.FC<ProcessStepModalsProps> = (props) => (
                             danger
                             icon={<DeleteOutlined />}
                             onClick={() => remove(field.name)}
-                          />
+            aria-label="删除"
+          />
                         )}
                       </Col>
                     </Row>

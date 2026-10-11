@@ -119,6 +119,7 @@ export const makeEnvironmentColumns = (
             size="small"
             icon={<EditOutlined />}
             onClick={() => props.openEdit(record)}
+            aria-label="编辑"
           />
         </Tooltip>
         {record.status === 'active' && (
@@ -161,7 +162,9 @@ export const makeEnvironmentColumns = (
             description="删除后不可恢复，请确认"
             onConfirm={() => props.handleDelete(record.id)}
           >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
           </Popconfirm>
         </Tooltip>
       </Space>

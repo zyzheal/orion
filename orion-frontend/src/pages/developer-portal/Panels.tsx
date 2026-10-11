@@ -65,7 +65,9 @@ interface EmptyWithCreateProps {
 function EmptyWithCreate({ description, buttonText, onCreate }: EmptyWithCreateProps) {
   return (
     <Empty description={description}>
-      <Button type="primary" icon={<PlusOutlined />} onClick={onCreate}>
+      <Button type="primary" icon={<PlusOutlined />} onClick={onCreate}
+            aria-label="新建"
+          >
         {buttonText}
       </Button>
     </Empty>
@@ -116,7 +118,8 @@ export function HeaderActions({
           type="primary"
           icon={<PlusOutlined />}
           onClick={createButtonHandlers[b.tab]}
-        >
+            aria-label="新建"
+          >
           {b.label}
         </Button>
       ))}

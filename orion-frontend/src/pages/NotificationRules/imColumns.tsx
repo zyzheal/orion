@@ -93,7 +93,8 @@ export function buildIMColumns({ handleTest, handleDelete, handleToggle, openEdi
               size="small"
               icon={<SendOutlined />}
               onClick={() => handleTest(record.id)}
-            />
+            aria-label="发送"
+          />
           </Tooltip>
           <Tooltip title="编辑">
             <Button
@@ -101,7 +102,8 @@ export function buildIMColumns({ handleTest, handleDelete, handleToggle, openEdi
               size="small"
               icon={<EditOutlined />}
               onClick={() => openEdit(record)}
-            />
+            aria-label="编辑"
+          />
           </Tooltip>
           <Tooltip title={record.enabled ? '禁用' : '启用'}>
             <Switch
@@ -112,7 +114,9 @@ export function buildIMColumns({ handleTest, handleDelete, handleToggle, openEdi
           </Tooltip>
           <Popconfirm title="确认删除该 IM 通知规则?" onConfirm={() => handleDelete(record.id)}>
             <Tooltip title="删除">
-              <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
             </Tooltip>
           </Popconfirm>
         </Space>

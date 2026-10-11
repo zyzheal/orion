@@ -123,7 +123,8 @@ export const buildRtoRpoColumns = (deps: RtoRpoColumnDeps): ColumnsType<RtoRpoRe
               disabled={record.status === 'untested'}
               loading={selectedRecordId === record.id && testingType === 'rpo'}
               onClick={() => handleTest(record.id, 'rpo')}
-            />
+            aria-label="实验"
+          />
           </Tooltip>
         </Space>
       ),

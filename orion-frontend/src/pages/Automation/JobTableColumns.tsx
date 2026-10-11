@@ -155,7 +155,8 @@ export const useJobTableColumns = ({
                 loading={executing === record.id}
                 disabled={!record.enabled || record.status === 'running' || executing === record.id}
                 onClick={() => handleExecute(record)}
-              />
+            aria-label="运行"
+          />
             </Tooltip>
             <Tooltip title="查看历史">
               <Button
@@ -163,7 +164,8 @@ export const useJobTableColumns = ({
                 size="small"
                 icon={<EyeOutlined />}
                 onClick={() => handleViewExecutions(record)}
-              />
+            aria-label="查看"
+          />
             </Tooltip>
             <Tooltip title="编辑">
               <Button
@@ -171,7 +173,8 @@ export const useJobTableColumns = ({
                 size="small"
                 icon={<EditOutlined />}
                 onClick={() => handleOpenEdit(record)}
-              />
+            aria-label="编辑"
+          />
             </Tooltip>
             <Tooltip title="删除">
               <Button
@@ -180,7 +183,8 @@ export const useJobTableColumns = ({
                 icon={<DeleteOutlined />}
                 danger
                 onClick={() => handleDelete(record)}
-              />
+            aria-label="删除"
+          />
             </Tooltip>
           </Space>
         ),

@@ -44,7 +44,8 @@ export function buildColumns({ onCopyKey, onRevoke }: Props): TableColumn<ApiKey
                 size="small"
                 icon={<CopyOutlined />}
                 onClick={() => onCopyKey(keyStr)}
-              />
+            aria-label="复制"
+          />
             </Tooltip>
           </Space>
         );
@@ -95,7 +96,9 @@ export function buildColumns({ onCopyKey, onRevoke }: Props): TableColumn<ApiKey
         record.enabled ? (
           <Popconfirm title="确认撤销该 API Key?" onConfirm={() => onRevoke(record.id)}>
             <Tooltip title="撤销">
-              <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
             </Tooltip>
           </Popconfirm>
         ) : (

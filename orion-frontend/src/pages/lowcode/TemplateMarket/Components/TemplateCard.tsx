@@ -50,7 +50,9 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
     }
     actions={[
       <Tooltip title="查看详情" key="view">
-        <Button type="text" icon={<EyeOutlined />} onClick={() => onViewDetail(template)} />
+        <Button type="text" icon={<EyeOutlined />} onClick={() => onViewDetail(template)}
+            aria-label="查看"
+          />
       </Tooltip>,
       <Tooltip title="使用模板创建流程" key="apply">
         <Button type="primary" icon={<PlusOutlined />} onClick={() => onOpenApply(template)}>

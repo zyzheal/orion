@@ -97,7 +97,8 @@ export const buildExperimentColumns = ({
               size="small"
               icon={<EyeOutlined />}
               onClick={() => openDetail(record)}
-            />
+            aria-label="查看"
+          />
           </Tooltip>
           {record.status === 'active' && (
             <Tooltip title="运行实验">
@@ -107,7 +108,8 @@ export const buildExperimentColumns = ({
                 icon={<PlayCircleOutlined />}
                 loading={runningId === record.id}
                 onClick={() => handleRunExperiment(record.id)}
-              />
+            aria-label="运行"
+          />
             </Tooltip>
           )}
         </Space>

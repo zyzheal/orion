@@ -197,7 +197,8 @@ export const useEnvironmentColumns = ({
                   size="small"
                   icon={<EditOutlined />}
                   onClick={() => openEdit(record)}
-                />
+            aria-label="编辑"
+          />
               </Tooltip>
               {record.status === 'active' && (
                 <Tooltip title="休眠">
@@ -265,7 +266,9 @@ export const useEnvironmentColumns = ({
                   description="删除后不可恢复，请确认"
                   onConfirm={() => handleDelete(record.id)}
                 >
-                  <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+                  <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
                 </Popconfirm>
               </Tooltip>
             </Space>

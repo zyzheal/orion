@@ -93,7 +93,8 @@ export function PlaygroundPanel({
                     size="small"
                     icon={<CopyOutlined />}
                     onClick={() => onCopy(result.response.body)}
-                  />
+            aria-label="复制"
+          />
                 </Tooltip>
               </Space>
             )

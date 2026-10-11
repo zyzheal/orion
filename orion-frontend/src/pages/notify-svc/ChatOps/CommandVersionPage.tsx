@@ -180,7 +180,8 @@ const CommandVersionPage: React.FC = () => {
               size="small"
               icon={<HistoryOutlined />}
               onClick={() => handleViewDetail(record)}
-            />
+            aria-label="历史记录"
+          />
           </Tooltip>
           {!record.is_current && (
             <Popconfirm
@@ -188,13 +189,17 @@ const CommandVersionPage: React.FC = () => {
               onConfirm={() => handleRollback(record)}
             >
               <Tooltip title="回滚">
-                <Button type="link" size="small" icon={<RollbackOutlined />} />
+                <Button type="link" size="small" icon={<RollbackOutlined />}
+            aria-label="回滚"
+          />
               </Tooltip>
             </Popconfirm>
           )}
           <Popconfirm title="确认删除此版本?" onConfirm={() => handleDelete(record.id)}>
             <Tooltip title="删除">
-              <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
             </Tooltip>
           </Popconfirm>
         </Space>

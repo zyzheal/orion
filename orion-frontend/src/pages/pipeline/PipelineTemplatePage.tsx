@@ -366,7 +366,9 @@ const PipelineTemplatePage: React.FC = () => {
               description="删除后不可恢复，请确认"
               onConfirm={() => handleDelete(record.id)}
             >
-              <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
             </Popconfirm>
           </Tooltip>
         </Space>

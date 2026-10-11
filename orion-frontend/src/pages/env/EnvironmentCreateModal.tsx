@@ -75,7 +75,8 @@ export const EnvironmentCreateModal: React.FC<EnvironmentCreateModalProps> = ({
               size="small"
               icon={<CopyOutlined />}
               onClick={() => onApplyTemplate(t)}
-            >
+            aria-label="复制"
+          >
               {t.name}
             </Button>
           ))}

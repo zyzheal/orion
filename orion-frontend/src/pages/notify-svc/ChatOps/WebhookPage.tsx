@@ -226,7 +226,8 @@ const WebhookPage: React.FC = () => {
               size="small"
               icon={<ExperimentOutlined />}
               onClick={() => handleTest(record.id)}
-            />
+            aria-label="实验"
+          />
           </Tooltip>
           <Tooltip title="日志">
             <Button
@@ -234,7 +235,8 @@ const WebhookPage: React.FC = () => {
               size="small"
               icon={<FileTextOutlined />}
               onClick={() => handleViewLogs(record.id)}
-            />
+            aria-label="文档"
+          />
           </Tooltip>
           <Tooltip title="编辑">
             <Button
@@ -242,11 +244,14 @@ const WebhookPage: React.FC = () => {
               size="small"
               icon={<EditOutlined />}
               onClick={() => handleEdit(record)}
-            />
+            aria-label="编辑"
+          />
           </Tooltip>
           <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
             <Tooltip title="删除">
-              <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
             </Tooltip>
           </Popconfirm>
         </Space>

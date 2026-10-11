@@ -302,7 +302,8 @@ const StageModal = ({
                           onClick={() =>
                             setSubPipelineParams((prev) => [...prev, { key: '', value: '' }])
                           }
-                        />
+            aria-label="新建"
+          />
                         <Button
                           danger
                           icon={<DeleteOutlined />}
@@ -314,7 +315,8 @@ const StageModal = ({
                             )
                           }
                           disabled={subPipelineParams.length === 1}
-                        />
+            aria-label="删除"
+          />
                       </Space>
                     ))}
                   </Space>
@@ -666,13 +668,16 @@ const StageModal = ({
                           placeholder="例如：node_modules, .npm/cache"
                           style={{ flex: 1 }}
                         />
-                        <Button icon={<PlusOutlined />} onClick={handleAddCachePath} />
+                        <Button icon={<PlusOutlined />} onClick={handleAddCachePath}
+            aria-label="新建"
+          />
                         <Button
                           danger
                           icon={<DeleteOutlined />}
                           onClick={() => handleRemoveCachePath(index)}
                           disabled={cachePaths.length === 1}
-                        />
+            aria-label="删除"
+          />
                       </Space>
                     ))}
                   </Space>
@@ -710,13 +715,16 @@ const StageModal = ({
                     placeholder="例如：dist/, build/*.jar"
                     style={{ flex: 1 }}
                   />
-                  <Button icon={<PlusOutlined />} onClick={handleAddArtifactPath} />
+                  <Button icon={<PlusOutlined />} onClick={handleAddArtifactPath}
+            aria-label="新建"
+          />
                   <Button
                     danger
                     icon={<DeleteOutlined />}
                     onClick={() => handleRemoveArtifactPath(index)}
                     disabled={artifactPaths.length === 1}
-                  />
+            aria-label="删除"
+          />
                 </Space>
               ))}
             </Space>

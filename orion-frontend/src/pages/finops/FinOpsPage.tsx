@@ -373,11 +373,15 @@ const FinOpsPage: React.FC = () => {
           </Text>
         </div>
         <Space>
-          <Button icon=<ExportOutlined /> onClick={handleExportReport}>
+          <Button icon=<ExportOutlined
+            aria-label="导出"
+          /> onClick={handleExportReport}>
             导出报表
           </Button>
           <Button
-            icon=<ReloadOutlined />
+            icon=<ReloadOutlined
+            aria-label="刷新"
+          />
             onClick={() => {
               loadCostOverview();
               loadCostBreakdown();

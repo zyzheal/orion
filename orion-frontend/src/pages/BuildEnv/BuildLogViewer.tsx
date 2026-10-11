@@ -169,6 +169,7 @@ const BuildLogViewer: React.FC<BuildLogViewerProps> = ({
             icon={<ClearOutlined />}
             onClick={handleClear}
             title="Clear logs"
+            aria-label="清除"
           />
           <Button
             type="text"
@@ -176,6 +177,7 @@ const BuildLogViewer: React.FC<BuildLogViewerProps> = ({
             icon={paused ? <PlayCircleOutlined /> : <PauseCircleOutlined />}
             onClick={handleTogglePause}
             title={paused ? 'Resume' : 'Pause'}
+            aria-label="运行"
           />
           {error && (
             <Button type="link" size="small" onClick={handleReconnect}>

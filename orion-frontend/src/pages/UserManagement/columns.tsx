@@ -148,6 +148,7 @@ export const makeUserColumns = (deps: ColumnDeps): TableColumn<User>[] => [
             size="small"
             icon={<EditOutlined />}
             onClick={() => deps.openEdit(record)}
+            aria-label="编辑"
           />
         </Tooltip>
         {record.status === 'active' ? (
@@ -178,7 +179,9 @@ export const makeUserColumns = (deps: ColumnDeps): TableColumn<User>[] => [
         {record.role !== 'admin' && (
           <Tooltip title="删除">
             <Popconfirm title="确认删除该用户?" onConfirm={() => deps.handleDelete(record.id)}>
-              <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
             </Popconfirm>
           </Tooltip>
         )}

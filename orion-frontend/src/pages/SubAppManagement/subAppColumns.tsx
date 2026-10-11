@@ -157,10 +157,13 @@ export const buildSubAppColumns = ({
               size="small"
               icon={<HistoryOutlined />}
               onClick={() => handleShowHistory(record)}
-            />
+            aria-label="历史记录"
+          />
           </Tooltip>
           <Tooltip title="编辑">
-            <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+            <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}
+            aria-label="编辑"
+          />
           </Tooltip>
           <Popconfirm
             title="确认删除"
@@ -170,7 +173,9 @@ export const buildSubAppColumns = ({
             okButtonProps={{ danger: true }}
           >
             <Tooltip title="删除">
-              <Button size="small" icon={<DeleteOutlined />} danger />
+              <Button size="small" icon={<DeleteOutlined />} danger
+            aria-label="删除"
+          />
             </Tooltip>
           </Popconfirm>
         </Space>

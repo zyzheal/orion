@@ -101,7 +101,9 @@ export const buildQueueColumns = (
                 title="确认标记为完成?"
                 onConfirm={() => deps.handleComplete(record.id)}
               >
-                <Button type="link" size="small" icon={<CheckCircleOutlined />} />
+                <Button type="link" size="small" icon={<CheckCircleOutlined />}
+            aria-label="确认"
+          />
               </Popconfirm>
             </Tooltip>
             <Tooltip title="标记失败">
@@ -109,7 +111,9 @@ export const buildQueueColumns = (
                 title="确认标记为失败?"
                 onConfirm={() => deps.handleFail(record.id)}
               >
-                <Button type="link" size="small" danger icon={<CloseCircleOutlined />} />
+                <Button type="link" size="small" danger icon={<CloseCircleOutlined />}
+            aria-label="关闭"
+          />
               </Popconfirm>
             </Tooltip>
           </>

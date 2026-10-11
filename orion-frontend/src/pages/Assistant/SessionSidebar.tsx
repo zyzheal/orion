@@ -56,7 +56,9 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
         <Space>
           <Button
             size="small"
-            icon=<PlusOutlined />
+            icon=<PlusOutlined
+            aria-label="新建"
+          />
             onClick={onNew}
             aria-label="新建会话"
             tabIndex={0}
@@ -101,7 +103,9 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
               size="small"
               type="text"
               danger
-              icon=<DeleteOutlined />
+              icon=<DeleteOutlined
+            aria-label="删除"
+          />
               aria-label={`删除会话：${(session.messages?.[0]?.content || '新会话').slice(0, 10)}`}
               tabIndex={0}
               onClick={(e) => {

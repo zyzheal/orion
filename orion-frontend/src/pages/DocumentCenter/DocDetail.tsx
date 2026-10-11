@@ -157,7 +157,9 @@ export default function DocDetail({ doc, loading, onBack, onRefresh }: DocDetail
         }}
       >
         <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={onBack} type="text" />
+          <Button icon={<ArrowLeftOutlined />} onClick={onBack} type="text"
+            aria-label="返回"
+          />
           <Text strong style={{ fontSize: 16 }}>
             {doc.title}
           </Text>
@@ -166,7 +168,9 @@ export default function DocDetail({ doc, loading, onBack, onRefresh }: DocDetail
         <Space>
           {onRefresh && (
             <Tooltip title="刷新">
-              <Button icon={<ReloadOutlined />} onClick={onRefresh} type="text" />
+              <Button icon={<ReloadOutlined />} onClick={onRefresh} type="text"
+            aria-label="刷新"
+          />
             </Tooltip>
           )}
           {toc.length > 0 && (

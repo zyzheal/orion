@@ -70,7 +70,9 @@ export const TraceToolbar: React.FC<TraceToolbarProps> = ({
       <Tooltip title="放大">
         <Button size="small" icon={<ZoomInOutlined />} onClick={onZoomIn} />
       </Tooltip>
-      <Button size="small" icon={<ReloadOutlined />} onClick={onRefresh} />
+      <Button size="small" icon={<ReloadOutlined />} onClick={onRefresh}
+            aria-label="刷新"
+          />
     </Space>
   </div>
 );

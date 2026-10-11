@@ -100,19 +100,25 @@ export const makeQueueJobColumns = (
           <>
             <Tooltip title="标记完成">
               <Popconfirm title="确认标记为完成?" onConfirm={() => handleComplete(record.id)}>
-                <Button type="link" size="small" icon={<CheckCircleOutlined />} />
+                <Button type="link" size="small" icon={<CheckCircleOutlined />}
+            aria-label="确认"
+          />
               </Popconfirm>
             </Tooltip>
             <Tooltip title="标记失败">
               <Popconfirm title="确认标记为失败?" onConfirm={() => handleFail(record.id)}>
-                <Button type="link" size="small" danger icon={<CloseCircleOutlined />} />
+                <Button type="link" size="small" danger icon={<CloseCircleOutlined />}
+            aria-label="关闭"
+          />
               </Popconfirm>
             </Tooltip>
           </>
         )}
         {record.status === 'failed' && record.attempts < 5 && (
           <Tooltip title="重试队列功能开发中，预计 Q4 交付">
-            <Button type="link" size="small" danger icon={<SyncOutlined />} disabled />
+            <Button type="link" size="small" danger icon={<SyncOutlined />} disabled
+            aria-label="同步"
+          />
           </Tooltip>
         )}
       </Space>

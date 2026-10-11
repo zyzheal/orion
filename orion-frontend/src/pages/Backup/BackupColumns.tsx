@@ -111,7 +111,8 @@ export const useBackupColumns = ({
               size="small"
               icon={<ReloadOutlined />}
               onClick={() => toggleRecords(record.id)}
-            >
+            aria-label="刷新"
+          >
               {expandedRecords[record.id] ? '收起记录' : '查看记录'}
             </Button>
             <Popconfirm

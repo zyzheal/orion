@@ -92,7 +92,9 @@ export const ControlBar: React.FC<ControlBarProps> = ({
     <Divider type="vertical" />
     <Button
       size="small"
-      icon=<SyncOutlined />
+      icon=<SyncOutlined
+            aria-label="同步"
+          />
       onClick={handleReconnect}
       title="重新连接 SSE"
       aria-label="重新连接 SSE"

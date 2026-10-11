@@ -237,7 +237,8 @@ const DbaAdvisor: React.FC = () => {
                         icon={<CopyOutlined />}
                         onClick={() => copySQL(s.sql)}
                         style={{ color: '#d4d4d4', position: 'absolute', top: 4, right: 4 }}
-                      />
+            aria-label="复制"
+          />
                       {s.sql}
                     </div>
                     {s.evidence.length > 0 && (

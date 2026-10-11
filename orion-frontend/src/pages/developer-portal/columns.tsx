@@ -110,7 +110,8 @@ export function useDocColumns(props: DocColumnsProps): ColumnsType<PortalDocumen
               size="small"
               icon={<EyeOutlined />}
               onClick={() => onDocDetail(record)}
-            />
+            aria-label="查看"
+          />
           </Tooltip>
           <Tooltip title="编辑">
             <Button
@@ -118,7 +119,8 @@ export function useDocColumns(props: DocColumnsProps): ColumnsType<PortalDocumen
               size="small"
               icon={<EditOutlined />}
               onClick={() => onDocEdit(record)}
-            />
+            aria-label="编辑"
+          />
           </Tooltip>
           {record.published ? (
             <Tooltip title="取消发布">
@@ -134,7 +136,9 @@ export function useDocColumns(props: DocColumnsProps): ColumnsType<PortalDocumen
             </Tooltip>
           )}
           <Popconfirm title="确认删除此文档？" onConfirm={() => onDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
           </Popconfirm>
         </Space>
       ),
@@ -220,10 +224,13 @@ export function useMockColumns(props: MockColumnsProps): ColumnsType<MockRule> {
               size="small"
               icon={<EditOutlined />}
               onClick={() => onEdit(record)}
-            />
+            aria-label="编辑"
+          />
           </Tooltip>
           <Popconfirm title="确认删除此规则？" onConfirm={() => onDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
           </Popconfirm>
         </Space>
       ),
@@ -294,7 +301,8 @@ export function useSdkColumns(props: SdkColumnsProps): ColumnsType<SDKGeneration
               size="small"
               icon={<EyeOutlined />}
               onClick={() => onDetail(record)}
-            />
+            aria-label="查看"
+          />
           </Tooltip>
           {record.status === 'failed' && (
             <Tooltip title="重新生成">
@@ -303,11 +311,14 @@ export function useSdkColumns(props: SdkColumnsProps): ColumnsType<SDKGeneration
                 size="small"
                 icon={<SyncOutlined />}
                 onClick={() => onRegenerate(record.id)}
-              />
+            aria-label="同步"
+          />
             </Tooltip>
           )}
           <Popconfirm title="确认删除？" onConfirm={() => onDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
           </Popconfirm>
         </Space>
       ),
@@ -395,7 +406,8 @@ export function useSubColumns(props: SubColumnsProps): ColumnsType<APISubscripti
               size="small"
               icon={<CopyOutlined />}
               onClick={() => onCopyKey(key)}
-            />
+            aria-label="复制"
+          />
           </Tooltip>
         </Space>
       ),
@@ -412,7 +424,8 @@ export function useSubColumns(props: SubColumnsProps): ColumnsType<APISubscripti
               size="small"
               icon={<EyeOutlined />}
               onClick={() => onDetail(record)}
-            />
+            aria-label="查看"
+          />
           </Tooltip>
           {record.status === 'pending' && (
             <>
@@ -507,7 +520,8 @@ export function usePgColumns(props: PgColumnsProps): ColumnsType<PlaygroundReque
               size="small"
               icon={<DownloadOutlined />}
               onClick={() => onLoad(record)}
-            />
+            aria-label="下载"
+          />
           </Tooltip>
           <Tooltip title="重放">
             <Button
@@ -515,7 +529,8 @@ export function usePgColumns(props: PgColumnsProps): ColumnsType<PlaygroundReque
               size="small"
               icon={<SendOutlined />}
               onClick={() => onReplay(record.id)}
-            />
+            aria-label="发送"
+          />
           </Tooltip>
           <Tooltip title="响应历史">
             <Button
@@ -523,10 +538,13 @@ export function usePgColumns(props: PgColumnsProps): ColumnsType<PlaygroundReque
               size="small"
               icon={<HistoryOutlined />}
               onClick={() => onHistory(record.id)}
-            />
+            aria-label="历史记录"
+          />
           </Tooltip>
           <Popconfirm title="确认删除？" onConfirm={() => onDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
           </Popconfirm>
         </Space>
       ),

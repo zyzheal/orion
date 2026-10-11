@@ -704,7 +704,8 @@ const DeveloperPortalPage: React.FC = () => {
                           size="small"
                           icon={<CopyOutlined />}
                           onClick={() => handleCopyToClipboard(playgroundResult.response.body)}
-                        />
+            aria-label="复制"
+          />
                       </Tooltip>
                     </Space>
                   )

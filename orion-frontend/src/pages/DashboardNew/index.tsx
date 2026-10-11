@@ -63,12 +63,14 @@ const DashboardNew: React.FC = () => {
     <div style={{ padding: 0 }}>
       {error && (
         <Alert
-          message="提示"
+          message="加载失败"
           description={error}
-          type="warning"
+          type="error"
           showIcon
           closable
           style={{ marginBottom: spacing.md }}
+          role="alert"
+          aria-live="assertive"
         />
       )}
 

@@ -81,6 +81,7 @@ export const makeDefColumns = (deps: {
             size="small"
             icon={<EyeOutlined />}
             onClick={() => deps.handleViewDefDetail(record.id)}
+            aria-label="查看"
           />
         </Tooltip>
         <Tooltip title="编辑">
@@ -89,6 +90,7 @@ export const makeDefColumns = (deps: {
             size="small"
             icon={<EditOutlined />}
             onClick={() => deps.handleEditDef(record)}
+            aria-label="编辑"
           />
         </Tooltip>
         <Tooltip title="启动实例">
@@ -97,10 +99,13 @@ export const makeDefColumns = (deps: {
             size="small"
             icon={<RocketOutlined />}
             onClick={() => deps.handleStartInstance(record.id)}
+            aria-label="部署"
           />
         </Tooltip>
         <Popconfirm title="确定删除此流程定义？" onConfirm={() => deps.handleDeleteDef(record.id)}>
-          <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+          <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
         </Popconfirm>
       </Space>
     ),
@@ -174,6 +179,7 @@ export const makeInstColumns = (deps: {
             size="small"
             icon={<EyeOutlined />}
             onClick={() => deps.handleViewInstance(record.id)}
+            aria-label="查看"
           />
         </Tooltip>
       </Space>

@@ -203,7 +203,8 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ onSelect }) => {
                     e.stopPropagation();
                     handleToggleStatus(item.id, !item.enabled);
                   }}
-                />,
+            aria-label="暂停"
+          />,
                 <Button
                   key="delete"
                   type="text"
@@ -216,7 +217,8 @@ const WorkflowList: React.FC<WorkflowListProps> = ({ onSelect }) => {
                     e.stopPropagation();
                     handleDelete(item);
                   }}
-                />,
+            aria-label="删除"
+          />,
               ]}
             >
               <List.Item.Meta

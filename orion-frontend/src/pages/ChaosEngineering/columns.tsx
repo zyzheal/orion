@@ -93,6 +93,7 @@ export const makeExperimentColumns = (deps: ColumnDeps): ColumnsType<ChaosExperi
             size="small"
             icon={<EyeOutlined />}
             onClick={() => deps.openDetail(record)}
+            aria-label="查看"
           />
         </Tooltip>
         {record.status === 'active' && (
@@ -103,7 +104,8 @@ export const makeExperimentColumns = (deps: ColumnDeps): ColumnsType<ChaosExperi
               icon={<PlayCircleOutlined />}
               loading={deps.runningId === record.id}
               onClick={() => deps.handleRunExperiment(record.id)}
-            />
+            aria-label="运行"
+          />
           </Tooltip>
         )}
       </Space>

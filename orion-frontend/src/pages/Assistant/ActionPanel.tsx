@@ -59,7 +59,9 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
       <Space>
         <Button
           type="primary"
-          icon=<PlayCircleOutlined />
+          icon=<PlayCircleOutlined
+            aria-label="运行"
+          />
           loading={actionLoading}
           onClick={() => handleAction('trigger_pipeline')}
           style={{
@@ -73,7 +75,9 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
         </Button>
         <Button
           type="primary"
-          icon=<CloudServerOutlined />
+          icon=<CloudServerOutlined
+            aria-label="云主机"
+          />
           loading={actionLoading}
           onClick={() => handleAction('suggest_command')}
           style={{

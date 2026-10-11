@@ -64,11 +64,14 @@ export const buildActionColumn = (deps: ActionColumnDeps): TableColumn<unknown> 
             type="link"
             icon={<EyeOutlined />}
             onClick={() => deps.onPreview(record.schema)}
+            aria-label="查看"
           />
         </Tooltip>
       )}
       <Tooltip title="编辑">
-        <Button type="link" icon={<EditOutlined />} onClick={() => deps.onEdit(record)} />
+        <Button type="link" icon={<EditOutlined />} onClick={() => deps.onEdit(record)}
+            aria-label="编辑"
+          />
       </Tooltip>
       <Tooltip title="删除">
         <Button
@@ -76,7 +79,8 @@ export const buildActionColumn = (deps: ActionColumnDeps): TableColumn<unknown> 
           danger
           icon={<DeleteOutlined />}
           onClick={() => deps.onDelete(record.id)}
-        />
+            aria-label="删除"
+          />
       </Tooltip>
     </Space>
   ),

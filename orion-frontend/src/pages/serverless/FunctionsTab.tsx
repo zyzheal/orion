@@ -249,7 +249,8 @@ export const FunctionsTab: React.FC = () => {
                 setCurrentFn(fn);
                 setDeployDrawerOpen(true);
               }}
-            />
+            aria-label="部署"
+          />
           </Tooltip>
           <Tooltip title="调用">
             <Button
@@ -259,16 +260,23 @@ export const FunctionsTab: React.FC = () => {
                 setCurrentFn(fn);
                 setInvokeModalOpen(true);
               }}
-            />
+            aria-label="运行"
+          />
           </Tooltip>
           <Tooltip title="日志">
-            <Button size="small" icon={<FileTextOutlined />} onClick={() => handleViewLogs(fn)} />
+            <Button size="small" icon={<FileTextOutlined />} onClick={() => handleViewLogs(fn)}
+            aria-label="文档"
+          />
           </Tooltip>
           <Tooltip title="编辑">
-            <Button size="small" icon={<SettingOutlined />} onClick={() => handleOpenEdit(fn)} />
+            <Button size="small" icon={<SettingOutlined />} onClick={() => handleOpenEdit(fn)}
+            aria-label="设置"
+          />
           </Tooltip>
           <Popconfirm title="确认删除此函数？" onConfirm={() => handleDelete(fn)}>
-            <Button size="small" icon={<DeleteOutlined />} danger />
+            <Button size="small" icon={<DeleteOutlined />} danger
+            aria-label="删除"
+          />
           </Popconfirm>
         </Space>
       ),

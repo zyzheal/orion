@@ -188,7 +188,8 @@ export function useFeatureFlagColumns(h: FeatureFlagColumnsHandlers): ColumnsTyp
                 size="small"
                 icon={<EyeOutlined />}
                 onClick={() => handleViewDetail(record)}
-              />
+            aria-label="查看"
+          />
             </Tooltip>
             <Tooltip title="评估">
               <Button
@@ -196,7 +197,8 @@ export function useFeatureFlagColumns(h: FeatureFlagColumnsHandlers): ColumnsTyp
                 size="small"
                 icon={<ExperimentOutlined />}
                 onClick={() => handleOpenEvaluate(record)}
-              />
+            aria-label="实验"
+          />
             </Tooltip>
             <Tooltip title="编辑">
               <Button
@@ -204,11 +206,14 @@ export function useFeatureFlagColumns(h: FeatureFlagColumnsHandlers): ColumnsTyp
                 size="small"
                 icon={<EditOutlined />}
                 onClick={() => handleOpenEdit(record)}
-              />
+            aria-label="编辑"
+          />
             </Tooltip>
             <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record)}>
               <Tooltip title="删除">
-                <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+                <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
               </Tooltip>
             </Popconfirm>
           </Space>

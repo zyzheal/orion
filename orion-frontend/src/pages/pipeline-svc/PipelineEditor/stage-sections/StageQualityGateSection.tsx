@@ -102,7 +102,8 @@ const StageQualityGateSection: React.FC<StageQualityGateSectionProps> = ({
                         size="small"
                         icon={<DeleteOutlined />}
                         onClick={() => removeRule(rule.id)}
-                      />
+            aria-label="删除"
+          />
                     }
                   >
                     <Space style={{ width: '100%' }} size={8}>

@@ -213,7 +213,8 @@ export default function SyncPanel({ visible, onClose }: SyncPanelProps) {
                   onClick={handleSync}
                   loading={syncStatus === 'running'}
                   disabled={syncStatus === 'running'}
-                >
+            aria-label="同步"
+          >
                   {syncStatus === 'running' ? '同步中...' : '开始同步'}
                 </Button>
               </Space>

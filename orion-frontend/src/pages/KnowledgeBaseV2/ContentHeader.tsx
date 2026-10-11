@@ -60,12 +60,16 @@ export const ContentHeader: React.FC<ContentHeaderProps> = (props) => {
           style={{ width: 280 }}
           loading={searching}
         />
-        <Button icon={<ReloadOutlined />} onClick={onRefresh} disabled={!hasSpace} />
+        <Button icon={<ReloadOutlined />} onClick={onRefresh} disabled={!hasSpace}
+            aria-label="刷新"
+          />
         <Button type="primary" icon={<PlusOutlined />} onClick={onCreateDoc} disabled={!hasSpace}>
           新建文档
         </Button>
         <Tooltip title="空间设置">
-          <Button icon={<SettingOutlined />} onClick={onOpenSettings} disabled={!hasSpace} />
+          <Button icon={<SettingOutlined />} onClick={onOpenSettings} disabled={!hasSpace}
+            aria-label="设置"
+          />
         </Tooltip>
       </Space>
     </div>

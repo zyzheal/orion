@@ -105,6 +105,7 @@ export function buildProblemColumns(deps: ProblemColumnsDeps): TableColumn<Probl
             icon={<EyeOutlined />}
             onClick={() => handleViewDetail(record)}
             title="查看详情"
+            aria-label="查看"
           />
           <Button
             type="text"
@@ -112,6 +113,7 @@ export function buildProblemColumns(deps: ProblemColumnsDeps): TableColumn<Probl
             icon={<EditOutlined />}
             onClick={() => handleOpenEditModal(record)}
             title="编辑"
+            aria-label="编辑"
           />
           <Popconfirm
             title="确定删除此问题?"
@@ -121,7 +123,9 @@ export function buildProblemColumns(deps: ProblemColumnsDeps): TableColumn<Probl
             cancelText="取消"
             okButtonProps={{ danger: true }}
           >
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} title="删除" />
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} title="删除"
+            aria-label="删除"
+          />
           </Popconfirm>
         </Space>
       ),
@@ -221,6 +225,7 @@ export function buildKedbColumns(deps: KedbColumnsDeps): TableColumn<KnownError>
             icon={<EditOutlined />}
             onClick={() => handleOpenKedbEditModal(record)}
             title="编辑"
+            aria-label="编辑"
           />
           <Popconfirm
             title="确定删除此已知错误?"
@@ -229,7 +234,9 @@ export function buildKedbColumns(deps: KedbColumnsDeps): TableColumn<KnownError>
             cancelText="取消"
             okButtonProps={{ danger: true }}
           >
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} title="删除" />
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} title="删除"
+            aria-label="删除"
+          />
           </Popconfirm>
         </Space>
       ),

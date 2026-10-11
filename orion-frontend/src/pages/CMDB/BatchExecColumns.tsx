@@ -208,10 +208,13 @@ export function buildTemplateColumns(
               size="small"
               icon={<CopyOutlined />}
               onClick={() => props.onCopy(record)}
-            />
+            aria-label="复制"
+          />
           </Tooltip>
           <Popconfirm title="确认删除此模板？" onConfirm={() => props.onDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
           </Popconfirm>
         </Space>
       ),
@@ -316,10 +319,13 @@ export function buildCronJobColumns(
               size="small"
               icon={<PlayCircleOutlined />}
               onClick={() => props.onRunNow(record.id)}
-            />
+            aria-label="运行"
+          />
           </Tooltip>
           <Popconfirm title="确认删除此任务？" onConfirm={() => props.onDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
           </Popconfirm>
         </Space>
       ),

@@ -182,7 +182,9 @@ const PerformanceFlameGraphPage: React.FC = () => {
             <Button size="small" icon={<ZoomInOutlined />} onClick={handleZoomIn} />
           </Tooltip>
           <Tooltip title="重置缩放 & 展开全部">
-            <Button size="small" icon={<ReloadOutlined />} onClick={handleResetZoom} />
+            <Button size="small" icon={<ReloadOutlined />} onClick={handleResetZoom}
+            aria-label="刷新"
+          />
           </Tooltip>
         </Space>
       </div>

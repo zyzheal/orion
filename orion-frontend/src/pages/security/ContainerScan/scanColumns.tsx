@@ -87,7 +87,8 @@ export const buildScanColumns = ({
               icon={<EyeOutlined />}
               style={{ color: commonStyle.primary }}
               disabled
-            />
+            aria-label="查看"
+          />
           </Tooltip>
           <Tooltip title="重新扫描">
             <Button
@@ -98,7 +99,8 @@ export const buildScanColumns = ({
               style={{ color: commonStyle.info }}
               disabled={scanningKey === record.key}
               onClick={() => handleScan(record)}
-            />
+            aria-label="刷新"
+          />
           </Tooltip>
         </Space>
       ) : null,

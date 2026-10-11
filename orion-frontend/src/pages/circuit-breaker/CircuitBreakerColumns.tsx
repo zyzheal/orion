@@ -114,17 +114,23 @@ export const makeCircuitBreakerColumns = (props: CircuitBreakerColumnsProps): Co
     render: (_: unknown, record) => (
       <Space size="small">
         <Tooltip title="详情">
-          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => props.openDetail(record)} />
+          <Button type="link" size="small" icon={<EyeOutlined />} onClick={() => props.openDetail(record)}
+            aria-label="查看"
+          />
         </Tooltip>
         <Tooltip title="重置">
           <Button type="link" size="small" icon={<RestOutlined />} onClick={() => props.handleReset(record)} />
         </Tooltip>
         <Tooltip title="编辑">
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => props.openEdit(record)} />
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => props.openEdit(record)}
+            aria-label="编辑"
+          />
         </Tooltip>
         <Popconfirm title="确认删除?" onConfirm={() => props.handleDelete(record)}>
           <Tooltip title="删除">
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
           </Tooltip>
         </Popconfirm>
       </Space>

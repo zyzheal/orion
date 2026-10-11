@@ -229,7 +229,8 @@ const DiagnosticTrigger: React.FC = () => {
                 htmlType="submit"
                 loading={submitting}
                 size="large"
-              >
+            aria-label="部署"
+          >
                 {submitting ? '提交中...' : '触发诊断'}
               </Button>
               <Button onClick={() => triggerForm.resetFields()}>重置</Button>

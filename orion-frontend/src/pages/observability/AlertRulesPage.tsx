@@ -370,6 +370,7 @@ const AlertRulesPage: React.FC = () => {
             danger
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record.id)}
+            aria-label="删除"
           />
         </Space>
       ),

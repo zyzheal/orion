@@ -132,7 +132,9 @@ const CollectionList: React.FC<CollectionListProps> = ({
               title="确认删除该集合？此操作不可撤销。"
               onConfirm={() => onDeleteCollection(record.name)}
             >
-              <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
             </Popconfirm>
           </Tooltip>
         </Space>

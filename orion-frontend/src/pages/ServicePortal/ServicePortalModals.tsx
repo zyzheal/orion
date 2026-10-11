@@ -242,7 +242,8 @@ export function ServiceCatalogView({
                         icon={<SendOutlined />}
                         onClick={() => onRequestService(service)}
                         disabled={service.status !== 'active'}
-                      />
+            aria-label="发送"
+          />
                     </Tooltip>,
                   ]}
                 >

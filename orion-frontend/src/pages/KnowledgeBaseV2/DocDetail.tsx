@@ -96,10 +96,14 @@ export const DocDetail: React.FC<DocDetailProps> = ({
       extra={
         <Space>
           <Tooltip title="导出 Markdown">
-            <Button icon={<ExportOutlined />} onClick={handleExportMd} disabled={!doc} />
+            <Button icon={<ExportOutlined />} onClick={handleExportMd} disabled={!doc}
+            aria-label="导出"
+          />
           </Tooltip>
           <Tooltip title="导出 HTML">
-            <Button icon={<ExportOutlined />} onClick={handleExportHtml} disabled={!doc} />
+            <Button icon={<ExportOutlined />} onClick={handleExportHtml} disabled={!doc}
+            aria-label="导出"
+          />
           </Tooltip>
         </Space>
       }

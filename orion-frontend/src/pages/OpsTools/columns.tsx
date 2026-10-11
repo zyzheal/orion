@@ -89,16 +89,20 @@ export function getCronColumns(handlers: CronColumnHandlers): TableColumnsType<C
               size="small"
               icon={record.enabled ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
               onClick={() => handleCronToggle(record)}
-            />
+            aria-label="暂停"
+          />
           </Tooltip>
           <Button
             type="text"
             size="small"
             icon={<EditOutlined />}
             onClick={() => handleCronEdit(record)}
+            aria-label="编辑"
           />
           <Popconfirm title="确认删除该定时任务？" onConfirm={() => handleCronDelete(record)}>
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+            <Button type="text" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
           </Popconfirm>
         </Space>
       ),
@@ -187,7 +191,9 @@ export function getIndexColumns(handlers: IndexColumnHandlers): TableColumnsType
       width: 100,
       render: (_, record: IndexInfo) => (
         <Popconfirm title="确认删除该索引？" onConfirm={() => handleDeleteIndex(record)}>
-          <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+          <Button type="text" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
         </Popconfirm>
       ),
     },
@@ -390,7 +396,9 @@ export function getFileColumns(handlers: FileColumnHandlers): TableColumnsType<F
             分发
           </Button>
           <Popconfirm title="确认删除该文件？" onConfirm={() => handleDeleteFile(record)}>
-            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+            <Button type="text" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
           </Popconfirm>
         </Space>
       ),
@@ -464,7 +472,9 @@ export function getThemeColumns(
       width: 100,
       render: (_, record: ThemeConfig) => (
         <Popconfirm title="确认删除该主题？" onConfirm={() => handleDeleteTheme(record)}>
-          <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+          <Button type="text" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
         </Popconfirm>
       ),
     },

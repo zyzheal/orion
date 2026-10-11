@@ -150,7 +150,8 @@ export const SilenceRulesTab: React.FC = () => {
           danger
           icon={<DeleteOutlined />}
           onClick={() => handleDelete(record.id)}
-        />
+            aria-label="删除"
+          />
       ),
     },
   ];

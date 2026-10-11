@@ -150,11 +150,14 @@ export const makeProjectColumns = (props: ProjectColumnsProps): TableColumn<Proj
             size="small"
             icon={<EditOutlined />}
             onClick={() => props.openEdit(record)}
+            aria-label="编辑"
           />
         </Tooltip>
         <Tooltip title="删除">
           <Popconfirm title="确认删除该项目?" onConfirm={() => props.handleDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
           </Popconfirm>
         </Tooltip>
       </Space>

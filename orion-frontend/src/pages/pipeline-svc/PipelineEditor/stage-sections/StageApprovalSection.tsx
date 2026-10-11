@@ -75,7 +75,8 @@ const StageApprovalSection: React.FC<StageApprovalSectionProps> = ({ value, onCh
                       icon={<DeleteOutlined />}
                       onClick={() => removeApprover(index)}
                       disabled={value.approvers.length === 0}
-                    />
+            aria-label="删除"
+          />
                   </Space>
                 ))}
                 <Button type="dashed" icon={<PlusOutlined />} onClick={addApprover} block>

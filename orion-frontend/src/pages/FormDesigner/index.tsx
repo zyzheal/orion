@@ -80,7 +80,9 @@ const FormDesigner: React.FC = () => {
         </Tabs>
 
         <Space style={{ marginBottom: spacing.md }}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}
+            aria-label="新建"
+          >
             {activeTab === 'forms' ? '新建表单' : '新建条件'}
           </Button>
           <Button icon={<ReloadOutlined />} onClick={() => fetchData()} loading={loading}>

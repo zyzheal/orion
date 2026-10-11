@@ -152,7 +152,8 @@ export const useRouteTableColumns = ({
                 size="small"
                 icon={<EyeOutlined />}
                 onClick={() => handleView(record)}
-              />
+            aria-label="查看"
+          />
             </Tooltip>
             <Tooltip title="编辑">
               <Button
@@ -160,7 +161,8 @@ export const useRouteTableColumns = ({
                 size="small"
                 icon={<EditOutlined />}
                 onClick={() => handleEdit(record)}
-              />
+            aria-label="编辑"
+          />
             </Tooltip>
             <Popconfirm
               title="确定要删除此路由吗？"
@@ -177,7 +179,8 @@ export const useRouteTableColumns = ({
                   danger
                   icon={<DeleteOutlined />}
                   loading={actionLoading === `delete-${record.id}`}
-                />
+            aria-label="删除"
+          />
               </Tooltip>
             </Popconfirm>
           </Space>

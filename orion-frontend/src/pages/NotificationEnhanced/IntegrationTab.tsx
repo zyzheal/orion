@@ -254,7 +254,8 @@ const IntegrationTab: React.FC = () => {
               size="small"
               icon={<EditOutlined />}
               onClick={() => handleOpenEdit(record)}
-            />
+            aria-label="编辑"
+          />
           </Tooltip>
           <Tooltip title="测试连接">
             <Button
@@ -263,7 +264,8 @@ const IntegrationTab: React.FC = () => {
               icon={<ThunderboltOutlined />}
               loading={testingId === record.id}
               onClick={() => handleTest(record.id)}
-            />
+            aria-label="执行"
+          />
           </Tooltip>
           <Popconfirm
             title="确认删除此集成？"
@@ -272,7 +274,9 @@ const IntegrationTab: React.FC = () => {
             cancelText="取消"
           >
             <Tooltip title="删除">
-              <Button type="text" size="small" icon={<DeleteOutlined />} danger />
+              <Button type="text" size="small" icon={<DeleteOutlined />} danger
+            aria-label="删除"
+          />
             </Tooltip>
           </Popconfirm>
         </Space>

@@ -125,11 +125,14 @@ export const buildWorkflowTriggerColumns = ({
               size="small"
               icon={<EditOutlined />}
               onClick={() => openEdit(record)}
-            />
+            aria-label="编辑"
+          />
           </Tooltip>
           <Popconfirm title="确认删除该触发器?" onConfirm={() => handleDelete(record.id)}>
             <Tooltip title="删除">
-              <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
             </Tooltip>
           </Popconfirm>
         </Space>

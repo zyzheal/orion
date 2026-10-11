@@ -244,7 +244,8 @@ const RepoDetail: React.FC = () => {
               type="link"
               size="small"
               icon={record.isProtected ? <UnlockOutlined /> : <LockOutlined />}
-            >
+            aria-label="解锁"
+          >
               {record.isProtected ? '解锁' : '保护'}
             </Button>
             <Button
@@ -253,7 +254,8 @@ const RepoDetail: React.FC = () => {
               danger
               icon={<DeleteOutlined />}
               onClick={() => handleDeleteBranch(record.name)}
-            />
+            aria-label="删除"
+          />
           </Space>
         ),
       },

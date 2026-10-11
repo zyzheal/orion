@@ -66,7 +66,9 @@ export const FlameDetailPanel: React.FC<FlameDetailPanelProps> = ({
         >
           depth {depth}
         </Tag>
-        <Button type="text" size="small" icon={<InfoCircleOutlined />} onClick={onClose} />
+        <Button type="text" size="small" icon={<InfoCircleOutlined />} onClick={onClose}
+            aria-label="详情"
+          />
       </div>
 
       {/* 函数名 */}

@@ -320,11 +320,14 @@ const RateLimitingPage: React.FC = () => {
               size="small"
               icon={<EditOutlined />}
               onClick={() => openEdit(record)}
-            />
+            aria-label="编辑"
+          />
           </Tooltip>
           <Popconfirm title="确认删除该规则?" onConfirm={() => handleDelete(record)}>
             <Tooltip title="删除">
-              <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+              <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
             </Tooltip>
           </Popconfirm>
         </Space>

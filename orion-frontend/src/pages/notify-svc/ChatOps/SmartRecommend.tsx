@@ -146,6 +146,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
             icon={<CloseOutlined />}
             onClick={() => onDismiss(recommendation.id)}
             disabled={recommendation.dismissed}
+            aria-label="关闭"
           />
         </Space>
       </div>
@@ -165,7 +166,8 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
               icon={<PlayCircleOutlined />}
               loading={executing === action.command}
               onClick={() => handleExecute(action)}
-            >
+            aria-label="运行"
+          >
               {action.label}
             </Button>
           ))}

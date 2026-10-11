@@ -118,6 +118,7 @@ export const buildColumns = (deps: ColumnDeps): TableColumn<CronJob>[] => [
             icon={<PlayCircleOutlined />}
             onClick={() => deps.onExecute(record.id)}
             disabled={record.status === 'running'}
+            aria-label="运行"
           />
         </Tooltip>
         <Tooltip title="编辑">
@@ -126,11 +127,14 @@ export const buildColumns = (deps: ColumnDeps): TableColumn<CronJob>[] => [
             size="small"
             icon={<EditOutlined />}
             onClick={() => deps.onEdit(record)}
+            aria-label="编辑"
           />
         </Tooltip>
         <Popconfirm title="确认删除该定时任务?" onConfirm={() => deps.onDelete(record.id)}>
           <Tooltip title="删除">
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
           </Tooltip>
         </Popconfirm>
       </Space>

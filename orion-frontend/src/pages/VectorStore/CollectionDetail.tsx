@@ -170,7 +170,8 @@ const CollectionDetail: React.FC<CollectionDetailProps> = ({
               danger
               icon={<DeleteOutlined />}
               loading={deletingDocId === record.id}
-            />
+            aria-label="删除"
+          />
           </Popconfirm>
         ),
       },

@@ -312,7 +312,8 @@ const SpaceSettingsPanel: React.FC<SpaceSettingsPanelProps> = ({
               danger
               size="small"
               icon={<UserDeleteOutlined />}
-            />
+            aria-label="移除用户"
+          />
           </Popconfirm>
         );
       },
@@ -330,7 +331,9 @@ const SpaceSettingsPanel: React.FC<SpaceSettingsPanelProps> = ({
         <Space>
           <span style={{ fontSize: 12, wordBreak: 'break-all' }}>{url}</span>
           <Tooltip title="复制链接">
-            <Button type="text" size="small" icon={<CopyOutlined />} onClick={() => handleCopyLink(url)} />
+            <Button type="text" size="small" icon={<CopyOutlined />} onClick={() => handleCopyLink(url)}
+            aria-label="复制"
+          />
           </Tooltip>
         </Space>
       ),
@@ -368,7 +371,9 @@ const SpaceSettingsPanel: React.FC<SpaceSettingsPanelProps> = ({
           title="确认撤销此分享链接？"
           onConfirm={() => handleRevokeShareLink(record.id)}
         >
-          <Button type="text" danger size="small" icon={<DeleteOutlined />} />
+          <Button type="text" danger size="small" icon={<DeleteOutlined />}
+            aria-label="删除"
+          />
         </Popconfirm>
       ),
     },

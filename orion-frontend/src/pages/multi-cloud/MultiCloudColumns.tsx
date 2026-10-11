@@ -112,6 +112,7 @@ export const makeAccountColumns = ({
             icon={<SyncOutlined spin={syncing === record.account_id} />}
             onClick={() => handleSync(record.account_id)}
             disabled={syncing !== null}
+            aria-label="同步"
           />
         </Tooltip>
         <Tooltip title="编辑">
@@ -120,6 +121,7 @@ export const makeAccountColumns = ({
             size="small"
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
+            aria-label="编辑"
           />
         </Tooltip>
         <Tooltip title="删除">
@@ -129,6 +131,7 @@ export const makeAccountColumns = ({
             danger
             icon={<DeleteOutlined />}
             onClick={() => handleDelete(record)}
+            aria-label="删除"
           />
         </Tooltip>
       </Space>
