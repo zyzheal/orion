@@ -178,16 +178,16 @@ npx tsx docs/design-constraints/framework/core/cli-check.ts --scan orion-fronten
 
 | 角色 | 文件 | 权威范围 | 版本 |
 |------|------|---------|------|
-| **索引（INDEX）** | `reports/design-docs-summary-2026-10-03.md` | 72 份评审文档元数据 + 目录分层 | v5.4 |
+| **索引（INDEX）** | `reports/design-docs-summary-2026-10-03.md` | 86 份评审文档元数据 + 目录分层（v5.5 +13 份 10-11 企业级升级） | v5.5 |
 | **决策（G1）** | `reports/expert-reviews/all-plans-tasks-summary-2026-10-03.md` | 跨评审任务合并总清单（134 项） | v1.1 |
-| **执行（Y）** | `reports/upgrade-execution-playbook-2026-10-03.md` | S0-S6 7 阶段 × 68 项任务 DAG + grep 验证 + 回滚 | v5.4 |
+| **执行（Y）** | `reports/upgrade-execution-playbook-2026-10-03.md` | S0-S6 7 阶段 × 68 项任务 DAG + grep 验证 + 回滚 + §14.11 P0 批次（U1-U5 + NEW-EA-1/2/3/13/14）+ §14.12 P1 批次（U9-U15 + NEW-EA-15）| v5.10 |
 
 **契约条款**：
 1. **数据流**：INDEX → G1 → Y。索引提供发现来源；G1 合并去重；Y 展开为可执行 DAG。
 2. **任务数口径差异**：G1 = 134（跨文档合并），Y = 81（S0-S8 9 阶段，其中 P0 阻塞 72 项 + 可选 9 项；S0-S6 生产执行 68 项）。G1 多出 53 项为 ADR/R-P0/CC-NL 等非 S0-S6 项。**禁止**在跨文档汇报时混用两个数字。
-3. **Migration 号段**：AA v5.4 计划分配 = **699-765**（含 5 ADR 新增）。当前状态：**699-765 全部空号**（截至 2026-10-11），待 ADR-011/013/014/015 实施后逐步落地。所有文档引用 Migration 号段时必须标注"计划中"。
-4. **风险登记册**：`reports/module-upgrade-designs/risk-fallback-design-2026-10-03.md` v5.4 = 59 项（P0×7 / P1×19 / P2×24 / P3×6 / CC×3）。
-5. **Stage Gate**：**35 项**（实测 Y 手册 `# 门控` 标注行 = S0×5 + S1×3 + S2×5 + S3×4 + S4×4 + S5×4 + S6×4 + S7×3 + S8×3；其中 S0-S6 生产门控 29 项，S7/S8 共 6 项。v5.5 修正：原声明 26 项且分解式 3+4+3+3+5+3+4+3 自加为 28，两处均与实际不符）。
+3. **Migration 号段**：AA v5.4 计划分配 = **699-765**（含 5 ADR 新增）；2026-10-11 企业级升级批次追加 **766-775**（U5 baseline 元数据 / U12 AI 决策 SLA audit 770-772 / U13 LLM audit 773-775 / U14 CC 风险 776-778 / U15 moat 保护 779-782；NEW-EA-14 cmdb k8s/script 桩升级 769）。**当前状态：全部空号**（截至 2026-10-11），待 ADR-011/013/014/015 + U 批次落地。所有文档引用 Migration 号段时必须标注"计划中"。
+4. **风险登记册**：`reports/module-upgrade-designs/risk-fallback-design-2026-10-03.md` **v5.5** = **62 项**（P0×7 / P1×22 / P2×24 / P3×6 / CC×3；2026-10-11 追加 R-P1-18 AI RCA 误判 / R-P1-19 AI Self-Healing 误修复 / R-P1-20 AI Code Review 遗漏）。
+5. **Stage Gate**：**46 项**（Y 手册 v5.9 基线 35 项 + 2026-10-11 企业级升级新增 11 项：S0-T7 GATE-LOGGING-COVERAGE-80 / S0-T8 GATE-OTEL-SPAN-100 / S0-T9 GATE-ALERT-ADAPTER-CLEANUP / GATE-AI-SLA-1/2/3 / GATE-LLM-SEC-1~3 / GATE-CC-RISK-AI-3 / GATE-NEW-EA-MOAT-DECLARED / GATE-DOC-CI-CONSISTENCY-R5；详见 `docs/gate-failure-degradation-2026-10-11.md` §3.2）。分布：**BLOCK 12 + DEGRADE 24 + SKIP 10 = 46**（NEW-EA-15 分级）。
 6. **推荐执行入口**：路线 A（ADR-011 → ADR-013 → ADR-014 → ADR-010 → ADR-012），R-P0-04/05 待 S7 阶段。
 7. **RC-03 硬约束**：以上 3 份文件均为**设计文档**，Agent 不修改生产代码。生产代码修复需用户显式确认。
 

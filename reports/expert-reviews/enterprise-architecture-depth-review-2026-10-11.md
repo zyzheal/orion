@@ -258,23 +258,25 @@
 
 ### 7.2 Y 手册未覆盖但企业级必需的任务（新增候选）
 
-| 新增任务 | 依据 | 优先级 | 依赖 |
-|---------|------|--------|------|
-| **NEW-EA-1: ADR-011 补 SQL builder 编译期强制（第 4 步）** | overall-plan-review-round2 §6.2 NEW-P0-6 | P0 | 无 |
-| **NEW-EA-2: internal/cmdb/attribute 包创建 + ADR-013 拆 2 Migration** | overall-plan-review-round2 §6.2 NEW-P0-5 | P0 | S0-T5 |
-| **NEW-EA-3: ADR-010/013/014 参照系修正**（删除虚构引用，独立论证） | adr-neatlogic-reference-audit §0 | P0 | 无 |
-| **NEW-EA-4: ADR-011 术语修正 Schema-per-tenant → DB-per-tenant** | adr-neatlogic-reference-audit §2.3 | P1 | 无 |
-| **NEW-EA-5: 每周基线刷新机制（脚本化 baseline.json）** | overall-plan-review-round2 §5.5 NEW-P1-7 | P1 | 无 |
-| **NEW-EA-6: 文档一致性 CI 校验脚本**（CLAUDE.md/INDEX/G1/Y/ADR 5 份）| overall-plan-review-round2 §7.4 NEW-P1-8 | P1 | 无 |
-| **NEW-EA-7: 结构化日志覆盖率门控 S0-T7**（`logger.*traceId` ≥ 80%）| 本报告 §4.4 | P1 | S0 完成 |
-| **NEW-EA-8: OTel span 覆盖率门控 S0-T8**（关键路径 100% span）| 本报告 §4.4 | P1 | P0-6 |
-| **NEW-EA-9: alert-adapter-v2 决策**（下线 v1 或删除 v2）| overall-plan-review-round2 §6.4 | P1 | S0-T4 |
-| **NEW-EA-10: AI 决策 SLA/评测集**（每类 AI 决策的准确率基线 + 人工确认边界）| 本报告 §5.4 阿里云 AIOps §5.2 | P1 | 无 |
-| **NEW-EA-11: LLM 安全防护**（prompt 注入 + 输出校验 + 数据脱敏）| 本报告 §5.4 AWS WA LLM01-BP01 | P1 | P0-6 |
-| **NEW-EA-12: CC 新增"AI 决策错误"风险条目** | 本报告 §5.4 | P1 | NEW-EA-10 |
-| **NEW-EA-13: Ticket Type 字段污染修复**（8 种异构值拆分 `ticket_source` + `alert_severity`）| overall-plan-review-round2 §3.2 NEW-P0-4 | P0 | S0-T4 |
-| **NEW-EA-14: cmdb 4 个 K8s/Script 桩升级**（`ListK8sResources` 接 k8s.io/client-go）| overall-plan-review-round2 §3.3 NEW-P0-5 | P0 | S0-T4 |
-| **NEW-EA-15: 门控失败降级策略文档**（每门控的失败降级路径）| overall-plan-review-round2 §5.1 | P1 | 全阶段 |
+| 新增任务 | 依据 | 优先级 | 依赖 | **产出文件（v5.10 同步）** |
+|---------|------|--------|------|--------------------|
+| **NEW-EA-1: ADR-011 补 SQL builder 编译期强制（第 4 步）** | overall-plan-review-round2 §6.2 NEW-P0-6 | P0 | 无 | `docs/slo-sla-2026-10-11.md`（U1 联合交付）|
+| **NEW-EA-2: internal/cmdb/attribute 包创建 + ADR-013 拆 2 Migration** | overall-plan-review-round2 §6.2 NEW-P0-5 | P0 | S0-T5 | `docs/adr/ADR-013-CMDB-二阶模型决策.md` §5.4 追加 |
+| **NEW-EA-3: ADR-010/013/014 参照系修正**（删除虚构引用，独立论证） | adr-neatlogic-reference-audit §0 | P0 | 无 | `reports/expert-reviews/adr-neatlogic-reference-fix-2026-10-11.md` |
+| **NEW-EA-4: ADR-011 术语修正 Schema-per-tenant → DB-per-tenant** | adr-neatlogic-reference-audit §2.3 | P1 | 无 | 同 NEW-EA-3（合并） |
+| **NEW-EA-5: 每周基线刷新机制（脚本化 baseline.json）** | overall-plan-review-round2 §5.5 NEW-P1-7 | P1 | 无 | `docs/baseline-refresh-and-doc-ci-2026-10-11.md` |
+| **NEW-EA-6: 文档一致性 CI 校验脚本**（CLAUDE.md/INDEX/G1/Y/ADR 5 份）| overall-plan-review-round2 §7.4 NEW-P1-8 | P1 | 无 | 同 NEW-EA-5（合并） |
+| **NEW-EA-7: 结构化日志覆盖率门控 S0-T7**（`logger.*traceId` ≥ 80%）| 本报告 §4.4 | P1 | S0 完成 | `docs/logging-coverage-gate-2026-10-11.md` |
+| **NEW-EA-8: OTel span 覆盖率门控 S0-T8**（关键路径 100% span）| 本报告 §4.4 | P1 | P0-6 | `docs/otel-span-coverage-gate-2026-10-11.md` |
+| **NEW-EA-9: alert-adapter-v2 决策**（下线 v1 或删除 v2）| overall-plan-review-round2 §6.4 | P1 | S0-T4 | `docs/alert-adapter-v2-decision-2026-10-11.md`（方案 B：删除 v2）|
+| **NEW-EA-10: AI 决策 SLA/评测集**（每类 AI 决策的准确率基线 + 人工确认边界）| 本报告 §5.4 阿里云 AIOps §5.2 | P1 | 无 | `docs/ai-decision-sla-eval-2026-10-11.md` |
+| **NEW-EA-11: LLM 安全防护**（prompt 注入 + 输出校验 + 数据脱敏）| 本报告 §5.4 AWS WA LLM01-BP01 | P1 | P0-6 | `docs/llm-security-hardening-2026-10-11.md` |
+| **NEW-EA-12: CC 新增"AI 决策错误"风险条目** | 本报告 §5.4 | P1 | NEW-EA-10 | `reports/module-upgrade-designs/risk-fallback-design-2026-10-03.md` §1.6.3.1 v5.5 |
+| **NEW-EA-13: Ticket Type 字段污染修复**（8 种异构值拆分 `ticket_source` + `alert_severity`）| overall-plan-review-round2 §3.2 NEW-P0-4 | P0 | S0-T4 | `docs/ticket-type-field-pollution-fix-2026-10-11.md` |
+| **NEW-EA-14: cmdb 4 个 K8s/Script 桩升级**（`ListK8sResources` 接 k8s.io/client-go）| overall-plan-review-round2 §3.3 NEW-P0-5 | P0 | S0-T4 | `docs/cmdb-k8s-script-stub-upgrade-2026-10-11.md` |
+| **NEW-EA-15: 门控失败降级策略文档**（每门控的失败降级路径）| overall-plan-review-round2 §5.1 | P1 | 全阶段 | `docs/gate-failure-degradation-2026-10-11.md`（46 门控 × 3 级）|
+
+> **产出状态更新（2026-10-11 v5.10）**：上表 15 项 NEW-EA 任务**全部产出方案文档**（commit d1a0b01a0 + 4e41444d2，共 4127 行）；产出目录以 `docs/*-2026-10-11.md` 命名，`reports/module-upgrade-designs/*-2026-10-03.md` 同步升级至 v5.5；CLAUDE.md 契约条款 3/4/5 + INDEX v5.5 + Y playbook §14.12 均已同步落地。
 
 ### 7.3 Y 手册过度设计的任务（可裁剪）
 

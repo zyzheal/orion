@@ -2973,6 +2973,115 @@ P1-9 (UI 组件对标) ─┘
 
 ---
 
+## 14.12 v5.10 更新：P1 批次（U9-U15 + NEW-EA-15）落地（2026-10-11）
+
+> **触发来源**：`reports/expert-reviews/enterprise-architecture-depth-review-2026-10-11.md` §6.4 关键判据 7-15 + §6.5 智能性判据
+> **决策链**：Y v5.9 §14.11 建议批次 U9-U15 + NEW-EA-15 → 本 §14.12 一次性登记产出文件 + Migration 号段 + 门控 + 降级矩阵
+> **RC-03 硬约束遵守**：本手册仍为设计文档，未修改任何生产代码；产出 7 份方案文档共 2583 行
+
+### 14.12.1 P1 批次任务表（7 项，全部 2026-10-11 产出）
+
+| ID | 任务 | 优先级 | 产出文件 | 行数 | Migration 号段 | 新增门控 |
+|----|------|-------|---------|------|-------------|--------|
+| **U9** | 结构化日志覆盖率门控 S0-T7（2.5%→80%） | P1 | `docs/logging-coverage-gate-2026-10-11.md` | 373 | 无 | GATE-LOGGING-COVERAGE-80 |
+| **U10** | OTel span 覆盖率门控 S0-T8（6.7%→100%） | P1 | `docs/otel-span-coverage-gate-2026-10-11.md` | 370 | 无 | GATE-OTEL-SPAN-100 |
+| **U11** | alert-adapter-v2 决策（方案 B 删除 v2） | P1 | `docs/alert-adapter-v2-decision-2026-10-11.md` | 292 | 无 | GATE-ALERT-ADAPTER-CLEANUP |
+| **U12** | AI 决策 SLA/评测集（8 类决策 L1/L2/L3 分档） | P1 | `docs/ai-decision-sla-eval-2026-10-11.md` | 378 | **770-772** | GATE-AI-SLA-1/2/3 |
+| **U13** | LLM 安全防护（6 层，20%→90%+） | P1 | `docs/llm-security-hardening-2026-10-11.md` | 472 | **773-775** | GATE-LLM-SEC-1~3 |
+| **U14** | CC 风险登记册 AI 决策错误风险（v5.4→v5.5） | P1 | `reports/module-upgrade-designs/risk-fallback-design-2026-10-03.md` §1.6.3.1 | +24 | 无 | GATE-CC-RISK-AI-3 |
+| **U15** | AI 差异化护城河保护清单（10 M + 15 不做） | P0 | `docs/ai-moat-protection-2026-10-11.md` | 312 | 无 | GATE-NEW-EA-MOAT-DECLARED |
+| **NEW-EA-15** | 门控失败降级策略文档（46 门控 × 3 级） | P1 | `docs/gate-failure-degradation-2026-10-11.md` | 362 | 无 | GATE-DOC-CI-CONSISTENCY-R5（U5 §5.4 已定义） |
+
+### 14.12.2 Migration 号段扩展（v5.10 新增 766-782）
+
+| 号段 | 用途 | 归属 | 状态 |
+|-----|------|-----|------|
+| 766-768 | U5 baseline 元数据表（weekly_baseline / baseline_audit_log） | `docs/baseline-refresh-and-doc-ci-2026-10-11.md` | 计划中 |
+| 769 | NEW-EA-14 cmdb k8s/script 桩升级（k8s_resource_script_config） | `docs/cmdb-k8s-script-stub-upgrade-2026-10-11.md` | 计划中 |
+| **770-772** | U12 AI 决策（ai_decision_audit / ai_decision_sla_config / ai_evaluation_dataset） | `docs/ai-decision-sla-eval-2026-10-11.md` | **计划中** |
+| **773-775** | U13 LLM 安全（llm_call_audit / prompt_templates / llm_rate_limit_config） | `docs/llm-security-hardening-2026-10-11.md` | **计划中** |
+| 776-778 | U14 CC 风险登记册扩展表（cc_risk_audit_log） | `reports/module-upgrade-designs/risk-fallback-design-2026-10-03.md` §1.6.3.1 | 计划中 |
+| 779-782 | U15 AI 护城河保护元数据（moat_registry / moat_audit_log / moat_exception） | `docs/ai-moat-protection-2026-10-11.md` | 计划中 |
+
+**注**：CLAUDE.md 契约条款 3 已同步至 v5.5（Migration 号段 699-782 全部"计划中"）。
+
+### 14.12.3 Stage Gate 从 35 扩展到 46（v5.10 新增 11 项）
+
+| # | 新增门控 | 阶段 | 严重级别 | 降级策略 |
+|---|--------|-----|--------|--------|
+| 36 | GATE-LOGGING-COVERAGE-80（S0-T7） | S0 | BLOCK | 无降级（P0 阶段） |
+| 37 | GATE-OTEL-SPAN-100（S0-T8） | S0 | BLOCK | 无降级（P0 阶段） |
+| 38 | GATE-ALERT-ADAPTER-CLEANUP（S0-T9） | S0 | BLOCK | 无降级（v2 引用清零） |
+| 39-41 | GATE-AI-SLA-1/2/3 | S1-S2 | DEGRADE | 降级到规则引擎（Feature Flag ai.self-heal.degraded） |
+| 42-44 | GATE-LLM-SEC-1/2/3 | S1-S2 | BLOCK | 无降级（LLM 安全不可降级） |
+| 45 | GATE-CC-RISK-AI-3 | 全阶段 | SKIP | 风险登记后 CI 不阻断 |
+| 46 | GATE-NEW-EA-MOAT-DECLARED | 全阶段 | SKIP | 一次性声明（Y 手册头部） |
+
+**门控总数**：35 + 11 = **46 项**
+**分级分布**（详见 `docs/gate-failure-degradation-2026-10-11.md` §3.2）：**BLOCK 12 + DEGRADE 24 + SKIP 10 = 46**
+
+### 14.12.4 修正后任务分布（v5.10）
+
+| 阶段/批次 | v5.9 任务数 | v5.10 任务数 | 变化 |
+|---------|----------|----------|-----|
+| S0 基础设施 | 6 | 6 | — |
+| S1 A11y 通病 | 12 | 12 | — |
+| S2 CMDB/ADR | 10 | 10 | — |
+| S3 新模块 | 14 | 14 | — |
+| S4 CI/CD | 6 | 6 | — |
+| S5 前端补齐 | 12 | 12 | — |
+| S6 跨模块 | 8 | 8 | — |
+| S7 止损 | 3 | 3 | — |
+| S8 P2 可选 | 5 | 5 | — |
+| §13 P0/P1/P2 补充 | 17 | 17 | — |
+| §14 运维治理 | 6 | 6 | — |
+| §14.10 前端融合补齐 | 3 | 3 | — |
+| §14.11 企业级架构升级（P0 批次 U1-U5 + NEW-EA-1/2/3/13/14） | 15 | 15 | — |
+| **§14.12 企业级架构升级（P1 批次 U9-U15 + NEW-EA-15）** | 0 | **8** | **+8** |
+| **合计** | **122** | **130** | **+8** |
+
+**门控数**：35 → **46**（+11）
+**Migration 号段**：699-765 → **699-782**（+18 号）
+**风险登记册**：v5.4（59 项）→ **v5.5（62 项）**（+R-P1-18/19/20）
+
+### 14.12.5 Skill Handoff Checklist
+
+| 下游技能 | 触发问题数 | 触发内容 | 优先级 |
+|---------|----------|---------|--------|
+| **task-decomposer** | 8 | 每份文档对应的实施子任务（U9: 5 / U10: 5 / U11: 3 / U12: 4 / U13: 4 / U14: 1 / U15: 2 / NEW-EA-15: 4 = 28 子任务） | P1 |
+| **design-constraint** | 3 | 新增 AST detector：logging-coverage + otel-span-coverage + ai-moat-protection | P0 |
+| **design-doc-reviewer** | 2 | AI 决策契约评审 + 门控降级矩阵评审 | P2 |
+
+**Structured Missing Items（JSON）**：
+
+```json
+{
+  "dimension": "enterprise_architecture_p1_batch",
+  "batch_id": "v5.10-P1",
+  "total_tasks": 8,
+  "total_docs": 7,
+  "total_lines": 2583,
+  "migration_ranges": ["766-768", "769", "770-772", "773-775", "776-778", "779-782"],
+  "gate_count_delta": 11,
+  "gate_total_after": 46,
+  "risk_register_version_delta": "v5.4→v5.5",
+  "risk_item_delta": 3,
+  "risk_item_total_after": 62,
+  "downstream_routing": {
+    "task_decomposer": {
+      "count": 28,
+      "items_by_doc": {
+        "U9-logging": 5, "U10-otel": 5, "U11-alert-v2": 3,
+        "U12-ai-sla": 4, "U13-llm-sec": 4, "U14-cc-risk": 1,
+        "U15-moat": 2, "NEW-EA-15-gate-degrade": 4
+      }
+    }
+  }
+}
+```
+
+---
+
 ## 11. 认知边界（本手册的诚实声明）
 
 ### 11.1 已做到

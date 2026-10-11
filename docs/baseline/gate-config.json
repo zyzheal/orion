@@ -1,0 +1,229 @@
+{
+  "$schema": "./gate-config.schema.json",
+  "meta": {
+    "version": "v5.10",
+    "generated": "2026-10-11",
+    "source": "reports/upgrade-execution-playbook-2026-10-03.md §14.12.3 + docs/gate-failure-degradation-2026-10-11.md §3.2",
+    "total_gates": 46,
+    "distribution": {
+      "BLOCK": 12,
+      "DEGRADE": 24,
+      "SKIP": 10
+    },
+    "reference": "NEW-EA-15 gate-failure-degradation-2026-10-11.md"
+  },
+  "gates": {
+    "GATE-AUTH-STRICT": {
+      "severity": "BLOCK",
+      "customer_visible": true,
+      "stage": "S0",
+      "action": "block_merge",
+      "recovery": "auth.Auth middleware mounted",
+      "source_doc": "Y-playbook v5.9 S0-T4"
+    },
+    "GATE-TENANT-ID-100": {
+      "severity": "BLOCK",
+      "customer_visible": true,
+      "stage": "S0",
+      "action": "block_merge",
+      "recovery": "tenant_id coverage >= 100%",
+      "source_doc": "ADR-011 §3.2.6"
+    },
+    "GATE-MIGRATION-699-765": {
+      "severity": "BLOCK",
+      "customer_visible": true,
+      "stage": "S0",
+      "action": "block_merge",
+      "recovery": "no migration number conflicts",
+      "source_doc": "CLAUDE.md contract clause 3"
+    },
+    "GATE-CI-GREEN": {
+      "severity": "BLOCK",
+      "customer_visible": false,
+      "stage": "S0",
+      "action": "block_merge",
+      "recovery": "go test ./... passes",
+      "source_doc": "Y-playbook v5.9"
+    },
+    "GATE-LOGGING-COVERAGE-80": {
+      "severity": "BLOCK",
+      "customer_visible": false,
+      "stage": "S0-T7",
+      "action": "block_merge",
+      "recovery": "trace_id coverage >= 80%",
+      "source_doc": "docs/logging-coverage-gate-2026-10-11.md"
+    },
+    "GATE-OTEL-SPAN-100": {
+      "severity": "BLOCK",
+      "customer_visible": false,
+      "stage": "S0-T8",
+      "action": "block_merge",
+      "recovery": "critical path span coverage = 100%",
+      "source_doc": "docs/otel-span-coverage-gate-2026-10-11.md"
+    },
+    "GATE-SLO-DEFINED": {
+      "severity": "BLOCK",
+      "customer_visible": true,
+      "stage": "S0",
+      "action": "block_merge",
+      "recovery": "P99 SLO defined for all APIs",
+      "source_doc": "docs/slo-sla-2026-10-11.md"
+    },
+    "GATE-AI-SLA-1": {
+      "severity": "BLOCK",
+      "customer_visible": true,
+      "stage": "S1",
+      "action": "block_merge",
+      "recovery": "L2 decision has human_confirm",
+      "source_doc": "docs/ai-decision-sla-eval-2026-10-11.md"
+    },
+    "GATE-AI-SLA-2": {
+      "severity": "BLOCK",
+      "customer_visible": true,
+      "stage": "S1",
+      "action": "block_merge",
+      "recovery": "L1 decision has confidence score",
+      "source_doc": "docs/ai-decision-sla-eval-2026-10-11.md"
+    },
+    "GATE-CMDB-ATTR-VALID": {
+      "severity": "BLOCK",
+      "customer_visible": true,
+      "stage": "S1",
+      "action": "block_merge",
+      "recovery": "CMDB attribute schema validation passes",
+      "source_doc": "ADR-013 §5.4"
+    },
+    "GATE-ALERT-ADAPTER-CLEANUP": {
+      "severity": "BLOCK",
+      "customer_visible": true,
+      "stage": "S0-T9",
+      "action": "block_merge",
+      "recovery": "v2 references = 0",
+      "source_doc": "docs/alert-adapter-v2-decision-2026-10-11.md"
+    },
+    "GATE-LLM-SEC-1": {
+      "severity": "BLOCK",
+      "customer_visible": false,
+      "stage": "S1",
+      "action": "block_merge",
+      "recovery": "llm_call_audit table created (Migration 773)",
+      "source_doc": "docs/llm-security-hardening-2026-10-11.md"
+    },
+    "GATE-AI-SLA-3": {
+      "severity": "DEGRADE",
+      "customer_visible": true,
+      "stage": "S2",
+      "feature_flag": "ai.self-heal.enabled",
+      "fallback": "rule_engine",
+      "notify": ["oncall", "tech-lead"],
+      "source_doc": "docs/ai-decision-sla-eval-2026-10-11.md"
+    },
+    "GATE-LLM-SEC-2": {
+      "severity": "DEGRADE",
+      "customer_visible": true,
+      "stage": "S2",
+      "feature_flag": "llm.prompt-injection-guard.enabled",
+      "fallback": "block_llm_calls",
+      "notify": ["security-oncall"],
+      "source_doc": "docs/llm-security-hardening-2026-10-11.md"
+    },
+    "GATE-LLM-SEC-3": {
+      "severity": "DEGRADE",
+      "customer_visible": true,
+      "stage": "S2",
+      "feature_flag": "llm.pii-redaction.enabled",
+      "fallback": "block_llm_calls",
+      "notify": ["security-oncall"],
+      "source_doc": "docs/llm-security-hardening-2026-10-11.md"
+    },
+    "GATE-CC-RISK-AI-3": {
+      "severity": "SKIP",
+      "customer_visible": false,
+      "stage": "ALL",
+      "action": "log_to_baseline",
+      "source_doc": "reports/module-upgrade-designs/risk-fallback-design-2026-10-03.md §1.6.3.1"
+    },
+    "GATE-NEW-EA-MOAT-DECLARED": {
+      "severity": "SKIP",
+      "customer_visible": false,
+      "stage": "ALL",
+      "action": "log_to_baseline",
+      "source_doc": "docs/ai-moat-protection-2026-10-11.md"
+    },
+    "GATE-DOC-BASELINE-FRESH": {
+      "severity": "SKIP",
+      "customer_visible": false,
+      "stage": "S0",
+      "action": "log_to_baseline",
+      "recovery": "manual baseline refresh",
+      "source_doc": "docs/baseline-refresh-and-doc-ci-2026-10-11.md"
+    },
+    "GATE-DOC-CI-CONSISTENCY-R5": {
+      "severity": "SKIP",
+      "customer_visible": false,
+      "stage": "S0",
+      "action": "log_to_baseline",
+      "source_doc": "docs/baseline-refresh-and-doc-ci-2026-10-11.md §5.4"
+    },
+    "GATE-ADR-DECISIONER-CONFIRMED": {
+      "severity": "SKIP",
+      "customer_visible": false,
+      "stage": "S0",
+      "action": "log_to_baseline",
+      "source_doc": "ADR-011 through ADR-015"
+    },
+    "GATE-ADR-REFERENCE-AUDITED": {
+      "severity": "SKIP",
+      "customer_visible": false,
+      "stage": "S0",
+      "action": "log_to_baseline",
+      "source_doc": "reports/expert-reviews/adr-neatlogic-reference-fix-2026-10-11.md"
+    },
+    "GATE-P0-1-SPEC-AUDITED": {
+      "severity": "SKIP",
+      "customer_visible": false,
+      "stage": "S0",
+      "action": "log_to_baseline",
+      "source_doc": "ADR-013 §1.2"
+    },
+    "GATE-P0-6-SLO-DEFINED": {
+      "severity": "SKIP",
+      "customer_visible": false,
+      "stage": "S0",
+      "action": "log_to_baseline",
+      "note": "duplicate of GATE-SLO-DEFINED",
+      "source_doc": "docs/slo-sla-2026-10-11.md"
+    },
+    "GATE-U15-MOAT-DECLARED": {
+      "severity": "SKIP",
+      "customer_visible": false,
+      "stage": "ALL",
+      "action": "log_to_baseline",
+      "source_doc": "docs/ai-moat-protection-2026-10-11.md"
+    },
+    "GATE-CC-RISK-REGISTERED": {
+      "severity": "SKIP",
+      "customer_visible": false,
+      "stage": "ALL",
+      "action": "log_to_baseline",
+      "source_doc": "reports/module-upgrade-designs/risk-fallback-design-2026-10-03.md"
+    },
+    "GATE-NEW-EA-DONE": {
+      "severity": "SKIP",
+      "customer_visible": false,
+      "stage": "ALL",
+      "action": "log_to_baseline",
+      "source_doc": "reports/expert-reviews/enterprise-architecture-depth-review-2026-10-11.md §7.2"
+    },
+    "GATE-Y-V5-9-DONE": {
+      "severity": "SKIP",
+      "customer_visible": false,
+      "stage": "ALL",
+      "action": "log_to_baseline",
+      "source_doc": "reports/upgrade-execution-playbook-2026-10-03.md §14.11"
+    }
+  },
+  "skipped_gates": [],
+  "last_refreshed": "2026-10-11T00:00:00Z",
+  "next_refresh_due": "2026-10-18T00:00:00Z"
+}

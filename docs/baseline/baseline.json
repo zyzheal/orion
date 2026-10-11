@@ -1,0 +1,120 @@
+{
+  "$schema": "./baseline.schema.json",
+  "meta": {
+    "version": "v5.10",
+    "generated": "2026-10-11",
+    "source_docs": [
+      "reports/design-docs-summary-2026-10-03.md",
+      "reports/upgrade-execution-playbook-2026-10-03.md",
+      "reports/module-upgrade-designs/risk-fallback-design-2026-10-03.md",
+      "reports/expert-reviews/enterprise-architecture-depth-review-2026-10-11.md",
+      "CLAUDE.md"
+    ],
+    "next_refresh_due": "2026-10-18T00:00:00Z",
+    "refresh_policy": "weekly",
+    "refresh_script": "scripts/baseline/refresh-baseline.sh (planned, RC-03 not yet implemented)"
+  },
+  "index": {
+    "file": "reports/design-docs-summary-2026-10-03.md",
+    "version": "v5.5",
+    "total_reports": 86,
+    "adr_count": 6,
+    "total_lines": 48900,
+    "sha256_placeholder": "TBD_ON_REFRESH"
+  },
+  "y_playbook": {
+    "file": "reports/upgrade-execution-playbook-2026-10-03.md",
+    "version": "v5.10",
+    "total_tasks": 130,
+    "stage_distribution": {
+      "S0": 6, "S1": 12, "S2": 10, "S3": 14, "S4": 6, "S5": 12,
+      "S6": 8, "S7": 3, "S8": 5, "P0/P1/P2": 17, "S0-S6-production": 68,
+      "§14-ops": 6, "§14.10-frontend": 3, "§14.11-enterprise-p0": 15,
+      "§14.12-enterprise-p1": 8
+    }
+  },
+  "g1": {
+    "file": "reports/expert-reviews/all-plans-tasks-summary-2026-10-03.md",
+    "version": "v1.1",
+    "total_tasks": 134
+  },
+  "risk_register": {
+    "file": "reports/module-upgrade-designs/risk-fallback-design-2026-10-03.md",
+    "version": "v5.5",
+    "total_risks": 62,
+    "distribution": {
+      "P0": 7, "P1": 22, "P2": 24, "P3": 6, "CC": 3
+    },
+    "ai_decision_risks": [
+      "R-P1-18 (AI RCA 误判告警根因 → 误静默)",
+      "R-P1-19 (AI Self-Healing 误修复 → 二次故障)",
+      "R-P1-20 (AI Code Review 遗漏真实 P0 缺陷)"
+    ]
+  },
+  "stage_gates": {
+    "file": "docs/baseline/gate-config.json",
+    "total_gates": 46,
+    "distribution": {
+      "BLOCK": 12,
+      "DEGRADE": 24,
+      "SKIP": 10
+    },
+    "degradation_matrix_doc": "docs/gate-failure-degradation-2026-10-11.md"
+  },
+  "migrations": {
+    "aa_planned_range": "699-765",
+    "enterprise_upgrade_range": "766-782",
+    "current_state": "ALL_EMPTY",
+    "assigned": {
+      "699-765": "ADR-011/013/014/015 planned",
+      "766-768": "U5 baseline metadata tables",
+      "769": "NEW-EA-14 cmdb k8s/script stub upgrade",
+      "770-772": "U12 AI decision audit / sla_config / evaluation_dataset",
+      "773-775": "U13 LLM security (llm_call_audit / prompt_templates / llm_rate_limit_config)",
+      "776-778": "U14 CC risk extension (cc_risk_audit_log)",
+      "779-782": "U15 AI moat protection metadata (moat_registry / moat_audit_log / moat_exception)"
+    }
+  },
+  "new_ea_deliverables": {
+    "meta_doc": "reports/expert-reviews/enterprise-architecture-depth-review-2026-10-11.md",
+    "p0_batch_commit": "d1a0b01a0",
+    "p1_batch_commit": "4e41444d2",
+    "total_docs": 13,
+    "total_lines": 4127,
+    "deliverables": [
+      {"id": "U1/NEW-EA-1", "file": "docs/slo-sla-2026-10-11.md", "lines": 259},
+      {"id": "U2/NEW-EA-2", "file": "docs/adr/ADR-013-CMDB-二阶模型决策.md §5.4 (added)", "lines": 33},
+      {"id": "NEW-EA-3/4", "file": "reports/expert-reviews/adr-neatlogic-reference-fix-2026-10-11.md", "lines": 400},
+      {"id": "U5/NEW-EA-5/6", "file": "docs/baseline-refresh-and-doc-ci-2026-10-11.md", "lines": 199},
+      {"id": "U9/NEW-EA-7", "file": "docs/logging-coverage-gate-2026-10-11.md", "lines": 373},
+      {"id": "U10/NEW-EA-8", "file": "docs/otel-span-coverage-gate-2026-10-11.md", "lines": 370},
+      {"id": "U11/NEW-EA-9", "file": "docs/alert-adapter-v2-decision-2026-10-11.md", "lines": 292},
+      {"id": "U12/NEW-EA-10", "file": "docs/ai-decision-sla-eval-2026-10-11.md", "lines": 378},
+      {"id": "U13/NEW-EA-11", "file": "docs/llm-security-hardening-2026-10-11.md", "lines": 472},
+      {"id": "U14/NEW-EA-12", "file": "reports/module-upgrade-designs/risk-fallback-design-2026-10-03.md §1.6.3.1", "lines": 24},
+      {"id": "NEW-EA-13", "file": "docs/ticket-type-field-pollution-fix-2026-10-11.md", "lines": 201},
+      {"id": "NEW-EA-14", "file": "docs/cmdb-k8s-script-stub-upgrade-2026-10-11.md", "lines": 312},
+      {"id": "NEW-EA-15", "file": "docs/gate-failure-degradation-2026-10-11.md", "lines": 362},
+      {"id": "U15", "file": "docs/ai-moat-protection-2026-10-11.md", "lines": 312},
+      {"id": "U3", "file": "docs/capacity-plan-2026-10-11.md", "lines": 240},
+      {"id": "U4", "file": "docs/chaos-experiments-2026-10-11.md", "lines": 227}
+    ]
+  },
+  "skipped_gates": [],
+  "integrity_checks": {
+    "R1_claude_md_contract_versions_match_index": {"expected": "v5.5", "actual": "v5.5", "passed": true},
+    "R2_y_playbook_mentions_all_enterprise_p0": {"expected": "U1-U5+NEW-EA-1/2/3/13/14", "actual": "§14.11", "passed": true},
+    "R3_y_playbook_mentions_all_enterprise_p1": {"expected": "U9-U15+NEW-EA-15", "actual": "§14.12", "passed": true},
+    "R4_migration_range_documented": {"expected": "699-782", "actual": "CLAUDE.md clause 3", "passed": true},
+    "R5_stage_gate_count_consistent": {"expected": 46, "actual": 46, "passed": true},
+    "R6_risk_register_version_synced": {"expected": "v5.5", "actual": "v5.5", "passed": true},
+    "R7_gate_config_json_exists": {"expected": true, "actual": true, "passed": true},
+    "R8_baseline_json_exists": {"expected": true, "actual": true, "passed": true}
+  },
+  "next_review_items": [
+    {"id": "NEXT-1", "title": "Implement scripts/baseline/refresh-baseline.sh (RC-03 blocked until user confirms production code)", "priority": "P2"},
+    {"id": "NEXT-2", "title": "Y playbook header §1 quote U15's 15-item 'not-do' list", "priority": "P2"},
+    {"id": "NEXT-3", "title": "ADR-016/017 template with U15 M-1~M-10 required fields", "priority": "P2"},
+    {"id": "NEXT-4", "title": "CC v5.5 R-P1-18/19/20 reflected into Y playbook risk list", "priority": "P2"}
+  ]
+}
