@@ -17,19 +17,38 @@ interface CatalogTabProps {
 export const CatalogTab = ({ columns, items, loading, onCreate, onRefresh }: CatalogTabProps) => (
   <Card
     title="服务目录"
+    role="region"
+    aria-label="服务目录列表"
+    aria-busy={loading}
     extra={
       <Space>
-        <Button icon={<ReloadOutlined />} size="small" onClick={onRefresh} loading={loading}>
+        <Button
+          icon={<ReloadOutlined />}
+          size="small"
+          onClick={onRefresh}
+          loading={loading}
+          aria-label="刷新服务目录"
+          tabIndex={0}
+        >
           刷新
         </Button>
-        <Button type="primary" size="small" icon={<PlusOutlined />} onClick={onCreate}>
+        <Button
+          type="primary"
+          size="small"
+          icon={<PlusOutlined />}
+          onClick={onCreate}
+          aria-label="新建服务"
+          tabIndex={0}
+        >
           新建服务
         </Button>
       </Space>
     }
   >
     {items.length === 0 ? (
-      <Empty description="暂无服务，请注册第一个服务" />
+      <div role="status" aria-live="polite" aria-atomic="true">
+        <Empty description="暂无服务，请注册第一个服务" />
+      </div>
     ) : (
       <Table
         columns={columns}

@@ -22,12 +22,30 @@ export const ServiceTable = ({
   onRegister,
   onRefresh,
 }: ServiceTableProps) => (
-  <Card style={{ borderRadius: 12 }} styles={{ body: { padding: 16 } }}>
+  <Card
+    style={{ borderRadius: 12 }}
+    styles={{ body: { padding: 16 } }}
+    role="region"
+    aria-label="服务列表"
+    aria-busy={loading}
+  >
     <Space style={{ marginBottom: 16 }}>
-      <Button type="primary" icon={<PlusOutlined />} onClick={onRegister}>
+      <Button
+        type="primary"
+        icon={<PlusOutlined />}
+        onClick={onRegister}
+        aria-label="注册新服务"
+        tabIndex={0}
+      >
         注册服务
       </Button>
-      <Button icon={<ReloadOutlined />} onClick={onRefresh} loading={loading}>
+      <Button
+        icon={<ReloadOutlined />}
+        onClick={onRefresh}
+        loading={loading}
+        aria-label="刷新服务列表"
+        tabIndex={0}
+      >
         刷新
       </Button>
     </Space>
@@ -43,7 +61,13 @@ export const ServiceTable = ({
           showTotal: (t: number) => `共 ${t} 项`,
         } as any
       }
-      locale={{ emptyText: <Empty description="暂无注册服务" /> }}
+      locale={{
+        emptyText: (
+          <div role="status" aria-live="polite" aria-atomic="true">
+            <Empty description="暂无注册服务" />
+          </div>
+        ),
+      }}
       scroll={{ x: 1000 }}
     />
   </Card>

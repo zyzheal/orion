@@ -24,6 +24,7 @@ export const DetailModal = ({ open, service, health, healthLoading, onClose }: D
     footer={null}
     width={640}
     destroyOnClose
+    aria-label={service ? `服务详情：${service.name}` : '服务详情'}
   >
     {service && (
       <>
@@ -58,22 +59,28 @@ export const DetailModal = ({ open, service, health, healthLoading, onClose }: D
 
         <Title level={5}>健康详情</Title>
         {healthLoading ? (
-          <div style={{ textAlign: 'center', padding: 24 }}>加载中...</div>
+          <div role="status" aria-busy="true" aria-live="polite" style={{ textAlign: 'center', padding: 24 }}>
+            加载中...
+          </div>
         ) : health ? (
-          <Descriptions column={2} bordered size="small">
-            <Descriptions.Item label="状态">
-              <Tag icon={HEALTH_STATUS[health.status]?.icon} color={HEALTH_STATUS[health.status]?.color}>
-                {HEALTH_STATUS[health.status]?.label || '未知'}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="延迟 (ms)">{health.latencyMs}</Descriptions.Item>
-            <Descriptions.Item label="错误率">{health.errorRate}%</Descriptions.Item>
-            <Descriptions.Item label="最后检查">
-              {new Date(health.lastChecked).toLocaleString('zh-CN')}
-            </Descriptions.Item>
-          </Descriptions>
+          <div role="region" aria-label="健康详情" aria-live="polite" aria-atomic="true">
+            <Descriptions column={2} bordered size="small">
+              <Descriptions.Item label="状态">
+                <Tag icon={HEALTH_STATUS[health.status]?.icon} color={HEALTH_STATUS[health.status]?.color}>
+                  {HEALTH_STATUS[health.status]?.label || '未知'}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="延迟 (ms)">{health.latencyMs}</Descriptions.Item>
+              <Descriptions.Item label="错误率">{health.errorRate}%</Descriptions.Item>
+              <Descriptions.Item label="最后检查">
+                {new Date(health.lastChecked).toLocaleString('zh-CN')}
+              </Descriptions.Item>
+            </Descriptions>
+          </div>
         ) : (
-          <Empty description="暂无健康数据" />
+          <div role="status" aria-live="polite" aria-atomic="true">
+            <Empty description="暂无健康数据" />
+          </div>
         )}
       </>
     )}

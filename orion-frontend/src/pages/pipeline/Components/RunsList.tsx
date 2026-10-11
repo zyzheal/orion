@@ -29,12 +29,15 @@ export const RunsList: React.FC<RunsListProps> = ({ state }) => {
     <Card
       title="Pipeline Run 列表"
       bordered={false}
+      role="region"
+      aria-label="Pipeline Run 列表"
       extra={
         <Select
           value={state.statusFilter}
           onChange={state.setStatusFilter}
           style={{ width: 140 }}
           size="small"
+          aria-label="按状态过滤 Pipeline Run"
         >
           <Option value="all">全部状态</Option>
           <Option value="success">成功</Option>
@@ -44,30 +47,39 @@ export const RunsList: React.FC<RunsListProps> = ({ state }) => {
       }
     >
       {state.filteredRuns.length > 0 ? (
-        <Table<PipelineRunItem>
-          columns={columns}
-          dataSource={state.filteredRuns}
-          rowKey="id"
-          rowSelection={{
-            type: 'radio',
-            selectedRowKeys: state.selectedRun ? [state.selectedRun.id] : [],
-            onChange: (_keys, records) => {
-              if (records.length > 0) state.setSelectedRun(records[0]);
-            },
-          }}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: false,
-            showTotal: (total) => `共 ${total} 条`,
-          }}
-          size="middle"
-        />
+        <div role="list" aria-label="Pipeline Run 列表" aria-live="polite" aria-atomic="false">
+          <Table<PipelineRunItem>
+            columns={columns}
+            dataSource={state.filteredRuns}
+            rowKey="id"
+            rowSelection={{
+              type: 'radio',
+              selectedRowKeys: state.selectedRun ? [state.selectedRun.id] : [],
+              onChange: (_keys, records) => {
+                if (records.length > 0) state.setSelectedRun(records[0]);
+              },
+            }}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: false,
+              showTotal: (total: number) => `共 ${total} 条`,
+            }}
+            size="middle"
+          />
+        </div>
       ) : (
-        <Empty description="暂无匹配的 Pipeline Run 记录">
-          <Button type="primary" onClick={() => state.setStatusFilter('all')}>
-            显示全部
-          </Button>
-        </Empty>
+        <div role="status" aria-live="polite" aria-atomic="true">
+          <Empty description="暂无匹配的 Pipeline Run 记录">
+            <Button
+              type="primary"
+              onClick={() => state.setStatusFilter('all')}
+              aria-label="显示全部 Pipeline Run"
+              tabIndex={0}
+            >
+              显示全部
+            </Button>
+          </Empty>
+        </div>
       )}
     </Card>
   );

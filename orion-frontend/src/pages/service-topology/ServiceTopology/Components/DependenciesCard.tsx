@@ -28,25 +28,35 @@ export const DependenciesCard: React.FC<Props> = ({ subGraphEdges, selectedServi
         </Space>
       }
       styles={{ body: { padding: 0 } }}
+      role="region"
+      aria-label="依赖关系"
+      aria-busy={tableLoading}
     >
       <Spin spinning={tableLoading}>
         {subGraphEdges.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: spacing.xxl }}>
+          <div
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            style={{ textAlign: 'center', padding: spacing.xxl }}
+          >
             <Empty description={selectedServiceId ? '该服务暂无依赖数据' : '暂无依赖数据'} />
           </div>
         ) : (
-          <Table
-            columns={columns}
-            dataSource={subGraphEdges}
-            loading={tableLoading}
-            rowKey="key"
-            size="middle"
-            pagination={{
-              pageSize: 20,
-              showSizeChanger: true,
-              showTotal: (total) => `共 ${total} 条`,
-            }}
-          />
+          <div role="list" aria-label="依赖列表" aria-live="polite" aria-atomic="false">
+            <Table
+              columns={columns}
+              dataSource={subGraphEdges}
+              loading={tableLoading}
+              rowKey="key"
+              size="middle"
+              pagination={{
+                pageSize: 20,
+                showSizeChanger: true,
+                showTotal: (total) => `共 ${total} 条`,
+              }}
+            />
+          </div>
         )}
       </Spin>
     </Card>

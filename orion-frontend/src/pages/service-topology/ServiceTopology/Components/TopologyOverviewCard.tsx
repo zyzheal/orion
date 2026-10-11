@@ -36,35 +36,43 @@ export const TopologyOverviewCard: React.FC<Props> = ({
     }
     style={{ marginBottom: spacing.lg }}
     styles={{ body: { padding: spacing.md } }}
+    role="region"
+    aria-label="拓扑总览"
+    aria-busy={loading}
   >
     <Spin spinning={loading && !topology}>
       {!topology && !loading ? (
-        <Empty description="暂无拓扑数据" />
+        <div role="status" aria-live="polite" aria-atomic="true">
+          <Empty description="暂无拓扑数据" />
+        </div>
       ) : (
-        <Space direction="vertical" style={{ width: '100%' }} size={spacing.md}>
-          <Text type="secondary">
-            当前注册服务共 <Text strong>{topology?.nodes.length ?? 0}</Text> 个， 依赖关系共{' '}
-            <Text strong>{topology?.edges.length ?? 0}</Text> 条。
-          </Text>
-
-          {/* Service selector */}
-          <div>
-            <Text
-              style={{ display: 'block', marginBottom: spacing.sm, fontWeight: 500 }}
-            >
-              选择服务查看子拓扑
+        <div role="region" aria-label="拓扑概览" aria-live="polite" aria-atomic="true">
+          <Space direction="vertical" style={{ width: '100%' }} size={spacing.md}>
+            <Text type="secondary">
+              当前注册服务共 <Text strong>{topology?.nodes.length ?? 0}</Text> 个， 依赖关系共{' '}
+              <Text strong>{topology?.edges.length ?? 0}</Text> 条。
             </Text>
-            <Select
-              style={{ width: 320 }}
-              placeholder="请选择要查看的服务"
-              allowClear
-              onChange={onServiceChange}
-              options={nodeOptions}
-              showSearch
-              optionFilterProp="label"
-            />
-          </div>
-        </Space>
+
+            {/* Service selector */}
+            <div>
+              <Text
+                style={{ display: 'block', marginBottom: spacing.sm, fontWeight: 500 }}
+              >
+                选择服务查看子拓扑
+              </Text>
+              <Select
+                style={{ width: 320 }}
+                placeholder="请选择要查看的服务"
+                allowClear
+                aria-label="选择服务查看子拓扑"
+                onChange={onServiceChange}
+                options={nodeOptions}
+                showSearch
+                optionFilterProp="label"
+              />
+            </div>
+          </Space>
+        </div>
       )}
     </Spin>
   </Card>
