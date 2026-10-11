@@ -232,6 +232,8 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	wireCapacity(db, logger)
 	wireMiddlewareOps(db, logger)
 	wireOrchestration(db, logger)
+	// R-P0-04: RDM statistics endpoints (stub phase, see wiring-rdm-statistics.go)
+	wireRDMStatistics(db, logger)
 }
 
 // wireNatsSubscribers initializes the Incident and Self-Healing NATS JetStream

@@ -1676,5 +1676,10 @@ func buildDumpEntries() []dumpEntry {
 				alertRuleEngineH.RegisterRoutes(api)
 			}
 		}},
+		{"rdmStatsH", 1057, func(api *gin.RouterGroup) {
+			if rdmStatsH != nil {
+				rdmStatsH.RegisterRoutes(api)
+			}
+		}},
 	}
 }
