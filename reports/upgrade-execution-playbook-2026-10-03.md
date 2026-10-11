@@ -2658,10 +2658,11 @@ cd orion-platform-svc-go && go test ./internal/saga/... -run TestSaga_ChaosRollb
 | 矛盾点 | v5.6 状态 | v5.7 修正 |
 |-------|----------|----------|
 | 门控数 23/26/29 | 未修正 | P0-10 统一为 29 |
-| 任务数 98 vs 104 | v5.6=98 | v5.7=104（+6 运维治理） |
+| 任务数 98 vs 104 | v5.6=98 | v5.7=104（+6 运维治理）→ v5.8=107（+3 前端融合） |
 | 依赖冲突（P1-2/S2-ADR1） | 未修正 | P1-2 合并到 S2-ADR1 |
 | 批次 A 与 S1/S5 冲突 | 未修正 | P1-4/P1-5 依赖改为"S1/S5 完成" |
 | NeatLogic 融合率 | 未定义 | 0% 完美融合（5 层全部达标） |
+| 前端页面融合覆盖 | 未定义（3/219 已详审） | v5.8 审计范围 219/219（P1-8/9/10） |
 
 ### 14.9 v5.7 后续动作
 
@@ -2672,6 +2673,135 @@ cd orion-platform-svc-go && go test ./internal/saga/... -run TestSaga_ChaosRollb
 5. **NeatLogic 完美融合验证**：每阶段结束后更新融合率矩阵
 
 **修正后总任务数**：81 + 17 + 6 = **104 项**
+
+### 14.10 v5.8 前端页面融合缺口补齐（2026-10-11）
+
+> **触发**：用户确认"是否包含了所有的前端页面功能的融合"
+> **实测基线**：`orion-frontend/src/pages/` 共 **219 页面**；v5.7 仅详审 **3 页面**（TicketDetail / Console / DashboardNew）
+> **覆盖率**：3 / 219 = **1.37%**（98.63% 页面未纳入方案）
+> **任务数变化**：104 → **107**（+3 项 P1）
+
+#### 14.10.1 前端融合现状实测
+
+| 维度 | 实测值 | 来源 |
+|------|-------|------|
+| 前端页面总数 | 219 | `ls orion-frontend/src/pages/ \| wc -l` |
+| v5.7 已详审页面 | 3 (TicketDetail / Console / DashboardNew) | Y 手册 §4.6 S5 |
+| **未纳入方案页面** | **216 (98.63%)** | — |
+| API client 总数 | 352 | `ls orion-frontend/src/api/*.ts \| wc -l` |
+| `.delete()` 调用 | 182 | `grep -r "\.delete\(" orion-frontend/src/api/` |
+| `.update()` 调用 | **3** | `grep -r "\.update\(" orion-frontend/src/api/` |
+| `.create()` 调用 | **0** | `grep -r "\.create\(" orion-frontend/src/api/` |
+| 总 API 方法调用 | 1162 | 全方法聚合 |
+| NeatLogic UI 组件引用页面 | 1 (FormDesigner) | `grep -l "NeatLogic" pages/*/index.tsx` |
+| A11y `aria-label` 覆盖 | 20 / 2262 buttons | 第二轮评审 §599 |
+| `/* eslint-disable */` 出现 | 待审计 | 规则已配 12 条但可能未生效 |
+
+#### 14.10.2 3 项前端融合缺口
+
+**缺口 1：216 页面 CRUD 完整性未审计**
+- v5.7 只详审 3 页，其余 216 页的 Create/Read/Update/Delete 完整链路**无逐页审计**
+- 实测：`.delete()` 182 次 / `.update()` 3 次 / `.create()` 0 次 → 大量页面**只有 Read + Delete，无 Update/Create**
+- 后端 PUT 端点数量未同步核对，前后端契约不一致
+- 第二轮评审 §595-599 已识别此风险但未转化为任务
+
+**缺口 2：NeatLogic UI 组件对标准缺口**
+- NeatLogic UI 组件库：FormDesigner / WorkflowDesigner / TableDesigner / DragDrop / Timeline / Kanban / Gantt / MindMap / TreeView / RichText 等 **10+ 独有组件**
+- 当前仅 1 个页面 (FormDesigner) 引用 NeatLogic，其余 0 引用
+- **无 UI 组件级对标准**（NeatLogic 10+ 独有组件 vs Orion 200 组件的映射矩阵缺失）
+- Orion 前端组件库 `orion-frontend/src/components/` 未做组件级差异分析
+
+**缺口 3：功能点→页面映射矩阵缺失**
+- §14.6.6 前端融合 2.5% (9/381) 是**功能点粒度**，未映射到 219 页面
+- **映射矩阵缺失**：381 功能点分别落到哪些页面？每个页面覆盖几个功能点？哪些功能点在页面上没有入口？
+- 无入口的功能点 = 即使后端 API 已实现，用户也无法在 UI 触达（隐性融合失败）
+
+#### 14.10.3 新增 3 项 P1 任务
+
+##### P1-8：216 页面 CRUD 完整性批量审计
+
+- **任务描述**：编写脚本对 219 页面（含 3 已审）扫描 CRUD 完整链路，标记"只有 Read 无 Update"、"只有 List 无 Create"等缺口
+- **涉及文件**：`orion-frontend/src/pages/**/index.tsx` + `orion-frontend/src/api/*.ts`
+- **验证方式**：
+  ```bash
+  # 每个页面必须至少有 Read + Update 或 Read + Create
+  # 目标：Read-only 页面比例 < 10%
+  grep -r "useNavigate\|onClick.*Update\|onClick.*Create\|onClick.*Edit" orion-frontend/src/pages/ --include="*.tsx" | wc -l
+  # 目标 >200
+  ```
+- **回滚步骤**：审计结果作为报告产出，无代码修改；若脚本误判则修正脚本
+- **依赖**：无（独立审计任务）
+- **门控**：S5 出口门控新增"CRUD 完整率 > 80%"
+
+##### P1-9：NeatLogic UI 组件对标准缺口盘点
+
+- **任务描述**：盘点 NeatLogic 10+ 独有 UI 组件（FormDesigner / WorkflowDesigner / TableDesigner / DragDrop / Timeline / Kanban / Gantt / MindMap / TreeView / RichText 等）vs Orion `orion-frontend/src/components/` 200 组件的映射
+- **涉及文件**：`reports/expert-reviews/neatlogic-ui-components-comparison-2026-10-11.md`（新建）
+- **验证方式**：
+  ```bash
+  # 输出 NeatLogic 10+ 独有组件 vs Orion 对应组件的映射表
+  # 每个 NeatLogic 组件必须标注：已对齐 / 部分对齐 / 缺失
+  grep -rn "FormDesigner\|WorkflowDesigner\|TableDesigner\|DragDrop\|Timeline\|Kanban\|Gantt\|MindMap" orion-frontend/src/components/ --include="*.tsx" | wc -l
+  ```
+- **回滚步骤**：报告产出无代码修改
+- **依赖**：无（独立审计任务）
+- **门控**：S5 出口门控新增"NeatLogic UI 组件对标准盘点报告已产出"
+
+##### P1-10：381 功能点 → 219 页面映射矩阵
+
+- **任务描述**：构建 381 NeatLogic 功能点与 219 Orion 页面的映射矩阵，标注每个功能点的 UI 入口页面（无入口标记为"隐性融合失败"）
+- **涉及文件**：`reports/feature-parity/feature-page-mapping-381x219-2026-10-11.md`（新建）
+- **验证方式**：
+  ```bash
+  # 输出 381 功能点 × 219 页面映射矩阵
+  # 每个功能点至少 1 个 UI 入口页面
+  # 目标：无入口功能点 < 20%
+  ```
+- **回滚步骤**：矩阵产出无代码修改
+- **依赖**：P1-8（CRUD 审计完成后作为输入）
+- **门控**：Phase 1 出口门控新增"功能点→页面映射矩阵已产出"
+
+#### 14.10.4 依赖关系
+
+```
+P1-8 (CRUD 审计)  ──┬──▶  P1-10 (功能点→页面映射)
+                    │
+P1-9 (UI 组件对标) ─┘
+```
+
+- P1-8 与 P1-9 可并行（无相互依赖）
+- P1-10 依赖 P1-8（需 CRUD 审计结果作为输入）
+- P1-8/P1-9/P1-10 均**不修改生产代码**，仅产出审计报告（符合 RC-03 约束）
+
+#### 14.10.5 修正后任务分布（v5.8）
+
+| 阶段 | v5.7 任务数 | v5.8 任务数 | 变化 |
+|------|------------|------------|------|
+| S0 基础设施 | 6 | 6 | — |
+| S1 A11y 通病 | 12 | 12 | — |
+| S2 CMDB/ADR | 10 | 10 | — |
+| S3 新模块 | 14 | 14 | — |
+| S4 CI/CD | 6 | 6 | — |
+| S5 前端补齐 | 12 | 12 | — |
+| S6 跨模块 | 8 | 8 | — |
+| S7 止损 | 3 | 3 | — |
+| S8 P2 可选 | 5 | 5 | — |
+| §13 P0/P1/P2 补充 | 17 | 17 | — |
+| §14 运维治理 | 6 | 6 | — |
+| **§14.10 前端融合补齐** | 0 | **3** | **+3** |
+| **合计** | **104** | **107** | **+3** |
+
+#### 14.10.6 v5.8 与 v5.7 的差异
+
+| 维度 | v5.7 | v5.8 |
+|------|------|------|
+| 任务总数 | 104 | **107** |
+| 前端融合覆盖页面 | 3 / 219 (1.37%) | 3 + 审计范围 219 = **219 / 219 (100%)** |
+| 前端融合矩阵粒度 | 功能点 (9/381) | 功能点 + 页面映射 (381×219) |
+| NeatLogic UI 组件对标 | 无 | 有（P1-9） |
+| Phase 1 门控 | 29 项 | 32 项（+3 前端融合） |
+
+**修正后总任务数**：81 + 17 + 6 + 3 = **107 项**
 
 ---
 
