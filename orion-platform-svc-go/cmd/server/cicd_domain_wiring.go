@@ -79,6 +79,7 @@ import (
 	change_handler "orion/platform-svc-go/internal/change/handler"
 	change_repo "orion/platform-svc-go/internal/change/repository"
 	change_service "orion/platform-svc-go/internal/change/service"
+	change_template_handler "orion/platform-svc-go/internal/change/template"
 	cit_handler "orion/platform-svc-go/internal/ci-type/handler"
 	cit_repo "orion/platform-svc-go/internal/ci-type/repository"
 	cit_service "orion/platform-svc-go/internal/ci-type/service"
@@ -520,6 +521,12 @@ func wireDomainModules(db *database.DB, logger *zap.Logger) {
 	changeSvc := change_service.NewService(changeRepo)
 	changeH = change_handler.NewHandler(changeSvc)
 
+	// change-template services (ADR-015 §4.1 三层 SOP)
+	// Depends on migrations 755/756/757/758.
+	changeTemplateRepo := change_template_handler.NewPostgresRepository(db.DB)
+	changeTemplateSvc := change_template_handler.NewService(changeTemplateRepo)
+	changeTemplateH = change_template_handler.NewHandler(changeTemplateSvc)
+
 	// sla services
 	slaRepo := sla_repo.NewRepository(db.DB)
 	slaSvc := sla_service.NewService(slaRepo)
@@ -606,6 +613,7 @@ var (
 	build_envH           *build_env_handler.Handler
 	buildH               *build_handler.Handler
 	changeH              *change_handler.Handler
+	changeTemplateH      *change_template_handler.Handler
 	chatopsH             *chatops_handler.Handler
 	citH                 *cit_handler.Handler
 	code_repoH           *code_repo_handler.Handler

@@ -151,7 +151,7 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
 			}
 		}
 
-		registerRoutes(api, abacH, alertEscH, dcH, lcH, tqH, agH,
+		registerRoutes(api, abacH, alertEscH, changeTemplateH, dcH, lcH, tqH, agH,
 			aiAgentsH, aiCostH, aiDecisionsH, aiGatewayH, aiReviewH, alertH,
 			alert_breakerH, amH, amfaH, apiConsumptionH, apikeyH, apmH,
 			approvalH, artifactH, artifactVersionH, artifactopsH, auditH, cacheModH,
