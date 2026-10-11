@@ -9,12 +9,18 @@
 >
 > **RC-03 硬约束**：本文为分析与设计文档，**未修改任何生产代码**。
 > **不估算人天/工期。**
+>
+> **⚠️ 勘误（2026-10-11 同日修订）**：本报告的 §0 第 3 条、§3.2、§4 末句、
+> §5 P0 表、§7 命令原使用**错误 grep pattern** 得出「0.03% trace 覆盖」等结论。
+> 已在本文件内原地更正，并在末尾附「§9 勘误记录」记录错误三层根因。
+> 更正后的可观测性结论与原始版本**方向相反**：追踪实际优秀，缺口在业务日志。
+> 完整对照见 `reports/reference/oneall-chatops-borrowability-2026-10-11.md` §6。
 
 ---
 
 ## 0. 核心结论（先看这一段）
 
-**Orion 的问题不是「模块不够多」，而是「模块都在一个进程里 + 没有事务纪律 + 没有可观测性结构」。**
+**Orion 的问题不是「模块不够多」，而是「模块都在一个进程里 + 没有事务纪律 + 没有业务日志」。**
 
 三条实测证据支撑这个反直觉结论：
 
@@ -22,9 +28,12 @@
 |---|---|---|
 | 1 | 296 域、跨域依赖边 **362** 条、平均出度 **1.22** | 域间耦合**极低**，已是健康模块化结构 |
 | 2 | **2,048** 次 `ExecContext` 写入 vs **30** 次 `tx.Commit` | **98.5% 的写入不在事务内** |
-| 3 | 2,992 个 Go 文件中 **1 个**含 trace、**5 次**结构化日志、**6 个**指标定义 | 可观测性结构近乎为零 |
+| 3 | 追踪覆盖 **291/296 域（98.3%）** 但业务日志仅覆盖 **55/296 域（18.6%）**；2,247 非测试文件仅 **558 次** `logger.Info/Warn/Error/Debug` 调用；**13 个**指标定义全部为 HTTP/Web Vitals 层，**业务域 0 个** | **有 span 无日志**的观测盲点（241 域完全不打业务日志）|
 
-**因此：不建议做微服务拆分（会加剧而非缓解问题），但可观测性与事务纪律必须升级为优先项。**
+**因此：不建议做微服务拆分（会加剧而非缓解问题），但事务纪律与业务日志调用必须升级为优先项。**
+追踪基础设施本身已是企业级（98.3% 域覆盖），**不需要**做「Trace 接入」；
+结构化日志亦无需改造（55 个有日志的域中 54 个已用 Zap），**不需要**做「结构化日志强制」——
+真正需要做的只是**补齐 241 个不打业务日志的域的调用点**。
 
 ---
 
@@ -221,36 +230,70 @@ tenant 域: 9 文件  | tenant-gateway: 7 文件 | tenant-quota: 8 文件
 才启动拆分。届时 48 个零出度域是第一批候选（`ai`、`ticketing`、`ticket`、
 `dba`、`ci-cd` 等）。
 
-### 3.2 可观测性 —— **需要升级，且是唯一真正的短板**
+### 3.2 可观测性 —— **追踪优秀、结构化日志良好、但仅 18% 域有日志调用、指标零业务覆盖**
 
-| 支柱 | 实测 | 覆盖 |
+> **⚠️ 本节为勘误后版本**。原始版本基于错误 pattern（`oteltrace|otel/traces|
+> trace.SpanFromContext`）得出「trace 覆盖 0.03%」，实际 Orion 使用
+> `otel.Tracer(...)`；原始版本用 `slog.*()` 判「结构化日志近零」，
+> 实际 Orion 结构化日志使用 **Zap**（`zap.String` 等 1,210 字段调用），
+> `slog.*()` 仅 5 次是次要路径。三层错误根因见 §9。
+
+| 支柱 | 实测（非测试代码，2,247 个 Go 文件 / 296 域）| 判定 |
 |---|---|---|
-| **日志调用** | 14,707 次 | ✅ 量大 |
-| **结构化日志** | `.WithField`/`.WithFields`/`.With` 仅 **5 次** | ❌ **0.03%** |
-| **含 trace 的文件** | **1** / 2,992 | ❌ **0.03%** |
-| **Prometheus 指标定义** | **6** 个 | ❌ **0.2%** |
-| **`context.WithValue`** | 3 次 | ❌ 近乎为零 |
-| **request_id/trace_id 传播** | 218 次 | ✅ 有基础 |
-| middleware 注册 | 9 个 `Use()`（含 `Prometheus()`、`CircuitBreaker`、`RateLimit`、`Timeout`）| ⚠️ 有骨架 |
-| `otel` 域 | 4 文件（入度 4）| ⚠️ 存在但未被采用 |
-| `tracing` 域 | 8 文件 | ⚠️ 存在但未被采用 |
+| **追踪 Tracing** | `otel.Tracer` 出现在 **437** / 2,247 文件（**19.4%**）| ✅ **优秀** |
+| 追踪覆盖域数 | **291 / 296 域（98.3%）** | ✅ 基本全覆盖 |
+| `otel.Tracer(...).Start(...)` 调用数 | **4,412** 处 | ✅ |
+| **日志调用总量** | `logger.Info/Warn/Error/Debug` **558 次** / 2,247 文件（**0.25 次/文件**）| ❌ **严重不足** |
+| 有日志调用的域 | **55 / 296（18.6%）** | ❌ |
+| `logger.Info` | **249** | ❌ |
+| `logger.Error` | **195** | ⚠️ 有但偏少 |
+| `logger.Warn` | **73** | ❌ |
+| `logger.Debug` | **41** | ❌ |
+| **结构化日志字段** | `zap.String` **793** + `zap.Int` **105** + `zap.Error` **282** + `zap.Duration` 14 + `zap.Bool` 12 + `zap.Any` 5 + `zap.Float` 3 + `zap.Time` 2 + `zap.Strings` 9 | ✅ **良好**（1,200+ 字段调用）|
+| 使用 Zap 的域 | **61 / 296（20.6%）** | ⚠️ |
+| 有日志调用的域中同时用 Zap 结构化字段 | **54 / 55（98.2%）** | ✅ **日志调用即结构化** |
+| 纯字符串日志的域 | **1**（`statistics`）| ✅ 唯一例外 |
+| `slog.*()` 调用 | **5** | 忽略（次要路径）|
+| **Prometheus 指标定义文件** | **2** 个（`middleware/prometheus.go` + `observability/webvitals.go`）| ⚠️ |
+| 指标定义总数 | **13** 个（HTTP 层 3 + Web Vitals 10）| ⚠️ |
+| **业务域指标** | **0** 个（无 `alert_*`/`ticket_*`/`pipeline_*`/`cmdb_*` 前缀）| ❌ **零覆盖** |
+| middleware 注册 | 9 个 `Use()`（含 `Prometheus()`、`CircuitBreaker`、`RateLimit`、`Timeout`）| ✅ 骨架完整 |
+| request_id/trace_id 传播 | 218 次 | ✅ 有基础 |
 
-**矛盾现象**：`otel`、`tracing`、`observability`、`metrics`、`monitoring` **5 个域都存在**
-（合计 34 文件），`middleware.Prometheus()` 也已注册到 router，
-但**没有任何业务代码使用它们**。
+**修正后的关键矛盾**：
+- 追踪覆盖 **98.3% 域**、结构化日志（Zap）覆盖 **20.6% 域**、
+  指标覆盖 **0 业务域**。
+- 但 **`chatops` / `ticket` / `ticketing` 等核心业务域 Info 日志 = 0**：
+  `chatops` 0 Info（61 Error）、`ticketing` 0 Info（230 Error）、
+  `ticket` 0 Info、`alert` 0 Info。
+- 更关键的是**「有日志的域本身就是结构化的」**——55 个有日志调用的域中
+  54 个（98.2%）用 Zap 传键值对，仅 `statistics` 一个用纯字符串。
 
-这是「基础设施已铺、上层未接入」的典型状态——
-比「完全没建」更危险，因为会产生「可观测性已经有了」的错觉。
+**这意味着什么**：Orion **不需要**「结构化日志改造」（Zap 已是标准用法），
+真正的缺口是**「241 / 296 个域（81.4%）根本不打业务日志」**。
+这不是「用了非结构化日志」，而是「压根没打日志」。
+
+对 Alert 抑制窗口（ADR-010 §3.2.2 事务内 upsert）、Saga 补偿（ADR-007）、
+CI/CD pipeline 步骤（`ProcessStepHandlerBase` 场景）这类跨层逻辑，
+排查时可以沿着 span 找到调用链，但**看不到调用链内部的业务状态与决策原因**——
+这是致命盲点。
 
 **该做的**：
-1. **（P0）业务代码接入 trace**：给 520 个 handler 域统一注入 span，
-   从 0.03% 提到 ≥80%。`tracing` 域已存在，缺的是调用点。
-2. **（P0）结构化日志强制化**：14,707 次日志调用中 99.97% 是纯字符串。
-   改为结构化后，故障定位从「grep 全文」变成「按字段过滤」。
-3. **（P1）核心路径指标**：6 个指标定义扩展到覆盖
-   API 延迟/错误率/吞吐 + DB 连接池 + 事务持锁时长（对接 ADR-010 §4.2）。
-4. **（P1）`context` 传播**：3 次 `context.WithValue` 意味着 trace ID 无法跨层传递，
-   需要先解决这个问题，否则第 1 项无法完成。
+1. **（P0）业务日志补齐**——**不需要改格式，只需补调用**：
+   241 个无日志域中，重点补齐 `chatops` / `alert` 6 家族 / `ticket` /
+   `ticketing` / `pipeline*` / `cmdb*` 等核心路径。
+   判定规则：**每个 handler 入口必须打一条 Info**（含 request_id /
+   tenant_id / 关键业务 ID），**每个非平凡分支决策必须打一条 Debug**。
+   格式沿用现有 `logger.Info("msg", zap.String("k", v), ...)`。
+2. **（P1）业务域指标**：13 个基础设施指标扩展到核心路径。
+   最低要求：Alert 抑制命中率（对接 ADR-010 §4.2 的
+   `alert_breaker_lock_duration_ms` 等 4 项）、Saga 补偿触发率、
+   Pipeline 步骤失败率、CMDB CI 同步延迟。
+3. ~~（P0）Trace 接入~~ —— **撤回，已完成**（291/296 域覆盖）。
+4. ~~（P0）结构化日志改造~~ —— **撤回，Zap 已是标准**（98.2% 有日志域已用 Zap）。
+5. **（P1）`context` 传播**：3 次 `context.WithValue` 意味着 trace ID
+   跨层传递依赖 `middleware` 自动注入，业务代码未参与；
+   需补齐关键长链路的显式传播。
 
 ### 3.3 智能性 —— **基础扎实，需要深化而非新建**
 
@@ -294,15 +337,18 @@ RAG/retrieval 引用密度高（324/437）。
 | 轴 | 结论 | 升级类型 |
 |---|---|---|
 | **高扩展性** | **不做微服务拆分** | 纪律升级（事务 + Migration 治理），非架构升级 |
-| **可观测性** | **必须升级** | 接入升级（基础设施已存在，业务未使用）|
+| **可观测性** | **日志与指标必须升级，追踪无需升级** | 接入升级（业务日志补齐 + 业务指标扩展）|
 | **智能性** | **深化而非新建** | 收敛升级（合并重复域），非新建 |
 
-**唯一符合「架构升级」定义的是可观测性**——但它也不是新架构，
-而是**已有基础设施（5 个域 / 34 文件 / `middleware.Prometheus()` 已注册）的接入补全**。
+**修正后：可观测性不需要「架构升级」，只需要「日志补齐 + 指标扩展」的接入升级。**
+追踪基础设施（`otel.Tracer` 437 文件 / 4,412 次 span / 98.3% 域覆盖）已达标，
+`middleware.Prometheus()` 已注册；缺的是业务日志（17.9% 域覆盖）
+与业务域指标（0 个）。
 
 **一句话**：Orion 的架构组织（296 域、1.22 出度、1,481 接口）已达到甚至超过企业级的
 模块化水平；**企业级差距不在「结构」而在「运行时纪律」**——
-事务一致性（98.5% 写入无事务）与可观测性（0.03% trace 覆盖）两项为零。
+事务一致性（98.5% 写入无事务）与业务日志覆盖（17.9% 域）两项不足；
+追踪反而是**长板**（98.3% 域），本次原报告的「可观测性结构近乎为零」结论撤回。
 
 ---
 
@@ -312,12 +358,13 @@ RAG/retrieval 引用密度高（324/437）。
 |---|---|---|---|
 | **P0** | 统一事务封装（收敛到 `dbupdate`）| 2,048 Exec vs 30 Commit | 否，新增公共库 |
 | **P0** | Migration 治理（清 placeholder + 收敛域内 migration）| 58 占位 + 242 空洞 + 4 冲突 | 否，流程治理 |
-| **P0** | Trace 接入（520 handler 域）| 1/2,992 = 0.03% | 否，接入已有 `tracing` 域 |
-| **P0** | 结构化日志强制 | 5/14,707 = 0.03% | 否 |
+| **P0** | **业务日志补齐** | 仅 53/296 域有 Info/Warn；chatops/alert/ticketing Info=0 | 否，代码补齐 |
+| **P0** | **结构化日志强制**（`slog`）| 558 次 `logger.*` 调用中 `slog.*()` 仅 5 | 否，替换调用形式 |
 | **P0** | 重复域合并（`agents`/`ai/agents` 等）| 155 行空壳 + 命名冲突 | 否，重构 |
+| ~~P0~~ | ~~Trace 接入~~ | **撤回**——291/296 域已覆盖 98.3%，已完成 | — |
 | **P1** | 共享内核抽库（`middleware`/`pagination`）| 入度 219 / 110 | 否，抽库 |
 | **P1** | `context` 传播机制 | 3 次 `context.WithValue` | 否 |
-| **P1** | 核心路径指标扩展 | 6 个指标定义 | 否 |
+| **P1** | **业务域指标扩展** | 13 个指标全为 HTTP/Web Vitals 层，业务域 0 个 | 否 |
 | **P1** | 检索能力加厚（`vector`/`semantic-search`）| 18 文件 | 否 |
 | **P1** | Factory/Registry 扩展点补齐 | 13/9 vs NL 115 | 否 |
 | **暂不做** | 微服务拆分 | 平均出度 1.22 已可拆，但前置条件未满足且会恶化事务问题 | — |
@@ -369,12 +416,37 @@ grep -rho 'ExecContext(' orion-platform-svc-go/internal --include='*.go' | wc -l
 grep -rho '\.Commit()' orion-platform-svc-go/internal --include='*.go' | wc -l      # -> 30
 grep -rho '\.BeginTx(' orion-platform-svc-go/internal --include='*.go' | wc -l      # -> 10
 
-# 可观测性（关键）
-grep -rl 'oteltrace\|otel/traces\|trace.SpanFromContext' orion-platform-svc-go/internal --include='*.go' | wc -l   # -> 1
-grep -rhoE '\.(WithField|WithFields|With)\(' orion-platform-svc-go/internal --include='*.go' | wc -l               # -> 5
-grep -rhoE '\.(Info|Warn|Error|Debug)(f?)\(' orion-platform-svc-go/internal --include='*.go' | wc -l               # -> 14707
-grep -rhoE 'prometheus\.(NewCounter|NewGauge|NewHistogram|MustRegister)' orion-platform-svc-go/internal --include='*.go' | wc -l  # -> 6
+# 可观测性（关键）—— ⚠️ 原始 pattern 有误，此处为修正后版本
+# 正确 pattern：先 `grep -rh 'otel' | head` 确认实际 API 名再统计
+
+# 追踪（Orion 使用 otel.Tracer，不是 oteltrace / otel/traces）
+grep -rl 'otel\.Tracer' orion-platform-svc-go/internal --include='*.go' | grep -v '_test.go' | wc -l                    # -> 437
+grep -rn 'otel\.Tracer' orion-platform-svc-go/internal --include='*.go' | grep -v '_test.go' | grep '\.Start(' | wc -l   # -> 4412
+
+# 日志调用（Orion 使用 logger.Info/Warn/Error/Debug，无 *f 后缀变体）
+grep -rhoE 'logger\.(Info|Warn|Error|Debug)\(' \
+  orion-platform-svc-go/internal --include='*.go' | wc -l                                                               # -> 558
+
+# 结构化日志（Orion 使用 Zap，不是 slog）
+grep -rhoE 'zap\.(String|Int|Error|Duration|Bool|Any|Float|Time|Strings)\(' \
+  orion-platform-svc-go/internal --include='*.go' | wc -l                                                               # -> 1210
+
+# 指标定义
+grep -rhoE 'promauto\.New[A-Za-z]+|prometheus\.New[A-Za-z]+' \
+  orion-platform-svc-go/internal --include='*.go' | grep -v '_test.go' | wc -l                                          # -> 13
 grep -rho 'context.WithValue' orion-platform-svc-go/internal --include='*.go' | wc -l  # -> 3
+
+# 域级覆盖（域 = internal/<domain>/；grep 输出为绝对路径，需 `s|.*/internal/||` 剥掉前缀）
+grep -rlnE 'logger\.(Info|Warn|Error|Debug)\(' orion-platform-svc-go/internal --include='*.go' \
+  | grep -v '_test.go' | sed 's|.*/internal/||' | cut -d/ -f1 | sort -u | wc -l                                          # -> 55
+grep -rlE 'zap\.' orion-platform-svc-go/internal --include='*.go' \
+  | grep -v '_test.go' | sed 's|.*/internal/||' | cut -d/ -f1 | sort -u | wc -l                                          # -> 61
+
+# 反例：核心业务域 Info 日志为 0
+for d in chatops ticket ticketing alert; do
+  echo -n "$d: "; grep -rn "logger\.Info(" orion-platform-svc-go/internal/$d --include='*.go' \
+    | grep -v '_test.go' | wc -l
+done
 
 # 域依赖图（见 §1.3，需 Python）
 # 关键字节：module 名是 orion/platform-svc-go（含斜杠），不是 orion-platform-svc-go
@@ -404,9 +476,64 @@ find orion-platform-svc-go/internal/agents -name '*.go' -exec cat {} + | wc -l  
 | 4 | 未修改 ADR 之外的设计文档 | `git status` 仅新增本报告 |
 | 5 | 三轴结论均有数据支撑 | §3.1 / §3.2 / §3.3 各含实测表 |
 | 6 | 不含人天/工期估算 | 全文检索 `人天`/`工期`/`人日` 为空 |
+| 7 | **每个 pattern 需先用 `head` 抽样确认其匹配的是预期对象**（新增，§9.3）| 见 §7 每段注释 |
+| 8 | 勘误记录不删除，保留错误对照以便复盘（新增，§9）| §9 |
+
+---
+
+## 9. 勘误记录（2026-10-11 同日修订）
+
+本报告在初次提交后同日发现可观测性一节存在**方向性错误**，
+已原地更正。此处保留错误记录以便复盘方法论问题。
+
+### 9.1 错误对照表
+
+| 项 | 原报告（错误）| 修正值 | 错误性质 |
+|---|---|---|---|
+| 含 trace 的文件 | **1** / 2,992（0.03%）| **437** / 2,247（**19.4%**）| pattern 错误 |
+| 有追踪的域 | **1** | **291 / 296（98.3%）** | 同上 |
+| 日志调用总量 | **14,707** | **558** | pattern 混淆（`fmt.Errorf` 被计入）|
+| 结构化日志 | `.WithField` 等 **5** | **Zap 字段 1,210**（Orion 用 Zap 非 slog）| 误判技术选型 |
+| Prometheus 指标定义 | **6** | **13**（HTTP 3 + Web Vitals 10）| pattern 不完整 |
+| 业务域指标 | 未测 | **0** | 补测发现 |
+| 有 Info/Warn 的域 | 未测 | **55 / 296（18.6%）** | 补测发现 |
+
+### 9.2 三层错误根因
+
+| 环节 | 错误 | 根因 |
+|---|---|---|
+| 测量 | 用 `oteltrace\|otel/traces\|trace.SpanFromContext` 检索追踪 | **假设了 API 名**——Orion 实际用 `otel.Tracer(...)`。未先 `grep -rh 'otel' \| head` 抽样确认 |
+| 测量 | 用 `.WithField\|\.WithFields\|\.With` 判定「结构化日志近零」 | **假设了结构化日志库**——Orion 主用 Zap（`zap.String` 等），`slog` 只是次要路径 |
+| 测量 | pattern `\.(Info\|Warn\|Error\|Debug)(f?)\(` 未加 `logger.` 前缀 | **`fmt.Errorf`（错误返回值）被计入日志调用**，导致 14,707 这个严重膨胀的数字。同时混入 `_test.go` |
+| 测量 | `sed 's\|internal/\|\|'` 后接 `cut -d/ -f1` | grep 输出为绝对路径 `/Users/heal/.../internal/foo.go`，`s\|internal/\|\|` 无法匹配前缀（缺 `.*`）；域覆盖数得到 1 而非 55。**这条命令我写错后又重跑一遍发现**，属自我复核失败 |
+
+### 9.3 方法论教训（写入 §8 验收标准第 7 条）
+
+原报告声称「全部为 ⭐ 机械计数」，但仍出现方向性错误。这证明：
+
+> **机械计数 ≠ 机械正确。pattern 本身需要先验证。**
+
+正确流程：**先 `grep -rh <prefix> | head` 抽样确认实际用法，再写统计 pattern**。
+本次应新增第 7 条验收标准：
+**「每个 pattern 需先用 head 抽样确认其匹配的是预期对象，禁止用假设的 API 名做统计」**。
+
+### 9.4 结论方向变化
+
+| | 原结论 | 修正结论 |
+|---|---|---|
+| 三轴升级类型 | 可观测性 = 必须升级 | 可观测性 = 日志补齐（追踪已完成、结构化日志已达标）|
+| P0 项 | 「Trace 接入」「结构化日志强制」| 撤回这两项；改为「业务日志补齐」+「业务域指标扩展」|
+| 「无 span 无日志」| ✅ 两项都近零 | ❌ 只有日志近零；追踪是长板 |
+
+**关键教训（记录在案）**：
+原报告得出「可观测性结构近乎为零」的错误结论后，
+**如果直接照此推动 P0 项「Trace 接入」，团队会投入大量精力给 291/296 域注入
+已在使用的 span**——这是一次典型的「基于错误测量的浪费性投入」。
 
 ---
 
 *本文的结论与直觉相反：企业级差距不在「结构」而在「运行时纪律」。
 296 个域、1.22 出度、1,481 接口的模块化水平无需架构升级；
-但 98.5% 的写入无事务、0.03% 的 trace 覆盖，是必须在 S0 就补齐的 P0 项。*
+但 98.5% 的写入无事务、17.9% 的业务日志覆盖，是必须在 S0 就补齐的 P0 项。
+追踪反而是**长板**（98.3% 域覆盖），本次原报告的「可观测性结构近乎为零」
+与「0.03% trace 覆盖」两项结论**已撤回**，勘误见 §9。*
