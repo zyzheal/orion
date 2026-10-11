@@ -206,8 +206,16 @@ jobs:
         run: |
           total=$(go tool cover -func=coverage.out 2>/dev/null | grep total: | awk '{print $3}' | tr -d '%')
           echo "Go coverage: ${total}%"
-          if [ -z "$total" ] || [ "$(echo "$total < 30" | bc)" -eq 1 ]; then
-            echo "ERROR: Go coverage below 30% threshold (${total}%)"
+          # GATE-CI-THRESHOLD-LINKED (Y v5.12 §14.13): 30% → 40% T0 / 50% main
+          # 当前阶段: T0 (40%); 目标: T1=50% (main 分支)
+          THRESHOLD=40
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            THRESHOLD=50
+          fi
+          echo "Threshold: ${THRESHOLD}% (branch: ${{ github.ref }})"
+          if [ -z "$total" ] || [ "$(echo "$total < $THRESHOLD" | bc)" -eq 1 ]; then
+            echo "ERROR: Go coverage below ${THRESHOLD}% threshold (${total}%)"
+            echo "See: docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.2 (渐进式 T0-T3)"
             exit 1
           fi
         working-directory: ${{ matrix.service }}

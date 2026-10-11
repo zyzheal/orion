@@ -12,7 +12,7 @@
     ],
     "next_refresh_due": "2026-10-18T00:00:00Z",
     "refresh_policy": "weekly",
-    "refresh_script": "scripts/baseline/refresh-baseline.sh (planned, RC-03 not yet implemented)",
+    "refresh_script": "scripts/baseline/refresh-baseline.sh",
     "stage_gates_total": 60
   },
   "index": {
@@ -249,18 +249,21 @@
     },
     {
       "id": "NEXT-5",
-      "title": "ADR 25 状态规范化 (18 无字段 ADR 补 Accepted/Proposed) + adr-lint.sh",
-      "priority": "P1"
+      "title": "ADR 状态规范化 + adr-lint.sh",
+      "priority": "P1",
+      "status": "✅ 已完成 (2026-10-11) — 30 ADR 全部通过状态字段检查"
     },
     {
       "id": "NEXT-6",
-      "title": "Implement scripts/baseline/refresh-baseline.sh to auto-verify 60 gate config",
-      "priority": "P2"
+      "title": "refresh-baseline.sh 自动刷新脚本",
+      "priority": "P2",
+      "status": "✅ 已完成 (2026-10-11) — scripts/baseline/refresh-baseline.sh"
     },
     {
       "id": "NEXT-7",
       "title": "CI 阈值联动 ci.yml 30% → 40% T0 / 50% main",
-      "priority": "P1"
+      "priority": "P1",
+      "status": "✅ 已完成 (2026-10-11) — GATE-CI-THRESHOLD-LINKED"
     }
   ]
 }
