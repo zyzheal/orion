@@ -1,16 +1,16 @@
 {
   "$schema": "./gate-config.schema.json",
   "meta": {
-    "version": "v5.10",
+    "version": "v5.12",
     "generated": "2026-10-11",
-    "source": "reports/upgrade-execution-playbook-2026-10-03.md §14.12.3 + docs/gate-failure-degradation-2026-10-11.md §3.2",
-    "total_gates": 46,
+    "source": "reports/upgrade-execution-playbook-2026-10-03.md §14.12.3 + docs/gate-failure-degradation-2026-10-11.md §3.2 + docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §3.2",
+    "total_gates": 60,
     "distribution": {
-      "BLOCK": 12,
-      "DEGRADE": 24,
+      "BLOCK": 19,
+      "DEGRADE": 31,
       "SKIP": 10
     },
-    "reference": "NEW-EA-15 gate-failure-degradation-2026-10-11.md"
+    "reference": "NEW-EA-15 + NEW-EA-17 + NEW-EA-19 (v2 渐进式门控)"
   },
   "gates": {
     "GATE-AUTH-STRICT": {
@@ -221,6 +221,177 @@
       "stage": "ALL",
       "action": "log_to_baseline",
       "source_doc": "reports/upgrade-execution-playbook-2026-10-03.md §14.11"
+    },
+    "GATE-TEST-DOMAIN-CORE-80": {
+      "severity": "BLOCK",
+      "customer_visible": false,
+      "stage": "S0-T7",
+      "metric": "coverage_percent",
+      "threshold": 80,
+      "current_baseline": 93.6,
+      "ramp": {"T0": 80, "T1": 85, "T2": 90, "T3": 80},
+      "paths": ["internal/domain/aggregates", "internal/domain/commands"],
+      "recovery": "domain 基础设施补测",
+      "source_doc": "docs/ddd-tdd-test-strategy-design-2026-10-11.md §5.1"
+    },
+    "GATE-TEST-SAGA-70": {
+      "severity": "DEGRADE",
+      "customer_visible": true,
+      "stage": "S0-T7",
+      "metric": "coverage_percent",
+      "threshold": 70,
+      "current_baseline": 32.8,
+      "ramp": {"T0": 32.8, "T1": 50, "T2": 70, "T3": 70},
+      "sub_package_overrides": {
+        "internal/domain/eventstore": {"T0": 0, "T1": 30, "T2": 60, "T3": 80, "severity": "DEGRADE"}
+      },
+      "paths": ["internal/saga/service"],
+      "feature_flag": "test.coverage.degraded",
+      "fallback": "rule_engine",
+      "recovery": "Saga 23 个 0% 方法补测 (v2 §2.9)",
+      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.9"
+    },
+    "GATE-TEST-EVENTBUS-70": {
+      "severity": "DEGRADE",
+      "customer_visible": false,
+      "stage": "S0-T7",
+      "metric": "coverage_percent",
+      "threshold": 70,
+      "current_baseline": 50.8,
+      "ramp": {"T0": 50.8, "T1": 60, "T2": 70},
+      "paths": ["internal/eventbus/handler"],
+      "feature_flag": "test.coverage.degraded",
+      "fallback": "log_only",
+      "source_doc": "docs/ddd-tdd-test-strategy-design-2026-10-11.md §5.1"
+    },
+    "GATE-TEST-SERVICE-CORE-60": {
+      "severity": "DEGRADE",
+      "customer_visible": true,
+      "stage": "S0-T7",
+      "metric": "coverage_percent",
+      "threshold": 60,
+      "current_baseline": 4.5,
+      "ramp": {"T0": 15, "T1": 30, "T2": 60},
+      "paths": ["internal/security/secret/service", "internal/chatops/service", "internal/ticketing/service", "internal/saga/service"],
+      "feature_flag": "test.coverage.degraded",
+      "recovery": "4 P0 Service 深度补测 (v2 §2.1)",
+      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.1"
+    },
+    "GATE-TEST-REPO-CONTAINER": {
+      "severity": "DEGRADE",
+      "customer_visible": false,
+      "stage": "S0-T8",
+      "metric": "test_count",
+      "threshold": 60,
+      "current_baseline": 0,
+      "ramp": {"T0": 0, "T1": 20, "T2": 60},
+      "paths": ["internal/testcontainers/"],
+      "feature_flag": "test.containers.degraded",
+      "fallback": "mock_only",
+      "source_doc": "docs/ddd-tdd-test-strategy-design-2026-10-11.md §3.1.2"
+    },
+    "GATE-TEST-CONTRACT-OPENAPI": {
+      "severity": "DEGRADE",
+      "customer_visible": false,
+      "stage": "S0-T8",
+      "metric": "endpoint_count",
+      "threshold": 40,
+      "current_baseline": 0,
+      "ramp": {"T0": 0, "T1": 20, "T2": 40},
+      "paths": ["openapi.yaml"],
+      "source_doc": "docs/ddd-tdd-test-strategy-design-2026-10-11.md §3.1.3"
+    },
+    "GATE-TEST-ANTI-PATTERN": {
+      "severity": "BLOCK",
+      "customer_visible": false,
+      "stage": "S0-T7",
+      "metric": "anti_pattern_count",
+      "threshold": 0,
+      "current_baseline": 2,
+      "ramp": {"T0": 2, "T1": 1, "T2": 0},
+      "anti_patterns": ["false_green_mock", "snapshot_assertion", "zero_assertion"],
+      "recovery": "假绿灯检测脚本 (v2 §2.7) + eventstore/security 补测",
+      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.1 + §2.7"
+    },
+    "GATE-ADR-STATUS-STANDARD": {
+      "severity": "DEGRADE",
+      "customer_visible": false,
+      "stage": "S0",
+      "metric": "adr_accepted_percent",
+      "threshold": 100,
+      "current_baseline": 20,
+      "ramp": {"T0": 20, "T1": 50, "T2": 100},
+      "paths": ["docs/adr/"],
+      "recovery": "25 ADR 状态规范化 (v2 §2.3) + adr-lint.sh",
+      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.3"
+    },
+    "GATE-DDD-MIGRATION-PROGRESS": {
+      "severity": "DEGRADE",
+      "customer_visible": false,
+      "stage": "S2",
+      "metric": "ddd_modules_count",
+      "threshold": 10,
+      "current_baseline": 0,
+      "ramp": {"T0": 0, "T1": 1, "T2": 6, "T3": 10},
+      "paths": ["internal/cmdb/attribute", "internal/pipeline", "internal/approval", "internal/change", "internal/ticketing", "internal/incident"],
+      "recovery": "DDD 6 Phase 迁移 (v2 §2.4)",
+      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.4"
+    },
+    "GATE-MIGRATION-ROLLBACK": {
+      "severity": "BLOCK",
+      "customer_visible": false,
+      "stage": "S0",
+      "metric": "rollback_test_percent",
+      "threshold": 100,
+      "current_baseline": 0,
+      "ramp": {"T0": 0, "T1": 50, "T2": 100},
+      "paths": ["db/migrations/"],
+      "recovery": "Migration 回滚测试 (v2 §2.11)",
+      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.11"
+    },
+    "GATE-GDPR-DELETE-CASCADE": {
+      "severity": "BLOCK",
+      "customer_visible": false,
+      "stage": "S2",
+      "metric": "cascade_delete_test",
+      "threshold": 100,
+      "current_baseline": 0,
+      "paths": ["internal/tenant/"],
+      "recovery": "租户数据级联删除测试 (v2 §2.11)",
+      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.11"
+    },
+    "GATE-AUDIT-IMMUTABLE": {
+      "severity": "BLOCK",
+      "customer_visible": false,
+      "stage": "S1",
+      "metric": "audit_immutability_test",
+      "threshold": 100,
+      "current_baseline": 0,
+      "paths": ["internal/audit/"],
+      "recovery": "审计表不可篡改测试 (v2 §2.11)",
+      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.11"
+    },
+    "GATE-DATA-CONSISTENCY": {
+      "severity": "DEGRADE",
+      "customer_visible": false,
+      "stage": "S6",
+      "metric": "cross_service_consistency_test",
+      "threshold": 100,
+      "current_baseline": 0,
+      "paths": ["internal/eventbus/", "internal/saga/"],
+      "recovery": "跨服务数据一致性校验 (v2 §2.11)",
+      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.11"
+    },
+    "GATE-PII-ENCRYPTED": {
+      "severity": "BLOCK",
+      "customer_visible": true,
+      "stage": "S0",
+      "metric": "pii_encryption_test",
+      "threshold": 100,
+      "current_baseline": 0,
+      "paths": ["internal/security/secret/"],
+      "recovery": "敏感字段加密存储验证 (v2 §2.11)",
+      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.11"
     }
   },
   "skipped_gates": [],
