@@ -30,3 +30,38 @@ type UpdateAlertBreakerRequest struct {
 	Status      *string           `json:"status"`
 	Rule        map[string]string `json:"rule"`
 }
+
+// EvaluateAlertRequest is the request body for POST /alert-breaker/evaluate.
+// It is independent of the AlertBreaker CRUD: the caller supplies the policy
+// identifier (numeric, matching alert_breaker_state.policy_id), the alert
+// identity, and the rule to evaluate against.
+type EvaluateAlertRequest struct {
+	// PolicyID is the numeric policy identifier stored in alert_breaker_state.
+	// It does NOT have to match alert_breakers.id (which is a UUID string);
+	// the mapping between the two is a separate concern (mapping table or
+	// BIGINT column on alert_breakers).
+	PolicyID int64 `json:"policyId" binding:"required"`
+	// AlertID is the source alert's identity.
+	AlertID string `json:"alertId"`
+	// Fingerprint is a stable hash of the alert content.
+	Fingerprint string `json:"fingerprint"`
+	// Rule is the AlertBreaker rule (map[string]string). Missing "threshold"
+	// or "window" keys fall back to defaults (5 / 10min).
+	Rule map[string]string `json:"rule"`
+}
+
+// EvaluateAlertResponse is the response body for POST /alert-breaker/evaluate.
+type EvaluateAlertResponse struct {
+	// Broken is true when the alert should be suppressed.
+	Broken bool `json:"broken"`
+	// Count is the current counter value after this evaluation.
+	Count int64 `json:"count"`
+	// WindowStart is the start of the current counting window.
+	WindowStart time.Time `json:"windowStart"`
+	// WindowEnd is the end of the current counting window.
+	WindowEnd time.Time `json:"windowEnd"`
+	// Threshold is the rule's threshold.
+	Threshold int64 `json:"threshold"`
+	// Reason is a human-readable explanation.
+	Reason string `json:"reason"`
+}

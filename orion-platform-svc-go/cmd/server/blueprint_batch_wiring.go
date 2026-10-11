@@ -34,9 +34,12 @@ import (
 	degradation_repo "orion/platform-svc-go/internal/degradation/repository"
 	degradation_service "orion/platform-svc-go/internal/degradation/service"
 
+	alert_breaker_evaluator "orion/platform-svc-go/internal/alert-breaker/evaluator"
 	alert_breaker_handler "orion/platform-svc-go/internal/alert-breaker/handler"
 	alert_breaker_repo "orion/platform-svc-go/internal/alert-breaker/repository"
 	alert_breaker_service "orion/platform-svc-go/internal/alert-breaker/service"
+	alert_breaker_state_repo "orion/platform-svc-go/internal/alert-breaker/state_repository"
+	"orion/platform-svc-go/internal/common/alertlock"
 	apm_handler "orion/platform-svc-go/internal/apm/handler"
 	apm_repo "orion/platform-svc-go/internal/apm/repository"
 	apm_service "orion/platform-svc-go/internal/apm/service"
@@ -329,9 +332,14 @@ func wireWave7BatchModules(db *database.DB) {
 	version_archiveSvc := version_archive_service.NewService(version_archiveRepo)
 	version_archiveH = version_archive_handler.NewHandler(version_archiveSvc)
 
-	// alert-breaker services
+	// alert-breaker services (ADR-010 §3.2.3).
+	// state_repo persists alert_breaker_state (windowed counters);
+	// evaluator decides broken/pass per alert event; both are wired
+	// into the service so POST /alert-breaker/evaluate reaches the DB.
 	alert_breakerRepo := alert_breaker_repo.NewRepository(db.DB)
-	alert_breakerSvc := alert_breaker_service.NewService(alert_breakerRepo)
+	alertBreakerStateRepo := alert_breaker_state_repo.NewRepository(db.DB, alertlock.DefaultOptions())
+	alertBreakerEvaluator := alert_breaker_evaluator.NewEvaluator(alertBreakerStateRepo)
+	alert_breakerSvc := alert_breaker_service.NewServiceWithEvaluator(alert_breakerRepo, alertBreakerEvaluator)
 	alert_breakerH = alert_breaker_handler.NewHandler(alert_breakerSvc)
 
 	// apm services

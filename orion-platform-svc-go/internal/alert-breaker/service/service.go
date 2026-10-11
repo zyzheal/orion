@@ -5,7 +5,9 @@ package service
 
 import (
 	"context"
+	"errors"
 
+	"orion/platform-svc-go/internal/alert-breaker/evaluator"
 	"orion/platform-svc-go/internal/alert-breaker/models"
 )
 
@@ -19,11 +21,20 @@ type RepositoryInterface interface {
 }
 
 type Service struct {
-	repo RepositoryInterface
+	repo      RepositoryInterface
+	evaluator *evaluator.Evaluator
 }
 
 func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
+}
+
+// NewServiceWithEvaluator constructs a Service that has both the CRUD repo
+// and the evaluator wired in. evaluator may be nil (the service then
+// returns ErrNoEvaluator on Evaluate calls); this keeps existing call
+// sites (NewService(repo)) source-compatible.
+func NewServiceWithEvaluator(repo RepositoryInterface, ev *evaluator.Evaluator) *Service {
+	return &Service{repo: repo, evaluator: ev}
 }
 
 func (s *Service) Create(ctx context.Context, tenantID string, req *models.CreateAlertBreakerRequest) (*models.AlertBreaker, error) {
@@ -68,4 +79,35 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 
 func (s *Service) Delete(ctx context.Context, tenantID, id string) (bool, error) {
 	return s.repo.Delete(ctx, tenantID, id)
+}
+
+// ErrNoEvaluator is returned when Service.Evaluate is called but no
+// evaluator was wired at construction time.
+var ErrNoEvaluator = errors.New("service: evaluator not wired")
+
+// Evaluate decides whether an alert should be broken (suppressed).
+// Delegates to the wired evaluator; returns ErrNoEvaluator if none was
+// injected. tenantID is used for state scoping (ADR-0004).
+func (s *Service) Evaluate(ctx context.Context, tenantID string, req *models.EvaluateAlertRequest) (*models.EvaluateAlertResponse, error) {
+	if s.evaluator == nil {
+		return nil, ErrNoEvaluator
+	}
+	res, err := s.evaluator.Evaluate(ctx, &evaluator.EvaluationInput{
+		TenantID:    tenantID,
+		PolicyID:    req.PolicyID,
+		AlertID:     req.AlertID,
+		Fingerprint: req.Fingerprint,
+		Rule:        req.Rule,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &models.EvaluateAlertResponse{
+		Broken:      res.Broken,
+		Count:       res.Count,
+		WindowStart: res.WindowStart,
+		WindowEnd:   res.WindowEnd,
+		Threshold:   res.Threshold,
+		Reason:      res.Reason,
+	}, nil
 }

@@ -17,6 +17,7 @@ type ServiceInterface interface {
 	Get(ctx context.Context, tenantID, id string) (*models.AlertBreaker, error)
 	List(ctx context.Context, tenantID string) ([]models.AlertBreaker, int, error)
 	Update(ctx context.Context, tenantID, id string, req *models.UpdateAlertBreakerRequest) (*models.AlertBreaker, error)
+	Evaluate(ctx context.Context, tenantID string, req *models.EvaluateAlertRequest) (*models.EvaluateAlertResponse, error)
 }
 
 // Ensure compile-time safety: *Service implements ServiceInterface.

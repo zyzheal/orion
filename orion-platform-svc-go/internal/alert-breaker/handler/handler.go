@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"errors"
+
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/alert-breaker/evaluator"
 	"orion/platform-svc-go/internal/alert-breaker/models"
 	"orion/platform-svc-go/internal/alert-breaker/service"
 
@@ -26,6 +29,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.POST("", auth.RequirePermission("alert-breaker", "write"), h.CreateAlertBreaker)
 	f.PUT("/:id", auth.RequirePermission("alert-breaker", "write"), h.UpdateAlertBreaker)
 	f.DELETE("/:id", auth.RequirePermission("alert-breaker", "delete"), h.DeleteAlertBreaker)
+	// Runtime evaluation endpoint (ADR-010 §3.2.3). The path is registered
+	// BEFORE the /:id wildcard so Gin's router picks the literal segment.
+	f.POST("/evaluate", auth.RequirePermission("alert-breaker", "write"), h.EvaluateAlert)
 }
 
 func (h *Handler) ListAlertBreakers(c *gin.Context) {
@@ -103,4 +109,35 @@ func (h *Handler) DeleteAlertBreaker(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, gin.H{"message": "alert breaker deleted"})
+}
+
+// EvaluateAlert handles POST /alert-breaker/evaluate. The caller supplies
+// policy_id (numeric, matching alert_breaker_state.policy_id), alert_id,
+// fingerprint, and rule. Returns the broken/pass decision.
+func (h *Handler) EvaluateAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EvaluateAlert")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	var req models.EvaluateAlertRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	result, err := h.svc.Evaluate(ctx, tenantID, &req)
+	if err != nil {
+		if errors.Is(err, service.ErrNoEvaluator) {
+			middleware.RespondInternalError(c, err.Error())
+			return
+		}
+		// Invalid rule / missing threshold etc. → 400
+		if errors.Is(err, evaluator.ErrInvalidRule) ||
+			errors.Is(err, evaluator.ErrMissingThreshold) ||
+			errors.Is(err, evaluator.ErrMissingWindow) {
+			middleware.RespondBadRequest(c, err.Error())
+			return
+		}
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, result)
 }
