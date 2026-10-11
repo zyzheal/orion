@@ -11,11 +11,38 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/cmdb/models"
 )
+
+// ErrK8sSyncNotActive 表示 K8s 同步未启动，ListK8sResources 返回空 + nil error，
+// 但调用方可通过此 sentinel 判断是否要提示用户先 StartK8sSync。
+// 对齐 P1-3（reference-verification-and-refined-plan-2026-10-11.md）：
+// 删除原 hardcoded Mock/scaffold 数据，改为基于同步状态的真实（可能为空）数据。
+var ErrK8sSyncNotActive = errors.New("cmdb: k8s sync not active")
+
+// k8sSyncState 追踪当前 K8s 同步的运行时状态。
+// 内存态；服务重启后需重新 StartK8sSync。
+//
+// 演进方向（后续版本）：
+//   - 接 k8s.io/client-go（go.mod 已有 k8s.io/client-go v0.29.0）
+//   - Watch 事件推送到 K8sResource slice
+//   - ReconciliationIntervalMs 定时 reconcile
+//   - 状态持久化到 DB（跨重启恢复）
+type k8sSyncState struct {
+	mu             sync.RWMutex
+	started        bool
+	config         *models.StartK8sSyncRequest
+	startedAt      time.Time
+	resources      []models.K8sResource
+}
+
+func newK8sSyncState() *k8sSyncState {
+	return &k8sSyncState{resources: []models.K8sResource{}}
+}
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
@@ -45,11 +72,12 @@ type RepositoryInterface interface {
 }
 
 type Service struct {
-	repo RepositoryInterface
+	repo      RepositoryInterface
+	k8sSync   *k8sSyncState
 }
 
 func NewService(repo RepositoryInterface) *Service {
-	return &Service{repo: repo}
+	return &Service{repo: repo, k8sSync: newK8sSyncState()}
 }
 
 // --- CI CRUD ---
@@ -357,6 +385,16 @@ func (s *Service) GetHost(ctx context.Context, tenantID string, ciID string) (*m
 	return s.repo.GetCIByCiId(ctx, ciID, &tenantID)
 }
 
+// ListK8sResources 返回当前 K8s 同步的 resources（可能为空）。
+// 对齐 P1-3：删除原 hardcoded Mock 数据，改为基于同步状态的真实数据。
+//
+// 语义：
+//   - 未启动同步：返回空 slice + total=0 + nil error（不报错，前端可正常展示空态）
+//   - 已启动但无资源：返回空 slice + total=0 + nil error
+//   - 有资源：按 kind/namespace 过滤后分页返回
+//
+// 演进：接 k8s.io/client-go 后，本方法会从 store 读取实时拉取的 resources，
+// 过滤逻辑保持不变。
 func (s *Service) ListK8sResources(ctx context.Context, kind *string, namespace *string, limit, offset int) ([]models.K8sResource, int, error) {
 	if limit <= 0 {
 		limit = 20
@@ -364,26 +402,31 @@ func (s *Service) ListK8sResources(ctx context.Context, kind *string, namespace 
 	if offset < 0 {
 		offset = 0
 	}
-	// Mock/scaffold data for K8s resources.
-	resources := []models.K8sResource{
-		{ID: "k8s-1", Kind: "Deployment", Name: "web-api", Namespace: "production", Status: "Running", Cluster: "prod-cluster", CIID: "ci-web-api", CreatedAt: "2026-07-01T00:00:00Z"},
-		{ID: "k8s-2", Kind: "Service", Name: "web-api-svc", Namespace: "production", Status: "Running", Cluster: "prod-cluster", CIID: "ci-web-api-svc", CreatedAt: "2026-07-01T00:00:00Z"},
-		{ID: "k8s-3", Kind: "ConfigMap", Name: "app-config", Namespace: "default", Status: "Active", Cluster: "dev-cluster", CIID: "ci-app-config", CreatedAt: "2026-07-02T00:00:00Z"},
+
+	s.k8sSync.mu.RLock()
+	defer s.k8sSync.mu.RUnlock()
+
+	// 未启动同步：返回空态（而非报错，前端可以展示 "请先启动同步" 提示）
+	if !s.k8sSync.started {
+		return []models.K8sResource{}, 0, nil
 	}
-	filtered := resources[:0]
-	for _, r := range resources {
-		match := true
+
+	// 复制一份，避免修改 store
+	all := make([]models.K8sResource, len(s.k8sSync.resources))
+	copy(all, s.k8sSync.resources)
+
+	filtered := all[:0]
+	for _, r := range all {
 		if kind != nil && *kind != "" && r.Kind != *kind {
-			match = false
+			continue
 		}
 		if namespace != nil && *namespace != "" && r.Namespace != *namespace {
-			match = false
+			continue
 		}
-		if match {
-			filtered = append(filtered, r)
-		}
+		filtered = append(filtered, r)
 	}
 	total := len(filtered)
+
 	if offset > len(filtered) {
 		filtered = filtered[:0]
 	} else {
@@ -398,15 +441,47 @@ func (s *Service) ListK8sResources(ctx context.Context, kind *string, namespace 
 	return filtered, total, nil
 }
 
+// StartK8sSync 启动 K8s 同步：保存 config + 置 started=true。
+// 对齐 P1-3：删除 scaffold 空实现，改为真实状态管理。
+//
+// 现状：内存态，服务重启后丢失。演进方向（后续版本）：
+//   - 用 k8s.io/client-go 建立真实 K8s API 连接（go.mod 已有 v0.29.0）
+//   - Watch 事件推送到 s.k8sSync.resources
+//   - ReconciliationIntervalMs 触发定时 reconcile
+//   - 状态持久化到 DB（跨重启恢复）
 func (s *Service) StartK8sSync(ctx context.Context, config *models.StartK8sSyncRequest) error {
-	// Scaffold: record sync start config.
-	_ = config
+	s.k8sSync.mu.Lock()
+	defer s.k8sSync.mu.Unlock()
+
+	// 幂等：已启动则刷新 config + 时间戳
+	s.k8sSync.config = config
+	s.k8sSync.started = true
+	if s.k8sSync.startedAt.IsZero() {
+		s.k8sSync.startedAt = time.Now().UTC()
+	}
+
 	return nil
 }
 
+// StopK8sSync 停止 K8s 同步：清空 state + resources。
+// 幂等：已停止时调用不报错。
 func (s *Service) StopK8sSync(ctx context.Context) error {
-	// Scaffold: stop K8s sync.
+	s.k8sSync.mu.Lock()
+	defer s.k8sSync.mu.Unlock()
+
+	s.k8sSync.started = false
+	s.k8sSync.config = nil
+	s.k8sSync.startedAt = time.Time{}
+	s.k8sSync.resources = []models.K8sResource{}
+
 	return nil
+}
+
+// K8sSyncStatus 暴露同步状态供 handler 层查询（可选，非本轮接口）。
+func (s *Service) K8sSyncStatus(ctx context.Context) (bool, time.Time) {
+	s.k8sSync.mu.RLock()
+	defer s.k8sSync.mu.RUnlock()
+	return s.k8sSync.started, s.k8sSync.startedAt
 }
 
 func (s *Service) ListCICDResources(ctx context.Context, status *string, limit, offset int) ([]models.CICDResource, int, error) {
