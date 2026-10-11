@@ -3104,6 +3104,157 @@ P1-9 (UI 组件对标) ─┘
 
 ---
 
+## 14.13 v5.12 更新：DDD/TDD 分层测试策略补齐批次（NEW-EA-16/17/18/19，2026-10-11）
+
+### 14.13.1 v5.12 总览
+
+| 元数据 | |
+|--------|------|
+| 批次编号 | NEW-EA-16/17/18/19 |
+| 日期 | 2026-10-11 |
+| 依据 | `docs/ddd-tdd-test-coverage-expert-review-2026-10-11.md`（NEW-EA-16 评审）+ `docs/ddd-tdd-test-strategy-design-2026-10-11.md`（NEW-EA-17 设计）+ `docs/enterprise-readiness-assessment-2026-10-11.md`（NEW-EA-18 综合评估）+ `docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md`（NEW-EA-19 v2 深度评审） |
+| 前置 | NEW-EA-15 门控失败降级（§14.12.5） |
+| 约束 | RC-03（不修改生产代码）；不估算人天/工期 |
+
+**批次目标**：将测试覆盖率从一手实测 38.16%（NEW-EA-16）→ 企业级阈值 60%+（NEW-EA-19 v2 预测 53.4）。
+
+**Y 手册版本**：v5.10 → **v5.12**（门控 46 → **60**）。
+
+### 14.13.2 一手实测基线（NEW-EA-16 产出）
+
+| 维度 | 实测值 | 证据 |
+|------|--------|------|
+| 9 个 DDD 包平均覆盖率 | **38.16%** | `go test -cover` 一手执行 |
+| eventstore postgresql 覆盖率 | **0%** | 397 行生产代码，测试使用 mockEventStore（假绿灯）|
+| Saga 42 方法 | **23 个 0%** | grep 断言 `TestSaga_ChaosRollback` = 0 匹配（Y §1402 契约断裂）|
+| security/secret/service 测试 | **21 行仅断言 `!= nil`** | 快照断言反模式 |
+| 16 个零测试模块 | 零覆盖 | NEW-EA-16 §4 清单 |
+| 企业级综合得分 | **29.2/100** | 架构 34 + 测试 16 + 治理 46（NEW-EA-18）|
+
+### 14.13.3 P0 批次任务表（8 项，TEST-1 ~ TEST-8）
+
+| 任务 ID | 任务标题 | 前置 | 验证 | 回滚 |
+|---------|---------|------|------|------|
+| TEST-1 | `internal/testutil/` 测试工具包（Builder+Fixture+Assertion）| NEW-EA-15 GATE-1 | `go test ./internal/testutil/...` 100% | 删除目录 |
+| TEST-2 | Testcontainers-go PostgreSQL 集成测试基座 | TEST-1 | `go test -run TestPostgresContainer` 通过 | 移除依赖 |
+| TEST-3 | OpenAPI 契约测试生成器（Gin routes → schema）| TEST-1 | `go test -run TestContractSchema` 通过 | 删除 generator |
+| TEST-4 | eventstore 假绿灯修复（mockEventStore → 真实 PostgreSQL）| TEST-2 | `go test ./internal/domain/eventstore/...` ≥60% | revert 单文件 |
+| TEST-5 | Saga 23 个零覆盖方法补齐（含 ChaosRollback）| TEST-2 | grep `TestSaga_ChaosRollback` ≥1 匹配 | revert 测试文件 |
+| TEST-6 | security/secret/service 快照断言修复（`!= nil` → 字段断言）| TEST-1 | grep `!= nil` 在 secret 测试中 = 0 | revert 测试文件 |
+| TEST-7 | 16 个零测试模块补齐首批 8 个 | TEST-1 | `go test ./...` 0 个零覆盖模块（首批）| revert 测试文件 |
+| TEST-8 | GATE-TEST-ANTI-PATTERN 门控（假绿灯/快照/零断言）| NEW-EA-15 GATE-1 | `grep -c "anti_patterns" docs/baseline/gate-config.json` ≥1 | 移除门控配置 |
+
+### 14.13.4 P1 批次任务表（12 项，TEST-9 ~ TEST-20）
+
+| 任务 ID | 任务标题 | 前置 | 验证 | 回滚 |
+|---------|---------|------|------|------|
+| TEST-9 | 16 个零测试模块补齐剩余 8 个 | TEST-7 | `go test ./...` 0 个零覆盖模块（全量）| revert 测试文件 |
+| TEST-10 | DDD Aggregate 测试骨架模板落地（4 类）| TEST-1 | `ls internal/testutil/templates/` ≥4 文件 | 删除模板 |
+| TEST-11 | Repository 集成测试（Testcontainers）覆盖 10 个核心模块 | TEST-2 | `go test -run TestRepository.*` ≥10 模块通过 | revert 测试文件 |
+| TEST-12 | Handler 契约测试覆盖 Gin routes 80% | TEST-3 | `go test -run TestHandler.*` ≥80% routes | revert 测试文件 |
+| TEST-13 | DomainEvent 回放测试（event sourcing）| TEST-4 | `go test -run TestEventReplay` 通过 | revert 测试文件 |
+| TEST-14 | GATE-TEST-COVERAGE-60 渐进式门控（T0 38/T1 45/T2 55/T3 60）| TEST-8 | `grep "GATE-TEST-COVERAGE-60" docs/baseline/gate-config.json` 存在 | 移除门控 |
+| TEST-15 | GATE-TEST-SAGA-70 子包降级（eventstore 0→80）| TEST-5 | `grep "sub_package_overrides" docs/baseline/gate-config.json` 存在 | 移除 override |
+| TEST-16 | GATE-TEST-DDD-AGGREGATE-80 门控 | TEST-10 | `grep "GATE-TEST-DDD-AGGREGATE-80" docs/baseline/gate-config.json` 存在 | 移除门控 |
+| TEST-17 | GATE-TEST-REPOSITORY-70 门控 | TEST-11 | `grep "GATE-TEST-REPOSITORY-70" docs/baseline/gate-config.json` 存在 | 移除门控 |
+| TEST-18 | GATE-TEST-HANDLER-CONTRACT-80 门控 | TEST-12 | `grep "GATE-TEST-HANDLER-CONTRACT-80" docs/baseline/gate-config.json` 存在 | 移除门控 |
+| TEST-19 | GATE-TEST-EVENT-REPLAY-100 门控 | TEST-13 | `grep "GATE-TEST-EVENT-REPLAY-100" docs/baseline/gate-config.json` 存在 | 移除门控 |
+| TEST-20 | CI 阈值联动 ci.yml 30%→40%（T0 阶段）| TEST-14 | grep `threshold.*40` `.github/workflows/ci.yml` ≥1 | revert ci.yml |
+
+### 14.13.5 v2 深度评审新增任务（12 项，W1-W12，NEW-EA-19 产出）
+
+| 任务 ID | 任务标题 | 前置 | 验证 | 回滚 |
+|---------|---------|------|------|------|
+| W1 | eventstore 假绿灯根因分析报告 | TEST-4 | `docs/eventstore-false-green-root-cause.md` 存在 | 删除文档 |
+| W2 | Saga 42 方法覆盖率矩阵文档 | TEST-5 | `docs/saga-coverage-matrix.md` 存在 | 删除文档 |
+| W3 | security/secret 快照断言全仓扫描 | TEST-6 | grep `!= nil` 在 `*_test.go` 中 ≤5 | revert 扫描脚本 |
+| W4 | 16 零测试模块逐一 Root Cause 分类 | TEST-7 | `docs/zero-test-modules-rootcause.md` 存在 | 删除文档 |
+| W5 | TestUtil Builder API 一致性审查 | TEST-10 | `go vet ./internal/testutil/...` 0 错误 | revert 修复 |
+| W6 | Testcontainers 环境变量泄漏检查 | TEST-2 | grep `os.Getenv.*PG_PASSWORD` 仅在 fixture 中 | revert 修复 |
+| W7 | OpenAPI schema 版本化（semver）| TEST-3 | grep `schema_version` 在 generator 中存在 | revert 修复 |
+| W8 | 假绿灯 AST 检测器扩展（design-constraint）| TEST-8 | `grep "false_green_mock" docs/design-constraints/` ≥1 | revert detector |
+| W9 | 快照断言 AST 检测器扩展 | TEST-8 | `grep "snapshot_assertion" docs/design-constraints/` ≥1 | revert detector |
+| W10 | 零断言 AST 检测器扩展 | TEST-8 | `grep "zero_assertion" docs/design-constraints/` ≥1 | revert detector |
+| W11 | 渐进式门控 T0-T3 文档化 | TEST-14 | `docs/progressive-gate-ramp.md` 存在 | 删除文档 |
+| W12 | 企业级达标预测模型（53.4 校准）| TEST-14 | `docs/enterprise-readiness-forecast.md` 存在 | 删除文档 |
+
+### 14.13.6 Stage Gate 46 → 60（新增 14 项）
+
+| 新增门控 | 阶段 | severity | threshold | 当前基线 | ramp |
+|---------|------|----------|-----------|---------|------|
+| GATE-TEST-COVERAGE-60 | S0-T10 | DEGRADE | 60% | 38.16% | T0=38/T1=45/T2=55/T3=60 |
+| GATE-TEST-DDD-AGGREGATE-80 | S0-T10 | DEGRADE | 80% | 0% | T0=0/T1=30/T2=60/T3=80 |
+| GATE-TEST-REPOSITORY-70 | S0-T10 | DEGRADE | 70% | 38.16% | T0=38/T1=50/T2=60/T3=70 |
+| GATE-TEST-HANDLER-CONTRACT-80 | S0-T10 | DEGRADE | 80% | 0% | T0=0/T1=30/T2=60/T3=80 |
+| GATE-TEST-EVENT-REPLAY-100 | S0-T10 | DEGRADE | 100% | 0% | T0=0/T1=30/T2=70/T3=100 |
+| GATE-TEST-SAGA-70 | S0-T10 | DEGRADE | 70% | 32.8% | T0=32.8/T1=50/T2=70/T3=70（eventstore 子包 0→80）|
+| GATE-TEST-ANTI-PATTERN | S0-T10 | **BLOCK** | 0 | 2 | 无 ramp（硬阻断）|
+| GATE-TEST-PYRAMID-RATIO | S0-T10 | DEGRADE | 70:20:10 | 偏移 | T0=现状/T1=60:25:15/T2=70:20:10 |
+| GATE-ADR-STATUS-NORMALIZED | S0-T11 | DEGRADE | 100% | 72% | T0=72/T1=85/T2=95/T3=100 |
+| GATE-CI-THRESHOLD-LINKED | S0-T11 | DEGRADE | 40% | 30% | T0=30/T1=40/T2=50（main）|
+| GATE-BASELINE-REFRESH-AUTO | S0-T11 | SKIP | - | - | 自动化 |
+| GATE-TEST-PYTHON-COVERAGE-50 | S2-T10 | DEGRADE | 50% | 0% | T0=0/T1=20/T2=35/T3=50 |
+| GATE-TEST-FRONTEND-VITEST-70 | S2-T10 | DEGRADE | 70% | 0% | T0=0/T1=30/T2=50/T3=70 |
+| GATE-TEST-E2E-CRITICAL-PATH | S5-T10 | DEGRADE | 100% | 0% | T0=0/T1=50/T2=80/T3=100 |
+
+**门控分布更新**：BLOCK 19（+7 含 ANTI-PATTERN 硬阻断）+ DEGRADE 31（+14）+ SKIP 10 = **60**（原 46）。
+
+### 14.13.7 企业级达标预测（NEW-EA-19 v2 校准）
+
+| 阶段 | 覆盖率预测 | 企业级得分 | 依据 |
+|------|----------|----------|------|
+| 当前 | 38.16% | 29.2/100 | NEW-EA-18 一手实测 |
+| Phase 1-2 完成（TEST-1~8）| 45% | 42/100 | 假绿灯修复 + 基础设施落地 |
+| Phase 3 完成（TEST-9~20）| 53.4% | 55/100 | v2 校准（v1 预测 70 诚实下调）|
+| Phase 4 完成（W1-W12）| 58% | 62/100 | AST 检测器 + 渐进式门控 |
+| Phase 5 完成（ADR-016/017）| 60%+ | 72/100 | 测试基础设施 + 数据治理决策落地 |
+
+**诚实声明**：v1 预测 70 分为过度乐观，v2 校准为 53.4（Phase 3 后），达标 60%+ 需 Phase 5 完成。
+
+### 14.13.8 Skill Handoff Checklist
+
+| 下游技能 | 触发问题数 | 触发内容 | 优先级 |
+|---------|----------|---------|--------|
+| **task-decomposer** | 8 | TEST-1~8 P0 任务拆分（每项含验收标准+测试用例）| P0 |
+| **task-decomposer** | 12 | TEST-9~20 P1 任务拆分 | P1 |
+| **task-decomposer** | 12 | W1-W12 v2 深度评审任务拆分 | P1 |
+| **design-doc-reviewer** | 4 | NEW-EA-16/17/18/19 四份文档交叉一致性评审 | P1 |
+| **code-design-analyzer** | 1 | 假绿灯 AST 检测器扩展（W8-W10）架构分析 | P2 |
+
+**Structured Missing Items（JSON）**：
+
+```json
+{
+  "dimension": "ddd_tdd_test_coverage",
+  "batch": "NEW-EA-16/17/18/19",
+  "total_gaps": 32,
+  "task_distribution": {"P0": 8, "P1": 12, "v2_review": 12},
+  "gate_count_delta": {"from": 46, "to": 60, "added": 14},
+  "enterprise_score": {"current": 29.2, "phase3_forecast": 53.4, "phase5_forecast": 72},
+  "downstream_routing": {
+    "task_decomposer": {"count": 32, "priority": "P0+P1"},
+    "design_doc_reviewer": {"count": 4, "priority": "P1"},
+    "code_design_analyzer": {"count": 1, "priority": "P2"}
+  }
+}
+```
+
+### 14.13.9 v5.12 与既有文档对齐
+
+| 关联文档 | 对齐点 |
+|---------|--------|
+| `docs/ddd-tdd-test-coverage-expert-review-2026-10-11.md`（NEW-EA-16）| 一手实测 38.16% 基线来源 |
+| `docs/ddd-tdd-test-strategy-design-2026-10-11.md`（NEW-EA-17）| 4 类测试骨架模板 + 三大基础设施 |
+| `docs/enterprise-readiness-assessment-2026-10-11.md`（NEW-EA-18）| 综合得分 29.2/100 + 三维评估 |
+| `docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md`（NEW-EA-19）| 12 类薄弱点 + 渐进式门控 + v2 校准 53.4 |
+| `docs/baseline/gate-config.json` v5.12 | 14 项新门控配置（含 ramp T0-T3）|
+| `docs/baseline/baseline.json` v5.12 | stage_gates_total 60 + R9/R10 完整性检查 |
+| `docs/gate-failure-degradation-2026-10-11.md`（NEW-EA-15）| 降级策略矩阵（60 门控 × BLOCK/DEGRADE/SKIP）|
+| CLAUDE.md 契约条款 5 | Stage Gate 46 → 60（BLOCK 19 + DEGRADE 31 + SKIP 10）|
+| CC 风险登记册 v5.7 | R-P1-21 测试覆盖率不足（新增）+ R-P1-22 假绿灯反模式（新增）+ R-P1-23 ADR 状态不规范（新增）|
+
+---
+
 ## 11. 认知边界（本手册的诚实声明）
 
 ### 11.1 已做到
