@@ -1638,6 +1638,11 @@ func TestRouteConflictScan(t *testing.T) {
 				rdmStatsH.RegisterRoutes(api)
 			}
 		}},
+		{"rdmCodeReviewH", func() {
+			if rdmCodeReviewH != nil {
+				rdmCodeReviewH.RegisterRoutes(api)
+			}
+		}},
 		// router.go also registers the inline route-discovery endpoint
 		// api.GET("/routes") near the end of setupRouter. Mirror it here so
 		// a handler claiming /api/v1/routes is caught, not just by the boot test.

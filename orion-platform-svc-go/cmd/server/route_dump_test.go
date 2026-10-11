@@ -1681,5 +1681,10 @@ func buildDumpEntries() []dumpEntry {
 				rdmStatsH.RegisterRoutes(api)
 			}
 		}},
+		{"rdmCodeReviewH", 1060, func(api *gin.RouterGroup) {
+			if rdmCodeReviewH != nil {
+				rdmCodeReviewH.RegisterRoutes(api)
+			}
+		}},
 	}
 }
