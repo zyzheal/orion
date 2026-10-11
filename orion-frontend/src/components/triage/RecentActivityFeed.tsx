@@ -14,16 +14,29 @@ export const RecentActivityFeed: React.FC<Props> = ({ items, loading, limit = 20
   const displayItems = items?.slice(0, limit) ?? [];
 
   return (
-    <Card size="small" className="orion-card" title="近期活动" loading={loading}>
+    <Card
+      size="small"
+      className="orion-card"
+      title="近期活动"
+      loading={loading}
+      role="region"
+      aria-label="近期活动"
+      aria-busy={loading}
+    >
       {displayItems.length === 0 ? (
-        <Empty description="暂无活动" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        // S1-17 P0-5: 空态使用 aria-live="polite"，屏幕阅读器在状态变化时静默播报
+        <div aria-live="polite" aria-atomic="true">
+          <Empty description="暂无活动" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        </div>
       ) : (
-        <List
-          dataSource={displayItems}
-          renderItem={(item) => (
-            <TriageItemRow item={item} onAction={onItemAction} />
-          )}
-        />
+        <div role="list" aria-label="近期活动列表">
+          <List
+            dataSource={displayItems}
+            renderItem={(item) => (
+              <TriageItemRow item={item} onAction={onItemAction} />
+            )}
+          />
+        </div>
       )}
     </Card>
   );

@@ -22,29 +22,46 @@ interface ChatAreaProps {
 export const ChatArea: React.FC<ChatAreaProps> = ({ messages, loading, ask }) => {
   if (messages.length === 0) {
     return (
-      <Empty
-        style={{ marginTop: 80 }}
-        description={
-          <Space direction="vertical" size={8} style={{ alignItems: 'center' }}>
-            <Text>从下面的示例问题开始，或直接描述你的诉求</Text>
-            <Space wrap>
-              {SUGGESTIONS.map((s) => (
-                <Button key={s} size="small" onClick={() => ask(s)}>
-                  {s}
-                </Button>
-              ))}
+      <div style={{ marginTop: 80 }} role="status" aria-live="polite" aria-atomic="true">
+        <Empty
+          description={
+            <Space direction="vertical" size={8} style={{ alignItems: 'center' }}>
+              <Text>从下面的示例问题开始，或直接描述你的诉求</Text>
+              <Space wrap aria-label="示例问题">
+                {SUGGESTIONS.map((s) => (
+                  <Button
+                    key={s}
+                    size="small"
+                    onClick={() => ask(s)}
+                    aria-label={`提问：${s}`}
+                    tabIndex={0}
+                  >
+                    {s}
+                  </Button>
+                ))}
+              </Space>
             </Space>
-          </Space>
-        }
-      />
+          }
+        />
+      </div>
     );
   }
 
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Space
+      direction="vertical"
+      size={16}
+      style={{ width: '100%' }}
+      role="log"
+      aria-label="聊天记录"
+      aria-live="polite"
+      aria-atomic="false"
+    >
       {messages.map((m) => (
         <div
           key={m.id}
+          role="listitem"
+          aria-label={m.role === 'user' ? '我的消息' : '助手回复'}
           style={{
             display: 'flex',
             flexDirection: m.role === 'user' ? 'row-reverse' : 'row',
@@ -52,6 +69,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, loading, ask }) =>
           }}
         >
           <div
+            role="note"
+            aria-label={m.role === 'user' ? '我的消息' : '助手回复'}
             style={{
               maxWidth: '75%',
               padding: '10px 14px',

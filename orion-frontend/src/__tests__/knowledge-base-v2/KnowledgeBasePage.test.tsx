@@ -49,7 +49,13 @@ vi.mock('antd', async (importOriginal) => {
       <div data-testid="tree">
         {treeData?.map((node: any) => (
           <div key={node.key} data-testid={`tree-node-${node.key}`}>
-            <div onClick={() => onSelect?.([node.key], { node, selected: true })}>{node.title}</div>
+            <button
+              type="button"
+              onClick={() => onSelect?.([node.key], { node, selected: true })}
+              aria-label={`选择 ${node.title}`}
+            >
+              {node.title}
+            </button>
           </div>
         ))}
       </div>

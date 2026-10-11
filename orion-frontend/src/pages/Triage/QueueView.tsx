@@ -85,32 +85,40 @@ export const QueueView: React.FC<Props> = ({
 
       <Spin spinning={loading}>
         {items.length === 0 ? (
-          <Empty description="暂无待处理项" />
+          // S1-17: 空态用 aria-live="polite"，屏幕阅读器静默播报状态变化
+          <div aria-live="polite" aria-atomic="true" role="status">
+            <Empty description="暂无待处理项" />
+          </div>
         ) : (
-          <List
-            dataSource={items}
-            renderItem={(item) => (
-              <div
-                key={item.id}
-                style={{ display: 'flex', gap: 8, alignItems: 'center' }}
-              >
-                <input
-                  type="checkbox"
-                  aria-label={`选择 ${item.title}`}
-                  checked={selectedIds.includes(item.id)}
-                  onChange={(e) => {
-                    const ids = e.target.checked
-                      ? [...selectedIds, item.id]
-                      : selectedIds.filter((id) => id !== item.id);
-                    setSelectedIds(ids);
-                  }}
-                />
-                <div style={{ flex: 1 }}>
-                  <TriageItemRow item={item} onAction={onAction} />
+          <div role="list" aria-label="Triage 待处理列表" aria-live="polite" aria-atomic="false">
+            <List
+              dataSource={items}
+              renderItem={(item) => (
+                <div
+                  key={item.id}
+                  role="listitem"
+                  style={{ display: 'flex', gap: 8, alignItems: 'center' }}
+                >
+                  <input
+                    type="checkbox"
+                    aria-label={`选择 ${item.title}`}
+                    aria-checked={selectedIds.includes(item.id)}
+                    tabIndex={0}
+                    checked={selectedIds.includes(item.id)}
+                    onChange={(e) => {
+                      const ids = e.target.checked
+                        ? [...selectedIds, item.id]
+                        : selectedIds.filter((id) => id !== item.id);
+                      setSelectedIds(ids);
+                    }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <TriageItemRow item={item} onAction={onAction} />
+                  </div>
                 </div>
-              </div>
-            )}
-          />
+              )}
+            />
+          </div>
         )}
       </Spin>
 
