@@ -15,7 +15,15 @@ import (
 // add deleted_at, created_by, updated_by and updated_at to this table, none of
 // which models.TransferRecord has a db destination for — a SELECT * fails the
 // whole read.
-const transferColumns = "id, ticket_id, from_user_id, to_user_id, initiated_by, reason, hold_duration_ms, created_at"
+// transferColumns is the explicit projection every SELECT against
+// ticket_transfers uses. Never SELECT *: sqlx runs in safe mode, and 571 / 572
+// add deleted_at, created_by, updated_by and updated_at to this table, none of
+// which models.TransferRecord has a db destination for — a SELECT * fails the
+// whole read.
+//
+// tenant_id 由 Migration 704 引入（ADR-011 多租户隔离），
+// nullable + 回填自 tickets.tenant_id。
+const transferColumns = "id, tenant_id, ticket_id, from_user_id, to_user_id, initiated_by, reason, hold_duration_ms, created_at"
 
 type TransferRepository struct {
 	db *database.DB
@@ -25,28 +33,43 @@ func NewTransferRepository(db *database.DB) *TransferRepository {
 	return &TransferRepository{db: db}
 }
 
+// Create 写入 ticket_transfers。tenant_id 若未设置，自动从父工单 tickets.tenant_id 带出。
 func (r *TransferRepository) Create(ctx context.Context, rec *models.TransferRecord) error {
 	// created_at is NOT NULL with no default in 076; no caller sets it.
 	if rec.CreatedAt.IsZero() {
 		rec.CreatedAt = time.Now().UTC()
 	}
 
+	// 自动补 tenant_id：从 tickets 表拉
+	if rec.TenantID == "" && rec.TicketID != "" {
+		var tid string
+		if err := r.db.GetContext(ctx, &tid,
+			"SELECT tenant_id::text FROM tickets WHERE id = $1", rec.TicketID); err == nil {
+			rec.TenantID = tid
+		}
+	}
+
 	// 076's columns are from_user_id and to_user_id, not from_engineer_id and
 	// to_engineer_id; initiated_by and hold_duration_ms come from
 	// 696_add_ticket_relation_transfer_columns.sql.
-	query := `INSERT INTO ticket_transfers (id, ticket_id, from_user_id, to_user_id, initiated_by, reason, hold_duration_ms, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	query := `INSERT INTO ticket_transfers (id, tenant_id, ticket_id, from_user_id, to_user_id, initiated_by, reason, hold_duration_ms, created_at)
+		VALUES ($1, NULLIF($2, ''), $3, $4, $5, $6, $7, $8, $9)`
 	_, err := r.db.ExecContext(ctx, query,
-		rec.ID, rec.TicketID, rec.FromEngineerID, rec.ToEngineerID,
+		rec.ID, rec.TenantID, rec.TicketID, rec.FromEngineerID, rec.ToEngineerID,
 		rec.InitiatedBy, rec.Reason, rec.HoldDurationMs, rec.CreatedAt,
 	)
 	return err
 }
 
+// ListByTicket 返回指定工单的转移记录，并通过父工单 tenant 做 ADR-011 多租户过滤。
 func (r *TransferRepository) ListByTicket(ctx context.Context, ticketID string) ([]models.TransferRecord, error) {
 	var records []models.TransferRecord
-	err := r.db.SelectContext(ctx, &records,
-		"SELECT "+transferColumns+" FROM ticket_transfers WHERE ticket_id = $1 ORDER BY created_at DESC", ticketID)
+	query := `SELECT tr.` + transferColumns + ` FROM ticket_transfers tr
+		 JOIN tickets t ON tr.ticket_id = t.id
+		 WHERE tr.ticket_id = $1
+		   AND (tr.tenant_id = t.tenant_id OR tr.tenant_id IS NULL)
+		 ORDER BY tr.created_at DESC`
+	err := r.db.SelectContext(ctx, &records, query, ticketID)
 	return records, err
 }
 

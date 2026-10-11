@@ -37,8 +37,10 @@ type CreateAssignmentRuleRequest struct {
 // InitiatedBy / HoldDurationMs have no column in 076; 696_add_ticket_relation_transfer_columns.sql
 // adds them because TransferRequest marks initiated_by binding:"required" and
 // the transfer handlers return hold_duration_ms.
+// TenantID 由 Migration 704 引入（ADR-011 多租户隔离），nullable + 回填自 tickets.tenant_id。
 type TransferRecord struct {
 	ID             string    `json:"id" db:"id"`
+	TenantID       string    `json:"tenant_id,omitempty" db:"tenant_id"`
 	TicketID       string    `json:"ticket_id" db:"ticket_id"`
 	FromEngineerID string    `json:"from_engineer_id" db:"from_user_id"`
 	ToEngineerID   string    `json:"to_engineer_id" db:"to_user_id"`

@@ -30,8 +30,12 @@ type Ticket struct {
 	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
 }
 
+// TicketComment 存储工单评论。TenantID 由 Migration 704 引入（ADR-011 多租户隔离）：
+// nullable，回填自 tickets.tenant_id；repository 查询时用它做 WHERE tenant_id = $N
+// 过滤，与 tickets 表租户对齐。旧行 tenant_id 为空的场景由 repository 兼容路径处理。
 type TicketComment struct {
 	ID         string    `json:"id" db:"id"`
+	TenantID   string    `json:"tenant_id,omitempty" db:"tenant_id"`
 	TicketID   string    `json:"ticket_id" db:"ticket_id"`
 	Author     string    `json:"author" db:"author"`
 	Content    string    `json:"content" db:"content"`
