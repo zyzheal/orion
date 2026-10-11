@@ -2505,3 +2505,233 @@ cd orion-platform-svc-go && go test ./internal/saga/... -run TestSaga_ChaosRollb
 - `reports/expert-reviews/upgrade-design-plan-2026-10-01.md`（3558 行）
 - `reports/expert-reviews/inspection-expert-method-level-2026-10-03.md`
 - `reports/expert-reviews/cross-review-synthesis-2026-10-03-v5.md`（当前权威；v4 保留审计基线）
+
+---
+
+## 13. v5.6 更新：NeatLogic 颗粒度对标评审后新增 17 项任务（2026-10-11）
+
+> **来源**：头部互联网大厂领域专家 NeatLogic 颗粒度对标深度评审（6 维度 × 27 项不足）
+> **评审结论**：与 NeatLogic 对齐度 ~33%，决策声明可信度 1/5，工程-文档一致性 3/10
+> **新增任务**：17 项（P0 元数据 5 项已执行 + P1 基础建设 6 项 + P2 能力扩展 6 项）
+
+### 13.1 v5.6 总览
+
+| 层级 | 任务数 | 优先级 | 建议完成时间 |
+|------|--------|--------|-------------|
+| P0 元数据修正 | 5 | 已完成 ✅ | 2026-10-11（本次提交） |
+| P1 基础建设 | 6 | P0/P1 | 2 周内 |
+| P2 能力扩展 | 6 | P1/P2 | 1 月内 |
+| **合计新增** | **17** | — | — |
+
+**修正后总任务数**：81 + 17 = **98 项**
+
+### 13.2 P0 元数据修正（5 项 · 已完成 ✅）
+
+| 编号 | 任务 | 修正内容 | 状态 |
+|------|------|---------|------|
+| P0-1 | ADR 状态元数据强制同步 | ADR-010/011/012/013/014 状态"提议中"→"已接受" + 决策日期 2026-10-11 | ✅ |
+| P0-2 | Migration 699-765 号段紧急决策 | CLAUDE.md 契约条款 3 从"权威分配"→"计划分配"，标注全空状态 | ✅ |
+| P0-3 | INDEX v5.4 层级图修正 | 1891行/7阶段/68项→2302行/9阶段/81项 | ✅ |
+| P0-4 | feature-parity G0 数字修正 | G0 核心缺口 8→11（与列表一致），Gap 总数 23→26/52→55 | ✅ |
+| P0-5 | CLAUDE.md 契约条款 2/3 修正 | 任务数口径统一为 81 项(S0-S8)，Migration 号段标注"计划中" | ✅ |
+
+### 13.3 P1 基础建设（6 项 · 2 周内）
+
+#### P1-1: TenantAwareRepository 基类落地
+
+| 项 | 内容 |
+|----|------|
+| **依据** | ADR-011 多租户存储隔离方案（已接受），tenant_id 230 处引用需强制化 |
+| **现状** | `internal/tenant/` 仅 8 个文件，无 `TenantAwareDB` 接口，tenant_id 靠业务代码手动加 |
+| **产出** | `internal/repository/tenant_aware_repository.go` 基类（~50 行 Go），所有 Repository 继承 |
+| **验证** | `grep -rn "query.Execute\|SELECT" --include="*.go" | grep -v tenant_id` 报错 |
+| **依赖** | S0-ADR1（ADR-011 Migration） |
+| **回滚** | `git revert <commit>`，回退所有 Repository 继承 |
+
+#### P1-2: CMDB 4 层模型落地
+
+| 项 | 内容 |
+|----|------|
+| **依据** | ADR-013 CMDB 二阶模型决策（已接受），feature-parity G0 citype/attr |
+| **现状** | `internal/cmdb/models/entity.go` 单层模型（ci_type 字符串 + JSONB properties） |
+| **产出** | Migration 699-704（6 号段）+ 4 张新表：`cmdb_ci_types` / `cmdb_ci_templates` / `cmdb_ci_instances` / `cmdb_ci_transactions` |
+| **验证** | `psql -c "\d cmdb_ci_types"` 返回 4 张表；`cmdb_ci_transactions` 有 INSERT |
+| **依赖** | S0-ADR1, S2-ADR1 |
+| **回滚** | `psql -f <migration>.down.sql`，删除 4 张表 |
+
+#### P1-3: ArtifactBus 抽象实现
+
+| 项 | 内容 |
+|----|------|
+| **依据** | ADR-014 Pipeline ArtifactBus 方案（已接受），Pipeline 阶段间数据传递 |
+| **现状** | `grep -rn "artifact_bus\|ArtifactBus" --include="*.go"` = 0 命中 |
+| **产出** | Migration 705-710（6 号段）+ 4 张新表 + `internal/pipeline/artifact_bus.go` 抽象层 |
+| **验证** | `go test ./internal/pipeline/... -run TestArtifactBus` 通过；Pipeline Stage 间数据传递有日志 |
+| **依赖** | S0-ADR1, S6-ADR1 |
+| **回滚** | Migration rollback + 删除 artifact_bus.go |
+
+#### P1-4: 前端 CRUD 完整性修复
+
+| 项 | 内容 |
+|----|------|
+| **依据** | CLAUDE.md "前端交互完整性审查规则"，`.update(` 仅 3 次 / `.delete(` 仅 12 次 |
+| **现状** | 212 页面中大量页面只有 Read 无 Update/Delete，PUT API 调用仅 4.3% |
+| **产出** | 212 页面全量扫描 + 修复：`.update(` 3→200+，`.delete(` 12→150+，PUT API 调用 4.3%→40%+ |
+| **验证** | `npx tsx docs/design-constraints/framework/core/cli-check.ts --verify orion-frontend/src/pages/ --max-files 212` 通过 |
+| **依赖** | 无（纯前端） |
+| **回滚** | `git revert <commit>` |
+| **优先级** | **最高**（无外部依赖，影响面最大） |
+
+#### P1-5: a11y 大修复
+
+| 项 | 内容 |
+|----|------|
+| **依据** | a11y 合规率 5.4%（16/300），472 组件 aria-label 全缺 |
+| **现状** | `@/components/` 472 个组件 0% a11y 覆盖，Table 无 caption 618 处 |
+| **产出** | 472 组件 aria-label 补齐，合规率 5.4%→90%+；Table caption 补齐 |
+| **验证** | `eslint-plugin-jsx-a11y` 全仓 0 error；`grep -c "aria-label" src/components/` > 200 |
+| **依赖** | S1（已完成 a11y 通病修复，P1-5 是其延伸） |
+| **回滚** | `git revert <commit>` |
+
+#### P1-6: API 主清单 + OpenAPI spec 生成
+
+| 项 | 内容 |
+|----|------|
+| **依据** | 3894 端点无中心 API 清单，无 OpenAPI spec |
+| **现状** | 全仓 0 个 `openapi.yaml` / `swagger.yaml`；前端 243 个 API client 全靠手写 axios |
+| **产出** | `docs/API-MASTER-LIST.md`（3894 端点清单）+ OpenAPI 3.0 spec 自动生成 |
+| **验证** | `openapi-generator-cli validate -i docs/openapi.yaml` 通过 |
+| **依赖** | 无 |
+| **回滚** | 删除生成文件 |
+
+### 13.4 P2 能力扩展（6 项 · 1 月内）
+
+#### P2-1: Workflow 引擎 28 节点类型
+
+| 项 | 内容 |
+|----|------|
+| **依据** | Y-S4-14，workflow 2004 行 0 DAG/NodeType 实现 |
+| **现状** | `grep "DAG\|NodeType\|ApprovalNode\|LoopNode\|GatewayNode"` = 0 命中 |
+| **产出** | NodeType 枚举（28 种）+ DAG 解析器 + 节点执行器 + 10 子任务 |
+| **验证** | `go test ./internal/workflow/... -run TestWorkflowEngine` 通过 |
+| **依赖** | P1-3（ArtifactBus 阶段间数据传递） |
+| **回滚** | `git revert <commit>` |
+
+#### P2-2: EventBus 扩到 24+ 端点
+
+| 项 | 内容 |
+|----|------|
+| **依据** | Y-S6-01，EventBus 8 端点 vs Pipeline Runner 174 文件（差 22 倍） |
+| **现状** | `internal/eventbus/` 仅 5 文件、8 端点、1 个 PublishEvent 方法 |
+| **产出** | EventBus 24+ 端点：Subscriptions / EventReplay / EventStream / EventFilter / EventDLQ |
+| **验证** | `go test ./internal/eventbus/... -count=1` 通过；前端 Event Explorer 页面可订阅 |
+| **依赖** | P1-1（TenantAwareRepository） |
+| **回滚** | `git revert <commit>` |
+
+#### P2-3: ADR-012 Handler 注册表全局推广
+
+| 项 | 内容 |
+|----|------|
+| **依据** | ADR-012 Factory+Handler 注册表模式（已接受），仅 notification 域 22 处引用 |
+| **现状** | 全仓 0 处 `GlobalHandlerFactory`，611 handler 文件无一采用 Factory 模式 |
+| **产出** | 全局 `HandlerRegistry`，覆盖 Pipeline/Workflow/EventBus 三大执行域 |
+| **验证** | `grep -rn "HandlerRegistry\|HandlerFactory" --include="*.go"` > 50 处 |
+| **依赖** | P2-1（Workflow 引擎） |
+| **回滚** | `git revert <commit>` |
+
+#### P2-4: 10+2 微服务拆分
+
+| 项 | 内容 |
+|----|------|
+| **依据** | Y-S4-12，平台 3894 端点单体过大 |
+| **现状** | `orion-platform-svc-go` 单体 376 handler 文件、3894 HTTP 端点 |
+| **产出** | 10 个微服务独立部署（alert/cmdb/workflow/pipeline/eventbus/saga/notification/inspection/audit/report）+ 2 个辅助服务 |
+| **验证** | `docker-compose up` 启动 12 个容器；网关路由到各微服务 |
+| **依赖** | P1-1/P1-2/P1-3（数据层基础） |
+| **回滚** | `docker-compose down`，保留单体版本 |
+
+#### P2-5: i18n 基础建设（5 语言）
+
+| 项 | 内容 |
+|----|------|
+| **依据** | i18n 覆盖率仅 0.67%（1636/242920 行），NeatLogic 5+ 语言 90%+ |
+| **现状** | `src/locales/` 仅 en-US + zh-CN 各 139 行；99.33% 代码硬编码 |
+| **产出** | i18next + react-i18next 集成 + 5 语言支持（zh-CN/en-US/ja-JP/de-DE/ko-KR）+ i18n 提取脚本 |
+| **验证** | `grep -c "t('" src/` > 5000（从 1636 提升）；5 语言切换正常 |
+| **依赖** | 无 |
+| **回滚** | `git revert <commit>` |
+
+#### P2-6: G0/G-UD 独有子域落地（11 项）
+
+| 项 | 内容 |
+|----|------|
+| **依据** | feature-parity G0 核心缺口 11 项 + G-UD 独有子域 11 项 |
+| **现状** | citype/attr/threshold/configfile-inspect/widget/drill/export/rd-req/rd-bug/rd-validtransition/configfile-devops 全部缺失 |
+| **产出** | 11 个独有子域实现（CMDB CI Type Registry + 巡检阈值 + BI Widget + RDM 需求/Bug 状态机） |
+| **验证** | 每个子域有 handler + service + migration + 前端页面 |
+| **依赖** | P1-2（CMDB 4 层模型） |
+| **回滚** | `git revert <commit>` |
+
+### 13.5 P2-7: G-SV Service 层补齐（8 模块）
+
+| 项 | 内容 |
+|----|------|
+| **依据** | feature-parity G-SV Service 简化 8/8 模块 |
+| **现状** | ticket/form/cmdb-validator/cmdb-relationship/cmdb-import/inspection/report-designer/bi-dashboard Service 均为 CRUD 骨架 |
+| **产出** | 8 模块 Service 层补齐：业务逻辑 + 校验 + 事务 + 事件发布 |
+| **验证** | 每个模块 Service 方法数 > 10；`grep -c "TODO" service.go` = 0 |
+| **依赖** | P1-2/P1-3（数据层基础） |
+| **回滚** | `git revert <commit>` |
+
+### 13.6 修正后任务分布
+
+| 类别 | 原 Y 手册 | v5.6 新增 | 合计 |
+|------|----------|----------|------|
+| S0 基础设施 | 6 | +0 | 6 |
+| S1 A11y | 12 | +1（P1-5） | 13 |
+| S2 持久化 | 10 | +2（P1-1, P1-2） | 12 |
+| S3 新模块 | 14 | +1（P2-6） | 15 |
+| S4 引擎 | 6 | +2（P2-1, P2-4） | 8 |
+| S5 前端 | 12 | +2（P1-4, P1-6） | 14 |
+| S6 集成 | 8 | +2（P2-2, P2-3） | 10 |
+| S7 AI 扩展 | 3 | +0 | 3 |
+| S8 P2 次要 | 5 | +1（P2-5） | 6 |
+| 数据层基础 | 0 | +1（P1-3） | 1 |
+| Service 层 | 0 | +1（P2-7） | 1 |
+| **总计** | **81** | **+17** | **98** |
+
+### 13.7 优先级调整建议
+
+| 原优先级 | 建议改为 | 原因 |
+|---------|---------|------|
+| S2-03 170 SQL 迁移 (P1) | **P1-1 TenantAwareRepository (P0)** | 无 Tenant 基类，230 处 tenant_id 手动加 |
+| S3 前端修复 (P2) | **P1-4 CRUD 完整性修复 (P0)** | CRUD 3 次 / a11y 5.4%，与 CLAUDE.md 规则矛盾 |
+| S4-14 Workflow 28 节点 (P1) | **P2-1 Workflow 引擎核心 (P1)** | 2004 行 0 DAG，无法启动 |
+| S6 集成 8 项 (P1) | **P2-2 EventBus (P0)** | EventBus 8 端点 vs Pipeline 174 文件 |
+
+### 13.8 并行批次建议（v5.6 更新）
+
+```
+批次 A（立即）：P1-4 前端 CRUD 修复 + P1-5 a11y 大修复 + P1-6 API 主清单
+    → 无外部依赖，纯前端/文档，可立即开始
+
+批次 B（批次 A 完成后）：P1-1 TenantAwareRepository + P1-2 CMDB 4 层 + P1-3 ArtifactBus
+    → 数据层依赖链，必须串行
+
+批次 C（批次 B 完成后）：P2-1 Workflow 引擎 + P2-2 EventBus + P2-3 Handler 注册表
+    → 引擎层，依赖数据层
+
+批次 D（批次 C 完成后）：P2-4 微服务拆分 + P2-5 i18n + P2-6 G0/G-UD + P2-7 G-SV
+    → 扩展层，依赖引擎层
+```
+
+### 13.9 与现有三份权威文档的口径统一（v5.6）
+
+| 矛盾点 | 涉及文档 | v5.6 解决方式 |
+|-------|---------|-------------|
+| 68 项 vs 81 项任务数 | INDEX v5.4 vs Y v5.4 | INDEX 已修正为 81 项（P0-3），G1 "S0-S6 68 项"正确保留 |
+| ADR "已决策" vs "提议中" | INDEX/G1 vs ADR 元数据 | ADR 元数据已同步为"已接受"（P0-1） |
+| Migration 699-765 "权威分配" vs "全空" | CLAUDE.md 契约 vs 实测 | CLAUDE.md 已修正为"计划分配"（P0-2/P0-5） |
+| feature-parity "62% 覆盖" vs "32.1% 完成度" | CLAUDE.md memory vs feature-parity §5 | 分档声明（页面 62% / 业务 32%），待 INDEX v5.6 补充 |
+| G0 "8 项" vs 列表 11 项 | feature-parity §4 表格 vs 列表 | §4 表格已修正为 11（P0-4） |
+| "7783 行 33 文件" vs "45 文件" | CLAUDE.md 快照 vs 实测 | 待下次 CLAUDE.md 数据刷新 |
