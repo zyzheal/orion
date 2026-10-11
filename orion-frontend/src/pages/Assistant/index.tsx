@@ -35,7 +35,14 @@ const AssistantPage = () => {
         />
         <Content style={{ padding: spacing.lg, background: colors.light.bg.primary }}>
           {!sidebarOpen && (
-            <Button size="small" icon={<MenuUnfoldOutlined />} onClick={() => setSidebarOpen(true)} style={{ marginBottom: spacing.sm }}>
+            <Button
+              size="small"
+              icon=<MenuUnfoldOutlined />
+              onClick={() => setSidebarOpen(true)}
+              style={{ marginBottom: spacing.sm }}
+              aria-label="展开会话侧栏"
+              tabIndex={0}
+            >
               展开会话
             </Button>
           )}

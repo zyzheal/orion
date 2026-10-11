@@ -117,6 +117,8 @@ export const buildRetryColumns = ({
               onClick={() => handleRetry(record)}
               icon={<ReloadOutlined />}
               style={{ borderColor: colors.warning[500], color: colors.warning[500] }}
+              aria-label={`重试 ${record.pipelineName} Run #${record.runNumber}`}
+              tabIndex={0}
             >
               重试
             </Button>
@@ -135,6 +137,8 @@ export const buildRetryColumns = ({
                 danger
                 icon={<RollbackOutlined />}
                 style={{ color: colors.error[500], borderColor: colors.error[500] }}
+                aria-label={`回滚 ${record.pipelineName} Run #${record.runNumber}`}
+                tabIndex={0}
               >
                 回滚
               </Button>
@@ -149,7 +153,13 @@ export const buildRetryColumns = ({
               cancelText="继续运行"
               okButtonProps={{ danger: true }}
             >
-              <Button size="small" danger icon={<StopOutlined />}>
+              <Button
+                size="small"
+                danger
+                icon={<StopOutlined />}
+                aria-label={`取消 ${record.pipelineName} Run #${record.runNumber}`}
+                tabIndex={0}
+              >
                 取消
               </Button>
             </Popconfirm>

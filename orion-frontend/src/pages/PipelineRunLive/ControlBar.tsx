@@ -52,13 +52,29 @@ export const ControlBar: React.FC<ControlBarProps> = ({
       icon={isPaused ? <PlayCircleOutlined /> : <PauseCircleOutlined />}
       onClick={handlePause}
       title={isPaused ? '恢复日志流' : '暂停日志流'}
+      aria-label={isPaused ? '恢复日志流' : '暂停日志流'}
+      tabIndex={0}
     >
       {isPaused ? '恢复' : '暂停'}
     </Button>
-    <Button size="small" icon={<ClearOutlined />} onClick={handleClearLogs} title="清空日志">
+    <Button
+      size="small"
+      icon={<ClearOutlined />}
+      onClick={handleClearLogs}
+      title="清空日志"
+      aria-label="清空日志"
+      tabIndex={0}
+    >
       清空日志
     </Button>
-    <Button size="small" icon={<DownloadOutlined />} onClick={handleExportLogs} title="导出日志">
+    <Button
+      size="small"
+      icon={<DownloadOutlined />}
+      onClick={handleExportLogs}
+      title="导出日志"
+      aria-label="导出日志"
+      tabIndex={0}
+    >
       导出日志
     </Button>
     <Divider type="vertical" />
@@ -67,15 +83,20 @@ export const ControlBar: React.FC<ControlBarProps> = ({
       type={autoScroll ? 'primary' : 'default'}
       onClick={() => setAutoScroll(!autoScroll)}
       title={autoScroll ? '关闭自动滚动' : '开启自动滚动'}
+      aria-label={autoScroll ? '关闭自动滚动' : '开启自动滚动'}
+      aria-pressed={autoScroll}
+      tabIndex={0}
     >
       {autoScroll ? '自动滚动: 开' : '自动滚动: 关'}
     </Button>
     <Divider type="vertical" />
     <Button
       size="small"
-      icon={<SyncOutlined />}
+      icon=<SyncOutlined />
       onClick={handleReconnect}
       title="重新连接 SSE"
+      aria-label="重新连接 SSE"
+      tabIndex={0}
     >
       重连
     </Button>

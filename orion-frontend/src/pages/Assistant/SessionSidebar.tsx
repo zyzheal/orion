@@ -54,10 +54,22 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
       >
         <Text strong>会话历史</Text>
         <Space>
-          <Button size="small" icon={<PlusOutlined />} onClick={onNew}>
+          <Button
+            size="small"
+            icon=<PlusOutlined />
+            onClick={onNew}
+            aria-label="新建会话"
+            tabIndex={0}
+          >
             新建
           </Button>
-          <Button size="small" icon={<MenuFoldOutlined />} onClick={onToggle} />
+          <Button
+            size="small"
+            icon=<MenuFoldOutlined />
+            onClick={onToggle}
+            aria-label="折叠侧栏"
+            tabIndex={0}
+          />
         </Space>
       </div>
       <List
@@ -89,7 +101,9 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
               size="small"
               type="text"
               danger
-              icon={<DeleteOutlined />}
+              icon=<DeleteOutlined />
+              aria-label={`删除会话：${(session.messages?.[0]?.content || '新会话').slice(0, 10)}`}
+              tabIndex={0}
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(session.id);

@@ -46,11 +46,22 @@ export const PageHeader = ({
     </div>
     <Space>
       {pipelineId && (
-        <Button icon={<ArrowLeftOutlined />} onClick={onBackToList}>
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={onBackToList}
+          aria-label="返回列表"
+          tabIndex={0}
+        >
           返回列表
         </Button>
       )}
-      <Button icon={<ReloadOutlined />} onClick={onRefresh} loading={loading}>
+      <Button
+        icon={<ReloadOutlined />}
+        onClick={onRefresh}
+        loading={loading}
+        aria-label="刷新运行历史"
+        tabIndex={0}
+      >
         刷新
       </Button>
     </Space>

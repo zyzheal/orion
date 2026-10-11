@@ -59,37 +59,43 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
       <Space>
         <Button
           type="primary"
-          icon={<PlayCircleOutlined />}
+          icon=<PlayCircleOutlined />
           loading={actionLoading}
           onClick={() => handleAction('trigger_pipeline')}
           style={{
             backgroundColor: colors.purple[500],
             borderColor: colors.purple[500],
           }}
+          aria-label="触发研发流程 Agent"
+          tabIndex={0}
         >
           触发研发流程 Agent (TR-09)
         </Button>
         <Button
           type="primary"
-          icon={<CloudServerOutlined />}
+          icon=<CloudServerOutlined />
           loading={actionLoading}
           onClick={() => handleAction('suggest_command')}
           style={{
             backgroundColor: colors.info[500],
             borderColor: colors.info[500],
           }}
+          aria-label="Ops 问答助手"
+          tabIndex={0}
         >
           Ops 问答助手 (TR-11)
         </Button>
         <Button
           type="primary"
-          icon={<FunnelPlotOutlined />}
+          icon=<FunnelPlotOutlined />
           loading={actionLoading}
           onClick={() => handleAction('generate_flow')}
           style={{
             backgroundColor: colors.purple[500],
             borderColor: colors.purple[500],
           }}
+          aria-label="AI 生成流程"
+          tabIndex={0}
         >
           AI 生成流程 (TR-10)
         </Button>

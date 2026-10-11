@@ -107,10 +107,22 @@ const PipelineManagementPage: React.FC = () => {
           </Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={loadPipelines} loading={loading}>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={loadPipelines}
+            loading={loading}
+            aria-label="刷新管道列表"
+            tabIndex={0}
+          >
             刷新
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleOpenCreate}
+            aria-label="创建新数据管道"
+            tabIndex={0}
+          >
             创建管道
           </Button>
         </Space>
@@ -140,22 +152,26 @@ const PipelineManagementPage: React.FC = () => {
 
       {/* 管道列表 */}
       {filteredPipelines.length === 0 ? (
-        <Card style={{ textAlign: 'center', padding: '48px 0' }}>
-          <Empty
-            description={
-              <Text type="secondary">
-                {pipelines.length === 0
-                  ? '暂无数据管道，点击上方按钮创建第一个管道'
-                  : '没有匹配的管道'}
-              </Text>
-            }
-          />
+        <Card role="region" aria-label="管道列表" style={{ textAlign: 'center', padding: '48px 0' }}>
+          <div role="status" aria-live="polite" aria-atomic="true">
+            <Empty
+              description={
+                <Text type="secondary">
+                  {pipelines.length === 0
+                    ? '暂无数据管道，点击上方按钮创建第一个管道'
+                    : '没有匹配的管道'}
+                </Text>
+              }
+            />
+          </div>
           {pipelines.length === 0 && (
             <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={handleOpenCreate}
               style={{ marginTop: spacing.md }}
+              aria-label="创建数据管道"
+              tabIndex={0}
             >
               创建数据管道
             </Button>

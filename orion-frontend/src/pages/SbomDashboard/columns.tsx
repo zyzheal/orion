@@ -92,10 +92,18 @@ export function buildSbomColumns(deps: BuildColumnsDeps): TableColumn<SbomDocume
             size="small"
             icon={<EyeOutlined />}
             onClick={() => navigate(`/sbom/${record.id}`)}
+            aria-label={`查看 SBOM：${record.documentId}`}
+            tabIndex={0}
           >
             查看
           </Button>
-          <Button type="link" size="small" icon={<DownloadOutlined />}>
+          <Button
+            type="link"
+            size="small"
+            icon={<DownloadOutlined />}
+            aria-label={`下载 SBOM：${record.documentId}`}
+            tabIndex={0}
+          >
             下载
           </Button>
         </Space>

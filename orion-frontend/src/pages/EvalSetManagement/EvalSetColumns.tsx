@@ -73,7 +73,13 @@ export const useEvalSetColumns = (
         width: 220,
         render: (_, record: EvalSet) => (
           <Space size="small">
-            <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewSet(record.id)}>
+            <Button
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => handleViewSet(record.id)}
+              aria-label={`查看评测集：${record.name}`}
+              tabIndex={0}
+            >
               查看
             </Button>
             <Button
@@ -82,6 +88,8 @@ export const useEvalSetColumns = (
               icon={<PlayCircleOutlined />}
               loading={runLoading === record.id}
               onClick={() => handleRunEval(record.id, record.name)}
+              aria-label={`运行评测集：${record.name}`}
+              tabIndex={0}
             >
               运行
             </Button>
@@ -91,7 +99,13 @@ export const useEvalSetColumns = (
               okText="确定"
               cancelText="取消"
             >
-              <Button size="small" danger icon={<DeleteOutlined />}>
+              <Button
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                aria-label={`删除评测集：${record.name}`}
+                tabIndex={0}
+              >
                 删除
               </Button>
             </Popconfirm>
