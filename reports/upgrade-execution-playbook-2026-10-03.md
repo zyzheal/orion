@@ -2803,6 +2803,174 @@ P1-9 (UI 组件对标) ─┘
 
 **修正后总任务数**：81 + 17 + 6 + 3 = **107 项**
 
+### 14.11 v5.9 企业级架构升级（2026-10-11）
+
+> **触发**：用户确认"集合当前系统所具备的功能颗粒度并进行分析当前升级方案还存在哪些优化的地方以及是否需要进行架构升级达到企业级别的高扩展性、可观测性、智能性"
+> **评审依据**：`reports/expert-reviews/enterprise-architecture-depth-review-2026-10-11.md`（546 行，大厂首席架构师视角）
+> **企业级基准**：Google SRE Book Ch.19/23/24/25/26 + AWS Well-Architected (REL/SEC/OES/LLM01) + Alibaba Cloud 白皮书 §4.3 + 阿里云 AIOps §5.2
+> **任务数变化**：107 → **122**（+15 项：U1-U5 最小升级集 + NEW-EA-1~15 新增候选 - 5 项重复）
+
+#### 14.11.1 企业级达标度评估
+
+| 维度 | 当前达标度 | 企业级门槛 | 差距 | 是否需架构升级 |
+|------|----------|----------|------|--------------|
+| **高扩展性** | **62%** | 95%+ | 33pp | **部分**（数据模型 + 租户隔离层需升级） |
+| **可观测性** | **55%** | 95%+ | 40pp | **部分**（设计完备但落地 0 项，需 P0-6~8 补运维治理） |
+| **智能性** | **38%** | 90%+ | 52pp | **是**（AI 差异化是护城河，但缺 SLA/评测/降级） |
+
+**共同结论**：3 维度无一达到企业级门槛，107 项任务中约 40% 属于"设计完备、落地空号"状态（Migration 699-765 全部空号 + 5 份 ADR 已决策但未落地）。
+
+#### 14.11.2 核心洞察：设计完备 vs 落地断层
+
+| 断层面 | 实测数据 | 来源 |
+|-------|---------|------|
+| Migration 号段 | 699-765 **全部空号** | Y 手册 §13.6 P0-2 自认 |
+| orion-*-svc 目录 | **87 个**（37 TS + 47 Go + 2 Python + 1 Rust），**0 可独立部署** | CLAUDE.md + big-tech v2 §7.3 |
+| ADR-011 Migration 720 | **已决策但空号** | Y §14.6.5 |
+| ADR-010/013/014 参照系 | **虚构**（AlertBreakerMapper/Template 层/TaskHandler* 全部 0 命中） | adr-neatlogic-reference-audit §0 |
+| 门控失败降级策略 | **0 覆盖** | big-tech-adversarial §5.2 |
+| AI 决策 SLA/评测集 | **0 覆盖** | big-tech v2 §2 G6/G7 |
+
+#### 14.11.3 最小升级集（5 项 P0 · U1-U5）
+
+| # | 升级项 | 判据 | 阻塞 |
+|---|--------|------|------|
+| **U1** | ADR-011 补 SQL builder 编译期强制（第 4 步） | AWS WA SEC01-BP02 | E7 一票否决（69.9%→100% 不可收敛） |
+| **U2** | `internal/cmdb/attribute` 包 + ADR-013 拆 2 Migration | Google Cloud Inventory | E1 根因级（CMDB 二阶模型） |
+| **U3** | ADR-011 术语修正 Schema-per-tenant → DB-per-tenant | adr-neatlogic-reference-audit §2.3 | 实现者误做"同库多 schema"（MySQL 不可行） |
+| **U4** | P0-6~8 运维治理 3 章节（SLO/容量/混沌） | Google SRE Ch.23 | 所有 Stage Gate 无 SLO 基线 = 门控形同虚设 |
+| **U5** | 每周基线刷新 + 文档一致性 CI 校验 | 大厂契约一致性 | 方案-工程一致性继续漂移 |
+
+#### 14.11.4 新增候选任务（NEW-EA-1~15）
+
+##### P0 任务（4 项 · 阻塞性）
+
+| # | 任务 | 依赖 | 验证 |
+|---|------|------|------|
+| **NEW-EA-1** | ADR-011 SQL builder 编译期强制 | 无 | `grep -c "TenantAware\|tenant_id" internal/common/` > 50 |
+| **NEW-EA-2** | `internal/cmdb/attribute` 包 + ADR-013 拆 2 Migration | S0-T5 | `ls internal/cmdb/attribute/` 存在 + Migration 720/721 落地 |
+| **NEW-EA-3** | ADR-010/013/014 参照系修正 | 无 | `grep -c "AlertBreakerMapper\|TaskHandlerType" docs/adr/` = 0 |
+| **NEW-EA-13** | Ticket Type 字段污染修复 | S0-T4 | Ticket Type 字段枚举化，非自由字符串 |
+| **NEW-EA-14** | cmdb 4 个 K8s/Script 桩升级 | S0-T4 | 4 桩 → 真实实现（grep 验证） |
+
+##### P1 任务（11 项 · 优化性）
+
+| # | 任务 | 依赖 |
+|---|------|------|
+| NEW-EA-4 | ADR-011 术语修正 DB-per-tenant | 无 |
+| NEW-EA-5 | 每周基线刷新机制 | 无 |
+| NEW-EA-6 | 文档一致性 CI 校验脚本 | 无 |
+| NEW-EA-7 | 结构化日志覆盖率门控 S0-T7 | S0 |
+| NEW-EA-8 | OTel span 覆盖率门控 S0-T8 | P0-6 |
+| NEW-EA-9 | alert-adapter-v2 决策 | S0-T4 |
+| NEW-EA-10 | AI 决策 SLA/评测集 | 无 |
+| NEW-EA-11 | LLM 安全防护（prompt 注入 + 输出校验 + 数据脱敏） | P0-6 |
+| NEW-EA-12 | CC 新增"AI 决策错误"风险条目 | NEW-EA-10 |
+| NEW-EA-15 | 门控失败降级策略文档 | 无 |
+
+#### 14.11.5 明确不做清单（5 项护城河保护）
+
+> **来源**：big-tech v2 §5 结尾 + 企业级架构评审 §8.5
+
+| 编号 | 不做项 | 理由 |
+|------|-------|------|
+| ❌ 1 | **不削减 G6 事件/Saga**（97 EventType + 28 EventBus + 13 Saga） | Orion 领先 NeatLogic 的差异化能力 |
+| ❌ 2 | **不削减 G7 可观测/多云**（Prometheus 102 + OTel 453 + ClickHouse 47 + Kafka 40 + NATS 492） | Orion 护城河，企业级可观测性核心 |
+| ❌ 3 | **不为对标引入 K8s/Helm/ArgoCD Runner 到巡检链路** | 保留现有差异化，避免"向 NeatLogic 靠拢"误读 |
+| ❌ 4 | **不在后端做 SVG 报表生成** | NeatLogic 走过的弯路（big-tech v2 §3.E5） |
+| ❌ 5 | **不重构 Incident/Problem/Change 为 ChannelType 配置化** | E2 明确反对（neatlogic-architecture-philosophy §1.1） |
+
+#### 14.11.6 过度设计裁剪候选（4 项）
+
+| 编号 | 裁剪项 | 理由 |
+|------|-------|------|
+| ⚠️ 1 | K8s/Helm/ArgoCD Runner（巡检链路） | Orion 差异化护城河，不应对标引入 |
+| ⚠️ 2 | R-P0-06 降级（BI 拆口径） | v3 已明确 BI 后端报表引擎 <20%，单独立项 |
+| ⚠️ 3 | R-P0-08 降级（三数字并存） | 门控数已统一为 29，无需并行 3 数字 |
+| ⚠️ 4 | 反向重构 11 对重复模块 | v3 §11.2 明确"止损阶段不做" |
+
+#### 14.11.7 修正后任务分布（v5.9）
+
+| 阶段 | v5.8 任务数 | v5.9 任务数 | 变化 |
+|------|------------|------------|------|
+| S0 基础设施 | 6 | 6 | — |
+| S1 A11y 通病 | 12 | 12 | — |
+| S2 CMDB/ADR | 10 | 10 | — |
+| S3 新模块 | 14 | 14 | — |
+| S4 CI/CD | 6 | 6 | — |
+| S5 前端补齐 | 12 | 12 | — |
+| S6 跨模块 | 8 | 8 | — |
+| S7 止损 | 3 | 3 | — |
+| S8 P2 可选 | 5 | 5 | — |
+| §13 P0/P1/P2 补充 | 17 | 17 | — |
+| §14 运维治理 | 6 | 6 | — |
+| §14.10 前端融合补齐 | 3 | 3 | — |
+| **§14.11 企业级架构升级** | 0 | **15** | **+15** |
+| **合计** | **107** | **122** | **+15** |
+
+#### 14.11.8 v5.9 执行优先级
+
+| 批次 | 任务 | 优先级 | 并行策略 |
+|------|------|-------|---------|
+| **批次 U** | U1-U5 最小升级集（5 项） | P0 | U1+U2+U3 并行，U4 依赖 P0-6/7/8，U5 依赖 U1-U4 |
+| **批次 NEW-EA-P0** | NEW-EA-1/2/3/13/14（5 项） | P0 | 与批次 U 部分重叠（NEW-EA-1=U1，NEW-EA-2=U2） |
+| **批次 NEW-EA-P1** | NEW-EA-4~12/15（10 项） | P1 | 依赖 P0-6 完成 |
+| **批次 护城河保护** | 明确不做 5 项 + 裁剪 4 项 | P0 | 立即生效，防止误读方向 |
+
+#### 14.11.9 v5.9 与 v5.8 的差异
+
+| 维度 | v5.8 | v5.9 |
+|------|------|------|
+| 任务总数 | 107 | **122** |
+| 企业级架构达标度 | 未评估 | 高扩展性 62% / 可观测性 55% / 智能性 38% |
+| 最小升级集 | 无 | 5 项 P0（U1-U5） |
+| 新增候选任务 | 无 | 15 项（NEW-EA-1~15） |
+| 明确不做清单 | 无 | 5 项护城河保护 |
+| 过度设计裁剪 | 无 | 4 项候选 |
+| 企业级基准引用 | 无 | Google SRE + AWS WA + Alibaba Cloud + 阿里云 AIOps |
+
+**修正后总任务数**：81 + 17 + 6 + 3 + 15 = **122 项**
+
+#### 14.11.10 Skill Handoff Checklist
+
+| 下游技能 | 触发问题数 | 触发内容 | 优先级 |
+|---------|----------|---------|--------|
+| **task-decomposer** | 15 | NEW-EA-1~15 拆分子任务 + 验收标准 + 验证用例 | P0 |
+| **design-doc-reviewer** | 3 | ADR-010/013/014 参照系修正 7 维度评审 | P0 |
+| **code-design-analyzer** | 2 | ADR-011 SQL builder 编译期强制 + ADR-013 attribute 包架构分析 | P1 |
+| **design-constraint** | 5 | 结构化日志覆盖率 + OTel span 覆盖率 + AI 决策 SLA + LLM 安全 + 文档一致性 CI 校验 5 项门控 | P1 |
+
+**Structured Missing Items（JSON，供 task-decomposer 消费）**：
+
+```json
+{
+  "dimension": "enterprise_architecture_depth",
+  "total_gaps": 15,
+  "downstream_routing": {
+    "task_decomposer": {
+      "count": 15,
+      "items": [
+        {"id": "NEW-EA-1", "title": "ADR-011 SQL builder 编译期强制", "priority": "P0", "depends_on": []},
+        {"id": "NEW-EA-2", "title": "internal/cmdb/attribute 包 + ADR-013 拆 2 Migration", "priority": "P0", "depends_on": ["S0-T5"]},
+        {"id": "NEW-EA-3", "title": "ADR-010/013/014 参照系修正", "priority": "P0", "depends_on": []},
+        {"id": "NEW-EA-4", "title": "ADR-011 术语修正 DB-per-tenant", "priority": "P1", "depends_on": []},
+        {"id": "NEW-EA-5", "title": "每周基线刷新机制", "priority": "P1", "depends_on": []},
+        {"id": "NEW-EA-6", "title": "文档一致性 CI 校验脚本", "priority": "P1", "depends_on": []},
+        {"id": "NEW-EA-7", "title": "结构化日志覆盖率门控 S0-T7", "priority": "P1", "depends_on": ["S0"]},
+        {"id": "NEW-EA-8", "title": "OTel span 覆盖率门控 S0-T8", "priority": "P1", "depends_on": ["P0-6"]},
+        {"id": "NEW-EA-9", "title": "alert-adapter-v2 决策", "priority": "P1", "depends_on": ["S0-T4"]},
+        {"id": "NEW-EA-10", "title": "AI 决策 SLA/评测集", "priority": "P1", "depends_on": []},
+        {"id": "NEW-EA-11", "title": "LLM 安全防护", "priority": "P1", "depends_on": ["P0-6"]},
+        {"id": "NEW-EA-12", "title": "CC 新增 AI 决策错误风险", "priority": "P1", "depends_on": ["NEW-EA-10"]},
+        {"id": "NEW-EA-13", "title": "Ticket Type 字段污染修复", "priority": "P0", "depends_on": ["S0-T4"]},
+        {"id": "NEW-EA-14", "title": "cmdb 4 个 K8s/Script 桩升级", "priority": "P0", "depends_on": ["S0-T4"]},
+        {"id": "NEW-EA-15", "title": "门控失败降级策略文档", "priority": "P1", "depends_on": []}
+      ]
+    }
+  }
+}
+```
+
 ---
 
 ## 11. 认知边界（本手册的诚实声明）
