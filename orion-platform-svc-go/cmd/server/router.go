@@ -192,7 +192,7 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
 			configMgmtEnhancedH, dataMaskingH, digitalTwinSimulationH, disasterrecoveryH, eventTriggerRegistryH, executionModeEngineH,
 			jobProcessorH, mcpH, moduleH, observabilityH, pipelineErrorDetailH, releaseMgmtH,
 			startupH, taskTimeoutH, tenantGatewayH, terminalAuditH, testExecEngineH, useractivityH,
-			userprofileH, userstatusH, usertokenH, vectorH, vulnerabilityH, alertAdapterV2H,
+			userprofileH, userstatusH, usertokenH, vectorH, vulnerabilityH,
 			capacityH, middlewareOpsH, cmdb_importH, cmdb_relationshipH, cmdb_validatorH, identityConfirmationH,
 			infraCapH, securityBranchPolicyH, aiAgentRunH, aiModelsH, ciArtRegH, ciArtVerH,
 			ciBuildH, ciDeployH, ciPTmplH, ciRunnerH, governanceRiskH, graphH,

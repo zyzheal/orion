@@ -4,11 +4,6 @@ import (
 	"go.uber.org/zap"
 	"orion/go-common/pkg/database"
 
-	aa2_handler "orion/platform-svc-go/internal/alert-adapter-v2/handler"
-	aa2_repo "orion/platform-svc-go/internal/alert-adapter-v2/repository"
-	aa2_service "orion/platform-svc-go/internal/alert-adapter-v2/service"
-	aa2_handlers "orion/platform-svc-go/internal/alert-adapter-v2/service/handlers"
-
 	ar_handler "orion/platform-svc-go/internal/auto-recovery/handler"
 	ar_repo "orion/platform-svc-go/internal/auto-recovery/repository"
 	ar_service "orion/platform-svc-go/internal/auto-recovery/service"
@@ -28,23 +23,11 @@ import (
 
 // Handler variables for Wave 4 unwired modules
 var (
-	alertAdapterV2H *aa2_handler.Handler
 	autoRecoveryH   *ar_handler.AutoRecoveryHandler
 	capacityH       *cap_handler.Handler
 	middlewareOpsH  *mwops_handler.Handler
 	orchestrationH  *orch_handler.OrchestrationHandler
 )
-
-func wireAlertAdapterV2(db *database.DB, logger *zap.Logger) {
-	repo := aa2_repo.NewRepository(db.DB)
-	factory := aa2_service.NewFactory(repo, logger)
-	// Register every implemented channel. Without this the factory had no
-	// handlers at all, so CreateAdapter rejected every channel as invalid and
-	// SendNotification failed with ErrNoHandler — the /alert-adapters/v2 routes
-	// were live but could never deliver anything.
-	aa2_handlers.RegisterLiveHandlers(factory)
-	alertAdapterV2H = aa2_handler.NewHandler(factory)
-}
 
 func wireAutoRecovery(db *database.DB, logger *zap.Logger) {
 	repo := ar_repo.NewAutoRecoveryRepository(db.DB.DB)

@@ -1389,11 +1389,6 @@ func buildDumpEntries() []dumpEntry {
 				vulnerabilityH.RegisterRoutes(api)
 			}
 		}},
-		{"alertAdapterV2H", 857, func(api *gin.RouterGroup) {
-			if alertAdapterV2H != nil {
-				alertAdapterV2H.RegisterRoutes(api)
-			}
-		}},
 		{"capacityH", 863, func(api *gin.RouterGroup) {
 			if capacityH != nil {
 				capacityH.RegisterRoutes(api)

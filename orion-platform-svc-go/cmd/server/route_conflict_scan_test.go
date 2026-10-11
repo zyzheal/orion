@@ -1348,11 +1348,6 @@ func TestRouteConflictScan(t *testing.T) {
 				vulnerabilityH.RegisterRoutes(api)
 			}
 		}},
-		{"alertAdapterV2H", func() {
-			if alertAdapterV2H != nil {
-				alertAdapterV2H.RegisterRoutes(api)
-			}
-		}},
 		{"capacityH", func() {
 			if capacityH != nil {
 				capacityH.RegisterRoutes(api)
