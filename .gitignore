@@ -36,6 +36,8 @@ yarn-error.log*
 # Test coverage
 coverage/
 .coverage-*/
+coverage.out
+coverage.html
 
 # Temporary files
 tmp/
