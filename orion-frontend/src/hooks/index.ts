@@ -11,6 +11,7 @@ export { usePagination } from './usePagination';
 export { usePermission } from './usePermission';
 export { usePermissionActions, useMultiPermission } from './usePermissionActions';
 export { useTheme } from './useTheme';
+export { useReducedMotion } from './useReducedMotion';
 export { useSubmit } from './useSubmit';
 export { useErrorBanner } from './useErrorBanner';
 export { AlertBanner } from './ErrorBanner';
