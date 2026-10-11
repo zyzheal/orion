@@ -1,6 +1,6 @@
 # Orion — AI 研发效能平台
 
-> 站在巨人肩上 — Tekton + Knative + Prometheus + K8s
+> 站在巨人肩上 — Go + Gin + PostgreSQL + NATS + OpenTelemetry + Prometheus
 > 核心主张：不替代现有工具链，而是让现有工具链变聪明
 
 ---

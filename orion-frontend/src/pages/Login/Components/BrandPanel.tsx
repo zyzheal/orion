@@ -71,7 +71,7 @@ export const BrandPanel: React.FC = () => {
           }}
         >
           Orion 不替代现有工具链，而是通过 AI 能力
-          <br />让 Tekton、Knative、Prometheus 和 K8s 协同工作
+          <br />让 Go + Gin + PostgreSQL + NATS + OpenTelemetry + Prometheus 协同工作
         </Text>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
