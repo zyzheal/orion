@@ -10,7 +10,7 @@
 | 关联模块 | CMDB |
 | 前置依赖 | ADR-005 数据库选型（PG 14+）、ADR-011 多租户存储隔离 |
 | 关联风险 | R-P0-07（CMDB 二阶模型迁移破坏现有 cmdb_cis）、CC 风险登记册 §1.5 |
-| 参考对标 | NeatLogic 4 层模型（NL-1 一手：Type → Template → Instance → Transaction）|
+| 参考对标 | NeatLogic CMDB 分层模型（实证：类型层 `CiTypeVo`/`AttrTypeVo` → 属性层 `AttrVo` → 实体层 `CiEntityVo` → 事务层 `TransactionVo`；**无独立 Template 层**）|
 
 ---
 
@@ -37,53 +37,68 @@ CREATE TABLE cmdb_cis (
 3. 无法表达"Server 应该有 memory 属性"这种类型约束
 4. 无法表达"应用 → 服务器"的关联拓扑
 
-### 1.2 NeatLogic 一手（4 层模型）
+### 1.2 NeatLogic 一手（分层模型，真实类名）
 
-NL-1 一手代码扫描发现 NeatLogic 使用**Type → Template → Instance → Transaction** 4 层：
+NeatLogic CMDB 采用 **类型层 → 属性层 → 实体层 → 事务层** 4 层。以下类名与字段数
+为 `neatlogic-cmdb-base` @ `b2aae25ae2` 的机械计数结果：
 
-```java
-// Layer 1: Type（类型定义）
-public class CIType {
-    private Long id;
-    private String name;         // 'Server', 'Database', ...
-    private String description;
-    private List<CIAttribute> attributes;  // 属性定义
-}
+| 层 | 真实类 | 顶层字段数 |
+|---|---|---:|
+| 类型层 | `CiTypeVo` | **9** |
+| 类型层（属性类型）| `AttrTypeVo` | **8** |
+| 属性层 | `AttrVo` | **45**（另含嵌套 `Column` 类 5 字段）|
+| 实体层 | `CiEntityVo`、`AttrEntityVo` | — |
+| 事务层 | `TransactionVo` + 7 个 `*TransactionVo` | 共 **8** 个 DTO |
 
-// Layer 2: Template（配置模板）
-public class CITemplate {
-    private Long id;
-    private CIType type;
-    private String templateName; // 'Windows Web Server'
-    private List<CIAttribute> attributes;  // 模板属性（继承 Type）
-}
+事务层真实类清单：`TransactionVo`、`TransactionGroupVo`、`TransactionDetailVo`、
+`TransactionStatusVo`、`CiEntityTransactionVo`、`AttrEntityTransactionVo`、
+`RelEntityTransactionVo`、`GlobalAttrEntityTransactionVo`。
 
-// Layer 3: Instance（实际实例）
-public class CI {
-    private Long id;
-    private CITemplate template;  // 从哪个模板创建
-    private List<CIAttribute> attributeValues;  // 属性实际值
-}
+**属性层是二阶模型的核心**。`AttrVo` 45 个顶层字段中，与可配置性直接相关的：
 
-// Layer 4: Transaction（变更事务）
-public class TransactionGroup {
-    private Long id;
-    private List<CIChange> changes;  // 批量变更
-    private ApprovalStatus status;
-}
-```
+| 字段族 | 字段 |
+|---|---|
+| 配置双通道 | `config` (JSONObject)、`configStr` (String) |
+| 表达式体系 | `expression`、`expressionList` |
+| **校验器三件套** | `validatorId`、`validatorName`、`validatorHandler`、`validConfig` |
+| 关联目标 | `targetCiId`、`targetCiName`、`targetCiLabel`、`targetIsVirtual` |
+| 建模开关 | `needTargetCi`、`needConfig`、`needWholeRow`、`allowBeName`、`allowBeUnique`、`allowEdit` |
+| 动态列 | `columnList` (List\<Column\>：name/label/type/jdbcType/needIndex) |
+| 宿主反引 | `ciVo` |
 
 **核心能力**：
-- ✅ 类型系统强约束（`CIType.attributes` 定义必须字段）
-- ✅ 模板复用（`CITemplate` 减少重复配置）
-- ✅ 变更事务化（`TransactionGroup` 支持批量回滚）
-- ✅ 关联拓扑（`CI` 可指向其他 `CI`）
+- ✅ 类型系统强约束（`CiTypeVo` + `AttrTypeVo` 定义类型与属性元数据）
+- ✅ 属性级校验器（`validatorHandler` 指向 handler 类名，经 `AttrValueHandlerFactory` 路由，
+  全仓 **36** 个 `IAttrValueHandler` 实现）
+- ✅ 变更事务化（`TransactionGroupVo` / `TransactionVo` 支持批量变更）
+- ✅ 关联拓扑（`AttrVo.targetCiId` 指向其他 CI 类型）
+
+> **⚠️ 重要更正：NeatLogic 没有独立的 Template 层**
+>
+> 初版本文档声称 NL 模型为「Type → **Template** → Instance → Transaction」，并给出
+> `CITemplate` / `CIType` / `CI` / `TransactionGroup` 的代码示例。经审计：
+> `CiType`、`CITemplate`、`CIInstance`、`CI`、`CIChange` **全部 0 命中**（真实类均带 `Vo` 后缀）。
+> 更关键的是，**NL 的 CMDB 中不存在独立的「模板」层**——
+> `neatlogic-cmdb-base` 的 18 个 dto 子域中无 `template` 目录，
+> 仅存 `CiTopoTemplateVo`（拓扑图模板）与 `CustomViewTemplateVo`（自定义视图模板），
+> 二者与「CI 创建模板」是不同概念。
+>
+> **对 Orion 路线图的影响**：原「阶段 2 引入 Template 层」若保留，须明确标注为
+> **Orion 自主能力**（NL 无对应层可对标），而非对标结果。详见 §3.4 与 §9。
+>
+> 完整审计见 `reports/reference/adr-neatlogic-reference-audit-2026-10-11.md` §4；
+> 字段级真值见 `reports/reference/neatlogic-baseline-2026-10-11.md` §2。
 
 ### 1.3 决策驱动问题
 
 **Q1**：Orion 是否需要 4 层模型？
 - 若"是"：Migration 破坏面大（R-P0-07 阻塞）
 - 若"否"：能力天花板低（无法深度对标 ServiceNow/iTop）
+
+**Q1b**：是否需要独立的 Template 层？
+- NeatLogic **无**此层（见 §1.2 更正框），故此处为 Orion 自主决策，无对标依据
+- 若"是"：需自建「模板 → CI」的实例化语义
+- 若"否"：类型层 + 属性默认值即可覆盖批量创建场景
 
 **Q2**：是否需要 Type 抽象？
 - 若"是"：可以做字段级约束
@@ -103,7 +118,7 @@ public class TransactionGroup {
 
 ## 2. 备选方案对比
 
-### 2.1 方案 A：4 层模型（NeatLogic 完整方案）
+### 2.1 方案 A：4 层模型（对齐 NeatLogic 分层；Template 为 Orion 自主扩展）
 
 **表结构**：
 ```sql
@@ -117,7 +132,7 @@ CREATE TABLE cmdb_ci_types (
     UNIQUE (tenant_id, name)
 );
 
--- Layer 2: 模板
+-- Layer 2: 模板（⚠️ Orion 自主扩展，NeatLogic 无此层，见 §1.2）
 CREATE TABLE cmdb_ci_templates (
     id UUID PRIMARY KEY,
     tenant_id TEXT NOT NULL,
@@ -127,7 +142,7 @@ CREATE TABLE cmdb_ci_templates (
     UNIQUE (tenant_id, name)
 );
 
--- Layer 3: 实例（重构 cmdb_cis）
+-- Layer 3: 实体（重构 cmdb_cis；NL 对应 CiEntityVo / AttrEntityVo）
 CREATE TABLE cmdb_cis_v2 (
     id UUID PRIMARY KEY,
     tenant_id TEXT NOT NULL,
@@ -138,7 +153,7 @@ CREATE TABLE cmdb_cis_v2 (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Layer 4: 变更事务
+-- Layer 4: 变更事务（NL 对应 TransactionVo / TransactionGroupVo，共 8 个 DTO）
 CREATE TABLE cmdb_transaction_groups (
     id UUID PRIMARY KEY,
     tenant_id TEXT NOT NULL,
@@ -151,9 +166,9 @@ CREATE TABLE cmdb_transaction_groups (
 ```
 
 **优点**：
-- ✅ 与 NeatLogic 1:1 对齐
+- ✅ 分层结构与 NeatLogic 一致（类型/属性/实体/事务 4 层）
 - ✅ 类型系统强约束
-- ✅ 模板复用
+- ✅ 模板复用（**自主能力**，NL 无对应层）
 - ✅ 变更事务化（批量回滚）
 - ✅ 未来可做 CMDB 深度能力（拓扑图、变更审计、字段级血缘）
 
@@ -166,10 +181,10 @@ CREATE TABLE cmdb_transaction_groups (
 
 **Migration 策略**：
 - 新建 4 表 + 旧表保留（双写过渡）
-- 数据回填脚本（旧 ci_type → 新 ci_types）
-- 2 周过渡期后切读新表
+- 数据回填脚本（旧 `ci_type` 字符串 → 新 `cmdb_ci_types` 外键）
+- 回填完成后切读新表（切换时机由 S 阶段门控决定，本 ADR 不设定时间线）
 
-### 2.2 方案 B：3 层模型（省略 Transaction）
+### 2.2 方案 B：3 层模型（省略事务层）
 
 **表结构**：
 ```sql
@@ -186,7 +201,7 @@ CREATE TABLE cmdb_ci_templates (...);  -- 同方案 A
 
 **缺点**：
 - ⚠️ 无批量变更能力
-- ⚠️ 与 NL 建模部分偏离（缺 Transaction 层）
+- ⚠️ 与 NL 分层偏离（NL 事务层有 8 个 DTO，缺此层则无法深度对齐）
 - ⚠️ 未来做深度能力仍需扩展
 
 ### 2.3 方案 C：2 层模型（渐进式，仅 Type 抽象）
@@ -365,12 +380,17 @@ type CIRelatedToTypeRepository interface {
 
 ### 3.4 与 NeatLogic 的对齐细节
 
-| 层 | NeatLogic | Orion ADR-013 |
+| 层 | NeatLogic（真实类）| Orion ADR-013 |
 |----|-----------|---------------|
-| Type | ✅ | ✅（本 ADR 阶段 1）|
-| Template | ✅ | ⏸ 未来阶段 2 |
-| Instance | ✅ | ✅（现有 cmdb_cis）|
-| Transaction | ✅ | ⏸ 未来阶段 3 |
+| 类型层 | ✅ `CiTypeVo` / `AttrTypeVo` | ✅（阶段 1）|
+| 属性层 | ✅ `AttrVo`（45 字段，含校验器三件套）| ✅（阶段 1，P0-1 主交付）|
+| 实体层 | ✅ `CiEntityVo` / `AttrEntityVo` | ✅（阶段 1，重构现有 `cmdb_cis`）|
+| 事务层 | ✅ `TransactionVo` 等 8 个 DTO | ⏸ 阶段 3 |
+| **模板层** | **❌ 不存在**（仅 `CiTopoTemplateVo`/`CustomViewTemplateVo`，概念不同）| ⏸ 阶段 2（**自主能力**）|
+
+**关键更正**：初版表格将 Template 标为「NeatLogic ✅」，与事实不符。
+Orion 的模板层是对**Orion 自身需求**（批量创建 CI）的响应，
+其设计与实现不应假设有参照系可对标。
 
 ---
 
@@ -431,12 +451,33 @@ type CIRelatedToTypeRepository interface {
 
 ## 7. 参考
 
-- NL-1 一手证据：`reports/expert-reviews/neatlogic-deploy-tagent-change-firsthand-2026-10-03.md` §CMDB
+- **参照系基线（权威，含 AttrVo 45 字段真值）**：`reports/reference/neatlogic-baseline-2026-10-11.md` §2
+- **参照系审计**：`reports/reference/adr-neatlogic-reference-audit-2026-10-11.md` §4
+- **P0-1 spec（已按基线真值重写）**：`reports/module-upgrade-designs/reference-verification-and-refined-plan-2026-10-11.md`
+- 原始 NL-1 一手证据（其中 4 层层名经审计证伪）：`reports/expert-reviews/neatlogic-deploy-tagent-change-firsthand-2026-10-03.md` §CMDB
 - v5 综合报告：`cross-review-synthesis-2026-10-03-v5.md` §CMDB
 - AA 数据模型：`reports/module-upgrade-designs/data-model-migration-design-2026-10-03.md` Migration 699-704
 - 风险登记册：`risk-fallback-design-2026-10-03.md` R-P0-07
 
 ---
+
+---
+
+## 9. 修订记录
+
+| 日期 | 修订 | 依据 |
+|---|---|---|
+| 2026-10-11 | §1.2 虚构类名（`CIType`/`CITemplate`/`CI`/`CIChange`）替换为真实类（`CiTypeVo`/`AttrTypeVo`/`AttrVo`/`CiEntityVo`/`TransactionVo`）并附字段数；**新增「NL 无独立 Template 层」更正框**；§1.3 新增 Q1b；§2.1 标题与 4 张表注释标注 Template 为自主扩展；§2.1 Migration 策略删除「2 周过渡期」时间线估算；§3.4 对齐表重画并更正 Template 行 | `reports/reference/adr-neatlogic-reference-audit-2026-10-11.md` §4、`reports/reference/neatlogic-baseline-2026-10-11.md` §2 |
+
+**修订性质**：
+- **技术决策不变**：仍为分阶段引入二阶模型（阶段 1 类型+属性+实体，阶段 2 模板，阶段 3 事务）。
+- **对标范围缩小**：原声称 4 层全部「对齐 NL」，实际仅 3 层可对标；模板层改为标注自主能力。
+- **实质增益**：§1.2 现以 `AttrVo` 45 字段的真值表作为 P0-1 spec 的字段级依据，
+  其中**校验器三件套**（`validatorId`/`validatorName`/`validatorHandler` + `validConfig`）
+  是初版完全遗漏的关键扩展点，现由 `AttrValueHandlerFactory`（36 实现）支撑。
+
+**风险影响**：无新增风险。阶段 2（模板层）因失去对标依据，应在立项时独立论证其价值，
+而非以「对齐 NL」为由默认推进。
 
 **文档编号**：`ADR-013-CMDB-二阶模型决策.md`
 **下一步**：本 ADR 决策批准 → 更新 AA 数据模型 Migration 700-702 → 更新 CC 风险登记册 R-P0-07 状态

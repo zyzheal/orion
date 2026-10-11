@@ -9,7 +9,7 @@
 | 决策人 | 待确认 |
 | 关联模块 | 全平台（Alert/Automation/Notification 等）|
 | 前置依赖 | ADR-0001 微服务架构、ADR-002 Plugin SPI、ADR-010 AlertBreaker 并发模型 |
-| 参考对标 | NeatLogic 100+ Handler + Factory 注册表（NL-3 一手：AlertEventHandlerFactory 25+ handler）|
+| 参考对标 | NeatLogic Factory+Handler 注册表（实证：Factory **115** / Handler **810**；权威锚点 `AttrValueHandlerFactory` + 36 个 `IAttrValueHandler` 实现）|
 
 ---
 
@@ -19,42 +19,61 @@
 
 **NeatLogic 一手证据**（NL-3、NL-6）：
 
-NeatLogic 大规模使用 **Factory + Handler 注册表模式**：
+NeatLogic 大规模使用 **Factory + Handler 注册表模式**。以下为其真实实现（
+`neatlogic-cmdb-base` @ `b2aae25ae2`，
+`framework/cmdb/attrvaluehandler/core/AttrValueHandlerFactory.java`，87 行）：
+
 ```java
-// Factory: 集中管理所有 handler
-public class AlertEventHandlerFactory {
-    private static final Map<String, AlertEventHandler> HANDLERS = new ConcurrentHashMap<>();
-    
-    public static void register(String type, AlertEventHandler handler) {
-        HANDLERS.put(type, handler);
+public class AttrValueHandlerFactory extends ModuleInitializedListenerBase {
+
+    private static final Map<String, IAttrValueHandler> componentMap = new HashMap<>();
+    private static final List<AttrTypeVo> attrTypeList = new ArrayList<>();
+
+    public static IAttrValueHandler getHandler(@NotNull String type) {
+        if (componentMap.containsKey(type)) {
+            return componentMap.get(type);
+        }
+        // ... 未注册类型抛异常
     }
-    
-    public static AlertEventHandler get(String type) {
-        return HANDLERS.get(type);
+
+    // 注册时机：模块初始化回调，用 Spring 容器反射发现全部实现
+    @Override
+    public void onInitialized(NeatLogicWebApplicationContext context) {
+        Map<String, IAttrValueHandler> myMap = context.getBeansOfType(IAttrValueHandler.class);
+        for (Map.Entry<String, IAttrValueHandler> entry : myMap.entrySet()) {
+            // ...
+            componentMap.put(handler.getType(), handler);
+        }
     }
 }
-
-// Handler 实现：分散在各模块
-@Component
-public class AlertRouteHandler implements AlertEventHandler {
-    @Override
-    public String type() { return "route"; }
-    
-    @Override
-    public void handle(AlertEvent event) { /* ... */ }
-}
-
-// 使用：通过 type 字符串路由
-AlertEventHandler handler = AlertEventHandlerFactory.get(event.type());
-handler.handle(event);
 ```
 
-**NeatLogic 生态规模**：
-- AlertEventHandlerFactory：25+ handler
-- TaskHandlerType：10+ handler
-- CITypeHandlerFactory：多类型
-- ChangeProcessStepHandlerType：8+ handler
-- **总计 100+ Handler**（跨模块）
+**三个关键设计特征**（Orion 应在 S0 通用库中复刻）：
+1. **静态注册表**：`Map<String, Handler>`，`type` 字符串为路由键
+2. **启动期反射发现**：`context.getBeansOfType(IHandler.class)` 一次收集全部实现，
+   而非逐个显式注册——新增 handler 无需改 Factory
+3. **type 由 handler 自述**：`handler.getType()`，路由键与实现强绑定，避免字符串散落
+
+**NeatLogic 生态规模（机械计数，44 仓库 @ 固定 SHA）**：
+
+| 项 | 数量 |
+|---|---:|
+| `*Factory*.java` | **115** |
+| `*Handler*.java` | **810** |
+| `IAttrValueHandler` 实现 | **36** |
+| `PrivateApiComponentBase` 子类 | **1,623** |
+| `ProcessStepHandlerBase` 子类 | **11** |
+| `ProcessTaskNotifyParamHandlerBase` 子类 | **51** |
+| `ProcessTaskConditionBase` 子类 | **39** |
+
+Factory 模块分布：`neatlogic-framework` 53、`neatlogic-itsm-base` 26、
+`neatlogic-autoexec-base` 11、`neatlogic-runner` 9、`neatlogic-cmdb-base` 6。
+
+> **注（2026-10-11）**：初版本文档引用的锚点为「`AlertEventHandlerFactory` 25+ handler」与
+> 「`TaskHandlerType` 10+ handler」。经审计，**这两个类在 NeatLogic 全仓 0 命中**
+> （`AlertEventHandler` 实际子类为 **12**，非 25+；`TaskHandlerType` 完全不存在，
+> 真实概念为 `ProcessStepHandlerType`）。已替换为上表真实锚点。
+> 详见 `reports/reference/adr-neatlogic-reference-audit-2026-10-11.md` §3。
 
 ### 1.2 Orion 现状（直接 Service 调用）
 
@@ -447,21 +466,22 @@ func (p *ExternalAlertPlugin) Init() error {
 
 ### 6.1 语义对齐
 
-| 概念 | NeatLogic | Orion ADR-012 |
+| 概念 | NeatLogic（真实）| Orion ADR-012 |
 |------|-----------|---------------|
-| Factory | `AlertEventHandlerFactory` | `HandlerFactory[AlertEvent]` |
-| Handler | `AlertEventHandler` interface | `AlertEventHandler` interface |
-| 注册 | `register(type, handler)` | `Register(handler)` |
-| 获取 | `get(type)` | `Get(type)` |
-| 数量 | 25+ Alert handlers | 目标 10+ |
+| Factory | `AttrValueHandlerFactory` | `HandlerFactory[AlertEvent]` |
+| Handler | `IAttrValueHandler` interface | `AlertEventHandler` interface |
+| 注册 | `context.getBeansOfType()` 启动期反射发现 | `Register(handler)` 显式调用 |
+| 获取 | `getHandler(type)` | `Get(type)` |
+| 路由键 | `handler.getType()` 自述 | handler 实现自述 `Type()` |
+| 规模 | 36 个 `IAttrValueHandler` 实现 | 目标 10+ |
 
 ### 6.2 差异点
 
 | 维度 | NeatLogic | Orion ADR-012 |
 |------|-----------|---------------|
-| 注册方式 | Spring 注解（@Component）| 显式 Register() 调用 |
+| 注册方式 | Spring `getBeansOfType()` 反射发现 | 显式 Register() 调用 |
 | 泛型 | Java 无泛型，用反射 | Go 泛型（类型安全）|
-| 线程安全 | ConcurrentHashMap | sync.RWMutex |
+| 线程安全 | `HashMap`（仅启动期写入，运行期只读）| sync.RWMutex |
 | 顺序 | 无序 | 有序（保留注册顺序）|
 
 ---
@@ -477,11 +497,28 @@ func (p *ExternalAlertPlugin) Init() error {
 
 ## 8. 参考
 
-- NL-3 一手证据：`reports/expert-reviews/neatlogic-deploy-tagent-change-firsthand-2026-10-03.md` §Alert
+- **参照系基线（权威）**：`reports/reference/neatlogic-baseline-2026-10-11.md`
+- **参照系审计**：`reports/reference/adr-neatlogic-reference-audit-2026-10-11.md` §3（本 ADR 锚点替换依据）
+- 原始 NL-3 一手证据（其中 `AlertEventHandlerFactory` 引用经审计证伪）：`reports/expert-reviews/neatlogic-deploy-tagent-change-firsthand-2026-10-03.md` §Alert
 - v5 综合报告：`cross-review-synthesis-2026-10-03-v5.md` §架构哲学
 - ADR-002：`docs/adr/ADR-002-Plugin-SPI 接口设计.md`
 
 ---
+
+---
+
+## 9. 修订记录
+
+| 日期 | 修订 | 依据 |
+|---|---|---|
+| 2026-10-11 | 虚构锚点 `AlertEventHandlerFactory` / `TaskHandlerType` 替换为真实锚点 `AttrValueHandlerFactory`（+36 实现）；虚构代码块替换为真实源码；「25+ handler」更正为 12；§6.1/§6.2 表格同步；新增生态规模机械计数表 | `reports/reference/adr-neatlogic-reference-audit-2026-10-11.md` §3 |
+
+**修订性质**：**核心论点完全不变**——Factory+Handler 注册表确实是 NeatLogic 的主力扩展模式
+（115 Factory / 810 Handler 是有力的规模证据）。修正的只是引用的具体类名。
+
+**为何恰好替换为 `AttrValueHandlerFactory`**：它不仅是真实存在的锚点，
+而且是 Orion **P0-1 CMDB 二阶模型**必须复刻的对象——属性值处理器是二阶模型的核心扩展点。
+一次修正同时服务两个目的。
 
 **文档编号**：`ADR-012-Factory-Handler-注册表模式.md`
 **下一步**：本 ADR 决策批准 → S0 阶段新增 Factory 通用库 → S4/S6 阶段落地 TaskRunner/AlertEventHandler Factory

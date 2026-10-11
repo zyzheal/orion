@@ -10,7 +10,7 @@
 | 关联模块 | Automation / Pipeline |
 | 前置依赖 | ADR-0007 Pipeline Engine 架构、ADR-005 数据库选型、ADR-011 多租户存储隔离 |
 | 关联风险 | R-P0-01（StageExecutor artifact 传播破坏现有 pipeline）|
-| 参考对标 | NeatLogic TaskHandler 生态（NL-2 一手：TaskHandlerType 10+ 类型）|
+| 参考对标 | **无对标对象**（原 `TaskHandler*` 引用经审计全仓 0 命中，见 §1.2）；Orion ArtifactBus 为自主设计，NL 无等价物 |
 
 ---
 
@@ -32,16 +32,61 @@ Pipeline Stage 3 (Deploy): 消费 binary + 报告 → 部署到 K8s
 - Stage 之间通过 `pipeline_run.stages[i]` 的返回码关联
 - **无跨 stage 的 artifact 传递机制**（Stage 2 无法拿到 Stage 1 的产物）
 
-### 1.2 NeatLogic 一手（NL-2）
+### 1.2 NeatLogic 的 Step 传递机制（经审计更正）
 
-NeatLogic TaskHandler 生态通过 `TaskHandlerContext` 传递产物：
+> **⚠️ 参照系证伪（2026-10-11）**
+>
+> 本节初版引用「NeatLogic TaskHandler 生态通过 `TaskHandlerContext` 传递产物」，
+> 并给出含 `inputs` / `outputs` / `artifacts` 三字段的代码示例。
+> 经 `~/refs/neatlogic/`（44 仓库 @ 固定 SHA）机械验证：
+>
+> | 检索 | 结果 |
+> |---|---|
+> | `TaskHandlerContext.java` | **0** |
+> | `TaskHandlerType`（类或枚举）| **0** |
+> | `*TaskHandler*.java`（全仓）| **0** |
+>
+> **三个锚点全部不存在。这是 6 份 ADR 中唯一「参照系从零虚构」的一份。**
+
+**NeatLogic 真实存在的对应概念是 `ProcessStepHandler` 生态**
+（`neatlogic-itsm-base` @ `b6ba75e91d`）：
+
+| 真实类 | 规模 |
+|---|---|
+| `ProcessStepHandlerBase`（abstract，implements `IProcessStepHandler`）| **3,263 行** |
+| `ProcessStepHandlerFactory`（注册表）| `getHandler(handlerName)` |
+| `ProcessStepHandlerType`（枚举）| **7 值** |
+| `ProcessStepInternalHandlerFactory`（第二注册表）| 存在 |
+| `ProcessTaskStepVo`（步骤载体）| **74 字段** |
+| `ProcessTaskNotifyParamHandlerBase` 子类 | **51** |
+
+`ProcessStepHandlerType` 真实 7 个枚举值：
+`START` / `OMNIPOTENT` / `END` / `CONDITION` / `DISTRIBUTARY` / `AUTOMATIC` / `TIMER`。
+
+**关键发现：NeatLogic 没有 ArtifactBus 这一概念。** 步骤间数据传递走
+`ProcessStepHandlerBase` 内部的 `ProcessTaskStepVo`，其承载字段为：
+
 ```java
-public class TaskHandlerContext {
-    private Map<String, Object> inputs;
-    private Map<String, Object> outputs;  // 跨 Task 传递
-    private Map<String, byte[]> artifacts;  // 二进制产物
-}
+// ProcessTaskStepVo（74 字段中数据传递相关）
+private String result;              // 步骤执行结果（字符串）
+private final JSONObject paramObj = new JSONObject();  // 参数
+private JSONObject config;          // 步骤配置
+private String configHash;
 ```
+
+| 维度 | NeatLogic 真实做法 | Orion ArtifactBus（本 ADR）|
+|---|---|---|
+| 产物载体 | `ProcessTaskStepVo.result`（String 内联）| PG `BYTEA` 表，独立生命周期 |
+| 二进制产物 | **无专门机制**（JSON 内联）| `BYTEA` + 10MB 上限 |
+| 跨步骤寻址 | 隐式（同一条 `ProcessTaskStepVo` 链）| 显式 `pipeline_run_id + stage_id` |
+| 保留期 | 跟随流程任务生命周期 | 7 天显式 TTL |
+| 可查询性 | 无独立查询接口 | 有 |
+
+**结论**：Orion 的 ArtifactBus 在此维度**能力上超越 NeatLogic**，
+因此本 ADR 的设计**不应也不可能有对标依据**——它是 Orion 的自主设计决策，
+驱动力来自 R-P0-01（StageExecutor artifact 传播破坏现有 pipeline）与 Build→Test→Deploy 需求场景。
+
+完整审计见 `reports/reference/adr-neatlogic-reference-audit-2026-10-11.md` §5。
 
 ### 1.3 决策驱动问题
 
@@ -450,24 +495,29 @@ DELETE FROM pipeline_artifacts WHERE created_at > now() - INTERVAL '1 hour';
 
 ---
 
-## 6. 与 NeatLogic 的对齐细节
+## 6. 与 NeatLogic 的关系（无对标关系）
 
-### 6.1 语义对齐
+### 6.1 无对标依据
 
-| 概念 | NeatLogic | Orion ADR-014 |
+本节初版为「与 NeatLogic 的对齐细节」，其引用的 `TaskContext` /
+`Map<String, byte[]> artifacts` 在 NeatLogic 全仓 **0 命中**，见 §1.2 证伪表。
+**本 ADR 不存在任何 NeatLogic 对标依据。**
+
+### 6.2 与 NeatLogic 真实机制的差异（记录在案，非对标依据）
+
+| 维度 | NeatLogic（真实）| Orion ADR-014 |
 |------|-----------|---------------|
-| TaskContext | `Map<String, byte[]> artifacts` | `PipelineArtifact.content BYTEA` |
-| 跨 Task 传递 | 通过 context 参数 | 通过 ArtifactBus 显式 Get |
-| 大小限制 | 无（内存限制）| 10MB（PG 限制）|
+| 步骤抽象 | `ProcessStepHandlerBase`（3,263 行）| StageExecutor |
+| 步骤类型 | `ProcessStepHandlerType` 7 枚举值 | stage 类型 |
+| 产物载体 | `ProcessTaskStepVo.result`（String 内联）| `PipelineArtifact.content BYTEA` |
+| 跨步骤传递 | 隐式（同链 `ProcessTaskStepVo`）| 显式 `ArtifactBus.Get` |
+| 存储 | 随流程任务生命周期 | PG 持久化 |
+| 大小限制 | 无专门限制（受 JSON 列约束）| 10MB 上限 |
+| 保留期 | 无独立保留策略 | 7 天显式 TTL |
 
-### 6.2 差异点
-
-| 维度 | NeatLogic | Orion ADR-014 |
-|------|-----------|---------------|
-| 存储 | 内存 | PG 持久化 |
-| 大小 | 无限制 | 10MB 上限 |
-| 生命周期 | Task 结束即清理 | 7 天保留 |
-| 一致性 | 内存共享 | PG 事务 |
+**方向性说明**：本表所有维度上 Orion 方案均为**更强能力**，不存在「为对齐 NL 而妥协」的情形。
+ArtifactBus 的价值主张应完全建立于 Orion 自身的 Pipeline 场景，
+与 NeatLogic 无关。
 
 ---
 
@@ -482,12 +532,34 @@ DELETE FROM pipeline_artifacts WHERE created_at > now() - INTERVAL '1 hour';
 
 ## 8. 参考
 
-- NL-2 一手证据：`reports/expert-reviews/neatlogic-deploy-tagent-change-firsthand-2026-10-03.md` §Automation
+- **参照系基线（权威）**：`reports/reference/neatlogic-baseline-2026-10-11.md`
+- **参照系审计（本 ADR 参照系重建依据）**：`reports/reference/adr-neatlogic-reference-audit-2026-10-11.md` §5
+- 原始 NL-2 一手证据（其中 `TaskHandler*` 引用经审计全仓 0 命中）：`reports/expert-reviews/neatlogic-deploy-tagent-change-firsthand-2026-10-03.md` §Automation
 - v5 综合报告：`cross-review-synthesis-2026-10-03-v5.md` §Automation
 - 风险登记册：`risk-fallback-design-2026-10-03.md` R-P0-01
 - AA 数据模型：`data-model-migration-design-2026-10-03.md` Migration 728-729
 
 ---
+
+---
+
+## 9. 修订记录
+
+| 日期 | 修订 | 依据 |
+|---|---|---|
+| 2026-10-11 | **参照系彻底重建**：删除虚构的 `TaskHandlerContext`（含 `inputs`/`outputs`/`artifacts` 三字段示例代码）；§1.2 重写为 NeatLogic 真实 `ProcessStepHandler` 生态（附 6 项机械计数）；§6 由「对齐细节」重写为「无对标关系」并附方向性差异表；元数据行与 §8 参考同步 | `reports/reference/adr-neatlogic-reference-audit-2026-10-11.md` §5 |
+
+**修订性质**：**技术决策完全不变**（仍为 PG 持久化 ArtifactBus + 10MB 上限 + 7 天 TTL +
+显式 `Get` 寻址 + Feature flag 渐进式上线）。变更的是参照系归属——从「对标 NL」
+更正为「Orion 自主设计」。
+
+**为何这一条修正价值最高**：初版的 `TaskHandlerContext` 代码块含 `Map<String, byte[]> artifacts`
+字段，形式上与 Orion 的 `BYTEA` 设计高度相似，极易让后续维护者确信设计经过对标验证。
+实际是全仓 0 命中的虚构类。**「看起来很对」的虚构引用比明显错误的更危险**——
+它无法通过常识审查被发现，只有机械 grep 能证伪。
+
+**对下游的提示**：任何以「对齐 NeatLogic」为由评估 ArtifactBus 的后续讨论，
+应直接引用本节 §6.2 的差异表，结论是 Orion 方案在各维度均更强，无对标可依据。
 
 **文档编号**：`ADR-014-Pipeline-ArtifactBus-方案.md`
 **下一步**：本 ADR 决策批准 → S4 阶段新增 ArtifactBus + Feature flag → 灰度上线
