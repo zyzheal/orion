@@ -15,7 +15,10 @@ import (
 // created_by and updated_by to this table, none of which models.Ticket has a
 // db destination for — a SELECT * fails the whole read in the driver even
 // though none of those columns are needed. The column names are 076's.
-const ticketColumns = "id, tenant_id, title, description, category, priority, status, reporter_id, assignee_id, resolved_at, closed_at, created_at, updated_at"
+//
+// source / source_id 已存在于 076 DDL，模型 v6.0 起暴露（P1-2 语义解耦）。
+// alert_severity 由 Migration 705 引入，与 category 语义解耦。
+const ticketColumns = "id, tenant_id, title, description, category, priority, status, source, source_id, alert_severity, reporter_id, assignee_id, resolved_at, closed_at, created_at, updated_at"
 
 type TicketRepository struct {
 	db *database.DB
@@ -36,11 +39,18 @@ func (r *TicketRepository) Create(ctx context.Context, ticket *models.Ticket) er
 		ticket.UpdatedAt = ticket.CreatedAt
 	}
 
-	query := `INSERT INTO tickets (id, tenant_id, title, description, category, priority, status, reporter_id, assignee_id, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
+	// source 默认 "manual"（P1-2 语义解耦）：老客户端不传 source 时后端补齐。
+	if ticket.Source == "" {
+		ticket.Source = "manual"
+	}
+
+	query := `INSERT INTO tickets (id, tenant_id, title, description, category, priority, status, source, source_id, alert_severity, reporter_id, assignee_id, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 	_, err := r.db.ExecContext(ctx, query,
 		ticket.ID, ticket.TenantID, ticket.Title, ticket.Description,
-		ticket.Type, ticket.Priority, ticket.Status, ticket.CreatedBy, ticket.AssignedTo,
+		ticket.Type, ticket.Priority, ticket.Status,
+		ticket.Source, ticket.SourceID, ticket.AlertSeverity,
+		ticket.CreatedBy, ticket.AssignedTo,
 		ticket.CreatedAt, ticket.UpdatedAt,
 	)
 	return err

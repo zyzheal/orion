@@ -14,20 +14,25 @@ import "time"
 //	                             non-UUID string in the driver)
 //	AssignedTo -> assignee_id   (076 has assignee_id VARCHAR(255), no
 //	                             assigned_to column)
+// Ticket.Source / SourceID 已由 076 DDL 定义（VARCHAR 100/255），本迁移仅做模型暴露。
+// Ticket.AlertSeverity 由 Migration 705 引入，独立于 Type / Category 的严重度语义解耦。
 type Ticket struct {
-	ID          string     `json:"id" db:"id"`
-	TenantID    string     `json:"tenant_id" db:"tenant_id"`
-	Title       string     `json:"title" db:"title"`
-	Description string     `json:"description" db:"description"`
-	Type        string     `json:"type" db:"category"`
-	Priority    string     `json:"priority" db:"priority"`
-	Status      string     `json:"status" db:"status"`
-	CreatedBy   string     `json:"created_by" db:"reporter_id"`
-	AssignedTo  string     `json:"assigned_to" db:"assignee_id"`
-	ResolvedAt  *time.Time `json:"resolved_at,omitempty" db:"resolved_at"`
-	ClosedAt    *time.Time `json:"closed_at,omitempty" db:"closed_at"`
-	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
+	ID            string     `json:"id" db:"id"`
+	TenantID      string     `json:"tenant_id" db:"tenant_id"`
+	Title         string     `json:"title" db:"title"`
+	Description   string     `json:"description" db:"description"`
+	Type          string     `json:"type" db:"category"`
+	Priority      string     `json:"priority" db:"priority"`
+	Status        string     `json:"status" db:"status"`
+	Source        string     `json:"source,omitempty" db:"source"`
+	SourceID      string     `json:"source_id,omitempty" db:"source_id"`
+	AlertSeverity string     `json:"alert_severity,omitempty" db:"alert_severity"`
+	CreatedBy     string     `json:"created_by" db:"reporter_id"`
+	AssignedTo    string     `json:"assigned_to" db:"assignee_id"`
+	ResolvedAt    *time.Time `json:"resolved_at,omitempty" db:"resolved_at"`
+	ClosedAt      *time.Time `json:"closed_at,omitempty" db:"closed_at"`
+	CreatedAt     time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // TicketComment 存储工单评论。TenantID 由 Migration 704 引入（ADR-011 多租户隔离）：
@@ -57,11 +62,18 @@ type AssignRequest struct {
 	AssignedTo string `json:"assigned_to" binding:"required"`
 }
 
+// CreateTicketRequest 接受 Source / AlertSeverity（P1-2 语义解耦）：
+//   - Source: alert_auto / sla_breach / manual / inspection / change / api / webhook / email / chatops / other
+//   - AlertSeverity: P0 / P1 / P2 / P3 / P4（仅 alert 来源使用）
+// 老客户端不传 source 时后端会默认 "manual"。
 type CreateTicketRequest struct {
-	Title       string `json:"title" binding:"required"`
-	Description string `json:"description"`
-	Type        string `json:"type"`
-	Priority    string `json:"priority"`
+	Title         string `json:"title" binding:"required"`
+	Description   string `json:"description"`
+	Type          string `json:"type"`
+	Priority      string `json:"priority"`
+	Source        string `json:"source,omitempty"`
+	SourceID      string `json:"source_id,omitempty"`
+	AlertSeverity string `json:"alert_severity,omitempty"`
 }
 
 type CreateCommentRequest struct {

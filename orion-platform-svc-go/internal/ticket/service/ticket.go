@@ -47,14 +47,17 @@ func (s *TicketService) Create(ctx context.Context, tenantID string, req *models
 	defer span.End()
 
 	ticket := &models.Ticket{
-		ID:          uuid.New().String(),
-		TenantID:    tenantID,
-		Title:       req.Title,
-		Description: req.Description,
-		Type:        req.Type,
-		Priority:    req.Priority,
-		Status:      models.StatusOpen,
-		CreatedBy:   createdBy,
+		ID:            uuid.New().String(),
+		TenantID:      tenantID,
+		Title:         req.Title,
+		Description:   req.Description,
+		Type:          req.Type,
+		Priority:      req.Priority,
+		Status:        models.StatusOpen,
+		Source:        req.Source,        // P1-2: source 独立列，默认 "manual"
+		SourceID:      req.SourceID,      // P1-2: 上游对象 id（如 alert_id）
+		AlertSeverity: req.AlertSeverity, // P1-2: 从 metadata.severity 或 alert 独立带入
+		CreatedBy:     createdBy,
 	}
 
 	if err := s.repo.Create(ctx, ticket); err != nil {
