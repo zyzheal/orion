@@ -44,6 +44,23 @@ func (r *Repository) DeleteAlert(ctx context.Context, tenantID, id string) error
 	return err
 }
 
+// DeleteAlertsByTenantID hard-deletes every alert owned by tenantID and
+// returns the row count. Idempotent: a second call returns (0, nil).
+func (r *Repository) DeleteAlertsByTenantID(ctx context.Context, tenantID string) (int64, error) {
+	if tenantID == "" {
+		return 0, fmt.Errorf("tenantID is required")
+	}
+	res, err := r.db.ExecContext(ctx, `DELETE FROM alerts WHERE tenant_id=$1`, tenantID)
+	if err != nil {
+		return 0, err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return affected, nil
+}
+
 func (r *Repository) UpdateAlert(ctx context.Context, a *models.Alert) error {
 	a.UpdatedAt = time.Now().UTC()
 	_, err := r.db.NamedExecContext(ctx,

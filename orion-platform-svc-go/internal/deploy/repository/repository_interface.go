@@ -10,6 +10,10 @@ import (
 type RepositoryInterface interface {
 	Create(ctx context.Context, m *models.Deployment) error
 	GetByID(ctx context.Context, tenantID, id string) (*models.Deployment, error)
+	// DeleteByTenantID hard-deletes every deployment owned by tenantID and
+	// returns the row count (idempotent). Used by ADR-011 §4 GDPR /
+	// 租户退租 data-subject-deletion path (GATE-P0-DELETE-BY-TENANT).
+	DeleteByTenantID(ctx context.Context, tenantID string) (int64, error)
 	List(ctx context.Context, tenantID string, limit, offset int) ([]models.Deployment, error)
 	UpdateStatus(ctx context.Context, tenantID, id, status string) error
 	CompleteDeployment(ctx context.Context, tenantID, id, status string) error

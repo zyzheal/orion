@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -77,4 +78,23 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM notification_management WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	return err
+}
+
+// DeleteByTenantID hard-deletes every notification-management row owned by
+// tenantID and returns the row count. Idempotent: a second call returns
+// (0, nil). Used by ADR-011 §4 GDPR / 租户退租 data-subject-deletion path
+// (GATE-P0-DELETE-BY-TENANT).
+func (r *Repository) DeleteByTenantID(ctx context.Context, tenantID string) (int64, error) {
+	if tenantID == "" {
+		return 0, fmt.Errorf("tenantID is required")
+	}
+	res, err := r.db.ExecContext(ctx, `DELETE FROM notification_management WHERE tenant_id = $1`, tenantID)
+	if err != nil {
+		return 0, err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return affected, nil
 }

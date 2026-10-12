@@ -14,6 +14,12 @@ type TicketRepositoryInterface interface {
 	List(ctx context.Context, tenantID string, q models.ListQuery) ([]models.Ticket, int, error)
 	Update(ctx context.Context, ticket *models.Ticket) error
 	Delete(ctx context.Context, id, tenantID string) error
+	// DeleteByTenantID performs a hard delete of every ticket owned by the
+	// tenant, returning the number of rows removed. It is the single entry
+	// point for the GDPR / 数据主体请求 / 租户退租 data-subject-deletion path
+	// (ADR-011 §4, GATE-P0-DELETE-BY-TENANT). Callers must be idempotent-safe:
+	// a second call after all rows have been removed returns (0, nil).
+	DeleteByTenantID(ctx context.Context, tenantID string) (int64, error)
 	UpdateStatus(ctx context.Context, id, tenantID, status string) error
 	UpdateAssignee(ctx context.Context, id, tenantID, assignedTo string) error
 	Count(ctx context.Context, tenantID string) (int, error)

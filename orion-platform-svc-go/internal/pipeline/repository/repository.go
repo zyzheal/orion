@@ -159,6 +159,25 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) (bool, err
 	return rows > 0, nil
 }
 
+// DeleteByTenantID hard-deletes every pipeline owned by tenantID and
+// returns the row count. Idempotent: a second call returns (0, nil).
+// Used by ADR-011 §4 GDPR / 租户退租 data-subject-deletion path
+// (GATE-P0-DELETE-BY-TENANT).
+func (r *Repository) DeleteByTenantID(ctx context.Context, tenantID string) (int64, error) {
+	if tenantID == "" {
+		return 0, fmt.Errorf("tenantID is required")
+	}
+	res, err := r.db.ExecContext(ctx, `DELETE FROM pipelines WHERE tenant_id=$1`, tenantID)
+	if err != nil {
+		return 0, err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return affected, nil
+}
+
 func (r *Repository) GetVersions(ctx context.Context, tenantID, pipelineID string) ([]models.PipelineVersion, error) {
 	var versions []models.PipelineVersion
 	err := r.db.SelectContext(ctx, &versions, `

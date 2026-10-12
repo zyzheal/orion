@@ -48,6 +48,7 @@ func (m *mockTicketRepo) List(ctx context.Context, tenantID string, q models.Lis
 }
 func (m *mockTicketRepo) Update(ctx context.Context, t *models.Ticket) error    { return nil }
 func (m *mockTicketRepo) Delete(ctx context.Context, id, tenantID string) error { return nil }
+func (m *mockTicketRepo) DeleteByTenantID(ctx context.Context, tenantID string) (int64, error) { return 0, nil }
 func (m *mockTicketRepo) UpdateStatus(ctx context.Context, id, tenantID, status string) error {
 	return nil
 }

@@ -378,7 +378,8 @@ func (f *discardFakeTicket) List(ctx context.Context, tenantID string, q models.
 	return nil, 0, nil
 }
 func (f *discardFakeTicket) Update(ctx context.Context, ticket *models.Ticket) error { return nil }
-func (f *discardFakeTicket) Delete(ctx context.Context, id, tenantID string) error   { return nil }
+func (f *discardFakeTicket) Delete(ctx context.Context, id, tenantID string) error { return nil }
+func (f *discardFakeTicket) DeleteByTenantID(ctx context.Context, tenantID string) (int64, error) { return 0, nil }
 func (f *discardFakeTicket) UpdateStatus(ctx context.Context, id, tenantID, status string) error {
 	return f.statusErr
 }

@@ -12,6 +12,10 @@ type RepositoryInterface interface {
 	CreateAlert(ctx context.Context, a *models.Alert) error
 	GetAlertByID(ctx context.Context, tenantID, id string) (*models.Alert, error)
 	DeleteAlert(ctx context.Context, tenantID, id string) error
+	// DeleteAlertsByTenantID hard-deletes every alert owned by tenantID
+	// and returns the row count (idempotent). Used by ADR-011 §4 GDPR /
+	// 租户退租 data-subject-deletion path (GATE-P0-DELETE-BY-TENANT).
+	DeleteAlertsByTenantID(ctx context.Context, tenantID string) (int64, error)
 	UpdateAlert(ctx context.Context, a *models.Alert) error
 	ListAlerts(ctx context.Context, tenantID string, severity, status string, limit int) ([]models.Alert, int, error)
 	GetActiveGroups(ctx context.Context, tenantID string) ([]models.AlertGroup, error)

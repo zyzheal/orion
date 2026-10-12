@@ -10,6 +10,10 @@ import (
 type RepositoryInterface interface {
 	CreateCI(ctx context.Context, ci *models.CI) error
 	GetCIByID(ctx context.Context, id string) (*models.CI, error)
+	// DeleteByTenantID hard-deletes every CI owned by tenantID and returns
+	// the row count (idempotent). Used by ADR-011 §4 GDPR / 租户退租
+	// data-subject-deletion path (GATE-P0-DELETE-BY-TENANT).
+	DeleteByTenantID(ctx context.Context, tenantID string) (int64, error)
 	GetCIByCiId(ctx context.Context, ciID string, tenantID *string) (*models.CI, error)
 	UpdateCI(ctx context.Context, id string, updates map[string]interface{}) (*models.CI, error)
 	DeleteCI(ctx context.Context, id string) (bool, error)

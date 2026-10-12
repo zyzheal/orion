@@ -89,6 +89,25 @@ func (r *Repository) DeleteCI(ctx context.Context, id string) (bool, error) {
 	return n > 0, nil
 }
 
+// DeleteByTenantID hard-deletes every CI owned by tenantID and returns
+// the row count. Idempotent: a second call returns (0, nil). Used by
+// ADR-011 §4 GDPR / 租户退租 data-subject-deletion path
+// (GATE-P0-DELETE-BY-TENANT).
+func (r *Repository) DeleteByTenantID(ctx context.Context, tenantID string) (int64, error) {
+	if tenantID == "" {
+		return 0, fmt.Errorf("tenantID is required")
+	}
+	res, err := r.db.ExecContext(ctx, `DELETE FROM cmdb_cis WHERE tenant_id=$1`, tenantID)
+	if err != nil {
+		return 0, err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return affected, nil
+}
+
 func (r *Repository) ListCIs(ctx context.Context, ciType *string, status *string, tenantID string, page, limit int) ([]models.CI, int, error) {
 	if limit <= 0 {
 		limit = 20

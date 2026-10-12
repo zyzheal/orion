@@ -122,6 +122,24 @@ func (r *TicketRepository) Delete(ctx context.Context, id, tenantID string) erro
 	return err
 }
 
+// DeleteByTenantID hard-deletes every ticket owned by tenantID, returning
+// the row count. Idempotent: a second call after the tenant's tickets are
+// all gone returns (0, nil).
+func (r *TicketRepository) DeleteByTenantID(ctx context.Context, tenantID string) (int64, error) {
+	if tenantID == "" {
+		return 0, fmt.Errorf("tenantID is required")
+	}
+	res, err := r.db.ExecContext(ctx, "DELETE FROM tickets WHERE tenant_id = $1", tenantID)
+	if err != nil {
+		return 0, err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return affected, nil
+}
+
 func (r *TicketRepository) UpdateStatus(ctx context.Context, id, tenantID, status string) error {
 	if status == "resolved" {
 		_, err := r.db.ExecContext(ctx, "UPDATE tickets SET status=$1, resolved_at=NOW(), updated_at=NOW() WHERE id=$2 AND tenant_id=$3", status, id, tenantID)
