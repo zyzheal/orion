@@ -26,6 +26,7 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
 	// Global middleware
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
+	r.Use(middleware.Tracing(middleware.TracingConfig{ServiceName: "orion-platform"}))
 	r.Use(middleware.RateLimit(middleware.DefaultRateLimitConfig()))
 	r.Use(middleware.Timeout(middleware.DefaultTimeoutConfig()))
 	r.Use(middleware.SecurityHeaders())
