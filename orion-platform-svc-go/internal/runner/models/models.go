@@ -121,16 +121,20 @@ func (a *JSONArray) Scan(src interface{}) error {
 
 // RunnerAgent represents a CI worker node that executes jobs.
 // Translated from TS RunnerService.register() payload + RunnerStatus.
+//
+// Protocol (P0-D1) identifies how the platform reaches the agent:
+// http | ssh | k8s-exec | winrm | grpc. Empty/unknown normalizes to "http".
 type RunnerAgent struct {
 	ID              string     `db:"id" json:"id"`
 	AgentID         string     `db:"agent_id" json:"agent_id"` // unique external ID (e.g. "my-server-runner")
 	TenantID        string     `db:"tenant_id" json:"tenant_id"`
 	Name            string     `db:"name" json:"name"`
-	Labels          JSONArray  `db:"labels" json:"labels"`     // e.g. ["linux", "nodejs"]
-	Endpoint        string     `db:"endpoint" json:"endpoint"` // callback URL (e.g. "http://host:3028")
+	Protocol        string     `db:"protocol" json:"protocol"`           // http|ssh|k8s-exec|winrm|grpc (P0-D1)
+	Labels          JSONArray  `db:"labels" json:"labels"`               // e.g. ["linux", "nodejs"]
+	Endpoint        string     `db:"endpoint" json:"endpoint"`           // callback URL / SSH host / K8s pod name
 	MaxConcurrent   int        `db:"max_concurrent" json:"max_concurrent"`
-	Status          string     `db:"status" json:"status"`     // online | offline | draining
-	Metadata        JSONB      `db:"metadata" json:"metadata"` // OS info, runtime version
+	Status          string     `db:"status" json:"status"`               // online | offline | draining
+	Metadata        JSONB      `db:"metadata" json:"metadata"`           // OS info, runtime version
 	LastHeartbeatAt *time.Time `db:"last_heartbeat_at" json:"last_heartbeat_at,omitempty"`
 	CreatedAt       time.Time  `db:"created_at" json:"created_at"`
 	UpdatedAt       time.Time  `db:"updated_at" json:"updated_at"`
@@ -138,8 +142,12 @@ type RunnerAgent struct {
 
 // CreateAgentRequest is the request payload for registering a runner agent.
 // Translated from TS RunnerService.register() payload.
+//
+// Protocol is optional; empty/unknown values normalize to "http" (backward
+// compatible with pre-P0-D1 requests).
 type CreateAgentRequest struct {
 	Name          string            `json:"name" binding:"required"`
+	Protocol      string            `json:"protocol"` // http|ssh|k8s-exec|winrm|grpc (P0-D1)
 	Labels        []string          `json:"labels"`
 	Endpoint      string            `json:"endpoint" binding:"required"`
 	MaxConcurrent int               `json:"max_concurrent"`
@@ -148,6 +156,7 @@ type CreateAgentRequest struct {
 
 // UpdateAgentRequest is the request payload for updating a runner agent.
 type UpdateAgentRequest struct {
+	Protocol      *string   `json:"protocol"`         // http|ssh|k8s-exec|winrm|grpc (P0-D1)
 	Labels        *[]string `json:"labels"`
 	MaxConcurrent *int      `json:"max_concurrent"`
 	Status        *string   `json:"status"`

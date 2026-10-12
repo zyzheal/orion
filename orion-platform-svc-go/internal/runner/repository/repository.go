@@ -53,11 +53,17 @@ func (r *Repository) CreateAgent(ctx context.Context, a *models.RunnerAgent) err
 	a.CreatedAt = now
 	a.UpdatedAt = now
 
+	// Protocol defaults to "http" when empty for backward compat with
+	// pre-P0-D1 callers; DB CHECK enforces the allowed set.
+	protocol := a.Protocol
+	if protocol == "" {
+		protocol = "http"
+	}
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO runner_agents
-			(id, agent_id, tenant_id, name, labels, endpoint, max_concurrent, status, metadata, last_heartbeat_at, created_at, updated_at)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-		a.ID, a.AgentID, a.TenantID, a.Name, a.Labels, a.Endpoint,
+			(id, agent_id, tenant_id, name, protocol, labels, endpoint, max_concurrent, status, metadata, last_heartbeat_at, created_at, updated_at)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+		a.ID, a.AgentID, a.TenantID, a.Name, protocol, a.Labels, a.Endpoint,
 		a.MaxConcurrent, a.Status, a.Metadata, a.LastHeartbeatAt,
 		a.CreatedAt, a.UpdatedAt,
 	)
@@ -68,7 +74,7 @@ func (r *Repository) CreateAgent(ctx context.Context, a *models.RunnerAgent) err
 func (r *Repository) GetAgentByAgentID(ctx context.Context, agentID string) (*models.RunnerAgent, error) {
 	var a models.RunnerAgent
 	err := r.db.GetContext(ctx, &a,
-		`SELECT id, agent_id, tenant_id, name, labels, endpoint, max_concurrent,
+		`SELECT id, agent_id, tenant_id, name, protocol, labels, endpoint, max_concurrent,
 		        status, metadata, last_heartbeat_at, created_at, updated_at
 		 FROM runner_agents
 		 WHERE agent_id = $1`,
@@ -84,7 +90,7 @@ func (r *Repository) GetAgentByAgentID(ctx context.Context, agentID string) (*mo
 func (r *Repository) GetAgentByID(ctx context.Context, id string) (*models.RunnerAgent, error) {
 	var a models.RunnerAgent
 	err := r.db.GetContext(ctx, &a,
-		`SELECT id, agent_id, tenant_id, name, labels, endpoint, max_concurrent,
+		`SELECT id, agent_id, tenant_id, name, protocol, labels, endpoint, max_concurrent,
 		        status, metadata, last_heartbeat_at, created_at, updated_at
 		 FROM runner_agents
 		 WHERE id = $1`,
@@ -103,7 +109,7 @@ func (r *Repository) ListAgents(ctx context.Context, tenantID, status string, of
 
 	if tenantID != "" && status != "" {
 		err = r.db.SelectContext(ctx, &items,
-			`SELECT id, agent_id, tenant_id, name, labels, endpoint, max_concurrent,
+			`SELECT id, agent_id, tenant_id, name, protocol, labels, endpoint, max_concurrent,
 			        status, metadata, last_heartbeat_at, created_at, updated_at
 			 FROM runner_agents
 			 WHERE tenant_id = $1 AND status = $2
@@ -113,7 +119,7 @@ func (r *Repository) ListAgents(ctx context.Context, tenantID, status string, of
 		)
 	} else if tenantID != "" {
 		err = r.db.SelectContext(ctx, &items,
-			`SELECT id, agent_id, tenant_id, name, labels, endpoint, max_concurrent,
+			`SELECT id, agent_id, tenant_id, name, protocol, labels, endpoint, max_concurrent,
 			        status, metadata, last_heartbeat_at, created_at, updated_at
 			 FROM runner_agents
 			 WHERE tenant_id = $1
@@ -123,7 +129,7 @@ func (r *Repository) ListAgents(ctx context.Context, tenantID, status string, of
 		)
 	} else if status != "" {
 		err = r.db.SelectContext(ctx, &items,
-			`SELECT id, agent_id, tenant_id, name, labels, endpoint, max_concurrent,
+			`SELECT id, agent_id, tenant_id, name, protocol, labels, endpoint, max_concurrent,
 			        status, metadata, last_heartbeat_at, created_at, updated_at
 			 FROM runner_agents
 			 WHERE status = $1
@@ -133,7 +139,7 @@ func (r *Repository) ListAgents(ctx context.Context, tenantID, status string, of
 		)
 	} else {
 		err = r.db.SelectContext(ctx, &items,
-			`SELECT id, agent_id, tenant_id, name, labels, endpoint, max_concurrent,
+			`SELECT id, agent_id, tenant_id, name, protocol, labels, endpoint, max_concurrent,
 			        status, metadata, last_heartbeat_at, created_at, updated_at
 			 FROM runner_agents
 			 ORDER BY created_at DESC
@@ -145,11 +151,26 @@ func (r *Repository) ListAgents(ctx context.Context, tenantID, status string, of
 }
 
 // UpdateAgent updates an agent's mutable fields using dynamic SET clause.
-func (r *Repository) UpdateAgent(ctx context.Context, id string, labels *models.JSONArray, maxConcurrent *int, status *string, metadata *models.JSONB) error {
+// The protocol parameter is optional; if non-nil it is normalized via
+// CanonicalProtocol before write (defense against invalid enum values).
+func (r *Repository) UpdateAgent(ctx context.Context, id string, labels *models.JSONArray, maxConcurrent *int, status *string, metadata *models.JSONB, protocol *string) error {
 	setClauses := []string{}
 	args := []interface{}{}
 	argIdx := 1
 
+	if protocol != nil {
+		// Normalize defensively: unknown strings fall back to "http".
+		// The service layer already runs CanonicalProtocol; this is a
+		// belt-and-suspenders guard so repository direct callers can't
+		// poison the column.
+		norm := *protocol
+		if norm == "" {
+			norm = "http"
+		}
+		setClauses = append(setClauses, fmt.Sprintf("protocol = $%d", argIdx))
+		args = append(args, norm)
+		argIdx++
+	}
 	if labels != nil {
 		setClauses = append(setClauses, fmt.Sprintf("labels = $%d", argIdx))
 		args = append(args, *labels)

@@ -48,6 +48,12 @@ type Service struct {
 	repo        *repository.Repository
 	mu          sync.RWMutex
 	platformURL string
+
+	// handlers is the pluggable RunnerHandler registry. Job dispatch resolves
+	// the agent's Protocol and looks up the matching handler. Empty/nil
+	// registry means the service runs in state-tracking-only mode (no
+	// outbound delivery) — this preserves pre-P0-D1 behaviour.
+	handlers *HandlerRegistry
 }
 
 // NewService creates a new Service.
@@ -59,6 +65,46 @@ func NewService(repo *repository.Repository) *Service {
 // Used when the service needs to report results back to the Orion Platform.
 func (s *Service) WithPlatformURL(url string) {
 	s.platformURL = url
+}
+
+// WithHandlerRegistry installs the pluggable protocol Handler registry.
+// Nil is a no-op (defaults to no registered handlers → ErrHandlerNotFound
+// on dispatch). Used by the platform to inject HTTPHandler/SSHHandler/…
+func (s *Service) WithHandlerRegistry(h *HandlerRegistry) {
+	s.handlers = h
+}
+
+// DispatchJob looks up the agent's protocol handler and forwards the job.
+// Returns the handler-issued dispatch ID. If no handler is registered for
+// the agent's protocol, ErrHandlerNotFound is returned.
+func (s *Service) DispatchJob(ctx context.Context, job *models.RunnerJob) (string, error) {
+	if s.handlers == nil {
+		return "", ErrHandlerNotFound
+	}
+	agent, err := s.repo.GetAgentByID(ctx, job.AgentID)
+	if err != nil {
+		return "", err
+	}
+	av := &RunnerAgentView{
+		ID:       agent.ID,
+		AgentID:  agent.AgentID,
+		Endpoint: agent.Endpoint,
+		Protocol: CanonicalProtocol(RunnerProtocol(agent.Protocol)),
+	}
+	params := map[string]interface{}{}
+	for k, v := range job.Params {
+		params[k] = v
+	}
+	jv := &RunnerJobView{
+		JobID:    job.JobID,
+		TaskType: job.TaskType,
+		Params:   params,
+	}
+	h := s.handlers.Lookup(av.Protocol)
+	if h == nil {
+		return "", fmt.Errorf("%w: %s", ErrHandlerNotFound, av.Protocol)
+	}
+	return h.DispatchTask(ctx, av, jv)
 }
 
 // ===========================================================================
@@ -98,6 +144,7 @@ func (s *Service) RegisterAgent(ctx context.Context, tenantID string, req *model
 		AgentID:       agentID,
 		TenantID:      tenantID,
 		Name:          req.Name,
+		Protocol:      string(CanonicalProtocol(RunnerProtocol(req.Protocol))),
 		Labels:        labels,
 		Endpoint:      req.Endpoint,
 		MaxConcurrent: maxConcurrent,
@@ -110,7 +157,7 @@ func (s *Service) RegisterAgent(ctx context.Context, tenantID string, req *model
 	if err == nil && existing != nil {
 		// Re-registration: update status to online
 		status := string(models.AgentStatusOnline)
-		err := s.repo.UpdateAgent(ctx, existing.ID, nil, nil, &status, nil)
+		err := s.repo.UpdateAgent(ctx, existing.ID, nil, nil, &status, nil, nil)
 		if err != nil {
 			return nil, fmt.Errorf("update existing agent failed: %w", err)
 		}
@@ -123,7 +170,7 @@ func (s *Service) RegisterAgent(ctx context.Context, tenantID string, req *model
 
 	// Promote to online after successful registration
 	status := string(models.AgentStatusOnline)
-	if err := s.repo.UpdateAgent(ctx, a.ID, nil, nil, &status, nil); err != nil {
+	if err := s.repo.UpdateAgent(ctx, a.ID, nil, nil, &status, nil, nil); err != nil {
 		return nil, fmt.Errorf("set agent online failed: %w", err)
 	}
 	a.Status = string(models.AgentStatusOnline)
@@ -191,7 +238,15 @@ func (s *Service) UpdateAgent(ctx context.Context, tenantID, agentID string, req
 		labels = &l
 	}
 
-	err = s.repo.UpdateAgent(ctx, a.ID, labels, req.MaxConcurrent, req.Status, req.Metadata)
+	// Normalize protocol if provided (empty/unknown → "http" via CanonicalProtocol).
+	// This preserves backward compatibility with pre-P0-D1 updates.
+	var protocol *string
+	if req.Protocol != nil {
+		norm := string(CanonicalProtocol(RunnerProtocol(*req.Protocol)))
+		protocol = &norm
+	}
+
+	err = s.repo.UpdateAgent(ctx, a.ID, labels, req.MaxConcurrent, req.Status, req.Metadata, protocol)
 	if err != nil {
 		return nil, fmt.Errorf("update agent failed: %w", err)
 	}
