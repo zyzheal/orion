@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -35,12 +36,16 @@ type Result struct {
 
 // Repository persists alert pipeline results to PostgreSQL.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 // NewRepository creates a new alert-pipeline repository.
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // Save inserts a pipeline result after execution.
@@ -107,7 +112,7 @@ func (r *Repository) Save(ctx context.Context, tenantID string, result *models.P
 // GetByResultID retrieves a result by its result_id.
 func (r *Repository) GetByResultID(ctx context.Context, resultID uuid.UUID) (*Result, error) {
 	var row Result
-	err := r.db.GetContext(ctx, &row,
+	err := r.TenantAwareRepository.Get(ctx, &row,
 		`SELECT * FROM alert_pipeline_results WHERE result_id=$1`, resultID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNoResults
@@ -121,7 +126,7 @@ func (r *Repository) GetByResultID(ctx context.Context, resultID uuid.UUID) (*Re
 // GetByAlertID retrieves the latest result for a given alert_id.
 func (r *Repository) GetByAlertID(ctx context.Context, alertID string) (*Result, error) {
 	var row Result
-	err := r.db.GetContext(ctx, &row,
+	err := r.TenantAwareRepository.Get(ctx, &row,
 		`SELECT * FROM alert_pipeline_results WHERE alert_id=$1 ORDER BY created_at DESC LIMIT 1`, alertID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNoResults
@@ -141,7 +146,7 @@ func (r *Repository) List(ctx context.Context, tenantID string, limit, offset in
 		offset = 0
 	}
 	var rows []*Result
-	err := r.db.SelectContext(ctx, &rows,
+	err := r.TenantAwareRepository.Select(ctx, &rows,
 		`SELECT * FROM alert_pipeline_results WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
 		tenantID, limit, offset)
 	return rows, err
@@ -150,7 +155,7 @@ func (r *Repository) List(ctx context.Context, tenantID string, limit, offset in
 // Count returns the number of results for a tenant.
 func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
 	var count int
-	err := r.db.GetContext(ctx, &count,
+	err := r.TenantAwareRepository.Get(ctx, &count,
 		`SELECT COUNT(*) FROM alert_pipeline_results WHERE tenant_id=$1`, tenantID)
 	return count, err
 }

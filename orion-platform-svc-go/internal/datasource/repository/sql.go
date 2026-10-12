@@ -9,6 +9,7 @@ import (
 
 	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/datasource/models"
+	internalrepo "orion/platform-svc-go/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -56,11 +57,13 @@ func toDS(row *dsWithTags) *models.DataSource {
 }
 
 type Repository struct {
-	db *sqlx.DB
+	internalrepo.TenantAwareRepository[any]
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+	}
 }
 
 func (r *Repository) Create(ctx context.Context, ds *models.DataSource) error {
@@ -74,7 +77,7 @@ func (r *Repository) Create(ctx context.Context, ds *models.DataSource) error {
 		ds.Status = models.DSStatusActive
 	}
 
-	_, err := r.db.ExecContext(ctx, `
+	_, err := r.Exec(ctx, `
 		INSERT INTO data_sources (id, tenant_id, name, source_type, host, port, database_name,
 			username, password_enc, ssl_mode, auth_source, max_open_conns, max_idle_conns,
 			conn_max_lifetime, status, error, tags, created_at, updated_at)
@@ -87,7 +90,7 @@ func (r *Repository) Create(ctx context.Context, ds *models.DataSource) error {
 
 func (r *Repository) GetByID(ctx context.Context, id string) (*models.DataSource, error) {
 	var row dsWithTags
-	err := r.db.GetContext(ctx, &row, `SELECT `+columns+` FROM data_sources WHERE id = $1`, id)
+	err := r.Get(ctx, &row, `SELECT `+columns+` FROM data_sources WHERE id = $1`, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, sentinel.NotFound
@@ -99,7 +102,7 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*models.DataSource
 
 func (r *Repository) List(ctx context.Context, tenantID string) ([]*models.DataSource, error) {
 	var rows []*dsWithTags
-	err := r.db.SelectContext(ctx, &rows, `SELECT `+columns+` FROM data_sources WHERE tenant_id = $1 ORDER BY created_at DESC`, tenantID)
+	err := r.Select(ctx, &rows, `SELECT `+columns+` FROM data_sources ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +115,7 @@ func (r *Repository) List(ctx context.Context, tenantID string) ([]*models.DataS
 
 func (r *Repository) Update(ctx context.Context, ds *models.DataSource) error {
 	ds.UpdatedAt = time.Now().UTC()
-	res, err := r.db.ExecContext(ctx, `
+	res, err := r.Exec(ctx, `
 		UPDATE data_sources SET name = $2, source_type = $3, host = $4, port = $5,
 			database_name = $6, username = $7, password_enc = $8, ssl_mode = $9, auth_source = $10,
 			max_open_conns = $11, max_idle_conns = $12, conn_max_lifetime = $13, status = $14,
@@ -132,7 +135,7 @@ func (r *Repository) Update(ctx context.Context, ds *models.DataSource) error {
 }
 
 func (r *Repository) Delete(ctx context.Context, id string) error {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM data_sources WHERE id = $1`, id)
+	res, err := r.Exec(ctx, `DELETE FROM data_sources WHERE id = $1`, id)
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"fmt"
 	"strings"
@@ -15,11 +16,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // --- Consumption ---
@@ -72,7 +77,7 @@ func (r *Repository) ListConsumptions(ctx context.Context, tenantID string, filt
 	}
 
 	var cons []models.Consumption
-	err := r.db.SelectContext(ctx, &cons,
+	err := r.TenantAwareRepository.Select(ctx, &cons,
 		fmt.Sprintf(`SELECT * FROM api_consumptions %s ORDER BY date DESC`, where), args...)
 	return cons, err
 }
@@ -91,14 +96,14 @@ func (r *Repository) CreateLimit(ctx context.Context, limit *models.Limit) error
 
 func (r *Repository) GetLimitByID(ctx context.Context, tenantID, id string) (*models.Limit, error) {
 	var l models.Limit
-	err := r.db.GetContext(ctx, &l,
+	err := r.TenantAwareRepository.Get(ctx, &l,
 		`SELECT * FROM usage_limits WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return &l, err
 }
 
 func (r *Repository) ListLimits(ctx context.Context, tenantID string) ([]models.Limit, error) {
 	var limits []models.Limit
-	err := r.db.SelectContext(ctx, &limits,
+	err := r.TenantAwareRepository.Select(ctx, &limits,
 		`SELECT * FROM usage_limits WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
 	return limits, err
 }
@@ -116,7 +121,7 @@ func (r *Repository) UpdateLimit(ctx context.Context, tenantID, id string, updat
 		i++
 	}
 	args = append(args, id, tenantID)
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		fmt.Sprintf(`UPDATE usage_limits SET %s WHERE id=$%d AND tenant_id=$%d`,
 			joinSetClauses(clauses), i, i+1), args...)
 	if err != nil {
@@ -126,7 +131,7 @@ func (r *Repository) UpdateLimit(ctx context.Context, tenantID, id string, updat
 }
 
 func (r *Repository) DeleteLimit(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM usage_limits WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return false, err
@@ -140,26 +145,26 @@ func (r *Repository) DeleteLimit(ctx context.Context, tenantID, id string) (bool
 func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.ConsumptionStats, error) {
 	stats := &models.ConsumptionStats{}
 
-	err := r.db.GetContext(ctx, &stats.TotalRequests,
+	err := r.TenantAwareRepository.Get(ctx, &stats.TotalRequests,
 		`SELECT COALESCE(SUM(request_count), 0) FROM api_consumptions WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = r.db.GetContext(ctx, &stats.TotalErrors,
+	err = r.TenantAwareRepository.Get(ctx, &stats.TotalErrors,
 		`SELECT COALESCE(SUM(error_count), 0) FROM api_consumptions WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = r.db.GetContext(ctx, &stats.TotalBytes,
+	err = r.TenantAwareRepository.Get(ctx, &stats.TotalBytes,
 		`SELECT COALESCE(SUM(bytes_transferred), 0) FROM api_consumptions WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Error rate
-	err = r.db.GetContext(ctx, &stats.ErrorRate,
+	err = r.TenantAwareRepository.Get(ctx, &stats.ErrorRate,
 		`SELECT CASE WHEN SUM(request_count) > 0 THEN ROUND(100.0 * SUM(error_count) / SUM(request_count), 2) ELSE 0 END FROM api_consumptions WHERE tenant_id=$1`, tenantID)
 
 	return stats, err

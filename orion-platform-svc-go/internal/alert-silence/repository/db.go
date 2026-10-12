@@ -3,18 +3,25 @@ package repository
 import (
 	"context"
 
+	internalrepo "orion/platform-svc-go/internal/repository"
+
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 )
 
 // DB wraps *sqlx.DB for the alert-silence repository.
 type DB struct {
+	internalrepo.TenantAwareRepository[any]
 	DB     *sqlx.DB
 	logger *zap.Logger
 }
 
 func NewDB(db *sqlx.DB, log *zap.Logger) *DB {
-	return &DB{DB: db, logger: log}
+	return &DB{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		DB:                    db,
+		logger:                log,
+	}
 }
 
 func (d *DB) Logger() *zap.Logger {

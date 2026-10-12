@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"fmt"
@@ -14,12 +15,16 @@ import (
 
 // Repository handles all database operations for agent runs and decisions.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 // NewRepository creates a new Repository backed by the given sqlx.DB.
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // ---- Runs ----
@@ -41,7 +46,7 @@ func (r *Repository) CreateRun(ctx context.Context, run *models.AgentRun) error 
 // GetByID retrieves an agent run by its id and tenant id.
 func (r *Repository) GetByID(ctx context.Context, id string, tenantID string) (*models.AgentRun, error) {
 	var run models.AgentRun
-	err := r.db.GetContext(ctx, &run,
+	err := r.TenantAwareRepository.Get(ctx, &run,
 		`SELECT * FROM agent_runs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -67,7 +72,7 @@ func (r *Repository) List(ctx context.Context, tenantID string, filter *models.L
 	args = append(args, defaultLimit(filter.Limit), defaultOffset(filter.Offset))
 
 	var runs []models.AgentRun
-	err := r.db.SelectContext(ctx, &runs, fmt.Sprintf(`SELECT * FROM agent_runs %s`, where), args...)
+	err := r.TenantAwareRepository.Select(ctx, &runs, fmt.Sprintf(`SELECT * FROM agent_runs %s`, where), args...)
 	return runs, err
 }
 
@@ -75,7 +80,7 @@ func (r *Repository) List(ctx context.Context, tenantID string, filter *models.L
 func (r *Repository) Count(ctx context.Context, tenantID string, filter *models.ListFilter) (int64, error) {
 	where, args := buildRunWhere(tenantID, filter)
 	var total int64
-	err := r.db.GetContext(ctx, &total, fmt.Sprintf(`SELECT COUNT(*) FROM agent_runs %s`, where), args...)
+	err := r.TenantAwareRepository.Get(ctx, &total, fmt.Sprintf(`SELECT COUNT(*) FROM agent_runs %s`, where), args...)
 	return total, err
 }
 
@@ -95,7 +100,7 @@ func (r *Repository) UpdateStatus(ctx context.Context, id string, tenantID strin
 		query += fmt.Sprintf(" WHERE id=$%d AND tenant_id=$%d", argIdx-1, argIdx)
 	}
 
-	result, err := r.db.ExecContext(ctx, query, args...)
+	result, err := r.TenantAwareRepository.Exec(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +113,7 @@ func (r *Repository) UpdateStatus(ctx context.Context, id string, tenantID strin
 
 // UpdateStep advances the current step of a run.
 func (r *Repository) UpdateStep(ctx context.Context, id string, tenantID string, step int) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE agent_runs SET current_step=$1, updated_at=EXTRACT(EPOCH FROM now())::bigint
 		 WHERE id=$2 AND tenant_id=$3`,
 		step, id, tenantID)
@@ -137,7 +142,7 @@ func (r *Repository) CreateDecision(ctx context.Context, d *models.AgentDecision
 // GetDecisionsByRunID returns all decisions for a run, ordered by step_number.
 func (r *Repository) GetDecisionsByRunID(ctx context.Context, runID string, tenantID string) ([]models.AgentDecision, error) {
 	var decisions []models.AgentDecision
-	err := r.db.SelectContext(ctx, &decisions,
+	err := r.TenantAwareRepository.Select(ctx, &decisions,
 		`SELECT d.* FROM agent_decisions d
 		 JOIN agent_runs r ON r.id = d.run_id
 		 WHERE d.run_id=$1 AND r.tenant_id=$2
@@ -163,7 +168,7 @@ func (r *Repository) CreateApproval(ctx context.Context, a *models.AgentApproval
 // GetApprovalsByRunID returns approvals for a given run.
 func (r *Repository) GetApprovalsByRunID(ctx context.Context, runID string, tenantID string) ([]models.AgentApproval, error) {
 	var approvals []models.AgentApproval
-	err := r.db.SelectContext(ctx, &approvals,
+	err := r.TenantAwareRepository.Select(ctx, &approvals,
 		`SELECT a.* FROM agent_approvals a
 		 JOIN agent_runs r ON r.id = a.run_id
 		 WHERE a.run_id=$1 AND r.tenant_id=$2
@@ -179,7 +184,7 @@ func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.Age
 	stats := &models.AgentRunStats{ByStatus: make(map[models.AgentRunStatus]int64)}
 
 	var total int64
-	err := r.db.GetContext(ctx, &total,
+	err := r.TenantAwareRepository.Get(ctx, &total,
 		`SELECT COUNT(*) FROM agent_runs WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return nil, err
@@ -190,7 +195,7 @@ func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.Age
 		Status models.AgentRunStatus `db:"status"`
 		Count  int64                 `db:"count"`
 	}
-	err = r.db.SelectContext(ctx, &statusRows,
+	err = r.TenantAwareRepository.Select(ctx, &statusRows,
 		`SELECT status, COUNT(*) AS count FROM agent_runs WHERE tenant_id=$1 GROUP BY status`, tenantID)
 	if err != nil {
 		return nil, err

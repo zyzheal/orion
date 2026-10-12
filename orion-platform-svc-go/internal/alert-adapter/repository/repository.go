@@ -7,6 +7,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -26,12 +27,16 @@ var (
 
 // Repository provides data access for alert adapters and events.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 // NewRepository creates a new Repository.
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // ===========================================================================
@@ -50,7 +55,7 @@ func (r *Repository) CreateAdapter(ctx context.Context, a *models.AlertAdapter) 
 		a.Status = "enabled"
 	}
 
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO alert_adapters
 			(id, tenant_id, name, type, category, config, status, enabled, error, created_at, updated_at)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
@@ -63,7 +68,7 @@ func (r *Repository) CreateAdapter(ctx context.Context, a *models.AlertAdapter) 
 // GetAdapterByID returns an adapter by its UUID.
 func (r *Repository) GetAdapterByID(ctx context.Context, id string) (*models.AlertAdapter, error) {
 	var a models.AlertAdapter
-	err := r.db.GetContext(ctx, &a,
+	err := r.TenantAwareRepository.Get(ctx, &a,
 		`SELECT id, tenant_id, name, type, category, config, status, enabled, error, created_at, updated_at
 		 FROM alert_adapters
 		 WHERE id = $1`,
@@ -81,7 +86,7 @@ func (r *Repository) ListAdapters(ctx context.Context, tenantID, atype, category
 	var err error
 
 	if tenantID != "" && atype != "" && category != "" {
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, name, type, category, config, status, enabled, error, created_at, updated_at
 			 FROM alert_adapters
 			 WHERE tenant_id = $1 AND type = $2 AND category = $3
@@ -90,7 +95,7 @@ func (r *Repository) ListAdapters(ctx context.Context, tenantID, atype, category
 			tenantID, atype, category, offset, limit,
 		)
 	} else if tenantID != "" && atype != "" {
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, name, type, category, config, status, enabled, error, created_at, updated_at
 			 FROM alert_adapters
 			 WHERE tenant_id = $1 AND type = $2
@@ -99,7 +104,7 @@ func (r *Repository) ListAdapters(ctx context.Context, tenantID, atype, category
 			tenantID, atype, offset, limit,
 		)
 	} else if tenantID != "" && category != "" {
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, name, type, category, config, status, enabled, error, created_at, updated_at
 			 FROM alert_adapters
 			 WHERE tenant_id = $1 AND category = $2
@@ -108,7 +113,7 @@ func (r *Repository) ListAdapters(ctx context.Context, tenantID, atype, category
 			tenantID, category, offset, limit,
 		)
 	} else if tenantID != "" {
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, name, type, category, config, status, enabled, error, created_at, updated_at
 			 FROM alert_adapters
 			 WHERE tenant_id = $1
@@ -117,7 +122,7 @@ func (r *Repository) ListAdapters(ctx context.Context, tenantID, atype, category
 			tenantID, offset, limit,
 		)
 	} else {
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, name, type, category, config, status, enabled, error, created_at, updated_at
 			 FROM alert_adapters
 			 ORDER BY created_at DESC
@@ -179,13 +184,13 @@ func (r *Repository) UpdateAdapter(ctx context.Context, id string, name, atype, 
 		joinStrings(setClauses, ", "), argIdx)
 	args = append(args, id)
 
-	_, err := r.db.ExecContext(ctx, query, args...)
+	_, err := r.TenantAwareRepository.Exec(ctx, query, args...)
 	return err
 }
 
 // DeleteAdapter removes an adapter by ID.
 func (r *Repository) DeleteAdapter(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM alert_adapters WHERE id = $1`,
 		id,
 	)
@@ -196,13 +201,13 @@ func (r *Repository) DeleteAdapter(ctx context.Context, id string) error {
 func (r *Repository) CountAdapters(ctx context.Context, tenantID string) (int, error) {
 	var count int
 	if tenantID != "" {
-		err := r.db.GetContext(ctx, &count,
+		err := r.TenantAwareRepository.Get(ctx, &count,
 			`SELECT COUNT(*) FROM alert_adapters WHERE tenant_id = $1`,
 			tenantID,
 		)
 		return count, err
 	}
-	err := r.db.GetContext(ctx, &count,
+	err := r.TenantAwareRepository.Get(ctx, &count,
 		`SELECT COUNT(*) FROM alert_adapters`,
 	)
 	return count, err
@@ -223,7 +228,7 @@ func (r *Repository) CreateEvent(ctx context.Context, e *models.AlertEvent) erro
 		e.Status = "received"
 	}
 
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO alert_events
 			(id, tenant_id, adapter_id, source, title, message, severity, labels, payload, status, processed_at, error, created_at)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
@@ -236,7 +241,7 @@ func (r *Repository) CreateEvent(ctx context.Context, e *models.AlertEvent) erro
 // GetEventByID returns an event by its UUID.
 func (r *Repository) GetEventByID(ctx context.Context, id string) (*models.AlertEvent, error) {
 	var e models.AlertEvent
-	err := r.db.GetContext(ctx, &e,
+	err := r.TenantAwareRepository.Get(ctx, &e,
 		`SELECT id, tenant_id, adapter_id, source, title, message, severity, labels, payload,
 		        status, processed_at, error, created_at
 		 FROM alert_events
@@ -255,7 +260,7 @@ func (r *Repository) ListEventsByAdapter(ctx context.Context, adapterID, tenantI
 	var err error
 
 	if tenantID != "" && status != "" {
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, adapter_id, source, title, message, severity, labels, payload,
 			        status, processed_at, error, created_at
 			 FROM alert_events
@@ -265,7 +270,7 @@ func (r *Repository) ListEventsByAdapter(ctx context.Context, adapterID, tenantI
 			adapterID, tenantID, status, offset, limit,
 		)
 	} else if tenantID != "" {
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, adapter_id, source, title, message, severity, labels, payload,
 			        status, processed_at, error, created_at
 			 FROM alert_events
@@ -275,7 +280,7 @@ func (r *Repository) ListEventsByAdapter(ctx context.Context, adapterID, tenantI
 			adapterID, tenantID, offset, limit,
 		)
 	} else if status != "" {
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, adapter_id, source, title, message, severity, labels, payload,
 			        status, processed_at, error, created_at
 			 FROM alert_events
@@ -285,7 +290,7 @@ func (r *Repository) ListEventsByAdapter(ctx context.Context, adapterID, tenantI
 			adapterID, status, offset, limit,
 		)
 	} else {
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, adapter_id, source, title, message, severity, labels, payload,
 			        status, processed_at, error, created_at
 			 FROM alert_events
@@ -304,7 +309,7 @@ func (r *Repository) ListEvents(ctx context.Context, tenantID, status, severity 
 	var err error
 
 	if tenantID != "" && status != "" && severity != "" {
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, adapter_id, source, title, message, severity, labels, payload,
 			        status, processed_at, error, created_at
 			 FROM alert_events
@@ -314,7 +319,7 @@ func (r *Repository) ListEvents(ctx context.Context, tenantID, status, severity 
 			tenantID, status, severity, offset, limit,
 		)
 	} else if tenantID != "" && status != "" {
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, adapter_id, source, title, message, severity, labels, payload,
 			        status, processed_at, error, created_at
 			 FROM alert_events
@@ -324,7 +329,7 @@ func (r *Repository) ListEvents(ctx context.Context, tenantID, status, severity 
 			tenantID, status, offset, limit,
 		)
 	} else if tenantID != "" {
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, adapter_id, source, title, message, severity, labels, payload,
 			        status, processed_at, error, created_at
 			 FROM alert_events
@@ -334,7 +339,7 @@ func (r *Repository) ListEvents(ctx context.Context, tenantID, status, severity 
 			tenantID, offset, limit,
 		)
 	} else {
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, adapter_id, source, title, message, severity, labels, payload,
 			        status, processed_at, error, created_at
 			 FROM alert_events
@@ -349,7 +354,7 @@ func (r *Repository) ListEvents(ctx context.Context, tenantID, status, severity 
 // MarkEventProcessed updates an event's status to processed with a timestamp.
 func (r *Repository) MarkEventProcessed(ctx context.Context, id string) error {
 	now := time.Now().UTC()
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE alert_events SET status = $1, processed_at = $2, error = '' WHERE id = $3`,
 		"processed", now, id,
 	)
@@ -358,7 +363,7 @@ func (r *Repository) MarkEventProcessed(ctx context.Context, id string) error {
 
 // MarkEventFailed updates an event's status to failed with an error message.
 func (r *Repository) MarkEventFailed(ctx context.Context, id, errMsg string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE alert_events SET status = $1, error = $2 WHERE id = $3`,
 		"failed", errMsg, id,
 	)
@@ -368,7 +373,7 @@ func (r *Repository) MarkEventFailed(ctx context.Context, id, errMsg string) err
 // CountEventsByAdapter returns event count for a specific adapter.
 func (r *Repository) CountEventsByAdapter(ctx context.Context, adapterID string) (int, error) {
 	var count int
-	err := r.db.GetContext(ctx, &count,
+	err := r.TenantAwareRepository.Get(ctx, &count,
 		`SELECT COUNT(*) FROM alert_events WHERE adapter_id = $1`,
 		adapterID,
 	)
@@ -379,13 +384,13 @@ func (r *Repository) CountEventsByAdapter(ctx context.Context, adapterID string)
 func (r *Repository) CountEventsByTenant(ctx context.Context, tenantID string) (int, error) {
 	var count int
 	if tenantID != "" {
-		err := r.db.GetContext(ctx, &count,
+		err := r.TenantAwareRepository.Get(ctx, &count,
 			`SELECT COUNT(*) FROM alert_events WHERE tenant_id = $1`,
 			tenantID,
 		)
 		return count, err
 	}
-	err := r.db.GetContext(ctx, &count,
+	err := r.TenantAwareRepository.Get(ctx, &count,
 		`SELECT COUNT(*) FROM alert_events`,
 	)
 	return count, err

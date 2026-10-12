@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -15,17 +16,21 @@ var errNotFound = errors.New("api key not found")
 
 // Repository provides PostgreSQL-backed persistence for API keys.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 // NewRepository creates a new Repository instance.
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // Create inserts a new API key row.
 func (r *Repository) Create(ctx context.Context, key *models.APIKey) error {
-	_, err := r.db.ExecContext(ctx, `
+	_, err := r.TenantAwareRepository.Exec(ctx, `
 		INSERT INTO api_keys (
 			id, name, key_hash, last_used_at, expires_at, scope,
 			tenant_id, user_id, created_at, updated_at
@@ -39,7 +44,7 @@ func (r *Repository) Create(ctx context.Context, key *models.APIKey) error {
 // GetByID retrieves a single API key by id and tenant_id.
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.APIKey, error) {
 	var k models.APIKey
-	err := r.db.GetContext(ctx, &k,
+	err := r.TenantAwareRepository.Get(ctx, &k,
 		`SELECT * FROM api_keys WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err == sql.ErrNoRows {
 		return nil, errNotFound
@@ -53,7 +58,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 // GetByHash verifies an API key by its SHA-256 hash and tenant_id.
 func (r *Repository) GetByHash(ctx context.Context, tenantID, keyHash string) (*models.APIKey, error) {
 	var k models.APIKey
-	err := r.db.GetContext(ctx, &k,
+	err := r.TenantAwareRepository.Get(ctx, &k,
 		`SELECT * FROM api_keys WHERE key_hash=$1 AND tenant_id=$2`, keyHash, tenantID)
 	if err == sql.ErrNoRows {
 		return nil, errNotFound
@@ -93,14 +98,14 @@ func (r *Repository) List(ctx context.Context, tenantID string, filter *models.L
 	query += fmt.Sprintf(" ORDER BY created_at DESC OFFSET $%d LIMIT $%d", argIdx, argIdx+1)
 	args = append(args, offset, limit)
 
-	err := r.db.SelectContext(ctx, &items, query, args...)
+	err := r.TenantAwareRepository.Select(ctx, &items, query, args...)
 	return items, err
 }
 
 // Count returns the total number of API keys for a tenant.
 func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
 	var count int
-	err := r.db.GetContext(ctx, &count,
+	err := r.TenantAwareRepository.Get(ctx, &count,
 		`SELECT COUNT(*) FROM api_keys WHERE tenant_id=$1`, tenantID)
 	return count, err
 }
@@ -108,7 +113,7 @@ func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
 // CountByUser returns the number of active API keys for a specific user.
 func (r *Repository) CountByUser(ctx context.Context, tenantID, userID string) (int, error) {
 	var count int
-	err := r.db.GetContext(ctx, &count, `
+	err := r.TenantAwareRepository.Get(ctx, &count, `
 		SELECT COUNT(*) FROM api_keys
 		WHERE tenant_id=$1 AND user_id=$2 AND (expires_at IS NULL OR expires_at > NOW())`,
 		tenantID, userID)
@@ -117,7 +122,7 @@ func (r *Repository) CountByUser(ctx context.Context, tenantID, userID string) (
 
 // UpdateLastUsed records the last usage time for a key.
 func (r *Repository) UpdateLastUsed(ctx context.Context, id string, tenantID string, usedAt interface{}) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE api_keys SET last_used_at=$1, updated_at=NOW() WHERE id=$2 AND tenant_id=$3`,
 		usedAt, id, tenantID)
 	return err
@@ -125,7 +130,7 @@ func (r *Repository) UpdateLastUsed(ctx context.Context, id string, tenantID str
 
 // Delete removes an API key by id and tenant_id.
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM api_keys WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }

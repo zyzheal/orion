@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	internalrepo "orion/platform-svc-go/internal/repository"
+
 	"github.com/jmoiron/sqlx"
 )
 
@@ -19,18 +21,20 @@ type PipelineDefinition struct {
 }
 
 type Repository struct {
-	db *sqlx.DB
+	internalrepo.TenantAwareRepository[any]
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+	}
 }
 
 // GetPipelineByID retrieves a pipeline definition by its ID without tenant scoping,
 // used to build the graph for the frontend DAG editor.
 func (r *Repository) GetPipelineByID(ctx context.Context, id string, tenantID string) (*PipelineDefinition, error) {
 	var def PipelineDefinition
-	err := r.db.GetContext(ctx, &def, `SELECT * FROM pipeline_definitions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.Get(ctx, &def, `SELECT * FROM pipeline_definitions WHERE id=$1`, id)
 	if err != nil {
 		return nil, err
 	}

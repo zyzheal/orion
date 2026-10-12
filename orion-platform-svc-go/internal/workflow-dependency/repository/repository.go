@@ -4,22 +4,25 @@ import (
 	"context"
 
 	"orion/platform-svc-go/internal/workflow-dependency/models"
+	internalrepo "orion/platform-svc-go/internal/repository"
 
 	"github.com/jmoiron/sqlx"
 )
 
 type Repository struct {
-	db *sqlx.DB
+	internalrepo.TenantAwareRepository[any]
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+	}
 }
 
 func (r *Repository) GetAllWorkflows(ctx context.Context, tenantID string) ([]models.WorkflowDefinitionRow, error) {
 	var rows []models.WorkflowDefinitionRow
-	err := r.db.SelectContext(ctx, &rows,
-		`SELECT id, name, nodes, edges FROM lowcode_workflow_definition WHERE tenant_id=$1`, tenantID)
+	err := r.Select(ctx, &rows,
+		`SELECT id, name, nodes, edges FROM lowcode_workflow_definition`)
 	if err != nil {
 		return nil, err
 	}
@@ -31,8 +34,8 @@ func (r *Repository) GetAllWorkflows(ctx context.Context, tenantID string) ([]mo
 
 func (r *Repository) GetWorkflowByID(ctx context.Context, id string, tenantID string) (*models.WorkflowDefinitionRow, error) {
 	var row models.WorkflowDefinitionRow
-	err := r.db.GetContext(ctx, &row,
-		`SELECT id, name, nodes, edges FROM lowcode_workflow_definition WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.Get(ctx, &row,
+		`SELECT id, name, nodes, edges FROM lowcode_workflow_definition WHERE id=$1`, id)
 	if err != nil {
 		return nil, err
 	}

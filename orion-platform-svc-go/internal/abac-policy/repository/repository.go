@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"fmt"
 	"time"
@@ -14,11 +15,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 func (r *Repository) Create(ctx context.Context, policy *models.ABACPolicy) error {
@@ -35,7 +40,7 @@ func (r *Repository) Create(ctx context.Context, policy *models.ABACPolicy) erro
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.ABACPolicy, error) {
 	var policy models.ABACPolicy
-	err := r.db.GetContext(ctx, &policy, `
+	err := r.TenantAwareRepository.Get(ctx, &policy, `
 		SELECT * FROM abac_policies WHERE id = $1 AND tenant_id = $2
 	`, id, tenantID)
 	if err != nil {
@@ -72,13 +77,13 @@ func (r *Repository) List(ctx context.Context, tenantID string, filter *models.A
 	}
 
 	var policies []models.ABACPolicy
-	err := r.db.SelectContext(ctx, &policies, fmt.Sprintf(`SELECT * FROM abac_policies %s ORDER BY created_at DESC`, where), args...)
+	err := r.TenantAwareRepository.Select(ctx, &policies, fmt.Sprintf(`SELECT * FROM abac_policies %s ORDER BY created_at DESC`, where), args...)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	var total int
-	err = r.db.GetContext(ctx, &total, `SELECT COUNT(*) FROM abac_policies WHERE tenant_id = $1`, tenantID)
+	err = r.TenantAwareRepository.Get(ctx, &total, `SELECT COUNT(*) FROM abac_policies WHERE tenant_id = $1`, tenantID)
 	return policies, total, err
 }
 
@@ -108,7 +113,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, name, stat
 	}
 	args = append(args, time.Now().UTC(), id, tenantID)
 
-	result, err := r.db.ExecContext(ctx, fmt.Sprintf(`
+	result, err := r.TenantAwareRepository.Exec(ctx, fmt.Sprintf(`
 		UPDATE abac_policies SET %s, updated_at = $%d WHERE id = $%d AND tenant_id = $%d
 	`, setClauses, len(args)-2, len(args)-1, len(args)), args...)
 	if err != nil {
@@ -124,7 +129,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, name, stat
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM abac_policies WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	result, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM abac_policies WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return false, err
 	}
