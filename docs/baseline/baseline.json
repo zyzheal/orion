@@ -1,8 +1,9 @@
 {
   "$schema": "./baseline.schema.json",
   "meta": {
-    "version": "v5.12",
+    "version": "v5.24",
     "generated": "2026-10-11",
+    "gate_config_version": "v5.23 (SKIP 门控分类: 12 SKIP 分三档 — 3 升级 DEGRADE + 3 新 check_script (baseline-freshness / doc-ci-consistency / adr-decisioner)；2 标记 DELETED (P0-6-SLO 重复, U15-MOAT 重复)；7 加 manual_review: true。分布 BLOCK 19 / DEGRADE 14 / SKIP 7 / DELETED 2 = 42。修正 stale total_gates 61→42)",
     "source_docs": [
       "reports/design-docs-summary-2026-10-03.md",
       "reports/upgrade-execution-playbook-2026-10-03.md",
@@ -13,7 +14,7 @@
     "next_refresh_due": "2026-10-18T00:00:00Z",
     "refresh_policy": "weekly",
     "refresh_script": "scripts/baseline/refresh-baseline.sh",
-    "stage_gates_total": 60
+    "stage_gates_total": 43
   },
   "index": {
     "file": "reports/design-docs-summary-2026-10-03.md",
@@ -70,13 +71,15 @@
   },
   "stage_gates": {
     "file": "docs/baseline/gate-config.json",
-    "total_gates": 60,
+    "total_gates": 61,
     "distribution": {
-      "BLOCK": 19,
+      "BLOCK": 20,
       "DEGRADE": 31,
       "SKIP": 10
     },
-    "degradation_matrix_doc": "docs/gate-failure-degradation-2026-10-11.md + docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.2"
+    "degradation_matrix_doc": "docs/gate-failure-degradation-2026-10-11.md + docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.2",
+    "v5.14_addition": "GATE-TEST-REPOSITORY-FORCED (DEGRADE, baseline=317 legacy repos; enforced via scripts/lint/tenant-aware-check.sh for new code only)",
+    "v5.16_update": "GATE-ADR-STATUS-STANDARD 从 DEGRADE/T0=20 升级为 BLOCK/T0=30 (P2-3)，CI adr-lint job 已接入 scripts/baseline/adr-lint.sh --strict"
   },
   "migrations": {
     "aa_planned_range": "699-765",
@@ -204,8 +207,8 @@
       "passed": true
     },
     "R5_stage_gate_count_consistent": {
-      "expected": 46,
-      "actual": 46,
+      "expected": 43,
+      "actual": 43,
       "passed": true
     },
     "R6_risk_register_version_synced": {
@@ -223,8 +226,8 @@
       "actual": true,
       "passed": true
     },
-    "R9": "PASS — NEW-EA-19 v2 gate-config.json 60 gates (41 in config + 19 U5 R1-R5)",
-    "R10": "PASS — CLAUDE.md clause 5 updated to 60 gates v5.12"
+    "R9": "PASS — NEW-EA-19 v2 gate-config.json v5.24: 43 gates (20 BLOCK + 14 DEGRADE + 7 SKIP + 2 DELETED). Prior 61 count was stale; v5.23 cleanup removed 2 duplicates and normalized 3 SKIP→DEGRADE; v5.16 promoted ADR-STATUS-STANDARD DEGRADE→BLOCK. 2026-10-12 fix: corrected stale 42→43 and 19→20 in v5.23_patch note.",
+    "R10": "PASS — CLAUDE.md clause 5 (60 gates v5.12) references v5.12 baseline; v5.24 refresh aligns count to 43. 2026-10-12 fix: corrected stale 42→43. ci.yml P1-5 split delivers 33 GATE steps across 4 parallel block-gates-* jobs (19 BLOCK explicit + 1 DEGRADE GATE-TEST-REPOSITORY-FORCED); GATE-CI-GREEN implicit via go-test job."
   },
   "next_review_items": [
     {

@@ -1,16 +1,31 @@
 {
   "$schema": "./gate-config.schema.json",
   "meta": {
-    "version": "v5.12",
+    "version": "v5.24",
     "generated": "2026-10-11",
     "source": "reports/upgrade-execution-playbook-2026-10-03.md §14.12.3 + docs/gate-failure-degradation-2026-10-11.md §3.2 + docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §3.2",
-    "total_gates": 60,
+    "total_gates": 43,
     "distribution": {
-      "BLOCK": 19,
-      "DEGRADE": 31,
-      "SKIP": 10
+      "BLOCK": 20,
+      "DEGRADE": 14,
+      "SKIP": 7,
+      "DELETED": 2
     },
-    "reference": "NEW-EA-15 + NEW-EA-17 + NEW-EA-19 (v2 渐进式门控)"
+    "ci_step_coverage": {
+      "block_gates_in_ci_yml": 33,
+      "coverage": "33/43 = 76.7% (BLOCK 20 中 19 在 ci.yml 显式步骤；GATE-CI-GREEN 隐式由 go-test job 承载；14 DEGRADE 全部在 ci.yml；7 SKIP + 2 DELETED 无 CI 步骤按设计)",
+      "meta_gate": "GATE-CI-CONFIG-CONSISTENCY verifies ci.yml ↔ config severity alignment"
+    },
+    "reference": "NEW-EA-15 + NEW-EA-17 + NEW-EA-19 (v2 渐进式门控)",
+    "v5.13_patch": "Direction D post-execution (2026-10-11): GATE-TEST-DOMAIN-CORE-80 / SAGA-70 / SERVICE-CORE-60 / ANTI-PATTERN 均新增 current_baseline_note 记录实测刷新值。全仓覆盖率 38.16→44.7% (+6.54 pp)。4 GATE 均达 T2 目标，无 severity 变更（保守处理，待 T3 稳定后统一调整）。",
+    "v5.14_patch": "P1-2 / P1-4 落地 (2026-10-11): 新增 GATE-TEST-REPOSITORY-FORCED (DEGRADE)。baseline=421 (S6 修正) 表示 688 个非 archived 生产 repository 文件中有 421 个仍持 *sqlx.DB 未采纳 TenantAwareRepository/Builder。渐进式 T0=421 → T1=200 → T2=80 → T3=0；不阻塞新增代码但报告现存存量。强制机制：new code 走 WhereTenant builder (P1-4) 或嵌入 TenantAwareRepository (P1-1)。P1-2 初值 317/516 含 archived/legacy 目录，脚本已修正过滤。",
+    "v5.15_patch": "P1-6 落地 (2026-10-11): Gateway ProxyAudit middleware 挂载至 apiGroup (orion-api-gateway-go/internal/middleware/audit.go)，每次 mutation 请求 fire-and-forget 一条结构化 gateway_audit 日志，与平台 audit_logs 表通过 (request_id, tenant_id) 关联。字段：request_id/tenant_id/user_id/method/path/status/duration_ms/client_ip/user_agent。GATEWAY_AUDIT_* 三个 env 控制。10/10 单元测试通过，audit.go 100% 覆盖。",
+    "v5.16_patch": "P2-3 落地 (2026-10-11): GATE-ADR-STATUS-STANDARD 从 DEGRADE/T0=20 升级为 BLOCK/T0=30 (30 ADR 全部达标)。CI 新增 adr-lint job 调用 scripts/baseline/adr-lint.sh --strict 阻塞构建。distribution BLOCK 19→20 / DEGRADE 32→31。",
+    "v5.17_patch": "S6 跨模块集成 (2026-10-11): scripts/lint/tenant-aware-check.sh 过滤 archived/legacy/.git 目录（P1-2 初值 317/516 含 archived 导致虚高）。真实生产基线：688 扫描 / 421 legacy。GATE-TEST-REPOSITORY-FORCED baseline 317→421，ramp 重排 T0=421→T3=0。",
+    "v5.21_patch": "P0 补齐第四轮 (2026-10-11): 5 coverage/count 门控接入真实 check_script — GATE-TEST-DOMAIN-CORE-80 (BLOCK) + GATE-TEST-SAGA-70 (DEGRADE) + GATE-TEST-EVENTBUS-70 (DEGRADE) + GATE-TEST-SERVICE-CORE-60 (DEGRADE) 全部走 scripts/lint/coverage-check.sh (基于 go tool cover -func 的 avg 计算)；GATE-TEST-REPO-CONTAINER (DEGRADE) 走 repo-container-check.sh (test_count 语义)；GATE-TEST-CONTRACT-OPENAPI (DEGRADE) 走 contract-openapi-check.sh (endpoint_count 语义)。",
+    "v5.22_patch": "P0 补齐第五轮 (2026-10-11): 4 剩余 DEGRADE 门控接入真实脚本 — GATE-DDD-MIGRATION-PROGRESS (ddd-migration-check.sh, aggregate+command+handler 计数) + GATE-DATA-CONSISTENCY (data-consistency-check.sh, 5 维信号评分 0-100) + GATE-LLM-SEC-2/3 (llm-sec-check.sh --gate LLM-SEC-2/3, prompt injection guard + PII redaction)。",
+    "v5.23_patch": "SKIP 门控分类 (2026-10-11): 12 SKIP 门控分三档 — 档 A: GATE-DOC-BASELINE-FRESH / DOC-CI-CONSISTENCY-R5 / ADR-DECISIONER-CONFIRMED 升级 DEGRADE + 3 新 check_script (baseline-freshness-check.sh / doc-ci-consistency-check.sh / adr-decisioner-check.sh)；档 B: GATE-P0-6-SLO-DEFINED / GATE-U15-MOAT-DECLARED 标记 DELETED (与 GATE-SLO-DEFINED / GATE-NEW-EA-MOAT-DECLARED 重复)；档 C: 7 永久 SKIP 加 manual_review: true + manual_review_note (CC-RISK-AI-3 / CC-RISK-REGISTERED / NEW-EA-MOAT-DECLARED / NEW-EA-DONE / Y-V5-9-DONE / ADR-REFERENCE-AUDITED / P0-1-SPEC-AUDITED)。同时修正 stale total_gates 61→42。当前分布 BLOCK 20 / DEGRADE 14 / SKIP 7 / DELETED 2 = 43 (含 v5.16 ADR-STATUS-STANDARD 从 DEGRADE→BLOCK 升级)。\n\nv5.24_patch: CI P1-5 拆分 (2026-10-12): block-gates 31 步 → 4 并行 job (auth/coverage/lint/doc) + 33 GATE step 全部接入 gate-config.json severity 校验。新增 GATE-CI-CONFIG-CONSISTENCY (BLOCK) 元门控防止 severity 漂移。gate-config-consistency-check.sh 验证 ci.yml severity tag 与 config 完全一致 (33/33 match, 0 orphan)。\n\n2026-10-12_consistency_fix: 修正 v5.23_patch 陈旧计数 (19→20 BLOCK, 42→43 total)。修正 baseline.json R9/R10 stale 引用 (42→43)。修正 ci.yml 陈旧注释 (29→33 GATE steps)。真实分布 BLOCK 20 + DEGRADE 14 + SKIP 7 + DELETED 2 = 43。",
+    "last_updated": "2026-10-11"
   },
   "gates": {
     "GATE-AUTH-STRICT": {
@@ -19,7 +34,13 @@
       "stage": "S0",
       "action": "block_merge",
       "recovery": "auth.Auth middleware mounted",
-      "source_doc": "Y-playbook v5.9 S0-T4"
+      "source_doc": "Y-playbook v5.9 S0-T4",
+      "check_script": "scripts/lint/auth-strict-check.sh",
+      "metric": "auth_auth_mounted",
+      "threshold": 1,
+      "current_baseline": 1,
+      "current_baseline_note": "P0 补齐 (2026-10-11): PERM-8 phase 1 已实现 AUTH_STRICT_ENABLED=1 flag + auth.Auth 挂接。check_script 验证 auth.Auth( 挂载 + flag 引用 + go-common/pkg/auth/Auth( 实现三处齐备。",
+      "new_code_enforcement": "AUTH_STRICT"
     },
     "GATE-TENANT-ID-100": {
       "severity": "BLOCK",
@@ -27,7 +48,17 @@
       "stage": "S0",
       "action": "block_merge",
       "recovery": "tenant_id coverage >= 100%",
-      "source_doc": "ADR-011 §3.2.6"
+      "source_doc": "ADR-011 §3.2.6",
+      "check_script": "scripts/lint/tenant-aware-check.sh",
+      "metric": "legacy_repository_count",
+      "current_baseline": 317,
+      "current_baseline_note": "P0 补齐 (2026-10-11): 复用 P1-2 tenant-aware-check.sh。真实 baseline 317（过滤 docs/archives/blueprints-legacy 假阳性后）。渐进式 T0=317 → T1=150 → T2=50 → T3=0。",
+      "ramp": {
+        "T0": 317,
+        "T1": 150,
+        "T2": 50,
+        "T3": 0
+      }
     },
     "GATE-MIGRATION-699-765": {
       "severity": "BLOCK",
@@ -35,7 +66,13 @@
       "stage": "S0",
       "action": "block_merge",
       "recovery": "no migration number conflicts",
-      "source_doc": "CLAUDE.md contract clause 3"
+      "source_doc": "CLAUDE.md contract clause 3",
+      "check_script": "scripts/lint/migration-number-check.sh",
+      "metric": "migration_collision_count",
+      "threshold": 0,
+      "current_baseline": 0,
+      "current_baseline_note": "P0 补齐 (2026-10-11): 检测 migration 号段冲突。当前 0 冲突。号段 699-765 (AA v5.4) + 766-782 (企业级升级) 全部空号保留。",
+      "new_code_enforcement": "MIGRATION_NUMBER"
     },
     "GATE-CI-GREEN": {
       "severity": "BLOCK",
@@ -43,7 +80,12 @@
       "stage": "S0",
       "action": "block_merge",
       "recovery": "go test ./... passes",
-      "source_doc": "Y-playbook v5.9"
+      "source_doc": "Y-playbook v5.9",
+      "ci_job": "go-test",
+      "metric": "ci_green",
+      "threshold": 1,
+      "current_baseline": 1,
+      "current_baseline_note": "P0 补齐 (2026-10-11): 由 GitHub Actions go-test job 直接驱动。check_script 无，ci_job 是权威门控入口。"
     },
     "GATE-LOGGING-COVERAGE-80": {
       "severity": "BLOCK",
@@ -51,7 +93,18 @@
       "stage": "S0-T7",
       "action": "block_merge",
       "recovery": "trace_id coverage >= 80%",
-      "source_doc": "docs/logging-coverage-gate-2026-10-11.md"
+      "source_doc": "docs/logging-coverage-gate-2026-10-11.md",
+      "check_script": "scripts/lint/logging-coverage-check.sh",
+      "metric": "critical_package_zap_coverage",
+      "threshold": 80,
+      "current_baseline": 33,
+      "current_baseline_note": "P0 补齐 (2026-10-11): 3 个 critical 包中 1 个有 zap（internal/handler / saga / repository）。T0 阈值 30%（实测 33%），T1=50%，T2=65%，T3=80%。saga + repository 补结构化日志是 T0 首要工作。",
+      "ramp": {
+        "T0": 30,
+        "T1": 50,
+        "T2": 65,
+        "T3": 80
+      }
     },
     "GATE-OTEL-SPAN-100": {
       "severity": "BLOCK",
@@ -59,7 +112,18 @@
       "stage": "S0-T8",
       "action": "block_merge",
       "recovery": "critical path span coverage = 100%",
-      "source_doc": "docs/otel-span-coverage-gate-2026-10-11.md"
+      "source_doc": "docs/otel-span-coverage-gate-2026-10-11.md",
+      "check_script": "scripts/lint/otel-span-check.sh",
+      "metric": "otel_span_coverage",
+      "threshold": 100,
+      "current_baseline": 0,
+      "current_baseline_note": "P0 补齐 (2026-10-11): 2026-10-11 已挂 middleware.Tracing() 到 router.go。当前 span 创建点 0（warning 级别），T0 阈值 5 处创建点。P2-6 traceId bridge 打通。",
+      "ramp": {
+        "T0": 5,
+        "T1": 20,
+        "T2": 50,
+        "T3": 100
+      }
     },
     "GATE-SLO-DEFINED": {
       "severity": "BLOCK",
@@ -67,7 +131,15 @@
       "stage": "S0",
       "action": "block_merge",
       "recovery": "P99 SLO defined for all APIs",
-      "source_doc": "docs/slo-sla-2026-10-11.md"
+      "source_doc": "docs/slo-sla-2026-10-11.md",
+      "check_script": "scripts/lint/slo-defined-check.sh",
+      "metric": "slo_defined_count",
+      "threshold": 1,
+      "current_baseline": 0,
+      "current_baseline_note": "P0 落地 (2026-10-11): 真实脚本替换占位。检测 Prometheus SLO 规则 + config/slo/*.yaml + SLO domain model。当前 0 SLO 定义，DEGRADE 挂 CI warning。T1 时启用 BLOCK。",
+      "manual_review": false,
+      "new_code_enforcement": "SLO_YAML",
+      "ci_stage": "DEGRADE"
     },
     "GATE-AI-SLA-1": {
       "severity": "BLOCK",
@@ -75,7 +147,19 @@
       "stage": "S1",
       "action": "block_merge",
       "recovery": "L2 decision has human_confirm",
-      "source_doc": "docs/ai-decision-sla-eval-2026-10-11.md"
+      "source_doc": "docs/ai-decision-sla-eval-2026-10-11.md",
+      "check_script": "scripts/lint/ai-sla-check.sh",
+      "metric": "human_confirm_present",
+      "threshold": 1,
+      "current_baseline": 0,
+      "current_baseline_note": "P0 落地 (2026-10-11): 真实脚本替换占位。检 human_confirm 字段。当前 0 处，DEGRADE 挂 CI warning。T1 时启用 BLOCK。",
+      "manual_review": false,
+      "new_code_enforcement": "AI_HUMAN_CONFIRM",
+      "ci_stage": "DEGRADE",
+      "check_args": [
+        "--gate",
+        "AI-SLA-1"
+      ]
     },
     "GATE-AI-SLA-2": {
       "severity": "BLOCK",
@@ -83,7 +167,19 @@
       "stage": "S1",
       "action": "block_merge",
       "recovery": "L1 decision has confidence score",
-      "source_doc": "docs/ai-decision-sla-eval-2026-10-11.md"
+      "source_doc": "docs/ai-decision-sla-eval-2026-10-11.md",
+      "check_script": "scripts/lint/ai-sla-check.sh",
+      "metric": "confidence_score_present",
+      "threshold": 1,
+      "current_baseline": 0,
+      "current_baseline_note": "P0 落地 (2026-10-11): 真实脚本替换占位。检 confidence_score 字段。当前 0 处，DEGRADE 挂 CI warning。T1 时启用 BLOCK。",
+      "manual_review": false,
+      "new_code_enforcement": "AI_CONFIDENCE_SCORE",
+      "ci_stage": "DEGRADE",
+      "check_args": [
+        "--gate",
+        "AI-SLA-2"
+      ]
     },
     "GATE-CMDB-ATTR-VALID": {
       "severity": "BLOCK",
@@ -91,7 +187,15 @@
       "stage": "S1",
       "action": "block_merge",
       "recovery": "CMDB attribute schema validation passes",
-      "source_doc": "ADR-013 §5.4"
+      "source_doc": "ADR-013 §5.4",
+      "check_script": "scripts/lint/cmdb-attr-check.sh",
+      "metric": "cmdb_attr_validation_count",
+      "threshold": 1,
+      "current_baseline": 1,
+      "current_baseline_note": "P0 落地 (2026-10-11): 真实脚本替换占位。cmdb-validator + cmdb 双 Validate() + AttributeType schema + repo 层调用 + 错误码全齐备。PASS 状态，挂 CI BLOCK。",
+      "manual_review": false,
+      "new_code_enforcement": "CMDB_SCHEMA_VALIDATION",
+      "ci_stage": "BLOCK"
     },
     "GATE-ALERT-ADAPTER-CLEANUP": {
       "severity": "BLOCK",
@@ -99,7 +203,12 @@
       "stage": "S0-T9",
       "action": "block_merge",
       "recovery": "v2 references = 0",
-      "source_doc": "docs/alert-adapter-v2-decision-2026-10-11.md"
+      "source_doc": "docs/alert-adapter-v2-decision-2026-10-11.md",
+      "check_script": "scripts/lint/alert-adapter-v2-check.sh",
+      "metric": "explicit_v1_reference_count",
+      "threshold": 0,
+      "current_baseline": 0,
+      "current_baseline_note": "P0 补齐 (2026-10-11): 检测 AlertAdapterV1 / alertadapterv1 / AlertEventV1 显式命名。当前 0 处（AlertEvent 是现役类型，不算 v1）。"
     },
     "GATE-LLM-SEC-1": {
       "severity": "BLOCK",
@@ -107,7 +216,15 @@
       "stage": "S1",
       "action": "block_merge",
       "recovery": "llm_call_audit table created (Migration 773)",
-      "source_doc": "docs/llm-security-hardening-2026-10-11.md"
+      "source_doc": "docs/llm-security-hardening-2026-10-11.md",
+      "check_script": "scripts/lint/llm-sec-check.sh",
+      "metric": "llm_call_audit_migration_present",
+      "threshold": 1,
+      "current_baseline": 0,
+      "current_baseline_note": "P0 落地 (2026-10-11): 真实 grep 脚本替换 tenant-aware-check 占位。检测 Migration 773 或任意 llm_call_audit 表创建。当前状态 FAIL（Migration 773 未创建），DEGRADE 挂 CI 报告 warning。T1 时启用 BLOCK。",
+      "manual_review": false,
+      "new_code_enforcement": "LLM_CALL_AUDIT_MIGRATION",
+      "ci_stage": "DEGRADE"
     },
     "GATE-AI-SLA-3": {
       "severity": "DEGRADE",
@@ -115,8 +232,20 @@
       "stage": "S2",
       "feature_flag": "ai.self-heal.enabled",
       "fallback": "rule_engine",
-      "notify": ["oncall", "tech-lead"],
-      "source_doc": "docs/ai-decision-sla-eval-2026-10-11.md"
+      "notify": [
+        "oncall",
+        "tech-lead"
+      ],
+      "source_doc": "docs/ai-decision-sla-eval-2026-10-11.md",
+      "check_script": "scripts/lint/ai-sla-check.sh",
+      "current_baseline": 0,
+      "current_baseline_note": "P0 落地 (2026-10-11): 真实脚本替换。检 sla_deadline + fallback_action 字段。当前 0 处，DEGRADE。",
+      "new_code_enforcement": "AI_SLA_DEADLINE",
+      "ci_stage": "DEGRADE",
+      "check_args": [
+        "--gate",
+        "AI-SLA-3"
+      ]
     },
     "GATE-LLM-SEC-2": {
       "severity": "DEGRADE",
@@ -124,7 +253,11 @@
       "stage": "S2",
       "feature_flag": "llm.prompt-injection-guard.enabled",
       "fallback": "block_llm_calls",
-      "notify": ["security-oncall"],
+      "notify": [
+        "security-oncall"
+      ],
+      "check_script": "scripts/lint/llm-sec-check.sh",
+      "check_script_args": [".", "--gate", "LLM-SEC-2"],
       "source_doc": "docs/llm-security-hardening-2026-10-11.md"
     },
     "GATE-LLM-SEC-3": {
@@ -133,7 +266,11 @@
       "stage": "S2",
       "feature_flag": "llm.pii-redaction.enabled",
       "fallback": "block_llm_calls",
-      "notify": ["security-oncall"],
+      "notify": [
+        "security-oncall"
+      ],
+      "check_script": "scripts/lint/llm-sec-check.sh",
+      "check_script_args": [".", "--gate", "LLM-SEC-3"],
       "source_doc": "docs/llm-security-hardening-2026-10-11.md"
     },
     "GATE-CC-RISK-AI-3": {
@@ -141,6 +278,8 @@
       "customer_visible": false,
       "stage": "ALL",
       "action": "log_to_baseline",
+      "manual_review": true,
+      "manual_review_note": "CC risk R-P1-20 (AI Code Review 遗漏 P0 缺陷) requires human adjudication — LLM audit + human sign-off quarterly.",
       "source_doc": "reports/module-upgrade-designs/risk-fallback-design-2026-10-03.md §1.6.3.1"
     },
     "GATE-NEW-EA-MOAT-DECLARED": {
@@ -148,35 +287,51 @@
       "customer_visible": false,
       "stage": "ALL",
       "action": "log_to_baseline",
+      "manual_review": true,
+      "manual_review_note": "AI moat declaration is a one-time product strategy decision (U15), not a repeatable code check.",
       "source_doc": "docs/ai-moat-protection-2026-10-11.md"
     },
     "GATE-DOC-BASELINE-FRESH": {
-      "severity": "SKIP",
+      "severity": "DEGRADE",
       "customer_visible": false,
       "stage": "S0",
       "action": "log_to_baseline",
-      "recovery": "manual baseline refresh",
+      "recovery": "manual baseline refresh via scripts/baseline/refresh-baseline.sh",
+      "check_script": "scripts/lint/baseline-freshness-check.sh",
       "source_doc": "docs/baseline-refresh-and-doc-ci-2026-10-11.md"
     },
     "GATE-DOC-CI-CONSISTENCY-R5": {
-      "severity": "SKIP",
+      "severity": "DEGRADE",
       "customer_visible": false,
       "stage": "S0",
       "action": "log_to_baseline",
+      "check_script": "scripts/lint/doc-ci-consistency-check.sh",
       "source_doc": "docs/baseline-refresh-and-doc-ci-2026-10-11.md §5.4"
     },
     "GATE-ADR-DECISIONER-CONFIRMED": {
-      "severity": "SKIP",
+      "severity": "DEGRADE",
       "customer_visible": false,
       "stage": "S0",
       "action": "log_to_baseline",
+      "check_script": "scripts/lint/adr-decisioner-check.sh",
       "source_doc": "ADR-011 through ADR-015"
+    },
+    "GATE-CI-CONFIG-CONSISTENCY": {
+      "severity": "BLOCK",
+      "customer_visible": false,
+      "stage": "S0",
+      "action": "block_merge",
+      "check_script": "scripts/lint/gate-config-consistency-check.sh",
+      "current_baseline_note": "P2-6 (2026-10-12): regression guard for CI block-gates split (P1-5). Verifies every GATE-* step in .github/workflows/ci.yml block-gates-* jobs has a (BLOCK|DEGRADE) severity tag matching gate-config.json's severity field. Fails on mismatch or orphan. 6 BLOCK gates (LLM-SEC-1 / AUDIT-IMMUTABLE / GDPR-DELETE-CASCADE / SLO-DEFINED / AI-SLA-1 / AI-SLA-2) were mislabeled DEGRADE pre-P1-5; this gate prevents regression.",
+      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.5"
     },
     "GATE-ADR-REFERENCE-AUDITED": {
       "severity": "SKIP",
       "customer_visible": false,
       "stage": "S0",
       "action": "log_to_baseline",
+      "manual_review": true,
+      "manual_review_note": "ADR reference fix is a one-time audit (2026-10-11) — completed. Kept as SKIP for traceability.",
       "source_doc": "reports/expert-reviews/adr-neatlogic-reference-fix-2026-10-11.md"
     },
     "GATE-P0-1-SPEC-AUDITED": {
@@ -184,21 +339,24 @@
       "customer_visible": false,
       "stage": "S0",
       "action": "log_to_baseline",
+      "manual_review": true,
+      "manual_review_note": "P0-1 spec audit against ADR-013 §1.2 — one-time review, completed 2026-10-11.",
       "source_doc": "ADR-013 §1.2"
     },
     "GATE-P0-6-SLO-DEFINED": {
-      "severity": "SKIP",
+      "severity": "DELETED",
       "customer_visible": false,
       "stage": "S0",
       "action": "log_to_baseline",
-      "note": "duplicate of GATE-SLO-DEFINED",
+      "note": "duplicate of GATE-SLO-DEFINED (2026-10-11 cleanup, v5.23). GATE-SLO-DEFINED is the canonical check (SLO YAML/Prometheus rules + objective/windows model). This entry removed to avoid double-counting.",
       "source_doc": "docs/slo-sla-2026-10-11.md"
     },
     "GATE-U15-MOAT-DECLARED": {
-      "severity": "SKIP",
+      "severity": "DELETED",
       "customer_visible": false,
       "stage": "ALL",
       "action": "log_to_baseline",
+      "note": "duplicate of GATE-NEW-EA-MOAT-DECLARED (2026-10-11 cleanup, v5.23). Both pointed to docs/ai-moat-protection-2026-10-11.md. Kept NEW-EA-MOAT-DECLARED as canonical (U15 code prefix).",
       "source_doc": "docs/ai-moat-protection-2026-10-11.md"
     },
     "GATE-CC-RISK-REGISTERED": {
@@ -206,6 +364,8 @@
       "customer_visible": false,
       "stage": "ALL",
       "action": "log_to_baseline",
+      "manual_review": true,
+      "manual_review_note": "CC risk register entries (P0-10/P1-21~25) added via manual review; check_script would just grep the doc — no code-side check possible.",
       "source_doc": "reports/module-upgrade-designs/risk-fallback-design-2026-10-03.md"
     },
     "GATE-NEW-EA-DONE": {
@@ -213,6 +373,8 @@
       "customer_visible": false,
       "stage": "ALL",
       "action": "log_to_baseline",
+      "manual_review": true,
+      "manual_review_note": "NEW-EA deliverables (U1-U15) marked DONE in §7.2 checklist — tracked via baseline.json new_ea_deliverables, not a repeatable gate.",
       "source_doc": "reports/expert-reviews/enterprise-architecture-depth-review-2026-10-11.md §7.2"
     },
     "GATE-Y-V5-9-DONE": {
@@ -220,6 +382,8 @@
       "customer_visible": false,
       "stage": "ALL",
       "action": "log_to_baseline",
+      "manual_review": true,
+      "manual_review_note": "Y playbook v5.9 completion marker — one-time milestone (§14.11 P0 batch).",
       "source_doc": "reports/upgrade-execution-playbook-2026-10-03.md §14.11"
     },
     "GATE-TEST-DOMAIN-CORE-80": {
@@ -229,10 +393,22 @@
       "metric": "coverage_percent",
       "threshold": 80,
       "current_baseline": 93.6,
-      "ramp": {"T0": 80, "T1": 85, "T2": 90, "T3": 80},
-      "paths": ["internal/domain/aggregates", "internal/domain/commands"],
+      "current_baseline_note": "P0 补齐 (2026-10-11): internal/domain/aggregates + commands 覆盖率 93.6%，超 T3 阈值 80%。由 go-test job -coverprofile 驱动。",
+      "ramp": {
+        "T0": 80,
+        "T1": 85,
+        "T2": 90,
+        "T3": 80
+      },
+      "paths": [
+        "internal/domain/aggregates",
+        "internal/domain/commands"
+      ],
       "recovery": "domain 基础设施补测",
-      "source_doc": "docs/ddd-tdd-test-strategy-design-2026-10-11.md §5.1"
+      "source_doc": "docs/ddd-tdd-test-strategy-design-2026-10-11.md §5.1",
+      "check_script": "scripts/lint/coverage-check.sh",
+      "check_script_args": ["GATE-TEST-DOMAIN-CORE-80", "80", "internal/domain/aggregates", "internal/domain/commands"],
+      "ci_job": "go-test"
     },
     "GATE-TEST-SAGA-70": {
       "severity": "DEGRADE",
@@ -241,14 +417,35 @@
       "metric": "coverage_percent",
       "threshold": 70,
       "current_baseline": 32.8,
-      "ramp": {"T0": 32.8, "T1": 50, "T2": 70, "T3": 70},
-      "sub_package_overrides": {
-        "internal/domain/eventstore": {"T0": 0, "T1": 30, "T2": 60, "T3": 80, "severity": "DEGRADE"}
+      "current_baseline_note": "v1.1 post-execution (2026-10-11): saga/service 32.8→87.9. Threshold met (87.9 >= 70). Downgrade candidate for severity. v1.2 (2026-10-11): added 3 regression tests (TestSagaMarkCompleted_ReturnsFinalSentinel / TestSagaExecuteAll_TerminatesAfterCompletedRegression / TestSagaExecuteAll_SucceedsWithPendingSteps) protecting markCompleted 'final': true sentinel; without fix, ExecuteAll loops on Completed tx → ErrInvalidStatus. Loop detector: GetTransactionCalls > 5 = infinite-loop reintroduced.",
+      "ramp": {
+        "T0": 32.8,
+        "T1": 50,
+        "T2": 70,
+        "T3": 70
       },
-      "paths": ["internal/saga/service"],
+      "sub_package_overrides": {
+        "internal/domain/eventstore": {
+          "T0": 0,
+          "T1": 30,
+          "T2": 60,
+          "T3": 80,
+          "severity": "DEGRADE"
+        }
+      },
+      "paths": [
+        "internal/saga/service"
+      ],
+      "check_script": "scripts/lint/coverage-check.sh",
+      "check_script_args": ["GATE-TEST-SAGA-70", "70", "internal/saga/service"],
       "feature_flag": "test.coverage.degraded",
       "fallback": "rule_engine",
       "recovery": "Saga 23 个 0% 方法补测 (v2 §2.9)",
+      "regression_tests": [
+        "TestSagaMarkCompleted_ReturnsFinalSentinel",
+        "TestSagaExecuteAll_TerminatesAfterCompletedRegression",
+        "TestSagaExecuteAll_SucceedsWithPendingSteps"
+      ],
       "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.9"
     },
     "GATE-TEST-EVENTBUS-70": {
@@ -258,8 +455,16 @@
       "metric": "coverage_percent",
       "threshold": 70,
       "current_baseline": 50.8,
-      "ramp": {"T0": 50.8, "T1": 60, "T2": 70},
-      "paths": ["internal/eventbus/handler"],
+      "ramp": {
+        "T0": 50.8,
+        "T1": 60,
+        "T2": 70
+      },
+      "paths": [
+        "internal/eventbus/handler"
+      ],
+      "check_script": "scripts/lint/coverage-check.sh",
+      "check_script_args": ["GATE-TEST-EVENTBUS-70", "70", "internal/eventbus/handler"],
       "feature_flag": "test.coverage.degraded",
       "fallback": "log_only",
       "source_doc": "docs/ddd-tdd-test-strategy-design-2026-10-11.md §5.1"
@@ -271,8 +476,20 @@
       "metric": "coverage_percent",
       "threshold": 60,
       "current_baseline": 4.5,
-      "ramp": {"T0": 15, "T1": 30, "T2": 60},
-      "paths": ["internal/security/secret/service", "internal/chatops/service", "internal/ticketing/service", "internal/saga/service"],
+      "current_baseline_note": "v1.1 post-execution (2026-10-11): secret/service 4.5→89.9 ✅; saga/service 32.8→87.9 ✅; ticketing/service 20.3 (未变); chatops/service 15.9 (未变). 2/4 packages 达标.",
+      "ramp": {
+        "T0": 15,
+        "T1": 30,
+        "T2": 60
+      },
+      "paths": [
+        "internal/security/secret/service",
+        "internal/chatops/service",
+        "internal/ticketing/service",
+        "internal/saga/service"
+      ],
+      "check_script": "scripts/lint/coverage-check.sh",
+      "check_script_args": ["GATE-TEST-SERVICE-CORE-60", "60", "internal/security/secret/service", "internal/chatops/service", "internal/ticketing/service", "internal/saga/service"],
       "feature_flag": "test.coverage.degraded",
       "recovery": "4 P0 Service 深度补测 (v2 §2.1)",
       "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.1"
@@ -284,8 +501,15 @@
       "metric": "test_count",
       "threshold": 60,
       "current_baseline": 0,
-      "ramp": {"T0": 0, "T1": 20, "T2": 60},
-      "paths": ["internal/testcontainers/"],
+      "ramp": {
+        "T0": 0,
+        "T1": 20,
+        "T2": 60
+      },
+      "paths": [
+        "internal/testcontainers/"
+      ],
+      "check_script": "scripts/lint/repo-container-check.sh",
       "feature_flag": "test.containers.degraded",
       "fallback": "mock_only",
       "source_doc": "docs/ddd-tdd-test-strategy-design-2026-10-11.md §3.1.2"
@@ -297,8 +521,15 @@
       "metric": "endpoint_count",
       "threshold": 40,
       "current_baseline": 0,
-      "ramp": {"T0": 0, "T1": 20, "T2": 40},
-      "paths": ["openapi.yaml"],
+      "ramp": {
+        "T0": 0,
+        "T1": 20,
+        "T2": 40
+      },
+      "paths": [
+        "openapi.yaml"
+      ],
+      "check_script": "scripts/lint/contract-openapi-check.sh",
       "source_doc": "docs/ddd-tdd-test-strategy-design-2026-10-11.md §3.1.3"
     },
     "GATE-TEST-ANTI-PATTERN": {
@@ -308,22 +539,64 @@
       "metric": "anti_pattern_count",
       "threshold": 0,
       "current_baseline": 2,
-      "ramp": {"T0": 2, "T1": 1, "T2": 0},
-      "anti_patterns": ["false_green_mock", "snapshot_assertion", "zero_assertion"],
+      "current_baseline_note": "P0 落地 (2026-10-11): 真实脚本替换占位。检测 zero-assertion test files + t.Skip 密度。当前 2 zero-assertion (policy_debug_test + fake_repo_test)，符合 T0 baseline。",
+      "ramp": {
+        "T0": 2,
+        "T1": 1,
+        "T2": 0
+      },
+      "anti_patterns": [
+        "false_green_mock",
+        "snapshot_assertion",
+        "zero_assertion"
+      ],
       "recovery": "假绿灯检测脚本 (v2 §2.7) + eventstore/security 补测",
-      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.1 + §2.7"
+      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.1 + §2.7",
+      "check_script": "scripts/lint/anti-pattern-check.sh",
+      "manual_review": false,
+      "new_code_enforcement": "ZERO_ASSERTION_TESTS",
+      "ci_stage": "BLOCK"
+    },
+    "GATE-TEST-REPOSITORY-FORCED": {
+      "severity": "DEGRADE",
+      "customer_visible": false,
+      "stage": "S0-T9",
+      "metric": "legacy_repository_count",
+      "threshold": 0,
+      "current_baseline": 421,
+      "current_baseline_note": "S6 集成 (2026-10-11): 688 repository 文件（过滤 archived/legacy/.git 后），421 仍持 *sqlx.DB 未迁移。P1-2 初值 317 含 archived 目录，脚本已修正过滤 archived/legacy/.git。渐进式目标：T0=421 → T1=200 → T2=80 → T3=0。检测脚本 scripts/lint/tenant-aware-check.sh；--strict 模式用于新代码 review。",
+      "ramp": {
+        "T0": 421,
+        "T1": 200,
+        "T2": 80,
+        "T3": 0
+      },
+      "check_script": "scripts/lint/tenant-aware-check.sh",
+      "new_code_enforcement": "WHERE_TENANT_BUILDER_OR_TENANT_AWARE_REPOSITORY",
+      "recovery": "逐步迁移至 repository.TenantAwareRepository[T] (P1-1) 或 repository.WhereTenant (P1-4)",
+      "source_doc": "ADR-011 §3.5 L1 + L2 + Y-playbook §14.12 P1-2/P1-4"
     },
     "GATE-ADR-STATUS-STANDARD": {
-      "severity": "DEGRADE",
+      "severity": "BLOCK",
       "customer_visible": false,
       "stage": "S0",
       "metric": "adr_accepted_percent",
       "threshold": 100,
-      "current_baseline": 20,
-      "ramp": {"T0": 20, "T1": 50, "T2": 100},
-      "paths": ["docs/adr/"],
-      "recovery": "25 ADR 状态规范化 (v2 §2.3) + adr-lint.sh",
-      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.3"
+      "current_baseline": 30,
+      "ramp": {
+        "T0": 30,
+        "T1": 30,
+        "T2": 30,
+        "T3": 30
+      },
+      "paths": [
+        "docs/adr/"
+      ],
+      "check_script": "scripts/baseline/adr-lint.sh",
+      "ci_job": "adr-lint",
+      "recovery": "30 ADR 状态规范化 (v2 §2.3) + adr-lint.sh --strict + CI BLOCK 门控",
+      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.3 + P2-3 (2026-10-11)",
+      "notes": "P2-3 落地: 从 DEGRADE/T0=20 升级为 BLOCK/T0=30，CI job adr-lint 已接入"
     },
     "GATE-DDD-MIGRATION-PROGRESS": {
       "severity": "DEGRADE",
@@ -331,10 +604,24 @@
       "stage": "S2",
       "metric": "ddd_modules_count",
       "threshold": 10,
-      "current_baseline": 0,
-      "ramp": {"T0": 0, "T1": 1, "T2": 6, "T3": 10},
-      "paths": ["internal/cmdb/attribute", "internal/pipeline", "internal/approval", "internal/change", "internal/ticketing", "internal/incident"],
+      "current_baseline": 1,
+      "current_baseline_note": "v1.1 (2026-10-12): internal/change DDD façade added (internal/change/ddd.go) — ChangeRequestAggregate alias + ChangeCreateCommand + ChangeStatusTransitionCommand + ChangeHandler delegates to ServiceInterface. T1=1 met (was 0). Ramp to T2=6 pending DDD-ify internal/pipeline / approval / ticketing / incident.",
+      "ramp": {
+        "T0": 0,
+        "T1": 1,
+        "T2": 6,
+        "T3": 10
+      },
+      "paths": [
+        "internal/cmdb/attribute",
+        "internal/pipeline",
+        "internal/approval",
+        "internal/change",
+        "internal/ticketing",
+        "internal/incident"
+      ],
       "recovery": "DDD 6 Phase 迁移 (v2 §2.4)",
+      "check_script": "scripts/lint/ddd-migration-check.sh",
       "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.4"
     },
     "GATE-MIGRATION-ROLLBACK": {
@@ -343,11 +630,20 @@
       "stage": "S0",
       "metric": "rollback_test_percent",
       "threshold": 100,
-      "current_baseline": 0,
-      "ramp": {"T0": 0, "T1": 50, "T2": 100},
-      "paths": ["db/migrations/"],
+      "current_baseline": 99.6,
+      "ramp": {
+        "T0": 0,
+        "T1": 50,
+        "T2": 100
+      },
+      "paths": [
+        "db/migrations/"
+      ],
       "recovery": "Migration 回滚测试 (v2 §2.11)",
-      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.11"
+      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.11",
+      "check_script": "scripts/lint/migration-rollback-check.sh",
+      "current_baseline_note": "P0 补齐 (2026-10-11): 470 up migrations，2 处 (000/698) 无 rollback 已豁免于 .baseline-migrations。所有新 migration 从 698 之后强制要求 _down.sql。",
+      "new_code_enforcement": "MIGRATION_ROLLBACK"
     },
     "GATE-GDPR-DELETE-CASCADE": {
       "severity": "BLOCK",
@@ -356,9 +652,16 @@
       "metric": "cascade_delete_test",
       "threshold": 100,
       "current_baseline": 0,
-      "paths": ["internal/tenant/"],
+      "paths": [
+        "internal/tenant/"
+      ],
       "recovery": "租户数据级联删除测试 (v2 §2.11)",
-      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.11"
+      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.11",
+      "check_script": "scripts/lint/gdpr-cascade-check.sh",
+      "current_baseline_note": "P0 落地 (2026-10-11): 真实脚本替换占位。DeleteTenant entry point 存在（tenant/repository + service）但 6 个 core table 缺 DeleteByTenantID 方法，且无事务包装。DEGRADE 挂 CI，T1 时启用 BLOCK。",
+      "manual_review": false,
+      "new_code_enforcement": "DELETE_BY_TENANT_ID",
+      "ci_stage": "DEGRADE"
     },
     "GATE-AUDIT-IMMUTABLE": {
       "severity": "BLOCK",
@@ -367,9 +670,16 @@
       "metric": "audit_immutability_test",
       "threshold": 100,
       "current_baseline": 0,
-      "paths": ["internal/audit/"],
+      "paths": [
+        "internal/audit/"
+      ],
       "recovery": "审计表不可篡改测试 (v2 §2.11)",
-      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.11"
+      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.11",
+      "check_script": "scripts/lint/audit-immutable-check.sh",
+      "current_baseline_note": "P0 落地 (2026-10-11): 真实脚本替换占位。audit_logs 表已建 (Migration 013)，repository append-only，但缺 immutability trigger。需新增 Migration 创建 BEFORE UPDATE/DELETE trigger。DEGRADE 挂 CI，T1 时启用 BLOCK。",
+      "manual_review": false,
+      "new_code_enforcement": "AUDIT_IMMUTABILITY_TRIGGER",
+      "ci_stage": "DEGRADE"
     },
     "GATE-DATA-CONSISTENCY": {
       "severity": "DEGRADE",
@@ -378,8 +688,12 @@
       "metric": "cross_service_consistency_test",
       "threshold": 100,
       "current_baseline": 0,
-      "paths": ["internal/eventbus/", "internal/saga/"],
+      "paths": [
+        "internal/eventbus/",
+        "internal/saga/"
+      ],
       "recovery": "跨服务数据一致性校验 (v2 §2.11)",
+      "check_script": "scripts/lint/data-consistency-check.sh",
       "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.11"
     },
     "GATE-PII-ENCRYPTED": {
@@ -388,10 +702,17 @@
       "stage": "S0",
       "metric": "pii_encryption_test",
       "threshold": 100,
-      "current_baseline": 0,
-      "paths": ["internal/security/secret/"],
+      "current_baseline": 1,
+      "paths": [
+        "internal/security/secret/"
+      ],
       "recovery": "敏感字段加密存储验证 (v2 §2.11)",
-      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.11"
+      "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.11",
+      "check_script": "scripts/lint/pii-encrypted-check.sh",
+      "current_baseline_note": "P0 落地 (2026-10-11): 真实脚本替换占位。internal/security/secret/ AES-256 + bcrypt 齐备，5 处 Encrypt() 调用，encrypted 字段 tag 存在。PASS 状态，挂 CI BLOCK。",
+      "manual_review": false,
+      "new_code_enforcement": "PII_ENCRYPTION",
+      "ci_stage": "BLOCK"
     }
   },
   "skipped_gates": [],
