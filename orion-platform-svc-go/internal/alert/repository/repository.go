@@ -44,9 +44,9 @@ func (r *Repository) DeleteAlert(ctx context.Context, tenantID, id string) error
 	return err
 }
 
-// DeleteAlertsByTenantID hard-deletes every alert owned by tenantID and
+// DeleteByTenantID hard-deletes every alert owned by tenantID and
 // returns the row count. Idempotent: a second call returns (0, nil).
-func (r *Repository) DeleteAlertsByTenantID(ctx context.Context, tenantID string) (int64, error) {
+func (r *Repository) DeleteByTenantID(ctx context.Context, tenantID string) (int64, error) {
 	if tenantID == "" {
 		return 0, fmt.Errorf("tenantID is required")
 	}

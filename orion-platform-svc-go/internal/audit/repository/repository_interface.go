@@ -17,6 +17,10 @@ type RepositoryInterface interface {
 	GetResourceTypes(ctx context.Context, tenantID string) ([]string, error)
 	GetLatest(ctx context.Context, tenantID string) (*models.AuditLog, error)
 	VerifyChain(ctx context.Context, tenantID string) (int, bool, error)
+	// DeleteByTenantID hard-deletes every audit log owned by tenantID and
+	// returns the row count (idempotent). Used by ADR-011 §4 GDPR /
+	// 租户退租 data-subject-deletion path (GATE-GDPR-DELETE-CASCADE).
+	DeleteByTenantID(ctx context.Context, tenantID string) (int64, error)
 }
 
 // Ensure Repository implements RepositoryInterface.
