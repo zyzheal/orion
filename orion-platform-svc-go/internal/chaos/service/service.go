@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -40,8 +41,30 @@ type RepositoryInterface interface {
 }
 
 type Service struct {
-	repo     RepositoryInterface
-	injector *injector.Injector // optional K8s chaos injector for live cluster operations
+	repo            RepositoryInterface
+	injector        *injector.Injector // optional K8s chaos injector for live cluster operations
+	healthEndpoints map[string]string  // "<serviceID>@<env>" → healthz URL
+	httpClient      *http.Client       // optional; defaults to 5s timeout when nil
+	steadyState     SteadyStateProvider
+	quietWindow     time.Duration // default 5 * time.Minute
+}
+
+// quietWindow is the effective window; falls back to defaultQuietWindow
+// when the Service field is zero.
+func (s *Service) quietWindow_() time.Duration {
+	if s.quietWindow == 0 {
+		return defaultQuietWindow
+	}
+	return s.quietWindow
+}
+
+// WithQuietWindow overrides the default 5-minute quiet window.
+func (s *Service) WithQuietWindow(d time.Duration) *Service {
+	if d <= 0 {
+		return s
+	}
+	s.quietWindow = d
+	return s
 }
 
 func NewService(repo RepositoryInterface) *Service {
@@ -964,24 +987,164 @@ func buildReportText(experimentID string, experiment *models.Experiment, injecti
 
 func (s *Service) checkExperimentCleanup(ctx context.Context, serviceID, env string) (string, string) {
 	// Verify no active experiments target this service in this environment.
-	// In production this queries the experiment repository filtered by service
-	// and environment; here we return skip with a placeholder message.
-	return "skip", fmt.Sprintf("no experiment cleanup check for %s/%s", serviceID, env)
+	// Real path: query repo for experiments whose Scope matches the target
+	// service and environment. Status "running" is treated as active.
+	if s.repo == nil {
+		return "fail", "repository unavailable — cannot verify experiment cleanup"
+	}
+	running, err := s.repo.ListRunning(ctx, "")
+	if err != nil {
+		return "fail", fmt.Sprintf("list running experiments: %v", err)
+	}
+	for _, e := range running {
+		if experimentTargets(e.Scope, serviceID) {
+			return "fail", fmt.Sprintf("active experiment %s (id=%s) targets %s", e.Name, e.ID, serviceID)
+		}
+	}
+	return "pass", fmt.Sprintf("no active experiments target %s (checked %d running; env=%s)", serviceID, len(running), env)
+}
+
+// experimentTargets reports whether an experiment's Scope refers to the
+// given serviceID. Scope is a free-form string (comma-separated services
+// or a scope label); substring match is intentional — precise scope
+// parsing would require a strict format that the schema does not enforce.
+// The env filter is applied by callers when the scope format is known.
+func experimentTargets(scope, serviceID string) bool {
+	if serviceID == "" || scope == "" {
+		return false
+	}
+	for _, part := range strings.Split(scope, ",") {
+		if strings.TrimSpace(part) == serviceID {
+			return true
+		}
+	}
+	return strings.Contains(scope, serviceID)
 }
 
 func (s *Service) checkInjectionQuietPeriod(ctx context.Context, serviceID, env string) (string, string) {
-	// Confirm there have been no injections within the last 5 minutes.
-	return "skip", fmt.Sprintf("quiet period not checked for %s/%s", serviceID, env)
+	// Confirm there have been no injections within the last quietWindow.
+	if s.repo == nil {
+		return "fail", "repository unavailable — cannot check injection history"
+	}
+	cutoff := time.Now().UTC().Add(-s.quietWindow_())
+	running, err := s.repo.ListRunning(ctx, "")
+	if err != nil {
+		return "fail", fmt.Sprintf("list running experiments: %v", err)
+	}
+	recent, total := 0, 0
+	for _, e := range running {
+		if !experimentTargets(e.Scope, serviceID) {
+			continue
+		}
+		inj, err := s.repo.ListInjectionsByExperiment(ctx, e.TenantID, e.ID)
+		if err != nil {
+			return "fail", fmt.Sprintf("list injections for experiment %s: %v", e.ID, err)
+		}
+		for _, i := range inj {
+			total++
+			if i.CreatedAt.After(cutoff) || i.UpdatedAt.After(cutoff) {
+				recent++
+			}
+		}
+	}
+	if recent > 0 {
+		return "fail", fmt.Sprintf("quiet window violated: %d injection(s) within last %s", recent, s.quietWindow_())
+	}
+	return "pass", fmt.Sprintf("no injections within last %s (checked %d injections on matching experiments)", s.quietWindow_(), total)
 }
 
 func (s *Service) checkHealthEndpoint(ctx context.Context, serviceID, env string) (string, string) {
-	// Hit the service's /healthz endpoint and verify a 200 response.
-	return "skip", fmt.Sprintf("health endpoint not checked for %s/%s", serviceID, env)
+	// Hit the service's healthz endpoint and verify a 2xx response.
+	// Health endpoint URLs are registered at wiring time via WithHealthEndpoints.
+	url := s.lookupHealthURL(serviceID, env)
+	if url == "" {
+		// No registered endpoint: cannot verify. Report as fail (not skip)
+		// so callers see the misconfiguration; skip would let unverified
+		// services through the gate.
+		return "fail", fmt.Sprintf("no healthz endpoint registered for %s/%s", serviceID, env)
+	}
+	httpClient := s.httpClient
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 5 * time.Second}
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "fail", fmt.Sprintf("build healthz request for %s: %v", url, err)
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return "fail", fmt.Sprintf("healthz GET %s failed: %v", url, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "fail", fmt.Sprintf("healthz %s returned %d", url, resp.StatusCode)
+	}
+	return "pass", fmt.Sprintf("healthz %s returned %d", url, resp.StatusCode)
 }
 
 func (s *Service) checkSteadyState(ctx context.Context, serviceID, env string) (string, string) {
-	// Poll key metrics (error rate, latency p99, throughput) against steady-state baseline.
-	return "skip", fmt.Sprintf("steady state not checked for %s/%s", serviceID, env)
+	// Poll key metrics against a steady-state baseline. In production
+	// this calls a metrics client (Prometheus / internal API). Without
+	// a baseline provider we cannot verify — report as fail rather than
+	// skip so the pre-release gate is not bypassed silently.
+	if s.steadyState == nil {
+		return "fail", fmt.Sprintf("no steady-state baseline provider configured for %s/%s", serviceID, env)
+	}
+	metrics, err := s.steadyState.Snapshot(ctx, serviceID, env)
+	if err != nil {
+		return "fail", fmt.Sprintf("steady-state snapshot failed: %v", err)
+	}
+	problems := s.steadyState.Evaluate(metrics)
+	if len(problems) > 0 {
+		return "fail", fmt.Sprintf("steady-state drift: %s", strings.Join(problems, "; "))
+	}
+	return "pass", fmt.Sprintf("steady-state OK (%d metrics within tolerance)", len(metrics))
+}
+
+// WithHealthEndpoints registers known healthz URLs per service/env.
+// key format: "<serviceID>@<env>" → URL.
+func (s *Service) WithHealthEndpoints(urls map[string]string) *Service {
+	if s.healthEndpoints == nil {
+		s.healthEndpoints = map[string]string{}
+	}
+	for k, v := range urls {
+		s.healthEndpoints[k] = v
+	}
+	return s
+}
+
+func (s *Service) lookupHealthURL(serviceID, env string) string {
+	if s.healthEndpoints == nil {
+		return ""
+	}
+	return s.healthEndpoints[serviceID+"@"+env]
+}
+
+// WithSteadyStateProvider installs the steady-state evaluation backend.
+func (s *Service) WithSteadyStateProvider(p SteadyStateProvider) *Service {
+	s.steadyState = p
+	return s
+}
+
+// WithHTTPClient overrides the HTTP client used by checkHealthEndpoint
+// (useful for tests / custom TLS).
+func (s *Service) WithHTTPClient(c *http.Client) *Service {
+	s.httpClient = c
+	return s
+}
+
+// quietWindow is the minimum gap between the last injection and a new
+// pre-release. 5 minutes is a common SRE default; overridable via
+// WithQuietWindow.
+const defaultQuietWindow = 5 * time.Minute
+
+// SteadyStateProvider queries metrics and evaluates drift.
+type SteadyStateProvider interface {
+	// Snapshot returns the current metric samples keyed by metric name.
+	Snapshot(ctx context.Context, serviceID, env string) (map[string]float64, error)
+	// Evaluate returns human-readable drift messages (empty = within
+	// tolerance).
+	Evaluate(metrics map[string]float64) []string
 }
 
 // --- Utility ---

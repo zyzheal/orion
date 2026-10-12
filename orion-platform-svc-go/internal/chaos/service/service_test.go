@@ -4,7 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"orion/platform-svc-go/internal/chaos/models"
 )
@@ -12,9 +15,10 @@ import (
 // --- Mock repository matching repository.Repository methods ---
 
 type mockChaosRepo struct {
-	experiments map[string]*models.Experiment // key = tenantID:id
-	err         error
-	getByIDFn   func(ctx context.Context, tenantID, id string) (*models.Experiment, error)
+	experiments         map[string]*models.Experiment // key = tenantID:id
+	injectionsByExperiment map[string][]models.InjectionRecord // key = experimentID
+	err                 error
+	getByIDFn           func(ctx context.Context, tenantID, id string) (*models.Experiment, error)
 }
 
 func (m *mockChaosRepo) Create(_ context.Context, e *models.Experiment) error {
@@ -100,6 +104,40 @@ func (m *mockChaosRepo) UpdateStatus(_ context.Context, tenantID, id, status str
 
 func (m *mockChaosRepo) ListRunning(_ context.Context, tenantID string) ([]models.Experiment, error) {
 	return m.List(context.Background(), tenantID, "running", 100, 0)
+}
+
+func (m *mockChaosRepo) ListInjectionsByExperiment(_ context.Context, tenantID, experimentID string) ([]models.InjectionRecord, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return m.injectionsByExperiment[experimentID], nil
+}
+
+func (m *mockChaosRepo) ListRecoveriesByExperiment(_ context.Context, tenantID, experimentID string) ([]models.RecoveryRecord, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return []models.RecoveryRecord{}, nil
+}
+
+func (m *mockChaosRepo) UpdateInjectionStatus(_ context.Context, tenantID, injectionID, status string) error {
+	return nil
+}
+
+func (m *mockChaosRepo) UpdateRecoveryStatus(_ context.Context, tenantID, experimentID, status, message string) error {
+	return nil
+}
+
+func (m *mockChaosRepo) CreateInjection(_ context.Context, rec *models.InjectionRecord) error {
+	return nil
+}
+
+func (m *mockChaosRepo) CreateRecovery(_ context.Context, rec *models.RecoveryRecord) error {
+	return nil
+}
+
+func (m *mockChaosRepo) GetInjection(_ context.Context, tenantID, injectionID string) (*models.InjectionRecord, error) {
+	return nil, sql.ErrNoRows
 }
 
 func (m *mockChaosRepo) CreateRun(_ context.Context, run *models.ExperimentRun) error {
@@ -426,5 +464,205 @@ func TestExecute_ContextCancelled_ReturnsCtxError(t *testing.T) {
 	err := svc.execute(ctx, "cpu-spike", "default/app", "30s", 1.0, nil)
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("expected context.Canceled, got %v", err)
+	}
+}
+
+// --- S2-T3: PreReleaseVerify checks are real, not "return skip" stubs ---
+
+func TestExperimentTargets_MatchesBySubstring(t *testing.T) {
+	if !experimentTargets("svc-a,svc-b", "svc-a") {
+		t.Error("expected substring match on svc-a")
+	}
+	if !experimentTargets("svc-a", "svc-a") {
+		t.Error("exact match should work")
+	}
+	if experimentTargets("svc-b,svc-c", "svc-a") {
+		t.Error("svc-a not in scope")
+	}
+	if experimentTargets("", "svc-a") {
+		t.Error("empty scope must not match")
+	}
+	if experimentTargets("svc-a", "") {
+		t.Error("empty serviceID must not match")
+	}
+}
+
+func TestCheckExperimentCleanup_NoRunning(t *testing.T) {
+	repo := &mockChaosRepo{experiments: map[string]*models.Experiment{}}
+	svc := NewService(repo)
+	status, msg := svc.checkExperimentCleanup(context.Background(), "svc-a", "staging")
+	if status != "pass" {
+		t.Errorf("expected pass, got %s (%s)", status, msg)
+	}
+	if msg == "no experiment cleanup check" {
+		t.Errorf("legacy skip message still present: %s", msg)
+	}
+}
+
+func TestCheckExperimentCleanup_ActiveMatch(t *testing.T) {
+	repo := &mockChaosRepo{experiments: map[string]*models.Experiment{
+		"t1:e1": {ID: "e1", TenantID: "t1", Name: "load-test", Scope: "svc-a", Status: "running"},
+	}}
+	svc := NewService(repo)
+	status, msg := svc.checkExperimentCleanup(context.Background(), "svc-a", "staging")
+	if status != "fail" {
+		t.Errorf("expected fail for active experiment, got %s (%s)", status, msg)
+	}
+}
+
+func TestCheckExperimentCleanup_NilRepo(t *testing.T) {
+	svc := &Service{} // no repo
+	status, msg := svc.checkExperimentCleanup(context.Background(), "svc-a", "staging")
+	if status != "fail" {
+		t.Errorf("expected fail without repo, got %s (%s)", status, msg)
+	}
+}
+
+func TestCheckInjectionQuietPeriod_NoRecentInjections(t *testing.T) {
+	repo := &mockChaosRepo{
+		experiments: map[string]*models.Experiment{
+			"t1:e1": {ID: "e1", TenantID: "t1", Name: "old", Scope: "svc-a", Status: "running"},
+		},
+		injectionsByExperiment: map[string][]models.InjectionRecord{
+			"e1": {{ID: "i1", CreatedAt: time.Now().UTC().Add(-24 * time.Hour)}},
+		},
+	}
+	svc := NewService(repo)
+	status, msg := svc.checkInjectionQuietPeriod(context.Background(), "svc-a", "staging")
+	if status != "pass" {
+		t.Errorf("expected pass for quiet window, got %s (%s)", status, msg)
+	}
+}
+
+func TestCheckInjectionQuietPeriod_RecentInjection(t *testing.T) {
+	repo := &mockChaosRepo{
+		experiments: map[string]*models.Experiment{
+			"t1:e1": {ID: "e1", TenantID: "t1", Name: "hot", Scope: "svc-a", Status: "running"},
+		},
+		injectionsByExperiment: map[string][]models.InjectionRecord{
+			"e1": {{ID: "i1", CreatedAt: time.Now().UTC().Add(-1 * time.Minute)}},
+		},
+	}
+	svc := NewService(repo)
+	status, _ := svc.checkInjectionQuietPeriod(context.Background(), "svc-a", "staging")
+	if status != "fail" {
+		t.Errorf("expected fail for recent injection, got %s", status)
+	}
+}
+
+// fakeSteadyState is a SteadyStateProvider for tests.
+type fakeSteadyState struct {
+	metrics map[string]float64
+	err     error
+	drift   []string
+}
+
+func (f *fakeSteadyState) Snapshot(_ context.Context, _, _ string) (map[string]float64, error) {
+	return f.metrics, f.err
+}
+func (f *fakeSteadyState) Evaluate(_ map[string]float64) []string {
+	return f.drift
+}
+
+func TestCheckSteadyState_NoProvider(t *testing.T) {
+	svc := NewService(&mockChaosRepo{experiments: map[string]*models.Experiment{}})
+	status, msg := svc.checkSteadyState(context.Background(), "svc-a", "staging")
+	if status != "fail" {
+		t.Errorf("expected fail without steady-state provider, got %s (%s)", status, msg)
+	}
+	if msg == "steady state not checked" {
+		t.Errorf("legacy skip message still present: %s", msg)
+	}
+}
+
+func TestCheckSteadyState_Drift(t *testing.T) {
+	svc := NewService(&mockChaosRepo{experiments: map[string]*models.Experiment{}}).
+		WithSteadyStateProvider(&fakeSteadyState{
+			metrics: map[string]float64{"p99": 500},
+			drift:   []string{"p99=500ms exceeds baseline 200ms"},
+		})
+	status, _ := svc.checkSteadyState(context.Background(), "svc-a", "staging")
+	if status != "fail" {
+		t.Errorf("expected fail for drift, got %s", status)
+	}
+}
+
+func TestCheckSteadyState_OK(t *testing.T) {
+	svc := NewService(&mockChaosRepo{experiments: map[string]*models.Experiment{}}).
+		WithSteadyStateProvider(&fakeSteadyState{
+			metrics: map[string]float64{"p99": 100},
+			drift:   nil,
+		})
+	status, _ := svc.checkSteadyState(context.Background(), "svc-a", "staging")
+	if status != "pass" {
+		t.Errorf("expected pass, got %s", status)
+	}
+}
+
+func TestCheckHealthEndpoint_NoURLRegistered(t *testing.T) {
+	svc := NewService(&mockChaosRepo{experiments: map[string]*models.Experiment{}})
+	status, msg := svc.checkHealthEndpoint(context.Background(), "svc-a", "staging")
+	if status != "fail" {
+		t.Errorf("expected fail without registered endpoint, got %s", status)
+	}
+	if msg == "health endpoint not checked" {
+		t.Errorf("legacy skip message still present: %s", msg)
+	}
+}
+
+func TestCheckHealthEndpoint_OK(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	svc := NewService(&mockChaosRepo{experiments: map[string]*models.Experiment{}}).
+		WithHealthEndpoints(map[string]string{"svc-a@staging": srv.URL + "/healthz"})
+	status, _ := svc.checkHealthEndpoint(context.Background(), "svc-a", "staging")
+	if status != "pass" {
+		t.Errorf("expected pass, got %s", status)
+	}
+}
+
+func TestCheckHealthEndpoint_Non200(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	svc := NewService(&mockChaosRepo{experiments: map[string]*models.Experiment{}}).
+		WithHealthEndpoints(map[string]string{"svc-a@staging": srv.URL + "/healthz"})
+	status, _ := svc.checkHealthEndpoint(context.Background(), "svc-a", "staging")
+	if status != "fail" {
+		t.Errorf("expected fail on 503, got %s", status)
+	}
+}
+
+func TestPreReleaseVerify_AllChecksReal(t *testing.T) {
+	repo := &mockChaosRepo{experiments: map[string]*models.Experiment{}}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	svc := NewService(repo).
+		WithHealthEndpoints(map[string]string{"svc-a@staging": srv.URL + "/healthz"}).
+		WithSteadyStateProvider(&fakeSteadyState{metrics: map[string]float64{"p99": 100}})
+	res, err := svc.PreReleaseVerify(context.Background(), "t1",
+		models.PreReleaseVerifyRequest{ServiceID: "svc-a", Environment: "staging"})
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if res.Status != "passed" {
+		t.Errorf("expected passed overall, got %s: %+v", res.Status, res.Checks)
+	}
+	for _, c := range res.Checks {
+		if c.Status == "skip" {
+			t.Errorf("check %s returned skip — no silent skip after S2-T3: %+v", c.Check, c)
+		}
 	}
 }
