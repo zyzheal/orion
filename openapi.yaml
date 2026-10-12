@@ -1,0 +1,346 @@
+openapi: 3.0.0
+info:
+  title: Orion Platform API
+  version: v1
+  description: |
+    Orion Platform Service API — 统一运维平台 API 契约。
+    覆盖告警/工单/CI-CD/CMDB/AI 决策/LLM 安全审计等核心域。
+servers:
+  - url: https://api.orion.example.com/api/v1
+    description: Production
+  - url: http://localhost:8080/api/v1
+    description: Local development
+
+paths:
+  # --- Health & Metrics ---
+  /healthz:
+    get:
+      summary: Health check
+      responses:
+        '200': { description: OK }
+  /readyz:
+    get:
+      summary: Readiness check
+      responses:
+        '200': { description: OK }
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      responses:
+        '200': { description: OK }
+  /version:
+    get:
+      summary: API version info
+      responses:
+        '200': { description: OK }
+
+  # --- Tickets ---
+  /tickets:
+    get:
+      summary: List tickets
+      parameters:
+        - {name: status, in: query, schema: {type: string}}
+        - {name: priority, in: query, schema: {type: string}}
+        - {name: page, in: query, schema: {type: integer, default: 1}}
+        - {name: page_size, in: query, schema: {type: integer, default: 20}}
+      responses:
+        '200': { description: Ticket list }
+    post:
+      summary: Create ticket
+      responses:
+        '201': { description: Created }
+  /tickets/{id}:
+    get:
+      summary: Get ticket by ID
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': { description: Ticket }
+        '404': { description: Not found }
+    put:
+      summary: Update ticket
+      responses:
+        '200': { description: Updated }
+    delete:
+      summary: Delete ticket
+      responses:
+        '204': { description: Deleted }
+  /tickets/{id}/status:
+    patch:
+      summary: Update ticket status
+      responses:
+        '200': { description: Status updated }
+  /tickets/{id}/assignee:
+    patch:
+      summary: Update ticket assignee
+      responses:
+        '200': { description: Assignee updated }
+
+  # --- Alerts ---
+  /alerts:
+    get:
+      summary: List alerts
+      responses:
+        '200': { description: Alert list }
+    post:
+      summary: Create alert
+      responses:
+        '201': { description: Created }
+  /alerts/{id}:
+    get:
+      summary: Get alert by ID
+      responses:
+        '200': { description: Alert }
+    delete:
+      summary: Delete alert
+      responses:
+        '204': { description: Deleted }
+
+  # --- Pipeline ---
+  /pipelines:
+    get:
+      summary: List pipelines
+      responses:
+        '200': { description: Pipeline list }
+    post:
+      summary: Create pipeline
+      responses:
+        '201': { description: Created }
+  /pipelines/{id}:
+    get:
+      summary: Get pipeline by ID
+      responses:
+        '200': { description: Pipeline }
+    delete:
+      summary: Delete pipeline
+      responses:
+        '204': { description: Deleted }
+  /pipelines/{id}/runs:
+    get:
+      summary: List pipeline runs
+      responses:
+        '200': { description: Run list }
+    post:
+      summary: Trigger pipeline run
+      responses:
+        '201': { description: Run created }
+
+  # --- Deployments ---
+  /deployments:
+    get:
+      summary: List deployments
+      responses:
+        '200': { description: Deployment list }
+    post:
+      summary: Create deployment
+      responses:
+        '201': { description: Created }
+  /deployments/{id}:
+    get:
+      summary: Get deployment by ID
+      responses:
+        '200': { description: Deployment }
+
+  # --- CMDB ---
+  /cmdb/cis:
+    get:
+      summary: List CI items
+      responses:
+        '200': { description: CI list }
+    post:
+      summary: Create CI item
+      responses:
+        '201': { description: Created }
+  /cmdb/cis/{id}:
+    get:
+      summary: Get CI by ID
+      responses:
+        '200': { description: CI }
+    delete:
+      summary: Delete CI
+      responses:
+        '204': { description: Deleted }
+  /cmdb/cis/batch-delete:
+    post:
+      summary: Batch delete CIs
+      responses:
+        '200': { description: Batch result }
+
+  # --- Audit Logs ---
+  /audit/logs:
+    get:
+      summary: List audit logs
+      responses:
+        '200': { description: Log list }
+    post:
+      summary: Create audit log (append-only)
+      responses:
+        '201': { description: Created }
+  /audit/logs/{id}:
+    get:
+      summary: Get audit log by ID
+      responses:
+        '200': { description: Log entry }
+
+  # --- Event Bus ---
+  /eventbus/events:
+    get:
+      summary: List events
+      responses:
+        '200': { description: Event list }
+    post:
+      summary: Publish event
+      responses:
+        '201': { description: Event published }
+  /eventbus/events/count:
+    get:
+      summary: Event count
+      responses:
+        '200': { description: Count }
+  /eventbus/connect:
+    post:
+      summary: Connect to NATS
+      responses:
+        '201': { description: Connected }
+  /eventbus/status:
+    get:
+      summary: Event bus status
+      responses:
+        '200': { description: Status }
+  /eventbus/subscriptions:
+    get:
+      summary: List subscriptions
+      responses:
+        '200': { description: Subscription list }
+  /eventbus/dlq:
+    get:
+      summary: Get dead letter queue
+      responses:
+        '200': { description: DLQ messages }
+  /eventbus/stats:
+    get:
+      summary: Event bus stats
+      responses:
+        '200': { description: Stats }
+
+  # --- LLM Audit ---
+  /llm/audit:
+    get:
+      summary: List LLM call audits
+      responses:
+        '200': { description: Audit list }
+
+  # --- SLO ---
+  /slo:
+    get:
+      summary: List SLOs
+      responses:
+        '200': { description: SLO list }
+    post:
+      summary: Create SLO
+      responses:
+        '201': { description: Created }
+  /slo/{id}:
+    get:
+      summary: Get SLO by ID
+      responses:
+        '200': { description: SLO }
+
+  # --- Notifications ---
+  /notifications:
+    get:
+      summary: List notifications
+      responses:
+        '200': { description: Notification list }
+    post:
+      summary: Create notification
+      responses:
+        '201': { description: Created }
+  /notifications/{id}:
+    get:
+      summary: Get notification by ID
+      responses:
+        '200': { description: Notification }
+    delete:
+      summary: Delete notification
+      responses:
+        '204': { description: Deleted }
+
+  # --- Secrets ---
+  /secrets:
+    get:
+      summary: List secrets
+      responses:
+        '200': { description: Secret list }
+    post:
+      summary: Create secret
+      responses:
+        '201': { description: Created }
+  /secrets/{id}:
+    get:
+      summary: Get secret by ID
+      responses:
+        '200': { description: Secret }
+    delete:
+      summary: Delete secret
+      responses:
+        '204': { description: Deleted }
+
+  # --- Chaos Engineering ---
+  /chaos/injectors:
+    get:
+      summary: List chaos injectors
+      responses:
+        '200': { description: Injector list }
+    post:
+      summary: Create chaos injector
+      responses:
+        '201': { description: Created }
+  /chaos/injectors/{id}:
+    get:
+      summary: Get injector by ID
+      responses:
+        '200': { description: Injector }
+    delete:
+      summary: Delete injector
+      responses:
+        '204': { description: Deleted }
+  /chaos/scenarios:
+    get:
+      summary: List chaos scenarios
+      responses:
+        '200': { description: Scenario list }
+    post:
+      summary: Create chaos scenario
+      responses:
+        '201': { description: Created }
+
+  # --- Change Management ---
+  /changes:
+    get:
+      summary: List change requests
+      responses:
+        '200': { description: Change list }
+    post:
+      summary: Create change request
+      responses:
+        '201': { description: Created }
+  /changes/{id}:
+    get:
+      summary: Get change by ID
+      responses:
+        '200': { description: Change }
+    put:
+      summary: Update change
+      responses:
+        '200': { description: Updated }
+  /changes/{id}/approve:
+    post:
+      summary: Approve change
+      responses:
+        '200': { description: Approved }
+  /changes/{id}/reject:
+    post:
+      summary: Reject change
+      responses:
+        '200': { description: Rejectd }
