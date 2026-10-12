@@ -1,0 +1,66 @@
+# SLO Definition: API Request Latency P99
+# GATE-SLO-DEFINED: defines service-level objectives for critical API endpoints
+# Per docs/neatlogic-gap-analysis-2026-09-30.md §SLO requirements
+
+slos:
+  - name: api-request-latency-p99
+    description: "99th percentile API request latency must stay below 500ms"
+    objective: 99.9
+    window: 30d
+    burnrate:
+      - window: 1h
+        threshold: 5
+      - window: 6h
+        threshold: 2
+      - window: 24h
+        threshold: 1
+    endpoints:
+      - /api/v1/pipeline
+      - /api/v1/alert
+      - /api/v1/deploy
+      - /api/v1/cmdb
+      - /api/v1/tickets
+      - /api/v1/audit/logs
+    metric: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))
+
+  - name: api-error-rate
+    description: "API error rate (5xx responses) must stay below 0.1%"
+    objective: 99.9
+    window: 30d
+    burnrate:
+      - window: 1h
+        threshold: 10
+      - window: 6h
+        threshold: 4
+      - window: 24h
+        threshold: 1
+    endpoints:
+      - /api/v1/pipeline
+      - /api/v1/alert
+      - /api/v1/deploy
+      - /api/v1/cmdb
+      - /api/v1/tickets
+      - /api/v1/audit/logs
+    metric: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))
+
+  - name: api-availability
+    description: "API availability must be at least 99.9%"
+    objective: 99.9
+    window: 30d
+    burnrate:
+      - window: 1h
+        threshold: 5
+      - window: 6h
+        threshold: 2
+      - window: 24h
+        threshold: 1
+    endpoints:
+      - /api/v1/pipeline
+      - /api/v1/alert
+      - /api/v1/deploy
+      - /api/v1/cmdb
+      - /api/v1/tickets
+      - /api/v1/audit/logs
+      - /api/v1/eventbus
+      - /api/v1/llm
+    metric: 1 - (sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])))
