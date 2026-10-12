@@ -30,17 +30,11 @@ BEGIN
 END;
 $$;
 
--- BEFORE UPDATE 触发器 (append-only 语义)
-CREATE TRIGGER trg_audit_logs_no_update
-    BEFORE UPDATE ON audit_logs
-    FOR EACH ROW
-    EXECUTE FUNCTION audit_logs_immutability_guard();
+-- BEFORE UPDATE trigger (single-line for audit-immutable-check.sh regex match)
+CREATE TRIGGER trg_audit_logs_no_update BEFORE UPDATE ON audit_logs FOR EACH ROW EXECUTE FUNCTION audit_logs_immutability_guard();
 
--- BEFORE DELETE 触发器 (append-only 语义)
-CREATE TRIGGER trg_audit_logs_no_delete
-    BEFORE DELETE ON audit_logs
-    FOR EACH ROW
-    EXECUTE FUNCTION audit_logs_immutability_guard();
+-- BEFORE DELETE trigger (single-line for audit-immutable-check.sh regex match)
+CREATE TRIGGER trg_audit_logs_no_delete BEFORE DELETE ON audit_logs FOR EACH ROW EXECUTE FUNCTION audit_logs_immutability_guard();
 
 -- 记录 trigger 创建时间戳 (便于运维追踪)
 COMMENT ON FUNCTION audit_logs_immutability_guard() IS
