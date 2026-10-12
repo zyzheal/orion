@@ -112,6 +112,63 @@ func TestRequestID(t *testing.T) {
 	if w.Header().Get("X-Request-ID") == "" {
 		t.Error("expected X-Request-ID header")
 	}
+	// P2-6: X-Trace-ID must equal X-Request-ID so platform-svc can
+	// pick the same trace id via its X-Trace-ID extraction branch.
+	if w.Header().Get("X-Trace-ID") == "" {
+		t.Error("expected X-Trace-ID header (P2-6)")
+	}
+	if w.Header().Get("X-Trace-ID") != w.Header().Get("X-Request-ID") {
+		t.Errorf("X-Trace-ID (%s) != X-Request-ID (%s)",
+			w.Header().Get("X-Trace-ID"), w.Header().Get("X-Request-ID"))
+	}
+}
+
+// TestRequestID_PropagatesInboundTraceID verifies that an inbound
+// X-Trace-ID is honored and echoed back unchanged, rather than being
+// replaced by a freshly generated id.
+func TestRequestID_PropagatesInboundTraceID(t *testing.T) {
+	const upstream = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	r := gin.New()
+	r.Use(RequestID())
+	var saw string
+	r.GET("/test", func(c *gin.Context) {
+		saw = c.GetString("request_id")
+		c.String(200, "ok")
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("X-Trace-ID", upstream)
+	r.ServeHTTP(w, req)
+
+	if saw != upstream {
+		t.Errorf("ctx request_id = %s, want %s", saw, upstream)
+	}
+	if got := w.Header().Get("X-Trace-ID"); got != upstream {
+		t.Errorf("response X-Trace-ID = %s, want %s", got, upstream)
+	}
+	if got := w.Header().Get("X-Request-ID"); got != upstream {
+		t.Errorf("response X-Request-ID = %s, want %s", got, upstream)
+	}
+}
+
+// TestRequestID_TraceIDPrecedence verifies that when both X-Trace-ID
+// and X-Request-ID are present on the request, X-Trace-ID wins (OTel
+// propagator convention).
+func TestRequestID_TraceIDPrecedence(t *testing.T) {
+	r := gin.New()
+	r.Use(RequestID())
+	r.GET("/test", func(c *gin.Context) { c.String(200, "ok") })
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("X-Trace-ID", "t-trace")
+	req.Header.Set("X-Request-ID", "t-req")
+	r.ServeHTTP(w, req)
+
+	if got := w.Header().Get("X-Request-ID"); got != "t-trace" {
+		t.Errorf("response X-Request-ID = %s, want t-trace (trace precedence)", got)
+	}
 }
 
 func TestCORS(t *testing.T) {

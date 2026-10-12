@@ -364,11 +364,19 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
 		// asserts they stay mounted, because dropping perfH from that list is a
 		// failure the build and the route-conflict tests cannot see.
 		api.GET("/routes", func(c *gin.Context) {
-			var routes []gin.RouteInfo
+			// gin.RouteInfo contains a HandlerFunc field which is not JSON-
+			// serializable ("json: unsupported type: gin.HandlerFunc"). Project
+			// to Method + Path + Handler name only — Handler is already a string.
+			routes := make([]gin.H, 0, 64)
 			for _, route := range r.Routes() {
-				if strings.HasPrefix(route.Path, "/api/v1") {
-					routes = append(routes, route)
+				if !strings.HasPrefix(route.Path, "/api/v1") {
+					continue
 				}
+				routes = append(routes, gin.H{
+					"method":  route.Method,
+					"path":    route.Path,
+					"handler": route.Handler,
+				})
 			}
 			c.JSON(200, gin.H{
 				"data":  routes,

@@ -91,11 +91,29 @@ func hashToken(token string) string {
 
 // ==================== Core Middleware ====================
 
+// RequestID 生成/透传一个 32-hex 的 request/trace ID，并同时挂
+// X-Request-ID（客户端可观测）和 X-Trace-ID（下游 platform-svc 消费）
+// 两个 header。若入站请求已携带 X-Trace-ID 或 X-Request-ID，则沿用
+// 该值，避免破坏上游（例如 LB/SDK）的 correlation。
+//
+// P2-6 (2026-10-11): 全链路 traceId 传播 — 补齐 Gateway 与 platform-svc
+// 之间 trace 上下文桥接，使 gateway 层的 ProxyAudit / request 日志能
+// 通过 request_id（=X-Trace-ID）与 platform 层 audit_logs / structured
+// logs 关联。
 func RequestID() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		requestID := generateID()
-		c.Set("request_id", requestID)
-		c.Header("X-Request-ID", requestID)
+		// Honor inbound trace id if any (X-Trace-ID preferred for OTel
+		// compatibility, then X-Request-ID for backward compatibility).
+		id := c.GetHeader("X-Trace-ID")
+		if id == "" {
+			id = c.GetHeader("X-Request-ID")
+		}
+		if id == "" {
+			id = generateID()
+		}
+		c.Set("request_id", id)
+		c.Header("X-Request-ID", id)
+		c.Header("X-Trace-ID", id)
 		c.Next()
 	}
 }

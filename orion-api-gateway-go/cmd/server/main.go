@@ -160,6 +160,13 @@ func main() {
 	}))
 	apiGroup.Use(permMW.Handler())
 	apiGroup.Use(middleware.GrayRoute(grayRelease))
+	// P1-6: fire-and-forget gateway-side audit log. Runs after auth
+	// chain so c.GetString("tenant_id")/("user_id") are populated from
+	// JWT claims. Emit one structured log line per mutating request to
+	// close the observability loop when the upstream service drops its
+	// own audit row. Skips health/metrics/websocket by default.
+	// Disabled via GATEWAY_AUDIT_ENABLED=0 for high-throughput paths.
+	apiGroup.Use(middleware.ProxyAudit(logger))
 
 	for prefix, target := range targets {
 		apiGroup.Any(prefix+"/*path", proxy.Handler(target, prefix, logger))
