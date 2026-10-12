@@ -342,3 +342,89 @@ func TestChaosRecoveryValidation_Result(t *testing.T) {
 		t.Error("expected passed=true")
 	}
 }
+
+// --- S2-T2: execute() no longer silently no-ops ---
+
+func TestFaultTypeFromString_KnownTypes(t *testing.T) {
+	for _, s := range []string{"cpu-spike", "memory-leak", "network-latency", "service-down", "pod-kill", "pod-oom"} {
+		if _, err := faultTypeFromString(s); err != nil {
+			t.Errorf("expected %q to be supported, got %v", s, err)
+		}
+	}
+}
+
+func TestFaultTypeFromString_Unknown(t *testing.T) {
+	_, err := faultTypeFromString("quantum-burst")
+	if err == nil {
+		t.Fatal("expected unsupported fault type error")
+	}
+	if !errors.Is(err, ErrUnsupportedFaultType) {
+		t.Errorf("expected ErrUnsupportedFaultType, got %v", err)
+	}
+}
+
+// bareService builds a *Service with no repo and no injector — enough for
+// execute() tests since execute doesn't touch the repository.
+func bareService() *Service {
+	return &Service{}
+}
+
+func TestExecute_NilInjector_ReturnsErrInjectorUnavailable(t *testing.T) {
+	svc := bareService()
+	err := svc.execute(context.Background(), "cpu-spike", "default/app", "30s", 1.0, nil)
+	if err == nil {
+		t.Fatal("expected error for nil injector, got nil (was silent no-op before S2-T2)")
+	}
+	if !errors.Is(err, ErrInjectorUnavailable) {
+		t.Errorf("expected ErrInjectorUnavailable, got %v", err)
+	}
+}
+
+func TestExecute_UnknownFaultType_ReturnsErrUnsupported(t *testing.T) {
+	svc := bareService()
+	err := svc.execute(context.Background(), "quantum-burst", "default/app", "30s", 1.0, nil)
+	if err == nil {
+		t.Fatal("expected unsupported fault error")
+	}
+	if !errors.Is(err, ErrUnsupportedFaultType) {
+		t.Errorf("expected ErrUnsupportedFaultType, got %v", err)
+	}
+}
+
+func TestExecute_InvalidDuration_ReturnsErrInvalidConfig(t *testing.T) {
+	svc := bareService()
+	err := svc.execute(context.Background(), "cpu-spike", "default/app", "bogus", 1.0, nil)
+	if err == nil {
+		t.Fatal("expected invalid duration error")
+	}
+	if !errors.Is(err, ErrInvalidConfig) {
+		t.Errorf("expected ErrInvalidConfig, got %v", err)
+	}
+}
+
+func TestExecute_NegativeIntensity_ReturnsError(t *testing.T) {
+	svc := bareService()
+	err := svc.execute(context.Background(), "cpu-spike", "default/app", "30s", -0.5, nil)
+	if err == nil {
+		t.Fatal("expected negative intensity error")
+	}
+}
+
+func TestExecute_BadPercentage_ReturnsError(t *testing.T) {
+	svc := bareService()
+	err := svc.execute(context.Background(), "cpu-spike", "default/app", "30s", 1.0,
+		&models.InjectConfig{Percentage: 200})
+	if err == nil {
+		t.Fatal("expected out-of-range percentage error")
+	}
+}
+
+func TestExecute_ContextCancelled_ReturnsCtxError(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	svc := bareService()
+	err := svc.execute(ctx, "cpu-spike", "default/app", "30s", 1.0, nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("expected context.Canceled, got %v", err)
+	}
+}

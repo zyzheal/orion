@@ -645,7 +645,13 @@ func (s *Service) execute(ctx context.Context, faultType, target, duration strin
 	default:
 	}
 
-	// Build config JSON for the injector.
+	// Strict faultType check — do NOT coerce unknowns into FaultType(s).
+	ft, err := faultTypeFromString(faultType)
+	if err != nil {
+		return err
+	}
+
+	// Build config JSON for the injector; propagate marshal errors.
 	var injCfg injector.InjectConfig
 	if cfg != nil {
 		injCfg = injector.InjectConfig{
@@ -659,33 +665,29 @@ func (s *Service) execute(ctx context.Context, faultType, target, duration strin
 		injCfg.Duration = duration
 		injCfg.Intensity = intensity
 	}
-	configJSON, _ := json.Marshal(injCfg)
-
-	if s.injector != nil {
-		var ft injector.FaultType
-		switch faultType {
-		case "cpu-spike":
-			ft = injector.FaultCpuSpike
-		case "memory-leak":
-			ft = injector.FaultMemoryLeak
-		case "network-latency":
-			ft = injector.FaultNetworkLatency
-		case "service-down":
-			ft = injector.FaultServiceDown
-		default:
-			ft = injector.FaultType(faultType)
-		}
-		result, err := s.injector.Inject(ctx, ft, target, string(configJSON))
-		if err != nil {
-			return fmt.Errorf("injector failed for %s on %s: %w", faultType, target, err)
-		}
-		if !result.Success {
-			return fmt.Errorf("injector reported failure for %s: %s", faultType, result.Message)
-		}
-		return nil
+	configJSON, err := json.Marshal(injCfg)
+	if err != nil {
+		return fmt.Errorf("marshal injector config for %s: %w", faultType, err)
 	}
 
-	// Fallback: no injector available — log-only mode
+	// S2-T2: nil injector is now an explicit error. The previous code
+	// silently returned nil here, so callers saw a 200 OK with no injection
+	// actually executed. Wiring must call WithInjector(...) at startup.
+	if s.injector == nil {
+		return fmt.Errorf("%w: call WithInjector() at wiring time (target=%s fault=%s)",
+			ErrInjectorUnavailable, target, faultType)
+	}
+
+	result, err := s.injector.Inject(ctx, ft, target, string(configJSON))
+	if err != nil {
+		return fmt.Errorf("injector failed for %s on %s: %w", faultType, target, err)
+	}
+	if result == nil {
+		return fmt.Errorf("injector returned nil result for %s on %s", faultType, target)
+	}
+	if !result.Success {
+		return fmt.Errorf("injector reported failure for %s: %s", faultType, result.Message)
+	}
 	return nil
 }
 
@@ -755,7 +757,39 @@ var (
 	ErrNoActiveInjection       = errors.New("no active injection to recover")
 	ErrInvalidConfig           = errors.New("invalid injection config")
 	ErrEmptyServiceEnvironment = errors.New("service_id and environment must not be empty")
+	// ErrInjectorUnavailable is returned when execute() is called but no
+	// K8s injector has been attached via WithInjector(). S2-T2: replaces
+	// the previous silent nil-return so callers cannot misread a
+	// successful API response as an actually-executed injection.
+	ErrInjectorUnavailable = errors.New("chaos injector not configured")
+	// ErrUnsupportedFaultType is returned when a faultType is not one of the
+	// injector's recognized Fault* constants.
+	ErrUnsupportedFaultType = errors.New("unsupported chaos fault type")
 )
+
+// supportedFaultTypes is the canonical set the Service accepts at execute()
+// time. Kept in sync with injector.Fault* constants (see injector/injector.go).
+var supportedFaultTypes = map[injector.FaultType]struct{}{
+	injector.FaultCpuSpike:       {},
+	injector.FaultMemoryLeak:     {},
+	injector.FaultNetworkLatency: {},
+	injector.FaultServiceDown:    {},
+	injector.FaultPodKill:        {},
+	injector.FaultPodOOM:         {},
+}
+
+// faultTypeFromString maps a wire-level faultType string to the injector's
+// FaultType constant. Unknown strings return ErrUnsupportedFaultType — the
+// previous code silently coerced unknown strings into FaultType(faultType)
+// which the injector then refused downstream (S2-T2).
+func faultTypeFromString(s string) (injector.FaultType, error) {
+	switch injector.FaultType(s) {
+	case injector.FaultCpuSpike, injector.FaultMemoryLeak, injector.FaultNetworkLatency,
+		injector.FaultServiceDown, injector.FaultPodKill, injector.FaultPodOOM:
+		return injector.FaultType(s), nil
+	}
+	return "", fmt.Errorf("%w: %q", ErrUnsupportedFaultType, s)
+}
 
 var defaultServicePorts = []int{80, 443, 8080}
 
