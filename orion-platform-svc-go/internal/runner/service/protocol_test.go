@@ -66,7 +66,7 @@ func TestHandlerRegistry_RegisterIgnoresNil(t *testing.T) {
 
 func TestHandlerRegistry_NormalizesKeyOnRegister(t *testing.T) {
 	r := NewHandlerRegistry()
-	h := NewK8sExecHandler()
+	h := newK8sExecPlaceholder()
 	// Register under an alias — must land in the canonical slot.
 	r.Register(RunnerProtocol("k8s_exec"), h)
 	got := r.Lookup(ProtocolK8sExec)
@@ -192,7 +192,7 @@ func TestHTTPHandler_DispatchTask_ContextCancel(t *testing.T) {
 func TestPlaceholderHandlers_ReturnErrHandlerNotFound(t *testing.T) {
 	cases := []RunnerHandler{
 		NewSSHHandler(),
-		NewK8sExecHandler(),
+		newK8sExecPlaceholder(),
 		NewWinRMHandler(),
 		NewGRPCHandler(),
 	}

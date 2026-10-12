@@ -139,16 +139,17 @@ func (h *SSHHandler) DispatchTask(_ context.Context, _ *RunnerAgentView, _ *Runn
 	return "", fmt.Errorf("%w: ssh dispatch not implemented (P0-D2)", ErrHandlerNotFound)
 }
 
-// K8sExecHandler is a placeholder for the k8s-exec transport.
-// Requires k8s.io/client-go for pod exec — landed in P0-D2.
-type K8sExecHandler struct{}
+// K8sExecHandler is the real k8s-exec transport (see handler_k8s_exec.go).
+// Kept as a placeholder-compatible constructor so AllHandlers() stays
+// usable without a K8s config — calls fall through to ErrHandlerNotFound.
+type k8sExecPlaceholder struct{}
 
-func NewK8sExecHandler() *K8sExecHandler { return &K8sExecHandler{} }
+func newK8sExecPlaceholder() *k8sExecPlaceholder { return &k8sExecPlaceholder{} }
 
-func (h *K8sExecHandler) Protocol() RunnerProtocol { return ProtocolK8sExec }
+func (h *k8sExecPlaceholder) Protocol() RunnerProtocol { return ProtocolK8sExec }
 
-func (h *K8sExecHandler) DispatchTask(_ context.Context, _ *RunnerAgentView, _ *RunnerJobView) (string, error) {
-	return "", fmt.Errorf("%w: k8s-exec dispatch not implemented (P0-D2)", ErrHandlerNotFound)
+func (h *k8sExecPlaceholder) DispatchTask(_ context.Context, _ *RunnerAgentView, _ *RunnerJobView) (string, error) {
+	return "", fmt.Errorf("%w: k8s-exec dispatch requires KubernetesConfig (see NewK8sExecHandlerWithConfig)", ErrHandlerNotFound)
 }
 
 // WinRMHandler is a placeholder for the WinRM transport.
@@ -180,7 +181,7 @@ func AllHandlers() *HandlerRegistry {
 	r := NewHandlerRegistry()
 	r.Register(ProtocolHTTP, NewHTTPHandler())
 	r.Register(ProtocolSSH, NewSSHHandler())
-	r.Register(ProtocolK8sExec, NewK8sExecHandler())
+	r.Register(ProtocolK8sExec, newK8sExecPlaceholder())
 	r.Register(ProtocolWinRM, NewWinRMHandler())
 	r.Register(ProtocolGRPC, NewGRPCHandler())
 	return r
