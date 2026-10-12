@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"go.uber.org/zap"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -51,6 +52,7 @@ type TenantAwareRepository[T any] struct {
 	// tenantColumn defaults to "tenant_id". Domain tables that use a
 	// differently named column (rare; see ADR-011 §3.5 example) can override.
 	tenantColumn string
+	logger *zap.Logger
 }
 
 // NewTenantAwareRepository wraps an existing *sqlx.DB. All domain repos
@@ -59,7 +61,7 @@ type TenantAwareRepository[T any] struct {
 //
 // Pass opts=nil for default behaviour (tenantColumn="tenant_id").
 func NewTenantAwareRepository(db *sqlx.DB, opts ...Option) TenantAwareRepository[any] {
-	r := TenantAwareRepository[any]{db: sqlxDB{db: db}, tenantColumn: "tenant_id"}
+	r := TenantAwareRepository[any]{db: sqlxDB{db: db}, tenantColumn: "tenant_id", logger: zap.NewNop()}
 	for _, o := range opts {
 		o(&r)
 	}
@@ -69,7 +71,7 @@ func NewTenantAwareRepository(db *sqlx.DB, opts ...Option) TenantAwareRepository
 // NewTenantAwareRepositoryFromDB accepts any TenantAwareDB (e.g. a test
 // double) for callers that already have an abstraction layer.
 func NewTenantAwareRepositoryFromDB(db TenantAwareDB, opts ...Option) TenantAwareRepository[any] {
-	r := TenantAwareRepository[any]{db: db, tenantColumn: "tenant_id"}
+	r := TenantAwareRepository[any]{db: db, tenantColumn: "tenant_id", logger: zap.NewNop()}
 	for _, o := range opts {
 		o(&r)
 	}
@@ -96,6 +98,7 @@ func (r *TenantAwareRepository[T]) Query(ctx context.Context, query string, args
 	if err != nil {
 		return nil, err
 	}
+	r.logger.Debug("repo.Query", zap.String("query", q), zap.Int("args", len(a)))
 	return r.db.Query(ctx, q, a...)
 }
 

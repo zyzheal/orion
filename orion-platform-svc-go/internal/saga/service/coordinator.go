@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/saga/models"
 )
 
@@ -55,6 +56,7 @@ type SagaCoordinator struct {
 	repo     Repository
 	registry *StepRegistry
 	timeout  time.Duration
+	logger   *zap.Logger
 }
 
 func NewSagaCoordinator(repo Repository) *SagaCoordinator {
@@ -62,6 +64,14 @@ func NewSagaCoordinator(repo Repository) *SagaCoordinator {
 		repo:     repo,
 		registry: NewStepRegistry(),
 		timeout:  3600 * time.Second,
+		logger:   zap.NewNop(), // replaced by SetLogger in production
+	}
+}
+
+// SetLogger sets the structured logger for saga operations.
+func (c *SagaCoordinator) SetLogger(l *zap.Logger) {
+	if l != nil {
+		c.logger = l
 	}
 }
 
@@ -81,6 +91,7 @@ func (c *SagaCoordinator) SetTimeout(d time.Duration) {
 
 // Start begins a new saga transaction.
 func (c *SagaCoordinator) Start(ctx context.Context, tenantID string, req *models.CreateSagaRequest) (*models.SagaTransaction, error) {
+	c.logger.Info("saga.Start", zap.String("tenant_id", tenantID), zap.String("saga_name", req.SagaName))
 	// Check idempotency by request_id
 	if req.Metadata != nil {
 		if rid, ok := req.Metadata["request_id"]; ok {
