@@ -340,7 +340,10 @@ func (c *SagaCoordinator) markCompleted(ctx context.Context, tenantID, txID stri
 	}
 	return &models.SagaStepResult{
 		Success: true,
-		Output:  map[string]interface{}{"status": "completed"},
+		// "final": true is the sentinel ExecuteAll uses to break its
+		// dispatch loop. Without it, ExecuteAll re-enters ExecuteNextStep
+		// on the now-Completed transaction and gets ErrInvalidStatus.
+		Output: map[string]interface{}{"status": "completed", "final": true},
 	}, nil
 }
 
