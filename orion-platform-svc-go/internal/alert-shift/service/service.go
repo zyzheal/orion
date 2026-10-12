@@ -74,6 +74,13 @@ func (s *Service) ListShifts(ctx context.Context, tenantID string) ([]models.Shi
 	return s.repo.ListShifts(ctx, tenantID)
 }
 
+func (s *Service) UpdateShift(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
+	if len(updates) == 0 {
+		return fmt.Errorf("no fields to update")
+	}
+	return s.repo.UpdateShift(ctx, tenantID, id, updates)
+}
+
 func (s *Service) DeleteShift(ctx context.Context, tenantID, id string) (bool, error) {
 	return s.repo.DeleteShift(ctx, tenantID, id)
 }
