@@ -163,15 +163,17 @@ func (h *WinRMHandler) DispatchTask(_ context.Context, _ *RunnerAgentView, _ *Ru
 	return "", fmt.Errorf("%w: winrm dispatch not implemented (P0-D2)", ErrHandlerNotFound)
 }
 
-// GRPCHandler is a placeholder for the gRPC transport.
-type GRPCHandler struct{}
+// GRPCHandler is the real gRPC transport (see handler_grpc.go).
+// Kept as a placeholder-compatible constructor so AllHandlers() stays
+// usable without a gRPC config — calls fall through to ErrHandlerNotFound.
+type grpcPlaceholder struct{}
 
-func NewGRPCHandler() *GRPCHandler { return &GRPCHandler{} }
+func newGRPCPlaceholder() *grpcPlaceholder { return &grpcPlaceholder{} }
 
-func (h *GRPCHandler) Protocol() RunnerProtocol { return ProtocolGRPC }
+func (h *grpcPlaceholder) Protocol() RunnerProtocol { return ProtocolGRPC }
 
-func (h *GRPCHandler) DispatchTask(_ context.Context, _ *RunnerAgentView, _ *RunnerJobView) (string, error) {
-	return "", fmt.Errorf("%w: grpc dispatch not implemented (P0-D2)", ErrHandlerNotFound)
+func (h *grpcPlaceholder) DispatchTask(_ context.Context, _ *RunnerAgentView, _ *RunnerJobView) (string, error) {
+	return "", fmt.Errorf("%w: grpc dispatch requires config (see NewGRPCHandlerWithConfig)", ErrHandlerNotFound)
 }
 
 // AllHandlers returns a fresh HandlerRegistry pre-loaded with all 5 protocol
@@ -183,6 +185,6 @@ func AllHandlers() *HandlerRegistry {
 	r.Register(ProtocolSSH, NewSSHHandler())
 	r.Register(ProtocolK8sExec, newK8sExecPlaceholder())
 	r.Register(ProtocolWinRM, NewWinRMHandler())
-	r.Register(ProtocolGRPC, NewGRPCHandler())
+	r.Register(ProtocolGRPC, newGRPCPlaceholder())
 	return r
 }

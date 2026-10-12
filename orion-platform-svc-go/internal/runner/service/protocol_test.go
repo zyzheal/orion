@@ -194,7 +194,7 @@ func TestPlaceholderHandlers_ReturnErrHandlerNotFound(t *testing.T) {
 		NewSSHHandler(),
 		newK8sExecPlaceholder(),
 		NewWinRMHandler(),
-		NewGRPCHandler(),
+		newGRPCPlaceholder(),
 	}
 	for _, h := range cases {
 		_, err := h.DispatchTask(context.Background(),
