@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -54,16 +55,20 @@ func marshalMeta(m map[string]interface{}) ([]byte, error) {
 }
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.Record, error) {
 	var rows []recordRow
-	err := r.db.SelectContext(ctx, &rows,
+	err := r.TenantAwareRepository.Select(ctx, &rows,
 		"SELECT * FROM branch_policy_records WHERE tenant_id=$1 AND deleted_at IS NULL ORDER BY created_at DESC",
 		tenantID)
 	if err != nil {
@@ -78,7 +83,7 @@ func (r *Repository) List(ctx context.Context, tenantID string) ([]models.Record
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.Record, error) {
 	var row recordRow
-	err := r.db.GetContext(ctx, &row,
+	err := r.TenantAwareRepository.Get(ctx, &row,
 		"SELECT * FROM branch_policy_records WHERE id=$1 AND tenant_id=$2 AND deleted_at IS NULL",
 		id, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -101,7 +106,7 @@ func (r *Repository) Create(ctx context.Context, tenantID string, req models.Cre
 	if err != nil {
 		return nil, err
 	}
-	_, err = r.db.ExecContext(ctx,
+	_, err = r.TenantAwareRepository.Exec(ctx,
 		"INSERT INTO branch_policy_records (id, tenant_id, name, status, metadata, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $6)",
 		id, tenantID, req.Name, status, meta, now)
 	if err != nil {
@@ -119,7 +124,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, req models
 		return nil, err
 	}
 	now := time.Now().UTC()
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		"UPDATE branch_policy_records SET name=$3, status=$4, metadata=$5, updated_at=$6 WHERE id=$1 AND tenant_id=$2 AND deleted_at IS NULL",
 		id, tenantID, req.Name, req.Status, meta, now)
 	if err != nil {
@@ -133,7 +138,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, req models
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	now := time.Now().UTC()
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		"UPDATE branch_policy_records SET deleted_at=$3 WHERE id=$1 AND tenant_id=$2 AND deleted_at IS NULL",
 		id, tenantID, now)
 	if err != nil {
@@ -147,7 +152,7 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 
 func (r *Repository) ListByStatus(ctx context.Context, tenantID, status string) ([]models.Record, error) {
 	var rows []recordRow
-	err := r.db.SelectContext(ctx, &rows,
+	err := r.TenantAwareRepository.Select(ctx, &rows,
 		"SELECT * FROM branch_policy_records WHERE tenant_id=$1 AND status=$2 AND deleted_at IS NULL ORDER BY created_at DESC",
 		tenantID, status)
 	if err != nil {
@@ -161,7 +166,7 @@ func (r *Repository) ListByStatus(ctx context.Context, tenantID, status string) 
 }
 
 func (r *Repository) UpdateStatus(ctx context.Context, tenantID, id, status string) error {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		"UPDATE branch_policy_records SET status=$3, updated_at=NOW() WHERE id=$1 AND tenant_id=$2 AND deleted_at IS NULL",
 		id, tenantID, status)
 	if err != nil {
@@ -540,7 +545,7 @@ func (r *Repository) CreateBranchProfile(ctx context.Context, p *models.BranchPr
 
 func (r *Repository) GetBranchProfile(ctx context.Context, tenantID, id string) (*models.BranchProfile, error) {
 	var row branchProfileRow
-	err := r.db.GetContext(ctx, &row, `SELECT * FROM branch_profiles WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &row, `SELECT * FROM branch_profiles WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sentinel.NotFound
 	}
@@ -593,7 +598,7 @@ func (r *Repository) ListBranchProfiles(ctx context.Context, tenantID string, q 
 	args = append(args, q.Limit, (q.Page-1)*q.Limit)
 
 	var rows []branchProfileRow
-	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
+	if err := r.TenantAwareRepository.Select(ctx, &rows, query, args...); err != nil {
 		return nil, err
 	}
 	out := make([]models.BranchProfile, 0, len(rows))
@@ -648,7 +653,7 @@ func (r *Repository) CreateBuildArtifact(ctx context.Context, a *models.BuildArt
 
 func (r *Repository) GetBuildArtifact(ctx context.Context, tenantID, id string) (*models.BuildArtifact, error) {
 	var row buildArtifactRow
-	err := r.db.GetContext(ctx, &row, `SELECT * FROM build_artifacts WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &row, `SELECT * FROM build_artifacts WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sentinel.NotFound
 	}
@@ -706,7 +711,7 @@ func (r *Repository) ListBuildArtifacts(ctx context.Context, tenantID string, q 
 	args = append(args, q.Limit, (q.Page-1)*q.Limit)
 
 	var rows []buildArtifactRow
-	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
+	if err := r.TenantAwareRepository.Select(ctx, &rows, query, args...); err != nil {
 		return nil, err
 	}
 	out := make([]models.BuildArtifact, 0, len(rows))
@@ -758,7 +763,7 @@ func (r *Repository) CreateNamespaceBinding(ctx context.Context, b *models.Names
 
 func (r *Repository) GetNamespaceBinding(ctx context.Context, tenantID, id string) (*models.NamespaceBinding, error) {
 	var b models.NamespaceBinding
-	err := r.db.GetContext(ctx, &b, `SELECT * FROM namespace_bindings WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &b, `SELECT * FROM namespace_bindings WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sentinel.NotFound
 	}
@@ -767,7 +772,7 @@ func (r *Repository) GetNamespaceBinding(ctx context.Context, tenantID, id strin
 
 func (r *Repository) GetNamespaceBindingByBranchEnv(ctx context.Context, tenantID, branchProfileID, envName string) (*models.NamespaceBinding, error) {
 	var b models.NamespaceBinding
-	err := r.db.GetContext(ctx, &b,
+	err := r.TenantAwareRepository.Get(ctx, &b,
 		`SELECT * FROM namespace_bindings WHERE tenant_id=$1 AND branch_profile_id=$2 AND env_name=$3`,
 		tenantID, branchProfileID, envName)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -809,12 +814,12 @@ func (r *Repository) ListNamespaceBindings(ctx context.Context, tenantID string,
 	args = append(args, q.Limit, (q.Page-1)*q.Limit)
 
 	var bindings []models.NamespaceBinding
-	err := r.db.SelectContext(ctx, &bindings, query, args...)
+	err := r.TenantAwareRepository.Select(ctx, &bindings, query, args...)
 	return bindings, err
 }
 
 func (r *Repository) DeleteNamespaceBinding(ctx context.Context, tenantID, id string) error {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM namespace_bindings WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	result, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM namespace_bindings WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return err
 	}
@@ -846,7 +851,7 @@ func (r *Repository) CreateSyncPolicy(ctx context.Context, p *models.SyncPolicy)
 
 func (r *Repository) GetSyncPolicy(ctx context.Context, tenantID, id string) (*models.SyncPolicy, error) {
 	var row syncPolicyRow
-	err := r.db.GetContext(ctx, &row, `SELECT * FROM sync_policies WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &row, `SELECT * FROM sync_policies WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sentinel.NotFound
 	}
@@ -891,7 +896,7 @@ func (r *Repository) ListSyncPolicies(ctx context.Context, tenantID string, q mo
 
 	query := fmt.Sprintf(`SELECT * FROM sync_policies %s ORDER BY created_at DESC`, where.String())
 	var rows []syncPolicyRow
-	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
+	if err := r.TenantAwareRepository.Select(ctx, &rows, query, args...); err != nil {
 		return nil, err
 	}
 	out := make([]models.SyncPolicy, 0, len(rows))
@@ -929,7 +934,7 @@ func (r *Repository) UpdateSyncPolicy(ctx context.Context, tenantID, id string, 
 }
 
 func (r *Repository) DeleteSyncPolicy(ctx context.Context, tenantID, id string) error {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM sync_policies WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	result, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM sync_policies WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return err
 	}
@@ -1013,7 +1018,7 @@ func (r *Repository) ListSyncRunLogs(ctx context.Context, tenantID string, q mod
 	args = append(args, q.Limit)
 
 	var rows []syncRunLogRow
-	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
+	if err := r.TenantAwareRepository.Select(ctx, &rows, query, args...); err != nil {
 		return nil, err
 	}
 	out := make([]models.SyncRunLog, 0, len(rows))
@@ -1042,7 +1047,7 @@ func (r *Repository) CreateDeployEvent(ctx context.Context, evt *models.DeployEv
 
 func (r *Repository) GetDeployEvent(ctx context.Context, tenantID, id string) (*models.DeployEvent, error) {
 	var evt models.DeployEvent
-	err := r.db.GetContext(ctx, &evt, `SELECT * FROM deploy_events WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &evt, `SELECT * FROM deploy_events WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sentinel.NotFound
 	}
@@ -1122,7 +1127,7 @@ func (r *Repository) ListDeployEvents(ctx context.Context, tenantID string, q mo
 	args = append(args, q.Limit)
 
 	var events []models.DeployEvent
-	err := r.db.SelectContext(ctx, &events, query, args...)
+	err := r.TenantAwareRepository.Select(ctx, &events, query, args...)
 	return events, err
 }
 
@@ -1134,7 +1139,7 @@ func (r *Repository) ListDeployEventsByBranch(ctx context.Context, tenantID, bra
 		limit = 1000
 	}
 	var events []models.DeployEvent
-	err := r.db.SelectContext(ctx, &events,
+	err := r.TenantAwareRepository.Select(ctx, &events,
 		`SELECT * FROM deploy_events WHERE tenant_id=$1 AND branch=$2 ORDER BY started_at DESC LIMIT $3`,
 		tenantID, branch, limit)
 	return events, err
@@ -1148,7 +1153,7 @@ func (r *Repository) ListDeployEventsByEnv(ctx context.Context, tenantID, env st
 		limit = 1000
 	}
 	var events []models.DeployEvent
-	err := r.db.SelectContext(ctx, &events,
+	err := r.TenantAwareRepository.Select(ctx, &events,
 		`SELECT * FROM deploy_events WHERE tenant_id=$1 AND env=$2 ORDER BY started_at DESC LIMIT $3`,
 		tenantID, env, limit)
 	return events, err
@@ -1162,7 +1167,7 @@ func (r *Repository) ListDeployEventsByActor(ctx context.Context, tenantID, acto
 		limit = 1000
 	}
 	var events []models.DeployEvent
-	err := r.db.SelectContext(ctx, &events,
+	err := r.TenantAwareRepository.Select(ctx, &events,
 		`SELECT * FROM deploy_events WHERE tenant_id=$1 AND actor_id=$2 ORDER BY started_at DESC LIMIT $3`,
 		tenantID, actorID, limit)
 	return events, err
@@ -1188,7 +1193,7 @@ func (r *Repository) CreateMergePreview(ctx context.Context, p *models.MergePrev
 
 func (r *Repository) GetMergePreview(ctx context.Context, tenantID, id string) (*models.MergePreview, error) {
 	var row mergePreviewRow
-	err := r.db.GetContext(ctx, &row, `SELECT * FROM merge_previews WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &row, `SELECT * FROM merge_previews WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sentinel.NotFound
 	}
@@ -1206,7 +1211,7 @@ func (r *Repository) ListMergePreviews(ctx context.Context, tenantID string, lim
 		limit = 1000
 	}
 	var rows []mergePreviewRow
-	if err := r.db.SelectContext(ctx, &rows,
+	if err := r.TenantAwareRepository.Select(ctx, &rows,
 		`SELECT * FROM merge_previews WHERE tenant_id=$1 ORDER BY previewed_at DESC LIMIT $2`,
 		tenantID, limit); err != nil {
 		return nil, err

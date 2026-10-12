@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -16,6 +17,7 @@ import (
 
 // ComplianceEvaluationRepository provides data access for compliance evaluations.
 type ComplianceEvaluationRepository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
@@ -168,6 +170,7 @@ func (r *ComplianceEvaluationRepository) CountByTenant(ctx context.Context, tena
 
 // ComplianceEvidenceRepository provides data access for compliance evidence.
 type ComplianceEvidenceRepository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
@@ -281,6 +284,7 @@ func (r *ComplianceEvidenceRepository) Update(ctx context.Context, id string, up
 
 // ComplianceRemediationRepository provides data access for compliance remediations.
 type ComplianceRemediationRepository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 

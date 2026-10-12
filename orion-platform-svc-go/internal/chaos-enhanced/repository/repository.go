@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -16,11 +17,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // --- Experiments ---
@@ -50,7 +55,7 @@ func (r *Repository) CreateExperiment(ctx context.Context, e *models.Experiment)
 
 func (r *Repository) GetExperiment(ctx context.Context, id string, tenantID string) (*models.Experiment, error) {
 	var e models.Experiment
-	err := r.db.GetContext(ctx, &e,
+	err := r.TenantAwareRepository.Get(ctx, &e,
 		`SELECT * FROM chaos_experiments WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -72,7 +77,7 @@ func (r *Repository) ListExperiments(ctx context.Context, tenantID string, statu
 		args = append(args, *status)
 	}
 	var experiments []models.Experiment
-	err := r.db.SelectContext(ctx, &experiments,
+	err := r.TenantAwareRepository.Select(ctx, &experiments,
 		fmt.Sprintf(`SELECT * FROM chaos_experiments %s ORDER BY created_at DESC`, where), args...)
 	return experiments, err
 }
@@ -94,7 +99,7 @@ func (r *Repository) UpdateExperiment(ctx context.Context, id string, tenantID s
 	args = append(args, id, tenantID)
 	query := fmt.Sprintf(`UPDATE chaos_experiments SET %s WHERE id=$%d AND tenant_id=$%d`,
 		strings.Join(setClauses, ", "), i, i+1)
-	result, err := r.db.ExecContext(ctx, query, args...)
+	result, err := r.TenantAwareRepository.Exec(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -14,11 +15,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 func (r *Repository) CreateRule(ctx context.Context, tenantID string, req *models.CreateRuleRequest) (*models.ClassificationRule, error) {
@@ -44,7 +49,7 @@ func (r *Repository) CreateRule(ctx context.Context, tenantID string, req *model
 
 func (r *Repository) ListRules(ctx context.Context, tenantID string) ([]models.ClassificationRule, error) {
 	var items []models.ClassificationRule
-	err := r.db.SelectContext(ctx, &items, `SELECT * FROM classification_rules WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
+	err := r.TenantAwareRepository.Select(ctx, &items, `SELECT * FROM classification_rules WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +61,7 @@ func (r *Repository) ListRules(ctx context.Context, tenantID string) ([]models.C
 
 func (r *Repository) GetRule(ctx context.Context, tenantID, id string) (*models.ClassificationRule, error) {
 	var rule models.ClassificationRule
-	err := r.db.GetContext(ctx, &rule, `SELECT * FROM classification_rules WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &rule, `SELECT * FROM classification_rules WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sentinel.NotFound
 	}
@@ -64,7 +69,7 @@ func (r *Repository) GetRule(ctx context.Context, tenantID, id string) (*models.
 }
 
 func (r *Repository) DeleteRule(ctx context.Context, tenantID, id string) error {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM classification_rules WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	res, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM classification_rules WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return err
 	}
@@ -90,7 +95,7 @@ func (r *Repository) Classify(ctx context.Context, tenantID string, resource *mo
 
 func (r *Repository) GetClassification(ctx context.Context, tenantID, resourceID string) (*models.ClassifiedResource, error) {
 	var cr models.ClassifiedResource
-	err := r.db.GetContext(ctx, &cr, `SELECT * FROM classified_resources WHERE resource_id=$1 AND tenant_id=$2 ORDER BY created_at DESC LIMIT 1`, resourceID, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &cr, `SELECT * FROM classified_resources WHERE resource_id=$1 AND tenant_id=$2 ORDER BY created_at DESC LIMIT 1`, resourceID, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sentinel.NotFound
 	}

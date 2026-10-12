@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"fmt"
 	"strconv"
@@ -16,11 +17,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 func (r *Repository) Create(ctx context.Context, item *models.Degradation) error {
@@ -35,14 +40,14 @@ func (r *Repository) Create(ctx context.Context, item *models.Degradation) error
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.Degradation, error) {
 	var item models.Degradation
-	err := r.db.GetContext(ctx, &item,
+	err := r.TenantAwareRepository.Get(ctx, &item,
 		fmt.Sprintf(`SELECT * FROM degradations WHERE id=$1 AND tenant_id=$2`), id, tenantID)
 	return &item, err
 }
 
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.Degradation, error) {
 	var items []models.Degradation
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		fmt.Sprintf(`SELECT * FROM degradations WHERE tenant_id=$1 ORDER BY created_at DESC`), tenantID)
 	return items, err
 }
@@ -61,7 +66,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 		i++
 	}
 	args = append(args, id, tenantID)
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		fmt.Sprintf(`UPDATE degradations SET %s WHERE id=$%d AND tenant_id=$%d`,
 			strings.Join(clauses, ", "), i, i+1), args...)
 	if err != nil {
@@ -71,7 +76,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		fmt.Sprintf(`DELETE FROM degradations WHERE id=$1 AND tenant_id=$2`), id, tenantID)
 	if err != nil {
 		return false, err

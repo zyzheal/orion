@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -17,11 +18,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // getOne runs a single-row SELECT and turns the driver's sql.ErrNoRows into
@@ -32,7 +37,7 @@ func NewRepository(db *sqlx.DB) *Repository {
 // branches in the handlers were dead code and a missing row answered 500 with
 // "sql: no rows" in the admin UI.
 func (r *Repository) getOne(ctx context.Context, dest any, query string, args ...any) error {
-	err := r.db.GetContext(ctx, dest, query, args...)
+	err := r.TenantAwareRepository.Get(ctx, dest, query, args...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return sentinel.NotFound
 	}
@@ -154,7 +159,7 @@ func (r *Repository) ListCommands(ctx context.Context, tenantID string, permissi
 		argIdx += 3
 	}
 	var items []models.ChatOpsCommand
-	err := r.db.SelectContext(ctx, &items, sql, args...)
+	err := r.TenantAwareRepository.Select(ctx, &items, sql, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +194,7 @@ func (r *Repository) UpdateCommand(ctx context.Context, tenantID, id string, upd
 }
 
 func (r *Repository) DeleteCommand(ctx context.Context, tenantID, id string) error {
-	res, err := r.db.ExecContext(ctx,
+	res, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM chatops_commands WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return err
@@ -220,7 +225,7 @@ func (r *Repository) GetExecution(ctx context.Context, tenantID, id string) (*mo
 
 func (r *Repository) UpdateExecutionStatus(ctx context.Context, tenantID, id, status string) error {
 	now := time.Now().UTC()
-	res, err := r.db.ExecContext(ctx,
+	res, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE chatops_executions SET status=$1, updated_at=$2 WHERE id=$3 AND tenant_id=$4`,
 		status, now, id, tenantID)
 	if err != nil {
@@ -250,7 +255,7 @@ func (r *Repository) ListExecutions(ctx context.Context, tenantID string, comman
 		argIdx += 3
 	}
 	var items []models.Execution
-	err := r.db.SelectContext(ctx, &items, sql, args...)
+	err := r.TenantAwareRepository.Select(ctx, &items, sql, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -301,7 +306,7 @@ func (r *Repository) ListAuditLogs(ctx context.Context, tenantID string, q *mode
 		argIdx += 3
 	}
 	var items []models.AuditLog
-	err := r.db.SelectContext(ctx, &items, sql, args...)
+	err := r.TenantAwareRepository.Select(ctx, &items, sql, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +315,7 @@ func (r *Repository) ListAuditLogs(ctx context.Context, tenantID string, q *mode
 
 func (r *Repository) AuditLogStats(ctx context.Context, tenantID string) (map[string]interface{}, error) {
 	var total int
-	err := r.db.GetContext(ctx, &total, `SELECT COUNT(*) FROM chatops_audit_logs WHERE tenant_id=$1`, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &total, `SELECT COUNT(*) FROM chatops_audit_logs WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -374,7 +379,7 @@ func (r *Repository) UpsertDNDSettings(ctx context.Context, m *models.DNDSetting
 
 func (r *Repository) GetPlatformConfigs(ctx context.Context, tenantID, userID string) ([]models.PlatformConfig, error) {
 	var items []models.PlatformConfig
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT `+platformConfigColumns+` FROM chatops_platform_configs WHERE tenant_id=$1 AND user_id=$2`, tenantID, userID)
 	if err != nil {
 		return nil, err
@@ -408,7 +413,7 @@ func (r *Repository) UpsertPlatformConfigs(ctx context.Context, tenantID, userID
 
 func (r *Repository) GetAlertStates(ctx context.Context, tenantID, userID string) ([]models.AlertState, error) {
 	var items []models.AlertState
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT `+alertStateColumns+` FROM chatops_alert_states WHERE tenant_id=$1 AND user_id=$2`, tenantID, userID)
 	if err != nil {
 		return nil, err
@@ -440,7 +445,7 @@ func (r *Repository) UpdateAlertState(ctx context.Context, tenantID, userID, ale
 
 func (r *Repository) GetQuestionConfigs(ctx context.Context, tenantID, userID string) ([]models.QuestionConfig, error) {
 	var items []models.QuestionConfig
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT `+questionConfigColumns+` FROM chatops_question_configs WHERE tenant_id=$1 AND user_id=$2 ORDER BY created_at`, tenantID, userID)
 	if err != nil {
 		return nil, err
@@ -471,7 +476,7 @@ func (r *Repository) UpsertQuestionConfigs(ctx context.Context, tenantID, userID
 
 func (r *Repository) GetCommandConfigs(ctx context.Context, tenantID, userID string) ([]models.CommandConfig, error) {
 	var items []models.CommandConfig
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT `+commandConfigColumns+` FROM chatops_command_configs WHERE tenant_id=$1 AND user_id=$2 ORDER BY created_at`, tenantID, userID)
 	if err != nil {
 		return nil, err
@@ -505,11 +510,11 @@ func (r *Repository) UpsertCommandConfigs(ctx context.Context, tenantID, userID 
 func (r *Repository) GetAllCapabilityMappings(ctx context.Context, tenantID string, environment *string) ([]models.CapabilityMapping, error) {
 	var items []models.CapabilityMapping
 	if environment != nil && *environment != "" {
-		err := r.db.SelectContext(ctx, &items,
+		err := r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT `+capabilityColumns+` FROM chatops_capability_mappings WHERE tenant_id=$1 AND environment=$2`, tenantID, *environment)
 		return items, err
 	}
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT `+capabilityColumns+` FROM chatops_capability_mappings WHERE tenant_id=$1`, tenantID)
 	return items, err
 }
@@ -547,7 +552,7 @@ func (r *Repository) UpdateCapabilityMapping(ctx context.Context, tenantID, id s
 }
 
 func (r *Repository) DeleteCapabilityMapping(ctx context.Context, tenantID, id string) error {
-	res, err := r.db.ExecContext(ctx,
+	res, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM chatops_capability_mappings WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return err
@@ -559,7 +564,7 @@ func (r *Repository) DeleteCapabilityMapping(ctx context.Context, tenantID, id s
 
 func (r *Repository) GetAllApprovalConfigs(ctx context.Context, tenantID string) ([]models.ApprovalConfig, error) {
 	var items []models.ApprovalConfig
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT `+approvalConfigColumns+` FROM chatops_approval_configs WHERE tenant_id=$1`, tenantID)
 	return items, err
 }
@@ -616,14 +621,14 @@ func (r *Repository) BatchUpdateApprovalConfigs(ctx context.Context, tenantID st
 
 func (r *Repository) GetApprovers(ctx context.Context, tenantID string) ([]models.Approver, error) {
 	var items []models.Approver
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT `+approverColumns+` FROM chatops_approvers WHERE tenant_id=$1`, tenantID)
 	return items, err
 }
 
 func (r *Repository) GetApproverSchedule(ctx context.Context, tenantID string) ([]models.ApproverSchedule, error) {
 	var items []models.ApproverSchedule
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT `+approverScheduleColumns+` FROM chatops_approver_schedule WHERE tenant_id=$1`, tenantID)
 	return items, err
 }
@@ -685,7 +690,7 @@ func (r *Repository) UpsertGlobalApprovalConfig(ctx context.Context, tenantID st
 
 func (r *Repository) GetAllRoles(ctx context.Context, tenantID string) ([]models.PermissionRole, error) {
 	var items []models.PermissionRole
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT `+roleColumns+` FROM chatops_permission_roles WHERE tenant_id=$1 ORDER BY name`, tenantID)
 	if err != nil {
 		return nil, err
@@ -729,7 +734,7 @@ func (r *Repository) UpdateRole(ctx context.Context, tenantID, id string, update
 }
 
 func (r *Repository) DeleteRole(ctx context.Context, tenantID, id string) error {
-	res, err := r.db.ExecContext(ctx,
+	res, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM chatops_permission_roles WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return err
@@ -741,7 +746,7 @@ func (r *Repository) DeleteRole(ctx context.Context, tenantID, id string) error 
 
 func (r *Repository) GetAllCommandPermissions(ctx context.Context, tenantID string) ([]models.CommandPermission, error) {
 	var items []models.CommandPermission
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT `+commandPermissionColumns+` FROM chatops_command_permissions WHERE tenant_id=$1 ORDER BY command`, tenantID)
 	if err != nil {
 		return nil, err
@@ -792,7 +797,7 @@ func (r *Repository) UpdateCommandPermission(ctx context.Context, tenantID, id s
 }
 
 func (r *Repository) DeleteCommandPermission(ctx context.Context, tenantID, id string) error {
-	res, err := r.db.ExecContext(ctx,
+	res, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM chatops_command_permissions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return err
@@ -804,7 +809,7 @@ func (r *Repository) DeleteCommandPermission(ctx context.Context, tenantID, id s
 
 func (r *Repository) GetAllEnvironmentPermissions(ctx context.Context, tenantID string) ([]models.EnvironmentPermission, error) {
 	var items []models.EnvironmentPermission
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT `+environmentPermissionColumns+` FROM chatops_environment_permissions WHERE tenant_id=$1 ORDER BY environment`, tenantID)
 	if err != nil {
 		return nil, err
@@ -857,7 +862,7 @@ func (r *Repository) UpdateEnvironmentPermission(ctx context.Context, tenantID, 
 }
 
 func (r *Repository) DeleteEnvironmentPermission(ctx context.Context, tenantID, id string) error {
-	res, err := r.db.ExecContext(ctx,
+	res, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM chatops_environment_permissions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return err
@@ -869,13 +874,13 @@ func (r *Repository) DeleteEnvironmentPermission(ctx context.Context, tenantID, 
 
 func (r *Repository) GetAllCommandVersions(ctx context.Context, tenantID string, limit, offset int) ([]models.CommandVersion, int, error) {
 	var items []models.CommandVersion
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT `+commandVersionColumns+` FROM chatops_command_versions WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, tenantID, limit, offset)
 	if err != nil {
 		return nil, 0, err
 	}
 	var total int
-	err = r.db.GetContext(ctx, &total,
+	err = r.TenantAwareRepository.Get(ctx, &total,
 		`SELECT COUNT(*) FROM chatops_command_versions WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return nil, 0, err
@@ -885,7 +890,7 @@ func (r *Repository) GetAllCommandVersions(ctx context.Context, tenantID string,
 
 func (r *Repository) GetVersionsByCommand(ctx context.Context, tenantID, commandID string) ([]models.CommandVersion, error) {
 	var items []models.CommandVersion
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT `+commandVersionColumns+` FROM chatops_command_versions WHERE tenant_id=$1 AND command_id=$2 ORDER BY created_at DESC`, tenantID, commandID)
 	return items, err
 }
@@ -920,7 +925,7 @@ func (r *Repository) AddTag(ctx context.Context, tenantID, versionID, tagName, c
 // delete in the module that is meant to be idempotent, and
 // TestSource_EveryIDScopedWriteChecksRowsAffected keeps the rest honest.
 func (r *Repository) RemoveTag(ctx context.Context, tenantID, versionID, tagName string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM chatops_command_version_tags WHERE tenant_id=$1 AND version_id=$2 AND tag_name=$3`, tenantID, versionID, tagName)
 	return err
 }
@@ -935,7 +940,7 @@ func (r *Repository) GetCommandVersion(ctx context.Context, tenantID, id string)
 }
 
 func (r *Repository) DeleteCommandVersion(ctx context.Context, tenantID, id string) error {
-	res, err := r.db.ExecContext(ctx,
+	res, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM chatops_command_versions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return err
@@ -947,7 +952,7 @@ func (r *Repository) DeleteCommandVersion(ctx context.Context, tenantID, id stri
 
 func (r *Repository) GetAllRateLimits(ctx context.Context, tenantID string) ([]models.RateLimit, error) {
 	var items []models.RateLimit
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT `+rateLimitColumns+` FROM chatops_rate_limits WHERE tenant_id=$1 ORDER BY created_at`, tenantID)
 	if err != nil {
 		return nil, err
@@ -1003,7 +1008,7 @@ func (r *Repository) UpdateRateLimit(ctx context.Context, tenantID, id string, u
 }
 
 func (r *Repository) DeleteRateLimit(ctx context.Context, tenantID, id string) error {
-	res, err := r.db.ExecContext(ctx,
+	res, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM chatops_rate_limits WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return err
@@ -1015,7 +1020,7 @@ func (r *Repository) DeleteRateLimit(ctx context.Context, tenantID, id string) e
 
 func (r *Repository) GetAllWebhooks(ctx context.Context, tenantID string) ([]models.Webhook, error) {
 	var items []models.Webhook
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT `+webhookColumns+` FROM chatops_webhooks WHERE tenant_id=$1 ORDER BY created_at`, tenantID)
 	if err != nil {
 		return nil, err
@@ -1075,7 +1080,7 @@ func (r *Repository) UpdateWebhook(ctx context.Context, tenantID, id string, upd
 }
 
 func (r *Repository) DeleteWebhook(ctx context.Context, tenantID, id string) error {
-	res, err := r.db.ExecContext(ctx,
+	res, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM chatops_webhooks WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return err
@@ -1126,7 +1131,7 @@ func (r *Repository) InsertWebhookLog(
 	tenantID, webhookID, status, responseBody, errMsg string,
 	durationMS int64,
 ) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO chatops_webhook_logs (id, tenant_id, webhook_id, status, response_body, error, duration_ms, created_at)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())`,
 		uuid.New().String(), tenantID, webhookID, status, responseBody, errMsg, durationMS)
@@ -1139,18 +1144,18 @@ func (r *Repository) GetDashboardStats(ctx context.Context, tenantID string, day
 	since := time.Now().UTC().AddDate(0, 0, -days)
 
 	var totalCommands int
-	r.db.GetContext(ctx, &totalCommands, `SELECT COUNT(*) FROM chatops_commands WHERE tenant_id=$1`, tenantID)
+	r.TenantAwareRepository.Get(ctx, &totalCommands, `SELECT COUNT(*) FROM chatops_commands WHERE tenant_id=$1`, tenantID)
 
 	var totalExecutions int
-	r.db.GetContext(ctx, &totalExecutions,
+	r.TenantAwareRepository.Get(ctx, &totalExecutions,
 		`SELECT COUNT(*) FROM chatops_executions WHERE tenant_id=$1 AND start_time >= $2`, tenantID, since)
 
 	var completed int
-	r.db.GetContext(ctx, &completed,
+	r.TenantAwareRepository.Get(ctx, &completed,
 		`SELECT COUNT(*) FROM chatops_executions WHERE tenant_id=$1 AND status=$2 AND start_time >= $3`, tenantID, "completed", since)
 
 	var failed int
-	r.db.GetContext(ctx, &failed,
+	r.TenantAwareRepository.Get(ctx, &failed,
 		`SELECT COUNT(*) FROM chatops_executions WHERE tenant_id=$1 AND status=$2 AND start_time >= $3`, tenantID, "failed", since)
 
 	var successRate float64
@@ -1163,7 +1168,7 @@ func (r *Repository) GetDashboardStats(ctx context.Context, tenantID string, day
 		`SELECT command_id, COUNT(*) as count FROM chatops_executions WHERE tenant_id=$1 AND start_time >= $2 GROUP BY command_id ORDER BY count DESC LIMIT 5`, tenantID, since)
 
 	var activeUsers int
-	r.db.GetContext(ctx, &activeUsers,
+	r.TenantAwareRepository.Get(ctx, &activeUsers,
 		`SELECT COUNT(DISTINCT user_id) FROM chatops_executions WHERE tenant_id=$1 AND start_time >= $2`, tenantID, since)
 
 	return &models.DashboardStatsResult{
@@ -1179,7 +1184,7 @@ func (r *Repository) GetDashboardStats(ctx context.Context, tenantID string, day
 
 func (r *Repository) GetUserAllowedCommands(ctx context.Context, tenantID, userID string) ([]string, error) {
 	var commands []string
-	err := r.db.SelectContext(ctx, &commands,
+	err := r.TenantAwareRepository.Select(ctx, &commands,
 		`SELECT DISTINCT command FROM chatops_command_permissions WHERE tenant_id=$1`, tenantID)
 	return commands, err
 }
@@ -1188,7 +1193,7 @@ func (r *Repository) GetUserAllowedCommands(ctx context.Context, tenantID, userI
 
 func (r *Repository) HealthCheck(ctx context.Context) (*models.HealthCheckResult, error) {
 	var ping string
-	err := r.db.GetContext(ctx, &ping, `SELECT NOW()`)
+	err := r.TenantAwareRepository.Get(ctx, &ping, `SELECT NOW()`)
 	status := "up"
 	if err != nil {
 		status = "down"
@@ -1206,7 +1211,7 @@ func (r *Repository) HealthCheck(ctx context.Context) (*models.HealthCheckResult
 
 func (r *Repository) GetKnowledgeRecommendations(ctx context.Context, tenantID string, context string, limit int) ([]models.KnowledgeRecommendation, error) {
 	var items []models.KnowledgeRecommendation
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT `+knowledgeColumns+` FROM chatops_knowledge_recommendations WHERE tenant_id=$1 AND (context=$2 OR context='general') ORDER BY created_at DESC LIMIT $3`, tenantID, context, limit)
 	if err != nil {
 		return nil, err
@@ -1232,13 +1237,13 @@ func (r *Repository) GetSessionMessages(ctx context.Context, tenantID, sessionID
 	}
 	if cursor != nil && *cursor != "" {
 		var items []models.ChatOpsMessage
-		err := r.db.SelectContext(ctx, &items,
+		err := r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT `+messageColumns+` FROM chatops_messages WHERE tenant_id=$1 AND session_id=$2 AND created_at < $3 ORDER BY created_at DESC LIMIT $4`,
 			tenantID, sessionID, *cursor, limit)
 		return items, err
 	}
 	var items []models.ChatOpsMessage
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT `+messageColumns+` FROM chatops_messages WHERE tenant_id=$1 AND session_id=$2 ORDER BY created_at DESC LIMIT $3`,
 		tenantID, sessionID, limit)
 	return items, err

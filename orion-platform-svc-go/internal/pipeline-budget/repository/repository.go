@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -21,12 +22,16 @@ var errNotFound = errors.New("pipeline budget not found")
 //	pipeline_budgets       — one row per pipeline (JSONB for limits/alerts/period)
 //	pipeline_budget_history — append-only history records
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 // NewRepository creates a new Repository instance.
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // Create inserts a new budget row for a pipeline.

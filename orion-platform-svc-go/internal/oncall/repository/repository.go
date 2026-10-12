@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -14,12 +15,17 @@ import (
 )
 
 type OnCallRepository struct {
+	internalrepo.TenantAwareRepository[any]
 	db     *sqlx.DB
 	logger *zap.Logger
 }
 
 func NewOnCallRepository(db *sqlx.DB, logger *zap.Logger) *OnCallRepository {
-	return &OnCallRepository{db: db, logger: logger}
+	return &OnCallRepository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+		logger:                logger,
+	}
 }
 
 // CreateSchedule creates a new on-call schedule.

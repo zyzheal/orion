@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"fmt"
@@ -17,12 +18,16 @@ import (
 // It is intentionally minimal: a Job and its child ValidationError rows.  Large
 // result sets live in the async layer (SSE / progress polling), not here.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 // NewRepository creates a repository bound to the given database connection.
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // ===================================================================

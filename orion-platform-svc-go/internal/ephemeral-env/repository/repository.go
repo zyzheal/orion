@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"time"
 
@@ -11,11 +12,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // --- EphemeralEnv ---
@@ -32,7 +37,7 @@ func (r *Repository) CreateEnv(ctx context.Context, env *models.EphemeralEnv) er
 
 func (r *Repository) GetEnv(ctx context.Context, tenantID, id string) (*models.EphemeralEnv, error) {
 	var env models.EphemeralEnv
-	err := r.db.GetContext(ctx, &env,
+	err := r.TenantAwareRepository.Get(ctx, &env,
 		`SELECT * FROM ephemeral_env WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -45,14 +50,14 @@ func (r *Repository) ListEnvs(ctx context.Context, tenantID string, limit, offse
 		limit = 50
 	}
 	var items []models.EphemeralEnv
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM ephemeral_env WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, tenantID, limit, offset)
 	return items, err
 }
 
 func (r *Repository) CountEnvs(ctx context.Context, tenantID string) (int, error) {
 	var count int
-	err := r.db.GetContext(ctx, &count,
+	err := r.TenantAwareRepository.Get(ctx, &count,
 		`SELECT COUNT(*) FROM ephemeral_env WHERE tenant_id=$1`, tenantID)
 	return count, err
 }
@@ -67,7 +72,7 @@ func (r *Repository) UpdateEnv(ctx context.Context, tenantID, id string, updates
 }
 
 func (r *Repository) DeleteEnv(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM ephemeral_env WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
@@ -88,7 +93,7 @@ func (r *Repository) GetEnvLogs(ctx context.Context, tenantID, envID string, lim
 		limit = 100
 	}
 	var items []models.EnvLog
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT l.* FROM ephemeral_env_logs l
 		JOIN ephemeral_env e ON l.env_id = e.id
 		WHERE l.env_id=$1 AND e.tenant_id=$2 ORDER BY l.created_at DESC LIMIT $3`, envID, tenantID, limit)

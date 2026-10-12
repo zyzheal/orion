@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"fmt"
 	"strings"
@@ -15,11 +16,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // --- Accounts ---
@@ -37,7 +42,7 @@ func (r *Repository) CreateAccount(ctx context.Context, account *models.Account)
 
 func (r *Repository) GetAccountByID(ctx context.Context, tenantID, id string) (*models.Account, error) {
 	var account models.Account
-	err := r.db.GetContext(ctx, &account,
+	err := r.TenantAwareRepository.Get(ctx, &account,
 		`SELECT * FROM billing_accounts WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return &account, err
 }
@@ -51,7 +56,7 @@ func (r *Repository) ListAccounts(ctx context.Context, tenantID string, status *
 		args = append(args, *status)
 	}
 	var accounts []models.Account
-	err := r.db.SelectContext(ctx, &accounts,
+	err := r.TenantAwareRepository.Select(ctx, &accounts,
 		fmt.Sprintf(`SELECT * FROM billing_accounts %s ORDER BY created_at DESC`, where), args...)
 	return accounts, err
 }
@@ -70,7 +75,7 @@ func (r *Repository) UpdateAccount(ctx context.Context, tenantID, id string, upd
 		i++
 	}
 	args = append(args, id, tenantID)
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		fmt.Sprintf(`UPDATE billing_accounts SET %s WHERE id=$%d AND tenant_id=$%d`,
 			strings.Join(setClauses, ", "), i, i+1), args...)
 	if err != nil {
@@ -83,7 +88,7 @@ func (r *Repository) UpdateAccount(ctx context.Context, tenantID, id string, upd
 }
 
 func (r *Repository) DeleteAccount(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM billing_accounts WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return false, err
@@ -107,7 +112,7 @@ func (r *Repository) CreateInvoice(ctx context.Context, invoice *models.Invoice)
 
 func (r *Repository) GetInvoiceByID(ctx context.Context, tenantID, id string) (*models.Invoice, error) {
 	var invoice models.Invoice
-	err := r.db.GetContext(ctx, &invoice,
+	err := r.TenantAwareRepository.Get(ctx, &invoice,
 		`SELECT * FROM billing_invoices WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return &invoice, err
 }
@@ -145,7 +150,7 @@ func (r *Repository) ListInvoices(ctx context.Context, tenantID string, filter *
 	}
 
 	var invoices []models.Invoice
-	err := r.db.SelectContext(ctx, &invoices,
+	err := r.TenantAwareRepository.Select(ctx, &invoices,
 		fmt.Sprintf(`SELECT * FROM billing_invoices %s ORDER BY created_at DESC`, where), args...)
 	if err != nil {
 		return nil, 0, err
@@ -168,7 +173,7 @@ func (r *Repository) ListInvoices(ctx context.Context, tenantID string, filter *
 		}
 	}
 	var total int
-	err = r.db.GetContext(ctx, &total,
+	err = r.TenantAwareRepository.Get(ctx, &total,
 		fmt.Sprintf(`SELECT COUNT(*) FROM billing_invoices %s`, countWhere), countArgs...)
 	if err != nil {
 		return nil, 0, err
@@ -190,7 +195,7 @@ func (r *Repository) UpdateInvoice(ctx context.Context, tenantID, id string, upd
 		i++
 	}
 	args = append(args, id, tenantID)
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		fmt.Sprintf(`UPDATE billing_invoices SET %s WHERE id=$%d AND tenant_id=$%d`,
 			strings.Join(setClauses, ", "), i, i+1), args...)
 	if err != nil {
@@ -203,7 +208,7 @@ func (r *Repository) UpdateInvoice(ctx context.Context, tenantID, id string, upd
 }
 
 func (r *Repository) DeleteInvoice(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM billing_invoices WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return false, err
@@ -226,7 +231,7 @@ func (r *Repository) CreateLineItem(ctx context.Context, item *models.LineItem) 
 
 func (r *Repository) ListLineItemsByInvoice(ctx context.Context, tenantID, invoiceID string) ([]models.LineItem, error) {
 	var items []models.LineItem
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT li.* FROM billing_line_items li
 		 JOIN billing_invoices bi ON li.invoice_id = bi.id
 		 WHERE bi.tenant_id=$1 AND li.invoice_id=$2
@@ -249,7 +254,7 @@ func (r *Repository) CreateSubscription(ctx context.Context, sub *models.Subscri
 
 func (r *Repository) GetSubscriptionByID(ctx context.Context, tenantID, id string) (*models.Subscription, error) {
 	var sub models.Subscription
-	err := r.db.GetContext(ctx, &sub,
+	err := r.TenantAwareRepository.Get(ctx, &sub,
 		`SELECT * FROM billing_subscriptions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return &sub, err
 }
@@ -263,7 +268,7 @@ func (r *Repository) ListSubscriptions(ctx context.Context, tenantID string, sta
 		args = append(args, *status)
 	}
 	var subs []models.Subscription
-	err := r.db.SelectContext(ctx, &subs,
+	err := r.TenantAwareRepository.Select(ctx, &subs,
 		fmt.Sprintf(`SELECT * FROM billing_subscriptions %s ORDER BY created_at DESC`, where), args...)
 	return subs, err
 }
@@ -282,7 +287,7 @@ func (r *Repository) UpdateSubscription(ctx context.Context, tenantID, id string
 		i++
 	}
 	args = append(args, id, tenantID)
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		fmt.Sprintf(`UPDATE billing_subscriptions SET %s WHERE id=$%d AND tenant_id=$%d`,
 			strings.Join(setClauses, ", "), i, i+1), args...)
 	if err != nil {
@@ -295,7 +300,7 @@ func (r *Repository) UpdateSubscription(ctx context.Context, tenantID, id string
 }
 
 func (r *Repository) DeleteSubscription(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM billing_subscriptions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return false, err
@@ -309,31 +314,31 @@ func (r *Repository) DeleteSubscription(ctx context.Context, tenantID, id string
 func (r *Repository) GetBillingStats(ctx context.Context, tenantID string) (*models.BillingStats, error) {
 	stats := &models.BillingStats{}
 
-	err := r.db.GetContext(ctx, &stats.TotalInvoices,
+	err := r.TenantAwareRepository.Get(ctx, &stats.TotalInvoices,
 		`SELECT COUNT(*) FROM billing_invoices WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = r.db.GetContext(ctx, &stats.TotalAmount,
+	err = r.TenantAwareRepository.Get(ctx, &stats.TotalAmount,
 		`SELECT COALESCE(SUM(total), 0) FROM billing_invoices WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = r.db.GetContext(ctx, &stats.OverdueAmount,
+	err = r.TenantAwareRepository.Get(ctx, &stats.OverdueAmount,
 		`SELECT COALESCE(SUM(total), 0) FROM billing_invoices WHERE tenant_id=$1 AND status='overdue'`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = r.db.GetContext(ctx, &stats.PaidAmount,
+	err = r.TenantAwareRepository.Get(ctx, &stats.PaidAmount,
 		`SELECT COALESCE(SUM(total), 0) FROM billing_invoices WHERE tenant_id=$1 AND status='paid'`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = r.db.GetContext(ctx, &stats.ActiveAccounts,
+	err = r.TenantAwareRepository.Get(ctx, &stats.ActiveAccounts,
 		`SELECT COUNT(*) FROM billing_accounts WHERE tenant_id=$1 AND status='active'`, tenantID)
 	if err != nil {
 		return nil, err

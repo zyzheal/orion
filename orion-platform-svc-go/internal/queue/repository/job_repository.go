@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -18,6 +19,7 @@ import (
 var ErrJobNotFound = errors.New("job not found")
 
 type JobRepository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 

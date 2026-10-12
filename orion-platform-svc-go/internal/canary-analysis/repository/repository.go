@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"fmt"
 	"strings"
@@ -13,11 +14,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 func (r *Repository) Create(ctx context.Context, entity *models.Analysis) error {
@@ -34,7 +39,7 @@ func (r *Repository) Create(ctx context.Context, entity *models.Analysis) error 
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.Analysis, error) {
 	var entity models.Analysis
-	err := r.db.GetContext(ctx, &entity,
+	err := r.TenantAwareRepository.Get(ctx, &entity,
 		`SELECT * FROM canary_analyses WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -44,7 +49,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.Analysis, error) {
 	var entities []models.Analysis
-	err := r.db.SelectContext(ctx, &entities,
+	err := r.TenantAwareRepository.Select(ctx, &entities,
 		`SELECT * FROM canary_analyses WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
 	return entities, err
 }
@@ -63,7 +68,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, attrs map[
 	args = append(args, id, tenantID)
 	query := fmt.Sprintf("UPDATE canary_analyses SET %s WHERE id=$%d AND tenant_id=$%d",
 		strings.Join(set, ", "), idIdx, tenantIdx)
-	_, err := r.db.ExecContext(ctx, query, args...)
+	_, err := r.TenantAwareRepository.Exec(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +76,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, attrs map[
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM canary_analyses WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return false, err

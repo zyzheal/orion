@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"fmt"
 	"strings"
@@ -15,11 +16,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 func (r *Repository) Create(ctx context.Context, entity *models.ApmEntry) error {
@@ -36,7 +41,7 @@ func (r *Repository) Create(ctx context.Context, entity *models.ApmEntry) error 
 
 func (r *Repository) GetByID(ctx context.Context, id, tenantID string) (*models.ApmEntry, error) {
 	var entity models.ApmEntry
-	err := r.db.GetContext(ctx, &entity,
+	err := r.TenantAwareRepository.Get(ctx, &entity,
 		`SELECT * FROM apm_entries WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -46,7 +51,7 @@ func (r *Repository) GetByID(ctx context.Context, id, tenantID string) (*models.
 
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.ApmEntry, error) {
 	var entities []models.ApmEntry
-	err := r.db.SelectContext(ctx, &entities,
+	err := r.TenantAwareRepository.Select(ctx, &entities,
 		`SELECT * FROM apm_entries WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
 	if err != nil {
 		return nil, err
@@ -72,7 +77,7 @@ func (r *Repository) Update(ctx context.Context, id, tenantID string, attrs map[
 	args = append(args, id, tenantID)
 	query := fmt.Sprintf("UPDATE apm_entries SET %s WHERE id=$%d AND tenant_id=$%d",
 		strings.Join(set, ", "), idIdx, tenantIdx)
-	result, err := r.db.ExecContext(ctx, query, args...)
+	result, err := r.TenantAwareRepository.Exec(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +89,7 @@ func (r *Repository) Update(ctx context.Context, id, tenantID string, attrs map[
 }
 
 func (r *Repository) Delete(ctx context.Context, id, tenantID string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM apm_entries WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return false, err

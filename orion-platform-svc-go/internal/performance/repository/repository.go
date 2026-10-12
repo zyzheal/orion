@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -27,11 +28,15 @@ import (
 //	    convention used by 100/106/145 (branch_policy_records,
 //	    capacity_records, middleware_ops_records).
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 func (r *Repository) CreateBaseline(ctx context.Context, tenantID string, b *models.Baseline) (*models.Baseline, error) {

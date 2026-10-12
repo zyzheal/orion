@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -13,6 +14,7 @@ import (
 )
 
 type AutoRecoveryRepository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 

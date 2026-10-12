@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -14,6 +15,7 @@ import (
 )
 
 type ArtifactVersionRepository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 

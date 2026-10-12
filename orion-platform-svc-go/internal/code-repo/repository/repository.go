@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -20,11 +21,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // --- Adapters ---
@@ -32,7 +37,7 @@ func NewRepository(db *sqlx.DB) *Repository {
 // ListAdapters returns all configured source control adapters.
 func (r *Repository) ListAdapters(ctx context.Context) ([]models.CodeRepoAdapter, error) {
 	var items []models.CodeRepoAdapter
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT id, name, type, status, created_at FROM code_repo_adapters ORDER BY name`)
 	return items, err
 }
@@ -42,7 +47,7 @@ func (r *Repository) ListAdapters(ctx context.Context) ([]models.CodeRepoAdapter
 // ListRepositories returns all repos for a given adapter.
 func (r *Repository) ListRepositories(ctx context.Context, adapterID string) ([]models.CodeRepo, error) {
 	var items []models.CodeRepo
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT adapter_id, repo_id, name, full_name, url, is_private, default_branch, created_at
 		 FROM code_repo_repos WHERE adapter_id=$1 ORDER BY name`,
 		adapterID)
@@ -52,7 +57,7 @@ func (r *Repository) ListRepositories(ctx context.Context, adapterID string) ([]
 // GetRepository returns a single repo.
 func (r *Repository) GetRepository(ctx context.Context, adapterID, repoID string) (*models.CodeRepo, error) {
 	var m models.CodeRepo
-	err := r.db.GetContext(ctx, &m,
+	err := r.TenantAwareRepository.Get(ctx, &m,
 		`SELECT adapter_id, repo_id, name, full_name, url, is_private, default_branch, created_at
 		 FROM code_repo_repos WHERE adapter_id=$1 AND repo_id=$2`,
 		adapterID, repoID)
@@ -67,7 +72,7 @@ func (r *Repository) GetRepository(ctx context.Context, adapterID, repoID string
 // ListBranches returns all branches for a repo.
 func (r *Repository) ListBranches(ctx context.Context, adapterID, repoID string) ([]models.Branch, error) {
 	var items []models.Branch
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT name, default, commit_sha, last_updated
 		 FROM code_repo_branches WHERE adapter_id=$1 AND repo_id=$2 ORDER BY name`,
 		adapterID, repoID)
@@ -76,7 +81,7 @@ func (r *Repository) ListBranches(ctx context.Context, adapterID, repoID string)
 
 // CreateBranch inserts a new branch record.
 func (r *Repository) CreateBranch(ctx context.Context, adapterID, repoID, name string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO code_repo_branches (adapter_id, repo_id, name, commit_sha, default, last_updated)
 		 VALUES ($1, $2, $3, '', false, NOW())
 		 ON CONFLICT (adapter_id, repo_id, name) DO NOTHING`,
@@ -86,7 +91,7 @@ func (r *Repository) CreateBranch(ctx context.Context, adapterID, repoID, name s
 
 // DeleteBranch removes a branch record.
 func (r *Repository) DeleteBranch(ctx context.Context, adapterID, repoID, name string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM code_repo_branches WHERE adapter_id=$1 AND repo_id=$2 AND name=$3`,
 		adapterID, repoID, name)
 	return err
@@ -98,7 +103,7 @@ func (r *Repository) DeleteBranch(ctx context.Context, adapterID, repoID, name s
 func (r *Repository) ListPullRequests(ctx context.Context, adapterID, repoID string, state *string) ([]models.PullRequest, error) {
 	var items []models.PullRequest
 	if state != nil && *state != "" {
-		err := r.db.SelectContext(ctx, &items,
+		err := r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT pr_id, title, body, state, source_branch, target_branch, creator,
 			   created_at, updated_at, assignees
 			 FROM code_repo_pull_requests
@@ -107,7 +112,7 @@ func (r *Repository) ListPullRequests(ctx context.Context, adapterID, repoID str
 			adapterID, repoID, *state)
 		return items, err
 	}
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT pr_id, title, body, state, source_branch, target_branch, creator,
 		   created_at, updated_at, assignees
 		 FROM code_repo_pull_requests
@@ -120,7 +125,7 @@ func (r *Repository) ListPullRequests(ctx context.Context, adapterID, repoID str
 // GetPullRequest returns a single PR by ID.
 func (r *Repository) GetPullRequest(ctx context.Context, adapterID, repoID, prID string) (*models.PullRequest, error) {
 	var m models.PullRequest
-	err := r.db.GetContext(ctx, &m,
+	err := r.TenantAwareRepository.Get(ctx, &m,
 		`SELECT pr_id, title, body, state, source_branch, target_branch, creator,
 		   created_at, updated_at, assignees
 		 FROM code_repo_pull_requests
@@ -144,7 +149,7 @@ func (r *Repository) CreatePullRequest(ctx context.Context, adapterID, repoID st
 		assigneesJSON = string(b)
 	}
 	var m models.PullRequest
-	err := r.db.GetContext(ctx, &m,
+	err := r.TenantAwareRepository.Get(ctx, &m,
 		`SELECT pr_id, title, body, state, source_branch, target_branch, creator,
 		   created_at, updated_at, assignees
 		 FROM (INSERT INTO code_repo_pull_requests
@@ -199,7 +204,7 @@ func (r *Repository) UpdatePullRequest(ctx context.Context, adapterID, repoID, p
 	lastIdx := idx + 2
 	query := fmt.Sprintf(`UPDATE code_repo_pull_requests SET %s WHERE adapter_id=$%d AND repo_id=$%d AND pr_id=$%d`,
 		strings.Join(setParts, ", "), whereIdx, nextIdx, lastIdx)
-	_, err := r.db.ExecContext(ctx, query, args...)
+	_, err := r.TenantAwareRepository.Exec(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +213,7 @@ func (r *Repository) UpdatePullRequest(ctx context.Context, adapterID, repoID, p
 
 // MergePullRequest marks a PR as merged.
 func (r *Repository) MergePullRequest(ctx context.Context, adapterID, repoID, prID string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE code_repo_pull_requests SET state='merged', updated_at=NOW()
 		 WHERE adapter_id=$1 AND repo_id=$2 AND pr_id=$3`,
 		adapterID, repoID, prID)
@@ -217,7 +222,7 @@ func (r *Repository) MergePullRequest(ctx context.Context, adapterID, repoID, pr
 
 // ClosePullRequest marks a PR as closed.
 func (r *Repository) ClosePullRequest(ctx context.Context, adapterID, repoID, prID string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE code_repo_pull_requests SET state='closed', updated_at=NOW()
 		 WHERE adapter_id=$1 AND repo_id=$2 AND pr_id=$3`,
 		adapterID, repoID, prID)
@@ -230,7 +235,7 @@ func (r *Repository) ClosePullRequest(ctx context.Context, adapterID, repoID, pr
 func (r *Repository) AddReview(ctx context.Context, adapterID, repoID, prID, userID, username, state, body string) (*models.Review, error) {
 	var m models.Review
 	now := time.Now().UTC()
-	err := r.db.GetContext(ctx, &m,
+	err := r.TenantAwareRepository.Get(ctx, &m,
 		`SELECT id, pr_id, user_id, username, state, body, created_at
 		 FROM (INSERT INTO code_repo_reviews
 			(adapter_id, repo_id, pr_id, user_id, username, state, body, created_at)
@@ -246,7 +251,7 @@ func (r *Repository) AddReview(ctx context.Context, adapterID, repoID, prID, use
 // ListReviews returns all reviews for a PR.
 func (r *Repository) ListReviews(ctx context.Context, adapterID, repoID, prID string) ([]models.Review, error) {
 	var items []models.Review
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT id, pr_id, user_id, username, state, body, created_at
 		 FROM code_repo_reviews
 		 WHERE adapter_id=$1 AND repo_id=$2 AND pr_id=$3
@@ -261,7 +266,7 @@ func (r *Repository) ListReviews(ctx context.Context, adapterID, repoID, prID st
 func (r *Repository) AddComment(ctx context.Context, adapterID, repoID, prID, userID, username, body, path, commitSHA string, line int) (*models.Comment, error) {
 	var m models.Comment
 	now := time.Now().UTC()
-	err := r.db.GetContext(ctx, &m,
+	err := r.TenantAwareRepository.Get(ctx, &m,
 		`SELECT id, pr_id, user_id, username, body, path, line, commit_sha, created_at
 		 FROM (INSERT INTO code_repo_comments
 			(adapter_id, repo_id, pr_id, user_id, username, body, path, line, commit_sha, created_at)
@@ -277,7 +282,7 @@ func (r *Repository) AddComment(ctx context.Context, adapterID, repoID, prID, us
 // ListComments returns all comments for a PR.
 func (r *Repository) ListComments(ctx context.Context, adapterID, repoID, prID string) ([]models.Comment, error) {
 	var items []models.Comment
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT id, pr_id, user_id, username, body, path, line, commit_sha, created_at
 		 FROM code_repo_comments
 		 WHERE adapter_id=$1 AND repo_id=$2 AND pr_id=$3
@@ -294,7 +299,7 @@ func (r *Repository) ListCommits(ctx context.Context, adapterID, repoID string, 
 		limit = 20
 	}
 	var items []models.Commit
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT sha, message, author, committer, date, url, parents, added, modified, removed
 		 FROM code_repo_commits
 		 WHERE adapter_id=$1 AND repo_id=$2
@@ -307,7 +312,7 @@ func (r *Repository) ListCommits(ctx context.Context, adapterID, repoID string, 
 // GetCommit returns a single commit by SHA.
 func (r *Repository) GetCommit(ctx context.Context, adapterID, repoID, sha string) (*models.Commit, error) {
 	var m models.Commit
-	err := r.db.GetContext(ctx, &m,
+	err := r.TenantAwareRepository.Get(ctx, &m,
 		`SELECT sha, message, author, committer, date, url, parents, added, modified, removed
 		 FROM code_repo_commits
 		 WHERE adapter_id=$1 AND repo_id=$2 AND sha=$3`,
@@ -324,14 +329,14 @@ func (r *Repository) GetCommit(ctx context.Context, adapterID, repoID, sha strin
 func (r *Repository) GetFileDiff(ctx context.Context, adapterID, repoID, base, head, path string) ([]models.FileDiff, error) {
 	var items []models.FileDiff
 	if path != "" {
-		err := r.db.SelectContext(ctx, &items,
+		err := r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT filename, status, old_filename, patch
 			 FROM code_repo_diffs
 			 WHERE adapter_id=$1 AND repo_id=$2 AND base=$3 AND head=$4 AND filename=$5`,
 			adapterID, repoID, base, head, path)
 		return items, err
 	}
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT filename, status, old_filename, patch
 		 FROM code_repo_diffs
 		 WHERE adapter_id=$1 AND repo_id=$2 AND base=$3 AND head=$4`,
@@ -347,7 +352,7 @@ func (r *Repository) ListCodeOwners(ctx context.Context, repoID string) ([]model
 	if repoID == "" {
 		return items, nil
 	}
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT pattern, owners
 		 FROM code_repo_codeowners
 		 WHERE repo_id=$1
@@ -379,7 +384,7 @@ func (r *Repository) ListWebhookLogs(ctx context.Context, limit, offset int) ([]
 	          FROM code_repo_webhook_logs
 	          ORDER BY created_at DESC
 	          LIMIT $1 OFFSET $2`
-	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+	rows, err := r.TenantAwareRepository.Query(ctx, query, limit, offset)
 	if err != nil {
 		// Gracefully handle the case where the table does not yet exist
 		// (migration not applied in dev/test environments).
@@ -426,7 +431,7 @@ func (r *Repository) ListWebhookLogs(ctx context.Context, limit, offset int) ([]
 func (r *Repository) UpsertWebhookSecret(ctx context.Context, repoID, secret string) (*models.WebhookSecret, error) {
 	now := time.Now().UTC()
 	var db models.WebhookSecret
-	err := r.db.GetContext(ctx, &db,
+	err := r.TenantAwareRepository.Get(ctx, &db,
 		`SELECT id, repo_id, secret, created_at, updated_at
 		 FROM (INSERT INTO code_repo_webhook_secrets (repo_id, secret, created_at, updated_at)
 			 VALUES ($1, $2, $3, $4)
@@ -442,7 +447,7 @@ func (r *Repository) UpsertWebhookSecret(ctx context.Context, repoID, secret str
 // GetWebhookSecret returns the secret for a repo.
 func (r *Repository) GetWebhookSecret(ctx context.Context, repoID string) (*models.WebhookSecret, error) {
 	var db models.WebhookSecret
-	err := r.db.GetContext(ctx, &db,
+	err := r.TenantAwareRepository.Get(ctx, &db,
 		`SELECT id, repo_id, secret, created_at, updated_at
 		 FROM code_repo_webhook_secrets WHERE repo_id=$1`,
 		repoID)

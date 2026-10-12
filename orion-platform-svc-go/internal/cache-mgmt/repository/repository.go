@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"errors"
 	"time"
@@ -13,12 +14,16 @@ import (
 
 // Repository handles persistent storage for CacheConfig and CacheStats.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 // NewRepository creates a new repository backed by the given database.
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // --- CacheConfig CRUD ---
@@ -37,7 +42,7 @@ func (r *Repository) CreateConfig(ctx context.Context, cfg *models.CacheConfig) 
 // GetConfigByID returns a cache config by its ID scoped to the tenant.
 func (r *Repository) GetConfigByID(ctx context.Context, tenantID, id string) (*models.CacheConfig, error) {
 	var cfg models.CacheConfig
-	err := r.db.GetContext(ctx, &cfg,
+	err := r.TenantAwareRepository.Get(ctx, &cfg,
 		`SELECT * FROM cache_configs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -51,7 +56,7 @@ func (r *Repository) ListConfigs(ctx context.Context, tenantID string, limit, of
 		limit = 50
 	}
 	var configs []models.CacheConfig
-	err := r.db.SelectContext(ctx, &configs,
+	err := r.TenantAwareRepository.Select(ctx, &configs,
 		`SELECT * FROM cache_configs WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, tenantID, limit, offset)
 	if err != nil {
 		return nil, err
@@ -86,7 +91,7 @@ func (r *Repository) UpdateConfig(ctx context.Context, tenantID, id string, upda
 
 // DeleteConfig removes a cache config by ID scoped to the tenant.
 func (r *Repository) DeleteConfig(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM cache_configs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
@@ -94,7 +99,7 @@ func (r *Repository) DeleteConfig(ctx context.Context, tenantID, id string) erro
 // IsEnabled checks whether a cache config is enabled.
 func (r *Repository) IsEnabled(ctx context.Context, id string) (bool, error) {
 	var enabled bool
-	err := r.db.GetContext(ctx, &enabled,
+	err := r.TenantAwareRepository.Get(ctx, &enabled,
 		`SELECT enabled FROM cache_configs WHERE id=$1`, id)
 	if err != nil {
 		return false, err
@@ -132,7 +137,7 @@ func (r *Repository) UpsertStats(ctx context.Context, stats *models.CacheStats) 
 // GetStatsByConfig returns all stats rows for a given config.
 func (r *Repository) GetStatsByConfig(ctx context.Context, configID string) ([]models.CacheStats, error) {
 	var stats []models.CacheStats
-	err := r.db.SelectContext(ctx, &stats,
+	err := r.TenantAwareRepository.Select(ctx, &stats,
 		`SELECT * FROM cache_stats WHERE config_id=$1 ORDER BY last_access DESC`, configID)
 	if err != nil {
 		return nil, err
@@ -143,7 +148,7 @@ func (r *Repository) GetStatsByConfig(ctx context.Context, configID string) ([]m
 // GetStatsByKey returns the stats row for a specific config+key.
 func (r *Repository) GetStatsByKey(ctx context.Context, configID, key string) (*models.CacheStats, error) {
 	var s models.CacheStats
-	err := r.db.GetContext(ctx, &s,
+	err := r.TenantAwareRepository.Get(ctx, &s,
 		`SELECT * FROM cache_stats WHERE config_id=$1 AND key=$2`, configID, key)
 	if err != nil {
 		return nil, err
@@ -153,7 +158,7 @@ func (r *Repository) GetStatsByKey(ctx context.Context, configID, key string) (*
 
 // DeleteStatsByConfig removes all stats rows for a config.
 func (r *Repository) DeleteStatsByConfig(ctx context.Context, configID string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM cache_stats WHERE config_id=$1`, configID)
 	return err
 }

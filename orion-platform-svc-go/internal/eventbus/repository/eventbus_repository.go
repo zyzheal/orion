@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 
@@ -12,6 +13,7 @@ import (
 
 // EventBusRepository provides data access for the Event Bus domain.
 type EventBusRepository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -14,11 +15,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 func (r *Repository) SaveMetrics(ctx context.Context, m *models.CacheMetrics) error {
@@ -66,7 +71,7 @@ func (r *Repository) GetMetrics(ctx context.Context, name string) (*models.Cache
 		return nil, nil
 	}
 	var m models.CacheMetrics
-	err := r.db.GetContext(ctx, &m,
+	err := r.TenantAwareRepository.Get(ctx, &m,
 		`SELECT id, cache_name, cache_type, connections_active, connections_total,
 		 memory_used, memory_total, hit_count, miss_count, eviction_count, key_count,
 		 expiration_count, avg_latency_ms, p95_latency_ms, status, last_collected_at
@@ -85,7 +90,7 @@ func (r *Repository) ListMetrics(ctx context.Context) ([]*models.CacheMetrics, e
 		return nil, nil
 	}
 	var items []models.CacheMetrics
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT id, cache_name, cache_type, connections_active, connections_total,
 		 memory_used, memory_total, hit_count, miss_count, eviction_count, key_count,
 		 expiration_count, avg_latency_ms, p95_latency_ms, status, last_collected_at
@@ -137,7 +142,7 @@ func (r *Repository) GetConfig(ctx context.Context, name string) (*models.CacheC
 		return nil, nil
 	}
 	var cfg models.CacheConfig
-	err := r.db.GetContext(ctx, &cfg,
+	err := r.TenantAwareRepository.Get(ctx, &cfg,
 		`SELECT id, cache_name, cache_type, host, port, collection_interval_sec, is_enabled, created_at, updated_at
 		 FROM cache_configs WHERE cache_name=$1`, name)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -154,7 +159,7 @@ func (r *Repository) ListConfigs(ctx context.Context) ([]*models.CacheConfig, er
 		return nil, nil
 	}
 	var items []models.CacheConfig
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT id, cache_name, cache_type, host, port, collection_interval_sec, is_enabled, created_at, updated_at
 		 FROM cache_configs ORDER BY cache_name`)
 	if err != nil {
@@ -171,6 +176,6 @@ func (r *Repository) DeleteConfig(ctx context.Context, name string) error {
 	if r.db == nil {
 		return nil
 	}
-	_, err := r.db.ExecContext(ctx, `DELETE FROM cache_configs WHERE cache_name=$1`, name)
+	_, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM cache_configs WHERE cache_name=$1`, name)
 	return err
 }

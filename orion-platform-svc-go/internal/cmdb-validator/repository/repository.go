@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -16,12 +17,16 @@ var errNotFound = errors.New("validation rule not found")
 
 // Repository provides PostgreSQL-backed persistence for CMDB validator rules and results.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 // NewRepository creates a new Repository instance.
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // ===========================================================================
@@ -30,7 +35,7 @@ func NewRepository(db *sqlx.DB) *Repository {
 
 // CreateRule inserts a new validation rule.
 func (r *Repository) CreateRule(ctx context.Context, rule *models.CMDBValidationRule) error {
-	_, err := r.db.ExecContext(ctx, `
+	_, err := r.TenantAwareRepository.Exec(ctx, `
 		INSERT INTO cmdb_validation_rules (id, tenant_id, name, category, target_type,
 			condition, error_message, severity, enabled, created_at, updated_at)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
@@ -44,7 +49,7 @@ func (r *Repository) CreateRule(ctx context.Context, rule *models.CMDBValidation
 // GetRuleByID retrieves a rule by id and tenant_id.
 func (r *Repository) GetRuleByID(ctx context.Context, tenantID, id string) (*models.CMDBValidationRule, error) {
 	var rule models.CMDBValidationRule
-	err := r.db.GetContext(ctx, &rule,
+	err := r.TenantAwareRepository.Get(ctx, &rule,
 		`SELECT * FROM cmdb_validation_rules WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err == sql.ErrNoRows {
 		return nil, errNotFound
@@ -78,7 +83,7 @@ func (r *Repository) ListRules(ctx context.Context, tenantID, category string, o
 	query += fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
 	args = append(args, limit, offset)
 
-	err := r.db.SelectContext(ctx, &items, query, args...)
+	err := r.TenantAwareRepository.Select(ctx, &items, query, args...)
 	return items, err
 }
 
@@ -91,13 +96,13 @@ func (r *Repository) CountRules(ctx context.Context, tenantID, category string) 
 		args = append(args, category)
 	}
 	var count int
-	err := r.db.GetContext(ctx, &count, query, args...)
+	err := r.TenantAwareRepository.Get(ctx, &count, query, args...)
 	return count, err
 }
 
 // UpdateRule updates an existing rule.
 func (r *Repository) UpdateRule(ctx context.Context, rule *models.CMDBValidationRule) error {
-	_, err := r.db.ExecContext(ctx, `
+	_, err := r.TenantAwareRepository.Exec(ctx, `
 		UPDATE cmdb_validation_rules
 		SET name=$1, category=$2, target_type=$3, condition=$4,
 			error_message=$5, severity=$6, enabled=$7, updated_at=NOW()
@@ -110,7 +115,7 @@ func (r *Repository) UpdateRule(ctx context.Context, rule *models.CMDBValidation
 
 // DeleteRule removes a rule by id and tenant_id.
 func (r *Repository) DeleteRule(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM cmdb_validation_rules WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
@@ -121,7 +126,7 @@ func (r *Repository) DeleteRule(ctx context.Context, tenantID, id string) error 
 
 // SaveResult inserts a validation result record.
 func (r *Repository) SaveResult(ctx context.Context, result *models.CMDBValidationResult) error {
-	_, err := r.db.ExecContext(ctx, `
+	_, err := r.TenantAwareRepository.Exec(ctx, `
 		INSERT INTO cmdb_validation_results (id, tenant_id, rule_id, target_id,
 			status, message, details, created_at)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
@@ -134,7 +139,7 @@ func (r *Repository) SaveResult(ctx context.Context, result *models.CMDBValidati
 // GetValidationHistory retrieves recent validation results for a target.
 func (r *Repository) GetValidationHistory(ctx context.Context, tenantID, targetID string, limit int) ([]models.CMDBValidationResult, error) {
 	var items []models.CMDBValidationResult
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM cmdb_validation_results WHERE tenant_id=$1 AND target_id=$2
 			ORDER BY created_at DESC LIMIT $3`,
 		tenantID, targetID, limit)
@@ -143,7 +148,7 @@ func (r *Repository) GetValidationHistory(ctx context.Context, tenantID, targetI
 
 // CountResultsByStatus counts results grouped by status for a target.
 func (r *Repository) CountResultsByStatus(ctx context.Context, tenantID, targetID string) (map[string]int, error) {
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := r.TenantAwareRepository.Query(ctx,
 		`SELECT status, COUNT(*) FROM cmdb_validation_results
 			WHERE tenant_id=$1 AND target_id=$2 GROUP BY status`,
 		tenantID, targetID)
@@ -196,7 +201,7 @@ func (r *Repository) CheckUniqueField(ctx context.Context, tenantID, field, valu
 			"SELECT TRUE FROM cmdb_cis WHERE tenant_id=$1 AND %s=$2 LIMIT 1",
 			sqlSafeIdentifier(field),
 		)
-		err := r.db.GetContext(ctx, &exists, ciSQL, tenantID, value)
+		err := r.TenantAwareRepository.Get(ctx, &exists, ciSQL, tenantID, value)
 		if errors.Is(err, sql.ErrNoRows) {
 			// Not found in CI table — continue to check attributes below.
 		} else if err != nil {
@@ -214,7 +219,7 @@ func (r *Repository) CheckUniqueField(ctx context.Context, tenantID, field, valu
 		JOIN cmdb_cis c ON av.ci_id = c.ci_id AND av.tenant_id = c.tenant_id
 		WHERE av.tenant_id = $1 AND av.attribute_id = $2 AND av.value = $3
 		LIMIT 1`
-	err := r.db.GetContext(ctx, &existsAttr, attrSQL, tenantID, field, value)
+	err := r.TenantAwareRepository.Get(ctx, &existsAttr, attrSQL, tenantID, field, value)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}

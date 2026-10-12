@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"time"
 
@@ -11,11 +12,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // Create inserts a new database DevOps operation
@@ -39,7 +44,7 @@ func (r *Repository) Get(ctx context.Context, tenantID, id string) (*models.Data
 		return nil, nil
 	}
 	item := &models.DatabaseDevopsItem{}
-	err := r.db.GetContext(ctx, item,
+	err := r.TenantAwareRepository.Get(ctx, item,
 		`SELECT id, tenant_id, name, description, type, status, database_id, config, result, enabled, created_at, updated_at
 		 FROM database_devops WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
@@ -54,7 +59,7 @@ func (r *Repository) List(ctx context.Context, tenantID string) ([]models.Databa
 		return []models.DatabaseDevopsItem{}, nil
 	}
 	var items []models.DatabaseDevopsItem
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT id, tenant_id, name, description, type, status, database_id, config, result, enabled, created_at, updated_at
 		 FROM database_devops WHERE tenant_id = $1 ORDER BY created_at DESC`, tenantID)
 	return items, err
@@ -78,7 +83,7 @@ func (r *Repository) UpdateStatus(ctx context.Context, tenantID, id, status stri
 	if r.db == nil {
 		return nil
 	}
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE database_devops SET status = $1, updated_at = $2 WHERE id = $3 AND tenant_id = $4`,
 		status, time.Now().UTC(), id, tenantID)
 	return err
@@ -89,7 +94,7 @@ func (r *Repository) UpdateResult(ctx context.Context, tenantID, id, result stri
 	if r.db == nil {
 		return nil
 	}
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE database_devops SET result = $1, updated_at = $2 WHERE id = $3 AND tenant_id = $4`,
 		result, time.Now().UTC(), id, tenantID)
 	return err
@@ -100,7 +105,7 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	if r.db == nil {
 		return nil
 	}
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM database_devops WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	return err
 }
@@ -126,7 +131,7 @@ func (r *Repository) ListDataSources(ctx context.Context, tenantID string) ([]mo
 		return []models.DatabaseSource{}, nil
 	}
 	var items []models.DatabaseSource
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT id, tenant_id, name, type, host, port, database, username, ssl_mode, status, created_at, updated_at
 		 FROM database_sources WHERE tenant_id = $1 ORDER BY created_at DESC`, tenantID)
 	return items, err
@@ -137,7 +142,7 @@ func (r *Repository) DeleteDataSource(ctx context.Context, tenantID, id string) 
 	if r.db == nil {
 		return nil
 	}
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM database_sources WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	return err
 }

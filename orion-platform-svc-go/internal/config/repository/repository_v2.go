@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"time"
 
@@ -13,12 +14,16 @@ import (
 // (drift, feature flags, git sync, approvals) that operate on key-value style
 // config tables, distinct from the existing Config-based repository.
 type RepositoryV2 struct {
+	internalrepo.TenantAwareRepository[any]
 	*Repository
 }
 
 // NewRepositoryV2 creates a V2 repository wrapping the base repository.
 func NewRepositoryV2(db *sqlx.DB) *RepositoryV2 {
-	return &RepositoryV2{Repository: NewRepository(db)}
+	return &RepositoryV2{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		Repository:            NewRepository(db),
+	}
 }
 
 // ==================== Drift Detection ====================

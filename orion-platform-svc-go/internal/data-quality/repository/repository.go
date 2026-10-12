@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"fmt"
 	"strings"
@@ -15,11 +16,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // --- Rules ---
@@ -38,7 +43,7 @@ func (r *Repository) CreateRule(ctx context.Context, rule *models.Rule) error {
 
 func (r *Repository) GetRuleByID(ctx context.Context, tenantID, id string) (*models.Rule, error) {
 	var rule models.Rule
-	err := r.db.GetContext(ctx, &rule,
+	err := r.TenantAwareRepository.Get(ctx, &rule,
 		`SELECT * FROM data_quality_rules WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return &rule, err
 }
@@ -71,7 +76,7 @@ func (r *Repository) ListRules(ctx context.Context, tenantID string, filter *mod
 	}
 
 	var rules []models.Rule
-	err := r.db.SelectContext(ctx, &rules,
+	err := r.TenantAwareRepository.Select(ctx, &rules,
 		fmt.Sprintf(`SELECT * FROM data_quality_rules %s ORDER BY created_at DESC`, where), args...)
 	return rules, err
 }
@@ -90,7 +95,7 @@ func (r *Repository) UpdateRule(ctx context.Context, tenantID, id string, update
 		i++
 	}
 	args = append(args, id, tenantID)
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		fmt.Sprintf(`UPDATE data_quality_rules SET %s WHERE id=$%d AND tenant_id=$%d`,
 			joinSetClauses(clauses), i, i+1), args...)
 	if err != nil {
@@ -100,7 +105,7 @@ func (r *Repository) UpdateRule(ctx context.Context, tenantID, id string, update
 }
 
 func (r *Repository) DeleteRule(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM data_quality_rules WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return false, err
@@ -130,7 +135,7 @@ func (r *Repository) ListScanResults(ctx context.Context, tenantID, ruleID strin
 		args = append(args, *status)
 	}
 	var results []models.ScanResult
-	err := r.db.SelectContext(ctx, &results,
+	err := r.TenantAwareRepository.Select(ctx, &results,
 		fmt.Sprintf(`SELECT * FROM quality_scan_results %s ORDER BY scan_date DESC`, where), args...)
 	return results, err
 }
@@ -151,7 +156,7 @@ func (r *Repository) CreateAlert(ctx context.Context, alert *models.Alert) error
 
 func (r *Repository) GetAlertByID(ctx context.Context, tenantID, id string) (*models.Alert, error) {
 	var a models.Alert
-	err := r.db.GetContext(ctx, &a,
+	err := r.TenantAwareRepository.Get(ctx, &a,
 		`SELECT * FROM quality_alerts WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return &a, err
 }
@@ -166,7 +171,7 @@ func (r *Repository) ListAlerts(ctx context.Context, tenantID string, status *st
 		argIdx++
 	}
 	var alerts []models.Alert
-	err := r.db.SelectContext(ctx, &alerts,
+	err := r.TenantAwareRepository.Select(ctx, &alerts,
 		fmt.Sprintf(`SELECT * FROM quality_alerts %s ORDER BY created_at DESC`, where), args...)
 	return alerts, err
 }
@@ -185,7 +190,7 @@ func (r *Repository) UpdateAlert(ctx context.Context, tenantID, id string, updat
 		i++
 	}
 	args = append(args, id, tenantID)
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		fmt.Sprintf(`UPDATE quality_alerts SET %s WHERE id=$%d AND tenant_id=$%d`,
 			joinSetClauses(clauses), i, i+1), args...)
 	if err != nil {
@@ -195,7 +200,7 @@ func (r *Repository) UpdateAlert(ctx context.Context, tenantID, id string, updat
 }
 
 func (r *Repository) DeleteAlert(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM quality_alerts WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return false, err
@@ -209,37 +214,37 @@ func (r *Repository) DeleteAlert(ctx context.Context, tenantID, id string) (bool
 func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.QualityStats, error) {
 	stats := &models.QualityStats{}
 
-	err := r.db.GetContext(ctx, &stats.TotalRules,
+	err := r.TenantAwareRepository.Get(ctx, &stats.TotalRules,
 		`SELECT COUNT(*) FROM data_quality_rules WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = r.db.GetContext(ctx, &stats.ActiveRules,
+	err = r.TenantAwareRepository.Get(ctx, &stats.ActiveRules,
 		`SELECT COUNT(*) FROM data_quality_rules WHERE tenant_id=$1 AND status='active'`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = r.db.GetContext(ctx, &stats.TotalScans,
+	err = r.TenantAwareRepository.Get(ctx, &stats.TotalScans,
 		`SELECT COUNT(*) FROM quality_scan_results WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = r.db.GetContext(ctx, &stats.AvgPassRate,
+	err = r.TenantAwareRepository.Get(ctx, &stats.AvgPassRate,
 		`SELECT COALESCE(AVG(pass_rate), 0) FROM quality_scan_results WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = r.db.GetContext(ctx, &stats.OpenAlerts,
+	err = r.TenantAwareRepository.Get(ctx, &stats.OpenAlerts,
 		`SELECT COUNT(*) FROM quality_alerts WHERE tenant_id=$1 AND status='open'`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = r.db.GetContext(ctx, &stats.CriticalAlerts,
+	err = r.TenantAwareRepository.Get(ctx, &stats.CriticalAlerts,
 		`SELECT COUNT(*) FROM quality_alerts WHERE tenant_id=$1 AND severity='critical'`, tenantID)
 
 	return stats, err
@@ -263,7 +268,7 @@ func (r *Repository) CreateQualityResult(ctx context.Context, result *models.Qua
 
 func (r *Repository) ListQualityResultsByTable(ctx context.Context, tenantID, tableName string) ([]models.QualityResult, error) {
 	var results []models.QualityResult
-	err := r.db.SelectContext(ctx, &results,
+	err := r.TenantAwareRepository.Select(ctx, &results,
 		`SELECT * FROM quality_results WHERE tenant_id=$1 AND table_name=$2 ORDER BY executed_at DESC`, tenantID, tableName)
 	return results, err
 }

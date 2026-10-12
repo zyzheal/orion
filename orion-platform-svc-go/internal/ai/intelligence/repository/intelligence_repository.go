@@ -1,14 +1,23 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"github.com/jmoiron/sqlx"
 	"orion/platform-svc-go/internal/ai/intelligence/models"
 )
 
-type Repository struct{ db *sqlx.DB }
+type Repository struct {
+	internalrepo.TenantAwareRepository[any]
+	db *sqlx.DB
+}
 
-func NewRepository(db *sqlx.DB) *Repository { return &Repository{db: db} }
+func NewRepository(db *sqlx.DB) *Repository {
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
+}
 
 func (r *Repository) Create(ctx context.Context, d *models.IntelligenceTask) error {
 	_, err := r.db.ExecContext(ctx, `INSERT INTO intelligence_tasks (id, tenant_id, name, insight_type, source, confidence, data, status, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,

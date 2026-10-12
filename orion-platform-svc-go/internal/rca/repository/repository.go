@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -30,12 +31,17 @@ type Repository interface {
 }
 
 type RCARespository struct {
+	internalrepo.TenantAwareRepository[any]
 	db     *sqlx.DB
 	logger *zap.Logger
 }
 
 func NewRCARespository(db *sqlx.DB, logger *zap.Logger) *RCARespository {
-	return &RCARespository{db: db, logger: logger}
+	return &RCARespository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+		logger:                logger,
+	}
 }
 
 // analysisCols is the SELECT list shared by GetAnalysis and

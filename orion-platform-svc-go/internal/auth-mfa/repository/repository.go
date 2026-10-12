@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"time"
 
@@ -13,11 +14,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 func (r *Repository) Create(ctx context.Context, device *models.MFADevice) error {
@@ -29,7 +34,7 @@ func (r *Repository) Create(ctx context.Context, device *models.MFADevice) error
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.MFADevice, error) {
 	var device models.MFADevice
-	err := r.db.GetContext(ctx, &device, `SELECT * FROM mfa_devices WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &device, `SELECT * FROM mfa_devices WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return nil, sentinel.NotFound
 	}
@@ -38,13 +43,13 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 
 func (r *Repository) ListByUser(ctx context.Context, tenantID, userID string) ([]models.MFADevice, error) {
 	var devices []models.MFADevice
-	err := r.db.SelectContext(ctx, &devices, `SELECT * FROM mfa_devices WHERE tenant_id = $1 AND user_id = $2 ORDER BY created_at DESC`, tenantID, userID)
+	err := r.TenantAwareRepository.Select(ctx, &devices, `SELECT * FROM mfa_devices WHERE tenant_id = $1 AND user_id = $2 ORDER BY created_at DESC`, tenantID, userID)
 	return devices, err
 }
 
 func (r *Repository) GetActiveDevice(ctx context.Context, tenantID, userID string) (*models.MFADevice, error) {
 	var device models.MFADevice
-	err := r.db.GetContext(ctx, &device, `SELECT * FROM mfa_devices WHERE tenant_id = $1 AND user_id = $2 AND status = 'active' LIMIT 1`, tenantID, userID)
+	err := r.TenantAwareRepository.Get(ctx, &device, `SELECT * FROM mfa_devices WHERE tenant_id = $1 AND user_id = $2 AND status = 'active' LIMIT 1`, tenantID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -52,12 +57,12 @@ func (r *Repository) GetActiveDevice(ctx context.Context, tenantID, userID strin
 }
 
 func (r *Repository) UpdateStatus(ctx context.Context, tenantID, id, status string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE mfa_devices SET status = $1 WHERE id = $2 AND tenant_id = $3`, status, id, tenantID)
+	_, err := r.TenantAwareRepository.Exec(ctx, `UPDATE mfa_devices SET status = $1 WHERE id = $2 AND tenant_id = $3`, status, id, tenantID)
 	return err
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM mfa_devices WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	result, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM mfa_devices WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return false, err
 	}

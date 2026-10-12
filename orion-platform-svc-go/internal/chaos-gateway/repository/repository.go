@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -22,11 +23,15 @@ var (
 
 // Repository persists chaos-experiment entities in PostgreSQL via sqlx.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // ---------- Experiment ----------
@@ -37,7 +42,7 @@ func (r *Repository) CreateExperiment(ctx context.Context, exp *models.ChaosExpe
 	exp.CreatedAt = now
 	exp.UpdatedAt = now
 
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO chaos_experiments
 		  (id, name, description, status, scenario, targets, duration, intensity,
 		   schedule, monitoring, safeguards, created_by, created_at, updated_at, started_at, completed_at, tenant_id)
@@ -53,7 +58,7 @@ func (r *Repository) CreateExperiment(ctx context.Context, exp *models.ChaosExpe
 
 func (r *Repository) GetExperiment(ctx context.Context, tenantID, id string) (*models.ChaosExperiment, error) {
 	var exp models.ChaosExperiment
-	err := r.db.GetContext(ctx, &exp,
+	err := r.TenantAwareRepository.Get(ctx, &exp,
 		`SELECT id, name, description, status, scenario, targets, duration, intensity,
 		   schedule, monitoring, safeguards, created_by, created_at, updated_at, started_at, completed_at, tenant_id
 		 FROM chaos_experiments WHERE id=$1 AND tenant_id=$2`, id, tenantID,
@@ -76,7 +81,7 @@ func (r *Repository) UpdateExperiment(ctx context.Context, tenantID, id string, 
 
 	now := models.UnixNow()
 	exp.UpdatedAt = now
-	_, err = r.db.ExecContext(ctx,
+	_, err = r.TenantAwareRepository.Exec(ctx,
 		`UPDATE chaos_experiments
 		   SET name=$1, description=$2, status=$3, targets=$4, duration=$5, intensity=$6,
 		       schedule=$7, monitoring=$8, safeguards=$9, updated_at=$10
@@ -89,7 +94,7 @@ func (r *Repository) UpdateExperiment(ctx context.Context, tenantID, id string, 
 
 func (r *Repository) UpdateStatus(ctx context.Context, tenantID, id string, status models.ExperimentStatus, completedAt *int64) error {
 	now := models.UnixNow()
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE chaos_experiments
 		   SET status=$1, completed_at=$2, updated_at=$3
 		 WHERE id=$4 AND tenant_id=$5`,
@@ -100,19 +105,19 @@ func (r *Repository) UpdateStatus(ctx context.Context, tenantID, id string, stat
 
 func (r *Repository) DeleteExperiment(ctx context.Context, tenantID, id string) error {
 	// Cascade: delete associated results and logs, then the experiment.
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM chaos_experiment_results WHERE experiment_id=$1 AND tenant_id=$2`, id, tenantID,
 	)
 	if err != nil {
 		return err
 	}
-	_, err = r.db.ExecContext(ctx,
+	_, err = r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM chaos_experiment_logs WHERE experiment_id=$1 AND tenant_id=$2`, id, tenantID,
 	)
 	if err != nil {
 		return err
 	}
-	_, err = r.db.ExecContext(ctx,
+	_, err = r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM chaos_experiments WHERE id=$1 AND tenant_id=$2`, id, tenantID,
 	)
 	return err
@@ -165,7 +170,7 @@ func (r *Repository) ListExperiments(ctx context.Context, tenantID string, q mod
 
 	// Count.
 	var total int
-	err := r.db.GetContext(ctx, &total, "SELECT COUNT(*) FROM chaos_experiments "+where, args...)
+	err := r.TenantAwareRepository.Get(ctx, &total, "SELECT COUNT(*) FROM chaos_experiments "+where, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -175,7 +180,7 @@ func (r *Repository) ListExperiments(ctx context.Context, tenantID string, q mod
 	query := fmt.Sprintf("SELECT id, name, description, status, scenario, targets, duration, intensity, schedule, monitoring, safeguards, created_by, created_at, updated_at, started_at, completed_at, tenant_id FROM chaos_experiments %s ORDER BY %s LIMIT $%d OFFSET $%d",
 		where, orderBy, arg, arg+1)
 	var exps []models.ChaosExperiment
-	err = r.db.SelectContext(ctx, &exps, query, selectArgs...)
+	err = r.TenantAwareRepository.Select(ctx, &exps, query, selectArgs...)
 	return exps, total, err
 }
 
@@ -208,7 +213,7 @@ func (r *Repository) CreateResult(ctx context.Context, res *models.ExperimentRes
 	if res.Recommendations == "" {
 		res.Recommendations = "[]"
 	}
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO chaos_experiment_results
 		  (id, experiment_id, status, start_time, end_time, duration,
 		   metrics, impacted_targets, recovery_time, detection_time,
@@ -228,13 +233,13 @@ func (r *Repository) ListResults(ctx context.Context, tenantID, experimentID str
 		limit = 20
 	}
 	var total int
-	err := r.db.GetContext(ctx, &total,
+	err := r.TenantAwareRepository.Get(ctx, &total,
 		`SELECT COUNT(*) FROM chaos_experiment_results WHERE experiment_id=$1 AND tenant_id=$2`, experimentID, tenantID)
 	if err != nil {
 		return nil, 0, err
 	}
 	var results []models.ExperimentResult
-	err = r.db.SelectContext(ctx, &results,
+	err = r.TenantAwareRepository.Select(ctx, &results,
 		`SELECT id, experiment_id, status, start_time, end_time, duration, metrics,
 		   impacted_targets, recovery_time, detection_time, insights, recommendations, tenant_id, created_at
 		 FROM chaos_experiment_results WHERE experiment_id=$1 AND tenant_id=$2
@@ -253,7 +258,7 @@ func (r *Repository) CreateLog(ctx context.Context, log *models.ExperimentLog) e
 	if log.Details == "" {
 		log.Details = "null"
 	}
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO chaos_experiment_logs
 		  (id, experiment_id, timestamp, level, message, details, tenant_id, created_at)
 		 VALUES
@@ -268,13 +273,13 @@ func (r *Repository) ListLogs(ctx context.Context, tenantID, experimentID string
 		limit = 100
 	}
 	var total int
-	err := r.db.GetContext(ctx, &total,
+	err := r.TenantAwareRepository.Get(ctx, &total,
 		`SELECT COUNT(*) FROM chaos_experiment_logs WHERE experiment_id=$1 AND tenant_id=$2`, experimentID, tenantID)
 	if err != nil {
 		return nil, 0, err
 	}
 	var logs []models.ExperimentLog
-	err = r.db.SelectContext(ctx, &logs,
+	err = r.TenantAwareRepository.Select(ctx, &logs,
 		`SELECT id, experiment_id, timestamp, level, message, details, tenant_id, created_at
 		 FROM chaos_experiment_logs WHERE experiment_id=$1 AND tenant_id=$2
 		 ORDER BY timestamp DESC, created_at DESC LIMIT $3 OFFSET $4`,

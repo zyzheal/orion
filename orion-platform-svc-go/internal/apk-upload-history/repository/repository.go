@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"strconv"
 	"strings"
@@ -15,15 +16,19 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 func (r *Repository) EnsureTable(ctx context.Context) error {
-	_, err := r.db.ExecContext(ctx, `
+	_, err := r.TenantAwareRepository.Exec(ctx, `
 	CREATE TABLE IF NOT EXISTS apk_uploads (
 		id UUID PRIMARY KEY,
 		tenant_id UUID NOT NULL,
@@ -66,7 +71,7 @@ func (r *Repository) Create(ctx context.Context, tenantID string, m *models.ApkU
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.ApkUploadRecord, error) {
 	var m models.ApkUploadRecord
-	err := r.db.GetContext(ctx, &m,
+	err := r.TenantAwareRepository.Get(ctx, &m,
 		`SELECT * FROM apk_uploads WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return nil, sentinel.NotFound
@@ -106,13 +111,13 @@ func (r *Repository) List(ctx context.Context, tenantID string, q models.ListQue
 	}
 
 	var total int
-	err := r.db.GetContext(ctx, &total, "SELECT COUNT(*) FROM apk_uploads "+cond, args...)
+	err := r.TenantAwareRepository.Get(ctx, &total, "SELECT COUNT(*) FROM apk_uploads "+cond, args...)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	var items []models.ApkUploadRecord
-	err = r.db.SelectContext(ctx, &items,
+	err = r.TenantAwareRepository.Select(ctx, &items,
 		cond+" ORDER BY created_at DESC LIMIT $"+strconv.Itoa(idx)+" OFFSET $"+strconv.Itoa(idx+1),
 		append(args, limit, offset)...)
 	return items, total, err
@@ -135,7 +140,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 	tenantIdx := i + 1
 	args = append(args, id, tenantID)
 	query := "UPDATE apk_uploads SET " + strings.Join(set, ", ") + " WHERE id=$" + strconv.Itoa(idIdx) + " AND tenant_id=$" + strconv.Itoa(tenantIdx)
-	_, err := r.db.ExecContext(ctx, query, args...)
+	_, err := r.TenantAwareRepository.Exec(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -143,14 +148,14 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM apk_uploads WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	return err
 }
 
 func (r *Repository) RecentFailures(ctx context.Context, tenantID string, limit int) ([]models.ApkUploadRecord, error) {
 	var items []models.ApkUploadRecord
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM apk_uploads WHERE tenant_id = $1 AND status = $2 ORDER BY created_at DESC LIMIT $3`,
 		tenantID, string(models.StatusFailed), limit)
 	return items, err
@@ -158,7 +163,7 @@ func (r *Repository) RecentFailures(ctx context.Context, tenantID string, limit 
 
 func (r *Repository) Stats(ctx context.Context, tenantID string) (*models.ApkUploadStats, error) {
 	stats := &models.ApkUploadStats{}
-	err := r.db.GetContext(ctx, stats, `
+	err := r.TenantAwareRepository.Get(ctx, stats, `
 		SELECT
 			COUNT(*) AS total_uploads,
 			SUM(CASE WHEN status = 'uploaded' THEN 1 ELSE 0 END) AS success_count,
@@ -174,7 +179,7 @@ func (r *Repository) Stats(ctx context.Context, tenantID string) (*models.ApkUpl
 
 func (r *Repository) ExistsByVersion(ctx context.Context, tenantID, market, packageName, version string) (bool, error) {
 	var count int
-	err := r.db.GetContext(ctx, &count, `
+	err := r.TenantAwareRepository.Get(ctx, &count, `
 		SELECT COUNT(*) FROM apk_uploads
 		WHERE tenant_id = $1 AND market = $2 AND package_name = $3 AND version = $4`,
 		tenantID, market, packageName, version)

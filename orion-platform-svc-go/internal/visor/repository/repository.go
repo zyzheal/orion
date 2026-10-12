@@ -2,6 +2,7 @@ package repository
 
 import (
 	"github.com/jmoiron/sqlx"
+	// TenantAwareRepository-backed re-export of the internal visor repository.
 	internalrepo "orion/platform-svc-go/internal/visor/internal/repository"
 )
 

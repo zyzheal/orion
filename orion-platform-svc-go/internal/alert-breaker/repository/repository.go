@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"fmt"
 	"time"
@@ -14,11 +15,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 func (r *Repository) Create(ctx context.Context, a *models.AlertBreaker) error {
@@ -37,7 +42,7 @@ func (r *Repository) Create(ctx context.Context, a *models.AlertBreaker) error {
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.AlertBreaker, error) {
 	var a models.AlertBreaker
-	err := r.db.GetContext(ctx, &a, `SELECT * FROM alert_breakers WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &a, `SELECT * FROM alert_breakers WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return nil, sentinel.NotFound
 	}
@@ -46,12 +51,12 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.AlertBreaker, int, error) {
 	var items []models.AlertBreaker
-	err := r.db.SelectContext(ctx, &items, `SELECT * FROM alert_breakers WHERE tenant_id = $1 ORDER BY created_at DESC`, tenantID)
+	err := r.TenantAwareRepository.Select(ctx, &items, `SELECT * FROM alert_breakers WHERE tenant_id = $1 ORDER BY created_at DESC`, tenantID)
 	if err != nil {
 		return nil, 0, err
 	}
 	var total int
-	err = r.db.GetContext(ctx, &total, `SELECT COUNT(*) FROM alert_breakers WHERE tenant_id = $1`, tenantID)
+	err = r.TenantAwareRepository.Get(ctx, &total, `SELECT COUNT(*) FROM alert_breakers WHERE tenant_id = $1`, tenantID)
 	return items, total, err
 }
 
@@ -72,7 +77,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, fields map
 	idx++
 	args = append(args, id, tenantID)
 
-	result, err := r.db.ExecContext(ctx, fmt.Sprintf(`
+	result, err := r.TenantAwareRepository.Exec(ctx, fmt.Sprintf(`
 		UPDATE alert_breakers SET %s WHERE id = $%d AND tenant_id = $%d
 	`, setClauses, idx, idx+1), args...)
 	if err != nil {
@@ -86,7 +91,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, fields map
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM alert_breakers WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	result, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM alert_breakers WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return false, err
 	}

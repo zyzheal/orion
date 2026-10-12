@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"time"
 
@@ -11,11 +12,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // ---------- Artifact Operation ----------
@@ -31,7 +36,7 @@ func (r *Repository) CreateOperation(ctx context.Context, op *models.ArtifactOpe
 
 func (r *Repository) ListOperationsByArtifact(ctx context.Context, tenantID, artifactID string, limit, offset int) ([]models.ArtifactOperation, error) {
 	var items []models.ArtifactOperation
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM artifact_operations WHERE tenant_id=$1 AND artifact_id=$2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`,
 		tenantID, artifactID, limit, offset)
 	return items, err
@@ -43,7 +48,7 @@ func (r *Repository) ListOperationsByArtifact(ctx context.Context, tenantID, art
 // with no operation row is invisible to this module.
 func (r *Repository) ListArtifactIDs(ctx context.Context, tenantID string) ([]string, error) {
 	var ids []string
-	err := r.db.SelectContext(ctx, &ids,
+	err := r.TenantAwareRepository.Select(ctx, &ids,
 		`SELECT DISTINCT artifact_id FROM artifact_operations WHERE tenant_id=$1 ORDER BY artifact_id`,
 		tenantID)
 	return ids, err
@@ -53,7 +58,7 @@ func (r *Repository) ListArtifactIDs(ctx context.Context, tenantID string) ([]st
 // artifact and returns how many rows went. Callers use the count to report a
 // truthful deletion number instead of asserting success.
 func (r *Repository) DeleteOperationsByArtifact(ctx context.Context, tenantID, artifactID string) (int64, error) {
-	res, err := r.db.ExecContext(ctx,
+	res, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM artifact_operations WHERE tenant_id=$1 AND artifact_id=$2`,
 		tenantID, artifactID)
 	if err != nil {
@@ -66,7 +71,7 @@ func (r *Repository) DeleteOperationsByArtifact(ctx context.Context, tenantID, a
 
 func (r *Repository) GetArtifactStats(ctx context.Context, tenantID, artifactID string) (*models.ArtifactStats, error) {
 	var stats models.ArtifactStats
-	err := r.db.GetContext(ctx, &stats, `
+	err := r.TenantAwareRepository.Get(ctx, &stats, `
 		SELECT artifact_id, count(*) as total_ops,
 		       COALESCE((SELECT action FROM artifact_operations WHERE tenant_id=$1 AND artifact_id=$2 ORDER BY created_at DESC LIMIT 1), '') as last_action
 		FROM artifact_operations WHERE tenant_id=$1 AND artifact_id=$2 GROUP BY artifact_id
@@ -91,7 +96,7 @@ func (r *Repository) CreateScan(ctx context.Context, scan *models.ArtifactScan) 
 
 func (r *Repository) GetScanByID(ctx context.Context, tenantID, id string) (*models.ArtifactScan, error) {
 	var scan models.ArtifactScan
-	err := r.db.GetContext(ctx, &scan,
+	err := r.TenantAwareRepository.Get(ctx, &scan,
 		`SELECT * FROM artifact_scans WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -101,14 +106,14 @@ func (r *Repository) GetScanByID(ctx context.Context, tenantID, id string) (*mod
 
 func (r *Repository) ListScansByArtifact(ctx context.Context, tenantID, artifactID string) ([]models.ArtifactScan, error) {
 	var items []models.ArtifactScan
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM artifact_scans WHERE tenant_id=$1 AND artifact_id=$2 ORDER BY created_at DESC`,
 		tenantID, artifactID)
 	return items, err
 }
 
 func (r *Repository) UpdateScanStatus(ctx context.Context, tenantID, id, status, reportID, error string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE artifact_scans SET status=$1, report_id=$2, error=$3, updated_at=NOW() WHERE id=$4 AND tenant_id=$5`,
 		status, reportID, error, id, tenantID)
 	return err
@@ -127,7 +132,7 @@ func (r *Repository) CreateScanReport(ctx context.Context, report *models.ScanRe
 
 func (r *Repository) GetScanReportByID(ctx context.Context, tenantID, id string) (*models.ScanReport, error) {
 	var report models.ScanReport
-	err := r.db.GetContext(ctx, &report,
+	err := r.TenantAwareRepository.Get(ctx, &report,
 		`SELECT * FROM artifact_scan_reports WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -137,7 +142,7 @@ func (r *Repository) GetScanReportByID(ctx context.Context, tenantID, id string)
 
 func (r *Repository) GetScanReportsByArtifact(ctx context.Context, tenantID, artifactID string) ([]models.ScanReport, error) {
 	var items []models.ScanReport
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM artifact_scan_reports WHERE tenant_id=$1 AND artifact_id=$2 ORDER BY created_at DESC`,
 		tenantID, artifactID)
 	return items, err
@@ -157,14 +162,14 @@ func (r *Repository) CreatePolicy(ctx context.Context, policy *models.RetentionP
 
 func (r *Repository) ListPolicies(ctx context.Context, tenantID string) ([]models.RetentionPolicy, error) {
 	var items []models.RetentionPolicy
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM artifact_retention_policies WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
 	return items, err
 }
 
 func (r *Repository) GetPolicyByID(ctx context.Context, tenantID, id string) (*models.RetentionPolicy, error) {
 	var policy models.RetentionPolicy
-	err := r.db.GetContext(ctx, &policy,
+	err := r.TenantAwareRepository.Get(ctx, &policy,
 		`SELECT * FROM artifact_retention_policies WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -173,13 +178,13 @@ func (r *Repository) GetPolicyByID(ctx context.Context, tenantID, id string) (*m
 }
 
 func (r *Repository) DeletePolicy(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM artifact_retention_policies WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
 
 func (r *Repository) UpdatePolicyEnabled(ctx context.Context, tenantID, id string, enabled bool) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE artifact_retention_policies SET enabled=$1, updated_at=NOW() WHERE id=$2 AND tenant_id=$3`,
 		enabled, id, tenantID)
 	return err

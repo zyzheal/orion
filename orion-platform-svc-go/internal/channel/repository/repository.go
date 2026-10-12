@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"fmt"
 	"time"
@@ -14,11 +15,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 func (r *Repository) Create(ctx context.Context, channel *models.NotificationChannel) error {
@@ -36,7 +41,7 @@ func (r *Repository) Create(ctx context.Context, channel *models.NotificationCha
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.NotificationChannel, error) {
 	var channel models.NotificationChannel
-	err := r.db.GetContext(ctx, &channel, `SELECT * FROM notification_channels WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &channel, `SELECT * FROM notification_channels WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return nil, sentinel.NotFound
 	}
@@ -66,13 +71,13 @@ func (r *Repository) List(ctx context.Context, tenantID string, filter *models.C
 	}
 
 	var channels []models.NotificationChannel
-	err := r.db.SelectContext(ctx, &channels, fmt.Sprintf(`SELECT * FROM notification_channels %s ORDER BY created_at DESC`, where), args...)
+	err := r.TenantAwareRepository.Select(ctx, &channels, fmt.Sprintf(`SELECT * FROM notification_channels %s ORDER BY created_at DESC`, where), args...)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	var total int
-	err = r.db.GetContext(ctx, &total, `SELECT COUNT(*) FROM notification_channels WHERE tenant_id = $1`, tenantID)
+	err = r.TenantAwareRepository.Get(ctx, &total, `SELECT COUNT(*) FROM notification_channels WHERE tenant_id = $1`, tenantID)
 	return channels, total, err
 }
 
@@ -89,7 +94,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 		idx++
 	}
 	args = append(args, id, tenantID)
-	_, err := r.db.ExecContext(ctx, fmt.Sprintf(`
+	_, err := r.TenantAwareRepository.Exec(ctx, fmt.Sprintf(`
 		UPDATE notification_channels SET %s WHERE id = $%d AND tenant_id = $%d
 	`, setClauses, len(args)-1, len(args)), args...)
 	if err != nil {
@@ -99,7 +104,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM notification_channels WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	result, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM notification_channels WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return false, err
 	}
@@ -109,7 +114,7 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) (bool, err
 
 func (r *Repository) ListEnabledByType(ctx context.Context, tenantID, channelType string) ([]models.NotificationChannel, error) {
 	var channels []models.NotificationChannel
-	err := r.db.SelectContext(ctx, &channels, `
+	err := r.TenantAwareRepository.Select(ctx, &channels, `
 		SELECT * FROM notification_channels
 		WHERE tenant_id = $1 AND type = $2 AND enabled = true
 		ORDER BY created_at DESC

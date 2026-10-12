@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"fmt"
@@ -16,11 +17,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // --- Change Requests ---
@@ -38,7 +43,7 @@ func (r *Repository) CreateRequest(ctx context.Context, req *models.ChangeReques
 
 func (r *Repository) GetRequestByID(ctx context.Context, id string, tenantID string) (*models.ChangeRequest, error) {
 	var req models.ChangeRequest
-	err := r.db.GetContext(ctx, &req,
+	err := r.TenantAwareRepository.Get(ctx, &req,
 		`SELECT * FROM change_requests WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -68,7 +73,7 @@ func (r *Repository) ListRequests(ctx context.Context, tenantID string, filters 
 		}
 	}
 	var reqs []models.ChangeRequest
-	err := r.db.SelectContext(ctx, &reqs,
+	err := r.TenantAwareRepository.Select(ctx, &reqs,
 		fmt.Sprintf(`SELECT * FROM change_requests %s ORDER BY created_at DESC`, where), args...)
 	return reqs, err
 }
@@ -89,7 +94,7 @@ func (r *Repository) UpdateRequest(ctx context.Context, id string, tenantID stri
 	args = append(args, id, tenantID)
 	query := fmt.Sprintf(`UPDATE change_requests SET %s WHERE id=$%d AND tenant_id=$%d`,
 		strings.Join(setClauses, ", "), i, i+1)
-	result, err := r.db.ExecContext(ctx, query, args...)
+	result, err := r.TenantAwareRepository.Exec(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +106,7 @@ func (r *Repository) UpdateRequest(ctx context.Context, id string, tenantID stri
 }
 
 func (r *Repository) DeleteRequest(ctx context.Context, id string, tenantID string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM change_requests WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return false, err
@@ -128,7 +133,7 @@ func (r *Repository) CreateApproval(ctx context.Context, approval *models.Change
 
 func (r *Repository) GetApprovalChain(ctx context.Context, requestID string, tenantID string) ([]models.ChangeApproval, error) {
 	var approvals []models.ChangeApproval
-	err := r.db.SelectContext(ctx, &approvals,
+	err := r.TenantAwareRepository.Select(ctx, &approvals,
 		`SELECT a.* FROM change_approvals a
 		 JOIN change_requests r ON a.request_id = r.id
 		 WHERE a.request_id=$1 AND r.tenant_id=$2
@@ -141,7 +146,7 @@ func (r *Repository) GetApprovalChain(ctx context.Context, requestID string, ten
 
 func (r *Repository) GetApproval(ctx context.Context, approvalID string, requestID string, tenantID string) (*models.ChangeApproval, error) {
 	var approval models.ChangeApproval
-	err := r.db.GetContext(ctx, &approval,
+	err := r.TenantAwareRepository.Get(ctx, &approval,
 		`SELECT a.* FROM change_approvals a
 		 JOIN change_requests r ON a.request_id = r.id
 		 WHERE a.id=$1 AND a.request_id=$2 AND r.tenant_id=$3`, approvalID, requestID, tenantID)
@@ -152,7 +157,7 @@ func (r *Repository) GetApproval(ctx context.Context, approvalID string, request
 }
 
 func (r *Repository) UpdateApprovalDecision(ctx context.Context, approvalID string, tenantID string, decision string, comments *string) (*models.ChangeApproval, error) {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE change_approvals a
 		 SET decision = $1, comments = $2
 		 FROM change_requests r
@@ -162,7 +167,7 @@ func (r *Repository) UpdateApprovalDecision(ctx context.Context, approvalID stri
 		return nil, err
 	}
 	var approval models.ChangeApproval
-	err = r.db.GetContext(ctx, &approval,
+	err = r.TenantAwareRepository.Get(ctx, &approval,
 		`SELECT a.* FROM change_approvals a
 		 JOIN change_requests r ON a.request_id = r.id
 		 WHERE a.id=$1 AND r.tenant_id=$2`, approvalID, tenantID)
@@ -186,7 +191,7 @@ func (r *Repository) CreateExecution(ctx context.Context, execution *models.Exec
 
 func (r *Repository) GetExecutionProgress(ctx context.Context, requestID string, tenantID string) ([]models.ExecutionStep, error) {
 	var steps []models.ExecutionStep
-	err := r.db.SelectContext(ctx, &steps,
+	err := r.TenantAwareRepository.Select(ctx, &steps,
 		`SELECT e.* FROM change_executions e
 		 JOIN change_requests r ON e.request_id = r.id
 		 WHERE e.request_id=$1 AND r.tenant_id=$2
@@ -198,7 +203,7 @@ func (r *Repository) GetExecutionProgress(ctx context.Context, requestID string,
 }
 
 func (r *Repository) UpdateExecutionStep(ctx context.Context, stepID string, tenantID string, status string, result map[string]any, startedAt *time.Time, completedAt *time.Time) (*models.ExecutionStep, error) {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE change_executions e
 		 SET status = $1, started_at = $2, completed_at = $3
 		 FROM change_requests r
@@ -208,7 +213,7 @@ func (r *Repository) UpdateExecutionStep(ctx context.Context, stepID string, ten
 		return nil, err
 	}
 	var step models.ExecutionStep
-	err = r.db.GetContext(ctx, &step,
+	err = r.TenantAwareRepository.Get(ctx, &step,
 		`SELECT e.* FROM change_executions e
 		 JOIN change_requests r ON e.request_id = r.id
 		 WHERE e.id=$1 AND r.tenant_id=$2`, stepID, tenantID)

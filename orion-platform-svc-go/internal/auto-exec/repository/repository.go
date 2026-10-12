@@ -2,6 +2,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -17,11 +18,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -71,7 +76,7 @@ func (r *Repository) AutoMigrate(ctx context.Context) error {
 		)`,
 	}
 	for _, s := range stmts {
-		if _, err := r.db.ExecContext(ctx, s); err != nil {
+		if _, err := r.TenantAwareRepository.Exec(ctx, s); err != nil {
 			return fmt.Errorf("auto-exec AutoMigrate failed: %w", err)
 		}
 	}
@@ -81,7 +86,7 @@ func (r *Repository) AutoMigrate(ctx context.Context) error {
 		`CREATE INDEX IF NOT EXISTS idx_execution_history_task ON execution_history(task_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_plugin_spi_name ON plugin_spi(name)`,
 	} {
-		if _, err := r.db.ExecContext(ctx, s); err != nil {
+		if _, err := r.TenantAwareRepository.Exec(ctx, s); err != nil {
 			return fmt.Errorf("auto-exec index migration failed: %w", err)
 		}
 	}
@@ -120,7 +125,7 @@ func (r *Repository) CreateTask(ctx context.Context, tenantID string, req *model
 
 func (r *Repository) GetTask(ctx context.Context, tenantID, id string) (*models.ExecutionTask, error) {
 	var t models.ExecutionTask
-	err := r.db.GetContext(ctx, &t, `SELECT * FROM execution_tasks WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &t, `SELECT * FROM execution_tasks WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("task not found: %s", id)
@@ -134,10 +139,10 @@ func (r *Repository) ListTasks(ctx context.Context, tenantID, status string, lim
 	limit = clamp(limit, 1, 100)
 	resp := &models.TaskListResponse{}
 	countQ, listQ, countArgs, listArgs := buildTaskQueries(status, tenantID, limit, offset)
-	if err := r.db.GetContext(ctx, &resp.Total, countQ, countArgs...); err != nil {
+	if err := r.TenantAwareRepository.Get(ctx, &resp.Total, countQ, countArgs...); err != nil {
 		return nil, err
 	}
-	if err := r.db.SelectContext(ctx, &resp.Data, listQ, listArgs...); err != nil {
+	if err := r.TenantAwareRepository.Select(ctx, &resp.Data, listQ, listArgs...); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -162,7 +167,7 @@ func (r *Repository) UpdateTask(ctx context.Context, tenantID, id string, fields
 }
 
 func (r *Repository) DeleteTask(ctx context.Context, tenantID, id string) error {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM execution_tasks WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	res, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM execution_tasks WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return err
 	}
@@ -191,10 +196,10 @@ func (r *Repository) CreateHistory(ctx context.Context, h *models.ExecutionHisto
 func (r *Repository) ListHistory(ctx context.Context, taskID string, limit, offset int) (*models.HistoryListResponse, error) {
 	limit = clamp(limit, 1, 100)
 	resp := &models.HistoryListResponse{}
-	if err := r.db.GetContext(ctx, &resp.Total, `SELECT COUNT(*) FROM execution_history WHERE task_id=$1`, taskID); err != nil {
+	if err := r.TenantAwareRepository.Get(ctx, &resp.Total, `SELECT COUNT(*) FROM execution_history WHERE task_id=$1`, taskID); err != nil {
 		return nil, err
 	}
-	if err := r.db.SelectContext(ctx, &resp.Data, `SELECT * FROM execution_history WHERE task_id=$1 ORDER BY started_at DESC LIMIT $2 OFFSET $3`, taskID, limit, offset); err != nil {
+	if err := r.TenantAwareRepository.Select(ctx, &resp.Data, `SELECT * FROM execution_history WHERE task_id=$1 ORDER BY started_at DESC LIMIT $2 OFFSET $3`, taskID, limit, offset); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -250,7 +255,7 @@ func (r *Repository) CreatePlugin(ctx context.Context, tenantID string, req *mod
 func (r *Repository) GetPlugin(ctx context.Context, name string) (*models.PluginSPI, error) {
 	var p models.PluginSPI
 	var paramsRaw sql.NullString
-	err := r.db.QueryRowContext(ctx, `SELECT id, tenant_id, name, category, description, params, enabled, created_at, updated_at FROM plugin_spi WHERE name=$1`, name).Scan(
+	err := r.TenantAwareRepository.QueryRow(ctx, `SELECT id, tenant_id, name, category, description, params, enabled, created_at, updated_at FROM plugin_spi WHERE name=$1`, name).Scan(
 		&p.ID, &p.TenantID, &p.Name, &p.Category, &p.Description, &paramsRaw, &p.Enabled, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -271,7 +276,7 @@ func (r *Repository) ListPlugins(ctx context.Context, tenantID, category string,
 	resp := &models.PluginListResponse{}
 	countQ := `SELECT COUNT(*) FROM plugin_spi WHERE tenant_id=$1 OR tenant_id=''`
 	listQ := `SELECT id, tenant_id, name, category, description, params, enabled, created_at, updated_at FROM plugin_spi WHERE tenant_id=$1 OR tenant_id='' ORDER BY name LIMIT $2 OFFSET $3`
-	if err := r.db.GetContext(ctx, &resp.Total, countQ, tenantID); err != nil {
+	if err := r.TenantAwareRepository.Get(ctx, &resp.Total, countQ, tenantID); err != nil {
 		return nil, err
 	}
 	type row struct {
@@ -286,7 +291,7 @@ func (r *Repository) ListPlugins(ctx context.Context, tenantID, category string,
 		UpdatedAt   time.Time `db:"updated_at"`
 	}
 	var rows []row
-	if err := r.db.SelectContext(ctx, &rows, listQ, tenantID, limit, offset); err != nil {
+	if err := r.TenantAwareRepository.Select(ctx, &rows, listQ, tenantID, limit, offset); err != nil {
 		return nil, err
 	}
 	for _, rw := range rows {

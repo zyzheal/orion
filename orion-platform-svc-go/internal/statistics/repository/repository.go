@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"encoding/json"
 	"errors"
@@ -15,6 +16,7 @@ import (
 
 // Repository persists aggregated statistics to PostgreSQL.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db       *sqlx.DB
 	retained int
 }
@@ -23,7 +25,11 @@ func NewRepository(db *sqlx.DB, retained int) *Repository {
 	if retained <= 0 {
 		retained = 1000
 	}
-	return &Repository{db: db, retained: retained}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+		retained:              retained,
+	}
 }
 
 func (r *Repository) Store(ctx context.Context, tenantID string, m statistics.StatMetric) error {

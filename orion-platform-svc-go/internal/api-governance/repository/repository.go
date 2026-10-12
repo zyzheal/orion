@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -14,11 +15,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // getDefaultTenantID returns the default zero UUID tenant.
@@ -65,7 +70,7 @@ func (r *Repository) CreateContract(ctx context.Context, req *models.CreateContr
 
 func (r *Repository) GetContract(ctx context.Context, id string, tenantID string) (*models.Contract, error) {
 	c := &models.Contract{}
-	err := r.db.GetContext(ctx, c,
+	err := r.TenantAwareRepository.Get(ctx, c,
 		`SELECT * FROM api_governance_contracts WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return c, err
 }
@@ -86,7 +91,7 @@ func (r *Repository) ListContracts(ctx context.Context, tenantID string, apiName
 	}
 	query := fmt.Sprintf(`SELECT * FROM api_governance_contracts %s ORDER BY created_at DESC`, where)
 	var contracts []models.Contract
-	err := r.db.SelectContext(ctx, &contracts, query, args...)
+	err := r.TenantAwareRepository.Select(ctx, &contracts, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +135,7 @@ func (r *Repository) CreateVerification(ctx context.Context, req *models.VerifyR
 
 func (r *Repository) GetVerificationHistory(ctx context.Context, contractID string, tenantID string) ([]models.VerificationHistory, error) {
 	var history []models.VerificationHistory
-	err := r.db.SelectContext(ctx, &history,
+	err := r.TenantAwareRepository.Select(ctx, &history,
 		`SELECT * FROM api_governance_verification_history WHERE contract_id=$1 AND tenant_id=$2 ORDER BY verified_at DESC`,
 		contractID, tenantID)
 	return history, err
@@ -154,7 +159,7 @@ func (r *Repository) ListViolations(ctx context.Context, tenantID string, contra
 	}
 	query := fmt.Sprintf(`SELECT * FROM api_governance_violations %s ORDER BY detected_at DESC`, where)
 	var violations []models.Violation
-	err := r.db.SelectContext(ctx, &violations, query, args...)
+	err := r.TenantAwareRepository.Select(ctx, &violations, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +208,7 @@ func (r *Repository) CreateVersion(ctx context.Context, req *models.CreateVersio
 
 func (r *Repository) GetVersion(ctx context.Context, id string, tenantID string) (*models.Version, error) {
 	v := &models.Version{}
-	err := r.db.GetContext(ctx, v,
+	err := r.TenantAwareRepository.Get(ctx, v,
 		`SELECT * FROM api_governance_versions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return v, err
 }
@@ -224,7 +229,7 @@ func (r *Repository) ListVersions(ctx context.Context, tenantID string, apiName 
 	}
 	query := fmt.Sprintf(`SELECT * FROM api_governance_versions %s ORDER BY registered_at DESC`, where)
 	var versions []models.Version
-	err := r.db.SelectContext(ctx, &versions, query, args...)
+	err := r.TenantAwareRepository.Select(ctx, &versions, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -247,13 +252,13 @@ func (r *Repository) UpdateVersion(ctx context.Context, id string, tenantID stri
 	query := fmt.Sprintf(`UPDATE api_governance_versions SET %s WHERE id=$%d AND tenant_id=$%d RETURNING *`,
 		strings.Join(setClauses, ", "), idx, idx+1)
 	v := &models.Version{}
-	err := r.db.GetContext(ctx, v, query, args...)
+	err := r.TenantAwareRepository.Get(ctx, v, query, args...)
 	return v, err
 }
 
 func (r *Repository) ListDeprecatedVersions(ctx context.Context, tenantID string) ([]models.Version, error) {
 	var versions []models.Version
-	err := r.db.SelectContext(ctx, &versions,
+	err := r.TenantAwareRepository.Select(ctx, &versions,
 		`SELECT * FROM api_governance_versions WHERE tenant_id=$1 AND status='deprecated' ORDER BY deprecation_date DESC`, tenantID)
 	return versions, err
 }
@@ -298,32 +303,32 @@ func (r *Repository) GetGovernanceStats(ctx context.Context, tenantID string) (m
 	var err error
 
 	var totalContracts, totalVersions, totalRules, activeRules, totalViolations, deprecatedVersions int
-	err = r.db.GetContext(ctx, &totalContracts,
+	err = r.TenantAwareRepository.Get(ctx, &totalContracts,
 		`SELECT COUNT(*) FROM api_governance_contracts WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return stats, err
 	}
-	err = r.db.GetContext(ctx, &totalVersions,
+	err = r.TenantAwareRepository.Get(ctx, &totalVersions,
 		`SELECT COUNT(*) FROM api_governance_versions WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return stats, err
 	}
-	err = r.db.GetContext(ctx, &totalRules,
+	err = r.TenantAwareRepository.Get(ctx, &totalRules,
 		`SELECT COUNT(*) FROM api_governance_rules WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return stats, err
 	}
-	err = r.db.GetContext(ctx, &activeRules,
+	err = r.TenantAwareRepository.Get(ctx, &activeRules,
 		`SELECT COUNT(*) FROM api_governance_rules WHERE tenant_id=$1 AND enabled=true`, tenantID)
 	if err != nil {
 		return stats, err
 	}
-	err = r.db.GetContext(ctx, &totalViolations,
+	err = r.TenantAwareRepository.Get(ctx, &totalViolations,
 		`SELECT COUNT(*) FROM api_governance_violations WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return stats, err
 	}
-	err = r.db.GetContext(ctx, &deprecatedVersions,
+	err = r.TenantAwareRepository.Get(ctx, &deprecatedVersions,
 		`SELECT COUNT(*) FROM api_governance_versions WHERE tenant_id=$1 AND status='deprecated'`, tenantID)
 	if err != nil {
 		return stats, err

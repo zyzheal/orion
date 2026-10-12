@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"time"
@@ -14,25 +15,29 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // --- Pipeline CRUD ---
 
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.Pipeline, error) {
 	var pipelines []models.Pipeline
-	err := r.db.SelectContext(ctx, &pipelines,
+	err := r.TenantAwareRepository.Select(ctx, &pipelines,
 		`SELECT * FROM data_pipelines WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
 	return pipelines, err
 }
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.Pipeline, error) {
 	var pipeline models.Pipeline
-	err := r.db.GetContext(ctx, &pipeline,
+	err := r.TenantAwareRepository.Get(ctx, &pipeline,
 		`SELECT * FROM data_pipelines WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -76,7 +81,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, req models
 	if status == "" {
 		status = "active"
 	}
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE data_pipelines SET name=$1, description=$2, source_table=$3, target_table=$4, transformation_script=$5, schedule=$6, status=$7, updated_at=$8
 		 WHERE id=$9 AND tenant_id=$10`,
 		req.Name, req.Description, req.SourceTable, req.TargetTable, req.TransformationScript, req.Schedule, status, now, id, tenantID)
@@ -94,7 +99,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, req models
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM data_pipelines WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return err
@@ -110,7 +115,7 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 }
 
 func (r *Repository) UpdateStatus(ctx context.Context, tenantID, id, status string) (*models.Pipeline, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE data_pipelines SET status=$1, updated_at=$2 WHERE id=$3 AND tenant_id=$4`,
 		status, time.Now().UTC(), id, tenantID)
 	if err != nil {
@@ -149,7 +154,7 @@ func (r *Repository) CreateRun(ctx context.Context, tenantID, pipelineID string)
 
 func (r *Repository) GetRunByID(ctx context.Context, tenantID, id string) (*models.PipelineRun, error) {
 	var run models.PipelineRun
-	err := r.db.GetContext(ctx, &run,
+	err := r.TenantAwareRepository.Get(ctx, &run,
 		`SELECT * FROM data_pipeline_runs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -162,7 +167,7 @@ func (r *Repository) GetRunByID(ctx context.Context, tenantID, id string) (*mode
 
 func (r *Repository) ListRuns(ctx context.Context, tenantID, pipelineID string) ([]models.PipelineRun, error) {
 	var runs []models.PipelineRun
-	err := r.db.SelectContext(ctx, &runs,
+	err := r.TenantAwareRepository.Select(ctx, &runs,
 		`SELECT * FROM data_pipeline_runs WHERE tenant_id=$1 AND pipeline_id=$2 ORDER BY created_at DESC`,
 		tenantID, pipelineID)
 	return runs, err
@@ -170,7 +175,7 @@ func (r *Repository) ListRuns(ctx context.Context, tenantID, pipelineID string) 
 
 func (r *Repository) UpdateRunStatus(ctx context.Context, tenantID, id, status string, errMsg string, metrics string) (*models.PipelineRun, error) {
 	finishedAt := time.Now().UTC()
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE data_pipeline_runs SET status=$1, finished_at=$2, error_message=$3, metrics_json=$4 WHERE id=$5 AND tenant_id=$6`,
 		status, finishedAt, errMsg, metrics, id, tenantID)
 	if err != nil {
@@ -181,7 +186,7 @@ func (r *Repository) UpdateRunStatus(ctx context.Context, tenantID, id, status s
 
 func (r *Repository) CancelRun(ctx context.Context, tenantID, id string) (*models.PipelineRun, error) {
 	// Only cancel runs that are still running or pending
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE data_pipeline_runs SET status='cancelled', finished_at=$1, error_message=$2
 		 WHERE id=$3 AND tenant_id=$4 AND status IN ('running','pending')`,
 		time.Now().UTC(), "cancelled by user", id, tenantID)

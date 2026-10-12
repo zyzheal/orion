@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -18,6 +19,7 @@ var ErrNoTriggers = errors.New("no triggers found")
 
 // TriggerRepository persists DegradationTrigger and DegradationAction records.
 type TriggerRepository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 

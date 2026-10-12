@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -15,11 +16,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 func (r *Repository) Save(ctx context.Context, e *models.CodeEmbedding) error {
@@ -52,7 +57,7 @@ func (r *Repository) Save(ctx context.Context, e *models.CodeEmbedding) error {
 
 func (r *Repository) Get(ctx context.Context, id string) (*models.CodeEmbedding, error) {
 	var e models.CodeEmbedding
-	err := r.db.GetContext(ctx, &e,
+	err := r.TenantAwareRepository.Get(ctx, &e,
 		`SELECT id, tenant_id, repo_id, file_path, language, content, vector, model, created_at, updated_at
 		 FROM code_embeddings WHERE id=$1`, id)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -69,7 +74,7 @@ func (r *Repository) ListByRepo(ctx context.Context, tenantID, repoID string, of
 		limit = 50
 	}
 	var items []models.CodeEmbedding
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT id, tenant_id, repo_id, file_path, language, content, vector, model, created_at, updated_at
 		 FROM code_embeddings WHERE tenant_id=$1 AND repo_id=$2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`,
 		tenantID, repoID, limit, offset)
@@ -84,7 +89,7 @@ func (r *Repository) ListByRepo(ctx context.Context, tenantID, repoID string, of
 }
 
 func (r *Repository) Delete(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM code_embeddings WHERE id=$1`, id)
+	_, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM code_embeddings WHERE id=$1`, id)
 	return err
 }
 
@@ -96,17 +101,17 @@ func (r *Repository) SearchSimilar(ctx context.Context, tenantID, repoID string,
 	var items []models.CodeEmbedding
 	var err error
 	if repoID != "" && language != "" {
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, repo_id, file_path, language, content, vector, model, created_at, updated_at
 			 FROM code_embeddings WHERE tenant_id=$1 AND repo_id=$2 AND language=$3 ORDER BY created_at DESC LIMIT $4`,
 			tenantID, repoID, language, limit)
 	} else if repoID != "" {
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, repo_id, file_path, language, content, vector, model, created_at, updated_at
 			 FROM code_embeddings WHERE tenant_id=$1 AND repo_id=$2 ORDER BY created_at DESC LIMIT $3`,
 			tenantID, repoID, limit)
 	} else {
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, repo_id, file_path, language, content, vector, model, created_at, updated_at
 			 FROM code_embeddings WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT $2`,
 			tenantID, limit)
@@ -123,10 +128,10 @@ func (r *Repository) SearchSimilar(ctx context.Context, tenantID, repoID string,
 
 func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.EmbedStats, error) {
 	var s models.EmbedStats
-	r.db.GetContext(ctx, &s.TotalEmbeddings,
+	r.TenantAwareRepository.Get(ctx, &s.TotalEmbeddings,
 		`SELECT COUNT(*) FROM code_embeddings WHERE tenant_id=$1`, tenantID)
 	var repos int
-	r.db.GetContext(ctx, &repos,
+	r.TenantAwareRepository.Get(ctx, &repos,
 		`SELECT COUNT(DISTINCT repo_id) FROM code_embeddings WHERE tenant_id=$1`, tenantID)
 	s.TotalRepos = repos
 	return &s, nil
@@ -134,7 +139,7 @@ func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.Emb
 
 func (r *Repository) CountByRepo(ctx context.Context, tenantID, repoID string) (int, error) {
 	var count int
-	err := r.db.GetContext(ctx, &count,
+	err := r.TenantAwareRepository.Get(ctx, &count,
 		`SELECT COUNT(*) FROM code_embeddings WHERE tenant_id=$1 AND repo_id=$2`, tenantID, repoID)
 	return count, err
 }

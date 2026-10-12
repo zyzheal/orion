@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"fmt"
 	"time"
@@ -12,6 +13,7 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
@@ -37,7 +39,7 @@ func (r *Repository) Create(ctx context.Context, m *models.CronJob) error {
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.CronJob, error) {
 	var m models.CronJob
-	err := r.db.GetContext(ctx, &m, `SELECT * FROM cron_jobs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &m, `SELECT * FROM cron_jobs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +51,7 @@ func (r *Repository) List(ctx context.Context, tenantID string, limit, offset in
 		limit = 50
 	}
 	var items []models.CronJob
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM cron_jobs WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, tenantID, limit, offset)
 	if err != nil {
 		return nil, err
@@ -81,7 +83,7 @@ func (r *Repository) UpdatePartial(ctx context.Context, tenantID, id string, upd
 		q += ", " + clause
 	}
 
-	_, err := r.db.ExecContext(ctx, q, args...)
+	_, err := r.TenantAwareRepository.Exec(ctx, q, args...)
 	if err != nil {
 		return fmt.Errorf("failed to partial update: %w", err)
 	}
@@ -89,18 +91,18 @@ func (r *Repository) UpdatePartial(ctx context.Context, tenantID, id string, upd
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM cron_jobs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	_, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM cron_jobs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
 
 func (r *Repository) Enable(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE cron_jobs SET enabled = true, status = 'active', updated_at = NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
 
 func (r *Repository) Disable(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE cron_jobs SET enabled = false, status = 'disabled', updated_at = NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
@@ -118,12 +120,12 @@ func (r *Repository) ListExecutions(ctx context.Context, tenantID, jobID string,
 	}
 	var items []models.CronJobExecution
 	if jobID != "" {
-		err := r.db.SelectContext(ctx, &items,
+		err := r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT * FROM cron_job_executions WHERE tenant_id=$1 AND job_id=$2 ORDER BY started_at DESC LIMIT $3 OFFSET $4`,
 			tenantID, jobID, limit, offset)
 		return items, err
 	}
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM cron_job_executions WHERE tenant_id=$1 ORDER BY started_at DESC LIMIT $2 OFFSET $3`,
 		tenantID, limit, offset)
 	return items, err
@@ -131,7 +133,7 @@ func (r *Repository) ListExecutions(ctx context.Context, tenantID, jobID string,
 
 func (r *Repository) GetExecutionByID(ctx context.Context, tenantID, executionID string) (*models.CronJobExecution, error) {
 	var m models.CronJobExecution
-	err := r.db.GetContext(ctx, &m,
+	err := r.TenantAwareRepository.Get(ctx, &m,
 		`SELECT * FROM cron_job_executions WHERE execution_id=$1 AND tenant_id=$2`, executionID, tenantID)
 	if err != nil {
 		return nil, err

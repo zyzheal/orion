@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"time"
 
@@ -11,11 +12,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // --- Analyses ---
@@ -33,7 +38,7 @@ func (r *Repository) CreateAnalysis(ctx context.Context, a *models.ChangeAnalysi
 
 func (r *Repository) GetAnalysisByID(ctx context.Context, id string, tenantID string) (*models.ChangeAnalysis, error) {
 	var a models.ChangeAnalysis
-	err := r.db.GetContext(ctx, &a,
+	err := r.TenantAwareRepository.Get(ctx, &a,
 		`SELECT * FROM change_intelligence_analyses WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -43,7 +48,7 @@ func (r *Repository) GetAnalysisByID(ctx context.Context, id string, tenantID st
 
 func (r *Repository) ListAnalyses(ctx context.Context, tenantID string) ([]models.ChangeAnalysis, error) {
 	var analyses []models.ChangeAnalysis
-	err := r.db.SelectContext(ctx, &analyses,
+	err := r.TenantAwareRepository.Select(ctx, &analyses,
 		`SELECT * FROM change_intelligence_analyses WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
 	return analyses, err
 }
@@ -54,7 +59,7 @@ func (r *Repository) SaveBlastRadius(ctx context.Context, analysisID string, ite
 	for _, item := range items {
 		id := uuid.New().String()
 		now := time.Now().UTC()
-		_, err := r.db.ExecContext(ctx,
+		_, err := r.TenantAwareRepository.Exec(ctx,
 			`INSERT INTO change_intelligence_blast_radius (id, analysis_id, service_id, service_name, impact_level, probability, created_at)
 			 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 			id, analysisID, item.ServiceID, item.ServiceName, item.ImpactLevel, item.Probability, now)
@@ -67,7 +72,7 @@ func (r *Repository) SaveBlastRadius(ctx context.Context, analysisID string, ite
 
 func (r *Repository) GetBlastRadiusByAnalysisID(ctx context.Context, analysisID string) ([]models.BlastRadiusItem, error) {
 	var items []models.BlastRadiusItem
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT service_id AS "serviceId", service_name AS "serviceName", impact_level AS "impactLevel", probability
 		 FROM change_intelligence_blast_radius WHERE analysis_id=$1 ORDER BY probability DESC`, analysisID)
 	return items, err
@@ -79,7 +84,7 @@ func (r *Repository) SaveRiskFactors(ctx context.Context, analysisID string, fac
 	for _, factor := range factors {
 		id := uuid.New().String()
 		now := time.Now().UTC()
-		_, err := r.db.ExecContext(ctx,
+		_, err := r.TenantAwareRepository.Exec(ctx,
 			`INSERT INTO change_intelligence_risk_factors (id, analysis_id, factor, score, description, created_at)
 			 VALUES ($1, $2, $3, $4, $5, $6)`,
 			id, analysisID, factor.Factor, factor.Score, factor.Description, now)
@@ -92,7 +97,7 @@ func (r *Repository) SaveRiskFactors(ctx context.Context, analysisID string, fac
 
 func (r *Repository) GetRiskFactorsByAnalysisID(ctx context.Context, analysisID string) ([]models.RiskFactor, error) {
 	var factors []models.RiskFactor
-	err := r.db.SelectContext(ctx, &factors,
+	err := r.TenantAwareRepository.Select(ctx, &factors,
 		`SELECT factor, score, description
 		 FROM change_intelligence_risk_factors WHERE analysis_id=$1 ORDER BY score DESC`, analysisID)
 	return factors, err

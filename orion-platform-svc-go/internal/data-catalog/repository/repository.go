@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"fmt"
 	"time"
@@ -12,18 +13,22 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // --- CRUD ---
 
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.Entry, error) {
 	var items []models.Entry
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM data_catalog_entries WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
 	if err != nil {
 		return nil, err
@@ -33,7 +38,7 @@ func (r *Repository) List(ctx context.Context, tenantID string) ([]models.Entry,
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.Entry, error) {
 	var m models.Entry
-	err := r.db.GetContext(ctx, &m,
+	err := r.TenantAwareRepository.Get(ctx, &m,
 		`SELECT * FROM data_catalog_entries WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -111,7 +116,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, req models
 	args = append(args, id, tenantID)
 	query := fmt.Sprintf(`UPDATE data_catalog_entries SET %s WHERE id=$%d AND tenant_id=$%d`,
 		joinCommaSep(setParts), argIdx, argIdx+1)
-	_, err := r.db.ExecContext(ctx, query, args...)
+	_, err := r.TenantAwareRepository.Exec(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +124,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, req models
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM data_catalog_entries WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
@@ -174,7 +179,7 @@ func (r *Repository) Search(ctx context.Context, tenantID string, q models.Searc
 	args = append(args, q.Limit, offset)
 
 	var items []models.Entry
-	err := r.db.SelectContext(ctx, &items, query, args...)
+	err := r.TenantAwareRepository.Select(ctx, &items, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +189,7 @@ func (r *Repository) Search(ctx context.Context, tenantID string, q models.Searc
 // Count returns the total number of catalog entries for a tenant.
 func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
 	var total int
-	err := r.db.GetContext(ctx, &total,
+	err := r.TenantAwareRepository.Get(ctx, &total,
 		`SELECT COUNT(*) FROM data_catalog_entries WHERE tenant_id=$1`, tenantID)
 	return total, err
 }
@@ -192,7 +197,7 @@ func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
 // GetByTable returns all entries matching a table name (for table-level browsing).
 func (r *Repository) GetByTable(ctx context.Context, tenantID, tableName string) ([]models.Entry, error) {
 	var items []models.Entry
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM data_catalog_entries WHERE tenant_id=$1 AND table_name=$2 ORDER BY column_name`, tenantID, tableName)
 	return items, err
 }
@@ -234,13 +239,13 @@ func (r *Repository) CreateOrUpdateCatalogEntry(ctx context.Context, tenantID st
 
 	// Check if table entry already exists for this database.
 	var existingID string
-	err := r.db.GetContext(ctx, &existingID,
+	err := r.TenantAwareRepository.Get(ctx, &existingID,
 		`SELECT id FROM data_catalog_entries WHERE tenant_id=$1 AND table_name=$2 AND data_type=$3 AND database_name=$4 AND column_name=''`,
 		tenantID, schema.TableName, "table", databaseName)
 
 	if err == nil {
 		// Exists — update timestamp.
-		_, err = r.db.ExecContext(ctx,
+		_, err = r.TenantAwareRepository.Exec(ctx,
 			`UPDATE data_catalog_entries SET last_updated=$1 WHERE id=$2`,
 			time.Now().UTC(), existingID)
 		if err != nil {
@@ -266,12 +271,12 @@ func (r *Repository) CreateOrUpdateCatalogEntry(ctx context.Context, tenantID st
 			continue
 		}
 		var colEntryID string
-		err = r.db.GetContext(ctx, &colEntryID,
+		err = r.TenantAwareRepository.Get(ctx, &colEntryID,
 			`SELECT id FROM data_catalog_entries WHERE tenant_id=$1 AND table_name=$2 AND column_name=$3 AND database_name=$4`,
 			tenantID, schema.TableName, columnName, databaseName)
 
 		if err == nil {
-			_, err = r.db.ExecContext(ctx,
+			_, err = r.TenantAwareRepository.Exec(ctx,
 				`UPDATE data_catalog_entries SET data_type=$1, last_updated=$2 WHERE id=$3`,
 				col.DataType, time.Now().UTC(), colEntryID)
 			if err != nil {
@@ -280,7 +285,7 @@ func (r *Repository) CreateOrUpdateCatalogEntry(ctx context.Context, tenantID st
 			updatedCount++
 		} else {
 			now := time.Now().UTC()
-			_, err = r.db.ExecContext(ctx,
+			_, err = r.TenantAwareRepository.Exec(ctx,
 				`INSERT INTO data_catalog_entries (id, tenant_id, name, description, data_type, table_name, column_name, database_name, last_updated, created_at)
 				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 				uuid.New().String(), tenantID,

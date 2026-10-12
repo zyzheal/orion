@@ -1,15 +1,21 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	"orion/platform-svc-go/internal/infrastructure/capacity/models"
 )
 
-type PoolRepository struct{ db *sqlx.DB }
+type PoolRepository struct {
+	internalrepo.TenantAwareRepository[any]
+	db *sqlx.DB
+}
 
-func NewPoolRepository(db *sqlx.DB) *PoolRepository { return &PoolRepository{db: db} }
+func NewPoolRepository(db *sqlx.DB) *PoolRepository {
+	return &PoolRepository{TenantAwareRepository: internalrepo.NewTenantAwareRepository(db), db: db}
+}
 
 func (r *PoolRepository) Create(ctx context.Context, d *models.ResourcePool) error {
 	_, err := r.db.ExecContext(ctx, `INSERT INTO resource_pools (id, tenant_id, name, resource_type, total_cpu, total_memory, used_cpu, used_memory, node_count, labels) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, d.ID, d.TenantID, d.Name, d.ResourceType, d.TotalCPU, d.TotalMemory, d.UsedCPU, d.UsedMemory, d.NodeCount, d.Labels)
@@ -36,9 +42,14 @@ func (r *PoolRepository) Update(ctx context.Context, d *models.ResourcePool) err
 	return err
 }
 
-type ForecastRepository struct{ db *sqlx.DB }
+type ForecastRepository struct {
+	internalrepo.TenantAwareRepository[any]
+	db *sqlx.DB
+}
 
-func NewForecastRepository(db *sqlx.DB) *ForecastRepository { return &ForecastRepository{db: db} }
+func NewForecastRepository(db *sqlx.DB) *ForecastRepository {
+	return &ForecastRepository{TenantAwareRepository: internalrepo.NewTenantAwareRepository(db), db: db}
+}
 
 func (r *ForecastRepository) Create(ctx context.Context, d *models.CapacityForecast) error {
 	_, err := r.db.ExecContext(ctx, `INSERT INTO capacity_forecasts (id, tenant_id, resource_type, current_usage, predicted, threshold, days_until_full, recommendation, forecast_date) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, d.ID, d.TenantID, d.ResourceType, d.CurrentUsage, d.Predicted, d.Threshold, d.DaysUntilFull, d.Recommendation, d.ForecastDate)

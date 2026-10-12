@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -16,11 +17,15 @@ import (
 
 // Repository provides PostgreSQL-backed storage for alert rules.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 type ruleRow struct {
@@ -54,7 +59,7 @@ func (r *Repository) Save(ctx context.Context, tenantID string, rule *alertrulee
 
 func (r *Repository) Get(ctx context.Context, tenantID, ruleID string) (*alertruleengine.Rule, error) {
 	var row ruleRow
-	err := r.db.GetContext(ctx, &row, `SELECT * FROM alert_rules WHERE id=$1 AND tenant_id=$2`, ruleID, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &row, `SELECT * FROM alert_rules WHERE id=$1 AND tenant_id=$2`, ruleID, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sentinel.NotFound
 	}
@@ -66,7 +71,7 @@ func (r *Repository) Get(ctx context.Context, tenantID, ruleID string) (*alertru
 
 func (r *Repository) ListByTenant(ctx context.Context, tenantID string) []*alertruleengine.Rule {
 	var rows []ruleRow
-	err := r.db.SelectContext(ctx, &rows, `SELECT * FROM alert_rules WHERE tenant_id=$1 ORDER BY priority ASC`)
+	err := r.TenantAwareRepository.Select(ctx, &rows, `SELECT * FROM alert_rules WHERE tenant_id=$1 ORDER BY priority ASC`)
 	if err != nil {
 		return []*alertruleengine.Rule{}
 	}
@@ -78,13 +83,13 @@ func (r *Repository) ListByTenant(ctx context.Context, tenantID string) []*alert
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, ruleID string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM alert_rules WHERE id=$1 AND tenant_id=$2`, ruleID, tenantID)
+	_, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM alert_rules WHERE id=$1 AND tenant_id=$2`, ruleID, tenantID)
 	return err
 }
 
 func (r *Repository) ListByGroup(ctx context.Context, tenantID, group string) []*alertruleengine.Rule {
 	var rows []ruleRow
-	err := r.db.SelectContext(ctx, &rows, `SELECT * FROM alert_rules WHERE tenant_id=$1 AND "group"=$2 ORDER BY priority ASC`, tenantID, group)
+	err := r.TenantAwareRepository.Select(ctx, &rows, `SELECT * FROM alert_rules WHERE tenant_id=$1 AND "group"=$2 ORDER BY priority ASC`, tenantID, group)
 	if err != nil {
 		return []*alertruleengine.Rule{}
 	}

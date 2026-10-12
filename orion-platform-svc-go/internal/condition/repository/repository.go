@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -16,12 +17,16 @@ import (
 
 // Repository provides data access for condition groups and expressions.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 // NewRepository creates a new Repository.
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // CreateGroup inserts a new condition group.
@@ -78,7 +83,7 @@ func (r *Repository) CreateGroup(ctx context.Context, tenantID, name, groupType 
 // columns exactly, so sqlx maps them directly and no conversion helper is needed.
 func (r *Repository) GetGroup(ctx context.Context, tenantID, id string) (*models.ConditionGroup, error) {
 	var g models.ConditionGroup
-	err := r.db.GetContext(ctx, &g,
+	err := r.TenantAwareRepository.Get(ctx, &g,
 		`SELECT * FROM condition_groups WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -102,7 +107,7 @@ func (r *Repository) ListGroups(ctx context.Context, tenantID string, groupType 
 	// destination, which Select rejects for a multi-column result. The struct
 	// scan replaces both the map and the rowToGroup conversion loop.
 	var groups []models.ConditionGroup
-	err := r.db.SelectContext(ctx, &groups, query, args...)
+	err := r.TenantAwareRepository.Select(ctx, &groups, query, args...)
 	return groups, err
 }
 
@@ -145,7 +150,7 @@ func (r *Repository) UpdateGroup(ctx context.Context, tenantID, id string, name,
 	// RETURNING * yields the same nine columns as SELECT *, so the map
 	// destination had the same failure mode as GetGroup.
 	var g models.ConditionGroup
-	err := r.db.GetContext(ctx, &g, query, args...)
+	err := r.TenantAwareRepository.Get(ctx, &g, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +159,7 @@ func (r *Repository) UpdateGroup(ctx context.Context, tenantID, id string, name,
 
 // DeleteGroup deletes a group by ID and tenant.
 func (r *Repository) DeleteGroup(ctx context.Context, tenantID, id string) error {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM condition_groups WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return err
@@ -219,7 +224,7 @@ func (r *Repository) CreateExpression(ctx context.Context, tenantID, groupID str
 // expected on the destination.
 func (r *Repository) GetExpression(ctx context.Context, tenantID, id string) (*models.ConditionExpression, error) {
 	var expr models.ConditionExpression
-	err := r.db.GetContext(ctx, &expr,
+	err := r.TenantAwareRepository.Get(ctx, &expr,
 		`SELECT e.* FROM condition_expressions e JOIN condition_groups g ON e.group_id = g.id WHERE e.id=$1 AND g.tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -234,14 +239,14 @@ func (r *Repository) ListExpressions(ctx context.Context, tenantID, groupID stri
 		return nil, fmt.Errorf("group %q not found or not accessible: %w", groupID, err)
 	}
 	var exprs []models.ConditionExpression
-	err := r.db.SelectContext(ctx, &exprs,
+	err := r.TenantAwareRepository.Select(ctx, &exprs,
 		`SELECT * FROM condition_expressions WHERE group_id=$1 ORDER BY created_at DESC`, groupID)
 	return exprs, err
 }
 
 // DeleteExpression deletes an expression by ID, scoped to the given tenant.
 func (r *Repository) DeleteExpression(ctx context.Context, tenantID, id string) error {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM condition_expressions e USING condition_groups g WHERE e.group_id = g.id AND e.id=$1 AND g.tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return err
@@ -256,7 +261,7 @@ func (r *Repository) DeleteExpression(ctx context.Context, tenantID, id string) 
 // GroupExists checks if a group exists (by tenant).
 func (r *Repository) GroupExists(ctx context.Context, tenantID, groupID string) (bool, error) {
 	var exists bool
-	err := r.db.GetContext(ctx, &exists,
+	err := r.TenantAwareRepository.Get(ctx, &exists,
 		`SELECT EXISTS(SELECT 1 FROM condition_groups WHERE id=$1 AND tenant_id=$2)`, groupID, tenantID)
 	if err != nil {
 		return false, err

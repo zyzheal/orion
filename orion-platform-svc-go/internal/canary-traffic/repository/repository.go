@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"strconv"
 	"strings"
@@ -15,15 +16,19 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 func (r *Repository) EnsureTable(ctx context.Context) error {
-	_, err := r.db.ExecContext(ctx, `
+	_, err := r.TenantAwareRepository.Exec(ctx, `
 	CREATE TABLE IF NOT EXISTS canary_traffic (
 		id UUID PRIMARY KEY,
 		tenant_id UUID NOT NULL,
@@ -80,7 +85,7 @@ func (r *Repository) Create(ctx context.Context, tenantID string, cb *models.Can
 
 func (r *Repository) GetByID(ctx context.Context, id, tenantID string) (*models.CanaryTraffic, error) {
 	var cb models.CanaryTraffic
-	err := r.db.GetContext(ctx, &cb,
+	err := r.TenantAwareRepository.Get(ctx, &cb,
 		`SELECT * FROM canary_traffic WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return nil, sentinel.NotFound
@@ -90,7 +95,7 @@ func (r *Repository) GetByID(ctx context.Context, id, tenantID string) (*models.
 
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.CanaryTraffic, error) {
 	var entities []models.CanaryTraffic
-	err := r.db.SelectContext(ctx, &entities,
+	err := r.TenantAwareRepository.Select(ctx, &entities,
 		`SELECT * FROM canary_traffic WHERE tenant_id = $1 ORDER BY created_at DESC`, tenantID)
 	return entities, err
 }
@@ -113,7 +118,7 @@ func (r *Repository) Update(ctx context.Context, id, tenantID string, attrs map[
 	tenantIdx := i + 1
 	args = append(args, id, tenantID)
 	query := "UPDATE canary_traffic SET " + strings.Join(set, ", ") + " WHERE id=$" + strconv.Itoa(idIdx) + " AND tenant_id=$" + strconv.Itoa(tenantIdx)
-	_, err := r.db.ExecContext(ctx, query, args...)
+	_, err := r.TenantAwareRepository.Exec(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +126,7 @@ func (r *Repository) Update(ctx context.Context, id, tenantID string, attrs map[
 }
 
 func (r *Repository) Delete(ctx context.Context, id, tenantID string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM canary_traffic WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return false, err

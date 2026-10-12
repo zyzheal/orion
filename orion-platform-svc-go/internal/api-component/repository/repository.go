@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -17,12 +18,17 @@ import (
 
 // Repository persists API component registry state so components survive restarts.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db       *sqlx.DB
 	registry *apicomponent.Registry
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db, registry: apicomponent.NewRegistry()}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+		registry:              apicomponent.NewRegistry(),
+	}
 }
 
 func (r *Repository) Save(ctx context.Context, comp *apicomponent.APIComponent) error {

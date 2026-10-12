@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -20,12 +21,16 @@ var (
 
 // Repository provides data access for drift records.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 // NewRepository creates a new Repository.
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // CreateDrift inserts a new drift record.
@@ -37,7 +42,7 @@ func (r *Repository) CreateDrift(ctx context.Context, d *models.DriftRecord) err
 	d.CreatedAt = now
 	d.UpdatedAt = now
 
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO cmdb_drift_records
 			(id, tenant_id, ci_id, ci_name, ci_type, property, environment,
 			 expected_value, actual_value, drift_type, severity,
@@ -106,7 +111,7 @@ func (r *Repository) BatchCreateDrifts(ctx context.Context, drifts []models.Drif
 // GetDrift returns a single drift record by id, scoped to tenant.
 func (r *Repository) GetDrift(ctx context.Context, tenantID, id string) (*models.DriftRecord, error) {
 	var d models.DriftRecord
-	err := r.db.GetContext(ctx, &d,
+	err := r.TenantAwareRepository.Get(ctx, &d,
 		`SELECT id, tenant_id, ci_id, ci_name, ci_type, property, environment,
 		        expected_value, actual_value, drift_type, severity,
 		        detected_at, resolved_at, resolved_by, resolution, remediated,
@@ -176,7 +181,7 @@ func (r *Repository) ListDrifts(ctx context.Context, tenantID string, filter mod
 		args = append(args, filter.PageSize, offset)
 	}
 
-	err := r.db.SelectContext(ctx, &items, query, args...)
+	err := r.TenantAwareRepository.Select(ctx, &items, query, args...)
 	return items, err
 }
 
@@ -196,13 +201,13 @@ func (r *Repository) CountDrifts(ctx context.Context, tenantID string, filter mo
 	}
 
 	var count int
-	err := r.db.GetContext(ctx, &count, query, args...)
+	err := r.TenantAwareRepository.Get(ctx, &count, query, args...)
 	return count, err
 }
 
 // UpdateDriftResolution updates the resolution status of a drift record.
 func (r *Repository) UpdateDriftResolution(ctx context.Context, tenantID, id, resolvedBy, resolution string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE cmdb_drift_records
 		 SET resolved_at = NOW(), resolved_by = $1, resolution = $2, updated_at = NOW()
 		 WHERE id = $3 AND tenant_id = $4`,
@@ -221,7 +226,7 @@ func (r *Repository) BulkUpdateDriftResolution(ctx context.Context, tenantID str
 	           SET resolved_at = NOW(), resolved_by = $1, resolution = $2, updated_at = NOW()
 	           WHERE tenant_id = $3 AND id = ANY($4)`
 
-	result, err := r.db.ExecContext(ctx, query, resolvedBy, resolution, tenantID, ids)
+	result, err := r.TenantAwareRepository.Exec(ctx, query, resolvedBy, resolution, tenantID, ids)
 	if err != nil {
 		return 0, err
 	}
@@ -230,7 +235,7 @@ func (r *Repository) BulkUpdateDriftResolution(ctx context.Context, tenantID str
 
 // MarkRemediated marks a drift record as auto-remediated.
 func (r *Repository) MarkRemediated(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE cmdb_drift_records
 		 SET remediated = TRUE, resolved_at = NOW(), updated_at = NOW()
 		 WHERE id = $1 AND tenant_id = $2`,
@@ -242,7 +247,7 @@ func (r *Repository) MarkRemediated(ctx context.Context, tenantID, id string) er
 // CountUnresolvedDrifts returns the count of unresolved drifts.
 func (r *Repository) CountUnresolvedDrifts(ctx context.Context, tenantID string) (int, error) {
 	var count int
-	err := r.db.GetContext(ctx, &count,
+	err := r.TenantAwareRepository.Get(ctx, &count,
 		`SELECT COUNT(*) FROM cmdb_drift_records
 		 WHERE tenant_id = $1 AND resolved_at IS NULL`,
 		tenantID,
@@ -258,21 +263,21 @@ func (r *Repository) GetDriftStats(ctx context.Context, tenantID string) (*model
 	}
 
 	// Total count
-	err := r.db.GetContext(ctx, &stats.TotalDrifts,
+	err := r.TenantAwareRepository.Get(ctx, &stats.TotalDrifts,
 		`SELECT COUNT(*) FROM cmdb_drift_records WHERE tenant_id = $1`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Unresolved count
-	err = r.db.GetContext(ctx, &stats.UnresolvedCount,
+	err = r.TenantAwareRepository.Get(ctx, &stats.UnresolvedCount,
 		`SELECT COUNT(*) FROM cmdb_drift_records WHERE tenant_id = $1 AND resolved_at IS NULL`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Count by severity
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := r.TenantAwareRepository.Query(ctx,
 		`SELECT severity, COUNT(*) as cnt FROM cmdb_drift_records
 		 WHERE tenant_id = $1 AND resolved_at IS NULL
 		 GROUP BY severity`, tenantID)
@@ -298,7 +303,7 @@ func (r *Repository) GetDriftStats(ctx context.Context, tenantID string) (*model
 	}
 
 	// Count by type
-	rows2, err := r.db.QueryContext(ctx,
+	rows2, err := r.TenantAwareRepository.Query(ctx,
 		`SELECT drift_type, COUNT(*) as cnt FROM cmdb_drift_records
 		 WHERE tenant_id = $1 AND resolved_at IS NULL
 		 GROUP BY drift_type`, tenantID)
@@ -320,7 +325,7 @@ func (r *Repository) GetDriftStats(ctx context.Context, tenantID string) (*model
 
 // DeleteDrift removes a drift record.
 func (r *Repository) DeleteDrift(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM cmdb_drift_records WHERE id = $1 AND tenant_id = $2`,
 		id, tenantID,
 	)

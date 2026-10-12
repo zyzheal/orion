@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -16,11 +17,15 @@ import (
 
 // Repository provides PostgreSQL access for workflow triggers.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 func nowUnix() *int64 {
@@ -44,7 +49,7 @@ func (r *Repository) Create(ctx context.Context, m *models.WorkflowTrigger) erro
 // GetByID retrieves a trigger by its ID and tenant.
 func (r *Repository) GetByID(ctx context.Context, id, tenantID string) (*models.WorkflowTrigger, error) {
 	var m models.WorkflowTrigger
-	err := r.db.GetContext(ctx, &m, "SELECT * FROM workflow_triggers WHERE id = $1 AND tenant_id = $2", id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &m, "SELECT * FROM workflow_triggers WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, sentinel.NotFound
@@ -57,21 +62,21 @@ func (r *Repository) GetByID(ctx context.Context, id, tenantID string) (*models.
 // FindByType returns all triggers of the given type for the tenant.
 func (r *Repository) FindByType(ctx context.Context, typ, tenantID string) ([]models.WorkflowTrigger, error) {
 	var items []models.WorkflowTrigger
-	err := r.db.SelectContext(ctx, &items, "SELECT * FROM workflow_triggers WHERE type = $1 AND tenant_id = $2", typ, tenantID)
+	err := r.TenantAwareRepository.Select(ctx, &items, "SELECT * FROM workflow_triggers WHERE type = $1 AND tenant_id = $2", typ, tenantID)
 	return items, err
 }
 
 // FindByEventType returns all triggers matching the given event type for the tenant.
 func (r *Repository) FindByEventType(ctx context.Context, eventType, tenantID string) ([]models.WorkflowTrigger, error) {
 	var items []models.WorkflowTrigger
-	err := r.db.SelectContext(ctx, &items, "SELECT * FROM workflow_triggers WHERE event_type = $1 AND tenant_id = $2", eventType, tenantID)
+	err := r.TenantAwareRepository.Select(ctx, &items, "SELECT * FROM workflow_triggers WHERE event_type = $1 AND tenant_id = $2", eventType, tenantID)
 	return items, err
 }
 
 // FindAll returns all triggers for the tenant.
 func (r *Repository) FindAll(ctx context.Context, tenantID string) ([]models.WorkflowTrigger, int, error) {
 	var items []models.WorkflowTrigger
-	err := r.db.SelectContext(ctx, &items, "SELECT * FROM workflow_triggers WHERE tenant_id = $1", tenantID)
+	err := r.TenantAwareRepository.Select(ctx, &items, "SELECT * FROM workflow_triggers WHERE tenant_id = $1", tenantID)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -91,7 +96,7 @@ func (r *Repository) Update(ctx context.Context, m *models.WorkflowTrigger) erro
 
 // Delete removes a trigger by ID within the tenant.
 func (r *Repository) Delete(ctx context.Context, id, tenantID string) error {
-	result, err := r.db.ExecContext(ctx, "DELETE FROM workflow_triggers WHERE id = $1 AND tenant_id = $2", id, tenantID)
+	result, err := r.TenantAwareRepository.Exec(ctx, "DELETE FROM workflow_triggers WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	if err != nil {
 		return err
 	}

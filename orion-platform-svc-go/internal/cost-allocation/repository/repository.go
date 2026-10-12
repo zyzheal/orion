@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"fmt"
 	"strings"
@@ -15,11 +16,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // --- Allocations ---
@@ -37,7 +42,7 @@ func (r *Repository) CreateAllocation(ctx context.Context, a *models.Allocation)
 
 func (r *Repository) GetAllocationByID(ctx context.Context, tenantID, id string) (*models.Allocation, error) {
 	var a models.Allocation
-	err := r.db.GetContext(ctx, &a,
+	err := r.TenantAwareRepository.Get(ctx, &a,
 		`SELECT * FROM cost_allocations WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return &a, err
 }
@@ -63,7 +68,7 @@ func (r *Repository) ListAllocations(ctx context.Context, tenantID string, filte
 		}
 	}
 	var items []models.Allocation
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		fmt.Sprintf(`SELECT * FROM cost_allocations %s ORDER BY created_at DESC`, where), args...)
 	return items, err
 }
@@ -82,7 +87,7 @@ func (r *Repository) UpdateAllocation(ctx context.Context, tenantID, id string, 
 		i++
 	}
 	args = append(args, id, tenantID)
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		fmt.Sprintf(`UPDATE cost_allocations SET %s WHERE id=$%d AND tenant_id=$%d`,
 			strings.Join(setClauses, ", "), i, i+1), args...)
 	if err != nil {
@@ -95,7 +100,7 @@ func (r *Repository) UpdateAllocation(ctx context.Context, tenantID, id string, 
 }
 
 func (r *Repository) DeleteAllocation(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM cost_allocations WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return false, err
@@ -118,7 +123,7 @@ func (r *Repository) CreateRule(ctx context.Context, rule *models.Rule) error {
 
 func (r *Repository) ListRulesByAllocation(ctx context.Context, tenantID, allocationID string) ([]models.Rule, error) {
 	var rules []models.Rule
-	err := r.db.SelectContext(ctx, &rules,
+	err := r.TenantAwareRepository.Select(ctx, &rules,
 		`SELECT r.* FROM cost_allocation_rules r
 		 JOIN cost_allocations a ON r.allocation_id = a.id
 		 WHERE a.tenant_id=$1 AND r.allocation_id=$2
@@ -127,7 +132,7 @@ func (r *Repository) ListRulesByAllocation(ctx context.Context, tenantID, alloca
 }
 
 func (r *Repository) DeleteRule(ctx context.Context, tenantID, ruleID string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM cost_allocation_rules WHERE id=$1 AND allocation_id IN (SELECT id FROM cost_allocations WHERE tenant_id=$2)`, ruleID, tenantID)
 	if err != nil {
 		return false, err
@@ -151,7 +156,7 @@ func (r *Repository) CreateReport(ctx context.Context, report *models.Report) er
 
 func (r *Repository) GetReportByID(ctx context.Context, tenantID, id string) (*models.Report, error) {
 	var report models.Report
-	err := r.db.GetContext(ctx, &report,
+	err := r.TenantAwareRepository.Get(ctx, &report,
 		`SELECT * FROM cost_allocation_reports WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return &report, err
 }
@@ -177,7 +182,7 @@ func (r *Repository) ListReports(ctx context.Context, tenantID string, filter *m
 		}
 	}
 	var reports []models.Report
-	err := r.db.SelectContext(ctx, &reports,
+	err := r.TenantAwareRepository.Select(ctx, &reports,
 		fmt.Sprintf(`SELECT * FROM cost_allocation_reports %s ORDER BY created_at DESC`, where), args...)
 	return reports, err
 }
@@ -196,7 +201,7 @@ func (r *Repository) UpdateReport(ctx context.Context, tenantID, id string, upda
 		i++
 	}
 	args = append(args, id, tenantID)
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		fmt.Sprintf(`UPDATE cost_allocation_reports SET %s WHERE id=$%d AND tenant_id=$%d`,
 			strings.Join(setClauses, ", "), i, i+1), args...)
 	if err != nil {
@@ -209,7 +214,7 @@ func (r *Repository) UpdateReport(ctx context.Context, tenantID, id string, upda
 }
 
 func (r *Repository) DeleteReport(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM cost_allocation_reports WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return false, err

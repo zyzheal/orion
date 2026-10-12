@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -16,12 +17,16 @@ import (
 
 // Repository provides PostgreSQL-backed CRUD operations for masking rules.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 // NewRepository creates a new PostgreSQL Repository.
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // Create inserts a new masking rule.
@@ -42,7 +47,7 @@ func (r *Repository) Create(ctx context.Context, rule *models.MaskingRule) error
 // GetByID retrieves a masking rule by ID and tenant ID.
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.MaskingRule, error) {
 	var rule models.MaskingRule
-	err := r.db.GetContext(ctx, &rule, `SELECT * FROM masking_rules WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &rule, `SELECT * FROM masking_rules WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sentinel.NotFound
 	}
@@ -52,7 +57,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 // List returns all masking rules for a tenant.
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.MaskingRule, error) {
 	var result []models.MaskingRule
-	err := r.db.SelectContext(ctx, &result, `SELECT * FROM masking_rules WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
+	err := r.TenantAwareRepository.Select(ctx, &result, `SELECT * FROM masking_rules WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +70,7 @@ func (r *Repository) List(ctx context.Context, tenantID string) ([]models.Maskin
 // ListByResourceType returns all enabled rules for a tenant filtered by resource type.
 func (r *Repository) ListByResourceType(ctx context.Context, tenantID, resourceType string) ([]models.MaskingRule, error) {
 	var result []models.MaskingRule
-	err := r.db.SelectContext(ctx, &result, `SELECT * FROM masking_rules WHERE tenant_id=$1 AND resource_type=$2 AND enabled=$3 ORDER BY created_at DESC`, tenantID, resourceType, true)
+	err := r.TenantAwareRepository.Select(ctx, &result, `SELECT * FROM masking_rules WHERE tenant_id=$1 AND resource_type=$2 AND enabled=$3 ORDER BY created_at DESC`, tenantID, resourceType, true)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +138,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 	query += fmt.Sprintf(", updated_at=$%d WHERE id=$%d AND tenant_id=$%d RETURNING *", i, i+1, i+2)
 
 	var rule models.MaskingRule
-	err := r.db.GetContext(ctx, &rule, query, args...)
+	err := r.TenantAwareRepository.Get(ctx, &rule, query, args...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sentinel.NotFound
 	}
@@ -142,7 +147,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 
 // Delete removes a masking rule by ID and tenant ID.
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) (bool, error) {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM masking_rules WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	res, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM masking_rules WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return false, err
 	}

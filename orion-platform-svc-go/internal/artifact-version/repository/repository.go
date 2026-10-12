@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -20,11 +21,15 @@ import (
 // All methods scope writes by tenant_id so cross-tenant leakage is impossible.
 // Deletes are soft (sets deleted_at) to preserve audit history.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // recordRow is the DB-facing shape. JSONB columns are scanned as []byte by
@@ -60,7 +65,7 @@ func (r recordRow) toModel() *models.Record {
 
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.Record, error) {
 	var rows []recordRow
-	err := r.db.SelectContext(ctx, &rows,
+	err := r.TenantAwareRepository.Select(ctx, &rows,
 		`SELECT * FROM artifact_version_records
 		 WHERE tenant_id=$1 AND deleted_at IS NULL
 		 ORDER BY created_at DESC`,
@@ -77,7 +82,7 @@ func (r *Repository) List(ctx context.Context, tenantID string) ([]models.Record
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.Record, error) {
 	var row recordRow
-	err := r.db.GetContext(ctx, &row,
+	err := r.TenantAwareRepository.Get(ctx, &row,
 		`SELECT * FROM artifact_version_records
 		 WHERE id=$1 AND tenant_id=$2 AND deleted_at IS NULL`,
 		id, tenantID)
@@ -101,7 +106,7 @@ func (r *Repository) Create(ctx context.Context, tenantID string, req models.Cre
 	if err != nil {
 		return nil, err
 	}
-	_, err = r.db.ExecContext(ctx,
+	_, err = r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO artifact_version_records
 			(id, tenant_id, name, status, metadata, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $6)`,
@@ -129,7 +134,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, req models
 		return nil, err
 	}
 	now := time.Now().UTC()
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE artifact_version_records
 		 SET name=$3, status=$4, metadata=$5, updated_at=$6
 		 WHERE id=$1 AND tenant_id=$2 AND deleted_at IS NULL`,
@@ -146,7 +151,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, req models
 // Delete soft-deletes the record. Repeating the call returns NotFound.
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	now := time.Now().UTC()
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE artifact_version_records
 		 SET deleted_at=$3
 		 WHERE id=$1 AND tenant_id=$2 AND deleted_at IS NULL`,
@@ -162,7 +167,7 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 
 func (r *Repository) ListByStatus(ctx context.Context, tenantID, status string) ([]models.Record, error) {
 	var rows []recordRow
-	err := r.db.SelectContext(ctx, &rows,
+	err := r.TenantAwareRepository.Select(ctx, &rows,
 		`SELECT * FROM artifact_version_records
 		 WHERE tenant_id=$1 AND status=$2 AND deleted_at IS NULL
 		 ORDER BY created_at DESC`,
@@ -178,7 +183,7 @@ func (r *Repository) ListByStatus(ctx context.Context, tenantID, status string) 
 }
 
 func (r *Repository) UpdateStatus(ctx context.Context, tenantID, id, status string) error {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE artifact_version_records
 		 SET status=$3, updated_at=NOW()
 		 WHERE id=$1 AND tenant_id=$2 AND deleted_at IS NULL`,
@@ -196,7 +201,7 @@ func (r *Repository) UpdateStatus(ctx context.Context, tenantID, id, status stri
 
 func (r *Repository) ListTags(ctx context.Context, tenantID, recordID string) ([]models.Tag, error) {
 	var tags []models.Tag
-	err := r.db.SelectContext(ctx, &tags,
+	err := r.TenantAwareRepository.Select(ctx, &tags,
 		`SELECT * FROM artifact_version_tags
 		 WHERE tenant_id=$1 AND record_id=$2
 		 ORDER BY created_at ASC, tag ASC`,
@@ -207,7 +212,7 @@ func (r *Repository) ListTags(ctx context.Context, tenantID, recordID string) ([
 func (r *Repository) AddTag(ctx context.Context, tenantID, recordID, tag string) (*models.Tag, error) {
 	id := uuid.New().String()
 	now := time.Now().UTC()
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO artifact_version_tags (id, tenant_id, record_id, tag, created_at)
 		 VALUES ($1, $2, $3, $4, $5)
 		 ON CONFLICT (tenant_id, record_id, tag) DO UPDATE SET created_at=EXCLUDED.created_at`,
@@ -216,7 +221,7 @@ func (r *Repository) AddTag(ctx context.Context, tenantID, recordID, tag string)
 		return nil, err
 	}
 	var t models.Tag
-	if err := r.db.GetContext(ctx, &t,
+	if err := r.TenantAwareRepository.Get(ctx, &t,
 		`SELECT * FROM artifact_version_tags WHERE tenant_id=$1 AND record_id=$2 AND tag=$3`,
 		tenantID, recordID, tag); err != nil {
 		return nil, err
@@ -225,7 +230,7 @@ func (r *Repository) AddTag(ctx context.Context, tenantID, recordID, tag string)
 }
 
 func (r *Repository) DeleteTag(ctx context.Context, tenantID, recordID, tag string) error {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM artifact_version_tags WHERE tenant_id=$1 AND record_id=$2 AND tag=$3`,
 		tenantID, recordID, tag)
 	if err != nil {

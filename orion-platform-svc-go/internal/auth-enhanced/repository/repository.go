@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"fmt"
 	"time"
@@ -14,11 +15,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // Keys
@@ -35,7 +40,7 @@ func (r *Repository) CreateKey(ctx context.Context, key *models.AuthKey) error {
 
 func (r *Repository) GetKeyByID(ctx context.Context, tenantID, id string) (*models.AuthKey, error) {
 	var key models.AuthKey
-	err := r.db.GetContext(ctx, &key, `SELECT * FROM auth_keys WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &key, `SELECT * FROM auth_keys WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return nil, sentinel.NotFound
 	}
@@ -54,17 +59,17 @@ func (r *Repository) ListKeys(ctx context.Context, tenantID string, status *stri
 	}
 
 	var keys []models.AuthKey
-	err := r.db.SelectContext(ctx, &keys, fmt.Sprintf(`SELECT * FROM auth_keys %s ORDER BY created_at DESC`, where), args...)
+	err := r.TenantAwareRepository.Select(ctx, &keys, fmt.Sprintf(`SELECT * FROM auth_keys %s ORDER BY created_at DESC`, where), args...)
 	return keys, err
 }
 
 func (r *Repository) UpdateKeyStatus(ctx context.Context, tenantID, id, status string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE auth_keys SET status = $1 WHERE id = $2 AND tenant_id = $3`, status, id, tenantID)
+	_, err := r.TenantAwareRepository.Exec(ctx, `UPDATE auth_keys SET status = $1 WHERE id = $2 AND tenant_id = $3`, status, id, tenantID)
 	return err
 }
 
 func (r *Repository) DeleteKey(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM auth_keys WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	result, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM auth_keys WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return false, err
 	}
@@ -86,7 +91,7 @@ func (r *Repository) CreateBlacklist(ctx context.Context, bl *models.AuthTokenBl
 
 func (r *Repository) IsBlacklisted(ctx context.Context, tenantID, tokenID string) (bool, error) {
 	var count int
-	err := r.db.GetContext(ctx, &count, `
+	err := r.TenantAwareRepository.Get(ctx, &count, `
 		SELECT COUNT(*) FROM auth_token_blacklist 
 		WHERE tenant_id = $1 AND token_id = $2 AND expires_at > NOW()
 	`, tenantID, tokenID)
@@ -95,14 +100,14 @@ func (r *Repository) IsBlacklisted(ctx context.Context, tenantID, tokenID string
 
 func (r *Repository) ListBlacklist(ctx context.Context, tenantID string) ([]models.AuthTokenBlacklist, error) {
 	var blacklist []models.AuthTokenBlacklist
-	err := r.db.SelectContext(ctx, &blacklist, `
+	err := r.TenantAwareRepository.Select(ctx, &blacklist, `
 		SELECT * FROM auth_token_blacklist WHERE tenant_id = $1 AND expires_at > NOW() ORDER BY created_at DESC
 	`, tenantID)
 	return blacklist, err
 }
 
 func (r *Repository) DeleteBlacklist(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM auth_token_blacklist WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	result, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM auth_token_blacklist WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return false, err
 	}

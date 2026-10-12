@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -18,11 +19,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // --- Change Request CRUD ---
@@ -46,7 +51,7 @@ func (r *Repository) CreateChangeRequest(ctx context.Context, m *models.ChangeRe
 
 func (r *Repository) GetChangeRequest(ctx context.Context, tenantID, id string) (*models.ChangeRequest, error) {
 	var m models.ChangeRequest
-	err := r.db.GetContext(ctx, &m,
+	err := r.TenantAwareRepository.Get(ctx, &m,
 		`SELECT * FROM change_requests WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -90,7 +95,7 @@ func (r *Repository) ListChangeRequests(ctx context.Context, tenantID string, q 
 	countArgs := append([]interface{}{tenantID}, args[1:]...)
 	var total int
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM change_requests WHERE %s`, conditionsStr(conditions))
-	err := r.db.GetContext(ctx, &total, countQuery, countArgs...)
+	err := r.TenantAwareRepository.Get(ctx, &total, countQuery, countArgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +106,7 @@ func (r *Repository) ListChangeRequests(ctx context.Context, tenantID string, q 
 	args = append(args, q.Limit, q.Offset)
 
 	var items []models.ChangeRequest
-	err = r.db.SelectContext(ctx, &items, selectQuery, args...)
+	err = r.TenantAwareRepository.Select(ctx, &items, selectQuery, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -126,13 +131,13 @@ func (r *Repository) UpdateChangeRequest(ctx context.Context, tenantID, id strin
 		args = append(args, id, tenantID)
 		query := fmt.Sprintf(`UPDATE change_requests SET %s WHERE id=$%d AND tenant_id=$%d`,
 			joinSets(sets), argCount, argCount+1)
-		if _, err := r.db.ExecContext(ctx, query, args...); err != nil {
+		if _, err := r.TenantAwareRepository.Exec(ctx, query, args...); err != nil {
 			return nil, err
 		}
 		return r.GetChangeRequest(ctx, tenantID, id)
 	}
 
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE change_requests SET updated_at = NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -170,14 +175,14 @@ func joinSets(sets []string) string {
 }
 
 func (r *Repository) DeleteChangeRequest(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM change_requests WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
 
 // UpdateStatus updates the status of a change request.
 func (r *Repository) UpdateStatus(ctx context.Context, tenantID, id, status, reason string) (*models.ChangeRequest, error) {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE change_requests SET status=$1, updated_at=NOW() WHERE id=$2 AND tenant_id=$3`, status, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -197,7 +202,7 @@ func (r *Repository) CreateTimelineEvent(ctx context.Context, event *models.Time
 	event.CreatedAt = time.Now().UTC()
 	query := `INSERT INTO change_timeline_events (id, change_request_id, tenant_id, event_type, description, metadata, created_by, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-	_, err := r.db.ExecContext(ctx, query,
+	_, err := r.TenantAwareRepository.Exec(ctx, query,
 		event.ID, event.ChangeRequestID, event.TenantID, event.EventType, event.Description, metadata, event.CreatedBy, event.CreatedAt)
 	return err
 }
@@ -207,7 +212,7 @@ func (r *Repository) ListTimelineEvents(ctx context.Context, tenantID, changeReq
 		limit = 50
 	}
 	var items []models.TimelineEvent
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM change_timeline_events WHERE change_request_id=$1 AND tenant_id=$2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`,
 		changeRequestID, tenantID, limit, offset)
 	if err != nil {
@@ -221,32 +226,32 @@ func (r *Repository) ListTimelineEvents(ctx context.Context, tenantID, changeReq
 func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.ChangeStats, error) {
 	var total, open, approved, rejected, inProgress, completed int
 
-	err := r.db.GetContext(ctx, &total,
+	err := r.TenantAwareRepository.Get(ctx, &total,
 		`SELECT COUNT(*) FROM change_requests WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return nil, err
 	}
-	err = r.db.GetContext(ctx, &open,
+	err = r.TenantAwareRepository.Get(ctx, &open,
 		`SELECT COUNT(*) FROM change_requests WHERE tenant_id=$1 AND status NOT IN ('completed','cancelled','rejected')`, tenantID)
 	if err != nil {
 		return nil, err
 	}
-	err = r.db.GetContext(ctx, &approved,
+	err = r.TenantAwareRepository.Get(ctx, &approved,
 		`SELECT COUNT(*) FROM change_requests WHERE tenant_id=$1 AND status=$2`, tenantID, "approved")
 	if err != nil {
 		return nil, err
 	}
-	err = r.db.GetContext(ctx, &rejected,
+	err = r.TenantAwareRepository.Get(ctx, &rejected,
 		`SELECT COUNT(*) FROM change_requests WHERE tenant_id=$1 AND status=$2`, tenantID, "rejected")
 	if err != nil {
 		return nil, err
 	}
-	err = r.db.GetContext(ctx, &inProgress,
+	err = r.TenantAwareRepository.Get(ctx, &inProgress,
 		`SELECT COUNT(*) FROM change_requests WHERE tenant_id=$1 AND status=$2`, tenantID, "in_progress")
 	if err != nil {
 		return nil, err
 	}
-	err = r.db.GetContext(ctx, &completed,
+	err = r.TenantAwareRepository.Get(ctx, &completed,
 		`SELECT COUNT(*) FROM change_requests WHERE tenant_id=$1 AND status=$2`, tenantID, "completed")
 	if err != nil {
 		return nil, err
@@ -273,7 +278,7 @@ func (r *Repository) CreateRFC(ctx context.Context, tenantID string, rfc *models
 	if rfc.Status == "" {
 		rfc.Status = "draft"
 	}
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO change_rfcs (id, tenant_id, change_request_id, rfc_number, title, description, status, created_by, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 		rfc.ID, tenantID, rfc.ChangeRequestID, rfc.RFCNumber, rfc.Title, rfc.Description, rfc.Status, rfc.CreatedBy, rfc.CreatedAt, rfc.UpdatedAt)
@@ -282,7 +287,7 @@ func (r *Repository) CreateRFC(ctx context.Context, tenantID string, rfc *models
 
 func (r *Repository) GetRFC(ctx context.Context, tenantID, id string) (*models.RFC, error) {
 	var m models.RFC
-	err := r.db.GetContext(ctx, &m,
+	err := r.TenantAwareRepository.Get(ctx, &m,
 		`SELECT * FROM change_rfcs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -298,13 +303,13 @@ func (r *Repository) ListRFCs(ctx context.Context, tenantID string, limit, offse
 		offset = 0
 	}
 	var total int
-	err := r.db.GetContext(ctx, &total,
+	err := r.TenantAwareRepository.Get(ctx, &total,
 		`SELECT COUNT(*) FROM change_rfcs WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	var items []models.RFC
-	err = r.db.SelectContext(ctx, &items,
+	err = r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM change_rfcs WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, tenantID, limit, offset)
 	if err != nil {
 		return nil, err
@@ -328,7 +333,7 @@ func (r *Repository) UpdateRFC(ctx context.Context, tenantID, id string, updates
 		}
 		return nil, err
 	}
-	if _, err := r.db.ExecContext(ctx, stmt, args...); err != nil {
+	if _, err := r.TenantAwareRepository.Exec(ctx, stmt, args...); err != nil {
 		return nil, err
 	}
 	return r.GetRFC(ctx, tenantID, id)
@@ -344,7 +349,7 @@ func (r *Repository) CreateCABMeeting(ctx context.Context, tenantID string, meet
 	if meeting.Status == "" {
 		meeting.Status = "scheduled"
 	}
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO cab_meetings (id, tenant_id, title, description, status, scheduled_at, created_by, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 		meeting.ID, tenantID, meeting.Title, meeting.Description, meeting.Status, meeting.ScheduledAt, meeting.CreatedBy, meeting.CreatedAt, meeting.UpdatedAt)
@@ -353,7 +358,7 @@ func (r *Repository) CreateCABMeeting(ctx context.Context, tenantID string, meet
 
 func (r *Repository) GetCABMeeting(ctx context.Context, tenantID, id string) (*models.CABMeeting, error) {
 	var m models.CABMeeting
-	err := r.db.GetContext(ctx, &m,
+	err := r.TenantAwareRepository.Get(ctx, &m,
 		`SELECT * FROM cab_meetings WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -385,14 +390,14 @@ func (r *Repository) ListCABMeetings(ctx context.Context, tenantID string, q mod
 	whereClause := conditionsStr(conditions)
 
 	var total int
-	err := r.db.GetContext(ctx, &total,
+	err := r.TenantAwareRepository.Get(ctx, &total,
 		fmt.Sprintf(`SELECT COUNT(*) FROM cab_meetings WHERE %s`, whereClause), args...)
 	if err != nil {
 		return nil, err
 	}
 
 	var items []models.CABMeeting
-	err = r.db.SelectContext(ctx, &items,
+	err = r.TenantAwareRepository.Select(ctx, &items,
 		fmt.Sprintf(`SELECT * FROM cab_meetings WHERE %s ORDER BY scheduled_at DESC LIMIT $%d OFFSET $%d`,
 			whereClause, argCount, argCount+1),
 		append(args, q.Limit, q.Offset)...,
@@ -418,7 +423,7 @@ func (r *Repository) UpdateCABMeeting(ctx context.Context, tenantID, id string, 
 		}
 		return nil, err
 	}
-	if _, err := r.db.ExecContext(ctx, stmt, args...); err != nil {
+	if _, err := r.TenantAwareRepository.Exec(ctx, stmt, args...); err != nil {
 		return nil, err
 	}
 	return r.GetCABMeeting(ctx, tenantID, id)
@@ -429,7 +434,7 @@ func (r *Repository) UpdateCABMeeting(ctx context.Context, tenantID, id string, 
 func (r *Repository) AddCABDecision(ctx context.Context, tenantID, cabID, changeRequestID, decision, notes string) (*models.CABDecision, error) {
 	id := uuid.New().String()
 	now := time.Now().UTC()
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO cab_decisions (id, tenant_id, cab_meeting_id, change_request_id, decision, notes, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		id, tenantID, cabID, changeRequestID, decision, notes, now)

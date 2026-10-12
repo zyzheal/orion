@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -17,11 +18,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 func nowUnix() *int64 {
@@ -62,7 +67,7 @@ func (r *Repository) Create(ctx context.Context, tenantID string, req models.Cre
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.Build, error) {
 	var b models.Build
-	err := r.db.GetContext(ctx, &b, `SELECT * FROM builds WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &b, `SELECT * FROM builds WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, sentinel.NotFound
@@ -101,7 +106,7 @@ func (r *Repository) List(ctx context.Context, tenantID string, opt models.ListB
 	whereClause := strings.Join(whereParts, " AND ")
 
 	var total int
-	if err := r.db.GetContext(ctx, &total, "SELECT COUNT(*) FROM builds WHERE "+whereClause, args...); err != nil {
+	if err := r.TenantAwareRepository.Get(ctx, &total, "SELECT COUNT(*) FROM builds WHERE "+whereClause, args...); err != nil {
 		return nil, 0, err
 	}
 
@@ -110,7 +115,7 @@ func (r *Repository) List(ctx context.Context, tenantID string, opt models.ListB
 	args = append(args, limit, offset)
 
 	var builds []models.Build
-	if err := r.db.SelectContext(ctx, &builds, dataSQL, args...); err != nil {
+	if err := r.TenantAwareRepository.Select(ctx, &builds, dataSQL, args...); err != nil {
 		return nil, 0, err
 	}
 	return builds, total, nil
@@ -140,7 +145,7 @@ func (r *Repository) UpdateStatus(ctx context.Context, tenantID, id string, stat
 
 	query := "UPDATE builds SET " + strings.Join(setParts, ", ") + " WHERE id = $" + fmt.Sprint(idx) + " AND tenant_id = $" + fmt.Sprint(idx+1) + " RETURNING *"
 	var b models.Build
-	err := r.db.GetContext(ctx, &b, query, args...)
+	err := r.TenantAwareRepository.Get(ctx, &b, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +166,7 @@ func (r *Repository) CompleteBuild(ctx context.Context, tenantID, id string, sta
 
 func (r *Repository) GetByPipelineRun(ctx context.Context, tenantID, pipelineRunID string) (*models.Build, error) {
 	var b models.Build
-	err := r.db.GetContext(ctx, &b, `SELECT * FROM builds WHERE tenant_id=$1 AND pipeline_run_id=$2 ORDER BY created_at DESC LIMIT 1`, tenantID, pipelineRunID)
+	err := r.TenantAwareRepository.Get(ctx, &b, `SELECT * FROM builds WHERE tenant_id=$1 AND pipeline_run_id=$2 ORDER BY created_at DESC LIMIT 1`, tenantID, pipelineRunID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -173,7 +178,7 @@ func (r *Repository) GetByPipelineRun(ctx context.Context, tenantID, pipelineRun
 
 func (r *Repository) GetBuildStats(ctx context.Context, tenantID string) (*models.BuildStats, error) {
 	var stats models.BuildStats
-	err := r.db.GetContext(ctx, &stats, `
+	err := r.TenantAwareRepository.Get(ctx, &stats, `
 		SELECT
 			COUNT(*) as total,
 			SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) as success,
@@ -187,7 +192,7 @@ func (r *Repository) GetBuildStats(ctx context.Context, tenantID string) (*model
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM builds WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	result, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM builds WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return false, err
 	}
@@ -228,7 +233,7 @@ func (r *Repository) CreateEnvironment(ctx context.Context, tenantID string, req
 
 func (r *Repository) GetEnvironment(ctx context.Context, tenantID, id string) (*models.BuildEnvironment, error) {
 	var env models.BuildEnvironment
-	err := r.db.GetContext(ctx, &env, `SELECT * FROM build_environments WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &env, `SELECT * FROM build_environments WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, sentinel.NotFound
@@ -240,7 +245,7 @@ func (r *Repository) GetEnvironment(ctx context.Context, tenantID, id string) (*
 
 func (r *Repository) ListEnvironments(ctx context.Context, tenantID string) ([]models.BuildEnvironment, error) {
 	var envs []models.BuildEnvironment
-	err := r.db.SelectContext(ctx, &envs, `SELECT * FROM build_environments WHERE tenant_id=$1 ORDER BY name`, tenantID)
+	err := r.TenantAwareRepository.Select(ctx, &envs, `SELECT * FROM build_environments WHERE tenant_id=$1 ORDER BY name`, tenantID)
 	return envs, err
 }
 
@@ -279,7 +284,7 @@ func (r *Repository) UpdateEnvironment(ctx context.Context, tenantID, id string,
 
 	query := "UPDATE build_environments SET " + strings.Join(setParts, ", ") + " WHERE id = $" + fmt.Sprint(idx) + " AND tenant_id = $" + fmt.Sprint(idx+1) + " RETURNING *"
 	var env models.BuildEnvironment
-	err := r.db.GetContext(ctx, &env, query, args...)
+	err := r.TenantAwareRepository.Get(ctx, &env, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +292,7 @@ func (r *Repository) UpdateEnvironment(ctx context.Context, tenantID, id string,
 }
 
 func (r *Repository) DeleteEnvironment(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM build_environments WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	result, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM build_environments WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return false, err
 	}

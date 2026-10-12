@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -17,11 +18,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 func (r *Repository) Create(ctx context.Context, lc *models.ArtifactLifecycle) error {
@@ -36,7 +41,7 @@ func (r *Repository) Create(ctx context.Context, lc *models.ArtifactLifecycle) e
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.ArtifactLifecycle, error) {
 	var lc models.ArtifactLifecycle
-	err := r.db.GetContext(ctx, &lc,
+	err := r.TenantAwareRepository.Get(ctx, &lc,
 		`SELECT * FROM artifact_lifecycles WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		// The service checks errors.Is(err, sentinel.NotFound) on the result of
@@ -52,7 +57,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 
 func (r *Repository) GetByArtifactID(ctx context.Context, tenantID, artifactID string) (*models.ArtifactLifecycle, error) {
 	var lc models.ArtifactLifecycle
-	err := r.db.GetContext(ctx, &lc,
+	err := r.TenantAwareRepository.Get(ctx, &lc,
 		`SELECT * FROM artifact_lifecycles WHERE artifact_id=$1 AND tenant_id=$2 ORDER BY created_at DESC LIMIT 1`, artifactID, tenantID)
 	if err != nil {
 		// Create calls this to detect a duplicate and tests the error against
@@ -73,14 +78,14 @@ func (r *Repository) List(ctx context.Context, tenantID string, limit, offset in
 		limit = 50
 	}
 	var items []models.ArtifactLifecycle
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM artifact_lifecycles WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, tenantID, limit, offset)
 	return items, err
 }
 
 func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
 	var count int
-	err := r.db.GetContext(ctx, &count,
+	err := r.TenantAwareRepository.Get(ctx, &count,
 		`SELECT COUNT(*) FROM artifact_lifecycles WHERE tenant_id=$1`, tenantID)
 	return count, err
 }
@@ -136,20 +141,20 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM artifact_lifecycles WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
 
 func (r *Repository) GetStageHistory(ctx context.Context, tenantID, id string) ([]models.ArtifactLifecycle, error) {
 	var items []models.ArtifactLifecycle
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM artifact_lifecycles WHERE artifact_id=$1 AND tenant_id=$2 ORDER BY created_at ASC`, id, tenantID)
 	return items, err
 }
 
 func (r *Repository) Archive(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE artifact_lifecycles SET stage='archived', stage_status='archived', updated_at=NOW()
 		WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err

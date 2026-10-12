@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -15,17 +16,21 @@ var errNotFound = errors.New("refresh token not found")
 
 // Repository provides PostgreSQL-backed persistence for refresh tokens.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 // NewRepository creates a new Repository instance.
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // Create inserts a new refresh token.
 func (r *Repository) Create(ctx context.Context, rt *models.RefreshToken) error {
-	_, err := r.db.ExecContext(ctx, `
+	_, err := r.TenantAwareRepository.Exec(ctx, `
 		INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, tenant_id, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6)`,
 		rt.ID, rt.UserID, rt.TokenHash, rt.ExpiresAt, rt.TenantID, rt.CreatedAt,
@@ -43,7 +48,7 @@ type RefreshTokenRow struct {
 
 func (r *Repository) FindByHash(ctx context.Context, tokenHash string) (*RefreshTokenRow, error) {
 	var row RefreshTokenRow
-	err := r.db.GetContext(ctx, &row, `
+	err := r.TenantAwareRepository.Get(ctx, &row, `
 		SELECT rt.id, rt.user_id, rt.token_hash, rt.expires_at, rt.tenant_id, rt.created_at,
 		       u.username, u.role, u.status
 		FROM refresh_tokens rt
@@ -60,21 +65,21 @@ func (r *Repository) FindByHash(ctx context.Context, tokenHash string) (*Refresh
 
 // DeleteByHash removes a refresh token by its hash.
 func (r *Repository) DeleteByHash(ctx context.Context, tokenHash string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM refresh_tokens WHERE token_hash = $1`, tokenHash)
 	return err
 }
 
 // DeleteByUserID removes all refresh tokens for a user (used for full logout).
 func (r *Repository) DeleteByUserID(ctx context.Context, userID string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM refresh_tokens WHERE user_id = $1`, userID)
 	return err
 }
 
 // CleanupExpired removes all expired refresh tokens.
 func (r *Repository) CleanupExpired(ctx context.Context) (int64, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM refresh_tokens WHERE expires_at < NOW()`)
 	if err != nil {
 		return 0, err
@@ -85,7 +90,7 @@ func (r *Repository) CleanupExpired(ctx context.Context) (int64, error) {
 // FindTenantsByUserID retrieves tenant IDs for a user.
 func (r *Repository) FindTenantsByUserID(ctx context.Context, userID string) ([]string, error) {
 	var tenants []string
-	err := r.db.SelectContext(ctx, &tenants,
+	err := r.TenantAwareRepository.Select(ctx, &tenants,
 		`SELECT tenant_id FROM tenant_users WHERE user_id = $1`, userID)
 	if err != nil {
 		return nil, err

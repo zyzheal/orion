@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -14,11 +15,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // ===== MetricSnapshot =====
@@ -34,7 +39,7 @@ func (r *Repository) CreateSnapshot(ctx context.Context, s *models.MetricSnapsho
 
 func (r *Repository) ListSnapshotsByTenant(ctx context.Context, tenantID string, limit int) ([]models.MetricSnapshot, error) {
 	var snapshots []models.MetricSnapshot
-	err := r.db.SelectContext(ctx, &snapshots,
+	err := r.TenantAwareRepository.Select(ctx, &snapshots,
 		`SELECT * FROM efficiency_metric_snapshots
 		 WHERE tenant_id=$1 ORDER BY captured_at DESC LIMIT $2`,
 		tenantID, limit)
@@ -42,7 +47,7 @@ func (r *Repository) ListSnapshotsByTenant(ctx context.Context, tenantID string,
 }
 
 func (r *Repository) PruneOldSnapshots(ctx context.Context, tenantID string, keep int) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM efficiency_metric_snapshots
 		 WHERE id NOT IN (
 			 SELECT id FROM efficiency_metric_snapshots
@@ -65,7 +70,7 @@ func (r *Repository) CreateReportHistory(ctx context.Context, entry *models.Repo
 
 func (r *Repository) ListReportHistory(ctx context.Context, tenantID string, limit int) ([]models.ReportHistoryEntry, error) {
 	var entries []models.ReportHistoryEntry
-	err := r.db.SelectContext(ctx, &entries,
+	err := r.TenantAwareRepository.Select(ctx, &entries,
 		`SELECT * FROM efficiency_report_history
 		 WHERE tenant_id=$1 ORDER BY generated_at DESC LIMIT $2`,
 		tenantID, limit)
@@ -86,7 +91,7 @@ func (r *Repository) CreateTeamData(ctx context.Context, t *models.TeamData) err
 
 func (r *Repository) GetTeamData(ctx context.Context, tenantID, teamID string) (*models.TeamData, error) {
 	var t models.TeamData
-	err := r.db.GetContext(ctx, &t,
+	err := r.TenantAwareRepository.Get(ctx, &t,
 		`SELECT * FROM efficiency_team_data WHERE tenant_id=$1 AND id=$2`, tenantID, teamID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sentinel.NotFound
@@ -96,7 +101,7 @@ func (r *Repository) GetTeamData(ctx context.Context, tenantID, teamID string) (
 
 func (r *Repository) ListTeamData(ctx context.Context, tenantID string) ([]models.TeamData, error) {
 	var teams []models.TeamData
-	err := r.db.SelectContext(ctx, &teams,
+	err := r.TenantAwareRepository.Select(ctx, &teams,
 		`SELECT * FROM efficiency_team_data WHERE tenant_id=$1`, tenantID)
 	return teams, err
 }
@@ -115,7 +120,7 @@ func (r *Repository) CreateProjectData(ctx context.Context, p *models.ProjectDat
 
 func (r *Repository) GetProjectData(ctx context.Context, tenantID, projectID string) (*models.ProjectData, error) {
 	var p models.ProjectData
-	err := r.db.GetContext(ctx, &p,
+	err := r.TenantAwareRepository.Get(ctx, &p,
 		`SELECT * FROM efficiency_project_data WHERE tenant_id=$1 AND id=$2`, tenantID, projectID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sentinel.NotFound
@@ -125,7 +130,7 @@ func (r *Repository) GetProjectData(ctx context.Context, tenantID, projectID str
 
 func (r *Repository) ListProjectData(ctx context.Context, tenantID string) ([]models.ProjectData, error) {
 	var projects []models.ProjectData
-	err := r.db.SelectContext(ctx, &projects,
+	err := r.TenantAwareRepository.Select(ctx, &projects,
 		`SELECT * FROM efficiency_project_data WHERE tenant_id=$1`, tenantID)
 	return projects, err
 }
@@ -143,13 +148,13 @@ func (r *Repository) CreateGlobalDeployment(ctx context.Context, d *models.Globa
 
 func (r *Repository) ListGlobalDeployments(ctx context.Context, tenantID string) ([]models.GlobalDeployment, error) {
 	var depl []models.GlobalDeployment
-	err := r.db.SelectContext(ctx, &depl,
+	err := r.TenantAwareRepository.Select(ctx, &depl,
 		`SELECT * FROM efficiency_global_deployments WHERE tenant_id=$1 ORDER BY deployed_at DESC`, tenantID)
 	return depl, err
 }
 
 func (r *Repository) DeleteGlobalDeploymentsByTenant(ctx context.Context, tenantID string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM efficiency_global_deployments WHERE tenant_id=$1`, tenantID)
 	return err
 }
@@ -167,13 +172,13 @@ func (r *Repository) CreateGlobalPipeline(ctx context.Context, p *models.GlobalP
 
 func (r *Repository) ListGlobalPipelines(ctx context.Context, tenantID string) ([]models.GlobalPipeline, error) {
 	var pips []models.GlobalPipeline
-	err := r.db.SelectContext(ctx, &pips,
+	err := r.TenantAwareRepository.Select(ctx, &pips,
 		`SELECT * FROM efficiency_global_pipelines WHERE tenant_id=$1 ORDER BY completed_at DESC`, tenantID)
 	return pips, err
 }
 
 func (r *Repository) DeleteGlobalPipelinesByTenant(ctx context.Context, tenantID string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM efficiency_global_pipelines WHERE tenant_id=$1`, tenantID)
 	return err
 }
@@ -183,7 +188,7 @@ func (r *Repository) DeleteGlobalPipelinesByTenant(ctx context.Context, tenantID
 // TableExists checks if a table exists in the current database.
 func (r *Repository) TableExists(ctx context.Context, tableName string) (bool, error) {
 	var exists bool
-	err := r.db.GetContext(ctx, &exists,
+	err := r.TenantAwareRepository.Get(ctx, &exists,
 		`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = $1)`, tableName)
 	return exists, err
 }

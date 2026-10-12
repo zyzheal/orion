@@ -7,6 +7,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -26,12 +27,16 @@ var (
 
 // Repository provides data access for relationship types and relationship records.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 // NewRepository creates a new Repository.
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // ===========================================================================
@@ -47,7 +52,7 @@ func (r *Repository) CreateRelationshipType(ctx context.Context, rt *models.CMDB
 	rt.CreatedAt = now
 	rt.UpdatedAt = now
 
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO cmdb_relationship_types
 			(id, tenant_id, name, description, source_type, target_type,
 			 cardinality, bidirectional, inverse_name, icon, color,
@@ -63,7 +68,7 @@ func (r *Repository) CreateRelationshipType(ctx context.Context, rt *models.CMDB
 // GetRelationshipType returns a relationship type by id, scoped to tenant.
 func (r *Repository) GetRelationshipType(ctx context.Context, tenantID, id string) (*models.CMDBRelationshipType, error) {
 	var rt models.CMDBRelationshipType
-	err := r.db.GetContext(ctx, &rt,
+	err := r.TenantAwareRepository.Get(ctx, &rt,
 		`SELECT id, tenant_id, name, description, source_type, target_type,
 		        cardinality, bidirectional, inverse_name, icon, color,
 		        attributes, enabled, status, created_at, updated_at
@@ -103,7 +108,7 @@ func (r *Repository) ListRelationshipTypes(ctx context.Context, tenantID, status
 
 	query += " ORDER BY created_at DESC"
 
-	err := r.db.SelectContext(ctx, &items, query, args...)
+	err := r.TenantAwareRepository.Select(ctx, &items, query, args...)
 	return items, err
 }
 
@@ -169,13 +174,13 @@ func (r *Repository) UpdateRelationshipType(ctx context.Context, id string, req 
 		joinStrings(setClauses, ", "), argIdx)
 	args = append(args, id)
 
-	_, err := r.db.ExecContext(ctx, query, args...)
+	_, err := r.TenantAwareRepository.Exec(ctx, query, args...)
 	return err
 }
 
 // DeleteRelationshipType soft-deletes a type (sets status=deprecated, enabled=false).
 func (r *Repository) DeleteRelationshipType(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE cmdb_relationship_types
 		 SET status = $1, enabled = $2, updated_at = now()
 		 WHERE id = $3 AND tenant_id = $4`,
@@ -187,7 +192,7 @@ func (r *Repository) DeleteRelationshipType(ctx context.Context, tenantID, id st
 // CountRelationshipTypes returns type count for a tenant.
 func (r *Repository) CountRelationshipTypes(ctx context.Context, tenantID string) (int, error) {
 	var count int
-	err := r.db.GetContext(ctx, &count,
+	err := r.TenantAwareRepository.Get(ctx, &count,
 		`SELECT COUNT(*) FROM cmdb_relationship_types WHERE tenant_id = $1`,
 		tenantID,
 	)
@@ -207,7 +212,7 @@ func (r *Repository) CreateRelationship(ctx context.Context, rel *models.CMDBRel
 	rel.CreatedAt = now
 	rel.UpdatedAt = now
 
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO cmdb_relationships
 			(id, tenant_id, source_id, target_id, type_id, attributes, created_at, updated_at)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
@@ -220,7 +225,7 @@ func (r *Repository) CreateRelationship(ctx context.Context, rel *models.CMDBRel
 // GetRelationship returns a single relationship by id, scoped to tenant.
 func (r *Repository) GetRelationship(ctx context.Context, tenantID, id string) (*models.CMDBRelationship, error) {
 	var rel models.CMDBRelationship
-	err := r.db.GetContext(ctx, &rel,
+	err := r.TenantAwareRepository.Get(ctx, &rel,
 		`SELECT id, tenant_id, source_id, target_id, type_id, attributes, created_at, updated_at
 		 FROM cmdb_relationships
 		 WHERE id = $1 AND tenant_id = $2`,
@@ -239,7 +244,7 @@ func (r *Repository) GetRelationships(ctx context.Context, tenantID, ciID, direc
 
 	switch direction {
 	case "outbound":
-		err := r.db.SelectContext(ctx, &items,
+		err := r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, source_id, target_id, type_id, attributes, created_at, updated_at
 			 FROM cmdb_relationships
 			 WHERE tenant_id = $1 AND source_id = $2
@@ -248,7 +253,7 @@ func (r *Repository) GetRelationships(ctx context.Context, tenantID, ciID, direc
 		)
 		return items, err
 	case "inbound":
-		err := r.db.SelectContext(ctx, &items,
+		err := r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, source_id, target_id, type_id, attributes, created_at, updated_at
 			 FROM cmdb_relationships
 			 WHERE tenant_id = $1 AND target_id = $2
@@ -257,7 +262,7 @@ func (r *Repository) GetRelationships(ctx context.Context, tenantID, ciID, direc
 		)
 		return items, err
 	default: // "both"
-		err := r.db.SelectContext(ctx, &items,
+		err := r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, source_id, target_id, type_id, attributes, created_at, updated_at
 			 FROM cmdb_relationships
 			 WHERE tenant_id = $1 AND (source_id = $2 OR target_id = $2)
@@ -270,7 +275,7 @@ func (r *Repository) GetRelationships(ctx context.Context, tenantID, ciID, direc
 
 // DeleteRelationship removes a relationship record.
 func (r *Repository) DeleteRelationship(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM cmdb_relationships WHERE id = $1 AND tenant_id = $2`,
 		id, tenantID,
 	)
@@ -280,7 +285,7 @@ func (r *Repository) DeleteRelationship(ctx context.Context, tenantID, id string
 // CountRelationships returns relationship count for a tenant CI.
 func (r *Repository) CountRelationships(ctx context.Context, tenantID, ciID string) (int, error) {
 	var count int
-	err := r.db.GetContext(ctx, &count,
+	err := r.TenantAwareRepository.Get(ctx, &count,
 		`SELECT COUNT(*) FROM cmdb_relationships
 		 WHERE tenant_id = $1 AND (source_id = $2 OR target_id = $2)`,
 		tenantID, ciID,

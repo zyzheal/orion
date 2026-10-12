@@ -6,6 +6,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -25,12 +26,16 @@ var (
 
 // Repository provides data access for CMDB import jobs and records.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 // NewRepository creates a new Repository.
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // ===========================================================================
@@ -52,7 +57,7 @@ func (r *Repository) CreateJob(ctx context.Context, j *models.CMDBImportJob) err
 		j.StartedAt = now
 	}
 
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO cmdb_import_jobs
 			(id, tenant_id, name, source_type, source_path, target_type, mapping,
 			 mode, status, total_count, success_count, error_count, error,
@@ -68,7 +73,7 @@ func (r *Repository) CreateJob(ctx context.Context, j *models.CMDBImportJob) err
 // GetJob returns a single import job by its UUID.
 func (r *Repository) GetJob(ctx context.Context, id string) (*models.CMDBImportJob, error) {
 	var j models.CMDBImportJob
-	err := r.db.GetContext(ctx, &j,
+	err := r.TenantAwareRepository.Get(ctx, &j,
 		`SELECT id, tenant_id, name, source_type, source_path, target_type, mapping,
 		        mode, status, total_count, success_count, error_count, error,
 		        started_at, finished_at, created_at
@@ -88,7 +93,7 @@ func (r *Repository) ListJobs(ctx context.Context, tenantID, status string, offs
 	var err error
 
 	if tenantID != "" && status != "" {
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, name, source_type, source_path, target_type, mapping,
 			        mode, status, total_count, success_count, error_count, error,
 			        started_at, finished_at, created_at
@@ -100,7 +105,7 @@ func (r *Repository) ListJobs(ctx context.Context, tenantID, status string, offs
 		)
 	} else if tenantID != "" {
 		// Default: tenant-level query (multi-tenant safety)
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, name, source_type, source_path, target_type, mapping,
 			        mode, status, total_count, success_count, error_count, error,
 			        started_at, finished_at, created_at
@@ -111,7 +116,7 @@ func (r *Repository) ListJobs(ctx context.Context, tenantID, status string, offs
 			tenantID, offset, limit,
 		)
 	} else if status != "" {
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, name, source_type, source_path, target_type, mapping,
 			        mode, status, total_count, success_count, error_count, error,
 			        started_at, finished_at, created_at
@@ -122,7 +127,7 @@ func (r *Repository) ListJobs(ctx context.Context, tenantID, status string, offs
 			status, offset, limit,
 		)
 	} else {
-		err = r.db.SelectContext(ctx, &items,
+		err = r.TenantAwareRepository.Select(ctx, &items,
 			`SELECT id, tenant_id, name, source_type, source_path, target_type, mapping,
 			        mode, status, total_count, success_count, error_count, error,
 			        started_at, finished_at, created_at
@@ -139,13 +144,13 @@ func (r *Repository) ListJobs(ctx context.Context, tenantID, status string, offs
 func (r *Repository) CountJobs(ctx context.Context, tenantID string) (int, error) {
 	var count int
 	if tenantID != "" {
-		err := r.db.GetContext(ctx, &count,
+		err := r.TenantAwareRepository.Get(ctx, &count,
 			`SELECT COUNT(*) FROM cmdb_import_jobs WHERE tenant_id = $1`,
 			tenantID,
 		)
 		return count, err
 	}
-	err := r.db.GetContext(ctx, &count,
+	err := r.TenantAwareRepository.Get(ctx, &count,
 		`SELECT COUNT(*) FROM cmdb_import_jobs`,
 	)
 	return count, err
@@ -183,7 +188,7 @@ func (r *Repository) UpdateJobStatus(ctx context.Context, id string, status stri
 	args = append(args, id)
 
 	var j models.CMDBImportJob
-	err := r.db.GetContext(ctx, &j, query, args...)
+	err := r.TenantAwareRepository.Get(ctx, &j, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +197,7 @@ func (r *Repository) UpdateJobStatus(ctx context.Context, id string, status stri
 
 // UpdateJobCounts updates the aggregate counters for a job.
 func (r *Repository) UpdateJobCounts(ctx context.Context, id string, totalCount, successCount, errorCount int) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE cmdb_import_jobs
 		 SET total_count = $1, success_count = $2, error_count = $3
 		 WHERE id = $4`,
@@ -203,7 +208,7 @@ func (r *Repository) UpdateJobCounts(ctx context.Context, id string, totalCount,
 
 // IncrementJobCounters atomically increments success_count or error_count.
 func (r *Repository) IncrementJobCounters(ctx context.Context, id string, incSuccess, incError int) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE cmdb_import_jobs
 		 SET total_count = total_count + $1,
 		     success_count = success_count + $2,
@@ -216,7 +221,7 @@ func (r *Repository) IncrementJobCounters(ctx context.Context, id string, incSuc
 
 // DeleteJob removes an import job and its records.
 func (r *Repository) DeleteJob(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM cmdb_import_jobs WHERE id = $1`,
 		id,
 	)
@@ -235,7 +240,7 @@ func (r *Repository) CreateRecord(ctx context.Context, rec *models.CMDBImportRec
 	now := time.Now().UTC()
 	rec.CreatedAt = now
 
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO cmdb_import_records
 			(id, job_id, source_row, target_id, action, error, created_at)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7)`,
@@ -248,7 +253,7 @@ func (r *Repository) CreateRecord(ctx context.Context, rec *models.CMDBImportRec
 // ListRecordsByJob returns paginated records for a job.
 func (r *Repository) ListRecordsByJob(ctx context.Context, jobID string, offset, limit int) ([]models.CMDBImportRecord, error) {
 	var items []models.CMDBImportRecord
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT id, job_id, source_row, target_id, action, error, created_at
 		 FROM cmdb_import_records
 		 WHERE job_id = $1
@@ -262,7 +267,7 @@ func (r *Repository) ListRecordsByJob(ctx context.Context, jobID string, offset,
 // CountRecordsByJob returns record count for a job.
 func (r *Repository) CountRecordsByJob(ctx context.Context, jobID string) (int, error) {
 	var count int
-	err := r.db.GetContext(ctx, &count,
+	err := r.TenantAwareRepository.Get(ctx, &count,
 		`SELECT COUNT(*) FROM cmdb_import_records WHERE job_id = $1`,
 		jobID,
 	)

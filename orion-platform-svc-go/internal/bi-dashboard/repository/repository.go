@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"fmt"
 	"strings"
@@ -15,11 +16,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 func (r *Repository) Create(ctx context.Context, entity *models.BiDashboard) error {
@@ -36,7 +41,7 @@ func (r *Repository) Create(ctx context.Context, entity *models.BiDashboard) err
 
 func (r *Repository) GetByID(ctx context.Context, id, tenantID string) (*models.BiDashboard, error) {
 	var entity models.BiDashboard
-	err := r.db.GetContext(ctx, &entity,
+	err := r.TenantAwareRepository.Get(ctx, &entity,
 		`SELECT * FROM bi_dashboards WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -46,7 +51,7 @@ func (r *Repository) GetByID(ctx context.Context, id, tenantID string) (*models.
 
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.BiDashboard, error) {
 	var entities []models.BiDashboard
-	err := r.db.SelectContext(ctx, &entities,
+	err := r.TenantAwareRepository.Select(ctx, &entities,
 		`SELECT * FROM bi_dashboards WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
 	if err != nil {
 		return nil, err
@@ -72,7 +77,7 @@ func (r *Repository) Update(ctx context.Context, id, tenantID string, attrs map[
 	args = append(args, id, tenantID)
 	query := fmt.Sprintf("UPDATE bi_dashboards SET %s WHERE id=$%d AND tenant_id=$%d",
 		strings.Join(set, ", "), idIdx, tenantIdx)
-	result, err := r.db.ExecContext(ctx, query, args...)
+	result, err := r.TenantAwareRepository.Exec(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +89,7 @@ func (r *Repository) Update(ctx context.Context, id, tenantID string, attrs map[
 }
 
 func (r *Repository) Delete(ctx context.Context, id, tenantID string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM bi_dashboards WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return false, err

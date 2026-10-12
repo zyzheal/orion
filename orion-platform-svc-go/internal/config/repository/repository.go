@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"fmt"
 	"strings"
@@ -13,11 +14,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // ---------- Config ----------
@@ -33,7 +38,7 @@ func (r *Repository) Create(ctx context.Context, c *models.Config) error {
 
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.Config, error) {
 	var m models.Config
-	err := r.db.GetContext(ctx, &m, `SELECT * FROM configs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &m, `SELECT * FROM configs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +72,7 @@ func (r *Repository) List(ctx context.Context, tenantID string, filter ConfigFil
 	query += fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
 	args = append(args, pageSize, offset)
 	var items []models.Config
-	err := r.db.SelectContext(ctx, &items, query, args...)
+	err := r.TenantAwareRepository.Select(ctx, &items, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -85,7 +90,7 @@ func (r *Repository) List(ctx context.Context, tenantID string, filter ConfigFil
 		ci++
 	}
 	var total int
-	err = r.db.GetContext(ctx, &total, countQuery, countArgs...)
+	err = r.TenantAwareRepository.Get(ctx, &total, countQuery, countArgs...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -104,12 +109,12 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 	}
 	cols = append(cols, fmt.Sprintf("updated_at=NOW()"))
 	args = append(args, id, tenantID)
-	_, err := r.db.ExecContext(ctx, `UPDATE configs SET `+strings.Join(cols, ", ")+` WHERE id=$`+fmt.Sprintf("%d", len(args)-1)+` AND tenant_id=$`+fmt.Sprintf("%d", len(args)), args...)
+	_, err := r.TenantAwareRepository.Exec(ctx, `UPDATE configs SET `+strings.Join(cols, ", ")+` WHERE id=$`+fmt.Sprintf("%d", len(args)-1)+` AND tenant_id=$`+fmt.Sprintf("%d", len(args)), args...)
 	return err
 }
 
 func (r *Repository) SoftDelete(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE configs SET status='archived', updated_at=NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	_, err := r.TenantAwareRepository.Exec(ctx, `UPDATE configs SET status='archived', updated_at=NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
 
@@ -125,7 +130,7 @@ func (r *Repository) CreateVersion(ctx context.Context, v *models.ConfigVersion)
 
 func (r *Repository) GetVersions(ctx context.Context, configID string) ([]models.ConfigVersion, error) {
 	var versions []models.ConfigVersion
-	err := r.db.SelectContext(ctx, &versions, `SELECT * FROM config_versions WHERE config_id=$1 ORDER BY created_at DESC`, configID)
+	err := r.TenantAwareRepository.Select(ctx, &versions, `SELECT * FROM config_versions WHERE config_id=$1 ORDER BY created_at DESC`, configID)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +139,7 @@ func (r *Repository) GetVersions(ctx context.Context, configID string) ([]models
 
 func (r *Repository) GetVersion(ctx context.Context, configID, version string) (*models.ConfigVersion, error) {
 	var v models.ConfigVersion
-	err := r.db.GetContext(ctx, &v, `SELECT * FROM config_versions WHERE config_id=$1 AND version=$2`, configID, version)
+	err := r.TenantAwareRepository.Get(ctx, &v, `SELECT * FROM config_versions WHERE config_id=$1 AND version=$2`, configID, version)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +161,7 @@ func (r *Repository) CreateGitOps(ctx context.Context, m *models.GitOpsConfig) e
 
 func (r *Repository) ListGitOpsConfigs(ctx context.Context, tenantID string) ([]models.GitOpsConfig, error) {
 	var items []models.GitOpsConfig
-	err := r.db.SelectContext(ctx, &items, `SELECT * FROM gitops_configs WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
+	err := r.TenantAwareRepository.Select(ctx, &items, `SELECT * FROM gitops_configs WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +170,7 @@ func (r *Repository) ListGitOpsConfigs(ctx context.Context, tenantID string) ([]
 
 func (r *Repository) GetGitOpsConfig(ctx context.Context, tenantID, id string) (*models.GitOpsConfig, error) {
 	var m models.GitOpsConfig
-	err := r.db.GetContext(ctx, &m, `SELECT * FROM gitops_configs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &m, `SELECT * FROM gitops_configs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +178,7 @@ func (r *Repository) GetGitOpsConfig(ctx context.Context, tenantID, id string) (
 }
 
 func (r *Repository) UpdateGitOpsStatus(ctx context.Context, tenantID, id string, status string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE gitops_configs SET status=$1, updated_at=NOW() WHERE id=$2 AND tenant_id=$3`, status, id, tenantID)
+	_, err := r.TenantAwareRepository.Exec(ctx, `UPDATE gitops_configs SET status=$1, updated_at=NOW() WHERE id=$2 AND tenant_id=$3`, status, id, tenantID)
 	return err
 }
 
@@ -190,7 +195,7 @@ func (r *Repository) GetSyncStatus(ctx context.Context, tenantID string, limit i
 		limit = 20
 	}
 	var items []models.GitOpsSyncStatus
-	err := r.db.SelectContext(ctx, &items, `SELECT s.* FROM gitops_sync_status s JOIN gitops_configs g ON s.config_id=g.id WHERE g.tenant_id=$1 ORDER BY s.created_at DESC LIMIT $2`, tenantID, limit)
+	err := r.TenantAwareRepository.Select(ctx, &items, `SELECT s.* FROM gitops_sync_status s JOIN gitops_configs g ON s.config_id=g.id WHERE g.tenant_id=$1 ORDER BY s.created_at DESC LIMIT $2`, tenantID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -222,14 +227,14 @@ func (r *Repository) ListChangeRequests(ctx context.Context, tenantID string, st
 		argIdx++
 	}
 	countQuery := query
-	err := r.db.SelectContext(ctx, &args, query+fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", argIdx, argIdx+1), append(args, limit, offset)...)
+	err := r.TenantAwareRepository.Select(ctx, &args, query+fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", argIdx, argIdx+1), append(args, limit, offset)...)
 	var items []models.ChangeRequest
-	err = r.db.SelectContext(ctx, &items, query+fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", argIdx, argIdx+1), append(args, limit, offset)...)
+	err = r.TenantAwareRepository.Select(ctx, &items, query+fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", argIdx, argIdx+1), append(args, limit, offset)...)
 	if err != nil {
 		return nil, 0, err
 	}
 	var total int
-	err = r.db.GetContext(ctx, &total, countQuery)
+	err = r.TenantAwareRepository.Get(ctx, &total, countQuery)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -238,7 +243,7 @@ func (r *Repository) ListChangeRequests(ctx context.Context, tenantID string, st
 
 func (r *Repository) GetChangeRequest(ctx context.Context, tenantID, id string) (*models.ChangeRequest, error) {
 	var m models.ChangeRequest
-	err := r.db.GetContext(ctx, &m, `SELECT * FROM change_requests WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &m, `SELECT * FROM change_requests WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +251,7 @@ func (r *Repository) GetChangeRequest(ctx context.Context, tenantID, id string) 
 }
 
 func (r *Repository) UpdateChangeRequestStatus(ctx context.Context, tenantID, id string, status string, approvedBy string, reason string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE change_requests SET status=$1, approved_by=$2, reject_reason=$3, updated_at=NOW() WHERE id=$4 AND tenant_id=$5`,
 		status, approvedBy, reason, id, tenantID)
 	return err
@@ -267,7 +272,7 @@ func (r *Repository) GetAuditTrail(ctx context.Context, configID string, limit i
 		limit = 50
 	}
 	var items []models.AuditEntry
-	err := r.db.SelectContext(ctx, &items, `SELECT * FROM config_audit WHERE config_id=$1 ORDER BY created_at DESC LIMIT $2`, configID, limit)
+	err := r.TenantAwareRepository.Select(ctx, &items, `SELECT * FROM config_audit WHERE config_id=$1 ORDER BY created_at DESC LIMIT $2`, configID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +293,7 @@ func (r *Repository) CreateTemplate(ctx context.Context, t *models.ConfigTemplat
 
 func (r *Repository) ListTemplates(ctx context.Context, tenantID string) ([]models.ConfigTemplate, error) {
 	var items []models.ConfigTemplate
-	err := r.db.SelectContext(ctx, &items, `SELECT * FROM config_templates WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
+	err := r.TenantAwareRepository.Select(ctx, &items, `SELECT * FROM config_templates WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +302,7 @@ func (r *Repository) ListTemplates(ctx context.Context, tenantID string) ([]mode
 
 func (r *Repository) GetTemplate(ctx context.Context, tenantID, id string) (*models.ConfigTemplate, error) {
 	var t models.ConfigTemplate
-	err := r.db.GetContext(ctx, &t, `SELECT * FROM config_templates WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &t, `SELECT * FROM config_templates WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +317,7 @@ func (r *Repository) UpdateTemplate(ctx context.Context, tenantID string, t *mod
 }
 
 func (r *Repository) DeleteTemplate(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM config_templates WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	_, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM config_templates WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
 
@@ -327,7 +332,7 @@ func (r *Repository) CreateTemplateVersion(ctx context.Context, v *models.Config
 func (r *Repository) ListTemplateVersions(ctx context.Context, templateID string) ([]models.ConfigTemplateVersion, error) {
 	var items []models.ConfigTemplateVersion
 	_ = templateID
-	err := r.db.SelectContext(ctx, &items, `SELECT * FROM config_template_versions WHERE template_id=$1 ORDER BY created_at DESC`, templateID)
+	err := r.TenantAwareRepository.Select(ctx, &items, `SELECT * FROM config_template_versions WHERE template_id=$1 ORDER BY created_at DESC`, templateID)
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +353,7 @@ func (r *Repository) CreateCanary(ctx context.Context, m *models.CanaryDeploymen
 
 func (r *Repository) GetCanary(ctx context.Context, tenantID, id string) (*models.CanaryDeployment, error) {
 	var m models.CanaryDeployment
-	err := r.db.GetContext(ctx, &m, `SELECT * FROM canary_deployments WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &m, `SELECT * FROM canary_deployments WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -356,7 +361,7 @@ func (r *Repository) GetCanary(ctx context.Context, tenantID, id string) (*model
 }
 
 func (r *Repository) UpdateCanaryStatus(ctx context.Context, tenantID, id string, status string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE canary_deployments SET status=$1, updated_at=NOW() WHERE id=$2 AND tenant_id=$3`, status, id, tenantID)
+	_, err := r.TenantAwareRepository.Exec(ctx, `UPDATE canary_deployments SET status=$1, updated_at=NOW() WHERE id=$2 AND tenant_id=$3`, status, id, tenantID)
 	return err
 }
 
@@ -372,7 +377,7 @@ func (r *Repository) CreateSnapshot(ctx context.Context, s *models.ConfigSnapsho
 
 func (r *Repository) ListSnapshots(ctx context.Context, tenantID, configID string) ([]models.ConfigSnapshot, error) {
 	var items []models.ConfigSnapshot
-	err := r.db.SelectContext(ctx, &items, `SELECT * FROM config_snapshots WHERE tenant_id=$1 AND config_id=$2 ORDER BY created_at DESC`, tenantID, configID)
+	err := r.TenantAwareRepository.Select(ctx, &items, `SELECT * FROM config_snapshots WHERE tenant_id=$1 AND config_id=$2 ORDER BY created_at DESC`, tenantID, configID)
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +386,7 @@ func (r *Repository) ListSnapshots(ctx context.Context, tenantID, configID strin
 
 func (r *Repository) GetSnapshot(ctx context.Context, tenantID, snapshotID string) (*models.ConfigSnapshot, error) {
 	var s models.ConfigSnapshot
-	err := r.db.GetContext(ctx, &s, `SELECT * FROM config_snapshots WHERE id=$1 AND tenant_id=$2`, snapshotID, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &s, `SELECT * FROM config_snapshots WHERE id=$1 AND tenant_id=$2`, snapshotID, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -389,7 +394,7 @@ func (r *Repository) GetSnapshot(ctx context.Context, tenantID, snapshotID strin
 }
 
 func (r *Repository) DeleteSnapshot(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM config_snapshots WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	_, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM config_snapshots WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
 
@@ -397,7 +402,7 @@ func (r *Repository) DeleteSnapshot(ctx context.Context, tenantID, id string) er
 
 func (r *Repository) GetEnvironments(ctx context.Context, tenantID string) ([]string, error) {
 	var envs []string
-	err := r.db.SelectContext(ctx, &envs, `SELECT DISTINCT environment FROM configs WHERE tenant_id=$1 AND environment != '' ORDER BY environment`, tenantID)
+	err := r.TenantAwareRepository.Select(ctx, &envs, `SELECT DISTINCT environment FROM configs WHERE tenant_id=$1 AND environment != '' ORDER BY environment`, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -406,7 +411,7 @@ func (r *Repository) GetEnvironments(ctx context.Context, tenantID string) ([]st
 
 func (r *Repository) GetConfigByKeyEnv(ctx context.Context, tenantID, key, environment string) (*models.Config, error) {
 	var m models.Config
-	err := r.db.GetContext(ctx, &m, `SELECT * FROM configs WHERE tenant_id=$1 AND key=$2 AND environment=$3`, tenantID, key, environment)
+	err := r.TenantAwareRepository.Get(ctx, &m, `SELECT * FROM configs WHERE tenant_id=$1 AND key=$2 AND environment=$3`, tenantID, key, environment)
 	if err != nil {
 		return nil, err
 	}
@@ -426,7 +431,7 @@ func (r *Repository) CreateWebhook(ctx context.Context, m *models.ConfigWebhook)
 
 func (r *Repository) ListWebhooks(ctx context.Context, tenantID string) ([]models.ConfigWebhook, error) {
 	var items []models.ConfigWebhook
-	err := r.db.SelectContext(ctx, &items, `SELECT * FROM config_webhooks WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
+	err := r.TenantAwareRepository.Select(ctx, &items, `SELECT * FROM config_webhooks WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -435,7 +440,7 @@ func (r *Repository) ListWebhooks(ctx context.Context, tenantID string) ([]model
 
 func (r *Repository) GetWebhook(ctx context.Context, tenantID, id string) (*models.ConfigWebhook, error) {
 	var m models.ConfigWebhook
-	err := r.db.GetContext(ctx, &m, `SELECT * FROM config_webhooks WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	err := r.TenantAwareRepository.Get(ctx, &m, `SELECT * FROM config_webhooks WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -450,7 +455,7 @@ func (r *Repository) UpdateWebhook(ctx context.Context, tenantID string, m *mode
 }
 
 func (r *Repository) DeleteWebhook(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM config_webhooks WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	_, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM config_webhooks WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
 
@@ -483,7 +488,7 @@ type configDependencyEdge struct {
 
 func (r *Repository) FindDependencyNodesByConfigID(ctx context.Context, tenantID, configID string) ([]configDependencyEdge, error) {
 	var edges []configDependencyEdge
-	err := r.db.SelectContext(ctx, &edges,
+	err := r.TenantAwareRepository.Select(ctx, &edges,
 		`SELECT tenant_id, config_id, depends_on FROM config_dependencies
 		 WHERE config_id = $1 AND tenant_id = $2
 		 ORDER BY config_id, depends_on`,

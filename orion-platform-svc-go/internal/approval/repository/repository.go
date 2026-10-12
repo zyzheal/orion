@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"errors"
 	"fmt"
@@ -14,11 +15,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // --- Approval requests ---
@@ -38,7 +43,7 @@ func (r *Repository) CreateApprovalRequest(ctx context.Context, m *models.Approv
 
 func (r *Repository) GetApprovalRequest(ctx context.Context, tenantID, id string) (*models.ApprovalRequest, error) {
 	var m models.ApprovalRequest
-	err := r.db.GetContext(ctx, &m,
+	err := r.TenantAwareRepository.Get(ctx, &m,
 		`SELECT * FROM approval_requests WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -71,7 +76,7 @@ func (r *Repository) ListApprovalRequests(ctx context.Context, tenantID, approva
 	sql := fmt.Sprintf("SELECT * FROM approval_requests WHERE %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d", where, idx, idx+1)
 	args = append(args, limit, offset)
 	var items []models.ApprovalRequest
-	err := r.db.SelectContext(ctx, &items, sql, args...)
+	err := r.TenantAwareRepository.Select(ctx, &items, sql, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -94,12 +99,12 @@ func (r *Repository) UpdateApprovalRequest(ctx context.Context, tenantID, id str
 		}
 		return err
 	}
-	_, err = r.db.ExecContext(ctx, stmt, args...)
+	_, err = r.TenantAwareRepository.Exec(ctx, stmt, args...)
 	return err
 }
 
 func (r *Repository) DeleteApprovalRequest(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM approval_requests WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
@@ -121,7 +126,7 @@ func (r *Repository) CreateApprovalLevel(ctx context.Context, m *models.Approval
 
 func (r *Repository) ListLevelsByApproval(ctx context.Context, tenantID, approvalID string) ([]models.ApprovalLevel, error) {
 	var items []models.ApprovalLevel
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM approval_levels WHERE approval_id=$1 AND tenant_id=$2 ORDER BY level`, approvalID, tenantID)
 	return items, err
 }
@@ -139,7 +144,7 @@ func (r *Repository) CreateApprovalHistory(ctx context.Context, m *models.Approv
 
 func (r *Repository) ListHistoryByApproval(ctx context.Context, tenantID, approvalID string) ([]models.ApprovalHistory, error) {
 	var items []models.ApprovalHistory
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM approval_history WHERE approval_id=$1 AND tenant_id=$2 ORDER BY created_at DESC`, approvalID, tenantID)
 	return items, err
 }
@@ -159,7 +164,7 @@ func (r *Repository) CreateTemplate(ctx context.Context, m *models.ApprovalTempl
 
 func (r *Repository) GetTemplate(ctx context.Context, tenantID, id string) (*models.ApprovalTemplate, error) {
 	var m models.ApprovalTemplate
-	err := r.db.GetContext(ctx, &m,
+	err := r.TenantAwareRepository.Get(ctx, &m,
 		`SELECT * FROM approval_templates WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -173,19 +178,19 @@ func (r *Repository) ListTemplates(ctx context.Context, tenantID string, limit, 
 	}
 	var items []models.ApprovalTemplate
 	//nolint:gosec // limit/offset are bounded in service layer
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM approval_templates WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, tenantID, limit, offset)
 	return items, err
 }
 
 func (r *Repository) UpdateTemplate(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE approval_templates SET updated_at=NOW() WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
 
 func (r *Repository) DeleteTemplate(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM approval_templates WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
@@ -205,14 +210,14 @@ func (r *Repository) CreateApprovalGate(ctx context.Context, m *models.ApprovalG
 
 func (r *Repository) ListGatesByRun(ctx context.Context, tenantID, runID string) ([]models.ApprovalGate, error) {
 	var items []models.ApprovalGate
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM approval_gates WHERE run_id=$1 AND tenant_id=$2 ORDER BY created_at`, runID, tenantID)
 	return items, err
 }
 
 func (r *Repository) GetGateByStage(ctx context.Context, tenantID, runID, stageID string) (*models.ApprovalGate, error) {
 	var m models.ApprovalGate
-	err := r.db.GetContext(ctx, &m,
+	err := r.TenantAwareRepository.Get(ctx, &m,
 		`SELECT * FROM approval_gates WHERE run_id=$1 AND stage_id=$2 AND tenant_id=$3`, runID, stageID, tenantID)
 	if err != nil {
 		return nil, err
@@ -246,7 +251,7 @@ func (r *Repository) GetStatistics(ctx context.Context, tenantID string) (models
 			query = `SELECT COUNT(*) FROM approval_requests WHERE tenant_id=$1 AND status=$2`
 			args = append(args, probe.status)
 		}
-		if err := r.db.GetContext(ctx, probe.target, query, args...); err != nil {
+		if err := r.TenantAwareRepository.Get(ctx, probe.target, query, args...); err != nil {
 			return models.ApprovalStatistics{}, fmt.Errorf("approval statistics %s: %w", probe.label, err)
 		}
 	}
@@ -257,14 +262,14 @@ func (r *Repository) GetStatistics(ctx context.Context, tenantID string) (models
 
 func (r *Repository) ListPending(ctx context.Context, tenantID string) ([]models.ApprovalRequest, error) {
 	var items []models.ApprovalRequest
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM approval_requests WHERE tenant_id=$1 AND status=$2 ORDER BY created_at`, tenantID, "pending")
 	return items, err
 }
 
 func (r *Repository) ListMyPending(ctx context.Context, tenantID, userID string) ([]models.ApprovalRequest, error) {
 	var items []models.ApprovalRequest
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT ar.* FROM approval_requests ar
 			INNER JOIN approval_levels al ON al.approval_id=ar.id
 			WHERE ar.tenant_id=$1 AND ar.status=$2 AND al.approver_id=$3 AND al.status=$4
@@ -275,7 +280,7 @@ func (r *Repository) ListMyPending(ctx context.Context, tenantID, userID string)
 
 func (r *Repository) GetByStatus(ctx context.Context, tenantID, approvalID string) (*models.ApprovalRequest, error) {
 	var m models.ApprovalRequest
-	err := r.db.GetContext(ctx, &m,
+	err := r.TenantAwareRepository.Get(ctx, &m,
 		`SELECT * FROM approval_requests WHERE id=$1 AND tenant_id=$2`, approvalID, tenantID)
 	if err != nil {
 		return nil, err
@@ -287,7 +292,7 @@ func (r *Repository) GetDailyTrend(ctx context.Context, tenantID string, days in
 	if days <= 0 {
 		days = 7
 	}
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := r.TenantAwareRepository.Query(ctx,
 		`SELECT DATE(created_at) AS date,
 			COUNT(*) AS created,
 			SUM(CASE WHEN status=$2 THEN 1 ELSE 0 END) AS approved,

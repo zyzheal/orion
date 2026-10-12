@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"fmt"
 	"strings"
@@ -15,11 +16,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // --- CI Types ---
@@ -37,7 +42,7 @@ func (r *Repository) CreateType(ctx context.Context, t *models.CIType) error {
 
 func (r *Repository) GetByID(ctx context.Context, id string, tenantID string) (*models.CIType, error) {
 	var t models.CIType
-	err := r.db.GetContext(ctx, &t,
+	err := r.TenantAwareRepository.Get(ctx, &t,
 		`SELECT * FROM ci_types WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
@@ -69,7 +74,7 @@ func (r *Repository) List(ctx context.Context, tenantID string, filter *ListFilt
 		args = append(args, *filter.Offset)
 	}
 	var types []models.CIType
-	err := r.db.SelectContext(ctx, &types,
+	err := r.TenantAwareRepository.Select(ctx, &types,
 		fmt.Sprintf(`SELECT * FROM ci_types %s ORDER BY created_at DESC`, where), args...)
 	return types, err
 }
@@ -97,7 +102,7 @@ func (r *Repository) UpdateType(ctx context.Context, id string, tenantID string,
 	args = append(args, id, tenantID)
 	query := fmt.Sprintf(`UPDATE ci_types SET %s WHERE id=$%d AND tenant_id=$%d`,
 		strings.Join(setClauses, ", "), i, i+1)
-	result, err := r.db.ExecContext(ctx, query, args...)
+	result, err := r.TenantAwareRepository.Exec(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +114,7 @@ func (r *Repository) UpdateType(ctx context.Context, id string, tenantID string,
 }
 
 func (r *Repository) DeleteType(ctx context.Context, id string, tenantID string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM ci_types WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return false, err
@@ -122,7 +127,7 @@ func (r *Repository) DeleteType(ctx context.Context, id string, tenantID string)
 
 func (r *Repository) ListAttributes(ctx context.Context, ciTypeID string, tenantID string) ([]models.CIAttribute, error) {
 	var attrs []models.CIAttribute
-	err := r.db.SelectContext(ctx, &attrs,
+	err := r.TenantAwareRepository.Select(ctx, &attrs,
 		`SELECT a.* FROM ci_type_attributes a
 		 JOIN ci_types t ON a.ci_type_id = t.id
 		 WHERE a.ci_type_id=$1 AND t.tenant_id=$2
@@ -137,7 +142,7 @@ func (r *Repository) UpsertAttributes(ctx context.Context, ciTypeID string, tena
 		return nil, err
 	}
 	// Remove all existing attributes for this type
-	_, err = r.db.ExecContext(ctx,
+	_, err = r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM ci_type_attributes WHERE ci_type_id=$1`, ciTypeID)
 	if err != nil {
 		return nil, err
@@ -193,7 +198,7 @@ func (r *Repository) ListVersions(ctx context.Context, ciTypeID string, tenantID
 		return nil, err
 	}
 	var versions []models.CITypeVersion
-	err = r.db.SelectContext(ctx, &versions,
+	err = r.TenantAwareRepository.Select(ctx, &versions,
 		`SELECT * FROM ci_type_versions
 		 WHERE ci_type_id=$1
 		 ORDER BY created_at DESC`, ciTypeID)
@@ -206,7 +211,7 @@ func (r *Repository) GetVersion(ctx context.Context, versionID string, ciTypeID 
 		return nil, err
 	}
 	var v models.CITypeVersion
-	err = r.db.GetContext(ctx, &v,
+	err = r.TenantAwareRepository.Get(ctx, &v,
 		`SELECT * FROM ci_type_versions WHERE id=$1 AND ci_type_id=$2`, versionID, ciTypeID)
 	if err != nil {
 		return nil, err
@@ -217,7 +222,7 @@ func (r *Repository) GetVersion(ctx context.Context, versionID string, ciTypeID 
 // GetNextVersion returns the next version number for a CI type.
 func (r *Repository) GetNextVersion(ctx context.Context, ciTypeID string) (string, error) {
 	var maxVersion int
-	err := r.db.GetContext(ctx, &maxVersion,
+	err := r.TenantAwareRepository.Get(ctx, &maxVersion,
 		`SELECT COALESCE(MAX(CAST(version AS INTEGER)), 0) FROM ci_type_versions WHERE ci_type_id=$1`, ciTypeID)
 	if err != nil {
 		return "", err

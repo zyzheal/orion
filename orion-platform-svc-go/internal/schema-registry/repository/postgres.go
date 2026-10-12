@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -18,6 +19,7 @@ import (
 // It is drop-in compatible with InMemory — the only difference is that state
 // survives process restarts.
 type Postgres struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -24,11 +25,15 @@ type RepositoryInterface interface {
 }
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // Ensure Repository implements RepositoryInterface.
@@ -51,7 +56,7 @@ func (r *Repository) Create(ctx context.Context, m *models.Cluster) error {
 // GetByID retrieves a cluster by ID for a given tenant.
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.Cluster, error) {
 	var m models.Cluster
-	err := r.db.GetContext(ctx, &m,
+	err := r.TenantAwareRepository.Get(ctx, &m,
 		`SELECT * FROM clusters WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -65,7 +70,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 // List returns all clusters for a given tenant.
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.Cluster, error) {
 	var items []models.Cluster
-	err := r.db.SelectContext(ctx, &items,
+	err := r.TenantAwareRepository.Select(ctx, &items,
 		`SELECT * FROM clusters WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
 	return items, err
 }
@@ -104,7 +109,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 
 // Delete hard-deletes a cluster.
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM clusters WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return err

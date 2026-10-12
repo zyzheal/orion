@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -32,11 +33,15 @@ const auditLogColumns = "id, tenant_id, user_id, action, resource_type, resource
 	"ip_address, user_agent, prev_hash, hash, created_at"
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // computeHash builds the content hash for an audit log row (mirrors TS behaviour).
@@ -99,7 +104,7 @@ func (r *Repository) Create(ctx context.Context, tenantID string, req models.Aud
 // 500 "sql: no rows".
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.AuditLog, error) {
 	m := &models.AuditLog{}
-	err := r.db.GetContext(ctx, m,
+	err := r.TenantAwareRepository.Get(ctx, m,
 		`SELECT `+auditLogColumns+` FROM audit_logs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -143,7 +148,7 @@ func (r *Repository) List(ctx context.Context, tenantID string, q models.AuditLo
 	copy(countArgs, args)
 	var total int
 	countSQL := fmt.Sprintf("SELECT COUNT(*) FROM audit_logs %s", cond)
-	err := r.db.GetContext(ctx, &total, countSQL, countArgs...)
+	err := r.TenantAwareRepository.Get(ctx, &total, countSQL, countArgs...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -154,7 +159,7 @@ func (r *Repository) List(ctx context.Context, tenantID string, q models.AuditLo
 	args = append(args, limit, offset)
 
 	var items []models.AuditLog
-	err = r.db.SelectContext(ctx, &items, dataSQL, args...)
+	err = r.TenantAwareRepository.Select(ctx, &items, dataSQL, args...)
 	return items, total, err
 }
 
@@ -188,7 +193,7 @@ func (r *Repository) Count(ctx context.Context, tenantID string, q models.AuditL
 	}
 
 	var total int
-	err := r.db.GetContext(ctx, &total, fmt.Sprintf("SELECT COUNT(*) FROM audit_logs %s", cond), args...)
+	err := r.TenantAwareRepository.Get(ctx, &total, fmt.Sprintf("SELECT COUNT(*) FROM audit_logs %s", cond), args...)
 	return total, err
 }
 
@@ -223,7 +228,7 @@ func (r *Repository) Export(ctx context.Context, tenantID string, q models.Audit
 
 	sql := fmt.Sprintf("SELECT %s FROM audit_logs %s ORDER BY created_at DESC LIMIT 10000", auditLogColumns, cond)
 	var items []models.AuditLog
-	err := r.db.SelectContext(ctx, &items, sql, args...)
+	err := r.TenantAwareRepository.Select(ctx, &items, sql, args...)
 	return items, err
 }
 
@@ -231,7 +236,7 @@ func (r *Repository) Export(ctx context.Context, tenantID string, q models.Audit
 // Tenant filter is always enforced; empty tenantID returns no results.
 func (r *Repository) GetActions(ctx context.Context, tenantID string) ([]string, error) {
 	var actions []string
-	return actions, r.db.SelectContext(ctx, &actions,
+	return actions, r.TenantAwareRepository.Select(ctx, &actions,
 		`SELECT DISTINCT action FROM audit_logs WHERE tenant_id=$1 ORDER BY action`, tenantID)
 }
 
@@ -239,7 +244,7 @@ func (r *Repository) GetActions(ctx context.Context, tenantID string) ([]string,
 // Tenant filter is always enforced; empty tenantID returns no results.
 func (r *Repository) GetResourceTypes(ctx context.Context, tenantID string) ([]string, error) {
 	var resourceTypes []string
-	return resourceTypes, r.db.SelectContext(ctx, &resourceTypes,
+	return resourceTypes, r.TenantAwareRepository.Select(ctx, &resourceTypes,
 		`SELECT DISTINCT resource_type FROM audit_logs WHERE tenant_id=$1 ORDER BY resource_type`, tenantID)
 }
 
@@ -248,7 +253,7 @@ func (r *Repository) GetResourceTypes(ctx context.Context, tenantID string) ([]s
 // instead of sql.ErrNoRows, which the handler would answer as 500.
 func (r *Repository) GetLatest(ctx context.Context, tenantID string) (*models.AuditLog, error) {
 	m := &models.AuditLog{}
-	err := r.db.GetContext(ctx, m,
+	err := r.TenantAwareRepository.Get(ctx, m,
 		`SELECT `+auditLogColumns+` FROM audit_logs WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 1`, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -263,7 +268,7 @@ func (r *Repository) GetLatest(ctx context.Context, tenantID string) (*models.Au
 // Tenant filter is always enforced; empty tenantID returns empty results.
 func (r *Repository) VerifyChain(ctx context.Context, tenantID string) (int, bool, error) {
 	var logs []models.AuditLog
-	err := r.db.SelectContext(ctx, &logs,
+	err := r.TenantAwareRepository.Select(ctx, &logs,
 		`SELECT id, hash, prev_hash, created_at FROM audit_logs WHERE tenant_id=$1 ORDER BY created_at ASC`,
 		tenantID)
 	if err != nil {
@@ -292,7 +297,7 @@ func (r *Repository) DeleteByTenantID(ctx context.Context, tenantID string) (int
 	if tenantID == "" {
 		return 0, fmt.Errorf("tenantID is required")
 	}
-	res, err := r.db.ExecContext(ctx, `DELETE FROM audit_logs WHERE tenant_id=$1`, tenantID)
+	res, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM audit_logs WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return 0, err
 	}

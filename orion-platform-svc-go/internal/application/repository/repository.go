@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -14,17 +15,21 @@ var errNotFound = errors.New("application not found")
 
 // Repository provides PostgreSQL-backed persistence for applications.
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 // NewRepository creates a new Repository instance.
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // Create inserts a new application row.
 func (r *Repository) Create(ctx context.Context, a *models.Application) error {
-	_, err := r.db.ExecContext(ctx, `
+	_, err := r.TenantAwareRepository.Exec(ctx, `
 		INSERT INTO applications (id, name, tenant_id, created_at, updated_at)
 		VALUES ($1,$2,$3,$4,$5)`,
 		a.ID, a.Name, a.TenantID, a.CreatedAt, a.UpdatedAt,
@@ -35,7 +40,7 @@ func (r *Repository) Create(ctx context.Context, a *models.Application) error {
 // GetByID retrieves a single application by id and tenant_id.
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.Application, error) {
 	var a models.Application
-	err := r.db.GetContext(ctx, &a,
+	err := r.TenantAwareRepository.Get(ctx, &a,
 		`SELECT * FROM applications WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err == sql.ErrNoRows {
 		return nil, errNotFound
@@ -63,13 +68,13 @@ func (r *Repository) List(ctx context.Context, tenantID string, filter *models.L
 	query += " ORDER BY created_at DESC LIMIT $2 OFFSET $1"
 	args = append(args, offset, limit)
 
-	err := r.db.SelectContext(ctx, &items, query, args...)
+	err := r.TenantAwareRepository.Select(ctx, &items, query, args...)
 	return items, err
 }
 
 // Update updates an application's name.
 func (r *Repository) Update(ctx context.Context, a *models.Application) error {
-	_, err := r.db.ExecContext(ctx, `
+	_, err := r.TenantAwareRepository.Exec(ctx, `
 		UPDATE applications SET name=$1, updated_at=NOW()
 		WHERE id=$2 AND tenant_id=$3`,
 		a.Name, a.ID, a.TenantID,
@@ -79,7 +84,7 @@ func (r *Repository) Update(ctx context.Context, a *models.Application) error {
 
 // Delete removes an application by id and tenant_id.
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM applications WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }

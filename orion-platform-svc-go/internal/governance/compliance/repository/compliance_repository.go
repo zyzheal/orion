@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 
 // ComplianceReportRepository provides data access for compliance reports.
 type ComplianceReportRepository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
@@ -211,6 +213,7 @@ func (r *ComplianceReportRepository) Delete(ctx context.Context, id string) erro
 
 // ComplianceScheduleRepository provides data access for compliance schedules.
 type ComplianceScheduleRepository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 

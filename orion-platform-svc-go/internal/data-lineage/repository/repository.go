@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"fmt"
 	"strings"
@@ -15,11 +16,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // --- Lineage ---
@@ -38,7 +43,7 @@ func (r *Repository) CreateLineage(ctx context.Context, lineage *models.Lineage)
 
 func (r *Repository) GetLineageByID(ctx context.Context, tenantID, id string) (*models.Lineage, error) {
 	var l models.Lineage
-	err := r.db.GetContext(ctx, &l,
+	err := r.TenantAwareRepository.Get(ctx, &l,
 		`SELECT * FROM data_lineage WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return &l, err
 }
@@ -53,7 +58,7 @@ func (r *Repository) ListLineages(ctx context.Context, tenantID string, status *
 		argIdx++
 	}
 	var lines []models.Lineage
-	err := r.db.SelectContext(ctx, &lines,
+	err := r.TenantAwareRepository.Select(ctx, &lines,
 		fmt.Sprintf(`SELECT * FROM data_lineage %s ORDER BY created_at DESC`, where), args...)
 	return lines, err
 }
@@ -72,7 +77,7 @@ func (r *Repository) UpdateLineage(ctx context.Context, tenantID, id string, upd
 		i++
 	}
 	args = append(args, id, tenantID)
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		fmt.Sprintf(`UPDATE data_lineage SET %s WHERE id=$%d AND tenant_id=$%d`,
 			strings.Join(clauses, ", "), i, i+1), args...)
 	if err != nil {
@@ -85,7 +90,7 @@ func (r *Repository) UpdateLineage(ctx context.Context, tenantID, id string, upd
 }
 
 func (r *Repository) DeleteLineage(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM data_lineage WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return false, err
@@ -108,7 +113,7 @@ func (r *Repository) CreateNode(ctx context.Context, node *models.Node) error {
 
 func (r *Repository) GetNodeByID(ctx context.Context, tenantID, id string) (*models.Node, error) {
 	var n models.Node
-	err := r.db.GetContext(ctx, &n,
+	err := r.TenantAwareRepository.Get(ctx, &n,
 		`SELECT ln.* FROM lineage_nodes ln
 		 JOIN data_lineage dl ON ln.lineage_id = dl.id
 		 WHERE ln.id=$1 AND dl.tenant_id=$2`, id, tenantID)
@@ -117,7 +122,7 @@ func (r *Repository) GetNodeByID(ctx context.Context, tenantID, id string) (*mod
 
 func (r *Repository) ListNodesByLineage(ctx context.Context, tenantID, lineageID string) ([]models.Node, error) {
 	var nodes []models.Node
-	err := r.db.SelectContext(ctx, &nodes,
+	err := r.TenantAwareRepository.Select(ctx, &nodes,
 		`SELECT ln.* FROM lineage_nodes ln
 		 JOIN data_lineage dl ON ln.lineage_id = dl.id
 		 WHERE dl.tenant_id=$1 AND ln.lineage_id=$2
@@ -139,7 +144,7 @@ func (r *Repository) CreateRelationship(ctx context.Context, rel *models.Relatio
 
 func (r *Repository) ListRelationshipsByLineage(ctx context.Context, tenantID, lineageID string) ([]models.Relationship, error) {
 	var rels []models.Relationship
-	err := r.db.SelectContext(ctx, &rels,
+	err := r.TenantAwareRepository.Select(ctx, &rels,
 		`SELECT lr.* FROM lineage_relationships lr
 		 JOIN data_lineage dl ON lr.lineage_id = dl.id
 		 WHERE dl.tenant_id=$1 AND lr.lineage_id=$2
@@ -152,13 +157,13 @@ func (r *Repository) ListRelationshipsByLineage(ctx context.Context, tenantID, l
 func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.LineageStats, error) {
 	stats := &models.LineageStats{}
 
-	err := r.db.GetContext(ctx, &stats.TotalLineages,
+	err := r.TenantAwareRepository.Get(ctx, &stats.TotalLineages,
 		`SELECT COUNT(*) FROM data_lineage WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = r.db.GetContext(ctx, &stats.TotalNodes,
+	err = r.TenantAwareRepository.Get(ctx, &stats.TotalNodes,
 		`SELECT COUNT(*) FROM lineage_nodes ln
 		 JOIN data_lineage dl ON ln.lineage_id = dl.id
 		 WHERE dl.tenant_id=$1`, tenantID)
@@ -166,7 +171,7 @@ func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.Lin
 		return nil, err
 	}
 
-	err = r.db.GetContext(ctx, &stats.TotalRelationships,
+	err = r.TenantAwareRepository.Get(ctx, &stats.TotalRelationships,
 		`SELECT COUNT(*) FROM lineage_relationships lr
 		 JOIN data_lineage dl ON lr.lineage_id = dl.id
 		 WHERE dl.tenant_id=$1`, tenantID)

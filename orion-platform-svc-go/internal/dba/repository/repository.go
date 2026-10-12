@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
@@ -18,11 +19,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // sentinel.NotFound is returned when a resource is not found.
@@ -42,7 +47,7 @@ func (r *Repository) CreateOrder(ctx context.Context, o *models.SqlOrder) error 
 
 func (r *Repository) GetOrder(ctx context.Context, id string) (*models.SqlOrder, error) {
 	var o models.SqlOrder
-	err := r.db.GetContext(ctx, &o,
+	err := r.TenantAwareRepository.Get(ctx, &o,
 		`SELECT * FROM dba_sql_orders WHERE id=$1`, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -73,7 +78,7 @@ func (r *Repository) ListOrders(ctx context.Context, tenantID, status string, pa
 	}
 
 	var count int
-	err := r.db.GetContext(ctx, &count,
+	err := r.TenantAwareRepository.Get(ctx, &count,
 		fmt.Sprintf(`SELECT COUNT(*) FROM dba_sql_orders %s`, where), args...)
 	if err != nil {
 		return nil, 0, err
@@ -84,7 +89,7 @@ func (r *Repository) ListOrders(ctx context.Context, tenantID, status string, pa
 	args = append(args, limit, offset)
 
 	var orders []models.SqlOrder
-	err = r.db.SelectContext(ctx, &orders, query, args...)
+	err = r.TenantAwareRepository.Select(ctx, &orders, query, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -112,7 +117,7 @@ func (r *Repository) UpdateOrderStatus(ctx context.Context, id, status string, a
 	query := fmt.Sprintf(`UPDATE dba_sql_orders SET %s WHERE id=$%d RETURNING *`, set, idx)
 
 	var o models.SqlOrder
-	err := r.db.GetContext(ctx, &o, query, args...)
+	err := r.TenantAwareRepository.Get(ctx, &o, query, args...)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, sentinel.NotFound
@@ -145,7 +150,7 @@ func (r *Repository) CreateDataSource(ctx context.Context, ds *models.DataSource
 
 func (r *Repository) GetDataSource(ctx context.Context, id string) (*models.DataSource, error) {
 	var ds models.DataSource
-	err := r.db.GetContext(ctx, &ds,
+	err := r.TenantAwareRepository.Get(ctx, &ds,
 		`SELECT * FROM dba_data_sources WHERE id=$1`, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -163,7 +168,7 @@ func (r *Repository) GetDataSource(ctx context.Context, id string) (*models.Data
 
 func (r *Repository) ListDataSources(ctx context.Context, tenantID string) ([]models.DataSource, error) {
 	var ds []models.DataSource
-	err := r.db.SelectContext(ctx, &ds,
+	err := r.TenantAwareRepository.Select(ctx, &ds,
 		`SELECT * FROM dba_data_sources WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
 	if err != nil {
 		return ds, err
@@ -191,7 +196,7 @@ func (r *Repository) UpdateDataSource(ctx context.Context, id string, updates ma
 	setParts, args := buildSetClause(updates)
 	args = append(args, id)
 	query := fmt.Sprintf(`UPDATE dba_data_sources SET %s, updated_at=NOW() WHERE id=$%d`, setParts, len(args))
-	_, err := r.db.ExecContext(ctx, query, args...)
+	_, err := r.TenantAwareRepository.Exec(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +204,7 @@ func (r *Repository) UpdateDataSource(ctx context.Context, id string, updates ma
 }
 
 func (r *Repository) DeleteDataSource(ctx context.Context, id string) error {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM dba_data_sources WHERE id=$1`, id)
 	if err != nil {
 		return err
@@ -212,7 +217,7 @@ func (r *Repository) DeleteDataSource(ctx context.Context, id string) error {
 }
 
 func (r *Repository) UpdateDataSourceStatus(ctx context.Context, id, status string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE dba_data_sources SET status=$1, last_checked=NOW() WHERE id=$2`, status, id)
 	return err
 }
@@ -231,7 +236,7 @@ func (r *Repository) CreateAuditRule(ctx context.Context, rule *models.AuditRule
 
 func (r *Repository) GetAuditRule(ctx context.Context, id string) (*models.AuditRule, error) {
 	var rule models.AuditRule
-	err := r.db.GetContext(ctx, &rule,
+	err := r.TenantAwareRepository.Get(ctx, &rule,
 		`SELECT * FROM dba_audit_rules WHERE id=$1`, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -244,7 +249,7 @@ func (r *Repository) GetAuditRule(ctx context.Context, id string) (*models.Audit
 
 func (r *Repository) ListAuditRules(ctx context.Context, tenantID string) ([]models.AuditRule, error) {
 	var rules []models.AuditRule
-	err := r.db.SelectContext(ctx, &rules,
+	err := r.TenantAwareRepository.Select(ctx, &rules,
 		`SELECT * FROM dba_audit_rules WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
 	return rules, err
 }
@@ -254,7 +259,7 @@ func (r *Repository) UpdateAuditRule(ctx context.Context, id string, updates map
 	setParts, args := buildSetClause(updates)
 	args = append(args, id)
 	query := fmt.Sprintf(`UPDATE dba_audit_rules SET %s WHERE id=$%d`, setParts, len(args))
-	_, err := r.db.ExecContext(ctx, query, args...)
+	_, err := r.TenantAwareRepository.Exec(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +337,7 @@ func (r *Repository) ListQueryLogs(ctx context.Context, tenantID string, q model
 	}
 
 	var count int
-	err := r.db.GetContext(ctx, &count,
+	err := r.TenantAwareRepository.Get(ctx, &count,
 		fmt.Sprintf(`SELECT COUNT(*) FROM dba_query_audit_log %s`, where), args...)
 	if err != nil {
 		return nil, 0, err
@@ -343,6 +348,6 @@ func (r *Repository) ListQueryLogs(ctx context.Context, tenantID string, q model
 	args = append(args, q.Limit, offset)
 
 	var logs []models.QueryExecutionRecord
-	err = r.db.SelectContext(ctx, &logs, query, args...)
+	err = r.TenantAwareRepository.Select(ctx, &logs, query, args...)
 	return logs, count, err
 }

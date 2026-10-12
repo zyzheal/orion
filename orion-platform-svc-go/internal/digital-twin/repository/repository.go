@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -17,11 +18,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // --- Digital Twins ---
@@ -48,7 +53,7 @@ func (r *Repository) CreateTwin(ctx context.Context, tenantID string, req models
 
 func (r *Repository) FindTwinByID(ctx context.Context, tenantID, id string) (*models.DigitalTwin, error) {
 	var twin models.DigitalTwin
-	err := r.db.GetContext(ctx, &twin,
+	err := r.TenantAwareRepository.Get(ctx, &twin,
 		`SELECT * FROM digital_twins WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -61,7 +66,7 @@ func (r *Repository) FindTwinByID(ctx context.Context, tenantID, id string) (*mo
 
 func (r *Repository) FindAllTwins(ctx context.Context, tenantID string) ([]models.DigitalTwin, error) {
 	var twins []models.DigitalTwin
-	err := r.db.SelectContext(ctx, &twins,
+	err := r.TenantAwareRepository.Select(ctx, &twins,
 		`SELECT * FROM digital_twins WHERE tenant_id=$1 ORDER BY created_at DESC`, tenantID)
 	if err != nil {
 		return nil, err
@@ -110,7 +115,7 @@ func (r *Repository) CreateTrafficRecord(ctx context.Context, in models.CreateTr
 
 func (r *Repository) FindTrafficRecordsByTwinID(ctx context.Context, tenantID, twinID string) ([]models.TrafficRecord, error) {
 	var records []models.TrafficRecord
-	err := r.db.SelectContext(ctx, &records,
+	err := r.TenantAwareRepository.Select(ctx, &records,
 		`SELECT r.* FROM digital_twin_traffic_records r
 		 INNER JOIN digital_twins t ON r.twin_id = t.id
 		 WHERE r.twin_id=$1 AND t.tenant_id=$2
@@ -146,7 +151,7 @@ func (r *Repository) CreateReplaySession(ctx context.Context, in models.CreateRe
 
 func (r *Repository) FindReplaySessionsByTwinID(ctx context.Context, tenantID, twinID string) ([]models.ReplaySession, error) {
 	var sessions []models.ReplaySession
-	err := r.db.SelectContext(ctx, &sessions,
+	err := r.TenantAwareRepository.Select(ctx, &sessions,
 		`SELECT s.* FROM digital_twin_replay_sessions s
 		 INNER JOIN digital_twins t ON s.twin_id = t.id
 		 WHERE s.twin_id=$1 AND t.tenant_id=$2
@@ -159,7 +164,7 @@ func (r *Repository) FindReplaySessionsByTwinID(ctx context.Context, tenantID, t
 
 func (r *Repository) FindReplaySessionById(ctx context.Context, tenantID, id string) (*models.ReplaySession, error) {
 	var s models.ReplaySession
-	err := r.db.GetContext(ctx, &s,
+	err := r.TenantAwareRepository.Get(ctx, &s,
 		`SELECT s.* FROM digital_twin_replay_sessions s
 		 INNER JOIN digital_twins t ON s.twin_id = t.id
 		 WHERE s.id=$1 AND t.tenant_id=$2`, id, tenantID)
@@ -178,7 +183,7 @@ func (r *Repository) FindReplaySessionById(ctx context.Context, tenantID, id str
 // affected-row count means the id is unknown or foreign and is reported as a
 // not-found error rather than a silent success.
 func (r *Repository) UpdateReplaySession(ctx context.Context, tenantID, id, status string) (*models.ReplaySession, error) {
-	res, err := r.db.ExecContext(ctx,
+	res, err := r.TenantAwareRepository.Exec(ctx,
 		`UPDATE digital_twin_replay_sessions s SET s.status=$1, s.updated_at=NOW()
 		 WHERE s.id=$2
 		   AND s.twin_id IN (SELECT t.id FROM digital_twins t WHERE t.tenant_id=$3)`,
@@ -208,7 +213,7 @@ func ErrNotFoundMsg(msg string) error {
 // not-found error instead of an empty slice.
 func (r *Repository) GetRecordingRecordsBySessionID(ctx context.Context, tenantID, id string) ([]interface{}, error) {
 	var recordsJSON []byte
-	err := r.db.GetContext(ctx, &recordsJSON,
+	err := r.TenantAwareRepository.Get(ctx, &recordsJSON,
 		`SELECT records FROM recording_sessions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

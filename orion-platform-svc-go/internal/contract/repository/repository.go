@@ -1,6 +1,7 @@
 package repository
 
 import (
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"context"
 	"fmt"
 	"strings"
@@ -15,11 +16,15 @@ import (
 )
 
 type Repository struct {
+	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{
+		TenantAwareRepository: internalrepo.NewTenantAwareRepository(db),
+		db:                    db,
+	}
 }
 
 // --- Contract ---
@@ -38,7 +43,7 @@ func (r *Repository) CreateContract(ctx context.Context, contract *models.Contra
 
 func (r *Repository) GetContractByID(ctx context.Context, tenantID, id string) (*models.Contract, error) {
 	var c models.Contract
-	err := r.db.GetContext(ctx, &c,
+	err := r.TenantAwareRepository.Get(ctx, &c,
 		`SELECT * FROM api_contracts WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return &c, err
 }
@@ -66,7 +71,7 @@ func (r *Repository) ListContracts(ctx context.Context, tenantID string, filter 
 	}
 
 	var contracts []models.Contract
-	err := r.db.SelectContext(ctx, &contracts,
+	err := r.TenantAwareRepository.Select(ctx, &contracts,
 		fmt.Sprintf(`SELECT * FROM api_contracts %s ORDER BY created_at DESC`, where), args...)
 	return contracts, err
 }
@@ -85,7 +90,7 @@ func (r *Repository) UpdateContract(ctx context.Context, tenantID, id string, up
 		i++
 	}
 	args = append(args, id, tenantID)
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		fmt.Sprintf(`UPDATE api_contracts SET %s WHERE id=$%d AND tenant_id=$%d`,
 			joinSetClauses(clauses), i, i+1), args...)
 	if err != nil {
@@ -95,7 +100,7 @@ func (r *Repository) UpdateContract(ctx context.Context, tenantID, id string, up
 }
 
 func (r *Repository) DeleteContract(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM api_contracts WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return false, err
@@ -118,7 +123,7 @@ func (r *Repository) CreateEndpoint(ctx context.Context, endpoint *models.Endpoi
 
 func (r *Repository) ListEndpointsByContract(ctx context.Context, tenantID, contractID string) ([]models.Endpoint, error) {
 	var endpoints []models.Endpoint
-	err := r.db.SelectContext(ctx, &endpoints,
+	err := r.TenantAwareRepository.Select(ctx, &endpoints,
 		`SELECT ce.* FROM contract_endpoints ce
 		 JOIN api_contracts ac ON ce.contract_id = ac.id
 		 WHERE ac.tenant_id=$1 AND ce.contract_id=$2
@@ -127,7 +132,7 @@ func (r *Repository) ListEndpointsByContract(ctx context.Context, tenantID, cont
 }
 
 func (r *Repository) DeleteEndpoint(ctx context.Context, tenantID, contractID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx,
+	result, err := r.TenantAwareRepository.Exec(ctx,
 		`DELETE FROM contract_endpoints
 		 WHERE id=$1
 		 AND contract_id IN (SELECT id FROM api_contracts WHERE id=$2 AND tenant_id=$3)`, id, contractID, tenantID)
@@ -143,31 +148,31 @@ func (r *Repository) DeleteEndpoint(ctx context.Context, tenantID, contractID, i
 func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.ContractStats, error) {
 	stats := &models.ContractStats{}
 
-	err := r.db.GetContext(ctx, &stats.TotalContracts,
+	err := r.TenantAwareRepository.Get(ctx, &stats.TotalContracts,
 		`SELECT COUNT(*) FROM api_contracts WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = r.db.GetContext(ctx, &stats.PublishedCount,
+	err = r.TenantAwareRepository.Get(ctx, &stats.PublishedCount,
 		`SELECT COUNT(*) FROM api_contracts WHERE tenant_id=$1 AND status='published'`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = r.db.GetContext(ctx, &stats.DraftCount,
+	err = r.TenantAwareRepository.Get(ctx, &stats.DraftCount,
 		`SELECT COUNT(*) FROM api_contracts WHERE tenant_id=$1 AND status='draft'`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = r.db.GetContext(ctx, &stats.DeprecatedCount,
+	err = r.TenantAwareRepository.Get(ctx, &stats.DeprecatedCount,
 		`SELECT COUNT(*) FROM api_contracts WHERE tenant_id=$1 AND status='deprecated'`, tenantID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = r.db.GetContext(ctx, &stats.TotalEndpoints,
+	err = r.TenantAwareRepository.Get(ctx, &stats.TotalEndpoints,
 		`SELECT COUNT(*) FROM contract_endpoints ce
 		 JOIN api_contracts ac ON ce.contract_id = ac.id
 		 WHERE ac.tenant_id=$1`, tenantID)
