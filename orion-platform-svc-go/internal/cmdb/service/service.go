@@ -17,6 +17,7 @@ import (
 	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/cmdb/attribute"
 	"orion/platform-svc-go/internal/cmdb/models"
+	"orion/platform-svc-go/internal/cmdb/script"
 )
 
 // ErrK8sSyncNotActive 表示 K8s 同步未启动，ListK8sResources 返回空 + nil error，
@@ -77,10 +78,16 @@ type Service struct {
 	repo        RepositoryInterface
 	k8sSync     *k8sSyncState
 	attrFactory *attribute.AttrValueHandlerFactory
+	script      *script.Router
+	cicd        CicdLister
 }
 
 func NewService(repo RepositoryInterface) *Service {
-	return &Service{repo: repo, k8sSync: newK8sSyncState()}
+	return &Service{
+		repo:    repo,
+		k8sSync: newK8sSyncState(),
+		script:  script.NewRouter(),
+	}
 }
 
 // NewServiceWithAttributes constructs a Service with attribute validation
@@ -89,7 +96,38 @@ func NewServiceWithAttributes(repo RepositoryInterface, factory *attribute.AttrV
 	if factory == nil {
 		factory = attribute.NewWithDefaults()
 	}
-	return &Service{repo: repo, k8sSync: newK8sSyncState(), attrFactory: factory}
+	return &Service{
+		repo:        repo,
+		k8sSync:     newK8sSyncState(),
+		script:      script.NewRouter(),
+		attrFactory: factory,
+	}
+}
+
+// WithScriptRouter installs an explicit script.Router (e.g. one backed
+// by an SSH Executor + Whitelist loaded from the DB). Nil router falls
+// back to the default LocalExecutor-based Router created by NewService.
+func (s *Service) WithScriptRouter(r *script.Router) *Service {
+	if r == nil {
+		return s
+	}
+	s.script = r
+	return s
+}
+
+// WithCICDLister installs a custom CICDLister. Nil falls back to nil
+// (ListCICDResources then returns empty slice — no fabricated data).
+func (s *Service) WithCICDLister(l CicdLister) *Service {
+	s.cicd = l
+	return s
+}
+
+// CicdLister is the interface ListCICDResources dispatches to. It is a
+// thin seam so tests can inject a fake, and so future DataSource
+// implementations (GitLab/GitHub/CIType-based) can be swapped in
+// without touching the service.
+type CicdLister interface {
+	List(ctx context.Context, tenantID string, status *string, limit, offset int) ([]models.CICDResource, int, error)
 }
 
 // --- CI CRUD ---
@@ -523,6 +561,15 @@ func (s *Service) K8sSyncStatus(ctx context.Context) (bool, time.Time) {
 	return s.k8sSync.started, s.k8sSync.startedAt
 }
 
+// ListCICDResources 返回当前已注册的 CICD 数据源返回的资源。
+//
+// 语义（对齐 NEW-EA-14 / docs/cmdb-k8s-script-stub-upgrade-2026-10-11.md）：
+//   - 未注入 CICDLister：返回空 slice + total=0 + nil error（不伪造数据）
+//   - Lister 报错：直接 propagate（handler 层可映射为 HTTP 500）
+//   - Lister 返回：由 Lister 自行做 status 过滤 + limit/offset 分页
+//
+// 演进：gitlab.CICDDataSource / github.CICDDataSource 实现 CicdLister
+// 后通过 WithCICDLister 注入，替代当前默认（nil → 空态）。
 func (s *Service) ListCICDResources(ctx context.Context, status *string, limit, offset int) ([]models.CICDResource, int, error) {
 	if limit <= 0 {
 		limit = 20
@@ -530,51 +577,58 @@ func (s *Service) ListCICDResources(ctx context.Context, status *string, limit, 
 	if offset < 0 {
 		offset = 0
 	}
-	resources := []models.CICDResource{
-		{ID: "cicd-1", Name: "build-pipeline", Type: "Pipeline", Status: "success", Project: "orion-platform", LastRunAt: "2026-07-12T10:00:00Z", CreatedAt: "2026-06-01T00:00:00Z"},
-		{ID: "cicd-2", Name: "deploy-runner", Type: "Runner", Status: "running", Project: "orion-platform", CreatedAt: "2026-06-15T00:00:00Z"},
-		{ID: "cicd-3", Name: "test-pipeline", Type: "Pipeline", Status: "failed", Project: "orion-frontend", LastRunAt: "2026-07-12T09:00:00Z", CreatedAt: "2026-06-20T00:00:00Z"},
+	if s.cicd == nil {
+		return []models.CICDResource{}, 0, nil
 	}
-	filtered := resources[:0]
-	for _, r := range resources {
-		if status != nil && *status != "" && r.Status != *status {
-			continue
-		}
-		filtered = append(filtered, r)
+	items, total, err := s.cicd.List(ctx, "", status, limit, offset)
+	if err != nil {
+		return nil, 0, err
 	}
-	total := len(filtered)
-	if offset > len(filtered) {
-		filtered = filtered[:0]
-	} else {
-		filtered = filtered[offset:]
+	if items == nil {
+		items = []models.CICDResource{}
 	}
-	if limit > 0 && len(filtered) > limit {
-		filtered = filtered[:limit]
-	}
-	if filtered == nil {
-		filtered = []models.CICDResource{}
-	}
-	return filtered, total, nil
+	return items, total, nil
 }
 
+// ExecuteScript 通过 script.Router 执行脚本。Router 负责：
+//   - ScriptType 归一化 + 白名单校验（tenant-scoped）
+//   - 脚本体非空 + 长度上限（MaxScriptBytes）
+//   - Executor 路由（bash / python / terraform / ssh）
+//   - 每目标独立超时 + ctx 取消传播
+//
+// 语义（对齐 NEW-EA-14 判据 D5）：
+//   - 空 target / 空 script / 未知类型 / 未白名单 → 返回 error，不伪造 success
+//   - Executor 返回 failed → Result.Status = "failed"
+//   - ctx 取消 → Result.Status = "cancelled"
+//
+// 演进：TargetResolver 接入 CI.Host metadata 后，SSH Executor 自动生效。
 func (s *Service) ExecuteScript(ctx context.Context, req *models.ScriptExecRequest) (*models.ScriptExecResult, error) {
-	scriptType := req.ScriptType
-	if scriptType == "" {
-		scriptType = "bash"
+	if s.script == nil {
+		return nil, fmt.Errorf("cmdb.script: router not initialized")
 	}
-	results := []models.ScriptExecTargetResult{}
-	for _, ciID := range req.TargetCiIds {
-		results = append(results, models.ScriptExecTargetResult{
-			CIID:   ciID,
-			Status: "success",
-			Output: fmt.Sprintf("[scaffold] executed %q script on %s", scriptType, ciID),
-		})
+	// tenantID 由上层 handler 注入；service 无法从 ctx 拿到，先用 ""
+	// 作为默认租户（单租户/开发模式）。生产接线时 handler 应传真实 tenantID
+	// 通过新的 ExecuteScriptForTenant 入口（保留兼容）。
+	tenantID := ctxValueOrEmpty(ctx, "tenantID")
+	return s.script.Execute(ctx, tenantID, req)
+}
+
+// ExecuteScriptForTenant is the tenant-scoped ExecuteScript variant.
+// Callers that need tenant-aware whitelist enforcement should use this
+// entry point instead of ExecuteScript (which reads tenant from ctx).
+func (s *Service) ExecuteScriptForTenant(ctx context.Context, tenantID string, req *models.ScriptExecRequest) (*models.ScriptExecResult, error) {
+	if s.script == nil {
+		return nil, fmt.Errorf("cmdb.script: router not initialized")
 	}
-	return &models.ScriptExecResult{
-		ExecutionID: "exec-0001",
-		Status:      "completed",
-		Results:     results,
-	}, nil
+	return s.script.Execute(ctx, tenantID, req)
+}
+
+// ctxValueOrEmpty returns ctx.Value(key) as string, or "" if unset.
+func ctxValueOrEmpty(ctx context.Context, key string) string {
+	if v, ok := ctx.Value(key).(string); ok {
+		return v
+	}
+	return ""
 }
 
 // Search performs full-text search across CMDB CIs using the repository's FTS query.
