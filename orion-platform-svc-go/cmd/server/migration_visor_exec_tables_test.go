@@ -138,18 +138,10 @@ func TestMigrationsCreateTheVisorExecTables(t *testing.T) {
 		if !strings.Contains(name, "visor_exec") {
 			continue
 		}
-		if reVisorExecCreate.FindAllStringSubmatch(readMigration(name), -1) == nil {
+		if reVisorExecCreate.FindAllStringSubmatch(readMigration(t, name), -1) == nil {
 			t.Errorf("%s names visor_exec but creates no visor_exec table", name)
 		}
 	}
-}
-
-func readMigration(name string) string {
-	b, err := os.ReadFile(filepath.Join("../../migrations", name))
-	if err != nil {
-		return ""
-	}
-	return string(b)
 }
 
 // Every column the repository inserts, updates, or puts on an update whitelist

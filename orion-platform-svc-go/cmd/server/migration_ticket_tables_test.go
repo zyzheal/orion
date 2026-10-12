@@ -29,6 +29,19 @@ import (
 
 const tkMigrationFile = "686_create_ticket_domain_missing_tables.sql"
 
+// tkPostCreateALTERs maps tables whose schema was extended by a later ALTER
+// TABLE migration. 704 added tenant_id to ticket_comments/ticket_transfers/
+// ticket_assignment_rules/ticket_suspensions for ADR-011 multi-tenant
+// isolation, but repository INSERTs and models already reference tenant_id
+// because the backfill UPDATE (from tickets.tenant_id) is written in the
+// same migration. 686's CREATE TABLE does not list tenant_id, so the
+// InsertColumnsExistInTheDDL / ModelTagsResolveAgainstTheDDL checks below
+// must read 704 as well when they touch one of these tables, otherwise
+// they false-positive on the intentional post-create widening.
+var tkPostCreateALTERs = map[string]string{
+	"ticket_comments": "704_add_tenant_id_to_ticket_subtables.sql",
+}
+
 // tkOwnedRelations is the complete set 686 claims. It is a constant rather than
 // derived from the migration, so adding a table to the file is a test failure
 // and a deliberate scope decision instead of a silent expansion.
@@ -103,7 +116,22 @@ func tkDirSource(dir string) string {
 
 func tkTables686(t *testing.T) map[string]map[string]bool {
 	t.Helper()
-	return parseCreateTables(migrationBody(t, tkMigrationFile))
+	schema := parseCreateTables(migrationBody(t, tkMigrationFile))
+	// Fold in later ALTER TABLE additions (e.g. 704 backfills tenant_id into
+	// ticket_comments). Without this, InsertColumnsExistInTheDDL and
+	// ModelTagsResolveAgainstTheDDL report the widening columns as missing.
+	for table, alterFile := range tkPostCreateALTERs {
+		alt := migrationBody(t, alterFile)
+		re := regexp.MustCompile(`(?i)\bALTER\s+TABLE\s+` + regexp.QuoteMeta(table) + `\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+([a-z_][a-z0-9_]*)`)
+		cols := re.FindAllStringSubmatch(alt, -1)
+		if _, ok := schema[table]; !ok {
+			schema[table] = map[string]bool{}
+		}
+		for _, c := range cols {
+			schema[table][c[1]] = true
+		}
+	}
+	return schema
 }
 
 // tkSortedTableNames is sortedKeys for the table -> columns map, so a failure
@@ -423,9 +451,20 @@ func TestMigration_TicketDomain_DispatchQueuePrimaryKeyIsTicketID(t *testing.T) 
 // Tenancy is absent on purpose where no writer exists. A permanently NULL
 // tenant_id plus a WHERE tenant_id predicate turns every legitimate read into
 // not-found, including for the caller who is entitled to the row.
+//
+// ticket_comments is a post-686 exception: migration 704 widened it with a
+// nullable tenant_id plus a backfill from tickets, and comment.go Create()
+// auto-populates it from the parent ticket when the caller omits it. The
+// ListByTicket predicate tolerates NULL via `AND (c.tenant_id = t.tenant_id
+// OR c.tenant_id IS NULL)`, so old rows stay visible. The tenant_id addition
+// is intentional (ADR-011 multi-tenant isolation) and must not be reversed.
 func TestMigration_TicketDomain_TenantColumnsAreWhereAWriterOrAJoinExists(t *testing.T) {
 	schema := tkTables686(t)
-	for _, table := range []string{"sla_records", "suspend_records", "ticket_comments"} {
+	// sla_records and suspend_records still keep tenant_id out because no
+	// repository path writes it today; adding the column would poison reads.
+	// ticket_comments is no longer in this exclusion list — see the comment
+	// above for why 704 changed the calculus.
+	for _, table := range []string{"sla_records", "suspend_records"} {
 		if schema[table]["tenant_id"] {
 			t.Errorf("%s declares tenant_id on %s, but no repository writes it: the column would stay "+
 				"NULL forever and any WHERE tenant_id predicate would hide every row", table, table)
@@ -436,6 +475,10 @@ func TestMigration_TicketDomain_TenantColumnsAreWhereAWriterOrAJoinExists(t *tes
 	}
 	if !schema["sla_targets"]["tenant_id"] {
 		t.Error("sla_targets dropped tenant_id, which sla_policy.go's compliance JOIN filters on")
+	}
+	if !schema["ticket_comments"]["tenant_id"] {
+		t.Error("ticket_comments dropped tenant_id, which comment.go auto-populates from the parent " +
+			"ticket (migration 704 backfill) for ADR-011 multi-tenant isolation")
 	}
 }
 
