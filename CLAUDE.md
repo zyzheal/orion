@@ -189,7 +189,11 @@ npx tsx docs/design-constraints/framework/core/cli-check.ts --scan orion-fronten
 4. **风险登记册**：`reports/module-upgrade-designs/risk-fallback-design-2026-10-03.md` **v5.7** = **70 项**（P0×8 / P1×25 / P2×24 / P3×6 / CC×3 + 数据治理 4 项：R-P0-10 DDD 基础设施零测试 / R-P1-21 假绿灯反模式 / R-P1-22 Saga 一致性缺失 / R-P1-23 Repository 集成测试缺失 / R-P1-24 Handler 契约破坏 / R-P1-25 反模式虚假绿灯）。
 5. **Stage Gate**：**60 项**（Y 手册 v5.9 基线 35 项 + 2026-10-11 NEW-EA-15 新增 11 项 + NEW-EA-17 新增 6 项 GATE-TEST-* + NEW-EA-19 v2 新增 8 项：GATE-TEST-ANTI-PATTERN / GATE-ADR-STATUS-STANDARD / GATE-DDD-MIGRATION-PROGRESS / GATE-MIGRATION-ROLLBACK / GATE-GDPR-DELETE-CASCADE / GATE-AUDIT-IMMUTABLE / GATE-DATA-CONSISTENCY / GATE-PII-ENCRYPTED；详见 `docs/baseline/gate-config.json` v5.12）。分布：**BLOCK 19 + DEGRADE 31 + SKIP 10 = 60**（NEW-EA-19 v2 渐进式门控 + 数据治理）。渐进式阈值 T0-T3 详见 `docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md` §2.2。
 6. **推荐执行入口**：路线 A（ADR-011 → ADR-013 → ADR-014 → ADR-010 → ADR-012），R-P0-04/05 待 S7 阶段。
-7. **RC-03 硬约束**：以上 3 份文件均为**设计文档**，Agent 不修改生产代码。生产代码修复需用户显式确认。
+7. **RC-03 阶段约束（2026-10-12 更新）**：以上 3 份文件（INDEX/G1/Y）仍为**权威设计文档**，但阶段已从"仅设计"过渡到"设计 + 实施"。当前分支 `feat/wave2-parallel-execution` 已获用户授权修改生产代码（见下方"代码实施阶段约束"）。执行原则：
+   - **权威数据源优先级**：本地代码磁盘 > `gate-config.json` current > `baseline.json` 缓存 > 设计文档任务描述
+   - **禁止项**：不得基于过期 baseline 重复建表/重复实现；不得修改他人未提交文件；不得估算人天/工期
+   - **门控验证**：每次 commit 前运行 `go build ./...` + `go test ./...`，覆盖率变化需对齐 `gate-config.json` 目标值
+   - **回滚机制**：每个 commit 附 `git revert` 说明，Migration 必配 `_down.sql`
 
 **入口判定**：
 - 用户问"有哪些文档 / 评审进度" → INDEX
@@ -479,7 +483,7 @@ import { colors } from '@/tokens/colors';
 |------|-----------|---------|---------|
 | RC-01 | 实现 200 项 AST detector | 当前 37 项 AST detector + 128 项 Review 覆盖 213 项检查项（AST 40% = 85 项, Review 60% = 128 项），不再追求 100% AST 覆盖 | 未覆盖维度由 design-doc-reviewer 文档评审 + code-design-analyzer 架构分析补充 |
 | RC-02 | 重复检测同一问题 | design-constraint 是 AST 检测唯一权威，其他技能消费结果不做重复检测 | code-design-analyzer 能力四已改为消费 AST 结果，不自行 grep 检测 |
-| RC-03 | 自动编写生产代码 | 技能只负责检测/评审/拆分，不直接修改生产代码 | task-decomposer 生成子任务 + 验收标准，由用户确认后执行 |
+| RC-03（**已升级 2026-10-12**）| 自动编写生产代码 | ~~技能只负责检测/评审/拆分，不直接修改生产代码~~ → **当前阶段（`feat/wave2-parallel-execution` 分支）已获用户授权执行代码实施**。仍保留"用户显式确认"门控：每个 ADR 落地批次开始前需明确确认范围，每次 commit 前需通过 `go build` + `go test` 验证 | task-decomposer 生成子任务 + 验收标准 → 用户确认 → Agent 执行代码 → commit 前 build/test 验证 → 用户 review 后 push |
 | RC-04 | CICD 实时监控集成 | CICD 属于运维层，应由运维文档 + design-doc-reviewer 评审覆盖，非 AST 可检测范围 | 在 CI pipeline 中调用 `cli-check.ts` 作为静态检查步骤 |
 
 ### 执行约束
@@ -488,6 +492,60 @@ import { colors } from '@/tokens/colors';
 2. **单一职责**：每项检测只有一个技能负责，其他技能只消费不检测
 3. **人工确认门控**：所有自动检测结果必须经用户确认后才能转化为生产代码修改
 4. **AST 适用边界**：仅对代码级可静态检测的维度使用 AST（A1/A2/A3/B2/S 层），运维/体验/运行时维度由文档评审补充
+
+### 代码实施阶段约束（2026-10-12 新增，阶段：设计→实施过渡）
+
+> **阶段声明**：当前分支 `feat/wave2-parallel-execution` 已获用户授权修改生产代码。RC-03 从"硬禁止"升级为"授权 + 门控"。以下约束在代码实施阶段生效。
+
+#### RC-05 代码实施硬约束
+
+| 编号 | 约束 | 说明 |
+|------|------|------|
+| **RC-05-a** | **权威数据源优先级** | 本地代码磁盘 > `docs/baseline/gate-config.json` current > `docs/baseline/baseline.json` 缓存 > 设计文档任务描述。禁止基于过期 baseline 重复实现 |
+| **RC-05-b** | **Commit 前验证** | 每次 commit 前必须运行：`go build ./...` + `go test ./...`（涉及包）；覆盖率变化需对齐 `gate-config.json` 门控目标 |
+| **RC-05-c** | **Migration 完备性** | 每个新 Migration 必配 `_down.sql`；号段占用需查 `scripts/lint/migration-range-check.sh`；号段分配遵守 `docs/adr/ADR-011.md` 规则 |
+| **RC-05-d** | **回滚机制** | 每个 commit 描述需包含"回滚步骤"（`git revert <sha>`）；破坏性变更需 Feature Flag 灰度；数据变更需备份剧本 |
+| **RC-05-e** | **文件隔离** | 只 stage/commit 自己修改的文件；并发会话拥有其他未追踪文件（`git status` 中 `??` 前缀），禁止越权提交 |
+| **RC-05-f** | **禁止估算人天/工期** | 使用"批次""阶段""轮次"等相对单位；禁用词：人天/工期/人日/sprint/week |
+| **RC-05-g** | **门控回归** | 新增代码不得降低既有门控覆盖率；`go test -coverprofile` 后需与 `gate-config.json` 实测值对比 |
+| **RC-05-h** | **不修改他人文件** | 若 `git status` 显示 ` M` 修改但未提交的文件不属于当前任务范围，禁止修改；发现冲突需询问用户 |
+
+#### 代码实施执行流程
+
+```
+1. 用户确认批次范围（明确 ADR/任务 ID）
+        ↓
+2. 检查 gate-config.json 权威门控状态（避免重复开发）
+        ↓
+3. 检查本地工作区 git status（避免越权）
+        ↓
+4. 实施代码修改（新建/修改/删除）
+        ↓
+5. 运行 go build ./... + go test ./...（涉及包）
+        ↓
+6. 覆盖率变化对齐 gate-config 目标值
+        ↓
+7. Commit 前 git status --porcelain 验证只含自己文件
+        ↓
+8. git commit -F（多行中文 commit message）
+        ↓
+9. 更新 baseline.json / gate-config.json（如涉及门控）
+```
+
+#### 已授权代码实施范围（截至 2026-10-12）
+
+- ✅ **ADR-011 P1-2/P1-4**：SQL builder + TenantAwareRepository 编译期强制
+- ✅ **ADR-015 Change DDD façade**：`internal/change/ddd.go`
+- ✅ **ADR-016 Phase 2 testutil 基座**：fixture/container/builder/assertion
+- ✅ **ADR-016 Phase 3 TEST-4/5/6/7**：ticketing/secret/chatops/dba + 10 零覆盖模块
+- ✅ **ADR-016 Phase 3 TEST-8/9**：EventBus + Saga 覆盖补测
+- ✅ **ADR-017 Phase 2-5 scripts**：adr-lint / migration-range-check / baseline-refresh
+- ✅ **P1-6 Gateway Audit**：`internal/middleware/audit.go` + 平台侧挂载
+- ⏸️ **S0-T1 errors.go**：待用户确认（本地文件不存在）
+- ⏸️ **Migration 773 LLM audit**：待用户确认
+- ⏸️ **GATE-AUDIT-IMMUTABLE trigger**：待用户确认
+- ⏸️ **DeleteByTenantID 6 core tables**：待用户确认
+- ⏸️ **GATE-OTEL-SPAN-100**：待用户确认
 
 ## 四技能自动触发规则
 
