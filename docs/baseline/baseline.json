@@ -2,7 +2,7 @@
   "$schema": "./baseline.schema.json",
   "meta": {
     "version": "v5.24",
-    "generated": "2026-10-11",
+    "generated": "2026-10-13",
     "gate_config_version": "v5.23 (SKIP 门控分类: 12 SKIP 分三档 — 3 升级 DEGRADE + 3 新 check_script (baseline-freshness / doc-ci-consistency / adr-decisioner)；2 标记 DELETED (P0-6-SLO 重复, U15-MOAT 重复)；7 加 manual_review: true。分布 BLOCK 19 / DEGRADE 14 / SKIP 7 / DELETED 2 = 42。修正 stale total_gates 61→42)",
     "source_docs": [
       "reports/design-docs-summary-2026-10-03.md",
@@ -83,8 +83,8 @@
   },
   "migrations": {
     "aa_planned_range": "699-765",
-    "enterprise_upgrade_range": "766-782",
-    "current_state": "ALL_EMPTY",
+    "enterprise_upgrade_range": "766-784",
+    "current_state": "699-784_CREATED",
     "assigned": {
       "699-765": "ADR-011/013/014/015 planned",
       "766-768": "U5 baseline metadata tables",
@@ -92,7 +92,8 @@
       "770-772": "U12 AI decision audit / sla_config / evaluation_dataset",
       "773-775": "U13 LLM security (llm_call_audit / prompt_templates / llm_rate_limit_config)",
       "776-778": "U14 CC risk extension (cc_risk_audit_log)",
-      "779-782": "U15 AI moat protection metadata (moat_registry / moat_audit_log / moat_exception)"
+      "779-782": "U15 AI moat protection metadata (moat_registry / moat_audit_log / moat_exception)",
+      "783-784": "Wave 2 P0 modules (alert_shift_assignments tenant_id / new module tables)"
     }
   },
   "new_ea_deliverables": {
@@ -202,7 +203,7 @@
       "passed": true
     },
     "R4_migration_range_documented": {
-      "expected": "699-782",
+      "expected": "699-784",
       "actual": "CLAUDE.md clause 3",
       "passed": true
     },

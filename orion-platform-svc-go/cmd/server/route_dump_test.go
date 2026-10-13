@@ -1686,5 +1686,35 @@ func buildDumpEntries() []dumpEntry {
 				rdmCodeReviewH.RegisterRoutes(api)
 			}
 		}},
+		{"rdmRequirementH", 212, func(api *gin.RouterGroup) {
+			if rdmRequirementH != nil {
+				rdmRequirementH.RegisterRoutes(api)
+			}
+		}},
+		{"alertShiftH", 212, func(api *gin.RouterGroup) {
+			if alertShiftH != nil {
+				alertShiftH.RegisterRoutes(api)
+			}
+		}},
+		{"alertSlaH", 212, func(api *gin.RouterGroup) {
+			if alertSlaH != nil {
+				alertSlaH.RegisterRoutes(api)
+			}
+		}},
+		{"sprintAnalyticsH", 212, func(api *gin.RouterGroup) {
+			if sprintAnalyticsH != nil {
+				sprintAnalyticsH.RegisterRoutes(api)
+			}
+		}},
+		{"inspectionTemplateH", 212, func(api *gin.RouterGroup) {
+			if inspectionTemplateH != nil {
+				inspectionTemplateH.RegisterRoutes(api)
+			}
+		}},
+		{"inspectionScheduleH", 212, func(api *gin.RouterGroup) {
+			if inspectionScheduleH != nil {
+				inspectionScheduleH.RegisterRoutes(api)
+			}
+		}},
 	}
 }
