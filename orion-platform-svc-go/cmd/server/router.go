@@ -207,7 +207,9 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
 			// Phase 2 DBA extension handlers (approval/query/aireview/osc).
 			// Each is nil when its wire function failed to initialise; the
 			// registerRoutes loop above skips nil handlers.
-			dbaApprovalH, dbaQueryH, dbaAirReviewH, dbaOscH, dbaSlowQueryH, dbaExplainH, dbaAdvisorH)
+			dbaApprovalH, dbaQueryH, dbaAirReviewH, dbaOscH, dbaSlowQueryH, dbaExplainH, dbaAdvisorH,
+			// Wave 2 P0 modules: 6 new domain handlers
+			rdmRequirementH, alertShiftH, alertSlaH, sprintAnalyticsH, inspectionTemplateH, inspectionScheduleH)
 
 		if authH != nil {
 			public := r.Group("/auth")

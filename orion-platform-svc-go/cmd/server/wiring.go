@@ -235,6 +235,13 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	// R-P0-04 / R-P0-05: RDM stub-phase endpoints (see wiring-rdm.go)
 	wireRDMStatistics(db, logger)
 	wireRDMCodeReviews(db, logger)
+	// Wave 2 P0 modules: 6 new domain handlers
+	wireRDMRequirement(db, logger)
+	wireAlertShift(db, logger)
+	wireAlertSLA(db, logger)
+	wireSprintAnalytics(db, logger)
+	wireInspectionTemplate(db, logger)
+	wireInspectionSchedule(db, logger)
 }
 
 // wireNatsSubscribers initializes the Incident and Self-Healing NATS JetStream
