@@ -66,7 +66,6 @@ func (e *Exporter) exportJSON(data *ReportData) ([]byte, string, error) {
 func (e *Exporter) exportCSV(data *ReportData) ([]byte, string, error) {
 	var buf bytes.Buffer
 	w := csv.NewWriter(&buf)
-	defer w.Flush()
 
 	for _, section := range data.Sections {
 		for _, rows := range section {
@@ -92,6 +91,10 @@ func (e *Exporter) exportCSV(data *ReportData) ([]byte, string, error) {
 				}
 			}
 		}
+	}
+	w.Flush()
+	if err := w.Error(); err != nil {
+		return nil, "", fmt.Errorf("flush csv: %w", err)
 	}
 	return buf.Bytes(), "text/csv", nil
 }
