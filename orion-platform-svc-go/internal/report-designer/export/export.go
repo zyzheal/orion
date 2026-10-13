@@ -8,6 +8,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/jung-kurt/gofpdf"
+	"github.com/xuri/excelize/v2"
 	"go.uber.org/zap"
 )
 
@@ -132,77 +134,118 @@ func (e *Exporter) exportHTML(data *ReportData) ([]byte, string, error) {
 	return []byte(sb.String()), "text/html", nil
 }
 
-// exportExcel generates a minimal Excel-compatible output.
-// In production, use excelize library for proper .xlsx generation.
-// This returns HTML-table format which Excel can open as .xls.
+// exportExcel generates a real Excel file using excelize library.
 func (e *Exporter) exportExcel(data *ReportData) ([]byte, string, error) {
-	var buf bytes.Buffer
-	buf.WriteString("<html xmlns:o='urn:schemas-microsoft-com:office:office'")
-	buf.WriteString(" xmlns:x='urn:schemas-microsoft-com:office:excel'><head>")
-	buf.WriteString("<meta charset='utf-8'><style>td{border:1px solid #999}</style>")
-	buf.WriteString("</head><body>")
-
+	f := excelize.NewFile()
+	idx := 0
 	for _, section := range data.Sections {
 		for name, rows := range section {
-			buf.WriteString(fmt.Sprintf("<h2>%s</h2>", name))
+			sheetName := fmt.Sprintf("Sheet%d", idx+1)
+			f.NewSheet(sheetName)
+			if idx == 0 {
+				f.DeleteSheet("Sheet1")
+				f.NewSheet(sheetName)
+			} else {
+				// Keep first sheet
+			}
+
+			// Set sheet title
+			f.SetSheetName("Sheet1", sheetName)
+
+			// Write title
+			cell := "A1"
+			f.SetCellValue(sheetName, cell, name)
+
+			// Write headers
 			if len(rows) > 0 {
-				buf.WriteString("<table><thead><tr>")
 				var headers []string
 				for k := range rows[0] {
 					headers = append(headers, k)
 				}
-				for _, h := range headers {
-					buf.WriteString(fmt.Sprintf("<th>%s</th>", h))
+				for i, h := range headers {
+					cell := fmt.Sprintf("%s%d", getExcelCol(i), 3)
+					f.SetCellValue(sheetName, cell, h)
 				}
-				buf.WriteString("</tr></thead><tbody>")
-				for _, row := range rows {
-					buf.WriteString("<tr>")
-					for _, h := range headers {
-						buf.WriteString(fmt.Sprintf("<td>%v</td>", row[h]))
+
+				// Write data rows
+				for rowIdx, row := range rows {
+					for colIdx, h := range headers {
+						cell := fmt.Sprintf("%s%d", getExcelCol(colIdx), 4+rowIdx)
+						f.SetCellValue(sheetName, cell, fmt.Sprintf("%v", row[h]))
 					}
-					buf.WriteString("</tr>")
 				}
-				buf.WriteString("</tbody></table>")
 			}
+			idx++
 		}
 	}
-	buf.WriteString("</body></html>")
-	return buf.Bytes(), "application/vnd.ms-excel", nil
+
+	buf := new(bytes.Buffer)
+	if err := f.Write(buf); err != nil {
+		return nil, "", fmt.Errorf("write excel: %w", err)
+	}
+	return buf.Bytes(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nil
 }
 
-// exportPDF generates a simple PDF using gofpdf if available,
-// or falls back to a text-based representation.
-// In production, replace with a proper PDF library integration.
+// getExcelCol converts a column index to Excel column letter(s).
+func getExcelCol(idx int) string {
+	var col string
+	for idx >= 0 {
+		col = string(rune('A' + idx%26)) + col
+		idx = idx/26 - 1
+	}
+	return col
+}
+
+// exportPDF generates a real PDF using gofpdf library.
 func (e *Exporter) exportPDF(data *ReportData) ([]byte, string, error) {
-	var sb strings.Builder
-	sb.WriteString("%PDF-1.4\n")
-	sb.WriteString(fmt.Sprintf("Title: %s\n", data.Title))
-	sb.WriteString(strings.Repeat("=", 40) + "\n\n")
+	pdf := gofpdf.New("L", "mm", "A4", "")
+	pdf.SetTitle(data.Title, false)
+	pdf.SetHeaderFunc(func() {
+		pdf.SetFont("Helvetica", "B", 16)
+		pdf.CellFormat(0, 10, data.Title, "", 1, "C", false, 0, "")
+	})
+	pdf.SetFooterFunc(func() {
+		pdf.SetY(-15)
+		pdf.SetFont("Helvetica", "I", 8)
+		pdf.CellFormat(0, 10, fmt.Sprintf("Page %d", pdf.PageNo()), "", 1, "C", false, 0, "")
+	})
+	pdf.AddPage()
+	pdf.SetFont("Helvetica", "", 12)
 
 	for _, section := range data.Sections {
 		for name, rows := range section {
-			sb.WriteString(fmt.Sprintf("Section: %s\n", name))
+			pdf.SetFont("Helvetica", "B", 14)
+			pdf.CellFormat(0, 10, name, "", 1, "L", false, 0, "")
+			pdf.SetFont("Helvetica", "", 10)
 			if len(rows) > 0 {
 				var headers []string
 				for k := range rows[0] {
 					headers = append(headers, k)
 				}
-				headerLine := strings.Join(headers, " | ")
-				sb.WriteString(headerLine + "\n")
-				sb.WriteString(strings.Repeat("-", len(headerLine)) + "\n")
+				// Header row
+				pdf.SetFont("Helvetica", "B", 10)
+				for _, h := range headers {
+					pdf.CellFormat(40, 8, h, "1", 0, "L", false, 0, "")
+				}
+				pdf.Ln(8)
+				// Data rows
+				pdf.SetFont("Helvetica", "", 9)
 				for _, row := range rows {
-					vals := make([]string, len(headers))
-					for i, h := range headers {
-						vals[i] = fmt.Sprintf("%v", row[h])
+					for _, h := range headers {
+						val := row[h]
+						pdf.CellFormat(40, 6, fmt.Sprintf("%v", val), "1", 0, "L", false, 0, "")
 					}
-					sb.WriteString(strings.Join(vals, " | ") + "\n")
+					pdf.Ln(6)
 				}
 			}
-			sb.WriteString("\n")
+			pdf.Ln(10)
 		}
 	}
-	sb.WriteString("%EOF\n")
-	return []byte(sb.String()), "application/pdf", nil
+		var buf bytes.Buffer
+	if err := pdf.Output(&buf); err != nil {
+		return nil, "", fmt.Errorf("output pdf: %w", err)
+	}
+	return buf.Bytes(), "application/pdf", nil
 }
 
 // WriteToStream writes exported data to an io.Writer.
