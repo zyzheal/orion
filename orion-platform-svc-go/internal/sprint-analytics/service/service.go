@@ -24,6 +24,9 @@ func NewSprintService(repo *repository.Repository, logger *zap.Logger) *SprintSe
 // ==================== Sprint Review ====================
 
 func (s *SprintService) CreateReview(ctx context.Context, tenantID string, req *models.CreateReviewRequest) (*models.SprintReview, error) {
+	if tenantID == "" {
+		tenantID = "default"
+	}
 	now := time.Now().UTC()
 	review := &models.SprintReview{
 		ID:         uuid.New().String(),
@@ -82,9 +85,16 @@ func (s *SprintService) UpdateReview(ctx context.Context, tenantID, id string, r
 	return s.GetReview(ctx, tenantID, id)
 }
 
+func (s *SprintService) DeleteReview(ctx context.Context, tenantID, id string) (bool, error) {
+	return s.repo.DeleteReview(ctx, tenantID, id)
+}
+
 // ==================== Sprint Retrospective ====================
 
 func (s *SprintService) CreateRetro(ctx context.Context, tenantID string, req *models.CreateRetroRequest) (*models.SprintRetrospective, error) {
+	if tenantID == "" {
+		tenantID = "default"
+	}
 	now := time.Now().UTC()
 	retro := &models.SprintRetrospective{
 		ID:            uuid.New().String(),
@@ -141,4 +151,8 @@ func (s *SprintService) UpdateRetro(ctx context.Context, tenantID, id string, re
 		return nil, err
 	}
 	return s.GetRetro(ctx, tenantID, id)
+}
+
+func (s *SprintService) DeleteRetro(ctx context.Context, tenantID, id string) (bool, error) {
+	return s.repo.DeleteRetro(ctx, tenantID, id)
 }

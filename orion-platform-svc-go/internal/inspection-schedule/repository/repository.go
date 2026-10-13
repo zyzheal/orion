@@ -11,6 +11,12 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+var allowedScheduleColumns = map[string]bool{
+	"name": true, "cron_expr": true, "template_id": true,
+	"target_config": true, "enabled": true,
+	"last_run_at": true, "last_result": true, "next_run_at": true,
+}
+
 type Repository struct {
 	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
@@ -57,6 +63,9 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 	args := make([]interface{}, 0, len(updates)+2)
 	i := 1
 	for k, v := range updates {
+		if !allowedScheduleColumns[k] {
+			return fmt.Errorf("column %q is not allowed in update", k)
+		}
 		sets = append(sets, fmt.Sprintf("%s=$%d", k, i))
 		args = append(args, v)
 		i++
@@ -78,9 +87,9 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) (bool, err
 	return n > 0, nil
 }
 
-func (r *Repository) UpdateRunStatus(ctx context.Context, tenantID, id string, lastRunAt *interface{}, lastResult string, nextRunAt *interface{}) error {
+func (r *Repository) UpdateRunStatus(ctx context.Context, tenantID, id string, lastRunAt interface{}, lastResult string, nextRunAt interface{}) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE inspection_schedules SET last_run_at=$1, last_result=$2, next_run_at=$3 WHERE id=$4 AND tenant_id=$5`,
+		`UPDATE inspection_schedules SET last_run_at=$1, last_result=$2, next_run_at=$3, updated_at=NOW() WHERE id=$4 AND tenant_id=$5`,
 		lastRunAt, lastResult, nextRunAt, id, tenantID)
 	return err
 }

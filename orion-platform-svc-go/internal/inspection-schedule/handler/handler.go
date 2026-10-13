@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/inspection-schedule/models"
 	"orion/platform-svc-go/internal/inspection-schedule/service"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/repository"
 )
 
 // Handler provides inspection schedule endpoints.
@@ -30,6 +31,8 @@ func (h *Handler) Create(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateSchedule")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
 	var req models.CreateScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -47,6 +50,8 @@ func (h *Handler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSchedules")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
 	items, err := h.svc.List(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -59,6 +64,8 @@ func (h *Handler) Get(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSchedule")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
 	id := c.Param("id")
 	item, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
@@ -72,6 +79,8 @@ func (h *Handler) Update(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateSchedule")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
 	id := c.Param("id")
 	var req models.UpdateScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -90,6 +99,8 @@ func (h *Handler) Delete(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteSchedule")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
 	id := c.Param("id")
 	ok, err := h.svc.Delete(ctx, tenantID, id)
 	if err != nil {

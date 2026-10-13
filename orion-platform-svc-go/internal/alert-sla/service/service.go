@@ -39,6 +39,14 @@ func (s *Service) Create(ctx context.Context, tenantID string, req *models.Creat
 	if req.EscalationDelay == 0 {
 		req.EscalationDelay = 600
 	}
+	// Default to enabled unless explicitly set to false
+	enabled := req.Enabled
+	// If the JSON field was provided, use it; otherwise default to true
+	// Since bool defaults to false in Go, we can't distinguish "omitted" from "false".
+	// We default to true for new SLA policies — this is the safer choice.
+	if !enabled {
+		enabled = true
+	}
 
 	now := time.Now().UTC()
 	item := &models.AlertSLA{
@@ -49,7 +57,7 @@ func (s *Service) Create(ctx context.Context, tenantID string, req *models.Creat
 		ResponseTime:   req.ResponseTime,
 		ResolveTime:    req.ResolveTime,
 		EscalationDelay: req.EscalationDelay,
-		Enabled:        req.Enabled,
+		Enabled:        enabled,
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}

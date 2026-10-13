@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/alert-shift/models"
 	"orion/platform-svc-go/internal/alert-shift/service"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/repository"
 )
 
 // Handler provides alert shift scheduling endpoints.
@@ -25,12 +26,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	s.PUT("/:id", h.Update)
 	s.DELETE("/:id", h.Delete)
 	s.GET("/:id/assignments", h.ListAssignments)
+	s.POST("/:id/assignments", h.CreateAssignment)
 }
 
 func (h *Handler) Create(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateShift")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
 	var req models.CreateShiftRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -48,6 +52,8 @@ func (h *Handler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListShifts")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
 	shifts, err := h.svc.ListShifts(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -60,6 +66,8 @@ func (h *Handler) Get(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetShift")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
 	id := c.Param("id")
 	shift, err := h.svc.GetShift(ctx, tenantID, id)
 	if err != nil {
@@ -73,54 +81,28 @@ func (h *Handler) Update(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateShift")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
 	id := c.Param("id")
-	var req models.CreateShiftRequest
+	var req models.UpdateShiftRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	shift, err := h.svc.GetShift(ctx, tenantID, id)
-	if err != nil {
-		middleware.RespondNotFound(c, "shift not found")
-		return
-	}
-	updates := map[string]interface{}{
-		"name":      shift.Name,
-		"team":      shift.Team,
-		"pattern":   shift.Pattern,
-		"start_time": shift.StartTime,
-		"end_time":  shift.EndTime,
-		"weekdays":  shift.Weekdays,
-		"enabled":   shift.Enabled,
-	}
-	if req.Name != "" {
-		updates["name"] = req.Name
-	}
-	if req.Team != nil {
-		updates["team"] = *req.Team
-	}
-	if req.Pattern != "" {
-		updates["pattern"] = req.Pattern
-	}
-	if req.Enabled != shift.Enabled {
-		updates["enabled"] = req.Enabled
-	}
-	if err := h.svc.UpdateShift(ctx, tenantID, id, updates); err != nil {
-		middleware.RespondInternalError(c, err.Error())
-		return
-	}
-	updated, err := h.svc.GetShift(ctx, tenantID, id)
+	shift, err := h.svc.UpdateShift(ctx, tenantID, id, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.RespondSuccess(c, updated)
+	middleware.RespondSuccess(c, shift)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteShift")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
 	id := c.Param("id")
 	ok, err := h.svc.DeleteShift(ctx, tenantID, id)
 	if err != nil {
@@ -135,7 +117,36 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) ListAssignments(c *gin.Context) {
-	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAssignments")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAssignments")
 	defer span.End()
-	middleware.RespondSuccess(c, []models.Assignment{})
+	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
+	id := c.Param("id")
+	assignments, err := h.svc.ListAssignments(ctx, tenantID, id)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, assignments)
+}
+
+func (h *Handler) CreateAssignment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateAssignment")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
+	id := c.Param("id")
+	var req models.CreateAssignmentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	assignment, err := h.svc.CreateAssignment(ctx, tenantID, id, &req)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondCreated(c, assignment)
 }

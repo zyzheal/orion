@@ -11,6 +11,16 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+var allowedReviewColumns = map[string]bool{
+	"status": true, "date": true, "attendees": true, "highlights": true,
+	"demo_notes": true, "feedback": true, "completed_at": true,
+}
+
+var allowedRetroColumns = map[string]bool{
+	"date": true, "attendees": true, "what_went_well": true,
+	"what_to_improve": true, "action_items": true, "summary": true,
+}
+
 type Repository struct {
 	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
@@ -62,6 +72,9 @@ func (r *Repository) UpdateReview(ctx context.Context, tenantID, id string, upda
 	args := make([]interface{}, 0, len(updates)+2)
 	i := 1
 	for k, v := range updates {
+		if !allowedReviewColumns[k] {
+			return fmt.Errorf("column %q is not allowed in update", k)
+		}
 		sets = append(sets, fmt.Sprintf("%s=$%d", k, i))
 		args = append(args, v)
 		i++
@@ -71,6 +84,16 @@ func (r *Repository) UpdateReview(ctx context.Context, tenantID, id string, upda
 		fmt.Sprintf(`UPDATE sprint_reviews SET %s, updated_at=NOW() WHERE id=$%d AND tenant_id=$%d`,
 			strings.Join(sets, ", "), i, i+1), args...)
 	return err
+}
+
+func (r *Repository) DeleteReview(ctx context.Context, tenantID, id string) (bool, error) {
+	result, err := r.TenantAwareRepository.Exec(ctx,
+		`DELETE FROM sprint_reviews WHERE id=$1`, id)
+	if err != nil {
+		return false, err
+	}
+	n, _ := result.RowsAffected()
+	return n > 0, nil
 }
 
 // ==================== Sprint Retrospective ====================
@@ -112,6 +135,9 @@ func (r *Repository) UpdateRetro(ctx context.Context, tenantID, id string, updat
 	args := make([]interface{}, 0, len(updates)+2)
 	i := 1
 	for k, v := range updates {
+		if !allowedRetroColumns[k] {
+			return fmt.Errorf("column %q is not allowed in update", k)
+		}
 		sets = append(sets, fmt.Sprintf("%s=$%d", k, i))
 		args = append(args, v)
 		i++
@@ -121,4 +147,14 @@ func (r *Repository) UpdateRetro(ctx context.Context, tenantID, id string, updat
 		fmt.Sprintf(`UPDATE sprint_retrospectives SET %s, updated_at=NOW() WHERE id=$%d AND tenant_id=$%d`,
 			strings.Join(sets, ", "), i, i+1), args...)
 	return err
+}
+
+func (r *Repository) DeleteRetro(ctx context.Context, tenantID, id string) (bool, error) {
+	result, err := r.TenantAwareRepository.Exec(ctx,
+		`DELETE FROM sprint_retrospectives WHERE id=$1`, id)
+	if err != nil {
+		return false, err
+	}
+	n, _ := result.RowsAffected()
+	return n > 0, nil
 }

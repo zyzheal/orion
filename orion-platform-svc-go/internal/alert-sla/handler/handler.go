@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/alert-sla/models"
 	"orion/platform-svc-go/internal/alert-sla/service"
 	"orion/platform-svc-go/internal/middleware"
+	"orion/platform-svc-go/internal/repository"
 )
 
 // Handler provides alert SLA policy endpoints.
@@ -30,6 +31,8 @@ func (h *Handler) Create(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateAlertSLA")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
 	var req models.CreateSLARequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -47,6 +50,8 @@ func (h *Handler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAlertSLAs")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
 	items, err := h.svc.List(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -59,6 +64,8 @@ func (h *Handler) Get(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAlertSLA")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
 	id := c.Param("id")
 	item, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
@@ -72,6 +79,8 @@ func (h *Handler) Update(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateAlertSLA")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
 	id := c.Param("id")
 	var req models.UpdateSLARequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -90,6 +99,8 @@ func (h *Handler) Delete(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteAlertSLA")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
 	id := c.Param("id")
 	ok, err := h.svc.Delete(ctx, tenantID, id)
 	if err != nil {

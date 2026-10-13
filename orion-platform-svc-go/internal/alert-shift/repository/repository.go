@@ -11,6 +11,13 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// allowedShiftColumns is the whitelist of columns that UpdateShift may modify.
+// This prevents SQL injection via map key injection.
+var allowedShiftColumns = map[string]bool{
+	"name": true, "team": true, "pattern": true,
+	"start_time": true, "end_time": true, "weekdays": true, "enabled": true,
+}
+
 type Repository struct {
 	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
@@ -56,6 +63,9 @@ func (r *Repository) UpdateShift(ctx context.Context, tenantID, id string, updat
 	args := make([]interface{}, 0, len(updates)+2)
 	i := 1
 	for k, v := range updates {
+		if !allowedShiftColumns[k] {
+			return fmt.Errorf("column %q is not allowed in update", k)
+		}
 		sets = append(sets, fmt.Sprintf("%s=$%d", k, i))
 		args = append(args, v)
 		i++
@@ -77,16 +87,16 @@ func (r *Repository) DeleteShift(ctx context.Context, tenantID, id string) (bool
 	return n > 0, nil
 }
 
-// CreateAssignment inserts a shift assignment.
+// CreateAssignment inserts a shift assignment with tenant_id.
 func (r *Repository) CreateAssignment(ctx context.Context, a *models.Assignment) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO alert_shift_assignments (id, shift_id, user_id, role, start_time, end_time, assigned, created_at)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())`,
-		a.ID, a.ShiftID, a.UserID, a.Role, a.StartTime, a.EndTime, a.Assigned)
+		`INSERT INTO alert_shift_assignments (id, tenant_id, shift_id, user_id, role, start_time, end_time, assigned, created_at)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW())`,
+		a.ID, a.TenantID, a.ShiftID, a.UserID, a.Role, a.StartTime, a.EndTime, a.Assigned)
 	return err
 }
 
-// ListAssignments returns assignments for a shift.
+// ListAssignments returns assignments for a shift, tenant-scoped.
 func (r *Repository) ListAssignments(ctx context.Context, tenantID, shiftID string) ([]models.Assignment, error) {
 	var rows []models.Assignment
 	err := r.TenantAwareRepository.Select(ctx, &rows,

@@ -11,6 +11,11 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+var allowedSLAColumns = map[string]bool{
+	"name": true, "severity": true, "response_time": true,
+	"resolve_time": true, "escalation_delay": true, "enabled": true,
+}
+
 type Repository struct {
 	internalrepo.TenantAwareRepository[any]
 	db *sqlx.DB
@@ -57,6 +62,9 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 	args := make([]interface{}, 0, len(updates)+2)
 	i := 1
 	for k, v := range updates {
+		if !allowedSLAColumns[k] {
+			return fmt.Errorf("column %q is not allowed in update", k)
+		}
 		sets = append(sets, fmt.Sprintf("%s=$%d", k, i))
 		args = append(args, v)
 		i++

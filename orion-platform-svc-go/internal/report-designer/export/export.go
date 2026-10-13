@@ -26,9 +26,9 @@ const (
 
 // ReportData holds the assembled report data to be exported.
 type ReportData struct {
-	Title     string                 `json:"title"`
+	Title     string                              `json:"title"`
 	Sections  []map[string][]map[string]interface{} `json:"sections"`
-	Metadata  map[string]interface{} `json:"metadata"`
+	Metadata  map[string]interface{}              `json:"metadata"`
 }
 
 // Exporter converts ReportData into the target format.
@@ -137,37 +137,39 @@ func (e *Exporter) exportHTML(data *ReportData) ([]byte, string, error) {
 // exportExcel generates a real Excel file using excelize library.
 func (e *Exporter) exportExcel(data *ReportData) ([]byte, string, error) {
 	f := excelize.NewFile()
-	idx := 0
+	sheetIdx := 0
+
 	for _, section := range data.Sections {
 		for name, rows := range section {
-			sheetName := fmt.Sprintf("Sheet%d", idx+1)
-			f.NewSheet(sheetName)
-			if idx == 0 {
-				f.DeleteSheet("Sheet1")
-				f.NewSheet(sheetName)
+			var sheetName string
+			if sheetIdx == 0 {
+				// Rename default Sheet1
+				sheetName = name
+				if len(sheetName) > 31 {
+					sheetName = sheetName[:31]
+				}
+				f.SetSheetName("Sheet1", sheetName)
 			} else {
-				// Keep first sheet
+				sheetName = fmt.Sprintf("%s_%d", name, sheetIdx)
+				if len(sheetName) > 31 {
+					sheetName = sheetName[:31]
+				}
+				f.NewSheet(sheetName)
 			}
 
-			// Set sheet title
-			f.SetSheetName("Sheet1", sheetName)
+			// Write title in row 1
+			f.SetCellValue(sheetName, "A1", name)
 
-			// Write title
-			cell := "A1"
-			f.SetCellValue(sheetName, cell, name)
-
-			// Write headers
+			// Write headers in row 3, data from row 4
 			if len(rows) > 0 {
 				var headers []string
 				for k := range rows[0] {
 					headers = append(headers, k)
 				}
 				for i, h := range headers {
-					cell := fmt.Sprintf("%s%d", getExcelCol(i), 3)
+					cell := fmt.Sprintf("%s3", getExcelCol(i))
 					f.SetCellValue(sheetName, cell, h)
 				}
-
-				// Write data rows
 				for rowIdx, row := range rows {
 					for colIdx, h := range headers {
 						cell := fmt.Sprintf("%s%d", getExcelCol(colIdx), 4+rowIdx)
@@ -175,7 +177,7 @@ func (e *Exporter) exportExcel(data *ReportData) ([]byte, string, error) {
 					}
 				}
 			}
-			idx++
+			sheetIdx++
 		}
 	}
 
@@ -190,7 +192,7 @@ func (e *Exporter) exportExcel(data *ReportData) ([]byte, string, error) {
 func getExcelCol(idx int) string {
 	var col string
 	for idx >= 0 {
-		col = string(rune('A' + idx%26)) + col
+		col = string(rune('A'+idx%26)) + col
 		idx = idx/26 - 1
 	}
 	return col
@@ -222,10 +224,19 @@ func (e *Exporter) exportPDF(data *ReportData) ([]byte, string, error) {
 				for k := range rows[0] {
 					headers = append(headers, k)
 				}
+				// Calculate column width to fit page
+				pageWidth := 270.0 // A4 landscape usable width in mm
+				colWidth := pageWidth / float64(len(headers))
+				if colWidth > 60 {
+					colWidth = 60
+				}
+				if colWidth < 20 {
+					colWidth = 20
+				}
 				// Header row
 				pdf.SetFont("Helvetica", "B", 10)
 				for _, h := range headers {
-					pdf.CellFormat(40, 8, h, "1", 0, "L", false, 0, "")
+					pdf.CellFormat(colWidth, 8, h, "1", 0, "L", false, 0, "")
 				}
 				pdf.Ln(8)
 				// Data rows
@@ -233,7 +244,7 @@ func (e *Exporter) exportPDF(data *ReportData) ([]byte, string, error) {
 				for _, row := range rows {
 					for _, h := range headers {
 						val := row[h]
-						pdf.CellFormat(40, 6, fmt.Sprintf("%v", val), "1", 0, "L", false, 0, "")
+						pdf.CellFormat(colWidth, 6, fmt.Sprintf("%v", val), "1", 0, "L", false, 0, "")
 					}
 					pdf.Ln(6)
 				}
@@ -241,7 +252,7 @@ func (e *Exporter) exportPDF(data *ReportData) ([]byte, string, error) {
 			pdf.Ln(10)
 		}
 	}
-		var buf bytes.Buffer
+	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {
 		return nil, "", fmt.Errorf("output pdf: %w", err)
 	}
