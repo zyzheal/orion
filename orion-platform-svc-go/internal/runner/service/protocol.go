@@ -12,11 +12,13 @@ import (
 type RunnerProtocol string
 
 const (
-	ProtocolHTTP   RunnerProtocol = "http"
-	ProtocolSSH    RunnerProtocol = "ssh"
+	ProtocolHTTP    RunnerProtocol = "http"
+	ProtocolSSH     RunnerProtocol = "ssh"
 	ProtocolK8sExec RunnerProtocol = "k8s-exec"
-	ProtocolWinRM  RunnerProtocol = "winrm"
-	ProtocolGRPC   RunnerProtocol = "grpc"
+	ProtocolWinRM   RunnerProtocol = "winrm"
+	ProtocolGRPC    RunnerProtocol = "grpc"
+	ProtocolHelm    RunnerProtocol = "helm"
+	ProtocolArgoCD  RunnerProtocol = "argocd"
 )
 
 // AllProtocols is the ordered list of supported protocols. Used for
@@ -27,6 +29,8 @@ var AllProtocols = []RunnerProtocol{
 	ProtocolK8sExec,
 	ProtocolWinRM,
 	ProtocolGRPC,
+	ProtocolHelm,
+	ProtocolArgoCD,
 }
 
 // DefaultProtocol is used when CreateAgentRequest.Protocol is empty.
@@ -108,6 +112,10 @@ func CanonicalProtocol(p RunnerProtocol) RunnerProtocol {
 		return ProtocolWinRM
 	case "grpc":
 		return ProtocolGRPC
+	case "helm":
+		return ProtocolHelm
+	case "argocd", "argo-cd", "argocd-exec":
+		return ProtocolArgoCD
 	case "", "default":
 		return DefaultProtocol
 	}

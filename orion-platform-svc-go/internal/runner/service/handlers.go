@@ -176,8 +176,35 @@ func (h *grpcPlaceholder) DispatchTask(_ context.Context, _ *RunnerAgentView, _ 
 	return "", fmt.Errorf("%w: grpc dispatch requires config (see NewGRPCHandlerWithConfig)", ErrHandlerNotFound)
 }
 
-// AllHandlers returns a fresh HandlerRegistry pre-loaded with all 5 protocol
-// handlers (HTTP fully implemented; the other 4 are P0-D2 placeholders).
+// HelmHandler is the real Helm transport (see handler_helm.go).
+// Kept as a placeholder-compatible constructor so AllHandlers() stays
+// usable without a Helm runner adapter — calls fall through to ErrHandlerNotFound.
+type helmPlaceholder struct{}
+
+func newHelmPlaceholder() *helmPlaceholder { return &helmPlaceholder{} }
+
+func (h *helmPlaceholder) Protocol() RunnerProtocol { return ProtocolHelm }
+
+func (h *helmPlaceholder) DispatchTask(_ context.Context, _ *RunnerAgentView, _ *RunnerJobView) (string, error) {
+	return "", fmt.Errorf("%w: helm dispatch requires HelmActionRunner (see NewHelmHandlerWithConfig + WithRunner)", ErrHandlerNotFound)
+}
+
+// ArgoCDHandler is the real ArgoCD transport (see handler_argocd.go).
+// Kept as a placeholder-compatible constructor so AllHandlers() stays
+// usable without an ArgoCD client — calls fall through to ErrHandlerNotFound.
+type argocdPlaceholder struct{}
+
+func newArgoCDPlaceholder() *argocdPlaceholder { return &argocdPlaceholder{} }
+
+func (h *argocdPlaceholder) Protocol() RunnerProtocol { return ProtocolArgoCD }
+
+func (h *argocdPlaceholder) DispatchTask(_ context.Context, _ *RunnerAgentView, _ *RunnerJobView) (string, error) {
+	return "", fmt.Errorf("%w: argocd dispatch requires client (see NewArgoCDHandlerWithClient)", ErrHandlerNotFound)
+}
+
+// AllHandlers returns a fresh HandlerRegistry pre-loaded with all 7 protocol
+// handlers (HTTP fully implemented; the others are P0-D2 placeholders or
+// require explicit config injection via WithRunner/WithClient/etc).
 // Callers can override individual slots by calling Register again.
 func AllHandlers() *HandlerRegistry {
 	r := NewHandlerRegistry()
@@ -186,5 +213,7 @@ func AllHandlers() *HandlerRegistry {
 	r.Register(ProtocolK8sExec, newK8sExecPlaceholder())
 	r.Register(ProtocolWinRM, NewWinRMHandler())
 	r.Register(ProtocolGRPC, newGRPCPlaceholder())
+	r.Register(ProtocolHelm, newHelmPlaceholder())
+	r.Register(ProtocolArgoCD, newArgoCDPlaceholder())
 	return r
 }
