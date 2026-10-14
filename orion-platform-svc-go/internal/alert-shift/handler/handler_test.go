@@ -55,6 +55,7 @@ func newRouter(t *testing.T) (*gin.Engine, sqlmock.Sqlmock) {
 	r := gin.New()
 	r.Use(func(c *gin.Context) {
 		c.Set("tenant_id", tenant)
+		c.Set("roles", []string{"admin"})
 		c.Next()
 	})
 	h.RegisterRoutes(r.Group("/api/v1"))

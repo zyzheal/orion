@@ -1,10 +1,14 @@
 package handler
 
 import (
+	"database/sql"
+	"errors"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/rdm/requirement/models"
 	"orion/platform-svc-go/internal/rdm/requirement/service"
@@ -20,12 +24,15 @@ func NewHandler(svc *service.Service) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+	read := auth.RequirePermission("rdm", "read")
+	write := auth.RequirePermission("rdm", "write")
+	del := auth.RequirePermission("rdm", "delete")
 	g := rg.Group("/rdm/requirements")
-	g.POST("", h.Create)
-	g.GET("", h.List)
-	g.GET("/:id", h.Get)
-	g.PUT("/:id", h.Update)
-	g.DELETE("/:id", h.Delete)
+	g.POST("", write, h.Create)
+	g.GET("", read, h.List)
+	g.GET("/:id", read, h.Get)
+	g.PUT("/:id", write, h.Update)
+	g.DELETE("/:id", del, h.Delete)
 }
 
 func (h *Handler) Create(c *gin.Context) {
@@ -110,7 +117,13 @@ func (h *Handler) Update(c *gin.Context) {
 	}
 	item, err := h.svc.Update(ctx, tenantID, id, &req)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		if errors.Is(err, sql.ErrNoRows) {
+			middleware.RespondNotFound(c, "not found")
+		} else if strings.Contains(err.Error(), "no fields to update") {
+			middleware.RespondBadRequest(c, err.Error())
+		} else {
+			middleware.RespondInternalError(c, err.Error())
+		}
 		return
 	}
 	middleware.RespondSuccess(c, item)

@@ -1,8 +1,13 @@
 package handler
 
 import (
+	"database/sql"
+	"errors"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/alert-shift/models"
 	"orion/platform-svc-go/internal/alert-shift/service"
 	"orion/platform-svc-go/internal/middleware"
@@ -19,14 +24,17 @@ func NewHandler(svc *service.Service) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+	read := auth.RequirePermission("alert_shift", "read")
+	write := auth.RequirePermission("alert_shift", "write")
+	del := auth.RequirePermission("alert_shift", "delete")
 	s := rg.Group("/alert-shifts")
-	s.POST("", h.Create)
-	s.GET("", h.List)
-	s.GET("/:id", h.Get)
-	s.PUT("/:id", h.Update)
-	s.DELETE("/:id", h.Delete)
-	s.GET("/:id/assignments", h.ListAssignments)
-	s.POST("/:id/assignments", h.CreateAssignment)
+	s.POST("", write, h.Create)
+	s.GET("", read, h.List)
+	s.GET("/:id", read, h.Get)
+	s.PUT("/:id", write, h.Update)
+	s.DELETE("/:id", del, h.Delete)
+	s.GET("/:id/assignments", read, h.ListAssignments)
+	s.POST("/:id/assignments", write, h.CreateAssignment)
 }
 
 func (h *Handler) Create(c *gin.Context) {
@@ -91,7 +99,13 @@ func (h *Handler) Update(c *gin.Context) {
 	}
 	shift, err := h.svc.UpdateShift(ctx, tenantID, id, &req)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		if errors.Is(err, sql.ErrNoRows) {
+			middleware.RespondNotFound(c, "shift not found")
+		} else if strings.Contains(err.Error(), "no fields to update") {
+			middleware.RespondBadRequest(c, err.Error())
+		} else {
+			middleware.RespondInternalError(c, err.Error())
+		}
 		return
 	}
 	middleware.RespondSuccess(c, shift)

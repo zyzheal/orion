@@ -1,8 +1,13 @@
 package handler
 
 import (
+	"database/sql"
+	"errors"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/repository"
 	"orion/platform-svc-go/internal/sprint-analytics/models"
@@ -19,15 +24,18 @@ func NewHandler(svc *service.SprintService) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+	read := auth.RequirePermission("sprint", "read")
+	write := auth.RequirePermission("sprint", "write")
+	del := auth.RequirePermission("sprint", "delete")
 	s := rg.Group("/sprints")
-	s.POST("/:id/review", h.CreateReview)
-	s.GET("/:id/review", h.GetReview)
-	s.PUT("/:id/review/:reviewId", h.UpdateReview)
-	s.DELETE("/:id/review/:reviewId", h.DeleteReview)
-	s.POST("/:id/retrospective", h.CreateRetro)
-	s.GET("/:id/retrospective", h.GetRetro)
-	s.PUT("/:id/retrospective/:retroId", h.UpdateRetro)
-	s.DELETE("/:id/retrospective/:retroId", h.DeleteRetro)
+	s.POST("/:id/review", write, h.CreateReview)
+	s.GET("/:id/review", read, h.GetReview)
+	s.PUT("/:id/review/:reviewId", write, h.UpdateReview)
+	s.DELETE("/:id/review/:reviewId", del, h.DeleteReview)
+	s.POST("/:id/retrospective", write, h.CreateRetro)
+	s.GET("/:id/retrospective", read, h.GetRetro)
+	s.PUT("/:id/retrospective/:retroId", write, h.UpdateRetro)
+	s.DELETE("/:id/retrospective/:retroId", del, h.DeleteRetro)
 }
 
 func (h *Handler) CreateReview(c *gin.Context) {
@@ -80,7 +88,13 @@ func (h *Handler) UpdateReview(c *gin.Context) {
 	}
 	review, err := h.svc.UpdateReview(ctx, tenantID, reviewID, &req)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		if errors.Is(err, sql.ErrNoRows) {
+			middleware.RespondNotFound(c, "review not found")
+		} else if strings.Contains(err.Error(), "no fields to update") {
+			middleware.RespondBadRequest(c, err.Error())
+		} else {
+			middleware.RespondInternalError(c, err.Error())
+		}
 		return
 	}
 	middleware.RespondSuccess(c, review)
@@ -155,7 +169,13 @@ func (h *Handler) UpdateRetro(c *gin.Context) {
 	}
 	retro, err := h.svc.UpdateRetro(ctx, tenantID, retroID, &req)
 	if err != nil {
-		middleware.RespondInternalError(c, err.Error())
+		if errors.Is(err, sql.ErrNoRows) {
+			middleware.RespondNotFound(c, "retrospective not found")
+		} else if strings.Contains(err.Error(), "no fields to update") {
+			middleware.RespondBadRequest(c, err.Error())
+		} else {
+			middleware.RespondInternalError(c, err.Error())
+		}
 		return
 	}
 	middleware.RespondSuccess(c, retro)
