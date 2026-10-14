@@ -76,6 +76,11 @@ func (r *Repository) List(ctx context.Context, tenantID string, q *models.ListRe
 		args = append(args, q.SprintID)
 		idx++
 	}
+	if q.Search != "" {
+		where = append(where, fmt.Sprintf("title ILIKE $%d", idx))
+		args = append(args, "%"+q.Search+"%")
+		idx++
+	}
 
 	whereStr := strings.Join(where, " AND ")
 	page := q.Page
@@ -102,10 +107,27 @@ func (r *Repository) List(ctx context.Context, tenantID string, q *models.ListRe
 	listArgs := append([]interface{}{}, args...)
 	listArgs = append(listArgs, pageSize, offset)
 
+	// Validate sort field
+	sortBy := q.SortBy
+	if sortBy == "" {
+		sortBy = "created_at"
+	}
+	validSort := map[string]bool{
+		"created_at": true, "updated_at": true, "title": true,
+		"priority": true, "status": true,
+	}
+	if !validSort[sortBy] {
+		sortBy = "created_at"
+	}
+	sortDir := q.SortDir
+	if sortDir != "asc" && sortDir != "desc" {
+		sortDir = "desc"
+	}
+
 	var rows []models.Requirement
 	err = r.TenantAwareRepository.Select(ctx, &rows,
-		fmt.Sprintf(`SELECT * FROM rdm_requirements WHERE %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d`,
-			whereStr, len(args)+1, len(args)+2), listArgs...)
+		fmt.Sprintf(`SELECT * FROM rdm_requirements WHERE %s ORDER BY %s %s LIMIT $%d OFFSET $%d`,
+			whereStr, sortBy, sortDir, len(args)+1, len(args)+2), listArgs...)
 	return rows, total, err
 }
 

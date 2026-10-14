@@ -96,7 +96,7 @@ func (s *Scheduler) tick(ctx context.Context) error {
 // are due.
 func (s *Scheduler) checkTenant(ctx context.Context, tenantID string) error {
 	ctx = repository.WithTenant(ctx, tenantID)
-	schedules, _, err := s.repo.List(ctx, tenantID, 1, 1000)
+	schedules, _, err := s.repo.List(ctx, tenantID, &repository.ListQuery{Page: 1, PageSize: 1000})
 	if err != nil {
 		return fmt.Errorf("list schedules: %w", err)
 	}

@@ -129,7 +129,7 @@ func (m *Monitor) checkAllTenants(ctx context.Context) error {
 // tenant, then evaluates breaches.
 func (m *Monitor) checkTenant(ctx context.Context, tenantID string) error {
 	ctx = repository.WithTenant(ctx, tenantID)
-	slas, _, err := m.repo.List(ctx, tenantID, 1, 1000)
+	slas, _, err := m.repo.List(ctx, tenantID, &repository.ListQuery{Page: 1, PageSize: 1000})
 	if err != nil {
 		return fmt.Errorf("list sla policies: %w", err)
 	}

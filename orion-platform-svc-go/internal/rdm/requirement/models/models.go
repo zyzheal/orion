@@ -68,6 +68,9 @@ type ListRequirementsRequest struct {
 	Priority string
 	Type     string
 	SprintID string
+	Search   string
+	SortBy   string
+	SortDir  string
 	Page     int
 	PageSize int
 }

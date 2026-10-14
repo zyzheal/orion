@@ -87,14 +87,12 @@ func (s *Service) Get(ctx context.Context, tenantID, id string) (*models.Inspect
 	return s.repo.GetByID(ctx, tenantID, id)
 }
 
-func (s *Service) List(ctx context.Context, tenantID string, page, pageSize int) ([]models.InspectionTemplate, int, error) {
-	if page < 1 {
-		page = 1
+func (s *Service) List(ctx context.Context, tenantID string, q *baserepo.ListQuery) ([]models.InspectionTemplate, int, error) {
+	if q == nil {
+		q = baserepo.NewListQuery()
 	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 20
-	}
-	return s.repo.List(ctx, tenantID, page, pageSize)
+	q.Normalize()
+	return s.repo.List(ctx, tenantID, q)
 }
 
 func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.UpdateTemplateRequest, expectedVersion int) (*models.InspectionTemplate, error) {

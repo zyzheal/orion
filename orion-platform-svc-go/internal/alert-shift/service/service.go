@@ -18,7 +18,7 @@ import (
 type Repository interface {
 	CreateShift(ctx context.Context, s *models.Shift) error
 	GetShift(ctx context.Context, tenantID, id string) (*models.Shift, error)
-	ListShifts(ctx context.Context, tenantID string, page, pageSize int) ([]models.Shift, int, error)
+	ListShifts(ctx context.Context, tenantID string, q *baserepo.ListQuery) ([]models.Shift, int, error)
 	UpdateShift(ctx context.Context, tenantID, id string, updates map[string]interface{}, expectedVersion int) error
 	DeleteShift(ctx context.Context, tenantID, id string) (bool, error)
 	CreateAssignment(ctx context.Context, a *models.Assignment) error
@@ -94,14 +94,12 @@ func (s *Service) GetShift(ctx context.Context, tenantID, id string) (*models.Sh
 	return s.repo.GetShift(ctx, tenantID, id)
 }
 
-func (s *Service) ListShifts(ctx context.Context, tenantID string, page, pageSize int) ([]models.Shift, int, error) {
-	if page < 1 {
-		page = 1
+func (s *Service) ListShifts(ctx context.Context, tenantID string, q *baserepo.ListQuery) ([]models.Shift, int, error) {
+	if q == nil {
+		q = baserepo.NewListQuery()
 	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 20
-	}
-	return s.repo.ListShifts(ctx, tenantID, page, pageSize)
+	q.Normalize()
+	return s.repo.ListShifts(ctx, tenantID, q)
 }
 
 func (s *Service) UpdateShift(ctx context.Context, tenantID, id string, req *models.UpdateShiftRequest, expectedVersion int) (*models.Shift, error) {

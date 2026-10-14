@@ -9,7 +9,8 @@ import (
 	"orion/platform-svc-go/internal/alert-shift/models"
 
 	"github.com/jmoiron/sqlx"
-)
+
+	baserepo "orion/platform-svc-go/internal/repository")
 
 // allowedShiftColumns is the whitelist of columns that UpdateShift may modify.
 // This prevents SQL injection via map key injection.
@@ -48,17 +49,52 @@ func (r *Repository) GetShift(ctx context.Context, tenantID, id string) (*models
 	return &row, nil
 }
 
-func (r *Repository) ListShifts(ctx context.Context, tenantID string, page, pageSize int) ([]models.Shift, int, error) {
-	offset := (page - 1) * pageSize
+func (r *Repository) ListShifts(ctx context.Context, tenantID string, q *baserepo.ListQuery) ([]models.Shift, int, error) {
+	if q == nil {
+		q = baserepo.NewListQuery()
+	}
+	q.Normalize()
+
+	// Build filter whitelist for this domain
+	filterWhitelist := map[string]bool{
+		"pattern": true,
+		"enabled": true,
+		"team": true,
+	}
+
+	// Filter out non-whitelisted columns
+	cleanFilters := make(map[string]string)
+	for k, v := range q.Filters {
+		if filterWhitelist[k] {
+			cleanFilters[k] = v
+		}
+	}
+
+	whereStr, args := baserepo.BuildWhereClause(cleanFilters, "name", q.Search)
+
+	// Validate sort field
+	sortBy := baserepo.ValidateSortField(q.SortBy, []string{"name", "created_at", "team"}, "created_at")
+	sortDir := q.SortDir
+	if sortDir != "asc" && sortDir != "desc" {
+		sortDir = "desc"
+	}
+
 	var total int
+	countArgs := append([]interface{}{}, args...)
 	err := r.TenantAwareRepository.Get(ctx, &total,
-		fmt.Sprintf(`SELECT COUNT(*) FROM alert_shifts`))
+		fmt.Sprintf(`SELECT COUNT(*) FROM alert_shifts WHERE %s`, whereStr), countArgs...)
 	if err != nil {
 		return nil, 0, err
 	}
+
+	offset := (q.Page - 1) * q.PageSize
+	listArgs := append([]interface{}{}, args...)
+	listArgs = append(listArgs, q.PageSize, offset)
+
 	var rows []models.Shift
 	err = r.TenantAwareRepository.Select(ctx, &rows,
-		fmt.Sprintf(`SELECT * FROM alert_shifts ORDER BY created_at DESC LIMIT $1 OFFSET $2`), pageSize, offset)
+		fmt.Sprintf(`SELECT * FROM alert_shifts WHERE %s ORDER BY %s %s LIMIT $%d OFFSET $%d`,
+			whereStr, sortBy, sortDir, len(args)+1, len(args)+2), listArgs...)
 	return rows, total, err
 }
 

@@ -78,6 +78,9 @@ func (h *Handler) List(c *gin.Context) {
 		Priority: c.Query("priority"),
 		Type:     c.Query("type"),
 		SprintID: c.Query("sprintId"),
+		Search:   c.Query("q"),
+		SortBy:   c.DefaultQuery("sort", "created_at"),
+		SortDir:  c.DefaultQuery("order", "desc"),
 		Page:     page,
 		PageSize: pageSize,
 	}

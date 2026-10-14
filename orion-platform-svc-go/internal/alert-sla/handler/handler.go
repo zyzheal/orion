@@ -59,29 +59,31 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAlertSLAs")
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListList")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx = repository.WithTenant(ctx, tenantID)
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	if page < 1 {
-		page = 1
-	}
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
-	if pageSize < 1 {
-		pageSize = 20
-	}
-	if pageSize > 100 {
-		pageSize = 100
+	q := repository.NewListQuery()
+	q.Page, _ = strconv.Atoi(c.DefaultQuery("page", "1"))
+	q.PageSize, _ = strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+	q.Search = c.Query("q")
+	q.SortBy = c.DefaultQuery("sort", "created_at")
+	q.SortDir = c.DefaultQuery("order", "desc")
+
+	// Parse filter params from query string
+	for _, field := range []string{"severity", "enabled"} {
+		if val := c.Query(field); val != "" {
+			q.Filters[field] = val
+		}
 	}
 
-	items, total, err := h.svc.List(ctx, tenantID, page, pageSize)
+	items, total, err := h.svc.List(ctx, tenantID, q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.RespondSuccess(c, gin.H{"items": items, "total": total, "page": page, "pageSize": pageSize})
+	middleware.RespondSuccess(c, gin.H{"items": items, "total": total, "page": q.Page, "pageSize": q.PageSize})
 }
 
 func (h *Handler) Get(c *gin.Context) {
