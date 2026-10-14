@@ -64,7 +64,7 @@ func (r *Repository) GetReviewBySprint(ctx context.Context, tenantID, sprintID s
 	return &row, nil
 }
 
-func (r *Repository) UpdateReview(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
+func (r *Repository) UpdateReview(ctx context.Context, tenantID, id string, updates map[string]interface{}, expectedVersion int) error {
 	if len(updates) == 0 {
 		return fmt.Errorf("no fields to update")
 	}
@@ -80,8 +80,15 @@ func (r *Repository) UpdateReview(ctx context.Context, tenantID, id string, upda
 		i++
 	}
 	args = append(args, id, tenantID)
+	if expectedVersion > 0 {
+		args = append(args, expectedVersion)
+		_, err := r.TenantAwareRepository.Exec(ctx,
+			fmt.Sprintf(`UPDATE sprint_reviews SET %s, version=version+1, updated_at=NOW() WHERE id=$%d AND tenant_id=$%d AND version=$%d`,
+				strings.Join(sets, ", "), i, i+1, i+2), args...)
+		return err
+	}
 	_, err := r.TenantAwareRepository.Exec(ctx,
-		fmt.Sprintf(`UPDATE sprint_reviews SET %s, updated_at=NOW() WHERE id=$%d AND tenant_id=$%d`,
+		fmt.Sprintf(`UPDATE sprint_reviews SET %s, version=version+1, updated_at=NOW() WHERE id=$%d AND tenant_id=$%d`,
 			strings.Join(sets, ", "), i, i+1), args...)
 	return err
 }
@@ -127,7 +134,7 @@ func (r *Repository) GetRetroBySprint(ctx context.Context, tenantID, sprintID st
 	return &row, nil
 }
 
-func (r *Repository) UpdateRetro(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
+func (r *Repository) UpdateRetro(ctx context.Context, tenantID, id string, updates map[string]interface{}, expectedVersion int) error {
 	if len(updates) == 0 {
 		return fmt.Errorf("no fields to update")
 	}
@@ -143,8 +150,15 @@ func (r *Repository) UpdateRetro(ctx context.Context, tenantID, id string, updat
 		i++
 	}
 	args = append(args, id, tenantID)
+	if expectedVersion > 0 {
+		args = append(args, expectedVersion)
+		_, err := r.TenantAwareRepository.Exec(ctx,
+			fmt.Sprintf(`UPDATE sprint_retrospectives SET %s, version=version+1, updated_at=NOW() WHERE id=$%d AND tenant_id=$%d AND version=$%d`,
+				strings.Join(sets, ", "), i, i+1, i+2), args...)
+		return err
+	}
 	_, err := r.TenantAwareRepository.Exec(ctx,
-		fmt.Sprintf(`UPDATE sprint_retrospectives SET %s, updated_at=NOW() WHERE id=$%d AND tenant_id=$%d`,
+		fmt.Sprintf(`UPDATE sprint_retrospectives SET %s, version=version+1, updated_at=NOW() WHERE id=$%d AND tenant_id=$%d`,
 			strings.Join(sets, ", "), i, i+1), args...)
 	return err
 }

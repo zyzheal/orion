@@ -16,6 +16,7 @@ type SprintReview struct {
 	CompletedAt *time.Time `json:"completedAt" db:"completed_at"`
 	CreatedAt   time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt   time.Time `json:"updatedAt" db:"updated_at"`
+	Version    int       `json:"version" db:"version"`
 }
 
 // SprintRetrospective is the retro meeting record for a sprint.
@@ -31,6 +32,7 @@ type SprintRetrospective struct {
 	Summary    *string   `json:"summary" db:"summary"`
 	CreatedAt  time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt  time.Time `json:"updatedAt" db:"updated_at"`
+	Version    int       `json:"version" db:"version"`
 }
 
 // ActionItem is a concrete action from a retrospective.

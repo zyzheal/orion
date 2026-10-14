@@ -89,10 +89,18 @@ func (h *Handler) UpdateReview(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	review, err := h.svc.UpdateReview(ctx, tenantID, reviewID, &req)
+	expectedVersion := 0
+	if ifMatch := c.GetHeader("If-Match"); ifMatch != "" {
+		expectedVersion, _ = strconv.Atoi(ifMatch)
+	}
+	review, err := h.svc.UpdateReview(ctx, tenantID, reviewID, &req, expectedVersion)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			middleware.RespondNotFound(c, "review not found")
+		} else if errors.Is(err, repository.ErrVersionMismatch) {
+			middleware.RespondConflict(c, "version mismatch: resource was modified by another request")
+		} else if errors.Is(err, repository.ErrVersionMismatch) {
+			middleware.RespondConflict(c, "version mismatch: resource was modified by another request")
 		} else if strings.Contains(err.Error(), "no fields to update") {
 			middleware.RespondBadRequest(c, err.Error())
 		} else {
@@ -170,7 +178,11 @@ func (h *Handler) UpdateRetro(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	retro, err := h.svc.UpdateRetro(ctx, tenantID, retroID, &req)
+	expectedVersion := 0
+	if ifMatch := c.GetHeader("If-Match"); ifMatch != "" {
+		expectedVersion, _ = strconv.Atoi(ifMatch)
+	}
+	retro, err := h.svc.UpdateRetro(ctx, tenantID, retroID, &req, expectedVersion)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			middleware.RespondNotFound(c, "retrospective not found")

@@ -11,6 +11,7 @@ import (
 	"orion/platform-svc-go/internal/sprint-analytics/repository"
 	"orion/platform-svc-go/internal/eventpublisher"
 	"orion/platform-svc-go/internal/auditlogger"
+	baserepo "orion/platform-svc-go/internal/repository"
 )
 
 // SprintService provides review, retrospective, and velocity operations.
@@ -75,7 +76,7 @@ func (s *SprintService) GetReviewBySprint(ctx context.Context, tenantID, sprintI
 	return s.repo.GetReviewBySprint(ctx, tenantID, sprintID)
 }
 
-func (s *SprintService) UpdateReview(ctx context.Context, tenantID, id string, req *models.UpdateReviewRequest) (*models.SprintReview, error) {
+func (s *SprintService) UpdateReview(ctx context.Context, tenantID, id string, req *models.UpdateReviewRequest, expectedVersion int) (*models.SprintReview, error) {
 	updates := make(map[string]interface{})
 	if req.Status != nil {
 		updates["status"] = *req.Status
@@ -100,7 +101,7 @@ func (s *SprintService) UpdateReview(ctx context.Context, tenantID, id string, r
 	}
 	var result *models.SprintReview
 	if err := s.repo.WithTx(ctx, func(rtx *repository.Repository) error {
-		if err := rtx.UpdateReview(ctx, tenantID, id, updates); err != nil {
+		if err := rtx.UpdateReview(ctx, tenantID, id, updates, expectedVersion); err != nil {
 			return err
 		}
 		item, err := rtx.GetReview(ctx, tenantID, id)
@@ -108,6 +109,9 @@ func (s *SprintService) UpdateReview(ctx context.Context, tenantID, id string, r
 			return err
 		}
 		result = item
+		if expectedVersion > 0 && item.Version == expectedVersion {
+			return baserepo.ErrVersionMismatch
+		}
 		return nil
 	}); err != nil {
 		return nil, err
@@ -166,7 +170,7 @@ func (s *SprintService) GetRetroBySprint(ctx context.Context, tenantID, sprintID
 	return s.repo.GetRetroBySprint(ctx, tenantID, sprintID)
 }
 
-func (s *SprintService) UpdateRetro(ctx context.Context, tenantID, id string, req *models.UpdateRetroRequest) (*models.SprintRetrospective, error) {
+func (s *SprintService) UpdateRetro(ctx context.Context, tenantID, id string, req *models.UpdateRetroRequest, expectedVersion int) (*models.SprintRetrospective, error) {
 	updates := make(map[string]interface{})
 	if req.Date != nil {
 		updates["date"] = *req.Date
@@ -191,7 +195,7 @@ func (s *SprintService) UpdateRetro(ctx context.Context, tenantID, id string, re
 	}
 	var result *models.SprintRetrospective
 	if err := s.repo.WithTx(ctx, func(rtx *repository.Repository) error {
-		if err := rtx.UpdateRetro(ctx, tenantID, id, updates); err != nil {
+		if err := rtx.UpdateRetro(ctx, tenantID, id, updates, expectedVersion); err != nil {
 			return err
 		}
 		item, err := rtx.GetRetro(ctx, tenantID, id)
@@ -199,6 +203,9 @@ func (s *SprintService) UpdateRetro(ctx context.Context, tenantID, id string, re
 			return err
 		}
 		result = item
+		if expectedVersion > 0 && item.Version == expectedVersion {
+			return baserepo.ErrVersionMismatch
+		}
 		return nil
 	}); err != nil {
 		return nil, err

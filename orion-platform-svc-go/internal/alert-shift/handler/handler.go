@@ -110,10 +110,16 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	shift, err := h.svc.UpdateShift(ctx, tenantID, id, &req)
+	expectedVersion := 0
+	if ifMatch := c.GetHeader("If-Match"); ifMatch != "" {
+		expectedVersion, _ = strconv.Atoi(ifMatch)
+	}
+	shift, err := h.svc.UpdateShift(ctx, tenantID, id, &req, expectedVersion)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			middleware.RespondNotFound(c, "shift not found")
+		} else if errors.Is(err, repository.ErrVersionMismatch) {
+			middleware.RespondConflict(c, "version mismatch: resource was modified by another request")
 		} else if strings.Contains(err.Error(), "no fields to update") {
 			middleware.RespondBadRequest(c, err.Error())
 		} else {

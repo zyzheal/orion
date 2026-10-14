@@ -26,6 +26,12 @@ var ErrTenantMissing = errors.New("tenant_id missing from context; wrap with rep
 // can log a distinct metric.
 var ErrTenantIsolation = errors.New("tenant_id is empty or whitespace; refusing to run tenant-scoped query")
 
+// ErrVersionMismatch is returned by Update when an optimistic locking
+// check fails — the expected version does not match the current row's
+// version, indicating a concurrent modification. Handlers should return
+// 409 Conflict for this error.
+var ErrVersionMismatch = errors.New("version mismatch: the resource was modified by another request")
+
 // TenantAwareDB is the interface a Repository holds instead of *sqlx.DB.
 // It deliberately narrows the surface: callers get context-aware Query /
 // Exec / QueryRow / Select / Get / ExecContext / PrepareContext, and every

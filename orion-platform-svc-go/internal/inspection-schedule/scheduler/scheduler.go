@@ -138,7 +138,7 @@ func (s *Scheduler) checkTenant(ctx context.Context, tenantID string) error {
 			"next_run_at": nextRun,
 			"last_run_at": now,
 		}
-		if err := s.repo.Update(ctx, tenantID, sched.ID, updates); err != nil {
+		if err := s.repo.Update(ctx, tenantID, sched.ID, updates, 0); err != nil {
 			s.logger.Error("failed to update schedule after trigger",
 				zap.String("schedule", sched.ID),
 				zap.Error(err))

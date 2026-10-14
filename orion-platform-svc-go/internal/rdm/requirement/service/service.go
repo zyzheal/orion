@@ -11,6 +11,7 @@ import (
 	"orion/platform-svc-go/internal/rdm/requirement/repository"
 	"orion/platform-svc-go/internal/eventpublisher"
 	"orion/platform-svc-go/internal/auditlogger"
+	baserepo "orion/platform-svc-go/internal/repository"
 )
 
 type Service struct {
@@ -103,7 +104,7 @@ func (s *Service) List(ctx context.Context, tenantID string, q *models.ListRequi
 	return s.repo.List(ctx, tenantID, q)
 }
 
-func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.UpdateRequirementRequest) (*models.Requirement, error) {
+func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.UpdateRequirementRequest, expectedVersion int) (*models.Requirement, error) {
 	// If status is being changed, validate the transition
 	if req.Status != nil {
 		current, err := s.repo.GetByID(ctx, tenantID, id)
@@ -168,7 +169,7 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 
 	var result *models.Requirement
 	if err := s.repo.WithTx(ctx, func(rtx *repository.Repository) error {
-		if err := rtx.Update(ctx, tenantID, id, updates); err != nil {
+		if err := rtx.Update(ctx, tenantID, id, updates, expectedVersion); err != nil {
 			return err
 		}
 		item, err := rtx.GetByID(ctx, tenantID, id)
@@ -176,6 +177,9 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 			return err
 		}
 		result = item
+		if expectedVersion > 0 && item.Version == expectedVersion {
+			return baserepo.ErrVersionMismatch
+		}
 		return nil
 	}); err != nil {
 		return nil, err

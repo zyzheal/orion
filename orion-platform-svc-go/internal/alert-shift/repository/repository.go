@@ -62,7 +62,7 @@ func (r *Repository) ListShifts(ctx context.Context, tenantID string, page, page
 	return rows, total, err
 }
 
-func (r *Repository) UpdateShift(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
+func (r *Repository) UpdateShift(ctx context.Context, tenantID, id string, updates map[string]interface{}, expectedVersion int) error {
 	if len(updates) == 0 {
 		return fmt.Errorf("no fields to update")
 	}
@@ -78,8 +78,15 @@ func (r *Repository) UpdateShift(ctx context.Context, tenantID, id string, updat
 		i++
 	}
 	args = append(args, id, tenantID)
+	if expectedVersion > 0 {
+		args = append(args, expectedVersion)
+		_, err := r.TenantAwareRepository.Exec(ctx,
+			fmt.Sprintf(`UPDATE alert_shifts SET %s, version=version+1, updated_at=NOW() WHERE id=$%d AND tenant_id=$%d AND version=$%d`,
+				strings.Join(sets, ", "), i, i+1, i+2), args...)
+		return err
+	}
 	_, err := r.TenantAwareRepository.Exec(ctx,
-		fmt.Sprintf(`UPDATE alert_shifts SET %s, updated_at=NOW() WHERE id=$%d AND tenant_id=$%d`,
+		fmt.Sprintf(`UPDATE alert_shifts SET %s, version=version+1, updated_at=NOW() WHERE id=$%d AND tenant_id=$%d`,
 			strings.Join(sets, ", "), i, i+1), args...)
 	return err
 }

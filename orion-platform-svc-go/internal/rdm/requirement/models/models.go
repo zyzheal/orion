@@ -23,6 +23,7 @@ type Requirement struct {
 	CreatedBy      string    `json:"createdBy" db:"created_by"`
 	CreatedAt      time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt      time.Time `json:"updatedAt" db:"updated_at"`
+	Version        int       `json:"version" db:"version"`
 }
 
 type CreateRequirementRequest struct {

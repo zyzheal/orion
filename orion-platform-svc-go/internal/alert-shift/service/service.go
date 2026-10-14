@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/alert-shift/models"
 	"orion/platform-svc-go/internal/eventpublisher"
 	"orion/platform-svc-go/internal/auditlogger"
+	baserepo "orion/platform-svc-go/internal/repository"
 	"orion/platform-svc-go/internal/alert-shift/repository"
 )
 
@@ -18,7 +19,7 @@ type Repository interface {
 	CreateShift(ctx context.Context, s *models.Shift) error
 	GetShift(ctx context.Context, tenantID, id string) (*models.Shift, error)
 	ListShifts(ctx context.Context, tenantID string, page, pageSize int) ([]models.Shift, int, error)
-	UpdateShift(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+	UpdateShift(ctx context.Context, tenantID, id string, updates map[string]interface{}, expectedVersion int) error
 	DeleteShift(ctx context.Context, tenantID, id string) (bool, error)
 	CreateAssignment(ctx context.Context, a *models.Assignment) error
 	ListAssignments(ctx context.Context, tenantID, shiftID string) ([]models.Assignment, error)
@@ -103,7 +104,7 @@ func (s *Service) ListShifts(ctx context.Context, tenantID string, page, pageSiz
 	return s.repo.ListShifts(ctx, tenantID, page, pageSize)
 }
 
-func (s *Service) UpdateShift(ctx context.Context, tenantID, id string, req *models.UpdateShiftRequest) (*models.Shift, error) {
+func (s *Service) UpdateShift(ctx context.Context, tenantID, id string, req *models.UpdateShiftRequest, expectedVersion int) (*models.Shift, error) {
 	updates := make(map[string]interface{})
 	if req.Name != nil {
 		updates["name"] = *req.Name
@@ -131,7 +132,7 @@ func (s *Service) UpdateShift(ctx context.Context, tenantID, id string, req *mod
 	}
 	var result *models.Shift
 	if err := s.repo.WithTx(ctx, func(rtx *repository.Repository) error {
-		if err := rtx.UpdateShift(ctx, tenantID, id, updates); err != nil {
+		if err := rtx.UpdateShift(ctx, tenantID, id, updates, expectedVersion); err != nil {
 			return err
 		}
 		item, err := rtx.GetShift(ctx, tenantID, id)
@@ -139,6 +140,9 @@ func (s *Service) UpdateShift(ctx context.Context, tenantID, id string, req *mod
 			return err
 		}
 		result = item
+		if expectedVersion > 0 && item.Version == expectedVersion {
+			return baserepo.ErrVersionMismatch
+		}
 		return nil
 	}); err != nil {
 		return nil, err

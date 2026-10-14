@@ -115,12 +115,18 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	item, err := h.svc.Update(ctx, tenantID, id, &req)
+	expectedVersion := 0
+	if ifMatch := c.GetHeader("If-Match"); ifMatch != "" {
+		expectedVersion, _ = strconv.Atoi(ifMatch)
+	}
+	item, err := h.svc.Update(ctx, tenantID, id, &req, expectedVersion)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			middleware.RespondNotFound(c, "not found")
 		} else if errors.Is(err, service.ErrInvalidReqTransition) || errors.Is(err, service.ErrUnknownReqStatus) {
 			middleware.RespondBadRequest(c, err.Error())
+		} else if errors.Is(err, repository.ErrVersionMismatch) {
+			middleware.RespondConflict(c, "version mismatch: resource was modified by another request")
 		} else if strings.Contains(err.Error(), "no fields to update") {
 			middleware.RespondBadRequest(c, err.Error())
 		} else {

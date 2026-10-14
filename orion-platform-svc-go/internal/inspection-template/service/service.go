@@ -11,6 +11,7 @@ import (
 	"orion/platform-svc-go/internal/inspection-template/repository"
 	"orion/platform-svc-go/internal/eventpublisher"
 	"orion/platform-svc-go/internal/auditlogger"
+	baserepo "orion/platform-svc-go/internal/repository"
 )
 
 type Service struct {
@@ -96,7 +97,7 @@ func (s *Service) List(ctx context.Context, tenantID string, page, pageSize int)
 	return s.repo.List(ctx, tenantID, page, pageSize)
 }
 
-func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.UpdateTemplateRequest) (*models.InspectionTemplate, error) {
+func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.UpdateTemplateRequest, expectedVersion int) (*models.InspectionTemplate, error) {
 	updates := make(map[string]interface{})
 	if req.Name != nil {
 		updates["name"] = *req.Name
@@ -121,7 +122,7 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 	}
 	var result *models.InspectionTemplate
 	if err := s.repo.WithTx(ctx, func(rtx *repository.Repository) error {
-		if err := rtx.Update(ctx, tenantID, id, updates); err != nil {
+		if err := rtx.Update(ctx, tenantID, id, updates, expectedVersion); err != nil {
 			return err
 		}
 		item, err := rtx.GetByID(ctx, tenantID, id)
@@ -129,6 +130,9 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 			return err
 		}
 		result = item
+		if expectedVersion > 0 && item.Version == expectedVersion {
+			return baserepo.ErrVersionMismatch
+		}
 		return nil
 	}); err != nil {
 		return nil, err
