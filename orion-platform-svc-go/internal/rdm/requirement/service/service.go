@@ -85,6 +85,17 @@ func (s *Service) List(ctx context.Context, tenantID string, q *models.ListRequi
 }
 
 func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.UpdateRequirementRequest) (*models.Requirement, error) {
+	// If status is being changed, validate the transition
+	if req.Status != nil {
+		current, err := s.repo.GetByID(ctx, tenantID, id)
+		if err != nil {
+			return nil, err
+		}
+		if err := ValidateReqTransition(current.Status, *req.Status); err != nil {
+			return nil, err
+		}
+	}
+
 	updates := make(map[string]interface{})
 	if req.Title != nil {
 		updates["title"] = *req.Title

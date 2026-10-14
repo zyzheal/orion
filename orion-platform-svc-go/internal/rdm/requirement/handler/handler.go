@@ -119,6 +119,8 @@ func (h *Handler) Update(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			middleware.RespondNotFound(c, "not found")
+		} else if errors.Is(err, service.ErrInvalidReqTransition) || errors.Is(err, service.ErrUnknownReqStatus) {
+			middleware.RespondBadRequest(c, err.Error())
 		} else if strings.Contains(err.Error(), "no fields to update") {
 			middleware.RespondBadRequest(c, err.Error())
 		} else {
