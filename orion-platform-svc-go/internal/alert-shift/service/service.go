@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/alert-shift/models"
 	"orion/platform-svc-go/internal/eventpublisher"
+	"orion/platform-svc-go/internal/auditlogger"
 	"orion/platform-svc-go/internal/alert-shift/repository"
 )
 
@@ -28,6 +29,7 @@ type Service struct {
 	repo   Repository
 	logger *zap.Logger
 	events eventpublisher.EventPublisher
+	auditor auditlogger.AuditLogger
 }
 
 func NewService(repo Repository, logger *zap.Logger) *Service {
@@ -37,6 +39,11 @@ func NewService(repo Repository, logger *zap.Logger) *Service {
 // SetPublisher attaches an event publisher for domain events.
 func (s *Service) SetPublisher(p eventpublisher.EventPublisher) {
 	s.events = p
+}
+
+// SetAuditLogger attaches an audit logger for recording mutations.
+func (s *Service) SetAuditLogger(l auditlogger.AuditLogger) {
+	s.auditor = l
 }
 
 func (s *Service) CreateShift(ctx context.Context, tenantID string, req *models.CreateShiftRequest) (*models.Shift, error) {
@@ -76,7 +83,9 @@ func (s *Service) CreateShift(ctx context.Context, tenantID string, req *models.
 	}
 	if s.events != nil {
 		_ = s.events.Publish(ctx, "alert.shift.created", tenantID, map[string]any{"id": shift.ID, "name": shift.Name})
-	}
+		if s.auditor != nil {
+			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "create", TenantID: tenantID, ResourceType: "alert.shift", ResourceID: shift.ID, Details: map[string]any{"name": shift.Name}})
+		}}
 	return shift, nil
 }
 
@@ -134,6 +143,9 @@ func (s *Service) UpdateShift(ctx context.Context, tenantID, id string, req *mod
 	}); err != nil {
 		return nil, err
 	}
+	if s.auditor != nil {
+		_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "update", TenantID: tenantID, ResourceType: "alert.shift", ResourceID: id, Details: map[string]any{"fields": updates}})
+	}
 	return result, nil
 }
 
@@ -144,7 +156,9 @@ func (s *Service) DeleteShift(ctx context.Context, tenantID, id string) (bool, e
 	}
 	if ok && s.events != nil {
 		_ = s.events.Publish(ctx, "alert.shift.deleted", tenantID, map[string]any{"id": id})
-	}
+		if s.auditor != nil {
+			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "delete", TenantID: tenantID, ResourceType: "alert.shift", ResourceID: id})
+		}}
 	return ok, nil
 }
 

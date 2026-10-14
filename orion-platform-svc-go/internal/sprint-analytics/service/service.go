@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/sprint-analytics/models"
 	"orion/platform-svc-go/internal/sprint-analytics/repository"
 	"orion/platform-svc-go/internal/eventpublisher"
+	"orion/platform-svc-go/internal/auditlogger"
 )
 
 // SprintService provides review, retrospective, and velocity operations.
@@ -17,6 +18,7 @@ type SprintService struct {
 	repo   *repository.Repository
 	logger *zap.Logger
 	events eventpublisher.EventPublisher
+	auditor auditlogger.AuditLogger
 }
 
 func NewSprintService(repo *repository.Repository, logger *zap.Logger) *SprintService {
@@ -26,6 +28,11 @@ func NewSprintService(repo *repository.Repository, logger *zap.Logger) *SprintSe
 // SetPublisher attaches an event publisher for domain events.
 func (s *SprintService) SetPublisher(p eventpublisher.EventPublisher) {
 	s.events = p
+}
+
+// SetAuditLogger attaches an audit logger for recording mutations.
+func (s *SprintService) SetAuditLogger(l auditlogger.AuditLogger) {
+	s.auditor = l
 }
 
 // ==================== Sprint Review ====================
@@ -54,7 +61,9 @@ func (s *SprintService) CreateReview(ctx context.Context, tenantID string, req *
 	s.logger.Info("sprint review created", zap.String("reviewId", review.ID), zap.String("sprintId", req.SprintID))
 	if s.events != nil {
 		_ = s.events.Publish(ctx, "sprint.review.created", tenantID, map[string]any{"id": review.ID, "sprintId": review.SprintID})
-	}
+		if s.auditor != nil {
+			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "create", TenantID: tenantID, ResourceType: "sprint.review", ResourceID: review.ID, Details: map[string]any{"sprintId": review.SprintID}})
+		}}
 	return review, nil
 }
 
@@ -113,7 +122,9 @@ func (s *SprintService) DeleteReview(ctx context.Context, tenantID, id string) (
 	}
 	if ok && s.events != nil {
 		_ = s.events.Publish(ctx, "sprint.review.deleted", tenantID, map[string]any{"id": id})
-	}
+		if s.auditor != nil {
+			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "delete", TenantID: tenantID, ResourceType: "sprint.review", ResourceID: id})
+		}}
 	return ok, nil
 }
 

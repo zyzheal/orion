@@ -13,6 +13,7 @@ import (
 	"orion/platform-svc-go/internal/alert-sla/models"
 	"orion/platform-svc-go/internal/alert-sla/monitor"
 	"orion/platform-svc-go/internal/eventpublisher"
+	"orion/platform-svc-go/internal/auditlogger"
 	"orion/platform-svc-go/internal/alert-sla/repository"
 )
 
@@ -21,6 +22,7 @@ type Service struct {
 	logger  *zap.Logger
 	monitor *monitor.Monitor
 	events  eventpublisher.EventPublisher
+	auditor auditlogger.AuditLogger
 }
 
 func NewService(repo *repository.Repository, logger *zap.Logger) *Service {
@@ -30,6 +32,11 @@ func NewService(repo *repository.Repository, logger *zap.Logger) *Service {
 // SetPublisher attaches an event publisher for domain events.
 func (s *Service) SetPublisher(p eventpublisher.EventPublisher) {
 	s.events = p
+}
+
+// SetAuditLogger attaches an audit logger for recording mutations.
+func (s *Service) SetAuditLogger(l auditlogger.AuditLogger) {
+	s.auditor = l
 }
 
 // SetMonitor attaches a background SLA breach monitor.
@@ -85,7 +92,9 @@ func (s *Service) Create(ctx context.Context, tenantID string, req *models.Creat
 	s.logger.Info("alert sla created", zap.String("id", item.ID), zap.String("name", item.Name))
 	if s.events != nil {
 		_ = s.events.Publish(ctx, "alert.sla.created", tenantID, map[string]any{"id": item.ID, "name": item.Name, "severity": item.Severity})
-	}
+		if s.auditor != nil {
+			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "create", TenantID: tenantID, ResourceType: "alert.sla", ResourceID: item.ID, Details: map[string]any{"name": item.Name, "severity": item.Severity}})
+		}}
 	return item, nil
 }
 
@@ -140,6 +149,9 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 	}); err != nil {
 		return nil, err
 	}
+	if s.auditor != nil {
+		_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "update", TenantID: tenantID, ResourceType: "alert.sla", ResourceID: id, Details: map[string]any{"fields": updates}})
+	}
 	return result, nil
 }
 
@@ -150,7 +162,9 @@ func (s *Service) Delete(ctx context.Context, tenantID, id string) (bool, error)
 	}
 	if ok && s.events != nil {
 		_ = s.events.Publish(ctx, "alert.sla.deleted", tenantID, map[string]any{"id": id})
-	}
+		if s.auditor != nil {
+			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "delete", TenantID: tenantID, ResourceType: "alert.sla", ResourceID: id})
+		}}
 	return ok, nil
 }
 

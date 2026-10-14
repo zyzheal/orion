@@ -13,12 +13,14 @@ import (
 	"orion/platform-svc-go/internal/inspection-schedule/repository"
 	"orion/platform-svc-go/internal/inspection-schedule/scheduler"
 	"orion/platform-svc-go/internal/eventpublisher"
+	"orion/platform-svc-go/internal/auditlogger"
 )
 
 type Service struct {
 	repo   *repository.Repository
 	logger *zap.Logger
 	events eventpublisher.EventPublisher
+	auditor auditlogger.AuditLogger
 }
 
 func NewService(repo *repository.Repository, logger *zap.Logger) *Service {
@@ -28,6 +30,11 @@ func NewService(repo *repository.Repository, logger *zap.Logger) *Service {
 // SetPublisher attaches an event publisher for domain events.
 func (s *Service) SetPublisher(p eventpublisher.EventPublisher) {
 	s.events = p
+}
+
+// SetAuditLogger attaches an audit logger for recording mutations.
+func (s *Service) SetAuditLogger(l auditlogger.AuditLogger) {
+	s.auditor = l
 }
 
 func (s *Service) Create(ctx context.Context, tenantID string, req *models.CreateScheduleRequest) (*models.InspectionSchedule, error) {
@@ -63,7 +70,9 @@ func (s *Service) Create(ctx context.Context, tenantID string, req *models.Creat
 	s.logger.Info("inspection schedule created", zap.String("id", schedule.ID), zap.String("name", schedule.Name))
 	if s.events != nil {
 		_ = s.events.Publish(ctx, "inspection.schedule.created", tenantID, map[string]any{"id": schedule.ID, "name": schedule.Name, "templateId": schedule.TemplateID})
-	}
+		if s.auditor != nil {
+			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "create", TenantID: tenantID, ResourceType: "inspection.schedule", ResourceID: schedule.ID, Details: map[string]any{"name": schedule.Name, "templateId": schedule.TemplateID}})
+		}}
 	return schedule, nil
 }
 
@@ -115,6 +124,9 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 	}); err != nil {
 		return nil, err
 	}
+	if s.auditor != nil {
+		_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "update", TenantID: tenantID, ResourceType: "inspection.schedule", ResourceID: id, Details: map[string]any{"fields": updates}})
+	}
 	return result, nil
 }
 
@@ -125,7 +137,9 @@ func (s *Service) Delete(ctx context.Context, tenantID, id string) (bool, error)
 	}
 	if ok && s.events != nil {
 		_ = s.events.Publish(ctx, "inspection.schedule.deleted", tenantID, map[string]any{"id": id})
-	}
+		if s.auditor != nil {
+			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "delete", TenantID: tenantID, ResourceType: "inspection.schedule", ResourceID: id})
+		}}
 	return ok, nil
 }
 

@@ -10,12 +10,14 @@ import (
 	"orion/platform-svc-go/internal/inspection-template/models"
 	"orion/platform-svc-go/internal/inspection-template/repository"
 	"orion/platform-svc-go/internal/eventpublisher"
+	"orion/platform-svc-go/internal/auditlogger"
 )
 
 type Service struct {
 	repo   *repository.Repository
 	logger *zap.Logger
 	events eventpublisher.EventPublisher
+	auditor auditlogger.AuditLogger
 }
 
 func NewService(repo *repository.Repository, logger *zap.Logger) *Service {
@@ -25,6 +27,11 @@ func NewService(repo *repository.Repository, logger *zap.Logger) *Service {
 // SetPublisher attaches an event publisher for domain events.
 func (s *Service) SetPublisher(p eventpublisher.EventPublisher) {
 	s.events = p
+}
+
+// SetAuditLogger attaches an audit logger for recording mutations.
+func (s *Service) SetAuditLogger(l auditlogger.AuditLogger) {
+	s.auditor = l
 }
 
 func (s *Service) Create(ctx context.Context, tenantID string, req *models.CreateTemplateRequest) (*models.InspectionTemplate, error) {
@@ -69,7 +76,9 @@ func (s *Service) Create(ctx context.Context, tenantID string, req *models.Creat
 	s.logger.Info("inspection template created", zap.String("id", template.ID), zap.String("name", template.Name))
 	if s.events != nil {
 		_ = s.events.Publish(ctx, "inspection.template.created", tenantID, map[string]any{"id": template.ID, "name": template.Name})
-	}
+		if s.auditor != nil {
+			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "create", TenantID: tenantID, ResourceType: "inspection.template", ResourceID: template.ID, Details: map[string]any{"name": template.Name}})
+		}}
 	return template, nil
 }
 
@@ -124,6 +133,9 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 	}); err != nil {
 		return nil, err
 	}
+	if s.auditor != nil {
+		_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "update", TenantID: tenantID, ResourceType: "inspection.template", ResourceID: id, Details: map[string]any{"fields": updates}})
+	}
 	return result, nil
 }
 
@@ -134,6 +146,8 @@ func (s *Service) Delete(ctx context.Context, tenantID, id string) (bool, error)
 	}
 	if ok && s.events != nil {
 		_ = s.events.Publish(ctx, "inspection.template.deleted", tenantID, map[string]any{"id": id})
-	}
+		if s.auditor != nil {
+			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "delete", TenantID: tenantID, ResourceType: "inspection.template", ResourceID: id})
+		}}
 	return ok, nil
 }

@@ -10,12 +10,14 @@ import (
 	"orion/platform-svc-go/internal/rdm/requirement/models"
 	"orion/platform-svc-go/internal/rdm/requirement/repository"
 	"orion/platform-svc-go/internal/eventpublisher"
+	"orion/platform-svc-go/internal/auditlogger"
 )
 
 type Service struct {
 	repo   *repository.Repository
 	logger *zap.Logger
 	events eventpublisher.EventPublisher
+	auditor auditlogger.AuditLogger
 }
 
 func NewService(repo *repository.Repository, logger *zap.Logger) *Service {
@@ -25,6 +27,11 @@ func NewService(repo *repository.Repository, logger *zap.Logger) *Service {
 // SetPublisher attaches an event publisher for domain events.
 func (s *Service) SetPublisher(p eventpublisher.EventPublisher) {
 	s.events = p
+}
+
+// SetAuditLogger attaches an audit logger for recording mutations.
+func (s *Service) SetAuditLogger(l auditlogger.AuditLogger) {
+	s.auditor = l
 }
 
 func (s *Service) Create(ctx context.Context, tenantID string, req *models.CreateRequirementRequest) (*models.Requirement, error) {
@@ -79,7 +86,9 @@ func (s *Service) Create(ctx context.Context, tenantID string, req *models.Creat
 	s.logger.Info("requirement created", zap.String("id", item.ID), zap.String("title", item.Title))
 	if s.events != nil {
 		_ = s.events.Publish(ctx, "rdm.requirement.created", tenantID, map[string]any{"id": item.ID, "title": item.Title, "status": item.Status})
-	}
+		if s.auditor != nil {
+			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "create", TenantID: tenantID, ResourceType: "rdm.requirement", ResourceID: item.ID, Details: map[string]any{"title": item.Title, "status": item.Status}})
+		}}
 	return item, nil
 }
 
@@ -170,6 +179,9 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 		return nil
 	}); err != nil {
 		return nil, err
+	}
+	if s.auditor != nil {
+		_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "update", TenantID: tenantID, ResourceType: "rdm.requirement", ResourceID: id, Details: map[string]any{"fields": updates}})
 	}
 	return result, nil
 }
