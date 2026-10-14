@@ -33,6 +33,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	t.GET("", read, h.List)
 	t.GET("/:id", read, h.Get)
 	t.PUT("/:id", write, h.Update)
+	t.POST("/batch", write, h.BatchCreate)
 	t.DELETE("/:id", del, h.Delete)
 }
 
@@ -146,3 +147,49 @@ func (h *Handler) Delete(c *gin.Context) {
 	}
 	middleware.RespondSuccess(c, gin.H{"deleted": true})
 }
+
+func (h *Handler) BatchCreate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BatchCreateInspectionTemplate")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
+	var reqs []models.CreateTemplateRequest
+	if err := c.ShouldBindJSON(&reqs); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	if len(reqs) == 0 {
+		middleware.RespondBadRequest(c, "batch must not be empty")
+		return
+	}
+	if len(reqs) > 100 {
+		middleware.RespondBadRequest(c, "batch size must not exceed 100")
+		return
+	}
+
+	results := make([]middleware.BatchItemResult, len(reqs))
+	succeeded := 0
+	for i, req := range reqs {
+		item, err := h.svc.Create(ctx, tenantID, &req)
+		if err != nil {
+			results[i] = middleware.BatchItemResult{Index: i, OK: false, Error: err.Error()}
+		} else {
+			results[i] = middleware.BatchItemResult{Index: i, OK: true, ID: item.ID}
+			succeeded++
+		}
+	}
+
+	resp := &middleware.BatchResponse{
+		Total:     len(reqs),
+		Succeeded: succeeded,
+		Failed:    len(reqs) - succeeded,
+		Results:   results,
+	}
+	if succeeded == len(reqs) {
+		middleware.RespondBatchAllOK(c, results)
+	} else {
+		middleware.RespondBatch(c, resp)
+	}
+}
+
