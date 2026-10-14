@@ -2,7 +2,7 @@
   "$schema": "./baseline.schema.json",
   "meta": {
     "version": "v5.24",
-    "generated": "2026-10-13",
+    "generated": "2026-10-14",
     "gate_config_version": "v5.23 (SKIP 门控分类: 12 SKIP 分三档 — 3 升级 DEGRADE + 3 新 check_script (baseline-freshness / doc-ci-consistency / adr-decisioner)；2 标记 DELETED (P0-6-SLO 重复, U15-MOAT 重复)；7 加 manual_review: true。分布 BLOCK 19 / DEGRADE 14 / SKIP 7 / DELETED 2 = 42。修正 stale total_gates 61→42)",
     "source_docs": [
       "reports/design-docs-summary-2026-10-03.md",
@@ -228,7 +228,8 @@
       "passed": true
     },
     "R9": "PASS — NEW-EA-19 v2 gate-config.json v5.24: 43 gates (20 BLOCK + 14 DEGRADE + 7 SKIP + 2 DELETED). Prior 61 count was stale; v5.23 cleanup removed 2 duplicates and normalized 3 SKIP→DEGRADE; v5.16 promoted ADR-STATUS-STANDARD DEGRADE→BLOCK. 2026-10-12 fix: corrected stale 42→43 and 19→20 in v5.23_patch note.",
-    "R10": "PASS — CLAUDE.md clause 5 (60 gates v5.12) references v5.12 baseline; v5.24 refresh aligns count to 43. 2026-10-12 fix: corrected stale 42→43. ci.yml P1-5 split delivers 33 GATE steps across 4 parallel block-gates-* jobs (19 BLOCK explicit + 1 DEGRADE GATE-TEST-REPOSITORY-FORCED); GATE-CI-GREEN implicit via go-test job."
+    "R10": "PASS — CLAUDE.md clause 5 (60 gates v5.12) references v5.12 baseline; v5.24 refresh aligns count to 43. 2026-10-12 fix: corrected stale 42→43. ci.yml P1-5 split delivers 33 GATE steps across 4 parallel block-gates-* jobs (19 BLOCK explicit + 1 DEGRADE GATE-TEST-REPOSITORY-FORCED); GATE-CI-GREEN implicit via go-test job.",
+    "R11": "PASS — Expert review fixes batch (commit cd2309382): P0-1 auth guards ✓, P1-5 pagination ✓, P2-2 error classification ✓, P0-3 database transactions (WithTx) ✓, P1-1 RDM state machine ✓, P1-4 sprint velocity/gantt ✓, P1-2 SLA breach detection (monitor) ✓, P1-3 cron scheduler ✓, P0-2 event publishing (EventPublisher) ✓. 326 handlers, 0 route conflicts."
   },
   "next_review_items": [
     {
