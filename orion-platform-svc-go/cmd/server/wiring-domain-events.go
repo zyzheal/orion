@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/auditlogger"
 	"orion/platform-svc-go/internal/eventpublisher"
 	domainevents "orion/platform-svc-go/internal/domain/events"
+	"orion/platform-svc-go/internal/eventsub"
 	"orion/platform-svc-go/internal/infrastructure/eventbus"
 )
 
@@ -78,13 +79,18 @@ func wireDomainEvents(db *database.DB, composedPublisher *eventbus.ComposedEvent
 		logger.Info("domain wiring injected", zap.String("module", "sprint-analytics"))
 	}
 
-	// --- SLA Monitor (deferred) ---
-	// The monitor requires an AlertSource that provides active alerts.
-	// Until the alert-pipeline repo implements AlertSource, the monitor
-	// is not started. The EvaluateSLA pure function and API endpoints
-	// (POST /:id/evaluate, GET /breaches) remain available.
+	// --- Cross-Module Event Subscribers (P2-1) ---
+	// Register domain event subscribers on the composed publisher so that
+	// events published by one module trigger actions in another. For
+	// example, inspection.schedule.created triggers next-run computation,
+	// and alert.sla.created triggers active alert evaluation.
+	if eventBusPublisher != nil {
+		eventsub.RegisterAll(eventBusPublisher, logger)
+	} else {
+		logger.Info("cross-module event subscribers skipped (no composed publisher)")
+	}
 
-	// --- Inspection Scheduler (deferred) ---
+	// --- SLA Monitor (deferred) ---
 	// The scheduler requires a TriggerFunc that executes inspection templates.
 	// Until the inspection-template service provides a trigger, the scheduler
 	// is not started. The ComputeNextRun API endpoint (GET /:id/next-run)
