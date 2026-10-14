@@ -242,6 +242,9 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	wireSprintAnalytics(db, logger)
 	wireInspectionTemplate(db, logger)
 	wireInspectionSchedule(db, logger)
+	// Wave 2 domain events wiring: inject EventBus + AuditLogger into all
+	// 6 domain services. Graceful no-op when NATS is unavailable.
+	wireDomainEvents(db, infra.composedPublisher, logger)
 }
 
 // wireNatsSubscribers initializes the Incident and Self-Healing NATS JetStream

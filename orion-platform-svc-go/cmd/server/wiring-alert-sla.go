@@ -9,9 +9,11 @@ import (
 )
 
 var alertSlaH *alertsla_handler.Handler
+var alertSlaSvc *alertsla_service.Service
 
 func wireAlertSLA(db *database.DB, logger *zap.Logger) {
 	repo := alertsla_repo.NewRepository(db.DB)
 	svc := alertsla_service.NewService(repo, logger)
+	alertSlaSvc = svc
 	alertSlaH = alertsla_handler.NewHandler(svc)
 }

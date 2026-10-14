@@ -9,9 +9,11 @@ import (
 )
 
 var inspectionScheduleH *inspsched_handler.Handler
+var inspectionScheduleSvc *inspsched_service.Service
 
 func wireInspectionSchedule(db *database.DB, logger *zap.Logger) {
 	repo := inspsched_repo.NewRepository(db.DB)
 	svc := inspsched_service.NewService(repo, logger)
+	inspectionScheduleSvc = svc
 	inspectionScheduleH = inspsched_handler.NewHandler(svc)
 }

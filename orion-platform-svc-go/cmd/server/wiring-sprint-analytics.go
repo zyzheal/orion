@@ -9,9 +9,11 @@ import (
 )
 
 var sprintAnalyticsH *sprintanalytics_handler.Handler
+var sprintAnalyticsSvc *sprintanalytics_service.SprintService
 
 func wireSprintAnalytics(db *database.DB, logger *zap.Logger) {
 	repo := sprintanalytics_repo.NewRepository(db.DB)
 	svc := sprintanalytics_service.NewSprintService(repo, logger)
+	sprintAnalyticsSvc = svc
 	sprintAnalyticsH = sprintanalytics_handler.NewHandler(svc)
 }

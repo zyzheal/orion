@@ -9,9 +9,11 @@ import (
 )
 
 var alertShiftH *alertshift_handler.Handler
+var alertShiftSvc *alertshift_service.Service
 
 func wireAlertShift(db *database.DB, logger *zap.Logger) {
 	repo := alertshift_repo.NewRepository(db.DB)
 	svc := alertshift_service.NewService(repo, logger)
+	alertShiftSvc = svc
 	alertShiftH = alertshift_handler.NewHandler(svc)
 }

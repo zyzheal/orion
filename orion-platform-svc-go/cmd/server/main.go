@@ -45,4 +45,7 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		logger.Fatal("server forced to shutdown", zap.Error(err))
 	}
+
+	// Stop domain background jobs (SLA monitor, inspection scheduler, etc.)
+	shutdownDomainBackgroundJobs()
 }

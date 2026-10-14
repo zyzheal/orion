@@ -9,9 +9,11 @@ import (
 )
 
 var rdmRequirementH *rdmreq_handler.Handler
+var rdmRequirementSvc *rdmreq_service.Service
 
 func wireRDMRequirement(db *database.DB, logger *zap.Logger) {
 	repo := rdmreq_repo.NewRepository(db.DB)
 	svc := rdmreq_service.NewService(repo, logger)
+	rdmRequirementSvc = svc
 	rdmRequirementH = rdmreq_handler.NewHandler(svc)
 }
