@@ -9,16 +9,23 @@ import (
 	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/sprint-analytics/models"
 	"orion/platform-svc-go/internal/sprint-analytics/repository"
+	"orion/platform-svc-go/internal/eventpublisher"
 )
 
 // SprintService provides review, retrospective, and velocity operations.
 type SprintService struct {
 	repo   *repository.Repository
 	logger *zap.Logger
+	events eventpublisher.EventPublisher
 }
 
 func NewSprintService(repo *repository.Repository, logger *zap.Logger) *SprintService {
 	return &SprintService{repo: repo, logger: logger}
+}
+
+// SetPublisher attaches an event publisher for domain events.
+func (s *SprintService) SetPublisher(p eventpublisher.EventPublisher) {
+	s.events = p
 }
 
 // ==================== Sprint Review ====================
@@ -45,6 +52,9 @@ func (s *SprintService) CreateReview(ctx context.Context, tenantID string, req *
 		return nil, fmt.Errorf("create review: %w", err)
 	}
 	s.logger.Info("sprint review created", zap.String("reviewId", review.ID), zap.String("sprintId", req.SprintID))
+	if s.events != nil {
+		_ = s.events.Publish(ctx, "sprint.review.created", tenantID, map[string]any{"id": review.ID, "sprintId": review.SprintID})
+	}
 	return review, nil
 }
 
@@ -79,14 +89,32 @@ func (s *SprintService) UpdateReview(ctx context.Context, tenantID, id string, r
 	if len(updates) == 0 {
 		return nil, fmt.Errorf("no fields to update")
 	}
-	if err := s.repo.UpdateReview(ctx, tenantID, id, updates); err != nil {
+	var result *models.SprintReview
+	if err := s.repo.WithTx(ctx, func(rtx *repository.Repository) error {
+		if err := rtx.UpdateReview(ctx, tenantID, id, updates); err != nil {
+			return err
+		}
+		item, err := rtx.GetReview(ctx, tenantID, id)
+		if err != nil {
+			return err
+		}
+		result = item
+		return nil
+	}); err != nil {
 		return nil, err
 	}
-	return s.GetReview(ctx, tenantID, id)
+	return result, nil
 }
 
 func (s *SprintService) DeleteReview(ctx context.Context, tenantID, id string) (bool, error) {
-	return s.repo.DeleteReview(ctx, tenantID, id)
+	ok, err := s.repo.DeleteReview(ctx, tenantID, id)
+	if err != nil {
+		return false, err
+	}
+	if ok && s.events != nil {
+		_ = s.events.Publish(ctx, "sprint.review.deleted", tenantID, map[string]any{"id": id})
+	}
+	return ok, nil
 }
 
 // ==================== Sprint Retrospective ====================
@@ -113,6 +141,9 @@ func (s *SprintService) CreateRetro(ctx context.Context, tenantID string, req *m
 		return nil, fmt.Errorf("create retrospective: %w", err)
 	}
 	s.logger.Info("retrospective created", zap.String("retroId", retro.ID), zap.String("sprintId", req.SprintID))
+	if s.events != nil {
+		_ = s.events.Publish(ctx, "sprint.retrospective.created", tenantID, map[string]any{"id": retro.ID, "sprintId": retro.SprintID})
+	}
 	return retro, nil
 }
 
@@ -147,14 +178,32 @@ func (s *SprintService) UpdateRetro(ctx context.Context, tenantID, id string, re
 	if len(updates) == 0 {
 		return nil, fmt.Errorf("no fields to update")
 	}
-	if err := s.repo.UpdateRetro(ctx, tenantID, id, updates); err != nil {
+	var result *models.SprintRetrospective
+	if err := s.repo.WithTx(ctx, func(rtx *repository.Repository) error {
+		if err := rtx.UpdateRetro(ctx, tenantID, id, updates); err != nil {
+			return err
+		}
+		item, err := rtx.GetRetro(ctx, tenantID, id)
+		if err != nil {
+			return err
+		}
+		result = item
+		return nil
+	}); err != nil {
 		return nil, err
 	}
-	return s.GetRetro(ctx, tenantID, id)
+	return result, nil
 }
 
 func (s *SprintService) DeleteRetro(ctx context.Context, tenantID, id string) (bool, error) {
-	return s.repo.DeleteRetro(ctx, tenantID, id)
+	ok, err := s.repo.DeleteRetro(ctx, tenantID, id)
+	if err != nil {
+		return false, err
+	}
+	if ok && s.events != nil {
+		_ = s.events.Publish(ctx, "sprint.retrospective.deleted", tenantID, map[string]any{"id": id})
+	}
+	return ok, nil
 }
 
 // ==================== Velocity & Gantt ====================

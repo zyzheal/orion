@@ -29,7 +29,7 @@ func NewRepository(db *sqlx.DB) *Repository {
 }
 
 func (r *Repository) Create(ctx context.Context, item *models.InspectionTemplate) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO inspection_templates (id, tenant_id, name, description, category, target_type, rules, enabled, version, created_by, created_at, updated_at)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW(),NOW())`,
 		item.ID, item.TenantID, item.Name, item.Description, item.Category,
@@ -47,11 +47,18 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 	return &row, nil
 }
 
-func (r *Repository) List(ctx context.Context, tenantID string) ([]models.InspectionTemplate, error) {
+func (r *Repository) List(ctx context.Context, tenantID string, page, pageSize int) ([]models.InspectionTemplate, int, error) {
+	offset := (page - 1) * pageSize
+	var total int
+	err := r.TenantAwareRepository.Get(ctx, &total,
+		fmt.Sprintf(`SELECT COUNT(*) FROM inspection_templates`))
+	if err != nil {
+		return nil, 0, err
+	}
 	var rows []models.InspectionTemplate
-	err := r.TenantAwareRepository.Select(ctx, &rows,
-		`SELECT * FROM inspection_templates ORDER BY created_at DESC`)
-	return rows, err
+	err = r.TenantAwareRepository.Select(ctx, &rows,
+		fmt.Sprintf(`SELECT * FROM inspection_templates ORDER BY created_at DESC LIMIT $1 OFFSET $2`), pageSize, offset)
+	return rows, total, err
 }
 
 func (r *Repository) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
@@ -70,7 +77,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 		i++
 	}
 	args = append(args, id, tenantID)
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		fmt.Sprintf(`UPDATE inspection_templates SET %s, updated_at=NOW() WHERE id=$%d AND tenant_id=$%d`,
 			strings.Join(sets, ", "), i, i+1), args...)
 	return err
@@ -84,4 +91,15 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) (bool, err
 	}
 	n, _ := result.RowsAffected()
 	return n > 0, nil
+}
+
+// WithTx wraps fn in a database transaction. All repository methods called
+// on the tx-scoped Repository share the same *sqlx.Tx.
+func (r *Repository) WithTx(ctx context.Context, fn func(rtx *Repository) error) error {
+	return r.TenantAwareRepository.WithTx(ctx, func(txTAR internalrepo.TenantAwareRepository[any]) error {
+		txRepo := &Repository{
+			TenantAwareRepository: txTAR,
+		}
+		return fn(txRepo)
+	})
 }

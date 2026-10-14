@@ -101,7 +101,9 @@ func TestTemplateGet_NotFound(t *testing.T) {
 
 func TestTemplateList_EmptySuccess(t *testing.T) {
 	r, mock := newRouter(t)
-	mock.ExpectQuery("SELECT.*FROM inspection_templates").
+	mock.ExpectQuery("SELECT COUNT.*FROM inspection_templates").
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectQuery(`SELECT \* FROM inspection_templates`).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "tenant_id", "name", "description", "category", "target_type",
 			"rules", "enabled", "version", "created_by", "created_at", "updated_at",

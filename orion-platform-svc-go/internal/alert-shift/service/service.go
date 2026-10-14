@@ -8,26 +8,35 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/alert-shift/models"
+	"orion/platform-svc-go/internal/eventpublisher"
+	"orion/platform-svc-go/internal/alert-shift/repository"
 )
 
 // Repository defines the data access interface.
 type Repository interface {
 	CreateShift(ctx context.Context, s *models.Shift) error
 	GetShift(ctx context.Context, tenantID, id string) (*models.Shift, error)
-	ListShifts(ctx context.Context, tenantID string) ([]models.Shift, error)
+	ListShifts(ctx context.Context, tenantID string, page, pageSize int) ([]models.Shift, int, error)
 	UpdateShift(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 	DeleteShift(ctx context.Context, tenantID, id string) (bool, error)
 	CreateAssignment(ctx context.Context, a *models.Assignment) error
 	ListAssignments(ctx context.Context, tenantID, shiftID string) ([]models.Assignment, error)
+	WithTx(ctx context.Context, fn func(rtx *repository.Repository) error) error
 }
 
 type Service struct {
 	repo   Repository
 	logger *zap.Logger
+	events eventpublisher.EventPublisher
 }
 
 func NewService(repo Repository, logger *zap.Logger) *Service {
 	return &Service{repo: repo, logger: logger}
+}
+
+// SetPublisher attaches an event publisher for domain events.
+func (s *Service) SetPublisher(p eventpublisher.EventPublisher) {
+	s.events = p
 }
 
 func (s *Service) CreateShift(ctx context.Context, tenantID string, req *models.CreateShiftRequest) (*models.Shift, error) {
@@ -65,6 +74,9 @@ func (s *Service) CreateShift(ctx context.Context, tenantID string, req *models.
 	if err := s.repo.CreateShift(ctx, shift); err != nil {
 		return nil, fmt.Errorf("create shift: %w", err)
 	}
+	if s.events != nil {
+		_ = s.events.Publish(ctx, "alert.shift.created", tenantID, map[string]any{"id": shift.ID, "name": shift.Name})
+	}
 	return shift, nil
 }
 
@@ -72,8 +84,14 @@ func (s *Service) GetShift(ctx context.Context, tenantID, id string) (*models.Sh
 	return s.repo.GetShift(ctx, tenantID, id)
 }
 
-func (s *Service) ListShifts(ctx context.Context, tenantID string) ([]models.Shift, error) {
-	return s.repo.ListShifts(ctx, tenantID)
+func (s *Service) ListShifts(ctx context.Context, tenantID string, page, pageSize int) ([]models.Shift, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+	return s.repo.ListShifts(ctx, tenantID, page, pageSize)
 }
 
 func (s *Service) UpdateShift(ctx context.Context, tenantID, id string, req *models.UpdateShiftRequest) (*models.Shift, error) {
@@ -102,14 +120,32 @@ func (s *Service) UpdateShift(ctx context.Context, tenantID, id string, req *mod
 	if len(updates) == 0 {
 		return nil, fmt.Errorf("no fields to update")
 	}
-	if err := s.repo.UpdateShift(ctx, tenantID, id, updates); err != nil {
+	var result *models.Shift
+	if err := s.repo.WithTx(ctx, func(rtx *repository.Repository) error {
+		if err := rtx.UpdateShift(ctx, tenantID, id, updates); err != nil {
+			return err
+		}
+		item, err := rtx.GetShift(ctx, tenantID, id)
+		if err != nil {
+			return err
+		}
+		result = item
+		return nil
+	}); err != nil {
 		return nil, err
 	}
-	return s.repo.GetShift(ctx, tenantID, id)
+	return result, nil
 }
 
 func (s *Service) DeleteShift(ctx context.Context, tenantID, id string) (bool, error) {
-	return s.repo.DeleteShift(ctx, tenantID, id)
+	ok, err := s.repo.DeleteShift(ctx, tenantID, id)
+	if err != nil {
+		return false, err
+	}
+	if ok && s.events != nil {
+		_ = s.events.Publish(ctx, "alert.shift.deleted", tenantID, map[string]any{"id": id})
+	}
+	return ok, nil
 }
 
 func (s *Service) ListAssignments(ctx context.Context, tenantID, shiftID string) ([]models.Assignment, error) {

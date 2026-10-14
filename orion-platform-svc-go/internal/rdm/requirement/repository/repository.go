@@ -31,7 +31,7 @@ func NewRepository(db *sqlx.DB) *Repository {
 }
 
 func (r *Repository) Create(ctx context.Context, item *models.Requirement) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO rdm_requirements (id, tenant_id, title, description, status, priority, type, effort_points, sprint_id, project_id, parent_id, repo_ref, labels, severity, estimated_hours, assignee_id, created_by, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW())`,
 		item.ID, item.TenantID, item.Title, item.Description, item.Status,
@@ -125,7 +125,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 		i++
 	}
 	args = append(args, id, tenantID)
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		fmt.Sprintf(`UPDATE rdm_requirements SET %s, updated_at=NOW() WHERE id=$%d AND tenant_id=$%d`,
 			strings.Join(sets, ", "), i, i+1), args...)
 	return err
@@ -139,4 +139,15 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) (bool, err
 	}
 	n, _ := result.RowsAffected()
 	return n > 0, nil
+}
+
+// WithTx wraps fn in a database transaction. All repository methods called
+// on the tx-scoped Repository share the same *sqlx.Tx.
+func (r *Repository) WithTx(ctx context.Context, fn func(rtx *Repository) error) error {
+	return r.TenantAwareRepository.WithTx(ctx, func(txTAR internalrepo.TenantAwareRepository[any]) error {
+		txRepo := &Repository{
+			TenantAwareRepository: txTAR,
+		}
+		return fn(txRepo)
+	})
 }

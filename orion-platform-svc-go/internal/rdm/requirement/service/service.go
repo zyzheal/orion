@@ -9,15 +9,22 @@ import (
 	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/rdm/requirement/models"
 	"orion/platform-svc-go/internal/rdm/requirement/repository"
+	"orion/platform-svc-go/internal/eventpublisher"
 )
 
 type Service struct {
 	repo   *repository.Repository
 	logger *zap.Logger
+	events eventpublisher.EventPublisher
 }
 
 func NewService(repo *repository.Repository, logger *zap.Logger) *Service {
 	return &Service{repo: repo, logger: logger}
+}
+
+// SetPublisher attaches an event publisher for domain events.
+func (s *Service) SetPublisher(p eventpublisher.EventPublisher) {
+	s.events = p
 }
 
 func (s *Service) Create(ctx context.Context, tenantID string, req *models.CreateRequirementRequest) (*models.Requirement, error) {
@@ -70,6 +77,9 @@ func (s *Service) Create(ctx context.Context, tenantID string, req *models.Creat
 		return nil, fmt.Errorf("create requirement: %w", err)
 	}
 	s.logger.Info("requirement created", zap.String("id", item.ID), zap.String("title", item.Title))
+	if s.events != nil {
+		_ = s.events.Publish(ctx, "rdm.requirement.created", tenantID, map[string]any{"id": item.ID, "title": item.Title, "status": item.Status})
+	}
 	return item, nil
 }
 
@@ -147,10 +157,21 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 		return nil, fmt.Errorf("no fields to update")
 	}
 
-	if err := s.repo.Update(ctx, tenantID, id, updates); err != nil {
+	var result *models.Requirement
+	if err := s.repo.WithTx(ctx, func(rtx *repository.Repository) error {
+		if err := rtx.Update(ctx, tenantID, id, updates); err != nil {
+			return err
+		}
+		item, err := rtx.GetByID(ctx, tenantID, id)
+		if err != nil {
+			return err
+		}
+		result = item
+		return nil
+	}); err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, tenantID, id)
+	return result, nil
 }
 
 func (s *Service) Delete(ctx context.Context, tenantID, id string) (bool, error) {

@@ -102,7 +102,9 @@ func TestShiftGet_NotFound(t *testing.T) {
 
 func TestShiftList_EmptySuccess(t *testing.T) {
 	r, mock := newRouter(t)
-	mock.ExpectQuery("SELECT.*FROM alert_shifts").
+	mock.ExpectQuery("SELECT COUNT.*FROM alert_shifts").
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectQuery(`SELECT \* FROM alert_shifts`).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "tenant_id", "name", "team", "pattern", "start_time",
 			"end_time", "weekdays", "enabled", "created_at", "updated_at",

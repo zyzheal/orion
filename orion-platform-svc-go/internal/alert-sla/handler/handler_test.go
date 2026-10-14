@@ -96,12 +96,14 @@ func TestSLAGet_Success(t *testing.T) {
 func TestSLAList_Success(t *testing.T) {
 	r, mock := newRouter(t)
 	now := time.Now()
+	mock.ExpectQuery("SELECT COUNT.*FROM alert_sla").
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 	rows := sqlmock.NewRows([]string{
 		"id", "tenant_id", "name", "severity", "response_time",
 		"resolve_time", "escalation_delay", "enabled", "created_at", "updated_at",
 	}).AddRow("sla1", "t1", "critical-sla", "all", 300,
 		3600, 600, true, now, now)
-	mock.ExpectQuery("SELECT.*FROM alert_sla").WillReturnRows(rows)
+	mock.ExpectQuery(`SELECT \* FROM alert_sla`).WillReturnRows(rows)
 	w := do(r, "GET", "/api/v1/alert-slas", "")
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -110,7 +112,9 @@ func TestSLAList_Success(t *testing.T) {
 
 func TestSLAList_EmptySuccess(t *testing.T) {
 	r, mock := newRouter(t)
-	mock.ExpectQuery("SELECT.*FROM alert_sla").
+	mock.ExpectQuery("SELECT COUNT.*FROM alert_sla").
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectQuery(`SELECT \* FROM alert_sla`).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "tenant_id", "name", "severity", "response_time",
 			"resolve_time", "escalation_delay", "enabled", "created_at", "updated_at",
@@ -124,6 +128,7 @@ func TestSLAList_EmptySuccess(t *testing.T) {
 func TestSLAUpdate_Success(t *testing.T) {
 	r, mock := newRouter(t)
 	now := time.Now()
+	mock.ExpectBegin()
 	mock.ExpectExec("UPDATE alert_sla").
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	rows := sqlmock.NewRows([]string{
@@ -132,6 +137,7 @@ func TestSLAUpdate_Success(t *testing.T) {
 	}).AddRow("sla1", "t1", "updated-sla", "all", 300,
 		3600, 600, true, now, now)
 	mock.ExpectQuery("SELECT.*FROM alert_sla").WillReturnRows(rows)
+	mock.ExpectCommit()
 	w := do(r, "PUT", "/api/v1/alert-slas/sla1", `{"name":"updated-sla"}`)
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())

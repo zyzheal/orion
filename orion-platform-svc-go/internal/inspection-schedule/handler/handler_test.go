@@ -100,7 +100,9 @@ func TestScheduleGet_NotFound(t *testing.T) {
 
 func TestScheduleList_EmptySuccess(t *testing.T) {
 	r, mock := newRouter(t)
-	mock.ExpectQuery("SELECT.*FROM inspection_schedules").
+	mock.ExpectQuery("SELECT COUNT.*FROM inspection_schedules").
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+	mock.ExpectQuery(`SELECT \* FROM inspection_schedules`).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "tenant_id", "name", "cron_expr", "template_id",
 			"target_config", "next_run_at", "last_run_at", "last_result",

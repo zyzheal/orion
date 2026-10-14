@@ -9,15 +9,22 @@ import (
 	"go.uber.org/zap"
 	"orion/platform-svc-go/internal/inspection-template/models"
 	"orion/platform-svc-go/internal/inspection-template/repository"
+	"orion/platform-svc-go/internal/eventpublisher"
 )
 
 type Service struct {
 	repo   *repository.Repository
 	logger *zap.Logger
+	events eventpublisher.EventPublisher
 }
 
 func NewService(repo *repository.Repository, logger *zap.Logger) *Service {
 	return &Service{repo: repo, logger: logger}
+}
+
+// SetPublisher attaches an event publisher for domain events.
+func (s *Service) SetPublisher(p eventpublisher.EventPublisher) {
+	s.events = p
 }
 
 func (s *Service) Create(ctx context.Context, tenantID string, req *models.CreateTemplateRequest) (*models.InspectionTemplate, error) {
@@ -60,6 +67,9 @@ func (s *Service) Create(ctx context.Context, tenantID string, req *models.Creat
 		return nil, fmt.Errorf("create template: %w", err)
 	}
 	s.logger.Info("inspection template created", zap.String("id", template.ID), zap.String("name", template.Name))
+	if s.events != nil {
+		_ = s.events.Publish(ctx, "inspection.template.created", tenantID, map[string]any{"id": template.ID, "name": template.Name})
+	}
 	return template, nil
 }
 
@@ -67,8 +77,14 @@ func (s *Service) Get(ctx context.Context, tenantID, id string) (*models.Inspect
 	return s.repo.GetByID(ctx, tenantID, id)
 }
 
-func (s *Service) List(ctx context.Context, tenantID string) ([]models.InspectionTemplate, error) {
-	return s.repo.List(ctx, tenantID)
+func (s *Service) List(ctx context.Context, tenantID string, page, pageSize int) ([]models.InspectionTemplate, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+	return s.repo.List(ctx, tenantID, page, pageSize)
 }
 
 func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.UpdateTemplateRequest) (*models.InspectionTemplate, error) {
@@ -94,12 +110,30 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 	if len(updates) == 0 {
 		return nil, fmt.Errorf("no fields to update")
 	}
-	if err := s.repo.Update(ctx, tenantID, id, updates); err != nil {
+	var result *models.InspectionTemplate
+	if err := s.repo.WithTx(ctx, func(rtx *repository.Repository) error {
+		if err := rtx.Update(ctx, tenantID, id, updates); err != nil {
+			return err
+		}
+		item, err := rtx.GetByID(ctx, tenantID, id)
+		if err != nil {
+			return err
+		}
+		result = item
+		return nil
+	}); err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, tenantID, id)
+	return result, nil
 }
 
 func (s *Service) Delete(ctx context.Context, tenantID, id string) (bool, error) {
-	return s.repo.Delete(ctx, tenantID, id)
+	ok, err := s.repo.Delete(ctx, tenantID, id)
+	if err != nil {
+		return false, err
+	}
+	if ok && s.events != nil {
+		_ = s.events.Publish(ctx, "inspection.template.deleted", tenantID, map[string]any{"id": id})
+	}
+	return ok, nil
 }

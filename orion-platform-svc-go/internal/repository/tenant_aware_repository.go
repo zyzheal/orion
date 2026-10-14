@@ -241,6 +241,95 @@ func shiftPlaceholders(fragment string) string {
 	})
 }
 
+// WithTx runs fn inside a database transaction. A transaction-scoped
+// TenantAwareRepository is passed to fn so all queries within the callback
+// share the same *sqlx.Tx. The transaction is committed if fn returns nil,
+// rolled back otherwise. This lets service-layer code compose multiple
+// repository calls (e.g. Update + Get) atomically.
+func (r *TenantAwareRepository[T]) WithTx(ctx context.Context, fn func(txRepo TenantAwareRepository[any]) error) error {
+	if _, ok := TenantFromContext(ctx); !ok {
+		return ErrTenantMissing
+	}
+	// The underlying db may be either *sqlx.DB or *sqlx.Tx (nested). We
+	// need the concrete *sqlx.DB to begin a new transaction.
+	var dbx *sqlx.DB
+	switch d := r.db.(type) {
+	case sqlxDB:
+		dbx = d.db
+	case sqlxTx:
+		// Already in a transaction — reuse it (nested calls don't start
+		// a new tx; savepoints are out of scope for L1 baseline).
+		txRepo := TenantAwareRepository[any]{
+			db:          d,
+			tenantColumn: r.tenantColumn,
+			logger:       r.logger,
+		}
+		return fn(txRepo)
+	default:
+		return fmt.Errorf("WithTx: unsupported db type %T", r.db)
+	}
+	tx, err := dbx.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+	txRepo := TenantAwareRepository[any]{
+		db:           sqlxTx{tx: tx},
+		tenantColumn: r.tenantColumn,
+		logger:       r.logger,
+	}
+	if err := fn(txRepo); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit tx: %w", err)
+	}
+	committed = true
+	return nil
+}
+
+// sqlxTx adapts *sqlx.Tx to TenantAwareDB, mirroring sqlxDB.
+type sqlxTx struct {
+	tx *sqlx.Tx
+}
+
+func (d sqlxTx) Query(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return d.tx.QueryContext(ctx, query, args...)
+}
+
+func (d sqlxTx) Exec(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	return d.tx.ExecContext(ctx, query, args...)
+}
+
+func (d sqlxTx) QueryRow(ctx context.Context, query string, args ...any) *sql.Row {
+	return d.tx.QueryRowContext(ctx, query, args...)
+}
+
+func (d sqlxTx) QueryRowx(ctx context.Context, query string, args ...any) *sqlx.Row {
+	return d.tx.QueryRowxContext(ctx, query, args...)
+}
+
+func (d sqlxTx) Select(ctx context.Context, dest any, query string, args ...any) error {
+	return d.tx.SelectContext(ctx, dest, query, args...)
+}
+
+func (d sqlxTx) Get(ctx context.Context, dest any, query string, args ...any) error {
+	return d.tx.GetContext(ctx, dest, query, args...)
+}
+
+func (d sqlxTx) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	return d.tx.ExecContext(ctx, query, args...)
+}
+
+func (d sqlxTx) PrepareContext(ctx context.Context, query string) (*sql.Stmt, error) {
+	return d.tx.PrepareContext(ctx, query)
+}
+
 // sqlxDB adapts *sqlx.DB to TenantAwareDB. sqlx.DB already exposes every
 // method with the same signature, so this is a thin embed.
 type sqlxDB struct {

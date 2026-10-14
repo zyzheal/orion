@@ -31,7 +31,7 @@ func NewRepository(db *sqlx.DB) *Repository {
 }
 
 func (r *Repository) CreateShift(ctx context.Context, s *models.Shift) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO alert_shifts (id, tenant_id, name, team, pattern, start_time, end_time, weekdays, enabled, created_at, updated_at)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW())`,
 		s.ID, s.TenantID, s.Name, s.Team, s.Pattern, s.StartTime, s.EndTime, s.Weekdays, s.Enabled)
@@ -48,11 +48,18 @@ func (r *Repository) GetShift(ctx context.Context, tenantID, id string) (*models
 	return &row, nil
 }
 
-func (r *Repository) ListShifts(ctx context.Context, tenantID string) ([]models.Shift, error) {
+func (r *Repository) ListShifts(ctx context.Context, tenantID string, page, pageSize int) ([]models.Shift, int, error) {
+	offset := (page - 1) * pageSize
+	var total int
+	err := r.TenantAwareRepository.Get(ctx, &total,
+		fmt.Sprintf(`SELECT COUNT(*) FROM alert_shifts`))
+	if err != nil {
+		return nil, 0, err
+	}
 	var rows []models.Shift
-	err := r.TenantAwareRepository.Select(ctx, &rows,
-		`SELECT * FROM alert_shifts ORDER BY created_at DESC`)
-	return rows, err
+	err = r.TenantAwareRepository.Select(ctx, &rows,
+		fmt.Sprintf(`SELECT * FROM alert_shifts ORDER BY created_at DESC LIMIT $1 OFFSET $2`), pageSize, offset)
+	return rows, total, err
 }
 
 func (r *Repository) UpdateShift(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
@@ -71,7 +78,7 @@ func (r *Repository) UpdateShift(ctx context.Context, tenantID, id string, updat
 		i++
 	}
 	args = append(args, id, tenantID)
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		fmt.Sprintf(`UPDATE alert_shifts SET %s, updated_at=NOW() WHERE id=$%d AND tenant_id=$%d`,
 			strings.Join(sets, ", "), i, i+1), args...)
 	return err
@@ -89,7 +96,7 @@ func (r *Repository) DeleteShift(ctx context.Context, tenantID, id string) (bool
 
 // CreateAssignment inserts a shift assignment with tenant_id.
 func (r *Repository) CreateAssignment(ctx context.Context, a *models.Assignment) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.TenantAwareRepository.Exec(ctx,
 		`INSERT INTO alert_shift_assignments (id, tenant_id, shift_id, user_id, role, start_time, end_time, assigned, created_at)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW())`,
 		a.ID, a.TenantID, a.ShiftID, a.UserID, a.Role, a.StartTime, a.EndTime, a.Assigned)
@@ -102,4 +109,15 @@ func (r *Repository) ListAssignments(ctx context.Context, tenantID, shiftID stri
 	err := r.TenantAwareRepository.Select(ctx, &rows,
 		`SELECT * FROM alert_shift_assignments WHERE shift_id=$1 ORDER BY start_time ASC`, shiftID)
 	return rows, err
+}
+
+// WithTx wraps fn in a database transaction. All repository methods called
+// on the tx-scoped Repository share the same *sqlx.Tx.
+func (r *Repository) WithTx(ctx context.Context, fn func(rtx *Repository) error) error {
+	return r.TenantAwareRepository.WithTx(ctx, func(txTAR internalrepo.TenantAwareRepository[any]) error {
+		txRepo := &Repository{
+			TenantAwareRepository: txTAR,
+		}
+		return fn(txRepo)
+	})
 }

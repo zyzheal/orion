@@ -3,6 +3,7 @@ package handler
 import (
 	"database/sql"
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -33,6 +34,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	s.GET("/:id", read, h.Get)
 	s.PUT("/:id", write, h.Update)
 	s.DELETE("/:id", del, h.Delete)
+	s.GET("/:id/next-run", read, h.NextRun)
+	s.POST("/:id/trigger", write, h.Trigger)
 }
 
 func (h *Handler) Create(c *gin.Context) {
@@ -60,12 +63,24 @@ func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	ctx = repository.WithTenant(ctx, tenantID)
 
-	items, err := h.svc.List(ctx, tenantID)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if page < 1 {
+		page = 1
+	}
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	items, total, err := h.svc.List(ctx, tenantID, page, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.RespondSuccess(c, items)
+	middleware.RespondSuccess(c, gin.H{"items": items, "total": total, "page": page, "pageSize": pageSize})
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -126,4 +141,44 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, gin.H{"deleted": true})
+}
+
+// NextRun computes the next scheduled run time for a schedule.
+func (h *Handler) NextRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NextRun")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
+	id := c.Param("id")
+	nextRun, cronExpr, err := h.svc.NextRun(ctx, tenantID, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			middleware.RespondNotFound(c, "not found")
+		} else {
+			middleware.RespondBadRequest(c, err.Error())
+		}
+		return
+	}
+	middleware.RespondSuccess(c, gin.H{"nextRunAt": nextRun, "cronExpr": cronExpr})
+}
+
+// Trigger manually triggers a scheduled inspection immediately.
+func (h *Handler) Trigger(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TriggerSchedule")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
+	id := c.Param("id")
+	result, err := h.svc.Trigger(ctx, tenantID, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			middleware.RespondNotFound(c, "not found")
+		} else {
+			middleware.RespondInternalError(c, err.Error())
+		}
+		return
+	}
+	middleware.RespondSuccess(c, result)
 }

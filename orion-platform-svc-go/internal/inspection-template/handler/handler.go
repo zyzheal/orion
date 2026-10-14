@@ -3,6 +3,7 @@ package handler
 import (
 	"database/sql"
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -60,12 +61,24 @@ func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	ctx = repository.WithTenant(ctx, tenantID)
 
-	items, err := h.svc.List(ctx, tenantID)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if page < 1 {
+		page = 1
+	}
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	items, total, err := h.svc.List(ctx, tenantID, page, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	middleware.RespondSuccess(c, items)
+	middleware.RespondSuccess(c, gin.H{"items": items, "total": total, "page": page, "pageSize": pageSize})
 }
 
 func (h *Handler) Get(c *gin.Context) {
