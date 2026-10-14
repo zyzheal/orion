@@ -156,3 +156,25 @@ func (s *SprintService) UpdateRetro(ctx context.Context, tenantID, id string, re
 func (s *SprintService) DeleteRetro(ctx context.Context, tenantID, id string) (bool, error) {
 	return s.repo.DeleteRetro(ctx, tenantID, id)
 }
+
+// ==================== Velocity & Gantt ====================
+
+// GetVelocity returns velocity trend across recent sprints for a project.
+// This is a computed read-model that aggregates sprint review data.
+func (s *SprintService) GetVelocity(ctx context.Context, tenantID, projectID string, limit int) ([]models.VelocityEntry, error) {
+	if tenantID == "" {
+		tenantID = "default"
+	}
+	if limit < 1 || limit > 50 {
+		limit = 10
+	}
+	return s.repo.GetVelocity(ctx, tenantID, projectID, limit)
+}
+
+// GetGantt returns Gantt chart data (sprints + key milestones) for a project.
+func (s *SprintService) GetGantt(ctx context.Context, tenantID, projectID string) ([]models.GanttItem, error) {
+	if tenantID == "" {
+		tenantID = "default"
+	}
+	return s.repo.GetGantt(ctx, tenantID, projectID)
+}

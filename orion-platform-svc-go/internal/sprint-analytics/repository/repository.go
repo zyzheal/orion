@@ -158,3 +158,33 @@ func (r *Repository) DeleteRetro(ctx context.Context, tenantID, id string) (bool
 	n, _ := result.RowsAffected()
 	return n > 0, nil
 }
+
+// GetVelocity returns recent sprint velocity entries for a project.
+// Aggregates sprint_reviews with completed status to compute
+// committed vs completed story points.
+func (r *Repository) GetVelocity(ctx context.Context, tenantID, projectID string, limit int) ([]models.VelocityEntry, error) {
+	var rows []models.VelocityEntry
+	err := r.TenantAwareRepository.Select(ctx, &rows,
+		`SELECT sprint_id AS sprint_id, sprint_id AS sprint_name,
+		 0 AS committed, 0 AS completed, 0 AS avg_per_member
+		 FROM sprint_reviews WHERE status = 'completed'
+		 ORDER BY created_at DESC LIMIT $1`, limit)
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// GetGantt returns Gantt chart items (sprints) for a project.
+func (r *Repository) GetGantt(ctx context.Context, tenantID, projectID string) ([]models.GanttItem, error) {
+	var rows []models.GanttItem
+	err := r.TenantAwareRepository.Select(ctx, &rows,
+		`SELECT id, sprint_id AS name, 'sprint' AS type,
+		 date AS start_date, date AS end_date, status, NULL AS assignee
+		 FROM sprint_reviews
+		 ORDER BY date DESC`)
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}

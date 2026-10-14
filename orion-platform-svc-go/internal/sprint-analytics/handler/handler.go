@@ -3,6 +3,7 @@ package handler
 import (
 	"database/sql"
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -36,6 +37,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	s.GET("/:id/retrospective", read, h.GetRetro)
 	s.PUT("/:id/retrospective/:retroId", write, h.UpdateRetro)
 	s.DELETE("/:id/retrospective/:retroId", del, h.DeleteRetro)
+	s.GET("/velocity", read, h.GetVelocity)
+	s.GET("/gantt", read, h.GetGantt)
 }
 
 func (h *Handler) CreateReview(c *gin.Context) {
@@ -198,4 +201,35 @@ func (h *Handler) DeleteRetro(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, gin.H{"deleted": true})
+}
+
+func (h *Handler) GetVelocity(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetVelocity")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
+	projectID := c.Query("projectId")
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	items, err := h.svc.GetVelocity(ctx, tenantID, projectID, limit)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, items)
+}
+
+func (h *Handler) GetGantt(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetGantt")
+	defer span.End()
+	tenantID := c.GetString("tenant_id")
+	ctx = repository.WithTenant(ctx, tenantID)
+
+	projectID := c.Query("projectId")
+	items, err := h.svc.GetGantt(ctx, tenantID, projectID)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, items)
 }
