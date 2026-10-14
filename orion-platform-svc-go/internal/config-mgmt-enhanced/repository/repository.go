@@ -125,7 +125,7 @@ func (r *Repository) Create(ctx context.Context, entity *models.ConfigMgmt) erro
 	now := time.Now().UTC()
 	entity.CreatedAt = now
 	entity.UpdatedAt = now
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		"INSERT INTO config_mgmt (id, tenant_id, name, created_at, updated_at) VALUES ($1,$2,$3,$4,$5)",
 		entity.ID, entity.TenantID, entity.Name, entity.CreatedAt, entity.UpdatedAt)
 	return err
@@ -133,7 +133,7 @@ func (r *Repository) Create(ctx context.Context, entity *models.ConfigMgmt) erro
 
 func (r *Repository) GetByID(ctx context.Context, id, tenantID string) (*models.ConfigMgmt, error) {
 	var entity models.ConfigMgmt
-	err := r.TenantAwareRepository.Get(ctx, &entity,
+	err := r.db.GetContext(ctx, &entity,
 		"SELECT "+configMgmtColumns+" FROM config_mgmt WHERE id=$1 AND tenant_id=$2", id, tenantID)
 	if err != nil {
 		return nil, err
@@ -143,7 +143,7 @@ func (r *Repository) GetByID(ctx context.Context, id, tenantID string) (*models.
 
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.ConfigMgmt, error) {
 	var entities []models.ConfigMgmt
-	err := r.TenantAwareRepository.Select(ctx, &entities,
+	err := r.db.SelectContext(ctx, &entities,
 		"SELECT "+configMgmtColumns+" FROM config_mgmt WHERE tenant_id=$1 ORDER BY created_at DESC", tenantID)
 	if err != nil {
 		return nil, err
@@ -172,7 +172,7 @@ func (r *Repository) Update(ctx context.Context, id, tenantID string, attrs map[
 	args = append(args, id, tenantID)
 	query := fmt.Sprintf("UPDATE config_mgmt SET %s WHERE id=$%d AND tenant_id=$%d",
 		strings.Join(set, ", "), len(args)-1, len(args))
-	result, err := r.TenantAwareRepository.Exec(ctx, query, args...)
+	result, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func (r *Repository) Update(ctx context.Context, id, tenantID string, attrs map[
 }
 
 func (r *Repository) Delete(ctx context.Context, id, tenantID string) (bool, error) {
-	result, err := r.TenantAwareRepository.Exec(ctx, "DELETE FROM config_mgmt WHERE id=$1 AND tenant_id=$2", id, tenantID)
+	result, err := r.db.ExecContext(ctx, "DELETE FROM config_mgmt WHERE id=$1 AND tenant_id=$2", id, tenantID)
 	if err != nil {
 		return false, err
 	}
@@ -212,7 +212,7 @@ func (r *Repository) CreateChangeRequest(ctx context.Context, cr *models.ChangeR
 		}
 		cr.Approvals = string(b)
 	}
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		"INSERT INTO config_change_requests (id, tenant_id, config_key, config_group, environment, "+
 			"change_type, old_value, new_value, reason, risk_level, requester, status, "+
 			"execution_plan, rollback_plan, approvals, required_approvals, executed_at, "+
@@ -228,7 +228,7 @@ func (r *Repository) CreateChangeRequest(ctx context.Context, cr *models.ChangeR
 
 func (r *Repository) GetChangeRequest(ctx context.Context, id, tenantID string) (*models.ChangeRequest, error) {
 	var cr models.ChangeRequest
-	err := r.TenantAwareRepository.Get(ctx, &cr,
+	err := r.db.GetContext(ctx, &cr,
 		"SELECT "+changeRequestColumns+" FROM config_change_requests WHERE id=$1 AND tenant_id=$2", id, tenantID)
 	if err != nil {
 		return nil, err
@@ -274,7 +274,7 @@ func (r *Repository) ListChangeRequests(ctx context.Context, tenantID string, fi
 	}
 	query += " ORDER BY created_at DESC"
 	var crs []models.ChangeRequest
-	err := r.TenantAwareRepository.Select(ctx, &crs, query, args...)
+	err := r.db.SelectContext(ctx, &crs, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -297,7 +297,7 @@ func (r *Repository) UpdateChangeRequest(ctx context.Context, id, tenantID strin
 	args = append(args, id, tenantID)
 	query := fmt.Sprintf("UPDATE config_change_requests SET %s WHERE id=$%d AND tenant_id=$%d",
 		strings.Join(set, ", "), len(args)-1, len(args))
-	result, err := r.TenantAwareRepository.Exec(ctx, query, args...)
+	result, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +312,7 @@ func (r *Repository) UpdateChangeRequest(ctx context.Context, id, tenantID strin
 }
 
 func (r *Repository) DeleteChangeRequest(ctx context.Context, id, tenantID string) (bool, error) {
-	result, err := r.TenantAwareRepository.Exec(ctx, "DELETE FROM config_change_requests WHERE id=$1 AND tenant_id=$2", id, tenantID)
+	result, err := r.db.ExecContext(ctx, "DELETE FROM config_change_requests WHERE id=$1 AND tenant_id=$2", id, tenantID)
 	if err != nil {
 		return false, err
 	}
@@ -343,7 +343,7 @@ func (r *Repository) deserializeApprovals(cr *models.ChangeRequest) (*models.Cha
 
 func (r *Repository) GetChangeHistory(ctx context.Context, changeRequestID, tenantID string) ([]models.ChangeHistory, error) {
 	var histories []models.ChangeHistory
-	err := r.TenantAwareRepository.Select(ctx, &histories,
+	err := r.db.SelectContext(ctx, &histories,
 		"SELECT "+changeHistoryColumns+" FROM config_change_history WHERE change_request_id=$1 AND tenant_id=$2 ORDER BY created_at ASC",
 		changeRequestID, tenantID)
 	if err != nil {
@@ -359,7 +359,7 @@ func (r *Repository) AddChangeHistory(ctx context.Context, h *models.ChangeHisto
 	h.ID = uuid.New().String()
 	now := time.Now().UTC()
 	h.CreatedAt = now
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		"INSERT INTO config_change_history (id, tenant_id, change_request_id, config_key, "+
 			"config_group, environment, action, actor, old_value, new_value, notes, created_at) "+
 			"VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)",
@@ -402,7 +402,7 @@ func (r *Repository) CreateDriftReport(ctx context.Context, dr *models.DriftRepo
 			dr.RemediationLog = "[]"
 		}
 	}
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		"INSERT INTO config_drift_reports (id, tenant_id, config_group, drift_status, "+
 			"expected_config, actual_config, drift_items, total_drifts, critical_drifts, "+
 			"auto_remediation_enabled, remediation_log, detected_at, last_checked_at, created_at) "+
@@ -415,7 +415,7 @@ func (r *Repository) CreateDriftReport(ctx context.Context, dr *models.DriftRepo
 
 func (r *Repository) GetDriftReport(ctx context.Context, id, tenantID string) (*models.DriftReport, error) {
 	var dr models.DriftReport
-	err := r.TenantAwareRepository.Get(ctx, &dr,
+	err := r.db.GetContext(ctx, &dr,
 		"SELECT "+driftReportColumns+" FROM config_drift_reports WHERE id=$1 AND tenant_id=$2", id, tenantID)
 	if err != nil {
 		return nil, err
@@ -439,7 +439,7 @@ func (r *Repository) UpdateDriftReport(ctx context.Context, id, tenantID string,
 	args = append(args, id, tenantID)
 	query := fmt.Sprintf("UPDATE config_drift_reports SET %s WHERE id=$%d AND tenant_id=$%d",
 		strings.Join(set, ", "), len(args)-1, len(args))
-	result, err := r.TenantAwareRepository.Exec(ctx, query, args...)
+	result, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

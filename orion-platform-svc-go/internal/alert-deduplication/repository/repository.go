@@ -45,7 +45,7 @@ func (r *Repository) Insert(ctx context.Context, rec *models.DeduplicationRecord
 // GetByFingerprint finds the most recent record matching a fingerprint for a tenant.
 func (r *Repository) GetByFingerprint(ctx context.Context, tenantID uuid.UUID, fingerprint string) (*models.DeduplicationRecord, error) {
 	var rec models.DeduplicationRecord
-	err := r.TenantAwareRepository.Get(ctx, &rec, `
+	err := r.db.GetContext(ctx, &rec, `
 		SELECT id, tenant_id, original_id, duplicate_id, fingerprint, deduped_at
 		FROM alert_deduplication_records
 		WHERE tenant_id = $1 AND fingerprint = $2
@@ -64,7 +64,7 @@ func (r *Repository) GetByFingerprint(ctx context.Context, tenantID uuid.UUID, f
 // CountActive counts deduplication records created since the given time.
 func (r *Repository) CountActive(ctx context.Context, tenantID uuid.UUID, since time.Time) (int, error) {
 	var count int
-	err := r.TenantAwareRepository.Get(ctx, &count, `
+	err := r.db.GetContext(ctx, &count, `
 		SELECT COUNT(*) FROM alert_deduplication_records
 		WHERE tenant_id = $1 AND deduped_at >= $2
 	`, tenantID, since)

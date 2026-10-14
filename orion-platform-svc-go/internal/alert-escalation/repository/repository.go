@@ -96,7 +96,7 @@ func buildSET(table string, attrs map[string]interface{}, updatable []string) (s
 }
 
 func (r *Repository) CreatePolicy(ctx context.Context, p *models.EscalationPolicy) error {
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		"INSERT INTO escalation_policy ("+policyColumns+") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
 		p.ID, p.TenantID, p.Name, p.Description, p.Severity, p.Status, p.Rules, p.CreatedBy, p.CreatedAt, p.UpdatedAt)
 	return err
@@ -104,7 +104,7 @@ func (r *Repository) CreatePolicy(ctx context.Context, p *models.EscalationPolic
 
 func (r *Repository) GetPolicy(ctx context.Context, id, tenantID string) (*models.EscalationPolicy, error) {
 	var p models.EscalationPolicy
-	err := r.TenantAwareRepository.Get(ctx, &p, "SELECT "+policyColumns+" FROM escalation_policy WHERE id = $1 AND tenant_id = $2", id, tenantID)
+	err := r.db.GetContext(ctx, &p, "SELECT "+policyColumns+" FROM escalation_policy WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func (r *Repository) GetPolicy(ctx context.Context, id, tenantID string) (*model
 
 func (r *Repository) ListPolicies(ctx context.Context, tenantID string) ([]models.EscalationPolicy, error) {
 	var items []models.EscalationPolicy
-	err := r.TenantAwareRepository.Select(ctx, &items, "SELECT "+policyColumns+" FROM escalation_policy WHERE tenant_id = $1 ORDER BY created_at DESC", tenantID)
+	err := r.db.SelectContext(ctx, &items, "SELECT "+policyColumns+" FROM escalation_policy WHERE tenant_id = $1 ORDER BY created_at DESC", tenantID)
 	return items, err
 }
 
@@ -126,14 +126,14 @@ func (r *Repository) UpdatePolicy(ctx context.Context, id, tenantID string, attr
 	query := "UPDATE escalation_policy SET " + set +
 		" WHERE id = $" + strconv.Itoa(len(args)-1) +
 		" AND tenant_id = $" + strconv.Itoa(len(args))
-	if _, err := r.TenantAwareRepository.Exec(ctx, query, args...); err != nil {
+	if _, err := r.db.ExecContext(ctx, query, args...); err != nil {
 		return nil, err
 	}
 	return r.GetPolicy(ctx, id, tenantID)
 }
 
 func (r *Repository) DeletePolicy(ctx context.Context, id, tenantID string) (bool, error) {
-	result, err := r.TenantAwareRepository.Exec(ctx, "DELETE FROM escalation_policy WHERE id = $1 AND tenant_id = $2", id, tenantID)
+	result, err := r.db.ExecContext(ctx, "DELETE FROM escalation_policy WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	if err != nil {
 		return false, err
 	}
@@ -145,7 +145,7 @@ func (r *Repository) DeletePolicy(ctx context.Context, id, tenantID string) (boo
 }
 
 func (r *Repository) CreateTrigger(ctx context.Context, t *models.EscalationTrigger) error {
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		"INSERT INTO escalation_trigger ("+triggerColumns+") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
 		t.ID, t.TenantID, t.PolicyID, t.AlertID, t.Level, t.Target, t.Channel, t.Message, t.TriggeredAt, t.Status, t.ResolvedAt)
 	return err
@@ -160,7 +160,7 @@ func (r *Repository) ListTriggers(ctx context.Context, tenantID, policyID string
 	}
 	query += " ORDER BY triggered_at DESC"
 	var items []models.EscalationTrigger
-	err := r.TenantAwareRepository.Select(ctx, &items, query, args...)
+	err := r.db.SelectContext(ctx, &items, query, args...)
 	return items, err
 }
 
@@ -173,11 +173,11 @@ func (r *Repository) UpdateTrigger(ctx context.Context, id, tenantID string, att
 	query := "UPDATE escalation_trigger SET " + set +
 		" WHERE id = $" + strconv.Itoa(len(args)-1) +
 		" AND tenant_id = $" + strconv.Itoa(len(args))
-	if _, err := r.TenantAwareRepository.Exec(ctx, query, args...); err != nil {
+	if _, err := r.db.ExecContext(ctx, query, args...); err != nil {
 		return nil, err
 	}
 	var t models.EscalationTrigger
-	err = r.TenantAwareRepository.Get(ctx, &t, "SELECT "+triggerColumns+" FROM escalation_trigger WHERE id = $1 AND tenant_id = $2", id, tenantID)
+	err = r.db.GetContext(ctx, &t, "SELECT "+triggerColumns+" FROM escalation_trigger WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +185,7 @@ func (r *Repository) UpdateTrigger(ctx context.Context, id, tenantID string, att
 }
 
 func (r *Repository) CreateClosure(ctx context.Context, c *models.AlertClosure) error {
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		"INSERT INTO alert_closure ("+closureColumns+") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
 		c.ID, c.TenantID, c.AlertID, c.Status, c.AcknowledgedBy, c.AcknowledgedAt, c.ResolvedBy, c.ResolvedAt, c.ResolutionNote, c.MTTRSeconds, c.CreatedAt, c.UpdatedAt)
 	return err
@@ -193,7 +193,7 @@ func (r *Repository) CreateClosure(ctx context.Context, c *models.AlertClosure) 
 
 func (r *Repository) GetClosure(ctx context.Context, alertID, tenantID string) (*models.AlertClosure, error) {
 	var c models.AlertClosure
-	err := r.TenantAwareRepository.Get(ctx, &c, "SELECT "+closureColumns+" FROM alert_closure WHERE alert_id = $1 AND tenant_id = $2 ORDER BY created_at DESC LIMIT 1", alertID, tenantID)
+	err := r.db.GetContext(ctx, &c, "SELECT "+closureColumns+" FROM alert_closure WHERE alert_id = $1 AND tenant_id = $2 ORDER BY created_at DESC LIMIT 1", alertID, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +209,7 @@ func (r *Repository) ListClosures(ctx context.Context, tenantID, status string) 
 	}
 	query += " ORDER BY created_at DESC"
 	var items []models.AlertClosure
-	err := r.TenantAwareRepository.Select(ctx, &items, query, args...)
+	err := r.db.SelectContext(ctx, &items, query, args...)
 	return items, err
 }
 
@@ -222,7 +222,7 @@ func (r *Repository) UpdateClosure(ctx context.Context, alertID, tenantID string
 	query := "UPDATE alert_closure SET " + set +
 		" WHERE alert_id = $" + strconv.Itoa(len(args)-1) +
 		" AND tenant_id = $" + strconv.Itoa(len(args))
-	if _, err := r.TenantAwareRepository.Exec(ctx, query, args...); err != nil {
+	if _, err := r.db.ExecContext(ctx, query, args...); err != nil {
 		return nil, err
 	}
 	return r.GetClosure(ctx, alertID, tenantID)
@@ -231,7 +231,7 @@ func (r *Repository) UpdateClosure(ctx context.Context, alertID, tenantID string
 func (r *Repository) CreateMetrics(ctx context.Context, m *models.AlertMetrics) error {
 	// metric_date is a DATE column, so the value is bound as a string in the
 	// layout Postgres parses for DATE.
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		"INSERT INTO alert_metrics ("+metricsColumns+") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)",
 		m.ID, m.TenantID, m.MetricDate.Format("2006-01-02"), m.TotalAlerts, m.AcknowledgedCount, m.ResolvedCount,
 		m.EscalatedCount, m.AvgResponseSeconds, m.AvgResolutionSeconds, m.P95ResponseSeconds,
@@ -241,7 +241,7 @@ func (r *Repository) CreateMetrics(ctx context.Context, m *models.AlertMetrics) 
 
 func (r *Repository) ListMetrics(ctx context.Context, tenantID string, from, to time.Time) ([]models.AlertMetrics, error) {
 	var items []models.AlertMetrics
-	err := r.TenantAwareRepository.Select(ctx, &items,
+	err := r.db.SelectContext(ctx, &items,
 		"SELECT "+metricsColumns+" FROM alert_metrics WHERE tenant_id = $1 AND metric_date BETWEEN $2 AND $3 ORDER BY metric_date DESC",
 		tenantID, from.Format("2006-01-02"), to.Format("2006-01-02"))
 	return items, err

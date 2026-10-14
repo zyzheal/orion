@@ -100,7 +100,7 @@ func (r *Repository) Create(ctx context.Context, m *models.Capability) error {
 // otherwise be a 500 "sql: no rows".
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.Capability, error) {
 	var m models.Capability
-	err := r.TenantAwareRepository.Get(ctx, &m,
+	err := r.db.GetContext(ctx, &m,
 		`SELECT `+capabilityColumns+` FROM capabilities WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -116,7 +116,7 @@ func (r *Repository) List(ctx context.Context, tenantID string, limit, offset in
 		limit = 50
 	}
 	var items []models.Capability
-	err := r.TenantAwareRepository.Select(ctx, &items,
+	err := r.db.SelectContext(ctx, &items,
 		`SELECT `+capabilityColumns+` FROM capabilities WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, tenantID, limit, offset)
 	return items, err
 }
@@ -130,7 +130,7 @@ func (r *Repository) ListByCategory(ctx context.Context, tenantID, category stri
 		return r.List(ctx, tenantID, limit, offset)
 	}
 	var items []models.Capability
-	err := r.TenantAwareRepository.Select(ctx, &items,
+	err := r.db.SelectContext(ctx, &items,
 		`SELECT `+capabilityColumns+` FROM capabilities WHERE tenant_id=$1 AND name ILIKE $2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`,
 		tenantID, "%"+category+"%", limit, offset)
 	return items, err
@@ -144,14 +144,14 @@ func (r *Repository) ListByCategory(ctx context.Context, tenantID, category stri
 // migration 582, so the whole capability tree endpoint was a 500.
 func (r *Repository) ListRoot(ctx context.Context, tenantID string) ([]models.Capability, error) {
 	var items []models.Capability
-	err := r.TenantAwareRepository.Select(ctx, &items,
+	err := r.db.SelectContext(ctx, &items,
 		`SELECT `+capabilityColumns+` FROM capabilities WHERE tenant_id=$1 AND parent_capability_id IS NULL ORDER BY created_at`, tenantID)
 	return items, err
 }
 
 func (r *Repository) ListByParent(ctx context.Context, tenantID, parentCapabilityID string) ([]models.Capability, error) {
 	var items []models.Capability
-	err := r.TenantAwareRepository.Select(ctx, &items,
+	err := r.db.SelectContext(ctx, &items,
 		`SELECT `+capabilityColumns+` FROM capabilities WHERE tenant_id=$1 AND parent_capability_id=$2`, tenantID, parentCapabilityID)
 	return items, err
 }
@@ -188,12 +188,12 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 
 	query := fmt.Sprintf("UPDATE capabilities SET %s WHERE id=$%d AND tenant_id=$%d",
 		strings.Join(setClauses, ", "), idx, idx+1)
-	_, err := r.TenantAwareRepository.Exec(ctx, query, args...)
+	_, err := r.db.ExecContext(ctx, query, args...)
 	return err
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		`DELETE FROM capabilities WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
@@ -201,7 +201,7 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 // HasChildren checks if a capability has child capabilities.
 func (r *Repository) HasChildren(ctx context.Context, tenantID, id string) (bool, error) {
 	var count int
-	err := r.TenantAwareRepository.Get(ctx, &count,
+	err := r.db.GetContext(ctx, &count,
 		`SELECT COUNT(*) FROM capabilities WHERE tenant_id=$1 AND parent_capability_id=$2`, tenantID, id)
 	return count > 0, err
 }
@@ -209,7 +209,7 @@ func (r *Repository) HasChildren(ctx context.Context, tenantID, id string) (bool
 // GetParent checks if a parent capability exists.
 func (r *Repository) GetParent(ctx context.Context, tenantID, parentCapabilityID string) (*models.Capability, error) {
 	var m models.Capability
-	err := r.TenantAwareRepository.Get(ctx, &m,
+	err := r.db.GetContext(ctx, &m,
 		`SELECT `+capabilityColumns+` FROM capabilities WHERE id=$1 AND tenant_id=$2`, parentCapabilityID, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -252,7 +252,7 @@ func (r *Repository) InsertCommandMapping(ctx context.Context, tenantID string, 
 // "sql: multiple rows returned".
 func (r *Repository) GetCapabilityIDForCommand(ctx context.Context, tenantID, command, action, env string) (string, error) {
 	var capabilityID string
-	err := r.TenantAwareRepository.Get(ctx, &capabilityID,
+	err := r.db.GetContext(ctx, &capabilityID,
 		`SELECT capability_id FROM command_capability_mappings
 			WHERE tenant_id=$1 AND command_name=$2 AND command_action=$3 AND environment_suffix=$4`,
 		tenantID, command, action, env)
@@ -282,7 +282,7 @@ func (r *Repository) GrantCapabilityToRole(ctx context.Context, tenantID string,
 }
 
 func (r *Repository) RevokeCapabilityFromRole(ctx context.Context, tenantID string, capabilityID, roleName string) error {
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		`DELETE FROM capability_role_mappings WHERE tenant_id=$1 AND capability_id=$2 AND role_name=$3`,
 		tenantID, capabilityID, roleName)
 	return err
@@ -310,7 +310,7 @@ func (r *Repository) GrantCapabilityToUser(ctx context.Context, tenantID string,
 }
 
 func (r *Repository) RevokeCapabilityFromUser(ctx context.Context, tenantID string, capabilityID, userId string) error {
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		`DELETE FROM capability_user_mappings WHERE tenant_id=$1 AND capability_id=$2 AND user_id=$3`,
 		tenantID, capabilityID, userId)
 	return err
@@ -321,7 +321,7 @@ func (r *Repository) RevokeCapabilityFromUser(ctx context.Context, tenantID stri
 // ListCapabilityIDsByRole returns all capability IDs assigned to a given role.
 func (r *Repository) ListCapabilityIDsByRole(ctx context.Context, tenantID, role string) ([]string, error) {
 	var ids []string
-	err := r.TenantAwareRepository.Select(ctx, &ids,
+	err := r.db.SelectContext(ctx, &ids,
 		`SELECT capability_id FROM capability_role_mappings WHERE tenant_id=$1 AND role_name=$2`,
 		tenantID, role)
 	return ids, err
@@ -330,7 +330,7 @@ func (r *Repository) ListCapabilityIDsByRole(ctx context.Context, tenantID, role
 // ListCapabilityIDsByUser returns all non-expired capability IDs directly assigned to a user.
 func (r *Repository) ListCapabilityIDsByUser(ctx context.Context, tenantID, userID string) ([]string, error) {
 	var ids []string
-	err := r.TenantAwareRepository.Select(ctx, &ids,
+	err := r.db.SelectContext(ctx, &ids,
 		`SELECT capability_id FROM capability_user_mappings
 			WHERE tenant_id=$1 AND user_id=$2 AND (expires_at IS NULL OR expires_at > NOW())`,
 		tenantID, userID)
@@ -340,7 +340,7 @@ func (r *Repository) ListCapabilityIDsByUser(ctx context.Context, tenantID, user
 // GetUserGrantExpiry returns the expires_at of a direct user capability grant if set.
 func (r *Repository) GetUserGrantExpiry(ctx context.Context, tenantID, capabilityID, userID string) (*time.Time, error) {
 	var expiresAt sql.NullTime
-	err := r.TenantAwareRepository.Get(ctx, &expiresAt,
+	err := r.db.GetContext(ctx, &expiresAt,
 		`SELECT COALESCE(expires_at, NULL) FROM capability_user_mappings
 			WHERE tenant_id=$1 AND capability_id=$2 AND user_id=$3
 			AND (expires_at IS NULL OR expires_at > NOW())`,
@@ -390,7 +390,7 @@ func (r *Repository) GrantTemporaryPermission(ctx context.Context, tenantID stri
 
 func (r *Repository) GetActiveTemporaryPermissions(ctx context.Context, tenantID, userId string) ([]models.TemporaryPermission, error) {
 	var items []models.TemporaryPermission
-	err := r.TenantAwareRepository.Select(ctx, &items,
+	err := r.db.SelectContext(ctx, &items,
 		`SELECT `+temporaryPermissionColumns+` FROM temporary_permissions WHERE user_id=$1 AND tenant_id=$2 AND expires_at > NOW() AND revoked_at IS NULL`,
 		userId, tenantID)
 	return items, err
@@ -404,7 +404,7 @@ func (r *Repository) GetActiveTemporaryPermissions(ctx context.Context, tenantID
 // be persisted -- the table has no revoked_by column -- so the audit entry
 // written by the caller is the only record of who revoked it.
 func (r *Repository) RevokeTemporaryPermissionByID(ctx context.Context, tenantID, id string) error {
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		`UPDATE temporary_permissions SET revoked_at=NOW() WHERE id=$1 AND tenant_id=$2 AND revoked_at IS NULL`,
 		id, tenantID)
 	return err
@@ -417,7 +417,7 @@ func (r *Repository) RevokeTemporaryPermissionByID(ctx context.Context, tenantID
 // any SQL is sent.
 func (r *Repository) GetTemporaryPermissionByID(ctx context.Context, tenantID string, id string) (*models.TemporaryPermission, error) {
 	var perm models.TemporaryPermission
-	err := r.TenantAwareRepository.Get(ctx, &perm,
+	err := r.db.GetContext(ctx, &perm,
 		`SELECT `+temporaryPermissionColumns+` FROM temporary_permissions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -431,7 +431,7 @@ func (r *Repository) GetTemporaryPermissionByID(ctx context.Context, tenantID st
 // GetActiveTempExpiry returns the earliest expires_at of active temporary permissions.
 func (r *Repository) GetActiveTempExpiry(ctx context.Context, tenantID, capabilityID, userID string) (*time.Time, error) {
 	var expiresAt sql.NullTime
-	err := r.TenantAwareRepository.Get(ctx, &expiresAt,
+	err := r.db.GetContext(ctx, &expiresAt,
 		`SELECT MIN(expires_at) FROM temporary_permissions
 			WHERE tenant_id=$1 AND capability_id=$2 AND user_id=$3
 			AND expires_at > NOW() AND revoked_at IS NULL`,
@@ -450,7 +450,7 @@ func (r *Repository) GetActiveTempExpiry(ctx context.Context, tenantID, capabili
 
 // CleanupExpiredTemporaryPermissions revokes expired temporary permissions for a tenant.
 func (r *Repository) CleanupExpiredTemporaryPermissions(ctx context.Context, tenantID string) (int, error) {
-	result, err := r.TenantAwareRepository.Exec(ctx,
+	result, err := r.db.ExecContext(ctx,
 		`UPDATE temporary_permissions SET revoked_at=NOW() WHERE tenant_id=$1 AND expires_at < NOW() AND revoked_at IS NULL`,
 		tenantID)
 	if err != nil {
@@ -489,7 +489,7 @@ func (r *Repository) CreatePermissionRequest(ctx context.Context, tenantID strin
 // GetPermissionRequestByID fetches a permission request by id within a tenant.
 func (r *Repository) GetPermissionRequestByID(ctx context.Context, tenantID string, ticketID string) (*models.PermissionRequest, error) {
 	var pr models.PermissionRequest
-	err := r.TenantAwareRepository.Get(ctx, &pr,
+	err := r.db.GetContext(ctx, &pr,
 		`SELECT `+permissionRequestColumns+` FROM permission_requests WHERE id=$1 AND tenant_id=$2`, ticketID, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -503,7 +503,7 @@ func (r *Repository) GetPermissionRequestByID(ctx context.Context, tenantID stri
 // GetUserPermissionRequests returns all permission requests for a user within a tenant.
 func (r *Repository) GetUserPermissionRequests(ctx context.Context, tenantID, userId string) ([]models.PermissionRequest, error) {
 	var items []models.PermissionRequest
-	err := r.TenantAwareRepository.Select(ctx, &items,
+	err := r.db.SelectContext(ctx, &items,
 		`SELECT `+permissionRequestColumns+` FROM permission_requests WHERE tenant_id=$1 AND user_id=$2 ORDER BY created_at DESC`, tenantID, userId)
 	return items, err
 }
@@ -512,7 +512,7 @@ func (r *Repository) GetUserPermissionRequests(ctx context.Context, tenantID, us
 // it. The row is keyed on tenant_id: the old statement wrote by id alone, so any
 // tenant could approve another tenant's request.
 func (r *Repository) ApprovePermissionRequest(ctx context.Context, tenantID, ticketID, approverID string) error {
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		`UPDATE permission_requests SET status='approved', approver_id=$1, updated_at=NOW() WHERE id=$2 AND tenant_id=$3`,
 		approverID, ticketID, tenantID)
 	return err
@@ -522,12 +522,12 @@ func (r *Repository) ApprovePermissionRequest(ctx context.Context, tenantID, tic
 // it. Both branches are keyed on tenant_id for the same reason.
 func (r *Repository) RejectPermissionRequest(ctx context.Context, tenantID, ticketID, rejecterID string, reason *string) error {
 	if reason != nil {
-		_, err := r.TenantAwareRepository.Exec(ctx,
+		_, err := r.db.ExecContext(ctx,
 			`UPDATE permission_requests SET status='rejected', rejected_by=$1, rejected_reason=$2, updated_at=NOW() WHERE id=$3 AND tenant_id=$4`,
 			rejecterID, *reason, ticketID, tenantID)
 		return err
 	}
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		`UPDATE permission_requests SET status='rejected', rejected_by=$1, updated_at=NOW() WHERE id=$2 AND tenant_id=$3`,
 		rejecterID, ticketID, tenantID)
 	return err
@@ -538,7 +538,7 @@ func (r *Repository) RejectPermissionRequest(ctx context.Context, tenantID, tick
 func (r *Repository) CheckPermission(ctx context.Context, tenantID, capabilityID, userID string, userRoles []string) (bool, string, error) {
 	// Check temporary permission first
 	var activeCount int
-	err := r.TenantAwareRepository.Get(ctx, &activeCount,
+	err := r.db.GetContext(ctx, &activeCount,
 		`SELECT COUNT(*) FROM temporary_permissions WHERE tenant_id=$1 AND user_id=$2 AND capability_id=$3 AND expires_at > NOW() AND revoked_at IS NULL`,
 		tenantID, userID, capabilityID)
 	if err != nil {
@@ -559,7 +559,7 @@ func (r *Repository) CheckPermission(ctx context.Context, tenantID, capabilityID
 			args[i+2] = role
 		}
 		var count int
-		err = r.TenantAwareRepository.Get(ctx, &count,
+		err = r.db.GetContext(ctx, &count,
 			`SELECT COUNT(*) FROM capability_role_mappings WHERE tenant_id=$1 AND capability_id=$2 AND role_name IN (`+strings.Join(placeholders, ",")+`)`,
 			args...)
 		if err != nil {
@@ -572,7 +572,7 @@ func (r *Repository) CheckPermission(ctx context.Context, tenantID, capabilityID
 
 	// Check direct user grant
 	var userCount int
-	err = r.TenantAwareRepository.Get(ctx, &userCount,
+	err = r.db.GetContext(ctx, &userCount,
 		`SELECT COUNT(*) FROM capability_user_mappings WHERE tenant_id=$1 AND capability_id=$2 AND user_id=$3 AND (expires_at IS NULL OR expires_at > NOW())`,
 		tenantID, capabilityID, userID)
 	if err != nil {
@@ -637,7 +637,7 @@ func (r *Repository) ListAuditLogs(ctx context.Context, tenantID string, q *mode
 	args = append(args, limit, offset)
 
 	var items []models.AuditLog
-	err := r.TenantAwareRepository.Select(ctx, &items,
+	err := r.db.SelectContext(ctx, &items,
 		`SELECT `+capabilityAuditLogColumns+` FROM capability_audit_logs `+cond, args...)
 	return items, err
 }

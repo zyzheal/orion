@@ -68,7 +68,7 @@ func NewRepository(db *sqlx.DB) *Repository {
 // answers 404 only for errors.Is(err, sentinel.NotFound), so returning the raw
 // driver error would turn a missing id into 500 "sql: no rows".
 func (r *Repository) getOne(ctx context.Context, dest any, query string, args ...any) error {
-	err := r.TenantAwareRepository.Get(ctx, dest, query, args...)
+	err := r.db.GetContext(ctx, dest, query, args...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return sentinel.NotFound
 	}
@@ -127,7 +127,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 
 func (r *Repository) ExistsByNamespaceNameVersion(ctx context.Context, tenantID, namespace, name, version string) (bool, error) {
 	var count int
-	err := r.TenantAwareRepository.Get(ctx, &count,
+	err := r.db.GetContext(ctx, &count,
 		`SELECT COUNT(*) FROM artifacts WHERE tenant_id=$1 AND namespace=$2 AND name=$3 AND version=$4 AND deleted_at IS NULL`,
 		tenantID, namespace, name, version)
 	return count > 0, err
@@ -165,14 +165,14 @@ func (r *Repository) List(ctx context.Context, tenantID string, q models.ListArt
 		where, len(args), len(args)+1)
 
 	var items []models.Artifact
-	err := r.TenantAwareRepository.Select(ctx, &items, sql, args...)
+	err := r.db.SelectContext(ctx, &items, sql, args...)
 	return items, err
 }
 
 func (r *Repository) Count(ctx context.Context, tenantID string, q models.ListArtifactsQuery) (int, error) {
 	where, args := listWhere(q, tenantID)
 	var count int
-	err := r.TenantAwareRepository.Get(ctx, &count,
+	err := r.db.GetContext(ctx, &count,
 		fmt.Sprintf(`SELECT COUNT(*) FROM artifacts WHERE %s`, where), args...)
 	return count, err
 }
@@ -212,7 +212,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 	sql := fmt.Sprintf(`UPDATE artifacts SET %s WHERE id=$%d AND tenant_id=$%d AND deleted_at IS NULL`,
 		strings.Join(sets, ", "), len(args)-1, len(args))
 
-	res, err := r.TenantAwareRepository.Exec(ctx, sql, args...)
+	res, err := r.db.ExecContext(ctx, sql, args...)
 	if err != nil {
 		return err
 	}
@@ -229,7 +229,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 // SoftDelete marks the row deleted. A zero-row update means the id is not this
 // tenant's, so it reports NotFound rather than a silent success.
 func (r *Repository) SoftDelete(ctx context.Context, tenantID, id string) error {
-	res, err := r.TenantAwareRepository.Exec(ctx,
+	res, err := r.db.ExecContext(ctx,
 		`UPDATE artifacts SET deleted_at=NOW() WHERE tenant_id=$1 AND id=$2 AND deleted_at IS NULL`,
 		tenantID, id)
 	if err != nil {
@@ -254,7 +254,7 @@ func (r *Repository) SoftDelete(ctx context.Context, tenantID, id string) error 
 // one tenant would satisfy the NOT EXISTS for another tenant's artifact.
 func (r *Repository) AddTags(ctx context.Context, tenantID, artifactID string, tags []string) error {
 	for _, tag := range tags {
-		_, err := r.TenantAwareRepository.Exec(ctx, `
+		_, err := r.db.ExecContext(ctx, `
 			INSERT INTO artifact_tags (id, tenant_id, artifact_id, tag, created_at)
 			SELECT $1, $2, $3, $4, NOW()
 			WHERE NOT EXISTS (
@@ -270,7 +270,7 @@ func (r *Repository) AddTags(ctx context.Context, tenantID, artifactID string, t
 
 func (r *Repository) RemoveTags(ctx context.Context, tenantID, artifactID string, tags []string) error {
 	for _, tag := range tags {
-		_, err := r.TenantAwareRepository.Exec(ctx,
+		_, err := r.db.ExecContext(ctx,
 			`DELETE FROM artifact_tags WHERE tenant_id=$1 AND artifact_id=$2 AND tag=$3`,
 			tenantID, artifactID, tag)
 		if err != nil {
@@ -282,7 +282,7 @@ func (r *Repository) RemoveTags(ctx context.Context, tenantID, artifactID string
 
 func (r *Repository) GetTags(ctx context.Context, tenantID, artifactID string) ([]string, error) {
 	var tags []string
-	err := r.TenantAwareRepository.Select(ctx, &tags,
+	err := r.db.SelectContext(ctx, &tags,
 		`SELECT tag FROM artifact_tags WHERE tenant_id=$1 AND artifact_id=$2 ORDER BY created_at DESC`,
 		tenantID, artifactID)
 	return tags, err
@@ -291,7 +291,7 @@ func (r *Repository) GetTags(ctx context.Context, tenantID, artifactID string) (
 // --- Downloads ---
 
 func (r *Repository) RecordDownload(ctx context.Context, tenantID, artifactID string, req models.DownloadArtifactRequest) error {
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO artifact_downloads (id, tenant_id, artifact_id, downloaded_by, downloaded_at, ip_address, user_agent)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		uuid.New().String(), tenantID, artifactID, req.DownloadedBy, time.Now().UTC(), req.IPAddress, req.UserAgent)
@@ -300,7 +300,7 @@ func (r *Repository) RecordDownload(ctx context.Context, tenantID, artifactID st
 
 func (r *Repository) GetDownloadHistory(ctx context.Context, tenantID, artifactID string) ([]models.ArtifactDownload, error) {
 	var items []models.ArtifactDownload
-	err := r.TenantAwareRepository.Select(ctx, &items,
+	err := r.db.SelectContext(ctx, &items,
 		`SELECT `+downloadColumns+` FROM artifact_downloads WHERE tenant_id=$1 AND artifact_id=$2 ORDER BY downloaded_at DESC LIMIT 100`,
 		tenantID, artifactID)
 	return items, err
@@ -311,7 +311,7 @@ func (r *Repository) GetDownloadHistory(ctx context.Context, tenantID, artifactI
 func (r *Repository) Search(ctx context.Context, tenantID string, query string, limit, offset int) ([]models.Artifact, error) {
 	limit, offset = page(limit, offset)
 	var items []models.Artifact
-	err := r.TenantAwareRepository.Select(ctx, &items,
+	err := r.db.SelectContext(ctx, &items,
 		`SELECT `+artifactColumns+` FROM artifacts WHERE tenant_id=$1 AND deleted_at IS NULL
 			AND (name ILIKE $2 OR namespace ILIKE $2 OR version ILIKE $2)
 			ORDER BY created_at DESC LIMIT $3 OFFSET $4`,
@@ -326,7 +326,7 @@ func (r *Repository) CreatePromotion(ctx context.Context, p *models.ArtifactProm
 		p.ID = uuid.New().String()
 	}
 	p.CreatedAt = time.Now().UTC()
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO artifact_promotions (id, tenant_id, artifact_id, from_stage, to_stage, promoted_by, approved_by, reason, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 		p.ID, p.TenantID, p.ArtifactID, p.FromStage, p.ToStage, p.PromotedBy, p.ApprovedBy, p.Reason, p.CreatedAt)
@@ -335,7 +335,7 @@ func (r *Repository) CreatePromotion(ctx context.Context, p *models.ArtifactProm
 
 func (r *Repository) GetCurrentStage(ctx context.Context, tenantID, id string) (string, error) {
 	var stage string
-	err := r.TenantAwareRepository.Get(ctx, &stage,
+	err := r.db.GetContext(ctx, &stage,
 		`SELECT to_stage FROM artifact_promotions WHERE tenant_id=$1 AND artifact_id=$2 ORDER BY created_at DESC LIMIT 1`,
 		tenantID, id)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -349,7 +349,7 @@ func (r *Repository) GetCurrentStage(ctx context.Context, tenantID, id string) (
 
 func (r *Repository) GetPromotionHistory(ctx context.Context, tenantID, id string) ([]models.ArtifactPromotion, error) {
 	var items []models.ArtifactPromotion
-	err := r.TenantAwareRepository.Select(ctx, &items,
+	err := r.db.SelectContext(ctx, &items,
 		`SELECT `+promotionColumns+` FROM artifact_promotions WHERE tenant_id=$1 AND artifact_id=$2 ORDER BY created_at DESC`,
 		tenantID, id)
 	return items, err
@@ -370,14 +370,14 @@ func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.Art
 		ByType:   make(map[string]int),
 		ByStatus: make(map[string]int),
 	}
-	if err := r.TenantAwareRepository.Get(ctx, stats,
+	if err := r.db.GetContext(ctx, stats,
 		`SELECT COUNT(*) AS total, COALESCE(SUM(size_bytes), 0) AS total_size_bytes
 		 FROM artifacts WHERE tenant_id=$1 AND deleted_at IS NULL`, tenantID); err != nil {
 		return nil, err
 	}
 
 	var byType []countRow
-	if err := r.TenantAwareRepository.Select(ctx, &byType,
+	if err := r.db.SelectContext(ctx, &byType,
 		`SELECT type AS bucket, COUNT(*) AS count FROM artifacts
 		 WHERE tenant_id=$1 AND deleted_at IS NULL GROUP BY type`, tenantID); err != nil {
 		return nil, err
@@ -387,7 +387,7 @@ func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.Art
 	}
 
 	var byStatus []countRow
-	if err := r.TenantAwareRepository.Select(ctx, &byStatus,
+	if err := r.db.SelectContext(ctx, &byStatus,
 		`SELECT status AS bucket, COUNT(*) AS count FROM artifacts
 		 WHERE tenant_id=$1 AND deleted_at IS NULL GROUP BY status`, tenantID); err != nil {
 		return nil, err
@@ -401,7 +401,7 @@ func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.Art
 
 func (r *Repository) GetTypeStats(ctx context.Context, tenantID string) ([]models.ArtifactTypeStat, error) {
 	var items []models.ArtifactTypeStat
-	err := r.TenantAwareRepository.Select(ctx, &items,
+	err := r.db.SelectContext(ctx, &items,
 		`SELECT type AS type, COUNT(*) AS count, COALESCE(SUM(size_bytes), 0) AS size
 		 FROM artifacts WHERE tenant_id=$1 AND deleted_at IS NULL GROUP BY type`, tenantID)
 	return items, err
@@ -409,7 +409,7 @@ func (r *Repository) GetTypeStats(ctx context.Context, tenantID string) ([]model
 
 func (r *Repository) GetNamespaces(ctx context.Context, tenantID string) ([]models.NamespaceStat, error) {
 	var items []models.NamespaceStat
-	err := r.TenantAwareRepository.Select(ctx, &items,
+	err := r.db.SelectContext(ctx, &items,
 		`SELECT namespace, COUNT(*) AS count FROM artifacts
 		 WHERE tenant_id=$1 AND deleted_at IS NULL GROUP BY namespace`, tenantID)
 	return items, err

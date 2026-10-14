@@ -45,7 +45,7 @@ func NewRepository(db *sqlx.DB) *Repository {
 // answers 404 only for errors.Is(err, sentinel.NotFound), so returning the raw
 // driver error would turn a missing id into 500 "sql: no rows".
 func (r *Repository) getOne(ctx context.Context, dest any, query string, args ...any) error {
-	err := r.TenantAwareRepository.Get(ctx, dest, query, args...)
+	err := r.db.GetContext(ctx, dest, query, args...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return sentinel.NotFound
 	}
@@ -68,7 +68,7 @@ func (r *Repository) Create(ctx context.Context, rec *models.ScanRecord) error {
 // platform, so an unscoped query would hand one tenant another tenant's targets.
 func (r *Repository) List(ctx context.Context, tenantID string, limit int) ([]models.ScanRecord, error) {
 	out := make([]models.ScanRecord, 0, limit)
-	err := r.TenantAwareRepository.Select(ctx, &out,
+	err := r.db.SelectContext(ctx, &out,
 		`SELECT `+runColumns+` FROM code_scan_runs WHERE tenant_id=$1 ORDER BY created_at DESC, id DESC LIMIT $2`,
 		tenantID, limit)
 	return out, err
@@ -121,7 +121,7 @@ func (r *Repository) StartScan(ctx context.Context, tenantID, id string, started
 // FailScan records a run that could not be scanned, keeping the error text so
 // the caller can see why instead of staring at a 'running' row forever.
 func (r *Repository) FailScan(ctx context.Context, tenantID, id, errMsg string) error {
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		`UPDATE code_scan_runs SET status='failed', completed_at=NOW(), error=$3
 		 WHERE tenant_id=$1 AND id=$2`, tenantID, id, errMsg)
 	return err
@@ -178,12 +178,12 @@ func (r *Repository) FinishScan(ctx context.Context, tenantID, id string, counts
 func (r *Repository) ListFindings(ctx context.Context, tenantID, scanID string, limit int) ([]models.VulnFinding, error) {
 	out := make([]models.VulnFinding, 0, limit)
 	if scanID == "" {
-		err := r.TenantAwareRepository.Select(ctx, &out,
+		err := r.db.SelectContext(ctx, &out,
 			`SELECT `+findingColumns+` FROM code_scan_findings WHERE tenant_id=$1 ORDER BY severity, created_at DESC, id DESC LIMIT $2`,
 			tenantID, limit)
 		return out, err
 	}
-	err := r.TenantAwareRepository.Select(ctx, &out,
+	err := r.db.SelectContext(ctx, &out,
 		`SELECT `+findingColumns+` FROM code_scan_findings WHERE tenant_id=$1 AND scan_id=$2 ORDER BY severity, created_at DESC, id DESC LIMIT $3`,
 		tenantID, scanID, limit)
 	return out, err

@@ -62,7 +62,7 @@ func (r *Repository) CreateTarget(ctx context.Context, t *models.Target) error {
 	t.CreatedAt = now
 	t.UpdatedAt = now
 
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO cmdb_targets
 			(id, name, host, port, "type", protocol, tenant_id, config, metadata, created_at, updated_at)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
@@ -77,7 +77,7 @@ func (r *Repository) CreateTarget(ctx context.Context, t *models.Target) error {
 // and therefore probing or driving — another tenant's target by id alone.
 func (r *Repository) GetTarget(ctx context.Context, tenantID, id string) (*models.Target, error) {
 	var t models.Target
-	err := r.TenantAwareRepository.Get(ctx, &t,
+	err := r.db.GetContext(ctx, &t,
 		`SELECT id, name, host, port, "type", protocol, tenant_id, config,
 		        metadata, created_at, updated_at
 		 FROM cmdb_targets
@@ -97,7 +97,7 @@ func (r *Repository) ListTargets(ctx context.Context, tenantID, targetType strin
 	var err error
 
 	if tenantID != "" && targetType != "" {
-		err = r.TenantAwareRepository.Select(ctx, &items,
+		err = r.db.SelectContext(ctx, &items,
 			`SELECT id, name, host, port, "type", protocol, tenant_id, config,
 			        metadata, created_at, updated_at
 			 FROM cmdb_targets
@@ -107,7 +107,7 @@ func (r *Repository) ListTargets(ctx context.Context, tenantID, targetType strin
 			tenantID, targetType, offset, limit,
 		)
 	} else if tenantID != "" {
-		err = r.TenantAwareRepository.Select(ctx, &items,
+		err = r.db.SelectContext(ctx, &items,
 			`SELECT id, name, host, port, "type", protocol, tenant_id, config,
 			        metadata, created_at, updated_at
 			 FROM cmdb_targets
@@ -117,7 +117,7 @@ func (r *Repository) ListTargets(ctx context.Context, tenantID, targetType strin
 			tenantID, offset, limit,
 		)
 	} else {
-		err = r.TenantAwareRepository.Select(ctx, &items,
+		err = r.db.SelectContext(ctx, &items,
 			`SELECT id, name, host, port, "type", protocol, tenant_id, config,
 			        metadata, created_at, updated_at
 			 FROM cmdb_targets
@@ -137,7 +137,7 @@ func (r *Repository) ListTargets(ctx context.Context, tenantID, targetType strin
 // as deleted by deleting the row (hard delete); a soft-delete can be added
 // later if needed.
 func (r *Repository) DeleteTarget(ctx context.Context, tenantID, id string) error {
-	res, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM cmdb_targets WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	res, err := r.db.ExecContext(ctx, `DELETE FROM cmdb_targets WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return err
 	}
@@ -165,7 +165,7 @@ func (r *Repository) CreateDevice(ctx context.Context, d *models.Device) error {
 	d.UpdatedAt = now
 	d.LastSeenAt = &now
 
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO cmdb_devices
 			(id, device_id, name, "type", vendor, model, ip, serial_number,
 			 tenant_id, target_id, adapter, last_seen_at, attributes, status, metadata,
@@ -186,7 +186,7 @@ func (r *Repository) UpsertDevice(ctx context.Context, d *models.Device) error {
 	d.LastSeenAt = &now
 	d.UpdatedAt = now
 
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO cmdb_devices
 			(id, device_id, name, "type", vendor, model, ip, serial_number,
 			 tenant_id, target_id, adapter, last_seen_at, attributes, status, metadata,
@@ -211,7 +211,7 @@ func (r *Repository) UpsertDevice(ctx context.Context, d *models.Device) error {
 // calling tenant, so device ids are not enumerable across tenants.
 func (r *Repository) GetDevice(ctx context.Context, tenantID, id string) (*models.Device, error) {
 	var d models.Device
-	err := r.TenantAwareRepository.Get(ctx, &d,
+	err := r.db.GetContext(ctx, &d,
 		`SELECT id, device_id, name, "type", vendor, model, ip, serial_number,
 		        tenant_id, target_id, adapter, last_seen_at, attributes, status, metadata,
 		        created_at, updated_at
@@ -228,7 +228,7 @@ func (r *Repository) GetDevice(ctx context.Context, tenantID, id string) (*model
 // GetDeviceByDeviceID returns a device by its stable device_id within a tenant.
 func (r *Repository) GetDeviceByDeviceID(ctx context.Context, tenantID, deviceID string) (*models.Device, error) {
 	var d models.Device
-	err := r.TenantAwareRepository.Get(ctx, &d,
+	err := r.db.GetContext(ctx, &d,
 		`SELECT id, device_id, name, "type", vendor, model, ip, serial_number,
 		        tenant_id, target_id, adapter, last_seen_at, attributes, status, metadata,
 		        created_at, updated_at
@@ -272,7 +272,7 @@ func (r *Repository) ListDevices(ctx context.Context, tenantID, deviceType, vend
 		        created_at, updated_at
 		 FROM cmdb_devices ` + where + ` ORDER BY last_seen_at DESC OFFSET ` + offsetArg + ` LIMIT ` + limitArg
 
-	err = r.TenantAwareRepository.Select(ctx, &items, query, args...)
+	err = r.db.SelectContext(ctx, &items, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -294,7 +294,7 @@ func (r *Repository) CreateCollection(ctx context.Context, c *models.Collection)
 	}
 	c.CreatedAt = time.Now().UTC()
 
-	_, err := r.TenantAwareRepository.Exec(ctx,
+	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO cmdb_collections
 			(id, collection_id, collector, device_id, target_id, tenant_id, phase, status,
 			 attribute_count, attributes, error, duration_ms, created_at)
@@ -311,7 +311,7 @@ func (r *Repository) CreateCollection(ctx context.Context, c *models.Collection)
 // across tenants.
 func (r *Repository) GetCollection(ctx context.Context, tenantID, collectionID string) (*models.Collection, error) {
 	var c models.Collection
-	err := r.TenantAwareRepository.Get(ctx, &c,
+	err := r.db.GetContext(ctx, &c,
 		`SELECT id, collection_id, collector, device_id, target_id, tenant_id, phase,
 		        status, attribute_count, attributes, error, duration_ms, created_at
 		 FROM cmdb_collections
@@ -359,7 +359,7 @@ func (r *Repository) ListCollections(ctx context.Context, tenantID, collector, d
 		        status, attribute_count, attributes, error, duration_ms, created_at
 		 FROM cmdb_collections ` + where + ` ORDER BY created_at DESC OFFSET ` + offsetArg + ` LIMIT ` + limitArg
 
-	err = r.TenantAwareRepository.Select(ctx, &items, query, args...)
+	err = r.db.SelectContext(ctx, &items, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -373,7 +373,7 @@ func (r *Repository) ListCollections(ctx context.Context, tenantID, collector, d
 // CountTargets returns the number of targets for a tenant.
 func (r *Repository) CountTargets(ctx context.Context, tenantID string) (int, error) {
 	var n int
-	err := r.TenantAwareRepository.Get(ctx, &n,
+	err := r.db.GetContext(ctx, &n,
 		`SELECT COUNT(*) FROM cmdb_targets WHERE tenant_id = $1`, tenantID,
 	)
 	return n, err
@@ -382,7 +382,7 @@ func (r *Repository) CountTargets(ctx context.Context, tenantID string) (int, er
 // CountDevices returns the number of devices for a tenant.
 func (r *Repository) CountDevices(ctx context.Context, tenantID string) (int, error) {
 	var n int
-	err := r.TenantAwareRepository.Get(ctx, &n,
+	err := r.db.GetContext(ctx, &n,
 		`SELECT COUNT(*) FROM cmdb_devices WHERE tenant_id = $1`, tenantID,
 	)
 	return n, err
@@ -391,7 +391,7 @@ func (r *Repository) CountDevices(ctx context.Context, tenantID string) (int, er
 // CountCollections returns the number of collections for a tenant.
 func (r *Repository) CountCollections(ctx context.Context, tenantID string) (int, error) {
 	var n int
-	err := r.TenantAwareRepository.Get(ctx, &n,
+	err := r.db.GetContext(ctx, &n,
 		`SELECT COUNT(*) FROM cmdb_collections WHERE tenant_id = $1`, tenantID,
 	)
 	return n, err

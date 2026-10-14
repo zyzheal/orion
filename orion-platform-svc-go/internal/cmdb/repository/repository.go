@@ -39,7 +39,7 @@ func (r *Repository) CreateCI(ctx context.Context, ci *models.CI) error {
 
 func (r *Repository) GetCIByID(ctx context.Context, id string) (*models.CI, error) {
 	var ci models.CI
-	err := r.TenantAwareRepository.Get(ctx, &ci,
+	err := r.db.GetContext(ctx, &ci,
 		`SELECT * FROM cmdb_cis WHERE id=$1`, id)
 	if err != nil {
 		return nil, err
@@ -50,14 +50,14 @@ func (r *Repository) GetCIByID(ctx context.Context, id string) (*models.CI, erro
 func (r *Repository) GetCIByCiId(ctx context.Context, ciID string, tenantID *string) (*models.CI, error) {
 	var ci models.CI
 	if tenantID != nil {
-		err := r.TenantAwareRepository.Get(ctx, &ci,
+		err := r.db.GetContext(ctx, &ci,
 			`SELECT * FROM cmdb_cis WHERE ci_id=$1 AND tenant_id=$2`, ciID, *tenantID)
 		if err != nil {
 			return nil, err
 		}
 		return &ci, nil
 	}
-	err := r.TenantAwareRepository.Get(ctx, &ci,
+	err := r.db.GetContext(ctx, &ci,
 		`SELECT * FROM cmdb_cis WHERE ci_id=$1`, ciID)
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func (r *Repository) UpdateCI(ctx context.Context, id string, updates map[string
 	}
 	args = append(args, id)
 	query := fmt.Sprintf(`UPDATE cmdb_cis SET %s WHERE id=$%d`, strings.Join(setClauses, ", "), i)
-	_, err := r.TenantAwareRepository.Exec(ctx, query, args...)
+	_, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func (r *Repository) UpdateCI(ctx context.Context, id string, updates map[string
 }
 
 func (r *Repository) DeleteCI(ctx context.Context, id string) (bool, error) {
-	result, err := r.TenantAwareRepository.Exec(ctx,
+	result, err := r.db.ExecContext(ctx,
 		`DELETE FROM cmdb_cis WHERE id=$1`, id)
 	if err != nil {
 		return false, err
@@ -102,7 +102,7 @@ func (r *Repository) DeleteByTenantID(ctx context.Context, tenantID string) (int
 	if tenantID == "" {
 		return 0, fmt.Errorf("tenantID is required")
 	}
-	res, err := r.TenantAwareRepository.Exec(ctx, `DELETE FROM cmdb_cis WHERE tenant_id=$1`, tenantID)
+	res, err := r.db.ExecContext(ctx, `DELETE FROM cmdb_cis WHERE tenant_id=$1`, tenantID)
 	if err != nil {
 		return 0, err
 	}
@@ -141,7 +141,7 @@ func (r *Repository) ListCIs(ctx context.Context, ciType *string, status *string
 	}
 
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM cmdb_cis %s`, where)
-	err := r.TenantAwareRepository.Get(ctx, &total, countQuery, args...)
+	err := r.db.GetContext(ctx, &total, countQuery, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -149,7 +149,7 @@ func (r *Repository) ListCIs(ctx context.Context, ciType *string, status *string
 	offset := (page - 1) * limit
 	selectQuery := fmt.Sprintf(`SELECT * FROM cmdb_cis %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)
 	args = append(args, limit, offset)
-	err = r.TenantAwareRepository.Select(ctx, &items, selectQuery, args...)
+	err = r.db.SelectContext(ctx, &items, selectQuery, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -349,7 +349,7 @@ func (r *Repository) BatchQueryCIs(ctx context.Context, q *models.BatchQueryRequ
 	}
 
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM cmdb_cis %s`, where)
-	err := r.TenantAwareRepository.Get(ctx, &total, countQuery, args...)
+	err := r.db.GetContext(ctx, &total, countQuery, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -375,7 +375,7 @@ func (r *Repository) BatchQueryCIs(ctx context.Context, q *models.BatchQueryRequ
 	selectQuery := fmt.Sprintf(`SELECT * FROM cmdb_cis %s ORDER BY %s %s LIMIT $%d OFFSET $%d`,
 		where, orderBy, order, argIdx, argIdx+1)
 	args = append(args, limit, offset)
-	err = r.TenantAwareRepository.Select(ctx, &items, selectQuery, args...)
+	err = r.db.SelectContext(ctx, &items, selectQuery, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -421,7 +421,7 @@ func (r *Repository) ExportCIs(ctx context.Context, ciType, status, environment,
 	}
 
 	var items []models.CI
-	err := r.TenantAwareRepository.Select(ctx, &items,
+	err := r.db.SelectContext(ctx, &items,
 		fmt.Sprintf(`SELECT * FROM cmdb_cis %s ORDER BY created_at DESC`, where), args...)
 	return items, err
 }
@@ -430,7 +430,7 @@ func (r *Repository) ExportCIs(ctx context.Context, ciType, status, environment,
 
 func (r *Repository) GetCIRelations(ctx context.Context, ciID string) ([]models.CIRelation, error) {
 	var relations []models.CIRelation
-	err := r.TenantAwareRepository.Select(ctx, &relations,
+	err := r.db.SelectContext(ctx, &relations,
 		`SELECT * FROM cmdb_ci_relations WHERE from_ci_id=$1 OR to_ci_id=$1`, ciID)
 	return relations, err
 }
@@ -447,7 +447,7 @@ func (r *Repository) CreateRelation(ctx context.Context, rel *models.CIRelation)
 }
 
 func (r *Repository) DeleteRelation(ctx context.Context, relationID string, tenantID string) (bool, error) {
-	result, err := r.TenantAwareRepository.Exec(ctx,
+	result, err := r.db.ExecContext(ctx,
 		`DELETE FROM cmdb_ci_relations WHERE id=$1 AND tenant_id=$2`, relationID, tenantID)
 	if err != nil {
 		return false, err
@@ -460,14 +460,14 @@ func (r *Repository) DeleteRelation(ctx context.Context, relationID string, tena
 
 func (r *Repository) GetCIVersions(ctx context.Context, ciID string) ([]models.CIVersion, error) {
 	var versions []models.CIVersion
-	err := r.TenantAwareRepository.Select(ctx, &versions,
+	err := r.db.SelectContext(ctx, &versions,
 		`SELECT * FROM cmdb_ci_versions WHERE ci_id=$1 ORDER BY version DESC`, ciID)
 	return versions, err
 }
 
 func (r *Repository) GetCurrentVersion(ctx context.Context, ciID string) (*models.CIVersion, error) {
 	var v models.CIVersion
-	err := r.TenantAwareRepository.Get(ctx, &v,
+	err := r.db.GetContext(ctx, &v,
 		`SELECT * FROM cmdb_ci_versions WHERE ci_id=$1 ORDER BY version DESC LIMIT 1`, ciID)
 	if err != nil {
 		return nil, err
@@ -493,7 +493,7 @@ func (r *Repository) CreateVersion(ctx context.Context, ciID string, version int
 
 func (r *Repository) GetVersionSnapshot(ctx context.Context, ciID string, version int) (*string, error) {
 	var snapshot string
-	err := r.TenantAwareRepository.Get(ctx, &snapshot,
+	err := r.db.GetContext(ctx, &snapshot,
 		`SELECT snapshot FROM cmdb_ci_versions WHERE ci_id=$1 AND version=$2`, ciID, version)
 	if err != nil {
 		return nil, err
@@ -506,13 +506,13 @@ func (r *Repository) GetVersionSnapshot(ctx context.Context, ciID string, versio
 func (r *Repository) GetTopologyNodes(ctx context.Context, ciType *string, tenantID string, limit int) ([]models.TopologyNode, error) {
 	var nodes []models.TopologyNode
 	if ciType != nil && *ciType != "" {
-		err := r.TenantAwareRepository.Select(ctx, &nodes,
+		err := r.db.SelectContext(ctx, &nodes,
 			`SELECT id AS "id", ci_type AS "type", json_build_object('ci_id', ci_id, 'name', name, 'status', status) AS "data"
 			 FROM cmdb_cis WHERE tenant_id=$1 AND ci_type=$2 LIMIT $3`,
 			tenantID, *ciType, limit)
 		return nodes, err
 	}
-	err := r.TenantAwareRepository.Select(ctx, &nodes,
+	err := r.db.SelectContext(ctx, &nodes,
 		`SELECT id AS "id", ci_type AS "type", json_build_object('ci_id', ci_id, 'name', name, 'status', status) AS "data"
 		 FROM cmdb_cis WHERE tenant_id=$1 LIMIT $2`,
 		tenantID, limit)
@@ -521,7 +521,7 @@ func (r *Repository) GetTopologyNodes(ctx context.Context, ciType *string, tenan
 
 func (r *Repository) GetTopologyEdges(ctx context.Context, tenantID string, limit int) ([]models.TopologyEdge, error) {
 	var edges []models.TopologyEdge
-	err := r.TenantAwareRepository.Select(ctx, &edges,
+	err := r.db.SelectContext(ctx, &edges,
 		`SELECT from_ci_id AS "source", to_ci_id AS "target", relation_type AS "relationType"
 		 FROM cmdb_ci_relations WHERE tenant_id=$1 LIMIT $2`,
 		tenantID, limit)
@@ -530,7 +530,7 @@ func (r *Repository) GetTopologyEdges(ctx context.Context, tenantID string, limi
 
 func (r *Repository) GetServiceDependencies(ctx context.Context, tenantID string, ciID string) ([]models.CIRelation, error) {
 	var relations []models.CIRelation
-	err := r.TenantAwareRepository.Select(ctx, &relations,
+	err := r.db.SelectContext(ctx, &relations,
 		`SELECT r.* FROM cmdb_ci_relations r
 		 WHERE r.from_ci_id=$1 AND r.tenant_id=$2`, ciID, tenantID)
 	return relations, err
@@ -538,7 +538,7 @@ func (r *Repository) GetServiceDependencies(ctx context.Context, tenantID string
 
 func (r *Repository) GetImpactAnalysis(ctx context.Context, tenantID string, ciID string) ([]models.CIRelation, error) {
 	var relations []models.CIRelation
-	err := r.TenantAwareRepository.Select(ctx, &relations,
+	err := r.db.SelectContext(ctx, &relations,
 		`SELECT r.* FROM cmdb_ci_relations r
 		 WHERE r.to_ci_id=$1 AND r.tenant_id=$2`, ciID, tenantID)
 	return relations, err
@@ -578,7 +578,7 @@ func (r *Repository) SearchCIs(ctx context.Context, tenantID, query string, doma
 	sql := fmt.Sprintf(`SELECT * FROM cmdb_cis %s%s%s`, where, orderBy, limitClause)
 	args = append(orderByArgs, limit, offset)
 
-	err := r.TenantAwareRepository.Select(ctx, &items, sql, args...)
+	err := r.db.SelectContext(ctx, &items, sql, args...)
 	return items, err
 }
 
