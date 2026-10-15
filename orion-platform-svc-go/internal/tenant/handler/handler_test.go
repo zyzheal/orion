@@ -66,6 +66,7 @@ func (m *mockTenantRepo) UpdateTenant(_ context.Context, _ string, _ *string, _ 
 	return m.updateErr
 }
 func (m *mockTenantRepo) DeleteTenant(_ context.Context, _ string) error { return m.deleteErr }
+func (m *mockTenantRepo) CascadeDeleteTenant(_ context.Context, _ string) error { return m.deleteErr }
 func (m *mockTenantRepo) TenantCount(_ context.Context, _ *string) (int, error) {
 	return m.count, m.dbErr
 }

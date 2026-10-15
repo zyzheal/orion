@@ -142,6 +142,43 @@ func (r *Repository) DeleteTenant(ctx context.Context, id string) error {
 	return err
 }
 
+// cascadeDeleteTables 是级联删除的硬编码白名单，确保表名非用户输入
+// （避免 SQL 注入），与各模块 DeleteByTenantID 的目标表保持一致
+// （GATE-GDPR-DELETE-CASCADE, docs §2.11 W11）。
+var cascadeDeleteTables = []string{
+	"audit_logs",  // internal/audit
+	"cmdb_cis",    // internal/cmdb
+	"tickets",     // internal/ticket
+	"pipelines",   // internal/pipeline
+	"users",       // internal/user
+	"alerts",      // internal/alert
+}
+
+// CascadeDeleteTenant 在单个事务内删除该租户的全部子资源数据（6 张
+// core table）+ 租户行本身。任一子表删除失败则整体回滚，保证 GDPR
+// 级联删除的原子性（right-to-be-forgotten）。
+func (r *Repository) CascadeDeleteTenant(ctx context.Context, tenantID string) error {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("cascade delete: begin tx: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck // 提交后回滚为 no-op
+
+	for _, tbl := range cascadeDeleteTables {
+		// 表名来自上方硬编码白名单，非用户输入，安全拼接
+		if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s WHERE tenant_id = $1", tbl), tenantID); err != nil {
+			return fmt.Errorf("cascade delete %s: %w", tbl, err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM tenants WHERE id = $1`, tenantID); err != nil {
+		return fmt.Errorf("cascade delete tenants: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("cascade delete: commit: %w", err)
+	}
+	return nil
+}
+
 func (r *Repository) TenantCount(ctx context.Context, status *string) (int, error) {
 	where := "WHERE deleted_at IS NULL"
 	args := []any{}

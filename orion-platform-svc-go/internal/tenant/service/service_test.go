@@ -97,6 +97,17 @@ func (m *mockTenantRepo) DeleteTenant(ctx context.Context, id string) error {
 	return nil
 }
 
+// CascadeDeleteTenant simulates the GDPR cascade: the tenant row plus all
+// child resources are removed. The in-memory mock has no child tables, so
+// it mirrors the full cascade by clearing the tenant (GATE-GDPR-DELETE-CASCADE).
+func (m *mockTenantRepo) CascadeDeleteTenant(ctx context.Context, tenantID string) error {
+	if m.err != nil {
+		return m.err
+	}
+	delete(m.tenants, tenantID)
+	return nil
+}
+
 func (m *mockTenantRepo) TenantCount(ctx context.Context, status *string) (int, error) {
 	if m.err != nil {
 		return 0, m.err

@@ -23,6 +23,7 @@ type RepositoryInterface interface {
 	CreateInvite(ctx context.Context, tenantID, email, role, inviteCode, invitedBy string, expiresAt string) (*map[string]any, error)
 	CreateTenant(ctx context.Context, name string, displayName *string, settingsJSON string, status string) (*int, error)
 	DeleteTenant(ctx context.Context, id string) error
+	CascadeDeleteTenant(ctx context.Context, tenantID string) error
 	GetActiveAlerts(ctx context.Context, tenantID string, limit int) ([]map[string]any, error)
 	GetAlertResourceCounts(ctx context.Context, tenantID string) ([]map[string]any, error)
 	GetAlertStatusCounts(ctx context.Context, tenantID string) ([]map[string]any, error)
@@ -254,7 +255,7 @@ func (s *Service) UpdateTenant(ctx context.Context, id string, req models.Update
 }
 
 func (s *Service) DeleteTenant(ctx context.Context, id string) error {
-	return s.repo.DeleteTenant(ctx, id)
+	return s.repo.CascadeDeleteTenant(ctx, id)
 }
 
 func (s *Service) TenantCount(ctx context.Context, status *string) (int, error) {

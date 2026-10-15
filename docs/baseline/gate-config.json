@@ -651,14 +651,14 @@
       "stage": "S2",
       "metric": "cascade_delete_test",
       "threshold": 100,
-      "current_baseline": 0,
+      "current_baseline": 100,
       "paths": [
         "internal/tenant/"
       ],
       "recovery": "租户数据级联删除测试 (v2 §2.11)",
       "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.11",
       "check_script": "scripts/lint/gdpr-cascade-check.sh",
-      "current_baseline_note": "P0 落地 (2026-10-11): 真实脚本替换占位。DeleteTenant entry point 存在（tenant/repository + service）但 6 个 core table 缺 DeleteByTenantID 方法，且无事务包装。DEGRADE 挂 CI，T1 时启用 BLOCK。",
+      "current_baseline_note": "P0 落地 (2026-10-14): CascadeDeleteTenant 单事务删除 6 core table (audit_logs/cmdb_cis/tickets/pipelines/users/alerts) + 租户行，失败整体回滚；gdpr 脚本事务检测扩充 BeginTxx/Beginx；4 项 sqlmock 测试覆盖级联/回滚/表白名单。gate 全部 PASS，可升级 BLOCK。",
       "manual_review": false,
       "new_code_enforcement": "DELETE_BY_TENANT_ID",
       "ci_stage": "DEGRADE"
