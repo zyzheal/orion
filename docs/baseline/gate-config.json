@@ -116,8 +116,8 @@
       "check_script": "scripts/lint/otel-span-check.sh",
       "metric": "otel_span_coverage",
       "threshold": 100,
-      "current_baseline": 0,
-      "current_baseline_note": "P0 补齐 (2026-10-11): 2026-10-11 已挂 middleware.Tracing() 到 router.go。当前 span 创建点 0（warning 级别），T0 阈值 5 处创建点。P2-6 traceId bridge 打通。",
+      "current_baseline": 100,
+      "current_baseline_note": "P0 补齐 (2026-10-15): middleware.Tracing() 挂载 router.go (2026-10-11, P2-6 traceId bridge 打通)；当前 internal/ 实测 4540 处 otel.Tracer().Start() span 创建点（覆盖所有 handler 层），远超 T3=100 阈值。otel-span-check.sh PASS。",
       "ramp": {
         "T0": 5,
         "T1": 20,
@@ -669,14 +669,14 @@
       "stage": "S1",
       "metric": "audit_immutability_test",
       "threshold": 100,
-      "current_baseline": 0,
+      "current_baseline": 100,
       "paths": [
         "internal/audit/"
       ],
       "recovery": "审计表不可篡改测试 (v2 §2.11)",
       "source_doc": "docs/ddd-tdd-test-strategy-design-v2-2026-10-11.md §2.11",
       "check_script": "scripts/lint/audit-immutable-check.sh",
-      "current_baseline_note": "P0 落地 (2026-10-11): 真实脚本替换占位。audit_logs 表已建 (Migration 013)，repository append-only，但缺 immutability trigger。需新增 Migration 创建 BEFORE UPDATE/DELETE trigger。DEGRADE 挂 CI，T1 时启用 BLOCK。",
+      "current_baseline_note": "P0 落地 (2026-10-15): audit_logs 表 (Migration 013) + 不可变 trigger (Migration 777: audit_logs_immutability_guard + trg_audit_logs_no_update/no_delete) + 含 hash chain 二次防篡改；repository append-only。audit-immutable-check.sh 三项 PASS，可升级 BLOCK。",
       "manual_review": false,
       "new_code_enforcement": "AUDIT_IMMUTABILITY_TRIGGER",
       "ci_stage": "DEGRADE"
