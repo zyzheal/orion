@@ -100,6 +100,6 @@ func wireDomainEvents(db *database.DB, composedPublisher *eventbus.ComposedEvent
 // shutdownDomainBackgroundJobs stops any running background goroutines.
 // Safe to call even if none were started.
 func shutdownDomainBackgroundJobs() {
-	// Reserved for SLA monitor and inspection scheduler shutdown
-	// when those background jobs are activated.
+	stopSLAMonitor()
+	stopInspectionScheduler()
 }

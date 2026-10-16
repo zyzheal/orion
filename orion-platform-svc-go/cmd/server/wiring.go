@@ -245,6 +245,10 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	// Wave 2 domain events wiring: inject EventBus + AuditLogger into all
 	// 6 domain services. Graceful no-op when NATS is unavailable.
 	wireDomainEvents(db, infra.composedPublisher, logger)
+	// SLA breach detection monitor (background goroutine)
+	wireSLAMonitor(db, logger)
+	// Inspection schedule cron engine (background goroutine)
+	wireInspectionScheduler(db, logger)
 }
 
 // wireNatsSubscribers initializes the Incident and Self-Healing NATS JetStream
