@@ -220,8 +220,8 @@
       "check_script": "scripts/lint/llm-sec-check.sh",
       "metric": "llm_call_audit_migration_present",
       "threshold": 1,
-      "current_baseline": 0,
-      "current_baseline_note": "P0 落地 (2026-10-11): 真实 grep 脚本替换 tenant-aware-check 占位。检测 Migration 773 或任意 llm_call_audit 表创建。当前状态 FAIL（Migration 773 未创建），DEGRADE 挂 CI 报告 warning。T1 时启用 BLOCK。",
+      "current_baseline": 1,
+      "current_baseline_note": "P0 落地 (2026-10-15): Migration 773 已提交 (c4460d32e llm_call_audit 表 + 完整门控字段 + 索引 + _down)，llm-sec-check.sh PASS。可升级 BLOCK。",
       "manual_review": false,
       "new_code_enforcement": "LLM_CALL_AUDIT_MIGRATION",
       "ci_stage": "DEGRADE"
