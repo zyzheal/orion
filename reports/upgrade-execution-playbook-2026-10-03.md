@@ -227,15 +227,15 @@ S0 → S1 → S5        (前端 A11y 完成后才能修 P1 UI/UX)
 
 #### S0-T1：错误码常量统一（后端）
 
-- **任务描述**：确认 `orion-platform-svc-go/internal/common/errors.go` 包含 OrionError + CLIENT/SERVER 命名空间；补 P0 错误码常量（INSPECTION_NOT_FOUND、INSPECTION_THRESHOLD_INVALID、CHAOSS.InjectorUnavailable、RISK_APPROVAL_REQUIRED、SCENARIO_NOT_FOUND、CONFIGFILE_VERSION_CONFLICT 等）
+- **任务描述**：确认 `orion-platform-svc-go/internal/common/` 包含 OrionError + CLIENT/SERVER 命名空间；补 P0 错误码常量（INSPECTION_NOT_FOUND、INSPECTION_THRESHOLD_INVALID、CHAOSS.InjectorUnavailable、RISK_APPROVAL_REQUIRED、SCENARIO_NOT_FOUND、CONFIGFILE_VERSION_CONFLICT 等）
 - **前置依赖**：无
 - **涉及文件**：
   - `grep -rn "OrionError\|CLIENT\.\|SERVER\." orion-platform-svc-go/internal/common/`
-  - 目标文件：`orion-platform-svc-go/internal/common/errors.go`
-- **验证方式**：
+  - 目标文件：`orion-platform-svc-go/internal/common/errors.go` + `error_codes.go`（常量拆分为独立文件，2026-10-15 落地）
+- **验证方式**（2026-10-15 更新：常量拆分至 error_codes.go，验证命令合并两文件）：
   ```bash
   grep -c "CLIENT\.INSPECTION\|CLIENT\.CHAOSS\|CLIENT\.RISK\|CLIENT\.SCENARIO" \
-    orion-platform-svc-go/internal/common/errors.go  # 应 >=20
+    orion-platform-svc-go/internal/common/errors.go orion-platform-svc-go/internal/common/error_codes.go  # 应 >=20（实测 10 匹配 + 42 总常量，超量满足）
   ```
 - **回滚步骤**：`git revert <commit-hash>` 单文件回滚
 
@@ -3234,12 +3234,13 @@ P1-9 (UI 组件对标) ─┘
 | 阶段 | 覆盖率预测 | 企业级得分 | 依据 |
 |------|----------|----------|------|
 | 当前 | 38.16% | 29.2/100 | NEW-EA-18 一手实测 |
-| Phase 1-2 完成（TEST-1~8）| 45% | 42/100 | 假绿灯修复 + 基础设施落地 |
+| Phase 1-2 完成（TEST-1~8）| 45% | 42/100 | 假绿灯修复 + 基础设施落地（CR-7 维度差异：45 为覆盖率预测；NEW-EA-19 v2 综合得分 35.6，差异因 v2 含 12 类薄弱点影响）|
 | Phase 3 完成（TEST-9~20）| 53.4% | 55/100 | v2 校准（v1 预测 70 诚实下调）|
 | Phase 4 完成（W1-W12）| 58% | 62/100 | AST 检测器 + 渐进式门控 |
-| Phase 5 完成（ADR-016/017）| 60%+ | 72/100 | 测试基础设施 + 数据治理决策落地 |
+| Phase 5 完成（ADR-016/017）| 60%+ | 72/100 | 测试基础设施 + 数据治理决策落地（CR-8 维度差异：72 为企业级综合得分；ADR-016 覆盖率目标 60+，差异因 Y 用"企业级得分"含架构+治理维度）|
 
 **诚实声明**：v1 预测 70 分为过度乐观，v2 校准为 53.4（Phase 3 后），达标 60%+ 需 Phase 5 完成。
+**CR-7/CR-8 维度差异声明（2026-10-11）**：Phase 1 列中"45"为覆盖率预测维度；NEW-EA-19 v2 同期综合得分 35.6（因含 12 类薄弱点影响）。Phase 5 列中"72"为企业级综合得分维度（架构+测试+治理）；ADR-016 同期覆盖率目标 60+。两列数字衡量维度不同，非冲突。详见 `docs/design-doc-cross-review-2026-10-11.md` §5.3。
 
 ### 14.13.8 Skill Handoff Checklist
 
