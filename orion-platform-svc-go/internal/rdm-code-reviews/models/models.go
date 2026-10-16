@@ -41,6 +41,7 @@ type CreateCodeReviewRequest struct {
 // carry both, general review comments carry neither.
 type CodeReviewComment struct {
 	ID        string    `json:"id"`
+	TenantID  string    `json:"tenantId"`
 	ReviewID  string    `json:"reviewId"`
 	Author    string    `json:"author"`
 	Content   string    `json:"content"`
