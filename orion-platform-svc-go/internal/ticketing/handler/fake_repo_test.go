@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"testing"
 
 	"orion/platform-svc-go/internal/ticketing/models"
 	"orion/platform-svc-go/internal/ticketing/repository"
@@ -181,3 +182,17 @@ func (f *fakeTicketingRepo) UpsertSLATracking(ctx context.Context, tenantID, tic
 }
 
 var _ service.RepositoryInterface = (*fakeTicketingRepo)(nil)
+
+func TestFakeRepoImplementsInterface(t *testing.T) {
+	repo := &fakeTicketingRepo{}
+	ticket, err := repo.GetTicket(context.Background(), "t1", "ticket-1")
+	if err != nil {
+		t.Fatalf("GetTicket: %v", err)
+	}
+	if ticket == nil {
+		t.Fatal("expected non-nil ticket")
+	}
+	if ticket.ID != "ticket-1" {
+		t.Errorf("expected ticket ID 'ticket-1', got %q", ticket.ID)
+	}
+}
