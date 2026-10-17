@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jmoiron/sqlx"
@@ -95,5 +96,40 @@ func TestCreateCodeReview_MissingTenant(t *testing.T) {
 	err := repo.CreateCodeReview(context.Background(), &models.CodeReview{ID: "r1", TenantID: "t1"})
 	if err == nil {
 		t.Fatal("expected error for missing tenant context")
+	}
+}
+
+func TestListCodeReviews_EmptyResult(t *testing.T) {
+	db, mock := newMockDB(t)
+	repo := NewRepository(db)
+	mock.ExpectQuery(`SELECT.*FROM rdm_code_reviews`).WillReturnRows(
+		sqlmock.NewRows([]string{"id", "tenant_id", "project_id", "title", "source_branch", "target_branch", "source_commit", "status", "author", "reviewers", "comments_count", "created_at", "updated_at"}))
+
+	result, err := repo.ListCodeReviews(ctxTenant("t1"), "t1", "p1", "")
+	if err != nil {
+		t.Fatalf("ListCodeReviews: %v", err)
+	}
+	if len(result) != 0 {
+		t.Fatalf("expected 0 reviews, got %d", len(result))
+	}
+}
+
+func TestListComments_WithRows(t *testing.T) {
+	db, mock := newMockDB(t)
+	repo := NewRepository(db)
+	now := time.Now().UTC()
+	mock.ExpectQuery(`SELECT.*FROM rdm_code_review_comments`).WillReturnRows(
+		sqlmock.NewRows([]string{"id", "tenant_id", "review_id", "author", "content", "file", "line", "created_at"}).
+			AddRow("c1", "t1", "r1", "user1", "Good code", nil, nil, now))
+
+	result, err := repo.ListComments(ctxTenant("t1"), "t1", "r1")
+	if err != nil {
+		t.Fatalf("ListComments: %v", err)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected 1 comment, got %d", len(result))
+	}
+	if result[0].Content != "Good code" {
+		t.Errorf("expected content 'Good code', got %q", result[0].Content)
 	}
 }

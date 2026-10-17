@@ -23,8 +23,8 @@ type BurndownPoint struct {
 // VelocityPoint is a single data point on a velocity trend.
 // See frontend rdm.ts `VelocityPoint`.
 type VelocityPoint struct {
-	Sprint          string `json:"sprint"`
-	CompletedPoints int    `json:"completedPoints"`
+	Sprint          string `json:"sprint" db:"sprint"`
+	CompletedPoints int    `json:"completedPoints" db:"completed_points"`
 }
 
 // DefectStats is the response for GET /rdm/statistics/defects.
@@ -51,12 +51,12 @@ type DefectByStatus struct {
 // SprintSummary is a single entry of the sprint aggregate stats.
 // See frontend rdm.ts getSprintStats.
 type SprintSummary struct {
-	SprintID        string `json:"sprintId"`
-	SprintName      string `json:"sprintName"`
-	TotalTasks      int    `json:"totalTasks"`
-	CompletedTasks  int    `json:"completedTasks"`
-	TotalPoints     int    `json:"totalPoints"`
-	CompletedPoints int    `json:"completedPoints"`
+	SprintID        string `json:"sprintId" db:"sprint_id"`
+	SprintName      string `json:"sprintName" db:"sprint_name"`
+	TotalTasks      int    `json:"totalTasks" db:"total_tasks"`
+	CompletedTasks  int    `json:"completedTasks" db:"completed_tasks"`
+	TotalPoints     int    `json:"totalPoints" db:"total_points"`
+	CompletedPoints int    `json:"completedPoints" db:"completed_points"`
 }
 
 // SprintSummaryList is the response for GET /rdm/statistics/sprints.

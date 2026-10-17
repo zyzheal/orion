@@ -10,19 +10,19 @@ import "time"
 
 // CodeReview is the response for GET/POST /rdm/code-reviews.
 type CodeReview struct {
-	ID            string    `json:"id"`
-	TenantID      string    `json:"tenantId"`
-	ProjectID     string    `json:"projectId"`
-	Title         string    `json:"title"`
-	SourceBranch  string    `json:"sourceBranch"`
-	TargetBranch  string    `json:"targetBranch"`
-	SourceCommit  string    `json:"sourceCommit"`
-	Status        string    `json:"status"` // pending | approved | changes_requested | merged | closed
-	Author        string    `json:"author"`
-	Reviewers     []string  `json:"reviewers"`
-	CommentsCount int       `json:"commentsCount"`
-	CreatedAt     time.Time `json:"createdAt"`
-	UpdatedAt     time.Time `json:"updatedAt"`
+	ID            string    `json:"id" db:"id"`
+	TenantID      string    `json:"tenantId" db:"tenant_id"`
+	ProjectID     string    `json:"projectId" db:"project_id"`
+	Title         string    `json:"title" db:"title"`
+	SourceBranch  string    `json:"sourceBranch" db:"source_branch"`
+	TargetBranch  string    `json:"targetBranch" db:"target_branch"`
+	SourceCommit  string    `json:"sourceCommit" db:"source_commit"`
+	Status        string    `json:"status" db:"status"` // pending | approved | changes_requested | merged | closed
+	Author        string    `json:"author" db:"author"`
+	Reviewers     []string  `json:"reviewers" db:"reviewers"`
+	CommentsCount int       `json:"commentsCount" db:"comments_count"`
+	CreatedAt     time.Time `json:"createdAt" db:"created_at"`
+	UpdatedAt     time.Time `json:"updatedAt" db:"updated_at"`
 }
 
 // CreateCodeReviewRequest is the request body for POST /rdm/code-reviews.
@@ -40,14 +40,14 @@ type CreateCodeReviewRequest struct {
 // File and Line are pointer-null because inline file-level comments
 // carry both, general review comments carry neither.
 type CodeReviewComment struct {
-	ID        string    `json:"id"`
-	TenantID  string    `json:"tenantId"`
-	ReviewID  string    `json:"reviewId"`
-	Author    string    `json:"author"`
-	Content   string    `json:"content"`
-	File      *string   `json:"file"`
-	Line      *int      `json:"line"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID        string    `json:"id" db:"id"`
+	TenantID  string    `json:"tenantId" db:"tenant_id"`
+	ReviewID  string    `json:"reviewId" db:"review_id"`
+	Author    string    `json:"author" db:"author"`
+	Content   string    `json:"content" db:"content"`
+	File      *string   `json:"file" db:"file"`
+	Line      *int      `json:"line" db:"line"`
+	CreatedAt time.Time `json:"createdAt" db:"created_at"`
 }
 
 // CreateCodeReviewCommentRequest is the request body for

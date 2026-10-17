@@ -75,9 +75,19 @@ func TestGetVelocity_ExecutesQuery(t *testing.T) {
 		sqlmock.NewRows([]string{"sprint", "completed_points"}).
 			AddRow("s1", 30))
 
-	_, _ = repo.GetVelocity(ctxTenant("t1"), "t1", "proj-1", 10)
-	// Test verifies query execution; column scanning may fail due to
-	// missing db tags on VelocityPoint struct (production issue).
+	result, err := repo.GetVelocity(ctxTenant("t1"), "t1", "proj-1", 10)
+	if err != nil {
+		t.Fatalf("GetVelocity: %v", err)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected 1 point, got %d", len(result))
+	}
+	if result[0].Sprint != "s1" {
+		t.Errorf("expected sprint 's1', got %q", result[0].Sprint)
+	}
+	if result[0].CompletedPoints != 30 {
+		t.Errorf("expected 30 points, got %d", result[0].CompletedPoints)
+	}
 }
 
 func TestGetDefectStats_ExecutesQuery(t *testing.T) {
@@ -106,9 +116,19 @@ func TestGetSprintStats_ExecutesQuery(t *testing.T) {
 		sqlmock.NewRows([]string{"sprint_id", "sprint_name", "total_tasks", "completed_tasks", "total_points", "completed_points"}).
 			AddRow("s1", "Sprint 1", 10, 8, 30, 24))
 
-	_, _ = repo.GetSprintStats(ctxTenant("t1"), "t1", "proj-1")
-	// Test verifies query execution; column scanning may fail due to
-	// missing db tags on SprintSummary struct (production issue).
+	result, err := repo.GetSprintStats(ctxTenant("t1"), "t1", "proj-1")
+	if err != nil {
+		t.Fatalf("GetSprintStats: %v", err)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected 1 sprint, got %d", len(result))
+	}
+	if result[0].SprintID != "s1" {
+		t.Errorf("expected sprint ID 's1', got %q", result[0].SprintID)
+	}
+	if result[0].CompletedPoints != 24 {
+		t.Errorf("expected 24 completed points, got %d", result[0].CompletedPoints)
+	}
 }
 
 func TestGetBurndown_MissingTenant(t *testing.T) {
