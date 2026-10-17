@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"orion/platform-svc-go/internal/workflow-dependency/models"
 )
 
@@ -137,6 +138,7 @@ func detectCycles(edges map[string][]string) []models.Cycle {
 }
 
 func (s *Service) GetGraph(ctx context.Context, tenantID string) (*models.DependencyGraph, error) {
+	ctx = internalrepo.WithTenant(ctx, tenantID)
 	rows, err := s.repo.GetAllWorkflows(ctx, tenantID)
 	if err != nil {
 		return nil, err
@@ -168,6 +170,7 @@ func (s *Service) GetGraph(ctx context.Context, tenantID string) (*models.Depend
 }
 
 func (s *Service) CheckDefinition(ctx context.Context, definitionID, tenantID string) (*models.DependencyCheck, error) {
+	ctx = internalrepo.WithTenant(ctx, tenantID)
 	row, err := s.repo.GetWorkflowByID(ctx, definitionID, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -216,6 +219,7 @@ func (s *Service) CheckDefinition(ctx context.Context, definitionID, tenantID st
 }
 
 func (s *Service) GetVisualization(ctx context.Context, tenantID string) (*models.VisualizationData, error) {
+	ctx = internalrepo.WithTenant(ctx, tenantID)
 	rows, err := s.repo.GetAllWorkflows(ctx, tenantID)
 	if err != nil {
 		return nil, err

@@ -17,11 +17,11 @@ import (
 // --- mock service ---
 
 type mockErrorDetailService struct {
-	getErrorDetailFn func(ctx context.Context, runID string) (*models.PipelineErrorDetail, error)
+	getErrorDetailFn func(ctx context.Context, runID, tenantID string) (*models.PipelineErrorDetail, error)
 }
 
-func (m *mockErrorDetailService) GetErrorDetail(ctx context.Context, runID string) (*models.PipelineErrorDetail, error) {
-	return m.getErrorDetailFn(ctx, runID)
+func (m *mockErrorDetailService) GetErrorDetail(ctx context.Context, runID, tenantID string) (*models.PipelineErrorDetail, error) {
+	return m.getErrorDetailFn(ctx, runID, tenantID)
 }
 
 // --- handler constructor override for tests ---
@@ -43,7 +43,7 @@ func performErrorDetailRequest(h *Handler, runID string) *httptest.ResponseRecor
 
 func TestErrorDetail_Success(t *testing.T) {
 	h := newHandlerWithSvc(&mockErrorDetailService{
-		getErrorDetailFn: func(_ context.Context, _ string) (*models.PipelineErrorDetail, error) {
+		getErrorDetailFn: func(_ context.Context, _, _ string) (*models.PipelineErrorDetail, error) {
 			return &models.PipelineErrorDetail{
 				ErrorType:            models.CategoryCompilationError,
 				Severity:             models.SeverityCritical,
@@ -80,7 +80,7 @@ func TestErrorDetail_Success(t *testing.T) {
 
 func TestErrorDetail_InvalidRun(t *testing.T) {
 	h := newHandlerWithSvc(&mockErrorDetailService{
-		getErrorDetailFn: func(_ context.Context, _ string) (*models.PipelineErrorDetail, error) {
+		getErrorDetailFn: func(_ context.Context, _, _ string) (*models.PipelineErrorDetail, error) {
 			return nil, service.ErrInvalidRun
 		},
 	})
@@ -94,7 +94,7 @@ func TestErrorDetail_InvalidRun(t *testing.T) {
 
 func TestErrorDetail_RunNotFound(t *testing.T) {
 	h := newHandlerWithSvc(&mockErrorDetailService{
-		getErrorDetailFn: func(_ context.Context, _ string) (*models.PipelineErrorDetail, error) {
+		getErrorDetailFn: func(_ context.Context, _, _ string) (*models.PipelineErrorDetail, error) {
 			return nil, service.ErrRunNotFound
 		},
 	})
@@ -108,7 +108,7 @@ func TestErrorDetail_RunNotFound(t *testing.T) {
 
 func TestErrorDetail_NotFailed(t *testing.T) {
 	h := newHandlerWithSvc(&mockErrorDetailService{
-		getErrorDetailFn: func(_ context.Context, _ string) (*models.PipelineErrorDetail, error) {
+		getErrorDetailFn: func(_ context.Context, _, _ string) (*models.PipelineErrorDetail, error) {
 			return nil, service.ErrNotFailed
 		},
 	})
@@ -122,7 +122,7 @@ func TestErrorDetail_NotFailed(t *testing.T) {
 
 func TestErrorDetail_InternalError(t *testing.T) {
 	h := newHandlerWithSvc(&mockErrorDetailService{
-		getErrorDetailFn: func(_ context.Context, _ string) (*models.PipelineErrorDetail, error) {
+		getErrorDetailFn: func(_ context.Context, _, _ string) (*models.PipelineErrorDetail, error) {
 			return nil, errInternal
 		},
 	})

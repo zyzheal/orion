@@ -10,13 +10,14 @@ import (
 	"strings"
 	"time"
 
+	internalrepo "orion/platform-svc-go/internal/repository"
 	"orion/platform-svc-go/internal/pipeline-error-detail/models"
 	"orion/platform-svc-go/internal/pipeline-error-detail/repository"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
-	GetRunDetail(ctx context.Context, runID string) (*repository.RunDetail, error)
+	GetRunDetail(ctx context.Context, runID, tenantID string) (*repository.RunDetail, error)
 }
 
 var (
@@ -27,7 +28,7 @@ var (
 
 // Repository defines the data access contract needed by Service.
 type Repository interface {
-	GetRunDetail(ctx context.Context, runID string) (*repository.RunDetail, error)
+	GetRunDetail(ctx context.Context, runID, tenantID string) (*repository.RunDetail, error)
 }
 
 type Service struct {
@@ -285,12 +286,13 @@ func mapToFrontendCategory(message string, classifierType string) (models.ErrorC
 // --- Public API ---
 
 // GetErrorDetail returns classified error info for a failed/cancelled pipeline run.
-func (s *Service) GetErrorDetail(ctx context.Context, runID string) (*models.PipelineErrorDetail, error) {
+func (s *Service) GetErrorDetail(ctx context.Context, runID, tenantID string) (*models.PipelineErrorDetail, error) {
 	if runID == "" {
 		return nil, ErrInvalidRun
 	}
 
-	detail, err := s.repo.GetRunDetail(ctx, runID)
+	ctx = internalrepo.WithTenant(ctx, tenantID)
+	detail, err := s.repo.GetRunDetail(ctx, runID, tenantID)
 	if err != nil {
 		if errors.Is(err, repository.ErrRunNotFound) {
 			return nil, ErrRunNotFound

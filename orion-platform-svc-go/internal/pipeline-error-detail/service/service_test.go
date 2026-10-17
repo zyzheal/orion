@@ -18,7 +18,7 @@ type mockRepo struct {
 	err    error
 }
 
-func (m *mockRepo) GetRunDetail(_ context.Context, runID string) (*repository.RunDetail, error) {
+func (m *mockRepo) GetRunDetail(_ context.Context, runID, _ string) (*repository.RunDetail, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -69,7 +69,7 @@ func TestGetErrorDetail_Success(t *testing.T) {
 	}
 	svc := newTestService(repo)
 
-	detail, err := svc.GetErrorDetail(context.Background(), "run-1")
+	detail, err := svc.GetErrorDetail(context.Background(), "run-1", "t-1")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -96,7 +96,7 @@ func TestGetErrorDetail_Success(t *testing.T) {
 func TestGetErrorDetail_EmptyRunID(t *testing.T) {
 	svc := newTestService(&mockRepo{})
 
-	_, err := svc.GetErrorDetail(context.Background(), "")
+	_, err := svc.GetErrorDetail(context.Background(), "", "t-1")
 	if err != ErrInvalidRun {
 		t.Errorf("expected ErrInvalidRun, got %v", err)
 	}
@@ -106,7 +106,7 @@ func TestGetErrorDetail_RunNotFound(t *testing.T) {
 	repo := &mockRepo{err: repository.ErrRunNotFound}
 	svc := newTestService(repo)
 
-	_, err := svc.GetErrorDetail(context.Background(), "nonexistent")
+	_, err := svc.GetErrorDetail(context.Background(), "nonexistent", "t-1")
 	if err != ErrRunNotFound {
 		t.Errorf("expected ErrRunNotFound, got %v", err)
 	}
@@ -125,7 +125,7 @@ func TestGetErrorDetail_NotFailed(t *testing.T) {
 	}
 	svc := newTestService(repo)
 
-	_, err := svc.GetErrorDetail(context.Background(), "run-1")
+	_, err := svc.GetErrorDetail(context.Background(), "run-1", "t-1")
 	if err != ErrNotFailed {
 		t.Errorf("expected ErrNotFailed, got %v", err)
 	}
@@ -150,7 +150,7 @@ func TestGetErrorDetail_NoErrors(t *testing.T) {
 	}
 	svc := newTestService(repo)
 
-	detail, err := svc.GetErrorDetail(context.Background(), "run-1")
+	detail, err := svc.GetErrorDetail(context.Background(), "run-1", "t-1")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -166,7 +166,7 @@ func TestGetErrorDetail_RepoError(t *testing.T) {
 	repo := &mockRepo{err: errors.New("database connection failed")}
 	svc := newTestService(repo)
 
-	_, err := svc.GetErrorDetail(context.Background(), "run-1")
+	_, err := svc.GetErrorDetail(context.Background(), "run-1", "t-1")
 	if err == nil || err.Error() != "database connection failed" {
 		t.Errorf("expected database connection failed, got %v", err)
 	}
@@ -193,7 +193,7 @@ func TestGetErrorDetail_CancelledStatus(t *testing.T) {
 	}
 	svc := newTestService(repo)
 
-	detail, err := svc.GetErrorDetail(context.Background(), "run-1")
+	detail, err := svc.GetErrorDetail(context.Background(), "run-1", "t-1")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -223,7 +223,7 @@ func TestGetErrorDetail_TransientError(t *testing.T) {
 	}
 	svc := newTestService(repo)
 
-	detail, err := svc.GetErrorDetail(context.Background(), "run-1")
+	detail, err := svc.GetErrorDetail(context.Background(), "run-1", "t-1")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}

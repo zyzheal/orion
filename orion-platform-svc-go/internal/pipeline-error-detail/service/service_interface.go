@@ -12,7 +12,7 @@ import (
 
 // ServiceInterface defines the interface for the pipeline-error-detail service.
 type ServiceInterface interface {
-	GetErrorDetail(ctx context.Context, runID string) (*models.PipelineErrorDetail, error)
+	GetErrorDetail(ctx context.Context, runID, tenantID string) (*models.PipelineErrorDetail, error)
 }
 
 // Ensure compile-time safety: *Service implements ServiceInterface.

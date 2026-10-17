@@ -17,7 +17,7 @@ import (
 
 // Service defines the contract the handler needs from the service layer.
 type Service interface {
-	GetErrorDetail(ctx context.Context, runID string) (*models.PipelineErrorDetail, error)
+	GetErrorDetail(ctx context.Context, runID, tenantID string) (*models.PipelineErrorDetail, error)
 }
 
 type Handler struct {
@@ -43,8 +43,9 @@ func (h *Handler) ErrorDetail(c *gin.Context) {
 	defer span.End()
 	ctx = middleware.TimeoutContext(c)
 	runID := c.Param("id")
+	tenantID := c.GetString("tenant_id")
 
-	detail, err := h.svc.GetErrorDetail(ctx, runID)
+	detail, err := h.svc.GetErrorDetail(ctx, runID, tenantID)
 	if err != nil {
 		if stderrors.Is(err, service.ErrInvalidRun) {
 			middleware.RespondBadRequest(c, err.Error())

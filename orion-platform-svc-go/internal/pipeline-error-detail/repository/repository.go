@@ -57,7 +57,10 @@ func NewRepository(db *sqlx.DB) *Repository {
 }
 
 // GetRunDetail fetches a run plus its stages and tasks.
-func (r *Repository) GetRunDetail(ctx context.Context, runID string) (*RunDetail, error) {
+// The run row is scoped to tenantID (pipeline_runs is the only table of the
+// three with a tenant_id column; stages/tasks are transitively scoped once
+// the run is tenant-confirmed).
+func (r *Repository) GetRunDetail(ctx context.Context, runID, tenantID string) (*RunDetail, error) {
 	// Parse UUID and fetch the run row
 	var runIDUUID uuid.UUID
 	parsed, err := uuid.Parse(runID)
@@ -67,7 +70,7 @@ func (r *Repository) GetRunDetail(ctx context.Context, runID string) (*RunDetail
 
 	var run PipelineRun
 	err = r.db.GetContext(ctx, &run,
-		"SELECT id, status, started_at, completed_at FROM pipeline_runs WHERE id=$1", runIDUUID)
+		"SELECT id, status, started_at, completed_at FROM pipeline_runs WHERE id=$1 AND tenant_id=$2", runIDUUID, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrRunNotFound
