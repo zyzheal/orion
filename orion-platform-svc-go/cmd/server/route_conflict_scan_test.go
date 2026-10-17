@@ -720,11 +720,6 @@ func TestRouteConflictScan(t *testing.T) {
 				toolH.RegisterRoutes(api)
 			}
 		}},
-		{"ptmplH", func() {
-			if ptmplH != nil {
-				ptmplH.RegisterRoutes(api)
-			}
-		}},
 		{"ptrendH", func() {
 			if ptrendH != nil {
 				ptrendH.RegisterRoutes(api)

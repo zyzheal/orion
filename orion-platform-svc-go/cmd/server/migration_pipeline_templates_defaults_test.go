@@ -8,8 +8,9 @@ import (
 
 // 591 修的是一个很具体的缺陷：160 在 CREATE TABLE 之后用 ADD COLUMN ... NOT NULL
 // 追加了列，既没有 DEFAULT 也没有给存量行填值，导致
-// internal/pipeline-template 与 internal/pipeline-templates 两个模块的
-// INSERT 都因为缺列而失败。下面三个测试把「591 给这些列补了默认值」和
+// internal/pipeline-templates 模块的 INSERT 因为缺列而失败。
+// （原 internal/pipeline-template 单数模块已于 R-P0-06 合并删除。）
+// 下面三个测试把「591 给这些列补了默认值」和
 // 「591_down 把它们抹回去」分别钉死，避免后续有人只改一头。
 //
 // 两个迁移文件里列名后面都有对齐用的多余空格（ALTER COLUMN tags          DROP

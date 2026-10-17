@@ -761,11 +761,6 @@ func buildDumpEntries() []dumpEntry {
 				toolH.RegisterRoutes(api)
 			}
 		}},
-		{"ptmplH", 460, func(api *gin.RouterGroup) {
-			if ptmplH != nil {
-				ptmplH.RegisterRoutes(api)
-			}
-		}},
 		{"ptrendH", 463, func(api *gin.RouterGroup) {
 			if ptrendH != nil {
 				ptrendH.RegisterRoutes(api)

@@ -173,7 +173,7 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
 			pluginH, plugin_hotreloadH, policyH, problemH, process_stepH, productlineH,
 			progessiveH, projH, projectmemberH, psseH, promptSecurityH, cacheMonitorH,
 			codeEmbeddingH, dataClassificationH, fileHandlerH, jobActionsH, rcaH, ruleEngineH,
-			semanticSearchH, taskExecutorH, toolH, ptmplH, ptrendH, pverH,
+			semanticSearchH, taskExecutorH, toolH, ptrendH, pverH,
 			queue_modH, rdH, riskH, roleH, runbookH, scheduled_notificationH,
 			script_libraryH, script_modH, script_versionH, secretH, security_complianceH, self_serviceH,
 			selfhealingH, serverlessH, service_catalogH, service_healthH, service_topologyH, serviceregistryH,

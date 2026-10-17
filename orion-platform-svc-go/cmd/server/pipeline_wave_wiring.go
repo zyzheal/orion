@@ -36,9 +36,8 @@ import (
 	psse_handler "orion/platform-svc-go/internal/pipeline-sse/handler"
 	psse_repo "orion/platform-svc-go/internal/pipeline-sse/repository"
 	psse_service "orion/platform-svc-go/internal/pipeline-sse/service"
-	ptmpl_handler "orion/platform-svc-go/internal/pipeline-template/handler"
-	ptmpl_repo "orion/platform-svc-go/internal/pipeline-template/repository"
-	ptmpl_service "orion/platform-svc-go/internal/pipeline-template/service"
+	// pipeline-template (singular) merged into pipeline-templates (plural) — R-P0-06
+
 	ptrend_handler "orion/platform-svc-go/internal/pipeline-trend/handler"
 	ptrend_repo "orion/platform-svc-go/internal/pipeline-trend/repository"
 	ptrend_service "orion/platform-svc-go/internal/pipeline-trend/service"
@@ -75,9 +74,7 @@ func wirePipelineAssistantModules(db *database.DB) {
 	palSvc := pal_service.NewService(palRepo)
 	palH = pal_handler.NewHandler(palSvc)
 
-	ptmplRepo := ptmpl_repo.NewRepository(db.DB)
-	ptmplSvc := ptmpl_service.NewService(ptmplRepo)
-	ptmplH = ptmpl_handler.NewHandler(ptmplSvc)
+	// pipeline-template (singular) removed — merged into pipeline-templates (plural) — R-P0-06
 
 	pverRepo := pver_repo.NewRepository(db.DB)
 	pverSvc := pver_service.NewService(pverRepo)
@@ -172,8 +169,8 @@ var (
 	pgraphH       *pgraph_handler.Handler
 	phistH        *phist_handler.Handler
 	problemH      *problem_handler.Handler
+	// ptmplH removed — merged into pipelineTemplatesH (plural) — R-P0-06
 	psseH         *psse_handler.Handler
-	ptmplH        *ptmpl_handler.Handler
 	ptrendH       *ptrend_handler.Handler
 	pverH         *pver_handler.Handler
 	secretH       *secret_handler.Handler
