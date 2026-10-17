@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/alert-shift/models"
 	"orion/platform-svc-go/internal/eventpublisher"
 	"orion/platform-svc-go/internal/auditlogger"
+	"orion/platform-svc-go/internal/jsonslice"
 	baserepo "orion/platform-svc-go/internal/repository"
 	"orion/platform-svc-go/internal/alert-shift/repository"
 )
@@ -73,7 +74,7 @@ func (s *Service) CreateShift(ctx context.Context, tenantID string, req *models.
 		Pattern:   req.Pattern,
 		StartTime: req.StartTime,
 		EndTime:   req.EndTime,
-		Weekdays:  req.Weekdays,
+		Weekdays:  jsonslice.IntArray(req.Weekdays),
 		Enabled:   req.Enabled,
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -121,7 +122,7 @@ func (s *Service) UpdateShift(ctx context.Context, tenantID, id string, req *mod
 		updates["end_time"] = *req.EndTime
 	}
 	if req.Weekdays != nil {
-		updates["weekdays"] = req.Weekdays
+		updates["weekdays"] = jsonslice.IntArray(req.Weekdays)
 	}
 	if req.Enabled != nil {
 		updates["enabled"] = *req.Enabled

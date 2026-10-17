@@ -11,6 +11,7 @@ import (
 	"orion/platform-svc-go/internal/sprint-analytics/repository"
 	"orion/platform-svc-go/internal/eventpublisher"
 	"orion/platform-svc-go/internal/auditlogger"
+	"orion/platform-svc-go/internal/jsonslice"
 	baserepo "orion/platform-svc-go/internal/repository"
 )
 
@@ -49,7 +50,7 @@ func (s *SprintService) CreateReview(ctx context.Context, tenantID string, req *
 		SprintID:   req.SprintID,
 		Status:     "pending",
 		Date:       req.Date,
-		Attendees:  req.Attendees,
+		Attendees:  jsonslice.StringArray(req.Attendees),
 		Highlights: req.Highlights,
 		DemoNotes:  req.DemoNotes,
 		Feedback:   req.Feedback,
@@ -86,7 +87,7 @@ func (s *SprintService) UpdateReview(ctx context.Context, tenantID, id string, r
 		updates["date"] = *req.Date
 	}
 	if req.Attendees != nil {
-		updates["attendees"] = req.Attendees
+		updates["attendees"] = jsonslice.StringArray(req.Attendees)
 	}
 	if req.Highlights != nil {
 		updates["highlights"] = *req.Highlights
@@ -146,10 +147,10 @@ func (s *SprintService) CreateRetro(ctx context.Context, tenantID string, req *m
 		TenantID:      tenantID,
 		SprintID:      req.SprintID,
 		Date:          req.Date,
-		Attendees:     req.Attendees,
-		WhatWentWell:  req.WhatWentWell,
-		WhatToImprove: req.WhatToImprove,
-		ActionItems:   req.ActionItems,
+		Attendees:     jsonslice.StringArray(req.Attendees),
+		WhatWentWell:  jsonslice.StringArray(req.WhatWentWell),
+		WhatToImprove: jsonslice.StringArray(req.WhatToImprove),
+		ActionItems:   models.ActionItemArray(req.ActionItems),
 		Summary:       req.Summary,
 		CreatedAt:     now,
 		UpdatedAt:     now,
@@ -178,16 +179,16 @@ func (s *SprintService) UpdateRetro(ctx context.Context, tenantID, id string, re
 		updates["date"] = *req.Date
 	}
 	if req.Attendees != nil {
-		updates["attendees"] = req.Attendees
+		updates["attendees"] = jsonslice.StringArray(req.Attendees)
 	}
 	if req.WhatWentWell != nil {
-		updates["what_went_well"] = req.WhatWentWell
+		updates["what_went_well"] = jsonslice.StringArray(req.WhatWentWell)
 	}
 	if req.WhatToImprove != nil {
-		updates["what_to_improve"] = req.WhatToImprove
+		updates["what_to_improve"] = jsonslice.StringArray(req.WhatToImprove)
 	}
 	if req.ActionItems != nil {
-		updates["action_items"] = req.ActionItems
+		updates["action_items"] = models.ActionItemArray(req.ActionItems)
 	}
 	if req.Summary != nil {
 		updates["summary"] = *req.Summary

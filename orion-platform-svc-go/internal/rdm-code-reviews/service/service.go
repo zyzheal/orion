@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"orion/platform-svc-go/internal/jsonslice"
 	"orion/platform-svc-go/internal/rdm-code-reviews/models"
 	baserepo "orion/platform-svc-go/internal/repository"
 )
@@ -61,7 +62,7 @@ func (s *Service) CreateCodeReview(ctx context.Context, tenantID string, req mod
 		return &models.CodeReview{
 			ID: uuid.New().String(), TenantID: tenantID, ProjectID: req.ProjectID,
 			Title: req.Title, SourceBranch: req.SourceBranch, TargetBranch: req.TargetBranch,
-			SourceCommit: req.SourceCommit, Status: "pending", Reviewers: req.Reviewers,
+			SourceCommit: req.SourceCommit, Status: "pending", Reviewers: jsonslice.StringArray(req.Reviewers),
 			CommentsCount: 0, CreatedAt: now, UpdatedAt: now,
 		}, nil
 	}
@@ -69,7 +70,7 @@ func (s *Service) CreateCodeReview(ctx context.Context, tenantID string, req mod
 	review := &models.CodeReview{
 		ID: uuid.New().String(), TenantID: tenantID, ProjectID: req.ProjectID,
 		Title: req.Title, SourceBranch: req.SourceBranch, TargetBranch: req.TargetBranch,
-		SourceCommit: req.SourceCommit, Status: "pending", Reviewers: req.Reviewers,
+		SourceCommit: req.SourceCommit, Status: "pending", Reviewers: jsonslice.StringArray(req.Reviewers),
 		CommentsCount: 0, CreatedAt: now, UpdatedAt: now,
 	}
 	if err := s.repo.CreateCodeReview(ctx, review); err != nil {

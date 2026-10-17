@@ -6,23 +6,27 @@
 // the risk register (CC v5.4 §1.5.1).
 package models
 
-import "time"
+import (
+	"time"
+
+	"orion/platform-svc-go/internal/jsonslice"
+)
 
 // CodeReview is the response for GET/POST /rdm/code-reviews.
 type CodeReview struct {
-	ID            string    `json:"id" db:"id"`
-	TenantID      string    `json:"tenantId" db:"tenant_id"`
-	ProjectID     string    `json:"projectId" db:"project_id"`
-	Title         string    `json:"title" db:"title"`
-	SourceBranch  string    `json:"sourceBranch" db:"source_branch"`
-	TargetBranch  string    `json:"targetBranch" db:"target_branch"`
-	SourceCommit  string    `json:"sourceCommit" db:"source_commit"`
-	Status        string    `json:"status" db:"status"` // pending | approved | changes_requested | merged | closed
-	Author        string    `json:"author" db:"author"`
-	Reviewers     []string  `json:"reviewers" db:"reviewers"`
-	CommentsCount int       `json:"commentsCount" db:"comments_count"`
-	CreatedAt     time.Time `json:"createdAt" db:"created_at"`
-	UpdatedAt     time.Time `json:"updatedAt" db:"updated_at"`
+	ID            string              `json:"id" db:"id"`
+	TenantID      string              `json:"tenantId" db:"tenant_id"`
+	ProjectID     string              `json:"projectId" db:"project_id"`
+	Title         string              `json:"title" db:"title"`
+	SourceBranch  string              `json:"sourceBranch" db:"source_branch"`
+	TargetBranch  string              `json:"targetBranch" db:"target_branch"`
+	SourceCommit  string              `json:"sourceCommit" db:"source_commit"`
+	Status        string              `json:"status" db:"status"` // pending | approved | changes_requested | merged | closed
+	Author        string              `json:"author" db:"author"`
+	Reviewers     jsonslice.StringArray `json:"reviewers" db:"reviewers"`
+	CommentsCount int                 `json:"commentsCount" db:"comments_count"`
+	CreatedAt     time.Time           `json:"createdAt" db:"created_at"`
+	UpdatedAt     time.Time           `json:"updatedAt" db:"updated_at"`
 }
 
 // CreateCodeReviewRequest is the request body for POST /rdm/code-reviews.

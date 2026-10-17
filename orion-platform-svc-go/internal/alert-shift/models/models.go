@@ -1,20 +1,24 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"orion/platform-svc-go/internal/jsonslice"
+)
 
 type Shift struct {
-	ID          string    `json:"id" db:"id"`
-	TenantID    string    `json:"tenantId" db:"tenant_id"`
-	Name        string    `json:"name" db:"name"`
-	Team        *string   `json:"team" db:"team"`
-	Pattern     string    `json:"pattern" db:"pattern"`
-	StartTime   *string   `json:"startTime" db:"start_time"`
-	EndTime     *string   `json:"endTime" db:"end_time"`
-	Weekdays    []int     `json:"weekdays" db:"weekdays"`
-	Enabled     bool      `json:"enabled" db:"enabled"`
-	CreatedAt   time.Time `json:"createdAt" db:"created_at"`
-	UpdatedAt   time.Time `json:"updatedAt" db:"updated_at"`
-	Version    int       `json:"version" db:"version"`
+	ID          string            `json:"id" db:"id"`
+	TenantID    string            `json:"tenantId" db:"tenant_id"`
+	Name        string            `json:"name" db:"name"`
+	Team        *string           `json:"team" db:"team"`
+	Pattern     string            `json:"pattern" db:"pattern"`
+	StartTime   *string           `json:"startTime" db:"start_time"`
+	EndTime     *string           `json:"endTime" db:"end_time"`
+	Weekdays    jsonslice.IntArray `json:"weekdays" db:"weekdays"`
+	Enabled     bool              `json:"enabled" db:"enabled"`
+	CreatedAt   time.Time         `json:"createdAt" db:"created_at"`
+	UpdatedAt   time.Time         `json:"updatedAt" db:"updated_at"`
+	Version    int               `json:"version" db:"version"`
 }
 
 type Assignment struct {
