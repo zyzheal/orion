@@ -77,9 +77,10 @@ func (s *Service) Create(ctx context.Context, tenantID string, req *models.Creat
 	s.logger.Info("inspection template created", zap.String("id", template.ID), zap.String("name", template.Name))
 	if s.events != nil {
 		_ = s.events.Publish(ctx, "inspection.template.created", tenantID, map[string]any{"id": template.ID, "name": template.Name})
-		if s.auditor != nil {
-			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "create", TenantID: tenantID, ResourceType: "inspection.template", ResourceID: template.ID, Details: map[string]any{"name": template.Name}})
-		}}
+	}
+	if s.auditor != nil {
+		_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "create", TenantID: tenantID, ResourceType: "inspection.template", ResourceID: template.ID, Details: map[string]any{"name": template.Name}})
+	}
 	return template, nil
 }
 
@@ -148,8 +149,9 @@ func (s *Service) Delete(ctx context.Context, tenantID, id string) (bool, error)
 	}
 	if ok && s.events != nil {
 		_ = s.events.Publish(ctx, "inspection.template.deleted", tenantID, map[string]any{"id": id})
-		if s.auditor != nil {
-			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "delete", TenantID: tenantID, ResourceType: "inspection.template", ResourceID: id})
-		}}
+	}
+	if ok && s.auditor != nil {
+		_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "delete", TenantID: tenantID, ResourceType: "inspection.template", ResourceID: id})
+	}
 	return ok, nil
 }

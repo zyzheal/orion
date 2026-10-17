@@ -84,9 +84,10 @@ func (s *Service) CreateShift(ctx context.Context, tenantID string, req *models.
 	}
 	if s.events != nil {
 		_ = s.events.Publish(ctx, "alert.shift.created", tenantID, map[string]any{"id": shift.ID, "name": shift.Name})
-		if s.auditor != nil {
-			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "create", TenantID: tenantID, ResourceType: "alert.shift", ResourceID: shift.ID, Details: map[string]any{"name": shift.Name}})
-		}}
+	}
+	if s.auditor != nil {
+		_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "create", TenantID: tenantID, ResourceType: "alert.shift", ResourceID: shift.ID, Details: map[string]any{"name": shift.Name}})
+	}
 	return shift, nil
 }
 
@@ -158,9 +159,10 @@ func (s *Service) DeleteShift(ctx context.Context, tenantID, id string) (bool, e
 	}
 	if ok && s.events != nil {
 		_ = s.events.Publish(ctx, "alert.shift.deleted", tenantID, map[string]any{"id": id})
-		if s.auditor != nil {
-			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "delete", TenantID: tenantID, ResourceType: "alert.shift", ResourceID: id})
-		}}
+	}
+	if ok && s.auditor != nil {
+		_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "delete", TenantID: tenantID, ResourceType: "alert.shift", ResourceID: id})
+	}
 	return ok, nil
 }
 

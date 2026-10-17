@@ -87,9 +87,10 @@ func (s *Service) Create(ctx context.Context, tenantID string, req *models.Creat
 	s.logger.Info("requirement created", zap.String("id", item.ID), zap.String("title", item.Title))
 	if s.events != nil {
 		_ = s.events.Publish(ctx, "rdm.requirement.created", tenantID, map[string]any{"id": item.ID, "title": item.Title, "status": item.Status})
-		if s.auditor != nil {
-			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "create", TenantID: tenantID, ResourceType: "rdm.requirement", ResourceID: item.ID, Details: map[string]any{"title": item.Title, "status": item.Status}})
-		}}
+	}
+	if s.auditor != nil {
+		_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "create", TenantID: tenantID, ResourceType: "rdm.requirement", ResourceID: item.ID, Details: map[string]any{"title": item.Title, "status": item.Status}})
+	}
 	return item, nil
 }
 

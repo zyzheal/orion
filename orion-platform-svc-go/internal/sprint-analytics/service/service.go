@@ -62,9 +62,10 @@ func (s *SprintService) CreateReview(ctx context.Context, tenantID string, req *
 	s.logger.Info("sprint review created", zap.String("reviewId", review.ID), zap.String("sprintId", req.SprintID))
 	if s.events != nil {
 		_ = s.events.Publish(ctx, "sprint.review.created", tenantID, map[string]any{"id": review.ID, "sprintId": review.SprintID})
-		if s.auditor != nil {
-			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "create", TenantID: tenantID, ResourceType: "sprint.review", ResourceID: review.ID, Details: map[string]any{"sprintId": review.SprintID}})
-		}}
+	}
+	if s.auditor != nil {
+		_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "create", TenantID: tenantID, ResourceType: "sprint.review", ResourceID: review.ID, Details: map[string]any{"sprintId": review.SprintID}})
+	}
 	return review, nil
 }
 
@@ -126,9 +127,10 @@ func (s *SprintService) DeleteReview(ctx context.Context, tenantID, id string) (
 	}
 	if ok && s.events != nil {
 		_ = s.events.Publish(ctx, "sprint.review.deleted", tenantID, map[string]any{"id": id})
-		if s.auditor != nil {
-			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "delete", TenantID: tenantID, ResourceType: "sprint.review", ResourceID: id})
-		}}
+	}
+	if ok && s.auditor != nil {
+		_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "delete", TenantID: tenantID, ResourceType: "sprint.review", ResourceID: id})
+	}
 	return ok, nil
 }
 

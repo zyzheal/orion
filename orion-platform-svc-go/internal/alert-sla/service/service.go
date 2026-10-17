@@ -93,9 +93,10 @@ func (s *Service) Create(ctx context.Context, tenantID string, req *models.Creat
 	s.logger.Info("alert sla created", zap.String("id", item.ID), zap.String("name", item.Name))
 	if s.events != nil {
 		_ = s.events.Publish(ctx, "alert.sla.created", tenantID, map[string]any{"id": item.ID, "name": item.Name, "severity": item.Severity})
-		if s.auditor != nil {
-			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "create", TenantID: tenantID, ResourceType: "alert.sla", ResourceID: item.ID, Details: map[string]any{"name": item.Name, "severity": item.Severity}})
-		}}
+	}
+	if s.auditor != nil {
+		_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "create", TenantID: tenantID, ResourceType: "alert.sla", ResourceID: item.ID, Details: map[string]any{"name": item.Name, "severity": item.Severity}})
+	}
 	return item, nil
 }
 
@@ -164,9 +165,10 @@ func (s *Service) Delete(ctx context.Context, tenantID, id string) (bool, error)
 	}
 	if ok && s.events != nil {
 		_ = s.events.Publish(ctx, "alert.sla.deleted", tenantID, map[string]any{"id": id})
-		if s.auditor != nil {
-			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "delete", TenantID: tenantID, ResourceType: "alert.sla", ResourceID: id})
-		}}
+	}
+	if ok && s.auditor != nil {
+		_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "delete", TenantID: tenantID, ResourceType: "alert.sla", ResourceID: id})
+	}
 	return ok, nil
 }
 

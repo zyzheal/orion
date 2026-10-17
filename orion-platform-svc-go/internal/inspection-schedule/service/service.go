@@ -71,9 +71,10 @@ func (s *Service) Create(ctx context.Context, tenantID string, req *models.Creat
 	s.logger.Info("inspection schedule created", zap.String("id", schedule.ID), zap.String("name", schedule.Name))
 	if s.events != nil {
 		_ = s.events.Publish(ctx, "inspection.schedule.created", tenantID, map[string]any{"id": schedule.ID, "name": schedule.Name, "templateId": schedule.TemplateID})
-		if s.auditor != nil {
-			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "create", TenantID: tenantID, ResourceType: "inspection.schedule", ResourceID: schedule.ID, Details: map[string]any{"name": schedule.Name, "templateId": schedule.TemplateID}})
-		}}
+	}
+	if s.auditor != nil {
+		_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "create", TenantID: tenantID, ResourceType: "inspection.schedule", ResourceID: schedule.ID, Details: map[string]any{"name": schedule.Name, "templateId": schedule.TemplateID}})
+	}
 	return schedule, nil
 }
 
@@ -139,9 +140,10 @@ func (s *Service) Delete(ctx context.Context, tenantID, id string) (bool, error)
 	}
 	if ok && s.events != nil {
 		_ = s.events.Publish(ctx, "inspection.schedule.deleted", tenantID, map[string]any{"id": id})
-		if s.auditor != nil {
-			_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "delete", TenantID: tenantID, ResourceType: "inspection.schedule", ResourceID: id})
-		}}
+	}
+	if ok && s.auditor != nil {
+		_ = s.auditor.Log(ctx, auditlogger.AuditEntry{Action: "delete", TenantID: tenantID, ResourceType: "inspection.schedule", ResourceID: id})
+	}
 	return ok, nil
 }
 
