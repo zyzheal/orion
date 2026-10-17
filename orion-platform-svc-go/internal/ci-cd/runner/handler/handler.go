@@ -284,7 +284,7 @@ func (h *Handler) ListRuns(c *gin.Context) {
 func (h *Handler) GetRun(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIRunnerGetRun")
 	defer span.End()
-	run, err := h.svc.GetRun(ctx, c.Param("id"))
+	run, err := h.svc.GetRun(ctx, c.Param("id"), c.GetString("tenant_id"))
 	if err != nil {
 		respondNotFound(c, "run not found")
 		return
@@ -295,7 +295,7 @@ func (h *Handler) GetRun(c *gin.Context) {
 func (h *Handler) GetRunDetail(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIRunnerGetRunDetail")
 	defer span.End()
-	run, stages, tasks, err := h.svc.GetRunDetail(ctx, c.Param("id"))
+	run, stages, tasks, err := h.svc.GetRunDetail(ctx, c.Param("id"), c.GetString("tenant_id"))
 	if err != nil {
 		respondNotFound(c, "run not found")
 		return
@@ -310,7 +310,7 @@ func (h *Handler) GetRunDetail(c *gin.Context) {
 func (h *Handler) StartRun(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIRunnerStartRun")
 	defer span.End()
-	run, err := h.svc.StartRun(ctx, c.Param("id"))
+	run, err := h.svc.StartRun(ctx, c.Param("id"), c.GetString("tenant_id"))
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -333,7 +333,7 @@ func (h *Handler) CompleteRun(c *gin.Context) {
 		respondBadRequest(c, "status must be 'success' or 'failed'")
 		return
 	}
-	run, err := h.svc.CompleteRun(ctx, c.Param("id"), req.Status, req.ErrorMessage)
+	run, err := h.svc.CompleteRun(ctx, c.Param("id"), req.Status, c.GetString("tenant_id"), req.ErrorMessage)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -344,7 +344,7 @@ func (h *Handler) CompleteRun(c *gin.Context) {
 func (h *Handler) CancelRun(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIRunnerCancelRun")
 	defer span.End()
-	run, err := h.svc.CancelRun(ctx, c.Param("id"))
+	run, err := h.svc.CancelRun(ctx, c.Param("id"), c.GetString("tenant_id"))
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -355,7 +355,7 @@ func (h *Handler) CancelRun(c *gin.Context) {
 func (h *Handler) DeleteRun(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIRunnerDeleteRun")
 	defer span.End()
-	if err := h.svc.DeleteRun(ctx, c.Param("id")); err != nil {
+	if err := h.svc.DeleteRun(ctx, c.Param("id"), c.GetString("tenant_id")); err != nil {
 		respondNotFound(c, err.Error())
 		return
 	}
@@ -365,7 +365,7 @@ func (h *Handler) DeleteRun(c *gin.Context) {
 func (h *Handler) CheckRunCompletion(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIRunnerCheckRunCompletion")
 	defer span.End()
-	result, err := h.svc.CheckRunCompletion(ctx, c.Param("id"))
+	result, err := h.svc.CheckRunCompletion(ctx, c.Param("id"), c.GetString("tenant_id"))
 	if err != nil {
 		respondNotFound(c, err.Error())
 		return
@@ -398,7 +398,7 @@ func (h *Handler) AddStage(c *gin.Context) {
 func (h *Handler) GetStages(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIRunnerGetStages")
 	defer span.End()
-	stages, err := h.svc.GetStages(ctx, c.Param("id"))
+	stages, err := h.svc.GetStages(ctx, c.Param("id"), c.GetString("tenant_id"))
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

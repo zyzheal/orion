@@ -241,10 +241,13 @@ func (r *Repository) CreateRun(ctx context.Context, run *models.PipelineRun) err
 	return err
 }
 
-// GetRunByID returns a pipeline run by ID.
-func (r *Repository) GetRunByID(ctx context.Context, id string) (*models.PipelineRun, error) {
+// GetRunByID returns a pipeline run by ID, scoped to the caller's tenant.
+// The tenant condition blocks cross-tenant disclosure: run IDs are opaque
+// UUIDs, so without it any tenant with execute:runner could read/start/drive
+// another tenant's run.
+func (r *Repository) GetRunByID(ctx context.Context, id, tenantID string) (*models.PipelineRun, error) {
 	var run models.PipelineRun
-	err := r.db.GetContext(ctx, &run, `SELECT * FROM pipeline_runs WHERE id=$1`, id)
+	err := r.db.GetContext(ctx, &run, `SELECT * FROM pipeline_runs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -354,9 +357,10 @@ func (r *Repository) CountRuns(ctx context.Context, pipelineID string) (int, err
 	return count, err
 }
 
-// DeleteRun removes a pipeline run (cascade deletes stages and tasks).
-func (r *Repository) DeleteRun(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM pipeline_runs WHERE id=$1`, id)
+// DeleteRun removes a pipeline run (cascade deletes stages and tasks),
+// scoped to the caller's tenant.
+func (r *Repository) DeleteRun(ctx context.Context, id, tenantID string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM pipeline_runs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
 
@@ -382,8 +386,13 @@ func (r *Repository) GetStageExecutionByID(ctx context.Context, id string) (*mod
 	return &se, nil
 }
 
-// ListStageExecutionsByRun returns all stage executions for a run, ordered by creation.
-func (r *Repository) ListStageExecutionsByRun(ctx context.Context, runID string) ([]models.StageExecution, error) {
+// ListStageExecutionsByRun returns all stage executions for a run, ordered by
+// creation. The run is tenant-validated first via GetRunByID so the caller
+// cannot list stages of another tenant's run.
+func (r *Repository) ListStageExecutionsByRun(ctx context.Context, runID, tenantID string) ([]models.StageExecution, error) {
+	if _, err := r.GetRunByID(ctx, runID, tenantID); err != nil {
+		return nil, err
+	}
 	var items []models.StageExecution
 	err := r.db.SelectContext(ctx, &items,
 		`SELECT * FROM stage_executions WHERE run_id=$1 ORDER BY created_at`, runID,

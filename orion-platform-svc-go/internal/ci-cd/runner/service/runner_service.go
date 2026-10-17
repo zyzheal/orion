@@ -231,9 +231,9 @@ func (s *Service) CreateRun(ctx context.Context, tenantID string, req *models.Cr
 	return run, s.repo.CreateRun(ctx, run)
 }
 
-// GetRun returns a pipeline run by ID.
-func (s *Service) GetRun(ctx context.Context, id string) (*models.PipelineRun, error) {
-	return s.repo.GetRunByID(ctx, id)
+// GetRun returns a pipeline run by ID, scoped to the caller's tenant.
+func (s *Service) GetRun(ctx context.Context, id, tenantID string) (*models.PipelineRun, error) {
+	return s.repo.GetRunByID(ctx, id, tenantID)
 }
 
 // ListRuns returns pipeline runs with optional filters.
@@ -242,8 +242,8 @@ func (s *Service) ListRuns(ctx context.Context, tenantID string, filter *models.
 }
 
 // StartRun transitions a run from pending to running.
-func (s *Service) StartRun(ctx context.Context, runID string) (*models.PipelineRun, error) {
-	run, err := s.repo.GetRunByID(ctx, runID)
+func (s *Service) StartRun(ctx context.Context, runID, tenantID string) (*models.PipelineRun, error) {
+	run, err := s.repo.GetRunByID(ctx, runID, tenantID)
 	if err != nil {
 		return nil, ErrRunNotFound
 	}
@@ -256,8 +256,8 @@ func (s *Service) StartRun(ctx context.Context, runID string) (*models.PipelineR
 }
 
 // CompleteRun transitions a run to success or failed.
-func (s *Service) CompleteRun(ctx context.Context, runID, status string, errorMsg *string) (*models.PipelineRun, error) {
-	run, err := s.repo.GetRunByID(ctx, runID)
+func (s *Service) CompleteRun(ctx context.Context, runID, status, tenantID string, errorMsg *string) (*models.PipelineRun, error) {
+	run, err := s.repo.GetRunByID(ctx, runID, tenantID)
 	if err != nil {
 		return nil, ErrRunNotFound
 	}
@@ -274,8 +274,8 @@ func (s *Service) CompleteRun(ctx context.Context, runID, status string, errorMs
 }
 
 // CancelRun transitions a run to cancelled.
-func (s *Service) CancelRun(ctx context.Context, runID string) (*models.PipelineRun, error) {
-	run, err := s.repo.GetRunByID(ctx, runID)
+func (s *Service) CancelRun(ctx context.Context, runID, tenantID string) (*models.PipelineRun, error) {
+	run, err := s.repo.GetRunByID(ctx, runID, tenantID)
 	if err != nil {
 		return nil, ErrRunNotFound
 	}
@@ -293,8 +293,8 @@ func (s *Service) CancelRun(ctx context.Context, runID string) (*models.Pipeline
 }
 
 // DeleteRun removes a pipeline run.
-func (s *Service) DeleteRun(ctx context.Context, runID string) error {
-	return s.repo.DeleteRun(ctx, runID)
+func (s *Service) DeleteRun(ctx context.Context, runID, tenantID string) error {
+	return s.repo.DeleteRun(ctx, runID, tenantID)
 }
 
 // ==================== Stage Execution ====================
@@ -312,9 +312,9 @@ func (s *Service) AddStage(ctx context.Context, runID, stageName string, stageID
 	return se, s.repo.CreateStageExecution(ctx, se)
 }
 
-// GetStages returns all stage executions for a run.
-func (s *Service) GetStages(ctx context.Context, runID string) ([]models.StageExecution, error) {
-	return s.repo.ListStageExecutionsByRun(ctx, runID)
+// GetStages returns all stage executions for a run, tenant-scoped.
+func (s *Service) GetStages(ctx context.Context, runID, tenantID string) ([]models.StageExecution, error) {
+	return s.repo.ListStageExecutionsByRun(ctx, runID, tenantID)
 }
 
 // GetStage returns a stage execution by ID.
@@ -433,14 +433,14 @@ func (s *Service) AppendTaskLogs(ctx context.Context, taskID, logContent string)
 
 // ==================== Run Detail & Completion ====================
 
-// GetRunDetail returns a pipeline run with its stages and tasks.
-func (s *Service) GetRunDetail(ctx context.Context, runID string) (*models.PipelineRun, []models.StageExecution, []models.TaskExecution, error) {
-	run, err := s.repo.GetRunByID(ctx, runID)
+// GetRunDetail returns a pipeline run with its stages and tasks, tenant-scoped.
+func (s *Service) GetRunDetail(ctx context.Context, runID, tenantID string) (*models.PipelineRun, []models.StageExecution, []models.TaskExecution, error) {
+	run, err := s.repo.GetRunByID(ctx, runID, tenantID)
 	if err != nil {
 		return nil, nil, nil, ErrRunNotFound
 	}
 
-	stages, err := s.repo.ListStageExecutionsByRun(ctx, runID)
+	stages, err := s.repo.ListStageExecutionsByRun(ctx, runID, tenantID)
 	if err != nil {
 		return run, nil, nil, err
 	}
@@ -457,9 +457,9 @@ func (s *Service) GetRunDetail(ctx context.Context, runID string) (*models.Pipel
 	return run, stages, allTasks, nil
 }
 
-// CheckRunCompletion checks if all stages of a run are complete.
-func (s *Service) CheckRunCompletion(ctx context.Context, runID string) (*models.RunCompletionResult, error) {
-	stages, err := s.repo.ListStageExecutionsByRun(ctx, runID)
+// CheckRunCompletion checks if all stages of a run are complete, tenant-scoped.
+func (s *Service) CheckRunCompletion(ctx context.Context, runID, tenantID string) (*models.RunCompletionResult, error) {
+	stages, err := s.repo.ListStageExecutionsByRun(ctx, runID, tenantID)
 	if err != nil {
 		return nil, err
 	}
