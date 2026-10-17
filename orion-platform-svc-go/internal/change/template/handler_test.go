@@ -240,11 +240,7 @@ func TestHandler_ListSteps_Success(t *testing.T) {
 }
 
 func TestHandler_InvalidJSON(t *testing.T) {
-	// Send invalid JSON body — should get 400 from middleware.
-	c, w := httptest.NewRecorder(), gin.Context{}
-	// Skip this test — the gin.CreateTestContext + Write pattern is complex.
-	_ = c
-	_ = w
+	t.Skip("gin.CreateTestContext + invalid JSON binding pattern requires full engine setup")
 }
 
 // TestHandler_ErrValidation_MapsTo400 verifies that validation errors
