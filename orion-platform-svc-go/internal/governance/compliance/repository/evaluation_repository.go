@@ -219,8 +219,7 @@ func (r *ComplianceEvidenceRepository) FindByPolicyID(ctx context.Context, polic
 func (r *ComplianceEvidenceRepository) FindByTenantAndPolicy(ctx context.Context, tenantID, policyID string) ([]models.ComplianceEvidence, error) {
 	var evidence []models.ComplianceEvidence
 	query := `SELECT * FROM compliance_evidence WHERE tenant_id = $1 AND policy_id = $2 ORDER BY created_at DESC`
-	_ = tenantID // TODO: apply tenant_id filtering
-	err := r.db.SelectContext(ctx, &evidence, query, policyID)
+	err := r.db.SelectContext(ctx, &evidence, query, tenantID, policyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find evidence: %w", err)
 	}
