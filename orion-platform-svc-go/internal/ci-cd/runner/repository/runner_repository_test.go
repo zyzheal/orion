@@ -435,3 +435,61 @@ func TestDeleteRunnerJob_ScopedToTenant(t *testing.T) {
 		t.Errorf("unmet expectations: %v", err)
 	}
 }
+
+// ==================== P1: stale-runner 租户隔离 ====================
+
+// FindByStatus feeds GetStaleRunners/MarkStaleRunnersOffline which are exposed
+// as tenant-scoped HTTP endpoints — the query must carry the caller's
+// tenant_id or every tenant would see all platform runners.
+
+func TestFindByStatus_ScopedToTenant(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock: %v", err)
+	}
+	defer db.Close()
+	r := NewRepository(sqlx.NewDb(db, "postgres"))
+
+	mock.ExpectQuery(`SELECT \* FROM runners WHERE tenant_id=\$1 AND status=\$2 ORDER BY last_heartbeat DESC`).
+		WithArgs("t-1", "online").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "tenant_id", "name", "status"}).
+			AddRow("r-1", "t-1", "runner-a", "online"))
+
+	items, err := r.FindByStatus(context.Background(), "t-1", "online")
+	if err != nil {
+		t.Fatalf("FindByStatus: %v", err)
+	}
+	if len(items) != 1 || items[0].Name != "runner-a" {
+		t.Errorf("got %d items, want 1 (runner-a)", len(items))
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unmet expectations: %v", err)
+	}
+}
+
+func TestFindByStatus_IsolatedAcrossTenants(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("sqlmock: %v", err)
+	}
+	defer db.Close()
+	r := NewRepository(sqlx.NewDb(db, "postgres"))
+
+	// Tenant t-2's status scan must never see t-1's runners — the WHERE
+	// clause carries the tenant condition, so querying for a different
+	// tenant returns nothing.
+	mock.ExpectQuery(`SELECT \* FROM runners WHERE tenant_id=\$1 AND status=\$2 ORDER BY last_heartbeat DESC`).
+		WithArgs("t-2", "online").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "tenant_id", "name", "status"}))
+
+	items, err := r.FindByStatus(context.Background(), "t-2", "online")
+	if err != nil {
+		t.Fatalf("FindByStatus: %v", err)
+	}
+	if len(items) != 0 {
+		t.Errorf("len(items) = %d, want 0 (cross-tenant isolation)", len(items))
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unmet expectations: %v", err)
+	}
+}

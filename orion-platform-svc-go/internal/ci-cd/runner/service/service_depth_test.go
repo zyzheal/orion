@@ -146,18 +146,18 @@ func TestGetStaleRunnersDefaultTimeout(t *testing.T) {
 	future := time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC)
 	old := now.Add(-1 * time.Hour)
 
-	mock.ExpectQuery(`SELECT \* FROM runners WHERE status=\$1 ORDER BY last_heartbeat DESC`).
-		WithArgs("online").
+	mock.ExpectQuery(`SELECT \* FROM runners WHERE tenant_id=\$1 AND status=\$2 ORDER BY last_heartbeat DESC`).
+		WithArgs("t1", "online").
 		WillReturnRows(runnerRows(
 			models.Runner{ID: "new-online", Status: "online", LastHeartbeat: &now},
 		))
-	mock.ExpectQuery(`SELECT \* FROM runners WHERE status=\$1 ORDER BY last_heartbeat DESC`).
-		WithArgs("busy").
+	mock.ExpectQuery(`SELECT \* FROM runners WHERE tenant_id=\$1 AND status=\$2 ORDER BY last_heartbeat DESC`).
+		WithArgs("t1", "busy").
 		WillReturnRows(runnerRows(
 			models.Runner{ID: "stale-busy", Status: "busy", LastHeartbeat: &old},
 		))
 
-	out, err := svc.GetStaleRunners(context.Background(), 0)
+	out, err := svc.GetStaleRunners(context.Background(), "t1", 0)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -169,16 +169,16 @@ func TestGetStaleRunnersDefaultTimeout(t *testing.T) {
 
 func TestGetStaleRunnersSkipsNilHeartbeat(t *testing.T) {
 	svc, _, mock := newServiceWithMock(t)
-	mock.ExpectQuery(`SELECT \* FROM runners WHERE status=\$1 ORDER BY last_heartbeat DESC`).
-		WithArgs("online").
+	mock.ExpectQuery(`SELECT \* FROM runners WHERE tenant_id=\$1 AND status=\$2 ORDER BY last_heartbeat DESC`).
+		WithArgs("t1", "online").
 		WillReturnRows(runnerRows(
 			models.Runner{ID: "no-hb", Status: "online"}, // LastHeartbeat nil
 		))
-	mock.ExpectQuery(`SELECT \* FROM runners WHERE status=\$1 ORDER BY last_heartbeat DESC`).
-		WithArgs("busy").
+	mock.ExpectQuery(`SELECT \* FROM runners WHERE tenant_id=\$1 AND status=\$2 ORDER BY last_heartbeat DESC`).
+		WithArgs("t1", "busy").
 		WillReturnRows(runnerRows())
 
-	out, err := svc.GetStaleRunners(context.Background(), 5)
+	out, err := svc.GetStaleRunners(context.Background(), "t1", 5)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -190,15 +190,15 @@ func TestGetStaleRunnersSkipsNilHeartbeat(t *testing.T) {
 func TestGetStaleRunnersRecentHeartbeatNotStale(t *testing.T) {
 	svc, _, mock := newServiceWithMock(t)
 	now := time.Now()
-	mock.ExpectQuery(`SELECT \* FROM runners WHERE status=\$1 ORDER BY last_heartbeat DESC`).
-		WithArgs("online").
+	mock.ExpectQuery(`SELECT \* FROM runners WHERE tenant_id=\$1 AND status=\$2 ORDER BY last_heartbeat DESC`).
+		WithArgs("t1", "online").
 		WillReturnRows(runnerRows(
 			models.Runner{ID: "fresh", Status: "online", LastHeartbeat: &now},
 		))
-	mock.ExpectQuery(`SELECT \* FROM runners WHERE status=\$1 ORDER BY last_heartbeat DESC`).
-		WithArgs("busy").
+	mock.ExpectQuery(`SELECT \* FROM runners WHERE tenant_id=\$1 AND status=\$2 ORDER BY last_heartbeat DESC`).
+		WithArgs("t1", "busy").
 		WillReturnRows(runnerRows())
-	out, err := svc.GetStaleRunners(context.Background(), 5)
+	out, err := svc.GetStaleRunners(context.Background(), "t1", 5)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -209,10 +209,10 @@ func TestGetStaleRunnersRecentHeartbeatNotStale(t *testing.T) {
 
 func TestGetStaleRunnersPropagatesRepoError(t *testing.T) {
 	svc, _, mock := newServiceWithMock(t)
-	mock.ExpectQuery(`SELECT \* FROM runners WHERE status=\$1 ORDER BY last_heartbeat DESC`).
-		WithArgs("online").
+	mock.ExpectQuery(`SELECT \* FROM runners WHERE tenant_id=\$1 AND status=\$2 ORDER BY last_heartbeat DESC`).
+		WithArgs("t1", "online").
 		WillReturnError(errors.New("db down"))
-	if _, err := svc.GetStaleRunners(context.Background(), 5); err == nil {
+	if _, err := svc.GetStaleRunners(context.Background(), "t1", 5); err == nil {
 		t.Error("expected db error")
 	}
 }

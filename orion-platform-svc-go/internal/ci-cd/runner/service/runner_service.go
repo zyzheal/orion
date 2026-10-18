@@ -145,18 +145,19 @@ func (s *Service) SelectRunner(ctx context.Context, tenantID string, requiredLab
 	return &best, nil
 }
 
-// GetStaleRunners returns runners whose heartbeat exceeds the timeout.
-func (s *Service) GetStaleRunners(ctx context.Context, timeoutMinutes int) ([]models.Runner, error) {
+// GetStaleRunners returns runners whose heartbeat exceeds the timeout,
+// scoped to the caller's tenant.
+func (s *Service) GetStaleRunners(ctx context.Context, tenantID string, timeoutMinutes int) ([]models.Runner, error) {
 	if timeoutMinutes <= 0 {
 		timeoutMinutes = 5
 	}
 
-	// Get all online and busy runners
-	online, err := s.repo.FindByStatus(ctx, "online")
+	// Get all online and busy runners for this tenant
+	online, err := s.repo.FindByStatus(ctx, tenantID, "online")
 	if err != nil {
 		return nil, err
 	}
-	busy, err := s.repo.FindByStatus(ctx, "busy")
+	busy, err := s.repo.FindByStatus(ctx, tenantID, "busy")
 	if err != nil {
 		return nil, err
 	}
@@ -173,9 +174,10 @@ func (s *Service) GetStaleRunners(ctx context.Context, timeoutMinutes int) ([]mo
 	return stale, nil
 }
 
-// MarkStaleRunnersOffline marks runners with expired heartbeats as offline.
-func (s *Service) MarkStaleRunnersOffline(ctx context.Context, timeoutMinutes int) (int, error) {
-	stale, err := s.GetStaleRunners(ctx, timeoutMinutes)
+// MarkStaleRunnersOffline marks runners with expired heartbeats as offline,
+// scoped to the caller's tenant.
+func (s *Service) MarkStaleRunnersOffline(ctx context.Context, tenantID string, timeoutMinutes int) (int, error) {
+	stale, err := s.GetStaleRunners(ctx, tenantID, timeoutMinutes)
 	if err != nil {
 		return 0, err
 	}

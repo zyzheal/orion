@@ -91,11 +91,12 @@ func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
 	return count, err
 }
 
-// FindByStatus returns all runners with the given status.
-func (r *Repository) FindByStatus(ctx context.Context, status string) ([]models.Runner, error) {
+// FindByStatus returns all runners with the given status, scoped to a tenant.
+func (r *Repository) FindByStatus(ctx context.Context, tenantID, status string) ([]models.Runner, error) {
 	var items []models.Runner
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM runners WHERE status=$1 ORDER BY last_heartbeat DESC`, status,
+		`SELECT * FROM runners WHERE tenant_id=$1 AND status=$2 ORDER BY last_heartbeat DESC`,
+		tenantID, status,
 	)
 	return items, err
 }

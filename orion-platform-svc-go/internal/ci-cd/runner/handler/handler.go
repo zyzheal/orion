@@ -204,7 +204,7 @@ func (h *Handler) GetStaleRunners(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIRunnerGetStaleRunners")
 	defer span.End()
 	timeout := pagination.Int(c.Query("timeout_minutes"), 5)
-	stale, err := h.svc.GetStaleRunners(ctx, timeout)
+	stale, err := h.svc.GetStaleRunners(ctx, c.GetString("tenant_id"), timeout)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -216,7 +216,7 @@ func (h *Handler) MarkStaleRunnersOffline(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIRunnerMarkStaleRunnersOffline")
 	defer span.End()
 	timeout := pagination.Int(c.Query("timeout_minutes"), 5)
-	count, err := h.svc.MarkStaleRunnersOffline(ctx, timeout)
+	count, err := h.svc.MarkStaleRunnersOffline(ctx, c.GetString("tenant_id"), timeout)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
