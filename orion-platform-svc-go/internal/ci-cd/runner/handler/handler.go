@@ -227,7 +227,7 @@ func (h *Handler) MarkStaleRunnersOffline(c *gin.Context) {
 func (h *Handler) ListRunnerJobs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIRunnerListRunnerJobs")
 	defer span.End()
-	jobs, err := h.svc.ListRunnerJobs(ctx, c.Param("id"))
+	jobs, err := h.svc.ListRunnerJobs(ctx, c.Param("id"), c.GetString("tenant_id"))
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -411,7 +411,7 @@ func (h *Handler) GetStages(c *gin.Context) {
 func (h *Handler) GetTasks(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIRunnerGetTasks")
 	defer span.End()
-	tasks, err := h.svc.GetTasks(ctx, c.Param("stageId"))
+	tasks, err := h.svc.GetTasks(ctx, c.Param("stageId"), c.GetString("tenant_id"))
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
@@ -443,7 +443,7 @@ func (h *Handler) AddTask(c *gin.Context) {
 func (h *Handler) GetTask(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIRunnerGetTask")
 	defer span.End()
-	task, err := h.svc.GetTask(ctx, c.Param("id"))
+	task, err := h.svc.GetTask(ctx, c.Param("id"), c.GetString("tenant_id"))
 	if err != nil {
 		respondNotFound(c, "task not found")
 		return
@@ -454,7 +454,7 @@ func (h *Handler) GetTask(c *gin.Context) {
 func (h *Handler) StartTask(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIRunnerStartTask")
 	defer span.End()
-	task, err := h.svc.StartTask(ctx, c.Param("id"))
+	task, err := h.svc.StartTask(ctx, c.Param("id"), c.GetString("tenant_id"))
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -472,7 +472,7 @@ func (h *Handler) CompleteTask(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	task, err := h.svc.CompleteTask(ctx, c.Param("id"), req.Output)
+	task, err := h.svc.CompleteTask(ctx, c.Param("id"), c.GetString("tenant_id"), req.Output)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -490,7 +490,7 @@ func (h *Handler) FailTask(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	task, err := h.svc.FailTask(ctx, c.Param("id"), req.ErrorMessage)
+	task, err := h.svc.FailTask(ctx, c.Param("id"), c.GetString("tenant_id"), req.ErrorMessage)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -508,7 +508,7 @@ func (h *Handler) AppendTaskLogs(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.AppendTaskLogs(ctx, c.Param("id"), req.Logs); err != nil {
+	if err := h.svc.AppendTaskLogs(ctx, c.Param("id"), c.GetString("tenant_id"), req.Logs); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
@@ -537,7 +537,7 @@ func (h *Handler) CreateRunnerJob(c *gin.Context) {
 func (h *Handler) GetRunnerJob(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIRunnerGetRunnerJob")
 	defer span.End()
-	job, err := h.svc.GetRunnerJob(ctx, c.Param("id"))
+	job, err := h.svc.GetRunnerJob(ctx, c.Param("id"), c.GetString("tenant_id"))
 	if err != nil {
 		respondNotFound(c, "job not found")
 		return
@@ -548,7 +548,7 @@ func (h *Handler) GetRunnerJob(c *gin.Context) {
 func (h *Handler) MarkJobStarted(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CIRunnerMarkJobStarted")
 	defer span.End()
-	job, err := h.svc.MarkJobStarted(ctx, c.Param("id"))
+	job, err := h.svc.MarkJobStarted(ctx, c.Param("id"), c.GetString("tenant_id"))
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -566,7 +566,7 @@ func (h *Handler) MarkJobComplete(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	job, err := h.svc.MarkJobComplete(ctx, c.Param("id"), req.Result)
+	job, err := h.svc.MarkJobComplete(ctx, c.Param("id"), c.GetString("tenant_id"), req.Result)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -584,7 +584,7 @@ func (h *Handler) MarkJobFailed(c *gin.Context) {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	job, err := h.svc.MarkJobFailed(ctx, c.Param("id"), req.Error)
+	job, err := h.svc.MarkJobFailed(ctx, c.Param("id"), c.GetString("tenant_id"), req.Error)
 	if err != nil {
 		respondBadRequest(c, err.Error())
 		return
@@ -615,7 +615,7 @@ func (h *Handler) ReportJobResult(c *gin.Context) {
 		if req.Result == nil {
 			req.Result = map[string]interface{}{}
 		}
-		job, err := h.svc.MarkJobComplete(ctx, jobID, req.Result)
+		job, err := h.svc.MarkJobComplete(ctx, jobID, c.GetString("tenant_id"), req.Result)
 		if err != nil {
 			respondBadRequest(c, err.Error())
 			return
@@ -626,7 +626,7 @@ func (h *Handler) ReportJobResult(c *gin.Context) {
 		if errMsg == "" {
 			errMsg = "Unknown error"
 		}
-		if _, err := h.svc.MarkJobFailed(ctx, jobID, errMsg); err != nil {
+		if _, err := h.svc.MarkJobFailed(ctx, jobID, c.GetString("tenant_id"), errMsg); err != nil {
 			respondBadRequest(c, err.Error())
 			return
 		}

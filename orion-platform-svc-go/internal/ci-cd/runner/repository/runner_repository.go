@@ -376,10 +376,15 @@ func (r *Repository) CreateStageExecution(ctx context.Context, se *models.StageE
 	return err
 }
 
-// GetStageExecutionByID returns a stage execution by ID.
-func (r *Repository) GetStageExecutionByID(ctx context.Context, id string) (*models.StageExecution, error) {
+// GetStageExecutionByID returns a stage execution by ID, scoped to the run's
+// tenant via a JOIN on pipeline_runs — cross-tenant access yields
+// sql.ErrNoRows so the service maps it to ErrStageNotFound.
+func (r *Repository) GetStageExecutionByID(ctx context.Context, id, tenantID string) (*models.StageExecution, error) {
 	var se models.StageExecution
-	err := r.db.GetContext(ctx, &se, `SELECT * FROM stage_executions WHERE id=$1`, id)
+	err := r.db.GetContext(ctx, &se,
+		`SELECT se.* FROM stage_executions se
+		 JOIN pipeline_runs r ON se.run_id = r.id
+		 WHERE se.id=$1 AND r.tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -400,8 +405,9 @@ func (r *Repository) ListStageExecutionsByRun(ctx context.Context, runID, tenant
 	return items, err
 }
 
-// UpdateStageExecutionStatus updates a stage execution's status and timestamps.
-func (r *Repository) UpdateStageExecutionStatus(ctx context.Context, id, status string, startedAt, completedAt *time.Time, errorMessage, logs *string) (*models.StageExecution, error) {
+// UpdateStageExecutionStatus updates a stage execution's status and timestamps,
+// scoped to the run's tenant via EXISTS on pipeline_runs.
+func (r *Repository) UpdateStageExecutionStatus(ctx context.Context, id, status string, startedAt, completedAt *time.Time, errorMessage, logs *string, tenantID string) (*models.StageExecution, error) {
 	setClauses := []string{"status=$2"}
 	args := []interface{}{id, status}
 	idx := 3
@@ -440,7 +446,10 @@ func (r *Repository) UpdateStageExecutionStatus(ctx context.Context, id, status 
 		}
 		query += clause
 	}
-	query += " WHERE id=$1 RETURNING *"
+	query += " WHERE id=$1"
+	query += " AND EXISTS (SELECT 1 FROM pipeline_runs r WHERE r.id = stage_executions.run_id AND r.tenant_id = $" + itoa(idx) + ")"
+	query += " RETURNING *"
+	args = append(args, tenantID)
 
 	var se models.StageExecution
 	err := r.db.GetContext(ctx, &se, query, args...)
@@ -462,27 +471,37 @@ func (r *Repository) CreateTaskExecution(ctx context.Context, te *models.TaskExe
 	return err
 }
 
-// GetTaskExecutionByID returns a task execution by ID.
-func (r *Repository) GetTaskExecutionByID(ctx context.Context, id string) (*models.TaskExecution, error) {
+// GetTaskExecutionByID returns a task execution by ID, scoped to the run's
+// tenant via JOINs on stage_executions → pipeline_runs.
+func (r *Repository) GetTaskExecutionByID(ctx context.Context, id, tenantID string) (*models.TaskExecution, error) {
 	var te models.TaskExecution
-	err := r.db.GetContext(ctx, &te, `SELECT * FROM task_executions WHERE id=$1`, id)
+	err := r.db.GetContext(ctx, &te,
+		`SELECT te.* FROM task_executions te
+		 JOIN stage_executions se ON te.execution_id = se.id
+		 JOIN pipeline_runs r ON se.run_id = r.id
+		 WHERE te.id=$1 AND r.tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	return &te, nil
 }
 
-// ListTaskExecutionsByStage returns all task executions for a stage execution.
-func (r *Repository) ListTaskExecutionsByStage(ctx context.Context, executionID string) ([]models.TaskExecution, error) {
+// ListTaskExecutionsByStage returns all task executions for a stage execution,
+// scoped to the stage's run tenant via JOINs on pipeline_runs.
+func (r *Repository) ListTaskExecutionsByStage(ctx context.Context, executionID, tenantID string) ([]models.TaskExecution, error) {
 	var items []models.TaskExecution
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM task_executions WHERE execution_id=$1 ORDER BY created_at`, executionID,
+		`SELECT te.* FROM task_executions te
+		 JOIN stage_executions se ON te.execution_id = se.id
+		 JOIN pipeline_runs r ON se.run_id = r.id
+		 WHERE te.execution_id=$1 AND r.tenant_id=$2 ORDER BY te.created_at`, executionID, tenantID,
 	)
 	return items, err
 }
 
 // UpdateTaskExecutionStatus updates a task execution's status, output, timestamps, error, and logs.
-func (r *Repository) UpdateTaskExecutionStatus(ctx context.Context, id string, updates map[string]interface{}) (*models.TaskExecution, error) {
+// The update is scoped to the run's tenant via EXISTS on pipeline_runs.
+func (r *Repository) UpdateTaskExecutionStatus(ctx context.Context, id string, updates map[string]interface{}, tenantID string) (*models.TaskExecution, error) {
 	setClauses := []string{}
 	args := []interface{}{id}
 	idx := 2
@@ -528,7 +547,7 @@ func (r *Repository) UpdateTaskExecutionStatus(ctx context.Context, id string, u
 	}
 
 	if len(setClauses) == 0 {
-		return r.GetTaskExecutionByID(ctx, id)
+		return r.GetTaskExecutionByID(ctx, id, tenantID)
 	}
 
 	query := "UPDATE task_executions SET "
@@ -538,7 +557,10 @@ func (r *Repository) UpdateTaskExecutionStatus(ctx context.Context, id string, u
 		}
 		query += clause
 	}
-	query += " WHERE id=$1 RETURNING *"
+	query += " WHERE id=$1"
+	query += " AND EXISTS (SELECT 1 FROM stage_executions se JOIN pipeline_runs r ON se.run_id = r.id WHERE se.id = task_executions.execution_id AND r.tenant_id = $" + itoa(idx) + ")"
+	query += " RETURNING *"
+	args = append(args, tenantID)
 
 	var te models.TaskExecution
 	err := r.db.GetContext(ctx, &te, query, args...)
@@ -560,30 +582,32 @@ func (r *Repository) CreateRunnerJob(ctx context.Context, job *models.RunnerJob)
 	return err
 }
 
-// GetRunnerJobByID returns a runner job by ID.
-func (r *Repository) GetRunnerJobByID(ctx context.Context, id string) (*models.RunnerJob, error) {
+// GetRunnerJobByID returns a runner job by ID, scoped to a tenant.
+func (r *Repository) GetRunnerJobByID(ctx context.Context, id, tenantID string) (*models.RunnerJob, error) {
 	var job models.RunnerJob
-	err := r.db.GetContext(ctx, &job, `SELECT * FROM runner_jobs WHERE id=$1`, id)
+	err := r.db.GetContext(ctx, &job,
+		`SELECT * FROM runner_jobs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	return &job, nil
 }
 
-// ListRunnerJobsByRunner returns all jobs for a runner, ordered by creation.
-func (r *Repository) ListRunnerJobsByRunner(ctx context.Context, runnerID string) ([]models.RunnerJob, error) {
+// ListRunnerJobsByRunner returns all jobs for a runner, ordered by creation,
+// scoped to a tenant.
+func (r *Repository) ListRunnerJobsByRunner(ctx context.Context, runnerID, tenantID string) ([]models.RunnerJob, error) {
 	var items []models.RunnerJob
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM runner_jobs WHERE runner_id=$1 ORDER BY created_at DESC`, runnerID,
+		`SELECT * FROM runner_jobs WHERE runner_id=$1 AND tenant_id=$2 ORDER BY created_at DESC`, runnerID, tenantID,
 	)
 	return items, err
 }
 
-// FindRunnerJobByTaskID returns a runner job by task ID.
-func (r *Repository) FindRunnerJobByTaskID(ctx context.Context, taskID string) (*models.RunnerJob, error) {
+// FindRunnerJobByTaskID returns a runner job by task ID, scoped to a tenant.
+func (r *Repository) FindRunnerJobByTaskID(ctx context.Context, taskID, tenantID string) (*models.RunnerJob, error) {
 	var job models.RunnerJob
 	err := r.db.GetContext(ctx, &job,
-		`SELECT * FROM runner_jobs WHERE task_id=$1 LIMIT 1`, taskID,
+		`SELECT * FROM runner_jobs WHERE task_id=$1 AND tenant_id=$2 LIMIT 1`, taskID, tenantID,
 	)
 	if err != nil {
 		return nil, err
@@ -591,11 +615,12 @@ func (r *Repository) FindRunnerJobByTaskID(ctx context.Context, taskID string) (
 	return &job, nil
 }
 
-// MarkRunnerJobStarted marks a runner job as running with a started_at timestamp.
-func (r *Repository) MarkRunnerJobStarted(ctx context.Context, id string) (*models.RunnerJob, error) {
+// MarkRunnerJobStarted marks a runner job as running with a started_at timestamp,
+// scoped to a tenant.
+func (r *Repository) MarkRunnerJobStarted(ctx context.Context, id, tenantID string) (*models.RunnerJob, error) {
 	var job models.RunnerJob
 	err := r.db.GetContext(ctx, &job,
-		`UPDATE runner_jobs SET status='running', started_at=COALESCE(started_at, NOW()) WHERE id=$1 RETURNING *`, id,
+		`UPDATE runner_jobs SET status='running', started_at=COALESCE(started_at, NOW()) WHERE id=$1 AND tenant_id=$2 RETURNING *`, id, tenantID,
 	)
 	if err != nil {
 		return nil, err
@@ -603,16 +628,16 @@ func (r *Repository) MarkRunnerJobStarted(ctx context.Context, id string) (*mode
 	return &job, nil
 }
 
-// MarkRunnerJobComplete marks a runner job as completed with a result.
-func (r *Repository) MarkRunnerJobComplete(ctx context.Context, id string, result map[string]interface{}) (*models.RunnerJob, error) {
+// MarkRunnerJobComplete marks a runner job as completed with a result, scoped to a tenant.
+func (r *Repository) MarkRunnerJobComplete(ctx context.Context, id, tenantID string, result map[string]interface{}) (*models.RunnerJob, error) {
 	resultJSON, err := json.Marshal(result)
 	if err != nil {
 		return nil, err
 	}
 	var job models.RunnerJob
 	err = r.db.GetContext(ctx, &job,
-		`UPDATE runner_jobs SET status='completed', result=$2, completed_at=NOW() WHERE id=$1 RETURNING *`,
-		id, string(resultJSON),
+		`UPDATE runner_jobs SET status='completed', result=$3, completed_at=NOW() WHERE id=$1 AND tenant_id=$2 RETURNING *`,
+		id, tenantID, string(resultJSON),
 	)
 	if err != nil {
 		return nil, err
@@ -620,12 +645,12 @@ func (r *Repository) MarkRunnerJobComplete(ctx context.Context, id string, resul
 	return &job, nil
 }
 
-// MarkRunnerJobFailed marks a runner job as failed with an error message.
-func (r *Repository) MarkRunnerJobFailed(ctx context.Context, id, errMsg string) (*models.RunnerJob, error) {
+// MarkRunnerJobFailed marks a runner job as failed with an error message, scoped to a tenant.
+func (r *Repository) MarkRunnerJobFailed(ctx context.Context, id, tenantID, errMsg string) (*models.RunnerJob, error) {
 	var job models.RunnerJob
 	err := r.db.GetContext(ctx, &job,
-		`UPDATE runner_jobs SET status='failed', error=$2, completed_at=NOW() WHERE id=$1 RETURNING *`,
-		id, errMsg,
+		`UPDATE runner_jobs SET status='failed', error=$3, completed_at=NOW() WHERE id=$1 AND tenant_id=$2 RETURNING *`,
+		id, tenantID, errMsg,
 	)
 	if err != nil {
 		return nil, err
@@ -633,9 +658,9 @@ func (r *Repository) MarkRunnerJobFailed(ctx context.Context, id, errMsg string)
 	return &job, nil
 }
 
-// DeleteRunnerJob removes a runner job.
-func (r *Repository) DeleteRunnerJob(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM runner_jobs WHERE id=$1`, id)
+// DeleteRunnerJob removes a runner job, scoped to a tenant.
+func (r *Repository) DeleteRunnerJob(ctx context.Context, id, tenantID string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM runner_jobs WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
 

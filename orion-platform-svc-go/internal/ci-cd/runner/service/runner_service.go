@@ -317,14 +317,14 @@ func (s *Service) GetStages(ctx context.Context, runID, tenantID string) ([]mode
 	return s.repo.ListStageExecutionsByRun(ctx, runID, tenantID)
 }
 
-// GetStage returns a stage execution by ID.
-func (s *Service) GetStage(ctx context.Context, stageID string) (*models.StageExecution, error) {
-	return s.repo.GetStageExecutionByID(ctx, stageID)
+// GetStage returns a stage execution by ID, tenant-scoped.
+func (s *Service) GetStage(ctx context.Context, stageID, tenantID string) (*models.StageExecution, error) {
+	return s.repo.GetStageExecutionByID(ctx, stageID, tenantID)
 }
 
-// UpdateStageStatus updates a stage execution's status and timestamps.
-func (s *Service) UpdateStageStatus(ctx context.Context, stageID, status string, startedAt, completedAt *time.Time, errorMsg, logs *string) (*models.StageExecution, error) {
-	return s.repo.UpdateStageExecutionStatus(ctx, stageID, status, startedAt, completedAt, errorMsg, logs)
+// UpdateStageStatus updates a stage execution's status and timestamps, tenant-scoped.
+func (s *Service) UpdateStageStatus(ctx context.Context, stageID, status string, startedAt, completedAt *time.Time, errorMsg, logs *string, tenantID string) (*models.StageExecution, error) {
+	return s.repo.UpdateStageExecutionStatus(ctx, stageID, status, startedAt, completedAt, errorMsg, logs, tenantID)
 }
 
 // ==================== Task Execution ====================
@@ -346,30 +346,30 @@ func (s *Service) AddTask(ctx context.Context, stageID, taskName, taskType strin
 	return te, s.repo.CreateTaskExecution(ctx, te)
 }
 
-// GetTasks returns all task executions for a stage.
-func (s *Service) GetTasks(ctx context.Context, stageID string) ([]models.TaskExecution, error) {
-	return s.repo.ListTaskExecutionsByStage(ctx, stageID)
+// GetTasks returns all task executions for a stage, tenant-scoped.
+func (s *Service) GetTasks(ctx context.Context, stageID, tenantID string) ([]models.TaskExecution, error) {
+	return s.repo.ListTaskExecutionsByStage(ctx, stageID, tenantID)
 }
 
-// GetTask returns a task execution by ID.
-func (s *Service) GetTask(ctx context.Context, taskID string) (*models.TaskExecution, error) {
-	return s.repo.GetTaskExecutionByID(ctx, taskID)
+// GetTask returns a task execution by ID, tenant-scoped.
+func (s *Service) GetTask(ctx context.Context, taskID, tenantID string) (*models.TaskExecution, error) {
+	return s.repo.GetTaskExecutionByID(ctx, taskID, tenantID)
 }
 
-// StartTask transitions a task to running.
-func (s *Service) StartTask(ctx context.Context, taskID string) (*models.TaskExecution, error) {
+// StartTask transitions a task to running, tenant-scoped.
+func (s *Service) StartTask(ctx context.Context, taskID, tenantID string) (*models.TaskExecution, error) {
 	now := time.Now()
 	return s.repo.UpdateTaskExecutionStatus(ctx, taskID, map[string]interface{}{
 		"status":     "running",
 		"started_at": now,
-	})
+	}, tenantID)
 }
 
-// CompleteTask transitions a task to success with output.
-func (s *Service) CompleteTask(ctx context.Context, taskID string, output map[string]interface{}) (*models.TaskExecution, error) {
+// CompleteTask transitions a task to success with output, tenant-scoped.
+func (s *Service) CompleteTask(ctx context.Context, taskID, tenantID string, output map[string]interface{}) (*models.TaskExecution, error) {
 	now := time.Now()
 	// Calculate duration from started_at
-	task, err := s.repo.GetTaskExecutionByID(ctx, taskID)
+	task, err := s.repo.GetTaskExecutionByID(ctx, taskID, tenantID)
 	if err != nil {
 		return nil, ErrTaskNotFound
 	}
@@ -387,13 +387,13 @@ func (s *Service) CompleteTask(ctx context.Context, taskID string, output map[st
 	if durationMs != nil {
 		updates["duration_ms"] = *durationMs
 	}
-	return s.repo.UpdateTaskExecutionStatus(ctx, taskID, updates)
+	return s.repo.UpdateTaskExecutionStatus(ctx, taskID, updates, tenantID)
 }
 
-// FailTask transitions a task to failed with an error message.
-func (s *Service) FailTask(ctx context.Context, taskID, errorMsg string) (*models.TaskExecution, error) {
+// FailTask transitions a task to failed with an error message, tenant-scoped.
+func (s *Service) FailTask(ctx context.Context, taskID, tenantID, errorMsg string) (*models.TaskExecution, error) {
 	now := time.Now()
-	task, err := s.repo.GetTaskExecutionByID(ctx, taskID)
+	task, err := s.repo.GetTaskExecutionByID(ctx, taskID, tenantID)
 	if err != nil {
 		return nil, ErrTaskNotFound
 	}
@@ -411,12 +411,12 @@ func (s *Service) FailTask(ctx context.Context, taskID, errorMsg string) (*model
 	if durationMs != nil {
 		updates["duration_ms"] = *durationMs
 	}
-	return s.repo.UpdateTaskExecutionStatus(ctx, taskID, updates)
+	return s.repo.UpdateTaskExecutionStatus(ctx, taskID, updates, tenantID)
 }
 
-// AppendTaskLogs appends log content to a task execution.
-func (s *Service) AppendTaskLogs(ctx context.Context, taskID, logContent string) error {
-	task, err := s.repo.GetTaskExecutionByID(ctx, taskID)
+// AppendTaskLogs appends log content to a task execution, tenant-scoped.
+func (s *Service) AppendTaskLogs(ctx context.Context, taskID, tenantID, logContent string) error {
+	task, err := s.repo.GetTaskExecutionByID(ctx, taskID, tenantID)
 	if err != nil {
 		return ErrTaskNotFound
 	}
@@ -427,7 +427,7 @@ func (s *Service) AppendTaskLogs(ctx context.Context, taskID, logContent string)
 	newLogs := existing + logContent
 	_, err = s.repo.UpdateTaskExecutionStatus(ctx, taskID, map[string]interface{}{
 		"logs": newLogs,
-	})
+	}, tenantID)
 	return err
 }
 
@@ -447,7 +447,7 @@ func (s *Service) GetRunDetail(ctx context.Context, runID, tenantID string) (*mo
 
 	var allTasks []models.TaskExecution
 	for _, stage := range stages {
-		tasks, err := s.repo.ListTaskExecutionsByStage(ctx, stage.ID)
+		tasks, err := s.repo.ListTaskExecutionsByStage(ctx, stage.ID, tenantID)
 		if err != nil {
 			return run, stages, nil, err
 		}
@@ -511,19 +511,19 @@ func (s *Service) CreateRunnerJob(ctx context.Context, tenantID string, req *mod
 	return job, s.repo.CreateRunnerJob(ctx, job)
 }
 
-// GetRunnerJob returns a runner job by ID.
-func (s *Service) GetRunnerJob(ctx context.Context, id string) (*models.RunnerJob, error) {
-	return s.repo.GetRunnerJobByID(ctx, id)
+// GetRunnerJob returns a runner job by ID, tenant-scoped.
+func (s *Service) GetRunnerJob(ctx context.Context, id, tenantID string) (*models.RunnerJob, error) {
+	return s.repo.GetRunnerJobByID(ctx, id, tenantID)
 }
 
-// ListRunnerJobs returns all jobs for a runner.
-func (s *Service) ListRunnerJobs(ctx context.Context, runnerID string) ([]models.RunnerJob, error) {
-	return s.repo.ListRunnerJobsByRunner(ctx, runnerID)
+// ListRunnerJobs returns all jobs for a runner, tenant-scoped.
+func (s *Service) ListRunnerJobs(ctx context.Context, runnerID, tenantID string) ([]models.RunnerJob, error) {
+	return s.repo.ListRunnerJobsByRunner(ctx, runnerID, tenantID)
 }
 
 // MarkJobStarted marks a runner job as running and increments the runner's job count.
-func (s *Service) MarkJobStarted(ctx context.Context, jobID string) (*models.RunnerJob, error) {
-	job, err := s.repo.MarkRunnerJobStarted(ctx, jobID)
+func (s *Service) MarkJobStarted(ctx context.Context, jobID, tenantID string) (*models.RunnerJob, error) {
+	job, err := s.repo.MarkRunnerJobStarted(ctx, jobID, tenantID)
 	if err != nil {
 		return nil, ErrJobNotFound
 	}
@@ -535,8 +535,8 @@ func (s *Service) MarkJobStarted(ctx context.Context, jobID string) (*models.Run
 }
 
 // MarkJobComplete marks a runner job as completed and releases the runner.
-func (s *Service) MarkJobComplete(ctx context.Context, jobID string, result map[string]interface{}) (*models.RunnerJob, error) {
-	job, err := s.repo.MarkRunnerJobComplete(ctx, jobID, result)
+func (s *Service) MarkJobComplete(ctx context.Context, jobID, tenantID string, result map[string]interface{}) (*models.RunnerJob, error) {
+	job, err := s.repo.MarkRunnerJobComplete(ctx, jobID, tenantID, result)
 	if err != nil {
 		return nil, ErrJobNotFound
 	}
@@ -548,8 +548,8 @@ func (s *Service) MarkJobComplete(ctx context.Context, jobID string, result map[
 }
 
 // MarkJobFailed marks a runner job as failed and releases the runner.
-func (s *Service) MarkJobFailed(ctx context.Context, jobID, errMsg string) (*models.RunnerJob, error) {
-	job, err := s.repo.MarkRunnerJobFailed(ctx, jobID, errMsg)
+func (s *Service) MarkJobFailed(ctx context.Context, jobID, tenantID, errMsg string) (*models.RunnerJob, error) {
+	job, err := s.repo.MarkRunnerJobFailed(ctx, jobID, tenantID, errMsg)
 	if err != nil {
 		return nil, ErrJobNotFound
 	}
@@ -586,7 +586,7 @@ func (s *Service) ExecuteOnRunner(ctx context.Context, runnerID, runnerEndpoint,
 	}
 
 	// 2. Mark job as started (increment runner's current_jobs)
-	started, err := s.MarkJobStarted(ctx, job.ID)
+	started, err := s.MarkJobStarted(ctx, job.ID, job.TenantID)
 	if err != nil {
 		log.Printf("warning: failed to mark job started: %v", err)
 	} else {
